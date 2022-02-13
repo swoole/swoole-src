@@ -852,3 +852,23 @@ TEST(coroutine_socket, writevall_and_readvall) {
         }
     });
 }
+
+TEST(coroutine_socket, sendfile) {
+    coroutine::run([&](void *arg) {
+        int pairs[2];
+        socketpair(AF_UNIX, SOCK_STREAM, 0, pairs);
+        swoole::Coroutine::create([&](void *) {
+            Socket sock(pairs[0], SW_SOCK_UNIX_STREAM);
+            bool result = sock.sendfile(TEST_JPG_FILE, 0, 0);
+            sock.close();
+            ASSERT_TRUE(result);
+        });
+
+        char data[8000];
+        Socket sock(pairs[1], SW_SOCK_UNIX_STREAM);
+        ssize_t result = sock.read(data, 8000);
+        data[result] = '\0';
+        sock.close();
+        ASSERT_GT(result, 0);
+    });
+}
