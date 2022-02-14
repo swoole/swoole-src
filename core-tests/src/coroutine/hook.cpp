@@ -361,3 +361,53 @@ TEST(coroutine_hook, timeout) {
         ASSERT_STREQ(data, text.c_str());
     });
 }
+
+TEST(coroutine_hook, sendmsg_and_recvmsg) {
+    coroutine::run([&](void *arg) {
+        int pairs[2];
+        socketpair(AF_UNIX, SOCK_STREAM, 0, pairs);
+
+        std::string text = "Hello World";
+        size_t length = text.length();
+
+        swoole::Coroutine::create([&](void *) {
+            struct msghdr msg;
+            struct iovec ivec;
+
+            msg.msg_control = nullptr;
+            msg.msg_controllen = 0;
+            msg.msg_flags = 0;
+            msg.msg_name = nullptr;
+            msg.msg_namelen = 0;
+            msg.msg_iov = &ivec;
+            msg.msg_iovlen = 1;
+
+            ivec.iov_base = (void *) text.c_str();
+            ivec.iov_len = length;
+
+            ssize_t ret = swoole_coroutine_sendmsg(pairs[0], &msg, 0);
+            ASSERT_EQ(swoole_coroutine_close(pairs[0]), 0);
+            ASSERT_EQ(ret, length);
+        });
+
+        struct msghdr msg;
+        struct iovec ivec;
+        char buf[length + 1];
+
+        msg.msg_control = nullptr;
+        msg.msg_controllen = 0;
+        msg.msg_flags = 0;
+        msg.msg_name = nullptr;
+        msg.msg_namelen = 0;
+        msg.msg_iov = &ivec;
+        msg.msg_iovlen = 1;
+
+        ivec.iov_base = buf;
+        ivec.iov_len = length;
+
+        ssize_t ret = swoole_coroutine_recvmsg(pairs[1], &msg, 0);
+        buf[ret] = '\0';
+        ASSERT_EQ(swoole_coroutine_close(pairs[1]), 0);
+        ASSERT_STREQ(buf, text.c_str());
+    });
+}
