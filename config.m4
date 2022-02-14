@@ -871,6 +871,10 @@ EOF
     else
         CXXFLAGS="$CXXFLAGS -std=c++11"
     fi
+    
+    if test "$SW_CPU" = "arm"; then
+        PHP_ADD_LIBRARY(atomic, 1, SWOOLE_SHARED_LIBADD)
+    fi
 
     PHP_ADD_BUILD_DIR($ext_builddir/ext-src)
     PHP_ADD_BUILD_DIR($ext_builddir/src/core)
