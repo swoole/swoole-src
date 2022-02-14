@@ -335,3 +335,29 @@ TEST(coroutine_hook, exists) {
         ASSERT_EQ(sock->get_fd(), fd);
     });
 }
+
+TEST(coroutine_hook, timeout) {
+    coroutine::run([&](void *arg) {
+        int pairs[2];
+        socketpair(AF_UNIX, SOCK_STREAM, 0, pairs);
+        std::string text = "Hello World";
+        size_t length = text.length();
+
+        swoole::Coroutine::create([&](void *) {
+            ASSERT_EQ(swoole_coroutine_socket_create(pairs[0]), 0);
+            swoole_coroutine_socket_set_timeout(pairs[0], SO_SNDTIMEO, 0.05);
+            size_t result = swoole_coroutine_write(pairs[0], text.c_str(), length);
+            ASSERT_EQ(swoole_coroutine_close(pairs[0]), 0);
+            ASSERT_EQ(result, length);
+        });
+
+        char data[length + 1];
+        ASSERT_EQ(swoole_coroutine_socket_create(pairs[1]), 0);
+        swoole_coroutine_socket_set_timeout(pairs[1], SO_RCVTIMEO, 0.05);
+        size_t result = swoole_coroutine_read(pairs[1], data, length);
+        data[result] = '\0';
+        ASSERT_EQ(swoole_coroutine_close(pairs[1]), 0);
+        ASSERT_EQ(result, length);
+        ASSERT_STREQ(data, text.c_str());
+    });
+}
