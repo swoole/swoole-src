@@ -98,7 +98,7 @@ static zend_object_handlers swoole_native_curl_exception_handlers;
 #if PHP_VERSION_ID < 80000
 static int le_curl;
 static int le_curl_multi_handle;
-extern int le_curl_share_handle;
+static int le_curl_share_handle;
 #define le_curl_share_handle_name "cURL Share Handle"
 
 int swoole_curl_get_le_curl() {
@@ -107,6 +107,10 @@ int swoole_curl_get_le_curl() {
 
 int swoole_curl_get_le_curl_multi() {
     return le_curl_multi_handle;
+}
+
+int swoole_curl_get_le_curl_share() {
+    return le_curl_share_handle;
 }
 
 #endif
@@ -361,6 +365,15 @@ void swoole_native_curl_minit(int module_number) {
                            "Co\\Coroutine\\Curl\\Exception",
                            nullptr,
                            swoole_exception);
+}
+
+void swoole_native_curl_rinit() {
+#if PHP_VERSION_ID < 80000
+    if (!SWOOLE_G(cli)) {
+        return;
+    }
+    le_curl_share_handle = zend_fetch_list_dtor_id("curl_share");
+#endif
 }
 
 /* CurlHandle class */
