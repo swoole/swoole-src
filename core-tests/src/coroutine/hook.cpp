@@ -23,6 +23,7 @@
 
 using swoole::Coroutine;
 using swoole::String;
+using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 using swoole::test::coroutine;
 
@@ -235,10 +236,8 @@ TEST(coroutine_hook, read_dir) {
 
         swoole_coroutine_closedir(fp);
     };
-    
-    coroutine::run([&](void *arg) {
-        fn();
-    });
+
+    coroutine::run([&](void *arg) { fn(); });
     fn();
 }
 
@@ -254,9 +253,7 @@ TEST(coroutine_hook, readlink) {
         ASSERT_STREQ(buf1, buf2);
     };
 
-    coroutine::run([&](void *arg) {
-        fn();
-    });
+    coroutine::run([&](void *arg) { fn(); });
     fn();
 }
 
@@ -278,9 +275,7 @@ TEST(coroutine_hook, stdio_1) {
         unlink(test_file);
     };
 
-    coroutine::run([&](void *arg) {
-        fn();
-    });
+    coroutine::run([&](void *arg) { fn(); });
     fn();
 }
 
@@ -311,8 +306,31 @@ TEST(coroutine_hook, stdio_2) {
         unlink(test_file);
     };
 
-    coroutine::run([&](void *arg) {
-        fn();
-    });
+    coroutine::run([&](void *arg) { fn(); });
     fn();
+}
+
+TEST(coroutine_hook, sleep) {
+    coroutine::run([&](void *arg) {
+        const int sec = 1;
+        long sec_1 = swoole::time<std::chrono::seconds>();
+        swoole_coroutine_sleep(sec);
+        long sec_2 = swoole::time<std::chrono::seconds>();
+        ASSERT_LE(sec_2 - sec_1, sec);
+
+        const int us = 200;
+        long us_1 = swoole::time<std::chrono::milliseconds>();
+        swoole_coroutine_usleep(us);
+        long us_2 = swoole::time<std::chrono::milliseconds>();
+        ASSERT_LE(us_2 - us_1, us / 1000);
+    });
+}
+
+TEST(coroutine_hook, exists) {
+    coroutine::run([&](void *arg) {
+        const int fd = 100;  // fake fd
+        ASSERT_EQ(swoole_coroutine_socket_create(fd), 0);
+        ASSERT_TRUE(swoole_coroutine_socket_exists(fd));
+        Socket *sock = swoole_coroutine_get_socket_object(fd);
+    });
 }
