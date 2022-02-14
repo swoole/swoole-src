@@ -98,6 +98,8 @@ static zend_object_handlers swoole_native_curl_exception_handlers;
 #if PHP_VERSION_ID < 80000
 static int le_curl;
 static int le_curl_multi_handle;
+extern int le_curl_share_handle;
+#define le_curl_share_handle_name "cURL Share Handle"
 
 int swoole_curl_get_le_curl() {
     return le_curl;
