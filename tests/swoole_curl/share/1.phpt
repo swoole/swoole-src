@@ -19,7 +19,7 @@ $cm->run(function ($host) {
     curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch2, CURLOPT_SHARE, $sh);
 
-// Make sure nothing bad handles if the share handle is unset early.
+    // Make sure nothing bad handles if the share handle is unset early.
     unset($sh);
 
     var_dump(curl_exec($ch1));
