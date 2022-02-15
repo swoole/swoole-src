@@ -21,6 +21,8 @@
 #include "swoole_file.h"
 #include "swoole_util.h"
 
+using namespace swoole::test;
+
 using swoole::Coroutine;
 using swoole::String;
 using swoole::coroutine::Socket;
@@ -343,8 +345,15 @@ TEST(coroutine_hook, timeout) {
         std::string text = "Hello World";
         size_t length = text.length();
 
+        // unregister fd
+        ASSERT_EQ(swoole_coroutine_socket_set_timeout(pairs[0], SO_SNDTIMEO, 0.05), -1);
+
         swoole::Coroutine::create([&](void *) {
             ASSERT_EQ(swoole_coroutine_socket_create(pairs[0]), 0);
+
+            // unknown which
+            ASSERT_EQ(swoole_coroutine_socket_set_timeout(pairs[0], 100, 0.05), -1);
+
             swoole_coroutine_socket_set_timeout(pairs[0], SO_SNDTIMEO, 0.05);
             size_t result = swoole_coroutine_write(pairs[0], text.c_str(), length);
             ASSERT_EQ(swoole_coroutine_close(pairs[0]), 0);
@@ -410,4 +419,12 @@ TEST(coroutine_hook, sendmsg_and_recvmsg) {
         ASSERT_EQ(swoole_coroutine_close(pairs[1]), 0);
         ASSERT_STREQ(buf, text.c_str());
     });
+}
+
+TEST(coroutine_hook, lseek) {
+    std::string file = get_jpg_file();
+    int fd = swoole_coroutine_open(file.c_str(), O_RDONLY, 'r');
+    off_t offset = swoole_coroutine_lseek(fd, 0, SEEK_SET);
+    swoole_coroutine_close(fd);
+    ASSERT_EQ(offset, 0);
 }
