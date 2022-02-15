@@ -253,6 +253,9 @@ struct real_func {
 void php_swoole_runtime_rinit() {
     tmp_function_table = (zend_array *) emalloc(sizeof(zend_array));
     zend_hash_init(tmp_function_table, 8, nullptr, nullptr, 0);
+#ifdef SW_USE_CURL
+    swoole_native_curl_rinit();
+#endif
 }
 
 void php_swoole_runtime_rshutdown() {

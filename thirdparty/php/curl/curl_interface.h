@@ -10,6 +10,7 @@ SW_EXTERN_C_BEGIN
 
 void swoole_native_curl_minit(int module_number);
 void swoole_native_curl_mshutdown();
+void swoole_native_curl_rinit();
 
 PHP_FUNCTION(swoole_native_curl_close);
 PHP_FUNCTION(swoole_native_curl_copy_handle);

@@ -98,6 +98,8 @@ static zend_object_handlers swoole_native_curl_exception_handlers;
 #if PHP_VERSION_ID < 80000
 static int le_curl;
 static int le_curl_multi_handle;
+static int le_curl_share_handle;
+#define le_curl_share_handle_name "cURL Share Handle"
 
 int swoole_curl_get_le_curl() {
     return le_curl;
@@ -105,6 +107,10 @@ int swoole_curl_get_le_curl() {
 
 int swoole_curl_get_le_curl_multi() {
     return le_curl_multi_handle;
+}
+
+int swoole_curl_get_le_curl_share() {
+    return le_curl_share_handle;
 }
 
 #endif
@@ -359,6 +365,15 @@ void swoole_native_curl_minit(int module_number) {
                            "Co\\Coroutine\\Curl\\Exception",
                            nullptr,
                            swoole_exception);
+}
+
+void swoole_native_curl_rinit() {
+#if PHP_VERSION_ID < 80000
+    if (!SWOOLE_G(cli)) {
+        return;
+    }
+    le_curl_share_handle = zend_fetch_list_dtor_id("curl_share");
+#endif
 }
 
 /* CurlHandle class */
@@ -2176,8 +2191,25 @@ static int _php_curl_setopt(php_curl *ch, zend_long option, zval *zvalue) /* {{{
         break;
 
     case CURLOPT_SHARE: {
-        php_error_docref(NULL, E_WARNING, "CURLOPT_SHARE option is not supported");
-    } break;
+#if PHP_VERSION_ID >= 80000
+        if (Z_TYPE_P(zvalue) == IS_OBJECT && Z_OBJCE_P(zvalue) == curl_share_ce) {
+            php_curlsh *sh = Z_CURL_SHARE_P(zvalue);
+            curl_easy_setopt(ch->cp, CURLOPT_SHARE, sh->share);
+
+            if (ch->share) {
+                OBJ_RELEASE(&ch->share->std);
+            }
+            GC_ADDREF(&sh->std);
+            ch->share = sh;
+        }
+#else
+        php_curlsh *sh;
+        if ((sh = (php_curlsh *) zend_fetch_resource_ex(zvalue, le_curl_share_handle_name, le_curl_share_handle))) {
+            curl_easy_setopt(ch->cp, CURLOPT_SHARE, sh->share);
+        }
+#endif
+        break;
+    }
 
 #if LIBCURL_VERSION_NUM >= 0x071500 /* Available since 7.21.0 */
     case CURLOPT_FNMATCH_FUNCTION:
