@@ -320,7 +320,7 @@ TEST(coroutine_hook, sleep) {
         long sec_2 = swoole::time<std::chrono::seconds>();
         ASSERT_LE(sec_2 - sec_1, sec);
 
-        const int us = 200;
+        const int us = 2000;
         long us_1 = swoole::time<std::chrono::milliseconds>();
         swoole_coroutine_usleep(us);
         long us_2 = swoole::time<std::chrono::milliseconds>();
