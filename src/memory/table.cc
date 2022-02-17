@@ -398,8 +398,7 @@ bool Table::del(const char *key, uint16_t keylen) {
             memcpy(row->key, tmp->key, tmp->key_len + 1);
             row->key_len = tmp->key_len;
             memcpy(row->data, tmp->data, item_size);
-        }
-        if (prev) {
+        } else {
             prev->next = tmp->next;
         }
         lock();
