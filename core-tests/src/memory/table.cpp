@@ -187,16 +187,23 @@ static void create_table(table_t &table) {
 
 TEST(table, conflict1) {
     table_t table(test_table_size);
+    ASSERT_FALSE(table.exists("swift"));
+
     create_table(table);
     auto ptr = table.ptr();
 
+    ASSERT_FALSE(table.exists("kotlin"));
+
     ASSERT_TRUE(table.del("php"));
+    ASSERT_FALSE(table.exists("php"));
     ASSERT_TRUE(table.set("rust", {"rust", 5, 9.888}));
 
     ASSERT_TRUE(table.del("golang"));
+    ASSERT_FALSE(table.exists("golang"));
     ASSERT_TRUE(table.set("erlang", {"erlang", 6, 12.888}));
 
     ASSERT_TRUE(table.del("java"));
+    ASSERT_FALSE(table.exists("java"));
 
     ASSERT_EQ(ptr->get_total_slice_num() - ptr->get_available_slice_num(), table.count() - 1);
 }
@@ -207,9 +214,11 @@ TEST(table, conflict2) {
     auto ptr = table.ptr();
 
     ASSERT_TRUE(table.del("java"));
+    ASSERT_FALSE(table.exists("java"));
     ASSERT_TRUE(table.set("rust", {"rust", 5, 9.888}));
 
     ASSERT_TRUE(table.del("golang"));
+    ASSERT_FALSE(table.exists("golang"));
     ASSERT_TRUE(table.set("erlang", {"erlang", 6, 12.888}));
 
     ASSERT_EQ(ptr->get_total_slice_num() - ptr->get_available_slice_num(), table.count() - 1);
