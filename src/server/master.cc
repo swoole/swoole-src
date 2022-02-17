@@ -96,8 +96,10 @@ void Server::close_port(bool only_stream_port) {
 void Server::call_command_callback(int64_t request_id, const std::string &result) {
     auto iter = command_callbacks.find(request_id);
     if (iter == command_callbacks.end()) {
-        swoole_error_log(
-            SW_LOG_ERROR, SW_ERROR_SERVER_INVALID_COMMAND, "Invalid command result[request_id=%" PRId64 "]", request_id);
+        swoole_error_log(SW_LOG_ERROR,
+                         SW_ERROR_SERVER_INVALID_COMMAND,
+                         "Invalid command result[request_id=%" PRId64 "]",
+                         request_id);
         return;
     }
     iter->second(this, result);
@@ -1233,23 +1235,12 @@ int Server::schedule_worker(int fd, SendData *data) {
         return conn->worker_id;
     } else if (dispatch_mode == DISPATCH_CO_REQ_LB) {
         return get_lowest_load_worker_id();
+    } else if (dispatch_mode == DISPATCH_CONCURRENT_LB) {
+        return get_lowest_concurrent_worker_id();
     }
     // deliver tasks to idle worker processes
     else {
-        uint32_t i;
-        bool found = false;
-        for (i = 0; i < worker_num + 1; i++) {
-            key = sw_atomic_fetch_add(&worker_round_id, 1) % worker_num;
-            if (workers[key].status == SW_WORKER_IDLE) {
-                found = true;
-                break;
-            }
-        }
-        if (sw_unlikely(!found)) {
-            scheduler_warning = true;
-        }
-        swoole_trace_log(SW_TRACE_SERVER, "schedule=%d, round=%d", key, worker_round_id);
-        return key;
+        return get_idle_worker_id();
     }
 
     return key % worker_num;
