@@ -1750,8 +1750,18 @@ static int _php_curl_setopt(php_curl *ch, zend_long option, zval *zvalue, bool i
         break;
 
     case CURLOPT_SHARE: {
-        php_error_docref(NULL, E_WARNING, "CURLOPT_SHARE option is not supported");
-    } break;
+        if (Z_TYPE_P(zvalue) == IS_OBJECT && Z_OBJCE_P(zvalue) == curl_share_ce) {
+            php_curlsh *sh = Z_CURL_SHARE_P(zvalue);
+            curl_easy_setopt(ch->cp, CURLOPT_SHARE, sh->share);
+
+            if (ch->share) {
+                OBJ_RELEASE(&ch->share->std);
+            }
+            GC_ADDREF(&sh->std);
+            ch->share = sh;
+        }
+        break;
+    }
 
     case CURLOPT_FNMATCH_FUNCTION:
         curl_easy_setopt(ch->cp, CURLOPT_FNMATCH_FUNCTION, fn_fnmatch);
