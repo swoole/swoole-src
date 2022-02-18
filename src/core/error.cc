@@ -198,6 +198,8 @@ const char *swoole_strerror(int code) {
         return "Server connect fail";
     case SW_ERROR_SERVER_INVALID_COMMAND:
         return "Server invalid command";
+    case SW_ERROR_SERVER_IS_NOT_REGULAR_FILE:
+        return "Server is not regular file";
     case SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT:
         return "Server worker exit timeout";
     case SW_ERROR_SERVER_WORKER_ABNORMAL_PIPE_DATA:

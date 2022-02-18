@@ -51,10 +51,10 @@
         <email>doubaokun@php.net</email>
         <active>yes</active>
     </developer>
-    <date>2022-01-11</date>
-    <time>18:00:00</time>
+    <date>2022-02-18</date>
+    <time>14:00:00</time>
     <version>
-        <release>4.8.6</release>
+        <release>4.8.7</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -63,8 +63,10 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        - Added prefix to boost/context API names
-        - Optimized configure options
+        - Added curl_share supports
+        - Fixed symbol undefined on arm32 platform
+        - Fixed clock_gettime() compatibility
+        - Fixed issue where server sending fails with PROCESS mode when kernel lacks large block of memory
     </notes>
     <contents>
         <dir name="/">
@@ -1137,6 +1139,8 @@
             <file role="test" name="tests/swoole_curl/setopt/header_out.phpt" />
             <file role="test" name="tests/swoole_curl/setopt/infile.phpt" />
             <file role="test" name="tests/swoole_curl/setopt/nobody.phpt" />
+            <file role="test" name="tests/swoole_curl/share/1.phpt" />
+            <file role="test" name="tests/swoole_curl/share/5.phpt" />
             <file role="test" name="tests/swoole_curl/sleep.phpt" />
             <file role="test" name="tests/swoole_curl/ssl/version.phpt" />
             <file role="test" name="tests/swoole_curl/symfony-noco.phpt" />
@@ -1362,6 +1366,8 @@
             <file role="test" name="tests/swoole_http_server/send_empty_file.phpt" />
             <file role="test" name="tests/swoole_http_server/send_yield.phpt" />
             <file role="test" name="tests/swoole_http_server/sendfile.phpt" />
+            <file role="test" name="tests/swoole_http_server/sendfile_dir.phpt" />
+            <file role="test" name="tests/swoole_http_server/sendfile_link.phpt" />
             <file role="test" name="tests/swoole_http_server/sendfile_no_keepalive.phpt" />
             <file role="test" name="tests/swoole_http_server/sendfile_with_dispatch_mode_7.phpt" />
             <file role="test" name="tests/swoole_http_server/sendfile_with_ssl.phpt" />
@@ -1847,6 +1853,7 @@
             <file role="test" name="tests/swoole_server/sendMessage_02.phpt" />
             <file role="test" name="tests/swoole_server/sendMessage_in_manager.phpt" />
             <file role="test" name="tests/swoole_server/send_2.phpt" />
+            <file role="test" name="tests/swoole_server/send_2m.phpt" />
             <file role="test" name="tests/swoole_server/send_2m_in_task_worker.phpt" />
             <file role="test" name="tests/swoole_server/send_2m_in_user_process.phpt" />
             <file role="test" name="tests/swoole_server/send_3.phpt" />

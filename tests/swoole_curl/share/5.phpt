@@ -1,5 +1,7 @@
 --TEST--
-Basic curl_share test
+swoole_curl/share: Basic curl_share test
+--SKIPIF--
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
