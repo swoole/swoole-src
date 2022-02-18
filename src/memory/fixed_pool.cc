@@ -170,8 +170,7 @@ void *FixedPool::alloc(uint32_t size) {
 }
 
 void FixedPool::free(void *ptr) {
-    FixedPoolSlice *slice;
-    slice = (FixedPoolSlice *) ((char *) ptr - sizeof(FixedPoolSlice));
+    FixedPoolSlice *slice = (FixedPoolSlice *) ((char *) ptr - sizeof(FixedPoolSlice));
 
     assert(ptr > impl->memory && (char *) ptr < (char *) impl->memory + impl->size);
     assert(slice->lock == 1);
@@ -209,7 +208,7 @@ FixedPool::~FixedPool() {
     }
 }
 
-void FixedPool::debug() {
+void FixedPool::debug(int max_lines) {
     int line = 0;
     FixedPoolSlice *slice = impl->head;
 
@@ -220,15 +219,16 @@ void FixedPool::debug() {
         }
 
         printf("#%d\t", line);
-        printf("Slab[%p]\t", slice);
+        printf("slice[%p]\t", slice);
         printf("prev=%p\t", slice->prev);
         printf("next=%p\t", slice->next);
         printf("tag=%d\t", slice->lock);
         printf("data=%p\n", slice->data);
 
         slice = slice->next;
-        line++;
-        if (line > 100) break;
+        if (line++ > max_lines) {
+            break;
+        }
     }
 }
 
