@@ -256,7 +256,8 @@ static PHP_METHOD(swoole_table, create) {
         RETURN_FALSE;
     }
     zend_update_property_long(swoole_table_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("size"), table->get_size());
-    zend_update_property_long(swoole_table_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("memorySize"), table->get_memory_size());
+    zend_update_property_long(
+        swoole_table_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("memorySize"), table->get_memory_size());
     RETURN_TRUE;
 }
 
@@ -304,7 +305,7 @@ static PHP_METHOD(swoole_table, set) {
             TableColumn *col = *i;
             zval *zv = zend_hash_str_find(ht, col->name.c_str(), col->name.length());
             if (zv == nullptr || ZVAL_IS_NULL(zv)) {
-                 col->clear(row);
+                col->clear(row);
             } else {
                 if (col->type == TableColumn::TYPE_STRING) {
                     zend_string *str = zval_get_string(zv);
