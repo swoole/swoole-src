@@ -183,3 +183,76 @@ TEST(coroutine_system, wait_event_writable) {
         EXPECT_STREQ(sw_tg_buffer()->value(), str.value());
     });
 }
+
+TEST(coroutine_system, swoole_stream_select) {
+    UnixSocket p(true, SOCK_STREAM);
+    std::unordered_map<int, swoole::coroutine::PollSocket> fds;
+    fds.emplace(std::make_pair(p.get_socket(false)->fd, swoole::coroutine::PollSocket(SW_EVENT_READ, nullptr)));
+
+    test::coroutine::run([&](void *arg) {
+        // try timeout to trigger socket_poll_timeout function
+        ASSERT_FALSE(System::socket_poll(fds, 0.5));
+    });
+
+    // start normal process
+    test::coroutine::run([&](void *arg) {
+        std::string text = "Hello world";
+        size_t len = text.length();
+
+        // child pipe
+        Coroutine::create([&](void *) {
+            System::sleep(0.05);
+            auto pipe_sock = p.get_socket(true);
+            const char *ptr = text.c_str();
+            ASSERT_EQ(pipe_sock->write(ptr, len), len);
+        });
+
+        // master pipe
+        bool result = System::socket_poll(fds, 0.5);
+        ASSERT_TRUE(result);
+
+        char buffer[128];
+        auto pipe_sock = p.get_socket(false);
+        ssize_t retval = pipe_sock->read(buffer, sizeof(buffer));
+        buffer[retval] = '\0';
+
+        ASSERT_EQ(retval, len);
+        const char *ptr = text.c_str();
+        ASSERT_STREQ(ptr, buffer);
+    });
+}
+
+TEST(coroutine_system, timeout_is_zero) {
+    UnixSocket p(true, SOCK_STREAM);
+    std::unordered_map<int, swoole::coroutine::PollSocket> fds;
+    fds.emplace(std::make_pair(p.get_socket(false)->fd, swoole::coroutine::PollSocket(SW_EVENT_READ, nullptr)));
+
+    // timeout is 0
+    test::coroutine::run([&](void *arg) {
+        std::string text = "Hello world";
+        size_t len = text.length();
+
+        // child pipe
+        Coroutine::create([&](void *) {
+            auto pipe_sock = p.get_socket(true);
+            const char *ptr = text.c_str();
+            ASSERT_EQ(pipe_sock->write(ptr, len), len);
+        });
+
+        // master pipe
+        bool result = System::socket_poll(fds, 0);
+        ASSERT_TRUE(result);
+
+        // child pipe
+        Coroutine::create([&](void *) {
+            auto pipe_sock = p.get_socket(true);
+            const char *ptr = text.c_str();
+            ASSERT_EQ(pipe_sock->write(ptr, len), len);
+        });
+
+        // master pipe
+        auto pipe_sock = p.get_socket(false);
+        result = System::wait_event(pipe_sock->get_fd(), SW_EVENT_READ, 0);
+        ASSERT_TRUE(result);
+    });
+}

@@ -67,7 +67,7 @@ TEST(coroutine_gethostbyname, resolve_cache_inet4_and_inet6) {
 
 TEST(coroutine_gethostbyname, dns_expire) {
     coroutine::run([](void *arg) {
-        time_t expire = 2;
+        time_t expire = 0.2;
         System::set_dns_cache_expire(expire);
         System::gethostbyname(domain_tencent, AF_INET);
 
@@ -75,12 +75,12 @@ TEST(coroutine_gethostbyname, dns_expire) {
         System::gethostbyname(domain_tencent, AF_INET);
         with_cache = Timer::get_absolute_msec() - with_cache;
 
-        sleep(3);
+        sleep(0.3);
         int64_t without_cache = Timer::get_absolute_msec();
         System::gethostbyname(domain_tencent, AF_INET);
         without_cache = Timer::get_absolute_msec() - without_cache;
 
-        ASSERT_GT(without_cache, with_cache);
+        ASSERT_GE(without_cache, with_cache);
         System::clear_dns_cache();
     });
 }
