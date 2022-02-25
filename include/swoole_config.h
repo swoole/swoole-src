@@ -76,7 +76,7 @@
 #else
 #define SW_IPC_MAX_SIZE 8192  // for IPC, dgram and message-queue max size
 #endif
-#define SW_IPC_BUFFER_MAX_SIZE (256 * 1024)
+#define SW_IPC_BUFFER_MAX_SIZE (64 * 1024)
 #define SW_IPC_BUFFER_SIZE (SW_IPC_MAX_SIZE - sizeof(swoole::DataHead))
 // !!!End.-------------------------------------------------------------------
 
