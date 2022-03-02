@@ -872,11 +872,7 @@ static php_stream *stream_opener(php_stream_wrapper *wrapper,
         const zend_op *opline = EG(current_execute_data)->opline;
         if (opline && opline->opcode == ZEND_INCLUDE_OR_EVAL &&
             (opline->extended_value & (ZEND_INCLUDE | ZEND_INCLUDE_ONCE | ZEND_REQUIRE | ZEND_REQUIRE_ONCE))) {
-            size_t path_len = strlen(path);
-            size_t phar_len = sizeof(".phar") - 1;
-            if (path_len > phar_len && memcmp(path + path_len - phar_len, ".phar", phar_len) == 0) {
-                goto _open_for_include;
-            }
+            goto _open_for_include;
         }
     }
     /** include file, cannot use async-io */
