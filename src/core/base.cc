@@ -400,7 +400,6 @@ pid_t swoole_fork(int flags) {
     return pid;
 }
 
-#ifdef SW_DEBUG
 void swoole_dump_ascii(const char *data, size_t size) {
     for (size_t i = 0; i < size; i++) {
         printf("%u ", (unsigned) data[i]);
@@ -434,7 +433,6 @@ void swoole_dump_hex(const char *data, size_t outlen) {
     }
     printf("\n");
 }
-#endif
 
 /**
  * Recursive directory creation
