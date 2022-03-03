@@ -185,7 +185,7 @@ class Client {
     int parse_header(Stream *stream, int flags, char *in, size_t inlen);
 
     bool send_in_read_channel(const char *buf, size_t len) {
-        if (client->has_bound_co(SW_EVENT_WRITE)) {
+        if (client->has_bound(SW_EVENT_WRITE)) {
             send_queue.push(zend_string_init(buf, len, 0));
             return true;
         } else {
