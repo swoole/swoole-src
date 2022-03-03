@@ -194,6 +194,12 @@ class Client {
 
     inline bool send(const char *buf, size_t len) {
         if (client->has_bound(SW_EVENT_WRITE)) {
+            if (send_queue.size() > remote_settings.max_concurrent_streams) {
+                client->errCode = SW_ERROR_QUEUE_FULL;
+                client->errMsg = "the send queue is full, try again later";
+                io_error();
+                return false;
+            }
             send_queue.push(zend_string_init(buf, len, 0));
             return true;
         }
