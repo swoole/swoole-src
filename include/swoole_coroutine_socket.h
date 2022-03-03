@@ -245,6 +245,10 @@ class Socket {
         }
     }
 
+    bool has_bound_co(const EventType event) {
+        return get_bound_cid(event) != 0;
+    }
+
     inline void set_err(int e) {
         errCode = errno = e;
         swoole_set_last_error(errCode);

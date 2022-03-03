@@ -184,8 +184,13 @@ class Client {
     bool send_setting();
     int parse_header(Stream *stream, int flags, char *in, size_t inlen);
 
-    void append(const char *buf, size_t len) {
-        send_queue.push(zend_string_init(buf, len, 0));
+    bool send_in_read_channel(const char *buf, size_t len) {
+        if (client->has_bound_co(SW_EVENT_WRITE)) {
+            send_queue.push(zend_string_init(buf, len, 0));
+            return true;
+        } else {
+            return send(buf, len);
+        }
     }
 
     void clean_send_queue() {
@@ -197,18 +202,21 @@ class Client {
     }
 
     inline bool send(const char *buf, size_t len) {
+        if (sw_unlikely(client->send_all(buf, len) != (ssize_t) len)) {
+            io_error();
+            return false;
+        }
         while (send_queue.size() > 0) {
             zend_string *frame = send_queue.front();
             if (sw_unlikely(client->send_all(frame->val, frame->len) != (ssize_t) frame->len)) {
                 io_error();
+                zend_throw_exception(swoole_http2_client_coro_exception_ce,
+                                     "failed to send control frame",
+                                     SW_ERROR_HTTP2_SEND_CONTROL_FRAME_FAILED);
                 return false;
             }
             send_queue.pop();
             zend_string_release(frame);
-        }
-        if (sw_unlikely(client->send_all(buf, len) != (ssize_t) len)) {
-            io_error();
-            return false;
         }
         return true;
     }
@@ -593,7 +601,9 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
         }
 
         Http2::set_frame_header(frame, SW_HTTP2_TYPE_SETTINGS, 0, SW_HTTP2_FLAG_ACK, stream_id);
-        append(frame, SW_HTTP2_FRAME_HEADER_SIZE);
+        if (!send_in_read_channel(frame, SW_HTTP2_FRAME_HEADER_SIZE)) {
+            return SW_ERROR;
+        }
         return SW_CONTINUE;
     }
     case SW_HTTP2_TYPE_WINDOW_UPDATE: {
@@ -616,7 +626,9 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
                 frame, SW_HTTP2_TYPE_PING, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE, SW_HTTP2_FLAG_ACK, stream_id);
             memcpy(
                 frame + SW_HTTP2_FRAME_HEADER_SIZE, buf + SW_HTTP2_FRAME_HEADER_SIZE, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE);
-            append(frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE);
+            if (!send_in_read_channel(frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE)) {
+                return SW_ERROR;
+            }
         }
         return SW_CONTINUE;
     }
@@ -867,8 +879,7 @@ bool Client::send_window_update(int stream_id, uint32_t size) {
     swoole_trace_log(SW_TRACE_HTTP2, "[" SW_ECHO_YELLOW "] stream_id=%d, size=%d", "WINDOW_UPDATE", stream_id, size);
     *(uint32_t *) ((char *) frame + SW_HTTP2_FRAME_HEADER_SIZE) = htonl(size);
     Http2::set_frame_header(frame, SW_HTTP2_TYPE_WINDOW_UPDATE, SW_HTTP2_WINDOW_UPDATE_SIZE, 0, stream_id);
-    append(frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_WINDOW_UPDATE_SIZE);
-    return true;
+    return send_in_read_channel(frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_WINDOW_UPDATE_SIZE);
 }
 
 /**
