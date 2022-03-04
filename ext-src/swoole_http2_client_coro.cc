@@ -84,6 +84,7 @@ class Client {
     Http2::Settings remote_settings = {};
 
     std::unordered_map<uint32_t, Stream *> streams;
+    std::queue<zend_string *> send_queue;
 
     /* safety zval */
     zval _zobject;
@@ -183,10 +184,40 @@ class Client {
     bool send_setting();
     int parse_header(Stream *stream, int flags, char *in, size_t inlen);
 
+    void clean_send_queue() {
+        while (send_queue.size() > 0) {
+            zend_string *frame = send_queue.front();
+            send_queue.pop();
+            zend_string_release(frame);
+        }
+    }
+
     inline bool send(const char *buf, size_t len) {
+        if (client->has_bound(SW_EVENT_WRITE)) {
+            if (send_queue.size() > remote_settings.max_concurrent_streams) {
+                client->errCode = SW_ERROR_QUEUE_FULL;
+                client->errMsg = "the send queue is full, try again later";
+                io_error();
+                return false;
+            }
+            send_queue.push(zend_string_init(buf, len, 0));
+            return true;
+        }
         if (sw_unlikely(client->send_all(buf, len) != (ssize_t) len)) {
             io_error();
             return false;
+        }
+        while (send_queue.size() > 0) {
+            zend_string *frame = send_queue.front();
+            if (sw_unlikely(client->send_all(frame->val, frame->len) != (ssize_t) frame->len)) {
+                io_error();
+                zend_throw_exception(swoole_http2_client_coro_exception_ce,
+                                     "failed to send control frame",
+                                     SW_ERROR_HTTP2_SEND_CONTROL_FRAME_FAILED);
+                return false;
+            }
+            send_queue.pop();
+            zend_string_release(frame);
         }
         return true;
     }
@@ -471,6 +502,7 @@ bool Client::close() {
     if (!_client) {
         return false;
     }
+    clean_send_queue();
     zend_update_property_bool(swoole_http2_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("connected"), 0);
     if (!_client->has_bound()) {
         auto i = streams.begin();
@@ -840,6 +872,9 @@ static PHP_METHOD(swoole_http2_client_coro, set) {
     RETURN_TRUE;
 }
 
+/**
+ * called in read channel
+ */
 bool Client::send_window_update(int stream_id, uint32_t size) {
     char frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_WINDOW_UPDATE_SIZE];
     swoole_trace_log(SW_TRACE_HTTP2, "[" SW_ECHO_YELLOW "] stream_id=%d, size=%d", "WINDOW_UPDATE", stream_id, size);
@@ -848,6 +883,9 @@ bool Client::send_window_update(int stream_id, uint32_t size) {
     return send(frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_WINDOW_UPDATE_SIZE);
 }
 
+/**
+ * called on connect
+ */
 bool Client::send_setting() {
     Http2::Settings *settings = &local_settings;
     uint16_t id = 0;
@@ -1112,6 +1150,9 @@ Stream *Client::create_stream(uint32_t stream_id, uint8_t flags) {
     return stream;
 }
 
+/**
+ * called in write channel
+ */
 bool Client::send_ping_frame() {
     char frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE];
     Http2::set_frame_header(frame, SW_HTTP2_TYPE_PING, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE, SW_HTTP2_FLAG_NONE, 0);
@@ -1143,6 +1184,9 @@ bool Client::send_data(uint32_t stream_id, const char *p, size_t len, int flag) 
     return true;
 }
 
+/**
+ * called in write channel
+ */
 uint32_t Client::send_request(zval *zrequest) {
     zval *zheaders =
         sw_zend_read_and_convert_property_array(swoole_http2_request_ce, zrequest, ZEND_STRL("headers"), 0);
@@ -1237,6 +1281,9 @@ uint32_t Client::send_request(zval *zrequest) {
     return stream->stream_id;
 }
 
+/**
+ * called in write channel
+ */
 bool Client::write_data(uint32_t stream_id, zval *zdata, bool end) {
     char buffer[SW_HTTP2_FRAME_HEADER_SIZE];
     Stream *stream = get_stream(stream_id);
@@ -1290,6 +1337,9 @@ bool Client::write_data(uint32_t stream_id, zval *zdata, bool end) {
     return true;
 }
 
+/**
+ * called in write channel
+ */
 bool Client::send_goaway_frame(zend_long error_code, const char *debug_data, size_t debug_data_len) {
     size_t length = SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_GOAWAY_SIZE + debug_data_len;
     char *frame = (char *) ecalloc(1, length);
