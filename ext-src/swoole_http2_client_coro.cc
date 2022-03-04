@@ -270,7 +270,7 @@ class Client {
             zend_string_release(exception);
             zend_throw_exception(swoole_http2_client_coro_exception_ce,
                                  "failed to send HTTP2 frame",
-                                 SW_ERROR_HTTP2_SEND_CONTROL_FRAME_FAILED);
+                                 SW_ERROR_HTTP2_SEND_FRAME_FAILED);
             return false;
         }
 
