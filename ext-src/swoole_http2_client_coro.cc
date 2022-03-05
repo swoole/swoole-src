@@ -98,10 +98,6 @@ class Packets {
         return (zend_string *) frames->pop();
     }
 
-    inline bool is_empty() {
-        return frames->is_empty();
-    }
-
     inline bool close() {
         if (is_close) {
             return false;
@@ -262,7 +258,16 @@ class Client {
     void consume();
 
     inline bool send(const char *buf, size_t len) {
+        if (!packets) {
+            zend_throw_exception(
+                swoole_http2_client_coro_exception_ce, "packets channel has closed", SW_ERROR_HTTP2_SEND_FRAME_FAILED);
+            return false;
+        }
+
         if (sw_unlikely(!packets->push_frame(buf, len))) {
+            zend_throw_exception(swoole_http2_client_coro_exception_ce,
+                                 "can not push data into channel",
+                                 SW_ERROR_HTTP2_SEND_FRAME_FAILED);
             return false;
         }
 
@@ -561,6 +566,7 @@ bool Client::close() {
     }
     if (packets->close()) {
         delete packets;
+        packets = nullptr;
     }
     zend_update_property_bool(swoole_http2_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("connected"), 0);
     if (!_client->has_bound()) {
@@ -1080,11 +1086,7 @@ int Client::parse_header(Stream *stream, int flags, char *in, size_t inlen) {
 void Client::consume() {
     zend_string *frame = nullptr;
 
-    while (!packets->is_empty()) {
-        frame = packets->pop_frame();
-        if (!frame) {
-            return;
-        }
+    while ((frame = packets->pop_frame())) {
         if (sw_unlikely(client->send_all(frame->val, frame->len) != (ssize_t) frame->len)) {
             io_error();
             packets->push_result(false);
