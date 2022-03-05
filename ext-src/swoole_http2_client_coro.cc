@@ -74,20 +74,28 @@ class Packets {
         exceptions = new Channel();
     }
 
-    inline bool produce(const char *buf, size_t len, bool is_frame = true) {
+    inline bool push_result(bool is_success = true) {
+        if (is_close) {
+            return false;
+        }
+        return is_success ? exceptions->push((void *) success.c_str()) : exceptions->push((void *) failed.c_str());
+    }
+
+    inline bool push_frame(const char *buf, size_t len, bool is_frame = true) {
         if (is_close) {
             return false;
         }
 
         zend_string *value = zend_string_init(buf, len, 0);
-        if (is_frame) {
-            return frames->push((void *) value);
-        }
-        return exceptions->push((void *) value);
+        return frames->push((void *) value);
     }
 
-    inline zend_string *consume(bool is_frame = true) {
-        return is_frame ? (zend_string *) frames->pop() : (zend_string *) exceptions->pop();
+    inline const char *pop_result() {
+        return (const char *) exceptions->pop();
+    }
+
+    inline zend_string *pop_frame() {
+        return (zend_string *) frames->pop();
     }
 
     inline bool is_empty() {
@@ -109,11 +117,6 @@ class Packets {
             delete frames;
         }
 
-        while (!exceptions->is_empty()) {
-            value = (zend_string *) exceptions->pop();
-            zend_string_release(value);
-        }
-
         if (exceptions->close()) {
             delete exceptions;
         }
@@ -129,6 +132,8 @@ class Packets {
     }
 
   private:
+    std::string success = "true";
+    std::string failed = "false";
     bool is_close = false;
     Channel *frames = nullptr;
     Channel *exceptions = nullptr;
@@ -257,7 +262,7 @@ class Client {
     void consume();
 
     inline bool send(const char *buf, size_t len) {
-        if (sw_unlikely(!packets->produce(buf, len))) {
+        if (sw_unlikely(!packets->push_frame(buf, len))) {
             return false;
         }
 
@@ -265,16 +270,12 @@ class Client {
             cid = Coroutine::create([this](void *arg) -> void { this->consume(); }, nullptr);
         }
 
-        zend_string *exception = packets->consume(false);
-        if (!strcmp(exception->val, "true")) {
-            zend_string_release(exception);
-            zend_throw_exception(swoole_http2_client_coro_exception_ce,
-                                 "failed to send HTTP2 frame",
-                                 SW_ERROR_HTTP2_SEND_FRAME_FAILED);
+        const char *exception = packets->pop_result();
+        if (!strcmp(exception, "false")) {
+            zend_throw_exception(
+                swoole_http2_client_coro_exception_ce, "failed to send HTTP2 frame", SW_ERROR_HTTP2_SEND_FRAME_FAILED);
             return false;
         }
-
-        zend_string_release(exception);
         return true;
     }
 };
@@ -558,7 +559,9 @@ bool Client::close() {
     if (!_client) {
         return false;
     }
-    packets->close();
+    if (packets->close()) {
+        delete packets;
+    }
     zend_update_property_bool(swoole_http2_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("connected"), 0);
     if (!_client->has_bound()) {
         auto i = streams.begin();
@@ -1078,15 +1081,15 @@ void Client::consume() {
     zend_string *frame = nullptr;
 
     while (!packets->is_empty()) {
-        frame = packets->consume();
+        frame = packets->pop_frame();
         if (!frame) {
             return;
         }
         if (sw_unlikely(client->send_all(frame->val, frame->len) != (ssize_t) frame->len)) {
             io_error();
-            packets->produce("true", 4, false);
+            packets->push_result(false);
         } else {
-            packets->produce("false", 5, false);
+            packets->push_result();
         }
 
         zend_string_release(frame);
