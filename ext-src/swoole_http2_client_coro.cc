@@ -10,7 +10,8 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | Author: Tianfeng Han  <mikan.tenny@gmail.com>
+  |         NathanFreeman <mariasocute@163.com>
   +----------------------------------------------------------------------+
 */
 
@@ -71,14 +72,15 @@ class Packets {
   public:
     Packets() {
         frames = new Channel();
-        exceptions = new Channel();
+        result = new Channel();
     }
 
     inline bool push_result(bool is_success = true) {
         if (is_close) {
             return false;
         }
-        return is_success ? exceptions->push((void *) success.c_str()) : exceptions->push((void *) failed.c_str());
+        return is_success ? result->push((void *) success.c_str(), timeout)
+                          : result->push((void *) failed.c_str(), timeout);
     }
 
     inline bool push_frame(const char *buf, size_t len, bool is_frame = true) {
@@ -87,11 +89,16 @@ class Packets {
         }
 
         zend_string *value = zend_string_init(buf, len, 0);
-        return frames->push((void *) value);
+        if (frames->push((void *) value, timeout)) {
+            return true;
+        }
+
+        zend_string_release(value);
+        return false;
     }
 
     inline const char *pop_result() {
-        return (const char *) exceptions->pop();
+        return (const char *) result->pop(timeout);
     }
 
     inline zend_string *pop_frame() {
@@ -113,12 +120,12 @@ class Packets {
             delete frames;
         }
 
-        if (exceptions->close()) {
-            delete exceptions;
+        if (result->close()) {
+            delete result;
         }
 
         frames = nullptr;
-        exceptions = nullptr;
+        result = nullptr;
         is_close = true;
         return true;
     }
@@ -130,9 +137,10 @@ class Packets {
   private:
     std::string success = "true";
     std::string failed = "false";
+    double timeout = 10;
     bool is_close = false;
     Channel *frames = nullptr;
-    Channel *exceptions = nullptr;
+    Channel *result = nullptr;
 };
 
 class Client {
@@ -275,8 +283,15 @@ class Client {
             cid = Coroutine::create([this](void *arg) -> void { this->consume(); }, nullptr);
         }
 
-        const char *exception = packets->pop_result();
-        if (!strcmp(exception, "false")) {
+        const char *result = packets->pop_result();
+        if (!result) {
+            zend_throw_exception(swoole_http2_client_coro_exception_ce,
+                                 "unable to receive sending result from channel",
+                                 SW_ERROR_HTTP2_SEND_FRAME_FAILED);
+            return false;
+        }
+
+        if (!strcmp(result, "false")) {
             zend_throw_exception(
                 swoole_http2_client_coro_exception_ce, "failed to send HTTP2 frame", SW_ERROR_HTTP2_SEND_FRAME_FAILED);
             return false;
@@ -1085,12 +1100,12 @@ int Client::parse_header(Stream *stream, int flags, char *in, size_t inlen) {
 
 void Client::consume() {
     zend_string *frame = nullptr;
-
-    while ((frame = packets->pop_frame())) {
+    while (packets && (frame = packets->pop_frame())) {
         if (sw_unlikely(client->send_all(frame->val, frame->len) != (ssize_t) frame->len)) {
-            io_error();
+            update_error_properties(SW_ERROR_HTTP2_SEND_FRAME_FAILED, "failed to send HTTP2 frame");
             packets->push_result(false);
         } else {
+            io_error();
             packets->push_result();
         }
 
