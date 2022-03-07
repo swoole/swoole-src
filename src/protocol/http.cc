@@ -78,11 +78,11 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
         response.info.len = sw_snprintf(header_buffer,
                                         sizeof(header_buffer),
                                         "HTTP/1.1 304 Not Modified\r\n"
-                                        "%s"
+                                        "Connection: %s\r\n"
                                         "Date: %s\r\n"
                                         "Last-Modified: %s\r\n"
                                         "Server: %s\r\n\r\n",
-                                        request->keep_alive ? "Connection: keep-alive\r\n" : "",
+                                        request->keep_alive ? "keep-alive" : "close",
                                         date_str.c_str(),
                                         date_str_last_modified.c_str(),
                                         SW_HTTP_SERVER_SOFTWARE);
@@ -123,13 +123,13 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
         response.info.len = sw_snprintf(header_buffer,
                                         sizeof(header_buffer),
                                         "HTTP/1.1 200 OK\r\n"
-                                        "%s"
+                                        "Connection: %s\r\n"
                                         "Content-Length: %ld\r\n"
                                         "Content-Type: text/html\r\n"
                                         "Date: %s\r\n"
                                         "Last-Modified: %s\r\n"
                                         "Server: %s\r\n\r\n",
-                                        request->keep_alive ? "Connection: keep-alive\r\n" : "",
+                                        request->keep_alive ? "keep-alive" : "close",
                                         (long) body_length,
                                         date_str.c_str(),
                                         date_str_last_modified.c_str(),
@@ -146,13 +146,13 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
     response.info.len = sw_snprintf(header_buffer,
                                     sizeof(header_buffer),
                                     "HTTP/1.1 200 OK\r\n"
-                                    "%s"
+                                    "Connection: %s\r\n"
                                     "Content-Length: %ld\r\n"
                                     "Content-Type: %s\r\n"
                                     "Date: %s\r\n"
                                     "Last-Modified: %s\r\n"
                                     "Server: %s\r\n\r\n",
-                                    request->keep_alive ? "Connection: keep-alive\r\n" : "",
+                                    request->keep_alive ? "keep-alive" : "close",
                                     (long) task->length,
                                     handler.get_mimetype(),
                                     date_str.c_str(),
