@@ -1,7 +1,7 @@
 English | [中文](./README-CN.md)
 
-<h1>
-<img width="200" height="120" align=center alt="Swoole Logo" src="swoole-logo.svg" />
+<h1 align=center>
+<img width="200" height="120" alt="Swoole Logo" src="https://cdn.jsdelivr.net/gh/swoole/swoole-src/swoole-logo.svg" />
 </h1>
 
 [![lib-swoole](https://github.com/swoole/swoole-src/workflows/lib-swoole/badge.svg)](https://github.com/swoole/swoole-src/actions?query=workflow%3Alib-swoole)
