@@ -150,6 +150,7 @@ void *FixedPool::alloc(uint32_t size) {
     FixedPoolSlice *slice = impl->head;
     if (slice->lock) {
         swoole_set_last_error(SW_ERROR_MALLOC_FAIL);
+        assert(get_number_of_spare_slice() == 0);
         return nullptr;
     }
 
