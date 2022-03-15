@@ -51,10 +51,10 @@
         <email>doubaokun@php.net</email>
         <active>yes</active>
     </developer>
-    <date>2022-02-18</date>
+    <date>2022-03-15</date>
     <time>14:00:00</time>
     <version>
-        <release>4.8.7</release>
+        <release>4.8.8</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -63,10 +63,10 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        - Added curl_share supports
-        - Fixed symbol undefined on arm32 platform
-        - Fixed clock_gettime() compatibility
-        - Fixed issue where server sending fails with PROCESS mode when kernel lacks large block of memory
+        - Reduce SW_IPC_BUFFER_MAX_SIZE to 64k
+        - Respect SETTINGS_HEADER_TABLE_SIZE http2 setting (#4635)
+        - Fixed #4639
+        - Fixed http2 server NPN errors
     </notes>
     <contents>
         <dir name="/">
