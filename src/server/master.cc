@@ -875,7 +875,6 @@ void Server::clear_timer() {
         swoole_timer_del(iter);
     }
 
-    assert(SwooleTG.timer->count() == 0);
     master_timer = nullptr;
     heartbeat_timer = nullptr;
     enable_accept_timer = nullptr;
