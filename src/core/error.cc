@@ -130,6 +130,8 @@ const char *swoole_strerror(int code) {
         return "Http2 stream not found";
     case SW_ERROR_HTTP2_STREAM_IGNORE:
         return "Http2 stream ignore";
+    case SW_ERROR_HTTP2_SEND_CONTROL_FRAME_FAILED:
+        return "Http2 send control frame failed";
     case SW_ERROR_AIO_BAD_REQUEST:
         return "Aio bad request";
     case SW_ERROR_AIO_CANCELED:
