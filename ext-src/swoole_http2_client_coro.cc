@@ -10,7 +10,8 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | Author: Tianfeng Han  <mikan.tenny@gmail.com>
+  |         NathanFreeman <mariasocute@163.com>
   +----------------------------------------------------------------------+
 */
 
@@ -21,6 +22,8 @@
 #include "swoole_protocol.h"
 #include "swoole_socket.h"
 #include "swoole_util.h"
+#include "swoole_coroutine_channel.h"
+#include "swoole_coroutine.h"
 
 #ifdef SW_USE_HTTP2
 
@@ -65,6 +68,81 @@ struct Stream {
     uint32_t local_window_size;
 };
 
+class Packets {
+  public:
+    Packets() {
+        frames = new Channel();
+        result = new Channel();
+    }
+
+    inline bool push_result(bool is_success = true) {
+        if (is_close) {
+            return false;
+        }
+        return is_success ? result->push((void *) success.c_str(), timeout)
+                          : result->push((void *) failed.c_str(), timeout);
+    }
+
+    inline bool push_frame(const char *buf, size_t len, bool is_frame = true) {
+        if (is_close) {
+            return false;
+        }
+
+        zend_string *value = zend_string_init(buf, len, 0);
+        if (frames->push((void *) value, timeout)) {
+            return true;
+        }
+
+        zend_string_release(value);
+        return false;
+    }
+
+    inline const char *pop_result() {
+        return (const char *) result->pop(timeout);
+    }
+
+    inline zend_string *pop_frame() {
+        return (zend_string *) frames->pop();
+    }
+
+    inline bool close() {
+        if (is_close) {
+            return false;
+        }
+
+        zend_string *value = nullptr;
+        while (!frames->is_empty()) {
+            value = (zend_string *) frames->pop();
+            zend_string_release(value);
+        }
+
+        if (frames->close()) {
+            delete frames;
+        }
+
+        if (result->close()) {
+            delete result;
+        }
+
+        frames = nullptr;
+        result = nullptr;
+        is_close = true;
+        return true;
+    }
+
+    ~Packets() {
+        close();
+    }
+
+  private:
+    std::string success = "true";
+    std::string failed = "false";
+    double timeout = 10;
+    bool is_close = false;
+    Channel *frames = nullptr;
+    Channel *result = nullptr;
+};
+
 class Client {
   public:
     std::string host;
@@ -84,7 +162,6 @@ class Client {
     Http2::Settings remote_settings = {};
 
     std::unordered_map<uint32_t, Stream *> streams;
-    std::queue<zend_string *> send_queue;
 
     /* safety zval */
     zval _zobject;
@@ -97,6 +174,7 @@ class Client {
         _zobject = *__zobject;
         zobject = &_zobject;
         Http2::init_settings(&local_settings);
+        packets = new Packets();
     }
 
     inline Stream *get_stream(uint32_t stream_id) {
@@ -181,43 +259,42 @@ class Client {
     }
 
   private:
+    Packets *packets = nullptr;
+    long cid = -1;
     bool send_setting();
     int parse_header(Stream *stream, int flags, char *in, size_t inlen);
-
-    void clean_send_queue() {
-        while (send_queue.size() > 0) {
-            zend_string *frame = send_queue.front();
-            send_queue.pop();
-            zend_string_release(frame);
-        }
-    }
+    void consume();
 
     inline bool send(const char *buf, size_t len) {
-        if (client->has_bound(SW_EVENT_WRITE)) {
-            if (send_queue.size() > remote_settings.max_concurrent_streams) {
-                client->errCode = SW_ERROR_QUEUE_FULL;
-                client->errMsg = "the send queue is full, try again later";
-                io_error();
-                return false;
-            }
-            send_queue.push(zend_string_init(buf, len, 0));
-            return true;
-        }
-        if (sw_unlikely(client->send_all(buf, len) != (ssize_t) len)) {
-            io_error();
+        if (!packets) {
+            zend_throw_exception(
+                swoole_http2_client_coro_exception_ce, "packets channel has closed", SW_ERROR_HTTP2_SEND_FRAME_FAILED);
             return false;
         }
-        while (send_queue.size() > 0) {
-            zend_string *frame = send_queue.front();
-            if (sw_unlikely(client->send_all(frame->val, frame->len) != (ssize_t) frame->len)) {
-                io_error();
-                zend_throw_exception(swoole_http2_client_coro_exception_ce,
-                                     "failed to send control frame",
-                                     SW_ERROR_HTTP2_SEND_CONTROL_FRAME_FAILED);
-                return false;
-            }
-            send_queue.pop();
-            zend_string_release(frame);
+
+        if (sw_unlikely(!packets->push_frame(buf, len))) {
+            zend_throw_exception(swoole_http2_client_coro_exception_ce,
+                                 "can not push data into channel",
+                                 SW_ERROR_HTTP2_SEND_FRAME_FAILED);
+            return false;
+        }
+
+        if (sw_unlikely(Coroutine::get_by_cid(cid) == nullptr)) {
+            cid = Coroutine::create([this](void *arg) -> void { this->consume(); }, nullptr);
+        }
+
+        const char *result = packets->pop_result();
+        if (!result) {
+            zend_throw_exception(swoole_http2_client_coro_exception_ce,
+                                 "unable to receive sending result from channel",
+                                 SW_ERROR_HTTP2_SEND_FRAME_FAILED);
+            return false;
+        }
+
+        if (!strcmp(result, "false")) {
+            zend_throw_exception(
+                swoole_http2_client_coro_exception_ce, "failed to send HTTP2 frame", SW_ERROR_HTTP2_SEND_FRAME_FAILED);
+            return false;
         }
         return true;
     }
@@ -502,7 +579,10 @@ bool Client::close() {
     if (!_client) {
         return false;
     }
-    clean_send_queue();
+    if (packets->close()) {
+        delete packets;
+        packets = nullptr;
+    }
     zend_update_property_bool(swoole_http2_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("connected"), 0);
     if (!_client->has_bound()) {
         auto i = streams.begin();
@@ -1016,6 +1096,21 @@ int Client::parse_header(Stream *stream, int flags, char *in, size_t inlen) {
     }());
 
     return SW_OK;
+}
+
+void Client::consume() {
+    zend_string *frame = nullptr;
+    while (packets && (frame = packets->pop_frame())) {
+        if (sw_unlikely(client->send_all(frame->val, frame->len) != (ssize_t) frame->len)) {
+            update_error_properties(SW_ERROR_HTTP2_SEND_FRAME_FAILED, "failed to send HTTP2 frame");
+            packets->push_result(false);
+        } else {
+            io_error();
+            packets->push_result();
+        }
+
+        zend_string_release(frame);
+    }
 }
 
 ssize_t Client::build_header(zval *zobject, zval *zrequest, char *buffer) {
