@@ -10,7 +10,7 @@
  | to obtain it through the world-wide-web, please send a note to       |
  | license@swoole.com so we can mail you a copy immediately.            |
  +----------------------------------------------------------------------+
- | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+ | Author: Tianfeng Han  <rango@swoole.com>                             |
  +----------------------------------------------------------------------+
  */
 
@@ -63,8 +63,8 @@ using swoole::coroutine::System;
 #else
 static ssize_t getrandom(void *buffer, size_t size, unsigned int __flags) {
 #if defined(HAVE_CCRANDOMGENERATEBYTES)
-    /* 
-     * arc4random_buf on macOs uses ccrng_generate internally from which 
+    /*
+     * arc4random_buf on macOs uses ccrng_generate internally from which
      * the potential error is silented to respect the portable arc4random_buf interface contract
      */
     if (CCRandomGenerateBytes(buffer, size) == kCCSuccess) {
