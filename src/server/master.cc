@@ -865,18 +865,20 @@ int Server::create() {
 }
 
 void Server::clear_timer() {
-    if (master_timer) {
-        swoole_timer_del(master_timer);
-        master_timer = nullptr;
+    std::vector<TimerNode *> tnodes;
+    for (auto &kv : SwooleTG.timer->get_map()) {
+        TimerNode *tnode = kv.second;
+        tnodes.push_back(tnode);
     }
-    if (heartbeat_timer) {
-        swoole_timer_del(heartbeat_timer);
-        heartbeat_timer = nullptr;
+
+    for (auto iter : tnodes) {
+        swoole_timer_del(iter);
     }
-    if (enable_accept_timer) {
-        swoole_timer_del(enable_accept_timer);
-        enable_accept_timer = nullptr;
-    }
+
+    assert(SwooleTG.timer->count() == 0);
+    master_timer = nullptr;
+    heartbeat_timer = nullptr;
+    enable_accept_timer = nullptr;
 }
 
 void Server::shutdown() {
@@ -1471,7 +1473,7 @@ bool Server::sendfile(SessionId session_id, const char *file, uint32_t l_file, o
                          "sendfile name[%.8s...] length %u is exceed the max name len %u",
                          file,
                          l_file,
-                         (uint32_t)(SW_IPC_BUFFER_SIZE - sizeof(SendfileTask) - 1));
+                         (uint32_t) (SW_IPC_BUFFER_SIZE - sizeof(SendfileTask) - 1));
         return false;
     }
     // string must be zero termination (for `state` system call)
@@ -1725,7 +1727,7 @@ ListenPort *Server::add_port(SocketType type, const char *host, int port) {
 
 #ifdef SW_USE_OPENSSL
     if (type & SW_SOCK_SSL) {
-        type = (SocketType)(type & (~SW_SOCK_SSL));
+        type = (SocketType) (type & (~SW_SOCK_SSL));
         ls->type = type;
         ls->ssl = 1;
         ls->ssl_context = new SSLContext();
