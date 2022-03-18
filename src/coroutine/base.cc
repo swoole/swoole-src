@@ -179,18 +179,12 @@ void Coroutine::set_on_close(SwapCallback func) {
 }
 
 void Coroutine::bailout(BailoutCallback func) {
+    assert(func != nullptr);
     Coroutine *co = current;
     if (!co) {
-        // marks that it can no longer resume any coroutine
-        on_bailout = (BailoutCallback) -1;
+        // already outside the coroutine environment
+        func();
         return;
-    }
-    if (!func) {
-        swoole_error("bailout without bailout function");
-    }
-    if (!co->task) {
-        // TODO: decoupling
-        exit(255);
     }
     on_bailout = func;
     // find the coroutine which is closest to the main

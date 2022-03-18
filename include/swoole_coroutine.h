@@ -60,7 +60,7 @@ class Coroutine {
     };
 
     typedef void (*SwapCallback)(void *);
-    typedef void (*BailoutCallback)();
+    typedef std::function<void(void)> BailoutCallback;
     typedef std::function<bool(swoole::Coroutine*)> CancelFunc;
 
     void resume();
