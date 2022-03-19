@@ -423,13 +423,20 @@ static void php_fatal_error_cb(int orig_type,
     if (PG(ignore_repeated_errors) && PG(last_error_message)) {
         /* no check for PG(last_error_file) is needed since it cannot
          * be NULL if PG(last_error_message) is not NULL */
+
+        if (
 #if PHP_VERSION_ID < 80000
-        if (strcmp(PG(last_error_message), message->val) == 0
+            strcmp(PG(last_error_message), message->val) == 0
 #else
-        if (zend_string_equals(PG(last_error_message), message)
+            zend_string_equals(PG(last_error_message), message)
 #endif
-            || (!PG(ignore_repeated_source) &&
-                ((PG(last_error_lineno) != (int) error_lineno) || strcmp(PG(last_error_file), error_filename)))) {
+            || (!PG(ignore_repeated_source) && ((PG(last_error_lineno) != (int) error_lineno)
+#if PHP_VERSION_ID < 80100
+                                                || (strcmp(PG(last_error_file), error_filename) == 0)
+#else
+                                                || zend_string_equals(PG(last_error_file), error_filename)
+#endif
+                                                ))) {
             display = 1;
         } else {
             display = 0;
