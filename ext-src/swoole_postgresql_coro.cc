@@ -931,9 +931,9 @@ static inline void php_pgsql_get_field_value(
 }
 /* }}} */
 
-/* {{{ php_pgsql_result2array
+/* {{{ swoole_pgsql_result2array
  */
-int swoole_pgsql_result2array(PGresult *pg_result, zval *ret_array, long result_type) {
+void swoole_pgsql_result2array(PGresult *pg_result, zval *ret_array, long result_type) {
     zval row;
     const char *field_name;
     size_t num_fields, unknown_columns;
@@ -941,9 +941,7 @@ int swoole_pgsql_result2array(PGresult *pg_result, zval *ret_array, long result_
     uint32_t i;
     assert(Z_TYPE_P(ret_array) == IS_ARRAY);
 
-    if ((pg_numrows = PQntuples(pg_result)) <= 0) {
-        return FAILURE;
-    }
+    pg_numrows = PQntuples(pg_result);
     for (pg_row = 0; pg_row < pg_numrows; pg_row++) {
         array_init(&row);
         unknown_columns = 0;
@@ -968,8 +966,8 @@ int swoole_pgsql_result2array(PGresult *pg_result, zval *ret_array, long result_
         }
         add_index_zval(ret_array, pg_row, &row);
     }
-    return SUCCESS;
 }
+/* }}} */
 
 static PHP_METHOD(swoole_postgresql_coro, fetchAll) {
     zval *result;
@@ -987,10 +985,7 @@ static PHP_METHOD(swoole_postgresql_coro, fetchAll) {
     }
 
     array_init(return_value);
-    if (swoole_pgsql_result2array(pgsql_result, return_value, result_type) == FAILURE) {
-        zval_dtor(return_value);
-        RETURN_FALSE;
-    }
+    swoole_pgsql_result2array(pgsql_result, return_value, result_type);
 }
 
 static PHP_METHOD(swoole_postgresql_coro, affectedRows) {
