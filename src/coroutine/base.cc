@@ -179,11 +179,13 @@ void Coroutine::set_on_close(SwapCallback func) {
 }
 
 void Coroutine::bailout(BailoutCallback func) {
-    assert(func != nullptr);
     Coroutine *co = current;
     if (!co) {
         // already outside the coroutine environment
-        func();
+        if (func) {
+            func();
+        }
+        on_bailout = nullptr;
         return;
     }
     on_bailout = func;
@@ -194,7 +196,7 @@ void Coroutine::bailout(BailoutCallback func) {
     // it will jump to main context directly (it also breaks contexts)
     co->yield();
     // expect that never here
-    exit(1);
+    exit(SW_CORO_BAILOUT_EXIT_CODE);
 }
 
 namespace coroutine {

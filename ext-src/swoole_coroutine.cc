@@ -401,7 +401,11 @@ static void clear_last_error() {
         PG(last_error_message) = NULL;
     }
     if (PG(last_error_file)) {
+#if PHP_VERSION_ID >= 80100
+        zend_string_release(PG(last_error_file));
+#else
         free(PG(last_error_file));
+#endif
         PG(last_error_file) = NULL;
     }
 }
