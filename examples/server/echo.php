@@ -1,9 +1,9 @@
 <?php
-$serv = new swoole_server("0.0.0.0", 9504, SWOOLE_BASE);
+$serv = new swoole_server("0.0.0.0", 9501, SWOOLE_BASE);
 // $serv = new swoole_server("0.0.0.0", 9501);
 
 $serv->set([
-    'worker_num' =>4,
+    'worker_num' =>1,
 ]);
 
 $serv->on('connect', function ($serv, $fd, $reactor_id){

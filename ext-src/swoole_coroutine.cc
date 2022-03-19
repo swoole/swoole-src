@@ -436,7 +436,7 @@ static void php_fatal_error_cb(int orig_type,
 #else
                                                 || zend_string_equals(PG(last_error_file), error_filename)
 #endif
-                                                ))) {
+                                                    ))) {
             display = 1;
         } else {
             display = 0;
@@ -475,7 +475,11 @@ static void php_fatal_error_cb(int orig_type,
     if (display) {
         clear_last_error();
         if (!error_filename) {
+#if PHP_VERSION_ID < 80100
             error_filename = "Unknown";
+#else
+            error_filename = zend_string_init(ZEND_STRL("Unknown"), 0);
+#endif
         }
         PG(last_error_type) = type;
 #if PHP_VERSION_ID < 80000
@@ -483,7 +487,11 @@ static void php_fatal_error_cb(int orig_type,
 #else
         PG(last_error_message) = zend_string_copy(message);
 #endif
+#if PHP_VERSION_ID < 80100
         PG(last_error_file) = strdup(error_filename);
+#else
+        PG(last_error_file) = zend_string_copy(error_filename);
+#endif
         PG(last_error_lineno) = error_lineno;
     }
 
@@ -534,6 +542,12 @@ static void php_fatal_error_cb(int orig_type,
             break;
         }
 
+#if PHP_VERSION_ID < 80100
+        const char *error_filename_c_str = error_filename;
+#else
+        const char *error_filename_c_str = error_filename->val;
+#endif
+
         if (PG(log_errors) || ((!PG(display_startup_errors) || !PG(display_errors)))) {
             char *log_buffer;
             spprintf(&log_buffer,
@@ -541,7 +555,7 @@ static void php_fatal_error_cb(int orig_type,
                      "PHP %s:  %s in %s on line %" PRIu32,
                      error_type_str,
                      ZSTR_VAL(message),
-                     error_filename,
+                     error_filename_c_str,
                      error_lineno);
             php_log_err_with_severity(log_buffer, syslog_type_int);
             efree(log_buffer);
@@ -559,14 +573,14 @@ static void php_fatal_error_cb(int orig_type,
                         "%s: %s in %s on line %" PRIu32 "\n",
                         error_type_str,
                         ZSTR_VAL(message),
-                        error_filename,
+                        error_filename_c_str,
                         error_lineno);
             } else {
                 php_printf("%s\n%s: %s in %s on line %" PRIu32 "\n%s",
                            STR_PRINT(prepend_string),
                            error_type_str,
                            ZSTR_VAL(message),
-                           error_filename,
+                           error_filename_c_str,
                            error_lineno,
                            STR_PRINT(append_string));
             }
