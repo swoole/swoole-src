@@ -243,8 +243,8 @@ int Timer::select() {
     return SW_OK;
 }
 
-#if defined(SW_USE_MONOTONIC_TIME) && defined(CLOCK_MONOTONIC)
 int Timer::now(struct timeval *time) {
+#if defined(SW_USE_MONOTONIC_TIME) && defined(CLOCK_MONOTONIC)
     struct timespec _now;
     if (clock_gettime(CLOCK_MONOTONIC, &_now) < 0) {
         swoole_sys_warning("clock_gettime(CLOCK_MONOTONIC) failed");
@@ -253,12 +253,12 @@ int Timer::now(struct timeval *time) {
     time->tv_sec = _now.tv_sec;
     time->tv_usec = _now.tv_nsec / 1000;
 #else
-if (gettimeofday(time, nullptr) < 0) {
-    swoole_sys_warning("gettimeofday() failed");
-    return SW_ERR;
-}
+    if (gettimeofday(time, nullptr) < 0) {
+        swoole_sys_warning("gettimeofday() failed");
+        return SW_ERR;
+    }
 #endif
     return SW_OK;
-}  // namespace swoole
+}
 
 };  // namespace swoole
