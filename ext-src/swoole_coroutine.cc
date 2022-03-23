@@ -491,7 +491,9 @@ inline void PHPCoroutine::vm_stack_destroy(void) {
  *
  */
 inline void PHPCoroutine::save_vm_stack(PHPContext *task) {
+#ifdef SW_CORO_SWAP_BAILOUT
     task->bailout = EG(bailout);
+#endif
     task->vm_stack_top = EG(vm_stack_top);
     task->vm_stack_end = EG(vm_stack_end);
     task->vm_stack = EG(vm_stack);
@@ -521,7 +523,9 @@ inline void PHPCoroutine::save_vm_stack(PHPContext *task) {
 }
 
 inline void PHPCoroutine::restore_vm_stack(PHPContext *task) {
+#ifdef SW_CORO_SWAP_BAILOUT
     EG(bailout) = task->bailout;
+#endif
     EG(vm_stack_top) = task->vm_stack_top;
     EG(vm_stack_end) = task->vm_stack_end;
     EG(vm_stack) = task->vm_stack;
@@ -667,7 +671,9 @@ void PHPCoroutine::on_close(void *arg) {
 }
 
 void PHPCoroutine::main_func(void *arg) {
+#ifdef SW_CORO_SUPPORT_BAILOUT
     zend_first_try {
+#endif
         Args *php_arg = (Args *) arg;
         zend_fcall_info_cache fci_cache = *php_arg->fci_cache;
         zend_function *func = fci_cache.function_handler;
@@ -724,7 +730,9 @@ void PHPCoroutine::main_func(void *arg) {
             ZEND_ADD_CALL_FLAG(call, call_info);
         }
 
+#if defined(SW_CORO_SWAP_BAILOUT) && !defined(SW_CORO_SUPPORT_BAILOUT)
         EG(bailout) = nullptr;
+#endif
         EG(current_execute_data) = call;
         EG(error_handling) = EH_NORMAL;
         EG(exception_class) = nullptr;
@@ -835,11 +843,14 @@ void PHPCoroutine::main_func(void *arg) {
         if (UNEXPECTED(EG(exception))) {
             catch_exception(EG(exception));
         }
+
+#ifdef SW_CORO_SUPPORT_BAILOUT
     }
     zend_catch {
         catch_exception(EG(exception));
     }
     zend_end_try();
+#endif
 }
 
 long PHPCoroutine::create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv) {
