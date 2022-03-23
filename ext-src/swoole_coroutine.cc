@@ -329,17 +329,15 @@ void PHPCoroutine::error_cb(int type,
     }
 }
 
-void PHPCoroutine::catch_exception() {
+void PHPCoroutine::catch_exception(zend_object *exception) {
     // TODO: exceptions will only cause the coroutine to exit
     if (sw_reactor()) {
         sw_reactor()->running = false;
         sw_reactor()->bailout = true;
     }
-    Coroutine::bailout([]() {
+    Coroutine::bailout([exception]() {
         zend_error_cb = orig_error_function;
-        if (UNEXPECTED(EG(exception))) {
-            zend_exception_error(EG(exception), E_ERROR);
-        }
+        zend_exception_error(exception, E_ERROR);
         zend_bailout();
     });
 }
@@ -791,8 +789,7 @@ void PHPCoroutine::main_func(void *arg) {
             EG(current_execute_data) = nullptr;
             zend_init_func_execute_data(call, &func->op_array, retval);
             zend_execute_ex(EG(current_execute_data));
-        } else /* ZEND_INTERNAL_FUNCTION */
-        {
+        } else { /* ZEND_INTERNAL_FUNCTION */
             ZVAL_NULL(retval);
             call->prev_execute_data = nullptr;
             call->return_value = nullptr; /* this is not a constructor call */
@@ -836,11 +833,11 @@ void PHPCoroutine::main_func(void *arg) {
         zval_ptr_dtor(retval);
 
         if (UNEXPECTED(EG(exception))) {
-            catch_exception();
+            catch_exception(EG(exception));
         }
     }
     zend_catch {
-        catch_exception();
+        catch_exception(EG(exception));
     }
     zend_end_try();
 }
