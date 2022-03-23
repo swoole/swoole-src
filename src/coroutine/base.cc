@@ -183,13 +183,14 @@ void Coroutine::bailout(BailoutCallback func) {
     if (!co) {
         // marks that it can no longer resume any coroutine
         static BailoutCallback fn = []() {
-            exit(SW_CORO_BAILOUT_EXIT_CODE);
+            // expect that never here
+            swoole_error("have been bailout, can not resume any coroutine");
         };
         on_bailout = fn;
         return;
     }
     if (!func) {
-       swoole_error("bailout without bailout function");
+       swoole_error("bailout without callback function");
     }
     on_bailout = func;
     // find the coroutine which is closest to the main

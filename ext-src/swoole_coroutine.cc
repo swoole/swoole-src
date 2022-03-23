@@ -316,16 +316,8 @@ void PHPCoroutine::error_cb(int type,
         }
         if (swoole_coroutine_is_in()) {
             Coroutine::bailout([=]() {
-#if PHP_VERSION_ID < 80000
-                char *buffer;
-                int buffer_len = (int) vspprintf(&buffer, PG(log_errors_max_len), format, args);
-                zend_string *message = zend_string_init(buffer, buffer_len, 0);
-#endif
                 zend_error_cb = orig_error_function;
-                orig_error_function(type, error_filename, error_lineno, message);
-#if PHP_VERSION_ID < 80000
-                zend_string_release(message);
-#endif
+                orig_error_function(type, error_filename, error_lineno, ZEND_ERROR_CB_LAST_ARG_RELAY);
             });
         }
     }
@@ -378,25 +370,6 @@ void PHPCoroutine::activate() {
     sw_reactor()->add_destroy_callback(deactivate, nullptr);
     Coroutine::activate();
     activated = true;
-}
-
-static void clear_last_error() {
-    if (PG(last_error_message)) {
-#if PHP_VERSION_ID >= 80000
-        zend_string_release(PG(last_error_message));
-#else
-        free(PG(last_error_message));
-#endif
-        PG(last_error_message) = NULL;
-    }
-    if (PG(last_error_file)) {
-#if PHP_VERSION_ID >= 80100
-        zend_string_release(PG(last_error_file));
-#else
-        free(PG(last_error_file));
-#endif
-        PG(last_error_file) = NULL;
-    }
 }
 
 void PHPCoroutine::deactivate(void *ptr) {
