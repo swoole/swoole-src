@@ -365,6 +365,7 @@ void PHPCoroutine::activate() {
 #if PHP_VERSION_ID < 80000
                     zend_string_release(message);
 #endif
+                    zend_bailout();
                 });
             }
             if (sw_likely(orig_error_function)) {
@@ -1085,7 +1086,7 @@ void PHPCoroutine::main_func(void *arg) {
                 sw_reactor()->running = false;
                 sw_reactor()->bailout = true;
             }
-            sw_zend_bailout();
+            zend_bailout();
         });
     }
     zend_end_try();

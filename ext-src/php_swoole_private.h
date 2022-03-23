@@ -293,9 +293,6 @@ php_socket *php_swoole_convert_to_socket(int sock);
 
 zend_bool php_swoole_signal_isset_handler(int signo);
 
-/* PHP 7 compatibility patches */
-#define sw_zend_bailout() zend_bailout()
-
 // Fixed in php-7.2.3RC1 (https://github.com/php/php-src/commit/e88e83d3e5c33fcd76f08b23e1a2e4e8dc98ce41)
 #if PHP_MAJOR_VERSION == 7 && ((PHP_MINOR_VERSION == 2 && PHP_RELEASE_VERSION < 3))
 // See https://github.com/php/php-src/commit/0495bf5650995cd8f18d6a9909eb4c5dcefde669

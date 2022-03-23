@@ -744,7 +744,7 @@ int php_swoole_process_start(Worker *process, zval *zobject) {
         php_swoole_event_wait();
     }
     // equivalent to exit
-    sw_zend_bailout();
+    zend_bailout();
 
     return SW_OK;
 }
