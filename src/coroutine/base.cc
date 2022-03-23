@@ -181,12 +181,15 @@ void Coroutine::set_on_close(SwapCallback func) {
 void Coroutine::bailout(BailoutCallback func) {
     Coroutine *co = current;
     if (!co) {
-        // already outside the coroutine environment
-        if (func) {
-            func();
-        }
-        on_bailout = nullptr;
+        // marks that it can no longer resume any coroutine
+        static BailoutCallback fn = []() {
+            exit(SW_CORO_BAILOUT_EXIT_CODE);
+        };
+        on_bailout = fn;
         return;
+    }
+    if (!func) {
+       swoole_error("bailout without bailout function");
     }
     on_bailout = func;
     // find the coroutine which is closest to the main
