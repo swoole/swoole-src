@@ -225,21 +225,22 @@ class PHPCoroutine {
     static void activate();
     static void deactivate(void *ptr);
 
-    static inline void vm_stack_init(void);
-    static inline void vm_stack_destroy(void);
-    static inline void save_vm_stack(PHPContext *task);
-    static inline void restore_vm_stack(PHPContext *task);
-    static inline void save_og(PHPContext *task);
-    static inline void restore_og(PHPContext *task);
-    static inline void save_task(PHPContext *task);
-    static inline void restore_task(PHPContext *task);
+    static void vm_stack_init(void);
+    static void vm_stack_destroy(void);
+    static void save_vm_stack(PHPContext *task);
+    static void restore_vm_stack(PHPContext *task);
+    static void save_og(PHPContext *task);
+    static void restore_og(PHPContext *task);
+    static void save_task(PHPContext *task);
+    static void restore_task(PHPContext *task);
+    static void catch_exception();
     static void on_yield(void *arg);
     static void on_resume(void *arg);
     static void on_close(void *arg);
     static void main_func(void *arg);
 
     static void interrupt_thread_start();
-    static inline void record_last_msec(PHPContext *task) {
+    static void record_last_msec(PHPContext *task) {
         if (interrupt_thread_running) {
             task->last_msec = Timer::get_absolute_msec();
         }
