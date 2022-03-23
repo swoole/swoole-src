@@ -402,6 +402,20 @@ typedef size_t php_stream_size_t;
 typedef ssize_t php_stream_size_t;
 #endif
 
+#if PHP_VERSION_ID < 80000
+#define ZEND_ERROR_CB_LAST_ARG_D const char *format, va_list args
+#define ZEND_ERROR_CB_LAST_ARG_RELAY format, args
+#else
+#define ZEND_ERROR_CB_LAST_ARG_D zend_string *message
+#define ZEND_ERROR_CB_LAST_ARG_RELAY message
+#endif
+
+#if PHP_VERSION_ID < 80100
+typedef const char error_filename_t;
+#else
+typedef zend_string error_filename_t;
+#endif
+
 /* PHP 7 wrapper functions / macros */
 
 //----------------------------------Zval API------------------------------------

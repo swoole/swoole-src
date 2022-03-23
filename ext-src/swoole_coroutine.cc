@@ -66,29 +66,11 @@ static user_opcode_handler_t ori_begin_silence_handler = nullptr;
 static user_opcode_handler_t ori_end_silence_handler = nullptr;
 static unordered_map<long, Coroutine *> user_yield_coros;
 
-#if PHP_VERSION_ID < 80000
-#define ZEND_ERROR_CB_LAST_ARG_D const char *format, va_list args
-#define ZEND_ERROR_CB_LAST_ARG_RELAY format, args
-#else
-#define ZEND_ERROR_CB_LAST_ARG_D zend_string *message
-#define ZEND_ERROR_CB_LAST_ARG_RELAY message
-#endif
-
-#if PHP_VERSION_ID < 80100
-typedef const char error_filename_t;
-#else
-typedef zend_string error_filename_t;
-#endif
-
 static void (*orig_interrupt_function)(zend_execute_data *execute_data) = nullptr;
 static void (*orig_error_function)(int type,
                                    error_filename_t *error_filename,
                                    const uint32_t error_lineno,
                                    ZEND_ERROR_CB_LAST_ARG_D) = nullptr;
-static void php_fatal_error_cb(int orig_type,
-                               error_filename_t *error_filename,
-                               const uint32_t error_lineno,
-                               zend_string *message);
 
 static zend_class_entry *swoole_coroutine_util_ce;
 static zend_class_entry *swoole_exit_exception_ce;
@@ -323,6 +305,35 @@ void PHPCoroutine::init() {
     Coroutine::set_on_close(on_close);
 }
 
+void PHPCoroutine::error_cb(int type,
+                            error_filename_t *error_filename,
+                            const uint32_t error_lineno,
+                            ZEND_ERROR_CB_LAST_ARG_D) {
+    if (sw_unlikely(type & E_FATAL_ERRORS)) {
+        if (sw_reactor()) {
+            sw_reactor()->running = false;
+            sw_reactor()->bailout = true;
+        }
+        if (swoole_coroutine_is_in()) {
+            Coroutine::bailout([=]() {
+#if PHP_VERSION_ID < 80000
+                char *buffer;
+                int buffer_len = (int) vspprintf(&buffer, PG(log_errors_max_len), format, args);
+                zend_string *message = zend_string_init(buffer, buffer_len, 0);
+#endif
+                zend_error_cb = orig_error_function;
+                orig_error_function(type, error_filename, error_lineno, message);
+#if PHP_VERSION_ID < 80000
+                zend_string_release(message);
+#endif
+            });
+        }
+    }
+    if (orig_error_function) {
+        orig_error_function(type, error_filename, error_lineno, ZEND_ERROR_CB_LAST_ARG_RELAY);
+    }
+}
+
 void PHPCoroutine::activate() {
     if (sw_unlikely(activated)) {
         return;
@@ -348,30 +359,7 @@ void PHPCoroutine::activate() {
 
     /* replace the error function to save execute_data */
     orig_error_function = zend_error_cb;
-    zend_error_cb =
-        [](int type, error_filename_t *error_filename, const uint32_t error_lineno, ZEND_ERROR_CB_LAST_ARG_D) {
-            if (sw_unlikely(type & E_FATAL_ERRORS)) {
-                if (sw_reactor()) {
-                    sw_reactor()->running = false;
-                    sw_reactor()->bailout = true;
-                }
-                Coroutine::bailout([=]() {
-#if PHP_VERSION_ID < 80000
-                    char *buffer;
-                    int buffer_len = (int) vspprintf(&buffer, PG(log_errors_max_len), format, args);
-                    zend_string *message = zend_string_init(buffer, buffer_len, 0);
-#endif
-                    php_fatal_error_cb(type, error_filename, error_lineno, message);
-#if PHP_VERSION_ID < 80000
-                    zend_string_release(message);
-#endif
-                    zend_bailout();
-                });
-            }
-            if (sw_likely(orig_error_function)) {
-                orig_error_function(type, error_filename, error_lineno, ZEND_ERROR_CB_LAST_ARG_RELAY);
-            }
-        };
+    zend_error_cb = PHPCoroutine::error_cb;
 
     if (SWOOLE_G(enable_preemptive_scheduler) || config.enable_preemptive_scheduler) {
         /* create a thread to interrupt the coroutine that takes up too much time */
@@ -410,208 +398,6 @@ static void clear_last_error() {
         PG(last_error_file) = NULL;
     }
 }
-
-/* {{{ php_error_cb
- extended error handling function */
-static void php_fatal_error_cb(int orig_type,
-                               error_filename_t *error_filename,
-                               const uint32_t error_lineno,
-                               zend_string *message) {
-    zend_bool display;
-    int type = orig_type & E_ALL;
-
-    /* check for repeated errors to be ignored */
-    if (PG(ignore_repeated_errors) && PG(last_error_message)) {
-        /* no check for PG(last_error_file) is needed since it cannot
-         * be NULL if PG(last_error_message) is not NULL */
-
-        if (
-#if PHP_VERSION_ID < 80000
-            strcmp(PG(last_error_message), message->val) == 0
-#else
-            zend_string_equals(PG(last_error_message), message)
-#endif
-            || (!PG(ignore_repeated_source) && ((PG(last_error_lineno) != (int) error_lineno)
-#if PHP_VERSION_ID < 80100
-                                                || (strcmp(PG(last_error_file), error_filename) == 0)
-#else
-                                                || zend_string_equals(PG(last_error_file), error_filename)
-#endif
-                                                    ))) {
-            display = 1;
-        } else {
-            display = 0;
-        }
-    } else {
-        display = 1;
-    }
-
-    /* according to error handling mode, throw exception or show it */
-    if (EG(error_handling) == EH_THROW) {
-        switch (type) {
-        case E_WARNING:
-        case E_CORE_WARNING:
-        case E_COMPILE_WARNING:
-        case E_USER_WARNING:
-            /* throw an exception if we are in EH_THROW mode and the type is warning.
-             * fatal errors are real errors and cannot be made exceptions.
-             * exclude deprecated for the sake of BC to old damaged code.
-             * notices are no errors and are not treated as such like E_WARNINGS.
-             * DO NOT overwrite a pending exception.
-             */
-            if (!EG(exception)) {
-#if PHP_VERSION_ID < 80000
-                zend_throw_error_exception(EG(exception_class), message->val, 0, type);
-#else
-                zend_throw_error_exception(EG(exception_class), message, 0, type);
-#endif
-            }
-            return;
-        default:
-            break;
-        }
-    }
-
-    /* store the error if it has changed */
-    if (display) {
-        clear_last_error();
-        if (!error_filename) {
-#if PHP_VERSION_ID < 80100
-            error_filename = "Unknown";
-#else
-            error_filename = zend_string_init(ZEND_STRL("Unknown"), 0);
-#endif
-        }
-        PG(last_error_type) = type;
-#if PHP_VERSION_ID < 80000
-        PG(last_error_message) = strdup(message->val);
-#else
-        PG(last_error_message) = zend_string_copy(message);
-#endif
-#if PHP_VERSION_ID < 80100
-        PG(last_error_file) = strdup(error_filename);
-#else
-        PG(last_error_file) = zend_string_copy(error_filename);
-#endif
-        PG(last_error_lineno) = error_lineno;
-    }
-
-    /* display/log the error if necessary */
-    if (display && ((EG(error_reporting) & type) || (type & E_CORE)) && (PG(log_errors) || PG(display_errors))) {
-        const char *error_type_str;
-        int syslog_type_int = LOG_NOTICE;
-
-        switch (type) {
-        case E_ERROR:
-        case E_CORE_ERROR:
-        case E_COMPILE_ERROR:
-        case E_USER_ERROR:
-            error_type_str = "Fatal error";
-            syslog_type_int = LOG_ERR;
-            break;
-        case E_RECOVERABLE_ERROR:
-            error_type_str = "Recoverable fatal error";
-            syslog_type_int = LOG_ERR;
-            break;
-        case E_WARNING:
-        case E_CORE_WARNING:
-        case E_COMPILE_WARNING:
-        case E_USER_WARNING:
-            error_type_str = "Warning";
-            syslog_type_int = LOG_WARNING;
-            break;
-        case E_PARSE:
-            error_type_str = "Parse error";
-            syslog_type_int = LOG_ERR;
-            break;
-        case E_NOTICE:
-        case E_USER_NOTICE:
-            error_type_str = "Notice";
-            syslog_type_int = LOG_NOTICE;
-            break;
-        case E_STRICT:
-            error_type_str = "Strict Standards";
-            syslog_type_int = LOG_INFO;
-            break;
-        case E_DEPRECATED:
-        case E_USER_DEPRECATED:
-            error_type_str = "Deprecated";
-            syslog_type_int = LOG_INFO;
-            break;
-        default:
-            error_type_str = "Unknown error";
-            break;
-        }
-
-#if PHP_VERSION_ID < 80100
-        const char *error_filename_c_str = error_filename;
-#else
-        const char *error_filename_c_str = error_filename->val;
-#endif
-
-        if (PG(log_errors) || ((!PG(display_startup_errors) || !PG(display_errors)))) {
-            char *log_buffer;
-            spprintf(&log_buffer,
-                     0,
-                     "PHP %s:  %s in %s on line %" PRIu32,
-                     error_type_str,
-                     ZSTR_VAL(message),
-                     error_filename_c_str,
-                     error_lineno);
-            php_log_err_with_severity(log_buffer, syslog_type_int);
-            efree(log_buffer);
-        }
-
-        if (PG(display_errors) && ((!PG(during_request_startup)) || (PG(display_startup_errors)))) {
-            const char *prepend_string = INI_STR("error_prepend_string");
-            const char *append_string = INI_STR("error_append_string");
-
-            /* Write CLI/CGI errors to stderr if display_errors = "stderr" */
-            if ((!strcmp(sapi_module.name, "cli") || !strcmp(sapi_module.name, "cgi") ||
-                 !strcmp(sapi_module.name, "phpdbg")) &&
-                PG(display_errors) == PHP_DISPLAY_ERRORS_STDERR) {
-                fprintf(stderr,
-                        "%s: %s in %s on line %" PRIu32 "\n",
-                        error_type_str,
-                        ZSTR_VAL(message),
-                        error_filename_c_str,
-                        error_lineno);
-            } else {
-                php_printf("%s\n%s: %s in %s on line %" PRIu32 "\n%s",
-                           STR_PRINT(prepend_string),
-                           error_type_str,
-                           ZSTR_VAL(message),
-                           error_filename_c_str,
-                           error_lineno,
-                           STR_PRINT(append_string));
-            }
-        }
-    }
-
-    /* Bail out if we can't recover */
-    switch (type) {
-    case E_CORE_ERROR:
-    /* no break - intentionally */
-    case E_ERROR:
-    case E_RECOVERABLE_ERROR:
-    case E_PARSE:
-    case E_COMPILE_ERROR:
-    case E_USER_ERROR:
-        EG(exit_status) = 255;
-        /* the parser would return 1 (failure), we can bail out nicely */
-#ifdef E_DONT_BAIL
-        if (!(orig_type & E_DONT_BAIL)) {
-            /* restore memory limit */
-            zend_set_memory_limit(PG(memory_limit));
-            zend_objects_store_mark_destructed(&EG(objects_store));
-            zend_bailout();
-            return;
-        }
-#endif
-        break;
-    }
-}
-/* }}} */
 
 void PHPCoroutine::deactivate(void *ptr) {
     interrupt_thread_stop();
