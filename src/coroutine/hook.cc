@@ -10,7 +10,7 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | Author: Tianfeng Han  <rango@swoole.com>                             |
   +----------------------------------------------------------------------+
 */
 
@@ -384,7 +384,7 @@ char *swoole_coroutine_fgets(char *s, int size, FILE *stream) {
 
     char *retval = nullptr;
     swoole::coroutine::async([&]() { retval = fgets(s, size, stream); });
-    return retval; 
+    return retval;
 }
 
 int swoole_coroutine_fputs(const char *s, FILE *stream) {
@@ -394,7 +394,7 @@ int swoole_coroutine_fputs(const char *s, FILE *stream) {
 
     int retval = -1;
     swoole::coroutine::async([&]() { retval = fputs(s, stream); });
-    return retval; 
+    return retval;
 }
 
 int swoole_coroutine_feof(FILE *stream) {

@@ -10,7 +10,7 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | Author: Tianfeng Han  <rango@swoole.com>                             |
   |         Twosee  <twose@qq.com>                                       |
   +----------------------------------------------------------------------+
 */
@@ -217,7 +217,7 @@ class Coroutine {
     coroutine::Context ctx;
     Coroutine *origin = nullptr;
     CancelFunc *cancel_fn_ = nullptr;
-    
+
     Coroutine(const CoroutineFunc &fn, void *private_data) : ctx(stack_size, fn, private_data) {
         cid = ++last_cid;
         coroutines[cid] = this;
