@@ -303,14 +303,20 @@ php_socket *php_swoole_convert_to_socket(int sock);
 
 zend_bool php_swoole_signal_isset_handler(int signo);
 
-#define sw_zend_bailout() zend_bailout()
-
 #define sw_zend7_object zend_object
 #define SW_Z7_OBJ_P(object) object
 #define SW_Z8_OBJ_P(zobj) Z_OBJ_P(zobj)
 
 typedef ssize_t php_stream_size_t;
 
+#define ZEND_ERROR_CB_LAST_ARG_D zend_string *message
+#define ZEND_ERROR_CB_LAST_ARG_RELAY message
+
+#if PHP_VERSION_ID < 80100
+typedef const char error_filename_t;
+#else
+typedef zend_string error_filename_t;
+#endif
 //----------------------------------Zval API------------------------------------
 
 // Deprecated: do not use it anymore

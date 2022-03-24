@@ -7,7 +7,6 @@ swoole_mysql_coro: illegal another coroutine
 require __DIR__ . '/../include/bootstrap.php';
 $process = new Swoole\Process(function () {
     go(function () {
-
         register_shutdown_function(function () {
             $msg = (error_get_last() ?? [])['message'] ?? '';
             $num = preg_match_all('/coroutine#(\d+)/', $msg, $matches);
@@ -63,3 +62,4 @@ Stack trace:
 #3 %s(%d): {closure}()
 %A
   thrown in %s on line %d
+DONE

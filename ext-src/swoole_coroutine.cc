@@ -70,15 +70,6 @@ static user_opcode_handler_t ori_begin_silence_handler = nullptr;
 static user_opcode_handler_t ori_end_silence_handler = nullptr;
 static unordered_map<long, Coroutine *> user_yield_coros;
 
-#define ZEND_ERROR_CB_LAST_ARG_D zend_string *message
-#define ZEND_ERROR_CB_LAST_ARG_RELAY message
-
-#if PHP_VERSION_ID < 80100
-typedef const char error_filename_t;
-#else
-typedef zend_string error_filename_t;
-#endif
-
 static void (*orig_interrupt_function)(zend_execute_data *execute_data) = nullptr;
 static void (*orig_error_function)(int type,
                                    error_filename_t *error_filename,
@@ -267,6 +258,43 @@ void PHPCoroutine::init() {
     Coroutine::set_on_close(on_close);
 }
 
+void PHPCoroutine::error_cb(int type,
+                            error_filename_t *error_filename,
+                            const uint32_t error_lineno,
+                            ZEND_ERROR_CB_LAST_ARG_D) {
+    if (sw_unlikely(type & E_FATAL_ERRORS)) {
+        if (sw_reactor()) {
+            sw_reactor()->running = false;
+            sw_reactor()->bailout = true;
+        }
+        if (swoole_coroutine_is_in()) {
+            // update the last coroutine's info
+            save_task(get_context());
+            Coroutine::bailout([=]() {
+                zend_error_cb = orig_error_function;
+                orig_error_function(type, error_filename, error_lineno, ZEND_ERROR_CB_LAST_ARG_RELAY);
+                zend_bailout();
+            });
+        }
+    }
+    if (orig_error_function) {
+        orig_error_function(type, error_filename, error_lineno, ZEND_ERROR_CB_LAST_ARG_RELAY);
+    }
+}
+
+void PHPCoroutine::catch_exception(zend_object *exception) {
+    // TODO: exceptions will only cause the coroutine to exit
+    if (sw_reactor()) {
+        sw_reactor()->running = false;
+        sw_reactor()->bailout = true;
+    }
+    Coroutine::bailout([exception]() {
+        zend_error_cb = orig_error_function;
+        zend_exception_error(exception, E_ERROR);
+        zend_bailout();
+    });
+}
+
 void PHPCoroutine::activate() {
     if (sw_unlikely(activated)) {
         return;
@@ -292,31 +320,7 @@ void PHPCoroutine::activate() {
 
     /* replace the error function to save execute_data */
     orig_error_function = zend_error_cb;
-    zend_error_cb =
-        [](int type, error_filename_t *error_filename, const uint32_t error_lineno, ZEND_ERROR_CB_LAST_ARG_D) {
-            if (sw_unlikely(type & E_FATAL_ERRORS)) {
-                if (activated) {
-                    /* update the last coroutine's info */
-                    save_task(get_context());
-                }
-                if (sw_reactor()) {
-                    sw_reactor()->running = false;
-                    sw_reactor()->bailout = true;
-                }
-#ifdef SW_EXIT_WHEN_OCCURS_FATAL_ERROR
-                zend_try {
-                    orig_error_function(type, error_filename, error_lineno, ZEND_ERROR_CB_LAST_ARG_RELAY);
-                }
-                zend_catch {
-                    exit(255);
-                }
-                zend_end_try();
-#endif
-            }
-            if (sw_likely(orig_error_function)) {
-                orig_error_function(type, error_filename, error_lineno, ZEND_ERROR_CB_LAST_ARG_RELAY);
-            }
-        };
+    zend_error_cb = PHPCoroutine::error_cb;
 
     if (SWOOLE_G(enable_preemptive_scheduler) || config.enable_preemptive_scheduler) {
         /* create a thread to interrupt the coroutine that takes up too much time */
@@ -329,9 +333,7 @@ void PHPCoroutine::activate() {
 
     disable_unsafe_function();
 
-    /**
-     * deactivate when reactor free.
-     */
+    /* deactivate when reactor free */
     sw_reactor()->add_destroy_callback(deactivate, nullptr);
     Coroutine::activate();
     activated = true;
@@ -731,8 +733,7 @@ void PHPCoroutine::main_func(void *arg) {
             EG(current_execute_data) = nullptr;
             zend_init_func_execute_data(call, &func->op_array, retval);
             zend_execute_ex(EG(current_execute_data));
-        } else /* ZEND_INTERNAL_FUNCTION */
-        {
+        } else { /* ZEND_INTERNAL_FUNCTION */
             ZVAL_NULL(retval);
             call->prev_execute_data = nullptr;
             call->return_value = nullptr; /* this is not a constructor call */
@@ -772,23 +773,14 @@ void PHPCoroutine::main_func(void *arg) {
         }
         zval_ptr_dtor(retval);
 
-        // TODO: exceptions will only cause the coroutine to exit
         if (UNEXPECTED(EG(exception))) {
-            zend_exception_error(EG(exception), E_ERROR);
-            EG(exit_status) = 255;
-            zend_bailout();
+            catch_exception(EG(exception));
         }
 
 #ifdef SW_CORO_SUPPORT_BAILOUT
     }
     zend_catch {
-        Coroutine::bailout([]() {
-            if (sw_reactor()) {
-                sw_reactor()->running = false;
-                sw_reactor()->bailout = true;
-            }
-            sw_zend_bailout();
-        });
+        catch_exception(EG(exception));
     }
     zend_end_try();
 #endif
