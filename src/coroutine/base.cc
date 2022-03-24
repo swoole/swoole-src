@@ -182,15 +182,15 @@ void Coroutine::bailout(BailoutCallback func) {
     Coroutine *co = current;
     if (!co) {
         // marks that it can no longer resume any coroutine
-        on_bailout = (BailoutCallback) -1;
+        static BailoutCallback fn = []() {
+            // expect that never here
+            swoole_error("have been bailout, can not resume any coroutine");
+        };
+        on_bailout = fn;
         return;
     }
     if (!func) {
-        swoole_error("bailout without bailout function");
-    }
-    if (!co->task) {
-        // TODO: decoupling
-        exit(255);
+       swoole_error("bailout without callback function");
     }
     on_bailout = func;
     // find the coroutine which is closest to the main
@@ -200,7 +200,7 @@ void Coroutine::bailout(BailoutCallback func) {
     // it will jump to main context directly (it also breaks contexts)
     co->yield();
     // expect that never here
-    exit(1);
+    exit(SW_CORO_BAILOUT_EXIT_CODE);
 }
 
 namespace coroutine {

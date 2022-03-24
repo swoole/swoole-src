@@ -60,7 +60,7 @@ class Coroutine {
     };
 
     typedef void (*SwapCallback)(void *);
-    typedef void (*BailoutCallback)();
+    typedef std::function<void(void)> BailoutCallback;
     typedef std::function<bool(swoole::Coroutine*)> CancelFunc;
 
     void resume();
@@ -241,8 +241,7 @@ class Coroutine {
         } else if (sw_unlikely(on_bailout)) {
             SW_ASSERT(current == nullptr);
             on_bailout();
-            // expect that never here
-            exit(1);
+            exit(SW_CORO_BAILOUT_EXIT_CODE);
         }
     }
 
