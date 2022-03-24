@@ -372,7 +372,7 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, Even
     }
     if (ret < 0) {
         if (swoole_get_last_error() == EAGAIN || swoole_get_last_error() == SW_ERROR_SOCKET_POLL_TIMEOUT) {
-            swoole_warning("send result to worker timed out");
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_SEND_TO_WOKER_TIMEOUT, "send result to worker timed out");
         } else {
             swoole_sys_warning("send result to worker failed");
         }
