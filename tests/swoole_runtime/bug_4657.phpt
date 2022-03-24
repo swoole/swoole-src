@@ -4,7 +4,7 @@ swoole_runtime: bug 4657
 <?php
 require __DIR__ . '/../include/skipif.inc';
 if(PHP_VERSION_ID < 80000) {
-    skip('skip this test');
+    skip_unsupported('php version is too low');
 }
 ?>
 --FILE--
