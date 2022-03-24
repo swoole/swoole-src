@@ -754,9 +754,9 @@ EOF
       [amd64*], [SW_CPU="x86_64"],
       [x86*], [SW_CPU="x86"],
       [i?86*], [SW_CPU="x86"],
-      [arm*], [SW_CPU="arm"],
-      [aarch64*], [SW_CPU="arm64"],
       [arm64*], [SW_CPU="arm64"],
+      [aarch64*], [SW_CPU="arm64"],
+      [arm*], [SW_CPU="arm32"],
       [mips64*], [SW_CPU="mips64"],
       [mips*], [SW_CPU="mips32"],
       [riscv64*], [SW_CPU="riscv64"],
@@ -779,7 +779,7 @@ EOF
         else
             SW_USE_ASM_CONTEXT="no"
         fi
-    elif test "$SW_CPU" = "arm"; then
+    elif test "$SW_CPU" = "arm32"; then
         if test "$SW_OS" = "LINUX" || test "$SW_OS" = "BSD"; then
             SW_CONTEXT_ASM_FILE="arm_aapcs_elf_gas.S"
         else
