@@ -61,6 +61,11 @@ static PHP_FUNCTION(swoole_stream_socket_pair);
 static PHP_FUNCTION(swoole_user_func_handler);
 SW_EXTERN_C_END
 
+static void hook_final_class(const char *child_name,
+                             size_t child_length,
+                             const char *parent_name,
+                             size_t parent_length);
+static void unhook_final_class(const char *child_name);
 static int socket_set_option(php_stream *stream, int option, int value, void *ptrparam);
 static php_stream_size_t socket_read(php_stream *stream, char *buf, size_t count);
 static php_stream_size_t socket_write(php_stream *stream, const char *buf, size_t count);
@@ -200,6 +205,7 @@ static const zend_function_entry swoole_sockets_functions[] = {
 // clang-format on
 
 static zend_array *tmp_function_table = nullptr;
+static std::unordered_map<std::string, zend_class_entry *> original_class_entries;
 
 SW_EXTERN_C_BEGIN
 #include "ext/standard/file.h"
@@ -277,6 +283,11 @@ void php_swoole_runtime_rshutdown() {
     zend_hash_destroy(tmp_function_table);
     efree(tmp_function_table);
     tmp_function_table = nullptr;
+
+    for (auto iter = original_class_entries.begin(); iter != original_class_entries.end(); iter++) {
+        iter->second->parent = nullptr;
+    }
+    original_class_entries.clear();
 }
 
 void php_swoole_runtime_mshutdown() {
@@ -1220,6 +1231,49 @@ void PHPCoroutine::enable_unsafe_function() {
     }
 }
 
+static void hook_final_class(const char *child_name,
+                             size_t child_length,
+                             const char *parent_name,
+                             size_t parent_length) {
+#if PHP_VERSION_ID >= 80000
+    std::string cache_key(child_name);
+    auto iter = original_class_entries.find(cache_key);
+    if (iter != original_class_entries.end()) {
+        return;
+    }
+
+    zend_string *search_key;
+    search_key = zend_string_init(child_name, child_length, 0);
+    zend_class_entry *child_ce = zend_lookup_class(search_key);
+    zend_string_release(search_key);
+    if (!child_ce) {
+        return;
+    }
+
+    search_key = zend_string_init(parent_name, parent_length, 0);
+    zend_class_entry *parent_ce = zend_lookup_class(search_key);
+    zend_string_release(search_key);
+    if (!parent_ce) {
+        return;
+    }
+
+    child_ce->parent = parent_ce;
+    std::string key(ZSTR_VAL(child_ce->name));
+    original_class_entries.insert({key, child_ce});
+#endif
+}
+
+static void unhook_final_class(const char *child_name) {
+#if PHP_VERSION_ID >= 80000
+    std::string search_key(child_name);
+    auto iter = original_class_entries.find(search_key);
+    if (iter == original_class_entries.end()) {
+        return;
+    }
+    iter->second->parent = nullptr;
+#endif
+}
+
 bool PHPCoroutine::enable_hook(uint32_t flags) {
     if (swoole_isset_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_BEFORE_ENABLE_HOOK)) {
         swoole_call_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_BEFORE_ENABLE_HOOK, &flags);
@@ -1420,6 +1474,8 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
             SW_HOOK_SOCKETS_FUNC(socket_close);
             SW_HOOK_SOCKETS_FUNC(socket_clear_error);
             SW_HOOK_SOCKETS_FUNC(socket_last_error);
+
+            hook_final_class(ZEND_STRL("Swoole\\Coroutine\\Socket"), ZEND_STRL("Socket"));
         }
     } else {
         if (runtime_hook_flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION) {
@@ -1448,6 +1504,8 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
             SW_UNHOOK_FUNC(socket_close);
             SW_UNHOOK_FUNC(socket_clear_error);
             SW_UNHOOK_FUNC(socket_last_error);
+
+            unhook_final_class("Swoole\\Coroutine\\Socket");
         }
     }
 
