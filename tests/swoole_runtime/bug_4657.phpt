@@ -3,6 +3,9 @@ swoole_runtime: bug 4657
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
+if(PHP_VERSION_ID < 80000) {
+    skip();
+}
 ?>
 --FILE--
 <?php
