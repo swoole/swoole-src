@@ -367,7 +367,7 @@ bool swoole_websocket_handshake(HttpContext *ctx) {
         }
     }
 #endif
-    int _fd
+    int _fd;
     if (conn) {
         conn->websocket_status = WebSocket::STATUS_ACTIVE;
         ListenPort *port = serv->get_port_by_server_fd(conn->server_fd);
