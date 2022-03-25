@@ -2,6 +2,7 @@
 #include "swoole_util.h"
 
 using namespace std;
+using swoole::String;
 
 TEST(string, rtrim) {
     char buf[1024];
@@ -57,7 +58,7 @@ TEST(string, explode) {
     string haystack = "hello world";
     string needle = " ";
 
-    swString str;
+    String str;
     str.str = (char *) haystack.c_str();
     str.length = haystack.length();
 
@@ -82,7 +83,7 @@ TEST(string, explode_2) {
     string haystack = "hello,world,swoole,php,last";
     string needle = ",";
 
-    swString str;
+    String str;
     str.str = (char *) haystack.c_str();
     str.length = haystack.length();
 
@@ -109,7 +110,7 @@ static string test_data = "hello,world,swoole,php,last";
 
 TEST(string, pop_1) {
     auto str = swoole::make_string(init_size);
-    std::unique_ptr<swString> s(str);
+    std::unique_ptr<String> s(str);
 
     char *str_1 = str->str;
 
@@ -128,7 +129,7 @@ TEST(string, pop_1) {
 
 TEST(string, pop_2) {
     auto str = swoole::make_string(init_size);
-    std::unique_ptr<swString> s(str);
+    std::unique_ptr<String> s(str);
 
     char *str_1 = str->str;
 
@@ -147,7 +148,7 @@ TEST(string, pop_2) {
 
 TEST(string, reduce_1) {
     auto str = swoole::make_string(init_size);
-    std::unique_ptr<swString> s(str);
+    std::unique_ptr<String> s(str);
 
     const int len_1 = 11;
     str->append(test_data.c_str(), test_data.length());
@@ -160,7 +161,7 @@ TEST(string, reduce_1) {
 
 TEST(string, reduce_2) {
     auto str = swoole::make_string(init_size);
-    std::unique_ptr<swString> s(str);
+    std::unique_ptr<String> s(str);
 
     str->append(test_data.c_str(), test_data.length());
     str->offset = str->length;
@@ -172,7 +173,7 @@ TEST(string, reduce_2) {
 
 TEST(string, reduce_3) {
     auto str = swoole::make_string(init_size);
-    std::unique_ptr<swString> s(str);
+    std::unique_ptr<String> s(str);
 
     str->append(test_data.c_str(), test_data.length());
     str->offset = 0;
@@ -183,17 +184,29 @@ TEST(string, reduce_3) {
 }
 
 TEST(string, format) {
-    swString str(128);
+    String str(128);
 
     int a = swoole_rand(1000000, 9000000);
 
-    swString str2(1024);
+    String str2(1024);
     str2.append_random_bytes(1024, true);
 
     str.format("a=%d, b=%.*s\r\n", a, str2.length, str2.str);
 
     EXPECT_GT(str.size, 1024);
     EXPECT_STREQ(str.str + str.length - 2, "\r\n");
+}
+
+TEST(string, format_append) {
+    String str1(1024);
+    str1.append_random_bytes(1024, true);
+
+    std::string str2(str1.value(), str1.get_length());
+
+    size_t n = str1.format_impl(String::FORMAT_APPEND, "str=%s, value=%ld", "hello world", 999999999999999);
+    str2 += std::string(str1.value() + str2.length(), n);
+
+    EXPECT_MEMEQ(str1.value(), str2.c_str(), str1.get_length());
 }
 
 TEST(string, substr_len) {
