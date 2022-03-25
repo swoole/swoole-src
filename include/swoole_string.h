@@ -262,19 +262,18 @@ class String {
         }
         // store \0 terminator
         _size++;
-        size_t new_size = (flags | FORMAT_APPEND) ? length + _size : _size;
+
+        size_t new_size = (flags & FORMAT_APPEND) ? length + _size : _size;
         if (flags & FORMAT_GROW) {
             size_t align_size = SW_MEM_ALIGNED_SIZE(size * 2);
             while (align_size < new_size) {
                 align_size *= 2;
             }
             new_size = align_size;
-        } else {
-            new_size = length + _size;
         }
 
         size_t n;
-        if (flags | FORMAT_APPEND) {
+        if (flags & FORMAT_APPEND) {
             if (_size > size - length && !reserve(new_size)) {
                 return 0;
             }
@@ -287,6 +286,7 @@ class String {
             n = sw_snprintf(str, size, format, args...);
             length = n;
         }
+
         return n;
     }
 

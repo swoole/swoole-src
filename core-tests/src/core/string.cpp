@@ -183,27 +183,27 @@ TEST(string, reduce_3) {
     EXPECT_EQ(str->length, test_data.length());
 }
 
-TEST(string, format) {
-    String str(128);
+const auto FORMAT_INT = 999999999999999;
+const auto FORMAT_STR = "hello world";
 
-    int a = swoole_rand(1000000, 9000000);
+TEST(string, format_1) {
+    String str1(1024);
+    str1.append_random_bytes(1024, true);
 
-    String str2(1024);
-    str2.append_random_bytes(1024, true);
+    size_t n = str1.format("str=%s, value=%ld", FORMAT_STR, FORMAT_INT);
+    std::string str2("str=hello world, value=999999999999999");
 
-    str.format("a=%d, b=%.*s\r\n", a, str2.length, str2.str);
-
-    EXPECT_GT(str.size, 1024);
-    EXPECT_STREQ(str.str + str.length - 2, "\r\n");
+    ASSERT_EQ(str1.get_length(), n);
+    ASSERT_MEMEQ(str1.value(), str2.c_str(), n);
 }
 
-TEST(string, format_append) {
+TEST(string, format_2) {
     String str1(1024);
     str1.append_random_bytes(1024, true);
 
     std::string str2(str1.value(), str1.get_length());
 
-    size_t n = str1.format_impl(String::FORMAT_APPEND, "str=%s, value=%ld", "hello world", 999999999999999);
+    size_t n = str1.format_impl(String::FORMAT_APPEND, "str=%s, value=%ld", FORMAT_STR, FORMAT_INT);
     str2 += std::string(str1.value() + str2.length(), n);
 
     EXPECT_MEMEQ(str1.value(), str2.c_str(), str1.get_length());
