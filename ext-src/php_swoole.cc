@@ -10,7 +10,7 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | Author: Tianfeng Han  <rango@swoole.com>                             |
   +----------------------------------------------------------------------+
 */
 #include "php_swoole_cxx.h"
@@ -27,13 +27,8 @@ BEGIN_EXTERN_C()
 #include "ext/json/php_json.h"
 #endif
 
-#if PHP_VERSION_ID >= 80000
 #include "stubs/php_swoole_arginfo.h"
 #include "stubs/php_swoole_ex_arginfo.h"
-#else
-#include "stubs/php_swoole_legacy_arginfo.h"
-#include "stubs/php_swoole_ex_legacy_arginfo.h"
-#endif
 END_EXTERN_C()
 
 #include "swoole_mime_type.h"
@@ -235,15 +230,9 @@ void php_swoole_register_shutdown_function(const char *function) {
     register_user_shutdown_function(Z_STRVAL(function_name), Z_STRLEN(function_name), &shutdown_function_entry);
 #else
     zval *function_name;
-#if PHP_VERSION_ID >= 80000
     shutdown_function_entry.arg_count = 0;
     shutdown_function_entry.arguments = NULL;
     function_name = &shutdown_function_entry.function_name;
-#else
-    shutdown_function_entry.arg_count = 1;
-    shutdown_function_entry.arguments = (zval *) safe_emalloc(sizeof(zval), 1, 0);
-    function_name = &shutdown_function_entry.arguments[0];
-#endif
     ZVAL_STRING(function_name, function);
     register_user_shutdown_function(Z_STRVAL_P(function_name), Z_STRLEN_P(function_name), &shutdown_function_entry);
 #endif
@@ -668,16 +657,11 @@ PHP_MINIT_FUNCTION(swoole) {
         SWOOLE_G(cli) = 1;
     }
 
-    SW_INIT_CLASS_ENTRY_EX2(swoole_exception,
-                            "Swoole\\Exception",
-                            "swoole_exception",
-                            nullptr,
-                            nullptr,
-                            zend_ce_exception,
-                            zend_get_std_object_handlers());
+    SW_INIT_CLASS_ENTRY_EX2(
+        swoole_exception, "Swoole\\Exception", nullptr, nullptr, zend_ce_exception, zend_get_std_object_handlers());
 
     SW_INIT_CLASS_ENTRY_EX2(
-        swoole_error, "Swoole\\Error", "swoole_error", nullptr, nullptr, zend_ce_error, zend_get_std_object_handlers());
+        swoole_error, "Swoole\\Error", nullptr, nullptr, zend_ce_error, zend_get_std_object_handlers());
 
     /** <Sort by dependency> **/
     php_swoole_event_minit(module_number);
@@ -723,8 +707,7 @@ PHP_MINIT_FUNCTION(swoole) {
     SwooleG.dns_cache_refresh_time = 60;
 
     // enable pcre.jit and use swoole extension on MacOS will lead to coredump, disable it temporarily
-#if defined(PHP_PCRE_VERSION) && defined(HAVE_PCRE_JIT_SUPPORT) && PHP_VERSION_ID >= 70300 && __MACH__ &&              \
-    !defined(SW_DEBUG)
+#if defined(PHP_PCRE_VERSION) && defined(HAVE_PCRE_JIT_SUPPORT) && __MACH__ && !defined(SW_DEBUG)
     PCRE_G(jit) = 0;
 #endif
 

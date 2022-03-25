@@ -74,5 +74,5 @@ $pm->run();
 Fatal error: Uncaught Swoole\Error: cURL is executing, cannot be operated in %s:%d
 Stack trace:
 #0 %s(%d): curl_close(%s)
-#1 {main}
+%A
   thrown in %s on line %d

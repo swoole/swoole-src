@@ -10,7 +10,7 @@
  | to obtain it through the world-wide-web, please send a note to       |
  | license@swoole.com so we can mail you a copy immediately.            |
  +----------------------------------------------------------------------+
- | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+ | Author: Tianfeng Han  <rango@swoole.com>                             |
  +----------------------------------------------------------------------+
  */
 
@@ -44,8 +44,14 @@
 #include "swoole_coroutine_system.h"
 #include "swoole_ssl.h"
 
-#if defined(HAVE_CCRANDOMGENERATEBYTES)
+#if defined(__APPLE__) && defined(HAVE_CCRANDOMGENERATEBYTES)
+#include <Availability.h>
+#if (defined(__MAC_OS_X_VERSION_MIN_REQUIRED) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 101000) ||                         \
+    (defined(__IPHONE_OS_VERSION_MIN_REQUIRED) && __IPHONE_OS_VERSION_MIN_REQUIRED >= 80000)
+#define OPENSSL_APPLE_CRYPTO_RANDOM 1
+#include <CommonCrypto/CommonCryptoError.h>
 #include <CommonCrypto/CommonRandom.h>
+#endif
 #endif
 
 using swoole::NameResolver;
@@ -57,8 +63,8 @@ using swoole::coroutine::System;
 #else
 static ssize_t getrandom(void *buffer, size_t size, unsigned int __flags) {
 #if defined(HAVE_CCRANDOMGENERATEBYTES)
-    /* 
-     * arc4random_buf on macOs uses ccrng_generate internally from which 
+    /*
+     * arc4random_buf on macOs uses ccrng_generate internally from which
      * the potential error is silented to respect the portable arc4random_buf interface contract
      */
     if (CCRandomGenerateBytes(buffer, size) == kCCSuccess) {
@@ -396,7 +402,6 @@ pid_t swoole_fork(int flags) {
     return pid;
 }
 
-#ifdef SW_DEBUG
 void swoole_dump_ascii(const char *data, size_t size) {
     for (size_t i = 0; i < size; i++) {
         printf("%u ", (unsigned) data[i]);
@@ -430,7 +435,6 @@ void swoole_dump_hex(const char *data, size_t outlen) {
     }
     printf("\n");
 }
-#endif
 
 /**
  * Recursive directory creation
@@ -869,7 +873,7 @@ size_t DataHead::dump(char *_buf, size_t _len) {
                        "DataHead[%p]\n"
                        "{\n"
                        "    long fd = %ld;\n"
-                       "    uint64_t msg_id = %lu;\n"
+                       "    uint64_t msg_id = %" PRIu64 ";\n"
                        "    uint32_t len = %d;\n"
                        "    int16_t reactor_id = %d;\n"
                        "    uint8_t type = %d;\n"

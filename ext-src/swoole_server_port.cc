@@ -10,18 +10,14 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | Author: Tianfeng Han  <rango@swoole.com>                             |
   +----------------------------------------------------------------------+
  */
 
 #include "php_swoole_server.h"
 
 BEGIN_EXTERN_C()
-#if PHP_VERSION_ID >= 80000
 #include "stubs/php_swoole_server_port_arginfo.h"
-#else
-#include "stubs/php_swoole_server_port_legacy_arginfo.h"
-#endif
 END_EXTERN_C()
 
 using namespace swoole;
@@ -156,8 +152,7 @@ const zend_function_entry swoole_server_port_methods[] =
 // clang-format on
 
 void php_swoole_server_port_minit(int module_number) {
-    SW_INIT_CLASS_ENTRY(
-        swoole_server_port, "Swoole\\Server\\Port", "swoole_server_port", nullptr, swoole_server_port_methods);
+    SW_INIT_CLASS_ENTRY(swoole_server_port, "Swoole\\Server\\Port", nullptr, swoole_server_port_methods);
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_server_port);
     SW_SET_CLASS_CLONEABLE(swoole_server_port, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_server_port, sw_zend_class_unset_property_deny);

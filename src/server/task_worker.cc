@@ -10,7 +10,7 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | Author: Tianfeng Han  <rango@swoole.com>                             |
   +----------------------------------------------------------------------+
 */
 
@@ -362,7 +362,7 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, Even
         while (1) {
             ret = pipe->write(&flag, sizeof(flag));
             auto _sock = pipe->get_socket(true);
-            if (ret < 0 && _sock->catch_error(errno) == SW_WAIT) {
+            if (ret < 0 && _sock->catch_write_error(errno) == SW_WAIT) {
                 if (_sock->wait_event(-1, SW_EVENT_WRITE) == 0) {
                     continue;
                 }
@@ -372,7 +372,7 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, Even
     }
     if (ret < 0) {
         if (swoole_get_last_error() == EAGAIN || swoole_get_last_error() == SW_ERROR_SOCKET_POLL_TIMEOUT) {
-            swoole_warning("send result to worker timed out");
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_SEND_TO_WOKER_TIMEOUT, "send result to worker timed out");
         } else {
             swoole_sys_warning("send result to worker failed");
         }

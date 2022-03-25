@@ -10,7 +10,7 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | Author: Tianfeng Han  <rango@swoole.com>                             |
   +----------------------------------------------------------------------+
 */
 
@@ -19,11 +19,7 @@
 #include "swoole_table.h"
 
 BEGIN_EXTERN_C()
-#if PHP_VERSION_ID >= 80000
 #include "stubs/php_swoole_table_arginfo.h"
-#else
-#include "stubs/php_swoole_table_legacy_arginfo.h"
-#endif
 END_EXTERN_C()
 
 using namespace swoole;
@@ -183,7 +179,7 @@ static const zend_function_entry swoole_table_methods[] =
 // clang-format on
 
 void php_swoole_table_minit(int module_number) {
-    SW_INIT_CLASS_ENTRY(swoole_table, "Swoole\\Table", "swoole_table", nullptr, swoole_table_methods);
+    SW_INIT_CLASS_ENTRY(swoole_table, "Swoole\\Table", nullptr, swoole_table_methods);
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_table);
     SW_SET_CLASS_CLONEABLE(swoole_table, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_table, sw_zend_class_unset_property_deny);
@@ -261,7 +257,8 @@ static PHP_METHOD(swoole_table, create) {
         RETURN_FALSE;
     }
     zend_update_property_long(swoole_table_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("size"), table->get_size());
-    zend_update_property_long(swoole_table_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("memorySize"), table->get_memory_size());
+    zend_update_property_long(
+        swoole_table_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("memorySize"), table->get_memory_size());
     RETURN_TRUE;
 }
 
@@ -309,7 +306,7 @@ static PHP_METHOD(swoole_table, set) {
             TableColumn *col = *i;
             zval *zv = zend_hash_str_find(ht, col->name.c_str(), col->name.length());
             if (zv == nullptr || ZVAL_IS_NULL(zv)) {
-                 col->clear(row);
+                col->clear(row);
             } else {
                 if (col->type == TableColumn::TYPE_STRING) {
                     zend_string *str = zval_get_string(zv);

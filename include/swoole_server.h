@@ -660,8 +660,9 @@ class Server {
         DISPATCH_UIDMOD = 5,
         DISPATCH_USERFUNC = 6,
         DISPATCH_STREAM = 7,
-        DISPATCH_CO_CONN_LB,
-        DISPATCH_CO_REQ_LB,
+        DISPATCH_CO_CONN_LB = 8,
+        DISPATCH_CO_REQ_LB = 9,
+        DISPATCH_CONCURRENT_LB = 10,
     };
 
     enum FactoryDispatchResult {
@@ -1201,19 +1202,6 @@ class Server {
         return nullptr;
     }
 
-    int get_lowest_load_worker_id() {
-        uint32_t lowest_load_worker_id = 0;
-        size_t min_coroutine = workers[0].coroutine_num;
-        for (uint32_t i = 1; i < worker_num; i++) {
-            if (workers[i].coroutine_num < min_coroutine) {
-                min_coroutine = workers[i].coroutine_num;
-                lowest_load_worker_id = i;
-                continue;
-            }
-        }
-        return lowest_load_worker_id;
-    }
-
     void stop_async_worker(Worker *worker);
 
     inline Pipe *get_pipe_object(int pipe_fd) {
@@ -1544,6 +1532,49 @@ class Server {
     void start_heartbeat_thread();
     void join_reactor_thread();
     TimerCallback get_timeout_callback(ListenPort *port, Reactor *reactor, Connection *conn);
+
+    int get_lowest_load_worker_id() {
+        uint32_t lowest_load_worker_id = 0;
+        size_t min_coroutine = workers[0].coroutine_num;
+        for (uint32_t i = 1; i < worker_num; i++) {
+            if (workers[i].coroutine_num < min_coroutine) {
+                min_coroutine = workers[i].coroutine_num;
+                lowest_load_worker_id = i;
+                continue;
+            }
+        }
+        return lowest_load_worker_id;
+    }
+
+    int get_lowest_concurrent_worker_id() {
+        uint32_t lowest_concurrent_worker_id = 0;
+        size_t min_concurrency = workers[0].concurrency;
+        for (uint32_t i = 1; i < worker_num; i++) {
+            if (workers[i].concurrency < min_concurrency) {
+                min_concurrency = workers[i].concurrency;
+                lowest_concurrent_worker_id = i;
+                continue;
+            }
+        }
+        return lowest_concurrent_worker_id;
+    }
+
+    int get_idle_worker_id() {
+        bool found = false;
+        uint32_t key;
+        SW_LOOP_N(worker_num + 1) {
+            key = sw_atomic_fetch_add(&worker_round_id, 1) % worker_num;
+            if (workers[key].status == SW_WORKER_IDLE) {
+                found = true;
+                break;
+            }
+        }
+        if (sw_unlikely(!found)) {
+            scheduler_warning = true;
+        }
+        swoole_trace_log(SW_TRACE_SERVER, "schedule=%d, round=%d", key, worker_round_id);
+        return key;
+    }
 };
 
 }  // namespace swoole

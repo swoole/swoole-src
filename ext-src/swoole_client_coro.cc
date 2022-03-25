@@ -10,7 +10,7 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | Author: Tianfeng Han  <rango@swoole.com>                             |
   +----------------------------------------------------------------------+
 */
 
@@ -21,18 +21,14 @@
 #include "swoole_proxy.h"
 
 BEGIN_EXTERN_C()
-#if PHP_VERSION_ID >= 80000
 #include "stubs/php_swoole_client_coro_arginfo.h"
-#else
-#include "stubs/php_swoole_client_coro_legacy_arginfo.h"
-#endif
 END_EXTERN_C()
 
+using swoole::HttpProxy;
+using swoole::Socks5Proxy;
+using swoole::String;
 using swoole::coroutine::Socket;
 using swoole::network::Address;
-using swoole::Socks5Proxy;
-using swoole::HttpProxy;
-using swoole::String;
 #ifdef SW_USE_OPENSSL
 using swoole::SSLContext;
 #endif
@@ -127,13 +123,15 @@ static zend_object *php_swoole_client_coro_create_object(zend_class_entry *ce) {
 }
 
 void php_swoole_client_coro_minit(int module_number) {
-    SW_INIT_CLASS_ENTRY(
-        swoole_client_coro, "Swoole\\Coroutine\\Client", nullptr, "Co\\Client", swoole_client_coro_methods);
+    SW_INIT_CLASS_ENTRY(swoole_client_coro, "Swoole\\Coroutine\\Client", "Co\\Client", swoole_client_coro_methods);
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_client_coro);
     SW_SET_CLASS_CLONEABLE(swoole_client_coro, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_client_coro, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CUSTOM_OBJECT(
-        swoole_client_coro, php_swoole_client_coro_create_object, php_swoole_client_coro_free_object, ClientCoroObject, std);
+    SW_SET_CLASS_CUSTOM_OBJECT(swoole_client_coro,
+                               php_swoole_client_coro_create_object,
+                               php_swoole_client_coro_free_object,
+                               ClientCoroObject,
+                               std);
 
     zend_declare_property_long(swoole_client_coro_ce, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_string(swoole_client_coro_ce, ZEND_STRL("errMsg"), "", ZEND_ACC_PUBLIC);

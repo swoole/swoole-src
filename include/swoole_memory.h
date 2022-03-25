@@ -27,8 +27,9 @@ class MemoryPool {
     virtual ~MemoryPool(){};
     virtual void *alloc(uint32_t size) = 0;
     virtual void free(void *ptr) = 0;
+
   protected:
-    MemoryPool() {};
+    MemoryPool(){};
 };
 
 struct FixedPoolImpl;
@@ -43,7 +44,7 @@ class FixedPool : public MemoryPool {
     ~FixedPool();
     void *alloc(uint32_t size);
     void free(void *ptr);
-    void debug();
+    void debug(int max_lines = 100);
     uint32_t get_number_of_spare_slice();
     uint32_t get_number_of_total_slice();
     uint32_t get_slice_size();

@@ -10,7 +10,7 @@
  | to obtain it through the world-wide-web, please send a note to       |
  | license@swoole.com so we can mail you a copy immediately.            |
  +----------------------------------------------------------------------+
- | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+ | Author: Tianfeng Han  <rango@swoole.com>                             |
  +----------------------------------------------------------------------+
  */
 
@@ -22,9 +22,9 @@
 
 #ifdef SW_USE_OPENSSL
 
+using swoole::SSLContext;
 using swoole::network::Address;
 using swoole::network::Socket;
-using swoole::SSLContext;
 
 #if OPENSSL_VERSION_NUMBER < 0x10000000L
 #error "require openssl version 1.0 or later"
@@ -56,11 +56,7 @@ static int swoole_ssl_verify_cookie(SSL *ssl, const uchar *cookie, uint cookie_l
 #endif
 
 std::string swoole_ssl_get_version_message() {
-    std::string message = swoole::std_string::format(
-        "OPENSSL_VERSION: %s\n",
-        OPENSSL_VERSION_TEXT);
-
-    return message;
+    return swoole::std_string::format("OPENSSL_VERSION: %s\n", OPENSSL_VERSION_TEXT);
 }
 
 static void MAYBE_UNUSED swoole_ssl_lock_callback(int mode, int type, const char *file, int line);
@@ -224,10 +220,10 @@ namespace swoole {
 
 #ifndef OPENSSL_NO_NEXTPROTONEG
 
-const std::string HTTP2_H2_ALPN("\x2h2");
-const std::string HTTP2_H2_16_ALPN("\x5h2-16");
-const std::string HTTP2_H2_14_ALPN("\x5h2-14");
-const std::string HTTP1_NPN("\x08http/1.1");
+#define HTTP2_H2_ALPN "\x02h2"
+#define HTTP2_H2_16_ALPN "\x05h2-16"
+#define HTTP2_H2_14_ALPN "\x05h2-14"
+#define HTTP1_NPN "\x08http/1.1"
 
 static bool ssl_select_proto(const uchar **out, uchar *outlen, const uchar *in, uint inlen, const std::string &key) {
     for (auto p = in, end = in + inlen; p + key.size() <= end; p += *p + 1) {
@@ -246,24 +242,22 @@ static bool ssl_select_h2(const uchar **out, uchar *outlen, const uchar *in, uin
            ssl_select_proto(out, outlen, in, inlen, HTTP2_H2_14_ALPN);
 }
 
-
 #ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
-static int ssl_alpn_advertised(
-    SSL *ssl, const uchar **out, uchar *outlen, const uchar *in, uint32_t inlen, void *arg) {
-    unsigned int srvlen;
-    unsigned char *srv;
+static int ssl_alpn_advertised(SSL *ssl, const uchar **out, uchar *outlen, const uchar *in, uint32_t inlen, void *arg) {
+    unsigned int protos_len;
+    const char *protos;
 
-    std::string value;
-    SSLContext *cfg = (SSLContext*) arg;
+    SSLContext *cfg = (SSLContext *) arg;
     if (cfg->http_v2) {
-        value = HTTP2_H2_ALPN + HTTP1_NPN;
+        protos = HTTP2_H2_ALPN HTTP1_NPN;
+        protos_len = sizeof(HTTP2_H2_ALPN HTTP1_NPN) - 1;
     } else {
-        value = HTTP1_NPN;
+        protos = HTTP1_NPN;
+        protos_len = sizeof(HTTP1_NPN) - 1;
     }
 
-    srv = (unsigned char *) value.c_str();
-    srvlen = value.length();
-    if (SSL_select_next_proto((unsigned char **) out, outlen, srv, srvlen, in, inlen) != OPENSSL_NPN_NEGOTIATED) {
+    if (SSL_select_next_proto((unsigned char **) out, outlen, (const uchar *) protos, protos_len, in, inlen) !=
+        OPENSSL_NPN_NEGOTIATED) {
         return SSL_TLSEXT_ERR_NOACK;
     }
     return SSL_TLSEXT_ERR_OK;
@@ -279,19 +273,19 @@ static int ssl_select_next_proto_cb(SSL *ssl, uchar **out, uchar *outlen, const 
     swoole_trace_log(SW_TRACE_HTTP2, "[NPN] server offers: %s", info.c_str());
 #endif
     SSLContext *ctx = (SSLContext *) arg;
-    if (ctx->http_v2 && !ssl_select_h2(const_cast<const unsigned char**>(out), outlen, in, inlen)) {
+    if (ctx->http_v2 && !ssl_select_h2(const_cast<const unsigned char **>(out), outlen, in, inlen)) {
         swoole_warning("HTTP/2 protocol was not selected, expects [h2]");
         return SSL_TLSEXT_ERR_NOACK;
     } else if (ctx->http) {
-        *out = (uchar*) HTTP1_NPN.c_str();
-        *outlen = HTTP1_NPN.length();
+        *out = (uchar *) HTTP1_NPN;
+        *outlen = sizeof(HTTP1_NPN) - 1;
     }
     return SSL_TLSEXT_ERR_OK;
 }
 #endif
 
 static int ssl_passwd_callback(char *buf, int num, int verify, void *data) {
-    SSLContext *ctx = (SSLContext*) data;
+    SSLContext *ctx = (SSLContext *) data;
     if (!ctx->passphrase.empty()) {
         int len = ctx->passphrase.length();
         if (len < num - 1) {
@@ -432,8 +426,10 @@ bool SSLContext::create() {
          */
         if (SSL_CTX_use_certificate_file(context, cert_file.c_str(), SSL_FILETYPE_PEM) <= 0) {
             int error = ERR_get_error();
-            swoole_warning("SSL_CTX_use_certificate_file(%s) failed, Error: %s[%d]", cert_file.c_str(),
-                   ERR_reason_error_string(error), error);
+            swoole_warning("SSL_CTX_use_certificate_file(%s) failed, Error: %s[%d]",
+                           cert_file.c_str(),
+                           ERR_reason_error_string(error),
+                           error);
             return true;
         }
         /*
@@ -442,8 +438,10 @@ bool SSLContext::create() {
          */
         if (SSL_CTX_use_certificate_chain_file(context, cert_file.c_str()) <= 0) {
             int error = ERR_get_error();
-            swoole_warning("SSL_CTX_use_certificate_chain_file(%s) failed, Error: %s[%d]", cert_file.c_str(),
-                   ERR_reason_error_string(error), error);
+            swoole_warning("SSL_CTX_use_certificate_chain_file(%s) failed, Error: %s[%d]",
+                           cert_file.c_str(),
+                           ERR_reason_error_string(error),
+                           error);
             return false;
         }
     }
@@ -453,8 +451,10 @@ bool SSLContext::create() {
          */
         if (SSL_CTX_use_PrivateKey_file(context, key_file.c_str(), SSL_FILETYPE_PEM) <= 0) {
             int error = ERR_get_error();
-            swoole_warning("SSL_CTX_use_PrivateKey_file(%s) failed, Error: %s[%d]", key_file.c_str(),
-                   ERR_reason_error_string(error), error);
+            swoole_warning("SSL_CTX_use_PrivateKey_file(%s) failed, Error: %s[%d]",
+                           key_file.c_str(),
+                           ERR_reason_error_string(error),
+                           error);
             return false;
         }
         /*
@@ -471,7 +471,7 @@ bool SSLContext::create() {
 #ifndef OPENSSL_IS_BORINGSSL
         SSL_CTX_set_cookie_generate_cb(context, swoole_ssl_generate_cookie);
         SSL_CTX_set_cookie_verify_cb(context, swoole_ssl_verify_cookie);
-#endif        
+#endif
     }
 #endif
 
@@ -483,16 +483,19 @@ bool SSLContext::create() {
 
 #if OPENSSL_VERSION_NUMBER >= 0x10002000L
     if (http || http_v2) {
-        std::string value;
+        unsigned int protos_len;
+        const char *protos;
         if (http_v2) {
-            value = HTTP2_H2_ALPN + HTTP1_NPN;
+            protos = HTTP2_H2_ALPN HTTP1_NPN;
+            protos_len = sizeof(HTTP2_H2_ALPN HTTP1_NPN) - 1;
         } else {
-            value = HTTP1_NPN;
+            protos = HTTP1_NPN;
+            protos_len = sizeof(HTTP2_H2_ALPN HTTP1_NPN) - 1;
         }
 #ifndef OPENSSL_NO_NEXTPROTONEG
         SSL_CTX_set_next_proto_select_cb(context, ssl_select_next_proto_cb, nullptr);
 #endif
-        if (SSL_CTX_set_alpn_protos(context, (const unsigned char *) value.c_str(), value.length()) < 0) {
+        if (SSL_CTX_set_alpn_protos(context, (const uchar *) protos, protos_len) < 0) {
             return false;
         }
 
@@ -697,7 +700,7 @@ SSLContext::~SSLContext() {
     SSL_CTX_free(context);
 }
 
-}
+}  // namespace swoole
 
 static int swoole_ssl_verify_callback(int ok, X509_STORE_CTX *x509_store) {
 #if 0

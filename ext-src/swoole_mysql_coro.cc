@@ -13,7 +13,7 @@
  | license@swoole.com so we can mail you a copy immediately.            |
  +----------------------------------------------------------------------+
  | Author: Twosee  <twose@qq.com>                                       |
- | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+ | Author: Tianfeng Han  <rango@swoole.com>                             |
  +----------------------------------------------------------------------+
  */
 
@@ -611,9 +611,9 @@ const char *mysql_client::recv_length(size_t need_length, const bool try_to_recy
         size_t read_n = buffer->length - buffer->offset;  // readable bytes
         if (try_to_recycle && read_n == 0) {
             swoole_trace_log(SW_TRACE_MYSQL_CLIENT,
-                       "mysql buffer will be recycled, length=%zu, offset=%jd",
-                       buffer->length,
-                       (intmax_t) offset);
+                             "mysql buffer will be recycled, length=%zu, offset=%jd",
+                             buffer->length,
+                             (intmax_t) offset);
             buffer->clear();
             offset = 0;
         }
@@ -927,13 +927,13 @@ void mysql_client::handle_row_data_text(zval *return_value, mysql::row_data *row
         RETVAL_STRINGL(p, row_data->text.length);
     _return:
         swoole_trace_log(SW_TRACE_MYSQL_CLIENT,
-                   "%.*s=[%lu]%.*s%s",
-                   field->name_length,
-                   field->name,
-                   Z_STRLEN_P(return_value),
-                   (int) SW_MIN(32, Z_STRLEN_P(return_value)),
-                   Z_STRVAL_P(return_value),
-                   (Z_STRLEN_P(return_value) > 32 ? "..." : ""));
+                         "%.*s=[%lu]%.*s%s",
+                         field->name_length,
+                         field->name,
+                         Z_STRLEN_P(return_value),
+                         (int) SW_MIN(32, Z_STRLEN_P(return_value)),
+                         Z_STRVAL_P(return_value),
+                         (Z_STRLEN_P(return_value) > 32 ? "..." : ""));
     }
 }
 
@@ -1428,7 +1428,8 @@ void mysql_statement::fetch(zval *return_value) {
                     std::string datetime = mysql::datetime(p, row_data.text.length, field->decimals);
                     add_assoc_stringl_ex(
                         return_value, field->name, field->name_length, (char *) datetime.c_str(), datetime.length());
-                    swoole_trace_log(SW_TRACE_MYSQL_CLIENT, "%.*s=%s", field->name_length, field->name, datetime.c_str());
+                    swoole_trace_log(
+                        SW_TRACE_MYSQL_CLIENT, "%.*s=%s", field->name_length, field->name, datetime.c_str());
                     break;
                 }
                 case SW_MYSQL_TYPE_TIME: {
@@ -1446,7 +1447,13 @@ void mysql_statement::fetch(zval *return_value) {
                     break;
                 }
                 case SW_MYSQL_TYPE_YEAR: {
+#if PHP_VERSION_ID >= 80100
+                    std::string year = mysql::year(p, row_data.text.length);
+                    add_assoc_stringl_ex(
+                        return_value, field->name, field->name_length, (char *) year.c_str(), year.length());
+#else
                     add_assoc_long_ex(return_value, field->name, field->name_length, sw_mysql_uint2korr2korr(p));
+#endif
                     swoole_trace_log(
                         SW_TRACE_MYSQL_CLIENT, "%.*s=%d", field->name_length, field->name, sw_mysql_uint2korr2korr(p));
                     break;
@@ -1455,38 +1462,46 @@ void mysql_statement::fetch(zval *return_value) {
                 case SW_MYSQL_TYPE_TINY:
                     if (field->flags & SW_MYSQL_UNSIGNED_FLAG) {
                         add_assoc_long_ex(return_value, field->name, field->name_length, *(uint8_t *) p);
-                        swoole_trace_log(SW_TRACE_MYSQL_CLIENT, "%.*s=%u", field->name_length, field->name, *(uint8_t *) p);
+                        swoole_trace_log(
+                            SW_TRACE_MYSQL_CLIENT, "%.*s=%u", field->name_length, field->name, *(uint8_t *) p);
                     } else {
                         add_assoc_long_ex(return_value, field->name, field->name_length, *(int8_t *) p);
-                        swoole_trace_log(SW_TRACE_MYSQL_CLIENT, "%.*s=%d", field->name_length, field->name, *(int8_t *) p);
+                        swoole_trace_log(
+                            SW_TRACE_MYSQL_CLIENT, "%.*s=%d", field->name_length, field->name, *(int8_t *) p);
                     }
                     break;
                 case SW_MYSQL_TYPE_SHORT:
                     if (field->flags & SW_MYSQL_UNSIGNED_FLAG) {
                         add_assoc_long_ex(return_value, field->name, field->name_length, *(uint16_t *) p);
-                        swoole_trace_log(SW_TRACE_MYSQL_CLIENT, "%.*s=%u", field->name_length, field->name, *(uint16_t *) p);
+                        swoole_trace_log(
+                            SW_TRACE_MYSQL_CLIENT, "%.*s=%u", field->name_length, field->name, *(uint16_t *) p);
                     } else {
                         add_assoc_long_ex(return_value, field->name, field->name_length, *(int16_t *) p);
-                        swoole_trace_log(SW_TRACE_MYSQL_CLIENT, "%.*s=%d", field->name_length, field->name, *(int16_t *) p);
+                        swoole_trace_log(
+                            SW_TRACE_MYSQL_CLIENT, "%.*s=%d", field->name_length, field->name, *(int16_t *) p);
                     }
                     break;
                 case SW_MYSQL_TYPE_INT24:
                 case SW_MYSQL_TYPE_LONG:
                     if (field->flags & SW_MYSQL_UNSIGNED_FLAG) {
                         add_assoc_long_ex(return_value, field->name, field->name_length, *(uint32_t *) p);
-                        swoole_trace_log(SW_TRACE_MYSQL_CLIENT, "%.*s=%u", field->name_length, field->name, *(uint32_t *) p);
+                        swoole_trace_log(
+                            SW_TRACE_MYSQL_CLIENT, "%.*s=%u", field->name_length, field->name, *(uint32_t *) p);
                     } else {
                         add_assoc_long_ex(return_value, field->name, field->name_length, *(int32_t *) p);
-                        swoole_trace_log(SW_TRACE_MYSQL_CLIENT, "%.*s=%d", field->name_length, field->name, *(int32_t *) p);
+                        swoole_trace_log(
+                            SW_TRACE_MYSQL_CLIENT, "%.*s=%d", field->name_length, field->name, *(int32_t *) p);
                     }
                     break;
                 case SW_MYSQL_TYPE_LONGLONG:
                     if (field->flags & SW_MYSQL_UNSIGNED_FLAG) {
                         add_assoc_ulong_safe_ex(return_value, field->name, field->name_length, *(uint64_t *) p);
-                        swoole_trace_log(SW_TRACE_MYSQL_CLIENT, "%.*s=%lu", field->name_length, field->name, *(uint64_t *) p);
+                        swoole_trace_log(
+                            SW_TRACE_MYSQL_CLIENT, "%.*s=%" PRIu64, field->name_length, field->name, *(uint64_t *) p);
                     } else {
                         add_assoc_long_ex(return_value, field->name, field->name_length, *(int64_t *) p);
-                        swoole_trace_log(SW_TRACE_MYSQL_CLIENT, "%.*s=%ld", field->name_length, field->name, *(int64_t *) p);
+                        swoole_trace_log(
+                            SW_TRACE_MYSQL_CLIENT, "%.*s=%" PRId64, field->name_length, field->name, *(int64_t *) p);
                     }
                     break;
                 case SW_MYSQL_TYPE_FLOAT: {
@@ -1496,7 +1511,8 @@ void mysql_statement::fetch(zval *return_value) {
                 } break;
                 case SW_MYSQL_TYPE_DOUBLE: {
                     add_assoc_double_ex(return_value, field->name, field->name_length, *(double *) p);
-                    swoole_trace_log(SW_TRACE_MYSQL_CLIENT, "%.*s=%.16f", field->name_length, field->name, *(double *) p);
+                    swoole_trace_log(
+                        SW_TRACE_MYSQL_CLIENT, "%.*s=%.16f", field->name_length, field->name, *(double *) p);
                 } break;
                 default:
                     swoole_warning("unknown type[%d] for field [%.*s].", field->type, field->name_length, field->name);
@@ -1689,7 +1705,7 @@ static sw_inline void swoole_mysql_coro_sync_execute_result_properties(zval *zob
 }
 
 void php_swoole_mysql_coro_minit(int module_number) {
-    SW_INIT_CLASS_ENTRY(swoole_mysql_coro, "Swoole\\Coroutine\\MySQL", nullptr, "Co\\MySQL", swoole_mysql_coro_methods);
+    SW_INIT_CLASS_ENTRY(swoole_mysql_coro, "Swoole\\Coroutine\\MySQL", "Co\\MySQL", swoole_mysql_coro_methods);
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_mysql_coro);
     SW_SET_CLASS_CLONEABLE(swoole_mysql_coro, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_mysql_coro, sw_zend_class_unset_property_deny);
@@ -1698,7 +1714,6 @@ void php_swoole_mysql_coro_minit(int module_number) {
 
     SW_INIT_CLASS_ENTRY(swoole_mysql_coro_statement,
                         "Swoole\\Coroutine\\MySQL\\Statement",
-                        nullptr,
                         "Co\\MySQL\\Statement",
                         swoole_mysql_coro_statement_methods);
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_mysql_coro_statement);
@@ -1712,7 +1727,6 @@ void php_swoole_mysql_coro_minit(int module_number) {
 
     SW_INIT_CLASS_ENTRY_EX(swoole_mysql_coro_exception,
                            "Swoole\\Coroutine\\MySQL\\Exception",
-                           nullptr,
                            "Co\\MySQL\\Exception",
                            nullptr,
                            swoole_exception);

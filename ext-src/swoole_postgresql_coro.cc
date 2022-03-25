@@ -15,19 +15,16 @@
   +----------------------------------------------------------------------+
  */
 
-
 #include "php_swoole_cxx.h"
+#include "swoole_reactor.h"
+#include "swoole_socket.h"
 
 #ifdef SW_USE_PGSQL
 
 #include <libpq-fe.h>
 
 BEGIN_EXTERN_C()
-#if PHP_VERSION_ID >= 80000
 #include "stubs/php_swoole_postgresql_coro_arginfo.h"
-#else
-#include "stubs/php_swoole_postgresql_coro_legacy_arginfo.h"
-#endif
 END_EXTERN_C()
 
 namespace swoole {
@@ -127,7 +124,6 @@ static zend_object *php_swoole_postgresql_coro_create_object(zend_class_entry *c
     return &postgresql_coro->std;
 }
 
-
 static PHP_METHOD(swoole_postgresql_coro, __construct);
 static PHP_METHOD(swoole_postgresql_coro, __destruct);
 static PHP_METHOD(swoole_postgresql_coro, connect);
@@ -185,11 +181,8 @@ static const zend_function_entry swoole_postgresql_coro_methods[] =
 // clang-format on
 
 void php_swoole_postgresql_coro_minit(int module_number) {
-    SW_INIT_CLASS_ENTRY(swoole_postgresql_coro,
-                        "Swoole\\Coroutine\\PostgreSQL",
-                        NULL,
-                        "Co\\PostgreSQL",
-                        swoole_postgresql_coro_methods);
+    SW_INIT_CLASS_ENTRY(
+        swoole_postgresql_coro, "Swoole\\Coroutine\\PostgreSQL", "Co\\PostgreSQL", swoole_postgresql_coro_methods);
 #ifdef SW_SET_CLASS_NOT_SERIALIZABLE
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_postgresql_coro);
 #else
@@ -938,9 +931,9 @@ static inline void php_pgsql_get_field_value(
 }
 /* }}} */
 
-/* {{{ php_pgsql_result2array
+/* {{{ swoole_pgsql_result2array
  */
-int swoole_pgsql_result2array(PGresult *pg_result, zval *ret_array, long result_type) {
+void swoole_pgsql_result2array(PGresult *pg_result, zval *ret_array, long result_type) {
     zval row;
     const char *field_name;
     size_t num_fields, unknown_columns;
@@ -948,9 +941,7 @@ int swoole_pgsql_result2array(PGresult *pg_result, zval *ret_array, long result_
     uint32_t i;
     assert(Z_TYPE_P(ret_array) == IS_ARRAY);
 
-    if ((pg_numrows = PQntuples(pg_result)) <= 0) {
-        return FAILURE;
-    }
+    pg_numrows = PQntuples(pg_result);
     for (pg_row = 0; pg_row < pg_numrows; pg_row++) {
         array_init(&row);
         unknown_columns = 0;
@@ -975,8 +966,8 @@ int swoole_pgsql_result2array(PGresult *pg_result, zval *ret_array, long result_
         }
         add_index_zval(ret_array, pg_row, &row);
     }
-    return SUCCESS;
 }
+/* }}} */
 
 static PHP_METHOD(swoole_postgresql_coro, fetchAll) {
     zval *result;
@@ -994,10 +985,7 @@ static PHP_METHOD(swoole_postgresql_coro, fetchAll) {
     }
 
     array_init(return_value);
-    if (swoole_pgsql_result2array(pgsql_result, return_value, result_type) == FAILURE) {
-        zval_dtor(return_value);
-        RETURN_FALSE;
-    }
+    swoole_pgsql_result2array(pgsql_result, return_value, result_type);
 }
 
 static PHP_METHOD(swoole_postgresql_coro, affectedRows) {
@@ -1272,15 +1260,8 @@ static void php_pgsql_fetch_hash(INTERNAL_FUNCTION_PARAMETERS, zend_long result_
                 }
             }
 
-#if PHP_VERSION_ID < 70300
-            fcc.initialized = 1;
-#endif
             fcc.function_handler = ce->constructor;
-#if PHP_VERSION_ID >= 70100
             fcc.calling_scope = zend_get_executed_scope();
-#else
-            fcc.calling_scope = EG(scope);
-#endif
             fcc.called_scope = Z_OBJCE_P(return_value);
             fcc.object = Z_OBJ_P(return_value);
 

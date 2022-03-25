@@ -10,7 +10,7 @@
  | to obtain it through the world-wide-web, please send a note to       |
  | license@swoole.com so we can mail you a copy immediately.            |
  +----------------------------------------------------------------------+
- | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+ | Author: Tianfeng Han  <rango@swoole.com>                             |
  | Author: Twosee  <twose@qq.com>                                       |
  | Author: Fang  <coooold@live.com>                                     |
  | Author: Yuanyi   Zhi  <syyuanyizhi@163.com>                          |
@@ -39,11 +39,7 @@ SW_EXTERN_C_BEGIN
 #include <zlib.h>
 #endif
 
-#if PHP_VERSION_ID >= 80000
 #include "stubs/php_swoole_http_client_coro_arginfo.h"
-#else
-#include "stubs/php_swoole_http_client_coro_legacy_arginfo.h"
-#endif
 
 SW_EXTERN_C_END
 
@@ -1646,7 +1642,6 @@ static zend_object *php_swoole_http_client_coro_create_object(zend_class_entry *
 void php_swoole_http_client_coro_minit(int module_number) {
     SW_INIT_CLASS_ENTRY(swoole_http_client_coro,
                         "Swoole\\Coroutine\\Http\\Client",
-                        nullptr,
                         "Co\\Http\\Client",
                         swoole_http_client_coro_methods);
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_http_client_coro);
@@ -1687,7 +1682,6 @@ void php_swoole_http_client_coro_minit(int module_number) {
 
     SW_INIT_CLASS_ENTRY_EX(swoole_http_client_coro_exception,
                            "Swoole\\Coroutine\\Http\\Client\\Exception",
-                           nullptr,
                            "Co\\Http\\Client\\Exception",
                            nullptr,
                            swoole_exception);

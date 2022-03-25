@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <package xmlns="http://pear.php.net/dtd/package-2.0" xmlns:tasks="http://pear.php.net/dtd/tasks-1.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" packagerversion="1.9.4" version="2.0" xsi:schemaLocation="http://pear.php.net/dtd/tasks-1.0 http://pear.php.net/dtd/tasks-1.0.xsd http://pear.php.net/dtd/package-2.0 http://pear.php.net/dtd/package-2.0.xsd">
-	<name>swoole</name>
-	<channel>pecl.php.net</channel>
-	<summary>Event-driven asynchronous and concurrent networking engine with high performance for PHP.</summary>
-	<description>
+    <name>swoole</name>
+    <channel>pecl.php.net</channel>
+    <summary>Event-driven asynchronous and concurrent networking engine with high performance for PHP.</summary>
+    <description>
         Event-driven asynchronous and concurrent networking engine with high performance for PHP.
         - event-driven
         - coroutine
@@ -51,11 +51,11 @@
         <email>doubaokun@php.net</email>
         <active>yes</active>
     </developer>
-    <date>2021-11-27</date>
-    <time>19:00:00</time>
+    <date>2022-01-02</date>
+    <time>12:00:00</time>
     <version>
-        <release>4.8.1</release>
-        <api>4.0</api>
+        <release>5.0.0</release>
+        <api>5.0</api>
     </version>
     <stability>
         <release>stable</release>
@@ -674,88 +674,60 @@
             <file role="src" name="stubs/php_swoole_arginfo.h" />
             <file role="src" name="stubs/php_swoole_atomic.stub.php" />
             <file role="src" name="stubs/php_swoole_atomic_arginfo.h" />
-            <file role="src" name="stubs/php_swoole_atomic_legacy_arginfo.h" />
             <file role="src" name="stubs/php_swoole_channel_coro.stub.php" />
             <file role="src" name="stubs/php_swoole_channel_coro_arginfo.h" />
-            <file role="src" name="stubs/php_swoole_channel_coro_legacy_arginfo.h" />
             <file role="src" name="stubs/php_swoole_client.stub.php" />
             <file role="src" name="stubs/php_swoole_client_arginfo.h" />
             <file role="src" name="stubs/php_swoole_client_coro.stub.php" />
             <file role="src" name="stubs/php_swoole_client_coro_arginfo.h" />
-            <file role="src" name="stubs/php_swoole_client_coro_legacy_arginfo.h" />
-            <file role="src" name="stubs/php_swoole_client_legacy_arginfo.h" />
             <file role="src" name="stubs/php_swoole_coroutine.stub.php" />
             <file role="src" name="stubs/php_swoole_coroutine_arginfo.h" />
-            <file role="src" name="stubs/php_swoole_coroutine_legacy_arginfo.h" />
             <file role="src" name="stubs/php_swoole_coroutine_scheduler.stub.php" />
             <file role="src" name="stubs/php_swoole_coroutine_scheduler_arginfo.h" />
-            <file role="src" name="stubs/php_swoole_coroutine_scheduler_legacy_arginfo.h" />
             <file role="src" name="stubs/php_swoole_coroutine_system.stub.php" />
             <file role="src" name="stubs/php_swoole_coroutine_system_arginfo.h" />
-            <file role="src" name="stubs/php_swoole_coroutine_system_legacy_arginfo.h" />
             <file role="src" name="stubs/php_swoole_event.stub.php" />
             <file role="src" name="stubs/php_swoole_event_arginfo.h" />
-            <file role="src" name="stubs/php_swoole_event_legacy_arginfo.h" />
             <file role="src" name="stubs/php_swoole_ex.stub.php" />
             <file role="src" name="stubs/php_swoole_ex_arginfo.h" />
-            <file role="src" name="stubs/php_swoole_ex_legacy_arginfo.h" />
             <file role="src" name="stubs/php_swoole_hook_sockets.stub.php" />
             <file role="src" name="stubs/php_swoole_hook_sockets_arginfo.h" />
             <file role="src" name="stubs/php_swoole_http2_client_coro.stub.php" />
             <file role="src" name="stubs/php_swoole_http2_client_coro_arginfo.h" />
-            <file role="src" name="stubs/php_swoole_http2_client_coro_legacy_arginfo.h" />
             <file role="src" name="stubs/php_swoole_http_client_coro.stub.php" />
             <file role="src" name="stubs/php_swoole_http_client_coro_arginfo.h" />
-            <file role="src" name="stubs/php_swoole_http_client_coro_legacy_arginfo.h" />
             <file role="src" name="stubs/php_swoole_http_request.stub.php" />
             <file role="src" name="stubs/php_swoole_http_request_arginfo.h" />
-            <file role="src" name="stubs/php_swoole_http_request_legacy_arginfo.h" />
             <file role="src" name="stubs/php_swoole_http_response.stub.php" />
             <file role="src" name="stubs/php_swoole_http_response_arginfo.h" />
-            <file role="src" name="stubs/php_swoole_http_response_legacy_arginfo.h" />
             <file role="src" name="stubs/php_swoole_http_server_coro.stub.php" />
             <file role="src" name="stubs/php_swoole_http_server_coro_arginfo.h" />
-            <file role="src" name="stubs/php_swoole_http_server_coro_legacy_arginfo.h" />
-            <file role="src" name="stubs/php_swoole_legacy_arginfo.h" />
             <file role="src" name="stubs/php_swoole_lock.stub.php" />
             <file role="src" name="stubs/php_swoole_lock_arginfo.h" />
-            <file role="src" name="stubs/php_swoole_lock_legacy_arginfo.h" />
             <file role="src" name="stubs/php_swoole_name_resolver.stub.php" />
             <file role="src" name="stubs/php_swoole_name_resolver_arginfo.h" />
-            <file role="src" name="stubs/php_swoole_name_resolver_legacy_arginfo.h" />
             <file role="src" name="stubs/php_swoole_postgresql_coro.stub.php" />
             <file role="src" name="stubs/php_swoole_postgresql_coro_arginfo.h" />
-            <file role="src" name="stubs/php_swoole_postgresql_coro_legacy_arginfo.h" />
             <file role="src" name="stubs/php_swoole_process.stub.php" />
             <file role="src" name="stubs/php_swoole_process_arginfo.h" />
-            <file role="src" name="stubs/php_swoole_process_legacy_arginfo.h" />
             <file role="src" name="stubs/php_swoole_process_pool.stub.php" />
             <file role="src" name="stubs/php_swoole_process_pool_arginfo.h" />
-            <file role="src" name="stubs/php_swoole_process_pool_legacy_arginfo.h" />
             <file role="src" name="stubs/php_swoole_redis_server.stub.php" />
             <file role="src" name="stubs/php_swoole_redis_server_arginfo.h" />
-            <file role="src" name="stubs/php_swoole_redis_server_legacy_arginfo.h" />
             <file role="src" name="stubs/php_swoole_runtime.stub.php" />
             <file role="src" name="stubs/php_swoole_runtime_arginfo.h" />
-            <file role="src" name="stubs/php_swoole_runtime_legacy_arginfo.h" />
             <file role="src" name="stubs/php_swoole_server.stub.php" />
             <file role="src" name="stubs/php_swoole_server_arginfo.h" />
-            <file role="src" name="stubs/php_swoole_server_legacy_arginfo.h" />
             <file role="src" name="stubs/php_swoole_server_port.stub.php" />
             <file role="src" name="stubs/php_swoole_server_port_arginfo.h" />
-            <file role="src" name="stubs/php_swoole_server_port_legacy_arginfo.h" />
             <file role="src" name="stubs/php_swoole_socket_coro.stub.php" />
             <file role="src" name="stubs/php_swoole_socket_coro_arginfo.h" />
-            <file role="src" name="stubs/php_swoole_socket_coro_legacy_arginfo.h" />
             <file role="src" name="stubs/php_swoole_table.stub.php" />
             <file role="src" name="stubs/php_swoole_table_arginfo.h" />
-            <file role="src" name="stubs/php_swoole_table_legacy_arginfo.h" />
             <file role="src" name="stubs/php_swoole_timer.stub.php" />
             <file role="src" name="stubs/php_swoole_timer_arginfo.h" />
-            <file role="src" name="stubs/php_swoole_timer_legacy_arginfo.h" />
             <file role="src" name="stubs/php_swoole_websocket.stub.php" />
             <file role="src" name="stubs/php_swoole_websocket_arginfo.h" />
-            <file role="src" name="stubs/php_swoole_websocket_legacy_arginfo.h" />
             <file role="src" name="swoole-logo.svg" />
             <file role="test" name="tests/.php-cs-fixer.dist.php" />
             <file role="test" name="tests/CONTRIBUTION" />
@@ -1040,6 +1012,7 @@
             <file role="test" name="tests/swoole_coroutine/exception/nested.phpt" />
             <file role="test" name="tests/swoole_coroutine/exception/yield.phpt" />
             <file role="test" name="tests/swoole_coroutine/exception/yield1.phpt" />
+            <file role="test" name="tests/swoole_coroutine/execute_time.phpt" />
             <file role="test" name="tests/swoole_coroutine/exists.phpt" />
             <file role="test" name="tests/swoole_coroutine/exit.phpt" />
             <file role="test" name="tests/swoole_coroutine/exit_exception_backtrace.phpt" />
@@ -1480,6 +1453,7 @@
             <file role="test" name="tests/swoole_http_server_coro/bad_request.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/bug_2682.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/bug_3025.phpt" />
+            <file role="test" name="tests/swoole_http_server_coro/bug_4519.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/bug_no_handle.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/check_cookie_crlf.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/check_http_header_crlf.phpt" />
@@ -1781,6 +1755,7 @@
             <file role="test" name="tests/swoole_runtime/sockets/basic/unixloop.phpt" />
             <file role="test" name="tests/swoole_runtime/sockets/error.phpt" />
             <file role="test" name="tests/swoole_runtime/sockets/get_name.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/import.phpt" />
             <file role="test" name="tests/swoole_runtime/sockets/nonblock.phpt" />
             <file role="test" name="tests/swoole_runtime/sockets/socketpair.phpt" />
             <file role="test" name="tests/swoole_runtime/sockets/tcp_client.phpt" />
@@ -2045,6 +2020,10 @@
             <file role="test" name="tests/swoole_socket_coro/getopt/get.phpt" />
             <file role="test" name="tests/swoole_socket_coro/getpeername.phpt" />
             <file role="test" name="tests/swoole_socket_coro/getsockname.phpt" />
+            <file role="test" name="tests/swoole_socket_coro/import_1.phpt" />
+            <file role="test" name="tests/swoole_socket_coro/import_2.phpt" />
+            <file role="test" name="tests/swoole_socket_coro/import_3.phpt" />
+            <file role="test" name="tests/swoole_socket_coro/import_4.phpt" />
             <file role="test" name="tests/swoole_socket_coro/iov_max.phpt" />
             <file role="test" name="tests/swoole_socket_coro/peek_and_checkLiveness.phpt" />
             <file role="test" name="tests/swoole_socket_coro/protocol/bug_3586.phpt" />
@@ -2138,6 +2117,7 @@
             <file role="test" name="tests/swoole_websocket_server/get_small_requests.phpt" />
             <file role="test" name="tests/swoole_websocket_server/greeter.phpt" />
             <file role="test" name="tests/swoole_websocket_server/listener.phpt" />
+            <file role="test" name="tests/swoole_websocket_server/malformed_data.phpt" />
             <file role="test" name="tests/swoole_websocket_server/memory.phpt" />
             <file role="test" name="tests/swoole_websocket_server/message_size.phpt" />
             <file role="test" name="tests/swoole_websocket_server/onDisconnct.phpt" />
@@ -2323,7 +2303,7 @@
     <dependencies>
         <required>
             <php>
-                <min>7.2.0</min>
+                <min>8.0.0</min>
             </php>
             <pearinstaller>
                 <min>1.4.0</min>

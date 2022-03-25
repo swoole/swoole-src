@@ -218,14 +218,6 @@ class Table {
         return size;
     }
 
-    int lock() {
-        return mutex->lock();
-    }
-
-    int unlock() {
-        return mutex->unlock();
-    }
-
     TableRow *get_by_index(uint32_t index) {
         TableRow *row = rows[index];
         return row->active ? row : nullptr;
@@ -265,6 +257,14 @@ class Table {
         iterator->unlock();
     }
 
+    void clear_row(TableRow *row) {
+        for (auto i = column_list->begin(); i != column_list->end(); i++) {
+            (*i)->clear(row);
+        }
+    }
+
+  private:
+
     TableRow *hash(const char *key, int keylen) {
         uint64_t hashv = hash_func(key, keylen);
         uint64_t index = hashv & mask;
@@ -272,15 +272,23 @@ class Table {
         return rows[index];
     }
 
+    TableRow *alloc_row() {
+        lock();
+        TableRow *new_row = (TableRow *) pool->alloc(0);
+        unlock();
+        return new_row;
+    }
+
+    void free_row(TableRow *tmp) {
+        lock();
+        tmp->clear();
+        pool->free(tmp);
+        unlock();
+    }
+
     void check_key_length(uint16_t *keylen) {
         if (*keylen >= SW_TABLE_KEY_SIZE) {
             *keylen = SW_TABLE_KEY_SIZE - 1;
-        }
-    }
-
-    void clear_row(TableRow *row) {
-        for (auto i = column_list->begin(); i != column_list->end(); i++) {
-            (*i)->clear(row);
         }
     }
 
@@ -291,6 +299,14 @@ class Table {
         new_row->key_len = keylen;
         new_row->active = 1;
         sw_atomic_fetch_add(&(row_num), 1);
+    }
+
+    int lock() {
+        return mutex->lock();
+    }
+
+    int unlock() {
+        return mutex->unlock();
     }
 };
 }  // namespace swoole

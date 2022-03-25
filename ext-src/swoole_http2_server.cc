@@ -10,7 +10,7 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | Author: Tianfeng Han  <rango@swoole.com>                             |
   +----------------------------------------------------------------------+
 */
 
@@ -125,7 +125,7 @@ static ssize_t http2_server_build_trailer(HttpContext *ctx, uchar *buffer) {
         nghttp2_hd_deflater *deflater = client->deflater;
 
         if (!deflater) {
-            int ret = nghttp2_hd_deflate_new2(&deflater, SW_HTTP2_DEFAULT_HEADER_TABLE_SIZE, php_nghttp2_mem());
+            int ret = nghttp2_hd_deflate_new2(&deflater, client->remote_settings.header_table_size, php_nghttp2_mem());
             if (ret != 0) {
                 swoole_warning("nghttp2_hd_deflate_new2() failed with error: %s", nghttp2_strerror(ret));
                 return -1;
@@ -370,7 +370,7 @@ static ssize_t http2_server_build_header(HttpContext *ctx, uchar *buffer, size_t
     Http2Session *client = http2_sessions[ctx->fd];
     nghttp2_hd_deflater *deflater = client->deflater;
     if (!deflater) {
-        ret = nghttp2_hd_deflate_new2(&deflater, client->local_settings.header_table_size, php_nghttp2_mem());
+        ret = nghttp2_hd_deflate_new2(&deflater, client->remote_settings.header_table_size, php_nghttp2_mem());
         if (ret != 0) {
             swoole_warning("nghttp2_hd_deflate_new2() failed with error: %s", nghttp2_strerror(ret));
             return -1;

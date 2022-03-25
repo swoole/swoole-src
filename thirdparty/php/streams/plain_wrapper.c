@@ -209,15 +209,7 @@ static php_stream_size_t sw_php_stdiop_write(php_stream *stream, const char *buf
     assert(data != NULL);
 
     if (data->fd >= 0) {
-        ssize_t bytes_written = write(data->fd, buf, count);
-#if PHP_VERSION_ID < 70400
-        if (bytes_written < 0) {
-            return 0;
-        }
-        return (size_t) bytes_written;
-#else
-        return bytes_written;
-#endif
+        return write(data->fd, buf, count);
     } else {
         return fwrite(buf, 1, count, data->file);
     }
@@ -237,14 +229,7 @@ static php_stream_size_t sw_php_stdiop_read(php_stream *stream, char *buf, size_
             ret = read(data->fd, buf, PLAIN_WRAP_BUF_SIZE(count));
         }
         stream->eof = (ret == 0 || (ret == -1 && errno != EWOULDBLOCK && errno != EINTR && errno != EBADF));
-#if PHP_VERSION_ID < 70400
-        if (ret < 0) {
-            return 0;
-        }
-        return (size_t) ret;
-#else
         return ret;
-#endif
     } else {
         size_t ret = fread(buf, 1, count, data->file);
         stream->eof = feof(data->file);
@@ -872,11 +857,7 @@ static php_stream *stream_opener(php_stream_wrapper *wrapper,
         const zend_op *opline = EG(current_execute_data)->opline;
         if (opline && opline->opcode == ZEND_INCLUDE_OR_EVAL &&
             (opline->extended_value & (ZEND_INCLUDE | ZEND_INCLUDE_ONCE | ZEND_REQUIRE | ZEND_REQUIRE_ONCE))) {
-            size_t path_len = strlen(path);
-            size_t phar_len = sizeof(".phar") - 1;
-            if (path_len > phar_len && memcmp(path + path_len - phar_len, ".phar", phar_len) == 0) {
-                goto _open_for_include;
-            }
+            goto _open_for_include;
         }
     }
     /** include file, cannot use async-io */

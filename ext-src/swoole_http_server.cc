@@ -10,7 +10,7 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | Author: Tianfeng Han  <rango@swoole.com>                             |
   +----------------------------------------------------------------------+
 */
 
@@ -161,8 +161,7 @@ _dtor_and_return:
 }
 
 void php_swoole_http_server_minit(int module_number) {
-    SW_INIT_CLASS_ENTRY_EX(
-        swoole_http_server, "Swoole\\Http\\Server", "swoole_http_server", nullptr, nullptr, swoole_server);
+    SW_INIT_CLASS_ENTRY_EX(swoole_http_server, "Swoole\\Http\\Server", nullptr, nullptr, swoole_server);
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_http_server);
     SW_SET_CLASS_CLONEABLE(swoole_http_server, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_server, sw_zend_class_unset_property_deny);

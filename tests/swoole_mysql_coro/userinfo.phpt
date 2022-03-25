@@ -15,7 +15,8 @@ go(function () {
         'port' => MYSQL_SERVER_PORT,
         'user' => MYSQL_SERVER_USER,
         'password' => MYSQL_SERVER_PWD,
-        'database' => MYSQL_SERVER_DB
+        'database' => MYSQL_SERVER_DB,
+        'strict_type' => (PHP_VERSION_ID >= 80100)
     ]);
     $result = $mysql->query('SELECT * FROM `userinfo`');
     $pdo = new PDO(

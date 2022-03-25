@@ -12,7 +12,7 @@
  | to obtain it through the world-wide-web, please send a note to       |
  | license@swoole.com so we can mail you a copy immediately.            |
  +----------------------------------------------------------------------+
- | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+ | Author: Tianfeng Han  <rango@swoole.com>                             |
  +----------------------------------------------------------------------+
  */
 
@@ -22,11 +22,9 @@
 
 #include "ext/spl/spl_array.h"
 
-#if PHP_VERSION_ID >= 80000
+BEGIN_EXTERN_C()
 #include "stubs/php_swoole_timer_arginfo.h"
-#else
-#include "stubs/php_swoole_timer_legacy_arginfo.h"
-#endif
+END_EXTERN_C()
 
 using swoole::Timer;
 using swoole::TimerNode;
@@ -66,15 +64,10 @@ static const zend_function_entry swoole_timer_methods[] =
 // clang-format on
 
 void php_swoole_timer_minit(int module_number) {
-    SW_INIT_CLASS_ENTRY(swoole_timer, "Swoole\\Timer", "swoole_timer", nullptr, swoole_timer_methods);
+    SW_INIT_CLASS_ENTRY(swoole_timer, "Swoole\\Timer", nullptr, swoole_timer_methods);
     SW_SET_CLASS_CREATE(swoole_timer, sw_zend_create_object_deny);
 
-    SW_INIT_CLASS_ENTRY_BASE(swoole_timer_iterator,
-                             "Swoole\\Timer\\Iterator",
-                             "swoole_timer_iterator",
-                             nullptr,
-                             nullptr,
-                             spl_ce_ArrayIterator);
+    SW_INIT_CLASS_ENTRY_BASE(swoole_timer_iterator, "Swoole\\Timer\\Iterator", nullptr, nullptr, spl_ce_ArrayIterator);
 
     SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "set", CG(function_table), "swoole_timer_set");
     SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "after", CG(function_table), "swoole_timer_after");
@@ -156,7 +149,8 @@ static void timer_add(INTERNAL_FUNCTION_PARAMETERS, bool persistent) {
     }
 
     // no server || user worker || task process with async mode
-    if (!sw_server() || sw_server()->is_user_worker() || (sw_server()->is_task_worker() && sw_server()->task_enable_coroutine)) {
+    if (!sw_server() || sw_server()->is_user_worker() ||
+        (sw_server()->is_task_worker() && sw_server()->task_enable_coroutine)) {
         php_swoole_check_reactor();
     }
 

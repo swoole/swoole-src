@@ -29,12 +29,20 @@ TEST(fixed_pool, alloc) {
 
     for (int i = 0; i < 1200; i++) {
         int j = rand();
+        void *mem;
+        
         if (j % 4 < 3) {
-            void *mem = pool->alloc(0);
+            mem = pool->alloc(0);
             ASSERT_TRUE(mem);
             alloc_list.push_back(mem);
         } else if (!alloc_list.empty()) {
-            void *mem = alloc_list.front();
+            if (j % 2 == 1) {
+                mem = alloc_list.front();
+                alloc_list.pop_front();
+            } else {
+                mem = alloc_list.back();
+                alloc_list.pop_back();
+            }
             pool->free(mem);
         }
     }

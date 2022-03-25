@@ -1,6 +1,5 @@
 <?php
 /**
- * @generate-legacy-arginfo
  * @generate-function-entries
  */
 function swoole_get_objects(): false|array

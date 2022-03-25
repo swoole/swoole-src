@@ -35,5 +35,5 @@ closed
 
 Fatal error: Uncaught Exception: something wrong in %s:%d
 Stack trace:
-#0 {main}
+%A
   thrown in %s on line %d

@@ -10,7 +10,7 @@
  | to obtain it through the world-wide-web, please send a note to       |
  | license@swoole.com so we can mail you a copy immediately.            |
  +----------------------------------------------------------------------+
- | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+ | Author: Tianfeng Han  <rango@swoole.com>                             |
  +----------------------------------------------------------------------+
  */
 
@@ -773,7 +773,7 @@ static ssize_t Client_tcp_recv_no_buffer(Client *cli, char *data, size_t len, in
             }
         }
 #ifdef SW_USE_OPENSSL
-        if (cli->socket->catch_error(errno) == SW_WAIT && cli->socket->ssl) {
+        if (cli->socket->catch_read_error(errno) == SW_WAIT && cli->socket->ssl) {
             int timeout_ms = (int) (cli->timeout * 1000);
             if (cli->socket->ssl_want_read && cli->socket->wait_event(timeout_ms, SW_EVENT_READ) == SW_OK) {
                 continue;
@@ -1057,7 +1057,7 @@ _recv_again:
 #endif
     n = event->socket->recv(buf, buf_size, 0);
     if (n < 0) {
-        switch (event->socket->catch_error(errno)) {
+        switch (event->socket->catch_read_error(errno)) {
         case SW_ERROR:
             swoole_sys_warning("Read from socket[%d] failed", event->fd);
             return SW_OK;

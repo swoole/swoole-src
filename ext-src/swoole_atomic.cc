@@ -10,7 +10,7 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | Author: Tianfeng Han  <rango@swoole.com>                             |
   +----------------------------------------------------------------------+
 */
 
@@ -18,11 +18,7 @@
 #include "swoole_memory.h"
 
 BEGIN_EXTERN_C()
-#if PHP_VERSION_ID >= 80000
 #include "stubs/php_swoole_atomic_arginfo.h"
-#else
-#include "stubs/php_swoole_atomic_legacy_arginfo.h"
-#endif
 END_EXTERN_C()
 
 #ifdef HAVE_FUTEX
@@ -219,15 +215,14 @@ static const zend_function_entry swoole_atomic_long_methods[] =
 // clang-format on
 
 void php_swoole_atomic_minit(int module_number) {
-    SW_INIT_CLASS_ENTRY(swoole_atomic, "Swoole\\Atomic", "swoole_atomic", nullptr, swoole_atomic_methods);
+    SW_INIT_CLASS_ENTRY(swoole_atomic, "Swoole\\Atomic", nullptr, swoole_atomic_methods);
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_atomic);
     SW_SET_CLASS_CLONEABLE(swoole_atomic, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_atomic, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CUSTOM_OBJECT(
         swoole_atomic, php_swoole_atomic_create_object, php_swoole_atomic_free_object, AtomicObject, std);
 
-    SW_INIT_CLASS_ENTRY(
-        swoole_atomic_long, "Swoole\\Atomic\\Long", "swoole_atomic_long", nullptr, swoole_atomic_long_methods);
+    SW_INIT_CLASS_ENTRY(swoole_atomic_long, "Swoole\\Atomic\\Long", nullptr, swoole_atomic_long_methods);
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_atomic_long);
     SW_SET_CLASS_CLONEABLE(swoole_atomic_long, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_atomic_long, sw_zend_class_unset_property_deny);

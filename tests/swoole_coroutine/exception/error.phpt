@@ -18,5 +18,5 @@ start
 
 Fatal error: Uncaught Exception: coro Exception %s
 Stack trace:
-#0 {main}
+%A
   thrown in %s/tests/swoole_coroutine/exception/error.php on line 5

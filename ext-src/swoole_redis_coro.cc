@@ -10,7 +10,7 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | Author: Tianfeng Han  <rango@swoole.com>                             |
   +----------------------------------------------------------------------+
 */
 
@@ -1326,8 +1326,7 @@ static bool redis_select_db(RedisClient *redis, long db_number) {
     return ret;
 }
 
-static void redis_request(
-    RedisClient *redis, int argc, char **argv, size_t *argvlen, zval *return_value, bool retry) {
+static void redis_request(RedisClient *redis, int argc, char **argv, size_t *argvlen, zval *return_value, bool retry) {
     redisReply *reply = nullptr;
     if (!swoole_redis_coro_keep_liveness(redis)) {
         ZVAL_FALSE(return_value);
@@ -1710,7 +1709,8 @@ static sw_inline void sw_redis_command_xrange(INTERNAL_FUNCTION_PARAMETERS, cons
     size_t key_len, val1_len, val2_len;
     zend_long count = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sss|l", &key, &key_len, &val1, &val1_len, &val2, &val2_len, &count) == FAILURE) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sss|l", &key, &key_len, &val1, &val1_len, &val2, &val2_len, &count) ==
+        FAILURE) {
         RETURN_FALSE;
     }
     SW_REDIS_COMMAND_CHECK
@@ -2103,7 +2103,7 @@ static const zend_function_entry swoole_redis_coro_methods[] =
 // clang-format on
 
 void php_swoole_redis_coro_minit(int module_number) {
-    SW_INIT_CLASS_ENTRY(swoole_redis_coro, "Swoole\\Coroutine\\Redis", nullptr, "Co\\Redis", swoole_redis_coro_methods);
+    SW_INIT_CLASS_ENTRY(swoole_redis_coro, "Swoole\\Coroutine\\Redis", "Co\\Redis", swoole_redis_coro_methods);
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_redis_coro);
     SW_SET_CLASS_CLONEABLE(swoole_redis_coro, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_redis_coro, sw_zend_class_unset_property_deny);
@@ -4921,7 +4921,9 @@ static PHP_METHOD(swoole_redis_coro, xGroupCreate) {
     size_t key_len, group_name_len, id_len;
     zend_bool mkstream = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sss|b", &key, &key_len, &group_name, &group_name_len, &id, &id_len, &mkstream) == FAILURE) {
+    if (zend_parse_parameters(
+            ZEND_NUM_ARGS(), "sss|b", &key, &key_len, &group_name, &group_name_len, &id, &id_len, &mkstream) ==
+        FAILURE) {
         return;
     }
     SW_REDIS_COMMAND_CHECK
@@ -4945,7 +4947,8 @@ static PHP_METHOD(swoole_redis_coro, xGroupSetId) {
     char *key, *group_name, *id;
     size_t key_len, group_name_len, id_len;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sss", &key, &key_len, &group_name, &group_name_len, &id, &id_len) == FAILURE) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sss", &key, &key_len, &group_name, &group_name_len, &id, &id_len) ==
+        FAILURE) {
         return;
     }
     SW_REDIS_COMMAND_CHECK
@@ -4984,7 +4987,9 @@ static PHP_METHOD(swoole_redis_coro, xGroupCreateConsumer) {
     char *key, *group_name, *consumer_name;
     size_t key_len, group_name_len, consumer_name_len;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sss", &key, &key_len, &group_name, &group_name_len, &consumer_name, &consumer_name_len) == FAILURE) {
+    if (zend_parse_parameters(
+            ZEND_NUM_ARGS(), "sss", &key, &key_len, &group_name, &group_name_len, &consumer_name, &consumer_name_len) ==
+        FAILURE) {
         return;
     }
     SW_REDIS_COMMAND_CHECK
@@ -5004,7 +5009,9 @@ static PHP_METHOD(swoole_redis_coro, xGroupDelConsumer) {
     char *key, *group_name, *consumer_name;
     size_t key_len, group_name_len, consumer_name_len;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sss", &key, &key_len, &group_name, &group_name_len, &consumer_name, &consumer_name_len) == FAILURE) {
+    if (zend_parse_parameters(
+            ZEND_NUM_ARGS(), "sss", &key, &key_len, &group_name, &group_name_len, &consumer_name, &consumer_name_len) ==
+        FAILURE) {
         return;
     }
     SW_REDIS_COMMAND_CHECK
@@ -5029,7 +5036,14 @@ static PHP_METHOD(swoole_redis_coro, xReadGroup) {
     char buf[32];
     size_t buf_len;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "ssa|a", &group_name, &group_name_len, &consumer_name, &consumer_name_len, &z_streams, &z_options) == FAILURE) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS(),
+                              "ssa|a",
+                              &group_name,
+                              &group_name_len,
+                              &consumer_name,
+                              &consumer_name_len,
+                              &z_streams,
+                              &z_options) == FAILURE) {
         RETURN_FALSE;
     }
     if ((argc = zend_hash_num_elements(Z_ARRVAL_P(z_streams))) == 0) {
@@ -5103,7 +5117,8 @@ static PHP_METHOD(swoole_redis_coro, xPending) {
     HashTable *ht_opt;
     int i = 0, argc = 3, options_argc = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "ss|a", &key, &key_len, &group_name, &group_name_len, &z_options) == FAILURE) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "ss|a", &key, &key_len, &group_name, &group_name_len, &z_options) ==
+        FAILURE) {
         RETURN_FALSE;
     }
 
@@ -5203,7 +5218,17 @@ static PHP_METHOD(swoole_redis_coro, xClaim) {
     HashTable *ht_opt;
     int i = 0, argc = 5, id_argc = 0, options_argc = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sssla|a", &key, &key_len, &group_name, &group_name_len, &consumer_name, &consumer_name_len, &min_idle_time, &z_id, &z_options) == FAILURE) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS(),
+                              "sssla|a",
+                              &key,
+                              &key_len,
+                              &group_name,
+                              &group_name_len,
+                              &consumer_name,
+                              &consumer_name_len,
+                              &min_idle_time,
+                              &z_id,
+                              &z_options) == FAILURE) {
         RETURN_FALSE;
     }
 
@@ -5283,7 +5308,18 @@ static PHP_METHOD(swoole_redis_coro, xAutoClaim) {
     HashTable *ht_opt;
     int i = 0, argc = 6, options_argc = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sssls|a", &key, &key_len, &group_name, &group_name_len, &consumer_name, &consumer_name_len, &min_idle_time, &start, &start_len, &z_options) == FAILURE) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS(),
+                              "sssls|a",
+                              &key,
+                              &key_len,
+                              &group_name,
+                              &group_name_len,
+                              &consumer_name,
+                              &consumer_name_len,
+                              &min_idle_time,
+                              &start,
+                              &start_len,
+                              &z_options) == FAILURE) {
         RETURN_FALSE;
     }
 

@@ -362,6 +362,7 @@ enum swReturnCode {
     SW_ERROR = 4,
     SW_READY = 5,
     SW_INVALID = 6,
+    SW_REDUCE_SIZE = 7,
 };
 
 enum swFdType {
@@ -548,15 +549,18 @@ typedef cpuset_t cpu_set_t;
 int swoole_set_cpu_affinity(cpu_set_t *set);
 #endif
 
-#ifdef HAVE_CLOCK_GETTIME
-#define swoole_clock_gettime clock_gettime
-#else
-int swoole_clock_gettime(int which_clock, struct timespec *t);
+#if defined(_POSIX_TIMERS) && ((_POSIX_TIMERS > 0) || defined(__OpenBSD__)) && defined(_POSIX_MONOTONIC_CLOCK) && defined(CLOCK_MONOTONIC)
+#ifndef HAVE_CLOCK_GETTIME
+#define HAVE_CLOCK_GETTIME
+#endif
+#define swoole_clock_realtime(t) clock_gettime(CLOCK_REALTIME, t)
+#elif defined(__APPLE__)
+int swoole_clock_realtime(struct timespec *t);
 #endif
 
 static inline struct timespec swoole_time_until(int milliseconds) {
     struct timespec t;
-    swoole_clock_gettime(CLOCK_REALTIME, &t);
+    swoole_clock_realtime(&t);
 
     int sec = milliseconds / 1000;
     int msec = milliseconds - (sec * 1000);

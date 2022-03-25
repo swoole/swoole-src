@@ -10,7 +10,7 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | Author: Tianfeng Han  <rango@swoole.com>                             |
   +----------------------------------------------------------------------+
 */
 
@@ -22,18 +22,13 @@
 
 BEGIN_EXTERN_C()
 #include "ext/standard/php_string.h"
-
-#if PHP_VERSION_ID >= 80000
 #include "stubs/php_swoole_redis_server_arginfo.h"
-#else
-#include "stubs/php_swoole_redis_server_legacy_arginfo.h"
-#endif
 END_EXTERN_C()
 
-using swoole::Server;
-using swoole::RecvData;
-using swoole::ListenPort;
 using swoole::Connection;
+using swoole::ListenPort;
+using swoole::RecvData;
+using swoole::Server;
 
 namespace Redis = swoole::redis;
 
@@ -59,12 +54,8 @@ const zend_function_entry swoole_redis_server_methods[] =
 // clang-format on
 
 void php_swoole_redis_server_minit(int module_number) {
-    SW_INIT_CLASS_ENTRY_EX(swoole_redis_server,
-                           "Swoole\\Redis\\Server",
-                           "swoole_redis_server",
-                           nullptr,
-                           swoole_redis_server_methods,
-                           swoole_server);
+    SW_INIT_CLASS_ENTRY_EX(
+        swoole_redis_server, "Swoole\\Redis\\Server", nullptr, swoole_redis_server_methods, swoole_server);
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_redis_server);
     SW_SET_CLASS_CLONEABLE(swoole_redis_server, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_redis_server, sw_zend_class_unset_property_deny);

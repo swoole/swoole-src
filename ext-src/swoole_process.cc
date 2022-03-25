@@ -10,7 +10,7 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | Author: Tianfeng Han  <rango@swoole.com>                             |
   +----------------------------------------------------------------------+
 */
 
@@ -25,11 +25,7 @@
 #include <sys/resource.h>
 
 BEGIN_EXTERN_C()
-#if PHP_VERSION_ID >= 80000
 #include "stubs/php_swoole_process_arginfo.h"
-#else
-#include "stubs/php_swoole_process_legacy_arginfo.h"
-#endif
 END_EXTERN_C()
 
 using namespace swoole;
@@ -167,7 +163,7 @@ static const zend_function_entry swoole_process_methods[] =
 // clang-format on
 
 void php_swoole_process_minit(int module_number) {
-    SW_INIT_CLASS_ENTRY(swoole_process, "Swoole\\Process", "swoole_process", nullptr, swoole_process_methods);
+    SW_INIT_CLASS_ENTRY(swoole_process, "Swoole\\Process", nullptr, swoole_process_methods);
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_process);
     SW_SET_CLASS_CLONEABLE(swoole_process, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_process, sw_zend_class_unset_property_deny);
@@ -650,7 +646,7 @@ int php_swoole_process_start(Worker *process, zval *zobject) {
         php_swoole_event_wait();
     }
     // equivalent to exit
-    sw_zend_bailout();
+    zend_bailout();
 
     return SW_OK;
 }

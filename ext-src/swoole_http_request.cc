@@ -10,7 +10,7 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | Author: Tianfeng Han  <rango@swoole.com>                             |
   +----------------------------------------------------------------------+
 */
 
@@ -18,6 +18,7 @@
 
 SW_EXTERN_C_BEGIN
 #include "ext/standard/url.h"
+#include "stubs/php_swoole_http_request_arginfo.h"
 SW_EXTERN_C_END
 
 #include "main/php_variables.h"
@@ -29,14 +30,6 @@ SW_EXTERN_C_END
 #ifdef SW_HAVE_BROTLI
 #include <brotli/encode.h>
 #endif
-
-BEGIN_EXTERN_C()
-#if PHP_VERSION_ID >= 80000
-#include "stubs/php_swoole_http_request_arginfo.h"
-#else
-#include "stubs/php_swoole_http_request_legacy_arginfo.h"
-#endif
-END_EXTERN_C()
 
 enum http_upload_errno {
     HTTP_UPLOAD_ERR_OK = 0,
@@ -220,8 +213,7 @@ const zend_function_entry swoole_http_request_methods[] =
 // clang-format on
 
 void php_swoole_http_request_minit(int module_number) {
-    SW_INIT_CLASS_ENTRY(
-        swoole_http_request, "Swoole\\Http\\Request", "swoole_http_request", nullptr, swoole_http_request_methods);
+    SW_INIT_CLASS_ENTRY(swoole_http_request, "Swoole\\Http\\Request", nullptr, swoole_http_request_methods);
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_http_request);
     SW_SET_CLASS_CLONEABLE(swoole_http_request, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_request, sw_zend_class_unset_property_deny);
@@ -289,10 +281,10 @@ void swoole_http_parse_cookie(zval *zarray, const char *at, size_t length, bool 
             klen = i - j + 1;
             if (klen >= SW_HTTP_COOKIE_KEYLEN) {
                 swoole_warning("cookie[%.*s...] name length %zu is exceed the max name len %d",
-                       8,
-                       (char *) at + j,
-                       klen,
-                       SW_HTTP_COOKIE_KEYLEN);
+                               8,
+                               (char *) at + j,
+                               klen,
+                               SW_HTTP_COOKIE_KEYLEN);
                 return;
             }
             memcpy(keybuf, (char *) at + j, klen - 1);
@@ -304,11 +296,11 @@ void swoole_http_parse_cookie(zval *zarray, const char *at, size_t length, bool 
             vlen = i - j;
             if (vlen >= SW_HTTP_COOKIE_VALLEN) {
                 swoole_warning("cookie[%s]'s value[v=%.*s...] length %zu is exceed the max value len %d",
-                       keybuf,
-                       8,
-                       (char *) at + j,
-                       vlen,
-                       SW_HTTP_COOKIE_VALLEN);
+                               keybuf,
+                               8,
+                               (char *) at + j,
+                               vlen,
+                               SW_HTTP_COOKIE_VALLEN);
                 return;
             }
             memcpy(valbuf, (char *) at + j, vlen);
@@ -334,18 +326,21 @@ void swoole_http_parse_cookie(zval *zarray, const char *at, size_t length, bool 
     if (j < (off_t) length) {
         vlen = i - j;
         if (klen >= SW_HTTP_COOKIE_KEYLEN) {
-            swoole_warning(
-                "cookie[%.*s...] name length %zu is exceed the max name len %d", 8, keybuf, klen, SW_HTTP_COOKIE_KEYLEN);
+            swoole_warning("cookie[%.*s...] name length %zu is exceed the max name len %d",
+                           8,
+                           keybuf,
+                           klen,
+                           SW_HTTP_COOKIE_KEYLEN);
             return;
         }
         keybuf[klen - 1] = 0;
         if (vlen >= SW_HTTP_COOKIE_VALLEN) {
             swoole_warning("cookie[%s]'s value[v=%.*s...] length %zu is exceed the max value len %d",
-                   keybuf,
-                   8,
-                   (char *) at + j,
-                   vlen,
-                   SW_HTTP_COOKIE_VALLEN);
+                           keybuf,
+                           8,
+                           (char *) at + j,
+                           vlen,
+                           SW_HTTP_COOKIE_VALLEN);
             return;
         }
         memcpy(valbuf, (char *) at + j, vlen);

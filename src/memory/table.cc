@@ -10,7 +10,7 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | Author: Tianfeng Han  <rango@swoole.com>                             |
   +----------------------------------------------------------------------+
 */
 
@@ -315,13 +315,11 @@ TableRow *Table::set(const char *key, uint16_t keylen, TableRow **rowlock, int *
             if (sw_mem_equal(row->key, row->key_len, key, keylen)) {
                 break;
             } else if (row->next == nullptr) {
-                lock();
-                TableRow *new_row = (TableRow *) pool->alloc(0);
                 conflict_count++;
                 if (_conflict_level > conflict_max_level) {
                     conflict_max_level = _conflict_level;
                 }
-                unlock();
+                TableRow *new_row = alloc_row();
                 if (!new_row) {
                     return nullptr;
                 }
@@ -398,14 +396,10 @@ bool Table::del(const char *key, uint16_t keylen) {
             memcpy(row->key, tmp->key, tmp->key_len + 1);
             row->key_len = tmp->key_len;
             memcpy(row->data, tmp->data, item_size);
-        }
-        if (prev) {
+        } else {
             prev->next = tmp->next;
         }
-        lock();
-        tmp->clear();
-        pool->free(tmp);
-        unlock();
+        free_row(tmp);
     }
 
 _delete_element:

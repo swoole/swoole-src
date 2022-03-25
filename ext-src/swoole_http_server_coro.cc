@@ -10,7 +10,7 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | Author: Tianfeng Han  <rango@swoole.com>                             |
   +----------------------------------------------------------------------+
 */
 
@@ -20,11 +20,7 @@
 #include <map>
 
 BEGIN_EXTERN_C()
-#if PHP_VERSION_ID >= 80000
 #include "stubs/php_swoole_http_server_coro_arginfo.h"
-#else
-#include "stubs/php_swoole_http_server_coro_legacy_arginfo.h"
-#endif
 END_EXTERN_C()
 
 using swoole::microtime;
@@ -288,7 +284,6 @@ void HttpContext::bind(Socket *sock) {
 void php_swoole_http_server_coro_minit(int module_number) {
     SW_INIT_CLASS_ENTRY(swoole_http_server_coro,
                         "Swoole\\Coroutine\\Http\\Server",
-                        nullptr,
                         "Co\\Http\\Server",
                         swoole_http_server_coro_methods);
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_http_server_coro);
@@ -583,10 +578,10 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
         buffer->offset += parsed_n;
 
         swoole_trace_log(SW_TRACE_CO_HTTP_SERVER,
-                         "parsed_n=%ld, length=%ld, offset=%ld, completed=%d",
+                         "parsed_n=%zu, length=%zu, offset=%jd, completed=%u",
                          parsed_n,
                          buffer->length,
-                         buffer->offset,
+                         (intmax_t) buffer->offset,
                          ctx->completed);
 
         if (!ctx->completed) {

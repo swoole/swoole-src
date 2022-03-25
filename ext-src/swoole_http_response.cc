@@ -10,7 +10,7 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | Author: Tianfeng Han  <rango@swoole.com>                             |
   +----------------------------------------------------------------------+
 */
 
@@ -27,11 +27,7 @@
 #endif
 
 BEGIN_EXTERN_C()
-#if PHP_VERSION_ID >= 80000
 #include "stubs/php_swoole_http_response_arginfo.h"
-#else
-#include "stubs/php_swoole_http_response_legacy_arginfo.h"
-#endif
 END_EXTERN_C()
 
 using swoole::Connection;
@@ -100,7 +96,7 @@ static void php_swoole_http_response_free_object(zend_object *object) {
     zval ztmp; /* bool, not required to release it */
 
     if (ctx) {
-        if (!ctx->end_ && !ctx->detached && sw_reactor()) {
+        if (!ctx->end_ && (ctx->send_chunked || !ctx->send_header_) && !ctx->detached && sw_reactor()) {
             if (ctx->response.status == 0) {
                 ctx->response.status = SW_HTTP_INTERNAL_SERVER_ERROR;
             }
@@ -203,8 +199,7 @@ const zend_function_entry swoole_http_response_methods[] =
 // clang-format on
 
 void php_swoole_http_response_minit(int module_number) {
-    SW_INIT_CLASS_ENTRY(
-        swoole_http_response, "Swoole\\Http\\Response", "swoole_http_response", nullptr, swoole_http_response_methods);
+    SW_INIT_CLASS_ENTRY(swoole_http_response, "Swoole\\Http\\Response", nullptr, swoole_http_response_methods);
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_http_response);
     SW_SET_CLASS_CLONEABLE(swoole_http_response, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_response, sw_zend_class_unset_property_deny);
@@ -409,6 +404,16 @@ void HttpContext::build_header(String *http_buffer, size_t body_length) {
         http_buffer->append(ZEND_STRL("Server: " SW_HTTP_SERVER_SOFTWARE "\r\n"));
     }
 
+#ifdef SW_HAVE_COMPRESSION
+    // http compress
+    if (accept_compression) {
+        const char *content_encoding = get_content_encoding();
+        http_buffer->append(ZEND_STRL("Content-Encoding: "));
+        http_buffer->append((char *) content_encoding, strlen(content_encoding));
+        http_buffer->append(ZEND_STRL("\r\n"));
+    }
+#endif
+
     // websocket protocol (subsequent header info is unnecessary)
     if (upgrade == 1) {
         http_buffer->append(ZEND_STRL("\r\n"));
@@ -448,15 +453,7 @@ void HttpContext::build_header(String *http_buffer, size_t body_length) {
             http_buffer->append(buf, n);
         }
     }
-#ifdef SW_HAVE_COMPRESSION
-    // http compress
-    if (accept_compression) {
-        const char *content_encoding = get_content_encoding();
-        http_buffer->append(ZEND_STRL("Content-Encoding: "));
-        http_buffer->append((char *) content_encoding, strlen(content_encoding));
-        http_buffer->append(ZEND_STRL("\r\n"));
-    }
-#endif
+
     http_buffer->append(ZEND_STRL("\r\n"));
     send_header_ = 1;
 }
@@ -894,6 +891,11 @@ static PHP_METHOD(swoole_http_response, sendfile) {
     struct stat file_stat;
     if (stat(file, &file_stat) < 0) {
         php_swoole_sys_error(E_WARNING, "stat(%s) failed", file);
+        RETURN_FALSE;
+    }
+    if (!S_ISREG(file_stat.st_mode)) {
+        php_swoole_error(E_WARNING, "parameter $file[%s] given is not a regular file", file);
+        swoole_set_last_error(SW_ERROR_SERVER_IS_NOT_REGULAR_FILE);
         RETURN_FALSE;
     }
     if (file_stat.st_size < offset) {

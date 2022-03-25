@@ -10,7 +10,7 @@
  | to obtain it through the world-wide-web, please send a note to       |
  | license@swoole.com so we can mail you a copy immediately.            |
  +----------------------------------------------------------------------+
- | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+ | Author: Tianfeng Han  <rango@swoole.com>                             |
  +----------------------------------------------------------------------+
  */
 
@@ -73,7 +73,7 @@ void IOVector::update_iterator(ssize_t __n) {
                 return;
             }
             iov_iterator += _index;
-            iov_iterator->iov_base = reinterpret_cast<char *> (iov_iterator->iov_base) + _offset_bytes;
+            iov_iterator->iov_base = reinterpret_cast<char *>(iov_iterator->iov_base) + _offset_bytes;
             iov_iterator->iov_len = iov_iterator->iov_len - _offset_bytes;
 
             return;
@@ -127,7 +127,7 @@ ssize_t Socket::writev_blocking(const struct iovec *iov, size_t iovcnt) {
         if (n < 0) {
             if (errno == EINTR) {
                 continue;
-            } else if (catch_error(errno) == SW_WAIT &&
+            } else if (catch_write_error(errno) == SW_WAIT &&
                        wait_event((int) (send_timeout_ * 1000), SW_EVENT_WRITE) == SW_OK) {
                 continue;
             } else {
@@ -199,7 +199,7 @@ ssize_t Socket::send_blocking(const void *__data, size_t __len) {
         if (n < 0) {
             if (errno == EINTR) {
                 continue;
-            } else if (catch_error(errno) == SW_WAIT &&
+            } else if (catch_write_error(errno) == SW_WAIT &&
                        wait_event((int) (send_timeout_ * 1000), SW_EVENT_WRITE) == SW_OK) {
                 continue;
             } else {
@@ -228,7 +228,8 @@ ssize_t Socket::recv_blocking(void *__data, size_t __len, int flags) {
             if (errno == EINTR) {
                 continue;
             }
-            if (catch_error(errno) == SW_WAIT && wait_event((int) (recv_timeout_ * 1000), SW_EVENT_READ) == SW_OK) {
+            if (catch_read_error(errno) == SW_WAIT &&
+                wait_event((int) (recv_timeout_ * 1000), SW_EVENT_READ) == SW_OK) {
                 continue;
             }
             return ret;
@@ -276,7 +277,7 @@ ssize_t Socket::sendto_blocking(const Address &sa, const void *__buf, size_t __n
         if (errno == EINTR) {
             continue;
         }
-        if (catch_error(errno) == SW_WAIT && wait_event((int) (send_timeout_ * 1000), SW_EVENT_WRITE) == SW_OK) {
+        if (catch_write_error(errno) == SW_WAIT && wait_event((int) (send_timeout_ * 1000), SW_EVENT_WRITE) == SW_OK) {
             continue;
         }
         break;
@@ -296,7 +297,7 @@ ssize_t Socket::recvfrom_blocking(char *__buf, size_t __len, int flags, Address 
         if (errno == EINTR) {
             continue;
         }
-        if (catch_error(errno) == SW_WAIT && wait_event((int) (recv_timeout_ * 1000), SW_EVENT_READ) == SW_OK) {
+        if (catch_read_error(errno) == SW_WAIT && wait_event((int) (recv_timeout_ * 1000), SW_EVENT_READ) == SW_OK) {
             continue;
         }
         break;
@@ -560,9 +561,10 @@ int Socket::handle_sendfile() {
     swoole_trace("ret=%d|task->offset=%ld|sendn=%lu|filesize=%lu", ret, (long) task->offset, sendn, task->length);
 
     if (ret <= 0) {
-        switch (catch_error(errno)) {
+        switch (catch_write_error(errno)) {
         case SW_ERROR:
-            swoole_sys_warning("sendfile(%s, %ld, %zu) failed", task->file.get_path().c_str(), (long) task->offset, sendn);
+            swoole_sys_warning(
+                "sendfile(%s, %ld, %zu) failed", task->file.get_path().c_str(), (long) task->offset, sendn);
             buffer->pop();
             return SW_OK;
         case SW_CLOSE:
@@ -604,7 +606,7 @@ int Socket::handle_send() {
 
     ssize_t ret = send(chunk->value.ptr + chunk->offset, sendn, 0);
     if (ret < 0) {
-        switch (catch_error(errno)) {
+        switch (catch_write_error(errno)) {
         case SW_ERROR:
             swoole_sys_warning("send to fd[%d] failed", fd);
             break;
@@ -716,7 +718,7 @@ ssize_t Socket::recv(void *__buf, size_t __n, int __flags) {
     }
 
     // The POLLHUP event is triggered, but Socket::recv returns EAGAIN
-    if (total_bytes < 0 && catch_error(errno) == SW_WAIT && event_hup) {
+    if (total_bytes < 0 && catch_read_error(errno) == SW_WAIT && event_hup) {
         total_bytes = 0;
     }
 
@@ -781,7 +783,6 @@ ssize_t Socket::writev(IOVector *io_vector) {
     ssize_t retval;
 
     do {
-
 #ifdef SW_USE_OPENSSL
         if (ssl) {
             retval = ssl_writev(io_vector);
@@ -822,7 +823,7 @@ static int ssl_check_name(const char *name, ASN1_STRING *pattern) {
     char *s, *end;
     size_t slen, plen;
 
-    s = (char *)name;
+    s = (char *) name;
     slen = strlen(name);
 
     uchar *p = ASN1_STRING_data(pattern);
@@ -978,7 +979,7 @@ X509 *Socket::ssl_get_peer_certificate() {
     return SSL_get_peer_certificate(ssl);
 }
 
-STACK_OF(X509) *Socket::ssl_get_peer_cert_chain() {
+STACK_OF(X509) * Socket::ssl_get_peer_cert_chain() {
     if (!ssl) {
         return NULL;
     }
@@ -1019,7 +1020,7 @@ std::vector<std::string> Socket::ssl_get_peer_cert_chain(int limit) {
     auto n = sk_X509_num(chain);
 
 #ifdef OPENSSL_IS_BORINGSSL
-    n = std::min((int)n, limit);
+    n = std::min((int) n, limit);
 #else
     n = std::min(n, limit);
 #endif
@@ -1155,8 +1156,13 @@ int Socket::ssl_connect() {
 
     long err_code = ERR_get_error();
     char *msg = ERR_error_string(err_code, sw_tg_buffer()->str);
-    swoole_notice("Socket::ssl_connect(fd=%d) to server[%s:%d] failed. Error: %s[%ld|%d]", fd, info.get_ip(), info.get_port(), msg,
-           err, ERR_GET_REASON(err_code));
+    swoole_notice("Socket::ssl_connect(fd=%d) to server[%s:%d] failed. Error: %s[%ld|%d]",
+                  fd,
+                  info.get_ip(),
+                  info.get_port(),
+                  msg,
+                  err,
+                  ERR_GET_REASON(err_code));
 
     return SW_ERR;
 }
@@ -1169,7 +1175,7 @@ int Socket::ssl_sendfile(const File &fp, off_t *_offset, size_t _size) {
     if (n > 0) {
         ssize_t ret = ssl_send(buf, n);
         if (ret < 0) {
-            if (catch_error(errno) == SW_ERROR) {
+            if (catch_write_error(errno) == SW_ERROR) {
                 swoole_sys_warning("write() failed");
             }
         } else {

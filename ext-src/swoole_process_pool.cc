@@ -10,7 +10,7 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | Author: Tianfeng Han  <rango@swoole.com>                             |
   +----------------------------------------------------------------------+
 */
 
@@ -21,11 +21,7 @@
 #include "swoole_signal.h"
 
 BEGIN_EXTERN_C()
-#if PHP_VERSION_ID >= 80000
 #include "stubs/php_swoole_process_pool_arginfo.h"
-#else
-#include "stubs/php_swoole_process_pool_legacy_arginfo.h"
-#endif
 END_EXTERN_C()
 
 using namespace swoole;
@@ -161,8 +157,7 @@ static const zend_function_entry swoole_process_pool_methods[] =
 // clang-format on
 
 void php_swoole_process_pool_minit(int module_number) {
-    SW_INIT_CLASS_ENTRY(
-        swoole_process_pool, "Swoole\\Process\\Pool", "swoole_process_pool", nullptr, swoole_process_pool_methods);
+    SW_INIT_CLASS_ENTRY(swoole_process_pool, "Swoole\\Process\\Pool", nullptr, swoole_process_pool_methods);
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_process_pool);
     SW_SET_CLASS_CLONEABLE(swoole_process_pool, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_process_pool, sw_zend_class_unset_property_deny);
@@ -289,7 +284,8 @@ static PHP_METHOD(swoole_process_pool, __construct) {
 
     if (enable_coroutine && ipc_type > 0 && ipc_type != SW_IPC_UNIXSOCK) {
         ipc_type = SW_IPC_UNIXSOCK;
-        zend_throw_error(NULL, "%s object's ipc_type will be reset to SWOOLE_IPC_UNIXSOCK after enable coroutine",
+        zend_throw_error(NULL,
+                         "%s object's ipc_type will be reset to SWOOLE_IPC_UNIXSOCK after enable coroutine",
                          SW_Z_OBJCE_NAME_VAL_P(zobject));
         RETURN_FALSE;
     }

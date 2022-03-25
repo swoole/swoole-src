@@ -10,7 +10,7 @@
  | to obtain it through the world-wide-web, please send a note to       |
  | license@swoole.com so we can mail you a copy immediately.            |
  +----------------------------------------------------------------------+
- | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+ | Author: Tianfeng Han  <rango@swoole.com>                             |
  +----------------------------------------------------------------------+
  */
 
@@ -78,11 +78,11 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
         response.info.len = sw_snprintf(header_buffer,
                                         sizeof(header_buffer),
                                         "HTTP/1.1 304 Not Modified\r\n"
-                                        "%s"
+                                        "Connection: %s\r\n"
                                         "Date: %s\r\n"
                                         "Last-Modified: %s\r\n"
                                         "Server: %s\r\n\r\n",
-                                        request->keep_alive ? "Connection: keep-alive\r\n" : "",
+                                        request->keep_alive ? "keep-alive" : "close",
                                         date_str.c_str(),
                                         date_str_last_modified.c_str(),
                                         SW_HTTP_SERVER_SOFTWARE);
@@ -123,13 +123,13 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
         response.info.len = sw_snprintf(header_buffer,
                                         sizeof(header_buffer),
                                         "HTTP/1.1 200 OK\r\n"
-                                        "%s"
+                                        "Connection: %s\r\n"
                                         "Content-Length: %ld\r\n"
                                         "Content-Type: text/html\r\n"
                                         "Date: %s\r\n"
                                         "Last-Modified: %s\r\n"
                                         "Server: %s\r\n\r\n",
-                                        request->keep_alive ? "Connection: keep-alive\r\n" : "",
+                                        request->keep_alive ? "keep-alive" : "close",
                                         (long) body_length,
                                         date_str.c_str(),
                                         date_str_last_modified.c_str(),
@@ -146,13 +146,13 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
     response.info.len = sw_snprintf(header_buffer,
                                     sizeof(header_buffer),
                                     "HTTP/1.1 200 OK\r\n"
-                                    "%s"
+                                    "Connection: %s\r\n"
                                     "Content-Length: %ld\r\n"
                                     "Content-Type: %s\r\n"
                                     "Date: %s\r\n"
                                     "Last-Modified: %s\r\n"
                                     "Server: %s\r\n\r\n",
-                                    request->keep_alive ? "Connection: keep-alive\r\n" : "",
+                                    request->keep_alive ? "keep-alive" : "close",
                                     (long) task->length,
                                     handler.get_mimetype(),
                                     date_str.c_str(),
@@ -525,15 +525,13 @@ void Request::parse_header_info() {
     for (; p < pe; p++) {
         if (*(p - 1) == '\n' && *(p - 2) == '\r') {
             if (SW_STRCASECT(p, pe - p, "Content-Length:")) {
-                unsigned long long content_length;
                 // strlen("Content-Length:")
                 p += (sizeof("Content-Length:") - 1);
                 // skip spaces
                 while (*p == ' ') {
                     p++;
                 }
-                content_length = strtoull(p, nullptr, 10);
-                content_length_ = SW_MIN(content_length, UINT32_MAX);
+                content_length_ = strtoull(p, nullptr, 10);
                 known_length = 1;
             } else if (SW_STRCASECT(p, pe - p, "Connection:")) {
                 // strlen("Connection:")

@@ -11,7 +11,7 @@
   | license@php.net so we can mail you a copy immediately.               |
   +----------------------------------------------------------------------+
   | Author: Twosee  <twose@qq.com>                                       |
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | Author: Tianfeng Han  <rango@swoole.com>                             |
   +----------------------------------------------------------------------+
 */
 
@@ -886,6 +886,16 @@ inline std::string date(const char *p, uint8_t length)
         d = *(uint8_t *) (p + 3);
     }
     return swoole::std_string::format("%04u-%02u-%02u", y, m, d);
+}
+
+inline std::string year(const char *p, uint8_t length)
+{
+    uint16_t y = 0;
+    if (length != 0)
+    {
+        y = sw_mysql_uint2korr2korr(p);
+    }
+    return swoole::std_string::format("%04u", y);
 }
 
 class result_info

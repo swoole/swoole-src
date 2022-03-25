@@ -21,8 +21,11 @@
 #include "swoole_file.h"
 #include "swoole_util.h"
 
+using namespace swoole::test;
+
 using swoole::Coroutine;
 using swoole::String;
+using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 using swoole::test::coroutine;
 
@@ -235,10 +238,8 @@ TEST(coroutine_hook, read_dir) {
 
         swoole_coroutine_closedir(fp);
     };
-    
-    coroutine::run([&](void *arg) {
-        fn();
-    });
+
+    coroutine::run([&](void *arg) { fn(); });
     fn();
 }
 
@@ -254,9 +255,7 @@ TEST(coroutine_hook, readlink) {
         ASSERT_STREQ(buf1, buf2);
     };
 
-    coroutine::run([&](void *arg) {
-        fn();
-    });
+    coroutine::run([&](void *arg) { fn(); });
     fn();
 }
 
@@ -278,9 +277,7 @@ TEST(coroutine_hook, stdio_1) {
         unlink(test_file);
     };
 
-    coroutine::run([&](void *arg) {
-        fn();
-    });
+    coroutine::run([&](void *arg) { fn(); });
     fn();
 }
 
@@ -311,8 +308,123 @@ TEST(coroutine_hook, stdio_2) {
         unlink(test_file);
     };
 
-    coroutine::run([&](void *arg) {
-        fn();
-    });
+    coroutine::run([&](void *arg) { fn(); });
     fn();
+}
+
+TEST(coroutine_hook, sleep) {
+    coroutine::run([&](void *arg) {
+        const int sec = 1;
+        long sec_1 = swoole::time<std::chrono::seconds>();
+        swoole_coroutine_sleep(sec);
+        long sec_2 = swoole::time<std::chrono::seconds>();
+        ASSERT_LE(sec_2 - sec_1, sec);
+
+        const int us = 2000;
+        long us_1 = swoole::time<std::chrono::milliseconds>();
+        swoole_coroutine_usleep(us);
+        long us_2 = swoole::time<std::chrono::milliseconds>();
+        ASSERT_LE(us_2 - us_1, us / 1000);
+    });
+}
+
+TEST(coroutine_hook, exists) {
+    coroutine::run([&](void *arg) {
+        const int fd = 100;  // fake fd
+        ASSERT_EQ(swoole_coroutine_socket_create(fd), 0);
+        ASSERT_TRUE(swoole_coroutine_socket_exists(fd));
+        Socket *sock = swoole_coroutine_get_socket_object(fd);
+        ASSERT_EQ(sock->get_fd(), fd);
+    });
+}
+
+TEST(coroutine_hook, timeout) {
+    coroutine::run([&](void *arg) {
+        int pairs[2];
+        socketpair(AF_UNIX, SOCK_STREAM, 0, pairs);
+        std::string text = "Hello World";
+        size_t length = text.length();
+
+        // unregister fd
+        ASSERT_EQ(swoole_coroutine_socket_set_timeout(pairs[0], SO_SNDTIMEO, 0.05), -1);
+
+        swoole::Coroutine::create([&](void *) {
+            ASSERT_EQ(swoole_coroutine_socket_create(pairs[0]), 0);
+
+            // unknown which
+            ASSERT_EQ(swoole_coroutine_socket_set_timeout(pairs[0], 100, 0.05), -1);
+
+            swoole_coroutine_socket_set_timeout(pairs[0], SO_SNDTIMEO, 0.05);
+            size_t result = swoole_coroutine_write(pairs[0], text.c_str(), length);
+            ASSERT_EQ(swoole_coroutine_close(pairs[0]), 0);
+            ASSERT_EQ(result, length);
+        });
+
+        char data[length + 1];
+        ASSERT_EQ(swoole_coroutine_socket_create(pairs[1]), 0);
+        swoole_coroutine_socket_set_timeout(pairs[1], SO_RCVTIMEO, 0.05);
+        size_t result = swoole_coroutine_read(pairs[1], data, length);
+        data[result] = '\0';
+        ASSERT_EQ(swoole_coroutine_close(pairs[1]), 0);
+        ASSERT_EQ(result, length);
+        ASSERT_STREQ(data, text.c_str());
+    });
+}
+
+TEST(coroutine_hook, sendmsg_and_recvmsg) {
+    coroutine::run([&](void *arg) {
+        int pairs[2];
+        socketpair(AF_UNIX, SOCK_STREAM, 0, pairs);
+
+        std::string text = "Hello World";
+        size_t length = text.length();
+
+        swoole::Coroutine::create([&](void *) {
+            struct msghdr msg;
+            struct iovec ivec;
+
+            msg.msg_control = nullptr;
+            msg.msg_controllen = 0;
+            msg.msg_flags = 0;
+            msg.msg_name = nullptr;
+            msg.msg_namelen = 0;
+            msg.msg_iov = &ivec;
+            msg.msg_iovlen = 1;
+
+            ivec.iov_base = (void *) text.c_str();
+            ivec.iov_len = length;
+
+            ssize_t ret = swoole_coroutine_sendmsg(pairs[0], &msg, 0);
+            ASSERT_EQ(swoole_coroutine_close(pairs[0]), 0);
+            ASSERT_EQ(ret, length);
+        });
+
+        struct msghdr msg;
+        struct iovec ivec;
+        char buf[length + 1];
+
+        msg.msg_control = nullptr;
+        msg.msg_controllen = 0;
+        msg.msg_flags = 0;
+        msg.msg_name = nullptr;
+        msg.msg_namelen = 0;
+        msg.msg_iov = &ivec;
+        msg.msg_iovlen = 1;
+
+        ivec.iov_base = buf;
+        ivec.iov_len = length;
+
+        ssize_t ret = swoole_coroutine_recvmsg(pairs[1], &msg, 0);
+        buf[ret] = '\0';
+        ASSERT_EQ(swoole_coroutine_close(pairs[1]), 0);
+        ASSERT_STREQ(buf, text.c_str());
+    });
+}
+
+TEST(coroutine_hook, lseek) {
+    std::string file = get_jpg_file();
+    int fd = swoole_coroutine_open(file.c_str(), O_RDONLY, 'r');
+    off_t offset = swoole_coroutine_lseek(fd, 0, SEEK_SET);
+    swoole_coroutine_close(fd);
+    ASSERT_EQ(offset, 0);
 }

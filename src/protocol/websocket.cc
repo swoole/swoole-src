@@ -10,7 +10,7 @@
  | to obtain it through the world-wide-web, please send a note to       |
  | license@swoole.com so we can mail you a copy immediately.            |
  +----------------------------------------------------------------------+
- | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+ | Author: Tianfeng Han  <rango@swoole.com>                             |
  +----------------------------------------------------------------------+
  */
 
@@ -91,7 +91,7 @@ static ssize_t get_package_length_impl(PacketLength *pl) {
     if ((ssize_t) payload_length < 0) {
         return -1;
     }
-    swoole_trace_log(SW_TRACE_LENGTH_PROTOCOL, "header_length=%u, payload_length=%lu", pl->header_len, payload_length);
+    swoole_trace_log(SW_TRACE_LENGTH_PROTOCOL, "header_length=%u, payload_length=%" PRIu64, pl->header_len, payload_length);
 
     return (ssize_t) pl->header_len + (ssize_t) payload_length;
 }

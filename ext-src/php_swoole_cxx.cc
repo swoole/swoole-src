@@ -12,12 +12,6 @@ SW_API zend_string **sw_zend_known_strings = nullptr;
 
 //----------------------------------known string------------------------------------
 
-#if PHP_VERSION_ID < 80000
-typedef zval zend_source_string_t;
-#else
-typedef zend_string zend_source_string_t;
-#endif
-
 #if PHP_VERSION_ID < 80200
 #define ZEND_COMPILE_POSITION_DC
 #define ZEND_COMPILE_POSITION_RELAY_C
@@ -27,9 +21,9 @@ typedef zend_string zend_source_string_t;
 #endif
 
 // for compatibly with dis_eval
-static zend_op_array *(*old_compile_string)(zend_source_string_t *source_string, ZEND_STR_CONST char *filename ZEND_COMPILE_POSITION_DC);
+static zend_op_array *(*old_compile_string)(zend_string *source_string, const char *filename ZEND_COMPILE_POSITION_DC);
 
-static zend_op_array *swoole_compile_string(zend_source_string_t *source_string, ZEND_STR_CONST char *filename ZEND_COMPILE_POSITION_DC) {
+static zend_op_array *swoole_compile_string(zend_string *source_string, const char *filename ZEND_COMPILE_POSITION_DC) {
     if (UNEXPECTED(EG(exception))) {
         zend_exception_error(EG(exception), E_ERROR);
         return nullptr;
