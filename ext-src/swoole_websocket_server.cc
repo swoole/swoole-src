@@ -377,9 +377,9 @@ bool swoole_websocket_handshake(HttpContext *ctx) {
                             port->websocket_subprotocol.length(),
                             false);
         }
+        _fd = conn->server_fd;
 #ifdef SW_HAVE_ZLIB
         ctx->websocket_compression = conn->websocket_compression = websocket_compression;
-        _fd = conn->server_fd;
 #endif
     } else {
         Socket *sock = (Socket *) ctx->private_data;
@@ -388,9 +388,9 @@ bool swoole_websocket_handshake(HttpContext *ctx) {
         sock->protocol.package_length_offset = 0;
         sock->protocol.package_body_offset = 0;
         sock->protocol.get_package_length = WebSocket::get_package_length;
+        _fd = sock->get_fd();
 #ifdef SW_HAVE_ZLIB
         ctx->websocket_compression = websocket_compression;
-        _fd = sock->get_fd();
 #endif
     }
 
