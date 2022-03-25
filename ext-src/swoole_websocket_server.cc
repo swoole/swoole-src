@@ -390,7 +390,7 @@ bool swoole_websocket_handshake(HttpContext *ctx) {
         sock->protocol.get_package_length = WebSocket::get_package_length;
 #ifdef SW_HAVE_ZLIB
         ctx->websocket_compression = websocket_compression;
-        _fd = = sock->get_fd();
+        _fd = sock->get_fd();
 #endif
     }
 
