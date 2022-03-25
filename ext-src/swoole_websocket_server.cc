@@ -250,7 +250,7 @@ void swoole_websocket_onBeforeHandshakeResponse(Server *serv, int server_fd, Htt
         args[0] = *((zval *) serv->private_data_2);
         args[1] = *ctx->request.zobject;
         args[2] = *ctx->response.zobject;
-        if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, nullptr, serv->is_enable_coroutine()))) {
+        if (UNEXPECTED(!zend::function::call(fci_cache, 3, args, nullptr, serv->is_enable_coroutine()))) {
             php_swoole_error(E_WARNING, "%s->onBeforeHandshakeResponse handler error", ZSTR_VAL(swoole_websocket_server_ce->name));
             serv->close(ctx->fd, false);
         }
