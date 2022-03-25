@@ -34,6 +34,7 @@ void swoole_http_server_onAfterResponse(swoole::http::Context *ctx);
 
 int swoole_websocket_onMessage(swoole::Server *serv, swoole::RecvData *req);
 int swoole_websocket_onHandshake(swoole::Server *serv, swoole::ListenPort *port, swoole::http::Context *ctx);
+void swoole_websocket_onBeforeHandshakeResponse(swoole::http::Context *ctx);
 void swoole_websocket_onOpen(swoole::http::Context *ctx);
 void swoole_websocket_onRequest(swoole::http::Context *ctx);
 bool swoole_websocket_handshake(swoole::http::Context *ctx);

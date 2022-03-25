@@ -250,6 +250,20 @@ int php_swoole_websocket_frame_object_pack_ex(String *buffer, zval *zdata, zend_
         buffer, zdata, opcode, code, flags & WebSocket::FLAGS_ALL, mask, allow_compress);
 }
 
+void swoole_websocket_onBeforeHandshakeResponse(Server *serv, HttpContext *ctx) {
+    zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, conn->server_fd, SW_SERVER_CB_onBeforeHandShakeResponse);
+    if (fci_cache) {
+        zval args[3];
+        args[0] = *((zval *) serv->private_data_2);
+        args[1] = *ctx->request.zobject;
+        args[2] = *ctx->response.zobject;
+        if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, nullptr, serv->is_enable_coroutine()))) {
+            php_swoole_error(E_WARNING, "%s->onBeforeHandshakeResponse handler error", ZSTR_VAL(swoole_websocket_server_ce->name));
+            serv->close(ctx->fd, false);
+        }
+    }
+}
+
 void swoole_websocket_onOpen(Server *serv, HttpContext *ctx) {
     Connection *conn = serv->get_connection_by_session_id(ctx->fd);
     if (!conn) {
@@ -387,7 +401,7 @@ bool swoole_websocket_handshake(HttpContext *ctx) {
 
     ctx->response.status = SW_HTTP_SWITCHING_PROTOCOLS;
     ctx->upgrade = 1;
-
+    swoole_websocket_onBeforeHandshakeResponse(serv, ctx);
     ctx->end(nullptr, &retval);
     return Z_TYPE(retval) == IS_TRUE;
 }
