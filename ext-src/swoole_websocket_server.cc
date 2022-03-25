@@ -243,8 +243,8 @@ int php_swoole_websocket_frame_object_pack_ex(String *buffer, zval *zdata, zend_
         buffer, zdata, opcode, code, flags & WebSocket::FLAGS_ALL, mask, allow_compress);
 }
 
-void swoole_websocket_onBeforeHandshakeResponse(Server *serv, HttpContext *ctx) {
-    zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, conn->server_fd, SW_SERVER_CB_onBeforeHandShakeResponse);
+void swoole_websocket_onBeforeHandshakeResponse(Server *serv, int server_fd, HttpContext *ctx) {
+    zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, server_fd, SW_SERVER_CB_onBeforeHandShakeResponse);
     if (fci_cache) {
         zval args[3];
         args[0] = *((zval *) serv->private_data_2);
@@ -367,7 +367,7 @@ bool swoole_websocket_handshake(HttpContext *ctx) {
         }
     }
 #endif
-
+    int _fd
     if (conn) {
         conn->websocket_status = WebSocket::STATUS_ACTIVE;
         ListenPort *port = serv->get_port_by_server_fd(conn->server_fd);
@@ -379,6 +379,7 @@ bool swoole_websocket_handshake(HttpContext *ctx) {
         }
 #ifdef SW_HAVE_ZLIB
         ctx->websocket_compression = conn->websocket_compression = websocket_compression;
+        _fd = conn->server_fd;
 #endif
     } else {
         Socket *sock = (Socket *) ctx->private_data;
@@ -389,12 +390,13 @@ bool swoole_websocket_handshake(HttpContext *ctx) {
         sock->protocol.get_package_length = WebSocket::get_package_length;
 #ifdef SW_HAVE_ZLIB
         ctx->websocket_compression = websocket_compression;
+        _fd = = sock->get_fd();
 #endif
     }
 
     ctx->response.status = SW_HTTP_SWITCHING_PROTOCOLS;
     ctx->upgrade = 1;
-    swoole_websocket_onBeforeHandshakeResponse(serv, ctx);
+    swoole_websocket_onBeforeHandshakeResponse(serv, _fd, ctx);
     ctx->end(nullptr, &retval);
     return Z_TYPE(retval) == IS_TRUE;
 }
