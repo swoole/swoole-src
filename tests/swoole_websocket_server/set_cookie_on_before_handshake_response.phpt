@@ -11,9 +11,7 @@ $pm->parentFunc = function () use ($pm) {
     Co\run(function () use ($pm) {
         $cli = new Co\Http\Client('127.0.0.1', $pm->getFreePort());
         if (Assert::true($cli->upgrade('/'))) {
-            Assert::same($cli->headers['x-asdf'], 'asdf');
             Assert::same($cli->set_cookie_headers, [
-                'foo=bar',
                 'abc=def'
             ]);
         }
