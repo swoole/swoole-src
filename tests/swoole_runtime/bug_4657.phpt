@@ -9,20 +9,26 @@ if(PHP_VERSION_ID < 80000) {
 ?>
 --FILE--
 <?php
-Swoole\Runtime::enableCoroutine(SWOOLE_HOOK_ALL);
+use Socket as BaseSocket;
+use Swoole\Coroutine;
+use function Swoole\Coroutine\run;
 
-Swoole\Coroutine\run(function () {
+$socket = socket_create(AF_INET, SOCK_STREAM, 0);
+var_dump($socket);
+
+run(function () {
     $socket = socket_create(AF_INET, SOCK_STREAM, 0);
     var_dump($socket);
-    var_dump($socket instanceof \Socket);
-
-    Swoole\Runtime::enableCoroutine(false);
-    $socket = socket_create(AF_INET, SOCK_STREAM, 0);
-    var_dump($socket);
+    var_dump($socket instanceof BaseSocket);
 });
+
+$socket = socket_create(AF_INET, SOCK_STREAM, 0);
+var_dump($socket);
 ?>
 --EXPECTF--
-object(Swoole\Coroutine\Socket)#3 (6) {
+object(Socket)#%d (%d) {
+}
+object(Swoole\Coroutine\Socket)#%d (%d) {
   ["fd"]=>
   int(%d)
   ["domain"]=>
@@ -37,5 +43,5 @@ object(Swoole\Coroutine\Socket)#3 (6) {
   string(0) ""
 }
 bool(true)
-object(Socket)#4 (0) {
+object(Socket)#%d (%d) {
 }
