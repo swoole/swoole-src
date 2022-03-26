@@ -10,7 +10,7 @@ if(PHP_VERSION_ID < 80000) {
 --FILE--
 <?php
 use Socket as BaseSocket;
-use Swoole\Coroutine;
+use Swoole\Coroutine\Socket;
 use function Swoole\Coroutine\run;
 
 $socket = socket_create(AF_INET, SOCK_STREAM, 0);
