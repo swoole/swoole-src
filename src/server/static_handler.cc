@@ -15,6 +15,7 @@
  */
 
 #include "swoole_static_handler.h"
+#include "swoole_util.h"
 
 #include <string>
 #include <dirent.h>
@@ -29,7 +30,7 @@ bool StaticHandler::is_modified(const std::string &date_if_modified_since) {
         return false;
     }
 
-    struct tm tm3;
+    struct tm tm3 {};
     memcpy(date_tmp, date_if_modified_since.c_str(), date_if_modified_since.length());
     date_tmp[date_if_modified_since.length()] = 0;
 
@@ -162,7 +163,7 @@ check_stat:
         return true;
     }
 
-    if (!swoole::mime_type::exists(task.filename)) {
+    if (!swoole::mime_type::exists(task.filename) && !last) {
         return false;
     }
 
@@ -174,49 +175,60 @@ check_stat:
     return true;
 }
 
-size_t StaticHandler::get_index_page(std::set<std::string> &files, char *buffer, size_t size) {
-    int ret = 0;
-    char *p = buffer;
+bool StaticHandler::hit_index_file() {
+    if (serv->http_index_files && !serv->http_index_files->empty() && is_dir()) {
+        if (!get_dir_files()) {
+            return false;
+        }
+        index_file = intersection(*serv->http_index_files, dir_files);
+
+        if (has_index_file() && !set_filename(index_file)) {
+            return false;
+        }
+        if (!has_index_file() && !is_enabled_auto_index()) {
+            return false;
+        }
+    }
+    return true;
+}
+
+size_t StaticHandler::make_index_page(String *buffer) {
+    get_dir_files();
 
     if (dir_path.back() != '/') {
         dir_path.append("/");
     }
 
-    ret = sw_snprintf(p,
-                      size - ret,
-                      "<html>\n"
-                      "<head>\n"
-                      "\t<meta charset='UTF-8'>\n<title>Index of %s</title>"
-                      "</head>\n"
-                      "<body>\n<h1>Index of %s</h1><hr/>"
-                      "\t<ul>\n",
-                      dir_path.c_str(),
-                      dir_path.c_str());
+    buffer->format_impl(String::FORMAT_APPEND | String::FORMAT_GROW,
+                        "<html>\n"
+                        "<head>\n"
+                        "\t<meta charset='UTF-8'>\n<title>Index of %s</title>"
+                        "</head>\n"
+                        "<body>\n" SW_HTTP_PAGE_CSS "<h1>Index of %s</h1>"
+                        "\t<ul>\n",
+                        dir_path.c_str(),
+                        dir_path.c_str());
 
-    p += ret;
-
-    for (auto iter = files.begin(); iter != files.end(); iter++) {
+    for (auto iter = dir_files.begin(); iter != dir_files.end(); iter++) {
         if (*iter == "." || (dir_path == "/" && *iter == "..")) {
             continue;
         }
-        ret = sw_snprintf(
-            p, size - ret, "\t\t<li><a href=%s%s>%s</a></li>\n", dir_path.c_str(), (*iter).c_str(), (*iter).c_str());
-        p += ret;
+        buffer->format_impl(String::FORMAT_APPEND | String::FORMAT_GROW,
+                            "\t\t<li><a href=%s%s>%s</a></li>\n",
+                            dir_path.c_str(),
+                            (*iter).c_str(),
+                            (*iter).c_str());
     }
 
-    ret = sw_snprintf(p,
-                      size - ret,
-                      "\t</ul>\n"
-                      "<hr><i>Powered by Swoole</i></body>\n"
-                      "</html>\n");
+    buffer->format_impl(String::FORMAT_APPEND | String::FORMAT_GROW, "\t</ul>\n" SW_HTTP_POWER_BY "</body>\n</html>\n");
 
-    p += ret;
-
-    return p - buffer;
+    return buffer->length;
 }
 
-bool StaticHandler::get_dir_files(std::set<std::string> &index_files) {
-    struct dirent *ptr;
+bool StaticHandler::get_dir_files() {
+    if (!dir_files.empty()) {
+        return true;
+    }
 
     if (!is_dir()) {
         return false;
@@ -227,8 +239,9 @@ bool StaticHandler::get_dir_files(std::set<std::string> &index_files) {
         return false;
     }
 
+    struct dirent *ptr;
     while ((ptr = readdir(dir)) != nullptr) {
-        index_files.insert(ptr->d_name);
+        dir_files.insert(ptr->d_name);
     }
 
     closedir(dir);

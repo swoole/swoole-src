@@ -92,33 +92,21 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
         return true;
     }
 
-    auto task = handler.get_task();
-
-    std::set<std::string> dir_files;
-    std::string index_file = "";
     /**
      * if http_index_files is enabled, need to search the index file first.
      * if the index file is found, set filename to index filename.
      */
-    if (http_index_files && !http_index_files->empty() && handler.is_dir()) {
-        handler.get_dir_files(dir_files);
-        index_file = swoole::intersection(*http_index_files, dir_files);
-
-        if (index_file != "" && !handler.set_filename(index_file)) {
-            return false;
-        } else if (index_file == "" && !http_autoindex) {
-            return false;
-        }
+    if (!handler.hit_index_file()) {
+        return false;
     }
+
     /**
      * the index file was not found in the current directory,
      * if http_autoindex is enabled, should show the list of files in the current directory.
      */
-    if (index_file == "" && http_autoindex && handler.is_dir()) {
-        if (dir_files.empty()) {
-            handler.get_dir_files(dir_files);
-        }
-        size_t body_length = handler.get_index_page(dir_files, sw_tg_buffer()->str, sw_tg_buffer()->size);
+    if (!handler.has_index_file() && handler.is_enabled_auto_index() && handler.is_dir()) {
+        sw_tg_buffer()->clear();
+        size_t body_length = handler.make_index_page(sw_tg_buffer());
 
         response.info.len = sw_snprintf(header_buffer,
                                         sizeof(header_buffer),
@@ -143,6 +131,7 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
         return true;
     }
 
+    auto task = handler.get_task();
     response.info.len = sw_snprintf(header_buffer,
                                     sizeof(header_buffer),
                                     "HTTP/1.1 200 OK\r\n"
