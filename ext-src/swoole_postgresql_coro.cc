@@ -436,10 +436,11 @@ static int meta_data_result_parse(PGObject *object) {
     }
 
     array_init(object->return_value);
-    array_init(&elem);
+
     for (i = 0; i < num_rows; i++) {
         object->result = pg_result;
         char *name;
+        array_init(&elem);
         /* pg_attribute.attnum */
         add_assoc_long_ex(&elem, "num", sizeof("num") - 1, atoi(PQgetvalue(pg_result, i, 1)));
         /* pg_type.typname */
