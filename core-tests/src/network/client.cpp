@@ -5,7 +5,9 @@
 #define GREETER "Hello Swoole"
 #define GREETER_SIZE sizeof(GREETER)
 
+using swoole::HttpProxy;
 using swoole::Pipe;
+using swoole::Socks5Proxy;
 using swoole::network::AsyncClient;
 using swoole::network::Client;
 using swoole::test::Process;
@@ -243,6 +245,7 @@ TEST(client, ssl_1) {
     ASSERT_TRUE(buf.contains("Baidu"));
 }
 
+
 TEST(client, http_proxy) {
     int ret;
 
@@ -320,5 +323,11 @@ TEST(client, socks5_proxy) {
     client.onReceive = [&buf](Client *cli, const char *data, size_t length) { buf.append(data, length); };
     ret = client.connect(&client, "www.baidu.com", 443, -1, 0);
     ASSERT_EQ(ret, 0);
+
+    swoole_event_wait();
+
+    ASSERT_TRUE(connected);
+    ASSERT_TRUE(closed);
     ASSERT_TRUE(buf.contains("Baidu"));
+}
 #endif
