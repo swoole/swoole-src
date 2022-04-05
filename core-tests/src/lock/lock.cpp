@@ -127,7 +127,12 @@ TEST(lock, lockwait) {
 
 TEST(lock, shared) {
     Mutex lock(Mutex::PROCESS_SHARED);
-    test_func(reinterpret_cast<swLock &>(lock));
+    test_share_lock_fun(lock);
+}
+
+TEST(lock, try_rd) {
+    Mutex lock(0);
+    test_lock_rd_func(lock);
 }
 
 #ifdef HAVE_RWLOCK
