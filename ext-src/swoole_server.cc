@@ -389,14 +389,14 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_task, 0, 0, 1)
     ZEND_ARG_INFO(0, data)
-    ZEND_ARG_INFO(0, worker_id)
+    ZEND_ARG_INFO(0, task_worker_index)
     ZEND_ARG_CALLABLE_INFO(0, finish_callback, 1)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_taskwait, 0, 0, 1)
     ZEND_ARG_INFO(0, data)
     ZEND_ARG_INFO(0, timeout)
-    ZEND_ARG_INFO(0, worker_id)
+    ZEND_ARG_INFO(0, task_worker_index)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_taskCo, 0, 0, 1)
@@ -3109,13 +3109,15 @@ static PHP_METHOD(swoole_server, taskwait) {
 
     zval *zdata;
     double timeout = SW_TASKWAIT_TIMEOUT;
-    zend_long dst_worker_id = -1;
+    // It's the index of task workers [0, task_worker_num)
+    // not taskWorkerId (worker_num, worker_num+task_worker_num]
+    zend_long task_worker_index = -1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|dl", &zdata, &timeout, &dst_worker_id) == FAILURE) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|dl", &zdata, &timeout, &task_worker_index) == FAILURE) {
         RETURN_FALSE;
     }
 
-    if (php_swoole_check_task_param(serv, dst_worker_id) < 0) {
+    if (php_swoole_check_task_param(serv, task_worker_index) < 0) {
         RETURN_FALSE;
     }
 
@@ -3123,7 +3125,7 @@ static PHP_METHOD(swoole_server, taskwait) {
         RETURN_FALSE;
     }
 
-    int _dst_worker_id = (int) dst_worker_id;
+    int _dst_worker_id = (int) task_worker_index;
     TaskId task_id = buf.info.fd;
 
     // coroutine
@@ -3430,18 +3432,18 @@ static PHP_METHOD(swoole_server, task) {
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(ZEND_THIS));
 
     zval *zdata;
-    zend_long dst_worker_id = -1;
+    zend_long task_worker_index = -1;
     zend_fcall_info fci = empty_fcall_info;
     zend_fcall_info_cache fci_cache = empty_fcall_info_cache;
 
     ZEND_PARSE_PARAMETERS_START(1, 3)
     Z_PARAM_ZVAL(zdata)
     Z_PARAM_OPTIONAL
-    Z_PARAM_LONG(dst_worker_id)
+    Z_PARAM_LONG(task_worker_index)
     Z_PARAM_FUNC_EX(fci, fci_cache, 1, 0)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if (php_swoole_check_task_param(serv, dst_worker_id) < 0) {
+    if (php_swoole_check_task_param(serv, task_worker_index) < 0) {
         RETURN_FALSE;
     }
 
@@ -3462,10 +3464,10 @@ static PHP_METHOD(swoole_server, task) {
 
     buf.info.ext_flags |= SW_TASK_NONBLOCK;
 
-    int _dst_worker_id = (int) dst_worker_id;
+    int dst_task_worker_index = (int) task_worker_index;
     sw_atomic_fetch_add(&serv->gs->tasking_num, 1);
 
-    if (serv->gs->task_workers.dispatch(&buf, &_dst_worker_id) >= 0) {
+    if (serv->gs->task_workers.dispatch(&buf, &dst_task_worker_index) >= 0) {
         RETURN_LONG(buf.info.fd);
     }
 
