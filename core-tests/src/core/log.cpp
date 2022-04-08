@@ -94,18 +94,27 @@ TEST(log, date_with_microseconds) {
 }
 
 TEST(log, rotation) {
-    sw_logger()->reset();
-    sw_logger()->set_rotation(SW_LOG_ROTATION_DAILY);
-    sw_logger()->open(file);
+    std::vector<int> types = {
+        SW_LOG_ROTATION_DAILY, SW_LOG_ROTATION_EVERY_MINUTE, SW_LOG_ROTATION_HOURLY, SW_LOG_ROTATION_MONTHLY};
+    for (auto iter = types.begin(); iter != types.end(); iter++) {
+        sw_logger()->reset();
+        sw_logger()->set_rotation(*iter);
+        sw_logger()->open(file);
 
-    sw_logger()->put(SW_LOG_WARNING, SW_STRL("hello world"));
+        sw_logger()->put(SW_LOG_DEBUG, SW_STRL("hello world"));
+        sw_logger()->put(SW_LOG_TRACE, SW_STRL("hello world"));
+        sw_logger()->put(SW_LOG_NOTICE, SW_STRL("hello world"));
+        sw_logger()->put(SW_LOG_WARNING, SW_STRL("hello world"));
+        sw_logger()->put(SW_LOG_ERROR, SW_STRL("hello world"));
+        sw_logger()->put(SW_LOG_INFO, SW_STRL("hello world"));
 
-    ASSERT_EQ(access(sw_logger()->get_file(), R_OK), -1);
-    ASSERT_EQ(errno, ENOENT);
-    ASSERT_EQ(access(sw_logger()->get_real_file(), R_OK), 0);
+        ASSERT_EQ(access(sw_logger()->get_file(), R_OK), -1);
+        ASSERT_EQ(errno, ENOENT);
+        ASSERT_EQ(access(sw_logger()->get_real_file(), R_OK), 0);
 
-    sw_logger()->close();
-    unlink(sw_logger()->get_real_file());
+        sw_logger()->close();
+        unlink(sw_logger()->get_real_file());
+    }
 }
 
 TEST(log, redirect) {

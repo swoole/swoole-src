@@ -94,8 +94,29 @@ TEST(dns, getaddrinfo) {
 }
 
 TEST(dns, load_resolv_conf) {
-    ASSERT_TRUE(swoole_load_resolv_conf());
+    // reset
+    SwooleG.dns_server_host = "";
+    SwooleG.dns_server_port = 0;
+
     auto dns_server = swoole_get_dns_server();
+    ASSERT_TRUE(dns_server.first.empty());
+    ASSERT_EQ(dns_server.second, 0);
+
+    // with port
+    std::string test_server = "127.0.0.1:8080";  // fake dns server
+    swoole_set_dns_server(test_server);
+    dns_server = swoole_get_dns_server();
+    ASSERT_STREQ(dns_server.first.c_str(), "127.0.0.1");
+    ASSERT_EQ(dns_server.second, 8080);
+
+    // invalid port
+    test_server = "127.0.0.1:808088";
+    swoole_set_dns_server(test_server);
+    dns_server = swoole_get_dns_server();
+    ASSERT_EQ(dns_server.second, SW_DNS_SERVER_PORT);
+
+    ASSERT_TRUE(swoole_load_resolv_conf());
+    dns_server = swoole_get_dns_server();
     ASSERT_FALSE(dns_server.first.empty());
     ASSERT_NE(dns_server.second, 0);
 }

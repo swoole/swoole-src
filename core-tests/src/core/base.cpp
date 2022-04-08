@@ -34,6 +34,7 @@ TEST(base, datahead_dump) {
     data.fd = 123;
     char buf[128];
     size_t n = data.dump(buf, sizeof(buf));
+    data.print();
 
     ASSERT_GT(std::string(buf, n).find("int fd = 123;"), 1);
 }
@@ -185,6 +186,14 @@ TEST(base, dirname) {
 }
 
 TEST(base, set_task_tmpdir) {
+    ASSERT_FALSE(swoole_set_task_tmpdir("aaa"));
+
+    size_t length = SW_TASK_TMP_PATH_SIZE + 1;
+    char too_long_dir[length] = {};
+    swoole_random_string(too_long_dir + 1, length - 1);
+    too_long_dir[0] = '/';
+    ASSERT_FALSE(swoole_set_task_tmpdir(too_long_dir));
+
     const char *tmpdir = "/tmp/swoole/core_tests/base";
     ASSERT_TRUE(swoole_set_task_tmpdir(tmpdir));
     File fp = swoole::make_tmpfile();
@@ -207,6 +216,7 @@ TEST(base, set_task_tmpdir) {
 TEST(base, version) {
     ASSERT_STREQ(swoole_version(), SWOOLE_VERSION);
     ASSERT_EQ(swoole_version_id(), SWOOLE_VERSION_ID);
+    ASSERT_EQ(swoole_api_version_id(), SWOOLE_API_VERSION_ID);
 }
 
 static std::string test_func(std::string test_data_2) {
@@ -270,4 +280,43 @@ TEST(base, type_size) {
     ASSERT_EQ(swoole_type_size('s'), 2);
     ASSERT_EQ(swoole_type_size('l'), 4);
     ASSERT_EQ(swoole_type_size('b'), 0);  // default value
+}
+
+size_t swoole_fatal_error_impl(const char *format, ...) {
+    size_t retval = 0;
+    va_list args;
+    va_start(args, format);
+
+    char buf[128];
+    retval += sw_vsnprintf(buf, 128, format, args);
+    va_end(args);
+    return retval;
+}
+
+TEST(base, vsnprintf) {
+    ASSERT_GT(swoole_fatal_error_impl("Hello %s", "World!!!"), 0);
+}
+
+TEST(base, log_level) {
+    int level = sw_logger()->get_level();
+    swoole_set_log_level(SW_LOG_TRACE);
+    swoole_print_backtrace();
+    EXPECT_EQ(SW_LOG_TRACE, sw_logger()->get_level());
+    swoole_set_log_level(level);
+}
+
+TEST(base, trace_flag) {
+    int flags = SwooleG.trace_flags;
+    swoole_set_trace_flags(SW_TRACE_CARES);
+    EXPECT_EQ(SW_TRACE_CARES, SwooleG.trace_flags);
+    swoole_set_trace_flags(flags);
+}
+
+TEST(base, only_dump) {
+    // just dump something
+    std::string data = "hello world";
+    swoole_dump_ascii(data.c_str(), data.length());
+    swoole_dump_bin(data.c_str(), 'C', data.length());
+    swoole_dump_hex(data.c_str(), data.length());
+    ASSERT_TRUE(true);
 }
