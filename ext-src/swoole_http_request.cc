@@ -277,89 +277,81 @@ bool HttpContext::parse_form_data(const char *boundary_str, int boundary_len) {
 }
 
 void swoole_http_parse_cookie(zval *zarray, const char *at, size_t length, bool url_decode) {
-    char keybuf[SW_HTTP_COOKIE_KEYLEN];
-    char valbuf[SW_HTTP_COOKIE_VALLEN];
-    char *_c = (char *) at;
+    char *res = nullptr, *var, *val;
+    const char *separator = ";\0";
+    zend_long count = 0;
+    int free_buffer = 0;
+    size_t var_len = 0;
+    char *strtok_buf = nullptr;
 
-    char *_value;
-    size_t klen = 0;
-    size_t vlen = 0;
-    int state = -1;
+    std::string header(at);
+    std::string cookies = header.substr(0, length);
+    char *_c = (char *) cookies.c_str();
 
-    int i = 0, j = 0;
-    while (_c < at + length) {
-        if (state <= 0 && *_c == '=') {
-            klen = i - j + 1;
-            if (klen >= SW_HTTP_COOKIE_KEYLEN) {
-                swoole_warning("cookie[%.*s...] name length %zu is exceed the max name len %d",
-                       8,
-                       (char *) at + j,
-                       klen,
-                       SW_HTTP_COOKIE_KEYLEN);
-                return;
-            }
-            memcpy(keybuf, (char *) at + j, klen - 1);
-            keybuf[klen - 1] = 0;
-
-            j = i + 1;
-            state = 1;
-        } else if (state == 1 && *_c == ';') {
-            vlen = i - j;
-            if (vlen >= SW_HTTP_COOKIE_VALLEN) {
-                swoole_warning("cookie[%s]'s value[v=%.*s...] length %zu is exceed the max value len %d",
-                       keybuf,
-                       8,
-                       (char *) at + j,
-                       vlen,
-                       SW_HTTP_COOKIE_VALLEN);
-                return;
-            }
-            memcpy(valbuf, (char *) at + j, vlen);
-            valbuf[vlen] = 0;
-            _value = http_trim_double_quote(valbuf, &vlen);
-            vlen = php_url_decode(_value, vlen);
-            if (klen > 1) {
-                add_assoc_stringl_ex(zarray, keybuf, klen - 1, _value, vlen);
-            }
-            j = i + 1;
-            state = -1;
-        } else if (state < 0) {
-            if (isspace(*_c)) {
-                // Remove leading spaces from cookie names
-                j++;
-            } else {
-                state = 0;
-            }
-        }
-        _c++;
-        i++;
+    if (_c && *_c) {
+        res = (char *) estrdup(_c);
+        free_buffer = 1;
     }
-    if (j < (off_t) length) {
-        vlen = i - j;
-        if (klen >= SW_HTTP_COOKIE_KEYLEN) {
-            swoole_warning(
-                "cookie[%.*s...] name length %zu is exceed the max name len %d", 8, keybuf, klen, SW_HTTP_COOKIE_KEYLEN);
-            return;
+
+    if (!res) {
+        return;
+    }
+
+    var = php_strtok_r(res, separator, &strtok_buf);
+    while (var) {
+        size_t val_len;
+        val = strchr(var, '=');
+
+        while (isspace(*var)) {
+            var++;
         }
-        keybuf[klen - 1] = 0;
-        if (vlen >= SW_HTTP_COOKIE_VALLEN) {
+
+        if (var == val || *var == '\0') {
+            goto next_cookie;
+        }
+
+        if (++count > PG(max_input_vars)) {
+            swoole_warning("Input variables exceeded " ZEND_LONG_FMT
+                           ". To increase the limit change max_input_vars in php.ini.",
+                           PG(max_input_vars));
+            break;
+        }
+
+        if (val) { /* have a value */
+            *val++ = '\0';
+            val_len = php_raw_url_decode(val, strlen(val));
+        } else {
+            val = (char *) "";
+            val_len = 0;
+        }
+
+        var_len = strlen(var);
+        if (var_len >= SW_HTTP_COOKIE_KEYLEN) {
+            swoole_warning("cookie[%.*s...] name length %zu is exceed the max name len %d",
+                           8,
+                           var,
+                           var_len,
+                           SW_HTTP_COOKIE_KEYLEN);
+            break;
+        }
+
+        if (val_len >= SW_HTTP_COOKIE_VALLEN) {
             swoole_warning("cookie[%s]'s value[v=%.*s...] length %zu is exceed the max value len %d",
-                   keybuf,
-                   8,
-                   (char *) at + j,
-                   vlen,
-                   SW_HTTP_COOKIE_VALLEN);
-            return;
+                           var,
+                           8,
+                           val,
+                           val_len,
+                           SW_HTTP_COOKIE_VALLEN);
+            break;
         }
-        memcpy(valbuf, (char *) at + j, vlen);
-        valbuf[vlen] = 0;
-        _value = http_trim_double_quote(valbuf, &vlen);
-        if (url_decode) {
-            vlen = php_url_decode(_value, vlen);
-        }
-        if (klen > 1) {
-            add_assoc_stringl_ex(zarray, keybuf, klen - 1, _value, vlen);
-        }
+
+        add_assoc_stringl_ex(zarray, var, var_len, val, val_len);
+    next_cookie:
+        var = php_strtok_r(NULL, separator, &strtok_buf);
+    }
+
+    if (free_buffer) {
+        efree(res);
     }
 }
 
