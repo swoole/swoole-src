@@ -81,6 +81,22 @@ TEST(coroutine_system, flock) {
     unlink(test_file);
 }
 
+TEST(coroutine_system, flock_nb) {
+    coroutine::run([&](void *arg) {
+        int fd = swoole_coroutine_open(test_file, File::WRITE | File::CREATE, 0666);
+        ASSERT_EQ(swoole_coroutine_flock_ex(test_file, fd, LOCK_EX | LOCK_NB), 0);
+
+        swoole::Coroutine::create([&](void *arg) {
+            ASSERT_EQ(swoole_coroutine_flock_ex(test_file, fd, LOCK_EX), 0);
+            ASSERT_EQ(swoole_coroutine_flock_ex(test_file, fd, LOCK_UN), 0);
+            swoole_coroutine_close(fd);
+            unlink(test_file);
+        });
+
+        ASSERT_EQ(swoole_coroutine_flock_ex(test_file, fd, LOCK_UN), 0);
+    });
+}
+
 TEST(coroutine_system, cancel_sleep) {
     test::coroutine::run([](void *arg) {
         auto co = Coroutine::get_current_safe();

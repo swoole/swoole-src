@@ -5,11 +5,13 @@
 #define GREETER "Hello Swoole"
 #define GREETER_SIZE sizeof(GREETER)
 
+using swoole::HttpProxy;
+using swoole::Pipe;
+using swoole::Socks5Proxy;
 using swoole::network::AsyncClient;
 using swoole::network::Client;
 using swoole::test::Process;
 using swoole::test::Server;
-using swoole::Pipe;
 
 TEST(client, tcp) {
     int ret;
@@ -220,21 +222,19 @@ TEST(client, ssl_1) {
     client.enable_ssl_encrypt();
     client.onConnect = [&connected](Client *cli) {
         connected = true;
-        cli->send(cli, SW_STRL("GET / HTTP/1.1\r\n"
-                "Host: www.baidu.com\r\n"
-                "Connection: close\r\n"
-                "User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.106 Safari/537.36"
-                "\r\n\r\n"), 0);
+        cli->send(cli,
+                  SW_STRL("GET / HTTP/1.1\r\n"
+                          "Host: www.baidu.com\r\n"
+                          "Connection: close\r\n"
+                          "User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) "
+                          "Chrome/51.0.2704.106 Safari/537.36"
+                          "\r\n\r\n"),
+                  0);
     };
 
-    client.onError = [](Client *cli) {
-    };
-    client.onClose = [&closed](Client *cli) {
-        closed = true;
-    };
-    client.onReceive = [&buf](Client *cli, const char *data, size_t length) {
-        buf.append(data, length);
-    };
+    client.onError = [](Client *cli) {};
+    client.onClose = [&closed](Client *cli) { closed = true; };
+    client.onReceive = [&buf](Client *cli, const char *data, size_t length) { buf.append(data, length); };
     ret = client.connect(&client, "www.baidu.com", 443, -1, 0);
     ASSERT_EQ(ret, 0);
 
@@ -245,12 +245,8 @@ TEST(client, ssl_1) {
     ASSERT_TRUE(buf.contains("Baidu"));
 }
 
-TEST(client, http_proxy) {
-    // skip in github action
-    if (swoole::test::is_github_ci()) {
-        return;
-    }
 
+TEST(client, http_proxy) {
     int ret;
 
     bool connected = false;
@@ -261,25 +257,70 @@ TEST(client, http_proxy) {
 
     Client client(SW_SOCK_TCP, true);
     client.enable_ssl_encrypt();
-    client.set_http_proxy(TEST_HTTP_PROXY_HOST, TEST_HTTP_PROXY_PORT);
+    client.http_proxy = new HttpProxy();
+    client.http_proxy->proxy_host = std::string(TEST_HTTP_PROXY_HOST);
+    client.http_proxy->proxy_port = TEST_HTTP_PROXY_PORT;
 
     client.onConnect = [&connected](Client *cli) {
         connected = true;
-        cli->send(cli, SW_STRL("GET / HTTP/1.1\r\n"
-                "Host: www.baidu.com\r\n"
-                "Connection: close\r\n"
-                "User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.106 Safari/537.36"
-                "\r\n\r\n"), 0);
+        cli->send(cli,
+                  SW_STRL("GET / HTTP/1.1\r\n"
+                          "Host: www.baidu.com\r\n"
+                          "Connection: close\r\n"
+                          "User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) "
+                          "Chrome/51.0.2704.106 Safari/537.36"
+                          "\r\n\r\n"),
+                  0);
     };
 
-    client.onError = [](Client *cli) {
+    client.onError = [](Client *cli) {};
+    client.onClose = [&closed](Client *cli) { closed = true; };
+    client.onReceive = [&buf](Client *cli, const char *data, size_t length) { buf.append(data, length); };
+    ret = client.connect(&client, "www.baidu.com", 443, -1, 0);
+    ASSERT_EQ(ret, 0);
+
+    swoole_event_wait();
+
+    ASSERT_TRUE(connected);
+    ASSERT_TRUE(closed);
+    ASSERT_TRUE(buf.contains("Baidu"));
+}
+
+TEST(client, socks5_proxy) {
+    int ret;
+
+    bool connected = false;
+    bool closed = false;
+    swoole::String buf(65536);
+
+    swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
+
+    Client client(SW_SOCK_TCP, true);
+    client.enable_ssl_encrypt();
+
+    client.socks5_proxy = new Socks5Proxy();
+    client.socks5_proxy->host = std::string("127.0.0.1");
+    client.socks5_proxy->port = 1080;
+    client.socks5_proxy->dns_tunnel = 1;
+    client.socks5_proxy->method = 0x02;
+    client.socks5_proxy->username = std::string("user");
+    client.socks5_proxy->password = std::string("password");
+
+    client.onConnect = [&connected](Client *cli) {
+        connected = true;
+        cli->send(cli,
+                  SW_STRL("GET / HTTP/1.1\r\n"
+                          "Host: www.baidu.com\r\n"
+                          "Connection: close\r\n"
+                          "User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) "
+                          "Chrome/51.0.2704.106 Safari/537.36"
+                          "\r\n\r\n"),
+                  0);
     };
-    client.onClose = [&closed](Client *cli) {
-        closed = true;
-    };
-    client.onReceive = [&buf](Client *cli, const char *data, size_t length) {
-        buf.append(data, length);
-    };
+
+    client.onError = [](Client *cli) {};
+    client.onClose = [&closed](Client *cli) { closed = true; };
+    client.onReceive = [&buf](Client *cli, const char *data, size_t length) { buf.append(data, length); };
     ret = client.connect(&client, "www.baidu.com", 443, -1, 0);
     ASSERT_EQ(ret, 0);
 
@@ -290,4 +331,3 @@ TEST(client, http_proxy) {
     ASSERT_TRUE(buf.contains("Baidu"));
 }
 #endif
-
