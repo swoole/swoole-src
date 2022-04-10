@@ -17,9 +17,10 @@ phpize
 --enable-mysqlnd \
 --enable-swoole-json \
 --enable-swoole-curl \
---enable-cares
+--enable-cares \
+--enable-swoole-pgsql
 
-make -j$(sysctl -n hw.ncpu)
+make -j$(cat /proc/cpuinfo | grep processor | wc -l)
 make install
 docker-php-ext-enable swoole
 php -v

@@ -1561,7 +1561,7 @@ class Server {
 
     int get_idle_worker_id() {
         bool found = false;
-        uint32_t key;
+        uint32_t key = 0;
         SW_LOOP_N(worker_num + 1) {
             key = sw_atomic_fetch_add(&worker_round_id, 1) % worker_num;
             if (workers[key].status == SW_WORKER_IDLE) {
