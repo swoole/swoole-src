@@ -38,7 +38,7 @@ $pm->childFunc = function () use ($pm) {
 $pm->childFirst();
 $pm->run();
 ?>
---EXPECTF--
+--EXPECT--
 array(3) {
   ["PHPSESSID"]=>
   string(32) "5359a08f4ddbf825f0e99a3393e5dc9e"
