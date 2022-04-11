@@ -315,25 +315,6 @@ void swoole_http_parse_cookie(zval *zarray, const char *at, size_t length, bool 
         }
 
         var_len = strlen(var);
-        if (var_len >= SW_HTTP_COOKIE_KEYLEN) {
-            swoole_warning("cookie[%.*s...] name length %zu is exceed the max name len %d",
-                           8,
-                           var,
-                           var_len,
-                           SW_HTTP_COOKIE_KEYLEN);
-            break;
-        }
-
-        if (val_len >= SW_HTTP_COOKIE_VALLEN) {
-            swoole_warning("cookie[%s]'s value[v=%.*s...] length %zu is exceed the max value len %d",
-                           var,
-                           8,
-                           val,
-                           val_len,
-                           SW_HTTP_COOKIE_VALLEN);
-            break;
-        }
-
         add_assoc_stringl_ex(zarray, var, var_len, val, val_len);
     next_cookie:
         var = php_strtok_r(NULL, separator, &strtok_buf);
