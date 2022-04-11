@@ -1814,6 +1814,13 @@ static int stream_array_emulate_read_fd_set(zval *stream_array) {
     return ret;
 }
 
+void clean_poll_sockets(std::unordered_map<int, PollSocket> &fds) {
+    for (auto &i : fds) {
+        zend::KeyValue *kv = (zend::KeyValue *) i.second.ptr;
+        delete kv;
+    }
+}
+
 static PHP_FUNCTION(swoole_stream_select) {
     Coroutine::get_current_safe();
 
@@ -1830,6 +1837,18 @@ static PHP_FUNCTION(swoole_stream_select) {
     Z_PARAM_OPTIONAL
     Z_PARAM_LONG(usec)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    double timeout = -1;
+    if (!secnull) {
+        if (sec < 0) {
+            php_error_docref(nullptr, E_WARNING, "The seconds parameter must be greater than 0");
+            RETURN_FALSE;
+        } else if (usec < 0) {
+            php_error_docref(nullptr, E_WARNING, "The microseconds parameter must be greater than 0");
+            RETURN_FALSE;
+        }
+        timeout = (double) sec + ((double) usec / 1000000);
+    }
 
     std::unordered_map<int, PollSocket> fds;
 
@@ -1850,18 +1869,6 @@ static PHP_FUNCTION(swoole_stream_select) {
         RETURN_FALSE;
     }
 
-    double timeout = -1;
-    if (!secnull) {
-        if (sec < 0) {
-            php_error_docref(nullptr, E_WARNING, "The seconds parameter must be greater than 0");
-            RETURN_FALSE;
-        } else if (usec < 0) {
-            php_error_docref(nullptr, E_WARNING, "The microseconds parameter must be greater than 0");
-            RETURN_FALSE;
-        }
-        timeout = (double) sec + ((double) usec / 1000000);
-    }
-
     /* slight hack to support buffered data; if there is data sitting in the
      * read buffer of any of the streams in the read array, let's pretend
      * that we selected, but return only the readable sockets */
@@ -1874,6 +1881,7 @@ static PHP_FUNCTION(swoole_stream_select) {
             if (e_array != nullptr) {
                 zend_hash_clean(Z_ARRVAL_P(e_array));
             }
+            clean_poll_sockets(fds);
             RETURN_LONG(retval);
         }
     }
@@ -1892,6 +1900,7 @@ static PHP_FUNCTION(swoole_stream_select) {
      * timeout or add failed
      */
     if (!System::socket_poll(fds, timeout)) {
+        clean_poll_sockets(fds);
         RETURN_LONG(0);
     }
 
