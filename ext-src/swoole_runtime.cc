@@ -63,6 +63,9 @@ static PHP_FUNCTION(swoole_stream_socket_pair);
 static PHP_FUNCTION(swoole_user_func_handler);
 SW_EXTERN_C_END
 
+static void inherit_class(const char *child_name, size_t child_length, const char *parent_name, size_t parent_length);
+static void detach_parent_class(const char *child_name);
+static void clear_class_entries();
 static int socket_set_option(php_stream *stream, int option, int value, void *ptrparam);
 static php_stream_size_t socket_read(php_stream *stream, char *buf, size_t count);
 static php_stream_size_t socket_write(php_stream *stream, const char *buf, size_t count);
@@ -186,6 +189,7 @@ static const zend_function_entry swoole_sockets_functions[] = {
 // clang-format on
 
 static zend_array *tmp_function_table = nullptr;
+static std::unordered_map<std::string, zend_class_entry *> child_class_entries;
 
 SW_EXTERN_C_BEGIN
 #include "ext/standard/file.h"
@@ -257,6 +261,8 @@ void php_swoole_runtime_rshutdown() {
     zend_hash_destroy(tmp_function_table);
     efree(tmp_function_table);
     tmp_function_table = nullptr;
+
+    clear_class_entries();
 }
 
 void php_swoole_runtime_mshutdown() {
@@ -1391,6 +1397,8 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
             SW_HOOK_SOCKETS_FUNC(socket_clear_error);
             SW_HOOK_SOCKETS_FUNC(socket_last_error);
             SW_HOOK_SOCKETS_FUNC(socket_import_stream);
+
+            inherit_class(ZEND_STRL("Swoole\\Coroutine\\Socket"), ZEND_STRL("Socket"));
         }
     } else {
         if (runtime_hook_flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION) {
@@ -1420,6 +1428,8 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
             SW_UNHOOK_FUNC(socket_clear_error);
             SW_UNHOOK_FUNC(socket_last_error);
             SW_UNHOOK_FUNC(socket_import_stream);
+
+            detach_parent_class("Swoole\\Coroutine\\Socket");
         }
     }
 
@@ -2015,4 +2025,61 @@ static PHP_FUNCTION(swoole_user_func_handler) {
 
     real_func *rf = (real_func *) zend_hash_find_ptr(tmp_function_table, execute_data->func->common.function_name);
     zend_call_function(&fci, rf->fci_cache);
+}
+
+zend_class_entry *find_class_entry(const char *name, size_t length) {
+    zend_string *search_key = zend_string_init(name, length, 0);
+    zend_class_entry *class_ce = zend_lookup_class(search_key);
+    zend_string_release(search_key);
+    return class_ce ? class_ce : nullptr;
+}
+
+static void inherit_class(const char *child_name, size_t child_length, const char *parent_name, size_t parent_length) {
+    zend_class_entry *temp_ce = nullptr;
+    zend_class_entry *child_ce = find_class_entry(child_name, child_length);
+    zend_class_entry *parent_ce = find_class_entry(parent_name, parent_length);
+
+    if (!child_ce || !parent_ce || instanceof_function(child_ce, parent_ce)) {
+        return;
+    }
+
+    temp_ce = child_ce;
+    while (temp_ce->parent) {
+        temp_ce = temp_ce->parent;
+    }
+    temp_ce->parent = parent_ce;
+
+    std::string key(ZSTR_VAL(child_ce->name));
+    child_class_entries.insert({key, child_ce});
+}
+
+void start_detach_parent_class(zend_class_entry *class_ce) {
+    zend_class_entry *p1 = nullptr;
+    zend_class_entry *p2 = nullptr;
+
+    p1 = class_ce;
+    p2 = class_ce->parent;
+    while (p2->parent) {
+        p1 = p1->parent;
+        p2 = p2->parent;
+    }
+
+    p1->parent = nullptr;
+}
+
+static void detach_parent_class(const char *child_name) {
+    std::string search_key(child_name);
+    auto iter = child_class_entries.find(search_key);
+    if (iter == child_class_entries.end()) {
+        return;
+    }
+    start_detach_parent_class(iter->second);
+    child_class_entries.erase(search_key);
+}
+
+static void clear_class_entries() {
+    for (auto iter = child_class_entries.begin(); iter != child_class_entries.end(); iter++) {
+        start_detach_parent_class(iter->second);
+    }
+    child_class_entries.clear();
 }
