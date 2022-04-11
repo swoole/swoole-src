@@ -1773,7 +1773,6 @@ void clean_poll_sockets(std::unordered_map<int, PollSocket> &fds) {
         zend::KeyValue *kv = (zend::KeyValue *) i.second.ptr;
         delete kv;
     }
-    fds.clear();
 }
 
 static PHP_FUNCTION(swoole_stream_select) {
@@ -1877,7 +1876,6 @@ static PHP_FUNCTION(swoole_stream_select) {
         }
         delete kv;
     }
-    fds.clear();
 
     RETURN_LONG(retval);
 }
