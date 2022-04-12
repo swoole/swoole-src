@@ -818,12 +818,14 @@ static int http2_server_parse_header(Http2Session *client, HttpContext *ctx, int
                     if (SW_STRCASECT((char *) nv.value, nv.valuelen, "application/x-www-form-urlencoded")) {
                         ctx->request.post_form_urlencoded = 1;
                     } else if (SW_STRCASECT((char *) nv.value, nv.valuelen, "multipart/form-data")) {
-                        int boundary_len = nv.valuelen - (sizeof("multipart/form-data; boundary=") - 1);
-                        if (boundary_len <= 0) {
-                            swoole_warning("invalid multipart/form-data body fd:%ld", ctx->fd);
+                        size_t offset = sizeof("multipart/form-data") - 1;
+                        char *boundary_str;
+                        int boundary_len;
+                        if (!ctx->get_form_data_boundary(
+                                (char *) nv.value, nv.valuelen, offset, &boundary_str, &boundary_len)) {
                             return SW_ERR;
                         }
-                        ctx->parse_form_data((char *) nv.value + nv.valuelen - boundary_len, boundary_len);
+                        ctx->parse_form_data(boundary_str, boundary_len);
                         ctx->parser.data = ctx;
                     }
                 } else if (SW_STRCASEEQ((char *) nv.name, nv.namelen, "cookie")) {
