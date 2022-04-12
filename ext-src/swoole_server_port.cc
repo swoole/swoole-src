@@ -38,6 +38,7 @@ static std::unordered_map<std::string, ServerPortEvent> server_port_event_map({
     { "bufferempty", ServerPortEvent(SW_SERVER_CB_onBufferEmpty, "BufferEmpty") },
     { "request",     ServerPortEvent(SW_SERVER_CB_onRequest,     "Request") },
     { "handshake",   ServerPortEvent(SW_SERVER_CB_onHandShake,   "Handshake") },
+    { "beforehandshakeresponse",        ServerPortEvent(SW_SERVER_CB_onBeforeHandShakeResponse,        "BeforeHandShakeResponse") },
     { "open",        ServerPortEvent(SW_SERVER_CB_onOpen,        "Open") },
     { "message",     ServerPortEvent(SW_SERVER_CB_onMessage,     "Message") },
     { "disconnect",  ServerPortEvent(SW_SERVER_CB_onDisconnect,  "Disconnect") },
