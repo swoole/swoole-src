@@ -324,6 +324,24 @@ AC_DEFUN([AC_SWOOLE_CHECK_SOCKETS], [
     if test "$ac_cv_gethostbyname2_r" = yes; then
         AC_DEFINE(HAVE_GETHOSTBYNAME2_R,1,[Whether you have gethostbyname2_r])
     fi
+
+    AC_CACHE_CHECK([Intel/AMD CET support],[ac_cv_intel_amd_cet],
+    [
+	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]],
+	[[
+		#ifdef __CET__
+		return 0;
+		#else
+		return 1;
+		#endif
+	]])],
+	    [ac_cv_intel_amd_cet=yes], [ac_cv_intel_amd_cet=no])
+    ])
+
+    if test "$ac_cv_intel_amd_cet" = yes; then
+	CFLAGS="$CFLAGS -Wl,-zibt -Wl,-zshstk"
+    fi
+
 ])
 
 AC_MSG_CHECKING([if compiling with clang])
