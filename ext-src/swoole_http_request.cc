@@ -313,28 +313,21 @@ bool HttpContext::get_form_data_boundary(
     return true;
 }
 
-void swoole_http_parse_cookie(zval *zarray, const char *at, size_t length, bool url_decode) {
-    char *res = nullptr, *var, *val;
+void swoole_http_parse_cookie(zval *zarray, const char *at, size_t length) {
+    char *var, *val;
     const char *separator = ";\0";
     zend_long count = 0;
-    int free_buffer = 0;
     size_t var_len = 0;
     char *strtok_buf = nullptr;
 
-    std::string header(at);
-    std::string cookies = header.substr(0, length);
-    char *_c = (char *) cookies.c_str();
+    char *_c = sw_tg_buffer()->str;;
+    swoole_strlcpy(_c, at, length + 1);
 
-    if (_c && *_c) {
-        res = (char *) estrdup(_c);
-        free_buffer = 1;
-    }
-
-    if (!res) {
+    if (!_c || !*_c) {
         return;
     }
 
-    var = php_strtok_r(res, separator, &strtok_buf);
+    var = php_strtok_r(_c, separator, &strtok_buf);
     while (var) {
         size_t val_len;
         val = strchr(var, '=');
@@ -366,10 +359,6 @@ void swoole_http_parse_cookie(zval *zarray, const char *at, size_t length, bool 
         add_assoc_stringl_ex(zarray, var, var_len, val, val_len);
     next_cookie:
         var = php_strtok_r(NULL, separator, &strtok_buf);
-    }
-
-    if (free_buffer) {
-        efree(res);
     }
 }
 
@@ -512,7 +501,7 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
 
         zval tmp_array;
         array_init(&tmp_array);
-        swoole_http_parse_cookie(&tmp_array, at + offset, length - offset, false);
+        swoole_http_parse_cookie(&tmp_array, at + offset, length - offset);
 
         zval *zform_name;
         if (!(zform_name = zend_hash_str_find(Z_ARRVAL(tmp_array), ZEND_STRL("name")))) {
