@@ -31,6 +31,8 @@ class StaticHandler {
     Server *serv;
     std::string request_url;
     std::string dir_path;
+    std::set<std::string> dir_files;
+    std::string index_file;
     struct {
         off_t offset;
         size_t length;
@@ -52,11 +54,26 @@ class StaticHandler {
         l_filename = 0;
         dir_path = "";
     }
+
+    /**
+     * @return true: continue to execute backwards
+     * @return false: break static handler
+     */
     bool hit();
+    bool hit_index_file();
+
     bool is_modified(const std::string &date_if_modified_since);
-    size_t get_index_page(std::set<std::string> &index_files, char *buffer, size_t size);
-    bool get_dir_files(std::set<std::string> &index_files);
+    size_t make_index_page(String *buffer);
+    bool get_dir_files();
     bool set_filename(std::string &filename);
+
+    bool has_index_file() {
+        return !index_file.empty();
+    }
+
+    bool is_enabled_auto_index() {
+        return serv->http_autoindex;
+    }
 
     std::string get_date();
 
@@ -95,5 +112,5 @@ class StaticHandler {
     }
 };
 
-};  // namespace http
+};  // namespace http_server
 };  // namespace swoole

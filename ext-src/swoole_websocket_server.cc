@@ -243,6 +243,20 @@ int php_swoole_websocket_frame_object_pack_ex(String *buffer, zval *zdata, zend_
         buffer, zdata, opcode, code, flags & WebSocket::FLAGS_ALL, mask, allow_compress);
 }
 
+void swoole_websocket_onBeforeHandshakeResponse(Server *serv, int server_fd, HttpContext *ctx) {
+    zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, server_fd, SW_SERVER_CB_onBeforeHandShakeResponse);
+    if (fci_cache) {
+        zval args[3];
+        args[0] = *((zval *) serv->private_data_2);
+        args[1] = *ctx->request.zobject;
+        args[2] = *ctx->response.zobject;
+        if (UNEXPECTED(!zend::function::call(fci_cache, 3, args, nullptr, serv->is_enable_coroutine()))) {
+            php_swoole_error(E_WARNING, "%s->onBeforeHandshakeResponse handler error", ZSTR_VAL(swoole_websocket_server_ce->name));
+            serv->close(ctx->fd, false);
+        }
+    }
+}
+
 void swoole_websocket_onOpen(Server *serv, HttpContext *ctx) {
     Connection *conn = serv->get_connection_by_session_id(ctx->fd);
     if (!conn) {
@@ -353,7 +367,7 @@ bool swoole_websocket_handshake(HttpContext *ctx) {
         }
     }
 #endif
-
+    int _fd;
     if (conn) {
         conn->websocket_status = WebSocket::STATUS_ACTIVE;
         ListenPort *port = serv->get_port_by_server_fd(conn->server_fd);
@@ -363,6 +377,7 @@ bool swoole_websocket_handshake(HttpContext *ctx) {
                             port->websocket_subprotocol.length(),
                             false);
         }
+        _fd = conn->server_fd;
 #ifdef SW_HAVE_ZLIB
         ctx->websocket_compression = conn->websocket_compression = websocket_compression;
 #endif
@@ -373,6 +388,7 @@ bool swoole_websocket_handshake(HttpContext *ctx) {
         sock->protocol.package_length_offset = 0;
         sock->protocol.package_body_offset = 0;
         sock->protocol.get_package_length = WebSocket::get_package_length;
+        _fd = sock->get_fd();
 #ifdef SW_HAVE_ZLIB
         ctx->websocket_compression = websocket_compression;
 #endif
@@ -380,7 +396,7 @@ bool swoole_websocket_handshake(HttpContext *ctx) {
 
     ctx->response.status = SW_HTTP_SWITCHING_PROTOCOLS;
     ctx->upgrade = 1;
-
+    swoole_websocket_onBeforeHandshakeResponse(serv, _fd, ctx);
     ctx->end(nullptr, &retval);
     return Z_TYPE(retval) == IS_TRUE;
 }

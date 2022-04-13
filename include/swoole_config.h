@@ -223,8 +223,20 @@
 #define SW_HTTP_BAD_REQUEST_PACKET "HTTP/1.1 400 Bad Request\r\n\r\n"
 #define SW_HTTP_REQUEST_ENTITY_TOO_LARGE_PACKET "HTTP/1.1 413 Request Entity Too Large\r\n\r\n"
 #define SW_HTTP_SERVICE_UNAVAILABLE_PACKET "HTTP/1.1 503 Service Unavailable\r\n\r\n"
-#define SW_HTTP_PAGE_400 "<html><body><h2>HTTP 400 Bad Request</h2><hr><i>Powered by Swoole</i></body></html>"
-#define SW_HTTP_PAGE_404 "<html><body><h2>HTTP 404 Not Found</h2><hr><i>Powered by Swoole</i></body></html>"
+
+#define SW_HTTP_PAGE_CSS "<style> \
+body { padding: 0.5em; line-height: 2; } \
+h1 { font-size: 1.5em; padding-bottom: 0.3em; border-bottom: 1px solid #ccc; } \
+ul { list-style-type: disc; } \
+footer { border-top: 1px solid #ccc; } \
+a { color: #0969da; } \
+</style>"
+
+#define SW_HTTP_POWER_BY  "<footer><i>Powered by Swoole</i></footer>"
+
+#define SW_HTTP_PAGE_400 "<html><body>" SW_HTTP_PAGE_CSS "<h1>HTTP 400 Bad Request</h1>" SW_HTTP_POWER_BY "</body></html>"
+#define SW_HTTP_PAGE_404 "<html><body>" SW_HTTP_PAGE_CSS "<h1>HTTP 404 Not Found</h1>" SW_HTTP_POWER_BY "</body></html>"
+#define SW_HTTP_PAGE_500 "<html><body>" SW_HTTP_PAGE_CSS "<h1>HTTP 500 Internal Server Error</h1>" SW_HTTP_POWER_BY "</body></html>"
 
 /**
  * HTTP2 Protocol

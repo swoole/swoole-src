@@ -265,6 +265,54 @@ bool HttpContext::parse_form_data(const char *boundary_str, int boundary_len) {
     return true;
 }
 
+bool HttpContext::get_form_data_boundary(
+    const char *at, size_t length, size_t offset, char **out_boundary_str, int *out_boundary_len) {
+    while (offset < length) {
+        if (at[offset] == ' ' || at[offset] == ';') {
+            offset++;
+            continue;
+        }
+        if (SW_STRCASECT(at + offset, length - offset, "boundary=")) {
+            offset += sizeof("boundary=") - 1;
+            break;
+        }
+        void *delimiter = memchr((void *) (at + offset), ';', length - offset);
+        if (delimiter == nullptr) {
+            swoole_warning("boundary of multipart/form-data not found, fd:%ld", fd);
+            /* make it same with protocol error */
+            parser.state = s_dead;
+            return false;
+        } else {
+            offset += (const char *) delimiter - (at + offset);
+        }
+    }
+
+    int boundary_len = length - offset;
+    char *boundary_str = (char *) at + offset;
+    // find eof of boundary
+    if (boundary_len > 0) {
+        // find ';'
+        char *tmp = (char *) memchr(boundary_str, ';', boundary_len);
+        if (tmp) {
+            boundary_len = tmp - boundary_str;
+        }
+    }
+    if (boundary_len <= 0) {
+        swoole_warning("invalid multipart/form-data body fd:%ld", fd);
+        /* make it same with protocol error */
+        parser.state = s_dead;
+        return false;
+    }
+    // trim '"'
+    if (boundary_len >= 2 && boundary_str[0] == '"' && *(boundary_str + boundary_len - 1) == '"') {
+        boundary_str++;
+        boundary_len -= 2;
+    }
+    *out_boundary_str = boundary_str;
+    *out_boundary_len = boundary_len;
+    return true;
+}
+
 void swoole_http_parse_cookie(zval *zarray, const char *at, size_t length, bool url_decode) {
     char *res = nullptr, *var, *val;
     const char *separator = ";\0";
@@ -326,7 +374,6 @@ void swoole_http_parse_cookie(zval *zarray, const char *at, size_t length, bool 
 }
 
 static int http_request_on_header_value(swoole_http_parser *parser, const char *at, size_t length) {
-    size_t offset = 0;
     HttpContext *ctx = (HttpContext *) parser->data;
     zval *zheader = ctx->request.zheader;
     size_t header_len = ctx->current_header_name_len;
@@ -363,33 +410,11 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
         if (SW_STRCASECT(at, length, "application/x-www-form-urlencoded")) {
             ctx->request.post_form_urlencoded = 1;
         } else if (SW_STRCASECT(at, length, "multipart/form-data")) {
-            offset = sizeof("multipart/form-data") - 1;
-            // skip ' ' and ';'
-            while (offset < length && (at[offset] == ' ' || at[offset] == ';')) {
-                offset++;
-            }
-            // skip 'boundary='
-            offset += sizeof("boundary=") - 1;
-            int boundary_len = length - offset;
-            char *boundary_str = (char *) at + offset;
-            // find eof of boundary
-            if (boundary_len > 0) {
-                // find ';'
-                char *tmp = (char *) memchr(boundary_str, ';', boundary_len);
-                if (tmp) {
-                    boundary_len = tmp - boundary_str;
-                }
-            }
-            if (boundary_len <= 0) {
-                swoole_warning("invalid multipart/form-data body fd:%ld", ctx->fd);
-                /* make it same with protocol error */
-                ctx->parser.state = s_dead;
+            size_t offset = sizeof("multipart/form-data") - 1;
+            char *boundary_str;
+            int boundary_len;
+            if (!ctx->get_form_data_boundary(at, length, offset, &boundary_str, &boundary_len)) {
                 return -1;
-            }
-            // trim '"'
-            if (boundary_len >= 2 && boundary_str[0] == '"' && *(boundary_str + boundary_len - 1) == '"') {
-                boundary_str++;
-                boundary_len -= 2;
             }
             swoole_trace_log(SW_TRACE_HTTP, "form_data, boundary_str=%s", boundary_str);
             ctx->parse_form_data(boundary_str, boundary_len);
@@ -475,14 +500,19 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
     char *header_name = zend_str_tolower_dup(ctx->current_header_name, header_len);
 
     if (SW_STRCASEEQ(header_name, header_len, "content-disposition")) {
-        // not form data
-        if (swoole_strnpos(at, length, ZEND_STRL("form-data;")) < 0) {
+        size_t offset = 0;
+        if (swoole_strnpos(at, length, ZEND_STRL("form-data;")) >= 0) {
+            offset += sizeof("form-data;") - 1;
+        } else if (swoole_strnpos(at, length, ZEND_STRL("attachment;")) >= 0) {
+            offset += sizeof("attachment;") - 1;
+        } else {
+            swoole_warning("Unsupported Content-Disposition [%.*s]", (int) length, at);
             goto _end;
         }
 
         zval tmp_array;
         array_init(&tmp_array);
-        swoole_http_parse_cookie(&tmp_array, at + sizeof("form-data;") - 1, length - sizeof("form-data;") + 1, false);
+        swoole_http_parse_cookie(&tmp_array, at + offset, length - offset, false);
 
         zval *zform_name;
         if (!(zform_name = zend_hash_str_find(Z_ARRVAL(tmp_array), ZEND_STRL("name")))) {

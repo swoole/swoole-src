@@ -36,7 +36,7 @@ using Http2Session = Http2::Session;
 static std::unordered_map<SessionId, Http2Session *> http2_sessions;
 extern String *swoole_http_buffer;
 
-static bool http2_server_respond(HttpContext *ctx, String *body);
+static bool http2_server_respond(HttpContext *ctx, const String *body);
 
 Http2Stream::Stream(Http2Session *client, uint32_t _id) {
     ctx = swoole_http_context_new(client->fd);
@@ -161,10 +161,28 @@ static bool http2_server_is_static_file(Server *serv, HttpContext *ctx) {
         }
 
         if (handler.status_code == SW_HTTP_NOT_FOUND) {
-            String null_body = {};
-
+            String body(SW_STRL(SW_HTTP_PAGE_404));
             ctx->response.status = SW_HTTP_NOT_FOUND;
-            http2_server_respond(ctx, &null_body);
+            http2_server_respond(ctx, &body);
+            return true;
+        }
+
+        /**
+         * if http_index_files is enabled, need to search the index file first.
+         * if the index file is found, set filename to index filename.
+         */
+        if (!handler.hit_index_file()) {
+            return false;
+        }
+
+        /**
+         * the index file was not found in the current directory,
+         * if http_autoindex is enabled, should show the list of files in the current directory.
+         */
+        if (!handler.has_index_file() && handler.is_enabled_auto_index() && handler.is_dir()) {
+            String body(PATH_MAX);
+            body.length = handler.make_index_page(&body);
+            http2_server_respond(ctx, &body);
             return true;
         }
 
@@ -462,7 +480,7 @@ bool Http2Stream::send_header(size_t body_length, bool end_stream) {
     return true;
 }
 
-bool Http2Stream::send_body(String *body, bool end_stream, size_t max_frame_size, off_t offset, size_t length) {
+bool Http2Stream::send_body(const String *body, bool end_stream, size_t max_frame_size, off_t offset, size_t length) {
     char frame_header[SW_HTTP2_FRAME_HEADER_SIZE];
     char *p = body->str + offset;
     size_t l = length == 0 ? body->length : length;
@@ -527,7 +545,7 @@ bool Http2Stream::send_trailer() {
     return true;
 }
 
-static bool http2_server_respond(HttpContext *ctx, String *body) {
+static bool http2_server_respond(HttpContext *ctx, const String *body) {
     Http2Session *client = http2_sessions[ctx->fd];
     Http2Stream *stream = ctx->stream;
 
@@ -568,8 +586,9 @@ static bool http2_server_respond(HttpContext *ctx, String *body) {
             error = true;
         }
     } else {
+        off_t offset = body->offset;
         while (true) {
-            size_t send_len = body->length - body->offset;
+            size_t send_len = body->length - offset;
 
             if (send_len == 0) {
                 break;
@@ -590,15 +609,14 @@ static bool http2_server_respond(HttpContext *ctx, String *body) {
                 _end_stream = true && end_stream;
             }
 
-            error =
-                !stream->send_body(body, _end_stream, client->local_settings.max_frame_size, body->offset, send_len);
+            error = !stream->send_body(body, _end_stream, client->local_settings.max_frame_size, offset, send_len);
             if (!error) {
                 swoole_trace_log(SW_TRACE_HTTP2,
                                  "body: send length=%zu, stream->remote_window_size=%u",
                                  send_len,
                                  stream->remote_window_size);
 
-                body->offset += send_len;
+                offset += send_len;
                 if (send_len > stream->remote_window_size) {
                     stream->remote_window_size = 0;
                 } else {
@@ -800,12 +818,14 @@ static int http2_server_parse_header(Http2Session *client, HttpContext *ctx, int
                     if (SW_STRCASECT((char *) nv.value, nv.valuelen, "application/x-www-form-urlencoded")) {
                         ctx->request.post_form_urlencoded = 1;
                     } else if (SW_STRCASECT((char *) nv.value, nv.valuelen, "multipart/form-data")) {
-                        int boundary_len = nv.valuelen - (sizeof("multipart/form-data; boundary=") - 1);
-                        if (boundary_len <= 0) {
-                            swoole_warning("invalid multipart/form-data body fd:%ld", ctx->fd);
+                        size_t offset = sizeof("multipart/form-data") - 1;
+                        char *boundary_str;
+                        int boundary_len;
+                        if (!ctx->get_form_data_boundary(
+                                (char *) nv.value, nv.valuelen, offset, &boundary_str, &boundary_len)) {
                             return SW_ERR;
                         }
-                        ctx->parse_form_data((char *) nv.value + nv.valuelen - boundary_len, boundary_len);
+                        ctx->parse_form_data(boundary_str, boundary_len);
                         ctx->parser.data = ctx;
                     }
                 } else if (SW_STRCASEEQ((char *) nv.name, nv.namelen, "cookie")) {

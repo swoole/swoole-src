@@ -186,6 +186,8 @@ struct Context {
     void bind(coroutine::Socket *socket);
     void copy(Context *ctx);
     bool parse_form_data(const char *boundary_str, int boundary_len);
+    bool get_form_data_boundary(
+        const char *at, size_t length, size_t offset, char **out_boundary_str, int *out_boundary_len);
     size_t parse(const char *data, size_t length);
     bool set_header(const char *, size_t, zval *, bool);
     bool set_header(const char *, size_t, const char *, size_t, bool);
@@ -227,7 +229,7 @@ class Stream {
     ~Stream();
 
     bool send_header(size_t body_length, bool end_stream);
-    bool send_body(String *body, bool end_stream, size_t max_frame_size, off_t offset = 0, size_t length = 0);
+    bool send_body(const String *body, bool end_stream, size_t max_frame_size, off_t offset = 0, size_t length = 0);
     bool send_trailer();
 
     void reset(uint32_t error_code);
