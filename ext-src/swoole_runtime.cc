@@ -1814,13 +1814,6 @@ static int stream_array_emulate_read_fd_set(zval *stream_array) {
     return ret;
 }
 
-void clean_poll_sockets(std::unordered_map<int, PollSocket> &fds) {
-    for (auto &i : fds) {
-        zend::KeyValue *kv = (zend::KeyValue *) i.second.ptr;
-        delete kv;
-    }
-}
-
 static PHP_FUNCTION(swoole_stream_select) {
     Coroutine::get_current_safe();
 
@@ -1869,6 +1862,13 @@ static PHP_FUNCTION(swoole_stream_select) {
         RETURN_FALSE;
     }
 
+    ON_SCOPE_EXIT {
+        for (auto &i : fds) {
+            zend::KeyValue *kv = (zend::KeyValue *) i.second.ptr;
+            delete kv;
+        }
+    };
+
     /* slight hack to support buffered data; if there is data sitting in the
      * read buffer of any of the streams in the read array, let's pretend
      * that we selected, but return only the readable sockets */
@@ -1881,7 +1881,6 @@ static PHP_FUNCTION(swoole_stream_select) {
             if (e_array != nullptr) {
                 zend_hash_clean(Z_ARRVAL_P(e_array));
             }
-            clean_poll_sockets(fds);
             RETURN_LONG(retval);
         }
     }
@@ -1900,7 +1899,6 @@ static PHP_FUNCTION(swoole_stream_select) {
      * timeout or add failed
      */
     if (!System::socket_poll(fds, timeout)) {
-        clean_poll_sockets(fds);
         RETURN_LONG(0);
     }
 
@@ -1920,7 +1918,6 @@ static PHP_FUNCTION(swoole_stream_select) {
             }
             retval++;
         }
-        delete kv;
     }
 
     RETURN_LONG(retval);
