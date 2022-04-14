@@ -269,23 +269,27 @@ bool ProcessFactory::end(SessionId session_id, int flags) {
     DataHead ev = {};
 
     /**
-     * Only active shutdown needs to determine whether it is in the process of connection binding
+     * Only close actively needs to determine whether it is in the process of connection binding.
+     * If the worker process is not currently bound to this connection,
+     * MUST forward to the correct worker process
      */
-    if (conn->close_actively && server_->is_hash_dispatch_mode()) {
-        /**
-         * The worker process is not currently bound to this connection,
-         * and needs to be forwarded to the correct worker process
-         */
-        int worker_id = server_->schedule_worker(conn->fd, nullptr);
-        if (worker_id == (int) SwooleG.process_id) {
-            worker = server_->get_worker(worker_id);
-            ev.type = SW_SERVER_EVENT_CLOSE;
-            ev.fd = session_id;
-            ev.reactor_id = conn->reactor_id;
-            return server_->send_to_worker_from_worker(worker, &ev, sizeof(ev), SW_PIPE_MASTER) > 0;
+    if (conn->close_actively) {
+        if (server_->last_stream_socket) {
+            goto _close;
         }
+        bool hash = server_->is_hash_dispatch_mode();
+        int worker_id = hash ? server_->schedule_worker(conn->fd, nullptr) : conn->fd % server_->worker_num;
+        if (server_->is_worker() && (!hash || worker_id == (int) SwooleG.process_id)) {
+            goto _close;
+        }
+        worker = server_->get_worker(worker_id);
+        ev.type = SW_SERVER_EVENT_CLOSE;
+        ev.fd = session_id;
+        ev.reactor_id = conn->reactor_id;
+        return server_->send_to_worker_from_worker(worker, &ev, sizeof(ev), SW_PIPE_MASTER) > 0;
     }
 
+_close:
     if (conn->closing) {
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSING, "session#%ld is closing", session_id);
         return false;
