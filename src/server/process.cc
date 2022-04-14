@@ -271,19 +271,13 @@ bool ProcessFactory::end(SessionId session_id, int flags) {
     /**
      * Only active shutdown needs to determine whether it is in the process of connection binding
      */
-    if (conn->close_actively) {
+    if (conn->close_actively && server_->is_hash_dispatch_mode()) {
         /**
          * The worker process is not currently bound to this connection,
          * and needs to be forwarded to the correct worker process
          */
-        int worker_id = server_->is_hash_dispatch_mode() ? server_->schedule_worker(conn->fd, nullptr)
-                                                         : conn->fd % server_->worker_num;
-        if (server_->last_stream_socket) {
-            goto _close;
-        }
-        if (server_->is_worker() && worker_id == (int) SwooleG.process_id) {
-            goto _close;
-        } else {
+        int worker_id = server_->schedule_worker(conn->fd, nullptr);
+        if (worker_id == (int) SwooleG.process_id) {
             worker = server_->get_worker(worker_id);
             ev.type = SW_SERVER_EVENT_CLOSE;
             ev.fd = session_id;
@@ -292,7 +286,6 @@ bool ProcessFactory::end(SessionId session_id, int flags) {
         }
     }
 
-_close:
     if (conn->closing) {
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSING, "session#%ld is closing", session_id);
         return false;
