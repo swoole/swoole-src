@@ -314,18 +314,19 @@ bool HttpContext::get_form_data_boundary(
 }
 
 void swoole_http_parse_cookie(zval *zarray, const char *at, size_t length) {
+    if (length == 0) {
+        return;
+    }
+
     char *var, *val;
     const char *separator = ";\0";
     zend_long count = 0;
     size_t var_len = 0;
     char *strtok_buf = nullptr;
 
-    char *_c = sw_tg_buffer()->str;;
-    swoole_strlcpy(_c, at, length + 1);
-
-    if (!_c || !*_c) {
-        return;
-    }
+    char *_c = sw_tg_buffer()->str;
+    memcpy(_c, at, length);
+    _c[length] = '\0';
 
     var = php_strtok_r(_c, separator, &strtok_buf);
     while (var) {
