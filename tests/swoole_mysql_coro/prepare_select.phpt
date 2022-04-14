@@ -6,9 +6,7 @@ swoole_mysql_coro: mysql prepare (select)
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-use Swoole\Coroutine as Co;
-
-Co::create(function () {
+Co\run(function () {
     $db = new Co\MySQL();
     $server = array(
         'host' => MYSQL_SERVER_HOST,

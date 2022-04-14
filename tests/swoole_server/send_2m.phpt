@@ -15,7 +15,7 @@ use Swoole\Server;
 $pm = new SwooleTest\ProcessManager;
 
 $pm->parentFunc = function ($pid) use ($pm) {
-    Co\go(function () use ($pm) {
+    Co\run(function () use ($pm) {
         $cli = new Co\Client(SWOOLE_SOCK_TCP);
         $cli->set([
             'open_length_check' => true,
@@ -24,7 +24,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
             'package_length_offset' => 0,
             'package_body_offset' => 4,
         ]);
-        if ($cli->connect('127.0.0.1', $pm->getFreePort(), 2) == false) {
+        if ($cli->connect('127.0.0.1', $pm->getFreePort(), 30) == false) {
             echo "ERROR\n";
             return;
         }
@@ -41,7 +41,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
 $pm->childFunc = function () use ($pm) {
     $serv = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $serv->set(array(
-        "worker_num" => 2,
+        'worker_num' => 2,
         'log_level' => SWOOLE_LOG_ERROR,
         'open_length_check' => true,
         'package_max_length' => 4 * 1024 * 1024,

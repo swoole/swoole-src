@@ -18,22 +18,23 @@ use Swoole\Server;
 global $stats;
 $stats = array();
 $count = 0;
-$port = get_one_free_port();
 
 $pm = new SwooleTest\ProcessManager;
-$pm->parentFunc = function ($pid) use ($port) {
+$pm->initFreePorts();
+$pm->parentFunc = function ($pid) use ($pm) {
     global $count, $stats;
     for ($i = 0; $i < MAX_CONCURRENCY; $i++) {
-        go(function () use ($port) {
+        go(function () use ($pm) {
             $cli = new Client(SWOOLE_SOCK_TCP);
             $cli->set([
                 'package_eof' => "\r\n\r\n",
                 'open_eof_split' => true,
             ]);
-            $r = $cli->connect(TCP_SERVER_HOST, $port, 1);
+            $r = $cli->connect(TCP_SERVER_HOST, $pm->getFreePort(), 1);
             Assert::assert($r);
             for ($i = 0; $i < MAX_REQUESTS; $i++) {
                 $cli->send("hello world\r\n\r\n");
+                Co::sleep(0.001);
             }
             $cli->count = 0;
             for ($i = 0; $i < MAX_REQUESTS; $i++) {
@@ -53,7 +54,7 @@ $pm->parentFunc = function ($pid) use ($port) {
         });
     }
     Event::wait();
-    Swoole\Process::kill($pid);
+    $pm->kill();
     phpt_var_dump($stats);
     Assert::eq(count($stats), WORKER_N);
     Assert::lessThan($stats[5], MAX_REQUESTS);
@@ -62,10 +63,10 @@ $pm->parentFunc = function ($pid) use ($port) {
     echo "DONE\n";
 };
 
-$pm->childFunc = function () use ($pm, $port) {
-    $serv = new Server('127.0.0.1', $port, SWOOLE_PROCESS);
+$pm->childFunc = function () use ($pm) {
+    $serv = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $serv->set(array(
-        "worker_num" => WORKER_N,
+        'worker_num' => WORKER_N,
         'dispatch_mode' => 3,
         'package_eof' => "\r\n\r\n",
         'enable_coroutine' => false,
