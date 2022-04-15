@@ -313,93 +313,53 @@ bool HttpContext::get_form_data_boundary(
     return true;
 }
 
-void swoole_http_parse_cookie(zval *zarray, const char *at, size_t length, bool url_decode) {
-    char keybuf[SW_HTTP_COOKIE_KEYLEN];
-    char valbuf[SW_HTTP_COOKIE_VALLEN];
-    char *_c = (char *) at;
-
-    char *_value;
-    size_t klen = 0;
-    size_t vlen = 0;
-    int state = -1;
-
-    int i = 0, j = 0;
-    while (_c < at + length) {
-        if (state <= 0 && *_c == '=') {
-            klen = i - j + 1;
-            if (klen >= SW_HTTP_COOKIE_KEYLEN) {
-                swoole_warning("cookie[%.*s...] name length %zu is exceed the max name len %d",
-                               8,
-                               (char *) at + j,
-                               klen,
-                               SW_HTTP_COOKIE_KEYLEN);
-                return;
-            }
-            memcpy(keybuf, (char *) at + j, klen - 1);
-            keybuf[klen - 1] = 0;
-
-            j = i + 1;
-            state = 1;
-        } else if (state == 1 && *_c == ';') {
-            vlen = i - j;
-            if (vlen >= SW_HTTP_COOKIE_VALLEN) {
-                swoole_warning("cookie[%s]'s value[v=%.*s...] length %zu is exceed the max value len %d",
-                               keybuf,
-                               8,
-                               (char *) at + j,
-                               vlen,
-                               SW_HTTP_COOKIE_VALLEN);
-                return;
-            }
-            memcpy(valbuf, (char *) at + j, vlen);
-            valbuf[vlen] = 0;
-            _value = http_trim_double_quote(valbuf, &vlen);
-            vlen = php_url_decode(_value, vlen);
-            if (klen > 1) {
-                add_assoc_stringl_ex(zarray, keybuf, klen - 1, _value, vlen);
-            }
-            j = i + 1;
-            state = -1;
-        } else if (state < 0) {
-            if (isspace(*_c)) {
-                // Remove leading spaces from cookie names
-                j++;
-            } else {
-                state = 0;
-            }
-        }
-        _c++;
-        i++;
+void swoole_http_parse_cookie(zval *zarray, const char *at, size_t length) {
+    if (length == 0) {
+        return;
     }
-    if (j < (off_t) length) {
-        vlen = i - j;
-        if (klen >= SW_HTTP_COOKIE_KEYLEN) {
-            swoole_warning("cookie[%.*s...] name length %zu is exceed the max name len %d",
-                           8,
-                           keybuf,
-                           klen,
-                           SW_HTTP_COOKIE_KEYLEN);
-            return;
+
+    char *var, *val;
+    const char *separator = ";\0";
+    zend_long count = 0;
+    size_t var_len = 0;
+    char *strtok_buf = nullptr;
+
+    char *_c = sw_tg_buffer()->str;
+    memcpy(_c, at, length);
+    _c[length] = '\0';
+
+    var = php_strtok_r(_c, separator, &strtok_buf);
+    while (var) {
+        size_t val_len;
+        val = strchr(var, '=');
+
+        while (isspace(*var)) {
+            var++;
         }
-        keybuf[klen - 1] = 0;
-        if (vlen >= SW_HTTP_COOKIE_VALLEN) {
-            swoole_warning("cookie[%s]'s value[v=%.*s...] length %zu is exceed the max value len %d",
-                           keybuf,
-                           8,
-                           (char *) at + j,
-                           vlen,
-                           SW_HTTP_COOKIE_VALLEN);
-            return;
+
+        if (var == val || *var == '\0') {
+            goto next_cookie;
         }
-        memcpy(valbuf, (char *) at + j, vlen);
-        valbuf[vlen] = 0;
-        _value = http_trim_double_quote(valbuf, &vlen);
-        if (url_decode) {
-            vlen = php_url_decode(_value, vlen);
+
+        if (++count > PG(max_input_vars)) {
+            swoole_warning("Input variables exceeded " ZEND_LONG_FMT
+                           ". To increase the limit change max_input_vars in php.ini.",
+                           PG(max_input_vars));
+            break;
         }
-        if (klen > 1) {
-            add_assoc_stringl_ex(zarray, keybuf, klen - 1, _value, vlen);
+
+        if (val) { /* have a value */
+            *val++ = '\0';
+            val_len = php_raw_url_decode(val, strlen(val));
+        } else {
+            val = (char *) "";
+            val_len = 0;
         }
+
+        var_len = strlen(var);
+        add_assoc_stringl_ex(zarray, var, var_len, val, val_len);
+    next_cookie:
+        var = php_strtok_r(NULL, separator, &strtok_buf);
     }
 }
 
@@ -542,7 +502,7 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
 
         zval tmp_array;
         array_init(&tmp_array);
-        swoole_http_parse_cookie(&tmp_array, at + offset, length - offset, false);
+        swoole_http_parse_cookie(&tmp_array, at + offset, length - offset);
 
         zval *zform_name;
         if (!(zform_name = zend_hash_str_find(Z_ARRVAL(tmp_array), ZEND_STRL("name")))) {
