@@ -367,7 +367,6 @@ bool swoole_websocket_handshake(HttpContext *ctx) {
         }
     }
 #endif
-    int _fd;
     if (conn) {
         conn->websocket_status = WebSocket::STATUS_ACTIVE;
         ListenPort *port = serv->get_port_by_server_fd(conn->server_fd);
@@ -377,7 +376,7 @@ bool swoole_websocket_handshake(HttpContext *ctx) {
                             port->websocket_subprotocol.length(),
                             false);
         }
-        _fd = conn->server_fd;
+        swoole_websocket_onBeforeHandshakeResponse(serv, conn->server_fd, ctx);
 #ifdef SW_HAVE_ZLIB
         ctx->websocket_compression = conn->websocket_compression = websocket_compression;
 #endif
@@ -388,7 +387,6 @@ bool swoole_websocket_handshake(HttpContext *ctx) {
         sock->protocol.package_length_offset = 0;
         sock->protocol.package_body_offset = 0;
         sock->protocol.get_package_length = WebSocket::get_package_length;
-        _fd = sock->get_fd();
 #ifdef SW_HAVE_ZLIB
         ctx->websocket_compression = websocket_compression;
 #endif
@@ -396,7 +394,7 @@ bool swoole_websocket_handshake(HttpContext *ctx) {
 
     ctx->response.status = SW_HTTP_SWITCHING_PROTOCOLS;
     ctx->upgrade = 1;
-    swoole_websocket_onBeforeHandshakeResponse(serv, _fd, ctx);
+
     ctx->end(nullptr, &retval);
     return Z_TYPE(retval) == IS_TRUE;
 }
