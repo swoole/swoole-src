@@ -658,8 +658,8 @@ class Server {
         DISPATCH_UIDMOD = 5,
         DISPATCH_USERFUNC = 6,
         DISPATCH_STREAM = 7,
-        DISPATCH_CO_CONN_LB,
-        DISPATCH_CO_REQ_LB,
+        DISPATCH_CO_CONN_LB = 8,
+        DISPATCH_CO_REQ_LB = 9,
     };
 
     enum FactoryDispatchResult {
