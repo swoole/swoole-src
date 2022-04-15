@@ -806,18 +806,39 @@ void HttpContext::end(zval *zdata, zval *return_value) {
     }
 
 _skip_copy:
-    if (upgrade && !co_socket) {
-        Server *serv = (Server *) private_data;
-        Connection *conn = serv->get_connection_verify(fd);
-        if (conn && conn->websocket_status == websocket::STATUS_HANDSHAKE) {
-            if (response.status == 101) {
-                conn->websocket_status = websocket::STATUS_ACTIVE;
-            } else {
-                /* connection should be closed when handshake failed */
-                conn->websocket_status = websocket::STATUS_NONE;
-                keepalive = 0;
+    if (upgrade) {
+        Server *serv = nullptr;
+        Connection *conn = nullptr;
+
+        if (!co_socket) {
+            serv = (Server *) private_data;
+            conn = serv->get_connection_verify(fd);
+            if (conn && conn->websocket_status == websocket::STATUS_HANDSHAKE) {
+                if (response.status == 101) {
+                    conn->websocket_status = websocket::STATUS_ACTIVE;
+                } else {
+                    /* connection should be closed when handshake failed */
+                    conn->websocket_status = websocket::STATUS_NONE;
+                    keepalive = 0;
+                }
             }
         }
+#ifdef SW_HAVE_ZLIB
+        bool enable_websocket_compression = co_socket ? true : serv->websocket_compression;
+        zval *pData;
+        if (enable_websocket_compression &&
+            (pData = zend_hash_str_find(Z_ARRVAL_P(request.zheader), ZEND_STRL("sec-websocket-extensions"))) &&
+            Z_TYPE_P(pData) == IS_STRING) {
+            std::string value(Z_STRVAL_P(pData), Z_STRLEN_P(pData));
+            if (value.substr(0, value.find_first_of(';')) == "permessage-deflate") {
+                websocket_compression = true;
+                set_header(ZEND_STRL("Sec-Websocket-Extensions"), ZEND_STRL(SW_WEBSOCKET_EXTENSION_DEFLATE), false);
+            }
+        }
+        if (!co_socket) {
+            conn->websocket_compression = websocket_compression;
+        }
+#endif
     }
     if (!keepalive) {
         close(this);
