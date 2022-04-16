@@ -2,22 +2,19 @@
 <package xmlns="http://pear.php.net/dtd/package-2.0" xmlns:tasks="http://pear.php.net/dtd/tasks-1.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" packagerversion="1.9.4" version="2.0" xsi:schemaLocation="http://pear.php.net/dtd/tasks-1.0 http://pear.php.net/dtd/tasks-1.0.xsd http://pear.php.net/dtd/package-2.0 http://pear.php.net/dtd/package-2.0.xsd">
 	<name>swoole</name>
 	<channel>pecl.php.net</channel>
-	<summary>Event-driven asynchronous and concurrent networking engine with high performance for PHP.</summary>
+	<summary>Coroutine-based concurrency library for PHP</summary>
 	<description>
-        Event-driven asynchronous and concurrent networking engine with high performance for PHP.
+        Coroutine-based concurrency library for PHP
         - event-driven
-        - coroutine
+        - coroutines
         - asynchronous non-blocking
-        - multi-thread reactor
-        - multi-process worker
-        - multi-protocol
-        - millisecond timer
         - built-in tcp/http/websocket/http2 server
         - coroutine tcp/http/websocket client
         - coroutine mysql client
         - coroutine redis client
         - coroutine read/write file system
         - coroutine dns lookup
+        - automatically replace blocking functions to non-blocking
         - support IPv4/IPv6/UnixSocket/TCP/UDP
         - support SSL/TLS encrypted transmission
     </description>
@@ -51,10 +48,10 @@
         <email>doubaokun@php.net</email>
         <active>yes</active>
     </developer>
-    <date>2022-03-15</date>
-    <time>14:00:00</time>
+    <date>2022-04-16</date>
+    <time>19:00:00</time>
     <version>
-        <release>4.8.8</release>
+        <release>4.8.9</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -63,10 +60,10 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        - Reduce SW_IPC_BUFFER_MAX_SIZE to 64k
-        - Respect SETTINGS_HEADER_TABLE_SIZE http2 setting (#4635)
-        - Fixed #4639
-        - Fixed http2 server NPN errors
+       - Added support http_auto_index for http2 server
+       - Fixed #4657
+       - Fixed the stream_select hook function memory leak
+       - Optimized cookies parser
     </notes>
     <contents>
         <dir name="/">
@@ -1318,6 +1315,7 @@
             <file role="test" name="tests/swoole_http_server/bug_2786.phpt" />
             <file role="test" name="tests/swoole_http_server/bug_2947.phpt" />
             <file role="test" name="tests/swoole_http_server/bug_2988.phpt" />
+            <file role="test" name="tests/swoole_http_server/bug_4261.phpt" />
             <file role="test" name="tests/swoole_http_server/bug_compression_level.phpt" />
             <file role="test" name="tests/swoole_http_server/bug_get_request_data_after_end.phpt" />
             <file role="test" name="tests/swoole_http_server/callback_new_obj_method.phpt" />
@@ -1335,6 +1333,7 @@
             <file role="test" name="tests/swoole_http_server/cookie_samesite.phpt" />
             <file role="test" name="tests/swoole_http_server/cookie_vs_rawcookie.phpt" />
             <file role="test" name="tests/swoole_http_server/cookies.phpt" />
+            <file role="test" name="tests/swoole_http_server/cookies_parse.phpt" />
             <file role="test" name="tests/swoole_http_server/create_request.phpt" />
             <file role="test" name="tests/swoole_http_server/data_parse.phpt" />
             <file role="test" name="tests/swoole_http_server/disable_coroutine.phpt" />
@@ -1377,6 +1376,7 @@
             <file role="test" name="tests/swoole_http_server/sni/server.phpt" />
             <file role="test" name="tests/swoole_http_server/static_handler.phpt" />
             <file role="test" name="tests/swoole_http_server/static_handler/locations.phpt" />
+            <file role="test" name="tests/swoole_http_server/static_handler/mimetype_not_exists.phpt" />
             <file role="test" name="tests/swoole_http_server/static_handler/read_link_file.phpt" />
             <file role="test" name="tests/swoole_http_server/static_handler/relative_path.phpt" />
             <file role="test" name="tests/swoole_http_server/static_handler/urldecode.phpt" />
@@ -1606,6 +1606,7 @@
             <file role="test" name="tests/swoole_runtime/base.phpt" />
             <file role="test" name="tests/swoole_runtime/bindto.phpt" />
             <file role="test" name="tests/swoole_runtime/block.phpt" />
+            <file role="test" name="tests/swoole_runtime/bug_4657.phpt" />
             <file role="test" name="tests/swoole_runtime/capture_peer_cert.phpt" />
             <file role="test" name="tests/swoole_runtime/destruct.phpt" />
             <file role="test" name="tests/swoole_runtime/enable_crypto.phpt" />

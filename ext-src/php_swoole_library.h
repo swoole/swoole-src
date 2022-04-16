@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
  */
 
-/* $Id: acfe73e33caae4c5d12da7456a261b64b191f588 */
+/* $Id: 5a6baee052afc12b2affa070eed0339b1a007a42 */
 
 static const char* swoole_library_source_constants =
     "\n"
@@ -7532,8 +7532,6 @@ static const char* swoole_library_source_core_server_helper =
     "        'worker_num' => true,\n"
     "        'max_wait_time' => true,\n"
     "        'max_queued_bytes' => true,\n"
-    "        'max_concurrency' => true,\n"
-    "        'worker_max_concurrency' => true,\n"
     "        'enable_coroutine' => true,\n"
     "        'send_timeout' => true,\n"
     "        'dispatch_mode' => true,\n"
@@ -7659,7 +7657,6 @@ static const char* swoole_library_source_core_server_helper =
     "        'enable_preemptive_scheduler' => true,\n"
     "        'c_stack_size' => true,\n"
     "        'stack_size' => true,\n"
-    "        'name_resolver' => true,\n"
     "        'dns_cache_expire' => true,\n"
     "        'dns_cache_capacity' => true,\n"
     "        'max_concurrency' => true,\n"
