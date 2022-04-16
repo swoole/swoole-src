@@ -1,3 +1,8 @@
 ignore:
   - "src/core/error.cc"
   - "thirdparty/hiredis/*"
+
+coverage:
+  range: 60..80
+  round: down
+  precision: 2
