@@ -368,6 +368,7 @@ bool swoole_websocket_handshake(HttpContext *ctx) {
 
     ctx->response.status = SW_HTTP_SWITCHING_PROTOCOLS;
     ctx->upgrade = 1;
+
     ctx->end(nullptr, &retval);
     return Z_TYPE(retval) == IS_TRUE;
 }

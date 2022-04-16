@@ -785,8 +785,8 @@ void HttpContext::end(zval *zdata, zval *return_value) {
             if (conn) {
                 conn->websocket_compression = accept_websocket_compression;
             }
-#endif
         }
+#endif
 
         build_header(http_buffer, http_body.length);
 
