@@ -12,30 +12,30 @@ jobs:
     - name: phpize
       run: phpize
     - name: build1
-      run: ./configure && make clean && make -j$(sysctl -n hw.ncpu)
+      run: ./configure && make clean && make -j$(cat /proc/cpuinfo | grep processor | wc -l)
     - name: build2
       run: ./configure --enable-sockets &&
-        make clean && make -j$(sysctl -n hw.ncpu)
+        make clean && make -j$(cat /proc/cpuinfo | grep processor | wc -l)
     - name: build3
       run: ./configure --enable-sockets --enable-mysqlnd && make clean &&
-        make -j$(sysctl -n hw.ncpu)
+        make -j$(cat /proc/cpuinfo | grep processor | wc -l)
     - name: build4
       run: ./configure --enable-sockets --enable-mysqlnd --enable-http2 &&
-        make clean && make -j$(sysctl -n hw.ncpu)
+        make clean && make -j$(cat /proc/cpuinfo | grep processor | wc -l)
     - name: build5
       run: ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-openssl &&
-        make clean && make -j$(sysctl -n hw.ncpu)
+        make clean && make -j$(cat /proc/cpuinfo | grep processor | wc -l)
     - name: build6
       run: ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-openssl --enable-debug-log &&
-        make clean && make -j$(sysctl -n hw.ncpu)
+        make clean && make -j$(cat /proc/cpuinfo | grep processor | wc -l)
     - name: build7
       run: ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-swoole-curl --enable-swoole-json
         --enable-openssl --enable-debug-log &&
-        make clean && make -j$(sysctl -n hw.ncpu)
+        make clean && make -j$(cat /proc/cpuinfo | grep processor | wc -l)
     - name: build8
       run: ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-swoole-curl --enable-swoole-json
         --enable-openssl --enable-cares --enable-debug-log &&
-        make clean && make -j$(sysctl -n hw.ncpu)
+        make clean && make -j$(cat /proc/cpuinfo | grep processor | wc -l)
 
   build-macos-latest:
     runs-on: macos-latest
@@ -46,28 +46,28 @@ jobs:
     - name: phpize
       run: phpize
     - name: build1
-      run: ./configure && make clean && make -j$(sysctl -n hw.ncpu)
+      run: ./configure && make clean && make -j$(cat /proc/cpuinfo | grep processor | wc -l)
     - name: build2
       run: ./configure --enable-sockets &&
-        make clean && make -j$(sysctl -n hw.ncpu)
+        make clean && make -j$(cat /proc/cpuinfo | grep processor | wc -l)
     - name: build3
       run: ./configure --enable-sockets --enable-mysqlnd && make clean &&
-        make -j$(sysctl -n hw.ncpu)
+        make -j$(cat /proc/cpuinfo | grep processor | wc -l)
     - name: build4
       run: ./configure --enable-sockets --enable-mysqlnd --enable-http2 &&
-        make clean && make -j$(sysctl -n hw.ncpu)
+        make clean && make -j$(cat /proc/cpuinfo | grep processor | wc -l)
     - name: build5
       run: ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-openssl
         --with-openssl-dir=/usr/local/opt/openssl@1.1 &&
-        make clean && make -j$(sysctl -n hw.ncpu)
+        make clean && make -j$(cat /proc/cpuinfo | grep processor | wc -l)
     - name: build6
       run: ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-swoole-curl --enable-swoole-json
         --enable-openssl --with-openssl-dir=/usr/local/opt/openssl@1.1 --enable-debug-log &&
-        make clean && make -j$(sysctl -n hw.ncpu)
+        make clean && make -j$(cat /proc/cpuinfo | grep processor | wc -l)
     - name: build7
       run: ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-swoole-curl --enable-swoole-json
         --enable-openssl --with-openssl-dir=/usr/local/opt/openssl@1.1 --enable-cares --enable-debug-log &&
-        make clean && make -j$(sysctl -n hw.ncpu)
+        make clean && make -j$(cat /proc/cpuinfo | grep processor | wc -l)
 
   build-alpine-latest:
     runs-on: ubuntu-latest
