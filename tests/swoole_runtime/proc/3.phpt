@@ -20,7 +20,7 @@ go(function() {
     var_dump(count($spec));
     var_dump($pipes);
 });
-swoole_event::wait();
+Swoole\Event::wait();
 ?>
 --CLEAN--
 <?php

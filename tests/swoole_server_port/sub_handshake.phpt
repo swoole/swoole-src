@@ -17,12 +17,12 @@ $pm->parentFunc = function () use ($pm) {
         $ret = $cli->recv();
         var_dump($ret);
     });
-    swoole_event_wait();
+    Swoole\Event::wait();
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
-    $main_server = new swoole_http_server('127.0.0.1', $pm->getFreePort(0), SWOOLE_BASE);
-    $main_server->on('request', function (swoole_http_request $request, swoole_http_response $response) {
+    $main_server = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(0), SWOOLE_BASE);
+    $main_server->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         $response->write('hello world');
         $response->end();
     });
@@ -31,7 +31,7 @@ $pm->childFunc = function () use ($pm) {
         'open_http_protocol' => true,
         'open_websocket_protocol' => true
     ]);
-    $sub_server->on('handshake', function (swoole_http_request $request, swoole_http_response $response) {
+    $sub_server->on('handshake', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         $secWebSocketKey = $request->header['sec-websocket-key'];
         $patten = '#^[+/0-9A-Za-z]{21}[AQgw]==$#';
         if (0 === preg_match($patten, $secWebSocketKey) || 16 !== strlen(base64_decode($secWebSocketKey))) {
@@ -60,9 +60,9 @@ $pm->childFunc = function () use ($pm) {
         $response->end();
         return true;
     });
-    $sub_server->on('message', function (swoole_http_server $server, swoole_websocket_frame $frame) {
+    $sub_server->on('message', function (Swoole\Http\Server $server, Swoole\WebSocket\Frame $frame) {
         var_dump($frame);
-        $response = new swoole_websocket_frame;
+        $response = new Swoole\WebSocket\Frame;
         $response->data = 'OK';
         $server->send($frame->fd, (string)$response);
     });

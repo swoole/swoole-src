@@ -52,15 +52,20 @@ std::shared_ptr<WebSocketFrame> Client::Recv() {
         if (strm.read(buf, SW_WEBSOCKET_HEADER_LEN) <= 0) {
             return false;
         }
-        packet_len = proto.get_package_length(&proto, nullptr, buf, 2);
+        swoole::PacketLength pl {
+            buf,
+            SW_WEBSOCKET_HEADER_LEN,
+        };
+        packet_len = proto.get_package_length(&proto, nullptr, &pl);
         if (packet_len < 0) {
             return false;
         }
         if (packet_len == 0) {
-            if (strm.read(buf + SW_WEBSOCKET_HEADER_LEN, proto.real_header_length - SW_WEBSOCKET_HEADER_LEN) <= 0) {
+            if (strm.read(buf + SW_WEBSOCKET_HEADER_LEN, pl.header_len - SW_WEBSOCKET_HEADER_LEN) <= 0) {
                 return false;
             }
-            packet_len = proto.get_package_length(&proto, nullptr, buf, proto.real_header_length);
+            pl.buf_size = pl.header_len;
+            packet_len = proto.get_package_length(&proto, nullptr, &pl);
             if (packet_len <= 0) {
                 return false;
             }
@@ -72,7 +77,7 @@ std::shared_ptr<WebSocketFrame> Client::Recv() {
         }
         data[packet_len] = 0;
 
-        uint32_t header_len = proto.real_header_length > 0 ? proto.real_header_length : SW_WEBSOCKET_HEADER_LEN;
+        uint32_t header_len = pl.header_len > 0 ? pl.header_len : SW_WEBSOCKET_HEADER_LEN;
         memcpy(data, buf, header_len);
 
         ssize_t read_bytes = header_len;

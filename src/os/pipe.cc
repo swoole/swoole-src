@@ -10,7 +10,7 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | Author: Tianfeng Han  <rango@swoole.com>                             |
   +----------------------------------------------------------------------+
 */
 
@@ -59,7 +59,7 @@ ssize_t SocketPair::read(void *data, size_t length) {
 
 ssize_t SocketPair::write(const void *data, size_t length) {
     ssize_t n = master_socket->write(data, length);
-    if (blocking && n < 0 && timeout > 0 && master_socket->catch_error(errno) == SW_WAIT) {
+    if (blocking && n < 0 && timeout > 0 && master_socket->catch_write_error(errno) == SW_WAIT) {
         if (master_socket->wait_event(timeout * 1000, SW_EVENT_READ) < 0) {
             return SW_ERR;
         }
@@ -89,12 +89,12 @@ bool SocketPair::close(int which) {
 }
 
 SocketPair::~SocketPair() {
-    if (!master_socket) {
+    if (master_socket) {
         close(SW_PIPE_CLOSE_MASTER);
     }
-    if (!worker_socket) {
+    if (worker_socket) {
         close(SW_PIPE_CLOSE_WORKER);
     }
 }
 
-}
+}  // namespace swoole

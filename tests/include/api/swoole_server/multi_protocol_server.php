@@ -14,13 +14,13 @@ $port2 = isset($argv[4]) ? $argv[4] : null;
 class OpcodeServer
 {
     /**
-     * @var \swoole_server
+     * @var Swoole\Server
      */
     public $swooleServer;
 
     public function __construct($host, $port, $port1, $port2)
     {
-	    $this->swooleServer = new \swoole_server($host, $port, SWOOLE_PROCESS, SWOOLE_SOCK_TCP);
+	    $this->swooleServer = new Swoole\Server($host, $port, SWOOLE_PROCESS, SWOOLE_SOCK_TCP);
         $this->swooleServer->set([
             'dispatch_mode' => 3,
             'worker_num' => 2,
@@ -29,7 +29,7 @@ class OpcodeServer
             'package_eof' => "\r\n",
         ]);
 
-        $this->swooleServer->on("receive", function(\swoole_server $server, $fd, $fromReactorId, $recv) use($port) {
+        $this->swooleServer->on("receive", function(Swoole\Server $server, $fd, $fromReactorId, $recv) use($port) {
             Assert::same(intval($recv), $port);
             $r = $server->send($fd, opcode_encode("return", $port));
             assert($r !== false);
@@ -44,7 +44,7 @@ class OpcodeServer
            'package_eof' => "\r",
         ]);
 
-        $serv1->on("receive", function(\swoole_server $server, $fd, $fromReactorId, $recv) use($port1) {
+        $serv1->on("receive", function(Swoole\Server $server, $fd, $fromReactorId, $recv) use($port1) {
             Assert::same(intval($recv), $port1);
             $r = $server->send($fd, opcode_encode("return", $port1));
             assert($r !== false);
@@ -60,7 +60,7 @@ class OpcodeServer
         ]);
 
 
-        $serv2->on("receive", function(\swoole_server $server, $fd, $fromReactorId, $recv) use($port2) {
+        $serv2->on("receive", function(Swoole\Server $server, $fd, $fromReactorId, $recv) use($port2) {
             Assert::same(intval($recv), $port2);
             $r = $server->send($fd, opcode_encode("return", $port2));
             assert($r !== false);
@@ -88,23 +88,23 @@ class OpcodeServer
 
     public function onConnect() { }
     public function onClose() { }
-    public function onStart(\swoole_server $swooleServer) { }
-    public function onShutdown(\swoole_server $swooleServer) { }
-    public function onWorkerStart(\swoole_server $swooleServer, $workerId)
+    public function onStart(Swoole\Server $swooleServer) { }
+    public function onShutdown(Swoole\Server $swooleServer) { }
+    public function onWorkerStart(Swoole\Server $swooleServer, $workerId)
     {
         if ($workerId === 0) {
-            swoole_timer_after($this->lifetime, function() {
+            Swoole\Timer::after($this->lifetime, function() {
                 $this->swooleServer->shutdown();
                 kill_self_and_descendant(getmypid());
                 /*
-                \swoole_process::signal(SIGTERM, swoole_function() {
+                \Swoole\Process::signal(SIGTERM, swoole_function() {
                     $this->swooleServer->shutdown();
                 });
-                \swoole_process::kill(0, SIGTERM);
+                \Swoole\Process::kill(0, SIGTERM);
                 */
             });
         }
     }
-    public function onWorkerStop(\swoole_server $swooleServer, $workerId) { }
-    public function onWorkerError(\swoole_server $swooleServer, $workerId, $workerPid, $exitCode, $sigNo) { }
+    public function onWorkerStop(Swoole\Server $swooleServer, $workerId) { }
+    public function onWorkerError(Swoole\Server $swooleServer, $workerId, $workerPid, $exitCode, $sigNo) { }
 }

@@ -1,14 +1,20 @@
 [English](./README.md) | 中文
 
-<h1>
-<img width="200" height="120" align=center alt="Swoole Logo" src="https://www.swoole.co.uk/images/swoole-logo.svg" />
+<h1 align=center>
+<img width="200" height="120" alt="Swoole Logo" src="https://cdn.jsdelivr.net/gh/swoole/swoole-src/swoole-logo.svg" />
 </h1>
 
 [![lib-swoole](https://github.com/swoole/swoole-src/workflows/lib-swoole/badge.svg)](https://github.com/swoole/swoole-src/actions?query=workflow%3Alib-swoole)
 [![ext-swoole](https://github.com/swoole/swoole-src/workflows/ext-swoole/badge.svg)](https://github.com/swoole/swoole-src/actions?query=workflow%3Aext-swoole)
 [![test-linux](https://github.com/swoole/swoole-src/workflows/test-linux/badge.svg)](https://github.com/swoole/swoole-src/actions?query=workflow%3Atest-linux)
-[![Coverity Scan Build Status](https://scan.coverity.com/projects/11654/badge.svg)](https://scan.coverity.com/projects/swoole-swoole-src)
+[![Frameworks Tests](https://github.com/swoole/swoole-src/actions/workflows/framework.yml/badge.svg)](https://github.com/swoole/swoole-src/actions/workflows/framework.yml)
 [![codecov](https://codecov.io/gh/swoole/swoole-src/branch/master/graph/badge.svg)](https://codecov.io/gh/swoole/swoole-src)
+
+[![Twitter](https://badgen.net/badge/icon/twitter?icon=twitter&label)](https://twitter.com/phpswoole)
+[![Discord](https://badgen.net/badge/icon/discord?icon=discord&label)](https://discord.swoole.dev)
+[![Latest Release](https://img.shields.io/github/release/swoole/swoole-src.svg)](https://github.com/swoole/swoole-src/releases/)
+[![License](https://badgen.net/github/license/swoole/swoole-src)](https://github.com/swoole/swoole-src/blob/master/LICENSE)
+[![Coverity Scan Build Status](https://scan.coverity.com/projects/11654/badge.svg)](https://scan.coverity.com/projects/swoole-swoole-src)
 
 **Swoole是一个C++编写的基于异步事件驱动和协程的并行网络通信引擎，为PHP提供高性能网络编程支持**
 

@@ -10,11 +10,11 @@ skip_if_darwin();
 require __DIR__.'/../include/bootstrap.php';
 
 
-function callback_function(swoole_process $worker)
+function callback_function(Swoole\Process $worker)
 {
 }
 
-$process = new swoole_process('callback_function', false, false);
+$process = new Swoole\Process('callback_function', false, false);
 $process->useQueue(ftok(__DIR__, 1), 1, 1024 * 1024 * 64);
 
 const N = 32 * 1024 * 1024;

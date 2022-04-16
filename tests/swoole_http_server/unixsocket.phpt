@@ -21,7 +21,7 @@ $pm->parentFunc = function () use ($pm) {
             }
         });
     }
-    swoole_event_wait();
+    Swoole\Event::wait();
     echo "SUCCESS\n";
     $pm->kill();
 };

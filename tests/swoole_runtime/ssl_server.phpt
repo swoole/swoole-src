@@ -9,7 +9,7 @@ skip_if_no_ssl();
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-swoole\runtime::enableCoroutine();
+Swoole\Runtime::enableCoroutine();
 
 $ready = new Chan;
 
@@ -45,7 +45,7 @@ go(function () use ($ready) {
     }
 });
 
-swoole_event_wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--
 OK

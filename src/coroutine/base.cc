@@ -10,7 +10,7 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | Author: Tianfeng Han  <rango@swoole.com>                             |
   +----------------------------------------------------------------------+
 */
 
@@ -60,6 +60,8 @@ void Coroutine::yield() {
         on_yield(task);
     }
     current = origin;
+
+    CALC_EXECUTE_USEC(this, current);
     ctx.swap_out();
 }
 
@@ -112,6 +114,8 @@ void Coroutine::resume() {
     }
     origin = current;
     current = this;
+
+    CALC_EXECUTE_USEC(origin, this);
     ctx.swap_in();
     check_end();
 }
@@ -182,15 +186,15 @@ void Coroutine::bailout(BailoutCallback func) {
     Coroutine *co = current;
     if (!co) {
         // marks that it can no longer resume any coroutine
-        on_bailout = (BailoutCallback) -1;
+        static BailoutCallback fn = []() {
+            // expect that never here
+            swoole_error("have been bailout, can not resume any coroutine");
+        };
+        on_bailout = fn;
         return;
     }
     if (!func) {
-        swoole_error("bailout without bailout function");
-    }
-    if (!co->task) {
-        // TODO: decoupling
-        exit(255);
+       swoole_error("bailout without callback function");
     }
     on_bailout = func;
     // find the coroutine which is closest to the main
@@ -200,7 +204,7 @@ void Coroutine::bailout(BailoutCallback func) {
     // it will jump to main context directly (it also breaks contexts)
     co->yield();
     // expect that never here
-    exit(1);
+    exit(SW_CORO_BAILOUT_EXIT_CODE);
 }
 
 namespace coroutine {

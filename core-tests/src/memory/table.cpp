@@ -150,14 +150,7 @@ TEST(table, create) {
     ASSERT_FALSE(table.exists("php"));
 }
 
-TEST(table, iterator) {
-    table_t table(1024);
-
-    table.set("php", {"php", 1, 1.245});
-    table.set("java", {"java", 2, 3.1415926});
-    table.set("c++", {"c++", 3, 4.888});
-
-    auto _ptr = table.ptr();
+void start_iterator(Table *_ptr) {
     _ptr->rewind();
     auto count = 0;
     while (true) {
@@ -170,4 +163,148 @@ TEST(table, iterator) {
         count++;
     }
     ASSERT_EQ(count, _ptr->count());
+}
+
+TEST(table, iterator) {
+    table_t table(1024);
+
+    table.set("php", {"php", 1, 1.245});
+    table.set("java", {"java", 2, 3.1415926});
+    table.set("c++", {"c++", 3, 4.888});
+
+    auto _ptr = table.ptr();
+    start_iterator(_ptr);
+}
+
+TEST(table, iterator_2) {
+    table_t table(1024);
+    auto _ptr = table.ptr();
+    _ptr->set_hash_func([](const char *key, size_t len) -> uint64_t { return 1; });
+
+    table.set("php", {"php", 1, 1.245});
+    table.set("java", {"java", 2, 3.1415926});
+    table.set("c++", {"c++", 3, 4.888});
+
+    start_iterator(_ptr);
+}
+
+static int test_table_size = 128;
+
+static void create_table(table_t &table) {
+    auto ptr = table.ptr();
+    ptr->set_hash_func([](const char *key, size_t len) -> uint64_t { return 1; });
+
+    ASSERT_TRUE(table.set("php", {"php", 1, 1.245}));
+    ASSERT_TRUE(table.set("java", {"java", 2, 3.1415926}));
+    ASSERT_TRUE(table.set("c++", {"c++", 3, 4.888}));
+    ASSERT_TRUE(table.set("js", {"js", 9, 6565}));
+    ASSERT_TRUE(table.set("golang", {"golang", 4, 9.888}));
+}
+
+TEST(table, conflict1) {
+    table_t table(test_table_size);
+    ASSERT_FALSE(table.exists("swift"));
+
+    create_table(table);
+    auto ptr = table.ptr();
+
+    ASSERT_FALSE(table.exists("kotlin"));
+
+    ASSERT_TRUE(table.del("php"));
+    ASSERT_FALSE(table.exists("php"));
+    ASSERT_TRUE(table.set("rust", {"rust", 5, 9.888}));
+
+    ASSERT_TRUE(table.del("golang"));
+    ASSERT_FALSE(table.exists("golang"));
+    ASSERT_TRUE(table.set("erlang", {"erlang", 6, 12.888}));
+
+    ASSERT_TRUE(table.del("java"));
+    ASSERT_FALSE(table.exists("java"));
+
+    ASSERT_EQ(ptr->get_total_slice_num() - ptr->get_available_slice_num(), table.count() - 1);
+}
+
+TEST(table, conflict2) {
+    table_t table(test_table_size);
+    create_table(table);
+    auto ptr = table.ptr();
+
+    ASSERT_TRUE(table.del("java"));
+    ASSERT_FALSE(table.exists("java"));
+    ASSERT_TRUE(table.set("rust", {"rust", 5, 9.888}));
+
+    ASSERT_TRUE(table.del("golang"));
+    ASSERT_FALSE(table.exists("golang"));
+    ASSERT_TRUE(table.set("erlang", {"erlang", 6, 12.888}));
+
+    ASSERT_EQ(ptr->get_total_slice_num() - ptr->get_available_slice_num(), table.count() - 1);
+}
+
+TEST(table, conflict3) {
+    table_t table(test_table_size);
+    create_table(table);
+    auto ptr = table.ptr();
+
+    ASSERT_TRUE(table.del("golang"));
+    ASSERT_TRUE(table.set("erlang", {"erlang", 6, 12.888}));
+
+    ASSERT_TRUE(table.del("java"));
+
+    ASSERT_EQ(ptr->get_total_slice_num() - ptr->get_available_slice_num(), table.count() - 1);
+}
+
+TEST(table, conflict4) {
+    table_t table(test_table_size);
+    create_table(table);
+    auto ptr = table.ptr();
+
+    ASSERT_TRUE(table.del("c++"));
+    ASSERT_TRUE(table.set("rust", {"rust", 5, 9.888}));
+
+    ASSERT_TRUE(table.del("golang"));
+    ASSERT_TRUE(table.set("erlang", {"erlang", 6, 12.888}));
+
+    ASSERT_TRUE(table.del("java"));
+
+    ASSERT_EQ(ptr->get_total_slice_num() - ptr->get_available_slice_num(), table.count() - 1);
+}
+
+TEST(table, get_value) {
+    table_t table(test_table_size);
+    create_table(table);
+    auto ptr = table.ptr();
+
+    std::string key("php");
+    TableRow *_rowlock = nullptr;
+    TableRow *row = ptr->get(key.c_str(), key.length(), &_rowlock);
+    _rowlock->unlock();
+    TableColumn *column_id = ptr->get_column("id");
+    TableColumn *column_name = ptr->get_column("name");
+    TableColumn *column_score = ptr->get_column("score");
+
+    char *str = nullptr;
+    TableStringLength len = 0;
+    row->get_value(column_name, &str, &len);
+    ASSERT_STREQ(str, "php");
+
+    double dval = 0;
+    row->get_value(column_score, &dval);
+    ASSERT_EQ(dval, 1.245);
+
+    long lval = 0;
+    row->get_value(column_id, &lval);
+    ASSERT_EQ(lval, 1);
+
+    column_id->clear(row);
+    column_name->clear(row);
+    column_score->clear(row);
+
+    row->get_value(column_name, &str, &len);
+    ASSERT_STREQ(str, "php");
+
+    row->get_value(column_score, &dval);
+    ASSERT_EQ(dval, 0);
+
+    row->get_value(column_id, &lval);
+    ASSERT_EQ(lval, 0);
 }

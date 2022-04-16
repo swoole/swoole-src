@@ -21,10 +21,10 @@ $pm->childFunc = function () use ($pm) {
 
         public function run()
         {
-            swoole_timer_tick(100, function (int $id) use (&$i) {
+            Swoole\Timer::tick(100, function (int $id) use (&$i) {
                 global $pm;
                 if (++$i === 10) {
-                    swoole_timer_clear($id);
+                    Swoole\Timer::clear($id);
                     $pm->wakeup();
                 }
                 echo "Tick {$i}\n";

@@ -12,7 +12,7 @@
  | to obtain it through the world-wide-web, please send a note to       |
  | license@swoole.com so we can mail you a copy immediately.            |
  +----------------------------------------------------------------------+
- | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+ | Author: Tianfeng Han  <rango@swoole.com>                             |
  +----------------------------------------------------------------------+
  */
 
@@ -27,6 +27,11 @@
 
 #include <string>
 
+BEGIN_EXTERN_C()
+#include "stubs/php_swoole_socket_coro_arginfo.h"
+END_EXTERN_C()
+
+using swoole::PacketLength;
 using swoole::Protocol;
 using swoole::coroutine::Socket;
 using swoole::network::Address;
@@ -39,6 +44,7 @@ static zend_object_handlers swoole_socket_coro_exception_handlers;
 
 struct SocketObject {
     Socket *socket;
+    zval zstream;
     bool reference;
     zend_object std;
 };
@@ -76,153 +82,47 @@ static PHP_METHOD(swoole_socket_coro, close);
 static PHP_METHOD(swoole_socket_coro, cancel);
 static PHP_METHOD(swoole_socket_coro, getsockname);
 static PHP_METHOD(swoole_socket_coro, getpeername);
+static PHP_METHOD(swoole_socket_coro, isClosed);
+static PHP_METHOD(swoole_socket_coro, import);
 SW_EXTERN_C_END
 
 // clang-format off
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_construct, 0, 0, 2)
-    ZEND_ARG_INFO(0, domain)
-    ZEND_ARG_INFO(0, type)
-    ZEND_ARG_INFO(0, protocol)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_bind, 0, 0, 1)
-    ZEND_ARG_INFO(0, address)
-    ZEND_ARG_INFO(0, port)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_listen, 0, 0, 0)
-    ZEND_ARG_INFO(0, backlog)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_accept, 0, 0, 0)
-    ZEND_ARG_INFO(0, timeout)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_connect, 0, 0, 1)
-    ZEND_ARG_INFO(0, host)
-    ZEND_ARG_INFO(0, port)
-    ZEND_ARG_INFO(0, timeout)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_checkLiveness, 0, 0, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_peek, 0, 0, 0)
-    ZEND_ARG_INFO(0, length)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_recv, 0, 0, 0)
-    ZEND_ARG_INFO(0, length)
-    ZEND_ARG_INFO(0, timeout)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_recvPacket, 0, 0, 0)
-    ZEND_ARG_INFO(0, timeout)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_send, 0, 0, 1)
-    ZEND_ARG_INFO(0, data)
-    ZEND_ARG_INFO(0, timeout)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_readVector, 0, 0, 1)
-    ZEND_ARG_INFO(0, io_vector)
-    ZEND_ARG_INFO(0, timeout)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_readVectorAll, 0, 0, 1)
-    ZEND_ARG_INFO(0, io_vector)
-    ZEND_ARG_INFO(0, timeout)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_writeVector, 0, 0, 1)
-    ZEND_ARG_INFO(0, io_vector)
-    ZEND_ARG_INFO(0, timeout)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_writeVectorAll, 0, 0, 1)
-    ZEND_ARG_INFO(0, io_vector)
-    ZEND_ARG_INFO(0, timeout)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_sendFile, 0, 0, 1)
-    ZEND_ARG_INFO(0, filename)
-    ZEND_ARG_INFO(0, offset)
-    ZEND_ARG_INFO(0, length)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_recvfrom, 0, 0, 1)
-    ZEND_ARG_INFO(1, peername)
-    ZEND_ARG_INFO(0, timeout)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_getOption, 0, 0, 2)
-    ZEND_ARG_INFO(0, level)
-    ZEND_ARG_INFO(0, opt_name)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_setOption, 0, 0, 3)
-    ZEND_ARG_INFO(0, level)
-    ZEND_ARG_INFO(0, opt_name)
-    ZEND_ARG_INFO(0, opt_value)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_setProtocol, 0, 0, 1)
-    ZEND_ARG_ARRAY_INFO(0, settings, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_sendto, 0, 0, 3)
-    ZEND_ARG_INFO(0, addr)
-    ZEND_ARG_INFO(0, port)
-    ZEND_ARG_INFO(0, data)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_cancel, 0, 0, 0)
-    ZEND_ARG_INFO(0, event)
-ZEND_END_ARG_INFO()
-
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_shutdown, 0, 0, 0)
-    ZEND_ARG_INFO(0, how)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
-ZEND_END_ARG_INFO()
-
 static const zend_function_entry swoole_socket_coro_methods[] =
 {
-    PHP_ME(swoole_socket_coro, __construct,   arginfo_swoole_socket_coro_construct,     ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_socket_coro, bind,          arginfo_swoole_socket_coro_bind,          ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_socket_coro, listen,        arginfo_swoole_socket_coro_listen,        ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_socket_coro, accept,        arginfo_swoole_socket_coro_accept,        ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_socket_coro, connect,       arginfo_swoole_socket_coro_connect,       ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_socket_coro, checkLiveness, arginfo_swoole_socket_coro_checkLiveness, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_socket_coro, peek,          arginfo_swoole_socket_coro_peek,          ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_socket_coro, recv,          arginfo_swoole_socket_coro_recv,          ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_socket_coro, recvAll,       arginfo_swoole_socket_coro_recv,          ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_socket_coro, recvLine,      arginfo_swoole_socket_coro_recv,          ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_socket_coro, recvWithBuffer, arginfo_swoole_socket_coro_recv,         ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_socket_coro, recvPacket,    arginfo_swoole_socket_coro_recvPacket,    ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_socket_coro, send,          arginfo_swoole_socket_coro_send,          ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_socket_coro, readVector,    arginfo_swoole_socket_coro_readVector,    ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_socket_coro, readVectorAll, arginfo_swoole_socket_coro_readVectorAll, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_socket_coro, writeVector,   arginfo_swoole_socket_coro_writeVector,   ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_socket_coro, writeVectorAll,arginfo_swoole_socket_coro_writeVectorAll,ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_socket_coro, sendFile,      arginfo_swoole_socket_coro_sendFile,      ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_socket_coro, sendAll,       arginfo_swoole_socket_coro_send,          ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_socket_coro, recvfrom,      arginfo_swoole_socket_coro_recvfrom,      ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_socket_coro, sendto,        arginfo_swoole_socket_coro_sendto,        ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_socket_coro, getOption,     arginfo_swoole_socket_coro_getOption,     ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_socket_coro, setProtocol,   arginfo_swoole_socket_coro_setProtocol,   ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_socket_coro, setOption,     arginfo_swoole_socket_coro_setOption,     ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, __construct,    arginfo_class_Swoole_Coroutine_Socket___construct,    ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, bind,           arginfo_class_Swoole_Coroutine_Socket_bind,           ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, listen,         arginfo_class_Swoole_Coroutine_Socket_listen,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, accept,         arginfo_class_Swoole_Coroutine_Socket_accept,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, connect,        arginfo_class_Swoole_Coroutine_Socket_connect,        ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, checkLiveness,  arginfo_class_Swoole_Coroutine_Socket_checkLiveness,  ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, peek,           arginfo_class_Swoole_Coroutine_Socket_peek,           ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, recv,           arginfo_class_Swoole_Coroutine_Socket_recv,           ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, recvAll,        arginfo_class_Swoole_Coroutine_Socket_recvAll,        ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, recvLine,       arginfo_class_Swoole_Coroutine_Socket_recvLine,       ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, recvWithBuffer, arginfo_class_Swoole_Coroutine_Socket_recvWithBuffer, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, recvPacket,     arginfo_class_Swoole_Coroutine_Socket_recvPacket,     ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, send,           arginfo_class_Swoole_Coroutine_Socket_send,           ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, readVector,     arginfo_class_Swoole_Coroutine_Socket_readVector,     ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, readVectorAll,  arginfo_class_Swoole_Coroutine_Socket_readVectorAll,  ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, writeVector,    arginfo_class_Swoole_Coroutine_Socket_writeVector,    ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, writeVectorAll, arginfo_class_Swoole_Coroutine_Socket_writeVectorAll, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, sendFile,       arginfo_class_Swoole_Coroutine_Socket_sendFile,       ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, sendAll,        arginfo_class_Swoole_Coroutine_Socket_sendAll,        ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, recvfrom,       arginfo_class_Swoole_Coroutine_Socket_recvfrom,       ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, sendto,         arginfo_class_Swoole_Coroutine_Socket_sendto,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, getOption,      arginfo_class_Swoole_Coroutine_Socket_getOption,      ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, setProtocol,    arginfo_class_Swoole_Coroutine_Socket_setProtocol,    ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, setOption,      arginfo_class_Swoole_Coroutine_Socket_setOption,      ZEND_ACC_PUBLIC)
 #ifdef SW_USE_OPENSSL
-    PHP_ME(swoole_socket_coro, sslHandshake,  arginfo_swoole_void,                      ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, sslHandshake,  arginfo_class_Swoole_Coroutine_Socket_sslHandshake,    ZEND_ACC_PUBLIC)
 #endif
-    PHP_ME(swoole_socket_coro, shutdown,      arginfo_swoole_socket_coro_shutdown,      ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_socket_coro, cancel,        arginfo_swoole_socket_coro_cancel,        ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_socket_coro, close,         arginfo_swoole_void,                      ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_socket_coro, getpeername,   arginfo_swoole_void,                      ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_socket_coro, getsockname,   arginfo_swoole_void,                      ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, shutdown,      arginfo_class_Swoole_Coroutine_Socket_shutdown,        ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, cancel,        arginfo_class_Swoole_Coroutine_Socket_cancel,          ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, close,         arginfo_class_Swoole_Coroutine_Socket_close,           ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, getpeername,   arginfo_class_Swoole_Coroutine_Socket_getpeername,     ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, getsockname,   arginfo_class_Swoole_Coroutine_Socket_getsockname,     ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, isClosed,      arginfo_class_Swoole_Coroutine_Socket_isClosed,        ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, import,        arginfo_class_Swoole_Coroutine_Socket_import,          ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
 // clang-format on
@@ -247,7 +147,12 @@ static sw_inline SocketObject *php_swoole_socket_coro_fetch_object(zend_object *
 static void php_swoole_socket_coro_free_object(zend_object *object) {
     SocketObject *sock = (SocketObject *) php_swoole_socket_coro_fetch_object(object);
     if (!sock->reference && sock->socket && sock->socket != SW_BAD_SOCKET) {
-        sock->socket->close();
+        if (!Z_ISUNDEF(sock->zstream)) {
+            sock->socket->move_fd();
+            zval_ptr_dtor(&sock->zstream);
+        } else {
+            sock->socket->close();
+        }
         delete sock->socket;
     }
     zend_object_std_dtor(&sock->std);
@@ -801,8 +706,7 @@ static void swoole_socket_coro_register_constants(int module_number) {
 }
 
 void php_swoole_socket_coro_minit(int module_number) {
-    SW_INIT_CLASS_ENTRY(
-        swoole_socket_coro, "Swoole\\Coroutine\\Socket", nullptr, "Co\\Socket", swoole_socket_coro_methods);
+    SW_INIT_CLASS_ENTRY(swoole_socket_coro, "Swoole\\Coroutine\\Socket", "Co\\Socket", swoole_socket_coro_methods);
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_socket_coro);
     SW_SET_CLASS_CLONEABLE(swoole_socket_coro, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_socket_coro, sw_zend_class_unset_property_deny);
@@ -821,7 +725,6 @@ void php_swoole_socket_coro_minit(int module_number) {
 
     SW_INIT_CLASS_ENTRY_EX(swoole_socket_coro_exception,
                            "Swoole\\Coroutine\\Socket\\Exception",
-                           nullptr,
                            "Co\\Socket\\Exception",
                            nullptr,
                            swoole_exception);
@@ -965,10 +868,10 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, zval *zset) {
         sock->protocol.package_length_offset = 0;
         sock->protocol.package_body_offset = 0;
         sock->protocol.get_package_length =
-            [](Protocol *protocol, swoole::network::Socket *conn, const char *data, uint32_t size) {
-                const uint8_t *p = (const uint8_t *) data;
+            [](const Protocol *protocol, swoole::network::Socket *conn, PacketLength *pl) {
+                const uint8_t *p = (const uint8_t *) pl->buf;
                 ssize_t length = 0;
-                if (size >= FCGI_HEADER_LEN) {
+                if (pl->buf_size >= FCGI_HEADER_LEN) {
                     length = ((p[4] << 8) | p[5]) + p[6];
                     if (length > FCGI_MAX_LENGTH) {
                         length = -1;
@@ -1666,6 +1569,7 @@ static PHP_METHOD(swoole_socket_coro, shutdown) {
 static PHP_METHOD(swoole_socket_coro, close) {
     swoole_get_socket_coro(sock, ZEND_THIS);
     if (sock->reference) {
+        php_swoole_error(E_WARNING, "cannot close the referenced resource");
         RETURN_FALSE;
     }
     if (sock->socket->protocol.private_data) {
@@ -1673,9 +1577,25 @@ static PHP_METHOD(swoole_socket_coro, close) {
         sw_zend_fci_cache_discard(package_length_func);
         efree(package_length_func);
     }
-    if (sock->socket->close()) {
+    if (!Z_ISUNDEF(sock->zstream)) {
+        php_stream *stream = NULL;
+        php_stream_from_zval_no_verify(stream, &sock->zstream);
+        if (stream != NULL) {
+            /* close & destroy stream, incl. removing it from the rsrc list;
+             * resource stored in php_sock->zstream will become invalid */
+            php_stream_free(stream,
+                            PHP_STREAM_FREE_KEEP_RSRC | PHP_STREAM_FREE_CLOSE |
+                                (stream->is_persistent ? PHP_STREAM_FREE_CLOSE_PERSISTENT : 0));
+        }
+        ZVAL_UNDEF(&sock->zstream);
+        sock->socket->move_fd();
         delete sock->socket;
         sock->socket = SW_BAD_SOCKET;
+    } else {
+        if (sock->socket->close()) {
+            delete sock->socket;
+            sock->socket = SW_BAD_SOCKET;
+        }
     }
     RETURN_TRUE;
 }
@@ -1962,3 +1882,62 @@ static PHP_METHOD(swoole_socket_coro, sslHandshake) {
     RETURN_BOOL(sock->socket->ssl_handshake());
 }
 #endif
+
+static PHP_METHOD(swoole_socket_coro, isClosed) {
+    SocketObject *_sock = php_swoole_socket_coro_fetch_object(Z_OBJ_P(ZEND_THIS));
+    RETURN_BOOL(_sock->socket == SW_BAD_SOCKET || _sock->socket->is_closed());
+}
+
+static PHP_METHOD(swoole_socket_coro, import) {
+    zval *zstream;
+    php_stream *stream;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_RESOURCE(zstream)
+    ZEND_PARSE_PARAMETERS_END();
+
+    php_stream_from_zval(stream, zstream);
+
+    enum swSocketType type = SW_SOCK_TCP;
+    int socket_fd;
+
+    if (php_stream_cast(stream, PHP_STREAM_AS_SOCKETD, (void **) &socket_fd, 1)) {
+        /* error supposedly already shown */
+        RETURN_FALSE;
+    }
+
+    int sock_domain = AF_INET, sock_type = SOCK_STREAM;
+
+#ifdef SO_DOMAIN
+    socklen_t sock_domain_len = sizeof(sock_domain);
+    if (getsockopt(socket_fd, SOL_SOCKET, SO_DOMAIN, &sock_domain, &sock_domain_len) < 0) {
+        php_swoole_sys_error(E_WARNING, "getsockopt(SOL_SOCKET, SO_DOMAIN) failed");
+        RETURN_FALSE;
+    }
+#endif
+
+#ifdef SO_TYPE
+    socklen_t sock_type_len = sizeof(sock_type);
+    if (getsockopt(socket_fd, SOL_SOCKET, SO_TYPE, &sock_type, &sock_type_len) < 0) {
+        php_swoole_sys_error(E_WARNING, "getsockopt(SOL_SOCKET, SO_TYPE) failed");
+        RETURN_FALSE;
+    }
+#endif
+
+    type = swoole::network::Socket::convert_to_type(sock_domain, sock_type);
+
+    /* determine blocking mode */
+    int t = fcntl(socket_fd, F_GETFL);
+    if (t < 0) {
+        php_swoole_sys_error(E_WARNING, "fcntl(F_GETFL) failed");
+        RETURN_FALSE;
+    }
+    zend_object *object = php_swoole_create_socket_from_fd(socket_fd, type);
+    SocketObject *sock = php_swoole_socket_coro_fetch_object(object);
+
+    ZVAL_COPY(&sock->zstream, zstream);
+    php_stream_set_option(stream, PHP_STREAM_OPTION_READ_BUFFER, PHP_STREAM_BUFFER_NONE, NULL);
+    sock->socket->get_socket()->nonblock = (t & O_NONBLOCK);
+
+    RETURN_OBJ(object);
+}

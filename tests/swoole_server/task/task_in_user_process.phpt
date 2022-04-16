@@ -15,7 +15,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
 $pm->childFunc = function () use ($pm)
 {
     ini_set('swoole.display_errors', 'Off');
-    $serv = new swoole_server('127.0.0.1', $pm->getFreePort());
+    $serv = new Swoole\Server('127.0.0.1', $pm->getFreePort());
     $serv->set(array(
         "worker_num" => 1,
         'task_worker_num' => 2,
@@ -30,18 +30,18 @@ $pm->childFunc = function () use ($pm)
 
     $serv->addProcess($process);
 
-    $serv->on('receive', function (swoole_server $serv, $fd, $rid, $data)
+    $serv->on('receive', function (Swoole\Server $serv, $fd, $rid, $data)
     {
 
     });
 
-    $serv->on('task', function (swoole_server $serv, $task_id, $worker_id, $data) use($pm)
+    $serv->on('task', function (Swoole\Server $serv, $task_id, $worker_id, $data) use($pm)
     {
         Assert::false($serv->finish("OK"));
         $pm->wakeup();
     });
 
-    $serv->on('finish', function (swoole_server $serv, $fd, $rid, $data)
+    $serv->on('finish', function (Swoole\Server $serv, $fd, $rid, $data)
     {
 
     });

@@ -27,7 +27,7 @@ $pm->parentFunc = function ($pid) use ($pm, $port) {
         echo("client exit\n");
         $socket->close();
     });
-    swoole_event_wait();
+    Swoole\Event::wait();
 };
 
 $pm->childFunc = function () use ($pm, $port) {

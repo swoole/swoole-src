@@ -30,17 +30,17 @@ $pm->parentFunc = function ($pid) use ($pm) {
             co::sleep(0.1);
         }
     });
-    swoole_event::wait();
+    Swoole\Event::wait();
     $pm->kill();
 };
 
 $pm->childFunc = function () use ($pm)
 {
-    $ws = new swoole_websocket_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
+    $ws = new Swoole\WebSocket\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $ws->set(array(
         'log_file' => '/dev/null'
     ));
-    $ws->on('WorkerStart', function (\swoole_server $serv) {
+    $ws->on('WorkerStart', function (Swoole\Server $serv) {
         /**
          * @var $pm ProcessManager
          */
@@ -48,7 +48,7 @@ $pm->childFunc = function () use ($pm)
         $pm->wakeup();
     });
 
-    $ws->on('open', function ($serv, swoole_http_request $request) {
+    $ws->on('open', function ($serv, Swoole\Http\Request $request) {
         $ip = co::gethostbyname('www.baidu.com');
         if ($ip)
         {

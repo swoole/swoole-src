@@ -11,7 +11,7 @@ define('ERROR_FILE', __DIR__.'/ssl_error');
 $pm = new SwooleTest\ProcessManager;
 
 $pm->parentFunc = function ($pid) use ($pm) {
-    $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC); //同步阻塞
+    $client = new Swoole\Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC); //同步阻塞
     if (!$client->connect('127.0.0.1', $pm->getFreePort()))
     {
         exit("connect failed\n");
@@ -22,7 +22,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
 };
 
 $pm->childFunc = function () use ($pm) {
-    $serv = new swoole_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE, SWOOLE_SOCK_TCP | SWOOLE_SSL);
+    $serv = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE, SWOOLE_SOCK_TCP | SWOOLE_SSL);
     $serv->set(
         [
             'log_file' => ERROR_FILE,

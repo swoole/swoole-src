@@ -10,7 +10,7 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | Author: Tianfeng Han  <rango@swoole.com>                             |
   +----------------------------------------------------------------------+
 */
 
@@ -18,6 +18,10 @@
 
 #include <string>
 #include <map>
+
+BEGIN_EXTERN_C()
+#include "stubs/php_swoole_http_server_coro_arginfo.h"
+END_EXTERN_C()
 
 using swoole::microtime;
 using swoole::PHPCoroutine;
@@ -195,36 +199,15 @@ static PHP_METHOD(swoole_http_server_coro, __destruct);
 SW_EXTERN_C_END
 
 // clang-format off
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_server_coro_construct, 0, 0, 1)
-    ZEND_ARG_INFO(0, host)
-    ZEND_ARG_INFO(0, port)
-    ZEND_ARG_INFO(0, ssl)
-    ZEND_ARG_INFO(0, reuse_port)
-ZEND_END_ARG_INFO()
-
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_server_coro_handle, 0, 0, 2)
-    ZEND_ARG_INFO(0, pattern)
-    ZEND_ARG_CALLABLE_INFO(0, callback, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_server_coro_set, 0, 0, 1)
-    ZEND_ARG_ARRAY_INFO(0, settings, 0)
-ZEND_END_ARG_INFO()
-
 static const zend_function_entry swoole_http_server_coro_methods[] =
 {
-    PHP_ME(swoole_http_server_coro, __construct, arginfo_swoole_http_server_coro_construct, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_server_coro, __destruct, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_server_coro, set, arginfo_swoole_http_server_coro_set, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_server_coro, handle, arginfo_swoole_http_server_coro_handle, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_server_coro, onAccept, arginfo_swoole_void, ZEND_ACC_PRIVATE)
-    PHP_ME(swoole_http_server_coro, start, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_server_coro, shutdown, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_server_coro, __construct, arginfo_class_Swoole_Coroutine_Http_Server___construct, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_server_coro, __destruct,  arginfo_class_Swoole_Coroutine_Http_Server___destruct,  ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_server_coro, set,         arginfo_class_Swoole_Coroutine_Http_Server_set,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_server_coro, handle,      arginfo_class_Swoole_Coroutine_Http_Server_handle,      ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_server_coro, onAccept,    arginfo_class_Swoole_Coroutine_Http_Server_onAccept,    ZEND_ACC_PRIVATE)
+    PHP_ME(swoole_http_server_coro, start,       arginfo_class_Swoole_Coroutine_Http_Server_start,       ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_server_coro, shutdown,    arginfo_class_Swoole_Coroutine_Http_Server_shutdown,    ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 // clang-format on
@@ -301,7 +284,6 @@ void HttpContext::bind(Socket *sock) {
 void php_swoole_http_server_coro_minit(int module_number) {
     SW_INIT_CLASS_ENTRY(swoole_http_server_coro,
                         "Swoole\\Coroutine\\Http\\Server",
-                        nullptr,
                         "Co\\Http\\Server",
                         swoole_http_server_coro_methods);
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_http_server_coro);
@@ -596,10 +578,10 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
         buffer->offset += parsed_n;
 
         swoole_trace_log(SW_TRACE_CO_HTTP_SERVER,
-                         "parsed_n=%ld, length=%ld, offset=%ld, completed=%d",
+                         "parsed_n=%zu, length=%zu, offset=%jd, completed=%u",
                          parsed_n,
                          buffer->length,
-                         buffer->offset,
+                         (intmax_t) buffer->offset,
                          ctx->completed);
 
         if (!ctx->completed) {

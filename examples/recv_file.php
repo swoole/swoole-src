@@ -7,7 +7,7 @@ else
 {
     $server_ip = $argv[1];
 }
-$cli = new swoole_client(SWOOLE_TCP);
+$cli = new Swoole\Client(SWOOLE_TCP);
 $start_ms = microtime(true);
 $cli->connect($server_ip, 9501, 5);
 $filesize = intval($cli->recv());

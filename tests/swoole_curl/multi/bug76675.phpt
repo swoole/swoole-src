@@ -32,7 +32,7 @@ $fn = function() {
     curl_multi_setopt($mh, CURLMOPT_PIPELINING, CURLPIPE_MULTIPLEX);
     curl_multi_setopt($mh, CURLMOPT_PUSHFUNCTION, $callback);
     $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, 'https://http2.golang.org/serverpush');
+    curl_setopt($ch, CURLOPT_URL, TEST_HTTP2_SERVERPUSH_URL);
     curl_setopt($ch, CURLOPT_HTTP_VERSION, 3);
     curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);

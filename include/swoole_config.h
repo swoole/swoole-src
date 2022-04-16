@@ -76,6 +76,7 @@
 #else
 #define SW_IPC_MAX_SIZE 8192  // for IPC, dgram and message-queue max size
 #endif
+#define SW_IPC_BUFFER_MAX_SIZE (64 * 1024)
 #define SW_IPC_BUFFER_SIZE (SW_IPC_MAX_SIZE - sizeof(swoole::DataHead))
 // !!!End.-------------------------------------------------------------------
 
@@ -118,7 +119,6 @@
 #define SW_SESSION_LIST_SIZE (1 * 1024 * 1024)
 
 #define SW_MSGMAX 65536
-#define SW_UNIXSOCK_MAX_BUF_SIZE (2 * 1024 * 1024)
 
 #define SW_DGRAM_HEADER_SIZE 32
 
@@ -166,8 +166,8 @@
 #define SW_USE_EVENTFD                                                                                                 \
     1  // Whether to use eventfd for message notification, Linux 2.6.22 or later is required to support
 
-#define SW_TASK_TMP_PATH_SIZE  256
-#define SW_TASK_TMP_DIR  "/tmp"
+#define SW_TASK_TMP_PATH_SIZE 256
+#define SW_TASK_TMP_DIR "/tmp"
 #define SW_TASK_TMP_FILE "swoole.task.XXXXXX"
 
 #define SW_FILE_CHUNK_SIZE 65536
@@ -194,10 +194,10 @@
 #define SW_DNS_RESOLV_CONF "/etc/resolv.conf"
 
 #define SW_Z_BEST_SPEED 1
-#define SW_COMPRESSION_MIN_LENGTH_DEFAULT  20
+#define SW_COMPRESSION_MIN_LENGTH_DEFAULT 20
 
 #ifndef IOV_MAX
-#define IOV_MAX   16
+#define IOV_MAX 16
 #endif
 
 #define IOV_MAX_ERROR_MSG "The maximum of iov count is %d"
@@ -208,8 +208,6 @@
 #define SW_HTTP_SERVER_SOFTWARE "swoole-http-server"
 #define SW_HTTP_PARAM_MAX_NUM 128
 #define SW_HTTP_FORM_KEYLEN 512
-#define SW_HTTP_COOKIE_KEYLEN 128
-#define SW_HTTP_COOKIE_VALLEN 4096
 #define SW_HTTP_RESPONSE_INIT_SIZE 65536
 #define SW_HTTP_HEADER_MAX_SIZE 65536
 #define SW_HTTP_HEADER_KEY_SIZE 128
@@ -219,15 +217,26 @@
 #define SW_HTTP_RFC1123_DATE_UTC "%a, %d %b %Y %T UTC"
 #define SW_HTTP_RFC850_DATE "%A, %d-%b-%y %T GMT"
 #define SW_HTTP_ASCTIME_DATE "%a %b %e %T %Y"
-#define SW_HTTP_SEND_TWICE 1
 
 // #define SW_HTTP_100_CONTINUE
 #define SW_HTTP_100_CONTINUE_PACKET "HTTP/1.1 100 Continue\r\n\r\n"
 #define SW_HTTP_BAD_REQUEST_PACKET "HTTP/1.1 400 Bad Request\r\n\r\n"
 #define SW_HTTP_REQUEST_ENTITY_TOO_LARGE_PACKET "HTTP/1.1 413 Request Entity Too Large\r\n\r\n"
 #define SW_HTTP_SERVICE_UNAVAILABLE_PACKET "HTTP/1.1 503 Service Unavailable\r\n\r\n"
-#define SW_HTTP_PAGE_400 "<html><body><h2>HTTP 400 Bad Request</h2><hr><i>Powered by Swoole</i></body></html>"
-#define SW_HTTP_PAGE_404 "<html><body><h2>HTTP 404 Not Found</h2><hr><i>Powered by Swoole</i></body></html>"
+
+#define SW_HTTP_PAGE_CSS "<style> \
+body { padding: 0.5em; line-height: 2; } \
+h1 { font-size: 1.5em; padding-bottom: 0.3em; border-bottom: 1px solid #ccc; } \
+ul { list-style-type: disc; } \
+footer { border-top: 1px solid #ccc; } \
+a { color: #0969da; } \
+</style>"
+
+#define SW_HTTP_POWER_BY  "<footer><i>Powered by Swoole</i></footer>"
+
+#define SW_HTTP_PAGE_400 "<html><body>" SW_HTTP_PAGE_CSS "<h1>HTTP 400 Bad Request</h1>" SW_HTTP_POWER_BY "</body></html>"
+#define SW_HTTP_PAGE_404 "<html><body>" SW_HTTP_PAGE_CSS "<h1>HTTP 404 Not Found</h1>" SW_HTTP_POWER_BY "</body></html>"
+#define SW_HTTP_PAGE_500 "<html><body>" SW_HTTP_PAGE_CSS "<h1>HTTP 500 Internal Server Error</h1>" SW_HTTP_POWER_BY "</body></html>"
 
 /**
  * HTTP2 Protocol
@@ -273,6 +282,7 @@
 #define SW_DEFAULT_C_STACK_SIZE (2 * 1024 * 1024)
 #define SW_CORO_SUPPORT_BAILOUT 1
 #define SW_CORO_SWAP_BAILOUT 1
+#define SW_CORO_BAILOUT_EXIT_CODE 1
 //#define SW_CONTEXT_PROTECT_STACK_PAGE    1
 //#define SW_CONTEXT_DETECT_STACK_USAGE    1
 

@@ -9,6 +9,9 @@ require __DIR__ . '/../include/bootstrap.php';
 use Swoole\Process;
 use Swoole\Event;
 
+ini_set('serialize_precision', -1);
+ini_set('precision', -1);
+
 $proc = new Process(function(Process $process) {
     swoole_async_set(['wait_signal' => true]);
     Process::signal(SIGINT, function () {

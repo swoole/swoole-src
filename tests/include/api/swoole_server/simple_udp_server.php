@@ -10,7 +10,7 @@ class UdpServer
 
     public function __construct()
     {
-	    $this->swooleServer = new \swoole_server(UDP_SERVER_HOST, UDP_SERVER_PORT, SWOOLE_PROCESS, SWOOLE_SOCK_UDP);
+	    $this->swooleServer = new Swoole\Server(UDP_SERVER_HOST, UDP_SERVER_PORT, SWOOLE_PROCESS, SWOOLE_SOCK_UDP);
         $this->swooleServer->set([
             "max_connection" => 1000,
             'dispatch_mode' => 3,
@@ -47,36 +47,36 @@ class UdpServer
         debug_log("closing .....");
     }
 
-    public function onStart(swoole_server $swooleServer)
+    public function onStart(Swoole\Server $swooleServer)
     {
         debug_log("swoole_server starting .....");
     }
 
-    public function onShutdown(swoole_server $swooleServer)
+    public function onShutdown(Swoole\Server $swooleServer)
     {
         debug_log("swoole_server shutdown .....");
     }
 
-    public function onWorkerStart(swoole_server $swooleServer, $workerId)
+    public function onWorkerStart(Swoole\Server $swooleServer, $workerId)
     {
         debug_log("worker #$workerId starting .....");
-        swoole_timer_after(3000, function() {
+        Swoole\Timer::after(3000, function() {
             $this->swooleServer->shutdown();
         });
     }
 
-    public function onWorkerStop(swoole_server $swooleServer, $workerId)
+    public function onWorkerStop(Swoole\Server $swooleServer, $workerId)
     {
         debug_log("worker #$workerId stopping ....");
     }
 
-    public function onWorkerError(swoole_server $swooleServer, $workerId, $workerPid, $exitCode, $sigNo)
+    public function onWorkerError(Swoole\Server $swooleServer, $workerId, $workerPid, $exitCode, $sigNo)
     {
         debug_log("worker error happening [workerId=$workerId, workerPid=$workerPid, exitCode=$exitCode, signalNo=$sigNo]...");
     }
 
     //UDP: 收到数据帧事件
-    public function onPacket(swoole_server $swooleServer, $data, $clientInfo)
+    public function onPacket(Swoole\Server $swooleServer, $data, $clientInfo)
     {
         if (trim($data) == 'shutdown')
         {

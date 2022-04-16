@@ -8,7 +8,7 @@ require __DIR__ . '/../../include/bootstrap.php';
 
 Swoole\Runtime::enableCoroutine();
 
-$n = new swoole_atomic(1);
+$n = new Swoole\Atomic(1);
 
 go(function () use ($n) {
     $server = stream_socket_server("tcp://0.0.0.0:8000", $errno, $errstr, STREAM_SERVER_BIND | STREAM_SERVER_LISTEN);

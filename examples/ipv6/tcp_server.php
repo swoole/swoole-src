@@ -1,12 +1,12 @@
 <?php
-$serv = new swoole_server("::1", 9501, SWOOLE_PROCESS, SWOOLE_SOCK_TCP6);
+$serv = new Swoole\Server("::1", 9501, SWOOLE_PROCESS, SWOOLE_SOCK_TCP6);
 $serv->set(array(
     'worker_num' => 1,
 ));
 $serv->on('connect', function ($serv, $fd, $reactor_id){
     echo "[#".posix_getpid()."]\tClient@[$fd:$reactor_id]: Connect.\n";
 });
-$serv->on('receive', function (swoole_server $serv, $fd, $reactor_id, $data) {
+$serv->on('receive', function (Swoole\Server $serv, $fd, $reactor_id, $data) {
     echo "[#".posix_getpid()."]\tClient[$fd]: $data\n";
     var_dump($serv->connection_info($fd));
 	$serv->send($fd, json_encode(array("hello" => '1213', "bat" => "ab")));

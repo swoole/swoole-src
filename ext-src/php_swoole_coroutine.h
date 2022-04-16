@@ -45,15 +45,15 @@ struct Function;
 namespace swoole {
 
 struct PHPContext {
+    typedef std::function<void(PHPContext *)> SwapCallback;
+
     JMP_BUF *bailout;
     zval *vm_stack_top;
     zval *vm_stack_end;
     zend_vm_stack vm_stack;
     size_t vm_stack_page_size;
     zend_execute_data *execute_data;
-#if PHP_VERSION_ID >= 80000
     uint32_t jit_trace_num;
-#endif
     zend_error_handling_t error_handling;
     zend_class_entry *exception_class;
     zend_object *exception;
@@ -69,6 +69,9 @@ struct PHPContext {
     int tmp_error_reporting;
     Coroutine *co;
     std::stack<zend::Function *> *defer_tasks;
+    SwapCallback *on_yield;
+    SwapCallback *on_resume;
+    SwapCallback *on_close;
     long pcid;
     zend_object *context;
     int64_t last_msec;
@@ -84,6 +87,7 @@ class PHPCoroutine {
 
     struct Config {
         uint64_t max_num;
+        uint32_t max_concurrency;
         uint32_t hook_flags;
         bool enable_preemptive_scheduler;
         bool enable_deadlock_check;
@@ -125,7 +129,7 @@ class PHPCoroutine {
     static bool disable_hook();
     static void disable_unsafe_function();
     static void enable_unsafe_function();
-
+    static void error_cb(int type, error_filename_t *error_filename, const uint32_t error_lineno, ZEND_ERROR_CB_LAST_ARG_D);
     static void interrupt_thread_stop();
 
     static inline long get_cid() {
@@ -199,14 +203,23 @@ class PHPCoroutine {
         config.enable_preemptive_scheduler = value;
     }
 
+    static inline void set_max_concurrency(uint32_t value) {
+        config.max_concurrency = value;
+    }
+
     static inline bool is_activated() {
         return activated;
+    }
+
+    static inline long get_execute_time(long cid = 0) {
+        return sw_likely(activated) ? Coroutine::get_execute_time(cid) : -1;
     }
 
   protected:
     static bool activated;
     static PHPContext main_task;
     static Config config;
+    static uint32_t concurrency;
 
     static bool interrupt_thread_running;
     static std::thread interrupt_thread;
@@ -214,21 +227,22 @@ class PHPCoroutine {
     static void activate();
     static void deactivate(void *ptr);
 
-    static inline void vm_stack_init(void);
-    static inline void vm_stack_destroy(void);
-    static inline void save_vm_stack(PHPContext *task);
-    static inline void restore_vm_stack(PHPContext *task);
-    static inline void save_og(PHPContext *task);
-    static inline void restore_og(PHPContext *task);
-    static inline void save_task(PHPContext *task);
-    static inline void restore_task(PHPContext *task);
+    static void vm_stack_init(void);
+    static void vm_stack_destroy(void);
+    static void save_vm_stack(PHPContext *task);
+    static void restore_vm_stack(PHPContext *task);
+    static void save_og(PHPContext *task);
+    static void restore_og(PHPContext *task);
+    static void save_task(PHPContext *task);
+    static void restore_task(PHPContext *task);
+    static void catch_exception(zend_object *exception);
     static void on_yield(void *arg);
     static void on_resume(void *arg);
     static void on_close(void *arg);
     static void main_func(void *arg);
 
     static void interrupt_thread_start();
-    static inline void record_last_msec(PHPContext *task) {
+    static void record_last_msec(PHPContext *task) {
         if (interrupt_thread_running) {
             task->last_msec = Timer::get_absolute_msec();
         }

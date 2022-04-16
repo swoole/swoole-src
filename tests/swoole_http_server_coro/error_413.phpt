@@ -33,6 +33,6 @@ go(function () {
     file_get_contents('http://127.0.0.1:' . TEST_PORT . '/shutdown');
 });
 
-swoole_event_wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--

@@ -27,7 +27,7 @@ $pm->parentFunc = function ($pid) use ($pm)
             $clients[$client->sock] = $client;
         }
     }
-    
+
     $s = microtime(true);
     while (!empty($clients)) {
         $write = $error = array();
@@ -59,10 +59,10 @@ $pm->childFunc = function () use ($pm)
         "worker_num" => 1,
         'log_file' => '/dev/null',
     ]);
-    $serv->on("WorkerStart", function (\swoole_server $serv)  use ($pm) {
+    $serv->on("WorkerStart", function (Swoole\Server $serv)  use ($pm) {
         $pm->wakeup();
     });
-    $serv->on("Receive", function (\swoole_server $serv, $fd, $rid, $data) {
+    $serv->on("Receive", function (Swoole\Server $serv, $fd, $rid, $data) {
 
     });
     $serv->start();

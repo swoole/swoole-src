@@ -178,17 +178,19 @@ class Table {
 
     void *memory;
 
-#ifdef SW_TABLE_DEBUG
-    int conflict_count;
-    int insert_count;
-    int conflict_max_level;
-#endif
-
   public:
     std::vector<TableColumn *> *column_list;
 
+    size_t conflict_count;
+    sw_atomic_long_t insert_count;
+    sw_atomic_long_t delete_count;
+    sw_atomic_long_t update_count;
+    uint32_t conflict_max_level;
+
     static Table *make(uint32_t rows_size, float conflict_proportion);
     size_t get_memory_size();
+    uint32_t get_available_slice_num();
+    uint32_t get_total_slice_num();
     bool create();
     bool add_column(const std::string &name, enum TableColumn::Type type, size_t size);
     TableRow *set(const char *key, uint16_t keylen, TableRow **rowlock, int *out_flags);
@@ -214,14 +216,6 @@ class Table {
 
     size_t get_size() {
         return size;
-    }
-
-    int lock() {
-        return mutex->lock();
-    }
-
-    int unlock() {
-        return mutex->unlock();
     }
 
     TableRow *get_by_index(uint32_t index) {
@@ -263,11 +257,33 @@ class Table {
         iterator->unlock();
     }
 
+    void clear_row(TableRow *row) {
+        for (auto i = column_list->begin(); i != column_list->end(); i++) {
+            (*i)->clear(row);
+        }
+    }
+
+  private:
+
     TableRow *hash(const char *key, int keylen) {
         uint64_t hashv = hash_func(key, keylen);
         uint64_t index = hashv & mask;
         assert(index < size);
         return rows[index];
+    }
+
+    TableRow *alloc_row() {
+        lock();
+        TableRow *new_row = (TableRow *) pool->alloc(0);
+        unlock();
+        return new_row;
+    }
+
+    void free_row(TableRow *tmp) {
+        lock();
+        tmp->clear();
+        pool->free(tmp);
+        unlock();
     }
 
     void check_key_length(uint16_t *keylen) {
@@ -276,22 +292,21 @@ class Table {
         }
     }
 
-    void clear_row(TableRow *row) {
-        for (auto i = column_list->begin(); i != column_list->end(); i++) {
-            (*i)->clear(row);
-        }
-    }
-
     void init_row(TableRow *new_row, const char *key, int keylen) {
-        sw_memset_zero(new_row, sizeof(TableRow));
+        sw_memset_zero((char *) new_row + offsetof(TableRow, active), sizeof(TableRow) - offsetof(TableRow, active));
         memcpy(new_row->key, key, keylen);
         new_row->key[keylen] = '\0';
         new_row->key_len = keylen;
         new_row->active = 1;
         sw_atomic_fetch_add(&(row_num), 1);
-#ifdef SW_TABLE_DEBUG
-        insert_count++;
-#endif
+    }
+
+    int lock() {
+        return mutex->lock();
+    }
+
+    int unlock() {
+        return mutex->unlock();
     }
 };
 }  // namespace swoole

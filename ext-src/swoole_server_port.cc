@@ -10,11 +10,15 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | Author: Tianfeng Han  <rango@swoole.com>                             |
   +----------------------------------------------------------------------+
  */
 
 #include "php_swoole_server.h"
+
+BEGIN_EXTERN_C()
+#include "stubs/php_swoole_server_port_arginfo.h"
+END_EXTERN_C()
 
 using namespace swoole;
 
@@ -34,6 +38,7 @@ static std::unordered_map<std::string, ServerPortEvent> server_port_event_map({
     { "bufferempty", ServerPortEvent(SW_SERVER_CB_onBufferEmpty, "BufferEmpty") },
     { "request",     ServerPortEvent(SW_SERVER_CB_onRequest,     "Request") },
     { "handshake",   ServerPortEvent(SW_SERVER_CB_onHandShake,   "Handshake") },
+    { "beforehandshakeresponse",        ServerPortEvent(SW_SERVER_CB_onBeforeHandShakeResponse,        "BeforeHandShakeResponse") },
     { "open",        ServerPortEvent(SW_SERVER_CB_onOpen,        "Open") },
     { "message",     ServerPortEvent(SW_SERVER_CB_onMessage,     "Message") },
     { "disconnect",  ServerPortEvent(SW_SERVER_CB_onDisconnect,  "Disconnect") },
@@ -132,40 +137,22 @@ static PHP_METHOD(swoole_server_port, getSocket);
 SW_EXTERN_C_END
 
 // clang-format off
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_port_set, 0, 0, 1)
-    ZEND_ARG_ARRAY_INFO(0, settings, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_port_on, 0, 0, 2)
-    ZEND_ARG_INFO(0, event_name)
-    ZEND_ARG_CALLABLE_INFO(0, callback, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_port_getCallback, 0, 0, 1)
-    ZEND_ARG_INFO(0, event_name)
-ZEND_END_ARG_INFO()
-
 const zend_function_entry swoole_server_port_methods[] =
 {
-    PHP_ME(swoole_server_port, __construct,     arginfo_swoole_void,                    ZEND_ACC_PRIVATE)
-    PHP_ME(swoole_server_port, __destruct,      arginfo_swoole_void,                    ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_server_port, set,             arginfo_swoole_server_port_set,         ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_server_port, on,              arginfo_swoole_server_port_on,          ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_server_port, getCallback,     arginfo_swoole_server_port_getCallback, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server_port, __construct, arginfo_class_Swoole_Server_Port___construct, ZEND_ACC_PRIVATE)
+    PHP_ME(swoole_server_port, __destruct,  arginfo_class_Swoole_Server_Port___destruct,  ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server_port, set,         arginfo_class_Swoole_Server_Port_set,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server_port, on,          arginfo_class_Swoole_Server_Port_on,          ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server_port, getCallback, arginfo_class_Swoole_Server_Port_getCallback, ZEND_ACC_PUBLIC)
 #ifdef SWOOLE_SOCKETS_SUPPORT
-    PHP_ME(swoole_server_port, getSocket,       arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server_port, getSocket,   arginfo_class_Swoole_Server_Port_getSocket,   ZEND_ACC_PUBLIC)
 #endif
     PHP_FE_END
 };
 // clang-format on
 
 void php_swoole_server_port_minit(int module_number) {
-    SW_INIT_CLASS_ENTRY(
-        swoole_server_port, "Swoole\\Server\\Port", "swoole_server_port", nullptr, swoole_server_port_methods);
+    SW_INIT_CLASS_ENTRY(swoole_server_port, "Swoole\\Server\\Port", nullptr, swoole_server_port_methods);
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_server_port);
     SW_SET_CLASS_CLONEABLE(swoole_server_port, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_server_port, sw_zend_class_unset_property_deny);
@@ -199,10 +186,7 @@ void php_swoole_server_port_minit(int module_number) {
 /**
  * [Master-Process]
  */
-static ssize_t php_swoole_server_length_func(Protocol *protocol,
-                                             network::Socket *conn,
-                                             const char *data,
-                                             uint32_t length) {
+static ssize_t php_swoole_server_length_func(const Protocol *protocol, network::Socket *conn, PacketLength *pl) {
     Server *serv = (Server *) protocol->private_data_2;
     serv->lock();
 
@@ -212,7 +196,7 @@ static ssize_t php_swoole_server_length_func(Protocol *protocol,
     ssize_t ret = -1;
 
     // TODO: reduce memory copy
-    ZVAL_STRINGL(&zdata, data, length);
+    ZVAL_STRINGL(&zdata, pl->buf, pl->buf_size);
     if (UNEXPECTED(sw_zend_call_function_ex(nullptr, fci_cache, 1, &zdata, &retval) != SUCCESS)) {
         php_swoole_fatal_error(E_WARNING, "length function handler error");
     } else {
@@ -232,8 +216,8 @@ static ssize_t php_swoole_server_length_func(Protocol *protocol,
 }
 
 static PHP_METHOD(swoole_server_port, __construct) {
-    php_swoole_fatal_error(E_ERROR, "please use the Swoole\\Server->listen method");
-    return;
+    zend_throw_error(NULL, "please use the Swoole\\Server->listen method");
+    RETURN_FALSE;
 }
 
 static PHP_METHOD(swoole_server_port, __destruct) {}

@@ -10,12 +10,16 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | Author: Tianfeng Han  <rango@swoole.com>                             |
   +----------------------------------------------------------------------+
 */
 
 #include "php_swoole_private.h"
 #include "swoole_memory.h"
+
+BEGIN_EXTERN_C()
+#include "stubs/php_swoole_atomic_arginfo.h"
+END_EXTERN_C()
 
 #ifdef HAVE_FUTEX
 #include <linux/futex.h>
@@ -184,74 +188,41 @@ SW_EXTERN_C_END
 
 // clang-format off
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_atomic_construct, 0, 0, 0)
-    ZEND_ARG_INFO(0, value)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_atomic_add, 0, 0, 0)
-    ZEND_ARG_INFO(0, add_value)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_atomic_sub, 0, 0, 0)
-    ZEND_ARG_INFO(0, sub_value)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_atomic_get, 0, 0, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_atomic_set, 0, 0, 1)
-    ZEND_ARG_INFO(0, value)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_atomic_cmpset, 0, 0, 2)
-    ZEND_ARG_INFO(0, cmp_value)
-    ZEND_ARG_INFO(0, new_value)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_atomic_wait, 0, 0, 0)
-    ZEND_ARG_INFO(0, timeout)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_atomic_wakeup, 0, 0, 0)
-    ZEND_ARG_INFO(0, count)
-ZEND_END_ARG_INFO()
-
 static const zend_function_entry swoole_atomic_methods[] =
 {
-    PHP_ME(swoole_atomic, __construct, arginfo_swoole_atomic_construct, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_atomic, add, arginfo_swoole_atomic_add, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_atomic, sub, arginfo_swoole_atomic_sub, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_atomic, get, arginfo_swoole_atomic_get, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_atomic, set, arginfo_swoole_atomic_set, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_atomic, wait, arginfo_swoole_atomic_wait, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_atomic, wakeup, arginfo_swoole_atomic_wakeup, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_atomic, cmpset, arginfo_swoole_atomic_cmpset, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_atomic, __construct, arginfo_class_Swoole_Atomic___construct, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_atomic, add,         arginfo_class_Swoole_Atomic_add,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_atomic, sub,         arginfo_class_Swoole_Atomic_sub,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_atomic, get,         arginfo_class_Swoole_Atomic_get,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_atomic, set,         arginfo_class_Swoole_Atomic_set,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_atomic, wait,        arginfo_class_Swoole_Atomic_wait,        ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_atomic, wakeup,      arginfo_class_Swoole_Atomic_wakeup,      ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_atomic, cmpset,      arginfo_class_Swoole_Atomic_cmpset,      ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
 static const zend_function_entry swoole_atomic_long_methods[] =
 {
-    PHP_ME(swoole_atomic_long, __construct, arginfo_swoole_atomic_construct, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_atomic_long, add, arginfo_swoole_atomic_add, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_atomic_long, sub, arginfo_swoole_atomic_sub, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_atomic_long, get, arginfo_swoole_atomic_get, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_atomic_long, set, arginfo_swoole_atomic_set, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_atomic_long, cmpset, arginfo_swoole_atomic_cmpset, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_atomic_long, __construct, arginfo_class_Swoole_Atomic_Long___construct, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_atomic_long, add,         arginfo_class_Swoole_Atomic_Long_add,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_atomic_long, sub,         arginfo_class_Swoole_Atomic_Long_sub,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_atomic_long, get,         arginfo_class_Swoole_Atomic_Long_get,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_atomic_long, set,         arginfo_class_Swoole_Atomic_Long_set,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_atomic_long, cmpset,      arginfo_class_Swoole_Atomic_Long_cmpset,      ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
 // clang-format on
 
 void php_swoole_atomic_minit(int module_number) {
-    SW_INIT_CLASS_ENTRY(swoole_atomic, "Swoole\\Atomic", "swoole_atomic", nullptr, swoole_atomic_methods);
+    SW_INIT_CLASS_ENTRY(swoole_atomic, "Swoole\\Atomic", nullptr, swoole_atomic_methods);
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_atomic);
     SW_SET_CLASS_CLONEABLE(swoole_atomic, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_atomic, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CUSTOM_OBJECT(
         swoole_atomic, php_swoole_atomic_create_object, php_swoole_atomic_free_object, AtomicObject, std);
 
-    SW_INIT_CLASS_ENTRY(
-        swoole_atomic_long, "Swoole\\Atomic\\Long", "swoole_atomic_long", nullptr, swoole_atomic_long_methods);
+    SW_INIT_CLASS_ENTRY(swoole_atomic_long, "Swoole\\Atomic\\Long", nullptr, swoole_atomic_long_methods);
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_atomic_long);
     SW_SET_CLASS_CLONEABLE(swoole_atomic_long, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_atomic_long, sw_zend_class_unset_property_deny);

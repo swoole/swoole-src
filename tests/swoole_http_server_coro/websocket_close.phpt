@@ -25,7 +25,7 @@ $pm->parentFunc = function (int $pid) use ($pm, &$count) {
         Assert::lessThan(microtime(true) - $s, 0.002);
         Assert::same($ret, false);
     });
-    swoole_event_wait();
+    Swoole\Event::wait();
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
@@ -53,7 +53,7 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
         $server->start();
     });
-    swoole_event_wait();
+    Swoole\Event::wait();
 };
 $pm->childFirst();
 $pm->run();

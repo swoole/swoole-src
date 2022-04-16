@@ -10,7 +10,7 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | Author: Tianfeng Han  <rango@swoole.com>                             |
   +----------------------------------------------------------------------+
 */
 
@@ -19,6 +19,10 @@
 
 #include "swoole_server.h"
 #include "swoole_signal.h"
+
+BEGIN_EXTERN_C()
+#include "stubs/php_swoole_process_pool_arginfo.h"
+END_EXTERN_C()
 
 using namespace swoole;
 
@@ -135,60 +139,25 @@ static PHP_METHOD(swoole_process_pool, shutdown);
 SW_EXTERN_C_END
 
 // clang-format off
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_pool_void, 0, 0, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_pool_construct, 0, 0, 1)
-    ZEND_ARG_INFO(0, worker_num)
-    ZEND_ARG_INFO(0, ipc_type)
-    ZEND_ARG_INFO(0, msgqueue_key)
-    ZEND_ARG_INFO(0, enable_coroutine)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_pool_set, 0, 0, 1)
-    ZEND_ARG_ARRAY_INFO(0, settings, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_pool_on, 0, 0, 2)
-    ZEND_ARG_INFO(0, event_name)
-    ZEND_ARG_CALLABLE_INFO(0, callback, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_pool_getProcess, 0, 0, 0)
-    ZEND_ARG_INFO(0, worker_id)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_pool_listen, 0, 0, 1)
-    ZEND_ARG_INFO(0, host)
-    ZEND_ARG_INFO(0, port)
-    ZEND_ARG_INFO(0, backlog)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_pool_write, 0, 0, 1)
-    ZEND_ARG_INFO(0, data)
-ZEND_END_ARG_INFO()
-
 static const zend_function_entry swoole_process_pool_methods[] =
 {
-    PHP_ME(swoole_process_pool, __construct, arginfo_swoole_process_pool_construct, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_process_pool, __destruct, arginfo_swoole_process_pool_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_process_pool, set, arginfo_swoole_process_pool_set, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_process_pool, on, arginfo_swoole_process_pool_on, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_process_pool, getProcess, arginfo_swoole_process_pool_getProcess, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_process_pool, listen, arginfo_swoole_process_pool_listen, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_process_pool, write, arginfo_swoole_process_pool_write, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_process_pool, detach, arginfo_swoole_process_pool_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_process_pool, start, arginfo_swoole_process_pool_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_process_pool, stop, arginfo_swoole_process_pool_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_process_pool, shutdown, arginfo_swoole_process_pool_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_process_pool, __construct, arginfo_class_Swoole_Process_Pool___construct, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_process_pool, __destruct,  arginfo_class_Swoole_Process_Pool___destruct,  ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_process_pool, set,         arginfo_class_Swoole_Process_Pool_set,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_process_pool, on,          arginfo_class_Swoole_Process_Pool_on,          ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_process_pool, getProcess,  arginfo_class_Swoole_Process_Pool_getProcess,  ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_process_pool, listen,      arginfo_class_Swoole_Process_Pool_listen,      ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_process_pool, write,       arginfo_class_Swoole_Process_Pool_write,       ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_process_pool, detach,      arginfo_class_Swoole_Process_Pool_detach,      ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_process_pool, start,       arginfo_class_Swoole_Process_Pool_start,       ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_process_pool, stop,        arginfo_class_Swoole_Process_Pool_stop,        ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_process_pool, shutdown,    arginfo_class_Swoole_Process_Pool_shutdown,    ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 // clang-format on
 
 void php_swoole_process_pool_minit(int module_number) {
-    SW_INIT_CLASS_ENTRY(
-        swoole_process_pool, "Swoole\\Process\\Pool", "swoole_process_pool", nullptr, swoole_process_pool_methods);
+    SW_INIT_CLASS_ENTRY(swoole_process_pool, "Swoole\\Process\\Pool", nullptr, swoole_process_pool_methods);
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_process_pool);
     SW_SET_CLASS_CLONEABLE(swoole_process_pool, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_process_pool, sw_zend_class_unset_property_deny);
@@ -274,7 +243,7 @@ static void pool_signal_handler(int sig) {
         break;
     case SIGUSR1:
     case SIGUSR2:
-        current_pool->reloading = true;
+        current_pool->reload();
         current_pool->reload_init = false;
         break;
     case SIGIO:
@@ -294,12 +263,12 @@ static PHP_METHOD(swoole_process_pool, __construct) {
 
     // only cli env
     if (!SWOOLE_G(cli)) {
-        php_swoole_fatal_error(E_ERROR, "%s can only be used in PHP CLI mode", SW_Z_OBJCE_NAME_VAL_P(zobject));
+        zend_throw_error(NULL, "%s can only be used in PHP CLI mode", SW_Z_OBJCE_NAME_VAL_P(zobject));
         RETURN_FALSE;
     }
 
     if (sw_server()) {
-        php_swoole_fatal_error(E_ERROR, "%s cannot use in server process", SW_Z_OBJCE_NAME_VAL_P(zobject));
+        zend_throw_error(NULL, "%s cannot use in server process", SW_Z_OBJCE_NAME_VAL_P(zobject));
         RETURN_FALSE;
     }
 
@@ -315,14 +284,15 @@ static PHP_METHOD(swoole_process_pool, __construct) {
 
     if (enable_coroutine && ipc_type > 0 && ipc_type != SW_IPC_UNIXSOCK) {
         ipc_type = SW_IPC_UNIXSOCK;
-        php_swoole_fatal_error(E_NOTICE,
-                               "%s object's ipc_type will be reset to SWOOLE_IPC_UNIXSOCK after enable coroutine",
-                               SW_Z_OBJCE_NAME_VAL_P(zobject));
+        zend_throw_error(NULL,
+                         "%s object's ipc_type will be reset to SWOOLE_IPC_UNIXSOCK after enable coroutine",
+                         SW_Z_OBJCE_NAME_VAL_P(zobject));
+        RETURN_FALSE;
     }
 
     ProcessPool *pool = (ProcessPool *) emalloc(sizeof(*pool));
     *pool = {};
-    if (pool->create(worker_num, (key_t) msgq_key, (swIPC_type) ipc_type) < 0) {
+    if (pool->create(worker_num, (key_t) msgq_key, (swIPCMode) ipc_type) < 0) {
         zend_throw_exception_ex(swoole_exception_ce, errno, "failed to create process pool");
         efree(pool);
         RETURN_FALSE;
@@ -509,8 +479,6 @@ static PHP_METHOD(swoole_process_pool, start) {
     swoole_event_free();
 
     ProcessPoolProperty *pp = php_swoole_process_pool_get_and_check_pp(ZEND_THIS);
-
-    SwooleG.use_signalfd = 0;
 
     std::unordered_map<int, swSignalHandler> ori_handlers;
 

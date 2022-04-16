@@ -3,7 +3,7 @@
 use Swoole\Http\Request;
 use Swoole\Http\Response;
 
-$http = new swoole_http_server('127.0.0.1', 9501);
+$http = new Swoole\Http\Server('127.0.0.1', 9501);
 
 $http->set([
     'enable_coroutine' => false, // close build-in coroutine

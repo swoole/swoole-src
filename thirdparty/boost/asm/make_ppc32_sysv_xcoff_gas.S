@@ -1,15 +1,15 @@
-	.globl	make_fcontext[DS]
-	.globl .make_fcontext[PR]
-	.align 2 
-	.csect  make_fcontext[DS]
-make_fcontext:
-	.long .make_fcontext[PR]
-	.csect .make_fcontext[PR], 3
-#.make_fcontext:
+	.globl	swoole_make_fcontext[DS]
+	.globl .swoole_make_fcontext[PR]
+	.align 2
+	.csect  swoole_make_fcontext[DS]
+swoole_make_fcontext:
+	.long .swoole_make_fcontext[PR]
+	.csect .swoole_make_fcontext[PR], 3
+#.swoole_make_fcontext:
     # save return address into R6
     mflr  6
 
-    # first arg of make_fcontext() == top address of context-function
+    # first arg of swoole_make_fcontext() == top address of context-function
     # shift address in R3 to lower 16 byte boundary
     clrrwi  3, 3, 4
 
@@ -17,7 +17,7 @@ make_fcontext:
     # including 64 byte of linkage + parameter area (R1 % 16 == 0)
     subi  3, 3, 304
 
-    # third arg of make_fcontext() == address of context-function
+    # third arg of swoole_make_fcontext() == address of context-function
     stw  5, 236(3)
 
     # load LR
@@ -28,7 +28,7 @@ make_fcontext:
     # load LR into R4
     mflr  4
     # compute abs address of label .L_finish
-    addi  4, 4, .L_finish - .Label 
+    addi  4, 4, .L_finish - .Label
     # restore LR
     mtlr  0
     # save address of finish as return-address for context-function

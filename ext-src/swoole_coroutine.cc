@@ -29,6 +29,10 @@
 #include <unordered_map>
 #include <chrono>
 
+BEGIN_EXTERN_C()
+#include "stubs/php_swoole_coroutine_arginfo.h"
+END_EXTERN_C()
+
 using std::unordered_map;
 using swoole::Coroutine;
 using swoole::PHPContext;
@@ -43,10 +47,12 @@ using swoole::coroutine::System;
 enum sw_exit_flags { SW_EXIT_IN_COROUTINE = 1 << 1, SW_EXIT_IN_SERVER = 1 << 2 };
 
 bool PHPCoroutine::activated = false;
+uint32_t PHPCoroutine::concurrency = 0;
 zend_array *PHPCoroutine::options = nullptr;
 
 PHPCoroutine::Config PHPCoroutine::config{
     SW_DEFAULT_MAX_CORO_NUM,
+    UINT_MAX,
     0,
     false,
     true,
@@ -64,20 +70,6 @@ static user_opcode_handler_t ori_begin_silence_handler = nullptr;
 static user_opcode_handler_t ori_end_silence_handler = nullptr;
 static unordered_map<long, Coroutine *> user_yield_coros;
 
-#if PHP_VERSION_ID < 80000
-#define ZEND_ERROR_CB_LAST_ARG_D const char *format, va_list args
-#define ZEND_ERROR_CB_LAST_ARG_RELAY format, args
-#else
-#define ZEND_ERROR_CB_LAST_ARG_D zend_string *message
-#define ZEND_ERROR_CB_LAST_ARG_RELAY message
-#endif
-
-#if PHP_VERSION_ID < 80100
-typedef const char error_filename_t;
-#else
-typedef zend_string error_filename_t;
-#endif
-
 static void (*orig_interrupt_function)(zend_execute_data *execute_data) = nullptr;
 static void (*orig_error_function)(int type,
                                    error_filename_t *error_filename,
@@ -94,6 +86,7 @@ SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_coroutine, exists);
 static PHP_METHOD(swoole_coroutine, yield);
 static PHP_METHOD(swoole_coroutine, resume);
+static PHP_METHOD(swoole_coroutine, join);
 static PHP_METHOD(swoole_coroutine, cancel);
 static PHP_METHOD(swoole_coroutine, isCanceled);
 static PHP_METHOD(swoole_coroutine, stats);
@@ -103,110 +96,67 @@ static PHP_METHOD(swoole_coroutine, getContext);
 static PHP_METHOD(swoole_coroutine, getBackTrace);
 static PHP_METHOD(swoole_coroutine, printBackTrace);
 static PHP_METHOD(swoole_coroutine, getElapsed);
+static PHP_METHOD(swoole_coroutine, getStackUsage);
 static PHP_METHOD(swoole_coroutine, list);
 static PHP_METHOD(swoole_coroutine, enableScheduler);
 static PHP_METHOD(swoole_coroutine, disableScheduler);
+#ifdef SW_CORO_TIME
+static PHP_METHOD(swoole_coroutine, getExecuteTime);
+#endif
 SW_EXTERN_C_END
 
 // clang-format off
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_void, 0, 0, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_set, 0, 0, 1)
-    ZEND_ARG_INFO(0, options)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_create, 0, 0, 1)
-    ZEND_ARG_CALLABLE_INFO(0, func, 0)
-    ZEND_ARG_VARIADIC_INFO(0, params)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_cancel, 0, 0, 1)
-    ZEND_ARG_INFO(0, cid)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_resume, 0, 0, 1)
-    ZEND_ARG_INFO(0, cid)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_exists, 0, 0, 1)
-    ZEND_ARG_INFO(0, cid)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_getContext, 0, 0, 0)
-    ZEND_ARG_INFO(0, cid)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_defer, 0, 0, 1)
-    ZEND_ARG_INFO(0, callback)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_getBackTrace, 0, 0, 0)
-    ZEND_ARG_INFO(0, cid)
-    ZEND_ARG_INFO(0, options)
-    ZEND_ARG_INFO(0, limit)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_printBackTrace, 0, 0, 0)
-    ZEND_ARG_INFO(0, cid)
-    ZEND_ARG_INFO(0, options)
-    ZEND_ARG_INFO(0, limit)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_getPcid, 0, 0, 0)
-    ZEND_ARG_INFO(0, cid)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_getElapsed, 0, 0, 0)
-    ZEND_ARG_INFO(0, cid)
-ZEND_END_ARG_INFO()
-
 static const zend_function_entry swoole_coroutine_methods[] =
 {
     /**
      * Coroutine Core API
      */
-    ZEND_FENTRY(create, ZEND_FN(swoole_coroutine_create), arginfo_swoole_coroutine_create, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    ZEND_FENTRY(defer, ZEND_FN(swoole_coroutine_defer), arginfo_swoole_coroutine_defer, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_scheduler, set, arginfo_swoole_coroutine_set, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_scheduler, getOptions, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine, exists, arginfo_swoole_coroutine_exists, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine, yield, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine, cancel, arginfo_swoole_coroutine_cancel, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine, isCanceled, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_MALIAS(swoole_coroutine, suspend, yield, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine, resume, arginfo_swoole_coroutine_resume, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine, stats, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine, getCid, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_MALIAS(swoole_coroutine, getuid, getCid, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine, getPcid, arginfo_swoole_coroutine_getPcid, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine, getContext, arginfo_swoole_coroutine_getContext, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine, getBackTrace, arginfo_swoole_coroutine_getBackTrace, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine, printBackTrace, arginfo_swoole_coroutine_printBackTrace, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine, getElapsed, arginfo_swoole_coroutine_getElapsed, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine, list, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_MALIAS(swoole_coroutine, listCoroutines, list, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine, enableScheduler, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine, disableScheduler, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(create, ZEND_FN(swoole_coroutine_create), arginfo_class_Swoole_Coroutine_create,           ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(defer, ZEND_FN(swoole_coroutine_defer),   arginfo_class_Swoole_Coroutine_defer,            ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_scheduler, set,               arginfo_class_Swoole_Coroutine_set,              ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_scheduler, getOptions,        arginfo_class_Swoole_Coroutine_getOptions,       ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine, exists,                      arginfo_class_Swoole_Coroutine_exists,           ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine, yield,                       arginfo_class_Swoole_Coroutine_yield,            ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine, cancel,                      arginfo_class_Swoole_Coroutine_cancel,           ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine, join,                        arginfo_class_Swoole_Coroutine_join,             ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine, isCanceled,                  arginfo_class_Swoole_Coroutine_isCanceled,       ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_MALIAS(swoole_coroutine, suspend, yield,          arginfo_class_Swoole_Coroutine_suspend,          ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine, resume,                      arginfo_class_Swoole_Coroutine_resume,           ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine, stats,                       arginfo_class_Swoole_Coroutine_stats,            ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine, getCid,                      arginfo_class_Swoole_Coroutine_getCid,           ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_MALIAS(swoole_coroutine, getuid, getCid,          arginfo_class_Swoole_Coroutine_getuid,           ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine, getPcid,                     arginfo_class_Swoole_Coroutine_getPcid,          ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine, getContext,                  arginfo_class_Swoole_Coroutine_getContext,       ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine, getBackTrace,                arginfo_class_Swoole_Coroutine_getBackTrace,     ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine, printBackTrace,              arginfo_class_Swoole_Coroutine_printBackTrace,   ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine, getElapsed,                  arginfo_class_Swoole_Coroutine_getElapsed,       ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine, getStackUsage,               arginfo_class_Swoole_Coroutine_getStackUsage,    ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine, list,                        arginfo_class_Swoole_Coroutine_list,             ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_MALIAS(swoole_coroutine, listCoroutines, list,    arginfo_class_Swoole_Coroutine_listCoroutines,   ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine, enableScheduler,             arginfo_class_Swoole_Coroutine_enableScheduler,  ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine, disableScheduler,            arginfo_class_Swoole_Coroutine_disableScheduler, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+#ifdef SW_CORO_TIME
+    PHP_ME(swoole_coroutine, getExecuteTime,              arginfo_class_Swoole_Coroutine_getExecuteTime,   ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+#endif
     /**
      * Coroutine System API
      */
-    ZEND_FENTRY(gethostbyname, ZEND_FN(swoole_coroutine_gethostbyname), arginfo_swoole_coroutine_system_gethostbyname, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    ZEND_FENTRY(dnsLookup, ZEND_FN(swoole_async_dns_lookup_coro), arginfo_swoole_coroutine_system_dnsLookup, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_system, exec, arginfo_swoole_coroutine_system_exec, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_system, sleep, arginfo_swoole_coroutine_system_sleep, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_system, getaddrinfo, arginfo_swoole_coroutine_system_getaddrinfo, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_system, statvfs, arginfo_swoole_coroutine_system_statvfs, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_system, readFile, arginfo_swoole_coroutine_system_readFile, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_system, writeFile, arginfo_swoole_coroutine_system_writeFile, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_system, wait, arginfo_swoole_coroutine_system_wait, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_system, waitPid, arginfo_swoole_coroutine_system_waitPid, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_system, waitSignal, arginfo_swoole_coroutine_system_waitSignal, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_system, waitEvent, arginfo_swoole_coroutine_system_waitEvent, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(gethostbyname,      ZEND_FN(swoole_coroutine_gethostbyname), arginfo_class_Swoole_Coroutine_System_gethostbyname, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(dnsLookup,          ZEND_FN(swoole_async_dns_lookup_coro),   arginfo_class_Swoole_Coroutine_System_dnsLookup,     ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_system, exec,                                    arginfo_class_Swoole_Coroutine_System_exec,          ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_system, sleep,                                   arginfo_class_Swoole_Coroutine_System_sleep,         ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_system, getaddrinfo,                             arginfo_class_Swoole_Coroutine_System_getaddrinfo,   ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_system, statvfs,                                 arginfo_class_Swoole_Coroutine_System_statvfs,       ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_system, readFile,                                arginfo_class_Swoole_Coroutine_System_readFile,      ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_system, writeFile,                               arginfo_class_Swoole_Coroutine_System_writeFile,     ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_system, wait,                                    arginfo_class_Swoole_Coroutine_System_wait,          ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_system, waitPid,                                 arginfo_class_Swoole_Coroutine_System_waitPid,       ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_system, waitSignal,                              arginfo_class_Swoole_Coroutine_System_waitSignal,    ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_system, waitEvent,                               arginfo_class_Swoole_Coroutine_System_waitEvent,     ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     /* Deprecated file methods */
-    PHP_ME(swoole_coroutine_system, fread, arginfo_swoole_coroutine_system_fread, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC | ZEND_ACC_DEPRECATED)
-    PHP_ME(swoole_coroutine_system, fgets, arginfo_swoole_coroutine_system_fgets, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC | ZEND_ACC_DEPRECATED)
-    PHP_ME(swoole_coroutine_system, fwrite, arginfo_swoole_coroutine_system_fwrite, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC | ZEND_ACC_DEPRECATED)
+    PHP_ME(swoole_coroutine_system, fread,                                   arginfo_class_Swoole_Coroutine_System_fread,         ZEND_ACC_PUBLIC | ZEND_ACC_STATIC | ZEND_ACC_DEPRECATED)
+    PHP_ME(swoole_coroutine_system, fgets,                                   arginfo_class_Swoole_Coroutine_System_fgets,         ZEND_ACC_PUBLIC | ZEND_ACC_STATIC | ZEND_ACC_DEPRECATED)
+    PHP_ME(swoole_coroutine_system, fwrite,                                  arginfo_class_Swoole_Coroutine_System_fwrite,        ZEND_ACC_PUBLIC | ZEND_ACC_STATIC | ZEND_ACC_DEPRECATED)
     PHP_FE_END
 };
 // clang-format on
@@ -217,9 +167,13 @@ static const zend_function_entry swoole_coroutine_methods[] =
 static PHP_METHOD(swoole_exit_exception, getFlags);
 static PHP_METHOD(swoole_exit_exception, getStatus);
 
+// clang-format off
 static const zend_function_entry swoole_exit_exception_methods[] = {
-    PHP_ME(swoole_exit_exception, getFlags, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC)
-        PHP_ME(swoole_exit_exception, getStatus, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC) PHP_FE_END};
+    PHP_ME(swoole_exit_exception, getFlags,  arginfo_class_Swoole_ExitException_getFlags,  ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_exit_exception, getStatus, arginfo_class_Swoole_ExitException_getStatus, ZEND_ACC_PUBLIC)
+    PHP_FE_END
+};
+// clang-format on
 
 static int coro_exit_handler(zend_execute_data *execute_data) {
     zval ex;
@@ -304,6 +258,43 @@ void PHPCoroutine::init() {
     Coroutine::set_on_close(on_close);
 }
 
+void PHPCoroutine::error_cb(int type,
+                            error_filename_t *error_filename,
+                            const uint32_t error_lineno,
+                            ZEND_ERROR_CB_LAST_ARG_D) {
+    if (sw_unlikely(type & E_FATAL_ERRORS)) {
+        if (sw_reactor()) {
+            sw_reactor()->running = false;
+            sw_reactor()->bailout = true;
+        }
+        if (swoole_coroutine_is_in()) {
+            // update the last coroutine's info
+            save_task(get_context());
+            Coroutine::bailout([=]() {
+                zend_error_cb = orig_error_function;
+                orig_error_function(type, error_filename, error_lineno, ZEND_ERROR_CB_LAST_ARG_RELAY);
+                zend_bailout();
+            });
+        }
+    }
+    if (orig_error_function) {
+        orig_error_function(type, error_filename, error_lineno, ZEND_ERROR_CB_LAST_ARG_RELAY);
+    }
+}
+
+void PHPCoroutine::catch_exception(zend_object *exception) {
+    // TODO: exceptions will only cause the coroutine to exit
+    if (sw_reactor()) {
+        sw_reactor()->running = false;
+        sw_reactor()->bailout = true;
+    }
+    Coroutine::bailout([exception]() {
+        zend_error_cb = orig_error_function;
+        zend_exception_error(exception, E_ERROR);
+        zend_bailout();
+    });
+}
+
 void PHPCoroutine::activate() {
     if (sw_unlikely(activated)) {
         return;
@@ -329,31 +320,7 @@ void PHPCoroutine::activate() {
 
     /* replace the error function to save execute_data */
     orig_error_function = zend_error_cb;
-    zend_error_cb =
-        [](int type, error_filename_t *error_filename, const uint32_t error_lineno, ZEND_ERROR_CB_LAST_ARG_D) {
-            if (sw_unlikely(type & E_FATAL_ERRORS)) {
-                if (activated) {
-                    /* update the last coroutine's info */
-                    save_task(get_context());
-                }
-                if (sw_reactor()) {
-                    sw_reactor()->running = false;
-                    sw_reactor()->bailout = true;
-                }
-#ifdef SW_EXIT_WHEN_OCCURS_FATAL_ERROR
-                zend_try {
-                    orig_error_function(type, error_filename, error_lineno, ZEND_ERROR_CB_LAST_ARG_RELAY);
-                }
-                zend_catch {
-                    exit(255);
-                }
-                zend_end_try();
-#endif
-            }
-            if (sw_likely(orig_error_function)) {
-                orig_error_function(type, error_filename, error_lineno, ZEND_ERROR_CB_LAST_ARG_RELAY);
-            }
-        };
+    zend_error_cb = PHPCoroutine::error_cb;
 
     if (SWOOLE_G(enable_preemptive_scheduler) || config.enable_preemptive_scheduler) {
         /* create a thread to interrupt the coroutine that takes up too much time */
@@ -366,9 +333,7 @@ void PHPCoroutine::activate() {
 
     disable_unsafe_function();
 
-    /**
-     * deactivate when reactor free.
-     */
+    /* deactivate when reactor free */
     sw_reactor()->add_destroy_callback(deactivate, nullptr);
     Coroutine::activate();
     activated = true;
@@ -454,9 +419,7 @@ inline void PHPCoroutine::vm_stack_init(void) {
     EG(vm_stack)->top++;
     EG(vm_stack_top) = EG(vm_stack)->top;
     EG(vm_stack_end) = EG(vm_stack)->end;
-#if PHP_VERSION_ID >= 70300
     EG(vm_stack_page_size) = size;
-#endif
 }
 
 inline void PHPCoroutine::vm_stack_destroy(void) {
@@ -485,13 +448,9 @@ inline void PHPCoroutine::save_vm_stack(PHPContext *task) {
     task->vm_stack_top = EG(vm_stack_top);
     task->vm_stack_end = EG(vm_stack_end);
     task->vm_stack = EG(vm_stack);
-#if PHP_VERSION_ID >= 70300
     task->vm_stack_page_size = EG(vm_stack_page_size);
-#endif
     task->execute_data = EG(current_execute_data);
-#if PHP_VERSION_ID >= 80000
     task->jit_trace_num = EG(jit_trace_num);
-#endif
     task->error_handling = EG(error_handling);
     task->exception_class = EG(exception_class);
     task->exception = EG(exception);
@@ -517,13 +476,9 @@ inline void PHPCoroutine::restore_vm_stack(PHPContext *task) {
     EG(vm_stack_top) = task->vm_stack_top;
     EG(vm_stack_end) = task->vm_stack_end;
     EG(vm_stack) = task->vm_stack;
-#if PHP_VERSION_ID >= 70300
     EG(vm_stack_page_size) = task->vm_stack_page_size;
-#endif
     EG(current_execute_data) = task->execute_data;
-#if PHP_VERSION_ID >= 80000
     EG(jit_trace_num) = task->jit_trace_num;
-#endif
     EG(error_handling) = task->error_handling;
     EG(exception_class) = task->exception_class;
     EG(exception) = task->exception;
@@ -584,10 +539,14 @@ void PHPCoroutine::restore_task(PHPContext *task) {
 void PHPCoroutine::on_yield(void *arg) {
     PHPContext *task = (PHPContext *) arg;
     PHPContext *origin_task = get_origin_context(task);
-    swoole_trace_log(
-        SW_TRACE_COROUTINE, "php_coro_yield from cid=%ld to cid=%ld", task->co->get_cid(), task->co->get_origin_cid());
     save_task(task);
     restore_task(origin_task);
+
+    if (task->on_yield) {
+        (*task->on_yield)(task);
+    }
+
+    swoole_trace_log(SW_TRACE_COROUTINE, "from cid=%ld to cid=%ld", task->co->get_cid(), task->co->get_origin_cid());
 }
 
 void PHPCoroutine::on_resume(void *arg) {
@@ -596,10 +555,12 @@ void PHPCoroutine::on_resume(void *arg) {
     save_task(current_task);
     restore_task(task);
     record_last_msec(task);
-    swoole_trace_log(SW_TRACE_COROUTINE,
-                     "php_coro_resume from cid=%ld to cid=%ld",
-                     Coroutine::get_current_cid(),
-                     task->co->get_cid());
+
+    if (task->on_resume) {
+        (*task->on_resume)(task);
+    }
+
+    swoole_trace_log(SW_TRACE_COROUTINE, "from cid=%ld to cid=%ld", Coroutine::get_current_cid(), task->co->get_cid());
 }
 
 void PHPCoroutine::on_close(void *arg) {
@@ -611,7 +572,7 @@ void PHPCoroutine::on_close(void *arg) {
     long origin_cid = task->co->get_origin_cid();
 #endif
 
-    if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_CORO_STOP]) {
+    if (swoole_isset_hook(SW_GLOBAL_HOOK_ON_CORO_STOP)) {
         swoole_call_hook(SW_GLOBAL_HOOK_ON_CORO_STOP, task);
     }
 
@@ -632,9 +593,14 @@ void PHPCoroutine::on_close(void *arg) {
     }
 #endif
 
-    if (SwooleG.max_concurrency > 0 && task->pcid == -1) {
-        SwooleWG.worker_concurrency--;
+    if (task->on_close) {
+        (*task->on_close)(task);
     }
+
+    if (task->pcid == -1) {
+        concurrency--;
+    }
+
     vm_stack_destroy();
     restore_task(origin_task);
 
@@ -651,7 +617,6 @@ void PHPCoroutine::main_func(void *arg) {
 #ifdef SW_CORO_SUPPORT_BAILOUT
     zend_first_try {
 #endif
-        int i;
         Args *php_arg = (Args *) arg;
         zend_fcall_info_cache fci_cache = *php_arg->fci_cache;
         zend_function *func = fci_cache.function_handler;
@@ -670,25 +635,20 @@ void PHPCoroutine::main_func(void *arg) {
         task = (PHPContext *) EG(vm_stack_top);
         EG(vm_stack_top) = (zval *) ((char *) call + PHP_CORO_TASK_SLOT * sizeof(zval));
 
-#if PHP_VERSION_ID < 70400
-        call = zend_vm_stack_push_call_frame(
-            ZEND_CALL_TOP_FUNCTION | ZEND_CALL_ALLOCATED, func, argc, fci_cache.called_scope, fci_cache.object);
-#else
-    do {
-        uint32_t call_info;
-        void *object_or_called_scope;
-        if ((func->common.fn_flags & ZEND_ACC_STATIC) || !fci_cache.object) {
-            object_or_called_scope = fci_cache.called_scope;
-            call_info = ZEND_CALL_TOP_FUNCTION | ZEND_CALL_DYNAMIC;
-        } else {
-            object_or_called_scope = fci_cache.object;
-            call_info = ZEND_CALL_TOP_FUNCTION | ZEND_CALL_DYNAMIC | ZEND_CALL_HAS_THIS;
-        }
-        call = zend_vm_stack_push_call_frame(call_info, func, argc, object_or_called_scope);
-    } while (0);
-#endif
+        do {
+            uint32_t call_info;
+            void *object_or_called_scope;
+            if ((func->common.fn_flags & ZEND_ACC_STATIC) || !fci_cache.object) {
+                object_or_called_scope = fci_cache.called_scope;
+                call_info = ZEND_CALL_TOP_FUNCTION | ZEND_CALL_DYNAMIC;
+            } else {
+                object_or_called_scope = fci_cache.object;
+                call_info = ZEND_CALL_TOP_FUNCTION | ZEND_CALL_DYNAMIC | ZEND_CALL_HAS_THIS;
+            }
+            call = zend_vm_stack_push_call_frame(call_info, func, argc, object_or_called_scope);
+        } while (0);
 
-        for (i = 0; i < argc; ++i) {
+        SW_LOOP_N(argc) {
             zval *param;
             zval *arg = &argv[i];
             if (Z_ISREF_P(arg) && !(func->common.fn_flags & ZEND_ACC_CALL_VIA_TRAMPOLINE)) {
@@ -715,9 +675,7 @@ void PHPCoroutine::main_func(void *arg) {
         EG(error_handling) = EH_NORMAL;
         EG(exception_class) = nullptr;
         EG(exception) = nullptr;
-#if PHP_VERSION_ID >= 80000
         EG(jit_trace_num) = 0;
-#endif
 
         task->output_ptr = nullptr;
 #if PHP_VERSION_ID < 80100
@@ -730,6 +688,9 @@ void PHPCoroutine::main_func(void *arg) {
         task->defer_tasks = nullptr;
         task->pcid = task->co->get_origin_cid();
         task->context = nullptr;
+        task->on_yield = nullptr;
+        task->on_resume = nullptr;
+        task->on_close = nullptr;
         task->enable_scheduler = true;
 
         save_vm_stack(task);
@@ -742,14 +703,14 @@ void PHPCoroutine::main_func(void *arg) {
                          (uintmax_t) Coroutine::count(),
                          (uintmax_t) zend_memory_usage(0));
 
-        if (SwooleG.max_concurrency > 0 && task->pcid == -1) {
+        if (task->pcid == -1) {
             // wait until concurrency slots are available
-            while (SwooleWG.worker_concurrency > SwooleG.max_concurrency - 1) {
+            while (concurrency > config.max_concurrency - 1) {
                 swoole_trace_log(SW_TRACE_COROUTINE,
                                  "php_coro cid=%ld waiting for concurrency slots: max: %d, used: %d",
                                  task->co->get_cid(),
-                                 SwooleG.max_concurrency,
-                                 SwooleWG.worker_concurrency);
+                                 config.max_concurrency,
+                                 concurrency);
 
                 swoole_event_defer(
                     [](void *data) {
@@ -759,10 +720,10 @@ void PHPCoroutine::main_func(void *arg) {
                     (void *) task->co);
                 task->co->yield();
             }
-            SwooleWG.worker_concurrency++;
+            concurrency++;
         }
 
-        if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_CORO_START]) {
+        if (swoole_isset_hook(SW_GLOBAL_HOOK_ON_CORO_START)) {
             swoole_call_hook(SW_GLOBAL_HOOK_ON_CORO_START, task);
         }
 
@@ -772,8 +733,7 @@ void PHPCoroutine::main_func(void *arg) {
             EG(current_execute_data) = nullptr;
             zend_init_func_execute_data(call, &func->op_array, retval);
             zend_execute_ex(EG(current_execute_data));
-        } else /* ZEND_INTERNAL_FUNCTION */
-        {
+        } else { /* ZEND_INTERNAL_FUNCTION */
             ZVAL_NULL(retval);
             call->prev_execute_data = nullptr;
             call->return_value = nullptr; /* this is not a constructor call */
@@ -786,15 +746,11 @@ void PHPCoroutine::main_func(void *arg) {
             while (!tasks->empty()) {
                 zend::Function *defer_fci = tasks->top();
                 tasks->pop();
-#if PHP_VERSION_ID < 80000
-                defer_fci->fci.param_count = 1;
-                defer_fci->fci.params = retval;
-#else
-            if (Z_TYPE_P(retval) != IS_UNDEF) {
-                defer_fci->fci.param_count = 1;
-                defer_fci->fci.params = retval;
-            }
-#endif
+
+                if (Z_TYPE_P(retval) != IS_UNDEF) {
+                    defer_fci->fci.param_count = 1;
+                    defer_fci->fci.params = retval;
+                }
 
                 if (UNEXPECTED(sw_zend_call_function_anyway(&defer_fci->fci, &defer_fci->fci_cache) != SUCCESS)) {
                     php_swoole_fatal_error(E_WARNING, "defer callback handler error");
@@ -817,21 +773,14 @@ void PHPCoroutine::main_func(void *arg) {
         }
         zval_ptr_dtor(retval);
 
-        // TODO: exceptions will only cause the coroutine to exit
         if (UNEXPECTED(EG(exception))) {
-            zend_exception_error(EG(exception), E_ERROR);
+            catch_exception(EG(exception));
         }
 
 #ifdef SW_CORO_SUPPORT_BAILOUT
     }
     zend_catch {
-        Coroutine::bailout([]() {
-            if (sw_reactor()) {
-                sw_reactor()->running = false;
-                sw_reactor()->bailout = true;
-            }
-            sw_zend_bailout();
-        });
+        catch_exception(EG(exception));
     }
     zend_end_try();
 #endif
@@ -876,18 +825,13 @@ void PHPCoroutine::defer(zend::Function *fci) {
 void php_swoole_coroutine_minit(int module_number) {
     PHPCoroutine::init();
 
-    SW_INIT_CLASS_ENTRY_BASE(
-        swoole_coroutine_util, "Swoole\\Coroutine", nullptr, "Co", swoole_coroutine_methods, nullptr);
+    SW_INIT_CLASS_ENTRY_BASE(swoole_coroutine_util, "Swoole\\Coroutine", "Co", swoole_coroutine_methods, nullptr);
     SW_SET_CLASS_CREATE(swoole_coroutine_util, sw_zend_create_object_deny);
 
-    SW_INIT_CLASS_ENTRY_BASE(swoole_coroutine_iterator,
-                             "Swoole\\Coroutine\\Iterator",
-                             nullptr,
-                             "Co\\Iterator",
-                             nullptr,
-                             spl_ce_ArrayIterator);
     SW_INIT_CLASS_ENTRY_BASE(
-        swoole_coroutine_context, "Swoole\\Coroutine\\Context", nullptr, "Co\\Context", nullptr, spl_ce_ArrayObject);
+        swoole_coroutine_iterator, "Swoole\\Coroutine\\Iterator", "Co\\Iterator", nullptr, spl_ce_ArrayIterator);
+    SW_INIT_CLASS_ENTRY_BASE(
+        swoole_coroutine_context, "Swoole\\Coroutine\\Context", "Co\\Context", nullptr, spl_ce_ArrayObject);
 
     SW_REGISTER_LONG_CONSTANT("SWOOLE_DEFAULT_MAX_CORO_NUM", SW_DEFAULT_MAX_CORO_NUM);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_CORO_MAX_NUM_LIMIT", Coroutine::MAX_NUM_LIMIT);
@@ -897,12 +841,8 @@ void php_swoole_coroutine_minit(int module_number) {
     SW_REGISTER_LONG_CONSTANT("SWOOLE_CORO_END", Coroutine::STATE_END);
 
     // prohibit exit in coroutine
-    SW_INIT_CLASS_ENTRY_EX(swoole_exit_exception,
-                           "Swoole\\ExitException",
-                           nullptr,
-                           nullptr,
-                           swoole_exit_exception_methods,
-                           swoole_exception);
+    SW_INIT_CLASS_ENTRY_EX(
+        swoole_exit_exception, "Swoole\\ExitException", nullptr, swoole_exit_exception_methods, swoole_exception);
     zend_declare_property_long(swoole_exit_exception_ce, ZEND_STRL("flags"), 0, ZEND_ACC_PRIVATE);
     zend_declare_property_long(swoole_exit_exception_ce, ZEND_STRL("status"), 0, ZEND_ACC_PRIVATE);
 
@@ -980,16 +920,18 @@ PHP_FUNCTION(swoole_coroutine_defer) {
 
 static PHP_METHOD(swoole_coroutine, stats) {
     array_init(return_value);
-    add_assoc_long_ex(return_value, ZEND_STRL("event_num"), sw_reactor() ? sw_reactor()->event_num : 0);
+    add_assoc_long_ex(return_value, ZEND_STRL("event_num"), sw_reactor() ? sw_reactor()->get_event_num() : 0);
     add_assoc_long_ex(
         return_value, ZEND_STRL("signal_listener_num"), SwooleTG.signal_listener_num + SwooleTG.co_signal_listener_num);
 
     if (SwooleTG.async_threads) {
-        add_assoc_long_ex(return_value, ZEND_STRL("aio_task_num"), SwooleTG.async_threads->task_num);
-        add_assoc_long_ex(return_value, ZEND_STRL("aio_worker_num"), SwooleTG.async_threads->thread_count());
+        add_assoc_long_ex(return_value, ZEND_STRL("aio_task_num"), SwooleTG.async_threads->get_task_num());
+        add_assoc_long_ex(return_value, ZEND_STRL("aio_worker_num"), SwooleTG.async_threads->get_worker_num());
+        add_assoc_long_ex(return_value, ZEND_STRL("aio_queue_size"), SwooleTG.async_threads->get_queue_size());
     } else {
         add_assoc_long_ex(return_value, ZEND_STRL("aio_task_num"), 0);
         add_assoc_long_ex(return_value, ZEND_STRL("aio_worker_num"), 0);
+        add_assoc_long_ex(return_value, ZEND_STRL("aio_queue_size"), 0);
     }
     add_assoc_long_ex(return_value, ZEND_STRL("c_stack_size"), Coroutine::get_stack_size());
     add_assoc_long_ex(return_value, ZEND_STRL("coroutine_num"), Coroutine::count());
@@ -1058,6 +1000,32 @@ static PHP_METHOD(swoole_coroutine, getElapsed) {
     RETURN_LONG(ret);
 }
 
+static PHP_METHOD(swoole_coroutine, getStackUsage) {
+    zend_long current_cid = PHPCoroutine::get_cid();
+    zend_long cid = current_cid;
+
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_LONG(cid)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    PHPContext *task = (PHPContext *) PHPCoroutine::get_context_by_cid(cid);
+    if (UNEXPECTED(!task)) {
+        swoole_set_last_error(SW_ERROR_CO_NOT_EXISTS);
+        RETURN_FALSE;
+    }
+
+    zend_vm_stack stack = cid == current_cid ? EG(vm_stack) : task->vm_stack;
+    size_t usage = 0;
+
+    while (stack) {
+        usage += (stack->end - stack->top) * sizeof(zval);
+        stack = stack->prev;
+    }
+
+    RETURN_LONG(usage);
+}
+
 static PHP_METHOD(swoole_coroutine, exists) {
     zend_long cid;
 
@@ -1076,7 +1044,7 @@ static PHP_METHOD(swoole_coroutine, resume) {
 
     auto coroutine_iterator = user_yield_coros.find(cid);
     if (coroutine_iterator == user_yield_coros.end()) {
-        php_swoole_fatal_error(E_WARNING, "you can not resume the coroutine which is in IO operation or non-existent");
+        php_swoole_fatal_error(E_WARNING, "can not resume the coroutine which is in IO operation or non-existent");
         RETURN_FALSE;
     }
 
@@ -1099,6 +1067,84 @@ static PHP_METHOD(swoole_coroutine, yield) {
     co->yield(&cancel_fn);
     if (co->is_canceled()) {
         swoole_set_last_error(SW_ERROR_CO_CANCELED);
+        RETURN_FALSE;
+    }
+
+    RETURN_TRUE;
+}
+
+static PHP_METHOD(swoole_coroutine, join) {
+    Coroutine *co = Coroutine::get_current_safe();
+    zval *cid_array;
+    double timeout = -1;
+
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+    Z_PARAM_ARRAY(cid_array)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_DOUBLE(timeout)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    if (php_swoole_array_length(cid_array) == 0) {
+        swoole_set_last_error(SW_ERROR_INVALID_PARAMS);
+        RETURN_FALSE;
+    }
+
+    std::set<PHPContext *> co_set;
+    bool *canceled = new bool(false);
+
+    PHPContext::SwapCallback join_fn = [&co_set, canceled, co](PHPContext *task) {
+        co_set.erase(task);
+        if (!co_set.empty()) {
+            return;
+        }
+        swoole_event_defer(
+            [co, canceled](void *) {
+                if (*canceled == false) {
+                    co->resume();
+                }
+                delete canceled;
+            },
+            nullptr);
+    };
+
+    zval *zcid;
+    ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(cid_array), zcid) {
+        long cid = zval_get_long(zcid);
+        if (co->get_cid() == cid) {
+            swoole_set_last_error(SW_ERROR_WRONG_OPERATION);
+            php_swoole_error(E_WARNING, "can not join self");
+            delete canceled;
+            RETURN_FALSE;
+        }
+        auto ctx = PHPCoroutine::get_context_by_cid(cid);
+        if (ctx == nullptr) {
+            continue;
+        }
+        if (ctx->on_close) {
+            swoole_set_last_error(SW_ERROR_CO_HAS_BEEN_BOUND);
+            delete canceled;
+            RETURN_FALSE;
+        }
+        ctx->on_close = &join_fn;
+        co_set.insert(ctx);
+    }
+    ZEND_HASH_FOREACH_END();
+
+    if (co_set.empty()) {
+        swoole_set_last_error(SW_ERROR_INVALID_PARAMS);
+        delete canceled;
+        RETURN_FALSE;
+    }
+
+    if (!co->yield_ex(timeout)) {
+        if (!co_set.empty()) {
+            for (auto ctx : co_set) {
+                ctx->on_close = nullptr;
+            }
+            delete canceled;
+        } else {
+            *canceled = true;
+        }
         RETURN_FALSE;
     }
 
@@ -1218,6 +1264,12 @@ static PHP_METHOD(swoole_coroutine, list) {
                                       &zlist);
     zval_ptr_dtor(&zlist);
 }
+
+#ifdef SW_CORO_TIME
+static PHP_METHOD(swoole_coroutine, getExecuteTime) {
+    RETURN_LONG(PHPCoroutine::get_execute_time());
+}
+#endif
 
 PHP_METHOD(swoole_coroutine, enableScheduler) {
     RETURN_BOOL(PHPCoroutine::enable_scheduler());

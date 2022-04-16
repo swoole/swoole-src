@@ -10,7 +10,7 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | Author: Tianfeng Han  <rango@swoole.com>                             |
   +----------------------------------------------------------------------+
 */
 
@@ -61,6 +61,9 @@
     _(SW_ZEND_STR_REASON,                   "reason") \
     _(SW_ZEND_STR_FLAGS,                    "flags") \
     _(SW_ZEND_STR_FINISH,                   "finish") \
+    _(SW_ZEND_STR_IN_COROUTINE,             "in_coroutine") \
+    _(SW_ZEND_STR_PRIVATE_DATA,             "private_data") \
+    _(SW_ZEND_STR_CLASS_NAME_RESOLVER,      "Swoole\\NameResolver") \
 
 typedef enum sw_zend_known_string_id {
 #define _SW_ZEND_STR_ID(id, str) id,
@@ -79,7 +82,6 @@ extern zend_string **sw_zend_known_strings;
 #define SW_SET_CLASS_CREATE_WITH_ITS_OWN_HANDLERS(module)                                                              \
     module##_ce->create_object = [](zend_class_entry *ce) { return sw_zend_create_object(ce, &module##_handlers); }
 
-
 SW_API bool php_swoole_is_enable_coroutine();
 SW_API zend_object *php_swoole_create_socket_from_fd(int fd, enum swSocketType type);
 SW_API bool php_swoole_export_socket(zval *zobject, swoole::coroutine::Socket *_socket);
@@ -91,7 +93,10 @@ SW_API bool php_swoole_socket_set_ssl(swoole::coroutine::Socket *sock, zval *zse
 #endif
 SW_API bool php_swoole_socket_set_protocol(swoole::coroutine::Socket *sock, zval *zset);
 SW_API bool php_swoole_client_set(swoole::coroutine::Socket *cli, zval *zset);
-SW_API php_stream *php_swoole_create_stream_from_socket(php_socket_t _fd, int domain, int type, int protocol STREAMS_DC);
+SW_API php_stream *php_swoole_create_stream_from_socket(php_socket_t _fd,
+                                                        int domain,
+                                                        int type,
+                                                        int protocol STREAMS_DC);
 SW_API php_stream_ops *php_swoole_get_ori_php_stream_stdio_ops();
 SW_API void php_swoole_register_rshutdown_callback(swoole::Callback cb, void *private_data);
 
@@ -114,28 +119,38 @@ static inline bool php_swoole_is_fatal_error() {
     return false;
 }
 
-ssize_t php_swoole_length_func(swoole::Protocol *protocol, swoole::network::Socket *_socket, const char *data, uint32_t length);
+ssize_t php_swoole_length_func(const swoole::Protocol *, swoole::network::Socket *, swoole::PacketLength *);
 
 #ifdef SW_HAVE_ZLIB
-#define php_swoole_websocket_frame_pack        php_swoole_websocket_frame_pack_ex
+#define php_swoole_websocket_frame_pack php_swoole_websocket_frame_pack_ex
 #define php_swoole_websocket_frame_object_pack php_swoole_websocket_frame_object_pack_ex
 #else
-#define php_swoole_websocket_frame_pack(buffer, zdata, opcode, flags, mask, allow_compress) \
-        php_swoole_websocket_frame_pack_ex(buffer, zdata, opcode, flags, mask, 0)
-#define php_swoole_websocket_frame_object_pack(buffer, zdata, mask, allow_compress) \
-        php_swoole_websocket_frame_object_pack_ex(buffer, zdata, mask, 0)
+#define php_swoole_websocket_frame_pack(buffer, zdata, opcode, flags, mask, allow_compress)                            \
+    php_swoole_websocket_frame_pack_ex(buffer, zdata, opcode, flags, mask, 0)
+#define php_swoole_websocket_frame_object_pack(buffer, zdata, mask, allow_compress)                                    \
+    php_swoole_websocket_frame_object_pack_ex(buffer, zdata, mask, 0)
 #endif
-int php_swoole_websocket_frame_pack_ex(swoole::String *buffer, zval *zdata, zend_long opcode, uint8_t flags, zend_bool mask, zend_bool allow_compress);
-int php_swoole_websocket_frame_object_pack_ex(swoole::String *buffer, zval *zdata, zend_bool mask, zend_bool allow_compress);
+int php_swoole_websocket_frame_pack_ex(
+    swoole::String *buffer, zval *zdata, zend_long opcode, uint8_t flags, zend_bool mask, zend_bool allow_compress);
+int php_swoole_websocket_frame_object_pack_ex(swoole::String *buffer,
+                                              zval *zdata,
+                                              zend_bool mask,
+                                              zend_bool allow_compress);
 void php_swoole_websocket_frame_unpack(swoole::String *data, zval *zframe);
 void php_swoole_websocket_frame_unpack_ex(swoole::String *data, zval *zframe, uchar allow_uncompress);
 
 swoole::TaskId php_swoole_task_pack(swoole::EventData *task, zval *data);
-zval* php_swoole_task_unpack(swoole::EventData *task_result);
+zval *php_swoole_task_unpack(swoole::EventData *task_result);
 
 #ifdef SW_HAVE_ZLIB
 int php_swoole_zlib_decompress(z_stream *stream, swoole::String *buffer, char *body, int length);
 #endif
+
+swoole::NameResolver::Context *php_swoole_name_resolver_get_context(zval *zobject);
+std::string php_swoole_name_resolver_lookup(const std::string &name,
+                                            swoole::NameResolver::Context *ctx,
+                                            void *_resolver);
+bool php_swoole_name_resolver_add(zval *zresolver);
 
 const swoole::Allocator *sw_php_allocator();
 const swoole::Allocator *sw_zend_string_allocator();
@@ -436,13 +451,5 @@ static inline void assign_zend_string_by_val(zval *zdata, char *addr, size_t len
     ZVAL_STR(zdata, zstr);
 }
 
-#if PHP_VERSION_ID < 80000
-#define ZEND_STR_CONST
-#else
-#define ZEND_STR_CONST const
-#endif
-
 //-----------------------------------namespace end--------------------------------------------
 }  // namespace zend
-
-

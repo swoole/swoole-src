@@ -205,17 +205,17 @@ $pm->parentFunc = function () use ($pm, &$normal_chars) {
         Assert::same($cli->body, $pm->getRandomData());
     });
 
-    swoole_event_wait();
+    Swoole\Event::wait();
     $pm->kill();
     echo "DONE\n";
 };
 $pm->childFunc = function () use ($pm) {
-    $server = new swoole_http_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
+    $server = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $server->set(['log_file' => '/dev/null']);
     $server->on('workerStart', function () use ($pm) {
         $pm->wakeup();
     });
-    $server->on('request', function (swoole_http_request $request, swoole_http_response $response) use ($pm) {
+    $server->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($pm) {
         global $normal_chars;
         foreach ($normal_chars as $char) {
             $response->header($char, $pm->getRandomData());

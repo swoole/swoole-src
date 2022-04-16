@@ -10,7 +10,7 @@
  | to obtain it through the world-wide-web, please send a note to       |
  | license@swoole.com so we can mail you a copy immediately.            |
  +----------------------------------------------------------------------+
- | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+ | Author: Tianfeng Han  <rango@swoole.com>                             |
  +----------------------------------------------------------------------+
  */
 
@@ -51,7 +51,7 @@ static int Client_onWrite(Reactor *reactor, Event *event);
 static int Client_onError(Reactor *reactor, Event *event);
 static void Client_onTimeout(Timer *timer, TimerNode *tnode);
 static void Client_onResolveCompleted(AsyncEvent *event);
-static int Client_onPackage(Protocol *proto, Socket *conn, const char *data, uint32_t length);
+static int Client_onPackage(const Protocol *proto, Socket *conn, const RecvData *rdata);
 
 static sw_inline void execute_onConnect(Client *cli) {
     if (cli->timer) {
@@ -749,7 +749,12 @@ static ssize_t Client_tcp_recv_no_buffer(Client *cli, char *data, size_t len, in
     while (1) {
 #ifdef HAVE_KQUEUE
         int timeout_ms = (int) (cli->timeout * 1000);
-        if (cli->socket->wait_event(timeout_ms, SW_EVENT_READ) < 0) {
+#ifdef SW_USE_OPENSSL
+        if (cli->socket->ssl) {
+            timeout_ms = 0;
+        }
+#endif
+        if (timeout_ms > 0 && cli->socket->wait_event(timeout_ms, SW_EVENT_READ) < 0) {
             return -1;
         }
 #endif
@@ -768,7 +773,7 @@ static ssize_t Client_tcp_recv_no_buffer(Client *cli, char *data, size_t len, in
             }
         }
 #ifdef SW_USE_OPENSSL
-        if (errno == EAGAIN && cli->socket->ssl) {
+        if (cli->socket->catch_read_error(errno) == SW_WAIT && cli->socket->ssl) {
             int timeout_ms = (int) (cli->timeout * 1000);
             if (cli->socket->ssl_want_read && cli->socket->wait_event(timeout_ms, SW_EVENT_READ) == SW_OK) {
                 continue;
@@ -933,9 +938,9 @@ static int Client_https_proxy_handshake(Client *cli) {
 }
 #endif
 
-static int Client_onPackage(Protocol *proto, Socket *conn, const char *data, uint32_t length) {
+static int Client_onPackage(const Protocol *proto, Socket *conn, const RecvData *rdata) {
     Client *cli = (Client *) conn->object;
-    cli->onReceive(cli, data, length);
+    cli->onReceive(cli, rdata->data, rdata->info.len);
     return conn->close_wait ? SW_ERR : SW_OK;
 }
 
@@ -1052,7 +1057,7 @@ _recv_again:
 #endif
     n = event->socket->recv(buf, buf_size, 0);
     if (n < 0) {
-        switch (event->socket->catch_error(errno)) {
+        switch (event->socket->catch_read_error(errno)) {
         case SW_ERROR:
             swoole_sys_warning("Read from socket[%d] failed", event->fd);
             return SW_OK;

@@ -10,7 +10,7 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | Author: Tianfeng Han  <rango@swoole.com>                             |
   +----------------------------------------------------------------------+
 */
 
@@ -26,6 +26,7 @@
 
 #define SW_HAVE_COUNTABLE 1
 
+#include "swoole_c_api.h"
 #include "swoole_api.h"
 #include "swoole_async.h"
 
@@ -61,12 +62,12 @@ extern PHPAPI int php_array_merge(zend_array *dest, zend_array *src);
     } else {                                                                                                           \
         RETURN_TRUE;                                                                                                   \
     }
-#define SW_LOCK_CHECK_RETURN(s)																						   \
-    zend_long ___tmp_return_value = s; 																				   \
+#define SW_LOCK_CHECK_RETURN(s)                                                                                        \
+    zend_long ___tmp_return_value = s;                                                                                 \
     if (___tmp_return_value == 0) {                                                                                    \
         RETURN_TRUE;                                                                                                   \
     } else {                                                                                                           \
-        zend_update_property_long(NULL, SW_Z8_OBJ_P(ZEND_THIS), SW_STRL("errCode"), ___tmp_return_value );             \
+        zend_update_property_long(NULL, SW_Z8_OBJ_P(ZEND_THIS), SW_STRL("errCode"), ___tmp_return_value);              \
         RETURN_FALSE;                                                                                                  \
     }
 
@@ -79,12 +80,6 @@ extern PHPAPI int php_array_merge(zend_array *dest, zend_array *src);
 #define php_swoole_sys_error(level, fmt_str, ...)                                                                      \
     php_swoole_error(level, fmt_str ", Error: %s[%d]", ##__VA_ARGS__, strerror(errno), errno)
 
-#ifdef SW_USE_OPENSSL
-#ifndef HAVE_OPENSSL
-#error "Enable openssl support, require openssl library"
-#endif
-#endif
-
 #ifdef SW_USE_CARES
 #ifndef HAVE_CARES
 #error "Enable c-ares support, require c-ares library"
@@ -96,8 +91,8 @@ extern PHPAPI int php_array_merge(zend_array *dest, zend_array *src);
 #define SWOOLE_SOCKETS_SUPPORT
 #endif
 
-#if PHP_VERSION_ID < 70200
-#error "require PHP version 7.2 or later"
+#if PHP_VERSION_ID < 80000
+#error "require PHP version 8.0 or later"
 #endif
 
 #if defined(ZTS) && defined(SW_USE_THREAD_CONTEXT)
@@ -146,6 +141,13 @@ enum php_swoole_req_status {
     PHP_SWOOLE_RSHUTDOWN_END,
 };
 //---------------------------------------------------------
+enum php_swoole_hook_type {
+    PHP_SWOOLE_HOOK_BEFORE_ENABLE_HOOK = SW_GLOBAL_HOOK_USER,
+    PHP_SWOOLE_HOOK_AFTER_ENABLE_HOOK,
+    PHP_SWOOLE_HOOK_BEFORE_REQUEST,
+    PHP_SWOOLE_HOOK_AFTER_RESPONSE,
+};
+//---------------------------------------------------------
 
 static sw_inline enum swSocketType php_swoole_socktype(long type) {
     return (enum swSocketType)(type & (~SW_FLAG_SYNC) & (~SW_FLAG_ASYNC) & (~SW_FLAG_KEEP) & (~SW_SOCK_SSL));
@@ -169,6 +171,8 @@ extern zend_class_entry *swoole_server_port_ce;
 extern zend_class_entry *swoole_exception_ce;
 extern zend_object_handlers swoole_exception_handlers;
 extern zend_class_entry *swoole_error_ce;
+extern zend_class_entry *swoole_resolve_context_ce;
+extern zend_object_handlers swoole_resolve_context_handlers;
 
 PHP_FUNCTION(swoole_clear_dns_cache);
 PHP_FUNCTION(swoole_last_error);
@@ -207,6 +211,7 @@ void php_swoole_event_minit(int module_number);
 // base
 void php_swoole_atomic_minit(int module_number);
 void php_swoole_lock_minit(int module_number);
+int swoole_resolve_context_module_init(INIT_FUNC_ARGS);
 void php_swoole_process_minit(int module_number);
 void php_swoole_process_pool_minit(int module_number);
 void php_swoole_table_minit(int module_number);
@@ -224,6 +229,9 @@ void php_swoole_client_coro_minit(int module_number);
 void php_swoole_http_client_coro_minit(int module_number);
 void php_swoole_mysql_coro_minit(int module_number);
 void php_swoole_redis_coro_minit(int module_number);
+#ifdef SW_USE_PGSQL
+void php_swoole_postgresql_coro_minit(int module_number);
+#endif
 #ifdef SW_USE_HTTP2
 void php_swoole_http2_client_coro_minit(int module_number);
 #endif
@@ -236,6 +244,7 @@ void php_swoole_http_server_minit(int module_number);
 void php_swoole_http_server_coro_minit(int module_number);
 void php_swoole_websocket_server_minit(int module_number);
 void php_swoole_redis_server_minit(int module_number);
+void php_swoole_name_resolver_minit(int module_number);
 
 /**
  * RINIT
@@ -251,6 +260,7 @@ void php_swoole_runtime_rinit();
 void php_swoole_async_coro_rshutdown();
 void php_swoole_redis_server_rshutdown();
 void php_swoole_coroutine_rshutdown();
+void php_swoole_coroutine_scheduler_rshutdown();
 void php_swoole_runtime_rshutdown();
 void php_swoole_server_rshutdown();
 
@@ -293,120 +303,20 @@ php_socket *php_swoole_convert_to_socket(int sock);
 
 zend_bool php_swoole_signal_isset_handler(int signo);
 
-/* PHP 7 compatibility patches */
-#define sw_zend_bailout() zend_bailout()
-
-// Fixed in php-7.2.3RC1 (https://github.com/php/php-src/commit/e88e83d3e5c33fcd76f08b23e1a2e4e8dc98ce41)
-#if PHP_MAJOR_VERSION == 7 && ((PHP_MINOR_VERSION == 2 && PHP_RELEASE_VERSION < 3))
-// See https://github.com/php/php-src/commit/0495bf5650995cd8f18d6a9909eb4c5dcefde669
-// Then https://github.com/php/php-src/commit/2dcfd8d16f5fa69582015cbd882aff833075a34c
-// See https://github.com/php/php-src/commit/52db03b3e52bfc886896925d050af79bc4dc1ba3
-#if PHP_MINOR_VERSION == 2
-#define SW_ZEND_WRONG_PARAMETERS_COUNT_ERROR                                                                           \
-    zend_wrong_parameters_count_error(_flags &ZEND_PARSE_PARAMS_THROW, _num_args, _min_num_args, _max_num_args)
-#else
-#define SW_ZEND_WRONG_PARAMETERS_COUNT_ERROR zend_wrong_parameters_count_error(_num_args, _min_num_args, _max_num_args)
-#endif
-
-#undef ZEND_PARSE_PARAMETERS_START_EX
-
-#define ZEND_PARSE_PARAMETERS_START_EX(flags, min_num_args, max_num_args)                                              \
-    do {                                                                                                               \
-        const int _flags = (flags);                                                                                    \
-        int _min_num_args = (min_num_args);                                                                            \
-        int _max_num_args = (max_num_args);                                                                            \
-        int _num_args = EX_NUM_ARGS();                                                                                 \
-        int _i;                                                                                                        \
-        zval *_real_arg, *_arg = NULL;                                                                                 \
-        zend_expected_type _expected_type = Z_EXPECTED_LONG;                                                           \
-        char *_error = NULL;                                                                                           \
-        zend_bool _dummy;                                                                                              \
-        zend_bool _optional = 0;                                                                                       \
-        int error_code = ZPP_ERROR_OK;                                                                                 \
-        ((void) _i);                                                                                                   \
-        ((void) _real_arg);                                                                                            \
-        ((void) _arg);                                                                                                 \
-        ((void) _expected_type);                                                                                       \
-        ((void) _error);                                                                                               \
-        ((void) _dummy);                                                                                               \
-        ((void) _optional);                                                                                            \
-                                                                                                                       \
-        do {                                                                                                           \
-            if (UNEXPECTED(_num_args < _min_num_args) ||                                                               \
-                (UNEXPECTED(_num_args > _max_num_args) && EXPECTED(_max_num_args >= 0))) {                             \
-                if (!(_flags & ZEND_PARSE_PARAMS_QUIET)) {                                                             \
-                    SW_ZEND_WRONG_PARAMETERS_COUNT_ERROR;                                                              \
-                }                                                                                                      \
-                error_code = ZPP_ERROR_FAILURE;                                                                        \
-                break;                                                                                                 \
-            }                                                                                                          \
-            _i = 0;                                                                                                    \
-            _real_arg = ZEND_CALL_ARG(execute_data, 0);
-#endif
-
-/* PHP 7.3 compatibility macro {{{*/
-
-#ifndef GC_ADDREF
-#define GC_ADDREF(ref) ++GC_REFCOUNT(ref)
-#define GC_DELREF(ref) --GC_REFCOUNT(ref)
-#endif
-
-#ifndef ZEND_CLOSURE_OBJECT
-#define ZEND_CLOSURE_OBJECT(func) (zend_object *) func->op_array.prototype
-#endif
-
-/* PHP 7.4 compatibility macro {{{*/
-#ifndef ZEND_COMPILE_EXTENDED_STMT
-#define ZEND_COMPILE_EXTENDED_STMT ZEND_COMPILE_EXTENDED_INFO
-#endif
-
-#ifndef ZVAL_EMPTY_ARRAY
-#define ZVAL_EMPTY_ARRAY(zval) (array_init((zval)))
-#endif
-#ifndef RETVAL_EMPTY_ARRAY
-#define RETVAL_EMPTY_ARRAY() ZVAL_EMPTY_ARRAY(return_value)
-#endif
-#ifndef RETURN_EMPTY_ARRAY
-#define RETURN_EMPTY_ARRAY()                                                                                           \
-    do {                                                                                                               \
-        RETVAL_EMPTY_ARRAY();                                                                                          \
-        return;                                                                                                        \
-    } while (0)
-#endif
-
-#ifndef ZEND_THIS
-#define ZEND_THIS (&EX(This))
-#endif
-
-#ifndef ZEND_THIS_OBJECT
-#define ZEND_THIS_OBJECT Z_OBJ_P(ZEND_THIS)
-#endif
-
-#ifndef E_FATAL_ERRORS
-#define E_FATAL_ERRORS (E_ERROR | E_CORE_ERROR | E_COMPILE_ERROR | E_USER_ERROR | E_RECOVERABLE_ERROR | E_PARSE)
-#endif
-/*}}}*/
-
-/* PHP 8 compatibility macro {{{*/
-#if PHP_VERSION_ID < 80000
-#define sw_zend7_object zval
-#define SW_Z7_OBJ_P(object) Z_OBJ_P(object)
-#define SW_Z8_OBJ_P(zobj) zobj
-#else
 #define sw_zend7_object zend_object
 #define SW_Z7_OBJ_P(object) object
 #define SW_Z8_OBJ_P(zobj) Z_OBJ_P(zobj)
-#endif
-/*}}}*/
 
-#if PHP_VERSION_ID < 70400
-typedef size_t php_stream_size_t;
-#else
 typedef ssize_t php_stream_size_t;
+
+#define ZEND_ERROR_CB_LAST_ARG_D zend_string *message
+#define ZEND_ERROR_CB_LAST_ARG_RELAY message
+
+#if PHP_VERSION_ID < 80100
+typedef const char error_filename_t;
+#else
+typedef zend_string error_filename_t;
 #endif
-
-/* PHP 7 wrapper functions / macros */
-
 //----------------------------------Zval API------------------------------------
 
 // Deprecated: do not use it anymore
@@ -417,18 +327,8 @@ typedef ssize_t php_stream_size_t;
         (ptr) = &(val);                                                                                                \
     } while (0)
 
-#if PHP_VERSION_ID < 80000
-#define SW_ZVAL_SOCKET(return_value, result)                                                                           \
-    ZVAL_RES(return_value, zend_register_resource((void *) (result), php_sockets_le_socket()))
-#else
 #define SW_ZVAL_SOCKET(return_value, result) ZVAL_OBJ(return_value, &result->std)
-#endif
-
-#if PHP_VERSION_ID < 80000
-#define SW_Z_SOCKET_P(zsocket) (php_socket *) zend_fetch_resource_ex(zsocket, nullptr, php_sockets_le_socket())
-#else
 #define SW_Z_SOCKET_P(zsocket) Z_SOCKET_P(zsocket)
-#endif
 
 #ifndef ZVAL_IS_BOOL
 static sw_inline zend_bool ZVAL_IS_BOOL(zval *v) {
@@ -589,31 +489,33 @@ static sw_inline void add_assoc_ulong_safe(zval *arg, const char *key, zend_ulon
 
 /* PHP 7 class declaration macros */
 
-#define SW_INIT_CLASS_ENTRY_BASE(module, namespace_name, snake_name, short_name, methods, parent_ce)                   \
+#define SW_INIT_CLASS_ENTRY_BASE(module, namespace_name, short_name, methods, parent_ce)                               \
     do {                                                                                                               \
         zend_class_entry _##module##_ce = {};                                                                          \
         INIT_CLASS_ENTRY(_##module##_ce, namespace_name, methods);                                                     \
         module##_ce = zend_register_internal_class_ex(&_##module##_ce, parent_ce);                                     \
-        if (snake_name) SW_CLASS_ALIAS(snake_name, module);                                                            \
         if (short_name) SW_CLASS_ALIAS_SHORT_NAME(short_name, module);                                                 \
     } while (0)
 
-#define SW_INIT_CLASS_ENTRY(module, namespace_name, snake_name, short_name, methods)                                   \
-    SW_INIT_CLASS_ENTRY_BASE(module, namespace_name, snake_name, short_name, methods, NULL);                           \
+#define SW_INIT_CLASS_ENTRY_STD(module, namespace_name, methods)                                                       \
+    SW_INIT_CLASS_ENTRY_BASE(module, namespace_name, nullptr, methods, NULL);                                          \
     memcpy(&module##_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers))
 
-#define SW_INIT_CLASS_ENTRY_EX(module, namespace_name, snake_name, short_name, methods, parent_module)                 \
-    SW_INIT_CLASS_ENTRY_BASE(module, namespace_name, snake_name, short_name, methods, parent_module##_ce);             \
+#define SW_INIT_CLASS_ENTRY(module, namespace_name, short_name, methods)                                               \
+    SW_INIT_CLASS_ENTRY_BASE(module, namespace_name, short_name, methods, NULL);                                       \
+    memcpy(&module##_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers))
+
+#define SW_INIT_CLASS_ENTRY_EX(module, namespace_name, short_name, methods, parent_module)                             \
+    SW_INIT_CLASS_ENTRY_BASE(module, namespace_name, short_name, methods, parent_module##_ce);                         \
     memcpy(&module##_handlers, &parent_module##_handlers, sizeof(zend_object_handlers))
 
-#define SW_INIT_CLASS_ENTRY_EX2(                                                                                       \
-    module, namespace_name, snake_name, short_name, methods, parent_module_ce, parent_module_handlers)                 \
-    SW_INIT_CLASS_ENTRY_BASE(module, namespace_name, snake_name, short_name, methods, parent_module_ce);               \
+#define SW_INIT_CLASS_ENTRY_EX2(module, namespace_name, short_name, methods, parent_module_ce, parent_module_handlers) \
+    SW_INIT_CLASS_ENTRY_BASE(module, namespace_name, short_name, methods, parent_module_ce);                           \
     memcpy(&module##_handlers, parent_module_handlers, sizeof(zend_object_handlers))
 
 // Data Object: no methods, no parent
 #define SW_INIT_CLASS_ENTRY_DATA_OBJECT(module, namespace_name)                                                        \
-    SW_INIT_CLASS_ENTRY_BASE(module, namespace_name, NULL, NULL, NULL, NULL);                                          \
+    SW_INIT_CLASS_ENTRY_BASE(module, namespace_name, NULL, NULL, NULL);                                                \
     memcpy(&module##_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers))
 
 #define SW_CLASS_ALIAS(name, module)                                                                                   \
@@ -632,11 +534,10 @@ static sw_inline void add_assoc_ulong_safe(zval *arg, const char *key, zend_ulon
 
 #if PHP_VERSION_ID < 80100
 #define SW_SET_CLASS_NOT_SERIALIZABLE(module)                                                                          \
-    module##_ce->serialize = zend_class_serialize_deny;                                                                               \
+    module##_ce->serialize = zend_class_serialize_deny;                                                                \
     module##_ce->unserialize = zend_class_unserialize_deny;
 #else
-#define SW_SET_CLASS_NOT_SERIALIZABLE(module)                                                                          \
-    module##_ce->ce_flags |= ZEND_ACC_NOT_SERIALIZABLE;
+#define SW_SET_CLASS_NOT_SERIALIZABLE(module) module##_ce->ce_flags |= ZEND_ACC_NOT_SERIALIZABLE;
 #endif
 
 #define sw_zend_class_clone_deny NULL
@@ -708,24 +609,8 @@ static sw_inline int sw_zend_register_class_alias(const char *name, size_t name_
 
     zend_string *_interned_name = zend_new_interned_string(_name);
 
-#if PHP_VERSION_ID >= 70300
     return zend_register_class_alias_ex(ZSTR_VAL(_interned_name), ZSTR_LEN(_interned_name), ce, 1);
-#else
-    return zend_register_class_alias_ex(ZSTR_VAL(_interned_name), ZSTR_LEN(_interned_name), ce);
-#endif
 }
-
-#if PHP_VERSION_ID < 70300
-/* Allocates object type and zeros it, but not the properties.
- * Properties MUST be initialized using object_properties_init(). */
-static zend_always_inline void *zend_object_alloc(size_t obj_size, zend_class_entry *ce) {
-    void *obj = emalloc(obj_size + zend_object_properties_size(ce));
-    /* Subtraction of sizeof(zval) is necessary, because zend_object_properties_size() may be
-     * -sizeof(zval), if the object has no properties. */
-    memset(obj, 0, obj_size - sizeof(zval));
-    return obj;
-}
-#endif
 
 static sw_inline zend_object *sw_zend_create_object(zend_class_entry *ce, zend_object_handlers *handlers) {
     zend_object *object = (zend_object *) zend_object_alloc(sizeof(zend_object), ce);
@@ -751,21 +636,6 @@ static sw_inline zend_object *sw_zend_create_object_deny(zend_class_entry *ce) {
     return object;
 }
 
-#if PHP_VERSION_ID < 80000
-static sw_inline void sw_zend_class_unset_property_deny(zval *zobject, zval *zmember, void **cache_slot) {
-    zend_class_entry *ce = Z_OBJCE_P(zobject);
-    while (ce->parent) {
-        ce = ce->parent;
-    }
-    SW_ASSERT(ce->type == ZEND_INTERNAL_CLASS);
-    if (EXPECTED(zend_hash_find(&ce->properties_info, Z_STR_P(zmember)))) {
-        zend_throw_error(
-            NULL, "Property %s of class %s cannot be unset", Z_STRVAL_P(zmember), SW_Z_OBJCE_NAME_VAL_P(zobject));
-        return;
-    }
-    std_object_handlers.unset_property(zobject, zmember, cache_slot);
-}
-#else
 static sw_inline void sw_zend_class_unset_property_deny(zend_object *object, zend_string *member, void **cache_slot) {
     zend_class_entry *ce = object->ce;
     while (ce->parent) {
@@ -778,7 +648,6 @@ static sw_inline void sw_zend_class_unset_property_deny(zend_object *object, zen
     }
     std_object_handlers.unset_property(object, member, cache_slot);
 }
-#endif
 
 static sw_inline zval *sw_zend_read_property(zend_class_entry *ce, zval *obj, const char *s, int len, int silent) {
     zval rv, *property = zend_read_property(ce, SW_Z8_OBJ_P(obj), s, len, silent, &rv);
@@ -889,14 +758,8 @@ static sw_inline zend_bool sw_zend_is_callable_at_frame(zval *zcallable,
                                                         size_t *callable_name_len,
                                                         zend_fcall_info_cache *fci_cache,
                                                         char **error) {
-    zend_string *name;
-    zend_bool ret;
-#if PHP_VERSION_ID < 80000
-    ret = zend_is_callable_ex(zcallable, zobject ? Z_OBJ_P(zobject) : NULL, check_flags, &name, fci_cache, error);
-#else
-    ret = zend_is_callable_at_frame(zcallable, zobject ? Z_OBJ_P(zobject) : NULL, frame, check_flags, fci_cache, error);
-    name = zend_get_callable_name_ex(zcallable, zobject ? Z_OBJ_P(zobject) : NULL);
-#endif
+    zend_bool ret = zend_is_callable_at_frame(zcallable, zobject ? Z_OBJ_P(zobject) : NULL, frame, check_flags, fci_cache, error);
+    zend_string *name = zend_get_callable_name_ex(zcallable, zobject ? Z_OBJ_P(zobject) : NULL);
     if (callable_name) {
         *callable_name = estrndup(ZSTR_VAL(name), ZSTR_LEN(name));
     }
@@ -939,11 +802,7 @@ static sw_inline int sw_zend_call_function_ex(
     fci.retval = retval ? retval : &_retval;
     fci.param_count = param_count;
     fci.params = params;
-#if PHP_VERSION_ID >= 80000
     fci.named_params = NULL;
-#else
-    fci.no_separation = 0;
-#endif
 
     ret = zend_call_function(&fci, fci_cache);
 
@@ -1027,6 +886,12 @@ static sw_inline void sw_zend_fci_cache_free(void *fci_cache) {
     efree((zend_fcall_info_cache *) fci_cache);
 }
 
+#if PHP_VERSION_ID >= 80100
+#define sw_php_spl_object_hash(o) php_spl_object_hash(Z_OBJ_P(o))
+#else
+#define sw_php_spl_object_hash(o) php_spl_object_hash(o)
+#endif
+
 //----------------------------------Misc API------------------------------------
 
 static sw_inline int php_swoole_check_reactor() {
@@ -1056,14 +921,9 @@ static sw_inline char *php_swoole_url_encode(const char *value, size_t value_len
 }
 
 static sw_inline char *php_swoole_http_build_query(zval *zdata, size_t *length, smart_str *formstr) {
-#if PHP_VERSION_ID < 80000
-    if (php_url_encode_hash_ex(
-            HASH_OF(zdata), formstr, NULL, 0, NULL, 0, NULL, 0, NULL, NULL, (int) PHP_QUERY_RFC1738) == FAILURE) {
-#else
     if (HASH_OF(zdata)) {
         php_url_encode_hash_ex(HASH_OF(zdata), formstr, NULL, 0, NULL, 0, NULL, 0, NULL, NULL, (int) PHP_QUERY_RFC1738);
     } else {
-#endif
         if (formstr->s) {
             smart_str_free(formstr);
         }
@@ -1075,6 +935,18 @@ static sw_inline char *php_swoole_http_build_query(zval *zdata, size_t *length, 
     smart_str_0(formstr);
     *length = formstr->s->len;
     return formstr->s->val;
+}
+
+static inline const char *php_swoole_get_last_error_message() {
+    return PG(last_error_message) ? PG(last_error_message)->val : nullptr;
+}
+
+static inline const char *php_swoole_get_last_error_file() {
+#if PHP_VERSION_ID >= 80100
+    return PG(last_error_file) ? PG(last_error_file)->val : "-";
+#else
+    return PG(last_error_file) ? PG(last_error_file) : "-";
+#endif
 }
 
 END_EXTERN_C()

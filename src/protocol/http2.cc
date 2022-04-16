@@ -12,7 +12,7 @@
  | to obtain it through the world-wide-web, please send a note to       |
  | license@swoole.com so we can mail you a copy immediately.            |
  +----------------------------------------------------------------------+
- | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+ | Author: Tianfeng Han  <rango@swoole.com>                             |
  +----------------------------------------------------------------------+
  */
 
@@ -20,6 +20,7 @@
 #include "swoole_socket.h"
 #include "swoole_http2.h"
 
+using swoole::PacketLength;
 using swoole::Protocol;
 using swoole::network::Socket;
 
@@ -66,11 +67,11 @@ int send_setting_frame(Protocol *protocol, Socket *_socket) {
  |                   Frame Payload (0...)                      ...
  +---------------------------------------------------------------+
  */
-ssize_t get_frame_length(Protocol *protocol, Socket *conn, const char *buf, uint32_t length) {
-    if (length < SW_HTTP2_FRAME_HEADER_SIZE) {
+ssize_t get_frame_length(const Protocol *protocol, Socket *conn, PacketLength *pl) {
+    if (pl->buf_size < SW_HTTP2_FRAME_HEADER_SIZE) {
         return 0;
     }
-    return get_length(buf) + SW_HTTP2_FRAME_HEADER_SIZE;
+    return get_length(pl->buf) + SW_HTTP2_FRAME_HEADER_SIZE;
 }
 
 const char *get_type(int type) {

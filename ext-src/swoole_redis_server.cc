@@ -10,7 +10,7 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | Author: Tianfeng Han  <rango@swoole.com>                             |
   +----------------------------------------------------------------------+
 */
 
@@ -22,12 +22,13 @@
 
 BEGIN_EXTERN_C()
 #include "ext/standard/php_string.h"
+#include "stubs/php_swoole_redis_server_arginfo.h"
 END_EXTERN_C()
 
-using swoole::Server;
-using swoole::RecvData;
-using swoole::ListenPort;
 using swoole::Connection;
+using swoole::ListenPort;
+using swoole::RecvData;
+using swoole::Server;
 
 namespace Redis = swoole::redis;
 
@@ -43,36 +44,18 @@ static PHP_METHOD(swoole_redis_server, format);
 SW_EXTERN_C_END
 
 // clang-format off
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_server_setHandler, 0, 0, 2)
-    ZEND_ARG_INFO(0, command)
-    ZEND_ARG_CALLABLE_INFO(0, callback, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_server_getHandler, 0, 0, 1)
-    ZEND_ARG_INFO(0, command)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_server_format, 0, 0, 1)
-    ZEND_ARG_INFO(0, type)
-    ZEND_ARG_INFO(0, value)
-ZEND_END_ARG_INFO()
-
 const zend_function_entry swoole_redis_server_methods[] =
 {
-    PHP_ME(swoole_redis_server, setHandler, arginfo_swoole_redis_server_setHandler, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_redis_server, getHandler, arginfo_swoole_redis_server_getHandler, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_redis_server, format, arginfo_swoole_redis_server_format, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_redis_server, setHandler, arginfo_class_Swoole_Redis_Server_setHandler, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_server, getHandler, arginfo_class_Swoole_Redis_Server_getHandler, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_server, format,     arginfo_class_Swoole_Redis_Server_format,     ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
 // clang-format on
 
 void php_swoole_redis_server_minit(int module_number) {
-    SW_INIT_CLASS_ENTRY_EX(swoole_redis_server,
-                           "Swoole\\Redis\\Server",
-                           "swoole_redis_server",
-                           nullptr,
-                           swoole_redis_server_methods,
-                           swoole_server);
+    SW_INIT_CLASS_ENTRY_EX(
+        swoole_redis_server, "Swoole\\Redis\\Server", nullptr, swoole_redis_server_methods, swoole_server);
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_redis_server);
     SW_SET_CLASS_CLONEABLE(swoole_redis_server, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_redis_server, sw_zend_class_unset_property_deny);

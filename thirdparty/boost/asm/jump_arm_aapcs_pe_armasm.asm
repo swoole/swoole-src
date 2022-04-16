@@ -40,9 +40,9 @@
 
     AREA |.text|, CODE
     ALIGN 4
-    EXPORT jump_fcontext
+    EXPORT swoole_jump_fcontext
 
-jump_fcontext PROC
+swoole_jump_fcontext PROC
     @ save LR as PC
     push {lr}
     @ save V1-V8,LR

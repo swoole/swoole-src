@@ -13,7 +13,7 @@ go(function () use ($channel) {
     Assert::assert(!$channel->push(1, 0.1));
 });
 
-swoole_event_wait();
+Swoole\Event::wait();
 echo "DONE\n";
 ?>
 --EXPECT--

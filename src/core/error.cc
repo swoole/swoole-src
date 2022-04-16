@@ -10,14 +10,18 @@
  | to obtain it through the world-wide-web, please send a note to       |
  | license@swoole.com so we can mail you a copy immediately.            |
  +----------------------------------------------------------------------+
- | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+ | Author: Tianfeng Han  <rango@swoole.com>                             |
  +----------------------------------------------------------------------+
  */
 
 #include "swoole.h"
 
+#include <unordered_set>
+
+static std::unordered_set<int> ignored_errors;
+
 namespace swoole {
-Exception::Exception(int code) : code(code) {
+Exception::Exception(int code) throw() : code(code) {
     msg = swoole_strerror(code);
 }
 }  // namespace swoole
@@ -27,8 +31,7 @@ const char *swoole_strerror(int code) {
         return strerror(code);
     }
     /* swstrerror {{{*/
-    switch(code)
-    {
+    switch(code) {
     case SW_ERROR_MALLOC_FAIL:
         return "Malloc fail";
     case SW_ERROR_SYSTEM_CALL_FAIL:
@@ -163,6 +166,8 @@ const char *swoole_strerror(int code) {
         return "Websocket unconnected";
     case SW_ERROR_WEBSOCKET_HANDSHAKE_FAILED:
         return "Websocket handshake failed";
+    case SW_ERROR_WEBSOCKET_PACK_FAILED:
+        return "Websocket pack failed";
     case SW_ERROR_SERVER_MUST_CREATED_BEFORE_CLIENT:
         return "Server must created before client";
     case SW_ERROR_SERVER_TOO_MANY_SOCKET:
@@ -185,6 +190,8 @@ const char *swoole_strerror(int code) {
         return "Server invalid request";
     case SW_ERROR_SERVER_CONNECT_FAIL:
         return "Server connect fail";
+    case SW_ERROR_SERVER_INVALID_COMMAND:
+        return "Server invalid command";
     case SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT:
         return "Server worker exit timeout";
     case SW_ERROR_SERVER_WORKER_ABNORMAL_PIPE_DATA:
@@ -236,9 +243,17 @@ const char *swoole_strerror(int code) {
 #endif
         return buffer;
     }
-/*}}}*/
+    /*}}}*/
 }
 
 void swoole_throw_error(int code) {
     throw swoole::Exception(code);
+}
+
+void swoole_ignore_error(int code) {
+    ignored_errors.insert(code);
+}
+
+bool swoole_is_ignored_error(int code) {
+    return ignored_errors.find(code) != ignored_errors.end();
 }

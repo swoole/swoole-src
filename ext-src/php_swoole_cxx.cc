@@ -1,6 +1,6 @@
 #include "php_swoole_cxx.h"
 
-//----------------------------------Swoole known string------------------------------------
+//----------------------------------known string------------------------------------
 
 static const char *sw_known_strings[] = {
 #define _SW_ZEND_STR_DSC(id, str) str,
@@ -10,21 +10,25 @@ static const char *sw_known_strings[] = {
 
 SW_API zend_string **sw_zend_known_strings = nullptr;
 
-//----------------------------------Swoole known string------------------------------------
+//----------------------------------known string------------------------------------
 
-#if PHP_VERSION_ID < 80000
-typedef zval zend_source_string_t;
+#if PHP_VERSION_ID < 80200
+#define ZEND_COMPILE_POSITION_DC
+#define ZEND_COMPILE_POSITION_RELAY_C
 #else
-typedef zend_string zend_source_string_t;
+#define ZEND_COMPILE_POSITION_DC , zend_compile_position position
+#define ZEND_COMPILE_POSITION_RELAY_C , position
 #endif
 
-static zend_op_array *swoole_compile_string(zend_source_string_t *source_string, ZEND_STR_CONST char *filename);
-
 // for compatibly with dis_eval
-static zend_op_array *(*old_compile_string)(zend_source_string_t *source_string, ZEND_STR_CONST char *filename);
+static zend_op_array *(*old_compile_string)(zend_string *source_string, const char *filename ZEND_COMPILE_POSITION_DC);
 
-static zend_op_array *swoole_compile_string(zend_source_string_t *source_string, ZEND_STR_CONST char *filename) {
-    zend_op_array *opa = old_compile_string(source_string, filename);
+static zend_op_array *swoole_compile_string(zend_string *source_string, const char *filename ZEND_COMPILE_POSITION_DC) {
+    if (UNEXPECTED(EG(exception))) {
+        zend_exception_error(EG(exception), E_ERROR);
+        return nullptr;
+    }
+    zend_op_array *opa = old_compile_string(source_string, filename ZEND_COMPILE_POSITION_RELAY_C);
     opa->type = ZEND_USER_FUNCTION;
     return opa;
 }

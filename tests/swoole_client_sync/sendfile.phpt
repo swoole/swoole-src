@@ -24,7 +24,7 @@ $pm->parentFunc = function ($pid) use ($port)
 
 $pm->childFunc = function () use ($pm, $port)
 {
-    $serv = new \swoole_server(TCP_SERVER_HOST, $port, SWOOLE_BASE, SWOOLE_SOCK_TCP);
+    $serv = new Swoole\Server(TCP_SERVER_HOST, $port, SWOOLE_BASE, SWOOLE_SOCK_TCP);
     $serv->set([
         "worker_num" => 1,
         'log_file' => '/dev/null',
@@ -35,11 +35,11 @@ $pm->childFunc = function () use ($pm, $port)
         'package_body_offset' => 4,
         'package_max_length' => 2000000,
     ]);
-    $serv->on("WorkerStart", function (\swoole_server $serv)  use ($pm)
+    $serv->on("WorkerStart", function (Swoole\Server $serv)  use ($pm)
     {
         $pm->wakeup();
     });
-    $serv->on("Receive", function (\swoole_server $serv, $fd, $rid, $data)
+    $serv->on("Receive", function (Swoole\Server $serv, $fd, $rid, $data)
     {
         if (substr($data, 4, 8) == 'shutdown')
         {

@@ -23,7 +23,7 @@ $pm->parentFunc = function () use ($pm)
 
 $pm->childFunc = function () use ($pm)
 {
-    $http = new swoole_http_server('127.0.0.1', $pm->getFreePort());
+    $http = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort());
 
     $http->set([
         'http_compression' => false,
@@ -35,7 +35,7 @@ $pm->childFunc = function () use ($pm)
         $pm->wakeup();
     });
 
-    $http->on("request", function ($request, swoole_http_response $response) {
+    $http->on("request", function ($request, Swoole\Http\Response $response) {
         Assert::eq($response->end(str_repeat('A', 256 * 1024)), false);
         Assert::eq(swoole_last_error(), SWOOLE_ERROR_DATA_LENGTH_TOO_LARGE);
     });

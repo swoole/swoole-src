@@ -10,7 +10,7 @@
  | to obtain it through the world-wide-web, please send a note to       |
  | license@swoole.com so we can mail you a copy immediately.            |
  +----------------------------------------------------------------------+
- | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+ | Author: Tianfeng Han  <rango@swoole.com>                             |
  +----------------------------------------------------------------------+
  */
 
@@ -52,7 +52,7 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
     char header_buffer[1024];
     SendData response;
     response.info.fd = conn->session_id;
-    response.info.type = SW_SERVER_EVENT_RECV_DATA;
+    response.info.type = SW_SERVER_EVENT_SEND_DATA;
 
     if (handler.status_code == SW_HTTP_NOT_FOUND) {
         response.info.len = sw_snprintf(header_buffer,
@@ -78,11 +78,11 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
         response.info.len = sw_snprintf(header_buffer,
                                         sizeof(header_buffer),
                                         "HTTP/1.1 304 Not Modified\r\n"
-                                        "%s"
+                                        "Connection: %s\r\n"
                                         "Date: %s\r\n"
                                         "Last-Modified: %s\r\n"
                                         "Server: %s\r\n\r\n",
-                                        request->keep_alive ? "Connection: keep-alive\r\n" : "",
+                                        request->keep_alive ? "keep-alive" : "close",
                                         date_str.c_str(),
                                         date_str_last_modified.c_str(),
                                         SW_HTTP_SERVER_SOFTWARE);
@@ -92,44 +92,32 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
         return true;
     }
 
-    auto task = handler.get_task();
-
-    std::set<std::string> dir_files;
-    std::string index_file = "";
     /**
      * if http_index_files is enabled, need to search the index file first.
      * if the index file is found, set filename to index filename.
      */
-    if (http_index_files && !http_index_files->empty() && handler.is_dir()) {
-        handler.get_dir_files(dir_files);
-        index_file = swoole::intersection(*http_index_files, dir_files);
-
-        if (index_file != "" && !handler.set_filename(index_file)) {
-            return false;
-        } else if (index_file == "" && !http_autoindex) {
-            return false;
-        }
+    if (!handler.hit_index_file()) {
+        return false;
     }
+
     /**
      * the index file was not found in the current directory,
      * if http_autoindex is enabled, should show the list of files in the current directory.
      */
-    if (index_file == "" && http_autoindex && handler.is_dir()) {
-        if (dir_files.empty()) {
-            handler.get_dir_files(dir_files);
-        }
-        size_t body_length = handler.get_index_page(dir_files, sw_tg_buffer()->str, sw_tg_buffer()->size);
+    if (!handler.has_index_file() && handler.is_enabled_auto_index() && handler.is_dir()) {
+        sw_tg_buffer()->clear();
+        size_t body_length = handler.make_index_page(sw_tg_buffer());
 
         response.info.len = sw_snprintf(header_buffer,
                                         sizeof(header_buffer),
                                         "HTTP/1.1 200 OK\r\n"
-                                        "%s"
+                                        "Connection: %s\r\n"
                                         "Content-Length: %ld\r\n"
                                         "Content-Type: text/html\r\n"
                                         "Date: %s\r\n"
                                         "Last-Modified: %s\r\n"
                                         "Server: %s\r\n\r\n",
-                                        request->keep_alive ? "Connection: keep-alive\r\n" : "",
+                                        request->keep_alive ? "keep-alive" : "close",
                                         (long) body_length,
                                         date_str.c_str(),
                                         date_str_last_modified.c_str(),
@@ -143,16 +131,17 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
         return true;
     }
 
+    auto task = handler.get_task();
     response.info.len = sw_snprintf(header_buffer,
                                     sizeof(header_buffer),
                                     "HTTP/1.1 200 OK\r\n"
-                                    "%s"
+                                    "Connection: %s\r\n"
                                     "Content-Length: %ld\r\n"
                                     "Content-Type: %s\r\n"
                                     "Date: %s\r\n"
                                     "Last-Modified: %s\r\n"
                                     "Server: %s\r\n\r\n",
-                                    request->keep_alive ? "Connection: keep-alive\r\n" : "",
+                                    request->keep_alive ? "keep-alive" : "close",
                                     (long) task->length,
                                     handler.get_mimetype(),
                                     date_str.c_str(),
@@ -525,15 +514,13 @@ void Request::parse_header_info() {
     for (; p < pe; p++) {
         if (*(p - 1) == '\n' && *(p - 2) == '\r') {
             if (SW_STRCASECT(p, pe - p, "Content-Length:")) {
-                unsigned long long content_length;
                 // strlen("Content-Length:")
                 p += (sizeof("Content-Length:") - 1);
                 // skip spaces
                 while (*p == ' ') {
                     p++;
                 }
-                content_length = strtoull(p, nullptr, 10);
-                content_length_ = SW_MIN(content_length, UINT32_MAX);
+                content_length_ = strtoull(p, nullptr, 10);
                 known_length = 1;
             } else if (SW_STRCASECT(p, pe - p, "Connection:")) {
                 // strlen("Connection:")
@@ -699,6 +686,14 @@ const char *get_method_string(int method) {
     return method_strings[method - 1];
 }
 
+int dispatch_request(Server *serv, const Protocol *proto, Socket *_socket, const RecvData *rdata) {
+    if (serv->is_unavailable()) {
+        _socket->send(SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET), 0);
+        return SW_ERR;
+    }
+    return Server::dispatch_task(proto, _socket, rdata);
+}
+
 //-----------------------------------------------------------------
 
 #ifdef SW_USE_HTTP2
@@ -712,12 +707,12 @@ static void protocol_status_error(Socket *socket, Connection *conn) {
                      conn->info.get_port());
 }
 
-ssize_t get_package_length(Protocol *protocol, Socket *socket, const char *data, uint32_t length) {
+ssize_t get_package_length(const Protocol *protocol, Socket *socket, PacketLength *pl) {
     Connection *conn = (Connection *) socket->object;
     if (conn->websocket_status >= websocket::STATUS_HANDSHAKE) {
-        return websocket::get_package_length(protocol, socket, data, length);
+        return websocket::get_package_length(protocol, socket, pl);
     } else if (conn->http2_stream) {
-        return http2::get_frame_length(protocol, socket, data, length);
+        return http2::get_frame_length(protocol, socket, pl);
     } else {
         protocol_status_error(socket, conn);
         return SW_ERR;
@@ -736,12 +731,12 @@ uint8_t get_package_length_size(Socket *socket) {
     }
 }
 
-int dispatch_frame(Protocol *proto, Socket *socket, const char *data, uint32_t length) {
+int dispatch_frame(const Protocol *proto, Socket *socket, const RecvData *rdata) {
     Connection *conn = (Connection *) socket->object;
     if (conn->websocket_status >= websocket::STATUS_HANDSHAKE) {
-        return websocket::dispatch_frame(proto, socket, data, length);
+        return websocket::dispatch_frame(proto, socket, rdata);
     } else if (conn->http2_stream) {
-        return Server::dispatch_task(proto, socket, data, length);
+        return Server::dispatch_task(proto, socket, rdata);
     } else {
         protocol_status_error(socket, conn);
         return SW_ERR;

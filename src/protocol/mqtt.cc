@@ -12,7 +12,7 @@
  | to obtain it through the world-wide-web, please send a note to       |
  | license@swoole.com so we can mail you a copy immediately.            |
  +----------------------------------------------------------------------+
- | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+ | Author: Tianfeng Han  <rango@swoole.com>                             |
  | Author: Xinhua Guo  <guoxinhua@swoole.com>                           |
  +----------------------------------------------------------------------+
  */
@@ -40,9 +40,9 @@ void set_protocol(Protocol *protocol) {
 // but there's no chance to read the next mqtt request ,because MQTT client will recv ACK blocking
 #define SW_MQTT_RECV_LEN_AGAIN 0
 
-ssize_t get_package_length(Protocol *protocol, Socket *conn, const char *data, uint32_t size) {
+ssize_t get_package_length(const Protocol *protocol, Socket *conn, PacketLength *pl) {
     //-1 cause the arg 'size' contain length_offset(1 byte len)
-    uint32_t recv_variable_header_size = (size - 1);
+    uint32_t recv_variable_header_size = (pl->buf_size - 1);
     if (recv_variable_header_size < SW_MQTT_MIN_LENGTH_SIZE) {  // recv continue
         return SW_MQTT_RECV_LEN_AGAIN;
     }
@@ -53,7 +53,7 @@ ssize_t get_package_length(Protocol *protocol, Socket *conn, const char *data, u
     ssize_t variable_header_byte_count = 0;
     while (1) {
         variable_header_byte_count++;
-        byte = data[variable_header_byte_count];
+        byte = pl->buf[variable_header_byte_count];
         length += (byte & 127) * mul;
         mul *= 128;
         if ((byte & 128) == 0) {  // done! there is no surplus length byte

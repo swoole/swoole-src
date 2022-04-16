@@ -23,11 +23,17 @@
 
 using namespace swoole::test;
 
+using swoole::HttpProxy;
 using swoole::Protocol;
+using swoole::Socks5Proxy;
 using swoole::String;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
+using swoole::network::Address;
+using swoole::network::IOVector;
 using swoole::test::Server;
+
+const std::string host = "www.baidu.com";
 
 TEST(coroutine_socket, connect_refused) {
     coroutine::run([](void *arg) {
@@ -51,7 +57,7 @@ TEST(coroutine_socket, connect_timeout) {
 TEST(coroutine_socket, connect_with_dns) {
     coroutine::run([](void *arg) {
         Socket sock(SW_SOCK_TCP);
-        bool retval = sock.connect("www.baidu.com", 80);
+        bool retval = sock.connect(host, 80);
         ASSERT_EQ(retval, true);
         ASSERT_EQ(sock.errCode, 0);
     });
@@ -127,6 +133,10 @@ TEST(coroutine_socket, bind_success) {
         Socket sock(SW_SOCK_TCP);
         bool retval = sock.bind("127.0.0.1", 9909);
         ASSERT_EQ(retval, true);
+
+        Socket sock_1(SW_SOCK_UNIX_DGRAM);
+        retval = sock_1.bind("127.0.0.1", 9909);
+        ASSERT_EQ(retval, true);
     });
 }
 
@@ -136,6 +146,10 @@ TEST(coroutine_socket, bind_fail) {
         bool retval = sock.bind("192.111.11.1", 9909);
         ASSERT_EQ(retval, false);
         ASSERT_EQ(sock.errCode, EADDRNOTAVAIL);
+
+        Socket sock_1(SW_SOCK_TCP);
+        retval = sock_1.bind("127.0.0.1", 70000);
+        ASSERT_EQ(retval, false);
     });
 }
 
@@ -633,83 +647,464 @@ TEST(coroutine_socket, length_7) {
 
 TEST(coroutine_socket, event_hup) {
     coroutine::run({[](void *arg) {
-        Socket sock(SW_SOCK_TCP);
-        bool retval = sock.bind("127.0.0.1", 9502);
-        ASSERT_EQ(retval, true);
-        ASSERT_EQ(sock.listen(128), true);
+                        Socket sock(SW_SOCK_TCP);
+                        bool retval = sock.bind("127.0.0.1", 9502);
+                        ASSERT_EQ(retval, true);
+                        ASSERT_EQ(sock.listen(128), true);
 
-        Socket *conn = sock.accept();
-        System::sleep(0.05);
-        char buf[1024];
-        auto ret_n = conn->recv(buf, sizeof(buf));
-        ASSERT_EQ(ret_n, 0);
-        delete conn;
-    },
+                        Socket *conn = sock.accept();
+                        System::sleep(0.05);
+                        char buf[1024];
+                        auto ret_n = conn->recv(buf, sizeof(buf));
+                        ASSERT_EQ(ret_n, 0);
+                        delete conn;
+                    },
 
-    [](void *arg) {
-        Socket sock(SW_SOCK_TCP);
-        bool retval = sock.connect("127.0.0.1", 9502, -1);
-        ASSERT_EQ(retval, true);
-        ASSERT_EQ(sock.errCode, 0);
+                    [](void *arg) {
+                        Socket sock(SW_SOCK_TCP);
+                        bool retval = sock.connect("127.0.0.1", 9502, -1);
+                        ASSERT_EQ(retval, true);
+                        ASSERT_EQ(sock.errCode, 0);
 
-        auto buf = sock.get_read_buffer();
-        swoole::Coroutine::create([&sock](void *args) {
-            System::sleep(0.01);
-            sock.shutdown(SHUT_RDWR);
-        });
-        auto n = sock.recv_all(buf->str, buf->size);
-        ASSERT_EQ(sock.get_socket()->event_hup, 1);
-        ASSERT_EQ(n, 0);
-    }});
+                        auto buf = sock.get_read_buffer();
+                        swoole::Coroutine::create([&sock](void *args) {
+                            System::sleep(0.01);
+                            sock.shutdown(SHUT_RDWR);
+                        });
+                        auto n = sock.recv_all(buf->str, buf->size);
+                        ASSERT_EQ(sock.get_socket()->event_hup, 1);
+                        ASSERT_EQ(n, 0);
+                    }});
 }
 
 TEST(coroutine_socket, recv_line) {
     coroutine::run({[](void *arg) {
+                        Socket sock(SW_SOCK_TCP);
+                        bool retval = sock.bind("127.0.0.1", 9909);
+                        ASSERT_EQ(retval, true);
+                        ASSERT_EQ(sock.listen(128), true);
+
+                        Socket *conn = sock.accept();
+                        conn->send("hello world\n");
+                        conn->send("\r");
+                        char buf[256];
+                        memset(buf, 'A', 128);
+                        memset(buf + 128, 'B', 125);
+                        conn->send(buf, 253);
+                        delete conn;
+                    },
+
+                    [](void *arg) {
+                        Socket sock(SW_SOCK_TCP);
+                        bool retval = sock.connect("127.0.0.1", 9909, -1);
+                        ASSERT_EQ(retval, true);
+                        ASSERT_EQ(sock.errCode, 0);
+
+                        size_t n;
+                        auto buf = sock.get_read_buffer();
+
+                        n = sock.recv_line(buf->str, 128);
+                        ASSERT_EQ(n, 12);
+                        ASSERT_MEMEQ(buf->str, "hello world\n", 12);
+
+                        n = sock.recv_line(buf->str, 128);
+                        ASSERT_EQ(n, 1);
+                        ASSERT_MEMEQ(buf->str, "\r", 1);
+
+                        char buf_2[256];
+                        memset(buf_2, 'A', 128);
+                        memset(buf_2 + 128, 'B', 125);
+
+                        n = sock.recv_line(buf->str, 128);
+                        ASSERT_EQ(n, 128);
+                        ASSERT_MEMEQ(buf->str, buf_2, 128);
+
+                        n = sock.recv_line(buf->str, 128);
+                        ASSERT_EQ(n, 125);
+                        ASSERT_MEMEQ(buf->str, buf_2 + 128, 125);
+
+                        n = sock.recv_line(buf->str, 128);
+                        ASSERT_EQ(n, 0);
+                    }});
+}
+
+TEST(coroutine_socket, getsockname) {
+    coroutine::run([](void *arg) {
         Socket sock(SW_SOCK_TCP);
-        bool retval = sock.bind("127.0.0.1", 9909);
+        bool retval = sock.connect(host, 80);
         ASSERT_EQ(retval, true);
-        ASSERT_EQ(sock.listen(128), true);
 
-        Socket *conn = sock.accept();
-        conn->send("hello world\n");
-        conn->send("\r");
-        char buf[256];
-        memset(buf, 'A', 128);
-        memset(buf + 128, 'B', 125);
-        conn->send(buf, 253);
-        delete conn;
-    },
+        Address sa;
+        bool result = sock.getsockname(&sa);
+        sock.close();
+        ASSERT_EQ(result, true);
+    });
+}
 
-    [](void *arg) {
+TEST(coroutine_socket, check_liveness) {
+    coroutine::run([](void *arg) {
         Socket sock(SW_SOCK_TCP);
-        bool retval = sock.connect("127.0.0.1", 9909, -1);
+        bool retval = sock.connect(host, 80);
         ASSERT_EQ(retval, true);
-        ASSERT_EQ(sock.errCode, 0);
 
-        size_t n;
-        auto buf = sock.get_read_buffer();
+        bool result = sock.check_liveness();
+        sock.close();
+        ASSERT_EQ(result, true);
+        result = sock.check_liveness();
+        ASSERT_EQ(result, false);
+    });
+}
 
-        n = sock.recv_line(buf->str, 128);
-        ASSERT_EQ(n, 12);
-        ASSERT_MEMEQ(buf->str, "hello world\n", 12);
+TEST(coroutine_socket, write_and_read) {
+    coroutine::run([&](void *arg) {
+        int pairs[2];
+        socketpair(AF_UNIX, SOCK_STREAM, 0, pairs);
+        std::string text = "Hello World";
+        size_t length = text.length();
 
-        n = sock.recv_line(buf->str, 128);
-        ASSERT_EQ(n, 1);
-        ASSERT_MEMEQ(buf->str, "\r", 1);
+        swoole::Coroutine::create([&](void *) {
+            Socket sock(pairs[0], SW_SOCK_UNIX_STREAM);
+            ssize_t result = sock.write(text.c_str(), length);
+            sock.close();
+            ASSERT_EQ(result, length);
+        });
 
-        char buf_2[256];
-        memset(buf_2, 'A', 128);
-        memset(buf_2 + 128, 'B', 125);
+        char data[128];
+        Socket sock(pairs[1], SW_SOCK_UNIX_STREAM);
+        ssize_t result = sock.read(data, 128);
+        sock.close();
+        ASSERT_GT(result, 0);
+        data[result] = '\0';
+        ASSERT_STREQ(text.c_str(), data);
+    });
+}
 
-        n = sock.recv_line(buf->str, 128);
-        ASSERT_EQ(n, 128);
-        ASSERT_MEMEQ(buf->str, buf_2, 128);
+TEST(coroutine_socket, write_and_read_2) {
+    // test for Socket::Socket(int _fd, int _domain, int _type, int _protocol) construct function
+    coroutine::run([&](void *arg) {
+        int pairs[2];
+        socketpair(AF_UNIX, SOCK_STREAM, 0, pairs);
+        std::string text = "Hello World";
+        size_t length = text.length();
 
-        n = sock.recv_line(buf->str, 128);
-        ASSERT_EQ(n, 125);
-        ASSERT_MEMEQ(buf->str, buf_2 + 128, 125);
+        swoole::Coroutine::create([&](void *) {
+            Socket sock(pairs[0], AF_UNIX, SOCK_STREAM, 0);
+            ssize_t result = sock.write(text.c_str(), length);
+            sock.close();
+            ASSERT_EQ(result, length);
+        });
 
-        n = sock.recv_line(buf->str, 128);
-        ASSERT_EQ(n, 0);
-    }});
+        char data[128];
+        Socket sock(pairs[1], AF_UNIX, SOCK_STREAM, 0);
+        ssize_t result = sock.read(data, 128);
+        sock.close();
+        ASSERT_GT(result, 0);
+        data[result] = '\0';
+        ASSERT_STREQ(text.c_str(), data);
+    });
+}
+
+TEST(coroutine_socket, writev_and_readv) {
+    coroutine::run([&](void *arg) {
+        int iovcnt = 3;
+        int pairs[2];
+        std::string text = "Hello World";
+        size_t length = text.length();
+        socketpair(AF_UNIX, SOCK_STREAM, 0, pairs);
+
+        swoole::Coroutine::create([&](void *) {
+            std::unique_ptr<iovec[]> iov(new iovec[iovcnt]);
+            for (int i = 0; i < iovcnt; i++) {
+                iov[i].iov_base = (void *) text.c_str();
+                iov[i].iov_len = length;
+            }
+            IOVector io_vector((struct iovec *) iov.get(), iovcnt);
+
+            Socket sock(pairs[0], SW_SOCK_UNIX_STREAM);
+            ssize_t result = sock.writev(&io_vector);
+            sock.close();
+            ASSERT_EQ(result, length * 3);
+        });
+
+        std::vector<std::string> results(iovcnt);
+        std::unique_ptr<iovec[]> iov(new iovec[iovcnt]);
+        for (int i = 0; i < iovcnt; i++) {
+            iov[i].iov_base = (void *) results[i].c_str();
+            iov[i].iov_len = length;
+        }
+        IOVector io_vector((struct iovec *) iov.get(), iovcnt);
+
+        Socket sock(pairs[1], SW_SOCK_UNIX_STREAM);
+        ssize_t result = sock.readv(&io_vector);
+        sock.close();
+        ASSERT_EQ(result, length * 3);
+
+        for (auto iter = results.begin(); iter != results.end(); iter++) {
+            (*iter)[length] = '\0';
+            ASSERT_STREQ(text.c_str(), (*iter).c_str());
+        }
+    });
+}
+
+TEST(coroutine_socket, writevall_and_readvall) {
+    coroutine::run([&](void *arg) {
+        int iovcnt = 3;
+        int pairs[2];
+        std::string text = "Hello World";
+        size_t length = text.length();
+        socketpair(AF_UNIX, SOCK_STREAM, 0, pairs);
+
+        swoole::Coroutine::create([&](void *) {
+            std::unique_ptr<iovec[]> iov(new iovec[iovcnt]);
+            for (int i = 0; i < iovcnt; i++) {
+                iov[i].iov_base = (void *) text.c_str();
+                iov[i].iov_len = length;
+            }
+            IOVector io_vector((struct iovec *) iov.get(), iovcnt);
+
+            Socket sock(pairs[0], SW_SOCK_UNIX_STREAM);
+            ssize_t result = sock.writev_all(&io_vector);
+            sock.close();
+            ASSERT_EQ(result, length * 3);
+        });
+
+        std::vector<std::string> results(iovcnt);
+        std::unique_ptr<iovec[]> iov(new iovec[iovcnt]);
+        for (int i = 0; i < iovcnt; i++) {
+            iov[i].iov_base = (void *) results[i].c_str();
+            iov[i].iov_len = length;
+        }
+        IOVector io_vector((struct iovec *) iov.get(), iovcnt);
+
+        Socket sock(pairs[1], SW_SOCK_UNIX_STREAM);
+        ssize_t result = sock.readv_all(&io_vector);
+        sock.close();
+        ASSERT_EQ(result, length * 3);
+
+        for (auto iter = results.begin(); iter != results.end(); iter++) {
+            (*iter)[length] = '\0';
+            ASSERT_STREQ(text.c_str(), (*iter).c_str());
+        }
+    });
+}
+
+TEST(coroutine_socket, sendfile) {
+    coroutine::run([&](void *arg) {
+        int pairs[2];
+        socketpair(AF_UNIX, SOCK_STREAM, 0, pairs);
+        swoole::Coroutine::create([&](void *) {
+            std::string file = get_jpg_file();
+            Socket sock(pairs[0], SW_SOCK_UNIX_STREAM);
+            bool result = sock.sendfile(file.c_str(), 0, 0);
+            sock.close();
+            ASSERT_TRUE(result);
+        });
+
+        char data[250000];
+        Socket sock(pairs[1], SW_SOCK_UNIX_STREAM);
+        ssize_t result = sock.read(data, 250000);
+        data[result] = '\0';
+        sock.close();
+        ASSERT_GT(result, 0);
+    });
+}
+
+void test_sendto_recvfrom(enum swSocketType sock_type) {
+    coroutine::run([&](void *arg) {
+        std::string server_text = "hello world!!!";
+        size_t server_length = server_text.length();
+        std::string client_text = "hello swoole!!!";
+        size_t client_length = client_text.length();
+
+        const char *ip = sock_type == SW_SOCK_UDP ? "127.0.0.1" : "::1";
+
+        Socket sock_server(sock_type);
+        Socket sock_client(sock_type);
+        sock_server.bind(ip, 8080);
+        sock_client.bind(ip, 8081);
+
+        ON_SCOPE_EXIT {
+            sock_server.close();
+            sock_client.close();
+        };
+
+        sock_server.sendto(ip, 8081, (const void *) server_text.c_str(), server_length);
+
+        char data_from_server[128] = {};
+        struct sockaddr_in serveraddr;
+        bzero(&serveraddr, sizeof(serveraddr));
+        serveraddr.sin_family = AF_INET;
+        serveraddr.sin_addr.s_addr = inet_addr(ip);
+        serveraddr.sin_port = htons(8080);
+        socklen_t addr_length = sizeof(serveraddr);
+
+        // receive data from server
+        ssize_t result =
+            sock_client.recvfrom(data_from_server, server_length, (struct sockaddr *) &serveraddr, &addr_length);
+        data_from_server[result] = '\0';
+        ASSERT_EQ(result, server_length);
+        ASSERT_STREQ(data_from_server, server_text.c_str());
+
+        // receive data from client
+        char data_from_client[128] = {};
+        sock_client.sendto(ip, 8080, (const void *) client_text.c_str(), client_length);
+        result = sock_server.recvfrom(data_from_client, client_length);
+        data_from_client[client_length] = '\0';
+        ASSERT_EQ(result, client_length);
+        ASSERT_STREQ(data_from_client, client_text.c_str());
+    });
+}
+
+TEST(coroutine_socket, sendto_recvfrom_udp) {
+    test_sendto_recvfrom(SW_SOCK_UDP);
+    test_sendto_recvfrom(SW_SOCK_UDP6);
+}
+
+void socket_send(Socket &sock, int port) {
+    bool retval = sock.connect(host, port);
+    ON_SCOPE_EXIT {
+        sock.close();
+    };
+    ASSERT_EQ(retval, true);
+
+    if (443 == port) {
+        ASSERT_NE(sock.ssl_get_peer_cert(), "");
+    }
+
+    sock.send("GET / HTTP/1.1\r\nHost: www.baidu.com\r\nConnection: close\r\nUser-Agent: Mozilla/5.0 (Windows NT "
+              "10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.106 Safari/537.36\r\n\r\n");
+
+    char buf[65536];
+    ssize_t result = 0;
+    ssize_t recv_total = 0;
+    while (true) {
+        result = sock.recv(buf + recv_total, 65536 - recv_total);
+        if (0 == result) {
+            break;
+        }
+        recv_total += result;
+    }
+    std::string content(buf);
+    ASSERT_NE(content.find("baidu"), std::string::npos);
+}
+
+TEST(coroutine_socket, socks5_proxy) {
+    coroutine::run([](void *arg) {
+        Socket sock(SW_SOCK_TCP);
+        sock.socks5_proxy = new Socks5Proxy();
+        sock.socks5_proxy->host = std::string("127.0.0.1");
+        sock.socks5_proxy->port = 1080;
+        sock.socks5_proxy->dns_tunnel = 1;
+        sock.socks5_proxy->method = 0x02;
+        sock.socks5_proxy->username = std::string("user");
+        sock.socks5_proxy->password = std::string("password");
+
+        socket_send(sock, 80);
+    });
+}
+
+TEST(coroutine_socket, http_proxy) {
+    coroutine::run([&](void *arg) {
+        Socket sock(SW_SOCK_TCP);
+        sock.http_proxy = new HttpProxy();
+        sock.http_proxy->proxy_host = std::string("127.0.0.1");
+        sock.http_proxy->proxy_port = 8888;
+        sock.http_proxy->username = std::string("user");
+        sock.http_proxy->password = std::string("password");
+
+        socket_send(sock, 80);
+    });
+}
+
+#ifdef SW_USE_OPENSSL
+TEST(coroutine_socket, ssl) {
+    coroutine::run([&](void *arg) {
+        Socket sock(SW_SOCK_TCP);
+
+        sock.enable_ssl_encrypt();
+        sock.get_ssl_context()->cert_file = swoole::test::get_root_path() + "/tests/include/ssl_certs/client.crt";
+        sock.get_ssl_context()->key_file = swoole::test::get_root_path() + "/tests/include/ssl_certs/client.key";
+        sock.get_ssl_context()->verify_peer = false;
+        sock.get_ssl_context()->allow_self_signed = true;
+        sock.get_ssl_context()->cafile = swoole::test::get_root_path() + "/tests/include/ssl_certs/ca.crt";
+
+        socket_send(sock, 443);
+    });
+}
+#endif
+
+TEST(coroutine_socket, peek) {
+    coroutine::run([&](void *arg) {
+        int pairs[2];
+        socketpair(AF_UNIX, SOCK_STREAM, 0, pairs);
+        std::string text = "Hello World";
+        size_t length = text.length();
+
+        swoole::Coroutine::create([&](void *) {
+            Socket sock(pairs[0], SW_SOCK_UNIX_STREAM);
+            ssize_t result = sock.write(text.c_str(), length);
+            sock.close();
+            ASSERT_EQ(result, length);
+        });
+
+        char data[128];
+        Socket sock(pairs[1], SW_SOCK_UNIX_STREAM);
+        ssize_t result = sock.peek(data, 5);
+        sock.close();
+        ASSERT_EQ(result, 5);
+        data[result] = '\0';
+        ASSERT_STREQ("Hello", data);
+    });
+}
+
+TEST(coroutine_socket, sendmsg_and_recvmsg) {
+    coroutine::run([&](void *arg) {
+        int pairs[2];
+        socketpair(AF_UNIX, SOCK_STREAM, 0, pairs);
+
+        std::string text = "Hello World";
+        size_t length = text.length();
+
+        swoole::Coroutine::create([&](void *) {
+            Socket sock(pairs[0], SW_SOCK_UNIX_STREAM);
+            struct msghdr msg;
+            struct iovec ivec;
+
+            msg.msg_control = nullptr;
+            msg.msg_controllen = 0;
+            msg.msg_flags = 0;
+            msg.msg_name = nullptr;
+            msg.msg_namelen = 0;
+            msg.msg_iov = &ivec;
+            msg.msg_iovlen = 1;
+
+            ivec.iov_base = (void *) text.c_str();
+            ivec.iov_len = length;
+
+            ssize_t ret = sock.sendmsg(&msg, 0);
+            sock.close();
+            ASSERT_EQ(ret, length);
+        });
+
+        Socket sock(pairs[1], SW_SOCK_UNIX_STREAM);
+        struct msghdr msg;
+        struct iovec ivec;
+        char buf[length + 1];
+
+        msg.msg_control = nullptr;
+        msg.msg_controllen = 0;
+        msg.msg_flags = 0;
+        msg.msg_name = nullptr;
+        msg.msg_namelen = 0;
+        msg.msg_iov = &ivec;
+        msg.msg_iovlen = 1;
+
+        ivec.iov_base = buf;
+        ivec.iov_len = length;
+
+        ssize_t ret = sock.recvmsg(&msg, 0);
+        buf[ret] = '\0';
+        sock.close();
+        ASSERT_STREQ(buf, text.c_str());
+    });
 }

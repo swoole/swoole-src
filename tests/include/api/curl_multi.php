@@ -1,5 +1,11 @@
 <?php
 function swoole_test_curl_multi($options = []) {
+    $mh = curl_multi_init();
+    swoole_test_curl_multi_ex($mh, $options);
+    curl_multi_close($mh);
+}
+
+function swoole_test_curl_multi_ex($mh, $options = []) {
     $ch1 = curl_init();
     $ch2 = curl_init();
 

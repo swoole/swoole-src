@@ -10,7 +10,7 @@
  | to obtain it through the world-wide-web, please send a note to       |
  | license@swoole.com so we can mail you a copy immediately.            |
  +----------------------------------------------------------------------+
- | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+ | Author: Tianfeng Han  <rango@swoole.com>                             |
  +----------------------------------------------------------------------+
  */
 
@@ -106,8 +106,8 @@ Stream::~Stream() {
  */
 void Stream::set_protocol(Protocol *protocol) {
     protocol->get_package_length = Protocol::default_length_func;
-    protocol->package_length_size = 4;
     protocol->package_length_type = 'N';
+    protocol->package_length_size = swoole_type_size(protocol->package_length_type);
     protocol->package_body_offset = 4;
     protocol->package_length_offset = 0;
 }
@@ -117,6 +117,8 @@ void Stream::set_max_length(uint32_t max_length) {
 }
 
 int Stream::send(const char *data, size_t length) {
+    assert(data != nullptr);
+    assert(length > 0);
     if (buffer == nullptr) {
         buffer = new String(swoole_size_align(length + 4, SwooleG.pagesize));
         buffer->length = 4;

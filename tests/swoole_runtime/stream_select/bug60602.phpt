@@ -57,7 +57,7 @@ go(function () {
 Swoole\Event::wait();
 ?>
 --EXPECTF--
-Notice: Array to string conversion in %s on line %d
+%s: Array to string conversion in %s on line %d
 int(%d)
 int(0)
 bool(true)

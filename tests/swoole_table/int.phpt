@@ -6,12 +6,12 @@ swoole_table: int
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-$table = new swoole_table(65536);
+$table = new Swoole\Table(65536);
 
-$table->column('i8', swoole_table::TYPE_INT, 1);
-$table->column('i16', swoole_table::TYPE_INT, 2);
-$table->column('i32', swoole_table::TYPE_INT, 4);
-$table->column('i64', swoole_table::TYPE_INT, 8);
+$table->column('i8', Swoole\Table::TYPE_INT, 1);
+$table->column('i16', Swoole\Table::TYPE_INT, 2);
+$table->column('i32', Swoole\Table::TYPE_INT, 4);
+$table->column('i64', Swoole\Table::TYPE_INT, 8);
 
 if (!$table->create())
 {

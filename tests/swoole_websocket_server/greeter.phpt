@@ -26,12 +26,12 @@ $pm->parentFunc = function (int $pid) use ($pm, &$count) {
             }
         });
     }
-    swoole_event_wait();
+    Swoole\Event::wait();
     Assert::same($count, (MAX_CONCURRENCY * MAX_REQUESTS));
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
-    $serv = new swoole_websocket_server('127.0.0.1', $pm->getFreePort(), SERVER_MODE_RANDOM);
+    $serv = new Swoole\WebSocket\Server('127.0.0.1', $pm->getFreePort(), SERVER_MODE_RANDOM);
     $serv->set([
         // 'worker_num' => 1,
         'log_file' => '/dev/null'
@@ -39,7 +39,7 @@ $pm->childFunc = function () use ($pm) {
     $serv->on('workerStart', function () use ($pm) {
         $pm->wakeup();
     });
-    $serv->on('message', function (swoole_websocket_server $server, swoole_websocket_frame $frame) {
+    $serv->on('message', function (Swoole\WebSocket\Server  $server, Swoole\WebSocket\Frame $frame) {
         $server->push($frame->fd, "Hello {$frame->data}!");
         $server->push($frame->fd, "How are you, {$frame->data}?");
     });

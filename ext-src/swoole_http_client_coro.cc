@@ -10,7 +10,7 @@
  | to obtain it through the world-wide-web, please send a note to       |
  | license@swoole.com so we can mail you a copy immediately.            |
  +----------------------------------------------------------------------+
- | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+ | Author: Tianfeng Han  <rango@swoole.com>                             |
  | Author: Twosee  <twose@qq.com>                                       |
  | Author: Fang  <coooold@live.com>                                     |
  | Author: Yuanyi   Zhi  <syyuanyizhi@163.com>                          |
@@ -38,6 +38,8 @@ SW_EXTERN_C_BEGIN
 #ifdef SW_HAVE_ZLIB
 #include <zlib.h>
 #endif
+
+#include "stubs/php_swoole_http_client_coro_arginfo.h"
 
 SW_EXTERN_C_END
 
@@ -88,14 +90,15 @@ namespace coroutine {
 class HttpClient {
   public:
     /* request info */
-    std::string host = "127.0.0.1";
-    uint16_t port = 80;
+    std::string host;
+    uint16_t port;
 #ifdef SW_USE_OPENSSL
-    uint8_t ssl = false;
+    uint8_t ssl;
 #endif
     double connect_timeout = network::Socket::default_connect_timeout;
     bool defer = false;
     bool lowercase_header = true;
+    bool use_default_port;
 
     int8_t method = SW_HTTP_GET;
     std::string path;
@@ -111,8 +114,7 @@ class HttpClient {
 #endif
 
     /* options */
-    uint8_t reconnect_interval = 1;
-    uint8_t reconnected_count = 0;
+    uint8_t max_retries = 0;
     bool keep_alive = true;      // enable by default
     bool websocket = false;      // if upgrade successfully
     bool chunked = false;        // Transfer-Encoding: chunked
@@ -246,7 +248,8 @@ class HttpClient {
 
   private:
     Socket *socket = nullptr;
-    swSocketType socket_type = SW_SOCK_TCP;
+    NameResolver::Context resolve_context_ = {};
+    SocketType socket_type = SW_SOCK_TCP;
     swoole_http_parser parser = {};
     bool wait = false;
 };
@@ -301,125 +304,38 @@ static PHP_METHOD(swoole_http_client_coro, close);
 SW_EXTERN_C_END
 
 // clang-format off
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_coro_construct, 0, 0, 1)
-    ZEND_ARG_INFO(0, host)
-    ZEND_ARG_INFO(0, port)
-    ZEND_ARG_INFO(0, ssl)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_set, 0, 0, 1)
-    ZEND_ARG_ARRAY_INFO(0, settings, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_setDefer, 0, 0, 0)
-    ZEND_ARG_INFO(0, defer)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_setMethod, 0, 0, 1)
-    ZEND_ARG_INFO(0, method)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_setHeaders, 0, 0, 1)
-    ZEND_ARG_ARRAY_INFO(0, headers, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_setBasicAuth, 0, 0, 2)
-    ZEND_ARG_INFO(0, username)
-    ZEND_ARG_INFO(0, password)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_setCookies, 0, 0, 1)
-    ZEND_ARG_ARRAY_INFO(0, cookies, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_setData, 0, 0, 1)
-    ZEND_ARG_INFO(0, data)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_addFile, 0, 0, 2)
-    ZEND_ARG_INFO(0, path)
-    ZEND_ARG_INFO(0, name)
-    ZEND_ARG_INFO(0, type)
-    ZEND_ARG_INFO(0, filename)
-    ZEND_ARG_INFO(0, offset)
-    ZEND_ARG_INFO(0, length)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_addData, 0, 0, 2)
-    ZEND_ARG_INFO(0, path)
-    ZEND_ARG_INFO(0, name)
-    ZEND_ARG_INFO(0, type)
-    ZEND_ARG_INFO(0, filename)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_execute, 0, 0, 1)
-    ZEND_ARG_INFO(0, path)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_get, 0, 0, 1)
-    ZEND_ARG_INFO(0, path)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_post, 0, 0, 2)
-    ZEND_ARG_INFO(0, path)
-    ZEND_ARG_INFO(0, data)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_download, 0, 0, 2)
-    ZEND_ARG_INFO(0, path)
-    ZEND_ARG_INFO(0, file)
-    ZEND_ARG_INFO(0, offset)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_upgrade, 0, 0, 1)
-    ZEND_ARG_INFO(0, path)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_push, 0, 0, 1)
-    ZEND_ARG_INFO(0, data)
-    ZEND_ARG_INFO(0, opcode)
-    ZEND_ARG_INFO(0, flags)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_recv, 0, 0, 0)
-    ZEND_ARG_INFO(0, timeout)
-ZEND_END_ARG_INFO()
 static const zend_function_entry swoole_http_client_coro_methods[] =
 {
-    PHP_ME(swoole_http_client_coro, __construct, arginfo_swoole_http_client_coro_coro_construct, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, __destruct, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, set, arginfo_swoole_http_client_coro_set, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, getDefer, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, setDefer, arginfo_swoole_http_client_coro_setDefer, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, setMethod, arginfo_swoole_http_client_coro_setMethod, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, setHeaders, arginfo_swoole_http_client_coro_setHeaders, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, setBasicAuth, arginfo_swoole_http_client_coro_setBasicAuth, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, setCookies, arginfo_swoole_http_client_coro_setCookies, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, setData, arginfo_swoole_http_client_coro_setData, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, addFile, arginfo_swoole_http_client_coro_addFile, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, addData, arginfo_swoole_http_client_coro_addData, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, execute, arginfo_swoole_http_client_coro_execute, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, getpeername, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, getsockname, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, get, arginfo_swoole_http_client_coro_get, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, post, arginfo_swoole_http_client_coro_post, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, download, arginfo_swoole_http_client_coro_download, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, getBody, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, getHeaders, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, getCookies, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, getStatusCode, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, getHeaderOut, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, __construct,   arginfo_class_Swoole_Coroutine_Http_Client___construct,   ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, __destruct,    arginfo_class_Swoole_Coroutine_Http_Client___destruct,    ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, set,           arginfo_class_Swoole_Coroutine_Http_Client_set,           ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, getDefer,      arginfo_class_Swoole_Coroutine_Http_Client_getDefer,      ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, setDefer,      arginfo_class_Swoole_Coroutine_Http_Client_setDefer,      ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, setMethod,     arginfo_class_Swoole_Coroutine_Http_Client_setMethod,     ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, setHeaders,    arginfo_class_Swoole_Coroutine_Http_Client_setHeaders,    ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, setBasicAuth,  arginfo_class_Swoole_Coroutine_Http_Client_setBasicAuth,  ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, setCookies,    arginfo_class_Swoole_Coroutine_Http_Client_setCookies,    ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, setData,       arginfo_class_Swoole_Coroutine_Http_Client_setData,       ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, addFile,       arginfo_class_Swoole_Coroutine_Http_Client_addFile,       ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, addData,       arginfo_class_Swoole_Coroutine_Http_Client_addData,       ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, execute,       arginfo_class_Swoole_Coroutine_Http_Client_execute,       ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, getpeername,   arginfo_class_Swoole_Coroutine_Http_Client_getpeername,   ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, getsockname,   arginfo_class_Swoole_Coroutine_Http_Client_getsockname,   ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, get,           arginfo_class_Swoole_Coroutine_Http_Client_get,           ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, post,          arginfo_class_Swoole_Coroutine_Http_Client_post,          ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, download,      arginfo_class_Swoole_Coroutine_Http_Client_download,      ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, getBody,       arginfo_class_Swoole_Coroutine_Http_Client_getBody,       ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, getHeaders,    arginfo_class_Swoole_Coroutine_Http_Client_getHeaders,    ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, getCookies,    arginfo_class_Swoole_Coroutine_Http_Client_getCookies,    ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, getStatusCode, arginfo_class_Swoole_Coroutine_Http_Client_getStatusCode, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, getHeaderOut,  arginfo_class_Swoole_Coroutine_Http_Client_getHeaderOut,  ZEND_ACC_PUBLIC)
 #ifdef SW_USE_OPENSSL
-    PHP_ME(swoole_http_client_coro, getPeerCert, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, getPeerCert, arginfo_class_Swoole_Coroutine_Http_Client_getPeerCert, ZEND_ACC_PUBLIC)
 #endif
-    PHP_ME(swoole_http_client_coro, upgrade, arginfo_swoole_http_client_coro_upgrade, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, push, arginfo_swoole_http_client_coro_push, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, recv, arginfo_swoole_http_client_coro_recv, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, close, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, upgrade, arginfo_class_Swoole_Coroutine_Http_Client_upgrade, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, push,    arginfo_class_Swoole_Coroutine_Http_Client_push,    ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, recv,    arginfo_class_Swoole_Coroutine_Http_Client_recv,    ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, close,   arginfo_class_Swoole_Coroutine_Http_Client_close,   ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
@@ -618,6 +534,10 @@ static int http_parser_on_message_complete(swoole_http_parser *parser) {
 HttpClient::HttpClient(zval *zobject, std::string host, zend_long port, zend_bool ssl) {
     this->socket_type = network::Socket::convert_to_type(host);
     this->host = host;
+    this->use_default_port = port == 0;
+    if (this->use_default_port) {
+        port = ssl ? 443 : 80;
+    }
     this->port = port;
 #ifdef SW_USE_OPENSSL
     this->ssl = ssl;
@@ -731,7 +651,7 @@ bool HttpClient::decompress_response(const char *in, size_t in_len) {
                 }
             } else {
                 swoole_warning("BrotliDecoderDecompressStream() failed, %s",
-                       BrotliDecoderErrorString(BrotliDecoderGetErrorCode(brotli_decoder_state)));
+                               BrotliDecoderErrorString(BrotliDecoderGetErrorCode(brotli_decoder_state)));
                 break;
             }
         }
@@ -761,8 +681,8 @@ void HttpClient::apply_setting(zval *zset, const bool check_all) {
             php_swoole_array_get_value(vht, "timeout", ztmp) /* backward compatibility */) {
             connect_timeout = zval_get_double(ztmp);
         }
-        if (php_swoole_array_get_value(vht, "reconnect", ztmp)) {
-            reconnect_interval = (uint8_t) SW_MIN(zval_get_long(ztmp), UINT8_MAX);
+        if (php_swoole_array_get_value(vht, "max_retries", ztmp)) {
+            max_retries = (uint8_t) SW_MIN(zval_get_long(ztmp), UINT8_MAX);
         }
         if (php_swoole_array_get_value(vht, "defer", ztmp)) {
             defer = zval_is_true(ztmp);
@@ -814,45 +734,46 @@ void HttpClient::set_basic_auth(const std::string &username, const std::string &
 }
 
 bool HttpClient::connect() {
-    if (!socket) {
-        if (!body) {
-            body = new String(SW_HTTP_RESPONSE_INIT_SIZE);
-            if (!body) {
-                set_error(ENOMEM, swoole_strerror(ENOMEM), HTTP_CLIENT_ESTATUS_CONNECT_FAILED);
-                return false;
-            }
-        }
-
-        php_swoole_check_reactor();
-        socket = new Socket(socket_type);
-        if (UNEXPECTED(socket->get_fd() < 0)) {
-            php_swoole_sys_error(E_WARNING, "new Socket() failed");
-            set_error(errno, swoole_strerror(errno), HTTP_CLIENT_ESTATUS_CONNECT_FAILED);
-            delete socket;
-            socket = nullptr;
-            return false;
-        }
-#ifdef SW_USE_OPENSSL
-        if (ssl) {
-            socket->enable_ssl_encrypt();
-        }
-#endif
-        // apply settings
-        apply_setting(
-            sw_zend_read_property_ex(swoole_http_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0),
-            false);
-
-        // socket->set_buffer_allocator(&SWOOLE_G(zend_string_allocator));
-        // connect
-        socket->set_timeout(connect_timeout, Socket::TIMEOUT_CONNECT);
-        if (!socket->connect(host, port)) {
-            set_error(socket->errCode, socket->errMsg, HTTP_CLIENT_ESTATUS_CONNECT_FAILED);
-            close();
-            return false;
-        }
-        reconnected_count = 0;
-        zend_update_property_bool(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("connected"), 1);
+    if (socket) {
+        return true;
     }
+    if (!body) {
+        body = new String(SW_HTTP_RESPONSE_INIT_SIZE);
+        if (!body) {
+            set_error(ENOMEM, swoole_strerror(ENOMEM), HTTP_CLIENT_ESTATUS_CONNECT_FAILED);
+            return false;
+        }
+    }
+
+    php_swoole_check_reactor();
+    socket = new Socket(socket_type);
+    if (UNEXPECTED(socket->get_fd() < 0)) {
+        php_swoole_sys_error(E_WARNING, "new Socket() failed");
+        set_error(errno, swoole_strerror(errno), HTTP_CLIENT_ESTATUS_CONNECT_FAILED);
+        delete socket;
+        socket = nullptr;
+        return false;
+    }
+#ifdef SW_USE_OPENSSL
+    if (ssl) {
+        socket->enable_ssl_encrypt();
+    }
+#endif
+    // apply settings
+    apply_setting(sw_zend_read_property_ex(swoole_http_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0),
+                  false);
+
+    // socket->set_buffer_allocator(&SWOOLE_G(zend_string_allocator));
+    // connect
+    socket->set_timeout(connect_timeout, Socket::TIMEOUT_CONNECT);
+    socket->set_resolve_context(&resolve_context_);
+    if (!socket->connect(host, port)) {
+        set_error(socket->errCode, socket->errMsg, HTTP_CLIENT_ESTATUS_CONNECT_FAILED);
+        close();
+        return false;
+    }
+
+    zend_update_property_bool(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("connected"), 1);
     return true;
 }
 
@@ -872,7 +793,7 @@ bool HttpClient::keep_liveness() {
             set_error(socket->errCode, socket->errMsg, HTTP_CLIENT_ESTATUS_SERVER_RESET);
             close(false);
         }
-        for (; reconnected_count < reconnect_interval; reconnected_count++) {
+        SW_LOOP_N(max_retries + 1) {
             if (connect()) {
                 return true;
             }
@@ -893,19 +814,17 @@ bool HttpClient::send() {
     }
 
     // when new request, clear all properties about the last response
-    {
-        zend_update_property_null(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("headers"));
-        zend_update_property_null(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("set_cookie_headers"));
-        zend_update_property_string(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("body"), "");
-    }
+    zend_update_property_null(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("headers"));
+    zend_update_property_null(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("set_cookie_headers"));
+    zend_update_property_string(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("body"), "");
 
     if (!keep_liveness()) {
         return false;
-    } else {
-        zend_update_property_long(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), 0);
-        zend_update_property_string(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errMsg"), "");
-        zend_update_property_long(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("statusCode"), 0);
     }
+
+    zend_update_property_long(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), 0);
+    zend_update_property_string(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errMsg"), "");
+    zend_update_property_long(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("statusCode"), 0);
 
     /* another coroutine is connecting */
     socket->check_bound_co(SW_EVENT_WRITE);
@@ -1333,15 +1252,15 @@ bool HttpClient::send() {
     }
 
     swoole_trace_log(SW_TRACE_HTTP_CLIENT,
-               "to [%s:%u%s] by fd#%d in cid#%ld with [%zu] bytes: <<EOF\n%.*s\nEOF",
-               host.c_str(),
-               port,
-               path.c_str(),
-               socket->get_fd(),
-               Coroutine::get_current_cid(),
-               buffer->length,
-               (int) buffer->length,
-               buffer->str);
+                     "to [%s:%u%s] by fd#%d in cid#%ld with [%zu] bytes: <<EOF\n%.*s\nEOF",
+                     host.c_str(),
+                     port,
+                     path.c_str(),
+                     socket->get_fd(),
+                     Coroutine::get_current_cid(),
+                     buffer->length,
+                     (int) buffer->length,
+                     buffer->str);
 
     if (socket->send_all(buffer->str, buffer->length) != (ssize_t) buffer->length) {
     _send_fail:
@@ -1356,12 +1275,25 @@ bool HttpClient::send() {
 bool HttpClient::exec(std::string _path) {
     path = _path;
     // bzero when make a new reqeust
-    reconnected_count = 0;
+    resolve_context_ = {};
+    if (use_default_port) {
+        resolve_context_.with_port = true;
+    }
     if (defer) {
         return send();
-    } else {
-        return send() && recv();
     }
+    SW_LOOP_N(max_retries + 1) {
+        if (send() == false || recv() == false) {
+            return false;
+        }
+        if (max_retries > 0 &&
+            (parser.status_code == SW_HTTP_BAD_GATEWAY || parser.status_code == SW_HTTP_SERVICE_UNAVAILABLE)) {
+            close(true);
+            continue;
+        }
+        return true;
+    }
+    return false;
 }
 
 bool HttpClient::recv(double timeout) {
@@ -1508,11 +1440,11 @@ bool HttpClient::recv_http_response(double timeout) {
         total_bytes += retval;
         parsed_n = swoole_http_parser_execute(&parser, &http_parser_settings, buffer->str, retval);
         swoole_trace_log(SW_TRACE_HTTP_CLIENT,
-                   "parsed_n=%ld, retval=%ld, total_bytes=%ld, completed=%d",
-                   parsed_n,
-                   retval,
-                   total_bytes,
-                   parser.state == s_start_res);
+                         "parsed_n=%ld, retval=%ld, total_bytes=%ld, completed=%d",
+                         parsed_n,
+                         retval,
+                         total_bytes,
+                         parser.state == s_start_res);
         if (parser.state == s_start_res) {
             // handle redundant data (websocket packet)
             if (parser.upgrade && (size_t) retval > parsed_n + SW_WEBSOCKET_HEADER_LEN) {
@@ -1644,27 +1576,28 @@ void HttpClient::reset() {
 
 bool HttpClient::close(const bool should_be_reset) {
     Socket *_socket = socket;
-    if (_socket) {
-        zend_update_property_bool(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("connected"), 0);
-        if (!_socket->has_bound()) {
-            if (should_be_reset) {
-                reset();
-            }
-            // reset the properties that depend on the connection
-            websocket = false;
-#ifdef SW_HAVE_ZLIB
-            websocket_compression = false;
-#endif
-            if (tmp_write_buffer) {
-                delete tmp_write_buffer;
-            }
-            tmp_write_buffer = socket->pop_write_buffer();
-            socket = nullptr;
-        }
-        php_swoole_client_coro_socket_free(_socket);
-        return true;
+    if (!_socket) {
+        return false;
     }
-    return false;
+
+    zend_update_property_bool(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("connected"), 0);
+    if (!_socket->has_bound()) {
+        if (should_be_reset) {
+            reset();
+        }
+        // reset the properties that depend on the connection
+        websocket = false;
+#ifdef SW_HAVE_ZLIB
+        websocket_compression = false;
+#endif
+        if (tmp_write_buffer) {
+            delete tmp_write_buffer;
+        }
+        tmp_write_buffer = socket->pop_write_buffer();
+        socket = nullptr;
+    }
+    php_swoole_client_coro_socket_free(_socket);
+    return true;
 }
 
 HttpClient::~HttpClient() {
@@ -1709,7 +1642,6 @@ static zend_object *php_swoole_http_client_coro_create_object(zend_class_entry *
 void php_swoole_http_client_coro_minit(int module_number) {
     SW_INIT_CLASS_ENTRY(swoole_http_client_coro,
                         "Swoole\\Coroutine\\Http\\Client",
-                        nullptr,
                         "Co\\Http\\Client",
                         swoole_http_client_coro_methods);
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_http_client_coro);
@@ -1750,7 +1682,6 @@ void php_swoole_http_client_coro_minit(int module_number) {
 
     SW_INIT_CLASS_ENTRY_EX(swoole_http_client_coro_exception,
                            "Swoole\\Coroutine\\Http\\Client\\Exception",
-                           nullptr,
                            "Co\\Http\\Client\\Exception",
                            nullptr,
                            swoole_exception);
@@ -1797,9 +1728,6 @@ static PHP_METHOD(swoole_http_client_coro, __construct) {
         RETURN_FALSE;
     }
 #endif
-    if (port == 0) {
-        port = ssl ? 443 : 80;
-    }
     hcc->phc = new HttpClient(ZEND_THIS, std::string(host, host_len), port, ssl);
 }
 

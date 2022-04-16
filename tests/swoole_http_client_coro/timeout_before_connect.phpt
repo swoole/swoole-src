@@ -40,6 +40,6 @@ go(function () {
     Assert::same($cli2->errCode, 0);
     Assert::assert($cli2->statusCode === 200 && strpos($cli2->body, 'tencent') !== false);
 });
-swoole_event::wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--

@@ -10,7 +10,7 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | Author: Tianfeng Han  <rango@swoole.com>                             |
   +----------------------------------------------------------------------+
 */
 #include "swoole.h"
@@ -70,13 +70,8 @@ static void signal_init() {
     if (!signal_ready) {
         Reactor *reactor = SwooleTG.reactor;
         swoole_signal_set(SIGCHLD, signal_handler);
-#ifdef HAVE_SIGNALFD
-        if (SwooleG.use_signalfd && !reactor->isset_handler(SW_FD_SIGNAL)) {
-            swoole_signalfd_setup(reactor);
-        }
-#endif
 
-        reactor->set_exit_condition(Reactor::EXIT_CONDITION_WAIT_PID, [](Reactor *reactor, int &event_num) -> bool {
+        reactor->set_exit_condition(Reactor::EXIT_CONDITION_WAIT_PID, [](Reactor *reactor, size_t &event_num) -> bool {
             return swoole_coroutine_wait_count() == 0;
         });
 

@@ -19,7 +19,7 @@ go(function () {
     Assert::assert(strpos($cli->body, $random) !== false);
     echo "DONE\n";
 });
-swoole_event_wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--
 DONE

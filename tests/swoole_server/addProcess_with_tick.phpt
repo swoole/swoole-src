@@ -18,7 +18,7 @@ class Process3 extends Swoole\Process
 
     public function run()
     {
-        swoole_timer_tick(100, function () {
+        Swoole\Timer::tick(100, function () {
             global $atomic;
             if ($atomic->add() > 5) {
                 global $pm;

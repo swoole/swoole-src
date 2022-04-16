@@ -13,7 +13,7 @@ $pm = new SwooleTest\ProcessManager;
 use Swoole\Server;
 
 $pm->parentFunc = function ($pid) use ($pm) {
-    $client = new swoole_client(SWOOLE_SOCK_TCP | SWOOLE_SSL, SWOOLE_SOCK_SYNC);
+    $client = new Swoole\Client(SWOOLE_SOCK_TCP | SWOOLE_SSL, SWOOLE_SOCK_SYNC);
     if (!$client->connect('127.0.0.1', $pm->getFreePort())) {
         exit("connect failed\n");
     }

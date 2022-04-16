@@ -16,6 +16,7 @@
 #pragma once
 
 #include "swoole.h"
+#include "swoole_protocol.h"
 
 enum swHttpVersion {
     SW_HTTP_VERSION_10 = 1,
@@ -104,6 +105,7 @@ enum swHttpStatusCode {
 };
 
 namespace swoole {
+class Server;
 namespace http_server {
 //-----------------------------------------------------------------
 struct Request {
@@ -125,7 +127,7 @@ struct Request {
 
     uint32_t request_line_length_; /* without \r\n  */
     uint32_t header_length_;       /* include request_line_length + \r\n */
-    uint32_t content_length_;
+    uint64_t content_length_;
 
     String *buffer_;
 
@@ -152,11 +154,12 @@ const char *get_method_string(int method);
 const char *get_status_message(int code);
 size_t url_decode(char *str, size_t len);
 char *url_encode(char const *str, size_t len);
+int dispatch_request(Server *serv, const Protocol *proto, network::Socket *socket, const RecvData *rdata);
 
 #ifdef SW_USE_HTTP2
-ssize_t get_package_length(Protocol *protocol, network::Socket *conn, const char *data, uint32_t length);
+ssize_t get_package_length(const Protocol *protocol, network::Socket *conn, PacketLength *pl);
 uint8_t get_package_length_size(network::Socket *conn);
-int dispatch_frame(Protocol *protocol, network::Socket *conn, const char *data, uint32_t length);
+int dispatch_frame(const Protocol *protocol, network::Socket *conn, const RecvData *rdata);
 #endif
 
 //-----------------------------------------------------------------

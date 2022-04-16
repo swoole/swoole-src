@@ -6,7 +6,7 @@
 */
 
 /*
-    "backported" version of original jump_mips64_n64_elf_gas.S 
+    "backported" version of original jump_mips64_n64_elf_gas.S
 */
 
 /*******************************************************
@@ -50,11 +50,11 @@
  * *****************************************************/
 
 .text
-.globl jump_fcontext
+.globl swoole_jump_fcontext
 .align 3
-.type jump_fcontext,@function
-.ent jump_fcontext
-jump_fcontext:
+.type swoole_jump_fcontext,@function
+.ent swoole_jump_fcontext
+swoole_jump_fcontext:
     # reserve space on stack
     daddiu $sp, $sp, -160
 
@@ -71,7 +71,7 @@ jump_fcontext:
     sd  $ra, 152($sp) # save RA as PC
 
 #if defined(__mips_hard_float)
-    # test if fpu env should be preserved 
+    # test if fpu env should be preserved
     beqz    $a3,  1f
 
     s.d  $f24, 0($sp)   # save F24
@@ -92,7 +92,7 @@ jump_fcontext:
     move  $sp, $a1
 
 #if defined(__mips_hard_float)
-    # test if fpu env should be preserved 
+    # test if fpu env should be preserved
     beqz    $a3,  2f
 
 
@@ -131,8 +131,8 @@ jump_fcontext:
 
     # jump to context
     jr  $t9
-.end jump_fcontext
-.size jump_fcontext, .-jump_fcontext
+.end swoole_jump_fcontext
+.size swoole_jump_fcontext, .-swoole_jump_fcontext
 
 /* Mark that we don't need executable stack.  */
 .section .note.GNU-stack,"",%progbits

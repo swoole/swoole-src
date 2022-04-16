@@ -18,8 +18,11 @@
 */
 
 #include "test_core.h"
+#include "swoole_server.h"
 #include "swoole_file.h"
 #include "swoole_util.h"
+#include "swoole.h"
+#include "swoole_config.h"
 
 using namespace swoole;
 using namespace std;
@@ -31,6 +34,7 @@ TEST(base, datahead_dump) {
     data.fd = 123;
     char buf[128];
     size_t n = data.dump(buf, sizeof(buf));
+    data.print();
 
     ASSERT_GT(std::string(buf, n).find("int fd = 123;"), 1);
 }
@@ -41,7 +45,7 @@ TEST(base, dec2hex) {
     sw_free(result);
 }
 
-TEST(base, swoole_hex2dec) {
+TEST(base, hex2dec) {
     size_t n_parsed;
     ASSERT_EQ(swoole_hex2dec("9fff9123", &n_parsed), 2684326179);
     ASSERT_EQ(n_parsed, 8);
@@ -76,7 +80,7 @@ TEST(base, file_get_size) {
     f.write(buf, sizeof(buf) - 1);
     f.close();
 
-    ASSERT_EQ(file_get_size(TEST_TMP_FILE), sizeof(buf) -1);
+    ASSERT_EQ(file_get_size(TEST_TMP_FILE), sizeof(buf) - 1);
 }
 
 TEST(base, version_compare) {
@@ -109,6 +113,23 @@ TEST(base, shell_exec) {
     ASSERT_GT(n, 0);
     ASSERT_STREQ(string(buf).substr(0, sizeof(TEST_JPG_MD5SUM) - 1).c_str(), TEST_JPG_MD5SUM);
     close(_pipe);
+
+    str = "md5sum test.abcdef";
+    _pipe = swoole_shell_exec(str.c_str(), &pid, 1);
+    memset(buf, 0, sizeof(buf));
+    ssize_t length = 0;
+    while (1) {
+        n = read(_pipe, buf + length, sizeof(buf) - 1 - length);
+        length += n;
+        if (n > 0) {
+            continue;
+        }
+        break;
+    }
+    ASSERT_GT(length, 0);
+
+    ASSERT_STREQ(buf, string("md5sum: test.abcdef: No such file or directory\n").c_str());
+    close(_pipe);
 }
 
 TEST(base, file_size) {
@@ -122,17 +143,18 @@ TEST(base, file_size) {
 }
 
 TEST(base, eventdata_pack) {
-    swEventData ed1 { };
+    EventData ed1{};
 
-    ASSERT_TRUE(ed1.pack(test_data.c_str(), test_data.length()));
+    ASSERT_TRUE(Server::task_pack(&ed1, test_data.c_str(), test_data.length()));
     ASSERT_EQ(string(ed1.data, ed1.info.len), test_data);
 
-    swEventData ed2 { };
+    EventData ed2{};
     ASSERT_EQ(swoole_random_bytes(sw_tg_buffer()->str, SW_BUFFER_SIZE_BIG), SW_BUFFER_SIZE_BIG);
-    ASSERT_TRUE(ed2.pack(sw_tg_buffer()->str, SW_BUFFER_SIZE_BIG));
+    ASSERT_TRUE(Server::task_pack(&ed2, sw_tg_buffer()->str, SW_BUFFER_SIZE_BIG));
 
     String _buffer(SW_BUFFER_SIZE_BIG);
-    ASSERT_TRUE(ed2.unpack(&_buffer));
+    PacketPtr packet;
+    ASSERT_TRUE(Server::task_unpack(&ed2, &_buffer, &packet));
     ASSERT_EQ(memcmp(sw_tg_buffer()->str, _buffer.str, SW_BUFFER_SIZE_BIG), 0);
 }
 
@@ -164,6 +186,14 @@ TEST(base, dirname) {
 }
 
 TEST(base, set_task_tmpdir) {
+    ASSERT_FALSE(swoole_set_task_tmpdir("aaa"));
+
+    size_t length = SW_TASK_TMP_PATH_SIZE + 1;
+    char too_long_dir[length] = {};
+    swoole_random_string(too_long_dir + 1, length - 1);
+    too_long_dir[0] = '/';
+    ASSERT_FALSE(swoole_set_task_tmpdir(too_long_dir));
+
     const char *tmpdir = "/tmp/swoole/core_tests/base";
     ASSERT_TRUE(swoole_set_task_tmpdir(tmpdir));
     File fp = swoole::make_tmpfile();
@@ -186,6 +216,7 @@ TEST(base, set_task_tmpdir) {
 TEST(base, version) {
     ASSERT_STREQ(swoole_version(), SWOOLE_VERSION);
     ASSERT_EQ(swoole_version_id(), SWOOLE_VERSION_ID);
+    ASSERT_EQ(swoole_api_version_id(), SWOOLE_API_VERSION_ID);
 }
 
 static std::string test_func(std::string test_data_2) {
@@ -195,18 +226,23 @@ static std::string test_func(std::string test_data_2) {
 TEST(base, add_function) {
     typedef std::string (*_func_t)(std::string);
     swoole_add_function("test_func", (void *) test_func);
+    ASSERT_EQ(swoole_add_function("test_func", (void *) test_func), SW_ERR);
     _func_t _func = (_func_t) swoole_get_function(SW_STRL("test_func"));
     std::string b = ", swoole is best";
     auto rs = _func(", swoole is best");
     ASSERT_EQ(rs, test_data + b);
+    ASSERT_EQ(swoole_get_function(SW_STRL("test_func31")), nullptr);
 }
 
 TEST(base, hook) {
     int count = 0;
-    swoole_add_hook(SW_GLOBAL_HOOK_END, [](void *data) -> void {
-        int *_count = (int *) data;
-        *_count = 9999;
-    }, 1);
+    swoole_add_hook(
+        SW_GLOBAL_HOOK_END,
+        [](void *data) -> void {
+            int *_count = (int *) data;
+            *_count = 9999;
+        },
+        1);
     ASSERT_TRUE(swoole_isset_hook(SW_GLOBAL_HOOK_END));
     swoole_call_hook(SW_GLOBAL_HOOK_END, &count);
     ASSERT_EQ(count, 9999);
@@ -215,10 +251,10 @@ TEST(base, hook) {
 TEST(base, intersection) {
     std::vector<std::string> vec1{"index.php", "index.html", "default.html"};
 
-    std::set<std::string> vec2 {".", "..", "default.html", "index.php", "test.html", "a.json", "index.php"};
+    std::set<std::string> vec2{".", "..", "default.html", "index.php", "test.html", "a.json", "index.php"};
     ASSERT_EQ("index.php", swoole::intersection(vec1, vec2));
 
-    std::set<std::string> vec3 {"a", "zh中", "、r\n"};
+    std::set<std::string> vec3{"a", "zh中", "、r\n"};
     ASSERT_EQ("", swoole::intersection(vec1, vec3));
 }
 
@@ -229,4 +265,58 @@ TEST(base, itoa) {
 
     ASSERT_EQ(n, 9);
     ASSERT_STREQ(buf, "123456987");
+}
+
+TEST(base, get_systemd_listen_fds) {
+    ASSERT_EQ(swoole_get_systemd_listen_fds(), -1);
+    setenv("LISTEN_FDS", to_string(SW_MAX_LISTEN_PORT + 1).c_str(), 1);
+    ASSERT_EQ(swoole_get_systemd_listen_fds(), -1);
+    setenv("LISTEN_FDS", to_string(SW_MAX_LISTEN_PORT - 1).c_str(), 1);
+    ASSERT_EQ(swoole_get_systemd_listen_fds(), SW_MAX_LISTEN_PORT - 1);
+}
+
+TEST(base, type_size) {
+    ASSERT_EQ(swoole_type_size('c'), 1);
+    ASSERT_EQ(swoole_type_size('s'), 2);
+    ASSERT_EQ(swoole_type_size('l'), 4);
+    ASSERT_EQ(swoole_type_size('b'), 0);  // default value
+}
+
+size_t swoole_fatal_error_impl(const char *format, ...) {
+    size_t retval = 0;
+    va_list args;
+    va_start(args, format);
+
+    char buf[128];
+    retval += sw_vsnprintf(buf, 128, format, args);
+    va_end(args);
+    return retval;
+}
+
+TEST(base, vsnprintf) {
+    ASSERT_GT(swoole_fatal_error_impl("Hello %s", "World!!!"), 0);
+}
+
+TEST(base, log_level) {
+    int level = sw_logger()->get_level();
+    swoole_set_log_level(SW_LOG_TRACE);
+    swoole_print_backtrace();
+    EXPECT_EQ(SW_LOG_TRACE, sw_logger()->get_level());
+    swoole_set_log_level(level);
+}
+
+TEST(base, trace_flag) {
+    int flags = SwooleG.trace_flags;
+    swoole_set_trace_flags(SW_TRACE_CARES);
+    EXPECT_EQ(SW_TRACE_CARES, SwooleG.trace_flags);
+    swoole_set_trace_flags(flags);
+}
+
+TEST(base, only_dump) {
+    // just dump something
+    std::string data = "hello world";
+    swoole_dump_ascii(data.c_str(), data.length());
+    swoole_dump_bin(data.c_str(), 'C', data.length());
+    swoole_dump_hex(data.c_str(), data.length());
+    ASSERT_TRUE(true);
 }

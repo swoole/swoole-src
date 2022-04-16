@@ -10,7 +10,7 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | Author: Tianfeng Han  <rango@swoole.com>                             |
   +----------------------------------------------------------------------+
 */
 
@@ -68,7 +68,7 @@ Context::Context(size_t stack_size, const CoroutineFunc &fn, void *private_data)
     ctx_.uc_link = nullptr;
     makecontext(&ctx_, (void (*)(void)) & context_func, 1, this);
 #else
-    ctx_ = make_fcontext(sp, stack_size_, (void (*)(intptr_t)) & context_func);
+    ctx_ = swoole_make_fcontext(sp, stack_size_, (void (*)(intptr_t)) & context_func);
     swap_ctx_ = nullptr;
 #endif
 
@@ -123,7 +123,7 @@ bool Context::swap_in() {
 #if USE_UCONTEXT
     return 0 == swapcontext(&swap_ctx_, &ctx_);
 #else
-    jump_fcontext(&swap_ctx_, ctx_, (intptr_t) this, true);
+    swoole_jump_fcontext(&swap_ctx_, ctx_, (intptr_t) this, true);
     return true;
 #endif
 }
@@ -132,7 +132,7 @@ bool Context::swap_out() {
 #if USE_UCONTEXT
     return 0 == swapcontext(&ctx_, &swap_ctx_);
 #else
-    jump_fcontext(&ctx_, swap_ctx_, (intptr_t) this, true);
+    swoole_jump_fcontext(&ctx_, swap_ctx_, (intptr_t) this, true);
     return true;
 #endif
 }

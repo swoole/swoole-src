@@ -34,11 +34,27 @@ TEST(coroutine_base, get_init_msec) {
 }
 
 TEST(coroutine_base, yield_resume) {
+    Coroutine::set_on_yield([](void *arg) {
+        long task = *(long *) Coroutine::get_current_task();
+        ASSERT_EQ(task, Coroutine::get_current_cid());
+    });
+
+    Coroutine::set_on_resume([](void *arg) {
+        Coroutine *current = Coroutine::get_current();
+        ASSERT_EQ(current, nullptr);
+    });
+
+    Coroutine::set_on_close([](void *arg) {
+        long task = *(long *) Coroutine::get_current_task();
+        ASSERT_EQ(task, Coroutine::get_current_cid());
+    });
+
     long _cid;
     long cid = Coroutine::create(
         [](void *arg) {
             long cid = Coroutine::get_current_cid();
             Coroutine *co = Coroutine::get_by_cid(cid);
+            co->set_task((void *) &cid);
             co->yield();
             *(long *) arg = Coroutine::get_current_cid();
         },
@@ -46,6 +62,7 @@ TEST(coroutine_base, yield_resume) {
 
     ASSERT_GT(cid, 0);
     Coroutine::get_by_cid(cid)->resume();
+    Coroutine::set_on_close(nullptr);
     ASSERT_EQ(cid, _cid);
 }
 
@@ -119,6 +136,7 @@ TEST(coroutine_base, get_current_cid) {
         auto co = Coroutine::get_current();
         auto actual = co->get_cid();
         ASSERT_EQ(actual, Coroutine::get_current_cid());
+        ASSERT_EQ(actual, swoole_coroutine_get_current_id());
     });
 }
 
@@ -174,7 +192,7 @@ TEST(coroutine_base, get_elapsed) {
 }
 
 TEST(coroutine_base, run) {
-    long cid = coroutine::run([](void *ptr){
+    long cid = coroutine::run([](void *ptr) {
 
     });
     ASSERT_GE(cid, 1);
@@ -183,7 +201,7 @@ TEST(coroutine_base, run) {
 TEST(coroutine_base, cancel) {
     coroutine::run([](void *arg) {
         auto co = Coroutine::get_current_safe();
-        Coroutine::create([co](void *){
+        Coroutine::create([co](void *) {
             System::sleep(0.002);
             co->cancel();
         });
@@ -197,5 +215,22 @@ TEST(coroutine_base, timeout) {
         auto co = Coroutine::get_current_safe();
         ASSERT_EQ(co->yield_ex(0.005), false);
         ASSERT_EQ(co->is_timedout(), true);
+    });
+}
+
+TEST(coroutine_base, gdb) {
+    Coroutine::create([](void *) {
+        Coroutine *current = Coroutine::get_current();
+        long cid = current->get_cid();
+        ASSERT_EQ(swoole_coroutine_count(), 1);
+        ASSERT_EQ(swoole_coroutine_get(cid), current);
+
+        swoole_coroutine_iterator_reset();
+        ASSERT_EQ(swoole_coroutine_iterator_each(), current);
+        ASSERT_EQ(swoole_coroutine_iterator_each(), nullptr);
+
+        swoole_coroutine_iterator_reset();
+        ASSERT_EQ(swoole_coroutine_iterator_each(), current);
+        Coroutine::print_list();
     });
 }

@@ -69,7 +69,7 @@ struct AsyncEvent {
 class AsyncThreads {
   public:
     bool schedule = false;
-    uint32_t task_num = 0;
+    size_t task_num = 0;
     Pipe *pipe = nullptr;
     async::ThreadPool *pool = nullptr;
     network::Socket *read_socket = nullptr;
@@ -78,7 +78,12 @@ class AsyncThreads {
     AsyncThreads();
     ~AsyncThreads();
 
-    size_t thread_count();
+    size_t get_task_num() {
+        return task_num;
+    }
+
+    size_t get_queue_size();
+    size_t get_worker_num();
     void notify_one();
 
     static int callback(Reactor *reactor, Event *event);

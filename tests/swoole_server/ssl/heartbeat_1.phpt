@@ -22,7 +22,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
     Assert::same($client->recv(), '');
     $s2 = time();
     Assert::assert($s2 - $s1 > 1);
-    swoole_process::kill($pid);
+    Swoole\Process::kill($pid);
 };
 
 $pm->childFunc = function () use ($pm) {

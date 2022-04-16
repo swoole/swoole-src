@@ -1,5 +1,5 @@
 <?php
-$serv = new swoole_server('127.0.0.1', 9001);
+$serv = new Swoole\Server('127.0.0.1', 9001);
 
 for($port = 9002; $port < 9999; $port++)
 {

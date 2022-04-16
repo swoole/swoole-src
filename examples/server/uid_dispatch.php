@@ -1,5 +1,5 @@
 <?php
-$serv = new swoole_server("0.0.0.0", 9501);
+$serv = new Swoole\Server("0.0.0.0", 9501);
 $serv->fdlist = [];
 $serv->set(array(
 		//'tcp_defer_accept' => 5,
@@ -36,7 +36,7 @@ $serv->on('finish', function ($serv, $fd, $reactor_id){
 
 });
 
-$serv->on('receive', function (swoole_server $serv, $fd, $reactor_id, $data) {
+$serv->on('receive', function (Swoole\Server $serv, $fd, $reactor_id, $data) {
     $conn = $serv->connection_info($fd);
     print_r($conn);
     echo "worker_id: " . $serv->worker_id . PHP_EOL;

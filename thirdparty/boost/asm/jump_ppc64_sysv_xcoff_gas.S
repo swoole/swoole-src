@@ -1,6 +1,6 @@
 .align 2
-.globl .jump_fcontext
-.jump_fcontext:
+.globl .swoole_jump_fcontext
+.swoole_jump_fcontext:
     # reserve space on stack
     subi  1, 1, 328
 

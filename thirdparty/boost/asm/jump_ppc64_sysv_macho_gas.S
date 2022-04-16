@@ -90,9 +90,9 @@
 
 .text
 .align 2
-.globl jump_fcontext
+.globl swoole_jump_fcontext
 
-_jump_fcontext:
+_swoole_jump_fcontext:
     ; reserve space on stack
     subi  r1, r1, 328
 

@@ -10,13 +10,17 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | Author: Tianfeng Han  <rango@swoole.com>                             |
   +----------------------------------------------------------------------+
 */
 
 #include "php_swoole_cxx.h"
 
 #include "swoole_table.h"
+
+BEGIN_EXTERN_C()
+#include "stubs/php_swoole_table_arginfo.h"
+END_EXTERN_C()
 
 using namespace swoole;
 
@@ -121,52 +125,6 @@ static inline zend_object *php_swoole_table_create_object(zend_class_entry *ce) 
     return &table->std;
 }
 
-// clang-format off
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_void, 0, 0, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_construct, 0, 0, 1)
-    ZEND_ARG_INFO(0, table_size)
-    ZEND_ARG_INFO(0, conflict_proportion)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_column, 0, 0, 2)
-    ZEND_ARG_INFO(0, name)
-    ZEND_ARG_INFO(0, type)
-    ZEND_ARG_INFO(0, size)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_set, 0, 0, 2)
-    ZEND_ARG_INFO(0, key)
-    ZEND_ARG_ARRAY_INFO(0, value, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_get, 0, 0, 1)
-    ZEND_ARG_INFO(0, key)
-    ZEND_ARG_INFO(0, field)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_exists, 0, 0, 1)
-    ZEND_ARG_INFO(0, key)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_del, 0, 0, 1)
-    ZEND_ARG_INFO(0, key)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_incr, 0, 0, 2)
-    ZEND_ARG_INFO(0, key)
-    ZEND_ARG_INFO(0, column)
-    ZEND_ARG_INFO(0, incrby)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_decr, 0, 0, 2)
-    ZEND_ARG_INFO(0, key)
-    ZEND_ARG_INFO(0, column)
-    ZEND_ARG_INFO(0, decrby)
-ZEND_END_ARG_INFO()
-// clang-format on
-
 SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_table, __construct);
 static PHP_METHOD(swoole_table, column);
@@ -181,6 +139,7 @@ static PHP_METHOD(swoole_table, count);
 static PHP_METHOD(swoole_table, destroy);
 static PHP_METHOD(swoole_table, getSize);
 static PHP_METHOD(swoole_table, getMemorySize);
+static PHP_METHOD(swoole_table, stats);
 
 static PHP_METHOD(swoole_table, rewind);
 static PHP_METHOD(swoole_table, next);
@@ -193,33 +152,34 @@ SW_EXTERN_C_END
 // clang-format off
 static const zend_function_entry swoole_table_methods[] =
 {
-    PHP_ME(swoole_table, __construct, arginfo_swoole_table_construct, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, column,      arginfo_swoole_table_column, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, create,      arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, destroy,     arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, set,         arginfo_swoole_table_set, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, get,         arginfo_swoole_table_get, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, count,       arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, del,         arginfo_swoole_table_del, ZEND_ACC_PUBLIC)
-    PHP_MALIAS(swoole_table, delete, del, arginfo_swoole_table_del, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, exists,      arginfo_swoole_table_exists, ZEND_ACC_PUBLIC)
-    PHP_MALIAS(swoole_table, exist, exists, arginfo_swoole_table_exists, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, incr,        arginfo_swoole_table_incr, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, decr,        arginfo_swoole_table_decr, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, getSize,    arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, getMemorySize,    arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, __construct,       arginfo_class_Swoole_Table___construct,   ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, column,            arginfo_class_Swoole_Table_column,        ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, create,            arginfo_class_Swoole_Table_create,        ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, destroy,           arginfo_class_Swoole_Table_destroy,       ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, set,               arginfo_class_Swoole_Table_set,           ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, get,               arginfo_class_Swoole_Table_get,           ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, count,             arginfo_class_Swoole_Table_count,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, del,               arginfo_class_Swoole_Table_del,           ZEND_ACC_PUBLIC)
+    PHP_MALIAS(swoole_table, delete, del,   arginfo_class_Swoole_Table_del,           ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, exists,            arginfo_class_Swoole_Table_exists,        ZEND_ACC_PUBLIC)
+    PHP_MALIAS(swoole_table, exist, exists, arginfo_class_Swoole_Table_exists,        ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, incr,              arginfo_class_Swoole_Table_incr,          ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, decr,              arginfo_class_Swoole_Table_decr,          ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, getSize,           arginfo_class_Swoole_Table_getSize,       ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, getMemorySize,     arginfo_class_Swoole_Table_getMemorySize, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, stats,             arginfo_class_Swoole_Table_stats,         ZEND_ACC_PUBLIC)
     // implement Iterator
-    PHP_ME(swoole_table, rewind,      arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, valid,       arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, next,        arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, current,     arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, key,         arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, rewind,            arginfo_class_Swoole_Table_rewind,        ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, valid,             arginfo_class_Swoole_Table_valid,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, next,              arginfo_class_Swoole_Table_next,          ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, current,           arginfo_class_Swoole_Table_current,       ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, key,               arginfo_class_Swoole_Table_key,           ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 // clang-format on
 
 void php_swoole_table_minit(int module_number) {
-    SW_INIT_CLASS_ENTRY(swoole_table, "Swoole\\Table", "swoole_table", nullptr, swoole_table_methods);
+    SW_INIT_CLASS_ENTRY(swoole_table, "Swoole\\Table", nullptr, swoole_table_methods);
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_table);
     SW_SET_CLASS_CLONEABLE(swoole_table, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_table, sw_zend_class_unset_property_deny);
@@ -241,7 +201,8 @@ void php_swoole_table_minit(int module_number) {
 PHP_METHOD(swoole_table, __construct) {
     Table *table = php_swoole_table_get_ptr(ZEND_THIS);
     if (table) {
-        php_swoole_fatal_error(E_ERROR, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        zend_throw_error(NULL, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        RETURN_FALSE;
     }
 
     zend_long table_size;
@@ -296,7 +257,8 @@ static PHP_METHOD(swoole_table, create) {
         RETURN_FALSE;
     }
     zend_update_property_long(swoole_table_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("size"), table->get_size());
-    zend_update_property_long(swoole_table_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("memorySize"), table->get_memory_size());
+    zend_update_property_long(
+        swoole_table_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("memorySize"), table->get_memory_size());
     RETURN_TRUE;
 }
 
@@ -344,7 +306,7 @@ static PHP_METHOD(swoole_table, set) {
             TableColumn *col = *i;
             zval *zv = zend_hash_str_find(ht, col->name.c_str(), col->name.length());
             if (zv == nullptr || ZVAL_IS_NULL(zv)) {
-                 col->clear(row);
+                col->clear(row);
             } else {
                 if (col->type == TableColumn::TYPE_STRING) {
                     zend_string *str = zval_get_string(zv);
@@ -594,6 +556,22 @@ static PHP_METHOD(swoole_table, getSize) {
     } else {
         RETURN_LONG(table->get_size());
     }
+}
+
+static PHP_METHOD(swoole_table, stats) {
+    Table *table = php_swoole_table_get_ptr(ZEND_THIS);
+    if (!table) {
+        RETURN_FALSE;
+    }
+    array_init(return_value);
+    add_assoc_long(return_value, "num", table->count());
+    add_assoc_long(return_value, "conflict_count", table->conflict_count);
+    add_assoc_long(return_value, "conflict_max_level", table->conflict_max_level);
+    add_assoc_long(return_value, "insert_count", table->insert_count);
+    add_assoc_long(return_value, "update_count", table->update_count);
+    add_assoc_long(return_value, "delete_count", table->delete_count);
+    add_assoc_long(return_value, "available_slice_num", table->get_available_slice_num());
+    add_assoc_long(return_value, "total_slice_num", table->get_total_slice_num());
 }
 
 static PHP_METHOD(swoole_table, rewind) {

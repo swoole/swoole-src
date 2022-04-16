@@ -20,9 +20,14 @@
 
 #include <queue>
 
-using swoole::Reactor;
+BEGIN_EXTERN_C()
+#include "stubs/php_swoole_coroutine_scheduler_arginfo.h"
+END_EXTERN_C()
+
 using swoole::Coroutine;
+using swoole::NameResolver;
 using swoole::PHPCoroutine;
+using swoole::Reactor;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 
@@ -76,30 +81,12 @@ static void scheduler_free_object(zend_object *object) {
 }
 
 // clang-format off
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_scheduler_add, 0, 0, 1)
-    ZEND_ARG_CALLABLE_INFO(0, func, 0)
-    ZEND_ARG_VARIADIC_INFO(0, params)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_scheduler_parallel, 0, 0, 1)
-    ZEND_ARG_INFO(0, n)
-    ZEND_ARG_CALLABLE_INFO(0, func, 0)
-    ZEND_ARG_VARIADIC_INFO(0, params)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_scheduler_set, 0, 0, 1)
-    ZEND_ARG_ARRAY_INFO(0, settings, 0)
-ZEND_END_ARG_INFO()
-
 static const zend_function_entry swoole_coroutine_scheduler_methods[] = {
-    PHP_ME(swoole_coroutine_scheduler, add, arginfo_swoole_coroutine_scheduler_add, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_coroutine_scheduler, parallel, arginfo_swoole_coroutine_scheduler_parallel, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_coroutine_scheduler, set, arginfo_swoole_coroutine_scheduler_set, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_coroutine_scheduler, getOptions, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_coroutine_scheduler, start, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_coroutine_scheduler, add,        arginfo_class_Swoole_Coroutine_Scheduler_add,        ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_coroutine_scheduler, parallel,   arginfo_class_Swoole_Coroutine_Scheduler_parallel,   ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_coroutine_scheduler, set,        arginfo_class_Swoole_Coroutine_Scheduler_set,        ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_coroutine_scheduler, getOptions, arginfo_class_Swoole_Coroutine_Scheduler_getOptions, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_coroutine_scheduler, start,      arginfo_class_Swoole_Coroutine_Scheduler_start,      ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
@@ -108,7 +95,6 @@ static const zend_function_entry swoole_coroutine_scheduler_methods[] = {
 void php_swoole_coroutine_scheduler_minit(int module_number) {
     SW_INIT_CLASS_ENTRY(swoole_coroutine_scheduler,
                         "Swoole\\Coroutine\\Scheduler",
-                        nullptr,
                         "Co\\Scheduler",
                         swoole_coroutine_scheduler_methods);
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_coroutine_scheduler);
@@ -123,7 +109,7 @@ void php_swoole_coroutine_scheduler_minit(int module_number) {
 static zend_fcall_info_cache exit_condition_fci_cache;
 static bool exit_condition_cleaner;
 
-static bool php_swoole_coroutine_reactor_can_exit(Reactor *reactor, int &event_num) {
+static bool php_swoole_coroutine_reactor_can_exit(Reactor *reactor, size_t &event_num) {
     zval retval;
     int success;
 
@@ -139,10 +125,22 @@ static bool php_swoole_coroutine_reactor_can_exit(Reactor *reactor, int &event_n
     return !(Z_TYPE_P(&retval) == IS_FALSE);
 }
 
+void php_swoole_coroutine_scheduler_rshutdown() {
+    swoole_name_resolver_each([](const std::list<NameResolver>::iterator &iter) -> swTraverseOperation {
+        if (iter->type == NameResolver::TYPE_PHP) {
+            zval_dtor((zval *) iter->private_data);
+            efree(iter->private_data);
+            return SW_TRAVERSE_REMOVE;
+        } else {
+            return SW_TRAVERSE_KEEP;
+        }
+    });
+}
+
 void php_swoole_set_coroutine_option(zend_array *vht) {
     zval *ztmp;
     if (php_swoole_array_get_value(vht, "max_coro_num", ztmp) ||
-            php_swoole_array_get_value(vht, "max_coroutine", ztmp)) {
+        php_swoole_array_get_value(vht, "max_coroutine", ztmp)) {
         zend_long max_num = zval_get_long(ztmp);
         PHPCoroutine::set_max_num(max_num <= 0 ? SW_DEFAULT_MAX_CORO_NUM : max_num);
     }
@@ -157,6 +155,16 @@ void php_swoole_set_coroutine_option(zend_array *vht) {
     }
     if (php_swoole_array_get_value(vht, "c_stack_size", ztmp) || php_swoole_array_get_value(vht, "stack_size", ztmp)) {
         Coroutine::set_stack_size(zval_get_long(ztmp));
+    }
+    if (php_swoole_array_get_value(vht, "name_resolver", ztmp)) {
+        if (!ZVAL_IS_ARRAY(ztmp)) {
+            php_swoole_fatal_error(E_WARNING, "name_resolver must be an array");
+        } else {
+            zend_hash_apply(Z_ARR_P(ztmp), [](zval *zresolver) -> int {
+                php_swoole_name_resolver_add(zresolver);
+                return ZEND_HASH_APPLY_KEEP;
+            });
+        }
     }
     if (PHPCoroutine::options) {
         zend_hash_merge(PHPCoroutine::options, vht, zval_add_ref, true);
@@ -183,6 +191,9 @@ PHP_METHOD(swoole_coroutine_scheduler, set) {
     }
     if (php_swoole_array_get_value(vht, "dns_cache_capacity", ztmp)) {
         System::set_dns_cache_capacity((size_t) zval_get_long(ztmp));
+    }
+    if (php_swoole_array_get_value(vht, "max_concurrency", ztmp)) {
+        PHPCoroutine::set_max_concurrency((uint32_t) SW_MAX(1, zval_get_long(ztmp)));
     }
     /* Reactor can exit */
     if ((ztmp = zend_hash_str_find(vht, ZEND_STRL("exit_condition")))) {

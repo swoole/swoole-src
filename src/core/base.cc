@@ -10,7 +10,7 @@
  | to obtain it through the world-wide-web, please send a note to       |
  | license@swoole.com so we can mail you a copy immediately.            |
  +----------------------------------------------------------------------+
- | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+ | Author: Tianfeng Han  <rango@swoole.com>                             |
  +----------------------------------------------------------------------+
  */
 
@@ -41,15 +41,37 @@
 #include "swoole_async.h"
 #include "swoole_c_api.h"
 #include "swoole_coroutine_c_api.h"
+#include "swoole_coroutine_system.h"
 #include "swoole_ssl.h"
 
+#if defined(__APPLE__) && defined(HAVE_CCRANDOMGENERATEBYTES)
+#include <Availability.h>
+#if (defined(__MAC_OS_X_VERSION_MIN_REQUIRED) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 101000) ||                         \
+    (defined(__IPHONE_OS_VERSION_MIN_REQUIRED) && __IPHONE_OS_VERSION_MIN_REQUIRED >= 80000)
+#define OPENSSL_APPLE_CRYPTO_RANDOM 1
+#include <CommonCrypto/CommonCryptoError.h>
+#include <CommonCrypto/CommonRandom.h>
+#endif
+#endif
+
+using swoole::NameResolver;
 using swoole::String;
+using swoole::coroutine::System;
 
 #ifdef HAVE_GETRANDOM
 #include <sys/random.h>
 #else
 static ssize_t getrandom(void *buffer, size_t size, unsigned int __flags) {
-#ifdef HAVE_ARC4RANDOM
+#if defined(HAVE_CCRANDOMGENERATEBYTES)
+    /*
+     * arc4random_buf on macOs uses ccrng_generate internally from which
+     * the potential error is silented to respect the portable arc4random_buf interface contract
+     */
+    if (CCRandomGenerateBytes(buffer, size) == kCCSuccess) {
+        return size;
+    }
+    return -1;
+#elif defined(HAVE_ARC4RANDOM)
     arc4random_buf(buffer, size);
     return size;
 #else
@@ -116,18 +138,12 @@ static void bug_report_message_init() {
 
     struct utsname u;
     if (uname(&u) != -1) {
-        SwooleG.bug_report_message += swoole::std_string::format(
-            "OS: %s %s %s %s\n",
-            u.sysname,
-            u.release,
-            u.version,
-            u.machine);
+        SwooleG.bug_report_message +=
+            swoole::std_string::format("OS: %s %s %s %s\n", u.sysname, u.release, u.version, u.machine);
     }
 
 #ifdef __VERSION__
-    SwooleG.bug_report_message += swoole::std_string::format(
-        "GCC_VERSION: %s\n",
-        __VERSION__);
+    SwooleG.bug_report_message += swoole::std_string::format("GCC_VERSION: %s\n", __VERSION__);
 #endif
 
 #ifdef SW_USE_OPENSSL
@@ -135,6 +151,7 @@ static void bug_report_message_init() {
 
 #endif
 }
+
 void swoole_init(void) {
     if (SwooleG.init) {
         return;
@@ -145,7 +162,7 @@ void swoole_init(void) {
 
     SwooleG.running = 1;
     SwooleG.init = 1;
-    SwooleG.std_allocator = { malloc, calloc, realloc, free };
+    SwooleG.std_allocator = {malloc, calloc, realloc, free};
     SwooleG.fatal_error = swoole_fatal_error_impl;
     SwooleG.cpu_num = SW_MAX(1, sysconf(_SC_NPROCESSORS_ONLN));
     SwooleG.pagesize = getpagesize();
@@ -173,7 +190,6 @@ void swoole_init(void) {
     // init global shared memory
     SwooleG.memory_pool = new swoole::GlobalMemory(SW_GLOBAL_MEMORY_PAGESIZE, true);
     SwooleG.max_sockets = SW_MAX_SOCKETS_DEFAULT;
-    SwooleG.max_concurrency = 0;
     struct rlimit rlmt;
     if (getrlimit(RLIMIT_NOFILE, &rlmt) < 0) {
         swoole_sys_warning("getrlimit() failed");
@@ -184,14 +200,13 @@ void swoole_init(void) {
 
     SwooleTG.buffer_stack = new swoole::String(SW_STACK_BUFFER_SIZE);
 
-    if (!swoole_set_task_tmpdir(SW_TASK_TMP_DIR) ) {
+    if (!swoole_set_task_tmpdir(SW_TASK_TMP_DIR)) {
         exit(4);
     }
 
     // init signalfd
 #ifdef HAVE_SIGNALFD
     swoole_signalfd_init();
-    SwooleG.use_signalfd = 1;
     SwooleG.enable_signalfd = 1;
 #endif
 
@@ -223,14 +238,17 @@ SW_API void *swoole_get_function(const char *name, uint32_t length) {
 }
 
 SW_API int swoole_add_hook(enum swGlobalHookType type, swHookFunc func, int push_back) {
+    assert(type <= SW_GLOBAL_HOOK_END);
     return swoole::hook_add(SwooleG.hooks, type, func, push_back);
 }
 
 SW_API void swoole_call_hook(enum swGlobalHookType type, void *arg) {
+    assert(type <= SW_GLOBAL_HOOK_END);
     swoole::hook_call(SwooleG.hooks, type, arg);
 }
 
 SW_API bool swoole_isset_hook(enum swGlobalHookType type) {
+    assert(type <= SW_GLOBAL_HOOK_END);
     return SwooleG.hooks[type] != nullptr;
 }
 
@@ -284,7 +302,7 @@ SW_API void swoole_set_dns_server(const std::string &server) {
     int dns_server_port = SW_DNS_SERVER_PORT;
     char dns_server_host[32];
     strcpy(dns_server_host, server.c_str());
-    if ((_port = strchr((char *)server.c_str(), ':'))) {
+    if ((_port = strchr((char *) server.c_str(), ':'))) {
         dns_server_port = atoi(_port + 1);
         if (dns_server_port <= 0 || dns_server_port > 65535) {
             dns_server_port = SW_DNS_SERVER_PORT;
@@ -335,8 +353,9 @@ pid_t swoole_fork(int flags) {
             swoole_fatal_error(SW_ERROR_OPERATION_NOT_SUPPORT, "must be forked outside the coroutine");
         }
         if (SwooleTG.async_threads) {
-            swoole_trace("aio_task_num=%d, reactor=%p", SwooleTG.async_threads->task_num, sw_reactor());
-            swoole_fatal_error(SW_ERROR_OPERATION_NOT_SUPPORT, "can not create server after using async file operation");
+            swoole_trace("aio_task_num=%lu, reactor=%p", SwooleTG.async_threads->task_num, sw_reactor());
+            swoole_fatal_error(SW_ERROR_OPERATION_NOT_SUPPORT,
+                               "can not create server after using async file operation");
         }
     }
     if (flags & SW_FORK_PRECHECK) {
@@ -383,7 +402,6 @@ pid_t swoole_fork(int flags) {
     return pid;
 }
 
-#ifdef SW_DEBUG
 void swoole_dump_ascii(const char *data, size_t size) {
     for (size_t i = 0; i < size; i++) {
         printf("%u ", (unsigned) data[i]);
@@ -417,7 +435,6 @@ void swoole_dump_hex(const char *data, size_t outlen) {
     }
     printf("\n");
 }
-#endif
 
 /**
  * Recursive directory creation
@@ -833,9 +850,7 @@ void swoole_print_backtrace(void) {
     free(stacktrace);
 }
 #else
-void swoole_print_backtrace(void) {
-
-}
+void swoole_print_backtrace(void) {}
 #endif
 
 static void swoole_fatal_error_impl(int code, const char *format, ...) {
@@ -855,22 +870,33 @@ namespace swoole {
 size_t DataHead::dump(char *_buf, size_t _len) {
     return sw_snprintf(_buf,
                        _len,
-                       "swDataHead[%p]\n"
+                       "DataHead[%p]\n"
                        "{\n"
                        "    long fd = %ld;\n"
+                       "    uint64_t msg_id = %" PRIu64 ";\n"
                        "    uint32_t len = %d;\n"
                        "    int16_t reactor_id = %d;\n"
                        "    uint8_t type = %d;\n"
                        "    uint8_t flags = %d;\n"
                        "    uint16_t server_fd = %d;\n"
+                       "    uint16_t ext_flags = %d;\n"
+                       "    double time = %f;\n"
                        "}\n",
                        this,
                        fd,
+                       msg_id,
                        len,
                        reactor_id,
                        type,
                        flags,
-                       server_fd);
+                       server_fd,
+                       ext_flags,
+                       time);
+}
+
+void DataHead::print() {
+    sw_tg_buffer()->length = dump(sw_tg_buffer()->str, sw_tg_buffer()->size);
+    printf("%.*s", (int) sw_tg_buffer()->length, sw_tg_buffer()->str);
 }
 
 std::string dirname(const std::string &file) {
@@ -899,6 +925,9 @@ int hook_add(void **hooks, int type, const Callback &func, int push_back) {
 }
 
 void hook_call(void **hooks, int type, void *arg) {
+    if (hooks[type] == nullptr) {
+        return;
+    }
     std::list<Callback> *l = reinterpret_cast<std::list<Callback> *>(hooks[type]);
     for (auto i = l->begin(); i != l->end(); i++) {
         (*i)(arg);

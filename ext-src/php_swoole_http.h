@@ -12,13 +12,16 @@
  | to obtain it through the world-wide-web, please send a note to       |
  | license@swoole.com so we can mail you a copy immediately.            |
  +----------------------------------------------------------------------+
- | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+ | Author: Tianfeng Han  <rango@swoole.com>                             |
  +----------------------------------------------------------------------+
  */
 
 #pragma once
 
 #include "swoole_http.h"
+#ifdef SW_USE_HTTP2
+#include "swoole_http2.h"
+#endif
 #include "thirdparty/swoole_http_parser.h"
 #include "thirdparty/multipart_parser.h"
 
@@ -74,6 +77,7 @@ struct Request {
     uint8_t post_form_urlencoded;
 
     zval zdata;
+    const char *body_at;
     size_t body_length;
     String *chunked_body;
 #ifdef SW_USE_HTTP2
@@ -169,9 +173,12 @@ struct Context {
     std::string upload_tmp_dir;
 
     void *private_data;
+    void *private_data_2;
     bool (*send)(Context *ctx, const char *data, size_t length);
     bool (*sendfile)(Context *ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
     bool (*close)(Context *ctx);
+    bool (*onBeforeRequest)(Context *ctx);
+    void (*onAfterResponse)(Context *ctx);
 
     void init(Server *server);
     void init(coroutine::Socket *socket);
@@ -179,12 +186,17 @@ struct Context {
     void bind(coroutine::Socket *socket);
     void copy(Context *ctx);
     bool parse_form_data(const char *boundary_str, int boundary_len);
+    bool get_form_data_boundary(
+        const char *at, size_t length, size_t offset, char **out_boundary_str, int *out_boundary_len);
     size_t parse(const char *data, size_t length);
     bool set_header(const char *, size_t, zval *, bool);
     bool set_header(const char *, size_t, const char *, size_t, bool);
     void end(zval *zdata, zval *return_value);
+    bool send_file(const char *file, uint32_t l_file, off_t offset, size_t length);
     void send_trailer(zval *return_value);
     String *get_write_buffer();
+    void build_header(String *http_buffer, size_t body_length);
+    ssize_t build_trailer(String *http_buffer);
 
 #ifdef SW_HAVE_COMPRESSION
     void set_compression_method(const char *accept_encoding, size_t length);
@@ -193,6 +205,7 @@ struct Context {
 
 #ifdef SW_USE_HTTP2
     void http2_end(zval *zdata, zval *return_value);
+    bool http2_send_file(const char *file, uint32_t l_file, off_t offset, size_t length);
 #endif
 
     void free();
@@ -208,15 +221,15 @@ class Stream {
     // uint8_t priority; // useless now
     uint32_t id;
     // flow control
-    uint32_t send_window;
-    uint32_t recv_window;
+    uint32_t remote_window_size;
+    uint32_t local_window_size;
     Coroutine *waiting_coroutine = nullptr;
 
     Stream(Session *client, uint32_t _id);
     ~Stream();
 
     bool send_header(size_t body_length, bool end_stream);
-    bool send_body(String *body, bool end_stream, size_t max_frame_size, off_t offset = 0, size_t length = 0);
+    bool send_body(const String *body, bool end_stream, size_t max_frame_size, off_t offset = 0, size_t length = 0);
     bool send_trailer();
 
     void reset(uint32_t error_code);
@@ -230,11 +243,9 @@ class Session {
     nghttp2_hd_inflater *inflater = nullptr;
     nghttp2_hd_deflater *deflater = nullptr;
 
-    uint32_t header_table_size;
-    uint32_t send_window;
-    uint32_t recv_window;
-    uint32_t max_concurrent_streams;
-    uint32_t max_frame_size;
+    http2::Settings local_settings = {};
+    http2::Settings remote_settings = {};
+
     uint32_t last_stream_id;
     bool shutting_down;
     bool is_coro;
@@ -364,7 +375,7 @@ class HeaderSet {
             nv->valuelen = value_len;
             nv->flags = flags | NGHTTP2_NV_FLAG_NO_COPY_NAME | NGHTTP2_NV_FLAG_NO_COPY_VALUE;
             swoole_trace_log(SW_TRACE_HTTP2,
-                             "name=(%zu)[%.*s], value=(%zu)[%.*s]",
+                             "name=(%zu)[" SW_ECHO_LEN_BLUE "], value=(%zu)[" SW_ECHO_LEN_CYAN "]",
                              name_len,
                              (int) name_len,
                              name,

@@ -33,6 +33,6 @@ go(function () {
         Assert::assert(strlen($data) >= 30000);
     }
 });
-swoole_event_wait();
+Swoole\Event::wait();
 ?>
 --EXPECTF--

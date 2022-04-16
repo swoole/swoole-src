@@ -10,13 +10,17 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | Author: Tianfeng Han  <rango@swoole.com>                             |
   +----------------------------------------------------------------------+
 */
 
 #include "php_swoole_private.h"
 #include "swoole_memory.h"
 #include "swoole_lock.h"
+
+BEGIN_EXTERN_C()
+#include "stubs/php_swoole_lock_arginfo.h"
+END_EXTERN_C()
 
 using swoole::Lock;
 using swoole::Mutex;
@@ -84,35 +88,23 @@ static PHP_METHOD(swoole_lock, destroy);
 SW_EXTERN_C_END
 
 // clang-format off
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_lock_construct, 0, 0, 0)
-    ZEND_ARG_INFO(0, type)
-    ZEND_ARG_INFO(0, filename)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_lock_lockwait, 0, 0, 0)
-    ZEND_ARG_INFO(0, timeout)
-ZEND_END_ARG_INFO()
-
 static const zend_function_entry swoole_lock_methods[] =
 {
-    PHP_ME(swoole_lock, __construct, arginfo_swoole_lock_construct, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_lock, __destruct, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_lock, lock, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_lock, lockwait, arginfo_swoole_lock_lockwait, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_lock, trylock, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_lock, lock_read, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_lock, trylock_read, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_lock, unlock, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_lock, destroy, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_lock, __construct,  arginfo_class_Swoole_Lock___construct,  ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_lock, __destruct,   arginfo_class_Swoole_Lock___destruct,   ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_lock, lock,         arginfo_class_Swoole_Lock_lock,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_lock, lockwait,     arginfo_class_Swoole_Lock_locakwait,    ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_lock, trylock,      arginfo_class_Swoole_Lock_trylock,      ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_lock, lock_read,    arginfo_class_Swoole_Lock_lock_read,    ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_lock, trylock_read, arginfo_class_Swoole_Lock_trylock_read, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_lock, unlock,       arginfo_class_Swoole_Lock_unlock,       ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_lock, destroy,      arginfo_class_Swoole_Lock_destroy,      ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 // clang-format on
 
 void php_swoole_lock_minit(int module_number) {
-    SW_INIT_CLASS_ENTRY(swoole_lock, "Swoole\\Lock", "swoole_lock", nullptr, swoole_lock_methods);
+    SW_INIT_CLASS_ENTRY(swoole_lock, "Swoole\\Lock", nullptr, swoole_lock_methods);
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_lock);
     SW_SET_CLASS_CLONEABLE(swoole_lock, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_lock, sw_zend_class_unset_property_deny);
@@ -144,7 +136,8 @@ void php_swoole_lock_minit(int module_number) {
 static PHP_METHOD(swoole_lock, __construct) {
     Lock *lock = php_swoole_lock_get_ptr(ZEND_THIS);
     if (lock != nullptr) {
-        php_swoole_fatal_error(E_ERROR, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        zend_throw_error(NULL, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        RETURN_FALSE;
     }
 
     zend_long type = Lock::MUTEX;

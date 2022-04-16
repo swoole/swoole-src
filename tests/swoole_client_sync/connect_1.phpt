@@ -8,7 +8,7 @@ require __DIR__ . '/../include/bootstrap.php';
 
 ini_set('swoole.display_errors', 'off');
 
-$cli = new \swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
+$cli = new Swoole\Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
 $r = $cli->connect("11.11.11.11", 80, 0.5);
 Assert::false($r);
 Assert::eq($cli->errCode, SOCKET_ETIMEDOUT);

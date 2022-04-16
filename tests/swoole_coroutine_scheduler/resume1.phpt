@@ -21,7 +21,7 @@ co::resume($id);
 echo "start to resume $id @2\n";
 co::resume($id);
 echo "main\n";
-swoole_event::wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--
 start coro 1

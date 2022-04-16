@@ -28,7 +28,7 @@ go(function () {
         echo "never here\n";
     });
 });
-swoole_event_wait();
+Swoole\Event::wait();
 ?>
 --EXPECTF--
 3
@@ -38,5 +38,5 @@ defer 1
 
 Fatal error: Uncaught Exception: something wrong in %s:%d
 Stack trace:
-#0 {main}
+%A
   thrown in %s/tests/swoole_coroutine/defer/defer_exception.php on line %d

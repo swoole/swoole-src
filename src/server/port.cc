@@ -10,7 +10,7 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | Author: Tianfeng Han  <rango@swoole.com>                             |
   +----------------------------------------------------------------------+
 */
 
@@ -311,6 +311,7 @@ static int Port_onRead_raw(Reactor *reactor, ListenPort *port, Event *event) {
     Socket *_socket = event->socket;
     Connection *conn = (Connection *) _socket->object;
     Server *serv = (Server *) reactor->ptr;
+    RecvData rdata{};
 
     String *buffer = serv->get_recv_buffer(_socket);
     if (!buffer) {
@@ -319,7 +320,7 @@ static int Port_onRead_raw(Reactor *reactor, ListenPort *port, Event *event) {
 
     n = _socket->recv(buffer->str, buffer->size, 0);
     if (n < 0) {
-        switch (_socket->catch_error(errno)) {
+        switch (_socket->catch_read_error(errno)) {
         case SW_ERROR:
             swoole_sys_warning("recv from connection#%d failed", event->fd);
             return SW_OK;
@@ -335,7 +336,9 @@ static int Port_onRead_raw(Reactor *reactor, ListenPort *port, Event *event) {
         return SW_OK;
     } else {
         buffer->offset = buffer->length = n;
-        return Server::dispatch_task(&port->protocol, _socket, buffer->str, n);
+        rdata.info.len = n;
+        rdata.data = buffer->str;
+        return Server::dispatch_task(&port->protocol, _socket, &rdata);
     }
 }
 
@@ -379,6 +382,7 @@ static int Port_onRead_http(Reactor *reactor, ListenPort *port, Event *event) {
     Socket *_socket = event->socket;
     Connection *conn = (Connection *) _socket->object;
     Server *serv = (Server *) reactor->ptr;
+    RecvData dispatch_data{};
 
     if (conn->websocket_status >= websocket::STATUS_HANDSHAKE) {
         if (conn->http_upgrade == 0) {
@@ -418,7 +422,7 @@ static int Port_onRead_http(Reactor *reactor, ListenPort *port, Event *event) {
 _recv_data:
     ssize_t n = _socket->recv(buffer->str + buffer->length, buffer->size - buffer->length, 0);
     if (n < 0) {
-        switch (_socket->catch_error(errno)) {
+        switch (_socket->catch_read_error(errno)) {
         case SW_ERROR:
             swoole_sys_warning("recv from connection#%d failed", event->fd);
             return SW_OK;
@@ -433,21 +437,15 @@ _recv_data:
     if (n == 0) {
         if (0) {
         _bad_request:
-#ifdef SW_HTTP_BAD_REQUEST_PACKET
             _socket->send(SW_STRL(SW_HTTP_BAD_REQUEST_PACKET), 0);
-#endif
         }
         if (0) {
         _too_large:
-#ifdef SW_HTTP_REQUEST_ENTITY_TOO_LARGE_PACKET
             _socket->send(SW_STRL(SW_HTTP_REQUEST_ENTITY_TOO_LARGE_PACKET), 0);
-#endif
         }
         if (0) {
         _unavailable:
-#ifdef SW_HTTP_SERVICE_UNAVAILABLE_PACKET
             _socket->send(SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET), 0);
-#endif
         }
     _close_fd:
         serv->destroy_http_request(conn);
@@ -518,10 +516,10 @@ _parse:
     if (!request->header_parsed) {
         request->parse_header_info();
         swoole_trace_log(SW_TRACE_SERVER,
-                   "content-length=%u, keep-alive=%u, chunked=%u",
-                   request->content_length_,
-                   request->keep_alive,
-                   request->chunked);
+                         "content-length=%" PRIu64 ", keep-alive=%u, chunked=%u",
+                         request->content_length_,
+                         request->keep_alive,
+                         request->chunked);
     }
 
     // content length (equal to 0) or (field not found but not chunked)
@@ -540,7 +538,11 @@ _parse:
             // send static file content directly in the reactor thread
             if (!serv->enable_static_handler || !serv->select_static_handler(request, conn)) {
                 // dynamic request, dispatch to worker
-                Server::dispatch_task(protocol, _socket, buffer->str, request->header_length_);
+                dispatch_data.info.len = request->header_length_;
+                dispatch_data.data = buffer->str;
+                if (http_server::dispatch_request(serv, protocol, _socket, &dispatch_data) < 0) {
+                    goto _close_fd;
+                }
             }
             if (!conn->active || _socket->removed) {
                 return SW_OK;
@@ -589,13 +591,13 @@ _parse:
         } else {
             request_length = request->header_length_ + request->content_length_;
         }
-        swoole_trace_log(SW_TRACE_SERVER, "received chunked eof, real content-length=%u", request->content_length_);
+        swoole_trace_log(SW_TRACE_SERVER, "received chunked eof, real content-length=%" PRIu64, request->content_length_);
     } else {
         request_length = request->header_length_ + request->content_length_;
         if (request_length > protocol->package_max_length) {
             swoole_error_log(SW_LOG_WARNING,
                              SW_ERROR_HTTP_INVALID_PROTOCOL,
-                             "Request Entity Too Large: header-length (%u) + content-length (%u) is greater than the "
+                             "Request Entity Too Large: header-length (%u) + content-length (%" PRIu64 ") is greater than the "
                              "package_max_length(%u)" CLIENT_INFO_FMT,
                              request->header_length_,
                              request->content_length_,
@@ -614,11 +616,12 @@ _parse:
             if (request->has_expect_header()) {
                 _socket->send(SW_STRL(SW_HTTP_100_CONTINUE_PACKET), 0);
             } else {
-                swoole_trace_log(SW_TRACE_SERVER,
-                           "PostWait: request->content_length=%d, buffer->length=%zu, request->header_length=%d\n",
-                           request->content_length,
-                           buffer_->length,
-                           request->header_length);
+                swoole_trace_log(
+                    SW_TRACE_SERVER,
+                    "PostWait: request->content_length=%d, buffer->length=%zu, request->header_length=%d\n",
+                    request->content_length,
+                    buffer_->length,
+                    request->header_length);
             }
 #endif
             goto _recv_data;
@@ -636,7 +639,12 @@ _parse:
     }
 
     buffer->offset = request_length;
-    Server::dispatch_task(protocol, _socket, buffer->str, buffer->length);
+    dispatch_data.data = buffer->str;
+    dispatch_data.info.len = buffer->length;
+
+    if (http_server::dispatch_request(serv, protocol, _socket, &dispatch_data) < 0) {
+        goto _close_fd;
+    }
 
     if (conn->active && !_socket->removed) {
         serv->destroy_http_request(conn);
@@ -720,6 +728,36 @@ void ListenPort::close() {
     // remove unix socket file
     if (type == SW_SOCK_UNIX_STREAM || type == SW_SOCK_UNIX_DGRAM) {
         unlink(host.c_str());
+    }
+}
+
+const char *ListenPort::get_protocols() {
+    if (is_dgram()) {
+        return "dgram";
+    }
+    if (open_eof_check) {
+        return "eof";
+    } else if (open_length_check) {
+        return "length";
+    } else if (open_http_protocol) {
+#ifdef SW_USE_HTTP2
+        if (open_http2_protocol && open_websocket_protocol) {
+            return "http|http2|websocket";
+        } else if (open_http2_protocol) {
+            return "http|http2";
+        } else
+#endif
+            if (open_websocket_protocol) {
+            return "http|websocket";
+        } else {
+            return "http";
+        }
+    } else if (open_mqtt_protocol) {
+        return "mqtt";
+    } else if (open_redis_protocol) {
+        return "redis";
+    } else {
+        return "raw";
     }
 }
 

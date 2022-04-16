@@ -7,12 +7,9 @@ if [ ! -f "/.dockerenv" ]; then
     exit
 fi
 
-#-----------compile------------
-#-------print error only-------
-cd "${__DIR__}" && cd ../ && \
-./clear.sh > /dev/null && \
-phpize --clean > /dev/null && \
-phpize > /dev/null && \
+cd "${__DIR__}" && cd ..
+./clear.sh
+phpize
 ./configure \
 --enable-openssl \
 --enable-http2 \
@@ -21,11 +18,13 @@ phpize > /dev/null && \
 --enable-swoole-json \
 --enable-swoole-curl \
 --enable-cares \
-> /dev/null && \
-make -j8 > /dev/null | tee /tmp/compile.log && \
-(test "`cat /tmp/compile.log`"x = ""x || exit 255) && \
-make install && echo "" && \
-docker-php-ext-enable swoole && \
-php --ri curl && \
+--enable-swoole-pgsql
+
+make -j$(cat /proc/cpuinfo | grep processor | wc -l)
+make install
+docker-php-ext-enable swoole
+php -v
+php -m
+php --ri curl
 php --ri swoole
 

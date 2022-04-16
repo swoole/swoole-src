@@ -67,9 +67,9 @@
  *******************************************************/
 
 .text
-.globl _jump_fcontext
+.globl _swoole_jump_fcontext
 .align 2
-_jump_fcontext:
+_swoole_jump_fcontext:
     ; reserve space on stack
     subi  r1, r1, 240
 
@@ -104,7 +104,7 @@ _jump_fcontext:
 
     ; test if fpu env should be preserved
     cmpwi  cr7, r6, 0
-    beq  cr7, l1 
+    beq  cr7, l1
 
     stfd  f14, 0(r1)  ; save F14
     stfd  f15, 8(r1)  ; save F15

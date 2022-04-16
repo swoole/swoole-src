@@ -10,7 +10,7 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | Author: Tianfeng Han  <rango@swoole.com>                             |
   +----------------------------------------------------------------------+
 */
 
@@ -113,6 +113,17 @@ size_t Table::get_memory_size() {
     swoole_trace("_memory_size=%lu, _row_num=%lu, _row_memory_size=%lu", _memory_size, _row_num, _row_memory_size);
 
     return _memory_size;
+}
+
+uint32_t Table::get_available_slice_num() {
+    lock();
+    uint32_t num = pool->get_number_of_spare_slice();
+    unlock();
+    return num;
+}
+
+uint32_t Table::get_total_slice_num() {
+    return pool->get_number_of_total_slice();
 }
 
 bool Table::create() {
@@ -297,24 +308,18 @@ TableRow *Table::set(const char *key, uint16_t keylen, TableRow **rowlock, int *
     row->lock();
     int _out_flags = 0;
 
-#ifdef SW_TABLE_DEBUG
-    int _conflict_level = 0;
-#endif
+    uint32_t _conflict_level = 1;
 
     if (row->active) {
         for (;;) {
             if (sw_mem_equal(row->key, row->key_len, key, keylen)) {
                 break;
             } else if (row->next == nullptr) {
-                lock();
-                TableRow *new_row = (TableRow *) pool->alloc(0);
-#ifdef SW_TABLE_DEBUG
                 conflict_count++;
                 if (_conflict_level > conflict_max_level) {
                     conflict_max_level = _conflict_level;
                 }
-#endif
-                unlock();
+                TableRow *new_row = alloc_row();
                 if (!new_row) {
                     return nullptr;
                 }
@@ -326,9 +331,7 @@ TableRow *Table::set(const char *key, uint16_t keylen, TableRow **rowlock, int *
             } else {
                 row = row->next;
                 _out_flags |= SW_TABLE_FLAG_CONFLICT;
-#ifdef SW_TABLE_DEBUG
                 _conflict_level++;
-#endif
             }
         }
     } else {
@@ -338,6 +341,12 @@ TableRow *Table::set(const char *key, uint16_t keylen, TableRow **rowlock, int *
 
     if (out_flags) {
         *out_flags = _out_flags;
+    }
+
+    if (_out_flags & SW_TABLE_FLAG_NEW_ROW) {
+        sw_atomic_fetch_add(&(insert_count), 1);
+    } else {
+        sw_atomic_fetch_add(&(update_count), 1);
     }
 
     return row;
@@ -387,17 +396,14 @@ bool Table::del(const char *key, uint16_t keylen) {
             memcpy(row->key, tmp->key, tmp->key_len + 1);
             row->key_len = tmp->key_len;
             memcpy(row->data, tmp->data, item_size);
-        }
-        if (prev) {
+        } else {
             prev->next = tmp->next;
         }
-        lock();
-        tmp->clear();
-        pool->free(tmp);
-        unlock();
+        free_row(tmp);
     }
 
 _delete_element:
+    sw_atomic_fetch_add(&(delete_count), 1);
     sw_atomic_fetch_sub(&(row_num), 1);
     row->unlock();
 

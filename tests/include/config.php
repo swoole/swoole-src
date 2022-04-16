@@ -15,8 +15,8 @@ define('IS_IN_TRAVIS', !!getenv('TRAVIS') || file_exists('/.travisenv'));
 define('IS_PHPTESTSING', !!getenv('PHPT'));
 define('USE_VALGRIND', getenv('USE_ZEND_ALLOC') === '0');
 define('HAS_SSL', defined("SWOOLE_SSL"));
-define('HAS_ASYNC_REDIS', class_exists("swoole_redis", false));
-define('HAS_HTTP2', class_exists("swoole_http2_request", false));
+define('HAS_ASYNC_REDIS', class_exists("Swoole\\Redis", false));
+define('HAS_HTTP2', class_exists("Swoole\\Http2\\Request", false));
 define('DEV_NULL', '/dev/null');
 
 /** ============== Files ============== */
@@ -94,6 +94,20 @@ if (IS_IN_TRAVIS) {
     define('HTTPBIN_SERVER_PORT', 80);
 }
 
+if (IS_IN_TRAVIS) {
+    define('TEST_HTTP2_SERVERPUSH_URL', 'https://golang-h2demo:4430/serverpush');
+    define('TEST_NAME_RESOLVER', [
+        'class' => Swoole\NameResolver\Redis::class,
+        'server_url' => 'tcp://' . REDIS_SERVER_HOST . ':' . REDIS_SERVER_PORT,
+    ]);
+} else {
+    define('TEST_HTTP2_SERVERPUSH_URL', 'https://127.0.0.1:4430/serverpush');
+    define('TEST_NAME_RESOLVER', [
+        'class' => Swoole\NameResolver\Consul::class,
+        'server_url' => 'http://127.0.0.1:8500',
+    ]);
+}
+
 /** =============== IP ================ */
 define('IP_REGEX', '/^(?:[\d]{1,3}\.){3}[\d]{1,3}$/');
 
@@ -102,6 +116,7 @@ define('HTTP_PROXY_HOST', IS_IN_TRAVIS ? 'tinyproxy' : '127.0.0.1');
 define('HTTP_PROXY_PORT', IS_IN_TRAVIS ? 8888 : (IS_MAC_OS ? 1087 : 8888));
 define('SOCKS5_PROXY_HOST', IS_IN_TRAVIS ? 'socks5' : '127.0.0.1');
 define('SOCKS5_PROXY_PORT', IS_MAC_OS ? 1086 : 1080);
+
 
 /** ============== Pressure ============== */
 define('PRESSURE_LOW', 1);

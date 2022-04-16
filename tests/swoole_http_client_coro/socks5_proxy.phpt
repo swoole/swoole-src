@@ -32,6 +32,6 @@ go(function ()
     $cli->close();
 });
 
-swoole_event::wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--

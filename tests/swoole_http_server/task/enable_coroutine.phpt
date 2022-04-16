@@ -24,7 +24,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
     echo "DONE\n";
 };
 $pm->childFunc = function () use ($pm) {
-    $server = new swoole_http_server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
+    $server = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $server->set([
         'log_file' => '/dev/null',
         'task_worker_num' => 1,
@@ -33,7 +33,7 @@ $pm->childFunc = function () use ($pm) {
     $server->on('workerStart', function ($serv, $wid) use ($pm) {
         $pm->wakeup();
     });
-    $server->on('request', function (swoole_http_request $request, swoole_http_response $response) use ($server) {
+    $server->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($server) {
         global $randoms;
         $n = $request->get['n'];
         switch ($request->server['path_info']) {
@@ -57,7 +57,7 @@ $pm->childFunc = function () use ($pm) {
                 }
         }
     });
-    $server->on('task', function (swoole_http_server $server, swoole_server_task $task) use ($pm) {
+    $server->on('task', function (Swoole\Http\Server $server, Swoole\Server\Task $task) use ($pm) {
         $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
         $cli->get("/random?n={$task->data}");
         $task->finish([$task->data, $cli->body]);

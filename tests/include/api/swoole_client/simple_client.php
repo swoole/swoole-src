@@ -8,7 +8,7 @@ require_once __DIR__ . "/../../../include/bootstrap.php";
 suicide(5000);
 
 
-$cli = new \swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
+$cli = new Swoole\Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
 
 /** @noinspection PhpVoidFunctionResultUsedInspection */
 assert($cli->set([
@@ -20,8 +20,8 @@ assert($cli->set([
     // "socket_buffer_size" => 1,
 ]));
 
-$cli->on("connect", function(swoole_client $cli) {
-    swoole_timer_clear($cli->timeo_id);
+$cli->on("connect", function(Swoole\Client $cli) {
+    Swoole\Timer::clear($cli->timeo_id);
 
     // TODO getSocket BUG
     // assert(is_resource($cli->getSocket()));
@@ -37,7 +37,7 @@ $cli->on("connect", function(swoole_client $cli) {
     // $cli->sendfile(__DIR__.'/test.txt');
 });
 
-$cli->on("receive", function(swoole_client $cli, $data){
+$cli->on("receive", function(Swoole\Client $cli, $data){
     $recv_len = strlen($data);
     debug_log("receive: len $recv_len");
     $cli->send(RandStr::gen(1024, RandStr::ALL));
@@ -45,18 +45,18 @@ $cli->on("receive", function(swoole_client $cli, $data){
     Assert::false($cli->isConnected());
 });
 
-$cli->on("error", function(swoole_client $cli) {
-    swoole_timer_clear($cli->timeo_id);
+$cli->on("error", function(Swoole\Client $cli) {
+    Swoole\Timer::clear($cli->timeo_id);
     debug_log("error");
 });
 
-$cli->on("close", function(swoole_client $cli) {
-    swoole_timer_clear($cli->timeo_id);
+$cli->on("close", function(Swoole\Client $cli) {
+    Swoole\Timer::clear($cli->timeo_id);
     debug_log("close");
 });
 
 $cli->connect(TCP_SERVER_HOST, TCP_SERVER_PORT);
-$cli->timeo_id = swoole_timer_after(1000, function() use($cli) {
+$cli->timeo_id = Swoole\Timer::after(1000, function() use($cli) {
     debug_log("connect timeout");
     $cli->close();
     Assert::false($cli->isConnected());

@@ -10,7 +10,7 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | Author: Tianfeng Han  <rango@swoole.com>                             |
   +----------------------------------------------------------------------+
 */
 
@@ -41,7 +41,7 @@ _do_sendfile:
 
     // sent_bytes = (off_t)size;
     swoole_trace(
-        "send file, ret:%d, out_fd:%d, in_fd:%d, offset:%jd, size:%zu", ret, out_fd, in_fd, (intmax_t) *offset, size);
+        "send file, ret: %zd, out_fd:%d, in_fd:%d, offset:%jd, size:%zu", ret, out_fd, in_fd, (intmax_t) *offset, size);
 
 #ifdef __MACH__
     *offset += size;

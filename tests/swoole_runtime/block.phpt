@@ -27,7 +27,7 @@ for ($i = 5; $i--;) {
         Assert::same($pdo->errorCode(), PDO::ERR_NONE);
     });
 }
-swoole_event_wait();
+Swoole\Event::wait();
 Assert::assert((microtime(true) - $start) > 5 * 0.1);
 echo "DONE\n";
 ?>

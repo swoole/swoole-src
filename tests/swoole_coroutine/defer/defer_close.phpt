@@ -28,12 +28,12 @@ go(function () {
     throw new Exception('something wrong');
     echo "never here\n";
 });
-swoole_event_wait();
+Swoole\Event::wait();
 ?>
 --EXPECTF--
 closed
 
 Fatal error: Uncaught Exception: something wrong in %s:%d
 Stack trace:
-#0 {main}
+%A
   thrown in %s on line %d

@@ -5,7 +5,12 @@ swoole_mysql_coro: floating point value precision and unsigned big int overflow
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-go(function () {
+use function Swoole\Coroutine\run;
+
+ini_set('serialize_precision', -1);
+ini_set('precision', -1);
+
+run(function () {
     $db = new Swoole\Coroutine\Mysql;
     $server = [
         'host' => MYSQL_SERVER_HOST,
@@ -13,7 +18,7 @@ go(function () {
         'user' => MYSQL_SERVER_USER,
         'password' => MYSQL_SERVER_PWD,
         'database' => MYSQL_SERVER_DB,
-        'strict_type' => false
+        'strict_type' => (PHP_VERSION_ID >= 80100)
     ];
     $db->connect($server);
     $r_string1 = $db->query('SELECT * FROM numbers');
@@ -75,7 +80,7 @@ array(3) {
     ["float"]=>
     float(1.23457)
     ["double"]=>
-    float(1.2345678901235)
+    float(1.2345678901234567)
   }
   [1]=>
   array(13) {
@@ -104,7 +109,7 @@ array(3) {
     ["float"]=>
     float(-1.23457)
     ["double"]=>
-    float(-1.2345678901235)
+    float(-1.2345678901234567)
   }
   [2]=>
   array(13) {

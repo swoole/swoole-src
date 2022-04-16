@@ -51,6 +51,6 @@ for ($i = 0; $i < N; $i++)
         }
     });
 }
-swoole_event_wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--

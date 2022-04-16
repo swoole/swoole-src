@@ -20,7 +20,7 @@ $pm->parentFunc = function () use ($pm)
 
 $pm->childFunc = function () use ($pm)
 {
-    $http = new swoole_http_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE, SWOOLE_SOCK_TCP);
+    $http = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE, SWOOLE_SOCK_TCP);
 
     $http->set([
         'http_gzip_level' => 9,
@@ -32,7 +32,7 @@ $pm->childFunc = function () use ($pm)
         $pm->wakeup();
     });
 
-    $http->on("request", function ($request, swoole_http_response $response) {
+    $http->on("request", function ($request, Swoole\Http\Response $response) {
         $response->end(co::readFile(__DIR__ . '/../../README.md'));
     });
 

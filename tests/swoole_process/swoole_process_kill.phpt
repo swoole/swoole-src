@@ -6,12 +6,12 @@ swoole_process: kill
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-$proc = new \swoole_process(function() {
+$proc = new Swoole\Process(function() {
     sleep(PHP_INT_MAX);
 });
 $pid = $proc->start();
-swoole_process::kill($pid, SIGKILL);
-$i = \swoole_process::wait(true);
+Swoole\Process::kill($pid, SIGKILL);
+$i = \Swoole\Process::wait(true);
 Assert::same($i["signal"], SIGKILL);
 echo "SUCCESS";
 ?>

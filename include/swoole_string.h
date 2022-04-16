@@ -191,7 +191,7 @@ class String {
         while (align_size < _new_size) {
             align_size *= 2;
         }
-        return reserve(align_size) ;
+        return reserve(align_size);
     }
 
     bool reserve(size_t new_size);
@@ -200,6 +200,10 @@ class String {
 
     inline int append(const std::string &append_str) {
         return append(append_str.c_str(), append_str.length());
+    }
+
+    inline int append(char c) {
+        return append(&c, sizeof(c));
     }
 
     inline int append(const String &append_str) {
@@ -243,20 +247,52 @@ class String {
 
     ssize_t split(const char *delimiter, size_t delimiter_length, const StringExplodeHandler &handler);
     int append_random_bytes(size_t length, bool base64 = false);
-    void print();
+    void print(bool print_value = true);
+
+    enum FormatFlag {
+        FORMAT_APPEND = 1 << 0,
+        FORMAT_GROW = 1 << 1,
+    };
 
     template <typename... Args>
-    inline size_t format(const char *format, Args... args) {
+    inline size_t format_impl(int flags, const char *format, Args... args) {
         size_t _size = sw_snprintf(nullptr, 0, format, args...);
         if (_size == 0) {
             return 0;
         }
         // store \0 terminator
         _size++;
-        if (_size > size && !reserve(_size)) {
-            return 0;
+
+        size_t new_size = (flags & FORMAT_APPEND) ? length + _size : _size;
+        if (flags & FORMAT_GROW) {
+            size_t align_size = SW_MEM_ALIGNED_SIZE(size * 2);
+            while (align_size < new_size) {
+                align_size *= 2;
+            }
+            new_size = align_size;
         }
-        return (length = sw_snprintf(str, size, format, args...));
+
+        size_t n;
+        if (flags & FORMAT_APPEND) {
+            if (_size > size - length && !reserve(new_size)) {
+                return 0;
+            }
+            n = sw_snprintf(str + length, size - length, format, args...);
+            length += n;
+        } else {
+            if (_size > size && !reserve(new_size)) {
+                return 0;
+            }
+            n = sw_snprintf(str, size, format, args...);
+            length = n;
+        }
+
+        return n;
+    }
+
+    template <typename... Args>
+    inline size_t format(const char *format, Args... args) {
+        return format_impl(0, format, args...);
     }
 
     char *pop(size_t init_size);

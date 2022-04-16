@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: dead lock
+swoole_coroutine: signal listener
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -27,12 +27,9 @@ $pm->childFunc = function () use ($pm) {
             return Coroutine::stats()['signal_listener_num'] === 0;
         }
     ]);
-    Process::signal(SIGINT, function () {
-        echo 'SIGINT' . PHP_EOL;
-        exit(123);
-    });
     Process::signal(SIGTERM, function () {
         echo 'SIGTERM' . PHP_EOL;
+        Process::signal(SIGTERM, null);
         exit(123);
     });
 };

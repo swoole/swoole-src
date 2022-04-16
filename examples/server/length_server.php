@@ -10,7 +10,7 @@ class SocketServer
 
     function run($host, $port)
     {
-        $this->serv = new swoole_server($host, $port, SWOOLE_BASE);
+        $this->serv = new Swoole\Server($host, $port, SWOOLE_BASE);
 
         $this->serv->set(array(
             'enable_coroutine' => false,

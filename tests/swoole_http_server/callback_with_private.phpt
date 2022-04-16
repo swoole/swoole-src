@@ -13,7 +13,7 @@ $pm->childFunc = function () use ($pm) {
 
     class TestCo_9
     {
-        private function foo(swoole_http_request $request, swoole_http_response $response)
+        private function foo(Swoole\Http\Request $request, Swoole\Http\Response $response)
         {
             co::sleep(0.001);
             $cid = go(function () use ($response) {
@@ -38,6 +38,10 @@ $pm->run(true);
 //Fatal Error
 $pm->expectExitCode(255);
 $output = $pm->getChildOutput();
-Assert::contains($output, 'Swoole\Server::on() must be callable');
+if (PHP_VERSION_ID < 80000) {
+    Assert::contains($output, 'Swoole\Server::on() must be callable');
+} else {
+    Assert::contains($output, 'Swoole\Server::on(): function \'TestCo_9::foo\' is not callable');
+}
 ?>
 --EXPECT--

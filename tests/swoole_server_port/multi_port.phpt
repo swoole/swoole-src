@@ -58,7 +58,7 @@ $pm->parentFunc = function ($pid) use ($pm, $port1, $port2, $port3)
         Assert::same((int)$data, $port1);
         $cli->close();
     });
-    swoole_event_wait();
+    Swoole\Event::wait();
     $pm->kill();
 };
 

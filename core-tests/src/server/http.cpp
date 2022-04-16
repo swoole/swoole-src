@@ -86,9 +86,9 @@ static int handle_on_url(llhttp_t *parser, const char *at, size_t length) {
     return 0;
 }
 
-static void test_run_server(function<void(swServer *)> fn) {
+static void test_run_server(function<void(Server *)> fn) {
     thread child_thread;
-    swServer serv(swoole::Server::MODE_BASE);
+    Server serv(swoole::Server::MODE_BASE);
     serv.worker_num = 1;
     serv.private_data_2 = (void *) &fn;
 
@@ -108,12 +108,12 @@ static void test_run_server(function<void(swServer *)> fn) {
 
     serv.create();
 
-    serv.onWorkerStart = [&child_thread](swServer *serv, int worker_id) {
-        function<void(swServer *)> fn = *(function<void(swServer *)> *) serv->private_data_2;
+    serv.onWorkerStart = [&child_thread](Server *serv, int worker_id) {
+        function<void(Server *)> fn = *(function<void(Server *)> *) serv->private_data_2;
         child_thread = thread(fn, serv);
     };
 
-    serv.onReceive = [](swServer *serv, swRecvData *req) -> int {
+    serv.onReceive = [](Server *serv, swRecvData *req) -> int {
         SessionId session_id = req->info.fd;
         auto conn = serv->get_connection_by_session_id(session_id);
 
@@ -174,7 +174,7 @@ static void test_run_server(function<void(swServer *)> fn) {
 }
 
 TEST(http_server, get) {
-    test_run_server([](swServer *serv) {
+    test_run_server([](Server *serv) {
         swoole_signal_block_all();
 
         auto port = serv->get_primary_port();
@@ -189,7 +189,7 @@ TEST(http_server, get) {
 }
 
 TEST(http_server, post) {
-    test_run_server([](swServer *serv) {
+    test_run_server([](Server *serv) {
         swoole_signal_block_all();
 
         auto port = serv->get_primary_port();
@@ -207,7 +207,7 @@ TEST(http_server, post) {
 }
 
 TEST(http_server, static_get) {
-    test_run_server([](swServer *serv) {
+    test_run_server([](Server *serv) {
         swoole_signal_block_all();
 
         auto port = serv->get_primary_port();
@@ -240,7 +240,7 @@ static void websocket_test(int server_port, const char *data, size_t length) {
 }
 
 TEST(http_server, websocket_small) {
-    test_run_server([](swServer *serv) {
+    test_run_server([](Server *serv) {
         swoole_signal_block_all();
         websocket_test(serv->get_primary_port()->get_port(), SW_STRL("hello world, swoole is best!"));
         kill(getpid(), SIGTERM);
@@ -248,7 +248,7 @@ TEST(http_server, websocket_small) {
 }
 
 TEST(http_server, websocket_medium) {
-    test_run_server([](swServer *serv) {
+    test_run_server([](Server *serv) {
         swoole_signal_block_all();
 
         swString str(8192);
@@ -260,7 +260,7 @@ TEST(http_server, websocket_medium) {
 }
 
 TEST(http_server, websocket_big) {
-    test_run_server([](swServer *serv) {
+    test_run_server([](Server *serv) {
         swoole_signal_block_all();
 
         swString str(128 * 1024);

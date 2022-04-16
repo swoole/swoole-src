@@ -11,7 +11,7 @@ $pm = new SwooleTest\ProcessManager();
 const SIZE = 8192 * 5;
 const TIMES = 10;
 $pm->parentFunc = function () use ($pm) {
-    $client = new \swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
+    $client = new Swoole\Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
     $client->set([
         "open_eof_check" => true,
         "package_eof" => "\r\n\r\n"
@@ -31,13 +31,13 @@ $pm->parentFunc = function () use ($pm) {
 };
 
 $pm->childFunc = function () use ($pm) {
-    $serv = new \swoole_server('127.0.0.1', $pm->getFreePort());
+    $serv = new Swoole\Server('127.0.0.1', $pm->getFreePort());
     $serv->set([
         "worker_num" => 1,
         'log_file' => '/dev/null'
     ]);
 
-    $proc = new swoole\process(function ($process) use ($serv) {
+    $proc = new Swoole\Process(function ($process) use ($serv) {
        $data = json_decode($process->read(), true);
         for ($i = 0; $i < TIMES/2; $i ++) {
             go (function() use ($serv,$data, $i){
@@ -51,10 +51,10 @@ $pm->childFunc = function () use ($pm) {
     }, false, true);
 
     $serv->addProcess($proc);
-    $serv->on("WorkerStart", function (\swoole_server $serv) use ($pm) {
+    $serv->on("WorkerStart", function (Swoole\Server $serv) use ($pm) {
         $pm->wakeup();
     });
-    $serv->on("Receive", function (\swoole_server $serv, $fd, $reactorId, $data) use ($proc) {
+    $serv->on("Receive", function (Swoole\Server $serv, $fd, $reactorId, $data) use ($proc) {
         $proc->write(json_encode([
             'fd' => $fd
         ]));

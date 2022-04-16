@@ -26,7 +26,7 @@ for ($i=0; $i < $coro_num; $i++) {
         }
     });
 }
-swoole_event::wait();
+Swoole\Event::wait();
 ?>
 --EXPECTF--
 @0->coro:%d pop chan id :%d

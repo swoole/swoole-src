@@ -33,5 +33,5 @@ Stack trace:
 #0 %s/tests/swoole_coroutine/exit_exception_backtrace.php(10): char(%d)
 #1 %s/tests/swoole_coroutine/exit_exception_backtrace.php(5): bar('%s...')
 #2 %s/tests/swoole_coroutine/exit_exception_backtrace.php(22): foo()
-#3 {main}
+%A
   thrown in %s/tests/swoole_coroutine/exit_exception_backtrace.php on line 15

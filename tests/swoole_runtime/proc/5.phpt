@@ -35,7 +35,7 @@ go(function() {
 
     echo "END\n";
 });
-swoole_event::wait();
+Swoole\Event::wait();
 
 ?>
 --CLEAN--
@@ -60,7 +60,7 @@ array(4) {
   resource(%d) of type (Unknown)
 }
 
-Warning: proc_open(test): failed to open stream: %s in %s on line %d
+Warning: proc_open(test): %s to open stream: %s in %s on line %d
 array(4) {
   [3]=>
   resource(%d) of type (Unknown)

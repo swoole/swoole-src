@@ -19,7 +19,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
     $html = base64_encode(random_bytes(rand(1024, 65536)));
     $len = strlen($html);
     $data = "POST /index.html HTTP/1.1\r\nServer: nginx\r\nContent-Type: text/html\r\nConnection: close\r\nContent-Length: $len\r\nX-Server: swoole\r\n\r\n$html";
-    $chunks = str_split($data, 5);
+    $chunks = str_split($data, rand(5, 255));
     foreach ($chunks as $out) {
         $client->send($out);
         usleep(100);

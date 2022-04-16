@@ -88,33 +88,33 @@
  *                                                     *
  *******************************************************/
 
-.globl jump_fcontext
+.globl swoole_jump_fcontext
 #if _CALL_ELF == 2
 	.text
 	.align 2
-jump_fcontext:
-        addis   %r2, %r12, .TOC.-jump_fcontext@ha
-        addi    %r2, %r2, .TOC.-jump_fcontext@l
-        .localentry jump_fcontext, . - jump_fcontext
+swoole_jump_fcontext:
+        addis   %r2, %r12, .TOC.-swoole_jump_fcontext@ha
+        addi    %r2, %r2, .TOC.-swoole_jump_fcontext@l
+        .localentry swoole_jump_fcontext, . - swoole_jump_fcontext
 #else
 	.section ".opd","aw"
 	.align 3
-jump_fcontext:
+swoole_jump_fcontext:
 # ifdef _CALL_LINUX
-        .quad   .L.jump_fcontext,.TOC.@tocbase,0
-        .type   jump_fcontext,@function
+        .quad   .L.swoole_jump_fcontext,.TOC.@tocbase,0
+        .type   swoole_jump_fcontext,@function
         .text
         .align 2
-.L.jump_fcontext:
+.L.swoole_jump_fcontext:
 # else
-        .hidden .jump_fcontext
-        .globl  .jump_fcontext
-        .quad   .jump_fcontext,.TOC.@tocbase,0
-        .size   jump_fcontext,24
-        .type   .jump_fcontext,@function
+        .hidden .swoole_jump_fcontext
+        .globl  .swoole_jump_fcontext
+        .quad   .swoole_jump_fcontext,.TOC.@tocbase,0
+        .size   swoole_jump_fcontext,24
+        .type   .swoole_jump_fcontext,@function
         .text
         .align 2
-.jump_fcontext:
+.swoole_jump_fcontext:
 # endif
 #endif
     # reserve space on stack
@@ -253,12 +253,12 @@ jump_fcontext:
     # jump to context
     bctr
 #if _CALL_ELF == 2
-	.size jump_fcontext, .-jump_fcontext
+	.size swoole_jump_fcontext, .-swoole_jump_fcontext
 #else
 # ifdef _CALL_LINUX
-	.size .jump_fcontext, .-.L.jump_fcontext
+	.size .swoole_jump_fcontext, .-.L.swoole_jump_fcontext
 # else
-	.size .jump_fcontext, .-.jump_fcontext
+	.size .swoole_jump_fcontext, .-.swoole_jump_fcontext
 # endif
 #endif
 

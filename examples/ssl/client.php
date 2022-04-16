@@ -1,5 +1,5 @@
 <?php
-$client = new swoole_client(SWOOLE_SOCK_TCP | SWOOLE_SSL);
+$client = new Swoole\Client(SWOOLE_SOCK_TCP | SWOOLE_SSL);
 
 $client->set(array(
     'ssl_cert_file' => __DIR__.'/ca/client-cert.pem',

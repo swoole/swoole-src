@@ -16,7 +16,7 @@ go(function () {
     $ret = $redis->get('foo');
     Assert::same($ret, 'bar');
 });
-swoole_event_wait();
+Swoole\Event::wait();
 echo "DONE\n";
 ?>
 --EXPECT--

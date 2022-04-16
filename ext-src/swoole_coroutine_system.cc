@@ -1,3 +1,19 @@
+/*
++----------------------------------------------------------------------+
+| Swoole                                                               |
++----------------------------------------------------------------------+
+| This source file is subject to version 2.0 of the Apache license,    |
+| that is bundled with this package in the file LICENSE, and is        |
+| available through the world-wide-web at the following url:           |
+| http://www.apache.org/licenses/LICENSE-2.0.html                      |
+| If you did not receive a copy of the Apache2.0 license and are unable|
+| to obtain it through the world-wide-web, please send a note to       |
+| license@swoole.com so we can mail you a copy immediately.            |
++----------------------------------------------------------------------+
+| Author: Tianfeng Han  <rango@swoole.com>                             |
++----------------------------------------------------------------------+
+*/
+
 #include "php_swoole_coroutine_system.h"
 
 #include "ext/standard/file.h"
@@ -5,49 +21,44 @@
 
 #include <string>
 
-using swoole::TimerNode;
 using swoole::Coroutine;
+using swoole::Event;
 using swoole::PHPCoroutine;
 using swoole::Reactor;
-using swoole::Event;
+using swoole::String;
+using swoole::TimerNode;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
-using swoole::String;
 
 static zend_class_entry *swoole_coroutine_system_ce;
 
 // clang-format off
-
 static const zend_function_entry swoole_coroutine_system_methods[] =
 {
-    ZEND_FENTRY(gethostbyname, ZEND_FN(swoole_coroutine_gethostbyname), arginfo_swoole_coroutine_system_gethostbyname, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    ZEND_FENTRY(dnsLookup, ZEND_FN(swoole_async_dns_lookup_coro), arginfo_swoole_coroutine_system_dnsLookup, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_system, exec, arginfo_swoole_coroutine_system_exec, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_system, sleep, arginfo_swoole_coroutine_system_sleep, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_system, getaddrinfo, arginfo_swoole_coroutine_system_getaddrinfo, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_system, statvfs, arginfo_swoole_coroutine_system_statvfs, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_system, readFile, arginfo_swoole_coroutine_system_readFile, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_system, writeFile, arginfo_swoole_coroutine_system_writeFile, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_system, wait, arginfo_swoole_coroutine_system_wait, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_system, waitPid, arginfo_swoole_coroutine_system_waitPid, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_system, waitSignal, arginfo_swoole_coroutine_system_waitSignal, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_system, waitEvent, arginfo_swoole_coroutine_system_waitEvent, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(gethostbyname,      ZEND_FN(swoole_coroutine_gethostbyname), arginfo_class_Swoole_Coroutine_System_gethostbyname, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(dnsLookup,          ZEND_FN(swoole_async_dns_lookup_coro),   arginfo_class_Swoole_Coroutine_System_dnsLookup,     ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_system, exec,                                    arginfo_class_Swoole_Coroutine_System_exec,          ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_system, sleep,                                   arginfo_class_Swoole_Coroutine_System_sleep,         ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_system, getaddrinfo,                             arginfo_class_Swoole_Coroutine_System_getaddrinfo,   ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_system, statvfs,                                 arginfo_class_Swoole_Coroutine_System_statvfs,       ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_system, readFile,                                arginfo_class_Swoole_Coroutine_System_readFile,      ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_system, writeFile,                               arginfo_class_Swoole_Coroutine_System_writeFile,     ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_system, wait,                                    arginfo_class_Swoole_Coroutine_System_wait,          ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_system, waitPid,                                 arginfo_class_Swoole_Coroutine_System_waitPid,       ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_system, waitSignal,                              arginfo_class_Swoole_Coroutine_System_waitSignal,    ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_system, waitEvent,                               arginfo_class_Swoole_Coroutine_System_waitEvent,     ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     /* Deprecated file methods */
-    PHP_ME(swoole_coroutine_system, fread, arginfo_swoole_coroutine_system_fread, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC | ZEND_ACC_DEPRECATED)
-    PHP_ME(swoole_coroutine_system, fwrite, arginfo_swoole_coroutine_system_fwrite, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC | ZEND_ACC_DEPRECATED)
-    PHP_ME(swoole_coroutine_system, fgets, arginfo_swoole_coroutine_system_fgets, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC | ZEND_ACC_DEPRECATED)
+    PHP_ME(swoole_coroutine_system, fread,  arginfo_class_Swoole_Coroutine_System_fread,  ZEND_ACC_PUBLIC | ZEND_ACC_STATIC | ZEND_ACC_DEPRECATED)
+    PHP_ME(swoole_coroutine_system, fwrite, arginfo_class_Swoole_Coroutine_System_fwrite, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC | ZEND_ACC_DEPRECATED)
+    PHP_ME(swoole_coroutine_system, fgets,  arginfo_class_Swoole_Coroutine_System_fgets,  ZEND_ACC_PUBLIC | ZEND_ACC_STATIC | ZEND_ACC_DEPRECATED)
     PHP_FE_END
 };
 
 // clang-format on
 
 void php_swoole_coroutine_system_minit(int module_number) {
-    SW_INIT_CLASS_ENTRY_BASE(swoole_coroutine_system,
-                             "Swoole\\Coroutine\\System",
-                             nullptr,
-                             "Co\\System",
-                             swoole_coroutine_system_methods,
-                             nullptr);
+    SW_INIT_CLASS_ENTRY_BASE(
+        swoole_coroutine_system, "Swoole\\Coroutine\\System", "Co\\System", swoole_coroutine_system_methods, nullptr);
     SW_SET_CLASS_CREATE(swoole_coroutine_system, sw_zend_create_object_deny);
 }
 
@@ -147,7 +158,7 @@ PHP_METHOD(swoole_coroutine_system, fread) {
     }
     buf[length] = 0;
     int ret = -1;
-    swoole_trace("fd=%d, length=%ld", fd, length);
+    swoole_trace("fd=%d, length=" ZEND_LONG_FMT, fd, length);
     php_swoole_check_reactor();
     bool async_success = swoole::coroutine::async([&]() {
         while (1) {
@@ -266,7 +277,7 @@ PHP_METHOD(swoole_coroutine_system, fwrite) {
     }
 
     int ret = -1;
-    swoole_trace("fd=%d, length=%ld", fd, length);
+    swoole_trace("fd=%d, length=" ZEND_LONG_FMT, fd, length);
     php_swoole_check_reactor();
     bool async_success = swoole::coroutine::async([&]() {
         while (1) {

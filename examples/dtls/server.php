@@ -1,5 +1,5 @@
 <?php
-$server = new swoole_server('0.0.0.0', 9905, SWOOLE_BASE, SWOOLE_SOCK_UDP | SWOOLE_SSL);
+$server = new Swoole\Server('0.0.0.0', 9905, SWOOLE_BASE, SWOOLE_SOCK_UDP | SWOOLE_SSL);
 
 $server->set(
     [
@@ -12,7 +12,7 @@ $server->set(
     ]
 );
 
-$server->on('Receive', function (swoole_server $serv, $fd, $tid, $data)
+$server->on('Receive', function (Swoole\Server $serv, $fd, $tid, $data)
 {
     var_dump($fd, $data, $serv->getClientInfo($fd));
     $serv->send($fd, "Swoole: $data\n");

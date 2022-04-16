@@ -19,6 +19,6 @@ Event::wait();
 --EXPECTF--
 Fatal error: Uncaught Error in %s:%d
 Stack trace:
-#0 {main}
+%A
   thrown in %s on line %d
 shutdown

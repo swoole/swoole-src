@@ -23,6 +23,7 @@
 #include "swoole_reactor.h"
 #include "swoole_timer.h"
 #include "swoole_async.h"
+#include "swoole_util.h"
 
 #include "swoole_coroutine_context.h"
 
@@ -31,6 +32,14 @@
 #include <functional>
 #include <string>
 #include <unordered_map>
+
+typedef std::chrono::microseconds seconds_type;
+
+#ifdef SW_CORO_TIME
+#define CALC_EXECUTE_USEC(yield_coroutine, resume_coroutine) calc_execute_usec(yield_coroutine, resume_coroutine)
+#else
+#define CALC_EXECUTE_USEC(yield_coroutine, resume_coroutine)
+#endif
 
 namespace swoole {
 class Coroutine {
@@ -60,7 +69,7 @@ class Coroutine {
     };
 
     typedef void (*SwapCallback)(void *);
-    typedef void (*BailoutCallback)();
+    typedef std::function<void(void)> BailoutCallback;
     typedef std::function<bool(swoole::Coroutine*)> CancelFunc;
 
     void resume();
@@ -116,6 +125,10 @@ class Coroutine {
 
     void set_cancel_fn(CancelFunc *cancel_fn) {
         cancel_fn_ = cancel_fn;
+    }
+
+    inline long get_execute_usec() const {
+        return time<seconds_type>(true) - switch_usec + execute_usec;
     }
 
     static std::unordered_map<long, Coroutine *> coroutines;
@@ -196,6 +209,22 @@ class Coroutine {
         return sw_likely(co) ? Timer::get_absolute_msec() - co->get_init_msec() : -1;
     }
 
+    static inline long get_execute_time(long cid) {
+        Coroutine *co = cid == 0 ? get_current() : get_by_cid(cid);
+        return sw_likely(co) ? co->get_execute_usec() : -1;
+    }
+
+    static inline void calc_execute_usec(Coroutine *yield_coroutine, Coroutine *resume_coroutine) {
+        long current_usec = time<seconds_type>(true);
+        if (yield_coroutine) {
+            yield_coroutine->execute_usec += current_usec - yield_coroutine->switch_usec;
+        }
+
+        if (resume_coroutine) {
+            resume_coroutine->switch_usec = current_usec;
+        }
+    }
+
     static void print_list();
 
   protected:
@@ -213,6 +242,8 @@ class Coroutine {
     enum ResumeCode resume_code_ = RC_OK;
     long cid;
     long init_msec = Timer::get_absolute_msec();
+    long switch_usec = time<seconds_type>(true);
+    long execute_usec = 0;
     void *task = nullptr;
     coroutine::Context ctx;
     Coroutine *origin = nullptr;
@@ -230,6 +261,7 @@ class Coroutine {
         long cid = this->cid;
         origin = current;
         current = this;
+        CALC_EXECUTE_USEC(origin, nullptr);
         ctx.swap_in();
         check_end();
         return cid;
@@ -241,8 +273,7 @@ class Coroutine {
         } else if (sw_unlikely(on_bailout)) {
             SW_ASSERT(current == nullptr);
             on_bailout();
-            // expect that never here
-            exit(1);
+            exit(SW_CORO_BAILOUT_EXIT_CODE);
         }
     }
 

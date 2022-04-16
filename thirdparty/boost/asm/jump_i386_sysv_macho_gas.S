@@ -18,10 +18,10 @@
  ****************************************************************************************/
 
 .text
-.globl _jump_fcontext
+.globl _swoole_jump_fcontext
 .align 2
-_jump_fcontext:
-    /* fourth arg of jump_fcontext() == flag indicating preserving FPU */
+_swoole_jump_fcontext:
+    /* fourth arg of swoole_jump_fcontext() == flag indicating preserving FPU */
     movl  0x10(%esp), %ecx
 
     pushl  %ebp  /* save EBP */
@@ -42,16 +42,16 @@ _jump_fcontext:
     fnstcw  0x4(%esp)
 
 1:
-    /* first arg of jump_fcontext() == context jumping from */
+    /* first arg of swoole_jump_fcontext() == context jumping from */
     movl  0x1c(%esp), %eax
 
     /* store ESP (pointing to context-data) in EAX */
     movl  %esp, (%eax)
 
-    /* second arg of jump_fcontext() == context jumping to */
+    /* second arg of swoole_jump_fcontext() == context jumping to */
     movl  0x20(%esp), %edx
 
-    /* third arg of jump_fcontext() == value to be returned after jump */
+    /* third arg of swoole_jump_fcontext() == value to be returned after jump */
     movl  0x24(%esp), %eax
 
     /* restore ESP (pointing to context-data) from EDX */

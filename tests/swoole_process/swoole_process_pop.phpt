@@ -7,7 +7,7 @@ swoole_process: pop
 require __DIR__ . '/../include/bootstrap.php';
 
 // TODO 难道 queue不应该做成一个独立的组件，放在proc对象上啥意思
-$proc = new \swoole_process(function() { });
+$proc = new Swoole\Process(function() { });
 $proc->useQueue();
 $proc->push("SUCCESS");
 echo $proc->pop();

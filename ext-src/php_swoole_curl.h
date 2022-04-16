@@ -10,7 +10,7 @@
  | to obtain it through the world-wide-web, please send a note to       |
  | license@swoole.com so we can mail you a copy immediately.            |
  +----------------------------------------------------------------------+
- | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+ | Author: Tianfeng Han  <rango@swoole.com>                             |
  +----------------------------------------------------------------------+
  */
 
@@ -26,6 +26,10 @@ SW_EXTERN_C_BEGIN
 #include <curl/multi.h>
 #include "thirdparty/php/curl/curl_private.h"
 SW_EXTERN_C_END
+
+#if LIBCURL_VERSION_NUM < 0x073800
+#error "require cURL version 7.56.0 or later"
+#endif
 
 namespace swoole {
 

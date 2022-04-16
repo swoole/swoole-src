@@ -61,7 +61,7 @@ go(function () {
         echo "3\n";
     });
 });
-swoole_event_wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--
 0

@@ -5,11 +5,10 @@ swoole_server: listen fail
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-//调高log_level
 Co::set(['log_level' => SWOOLE_LOG_NONE]);
 try {
-    $serv = new swoole_server('192.0.0.1', 80);
-} catch (swoole_exception $e) {
+    $serv = new Swoole\Server('192.0.0.1', 80);
+} catch (Swoole\Exception $e) {
     Assert::same($e->getCode(), SOCKET_EADDRNOTAVAIL);
     echo "DONE\n";
 }

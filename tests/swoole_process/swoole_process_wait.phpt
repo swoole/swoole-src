@@ -6,23 +6,23 @@ swoole_process: wait
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-$proc = new \swoole_process(function() {});
+$proc = new Swoole\Process(function() {});
 $pid = $proc->start();
-$info = \swoole_process::wait(true);
+$info = \Swoole\Process::wait(true);
 Assert::same($pid, $info["pid"]);
 Assert::same($info["code"], 0);
 Assert::same($info["signal"], 0);
 
-$proc = new \swoole_process(function() { exit(1); });
+$proc = new Swoole\Process(function() { exit(1); });
 $pid = $proc->start();
-$info = \swoole_process::wait(true);
+$info = \Swoole\Process::wait(true);
 Assert::same($pid, $info["pid"]);
 Assert::same($info["code"], 1);
 Assert::same($info["signal"], 0);
 
-$proc = new \swoole_process(function() { \swoole_process::kill(posix_getpid(), SIGTERM); });
+$proc = new Swoole\Process(function() { \Swoole\Process::kill(posix_getpid(), SIGTERM); });
 $pid = $proc->start();
-$info = \swoole_process::wait(true);
+$info = \Swoole\Process::wait(true);
 Assert::same($pid, $info["pid"]);
 Assert::same($info["code"], 0);
 Assert::same($info["signal"], SIGTERM);

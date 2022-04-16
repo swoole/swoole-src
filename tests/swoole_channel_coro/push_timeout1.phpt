@@ -23,7 +23,7 @@ go(function () use ($channel) {
     $ret = $channel->pop();
     Assert::same($ret, 'foo');
 });
-swoole_event_wait();
+Swoole\Event::wait();
 echo "DONE\n";
 ?>
 --EXPECT--
