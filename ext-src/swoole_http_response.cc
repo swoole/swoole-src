@@ -747,12 +747,10 @@ void HttpContext::end(zval *zdata, zval *return_value) {
             }
         }
         send_chunked = 0;
-    }
-    // no http chunk
-    else {
+    } else {
         String *http_buffer = get_write_buffer();
-
         http_buffer->clear();
+
 #ifdef SW_HAVE_COMPRESSION
         if (accept_compression) {
             if (http_body.length == 0 || http_body.length < compression_min_length ||
@@ -762,6 +760,34 @@ void HttpContext::end(zval *zdata, zval *return_value) {
             }
         }
 #endif
+
+#ifdef SW_HAVE_ZLIB
+        if (upgrade) {
+            Server *serv = nullptr;
+            Connection *conn = nullptr;
+            if (!co_socket) {
+                serv = (Server *) private_data;
+                conn = serv->get_connection_verify(fd);
+            }
+            bool enable_websocket_compression = co_socket ? websocket_compression : serv->websocket_compression;
+            bool accept_websocket_compression = false;
+            zval *pData;
+            if (enable_websocket_compression && request.zobject &&
+                (pData = zend_hash_str_find(Z_ARRVAL_P(request.zheader), ZEND_STRL("sec-websocket-extensions"))) &&
+                Z_TYPE_P(pData) == IS_STRING) {
+                std::string value(Z_STRVAL_P(pData), Z_STRLEN_P(pData));
+                if (value.substr(0, value.find_first_of(';')) == "permessage-deflate") {
+                    accept_websocket_compression = true;
+                    set_header(ZEND_STRL("Sec-Websocket-Extensions"), ZEND_STRL(SW_WEBSOCKET_EXTENSION_DEFLATE), false);
+                }
+            }
+            websocket_compression = accept_websocket_compression;
+            if (conn) {
+                conn->websocket_compression = accept_websocket_compression;
+            }
+        }
+#endif
+
         build_header(http_buffer, http_body.length);
 
         char *send_body_str;
@@ -809,6 +835,7 @@ _skip_copy:
     if (upgrade && !co_socket) {
         Server *serv = (Server *) private_data;
         Connection *conn = serv->get_connection_verify(fd);
+
         if (conn && conn->websocket_status == websocket::STATUS_HANDSHAKE) {
             if (response.status == 101) {
                 conn->websocket_status = websocket::STATUS_ACTIVE;

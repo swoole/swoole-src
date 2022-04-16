@@ -5,6 +5,11 @@ swoole_websocket_server: websocket server set cookie on beforeHandshakeResponse 
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
+
+use Swoole\WebSocket\Server;
+use Swoole\Http\Request;
+use Swoole\Http\Response;
+
 $pm = new ProcessManager;
 $pm->initFreePorts();
 $pm->parentFunc = function () use ($pm) {
@@ -20,11 +25,11 @@ $pm->parentFunc = function () use ($pm) {
     echo "DONE\n";
 };
 $pm->childFunc = function () use ($pm) {
-    $server = new Swoole\WebSocket\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
+    $server = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $server->on('workerStart', function () use ($pm) {
         $pm->wakeup();
     });
-    $server->on('beforeHandShakeResponse', function (\Swoole\Http\Request $request, \Swoole\Http\Response $response) {
+    $server->on('beforeHandShakeResponse', function (Server $server, Request $request, Response $response) {
         $response->cookie('abc', 'def');
     });
     $server->on('message', function () { });

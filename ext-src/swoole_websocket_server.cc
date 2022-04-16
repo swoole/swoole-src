@@ -244,14 +244,16 @@ int php_swoole_websocket_frame_object_pack_ex(String *buffer, zval *zdata, zend_
 }
 
 void swoole_websocket_onBeforeHandshakeResponse(Server *serv, int server_fd, HttpContext *ctx) {
-    zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, server_fd, SW_SERVER_CB_onBeforeHandShakeResponse);
+    zend_fcall_info_cache *fci_cache =
+        php_swoole_server_get_fci_cache(serv, server_fd, SW_SERVER_CB_onBeforeHandShakeResponse);
     if (fci_cache) {
         zval args[3];
         args[0] = *((zval *) serv->private_data_2);
         args[1] = *ctx->request.zobject;
         args[2] = *ctx->response.zobject;
         if (UNEXPECTED(!zend::function::call(fci_cache, 3, args, nullptr, serv->is_enable_coroutine()))) {
-            php_swoole_error(E_WARNING, "%s->onBeforeHandshakeResponse handler error", ZSTR_VAL(swoole_websocket_server_ce->name));
+            php_swoole_error(
+                E_WARNING, "%s->onBeforeHandshakeResponse handler error", ZSTR_VAL(swoole_websocket_server_ce->name));
             serv->close(ctx->fd, false);
         }
     }
@@ -333,10 +335,6 @@ bool swoole_websocket_handshake(HttpContext *ctx) {
     ctx->set_header(ZEND_STRL("Sec-WebSocket-Accept"), sec_buf, sec_len, false);
     ctx->set_header(ZEND_STRL("Sec-WebSocket-Version"), ZEND_STRL(SW_WEBSOCKET_VERSION), false);
 
-#ifdef SW_HAVE_ZLIB
-    bool enable_websocket_compression = true;
-    bool websocket_compression = false;
-#endif
     Server *serv = nullptr;
     Connection *conn = nullptr;
 
@@ -347,26 +345,8 @@ bool swoole_websocket_handshake(HttpContext *ctx) {
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "session[%ld] is closed", ctx->fd);
             return false;
         }
-#ifdef SW_HAVE_ZLIB
-        enable_websocket_compression = serv->websocket_compression;
-#endif
     }
-#ifdef SW_HAVE_ZLIB
-    else {
-        enable_websocket_compression = ctx->websocket_compression;
-    }
-#endif
 
-#ifdef SW_HAVE_ZLIB
-    if (enable_websocket_compression && (pData = zend_hash_str_find(ht, ZEND_STRL("sec-websocket-extensions"))) &&
-        Z_TYPE_P(pData) == IS_STRING) {
-        std::string value(Z_STRVAL_P(pData), Z_STRLEN_P(pData));
-        if (value.substr(0, value.find_first_of(';')) == "permessage-deflate") {
-            websocket_compression = true;
-            ctx->set_header(ZEND_STRL("Sec-Websocket-Extensions"), ZEND_STRL(SW_WEBSOCKET_EXTENSION_DEFLATE), false);
-        }
-    }
-#endif
     if (conn) {
         conn->websocket_status = WebSocket::STATUS_ACTIVE;
         ListenPort *port = serv->get_port_by_server_fd(conn->server_fd);
@@ -377,9 +357,6 @@ bool swoole_websocket_handshake(HttpContext *ctx) {
                             false);
         }
         swoole_websocket_onBeforeHandshakeResponse(serv, conn->server_fd, ctx);
-#ifdef SW_HAVE_ZLIB
-        ctx->websocket_compression = conn->websocket_compression = websocket_compression;
-#endif
     } else {
         Socket *sock = (Socket *) ctx->private_data;
         sock->open_length_check = 1;
@@ -387,9 +364,6 @@ bool swoole_websocket_handshake(HttpContext *ctx) {
         sock->protocol.package_length_offset = 0;
         sock->protocol.package_body_offset = 0;
         sock->protocol.get_package_length = WebSocket::get_package_length;
-#ifdef SW_HAVE_ZLIB
-        ctx->websocket_compression = websocket_compression;
-#endif
     }
 
     ctx->response.status = SW_HTTP_SWITCHING_PROTOCOLS;

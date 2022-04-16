@@ -15,13 +15,15 @@ $pm->parentFunc = function (int $pid) use ($pm, &$count) {
             $cli->set(['timeout' => 5]);
             $ret = $cli->upgrade('/websocket');
             Assert::assert($ret);
-            $data = sha1(get_safe_random(mt_rand(0, 1024)));
+            $data = sha1(get_safe_random(mt_rand(1, 1024)));
             for ($n = MAX_REQUESTS; $n--;) {
                 $cli->push($data);
                 $ret = $cli->recv();
                 Assert::same($ret->data, "Hello {$data}!");
                 $ret = $cli->recv();
                 Assert::same($ret->data, "How are you, {$data}?");
+                Assert::same($cli->cookies['test-file'], __FILE__);
+                Assert::same($cli->headers['x-swoole'], 'hello');
                 $count++;
             }
         });
@@ -34,6 +36,8 @@ $pm->childFunc = function () use ($pm) {
     go(function () use ($pm) {
         $server = new Co\Http\Server("127.0.0.1", $pm->getFreePort(), false);
         $server->handle('/websocket', function ($request, $ws) {
+            $ws->header('x-swoole', 'hello');
+            $ws->cookie('test-file', __FILE__);
             $ws->upgrade();
             while (true) {
                 $frame = $ws->recv();
