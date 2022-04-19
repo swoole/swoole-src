@@ -976,7 +976,15 @@ static zval *php_swoole_server_add_port(ServerObject *server_object, ListenPort 
 
     zend_update_property_string(swoole_server_port_ce, SW_Z8_OBJ_P(zport), ZEND_STRL("host"), port->get_host());
     zend_update_property_long(swoole_server_port_ce, SW_Z8_OBJ_P(zport), ZEND_STRL("port"), port->get_port());
+#ifdef SW_USE_OPENSSL
+    long type = (long) port->get_type();
+    if (port->ssl) {
+        type |= SW_SOCK_SSL;
+    }
+    zend_update_property_long(swoole_server_port_ce, SW_Z8_OBJ_P(zport), ZEND_STRL("type"), type);
+#else
     zend_update_property_long(swoole_server_port_ce, SW_Z8_OBJ_P(zport), ZEND_STRL("type"), port->get_type());
+#endif
     zend_update_property_long(swoole_server_port_ce, SW_Z8_OBJ_P(zport), ZEND_STRL("sock"), port->get_fd());
 
     do {
