@@ -105,14 +105,8 @@ static void php_swoole_http_response_free_object(zend_object *object) {
             } else
 #endif
             {
-                if (ctx->co_socket) {
+                if (ctx->is_available()) {
                     ctx->end(nullptr, &ztmp);
-                } else {
-                    Server *serv = (Server *) ctx->private_data;
-                    Connection *conn = serv->get_connection_by_session_id(ctx->fd);
-                    if (conn && !conn->closed && !conn->peer_closed) {
-                        ctx->end(nullptr, &ztmp);
-                    }
                 }
             }
         }

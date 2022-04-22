@@ -651,6 +651,10 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
             ctx->response.status = SW_HTTP_NOT_FOUND;
         }
 
+        if (!ctx->is_available()) {
+            keep_alive = false;
+        }
+
         zval_dtor(&args[0]);
         zval_dtor(&args[1]);
         ctx = nullptr;
