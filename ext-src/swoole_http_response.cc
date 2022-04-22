@@ -1388,7 +1388,7 @@ static PHP_METHOD(swoole_http_response, create) {
             swoole_http_response_ce, SW_Z8_OBJ_P(ctx->response.zobject), SW_ZSTR_KNOWN(SW_ZEND_STR_SOCKET), zobject);
     }
     if (zrequest) {
-        zend_update_property_long(swoole_http_request_ce, SW_Z8_OBJ_P(ctx->response.zobject), ZEND_STRL("fd"), fd);
+        zend_update_property_long(swoole_http_request_ce, SW_Z8_OBJ_P(ctx->request.zobject), ZEND_STRL("fd"), fd);
     }
 }
 
