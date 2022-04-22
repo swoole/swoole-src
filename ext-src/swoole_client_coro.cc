@@ -20,11 +20,11 @@
 #include "swoole_protocol.h"
 #include "swoole_proxy.h"
 
+using swoole::HttpProxy;
+using swoole::Socks5Proxy;
+using swoole::String;
 using swoole::coroutine::Socket;
 using swoole::network::Address;
-using swoole::Socks5Proxy;
-using swoole::HttpProxy;
-using swoole::String;
 #ifdef SW_USE_OPENSSL
 using swoole::SSLContext;
 #endif
@@ -172,8 +172,11 @@ void php_swoole_client_coro_minit(int module_number) {
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_client_coro);
     SW_SET_CLASS_CLONEABLE(swoole_client_coro, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_client_coro, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CUSTOM_OBJECT(
-        swoole_client_coro, php_swoole_client_coro_create_object, php_swoole_client_coro_free_object, ClientCoroObject, std);
+    SW_SET_CLASS_CUSTOM_OBJECT(swoole_client_coro,
+                               php_swoole_client_coro_create_object,
+                               php_swoole_client_coro_free_object,
+                               ClientCoroObject,
+                               std);
 
     zend_declare_property_long(swoole_client_coro_ce, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_string(swoole_client_coro_ce, ZEND_STRL("errMsg"), "", ZEND_ACC_PUBLIC);
@@ -837,7 +840,8 @@ static PHP_METHOD(swoole_client_coro, getsockname) {
  */
 static PHP_METHOD(swoole_client_coro, exportSocket) {
     zval rv;
-    zval *zsocket = zend_read_property(swoole_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("socket"), 1, &rv);
+    zval *zsocket =
+        zend_read_property_ex(swoole_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), SW_ZSTR_KNOWN(SW_ZEND_STR_SOCKET), 1, &rv);
     if (!ZVAL_IS_NULL(zsocket)) {
         RETURN_ZVAL(zsocket, 1, 0);
     }
@@ -849,7 +853,8 @@ static PHP_METHOD(swoole_client_coro, exportSocket) {
     if (!php_swoole_export_socket(return_value, cli)) {
         RETURN_FALSE;
     }
-    zend_update_property(swoole_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("socket"), return_value);
+    zend_update_property_ex(
+        swoole_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), SW_ZSTR_KNOWN(SW_ZEND_STR_SOCKET), return_value);
 }
 
 static PHP_METHOD(swoole_client_coro, getpeername) {

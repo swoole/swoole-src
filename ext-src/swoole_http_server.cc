@@ -220,13 +220,12 @@ bool HttpContext::is_available() {
     }
     if (co_socket) {
         zval rv;
-        zval *zconn = zend_read_property(swoole_http_response_ce, SW_Z8_OBJ_P(response.zobject), ZEND_STRL("socket"), 1, &rv);
+        zval *zconn = zend_read_property_ex(
+            swoole_http_response_ce, SW_Z8_OBJ_P(response.zobject), SW_ZSTR_KNOWN(SW_ZEND_STR_SOCKET), 1, &rv);
         if (!zconn || ZVAL_IS_NULL(zconn)) {
             return false;
         }
-        zval retval;
-        sw_zend_call_method_with_0_params(zconn, swoole_socket_coro_ce, nullptr, "isClosed", &retval);
-        if (ZVAL_IS_TRUE(&retval)) {
+        if (php_swoole_socket_is_closed(zconn)) {
             return false;
         }
     } else {
