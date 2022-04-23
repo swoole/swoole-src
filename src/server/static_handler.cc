@@ -220,7 +220,7 @@ size_t StaticHandler::make_index_page(String *buffer) {
                             (*iter).c_str());
     }
 
-    buffer->format_impl(String::FORMAT_APPEND | String::FORMAT_GROW, "\t</ul>\n" SW_HTTP_POWER_BY "</body>\n</html>\n");
+    buffer->append(SW_STRL("\t</ul>\n" SW_HTTP_POWER_BY "</body>\n</html>\n"));
 
     return buffer->length;
 }
