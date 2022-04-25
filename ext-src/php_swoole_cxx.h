@@ -63,6 +63,7 @@
     _(SW_ZEND_STR_FINISH,                   "finish") \
     _(SW_ZEND_STR_IN_COROUTINE,             "in_coroutine") \
     _(SW_ZEND_STR_PRIVATE_DATA,             "private_data") \
+    _(SW_ZEND_STR_SOCKET,                   "socket") \
 
 typedef enum sw_zend_known_string_id {
 #define _SW_ZEND_STR_ID(id, str) id,
@@ -87,6 +88,7 @@ SW_API bool php_swoole_export_socket(zval *zobject, swoole::coroutine::Socket *_
 SW_API zend_object *php_swoole_dup_socket(int fd, enum swSocketType type);
 SW_API void php_swoole_init_socket_object(zval *zobject, swoole::coroutine::Socket *socket);
 SW_API swoole::coroutine::Socket *php_swoole_get_socket(zval *zobject);
+SW_API bool php_swoole_socket_is_closed(zval *zobject);
 #ifdef SW_USE_OPENSSL
 SW_API bool php_swoole_socket_set_ssl(swoole::coroutine::Socket *sock, zval *zset);
 #endif
