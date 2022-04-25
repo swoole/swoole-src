@@ -465,6 +465,9 @@ bool System::socket_poll(std::unordered_map<int, PollSocket> &fds, double timeou
     }
 
     if (timeout > 0) {
+        if (timeout < 0.001) {
+            timeout = 0.001;
+        }
         task.timer = swoole_timer_add((long) (timeout * 1000), false, socket_poll_timeout, &task);
     }
 
