@@ -426,7 +426,7 @@ static int translate_events_from_poll(int events) {
 }
 
 bool System::socket_poll(std::unordered_map<int, PollSocket> &fds, double timeout) {
-    if (timeout == 0 || timeout < 0.001) {
+    if (timeout == 0) {
         struct pollfd *event_list = (struct pollfd *) sw_calloc(fds.size(), sizeof(struct pollfd));
         if (!event_list) {
             swoole_warning("calloc() failed");
@@ -469,6 +469,9 @@ bool System::socket_poll(std::unordered_map<int, PollSocket> &fds, double timeou
     }
 
     if (timeout > 0) {
+        if (timeout < 0.001) {
+            timeout = 0.001;
+        }
         task.timer = swoole_timer_add((long) (timeout * 1000), false, socket_poll_timeout, &task);
     }
 
