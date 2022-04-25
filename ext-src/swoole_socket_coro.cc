@@ -804,6 +804,11 @@ SW_API Socket *php_swoole_get_socket(zval *zobject) {
     return sock->socket;
 }
 
+SW_API bool php_swoole_socket_is_closed(zval *zobject) {
+    SocketObject *_sock = php_swoole_socket_coro_fetch_object(Z_OBJ_P(zobject));
+    return _sock->socket == SW_BAD_SOCKET || _sock->socket->is_closed();
+}
+
 SW_API void php_swoole_init_socket_object(zval *zobject, Socket *socket) {
     zend_object *object = php_swoole_socket_coro_create_object(swoole_socket_coro_ce);
     SocketObject *sock = (SocketObject *) php_swoole_socket_coro_fetch_object(object);
@@ -1884,8 +1889,7 @@ static PHP_METHOD(swoole_socket_coro, sslHandshake) {
 #endif
 
 static PHP_METHOD(swoole_socket_coro, isClosed) {
-    SocketObject *_sock = php_swoole_socket_coro_fetch_object(Z_OBJ_P(ZEND_THIS));
-    RETURN_BOOL(_sock->socket == SW_BAD_SOCKET || _sock->socket->is_closed());
+    RETURN_BOOL(php_swoole_socket_is_closed(ZEND_THIS));
 }
 
 static PHP_METHOD(swoole_socket_coro, import) {

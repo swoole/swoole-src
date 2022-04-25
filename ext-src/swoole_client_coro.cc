@@ -794,7 +794,8 @@ static PHP_METHOD(swoole_client_coro, getsockname) {
  */
 static PHP_METHOD(swoole_client_coro, exportSocket) {
     zval rv;
-    zval *zsocket = zend_read_property(swoole_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("socket"), 1, &rv);
+    zval *zsocket =
+        zend_read_property_ex(swoole_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), SW_ZSTR_KNOWN(SW_ZEND_STR_SOCKET), 1, &rv);
     if (!ZVAL_IS_NULL(zsocket)) {
         RETURN_ZVAL(zsocket, 1, 0);
     }
@@ -806,7 +807,8 @@ static PHP_METHOD(swoole_client_coro, exportSocket) {
     if (!php_swoole_export_socket(return_value, cli)) {
         RETURN_FALSE;
     }
-    zend_update_property(swoole_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("socket"), return_value);
+    zend_update_property_ex(
+        swoole_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), SW_ZSTR_KNOWN(SW_ZEND_STR_SOCKET), return_value);
 }
 
 static PHP_METHOD(swoole_client_coro, getpeername) {

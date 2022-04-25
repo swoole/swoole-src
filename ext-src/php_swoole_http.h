@@ -213,6 +213,7 @@ struct Context {
     bool http2_send_file(const char *file, uint32_t l_file, off_t offset, size_t length);
 #endif
 
+    bool is_available();
     void free();
 };
 

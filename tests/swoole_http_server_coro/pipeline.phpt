@@ -19,6 +19,7 @@ Coroutine\run(function () {
     Coroutine::create(function () use ($server) {
         $server->handle('/', function (Request $request, Response $response) use ($server) {
             static $count = 0;
+            $response->end("OK\n");
             if (++$count === MAX_CONCURRENCY * MAX_REQUESTS) {
                 echo "DONE\n";
                 $server->shutdown();
@@ -35,6 +36,9 @@ Coroutine\run(function () {
                 Assert::same($ret, strlen(REQUEST) * MAX_REQUESTS);
             } else {
                 throw new RuntimeException('Connect failed: ' . $socket->errMsg);
+            }
+            while (!empty($socket->recv())) {
+                // pass
             }
         });
     }

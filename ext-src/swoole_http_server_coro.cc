@@ -142,7 +142,8 @@ class http_server {
         parser->data = ctx;
         swoole_http_parser_init(parser, PHP_HTTP_REQUEST);
 
-        zend_update_property(swoole_http_response_ce, SW_Z8_OBJ_P(ctx->response.zobject), ZEND_STRL("socket"), zconn);
+        zend_update_property_ex(
+            swoole_http_response_ce, SW_Z8_OBJ_P(ctx->response.zobject), SW_ZSTR_KNOWN(SW_ZEND_STR_SOCKET), zconn);
 
         return ctx;
     }
@@ -651,7 +652,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
         zval_dtor(&args[1]);
         ctx = nullptr;
 
-        if (!hs->running || !keep_alive) {
+        if (!hs->running || !keep_alive || php_swoole_socket_is_closed(zconn)) {
             break;
         } else {
             header_completed = false;

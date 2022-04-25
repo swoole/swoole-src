@@ -231,6 +231,30 @@ void HttpContext::copy(HttpContext *ctx) {
     onAfterResponse = ctx->onAfterResponse;
 }
 
+bool HttpContext::is_available() {
+    if (!response.zobject) {
+        return false;
+    }
+    if (co_socket) {
+        zval rv;
+        zval *zconn = zend_read_property_ex(
+            swoole_http_response_ce, SW_Z8_OBJ_P(response.zobject), SW_ZSTR_KNOWN(SW_ZEND_STR_SOCKET), 1, &rv);
+        if (!zconn || ZVAL_IS_NULL(zconn)) {
+            return false;
+        }
+        if (php_swoole_socket_is_closed(zconn)) {
+            return false;
+        }
+    } else {
+        Server *serv = (Server *) private_data;
+        Connection *conn = serv->get_connection_by_session_id(fd);
+        if (!conn || conn->closed || conn->peer_closed) {
+            return false;
+        }
+    }
+    return true;
+}
+
 void HttpContext::free() {
     /* http context can only be free'd after request and response were free'd */
     if (request.zobject || response.zobject) {
