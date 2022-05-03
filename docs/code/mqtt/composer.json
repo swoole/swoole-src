@@ -1,0 +1,5 @@
+{
+    "require": {
+        "simple-swoole/simps": "^1.0"
+    }
+}
