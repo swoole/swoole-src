@@ -1,0 +1,40 @@
+@media screen and (min-width: 768px) {
+    .markdown-section {
+        max-width: 1280px;
+        padding:30px 30px 40px;
+    }
+}
+.app-name-link img {
+    width: 45%;
+}
+.sidebar li p>a {
+    font-weight: 700;
+    margin: 0;
+}
+.sidebar li p.active>a {
+    border-right: 2px solid;
+    color: var(--theme-color, #42b983);
+}
+embed {
+    width: 100%;
+}
+.wiki-resource {
+    text-align: center;
+}
+.wiki-resource img {
+    height: auto;
+    width: 100%;
+    border-radius: .25rem;
+    max-height: 85px;
+}
+@media screen and (min-width: 768px) {
+    .wiki-resource span {
+        right: 30px !important;
+    }
+}
+.content {
+    padding-top:20px;
+}
+.wiki-resource + p {
+    float: right;
+}
