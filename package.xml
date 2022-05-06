@@ -48,8 +48,8 @@
         <email>doubaokun@php.net</email>
         <active>yes</active>
     </developer>
-    <date>2022-04-16</date>
-    <time>19:00:00</time>
+    <date>2022-05-06</date>
+    <time>18:00:00</time>
     <version>
         <release>4.8.9</release>
         <api>4.0</api>
@@ -60,10 +60,9 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-       - Added support http_auto_index for http2 server
-       - Fixed #4657
-       - Fixed the stream_select hook function memory leak
-       - Optimized cookies parser
+       - Reset value to 1ms when stream_select timeout is less than 1ms
+       - Fixed #4693
+       - Fixed #4699
     </notes>
     <contents>
         <dir name="/">
@@ -1403,6 +1402,7 @@
             <file role="test" name="tests/swoole_http_server_coro/bug_no_handle.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/check_cookie_crlf.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/check_http_header_crlf.phpt" />
+            <file role="test" name="tests/swoole_http_server_coro/close_socket.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/compression_min_length.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/create_response.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/create_response_2.phpt" />
