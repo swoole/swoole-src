@@ -138,7 +138,7 @@ TEST(timer, error) {
     ASSERT_FALSE(swoole_timer_clear(1));
     ASSERT_FALSE(swoole_timer_exists(1));
 
-    long timer_id = swoole_timer_after(
+    long timer_id = swoole_timer_tick(
         0, [&](Timer *, TimerNode *tnode) {}, nullptr);
     ASSERT_EQ(timer_id, SW_ERR);
 
