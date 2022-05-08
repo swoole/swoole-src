@@ -120,12 +120,33 @@ TEST(timer, delay) {
     uint64_t ms1 = swoole::time<std::chrono::milliseconds>();
     uint64_t ms2 = 0;
     long timer_id = swoole_timer_after(
-        100, [&](Timer *, TimerNode *tnode) {
-            ms2 = swoole::time<std::chrono::milliseconds>();
-        }, nullptr);
+        100, [&](Timer *, TimerNode *tnode) { ms2 = swoole::time<std::chrono::milliseconds>(); }, nullptr);
 
     TimerNode *timerNode = swoole_timer_get(timer_id);
     swoole_timer_delay(timerNode, 100);
     swoole_event_wait();
     ASSERT_GE(ms2 - ms1, 100);
+}
+
+TEST(timer, error) {
+    Timer *tmp = SwooleTG.timer;
+    SwooleTG.timer = nullptr;
+
+    swoole_timer_free();
+    ASSERT_EQ(swoole_timer_select(), SW_ERR);
+    ASSERT_EQ(swoole_timer_get(1), nullptr);
+    ASSERT_FALSE(swoole_timer_clear(1));
+    ASSERT_FALSE(swoole_timer_exists(1));
+
+    long timer_id = swoole_timer_after(
+        0, [&](Timer *, TimerNode *tnode) {}, nullptr);
+    ASSERT_EQ(timer_id, SW_ERR);
+
+    timer_id = swoole_timer_after(
+        0, [&](Timer *, TimerNode *tnode) {}, nullptr);
+    ASSERT_EQ(timer_id, SW_ERR);
+
+    swoole_timer_delay(nullptr, 100);
+    ASSERT_FALSE(swoole_timer_del(nullptr));
+    SwooleTG.timer = tmp;
 }
