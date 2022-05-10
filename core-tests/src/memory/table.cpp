@@ -317,13 +317,10 @@ TEST(table, lock) {
     std::string key("php");
     TableRow *_rowlock = nullptr;
 
-    printf("%d", SW_CPU_NUM);
     for (int i = 0; i <= 10; i++) {
         std::thread t([&]() {
             TableRow *row = ptr->get(key.c_str(), key.length(), &_rowlock);
             TableColumn *column_name = ptr->get_column("name");
-            sleep(1);
-            _rowlock->unlock();
         });
         t.join();
     }
