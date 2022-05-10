@@ -308,3 +308,14 @@ TEST(table, get_value) {
     row->get_value(column_id, &lval);
     ASSERT_EQ(lval, 0);
 }
+
+TEST(table, lock) {
+    table_t table(test_table_size);
+    create_table(table);
+    auto ptr = table.ptr();
+
+    std::thread t1([&]() { ASSERT_GT(ptr->get_available_slice_num(), 0); });
+    std::thread t2([&]() { ASSERT_GT(ptr->get_available_slice_num(), 0); });
+    t1.join();
+    t2.join();
+}
