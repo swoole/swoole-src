@@ -317,10 +317,12 @@ TEST(table, lock) {
     std::string key("php");
     TableRow *_rowlock = nullptr;
 
-    for (int i = 0; i <= 10; i++) {
+    for (int i = 0; i <= 3; i++) {
         std::thread t([&]() {
             TableRow *row = ptr->get(key.c_str(), key.length(), &_rowlock);
             TableColumn *column_name = ptr->get_column("name");
+            row->get_value(column_name, &str, &len);
+            ASSERT_STREQ(str, "php");
         });
         t.join();
     }
