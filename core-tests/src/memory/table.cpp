@@ -314,8 +314,16 @@ TEST(table, lock) {
     create_table(table);
     auto ptr = table.ptr();
 
-    for(int i = 0; i <= 10; i++) {
-        std::thread t([&]() { ASSERT_GT(ptr->get_available_slice_num(), 0); });
+    std::string key("php");
+    TableRow *_rowlock = nullptr;
+
+    for (int i = 0; i <= 10; i++) {
+        std::thread t([&]() {
+            TableRow *row = ptr->get(key.c_str(), key.length(), &_rowlock);
+            TableColumn *column_name = ptr->get_column("name");
+            usleep(1);
+            _rowlock->unlock();
+        });
         t.join();
     }
 }
