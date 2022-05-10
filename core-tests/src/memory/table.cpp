@@ -328,4 +328,5 @@ TEST(table, lock) {
         });
         t.join();
     }
+    _rowlock->unlock();
 }
