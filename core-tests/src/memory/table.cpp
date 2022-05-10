@@ -314,8 +314,8 @@ TEST(table, lock) {
     create_table(table);
     auto ptr = table.ptr();
 
-    std::thread t1([&]() { ASSERT_GT(ptr->get_available_slice_num(), 0); });
-    std::thread t2([&]() { ASSERT_GT(ptr->get_available_slice_num(), 0); });
-    t1.join();
-    t2.join();
+    for(int i = 0; i <= 10; i++) {
+        std::thread t([&]() { ASSERT_GT(ptr->get_available_slice_num(), 0); });
+        t.join();
+    }
 }
