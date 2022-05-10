@@ -321,6 +321,8 @@ TEST(table, lock) {
         std::thread t([&]() {
             TableRow *row = ptr->get(key.c_str(), key.length(), &_rowlock);
             TableColumn *column_name = ptr->get_column("name");
+            char *str = nullptr;
+            TableStringLength len = 0;
             row->get_value(column_name, &str, &len);
             ASSERT_STREQ(str, "php");
         });
