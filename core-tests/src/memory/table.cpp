@@ -321,7 +321,7 @@ TEST(table, lock) {
         std::thread t([&]() {
             TableRow *row = ptr->get(key.c_str(), key.length(), &_rowlock);
             TableColumn *column_name = ptr->get_column("name");
-            usleep(1);
+            sleep(1);
             _rowlock->unlock();
         });
         t.join();
