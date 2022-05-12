@@ -19,6 +19,7 @@
 
 #include "test_core.h"
 #include "swoole_memory.h"
+#include "swoole_util.h"
 
 using namespace std;
 
@@ -47,6 +48,16 @@ TEST(fixed_pool, alloc) {
             pool->free(mem);
         }
     }
-    pool->debug(2);
+    pool->debug(1);
     delete pool;
+}
+
+TEST(fixed_pool, realloc) {
+    void *memory = sw_shm_malloc(1024);
+    void *new_memory = sw_shm_realloc(memory, 2048);
+    ON_SCOPE_EXIT {
+        sw_shm_free(new_memory);
+    };
+    ASSERT_NE(new_memory, nullptr);
+
 }
