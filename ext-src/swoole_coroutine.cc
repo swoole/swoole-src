@@ -329,19 +329,15 @@ void PHPCoroutine::error_cb(int type,
     }
 }
 
-void PHPCoroutine::catch_exception(zend_object *exception) {
-    if (exception) {
+void PHPCoroutine::catch_exception() {
+    if (UNEXPECTED(EG(exception))) {
         zend_error_cb = orig_error_function;
         // the exception error messages MUST be output on the current coroutine stack
-        zend_exception_error(exception, E_ERROR);
-    }
-    Coroutine::bailout([]() {
-        if (sw_reactor()) {
-            sw_reactor()->running = false;
-            sw_reactor()->bailout = true;
-        }
+        zend_exception_error(EG(exception), E_ERROR);
+#if PHP_VERSION_ID >= 80000
         zend_bailout();
-    });
+#endif
+    }
 }
 
 void PHPCoroutine::activate() {
@@ -841,15 +837,18 @@ void PHPCoroutine::main_func(void *arg) {
             OBJ_RELEASE(fci_cache.object);
         }
         zval_ptr_dtor(retval);
-
-        if (UNEXPECTED(EG(exception))) {
-            catch_exception(EG(exception));
-        }
-
+        catch_exception();
 #ifdef SW_CORO_SUPPORT_BAILOUT
     }
     zend_catch {
-        catch_exception(EG(exception));
+        catch_exception();
+        Coroutine::bailout([]() {
+            if (sw_reactor()) {
+                sw_reactor()->running = false;
+                sw_reactor()->bailout = true;
+            }
+            zend_bailout();
+        });
     }
     zend_end_try();
 #endif
