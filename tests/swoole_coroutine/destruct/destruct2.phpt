@@ -7,7 +7,7 @@ swoole_coroutine/destruct: destruct2
 require __DIR__ . '/../../include/bootstrap.php';
 
 use Swoole\Coroutine as co;
-class T
+class T2
 {
     function __construct()
     {
@@ -28,7 +28,7 @@ class T
     }
 }
 
-$t = new T();
+$t = new T2();
 $t->test();
 echo "end\n";
 ?>
