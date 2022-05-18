@@ -335,7 +335,7 @@ void PHPCoroutine::catch_exception(zend_object *exception) {
         // the exception error messages MUST be output on the current coroutine stack
         zend_exception_error(exception, E_ERROR);
     }
-    Coroutine::bailout([exception]() {
+    Coroutine::bailout([]() {
         if (sw_reactor()) {
             sw_reactor()->running = false;
             sw_reactor()->bailout = true;
