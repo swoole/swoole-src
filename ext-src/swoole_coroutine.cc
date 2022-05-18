@@ -330,14 +330,16 @@ void PHPCoroutine::error_cb(int type,
 }
 
 void PHPCoroutine::catch_exception(zend_object *exception) {
-    // TODO: exceptions will only cause the coroutine to exit
-    if (sw_reactor()) {
-        sw_reactor()->running = false;
-        sw_reactor()->bailout = true;
+    if (exception) {
+        zend_error_cb = orig_error_function;
+        // the exception error messages MUST be output on the current coroutine stack
+        zend_exception_error(exception, E_ERROR);
     }
     Coroutine::bailout([exception]() {
-        zend_error_cb = orig_error_function;
-        zend_exception_error(exception, E_ERROR);
+        if (sw_reactor()) {
+            sw_reactor()->running = false;
+            sw_reactor()->bailout = true;
+        }
         zend_bailout();
     });
 }
