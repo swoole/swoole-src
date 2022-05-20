@@ -37,8 +37,6 @@ services:
       POSTGRES_USER: root
       POSTGRES_DB: test
       POSTGRES_PASSWORD: 
-    ports:
-      - "5432:5432"
   redis:
     container_name: "redis"
     image: "twosee/swoole:redis"
