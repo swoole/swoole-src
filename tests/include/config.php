@@ -59,6 +59,9 @@ define('MYSQL_SERVER_USER', getenv('MYSQL_SERVER_USER') ?: 'root');
 define('MYSQL_SERVER_PWD', getenv('MYSQL_SERVER_PWD') ?: 'root');
 define('MYSQL_SERVER_DB', getenv('MYSQL_SERVER_DB') ?: 'test');
 
+/** ============== PostgreSQL ============== */
+define('PGSQL_CONNECTION_STRING', getenv('PGSQL_CONNECTION_STRING') ?: 'host=127.0.0.1 port=5432 dbname=test user=root password=');
+
 /** ============== Redis ============== */
 define('REDIS_SERVER_PATH', getenv('REDIS_SERVER_PATH') ?:
     (IS_IN_TRAVIS ? TRAVIS_DIR_PATH . '/data/run/redis/redis.sock' :
