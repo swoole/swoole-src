@@ -36,7 +36,7 @@ services:
     environment:
       POSTGRES_USER: root
       POSTGRES_DB: test
-      POSTGRES_PASSWORD: 
+      POSTGRES_PASSWORD: root
   redis:
     container_name: "redis"
     image: "twosee/swoole:redis"
