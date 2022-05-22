@@ -212,7 +212,7 @@ AC_DEFUN([AC_SWOOLE_HAVE_UCONTEXT],
 AC_DEFUN([AC_SWOOLE_HAVE_VALGRIND],
 [
     AC_MSG_CHECKING([for valgrind])
-    AC_LANG([C++])
+    AC_LANG_PUSH([C++])
     AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
         #include <valgrind/valgrind.h>
     ]], [[
@@ -223,12 +223,13 @@ AC_DEFUN([AC_SWOOLE_HAVE_VALGRIND],
     ],[
         AC_MSG_RESULT([no])
     ])
+    AC_LANG_POP([C++])
 ])
 
 AC_DEFUN([AC_SWOOLE_HAVE_BOOST_STACKTRACE],
 [
     AC_MSG_CHECKING([for valgrind])
-    AC_LANG([C++])
+    AC_LANG_PUSH([C++])
     AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
         #include <boost/stacktrace.hpp>
     ]], [[
@@ -239,6 +240,7 @@ AC_DEFUN([AC_SWOOLE_HAVE_BOOST_STACKTRACE],
     ],[
         AC_MSG_RESULT([no])
     ])
+    AC_LANG_POP([C++])
 ])
 
 AC_DEFUN([AC_SWOOLE_CHECK_SOCKETS], [
