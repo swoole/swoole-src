@@ -1677,6 +1677,7 @@ static sw_inline void swoole_mysql_coro_sync_execute_result_properties(zval *zob
             Z_OBJCE_P(&zclient), SW_Z8_OBJ_P(&zclient), ZEND_STRL("affected_rows"), ok_packet->affected_rows);
         zend_update_property_long(
             Z_OBJCE_P(&zclient), SW_Z8_OBJ_P(&zclient), ZEND_STRL("insert_id"), ok_packet->last_insert_id);
+        swoole_mysql_coro_sync_execute_error_properties(zobject, 0, "");
         break;
     }
     case IS_FALSE: {
