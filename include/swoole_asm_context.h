@@ -29,8 +29,20 @@ SW_EXTERN_C_BEGIN
 
 typedef void *fcontext_t;
 
+#ifdef __GNUC__
+#define SW_GCC_VERSION (__GNUC__ * 1000 + __GNUC_MINOR__)
+#else
+#define SW_GCC_VERSION 0
+#endif
+
+#if defined(__GNUC__) && SW_GCC_VERSION >= 9000
+#define SW_INDIRECT_RETURN __attribute__((__indirect_return__))
+#else
+#define SW_INDIRECT_RETURN
+#endif
+
 intptr_t swoole_jump_fcontext(fcontext_t *ofc, fcontext_t nfc, intptr_t vp, bool preserve_fpu = false);
-fcontext_t swoole_make_fcontext(void *sp, size_t size, void (*fn)(intptr_t));
+SW_INDIRECT_RETURN fcontext_t swoole_make_fcontext(void *sp, size_t size, void (*fn)(intptr_t));
 
 SW_EXTERN_C_END
 
