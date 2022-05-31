@@ -31,11 +31,17 @@
  *                                                                                      *
  ****************************************************************************************/
 
+#ifdef __CET__
+#include <cet.h>
+#else
+#define _CET_ENDBR
+#endif
 .text
 .globl swoole_make_fcontext
 .type swoole_make_fcontext,@function
 .align 16
 swoole_make_fcontext:
+    _CET_ENDBR
     /* first arg of swoole_make_fcontext() == top of context-stack */
     movq  %rdi, %rax
 
@@ -64,6 +70,7 @@ swoole_make_fcontext:
     ret /* return pointer to context-data */
 
 finish:
+    _CET_ENDBR
     /* exit code is zero */
     xorq  %rdi, %rdi
     /* exit application */

@@ -31,11 +31,17 @@
  *                                                                                      *
  ****************************************************************************************/
 
+#ifdef __CET__
+#include <cet.h>
+#else
+#define _CET_ENDBR
+#endif
 .text
 .globl swoole_jump_fcontext
 .type swoole_jump_fcontext,@function
 .align 16
 swoole_jump_fcontext:
+    _CET_ENDBR
     pushq  %rbp  /* save RBP */
     pushq  %rbx  /* save RBX */
     pushq  %r15  /* save R15 */
