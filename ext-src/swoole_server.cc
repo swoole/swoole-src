@@ -452,12 +452,6 @@ void php_swoole_server_minit(int module_number) {
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_server, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CUSTOM_OBJECT(swoole_server, server_create_object, server_free_object, ServerObject, std);
 
-    SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "after", &swoole_server_ce->function_table, "after");
-    SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "tick", &swoole_server_ce->function_table, "tick");
-    SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "clear", &swoole_server_ce->function_table, "clearTimer");
-
-    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "defer", &swoole_server_ce->function_table, "defer");
-
     // ---------------------------------------Task-------------------------------------
     SW_INIT_CLASS_ENTRY(swoole_server_task, "Swoole\\Server\\Task", nullptr, swoole_server_task_methods);
     swoole_server_task_ce->ce_flags |= ZEND_ACC_FINAL;
