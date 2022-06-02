@@ -759,7 +759,6 @@ void php_swoole_server_minit(int module_number) {
     zend_declare_property_string(swoole_server_ce, ZEND_STRL("host"), "", ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_server_ce, ZEND_STRL("port"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_server_ce, ZEND_STRL("type"), 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_bool(swoole_server_ce, ZEND_STRL("ssl"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_server_ce, ZEND_STRL("mode"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_server_ce, ZEND_STRL("ports"), ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_server_ce, ZEND_STRL("master_pid"), 0, ZEND_ACC_PUBLIC);
@@ -979,7 +978,6 @@ static zval *php_swoole_server_add_port(ServerObject *server_object, ListenPort 
     zend_update_property_long(swoole_server_port_ce, SW_Z8_OBJ_P(zport), ZEND_STRL("port"), port->get_port());
     zend_update_property_long(swoole_server_port_ce, SW_Z8_OBJ_P(zport), ZEND_STRL("type"), port->get_type());
     zend_update_property_long(swoole_server_port_ce, SW_Z8_OBJ_P(zport), ZEND_STRL("sock"), port->get_fd());
-    zend_update_property_bool(swoole_server_port_ce, SW_Z8_OBJ_P(zport), ZEND_STRL("ssl"), port->ssl);
 
     do {
         zval *zserv = (zval *) serv->private_data_2;
