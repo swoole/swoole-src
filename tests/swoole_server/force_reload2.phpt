@@ -8,6 +8,7 @@ error_reporting(0);
 require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Server;
+use Swoole\Timer;
 
 $atomic = new Swoole\Atomic(1);
 $pm = new SwooleTest\ProcessManager;
@@ -33,9 +34,9 @@ $pm->childFunc = function () use ($pm,$atomic) {
             sleep(10);
         }
         if ($worker_id == 1 and $atomic->get() == 1) {
-            $server->after(1,function() use ($server, $worker_id, $atomic){
+            Timer::after(1, function () use ($server, $worker_id, $atomic) {
                 $atomic->add(1);
-                echo "$worker_id [".$server->worker_pid."] start to reload\n";
+                echo "$worker_id [" . $server->worker_pid . "] start to reload\n";
                 $server->reload();
             });
         }

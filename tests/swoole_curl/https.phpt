@@ -43,7 +43,7 @@ run(function () {
                 echo "CURL Error:" . curl_error($ch);
             }
             Assert::notEmpty($output);
-            Assert::greaterThan(strlen($output), 10000);
+            Assert::greaterThan(strlen($output), 8192);
             curl_close($ch);
         });
     }

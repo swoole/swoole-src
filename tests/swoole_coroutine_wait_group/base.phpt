@@ -5,13 +5,17 @@ swoole_coroutine_wait_group: base
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-$wg = new Swoole\Coroutine\WaitGroup;
-go(function () use ($wg) {
+
+use Swoole\Coroutine\System;
+use Swoole\Coroutine\WaitGroup;
+
+$wg = new WaitGroup;
+Co\run(function () use ($wg) {
     go(function () use ($wg) {
         $wg->add();
         Assert::same(
             file_get_contents(__FILE__),
-            Co::readFile(__FILE__)
+            System::readFile(__FILE__)
         );
         echo "TASK[1] DONE\n";
         $wg->done();
