@@ -36,7 +36,7 @@ $pm->childFunc = function () use ($pm, $counter) {
     ]);
     $serv->on("workerStart", function (Server $serv, $wid) use ($pm, $counter) {
         if ($counter->add(1) == $serv->setting['worker_num']) {
-            $serv->defer(function () use ($pm) {
+            Swoole\Event::defer(function () use ($pm) {
                 $pm->wakeup();
             });
         }

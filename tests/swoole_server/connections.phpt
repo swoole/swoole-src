@@ -49,7 +49,7 @@ $pm->childFunc = function () use ($pm, $port) {
         global $count;
         $count++;
         if ($count == N) {
-            $serv->defer(function () use ($serv) {
+            Swoole\Event::defer(function () use ($serv) {
                 foreach ($serv->connections as $fd) {
                     $serv->send($fd, "OK");
                 }

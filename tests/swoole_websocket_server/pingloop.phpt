@@ -55,7 +55,7 @@ $pm->childFunc = function () use ($pm) {
         'log_file' => '/dev/null'
     ]);
     $serv->on('workerStart', function (Swoole\WebSocket\Server  $server) use ($pm) {
-        $timer_id = $server->tick(PING_INTERVAL, function () use ($server) {
+        $timer_id = Swoole\Timer::tick(PING_INTERVAL, function () use ($server) {
             foreach ($server->connections as $fd) {
                 if (mt_rand(0, 1)) {
                     $ping = new Swoole\WebSocket\Frame;
@@ -66,8 +66,8 @@ $pm->childFunc = function () use ($pm) {
                 }
             }
         });
-        $server->after(PING_LOOP * PING_INTERVAL, function () use ($pm, $server, $timer_id) {
-            $server->clearTimer($timer_id);
+        Swoole\Timer::after(PING_LOOP * PING_INTERVAL, function () use ($pm, $server, $timer_id) {
+            Swoole\Timer::clear($timer_id);
             foreach ($server->connections as $fd) {
                 $server->push($fd, new Swoole\WebSocket\CloseFrame);
             }

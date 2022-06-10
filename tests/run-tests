@@ -364,7 +364,7 @@ NO_PROC_OPEN_ERROR;
         'ignore_repeated_errors=0',
         'precision=14',
         'serialize_precision=-1',
-        'memory_limit=128M',
+        'memory_limit=1024M',
         'log_errors_max_len=0',
         'opcache.fast_shutdown=0',
         'opcache.file_update_protection=0',
@@ -695,7 +695,7 @@ NO_PROC_OPEN_ERROR;
         $environment['TEST_PHP_EXECUTABLE'] = $php;
     }
 
-    if (strlen($conf_passed)) {
+    if ($conf_passed && strlen($conf_passed)) {
         if (IS_WINDOWS) {
             $pass_options .= " -c " . escapeshellarg($conf_passed);
         } else {

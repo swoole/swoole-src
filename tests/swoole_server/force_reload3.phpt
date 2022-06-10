@@ -8,6 +8,7 @@ error_reporting(0);
 require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Server;
+use Swoole\Timer;
 
 $atomic = new Swoole\Atomic(1);
 
@@ -32,7 +33,7 @@ $pm->childFunc = function () use ($pm,$atomic) {
     ]);
     $serv->on("WorkerStart", function (Server $server, $worker_id) use ($pm, $atomic) {
         $pm->wakeup();
-        $server->after(50,function() use ($server, $worker_id, $atomic){
+        Timer::after(50,function() use ($server, $worker_id, $atomic){
             if ($atomic->get() == 1) {
                 $atomic->add(1);
                 $server->reload();

@@ -12,8 +12,7 @@ $pm->parentFunc = function (int $pid) use ($pm) {
         $cli->set(['timeout' => 5]);
         $ret = $cli->upgrade('/');
         Assert::assert($ret);
-        for ($i = 100; $i--;)
-        {
+        for ($i = 100; $i--;) {
             $ping = new Swoole\WebSocket\Frame;
             $ping->opcode = WEBSOCKET_OPCODE_PING;
             $ret = $cli->push($ping);

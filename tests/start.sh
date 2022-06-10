@@ -29,7 +29,6 @@ else
         swoole_process \
         swoole_process_pool \
         swoole_table \
-        \
         swoole_coroutine* \
         swoole_channel_coro \
         swoole_client_coro \

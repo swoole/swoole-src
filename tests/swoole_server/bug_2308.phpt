@@ -21,8 +21,8 @@ $pm->childFunc = function () use ($pm) {
         'enable_coroutine' => false,
     ]);
     $server->on('start', function () {
-        \Swoole\Coroutine::create(function () {
-            $redis = new \Swoole\Coroutine\Redis();
+        Swoole\Coroutine::create(function () {
+            $redis = new Swoole\Coroutine\Redis();
             $redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
             $ret = $redis->set('foo', 'bar');
             Assert::assert($ret);
@@ -31,7 +31,7 @@ $pm->childFunc = function () use ($pm) {
         });
     });
     $server->on('workerStart', function ($server) {
-        $server->after(1000, function () use ($server) {
+        Swoole\Timer::after(1000, function () use ($server) {
             $server->stop();
         });
     });
