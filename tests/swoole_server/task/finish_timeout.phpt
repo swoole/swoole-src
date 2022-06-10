@@ -24,6 +24,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
 };
 
 $pm->childFunc = function () use ($pm) {
+    swoole_ignore_error(SWOOLE_ERROR_SERVER_NO_IDLE_WORKER);
     $server = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $server->set(
         [

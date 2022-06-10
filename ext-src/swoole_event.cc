@@ -104,7 +104,7 @@ static void event_object_free(void *data) {
     efree(peo);
 }
 
-static int event_readable_callback(Reactor *reactor, swEvent *event) {
+static int event_readable_callback(Reactor *reactor, Event *event) {
     EventObject *peo = (EventObject *) event->socket->object;
 
     zval argv[1];
@@ -144,7 +144,7 @@ static int event_writable_callback(Reactor *reactor, Event *event) {
     return SW_OK;
 }
 
-static int event_error_callback(Reactor *reactor, swEvent *event) {
+static int event_error_callback(Reactor *reactor, Event *event) {
     if (!(event->socket->events & SW_EVENT_ERROR)) {
         if (event->socket->events & SW_EVENT_READ) {
             return reactor->get_handler(SW_EVENT_READ, event->socket->fd_type)(reactor, event);

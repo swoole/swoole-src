@@ -24,7 +24,6 @@ $pm->parentFunc = function (int $pid) use ($pm) {
         $client->push('hello world');
         $client->close();
     });
-    puts('done!');
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
@@ -57,6 +56,7 @@ $pm->childFunc = function () use ($pm) {
 };
 $pm->childFirst();
 $pm->run();
+puts('done!');
 ?>
 --EXPECT--
 connect 1

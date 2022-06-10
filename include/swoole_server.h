@@ -1112,7 +1112,7 @@ class Server {
         return document_root;
     }
 
-    inline String *get_recv_buffer(swSocket *_socket) {
+    inline String *get_recv_buffer(network::Socket *_socket) {
         String *buffer = _socket->recv_buffer;
         if (buffer == nullptr) {
             buffer = swoole::make_string(SW_BUFFER_SIZE_BIG, recv_buffer_allocator);
