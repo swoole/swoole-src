@@ -15,7 +15,7 @@ $pm->parentFunc = function (int $pid) use ($pm, &$count) {
             $cli->set(['timeout' => 5]);
             $ret = $cli->upgrade('/');
             Assert::assert($ret);
-            $data = sha1(get_safe_random(mt_rand(0, 1024)));
+            $data = sha1(get_safe_random(mt_rand(1, 1024)));
             for ($n = MAX_REQUESTS; $n--;) {
                 $cli->push($data);
                 $ret = $cli->recv();
