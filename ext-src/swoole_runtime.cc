@@ -453,7 +453,7 @@ static int socket_close(php_stream *stream, int close_handle) {
      */
     sock->close();
     delete sock;
-    efree(abstract);
+    pefree(abstract, php_stream_is_persistent(stream));
     return SUCCESS;
 }
 
@@ -1152,15 +1152,14 @@ static php_stream *socket_create(const char *proto,
 
     sock->set_zero_copy(true);
 
-    abstract = (php_swoole_netstream_data_t *) ecalloc(1, sizeof(*abstract));
+    abstract = (php_swoole_netstream_data_t *) pemalloc(sizeof(*abstract), persistent_id ? 1 : 0);
     abstract->socket = sock;
     abstract->stream.socket = sock->get_fd();
     abstract->blocking = true;
 
-    persistent_id = nullptr;  // prevent stream api in user level using pconnect to persist the socket
     stream = php_stream_alloc_rel(&socket_ops, abstract, persistent_id, "r+");
-
     if (stream == nullptr) {
+        pefree(abstract, persistent_id ? 1 : 0);
         goto _failed;
     }
 
