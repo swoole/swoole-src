@@ -368,7 +368,7 @@ void ProcessPool::shutdown() {
     for (i = 0; i < worker_num; i++) {
         worker = &workers[i];
         if (swoole_kill(worker->pid, SIGTERM) < 0) {
-            swoole_sys_warning("swKill(%d) failed", worker->pid);
+            swoole_sys_warning("kill(%d, SIGTERM) failed", worker->pid);
             continue;
         }
     }

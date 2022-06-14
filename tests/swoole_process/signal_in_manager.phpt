@@ -13,6 +13,7 @@ const PID_FILE = __DIR__ . '/manager.pid';
 $pm = new SwooleTest\ProcessManager;
 
 $pm->parentFunc = function ($pid) use ($pm) {
+    usleep(1000);
     $manager_pid = file_get_contents(PID_FILE);
     Process::kill($manager_pid, SIGINT);
     $pm->wait();

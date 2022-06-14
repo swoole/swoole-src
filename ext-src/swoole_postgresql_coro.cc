@@ -1347,7 +1347,7 @@ static int swoole_postgresql_coro_close(zval *zobject) {
     }
 
     if (sw_reactor()) {
-        swSocket *_socket = object->socket;
+        Socket *_socket = object->socket;
         if (!_socket->removed) {
             sw_reactor()->del(_socket);
         }

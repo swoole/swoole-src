@@ -1928,11 +1928,12 @@ static PHP_METHOD(swoole_server, __construct) {
     } while (0);
 
     /* info */
-    zend_update_property_stringl(swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("host"), host, host_len);
-    zend_update_property_long(
-        swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("port"), (zend_long) serv->get_primary_port()->port);
+    auto port = serv->get_primary_port();
     zend_update_property_long(swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("mode"), serv_mode);
-    zend_update_property_long(swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("type"), sock_type);
+    zend_update_property_stringl(swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("host"), host, host_len);
+    zend_update_property_long( swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("port"), port->get_port());
+    zend_update_property_long(swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("type"), port->get_type());
+    zend_update_property_bool(swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("ssl"), port->ssl);
 }
 
 static PHP_METHOD(swoole_server, __destruct) {}

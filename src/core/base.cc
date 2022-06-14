@@ -284,6 +284,7 @@ void swoole_clean(void) {
         delete SwooleTG.buffer_stack;
         SwooleTG.buffer_stack = nullptr;
     }
+    swoole_signal_clear();
     SwooleG = {};
 }
 

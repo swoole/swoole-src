@@ -49,9 +49,9 @@ $pm->childFunc = function () use ($pm) {
         'package_eof' => "\r\n\r\n",
         'open_eof_check' => true,
         'open_eof_split' => true,
-        'dispatch_mode' => 3,
+        'dispatch_mode' => 7,
         'package_max_length' => 1024 * 1024 * 2, //2M
-        "worker_num" => 1,
+        'worker_num' => 1,
         'log_file' => '/dev/null',
         "reload_async" => true,
     ));
