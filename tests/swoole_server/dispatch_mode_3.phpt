@@ -14,8 +14,10 @@ use Swoole\Coroutine\Client;
 use Swoole\Timer;
 use Swoole\Event;
 use Swoole\Server;
+use Swoole\Atomic;
 
 global $stats;
+$barrier = new Atomic(0);
 $stats = array();
 $count = 0;
 $port = get_one_free_port();
@@ -62,18 +64,20 @@ $pm->parentFunc = function ($pid) use ($port) {
     echo "DONE\n";
 };
 
-$pm->childFunc = function () use ($pm, $port) {
+$pm->childFunc = function () use ($pm, $port, $barrier) {
     $serv = new Server('127.0.0.1', $port, SWOOLE_PROCESS);
     $serv->set(array(
-        "worker_num" => WORKER_N,
+        'worker_num' => WORKER_N,
         'dispatch_mode' => 3,
         'package_eof' => "\r\n\r\n",
         'enable_coroutine' => false,
         'open_eof_split' => true,
         'log_file' => '/dev/null',
     ));
-    $serv->on("WorkerStart", function (Server $serv) use ($pm) {
-        $pm->wakeup();
+    $serv->on('WorkerStart', function (Server $serv) use ($pm, $barrier) {
+        if ($barrier->add() == WORKER_N) {
+            $pm->wakeup();
+        }
     });
     $serv->on('receive', function (Server $serv, $fd, $rid, $data) {
         if ($serv->worker_id == 10 or $serv->worker_id == 5) {

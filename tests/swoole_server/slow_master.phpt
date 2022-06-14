@@ -56,10 +56,10 @@ $pm->childFunc = function () use ($pm, $counter_server, $counter_client, $data_c
     ));
 
     $serv->on(Constant::EVENT_START, function () use ($pm)  {
-        $pm->wakeup();
-        Timer::after(50, function (){
+        Timer::after(5, function (){
             usleep(300000);
         });
+        $pm->wakeup();
     });
 
     $serv->on('receive', function (Server $serv, $fd, $rid, $data) use ($counter_server, $counter_client, $data_chunks) {
