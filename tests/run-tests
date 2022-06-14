@@ -3775,7 +3775,7 @@ define('SWOOLE_COLOR_BLUE', 4);
 define('SWOOLE_COLOR_MAGENTA', 5);
 define('SWOOLE_COLOR_CYAN', 6);
 define('SWOOLE_COLOR_WHITE', 7);
-define('SWOOLE_TEST_OUTPUT_MAX_SIZE', 8 * 1024 * 1024);
+define('SWOOLE_TEST_OUTPUT_MAX_SIZE', 64 * 1024 * 1024);
 // swoole patch: libc check
 define('SWOOLE_IS_MUSL_LIBC', !empty(`ldd 2>&1 | grep -i musl`));
 

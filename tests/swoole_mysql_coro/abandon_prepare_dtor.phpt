@@ -5,7 +5,8 @@ swoole_mysql_coro: mysql prepare dtor
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-go(function () {
+
+Co\run(function () {
     $mysql = new Co\MySQL;
     $mysql->connect([
         'host' => MYSQL_SERVER_HOST,
@@ -19,10 +20,9 @@ go(function () {
         $statement = null;
         Co::sleep(0.001);
         $result = $mysql->query('show status like \'Prepared_stmt_count\'');
-        assert($result[0]['Value'] === '0');
+        Assert::eq($result[0]['Value'], '0');
     }
 });
-Swoole\Event::wait();
 echo "DONE\n";
 ?>
 --EXPECT--
