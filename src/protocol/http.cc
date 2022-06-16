@@ -187,6 +187,168 @@ void Server::destroy_http_request(Connection *conn) {
 namespace http_server {
 //-----------------------------------------------------------------
 
+static int multipart_on_header_field(multipart_parser *p, const char *at, size_t length) {
+    Request *request = (Request *) p->data;
+    request->current_header_name = (char *) at;
+    request->current_header_name_len = length;
+
+    swoole_trace("header_field: at=%.*s, length=%u\n", length, at, length);
+    return 0;
+}
+
+static int multipart_on_header_value(multipart_parser *p, const char *at, size_t length) {
+    swoole_trace("header_value: at=%.*s, length=%u\n", length, at, length);
+
+    Request *request = (Request *) p->data;
+
+    request->multipart_buffer_->append(request->current_header_name, request->current_header_name_len);
+    request->multipart_buffer_->append(SW_STRL(": "));
+    request->multipart_buffer_->append(at, length);
+    request->multipart_buffer_->append(SW_STRL("\r\n"));
+
+    if (SW_STRCASEEQ(request->current_header_name, request->current_header_name_len, "content-disposition")) {
+        size_t offset = 0;
+        if (swoole_strnpos(at, length, SW_STRL("form-data;")) >= 0) {
+            offset += sizeof("form-data;") - 1;
+        } else if (swoole_strnpos(at, length, SW_STRL("attachment;")) >= 0) {
+            offset += sizeof("attachment;") - 1;
+        } else {
+            swoole_warning("Unsupported Content-Disposition [%.*s]", (int) length, at);
+            return 0;
+        }
+
+        ParseCookieCallback cb = [request, p](char *key, size_t key_len, char *value, size_t value_len) {
+            if (SW_STRCASEEQ(key, key_len, "filename")) {
+                int tmpfile = swoole_tmpfile(request->upload_tmpfile->str);
+                if (tmpfile < 0) {
+                    return false;
+                }
+
+                FILE *fp = fdopen(tmpfile, "wb+");
+                if (fp == nullptr) {
+                    swoole_sys_warning("fopen(%s) failed", request->upload_tmpfile->str);
+                    return false;
+                }
+                p->fp = fp;
+
+                return false;
+            }
+            return true;
+        };
+        swoole::http_server::parse_cookie(at, length, cb);
+    }
+
+    return 0;
+}
+
+static int multipart_on_data(multipart_parser *p, const char *at, size_t length) {
+    Request *request = (Request *) p->data;
+    swoole_trace("on_data: length=%u\n", length);
+
+    if (!p->fp) {
+        request->multipart_buffer_->append(at, length);
+        return 0;
+    }
+
+    ssize_t n = fwrite(at, sizeof(char), length, p->fp);
+    if (n != (off_t) length) {
+        fclose(p->fp);
+        p->fp = nullptr;
+        request->excepted = 1;
+        swoole_sys_warning("write upload file failed");
+    }
+
+    return 0;
+}
+
+static int multipart_on_header_complete(multipart_parser *p) {
+    swoole_trace("on_header_complete\n");
+    Request *request = (Request *) p->data;
+    if (p->fp) {
+        request->multipart_buffer_->append(SW_STRL(SW_HTTP_UPLOAD_FILE ": "));
+        request->multipart_buffer_->append(request->upload_tmpfile->str, strlen(request->upload_tmpfile->str));
+    }
+    request->multipart_header_parsed = 1;
+    request->multipart_buffer_->append(SW_STRL("\r\n"));
+    return 0;
+}
+
+static int multipart_on_data_end(multipart_parser *p) {
+    swoole_trace("on_data_end\n");
+    Request *request = (Request *) p->data;
+    request->multipart_header_parsed = 0;
+    if (p->fp) {
+        request->multipart_buffer_->append(SW_STRL("\r\n" SW_HTTP_UPLOAD_FILE));
+        fclose(p->fp);
+        p->fp = nullptr;
+    }
+    request->multipart_buffer_->append(SW_STRL("\r\n"));
+    return 0;
+}
+
+static int multipart_on_part_begin(multipart_parser *p) {
+    swoole_trace("on_part_begi\n");
+    Request *request = (Request *) p->data;
+    request->multipart_buffer_->append(p->multipart_boundary, p->boundary_length);
+    request->multipart_buffer_->append(SW_STRL("\r\n"));
+    return 0;
+}
+
+static int multipart_on_body_end(multipart_parser *p) {
+    Request *request = (Request *) p->data;
+    request->multipart_buffer_->append(p->multipart_boundary, p->boundary_length);
+    request->multipart_buffer_->append(SW_STRL("--"));
+
+    request->content_length_ = request->multipart_buffer_->length - request->header_length_;
+    request->tried_to_dispatch = 1;
+
+#if 0
+    /**
+     * Replace content-length with the actual value
+     */
+    char *ptr = request->multipart_buffer_->str - (sizeof("\r\n\r\n") - 1);
+    char *ptr_end = request->multipart_buffer_->str + (request->multipart_buffer_->length - (sizeof("\r\n\r\n") - 1));
+
+    for (; ptr < ptr_end; ptr++) {
+        if (SW_STRCASECT(ptr, ptr_end - ptr, "Content-Length:")) {
+            ptr += (sizeof("Content-Length:") - 1);
+            // skip spaces
+            while (*ptr == ' ') {
+                ptr++;
+            }
+            break;
+        }
+    }
+
+    std::string actual_content_length = std::to_string(request->content_length_);
+    memcpy(ptr, actual_content_length.c_str(), actual_content_length.length());
+
+    ptr += actual_content_length.length();
+    SW_LOOP {
+        if (*ptr == '\r') {
+            break;
+        } else {
+            *ptr = ' ';
+            ptr++;
+        }
+    }
+#endif
+
+    swoole_trace("end, buffer=%.*s\n", request->multipart_buffer_->length, request->multipart_buffer_->str);
+
+    return 0;
+}
+
+static const multipart_parser_settings mt_parser_settings = {
+    multipart_on_header_field,
+    multipart_on_header_value,
+    multipart_on_data,
+    multipart_on_part_begin,
+    multipart_on_header_complete,
+    multipart_on_data_end,
+    multipart_on_body_end,
+};
+
 const char *get_status_message(int code) {
     switch (code) {
     case 100:
@@ -305,6 +467,89 @@ const char *get_status_message(int code) {
     default:
         return "200 OK";
     }
+}
+
+void parse_cookie(const char *at, size_t length, const ParseCookieCallback &cb) {
+    char *key, *value;
+    const char *separator = ";\0";
+    size_t key_len = 0;
+    char *strtok_buf = nullptr;
+
+    char *_c = sw_tg_buffer()->str;
+    memcpy(_c, at, length);
+    _c[length] = '\0';
+
+    key = strtok_r(_c, separator, &strtok_buf);
+    while (key) {
+        size_t value_len;
+        value = strchr(key, '=');
+
+        while (isspace(*key)) {
+            key++;
+        }
+
+        if (key == value || *key == '\0') {
+            goto next_cookie;
+        }
+
+        if (value) {
+            *value++ = '\0';
+            value_len = strlen(value);
+        } else {
+            value = (char *) "";
+            value_len = 0;
+        }
+
+        key_len = strlen(key);
+        if (!cb(key, key_len, value, value_len)) {
+            break;
+        }
+    next_cookie:
+        key = strtok_r(NULL, separator, &strtok_buf);
+    }
+}
+
+bool parse_multipart_boundary(
+    const char *at, size_t length, size_t offset, char **out_boundary_str, int *out_boundary_len) {
+    while (offset < length) {
+        if (at[offset] == ' ' || at[offset] == ';') {
+            offset++;
+            continue;
+        }
+        if (SW_STRCASECT(at + offset, length - offset, "boundary=")) {
+            offset += sizeof("boundary=") - 1;
+            break;
+        }
+        void *delimiter = memchr((void *) (at + offset), ';', length - offset);
+        if (delimiter == nullptr) {
+            return false;
+        } else {
+            offset += (const char *) delimiter - (at + offset);
+        }
+    }
+
+    int boundary_len = length - offset;
+    char *boundary_str = (char *) at + offset;
+    // find eof of boundary
+    if (boundary_len > 0) {
+        // find ';'
+        char *tmp = (char *) memchr(boundary_str, ';', boundary_len);
+        if (tmp) {
+            boundary_len = tmp - boundary_str;
+        }
+    }
+    if (boundary_len <= 0) {
+        return false;
+    }
+    // trim '"'
+    if (boundary_len >= 2 && boundary_str[0] == '"' && *(boundary_str + boundary_len - 1) == '"') {
+        boundary_str++;
+        boundary_len -= 2;
+    }
+    *out_boundary_str = boundary_str;
+    *out_boundary_len = boundary_len;
+
+    return true;
 }
 
 static int url_htoi(char *s) {
@@ -542,6 +787,15 @@ void Request::parse_header_info() {
                 if (SW_STRCASECT(p, pe - p, "chunked")) {
                     chunked = 1;
                 }
+            } else if (SW_STRCASECT(p, pe - p, "Content-Type:")) {
+                p += (sizeof("Content-Type:") - 1);
+                while (*p == ' ') {
+                    p++;
+                }
+                if (SW_STRCASECT(p, pe - p, "multipart/form-data")) {
+                    multipart_boundary_buf = p + (sizeof("multipart/form-data") - 1);
+                    multipart_boundary_len = pe - p - (sizeof("multipart/form-data") - 1);
+                }
             }
         }
     }
@@ -552,18 +806,48 @@ void Request::parse_header_info() {
     }
 }
 
-#ifdef SW_HTTP_100_CONTINUE
+bool Request::init_multipart_parser(const char *boundary_str, int boundary_len) {
+    multipart_parser_ = multipart_parser_init(boundary_str, boundary_len, &mt_parser_settings);
+    if (!multipart_parser_) {
+        swoole_warning("multipart_parser_init() failed");
+        return false;
+    }
+    multipart_parser_->data = this;
+    return true;
+}
+
+bool Request::parse_multipart_data(String *buffer) {
+    size_t n = multipart_parser_execute(multipart_parser_, buffer->str, buffer->length);
+    swoole_trace("multipart_parser_execute: buffer->length=%lu, n=%lu\n", buffer->length, n);
+    if (n != buffer->length) {
+       return false;
+    }
+    buffer->clear();
+    return true;
+}
+
+void Request::destroy_multipart_parser() {
+    auto tmp_buffer = buffer_;
+    delete tmp_buffer;
+    buffer_ = multipart_buffer_;
+    multipart_buffer_ = nullptr;
+    multipart_parser_free(multipart_parser_);
+    multipart_parser_ = nullptr;
+    delete upload_tmpfile;
+    upload_tmpfile = nullptr;
+}
+
 bool Request::has_expect_header() {
     // char *buf = buffer->str + buffer->offset;
     char *buf = buffer_->str;
     // int len = buffer->length - buffer->offset;
-    int len = buffer_->length;
+    size_t len = buffer_->length;
 
     char *pe = buf + len;
     char *p;
 
     for (p = buf; p < pe; p++) {
-        if (*p == '\r' && pe - p > sizeof("\r\nExpect")) {
+        if (*p == '\r' && (size_t)(pe - p) > sizeof("\r\nExpect")) {
             p += 2;
             if (SW_STRCASECT(p, pe - p, "Expect: ")) {
                 p += sizeof("Expect: ") - 1;
@@ -579,7 +863,6 @@ bool Request::has_expect_header() {
     }
     return false;
 }
-#endif
 
 int Request::get_header_length() {
     char *p = buffer_->str + buffer_->offset;
