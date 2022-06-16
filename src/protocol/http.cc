@@ -207,16 +207,6 @@ static int multipart_on_header_value(multipart_parser *p, const char *at, size_t
     request->multipart_buffer_->append(SW_STRL("\r\n"));
 
     if (SW_STRCASEEQ(request->current_header_name, request->current_header_name_len, "content-disposition")) {
-        size_t offset = 0;
-        if (swoole_strnpos(at, length, SW_STRL("form-data;")) >= 0) {
-            offset += sizeof("form-data;") - 1;
-        } else if (swoole_strnpos(at, length, SW_STRL("attachment;")) >= 0) {
-            offset += sizeof("attachment;") - 1;
-        } else {
-            swoole_warning("Unsupported Content-Disposition [%.*s]", (int) length, at);
-            return 0;
-        }
-
         ParseCookieCallback cb = [request, p](char *key, size_t key_len, char *value, size_t value_len) {
             if (SW_STRCASEEQ(key, key_len, "filename")) {
                 int tmpfile = swoole_tmpfile(request->upload_tmpfile->str);
@@ -235,7 +225,7 @@ static int multipart_on_header_value(multipart_parser *p, const char *at, size_t
             }
             return true;
         };
-        swoole::http_server::parse_cookie(at, length, cb);
+        parse_cookie(at, length, cb);
     }
 
     return 0;
@@ -820,7 +810,7 @@ bool Request::parse_multipart_data(String *buffer) {
     size_t n = multipart_parser_execute(multipart_parser_, buffer->str, buffer->length);
     swoole_trace("multipart_parser_execute: buffer->length=%lu, n=%lu\n", buffer->length, n);
     if (n != buffer->length) {
-       return false;
+        return false;
     }
     buffer->clear();
     return true;

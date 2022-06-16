@@ -298,11 +298,9 @@ void swoole_http_parse_cookie(zval *zarray, const char *at, size_t length) {
 }
 
 static void http_request_add_upload_file(HttpContext *ctx, const char *file, size_t l_file) {
-    add_next_index_stringl(
-        swoole_http_init_and_read_property(
-            swoole_http_request_ce, ctx->request.zobject, &ctx->request.ztmpfiles, ZEND_STRL("tmpfiles")),
-            file,
-            l_file);
+    zval *zfiles = swoole_http_init_and_read_property(
+        swoole_http_request_ce, ctx->request.zobject, &ctx->request.ztmpfiles, ZEND_STRL("tmpfiles"));
+    add_next_index_stringl(zfiles, file, l_file);
     // support is_upload_file
     zend_hash_str_add_ptr(SG(rfc1867_uploaded_files), file, l_file, (char *) file);
 }
