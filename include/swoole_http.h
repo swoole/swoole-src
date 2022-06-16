@@ -17,7 +17,6 @@
 
 #include "swoole.h"
 #include "swoole_protocol.h"
-#include "thirdparty/multipart_parser.h"
 
 enum swHttpVersion {
     SW_HTTP_VERSION_10 = 1,
@@ -104,6 +103,8 @@ enum swHttpStatusCode {
     SW_HTTP_VERSION_NOT_SUPPORTED = 505,
     SW_HTTP_INSUFFICIENT_STORAGE = 507
 };
+
+struct multipart_parser;
 
 namespace swoole {
 class Server;

@@ -24,6 +24,8 @@
 #include "swoole_websocket.h"
 #include "swoole_static_handler.h"
 
+#include "thirdparty/multipart_parser.h"
+
 using std::string;
 using swoole::http_server::Request;
 using swoole::http_server::StaticHandler;
