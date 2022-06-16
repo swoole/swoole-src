@@ -43,6 +43,7 @@ do {                                                                   \
 
 #define LF 10
 #define CR 13
+#define MAX_CACHE 8192
 
 enum state {
   s_uninitialized = 1,
@@ -65,16 +66,12 @@ enum state {
 };
 
 multipart_parser* multipart_parser_init(const char *boundary, size_t boundary_length,
-        const multipart_parser_settings* settings)
+                                        const multipart_parser_settings* settings)
 {
     multipart_parser* p = calloc(sizeof(multipart_parser) + boundary_length + boundary_length + 9 + 4, sizeof(char));
     memcpy(p->multipart_boundary, "--", 2);
     memcpy(p->multipart_boundary + 2, boundary, boundary_length);
     p->multipart_boundary[2 + boundary_length] = 0;
-
-#if 0
-    printf("boundary: %s\r\n\r\n", p->multipart_boundary);
-#endif
 
     p->boundary_length = boundary_length + 2;
     p->lookbehind = (p->multipart_boundary + p->boundary_length + 1);
@@ -141,10 +138,6 @@ size_t multipart_parser_execute(multipart_parser* p, const char *buf, size_t len
           break;
         }
 
-        if (c == '-') {
-          break;
-        }
-
         if (c == ':') {
           EMIT_DATA_CB(header_field, buf + mark, i - mark);
           p->state = s_header_value_start;
@@ -152,7 +145,7 @@ size_t multipart_parser_execute(multipart_parser* p, const char *buf, size_t len
         }
 
         cl = tolower(c);
-        if (cl < 'a' || cl > 'z') {
+        if ((c != '-') && (cl < 'a' || cl > 'z')) {
           multipart_log("invalid character in header name");
           return i;
         }
@@ -184,6 +177,7 @@ size_t multipart_parser_execute(multipart_parser* p, const char *buf, size_t len
         if (c == CR) {
           EMIT_DATA_CB(header_value, buf + mark, i - mark);
           p->state = s_header_value_almost_done;
+          break;
         }
         if (is_last)
             EMIT_DATA_CB(header_value, buf + mark, (i - mark) + 1);
@@ -204,19 +198,20 @@ size_t multipart_parser_execute(multipart_parser* p, const char *buf, size_t len
         p->state = s_part_data;
 
       /* fallthrough */
-      case s_part_data:
+      case s_part_data: {
         multipart_log("s_part_data");
         if (c == CR) {
-            EMIT_DATA_CB(part_data, buf + mark, i - mark);
-            mark = i;
             p->state = s_part_data_almost_boundary;
             p->lookbehind[0] = CR;
             break;
         }
-        if (is_last)
-            EMIT_DATA_CB(part_data, buf + mark, (i - mark) + 1);
+        size_t l_data = i - mark;
+        if (is_last || l_data == MAX_CACHE - 1) {
+            EMIT_DATA_CB(part_data, buf + mark, l_data + 1);
+            mark = i + 1;
+        }
         break;
-
+      }
       case s_part_data_almost_boundary:
         multipart_log("s_part_data_almost_boundary");
         if (c == LF) {
@@ -225,12 +220,10 @@ size_t multipart_parser_execute(multipart_parser* p, const char *buf, size_t len
             p->index = 0;
             break;
         }
-        EMIT_DATA_CB(part_data, p->lookbehind, 1);
         p->state = s_part_data;
-        mark = i --;
         break;
 
-      case s_part_data_boundary:
+      case s_part_data_boundary: {
         multipart_log("s_part_data_boundary");
         if (p->multipart_boundary[p->index] != c) {
           EMIT_DATA_CB(part_data, p->lookbehind, 2 + p->index);
@@ -240,11 +233,15 @@ size_t multipart_parser_execute(multipart_parser* p, const char *buf, size_t len
         }
         p->lookbehind[2 + p->index] = c;
         if ((++ p->index) == p->boundary_length) {
+            size_t l = i - p->boundary_length - 1;
+            if (l > mark) {
+                EMIT_DATA_CB(part_data, buf + mark, l - mark);
+            }
             NOTIFY_CB(part_data_end);
             p->state = s_part_data_almost_end;
         }
         break;
-
+      }
       case s_part_data_almost_end:
         multipart_log("s_part_data_almost_end");
         if (c == '-') {
