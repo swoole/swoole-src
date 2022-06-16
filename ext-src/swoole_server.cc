@@ -1931,7 +1931,7 @@ static PHP_METHOD(swoole_server, __construct) {
     auto port = serv->get_primary_port();
     zend_update_property_long(swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("mode"), serv_mode);
     zend_update_property_stringl(swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("host"), host, host_len);
-    zend_update_property_long( swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("port"), port->get_port());
+    zend_update_property_long(swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("port"), port->get_port());
     zend_update_property_long(swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("type"), port->get_type());
     zend_update_property_bool(swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("ssl"), port->ssl);
 }
@@ -2245,6 +2245,9 @@ static PHP_METHOD(swoole_server, set) {
             return;
         }
         serv->upload_tmp_dir = str_v.to_std_string();
+    }
+    if (php_swoole_array_get_value(vht, "upload_max_filesize", ztmp)) {
+        serv->upload_max_filesize = zval_get_long(ztmp);
     }
     /**
      * http static file handler
