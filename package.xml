@@ -2318,5 +2318,6 @@
         <configureoption default="no" name="enable-mysqlnd" prompt="enable mysqlnd support?"/>
         <configureoption default="no" name="enable-swoole-json" prompt="enable json support?"/>
         <configureoption default="no" name="enable-swoole-curl" prompt="enable curl support?"/>
+        <configureoption default="no" name="enable-cares" prompt="enable cares support?"/>
     </extsrcrelease>
 </package>
