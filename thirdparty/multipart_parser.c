@@ -43,7 +43,6 @@ do {                                                                   \
 
 #define LF 10
 #define CR 13
-#define MAX_CACHE 8192
 
 enum state {
   s_uninitialized = 1,
@@ -206,7 +205,7 @@ size_t multipart_parser_execute(multipart_parser* p, const char *buf, size_t len
             break;
         }
         size_t l_data = i - mark;
-        if (is_last || l_data == MAX_CACHE - 1) {
+        if (is_last) {
             EMIT_DATA_CB(part_data, buf + mark, l_data + 1);
             mark = i + 1;
         }

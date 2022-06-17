@@ -147,6 +147,7 @@ struct Request {
         clean();
         buffer_ = nullptr;
     }
+    ~Request();
     inline void clean() {
         memset(this, 0, offsetof(Request, buffer_));
     }

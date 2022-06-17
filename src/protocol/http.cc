@@ -818,11 +818,21 @@ bool Request::parse_multipart_data(String *buffer) {
     return true;
 }
 
+Request::~Request() {
+    if (multipart_buffer_) {
+        destroy_multipart_parser();
+    }
+}
+
 void Request::destroy_multipart_parser() {
     auto tmp_buffer = buffer_;
     delete tmp_buffer;
     buffer_ = multipart_buffer_;
     multipart_buffer_ = nullptr;
+    if (multipart_parser_->fp) {
+        fclose(multipart_parser_->fp);
+        unlink(upload_tmpfile->str);
+    }
     multipart_parser_free(multipart_parser_);
     multipart_parser_ = nullptr;
     delete upload_tmpfile;

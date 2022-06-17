@@ -550,9 +550,6 @@ _parse:
                 return SW_OK;
             }
         }
-        if (request->multipart_buffer_->length + buffer->length > protocol->package_max_length) {
-            goto _too_large;
-        }
         if (!request->parse_multipart_data(buffer)) {
             swoole_error_log(SW_LOG_WARNING,
                              SW_ERROR_SERVER_INVALID_REQUEST,
@@ -560,6 +557,9 @@ _parse:
                              n,
                              buffer->length);
             goto _bad_request;
+        }
+        if (request->multipart_buffer_->length > protocol->package_max_length) {
+            goto _too_large;
         }
         if (request->excepted) {
             goto _unavailable;
