@@ -27,6 +27,9 @@ $pm->childFunc = function () use ($pm) {
         $server->handle('/', function (Request $request, Response $response) {
             $response->end(json_encode($request->post));
         });
+        Swoole\Process::signal(SIGTERM, function () use ($server) {
+            $server->shutdown();
+        });
         $pm->wakeup();
         $server->start();
     });

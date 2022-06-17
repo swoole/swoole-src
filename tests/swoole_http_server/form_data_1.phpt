@@ -21,7 +21,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
 };
 
 $pm->childFunc = function () use ($pm) {
-    $http = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
+    $http = new Server('127.0.0.1', $pm->getFreePort(), SERVER_MODE_RANDOM);
     $http->set(['log_file' => '/dev/null']);
     $http->on('WorkerStart', function ($serv, $wid) use ($pm) {
         $pm->wakeup();

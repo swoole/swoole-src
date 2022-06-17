@@ -16,7 +16,7 @@ function form_data_test_1(ProcessManager $pm)
         $client->send(substr($req, 0, OFFSET));
         usleep(10000);
         $client->send(substr($req, OFFSET));
-
+        usleep(10000);
         $resp = '';
         $length = 0;
         $header = '';
@@ -24,7 +24,7 @@ function form_data_test_1(ProcessManager $pm)
         while (true) {
             $data = $client->recv();
             if ($data == false) {
-                throw new RuntimeException("recv failed, error: " . $client->errMsg);
+                throw new RuntimeException("recv failed, error: " . $client->errMsg.", resp: ".$resp);
             }
             $resp .= $data;
             if ($length == 0) {
