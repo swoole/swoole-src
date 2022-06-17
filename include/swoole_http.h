@@ -180,6 +180,48 @@ uint8_t get_package_length_size(network::Socket *conn);
 int dispatch_frame(const Protocol *protocol, network::Socket *conn, const RecvData *rdata);
 #endif
 
+struct ContextImpl;
+
+class Context {
+ public:
+    Context(Server *server, SessionId session_id, ContextImpl *_impl) {
+        server_ = server;
+        session_id_ = session_id;
+        impl = _impl;
+    }
+    bool end(const std::string &data) {
+        return end(data.c_str(), data.length());
+    }
+    bool end(const char *data, size_t length);
+    void setHeader(const std::string &key, const std::string &value) {
+        response.headers[key] = value;
+    }
+    void setStatusCode(int code) {
+        response.code = code;
+    }
+    // Request
+    int version = 0;
+    bool keepalive = false;
+    bool post_form_urlencoded = false;
+    std::string request_path;
+    std::string query_string;
+    std::string server_protocol;
+    std::unordered_map<std::string, std::string> headers;
+    std::unordered_map<std::string, std::string> files;
+    std::unordered_map<std::string, std::string> form_data;
+    std::string body;
+    // Response
+    struct {
+        int code = 200;
+        std::unordered_map<std::string, std::string> headers;
+    } response;
+    // Impl
+    Server *server_;
+    SessionId session_id_;
+    ContextImpl *impl;
+};
+
+std::shared_ptr<Server> listen(const std::string addr, std::function<void(Context &ctx)> cb, int mode = 1);
 //-----------------------------------------------------------------
 }  // namespace http_server
 }  // namespace swoole
