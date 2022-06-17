@@ -2,6 +2,10 @@
 
 use Swoole\Coroutine\Client;
 
+/**
+ * @param ProcessManager $pm
+ * @throw RuntimeException
+ */
 function form_data_test_1(ProcessManager $pm)
 {
     Swoole\Coroutine\run(function () use ($pm) {
@@ -13,10 +17,35 @@ function form_data_test_1(ProcessManager $pm)
         usleep(10000);
         $client->send(substr($req, OFFSET));
 
-        $resp = $client->recv();
-        [$header, $json] = explode("\r\n\r\n", $resp);
-        Assert::assert($json);
-        $data = json_decode($json);
+        $resp = '';
+        $length = 0;
+        $header = '';
+
+        while (true) {
+            $data = $client->recv();
+            if ($data == false) {
+                throw new RuntimeException("recv failed, error: " . $client->errMsg);
+            }
+            $resp .= $data;
+            if ($length == 0) {
+                $crlf_pos = strpos($resp, "\r\n\r\n");
+                if ($crlf_pos === false) {
+                    continue;
+                }
+                $header = substr($resp, 0, $crlf_pos);
+                if (!preg_match('#Content-Length:\s(\d+)#i', $header, $match)) {
+                    throw new RuntimeException("no match Content-Length");
+                }
+                $length = strlen($header) + 4 + $match[1];
+            }
+            if (strlen($resp) == $length) {
+                break;
+            }
+        }
+        Assert::assert($header);
+        $body = substr($resp, strlen($header) + 4);
+        Assert::assert($body);
+        $data = json_decode($body);
         Assert::assert(is_object($data));
         Assert::minLength($data->test, 80);
         Assert::minLength($data->hello, 120);

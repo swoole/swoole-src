@@ -535,7 +535,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
     HttpContext *ctx = nullptr;
     bool header_completed = false;
     off_t header_crlf_offset = 0;
-    size_t request_length;
+    size_t total_length;
 
     hs->clients.push_front(sock);
     auto client_iterator = hs->clients.begin();
@@ -562,7 +562,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
 
         if (!header_completed) {
             ssize_t header_length = swoole_strnpos(
-                    buffer->str + header_crlf_offset, buffer->length - header_crlf_offset, ZEND_STRL("\r\n\r\n"));
+                buffer->str + header_crlf_offset, buffer->length - header_crlf_offset, ZEND_STRL("\r\n\r\n"));
             if (header_length < 0) {
                 if (buffer->length == buffer->size) {
                     ctx->response.status = SW_HTTP_REQUEST_ENTITY_TOO_LARGE;
@@ -579,47 +579,42 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
             // Header contains CRLFx2
             header_length += 4;
             size_t parsed_n = ctx->parse(buffer->str, header_length);
-            if ((ssize_t)parsed_n != header_length) {
+            if ((ssize_t) parsed_n != header_length) {
                 ctx->response.status = SW_HTTP_BAD_REQUEST;
                 break;
             }
             buffer->offset += header_length;
-            request_length = header_length + ctx->get_content_length();
-            if (ctx->get_content_length() > 0 && request_length > sock->protocol.package_max_length) {
+            total_length = header_length + ctx->get_content_length();
+            if (ctx->get_content_length() > 0 && total_length > sock->protocol.package_max_length) {
                 ctx->response.status = SW_HTTP_REQUEST_ENTITY_TOO_LARGE;
                 break;
             }
-            if (request_length > buffer->size && !buffer->extend(request_length)) {
+            if (total_length > buffer->size && !buffer->extend(total_length)) {
                 ctx->response.status = SW_HTTP_SERVICE_UNAVAILABLE;
                 break;
             }
         }
 
-        // Make sure the complete request package is received
-        if (buffer->length < request_length) {
-            goto _recv_request;
-        }
-
-        size_t parsed_n = ctx->parse(buffer->str + buffer->offset, buffer->length - buffer->offset);
-        buffer->offset += parsed_n;
-
-        swoole_trace_log(SW_TRACE_CO_HTTP_SERVER,
-                         "parsed_n=%zu, length=%zu, offset=%jd, completed=%u",
-                         parsed_n,
-                         buffer->length,
-                         (intmax_t) buffer->offset,
-                         ctx->completed);
-
         if (!ctx->completed) {
+            // Make sure the complete request package is received
+            if (buffer->length < total_length) {
+                goto _recv_request;
+            }
+
+            size_t parsed_n = ctx->parse(buffer->str + buffer->offset, buffer->length - buffer->offset);
+            buffer->offset += parsed_n;
+
+            swoole_trace_log(SW_TRACE_CO_HTTP_SERVER,
+                             "parsed_n=%zu, length=%zu, offset=%jd, completed=%u",
+                             parsed_n,
+                             buffer->length,
+                             (intmax_t) buffer->offset,
+                             ctx->completed);
+
             if (ctx->parser.state == s_dead) {
                 ctx->response.status = SW_HTTP_BAD_REQUEST;
                 break;
             }
-            if (buffer->length == buffer->size && !buffer->extend()) {
-                ctx->response.status = SW_HTTP_SERVICE_UNAVAILABLE;
-                break;
-            }
-            continue;
         }
 
 #ifdef SW_USE_HTTP2
@@ -633,7 +628,6 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
         }
 #endif
 
-        size_t total_length = buffer->offset;
         zend::assign_zend_string_by_val(&ctx->request.zdata, buffer->pop(SW_BUFFER_SIZE_BIG), total_length);
 
         zval *zserver = ctx->request.zserver;
