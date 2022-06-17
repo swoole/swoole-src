@@ -12,8 +12,7 @@ Swoole\Coroutine\run(function () {
     Assert::false($pgsql->escapeLiteral(''));
     Assert::false($pgsql->escapeIdentifier(''));
     Assert::false($pgsql->query(''));
-    Assert::false($pgsql->prepare('', ''));
-    Assert::false($pgsql->execute('', []));
+    Assert::false($pgsql->prepare(''));
     Assert::false($pgsql->metaData(''));
 });
 ?>

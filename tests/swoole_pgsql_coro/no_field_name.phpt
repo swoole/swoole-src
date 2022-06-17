@@ -10,10 +10,10 @@ Swoole\Coroutine\run(function () {
     $connected = $pgsql->connect(PGSQL_CONNECTION_STRING);
     Assert::true($connected, (string) $pgsql->error);
 
-    $result = $pgsql->query('SELECT 11, 22');
-    Assert::true(false !== $result, (string) $pgsql->error);
+    $stmt = $pgsql->query('SELECT 11, 22');
+    Assert::true(false !== $stmt, (string) $pgsql->error);
 
-    $arr = $pgsql->fetchAll($result);
+    $arr = $stmt->fetchAll();
     Assert::isArray($arr);
     Assert::eq($arr[0]['?column?'], 11);
     Assert::eq($arr[0]['?column?1'], 22);
