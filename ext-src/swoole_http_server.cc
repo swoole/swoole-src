@@ -31,7 +31,6 @@ String *swoole_http_buffer;
 /* not only be used by zlib but also be used by br */
 String *swoole_zlib_buffer;
 #endif
-String *swoole_http_form_data_buffer;
 
 zend_class_entry *swoole_http_server_ce;
 zend_object_handlers swoole_http_server_handlers;
@@ -267,7 +266,6 @@ void HttpContext::free() {
 
 void php_swoole_http_server_init_global_variant() {
     swoole_http_buffer = new String(SW_HTTP_RESPONSE_INIT_SIZE);
-    swoole_http_form_data_buffer = new String(SW_HTTP_RESPONSE_INIT_SIZE);
     // for is_uploaded_file and move_uploaded_file
     if (!SG(rfc1867_uploaded_files)) {
         ALLOC_HASHTABLE(SG(rfc1867_uploaded_files));

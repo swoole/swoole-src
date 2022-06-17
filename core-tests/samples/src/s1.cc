@@ -9,47 +9,36 @@
 #include <iostream>
 
 using swoole::Coroutine;
-using swoole::coroutine::System;
 using swoole::coroutine::Socket;
+using swoole::coroutine::System;
 using namespace std;
 
-struct A
-{
+struct A {
     int x;
     int *y;
 };
 
-static A G_a =
-{ 0, 0 };
+static A G_a = {0, 0};
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
     swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
-    /**
-     * 协程1
-     */
-    Coroutine::create([](void *arg)
-    {
-
+    // coroutine 1
+    Coroutine::create([](void *arg) {
         G_a.x = 1234;
         int y = 5678;
         G_a.y = &y;
-        /**
-         * 这里协程挂起后，协程2 会执行，在协程2中修改了 x, y 值
-         * 协程2 退出或挂起后，重新回到协程1，这里的x和y的值已经不符合预期了
-         */
+        // After the coroutine 1 is suspended here, the coroutine 2 will be executed, and the x, y values is updated in
+        // the coroutine 2. After the coroutine 2 suspends, go back to coroutine 1, where the values of x and y will be
+        // no longer as expected
         System::sleep(1);
-        //这里会显示 100
+        // output 100
         cout << "X=" << G_a.x << endl;
-        //这里会读到空指针
+        // read invalid point
         cout << "Y=" << *G_a.y << endl;
     });
 
-    /**
-     * 协程2
-     */
-    Coroutine::create([](void *arg)
-    {
+    // coroutine 2
+    Coroutine::create([](void *arg) {
         G_a.x = 100;
         G_a.y = nullptr;
     });

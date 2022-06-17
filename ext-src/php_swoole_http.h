@@ -169,6 +169,7 @@ struct Context {
     char *current_form_data_name;
     size_t current_form_data_name_len;
     zval *current_multipart_header;
+    String *form_data_buffer;
 
     std::string upload_tmp_dir;
 
@@ -268,7 +269,6 @@ extern zend_class_entry *swoole_http_request_ce;
 extern zend_class_entry *swoole_http_response_ce;
 
 extern swoole::String *swoole_http_buffer;
-extern swoole::String *swoole_http_form_data_buffer;
 #ifdef SW_HAVE_COMPRESSION
 extern swoole::String *swoole_zlib_buffer;
 #endif

@@ -1,0 +1,16 @@
+{
+    "project": {
+        "name": "fuzz",
+        "type": "bin"
+    },
+    "build": {
+        "ldflags": "",
+        "cxxflags": "",
+        "cflags": "",
+        "c_std": "",
+        "cxx_std": ""
+    },
+    "install": {
+        "target": ""
+    }
+}

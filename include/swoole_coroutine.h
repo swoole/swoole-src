@@ -138,6 +138,13 @@ class Coroutine {
     static void set_on_close(SwapCallback func);
     static void bailout(BailoutCallback func);
 
+    static inline bool run(const CoroutineFunc &fn, void *args = nullptr) {
+        swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
+        long cid = create(fn, args);
+        swoole_event_wait();
+        return cid > 0;
+    }
+
     static inline long create(const CoroutineFunc &fn, void *args = nullptr) {
 #ifdef SW_USE_THREAD_CONTEXT
         try {

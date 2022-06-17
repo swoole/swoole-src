@@ -262,7 +262,7 @@ bool HttpContext::parse_form_data(const char *boundary_str, int boundary_len) {
         php_swoole_fatal_error(E_WARNING, "multipart_parser_init() failed");
         return false;
     }
-
+    form_data_buffer = new String(SW_BUFFER_SIZE_STD);
     mt_parser->data = this;
     return true;
 }
@@ -521,7 +521,7 @@ _end:
 static int multipart_body_on_data(multipart_parser *p, const char *at, size_t length) {
     HttpContext *ctx = (HttpContext *) p->data;
     if (ctx->current_form_data_name) {
-        swoole_http_form_data_buffer->append(at, length);
+        ctx->form_data_buffer->append(at, length);
         return 0;
     }
     if (p->fp == nullptr) {
@@ -598,15 +598,15 @@ static int multipart_body_on_data_end(multipart_parser *p) {
     if (ctx->current_form_data_name) {
         php_register_variable_safe(
             ctx->current_form_data_name,
-            swoole_http_form_data_buffer->str,
-            swoole_http_form_data_buffer->length,
+            ctx->form_data_buffer->str,
+            ctx->form_data_buffer->length,
             swoole_http_init_and_read_property(
                 swoole_http_request_ce, ctx->request.zobject, &ctx->request.zpost, ZEND_STRL("post")));
 
         efree(ctx->current_form_data_name);
         ctx->current_form_data_name = nullptr;
         ctx->current_form_data_name_len = 0;
-        swoole_http_form_data_buffer->clear();
+        ctx->form_data_buffer->clear();
         return 0;
     }
 
@@ -741,6 +741,11 @@ static int http_request_message_complete(swoole_http_parser *parser) {
         multipart_parser_free(ctx->mt_parser);
         ctx->mt_parser = nullptr;
     }
+    if (ctx->form_data_buffer) {
+        delete ctx->form_data_buffer;
+        ctx->form_data_buffer = nullptr;
+    }
+
     ctx->completed = 1;
 
     swoole_trace_log(SW_TRACE_HTTP, "request body length=%ld", content_length);
@@ -833,6 +838,10 @@ static PHP_METHOD(swoole_http_request, create) {
     Z_PARAM_OPTIONAL
     Z_PARAM_ARRAY(zoptions)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    if (sw_unlikely(swoole_http_buffer == nullptr)) {
+        php_swoole_http_server_init_global_variant();
+    }
 
     HttpContext *ctx = new HttpContext();
     object_init_ex(return_value, swoole_http_request_ce);
