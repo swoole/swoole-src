@@ -20,8 +20,8 @@ define('HAS_HTTP2', class_exists("Swoole\\Http2\\Request", false));
 define('DEV_NULL', '/dev/null');
 
 /** ============== Files ============== */
-define('SOURCE_ROOT_PATH', __DIR__ . '/../../');
-define('TESTS_ROOT_PATH', __DIR__ . '/../');
+define('SOURCE_ROOT_PATH', realpath(__DIR__ . '/../../'));
+define('TESTS_ROOT_PATH', realpath(__DIR__ . '/../'));
 define('TESTS_API_PATH', TESTS_ROOT_PATH.'/include/api');
 define('TESTS_LIB_PATH', TESTS_ROOT_PATH.'/include/lib');
 define('TRAVIS_DIR_PATH', __DIR__ . '/../../travis/');

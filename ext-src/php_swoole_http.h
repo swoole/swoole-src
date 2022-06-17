@@ -199,6 +199,10 @@ struct Context {
     void build_header(String *http_buffer, size_t body_length);
     ssize_t build_trailer(String *http_buffer);
 
+    size_t get_content_length() {
+        return parser.content_length;
+    }
+
 #ifdef SW_HAVE_COMPRESSION
     void set_compression_method(const char *accept_encoding, size_t length);
     const char *get_content_encoding();

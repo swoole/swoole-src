@@ -28,7 +28,7 @@ $pm->parentFunc = function ($pid) use ($pm, $data, $port) {
         $client->post('/api', ['test' => $data]);
         $client->close();
         $pm->kill();
-        echo "DONE";
+        echo "DONE\n";
     });
 };
 
@@ -38,7 +38,7 @@ $pm->childFunc = function () use ($pm, $length, $port) {
         $server->handle('/api', function ($request, $response) use ($length){
             Assert::assert(sizeof($request->post) == 1 && strlen($request->post['test']) == $length);
         });
-
+        $pm->wakeup();
         $server->start();
     });
 };
