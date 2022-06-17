@@ -290,8 +290,10 @@ void swoole_http_parse_cookie(zval *zarray, const char *at, size_t length) {
                            PG(max_input_vars));
             return false;
         }
-        size_t val_len = php_raw_url_decode(value, value_len);
-        add_assoc_stringl_ex(zarray, key, key_len, value, val_len);
+        if (value_len > 0) {
+            value_len = php_raw_url_decode(value, value_len);
+        }
+        add_assoc_stringl_ex(zarray, key, key_len, value, value_len);
         return true;
     };
     swoole::http_server::parse_cookie(at, length, cb);
