@@ -953,6 +953,7 @@ void mysql_client::handle_strict_type(zval *ztext, mysql::field_packet *field) {
         case SW_MYSQL_TYPE_VAR_STRING:
         case SW_MYSQL_TYPE_VARCHAR:
         case SW_MYSQL_TYPE_NEWDATE:
+        case SW_MYSQL_TYPE_GEOMETRY:
         /* Date Time */
         case SW_MYSQL_TYPE_TIME:
         case SW_MYSQL_TYPE_YEAR:
