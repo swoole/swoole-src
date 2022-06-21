@@ -1399,7 +1399,8 @@ void mysql_statement::fetch(zval *return_value) {
             case SW_MYSQL_TYPE_STRING:
             case SW_MYSQL_TYPE_VAR_STRING:
             case SW_MYSQL_TYPE_VARCHAR:
-            case SW_MYSQL_TYPE_NEWDATE: {
+            case SW_MYSQL_TYPE_NEWDATE:
+            case SW_MYSQL_TYPE_GEOMETRY: {
             _add_string:
                 zval ztext;
                 client->handle_row_data_text(&ztext, &row_data, field);
