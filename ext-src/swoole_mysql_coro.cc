@@ -1490,7 +1490,7 @@ void mysql_statement::fetch(zval *return_value) {
                     }
                     break;
                 case SW_MYSQL_TYPE_FLOAT: {
-                    double dv = sw_php_math_round(*(float *) p, 5, PHP_ROUND_HALF_DOWN);
+                    double dv = sw_php_math_round(*(float *) p, 7, PHP_ROUND_HALF_DOWN);
                     add_assoc_double_ex(return_value, field->name, field->name_length, dv);
                     swoole_trace_log(SW_TRACE_MYSQL_CLIENT, "%.*s=%.7f", field->name_length, field->name, dv);
                 } break;
