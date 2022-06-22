@@ -25,8 +25,13 @@ int main(int argc, char **argv) {
 
 static void init_root_path(const char *_exec_file) {
     char buf[PATH_MAX];
-    char *dir = getcwd(buf, sizeof(buf));
-    string file = string(dir) + "/" + _exec_file;
+    string file;
+    if (_exec_file[0] == '/') {
+        file = _exec_file;
+    } else {
+        char *dir = getcwd(buf, sizeof(buf));
+        file = string(dir) + "/" + _exec_file;
+    }
     string relative_root_path = file.substr(0, file.rfind('/')) + "/../../";
     char *_realpath = realpath(relative_root_path.c_str(), buf);
     if (_realpath == nullptr) {

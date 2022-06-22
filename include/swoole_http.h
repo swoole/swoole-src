@@ -18,6 +18,8 @@
 #include "swoole.h"
 #include "swoole_protocol.h"
 
+#include <unordered_map>
+
 enum swHttpVersion {
     SW_HTTP_VERSION_10 = 1,
     SW_HTTP_VERSION_11,
@@ -183,7 +185,7 @@ int dispatch_frame(const Protocol *protocol, network::Socket *conn, const RecvDa
 struct ContextImpl;
 
 class Context {
- public:
+  public:
     Context(Server *server, SessionId session_id, ContextImpl *_impl) {
         server_ = server;
         session_id_ = session_id;

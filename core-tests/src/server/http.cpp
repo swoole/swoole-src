@@ -284,7 +284,8 @@ TEST(http_server, parser) {
     });
     server->worker_num = 1;
     server->onWorkerStart = [&t](Server *server, uint32_t worker_id) {
-        t = std::thread([]() {
+        t = std::thread([server]() {
+            swoole_signal_block_all();
             string file = test::get_root_path() + "/core-tests/fuzz/cases/req1.txt";
             File fp(file, O_RDONLY);
             EXPECT_TRUE(fp.ready());
@@ -299,7 +300,7 @@ TEST(http_server, parser) {
 
             EXPECT_TRUE(resp.find("200 OK") != resp.npos);
 
-            kill(getpid(), SIGTERM);
+            kill(server->get_master_pid(), SIGTERM);
         });
     };
     server->start();

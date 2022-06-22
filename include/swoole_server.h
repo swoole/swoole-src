@@ -1109,6 +1109,14 @@ class Server {
         gs->min_fd = minfd;
     }
 
+    pid_t get_master_pid() {
+        return gs->master_pid;
+    }
+
+    pid_t get_manager_pid() {
+        return gs->manager_pid;
+    }
+
     void store_listen_socket();
     void store_pipe_fd(UnixSocket *p);
 

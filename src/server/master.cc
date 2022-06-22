@@ -908,6 +908,14 @@ void Server::shutdown() {
             reactor->del(pipe_command->get_socket(true));
         }
         clear_timer();
+        if (max_wait_time > 0) {
+            swoole_timer_after(max_wait_time * 1000, [this](Timer *, TimerNode *) {
+                swoole_error_log(SW_LOG_WARNING,
+                                 SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT,
+                                 "graceful shutdown failed, forced termination");
+                swoole_kill(getpid(), SIGKILL);
+            });
+        }
     }
 
     if (is_base_mode()) {
