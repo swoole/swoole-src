@@ -563,16 +563,14 @@ static PHP_METHOD(swoole_client_coro, send) {
     if (ret < 0) {
         zend_update_property_long(swoole_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), cli->errCode);
         zend_update_property_string(swoole_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errMsg"), cli->errMsg);
-        RETVAL_FALSE;
-    } else {
-        if ((size_t) ret < data_len && cli->errCode) {
-            zend_update_property_long(
-                swoole_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), cli->errCode);
-            zend_update_property_string(
-                swoole_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errMsg"), cli->errMsg);
-        }
-        RETURN_LONG(ret);
+        RETURN_FALSE;
     }
+
+    if ((size_t) ret < data_len && cli->errCode) {
+        zend_update_property_long(swoole_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), cli->errCode);
+        zend_update_property_string(swoole_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errMsg"), cli->errMsg);
+    }
+    RETURN_LONG(ret);
 }
 
 static PHP_METHOD(swoole_client_coro, sendto) {

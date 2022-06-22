@@ -13,9 +13,9 @@ function form_data_test_1(ProcessManager $pm)
         Assert::true($client->connect('127.0.0.1', $pm->getFreePort()));
         $req = file_get_contents(SOURCE_ROOT_PATH . '/core-tests/fuzz/cases/req1.txt');
 
-        $client->send(substr($req, 0, OFFSET));
+        Assert::eq($client->send(substr($req, 0, OFFSET)), OFFSET);
         usleep(10000);
-        $client->send(substr($req, OFFSET));
+        Assert::eq($client->send(substr($req, OFFSET)), strlen($req) - OFFSET);
         usleep(10000);
         $resp = '';
         $length = 0;

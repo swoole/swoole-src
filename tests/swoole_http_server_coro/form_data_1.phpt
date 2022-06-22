@@ -10,6 +10,7 @@ require __DIR__ . '/../include/api/form_data_tests.php';
 use Swoole\Coroutine\Http\Server;
 use Swoole\Http\Request;
 use Swoole\Http\Response;
+use Swoole\Process;
 use function Swoole\Coroutine\run;
 
 const OFFSET = 250;
@@ -27,7 +28,7 @@ $pm->childFunc = function () use ($pm) {
         $server->handle('/', function (Request $request, Response $response) {
             $response->end(json_encode($request->post));
         });
-        Swoole\Process::signal(SIGTERM, function () use ($server) {
+        Process::signal(SIGTERM, function () use ($server) {
             $server->shutdown();
         });
         $pm->wakeup();
