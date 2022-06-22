@@ -375,7 +375,7 @@ static void http_set_date_header(String *response) {
 void HttpContext::build_header(String *http_buffer, size_t body_length) {
     char *buf = sw_tg_buffer()->str;
     size_t l_buf = sw_tg_buffer()->size;
-    int n;
+    size_t n;
 
     assert(send_header_ == 0);
 

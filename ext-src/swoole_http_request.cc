@@ -271,7 +271,7 @@ bool HttpContext::parse_form_data(const char *boundary_str, int boundary_len) {
         php_swoole_fatal_error(E_WARNING, "multipart_parser_init() failed");
         return false;
     }
-
+    form_data_buffer = new String(SW_BUFFER_SIZE_STD);
     mt_parser->data = this;
     return true;
 }
@@ -549,10 +549,8 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
             zval *z_multipart_header = sw_malloc_zval();
             array_init(z_multipart_header);
 
-            add_assoc_string(z_multipart_header, "name", (char *) "");
             add_assoc_string(z_multipart_header, "type", (char *) "");
             add_assoc_string(z_multipart_header, "tmp_name", (char *) "");
-            add_assoc_long(z_multipart_header, "error", HTTP_UPLOAD_ERR_OK);
             add_assoc_long(z_multipart_header, "size", 0);
 
             swoole_strlcpy(value_buf, Z_STRVAL_P(zfilename), sizeof(value_buf));
@@ -562,8 +560,9 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
             add_assoc_stringl(z_multipart_header, "name", tmp, value_len);
             if (value_len == 0) {
                 add_assoc_long(z_multipart_header, "error", HTTP_UPLOAD_ERR_NO_FILE);
+            } else {
+                add_assoc_long(z_multipart_header, "error", HTTP_UPLOAD_ERR_OK);
             }
-
             ctx->current_multipart_header = z_multipart_header;
         }
         zval_ptr_dtor(&tmp_array);
@@ -584,18 +583,18 @@ _end:
 static int multipart_body_on_data(multipart_parser *p, const char *at, size_t length) {
     HttpContext *ctx = (HttpContext *) p->data;
     if (ctx->current_form_data_name) {
-        swoole_http_form_data_buffer->append(at, length);
+        ctx->form_data_buffer->append(at, length);
         return 0;
     }
     if (p->fp == nullptr) {
         return 0;
     }
-    int n = fwrite(at, sizeof(char), length, (FILE *) p->fp);
+    ssize_t n = fwrite(at, sizeof(char), length, p->fp);
     if (n != (off_t) length) {
         zval *z_multipart_header = ctx->current_multipart_header;
         add_assoc_long(z_multipart_header, "error", HTTP_UPLOAD_ERR_CANT_WRITE);
 
-        fclose((FILE *) p->fp);
+        fclose(p->fp);
         p->fp = nullptr;
 
         swoole_sys_warning("write upload file failed");
@@ -668,15 +667,15 @@ static int multipart_body_on_data_end(multipart_parser *p) {
     if (ctx->current_form_data_name) {
         php_register_variable_safe(
             ctx->current_form_data_name,
-            swoole_http_form_data_buffer->str,
-            swoole_http_form_data_buffer->length,
+            ctx->form_data_buffer->str,
+            ctx->form_data_buffer->length,
             swoole_http_init_and_read_property(
                 swoole_http_request_ce, ctx->request.zobject, &ctx->request.zpost, ZEND_STRL("post")));
 
         efree(ctx->current_form_data_name);
         ctx->current_form_data_name = nullptr;
         ctx->current_form_data_name_len = 0;
-        swoole_http_form_data_buffer->clear();
+        ctx->form_data_buffer->clear();
         return 0;
     }
 
@@ -686,10 +685,10 @@ static int multipart_body_on_data_end(multipart_parser *p) {
 
     zval *z_multipart_header = ctx->current_multipart_header;
     if (p->fp != nullptr) {
-        long size = swoole::file_get_size((FILE *) p->fp);
+        long size = swoole::file_get_size(p->fp);
         add_assoc_long(z_multipart_header, "size", size);
 
-        fclose((FILE *) p->fp);
+        fclose(p->fp);
         p->fp = nullptr;
     }
 
@@ -770,7 +769,11 @@ static int http_request_on_body(swoole_http_parser *parser, const char *at, size
         }
         size_t n = multipart_parser_execute(multipart_parser, at, length);
         if (n != length) {
-            swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_INVALID_REQUEST, "parse multipart body failed, n=%zu", n);
+            swoole_error_log(SW_LOG_WARNING,
+                             SW_ERROR_SERVER_INVALID_REQUEST,
+                             "parse multipart body failed, %zu/%zu bytes processed",
+                             n,
+                             length);
         }
     }
 
@@ -799,6 +802,11 @@ static int http_request_message_complete(swoole_http_parser *parser) {
         multipart_parser_free(ctx->mt_parser);
         ctx->mt_parser = nullptr;
     }
+    if (ctx->form_data_buffer) {
+        delete ctx->form_data_buffer;
+        ctx->form_data_buffer = nullptr;
+    }
+
     ctx->completed = 1;
 
     swoole_trace_log(SW_TRACE_HTTP, "request body length=%ld", content_length);
@@ -891,6 +899,10 @@ static PHP_METHOD(swoole_http_request, create) {
     Z_PARAM_OPTIONAL
     Z_PARAM_ARRAY(zoptions)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    if (sw_unlikely(swoole_http_buffer == nullptr)) {
+        php_swoole_http_server_init_global_variant();
+    }
 
     HttpContext *ctx = new HttpContext();
     object_init_ex(return_value, swoole_http_request_ce);
