@@ -286,7 +286,7 @@ TEST(http_server, parser) {
     server->onWorkerStart = [&t](Server *server, uint32_t worker_id) {
         t = std::thread([server]() {
             swoole_signal_block_all();
-            string file = test::get_root_path() + "/core-tests/fuzz/cases/req1.txt";
+            string file = test::get_root_path() + "/core-tests/fuzz/cases/req1.bin";
             File fp(file, O_RDONLY);
             EXPECT_TRUE(fp.ready());
             auto str = fp.read_content();
