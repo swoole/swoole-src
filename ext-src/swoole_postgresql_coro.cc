@@ -186,11 +186,11 @@ static void php_swoole_postgresql_coro_statement_free_object(zend_object *object
     }
 
     if (statement->name) {
-        sw_free(statement->name);
+        efree(statement->name);
         statement->name = nullptr;
     }
     if (statement->query) {
-        sw_free(statement->query);
+        efree(statement->query);
         statement->query = nullptr;
     }
     statement->pg_object->statements.remove(statement);
@@ -229,7 +229,7 @@ static zend_object *php_swoole_postgresql_coro_statement_create_object(PGObject 
                                                                             const char* query) {
     zend_object *zobject = php_swoole_postgresql_coro_statement_create_object(pg_object);
     PGStatement *stmt = php_swoole_postgresql_coro_statement_fetch_object(zobject)->object;
-    stmt->query = sw_strdup(query);
+    stmt->query = estrdup(query);
     stmt->result = stmt->pg_object->result;
     return zobject;
 }
@@ -239,8 +239,8 @@ static zend_object *php_swoole_postgresql_coro_statement_create_object(PGObject 
                                                                             const char* query) {
     zend_object *zobject = php_swoole_postgresql_coro_statement_create_object(pg_object);
     PGStatement *stmt = php_swoole_postgresql_coro_statement_fetch_object(zobject)->object;
-    stmt->name = sw_strdup(stmtname);
-    stmt->query = sw_strdup(query);
+    stmt->name = estrdup(stmtname);
+    stmt->query = estrdup(query);
     return zobject;
 }
 
