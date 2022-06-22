@@ -32,6 +32,7 @@ using swoole::Coroutine;
 using swoole::async::dispatch;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
+using swoole::coroutine::async;
 
 static std::unordered_map<int, Socket *> socket_map;
 static std::mutex socket_map_lock;
@@ -184,7 +185,7 @@ int swoole_coroutine_open(const char *pathname, int flags, mode_t mode) {
     }
 
     int ret = -1;
-    swoole::coroutine::async([&]() { ret = open(pathname, flags, mode); });
+    async([&]() { ret = open(pathname, flags, mode); });
     return ret;
 }
 
@@ -218,7 +219,7 @@ ssize_t swoole_coroutine_read(int sockfd, void *buf, size_t count) {
     }
 
     ssize_t ret = -1;
-    swoole::coroutine::async([&]() { ret = read(sockfd, buf, count); });
+    async([&]() { ret = read(sockfd, buf, count); });
     return ret;
 }
 
@@ -233,7 +234,7 @@ ssize_t swoole_coroutine_write(int sockfd, const void *buf, size_t count) {
     }
 
     ssize_t ret = -1;
-    swoole::coroutine::async([&]() { ret = write(sockfd, buf, count); });
+    async([&]() { ret = write(sockfd, buf, count); });
     return ret;
 }
 
@@ -243,7 +244,7 @@ off_t swoole_coroutine_lseek(int fd, off_t offset, int whence) {
     }
 
     off_t retval = -1;
-    swoole::coroutine::async([&]() { retval = lseek(fd, offset, whence); });
+    async([&]() { retval = lseek(fd, offset, whence); });
     return retval;
 }
 
@@ -253,7 +254,7 @@ int swoole_coroutine_fstat(int fd, struct stat *statbuf) {
     }
 
     int retval = -1;
-    swoole::coroutine::async([&]() { retval = fstat(fd, statbuf); });
+    async([&]() { retval = fstat(fd, statbuf); });
     return retval;
 }
 
@@ -263,7 +264,7 @@ int swoole_coroutine_readlink(const char *pathname, char *buf, size_t len) {
     }
 
     int retval = -1;
-    swoole::coroutine::async([&]() { retval = readlink(pathname, buf, len); });
+    async([&]() { retval = readlink(pathname, buf, len); });
     return retval;
 }
 
@@ -273,7 +274,7 @@ int swoole_coroutine_unlink(const char *pathname) {
     }
 
     int retval = -1;
-    swoole::coroutine::async([&]() { retval = unlink(pathname); });
+    async([&]() { retval = unlink(pathname); });
     return retval;
 }
 
@@ -283,7 +284,7 @@ int swoole_coroutine_statvfs(const char *path, struct statvfs *buf) {
     }
 
     int retval = -1;
-    swoole::coroutine::async([&]() { retval = statvfs(path, buf); });
+    async([&]() { retval = statvfs(path, buf); });
     return retval;
 }
 
@@ -293,7 +294,7 @@ int swoole_coroutine_mkdir(const char *pathname, mode_t mode) {
     }
 
     int retval = -1;
-    swoole::coroutine::async([&]() { retval = mkdir(pathname, mode); });
+    async([&]() { retval = mkdir(pathname, mode); });
     return retval;
 }
 
@@ -303,7 +304,7 @@ int swoole_coroutine_rmdir(const char *pathname) {
     }
 
     int retval = -1;
-    swoole::coroutine::async([&]() { retval = rmdir(pathname); });
+    async([&]() { retval = rmdir(pathname); });
     return retval;
 }
 
@@ -313,7 +314,7 @@ int swoole_coroutine_rename(const char *oldpath, const char *newpath) {
     }
 
     int retval = -1;
-    swoole::coroutine::async([&]() { retval = rename(oldpath, newpath); });
+    async([&]() { retval = rename(oldpath, newpath); });
     return retval;
 }
 
@@ -323,7 +324,7 @@ int swoole_coroutine_access(const char *pathname, int mode) {
     }
 
     int retval = -1;
-    swoole::coroutine::async([&]() { retval = access(pathname, mode); });
+    async([&]() { retval = access(pathname, mode); });
     return retval;
 }
 
@@ -333,7 +334,7 @@ FILE *swoole_coroutine_fopen(const char *pathname, const char *mode) {
     }
 
     FILE *retval = nullptr;
-    swoole::coroutine::async([&]() { retval = fopen(pathname, mode); });
+    async([&]() { retval = fopen(pathname, mode); });
     return retval;
 }
 
@@ -343,7 +344,7 @@ FILE *swoole_coroutine_fdopen(int fd, const char *mode) {
     }
 
     FILE *retval = nullptr;
-    swoole::coroutine::async([&]() { retval = fdopen(fd, mode); });
+    async([&]() { retval = fdopen(fd, mode); });
     return retval;
 }
 
@@ -353,7 +354,7 @@ FILE *swoole_coroutine_freopen(const char *pathname, const char *mode, FILE *str
     }
 
     FILE *retval = nullptr;
-    swoole::coroutine::async([&]() { retval = freopen(pathname, mode, stream); });
+    async([&]() { retval = freopen(pathname, mode, stream); });
     return retval;
 }
 
@@ -363,7 +364,7 @@ size_t swoole_coroutine_fread(void *ptr, size_t size, size_t nmemb, FILE *stream
     }
 
     size_t retval = 0;
-    swoole::coroutine::async([&]() { retval = fread(ptr, size, nmemb, stream); });
+    async([&]() { retval = fread(ptr, size, nmemb, stream); });
     return retval;
 }
 
@@ -373,7 +374,7 @@ size_t swoole_coroutine_fwrite(const void *ptr, size_t size, size_t nmemb, FILE 
     }
 
     size_t retval = 0;
-    swoole::coroutine::async([&]() { retval = fwrite(ptr, size, nmemb, stream); });
+    async([&]() { retval = fwrite(ptr, size, nmemb, stream); });
     return retval;
 }
 
@@ -383,7 +384,7 @@ char *swoole_coroutine_fgets(char *s, int size, FILE *stream) {
     }
 
     char *retval = nullptr;
-    swoole::coroutine::async([&]() { retval = fgets(s, size, stream); });
+    async([&]() { retval = fgets(s, size, stream); });
     return retval;
 }
 
@@ -393,7 +394,7 @@ int swoole_coroutine_fputs(const char *s, FILE *stream) {
     }
 
     int retval = -1;
-    swoole::coroutine::async([&]() { retval = fputs(s, stream); });
+    async([&]() { retval = fputs(s, stream); });
     return retval;
 }
 
@@ -403,7 +404,7 @@ int swoole_coroutine_feof(FILE *stream) {
     }
 
     int retval = -1;
-    swoole::coroutine::async([&]() { retval = feof(stream); });
+    async([&]() { retval = feof(stream); });
     return retval;
 }
 
@@ -413,7 +414,7 @@ int swoole_coroutine_fclose(FILE *stream) {
     }
 
     int retval = -1;
-    swoole::coroutine::async([&]() { retval = fclose(stream); });
+    async([&]() { retval = fclose(stream); });
     return retval;
 }
 
@@ -423,7 +424,7 @@ int swoole_coroutine_flock(int fd, int operation) {
     }
 
     int retval = -1;
-    swoole::coroutine::async([&]() { retval = flock(fd, operation); });
+    async([&]() { retval = flock(fd, operation); });
     return retval;
 }
 
@@ -433,7 +434,7 @@ DIR *swoole_coroutine_opendir(const char *name) {
     }
 
     DIR *retval = nullptr;
-    swoole::coroutine::async([&]() { retval = opendir(name); });
+    async([&]() { retval = opendir(name); });
     return retval;
 }
 
@@ -444,7 +445,7 @@ struct dirent *swoole_coroutine_readdir(DIR *dirp) {
 
     struct dirent *retval;
 
-    swoole::coroutine::async([&retval, dirp]() {
+    async([&retval, dirp]() {
         retval = readdir(dirp);
     });
 
@@ -457,7 +458,7 @@ int swoole_coroutine_closedir(DIR *dirp) {
     }
 
     int retval = -1;
-    swoole::coroutine::async([&]() { retval = closedir(dirp); });
+    async([&]() { retval = closedir(dirp); });
     return retval;
 }
 
@@ -515,14 +516,14 @@ int swoole_coroutine_getaddrinfo(const char *name,
                                  const struct addrinfo *req,
                                  struct addrinfo **pai) {
     int retval = -1;
-    swoole::coroutine::async([&]() { retval = getaddrinfo(name, service, req, pai); });
+    async([&]() { retval = getaddrinfo(name, service, req, pai); });
     return retval;
 }
 
 struct hostent *swoole_coroutine_gethostbyname(const char *name) {
     struct hostent *retval = nullptr;
     int _tmp_h_errno;
-    swoole::coroutine::async([&]() {
+    async([&]() {
         retval = gethostbyname(name);
         _tmp_h_errno = h_errno;
     });
