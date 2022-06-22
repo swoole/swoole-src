@@ -278,7 +278,7 @@ TEST(http_server, websocket_big) {
 
 TEST(http_server, parser) {
     std::thread t;
-    auto server = swoole::http_server::listen(":" + std::to_string(TEST_PORT), [](Context &ctx) {
+    auto server = swoole::http_server::listen(":0", [](Context &ctx) {
         EXPECT_EQ(ctx.form_data.size(), 3);
         ctx.end("DONE");
     });
@@ -291,7 +291,7 @@ TEST(http_server, parser) {
             EXPECT_TRUE(fp.ready());
             auto str = fp.read_content();
             SyncClient c(SW_SOCK_TCP);
-            c.connect(TEST_HOST, TEST_PORT);
+            c.connect(TEST_HOST, server->get_primary_port()->port);
             c.send(str->value(), str->get_length());
             char buf[1024];
             auto n = c.recv(buf, sizeof(buf));

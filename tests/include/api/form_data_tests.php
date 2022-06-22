@@ -44,6 +44,9 @@ function form_data_test_1(ProcessManager $pm)
         }
         Assert::assert($header);
         $body = substr($resp, strlen($header) + 4);
+        if (!$body) {
+            var_dump($header);
+        }
         Assert::assert($body);
         $data = json_decode($body);
         Assert::assert(is_object($data));
