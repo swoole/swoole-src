@@ -275,9 +275,7 @@ static int http_request_message_complete(swoole_http_parser *p) {
         impl->form_data_buffer = nullptr;
     }
 
-    swoole_trace_log(SW_TRACE_HTTP, "request body length=%ld", content_length);
-
-    return 1; /* return from execute */
+    return 1;
 }
 
 bool Context::end(const char *data, size_t length) {
