@@ -908,6 +908,20 @@ void Server::shutdown() {
             reactor->del(pipe_command->get_socket(true));
         }
         clear_timer();
+        if (max_wait_time > 0) {
+            time_t shutdown_time = std::time(nullptr);
+            auto fn = [shutdown_time, this](Reactor *reactor, size_t &) {
+                time_t now = std::time(nullptr);
+                if (now - shutdown_time > max_wait_time) {
+                    swoole_error_log(SW_LOG_WARNING,
+                                     SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT,
+                                     "graceful shutdown failed, forced termination");
+                    reactor->running = false;
+                }
+                return true;
+            };
+            reactor->set_exit_condition(Reactor::EXIT_CONDITION_FORCED_TERMINATION, fn);
+        }
     }
 
     if (is_base_mode()) {

@@ -27,6 +27,8 @@
 
 using namespace swoole;
 using namespace std;
+using swoole::network::SyncClient;
+using swoole::http_server::Context;
 
 struct http_context {
     unordered_map<string, string> headers;
@@ -98,7 +100,7 @@ static void test_run_server(function<void(Server *)> fn) {
 
     sw_logger()->set_level(SW_LOG_WARNING);
 
-    swListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     if (!port) {
         swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
         exit(2);
@@ -120,8 +122,11 @@ static void test_run_server(function<void(Server *)> fn) {
         if (conn->websocket_status == swoole::websocket::STATUS_ACTIVE) {
             sw_tg_buffer()->clear();
             std::string resp = "Swoole: " + string(req->data, req->info.len);
-            swoole::websocket::encode(
-                sw_tg_buffer(), resp.c_str(), resp.length(), swoole::websocket::OPCODE_TEXT, swoole::websocket::FLAG_FIN);
+            swoole::websocket::encode(sw_tg_buffer(),
+                                      resp.c_str(),
+                                      resp.length(),
+                                      swoole::websocket::OPCODE_TEXT,
+                                      swoole::websocket::FLAG_FIN);
             serv->send(session_id, sw_tg_buffer()->str, sw_tg_buffer()->length);
             return SW_OK;
         }
@@ -269,4 +274,35 @@ TEST(http_server, websocket_big) {
 
         kill(getpid(), SIGTERM);
     });
+}
+
+TEST(http_server, parser) {
+    std::thread t;
+    auto server = swoole::http_server::listen(":0", [](Context &ctx) {
+        EXPECT_EQ(ctx.form_data.size(), 3);
+        ctx.end("DONE");
+    });
+    server->worker_num = 1;
+    server->onWorkerStart = [&t](Server *server, uint32_t worker_id) {
+        t = std::thread([server]() {
+            swoole_signal_block_all();
+            string file = test::get_root_path() + "/core-tests/fuzz/cases/req1.bin";
+            File fp(file, O_RDONLY);
+            EXPECT_TRUE(fp.ready());
+            auto str = fp.read_content();
+            SyncClient c(SW_SOCK_TCP);
+            c.connect(TEST_HOST, server->get_primary_port()->port);
+            c.send(str->value(), str->get_length());
+            char buf[1024];
+            auto n = c.recv(buf, sizeof(buf));
+            c.close();
+            std::string resp(buf, n);
+
+            EXPECT_TRUE(resp.find("200 OK") != resp.npos);
+
+            kill(server->get_master_pid(), SIGTERM);
+        });
+    };
+    server->start();
+    t.join();
 }

@@ -383,6 +383,10 @@ void Reactor::set_end_callback(enum EndCallback id, const std::function<void(Rea
     end_callbacks[id] = fn;
 }
 
+/**
+ * Returns false, the reactor cannot be exited, the next condition is skipped
+ * Returns true, the reactor can exit and will continue to execute the next conditional function
+ */
 void Reactor::set_exit_condition(enum ExitCondition id, const std::function<bool(Reactor *, size_t &)> &fn) {
     exit_conditions[id] = fn;
 }

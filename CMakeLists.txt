@@ -50,6 +50,8 @@ file(GLOB_RECURSE SRC_LIST FOLLOW_SYMLINKS src/*.c src/*.cc
             thirdparty/hiredis/net.c
             thirdparty/hiredis/read.c
             thirdparty/hiredis/sds.c
+            thirdparty/swoole_http_parser.c
+        	thirdparty/multipart_parser.c
 )
 file(GLOB_RECURSE HEAD_FILES FOLLOW_SYMLINKS include/*.h)
 file(GLOB_RECURSE HEAD_WAPPER_FILES FOLLOW_SYMLINKS include/wrapper/*.hpp)
@@ -146,8 +148,6 @@ set(ext_src_list  ${ext_cxx_files}
         thirdparty/php/sockets/conversions.cc
         thirdparty/php/sockets/sockaddr_conv.cc
         thirdparty/php/standard/proc_open.cc
-        thirdparty/swoole_http_parser.c
-        thirdparty/multipart_parser.c
         thirdparty/nghttp2/nghttp2_hd.c
         thirdparty/nghttp2/nghttp2_rcbuf.c
         thirdparty/nghttp2/nghttp2_helper.c

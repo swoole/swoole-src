@@ -821,7 +821,7 @@ static int http2_server_parse_header(Http2Session *client, HttpContext *ctx, int
                         size_t offset = sizeof("multipart/form-data") - 1;
                         char *boundary_str;
                         int boundary_len;
-                        if (!ctx->get_form_data_boundary(
+                        if (!ctx->get_multipart_boundary(
                                 (char *) nv.value, nv.valuelen, offset, &boundary_str, &boundary_len)) {
                             return SW_ERR;
                         }

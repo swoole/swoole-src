@@ -61,11 +61,11 @@ TEST(protocol, eof) {
         }
     });
 
-    serv.onWorkerStart = [&lock](swServer *serv, int worker_id) { lock.unlock(); };
+    serv.onWorkerStart = [&lock](Server *serv, WorkerId worker_id) { lock.unlock(); };
 
     int recv_count = 0;
 
-    serv.onReceive = [&](swServer *serv, swRecvData *req) -> int {
+    serv.onReceive = [&](Server *serv, RecvData *req) -> int {
         //        printf("[1]LEN=%d, count=%d\n%s\n---------------------------------\n", req->info.len,  recv_count,
         //        req->data); printf("[2]LEN=%d\n%s\n---------------------------------\n", pkgs[recv_count].length,
         //        pkgs[recv_count].str);
@@ -75,7 +75,7 @@ TEST(protocol, eof) {
         recv_count++;
 
         if (recv_count == PKG_N) {
-            kill(serv->gs->master_pid, SIGTERM);
+            kill(serv->get_master_pid(), SIGTERM);
         }
 
         return SW_OK;

@@ -28,17 +28,20 @@ $pm->parentFunc = function ($pid) use ($pm, $data, $port) {
         $client->post('/api', ['test' => $data]);
         $client->close();
         $pm->kill();
-        echo "DONE";
+        echo "DONE\n";
     });
 };
 
 $pm->childFunc = function () use ($pm, $length, $port) {
     run(function () use ($pm, $length, $port) {
         $server = new Server('127.0.0.1', $port, false);
-        $server->handle('/api', function ($request, $response) use ($length){
+        $server->handle('/api', function (Request $request, Response $response) use ($length){
             Assert::assert(sizeof($request->post) == 1 && strlen($request->post['test']) == $length);
         });
-
+        Swoole\Process::signal(SIGTERM, function () use ($server) {
+            $server->shutdown();
+        });
+        $pm->wakeup();
         $server->start();
     });
 };

@@ -169,6 +169,7 @@ struct Context {
     char *current_form_data_name;
     size_t current_form_data_name_len;
     zval *current_multipart_header;
+    String *form_data_buffer;
 
     std::string upload_tmp_dir;
 
@@ -186,7 +187,7 @@ struct Context {
     void bind(coroutine::Socket *socket);
     void copy(Context *ctx);
     bool parse_form_data(const char *boundary_str, int boundary_len);
-    bool get_form_data_boundary(
+    bool get_multipart_boundary(
         const char *at, size_t length, size_t offset, char **out_boundary_str, int *out_boundary_len);
     size_t parse(const char *data, size_t length);
     bool set_header(const char *, size_t, zval *, bool);
@@ -197,6 +198,10 @@ struct Context {
     String *get_write_buffer();
     void build_header(String *http_buffer, size_t body_length);
     ssize_t build_trailer(String *http_buffer);
+
+    size_t get_content_length() {
+        return parser.content_length;
+    }
 
 #ifdef SW_HAVE_COMPRESSION
     void set_compression_method(const char *accept_encoding, size_t length);
@@ -268,7 +273,6 @@ extern zend_class_entry *swoole_http_request_ce;
 extern zend_class_entry *swoole_http_response_ce;
 
 extern swoole::String *swoole_http_buffer;
-extern swoole::String *swoole_http_form_data_buffer;
 #ifdef SW_HAVE_COMPRESSION
 extern swoole::String *swoole_zlib_buffer;
 #endif

@@ -53,8 +53,7 @@ bool ListenPort::ssl_add_sni_cert(const std::string &name, SSLContext *ctx) {
     return true;
 }
 
-static bool ssl_matches_wildcard_name(const char *subjectname, const char *certname) /* {{{ */
-{
+static bool ssl_matches_wildcard_name(const char *subjectname, const char *certname) {
     const char *wildcard = NULL;
     ptrdiff_t prefix_len;
     size_t suffix_len, subject_len;
@@ -520,6 +519,56 @@ _parse:
                          request->content_length_,
                          request->keep_alive,
                          request->chunked);
+        if (request->multipart_boundary_buf && serv->upload_max_filesize > 0 &&
+            request->header_length_ + request->content_length_ > protocol->package_max_length) {
+            char *boundary_str;
+            int boundary_len;
+            if (!http_server::parse_multipart_boundary(request->multipart_boundary_buf,
+                                                       request->multipart_boundary_len,
+                                                       0,
+                                                       &boundary_str,
+                                                       &boundary_len)) {
+                goto _bad_request;
+            }
+            request->init_multipart_parser(boundary_str, boundary_len);
+            auto tmp_buffer = new String(SW_BUFFER_SIZE_BIG);
+            tmp_buffer->append(buffer->str + request->header_length_, buffer->length - request->header_length_);
+            request->multipart_buffer_ = buffer;
+            request->multipart_buffer_->length = request->header_length_;
+            request->buffer_ = buffer = tmp_buffer;
+            request->upload_tmpfile = make_string(serv->upload_tmp_dir.length() + sizeof("/swoole.upfile.XXXXXX"));
+            sw_snprintf(request->upload_tmpfile->str,
+                        request->upload_tmpfile->size,
+                        "%s/swoole.upfile.XXXXXX",
+                        serv->upload_tmp_dir.c_str());
+        }
+    }
+
+    if (request->multipart_parser_) {
+        if (!request->multipart_header_parsed) {
+            if (memmem(buffer->str, buffer->length, SW_STRL("\r\n\r\n")) == nullptr) {
+                return SW_OK;
+            }
+        }
+        if (!request->parse_multipart_data(buffer)) {
+            swoole_error_log(SW_LOG_WARNING,
+                             SW_ERROR_SERVER_INVALID_REQUEST,
+                             "parse multipart body failed, %zu/%zu bytes processed",
+                             n,
+                             buffer->length);
+            goto _bad_request;
+        }
+        if (request->multipart_buffer_->length > protocol->package_max_length) {
+            goto _too_large;
+        }
+        if (request->excepted) {
+            goto _unavailable;
+        }
+        if (!request->tried_to_dispatch) {
+            return SW_OK;
+        }
+        request->destroy_multipart_parser();
+        buffer = request->buffer_;
     }
 
     // content length (equal to 0) or (field not found but not chunked)
@@ -591,13 +640,15 @@ _parse:
         } else {
             request_length = request->header_length_ + request->content_length_;
         }
-        swoole_trace_log(SW_TRACE_SERVER, "received chunked eof, real content-length=%" PRIu64, request->content_length_);
+        swoole_trace_log(
+            SW_TRACE_SERVER, "received chunked eof, real content-length=%" PRIu64, request->content_length_);
     } else {
         request_length = request->header_length_ + request->content_length_;
         if (request_length > protocol->package_max_length) {
             swoole_error_log(SW_LOG_WARNING,
                              SW_ERROR_HTTP_INVALID_PROTOCOL,
-                             "Request Entity Too Large: header-length (%u) + content-length (%" PRIu64 ") is greater than the "
+                             "Request Entity Too Large: header-length (%u) + content-length (%" PRIu64
+                             ") is greater than the "
                              "package_max_length(%u)" CLIENT_INFO_FMT,
                              request->header_length_,
                              request->content_length_,

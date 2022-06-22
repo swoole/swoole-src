@@ -10,6 +10,7 @@ extern "C"
 {
 #endif
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
 
@@ -22,7 +23,7 @@ typedef int (*multipart_notify_cb) (multipart_parser*);
 
 struct multipart_parser {
   void * data;
-  void * fp;
+  FILE * fp;
 
   size_t index;
   size_t boundary_length;

@@ -973,6 +973,10 @@ class Server {
      */
     std::string upload_tmp_dir = "/tmp";
     /**
+     * Write the uploaded file in form-data to disk file
+     */
+    size_t upload_max_filesize = 0;
+    /**
      * http compression level for gzip/br
      */
 #ifdef SW_HAVE_COMPRESSION
@@ -1103,6 +1107,14 @@ class Server {
 
     inline void set_minfd(int minfd) {
         gs->min_fd = minfd;
+    }
+
+    pid_t get_master_pid() {
+        return gs->master_pid;
+    }
+
+    pid_t get_manager_pid() {
+        return gs->manager_pid;
     }
 
     void store_listen_socket();

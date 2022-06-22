@@ -716,6 +716,7 @@ EOF
         src/server/task_worker.cc \
         src/server/worker.cc \
         src/wrapper/event.cc \
+        src/wrapper/http.cc \
         src/wrapper/timer.cc"
 
     swoole_source_file="$swoole_source_file \
