@@ -285,6 +285,14 @@ void HttpContext::free() {
     if (res->reason) {
         efree(res->reason);
     }
+    if (mt_parser) {
+        multipart_parser_free(mt_parser);
+        mt_parser = nullptr;
+    }
+    if (form_data_buffer) {
+        delete form_data_buffer;
+        form_data_buffer = nullptr;
+    }
     delete this;
 }
 
