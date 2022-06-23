@@ -5,7 +5,7 @@ swoole_http_server_coro: form data 1
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-require __DIR__ . '/../include/api/form_data_tests.php';
+require __DIR__ . '/../include/api/http_test_cases.php';
 
 use Swoole\Http\Server;
 use Swoole\Http\Request;

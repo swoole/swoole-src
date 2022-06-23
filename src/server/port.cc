@@ -575,7 +575,7 @@ _parse:
     if (!request->tried_to_dispatch) {
         // recv nobody_chunked eof
         if (request->nobody_chunked) {
-            if (buffer->length < request->header_length_ + (sizeof("0\r\n\r\n") - 1)) {
+            if (buffer->length < request->header_length_ + (sizeof(SW_HTTP_CHUNK_EOF) - 1)) {
                 goto _recv_data;
             }
             request->header_length_ += (sizeof("0\r\n\r\n") - 1);

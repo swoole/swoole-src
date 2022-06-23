@@ -599,6 +599,10 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
 
         if (!ctx->completed) {
             // Make sure the complete request package is received
+            if (ctx->recv_chunked &&
+                memcmp(buffer->str + buffer->length - (sizeof(SW_HTTP_CHUNK_EOF) - 1), SW_STRL(SW_HTTP_CHUNK_EOF)) != 0) {
+                goto _recv_request;
+            }
             if (buffer->length < total_length) {
                 goto _recv_request;
             }
