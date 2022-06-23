@@ -12,20 +12,6 @@ require __DIR__ . '/../include/bootstrap.php';
 
 const EOF = "EOF";
 
-function getHttpBody(string $s): string
-{
-    return str_replace(EOF, '', explode("\r\n\r\n", $s)[1] ?? '');
-}
-
-function generateChunkBody(array $a): string
-{
-    $s = '';
-    foreach ($a as $c) {
-        $s .= dechex(strlen($c)) . "\r\n" . $c . "\r\n";
-    }
-    return $s . "0\r\n";
-}
-
 $pm = new ProcessManager;
 $pm->initRandomData(1);
 $pm->parentFunc = function () use ($pm) {
