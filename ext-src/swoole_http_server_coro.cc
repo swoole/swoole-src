@@ -580,9 +580,9 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
         }
 
         if (!header_completed) {
-            ssize_t header_length = swoole_strnpos(
+            ssize_t pos = swoole_strnpos(
                 buffer->str + header_crlf_offset, buffer->length - header_crlf_offset, ZEND_STRL("\r\n\r\n"));
-            if (header_length < 0) {
+            if (pos < 0) {
                 if (buffer->length == buffer->size) {
                     ctx->response.status = SW_HTTP_REQUEST_ENTITY_TOO_LARGE;
                     break;
@@ -591,6 +591,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
                 continue;
             }
 
+            size_t header_length = header_crlf_offset + pos;
             header_completed = true;
             header_crlf_offset = 0;
 
@@ -598,7 +599,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
             // Header contains CRLFx2
             header_length += 4;
             size_t parsed_n = ctx->parse(buffer->str, header_length);
-            if ((ssize_t) parsed_n != header_length) {
+            if (parsed_n != header_length) {
                 ctx->response.status = SW_HTTP_BAD_REQUEST;
                 break;
             }

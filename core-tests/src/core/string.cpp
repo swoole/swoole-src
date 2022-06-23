@@ -39,17 +39,19 @@ TEST(string, strnstr) {
     {
         string haystack = "hello world";
         string needle = " ";
-        const char *pos;
-
-        pos = swoole_strnstr(haystack.c_str(), haystack.length(), needle.c_str(), needle.length());
+        const char *pos = swoole_strnstr(haystack.c_str(), haystack.length(), needle.c_str(), needle.length());
         ASSERT_EQ(haystack.c_str() + 5, pos);
     }
     {
         string haystack = "hello world";
         string needle = "*";
-        const char *pos;
-
-        pos = swoole_strnstr(haystack.c_str(), haystack.length(), needle.c_str(), needle.length());
+        const char *pos = swoole_strnstr(haystack.c_str(), haystack.length(), needle.c_str(), needle.length());
+        ASSERT_EQ(NULL, pos);
+    }
+    {
+        string haystack = "hello world\r\n";
+        string needle = "\r\n\r\n";
+        const char *pos = swoole_strnstr(haystack.c_str(), haystack.length(), needle.c_str(), needle.length());
         ASSERT_EQ(NULL, pos);
     }
 }
