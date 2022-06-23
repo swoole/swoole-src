@@ -16,6 +16,10 @@ jobs:
           - os: ubuntu-latest
             php-version: '7.4'
             framework: 'Hyperf'
+        exclude:
+          - os: ubuntu-latest
+            php-version: '8.1'
+            framework: 'Hyperf'
     name: ${{ matrix.framework }} - PHP ${{ matrix.php-version }}
     steps:
       - name: Checkout code
