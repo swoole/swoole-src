@@ -549,20 +549,22 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
             zval *z_multipart_header = sw_malloc_zval();
             array_init(z_multipart_header);
 
-            add_assoc_string(z_multipart_header, "type", (char *) "");
-            add_assoc_string(z_multipart_header, "tmp_name", (char *) "");
-            add_assoc_long(z_multipart_header, "size", 0);
-
             swoole_strlcpy(value_buf, Z_STRVAL_P(zfilename), sizeof(value_buf));
             value_len = Z_STRLEN_P(zfilename);
             tmp = http_trim_double_quote(value_buf, &value_len);
 
             add_assoc_stringl(z_multipart_header, "name", tmp, value_len);
+            add_assoc_string(z_multipart_header, "type", (char *) "");
+            add_assoc_string(z_multipart_header, "tmp_name", (char *) "");
+
             if (value_len == 0) {
                 add_assoc_long(z_multipart_header, "error", HTTP_UPLOAD_ERR_NO_FILE);
             } else {
                 add_assoc_long(z_multipart_header, "error", HTTP_UPLOAD_ERR_OK);
             }
+
+            add_assoc_long(z_multipart_header, "size", 0);
+
             ctx->current_multipart_header = z_multipart_header;
         }
         zval_ptr_dtor(&tmp_array);
