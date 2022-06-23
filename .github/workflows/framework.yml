@@ -11,11 +11,14 @@ jobs:
       fail-fast: false
       matrix:
         php-version: [ '8.0', '8.1' ]
-        framework: [ 'Laravel Octane', 'Hyperf', 'Simps' ]
+        framework: [ 'Laravel Octane', 'Hyperf', 'Simps', 'imi' ]
         include:
           - os: ubuntu-latest
             php-version: '7.4'
             framework: 'Hyperf'
+          - os: ubuntu-latest
+            php-version: '7.4'
+            framework: 'imi'
         exclude:
           - php-version: '8.1'
             framework: 'Hyperf'
@@ -83,6 +86,23 @@ jobs:
           cd mqtt/
           composer install -o
           composer test
+
+      - name: imi Tests
+        if: matrix.framework == 'imi'
+        env:
+          SW_VERSION: 'master'
+          MYSQL_VERSION: '5.7'
+          MYSQL_SERVER_PASSWORD:
+        run: |
+          git clone -b 2.1 https://github.com/imiphp/imi.git --depth=1
+          cd imi/
+          composer update -o
+          docker run --name mysql -p 3306:3306 -e MYSQL_ALLOW_EMPTY_PASSWORD=true -d mysql:${MYSQL_VERSION} --bind-address=0.0.0.0 --default-authentication-plugin=mysql_native_password
+          docker run --name redis -p 6379:6379 -d redis
+          docker run -d --restart=always --name rabbitmq -p 4369:4369 -p 5672:5672 -p 15672:15672 -p 25672:25672 rabbitmq:management-alpine
+          mysql -h 127.0.0.1 -u root -e "CREATE DATABASE IF NOT EXISTS db_imi_test charset=utf8mb4 collate=utf8mb4_unicode_ci;"
+          ./tests/db/install-db.sh
+          composer test-swoole
 
   macos:
     runs-on: macos-latest
