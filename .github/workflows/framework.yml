@@ -56,6 +56,7 @@ jobs:
         run: |
           git clone https://github.com/hyperf/hyperf.git --depth=1
           cd hyperf/
+          git checkout 2.2
           composer update -o
           docker run --name mysql -p 3306:3306 -e MYSQL_ALLOW_EMPTY_PASSWORD=true -d mysql:${MYSQL_VERSION} --bind-address=0.0.0.0 --default-authentication-plugin=mysql_native_password
           docker run --name redis -p 6379:6379 -d redis
