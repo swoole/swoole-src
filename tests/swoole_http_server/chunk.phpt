@@ -33,8 +33,7 @@ $pm->childFunc = function () use ($pm) {
 
     $http->on("request", function (swoole_http_request $request,  swoole_http_response $response) {
         $data = str_split(file_get_contents(TEST_IMAGE), 8192);
-        foreach ($data as $chunk)
-        {
+        foreach ($data as $chunk) {
             $response->write($chunk);
         }
         $response->end();

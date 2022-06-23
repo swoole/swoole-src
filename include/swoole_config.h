@@ -217,6 +217,7 @@
 #define SW_HTTP_RFC1123_DATE_UTC "%a, %d %b %Y %T UTC"
 #define SW_HTTP_RFC850_DATE "%A, %d-%b-%y %T GMT"
 #define SW_HTTP_ASCTIME_DATE "%a %b %e %T %Y"
+#define SW_HTTP_CHUNK_EOF "0\r\n\r\n"
 
 // #define SW_HTTP_100_CONTINUE
 #define SW_HTTP_100_CONTINUE_PACKET "HTTP/1.1 100 Continue\r\n\r\n"
