@@ -1,7 +1,7 @@
 --TEST--
 swoole_coroutine/destruct: destruct 3
 --SKIPIF--
-<?php require __DIR__ . '/../../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../../include/skipif.inc'; skip_if_php_version_lower_than('8.1'); ?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
@@ -46,6 +46,7 @@ dtor
 
 Fatal error: Uncaught Exception: error in %s:%d
 Stack trace:
-#0 {main}
+#0 [internal function]: class@anonymous->{closure}()
+#1 {main}
   thrown in %s on line %d
 
