@@ -13,7 +13,7 @@
   | @link     https://www.swoole.com/                                    |
   | @contact  team@swoole.com                                            |
   | @license  https://github.com/swoole/swoole-src/blob/master/LICENSE   |
-  | @author   Tianfeng Han  <mikan.tenny@gmail.com>                      |
+  | @Author   Tianfeng Han  <rango@swoole.com>                           |
   +----------------------------------------------------------------------+
 */
 
@@ -55,7 +55,7 @@ TEST(buffer, append_iov) {
     ASSERT_EQ(buf.length(), v[0].iov_len + v[1].iov_len + v[2].iov_len+ v[3].iov_len);
 
     String str(buf.length());
-    
+
     while(!buf.empty()) {
         auto chunk = buf.front();
         str.append(chunk->value.ptr, chunk->length);

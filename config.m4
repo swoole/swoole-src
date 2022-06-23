@@ -12,7 +12,7 @@ dnl  | If you did not receive a copy of the Apache2.0 license and are unable|
 dnl  | to obtain it through the world-wide-web, please send a note to       |
 dnl  | license@swoole.com so we can mail you a copy immediately.            |
 dnl  +----------------------------------------------------------------------+
-dnl  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+dnl  | Author: Tianfeng Han  <rango@swoole.com>                             |
 dnl  | Author: Twosee  <twose@qq.com>                                       |
 dnl  +----------------------------------------------------------------------+
 
@@ -874,7 +874,7 @@ EOF
     else
         CXXFLAGS="$CXXFLAGS -std=c++11"
     fi
-    
+
     if test "$SW_CPU" = "arm"; then
         PHP_ADD_LIBRARY(atomic, 1, SWOOLE_SHARED_LIBADD)
     fi

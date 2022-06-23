@@ -10,7 +10,7 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | Author: Tianfeng Han  <rango@swoole.com>                             |
   +----------------------------------------------------------------------+
 */
 
@@ -34,7 +34,7 @@
 #define fopen(pathname, mode)  swoole_coroutine_fopen(pathname, mode)
 #define fdopen(fd, mode)  swoole_coroutine_fdopen(fd, mode)
 #define freopen(pathname, mode, stream)  swoole_coroutine_freopen(pathname, mode, stream)
-#define fread(ptr, size, nmemb, stream)  swoole_coroutine_fread(ptr, size, nmemb, stream) 
+#define fread(ptr, size, nmemb, stream)  swoole_coroutine_fread(ptr, size, nmemb, stream)
 #define fwrite(ptr, size, nmemb, stream)  swoole_coroutine_fwrite(ptr, size, nmemb, stream)
 #define fgets(s, size, stream)  swoole_coroutine_fgets(s, size, stream)
 #define fputs(s, stream)  swoole_coroutine_fputs(s, stream)
