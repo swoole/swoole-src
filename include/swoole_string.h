@@ -79,10 +79,13 @@ class String {
     }
 
     String(const char *_str, size_t _length) {
-        alloc(_length, nullptr);
+        alloc(_length + 1, nullptr);
         memcpy(str, _str, _length);
+        str[_length] = '\0';
         length = _length;
     }
+
+    String(const std::string &_str) : String(_str.c_str(), _str.length()) {}
 
     String(String &_str) {
         alloc(_str.size, _str.allocator);

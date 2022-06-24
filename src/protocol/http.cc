@@ -191,8 +191,8 @@ namespace http_server {
 
 static int multipart_on_header_field(multipart_parser *p, const char *at, size_t length) {
     Request *request = (Request *) p->data;
-    request->current_header_name = (char *) at;
-    request->current_header_name_len = length;
+    request->form_data_->current_header_name = at;
+    request->form_data_->current_header_name_len = length;
 
     swoole_trace("header_field: at=%.*s, length=%u\n", length, at, length);
     return 0;
@@ -202,23 +202,30 @@ static int multipart_on_header_value(multipart_parser *p, const char *at, size_t
     swoole_trace("header_value: at=%.*s, length=%u\n", length, at, length);
 
     Request *request = (Request *) p->data;
+    FormData *form_data = request->form_data_;
 
-    request->multipart_buffer_->append(request->current_header_name, request->current_header_name_len);
-    request->multipart_buffer_->append(SW_STRL(": "));
-    request->multipart_buffer_->append(at, length);
-    request->multipart_buffer_->append(SW_STRL("\r\n"));
+    form_data->multipart_buffer_->append(form_data->current_header_name, form_data->current_header_name_len);
+    form_data->multipart_buffer_->append(SW_STRL(": "));
+    form_data->multipart_buffer_->append(at, length);
+    form_data->multipart_buffer_->append(SW_STRL("\r\n"));
 
-    if (SW_STRCASEEQ(request->current_header_name, request->current_header_name_len, "content-disposition")) {
-        ParseCookieCallback cb = [request, p](char *key, size_t key_len, char *value, size_t value_len) {
+    if (SW_STRCASEEQ(form_data->current_header_name, form_data->current_header_name_len, "content-disposition")) {
+        ParseCookieCallback cb = [request, form_data, p](char *key, size_t key_len, char *value, size_t value_len) {
             if (SW_STRCASEEQ(key, key_len, "filename")) {
-                int tmpfile = swoole_tmpfile(request->upload_tmpfile->str);
+                memcpy(form_data->upload_tmpfile->str,
+                       form_data->upload_tmpfile_fmt_.c_str(),
+                       form_data->upload_tmpfile_fmt_.length());
+                form_data->upload_tmpfile->str[form_data->upload_tmpfile_fmt_.length()] = 0;
+                form_data->upload_filesize = 0;
+                int tmpfile = swoole_tmpfile(form_data->upload_tmpfile->str);
                 if (tmpfile < 0) {
+                    request->excepted = true;
                     return false;
                 }
 
                 FILE *fp = fdopen(tmpfile, "wb+");
                 if (fp == nullptr) {
-                    swoole_sys_warning("fopen(%s) failed", request->upload_tmpfile->str);
+                    swoole_sys_warning("fopen(%s) failed", form_data->upload_tmpfile->str);
                     return false;
                 }
                 p->fp = fp;
@@ -238,16 +245,22 @@ static int multipart_on_data(multipart_parser *p, const char *at, size_t length)
     swoole_trace("on_data: length=%u\n", length);
 
     if (!p->fp) {
-        request->multipart_buffer_->append(at, length);
+        request->form_data_->multipart_buffer_->append(at, length);
         return 0;
     }
 
+    request->form_data_->upload_filesize += length;
+    if (request->form_data_->upload_filesize > request->form_data_->upload_max_filesize) {
+        request->too_large = 1;
+        return 1;
+    }
     ssize_t n = fwrite(at, sizeof(char), length, p->fp);
     if (n != (off_t) length) {
         fclose(p->fp);
         p->fp = nullptr;
         request->excepted = 1;
         swoole_sys_warning("write upload file failed");
+        return 1;
     }
 
     return 0;
@@ -256,42 +269,47 @@ static int multipart_on_data(multipart_parser *p, const char *at, size_t length)
 static int multipart_on_header_complete(multipart_parser *p) {
     swoole_trace("on_header_complete\n");
     Request *request = (Request *) p->data;
+    FormData *body = request->form_data_;
     if (p->fp) {
-        request->multipart_buffer_->append(SW_STRL(SW_HTTP_UPLOAD_FILE ": "));
-        request->multipart_buffer_->append(request->upload_tmpfile->str, strlen(request->upload_tmpfile->str));
+        body->multipart_buffer_->append(SW_STRL(SW_HTTP_UPLOAD_FILE ": "));
+        body->multipart_buffer_->append(body->upload_tmpfile->str, strlen(body->upload_tmpfile->str));
     }
     request->multipart_header_parsed = 1;
-    request->multipart_buffer_->append(SW_STRL("\r\n"));
+    body->multipart_buffer_->append(SW_STRL("\r\n"));
     return 0;
 }
 
 static int multipart_on_data_end(multipart_parser *p) {
     swoole_trace("on_data_end\n");
     Request *request = (Request *) p->data;
+    FormData *body = request->form_data_;
     request->multipart_header_parsed = 0;
     if (p->fp) {
-        request->multipart_buffer_->append(SW_STRL("\r\n" SW_HTTP_UPLOAD_FILE));
+        body->multipart_buffer_->append(SW_STRL("\r\n" SW_HTTP_UPLOAD_FILE));
+        fflush(p->fp);
         fclose(p->fp);
         p->fp = nullptr;
     }
-    request->multipart_buffer_->append(SW_STRL("\r\n"));
+    body->multipart_buffer_->append(SW_STRL("\r\n"));
     return 0;
 }
 
 static int multipart_on_part_begin(multipart_parser *p) {
     swoole_trace("on_part_begi\n");
     Request *request = (Request *) p->data;
-    request->multipart_buffer_->append(p->multipart_boundary, p->boundary_length);
-    request->multipart_buffer_->append(SW_STRL("\r\n"));
+    FormData *body = request->form_data_;
+    body->multipart_buffer_->append(p->multipart_boundary, p->boundary_length);
+    body->multipart_buffer_->append(SW_STRL("\r\n"));
     return 0;
 }
 
 static int multipart_on_body_end(multipart_parser *p) {
     Request *request = (Request *) p->data;
-    request->multipart_buffer_->append(p->multipart_boundary, p->boundary_length);
-    request->multipart_buffer_->append(SW_STRL("--"));
+    FormData *body = request->form_data_;
+    body->multipart_buffer_->append(p->multipart_boundary, p->boundary_length);
+    body->multipart_buffer_->append(SW_STRL("--"));
 
-    request->content_length_ = request->multipart_buffer_->length - request->header_length_;
+    request->content_length_ = body->multipart_buffer_->length - request->header_length_;
     request->tried_to_dispatch = 1;
 
 #if 0
@@ -785,8 +803,9 @@ void Request::parse_header_info() {
                     p++;
                 }
                 if (SW_STRCASECT(p, pe - p, "multipart/form-data")) {
-                    multipart_boundary_buf = p + (sizeof("multipart/form-data") - 1);
-                    multipart_boundary_len = pe - p - (sizeof("multipart/form-data") - 1);
+                    form_data_ = new FormData();
+                    form_data_->multipart_boundary_buf = p + (sizeof("multipart/form-data") - 1);
+                    form_data_->multipart_boundary_len = strchr(p, '\r') - form_data_->multipart_boundary_buf;
                 }
             }
         }
@@ -798,20 +817,57 @@ void Request::parse_header_info() {
     }
 }
 
-bool Request::init_multipart_parser(const char *boundary_str, int boundary_len) {
-    multipart_parser_ = multipart_parser_init(boundary_str, boundary_len, &mt_parser_settings);
-    if (!multipart_parser_) {
+bool Request::init_multipart_parser(Server *server) {
+    char *boundary_str;
+    int boundary_len;
+    if (!parse_multipart_boundary(
+            form_data_->multipart_boundary_buf, form_data_->multipart_boundary_len, 0, &boundary_str, &boundary_len)) {
+        return false;
+    }
+
+    form_data_->multipart_parser_ = multipart_parser_init(boundary_str, boundary_len, &mt_parser_settings);
+    if (!form_data_->multipart_parser_) {
         swoole_warning("multipart_parser_init() failed");
         return false;
     }
-    multipart_parser_->data = this;
+    form_data_->multipart_parser_->data = this;
+
+    auto tmp_buffer = new String(SW_BUFFER_SIZE_BIG);
+    tmp_buffer->append(buffer_->str + header_length_, buffer_->length - header_length_);
+    form_data_->multipart_buffer_ = buffer_;
+    form_data_->multipart_buffer_->length = header_length_;
+    buffer_ = tmp_buffer;
+    form_data_->upload_tmpfile_fmt_ = server->upload_tmp_dir + "/swoole.upfile.XXXXXX";
+    form_data_->upload_tmpfile = new String(form_data_->upload_tmpfile_fmt_);
+    form_data_->upload_max_filesize = server->upload_max_filesize;
+
     return true;
 }
 
+void Request::destroy_multipart_parser() {
+    auto tmp_buffer = buffer_;
+    delete tmp_buffer;
+    buffer_ = form_data_->multipart_buffer_;
+    form_data_->multipart_buffer_ = nullptr;
+    if (form_data_->multipart_parser_->fp) {
+        fclose(form_data_->multipart_parser_->fp);
+        unlink(form_data_->upload_tmpfile->str);
+    }
+    multipart_parser_free(form_data_->multipart_parser_);
+    form_data_->multipart_parser_ = nullptr;
+    delete form_data_->upload_tmpfile;
+    form_data_->upload_tmpfile = nullptr;
+}
+
 bool Request::parse_multipart_data(String *buffer) {
-    size_t n = multipart_parser_execute(multipart_parser_, buffer->str, buffer->length);
+    size_t n = multipart_parser_execute(form_data_->multipart_parser_, buffer->str, buffer->length);
     swoole_trace("multipart_parser_execute: buffer->length=%lu, n=%lu\n", buffer->length, n);
     if (n != buffer->length) {
+        swoole_error_log(SW_LOG_WARNING,
+                         SW_ERROR_SERVER_INVALID_REQUEST,
+                         "parse multipart body failed, %zu/%zu bytes processed",
+                         n,
+                         buffer->length);
         return false;
     }
     buffer->clear();
@@ -819,24 +875,12 @@ bool Request::parse_multipart_data(String *buffer) {
 }
 
 Request::~Request() {
-    if (multipart_buffer_) {
-        destroy_multipart_parser();
+    if (form_data_) {
+        if (form_data_->multipart_buffer_) {
+            destroy_multipart_parser();
+        }
+        delete form_data_;
     }
-}
-
-void Request::destroy_multipart_parser() {
-    auto tmp_buffer = buffer_;
-    delete tmp_buffer;
-    buffer_ = multipart_buffer_;
-    multipart_buffer_ = nullptr;
-    if (multipart_parser_->fp) {
-        fclose(multipart_parser_->fp);
-        unlink(upload_tmpfile->str);
-    }
-    multipart_parser_free(multipart_parser_);
-    multipart_parser_ = nullptr;
-    delete upload_tmpfile;
-    upload_tmpfile = nullptr;
 }
 
 bool Request::has_expect_header() {

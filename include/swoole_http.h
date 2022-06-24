@@ -112,11 +112,25 @@ namespace swoole {
 class Server;
 namespace http_server {
 //-----------------------------------------------------------------
+struct FormData {
+    const char *multipart_boundary_buf;
+    uint32_t multipart_boundary_len;
+    multipart_parser *multipart_parser_;
+    String *multipart_buffer_;
+    String *upload_tmpfile;
+    std::string upload_tmpfile_fmt_;
+    const char *current_header_name;
+    size_t current_header_name_len;
+    size_t upload_filesize;
+    size_t upload_max_filesize;
+};
+
 struct Request {
   public:
     uint8_t method;
     uint8_t version;
     uchar excepted : 1;
+    uchar too_large : 1;
 
     uchar header_parsed : 1;
     uchar tried_to_dispatch : 1;
@@ -134,13 +148,7 @@ struct Request {
     uint32_t header_length_;       /* include request_line_length + \r\n */
     uint64_t content_length_;
 
-    const char *multipart_boundary_buf;
-    uint32_t multipart_boundary_len;
-    multipart_parser *multipart_parser_;
-    String *multipart_buffer_;
-    String *upload_tmpfile;
-    char *current_header_name;
-    size_t current_header_name_len;
+    FormData *form_data_;
 
     String *buffer_;
 
@@ -158,7 +166,7 @@ struct Request {
     int get_chunked_body_length();
     void parse_header_info();
     bool parse_multipart_data(String *buffer);
-    bool init_multipart_parser(const char *boundary_str, int boundary_len);
+    bool init_multipart_parser(Server *server);
     void destroy_multipart_parser();
     std::string get_date_if_modified_since();
     bool has_expect_header();

@@ -519,46 +519,21 @@ _parse:
                          request->content_length_,
                          request->keep_alive,
                          request->chunked);
-        if (request->multipart_boundary_buf && serv->upload_max_filesize > 0 &&
+        if (request->form_data_ && serv->upload_max_filesize > 0 &&
             request->header_length_ + request->content_length_ > protocol->package_max_length) {
-            char *boundary_str;
-            int boundary_len;
-            if (!http_server::parse_multipart_boundary(request->multipart_boundary_buf,
-                                                       request->multipart_boundary_len,
-                                                       0,
-                                                       &boundary_str,
-                                                       &boundary_len)) {
-                goto _bad_request;
-            }
-            request->init_multipart_parser(boundary_str, boundary_len);
-            auto tmp_buffer = new String(SW_BUFFER_SIZE_BIG);
-            tmp_buffer->append(buffer->str + request->header_length_, buffer->length - request->header_length_);
-            request->multipart_buffer_ = buffer;
-            request->multipart_buffer_->length = request->header_length_;
-            request->buffer_ = buffer = tmp_buffer;
-            request->upload_tmpfile = make_string(serv->upload_tmp_dir.length() + sizeof("/swoole.upfile.XXXXXX"));
-            sw_snprintf(request->upload_tmpfile->str,
-                        request->upload_tmpfile->size,
-                        "%s/swoole.upfile.XXXXXX",
-                        serv->upload_tmp_dir.c_str());
+            request->init_multipart_parser(serv);
+            buffer = request->buffer_;
         }
     }
 
-    if (request->multipart_parser_) {
-        if (!request->multipart_header_parsed) {
-            if (memmem(buffer->str, buffer->length, SW_STRL("\r\n\r\n")) == nullptr) {
-                return SW_OK;
-            }
+    if (request->form_data_) {
+        if (!request->multipart_header_parsed && memmem(buffer->str, buffer->length, SW_STRL("\r\n\r\n")) == nullptr) {
+            return SW_OK;
         }
         if (!request->parse_multipart_data(buffer)) {
-            swoole_error_log(SW_LOG_WARNING,
-                             SW_ERROR_SERVER_INVALID_REQUEST,
-                             "parse multipart body failed, %zu/%zu bytes processed",
-                             n,
-                             buffer->length);
             goto _bad_request;
         }
-        if (request->multipart_buffer_->length > protocol->package_max_length) {
+        if (request->too_large || request->form_data_->multipart_buffer_->length > protocol->package_max_length) {
             goto _too_large;
         }
         if (request->excepted) {
