@@ -519,10 +519,15 @@ _parse:
                          request->content_length_,
                          request->keep_alive,
                          request->chunked);
-        if (request->form_data_ && serv->upload_max_filesize > 0 &&
-            request->header_length_ + request->content_length_ > protocol->package_max_length) {
-            request->init_multipart_parser(serv);
-            buffer = request->buffer_;
+        if (request->form_data_) {
+            if (serv->upload_max_filesize > 0
+                    && request->header_length_ + request->content_length_ > protocol->package_max_length) {
+                request->init_multipart_parser(serv);
+                buffer = request->buffer_;
+            } else {
+                delete request->form_data_;
+                request->form_data_ = nullptr;
+            }
         }
     }
 

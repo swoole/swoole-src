@@ -276,7 +276,7 @@ TEST(http_server, websocket_big) {
     });
 }
 
-TEST(http_server, parser) {
+TEST(http_server, parser1) {
     std::thread t;
     auto server = swoole::http_server::listen(":0", [](Context &ctx) {
         EXPECT_EQ(ctx.form_data.size(), 3);
@@ -287,6 +287,39 @@ TEST(http_server, parser) {
         t = std::thread([server]() {
             swoole_signal_block_all();
             string file = test::get_root_path() + "/core-tests/fuzz/cases/req1.bin";
+            File fp(file, O_RDONLY);
+            EXPECT_TRUE(fp.ready());
+            auto str = fp.read_content();
+            SyncClient c(SW_SOCK_TCP);
+            c.connect(TEST_HOST, server->get_primary_port()->port);
+            c.send(str->value(), str->get_length());
+            char buf[1024];
+            auto n = c.recv(buf, sizeof(buf));
+            c.close();
+            std::string resp(buf, n);
+
+            EXPECT_TRUE(resp.find("200 OK") != resp.npos);
+
+            kill(server->get_master_pid(), SIGTERM);
+        });
+    };
+    server->start();
+    t.join();
+}
+
+TEST(http_server, parser2) {
+    std::thread t;
+    auto server = swoole::http_server::listen(":0", [](Context &ctx) {
+        EXPECT_EQ(ctx.form_data.size(), 3);
+        ctx.end("DONE");
+    });
+    server->worker_num = 1;
+    server->get_primary_port()->set_package_max_length(64 * 1024);
+    server->upload_max_filesize = 1024 * 1024;
+    server->onWorkerStart = [&t](Server *server, uint32_t worker_id) {
+        t = std::thread([server]() {
+            swoole_signal_block_all();
+            string file = test::get_root_path() + "/core-tests/fuzz/cases/req2.bin";
             File fp(file, O_RDONLY);
             EXPECT_TRUE(fp.ready());
             auto str = fp.read_content();

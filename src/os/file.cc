@@ -113,6 +113,10 @@ bool file_put_contents(const std::string &filename, const char *content, size_t 
     return file.write_all(content, length);
 }
 
+bool file_exists(const std::string &filename) {
+    return access(filename.c_str(), F_OK) == 0;
+}
+
 size_t File::write_all(const void *data, size_t len) {
     size_t written_bytes = 0;
     while (written_bytes < len) {

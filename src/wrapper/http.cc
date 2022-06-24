@@ -181,8 +181,10 @@ static int multipart_body_on_header_field(multipart_parser *p, const char *at, s
 static int multipart_body_on_header_value(multipart_parser *p, const char *at, size_t length) {
     Context *ctx = (Context *) p->data;
     ContextImpl *impl = ctx->impl;
+    const char *header_name = impl->current_header_name.c_str();
+    size_t header_len = impl->current_header_name.length();
 
-    if (SW_STRCASEEQ(impl->current_header_name.c_str(), impl->current_header_name.length(), "content-disposition")) {
+    if (SW_STRCASEEQ(header_name, header_len, "content-disposition")) {
         std::unordered_map<std::string, std::string> info;
         ParseCookieCallback cb = [&info](char *key, size_t key_len, char *value, size_t value_len) {
             info[std::string(key, key_len)] = std::string(value, value_len);
@@ -196,6 +198,8 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
         } else {
             impl->current_input_name = filename->second;
         }
+    } else if (SW_STRCASEEQ(header_name, header_len, SW_HTTP_UPLOAD_FILE)) {
+        ctx->files[impl->current_form_data_name] = std::string(at, length);
     }
 
     return 0;
@@ -225,6 +229,10 @@ static int multipart_body_on_header_complete(multipart_parser *p) {
     Context *ctx = (Context *) p->data;
     ContextImpl *impl = ctx->impl;
     if (impl->current_input_name.empty()) {
+        return 0;
+    }
+
+    if (ctx->files.find(impl->current_form_data_name) != ctx->files.end()) {
         return 0;
     }
 
@@ -300,6 +308,14 @@ bool Context::end(const char *data, size_t length) {
         return false;
     }
     return true;
+}
+
+Context::~Context() {
+    for (auto kv : files) {
+        if (file_exists(kv.second)) {
+            unlink(kv.second.c_str());
+        }
+    }
 }
 
 std::shared_ptr<Server> listen(const std::string addr, std::function<void(Context &ctx)> cb, int mode) {

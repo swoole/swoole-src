@@ -30,6 +30,7 @@ ssize_t file_get_size(int fd);
 ssize_t file_get_size(const std::string &filename);
 std::shared_ptr<String> file_get_contents(const std::string &filename);
 bool file_put_contents(const std::string &filename, const char *content, size_t length);
+bool file_exists(const std::string &filename);
 
 typedef struct stat FileStatus;
 

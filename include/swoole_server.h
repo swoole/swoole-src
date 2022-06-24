@@ -466,6 +466,10 @@ struct ListenPort {
         protocol.package_body_offset = body_offset;
     }
 
+    void set_package_max_length(uint32_t max_length) {
+        protocol.package_max_length = max_length;
+    }
+
     ListenPort();
     ~ListenPort() = default;
     int listen();

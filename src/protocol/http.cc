@@ -857,6 +857,8 @@ void Request::destroy_multipart_parser() {
     form_data_->multipart_parser_ = nullptr;
     delete form_data_->upload_tmpfile;
     form_data_->upload_tmpfile = nullptr;
+    delete form_data_;
+    form_data_ = nullptr;
 }
 
 bool Request::parse_multipart_data(String *buffer) {
@@ -876,10 +878,7 @@ bool Request::parse_multipart_data(String *buffer) {
 
 Request::~Request() {
     if (form_data_) {
-        if (form_data_->multipart_buffer_) {
-            destroy_multipart_parser();
-        }
-        delete form_data_;
+        destroy_multipart_parser();
     }
 }
 

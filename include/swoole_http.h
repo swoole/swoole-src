@@ -134,6 +134,7 @@ struct Request {
 
     uchar header_parsed : 1;
     uchar tried_to_dispatch : 1;
+    uchar multipart_form_data : 1;
     uchar multipart_header_parsed : 1;
 
     uchar known_length : 1;
@@ -199,6 +200,7 @@ class Context {
         session_id_ = session_id;
         impl = _impl;
     }
+    ~Context();
     bool end(const std::string &data) {
         return end(data.c_str(), data.length());
     }
