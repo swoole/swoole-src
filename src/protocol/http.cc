@@ -194,12 +194,12 @@ static int multipart_on_header_field(multipart_parser *p, const char *at, size_t
     request->form_data_->current_header_name = at;
     request->form_data_->current_header_name_len = length;
 
-    swoole_trace("header_field: at=%.*s, length=%u\n", length, at, length);
+    swoole_trace("header_field: at=%.*s, length=%lu", (int) length, at, length);
     return 0;
 }
 
 static int multipart_on_header_value(multipart_parser *p, const char *at, size_t length) {
-    swoole_trace("header_value: at=%.*s, length=%u\n", length, at, length);
+    swoole_trace("header_value: at=%.*s, length=%lu", (int) length, at, length);
 
     Request *request = (Request *) p->data;
     FormData *form_data = request->form_data_;
@@ -242,7 +242,7 @@ static int multipart_on_header_value(multipart_parser *p, const char *at, size_t
 
 static int multipart_on_data(multipart_parser *p, const char *at, size_t length) {
     Request *request = (Request *) p->data;
-    swoole_trace("on_data: length=%u\n", length);
+    swoole_trace("on_data: length=%lu", length);
 
     if (!p->fp) {
         request->form_data_->multipart_buffer_->append(at, length);
@@ -267,49 +267,49 @@ static int multipart_on_data(multipart_parser *p, const char *at, size_t length)
 }
 
 static int multipart_on_header_complete(multipart_parser *p) {
-    swoole_trace("on_header_complete\n");
+    swoole_trace("on_header_complete");
     Request *request = (Request *) p->data;
-    FormData *body = request->form_data_;
+    FormData *form_data = request->form_data_;
     if (p->fp) {
-        body->multipart_buffer_->append(SW_STRL(SW_HTTP_UPLOAD_FILE ": "));
-        body->multipart_buffer_->append(body->upload_tmpfile->str, strlen(body->upload_tmpfile->str));
+        form_data->multipart_buffer_->append(SW_STRL(SW_HTTP_UPLOAD_FILE ": "));
+        form_data->multipart_buffer_->append(form_data->upload_tmpfile->str, strlen(form_data->upload_tmpfile->str));
     }
     request->multipart_header_parsed = 1;
-    body->multipart_buffer_->append(SW_STRL("\r\n"));
+    form_data->multipart_buffer_->append(SW_STRL("\r\n"));
     return 0;
 }
 
 static int multipart_on_data_end(multipart_parser *p) {
     swoole_trace("on_data_end\n");
     Request *request = (Request *) p->data;
-    FormData *body = request->form_data_;
+    FormData *form_data = request->form_data_;
     request->multipart_header_parsed = 0;
     if (p->fp) {
-        body->multipart_buffer_->append(SW_STRL("\r\n" SW_HTTP_UPLOAD_FILE));
+        form_data->multipart_buffer_->append(SW_STRL("\r\n" SW_HTTP_UPLOAD_FILE));
         fflush(p->fp);
         fclose(p->fp);
         p->fp = nullptr;
     }
-    body->multipart_buffer_->append(SW_STRL("\r\n"));
+    form_data->multipart_buffer_->append(SW_STRL("\r\n"));
     return 0;
 }
 
 static int multipart_on_part_begin(multipart_parser *p) {
     swoole_trace("on_part_begi\n");
     Request *request = (Request *) p->data;
-    FormData *body = request->form_data_;
-    body->multipart_buffer_->append(p->multipart_boundary, p->boundary_length);
-    body->multipart_buffer_->append(SW_STRL("\r\n"));
+    FormData *form_data = request->form_data_;
+    form_data->multipart_buffer_->append(p->multipart_boundary, p->boundary_length);
+    form_data->multipart_buffer_->append(SW_STRL("\r\n"));
     return 0;
 }
 
 static int multipart_on_body_end(multipart_parser *p) {
     Request *request = (Request *) p->data;
-    FormData *body = request->form_data_;
-    body->multipart_buffer_->append(p->multipart_boundary, p->boundary_length);
-    body->multipart_buffer_->append(SW_STRL("--"));
+    FormData *form_data = request->form_data_;
+    form_data->multipart_buffer_->append(p->multipart_boundary, p->boundary_length);
+    form_data->multipart_buffer_->append(SW_STRL("--"));
 
-    request->content_length_ = body->multipart_buffer_->length - request->header_length_;
+    request->content_length_ = form_data->multipart_buffer_->length - request->header_length_;
     request->tried_to_dispatch = 1;
 
 #if 0
@@ -344,7 +344,7 @@ static int multipart_on_body_end(multipart_parser *p) {
     }
 #endif
 
-    swoole_trace("end, buffer=%.*s\n", request->multipart_buffer_->length, request->multipart_buffer_->str);
+    swoole_trace("end, buffer=%.*s", (int) form_data->multipart_buffer_->length, form_data->multipart_buffer_->str);
 
     return 0;
 }

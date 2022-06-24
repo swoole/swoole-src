@@ -44,7 +44,8 @@ int Multi::cb_error(Reactor *reactor, Event *event) {
 
 int Multi::handle_socket(CURL *easy, curl_socket_t s, int action, void *userp, void *socketp) {
     Multi *multi = (Multi *) userp;
-    swoole_trace_log(SW_TRACE_CO_CURL, SW_ECHO_CYAN "action=%d, userp=%p, socketp=%p", "[HANDLE_SOCKET]", action, userp, socketp);
+    swoole_trace_log(
+        SW_TRACE_CO_CURL, SW_ECHO_CYAN "action=%d, userp=%p, socketp=%p", "[HANDLE_SOCKET]", action, userp, socketp);
     switch (action) {
     case CURL_POLL_IN:
     case CURL_POLL_OUT:
@@ -121,8 +122,13 @@ void Multi::set_event(CURL *cp, void *socket_ptr, curl_socket_t sockfd, int acti
     Handle *handle = get_handle(cp);
     handle->action = action;
 
-    swoole_trace_log(
-        SW_TRACE_CO_CURL, SW_ECHO_GREEN " handle=%p, curl=%p, fd=%d, events=%d", "[ADD_EVENT]", handle, cp, sockfd, events);
+    swoole_trace_log(SW_TRACE_CO_CURL,
+                     SW_ECHO_GREEN " handle=%p, curl=%p, fd=%d, events=%d",
+                     "[ADD_EVENT]",
+                     handle,
+                     cp,
+                     sockfd,
+                     events);
 }
 
 CURLMcode Multi::add_handle(CURL *cp) {
@@ -135,8 +141,7 @@ CURLMcode Multi::add_handle(CURL *cp) {
             curl_easy_setopt(cp, CURLOPT_PRIVATE, handle);
         }
         handle->multi = this;
-        swoole_trace_log(
-            SW_TRACE_CO_CURL, SW_ECHO_GREEN " handle=%p, curl=%p", "[ADD_HANDLE]", handle, cp);
+        swoole_trace_log(SW_TRACE_CO_CURL, SW_ECHO_GREEN " handle=%p, curl=%p", "[ADD_HANDLE]", handle, cp);
     }
     return retval;
 }
@@ -148,8 +153,7 @@ CURLMcode Multi::remove_handle(CURL *cp) {
         if (handle) {
             handle->multi = nullptr;
         }
-        swoole_trace_log(
-                SW_TRACE_CO_CURL, SW_ECHO_RED " handle=%p, curl=%p", "[REMOVE_HANDLE]", handle, cp);
+        swoole_trace_log(SW_TRACE_CO_CURL, SW_ECHO_RED " handle=%p, curl=%p", "[REMOVE_HANDLE]", handle, cp);
     }
     return retval;
 }
@@ -240,7 +244,7 @@ CURLcode Multi::read_info() {
 
 int Multi::handle_timeout(CURLM *mh, long timeout_ms, void *userp) {
     Multi *multi = (Multi *) userp;
-    swoole_trace_log(SW_TRACE_CO_CURL, SW_ECHO_BLUE "timeout_ms=%d", "[HANDLE_TIMEOUT]", timeout_ms);
+    swoole_trace_log(SW_TRACE_CO_CURL, SW_ECHO_BLUE "timeout_ms=%ld", "[HANDLE_TIMEOUT]", timeout_ms);
     if (!swoole_event_is_available()) {
         return 0;
     }
@@ -272,7 +276,11 @@ long Multi::select(php_curlm *mh, double timeout) {
         }
         Handle *handle = get_handle(ch->cp);
 
-        swoole_trace_log(SW_TRACE_CO_CURL, "handle=%p, handle->socket=%p, handle->socket->removed=%d", handle, handle ? handle->socket :nullptr);
+        swoole_trace_log(SW_TRACE_CO_CURL,
+                         "handle=%p, handle->socket=%p, handle->socket->removed=%d",
+                         handle,
+                         handle ? handle->socket : nullptr,
+                         handle ? (handle->socket ? handle->socket->removed : 1) : 1);
 
         if (handle && handle->socket && handle->socket->removed) {
             if (swoole_event_add(handle->socket, get_event(handle->action)) == SW_OK) {
@@ -293,7 +301,7 @@ long Multi::select(php_curlm *mh, double timeout) {
     co->yield_ex(timeout);
     co = nullptr;
 
-    swoole_trace_log(SW_TRACE_CO_CURL, "yield timeout, count=%d", zend_llist_count(&mh->easyh));
+    swoole_trace_log(SW_TRACE_CO_CURL, "yield timeout, count=%lu", zend_llist_count(&mh->easyh));
 
     auto count = selector->active_handles.size();
 
