@@ -58,5 +58,21 @@ Swoole\Coroutine\run(function () {
             exit(1);
         }
     }
-    echo "[DB-init] Done!\n";
+    echo "[DB-init] MySQL Done!\n";
+
+    echo "[DB-init] initialization PostgreSQL database...\n";
+    $pgsql = new Swoole\Coroutine\PostgreSQL();
+    $connected = $pgsql->connect(PGSQL_CONNECTION_STRING);
+    if (!$connected) {
+        echo "[DB-init] Connect failed! Error#{$pgsql->error}: {$pgsql->notices}\n";
+        exit(1);
+    }
+    $sql_file = read_sql_file(__DIR__ . '/pgsql.sql');
+    foreach ($sql_file as $line) {
+        if (!$pgsql->query($line)) {
+            echo "[DB-init] Failed! Error#{$pgsql->error}: {$pgsql->notices}\n";
+            exit(1);
+        }
+    }
+    echo "[DB-init] PostgreSQL Done!\n";
 });

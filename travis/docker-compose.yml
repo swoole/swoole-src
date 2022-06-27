@@ -12,6 +12,7 @@ services:
     depends_on:
       - mysql
       - redis
+      - pgsql
     dns:
       - 8.8.8.8
       - 1.1.1.1
@@ -29,6 +30,13 @@ services:
       MYSQL_DATABASE: test
       MYSQL_USER: swoole
       MYSQL_PASSWORD: swoole
+  pgsql:
+    image: postgres:14
+    container_name: "pgsql"
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_DB: test
+      POSTGRES_PASSWORD: root
   redis:
     container_name: "redis"
     image: "twosee/swoole:redis"
