@@ -159,7 +159,7 @@ static zend_object *php_swoole_postgresql_coro_create_object(zend_class_entry *c
     return &postgresql_coro->std;
 }
 
-static void php_swoole_postgresql_coro_statement_free_object(zend_object *object) {
+static void php_swoole_postgresql_coro_statement_dtor_object(zend_object *object) {
     PGresult *pgsql_result;
     PostgreSQLStatementObject *postgresql_coro_statement = php_swoole_postgresql_coro_statement_fetch_object(object);
     PGStatement *statement = postgresql_coro_statement->object;
@@ -168,7 +168,7 @@ static void php_swoole_postgresql_coro_statement_free_object(zend_object *object
         statement->result = nullptr;
     }
 
-    if (statement->pg_object->conn && statement->name) {
+    if (swoole_coroutine_is_in() && statement->pg_object->conn && statement->pg_object->connected && statement->name) {
         while ((pgsql_result = PQgetResult(statement->pg_object->conn))) {
             PQclear(pgsql_result);
         }
@@ -184,6 +184,11 @@ static void php_swoole_postgresql_coro_statement_free_object(zend_object *object
             statement->pg_object->result = nullptr;
         }
     }
+}
+
+static void php_swoole_postgresql_coro_statement_free_object(zend_object *object) {
+    PostgreSQLStatementObject *postgresql_coro_statement = php_swoole_postgresql_coro_statement_fetch_object(object);
+    PGStatement *statement = postgresql_coro_statement->object;
 
     if (statement->name) {
         efree(statement->name);
@@ -345,6 +350,7 @@ void php_swoole_postgresql_coro_minit(int module_number) {
                                php_swoole_postgresql_coro_statement_free_object,
                                PostgreSQLStatementObject,
                                std);
+    SW_SET_CLASS_DTOR(swoole_postgresql_coro_statement, php_swoole_postgresql_coro_statement_dtor_object);
 
     zend_declare_property_null(swoole_postgresql_coro_statement_ce, ZEND_STRL("error"), ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_postgresql_coro_statement_ce, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
