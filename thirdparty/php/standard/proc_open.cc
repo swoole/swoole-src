@@ -181,7 +181,7 @@ PHP_FUNCTION(swoole_proc_terminate) {
 PHP_FUNCTION(swoole_proc_close) {
     zval *zproc;
     proc_co_t *proc;
-    int wstatus;
+    int wstatus = 0;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
     Z_PARAM_RESOURCE(zproc)

@@ -940,7 +940,7 @@ int Server::dispatch_task(const Protocol *proto, Socket *_socket, const RecvData
             return_code = SW_ERR;
             goto _return;
         }
-        if (rdata->data && rdata->info.len >= 0 && stream->send(rdata->data, rdata->info.len) < 0) {
+        if (rdata->data && rdata->info.len > 0 && stream->send(rdata->data, rdata->info.len) < 0) {
             goto _cancel;
         }
     } else {

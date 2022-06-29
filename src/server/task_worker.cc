@@ -134,7 +134,7 @@ bool Server::task_unpack(EventData *task, String *buffer, PacketPtr *packet) {
     }
 
     PacketTask _pkg{};
-    memcpy(&_pkg, task->data, sizeof(_pkg));
+    memcpy(&_pkg, task->data, sizeof(_pkg) - 1);
 
     File fp(_pkg.tmpfile, O_RDONLY);
     if (!fp.ready()) {
