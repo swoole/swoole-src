@@ -262,3 +262,9 @@ function skip_if_no_coroutine_get_execute_time()
 {
     skip('no Swoole\Coroutine::getExecuteTime', !method_exists(Swoole\Coroutine::class, 'getExecuteTime'));
 }
+
+function skip_if_no_ftp()
+{
+    require_once __DIR__ . '/config.php';
+    skip('no available proxy', !check_tcp_port(FTP_HOST, FTP_PORT));
+}
