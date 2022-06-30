@@ -2366,7 +2366,6 @@ static void _php_curl_free(php_curl *ch) {
         if (handle->multi) {
             handle->multi->remove_handle(ch);
         }
-        delete handle;
     } else {
         handle = nullptr;
     }
@@ -2387,6 +2386,9 @@ static void _php_curl_free(php_curl *ch) {
         efree(ch->to_free);
         efree(ch->clone);
 
+        if (handle) {
+            delete handle;
+        }
         curl_easy_setopt(ch->cp, CURLOPT_PRIVATE, nullptr);
     }
 
