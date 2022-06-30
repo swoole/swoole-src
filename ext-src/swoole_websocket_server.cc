@@ -196,6 +196,7 @@ static sw_inline int php_swoole_websocket_frame_pack_ex(String *buffer,
     }
 #endif
 
+    // TODO: send data in zlib_buffer directly, do not copy to http_buffer
     switch (opcode) {
     case WebSocket::OPCODE_CLOSE:
         return WebSocket::pack_close_frame(buffer, code, data, length, flags);

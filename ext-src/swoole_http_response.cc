@@ -527,10 +527,6 @@ bool HttpContext::compress(const char *data, size_t length) {
         return false;
     }
 
-    if (!zlib_buffer) {
-        zlib_buffer = std::make_shared<String>(SW_HTTP_RESPONSE_INIT_SIZE);
-    }
-
     if (0) {
         return false;
     }
@@ -553,9 +549,7 @@ bool HttpContext::compress(const char *data, size_t length) {
         }
 
         size_t memory_size = BrotliEncoderMaxCompressedSize(length);
-        if (memory_size > zlib_buffer->size && !zlib_buffer->extend(memory_size)) {
-            return false;
-        }
+        zlib_buffer = std::make_shared<String>(memory_size);
 
         size_t input_size = length;
         const uint8_t *input_buffer = (const uint8_t *) data;
@@ -592,9 +586,7 @@ bool HttpContext::compress(const char *data, size_t length) {
     }
 
     size_t memory_size = ((size_t)((double) length * (double) 1.015)) + 10 + 8 + 4 + 1;
-    if (memory_size > zlib_buffer->size && !zlib_buffer->extend(memory_size)) {
-        return false;
-    }
+    zlib_buffer = std::make_shared<String>(memory_size);
 
     z_stream zstream = {};
     int status;
