@@ -362,13 +362,13 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
                 continue;
             }
             int key_header = parse_header_name(key, keylen);
-            if (key_header == 0) {
+            if (key_header > 0) {
+                if (key_header == HTTP_HEADER_CONTENT_TYPE && accept_compression && compression_types) {
+                    content_type = zval_get_string(zvalue);
+                }
+                header_flags |= key_header;
                 continue;
             }
-            if (key_header == HTTP_HEADER_CONTENT_TYPE && accept_compression && compression_types) {
-                content_type = zval_get_string(zvalue);
-            }
-            header_flags |= key_header;
             if (ZVAL_IS_ARRAY(zvalue)) {
                 zval *zvalue_2;
                 SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(zvalue), zvalue_2) {

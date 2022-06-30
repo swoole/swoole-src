@@ -63,39 +63,38 @@ class WebsocketClient
 	}
 
 	public function connect($host, $port, $path, $origin = false)
-	{
-		$this->_host = $host;
-		$this->_port = $port;
-		$this->_path = $path;
-		$this->_origin = $origin;
+    {
+        $this->_host = $host;
+        $this->_port = $port;
+        $this->_path = $path;
+        $this->_origin = $origin;
 
-		$key = base64_encode($this->_generateRandomString(16, false, true));
-		$header = "GET " . $path . " HTTP/1.1\r\n";
-		$header.= "Host: ".$host.":".$port."\r\n";
-		$header.= "Upgrade: websocket\r\n";
-		$header.= "Connection: Upgrade\r\n";
-		$header.= "Sec-WebSocket-Key: " . $key . "\r\n";
-		if($origin !== false)
-		{
-			$header.= "Sec-WebSocket-Origin: " . $origin . "\r\n";
-		}
-		$header.= "Sec-WebSocket-Version: 13\r\n";
+        $key = base64_encode($this->_generateRandomString(16, false, true));
+        $header = "GET " . $path . " HTTP/1.1\r\n";
+        $header .= "Host: " . $host . ":" . $port . "\r\n";
+        $header .= "Upgrade: websocket\r\n";
+        $header .= "Connection: Upgrade\r\n";
+        $header .= "Sec-WebSocket-Key: " . $key . "\r\n";
+        if ($origin !== false) {
+            $header .= "Sec-WebSocket-Origin: " . $origin . "\r\n";
+        }
+        $header .= "Sec-WebSocket-Version: 13\r\n";
 
-		$this->_Socket = new \Swoole\Client(SWOOLE_TCP, SWOOLE_SOCK_SYNC);
-		$this->_Socket->connect($host, $port, 1);
-		$this->_Socket->send($header."\r\n");
-		$response = $this->_Socket->recv(1500);
+        $this->_Socket = new \Swoole\Client(SWOOLE_TCP, SWOOLE_SOCK_SYNC);
+        $this->_Socket->connect($host, $port, 1);
+        $this->_Socket->send($header . "\r\n");
+        $response = $this->_Socket->recv(1500);
 
-		preg_match('#Sec-WebSocket-Accept:\s(.*)$#mU', $response, $matches);
+        preg_match('#Sec-WebSocket-Accept:\s(.*)$#mU', $response, $matches);
 
-		if ($matches) {
-			$keyAccept = trim($matches[1]);
-			$expectedResonse = base64_encode(pack('H*', sha1($key . '258EAFA5-E914-47DA-95CA-C5AB0DC85B11')));
-			$this->_connected = ($keyAccept === $expectedResonse) ? true : false;
-		}
+        if ($matches) {
+            $keyAccept = trim($matches[1]);
+            $expectedResonse = base64_encode(pack('H*', sha1($key . '258EAFA5-E914-47DA-95CA-C5AB0DC85B11')));
+            $this->_connected = ($keyAccept === $expectedResonse) ? true : false;
+        }
 
-		return $this->_connected;
-	}
+        return $this->_connected;
+    }
 
 	public function checkConnection()
 	{
