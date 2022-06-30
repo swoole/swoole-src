@@ -226,7 +226,6 @@ CURLcode Multi::exec(php_curl *ch) {
             break;
         }
         set_timer();
-        bool removed = true;
         if (sockfd >= 0) {
             auto it = handle->sockets.find(sockfd);
             if (it != handle->sockets.end()) {
@@ -235,12 +234,17 @@ CURLcode Multi::exec(php_curl *ch) {
                     if (swoole_event_add(handle_socket->socket, get_event(handle_socket->action)) == SW_OK) {
                         event_count_++;
                     }
-                } else {
-                    removed = false;
                 }
             }
         }
 
+        bool removed = true;
+        for (auto it : handle->sockets) {
+            handle_socket = it.second;
+            if (handle_socket->socket && !handle_socket->socket->removed) {
+                removed = false;
+            }
+        }
         if (!timer && removed) {
             break;
         }
@@ -374,7 +378,6 @@ long Multi::select(php_curlm *mh, double timeout) {
                 curl_multi_socket_action(multi_handle_, handle_socket->event_fd, handle_socket->event_bitmask, &running_handles_);
                 swoole_trace_log(SW_TRACE_CO_CURL, "socket_action[socket], running_handles=%d", running_handles_);
             }
-            handle->sockets.clear();
         }
     }
 
