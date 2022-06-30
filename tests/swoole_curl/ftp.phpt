@@ -12,7 +12,6 @@ require __DIR__ . '/../include/bootstrap.php';
 use Swoole\Runtime;
 
 use function Swoole\Coroutine\run;
-use function Swoole\Coroutine\go;
 
 Runtime::enableCoroutine(SWOOLE_HOOK_NATIVE_CURL);
 
