@@ -524,7 +524,7 @@ bool HttpContext::compress(const char *data, size_t length) {
 #endif
 
     if (!zlib_buffer) {
-        zlib_buffer = std::make_shared<String>(SW_BUFFER_SIZE_BIG);
+        zlib_buffer = std::make_shared<String>(SW_HTTP_RESPONSE_INIT_SIZE);
     }
 
     if (0) {
