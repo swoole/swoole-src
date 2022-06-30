@@ -411,6 +411,9 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
     if (!(header_flags & HTTP_HEADER_SERVER)) {
         http_buffer->append(ZEND_STRL("Server: " SW_HTTP_SERVER_SOFTWARE "\r\n"));
     }
+    if (!(header_flags & HTTP_HEADER_DATE)) {
+        http_set_date_header(http_buffer);
+    }
 
     // websocket protocol (subsequent header info is unnecessary)
     if (upgrade == 1) {
@@ -418,7 +421,6 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
         send_header_ = 1;
         return;
     }
-
     if (!(header_flags & HTTP_HEADER_CONNECTION)) {
         if (keepalive) {
             http_buffer->append(ZEND_STRL("Connection: keep-alive\r\n"));
@@ -429,10 +431,6 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
     if (!(header_flags & HTTP_HEADER_CONTENT_TYPE)) {
         http_buffer->append(ZEND_STRL("Content-Type: " SW_HTTP_DEFAULT_CONTENT_TYPE "\r\n"));
     }
-    if (!(header_flags & HTTP_HEADER_DATE)) {
-        http_set_date_header(http_buffer);
-    }
-
     if (send_chunked) {
         SW_ASSERT(length == 0);
         if (!(header_flags & HTTP_HEADER_TRANSFER_ENCODING)) {
