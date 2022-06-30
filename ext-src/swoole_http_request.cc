@@ -790,14 +790,6 @@ const char *HttpContext::get_content_encoding() {
     }
 }
 
-bool HttpContext::is_accept_compression() {
-    if (!accept_compression) {
-        return false;
-    }
-    if (compression_types == nullptr) {
-        return true;
-    }
-}
 #endif
 
 static PHP_METHOD(swoole_http_request, getContent) {

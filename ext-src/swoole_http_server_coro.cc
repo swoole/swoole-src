@@ -507,8 +507,6 @@ static PHP_METHOD(swoole_http_server_coro, start) {
         hs->upload_tmp_dir = str_v.dup();
     }
 
-    php_swoole_http_server_init_global_variant();
-
     while (hs->running) {
         auto conn = sock->accept();
         if (conn) {

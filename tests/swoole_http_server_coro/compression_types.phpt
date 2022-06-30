@@ -13,7 +13,7 @@ use Swoole\Http\Request;
 
 $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
-    compression_types_test($pm);
+    http_compression_types_test($pm);
     echo "DONE\n";
     file_get_contents('http://127.0.0.1:' . $pm->getFreePort() . '/shutdown');
 };

@@ -283,6 +283,7 @@ void php_swoole_event_exit();
  * ==============================================================
  */
 void php_swoole_runtime_mshutdown();
+void php_swoole_websocket_server_mshutdown();
 
 static sw_inline zend_bool php_swoole_websocket_frame_is_object(zval *zdata) {
     return Z_TYPE_P(zdata) == IS_OBJECT && instanceof_function(Z_OBJCE_P(zdata), swoole_websocket_frame_ce);
@@ -758,7 +759,8 @@ static sw_inline zend_bool sw_zend_is_callable_at_frame(zval *zcallable,
                                                         size_t *callable_name_len,
                                                         zend_fcall_info_cache *fci_cache,
                                                         char **error) {
-    zend_bool ret = zend_is_callable_at_frame(zcallable, zobject ? Z_OBJ_P(zobject) : NULL, frame, check_flags, fci_cache, error);
+    zend_bool ret =
+        zend_is_callable_at_frame(zcallable, zobject ? Z_OBJ_P(zobject) : NULL, frame, check_flags, fci_cache, error);
     zend_string *name = zend_get_callable_name_ex(zcallable, zobject ? Z_OBJ_P(zobject) : NULL);
     if (callable_name) {
         *callable_name = estrndup(ZSTR_VAL(name), ZSTR_LEN(name));

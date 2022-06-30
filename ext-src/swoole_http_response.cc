@@ -523,6 +523,10 @@ bool HttpContext::compress(const char *data, size_t length) {
     int encoding;
 #endif
 
+    if (!zlib_buffer) {
+        zlib_buffer = std::make_shared<String>(SW_BUFFER_SIZE_BIG);
+    }
+
     if (0) {
         return false;
     }
@@ -820,7 +824,6 @@ void HttpContext::end(zval *zdata, zval *return_value) {
         }
 
         if (!send(this, http_buffer->str, http_buffer->length)) {
-        _abort:
             end_ = 1;
             close(this);
             RETURN_FALSE;

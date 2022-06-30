@@ -317,13 +317,13 @@ static ssize_t http2_server_build_header(HttpContext *ctx, uchar *buffer, const 
                 if (swoole_http_has_crlf(str_value.val(), str_value.len())) {
                     return;
                 }
-                if (SW_STREQ(key, l_key, "server")) {
+                if (SW_STRCASEEQ(key, l_key, "server")) {
                     header_flags |= HTTP_HEADER_SERVER;
-                } else if (SW_STREQ(key, l_key, "content-length")) {
+                } else if (SW_STRCASEEQ(key, l_key, "content-length")) {
                     return;  // ignore
-                } else if (SW_STREQ(key, l_key, "date")) {
+                } else if (SW_STRCASEEQ(key, l_key, "date")) {
                     header_flags |= HTTP_HEADER_DATE;
-                } else if (SW_STREQ(key, l_key, "content-type")) {
+                } else if (SW_STRCASEEQ(key, l_key, "content-type")) {
                     header_flags |= HTTP_HEADER_CONTENT_TYPE;
                     if (ctx->accept_compression && ctx->compression_types) {
                         content_type = zval_get_string(value);
@@ -456,6 +456,7 @@ bool Http2Stream::send_header(const String *body, bool end_stream) {
     }
 
     String *http_buffer = ctx->get_write_buffer();
+    http_buffer->clear();
 
     /**
      +---------------+

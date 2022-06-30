@@ -246,7 +246,9 @@ int dispatch_frame(const Protocol *proto, Socket *_socket, const RecvData *rdata
     send_frame.size = sizeof(buf);
 
     Frame ws;
-    decode(&ws, const_cast<char *>(data), length);
+    if (!decode(&ws, const_cast<char *>(data), length)) {
+        return SW_ERR;
+    }
 
     String *frame_buffer;
     int frame_length;

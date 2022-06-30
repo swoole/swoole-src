@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_server: compression types
+swoole_http2_server: compression types
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -13,7 +13,7 @@ use Swoole\Http\Server;
 
 $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
-    http_compression_types_test($pm);
+    http2_compression_types_test($pm);
     echo "DONE\n";
     $pm->kill();
 };
@@ -24,6 +24,7 @@ $pm->childFunc = function () use ($pm) {
             'text/html',
             'application/json'
         ],
+        'open_http2_protocol' => true,
     ]);
     $http->on("WorkerStart", function ($serv, $wid) {
         global $pm;

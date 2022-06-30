@@ -221,6 +221,8 @@ void HttpContext::copy(HttpContext *ctx) {
 #ifdef SW_HAVE_COMPRESSION
     enable_compression = ctx->enable_compression;
     compression_level = ctx->compression_level;
+    compression_min_length = ctx->compression_min_length;
+    compression_types = ctx->compression_types;
 #endif
     co_socket = ctx->co_socket;
     private_data = ctx->private_data;
@@ -296,8 +298,6 @@ void HttpContext::free() {
     }
     delete this;
 }
-
-void php_swoole_http_server_init_global_variant() {}
 
 HttpContext *php_swoole_http_request_get_and_check_context(zval *zobject) {
     HttpContext *ctx = php_swoole_http_request_get_context(zobject);

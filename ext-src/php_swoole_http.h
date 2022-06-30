@@ -212,7 +212,6 @@ struct Context {
 #ifdef SW_HAVE_COMPRESSION
     void set_compression_method(const char *accept_encoding, size_t length);
     const char *get_content_encoding();
-    bool is_accept_compression();
     bool compress(const char *data, size_t length);
 #endif
 

@@ -3,9 +3,11 @@
 use Swoole\Coroutine\Socket;
 use Swoole\Coroutine\Client;
 use Swoole\Coroutine\Http\Client as HttpClient;
+use Swoole\Coroutine\Http2\Client as Http2Client;
+use Swoole\Http2\Request as Http2Request;
 use function Swoole\Coroutine\run;
 
-function compression_types_test(ProcessManager $pm)
+function http_compression_types_test(ProcessManager $pm)
 {
     run(function () use ($pm) {
         $cli = new HttpClient('127.0.0.1', $pm->getFreePort());
@@ -22,6 +24,40 @@ function compression_types_test(ProcessManager $pm)
         $cli->setHeaders(['Accept-Encoding' => 'gzip',]);
         $cli->get('/raw?bytes=' . rand(8192, 65536));
         Assert::assert(!isset($cli->getHeaders()['content-encoding']));
+    });
+}
+
+function http2_compression_types_test(ProcessManager $pm)
+{
+    run(function () use ($pm) {
+        $cli = new Http2Client('127.0.0.1', $pm->getFreePort());
+        Assert::true($cli->connect());
+
+        $req1 = new Http2Request;
+        $req1->path = '/html?bytes=' . rand(8192, 65536);
+        $req1->headers = ['Accept-Encoding' => 'gzip',];
+        $stream1 = $cli->send($req1);
+
+        $req2 = new Http2Request;
+        $req2->path = '/json?bytes=' . rand(8192, 65536);
+        $req2->headers = ['Accept-Encoding' => 'gzip',];
+        $stream2 = $cli->send($req2);
+
+        $req3 = new Http2Request;
+        $req3->path = '/raw?bytes=' . rand(8192, 65536);
+        $req3->headers = ['Accept-Encoding' => 'gzip',];
+        $stream3 = $cli->send($req3);
+
+        $n = 3;
+        $list = [];
+        while($n--) {
+            $resp = $cli->recv();
+            $list[$resp->streamId] = $resp;
+        }
+
+        Assert::eq($list[$stream1]->headers['content-encoding'], 'gzip');
+        Assert::eq($list[$stream2]->headers['content-encoding'], 'gzip');
+        Assert::assert(!isset($list[$stream3]->headers['content-encoding']));
     });
 }
 

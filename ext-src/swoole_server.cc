@@ -962,7 +962,6 @@ void ServerObject::on_before_start() {
 
     if (find_http_port) {
         serv->onReceive = php_swoole_http_server_onReceive;
-        php_swoole_http_server_init_global_variant();
     }
 
     if (SWOOLE_G(enable_library)) {
