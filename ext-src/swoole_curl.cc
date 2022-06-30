@@ -240,6 +240,7 @@ CURLcode Multi::exec(php_curl *ch) {
                 handle_socket = it.second;
                 if (handle_socket->socket && !handle_socket->socket->removed) {
                     removed = false;
+                    break;
                 }
             }
             if (removed) {
