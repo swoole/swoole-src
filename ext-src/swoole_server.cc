@@ -2216,6 +2216,7 @@ static PHP_METHOD(swoole_server, set) {
         serv->http_compression = zval_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "http_compression_level", ztmp) ||
+        php_swoole_array_get_value(vht, "compression_level", ztmp) ||
         php_swoole_array_get_value(vht, "http_gzip_level", ztmp)) {
         zend_long level = zval_get_long(ztmp);
         if (level > UINT8_MAX) {
@@ -2225,7 +2226,8 @@ static PHP_METHOD(swoole_server, set) {
         }
         serv->http_compression_level = level;
     }
-    if (php_swoole_array_get_value(vht, "compression_min_length", ztmp)) {
+    if (php_swoole_array_get_value(vht, "http_compression_min_length", ztmp) ||
+        php_swoole_array_get_value(vht, "compression_min_length", ztmp)) {
         serv->compression_min_length = zval_get_long(ztmp);
     }
 #endif
@@ -2279,7 +2281,8 @@ static PHP_METHOD(swoole_server, set) {
             RETURN_FALSE;
         }
     }
-    if (php_swoole_array_get_value(vht, "http_compression_types", ztmp)) {
+    if (php_swoole_array_get_value(vht, "http_compression_types", ztmp) ||
+        php_swoole_array_get_value(vht, "compression_types", ztmp)) {
         if (ZVAL_IS_ARRAY(ztmp)) {
             zval *ztype;
             SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(ztmp), ztype)

@@ -461,6 +461,7 @@ static PHP_METHOD(swoole_http_server_coro, start) {
         hs->compression = zval_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "http_compression_level", ztmp) ||
+        php_swoole_array_get_value(vht, "compression_level", ztmp) ||
         php_swoole_array_get_value(vht, "http_gzip_level", ztmp)) {
         zend_long level = zval_get_long(ztmp);
         if (level > UINT8_MAX) {
@@ -470,10 +471,12 @@ static PHP_METHOD(swoole_http_server_coro, start) {
         }
         hs->compression_level = level;
     }
-    if (php_swoole_array_get_value(vht, "http_compression_min_length", ztmp)) {
+    if (php_swoole_array_get_value(vht, "http_compression_min_length", ztmp) ||
+        php_swoole_array_get_value(vht, "compression_min_length", ztmp)) {
         hs->compression_min_length = zval_get_long(ztmp);
     }
-    if (php_swoole_array_get_value(vht, "http_compression_types", ztmp)) {
+    if (php_swoole_array_get_value(vht, "http_compression_types", ztmp) ||
+        php_swoole_array_get_value(vht, "compression_types", ztmp)) {
         hs->compression_types = std::make_shared<std::unordered_set<std::string>>();
         if (ZVAL_IS_ARRAY(ztmp)) {
             zval *ztype;

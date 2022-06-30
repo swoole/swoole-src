@@ -369,7 +369,6 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
                     content_type = zval_get_string(zvalue);
                 }
                 header_flags |= key_header;
-                continue;
             }
             if (ZVAL_IS_ARRAY(zvalue)) {
                 zval *zvalue_2;
