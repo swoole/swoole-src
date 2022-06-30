@@ -67,7 +67,9 @@ String *HttpContext::get_write_buffer() {
     if (co_socket) {
         return ((Socket *) private_data)->get_write_buffer();
     } else {
-        write_buffer = std::make_shared<String>(SW_BUFFER_SIZE_STD);
+        if (!write_buffer) {
+            write_buffer = std::make_shared<String>(SW_BUFFER_SIZE_STD);
+        }
         return write_buffer.get();
     }
 }
@@ -440,7 +442,7 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
     // Content-Length
     else if (length > 0 || parser.method != PHP_HTTP_HEAD) {
 #ifdef SW_HAVE_COMPRESSION
-        if (accept_compression && (length < compression_min_length || compress(body, length))) {
+        if (compress(body, length)) {
             length = zlib_buffer->length;
             const char *content_encoding = get_content_encoding();
             http_buffer->append(ZEND_STRL("Content-Encoding: "));
@@ -521,6 +523,10 @@ bool HttpContext::compress(const char *data, size_t length) {
     int encoding;
 #endif
 
+    if (!accept_compression || length < compression_min_length) {
+        return false;
+    }
+
     if (!zlib_buffer) {
         zlib_buffer = std::make_shared<String>(SW_HTTP_RESPONSE_INIT_SIZE);
     }
@@ -547,10 +553,8 @@ bool HttpContext::compress(const char *data, size_t length) {
         }
 
         size_t memory_size = BrotliEncoderMaxCompressedSize(length);
-        if (memory_size > zlib_buffer->size) {
-            if (!zlib_buffer->extend(memory_size)) {
-                return false;
-            }
+        if (memory_size > zlib_buffer->size && !zlib_buffer->extend(memory_size)) {
+            return false;
         }
 
         size_t input_size = length;
@@ -588,10 +592,8 @@ bool HttpContext::compress(const char *data, size_t length) {
     }
 
     size_t memory_size = ((size_t)((double) length * (double) 1.015)) + 10 + 8 + 4 + 1;
-    if (memory_size > zlib_buffer->size) {
-        if (!zlib_buffer->extend(memory_size)) {
-            return false;
-        }
+    if (memory_size > zlib_buffer->size && !zlib_buffer->extend(memory_size)) {
+        return false;
     }
 
     z_stream zstream = {};

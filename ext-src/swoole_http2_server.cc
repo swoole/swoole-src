@@ -384,8 +384,7 @@ static ssize_t http2_server_build_header(HttpContext *ctx, uchar *buffer, const 
     size_t content_length = body->length;
     // content length
 #ifdef SW_HAVE_COMPRESSION
-    if (ctx->accept_compression &&
-        (content_length < ctx->compression_min_length || ctx->compress(body->str, body->length))) {
+    if (ctx->compress(body->str, body->length)) {
         content_length = ctx->zlib_buffer->length;
         // content encoding
         const char *content_encoding = ctx->get_content_encoding();
