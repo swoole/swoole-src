@@ -28,8 +28,8 @@ static int execute_callback(Event *event, int bitmask) {
     if (it != handle->sockets.end()) {
         it->second->event_bitmask |= bitmask;
         it->second->event_fd = event->fd;
-        handle->multi->callback(handle, bitmask, event->fd);
     }
+    handle->multi->callback(handle, bitmask, event->fd);
     return 0;
 }
 
