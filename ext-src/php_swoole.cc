@@ -935,6 +935,7 @@ PHP_RINIT_FUNCTION(swoole) {
     SIGG(check) = 0;
 #endif
 
+    php_swoole_http_server_rinit();
     php_swoole_coroutine_rinit();
     php_swoole_runtime_rinit();
 

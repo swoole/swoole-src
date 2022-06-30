@@ -158,7 +158,9 @@ void php_swoole_http_server_minit(int module_number) {
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_http_server);
     SW_SET_CLASS_CLONEABLE(swoole_http_server, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_server, sw_zend_class_unset_property_deny);
+}
 
+void php_swoole_http_server_rinit() {
     // for is_uploaded_file and move_uploaded_file
     if (!SG(rfc1867_uploaded_files)) {
         ALLOC_HASHTABLE(SG(rfc1867_uploaded_files));

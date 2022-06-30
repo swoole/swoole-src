@@ -250,6 +250,7 @@ void php_swoole_name_resolver_minit(int module_number);
  * RINIT
  * ==============================================================
  */
+void php_swoole_http_server_rinit();
 void php_swoole_coroutine_rinit();
 void php_swoole_runtime_rinit();
 
