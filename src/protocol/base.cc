@@ -312,7 +312,7 @@ _recv_data:
         if (buffer->length == buffer->size) {
             recv_again = true;
             if (buffer->size < package_max_length) {
-                uint32_t extend_size = swoole_size_align(buffer->size * 2, SwooleG.pagesize);
+                uint32_t extend_size = swoole_size_align(buffer->size * 2, swoole_pagesize());
                 if (extend_size > package_max_length) {
                     extend_size = package_max_length;
                 }

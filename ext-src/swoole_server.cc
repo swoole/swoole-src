@@ -2280,6 +2280,20 @@ static PHP_METHOD(swoole_server, set) {
             RETURN_FALSE;
         }
     }
+    if (php_swoole_array_get_value(vht, "http_compression_types", ztmp)) {
+        if (ZVAL_IS_ARRAY(ztmp)) {
+            zval *ztype;
+            SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(ztmp), ztype)
+            zend::String type(ztype);
+            if (type.len() > 0) {
+                serv->add_http_compression_type(type.to_std_string());
+            }
+            SW_HASHTABLE_FOREACH_END();
+        } else {
+            php_swoole_fatal_error(E_ERROR, "http_compression_types must be array");
+            RETURN_FALSE;
+        }
+    }
     /**
      * [static_handler] locations
      */

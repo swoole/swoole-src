@@ -624,7 +624,7 @@ const char *mysql_client::recv_length(size_t need_length, const bool try_to_recy
             }
             if (sw_unlikely(buffer->length == buffer->size)) {
                 /* offset + need_length = new size (min) */
-                if (!buffer->extend(SW_MEM_ALIGNED_SIZE_EX(offset + need_length, SwooleG.pagesize))) {
+                if (!buffer->extend(SW_MEM_ALIGNED_SIZE_EX(offset + need_length, swoole_pagesize()))) {
                     non_sql_error(MYSQLND_CR_OUT_OF_MEMORY, strerror(ENOMEM));
                     return nullptr;
                 } else {
@@ -672,7 +672,7 @@ bool mysql_client::send_packet(mysql::client_packet *packet) {
 }
 
 bool mysql_client::send_command(enum sw_mysql_command command, const char *sql, size_t length) {
-    if (sw_likely(SW_MYSQL_PACKET_HEADER_SIZE + 1 + length <= SwooleG.pagesize)) {
+    if (sw_likely(SW_MYSQL_PACKET_HEADER_SIZE + 1 + length <= swoole_pagesize())) {
         mysql::command_packet command_packet(command, sql, length);
         return send_raw(command_packet.get_data(), command_packet.get_data_length());
     } else {

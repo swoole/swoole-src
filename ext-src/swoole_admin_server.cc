@@ -323,12 +323,6 @@ static std::string handle_get_memory_info(Server *serv, const std::string &msg) 
         {"socket_list", sw_reactor() ? sw_reactor()->get_sockets().size() * sizeof(network::Socket) : 0},
         {"socket_out_buffer", get_socket_out_buffer_total_size()},
         {"php_memory", is_thread ? 0 : zend_memory_usage(true)},
-        {"http_buffer", swoole_http_buffer ? swoole_http_buffer->size : 0},
-#ifdef SW_HAVE_COMPRESSION
-        {"zlib_buffer", swoole_zlib_buffer ? swoole_zlib_buffer->size : 0},
-#else
-        {"zlib_buffer", 0},
-#endif
     };
     json return_value{
         {"data", jinfo},

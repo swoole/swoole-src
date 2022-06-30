@@ -754,6 +754,10 @@ static inline int swoole_get_process_id() {
     return SwooleG.process_id;
 }
 
+static inline uint32_t swoole_pagesize() {
+    return SwooleG.pagesize;
+}
+
 SW_API const char *swoole_strerror(int code);
 SW_API void swoole_throw_error(int code);
 SW_API void swoole_ignore_error(int code);

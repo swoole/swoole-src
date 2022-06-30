@@ -26,12 +26,6 @@ using HttpContext = swoole::http::Context;
 
 namespace WebSocket = swoole::websocket;
 
-String *swoole_http_buffer;
-#ifdef SW_HAVE_COMPRESSION
-/* not only be used by zlib but also be used by br */
-String *swoole_zlib_buffer;
-#endif
-
 zend_class_entry *swoole_http_server_ce;
 zend_object_handlers swoole_http_server_handlers;
 
@@ -164,6 +158,12 @@ void php_swoole_http_server_minit(int module_number) {
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_http_server);
     SW_SET_CLASS_CLONEABLE(swoole_http_server, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_server, sw_zend_class_unset_property_deny);
+
+    // for is_uploaded_file and move_uploaded_file
+    if (!SG(rfc1867_uploaded_files)) {
+        ALLOC_HASHTABLE(SG(rfc1867_uploaded_files));
+        zend_hash_init(SG(rfc1867_uploaded_files), 8, nullptr, nullptr, 0);
+    }
 }
 
 HttpContext *swoole_http_context_new(SessionId fd) {
@@ -199,6 +199,7 @@ void HttpContext::init(Server *serv) {
     enable_compression = serv->http_compression;
     compression_level = serv->http_compression_level;
     compression_min_length = serv->compression_min_length;
+    compression_types = serv->http_compression_types;
 #endif
     upload_tmp_dir = serv->upload_tmp_dir;
     bind(serv);
@@ -296,14 +297,7 @@ void HttpContext::free() {
     delete this;
 }
 
-void php_swoole_http_server_init_global_variant() {
-    swoole_http_buffer = new String(SW_HTTP_RESPONSE_INIT_SIZE);
-    // for is_uploaded_file and move_uploaded_file
-    if (!SG(rfc1867_uploaded_files)) {
-        ALLOC_HASHTABLE(SG(rfc1867_uploaded_files));
-        zend_hash_init(SG(rfc1867_uploaded_files), 8, nullptr, nullptr, 0);
-    }
-}
+void php_swoole_http_server_init_global_variant() {}
 
 HttpContext *php_swoole_http_request_get_and_check_context(zval *zobject) {
     HttpContext *ctx = php_swoole_http_request_get_context(zobject);

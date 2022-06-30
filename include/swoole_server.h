@@ -964,9 +964,9 @@ class Server {
     Worker *workers = nullptr;
     ServerGS *gs = nullptr;
 
-    std::unordered_set<std::string> *types = nullptr;
-    std::unordered_set<std::string> *locations = nullptr;
-    std::vector<std::string> *http_index_files = nullptr;
+    std::shared_ptr<std::unordered_set<std::string>> locations = nullptr;
+    std::shared_ptr<std::vector<std::string>> http_index_files = nullptr;
+    std::shared_ptr<std::unordered_set<std::string>> http_compression_types = nullptr;
 
 #ifdef HAVE_PTHREAD_BARRIER
     pthread_barrier_t reactor_thread_barrier = {};
@@ -1079,6 +1079,7 @@ class Server {
     void add_static_handler_location(const std::string &);
     void add_static_handler_index_files(const std::string &);
     bool select_static_handler(http_server::Request *request, Connection *conn);
+    void add_http_compression_type(const std::string &type);
 
     int create();
     int start();

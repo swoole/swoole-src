@@ -423,7 +423,7 @@ static sw_inline void sw_zval_free(zval *val) {
 static sw_inline zend_string *sw_zend_string_recycle(zend_string *s, size_t alloc_len, size_t real_len) {
     SW_ASSERT(!ZSTR_IS_INTERNED(s));
     if (UNEXPECTED(alloc_len != real_len)) {
-        if (alloc_len > SwooleG.pagesize && alloc_len > real_len * 2) {
+        if (alloc_len > swoole_pagesize() && alloc_len > real_len * 2) {
             s = zend_string_realloc(s, real_len, 0);
         } else {
             ZSTR_LEN(s) = real_len;

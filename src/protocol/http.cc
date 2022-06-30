@@ -186,6 +186,13 @@ void Server::destroy_http_request(Connection *conn) {
     conn->object = nullptr;
 }
 
+void Server::add_http_compression_type(const std::string &type) {
+    if (http_compression_types == nullptr) {
+        http_compression_types = std::make_shared<std::unordered_set<std::string>>();
+    }
+    http_compression_types->emplace(type);
+}
+
 namespace http_server {
 //-----------------------------------------------------------------
 

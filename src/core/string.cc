@@ -105,7 +105,7 @@ int String::append_random_bytes(size_t _length, bool base64) {
     }
 
     if (new_size > size) {
-        if (!reserve(swoole_size_align(new_size * 2, SwooleG.pagesize))) {
+        if (!reserve(swoole_size_align(new_size * 2, swoole_pagesize()))) {
             return SW_ERR;
         }
     }
