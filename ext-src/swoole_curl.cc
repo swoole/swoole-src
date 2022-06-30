@@ -238,15 +238,17 @@ CURLcode Multi::exec(php_curl *ch) {
             }
         }
 
-        bool removed = true;
-        for (auto it : handle->sockets) {
-            handle_socket = it.second;
-            if (handle_socket->socket && !handle_socket->socket->removed) {
-                removed = false;
+        if (!timer) {
+            bool removed = true;
+            for (auto it : handle->sockets) {
+                handle_socket = it.second;
+                if (handle_socket->socket && !handle_socket->socket->removed) {
+                    removed = false;
+                }
             }
-        }
-        if (!timer && removed) {
-            break;
+            if (removed) {
+                break;
+            }
         }
     }
 
