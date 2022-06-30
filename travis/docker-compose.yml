@@ -49,3 +49,10 @@ services:
   socks5:
     container_name: "socks5"
     image: "xkuma/socks5"
+  ftp:
+    container_name: "ftp"
+    image: "fauria/vsftpd"
+    environment:
+      FTP_USER: admin
+      FTP_PASS: admin
+

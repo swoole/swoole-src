@@ -820,3 +820,8 @@ function swoole_loop($fn)
         $fn($i++);
     }
 }
+
+function build_ftp_url(string $path = ''): string
+{
+    return 'ftp://' . FTP_USER . ':' . FTP_PASS . '@' . FTP_HOST . ':' .  FTP_PORT . '/' . $path;
+}
