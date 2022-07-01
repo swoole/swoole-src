@@ -592,7 +592,7 @@ static sw_inline int sw_zend_register_function_alias(zend_array *origin_function
                                   0},
                                  PHP_FE_END};
     int ret =
-        zend_register_functions(origin_function->common.scope, zfe, alias_function_table, origin_function->common.type);
+        zend_register_functions(nullptr, zfe, alias_function_table, origin_function->common.type);
     efree(_alias);
     return ret;
 }
