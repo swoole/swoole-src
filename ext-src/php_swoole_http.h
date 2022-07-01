@@ -26,6 +26,7 @@
 #include "thirdparty/multipart_parser.h"
 
 #include <unordered_map>
+#include <unordered_set>
 
 #ifdef SW_HAVE_ZLIB
 #include <zlib.h>
@@ -39,7 +40,7 @@
 #include "thirdparty/nghttp2/nghttp2.h"
 #endif
 
-enum http_header_flag {
+enum swHttpHeaderFlag {
     HTTP_HEADER_SERVER = 1u << 1,
     HTTP_HEADER_CONNECTION = 1u << 2,
     HTTP_HEADER_CONTENT_LENGTH = 1u << 3,
@@ -49,7 +50,7 @@ enum http_header_flag {
     HTTP_HEADER_ACCEPT_ENCODING = 1u << 7,
 };
 
-enum http_compress_method {
+enum swHttpCompressMethod {
     HTTP_COMPRESS_NONE,
     HTTP_COMPRESS_GZIP,
     HTTP_COMPRESS_DEFLATE,
@@ -128,6 +129,7 @@ struct Context {
 #ifdef SW_HAVE_COMPRESSION
     uchar enable_compression : 1;
     uchar accept_compression : 1;
+    uchar content_compressed : 1;
 #endif
     uchar send_chunked : 1;
     uchar recv_chunked : 1;
@@ -149,10 +151,14 @@ struct Context {
     http2::Stream *stream;
 #endif
 
+    std::shared_ptr<String> write_buffer;
+
 #ifdef SW_HAVE_COMPRESSION
     int8_t compression_level;
     int8_t compression_method;
     uint32_t compression_min_length;
+    std::shared_ptr<std::unordered_set<std::string>> compression_types;
+    std::shared_ptr<String> zlib_buffer;
 #endif
 
     Request request;
@@ -196,7 +202,7 @@ struct Context {
     bool send_file(const char *file, uint32_t l_file, off_t offset, size_t length);
     void send_trailer(zval *return_value);
     String *get_write_buffer();
-    void build_header(String *http_buffer, size_t body_length);
+    void build_header(String *http_buffer, const char *body, size_t length);
     ssize_t build_trailer(String *http_buffer);
 
     size_t get_content_length() {
@@ -206,6 +212,7 @@ struct Context {
 #ifdef SW_HAVE_COMPRESSION
     void set_compression_method(const char *accept_encoding, size_t length);
     const char *get_content_encoding();
+    bool compress(const char *data, size_t length);
 #endif
 
 #ifdef SW_USE_HTTP2
@@ -234,7 +241,7 @@ class Stream {
     Stream(Session *client, uint32_t _id);
     ~Stream();
 
-    bool send_header(size_t body_length, bool end_stream);
+    bool send_header(const String *body, bool end_stream);
     bool send_body(const String *body, bool end_stream, size_t max_frame_size, off_t offset = 0, size_t length = 0);
     bool send_trailer();
 
@@ -272,11 +279,6 @@ class Session {
 extern zend_class_entry *swoole_http_server_ce;
 extern zend_class_entry *swoole_http_request_ce;
 extern zend_class_entry *swoole_http_response_ce;
-
-extern swoole::String *swoole_http_buffer;
-#ifdef SW_HAVE_COMPRESSION
-extern swoole::String *swoole_zlib_buffer;
-#endif
 
 swoole::http::Context *swoole_http_context_new(swoole::SessionId fd);
 swoole::http::Context *php_swoole_http_request_get_and_check_context(zval *zobject);
@@ -317,10 +319,6 @@ swoole::http::Context *php_swoole_http_request_get_context(zval *zobject);
 void php_swoole_http_request_set_context(zval *zobject, swoole::http::Context *context);
 swoole::http::Context *php_swoole_http_response_get_context(zval *zobject);
 void php_swoole_http_response_set_context(zval *zobject, swoole::http::Context *context);
-
-#ifdef SW_HAVE_COMPRESSION
-int swoole_http_response_compress(const char *data, size_t length, int method, int level);
-#endif
 
 #ifdef SW_HAVE_ZLIB
 voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size);

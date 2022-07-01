@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+             
  */
 
-/* $Id: 732621c29a362cb164aabb7d41863a9f6b14ebce */
+/* $Id: 599985d32ffdfc9ef3d111d628950d6b9cd72564 */
 
 static const char* swoole_library_source_constants =
     "\n"
@@ -7587,6 +7587,7 @@ static const char* swoole_library_source_core_server_helper =
     "        'document_root' => true,\n"
     "        'http_autoindex' => true,\n"
     "        'http_index_files' => true,\n"
+    "        'http_compression_types' => true,\n"
     "        'static_handler_locations' => true,\n"
     "        'input_buffer_size' => true,\n"
     "        'buffer_input_size' => true,\n"

@@ -44,18 +44,18 @@ enum php_swoole_server_callback_type {
 };
 //--------------------------------------------------------
 enum php_swoole_server_port_callback_type {
-    SW_SERVER_CB_onConnect,      // stream, worker(event)
-    SW_SERVER_CB_onReceive,      // stream, worker(event)
-    SW_SERVER_CB_onClose,        // stream, worker(event)
-    SW_SERVER_CB_onPacket,       // dgram, worker(event)
-    SW_SERVER_CB_onRequest,      // http, worker(event)
-    SW_SERVER_CB_onHandShake,    // websocket, worker(event)
-    SW_SERVER_CB_onBeforeHandShakeResponse,// websocket, worker(event)
-    SW_SERVER_CB_onOpen,         // websocket, worker(event)
-    SW_SERVER_CB_onMessage,      // websocket, worker(event)
-    SW_SERVER_CB_onDisconnect,   // websocket (non websocket connection), worker(event)
-    SW_SERVER_CB_onBufferFull,   // worker(event)
-    SW_SERVER_CB_onBufferEmpty,  // worker(event)
+    SW_SERVER_CB_onConnect,                  // stream, worker(event)
+    SW_SERVER_CB_onReceive,                  // stream, worker(event)
+    SW_SERVER_CB_onClose,                    // stream, worker(event)
+    SW_SERVER_CB_onPacket,                   // dgram, worker(event)
+    SW_SERVER_CB_onRequest,                  // http, worker(event)
+    SW_SERVER_CB_onHandShake,                // websocket, worker(event)
+    SW_SERVER_CB_onBeforeHandShakeResponse,  // websocket, worker(event)
+    SW_SERVER_CB_onOpen,                     // websocket, worker(event)
+    SW_SERVER_CB_onMessage,                  // websocket, worker(event)
+    SW_SERVER_CB_onDisconnect,               // websocket (non websocket connection), worker(event)
+    SW_SERVER_CB_onBufferFull,               // worker(event)
+    SW_SERVER_CB_onBufferEmpty,              // worker(event)
 };
 
 #define PHP_SWOOLE_SERVER_CALLBACK_NUM (SW_SERVER_CB_onPipeMessage + 1)
@@ -132,7 +132,6 @@ zend_fcall_info_cache *php_swoole_server_get_fci_cache(swServer *serv, int serve
 int php_swoole_create_dir(const char *path, size_t length);
 void php_swoole_server_before_start(swServer *serv, zval *zobject);
 bool php_swoole_server_isset_callback(swServer *serv, swListenPort *port, int event_type);
-void php_swoole_http_server_init_global_variant();
 void php_swoole_server_send_yield(swServer *serv, swoole::SessionId sesion_id, zval *zdata, zval *return_value);
 void php_swoole_get_recv_data(swServer *serv, zval *zdata, swRecvData *req);
 void php_swoole_server_onConnect(swServer *, swDataHead *);

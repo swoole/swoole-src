@@ -789,6 +789,7 @@ const char *HttpContext::get_content_encoding() {
         return nullptr;
     }
 }
+
 #endif
 
 static PHP_METHOD(swoole_http_request, getContent) {
@@ -840,10 +841,6 @@ static PHP_METHOD(swoole_http_request, create) {
     Z_PARAM_OPTIONAL
     Z_PARAM_ARRAY(zoptions)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
-
-    if (sw_unlikely(swoole_http_buffer == nullptr)) {
-        php_swoole_http_server_init_global_variant();
-    }
 
     HttpContext *ctx = new HttpContext();
     object_init_ex(return_value, swoole_http_request_ce);

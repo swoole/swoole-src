@@ -225,7 +225,7 @@ class String {
     inline void write(off_t _offset, String *write_str) {
         size_t new_length = _offset + write_str->length;
         if (new_length > size) {
-            reserve(swoole_size_align(new_length * 2, SwooleG.pagesize));
+            reserve(swoole_size_align(new_length * 2, swoole_pagesize()));
         }
 
         memcpy(str + _offset, write_str->str, write_str->length);
@@ -237,7 +237,7 @@ class String {
     inline void write(off_t _offset, const char *write_str, size_t _length) {
         size_t new_length = _offset + _length;
         if (new_length > size) {
-            reserve(swoole_size_align(new_length * 2, SwooleG.pagesize));
+            reserve(swoole_size_align(new_length * 2, swoole_pagesize()));
         }
 
         memcpy(str + _offset, write_str, _length);

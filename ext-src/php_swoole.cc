@@ -720,9 +720,12 @@ PHP_MINIT_FUNCTION(swoole) {
 /* {{{ PHP_MSHUTDOWN_FUNCTION
  */
 PHP_MSHUTDOWN_FUNCTION(swoole) {
-    swoole_clean();
     zend::known_strings_dtor();
+
     php_swoole_runtime_mshutdown();
+    php_swoole_websocket_server_mshutdown();
+
+    swoole_clean();
 
     return SUCCESS;
 }
@@ -932,6 +935,7 @@ PHP_RINIT_FUNCTION(swoole) {
     SIGG(check) = 0;
 #endif
 
+    php_swoole_http_server_rinit();
     php_swoole_coroutine_rinit();
     php_swoole_runtime_rinit();
 

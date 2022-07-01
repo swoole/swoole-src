@@ -81,7 +81,7 @@ _recv_data:
 
         if (strncmp(buffer->str + buffer->length - SW_CRLF_LEN, SW_CRLF, SW_CRLF_LEN) != 0) {
             if (buffer->size < protocol->package_max_length) {
-                uint32_t extend_size = swoole_size_align(buffer->size * 2, SwooleG.pagesize);
+                uint32_t extend_size = swoole_size_align(buffer->size * 2, swoole_pagesize());
                 if (extend_size > protocol->package_max_length) {
                     extend_size = protocol->package_max_length;
                 }

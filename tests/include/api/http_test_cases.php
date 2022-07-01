@@ -2,6 +2,64 @@
 
 use Swoole\Coroutine\Socket;
 use Swoole\Coroutine\Client;
+use Swoole\Coroutine\Http\Client as HttpClient;
+use Swoole\Coroutine\Http2\Client as Http2Client;
+use Swoole\Http2\Request as Http2Request;
+use function Swoole\Coroutine\run;
+
+function http_compression_types_test(ProcessManager $pm)
+{
+    run(function () use ($pm) {
+        $cli = new HttpClient('127.0.0.1', $pm->getFreePort());
+        $cli->setHeaders(['Accept-Encoding' => 'gzip',]);
+        $cli->get('/html?bytes=' . rand(8192, 65536));
+        Assert::eq($cli->getHeaders()['content-encoding'], 'gzip');
+
+        $cli = new HttpClient('127.0.0.1', $pm->getFreePort());
+        $cli->setHeaders(['Accept-Encoding' => 'gzip',]);
+        $cli->get('/json?bytes=' . rand(8192, 65536));
+        Assert::eq($cli->getHeaders()['content-encoding'], 'gzip');
+
+        $cli = new HttpClient('127.0.0.1', $pm->getFreePort());
+        $cli->setHeaders(['Accept-Encoding' => 'gzip',]);
+        $cli->get('/raw?bytes=' . rand(8192, 65536));
+        Assert::assert(!isset($cli->getHeaders()['content-encoding']));
+    });
+}
+
+function http2_compression_types_test(ProcessManager $pm)
+{
+    run(function () use ($pm) {
+        $cli = new Http2Client('127.0.0.1', $pm->getFreePort());
+        Assert::true($cli->connect());
+
+        $req1 = new Http2Request;
+        $req1->path = '/html?bytes=' . rand(8192, 65536);
+        $req1->headers = ['Accept-Encoding' => 'gzip',];
+        $stream1 = $cli->send($req1);
+
+        $req2 = new Http2Request;
+        $req2->path = '/json?bytes=' . rand(8192, 65536);
+        $req2->headers = ['Accept-Encoding' => 'gzip',];
+        $stream2 = $cli->send($req2);
+
+        $req3 = new Http2Request;
+        $req3->path = '/raw?bytes=' . rand(8192, 65536);
+        $req3->headers = ['Accept-Encoding' => 'gzip',];
+        $stream3 = $cli->send($req3);
+
+        $n = 3;
+        $list = [];
+        while($n--) {
+            $resp = $cli->recv();
+            $list[$resp->streamId] = $resp;
+        }
+
+        Assert::eq($list[$stream1]->headers['content-encoding'], 'gzip');
+        Assert::eq($list[$stream2]->headers['content-encoding'], 'gzip');
+        Assert::assert(!isset($list[$stream3]->headers['content-encoding']));
+    });
+}
 
 /**
  * @param ProcessManager $pm
@@ -9,7 +67,7 @@ use Swoole\Coroutine\Client;
  */
 function form_data_test_1(ProcessManager $pm)
 {
-    Swoole\Coroutine\run(function () use ($pm) {
+    run(function () use ($pm) {
         $client = new Client(SWOOLE_SOCK_TCP);
         Assert::true($client->connect('127.0.0.1', $pm->getFreePort()));
         $req = file_get_contents(SOURCE_ROOT_PATH . '/core-tests/fuzz/cases/req1.bin');
@@ -76,7 +134,7 @@ function generateChunkBody(array $a): string
 
 function chunked_request(ProcessManager $pm)
 {
-    Swoole\Coroutine\run(function () use ($pm) {
+    run(function () use ($pm) {
         $request_empty_chunked =
             "DELETE /locks?password=9c1858261b4337b49af4fb8c57a9ec98&lock_id=1&amount=1.2&c=6331b32ac32f4c128ce0016114e11dbd&lang=zh_CN HTTP/1.1\r\n" .
             "x-real-ip: 10.2.100.1\r\n" .
