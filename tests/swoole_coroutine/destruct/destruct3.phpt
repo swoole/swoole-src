@@ -49,4 +49,3 @@ Stack trace:
 #0 [internal function]: class@anonymous->{closure}()
 #1 {main}
   thrown in %s on line %d
-

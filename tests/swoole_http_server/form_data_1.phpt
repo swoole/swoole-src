@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_server_coro: form data 1
+swoole_http_server: form data 1
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
