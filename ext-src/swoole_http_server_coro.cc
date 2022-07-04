@@ -51,7 +51,10 @@ static bool http_context_disconnect(HttpContext *ctx);
 static void http2_server_onRequest(Http2Session *session, Http2Stream *stream);
 #endif
 
-class http_server {
+namespace swoole {
+namespace coroutine {
+
+class HttpServer {
   public:
     Socket *socket;
     zend_fcall_info_cache *default_handler;
@@ -61,33 +64,34 @@ class http_server {
     std::list<Socket *> clients;
 
     /* options */
-    bool http_parse_cookie : 1;
-    bool http_parse_post : 1;
-    bool http_parse_files : 1;
+    bool parse_cookie;
+    bool parse_post;
+    bool parse_files;
 #ifdef SW_HAVE_COMPRESSION
-    bool http_compression : 1;
+    bool compression;
 #endif
 #ifdef SW_HAVE_ZLIB
-    bool websocket_compression : 1;
+    bool websocket_compression;
 #endif
     char *upload_tmp_dir;
 #ifdef SW_HAVE_COMPRESSION
-    uint8_t http_compression_level;
+    uint8_t compression_level;
     uint32_t compression_min_length;
+    std::shared_ptr<std::unordered_set<std::string>> compression_types = nullptr;
 #endif
 
-    http_server(enum swSocketType type) {
+    HttpServer(enum swSocketType type) {
         socket = new Socket(type);
         default_handler = nullptr;
         array_init(&zcallbacks);
         running = true;
 
-        http_parse_cookie = true;
-        http_parse_post = true;
-        http_parse_files = false;
+        parse_cookie = true;
+        parse_post = true;
+        parse_files = false;
 #ifdef SW_HAVE_COMPRESSION
-        http_compression = true;
-        http_compression_level = SW_Z_BEST_SPEED;
+        compression = true;
+        compression_level = SW_Z_BEST_SPEED;
         compression_min_length = SW_COMPRESSION_MIN_LENGTH_DEFAULT;
 #endif
 #ifdef SW_HAVE_ZLIB
@@ -96,7 +100,7 @@ class http_server {
         upload_tmp_dir = sw_strdup("/tmp");
     }
 
-    ~http_server() {
+    ~HttpServer() {
         sw_free(upload_tmp_dir);
     }
 
@@ -123,13 +127,14 @@ class http_server {
 
     HttpContext *create_context(Socket *conn, zval *zconn) {
         HttpContext *ctx = swoole_http_context_new(conn->get_fd());
-        ctx->parse_body = http_parse_post;
-        ctx->parse_cookie = http_parse_cookie;
-        ctx->parse_files = http_parse_files;
+        ctx->parse_body = parse_post;
+        ctx->parse_cookie = parse_cookie;
+        ctx->parse_files = parse_files;
 #ifdef SW_HAVE_COMPRESSION
-        ctx->enable_compression = http_compression;
-        ctx->compression_level = http_compression_level;
+        ctx->enable_compression = compression;
+        ctx->compression_level = compression_level;
         ctx->compression_min_length = compression_min_length;
+        ctx->compression_types = compression_types;
 #endif
 #ifdef SW_HAVE_ZLIB
         ctx->websocket_compression = websocket_compression;
@@ -183,11 +188,15 @@ class http_server {
     }
 #endif
 };
+};  // namespace coroutine
+};  // namespace swoole
 
-typedef struct {
-    http_server *server;
+using swoole::coroutine::HttpServer;
+
+struct HttpServerObject {
+    HttpServer *server;
     zend_object std;
-} http_server_coro_t;
+};
 
 SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_http_server_coro, __construct);
@@ -214,18 +223,18 @@ static const zend_function_entry swoole_http_server_coro_methods[] =
 // clang-format on
 
 static zend_object *php_swoole_http_server_coro_create_object(zend_class_entry *ce) {
-    http_server_coro_t *hsc = (http_server_coro_t *) zend_object_alloc(sizeof(http_server_coro_t), ce);
+    HttpServerObject *hsc = (HttpServerObject *) zend_object_alloc(sizeof(HttpServerObject), ce);
     zend_object_std_init(&hsc->std, ce);
     object_properties_init(&hsc->std, ce);
     hsc->std.handlers = &swoole_http_server_coro_handlers;
     return &hsc->std;
 }
 
-static sw_inline http_server_coro_t *php_swoole_http_server_coro_fetch_object(zend_object *obj) {
-    return (http_server_coro_t *) ((char *) obj - swoole_http_server_coro_handlers.offset);
+static sw_inline HttpServerObject *php_swoole_http_server_coro_fetch_object(zend_object *obj) {
+    return (HttpServerObject *) ((char *) obj - swoole_http_server_coro_handlers.offset);
 }
 
-static sw_inline http_server *http_server_get_object(zend_object *obj) {
+static sw_inline HttpServer *http_server_get_object(zend_object *obj) {
     return php_swoole_http_server_coro_fetch_object(obj)->server;
 }
 
@@ -250,9 +259,9 @@ static bool http_context_disconnect(HttpContext *ctx) {
 }
 
 static void php_swoole_http_server_coro_free_object(zend_object *object) {
-    http_server_coro_t *hsc = php_swoole_http_server_coro_fetch_object(object);
+    HttpServerObject *hsc = php_swoole_http_server_coro_fetch_object(object);
     if (hsc->server) {
-        http_server *hs = hsc->server;
+        HttpServer *hs = hsc->server;
         zval_ptr_dtor(&hs->zcallbacks);
         delete hs;
     }
@@ -294,11 +303,11 @@ void php_swoole_http_server_coro_minit(int module_number) {
     SW_SET_CLASS_CUSTOM_OBJECT(swoole_http_server_coro,
                                php_swoole_http_server_coro_create_object,
                                php_swoole_http_server_coro_free_object,
-                               http_server_coro_t,
+                               HttpServerObject,
                                std);
     swoole_http_server_coro_ce->ce_flags |= ZEND_ACC_FINAL;
     swoole_http_server_coro_handlers.get_gc = [](sw_zend7_object *object, zval **gc_data, int *gc_count) {
-        http_server_coro_t *hs = php_swoole_http_server_coro_fetch_object(SW_Z7_OBJ_P(object));
+        HttpServerObject *hs = php_swoole_http_server_coro_fetch_object(SW_Z7_OBJ_P(object));
         *gc_data = &hs->server->zcallbacks;
         *gc_count = 1;
         return zend_std_get_properties(object);
@@ -337,9 +346,9 @@ static PHP_METHOD(swoole_http_server_coro, __construct) {
         RETURN_FALSE;
     }
 
-    http_server_coro_t *hsc = php_swoole_http_server_coro_fetch_object(Z_OBJ_P(ZEND_THIS));
+    HttpServerObject *hsc = php_swoole_http_server_coro_fetch_object(Z_OBJ_P(ZEND_THIS));
     std::string host_str(host, l_host);
-    hsc->server = new http_server(swoole::network::Socket::convert_to_type(host_str));
+    hsc->server = new HttpServer(swoole::network::Socket::convert_to_type(host_str));
     Socket *sock = hsc->server->socket;
 
     if (reuse_port) {
@@ -382,7 +391,7 @@ static PHP_METHOD(swoole_http_server_coro, handle) {
     char *pattern;
     size_t pattern_len;
 
-    http_server *hs = http_server_get_object(Z_OBJ_P(ZEND_THIS));
+    HttpServer *hs = http_server_get_object(Z_OBJ_P(ZEND_THIS));
     zend_fcall_info fci;
     zend_fcall_info_cache fci_cache;
 
@@ -413,7 +422,7 @@ static PHP_METHOD(swoole_http_server_coro, set) {
 }
 
 static PHP_METHOD(swoole_http_server_coro, start) {
-    http_server *hs = http_server_get_object(Z_OBJ_P(ZEND_THIS));
+    HttpServer *hs = http_server_get_object(Z_OBJ_P(ZEND_THIS));
     Socket *sock = hs->socket;
 
     /* get callback fci cache */
@@ -436,22 +445,23 @@ static PHP_METHOD(swoole_http_server_coro, start) {
     zval *ztmp;
     // parse cookie header
     if (php_swoole_array_get_value(vht, "http_parse_cookie", ztmp)) {
-        hs->http_parse_cookie = zval_is_true(ztmp);
+        hs->parse_cookie = zval_is_true(ztmp);
     }
     // parse x-www-form-urlencoded form data
     if (php_swoole_array_get_value(vht, "http_parse_post", ztmp)) {
-        hs->http_parse_post = zval_is_true(ztmp);
+        hs->parse_post = zval_is_true(ztmp);
     }
     // parse multipart/form-data file uploads
     if (php_swoole_array_get_value(vht, "http_parse_files", ztmp)) {
-        hs->http_parse_files = zval_is_true(ztmp);
+        hs->parse_files = zval_is_true(ztmp);
     }
 #ifdef SW_HAVE_COMPRESSION
     // http content compression
     if (php_swoole_array_get_value(vht, "http_compression", ztmp)) {
-        hs->http_compression = zval_is_true(ztmp);
+        hs->compression = zval_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "http_compression_level", ztmp) ||
+        php_swoole_array_get_value(vht, "compression_level", ztmp) ||
         php_swoole_array_get_value(vht, "http_gzip_level", ztmp)) {
         zend_long level = zval_get_long(ztmp);
         if (level > UINT8_MAX) {
@@ -459,10 +469,27 @@ static PHP_METHOD(swoole_http_server_coro, start) {
         } else if (level < 0) {
             level = 0;
         }
-        hs->http_compression_level = level;
+        hs->compression_level = level;
     }
-    if (php_swoole_array_get_value(vht, "compression_min_length", ztmp)) {
+    if (php_swoole_array_get_value(vht, "http_compression_min_length", ztmp) ||
+        php_swoole_array_get_value(vht, "compression_min_length", ztmp)) {
         hs->compression_min_length = zval_get_long(ztmp);
+    }
+    if (php_swoole_array_get_value(vht, "http_compression_types", ztmp) ||
+        php_swoole_array_get_value(vht, "compression_types", ztmp)) {
+        hs->compression_types = std::make_shared<std::unordered_set<std::string>>();
+        if (ZVAL_IS_ARRAY(ztmp)) {
+            zval *ztype;
+            SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(ztmp), ztype)
+            zend::String type(ztype);
+            if (type.len() > 0) {
+                hs->compression_types->emplace(type.to_std_string());
+            }
+            SW_HASHTABLE_FOREACH_END();
+        } else {
+            php_swoole_fatal_error(E_ERROR, "http_compression_types must be array");
+            RETURN_FALSE;
+        }
     }
 #endif
 #ifdef SW_HAVE_ZLIB
@@ -482,8 +509,6 @@ static PHP_METHOD(swoole_http_server_coro, start) {
         }
         hs->upload_tmp_dir = str_v.dup();
     }
-
-    php_swoole_http_server_init_global_variant();
 
     while (hs->running) {
         auto conn = sock->accept();
@@ -523,7 +548,7 @@ static PHP_METHOD(swoole_http_server_coro, start) {
 static PHP_METHOD(swoole_http_server_coro, __destruct) {}
 
 static PHP_METHOD(swoole_http_server_coro, onAccept) {
-    http_server *hs = http_server_get_object(Z_OBJ_P(ZEND_THIS));
+    HttpServer *hs = http_server_get_object(Z_OBJ_P(ZEND_THIS));
     zval *zconn;
 
     ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 1)
@@ -599,8 +624,8 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
 
         if (!ctx->completed) {
             // Make sure the complete request package is received
-            if (ctx->recv_chunked &&
-                memcmp(buffer->str + buffer->length - (sizeof(SW_HTTP_CHUNK_EOF) - 1), SW_STRL(SW_HTTP_CHUNK_EOF)) != 0) {
+            if (ctx->recv_chunked && memcmp(buffer->str + buffer->length - (sizeof(SW_HTTP_CHUNK_EOF) - 1),
+                                            SW_STRL(SW_HTTP_CHUNK_EOF)) != 0) {
                 goto _recv_request;
             }
             if (buffer->length < total_length) {
@@ -684,7 +709,7 @@ _handshake_failed:
 }
 
 static PHP_METHOD(swoole_http_server_coro, shutdown) {
-    http_server *hs = http_server_get_object(Z_OBJ_P(ZEND_THIS));
+    HttpServer *hs = http_server_get_object(Z_OBJ_P(ZEND_THIS));
     hs->running = false;
     hs->socket->cancel(SW_EVENT_READ);
     /* accept has been canceled, we only need to traverse once */
@@ -697,7 +722,7 @@ static PHP_METHOD(swoole_http_server_coro, shutdown) {
 #ifdef SW_USE_HTTP2
 static void http2_server_onRequest(Http2Session *session, Http2Stream *stream) {
     HttpContext *ctx = stream->ctx;
-    http_server *hs = (http_server *) session->private_data;
+    HttpServer *hs = (HttpServer *) session->private_data;
     Socket *sock = (Socket *) ctx->private_data;
     zval *zserver = ctx->request.zserver;
 

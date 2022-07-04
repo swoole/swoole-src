@@ -250,6 +250,7 @@ void php_swoole_name_resolver_minit(int module_number);
  * RINIT
  * ==============================================================
  */
+void php_swoole_http_server_rinit();
 void php_swoole_coroutine_rinit();
 void php_swoole_runtime_rinit();
 
@@ -283,6 +284,7 @@ void php_swoole_event_exit();
  * ==============================================================
  */
 void php_swoole_runtime_mshutdown();
+void php_swoole_websocket_server_mshutdown();
 
 static sw_inline zend_bool php_swoole_websocket_frame_is_object(zval *zdata) {
     return Z_TYPE_P(zdata) == IS_OBJECT && instanceof_function(Z_OBJCE_P(zdata), swoole_websocket_frame_ce);
@@ -423,7 +425,7 @@ static sw_inline void sw_zval_free(zval *val) {
 static sw_inline zend_string *sw_zend_string_recycle(zend_string *s, size_t alloc_len, size_t real_len) {
     SW_ASSERT(!ZSTR_IS_INTERNED(s));
     if (UNEXPECTED(alloc_len != real_len)) {
-        if (alloc_len > SwooleG.pagesize && alloc_len > real_len * 2) {
+        if (alloc_len > swoole_pagesize() && alloc_len > real_len * 2) {
             s = zend_string_realloc(s, real_len, 0);
         } else {
             ZSTR_LEN(s) = real_len;
@@ -592,7 +594,7 @@ static sw_inline int sw_zend_register_function_alias(zend_array *origin_function
                                   0},
                                  PHP_FE_END};
     int ret =
-        zend_register_functions(origin_function->common.scope, zfe, alias_function_table, origin_function->common.type);
+        zend_register_functions(nullptr, zfe, alias_function_table, origin_function->common.type);
     efree(_alias);
     return ret;
 }
@@ -758,7 +760,8 @@ static sw_inline zend_bool sw_zend_is_callable_at_frame(zval *zcallable,
                                                         size_t *callable_name_len,
                                                         zend_fcall_info_cache *fci_cache,
                                                         char **error) {
-    zend_bool ret = zend_is_callable_at_frame(zcallable, zobject ? Z_OBJ_P(zobject) : NULL, frame, check_flags, fci_cache, error);
+    zend_bool ret =
+        zend_is_callable_at_frame(zcallable, zobject ? Z_OBJ_P(zobject) : NULL, frame, check_flags, fci_cache, error);
     zend_string *name = zend_get_callable_name_ex(zcallable, zobject ? Z_OBJ_P(zobject) : NULL);
     if (callable_name) {
         *callable_name = estrndup(ZSTR_VAL(name), ZSTR_LEN(name));

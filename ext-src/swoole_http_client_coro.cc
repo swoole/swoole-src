@@ -109,7 +109,7 @@ class HttpClient {
     int tmp_header_field_name_len = 0;
     String *body = nullptr;
 #ifdef SW_HAVE_COMPRESSION
-    enum http_compress_method compress_method = HTTP_COMPRESS_NONE;
+    enum swHttpCompressMethod compress_method = HTTP_COMPRESS_NONE;
     bool compression_error = false;
 #endif
 
@@ -1690,10 +1690,6 @@ void php_swoole_http_client_coro_minit(int module_number) {
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT", HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HTTP_CLIENT_ESTATUS_SERVER_RESET", HTTP_CLIENT_ESTATUS_SERVER_RESET);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HTTP_CLIENT_ESTATUS_SEND_FAILED", HTTP_CLIENT_ESTATUS_SEND_FAILED);
-
-#ifdef SW_HAVE_COMPRESSION
-    swoole_zlib_buffer = new String(SW_HTTP_RESPONSE_INIT_SIZE);
-#endif
 }
 
 static PHP_METHOD(swoole_http_client_coro, __construct) {

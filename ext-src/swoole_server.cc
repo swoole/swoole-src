@@ -962,7 +962,6 @@ void ServerObject::on_before_start() {
 
     if (find_http_port) {
         serv->onReceive = php_swoole_http_server_onReceive;
-        php_swoole_http_server_init_global_variant();
     }
 
     if (SWOOLE_G(enable_library)) {
@@ -2217,6 +2216,7 @@ static PHP_METHOD(swoole_server, set) {
         serv->http_compression = zval_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "http_compression_level", ztmp) ||
+        php_swoole_array_get_value(vht, "compression_level", ztmp) ||
         php_swoole_array_get_value(vht, "http_gzip_level", ztmp)) {
         zend_long level = zval_get_long(ztmp);
         if (level > UINT8_MAX) {
@@ -2226,7 +2226,8 @@ static PHP_METHOD(swoole_server, set) {
         }
         serv->http_compression_level = level;
     }
-    if (php_swoole_array_get_value(vht, "compression_min_length", ztmp)) {
+    if (php_swoole_array_get_value(vht, "http_compression_min_length", ztmp) ||
+        php_swoole_array_get_value(vht, "compression_min_length", ztmp)) {
         serv->compression_min_length = zval_get_long(ztmp);
     }
 #endif
@@ -2277,6 +2278,21 @@ static PHP_METHOD(swoole_server, set) {
             SW_HASHTABLE_FOREACH_END();
         } else {
             php_swoole_fatal_error(E_ERROR, "http_index_files must be array");
+            RETURN_FALSE;
+        }
+    }
+    if (php_swoole_array_get_value(vht, "http_compression_types", ztmp) ||
+        php_swoole_array_get_value(vht, "compression_types", ztmp)) {
+        if (ZVAL_IS_ARRAY(ztmp)) {
+            zval *ztype;
+            SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(ztmp), ztype)
+            zend::String type(ztype);
+            if (type.len() > 0) {
+                serv->add_http_compression_type(type.to_std_string());
+            }
+            SW_HASHTABLE_FOREACH_END();
+        } else {
+            php_swoole_fatal_error(E_ERROR, "http_compression_types must be array");
             RETURN_FALSE;
         }
     }

@@ -1,6 +1,7 @@
 --TEST--
-stream_copy_to_stream() with socket as $source
+swoole_runtime: stream_copy_to_stream() with socket as $source
 --SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 <?php
 $sockets = @stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, 0);
 if (!$sockets) die("skip stream_socket_pair");

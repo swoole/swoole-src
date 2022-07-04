@@ -120,7 +120,7 @@ int Stream::send(const char *data, size_t length) {
     assert(data != nullptr);
     assert(length > 0);
     if (buffer == nullptr) {
-        buffer = new String(swoole_size_align(length + 4, SwooleG.pagesize));
+        buffer = new String(swoole_size_align(length + 4, swoole_pagesize()));
         buffer->length = 4;
     }
     if (buffer->append(data, length) < 0) {

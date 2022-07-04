@@ -54,7 +54,7 @@ GlobalMemory::GlobalMemory(uint32_t pagesize, bool shared) {
 
 GlobalMemoryImpl::GlobalMemoryImpl(uint32_t _pagesize, bool _shared) {
     shared = _shared;
-    pagesize = SW_MEM_ALIGNED_SIZE_EX(_pagesize, SwooleG.pagesize);
+    pagesize = SW_MEM_ALIGNED_SIZE_EX(_pagesize, swoole_pagesize());
     create_pid = SwooleG.pid;
 
     if (new_page() == nullptr) {
