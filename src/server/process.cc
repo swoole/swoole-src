@@ -193,7 +193,9 @@ bool ProcessFactory::finish(SendData *resp) {
         conn = server_->get_connection_verify_no_ssl(session_id);
     }
     if (!conn) {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "session#%ld does not exists", session_id);
+        if (resp->info.type != SW_SERVER_EVENT_CLOSE) {
+            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "session#%ld does not exists", session_id);
+        }
         return false;
     } else if ((conn->closed || conn->peer_closed) && resp->info.type != SW_SERVER_EVENT_CLOSE) {
         swoole_error_log(SW_LOG_NOTICE,
@@ -251,7 +253,7 @@ bool ProcessFactory::end(SessionId session_id, int flags) {
 
     Connection *conn = server_->get_connection_verify_no_ssl(session_id);
     if (!conn) {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "session#%ld is closed", session_id);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "session#%ld does not exists", session_id);
         return false;
     }
     // Reset send buffer, Immediately close the connection.
