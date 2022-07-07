@@ -51,7 +51,7 @@
         <email>doubaokun@php.net</email>
         <active>yes</active>
     </developer>
-    <date>2022-07-04</date>
+    <date>2022-07-07</date>
     <time>18:00:00</time>
     <version>
         <release>5.0.0</release>
@@ -65,25 +65,22 @@
     <notes>
         New APIs
         ---
-        * Added swoole_error_log_ex(), swoole_ignore_error() (#4440) (@matyhtf)
+        * Added max_concurrency option for Server
+        * Added max_retries option for Coroutine\Http\Client
+        * Added name_resolver global option
+        * Added upload_max_filesize option for Server
+        * Added Coroutine::getExecuteTime()
 
         Enhancement
         ---
-        * Migrate admin api from ext-swoole_plus to swoole-src (#4441) (@matyhtf)
-        * Added get_composer_packages command for admin server (swoole/library@07763f46) (swoole/library@8805dc05) (swoole/library@175f1797) (@sy-records) (@yunbaoi)
-        * Added POST method request restrictions for write operations (swoole/library@ac16927c) (@yunbaoi)
-        * Supported to get the method information of the class by get_function_info (swoole/library@690a1952) (@djw1028769140) (@sy-records)
-        * Optimized admin server code (swoole/library#128) (swoole/library#131) (@sy-records)
-        * Supported to request multiple groups of server information for admin server (swoole/library#124) (@sy-records)
-        * Supported to get interface info for admin server (swoole/library#130) (@sy-records)
-        * Supported CURLOPT_HTTPPROXYTUNNEL for SWOOLE_HOOK_CURL (swoole/library#126) (@sy-records)
+        * Enhanced type system, added types for parameters and return values of all functions
+        * Optimized error handling, all constructors will throw exceptions when fail
 
-        Fixed
+        Remove
         ---
-        * Prohibit coroutine concurrent join (#4442) (@matyhtf)
-        * Fixed init_row, don't clear lock_ and lock_pid (#4446) (@Txhua) (@matyhtf)
-        * Fixed missing helper options (swoole/library#123) (@sy-records)
-        * Fixed get_static_property_value command error (swoole/library#129) (@sy-records)
+        - Removed PSR-0 style class names
+        - Removed the automatic addition of Event::wait() in shutdown function
+        - Removed Server::tick/after/clearTimer/defer aliases
     </notes>
     <contents>
         <dir name="/">
