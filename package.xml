@@ -51,7 +51,7 @@
     <date>2022-05-06</date>
     <time>18:00:00</time>
     <version>
-        <release>4.8.10</release>
+        <release>4.8.11</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -60,9 +60,13 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-       - Reset value to 1ms when stream_select timeout is less than 1ms
-       - Fixed #4693
-       - Fixed #4699
+        - Supports intel CET
+        - Fixed #4712
+        - Fixed crash issue when pdo persistent connection throws exception
+        - Added Server::$ssl property
+        - Added enable-cares option to pecl
+        - Refactor multipart_parser
+        - Fixed incorrect error message in Server::close()
     </notes>
     <contents>
         <dir name="/">
