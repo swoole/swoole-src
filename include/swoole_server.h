@@ -79,9 +79,7 @@ struct Connection {
     uint8_t overflow;
     uint8_t high_watermark;
     uint8_t http_upgrade;
-#ifdef SW_USE_HTTP2
     uint8_t http2_stream;
-#endif
 #ifdef SW_HAVE_ZLIB
     uint8_t websocket_compression;
 #endif

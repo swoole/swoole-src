@@ -702,7 +702,6 @@ int Request::get_protocol() {
         method = SW_HTTP_PURGE;
         p += 5;
     }
-#ifdef SW_USE_HTTP2
     // HTTP2 Connection Preface
     else if (memcmp(p, SW_STRL("PRI")) == 0) {
         method = SW_HTTP_PRI;
@@ -712,9 +711,7 @@ int Request::get_protocol() {
         } else {
             goto _excepted;
         }
-    }
-#endif
-    else {
+    } else {
     _excepted:
         excepted = 1;
         return SW_ERR;
@@ -1030,9 +1027,6 @@ int dispatch_request(Server *serv, const Protocol *proto, Socket *_socket, const
 }
 
 //-----------------------------------------------------------------
-
-#ifdef SW_USE_HTTP2
-
 static void protocol_status_error(Socket *socket, Connection *conn) {
     swoole_error_log(SW_LOG_WARNING,
                      SW_ERROR_PROTOCOL_ERROR,
@@ -1077,6 +1071,5 @@ int dispatch_frame(const Protocol *proto, Socket *socket, const RecvData *rdata)
         return SW_ERR;
     }
 }
-#endif
 }  // namespace http_server
 }  // namespace swoole

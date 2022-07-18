@@ -13,7 +13,7 @@ WORKDIR /opt/www
 
 RUN set -ex \
     && phpize \
-    && ./configure --enable-openssl --enable-http2 --enable-swoole-curl --enable-swoole-json \
+    && ./configure --enable-openssl --enable-swoole-curl \
     && make -s -j$(nproc) && make install \
     && echo "extension=swoole.so" > /etc/php${PHP_VERSION%\.*}/conf.d/50_swoole.ini \
     # check

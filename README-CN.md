@@ -491,9 +491,7 @@ make && sudo make install
 
 + `--enable-openssl` 或 `--with-openssl-dir=DIR`
 + `--enable-sockets`
-+ `--enable-http2`
 + `--enable-mysqlnd` (需要 mysqlnd, 只是为了支持`mysql->escape`方法)
-+ `--enable-swoole-json`
 + `--enable-swoole-curl`
 
 ### 升级

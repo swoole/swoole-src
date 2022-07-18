@@ -101,15 +101,11 @@ static void php_swoole_http_response_free_object(zend_object *object) {
             if (ctx->response.status == 0) {
                 ctx->response.status = SW_HTTP_INTERNAL_SERVER_ERROR;
             }
-
-#ifdef SW_USE_HTTP2
             if (ctx->http2) {
                 if (ctx->stream) {
                     ctx->http2_end(nullptr, &ztmp);
                 }
-            } else
-#endif
-            {
+            } else {
                 if (ctx->is_available()) {
                     ctx->end(nullptr, &ztmp);
                 }
@@ -149,11 +145,9 @@ static PHP_METHOD(swoole_http_response, upgrade);
 static PHP_METHOD(swoole_http_response, push);
 static PHP_METHOD(swoole_http_response, recv);
 static PHP_METHOD(swoole_http_response, close);
-#ifdef SW_USE_HTTP2
 static PHP_METHOD(swoole_http_response, trailer);
 static PHP_METHOD(swoole_http_response, ping);
 static PHP_METHOD(swoole_http_response, goaway);
-#endif
 static PHP_METHOD(swoole_http_response, status);
 static PHP_METHOD(swoole_http_response, __destruct);
 SW_EXTERN_C_END
@@ -170,11 +164,9 @@ const zend_function_entry swoole_http_response_methods[] =
     PHP_MALIAS(swoole_http_response, setStatusCode, status, arginfo_class_Swoole_Http_Response_status,     ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, header,                    arginfo_class_Swoole_Http_Response_header,     ZEND_ACC_PUBLIC)
     PHP_MALIAS(swoole_http_response, setHeader, header,     arginfo_class_Swoole_Http_Response_header,     ZEND_ACC_PUBLIC)
-#ifdef SW_USE_HTTP2
     PHP_ME(swoole_http_response, trailer, arginfo_class_Swoole_Http_Response_trailer, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, ping,    arginfo_class_Swoole_Http_Response_ping,    ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, goaway,  arginfo_class_Swoole_Http_Response_goaway,  ZEND_ACC_PUBLIC)
-#endif
     PHP_ME(swoole_http_response, write,    arginfo_class_Swoole_Http_Response_write,    ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, end,      arginfo_class_Swoole_Http_Response_end,      ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, sendfile, arginfo_class_Swoole_Http_Response_sendfile, ZEND_ACC_PUBLIC)
@@ -222,12 +214,10 @@ static PHP_METHOD(swoole_http_response, write) {
         RETURN_FALSE;
     }
 
-#ifdef SW_USE_HTTP2
     if (ctx->http2) {
         php_swoole_error(E_WARNING, "HTTP2 client does not support HTTP-CHUNK");
         RETURN_FALSE;
     }
-#endif
 
 #ifdef SW_HAVE_COMPRESSION
     ctx->accept_compression = 0;
@@ -663,12 +653,9 @@ static PHP_METHOD(swoole_http_response, end) {
         swoole_call_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_RESPONSE, ctx);
     }
 
-#ifdef SW_USE_HTTP2
     if (ctx->http2) {
         ctx->http2_end(zdata, return_value);
-    } else
-#endif
-    {
+    } else {
         ctx->end(zdata, return_value);
     }
 }
@@ -866,12 +853,9 @@ bool HttpContext::set_header(const char *k, size_t klen, zval *zvalue, bool form
         swoole_http_response_ce, response.zobject, &response.zheader, ZEND_STRL("header"));
     if (format) {
         swoole_strlcpy(sw_tg_buffer()->str, k, SW_HTTP_HEADER_KEY_SIZE);
-#ifdef SW_USE_HTTP2
         if (http2) {
             swoole_strtolower(sw_tg_buffer()->str, klen);
-        } else
-#endif
-        {
+        } else {
             http_header_key_format(sw_tg_buffer()->str, klen);
         }
         k = sw_tg_buffer()->str;
@@ -933,12 +917,9 @@ static PHP_METHOD(swoole_http_response, sendfile) {
     if (swoole_isset_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_RESPONSE)) {
         swoole_call_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_RESPONSE, ctx);
     }
-#ifdef SW_USE_HTTP2
     if (ctx->http2) {
         RETURN_BOOL(ctx->http2_send_file(file, l_file, offset, length));
-    } else
-#endif
-    {
+    } else {
         RETURN_BOOL(ctx->send_file(file, l_file, offset, length));
     }
 }
@@ -1094,7 +1075,6 @@ static PHP_METHOD(swoole_http_response, header) {
     RETURN_BOOL(ctx->set_header(k, klen, zvalue, format));
 }
 
-#ifdef SW_USE_HTTP2
 static PHP_METHOD(swoole_http_response, trailer) {
     char *k, *v;
     size_t klen, vlen;
@@ -1157,7 +1137,6 @@ static PHP_METHOD(swoole_http_response, goaway) {
 
     SW_CHECK_RETURN(swoole_http2_server_goaway(ctx, error_code, debug_data, debug_data_len));
 }
-#endif
 
 static PHP_METHOD(swoole_http_response, upgrade) {
     HttpContext *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS);

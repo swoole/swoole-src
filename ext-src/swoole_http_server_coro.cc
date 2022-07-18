@@ -34,11 +34,9 @@ using HttpRequest = swoole::http::Request;
 using HttpResponse = swoole::http::Response;
 using HttpContext = swoole::http::Context;
 
-#ifdef SW_USE_HTTP2
 namespace http2 = swoole::http2;
 using Http2Stream = http2::Stream;
 using Http2Session = http2::Session;
-#endif
 
 static zend_class_entry *swoole_http_server_coro_ce;
 static zend_object_handlers swoole_http_server_coro_handlers;
@@ -47,9 +45,7 @@ static bool http_context_send_data(HttpContext *ctx, const char *data, size_t le
 static bool http_context_sendfile(HttpContext *ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
 static bool http_context_disconnect(HttpContext *ctx);
 
-#ifdef SW_USE_HTTP2
 static void http2_server_onRequest(Http2Session *session, Http2Stream *stream);
-#endif
 
 namespace swoole {
 namespace coroutine {
@@ -153,7 +149,6 @@ class HttpServer {
         return ctx;
     }
 
-#ifdef SW_USE_HTTP2
     void recv_http2_frame(HttpContext *ctx) {
         Socket *sock = (Socket *) ctx->private_data;
         http2::send_setting_frame(&sock->protocol, sock->get_socket());
@@ -186,7 +181,6 @@ class HttpServer {
         zval_dtor(ctx->request.zobject);
         zval_dtor(ctx->response.zobject);
     }
-#endif
 };
 };  // namespace coroutine
 };  // namespace swoole
@@ -648,7 +642,6 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
             }
         }
 
-#ifdef SW_USE_HTTP2
         if (ctx->parser.method == PHP_HTTP_NOT_IMPLEMENTED && buffer->length >= (sizeof(SW_HTTP2_PRI_STRING) - 1) &&
             memcmp(buffer->str, SW_HTTP2_PRI_STRING, sizeof(SW_HTTP2_PRI_STRING) - 1) == 0) {
             buffer->offset = (sizeof(SW_HTTP2_PRI_STRING) - 1);
@@ -657,7 +650,6 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
             ctx = nullptr;
             break;
         }
-#endif
 
         zend::assign_zend_string_by_val(&ctx->request.zdata, buffer->pop(SW_BUFFER_SIZE_BIG), total_length);
 
@@ -719,7 +711,6 @@ static PHP_METHOD(swoole_http_server_coro, shutdown) {
     hs->clients.clear();
 }
 
-#ifdef SW_USE_HTTP2
 static void http2_server_onRequest(Http2Session *session, Http2Stream *stream) {
     HttpContext *ctx = stream->ctx;
     HttpServer *hs = (HttpServer *) session->private_data;
@@ -748,4 +739,3 @@ static void http2_server_onRequest(Http2Session *session, Http2Stream *stream) {
     zval_ptr_dtor(&args[0]);
     zval_ptr_dtor(&args[1]);
 }
-#endif

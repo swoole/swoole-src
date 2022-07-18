@@ -247,9 +247,7 @@ void php_swoole_http_request_minit(int module_number) {
                                std);
 
     zend_declare_property_long(swoole_http_request_ce, ZEND_STRL("fd"), 0, ZEND_ACC_PUBLIC);
-#ifdef SW_USE_HTTP2
     zend_declare_property_long(swoole_http_request_ce, ZEND_STRL("streamId"), 0, ZEND_ACC_PUBLIC);
-#endif
     zend_declare_property_null(swoole_http_request_ce, ZEND_STRL("header"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_request_ce, ZEND_STRL("server"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_request_ce, ZEND_STRL("cookie"), ZEND_ACC_PUBLIC);
@@ -817,12 +815,9 @@ static PHP_METHOD(swoole_http_request, getContent) {
         RETURN_STRINGL(Z_STRVAL_P(zdata) + Z_STRLEN_P(zdata) - req->body_length, req->body_length);
     } else if (req->chunked_body && req->chunked_body->length != 0) {
         RETURN_STRINGL(req->chunked_body->str, req->chunked_body->length);
-    }
-#ifdef SW_USE_HTTP2
-    else if (req->h2_data_buffer && req->h2_data_buffer->length != 0) {
+    } else if (req->h2_data_buffer && req->h2_data_buffer->length != 0) {
         RETURN_STRINGL(req->h2_data_buffer->str, req->h2_data_buffer->length);
     }
-#endif
 
     RETURN_EMPTY_STRING();
 }
@@ -833,12 +828,10 @@ static PHP_METHOD(swoole_http_request, getData) {
         RETURN_FALSE;
     }
 
-#ifdef SW_USE_HTTP2
     if (ctx->http2) {
         php_swoole_fatal_error(E_WARNING, "unable to get data from HTTP2 request");
         RETURN_FALSE;
     }
-#endif
 
     if (Z_TYPE(ctx->request.zdata) == IS_STRING) {
         RETURN_ZVAL(&ctx->request.zdata, 1, 0);

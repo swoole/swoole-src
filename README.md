@@ -509,9 +509,7 @@ After compiling and installing to the system successfully, you have to add a new
 
 + `--enable-openssl` or `--with-openssl-dir=DIR`
 + `--enable-sockets`
-+ `--enable-http2`
 + `--enable-mysqlnd` (need mysqlnd, it just for supporting `$mysql->escape` method)
-+ `--enable-swoole-json`
 + `--enable-swoole-curl`
 
 ### Upgrade

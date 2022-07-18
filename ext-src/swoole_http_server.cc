@@ -69,11 +69,9 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
         return swoole_websocket_onMessage(serv, req);
     }
 
-#ifdef SW_USE_HTTP2
     if (conn->http2_stream) {
         return swoole_http2_server_onReceive(serv, conn, req);
     }
-#endif
 
     HttpContext *ctx = swoole_http_context_new(session_id);
     ctx->init(serv);
@@ -265,11 +263,9 @@ void HttpContext::free() {
     if (request.zobject || response.zobject) {
         return;
     }
-#ifdef SW_USE_HTTP2
     if (stream) {
         return;
     }
-#endif
 
     HttpRequest *req = &request;
     HttpResponse *res = &response;
@@ -282,11 +278,9 @@ void HttpContext::free() {
     if (req->chunked_body) {
         delete req->chunked_body;
     }
-#ifdef SW_USE_HTTP2
     if (req->h2_data_buffer) {
         delete req->h2_data_buffer;
     }
-#endif
     if (res->reason) {
         efree(res->reason);
     }

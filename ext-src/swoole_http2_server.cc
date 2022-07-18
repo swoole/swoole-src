@@ -16,8 +16,6 @@
 
 #include "php_swoole_http_server.h"
 
-#ifdef SW_USE_HTTP2
-
 #include "swoole_static_handler.h"
 
 #include "main/php_variables.h"
@@ -1139,5 +1137,3 @@ void HttpContext::http2_end(zval *zdata, zval *return_value) {
 
     RETURN_BOOL(http2_server_respond(this, &http_body));
 }
-
-#endif

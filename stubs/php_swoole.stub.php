@@ -112,11 +112,9 @@ function swoole_substr_unserialize(string $str, int $offset, int $length = 0, ar
 {
 }
 
-#ifdef SW_USE_JSON
 function swoole_substr_json_decode(string $str, int $offset, int $length = 0, bool $associative = false, int $depth = 512, int $flags = 0): mixed
 {
 }
-#endif
 
 function swoole_internal_call_user_shutdown_begin(): bool
 {

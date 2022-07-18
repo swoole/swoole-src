@@ -16,9 +16,7 @@ namespace Swoole\Http {
 		public function push(\Swoole\WebSocket\Frame|string $data, int $opcode = SWOOLE_WEBSOCKET_OPCODE_TEXT, int $flags = SWOOLE_WEBSOCKET_FLAG_FIN): bool {}
 		public function recv(float $timeout = 0): \Swoole\WebSocket\Frame|false|string {}
 		public function close(): bool {}
-		#ifdef SW_USE_HTTP2
 		public function trailer(string $key, string $value): bool {}
-		#endif
 		public function ping(): bool {}
 		public function goaway(int $error_code = SWOOLE_HTTP2_ERROR_NO_ERROR, string $debug_data = ''): bool {}
 		public function status(int $http_code, string $reason = ''): bool {}

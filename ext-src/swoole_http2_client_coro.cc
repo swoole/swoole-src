@@ -22,8 +22,6 @@
 #include "swoole_socket.h"
 #include "swoole_util.h"
 
-#ifdef SW_USE_HTTP2
-
 BEGIN_EXTERN_C()
 #include "stubs/php_swoole_http2_client_coro_arginfo.h"
 END_EXTERN_C()
@@ -1501,5 +1499,3 @@ static PHP_METHOD(swoole_http2_client_coro, goaway) {
 
     RETURN_BOOL(h2c->send_goaway_frame(error_code, debug_data, debug_data_len));
 }
-
-#endif

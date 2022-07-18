@@ -438,9 +438,7 @@ bool eval(const std::string &code, const std::string &filename = "");
 void known_strings_init(void);
 void known_strings_dtor(void);
 void unserialize(zval *return_value, const char *buf, size_t buf_len, HashTable *options);
-#ifdef SW_USE_JSON
 void json_decode(zval *return_value, const char *str, size_t str_len, zend_long options, zend_long zend_long);
-#endif
 
 static inline zend_string *fetch_zend_string_by_val(void *val) {
     return (zend_string *) ((char *) val - XtOffsetOf(zend_string, val));

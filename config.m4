@@ -36,11 +36,6 @@ PHP_ARG_ENABLE([openssl],
   [AS_HELP_STRING([--enable-openssl],
     [Use openssl])], [no], [no])
 
-PHP_ARG_ENABLE([http2],
-  [enable http2.0 support],
-  [AS_HELP_STRING([--enable-http2],
-    [Use http2.0])], [no], [no])
-
 PHP_ARG_ENABLE([swoole],
   [swoole support],
   [AS_HELP_STRING([--enable-swoole],
@@ -80,11 +75,6 @@ PHP_ARG_ENABLE([swoole-dev],
   [whether to enable Swoole developer build flags],
   [AS_HELP_STRING([--enable-swoole-dev],
     [Enable developer flags])], [no], [no])
-
-PHP_ARG_ENABLE([swoole-json],
-  [whether to enable Swoole JSON build flags],
-  [AS_HELP_STRING([--enable-swoole-json],
-    [Enable JSON support])], [no], [no])
 
 PHP_ARG_ENABLE([swoole-curl],
   [whether to enable Swoole CURL build flags],
@@ -407,10 +397,6 @@ if test "$PHP_SWOOLE" != "no"; then
         CXXFLAGS="-g -O0 -Wall $CXXFLAGS"
     fi
 
-    if test "$PHP_SWOOLE_JSON" = "yes"; then
-        AC_DEFINE(SW_USE_JSON, 1, [do we enable json decoder])
-    fi
-
     if test "$PHP_SWOOLE_CURL" = "yes"; then
         AC_DEFINE(SW_USE_CURL, 1, [do we enable cURL native client])
     fi
@@ -600,10 +586,6 @@ EOF
     fi
 
     PHP_ADD_LIBRARY(pthread, 1, SWOOLE_SHARED_LIBADD)
-
-    if test "$PHP_HTTP2" = "yes"; then
-        AC_DEFINE(SW_USE_HTTP2, 1, [enable HTTP2 support])
-    fi
 
     if test "$PHP_MYSQLND" = "yes"; then
         PHP_ADD_EXTENSION_DEP(mysqli, mysqlnd)

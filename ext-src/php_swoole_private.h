@@ -227,13 +227,11 @@ void php_swoole_socket_coro_minit(int module_number);
 void php_swoole_client_minit(int module_number);
 void php_swoole_client_coro_minit(int module_number);
 void php_swoole_http_client_coro_minit(int module_number);
+void php_swoole_http2_client_coro_minit(int module_number);
 void php_swoole_mysql_coro_minit(int module_number);
 void php_swoole_redis_coro_minit(int module_number);
 #ifdef SW_USE_PGSQL
 void php_swoole_postgresql_coro_minit(int module_number);
-#endif
-#ifdef SW_USE_HTTP2
-void php_swoole_http2_client_coro_minit(int module_number);
 #endif
 // server
 void php_swoole_server_minit(int module_number);
@@ -593,8 +591,7 @@ static sw_inline int sw_zend_register_function_alias(zend_array *origin_function
                                   origin_function->common.num_args,
                                   0},
                                  PHP_FE_END};
-    int ret =
-        zend_register_functions(nullptr, zfe, alias_function_table, origin_function->common.type);
+    int ret = zend_register_functions(nullptr, zfe, alias_function_table, origin_function->common.type);
     efree(_alias);
     return ret;
 }

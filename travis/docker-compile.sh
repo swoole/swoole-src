@@ -12,10 +12,8 @@ cd "${__DIR__}" && cd ..
 phpize
 ./configure \
 --enable-openssl \
---enable-http2 \
 --enable-sockets \
 --enable-mysqlnd \
---enable-swoole-json \
 --enable-swoole-curl \
 --enable-cares \
 --enable-swoole-pgsql

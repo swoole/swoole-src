@@ -23,9 +23,7 @@
 #include "zend_exceptions.h"
 
 BEGIN_EXTERN_C()
-#ifdef SW_USE_JSON
 #include "ext/json/php_json.h"
-#endif
 
 #include "stubs/php_swoole_arginfo.h"
 #include "stubs/php_swoole_ex_arginfo.h"
@@ -85,9 +83,7 @@ static PHP_FUNCTION(swoole_mime_type_get);
 static PHP_FUNCTION(swoole_mime_type_exists);
 static PHP_FUNCTION(swoole_mime_type_list);
 static PHP_FUNCTION(swoole_substr_unserialize);
-#ifdef SW_USE_JSON
 static PHP_FUNCTION(swoole_substr_json_decode);
-#endif
 static PHP_FUNCTION(swoole_internal_call_user_shutdown_begin);
 SW_EXTERN_C_END
 
@@ -126,9 +122,7 @@ const zend_function_entry swoole_functions[] = {
     PHP_FE(swoole_mime_type_list,     arginfo_swoole_mime_type_list)
     PHP_FE(swoole_clear_dns_cache,    arginfo_swoole_clear_dns_cache)
     PHP_FE(swoole_substr_unserialize, arginfo_swoole_substr_unserialize)
-#ifdef SW_USE_JSON
     PHP_FE(swoole_substr_json_decode, arginfo_swoole_substr_json_decode)
-#endif
     PHP_FE(swoole_internal_call_user_shutdown_begin, arginfo_swoole_internal_call_user_shutdown_begin)
     // for admin server
     ZEND_FE(swoole_get_objects,          arginfo_swoole_get_objects)
@@ -141,9 +135,7 @@ const zend_function_entry swoole_functions[] = {
 };
 
 static const zend_module_dep swoole_deps[] = {
-#ifdef SW_USE_JSON
     ZEND_MOD_REQUIRED("json")
-#endif
 #ifdef SW_USE_MYSQLND
     ZEND_MOD_REQUIRED("mysqlnd")
 #endif
@@ -363,10 +355,7 @@ PHP_MINIT_FUNCTION(swoole) {
 #ifdef SW_HAVE_BROTLI
     SW_REGISTER_BOOL_CONSTANT("SWOOLE_HAVE_BROTLI", 1);
 #endif
-#ifdef SW_USE_HTTP2
     SW_REGISTER_BOOL_CONSTANT("SWOOLE_USE_HTTP2", 1);
-#endif
-
     SW_REGISTER_BOOL_CONSTANT("SWOOLE_USE_SHORTNAME", SWOOLE_G(use_shortname));
 
     /**
@@ -689,11 +678,9 @@ PHP_MINIT_FUNCTION(swoole) {
     php_swoole_client_minit(module_number);
     php_swoole_client_coro_minit(module_number);
     php_swoole_http_client_coro_minit(module_number);
+    php_swoole_http2_client_coro_minit(module_number);
     php_swoole_mysql_coro_minit(module_number);
     php_swoole_redis_coro_minit(module_number);
-#ifdef SW_USE_HTTP2
-    php_swoole_http2_client_coro_minit(module_number);
-#endif
     // server
     php_swoole_server_minit(module_number);
     php_swoole_server_port_minit(module_number);
@@ -797,12 +784,8 @@ PHP_MINFO_FUNCTION(swoole) {
     php_info_print_table_row(2, "dtls", "enabled");
 #endif
 #endif
-#ifdef SW_USE_HTTP2
     php_info_print_table_row(2, "http2", "enabled");
-#endif
-#ifdef SW_USE_JSON
     php_info_print_table_row(2, "json", "enabled");
-#endif
 #ifdef SW_USE_CURL
     php_info_print_table_row(2, "curl-native", "enabled");
 #endif
@@ -1317,7 +1300,6 @@ static PHP_FUNCTION(swoole_substr_unserialize) {
     zend::unserialize(return_value, buf + offset, length, options ? Z_ARRVAL_P(options) : NULL);
 }
 
-#ifdef SW_USE_JSON
 static PHP_FUNCTION(swoole_substr_json_decode) {
     zend_long offset, length = 0;
     char *str;
@@ -1359,4 +1341,3 @@ static PHP_FUNCTION(swoole_substr_json_decode) {
     }
     zend::json_decode(return_value, str + offset, length, options, depth);
 }
-#endif

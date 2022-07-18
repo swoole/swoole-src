@@ -30,7 +30,7 @@ jobs:
         run: |
           sudo apt update -y && sudo apt install -y libcurl4-openssl-dev php-curl libc-ares-dev
           phpize
-          ./configure --enable-openssl --enable-mysqlnd --enable-http2 --enable-swoole-curl --enable-cares
+          ./configure --enable-openssl --enable-mysqlnd --enable-swoole-curl --enable-cares
           make -j$(nproc)
           sudo make install
           php --ri swoole
@@ -103,7 +103,7 @@ jobs:
           brew install openssl && brew link openssl
           brew install c-ares && brew link c-ares
           phpize
-          ./configure --enable-openssl --with-openssl-dir=/usr/local/opt/openssl@1.1 --enable-mysqlnd --enable-http2 --enable-swoole-curl --enable-cares
+          ./configure --enable-openssl --with-openssl-dir=/usr/local/opt/openssl@1.1 --enable-mysqlnd --enable-swoole-curl --enable-cares
           make -j$(sysctl -n hw.ncpu)
           sudo make install
           php --ri swoole

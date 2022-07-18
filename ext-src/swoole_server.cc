@@ -1705,12 +1705,9 @@ void php_swoole_server_onClose(Server *serv, DataHead *info) {
             zval_ptr_dtor(&args[1]);
         }
     }
-
-#ifdef SW_USE_HTTP2
     if (conn->http2_stream) {
         swoole_http2_server_session_free(conn);
     }
-#endif
 }
 
 void php_swoole_server_onBufferFull(Server *serv, DataHead *info) {
