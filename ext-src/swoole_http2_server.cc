@@ -803,7 +803,7 @@ static int http2_server_parse_header(Http2Session *client, HttpContext *ctx, int
                                 (char *) nv.value, nv.valuelen, offset, &boundary_str, &boundary_len)) {
                             return SW_ERR;
                         }
-                        ctx->parse_form_data(boundary_str, boundary_len);
+                        ctx->init_multipart_parser(boundary_str, boundary_len);
                         ctx->parser.data = ctx;
                     }
                 } else if (SW_STRCASEEQ((char *) nv.name, nv.namelen, "cookie")) {
@@ -984,12 +984,7 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
                     swoole_http_init_and_read_property(
                         swoole_http_request_ce, ctx->request.zobject, &ctx->request.zpost, ZEND_STRL("post")));
             } else if (ctx->mt_parser != nullptr) {
-                multipart_parser *multipart_parser = ctx->mt_parser;
-                size_t n = multipart_parser_execute(multipart_parser, buffer->str, buffer->length);
-                if (n != (size_t) length) {
-                    swoole_error_log(
-                        SW_LOG_WARNING, SW_ERROR_SERVER_INVALID_REQUEST, "parse multipart body failed, n=%zu", n);
-                }
+                ctx->parse_multipart_data(buffer->str, buffer->length);
             }
 
             if (!client->is_coro) {

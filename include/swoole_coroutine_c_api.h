@@ -35,8 +35,8 @@ extern "C" {
 /**
  * base
  */
-uint8_t swoole_coroutine_is_in();
-long swoole_coroutine_get_current_id();
+uint8_t swoole_coroutine_is_in(void);
+long swoole_coroutine_get_current_id(void);
 void swoole_coroutine_sleep(int sec);
 void swoole_coroutine_usleep(int usec);
 /**
@@ -98,7 +98,7 @@ struct hostent *swoole_coroutine_gethostbyname(const char *name);
 /**
  * wait
  */
-size_t swoole_coroutine_wait_count();
+size_t swoole_coroutine_wait_count(void);
 pid_t swoole_coroutine_waitpid(pid_t __pid, int *__stat_loc, int __options);
 pid_t swoole_coroutine_wait(int *__stat_loc);
 

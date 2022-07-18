@@ -130,6 +130,27 @@ size_t HttpContext::parse(const char *data, size_t length) {
     return swoole_http_parser_execute(&parser, &http_parser_settings, data, length);
 }
 
+bool HttpContext::parse_multipart_data(const char *at, size_t length) {
+    ssize_t n = multipart_parser_execute(mt_parser, at, length);
+    if (n < 0) {
+        int l_error = multipart_parser_error_msg(mt_parser, sw_tg_buffer()->str, sw_tg_buffer()->size);
+        swoole_error_log(SW_LOG_WARNING,
+                         SW_ERROR_SERVER_INVALID_REQUEST,
+                         "parse multipart body failed, reason: %.*s",
+                         l_error,
+                         sw_tg_buffer()->str);
+        return false;
+    } else if (n != (ssize_t) length) {
+        swoole_error_log(SW_LOG_WARNING,
+                         SW_ERROR_SERVER_INVALID_REQUEST,
+                         "parse multipart body failed, %lu/%zu bytes processed",
+                         n,
+                         length);
+        return false;
+    }
+    return true;
+}
+
 zend_class_entry *swoole_http_request_ce;
 static zend_object_handlers swoole_http_request_handlers;
 
@@ -265,7 +286,7 @@ static int http_request_on_header_field(swoole_http_parser *parser, const char *
     return 0;
 }
 
-bool HttpContext::parse_form_data(const char *boundary_str, int boundary_len) {
+bool HttpContext::init_multipart_parser(const char *boundary_str, int boundary_len) {
     mt_parser = multipart_parser_init(boundary_str, boundary_len, &mt_parser_settings);
     if (!mt_parser) {
         php_swoole_fatal_error(E_WARNING, "multipart_parser_init() failed");
@@ -418,7 +439,7 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
                 return -1;
             }
             swoole_trace_log(SW_TRACE_HTTP, "form_data, boundary_str=%s", boundary_str);
-            ctx->parse_form_data(boundary_str, boundary_len);
+            ctx->init_multipart_parser(boundary_str, boundary_len);
         }
     }
 #ifdef SW_HAVE_COMPRESSION
@@ -758,7 +779,6 @@ static int http_request_on_body(swoole_http_parser *parser, const char *at, size
     }
 
     if (ctx->mt_parser != nullptr) {
-        multipart_parser *multipart_parser = ctx->mt_parser;
         if (is_beginning) {
             /* Compatibility: some clients may send extra EOL */
             do {
@@ -769,14 +789,7 @@ static int http_request_on_body(swoole_http_parser *parser, const char *at, size
                 length--;
             } while (length != 0);
         }
-        size_t n = multipart_parser_execute(multipart_parser, at, length);
-        if (n != length) {
-            swoole_error_log(SW_LOG_WARNING,
-                             SW_ERROR_SERVER_INVALID_REQUEST,
-                             "parse multipart body failed, %zu/%zu bytes processed",
-                             n,
-                             length);
-        }
+        ctx->parse_multipart_data(at, length);
     }
 
     return 0;
