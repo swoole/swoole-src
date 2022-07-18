@@ -34,11 +34,7 @@ enum multipart_error {
     MPPE_END_BOUNDARY_NO_DASH,
 };
 
-#ifdef SIZE_MAX
-#define MPPE_ERROR SIZE_MAX
-#else
-#define MPPE_ERROR ((size_t) -1)
-#endif
+#define MPPE_ERROR -1
 
 // from RFC2046
 #define BOUNDARY_MAX_LEN 70
@@ -103,10 +99,9 @@ struct multipart_parser_settings {
 multipart_parser *multipart_parser_init(const char *boundary,
                                         size_t boundary_length,
                                         const multipart_parser_settings *settings);
-
 void multipart_parser_free(multipart_parser *p);
-
-size_t multipart_parser_execute(multipart_parser *p, const char *buf, size_t len);
+ssize_t multipart_parser_execute(multipart_parser *p, const char *buf, size_t len);
+int multipart_parser_error_msg(multipart_parser *p, char *buf, size_t len);
 
 #ifdef __cplusplus
 } /* extern "C" */
