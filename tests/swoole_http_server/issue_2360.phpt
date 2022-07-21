@@ -35,7 +35,7 @@ $pm->parentFunc = function () use ($pm) {
     echo "DONE\n";
 };
 $pm->childFunc = function () use ($pm) {
-    $server = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort());
+    $server = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $server->set([
         'log_file' => '/dev/null',
         'socket_buffer_size' => SOCKET_BUFFER_SIZE

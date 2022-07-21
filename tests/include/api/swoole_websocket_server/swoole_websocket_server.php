@@ -11,7 +11,7 @@ class WebSocketServer
 
     public function __construct($host = WEBSOCKET_SERVER_HOST, $port = WEBSOCKET_SERVER_PORT)
     {
-        $this->webSocketServ = new Swoole\WebSocket\Server($host, $port);
+        $this->webSocketServ = new Swoole\WebSocket\Server($host, $port, SWOOLE_PROCESS);
 
         $this->webSocketServ->set([
             // 输出限制

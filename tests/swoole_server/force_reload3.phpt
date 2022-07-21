@@ -24,7 +24,7 @@ $pm->parentFunc = function ($pid) use ($pm,$argv) {
 $pm->childFunc = function () use ($pm,$atomic) {
     $flag = 0;
     $flag1 = 0;
-    $serv = new Server('127.0.0.1', $pm->getFreePort());
+    $serv = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $serv->set([
         'log_file' => TEST_LOG_FILE,
         "worker_num" => 2,

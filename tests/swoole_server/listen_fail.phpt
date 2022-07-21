@@ -7,7 +7,7 @@ swoole_server: listen fail
 require __DIR__ . '/../include/bootstrap.php';
 Co::set(['log_level' => SWOOLE_LOG_NONE]);
 try {
-    $serv = new Swoole\Server('192.0.0.1', 80);
+    $serv = new Swoole\Server('192.0.0.1', 80, SWOOLE_PROCESS);
 } catch (Swoole\Exception $e) {
     Assert::same($e->getCode(), SOCKET_EADDRNOTAVAIL);
     echo "DONE\n";

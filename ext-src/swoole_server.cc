@@ -1846,7 +1846,7 @@ static PHP_METHOD(swoole_server, __construct) {
     size_t host_len = 0;
     zend_long sock_type = SW_SOCK_TCP;
     zend_long serv_port = 0;
-    zend_long serv_mode = Server::MODE_PROCESS;
+    zend_long serv_mode = Server::MODE_BASE;
 
     // only cli env
     if (!SWOOLE_G(cli)) {

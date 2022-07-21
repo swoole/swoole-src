@@ -25,7 +25,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
 };
 
 $pm->childFunc = function () use ($pm) {
-    $serv = new Server(TCP_SERVER_HOST, $pm->getFreePort());
+    $serv = new Server(TCP_SERVER_HOST, $pm->getFreePort(), SWOOLE_PROCESS);
     $process = new \Swoole\Process(function ($process) use ($serv) {
         while (1) {
             $msg = json_decode($process->read(), true);

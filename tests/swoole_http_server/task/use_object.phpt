@@ -6,7 +6,7 @@ require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
-$server = new Swoole\Http\Server('127.0.0.1', get_one_free_port());
+$server = new Swoole\Http\Server('127.0.0.1', get_one_free_port(), SWOOLE_PROCESS);
 $server->set([
     'log_file' => '/dev/null',
     'task_worker_num' => 1,

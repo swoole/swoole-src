@@ -25,7 +25,7 @@ $pm->parentFunc = function () use ($pm) {
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
-    $http = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort());
+    $http = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $http->set(['log_file' => '/dev/null']);
     $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($pm) {
         static $pre_cookie;
