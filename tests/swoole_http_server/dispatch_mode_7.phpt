@@ -19,7 +19,7 @@ $pm->parentFunc = function () use ($pm) {
 };
 
 $pm->childFunc = function () use ($pm) {
-    $http = new Swoole\Http\Server("0.0.0.0", $pm->getFreePort());
+    $http = new Swoole\Http\Server("0.0.0.0", $pm->getFreePort(), SWOOLE_PROCESS);
 
     $http->set([
         'reactor_num' => 2,

@@ -23,7 +23,7 @@ $pm->parentFunc = function () use ($pm) {
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
-    $http = new Swoole\Http\Server('0.0.0.0', $pm->getFreePort());
+    $http = new Swoole\Http\Server('0.0.0.0', $pm->getFreePort(), SWOOLE_PROCESS);
     $http->set(array(
         'log_file' => '/dev/null',
     ));

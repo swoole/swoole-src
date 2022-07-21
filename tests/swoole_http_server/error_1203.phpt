@@ -23,7 +23,7 @@ $pm->parentFunc = function () use ($pm)
 
 $pm->childFunc = function () use ($pm)
 {
-    $http = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort());
+    $http = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
 
     $http->set([
         'http_compression' => false,

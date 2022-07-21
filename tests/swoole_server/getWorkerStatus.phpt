@@ -25,7 +25,7 @@ $pm->parentFunc = function () use ($pm) {
     });
 };
 $pm->childFunc = function () use ($pm) {
-    $server = new Swoole\Server('127.0.0.1', $pm->getFreePort());
+    $server = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $server->set([
         'worker_num' => 2,
         'log_file' => '/dev/null'
@@ -36,8 +36,8 @@ $pm->childFunc = function () use ($pm) {
 
     $server->on('receive', function (Swoole\Server $serv, int $fd, int $rid, string $data) {
         $serv->send($fd, json_encode([
-            'current_worker' => $serv->getWorkerStatus(), 
-            'another_worker' => $serv->getWorkerStatus(1-$serv->getWorkerId()), 
+            'current_worker' => $serv->getWorkerStatus(),
+            'another_worker' => $serv->getWorkerStatus(1-$serv->getWorkerId()),
         ]));
     });
 

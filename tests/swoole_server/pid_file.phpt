@@ -21,7 +21,7 @@ $pm->parentFunc = function ($pid)
 $pm->childFunc = function () use ($pm)
 {
     ini_set('swoole.display_errors', 'Off');
-    $serv = new Server('127.0.0.1', $pm->getFreePort());
+    $serv = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $serv->set(array(
         "worker_num" => 1,
         'pid_file' => PID_FILE,

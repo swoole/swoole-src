@@ -15,7 +15,7 @@ $pm->parentFunc = function () use ($pm) {
     chunked_request($pm);
 };
 $pm->childFunc = function () use ($pm) {
-    $http = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort());
+    $http = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $http->set([
         'log_file' => '/dev/null',
         // 'log_level' => SWOOLE_LOG_DEBUG,

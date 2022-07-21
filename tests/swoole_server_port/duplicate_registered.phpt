@@ -5,7 +5,7 @@ swoole_server_port: duplicate registered
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-$server = new Swoole\Server('127.0.0.1');
+$server = new Swoole\Server('127.0.0.1', 0, SWOOLE_PROCESS);
 $server->on('receive', function () { });
 Assert::same(true, !!'load Assert');
 $mem = null;

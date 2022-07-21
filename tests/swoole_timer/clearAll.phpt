@@ -5,7 +5,7 @@ swoole_timer: #2697
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-$server = new Swoole\Server('127.0.0.1', get_one_free_port());
+$server = new Swoole\Server('127.0.0.1', get_one_free_port(), SWOOLE_PROCESS);
 $server->set(['log_file' => '/dev/null']);
 $server->on('workerStart', function (Swoole\Server $server, int $worker_id) {
     Swoole\Timer::after(1000, function () {

@@ -8,7 +8,7 @@ require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Server;
 
-$server = new Server('127.0.0.1', get_one_free_port());
+$server = new Server('127.0.0.1', get_one_free_port(), SWOOLE_PROCESS);
 
 $server->set([
     'worker_num' => 1

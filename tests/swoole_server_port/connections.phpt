@@ -83,7 +83,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
 
 $pm->childFunc = function () use ($pm)
 {
-    $server = new Swoole\WebSocket\Server("0.0.0.0", $pm->getFreePort(0));
+    $server = new Swoole\WebSocket\Server("0.0.0.0", $pm->getFreePort(0), SWOOLE_PROCESS);
     $server->set(
         [
             Constant::OPTION_LOG_FILE => '/dev/null',

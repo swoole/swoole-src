@@ -26,7 +26,7 @@ $pm->parentFunc = function () use ($pm)
 
 $pm->childFunc = function () use ($pm)
 {
-    $serv = new Swoole\Server('127.0.0.1', $pm->getFreePort());
+    $serv = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $serv->set([
         'worker_num'        => 2,
         'dispatch_mode'     => 1,

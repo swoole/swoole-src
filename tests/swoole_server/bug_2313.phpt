@@ -7,7 +7,7 @@ swoole_server: bug Github#2313
 require __DIR__ . '/../include/bootstrap.php';
 $pm = new SwooleTest\ProcessManager;
 $pm->childFunc = function () use ($pm) {
-    $server = new Swoole\Server('127.0.0.1', 9501);
+    $server = new Swoole\Server('127.0.0.1', 9501, SWOOLE_PROCESS);
     $process = new Swoole\Process(function () { });
     $server->addProcess($process);
     var_dump($process->id);

@@ -11,7 +11,7 @@ $pm = new SwooleTest\ProcessManager;
 
 $pm->childFunc = function () {
     $port = get_one_free_port();
-    $serv = new Server(TCP_SERVER_HOST, $port);
+    $serv = new Server(TCP_SERVER_HOST, $port, SWOOLE_PROCESS);
     $process = new \Swoole\Process(function ($process) use ($serv) {
         usleep(10000);
         $stats = $serv->stats();

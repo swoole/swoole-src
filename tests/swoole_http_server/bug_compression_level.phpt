@@ -36,7 +36,7 @@ for ($level = MIN_COMPRESSION_LEVEL; $level <= MAX_COMPRESSION_LEVEL; $level++) 
     };
     $pm->childFunc = function () use ($pm, $level, $randomBytes) {
         phpt_var_dump($level);
-        $http = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort());
+        $http = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
         $http->set([
             'log_file' => '/dev/null',
             'http_compression' => true,

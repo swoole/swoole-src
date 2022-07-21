@@ -36,7 +36,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
 };
 
 $pm->childFunc = function () use ($pm, $atomic) {
-    $server = new Swoole\Server('127.0.0.1', $pm->getFreePort());
+    $server = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $server->set([
         'worker_num' => WORKER_NUM,
         'max_wait_time' => 1,
