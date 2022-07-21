@@ -303,6 +303,11 @@ php_socket *php_swoole_convert_to_socket(int sock);
 
 zend_bool php_swoole_signal_isset_handler(int signo);
 
+#if PHP_VERSION_ID < 80200
+# define zend_atomic_bool zend_bool
+# define zend_atomic_bool_store(atomic, desired) (*atomic = desired)
+#endif
+
 #define sw_zend7_object zend_object
 #define SW_Z7_OBJ_P(object) object
 #define SW_Z8_OBJ_P(zobj) Z_OBJ_P(zobj)

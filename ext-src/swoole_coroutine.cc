@@ -64,7 +64,7 @@ bool PHPCoroutine::interrupt_thread_running = false;
 
 extern void php_swoole_load_library();
 
-static zend_bool *zend_vm_interrupt = nullptr;
+static zend_atomic_bool *zend_vm_interrupt = nullptr;
 static user_opcode_handler_t ori_exit_handler = nullptr;
 static user_opcode_handler_t ori_begin_silence_handler = nullptr;
 static user_opcode_handler_t ori_end_silence_handler = nullptr;
@@ -399,7 +399,7 @@ void PHPCoroutine::interrupt_thread_start() {
     interrupt_thread = std::thread([]() {
         swoole_signal_block_all();
         while (interrupt_thread_running) {
-            *zend_vm_interrupt = 1;
+            zend_atomic_bool_store(zend_vm_interrupt, 1);
             std::this_thread::sleep_for(std::chrono::milliseconds(MAX_EXEC_MSEC / 2));
         }
     });
