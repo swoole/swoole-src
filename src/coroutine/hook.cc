@@ -515,12 +515,20 @@ int swoole_coroutine_getaddrinfo(const char *name,
                                  const char *service,
                                  const struct addrinfo *req,
                                  struct addrinfo **pai) {
+    if (sw_unlikely(is_no_coro())) {
+        return getaddrinfo(name, service, req, pai);
+    }
+
     int retval = -1;
     async([&]() { retval = getaddrinfo(name, service, req, pai); });
     return retval;
 }
 
 struct hostent *swoole_coroutine_gethostbyname(const char *name) {
+    if (sw_unlikely(is_no_coro())) {
+        return gethostbyname(name);
+    }
+
     struct hostent *retval = nullptr;
     int _tmp_h_errno;
     async([&]() {
