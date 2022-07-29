@@ -1275,13 +1275,13 @@ int Server::send_to_connection(SendData *_send) {
     }
     if (!conn) {
         if (_send->info.type == SW_SERVER_EVENT_SEND_DATA) {
-            swoole_error_log(SW_LOG_NOTICE,
+            swoole_error_log(SW_LOG_TRACE,
                              SW_ERROR_SESSION_NOT_EXIST,
                              "send %d byte failed, session#%ld does not exist",
                              _send_length,
                              session_id);
         } else {
-            swoole_error_log(SW_LOG_NOTICE,
+            swoole_error_log(SW_LOG_TRACE,
                              SW_ERROR_SESSION_NOT_EXIST,
                              "send event[%d] failed, session#%ld does not exist",
                              _send->info.type,
@@ -1403,7 +1403,7 @@ int Server::send_to_connection(SendData *_send) {
         // connection is closed
         if (conn->peer_closed) {
             swoole_error_log(
-                SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED_BY_CLIENT, "Server::send(): socket#%d is closed by client", fd);
+                SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED_BY_CLIENT, "socket#%d is closed by client", fd);
             return false;
         }
         // connection output buffer overflow
@@ -1413,7 +1413,7 @@ int Server::send_to_connection(SendData *_send) {
             } else {
                 swoole_error_log(SW_LOG_WARNING,
                                  SW_ERROR_OUTPUT_BUFFER_OVERFLOW,
-                                 "Server::send(): connection#%d output buffer overflow",
+                                 "connection#%d output buffer overflow",
                                  fd);
             }
             conn->overflow = 1;
@@ -1525,7 +1525,7 @@ bool Server::sendfile(SessionId session_id, const char *file, uint32_t l_file, o
 bool Server::sendwait(SessionId session_id, const void *data, uint32_t length) {
     Connection *conn = get_connection_verify(session_id);
     if (!conn) {
-        swoole_error_log(SW_LOG_NOTICE,
+        swoole_error_log(SW_LOG_TRACE,
                          SW_ERROR_SESSION_CLOSED,
                          "send %d byte failed, because session#%ld is closed",
                          length,
