@@ -194,11 +194,11 @@ bool ProcessFactory::finish(SendData *resp) {
     }
     if (!conn) {
         if (resp->info.type != SW_SERVER_EVENT_CLOSE) {
-            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "session#%ld does not exists", session_id);
+            swoole_error_log(SW_LOG_TRACE, SW_ERROR_SESSION_NOT_EXIST, "session#%ld does not exists", session_id);
         }
         return false;
     } else if ((conn->closed || conn->peer_closed) && resp->info.type != SW_SERVER_EVENT_CLOSE) {
-        swoole_error_log(SW_LOG_NOTICE,
+        swoole_error_log(SW_LOG_TRACE,
                          SW_ERROR_SESSION_CLOSED,
                          "send %d bytes failed, because session#%ld is closed",
                          resp->info.len,
@@ -296,7 +296,7 @@ _close:
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSING, "session#%ld is closing", session_id);
         return false;
     } else if (!(conn->close_force || conn->close_reset) && conn->closed) {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "session#%ld is closed", session_id);
+        swoole_error_log(SW_LOG_TRACE, SW_ERROR_SESSION_CLOSED, "session#%ld is closed", session_id);
         return false;
     }
 

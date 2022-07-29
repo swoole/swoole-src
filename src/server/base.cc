@@ -127,7 +127,7 @@ bool BaseFactory::end(SessionId session_id, int flags) {
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSING, "session#%ld is closing", session_id);
         return false;
     } else if (!(conn->close_force || conn->close_reset) && conn->closed) {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "session#%ld is closed", session_id);
+        swoole_error_log(SW_LOG_TRACE, SW_ERROR_SESSION_CLOSED, "session#%ld is closed", session_id);
         return false;
     }
 
