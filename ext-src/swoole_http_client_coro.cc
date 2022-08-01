@@ -156,9 +156,9 @@ class HttpClient {
         buf->append(ZEND_STRL("\r\n"));
     }
 
-    static inline void add_content_length(String *buf, int length) {
+    static inline void add_content_length(String *buf, size_t length) {
         char content_length_str[32];
-        int n = snprintf(SW_STRS(content_length_str), "Content-Length: %d\r\n\r\n", length);
+        size_t n = sw_snprintf(SW_STRS(content_length_str), "Content-Length: %zu\r\n\r\n", length);
         buf->append(content_length_str, n);
     }
 
