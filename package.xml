@@ -77,6 +77,8 @@
         * Enhanced type system, added types for parameters and return values of all functions
         * Optimized error handling, all constructors will throw exceptions when fail
         * Adjusted the default mode of Server, the default is SWOOLE_BASE mode
+        * Migrate pgsql coroutine client to core
+        * Contains all bugfixes from the 4.8.x branch
 
         Removed
         ---
