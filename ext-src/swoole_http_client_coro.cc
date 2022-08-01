@@ -151,20 +151,20 @@ class HttpClient {
     bool send();
     void reset();
 
-    static inline void add_headers(String *buf, const char *key, size_t key_len, const char *data, size_t data_len) {
+    static void add_headers(String *buf, const char *key, size_t key_len, const char *data, size_t data_len) {
         buf->append(key, key_len);
         buf->append(ZEND_STRL(": "));
         buf->append(data, data_len);
         buf->append(ZEND_STRL("\r\n"));
     }
 
-    static inline void add_content_length(String *buf, size_t length) {
-        char content_length_str[32];
+    static void add_content_length(String *buf, size_t length) {
+        char content_length_str[64];
         size_t n = sw_snprintf(SW_STRS(content_length_str), "Content-Length: %zu\r\n\r\n", length);
         buf->append(content_length_str, n);
     }
 
-    static inline void create_token(int length, char *buf) {
+    static void create_token(int length, char *buf) {
         char characters[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!\"§$%&/()=[]{}";
         int i;
         assert(length < 1024);
