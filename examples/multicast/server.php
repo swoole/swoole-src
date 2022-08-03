@@ -10,15 +10,13 @@ $ret = socket_set_option(
     array('group' => '224.10.20.30', 'interface' => 0)
 );
 
-if ($ret === false)
-{
+if ($ret === false) {
     throw new RuntimeException('Unable to join multicast group');
 }
 
-$server->on('Packet', function (Swoole\Server $serv, $data, $addr)
-{
+$server->on('Packet', function (Swoole\Server $serv, $data, $addr) {
     $serv->sendto($addr['address'], $addr['port'], "Swoole: $data");
-    var_dump( $addr, strlen($data));
+    var_dump($addr, strlen($data));
 });
 
 $server->start();
