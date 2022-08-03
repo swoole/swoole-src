@@ -323,9 +323,11 @@ static ssize_t http2_server_build_header(HttpContext *ctx, uchar *buffer, const 
                     header_flags |= HTTP_HEADER_DATE;
                 } else if (SW_STRCASEEQ(key, l_key, "content-type")) {
                     header_flags |= HTTP_HEADER_CONTENT_TYPE;
+#ifdef SW_HAVE_COMPRESSION
                     if (ctx->accept_compression && ctx->compression_types) {
                         content_type = zval_get_string(value);
                     }
+#endif
                 }
                 headers.add(key, l_key, str_value.val(), str_value.len());
             };
@@ -347,6 +349,7 @@ static ssize_t http2_server_build_header(HttpContext *ctx, uchar *buffer, const 
         SW_HASHTABLE_FOREACH_END();
         (void) type;
 
+#ifdef SW_HAVE_COMPRESSION
         if (ctx->accept_compression && ctx->compression_types) {
             std::string str_content_type = content_type ? std::string(ZSTR_VAL(content_type), ZSTR_LEN(content_type))
                                                         : std::string(ZEND_STRL(SW_HTTP_DEFAULT_CONTENT_TYPE));
@@ -355,6 +358,7 @@ static ssize_t http2_server_build_header(HttpContext *ctx, uchar *buffer, const 
                 zend_string_release(content_type);
             }
         }
+#endif
     }
 
     if (!(header_flags & HTTP_HEADER_SERVER)) {

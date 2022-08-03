@@ -347,7 +347,9 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
             response->append(SW_STRL("\r\n"));
         };
 
+#ifdef SW_HAVE_COMPRESSION
         zend_string *content_type = nullptr;
+#endif
         SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zheader), key, keylen, type, zvalue) {
             // TODO: numeric key name neccessary?
             if (UNEXPECTED(!key || ZVAL_IS_NULL(zvalue))) {
@@ -355,9 +357,11 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
             }
             int key_header = parse_header_name(key, keylen);
             if (key_header > 0) {
+#ifdef SW_HAVE_COMPRESSION
                 if (key_header == HTTP_HEADER_CONTENT_TYPE && accept_compression && compression_types) {
                     content_type = zval_get_string(zvalue);
                 }
+#endif
                 header_flags |= key_header;
             }
             if (ZVAL_IS_ARRAY(zvalue)) {
@@ -373,6 +377,7 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
         SW_HASHTABLE_FOREACH_END();
         (void) type;
 
+#ifdef SW_HAVE_COMPRESSION
         if (accept_compression && compression_types) {
             std::string str_content_type = content_type ? std::string(ZSTR_VAL(content_type), ZSTR_LEN(content_type))
                                                         : std::string(ZEND_STRL(SW_HTTP_DEFAULT_CONTENT_TYPE));
@@ -381,6 +386,7 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
                 zend_string_release(content_type);
             }
         }
+#endif
     }
 
     // http cookies
