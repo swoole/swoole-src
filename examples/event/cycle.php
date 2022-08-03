@@ -11,3 +11,5 @@ Swoole\Event::cycle(function () {
         Swoole\Event::cycle(null);
     });
 });
+
+Swoole\Event::wait();
