@@ -7,3 +7,4 @@ Swoole\Event::add($fp, function ($fp) {
     Swoole\Event::del($fp);
     fclose($fp);
 });
+Swoole\Event::wait();
