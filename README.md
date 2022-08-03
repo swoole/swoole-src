@@ -1,9 +1,9 @@
 English | [中文](./README-CN.md)
 
-<h1 align=center>
+<h2 align=center>
 <img width="200" height="120" alt="Swoole Logo" src="https://cdn.jsdelivr.net/gh/swoole/swoole-src/swoole-logo.svg" /> <br />
     Swoole is an event-driven, asynchronous, coroutine-based concurrency library with high performance for PHP.
-</h1>
+</h2>
 
 [![lib-swoole](https://github.com/swoole/swoole-src/workflows/lib-swoole/badge.svg)](https://github.com/swoole/swoole-src/actions?query=workflow%3Alib-swoole)
 [![ext-swoole](https://github.com/swoole/swoole-src/workflows/ext-swoole/badge.svg)](https://github.com/swoole/swoole-src/actions?query=workflow%3Aext-swoole)
@@ -28,7 +28,7 @@ docker run --rm phpswoole/swoole "php --ri swoole"
 
 > For details on how to use it, see: [How to Use This Image](https://github.com/swoole/docker-swoole#how-to-use-this-image).
 
-### Http Service
+### HTTP Service
 ```php
 $http = new Swoole\Http\Server('127.0.0.1', 9501);
 $http->set(['hook_flags' => SWOOLE_HOOK_ALL]);
