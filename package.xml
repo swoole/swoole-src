@@ -52,7 +52,7 @@
         <active>yes</active>
     </developer>
     <date>2022-08-03</date>
-    <time>13:00:00</time>
+    <time>15:00:00</time>
     <version>
         <release>5.0.0</release>
         <api>5.0</api>
@@ -341,7 +341,6 @@
             <file role="doc" name="examples/length/func.php" />
             <file role="doc" name="examples/length/server.php" />
             <file role="doc" name="examples/lock/lock.php" />
-            <file role="doc" name="examples/logo.svg" />
             <file role="doc" name="examples/misc/get_local_ip.php" />
             <file role="doc" name="examples/misc/version.php" />
             <file role="doc" name="examples/multicast/client.php" />
@@ -2097,6 +2096,7 @@
             <file role="test" name="tests/swoole_socket_coro/tcp-c10k.phpt" />
             <file role="test" name="tests/swoole_socket_coro/ulimit.phpt" />
             <file role="test" name="tests/swoole_socket_coro/unix_dgram.phpt" />
+            <file role="test" name="tests/swoole_socket_coro/unix_stream.phpt" />
             <file role="test" name="tests/swoole_socket_coro/writeVectorAll.phpt" />
             <file role="test" name="tests/swoole_socket_coro/writeVectorAll_ssl.phpt" />
             <file role="test" name="tests/swoole_socket_coro/writeVector_ssl.phpt" />
