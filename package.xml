@@ -51,8 +51,8 @@
         <email>doubaokun@php.net</email>
         <active>yes</active>
     </developer>
-    <date>2022-07-07</date>
-    <time>18:00:00</time>
+    <date>2022-08-03</date>
+    <time>13:00:00</time>
     <version>
         <release>5.0.0</release>
         <api>5.0</api>
@@ -93,6 +93,7 @@
     </notes>
     <contents>
         <dir name="/">
+            <file role="doc" name="CHANGELOG.md" />
             <file role="src" name="CMakeLists.txt" />
             <file role="doc" name="CODE-STYLE.md" />
             <file role="src" name="CPPLINT.cfg" />
@@ -175,158 +176,19 @@
             <file role="src" name="core-tests/src/server/http.cpp" />
             <file role="src" name="core-tests/src/server/message_bus.cpp" />
             <file role="src" name="core-tests/src/server/server.cpp" />
-            <file role="src" name="docs/bin/gen-error-constants.php" />
-            <file role="src" name="docs/code/atomic/atomic.php" />
-            <file role="src" name="docs/code/client/tcp_client.php" />
-            <file role="src" name="docs/code/client/udp_client.php" />
-            <file role="src" name="docs/code/co_server/http_server.php" />
-            <file role="src" name="docs/code/co_server/tcp_server.php" />
-            <file role="src" name="docs/code/co_server/ws_server.php" />
-            <file role="src" name="docs/code/co_sys_wait.php" />
-            <file role="src" name="docs/code/co_sys_wait_signal.php" />
-            <file role="src" name="docs/code/co_wait_event.php" />
-            <file role="src" name="docs/code/event_object/stats_info.php" />
-            <file role="src" name="docs/code/event_object/task_result.php" />
-            <file role="src" name="docs/code/event_object/tcp.php" />
-            <file role="src" name="docs/code/event_object/udp.php" />
-            <file role="src" name="docs/code/fork_1k.php" />
-            <file role="src" name="docs/code/lock/lock.php" />
-            <file role="src" name="docs/code/mqtt/composer.json" />
-            <file role="src" name="docs/code/mqtt/publish.php" />
-            <file role="src" name="docs/code/mqtt/server.php" />
-            <file role="src" name="docs/code/mqtt/subscribe.php" />
-            <file role="src" name="docs/code/proc_open.php" />
-            <file role="src" name="docs/code/process_pool/co_tcp_server.php" />
-            <file role="src" name="docs/code/read_stdin.php" />
-            <file role="src" name="docs/code/rpc/RpcClient.php" />
-            <file role="src" name="docs/code/rpc/RpcServer.php" />
-            <file role="src" name="docs/code/rpc/Tools.php" />
-            <file role="src" name="docs/code/rpc/User.php" />
-            <file role="src" name="docs/code/runtime/curl.php" />
-            <file role="src" name="docs/code/runtime/shell_exec.php" />
-            <file role="src" name="docs/code/runtime/tcp.php" />
-            <file role="src" name="docs/code/server/exit_timeout.php" />
-            <file role="src" name="docs/code/server/http_server.php" />
-            <file role="src" name="docs/code/server/tcp_server.php" />
-            <file role="src" name="docs/code/server/udp_server.php" />
-            <file role="src" name="docs/code/server/ws_server.php" />
-            <file role="src" name="docs/code/table/client.php" />
-            <file role="src" name="docs/code/table/table.php" />
-            <file role="src" name="docs/code/table/wenda-107524.php" />
-            <file role="src" name="docs/code/table/ws_server.php" />
-            <file role="src" name="docs/package.json" />
-            <file role="src" name="docs/zh-ch/.nojekyll" />
-            <file role="doc" name="docs/zh-ch/CONTRIBUTING.md" />
-            <file role="doc" name="docs/zh-ch/README.md" />
-            <file role="src" name="docs/zh-ch/_images/coroutine/notice-1.png" />
-            <file role="src" name="docs/zh-ch/_images/ico.png" />
-            <file role="src" name="docs/zh-ch/_images/icons/icon-192x192.png" />
-            <file role="src" name="docs/zh-ch/_images/icons/icon-512x512.png" />
-            <file role="src" name="docs/zh-ch/_images/icons/touch-icon-192x192.png" />
-            <file role="src" name="docs/zh-ch/_images/other/perf.png" />
-            <file role="src" name="docs/zh-ch/_images/server/process_demo.png" />
-            <file role="src" name="docs/zh-ch/_images/server/process_structure.jpg" />
-            <file role="src" name="docs/zh-ch/_images/server/process_structure_2.png" />
-            <file role="src" name="docs/zh-ch/_images/server/running_process.jpg" />
-            <file role="src" name="docs/zh-ch/_images/swoole-logo.svg" />
-            <file role="src" name="docs/zh-ch/_images/swoole_class.svg" />
-            <file role="src" name="docs/zh-ch/_images/wechat/kefu.png" />
-            <file role="src" name="docs/zh-ch/_images/wechat/mp.png" />
-            <file role="doc" name="docs/zh-ch/_navbar.md" />
-            <file role="doc" name="docs/zh-ch/_sidebar.md" />
-            <file role="doc" name="docs/zh-ch/blog_list.md" />
-            <file role="doc" name="docs/zh-ch/case.md" />
-            <file role="doc" name="docs/zh-ch/client.md" />
-            <file role="doc" name="docs/zh-ch/client_init.md" />
-            <file role="doc" name="docs/zh-ch/consts.md" />
-            <file role="doc" name="docs/zh-ch/coroutine.md" />
-            <file role="doc" name="docs/zh-ch/coroutine/barrier.md" />
-            <file role="doc" name="docs/zh-ch/coroutine/channel.md" />
-            <file role="doc" name="docs/zh-ch/coroutine/conn_pool.md" />
-            <file role="doc" name="docs/zh-ch/coroutine/coroutine.md" />
-            <file role="doc" name="docs/zh-ch/coroutine/gdb.md" />
-            <file role="doc" name="docs/zh-ch/coroutine/http_server.md" />
-            <file role="doc" name="docs/zh-ch/coroutine/multi_call.md" />
-            <file role="doc" name="docs/zh-ch/coroutine/notice.md" />
-            <file role="doc" name="docs/zh-ch/coroutine/proc_open.md" />
-            <file role="doc" name="docs/zh-ch/coroutine/scheduler.md" />
-            <file role="doc" name="docs/zh-ch/coroutine/server.md" />
-            <file role="doc" name="docs/zh-ch/coroutine/system.md" />
-            <file role="doc" name="docs/zh-ch/coroutine/wait_group.md" />
-            <file role="doc" name="docs/zh-ch/coroutine/ws_server.md" />
-            <file role="doc" name="docs/zh-ch/coroutine_client/client.md" />
-            <file role="doc" name="docs/zh-ch/coroutine_client/fastcgi.md" />
-            <file role="doc" name="docs/zh-ch/coroutine_client/http2_client.md" />
-            <file role="doc" name="docs/zh-ch/coroutine_client/http_client.md" />
-            <file role="doc" name="docs/zh-ch/coroutine_client/init.md" />
-            <file role="doc" name="docs/zh-ch/coroutine_client/mysql.md" />
-            <file role="doc" name="docs/zh-ch/coroutine_client/postgresql.md" />
-            <file role="doc" name="docs/zh-ch/coroutine_client/redis.md" />
-            <file role="doc" name="docs/zh-ch/coroutine_client/socket.md" />
-            <file role="doc" name="docs/zh-ch/environment.md" />
-            <file role="doc" name="docs/zh-ch/event.md" />
-            <file role="src" name="docs/zh-ch/favicon.ico" />
-            <file role="doc" name="docs/zh-ch/functions.md" />
-            <file role="doc" name="docs/zh-ch/getting_started/extension.md" />
-            <file role="doc" name="docs/zh-ch/getting_started/notice.md" />
-            <file role="doc" name="docs/zh-ch/http_server.md" />
-            <file role="doc" name="docs/zh-ch/learn.md" />
-            <file role="doc" name="docs/zh-ch/learn_other.md" />
-            <file role="doc" name="docs/zh-ch/library.md" />
-            <file role="src" name="docs/zh-ch/manifest.json" />
-            <file role="doc" name="docs/zh-ch/memory/atomic.md" />
-            <file role="doc" name="docs/zh-ch/memory/lock.md" />
-            <file role="doc" name="docs/zh-ch/memory/table.md" />
-            <file role="doc" name="docs/zh-ch/other/alias.md" />
-            <file role="doc" name="docs/zh-ch/other/config.md" />
-            <file role="doc" name="docs/zh-ch/other/discussion.md" />
-            <file role="doc" name="docs/zh-ch/other/donate.md" />
-            <file role="doc" name="docs/zh-ch/other/errno.md" />
-            <file role="doc" name="docs/zh-ch/other/issue.md" />
-            <file role="doc" name="docs/zh-ch/other/signal.md" />
-            <file role="doc" name="docs/zh-ch/other/sysctl.md" />
-            <file role="doc" name="docs/zh-ch/other/tools.md" />
-            <file role="doc" name="docs/zh-ch/process/process.md" />
-            <file role="doc" name="docs/zh-ch/process/process_manager.md" />
-            <file role="doc" name="docs/zh-ch/process/process_pool.md" />
-            <file role="doc" name="docs/zh-ch/question/install.md" />
-            <file role="doc" name="docs/zh-ch/question/swoole.md" />
-            <file role="doc" name="docs/zh-ch/question/use.md" />
-            <file role="doc" name="docs/zh-ch/redis_server.md" />
-            <file role="doc" name="docs/zh-ch/runtime.md" />
-            <file role="doc" name="docs/zh-ch/server/co_init.md" />
-            <file role="doc" name="docs/zh-ch/server/events.md" />
-            <file role="doc" name="docs/zh-ch/server/init.md" />
-            <file role="doc" name="docs/zh-ch/server/methods.md" />
-            <file role="doc" name="docs/zh-ch/server/port.md" />
-            <file role="doc" name="docs/zh-ch/server/properties.md" />
-            <file role="doc" name="docs/zh-ch/server/setting.md" />
-            <file role="doc" name="docs/zh-ch/server/tcp_init.md" />
-            <file role="doc" name="docs/zh-ch/start/coroutine.md" />
-            <file role="doc" name="docs/zh-ch/start/start_http_server.md" />
-            <file role="doc" name="docs/zh-ch/start/start_mqtt.md" />
-            <file role="doc" name="docs/zh-ch/start/start_server.md" />
-            <file role="doc" name="docs/zh-ch/start/start_task.md" />
-            <file role="doc" name="docs/zh-ch/start/start_tcp_server.md" />
-            <file role="doc" name="docs/zh-ch/start/start_udp_server.md" />
-            <file role="doc" name="docs/zh-ch/start/start_ws_server.md" />
-            <file role="src" name="docs/zh-ch/sw.js" />
-            <file role="doc" name="docs/zh-ch/timer.md" />
-            <file role="doc" name="docs/zh-ch/version/bc.md" />
-            <file role="doc" name="docs/zh-ch/version/log.md" />
-            <file role="doc" name="docs/zh-ch/version/supported.md" />
-            <file role="doc" name="docs/zh-ch/websocket_server.md" />
             <file role="doc" name="examples/atomic/long.php" />
             <file role="doc" name="examples/atomic/test.php" />
             <file role="doc" name="examples/atomic/wait.php" />
-            <file role="doc" name="examples/c10k.php" />
+            <file role="doc" name="examples/client/c10k.php" />
             <file role="doc" name="examples/client/get_socket.php" />
             <file role="doc" name="examples/client/long_tcp.php" />
+            <file role="doc" name="examples/client/recv_1m.php" />
+            <file role="doc" name="examples/client/recv_file.php" />
             <file role="doc" name="examples/client/select.php" />
+            <file role="doc" name="examples/client/simple.php" />
             <file role="doc" name="examples/client/sync.php" />
             <file role="doc" name="examples/client/test.txt" />
             <file role="doc" name="examples/client/udp_sync.php" />
-            <file role="doc" name="examples/client2.php" />
             <file role="doc" name="examples/coroutine/backtrace.php" />
             <file role="doc" name="examples/coroutine/before_server_start.php" />
             <file role="doc" name="examples/coroutine/behavior/do-while.php" />
@@ -446,7 +308,6 @@
             <file role="doc" name="examples/curl/hook.php" />
             <file role="doc" name="examples/curl/multi.php" />
             <file role="doc" name="examples/curl/server.php" />
-            <file role="doc" name="examples/db_pool.php" />
             <file role="doc" name="examples/dtls/client.php" />
             <file role="doc" name="examples/dtls/server.php" />
             <file role="doc" name="examples/eof/client.php" />
@@ -457,8 +318,6 @@
             <file role="doc" name="examples/event/stdin.php" />
             <file role="doc" name="examples/event/stream.php" />
             <file role="doc" name="examples/event/test.php" />
-            <file role="doc" name="examples/get_local_ip.php" />
-            <file role="doc" name="examples/hot_update_class.php" />
             <file role="doc" name="examples/http/client.php" />
             <file role="doc" name="examples/http/curl.php" />
             <file role="doc" name="examples/http/detach.php" />
@@ -483,14 +342,10 @@
             <file role="doc" name="examples/length/server.php" />
             <file role="doc" name="examples/lock/lock.php" />
             <file role="doc" name="examples/logo.svg" />
-            <file role="doc" name="examples/multi_port_server.php" />
+            <file role="doc" name="examples/misc/get_local_ip.php" />
+            <file role="doc" name="examples/misc/version.php" />
             <file role="doc" name="examples/multicast/client.php" />
             <file role="doc" name="examples/multicast/server.php" />
-            <file role="doc" name="examples/namespace/README.md" />
-            <file role="doc" name="examples/namespace/atomic.php" />
-            <file role="doc" name="examples/namespace/http_server.php" />
-            <file role="doc" name="examples/namespace/server.php" />
-            <file role="doc" name="examples/namespace/timer.php" />
             <file role="doc" name="examples/php/buf_size.php" />
             <file role="doc" name="examples/php/debug_server.php" />
             <file role="doc" name="examples/php/error.php" />
@@ -521,16 +376,12 @@
             <file role="doc" name="examples/process/pool_socket.php" />
             <file role="doc" name="examples/process/python.php" />
             <file role="doc" name="examples/process/select.php" />
+            <file role="doc" name="examples/process/set_cpu_affinity.php" />
             <file role="doc" name="examples/process/stdin_stdout.php" />
             <file role="doc" name="examples/process/test.php" />
             <file role="doc" name="examples/process/worker.php" />
             <file role="doc" name="examples/process_pool/detach.php" />
             <file role="doc" name="examples/process_pool/send.php" />
-            <file role="doc" name="examples/proxy_sync.php" />
-            <file role="doc" name="examples/recv_1m_client.php" />
-            <file role="doc" name="examples/recv_file.php" />
-            <file role="doc" name="examples/redis_pool.php" />
-            <file role="doc" name="examples/reflection_test.php" />
             <file role="doc" name="examples/runtime/coroutine.php" />
             <file role="doc" name="examples/runtime/curl.php" />
             <file role="doc" name="examples/runtime/file.php" />
@@ -546,28 +397,32 @@
             <file role="doc" name="examples/runtime/sync.php" />
             <file role="doc" name="examples/runtime/time_sleep_until.php" />
             <file role="doc" name="examples/runtime/unlink.phpt" />
-            <file role="doc" name="examples/send_1m_svr.php" />
-            <file role="doc" name="examples/sendfile_server.php" />
-            <file role="doc" name="examples/serialize.php" />
-            <file role="doc" name="examples/serialize2.php" />
-            <file role="doc" name="examples/server.php" />
+            <file role="doc" name="examples/server/db_pool.php" />
             <file role="doc" name="examples/server/dispatch_func.php" />
             <file role="doc" name="examples/server/dispatch_stream.php" />
             <file role="doc" name="examples/server/echo.php" />
             <file role="doc" name="examples/server/eof_client.php" />
             <file role="doc" name="examples/server/eof_server.php" />
             <file role="doc" name="examples/server/getReceivedTime.php" />
+            <file role="doc" name="examples/server/host_update.php" />
+            <file role="doc" name="examples/server/hot_update_class.php" />
             <file role="doc" name="examples/server/ip_dispatch.php" />
             <file role="doc" name="examples/server/length_client.php" />
             <file role="doc" name="examples/server/length_server.php" />
             <file role="doc" name="examples/server/listen_1k_port.php" />
             <file role="doc" name="examples/server/local_listener.php" />
             <file role="doc" name="examples/server/manager_timer.php" />
+            <file role="doc" name="examples/server/mixed.php" />
             <file role="doc" name="examples/server/multi_instance.php" />
+            <file role="doc" name="examples/server/multi_port.php" />
             <file role="doc" name="examples/server/pipe_message.php" />
+            <file role="doc" name="examples/server/proxy_sync.php" />
+            <file role="doc" name="examples/server/redis_pool.php" />
             <file role="doc" name="examples/server/reload_aysnc.php" />
             <file role="doc" name="examples/server/reload_force.php" />
             <file role="doc" name="examples/server/reload_force2.php" />
+            <file role="doc" name="examples/server/send_1m.php" />
+            <file role="doc" name="examples/server/sendfile.php" />
             <file role="doc" name="examples/server/single.php" />
             <file role="doc" name="examples/server/tcp_client.php" />
             <file role="doc" name="examples/server/tcp_server.php" />
@@ -575,8 +430,6 @@
             <file role="doc" name="examples/server/uid_dispatch.php" />
             <file role="doc" name="examples/server/unix_stream.php" />
             <file role="doc" name="examples/server/zmq.php" />
-            <file role="doc" name="examples/server_hot_update_opcache.php" />
-            <file role="doc" name="examples/set_cpu_affinity.php" />
             <file role="doc" name="examples/socket_coro/client.php" />
             <file role="doc" name="examples/socket_coro/server.php" />
             <file role="doc" name="examples/socket_coro/udp.php" />
@@ -625,7 +478,6 @@
             <file role="doc" name="examples/task/task_queue.php" />
             <file role="doc" name="examples/task/task_stream.php" />
             <file role="doc" name="examples/test.jpg" />
-            <file role="doc" name="examples/test_buffer.php" />
             <file role="doc" name="examples/timer/after.php" />
             <file role="doc" name="examples/timer/clear.php" />
             <file role="doc" name="examples/timer/enable_coroutine.php" />
@@ -636,7 +488,6 @@
             <file role="doc" name="examples/unixsock/dgram_server.php" />
             <file role="doc" name="examples/unixsock/stream_client.php" />
             <file role="doc" name="examples/unixsock/stream_server.php" />
-            <file role="doc" name="examples/version.php" />
             <file role="doc" name="examples/websocket/client.html" />
             <file role="doc" name="examples/websocket/client.php" />
             <file role="doc" name="examples/websocket/server.php" />
@@ -1378,6 +1229,7 @@
             <file role="test" name="tests/swoole_event/del_after_close.phpt" />
             <file role="test" name="tests/swoole_event/deprecated_event_wait.phpt" />
             <file role="test" name="tests/swoole_event/dispatch.phpt" />
+            <file role="test" name="tests/swoole_event/function_alias.phpt" />
             <file role="test" name="tests/swoole_event/rshutdown.phpt" />
             <file role="test" name="tests/swoole_event/swoole_event.phpt" />
             <file role="test" name="tests/swoole_event/swoole_event_del.phpt" />
@@ -1415,6 +1267,7 @@
             <file role="test" name="tests/swoole_function/swoole_version.phpt" />
             <file role="test" name="tests/swoole_global/channel_construct_check.phpt" />
             <file role="test" name="tests/swoole_global/create_deny.phpt" />
+            <file role="test" name="tests/swoole_global/function_alias.phpt" />
             <file role="test" name="tests/swoole_global/serialize_deny.phpt" />
             <file role="test" name="tests/swoole_global/socket_construct_check.phpt" />
             <file role="test" name="tests/swoole_global/too_many_objects.phpt" />
@@ -2275,6 +2128,7 @@
             <file role="test" name="tests/swoole_timer/clearAll.phpt" />
             <file role="test" name="tests/swoole_timer/enable_coroutine.phpt" />
             <file role="test" name="tests/swoole_timer/enable_coroutine2.phpt" />
+            <file role="test" name="tests/swoole_timer/function_alias.phpt" />
             <file role="test" name="tests/swoole_timer/greater_than_0.phpt" />
             <file role="test" name="tests/swoole_timer/info.phpt" />
             <file role="test" name="tests/swoole_timer/list.phpt" />
