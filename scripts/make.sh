@@ -1,5 +1,6 @@
 #!/bin/sh -e
-__DIR__=$(cd "$(dirname "$0")";pwd)
+__CURRENT_DIR__=$(cd "$(dirname "$0")";pwd)
+__DIR__=$(cd "$(dirname "${__CURRENT_DIR__}")";pwd)
 COMPILE_PARAMS="--enable-openssl --enable-sockets --enable-mysqlnd --enable-swoole-curl --enable-cares"
 
 if [ "$(uname | grep -i darwin)"x != ""x ]; then

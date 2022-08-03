@@ -1,4 +1,10 @@
-# core source file
+#!/bin/sh
+__DIR__=$(cd "$(dirname "$0")";pwd)
+__SRC_DIR__=$(cd "$(dirname "${__DIR__}")";pwd)
+
+cd $__SRC_DIR__
+
+## core source file
 clang-format -i src/core/*.cc
 clang-format -i src/coroutine/*.cc
 clang-format -i src/lock/*.cc
@@ -10,16 +16,17 @@ clang-format -i src/protocol/*.cc
 clang-format -i src/reactor/*.cc
 clang-format -i src/server/*.cc
 clang-format -i src/wrapper/*.cc
-# core header file
+## core header file
 clang-format -i include/*.h
 
-# ext source file
+## ext source file
 clang-format -i *.cc
 clang-format -i *.h
 
+## examples
 clang-format -i examples/cpp/*.cc
 
-# core-tests source file
+## core-tests source file
 clang-format -i core-tests/src/_lib/*.cpp
 clang-format -i core-tests/src/client/*.cpp
 clang-format -i core-tests/src/core/*.cpp

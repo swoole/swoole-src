@@ -1,8 +1,9 @@
 #!/bin/sh
 __DIR__=$(cd "$(dirname "$0")";pwd)
+__SRC_DIR__=$(cd "$(dirname "${__DIR__}")";pwd)
 
 set -e
-cd "${__DIR__}"
+cd "${__SRC_DIR__}"
 set +e
 find . \( -name \*.gcno -o -name \*.gcda \) -print0 | xargs -0 rm -f
 find . \( -name \*.lo -o -name \*.o \) -print0 | xargs -0 rm -f
