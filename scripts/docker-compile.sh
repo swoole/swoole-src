@@ -7,7 +7,7 @@ if [ ! -f "/.dockerenv" ]; then
     exit
 fi
 
-cd "${__DIR__}" && cd ..
+cd "${__DIR__}"
 ./clear.sh
 phpize
 ./configure \
