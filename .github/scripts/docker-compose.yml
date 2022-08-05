@@ -4,7 +4,7 @@ services:
     container_name: "swoole"
     image: "phpswoole/php:${PHP_VERSION}"
     volumes:
-      - "${TRAVIS_BUILD_DIR}:/swoole-src:rw"
+      - "${SWOOLE_BUILD_DIR}:/swoole-src:rw"
     working_dir: /swoole-src
     ulimits:
       core: -1
@@ -17,7 +17,7 @@ services:
       - 8.8.8.8
       - 1.1.1.1
     environment:
-      SWOOLE_BRANCH: "${TRAVIS_BRANCH}"
+      SWOOLE_BRANCH: "${SWOOLE_BRANCH}"
     command: tail -f /etc/group
   mysql:
     container_name: "mysql"

@@ -2,8 +2,8 @@
 __CURRENT__=$(pwd)
 __DIR__=$(cd "$(dirname "$0")";pwd)
 
-if [ ! -f "/.dockerenv" ]; then
-    echo "" && echo "❌ This script is just for Docker env!"
+if [ ! -f "/.docker.env" ]; then
+    echo "" && echo "❌ This script is just for Docker!"
     exit
 fi
 

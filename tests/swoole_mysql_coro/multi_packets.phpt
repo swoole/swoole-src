@@ -48,7 +48,7 @@ SQL
     $max_allowed_packet = $mysql->query('show VARIABLES like \'max_allowed_packet\'');
     $max_allowed_packet = $max_allowed_packet[0]['Value'] / 1024 / 1024;
     phpt_var_dump("max_allowed_packet: {$max_allowed_packet}M");
-    if (IS_IN_TRAVIS) {
+    if (IS_IN_CI) {
         $max_allowed_packet = 36;
     } else {
         $max_allowed_packet = 64;

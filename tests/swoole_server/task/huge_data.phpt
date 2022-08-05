@@ -32,7 +32,7 @@ $pm->childFunc = function () use ($pm) {
     ]);
     $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($http) {
         Assert::assert($response->detach());
-        $scope = IS_IN_TRAVIS ? [4, 16] : [16, 64];
+        $scope = IS_IN_CI ? [4, 16] : [16, 64];
         $repeat = mt_rand(...$scope);
         $http->task([
             'fd' => $response->fd,

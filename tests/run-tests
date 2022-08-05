@@ -3767,7 +3767,7 @@ class RuntestsValgrind
 }
 
 // swoole patch: color const
-define('SWOOLE_TEST_TIMEOUT', file_exists('/.travisenv') ? 10 : 30);
+define('SWOOLE_TEST_TIMEOUT', IS_IN_CI ? 10 : 30);
 define('SWOOLE_COLOR_RED', 1);
 define('SWOOLE_COLOR_GREEN', 2);
 define('SWOOLE_COLOR_YELLOW', 3);

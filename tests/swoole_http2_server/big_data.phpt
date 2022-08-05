@@ -45,7 +45,7 @@ $pm->childFunc = function () use ($pm) {
             'open_http2_protocol' => true,
             'ssl_cert_file' => SSL_FILE_DIR . '/server.crt',
             'ssl_key_file' => SSL_FILE_DIR . '/server.key'
-        ] + (IS_IN_TRAVIS ? [] : [
+        ] + (IS_IN_CI ? [] : [
             'ssl_verify_peer' => true,
             'ssl_allow_self_signed' => true,
             'ssl_client_cert_file' => SSL_FILE_DIR2 . '/ca-cert.pem'

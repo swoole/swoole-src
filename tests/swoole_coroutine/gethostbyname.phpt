@@ -15,7 +15,7 @@ use  Swoole\Coroutine;
 use function Swoole\Coroutine\run;
 
 run(function () {
-    $map = IS_IN_TRAVIS ? [
+    $map = IS_IN_CI ? [
         'www.google.com' => null,
         'www.youtube.com' => null,
         'www.facebook.com' => null,
@@ -69,7 +69,7 @@ run(function () {
     $no_cache_multi_time = microtime(true) - $no_cache_multi_time;
 
     phpt_var_dump($first_time, $cache_time, $no_cache_time, $no_cache_multi_time);
-    if (!IS_IN_TRAVIS) {
+    if (!IS_IN_CI) {
         Assert::assert($cache_time < 0.01);
         Assert::assert($cache_time < $first_time);
         Assert::assert($cache_time < $no_cache_time);
