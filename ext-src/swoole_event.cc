@@ -293,8 +293,8 @@ int php_swoole_convert_to_fd(zval *zsocket) {
                 return SW_ERR;
             }
             return php_sock->bsd_socket;
-        }
 #endif
+        }
         if (zfd == nullptr || Z_TYPE_P(zfd) != IS_LONG) {
             return SW_ERR;
         }
