@@ -164,12 +164,12 @@ function skip_if_in_valgrind(string $reason = 'valgrind is too slow')
 
 function skip_if_in_ci(string $reason = 'not support in CI')
 {
-    skip($reason, file_exists('/.ci.env'));
+    skip($reason, file_exists('/.cienv'));
 }
 
 function skip_if_in_docker(string $reason = 'not support in docker')
 {
-    skip($reason, file_exists('/.docker.env'));
+    skip($reason, file_exists('/.dockerenv'));
 }
 
 function skip_if_offline()
