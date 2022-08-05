@@ -110,3 +110,4 @@ core-tests/samples/CMakeFiles/
 /tests/include/lib/composer.lock
 /core-tests/fuzz/fuzz_results/
 /core-tests/fuzz/bin/
+/scripts/data

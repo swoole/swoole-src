@@ -29,8 +29,8 @@ jobs:
         echo "`git log -10 --stat --pretty --oneline`"
     - name: Run pecl-install.sh
       run: |
-        sudo ${{runner.workspace}}/swoole-src/.github/scripts/pecl-install.sh
+        sudo ${{runner.workspace}}/swoole-src/scripts/pecl-install.sh
     - name: Run Swoole test
       run: |
         export SWOOLE_BRANCH=${GITHUB_REF##*/}
-        ${{runner.workspace}}/swoole-src/.github/scripts/route.sh
+        ${{runner.workspace}}/swoole-src/scripts/route.sh

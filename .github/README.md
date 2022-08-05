@@ -5,7 +5,7 @@
 ### With special branch
 
 ```shell
-SWOOLE_BRANCH=alpine ./route.sh
+SWOOLE_BRANCH=alpine ./scripts/route.sh
 ```
 
 ### Enter the container
