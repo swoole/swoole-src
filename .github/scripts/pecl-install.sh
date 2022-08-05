@@ -6,9 +6,9 @@ __DIR__=$(
 )
 
 cd ${__DIR__}
-cd ../
+cd ../../
 pecl config-show
-php ../tools/pecl-package.php
+php tools/pecl-package.php
 PACKAGE_FILE="$(ls | grep swoole-*tgz)" pecl install -f ${PACKAGE_FILE}
 cat pecl.log | grep "successfully"
 pecl uninstall swoole
