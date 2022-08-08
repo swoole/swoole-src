@@ -157,6 +157,10 @@ static PHP_METHOD(swoole_channel_coro, push) {
     Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
+    if (timeout > 0) {
+        timeout = SW_MAX(timeout, 0.001);
+    }
+
     Z_TRY_ADDREF_P(zdata);
     zdata = sw_zval_dup(zdata);
     if (chan->push(zdata, timeout)) {
@@ -180,6 +184,10 @@ static PHP_METHOD(swoole_channel_coro, pop) {
     Z_PARAM_OPTIONAL
     Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    if (timeout > 0) {
+        timeout = SW_MAX(timeout, 0.001);
+    }
 
     zval *zdata = (zval *) chan->pop(timeout);
     if (zdata) {
