@@ -8,7 +8,7 @@ if [ ! -f "/.dockerenv" ]; then
 fi
 
 cd "${__DIR__}" && cd ..
-./script/clear.sh
+./scripts/clear.sh
 phpize
 ./configure \
 --enable-openssl \
