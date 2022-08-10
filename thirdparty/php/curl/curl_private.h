@@ -197,6 +197,12 @@ static inline php_curl_handlers *curl_handlers(php_curl *ch) {
 }
 #endif
 
+#if PHP_VERSION_ID >= 80200
+typedef zend_result curl_result_t;
+#else
+typedef int curl_result_t;
+#endif
+
 #if PHP_VERSION_ID >= 80000
 static inline php_curl *curl_from_obj(zend_object *obj) {
     return (php_curl *) ((char *) (obj) -XtOffsetOf(php_curl, std));
@@ -210,7 +216,7 @@ static inline php_curlsh *curl_share_from_obj(zend_object *obj) {
 
 #define Z_CURL_SHARE_P(zv) curl_share_from_obj(Z_OBJ_P(zv))
 void curl_multi_register_class(const zend_function_entry *method_entries);
-int swoole_curl_cast_object(zend_object *obj, zval *result, int type);
+curl_result_t swoole_curl_cast_object(zend_object *obj, zval *result, int type);
 #else
 #define Z_CURL_P(zv) swoole_curl_get_handle(zv)
 #endif /* PHP8 end */

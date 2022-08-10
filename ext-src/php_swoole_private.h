@@ -416,6 +416,11 @@ typedef const char error_filename_t;
 typedef zend_string error_filename_t;
 #endif
 
+#if PHP_VERSION_ID < 80200
+# define zend_atomic_bool zend_bool
+# define zend_atomic_bool_store(atomic, desired) (*atomic = desired)
+#endif
+
 /* PHP 7 wrapper functions / macros */
 
 //----------------------------------Zval API------------------------------------
