@@ -3,7 +3,7 @@ swoole_http_client_coro: download file and download offset
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
-skip_if_in_travis('travis network');
+skip_if_in_ci('travis network');
 ?>
 --FILE--
 <?php

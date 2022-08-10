@@ -62,7 +62,7 @@ jobs:
           docker run -d --name grpc-server -p 50051:50051 grpc-server:latest
           docker build -t tcp-server:latest .travis/tcp_server
           docker run -d --name tcp-server -p 10001:10001 tcp-server:latest
-          export TRAVIS_BUILD_DIR=$(pwd) && bash ./.travis/setup.mysql.sh
+          export SWOOLE_BUILD_DIR=$(pwd) && bash ./.travis/setup.mysql.sh
           cp .travis/.env.example .env
           composer analyse src
           composer test -- --exclude-group NonCoroutine

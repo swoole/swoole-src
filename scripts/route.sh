@@ -3,19 +3,19 @@ __CURRENT__=`pwd`
 __DIR__=$(cd "$(dirname "$0")";pwd)
 
 export DOCKER_COMPOSE_VERSION="1.21.0"
-[ -z "${TRAVIS_BRANCH}" ] && export TRAVIS_BRANCH="master"
-[ -z "${TRAVIS_BUILD_DIR}" ] && export TRAVIS_BUILD_DIR=$(cd "$(dirname "$0")";cd ../;pwd)
+[ -z "${SWOOLE_BRANCH}" ] && export SWOOLE_BRANCH="master"
+[ -z "${SWOOLE_BUILD_DIR}" ] && export SWOOLE_BUILD_DIR=$(cd "$(dirname "$0")";cd ../;pwd)
 [ -z "${PHP_VERSION_ID}" ] && export PHP_VERSION_ID=`php -r "echo PHP_VERSION_ID;"`
-if [ ${PHP_VERSION_ID} -lt 80200 ]; then
+if [ ${PHP_VERSION_ID} -lt 80300 ]; then
     export PHP_VERSION="`php -r "echo PHP_MAJOR_VERSION;"`.`php -r "echo PHP_MINOR_VERSION;"`"
 else
     export PHP_VERSION="rc"
 fi
-if [ "${TRAVIS_BRANCH}" = "alpine" ]; then
+if [ "${SWOOLE_BRANCH}" = "alpine" ]; then
     export PHP_VERSION="${PHP_VERSION}-alpine"
 fi
 
-echo "\n🗻 With PHP version ${PHP_VERSION} on ${TRAVIS_BRANCH} branch"
+echo "\n🗻 With PHP version ${PHP_VERSION} on ${SWOOLE_BRANCH} branch"
 
 check_docker_dependency(){
     if [ "`docker -v 2>&1 | grep "version"`"x = ""x ]; then
@@ -60,7 +60,7 @@ prepare_data_files(){
 
 remove_data_files(){
     cd ${__DIR__} && \
-    rm -rf ../travis/data
+    rm -rf scripts/data
 }
 
 start_docker_containers(){
@@ -81,8 +81,8 @@ remove_docker_containers(){
 }
 
 run_tests_in_docker(){
-    docker exec swoole touch /.travisenv && \
-    docker exec swoole /swoole-src/travis/docker-route.sh
+    docker exec swoole touch /.cienv && \
+    docker exec swoole /swoole-src/scripts/docker-route.sh
     if [ $? -ne 0 ]; then
         echo "\n❌ Run tests failed!"
         exit 1
