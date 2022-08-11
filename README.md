@@ -1,7 +1,7 @@
 English | [中文](./README-CN.md)
 
 <h2 align=center>
-<img width="200" height="120" alt="Swoole Logo" src="https://cdn.jsdelivr.net/gh/swoole/swoole-src/swoole-logo.svg" /> <br />
+<img width="200" height="120" alt="Swoole Logo" src="docs/swoole-logo.svg" /> <br />
     Swoole is an event-driven, asynchronous, coroutine-based concurrency library with high performance for PHP.
 </h2>
 

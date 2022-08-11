@@ -51,8 +51,8 @@
         <email>doubaokun@php.net</email>
         <active>yes</active>
     </developer>
-    <date>2022-08-05</date>
-    <time>18:00:00</time>
+    <date>2022-08-10</date>
+    <time>10:00:00</time>
     <version>
         <release>5.0.0</release>
         <api>5.0</api>
@@ -172,7 +172,9 @@
             <file role="doc" name="docs/CHANGELOG.md" />
             <file role="doc" name="docs/CODE-STYLE.md" />
             <file role="doc" name="docs/SUPPORTED.md" />
+            <file role="doc" name="docs/TESTS.md" />
             <file role="src" name="docs/google-style.xml" />
+            <file role="src" name="docs/swoole-logo.svg" />
             <file role="doc" name="examples/atomic/long.php" />
             <file role="doc" name="examples/atomic/test.php" />
             <file role="doc" name="examples/atomic/wait.php" />
@@ -598,10 +600,21 @@
             <file role="src" name="include/swoole_websocket.h" />
             <file role="src" name="include/swoole_wheel_timer.h" />
             <file role="src" name="php_swoole.h" />
+            <file role="src" name="scripts/.gitignore" />
             <file role="src" name="scripts/clear.sh" />
             <file role="src" name="scripts/code-format.sh" />
             <file role="src" name="scripts/code-stats.sh" />
+            <file role="src" name="scripts/debug/swoole_info.php" />
+            <file role="src" name="scripts/debug/swoole_table_implements.php" />
+            <file role="src" name="scripts/docker-compile.sh" />
+            <file role="src" name="scripts/docker-compose.yml" />
+            <file role="src" name="scripts/docker-route.sh" />
             <file role="src" name="scripts/make.sh" />
+            <file role="src" name="scripts/pecl-install.sh" />
+            <file role="src" name="scripts/route.sh" />
+            <file role="src" name="scripts/run-tests.sh" />
+            <file role="src" name="scripts/simple-compile-on-github.sh" />
+            <file role="src" name="scripts/simple-compile.sh" />
             <file role="src" name="src/core/base.cc" />
             <file role="src" name="src/core/channel.cc" />
             <file role="src" name="src/core/crc32.cc" />
@@ -731,7 +744,6 @@
             <file role="src" name="stubs/php_swoole_timer_arginfo.h" />
             <file role="src" name="stubs/php_swoole_websocket.stub.php" />
             <file role="src" name="stubs/php_swoole_websocket_arginfo.h" />
-            <file role="src" name="swoole-logo.svg" />
             <file role="test" name="tests/.php-cs-fixer.dist.php" />
             <file role="test" name="tests/CONTRIBUTION" />
             <file role="test" name="tests/README.md" />

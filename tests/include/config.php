@@ -27,7 +27,7 @@ define('TESTS_LIB_PATH', TESTS_ROOT_PATH.'/include/lib');
 define('TRAVIS_DIR_PATH', __DIR__ . '/../../travis/');
 define('TEST_IMAGE', __DIR__ . '/../../examples/test.jpg');
 define('TEST_LINK_IMAGE', __DIR__ . '/../../examples/test_link.jpg');
-define('TEST_IMAGE2', __DIR__ . '/../../swoole-logo.svg');
+define('TEST_IMAGE2', __DIR__ . '/../../docs/swoole-logo.svg');
 define('TEST_LOG_FILE', '/tmp/swoole.log');
 define('TEST_PID_FILE', '/tmp/swoole.pid');
 define('SSL_FILE_DIR', __DIR__ . '/ssl_certs/');
