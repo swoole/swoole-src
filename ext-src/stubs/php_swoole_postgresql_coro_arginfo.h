@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: ee056d9d6e3dce3bf2198fbc7fb6bdd1aaab5206 */
+ * Stub hash: 6564202509f445563bab1c57d5b7f635368fb1ad */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Coroutine_PostgreSQL___construct, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -37,7 +37,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_class_Swoole_Coroutine_PostgreSQ
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, result_type, IS_LONG, 0, "SW_PGSQL_ASSOC")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Coroutine_PostgreSQLStatement_affectedRows, 0, 0, IS_LONG, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_class_Swoole_Coroutine_PostgreSQLStatement_affectedRows, 0, 0, MAY_BE_FALSE|MAY_BE_LONG)
 ZEND_END_ARG_INFO()
 
 #define arginfo_class_Swoole_Coroutine_PostgreSQLStatement_numRows arginfo_class_Swoole_Coroutine_PostgreSQLStatement_affectedRows
