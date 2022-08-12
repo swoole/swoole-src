@@ -931,8 +931,10 @@ static PHP_METHOD(swoole_postgresql_coro, query) {
         RETURN_FALSE;
     }
 
-    if (object->yield(return_value, SW_EVENT_READ, Socket::default_read_timeout)) {
+    if (object->yield(return_value, SW_EVENT_READ, Socket::default_read_timeout) && ZVAL_IS_TRUE(object->return_value)) {
         RETVAL_OBJ(php_swoole_postgresql_coro_statement_create_object(object, query.val()));
+    } else {
+        RETURN_FALSE;
     }
 }
 
@@ -983,8 +985,10 @@ static PHP_METHOD(swoole_postgresql_coro, prepare) {
         RETURN_FALSE;
     }
 
-    if (object->yield(return_value, SW_EVENT_READ, Socket::default_read_timeout)) {
+    if (object->yield(return_value, SW_EVENT_READ, Socket::default_read_timeout) && ZVAL_IS_TRUE(object->return_value)) {
         RETVAL_OBJ(php_swoole_postgresql_coro_statement_create_object(object, stmtname.c_str(), query.val()));
+    } else {
+        RETURN_FALSE;
     }
 }
 
