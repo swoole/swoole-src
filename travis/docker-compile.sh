@@ -19,7 +19,7 @@ phpize
 --enable-swoole-curl \
 --enable-cares
 
-make -j$(sysctl -n hw.ncpu)
+make -j$(nproc)
 make install
 docker-php-ext-enable swoole
 php -v
