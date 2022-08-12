@@ -1,5 +1,3 @@
-English | [中文](./README-CN.md)
-
 <h2 align=center>
 <img width="200" height="120" alt="Swoole Logo" src="docs/swoole-logo.svg" /> <br />
     Swoole is an event-driven, asynchronous, coroutine-based concurrency library with high performance for PHP.
@@ -16,7 +14,6 @@ English | [中文](./README-CN.md)
 [![Latest Release](https://img.shields.io/github/release/swoole/swoole-src.svg)](https://github.com/swoole/swoole-src/releases/)
 [![License](https://badgen.net/github/license/swoole/swoole-src)](https://github.com/swoole/swoole-src/blob/master/LICENSE)
 [![Coverity Scan Build Status](https://scan.coverity.com/projects/11654/badge.svg)](https://scan.coverity.com/projects/swoole-swoole-src)
-
 
 ## ⚙️ Quick Start
 
@@ -59,7 +56,7 @@ Co\run(function() {
             echo fread($fp, 8192), PHP_EOL;
         }
     });
-    
+
     Co\go(function() {
         $fp = stream_socket_server("tcp://0.0.0.0:8000", $errno, $errstr, STREAM_SERVER_BIND | STREAM_SERVER_LISTEN);
         while(1) {
@@ -67,7 +64,7 @@ Co\run(function() {
             fwrite($conn, 'The local time is ' . date('n/j/Y g:i a'));
         }
     });
-    
+
     Co\go(function() {
         $redis = new Redis();
         $redis->connect('127.0.0.1', 6379);
@@ -77,7 +74,7 @@ Co\run(function() {
             });
         }
     });
-    
+
     Co\go(function() {
         $redis = new Redis();
         $redis->connect('127.0.0.1', 6379);
