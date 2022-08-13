@@ -141,6 +141,7 @@ pid_t System::waitpid(pid_t __pid, int *__stat_loc, int __options, double timeou
     /* timeout controller */
     TimerNode *timer = nullptr;
     if (timeout > 0) {
+        SW_TIMER_CORRECT_TIMEOUT(timeout);
         timer = swoole_timer_add(
             timeout * 1000,
             false,

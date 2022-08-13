@@ -661,6 +661,7 @@ static int Client_tcp_connect_async(Client *cli, const char *host, int port, dou
             return SW_ERR;
         }
         if (timeout > 0) {
+            SW_TIMER_CORRECT_TIMEOUT(timeout);
             cli->timer = swoole_timer_add((long) (timeout * 1000), false, Client_onTimeout, cli);
         }
         return SW_OK;
