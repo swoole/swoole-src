@@ -5,151 +5,28 @@ swoole_timer: #4794 Timer::add() (ERRNO 505): msec value[0] is invalid
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-$port = get_one_free_port();
-use Swoole\Coroutine\Client;
-use Swoole\Timer;
-use Swoole\Event;
-use Swoole\Server;
-$pm = new SwooleTest\ProcessManager;
-$pm->parentFunc = function ($pid) use ($port)
-{
-    $cli = new Swoole\Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
-    $cli->connect('127.0.0.1', $port, 0.0001) or die("ERROR");
 
-    $cli->send("array-01") or die("ERROR");
-    Assert::same($cli->recv(0.0001), 'OK');
-    $cli->send("array-02") or die("ERROR");
-    Assert::same($cli->recv(0.0001), 'OK');
-    $cli->send("string-01") or die("ERROR");
-    Assert::same($cli->recv(0.0001), 'OK');
-    $cli->send("string-02") or die("ERROR");
-    Assert::same($cli->recv(0.0001), 'OK');
-    $cli->send("timeout") or die("ERROR");
-    Assert::same($cli->recv(0.0001), 'OK');
+go(function () {
+    $sock = new Swoole\Coroutine\Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+    Assert::assert($sock->bind('127.0.0.1', 9601));
+    Assert::assert($sock->listen(512));
+    $conn = $sock->accept(0.0001);
+    Assert::assert($conn);
+    Assert::isInstanceOf($conn, Swoole\Coroutine\Socket::class);
 
-    Swoole\Process::kill($pid);
-};
+    $data = $conn->recv(0.0001);
+    $json = json_decode($data, true);
+    Assert::same($json['data'] ?? '', 'hello');
+    $conn->send("world\n");
+    $conn->close();
+});
 
-$pm->childFunc = function () use ($pm, $port)
-{
-    ini_set('swoole.display_errors', 'Off');
-    ini_set('display_errors', 'Off');
-    $serv = new Server('127.0.0.1', $port, SWOOLE_PROCESS);
-    $serv->set(array(
-        "worker_num" => 1,
-        'task_worker_num' => 1,
-        'log_file' => '/dev/null',
-        'enable_coroutine' => true,
-    ));
-    $serv->on("WorkerStart", function (Server $serv)  use ($pm)
-    {
-        $pm->wakeup();
-    });
-    $serv->on('receive', function (Server $serv, $fd, $rid, $data)
-    {
-        if ($data == 'array-01')
-        {
-            $res = $serv->taskwait(['type' => 'array', 'value' => $data]);
-            if (!empty($res['name']))
-            {
-                $serv->send($fd, 'OK');
-            }
-            else
-            {
-                $serv->send($fd, 'ERR');
-            }
-        }
-        elseif ($data == 'array-02')
-        {
-            $res = $serv->taskwait(['type' => 'string', 'value' => $data]);
-            if ($res == "hello world\n")
-            {
-                $serv->send($fd, 'OK');
-            }
-            else
-            {
-                $serv->send($fd, 'ERR');
-            }
-        }
-        elseif ($data == 'string-01')
-        {
-            $res = $serv->taskwait('array');
-            if (!empty($res['name']))
-            {
-                $serv->send($fd, 'OK');
-            }
-            else
-            {
-                $serv->send($fd, 'ERR');
-            }
-        }
-        elseif ($data == 'string-02')
-        {
-            $res = $serv->taskwait('string');
-            if ($res == "hello world\n")
-            {
-                $serv->send($fd, 'OK');
-            }
-            else
-            {
-                $serv->send($fd, 'ERR');
-            }
-        }
-        elseif ($data == 'timeout')
-        {
-            $res = $serv->taskwait('timeout', 0.0001);
-            if ($res === false)
-            {
-                $res = $serv->taskwait('string', 0.0001);
-                if ($res === "hello world\n")
-                {
-                    $serv->send($fd, 'OK');
-                    return;
-                }
-            }
-            $serv->send($fd, 'ERR');
-        }
-    });
-
-    $serv->on('task', function (Server $serv, $task_id, $worker_id, $data)
-    {
-        if (is_array($data))
-        {
-            if ($data['type'] == 'array')
-            {
-                return array('name' => 'rango', 'year' => 1987);
-            }
-            else
-            {
-                return "hello world\n";
-            }
-        }
-        else
-        {
-            if ($data == 'array')
-            {
-                return array('name' => 'rango', 'year' => 1987);
-            }
-            elseif ($data == 'string')
-            {
-                return "hello world\n";
-            }
-            elseif ($data == 'timeout')
-            {
-                usleep(300000);
-                return "task timeout\n";
-            }
-        }
-    });
-
-    $serv->on('finish', function (Server $serv, $fd, $rid, $data)
-    {
-
-    });
-    $serv->start();
-};
-
-$pm->childFirst();
-$pm->run();
+go(function ()  {
+    $conn = new Swoole\Coroutine\Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+    Assert::assert($conn->connect('127.0.0.1', 9601));
+    $conn->send(json_encode(['data' => 'hello']));
+    echo $conn->recv();
+});
 ?>
 --EXPECT--
+world

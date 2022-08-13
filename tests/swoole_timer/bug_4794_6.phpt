@@ -1,20 +1,21 @@
 --TEST--
 swoole_timer: #4794 Timer::add() (ERRNO 505): msec value[0] is invalid
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc';
-skip_if_offline();
-?>
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-go(function () {
-    $ip_list = Swoole\Coroutine\System::getaddrinfo('www.baidu.com', AF_INET, SOCK_STREAM, STREAM_IPPROTO_TCP, null, 0.0002);
-    Assert::assert(!empty($ip_list) and is_array($ip_list));
-    foreach ($ip_list as $ip) {
-        Assert::assert(preg_match(IP_REGEX, $ip));
+
+use Swoole\Coroutine\System;
+
+Co\run(
+    function () {
+        $conn = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
+        $conn->connect('www.baidu.com', 80);
+        $info = $conn->getpeername();
+        Assert::eq($info['host'], System::gethostbyname('www.baidu.com'), 'AF_INET', 0.0001);
+        Assert::eq($info['port'], 80);
     }
-    echo "DONE\n";
-});
+);
 ?>
 --EXPECT--
-DONE
