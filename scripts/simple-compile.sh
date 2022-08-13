@@ -2,11 +2,6 @@
 __CURRENT__=`pwd`
 __DIR__=$(cd "$(dirname "$0")";pwd)
 
-if [ "${TRAVIS}"x = ""x ]; then
-  echo "\n❌ This script is just for Travis!"
-  exit 255
-fi
-
 cd ${__DIR__} && cd ../ && \
 ./clear.sh > /dev/null && \
 phpize --clean > /dev/null && \

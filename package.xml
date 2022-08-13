@@ -51,8 +51,8 @@
         <email>doubaokun@php.net</email>
         <active>yes</active>
     </developer>
-    <date>2022-08-03</date>
-    <time>15:00:00</time>
+    <date>2022-08-10</date>
+    <time>10:00:00</time>
     <version>
         <release>5.0.0</release>
         <api>5.0</api>
@@ -93,18 +93,11 @@
     </notes>
     <contents>
         <dir name="/">
-            <file role="doc" name="CHANGELOG.md" />
             <file role="src" name="CMakeLists.txt" />
-            <file role="doc" name="CODE-STYLE.md" />
             <file role="src" name="CPPLINT.cfg" />
             <file role="doc" name="LICENSE" />
             <file role="src" name="Makefile.frag" />
-            <file role="doc" name="README-CN.md" />
             <file role="doc" name="README.md" />
-            <file role="doc" name="SUPPORTED.md" />
-            <file role="src" name="clear.sh" />
-            <file role="src" name="code_format.sh" />
-            <file role="src" name="code_stats.sh" />
             <file role="src" name="codecov.yml" />
             <file role="src" name="config.m4" />
             <file role="src" name="core-tests/CMakeLists.txt" />
@@ -176,6 +169,12 @@
             <file role="src" name="core-tests/src/server/http.cpp" />
             <file role="src" name="core-tests/src/server/message_bus.cpp" />
             <file role="src" name="core-tests/src/server/server.cpp" />
+            <file role="doc" name="docs/CHANGELOG.md" />
+            <file role="doc" name="docs/CODE-STYLE.md" />
+            <file role="doc" name="docs/SUPPORTED.md" />
+            <file role="doc" name="docs/TESTS.md" />
+            <file role="src" name="docs/google-style.xml" />
+            <file role="src" name="docs/swoole-logo.svg" />
             <file role="doc" name="examples/atomic/long.php" />
             <file role="doc" name="examples/atomic/test.php" />
             <file role="doc" name="examples/atomic/wait.php" />
@@ -548,7 +547,6 @@
             <file role="src" name="ext-src/swoole_timer.cc" />
             <file role="src" name="ext-src/swoole_websocket_server.cc" />
             <file role="doc" name="gdbinit" />
-            <file role="src" name="google-style.xml" />
             <file role="src" name="include/helper/kqueue.h" />
             <file role="src" name="include/swoole.h" />
             <file role="src" name="include/swoole_api.h" />
@@ -601,9 +599,22 @@
             <file role="src" name="include/swoole_version.h" />
             <file role="src" name="include/swoole_websocket.h" />
             <file role="src" name="include/swoole_wheel_timer.h" />
-            <file role="src" name="make.sh" />
-            <file role="src" name="mascot.png" />
             <file role="src" name="php_swoole.h" />
+            <file role="src" name="scripts/.gitignore" />
+            <file role="src" name="scripts/clear.sh" />
+            <file role="src" name="scripts/code-format.sh" />
+            <file role="src" name="scripts/code-stats.sh" />
+            <file role="src" name="scripts/debug/swoole_info.php" />
+            <file role="src" name="scripts/debug/swoole_table_implements.php" />
+            <file role="src" name="scripts/docker-compile.sh" />
+            <file role="src" name="scripts/docker-compose.yml" />
+            <file role="src" name="scripts/docker-route.sh" />
+            <file role="src" name="scripts/make.sh" />
+            <file role="src" name="scripts/pecl-install.sh" />
+            <file role="src" name="scripts/route.sh" />
+            <file role="src" name="scripts/run-tests.sh" />
+            <file role="src" name="scripts/simple-compile-on-github.sh" />
+            <file role="src" name="scripts/simple-compile.sh" />
             <file role="src" name="src/core/base.cc" />
             <file role="src" name="src/core/channel.cc" />
             <file role="src" name="src/core/crc32.cc" />
@@ -733,7 +744,6 @@
             <file role="src" name="stubs/php_swoole_timer_arginfo.h" />
             <file role="src" name="stubs/php_swoole_websocket.stub.php" />
             <file role="src" name="stubs/php_swoole_websocket_arginfo.h" />
-            <file role="src" name="swoole-logo.svg" />
             <file role="test" name="tests/.php-cs-fixer.dist.php" />
             <file role="test" name="tests/CONTRIBUTION" />
             <file role="test" name="tests/README.md" />
@@ -1225,19 +1235,20 @@
             <file role="test" name="tests/swoole_event/defer.phpt" />
             <file role="test" name="tests/swoole_event/defer_with_sleep.phpt" />
             <file role="test" name="tests/swoole_event/defer_without_io.phpt" />
+            <file role="test" name="tests/swoole_event/del.phpt" />
             <file role="test" name="tests/swoole_event/del_after_close.phpt" />
             <file role="test" name="tests/swoole_event/deprecated_event_wait.phpt" />
             <file role="test" name="tests/swoole_event/dispatch.phpt" />
             <file role="test" name="tests/swoole_event/function_alias.phpt" />
+            <file role="test" name="tests/swoole_event/isset.phpt" />
             <file role="test" name="tests/swoole_event/rshutdown.phpt" />
-            <file role="test" name="tests/swoole_event/swoole_event.phpt" />
-            <file role="test" name="tests/swoole_event/swoole_event_del.phpt" />
-            <file role="test" name="tests/swoole_event/swoole_event_isset.phpt" />
-            <file role="test" name="tests/swoole_event/swoole_event_set.phpt" />
-            <file role="test" name="tests/swoole_event/swoole_event_wait.phpt" />
-            <file role="test" name="tests/swoole_event/swoole_event_write.phpt" />
+            <file role="test" name="tests/swoole_event/set.phpt" />
+            <file role="test" name="tests/swoole_event/simple.phpt" />
+            <file role="test" name="tests/swoole_event/sockets.phpt" />
             <file role="test" name="tests/swoole_event/sync_client_1.phpt" />
             <file role="test" name="tests/swoole_event/sync_client_2.phpt" />
+            <file role="test" name="tests/swoole_event/wait.phpt" />
+            <file role="test" name="tests/swoole_event/write.phpt" />
             <file role="test" name="tests/swoole_feature/cross_close/client.phpt" />
             <file role="test" name="tests/swoole_feature/cross_close/client_by_server.phpt" />
             <file role="test" name="tests/swoole_feature/cross_close/full_duplex.phpt" />
@@ -2331,18 +2342,6 @@
             <file role="src" name="tools/show-big-files.php" />
             <file role="src" name="tools/templates/class.c" />
             <file role="src" name="tools/templates/version.tpl.h" />
-            <file role="src" name="travis/.gitignore" />
-            <file role="doc" name="travis/README.md" />
-            <file role="src" name="travis/debug/swoole_info.php" />
-            <file role="src" name="travis/debug/swoole_table_implements.php" />
-            <file role="src" name="travis/docker-compile.sh" />
-            <file role="src" name="travis/docker-compose.yml" />
-            <file role="src" name="travis/docker-route.sh" />
-            <file role="src" name="travis/pecl-install.sh" />
-            <file role="src" name="travis/route.sh" />
-            <file role="src" name="travis/run-tests.sh" />
-            <file role="src" name="travis/simple-compile-on-github.sh" />
-            <file role="src" name="travis/simple-compile.sh" />
         </dir>
     </contents>
     <dependencies>

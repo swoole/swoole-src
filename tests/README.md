@@ -8,7 +8,7 @@ try to run `./init` to initialize the databases.
 |               | mysql                                 | redis                               |
 | ------------- | ------------------------------------- | ----------------------------------- |
 | path (env)    | $MYSQL_SERVER_PATH                    | $REDIS_SERVER_PATH                  |
-| path (travis) | ${travis}/data/run/mysqld/mysqld.sock | ${travis}/data/run/redis/redis.sock |
+| path (actions) | ${actions}/data/run/mysqld/mysqld.sock | ${actions}/data/run/redis/redis.sock |
 | host (raw)    | 127.0.0.1                             | 127.0.0.1                           |
 | host (docker) | mysql                                 | redis                               |
 | port          | 3306                                  | 6379                                |

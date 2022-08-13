@@ -22,7 +22,7 @@ run(function () {
         go(function() {
             $ch = curl_init();
             $code = uniqid('swoole_');
-            if (IS_IN_TRAVIS) {
+            if (IS_IN_CI) {
                 $domain = 'www.google.com';
             } else {
                 $domain = 'www.baidu.com';

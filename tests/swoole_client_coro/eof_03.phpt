@@ -3,7 +3,7 @@ swoole_client_coro: eof with smtp qq
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
-skip_if_in_travis();
+skip_if_in_ci();
 skip_if_offline();
 ?>
 --FILE--

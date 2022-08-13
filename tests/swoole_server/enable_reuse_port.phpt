@@ -8,7 +8,7 @@ require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Server;
 
-const N = IS_IN_TRAVIS ? 32 : 128;
+const N = IS_IN_CI ? 32 : 128;
 const W = 4;
 
 $pm = new SwooleTest\ProcessManager;

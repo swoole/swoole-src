@@ -26,7 +26,7 @@ class TestServer_5 extends LengthServer
 }
 
 TestServer_5::$random_bytes = true;
-TestServer_5::$pkg_num = IS_IN_TRAVIS ? 1000 : 10000;
+TestServer_5::$pkg_num = IS_IN_CI ? 1000 : 10000;
 
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm)
