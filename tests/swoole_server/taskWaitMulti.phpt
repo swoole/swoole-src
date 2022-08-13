@@ -51,7 +51,7 @@ $pm->childFunc = function () use ($pm, $port)
             $tasks[] = mt_rand(1000, 9999);
             $tasks[] = mt_rand(1000, 9999);
             $tasks[] = 0;
-            $results = $serv->taskWaitMulti($tasks, 0.0002);
+            $results = $serv->taskWaitMulti($tasks, 0.2);
         }
         if (count($results) == 4)
         {
