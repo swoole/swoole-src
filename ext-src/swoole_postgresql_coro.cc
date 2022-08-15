@@ -903,7 +903,7 @@ bool PGObject::yield(zval *_return_value, EventType event, double timeout) {
         }
 
         return false;
-    } else if(!request_success) {
+    } else if (!request_success) {
         ZVAL_FALSE(_return_value);
         return false;
     }
