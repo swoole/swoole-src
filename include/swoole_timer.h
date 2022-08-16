@@ -27,12 +27,6 @@
 #define SW_TIMER_MIN_SEC 0.001
 #define SW_TIMER_MAX_MS LONG_MAX
 #define SW_TIMER_MAX_SEC ((double) LONG_MAX / 1000)
-#define SW_TIMER_CORRECT_TIMEOUT(timeout)                                                                              \
-    do {                                                                                                               \
-        if (timeout < SW_TIMER_MIN_SEC) {                                                                              \
-            timeout = SW_TIMER_MIN_SEC;                                                                                \
-        }                                                                                                              \
-    } while (0)
 
 namespace swoole {
 
