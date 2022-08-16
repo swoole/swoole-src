@@ -79,8 +79,8 @@ bool Coroutine::yield_ex(double timeout) {
     };
 
     if (timeout > 0) {
-        SW_TIMER_CORRECT_TIMEOUT(timeout);
-        timer = swoole_timer_add((long) (timeout * 1000), false, timer_callback, nullptr);
+        long mesc = swoole_timer_correct_timeout(timeout);
+        timer = swoole_timer_add(mesc, false, timer_callback, nullptr);
     }
 
     CancelFunc cancel_fn = [](Coroutine *co) {

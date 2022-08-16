@@ -505,8 +505,8 @@ class Socket {
             if (timeout != 0 && !*timer_pp) {
                 enabled = true;
                 if (timeout > 0) {
-                    SW_TIMER_CORRECT_TIMEOUT(timeout);
-                    *timer_pp = swoole_timer_add((long) (timeout * 1000), false, callback, socket_);
+                    long mesc = swoole_timer_correct_timeout(timeout);
+                    *timer_pp = swoole_timer_add(mesc, false, callback, socket_);
                     return *timer_pp != nullptr;
                 }
                 *timer_pp = (TimerNode *) -1;
