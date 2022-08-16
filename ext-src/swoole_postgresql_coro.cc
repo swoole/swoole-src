@@ -52,6 +52,7 @@ class Object {
         bool ignore_notices;
         bool log_notices;
         size_t stmt_counter;
+        bool request_success;
 
         bool yield(zval *_return_value, EventType event, double timeout);
         bool wait_write_ready();
@@ -538,10 +539,13 @@ static void connect_callback(PGObject *object, Reactor *reactor, Event *event) {
     }
 
     if (object->connected == 1) {
+        object->request_success = true;
         zend_update_property_null(swoole_postgresql_coro_ce, SW_Z8_OBJ_P(object->object), ZEND_STRL("error"));
         if (object->statement) {
             zend_update_property_null(swoole_postgresql_coro_statement_ce, SW_Z8_OBJ_P(object->object), ZEND_STRL("error"));
         }
+    } else {
+        object->request_success = false;
     }
     object->co->resume();
 }
@@ -715,6 +719,8 @@ static int query_result_parse(PGObject *object) {
             swoole_postgresql_coro_statement_ce, SW_Z8_OBJ_P(object->statement->object), ZEND_STRL("resultStatus"), status);
     }
 
+    object->request_success = (status == PGRES_COMMAND_OK || status == PGRES_TUPLES_OK);
+
     switch (status) {
     case PGRES_EMPTY_QUERY:
     case PGRES_BAD_RESPONSE:
@@ -770,6 +776,8 @@ static int prepare_result_parse(PGObject *object) {
     if (object->statement) {
         zend_update_property_long(swoole_postgresql_coro_statement_ce, SW_Z8_OBJ_P(object->statement->object), ZEND_STRL("resultStatus"), status);
     }
+
+    object->request_success = (status == PGRES_COMMAND_OK || status == PGRES_TUPLES_OK);
 
     switch (status) {
     case PGRES_EMPTY_QUERY:
@@ -894,6 +902,9 @@ bool PGObject::yield(zval *_return_value, EventType event, double timeout) {
             }
         }
 
+        return false;
+    } else if (!request_success) {
+        ZVAL_FALSE(_return_value);
         return false;
     }
 

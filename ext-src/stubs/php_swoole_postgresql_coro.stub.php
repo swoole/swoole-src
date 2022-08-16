@@ -15,9 +15,9 @@ namespace Swoole\Coroutine {
     class PostgreSQLStatement {
         public function execute(array $params = []): bool {}
         public function fetchAll(int $result_type = SW_PGSQL_ASSOC): false|array {}
-        public function affectedRows(): int {}
-        public function numRows(): int {}
-        public function fieldCount(): int {}
+        public function affectedRows(): false|int {}
+        public function numRows(): false|int {}
+        public function fieldCount(): false|int {}
         public function fetchObject(?int $row = 0, ?string $class_name = null, array $ctor_params = []): false|object {}
         public function fetchAssoc(?int $row = 0, int $result_type = SW_PGSQL_ASSOC): false|array {}
         public function fetchArray(?int $row = 0, int $result_type = SW_PGSQL_BOTH): false|array {}
