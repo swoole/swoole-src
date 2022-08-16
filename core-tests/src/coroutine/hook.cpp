@@ -51,18 +51,20 @@ TEST(coroutine_hook, file) {
 }
 
 TEST(coroutine_hook, gethostbyname) {
-    coroutine::run([](void *arg) {
+    auto callback = [](void *arg) {
         auto result1 = swoole_coroutine_gethostbyname(host_1);
         ASSERT_NE(result1, nullptr);
 
         auto result2 = swoole_coroutine_gethostbyname(host_2);
         ASSERT_EQ(result2, nullptr);
         ASSERT_EQ(h_errno, HOST_NOT_FOUND);
-    });
+    };
+    coroutine::run(callback);
+    callback(nullptr);
 }
 
 TEST(coroutine_hook, getaddrinfo) {
-    coroutine::run([](void *arg) {
+    auto callback = [](void *arg) {
         struct addrinfo hints;
         sw_memset_zero(&hints, sizeof(struct addrinfo));
         hints.ai_family = AF_INET;
@@ -90,7 +92,9 @@ TEST(coroutine_hook, getaddrinfo) {
         ASSERT_EQ(result2, EAI_NONAME);
         ASSERT_EQ(result, nullptr);
         freeaddrinfo(result);
-    });
+    };
+    coroutine::run(callback);
+    callback(nullptr);
 }
 
 TEST(coroutine_hook, fstat) {
