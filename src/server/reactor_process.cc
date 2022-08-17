@@ -327,7 +327,7 @@ static int ReactorProcess_loop(ProcessPool *pool, Worker *worker) {
         }
     }
 
-    if ((serv->master_timer = swoole_timer_add(1000, true, Server::timer_callback, serv)) == nullptr) {
+    if ((serv->master_timer = swoole_timer_add((long) 1000, true, Server::timer_callback, serv)) == nullptr) {
     _fail:
         swoole_event_free();
         return SW_ERR;

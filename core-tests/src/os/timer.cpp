@@ -31,20 +31,18 @@ TEST(timer, sys) {
 
     uint64_t ms1 = swoole::time<std::chrono::milliseconds>();
 
-    swoole_timer_add(
-        20, false, [&](Timer *, TimerNode *) { timer1_count++; }, nullptr);
+    swoole_timer_add((long) 20, false, [&](Timer *, TimerNode *) { timer1_count++; }, nullptr);
 
-    swoole_timer_add(
-        100,
-        true,
-        [&](Timer *, TimerNode *tnode) {
-            timer2_count++;
-            if (timer2_count == 5) {
-                swoole_timer_del(tnode);
-                timer_running = false;
-            }
-        },
-        nullptr);
+    swoole_timer_add((long) 100,
+                     true,
+                     [&](Timer *, TimerNode *tnode) {
+                         timer2_count++;
+                         if (timer2_count == 5) {
+                             swoole_timer_del(tnode);
+                             timer_running = false;
+                         }
+                     },
+                     nullptr);
 
     while (1) {
         sleep(10);

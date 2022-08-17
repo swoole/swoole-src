@@ -20,7 +20,6 @@
 
 #include "swoole.h"
 #include "swoole_coroutine_c_api.h"
-#include "swoole_timer.h"
 
 enum swEventInitFlag {
     SW_EVENTLOOP_WAIT_EXIT = 1,
@@ -28,6 +27,10 @@ enum swEventInitFlag {
 
 SW_API long swoole_timer_after(long ms, const swoole::TimerCallback &callback, void *private_data = nullptr);
 SW_API long swoole_timer_tick(long ms, const swoole::TimerCallback &callback, void *private_data = nullptr);
+SW_API swoole::TimerNode *swoole_timer_add(double ms,
+                                           bool persistent,
+                                           const swoole::TimerCallback &callback,
+                                           void *private_data = nullptr);
 SW_API swoole::TimerNode *swoole_timer_add(long ms,
                                            bool persistent,
                                            const swoole::TimerCallback &callback,
@@ -40,14 +43,6 @@ SW_API bool swoole_timer_clear(long timer_id);
 SW_API void swoole_timer_free();
 SW_API int swoole_timer_select();
 SW_API bool swoole_timer_is_available();
-
-static sw_inline long swoole_timer_correct_timeout(double timeout) {
-    if (timeout < SW_TIMER_MIN_SEC) {
-        return 1;
-    }
-
-    return (timeout * 1000);
-}
 
 SW_API int swoole_event_init(int flags);
 SW_API int swoole_event_add(swoole::network::Socket *socket, int events);
