@@ -1045,13 +1045,25 @@ static PHP_METHOD(swoole_postgresql_coro_statement, execute) {
                 params[i] = nullptr;
             } else {
                 zval tmp_val;
-                ZVAL_COPY(&tmp_val, tmp);
-                convert_to_string(&tmp_val);
-                if (Z_TYPE(tmp_val) != IS_STRING) {
-                    php_swoole_fatal_error(E_WARNING, "Error converting parameter");
-                    zval_ptr_dtor(&tmp_val);
-                    _php_pgsql_free_params(params, num_params);
-                    RETURN_FALSE;
+                if(Z_TYPE_P(tmp) == IS_RESOURCE) {
+                    php_stream *stm = NULL;
+                    php_stream_from_zval_no_verify(stm, tmp);
+                    if (stm) {
+                        zend_string *mem = php_stream_copy_to_mem(stm, PHP_STREAM_COPY_ALL, 0);
+                        ZVAL_STR(&tmp_val, mem ? mem : ZSTR_EMPTY_ALLOC());
+                    } else {
+                        php_swoole_fatal_error(E_WARNING, "Expected a stream resource");
+                        RETURN_FALSE;
+                    }
+                } else {
+                    ZVAL_COPY(&tmp_val, tmp);
+                    convert_to_string(&tmp_val);
+                    if (Z_TYPE(tmp_val) != IS_STRING) {
+                        php_swoole_fatal_error(E_WARNING, "Error converting parameter");
+                        zval_ptr_dtor(&tmp_val);
+                        _php_pgsql_free_params(params, num_params);
+                        RETURN_FALSE;
+                    }
                 }
                 params[i] = estrndup(Z_STRVAL(tmp_val), Z_STRLEN(tmp_val));
                 zval_ptr_dtor(&tmp_val);
