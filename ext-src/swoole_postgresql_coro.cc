@@ -1053,6 +1053,7 @@ static PHP_METHOD(swoole_postgresql_coro_statement, execute) {
                         ZVAL_STR(&tmp_val, mem ? mem : ZSTR_EMPTY_ALLOC());
                     } else {
                         php_swoole_fatal_error(E_WARNING, "Expected a stream resource");
+                        _php_pgsql_free_params(params, num_params);
                         RETURN_FALSE;
                     }
                 } else {
