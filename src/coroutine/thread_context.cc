@@ -32,7 +32,7 @@ static std::mutex *current_lock = nullptr;
 
 void thread_context_init() {
     if (!swoole_timer_is_available()) {
-        swoole_timer_add(1, false, [](Timer *timer, TimerNode *tnode) {
+        swoole_timer_add(1L, false, [](Timer *timer, TimerNode *tnode) {
             // do nothing
         }, nullptr);
     }

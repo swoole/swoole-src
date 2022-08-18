@@ -54,20 +54,19 @@ TimerCallback Server::get_timeout_callback(ListenPort *port, Reactor *reactor, C
 }
 
 void Server::disable_accept() {
-    enable_accept_timer = swoole_timer_add(
-        SW_ACCEPT_RETRY_TIME * 1000,
-        false,
-        [](Timer *timer, TimerNode *tnode) {
-            Server *serv = (Server *) tnode->data;
-            for (auto port : serv->ports) {
-                if (port->is_dgram()) {
-                    continue;
-                }
-                swoole_event_add(port->socket, SW_EVENT_READ);
-            }
-            serv->enable_accept_timer = nullptr;
-        },
-        this);
+    enable_accept_timer = swoole_timer_add((long) (SW_ACCEPT_RETRY_TIME * 1000),
+                                           false,
+                                           [](Timer *timer, TimerNode *tnode) {
+                                               Server *serv = (Server *) tnode->data;
+                                               for (auto port : serv->ports) {
+                                                   if (port->is_dgram()) {
+                                                       continue;
+                                                   }
+                                                   swoole_event_add(port->socket, SW_EVENT_READ);
+                                               }
+                                               serv->enable_accept_timer = nullptr;
+                                           },
+                                           this);
 
     if (enable_accept_timer == nullptr) {
         return;
@@ -235,7 +234,7 @@ int Server::connection_incoming(Reactor *reactor, Connection *conn) {
     if (port->max_idle_time > 0) {
         auto timeout_callback = get_timeout_callback(port, reactor, conn);
         conn->socket->recv_timeout_ = port->max_idle_time;
-        conn->socket->recv_timer = swoole_timer_add(port->max_idle_time * 1000, true, timeout_callback);
+        conn->socket->recv_timer = swoole_timer_add((long) (port->max_idle_time * 1000), true, timeout_callback);
     }
 #ifdef SW_USE_OPENSSL
     if (conn->socket->ssl) {
@@ -439,7 +438,7 @@ int Server::start_master_thread() {
         reactor->add(pipe_command->get_socket(true), SW_EVENT_READ);
     }
 
-    if ((master_timer = swoole_timer_add(1000, true, Server::timer_callback, this)) == nullptr) {
+    if ((master_timer = swoole_timer_add(1000L, true, Server::timer_callback, this)) == nullptr) {
         swoole_event_free();
         return SW_ERR;
     }
@@ -1433,7 +1432,7 @@ int Server::send_to_connection(SendData *_send) {
         auto timeout_callback = get_timeout_callback(port, reactor, conn);
         _socket->send_timeout_ = port->max_idle_time;
         _socket->last_sent_time = time<std::chrono::milliseconds>(true);
-        _socket->send_timer = swoole_timer_add(port->max_idle_time * 1000, true, timeout_callback);
+        _socket->send_timer = swoole_timer_add((long) (port->max_idle_time * 1000), true, timeout_callback);
     }
 
     if (!_socket->isset_writable_event()) {
@@ -1480,7 +1479,7 @@ bool Server::sendfile(SessionId session_id, const char *file, uint32_t l_file, o
                          "sendfile name[%.8s...] length %u is exceed the max name len %u",
                          file,
                          l_file,
-                         (uint32_t)(SW_IPC_BUFFER_SIZE - sizeof(SendfileTask) - 1));
+                         (uint32_t) (SW_IPC_BUFFER_SIZE - sizeof(SendfileTask) - 1));
         return false;
     }
     // string must be zero termination (for `state` system call)
@@ -1734,7 +1733,7 @@ ListenPort *Server::add_port(SocketType type, const char *host, int port) {
 
 #ifdef SW_USE_OPENSSL
     if (type & SW_SOCK_SSL) {
-        type = (SocketType)(type & (~SW_SOCK_SSL));
+        type = (SocketType) (type & (~SW_SOCK_SSL));
         ls->type = type;
         ls->ssl = 1;
         ls->ssl_context = new SSLContext();

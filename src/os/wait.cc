@@ -141,9 +141,8 @@ pid_t System::waitpid(pid_t __pid, int *__stat_loc, int __options, double timeou
     /* timeout controller */
     TimerNode *timer = nullptr;
     if (timeout > 0) {
-        long mesc = swoole_timer_correct_timeout(timeout);
         timer = swoole_timer_add(
-            mesc,
+            timeout,
             false,
             [](Timer *timer, TimerNode *tnode) {
                 Coroutine *co = (Coroutine *) tnode->data;
