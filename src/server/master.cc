@@ -443,7 +443,7 @@ int Server::start_master_thread() {
         reactor->add(pipe_command->get_socket(true), SW_EVENT_READ);
     }
 
-    if ((master_timer = swoole_timer_add((long) 1000, true, Server::timer_callback, this)) == nullptr) {
+    if ((master_timer = swoole_timer_add(1000L, true, Server::timer_callback, this)) == nullptr) {
         swoole_event_free();
         return SW_ERR;
     }

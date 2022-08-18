@@ -31,7 +31,7 @@ bool swoole_timer_is_available() {
 
 TimerNode *swoole_timer_add(double timeout, bool persistent, const TimerCallback &callback, void *private_data) {
     if (timeout < SW_TIMER_MIN_SEC) {
-        return swoole_timer_add((long) 1, persistent, callback, private_data);
+        return swoole_timer_add(1L, persistent, callback, private_data);
     }
 
     return swoole_timer_add((long) (timeout * 1000), persistent, callback, private_data);
