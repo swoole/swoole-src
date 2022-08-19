@@ -32,10 +32,10 @@ TEST(timer, sys) {
     uint64_t ms1 = swoole::time<std::chrono::milliseconds>();
 
     swoole_timer_add(
-        20, false, [&](Timer *, TimerNode *) { timer1_count++; }, nullptr);
+        20L, false, [&](Timer *, TimerNode *) { timer1_count++; }, nullptr);
 
     swoole_timer_add(
-        100,
+        100L,
         true,
         [&](Timer *, TimerNode *tnode) {
             timer2_count++;

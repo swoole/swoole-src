@@ -277,7 +277,7 @@ bool System::wait_signal(int signo, double timeout) {
     TimerNode *timer = nullptr;
     if (timeout > 0) {
         timer = swoole_timer_add(
-            timeout * 1000,
+            timeout,
             0,
             [](Timer *timer, TimerNode *tnode) {
                 Coroutine *co = (Coroutine *) tnode->data;
@@ -465,10 +465,7 @@ bool System::socket_poll(std::unordered_map<int, PollSocket> &fds, double timeou
     }
 
     if (timeout > 0) {
-        if (timeout < 0.001) {
-            timeout = 0.001;
-        }
-        task.timer = swoole_timer_add((long) (timeout * 1000), false, socket_poll_timeout, &task);
+        task.timer = swoole_timer_add(timeout, false, socket_poll_timeout, &task);
     }
 
     task.co->yield();
@@ -505,7 +502,7 @@ struct EventWaiter {
         }
 
         if (timeout > 0) {
-            timer = swoole_timer_add((long) (timeout * 1000),
+            timer = swoole_timer_add(timeout,
                                      false,
                                      [](Timer *timer, TimerNode *tnode) {
                                          EventWaiter *waiter = (EventWaiter *) tnode->data;
