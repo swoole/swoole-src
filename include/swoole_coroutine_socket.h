@@ -236,12 +236,12 @@ class Socket {
         long cid = get_bound_cid(event);
         if (sw_unlikely(cid)) {
             swoole_fatal_error(SW_ERROR_CO_HAS_BEEN_BOUND,
-                         "Socket#%d has already been bound to another coroutine#%ld, "
-                         "%s of the same socket in coroutine#%ld at the same time is not allowed",
-                         sock_fd,
-                         cid,
-                         get_event_str(event),
-                         Coroutine::get_current_cid());
+                               "Socket#%d has already been bound to another coroutine#%ld, "
+                               "%s of the same socket in coroutine#%ld at the same time is not allowed",
+                               sock_fd,
+                               cid,
+                               get_event_str(event),
+                               Coroutine::get_current_cid());
         }
     }
 
@@ -498,7 +498,7 @@ class Socket {
             if (timeout != 0 && !*timer_pp) {
                 enabled = true;
                 if (timeout > 0) {
-                    *timer_pp = swoole_timer_add((long) (timeout * 1000), false, callback, socket_);
+                    *timer_pp = swoole_timer_add(timeout, false, callback, socket_);
                     return *timer_pp != nullptr;
                 }
                 *timer_pp = (TimerNode *) -1;
