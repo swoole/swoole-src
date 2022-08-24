@@ -257,10 +257,10 @@ static zend_object *php_swoole_postgresql_coro_statement_create_object(PGObject 
 
 /* {{{ pdo_pgsql_create_lob_stream */
 struct swoole_pgsql_lob_self {
-	zval zobject;
-	PGconn *conn;
-	int lfd;
-	Oid oid;
+    zval zobject;
+    PGconn *conn;
+    int lfd;
+    Oid oid;
     uint64_t trans_counter_value;
 };
 
@@ -303,7 +303,7 @@ static int pgsql_lob_close(php_stream *stream, int close_handle)
             });
         }
     }
-	zval_ptr_dtor(&self->zobject);
+    zval_ptr_dtor(&self->zobject);
     efree(self);
     if (result < 0) {
         php_swoole_error(E_WARNING, "lo_close() failed. %s", PQerrorMessage(self->conn));
@@ -317,7 +317,7 @@ static int pgsql_lob_flush(php_stream *stream)
 }
 
 static int pgsql_lob_seek(php_stream *stream, zend_off_t offset, int whence,
-		zend_off_t *newoffset)
+        zend_off_t *newoffset)
 {
     struct swoole_pgsql_lob_self *self = (struct swoole_pgsql_lob_self*) stream->abstract;
     zend_off_t pos = 0;
@@ -333,38 +333,38 @@ static int pgsql_lob_seek(php_stream *stream, zend_off_t offset, int whence,
 }
 
 const php_stream_ops swoole_pgsql_lob_stream_ops = {
-	pgsql_lob_write,
-	pgsql_lob_read,
-	pgsql_lob_close,
-	pgsql_lob_flush,
-	"swoole pgsql lob stream",
-	pgsql_lob_seek,
-	NULL,
-	NULL,
-	NULL
+    pgsql_lob_write,
+    pgsql_lob_read,
+    pgsql_lob_close,
+    pgsql_lob_flush,
+    "swoole pgsql lob stream",
+    pgsql_lob_seek,
+    NULL,
+    NULL,
+    NULL
 };
 
 php_stream *swoole_pgsql_create_lob_stream(zval *zobject, int lfd, Oid oid)
 {
-	php_stream *stm;
-	struct swoole_pgsql_lob_self *self = (struct swoole_pgsql_lob_self *) ecalloc(1, sizeof(swoole_pgsql_lob_self));
+    php_stream *stm;
+    struct swoole_pgsql_lob_self *self = (struct swoole_pgsql_lob_self *) ecalloc(1, sizeof(swoole_pgsql_lob_self));
     PGObject *object = php_swoole_postgresql_coro_get_object(zobject);
 
-	ZVAL_COPY_VALUE(&self->zobject, object->object);
-	self->lfd = lfd;
-	self->oid = oid;
-	self->conn = object->conn;
+    ZVAL_COPY_VALUE(&self->zobject, object->object);
+    self->lfd = lfd;
+    self->oid = oid;
+    self->conn = object->conn;
     self->trans_counter_value = object->trans_counter;
 
-	stm = php_stream_alloc(&swoole_pgsql_lob_stream_ops, self, 0, "r+b");
+    stm = php_stream_alloc(&swoole_pgsql_lob_stream_ops, self, 0, "r+b");
 
-	if (stm) {
-		Z_ADDREF_P(&self->zobject);
-		return stm;
-	}
+    if (stm) {
+        Z_ADDREF_P(&self->zobject);
+        return stm;
+    }
 
-	efree(self);
-	return NULL;
+    efree(self);
+    return NULL;
 }
 /* }}} */
 
@@ -1523,13 +1523,13 @@ static PHP_METHOD(swoole_postgresql_coro, metaData) {
 }
 
 static PHP_METHOD(swoole_postgresql_coro, createLOB) {
-	ZEND_PARSE_PARAMETERS_NONE();
+    ZEND_PARSE_PARAMETERS_NONE();
 
     PGObject *object = php_swoole_postgresql_coro_get_object(ZEND_THIS);
     if (!object || !object->conn) {
         RETURN_FALSE;
     }
-	Oid lfd = 0;
+    Oid lfd = 0;
     swoole::coroutine::async([&]() {
         PGresult *res;
         while ((res = PQgetResult(object->conn))) {
@@ -1541,41 +1541,41 @@ static PHP_METHOD(swoole_postgresql_coro, createLOB) {
         PQclear(pgsql_result);
     });
 
-	if (lfd != InvalidOid) {
+    if (lfd != InvalidOid) {
         RETURN_LONG(lfd);
-	}
+    }
 
     zend_update_property_string(
             swoole_postgresql_coro_ce, SW_Z8_OBJ_P(object->object), ZEND_STRL("error"), PQerrorMessage(object->conn));
 
-	RETURN_FALSE;
+    RETURN_FALSE;
 }
 
 static PHP_METHOD(swoole_postgresql_coro, openLOB) {
     Oid oid = 0;
-	char *modestr = "rb";
-	size_t modestrlen;
-	if (FAILURE == zend_parse_parameters(ZEND_NUM_ARGS(), "l|s",
-				&oid, &modestr, &modestrlen)) {
-		RETURN_THROWS();
-	}
+    char *modestr = "rb";
+    size_t modestrlen;
+    if (FAILURE == zend_parse_parameters(ZEND_NUM_ARGS(), "l|s",
+                &oid, &modestr, &modestrlen)) {
+        RETURN_THROWS();
+    }
 
     PGObject *object = php_swoole_postgresql_coro_get_object(ZEND_THIS);
     if (!object || !object->conn) {
         RETURN_FALSE;
     }
     
-	if (oid == 0 && (errno == ERANGE || errno == EINVAL)) {
-		RETURN_FALSE;
-	}
+    if (oid == 0 && (errno == ERANGE || errno == EINVAL)) {
+        RETURN_FALSE;
+    }
 
-	int mode = INV_READ;
+    int mode = INV_READ;
 
-	if (strpbrk(modestr, "+w")) {
-		mode = INV_READ | INV_WRITE;
-	}
+    if (strpbrk(modestr, "+w")) {
+        mode = INV_READ | INV_WRITE;
+    }
 
-	int lfd = -1;
+    int lfd = -1;
     
     swoole::coroutine::async([&]() {
         PGresult *res;
@@ -1588,36 +1588,36 @@ static PHP_METHOD(swoole_postgresql_coro, openLOB) {
         PQclear(pgsql_result);
     });
 
-	if (lfd >= 0) {
-		php_stream *stream = swoole_pgsql_create_lob_stream(ZEND_THIS, lfd, oid);
-		if (stream) {
-			php_stream_to_zval(stream, return_value);
-			return;
-		}
-	}
+    if (lfd >= 0) {
+        php_stream *stream = swoole_pgsql_create_lob_stream(ZEND_THIS, lfd, oid);
+        if (stream) {
+            php_stream_to_zval(stream, return_value);
+            return;
+        }
+    }
 
     zend_update_property_string(
             swoole_postgresql_coro_ce, SW_Z8_OBJ_P(object->object), ZEND_STRL("error"), PQerrorMessage(object->conn));
 
-	RETURN_FALSE;
+    RETURN_FALSE;
 }
 
 static PHP_METHOD(swoole_postgresql_coro, unlinkLOB) {
     Oid oid = 0;
 
-	if (FAILURE == zend_parse_parameters(ZEND_NUM_ARGS(), "l",
-				&oid)) {
-		RETURN_THROWS();
-	}
+    if (FAILURE == zend_parse_parameters(ZEND_NUM_ARGS(), "l",
+                &oid)) {
+        RETURN_THROWS();
+    }
 
     PGObject *object = php_swoole_postgresql_coro_get_object(ZEND_THIS);
     if (!object || !object->conn) {
         RETURN_FALSE;
     }
 
-	if (oid == 0 && (errno == ERANGE || errno == EINVAL)) {
-		RETURN_FALSE;
-	}
+    if (oid == 0 && (errno == ERANGE || errno == EINVAL)) {
+        RETURN_FALSE;
+    }
 
     int result = 0;
     swoole::coroutine::async([&]() {
@@ -1630,14 +1630,14 @@ static PHP_METHOD(swoole_postgresql_coro, unlinkLOB) {
         set_error_diag(object, pgsql_result);
         PQclear(pgsql_result);
     });
-	if (1 == result) {
-		RETURN_TRUE;
-	}
+    if (1 == result) {
+        RETURN_TRUE;
+    }
 
     zend_update_property_string(
             swoole_postgresql_coro_ce, SW_Z8_OBJ_P(object->object), ZEND_STRL("error"), PQerrorMessage(object->conn));
 
-	RETURN_FALSE;
+    RETURN_FALSE;
 }
 
 /* {{{ void php_pgsql_fetch_hash */
@@ -1938,13 +1938,13 @@ static PHP_METHOD(swoole_postgresql_coro, escapeIdentifier) {
 /* {{{ swoole_pgsql_get_result */
 static PGresult *swoole_pgsql_get_result(PGObject *object)
 {
-	PGresult *result, *last_result = nullptr;
+    PGresult *result, *last_result = nullptr;
 
-	while ((result = PQgetResult(object->conn)))
-	{
-		PQclear(last_result);
-		last_result = result;
-	}
+    while ((result = PQgetResult(object->conn)))
+    {
+        PQclear(last_result);
+        last_result = result;
+    }
 
     if (PQtransactionStatus(object->conn) == PQTRANS_INTRANS) {
         if (!object->in_trans) {
@@ -1956,7 +1956,7 @@ static PGresult *swoole_pgsql_get_result(PGObject *object)
             object->in_trans = false;
         }
     }
-	return last_result;
+    return last_result;
 }
 /* }}} */
 
