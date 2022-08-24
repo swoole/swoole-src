@@ -10,6 +10,10 @@ namespace Swoole\Coroutine {
         public function query(string $query): false|PostgreSQLStatement {}
         public function prepare(string $query): false|PostgreSQLStatement {}
         public function metaData(string $table_name): false|array {}
+        public function createLOB(): int|false {}
+        /** @return resource|false */
+        public function openLOB(int $oid, string $mode = "rb") {}
+        public function unlinkLOB(int $oid): bool {}
     }
 
     class PostgreSQLStatement {

@@ -17,15 +17,43 @@ Swoole\Coroutine\run(function () {
     Assert::true(!!$fp);
     fwrite($fp, 'Wuxi');
     rewind($fp);
-    $result = $stmt->execute([$fp, $tempLo = rand(1000, 99999), 10, 0.75, '1993-11-23']);
+    $result = $stmt->execute([$fp, rand(1000, 99999), 10, 0.75, '1993-11-23']);
     fclose($fp);
     Assert::true(false !== $result, (string) $pgsql->error);
     $id = $stmt->fetchAssoc()['id'] ?? null;
     Assert::greaterThanEq($id, 1);
-    $stmt = $pgsql->prepare('select * from weather where id = $1');
+    $stmt2 = $pgsql->prepare('select * from weather where id = $1');
+    Assert::true(false !== $stmt2, (string) $pgsql->error);
+    $stmt2->execute([$id]);
+    var_dump($stmt2->fetchAssoc());
+
+    $result = $pgsql->query('begin');
+    Assert::notEq($result, false, (string) $pgsql->error);
+    $stmt = $pgsql->prepare("INSERT INTO oid(oid) VALUES ($1)  RETURNING id");
     Assert::true(false !== $stmt, (string) $pgsql->error);
-    $stmt->execute([$id]);
-    var_dump($stmt->fetchAssoc());
+    $oid = $pgsql->createLOB();
+    Assert::integer($oid, (string) $pgsql->error);
+    $lob = $pgsql->openLOB($oid, 'wb');
+    Assert::notEq($lob, false, (string) $pgsql->error);
+    fwrite($lob, 'Shanghai');
+    $result = $stmt->execute([$lob]);
+    Assert::true(false !== $result, (string) $pgsql->error);
+    $result = $pgsql->query('commit');
+    Assert::notEq($result, false, (string) $pgsql->error);
+
+    $result = $pgsql->query('begin');
+    Assert::notEq($result, false, (string) $pgsql->error);
+    $id = $stmt->fetchAssoc()['id'] ?? null;
+    Assert::greaterThanEq($id, 1);
+    $stmt2 = $pgsql->prepare('select * from oid where id = $1');
+    Assert::true(false !== $stmt2, (string) $pgsql->error);
+    $stmt2->execute([$id]);
+    $row = $stmt2->fetchRow(0, SW_PGSQL_ASSOC);
+    $lob = $pgsql->openLOB($row['oid']);
+    Assert::notEq($lob, false, (string) $pgsql->error);
+    Assert::eq(fgets($lob), 'Shanghai');
+    $result = $pgsql->query('commit');
+    Assert::notEq($result, false, (string) $pgsql->error);
 });
 ?> 
 --EXPECTF--
