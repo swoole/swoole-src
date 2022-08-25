@@ -1036,7 +1036,6 @@ bool PGObject::yield(zval *_return_value, EventType event, double timeout) {
 static PHP_METHOD(swoole_postgresql_coro, query) {
     zval *zquery;
     PGconn *pgsql;
-    PGresult *pgsql_result;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
     Z_PARAM_ZVAL(zquery)
@@ -1048,10 +1047,6 @@ static PHP_METHOD(swoole_postgresql_coro, query) {
     }
     object->request_type = PGQueryType::NORMAL_QUERY;
     pgsql = object->conn;
-
-    while ((pgsql_result = PQgetResult(pgsql))) {
-        PQclear(pgsql_result);
-    }
 
     bool in_trans = swoole_pgsql_in_transaction(object);
 
@@ -1079,7 +1074,6 @@ static PHP_METHOD(swoole_postgresql_coro, prepare) {
     zval *zquery;
     PGconn *pgsql;
     int is_non_blocking;
-    PGresult *pgsql_result;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
     Z_PARAM_ZVAL(zquery)
@@ -1097,10 +1091,6 @@ static PHP_METHOD(swoole_postgresql_coro, prepare) {
     if (is_non_blocking == 0 && PQsetnonblocking(pgsql, 1) == -1) {
         php_swoole_fatal_error(E_NOTICE, "Cannot set connection to nonblocking mode");
         RETURN_FALSE;
-    }
-
-    while ((pgsql_result = PQgetResult(pgsql))) {
-        PQclear(pgsql_result);
     }
 
     std::string stmtname = swoole::std_string::format("swoole_stmt_%ld", ++object->stmt_counter);
@@ -1133,7 +1123,6 @@ static PHP_METHOD(swoole_postgresql_coro_statement, execute) {
     char **params = nullptr;
     PGconn *pgsql;
     int is_non_blocking;
-    PGresult *pgsql_result;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
     Z_PARAM_OPTIONAL
@@ -1157,10 +1146,6 @@ static PHP_METHOD(swoole_postgresql_coro_statement, execute) {
     if (is_non_blocking == 0 && PQsetnonblocking(pgsql, 1) == -1) {
         php_swoole_fatal_error(E_NOTICE, "Cannot set connection to nonblocking mode");
         RETURN_FALSE;
-    }
-
-    while ((pgsql_result = PQgetResult(pgsql))) {
-        PQclear(pgsql_result);
     }
 
     bool in_trans = swoole_pgsql_in_transaction(object);
@@ -1440,7 +1425,6 @@ static PHP_METHOD(swoole_postgresql_coro, metaData) {
     zend_bool extended = 0;
     PGconn *pgsql;
 
-    PGresult *pg_result;
     char *src, *tmp_name, *tmp_name2 = nullptr;
     char *escaped;
     smart_str querystr = {0};
@@ -1456,10 +1440,6 @@ static PHP_METHOD(swoole_postgresql_coro, metaData) {
     }
     object->request_type = PGQueryType::META_DATA;
     pgsql = object->conn;
-
-    while ((pg_result = PQgetResult(pgsql))) {
-        PQclear(pg_result);
-    }
 
     if (table_name_len == 0) {
         php_swoole_fatal_error(E_WARNING, "The table name must be specified");
@@ -1537,10 +1517,6 @@ static PHP_METHOD(swoole_postgresql_coro, createLOB) {
     }
     Oid lfd = 0;
     swoole::coroutine::async([&]() {
-        PGresult *res;
-        while ((res = PQgetResult(object->conn))) {
-            PQclear(res);
-        }
         lfd = lo_creat(object->conn, INV_READ | INV_WRITE);
         PGresult *pgsql_result = swoole_pgsql_get_result(object);
         set_error_diag(object, pgsql_result);
@@ -1584,10 +1560,6 @@ static PHP_METHOD(swoole_postgresql_coro, openLOB) {
     int lfd = -1;
     
     swoole::coroutine::async([&]() {
-        PGresult *res;
-        while ((res = PQgetResult(object->conn))) {
-            PQclear(res);
-        }
         lfd = lo_open(object->conn, oid, mode);
         PGresult *pgsql_result = swoole_pgsql_get_result(object);
         set_error_diag(object, pgsql_result);
@@ -1627,10 +1599,6 @@ static PHP_METHOD(swoole_postgresql_coro, unlinkLOB) {
 
     int result = 0;
     swoole::coroutine::async([&]() {
-        PGresult *res;
-        while ((res = PQgetResult(object->conn))) {
-            PQclear(res);
-        }
         result = lo_unlink(object->conn, oid);
         PGresult *pgsql_result = swoole_pgsql_get_result(object);
         set_error_diag(object, pgsql_result);
