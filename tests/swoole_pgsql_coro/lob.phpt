@@ -54,6 +54,37 @@ Swoole\Coroutine\run(function () {
     Assert::eq(fgets($lob), 'Shanghai');
     $result = $pgsql->query('commit');
     Assert::notEq($result, false, (string) $pgsql->error);
+
+    $result = $pgsql->query('begin');
+    Assert::notEq($result, false, (string) $pgsql->error);
+    $oid = $pgsql->createLOB();
+    Assert::integer($oid, (string) $pgsql->error);
+    $lob = $pgsql->openLOB($oid, 'wb');
+    Assert::notEq($lob, false, (string) $pgsql->error);
+    var_dump($lob);
+    fwrite($lob, 'test');
+    $result = $pgsql->query('rollback');
+    Assert::notEq($result, false, (string) $pgsql->error);
+    var_dump($lob);
+
+    $result = $pgsql->query('begin');
+    Assert::notEq($result, false, (string) $pgsql->error);
+    $oid = $pgsql->createLOB();
+    Assert::integer($oid, (string) $pgsql->error);
+    $lob = $pgsql->openLOB($oid, 'wb');
+    Assert::notEq($lob, false, (string) $pgsql->error);
+    var_dump($lob);
+    fwrite($lob, 'test');
+    $result = $pgsql->query('commit');
+    Assert::notEq($result, false, (string) $pgsql->error);
+    var_dump($lob);
+
+    $result = $pgsql->query('begin');
+    Assert::notEq($result, false, (string) $pgsql->error);
+    $lob = $pgsql->openLOB($oid, 'wb');
+    Assert::notEq($lob, false, (string) $pgsql->error);
+    var_dump($lob);
+    var_dump(fgets($lob));
 });
 ?> 
 --EXPECTF--
@@ -71,3 +102,9 @@ array(6) {
   ["date"]=>
   string(10) "1993-11-23"
 }
+resource(%d) of type (stream)
+resource(%d) of type (Unknown)
+resource(%d) of type (stream)
+resource(%d) of type (Unknown)
+resource(%d) of type (stream)
+string(4) "test"
