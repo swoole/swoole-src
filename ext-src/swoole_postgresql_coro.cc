@@ -298,7 +298,7 @@ static int pgsql_lob_close(php_stream *stream, int close_handle)
             lo_close(self->conn, self->lfd);
         });
     }
-	zend_hash_index_del(object->lob_streams, php_stream_get_resource_id(stream));
+    zend_hash_index_del(object->lob_streams, php_stream_get_resource_id(stream));
     zval_ptr_dtor(&self->zobject);
     efree(self);
     return 0;
@@ -352,7 +352,7 @@ php_stream *swoole_pgsql_create_lob_stream(zval *zobject, int lfd, Oid oid)
 
     if (stm) {
         Z_ADDREF_P(&self->zobject);
-		zend_hash_index_add_ptr(object->lob_streams, php_stream_get_resource_id(stm), stm->res);
+        zend_hash_index_add_ptr(object->lob_streams, php_stream_get_resource_id(stm), stm->res);
         return stm;
     }
 
@@ -635,7 +635,7 @@ static void connect_callback(PGObject *object, Reactor *reactor, Event *event) {
         case PGRES_POLLING_OK:
             object->connected = true;
             object->lob_streams = (HashTable *) pemalloc(sizeof(HashTable), 1);
-	        zend_hash_init(object->lob_streams, 0, NULL, NULL, 1);
+            zend_hash_init(object->lob_streams, 0, NULL, NULL, 1);
             events = 0;
             break;
         case PGRES_POLLING_FAILED:
@@ -1066,8 +1066,8 @@ static PHP_METHOD(swoole_postgresql_coro, query) {
     }
 
     if (in_trans && !swoole_pgsql_in_transaction(object)) {
-		swoole_pgsql_close_lob_streams(object);
-	}
+        swoole_pgsql_close_lob_streams(object);
+    }
 }
 
 static PHP_METHOD(swoole_postgresql_coro, prepare) {
@@ -1820,9 +1820,9 @@ static int swoole_postgresql_coro_close(zval *zobject) {
         object->connected = false;
         if (object->lob_streams) {
             swoole_pgsql_close_lob_streams(object);
-			zend_hash_destroy(object->lob_streams);
-			pefree(object->lob_streams, 1);
-			object->lob_streams = nullptr;
+            zend_hash_destroy(object->lob_streams);
+            pefree(object->lob_streams, 1);
+            object->lob_streams = nullptr;
         }
     }
     object->co = nullptr;
@@ -1934,11 +1934,11 @@ static PGresult *swoole_pgsql_get_result(PGObject *object)
 static void swoole_pgsql_close_lob_streams(PGObject *object)
 {
     zval *zres;
-	if (object->lob_streams) {
+    if (object->lob_streams) {
         ZEND_HASH_FOREACH_VAL(object->lob_streams, zres) {
             zend_list_close(Z_RES_P(zres));
         } ZEND_HASH_FOREACH_END();
-	}
+    }
 }
 /* }}} */
 
