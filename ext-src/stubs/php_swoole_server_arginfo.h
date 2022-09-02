@@ -1,10 +1,10 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 70a96158ca597779f1cd7f671af14fe837359abe */
+ * Stub hash: 36dd44abe2133894189d33d0514be9cc24ded702 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Server___construct, 0, 0, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, host, IS_STRING, 0, "\'0.0.0.0\'")
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, port, IS_LONG, 0, "0")
-	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, mode, IS_LONG, 0, "SWOOLE_PROCESS")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, mode, IS_LONG, 0, "SWOOLE_BASE")
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, sock_type, IS_LONG, 0, "SWOOLE_SOCK_TCP")
 ZEND_END_ARG_INFO()
 
