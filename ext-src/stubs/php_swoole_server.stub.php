@@ -1,7 +1,7 @@
 <?php
 namespace Swoole {
     final class Server {
-        public function __construct(string $host = '0.0.0.0', int $port = 0, int $mode = SWOOLE_PROCESS, int $sock_type = SWOOLE_SOCK_TCP) {}
+        public function __construct(string $host = '0.0.0.0', int $port = 0, int $mode = SWOOLE_BASE, int $sock_type = SWOOLE_SOCK_TCP) {}
         public function __destruct() {}
         public function set(array $settings): bool {}
         public function on(string $event_name, callable $callback): bool {}
