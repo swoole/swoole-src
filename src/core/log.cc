@@ -328,21 +328,11 @@ void Logger::put(int level, const char *content, size_t length) {
                     content);
 
     if (opened && flock(log_fd, LOCK_EX) == -1) {
-        printf("flock(%d, LOCK_EX) failed. Error: %s[%d]\n", log_fd, strerror(errno), errno);
-        goto _print;
+        return;
     }
-    if (write(log_fd, log_str, n) < 0) {
-    _print:
-        printf("write(log_fd=%d, size=%d) failed. Error: %s[%d].\nMessage: %.*s\n",
-               log_fd,
-               n,
-               strerror(errno),
-               errno,
-               n,
-               log_str);
-    }
+    write(log_fd, log_str, n);
     if (opened && flock(log_fd, LOCK_UN) == -1) {
-        printf("flock(%d, LOCK_UN) failed. Error: %s[%d]\n", log_fd, strerror(errno), errno);
+        return;
     }
     if (display_backtrace_) {
         swoole_print_backtrace();
