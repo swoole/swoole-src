@@ -438,11 +438,7 @@ static const zend_function_entry swoole_postgresql_coro_statement_methods[] =
 void php_swoole_postgresql_coro_minit(int module_number) {
     SW_INIT_CLASS_ENTRY(
         swoole_postgresql_coro, "Swoole\\Coroutine\\PostgreSQL", "Co\\PostgreSQL", swoole_postgresql_coro_methods);
-#ifdef SW_SET_CLASS_NOT_SERIALIZABLE
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_postgresql_coro);
-#else
-    SW_SET_CLASS_SERIALIZABLE(swoole_postgresql_coro, zend_class_serialize_deny, zend_class_unserialize_deny);
-#endif
     SW_SET_CLASS_CLONEABLE(swoole_postgresql_coro, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_postgresql_coro, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CUSTOM_OBJECT(swoole_postgresql_coro,
@@ -459,11 +455,7 @@ void php_swoole_postgresql_coro_minit(int module_number) {
 
     SW_INIT_CLASS_ENTRY(
         swoole_postgresql_coro_statement, "Swoole\\Coroutine\\PostgreSQLStatement", nullptr, swoole_postgresql_coro_statement_methods);
-#ifdef SW_SET_CLASS_NOT_SERIALIZABLE
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_postgresql_coro_statement);
-#else
-    SW_SET_CLASS_SERIALIZABLE(swoole_postgresql_coro_statement, zend_class_serialize_deny, zend_class_unserialize_deny);
-#endif
     SW_SET_CLASS_CLONEABLE(swoole_postgresql_coro_statement, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_postgresql_coro_statement, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CUSTOM_OBJECT(swoole_postgresql_coro_statement,
