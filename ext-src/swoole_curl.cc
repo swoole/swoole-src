@@ -283,7 +283,7 @@ CURLcode Multi::read_info() {
 
 int Multi::handle_timeout(CURLM *mh, long timeout_ms, void *userp) {
     Multi *multi = (Multi *) userp;
-    swoole_trace_log(SW_TRACE_CO_CURL, SW_ECHO_BLUE "timeout_ms=%d", "[HANDLE_TIMEOUT]", timeout_ms);
+    swoole_trace_log(SW_TRACE_CO_CURL, SW_ECHO_BLUE "timeout_ms=%ld", "[HANDLE_TIMEOUT]", timeout_ms);
     if (!swoole_event_is_available()) {
         return -1;
     }
@@ -344,7 +344,7 @@ long Multi::select(php_curlm *mh, double timeout) {
     co->yield_ex(timeout);
     co = nullptr;
 
-    swoole_trace_log(SW_TRACE_CO_CURL, "yield timeout, count=%d", zend_llist_count(&mh->easyh));
+    swoole_trace_log(SW_TRACE_CO_CURL, "yield timeout, count=%ld", zend_llist_count(&mh->easyh));
 
     auto count = selector->active_handles.size();
 
