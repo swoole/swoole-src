@@ -1101,8 +1101,11 @@ ReturnCode Socket::ssl_accept() {
     } else if (err == SSL_ERROR_SSL) {
         int reason;
         const char *error_string = ssl_get_error_reason(&reason);
-        swoole_warning(
-            "bad SSL client[%s:%d], reason=%d, error_string=%s", info.get_ip(), info.get_port(), reason, error_string);
+        swoole_warning("bad SSL client[%s:%d], reason=%d, error_string=%s",
+                       info.get_ip(),
+                       info.get_port(),
+                       reason,
+                       error_string ? error_string : "(none)");
         return SW_ERROR;
     } else if (err == SSL_ERROR_SYSCALL) {
 #ifdef SW_SUPPORT_DTLS
@@ -1155,12 +1158,11 @@ int Socket::ssl_connect() {
     }
 
     long err_code = ERR_get_error();
-    char *msg = ERR_error_string(err_code, sw_tg_buffer()->str);
-    swoole_notice("Socket::ssl_connect(fd=%d) to server[%s:%d] failed. Error: %s[%ld|%d]",
-                  fd,
+    ERR_error_string_n(err_code, sw_tg_buffer()->str, sw_tg_buffer()->size);
+    swoole_notice("connect to SSL server[%s:%d] failed. Error: %s[%ld|%d]",
                   info.get_ip(),
                   info.get_port(),
-                  msg,
+                  sw_tg_buffer()->str,
                   err,
                   ERR_GET_REASON(err_code));
 
