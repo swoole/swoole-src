@@ -294,21 +294,31 @@ void php_swoole_event_exit() {
     }
 }
 
+static inline bool zval_is_stream_resource(zval *zsocket) {
+    return Z_RES_TYPE_P(zsocket) ==  php_file_le_stream() || Z_RES_TYPE_P(zsocket) == php_file_le_pstream();
+}
+
+#if defined(SWOOLE_SOCKETS_SUPPORT) && PHP_MAJOR_VERSION < 8
+static inline bool zval_is_socket_resource(zval *zsocket) {
+    return Z_RES_TYPE_P(zsocket) ==  php_sockets_le_socket();
+}
+#endif
+
 int php_swoole_convert_to_fd(zval *zsocket) {
     int fd = -1;
 
     switch (Z_TYPE_P(zsocket)) {
     case IS_RESOURCE: {
         php_stream *stream;
-        if ((php_stream_from_zval_no_verify(stream, zsocket))) {
+        if (zval_is_stream_resource(zsocket) && (php_stream_from_zval_no_verify(stream, zsocket))) {
             if (php_stream_cast(stream, PHP_STREAM_AS_FD_FOR_SELECT | PHP_STREAM_CAST_INTERNAL, (void **) &fd, 1) ==
                     SUCCESS &&
                 fd >= 0) {
                 return fd;
             }
         }
-#ifdef SWOOLE_SOCKETS_SUPPORT
-        else {
+#if defined(SWOOLE_SOCKETS_SUPPORT) && PHP_MAJOR_VERSION < 8
+        else if (zval_is_socket_resource(zsocket)) {
             php_socket *php_sock = SW_Z_SOCKET_P(zsocket);
             if (php_sock == nullptr || php_sock->bsd_socket < 0) {
                 php_swoole_fatal_error(E_WARNING, "invalid socket resource");
@@ -317,8 +327,7 @@ int php_swoole_convert_to_fd(zval *zsocket) {
             return php_sock->bsd_socket;
         }
 #endif
-        php_swoole_fatal_error(E_WARNING, "fd argument must be either valid PHP stream or valid PHP socket resource");
-        return SW_ERR;
+        break;
     }
     case IS_LONG: {
         fd = Z_LVAL_P(zsocket);
@@ -347,14 +356,16 @@ int php_swoole_convert_to_fd(zval *zsocket) {
 #endif
         }
         if (zfd == nullptr || Z_TYPE_P(zfd) != IS_LONG) {
-            return SW_ERR;
+            break;
         }
         return Z_LVAL_P(zfd);
     }
     default:
-        php_swoole_fatal_error(E_WARNING, "invalid file descriptor passed");
-        return SW_ERR;
+        break;
     }
+    php_swoole_fatal_error(E_WARNING, "fd argument must be either valid PHP stream or valid PHP socket resource");
+    swoole_set_last_error(SW_ERROR_EVENT_SOCKET_INVALID);
+    return SW_ERR;
 }
 
 int php_swoole_convert_to_fd_ex(zval *zsocket, int *async) {
@@ -465,7 +476,6 @@ static PHP_FUNCTION(swoole_event_add) {
 
     int socket_fd = php_swoole_convert_to_fd(zfd);
     if (socket_fd < 0) {
-        php_swoole_fatal_error(E_WARNING, "unknown fd type");
         RETURN_FALSE;
     }
     if (socket_fd == 0 && (events & SW_EVENT_WRITE)) {
@@ -533,7 +543,6 @@ static PHP_FUNCTION(swoole_event_write) {
 
     int socket_fd = php_swoole_convert_to_fd(zfd);
     if (socket_fd < 0) {
-        php_swoole_fatal_error(E_WARNING, "unknown type");
         RETURN_FALSE;
     }
 
@@ -574,7 +583,6 @@ static PHP_FUNCTION(swoole_event_set) {
 
     int socket_fd = php_swoole_convert_to_fd(zfd);
     if (socket_fd < 0) {
-        php_swoole_fatal_error(E_WARNING, "unknown type");
         RETURN_FALSE;
     }
 
@@ -632,7 +640,6 @@ static PHP_FUNCTION(swoole_event_del) {
 
     int socket_fd = php_swoole_convert_to_fd(zfd);
     if (socket_fd < 0) {
-        php_swoole_fatal_error(E_WARNING, "unknown type");
         RETURN_FALSE;
     }
 
@@ -777,7 +784,6 @@ static PHP_FUNCTION(swoole_event_isset) {
 
     int socket_fd = php_swoole_convert_to_fd(zfd);
     if (socket_fd < 0) {
-        php_swoole_fatal_error(E_WARNING, "unknown type");
         RETURN_FALSE;
     }
 

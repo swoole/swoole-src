@@ -50,6 +50,7 @@ enum swErrorCode {
 
     // EventLoop
     SW_ERROR_EVENT_SOCKET_REMOVED = 800,
+    SW_ERROR_EVENT_SOCKET_INVALID,
 
     /**
      * connection error
