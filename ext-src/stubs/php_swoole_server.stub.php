@@ -24,7 +24,7 @@ namespace Swoole {
         public function pause(int $fd): bool {}
         public function resume(int $fd): bool {}
         public function task(mixed $data, int $taskWorkerIndex = -1, ?callable $finishCallback = null): int|false {}
-        public function taskwait(mixed $data, float $timeout = 0.5, int $taskWorkerIndex = -1): string|false {}
+        public function taskwait(mixed $data, float $timeout = 0.5, int $taskWorkerIndex = -1): mixed {}
         public function taskWaitMulti(array $tasks, float $timeout = 0.5): false|array {}
         public function taskCo(array $tasks, float $timeout = 0.5): array|false {}
         public function finish(mixed $data): bool {}
