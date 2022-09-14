@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 36dd44abe2133894189d33d0514be9cc24ded702 */
+ * Stub hash: de0f2d0732ec40f71da228385e663216b08a597d */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Server___construct, 0, 0, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, host, IS_STRING, 0, "\'0.0.0.0\'")
@@ -110,7 +110,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_class_Swoole_Server_task, 0, 1, 
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, finishCallback, IS_CALLABLE, 1, "null")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_class_Swoole_Server_taskwait, 0, 1, MAY_BE_STRING|MAY_BE_FALSE)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Server_taskwait, 0, 1, IS_MIXED, 0)
 	ZEND_ARG_TYPE_INFO(0, data, IS_MIXED, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, timeout, IS_DOUBLE, 0, "0.5")
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, taskWorkerIndex, IS_LONG, 0, "-1")
