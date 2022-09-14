@@ -2935,7 +2935,7 @@ static PHP_METHOD(swoole_server, taskwait) {
     TaskId task_id = buf.info.fd;
 
     // coroutine
-    if (PHPCoroutine::get_cid() >= 0) {
+    if (swoole_coroutine_is_in()) {
         ServerObject *server_object = server_fetch_object(Z_OBJ_P((zval *) serv->private_data_2));
         buf.info.ext_flags |= (SW_TASK_NONBLOCK | SW_TASK_COROUTINE);
 
@@ -3005,6 +3005,10 @@ static PHP_METHOD(swoole_server, taskwait) {
 }
 
 static PHP_METHOD(swoole_server, taskWaitMulti) {
+    if (swoole_coroutine_is_in()) {
+        return ZEND_MN(swoole_server_taskCo)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+    }
+
     Server *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (sw_unlikely(!serv->is_started())) {
         php_swoole_fatal_error(E_WARNING, "server is not running");
@@ -3022,9 +3026,11 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
     zval *ztask;
     double timeout = SW_TASKWAIT_TIMEOUT;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|d", &ztasks, &timeout) == FAILURE) {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+    Z_PARAM_ZVAL(ztasks)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_DOUBLE(timeout)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     array_init(return_value);
 
@@ -3156,9 +3162,11 @@ static PHP_METHOD(swoole_server, taskCo) {
     zval *ztask;
     double timeout = SW_TASKWAIT_TIMEOUT;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|d", &ztasks, &timeout) == FAILURE) {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+    Z_PARAM_ZVAL(ztasks)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_DOUBLE(timeout)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     int dst_worker_id = -1;
     TaskId task_id;
@@ -3783,9 +3791,12 @@ static PHP_METHOD(swoole_server, stop) {
 
     zend_bool wait_reactor = 0;
     long worker_id = SwooleG.process_id;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|lb", &worker_id, &wait_reactor) == FAILURE) {
-        RETURN_FALSE;
-    }
+
+    ZEND_PARSE_PARAMETERS_START(0, 2)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_LONG(worker_id)
+    Z_PARAM_BOOL(wait_reactor)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (worker_id == SwooleG.process_id && wait_reactor == 0) {
         if (SwooleTG.reactor != nullptr) {
