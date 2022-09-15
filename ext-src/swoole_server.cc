@@ -3793,7 +3793,7 @@ static PHP_METHOD(swoole_server, stop) {
     }
 
     zend_bool wait_reactor = 0;
-    long worker_id = SwooleG.process_id;
+    zend_long worker_id = SwooleG.process_id;
 
     ZEND_PARSE_PARAMETERS_START(0, 2)
     Z_PARAM_OPTIONAL
