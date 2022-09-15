@@ -3023,7 +3023,6 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
     memset(&buf.info, 0, sizeof(buf.info));
 
     zval *ztasks;
-    zval *ztask;
     double timeout = SW_TASKWAIT_TIMEOUT;
 
     ZEND_PARSE_PARAMETERS_START(1, 2)
@@ -3073,6 +3072,7 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
     }
     task_notify_socket->set_block();
 
+    zval *ztask;
     SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(ztasks), ztask)
     TaskId task_id = php_swoole_task_pack(&buf, ztask);
     if (task_id < 0) {
@@ -3159,7 +3159,6 @@ static PHP_METHOD(swoole_server, taskCo) {
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(ZEND_THIS));
 
     zval *ztasks;
-    zval *ztask;
     double timeout = SW_TASKWAIT_TIMEOUT;
 
     ZEND_PARSE_PARAMETERS_START(1, 2)
@@ -3195,6 +3194,7 @@ static PHP_METHOD(swoole_server, taskCo) {
 
     array_init_size(return_value, n_task);
 
+    zval *ztask;
     SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(ztasks), ztask) {
         task_id = php_swoole_task_pack(&buf, ztask);
         if (task_id < 0) {
@@ -3228,9 +3228,12 @@ static PHP_METHOD(swoole_server, taskCo) {
     task_co.count = n_task;
 
     if (!task_co.co->yield_ex(timeout)) {
+        bool is_called_in_taskCo = strcasecmp(EX(func)->internal_function.function_name->val, "taskCo") == 0;
         for (uint32_t i = 0; i < n_task; i++) {
             if (!zend_hash_index_exists(Z_ARRVAL_P(return_value), i)) {
-                add_index_bool(return_value, i, 0);
+                if (is_called_in_taskCo) {
+                    add_index_bool(return_value, i, 0);
+                }
                 server_object->property->task_coroutine_map.erase(list[i]);
             }
         }
