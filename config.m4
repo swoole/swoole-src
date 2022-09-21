@@ -233,6 +233,22 @@ AC_DEFUN([AC_SWOOLE_HAVE_BOOST_STACKTRACE],
     AC_LANG_POP([C++])
 ])
 
+AC_DEFUN([AC_SWOOLE_HAVE_GETHOSTBYNAME2_R],
+[
+    AC_CACHE_CHECK([if gethostbyname2_r is supported],[ac_cv_gethostbyname2_r],
+    [
+	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#include <sys/socket.h>
+#include <netdb.h>
+    ]], [[struct hostent s, *res; char ptr[256]; int err; gethostbyname2_r("example.com", AF_INET, &s, ptr, sizeof(ptr), &res, &err);]])],
+	    [ac_cv_gethostbyname2_r=yes], [ac_cv_gethostbyname2_r=no])
+    ])
+
+    if test "$ac_cv_gethostbyname2_r" = yes; then
+        AC_DEFINE(HAVE_GETHOSTBYNAME2_R,1,[Whether you have gethostbyname2_r])
+    fi
+])
+
 AC_DEFUN([AC_SWOOLE_CHECK_SOCKETS], [
     dnl Check for struct cmsghdr
     AC_CACHE_CHECK([for struct cmsghdr], ac_cv_cmsghdr,
@@ -302,19 +318,6 @@ AC_DEFUN([AC_SWOOLE_CHECK_SOCKETS], [
 
     if test "$ac_cv_gai_ai_idn" = yes; then
         AC_DEFINE(HAVE_AI_IDN,1,[Whether you have AI_IDN])
-    fi
-
-    AC_CACHE_CHECK([if gethostbyname2_r is supported],[ac_cv_gethostbyname2_r],
-    [
-	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
-#include <sys/socket.h>
-#include <netdb.h>
-    ]], [[struct hostent s, *res; char ptr[256]; int err; gethostbyname2_r("example.com", AF_INET, &s, ptr, sizeof(ptr), &res, &err);]])],
-	    [ac_cv_gethostbyname2_r=yes], [ac_cv_gethostbyname2_r=no])
-    ])
-
-    if test "$ac_cv_gethostbyname2_r" = yes; then
-        AC_DEFINE(HAVE_GETHOSTBYNAME2_R,1,[Whether you have gethostbyname2_r])
     fi
 ])
 
@@ -547,6 +550,7 @@ EOF
     AC_SWOOLE_HAVE_VALGRIND
     AC_SWOOLE_CHECK_SOCKETS
     AC_SWOOLE_HAVE_BOOST_STACKTRACE
+    AC_SWOOLE_HAVE_GETHOSTBYNAME2_R
 
     AS_CASE([$host_os],
       [darwin*], [SW_OS="MAC"],
