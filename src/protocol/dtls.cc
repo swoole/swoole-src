@@ -123,12 +123,12 @@ BIO_METHOD *BIO_get_methods(void) {
     BIO_meth_set_destroy(_bio_methods, BIO_destroy);
 
 #ifdef OPENSSL_IS_BORINGSSL
-    BIO_meth_set_ctrl(_bio_methods, (long (*)(BIO *, int, long, void *)) BIO_callback_ctrl);
+    BIO_meth_set_ctrl(_bio_methods, (long (*)(BIO *, int, long, void *)) BIO_ctrl);
 #else
-#if defined(__MACH__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
+#if OPENSSL_VERSION_NUMBER > 0x1010007fL
     BIO_meth_set_callback_ctrl(_bio_methods, (long (*)(BIO *, int, BIO_info_cb *)) BIO_callback_ctrl);
 #else
-    BIO_meth_set_callback_ctrl(_bio_methods, BIO_callback_ctrl);
+    BIO_meth_set_callback_ctrl(_bio_methods, (long (*)(BIO *, int, bio_info_cb *)) BIO_callback_ctrl);
 #endif
 #endif
 
