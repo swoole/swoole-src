@@ -850,7 +850,7 @@ int Server::create() {
     if (is_process_mode()) {
         pthread_barrier_init(&reactor_thread_barrier, nullptr, reactor_num + 1);
         pthread_barrierattr_setpshared(&gs->manager_barrier_attr, PTHREAD_PROCESS_SHARED);
-        pthread_barrier_init(&gs->manager_barrier, &gs->manager_barrier_attr, 2);
+        pthread_barrier_init(&gs->manager_barrier, &gs->manager_barrier_attr, 1);
     }
 #endif
 
