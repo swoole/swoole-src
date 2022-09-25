@@ -482,7 +482,7 @@ EOF
     PHP_SUBST(SWOOLE_SHARED_LIBADD)
 
     AC_ARG_ENABLE(debug,
-        [  --enable-debug,         compile with debug symbols],
+        [  --enable-debug          Compile with debug symbols],
         [PHP_DEBUG=$enableval],
         [PHP_DEBUG=0]
     )
