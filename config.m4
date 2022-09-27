@@ -61,6 +61,11 @@ PHP_ARG_WITH([openssl_dir],
   [AS_HELP_STRING([[--with-openssl-dir[=DIR]]],
     [Include OpenSSL support (requires OpenSSL >= 1.0.2)])], [no], [no])
 
+PHP_ARG_WITH([brotli_dir],
+  [dir of brotli],
+  [AS_HELP_STRING([[--with-brotli-dir[=DIR]]],
+    [Include Brotli support])], [no], [no])
+
 PHP_ARG_WITH([jemalloc_dir],
   [dir of jemalloc],
   [AS_HELP_STRING([[--with-jemalloc-dir[=DIR]]],
