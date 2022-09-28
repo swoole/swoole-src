@@ -61,6 +61,11 @@ PHP_ARG_WITH([openssl_dir],
   [AS_HELP_STRING([[--with-openssl-dir[=DIR]]],
     [Include OpenSSL support (requires OpenSSL >= 1.0.2)])], [no], [no])
 
+PHP_ARG_WITH([brotli_dir],
+  [dir of brotli],
+  [AS_HELP_STRING([[--with-brotli-dir[=DIR]]],
+    [Include Brotli support])], [no], [no])
+
 PHP_ARG_WITH([jemalloc_dir],
   [dir of jemalloc],
   [AS_HELP_STRING([[--with-jemalloc-dir[=DIR]]],
@@ -504,6 +509,12 @@ if test "$PHP_SWOOLE" != "no"; then
         AC_DEFINE(SW_USE_OPENSSL, 1, [enable openssl support])
         PHP_ADD_LIBRARY(ssl, 1, SWOOLE_SHARED_LIBADD)
         PHP_ADD_LIBRARY(crypto, 1, SWOOLE_SHARED_LIBADD)
+    fi
+    
+    if test "$PHP_BROTLI_DIR" != "no"; then
+        AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli encoder])
+        PHP_ADD_INCLUDE("${PHP_BROTLI_DIR}/include")
+        PHP_ADD_LIBRARY_WITH_PATH(brotli, "${PHP_BROTLI_DIR}/${PHP_LIBDIR}")
     fi
 
     if test "$PHP_JEMALLOC_DIR" != "no"; then
