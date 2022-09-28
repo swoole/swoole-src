@@ -27,7 +27,7 @@
 
 #include "swoole_coroutine_context.h"
 
-#include <limits.h>
+#include <climits>
 
 #include <functional>
 #include <string>
