@@ -570,6 +570,12 @@ EOF
         PHP_ADD_LIBRARY(ssl, 1, SWOOLE_SHARED_LIBADD)
         PHP_ADD_LIBRARY(crypto, 1, SWOOLE_SHARED_LIBADD)
     fi
+    
+    if test "$PHP_BROTLI_DIR" != "no"; then
+        AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli encoder])
+        PHP_ADD_INCLUDE("${PHP_BROTLI_DIR}/include")
+        PHP_ADD_LIBRARY_WITH_PATH(brotli, "${PHP_BROTLI_DIR}/${PHP_LIBDIR}")
+    fi
 
     if test "$PHP_JEMALLOC_DIR" != "no"; then
         AC_DEFINE(SW_USE_JEMALLOC, 1, [use jemalloc])
