@@ -36,6 +36,11 @@ PHP_ARG_ENABLE([openssl],
   [AS_HELP_STRING([--enable-openssl],
     [Use openssl])], [no], [no])
 
+PHP_ARG_ENABLE([brotli],
+  [enable brotli support],
+  [AS_HELP_STRING([[--enable-brotli]],
+    [Use openssl])], [no], [no])
+
 PHP_ARG_ENABLE([swoole],
   [swoole support],
   [AS_HELP_STRING([--enable-swoole],
@@ -474,15 +479,6 @@ EOF
         PHP_ADD_LIBRARY(z, 1, SWOOLE_SHARED_LIBADD)
     ])
 
-    AC_CHECK_LIB(brotlienc, BrotliEncoderCreateInstance, [
-        AC_CHECK_LIB(brotlidec, BrotliDecoderCreateInstance, [
-            AC_DEFINE(SW_HAVE_COMPRESSION, 1, [have compression])
-            AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli encoder])
-            PHP_ADD_LIBRARY(brotlienc, 1, SWOOLE_SHARED_LIBADD)
-            PHP_ADD_LIBRARY(brotlidec, 1, SWOOLE_SHARED_LIBADD)
-        ])
-    ])
-
     PHP_ADD_LIBRARY(pthread)
     PHP_SUBST(SWOOLE_SHARED_LIBADD)
 
@@ -570,11 +566,17 @@ EOF
         PHP_ADD_LIBRARY(ssl, 1, SWOOLE_SHARED_LIBADD)
         PHP_ADD_LIBRARY(crypto, 1, SWOOLE_SHARED_LIBADD)
     fi
-    
-    if test "$PHP_BROTLI_DIR" != "no"; then
+
+    if test "$PHP_BROTLI" != "no" || test "$PHP_BROTLI_DIR" != "no"; then
+        if test "$PHP_BROTLI_DIR" != "no"; then
+            PHP_ADD_INCLUDE("${PHP_BROTLI_DIR}/include")
+            PHP_ADD_LIBRARY_WITH_PATH(brotlienc, "${PHP_BROTLI_DIR}/${PHP_LIBDIR}")
+            PHP_ADD_LIBRARY_WITH_PATH(brotlidec, "${PHP_BROTLI_DIR}/${PHP_LIBDIR}")
+        fi
+        AC_DEFINE(SW_HAVE_COMPRESSION, 1, [have compression])
         AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli encoder])
-        PHP_ADD_INCLUDE("${PHP_BROTLI_DIR}/include")
-        PHP_ADD_LIBRARY_WITH_PATH(brotli, "${PHP_BROTLI_DIR}/${PHP_LIBDIR}")
+        PHP_ADD_LIBRARY(brotlienc, 1, SWOOLE_SHARED_LIBADD)
+        PHP_ADD_LIBRARY(brotlidec, 1, SWOOLE_SHARED_LIBADD)
     fi
 
     if test "$PHP_JEMALLOC_DIR" != "no"; then
