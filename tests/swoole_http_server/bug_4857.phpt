@@ -21,7 +21,7 @@ $pm->parentFunc = function () use ($pm) {
         var_dump($headers);
 
         // without content-length
-        $headers = httpGetHeaders("http://127.0.0.1:{$pm->getFreePort()}",);
+        $headers = httpGetHeaders("http://127.0.0.1:{$pm->getFreePort()}");
         var_dump($headers);
 
         // with content-length
