@@ -61,41 +61,41 @@ $pm->run();
 array(6) {
   ["server"]=>
   string(18) "swoole-http-server"
-  ["date"]=>
-  string(%d) %s
   ["connection"]=>
   string(10) "keep-alive"
   ["content-type"]=>
   string(9) "text/html"
-  ["content-encoding"]=>
+  ["date"]=>
   string(%d) %s
   ["content-length"]=>
+  string(%d) %s
+  ["content-encoding"]=>
   string(%d) %s
 }
 array(5) {
   ["server"]=>
   string(18) "swoole-http-server"
-  ["date"]=>
-  string(%d) %s
   ["connection"]=>
   string(10) "keep-alive"
   ["content-type"]=>
   string(9) "text/html"
+  ["date"]=>
+  string(%d) %s
   ["transfer-encoding"]=>
   string(7) "chunked"
 }
 array(6) {
   ["server"]=>
   string(18) "swoole-http-server"
-  ["date"]=>
-  string(%d) %s
   ["connection"]=>
   string(10) "keep-alive"
   ["content-type"]=>
   string(9) "text/html"
-  ["content-encoding"]=>
+  ["date"]=>
   string(%d) %s
   ["content-length"]=>
+  string(%d) %s
+  ["content-encoding"]=>
   string(%d) %s
 }
 DONE
