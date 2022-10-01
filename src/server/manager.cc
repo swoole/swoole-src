@@ -245,7 +245,6 @@ void Manager::start(Server *_server) {
     procctl(P_PID, 0, PROC_PDEATHSIG_CTL, &sigid);
 #endif
 
-#ifdef HAVE_PTHREAD_BARRIER
 #if defined(HAVE_PTHREAD_BARRIER) && !(defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__))
     pthread_barrier_wait(&_server->gs->manager_barrier);
 #else
