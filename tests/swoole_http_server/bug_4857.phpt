@@ -68,9 +68,9 @@ array(6) {
   ["content-type"]=>
   string(9) "text/html"
   ["content-encoding"]=>
-  string(4) "gzip"
+  string(%d) %s
   ["content-length"]=>
-  string(2) "50"
+  string(%d) %s
 }
 array(5) {
   ["server"]=>
@@ -94,7 +94,7 @@ array(6) {
   ["content-type"]=>
   string(9) "text/html"
   ["content-encoding"]=>
-  string(4) "gzip"
+  string(%d) %s
   ["content-length"]=>
   string(%d) %s
 }
