@@ -346,7 +346,12 @@ static bool parse_header_flags(HttpContext *ctx, const char *key, size_t keylen,
     } else if (SW_STRCASEEQ(key, keylen, "Date")) {
         header_flags |= HTTP_HEADER_DATE;
     } else if (SW_STRCASEEQ(key, keylen, "Content-Length")) {
-        header_flags |= HTTP_HEADER_CONTENT_LENGTH;
+        //https://github.com/swoole/swoole-src/issues/4857
+#ifdef SW_HAVE_COMPRESSION
+        return (!ctx->send_chunked && !ctx->accept_compression) && (header_flags |= HTTP_HEADER_CONTENT_LENGTH);
+#else
+        return !ctx->send_chunked && (header_flags |= HTTP_HEADER_CONTENT_LENGTH);
+#endif
     } else if (SW_STRCASEEQ(key, keylen, "Content-Type")) {
         header_flags |= HTTP_HEADER_CONTENT_TYPE;
     } else if (SW_STRCASEEQ(key, keylen, "Transfer-Encoding")) {

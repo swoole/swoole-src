@@ -853,7 +853,7 @@ int Server::create() {
 #ifdef HAVE_PTHREAD_BARRIER
     if (is_process_mode()) {
         pthread_barrier_init(&reactor_thread_barrier, nullptr, reactor_num + 1);
-#if !defined(__FreeBSD__) && !defined(__OpenBSD__) && !defined(__NetBSD__)
+#if !(defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__))
         pthread_barrierattr_setpshared(&gs->manager_barrier_attr, PTHREAD_PROCESS_SHARED);
         pthread_barrier_init(&gs->manager_barrier, &gs->manager_barrier_attr, 2);
 #endif
@@ -988,7 +988,7 @@ void Server::destroy() {
 #ifdef HAVE_PTHREAD_BARRIER
     if (is_process_mode()) {
         pthread_barrier_destroy(&reactor_thread_barrier);
-#if !defined(__FreeBSD__) && !defined(__OpenBSD__) && !defined(__NetBSD__)
+#if !(defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__))
         pthread_barrier_destroy(&gs->manager_barrier);
         pthread_barrierattr_destroy(&gs->manager_barrier_attr);
 #endif

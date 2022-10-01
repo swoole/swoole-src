@@ -731,7 +731,7 @@ bool HttpClient::decompress_response(const char *in, size_t in_len) {
                 }
             } else {
                 swoole_warning("BrotliDecoderDecompressStream() failed, %s",
-                       BrotliDecoderErrorString(BrotliDecoderGetErrorCode(brotli_decoder_state)));
+                               BrotliDecoderErrorString(BrotliDecoderGetErrorCode(brotli_decoder_state)));
                 break;
             }
         }
@@ -1037,6 +1037,15 @@ bool HttpClient::send() {
                 // ignore custom Content-Length value
                 continue;
             }
+
+            if (SW_STRCASEEQ(key, keylen, "Accept-Encoding")) {
+#ifdef SW_HAVE_COMPRESSION
+                header_flag |= HTTP_HEADER_ACCEPT_ENCODING;
+#else
+                continue;
+#endif
+            }
+
             zend::String str_value(zvalue);
             add_headers(buffer, key, keylen, str_value.val(), str_value.len());
 
@@ -1045,8 +1054,6 @@ bool HttpClient::send() {
                 if (SW_STRCASEEQ(str_value.val(), str_value.len(), "close")) {
                     keep_alive = 0;
                 }
-            } else if (SW_STRCASEEQ(key, keylen, "Accept-Encoding")) {
-                header_flag |= HTTP_HEADER_ACCEPT_ENCODING;
             }
         }
         SW_HASHTABLE_FOREACH_END();
@@ -1333,15 +1340,15 @@ bool HttpClient::send() {
     }
 
     swoole_trace_log(SW_TRACE_HTTP_CLIENT,
-               "to [%s:%u%s] by fd#%d in cid#%ld with [%zu] bytes: <<EOF\n%.*s\nEOF",
-               host.c_str(),
-               port,
-               path.c_str(),
-               socket->get_fd(),
-               Coroutine::get_current_cid(),
-               buffer->length,
-               (int) buffer->length,
-               buffer->str);
+                     "to [%s:%u%s] by fd#%d in cid#%ld with [%zu] bytes: <<EOF\n%.*s\nEOF",
+                     host.c_str(),
+                     port,
+                     path.c_str(),
+                     socket->get_fd(),
+                     Coroutine::get_current_cid(),
+                     buffer->length,
+                     (int) buffer->length,
+                     buffer->str);
 
     if (socket->send_all(buffer->str, buffer->length) != (ssize_t) buffer->length) {
     _send_fail:
@@ -1508,11 +1515,11 @@ bool HttpClient::recv_http_response(double timeout) {
         total_bytes += retval;
         parsed_n = swoole_http_parser_execute(&parser, &http_parser_settings, buffer->str, retval);
         swoole_trace_log(SW_TRACE_HTTP_CLIENT,
-                   "parsed_n=%ld, retval=%ld, total_bytes=%ld, completed=%d",
-                   parsed_n,
-                   retval,
-                   total_bytes,
-                   parser.state == s_start_res);
+                         "parsed_n=%ld, retval=%ld, total_bytes=%ld, completed=%d",
+                         parsed_n,
+                         retval,
+                         total_bytes,
+                         parser.state == s_start_res);
         if (parser.state == s_start_res) {
             // handle redundant data (websocket packet)
             if (parser.upgrade && (size_t) retval > parsed_n + SW_WEBSOCKET_HEADER_LEN) {
