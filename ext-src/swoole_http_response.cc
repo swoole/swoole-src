@@ -355,13 +355,24 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
             if (UNEXPECTED(!key || ZVAL_IS_NULL(zvalue))) {
                 continue;
             }
+
             int key_header = parse_header_name(key, keylen);
             if (key_header > 0) {
 #ifdef SW_HAVE_COMPRESSION
                 if (key_header == HTTP_HEADER_CONTENT_TYPE && accept_compression && compression_types) {
                     content_type = zval_get_string(zvalue);
                 }
+
+                // https://github.com/swoole/swoole-src/issues/4857
+                if (key_header == HTTP_HEADER_CONTENT_LENGTH && accept_compression) {
+                    continue;
+                }
 #endif
+                // https://github.com/swoole/swoole-src/issues/4857
+                if (key_header == HTTP_HEADER_CONTENT_LENGTH && send_chunked) {
+                    continue;
+                }
+
                 header_flags |= key_header;
             }
             if (ZVAL_IS_ARRAY(zvalue)) {
