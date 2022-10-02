@@ -961,6 +961,7 @@ bool HttpClient::send() {
 #ifdef SW_HAVE_COMPRESSION
                 header_flag |= HTTP_HEADER_ACCEPT_ENCODING;
 #else
+                php_swoole_error(E_WARNING, "Missing a compression package, 'Accept-Encoding' is ignored");
                 continue;
 #endif
             }
