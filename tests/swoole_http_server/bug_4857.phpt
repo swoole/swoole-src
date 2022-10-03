@@ -58,6 +58,7 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
+Warning: Swoole\Http\Response::end(): The client has set 'Accept-Encoding', 'Content-Length' is ignored in %s on line %d
 array(6) {
   ["server"]=>
   string(18) "swoole-http-server"
@@ -72,6 +73,8 @@ array(6) {
   ["content-length"]=>
   string(%d) %s
 }
+
+Warning: Swoole\Http\Response::write(): You have set 'Transfer-Encoding', 'Content-Length' is ignored in %s on line %d
 array(5) {
   ["server"]=>
   string(18) "swoole-http-server"
@@ -84,6 +87,8 @@ array(5) {
   ["transfer-encoding"]=>
   string(7) "chunked"
 }
+
+Warning: Swoole\Http\Response::end(): The client has set 'Accept-Encoding', 'Content-Length' is ignored in %s on line %d
 array(6) {
   ["server"]=>
   string(18) "swoole-http-server"

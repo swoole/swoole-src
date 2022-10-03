@@ -365,11 +365,13 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
 
                 // https://github.com/swoole/swoole-src/issues/4857
                 if (key_header == HTTP_HEADER_CONTENT_LENGTH && accept_compression) {
+                    php_swoole_error(E_WARNING, "The client has set 'Accept-Encoding', 'Content-Length' is ignored");
                     continue;
                 }
 #endif
                 // https://github.com/swoole/swoole-src/issues/4857
                 if (key_header == HTTP_HEADER_CONTENT_LENGTH && send_chunked) {
+                    php_swoole_error(E_WARNING, "You have set 'Transfer-Encoding', 'Content-Length' is ignored");
                     continue;
                 }
 
