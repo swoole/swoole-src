@@ -346,12 +346,12 @@ static bool parse_header_flags(HttpContext *ctx, const char *key, size_t keylen,
     } else if (SW_STRCASEEQ(key, keylen, "Date")) {
         header_flags |= HTTP_HEADER_DATE;
     } else if (SW_STRCASEEQ(key, keylen, "Content-Length")) {
-        //https://github.com/swoole/swoole-src/issues/4857
-#ifdef SW_HAVE_COMPRESSION
-        return (!ctx->send_chunked && !ctx->accept_compression) && (header_flags |= HTTP_HEADER_CONTENT_LENGTH);
-#else
-        return !ctx->send_chunked && (header_flags |= HTTP_HEADER_CONTENT_LENGTH);
-#endif
+        // https://github.com/swoole/swoole-src/issues/4857
+        if (ctx->send_chunked) {
+            php_swoole_error(E_WARNING, "You have set 'Transfer-Encoding', 'Content-Length' is ignored");
+            return false;
+        }
+        header_flags |= HTTP_HEADER_CONTENT_LENGTH;
     } else if (SW_STRCASEEQ(key, keylen, "Content-Type")) {
         header_flags |= HTTP_HEADER_CONTENT_TYPE;
     } else if (SW_STRCASEEQ(key, keylen, "Transfer-Encoding")) {
