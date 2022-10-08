@@ -355,13 +355,26 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
             if (UNEXPECTED(!key || ZVAL_IS_NULL(zvalue))) {
                 continue;
             }
+
             int key_header = parse_header_name(key, keylen);
             if (key_header > 0) {
 #ifdef SW_HAVE_COMPRESSION
                 if (key_header == HTTP_HEADER_CONTENT_TYPE && accept_compression && compression_types) {
                     content_type = zval_get_string(zvalue);
                 }
+
+                // https://github.com/swoole/swoole-src/issues/4857
+                if (key_header == HTTP_HEADER_CONTENT_LENGTH && accept_compression) {
+                    php_swoole_error(E_WARNING, "The client has set 'Accept-Encoding', 'Content-Length' is ignored");
+                    continue;
+                }
 #endif
+                // https://github.com/swoole/swoole-src/issues/4857
+                if (key_header == HTTP_HEADER_CONTENT_LENGTH && send_chunked) {
+                    php_swoole_error(E_WARNING, "You have set 'Transfer-Encoding', 'Content-Length' is ignored");
+                    continue;
+                }
+
                 header_flags |= key_header;
             }
             if (ZVAL_IS_ARRAY(zvalue)) {
