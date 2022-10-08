@@ -380,7 +380,7 @@ zend_bool php_swoole_signal_isset_handler(int signo);
 #endif
 
 #ifndef E_FATAL_ERRORS
-#define E_FATAL_ERRORS (E_ERROR | E_CORE_ERROR | E_COMPILE_ERROR | E_USER_ERROR | E_RECOVERABLE_ERROR | E_PARSE)
+#define E_FATAL_ERRORS (E_CORE_ERROR | E_COMPILE_ERROR | E_USER_ERROR | E_RECOVERABLE_ERROR | E_PARSE)
 #endif
 /*}}}*/
 
