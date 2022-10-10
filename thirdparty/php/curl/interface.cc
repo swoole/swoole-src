@@ -453,6 +453,12 @@ static HashTable *swoole_curl_get_gc(zend_object *object, zval **table, int *n) 
             zend_get_gc_buffer_add_zval(gc_buffer, &curl_handlers(curl)->progress->func_name);
         }
 
+#if LIBCURL_VERSION_NUM >= 0x072000
+        if (curl_handlers(curl)->xferinfo) {
+            zend_get_gc_buffer_add_zval(gc_buffer, &curl_handlers(curl)->xferinfo->func_name);
+        }
+#endif
+
 #if LIBCURL_VERSION_NUM >= 0x071500
         if (curl_handlers(curl)->fnmatch) {
             zend_get_gc_buffer_add_zval(gc_buffer, &curl_handlers(curl)->fnmatch->func_name);
@@ -691,6 +697,56 @@ static size_t fn_progress(void *clientp, double dltotal, double dlnow, double ul
 }
 /* }}} */
 
+#if LIBCURL_VERSION_NUM >= 0x072000
+/* {{{ curl_xferinfo */
+static size_t fn_xferinfo(void *clientp, curl_off_t dltotal, curl_off_t dlnow, curl_off_t ultotal, curl_off_t ulnow)
+{
+	php_curl *ch = (php_curl *)clientp;
+	php_curl_fnxferinfo *t = curl_handlers(ch)->xferinfo;
+	size_t rval = 0;
+
+#if PHP_CURL_DEBUG
+	fprintf(stderr, "curl_xferinfo() called\n");
+	fprintf(stderr, "clientp = %x, dltotal = %ld, dlnow = %ld, ultotal = %ld, ulnow = %ld\n", clientp, dltotal, dlnow, ultotal, ulnow);
+#endif
+
+	zval argv[5];
+	zval retval;
+	zend_result error;
+	zend_fcall_info fci;
+
+	GC_ADDREF(&ch->std);
+	ZVAL_OBJ(&argv[0], &ch->std);
+	ZVAL_LONG(&argv[1], dltotal);
+	ZVAL_LONG(&argv[2], dlnow);
+	ZVAL_LONG(&argv[3], ultotal);
+	ZVAL_LONG(&argv[4], ulnow);
+
+	fci.size = sizeof(fci);
+	ZVAL_COPY_VALUE(&fci.function_name, &t->func_name);
+	fci.object = NULL;
+	fci.retval = &retval;
+	fci.param_count = 5;
+	fci.params = argv;
+	fci.named_params = NULL;
+
+	ch->in_callback = 1;
+	error = zend_call_function(&fci, &t->fci_cache);
+	ch->in_callback = 0;
+	if (error == FAILURE) {
+		php_error_docref(NULL, E_WARNING, "Cannot call the CURLOPT_XFERINFOFUNCTION");
+	} else if (!Z_ISUNDEF(retval)) {
+        swoole_curl_verify_handlers(ch, 1);
+		if (0 != zval_get_long(&retval)) {
+			rval = 1;
+		}
+	}
+	zval_ptr_dtor(&argv[0]);
+	return rval;
+}
+/* }}} */
+#endif
+
 /* {{{ curl_read
  */
 static size_t fn_read(char *data, size_t size, size_t nmemb, void *ctx) {
@@ -925,6 +981,9 @@ php_curl *swoole_curl_alloc_handle()
     curl_handlers(ch)->write_header = (php_curl_write *) ecalloc(1, sizeof(php_curl_write));
     curl_handlers(ch)->read = (php_curl_read *) ecalloc(1, sizeof(php_curl_read));
     curl_handlers(ch)->progress = NULL;
+#if LIBCURL_VERSION_NUM >= 0x072000
+	curl_handlers(ch)->xferinfo = NULL;
+#endif
 #if LIBCURL_VERSION_NUM >= 0x071500 /* Available since 7.21.0 */
     curl_handlers(ch)->fnmatch = NULL;
 #endif
@@ -1129,6 +1188,16 @@ void swoole_setup_easy_copy_handlers(php_curl *ch, php_curl *source) {
         curl_handlers(ch)->progress->method = curl_handlers(source)->progress->method;
         curl_easy_setopt(ch->cp, CURLOPT_PROGRESSDATA, (void *) ch);
     }
+
+#if LIBCURL_VERSION_NUM >= 0x072000
+	if (curl_handlers(source)->xferinfo) {
+		curl_handlers(ch)->xferinfo = (php_curl_fnxferinfo *) ecalloc(1, sizeof(php_curl_fnxferinfo));
+		if (!Z_ISUNDEF(curl_handlers(source)->xferinfo->func_name)) {
+			ZVAL_COPY(&curl_handlers(ch)->xferinfo->func_name, &curl_handlers(source)->xferinfo->func_name);
+		}
+		curl_easy_setopt(ch->cp, CURLOPT_XFERINFODATA, (void *) ch);
+	}
+#endif
 
 #if LIBCURL_VERSION_NUM >= 0x071500
     if (curl_handlers(source)->fnmatch) {
@@ -2128,6 +2197,20 @@ static int _php_curl_setopt(php_curl *ch, zend_long option, zval *zvalue) /* {{{
         curl_handlers(ch)->write->method = PHP_CURL_USER;
         break;
 
+#if LIBCURL_VERSION_NUM >= 0x072000
+		case CURLOPT_XFERINFOFUNCTION:
+			curl_easy_setopt(ch->cp, CURLOPT_XFERINFOFUNCTION, fn_xferinfo);
+			curl_easy_setopt(ch->cp, CURLOPT_XFERINFODATA, ch);
+			if (curl_handlers(ch)->xferinfo == NULL) {
+				curl_handlers(ch)->xferinfo = (php_curl_fnxferinfo *) ecalloc(1, sizeof(php_curl_fnxferinfo));
+			} else if (!Z_ISUNDEF(curl_handlers(ch)->xferinfo->func_name)) {
+				zval_ptr_dtor(&curl_handlers(ch)->xferinfo->func_name);
+				curl_handlers(ch)->xferinfo->fci_cache = empty_fcall_info_cache;
+			}
+			ZVAL_COPY(&curl_handlers(ch)->xferinfo->func_name, zvalue);
+			break;
+#endif
+
     /* Curl off_t options */
     case CURLOPT_MAX_RECV_SPEED_LARGE:
     case CURLOPT_MAX_SEND_SPEED_LARGE:
@@ -2778,7 +2861,7 @@ static void _php_curl_free(php_curl *ch) {
 
     swoole::curl::Handle *handle = nullptr;
 
-    if (curl_easy_getinfo(ch->cp, CURLINFO_PRIVATE, &handle) && handle) {
+    if (swoole_curl_is_in_coroutine(ch) && curl_easy_getinfo(ch->cp, CURLINFO_PRIVATE, &handle) == CURLE_OK && handle) {
         if (handle->multi) {
             handle->multi->remove_handle(ch);
         }
@@ -2935,6 +3018,14 @@ static void _php_curl_reset_handlers(php_curl *ch) {
         efree(curl_handlers(ch)->progress);
         curl_handlers(ch)->progress = NULL;
     }
+
+#if LIBCURL_VERSION_NUM >= 0x072000
+	if (curl_handlers(ch)->xferinfo) {
+		zval_ptr_dtor(&curl_handlers(ch)->xferinfo->func_name);
+		efree(curl_handlers(ch)->xferinfo);
+		curl_handlers(ch)->xferinfo = NULL;
+	}
+#endif
 
 #if LIBCURL_VERSION_NUM >= 0x071500 /* Available since 7.21.0 */
     if (curl_handlers(ch)->fnmatch) {
