@@ -453,7 +453,7 @@ static HashTable *swoole_curl_get_gc(zend_object *object, zval **table, int *n) 
             zend_get_gc_buffer_add_zval(gc_buffer, &curl_handlers(curl)->progress->func_name);
         }
 
-#if LIBCURL_VERSION_NUM >= 0x072000
+#if LIBCURL_VERSION_NUM >= 0x072000 && PHP_VERSION_ID >= 80200
         if (curl_handlers(curl)->xferinfo) {
             zend_get_gc_buffer_add_zval(gc_buffer, &curl_handlers(curl)->xferinfo->func_name);
         }
@@ -697,7 +697,7 @@ static size_t fn_progress(void *clientp, double dltotal, double dlnow, double ul
 }
 /* }}} */
 
-#if LIBCURL_VERSION_NUM >= 0x072000
+#if LIBCURL_VERSION_NUM >= 0x072000 && PHP_VERSION_ID >= 80200
 /* {{{ curl_xferinfo */
 static size_t fn_xferinfo(void *clientp, curl_off_t dltotal, curl_off_t dlnow, curl_off_t ultotal, curl_off_t ulnow)
 {
@@ -981,7 +981,7 @@ php_curl *swoole_curl_alloc_handle()
     curl_handlers(ch)->write_header = (php_curl_write *) ecalloc(1, sizeof(php_curl_write));
     curl_handlers(ch)->read = (php_curl_read *) ecalloc(1, sizeof(php_curl_read));
     curl_handlers(ch)->progress = NULL;
-#if LIBCURL_VERSION_NUM >= 0x072000
+#if LIBCURL_VERSION_NUM >= 0x072000 && PHP_VERSION_ID >= 80200
 	curl_handlers(ch)->xferinfo = NULL;
 #endif
 #if LIBCURL_VERSION_NUM >= 0x071500 /* Available since 7.21.0 */
@@ -1189,7 +1189,7 @@ void swoole_setup_easy_copy_handlers(php_curl *ch, php_curl *source) {
         curl_easy_setopt(ch->cp, CURLOPT_PROGRESSDATA, (void *) ch);
     }
 
-#if LIBCURL_VERSION_NUM >= 0x072000
+#if LIBCURL_VERSION_NUM >= 0x072000 && PHP_VERSION_ID >= 80200
 	if (curl_handlers(source)->xferinfo) {
 		curl_handlers(ch)->xferinfo = (php_curl_fnxferinfo *) ecalloc(1, sizeof(php_curl_fnxferinfo));
 		if (!Z_ISUNDEF(curl_handlers(source)->xferinfo->func_name)) {
@@ -2197,7 +2197,7 @@ static int _php_curl_setopt(php_curl *ch, zend_long option, zval *zvalue) /* {{{
         curl_handlers(ch)->write->method = PHP_CURL_USER;
         break;
 
-#if LIBCURL_VERSION_NUM >= 0x072000
+#if LIBCURL_VERSION_NUM >= 0x072000 && PHP_VERSION_ID >= 80200
 		case CURLOPT_XFERINFOFUNCTION:
 			curl_easy_setopt(ch->cp, CURLOPT_XFERINFOFUNCTION, fn_xferinfo);
 			curl_easy_setopt(ch->cp, CURLOPT_XFERINFODATA, ch);
@@ -3019,7 +3019,7 @@ static void _php_curl_reset_handlers(php_curl *ch) {
         curl_handlers(ch)->progress = NULL;
     }
 
-#if LIBCURL_VERSION_NUM >= 0x072000
+#if LIBCURL_VERSION_NUM >= 0x072000 && PHP_VERSION_ID >= 80200
 	if (curl_handlers(ch)->xferinfo) {
 		zval_ptr_dtor(&curl_handlers(ch)->xferinfo->func_name);
 		efree(curl_handlers(ch)->xferinfo);
