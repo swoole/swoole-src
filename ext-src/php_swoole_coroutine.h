@@ -129,7 +129,6 @@ class PHPCoroutine {
     static bool disable_hook();
     static void disable_unsafe_function();
     static void enable_unsafe_function();
-    static void error_cb(int type, error_filename_t *error_filename, const uint32_t error_lineno, ZEND_ERROR_CB_LAST_ARG_D);
     static void interrupt_thread_stop();
 
     static inline long get_cid() {

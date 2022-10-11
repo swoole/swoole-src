@@ -653,7 +653,7 @@ static PHP_FUNCTION(swoole_event_wait) {
 static PHP_FUNCTION(swoole_event_rshutdown) {
     /* prevent the program from jumping out of the rshutdown */
     zend_try {
-        if (!sw_reactor()) {
+        if (php_swoole_is_fatal_error() || !sw_reactor()) {
             return;
         }
         // when throw Exception, do not show the info

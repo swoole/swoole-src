@@ -107,18 +107,7 @@ SW_API bool php_swoole_timer_clear(swoole::TimerNode *tnode);
 SW_API bool php_swoole_timer_clear_all();
 
 static inline bool php_swoole_is_fatal_error() {
-    if (PG(last_error_message)) {
-        switch (PG(last_error_type)) {
-        case E_ERROR:
-        case E_CORE_ERROR:
-        case E_USER_ERROR:
-        case E_COMPILE_ERROR:
-            return true;
-        default:
-            break;
-        }
-    }
-    return false;
+    return PG(last_error_type) & E_FATAL_ERRORS;
 }
 
 ssize_t php_swoole_length_func(const swoole::Protocol *, swoole::network::Socket *, swoole::PacketLength *);

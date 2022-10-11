@@ -1,7 +1,9 @@
 --TEST--
 swoole_coroutine/bailout: error out of the coroutine
 --SKIPIF--
-<?php require __DIR__ . '/../../include/skipif.inc'; ?>
+<?php use Swoole\Event;
+
+require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
@@ -33,6 +35,8 @@ go(function () {
 });
 
 a();
+
+Event::wait();
 ?>
 --EXPECTF--
 Fatal error: Uncaught Error: Call to undefined function a() in %s:%d
