@@ -235,6 +235,7 @@ class PHPCoroutine {
     static void save_task(PHPContext *task);
     static void restore_task(PHPContext *task);
     static void catch_exception();
+    static void bailout();
     static void on_yield(void *arg);
     static void on_resume(void *arg);
     static void on_close(void *arg);

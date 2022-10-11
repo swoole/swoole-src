@@ -187,7 +187,7 @@ static int coro_exit_handler(zend_execute_data *execute_data) {
     }
     if (flags) {
         const zend_op *opline = EX(opline);
-        zval _exit_status {};
+        zval _exit_status{};
         zval *exit_status = nullptr;
 
         if (opline->op1_type != IS_UNUSED) {
@@ -258,14 +258,21 @@ void PHPCoroutine::init() {
     Coroutine::set_on_close(on_close);
 }
 
-void PHPCoroutine::catch_exception() {
-    if (UNEXPECTED(EG(exception))) {
-        // the exception error messages MUST be output on the current coroutine stack
-        zend_exception_error(EG(exception), E_ERROR);
+void PHPCoroutine::bailout() {
+    Coroutine::bailout([]() {
         if (sw_reactor()) {
             sw_reactor()->running = false;
             sw_reactor()->bailout = true;
         }
+        zend_bailout();
+    });
+}
+
+void PHPCoroutine::catch_exception() {
+    if (UNEXPECTED(EG(exception))) {
+        // the exception error messages MUST be output on the current coroutine stack
+        zend_exception_error(EG(exception), E_ERROR);
+        bailout();
     }
 }
 
@@ -739,10 +746,7 @@ void PHPCoroutine::main_func(void *arg) {
         if (UNEXPECTED(EG(exception))) {
             catch_exception();
         } else {
-            if (sw_reactor()) {
-                sw_reactor()->running = false;
-                sw_reactor()->bailout = true;
-            }
+            bailout();
         }
     }
     zend_end_try();

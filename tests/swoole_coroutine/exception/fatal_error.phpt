@@ -5,6 +5,9 @@ swoole_coroutine/exception: fatal error
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
+register_shutdown_function(function (){
+    echo "shutdown\n";
+});
 Co\run(function () {
     call_func_not_exists();
     sleep(1);
@@ -16,3 +19,4 @@ Fatal error: Uncaught Error: Call to undefined function call_func_not_exists() i
 Stack trace:
 #0 {main}
   thrown in %s on line %d
+shutdown
