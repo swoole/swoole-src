@@ -107,7 +107,7 @@ SW_API bool php_swoole_timer_clear(swoole::TimerNode *tnode);
 SW_API bool php_swoole_timer_clear_all();
 
 static inline bool php_swoole_is_fatal_error() {
-    return PG(last_error_type) & E_FATAL_ERRORS;
+    return PG(last_error_message) && (PG(last_error_type) & E_FATAL_ERRORS);
 }
 
 ssize_t php_swoole_length_func(const swoole::Protocol *, swoole::network::Socket *, swoole::PacketLength *);
