@@ -1,12 +1,13 @@
 --TEST--
 swoole_coroutine/bailout: error in the coroutine
 --SKIPIF--
-<?php use Swoole\Event;
-
+<?php
 require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
+
+use Swoole\Event;
 Swoole\Runtime::enableCoroutine();
 
 $func = function () {
