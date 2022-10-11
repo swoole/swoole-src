@@ -36,6 +36,11 @@ PHP_ARG_ENABLE([openssl],
   [AS_HELP_STRING([--enable-openssl],
     [Use openssl])], [no], [no])
 
+PHP_ARG_ENABLE([brotli],
+  [enable brotli support],
+  [AS_HELP_STRING([[--enable-brotli]],
+    [Use brotli])], [yes], [no])
+
 PHP_ARG_ENABLE([http2],
   [enable http2.0 support],
   [AS_HELP_STRING([--enable-http2],
@@ -413,15 +418,17 @@ if test "$PHP_SWOOLE" != "no"; then
         AC_DEFINE(SW_HAVE_ZLIB, 1, [have zlib])
         PHP_ADD_LIBRARY(z, 1, SWOOLE_SHARED_LIBADD)
     ])
-
-    AC_CHECK_LIB(brotlienc, BrotliEncoderCreateInstance, [
-        AC_CHECK_LIB(brotlidec, BrotliDecoderCreateInstance, [
-            AC_DEFINE(SW_HAVE_COMPRESSION, 1, [have compression])
-            AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli encoder])
-            PHP_ADD_LIBRARY(brotlienc, 1, SWOOLE_SHARED_LIBADD)
-            PHP_ADD_LIBRARY(brotlidec, 1, SWOOLE_SHARED_LIBADD)
+    
+    if test "$PHP_BROTLI" = "yes"; then
+        AC_CHECK_LIB(brotlienc, BrotliEncoderCreateInstance, [
+            AC_CHECK_LIB(brotlidec, BrotliDecoderCreateInstance, [
+                AC_DEFINE(SW_HAVE_COMPRESSION, 1, [have compression])
+                AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli encoder])
+                PHP_ADD_LIBRARY(brotlienc, 1, SWOOLE_SHARED_LIBADD)
+                PHP_ADD_LIBRARY(brotlidec, 1, SWOOLE_SHARED_LIBADD)
+            ])
         ])
-    ])
+    fi
 
     PHP_ADD_LIBRARY(pthread)
     PHP_SUBST(SWOOLE_SHARED_LIBADD)
@@ -515,6 +522,13 @@ if test "$PHP_SWOOLE" != "no"; then
         AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli encoder])
         PHP_ADD_INCLUDE("${PHP_BROTLI_DIR}/include")
         PHP_ADD_LIBRARY_WITH_PATH(brotli, "${PHP_BROTLI_DIR}/${PHP_LIBDIR}")
+    fi
+
+    if test "$PHP_BROTLI_DIR" != "no"; then
+        AC_DEFINE(SW_HAVE_COMPRESSION, 1, [have compression])
+        AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli encoder])
+        PHP_ADD_LIBRARY_WITH_PATH(brotlienc, "${PHP_BROTLI_DIR}/${PHP_LIBDIR}")
+        PHP_ADD_LIBRARY_WITH_PATH(brotlidec, "${PHP_BROTLI_DIR}/${PHP_LIBDIR}")
     fi
 
     if test "$PHP_JEMALLOC_DIR" != "no"; then
