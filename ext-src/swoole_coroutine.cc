@@ -1221,7 +1221,7 @@ static PHP_METHOD(swoole_coroutine, getBackTrace) {
 
 static PHP_METHOD(swoole_coroutine, printBackTrace) {
     zend_long cid = 0;
-    zend_long options = DEBUG_BACKTRACE_PROVIDE_OBJECT;
+    zend_long options = 0;
     zend_long limit = 0;
 
     ZEND_PARSE_PARAMETERS_START(0, 3)
