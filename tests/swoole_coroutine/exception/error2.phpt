@@ -1,7 +1,8 @@
 --TEST--
 swoole_coroutine/exception: zend_error
 --SKIPIF--
-<?php require  __DIR__ . '/../../include/skipif.inc'; ?>
+<?php require  __DIR__ . '/../../include/skipif.inc';
+skip_if_extension_not_exist('soap');?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';

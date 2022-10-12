@@ -6,21 +6,12 @@ swoole_mysql_coro: illegal another coroutine
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 $process = new Swoole\Process(function () {
-    go(function () {
+    Co\run(function () {
         register_shutdown_function(function () {
             $msg = (error_get_last() ?? [])['message'] ?? '';
-            $num = preg_match_all('/coroutine#(\d+)/', $msg, $matches);
-            if (Assert::same($num, 2)) {
-                $matches = $matches[1];
-                $bound_co = (int)$matches[0];
-                $error_co = (int)$matches[1];
-                $bound_co_trace = Co::getBackTrace($bound_co);
-                $error_co_trace = Co::getBackTrace($error_co);
-                Assert::same($bound_co_trace[0]['object'], $error_co_trace[0]['object']);
-                echo "DONE\n";
-            }
+            Assert::true(str_contains($msg, 'has already been bound to another coroutine'));
+            echo "DONE\n";
         });
-
         function get(Co\Mysql $cli)
         {
             $cli->query('SELECT SLEEP(1)');
@@ -49,6 +40,7 @@ $process = new Swoole\Process(function () {
             });
         }
     });
+    echo "end\n";
 }, false, null, false);
 $process->start();
 Swoole\Process::wait();
