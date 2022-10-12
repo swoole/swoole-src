@@ -71,10 +71,6 @@ static user_opcode_handler_t ori_end_silence_handler = nullptr;
 static unordered_map<long, Coroutine *> user_yield_coros;
 
 static void (*orig_interrupt_function)(zend_execute_data *execute_data) = nullptr;
-static void (*orig_error_function)(int type,
-                                   error_filename_t *error_filename,
-                                   const uint32_t error_lineno,
-                                   ZEND_ERROR_CB_LAST_ARG_D) = nullptr;
 
 static zend_class_entry *swoole_coroutine_util_ce;
 static zend_class_entry *swoole_exit_exception_ce;
@@ -324,7 +320,6 @@ void PHPCoroutine::deactivate(void *ptr) {
     disable_hook();
 
     zend_interrupt_function = orig_interrupt_function;
-    zend_error_cb = orig_error_function;
 
     if (config.enable_deadlock_check) {
         deadlock_check();
