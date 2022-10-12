@@ -280,7 +280,6 @@ class Coroutine {
         } else if (sw_unlikely(on_bailout)) {
             SW_ASSERT(current == nullptr);
             on_bailout();
-            exit(SW_CORO_BAILOUT_EXIT_CODE);
         }
     }
 
