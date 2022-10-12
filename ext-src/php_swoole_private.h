@@ -314,8 +314,6 @@ zend_bool php_swoole_signal_isset_handler(int signo);
 
 typedef ssize_t php_stream_size_t;
 
-#define ZEND_ERROR_CB_LAST_ARG_D zend_string *message
-#define ZEND_ERROR_CB_LAST_ARG_RELAY message
 
 #if PHP_VERSION_ID < 80100
 typedef const char error_filename_t;
