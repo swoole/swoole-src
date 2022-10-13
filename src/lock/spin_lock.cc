@@ -34,7 +34,7 @@ SpinLock::SpinLock(int use_in_process) : Lock() {
     }
 
     type_ = SPIN_LOCK;
-    if (pthread_spin_init(impl, use_in_process) < 0) {
+    if (pthread_spin_init(impl, use_in_process) != 0) {
         throw std::system_error(errno, std::generic_category(), "pthread_spin_init() failed");
     }
 }

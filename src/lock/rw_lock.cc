@@ -43,7 +43,7 @@ RWLock::RWLock(int use_in_process) : Lock() {
     if (use_in_process == 1) {
         pthread_rwlockattr_setpshared(&impl->attr, PTHREAD_PROCESS_SHARED);
     }
-    if (pthread_rwlock_init(&impl->_lock, &impl->attr) < 0) {
+    if (pthread_rwlock_init(&impl->_lock, &impl->attr) != 0) {
         throw std::system_error(errno, std::generic_category(), "pthread_rwlock_init() failed");
     }
 }
@@ -69,6 +69,7 @@ int RWLock::trylock() {
 }
 
 RWLock::~RWLock() {
+    pthread_rwlockattr_destroy(&impl->attr);
     pthread_rwlock_destroy(&impl->_lock);
     if (shared_) {
         sw_mem_pool()->free(impl);

@@ -25,6 +25,8 @@ struct MutexImpl {
 };
 
 Mutex::Mutex(int flags) : Lock() {
+    flags_ = flags;
+
     if (flags & PROCESS_SHARED) {
         impl = (MutexImpl *) sw_mem_pool()->alloc(sizeof(*impl));
         if (impl == nullptr) {
@@ -55,18 +57,20 @@ Mutex::Mutex(int flags) : Lock() {
 #endif
     }
 
-    if (pthread_mutex_init(&impl->lock_, &impl->attr_) < 0) {
+    if (pthread_mutex_init(&impl->lock_, &impl->attr_) != 0) {
         throw std::system_error(errno, std::generic_category(), "pthread_mutex_init() failed");
     }
 }
 
 int Mutex::lock() {
     int retval = pthread_mutex_lock(&impl->lock_);
+
 #ifdef HAVE_PTHREAD_MUTEX_CONSISTENT
-    if (retval == EOWNERDEAD) {
+    if (retval == EOWNERDEAD && (flags_ & ROBUST)) {
         retval = pthread_mutex_consistent(&impl->lock_);
     }
 #endif
+
     return retval;
 }
 
