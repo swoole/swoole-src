@@ -58,6 +58,7 @@ struct MutexImpl;
 
 class Mutex : public Lock {
     MutexImpl *impl;
+    int flags_;
 
   public:
     enum Flag {
