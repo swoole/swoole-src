@@ -69,6 +69,7 @@ int RWLock::trylock() {
 }
 
 RWLock::~RWLock() {
+    pthread_rwlockattr_destroy(&impl->attr);
     pthread_rwlock_destroy(&impl->_lock);
     if (shared_) {
         sw_mem_pool()->free(impl);
