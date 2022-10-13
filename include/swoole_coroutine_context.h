@@ -51,16 +51,17 @@ namespace coroutine {
 
 class Context {
   public:
-    Context(size_t stack_size, const CoroutineFunc &fn, void *private_data);
+    Context(size_t stack_size, CoroutineFunc fn, void *private_data);
     ~Context();
     bool swap_in();
     bool swap_out();
 #if !defined(SW_USE_THREAD_CONTEXT) && defined(SW_CONTEXT_DETECT_STACK_USAGE)
     ssize_t get_stack_usage();
 #endif
-    inline bool is_end() {
+    inline bool is_end() const {
         return end_;
     }
+
   protected:
     CoroutineFunc fn_;
 #ifdef SW_USE_THREAD_CONTEXT
