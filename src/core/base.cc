@@ -939,18 +939,13 @@ void hook_call(void **hooks, int type, void *arg) {
  * return the first file of the intersection, in order of vec1
  */
 std::string intersection(std::vector<std::string> &vec1, std::set<std::string> &vec2) {
-    std::string result = "";
-
-    std::find_if(vec1.begin(), vec1.end(), [&](std::string &str) -> bool {
-        auto iter = std::find(vec2.begin(), vec2.end(), str);
-        if (iter != vec2.end()) {
-            result = *iter;
-            return true;
+    for (const auto &vec1_item : vec1) {
+        if (vec2.find(vec1_item) != vec2.end()) {
+            return vec1_item;
         }
-        return false;
-    });
+    }
 
-    return result;
+    return "";
 }
 
 double microtime(void) {
