@@ -33,10 +33,10 @@ Swoole\Event::wait();
 --EXPECTF--
 3
 zha
-defer 2
-defer 1
 
 Fatal error: Uncaught Exception: something wrong in %s:%d
 Stack trace:
 %A
   thrown in %s/tests/swoole_coroutine/defer/defer_exception.php on line %d
+defer 2
+defer 1

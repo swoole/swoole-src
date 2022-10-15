@@ -264,12 +264,13 @@ void PHPCoroutine::bailout() {
     });
 }
 
-void PHPCoroutine::catch_exception() {
+bool PHPCoroutine::catch_exception() {
     if (UNEXPECTED(EG(exception))) {
         // the exception error messages MUST be output on the current coroutine stack
         zend_exception_error(EG(exception), E_ERROR);
-        bailout();
+        return true;
     }
+    return false;
 }
 
 void PHPCoroutine::activate() {
@@ -582,6 +583,7 @@ void PHPCoroutine::on_close(void *arg) {
 }
 
 void PHPCoroutine::main_func(void *arg) {
+    bool exception_caught = false;
     zend_first_try {
         Args *php_arg = (Args *) arg;
         zend_fcall_info_cache fci_cache = *php_arg->fci_cache;
@@ -704,6 +706,12 @@ void PHPCoroutine::main_func(void *arg) {
             zend_vm_stack_free_args(call);
         }
 
+        // Catch exception in main function of the coroutine
+        if (catch_exception()) {
+            exception_caught = true;
+        }
+
+        // The defer tasks still need to be executed after an exception occurs
         if (task->defer_tasks) {
             std::stack<zend::Function *> *tasks = task->defer_tasks;
             while (!tasks->empty()) {
@@ -714,7 +722,6 @@ void PHPCoroutine::main_func(void *arg) {
                     defer_fci->fci.param_count = 1;
                     defer_fci->fci.params = retval;
                 }
-
                 if (UNEXPECTED(sw_zend_call_function_anyway(&defer_fci->fci, &defer_fci->fci_cache) != SUCCESS)) {
                     php_swoole_fatal_error(E_WARNING, "defer callback handler error");
                 }
@@ -725,7 +732,7 @@ void PHPCoroutine::main_func(void *arg) {
             task->defer_tasks = nullptr;
         }
 
-        // resources release
+        // Release resources
         if (task->context) {
             zend_object *context = task->context;
             task->context = (zend_object *) ~0;
@@ -735,16 +742,16 @@ void PHPCoroutine::main_func(void *arg) {
             OBJ_RELEASE(fci_cache.object);
         }
         zval_ptr_dtor(retval);
-        catch_exception();
     }
     zend_catch {
-        if (UNEXPECTED(EG(exception))) {
-            catch_exception();
-        } else {
-            bailout();
-        }
+        // zend_bailout is executed in the c function
+        catch_exception();
+        exception_caught = true;
     }
     zend_end_try();
+    if (exception_caught) {
+        bailout();
+    }
 }
 
 long PHPCoroutine::create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv) {

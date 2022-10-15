@@ -31,9 +31,9 @@ go(function () {
 Swoole\Event::wait();
 ?>
 --EXPECTF--
-closed
 
 Fatal error: Uncaught Exception: something wrong in %s:%d
 Stack trace:
 %A
   thrown in %s on line %d
+closed
