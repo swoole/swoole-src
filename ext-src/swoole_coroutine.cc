@@ -707,9 +707,7 @@ void PHPCoroutine::main_func(void *arg) {
         }
 
         // Catch exception in main function of the coroutine
-        if (catch_exception()) {
-            exception_caught = true;
-        }
+        exception_caught = catch_exception();
 
         // The defer tasks still need to be executed after an exception occurs
         if (task->defer_tasks) {

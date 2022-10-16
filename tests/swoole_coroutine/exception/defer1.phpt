@@ -5,7 +5,6 @@ swoole_coroutine/exception: defer 1
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
-use Swoole\Coroutine\Channel;
 use Swoole\Coroutine;
 
 register_shutdown_function(function (){
