@@ -18,12 +18,12 @@ Co\run(function () {
     Coroutine::create(static function () {
         echo "co-2 begin\n";
         Coroutine::defer(static function () {
+            echo "never execute\n";
+        });
+        Coroutine::defer(static function () {
             echo "defer task begin\n";
             throw new Exception();
             echo "defer task end\n";
-        });
-        Coroutine::defer(static function () {
-            echo "never execute\n";
         });
         echo "co-2 end\n";
     });
