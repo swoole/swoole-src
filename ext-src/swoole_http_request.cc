@@ -395,6 +395,47 @@ void swoole_http_parse_cookie(zval *zarray, const char *at, size_t length) {
     }
 }
 
+bool swoole_http_token_list_contains_value(const char *at, size_t length, const char *value) {
+    if (0 == length) {
+        return false;
+    }
+    if (SW_STRCASEEQ(at, length, value)) {
+        return true;
+    }
+
+    char *var;
+    const char *separator = ",\0";
+    char *strtok_buf = nullptr;
+    size_t var_len, i;
+
+    char *_c = sw_tg_buffer()->str;
+    memcpy(_c, at, length);
+    _c[length] = '\0';
+
+    var = php_strtok_r(_c, separator, &strtok_buf);
+    while (var) {
+        var_len = strlen(var);
+        // ltrim
+        while (' ' == *var || '\t' == *var) {
+            ++var;
+            --var_len;
+        }
+        // rtrim
+        for (i = var_len - 1; i >= 0; --i) {
+            if (' ' == var[i] || '\t' == var[i]) {
+                --var_len;
+            } else {
+                break;
+            }
+        }
+        if (swoole_strcaseeq(var, var_len, value, strlen(value))) {
+            return true;
+        }
+        var = php_strtok_r(nullptr, separator, &strtok_buf);
+    }
+    return false;
+}
+
 static int http_request_on_header_value(swoole_http_parser *parser, const char *at, size_t length) {
     HttpContext *ctx = (HttpContext *) parser->data;
     zval *zheader = ctx->request.zheader;
@@ -407,7 +448,7 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
         swoole_http_parse_cookie(zcookie, at, length);
         efree(header_name);
         return 0;
-    } else if (SW_STREQ(header_name, header_len, "upgrade") && SW_STRCASEEQ(at, length, "websocket")) {
+    } else if (SW_STREQ(header_name, header_len, "upgrade") && swoole_http_token_list_contains_value(at, length, "websocket")) {
         ctx->websocket = 1;
         if (ctx->co_socket) {
             goto _add_header;
