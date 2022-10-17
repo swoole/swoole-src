@@ -406,7 +406,7 @@ bool swoole_http_token_list_contains_value(const char *at, size_t length, const 
     char *var;
     const char *separator = ",\0";
     char *strtok_buf = nullptr;
-    size_t var_len, i;
+    size_t var_len;
 
     char *_c = sw_tg_buffer()->str;
     memcpy(_c, at, length);
@@ -414,20 +414,8 @@ bool swoole_http_token_list_contains_value(const char *at, size_t length, const 
 
     var = php_strtok_r(_c, separator, &strtok_buf);
     while (var) {
-        var_len = strlen(var);
-        // ltrim
-        while (' ' == *var || '\t' == *var) {
-            ++var;
-            --var_len;
-        }
-        // rtrim
-        for (i = var_len - 1; i >= 0; --i) {
-            if (' ' == var[i] || '\t' == var[i]) {
-                --var_len;
-            } else {
-                break;
-            }
-        }
+        var_len = swoole::ltrim(&var, strlen(var));
+        var_len = swoole::rtrim(var, var_len);
         if (swoole_strcaseeq(var, var_len, value, strlen(value))) {
             return true;
         }
