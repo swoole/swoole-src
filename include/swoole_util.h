@@ -126,7 +126,7 @@ inline ScopeGuard<Fun> operator+(ScopeGuardOnExit, Fun &&fn) {
 std::string intersection(std::vector<std::string> &vec1, std::set<std::string> &vec2);
 
 static inline size_t ltrim(char **str, size_t len) {
-    while (isspace(**str)) {
+    while ('\0' != **str && isspace(**str)) {
         ++*str;
         --len;
     }

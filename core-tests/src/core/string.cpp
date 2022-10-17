@@ -4,6 +4,26 @@
 using namespace std;
 using swoole::String;
 
+TEST(string, ltrim) {
+    char buf[1024];
+    strcpy(buf, "  hello world");
+    swoole::ltrim(buf, strlen(buf));
+    ASSERT_EQ(strcmp("hello world", buf), 0);
+    ASSERT_NE(strcmp("  hello world", buf), 0);
+
+    strcpy(buf, "  ");
+    swoole::ltrim(buf, strlen(buf));
+    ASSERT_EQ(strlen(buf), 0);
+
+    memcpy(buf, "  a\0b\0", 6);
+    swoole::ltrim(buf, strlen(buf));
+    ASSERT_EQ(strcmp("a", buf), 0);
+
+    buf[0] = '\0';
+    swoole::ltrim(buf, strlen(buf));
+    ASSERT_EQ(strcmp("", buf), 0);
+}
+
 TEST(string, rtrim) {
     char buf[1024];
     strcpy(buf, "hello world  ");
@@ -14,6 +34,10 @@ TEST(string, rtrim) {
     strcpy(buf, "  ");
     swoole::rtrim(buf, strlen(buf));
     ASSERT_EQ(strlen(buf), 0);
+
+    buf[0] = '\0';
+    swoole::rtrim(buf, strlen(buf));
+    ASSERT_EQ(strcmp("", buf), 0);
 }
 
 TEST(string, strnpos) {
