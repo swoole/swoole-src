@@ -26,14 +26,16 @@ using namespace swoole;
 
 TEST(buffer, append_iov) {
     Buffer buf(1024);
+    Buffer buf_for_offset(1024);
 
     int iovcnt = 4;
     iovec v[iovcnt];
+    size_t total_len = 0;
 
-    v[0].iov_len = swoole_rand(99, 4095);
-    v[1].iov_len = swoole_rand(99, 4095);
-    v[2].iov_len = swoole_rand(99, 4095);
-    v[3].iov_len = swoole_rand(99, 4095);
+    SW_LOOP_N (iovcnt) {
+        v[i].iov_len = swoole_rand(99, 4095);
+        total_len += v[i].iov_len;
+    }
 
     unique_ptr<char> s1(new char[v[0].iov_len]);
     unique_ptr<char> s2(new char[v[1].iov_len]);
@@ -51,21 +53,29 @@ TEST(buffer, append_iov) {
     memset(v[3].iov_base, 'D', v[3].iov_len);
 
     buf.append(v, iovcnt, 0);
+    ASSERT_EQ(buf.length(), total_len);
 
-    ASSERT_EQ(buf.length(), v[0].iov_len + v[1].iov_len + v[2].iov_len+ v[3].iov_len);
+    size_t offset = swoole_rand(v[0].iov_len + 1, total_len - 1);
+    buf_for_offset.append(v, iovcnt, offset);
+    ASSERT_EQ(buf_for_offset.length(), total_len - offset);
 
-    String str(buf.length());
+    String str(buf_for_offset.length());
 
-    while(!buf.empty()) {
-        auto chunk = buf.front();
+    while (!buf_for_offset.empty()) {
+        auto chunk = buf_for_offset.front();
         str.append(chunk->value.ptr, chunk->length);
-        buf.pop();
+        buf_for_offset.pop();
     }
 
-    size_t offset = 0;
-
+    size_t indent = 0;
     SW_LOOP_N (iovcnt) {
-        ASSERT_EQ(memcmp(str.str + offset, v[i].iov_base, v[i].iov_len), 0);
-        offset += v[i].iov_len;
+        if (offset >= v[i].iov_len) {
+            offset -= v[i].iov_len;
+            continue;
+        }
+
+        ASSERT_EQ(memcmp(str.str + indent, (char *) v[i].iov_base + offset, v[i].iov_len - offset), 0);
+        indent += v[i].iov_len - offset;
+        offset = 0;
     }
 }

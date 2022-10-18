@@ -111,9 +111,9 @@ void Buffer::append(const struct iovec *iov, size_t iovcnt, off_t offset) {
                     i++;
                     continue;
                 } else {
+                    pos = (char *) iov[i].iov_base + offset;
+                    iov_remain_len = iov[i].iov_len - offset;
                     offset = 0;
-                    pos += offset;
-                    iov_remain_len -= offset;
                 }
             }
             chunk_remain_len = _length >= chunk_size ? chunk_size : _length;
