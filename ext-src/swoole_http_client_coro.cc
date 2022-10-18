@@ -398,7 +398,7 @@ static int http_parser_on_header_value(swoole_http_parser *parser, const char *a
     add_assoc_stringl_ex(zheaders, header_name, header_len, (char *) at, length);
 
     if (parser->status_code == SW_HTTP_SWITCHING_PROTOCOLS && SW_STREQ(header_name, header_len, "upgrade")) {
-        if (SW_STRCASEEQ(at, length, "websocket")) {
+        if (swoole_http_token_list_contains_value(at, length, "websocket")) {
             http->websocket = true;
         }
         /* TODO: protocol error? */
