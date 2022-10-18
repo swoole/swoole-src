@@ -67,5 +67,6 @@ namespace Swoole\Server {
     final class Task {
         public function finish(mixed $data): bool {}
         public static function pack(mixed $data): string|false {}
+        public static function unpack(string $data): mixed {}
     }
 }

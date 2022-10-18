@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: send message
+swoole_server: send message [1]
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';

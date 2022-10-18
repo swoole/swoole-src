@@ -7,24 +7,20 @@ swoole_server: send message [02]
 require __DIR__ . '/../include/bootstrap.php';
 $pm = new SwooleTest\ProcessManager;
 
-$pm->parentFunc = function ($pid) use ($pm)
-{
+$pm->parentFunc = function ($pid) use ($pm) {
     $client = new Swoole\Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
     $client->set([
         'package_eof' => "\r\n",
         'open_eof_check' => true,
         'open_eof_split' => true,
     ]);
-    if (!$client->connect('127.0.0.1', $pm->getFreePort()))
-    {
+    if (!$client->connect('127.0.0.1', $pm->getFreePort())) {
         exit("connect failed\n");
     }
     $list = [];
-    for ($i = 0; $i < 7; $i++)
-    {
+    for ($i = 0; $i < 7; $i++) {
         $data = $client->recv();
-        if ($data === false or $data === '')
-        {
+        if ($data === false or $data === '') {
             echo "ERROR\n";
             break;
         }
@@ -35,28 +31,22 @@ $pm->parentFunc = function ($pid) use ($pm)
     $pm->kill();
 };
 
-$pm->childFunc = function () use ($pm)
-{
-    $serv = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS, SWOOLE_SOCK_TCP );
+$pm->childFunc = function () use ($pm) {
+    $serv = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS, SWOOLE_SOCK_TCP);
     $serv->set([
         'log_file' => '/dev/null',
         'worker_num' => 4,
         'task_worker_num' => 3,
     ]);
 
-    $lock = new Swoole\Lock();
-
     $process = new \Swoole\Process(function ($process) use ($serv) {
-        while (true)
-        {
+        while (true) {
             $r = $process->read();
-            if (!$r)
-            {
+            if (!$r) {
                 continue;
             }
             $cmd = json_decode($r, true);
-            for ($i = 0; $i < ($serv->setting['worker_num'] + $serv->setting['task_worker_num']); $i++)
-            {
+            for ($i = 0; $i < ($serv->setting['worker_num'] + $serv->setting['task_worker_num']); $i++) {
                 $serv->sendMessage(['worker_id' => $i, 'fd' => $cmd['fd']], $i);
             }
         }
@@ -77,12 +67,11 @@ $pm->childFunc = function () use ($pm)
 
     $serv->on('pipeMessage', function (Swoole\Server $serv, $worker_id, $data) use ($lock) {
         //$lock->lock();
-        $serv->send($data['fd'], $data['worker_id']."\r\n");
+        $serv->send($data['fd'], $data['worker_id'] . "\r\n");
         //$lock->unlock();
     });
 
-    $serv->on('task', function (Swoole\Server $serv, $task_id, $worker_id, $data)
-    {
+    $serv->on('task', function (Swoole\Server $serv, $task_id, $worker_id, $data) {
 
     });
 
