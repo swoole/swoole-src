@@ -19,34 +19,34 @@
 
 namespace swoole {
 
+BufferChunk::BufferChunk(Type type, uint32_t size) : type(type), size(size) {
+    if (type == TYPE_DATA && size > 0) {
+        value.ptr = new char[size];
+    }
+}
+
+BufferChunk::~BufferChunk() {
+    if (type == TYPE_DATA) {
+        delete[] value.ptr;
+    }
+    if (destroy) {
+        destroy(this);
+    }
+}
+
 Buffer::Buffer(uint32_t _chunk_size) {
     chunk_size = _chunk_size == 0 ? INT_MAX : _chunk_size;
 }
 
 BufferChunk *Buffer::alloc(BufferChunk::Type type, uint32_t size) {
-    BufferChunk *chunk = new BufferChunk();
-
-    if (type == BufferChunk::TYPE_DATA && size > 0) {
-        chunk->size = size;
-        chunk->value.ptr = new char[size];
-    }
-
-    chunk->type = type;
+    auto *chunk = new BufferChunk(type, size);
     queue_.push(chunk);
-
     return chunk;
 }
 
 void Buffer::pop() {
     BufferChunk *chunk = queue_.front();
-
     total_length -= chunk->size;
-    if (chunk->type == BufferChunk::TYPE_DATA) {
-        delete[] chunk->value.ptr;
-    }
-    if (chunk->destroy) {
-        chunk->destroy(chunk);
-    }
     delete chunk;
     queue_.pop();
 }
