@@ -29,8 +29,8 @@ struct BufferChunk {
     };
 
     Type type;
-    uint32_t length;
-    uint32_t offset;
+    uint32_t length = 0;
+    uint32_t offset = 0;
     union {
         char *ptr;
         void *object;
@@ -38,9 +38,13 @@ struct BufferChunk {
             uint32_t val1;
             uint32_t val2;
         } data;
-    } value;
-    uint32_t size;
-    void (*destroy)(BufferChunk *chunk);
+    } value{};
+    uint32_t size = 0;
+
+    BufferChunk(Type type, uint32_t size);
+    ~BufferChunk();
+
+    void (*destroy)(BufferChunk *chunk) = nullptr;
 };
 
 class Buffer {
@@ -51,7 +55,7 @@ class Buffer {
     std::queue<BufferChunk *> queue_;
 
   public:
-    Buffer(uint32_t chunk_size);
+    explicit Buffer(uint32_t chunk_size);
     ~Buffer();
 
     BufferChunk *alloc(BufferChunk::Type type, uint32_t size);
@@ -64,15 +68,15 @@ class Buffer {
     void append(const void *data, uint32_t size);
     void append(const struct iovec *iov, size_t iovcnt, off_t offset);
 
-    uint32_t length() {
+    uint32_t length() const {
         return total_length;
     }
 
-    size_t count() {
+    size_t count() const {
         return queue_.size();
     }
 
-    bool empty() {
+    bool empty() const {
         return queue_.empty();
     }
 
