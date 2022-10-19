@@ -105,8 +105,6 @@ size_t Table::calc_memory_size() {
      */
     _memory_size += size * sizeof(TableRow *);
 
-    memory_size = _memory_size;
-
     swoole_trace("_memory_size=%lu, _row_num=%lu, _row_memory_size=%lu", _memory_size, _row_num, _row_memory_size);
 
     return _memory_size;
@@ -154,6 +152,7 @@ bool Table::create() {
     _memory_size -= _row_memory_size * size;
     pool = new FixedPool(_row_memory_size, _memory, _memory_size, true);
     iterator = new TableIterator(_row_memory_size);
+    memory_size = _memory_size;
     created = true;
 
     return true;
