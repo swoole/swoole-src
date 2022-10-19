@@ -79,10 +79,7 @@ bool Table::add_column(const std::string &_name, enum TableColumn::Type _type, s
     return true;
 }
 
-size_t Table::get_memory_size() {
-    if (memory_size > 0) {
-        return memory_size;
-    }
+size_t Table::calc_memory_size() {
     /**
      * table size + conflict size
      */
@@ -115,6 +112,10 @@ size_t Table::get_memory_size() {
     return _memory_size;
 }
 
+size_t Table::get_memory_size() {
+    return memory_size;
+}
+
 uint32_t Table::get_available_slice_num() {
     lock();
     uint32_t num = pool->get_number_of_spare_slice();
@@ -131,7 +132,7 @@ bool Table::create() {
         return false;
     }
 
-    size_t _memory_size = get_memory_size();
+    size_t _memory_size = calc_memory_size();
     size_t _row_memory_size = sizeof(TableRow) + item_size;
 
     void *_memory = sw_shm_malloc(_memory_size);
