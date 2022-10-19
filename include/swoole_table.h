@@ -188,6 +188,7 @@ class Table {
     uint32_t conflict_max_level;
 
     static Table *make(uint32_t rows_size, float conflict_proportion);
+    size_t calc_memory_size();
     size_t get_memory_size();
     uint32_t get_available_slice_num();
     uint32_t get_total_slice_num();
