@@ -1,5 +1,5 @@
 --TEST--
-swoole_table: Segmentation fault (core dumped)
+swoole_table: getMemorySize
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
