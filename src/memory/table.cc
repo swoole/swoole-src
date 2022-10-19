@@ -79,10 +79,7 @@ bool Table::add_column(const std::string &_name, enum TableColumn::Type _type, s
     return true;
 }
 
-size_t Table::get_memory_size() {
-    if (memory_size > 0) {
-        return memory_size;
-    }
+size_t Table::calc_memory_size() {
     /**
      * table size + conflict size
      */
@@ -108,11 +105,13 @@ size_t Table::get_memory_size() {
      */
     _memory_size += size * sizeof(TableRow *);
 
-    memory_size = _memory_size;
-
     swoole_trace("_memory_size=%lu, _row_num=%lu, _row_memory_size=%lu", _memory_size, _row_num, _row_memory_size);
 
     return _memory_size;
+}
+
+size_t Table::get_memory_size() {
+    return memory_size;
 }
 
 uint32_t Table::get_available_slice_num() {
@@ -131,7 +130,7 @@ bool Table::create() {
         return false;
     }
 
-    size_t _memory_size = get_memory_size();
+    size_t _memory_size = calc_memory_size();
     size_t _row_memory_size = sizeof(TableRow) + item_size;
 
     void *_memory = sw_shm_malloc(_memory_size);
@@ -153,6 +152,7 @@ bool Table::create() {
     _memory_size -= _row_memory_size * size;
     pool = new FixedPool(_row_memory_size, _memory, _memory_size, true);
     iterator = new TableIterator(_row_memory_size);
+    memory_size = _memory_size;
     created = true;
 
     return true;
