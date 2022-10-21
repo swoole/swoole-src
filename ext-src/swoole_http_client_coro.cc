@@ -439,6 +439,8 @@ static int http_parser_on_header_value(swoole_http_parser *parser, const char *a
 #endif
     else if (SW_STREQ(header_name, header_len, "transfer-encoding") && SW_STRCASECT(at, length, "chunked")) {
         http->chunked = true;
+    } else if (SW_STREQ(header_name, header_len, "connection") && SW_STRCASECT(at, length, "close")) {
+        http->keep_alive = false;
     }
 
     if (http->lowercase_header) {
@@ -1305,6 +1307,7 @@ bool HttpClient::exec(std::string _path) {
 }
 
 bool HttpClient::recv(double timeout) {
+    bool tmp_keep_alive = keep_alive;
     if (!wait) {
         return false;
     }
@@ -1350,6 +1353,7 @@ bool HttpClient::recv(double timeout) {
         reset();
     }
 
+    keep_alive = tmp_keep_alive;
     return true;
 }
 
