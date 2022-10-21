@@ -65,10 +65,8 @@ $pm->childFunc = function () use ($pm) {
 
     });
 
-    $serv->on('pipeMessage', function (Swoole\Server $serv, $worker_id, $data) use ($lock) {
-        //$lock->lock();
+    $serv->on('pipeMessage', function (Swoole\Server $serv, $worker_id, $data) {
         $serv->send($data['fd'], $data['worker_id'] . "\r\n");
-        //$lock->unlock();
     });
 
     $serv->on('task', function (Swoole\Server $serv, $task_id, $worker_id, $data) {
