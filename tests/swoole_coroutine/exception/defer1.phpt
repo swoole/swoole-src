@@ -43,7 +43,7 @@ if (Assert::isArray($status)) {
     Assert::contains($out, 'defer task begin');
     Assert::contains($out, 'shutdown');
     Assert::contains($out, 'Fatal error: Uncaught Exception');
-    Assert::notContains($out, 'co end');
+    Assert::notContains($out, 'co-1 end');
     Assert::same($code, 255);
 }
 ?>

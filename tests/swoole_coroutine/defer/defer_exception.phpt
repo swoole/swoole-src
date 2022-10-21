@@ -19,7 +19,7 @@ go(function () {
         defer(function () use ($foo, &$bar) {
             echo "defer 2\n";
             Assert::same($foo, 2);
-            Assert::assert($foo !== 'gua'); // because of &
+            Assert::assert($bar !== 'gua'); // because of &
         });
         $foo = 3;
         $bar = 'zha';
