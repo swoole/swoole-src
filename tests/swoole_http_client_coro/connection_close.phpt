@@ -29,7 +29,7 @@ $pm->parentFunc = function () use ($pm) {
 };
 
 $pm->childFunc = function () use ($pm) {
-    $server = new Swoole\Websocket\Server('127.0.0.1', $pm->getFreePort());
+    $server = new Swoole\Websocket\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
 
     $server->on('workerStart', function () use ($pm) {
         $pm->wakeup();
