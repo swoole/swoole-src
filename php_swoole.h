@@ -29,6 +29,9 @@
 #include "zend_interfaces.h"
 #include "zend_closures.h"
 #include "zend_exceptions.h"
+#if PHP_VERSION_ID >= 80200
+#include "zend_attributes.h"
+#endif
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"

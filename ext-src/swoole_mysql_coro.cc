@@ -1713,6 +1713,9 @@ void php_swoole_mysql_coro_minit(int module_number) {
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_mysql_coro, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CUSTOM_OBJECT(
         swoole_mysql_coro, php_swoole_mysql_coro_create_object, php_swoole_mysql_coro_free_object, mysql_coro_t, std);
+#if PHP_VERSION_ID >= 80200
+	zend_add_parameter_attribute((zend_function *) zend_hash_str_find_ptr(&swoole_mysql_coro_ce->function_table, SW_STRL("connect")), 0, ZSTR_KNOWN(ZEND_STR_SENSITIVEPARAMETER), 0);
+#endif
 
     SW_INIT_CLASS_ENTRY(swoole_mysql_coro_statement,
                         "Swoole\\Coroutine\\MySQL\\Statement",
