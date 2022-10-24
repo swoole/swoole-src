@@ -13,13 +13,11 @@ $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     run(function () use ($pm) {
         $client = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
-        $client->get('/');
-        $ret = $client->upgrade('/');
+        $ret = $client->get('/');
         var_dump($ret);
-        if ($ret) {
-            $client->push('hello');
-            var_dump(json_decode($client->recv()->data));
-        }
+
+        $ret = $client->get('/');
+        var_dump($ret);
         $client->close();
 
         var_dump($client->errMsg);
@@ -29,23 +27,14 @@ $pm->parentFunc = function () use ($pm) {
 };
 
 $pm->childFunc = function () use ($pm) {
-    $server = new Swoole\Websocket\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
+    $server = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
 
     $server->on('workerStart', function () use ($pm) {
         $pm->wakeup();
     });
 
-    $server->on('start', function ($server) {
-    });
-
-    $server->on('open', function($server, $req) {
-        $server->push($req->fd, json_encode(['hello', 'world']));
-    });
-
-    $server->on('message', function($server, $frame) {
-    });
-
-    $server->on('close', function($server, $fd) {
+    $server->on('request', function($server, $req) {
+        $req->header('connection', 'close');
     });
 
     $server->start();
@@ -56,11 +45,6 @@ $pm->run();
 ?>
 --EXPECT--
 bool(true)
-array(2) {
-  [0]=>
-  string(5) "hello"
-  [1]=>
-  string(5) "world"
-}
+bool(true)
 string(0) ""
 DONE
