@@ -13,10 +13,10 @@ $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     run(function () use ($pm) {
         $client = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
-        var_dump($client->get('/'));
+        var_dump($client->get('/close'));
         var_dump($client->getHeaders());
 
-        var_dump($client->get('/'));
+        var_dump($client->get('/keep_alive'));
         var_dump($client->getHeaders());
         $client->close();
 
@@ -34,7 +34,9 @@ $pm->childFunc = function () use ($pm) {
     });
 
     $server->on('request', function($request, $response) {
-        $response->header('connection', 'close');
+        if ($request->server['request_uri'] == '/close') {
+            $response->header('connection', 'close');
+        }
         $response->end();
     });
 
@@ -60,10 +62,10 @@ array(5) {
 }
 bool(true)
 array(5) {
-  ["connection"]=>
-  string(5) "close"
   ["server"]=>
   string(18) "swoole-http-server"
+  ["connection"]=>
+  string(10) "keep-alive"
   ["content-type"]=>
   string(9) "text/html"
   ["date"]=>
