@@ -2110,6 +2110,9 @@ void php_swoole_redis_coro_minit(int module_number) {
     SW_SET_CLASS_CREATE_WITH_ITS_OWN_HANDLERS(swoole_redis_coro);
     SW_SET_CLASS_CUSTOM_OBJECT(
         swoole_redis_coro, php_swoole_redis_coro_create_object, php_swoole_redis_coro_free_object, RedisClient, std);
+#if PHP_VERSION_ID >= 80200
+	zend_add_parameter_attribute((zend_function *) zend_hash_str_find_ptr(&swoole_redis_coro_ce->function_table, SW_STRL("auth")), 0, ZSTR_KNOWN(ZEND_STR_SENSITIVEPARAMETER), 0);
+#endif
 
     zend_declare_property_string(swoole_redis_coro_ce, ZEND_STRL("host"), "", ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_redis_coro_ce, ZEND_STRL("port"), 0, ZEND_ACC_PUBLIC);
