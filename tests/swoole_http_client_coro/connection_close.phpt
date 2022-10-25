@@ -13,11 +13,11 @@ $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     run(function () use ($pm) {
         $client = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
-        $ret = $client->get('/');
-        var_dump($ret);
+        var_dump($client->get('/'));
+        var_dump($client->getHeaders());
 
-        $ret = $client->get('/');
-        var_dump($ret);
+        var_dump($client->get('/'));
+        var_dump($client->getHeaders());
         $client->close();
 
         var_dump($client->errMsg);
@@ -33,8 +33,9 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
     });
 
-    $server->on('request', function($server, $req) {
-        $req->header('connection', 'close');
+    $server->on('request', function($request, $response) {
+        $response->header('connection', 'close');
+        $response->end();
     });
 
     $server->start();
@@ -43,8 +44,32 @@ $pm->childFunc = function () use ($pm) {
 $pm->childFirst();
 $pm->run();
 ?>
---EXPECT--
+--EXPECTF--
 bool(true)
+array(5) {
+  ["connection"]=>
+  string(5) "close"
+  ["server"]=>
+  string(18) "swoole-http-server"
+  ["date"]=>
+  string(%d) "%s"
+  ["content-type"]=>
+  string(9) "text/html"
+  ["content-length"]=>
+  string(1) "0"
+}
 bool(true)
+array(5) {
+  ["connection"]=>
+  string(5) "close"
+  ["server"]=>
+  string(18) "swoole-http-server"
+  ["date"]=>
+  string(%d) "%s"
+  ["content-type"]=>
+  string(9) "text/html"
+  ["content-length"]=>
+  string(1) "0"
+}
 string(0) ""
 DONE
