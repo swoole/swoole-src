@@ -51,10 +51,10 @@ array(5) {
   string(5) "close"
   ["server"]=>
   string(18) "swoole-http-server"
-  ["date"]=>
-  string(%d) "%s"
   ["content-type"]=>
   string(9) "text/html"
+  ["date"]=>
+  string(%d) "%s"
   ["content-length"]=>
   string(1) "0"
 }
@@ -64,10 +64,10 @@ array(5) {
   string(5) "close"
   ["server"]=>
   string(18) "swoole-http-server"
-  ["date"]=>
-  string(%d) "%s"
   ["content-type"]=>
   string(9) "text/html"
+  ["date"]=>
+  string(%d) "%s"
   ["content-length"]=>
   string(1) "0"
 }
