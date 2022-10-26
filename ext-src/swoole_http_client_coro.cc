@@ -133,6 +133,7 @@ class HttpClient {
     zval _zobject;
     zval *zobject = &_zobject;
     String *tmp_write_buffer = nullptr;
+    bool connection_close = false;
 
     HttpClient(zval *zobject, std::string host, zend_long port = 80, zend_bool ssl = false);
 
@@ -439,6 +440,8 @@ static int http_parser_on_header_value(swoole_http_parser *parser, const char *a
 #endif
     else if (SW_STREQ(header_name, header_len, "transfer-encoding") && SW_STRCASECT(at, length, "chunked")) {
         http->chunked = true;
+    } else if (SW_STREQ(header_name, header_len, "connection")) {
+        http->connection_close = SW_STRCASECT(at, length, "close");
     }
 
     if (http->lowercase_header) {
@@ -1344,7 +1347,7 @@ bool HttpClient::recv(double timeout) {
         socket->protocol.get_package_length = websocket::get_package_length;
     }
     // handler keep alive
-    if (!keep_alive && !websocket) {
+    if (!websocket && (!keep_alive || connection_close)) {
         close();
     } else {
         reset();
