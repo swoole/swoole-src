@@ -33,6 +33,6 @@ test
 Fatal error: Uncaught Exception in %s:%d
 Stack trace:
 #0 %s(%d): class@anonymous->__destruct()
-#1 {main}
+%A
   thrown in %s on line %d
 shutdown
