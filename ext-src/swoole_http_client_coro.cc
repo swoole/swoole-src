@@ -1664,7 +1664,7 @@ void php_swoole_http_client_coro_minit(int module_number) {
                                HttpClientObject,
                                std);
 #if PHP_VERSION_ID >= 80200
-	zend_add_parameter_attribute((zend_function *) zend_hash_str_find_ptr(&swoole_http_client_coro_ce->function_table, SW_STRL("setBasicAuth")), 1, ZSTR_KNOWN(ZEND_STR_SENSITIVEPARAMETER), 0);
+	zend_add_parameter_attribute((zend_function *) zend_hash_str_find_ptr(&swoole_http_client_coro_ce->function_table, SW_STRL("setbasicauth")), 1, ZSTR_KNOWN(ZEND_STR_SENSITIVEPARAMETER), 0);
 #endif
 
     // client status
