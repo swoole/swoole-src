@@ -33,6 +33,9 @@ jobs:
           ./configure --enable-openssl --enable-mysqlnd --enable-swoole-curl --enable-cares --enable-swoole-pgsql
           make -j$(nproc)
           sudo make install
+          php -v
+          php -m
+          php --ini
           php --ri swoole
 
       - name: Laravel Octane Tests
@@ -72,8 +75,8 @@ jobs:
           cp .travis/.env.example .env
           composer analyse src
           composer test -- --exclude-group NonCoroutine
-          php -d swoole.use_shortname=off vendor/bin/phpunit --group NonCoroutine
-          php -d swoole.use_shortname=off vendor/bin/phpunit src/filesystem --group NonCoroutine
+          vendor/bin/phpunit --group NonCoroutine
+          vendor/bin/phpunit src/filesystem --group NonCoroutine
 
       - name: Simps Tests
         if: matrix.framework == 'Simps'
