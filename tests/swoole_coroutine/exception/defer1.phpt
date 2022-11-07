@@ -48,4 +48,3 @@ if (Assert::isArray($status)) {
 }
 ?>
 --EXPECTF--
-

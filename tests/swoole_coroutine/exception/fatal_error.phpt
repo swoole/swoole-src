@@ -32,4 +32,3 @@ if (Assert::isArray($status)) {
 }
 ?>
 --EXPECT--
-

@@ -16,7 +16,6 @@ Co\run(function (){
     echo "end\n";
 });
 echo "done\n";
-
 --EXPECTF--
 start
 
