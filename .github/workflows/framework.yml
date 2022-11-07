@@ -54,6 +54,7 @@ jobs:
           MYSQL_VERSION: '5.7'
           PGSQL_VERSION: '14'
         run: |
+          echo "swoole.use_shortname=off" > /etc/php/8.0/cli/conf.d/40-swoole.ini
           git clone https://github.com/hyperf/hyperf.git --depth=1
           cd hyperf/
           composer update -o
@@ -77,6 +78,7 @@ jobs:
           composer test -- --exclude-group NonCoroutine
           vendor/bin/phpunit --group NonCoroutine
           vendor/bin/phpunit src/filesystem --group NonCoroutine
+          rm /etc/php/8.0/cli/conf.d/40-swoole.ini
 
       - name: Simps Tests
         if: matrix.framework == 'Simps'
