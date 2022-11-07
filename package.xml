@@ -2376,6 +2376,6 @@
         <configureoption default="no" name="enable-mysqlnd" prompt="enable mysqlnd support?"/>
         <configureoption default="no" name="enable-swoole-curl" prompt="enable curl support?"/>
         <configureoption default="no" name="enable-cares" prompt="enable cares support?"/>
-        <configureoption default="yes" name="enable-cares" prompt="enable brotli support?"/>
+        <configureoption default="yes" name="enable-brotli" prompt="enable brotli support?"/>
     </extsrcrelease>
 </package>
