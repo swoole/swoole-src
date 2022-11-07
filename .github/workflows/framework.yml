@@ -102,7 +102,6 @@ jobs:
           make -j$(sysctl -n hw.ncpu)
           sudo make install
           php --ri swoole
-          ./.travis/run.test.sh
 
       - name: Simps Tests
         if: matrix.framework == 'Simps'
