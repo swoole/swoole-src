@@ -28,11 +28,14 @@ jobs:
 
       - name: Build Swoole
         run: |
-          sudo apt update -y && sudo apt install -y libcurl4-openssl-dev php-curl libc-ares-dev
+          sudo apt update -y && sudo apt install -y libcurl4-openssl-dev php-curl libc-ares-dev libpq-dev
           phpize
-          ./configure --enable-openssl --enable-mysqlnd --enable-swoole-curl --enable-cares
+          ./configure --enable-openssl --enable-mysqlnd --enable-swoole-curl --enable-cares --enable-swoole-pgsql
           make -j$(nproc)
           sudo make install
+          php -v
+          php -m
+          php --ini
           php --ri swoole
 
       - name: Laravel Octane Tests
@@ -49,25 +52,17 @@ jobs:
         env:
           SW_VERSION: 'master'
           MYSQL_VERSION: '5.7'
+          PGSQL_VERSION: '14'
         run: |
           git clone https://github.com/hyperf/hyperf.git --depth=1
           cd hyperf/
           composer update -o
-          docker run --name mysql -p 3306:3306 -e MYSQL_ALLOW_EMPTY_PASSWORD=true -d mysql:${MYSQL_VERSION} --bind-address=0.0.0.0 --default-authentication-plugin=mysql_native_password
-          docker run --name redis -p 6379:6379 -d redis
-          docker run -d --name dev-consul -e CONSUL_BIND_INTERFACE=eth0 -p 8500:8500 consul
-          docker run --name nsq -p 4150:4150 -p 4151:4151 -p 4160:4160 -p 4161:4161 -p 4170:4170 -p 4171:4171 --entrypoint /bin/nsqd -d nsqio/nsq:latest
-          docker run -d --restart=always --name rabbitmq -p 4369:4369 -p 5672:5672 -p 15672:15672 -p 25672:25672 rabbitmq:management-alpine
-          docker build --tag grpc-server:latest src/grpc-client/tests/Mock
-          docker run -d --name grpc-server -p 50051:50051 grpc-server:latest
-          docker build -t tcp-server:latest .travis/tcp_server
-          docker run -d --name tcp-server -p 10001:10001 tcp-server:latest
+          ./.travis/requirement.install.sh
+          ./.travis/setup.services.sh
           export TRAVIS_BUILD_DIR=$(pwd) && bash ./.travis/setup.mysql.sh
+          export TRAVIS_BUILD_DIR=$(pwd) && bash ./.travis/setup.pgsql.sh
           cp .travis/.env.example .env
-          composer analyse src
-          composer test -- --exclude-group NonCoroutine
-          vendor/bin/phpunit --group NonCoroutine
-          vendor/bin/phpunit src/filesystem --group NonCoroutine
+          ./.travis/run.test.sh
 
       - name: Simps Tests
         if: matrix.framework == 'Simps'
@@ -115,3 +110,4 @@ jobs:
           cd mqtt/
           composer install -o
           composer test
+
