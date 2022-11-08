@@ -32,6 +32,9 @@ jobs:
     - name: build8
       run: ./configure --enable-sockets --enable-mysqlnd --enable-swoole-curl --enable-openssl --enable-cares --enable-debug-log &&
         make clean && make -j$(nproc)
+    - name: build with thread context
+      run: ./configure --enable-sockets --enable-mysqlnd --enable-swoole-curl --enable-openssl --enable-cares --enable-debug-log --enable-thread-context &&
+        make clean && make -j$(nproc)
 
   build-macos-latest:
     runs-on: macos-latest
