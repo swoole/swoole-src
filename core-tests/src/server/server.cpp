@@ -1055,7 +1055,7 @@ TEST(server, udp_packet) {
     server->create();
     server->onPacket = [](Server *serv, RecvData *req) {
         swoole::DgramPacket *recv_data = (swoole::DgramPacket *) req->data;
-        EXPECT_STREQ(recv_data->data, packet);
+        EXPECT_STREQ(string(recv_data->data, recv_data->length), string(packet));
         network::Socket *server_socket = serv->get_server_socket(req->info.server_fd);
         string resp = string(packet);
         server_socket->sendto(recv_data->socket_addr, resp.c_str(), resp.length(), 0);
@@ -1087,7 +1087,7 @@ TEST(server, udp_packet) {
         char buf[1024];
         sleep(1);
         cli.recv(&cli, buf, 128, 0);
-        EXPECT_STREQ(buf, packet);
+        ASSERT_STREQ(buf, packet);
         cli.close();
     }
 }
