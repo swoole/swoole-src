@@ -751,7 +751,7 @@ TEST(server, task_worker5) {
             buf.info.ext_flags |= SW_TASK_WAITALL;
             buf.info.reactor_id = worker_id;
             serv->gs->task_workers.dispatch(&buf, &_dst_worker_id);
-            sleep(1);
+            sleep(3);
 
             ifstream ifs;
             ifs.open(task_result->data + 4);
