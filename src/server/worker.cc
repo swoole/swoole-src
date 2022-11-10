@@ -52,7 +52,7 @@ void Server::worker_signal_init(void) {
 }
 
 void Server::worker_signal_handler(int signo) {
-    if (!SwooleG.running or !sw_server()) {
+    if (!SwooleG.running || !sw_server()) {
         return;
     }
     switch (signo) {

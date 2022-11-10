@@ -81,18 +81,6 @@ void Server::disable_accept() {
     }
 }
 
-void Server::close_port(bool only_stream_port) {
-    for (auto port : ports) {
-        if (only_stream_port && port->is_dgram()) {
-            continue;
-        }
-        if (port->socket) {
-            port->socket->free();
-            port->socket = nullptr;
-        }
-    }
-}
-
 void Server::call_command_callback(int64_t request_id, const std::string &result) {
     auto iter = command_callbacks.find(request_id);
     if (iter == command_callbacks.end()) {

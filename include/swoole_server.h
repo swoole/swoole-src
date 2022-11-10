@@ -1381,7 +1381,6 @@ class Server {
         lock_.unlock();
     }
 
-    void close_port(bool only_stream_port);
     void clear_timer();
     static void timer_callback(Timer *timer, TimerNode *tnode);
 
