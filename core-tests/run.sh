@@ -2,7 +2,6 @@
 cmake .
 make -j8
 ipcs -q
-./bin/core_tests
 
 tasks=$(./bin/core_tests --gtest_list_tests | awk '/\./')
 for task in $tasks; do
