@@ -57,7 +57,6 @@ class HttpServer {
     std::map<std::string, zend_fcall_info_cache> handlers;
     zval zcallbacks;
     bool running;
-    std::list<Socket *> clients;
 
     /* options */
     bool parse_cookie;
@@ -504,6 +503,8 @@ static PHP_METHOD(swoole_http_server_coro, start) {
         hs->upload_tmp_dir = str_v.dup();
     }
 
+    hs->running = true;
+
     while (hs->running) {
         auto conn = sock->accept();
         if (conn) {
@@ -557,12 +558,9 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
     off_t header_crlf_offset = 0;
     size_t total_length;
 
-    hs->clients.push_front(sock);
-    auto client_iterator = hs->clients.begin();
-
 #ifdef SW_USE_OPENSSL
     if (sock->ssl_is_enable() && !sock->ssl_handshake()) {
-        goto _handshake_failed;
+        RETURN_FALSE;
     }
 #endif
 
@@ -690,25 +688,12 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
         zval_dtor(ctx->request.zobject);
         zval_dtor(ctx->response.zobject);
     }
-
-#ifdef SW_USE_OPENSSL
-_handshake_failed:
-#endif
-    /* notice: do not erase the element when server is shutting down */
-    if (hs->running) {
-        hs->clients.erase(client_iterator);
-    }
 }
 
 static PHP_METHOD(swoole_http_server_coro, shutdown) {
     HttpServer *hs = http_server_get_object(Z_OBJ_P(ZEND_THIS));
     hs->running = false;
     hs->socket->cancel(SW_EVENT_READ);
-    /* accept has been canceled, we only need to traverse once */
-    for (auto client : hs->clients) {
-        client->close();
-    }
-    hs->clients.clear();
 }
 
 static void http2_server_onRequest(Http2Session *session, Http2Stream *stream) {
