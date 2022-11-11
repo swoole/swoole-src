@@ -32,7 +32,18 @@ cd /your-path/swoole-src/
 ./make.sh cmake
 ```
 
-## **3. 运行swoole单元测试**
+## **3. 拉取基础镜像**
+```shell
+docker pull vimagick/tinyproxy
+docker create --name vimagicktinyproxy -p 8888:8888 vimagick/tinyproxy
+docker start vimagicktinyproxy
+
+docker pull xkuma/socks5
+docker create --name xkumasocks5 -p 1080:1080  -e "PROXY_USER=user" -e "PROXY_PASSWORD=password" -e "PROXY_SERVER=0.0.0.0:1080" xkuma/socks5
+docker start xkumasocks5
+```
+
+## **4. 运行swoole单元测试**
 ```shell
 cd /your-path/swoole-src/core-tests
 ./run.sh

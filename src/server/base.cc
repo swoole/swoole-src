@@ -185,7 +185,7 @@ bool BaseFactory::finish(SendData *data) {
             size_t __len = sizeof(proxy_msg.info) + proxy_msg.info.len;
             return worker->pipe_master->send_async((const char *) &proxy_msg, __len);
         } else {
-            swoole_warning("unkown event type[%d]", data->info.type);
+            swoole_warning("unknown event type[%d]", data->info.type);
             return false;
         }
         return true;
