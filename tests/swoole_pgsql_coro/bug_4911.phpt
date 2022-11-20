@@ -8,18 +8,22 @@ require __DIR__ . '/../include/bootstrap.php';
 Swoole\Coroutine\run(function () {
     $pgsql = new Swoole\Coroutine\PostgreSQL();
     $connected = $pgsql->connect('host=127.0.0.1;port=5432;dbname=test123123;user=root;password=root');
-    echo $connected->error.PHP_EOL;
+    echo $pgsql->error.PHP_EOL;
 
     $pgsql = new Swoole\Coroutine\PostgreSQL();
     $connected = $pgsql->connect('host=127.0.0.1;port=5432;dbname=test;user=root123;password=root');
-    echo $connected->error.PHP_EOL;
+    echo $pgsql->error.PHP_EOL;
 
     $pgsql = new Swoole\Coroutine\PostgreSQL();
     $connected = $pgsql->connect('host=127.0.0.1;port=5432;dbname=test;user=root;password=');
-    echo $connected->error.PHP_EOL;
+    echo $pgsql->error.PHP_EOL;
 });
 ?>
 --EXPECT--
 FATAL:  database "test123123" does not exist
+
+FATAL:  password authentication failed for user "root123"
 connection to server at "127.0.0.1", port 5432 failed: FATAL:  password authentication failed for user "root123"
+
 fe_sendauth: no password supplied
+
