@@ -23,7 +23,6 @@ Swoole\Coroutine\run(function () {
 FATAL:  database "test123123" does not exist
 
 FATAL:  password authentication failed for user "root123"
-connection to server at "pgsql", port 5432 failed: FATAL:  password authentication failed for user "root123"
 
 fe_sendauth: no password supplied
 
