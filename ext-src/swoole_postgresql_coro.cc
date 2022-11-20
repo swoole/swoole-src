@@ -587,7 +587,7 @@ static PHP_METHOD(swoole_postgresql_coro, connect) {
         string err_msg = string(PQerrorMessage(object->conn));
         if (pgsql == nullptr || PQstatus(pgsql) == CONNECTION_STARTED) {
             swoole_warning(" [%s, %s] ", feedback, err_msg.c_str());
-        } else if (PQstatus(pgsql) == CONNECTION_MADE || PQstatus(pgsql) == CONNECTION_BAD) {
+        } else {
             PQfinish(pgsql);
         }
 
