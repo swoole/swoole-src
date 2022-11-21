@@ -584,15 +584,16 @@ static PHP_METHOD(swoole_postgresql_coro, connect) {
             break;
         }
 
-        string err_msg = string(PQerrorMessage(object->conn));
+        char *err_msg = PQerrorMessage(object->conn);
+        zend_update_property_string(
+            swoole_postgresql_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("error"), err_msg);
+
         if (pgsql == nullptr || PQstatus(pgsql) == CONNECTION_STARTED) {
-            swoole_warning(" [%s, %s] ", feedback, err_msg.c_str());
+            swoole_warning(" [%s, %s] ", feedback, err_msg);
         } else {
             PQfinish(pgsql);
         }
 
-        zend_update_property_string(
-            swoole_postgresql_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("error"), err_msg.c_str());
         RETURN_FALSE;
     }
 
