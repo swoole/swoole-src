@@ -91,7 +91,6 @@ class Statement {
 
 // extension part
 
-using std::string;
 using swoole::Coroutine;
 using swoole::Event;
 using swoole::Reactor;
