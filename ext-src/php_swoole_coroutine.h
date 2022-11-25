@@ -225,7 +225,9 @@ class PHPCoroutine {
 
     static inline void init_main_task() {
         main_task.co = Coroutine::init_main_coroutine();
+#ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
         main_task.fiber_context = EG(main_fiber_context);
+#endif
     }
 
   protected:
