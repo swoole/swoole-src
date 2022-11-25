@@ -575,10 +575,6 @@ void PHPCoroutine::on_close(void *arg) {
     }
 #endif
 
-#ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
-    fiber_context_switch_try_notify(task, origin_task);
-#endif
-
     if (task->on_close) {
         (*task->on_close)(task);
     }
@@ -586,6 +582,11 @@ void PHPCoroutine::on_close(void *arg) {
     if (task->pcid == -1) {
         concurrency--;
     }
+
+#ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
+    fiber_context_switch_try_notify(task, origin_task);
+    fiber_context_try_destroy(task);
+#endif
 
     vm_stack_destroy();
     restore_task(origin_task);
@@ -833,6 +834,23 @@ void PHPCoroutine::fiber_context_try_init(PHPContext *task)
         return;
     }
     fiber_context_init(task);
+}
+
+void PHPCoroutine::fiber_context_destroy(PHPContext *task)
+{
+#ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
+    if (task->fiber_context != NULL) {
+        efree(task->fiber_context);
+    }
+#endif
+}
+
+void PHPCoroutine::fiber_context_try_destroy(PHPContext *task)
+{
+    if (EXPECTED(!SWOOLE_G(has_debug_extension))) {
+        return;
+    }
+    fiber_context_destroy(task);
 }
 
 zend_fiber_status PHPCoroutine::get_fiber_status(PHPContext *task) {

@@ -260,6 +260,8 @@ class PHPCoroutine {
     static zend_fiber_status get_fiber_status(PHPContext *task);
     static void fiber_context_init(PHPContext *task);
     static void fiber_context_try_init(PHPContext *task);
+    static void fiber_context_destroy(PHPContext *task);
+    static void fiber_context_try_destroy(PHPContext *task);
     static void fiber_context_switch_notify(PHPContext *from, PHPContext *to);
     static void fiber_context_switch_try_notify(PHPContext *from, PHPContext *to);
 #endif
