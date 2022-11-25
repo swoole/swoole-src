@@ -83,6 +83,10 @@ class Coroutine {
         return state;
     }
 
+    inline void set_state(enum State _state) {
+        state = _state;
+    }
+
     inline long get_init_msec() const  {
         return init_msec;
     }
@@ -157,6 +161,12 @@ class Coroutine {
 #else
         return (new Coroutine(fn, args))->run();
 #endif
+    }
+
+    static inline Coroutine *init_main_coroutine() {
+        Coroutine *co = new Coroutine(0, nullptr, nullptr);
+        co->set_state(STATE_RUNNING);
+        return co;
     }
 
     static void activate();
@@ -262,6 +272,10 @@ class Coroutine {
         if (sw_unlikely(count() > peak_num)) {
             peak_num = count();
         }
+    }
+
+    Coroutine(long _cid, const CoroutineFunc &fn, void *private_data): ctx(stack_size, fn, private_data) {
+        cid = _cid;
     }
 
     inline long run() {

@@ -26,6 +26,10 @@
 #include "zend_builtin_functions.h"
 #include "ext/spl/spl_array.h"
 
+#ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
+#include "zend_observer.h"
+#endif
+
 #include <unordered_map>
 #include <chrono>
 
@@ -278,12 +282,13 @@ void PHPCoroutine::activate() {
         return;
     }
 
+#ifndef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
     if (zend_hash_str_find_ptr(&module_registry, ZEND_STRL("xdebug"))) {
         php_swoole_fatal_error(
             E_WARNING,
             "Using Xdebug in coroutines is extremely dangerous, please notice that it may lead to coredump!");
     }
-
+#endif
     zval *enable_library = zend_get_constant_str(ZEND_STRL("SWOOLE_LIBRARY"));
     if (enable_library == NULL || !zval_is_true(enable_library)) {
         php_swoole_load_library();
@@ -508,6 +513,10 @@ void PHPCoroutine::restore_task(PHPContext *task) {
 void PHPCoroutine::on_yield(void *arg) {
     PHPContext *task = (PHPContext *) arg;
     PHPContext *origin_task = get_origin_context(task);
+
+#ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
+    fiber_context_switch_try_notify(task, origin_task);
+#endif
     save_task(task);
     restore_task(origin_task);
 
@@ -521,6 +530,10 @@ void PHPCoroutine::on_yield(void *arg) {
 void PHPCoroutine::on_resume(void *arg) {
     PHPContext *task = (PHPContext *) arg;
     PHPContext *current_task = get_context();
+
+#ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
+    fiber_context_switch_try_notify(current_task, task);
+#endif
     save_task(current_task);
     restore_task(task);
     record_last_msec(task);
@@ -560,6 +573,10 @@ void PHPCoroutine::on_close(void *arg) {
     if (task->array_walk_fci) {
         efree(task->array_walk_fci);
     }
+#endif
+
+#ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
+    fiber_context_switch_try_notify(task, origin_task);
 #endif
 
     if (task->on_close) {
@@ -658,6 +675,10 @@ void PHPCoroutine::main_func(void *arg) {
         task->on_close = nullptr;
         task->enable_scheduler = true;
 
+#ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
+        fiber_context_try_init(task);
+#endif
+
         save_vm_stack(task);
         record_last_msec(task);
 
@@ -697,6 +718,10 @@ void PHPCoroutine::main_func(void *arg) {
             // TODO: enhancement it, separate execute data is necessary, but we lose the backtrace
             EG(current_execute_data) = nullptr;
             zend_init_func_execute_data(call, &func->op_array, retval);
+#ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
+            fiber_context_switch_try_notify(get_origin_context(task), get_context());
+#endif
+            task->co->set_state(Coroutine::STATE_RUNNING);
             zend_execute_ex(EG(current_execute_data));
         } else { /* ZEND_INTERNAL_FUNCTION */
             ZVAL_NULL(retval);
@@ -788,6 +813,67 @@ void PHPCoroutine::defer(zend::Function *fci) {
     task->defer_tasks->push(fci);
 }
 
+#ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
+
+void PHPCoroutine::fiber_context_init(PHPContext *task)
+{
+    zend_fiber_context *fiber_context = (zend_fiber_context *) emalloc(sizeof(*fiber_context));
+    fiber_context->handle = (void *) -1;
+    fiber_context->kind = (void *) -1;
+    fiber_context->function = (zend_fiber_coroutine) -1;
+    fiber_context->stack = (zend_fiber_stack *) -1;
+    task->fiber_context = fiber_context;
+
+    zend_observer_fiber_init_notify(fiber_context);
+}
+
+void PHPCoroutine::fiber_context_try_init(PHPContext *task)
+{
+    if (EXPECTED(!SWOOLE_G(has_debug_extension))) {
+        return;
+    }
+    fiber_context_init(task);
+}
+
+zend_fiber_status PHPCoroutine::get_fiber_status(PHPContext *task) {
+    switch (task->co->get_state()) {
+        case Coroutine::STATE_INIT:
+            return ZEND_FIBER_STATUS_INIT;
+        case Coroutine::STATE_WAITING:
+            return ZEND_FIBER_STATUS_SUSPENDED;
+        case Coroutine::STATE_RUNNING:
+            return ZEND_FIBER_STATUS_RUNNING;
+        case Coroutine::STATE_END:
+            return ZEND_FIBER_STATUS_DEAD;
+        default:
+            php_swoole_fatal_error(E_ERROR, "Unexpected state when get fiber status");
+            return ZEND_FIBER_STATUS_DEAD;
+    }
+}
+
+void PHPCoroutine::fiber_context_switch_notify(PHPContext *from, PHPContext *to) {
+    zend_fiber_context *from_context = from->fiber_context;
+    zend_fiber_context *to_context = to->fiber_context;
+
+    from_context->status = get_fiber_status(from);
+    to_context->status = get_fiber_status(to);
+
+    if (from_context->status == ZEND_FIBER_STATUS_DEAD) {
+        zend_observer_fiber_destroy_notify(from_context);
+    }
+    
+    zend_observer_fiber_switch_notify(from_context, to_context);
+}
+
+void PHPCoroutine::fiber_context_switch_try_notify(PHPContext *from, PHPContext *to)
+{
+    if (EXPECTED(!SWOOLE_G(has_debug_extension))) {
+        return;
+    }
+    fiber_context_switch_notify(from, to);
+}
+#endif /* SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT */
+
 void php_swoole_coroutine_minit(int module_number) {
     PHPCoroutine::init();
 
@@ -827,6 +913,8 @@ void php_swoole_coroutine_rinit() {
         ori_end_silence_handler = zend_get_user_opcode_handler(ZEND_END_SILENCE);
         zend_set_user_opcode_handler(ZEND_END_SILENCE, coro_end_silence_handler);
     }
+
+    PHPCoroutine::init_main_task();
 }
 
 void php_swoole_coroutine_rshutdown() {
