@@ -243,7 +243,7 @@ _do_recv:
  */
 int Protocol::recv_with_eof_protocol(network::Socket *socket, String *buffer) {
     bool recv_again = false;
-    int buf_size;
+    size_t buf_size;
     RecvData rdata{};
 
 _recv_data:
@@ -254,7 +254,7 @@ _recv_data:
         buf_size = SW_BUFFER_SIZE_STD;
     }
 
-    int n = socket->recv(buf_ptr, buf_size, 0);
+    ssize_t n = socket->recv(buf_ptr, buf_size, 0);
     if (n < 0) {
         switch (socket->catch_read_error(errno)) {
         case SW_ERROR:
