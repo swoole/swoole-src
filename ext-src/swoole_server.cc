@@ -1045,6 +1045,10 @@ static void php_swoole_server_onPipeMessage(Server *serv, EventData *req) {
         object_init_ex(object, swoole_server_pipe_message_ce);
         zend_update_property_long(swoole_server_pipe_message_ce,
                                   SW_Z8_OBJ_P(object),
+                                  ZEND_STRL("worker_id"),
+                                  (zend_long) req->info.reactor_id);
+        zend_update_property_long(swoole_server_pipe_message_ce,
+                                  SW_Z8_OBJ_P(object),
                                   ZEND_STRL("source_worker_id"),
                                   (zend_long) req->info.reactor_id);
         zend_update_property_double(
