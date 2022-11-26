@@ -838,11 +838,11 @@ void PHPCoroutine::fiber_context_try_init(PHPContext *task)
 
 void PHPCoroutine::fiber_context_destroy(PHPContext *task)
 {
-#ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
+    zend_observer_fiber_destroy_notify(task->fiber_context);
+
     if (task->fiber_context != NULL) {
         efree(task->fiber_context);
     }
-#endif
 }
 
 void PHPCoroutine::fiber_context_try_destroy(PHPContext *task)
@@ -876,10 +876,6 @@ void PHPCoroutine::fiber_context_switch_notify(PHPContext *from, PHPContext *to)
     from_context->status = get_fiber_status(from);
     to_context->status = get_fiber_status(to);
 
-    if (from_context->status == ZEND_FIBER_STATUS_DEAD) {
-        zend_observer_fiber_destroy_notify(from_context);
-    }
-    
     zend_observer_fiber_switch_notify(from_context, to_context);
 }
 
