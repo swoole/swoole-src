@@ -18,8 +18,8 @@ namespace Swoole\Coroutine {
         public function recvAll(int $length = 65536, float $timeout = 0): false|string {}
         public function sendAll(string $data, float $timeout = 0): int|false {}
         public function recvPacket(float $timeout = 0): false|string {}
-        public function recvLine(int $length = 65535, float $timeout = 0): string|false {}
-        public function recvWithBuffer(int $length = 65535, float $timeout = 0): string|false {}
+        public function recvLine(int $length = 65536, float $timeout = 0): string|false {}
+        public function recvWithBuffer(int $length = 65536, float $timeout = 0): string|false {}
         public function recvfrom(mixed &$peername, float $timeout = 0): string|false {}
         public function sendto(string $addr, int $port, string $data): int|false {}
         public function getOption(int $level, int $opt_name): mixed {}
