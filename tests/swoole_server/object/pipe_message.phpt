@@ -49,6 +49,7 @@ $pm->childFunc = function () use ($pm) {
 
     $serv->on('pipeMessage', function (Server $serv, PipeMessage $msg) {
         Assert::eq($msg->worker_id, 1 - $serv->getWorkerId());
+        Assert::eq($msg->source_worker_id, 1 - $serv->getWorkerId());
         $object = $msg->data;
         $serv->sendto($object->address, $object->port, $object->data, $object->server_socket);
     });
