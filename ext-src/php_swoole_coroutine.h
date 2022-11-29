@@ -76,6 +76,7 @@ struct PHPContext {
     Coroutine *co;
 #ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
     zend_fiber_context *fiber_context;
+    bool fiber_init_notified;
 #endif
     std::stack<zend::Function *> *defer_tasks;
     SwapCallback *on_yield;
@@ -227,6 +228,7 @@ class PHPCoroutine {
         main_task.co = Coroutine::init_main_coroutine();
 #ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
         main_task.fiber_context = EG(main_fiber_context);
+        main_task.fiber_init_notified = true;
 #endif
     }
 

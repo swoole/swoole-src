@@ -83,10 +83,6 @@ class Coroutine {
         return state;
     }
 
-    inline void set_state(enum State _state) {
-        state = _state;
-    }
-
     inline long get_init_msec() const  {
         return init_msec;
     }
@@ -165,7 +161,7 @@ class Coroutine {
 
     static inline Coroutine *init_main_coroutine() {
         Coroutine *co = new Coroutine(0, nullptr, nullptr);
-        co->set_state(STATE_RUNNING);
+        co->state = STATE_RUNNING;
         return co;
     }
 
@@ -283,6 +279,7 @@ class Coroutine {
         origin = current;
         current = this;
         CALC_EXECUTE_USEC(origin, nullptr);
+        state = STATE_RUNNING;
         ctx.swap_in();
         check_end();
         return cid;

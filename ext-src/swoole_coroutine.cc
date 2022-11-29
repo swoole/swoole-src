@@ -678,6 +678,7 @@ void PHPCoroutine::main_func(void *arg) {
 
 #ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
         fiber_context_try_init(task);
+        task->fiber_init_notified = false;
 #endif
 
         save_vm_stack(task);
@@ -722,7 +723,6 @@ void PHPCoroutine::main_func(void *arg) {
 #ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
             fiber_context_switch_try_notify(get_origin_context(task), get_context());
 #endif
-            task->co->set_state(Coroutine::STATE_RUNNING);
             zend_execute_ex(EG(current_execute_data));
         } else { /* ZEND_INTERNAL_FUNCTION */
             ZVAL_NULL(retval);
@@ -876,7 +876,14 @@ void PHPCoroutine::fiber_context_switch_notify(PHPContext *from, PHPContext *to)
     from_context->status = get_fiber_status(from);
     to_context->status = get_fiber_status(to);
 
-    zend_observer_fiber_switch_notify(from_context, to_context);
+    if (!to->fiber_init_notified) {
+        to_context->status = ZEND_FIBER_STATUS_INIT;
+        zend_observer_fiber_switch_notify(from_context, to_context);
+        to_context->status = get_fiber_status(to);
+        to->fiber_init_notified = true;
+    } else {
+        zend_observer_fiber_switch_notify(from_context, to_context);
+    }
 }
 
 void PHPCoroutine::fiber_context_switch_try_notify(PHPContext *from, PHPContext *to)
