@@ -31,7 +31,7 @@ run(function () {
     $args = ['1', '2', '3'];
 
     foreach ($args as $arg) {
-        go(function () use ($wg, $httpClient, $delay, &$results) {
+        go(function () use ($wg, $httpClient, $arg, &$results) {
             $wg->add();
             $results[] = $httpClient->request('GET', '/get?key='.$arg)->toArray();
             $wg->done();
