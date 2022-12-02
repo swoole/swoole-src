@@ -201,6 +201,10 @@ static bool http2_server_is_static_file(Server *serv, HttpContext *ctx) {
             }
         }
 
+        zval *zrange = zend_hash_str_find(Z_ARR_P(zheader), ZEND_STRL("range"));
+        zval *zif_range = zend_hash_str_find(Z_ARR_P(zheader), ZEND_STRL("if-range"));
+        handler.parse_range(zrange ? Z_STRVAL_P(zrange) : nullptr, zif_range ? Z_STRVAL_P(zif_range) : nullptr);
+
         zend::String _filename(handler.get_filename_std_string());
         zval zfilename;
         ZVAL_STR(&zfilename, _filename.get());

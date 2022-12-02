@@ -41,10 +41,7 @@ static const char *method_strings[] = {
 namespace swoole {
 
 bool Server::select_static_handler(http_server::Request *request, Connection *conn) {
-    const char *url = request->buffer_->str + request->url_offset_;
-    size_t url_length = request->url_length_;
-
-    StaticHandler handler(this, url, url_length);
+    StaticHandler handler(this, request);
     if (!handler.hit()) {
         return false;
     }
@@ -131,19 +128,21 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
         return true;
     }
 
-    auto task = handler.get_task();
+    handler.parse_range(request->get_header("Range").c_str(), request->get_header("If-Range").c_str());
+
     response.info.len = sw_snprintf(header_buffer,
                                     sizeof(header_buffer),
-                                    "HTTP/1.1 200 OK\r\n"
+                                    "HTTP/1.1 %s\r\n"
                                     "Connection: %s\r\n"
                                     "Content-Length: %ld\r\n"
                                     "Content-Type: %s\r\n"
                                     "Date: %s\r\n"
                                     "Last-Modified: %s\r\n"
                                     "Server: %s\r\n\r\n",
+                                    http_server::get_status_message(handler.status_code),
                                     request->keep_alive ? "keep-alive" : "close",
-                                    (long) task->length,
-                                    handler.get_mimetype(),
+                                    handler.get_content_length(),
+                                    handler.get_content_type(),
                                     date_str.c_str(),
                                     date_str_last_modified.c_str(),
                                     SW_HTTP_SERVER_SOFTWARE);
@@ -157,12 +156,39 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
     send_to_connection(&response);
 
     // Send HTTP body
-    if (task->length != 0) {
+    auto tasks = *handler.get_tasks();
+    network::SendfileTask *task = (network::SendfileTask *) sw_malloc(sizeof(network::SendfileTask) + strlen(handler.get_filename()));
+    strcpy(task->filename, handler.get_filename());
+    if (tasks.size() > 1) {
+        for (auto i = tasks.begin(); i != tasks.end(); i++) {
+            response.info.type = SW_SERVER_EVENT_SEND_DATA;
+            response.info.len = strlen(i->boundary);
+            response.data = i->boundary;
+            send_to_connection(&response);
+
+            task->offset = i->offset;
+            task->length = i->length;
+            strcpy(((char *) task) + sizeof(SendfileTask), handler.get_filename());
+            response.info.type = SW_SERVER_EVENT_SEND_FILE;
+            response.info.len = sizeof(*task) + strlen(handler.get_filename());
+            response.data = (char *) task;
+            send_to_connection(&response);
+        }
+
+        response.info.type = SW_SERVER_EVENT_SEND_DATA;
+        response.info.len = strlen(handler.get_end_boundary());
+        response.data = handler.get_end_boundary();
+        send_to_connection(&response);
+    } else if (handler.get_filesize() != 0) {
+        task->offset = tasks[0].offset;
+        task->length = tasks[0].length;
+        strcpy(((char *) task) + sizeof(SendfileTask), handler.get_filename());
         response.info.type = SW_SERVER_EVENT_SEND_FILE;
-        response.info.len = sizeof(*task) + task->length + 1;
+        response.info.len = sizeof(*task) + strlen(handler.get_filename());
         response.data = (char *) task;
         send_to_connection(&response);
     }
+    sw_free(task);
 
     // Close the connection if keepalive is not used
     if (!request->keep_alive) {
@@ -637,8 +663,6 @@ string Request::get_date_if_modified_since() {
     char *p = buffer_->str + url_offset_ + url_length_ + 10;
     char *pe = buffer_->str + header_length_;
 
-    string result;
-
     char *date_if_modified_since = nullptr;
     size_t length_if_modified_since = 0;
 
@@ -669,6 +693,41 @@ string Request::get_date_if_modified_since() {
     }
 
     return string("");
+}
+
+std::string Request::get_header(const char *name) {
+    size_t name_len = strlen(name);
+    char *p = buffer_->str + url_offset_ + url_length_ + 10;
+    char *pe = buffer_->str + header_length_;
+
+    char *buffer = nullptr;
+
+    int state = 0;
+    for (; p < pe; p++) {
+        switch (state) {
+        case 0:
+            if (swoole_strcasect(p, pe - p, name, name_len)) {
+                p += name_len;
+                state = 1;
+            }
+            break;
+        case 1:
+            if (!isspace(*p)) {
+                buffer = p;
+                state = 2;
+            }
+            break;
+        case 2:
+            if (SW_STRCASECT(p, pe - p, "\r\n")) {
+                return string(buffer, p - buffer);
+            }
+            break;
+        default:
+            break;
+        }
+    }
+
+    return string();
 }
 
 int get_method(const char *method_str, size_t method_len) {

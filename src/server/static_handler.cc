@@ -273,6 +273,137 @@ bool StaticHandler::set_filename(std::string &filename) {
 
     return true;
 }
+
+void StaticHandler::parse_range(const char *range, const char *if_range) {
+    if (range_parsed) {
+        return;
+    }
+    task_t _task;
+    _task.length = 0;
+    range_parsed = true;
+    // range
+    if (range && '\0' != *range) {
+        const char *p = range;
+        p += 6; // bytes=
+        size_t start, end, size = 0, cutoff = SIZE_MAX / 10, cutlim = SIZE_MAX % 10, suffix, _content_length = get_filesize();
+        content_length = 0;
+        for ( ;; ) {
+            start = 0;
+            end = 0;
+            suffix = 0;
+
+            while (*p == ' ') { p++; }
+
+            if (*p != '-') {
+                if (*p < '0' || *p > '9') {
+                    status_code = SW_HTTP_RANGE_NOT_SATISFIABLE;
+                    return;
+                }
+
+                while (*p >= '0' && *p <= '9') {
+                    if (start >= cutoff && (start > cutoff || (size_t) (*p - '0') > cutlim)) {
+                    status_code = SW_HTTP_RANGE_NOT_SATISFIABLE;
+                    return;
+                    }
+
+                    start = start * 10 + (*p++ - '0');
+                }
+
+                while (*p == ' ') { p++; }
+
+                if (*p++ != '-') {
+                    status_code = SW_HTTP_RANGE_NOT_SATISFIABLE;
+                    return;
+                }
+
+                while (*p == ' ') { p++; }
+
+                if (*p == ',' || *p == '\0') {
+                    end = _content_length;
+                    goto found;
+                }
+
+            } else {
+                suffix = 1;
+                p++;
+            }
+
+            if (*p < '0' || *p > '9') {
+                    status_code = SW_HTTP_RANGE_NOT_SATISFIABLE;
+                    return;
+            }
+
+            while (*p >= '0' && *p <= '9') {
+                if (end >= cutoff && (end > cutoff || (size_t) (*p - '0') > cutlim)) {
+                    status_code = SW_HTTP_RANGE_NOT_SATISFIABLE;
+                    return;
+                }
+
+                end = end * 10 + (*p++ - '0');
+            }
+
+            while (*p == ' ') { p++; }
+
+            if (*p != ',' && *p != '\0' && *p != '\r') {
+                status_code = SW_HTTP_RANGE_NOT_SATISFIABLE;
+                return;
+            }
+
+            if (suffix) {
+                start = (end < _content_length) ? _content_length - end : 0;
+                end = _content_length - 1;
+            }
+
+            if (end >= _content_length) {
+                end = _content_length;
+
+            } else {
+                end++;
+            }
+
+        found:
+            if (start < end) {
+                if (size > SIZE_MAX - (end - start)) {
+                    status_code = SW_HTTP_RANGE_NOT_SATISFIABLE;
+                    return;
+                }
+                size += end - start;
+                _task.offset = start;
+                _task.length = end - start;
+                content_length += sw_snprintf(_task.boundary,
+                                                sizeof(_task.boundary),
+                                                "\r\n--%s\r\n"
+                                                "Content-Type: %s\r\n"
+                                                "Content-Range: bytes %zu-%zu/%zu\r\n\r\n",
+                                                get_boundary(),
+                                                get_mimetype(),
+                                                _task.offset,
+                                                end - 1,
+                                                get_filesize()
+                ) + _task.length;
+                tasks.push_back(_task);
+            } else if (start == 0) {
+                break;
+            }
+
+            if (*p++ != ',' || '\r' == *p || '\0' == *p) {
+                break;
+            }
+        }
+    }
+    if (_task.length > 0) {
+        if (1 == tasks.size()) {
+            content_length = _task.length;
+        } else {
+            end_boundary = std::string("\r\n--") + get_boundary() + "\r\n";
+            content_length += end_boundary.size();
+        }
+    } else {
+        _task.offset = 0;
+        _task.length = content_length = get_filesize();
+        tasks.push_back(_task);
+    }
+}
 }  // namespace http_server
 void Server::add_static_handler_location(const std::string &location) {
     if (locations == nullptr) {

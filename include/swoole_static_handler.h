@@ -25,34 +25,45 @@
 
 namespace swoole {
 namespace http_server {
-
+struct Range{
+    off_t offset;
+    size_t length;
+};
 class StaticHandler {
   private:
     Server *serv;
+    http_server::Request *request = nullptr;
     std::string request_url;
     std::string dir_path;
     std::set<std::string> dir_files;
     std::string index_file;
-    struct {
+    typedef struct {
         off_t offset;
         size_t length;
         char filename[PATH_MAX];
-    } task;
+        char boundary[256];
+    } task_t;
+    task_t task;
+    std::vector<task_t> tasks;
 
-    size_t l_filename;
+    size_t l_filename = 0;
     struct stat file_stat;
-    bool last;
+    bool last = false;
+    std::string content_type;
+    std::string boundary;
+    std::string end_boundary;
+    size_t content_length;
+    bool range_parsed = false;
 
   public:
-    int status_code;
+    int status_code = SW_HTTP_OK;
     StaticHandler(Server *_server, const char *url, size_t url_length) : request_url(url, url_length) {
         serv = _server;
         task.length = 0;
         task.offset = 0;
-        last = false;
-        status_code = 200;
-        l_filename = 0;
-        dir_path = "";
+    }
+    StaticHandler(Server *_server, http_server::Request *_request) : StaticHandler(_server, _request->buffer_->str + _request->url_offset_, _request->url_length_) {
+        request = _request;
     }
 
     /**
@@ -91,6 +102,23 @@ class StaticHandler {
         return task.filename;
     }
 
+    inline const char* get_boundary() {
+        if (boundary.empty()) {
+            boundary = std::string(SW_HTTP_SERVER_BOUNDARY_PREKEY);
+            swoole_random_string(&boundary, SW_HTTP_SERVER_BOUNDARY_TOTAL_SIZE - sizeof(SW_HTTP_SERVER_BOUNDARY_PREKEY));
+        }
+        return boundary.c_str();
+    }
+
+    inline const char *get_content_type() {
+        if (tasks.size() > 1) {
+            content_type = std::string("multipart/byteranges; boundary=") + get_boundary();
+            return content_type.c_str();
+        } else {
+            return get_mimetype();
+        }
+    }
+
     inline const char *get_mimetype() {
         return swoole::mime_type::get(get_filename()).c_str();
     }
@@ -107,9 +135,23 @@ class StaticHandler {
         return (const network::SendfileTask *) &task;
     }
 
+    inline const std::vector<task_t> *get_tasks() {
+        return &tasks;
+    }
+
     inline bool is_dir() {
         return S_ISDIR(file_stat.st_mode);
     }
+
+    inline size_t get_content_length() {
+        return content_length;
+    }
+
+    inline const char* get_end_boundary() {
+        return end_boundary.c_str();
+    }
+
+    void parse_range(const char *range, const char *if_range);
 };
 
 };  // namespace http_server
