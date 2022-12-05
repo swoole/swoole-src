@@ -661,9 +661,6 @@ bool HttpContext::http2_send_file(const char *file, uint32_t l_file, off_t offse
             return false;
         }
         body = fp.read_content();
-        if (body->empty()) {
-            return false;
-        }
     }
     body->length = SW_MIN(length, body->length);
 
