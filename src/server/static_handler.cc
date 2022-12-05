@@ -65,7 +65,7 @@ std::string StaticHandler::get_date_last_modified() {
 }
 
 bool StaticHandler::hit() {
-    char *p = task.filename;
+    char *p = filename;
     const char *url = request_url.c_str();
     size_t url_length = request_url.length();
     /**
@@ -106,15 +106,15 @@ bool StaticHandler::hit() {
     }
     dir_path = std::string(url, n);
 
-    l_filename = http_server::url_decode(task.filename, p - task.filename);
-    task.filename[l_filename] = '\0';
+    l_filename = http_server::url_decode(filename, p - filename);
+    filename[l_filename] = '\0';
 
     if (swoole_strnpos(url, n, SW_STRL("..")) == -1) {
         goto _detect_mime_type;
     }
 
     char real_path[PATH_MAX];
-    if (!realpath(task.filename, real_path)) {
+    if (!realpath(filename, real_path)) {
         if (last) {
             status_code = SW_HTTP_NOT_FOUND;
             return true;
@@ -135,7 +135,7 @@ bool StaticHandler::hit() {
 _detect_mime_type:
 // file does not exist
 check_stat:
-    if (lstat(task.filename, &file_stat) < 0) {
+    if (lstat(filename, &file_stat) < 0) {
         if (last) {
             status_code = SW_HTTP_NOT_FOUND;
             return true;
@@ -146,12 +146,12 @@ check_stat:
 
     if (S_ISLNK(file_stat.st_mode)) {
         char buf[PATH_MAX];
-        ssize_t byte = ::readlink(task.filename, buf, sizeof(buf) - 1);
+        ssize_t byte = ::readlink(filename, buf, sizeof(buf) - 1);
         if (byte <= 0) {
             return false;
         }
         buf[byte] = 0;
-        swoole_strlcpy(task.filename, buf, sizeof(task.filename));
+        swoole_strlcpy(filename, buf, sizeof(filename));
         goto check_stat;
     }
 
@@ -163,14 +163,13 @@ check_stat:
         return true;
     }
 
-    if (!swoole::mime_type::exists(task.filename) && !last) {
+    if (!swoole::mime_type::exists(filename) && !last) {
         return false;
     }
 
     if (!S_ISREG(file_stat.st_mode)) {
         return false;
     }
-    task.length = get_filesize();
 
     return true;
 }
@@ -234,7 +233,7 @@ bool StaticHandler::get_dir_files() {
         return false;
     }
 
-    DIR *dir = opendir(task.filename);
+    DIR *dir = opendir(filename);
     if (dir == nullptr) {
         return false;
     }
@@ -250,7 +249,7 @@ bool StaticHandler::get_dir_files() {
 }
 
 bool StaticHandler::set_filename(std::string &filename) {
-    char *p = task.filename + l_filename;
+    char *p = this->filename + l_filename;
 
     if (*p != '/') {
         *p = '/';
@@ -261,7 +260,7 @@ bool StaticHandler::set_filename(std::string &filename) {
     p += filename.length();
     *p = 0;
 
-    if (lstat(task.filename, &file_stat) < 0) {
+    if (lstat(this->filename, &file_stat) < 0) {
         return false;
     }
 
@@ -269,22 +268,23 @@ bool StaticHandler::set_filename(std::string &filename) {
         return false;
     }
 
-    task.length = get_filesize();
-
     return true;
 }
 
 void StaticHandler::parse_range(const char *range, const char *if_range) {
-    if (range_parsed) {
-        return;
-    }
     task_t _task;
     _task.length = 0;
-    range_parsed = true;
     // range
     if (range && '\0' != *range) {
         const char *p = range;
-        p += 6; // bytes=
+        // bytes=
+        if (!SW_STRCASECT(p, strlen(range), "bytes=")) {
+            _task.offset = 0;
+            _task.length = content_length = get_filesize();
+            tasks.push_back(_task);
+            return;
+        }
+        p += 6;
         size_t start, end, size = 0, cutoff = SIZE_MAX / 10, cutlim = SIZE_MAX % 10, suffix, _content_length = get_filesize();
         content_length = 0;
         for ( ;; ) {
@@ -329,8 +329,8 @@ void StaticHandler::parse_range(const char *range, const char *if_range) {
             }
 
             if (*p < '0' || *p > '9') {
-                    status_code = SW_HTTP_RANGE_NOT_SATISFIABLE;
-                    return;
+                status_code = SW_HTTP_RANGE_NOT_SATISFIABLE;
+                return;
             }
 
             while (*p >= '0' && *p <= '9') {
@@ -398,11 +398,15 @@ void StaticHandler::parse_range(const char *range, const char *if_range) {
             end_boundary = std::string("\r\n--") + get_boundary() + "\r\n";
             content_length += end_boundary.size();
         }
+        status_code = SW_HTTP_PARTIAL_CONTENT;
     } else {
         _task.offset = 0;
         _task.length = content_length = get_filesize();
         tasks.push_back(_task);
     }
+    // if-range
+if_range:
+    return;
 }
 }  // namespace http_server
 void Server::add_static_handler_location(const std::string &location) {

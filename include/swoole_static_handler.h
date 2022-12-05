@@ -40,27 +40,23 @@ class StaticHandler {
     typedef struct {
         off_t offset;
         size_t length;
-        char filename[PATH_MAX];
         char boundary[256];
     } task_t;
-    task_t task;
     std::vector<task_t> tasks;
 
     size_t l_filename = 0;
+    char filename[PATH_MAX];
     struct stat file_stat;
     bool last = false;
     std::string content_type;
     std::string boundary;
     std::string end_boundary;
     size_t content_length;
-    bool range_parsed = false;
 
   public:
     int status_code = SW_HTTP_OK;
     StaticHandler(Server *_server, const char *url, size_t url_length) : request_url(url, url_length) {
         serv = _server;
-        task.length = 0;
-        task.offset = 0;
     }
     StaticHandler(Server *_server, http_server::Request *_request) : StaticHandler(_server, _request->buffer_->str + _request->url_offset_, _request->url_length_) {
         request = _request;
@@ -98,8 +94,12 @@ class StaticHandler {
 
     std::string get_date_last_modified();
 
+    inline size_t get_filename_length() {
+        return l_filename;
+    }
+
     inline const char *get_filename() {
-        return task.filename;
+        return filename;
     }
 
     inline const char* get_boundary() {
@@ -124,15 +124,11 @@ class StaticHandler {
     }
 
     inline std::string get_filename_std_string() {
-        return std::string(task.filename, l_filename);
+        return std::string(filename, l_filename);
     }
 
     inline size_t get_filesize() {
         return file_stat.st_size;
-    }
-
-    inline const network::SendfileTask *get_task() {
-        return (const network::SendfileTask *) &task;
     }
 
     inline const std::vector<task_t> *get_tasks() {

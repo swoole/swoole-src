@@ -206,7 +206,7 @@
  * HTTP Protocol
  */
 #define SW_HTTP_SERVER_SOFTWARE "swoole-http-server"
-#define SW_HTTP_SERVER_BOUNDARY_PREKEY "----SwooleBoundary"
+#define SW_HTTP_SERVER_BOUNDARY_PREKEY "SwooleBoundary"
 #define SW_HTTP_SERVER_BOUNDARY_TOTAL_SIZE 39
 #define SW_HTTP_PARAM_MAX_NUM 128
 #define SW_HTTP_FORM_KEYLEN 512
