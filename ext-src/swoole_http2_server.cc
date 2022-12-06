@@ -205,8 +205,17 @@ static bool http2_server_is_static_file(Server *serv, HttpContext *ctx) {
         zval *zrange = zend_hash_str_find(Z_ARR_P(zheader), ZEND_STRL("range"));
         zval *zif_range = zend_hash_str_find(Z_ARR_P(zheader), ZEND_STRL("if-range"));
         handler.parse_range(zrange ? Z_STRVAL_P(zrange) : nullptr, zif_range ? Z_STRVAL_P(zif_range) : nullptr);
+        ctx->response.status = handler.status_code;
 
-        return http2_server_send_range_file(ctx, &handler);
+        // request_method
+        zval *zrequest_method = zend_hash_str_find(Z_ARR_P(zserver), ZEND_STRL("request_method"));
+        if (zrequest_method && Z_TYPE_P(zrequest_method) == IS_STRING && SW_STRCASEEQ(Z_STRVAL_P(zrequest_method), Z_STRLEN_P(zrequest_method), "HEAD")) {
+            String empty_body;
+            http2_server_respond(ctx, &empty_body);
+            return true;
+        } else {
+            return http2_server_send_range_file(ctx, &handler);
+        }
     }
 
     return false;
@@ -634,7 +643,6 @@ static bool http2_server_respond(HttpContext *ctx, const String *body) {
 }
 
 static bool http2_server_send_range_file(HttpContext *ctx, swoole::http_server::StaticHandler *handler) {
-    ctx->response.status = handler->status_code;
     Http2Session *client = http2_sessions[ctx->fd];
     std::shared_ptr<String> body;
 

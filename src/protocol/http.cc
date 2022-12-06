@@ -141,8 +141,8 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
                                     "Server: %s\r\n\r\n",
                                     http_server::get_status_message(handler.status_code),
                                     request->keep_alive ? "keep-alive" : "close",
-                                    handler.get_content_length(),
-                                    handler.get_content_type(),
+                                    SW_HTTP_HEAD == request->method ? 0 : handler.get_content_length(),
+                                    SW_HTTP_HEAD == request->method ? handler.get_mimetype() : handler.get_content_type(),
                                     date_str.c_str(),
                                     date_str_last_modified.c_str(),
                                     SW_HTTP_SERVER_SOFTWARE);
@@ -156,40 +156,42 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
     send_to_connection(&response);
 
     // Send HTTP body
-    auto tasks = *handler.get_tasks();
-    if (!tasks.empty()) {
-        network::SendfileTask *task = (network::SendfileTask *) sw_malloc(sizeof(network::SendfileTask) + handler.get_filename_length());
-        strcpy(task->filename, handler.get_filename());
-        if (tasks.size() > 1) {
-            for (auto i = tasks.begin(); i != tasks.end(); i++) {
-                response.info.type = SW_SERVER_EVENT_SEND_DATA;
-                response.info.len = strlen(i->boundary);
-                response.data = i->boundary;
-                send_to_connection(&response);
+    if (SW_HTTP_HEAD != request->method) {
+        auto tasks = *handler.get_tasks();
+        if (!tasks.empty()) {
+            network::SendfileTask *task = (network::SendfileTask *) sw_malloc(sizeof(network::SendfileTask) + handler.get_filename_length());
+            strcpy(task->filename, handler.get_filename());
+            if (tasks.size() > 1) {
+                for (auto i = tasks.begin(); i != tasks.end(); i++) {
+                    response.info.type = SW_SERVER_EVENT_SEND_DATA;
+                    response.info.len = strlen(i->boundary);
+                    response.data = i->boundary;
+                    send_to_connection(&response);
 
-                task->offset = i->offset;
-                task->length = i->length;
+                    task->offset = i->offset;
+                    task->length = i->length;
+                    memcpy(((char *) task) + sizeof(SendfileTask), handler.get_filename(), handler.get_filename_length());
+                    response.info.type = SW_SERVER_EVENT_SEND_FILE;
+                    response.info.len = sizeof(*task) + handler.get_filename_length();
+                    response.data = (char *) task;
+                    send_to_connection(&response);
+                }
+
+                response.info.type = SW_SERVER_EVENT_SEND_DATA;
+                response.info.len = strlen(handler.get_end_boundary());
+                response.data = handler.get_end_boundary();
+                send_to_connection(&response);
+            } else if (tasks[0].length > 0) {
+                task->offset = tasks[0].offset;
+                task->length = tasks[0].length;
                 memcpy(((char *) task) + sizeof(SendfileTask), handler.get_filename(), handler.get_filename_length());
                 response.info.type = SW_SERVER_EVENT_SEND_FILE;
                 response.info.len = sizeof(*task) + handler.get_filename_length();
                 response.data = (char *) task;
                 send_to_connection(&response);
             }
-
-            response.info.type = SW_SERVER_EVENT_SEND_DATA;
-            response.info.len = strlen(handler.get_end_boundary());
-            response.data = handler.get_end_boundary();
-            send_to_connection(&response);
-        } else if (tasks[0].length > 0) {
-            task->offset = tasks[0].offset;
-            task->length = tasks[0].length;
-            memcpy(((char *) task) + sizeof(SendfileTask), handler.get_filename(), handler.get_filename_length());
-            response.info.type = SW_SERVER_EVENT_SEND_FILE;
-            response.info.len = sizeof(*task) + handler.get_filename_length();
-            response.data = (char *) task;
-            send_to_connection(&response);
+            sw_free(task);
         }
-        sw_free(task);
     }
 
     // Close the connection if keepalive is not used
