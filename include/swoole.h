@@ -441,7 +441,7 @@ typedef unsigned char uchar;
 #define swoole_toupper(c) (uchar)((c >= 'a' && c <= 'z') ? (c & ~0x20) : c)
 
 void swoole_random_string(char *buf, size_t size);
-void swoole_random_string(std::string *str, size_t size);
+void swoole_random_string(std::string &str, size_t size);
 size_t swoole_random_bytes(char *buf, size_t size);
 
 static sw_inline char *swoole_strlchr(char *p, char *last, char c) {

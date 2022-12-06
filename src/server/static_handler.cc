@@ -271,7 +271,7 @@ bool StaticHandler::get_dir_files() {
     return true;
 }
 
-bool StaticHandler::set_filename(std::string &filename) {
+bool StaticHandler::set_filename(const std::string &filename) {
     char *p = this->filename + l_filename;
 
     if (*p != '/') {
@@ -437,7 +437,6 @@ void StaticHandler::parse_range(const char *range, const char *if_range) {
             status_code = SW_HTTP_OK;
         }
     }
-    return;
 }
 }  // namespace http_server
 void Server::add_static_handler_location(const std::string &location) {

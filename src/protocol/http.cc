@@ -41,7 +41,10 @@ static const char *method_strings[] = {
 namespace swoole {
 
 bool Server::select_static_handler(http_server::Request *request, Connection *conn) {
-    StaticHandler handler(this, request);
+    const char *url = request->buffer_->str + request->url_offset_;
+    size_t url_length = request->url_length_;
+
+    StaticHandler handler(this, url, url_length);
     if (!handler.hit()) {
         return false;
     }
@@ -157,10 +160,12 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
 
     // Send HTTP body
     if (SW_HTTP_HEAD != request->method) {
-        auto tasks = *handler.get_tasks();
+        auto tasks = handler.get_tasks();
         if (!tasks.empty()) {
-            network::SendfileTask *task = (network::SendfileTask *) sw_malloc(sizeof(network::SendfileTask) + handler.get_filename_length());
+            size_t task_size = sizeof(network::SendfileTask) + strlen(handler.get_filename()) + 1;
+            network::SendfileTask *task = (network::SendfileTask *) sw_malloc(task_size);
             strcpy(task->filename, handler.get_filename());
+            ((char *) task)[task_size - 1] = '\0';
             if (tasks.size() > 1) {
                 for (auto i = tasks.begin(); i != tasks.end(); i++) {
                     response.info.type = SW_SERVER_EVENT_SEND_DATA;
@@ -170,9 +175,8 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
 
                     task->offset = i->offset;
                     task->length = i->length;
-                    memcpy(((char *) task) + sizeof(SendfileTask), handler.get_filename(), handler.get_filename_length());
                     response.info.type = SW_SERVER_EVENT_SEND_FILE;
-                    response.info.len = sizeof(*task) + handler.get_filename_length();
+                    response.info.len = task_size;
                     response.data = (char *) task;
                     send_to_connection(&response);
                 }
@@ -184,9 +188,8 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
             } else if (tasks[0].length > 0) {
                 task->offset = tasks[0].offset;
                 task->length = tasks[0].length;
-                memcpy(((char *) task) + sizeof(SendfileTask), handler.get_filename(), handler.get_filename_length());
                 response.info.type = SW_SERVER_EVENT_SEND_FILE;
-                response.info.len = sizeof(*task) + handler.get_filename_length();
+                response.info.len = task_size;
                 response.data = (char *) task;
                 send_to_connection(&response);
             }

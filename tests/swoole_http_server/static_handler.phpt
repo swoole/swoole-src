@@ -62,19 +62,19 @@ $pm->parentFunc = function () use ($pm) {
             $boundary = $matches[1];
             $expect = sprintf(<<<BIN
 
-            --{$boundary}
-            Content-Type: image/jpeg
-            Content-Range: bytes 0-0/218787
+--{$boundary}
+Content-Type: image/jpeg
+Content-Range: bytes 0-0/218787
 
-            %s
-            --{$boundary}
-            Content-Type: image/jpeg
-            Content-Range: bytes 218786-218786/218787
+%s
+--{$boundary}
+Content-Type: image/jpeg
+Content-Range: bytes 218786-218786/218787
 
-            %s
-            --{$boundary}
-            
-            BIN, substr($data2, 0, 1), substr($data2, -1));
+%s
+--{$boundary}
+
+BIN, substr($data2, 0, 1), substr($data2, -1));
             $expect = str_replace(PHP_EOL, "\r\n", $expect);
             Assert::eq($response['body'], $expect);
             $response = httpRequest("http://127.0.0.1:{$pm->getFreePort()}/test.jpg", ['http2' => $http2, 'headers' => ['Range' => 'bytes=0-15,32-63']]);
@@ -82,20 +82,20 @@ $pm->parentFunc = function () use ($pm) {
             Assert::notEq(preg_match('/multipart\/byteranges; boundary=(.+)/', $response['headers']['content-type'] ?? '', $matches), false);
             $boundary = $matches[1];
             $expect = sprintf(<<<BIN
-            
-            --{$boundary}
-            Content-Type: image/jpeg
-            Content-Range: bytes 0-15/218787
 
-            %s
-            --{$boundary}
-            Content-Type: image/jpeg
-            Content-Range: bytes 32-63/218787
+--{$boundary}
+Content-Type: image/jpeg
+Content-Range: bytes 0-15/218787
 
-            %s
-            --{$boundary}
-            
-            BIN, substr($data2, 0, 16), substr($data2, 32, 32));
+%s
+--{$boundary}
+Content-Type: image/jpeg
+Content-Range: bytes 32-63/218787
+
+%s
+--{$boundary}
+
+BIN, substr($data2, 0, 16), substr($data2, 32, 32));
             $expect = str_replace(PHP_EOL, "\r\n", $expect);
             Assert::eq($response['body'], $expect);
 

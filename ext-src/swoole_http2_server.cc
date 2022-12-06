@@ -669,7 +669,7 @@ static bool http2_server_send_range_file(HttpContext *ctx, swoole::http_server::
     /* headers has already been sent, retries are no longer allowed (even if send body failed) */
     ctx->end_ = 1;
 
-    auto tasks = *handler->get_tasks();
+    auto tasks = handler->get_tasks();
     if (!tasks.empty()) {
         File fp(handler->get_filename(), O_RDONLY);
         if (!fp.ready()) {

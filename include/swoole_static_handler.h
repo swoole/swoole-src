@@ -28,7 +28,6 @@ namespace http_server {
 class StaticHandler {
   private:
     Server *serv;
-    http_server::Request *request = nullptr;
     std::string request_url;
     std::string dir_path;
     std::set<std::string> dir_files;
@@ -54,9 +53,6 @@ class StaticHandler {
     StaticHandler(Server *_server, const char *url, size_t url_length) : request_url(url, url_length) {
         serv = _server;
     }
-    StaticHandler(Server *_server, http_server::Request *_request) : StaticHandler(_server, _request->buffer_->str + _request->url_offset_, _request->url_length_) {
-        request = _request;
-    }
 
     /**
      * @return true: continue to execute backwards
@@ -69,7 +65,7 @@ class StaticHandler {
     bool is_modified_range(const std::string &date_range);
     size_t make_index_page(String *buffer);
     bool get_dir_files();
-    bool set_filename(std::string &filename);
+    bool set_filename(const std::string &filename);
 
     bool has_index_file() {
         return !index_file.empty();
@@ -91,10 +87,6 @@ class StaticHandler {
 
     std::string get_date_last_modified();
 
-    inline size_t get_filename_length() {
-        return l_filename;
-    }
-
     inline const char *get_filename() {
         return filename;
     }
@@ -102,7 +94,7 @@ class StaticHandler {
     inline const char* get_boundary() {
         if (boundary.empty()) {
             boundary = std::string(SW_HTTP_SERVER_BOUNDARY_PREKEY);
-            swoole_random_string(&boundary, SW_HTTP_SERVER_BOUNDARY_TOTAL_SIZE - sizeof(SW_HTTP_SERVER_BOUNDARY_PREKEY));
+            swoole_random_string(boundary, SW_HTTP_SERVER_BOUNDARY_TOTAL_SIZE - sizeof(SW_HTTP_SERVER_BOUNDARY_PREKEY));
         }
         return boundary.c_str();
     }
@@ -128,8 +120,8 @@ class StaticHandler {
         return file_stat.st_size;
     }
 
-    inline const std::vector<task_t> *get_tasks() {
-        return &tasks;
+    inline const std::vector<task_t> &get_tasks() {
+        return tasks;
     }
 
     inline bool is_dir() {
