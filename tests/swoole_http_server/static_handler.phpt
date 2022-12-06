@@ -61,7 +61,6 @@ $pm->parentFunc = function () use ($pm) {
             Assert::notEq(preg_match('/multipart\/byteranges; boundary=(.+)/', $response['headers']['content-type'] ?? '', $matches), false);
             $boundary = $matches[1];
             $expect = sprintf(<<<BIN
-
 --{$boundary}
 Content-Type: image/jpeg
 Content-Range: bytes 0-0/218787
@@ -83,7 +82,6 @@ BIN
             Assert::notEq(preg_match('/multipart\/byteranges; boundary=(.+)/', $response['headers']['content-type'] ?? '', $matches), false);
             $boundary = $matches[1];
             $expect = sprintf(<<<BIN
-
 --{$boundary}
 Content-Type: image/jpeg
 Content-Range: bytes 0-15/218787

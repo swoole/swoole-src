@@ -395,9 +395,10 @@ void StaticHandler::parse_range(const char *range, const char *if_range) {
                 _task.length = end - start;
                 content_length += sw_snprintf(_task.boundary,
                                                 sizeof(_task.boundary),
-                                                "\r\n--%s\r\n"
+                                                "%s--%s\r\n"
                                                 "Content-Type: %s\r\n"
                                                 "Content-Range: bytes %zu-%zu/%zu\r\n\r\n",
+                                                tasks.empty() ? "" : "\r\n",
                                                 get_boundary(),
                                                 get_mimetype(),
                                                 _task.offset,
