@@ -165,7 +165,6 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
             size_t task_size = sizeof(network::SendfileTask) + strlen(handler.get_filename()) + 1;
             network::SendfileTask *task = (network::SendfileTask *) sw_malloc(task_size);
             strcpy(task->filename, handler.get_filename());
-            ((char *) task)[task_size - 1] = '\0';
             if (tasks.size() > 1) {
                 for (auto i = tasks.begin(); i != tasks.end(); i++) {
                     response.info.type = SW_SERVER_EVENT_SEND_DATA;
