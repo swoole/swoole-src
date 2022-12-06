@@ -191,7 +191,7 @@ static bool http2_server_is_static_file(Server *serv, HttpContext *ctx) {
         auto date_str_last_modified = handler.get_date_last_modified();
 
         zval *zheader = ctx->request.zheader;
-        ctx->set_header(ZEND_STRL("Last-Modified"), date_str.c_str(), date_str.length(), 0);
+        ctx->set_header(ZEND_STRL("Last-Modified"), date_str_last_modified.c_str(), date_str_last_modified.length(), 0);
 
         zval *zdate_if_modified_since = zend_hash_str_find(Z_ARR_P(zheader), ZEND_STRL("if-modified-since"));
         if (zdate_if_modified_since) {
