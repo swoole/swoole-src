@@ -70,6 +70,7 @@ class StaticHandler {
     bool hit_index_file();
 
     bool is_modified(const std::string &date_if_modified_since);
+    bool is_modified_range(const std::string &date_range);
     size_t make_index_page(String *buffer);
     bool get_dir_files();
     bool set_filename(std::string &filename);

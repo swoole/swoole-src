@@ -45,6 +45,8 @@ $pm->parentFunc = function () use ($pm) {
             $response = httpRequest("http://127.0.0.1:{$pm->getFreePort()}/test.jpg", ['http2' => $http2, 'headers' => ['Range' => 'bytes=0-15']]);
             Assert::same($response['statusCode'], 206);
             Assert::same(bin2hex(substr($data2, 0, 16)), bin2hex($response['body']));
+            $lastModified = $response['headers']['last-modified'] ?? null;
+            Assert::notNull($lastModified);
             $response = httpRequest("http://127.0.0.1:{$pm->getFreePort()}/test.jpg", ['http2' => $http2, 'headers' => ['Range' => 'bytes=16-31']]);
             Assert::same($response['statusCode'], 206);
             Assert::same(bin2hex(substr($data2, 16, 16)), bin2hex($response['body']));
@@ -97,6 +99,26 @@ $pm->parentFunc = function () use ($pm) {
             $expect = str_replace(PHP_EOL, "\r\n", $expect);
             Assert::eq($response['body'], $expect);
 
+            // if-range
+            $response = httpRequest("http://127.0.0.1:{$pm->getFreePort()}/test.jpg", ['http2' => $http2, 'headers' => ['Range' => 'bytes=0-15', 'If-Range' => $lastModified]]);
+            Assert::same($response['statusCode'], 206);
+            Assert::same(bin2hex(substr($data2, 0, 16)), bin2hex($response['body']));
+
+            $response = httpRequest("http://127.0.0.1:{$pm->getFreePort()}/test.jpg", ['http2' => $http2, 'headers' => ['Range' => 'bytes=0-15', 'If-Range' => 'test']]);
+            Assert::same($response['statusCode'], 206);
+            Assert::same(bin2hex(substr($data2, 0, 16)), bin2hex($response['body']));
+
+            $lastModifiedTime = strtotime($lastModified);
+            $response = httpRequest("http://127.0.0.1:{$pm->getFreePort()}/test.jpg", ['http2' => $http2, 'headers' => ['Range' => 'bytes=0-15', 'If-Range' => date(DATE_RFC7231, $lastModifiedTime - 1)]]);
+            Assert::same($response['statusCode'], 200);
+            Assert::same(bin2hex($data2), bin2hex($response['body']));
+
+            $response = httpRequest("http://127.0.0.1:{$pm->getFreePort()}/test.jpg", ['http2' => $http2, 'headers' => ['Range' => 'bytes=0-15', 'If-Range' => date(DATE_RFC7231, $lastModifiedTime + 1)]]);
+            Assert::same($response['statusCode'], 200);
+            Assert::same(bin2hex($data2), bin2hex($response['body']));
+
+
+            // data boundary
             $response = httpRequest("http://127.0.0.1:{$pm->getFreePort()}/test.jpg", ['http2' => $http2, 'headers' => ['Range' => 'abc']]);
             Assert::same($response['statusCode'], 200);
             Assert::same(bin2hex($data2), bin2hex($response['body']));

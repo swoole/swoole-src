@@ -48,6 +48,29 @@ bool StaticHandler::is_modified(const std::string &date_if_modified_since) {
     return date_format && mktime(&tm3) - (int) serv->timezone_ >= get_file_mtime();
 }
 
+bool StaticHandler::is_modified_range(const std::string &date_range) {
+    if (date_range.empty()) {
+        return false;
+    }
+
+    struct tm tm3 {};
+
+    const char *date_format = nullptr;
+
+    if (strptime(date_range.c_str(), SW_HTTP_RFC1123_DATE_GMT, &tm3) != nullptr) {
+        date_format = SW_HTTP_RFC1123_DATE_GMT;
+    } else if (strptime(date_range.c_str(), SW_HTTP_RFC1123_DATE_UTC, &tm3) != nullptr) {
+        date_format = SW_HTTP_RFC1123_DATE_UTC;
+    } else if (strptime(date_range.c_str(), SW_HTTP_RFC850_DATE, &tm3) != nullptr) {
+        date_format = SW_HTTP_RFC850_DATE;
+    } else if (strptime(date_range.c_str(), SW_HTTP_ASCTIME_DATE, &tm3) != nullptr) {
+        date_format = SW_HTTP_ASCTIME_DATE;
+    }
+    time_t file_mtime = get_file_mtime();
+    struct tm *tm_file_mtime = gmtime(&file_mtime);
+    return date_format && mktime(&tm3) != mktime(tm_file_mtime);
+}
+
 std::string StaticHandler::get_date() {
     char date_[64];
     time_t now = ::time(nullptr);
@@ -405,7 +428,15 @@ void StaticHandler::parse_range(const char *range, const char *if_range) {
         tasks.push_back(_task);
     }
     // if-range
-if_range:
+    if (if_range) {
+        if (is_modified_range(if_range)) {
+            tasks.clear();
+            _task.offset = 0;
+            _task.length = content_length = get_filesize();
+            tasks.push_back(_task);
+            status_code = SW_HTTP_OK;
+        }
+    }
     return;
 }
 }  // namespace http_server
