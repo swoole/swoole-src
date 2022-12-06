@@ -207,50 +207,6 @@ static bool http2_server_is_static_file(Server *serv, HttpContext *ctx) {
         handler.parse_range(zrange ? Z_STRVAL_P(zrange) : nullptr, zif_range ? Z_STRVAL_P(zif_range) : nullptr);
 
         return http2_server_send_range_file(ctx, &handler);
-        // auto tasks = *handler.get_tasks();
-        // if (!tasks.empty()) {
-        //     zend::String _filename(handler.get_filename_std_string());
-        //     zval zfilename;
-        //     ZVAL_STR(&zfilename, _filename.get());
-        //     zval retval; /* do not care the retval (the connection will be closed if failed) */
-
-        //     String body(PATH_MAX);
-        //     body.append("test");
-        //     http2_server_respond(ctx, &body);
-
-        //     // if (tasks.size() > 1) {
-        //     //     for (auto i = tasks.begin(); i != tasks.end(); i++) {
-        //     //         response.info.type = SW_SERVER_EVENT_SEND_DATA;
-        //     //         response.info.len = strlen(i->boundary);
-        //     //         response.data = i->boundary;
-        //     //         send_to_connection(&response);
-
-        //     //         task->offset = i->offset;
-        //     //         task->length = i->length;
-        //     //         strcpy(((char *) task) + sizeof(SendfileTask), handler.get_filename());
-        //     //         response.info.type = SW_SERVER_EVENT_SEND_FILE;
-        //     //         response.info.len = sizeof(*task) + strlen(handler.get_filename());
-        //     //         response.data = (char *) task;
-        //     //         send_to_connection(&response);
-        //     //     }
-
-        //     //     response.info.type = SW_SERVER_EVENT_SEND_DATA;
-        //     //     response.info.len = strlen(handler.get_end_boundary());
-        //     //     response.data = handler.get_end_boundary();
-        //     //     send_to_connection(&response);
-        //     // } else if (tasks[0].length > 0) {
-        //     //     task->offset = tasks[0].offset;
-        //     //     task->length = tasks[0].length;
-        //     //     strcpy(((char *) task) + sizeof(SendfileTask), handler.get_filename());
-        //     //     response.info.type = SW_SERVER_EVENT_SEND_FILE;
-        //     //     response.info.len = sizeof(*task) + strlen(handler.get_filename());
-        //     //     response.data = (char *) task;
-        //     //     send_to_connection(&response);
-        //     // }
-
-        //     sw_zend_call_method_with_1_params(
-        //         ctx->response.zobject, swoole_http_response_ce, nullptr, "sendfile", &retval, &zfilename);
-        // }
     }
 
     return false;

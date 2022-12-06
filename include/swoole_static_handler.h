@@ -25,10 +25,6 @@
 
 namespace swoole {
 namespace http_server {
-struct Range{
-    off_t offset;
-    size_t length;
-};
 class StaticHandler {
   private:
     Server *serv;
