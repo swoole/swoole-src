@@ -72,9 +72,10 @@ Content-Type: image/jpeg
 Content-Range: bytes 218786-218786/218787
 
 %s
---{$boundary}
+--{$boundary}--
 
-BIN, substr($data2, 0, 1), substr($data2, -1));
+BIN
+            , substr($data2, 0, 1), substr($data2, -1));
             $expect = str_replace(PHP_EOL, "\r\n", $expect);
             Assert::same(bin2hex($expect), bin2hex($response['body']));
             $response = httpRequest("http://127.0.0.1:{$pm->getFreePort()}/test.jpg", ['http2' => $http2, 'headers' => ['Range' => 'bytes=0-15,32-63']]);
@@ -93,9 +94,10 @@ Content-Type: image/jpeg
 Content-Range: bytes 32-63/218787
 
 %s
---{$boundary}
+--{$boundary}--
 
-BIN, substr($data2, 0, 16), substr($data2, 32, 32));
+BIN
+            , substr($data2, 0, 16), substr($data2, 32, 32));
             $expect = str_replace(PHP_EOL, "\r\n", $expect);
             Assert::same(bin2hex($expect), bin2hex($response['body']));
 

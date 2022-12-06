@@ -418,7 +418,7 @@ void StaticHandler::parse_range(const char *range, const char *if_range) {
         if (1 == tasks.size()) {
             content_length = _task.length;
         } else {
-            end_boundary = std::string("\r\n--") + get_boundary() + "\r\n";
+            end_boundary = std::string("\r\n--") + get_boundary() + "--\r\n";
             content_length += end_boundary.size();
         }
         status_code = SW_HTTP_PARTIAL_CONTENT;
