@@ -23,6 +23,7 @@ $pm->parentFunc = function () use ($pm) {
             Assert::same('bytes 0-15/218787', $response['headers']['content-range']);
             $lastModified = $response['headers']['last-modified'] ?? null;
             Assert::notNull($lastModified);
+            Assert::null($response['headers']['accept-ranges'] ?? null);
             $response = httpRequest("http://127.0.0.1:{$pm->getFreePort()}/test.jpg", ['http2' => $http2, 'headers' => ['Range' => 'bytes=16-31']]);
             Assert::same($response['statusCode'], 206);
             Assert::same('bytes 16-31/218787', $response['headers']['content-range']);
@@ -100,12 +101,13 @@ BIN
             // head
             $response = httpRequest("http://127.0.0.1:{$pm->getFreePort()}/test.jpg", ['http2' => $http2, 'method' => 'HEAD']);
             Assert::same($response['statusCode'], 200);
-            Assert::same('bytes', $response['headers']['content-range']);
             Assert::isEmpty($response['body']);
+            Assert::same($response['headers']['accept-ranges'], 'bytes');
             $response = httpRequest("http://127.0.0.1:{$pm->getFreePort()}/test.jpg", ['http2' => $http2, 'method' => 'HEAD', 'headers' => ['Range' => 'bytes=0-15']]);
             Assert::same($response['statusCode'], 206);
             Assert::same('bytes 0-15/218787', $response['headers']['content-range']);
             Assert::isEmpty($response['body']);
+            Assert::null($response['headers']['accept-ranges'] ?? null);
 
             // data boundary
             $response = httpRequest("http://127.0.0.1:{$pm->getFreePort()}/test.jpg", ['http2' => $http2, 'headers' => ['Range' => 'abc']]);
