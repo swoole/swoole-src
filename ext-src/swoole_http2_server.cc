@@ -692,7 +692,8 @@ static bool http2_server_send_range_file(HttpContext *ctx, swoole::http_server::
     }
 
     bool end_stream = (ztrailer == nullptr);
-    body.reset(new String(handler->get_content_length()));
+    body.reset(new String());
+    body->length = handler->get_content_length();
     if (!ctx->stream->send_header(body.get(), end_stream)) {
         return false;
     }
