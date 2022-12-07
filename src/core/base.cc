@@ -793,7 +793,7 @@ void swoole_random_string(char *buf, size_t size) {
 void swoole_random_string(std::string &str, size_t size) {
     size_t i = 0;
     for (; i < size; i++) {
-        str += characters[swoole_rand(0, sizeof(characters) - 1)];
+        str.append(1, characters[swoole_rand(0, sizeof(characters) - 1)]);
     }
 }
 

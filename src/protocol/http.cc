@@ -141,29 +141,31 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
     if (1 == tasks.size()) {
         content_range << "Content-Range: bytes";
         if (tasks[0].length != handler.get_filesize()) {
-            content_range << " " << tasks[0].offset << "-" << (tasks[0].length + tasks[0].offset - 1) << "/" << handler.get_filesize();
+            content_range << " " << tasks[0].offset << "-" << (tasks[0].length + tasks[0].offset - 1) << "/"
+                          << handler.get_filesize();
         }
         content_range << "\r\n";
     }
 
-    response.info.len = sw_snprintf(header_buffer,
-                                    sizeof(header_buffer),
-                                    "HTTP/1.1 %s\r\n"
-                                    "Connection: %s\r\n"
-                                    "Content-Length: %ld\r\n"
-                                    "Content-Type: %s\r\n"
-                                    "%s"
-                                    "Date: %s\r\n"
-                                    "Last-Modified: %s\r\n"
-                                    "Server: %s\r\n\r\n",
-                                    http_server::get_status_message(handler.status_code),
-                                    request->keep_alive ? "keep-alive" : "close",
-                                    SW_HTTP_HEAD == request->method ? 0 : handler.get_content_length(),
-                                    SW_HTTP_HEAD == request->method ? handler.get_mimetype() : handler.get_content_type(),
-                                    content_range.str().c_str(),
-                                    date_str.c_str(),
-                                    date_str_last_modified.c_str(),
-                                    SW_HTTP_SERVER_SOFTWARE);
+    response.info.len =
+        sw_snprintf(header_buffer,
+                    sizeof(header_buffer),
+                    "HTTP/1.1 %s\r\n"
+                    "Connection: %s\r\n"
+                    "Content-Length: %ld\r\n"
+                    "Content-Type: %s\r\n"
+                    "%s"
+                    "Date: %s\r\n"
+                    "Last-Modified: %s\r\n"
+                    "Server: %s\r\n\r\n",
+                    http_server::get_status_message(handler.status_code),
+                    request->keep_alive ? "keep-alive" : "close",
+                    SW_HTTP_HEAD == request->method ? 0 : handler.get_content_length(),
+                    SW_HTTP_HEAD == request->method ? handler.get_mimetype() : handler.get_content_type(),
+                    content_range.str().c_str(),
+                    date_str.c_str(),
+                    date_str_last_modified.c_str(),
+                    SW_HTTP_SERVER_SOFTWARE);
 
     response.data = header_buffer;
 
