@@ -776,17 +776,25 @@ char *swoole_string_format(size_t n, const char *format, ...) {
     return nullptr;
 }
 
+static const char characters[] = {
+    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U',
+    'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p',
+    'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+};
+
 void swoole_random_string(char *buf, size_t size) {
-    static char characters[] = {
-        'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U',
-        'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p',
-        'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
-    };
     size_t i = 0;
     for (; i < size; i++) {
         buf[i] = characters[swoole_rand(0, sizeof(characters) - 1)];
     }
     buf[i] = '\0';
+}
+
+void swoole_random_string(std::string &str, size_t size) {
+    size_t i = 0;
+    for (; i < size; i++) {
+        str += characters[swoole_rand(0, sizeof(characters) - 1)];
+    }
 }
 
 size_t swoole_random_bytes(char *buf, size_t size) {

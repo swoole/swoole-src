@@ -169,6 +169,7 @@ struct Request {
     bool init_multipart_parser(Server *server);
     void destroy_multipart_parser();
     std::string get_date_if_modified_since();
+    std::string get_header(const char *name);
     bool has_expect_header();
 };
 
