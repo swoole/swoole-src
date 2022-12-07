@@ -713,7 +713,7 @@ static bool http2_server_send_range_file(HttpContext *ctx, swoole::http_server::
         char *buf;
         if (tasks.size() > 1) {
             for (auto i = tasks.begin(); i != tasks.end(); i++) {
-                body.reset(new String(i->boundary, strlen(i->boundary)));
+                body.reset(new String(i->part_header, strlen(i->part_header)));
                 if (!ctx->stream->send_body(
                         body.get(), false, client->local_settings.max_frame_size, 0, body->length)) {
                     error = true;
@@ -737,7 +737,7 @@ static bool http2_server_send_range_file(HttpContext *ctx, swoole::http_server::
             }
 
             if (!error) {
-                body.reset(new String(handler->get_end_boundary(), strlen(handler->get_end_boundary())));
+                body.reset(new String(handler->get_end_part(), strlen(handler->get_end_part())));
                 if (!ctx->stream->send_body(
                         body.get(), end_stream, client->local_settings.max_frame_size, 0, body->length)) {
                     error = true;
