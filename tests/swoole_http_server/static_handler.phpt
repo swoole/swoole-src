@@ -45,19 +45,24 @@ $pm->parentFunc = function () use ($pm) {
             $response = httpRequest("http://127.0.0.1:{$pm->getFreePort()}/test.jpg", ['http2' => $http2, 'headers' => ['Range' => 'bytes=0-15']]);
             Assert::same($response['statusCode'], 206);
             Assert::same(bin2hex($response['body']), bin2hex(substr($data2, 0, 16)));
+            Assert::same('bytes 0-15/218787', $response['headers']['content-range']);
             $lastModified = $response['headers']['last-modified'] ?? null;
             Assert::notNull($lastModified);
             $response = httpRequest("http://127.0.0.1:{$pm->getFreePort()}/test.jpg", ['http2' => $http2, 'headers' => ['Range' => 'bytes=16-31']]);
             Assert::same($response['statusCode'], 206);
+            Assert::same('bytes 16-31/218787', $response['headers']['content-range']);
             Assert::same(bin2hex($response['body']), bin2hex(substr($data2, 16, 16)));
             $response = httpRequest("http://127.0.0.1:{$pm->getFreePort()}/test.jpg", ['http2' => $http2, 'headers' => ['Range' => 'bytes=-16']]);
             Assert::same($response['statusCode'], 206);
+            Assert::same('bytes 218771-218786/218787', $response['headers']['content-range']);
             Assert::same(bin2hex($response['body']), bin2hex(substr($data2, -16)));
             $response = httpRequest("http://127.0.0.1:{$pm->getFreePort()}/test.jpg", ['http2' => $http2, 'headers' => ['Range' => 'bytes=128-']]);
             Assert::same($response['statusCode'], 206);
+            Assert::same('bytes 128-218786/218787', $response['headers']['content-range']);
             Assert::same(bin2hex($response['body']), bin2hex(substr($data2, 128)));
             $response = httpRequest("http://127.0.0.1:{$pm->getFreePort()}/test.jpg", ['http2' => $http2, 'headers' => ['Range' => 'bytes=0-0,-1']]);
             Assert::same($response['statusCode'], 206);
+            Assert::isEmpty($response['headers']['content-range'] ?? null);
             Assert::notEq(preg_match('/multipart\/byteranges; boundary=(.+)/', $response['headers']['content-type'] ?? '', $matches), false);
             $boundary = $matches[1];
             $expect = sprintf(<<<BIN
@@ -120,9 +125,11 @@ BIN
             // head
             $response = httpRequest("http://127.0.0.1:{$pm->getFreePort()}/test.jpg", ['http2' => $http2, 'method' => 'HEAD']);
             Assert::same($response['statusCode'], 200);
+            Assert::same('bytes', $response['headers']['content-range']);
             Assert::isEmpty($response['body']);
             $response = httpRequest("http://127.0.0.1:{$pm->getFreePort()}/test.jpg", ['http2' => $http2, 'method' => 'HEAD', 'headers' => ['Range' => 'bytes=0-15']]);
             Assert::same($response['statusCode'], 206);
+            Assert::same('bytes 0-15/218787', $response['headers']['content-range']);
             Assert::isEmpty($response['body']);
 
             // data boundary

@@ -18,6 +18,7 @@
 #include "swoole_server.h"
 
 #include <string>
+#include <sstream>
 
 #include "swoole_util.h"
 #include "swoole_http2.h"
@@ -132,6 +133,16 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
     }
 
     handler.parse_range(request->get_header("Range").c_str(), request->get_header("If-Range").c_str());
+    auto tasks = handler.get_tasks();
+
+    std::stringstream content_range;
+    if (1 == tasks.size()) {
+        content_range << "Content-Range: bytes";
+        if (tasks[0].length != handler.get_filesize()) {
+            content_range << " " << tasks[0].offset << "-" << (tasks[0].length + tasks[0].offset - 1) << "/" << handler.get_filesize();
+        }
+        content_range << "\r\n";
+    }
 
     response.info.len = sw_snprintf(header_buffer,
                                     sizeof(header_buffer),
@@ -139,6 +150,7 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
                                     "Connection: %s\r\n"
                                     "Content-Length: %ld\r\n"
                                     "Content-Type: %s\r\n"
+                                    "%s"
                                     "Date: %s\r\n"
                                     "Last-Modified: %s\r\n"
                                     "Server: %s\r\n\r\n",
@@ -146,6 +158,7 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
                                     request->keep_alive ? "keep-alive" : "close",
                                     SW_HTTP_HEAD == request->method ? 0 : handler.get_content_length(),
                                     SW_HTTP_HEAD == request->method ? handler.get_mimetype() : handler.get_content_type(),
+                                    content_range.str().c_str(),
                                     date_str.c_str(),
                                     date_str_last_modified.c_str(),
                                     SW_HTTP_SERVER_SOFTWARE);
@@ -160,7 +173,6 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
 
     // Send HTTP body
     if (SW_HTTP_HEAD != request->method) {
-        auto tasks = handler.get_tasks();
         if (!tasks.empty()) {
             size_t task_size = sizeof(network::SendfileTask) + strlen(handler.get_filename()) + 1;
             network::SendfileTask *task = (network::SendfileTask *) sw_malloc(task_size);
