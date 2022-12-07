@@ -135,14 +135,18 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
     handler.parse_range(request->get_header("Range").c_str(), request->get_header("If-Range").c_str());
     auto tasks = handler.get_tasks();
 
-    std::stringstream content_range;
+    std::stringstream header_stream;
     if (1 == tasks.size()) {
-        content_range << "Content-Range: bytes";
-        if (tasks[0].length != handler.get_filesize()) {
-            content_range << " " << tasks[0].offset << "-" << (tasks[0].length + tasks[0].offset - 1) << "/"
-                          << handler.get_filesize();
+        if (0 == tasks[0].offset && tasks[0].length == handler.get_filesize()) {
+            header_stream << "Accept-Ranges: bytes\r\n";
+        } else {
+            header_stream << "Content-Range: bytes";
+            if (tasks[0].length != handler.get_filesize()) {
+                header_stream << " " << tasks[0].offset << "-" << (tasks[0].length + tasks[0].offset - 1) << "/"
+                            << handler.get_filesize();
+            }
+            header_stream << "\r\n";
         }
-        content_range << "\r\n";
     }
 
     response.info.len =
@@ -160,7 +164,7 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
                     request->keep_alive ? "keep-alive" : "close",
                     SW_HTTP_HEAD == request->method ? 0 : handler.get_content_length(),
                     SW_HTTP_HEAD == request->method ? handler.get_mimetype() : handler.get_content_type(),
-                    content_range.str().c_str(),
+                    header_stream.str().c_str(),
                     date_str.c_str(),
                     date_str_last_modified.c_str(),
                     SW_HTTP_SERVER_SOFTWARE);
