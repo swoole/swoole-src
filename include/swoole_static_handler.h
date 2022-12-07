@@ -46,7 +46,7 @@ class StaticHandler {
     std::string content_type;
     std::string boundary;
     std::string end_boundary;
-    size_t content_length;
+    size_t content_length = 0;
 
   public:
     int status_code = SW_HTTP_OK;
@@ -91,7 +91,7 @@ class StaticHandler {
         return filename;
     }
 
-    inline const char* get_boundary() {
+    inline const char *get_boundary() {
         if (boundary.empty()) {
             boundary = std::string(SW_HTTP_SERVER_BOUNDARY_PREKEY);
             swoole_random_string(boundary, SW_HTTP_SERVER_BOUNDARY_TOTAL_SIZE - sizeof(SW_HTTP_SERVER_BOUNDARY_PREKEY));
@@ -132,7 +132,7 @@ class StaticHandler {
         return content_length;
     }
 
-    inline const char* get_end_boundary() {
+    inline const char *get_end_boundary() {
         return end_boundary.c_str();
     }
 

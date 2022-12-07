@@ -213,7 +213,8 @@ static bool http2_server_is_static_file(Server *serv, HttpContext *ctx) {
             std::stringstream content_range;
             content_range << "bytes";
             if (tasks[0].length != handler.get_filesize()) {
-                content_range << " " << tasks[0].offset << "-" << (tasks[0].length + tasks[0].offset - 1) << "/" << handler.get_filesize();
+                content_range << " " << tasks[0].offset << "-" << (tasks[0].length + tasks[0].offset - 1) << "/"
+                              << handler.get_filesize();
             }
             auto content_range_str = content_range.str();
             ctx->set_header(ZEND_STRL("Content-Range"), content_range_str.c_str(), content_range_str.length(), 0);
@@ -221,7 +222,8 @@ static bool http2_server_is_static_file(Server *serv, HttpContext *ctx) {
 
         // request_method
         zval *zrequest_method = zend_hash_str_find(Z_ARR_P(zserver), ZEND_STRL("request_method"));
-        if (zrequest_method && Z_TYPE_P(zrequest_method) == IS_STRING && SW_STRCASEEQ(Z_STRVAL_P(zrequest_method), Z_STRLEN_P(zrequest_method), "HEAD")) {
+        if (zrequest_method && Z_TYPE_P(zrequest_method) == IS_STRING &&
+            SW_STRCASEEQ(Z_STRVAL_P(zrequest_method), Z_STRLEN_P(zrequest_method), "HEAD")) {
             String empty_body;
             http2_server_respond(ctx, &empty_body);
             return true;
@@ -692,7 +694,8 @@ static bool http2_server_send_range_file(HttpContext *ctx, swoole::http_server::
         if (tasks.size() > 1) {
             for (auto i = tasks.begin(); i != tasks.end(); i++) {
                 body.reset(new String(i->boundary, strlen(i->boundary)));
-                if (!ctx->stream->send_body(body.get(), false, client->local_settings.max_frame_size, 0, body->length)) {
+                if (!ctx->stream->send_body(
+                        body.get(), false, client->local_settings.max_frame_size, 0, body->length)) {
                     error = true;
                     break;
                 } else {
@@ -704,7 +707,8 @@ static bool http2_server_send_range_file(HttpContext *ctx, swoole::http_server::
                 fp.read(buf, i->length);
                 body.reset(new String(buf, i->length));
                 efree(buf);
-                if (!ctx->stream->send_body(body.get(), false, client->local_settings.max_frame_size, 0, body->length)) {
+                if (!ctx->stream->send_body(
+                        body.get(), false, client->local_settings.max_frame_size, 0, body->length)) {
                     error = true;
                     break;
                 } else {
@@ -714,7 +718,8 @@ static bool http2_server_send_range_file(HttpContext *ctx, swoole::http_server::
 
             if (!error) {
                 body.reset(new String(handler->get_end_boundary(), strlen(handler->get_end_boundary())));
-                if (!ctx->stream->send_body(body.get(), end_stream, client->local_settings.max_frame_size, 0, body->length)) {
+                if (!ctx->stream->send_body(
+                        body.get(), end_stream, client->local_settings.max_frame_size, 0, body->length)) {
                     error = true;
                 } else {
                     client->remote_settings.window_size -= body->length;  // TODO: flow control?
@@ -732,7 +737,8 @@ static bool http2_server_send_range_file(HttpContext *ctx, swoole::http_server::
             } else {
                 callback();
             }
-            if (!ctx->stream->send_body(body.get(), end_stream, client->local_settings.max_frame_size, 0, body->length)) {
+            if (!ctx->stream->send_body(
+                    body.get(), end_stream, client->local_settings.max_frame_size, 0, body->length)) {
                 error = true;
             } else {
                 client->remote_settings.window_size -= body->length;  // TODO: flow control?

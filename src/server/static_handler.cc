@@ -308,14 +308,17 @@ void StaticHandler::parse_range(const char *range, const char *if_range) {
             return;
         }
         p += 6;
-        size_t start, end, size = 0, cutoff = SIZE_MAX / 10, cutlim = SIZE_MAX % 10, suffix, _content_length = get_filesize();
+        size_t start, end, size = 0, cutoff = SIZE_MAX / 10, cutlim = SIZE_MAX % 10, suffix,
+                           _content_length = get_filesize();
         content_length = 0;
-        for ( ;; ) {
+        for (;;) {
             start = 0;
             end = 0;
             suffix = 0;
 
-            while (*p == ' ') { p++; }
+            while (*p == ' ') {
+                p++;
+            }
 
             if (*p != '-') {
                 if (*p < '0' || *p > '9') {
@@ -324,22 +327,26 @@ void StaticHandler::parse_range(const char *range, const char *if_range) {
                 }
 
                 while (*p >= '0' && *p <= '9') {
-                    if (start >= cutoff && (start > cutoff || (size_t) (*p - '0') > cutlim)) {
-                    status_code = SW_HTTP_RANGE_NOT_SATISFIABLE;
-                    return;
+                    if (start >= cutoff && (start > cutoff || (size_t)(*p - '0') > cutlim)) {
+                        status_code = SW_HTTP_RANGE_NOT_SATISFIABLE;
+                        return;
                     }
 
                     start = start * 10 + (*p++ - '0');
                 }
 
-                while (*p == ' ') { p++; }
+                while (*p == ' ') {
+                    p++;
+                }
 
                 if (*p++ != '-') {
                     status_code = SW_HTTP_RANGE_NOT_SATISFIABLE;
                     return;
                 }
 
-                while (*p == ' ') { p++; }
+                while (*p == ' ') {
+                    p++;
+                }
 
                 if (*p == ',' || *p == '\0') {
                     end = _content_length;
@@ -357,7 +364,7 @@ void StaticHandler::parse_range(const char *range, const char *if_range) {
             }
 
             while (*p >= '0' && *p <= '9') {
-                if (end >= cutoff && (end > cutoff || (size_t) (*p - '0') > cutlim)) {
+                if (end >= cutoff && (end > cutoff || (size_t)(*p - '0') > cutlim)) {
                     status_code = SW_HTTP_RANGE_NOT_SATISFIABLE;
                     return;
                 }
@@ -365,7 +372,9 @@ void StaticHandler::parse_range(const char *range, const char *if_range) {
                 end = end * 10 + (*p++ - '0');
             }
 
-            while (*p == ' ') { p++; }
+            while (*p == ' ') {
+                p++;
+            }
 
             if (*p != ',' && *p != '\0' && *p != '\r') {
                 status_code = SW_HTTP_RANGE_NOT_SATISFIABLE;
@@ -394,17 +403,17 @@ void StaticHandler::parse_range(const char *range, const char *if_range) {
                 _task.offset = start;
                 _task.length = end - start;
                 content_length += sw_snprintf(_task.boundary,
-                                                sizeof(_task.boundary),
-                                                "%s--%s\r\n"
-                                                "Content-Type: %s\r\n"
-                                                "Content-Range: bytes %zu-%zu/%zu\r\n\r\n",
-                                                tasks.empty() ? "" : "\r\n",
-                                                get_boundary(),
-                                                get_mimetype(),
-                                                _task.offset,
-                                                end - 1,
-                                                get_filesize()
-                ) + _task.length;
+                                              sizeof(_task.boundary),
+                                              "%s--%s\r\n"
+                                              "Content-Type: %s\r\n"
+                                              "Content-Range: bytes %zu-%zu/%zu\r\n\r\n",
+                                              tasks.empty() ? "" : "\r\n",
+                                              get_boundary(),
+                                              get_mimetype(),
+                                              _task.offset,
+                                              end - 1,
+                                              get_filesize()) +
+                                  _task.length;
                 tasks.push_back(_task);
             } else if (start == 0) {
                 break;
