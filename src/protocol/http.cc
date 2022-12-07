@@ -182,8 +182,8 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
             if (tasks.size() > 1) {
                 for (auto i = tasks.begin(); i != tasks.end(); i++) {
                     response.info.type = SW_SERVER_EVENT_SEND_DATA;
-                    response.info.len = strlen(i->boundary);
-                    response.data = i->boundary;
+                    response.info.len = strlen(i->part_header);
+                    response.data = i->part_header;
                     send_to_connection(&response);
 
                     task->offset = i->offset;
@@ -195,8 +195,8 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
                 }
 
                 response.info.type = SW_SERVER_EVENT_SEND_DATA;
-                response.info.len = strlen(handler.get_end_boundary());
-                response.data = handler.get_end_boundary();
+                response.info.len = strlen(handler.get_end_part());
+                response.data = handler.get_end_part();
                 send_to_connection(&response);
             } else if (tasks[0].length > 0) {
                 task->offset = tasks[0].offset;

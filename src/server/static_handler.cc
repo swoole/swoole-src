@@ -402,8 +402,8 @@ void StaticHandler::parse_range(const char *range, const char *if_range) {
                 size += end - start;
                 _task.offset = start;
                 _task.length = end - start;
-                content_length += sw_snprintf(_task.boundary,
-                                              sizeof(_task.boundary),
+                content_length += sw_snprintf(_task.part_header,
+                                              sizeof(_task.part_header),
                                               "%s--%s\r\n"
                                               "Content-Type: %s\r\n"
                                               "Content-Range: bytes %zu-%zu/%zu\r\n\r\n",
@@ -428,8 +428,8 @@ void StaticHandler::parse_range(const char *range, const char *if_range) {
         if (1 == tasks.size()) {
             content_length = _task.length;
         } else {
-            end_boundary = std::string("\r\n--") + get_boundary() + "--\r\n";
-            content_length += end_boundary.size();
+            end_part = std::string("\r\n--") + get_boundary() + "--\r\n";
+            content_length += end_part.size();
         }
         status_code = SW_HTTP_PARTIAL_CONTENT;
     } else {

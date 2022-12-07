@@ -35,7 +35,7 @@ class StaticHandler {
     typedef struct {
         off_t offset;
         size_t length;
-        char boundary[256];
+        char part_header[SW_HTTP_SERVER_PART_HEADER];
     } task_t;
     std::vector<task_t> tasks;
 
@@ -45,7 +45,7 @@ class StaticHandler {
     bool last = false;
     std::string content_type;
     std::string boundary;
-    std::string end_boundary;
+    std::string end_part;
     size_t content_length = 0;
 
   public:
@@ -132,8 +132,8 @@ class StaticHandler {
         return content_length;
     }
 
-    inline const char *get_end_boundary() {
-        return end_boundary.c_str();
+    inline const char *get_end_part() {
+        return end_part.c_str();
     }
 
     void parse_range(const char *range, const char *if_range);
