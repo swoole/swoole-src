@@ -19,8 +19,8 @@ namespace Swoole {
         public function set(array $settings): void {}
         public function setTimeout(float $seconds): bool {}
         public function setBlocking(bool $blocking): void {}
-        public function setPriority(int $which, int $priority): bool {}
-        public function getPriority(int $which): int {}
+        public function setPriority(int $which, int $priority, ?int $who = null): bool {}
+        public function getPriority(int $which, ?int $who = null): int {}
         public function start(): bool|int {}
         public function write(string $data): false|int {}
         public function read(int $size = 8192): false|string {}
