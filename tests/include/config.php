@@ -144,7 +144,7 @@ define('MAX_PROCESS_NUM', [2, 4, 6, 8][PRESSURE_LEVEL]);
 define('MAX_PACKET_NUM', [1024, 2048, 4096, 10000][PRESSURE_LEVEL]);
 
 /** ============== FTP ============== */
-define('FTP_HOST', IS_IN_TRAVIS ? 'ftp' : '127.0.0.1');
+define('FTP_HOST', IS_IN_CI ? 'ftp' : '127.0.0.1');
 define('FTP_PORT', 21);
 define('FTP_USER', 'admin');
 define('FTP_PASS', 'admin');
