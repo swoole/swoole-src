@@ -16,6 +16,8 @@
 
 #include "php_swoole_http_server.h"
 
+#include <sstream>
+
 #include "swoole_static_handler.h"
 
 #include "main/php_variables.h"
@@ -34,6 +36,7 @@ using Http2Session = Http2::Session;
 static std::unordered_map<SessionId, Http2Session *> http2_sessions;
 
 static bool http2_server_respond(HttpContext *ctx, const String *body);
+static bool http2_server_send_range_file(HttpContext *ctx, swoole::http_server::StaticHandler *handler);
 
 Http2Stream::Stream(Http2Session *client, uint32_t _id) {
     ctx = swoole_http_context_new(client->fd);
@@ -186,8 +189,8 @@ static bool http2_server_is_static_file(Server *serv, HttpContext *ctx) {
         auto date_str = handler.get_date();
         auto date_str_last_modified = handler.get_date_last_modified();
 
-        zval *zheader = ctx->request.zserver;
-        ctx->set_header(ZEND_STRL("Last-Modified"), date_str.c_str(), date_str.length(), 0);
+        zval *zheader = ctx->request.zheader;
+        ctx->set_header(ZEND_STRL("Last-Modified"), date_str_last_modified.c_str(), date_str_last_modified.length(), 0);
 
         zval *zdate_if_modified_since = zend_hash_str_find(Z_ARR_P(zheader), ZEND_STRL("if-modified-since"));
         if (zdate_if_modified_since) {
@@ -198,16 +201,39 @@ static bool http2_server_is_static_file(Server *serv, HttpContext *ctx) {
             }
         }
 
-        zend::String _filename(handler.get_filename_std_string());
-        zval zfilename;
-        ZVAL_STR(&zfilename, _filename.get());
-        zval retval; /* do not care the retval (the connection will be closed if failed) */
+        zval *zrange = zend_hash_str_find(Z_ARR_P(zheader), ZEND_STRL("range"));
+        zval *zif_range = zend_hash_str_find(Z_ARR_P(zheader), ZEND_STRL("if-range"));
+        handler.parse_range(zrange ? Z_STRVAL_P(zrange) : nullptr, zif_range ? Z_STRVAL_P(zif_range) : nullptr);
+        ctx->response.status = handler.status_code;
+        auto tasks = handler.get_tasks();
+        if (1 == tasks.size()) {
+            if (0 == tasks[0].offset && tasks[0].length == handler.get_filesize()) {
+                ctx->set_header(ZEND_STRL("Accept-Ranges"), SW_STRL("bytes"), 0);
+            } else {
+                std::stringstream content_range;
+                content_range << "bytes";
+                if (tasks[0].length != handler.get_filesize()) {
+                    content_range << " " << tasks[0].offset << "-" << (tasks[0].length + tasks[0].offset - 1) << "/"
+                                << handler.get_filesize();
+                }
+                auto content_range_str = content_range.str();
+                ctx->set_header(ZEND_STRL("Content-Range"), content_range_str.c_str(), content_range_str.length(), 0);
+            }
+        }
+
         ctx->onAfterResponse = nullptr;
         ctx->onBeforeRequest = nullptr;
-        sw_zend_call_method_with_1_params(
-            ctx->response.zobject, swoole_http_response_ce, nullptr, "sendfile", &retval, &zfilename);
 
-        return true;
+        // request_method
+        zval *zrequest_method = zend_hash_str_find(Z_ARR_P(zserver), ZEND_STRL("request_method"));
+        if (zrequest_method && Z_TYPE_P(zrequest_method) == IS_STRING &&
+            SW_STRCASEEQ(Z_STRVAL_P(zrequest_method), Z_STRLEN_P(zrequest_method), "HEAD")) {
+            String empty_body;
+            http2_server_respond(ctx, &empty_body);
+            return true;
+        } else {
+            return http2_server_send_range_file(ctx, &handler);
+        }
     }
 
     return false;
@@ -652,6 +678,114 @@ static bool http2_server_respond(HttpContext *ctx, const String *body) {
     return !error;
 }
 
+static bool http2_server_send_range_file(HttpContext *ctx, swoole::http_server::StaticHandler *handler) {
+    Http2Session *client = http2_sessions[ctx->fd];
+    std::shared_ptr<String> body;
+
+#ifdef SW_HAVE_COMPRESSION
+    ctx->accept_compression = 0;
+#endif
+    bool error = false;
+    zval *ztrailer =
+        sw_zend_read_property_ex(swoole_http_response_ce, ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TRAILER), 0);
+    if (php_swoole_array_length_safe(ztrailer) == 0) {
+        ztrailer = nullptr;
+    }
+    zval *zheader =
+        sw_zend_read_and_convert_property_array(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("header"), 0);
+    if (!zend_hash_str_exists(Z_ARRVAL_P(zheader), ZEND_STRL("content-type"))) {
+        ctx->set_header(ZEND_STRL("content-type"), handler->get_content_type(), strlen(handler->get_content_type()), 0);
+    }
+
+    bool end_stream = (ztrailer == nullptr);
+    body.reset(new String());
+    body->length = handler->get_content_length();
+    if (!ctx->stream->send_header(body.get(), end_stream)) {
+        return false;
+    }
+
+    /* headers has already been sent, retries are no longer allowed (even if send body failed) */
+    ctx->end_ = 1;
+
+    auto tasks = handler->get_tasks();
+    if (!tasks.empty()) {
+        File fp(handler->get_filename(), O_RDONLY);
+        if (!fp.ready()) {
+            return false;
+        }
+
+        char *buf;
+        if (tasks.size() > 1) {
+            for (auto i = tasks.begin(); i != tasks.end(); i++) {
+                body.reset(new String(i->part_header, strlen(i->part_header)));
+                if (!ctx->stream->send_body(
+                        body.get(), false, client->local_settings.max_frame_size, 0, body->length)) {
+                    error = true;
+                    break;
+                } else {
+                    client->remote_settings.window_size -= body->length;  // TODO: flow control?
+                }
+
+                fp.set_offest(i->offset);
+                buf = (char *) emalloc(i->length);
+                fp.read(buf, i->length);
+                body.reset(new String(buf, i->length));
+                efree(buf);
+                if (!ctx->stream->send_body(
+                        body.get(), false, client->local_settings.max_frame_size, 0, body->length)) {
+                    error = true;
+                    break;
+                } else {
+                    client->remote_settings.window_size -= body->length;  // TODO: flow control?
+                }
+            }
+
+            if (!error) {
+                body.reset(new String(handler->get_end_part(), strlen(handler->get_end_part())));
+                if (!ctx->stream->send_body(
+                        body.get(), end_stream, client->local_settings.max_frame_size, 0, body->length)) {
+                    error = true;
+                } else {
+                    client->remote_settings.window_size -= body->length;  // TODO: flow control?
+                }
+            }
+        } else if (tasks[0].length > 0) {
+            auto callback = [&]() {
+                fp.set_offest(tasks[0].offset);
+                buf = (char *) sw_malloc(tasks[0].length);
+                body.reset(new String(buf, fp.read(buf, tasks[0].length)));
+                sw_free(buf);
+            };
+            if (swoole_coroutine_is_in()) {
+                swoole::coroutine::async(callback);
+            } else {
+                callback();
+            }
+            if (!ctx->stream->send_body(
+                    body.get(), end_stream, client->local_settings.max_frame_size, 0, body->length)) {
+                error = true;
+            } else {
+                client->remote_settings.window_size -= body->length;  // TODO: flow control?
+            }
+        }
+    }
+
+    if (!error && ztrailer) {
+        if (!ctx->stream->send_trailer()) {
+            error = true;
+        }
+    }
+
+    if (error) {
+        ctx->close(ctx);
+    } else {
+        client->streams.erase(ctx->stream->id);
+        delete ctx->stream;
+    }
+
+    return true;
+}
+
 bool HttpContext::http2_send_file(const char *file, uint32_t l_file, off_t offset, size_t length) {
     Http2Session *client = http2_sessions[fd];
     std::shared_ptr<String> body;
@@ -674,9 +808,6 @@ bool HttpContext::http2_send_file(const char *file, uint32_t l_file, off_t offse
             return false;
         }
         body = fp.read_content();
-        if (body->empty()) {
-            return false;
-        }
     }
     body->length = SW_MIN(length, body->length);
 

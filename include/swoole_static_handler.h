@@ -25,7 +25,6 @@
 
 namespace swoole {
 namespace http_server {
-
 class StaticHandler {
   private:
     Server *serv;
@@ -33,26 +32,26 @@ class StaticHandler {
     std::string dir_path;
     std::set<std::string> dir_files;
     std::string index_file;
-    struct {
+    typedef struct {
         off_t offset;
         size_t length;
-        char filename[PATH_MAX];
-    } task;
+        char part_header[SW_HTTP_SERVER_PART_HEADER];
+    } task_t;
+    std::vector<task_t> tasks;
 
-    size_t l_filename;
+    size_t l_filename = 0;
+    char filename[PATH_MAX];
     struct stat file_stat;
-    bool last;
+    bool last = false;
+    std::string content_type;
+    std::string boundary;
+    std::string end_part;
+    size_t content_length = 0;
 
   public:
-    int status_code;
+    int status_code = SW_HTTP_OK;
     StaticHandler(Server *_server, const char *url, size_t url_length) : request_url(url, url_length) {
         serv = _server;
-        task.length = 0;
-        task.offset = 0;
-        last = false;
-        status_code = 200;
-        l_filename = 0;
-        dir_path = "";
     }
 
     /**
@@ -63,9 +62,10 @@ class StaticHandler {
     bool hit_index_file();
 
     bool is_modified(const std::string &date_if_modified_since);
+    bool is_modified_range(const std::string &date_range);
     size_t make_index_page(String *buffer);
     bool get_dir_files();
-    bool set_filename(std::string &filename);
+    bool set_filename(const std::string &filename);
 
     bool has_index_file() {
         return !index_file.empty();
@@ -88,7 +88,24 @@ class StaticHandler {
     std::string get_date_last_modified();
 
     inline const char *get_filename() {
-        return task.filename;
+        return filename;
+    }
+
+    inline const char *get_boundary() {
+        if (boundary.empty()) {
+            boundary = std::string(SW_HTTP_SERVER_BOUNDARY_PREKEY);
+            swoole_random_string(boundary, SW_HTTP_SERVER_BOUNDARY_TOTAL_SIZE - sizeof(SW_HTTP_SERVER_BOUNDARY_PREKEY));
+        }
+        return boundary.c_str();
+    }
+
+    inline const char *get_content_type() {
+        if (tasks.size() > 1) {
+            content_type = std::string("multipart/byteranges; boundary=") + get_boundary();
+            return content_type.c_str();
+        } else {
+            return get_mimetype();
+        }
     }
 
     inline const char *get_mimetype() {
@@ -96,20 +113,30 @@ class StaticHandler {
     }
 
     inline std::string get_filename_std_string() {
-        return std::string(task.filename, l_filename);
+        return std::string(filename, l_filename);
     }
 
     inline size_t get_filesize() {
         return file_stat.st_size;
     }
 
-    inline const network::SendfileTask *get_task() {
-        return (const network::SendfileTask *) &task;
+    inline const std::vector<task_t> &get_tasks() {
+        return tasks;
     }
 
     inline bool is_dir() {
         return S_ISDIR(file_stat.st_mode);
     }
+
+    inline size_t get_content_length() {
+        return content_length;
+    }
+
+    inline const char *get_end_part() {
+        return end_part.c_str();
+    }
+
+    void parse_range(const char *range, const char *if_range);
 };
 
 };  // namespace http_server
