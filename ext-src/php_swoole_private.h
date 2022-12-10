@@ -62,20 +62,13 @@ extern PHPAPI int php_array_merge(zend_array *dest, zend_array *src);
     } else {                                                                                                           \
         RETURN_TRUE;                                                                                                   \
     }
+
 #define SW_LOCK_CHECK_RETURN(s)                                                                                        \
     zend_long ___tmp_return_value = s;                                                                                 \
     if (___tmp_return_value == 0) {                                                                                    \
         RETURN_TRUE;                                                                                                   \
     } else {                                                                                                           \
         zend_update_property_long(NULL, SW_Z8_OBJ_P(ZEND_THIS), SW_STRL("errCode"), ___tmp_return_value);              \
-        RETURN_FALSE;                                                                                                  \
-    }
-
-#define SW_CHECK_SYSCALL_RETURN(s)                                                                                     \
-    if (s == 0) {                                                                                                      \
-        RETURN_TRUE;                                                                                                   \
-    } else {                                                                                                           \
-        swoole_set_last_error(errno);                                                                                  \
         RETURN_FALSE;                                                                                                  \
     }
 

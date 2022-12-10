@@ -1082,7 +1082,12 @@ static PHP_METHOD(swoole_process, setPriority) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     SW_CHECK_PRIORITY_WHO();
-    SW_CHECK_SYSCALL_RETURN(setpriority(which, who, priority));
+    if (setpriority(which, who, priority) < 0) {
+        swoole_set_last_error(errno);
+        RETURN_FALSE;
+    } else {
+        RETURN_TRUE;
+    }
 }
 
 static PHP_METHOD(swoole_process, getPriority) {
@@ -1096,5 +1101,11 @@ static PHP_METHOD(swoole_process, getPriority) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     SW_CHECK_PRIORITY_WHO();
-    SW_CHECK_SYSCALL_RETURN(getpriority(which, who));
+    int priority = getpriority(which, who);
+    if (priority < 0) {
+        swoole_set_last_error(errno);
+        RETURN_FALSE;
+    } else {
+        RETURN_LONG(priority);
+    }
 }
