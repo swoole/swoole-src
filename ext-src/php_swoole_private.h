@@ -71,6 +71,14 @@ extern PHPAPI int php_array_merge(zend_array *dest, zend_array *src);
         RETURN_FALSE;                                                                                                  \
     }
 
+#define SW_CHECK_SYSCALL_RETURN(s)                                                                                     \
+    if (s == 0) {                                                                                                      \
+        RETURN_TRUE;                                                                                                   \
+    } else {                                                                                                           \
+        swoole_set_last_error(errno);                                                                                  \
+        RETURN_FALSE;                                                                                                  \
+    }
+
 #define php_swoole_fatal_error(level, fmt_str, ...)                                                                    \
     php_error_docref(NULL, level, (const char *) (fmt_str), ##__VA_ARGS__)
 
@@ -304,8 +312,8 @@ php_socket *php_swoole_convert_to_socket(int sock);
 zend_bool php_swoole_signal_isset_handler(int signo);
 
 #if PHP_VERSION_ID < 80200
-# define zend_atomic_bool zend_bool
-# define zend_atomic_bool_store(atomic, desired) (*atomic = desired)
+#define zend_atomic_bool zend_bool
+#define zend_atomic_bool_store(atomic, desired) (*atomic = desired)
 #endif
 
 #define sw_zend7_object zend_object
@@ -313,7 +321,6 @@ zend_bool php_swoole_signal_isset_handler(int signo);
 #define SW_Z8_OBJ_P(zobj) Z_OBJ_P(zobj)
 
 typedef ssize_t php_stream_size_t;
-
 
 #if PHP_VERSION_ID < 80100
 typedef const char error_filename_t;
