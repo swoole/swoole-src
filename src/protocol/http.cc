@@ -1058,25 +1058,22 @@ std::string Request::get_header(const char *name) {
     char *colon = nullptr;
 
     int state = 0;
-    int start = (p[0] == '\n' ? 1 : 0);  // The first character maybe is '\n'
-    int i = start;
+    int i = 0;
 
     bool is_error_header_name = false;
 
     for (; p < pe; p++) {
         switch (state) {
         case 0:
-            if (is_error_header_name) {
-                if (SW_STRCASECT(p, pe - p, "\r\n")) {
-                    i = start - 1;
-                    is_error_header_name = false;
-                }
+            if (SW_STRCASECT(p, pe - p, "\r\n")) {
+                i = 0;
+                is_error_header_name = false;
                 break;
             }
 
-            if (swoole_strcasect(p, pe - p, name, name_len)) {
+            if (!is_error_header_name && swoole_strcasect(p, pe - p, name, name_len)) {
                 colon = p + name_len;
-                if (colon[0] != ':' || i > start) {
+                if (colon[0] != ':' || i > 1) {
                     is_error_header_name = true;
                     break;
                 }
