@@ -211,17 +211,10 @@ static Server *test_process_server(Server::DispatchMode dispatch_mode = Server::
     server->open_cpu_affinity = true;
     sw_logger()->set_level(SW_LOG_WARNING);
 
-    ListenPort *port = nullptr;
-    if (is_ssl) {
-        port = server->add_port((enum swSocketType)(SW_SOCK_TCP | SW_SOCK_SSL), TEST_HOST, 10000);
-    } else {
-        port = server->add_port(SW_SOCK_TCP, TEST_HOST, 0);
-    }
-
-    if (!port) {
-        swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
-        exit(2);
-    }
+    conn = nullptr;
+    session = nullptr;
+    ListenPort *port = is_ssl ? server->add_port((enum swSocketType)(SW_SOCK_TCP | SW_SOCK_SSL), TEST_HOST, 0)
+                              : server->add_port(SW_SOCK_TCP, TEST_HOST, 0);
 
     port->open_http_protocol = 1;
     port->open_websocket_protocol = 1;
@@ -236,9 +229,9 @@ static Server *test_process_server(Server::DispatchMode dispatch_mode = Server::
     server->onClose = [](Server *serv, DataHead *info) -> void {
         if (conn) {
             if (conn->close_actively) {
-                EXPECT_EQ(info->reactor_id, -1);
+                ASSERT_EQ(info->reactor_id, -1);
             } else {
-                EXPECT_GE(info->reactor_id, 0);
+                ASSERT_GE(info->reactor_id, 0);
             }
         }
     };
@@ -273,6 +266,10 @@ static Server *test_process_server(Server::DispatchMode dispatch_mode = Server::
 
         if (ctx.url == "/overflow") {
             conn->overflow = 1;
+        }
+
+        if (ctx.url == "/pause") {
+            serv->feedback(conn, SW_SERVER_EVENT_PAUSE_RECV);
         }
 
         EXPECT_EQ(err, HPE_OK);
@@ -550,51 +547,45 @@ TEST(http_server, proxy_file) {
     Server *server = test_proxy_server();
     pid_t pid = fork();
 
-    if (pid > 0) {
-        swoole_timer_after(
-            5000,
-            [&server](Timer *, TimerNode *tnode) {
-                swoole_timer_del(tnode);
-                kill(server->get_master_pid(), SIGTERM);
-            },
-            nullptr);
+    if (pid == 0) {
         server->start();
+        exit(0);
     }
 
-    if (pid == 0) {
+    if (pid > 0) {
+        ON_SCOPE_EXIT {
+            kill(server->get_master_pid(), SIGTERM);
+        };
+
         sleep(1);
         auto port = server->get_primary_port();
         httplib::Client cli(TEST_HOST, port->port);
 
         auto resp = cli.Get("/just/get/file");
-        EXPECT_EQ(resp, nullptr);
-        exit(0);
+        ASSERT_EQ(resp, nullptr);
     }
 }
 
+// need fix
 TEST(http_server, proxy_response) {
     Server *server = test_proxy_server();
     pid_t pid = fork();
 
-    if (pid > 0) {
-        swoole_timer_after(
-            5000,
-            [&server](Timer *, TimerNode *tnode) {
-                swoole_timer_del(tnode);
-                kill(server->get_master_pid(), SIGTERM);
-            },
-            nullptr);
+    if (pid == 0) {
         server->start();
+        exit(0);
     }
 
-    if (pid == 0) {
+    if (pid > 0) {
+        ON_SCOPE_EXIT {
+            kill(server->get_master_pid(), SIGTERM);
+        };
         sleep(1);
         auto port = server->get_primary_port();
         httplib::Client cli(TEST_HOST, port->port);
         auto resp = cli.Get("/");
-        EXPECT_EQ(resp->status, 200);
-        EXPECT_EQ(resp->body, string("hello world"));
-        exit(0);
+        ASSERT_EQ(resp, nullptr);
+        ASSERT_EQ(resp->body, string("hello world"));
     }
 }
 
@@ -714,29 +705,26 @@ TEST(http_server, heartbeat) {
 
     pid_t pid = fork();
 
-    if (pid > 0) {
-        swoole_timer_after(
-            8000,
-            [&server](Timer *, TimerNode *tnode) {
-                swoole_timer_del(tnode);
-                kill(server->get_master_pid(), SIGTERM);
-            },
-            nullptr);
+    if (pid == 0) {
         server->start();
+        exit(0);
     }
 
-    if (pid == 0) {
+    if (pid > 0) {
+        ON_SCOPE_EXIT {
+            kill(server->get_master_pid(), SIGTERM);
+        };
+
         sleep(1);
         port = server->get_primary_port();
         httplib::Client cli(TEST_HOST, port->port);
         cli.set_keep_alive(true);
         auto resp = cli.Get("/");
-        EXPECT_EQ(resp->status, 200);
-        EXPECT_EQ(resp->body, string("hello world"));
+        ASSERT_EQ(resp->status, 200);
+        ASSERT_EQ(resp->body, string("hello world"));
         sleep(10);
         resp = cli.Get("/");
-        EXPECT_EQ(resp, nullptr);
-        exit(0);
+        ASSERT_EQ(resp, nullptr);
     }
 }
 
@@ -746,28 +734,25 @@ TEST(http_server, overflow) {
 
     pid_t pid = fork();
 
-    if (pid > 0) {
-        swoole_timer_after(
-            8000,
-            [&server](Timer *, TimerNode *tnode) {
-                swoole_timer_del(tnode);
-                kill(server->get_master_pid(), SIGTERM);
-            },
-            nullptr);
+    if (pid == 0) {
         server->start();
+        exit(0);
     }
 
-    if (pid == 0) {
+    if (pid > 0) {
+        ON_SCOPE_EXIT {
+            kill(server->get_master_pid(), SIGTERM);
+        };
+
         sleep(1);
         port = server->get_primary_port();
         httplib::Client cli(TEST_HOST, port->port);
         cli.set_keep_alive(true);
         auto resp = cli.Get("/");
-        EXPECT_EQ(resp->status, 200);
-        EXPECT_EQ(resp->body, string("hello world"));
+        ASSERT_EQ(resp->status, 200);
+        ASSERT_EQ(resp->body, string("hello world"));
         resp = cli.Get("/overflow");
-        EXPECT_EQ(resp, nullptr);
-        exit(0);
+        ASSERT_EQ(resp, nullptr);
     }
 }
 
@@ -775,31 +760,27 @@ TEST(http_server, process) {
     Server *server = test_process_server();
     pid_t pid = fork();
 
-    if (pid > 0) {
-        swoole_timer_after(
-            5000,
-            [&server](Timer *, TimerNode *tnode) {
-                swoole_timer_del(tnode);
-                kill(server->get_master_pid(), SIGTERM);
-            },
-            nullptr);
+    if (pid == 0) {
         server->start();
+        exit(0);
     }
 
-    if (pid == 0) {
+    if (pid > 0) {
+        ON_SCOPE_EXIT {
+            kill(server->get_master_pid(), SIGTERM);
+        };
+
         sleep(1);
         auto port = server->get_primary_port();
         httplib::Client cli(TEST_HOST, port->port);
         cli.set_keep_alive(true);
         auto resp = cli.Get("/");
-        EXPECT_EQ(resp->status, 200);
-        EXPECT_EQ(resp->body, string("hello world"));
+        ASSERT_EQ(resp->status, 200);
+        ASSERT_EQ(resp->body, string("hello world"));
 
-        cli.set_read_timeout(0, 100);
         resp = cli.Get("/");
-        EXPECT_EQ(resp->status, 200);
-        EXPECT_EQ(resp->body, string("hello world"));
-        exit(0);
+        ASSERT_EQ(resp->status, 200);
+        ASSERT_EQ(resp->body, string("hello world"));
     }
 }
 
@@ -807,31 +788,26 @@ TEST(http_server, process1) {
     Server *server = test_process_server();
     pid_t pid = fork();
 
-    if (pid > 0) {
-        swoole_timer_after(
-            5000,
-            [&server](Timer *, TimerNode *tnode) {
-                swoole_timer_del(tnode);
-                kill(server->get_master_pid(), SIGTERM);
-            },
-            nullptr);
+    if (pid == 0) {
         server->start();
+        exit(0);
     }
 
-    if (pid == 0) {
+    if (pid > 0) {
+        ON_SCOPE_EXIT {
+            kill(server->get_master_pid(), SIGTERM);
+        };
         sleep(1);
         auto port = server->get_primary_port();
         httplib::Client cli(TEST_HOST, port->port);
         cli.set_keep_alive(true);
         auto resp = cli.Get("/index.html");
-        EXPECT_EQ(resp->status, 200);
-        EXPECT_EQ(resp->body, string("hello world"));
+        ASSERT_EQ(resp->status, 200);
+        ASSERT_EQ(resp->body, string("hello world"));
 
         sleep(1);
-        cli.set_read_timeout(0, 100);
         resp = cli.Get("/examples/test.jpg");
-        EXPECT_EQ(resp->status, 200);
-        exit(0);
+        ASSERT_EQ(resp->status, 200);
     }
 }
 
@@ -839,24 +815,20 @@ TEST(http_server, stream_mode) {
     Server *server = test_process_server(Server::DISPATCH_STREAM);
     pid_t pid = fork();
 
-    if (pid > 0) {
-        swoole_timer_after(
-            5000,
-            [&server](Timer *, TimerNode *tnode) {
-                swoole_timer_del(tnode);
-                kill(server->get_master_pid(), SIGTERM);
-            },
-            nullptr);
+    if (pid == 0) {
         server->start();
+        exit(0);
     }
 
-    if (pid == 0) {
+    if (pid > 0) {
+        ON_SCOPE_EXIT {
+            kill(server->get_master_pid(), SIGTERM);
+        };
         sleep(1);
         auto port = server->get_primary_port();
         httplib::Client cli(TEST_HOST, port->port);
         auto resp = cli.Get("/");
-        EXPECT_EQ(resp->status, 200);
-        exit(0);
+        ASSERT_EQ(resp->status, 200);
     }
 }
 
@@ -869,23 +841,18 @@ TEST(http_server, redundant_callback) {
 
     pid_t pid = fork();
 
-    if (pid > 0) {
-        swoole_timer_after(
-            5000,
-            [&server](Timer *, TimerNode *tnode) {
-                ASSERT_EQ(server->onConnect, nullptr);
-                ASSERT_EQ(server->onClose, nullptr);
-                ASSERT_EQ(server->onBufferFull, nullptr);
-                ASSERT_EQ(server->onBufferEmpty, nullptr);
-                swoole_timer_del(tnode);
-                kill(server->get_master_pid(), SIGTERM);
-            },
-            nullptr);
+    if (pid == 0) {
         server->start();
+        ASSERT_EQ(server->onConnect, nullptr);
+        ASSERT_EQ(server->onClose, nullptr);
+        ASSERT_EQ(server->onBufferFull, nullptr);
+        ASSERT_EQ(server->onBufferEmpty, nullptr);
+        exit(0);
     }
 
-    if (pid == 0) {
-        exit(0);
+    if (pid > 0) {
+        sleep(2);
+        kill(server->get_master_pid(), SIGTERM);
     }
 }
 
@@ -893,30 +860,26 @@ TEST(http_server, pause) {
     Server *server = test_process_server();
     pid_t pid = fork();
 
-    if (pid > 0) {
-        Connection *conn = nullptr;
-        server->onConnect = [&](Server *serv, DataHead *info) -> void {
-            conn = serv->get_connection_by_session_id(info->fd);
-            EXPECT_TRUE(serv->feedback(conn, SW_SERVER_EVENT_PAUSE_RECV));
-        };
+    if (pid == 0) {
         server->start();
+        exit(0);
     }
 
-    if (pid == 0) {
+    if (pid > 0) {
         ON_SCOPE_EXIT {
             kill(server->get_master_pid(), SIGTERM);
-            exit(0);
         };
+
         sleep(1);
         auto port = server->get_primary_port();
         httplib::Client cli(TEST_HOST, port->port);
         cli.set_keep_alive(true);
-        auto resp = cli.Get("/");
-        EXPECT_EQ(resp->status, 200);
-        EXPECT_EQ(resp->body, string("hello world"));
+        auto resp = cli.Get("/pause");
+        ASSERT_EQ(resp->status, 200);
+        ASSERT_EQ(resp->body, string("hello world"));
 
         resp = cli.Get("/");
-        EXPECT_EQ(resp, nullptr);
+        ASSERT_EQ(resp, nullptr);
     }
 }
 
@@ -935,43 +898,45 @@ TEST(http_server, sni) {
 
     pid_t pid = fork();
 
-    if (pid > 0) {
-        sleep(1);
+    if (pid == 0) {
         server->start();
+        exit(0);
     }
 
-    if (pid == 0) {
+    if (pid > 0) {
         ON_SCOPE_EXIT {
             kill(server->get_master_pid(), SIGTERM);
-            exit(0);
         };
+
+        string port_num = to_string(server->get_primary_port()->port);
+
         sleep(1);
         pid_t pid2;
-        string command = "curl https://localhost:10000 -k -vvv --stderr /tmp/wwwsnitestcom.txt";
+        string command = "curl https://localhost:" + port_num + " -k -vvv --stderr /tmp/wwwsnitestcom.txt";
         swoole_shell_exec(command.c_str(), &pid2, 0);
         sleep(1);
 
         stringstream buffer;
         ifstream wwwsnitestcom;
         wwwsnitestcom.open("/tmp/wwwsnitestcom.txt");
-        EXPECT_TRUE(wwwsnitestcom.is_open());
+        ASSERT_TRUE(wwwsnitestcom.is_open());
         buffer << wwwsnitestcom.rdbuf();
         wwwsnitestcom.close();
         string response(buffer.str());
-        EXPECT_TRUE(response.find("CN=cs.php.net") != string::npos);
+        ASSERT_TRUE(response.find("CN=cs.php.net") != string::npos);
 
-        string command2 = "curl https://127.0.0.1:10000 -k -vvv --stderr /tmp/wwwsnitest2com.txt";
+        string command2 = "curl https://127.0.0.1:" + port_num + " -k -vvv --stderr /tmp/wwwsnitest2com.txt";
         swoole_shell_exec(command2.c_str(), &pid2, 0);
         sleep(1);
 
         stringstream buffer2;
         ifstream wwwsnitest2com;
         wwwsnitest2com.open("/tmp/wwwsnitest2com.txt");
-        EXPECT_TRUE(wwwsnitest2com.is_open());
+        ASSERT_TRUE(wwwsnitest2com.is_open());
         buffer2 << wwwsnitest2com.rdbuf();
         string response2(buffer2.str());
         wwwsnitest2com.close();
-        EXPECT_TRUE(response2.find("CN=127.0.0.1") != string::npos);
+        ASSERT_TRUE(response2.find("CN=127.0.0.1") != string::npos);
     }
 }
 
@@ -980,11 +945,15 @@ TEST(http_server, bad_request) {
 
     pid_t pid = fork();
 
-    if (pid > 0) {
+    if (pid == 0) {
         server->start();
+        exit(0);
     }
 
-    if (pid == 0) {
+    if (pid > 0) {
+        ON_SCOPE_EXIT {
+            kill(server->get_master_pid(), SIGTERM);
+        };
         sleep(1);
 
         string str_1 = "curl -X UNKNOWN http://";
@@ -1001,14 +970,11 @@ TEST(http_server, bad_request) {
         stringstream buffer;
         ifstream bad_request;
         bad_request.open("/tmp/bad_request.txt");
-        EXPECT_TRUE(bad_request.is_open());
+        ASSERT_TRUE(bad_request.is_open());
         buffer << bad_request.rdbuf();
         string response(buffer.str());
         bad_request.close();
-        EXPECT_TRUE(response.find("400 Bad Request") != string::npos);
-
-        kill(server->get_master_pid(), SIGTERM);
-        exit(0);
+        ASSERT_TRUE(response.find("400 Bad Request") != string::npos);
     }
 }
 
@@ -1017,14 +983,14 @@ TEST(http_server, chunked) {
 
     pid_t pid = fork();
 
-    if (pid > 0) {
+    if (pid == 0) {
         server->start();
+        exit(0);
     }
 
-    if (pid == 0) {
+    if (pid > 0) {
         ON_SCOPE_EXIT {
             kill(server->get_master_pid(), SIGTERM);
-            exit(0);
         };
         sleep(1);
 
@@ -1041,7 +1007,7 @@ TEST(http_server, chunked) {
 
         char buf[1024] = {};
         read(pipe, buf, sizeof(buf) - 1);
-        EXPECT_STREQ(buf, "hello world");
+        ASSERT_STREQ(buf, "hello world");
     }
 }
 
@@ -1051,14 +1017,14 @@ TEST(http_server, max_queued_bytes) {
 
     pid_t pid = fork();
 
-    if (pid > 0) {
+    if (pid == 0) {
         server->start();
+        exit(0);
     }
 
-    if (pid == 0) {
+    if (pid > 0) {
         ON_SCOPE_EXIT {
             kill(server->get_master_pid(), SIGTERM);
-            exit(0);
         };
 
         sleep(1);
@@ -1076,7 +1042,7 @@ TEST(http_server, max_queued_bytes) {
 
         char buf[1024] = {};
         read(pipe, buf, sizeof(buf) - 1);
-        EXPECT_STREQ(buf, "hello world");
+        ASSERT_STREQ(buf, "hello world");
     }
 }
 
@@ -1088,23 +1054,23 @@ TEST(http_server, dispatch_func_return_error_worker_id) {
     };
     pid_t pid = fork();
 
-    if (pid > 0) {
+    if (pid == 0) {
         server->start();
+        exit(0);
     };
 
-    if (pid == 0) {
+    if (pid > 0) {
         ON_SCOPE_EXIT {
             kill(server->get_master_pid(), SIGTERM);
-            exit(0);
         };
         sleep(1);
         auto port = server->get_primary_port();
         httplib::Client cli(TEST_HOST, port->port);
         cli.set_read_timeout(1, 0);
         auto resp = cli.Get("/");
-        EXPECT_EQ(resp, nullptr);
+        ASSERT_EQ(resp, nullptr);
         resp = cli.Get("/");
-        EXPECT_EQ(resp, nullptr);
+        ASSERT_EQ(resp, nullptr);
     }
 }
 
@@ -1120,37 +1086,39 @@ TEST(http_server, client_ca) {
 
     pid_t pid = fork();
 
-    if (pid > 0) {
+    if (pid == 0) {
         server->start();
+        exit(0);
     }
 
-    if (pid == 0) {
+    if (pid > 0) {
         ON_SCOPE_EXIT {
             kill(server->get_master_pid(), SIGTERM);
-            exit(0);
         };
+
+        string port_num = to_string(server->get_primary_port()->port);
 
         sleep(1);
         pid_t pid2;
         string client_cert = " --cert " + test::get_root_path() + "/tests/include/api/ssl-ca/client-cert.pem ";
         string client_key = "--key " + test::get_root_path() + "/tests/include/api/ssl-ca/client-key.pem";
-        string command =
-            "curl https://127.0.0.1:10000 " + client_cert + client_key + " -k -vvv --stderr /tmp/client_ca.txt";
+        string command = "curl https://127.0.0.1:" + port_num + " " + client_cert + client_key +
+                         " -k -vvv --stderr /tmp/client_ca.txt";
         swoole_shell_exec(command.c_str(), &pid2, 0);
         sleep(1);
 
         stringstream buffer;
         ifstream client_ca;
         client_ca.open("/tmp/client_ca.txt");
-        EXPECT_TRUE(client_ca.is_open());
+        ASSERT_TRUE(client_ca.is_open());
         buffer << client_ca.rdbuf();
         client_ca.close();
         string response(buffer.str());
-        EXPECT_TRUE(response.find("200 OK") != response.npos);
+        ASSERT_TRUE(response.find("200 OK") != response.npos);
     }
 }
 
-static void request_with_if_range_header(const char *date_format, std::string port) {
+static bool request_with_if_range_header(const char *date_format, std::string port) {
     struct stat file_stat;
     std::string file_path = test::get_root_path() + "/docs/swoole-logo.svg";
     stat(file_path.c_str(), &file_stat);
@@ -1160,57 +1128,57 @@ static void request_with_if_range_header(const char *date_format, std::string po
     char temp[128] = {0};
     strftime(temp, sizeof(temp), date_format, time_info);
 
-    string str_1 = "curl -X GET http://";
+    string str_1 = "curl http://";
     string host = TEST_HOST;
     string str_2 = ":";
     string str_3 = "/docs/swoole-logo.svg -k -vvv --stderr /tmp/http_range.txt ";
-    string headers = "-H '-Range: none' -H 'Range: bytes=0-500' -H 'If-Range: ";
+    string headers = "-H 'Range: bytes=0-500' -H 'If-Range: ";
     string command = str_1 + host + str_2 + port + str_3 + headers + string(temp) + "'";
 
     pid_t pid;
-    swoole_shell_exec(command.c_str(), &pid, 0);
+    close(swoole_shell_exec(command.c_str(), &pid, 0));
+    sleep(2);
 
     stringstream buffer;
     ifstream http_range;
     http_range.open("/tmp/http_range.txt");
-    EXPECT_TRUE(http_range.is_open());
+    if (!http_range.is_open()) {
+        return false;
+    }
+
     buffer << http_range.rdbuf();
     string response(buffer.str());
     http_range.close();
-    EXPECT_TRUE(response.find("206 Partial Content") != string::npos);
-    EXPECT_TRUE(response.find("Content-Length: 501") != string::npos);
+    return response.find("206 Partial Content") != string::npos && response.find("Content-Length: 501") != string::npos;
 }
 
 TEST(http_server, http_range) {
     Server *server = test_process_server();
     server->http_autoindex = true;
     server->add_static_handler_location("/docs");
-    server->add_static_handler_index_files("swoole-logo.svg");
 
     pid_t pid = fork();
 
-    if (pid > 0) {
+    if (pid == 0) {
         server->start();
+        exit(0);
     }
 
-    if (pid == 0) {
+    if (pid > 0) {
+        sleep(1);
         ON_SCOPE_EXIT {
             kill(server->get_master_pid(), SIGTERM);
-            exit(0);
         };
 
-        sleep(1);
-        request_with_if_range_header(SW_HTTP_RFC1123_DATE_GMT, to_string(server->get_primary_port()->port));
-        request_with_if_range_header(SW_HTTP_RFC1123_DATE_UTC, to_string(server->get_primary_port()->port));
-        request_with_if_range_header(SW_HTTP_RFC850_DATE, to_string(server->get_primary_port()->port));
-        request_with_if_range_header(SW_HTTP_ASCTIME_DATE, to_string(server->get_primary_port()->port));
-
-        kill(server->get_master_pid(), SIGTERM);
-        exit(0);
+        string port = to_string(server->get_primary_port()->port);
+        ASSERT_TRUE(request_with_if_range_header(SW_HTTP_RFC1123_DATE_GMT, port));
+        ASSERT_TRUE(request_with_if_range_header(SW_HTTP_RFC1123_DATE_UTC, port));
+        ASSERT_TRUE(request_with_if_range_header(SW_HTTP_RFC850_DATE, port));
+        ASSERT_TRUE(request_with_if_range_header(SW_HTTP_ASCTIME_DATE, port));
     }
 }
 
-static void request_with_diff_range(std::string port, std::string range) {
+static bool request_with_diff_range(std::string port, std::string range) {
     string str_1 = "curl -X GET http://";
     string host = TEST_HOST;
     string str_2 = ":";
@@ -1219,21 +1187,24 @@ static void request_with_diff_range(std::string port, std::string range) {
     string command = str_1 + host + str_2 + port + str_3 + headers + "'";
 
     pid_t pid;
-    swoole_shell_exec(command.c_str(), &pid, 0);
+    close(swoole_shell_exec(command.c_str(), &pid, 0));
 
+    sleep(2);
     stringstream buffer;
     ifstream http_range;
     http_range.open("/tmp/http_range.txt");
-    EXPECT_TRUE(http_range.is_open());
+    if (!http_range.is_open()) {
+        return false;
+    }
+
     buffer << http_range.rdbuf();
     string response(buffer.str());
     http_range.close();
-    EXPECT_TRUE(response.find("206 Partial Content") != string::npos);
+    return response.find("206 Partial Content") != string::npos;
 }
 
 TEST(http_server, http_range2) {
     Server *server = test_process_server();
-    server->http_autoindex = true;
     server->add_static_handler_location("/docs");
     server->add_static_handler_index_files("swoole-logo.svg");
 
@@ -1241,23 +1212,21 @@ TEST(http_server, http_range2) {
 
     if (pid > 0) {
         server->start();
+        exit(0);
     }
 
     if (pid == 0) {
+        sleep(1);
         ON_SCOPE_EXIT {
             kill(server->get_master_pid(), SIGTERM);
-            exit(0);
         };
 
-        sleep(1);
-        request_with_diff_range(to_string(server->get_primary_port()->port), "0-15");
-        request_with_diff_range(to_string(server->get_primary_port()->port), "16-31");
-        request_with_diff_range(to_string(server->get_primary_port()->port), "-16");
-        request_with_diff_range(to_string(server->get_primary_port()->port), "128-");
-        request_with_diff_range(to_string(server->get_primary_port()->port), "0-0,-1");
+        ASSERT_TRUE(request_with_diff_range(to_string(server->get_primary_port()->port), "0-15"));
+        ASSERT_TRUE(request_with_diff_range(to_string(server->get_primary_port()->port), "16-31"));
+        ASSERT_TRUE(request_with_diff_range(to_string(server->get_primary_port()->port), "-16"));
+        ASSERT_TRUE(request_with_diff_range(to_string(server->get_primary_port()->port), "128-"));
+        ASSERT_TRUE(request_with_diff_range(to_string(server->get_primary_port()->port), "0-0,-1"));
 
-        kill(server->get_master_pid(), SIGTERM);
-        exit(0);
     }
 }
 
