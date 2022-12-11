@@ -1080,7 +1080,6 @@ TEST(http_server, max_queued_bytes) {
     }
 }
 
-
 TEST(http_server, dispatch_func_return_error_worker_id) {
     Server *server = test_process_server();
     server->dispatch_func = [](Server *serv, Connection *conn, SendData *data) -> int {
@@ -1116,7 +1115,7 @@ TEST(http_server, client_ca) {
     port->ssl_set_key_file(test::get_root_path() + "/tests/include/api/ssl-ca/server-key.pem");
     port->ssl_context->verify_peer = true;
     port->ssl_context->allow_self_signed = true;
-    port->ssl_context->client_cert_file =  test::get_root_path() + "/tests/include/api/ssl-ca/ca-cert.pem";
+    port->ssl_context->client_cert_file = test::get_root_path() + "/tests/include/api/ssl-ca/ca-cert.pem";
     port->ssl_init();
 
     pid_t pid = fork();
@@ -1135,7 +1134,8 @@ TEST(http_server, client_ca) {
         pid_t pid2;
         string client_cert = " --cert " + test::get_root_path() + "/tests/include/api/ssl-ca/client-cert.pem ";
         string client_key = "--key " + test::get_root_path() + "/tests/include/api/ssl-ca/client-key.pem";
-        string command = "curl https://127.0.0.1:10000 " + client_cert + client_key + " -k -vvv --stderr /tmp/client_ca.txt";
+        string command =
+            "curl https://127.0.0.1:10000 " + client_cert + client_key + " -k -vvv --stderr /tmp/client_ca.txt";
         swoole_shell_exec(command.c_str(), &pid2, 0);
         sleep(1);
 
@@ -1147,6 +1147,117 @@ TEST(http_server, client_ca) {
         client_ca.close();
         string response(buffer.str());
         EXPECT_TRUE(response.find("200 OK") != response.npos);
+    }
+}
+
+static void request_with_if_range_header(const char *date_format, std::string port) {
+    struct stat file_stat;
+    std::string file_path = test::get_root_path() + "/docs/swoole-logo.svg";
+    stat(file_path.c_str(), &file_stat);
+    time_t file_mtime = file_stat.st_mtim.tv_sec;
+    struct tm *time_info = gmtime(&file_mtime);
+
+    char temp[128] = {0};
+    strftime(temp, sizeof(temp), date_format, time_info);
+
+    string str_1 = "curl -X GET http://";
+    string host = TEST_HOST;
+    string str_2 = ":";
+    string str_3 = "/docs/swoole-logo.svg -k -vvv --stderr /tmp/http_range.txt ";
+    string headers = "-H '-Range: none' -H 'Range: bytes=0-500' -H 'If-Range: ";
+    string command = str_1 + host + str_2 + port + str_3 + headers + string(temp) + "'";
+
+    pid_t pid;
+    swoole_shell_exec(command.c_str(), &pid, 0);
+
+    stringstream buffer;
+    ifstream http_range;
+    http_range.open("/tmp/http_range.txt");
+    EXPECT_TRUE(http_range.is_open());
+    buffer << http_range.rdbuf();
+    string response(buffer.str());
+    http_range.close();
+    EXPECT_TRUE(response.find("206 Partial Content") != string::npos);
+    EXPECT_TRUE(response.find("Content-Length: 501") != string::npos);
+}
+
+TEST(http_server, http_range) {
+    Server *server = test_process_server();
+    server->http_autoindex = true;
+    server->add_static_handler_location("/docs");
+    server->add_static_handler_index_files("swoole-logo.svg");
+
+    pid_t pid = fork();
+
+    if (pid > 0) {
+        server->start();
+    }
+
+    if (pid == 0) {
+        ON_SCOPE_EXIT {
+            kill(server->get_master_pid(), SIGTERM);
+            exit(0);
+        };
+
+        sleep(1);
+        request_with_if_range_header(SW_HTTP_RFC1123_DATE_GMT, to_string(server->get_primary_port()->port));
+        request_with_if_range_header(SW_HTTP_RFC1123_DATE_UTC, to_string(server->get_primary_port()->port));
+        request_with_if_range_header(SW_HTTP_RFC850_DATE, to_string(server->get_primary_port()->port));
+        request_with_if_range_header(SW_HTTP_ASCTIME_DATE, to_string(server->get_primary_port()->port));
+
+        kill(server->get_master_pid(), SIGTERM);
+        exit(0);
+    }
+}
+
+static void request_with_diff_range(std::string port, std::string range) {
+    string str_1 = "curl -X GET http://";
+    string host = TEST_HOST;
+    string str_2 = ":";
+    string str_3 = "/docs/swoole-logo.svg -k -vvv --stderr /tmp/http_range.txt ";
+    string headers = "-H 'Range: bytes=" + range;
+    string command = str_1 + host + str_2 + port + str_3 + headers + "'";
+
+    pid_t pid;
+    swoole_shell_exec(command.c_str(), &pid, 0);
+
+    stringstream buffer;
+    ifstream http_range;
+    http_range.open("/tmp/http_range.txt");
+    EXPECT_TRUE(http_range.is_open());
+    buffer << http_range.rdbuf();
+    string response(buffer.str());
+    http_range.close();
+    EXPECT_TRUE(response.find("206 Partial Content") != string::npos);
+}
+
+TEST(http_server, http_range2) {
+    Server *server = test_process_server();
+    server->http_autoindex = true;
+    server->add_static_handler_location("/docs");
+    server->add_static_handler_index_files("swoole-logo.svg");
+
+    pid_t pid = fork();
+
+    if (pid > 0) {
+        server->start();
+    }
+
+    if (pid == 0) {
+        ON_SCOPE_EXIT {
+            kill(server->get_master_pid(), SIGTERM);
+            exit(0);
+        };
+
+        sleep(1);
+        request_with_diff_range(to_string(server->get_primary_port()->port), "0-15");
+        request_with_diff_range(to_string(server->get_primary_port()->port), "16-31");
+        request_with_diff_range(to_string(server->get_primary_port()->port), "-16");
+        request_with_diff_range(to_string(server->get_primary_port()->port), "128-");
+        request_with_diff_range(to_string(server->get_primary_port()->port), "0-0,-1");
+
+        kill(server->get_master_pid(), SIGTERM);
+        exit(0);
     }
 }
 
