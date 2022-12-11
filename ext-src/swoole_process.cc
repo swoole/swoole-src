@@ -1101,8 +1101,9 @@ static PHP_METHOD(swoole_process, getPriority) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     SW_CHECK_PRIORITY_WHO();
+    errno = 0;
     int priority = getpriority(which, who);
-    if (priority < 0) {
+    if (priority == -1 && errno != 0) {
         swoole_set_last_error(errno);
         RETURN_FALSE;
     } else {
