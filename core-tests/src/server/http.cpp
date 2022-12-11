@@ -585,7 +585,7 @@ TEST(http_server, proxy_response) {
         httplib::Client cli(TEST_HOST, port->port);
         auto resp = cli.Get("/");
         ASSERT_EQ(resp, nullptr);
-        ASSERT_EQ(resp->body, string("hello world"));
+        //        ASSERT_EQ(resp->body, string("hello world"));
     }
 }
 
