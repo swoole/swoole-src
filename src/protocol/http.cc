@@ -76,7 +76,7 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
     auto date_str = handler.get_date();
     auto date_str_last_modified = handler.get_date_last_modified();
 
-    string date_if_modified_since = request->get_date_if_modified_since();
+    string date_if_modified_since = request->get_header("If-Modified-Since");
     if (!date_if_modified_since.empty() && handler.is_modified(date_if_modified_since)) {
         response.info.len = sw_snprintf(header_buffer,
                                         sizeof(header_buffer),
@@ -1013,43 +1013,7 @@ int Request::get_chunked_body_length() {
     return SW_OK;
 }
 
-string Request::get_date_if_modified_since() {
-    char *p = buffer_->str + url_offset_ + url_length_ + 10;
-    char *pe = buffer_->str + header_length_;
-
-    char *date_if_modified_since = nullptr;
-    size_t length_if_modified_since = 0;
-
-    int state = 0;
-    for (; p < pe; p++) {
-        switch (state) {
-        case 0:
-            if (SW_STRCASECT(p, pe - p, "If-Modified-Since")) {
-                p += sizeof("If-Modified-Since");
-                state = 1;
-            }
-            break;
-        case 1:
-            if (!isspace(*p)) {
-                date_if_modified_since = p;
-                state = 2;
-            }
-            break;
-        case 2:
-            if (SW_STRCASECT(p, pe - p, "\r\n")) {
-                length_if_modified_since = p - date_if_modified_since;
-                return string(date_if_modified_since, length_if_modified_since);
-            }
-            break;
-        default:
-            break;
-        }
-    }
-
-    return string("");
-}
-
-std::string Request::get_header(const char *name) {
+string Request::get_header(const char *name) {
     size_t name_len = strlen(name);
     char *p = buffer_->str + url_offset_ + url_length_ + 10;
     char *pe = buffer_->str + header_length_;
