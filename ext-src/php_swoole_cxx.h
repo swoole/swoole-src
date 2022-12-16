@@ -420,7 +420,6 @@ struct Function {
     }
 };
 
-bool eval(const std::string &code, const std::string &filename = "");
 void known_strings_init(void);
 void known_strings_dtor(void);
 void unserialize(zval *return_value, const char *buf, size_t buf_len, HashTable *options);

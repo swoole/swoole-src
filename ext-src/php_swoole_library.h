@@ -14,7 +14,57 @@
   +----------------------------------------------------------------------+
  */
 
-/* $Id: eefdb2208fbc4dbd1a028b1a226516c89ec0b864 */
+/* $Id: 33dd2054173c9109f327ffa2eaf50310c397d92d */
+
+#ifndef SWOOLE_LIBRARY_H
+#define SWOOLE_LIBRARY_H
+
+#if PHP_VERSION_ID < 80000
+typedef zval zend_source_string_t;
+#else
+typedef zend_string zend_source_string_t;
+#endif
+
+#if PHP_VERSION_ID < 80200
+#define ZEND_COMPILE_POSITION_DC
+#define ZEND_COMPILE_POSITION_RELAY_C
+#else
+#define ZEND_COMPILE_POSITION_DC , zend_compile_position position
+#define ZEND_COMPILE_POSITION_RELAY_C , position
+#endif
+
+#if PHP_VERSION_ID < 80000
+#define ZEND_STR_CONST
+#else
+#define ZEND_STR_CONST const
+#endif
+
+
+static zend_op_array *(*old_compile_string)(zend_source_string_t *source_string, ZEND_STR_CONST char *filename ZEND_COMPILE_POSITION_DC);
+
+static inline zend_op_array *_compile_string(zend_source_string_t *source_string, ZEND_STR_CONST char *filename ZEND_COMPILE_POSITION_DC) {
+    if (UNEXPECTED(EG(exception))) {
+        zend_exception_error(EG(exception), E_ERROR);
+        return NULL;
+    }
+    zend_op_array *opa = old_compile_string(source_string, filename ZEND_COMPILE_POSITION_RELAY_C);
+    opa->type = ZEND_USER_FUNCTION;
+    return opa;
+}
+
+static inline zend_bool _eval(const char *code, const char *filename) {
+    if (!old_compile_string) {
+        old_compile_string = zend_compile_string;
+    }
+    // overwrite
+    zend_compile_string = _compile_string;
+    int ret = (zend_eval_stringl((char *) code, strlen(code), NULL, (char *) filename) == SUCCESS);
+    // recover
+    zend_compile_string = old_compile_string;
+    return ret;
+}
+
+#endif
 
 static const char* swoole_library_source_constants =
     "\n"
@@ -2657,15 +2707,19 @@ static const char* swoole_library_source_core_database_pdo_pool =
     "    {\n"
     "        $this->config = $config;\n"
     "        parent::__construct(function () {\n"
+    "            $driver = $this->config->getDriver();\n"
     "            return new PDO(\n"
-    "                \"{$this->config->getDriver()}:\" .\n"
+    "                \"{$driver}:\" .\n"
     "                (\n"
     "                    $this->config->hasUnixSocket() ?\n"
     "                    \"unix_socket={$this->config->getUnixSocket()};\" :\n"
     "                    \"host={$this->config->getHost()};\" . \"port={$this->config->getPort()};\"\n"
     "                ) .\n"
     "                \"dbname={$this->config->getDbname()};\" .\n"
-    "                \"charset={$this->config->getCharset()}\",\n"
+    "                (\n"
+    "                    ($driver !== 'pgsql') ? \n"
+    "                    \"charset={$this->config->getCharset()}\" : \"\"\n"
+    "                ),\n"
     "                $this->config->getUsername(),\n"
     "                $this->config->getPassword(),\n"
     "                $this->config->getOptions()\n"
@@ -8760,6 +8814,42 @@ static const char* swoole_library_source_functions =
     "    return array_key_exists($key, $array) ? $array[$key] : $default_value;\n"
     "}\n"
     "\n"
+    "function swoole_is_in_container()\n"
+    "{\n"
+    "    $mountinfo = file_get_contents('/proc/self/mountinfo');\n"
+    "    return strpos($mountinfo, 'kubepods') > 0 || strpos($mountinfo, 'docker') > 0;\n"
+    "}\n"
+    "\n"
+    "function swoole_container_cpu_num()\n"
+    "{\n"
+    "    $swoole_cpu_num = intval(getenv('SWOOLE_CPU_NUM'));\n"
+    "    if ($swoole_cpu_num > 0) {\n"
+    "        return $swoole_cpu_num;\n"
+    "    }\n"
+    "    if (!swoole_is_in_container()) {\n"
+    "        return swoole_cpu_num();\n"
+    "    }\n"
+    "    \n"
+    "    $cpu_max = '/sys/fs/cgroup/cpu.max';\n"
+    "    if (file_exists($cpu_max)) {\n"
+    "        $cpu_max = file_get_contents($cpu_max);\n"
+    "        $fields = explode($cpu_max, ' ');\n"
+    "        $quota_us = $fields[0];\n"
+    "        if ($quota_us == 'max') {\n"
+    "            return swoole_cpu_num();\n"
+    "        }\n"
+    "        $period_us = $fields[1] ?? 100000;\n"
+    "    } else {\n"
+    "        $quota_us = file_get_contents('/sys/fs/cgroup/cpu,cpuacct/cpu.cfs_quota_us');\n"
+    "        $period_us = file_get_contents('/sys/fs/cgroup/cpu,cpuacct/cpu.cfs_period_us');\n"
+    "    }\n"
+    "    $cpu_num = floatval($quota_us) / floatval($period_us);\n"
+    "    if ($cpu_num < 1) {\n"
+    "        return swoole_cpu_num();\n"
+    "    }\n"
+    "    return intval(floor($cpu_num));\n"
+    "}\n"
+    "\n"
     "if (!function_exists('array_key_last')) {\n"
     "    function array_key_last(array $array)\n"
     "    {\n"
@@ -8826,71 +8916,71 @@ static const char* swoole_library_source_alias_ns =
 
 void php_swoole_load_library()
 {
-    zend::eval(swoole_library_source_constants, "@swoole-src/library/constants.php");
-    zend::eval(swoole_library_source_std_exec, "@swoole-src/library/std/exec.php");
-    zend::eval(swoole_library_source_core_constant, "@swoole-src/library/core/Constant.php");
-    zend::eval(swoole_library_source_core_string_object, "@swoole-src/library/core/StringObject.php");
-    zend::eval(swoole_library_source_core_multibyte_string_object, "@swoole-src/library/core/MultibyteStringObject.php");
-    zend::eval(swoole_library_source_core_exception_array_key_not_exists, "@swoole-src/library/core/Exception/ArrayKeyNotExists.php");
-    zend::eval(swoole_library_source_core_array_object, "@swoole-src/library/core/ArrayObject.php");
-    zend::eval(swoole_library_source_core_object_proxy, "@swoole-src/library/core/ObjectProxy.php");
-    zend::eval(swoole_library_source_core_coroutine_wait_group, "@swoole-src/library/core/Coroutine/WaitGroup.php");
-    zend::eval(swoole_library_source_core_coroutine_server, "@swoole-src/library/core/Coroutine/Server.php");
-    zend::eval(swoole_library_source_core_coroutine_server_connection, "@swoole-src/library/core/Coroutine/Server/Connection.php");
-    zend::eval(swoole_library_source_core_coroutine_barrier, "@swoole-src/library/core/Coroutine/Barrier.php");
-    zend::eval(swoole_library_source_core_coroutine_http_client_proxy, "@swoole-src/library/core/Coroutine/Http/ClientProxy.php");
-    zend::eval(swoole_library_source_core_coroutine_http_functions, "@swoole-src/library/core/Coroutine/Http/functions.php");
-    zend::eval(swoole_library_source_core_connection_pool, "@swoole-src/library/core/ConnectionPool.php");
-    zend::eval(swoole_library_source_core_database_object_proxy, "@swoole-src/library/core/Database/ObjectProxy.php");
-    zend::eval(swoole_library_source_core_database_mysqli_config, "@swoole-src/library/core/Database/MysqliConfig.php");
-    zend::eval(swoole_library_source_core_database_mysqli_exception, "@swoole-src/library/core/Database/MysqliException.php");
-    zend::eval(swoole_library_source_core_database_mysqli_pool, "@swoole-src/library/core/Database/MysqliPool.php");
-    zend::eval(swoole_library_source_core_database_mysqli_proxy, "@swoole-src/library/core/Database/MysqliProxy.php");
-    zend::eval(swoole_library_source_core_database_mysqli_statement_proxy, "@swoole-src/library/core/Database/MysqliStatementProxy.php");
-    zend::eval(swoole_library_source_core_database_pdo_config, "@swoole-src/library/core/Database/PDOConfig.php");
-    zend::eval(swoole_library_source_core_database_pdo_pool, "@swoole-src/library/core/Database/PDOPool.php");
-    zend::eval(swoole_library_source_core_database_pdo_proxy, "@swoole-src/library/core/Database/PDOProxy.php");
-    zend::eval(swoole_library_source_core_database_pdo_statement_proxy, "@swoole-src/library/core/Database/PDOStatementProxy.php");
-    zend::eval(swoole_library_source_core_database_redis_config, "@swoole-src/library/core/Database/RedisConfig.php");
-    zend::eval(swoole_library_source_core_database_redis_pool, "@swoole-src/library/core/Database/RedisPool.php");
-    zend::eval(swoole_library_source_core_http_status, "@swoole-src/library/core/Http/Status.php");
-    zend::eval(swoole_library_source_core_curl_exception, "@swoole-src/library/core/Curl/Exception.php");
-    zend::eval(swoole_library_source_core_curl_handler, "@swoole-src/library/core/Curl/Handler.php");
-    zend::eval(swoole_library_source_core_fast_cgi, "@swoole-src/library/core/FastCGI.php");
-    zend::eval(swoole_library_source_core_fast_cgi_record, "@swoole-src/library/core/FastCGI/Record.php");
-    zend::eval(swoole_library_source_core_fast_cgi_record_params, "@swoole-src/library/core/FastCGI/Record/Params.php");
-    zend::eval(swoole_library_source_core_fast_cgi_record_abort_request, "@swoole-src/library/core/FastCGI/Record/AbortRequest.php");
-    zend::eval(swoole_library_source_core_fast_cgi_record_begin_request, "@swoole-src/library/core/FastCGI/Record/BeginRequest.php");
-    zend::eval(swoole_library_source_core_fast_cgi_record_data, "@swoole-src/library/core/FastCGI/Record/Data.php");
-    zend::eval(swoole_library_source_core_fast_cgi_record_end_request, "@swoole-src/library/core/FastCGI/Record/EndRequest.php");
-    zend::eval(swoole_library_source_core_fast_cgi_record_get_values, "@swoole-src/library/core/FastCGI/Record/GetValues.php");
-    zend::eval(swoole_library_source_core_fast_cgi_record_get_values_result, "@swoole-src/library/core/FastCGI/Record/GetValuesResult.php");
-    zend::eval(swoole_library_source_core_fast_cgi_record_stdin, "@swoole-src/library/core/FastCGI/Record/Stdin.php");
-    zend::eval(swoole_library_source_core_fast_cgi_record_stdout, "@swoole-src/library/core/FastCGI/Record/Stdout.php");
-    zend::eval(swoole_library_source_core_fast_cgi_record_stderr, "@swoole-src/library/core/FastCGI/Record/Stderr.php");
-    zend::eval(swoole_library_source_core_fast_cgi_record_unknown_type, "@swoole-src/library/core/FastCGI/Record/UnknownType.php");
-    zend::eval(swoole_library_source_core_fast_cgi_frame_parser, "@swoole-src/library/core/FastCGI/FrameParser.php");
-    zend::eval(swoole_library_source_core_fast_cgi_message, "@swoole-src/library/core/FastCGI/Message.php");
-    zend::eval(swoole_library_source_core_fast_cgi_request, "@swoole-src/library/core/FastCGI/Request.php");
-    zend::eval(swoole_library_source_core_fast_cgi_response, "@swoole-src/library/core/FastCGI/Response.php");
-    zend::eval(swoole_library_source_core_fast_cgi_http_request, "@swoole-src/library/core/FastCGI/HttpRequest.php");
-    zend::eval(swoole_library_source_core_fast_cgi_http_response, "@swoole-src/library/core/FastCGI/HttpResponse.php");
-    zend::eval(swoole_library_source_core_coroutine_fast_cgi_client, "@swoole-src/library/core/Coroutine/FastCGI/Client.php");
-    zend::eval(swoole_library_source_core_coroutine_fast_cgi_client_exception, "@swoole-src/library/core/Coroutine/FastCGI/Client/Exception.php");
-    zend::eval(swoole_library_source_core_coroutine_fast_cgi_proxy, "@swoole-src/library/core/Coroutine/FastCGI/Proxy.php");
-    zend::eval(swoole_library_source_core_process_manager, "@swoole-src/library/core/Process/Manager.php");
-    zend::eval(swoole_library_source_core_server_admin, "@swoole-src/library/core/Server/Admin.php");
-    zend::eval(swoole_library_source_core_server_helper, "@swoole-src/library/core/Server/Helper.php");
-    zend::eval(swoole_library_source_core_name_resolver, "@swoole-src/library/core/NameResolver.php");
-    zend::eval(swoole_library_source_core_name_resolver_exception, "@swoole-src/library/core/NameResolver/Exception.php");
-    zend::eval(swoole_library_source_core_name_resolver_cluster, "@swoole-src/library/core/NameResolver/Cluster.php");
-    zend::eval(swoole_library_source_core_name_resolver_redis, "@swoole-src/library/core/NameResolver/Redis.php");
-    zend::eval(swoole_library_source_core_name_resolver_nacos, "@swoole-src/library/core/NameResolver/Nacos.php");
-    zend::eval(swoole_library_source_core_name_resolver_consul, "@swoole-src/library/core/NameResolver/Consul.php");
-    zend::eval(swoole_library_source_core_coroutine_functions, "@swoole-src/library/core/Coroutine/functions.php");
-    zend::eval(swoole_library_source_ext_curl, "@swoole-src/library/ext/curl.php");
-    zend::eval(swoole_library_source_ext_sockets, "@swoole-src/library/ext/sockets.php");
-    zend::eval(swoole_library_source_functions, "@swoole-src/library/functions.php");
-    zend::eval(swoole_library_source_alias, "@swoole-src/library/alias.php");
-    zend::eval(swoole_library_source_alias_ns, "@swoole-src/library/alias_ns.php");
+    _eval(swoole_library_source_constants, "@swoole/library/constants.php");
+    _eval(swoole_library_source_std_exec, "@swoole/library/std/exec.php");
+    _eval(swoole_library_source_core_constant, "@swoole/library/core/Constant.php");
+    _eval(swoole_library_source_core_string_object, "@swoole/library/core/StringObject.php");
+    _eval(swoole_library_source_core_multibyte_string_object, "@swoole/library/core/MultibyteStringObject.php");
+    _eval(swoole_library_source_core_exception_array_key_not_exists, "@swoole/library/core/Exception/ArrayKeyNotExists.php");
+    _eval(swoole_library_source_core_array_object, "@swoole/library/core/ArrayObject.php");
+    _eval(swoole_library_source_core_object_proxy, "@swoole/library/core/ObjectProxy.php");
+    _eval(swoole_library_source_core_coroutine_wait_group, "@swoole/library/core/Coroutine/WaitGroup.php");
+    _eval(swoole_library_source_core_coroutine_server, "@swoole/library/core/Coroutine/Server.php");
+    _eval(swoole_library_source_core_coroutine_server_connection, "@swoole/library/core/Coroutine/Server/Connection.php");
+    _eval(swoole_library_source_core_coroutine_barrier, "@swoole/library/core/Coroutine/Barrier.php");
+    _eval(swoole_library_source_core_coroutine_http_client_proxy, "@swoole/library/core/Coroutine/Http/ClientProxy.php");
+    _eval(swoole_library_source_core_coroutine_http_functions, "@swoole/library/core/Coroutine/Http/functions.php");
+    _eval(swoole_library_source_core_connection_pool, "@swoole/library/core/ConnectionPool.php");
+    _eval(swoole_library_source_core_database_object_proxy, "@swoole/library/core/Database/ObjectProxy.php");
+    _eval(swoole_library_source_core_database_mysqli_config, "@swoole/library/core/Database/MysqliConfig.php");
+    _eval(swoole_library_source_core_database_mysqli_exception, "@swoole/library/core/Database/MysqliException.php");
+    _eval(swoole_library_source_core_database_mysqli_pool, "@swoole/library/core/Database/MysqliPool.php");
+    _eval(swoole_library_source_core_database_mysqli_proxy, "@swoole/library/core/Database/MysqliProxy.php");
+    _eval(swoole_library_source_core_database_mysqli_statement_proxy, "@swoole/library/core/Database/MysqliStatementProxy.php");
+    _eval(swoole_library_source_core_database_pdo_config, "@swoole/library/core/Database/PDOConfig.php");
+    _eval(swoole_library_source_core_database_pdo_pool, "@swoole/library/core/Database/PDOPool.php");
+    _eval(swoole_library_source_core_database_pdo_proxy, "@swoole/library/core/Database/PDOProxy.php");
+    _eval(swoole_library_source_core_database_pdo_statement_proxy, "@swoole/library/core/Database/PDOStatementProxy.php");
+    _eval(swoole_library_source_core_database_redis_config, "@swoole/library/core/Database/RedisConfig.php");
+    _eval(swoole_library_source_core_database_redis_pool, "@swoole/library/core/Database/RedisPool.php");
+    _eval(swoole_library_source_core_http_status, "@swoole/library/core/Http/Status.php");
+    _eval(swoole_library_source_core_curl_exception, "@swoole/library/core/Curl/Exception.php");
+    _eval(swoole_library_source_core_curl_handler, "@swoole/library/core/Curl/Handler.php");
+    _eval(swoole_library_source_core_fast_cgi, "@swoole/library/core/FastCGI.php");
+    _eval(swoole_library_source_core_fast_cgi_record, "@swoole/library/core/FastCGI/Record.php");
+    _eval(swoole_library_source_core_fast_cgi_record_params, "@swoole/library/core/FastCGI/Record/Params.php");
+    _eval(swoole_library_source_core_fast_cgi_record_abort_request, "@swoole/library/core/FastCGI/Record/AbortRequest.php");
+    _eval(swoole_library_source_core_fast_cgi_record_begin_request, "@swoole/library/core/FastCGI/Record/BeginRequest.php");
+    _eval(swoole_library_source_core_fast_cgi_record_data, "@swoole/library/core/FastCGI/Record/Data.php");
+    _eval(swoole_library_source_core_fast_cgi_record_end_request, "@swoole/library/core/FastCGI/Record/EndRequest.php");
+    _eval(swoole_library_source_core_fast_cgi_record_get_values, "@swoole/library/core/FastCGI/Record/GetValues.php");
+    _eval(swoole_library_source_core_fast_cgi_record_get_values_result, "@swoole/library/core/FastCGI/Record/GetValuesResult.php");
+    _eval(swoole_library_source_core_fast_cgi_record_stdin, "@swoole/library/core/FastCGI/Record/Stdin.php");
+    _eval(swoole_library_source_core_fast_cgi_record_stdout, "@swoole/library/core/FastCGI/Record/Stdout.php");
+    _eval(swoole_library_source_core_fast_cgi_record_stderr, "@swoole/library/core/FastCGI/Record/Stderr.php");
+    _eval(swoole_library_source_core_fast_cgi_record_unknown_type, "@swoole/library/core/FastCGI/Record/UnknownType.php");
+    _eval(swoole_library_source_core_fast_cgi_frame_parser, "@swoole/library/core/FastCGI/FrameParser.php");
+    _eval(swoole_library_source_core_fast_cgi_message, "@swoole/library/core/FastCGI/Message.php");
+    _eval(swoole_library_source_core_fast_cgi_request, "@swoole/library/core/FastCGI/Request.php");
+    _eval(swoole_library_source_core_fast_cgi_response, "@swoole/library/core/FastCGI/Response.php");
+    _eval(swoole_library_source_core_fast_cgi_http_request, "@swoole/library/core/FastCGI/HttpRequest.php");
+    _eval(swoole_library_source_core_fast_cgi_http_response, "@swoole/library/core/FastCGI/HttpResponse.php");
+    _eval(swoole_library_source_core_coroutine_fast_cgi_client, "@swoole/library/core/Coroutine/FastCGI/Client.php");
+    _eval(swoole_library_source_core_coroutine_fast_cgi_client_exception, "@swoole/library/core/Coroutine/FastCGI/Client/Exception.php");
+    _eval(swoole_library_source_core_coroutine_fast_cgi_proxy, "@swoole/library/core/Coroutine/FastCGI/Proxy.php");
+    _eval(swoole_library_source_core_process_manager, "@swoole/library/core/Process/Manager.php");
+    _eval(swoole_library_source_core_server_admin, "@swoole/library/core/Server/Admin.php");
+    _eval(swoole_library_source_core_server_helper, "@swoole/library/core/Server/Helper.php");
+    _eval(swoole_library_source_core_name_resolver, "@swoole/library/core/NameResolver.php");
+    _eval(swoole_library_source_core_name_resolver_exception, "@swoole/library/core/NameResolver/Exception.php");
+    _eval(swoole_library_source_core_name_resolver_cluster, "@swoole/library/core/NameResolver/Cluster.php");
+    _eval(swoole_library_source_core_name_resolver_redis, "@swoole/library/core/NameResolver/Redis.php");
+    _eval(swoole_library_source_core_name_resolver_nacos, "@swoole/library/core/NameResolver/Nacos.php");
+    _eval(swoole_library_source_core_name_resolver_consul, "@swoole/library/core/NameResolver/Consul.php");
+    _eval(swoole_library_source_core_coroutine_functions, "@swoole/library/core/Coroutine/functions.php");
+    _eval(swoole_library_source_ext_curl, "@swoole/library/ext/curl.php");
+    _eval(swoole_library_source_ext_sockets, "@swoole/library/ext/sockets.php");
+    _eval(swoole_library_source_functions, "@swoole/library/functions.php");
+    _eval(swoole_library_source_alias, "@swoole/library/alias.php");
+    _eval(swoole_library_source_alias_ns, "@swoole/library/alias_ns.php");
 }

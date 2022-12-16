@@ -1,0 +1,5 @@
+{
+    "require": {
+        "swoole/make-library": "v1.0.0"
+    }
+}
