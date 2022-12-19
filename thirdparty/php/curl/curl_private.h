@@ -76,10 +76,10 @@ typedef struct {
     php_curl_read *read;
     zval std_err;
     php_curl_progress *progress;
-    php_curl_fnmatch *fnmatch;
 #if LIBCURL_VERSION_NUM >= 0x072000 && PHP_VERSION_ID >= 80200
     php_curl_fnxferinfo *xferinfo;
 #endif
+    php_curl_fnmatch *fnmatch;
 } php_curl_handlers;
 
 struct _php_curl_error {

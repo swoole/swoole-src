@@ -2362,7 +2362,7 @@ static void _php_curl_free(php_curl *ch) {
 
     swoole::curl::Handle *handle = nullptr;
 
-    if (swoole_curl_is_in_coroutine(ch) && curl_easy_getinfo(ch->cp, CURLINFO_PRIVATE, &handle) == CURLE_OK && handle) {
+    if (curl_easy_getinfo(ch->cp, CURLINFO_PRIVATE, &handle) == CURLE_OK && handle) {
         if (handle->multi) {
             handle->multi->remove_handle(ch);
         }

@@ -102,8 +102,9 @@ void Multi::del_event(CURL *cp, void *socket_ptr, curl_socket_t sockfd) {
     if (handle) {
         auto it = handle->sockets.find(sockfd);
         if (it != handle->sockets.end()) {
+            auto _socket = it->second;
             handle->sockets.erase(it);
-            delete it->second;
+            delete _socket;
         }
     }
 
