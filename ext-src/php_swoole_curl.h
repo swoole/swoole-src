@@ -39,13 +39,17 @@ namespace curl {
 
 class Multi;
 
-struct Handle {
-    CURL *cp;
+struct HandleSocket {
     Socket *socket;
-    Multi *multi;
     int event_bitmask;
     int event_fd;
     int action;
+};
+
+struct Handle {
+    CURL *cp;
+    Multi *multi;
+    std::map<int, HandleSocket *> sockets;
 };
 
 struct Selector {
@@ -149,7 +153,7 @@ class Multi {
 
     CURLcode exec(php_curl *ch);
     long select(php_curlm *mh, double timeout = -1);
-    void callback(Handle *handle, int event_bitmask);
+    void callback(Handle *handle, int event_bitmask, int sockfd = -1);
 
     static int cb_readable(Reactor *reactor, Event *event);
     static int cb_writable(Reactor *reactor, Event *event);
