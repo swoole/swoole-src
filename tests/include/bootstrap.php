@@ -26,11 +26,26 @@ swoole_async_set([
 Co::set([
     'socket_timeout' => 5
 ]);
+
 if (empty(getenv('SWOOLE_DEBUG'))) {
     Co::set([
         'log_level' => SWOOLE_LOG_INFO,
         'trace_flags' => 0,
         'enable_deadlock_check' => false,
+    ]);
+}
+
+$traceFlags = getenv('SWOOLE_TRACE_FLAGS');
+if ($traceFlags) {
+    $_traceFlags = 0;
+    if (is_numeric($traceFlags)) {
+        $_traceFlags = intval($traceFlags);
+    } else {
+        eval('$_traceFlags = ' . $traceFlags . ';');
+    }
+    Co::set([
+        'log_level' => 0,
+        'trace_flags' => $_traceFlags
     ]);
 }
 
