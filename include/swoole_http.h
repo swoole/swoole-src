@@ -142,7 +142,6 @@ struct Request {
     int get_header_length();
     int get_chunked_body_length();
     void parse_header_info();
-    std::string get_date_if_modified_since();
     std::string get_header(const char *name);
 #ifdef SW_HTTP_100_CONTINUE
     bool has_expect_header();
