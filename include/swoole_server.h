@@ -1515,7 +1515,6 @@ class Server {
     void kill_task_workers();
 
     static int wait_other_worker(ProcessPool *pool, const ExitStatus &exit_status);
-    static void kill_timeout_worker(Timer *timer, TimerNode *tnode);
     static void read_worker_message(ProcessPool *pool, EventData *msg);
 
     void drain_worker_pipe();

@@ -12,34 +12,39 @@ use Swoole\Timer;
 
 $atomic = new Swoole\Atomic(1);
 $pm = new SwooleTest\ProcessManager;
+$pm->setWaitTimeout(1000);
 $pm->parentFunc = function ($pid) use ($pm) {
-    sleep(2);
     $pm->kill();
 };
 
-$pm->childFunc = function () use ($pm,$atomic) {
-    $flag = 0;
-    $flag1 = 0;
+$pm->childFunc = function () use ($pm, $atomic) {
     $serv = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $serv->set([
-        "worker_num" => 2,
-        "max_wait_time" => 1,
+        'worker_num' => 2,
+        'max_wait_time' => 1,
         'enable_coroutine' => false,
     ]);
     $serv->on("WorkerStart", function (Server $server, $worker_id) use ($pm, $atomic) {
-        $pm->wakeup();
-        echo "$worker_id [".$server->worker_pid."] start \n";
-        if ($worker_id == 0 and $atomic->get() == 1) {
-            $flag = 1;
-            sleep(10);
+        echo "$worker_id [".$server->worker_pid."] start\n";
+        if ($worker_id == 0 ) {
+            if ($atomic->get() == 1) {
+                sleep(10);
+            } else {
+                $pm->wakeup();
+            }
         }
+
         if ($worker_id == 1 and $atomic->get() == 1) {
             Timer::after(1, function () use ($server, $worker_id, $atomic) {
                 $atomic->add(1);
-                echo "$worker_id [" . $server->worker_pid . "] start to reload\n";
+                echo "$worker_id [" . $server->worker_pid . "] reload\n";
                 $server->reload();
+
             });
         }
+    });
+    $serv->on("WorkerStop", function (Server $server, $worker_id) use ($pm, $atomic) {
+        echo "$worker_id [".$server->worker_pid."] stop\n";
     });
     $serv->on('receive', function ($serv, $fd, $tid, $data) {
     });
@@ -50,14 +55,14 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-%s
-%s
-1 [%s] start to reload
-[%s]	INFO	reload workers
-[%s]	WARNING	ProcessPool::kill_timeout_worker(): force kill worker process(pid=%d, id=%d)
-[%s]	WARNING	ProcessPool::kill_timeout_worker(): force kill worker process(pid=%d, id=%d)
-[%s]	WARNING	ProcessPool::wait(): worker#%d abnormal exit, status=0, signal=9
-[%s]	WARNING	ProcessPool::wait(): worker#%d abnormal exit, status=0, signal=9
-%s
-%s
-[%s]	INFO	Server is shutdown now
+%d [%d] start
+%d [%d] start
+%d [%d] reload
+[%s]	INFO	Server is reloading all workers now
+%d [%d] stop
+%d [%d] start
+[%s]	WARNING	Manager::kill_timeout_process() (ERRNO 9101): worker(pid=%d, id=0) exit timeout, force kill the process
+[%s]	WARNING	Server::check_worker_exit_status(): worker(pid=%d, id=0) abnormal exit, status=0, signal=9
+%d [%d] start
+%d [%d] stop
+%d [%d] stop

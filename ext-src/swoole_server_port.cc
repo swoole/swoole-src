@@ -196,7 +196,6 @@ static ssize_t php_swoole_server_length_func(const Protocol *protocol, network::
     zval retval;
     ssize_t ret = -1;
 
-    // TODO: reduce memory copy
     ZVAL_STRINGL(&zdata, pl->buf, pl->buf_size);
     if (UNEXPECTED(sw_zend_call_function_ex(nullptr, fci_cache, 1, &zdata, &retval) != SUCCESS)) {
         php_swoole_fatal_error(E_WARNING, "length function handler error");
