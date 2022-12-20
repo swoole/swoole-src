@@ -886,18 +886,21 @@ bool Server::shutdown() {
             } else {
                 return swoole_kill(gs->manager_pid, SIGTERM) == 0;
             }
+        } else {
+            gs->event_workers.running = 0;
+            stop_async_worker(SwooleWG.worker);
+            return true;
         }
-        gs->event_workers.running = 0;
-    } else {
-        if (getpid() != gs->master_pid) {
-            return swoole_kill(gs->master_pid, SIGTERM) == 0;
-        }
-        if (swoole_isset_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN)) {
-            swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN, this);
-        }
-        if (onBeforeShutdown) {
-            onBeforeShutdown(this);
-        }
+    }
+
+    if (getpid() != gs->master_pid) {
+        return swoole_kill(gs->master_pid, SIGTERM) == 0;
+    }
+    if (swoole_isset_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN)) {
+        swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN, this);
+    }
+    if (onBeforeShutdown) {
+        onBeforeShutdown(this);
     }
     running = false;
     // stop all thread

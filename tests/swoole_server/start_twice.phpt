@@ -26,7 +26,7 @@ $pm->childFunc = function () use ($pm) {
     $serv->set(array(
         "worker_num" => 1,
         'enable_coroutine' => false,
-        'log_file' => '/dev/null',
+//        'log_file' => '/dev/null',
     ));
     $serv->on("WorkerStart", function (Server $serv) use ($pm) {
         $pm->wakeup();
@@ -36,6 +36,7 @@ $pm->childFunc = function () use ($pm) {
     });
     $n = 2;
     while ($n--) {
+        var_dump($n);
         $serv->start();
     }
 };
