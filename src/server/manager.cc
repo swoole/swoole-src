@@ -87,29 +87,12 @@ int Server::start_manager_process() {
         return SW_ERR;
     }
 
-    if (task_worker_num > 0) {
-        if (create_task_workers() < 0) {
-            return SW_ERR;
-        }
-
-        Worker *worker;
-        SW_LOOP_N(task_worker_num) {
-            worker = &gs->task_workers.workers[i];
-            create_worker(worker);
-        }
+    if (task_worker_num > 0 && create_task_workers() < 0) {
+        return SW_ERR;
     }
 
-    if (get_user_worker_num() > 0) {
-        if (create_user_workers() < 0) {
-            return SW_ERR;
-        }
-
-        int i = 0;
-        for (auto worker : user_worker_list) {
-            memcpy(&user_workers[i], worker, sizeof(user_workers[i]));
-            create_worker(worker);
-            i++;
-        }
+    if (get_user_worker_num() > 0 && create_user_workers() < 0) {
+        return SW_ERR;
     }
 
     auto fn = [this](void) {

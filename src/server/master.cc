@@ -522,7 +522,6 @@ int Server::create_task_workers() {
  * @description:
  *  only the memory of the Worker structure is allocated, no process is fork.
  *  called when the manager process start.
- * @param Server
  * @return: SW_OK|SW_ERR
  */
 int Server::create_user_workers() {
@@ -531,6 +530,14 @@ int Server::create_user_workers() {
         swoole_sys_warning("gmalloc[server->user_workers] failed");
         return SW_ERR;
     }
+
+    int i = 0;
+    for (auto worker : user_worker_list) {
+        memcpy(&user_workers[i], worker, sizeof(user_workers[i]));
+        create_worker(worker);
+        i++;
+    }
+
     return SW_OK;
 }
 
@@ -882,11 +889,20 @@ void Server::clear_timer() {
 
 void Server::shutdown() {
     swoole_trace_log(SW_TRACE_SERVER, "shutdown service");
-    if (getpid() != gs->master_pid) {
-        swoole_kill(gs->master_pid, SIGTERM);
-        return;
-    }
-    if (is_process_mode()) {
+    if (is_base_mode()) {
+        if (gs->manager_pid > 0) {
+            if (getpid() == gs->manager_pid) {
+                running = false;
+            } else {
+                swoole_kill(gs->manager_pid, SIGTERM);
+            }
+            return;
+        }
+    } else {
+        if (getpid() != gs->master_pid) {
+            swoole_kill(gs->master_pid, SIGTERM);
+            return;
+        }
         if (swoole_isset_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN)) {
             swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN, this);
         }
@@ -948,7 +964,6 @@ void Server::destroy() {
     if (is_base_mode()) {
         swoole_trace_log(SW_TRACE_SERVER, "terminate task workers");
         if (task_worker_num > 0) {
-            gs->task_workers.shutdown();
             gs->task_workers.destroy();
         }
     } else {
@@ -1788,7 +1803,7 @@ bool Server::reload(bool reload_all_workers) {
         return false;
     }
 
-    if (getpid() != gs->manager_pid ) {
+    if (getpid() != gs->manager_pid) {
         return swoole_kill(get_manager_pid(), reload_all_workers ? SIGUSR1 : SIGUSR2) != 0;
     }
 

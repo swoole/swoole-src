@@ -48,6 +48,9 @@ void Server::init_task_workers() {
     if (task_ipc_mode == TASK_IPC_PREEMPTIVE) {
         pool->schedule_by_sysvmsg = true;
     }
+    SW_LOOP_N(task_worker_num) {
+        create_worker(&pool->workers[i]);
+    }
 }
 
 static int TaskWorker_call_command_handler(ProcessPool *pool, EventData *req) {
