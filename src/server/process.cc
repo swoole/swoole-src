@@ -35,11 +35,6 @@ bool ProcessFactory::shutdown() {
         swoole_sys_warning("waitpid(%d) failed", server_->gs->manager_pid);
     }
 
-    SW_LOOP_N(server_->worker_num) {
-        Worker *worker = &server_->workers[i];
-        server_->destroy_worker(worker);
-    }
-
     return SW_OK;
 }
 
@@ -88,14 +83,7 @@ bool ProcessFactory::start() {
         return false;
     }
 
-    /**
-     * The manager process must be started first, otherwise it will have a thread fork
-     */
-    if (server_->start_manager_process() < 0) {
-        swoole_warning("failed to start");
-        return false;
-    }
-    return true;
+    return server_->start_manager_process() == SW_OK;
 }
 
 /**

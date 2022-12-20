@@ -539,6 +539,9 @@ int Server::create_user_workers() {
  */
 void Server::create_worker(Worker *worker) {
     worker->lock = new Mutex(Mutex::PROCESS_SHARED);
+    if (worker->pipe_object) {
+        store_pipe_fd(worker->pipe_object);
+    }
 }
 
 void Server::destroy_worker(Worker *worker) {
@@ -880,7 +883,7 @@ void Server::clear_timer() {
 void Server::shutdown() {
     swoole_trace_log(SW_TRACE_SERVER, "shutdown service");
     if (getpid() != gs->master_pid) {
-        kill(gs->master_pid, SIGTERM);
+        swoole_kill(gs->master_pid, SIGTERM);
         return;
     }
     if (is_process_mode()) {
@@ -934,10 +937,14 @@ void Server::destroy() {
     if (swoole_isset_hook(SW_GLOBAL_HOOK_AFTER_SERVER_SHUTDOWN)) {
         swoole_call_hook(SW_GLOBAL_HOOK_AFTER_SERVER_SHUTDOWN, this);
     }
-    /**
-     * shutdown workers
-     */
+
     factory->shutdown();
+
+    SW_LOOP_N(worker_num) {
+        Worker *worker = &workers[i];
+        destroy_worker(worker);
+    }
+
     if (is_base_mode()) {
         swoole_trace_log(SW_TRACE_SERVER, "terminate task workers");
         if (task_worker_num > 0) {
@@ -1776,22 +1783,26 @@ ListenPort *Server::add_port(SocketType type, const char *host, int port) {
     return ls;
 }
 
-void Server::reload(bool reload_all_workers) {
-    if (is_base_mode()) {
-        if (reload_all_workers) {
-            swoole_info("Server is reloading all workers now");
-            if (gs->event_workers.reload()) {
-                gs->event_workers.reload_init = false;
-            }
-        } else {
-            swoole_info("Server is reloading task workers now");
-        }
-        if (task_worker_num > 0) {
-            gs->task_workers.reload_immediately();
-        }
-    } else {
-        swoole_kill(get_manager_pid(), reload_all_workers ? SIGUSR1 : SIGUSR2);
+bool Server::reload(bool reload_all_workers) {
+    if (gs->manager_pid == 0) {
+        return false;
     }
+
+    if (getpid() != gs->manager_pid ) {
+        return swoole_kill(get_manager_pid(), reload_all_workers ? SIGUSR1 : SIGUSR2) != 0;
+    }
+
+    ProcessPool *pool = &gs->event_workers;
+    if (!pool->reload()) {
+        return false;
+    }
+
+    if (reload_all_workers) {
+        manager->reload_all_worker = true;
+    } else {
+        manager->reload_task_worker = true;
+    }
+    return true;
 }
 
 static void Server_signal_handler(int sig) {

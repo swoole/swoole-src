@@ -118,64 +118,7 @@ int Server::start_reactor_processes() {
         create_worker(&gs->event_workers.workers[i]);
     }
 
-    // task workers
-    if (task_worker_num > 0) {
-        if (create_task_workers() < 0) {
-            return SW_ERR;
-        }
-        if (gs->task_workers.start() < 0) {
-            return SW_ERR;
-        }
-        gs->task_workers.max_wait_time = max_wait_time;
-    }
-
-    // create user worker process
-    if (!user_worker_list.empty()) {
-        user_workers = (Worker *) sw_shm_calloc(get_user_worker_num(), sizeof(Worker));
-        if (user_workers == nullptr) {
-            swoole_sys_warning("gmalloc[server->user_workers] failed");
-            return SW_ERR;
-        }
-        for (auto worker : user_worker_list) {
-            /**
-             * store the pipe object
-             */
-            if (worker->pipe_object) {
-                store_pipe_fd(worker->pipe_object);
-            }
-            spawn_user_worker(worker);
-        }
-    }
-
-    /**
-     * manager process is the same as the master process
-     */
-    SwooleG.pid = gs->manager_pid = getpid();
-    SwooleG.process_type = SW_PROCESS_MANAGER;
-
-    gs->event_workers.onWorkerMessage = read_worker_message;
-    gs->event_workers.start();
-
-    init_signal_handler();
-
-    if (onManagerStart) {
-        onManagerStart(this);
-    }
-
-    gs->event_workers.wait();
-    gs->event_workers.shutdown();
-
-    kill_user_workers();
-
-    if (onManagerStop) {
-        onManagerStop(this);
-    }
-
-    SW_LOOP_N(worker_num) {
-        destroy_worker(&gs->event_workers.workers[i]);
-    }
-
-    return SW_OK;
+    return start_manager_process();
 }
 
 static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
