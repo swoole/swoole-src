@@ -183,9 +183,7 @@ int Server::start_manager_process() {
         exit(0);
         break;
     }
-    // master process
     default:
-        gs->event_workers.master_pid = gs->manager_pid = pid;
         break;
     case -1:
         swoole_error("fork() failed");
@@ -216,6 +214,7 @@ void Manager::start(Server *_server) {
 
     ProcessPool *pool = &server_->gs->event_workers;
     pool->onWorkerMessage = Server::read_worker_message;
+    _server->gs->manager_pid = _server->gs->event_workers.master_pid = getpid();
 
     SwooleTG.reactor = nullptr;
 
@@ -330,7 +329,8 @@ void Manager::start(Server *_server) {
                     if (_server->reload_async) {
                         SW_LOOP_N(_server->worker_num) {
                             if (swoole_kill(pool->reload_workers[i].pid, SIGTERM) < 0) {
-                                swoole_sys_warning("swKill(%d, SIGTERM) [%d] failed", pool->reload_workers[i].pid, i);
+                                swoole_sys_warning(
+                                    "failed to kill(%d, SIGTERM) worker#[%d]", pool->reload_workers[i].pid, i);
                             }
                         }
                         pool->reload_worker_i = _server->worker_num;

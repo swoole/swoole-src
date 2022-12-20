@@ -181,6 +181,7 @@ int ProcessPool::start() {
     uint32_t i;
     running = started = true;
     master_pid = getpid();
+    reload_workers = new Worker[worker_num]();
 
     for (i = 0; i < worker_num; i++) {
         workers[i].pool = this;
@@ -355,6 +356,26 @@ bool ProcessPool::reload() {
     reloading = true;
     reload_count++;
     reload_last_time = ::time(NULL);
+    return true;
+}
+
+bool ProcessPool::reload_immediately() {
+    if (reloading) {
+        return false;
+    }
+    reloading = true;
+    memcpy(reload_workers, workers, sizeof(Worker) * worker_num);
+    SW_LOOP_N(worker_num) {
+        auto worker = &workers[i];
+        if (swoole_kill(worker->pid, SIGTERM) < 0) {
+            swoole_sys_warning("failed to kill(%d, SIGTERM) worker#%d", worker->pid, i);
+            continue;
+        }
+    }
+    if (max_wait_time) {
+        swoole_timer_add((long) (max_wait_time * 1000), false, kill_timeout_worker, this);
+    }
+    reloading = false;
     return true;
 }
 
@@ -650,12 +671,8 @@ static int ProcessPool_worker_loop_ex(ProcessPool *pool, Worker *worker) {
     return SW_OK;
 }
 
-/**
- * add a worker to pool
- */
-int ProcessPool_add_worker(ProcessPool *pool, Worker *worker) {
-    pool->map_->emplace(std::make_pair(worker->pid, worker));
-    return SW_OK;
+void ProcessPool::add_worker(Worker *worker) {
+    map_->emplace(std::make_pair(worker->pid, worker));
 }
 
 bool ProcessPool::detach() {
@@ -678,12 +695,6 @@ bool ProcessPool::detach() {
 int ProcessPool::wait() {
     pid_t new_pid, reload_worker_pid = 0;
     int ret;
-
-    reload_workers = new Worker[worker_num]();
-    ON_SCOPE_EXIT {
-        delete[] reload_workers;
-        reload_workers = nullptr;
-    };
 
     while (running) {
         ExitStatus exit_status = wait_process();
@@ -728,7 +739,6 @@ int ProcessPool::wait() {
                 continue;
             } else {
                 if (!reload_init) {
-                    swoole_info("reload workers");
                     reload_init = true;
                     memcpy(reload_workers, workers, sizeof(Worker) * worker_num);
                     if (max_wait_time) {
@@ -830,6 +840,7 @@ void ProcessPool::destroy() {
         message_box->destroy();
     }
 
+    delete[] reload_workers;
     sw_mem_pool()->free(workers);
 }
 

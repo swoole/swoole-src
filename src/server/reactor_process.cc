@@ -126,6 +126,7 @@ int Server::start_reactor_processes() {
         if (gs->task_workers.start() < 0) {
             return SW_ERR;
         }
+        gs->task_workers.max_wait_time = max_wait_time;
     }
 
     // create user worker process
@@ -322,7 +323,9 @@ static int ReactorProcess_loop(ProcessPool *pool, Worker *worker) {
     serv->init_reactor(reactor);
 
     if (worker->id == 0) {
-        if (serv->onStart) {
+        serv->gs->master_pid = getpid();
+        if (serv->onStart && !serv->gs->called_onStart) {
+            serv->gs->called_onStart = 1;
             serv->onStart(serv);
         }
     }

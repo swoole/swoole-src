@@ -2838,15 +2838,18 @@ static PHP_METHOD(swoole_server, reload) {
         php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }
-
+    if (serv->get_manager_pid() == 0) {
+        php_swoole_fatal_error(E_WARNING, "not supported with single process mode");
+        RETURN_FALSE;
+    }
     zend_bool only_reload_taskworker = 0;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|b", &only_reload_taskworker) == FAILURE) {
         RETURN_FALSE;
     }
 
-    int sig = only_reload_taskworker ? SIGUSR2 : SIGUSR1;
-    if (swoole_kill(serv->gs->manager_pid, sig) < 0) {
+    int signo = only_reload_taskworker ? SIGUSR2 : SIGUSR1;
+    if (swoole_kill(serv->gs->manager_pid, signo) < 0) {
         php_swoole_sys_error(E_WARNING, "failed to send the reload signal");
         RETURN_FALSE;
     }

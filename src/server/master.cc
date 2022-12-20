@@ -449,6 +449,8 @@ int Server::start_master_thread() {
     SW_START_SLEEP;
 #endif
 
+    gs->master_pid = getpid();
+
     if (isset_hook(HOOK_MASTER_START)) {
         call_hook(HOOK_MASTER_START, this);
     }
@@ -629,8 +631,6 @@ int Server::start() {
         }
     }
 
-    // master pid
-    gs->master_pid = getpid();
     gs->start_time = ::time(nullptr);
 
     /**
@@ -1476,7 +1476,7 @@ bool Server::sendfile(SessionId session_id, const char *file, uint32_t l_file, o
                          "sendfile name[%.8s...] length %u is exceed the max name len %u",
                          file,
                          l_file,
-                         (uint32_t) (SW_IPC_BUFFER_SIZE - sizeof(SendfileTask) - 1));
+                         (uint32_t)(SW_IPC_BUFFER_SIZE - sizeof(SendfileTask) - 1));
         return false;
     }
     // string must be zero termination (for `state` system call)
@@ -1730,7 +1730,7 @@ ListenPort *Server::add_port(SocketType type, const char *host, int port) {
 
 #ifdef SW_USE_OPENSSL
     if (type & SW_SOCK_SSL) {
-        type = (SocketType) (type & (~SW_SOCK_SSL));
+        type = (SocketType)(type & (~SW_SOCK_SSL));
         ls->type = type;
         ls->ssl = 1;
         ls->ssl_context = new SSLContext();
@@ -1776,6 +1776,24 @@ ListenPort *Server::add_port(SocketType type, const char *host, int port) {
     return ls;
 }
 
+void Server::reload(bool reload_all_workers) {
+    if (is_base_mode()) {
+        if (reload_all_workers) {
+            swoole_info("Server is reloading all workers now");
+            if (gs->event_workers.reload()) {
+                gs->event_workers.reload_init = false;
+            }
+        } else {
+            swoole_info("Server is reloading task workers now");
+        }
+        if (task_worker_num > 0) {
+            gs->task_workers.reload_immediately();
+        }
+    } else {
+        swoole_kill(get_manager_pid(), reload_all_workers ? SIGUSR1 : SIGUSR2);
+    }
+}
+
 static void Server_signal_handler(int sig) {
     swoole_trace_log(SW_TRACE_SERVER, "signal[%d] %s triggered in %d", sig, swoole_signal_to_str(sig), getpid());
 
@@ -1804,25 +1822,12 @@ static void Server_signal_handler(int sig) {
                            swoole_signal_to_str(WTERMSIG(status)));
         }
         break;
-        /**
-         * for test
-         */
     case SIGVTALRM:
         swoole_warning("SIGVTALRM coming");
         break;
-        /**
-         * proxy the restart signal
-         */
     case SIGUSR1:
     case SIGUSR2:
-        if (serv->is_base_mode()) {
-            if (!serv->gs->event_workers.reload()) {
-                break;
-            }
-            serv->gs->event_workers.reload_init = false;
-        } else {
-            swoole_kill(serv->gs->manager_pid, sig);
-        }
+        serv->reload(sig == SIGUSR1);
         sw_logger()->reopen();
         break;
     case SIGIO:
