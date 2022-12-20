@@ -731,23 +731,12 @@ Server::Server(enum Mode _mode) {
     compression_min_length = SW_COMPRESSION_MIN_LENGTH_DEFAULT;
 #endif
 
-#ifdef __linux__
-    timezone_ = timezone;
-#else
-    struct timezone tz;
-    struct timeval tv;
-    gettimeofday(&tv, &tz);
-    timezone_ = tz.tz_minuteswest * 60;
-#endif
+    timezone_ = get_timezone();
 
-    /**
-     * alloc shared memory
-     */
     gs = (ServerGS *) sw_shm_malloc(sizeof(ServerGS));
     if (gs == nullptr) {
         swoole_error("[Master] Fatal Error: failed to allocate memory for Server->gs");
     }
-
     gs->pipe_packet_msg_id = 1;
     gs->max_concurrency = UINT_MAX;
 
@@ -898,6 +887,7 @@ bool Server::shutdown() {
                 return swoole_kill(gs->manager_pid, SIGTERM) == 0;
             }
         }
+        gs->event_workers.running = 0;
     } else {
         if (getpid() != gs->master_pid) {
             return swoole_kill(gs->master_pid, SIGTERM) == 0;
@@ -938,10 +928,6 @@ bool Server::shutdown() {
             };
             reactor->set_exit_condition(Reactor::EXIT_CONDITION_FORCED_TERMINATION, fn);
         }
-    }
-
-    if (is_base_mode()) {
-        gs->event_workers.running = 0;
     }
 
     swoole_info("Server is shutdown now");

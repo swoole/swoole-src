@@ -65,6 +65,17 @@ static inline long time(bool steady = false) {
     }
 }
 
+static inline long get_timezone() {
+#ifdef __linux__
+    return timezone;
+#else
+    struct timezone tz;
+    struct timeval tv;
+    gettimeofday(&tv, &tz);
+    return tz.tz_minuteswest * 60;
+#endif
+}
+
 class DeferTask {
   private:
     std::stack<Callback> list_;

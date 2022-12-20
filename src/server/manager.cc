@@ -229,10 +229,7 @@ void Manager::wait(Server *_server) {
                     _server->spawn_task_worker(_server->get_worker(worker_stop_msg.worker_id));
                 } else {
                     Worker *worker = _server->get_worker(worker_stop_msg.worker_id);
-                    pid_t new_pid = _server->spawn_event_worker(worker);
-                    if (new_pid > 0) {
-                        worker->pid = new_pid;
-                    }
+                    _server->spawn_event_worker(worker);
                 }
             }
             pool->read_message = false;
@@ -325,17 +322,13 @@ void Manager::wait(Server *_server) {
                 // check the process return code and signal
                 _server->check_worker_exit_status(i, exit_status);
 
-                while (1) {
+                do {
                     Worker *worker = _server->get_worker(i);
-                    pid_t new_pid = _server->spawn_event_worker(worker);
-                    if (new_pid < 0) {
+                    if (_server->spawn_event_worker(worker) < 0) {
                         SW_START_SLEEP;
                         continue;
-                    } else {
-                        worker->pid = new_pid;
-                        break;
                     }
-                }
+                } while (0);
             }
 
             // task worker
@@ -587,7 +580,7 @@ pid_t Server::spawn_event_worker(Worker *worker) {
     pid_t pid = swoole_fork(0);
 
     if (pid < 0) {
-        swoole_sys_warning("Fork Worker failed");
+        swoole_sys_warning("failed to fork event worker");
         return SW_ERR;
     } else if (pid > 0) {
         worker->pid = pid;
@@ -606,7 +599,9 @@ pid_t Server::spawn_event_worker(Worker *worker) {
 
 pid_t Server::spawn_user_worker(Worker *worker) {
     pid_t pid = swoole_fork(0);
-
+    if (worker->pid) {
+        user_worker_map.erase(worker->pid);
+    }
     if (pid < 0) {
         swoole_sys_warning("Fork Worker failed");
         return SW_ERR;
@@ -622,9 +617,6 @@ pid_t Server::spawn_user_worker(Worker *worker) {
     }
     // parent
     else {
-        if (worker->pid) {
-            user_worker_map.erase(worker->pid);
-        }
         /**
          * worker: local memory
          * user_workers: shared memory
