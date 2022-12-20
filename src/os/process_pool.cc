@@ -840,7 +840,10 @@ void ProcessPool::destroy() {
         message_box->destroy();
     }
 
-    delete[] reload_workers;
+    if (reload_workers) {
+        delete[] reload_workers;
+    }
+
     sw_mem_pool()->free(workers);
 }
 
