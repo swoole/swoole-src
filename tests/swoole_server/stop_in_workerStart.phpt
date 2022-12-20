@@ -24,4 +24,3 @@ $server->on('WorkerStop',function(Server $server, int $workid){
 $server->start();
 ?>
 --EXPECTF--
-[%s]	INFO	Server is shutdown now

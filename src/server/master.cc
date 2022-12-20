@@ -877,7 +877,7 @@ void Server::clear_timer() {
 }
 
 bool Server::shutdown() {
-    swoole_trace_log(SW_TRACE_SERVER, "shutdown service");
+    swoole_trace_log(SW_TRACE_SERVER, "shutdown begin");
     if (is_base_mode()) {
         if (gs->manager_pid > 0) {
             if (getpid() == gs->manager_pid) {
@@ -933,7 +933,7 @@ bool Server::shutdown() {
         }
     }
 
-    swoole_info("Server is shutdown now");
+    swoole_trace_log(SW_TRACE_SERVER, "shutdown end");
     return true;
 }
 
