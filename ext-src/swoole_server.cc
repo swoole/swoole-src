@@ -3775,17 +3775,7 @@ static PHP_METHOD(swoole_server, shutdown) {
         php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }
-
-    pid_t manager_pid = serv->get_manager_pid();
-    if (manager_pid == 0) {
-        manager_pid = serv->get_master_pid();
-    }
-    if (swoole_kill(manager_pid, SIGTERM) < 0) {
-        php_swoole_sys_error(E_WARNING, "failed to kill(%d, SIGTERM)", manager_pid);
-        RETURN_FALSE;
-    } else {
-        RETURN_TRUE;
-    }
+    RETURN_BOOL(serv->shutdown());
 }
 
 static PHP_METHOD(swoole_server, stop) {

@@ -887,21 +887,20 @@ void Server::clear_timer() {
     }
 }
 
-void Server::shutdown() {
+bool Server::shutdown() {
     swoole_trace_log(SW_TRACE_SERVER, "shutdown service");
     if (is_base_mode()) {
         if (gs->manager_pid > 0) {
             if (getpid() == gs->manager_pid) {
                 running = false;
+                return true;
             } else {
-                swoole_kill(gs->manager_pid, SIGTERM);
+                return swoole_kill(gs->manager_pid, SIGTERM) == 0;
             }
-            return;
         }
     } else {
         if (getpid() != gs->master_pid) {
-            swoole_kill(gs->master_pid, SIGTERM);
-            return;
+            return swoole_kill(gs->master_pid, SIGTERM) == 0;
         }
         if (swoole_isset_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN)) {
             swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN, this);
@@ -946,6 +945,7 @@ void Server::shutdown() {
     }
 
     swoole_info("Server is shutdown now");
+    return true;
 }
 
 void Server::destroy() {

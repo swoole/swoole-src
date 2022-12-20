@@ -5,6 +5,8 @@ swoole_server/base: shutdown [single process]
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
+use Swoole\Server;
+
 $pm = new SwooleTest\ProcessManager;
 $pm->initRandomData(1);
 $pm->parentFunc = function () use ($pm) {
@@ -15,13 +17,15 @@ $pm->parentFunc = function () use ($pm) {
     });
 };
 $pm->childFunc = function () use ($pm) {
-    $server = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
+    $server = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $server->set(['worker_num' => 1, 'log_file' => '/dev/null']);
-    $server->on('start', function () use ($pm) {
+    $server->on('start', function (Server $server) use ($pm) {
         echo "START\n";
+        Assert::eq($server->getManagerPid(), 0);
+        Assert::eq($server->getMasterPid(), posix_getpid());
         $pm->wakeup();
     });
-    $server->on('receive', function (Swoole\Server $server, int $fd, int $rid, string $data) use ($pm) {
+    $server->on('receive', function (Server $server, int $fd, int $rid, string $data) use ($pm) {
         Assert::same($data, $pm->getRandomData());
         $server->shutdown();
     });

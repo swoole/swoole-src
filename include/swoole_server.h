@@ -1100,7 +1100,7 @@ class Server {
     int create();
     int start();
     bool reload(bool reload_all_workers);
-    void shutdown();
+    bool shutdown();
 
     int add_worker(Worker *worker);
     ListenPort *add_port(SocketType type, const char *host, int port);
