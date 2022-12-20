@@ -359,26 +359,6 @@ bool ProcessPool::reload() {
     return true;
 }
 
-bool ProcessPool::reload_immediately() {
-    if (reloading) {
-        return false;
-    }
-    reloading = true;
-    memcpy(reload_workers, workers, sizeof(Worker) * worker_num);
-    SW_LOOP_N(worker_num) {
-        auto worker = &workers[i];
-        if (swoole_kill(worker->pid, SIGTERM) < 0) {
-            swoole_sys_warning("failed to kill(%d, SIGTERM) worker#%d", worker->pid, i);
-            continue;
-        }
-    }
-    if (max_wait_time) {
-        swoole_timer_add((long) (max_wait_time * 1000), false, kill_timeout_worker, this);
-    }
-    reloading = false;
-    return true;
-}
-
 void ProcessPool::shutdown() {
     uint32_t i;
     int status;

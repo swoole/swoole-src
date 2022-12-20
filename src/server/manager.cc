@@ -440,7 +440,7 @@ void Manager::signal_handler(int signo) {
         if (manager->force_kill) {
             alarm(0);
             for (auto i = manager->kill_workers.begin(); i != manager->kill_workers.end(); i++) {
-                kill(*i, SIGKILL);
+                swoole_kill(*i, SIGKILL);
             }
         }
         break;

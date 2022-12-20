@@ -275,7 +275,6 @@ struct ProcessPool {
     int start();
     void shutdown();
     bool reload();
-    bool reload_immediately();
     pid_t spawn(Worker *worker);
     int dispatch(EventData *data, int *worker_id);
     int response(const char *data, int length);
