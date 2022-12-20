@@ -78,7 +78,7 @@ int ProcessPool::create(uint32_t _worker_num, key_t _msgqueue_key, swIPCMode _ip
         return SW_ERR;
     }
 
-    if (create_message_box(65536) < 0) {
+    if (create_message_box(SW_MESSAGE_BOX_SIZE) < 0) {
         return SW_ERR;
     }
 
