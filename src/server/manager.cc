@@ -79,6 +79,14 @@ void Manager::add_timeout_killer(Worker *workers, int n) {
 }
 
 int Server::start_manager_process() {
+    SW_LOOP_N(worker_num) {
+        create_worker(get_worker(i));
+    }
+
+    if (gs->event_workers.create_message_box(SW_MESSAGE_BOX_SIZE) == SW_ERR) {
+        return SW_ERR;
+    }
+
     if (task_worker_num > 0) {
         if (create_task_workers() < 0) {
             return SW_ERR;
@@ -102,10 +110,6 @@ int Server::start_manager_process() {
             create_worker(worker);
             i++;
         }
-    }
-
-    if (gs->event_workers.create_message_box(SW_MESSAGE_BOX_SIZE) == SW_ERR) {
-        return SW_ERR;
     }
 
     auto fn = [this](void) {
@@ -141,7 +145,7 @@ int Server::start_manager_process() {
     };
 
     if (is_base_mode()) {
-         fn();
+        fn();
     } else {
         if (swoole_fork_exec(fn) < 0) {
             swoole_sys_warning("failed fork manager process");
@@ -602,7 +606,7 @@ pid_t Server::spawn_event_worker(Worker *worker) {
     if (pid < 0) {
         swoole_sys_warning("Fork Worker failed");
         return SW_ERR;
-    } else if(pid > 0) {
+    } else if (pid > 0) {
         worker->pid = pid;
         return pid;
     }

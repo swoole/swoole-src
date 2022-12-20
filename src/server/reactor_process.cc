@@ -105,17 +105,12 @@ int Server::start_reactor_processes() {
         return SW_ERR;
     }
 
-    // single worker
     if (Server_is_single(this)) {
         int retval = ReactorProcess_loop(&gs->event_workers, &gs->event_workers.workers[0]);
         if (retval == SW_OK) {
             gs->event_workers.destroy();
         }
         return retval;
-    }
-
-    SW_LOOP_N(worker_num) {
-        create_worker(&gs->event_workers.workers[i]);
     }
 
     return start_manager_process();

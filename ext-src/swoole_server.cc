@@ -3776,8 +3776,12 @@ static PHP_METHOD(swoole_server, shutdown) {
         RETURN_FALSE;
     }
 
-    if (swoole_kill(serv->gs->master_pid, SIGTERM) < 0) {
-        php_swoole_sys_error(E_WARNING, "failed to shutdown, kill(%d, SIGTERM) failed", serv->gs->master_pid);
+    pid_t manager_pid = serv->get_manager_pid();
+    if (manager_pid == 0) {
+        manager_pid = serv->get_master_pid();
+    }
+    if (swoole_kill(manager_pid, SIGTERM) < 0) {
+        php_swoole_sys_error(E_WARNING, "failed to kill(%d, SIGTERM)", manager_pid);
         RETURN_FALSE;
     } else {
         RETURN_TRUE;
