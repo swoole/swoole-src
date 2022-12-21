@@ -1653,7 +1653,7 @@ function run_all_tests_parallel($test_files, $env, $redir_tested) {
                             }
                             break;
                         case "echo":
-                            echo $message["text"], PHP_EOL;
+                            echo $message["text"];
                             break;
                         case "test_result":
                             list($name, $index, $result, $resultText) = [$message["name"], $message["index"], $message["result"], $message["text"]];
@@ -1670,7 +1670,7 @@ function run_all_tests_parallel($test_files, $env, $redir_tested) {
 
                             if (!$SHOW_ONLY_GROUPS) {
                                 $percent = round($test_idx / $test_cnt * 100);
-                                if ($percent % 10 == 0) {
+                                if ($percent > 0 && $percent % 10 == 0) {
                                     echo "{$test_cnt} tests, {$percent}% completed\n";
                                 }
                             }

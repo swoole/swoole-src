@@ -1413,6 +1413,8 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
             SW_HOOK_WITH_PHP_FUNC(socket_clear_error);
             SW_HOOK_WITH_PHP_FUNC(socket_last_error);
             SW_HOOK_WITH_PHP_FUNC(socket_import_stream);
+
+            inherit_class(ZEND_STRL("Swoole\\Coroutine\\Socket"), ZEND_STRL("Socket"));
         }
     } else {
         if (runtime_hook_flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION) {
