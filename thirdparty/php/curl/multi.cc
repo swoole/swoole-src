@@ -326,8 +326,6 @@ PHP_FUNCTION(swoole_native_curl_multi_close) {
 
     mh = Z_CURL_MULTI_P(z_mh);
 
-    bool is_in_coroutine = swoole_curl_multi_is_in_coroutine(mh);
-
     for (pz_ch = (zval *) zend_llist_get_first_ex(&mh->easyh, &pos); pz_ch;
          pz_ch = (zval *) zend_llist_get_next_ex(&mh->easyh, &pos)) {
         php_curl *ch = Z_CURL_P(pz_ch);
@@ -335,8 +333,9 @@ PHP_FUNCTION(swoole_native_curl_multi_close) {
             continue;
         }
         swoole_curl_verify_handlers(ch, 0);
-        if (is_in_coroutine) {
-            mh->multi->remove_handle(ch->cp);
+        auto handle = swoole::curl::get_handle(ch);
+        if (handle) {
+            mh->multi->remove_handle(ch);
         } else {
             curl_multi_remove_handle(mh->multi, ch->cp);
         }
@@ -615,7 +614,7 @@ static void _php_curl_multi_free(php_curlm *mh) {
         if ((ch = swoole_curl_get_handle(z_ch, true, false))) {
             swoole_curl_verify_handlers(ch, 0);
             if (is_in_coroutine) {
-                mh->multi->remove_handle(ch->cp);
+                mh->multi->remove_handle(ch);
             }
         }
     }

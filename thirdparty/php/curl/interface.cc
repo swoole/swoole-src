@@ -111,16 +111,6 @@ static zend_object_handlers swoole_native_curl_exception_handlers;
     return;
 #endif
 
-void swoole_curl_set_in_coroutine(php_curl *ch, bool value) {
-    zend_update_property_bool(nullptr, &ch->std, ZEND_STRL("in_coroutine"), value);
-}
-
-bool swoole_curl_is_in_coroutine(php_curl *ch) {
-    zval rv;
-    zval *zv = zend_read_property_ex(nullptr, &ch->std, SW_ZSTR_KNOWN(SW_ZEND_STR_IN_COROUTINE), 1, &rv);
-    return zval_is_true(zv);
-}
-
 void swoole_curl_set_private_data(php_curl *ch, zval *zvalue) {
 #if PHP_VERSION_ID >= 80100
     zval_ptr_dtor(&ch->private_data);
@@ -284,7 +274,6 @@ void swoole_native_curl_minit(int module_number) {
 
     swoole_coroutine_curl_handle_ce->ce_flags |= ZEND_ACC_FINAL | ZEND_ACC_NO_DYNAMIC_PROPERTIES;
 
-    zend_declare_property_bool(swoole_coroutine_curl_handle_ce, ZEND_STRL("in_coroutine"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_coroutine_curl_handle_ce, ZEND_STRL("private_data"), ZEND_ACC_PUBLIC);
 
     curl_multi_register_class(nullptr);
@@ -328,7 +317,6 @@ static zend_object *swoole_curl_clone_obj(zend_object *object) {
     swoole_curl_init_handle(clone_ch);
 
     ch = curl_from_obj(object);
-    swoole_curl_set_in_coroutine(clone_ch, swoole_curl_is_in_coroutine(ch));
     cp = curl_easy_duphandle(ch->cp);
     if (!cp) {
         zend_throw_exception(NULL, "Failed to clone CurlHandle", 0);
@@ -337,6 +325,7 @@ static zend_object *swoole_curl_clone_obj(zend_object *object) {
 
     clone_ch->cp = cp;
     swoole_setup_easy_copy_handlers(clone_ch, ch);
+    swoole::curl::create_handle(clone_ch->cp);
 
     postfields = &clone_ch->postfields;
     if (Z_TYPE_P(postfields) != IS_UNDEF) {
@@ -954,8 +943,8 @@ PHP_FUNCTION(swoole_native_curl_init) {
     curl_handlers(ch)->read->method = PHP_CURL_DIRECT;
     curl_handlers(ch)->write_header->method = PHP_CURL_IGNORE;
 
-    swoole_curl_set_in_coroutine(ch, true);
     _php_curl_set_default_options(ch);
+    swoole::curl::create_handle(cp);
 
     if (url) {
         if (php_curl_option_url(ch, ZSTR_VAL(url), ZSTR_LEN(url)) == FAILURE) {
@@ -1769,8 +1758,8 @@ static int _php_curl_setopt(php_curl *ch, zend_long option, zval *zvalue, bool i
 
 #if LIBCURL_VERSION_NUM >= 0x072000 && PHP_VERSION_ID >= 80200
     case CURLOPT_XFERINFOFUNCTION:
-        curl_easy_setopt(ch->cp, CURLOPT_XFERINFOFUNCTION, fn_xferinfo);
-        curl_easy_setopt(ch->cp, CURLOPT_XFERINFODATA, ch);
+        curl_easy_setopt(ch->ch, CURLOPT_XFERINFOFUNCTION, fn_xferinfo);
+        curl_easy_setopt(ch->ch, CURLOPT_XFERINFODATA, ch);
         if (curl_handlers(ch)->xferinfo == NULL) {
             curl_handlers(ch)->xferinfo = (php_curl_fnxferinfo *) ecalloc(1, sizeof(php_curl_fnxferinfo));
         } else if (!Z_ISUNDEF(curl_handlers(ch)->xferinfo->func_name)) {
@@ -1876,7 +1865,7 @@ static int _php_curl_setopt(php_curl *ch, zend_long option, zval *zvalue, bool i
         stblob.data = ZSTR_VAL(str);
         stblob.len = ZSTR_LEN(str);
         stblob.flags = CURL_BLOB_COPY;
-        error = curl_easy_setopt(ch->cp, (CURLoption) option, &stblob);
+        error = curl_easy_setopt(ch->ch, (CURLoption) option, &stblob);
 
         zend_tmp_string_release(tmp_str);
     } break;
@@ -2185,7 +2174,7 @@ PHP_FUNCTION(swoole_native_curl_getinfo) {
             CAASTR("request_header", ch->header.str);
         }
 #if LIBCURL_VERSION_NUM >= 0x074800 /* Available since 7.72.0 */
-        if (curl_easy_getinfo(ch->cp, CURLINFO_EFFECTIVE_METHOD, &s_code) == CURLE_OK) {
+        if (curl_easy_getinfo(ch->ch, CURLINFO_EFFECTIVE_METHOD, &s_code) == CURLE_OK) {
             CAAS("effective_method", s_code);
         }
 #endif
@@ -2360,14 +2349,9 @@ static void _php_curl_free(php_curl *ch) {
     curl_easy_setopt(ch->cp, CURLOPT_HEADERFUNCTION, curl_write_nothing);
     curl_easy_setopt(ch->cp, CURLOPT_WRITEFUNCTION, curl_write_nothing);
 
-    swoole::curl::Handle *handle = nullptr;
-
-    if (curl_easy_getinfo(ch->cp, CURLINFO_PRIVATE, &handle) == CURLE_OK && handle) {
-        if (handle->multi) {
-            handle->multi->remove_handle(ch);
-        }
-    } else {
-        handle = nullptr;
+    swoole::curl::Handle *handle = swoole::curl::get_handle(ch);
+    if (handle && handle->multi) {
+        handle->multi->remove_handle(ch);
     }
 
     /* cURL destructors should be invoked only by last curl handle */
@@ -2386,10 +2370,7 @@ static void _php_curl_free(php_curl *ch) {
         efree(ch->to_free);
         efree(ch->clone);
 
-        if (handle) {
-            delete handle;
-        }
-        curl_easy_setopt(ch->cp, CURLOPT_PRIVATE, nullptr);
+        swoole::curl::destroy_handle(ch->cp);
     }
 
     if (ch->cp != NULL) {

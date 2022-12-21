@@ -49,8 +49,41 @@ struct HandleSocket {
 struct Handle {
     CURL *cp;
     Multi *multi;
-    std::map<int, HandleSocket *> sockets;
+    std::unordered_map<int, HandleSocket *> sockets;
+
+    Handle(CURL *_cp) {
+        cp = _cp;
+        multi = nullptr;
+    }
+
+    HandleSocket *create_socket(curl_socket_t sockfd) {
+        Socket *socket = new Socket();
+        socket->fd = sockfd;
+        socket->removed = 1;
+        socket->fd_type = (FdType) PHP_SWOOLE_FD_CO_CURL;
+
+        HandleSocket *handle_socket = new HandleSocket();
+        handle_socket->socket = socket;
+        sockets[sockfd] = handle_socket;
+        socket->object = this;
+
+        return handle_socket;
+    }
+
+    void destroy_socket(curl_socket_t sockfd) {
+        auto it = sockets.find(sockfd);
+        if (it != sockets.end()) {
+            auto _socket = it->second;
+            sockets.erase(it);
+            delete _socket->socket;
+            delete _socket;
+        }
+    }
 };
+
+Handle *get_handle(CURL *cp);
+Handle *create_handle(CURL *ch);
+void destroy_handle(CURL *ch);
 
 struct Selector {
     bool timer_callback = false;
@@ -70,16 +103,10 @@ class Multi {
 
     CURLcode read_info();
 
-    Socket *create_socket(CURL *cp, curl_socket_t sockfd);
+    HandleSocket *create_socket(CURL *cp, curl_socket_t sockfd);
 
-    Handle *get_handle(CURL *cp) {
-        Handle *handle = nullptr;
-        curl_easy_getinfo(cp, CURLINFO_PRIVATE, &handle);
-        return handle;
-    }
-
-    void set_event(CURL *easy, void *socket_ptr, curl_socket_t sockfd, int action);
-    void del_event(CURL *easy, void *socket_ptr, curl_socket_t sockfd);
+    void set_event(CURL *cp, void *socket_ptr, curl_socket_t sockfd, int action);
+    void del_event(CURL *cp, void *socket_ptr, curl_socket_t sockfd);
 
     void add_timer(long timeout_ms) {
         if (timer && swoole_timer_is_available()) {
@@ -151,7 +178,7 @@ class Multi {
         return Coroutine::get_current_safe();
     }
 
-    CURLcode exec(php_curl *ch);
+    CURLcode exec(CURL *cp);
     long select(php_curlm *mh, double timeout = -1);
     void callback(Handle *handle, int event_bitmask, int sockfd = -1);
 
