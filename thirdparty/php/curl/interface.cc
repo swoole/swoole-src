@@ -1865,7 +1865,7 @@ static int _php_curl_setopt(php_curl *ch, zend_long option, zval *zvalue, bool i
         stblob.data = ZSTR_VAL(str);
         stblob.len = ZSTR_LEN(str);
         stblob.flags = CURL_BLOB_COPY;
-        error = curl_easy_setopt(ch->ch, (CURLoption) option, &stblob);
+        error = curl_easy_setopt(ch->cp, (CURLoption) option, &stblob);
 
         zend_tmp_string_release(tmp_str);
     } break;
