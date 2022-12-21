@@ -2042,7 +2042,7 @@ TEST $file
     }
 
     if (!$SHOW_ONLY_GROUPS && !$workerID) {
-        show_test($test_idx, $shortname);
+        show_test($test_idx, $shortname, $tested_file);
     }
 
     if (is_array($IN_REDIRECT)) {
@@ -3314,13 +3314,13 @@ function show_redirect_ends($tests, $tested, $tested_file)
     }
 }
 
-function show_test($test_idx, $shortname)
+function show_test($test_idx, $shortname, $tested_file = '')
 {
     global $test_cnt;
     global $line_length;
 
     // swoole patch: pretty output
-    $str = "TEST $test_idx/$test_cnt ";
+    $str = "TEST $test_idx/$test_cnt [$tested_file]\n";
     $line_length = strlen($str);
     echo $str;
     flush();
@@ -3368,7 +3368,7 @@ function show_result($result, $tested, $tested_file, $extra = '', $temp_filename
     $result = "\033[3{$color}m[$result]\033[0m";
 
     if (!$SHOW_ONLY_GROUPS || in_array($result, $SHOW_ONLY_GROUPS)) {
-        echo "$result $tested [$tested_file] $extra\n";
+        echo "$result $tested $extra\n";
     } else if (!$SHOW_ONLY_GROUPS) {
         clear_show_test();
     }
