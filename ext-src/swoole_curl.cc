@@ -22,6 +22,7 @@
 namespace swoole {
 namespace curl {
 
+#if PHP_VERSION_ID < 80100
 static std::unordered_map<CURL *, Handle *> handle_buckets;
 
 Handle *get_handle(CURL *cp) {
@@ -48,6 +49,31 @@ void destroy_handle(CURL *cp) {
     handle_buckets.erase(iter);
     delete handle;
 }
+#else
+Handle *get_handle(CURL *cp) {
+    Handle *handle = nullptr;
+    return curl_easy_getinfo(cp, CURLINFO_PRIVATE, &handle) == CURLE_OK ? handle : nullptr;
+}
+
+Handle *create_handle(CURL *cp) {
+    Handle *handle = new Handle(cp);
+    handle->cp = cp;
+    if (curl_easy_setopt(cp, CURLOPT_PRIVATE, handle) == CURLE_OK) {
+        return handle;
+    } else {
+        delete handle;
+        return nullptr;
+    }
+}
+
+void destroy_handle(CURL *cp) {
+    Handle *handle = get_handle(cp);
+    if (handle) {
+        delete handle;
+    }
+    curl_easy_setopt(cp, CURLOPT_PRIVATE, nullptr);
+}
+#endif
 
 static int execute_callback(Event *event, int bitmask) {
     Handle *handle = (Handle *) event->socket->object;
@@ -177,15 +203,10 @@ CURLMcode Multi::add_handle(CURL *cp) {
     return retval;
 }
 
-CURLMcode Multi::remove_handle(CURL *cp) {
-    auto retval = curl_multi_remove_handle(multi_handle_, cp);
-    if (retval == CURLM_OK) {
-        auto handle = get_handle(cp);
-        if (handle) {
-            handle->multi = nullptr;
-        }
-        swoole_trace_log(SW_TRACE_CO_CURL, SW_ECHO_RED " handle=%p, curl=%p", "[REMOVE_HANDLE]", handle, cp);
-    }
+CURLMcode Multi::remove_handle(Handle *handle) {
+    auto retval = curl_multi_remove_handle(multi_handle_, handle->cp);
+    handle->multi = nullptr;
+    swoole_trace_log(SW_TRACE_CO_CURL, SW_ECHO_RED " handle=%p, curl=%p", "[REMOVE_HANDLE]", handle, cp);
     return retval;
 }
 
@@ -279,7 +300,7 @@ CURLcode Multi::exec(CURL *cp) {
     }
 
     CURLcode retval = read_info();
-    remove_handle(cp);
+    remove_handle(handle);
     return is_canceled ? CURLE_ABORTED_BY_CALLBACK : retval;
 }
 

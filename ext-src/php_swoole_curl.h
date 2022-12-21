@@ -160,7 +160,7 @@ class Multi {
     }
 
     CURLMcode add_handle(CURL *cp);
-    CURLMcode remove_handle(CURL *cp);
+    CURLMcode remove_handle(Handle *handle);
 
     CURLMcode perform() {
         return curl_multi_perform(multi_handle_, &running_handles_);

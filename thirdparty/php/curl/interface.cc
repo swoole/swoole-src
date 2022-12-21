@@ -1953,7 +1953,6 @@ PHP_FUNCTION(swoole_native_curl_exec) {
     }
 
     swoole_curl_verify_handlers(ch, 1);
-
     swoole_curl_cleanup_handle(ch);
 
     Multi multi{};
@@ -2328,9 +2327,9 @@ static void _php_curl_free(php_curl *ch) {
     curl_easy_setopt(ch->cp, CURLOPT_HEADERFUNCTION, curl_write_nothing);
     curl_easy_setopt(ch->cp, CURLOPT_WRITEFUNCTION, curl_write_nothing);
 
-    swoole::curl::Handle *handle = swoole::curl::get_handle(ch);
+    swoole::curl::Handle *handle = swoole::curl::get_handle(ch->cp);
     if (handle && handle->multi) {
-        handle->multi->remove_handle(ch);
+        handle->multi->remove_handle(handle);
     }
 
     /* cURL destructors should be invoked only by last curl handle */
