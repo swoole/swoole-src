@@ -1758,8 +1758,8 @@ static int _php_curl_setopt(php_curl *ch, zend_long option, zval *zvalue, bool i
 
 #if LIBCURL_VERSION_NUM >= 0x072000 && PHP_VERSION_ID >= 80200
     case CURLOPT_XFERINFOFUNCTION:
-        curl_easy_setopt(ch->ch, CURLOPT_XFERINFOFUNCTION, fn_xferinfo);
-        curl_easy_setopt(ch->ch, CURLOPT_XFERINFODATA, ch);
+        curl_easy_setopt(ch->cp, CURLOPT_XFERINFOFUNCTION, fn_xferinfo);
+        curl_easy_setopt(ch->cp, CURLOPT_XFERINFODATA, ch);
         if (curl_handlers(ch)->xferinfo == NULL) {
             curl_handlers(ch)->xferinfo = (php_curl_fnxferinfo *) ecalloc(1, sizeof(php_curl_fnxferinfo));
         } else if (!Z_ISUNDEF(curl_handlers(ch)->xferinfo->func_name)) {
@@ -2174,7 +2174,7 @@ PHP_FUNCTION(swoole_native_curl_getinfo) {
             CAASTR("request_header", ch->header.str);
         }
 #if LIBCURL_VERSION_NUM >= 0x074800 /* Available since 7.72.0 */
-        if (curl_easy_getinfo(ch->ch, CURLINFO_EFFECTIVE_METHOD, &s_code) == CURLE_OK) {
+        if (curl_easy_getinfo(ch->cp, CURLINFO_EFFECTIVE_METHOD, &s_code) == CURLE_OK) {
             CAAS("effective_method", s_code);
         }
 #endif
