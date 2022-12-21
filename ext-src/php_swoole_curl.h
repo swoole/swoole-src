@@ -33,14 +33,12 @@ SW_EXTERN_C_END
 
 namespace swoole {
 
-using network::Socket;
-
 namespace curl {
 
 class Multi;
 
 struct HandleSocket {
-    Socket *socket;
+    network::Socket *socket;
     int event_bitmask;
     int event_fd;
     int action;
@@ -57,7 +55,7 @@ struct Handle {
     }
 
     HandleSocket *create_socket(curl_socket_t sockfd) {
-        Socket *socket = new Socket();
+        auto socket = new network::Socket();
         socket->fd = sockfd;
         socket->removed = 1;
         socket->fd_type = (FdType) PHP_SWOOLE_FD_CO_CURL;

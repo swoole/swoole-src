@@ -351,7 +351,7 @@ long Multi::select(php_curlm *mh, double timeout) {
         return CURLE_FAILED_INIT;
     }
 
-    Socket *socket = nullptr;
+    network::Socket *socket = nullptr;
 
     for (zend_llist_element *element = mh->easyh.head; element; element = element->next) {
         zval *z_ch = (zval *) element->data;

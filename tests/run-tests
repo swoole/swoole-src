@@ -853,6 +853,11 @@ if (!function_exists("hrtime")) {
     }
 }
 
+function get_shortname($file)
+{
+    return str_replace(TEST_PHP_SRCDIR . '/', '', $file);
+}
+
 function verify_config()
 {
     global $php;
@@ -1359,6 +1364,13 @@ function run_all_tests($test_files, $env, $redir_tested = null)
         $test_idx++;
 
         if ($workerID) {
+            send_message($workerSock, [
+                    "type" => "echo",
+                    "text" => "TEST [" . get_shortname($name) . "]",
+            ]);
+        }
+
+        if ($workerID) {
             $PHP_FAILED_TESTS = ['BORKED' => [], 'FAILED' => [], 'WARNED' => [], 'LEAKED' => [], 'XFAILED' => [], 'XLEAKED' => [], 'SLOW' => []];
             ob_start();
         }
@@ -1640,6 +1652,9 @@ function run_all_tests_parallel($test_files, $env, $redir_tested) {
                                 goto escape;
                             }
                             break;
+                        case "echo":
+                            echo $message["text"], PHP_EOL;
+                            break;
                         case "test_result":
                             list($name, $index, $result, $resultText) = [$message["name"], $message["index"], $message["result"], $message["text"]];
                             foreach ($message["PHP_FAILED_TESTS"] as $category => $tests) {
@@ -1654,7 +1669,10 @@ function run_all_tests_parallel($test_files, $env, $redir_tested) {
                             echo $resultText;
 
                             if (!$SHOW_ONLY_GROUPS) {
-                                show_test($test_idx, count($workerProcs) . "/$workers concurrent test workers running");
+                                $percent = round($test_idx / $test_cnt * 100);
+                                if ($percent % 10 == 0) {
+                                    echo "{$test_cnt} tests, {$percent}% completed\n";
+                                }
                             }
 
                             if (!is_array($name) && $result != 'REDIR') {
@@ -1961,7 +1979,7 @@ TEST $file
     }
     fclose($fp);
 
-    $shortname = str_replace(TEST_PHP_SRCDIR . '/', '', $file);
+    $shortname = get_shortname($file);
     $tested_file = $shortname;
 
     if ($bork_info !== null) {
@@ -2042,7 +2060,7 @@ TEST $file
     }
 
     if (!$SHOW_ONLY_GROUPS && !$workerID) {
-        show_test($test_idx, $shortname, $tested_file);
+        show_test($test_idx, $shortname);
     }
 
     if (is_array($IN_REDIRECT)) {
@@ -3314,13 +3332,13 @@ function show_redirect_ends($tests, $tested, $tested_file)
     }
 }
 
-function show_test($test_idx, $shortname, $tested_file = '')
+function show_test($test_idx, $shortname)
 {
     global $test_cnt;
     global $line_length;
 
     // swoole patch: pretty output
-    $str = "TEST $test_idx/$test_cnt [$tested_file]\n";
+    $str = "TEST $test_idx/$test_cnt [$shortname]" . PHP_EOL;
     $line_length = strlen($str);
     echo $str;
     flush();
