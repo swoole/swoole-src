@@ -306,28 +306,22 @@ static zend_function *swoole_curl_get_constructor(zend_object *object) {
 }
 
 static zend_object *swoole_curl_clone_obj(zend_object *object) {
-    php_curl *ch;
-    CURL *cp;
-    zval *postfields;
-    zend_object *clone_object;
-    php_curl *clone_ch;
-
-    clone_object = swoole_curl_create_object(curl_ce);
-    clone_ch = curl_from_obj(clone_object);
-    swoole_curl_init_handle(clone_ch);
-
-    ch = curl_from_obj(object);
-    cp = curl_easy_duphandle(ch->cp);
+    php_curl *ch = curl_from_obj(object);
+    CURL *cp = curl_easy_duphandle(ch->cp);
     if (!cp) {
         zend_throw_exception(NULL, "Failed to clone CurlHandle", 0);
-        return &clone_ch->std;
+        return nullptr;
     }
+
+    zend_object *clone_object = swoole_curl_create_object(curl_ce);
+    php_curl *clone_ch = curl_from_obj(clone_object);
+    swoole_curl_init_handle(clone_ch);
 
     clone_ch->cp = cp;
     swoole_setup_easy_copy_handlers(clone_ch, ch);
     swoole::curl::create_handle(clone_ch->cp);
 
-    postfields = &clone_ch->postfields;
+    zval *postfields = &ch->postfields;
     if (Z_TYPE_P(postfields) != IS_UNDEF) {
         if (build_mime_structure_from_hash(clone_ch, postfields) != SUCCESS) {
             zend_throw_exception(NULL, "Failed to clone CurlHandle", 0);
@@ -1207,10 +1201,8 @@ static inline int build_mime_structure_from_hash(php_curl *ch, zval *zpostfields
 /* {{{ proto resource curl_copy_handle(resource ch)
    Copy a cURL handle along with all of it's preferences */
 PHP_FUNCTION(swoole_native_curl_copy_handle) {
-    CURL *cp;
     zval *zid;
-    php_curl *ch, *dupch;
-    zval *postfields;
+    php_curl *ch;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
     Z_PARAM_OBJECT_OF_CLASS(zid, swoole_coroutine_curl_handle_ce)
@@ -1220,25 +1212,12 @@ PHP_FUNCTION(swoole_native_curl_copy_handle) {
         RETURN_FALSE;
     }
 
-    cp = curl_easy_duphandle(ch->cp);
-    if (!cp) {
+    zend_object *clone_obj = swoole_curl_clone_obj(Z_OBJ_P(zid));
+    if (!clone_obj) {
         php_error_docref(NULL, E_WARNING, "Cannot duplicate cURL handle");
         RETURN_FALSE;
     }
-
-    dupch = swoole_curl_init_handle_into_zval(return_value);
-    dupch->cp = cp;
-
-    swoole_setup_easy_copy_handlers(dupch, ch);
-
-    postfields = &ch->postfields;
-    if (Z_TYPE_P(postfields) != IS_UNDEF) {
-        if (build_mime_structure_from_hash(dupch, postfields) != SUCCESS) {
-            zval_ptr_dtor(return_value);
-            php_error_docref(NULL, E_WARNING, "Cannot rebuild mime structure");
-            RETURN_FALSE;
-        }
-    }
+    RETURN_OBJ(clone_obj);
 }
 /* }}} */
 
