@@ -41,7 +41,7 @@ Handle *create_handle(CURL *cp) {
 
 void destroy_handle(CURL *cp) {
     auto iter = handle_buckets.find(cp);
-    if (iter != handle_buckets.end()) {
+    if (iter == handle_buckets.end()) {
         return;
     }
     auto handle = iter->second;
@@ -127,7 +127,7 @@ void Multi::del_event(CURL *cp, void *socket_ptr, curl_socket_t sockfd) {
         handle->destroy_socket(sockfd);
     }
 
-    swoole_trace_log(SW_TRACE_CO_CURL, SW_ECHO_RED " handle=%p, curl=%p, fd=%d", "[DEL_EVENT]", handle, ch->ch, sockfd);
+    swoole_trace_log(SW_TRACE_CO_CURL, SW_ECHO_RED " handle=%p, curl=%p, fd=%d", "[DEL_EVENT]", handle, cp, sockfd);
 }
 
 void Multi::set_event(CURL *cp, void *socket_ptr, curl_socket_t sockfd, int action) {
@@ -158,7 +158,7 @@ void Multi::set_event(CURL *cp, void *socket_ptr, curl_socket_t sockfd, int acti
                      SW_ECHO_GREEN " handle=%p, curl=%p, fd=%d, events=%d",
                      "[ADD_EVENT]",
                      handle,
-                     ch,
+                     cp,
                      sockfd,
                      events);
 }
@@ -195,18 +195,18 @@ CURLcode Multi::exec(CURL *cp) {
     }
 
     Handle *handle = get_handle(cp);
-    HandleSocket *_socket = nullptr;
+    HandleSocket *curl_socket = nullptr;
     bool is_canceled = false;
 
     SW_LOOP {
         for (auto it : handle->sockets) {
-            _socket = it.second;
-            if (_socket->socket && _socket->socket->removed) {
-                if (swoole_event_add(_socket->socket, get_event(_socket->action)) == SW_OK) {
+            curl_socket = it.second;
+            if (curl_socket->socket && curl_socket->socket->removed) {
+                if (swoole_event_add(curl_socket->socket, get_event(curl_socket->action)) == SW_OK) {
                     event_count_++;
                 }
                 swoole_trace_log(
-                    SW_TRACE_CO_CURL, "resume, handle=%p, curl=%p, fd=%d", handle, cp, handle_socket->socket->get_fd());
+                    SW_TRACE_CO_CURL, "resume, handle=%p, curl=%p, fd=%d", handle, cp, curl_socket->socket->get_fd());
             }
         }
 
@@ -225,9 +225,9 @@ CURLcode Multi::exec(CURL *cp) {
         if (sockfd >= 0) {
             auto it = handle->sockets.find(sockfd);
             if (it != handle->sockets.end()) {
-                _socket = it->second;
-                bitmask = _socket->event_bitmask;
-                if (!_socket->socket->removed && swoole_event_del(_socket->socket) == SW_OK) {
+                curl_socket = it->second;
+                bitmask = curl_socket->event_bitmask;
+                if (!curl_socket->socket->removed && swoole_event_del(curl_socket->socket) == SW_OK) {
                     event_count_--;
                 }
             }
@@ -248,9 +248,9 @@ CURLcode Multi::exec(CURL *cp) {
         if (sockfd >= 0) {
             auto it = handle->sockets.find(sockfd);
             if (it != handle->sockets.end()) {
-                _socket = it->second;
-                if (_socket->socket && _socket->socket->removed) {
-                    if (swoole_event_add(_socket->socket, get_event(_socket->action)) == SW_OK) {
+                curl_socket = it->second;
+                if (curl_socket->socket && curl_socket->socket->removed) {
+                    if (swoole_event_add(curl_socket->socket, get_event(curl_socket->action)) == SW_OK) {
                         event_count_++;
                     }
                 }
@@ -260,11 +260,11 @@ CURLcode Multi::exec(CURL *cp) {
         if (!timer) {
             bool removed = true;
             for (auto it = handle->sockets.begin(); it != handle->sockets.end();) {
-                _socket = it->second;
-                if (_socket->socket) {
-                    if (_socket->socket->removed) {
+                curl_socket = it->second;
+                if (curl_socket->socket) {
+                    if (curl_socket->socket->removed) {
                         it = handle->sockets.erase(it);
-                        delete _socket;
+                        delete curl_socket;
                         continue;
                     } else {
                         removed = false;
@@ -344,7 +344,11 @@ long Multi::select(php_curlm *mh, double timeout) {
             for (auto it : handle->sockets) {
                 socket = it.second->socket;
 
-                swoole_trace_log(SW_TRACE_CO_CURL, "handle=%p, socket=%p, socket->removed=%d", handle, socket, socket ? socket->removed : 0);
+                swoole_trace_log(SW_TRACE_CO_CURL,
+                                 "handle=%p, socket=%p, socket->removed=%d",
+                                 handle,
+                                 socket,
+                                 socket ? socket->removed : 0);
 
                 if (socket && socket->removed) {
                     if (swoole_event_add(socket, get_event(it.second->action)) == SW_OK) {
@@ -400,10 +404,11 @@ long Multi::select(php_curlm *mh, double timeout) {
     for (auto iter = selector->active_handles.begin(); iter != selector->active_handles.end(); iter++) {
         Handle *handle = *iter;
         if (handle) {
-            for (auto it = handle->sockets.begin(); it != handle->sockets.end(); ) {
+            for (auto it = handle->sockets.begin(); it != handle->sockets.end();) {
                 HandleSocket *handle_socket = it->second;
                 it++;
-                curl_multi_socket_action(multi_handle_, handle_socket->event_fd, handle_socket->event_bitmask, &running_handles_);
+                curl_multi_socket_action(
+                    multi_handle_, handle_socket->event_fd, handle_socket->event_bitmask, &running_handles_);
                 swoole_trace_log(SW_TRACE_CO_CURL, "socket_action[socket], running_handles=%d", running_handles_);
             }
         }
@@ -415,7 +420,8 @@ long Multi::select(php_curlm *mh, double timeout) {
 }
 
 void Multi::callback(Handle *handle, int event_bitmask, int sockfd) {
-    swoole_trace_log(SW_TRACE_CO_CURL, "handle=%p, event_bitmask=%d, co=%p, sockfd=%d", handle, event_bitmask, co, sockfd);
+    swoole_trace_log(
+        SW_TRACE_CO_CURL, "handle=%p, event_bitmask=%d, co=%p, sockfd=%d", handle, event_bitmask, co, sockfd);
     if (handle) {
         last_sockfd = sockfd;
     } else {
