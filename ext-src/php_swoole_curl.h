@@ -157,7 +157,7 @@ class Multi {
         selector.reset(_selector);
     }
 
-    CURLMcode add_handle(CURL *cp);
+    CURLMcode add_handle(Handle *handle);
     CURLMcode remove_handle(Handle *handle);
 
     CURLMcode perform() {
@@ -176,7 +176,7 @@ class Multi {
         return Coroutine::get_current_safe();
     }
 
-    CURLcode exec(CURL *cp);
+    CURLcode exec(Handle *handle);
     long select(php_curlm *mh, double timeout = -1);
     void callback(Handle *handle, int event_bitmask, int sockfd = -1);
 

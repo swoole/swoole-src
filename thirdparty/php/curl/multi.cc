@@ -106,7 +106,7 @@ PHP_FUNCTION(swoole_native_curl_multi_add_handle) {
     Z_ADDREF_P(z_ch);
     zend_llist_add_element(&mh->easyh, z_ch);
 
-    error = mh->multi->add_handle(ch->cp);
+    error = mh->multi->add_handle(swoole::curl::get_handle(ch->cp));
     SAVE_CURLM_ERROR(mh, error);
 
     RETURN_LONG((zend_long) error);

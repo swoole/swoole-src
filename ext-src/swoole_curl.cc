@@ -22,7 +22,6 @@
 namespace swoole {
 namespace curl {
 
-#if PHP_VERSION_ID < 80100
 static std::unordered_map<CURL *, Handle *> handle_buckets;
 
 Handle *get_handle(CURL *cp) {
@@ -37,6 +36,7 @@ Handle *create_handle(CURL *cp) {
     }
     Handle *handle = new Handle(cp);
     handle_buckets[cp] = handle;
+    swoole_trace_log(SW_TRACE_CO_CURL, SW_ECHO_MAGENTA " handle=%p, curl=%p", "[CREATE]", handle, cp);
     return handle;
 }
 
@@ -48,32 +48,8 @@ void destroy_handle(CURL *cp) {
     auto handle = iter->second;
     handle_buckets.erase(iter);
     delete handle;
+    swoole_trace_log(SW_TRACE_CO_CURL, SW_ECHO_RED " handle=%p, curl=%p", "[DESTROY]", handle, cp);
 }
-#else
-Handle *get_handle(CURL *cp) {
-    Handle *handle = nullptr;
-    return curl_easy_getinfo(cp, CURLINFO_PRIVATE, &handle) == CURLE_OK ? handle : nullptr;
-}
-
-Handle *create_handle(CURL *cp) {
-    Handle *handle = new Handle(cp);
-    handle->cp = cp;
-    if (curl_easy_setopt(cp, CURLOPT_PRIVATE, handle) == CURLE_OK) {
-        return handle;
-    } else {
-        delete handle;
-        return nullptr;
-    }
-}
-
-void destroy_handle(CURL *cp) {
-    Handle *handle = get_handle(cp);
-    if (handle) {
-        delete handle;
-    }
-    curl_easy_setopt(cp, CURLOPT_PRIVATE, nullptr);
-}
-#endif
 
 static int execute_callback(Event *event, int bitmask) {
     Handle *handle = (Handle *) event->socket->object;
@@ -189,16 +165,15 @@ void Multi::set_event(CURL *cp, void *socket_ptr, curl_socket_t sockfd, int acti
                      events);
 }
 
-CURLMcode Multi::add_handle(CURL *cp) {
-    auto handle = get_handle(cp);
+CURLMcode Multi::add_handle(Handle *handle) {
     if (handle == nullptr) {
-        swoole_warning("curl handle not initialized in coroutine");
+        php_swoole_fatal_error(E_WARNING, "The given handle is not initialized in coroutine");
         return CURLM_INTERNAL_ERROR;
     }
-    auto retval = curl_multi_add_handle(multi_handle_, cp);
+    auto retval = curl_multi_add_handle(multi_handle_, handle->cp);
     if (retval == CURLM_OK) {
         handle->multi = this;
-        swoole_trace_log(SW_TRACE_CO_CURL, SW_ECHO_GREEN " handle=%p, curl=%p", "[ADD_HANDLE]", handle, cp);
+        swoole_trace_log(SW_TRACE_CO_CURL, SW_ECHO_GREEN " handle=%p, curl=%p", "[ADD_HANDLE]", handle, handle->cp);
     }
     return retval;
 }
@@ -206,16 +181,15 @@ CURLMcode Multi::add_handle(CURL *cp) {
 CURLMcode Multi::remove_handle(Handle *handle) {
     auto retval = curl_multi_remove_handle(multi_handle_, handle->cp);
     handle->multi = nullptr;
-    swoole_trace_log(SW_TRACE_CO_CURL, SW_ECHO_RED " handle=%p, curl=%p", "[REMOVE_HANDLE]", handle, cp);
+    swoole_trace_log(SW_TRACE_CO_CURL, SW_ECHO_RED " handle=%p, curl=%p", "[REMOVE_HANDLE]", handle, handle->cp);
     return retval;
 }
 
-CURLcode Multi::exec(CURL *cp) {
-    if (add_handle(cp) != CURLM_OK) {
+CURLcode Multi::exec(Handle *handle) {
+    if (add_handle(handle) != CURLM_OK) {
         return CURLE_FAILED_INIT;
     }
 
-    Handle *handle = get_handle(cp);
     HandleSocket *curl_socket = nullptr;
     bool is_canceled = false;
 
@@ -226,8 +200,11 @@ CURLcode Multi::exec(CURL *cp) {
                 if (swoole_event_add(curl_socket->socket, get_event(curl_socket->action)) == SW_OK) {
                     event_count_++;
                 }
-                swoole_trace_log(
-                    SW_TRACE_CO_CURL, "resume, handle=%p, curl=%p, fd=%d", handle, cp, curl_socket->socket->get_fd());
+                swoole_trace_log(SW_TRACE_CO_CURL,
+                                 "resume, handle=%p, curl=%p, fd=%d",
+                                 handle,
+                                 handle->cp,
+                                 curl_socket->socket->get_fd());
             }
         }
 

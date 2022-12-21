@@ -9,13 +9,11 @@ require __DIR__ . '/../../include/skipif.inc';
 require __DIR__ . '/../../include/bootstrap.php';
 require_once TESTS_LIB_PATH . '/vendor/autoload.php';
 
-use Swoole\Coroutine\Barrier;
 use Swoole\Runtime;
 use GuzzleHttp\Client;
 use GuzzleHttp\Promise;
 
 use function Swoole\Coroutine\run;
-use function Swoole\Coroutine\go;
 
 Runtime::enableCoroutine(SWOOLE_HOOK_NATIVE_CURL);
 

@@ -1956,7 +1956,7 @@ PHP_FUNCTION(swoole_native_curl_exec) {
     swoole_curl_cleanup_handle(ch);
 
     Multi multi{};
-    error = multi.exec(ch);
+    error = multi.exec(swoole::curl::get_handle(ch->cp));
     SAVE_CURL_ERROR(ch, error);
 
     if (error != CURLE_OK) {
