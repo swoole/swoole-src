@@ -101,7 +101,7 @@ class Multi {
 
     CURLcode read_info();
 
-    HandleSocket *create_socket(CURL *cp, curl_socket_t sockfd);
+    HandleSocket *create_socket(Handle *handle, curl_socket_t sockfd);
 
     void set_event(CURL *cp, void *socket_ptr, curl_socket_t sockfd, int action);
     void del_event(CURL *cp, void *socket_ptr, curl_socket_t sockfd);
@@ -142,6 +142,7 @@ class Multi {
     }
 
     ~Multi() {
+        del_timer();
         curl_multi_cleanup(multi_handle_);
     }
 
