@@ -54,29 +54,8 @@ struct Handle {
         multi = nullptr;
     }
 
-    HandleSocket *create_socket(curl_socket_t sockfd) {
-        auto socket = new network::Socket();
-        socket->fd = sockfd;
-        socket->removed = 1;
-        socket->fd_type = (FdType) PHP_SWOOLE_FD_CO_CURL;
-
-        HandleSocket *handle_socket = new HandleSocket();
-        handle_socket->socket = socket;
-        sockets[sockfd] = handle_socket;
-        socket->object = this;
-
-        return handle_socket;
-    }
-
-    void destroy_socket(curl_socket_t sockfd) {
-        auto it = sockets.find(sockfd);
-        if (it != sockets.end()) {
-            auto _socket = it->second;
-            sockets.erase(it);
-            delete _socket->socket;
-            delete _socket;
-        }
-    }
+    HandleSocket *create_socket(curl_socket_t sockfd);
+    void destroy_socket(curl_socket_t sockfd);
 };
 
 Handle *get_handle(CURL *cp);

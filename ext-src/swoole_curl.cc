@@ -62,6 +62,31 @@ static int execute_callback(Event *event, int bitmask) {
     return 0;
 }
 
+void Handle::destroy_socket(curl_socket_t sockfd) {
+    auto it = sockets.find(sockfd);
+    if (it != sockets.end()) {
+        auto _socket = it->second;
+        sockets.erase(it);
+        _socket->socket->fd = -1;
+        _socket->socket->free();
+        delete _socket;
+    }
+}
+
+HandleSocket *Handle::create_socket(curl_socket_t sockfd) {
+    auto socket = new network::Socket();
+    socket->fd = sockfd;
+    socket->removed = 1;
+    socket->fd_type = (FdType) PHP_SWOOLE_FD_CO_CURL;
+
+    HandleSocket *handle_socket = new HandleSocket();
+    handle_socket->socket = socket;
+    sockets[sockfd] = handle_socket;
+    socket->object = this;
+
+    return handle_socket;
+}
+
 int Multi::cb_readable(Reactor *reactor, Event *event) {
     return execute_callback(event, CURL_CSELECT_IN);
 }
@@ -179,17 +204,6 @@ CURLMcode Multi::add_handle(Handle *handle) {
 }
 
 CURLMcode Multi::remove_handle(Handle *handle) {
-    for (auto it : handle->sockets) {
-        auto curl_socket = it.second;
-        curl_socket->socket->silent_remove = 1;
-        if (swoole_event_is_available() && !curl_socket->socket->removed &&
-            swoole_event_del(curl_socket->socket) == SW_OK) {
-            event_count_--;
-        }
-        curl_multi_assign(multi_handle_, curl_socket->socket->fd, NULL);
-        delete curl_socket->socket;
-        delete curl_socket;
-    }
     handle->multi = nullptr;
     swoole_trace_log(SW_TRACE_CO_CURL, SW_ECHO_RED " handle=%p, curl=%p", "[REMOVE_HANDLE]", handle, handle->cp);
     return curl_multi_remove_handle(multi_handle_, handle->cp);
