@@ -79,6 +79,8 @@ if (!getenv('SWOOLE_TEST_NO_DOCKER')) {
     }
 }
 
+define('SWOOLE_TEST_ECHO', empty(getenv('SWOOLE_TEST_NO_ECHO')));
+
 /** ============== HttpBin ============== */
 if (IS_IN_CI) {
     define('HTTPBIN_SERVER_HOST', 'httpbin');

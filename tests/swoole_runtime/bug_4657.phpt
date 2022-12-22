@@ -7,7 +7,6 @@ require __DIR__ . '/../include/skipif.inc';
 --FILE--
 <?php
 use Socket as BaseSocket;
-use Swoole\Coroutine\Socket;
 use function Swoole\Coroutine\run;
 
 $socket = socket_create(AF_INET, SOCK_STREAM, 0);

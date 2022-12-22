@@ -38,11 +38,13 @@ $cm->run(function ($host) {
     curl_multi_remove_handle($mh, $ch3);
     curl_multi_close($mh);
 });
+echo PHP_EOL;
 ?>
 ===DONE===
 --EXPECT--
 bool(true)
-АБВ.txt|application/octet-stream|5АБВ.txt|application/octet-stream|5===DONE===
+АБВ.txt|application/octet-stream|5АБВ.txt|application/octet-stream|5
+===DONE===
 --CLEAN--
 <?php
 @unlink(__DIR__ . '/АБВ.txt');
