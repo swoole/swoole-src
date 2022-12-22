@@ -148,10 +148,18 @@ function array_random(array $array)
 
 function phpt_echo(...$args)
 {
+    if (!SWOOLE_TEST_ECHO) {
+        return;
+    }
     global $argv;
     if (substr($argv[0], -5) === '.phpt') {
         foreach ($args as $arg) {
-            echo $arg;
+            if (!is_string($arg)) {
+                var_export($arg);
+                echo PHP_EOL;
+            } else {
+                echo $arg;
+            }
         }
     }
 }
