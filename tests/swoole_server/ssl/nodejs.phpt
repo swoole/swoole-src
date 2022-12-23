@@ -12,7 +12,7 @@ $pm = new SwooleTest\ProcessManager;
 
 $pm->parentFunc = function ($pid) use ($pm) {
     Co\run(function () use ($pm) {
-        $result = Co::exec('node '.__DIR__.'/code/connect.js '.$pm->getFreePort());
+        $result = Co::exec('node '.__DIR__.'/code/client.js '.$pm->getFreePort());
         Assert::eq($result['code'], 0);
         Assert::contains($result['output'], 'swoole-http-server');
     });

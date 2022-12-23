@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
  */
 
-/* $Id: 33dd2054173c9109f327ffa2eaf50310c397d92d */
+/* $Id: 70a8531dc7f61e3519e7c115357b01d585acc3f9 */
 
 #ifndef SWOOLE_LIBRARY_H
 #define SWOOLE_LIBRARY_H
@@ -8550,6 +8550,12 @@ static const char* swoole_library_source_core_server_helper =
     "        'socket_recv_timeout' => true,\n"
     "        'socket_buffer_size' => true,\n"
     "        'socket_timeout' => true,\n"
+    "        'http2_header_table_size' => true,\n"
+    "        'http2_enable_push' => true,\n"
+    "        'http2_max_concurrent_streams' => true,\n"
+    "        'http2_init_window_size' => true,\n"
+    "        'http2_max_frame_size' => true,\n"
+    "        'http2_max_header_list_size' => true,\n"
     "    ];\n"
     "\n"
     "    public const SERVER_OPTIONS = [\n"
