@@ -301,22 +301,22 @@ void php_swoole_set_global_option(HashTable *vht) {
     // [HTTP2]
     // ======================================================================
     if (php_swoole_array_get_value(vht, "http2_header_table_size", ztmp)) {
-        swoole::http2::put_setting(SW_HTTP2_SETTING_HEADER_TABLE_SIZE, zval_get_long(ztmp));
+        swoole::http2::put_default_setting(SW_HTTP2_SETTING_HEADER_TABLE_SIZE, zval_get_long(ztmp));
     }
     if (php_swoole_array_get_value(vht, "http2_enable_push", ztmp)) {
-        swoole::http2::put_setting(SW_HTTP2_SETTINGS_ENABLE_PUSH, zval_get_long(ztmp));
+        swoole::http2::put_default_setting(SW_HTTP2_SETTINGS_ENABLE_PUSH, zval_get_long(ztmp));
     }
     if (php_swoole_array_get_value(vht, "http2_max_concurrent_streams", ztmp)) {
-        swoole::http2::put_setting(SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS, zval_get_long(ztmp));
+        swoole::http2::put_default_setting(SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS, zval_get_long(ztmp));
     }
     if (php_swoole_array_get_value(vht, "http2_init_window_size", ztmp)) {
-        swoole::http2::put_setting(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE, zval_get_long(ztmp));
+        swoole::http2::put_default_setting(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE, zval_get_long(ztmp));
     }
     if (php_swoole_array_get_value(vht, "http2_max_frame_size", ztmp)) {
-        swoole::http2::put_setting(SW_HTTP2_SETTINGS_MAX_FRAME_SIZE, zval_get_long(ztmp));
+        swoole::http2::put_default_setting(SW_HTTP2_SETTINGS_MAX_FRAME_SIZE, zval_get_long(ztmp));
     }
     if (php_swoole_array_get_value(vht, "http2_max_header_list_size", ztmp)) {
-        swoole::http2::put_setting(SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE, zval_get_long(ztmp));
+        swoole::http2::put_default_setting(SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE, zval_get_long(ztmp));
     }
 }
 

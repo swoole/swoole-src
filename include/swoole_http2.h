@@ -109,7 +109,7 @@ struct Settings {
     uint32_t header_table_size;
     uint32_t enable_push;
     uint32_t max_concurrent_streams;
-    uint32_t init_window_size;
+    uint32_t window_size;
     uint32_t max_frame_size;
     uint32_t max_header_list_size;
 };
@@ -138,8 +138,8 @@ static sw_inline ssize_t get_length(const char *buf) {
     return (((uint8_t) buf[0]) << 16) + (((uint8_t) buf[1]) << 8) + (uint8_t) buf[2];
 }
 
-void put_setting(enum swHttp2SettingId id, int value);
-uint32_t get_setting(enum swHttp2SettingId id);
+void put_default_setting(enum swHttp2SettingId id, int value);
+uint32_t get_default_setting(enum swHttp2SettingId id);
 void pack_setting_frame(char *p, const Settings &settings);
 ssize_t get_frame_length(const Protocol *protocol, network::Socket *conn, PacketLength *pl);
 int send_setting_frame(Protocol *protocol, network::Socket *conn);
@@ -147,12 +147,12 @@ const char *get_type(int type);
 int get_type_color(int type);
 
 static sw_inline void init_settings(Settings *settings) {
-    settings->header_table_size = get_setting(SW_HTTP2_SETTING_HEADER_TABLE_SIZE);
-    settings->enable_push = get_setting(SW_HTTP2_SETTINGS_ENABLE_PUSH);
-    settings->max_concurrent_streams = get_setting(SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS);
-    settings->init_window_size = get_setting(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE);
-    settings->max_frame_size = get_setting(SW_HTTP2_SETTINGS_MAX_FRAME_SIZE);
-    settings->max_header_list_size = get_setting(SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE);
+    settings->header_table_size = get_default_setting(SW_HTTP2_SETTING_HEADER_TABLE_SIZE);
+    settings->enable_push = get_default_setting(SW_HTTP2_SETTINGS_ENABLE_PUSH);
+    settings->max_concurrent_streams = get_default_setting(SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS);
+    settings->window_size = get_default_setting(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE);
+    settings->max_frame_size = get_default_setting(SW_HTTP2_SETTINGS_MAX_FRAME_SIZE);
+    settings->max_header_list_size = get_default_setting(SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE);
 }
 
 static inline const std::string get_flag_string(int __flags) {

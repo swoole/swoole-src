@@ -32,7 +32,7 @@ static Settings default_settings = {
     SW_HTTP2_DEFAULT_HEADER_TABLE_SIZE,
     SW_HTTP2_DEFAULT_ENABLE_PUSH,
     SW_HTTP2_DEFAULT_MAX_CONCURRENT_STREAMS,
-    SW_HTTP2_DEFAULT_INIT_WINDOW_SIZE,
+    SW_HTTP2_DEFAULT_WINDOW_SIZE,
     SW_HTTP2_DEFAULT_MAX_FRAME_SIZE,
     SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE,
 };
@@ -49,7 +49,7 @@ void put_setting(enum swHttp2SettingId id, uint32_t value) {
         default_settings.max_concurrent_streams = value;
         break;
     case SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE:
-        default_settings.init_window_size = value;
+        default_settings.window_size = value;
         break;
     case SW_HTTP2_SETTINGS_MAX_FRAME_SIZE:
         default_settings.max_frame_size = value;
@@ -63,7 +63,7 @@ void put_setting(enum swHttp2SettingId id, uint32_t value) {
     }
 }
 
-uint32_t get_setting(enum swHttp2SettingId id) {
+uint32_t get_default_setting(enum swHttp2SettingId id) {
     switch (id) {
     case SW_HTTP2_SETTING_HEADER_TABLE_SIZE:
         return default_settings.header_table_size;
@@ -72,7 +72,7 @@ uint32_t get_setting(enum swHttp2SettingId id) {
     case SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS:
         return default_settings.max_concurrent_streams;
     case SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE:
-        return default_settings.init_window_size;
+        return default_settings.window_size;
     case SW_HTTP2_SETTINGS_MAX_FRAME_SIZE:
         return default_settings.max_frame_size;
     case SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE:
@@ -109,7 +109,7 @@ void pack_setting_frame(char *p, const Settings &settings) {
 
     id = htons(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE);
     memcpy(p, &id, sizeof(id));
-    value = htonl(default_settings.init_window_size);
+    value = htonl(default_settings.window_size);
     memcpy(p + 2, &value, sizeof(value));
     p += SW_HTTP2_SETTING_OPTION_SIZE;
 
