@@ -853,7 +853,7 @@ bool Client::send_setting() {
     char frame[SW_HTTP2_SETTING_FRAME_SIZE];
     swoole::http2::pack_setting_frame(frame, local_settings);
     swoole_trace_log(SW_TRACE_HTTP2, "[" SW_ECHO_GREEN "]\t[length=%d]", Http2::get_type(SW_HTTP2_TYPE_SETTINGS), 18);
-    return send(frame, sizeof(frame));
+    return send(frame, SW_HTTP2_SETTING_FRAME_SIZE);
 }
 
 void http_parse_set_cookies(const char *at, size_t length, zval *zcookies, zval *zset_cookie_headers);

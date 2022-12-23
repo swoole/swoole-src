@@ -86,7 +86,7 @@ uint32_t get_default_setting(enum swHttp2SettingId id) {
 void pack_setting_frame(char *p, const Settings &settings) {
     uint16_t id;
     uint32_t value;
-    set_frame_header(p, SW_HTTP2_TYPE_SETTINGS, SW_HTTP2_SETTING_FRAME_SIZE, 0, 0);
+    set_frame_header(p, SW_HTTP2_TYPE_SETTINGS, SW_HTTP2_SETTING_FRAME_SIZE - SW_HTTP2_FRAME_HEADER_SIZE, 0, 0);
     p += SW_HTTP2_FRAME_HEADER_SIZE;
 
     id = htons(SW_HTTP2_SETTING_HEADER_TABLE_SIZE);
@@ -127,7 +127,7 @@ void pack_setting_frame(char *p, const Settings &settings) {
 int send_setting_frame(Protocol *protocol, Socket *_socket) {
     char setting_frame[SW_HTTP2_SETTING_FRAME_SIZE];
     pack_setting_frame(setting_frame, default_settings);
-    return _socket->send(setting_frame, sizeof(setting_frame), 0);
+    return _socket->send(setting_frame, SW_HTTP2_SETTING_FRAME_SIZE, 0);
 }
 
 /**
