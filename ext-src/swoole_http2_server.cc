@@ -134,8 +134,8 @@ static ssize_t http2_server_build_trailer(HttpContext *ctx, uchar *buffer) {
             client->deflater = deflater;
         }
 
-#if 0
         buflen = nghttp2_hd_deflate_bound(deflater, trailer.get(), trailer.len());
+#if 0
         if (buflen > SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE) {
             php_swoole_error(E_WARNING,
                              "header cannot bigger than remote max_header_list_size %u",
