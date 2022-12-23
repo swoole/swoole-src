@@ -138,7 +138,7 @@ static sw_inline ssize_t get_length(const char *buf) {
     return (((uint8_t) buf[0]) << 16) + (((uint8_t) buf[1]) << 8) + (uint8_t) buf[2];
 }
 
-void put_default_setting(enum swHttp2SettingId id, int value);
+void put_default_setting(enum swHttp2SettingId id, uint32_t value);
 uint32_t get_default_setting(enum swHttp2SettingId id);
 void pack_setting_frame(char *p, const Settings &settings);
 ssize_t get_frame_length(const Protocol *protocol, network::Socket *conn, PacketLength *pl);
