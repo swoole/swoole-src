@@ -1133,16 +1133,12 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
         if (length > 0) {
             if (client->local_window_size < (client->local_settings.init_window_size / 4)) {
                 http2_server_send_window_update(
-                    ctx,
-                    0,
-                    client->local_settings.init_window_size - client->local_window_size);
+                    ctx, 0, client->local_settings.init_window_size - client->local_window_size);
                 client->local_window_size = client->local_settings.init_window_size;
             }
             if (stream->local_window_size < (client->local_settings.init_window_size / 4)) {
                 http2_server_send_window_update(
-                    ctx,
-                    stream_id,
-                    client->local_settings.init_window_size - stream->local_window_size);
+                    ctx, stream_id, client->local_settings.init_window_size - stream->local_window_size);
                 stream->local_window_size = client->local_settings.init_window_size;
             }
         }
