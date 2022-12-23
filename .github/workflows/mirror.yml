@@ -4,7 +4,7 @@ on: [ push, delete, create ]
 
 jobs:
   gitee:
-    if: github.repository_owner == 'swoole'
+    if: "github.repository_owner == 'swoole' && !contains(github.event.head_commit.message, '[test]')"
     runs-on: ubuntu-latest
     steps:
       - name: Configure Private Key
