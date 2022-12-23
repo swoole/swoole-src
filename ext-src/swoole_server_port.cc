@@ -185,7 +185,7 @@ void php_swoole_server_port_minit(int module_number) {
 }
 
 /**
- * [Master-Process]
+ * [Master/Worker]
  */
 static ssize_t php_swoole_server_length_func(const Protocol *protocol, network::Socket *conn, PacketLength *pl) {
     Server *serv = (Server *) protocol->private_data_2;

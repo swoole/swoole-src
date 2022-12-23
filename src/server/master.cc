@@ -1787,28 +1787,6 @@ ListenPort *Server::add_port(SocketType type, const char *host, int port) {
     return ls;
 }
 
-bool Server::reload(bool reload_all_workers) {
-    if (gs->manager_pid == 0) {
-        return false;
-    }
-
-    if (getpid() != gs->manager_pid) {
-        return swoole_kill(get_manager_pid(), reload_all_workers ? SIGUSR1 : SIGUSR2) != 0;
-    }
-
-    ProcessPool *pool = &gs->event_workers;
-    if (!pool->reload()) {
-        return false;
-    }
-
-    if (reload_all_workers) {
-        manager->reload_all_worker = true;
-    } else {
-        manager->reload_task_worker = true;
-    }
-    return true;
-}
-
 static void Server_signal_handler(int sig) {
     swoole_trace_log(SW_TRACE_SERVER, "signal[%d] %s triggered in %d", sig, swoole_signal_to_str(sig), getpid());
 

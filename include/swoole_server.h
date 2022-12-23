@@ -51,24 +51,7 @@ struct Request;
 }
 
 class Server;
-
-struct Manager {
-    bool reload_all_worker;
-    bool reload_task_worker;
-    bool force_kill;
-    uint32_t reload_worker_num;
-    pid_t reload_worker_pid;
-    Server *server_;
-
-    std::vector<pid_t> kill_workers;
-
-    void wait(Server *_server);
-    void add_timeout_killer(Worker *workers, int n);
-
-    static void signal_handler(int sig);
-    static void timer_callback(Timer *timer, TimerNode *tnode);
-    static void kill_timeout_process(Timer *timer, TimerNode *tnode);
-};
+struct Manager;
 
 struct Session {
     SessionId id;

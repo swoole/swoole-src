@@ -30,6 +30,24 @@ namespace swoole {
 
 using ReloadWorkerList = std::unordered_map<uint32_t, pid_t>;
 
+struct Manager {
+    bool reload_all_worker;
+    bool reload_task_worker;
+    bool force_kill;
+    uint32_t reload_worker_num;
+    pid_t reload_worker_pid;
+    Server *server_;
+
+    std::vector<pid_t> kill_workers;
+
+    void wait(Server *_server);
+    void add_timeout_killer(Worker *workers, int n);
+
+    static void signal_handler(int sig);
+    static void timer_callback(Timer *timer, TimerNode *tnode);
+    static void kill_timeout_process(Timer *timer, TimerNode *tnode);
+};
+
 void Manager::timer_callback(Timer *timer, TimerNode *tnode) {
     Server *serv = (Server *) tnode->data;
     if (serv->isset_hook(Server::HOOK_MANAGER_TIMER)) {
@@ -629,6 +647,28 @@ pid_t Server::spawn_user_worker(Worker *worker) {
 
 pid_t Server::spawn_task_worker(Worker *worker) {
     return gs->task_workers.spawn(worker);
+}
+
+bool Server::reload(bool reload_all_workers) {
+    if (gs->manager_pid == 0) {
+        return false;
+    }
+
+    if (getpid() != gs->manager_pid) {
+        return swoole_kill(get_manager_pid(), reload_all_workers ? SIGUSR1 : SIGUSR2) != 0;
+    }
+
+    ProcessPool *pool = &gs->event_workers;
+    if (!pool->reload()) {
+        return false;
+    }
+
+    if (reload_all_workers) {
+        manager->reload_all_worker = true;
+    } else {
+        manager->reload_task_worker = true;
+    }
+    return true;
 }
 
 }  // namespace swoole
