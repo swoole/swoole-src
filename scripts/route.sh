@@ -83,8 +83,9 @@ remove_docker_containers(){
 run_tests_in_docker(){
     docker exec swoole touch /.cienv && \
     docker exec swoole /swoole-src/scripts/docker-route.sh
-    if [ $? -ne 0 ]; then
-        echo "\n❌ Run tests failed!"
+    code=$?
+    if [ $code -ne 0 ]; then
+        echo "\n❌ Run tests failed! ExitCode: $code"
         exit 1
     fi
 }

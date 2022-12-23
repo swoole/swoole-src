@@ -91,6 +91,7 @@ jobs:
           composer test-swoole
 
   macos:
+    if: "!contains(github.event.head_commit.message, '[test]')"
     runs-on: macos-latest
     strategy:
       fail-fast: false

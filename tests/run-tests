@@ -156,7 +156,7 @@ function main()
     // Parallel testing
     global $workers, $workerID;
 
-    define('IS_WINDOWS', substr(PHP_OS, 0, 3) == "WIN");
+    define('IS_WINDOWS', str_starts_with(PHP_OS, "WIN"));
 
     $workerID = 0;
     if (getenv("TEST_PHP_WORKER")) {
@@ -1578,7 +1578,7 @@ function run_all_tests_parallel($test_files, $env, $redir_tested) {
                         $rawMessage = $rawMessageBuffers[$i] . $rawMessage;
                         $rawMessageBuffers[$i] = '';
                     }
-                    if (substr($rawMessage, -1) !== "\n") {
+                    if (!str_ends_with($rawMessage, "\n")) {
                         $rawMessageBuffers[$i] = $rawMessage;
                         continue;
                     }
