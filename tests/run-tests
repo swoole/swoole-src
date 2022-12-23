@@ -183,7 +183,7 @@ function main()
 +-----------------------------------------------------------+
 
 NO_PROC_OPEN_ERROR;
-        exit(1);
+        exit(200);
     }
 
     // If timezone is not set, use UTC.
@@ -643,7 +643,7 @@ NO_PROC_OPEN_ERROR;
                     break;
                 case '--version':
                     echo '$Id: ebcaabba02a5af6f5dc62dda027befb95385d5fc $' . "\n";
-                    exit(1);
+                    exit(2);
 
                 default:
                     echo "Illegal switch '$switch' specified!\n";
@@ -651,7 +651,7 @@ NO_PROC_OPEN_ERROR;
                 case '-help':
                 case '--help':
                     show_usage();
-                    exit(1);
+                    exit(2);
             }
         }
 
@@ -757,7 +757,7 @@ NO_PROC_OPEN_ERROR;
 
         if (getenv('REPORT_EXIT_STATUS') !== '0' &&
             getenv('REPORT_EXIT_STATUS') !== 'no' && ($sum_results['FAILED'] || $sum_results['BORKED'] || $sum_results['LEAKED'])) {
-            exit(1);
+            exit(201);
         }
 
         return;
@@ -834,7 +834,7 @@ NO_PROC_OPEN_ERROR;
     junit_save_xml();
     if (getenv('REPORT_EXIT_STATUS') !== '0' &&
         getenv('REPORT_EXIT_STATUS') !== 'no' && ($sum_results['FAILED'] || $sum_results['LEAKED'])) {
-        exit(1);
+        exit(202);
     }
     exit(0);
 }
@@ -3005,7 +3005,7 @@ function generate_diff($wanted, $wanted_re, $output)
 function error($message)
 {
     echo "ERROR: {$message}\n";
-    exit(1);
+    exit(240);
 }
 
 function settings2array($settings, &$ini_settings)
