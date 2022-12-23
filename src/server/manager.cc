@@ -564,7 +564,7 @@ void Server::kill_user_workers() {
 }
 
 /**
- * kill and wait all child process
+ * [Manager] kill and wait all event worker process
  */
 void Server::kill_event_workers() {
     int status;
@@ -574,10 +574,11 @@ void Server::kill_event_workers() {
     }
 
     SW_LOOP_N(worker_num) {
-        swoole_trace("[Manager]kill worker processor");
+        swoole_trace("kill worker#%d[pid=%d]", workers[i].id, workers[i].pid);
         swoole_kill(workers[i].pid, SIGTERM);
     }
     SW_LOOP_N(worker_num) {
+        swoole_trace("wait worker#%d[pid=%d]", workers[i].id, workers[i].pid);
         if (swoole_waitpid(workers[i].pid, &status, 0) < 0) {
             swoole_sys_warning("waitpid(%d) failed", workers[i].pid);
         }
@@ -585,7 +586,7 @@ void Server::kill_event_workers() {
 }
 
 /**
- * kill and wait task process
+ * [Manager] kill and wait task worker process
  */
 void Server::kill_task_workers() {
     if (task_worker_num == 0) {
