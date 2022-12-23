@@ -156,7 +156,7 @@ function main()
     // Parallel testing
     global $workers, $workerID;
 
-    define('IS_WINDOWS', substr(PHP_OS, 0, 3) == "WIN");
+    define('IS_WINDOWS', str_starts_with(PHP_OS, "WIN"));
 
     $workerID = 0;
     if (getenv("TEST_PHP_WORKER")) {
@@ -183,7 +183,7 @@ function main()
 +-----------------------------------------------------------+
 
 NO_PROC_OPEN_ERROR;
-        exit(1);
+        exit(200);
     }
 
     // If timezone is not set, use UTC.
@@ -643,7 +643,7 @@ NO_PROC_OPEN_ERROR;
                     break;
                 case '--version':
                     echo '$Id: ebcaabba02a5af6f5dc62dda027befb95385d5fc $' . "\n";
-                    exit(1);
+                    exit(2);
 
                 default:
                     echo "Illegal switch '$switch' specified!\n";
@@ -651,7 +651,7 @@ NO_PROC_OPEN_ERROR;
                 case '-help':
                 case '--help':
                     show_usage();
-                    exit(1);
+                    exit(2);
             }
         }
 
@@ -757,7 +757,7 @@ NO_PROC_OPEN_ERROR;
 
         if (getenv('REPORT_EXIT_STATUS') !== '0' &&
             getenv('REPORT_EXIT_STATUS') !== 'no' && ($sum_results['FAILED'] || $sum_results['BORKED'] || $sum_results['LEAKED'])) {
-            exit(1);
+            exit(201);
         }
 
         return;
@@ -834,7 +834,7 @@ NO_PROC_OPEN_ERROR;
     junit_save_xml();
     if (getenv('REPORT_EXIT_STATUS') !== '0' &&
         getenv('REPORT_EXIT_STATUS') !== 'no' && ($sum_results['FAILED'] || $sum_results['LEAKED'])) {
-        exit(1);
+        exit(202);
     }
     exit(0);
 }
@@ -1578,7 +1578,7 @@ function run_all_tests_parallel($test_files, $env, $redir_tested) {
                         $rawMessage = $rawMessageBuffers[$i] . $rawMessage;
                         $rawMessageBuffers[$i] = '';
                     }
-                    if (substr($rawMessage, -1) !== "\n") {
+                    if (!str_ends_with($rawMessage, "\n")) {
                         $rawMessageBuffers[$i] = $rawMessage;
                         continue;
                     }
@@ -3005,7 +3005,7 @@ function generate_diff($wanted, $wanted_re, $output)
 function error($message)
 {
     echo "ERROR: {$message}\n";
-    exit(1);
+    exit(240);
 }
 
 function settings2array($settings, &$ini_settings)
@@ -3336,7 +3336,6 @@ function show_test($test_idx, $shortname)
     $str = "TEST $test_idx/$test_cnt [$shortname]";
     $line_length = strlen($str);
     echo $str;
-
     flush();
 }
 
@@ -3382,7 +3381,7 @@ function show_result($result, $tested, $tested_file, $extra = '', $temp_filename
     $result = "\033[3{$color}m[$result]\033[0m";
 
     if (!$SHOW_ONLY_GROUPS || in_array($result, $SHOW_ONLY_GROUPS)) {
-        echo "$result $tested $extra\n";
+        echo "$result $tested [$tested_file] $extra\n";
     } else if (!$SHOW_ONLY_GROUPS) {
         clear_show_test();
     }

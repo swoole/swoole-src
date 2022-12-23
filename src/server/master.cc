@@ -449,6 +449,8 @@ int Server::start_master_thread() {
     SW_START_SLEEP;
 #endif
 
+    gs->master_pid = getpid();
+
     if (isset_hook(HOOK_MASTER_START)) {
         call_hook(HOOK_MASTER_START, this);
     }
@@ -520,7 +522,6 @@ int Server::create_task_workers() {
  * @description:
  *  only the memory of the Worker structure is allocated, no process is fork.
  *  called when the manager process start.
- * @param Server
  * @return: SW_OK|SW_ERR
  */
 int Server::create_user_workers() {
@@ -529,6 +530,14 @@ int Server::create_user_workers() {
         swoole_sys_warning("gmalloc[server->user_workers] failed");
         return SW_ERR;
     }
+
+    int i = 0;
+    for (auto worker : user_worker_list) {
+        memcpy(&user_workers[i], worker, sizeof(user_workers[i]));
+        create_worker(worker);
+        i++;
+    }
+
     return SW_OK;
 }
 
@@ -537,6 +546,9 @@ int Server::create_user_workers() {
  */
 void Server::create_worker(Worker *worker) {
     worker->lock = new Mutex(Mutex::PROCESS_SHARED);
+    if (worker->pipe_object) {
+        store_pipe_fd(worker->pipe_object);
+    }
 }
 
 void Server::destroy_worker(Worker *worker) {
@@ -629,8 +641,6 @@ int Server::start() {
         }
     }
 
-    // master pid
-    gs->master_pid = getpid();
     gs->start_time = ::time(nullptr);
 
     /**
@@ -721,23 +731,12 @@ Server::Server(enum Mode _mode) {
     compression_min_length = SW_COMPRESSION_MIN_LENGTH_DEFAULT;
 #endif
 
-#ifdef __linux__
-    timezone_ = timezone;
-#else
-    struct timezone tz;
-    struct timeval tv;
-    gettimeofday(&tv, &tz);
-    timezone_ = tz.tz_minuteswest * 60;
-#endif
+    timezone_ = get_timezone();
 
-    /**
-     * alloc shared memory
-     */
     gs = (ServerGS *) sw_shm_malloc(sizeof(ServerGS));
     if (gs == nullptr) {
         swoole_error("[Master] Fatal Error: failed to allocate memory for Server->gs");
     }
-
     gs->pipe_packet_msg_id = 1;
     gs->max_concurrency = UINT_MAX;
 
@@ -877,19 +876,31 @@ void Server::clear_timer() {
     }
 }
 
-void Server::shutdown() {
-    swoole_trace_log(SW_TRACE_SERVER, "shutdown service");
-    if (getpid() != gs->master_pid) {
-        kill(gs->master_pid, SIGTERM);
-        return;
+bool Server::shutdown() {
+    swoole_trace_log(SW_TRACE_SERVER, "shutdown begin");
+    if (is_base_mode()) {
+        if (gs->manager_pid > 0) {
+            if (getpid() == gs->manager_pid) {
+                running = false;
+                return true;
+            } else {
+                return swoole_kill(gs->manager_pid, SIGTERM) == 0;
+            }
+        } else {
+            gs->event_workers.running = 0;
+            stop_async_worker(SwooleWG.worker);
+            return true;
+        }
     }
-    if (is_process_mode()) {
-        if (swoole_isset_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN)) {
-            swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN, this);
-        }
-        if (onBeforeShutdown) {
-            onBeforeShutdown(this);
-        }
+
+    if (getpid() != gs->master_pid) {
+        return swoole_kill(gs->master_pid, SIGTERM) == 0;
+    }
+    if (swoole_isset_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN)) {
+        swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN, this);
+    }
+    if (onBeforeShutdown) {
+        onBeforeShutdown(this);
     }
     running = false;
     // stop all thread
@@ -922,11 +933,8 @@ void Server::shutdown() {
         }
     }
 
-    if (is_base_mode()) {
-        gs->event_workers.running = 0;
-    }
-
-    swoole_info("Server is shutdown now");
+    swoole_trace_log(SW_TRACE_SERVER, "shutdown end");
+    return true;
 }
 
 void Server::destroy() {
@@ -934,14 +942,17 @@ void Server::destroy() {
     if (swoole_isset_hook(SW_GLOBAL_HOOK_AFTER_SERVER_SHUTDOWN)) {
         swoole_call_hook(SW_GLOBAL_HOOK_AFTER_SERVER_SHUTDOWN, this);
     }
-    /**
-     * shutdown workers
-     */
+
     factory->shutdown();
+
+    SW_LOOP_N(worker_num) {
+        Worker *worker = &workers[i];
+        destroy_worker(worker);
+    }
+
     if (is_base_mode()) {
         swoole_trace_log(SW_TRACE_SERVER, "terminate task workers");
         if (task_worker_num > 0) {
-            gs->task_workers.shutdown();
             gs->task_workers.destroy();
         }
     } else {
@@ -1476,7 +1487,7 @@ bool Server::sendfile(SessionId session_id, const char *file, uint32_t l_file, o
                          "sendfile name[%.8s...] length %u is exceed the max name len %u",
                          file,
                          l_file,
-                         (uint32_t) (SW_IPC_BUFFER_SIZE - sizeof(SendfileTask) - 1));
+                         (uint32_t)(SW_IPC_BUFFER_SIZE - sizeof(SendfileTask) - 1));
         return false;
     }
     // string must be zero termination (for `state` system call)
@@ -1730,7 +1741,7 @@ ListenPort *Server::add_port(SocketType type, const char *host, int port) {
 
 #ifdef SW_USE_OPENSSL
     if (type & SW_SOCK_SSL) {
-        type = (SocketType) (type & (~SW_SOCK_SSL));
+        type = (SocketType)(type & (~SW_SOCK_SSL));
         ls->type = type;
         ls->ssl = 1;
         ls->ssl_context = new SSLContext();
@@ -1804,25 +1815,12 @@ static void Server_signal_handler(int sig) {
                            swoole_signal_to_str(WTERMSIG(status)));
         }
         break;
-        /**
-         * for test
-         */
     case SIGVTALRM:
         swoole_warning("SIGVTALRM coming");
         break;
-        /**
-         * proxy the restart signal
-         */
     case SIGUSR1:
     case SIGUSR2:
-        if (serv->is_base_mode()) {
-            if (!serv->gs->event_workers.reload()) {
-                break;
-            }
-            serv->gs->event_workers.reload_init = false;
-        } else {
-            swoole_kill(serv->gs->manager_pid, sig);
-        }
+        serv->reload(sig == SIGUSR1);
         sw_logger()->reopen();
         break;
     case SIGIO:

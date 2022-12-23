@@ -27,6 +27,7 @@
 #endif
 
 BEGIN_EXTERN_C()
+#include "ext/json/php_json.h"
 #include "stubs/php_swoole_server_arginfo.h"
 END_EXTERN_C()
 
@@ -2838,15 +2839,18 @@ static PHP_METHOD(swoole_server, reload) {
         php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }
-
+    if (serv->get_manager_pid() == 0) {
+        php_swoole_fatal_error(E_WARNING, "not supported with single process mode");
+        RETURN_FALSE;
+    }
     zend_bool only_reload_taskworker = 0;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|b", &only_reload_taskworker) == FAILURE) {
         RETURN_FALSE;
     }
 
-    int sig = only_reload_taskworker ? SIGUSR2 : SIGUSR1;
-    if (swoole_kill(serv->gs->manager_pid, sig) < 0) {
+    int signo = only_reload_taskworker ? SIGUSR2 : SIGUSR1;
+    if (swoole_kill(serv->gs->manager_pid, signo) < 0) {
         php_swoole_sys_error(E_WARNING, "failed to send the reload signal");
         RETURN_FALSE;
     }
@@ -3298,28 +3302,18 @@ static PHP_METHOD(swoole_server, command) {
     Z_PARAM_BOOL(json_decode)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    std::string msg;
-
-    auto result = zend::function::call("json_encode", 1, zdata);
-    if (!ZVAL_IS_STRING(&result.value)) {
+    smart_str buf = {};
+    if (php_json_encode(&buf, zdata, 0) == FAILURE || !buf.s) {
         RETURN_FALSE;
     }
-    msg.append(Z_STRVAL(result.value), Z_STRLEN(result.value));
 
     auto co = Coroutine::get_current_safe();
     bool donot_yield = false;
     Server::Command::Callback fn = [co, return_value, json_decode, &donot_yield](Server *serv, const std::string &msg) {
         if (json_decode) {
-            zval argv[2];
-            ZVAL_STRINGL(&argv[0], msg.c_str(), msg.length());
-            ZVAL_BOOL(&argv[1], true);
-            auto result = zend::function::call("json_decode", 2, argv);
-            if (!zend_is_true(&result.value)) {
-                RETURN_FALSE;
-            } else {
-                ZVAL_DUP(return_value, &result.value);
+            if (php_json_decode(return_value, msg.c_str(), (int) msg.length(), true, 0) == FAILURE) {
+                RETVAL_FALSE;
             }
-            zval_dtor(&argv[0]);
         } else {
             ZVAL_STRINGL(return_value, msg.c_str(), msg.length());
         }
@@ -3331,10 +3325,15 @@ static PHP_METHOD(swoole_server, command) {
         }
     };
 
-    if (!serv->command(
-            (uint16_t) process_id, (Server::Command::ProcessType) process_type, std::string(name, l_name), msg, fn)) {
+    if (!serv->command((uint16_t) process_id,
+                       (Server::Command::ProcessType) process_type,
+                       std::string(name, l_name),
+                       std::string(ZSTR_VAL(buf.s), ZSTR_LEN(buf.s)),
+                       fn)) {
+        smart_str_free(&buf);
         RETURN_FALSE;
     }
+    smart_str_free(&buf);
     if (!donot_yield) {
         co->yield();
     }
@@ -3773,8 +3772,15 @@ static PHP_METHOD(swoole_server, shutdown) {
         RETURN_FALSE;
     }
 
-    if (swoole_kill(serv->gs->master_pid, SIGTERM) < 0) {
-        php_swoole_sys_error(E_WARNING, "failed to shutdown, kill(%d, SIGTERM) failed", serv->gs->master_pid);
+    pid_t pid;
+    if (serv->is_base_mode()) {
+        pid = serv->get_manager_pid() == 0 ? serv->get_master_pid() : serv->get_manager_pid();
+    } else {
+        pid = serv->get_master_pid();
+    }
+
+    if (swoole_kill(pid, SIGTERM) < 0) {
+        php_swoole_sys_error(E_WARNING, "failed to shutdown, kill(%d, SIGTERM) failed", pid);
         RETURN_FALSE;
     } else {
         RETURN_TRUE;

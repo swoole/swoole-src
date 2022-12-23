@@ -280,7 +280,7 @@ struct ProcessPool {
     int response(const char *data, int length);
     int dispatch_blocking(EventData *data, int *dst_worker_id);
     int dispatch_blocking(const char *data, uint32_t len);
-    int add_worker(Worker *worker);
+    void add_worker(Worker *worker);
     int del_worker(Worker *worker);
     void destroy();
     int create(uint32_t worker_num, key_t msgqueue_key = 0, swIPCMode ipc_mode = SW_IPC_NONE);

@@ -40,6 +40,5 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-[%s]	INFO	Server is shutdown now
 [%s]	WARNING	%s (ERRNO 9101): worker exit timeout, forced termination
 OK

@@ -270,15 +270,15 @@ TEST(server, kill_user_workers) {
 
     serv.onUserWorkerStart = [&](Server *serv, Worker *worker) { EXPECT_GT(worker->id, 0); };
 
-    serv.onTask = [](swServer *serv, swEventData *task) -> int {
+    serv.onTask = [](Server *serv, EventData *task) -> int {
         while (1) {
         }
     };
 
-    serv.onWorkerStart = [&](swServer *serv, int worker_id) {
+    serv.onWorkerStart = [&](Server *serv, int worker_id) {
         if (worker_id == 1) {
-            sleep(3);
-            kill(serv->gs->master_pid, SIGTERM);
+            sleep(1);
+            kill(serv->get_manager_pid(), SIGTERM);
         }
     };
 
@@ -309,7 +309,7 @@ TEST(server, kill_user_workers1) {
 
     serv.onWorkerStart = [&](swServer *serv, int worker_id) {
         if (worker_id == 1) {
-            sleep(3);
+            sleep(1);
             kill(serv->gs->master_pid, SIGTERM);
         }
     };

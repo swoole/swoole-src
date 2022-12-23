@@ -31,7 +31,7 @@ namespace Swoole {
         public function reload(bool $only_reload_taskworker = false): bool {}
         public function shutdown(): bool {}
         public function heartbeat(bool $ifCloseConnection = true): false|array {}
-        public function command(string $name, int $process_id, int $process_type, mixed $data, bool $json_decode = true): false|string {}
+        public function command(string $name, int $process_id, int $process_type, mixed $data, bool $json_decode = true): false|string|array {}
         public function getClientList(int $start_fd = 0, int $find_count = 10): false|array {}
         public function getClientInfo(int $fd, int $reactor_id = -1, bool $ignoreError = false): false|array {}
         public function getWorkerId(): int|false {}

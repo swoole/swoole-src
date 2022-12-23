@@ -517,6 +517,7 @@ struct ServerGS {
     int max_fd;
     int min_fd;
 
+    bool called_onStart;
     time_t start_time;
     sw_atomic_t connection_num;
     sw_atomic_t tasking_num;
@@ -1081,7 +1082,8 @@ class Server {
 
     int create();
     int start();
-    void shutdown();
+    bool reload(bool reload_all_workers);
+    bool shutdown();
 
     int add_worker(Worker *worker);
     ListenPort *add_port(SocketType type, const char *host, int port);

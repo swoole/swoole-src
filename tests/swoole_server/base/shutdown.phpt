@@ -1,10 +1,10 @@
 --TEST--
-swoole_server: shutdown in base mode
+swoole_server/base: shutdown
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
-require __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../../include/bootstrap.php';
 $pm = new SwooleTest\ProcessManager;
 $pm->initRandomData(1);
 $pm->parentFunc = function () use ($pm) {
@@ -16,7 +16,10 @@ $pm->parentFunc = function () use ($pm) {
 };
 $pm->childFunc = function () use ($pm) {
     $server = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
-    $server->set(['worker_num' => mt_rand(2, 4), 'log_file' => '/dev/null']);
+    $server->set([
+        'worker_num' => mt_rand(2, 4),
+        'log_file' => '/dev/null',
+    ]);
     $server->on('start', function () use ($pm) {
         echo "START\n";
         $pm->wakeup();

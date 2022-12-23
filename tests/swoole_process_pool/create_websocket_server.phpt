@@ -40,5 +40,4 @@ $pool->start();
 echo "DONE\n";
 ?>
 --EXPECTF--
-[%s]	INFO	Server is shutdown now
 DONE

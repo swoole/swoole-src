@@ -110,6 +110,13 @@ class OpcodeServer
                 Assert::true($r);
                 return;
 
+            case "shutdown":
+                $r = $swooleServer->shutdown();
+                assert($r !== false);
+                Assert::true($r);
+                $r = $swooleServer->send($fd, opcode_encode("return", $r));
+                return;
+
             default:
                 if (method_exists($swooleServer, $op)) {
                     $r = call_user_func_array([$swooleServer, $op], $args);
