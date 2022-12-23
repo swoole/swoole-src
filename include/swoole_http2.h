@@ -109,7 +109,7 @@ struct Settings {
     uint32_t header_table_size;
     uint32_t enable_push;
     uint32_t max_concurrent_streams;
-    uint32_t window_size;
+    uint32_t init_window_size;
     uint32_t max_frame_size;
     uint32_t max_header_list_size;
 };
@@ -150,7 +150,7 @@ static sw_inline void init_settings(Settings *settings) {
     settings->header_table_size = get_default_setting(SW_HTTP2_SETTING_HEADER_TABLE_SIZE);
     settings->enable_push = get_default_setting(SW_HTTP2_SETTINGS_ENABLE_PUSH);
     settings->max_concurrent_streams = get_default_setting(SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS);
-    settings->window_size = get_default_setting(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE);
+    settings->init_window_size = get_default_setting(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE);
     settings->max_frame_size = get_default_setting(SW_HTTP2_SETTINGS_MAX_FRAME_SIZE);
     settings->max_header_list_size = get_default_setting(SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE);
 }

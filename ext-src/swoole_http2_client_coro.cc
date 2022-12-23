@@ -86,6 +86,10 @@ class Client {
     Http2::Settings local_settings = {};
     Http2::Settings remote_settings = {};
 
+    // flow control
+    uint32_t remote_window_size = 0;
+    uint32_t local_window_size = 0;
+
     std::unordered_map<uint32_t, Stream *> streams;
     std::queue<zend_string *> send_queue;
 
@@ -100,6 +104,7 @@ class Client {
         _zobject = *__zobject;
         zobject = &_zobject;
         Http2::init_settings(&local_settings);
+        local_window_size = local_settings.init_window_size;
     }
 
     inline Stream *get_stream(uint32_t stream_id) {
@@ -428,6 +433,7 @@ bool Client::connect() {
     stream_id = 1;
     // [init]: we must set default value, server is not always send all the settings
     Http2::init_settings(&remote_settings);
+    remote_window_size = remote_settings.init_window_size;
 
     int ret = nghttp2_hd_inflate_new2(&inflater, php_nghttp2_mem());
     if (ret != 0) {
@@ -531,7 +537,7 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
                 swoole_trace_log(SW_TRACE_HTTP2, "setting: max_concurrent_streams=%u", value);
                 break;
             case SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE:
-                remote_settings.window_size = value;
+                remote_window_size = remote_settings.init_window_size = value;
                 swoole_trace_log(SW_TRACE_HTTP2, "setting: init_send_window=%u", value);
                 break;
             case SW_HTTP2_SETTINGS_MAX_FRAME_SIZE:
@@ -541,14 +547,13 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
             case SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE:
                 if (value != remote_settings.max_header_list_size) {
                     remote_settings.max_header_list_size = value;
-                    /*
+#if 0
                     int ret = nghttp2_hd_inflate_change_table_size(inflater, value);
-                    if (ret != 0)
-                    {
+                    if (ret != 0) {
                         nghttp2_error(ret, "nghttp2_hd_inflate_change_table_size() failed");
                         return SW_ERROR;
                     }
-                    */
+#endif
                 }
                 swoole_trace_log(SW_TRACE_HTTP2, "setting: max_header_list_size=%u", value);
                 break;
@@ -571,7 +576,7 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
         value = ntohl(*(uint32_t *) buf);
         swoole_http2_frame_trace_log(recv, "window_size_increment=%d", value);
         if (stream_id == 0) {
-            remote_settings.window_size += value;
+            remote_window_size += value;
         } else {
             Stream *stream = get_stream(stream_id);
             if (stream) {
@@ -672,22 +677,19 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
 
             // now we control the connection flow only (not stream)
             // our window size is unlimited, so we don't worry about subtraction overflow
-            local_settings.window_size -= length;
+            local_window_size -= length;
             stream->local_window_size -= length;
-            if (local_settings.window_size < (get_default_setting(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE) / 4)) {
-                if (!send_window_update(
-                        0, get_default_setting(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE) - local_settings.window_size)) {
+            if (local_window_size < (local_settings.init_window_size / 4)) {
+                if (!send_window_update(0, local_settings.init_window_size - local_window_size)) {
                     return SW_ERROR;
                 }
-                local_settings.window_size = get_default_setting(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE);
+                local_window_size = local_settings.init_window_size;
             }
-            if (stream->local_window_size < (get_default_setting(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE) / 4)) {
-                if (!send_window_update(
-                        stream_id,
-                        get_default_setting(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE) - stream->local_window_size)) {
+            if (stream->local_window_size < (local_settings.init_window_size / 4)) {
+                if (!send_window_update(stream_id, local_settings.init_window_size - stream->local_window_size)) {
                     return SW_ERROR;
                 }
-                stream->local_window_size = get_default_setting(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE);
+                stream->local_window_size = local_settings.init_window_size;
             }
         }
     }
@@ -1070,8 +1072,8 @@ Stream *Client::create_stream(uint32_t stream_id, uint8_t flags) {
     // init
     stream->stream_id = stream_id;
     stream->flags = flags;
-    stream->remote_window_size = get_default_setting(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE);
-    stream->local_window_size = get_default_setting(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE);
+    stream->remote_window_size = remote_settings.init_window_size;
+    stream->local_window_size = local_settings.init_window_size;
     streams.emplace(stream_id, stream);
     // create response object
     object_init_ex(&stream->zresponse, swoole_http2_response_ce);
@@ -1359,7 +1361,7 @@ static PHP_METHOD(swoole_http2_client_coro, connect) {
 static sw_inline void http2_settings_to_array(Http2::Settings *settings, zval *zarray) {
     array_init(zarray);
     add_assoc_long_ex(zarray, ZEND_STRL("header_table_size"), settings->header_table_size);
-    add_assoc_long_ex(zarray, ZEND_STRL("window_size"), settings->window_size);
+    add_assoc_long_ex(zarray, ZEND_STRL("init_window_size"), settings->init_window_size);
     add_assoc_long_ex(zarray, ZEND_STRL("max_concurrent_streams"), settings->max_concurrent_streams);
     add_assoc_long_ex(zarray, ZEND_STRL("max_frame_size"), settings->max_frame_size);
     add_assoc_long_ex(zarray, ZEND_STRL("max_header_list_size"), settings->max_header_list_size);

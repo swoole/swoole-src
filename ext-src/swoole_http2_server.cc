@@ -46,8 +46,8 @@ Http2Stream::Stream(Http2Session *client, uint32_t _id) {
     ctx->stream = this;
     ctx->keepalive = true;
     id = _id;
-    local_window_size = get_default_setting(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE);
-    remote_window_size = get_default_setting(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE);
+    local_window_size = client->local_settings.init_window_size;
+    remote_window_size = client->remote_settings.init_window_size;
 }
 
 Http2Stream::~Stream() {
@@ -70,6 +70,8 @@ Http2Session::Session(SessionId _fd) {
     Http2::init_settings(&local_settings);
     // [init]: we must set default value, peer is not always send all the settings
     Http2::init_settings(&remote_settings);
+    local_window_size = local_settings.init_window_size;
+    remote_window_size = remote_settings.init_window_size;
     last_stream_id = 0;
     shutting_down = false;
     is_coro = false;
@@ -615,7 +617,7 @@ static bool http2_server_respond(HttpContext *ctx, const String *body) {
 
     // If send_yield is not supported, ignore flow control
     if (ctx->co_socket || !((Server *) ctx->private_data)->send_yield || !swoole_coroutine_is_in()) {
-        if (body->length > client->remote_settings.window_size) {
+        if (body->length > client->remote_window_size) {
             swoole_warning("The data sent exceeded remote_window_size");
         }
         if (!stream->send_body(body, end_stream, client->local_settings.max_frame_size)) {
@@ -725,7 +727,7 @@ static bool http2_server_send_range_file(HttpContext *ctx, swoole::http_server::
                     error = true;
                     break;
                 } else {
-                    client->remote_settings.window_size -= body->length;  // TODO: flow control?
+                    client->remote_window_size -= body->length;  // TODO: flow control?
                 }
 
                 fp.set_offest(i->offset);
@@ -738,7 +740,7 @@ static bool http2_server_send_range_file(HttpContext *ctx, swoole::http_server::
                     error = true;
                     break;
                 } else {
-                    client->remote_settings.window_size -= body->length;  // TODO: flow control?
+                    client->remote_window_size -= body->length;  // TODO: flow control?
                 }
             }
 
@@ -748,7 +750,7 @@ static bool http2_server_send_range_file(HttpContext *ctx, swoole::http_server::
                         body.get(), end_stream, client->local_settings.max_frame_size, 0, body->length)) {
                     error = true;
                 } else {
-                    client->remote_settings.window_size -= body->length;  // TODO: flow control?
+                    client->remote_window_size -= body->length;  // TODO: flow control?
                 }
             }
         } else if (tasks[0].length > 0) {
@@ -767,7 +769,7 @@ static bool http2_server_send_range_file(HttpContext *ctx, swoole::http_server::
                     body.get(), end_stream, client->local_settings.max_frame_size, 0, body->length)) {
                 error = true;
             } else {
-                client->remote_settings.window_size -= body->length;  // TODO: flow control?
+                client->remote_window_size -= body->length;  // TODO: flow control?
             }
         }
     }
@@ -840,7 +842,7 @@ bool HttpContext::http2_send_file(const char *file, uint32_t l_file, off_t offse
         if (!stream->send_body(body.get(), end_stream, client->local_settings.max_frame_size, offset, length)) {
             error = true;
         } else {
-            client->remote_settings.window_size -= length;  // TODO: flow control?
+            client->remote_window_size -= length;  // TODO: flow control?
         }
     }
 
@@ -1054,7 +1056,7 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
                 swoole_trace_log(SW_TRACE_HTTP2, "setting: max_concurrent_streams=%u", value);
                 break;
             case SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE:
-                client->remote_settings.window_size = value;
+                client->remote_window_size = client->remote_settings.init_window_size = value;
                 swoole_trace_log(SW_TRACE_HTTP2, "setting: init_window_size=%u", value);
                 break;
             case SW_HTTP2_SETTINGS_MAX_FRAME_SIZE:
@@ -1125,23 +1127,23 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
         buffer->append(buf, length);
 
         // flow control
-        client->local_settings.window_size -= length;
+        client->local_window_size -= length;
         stream->local_window_size -= length;
 
         if (length > 0) {
-            if (client->local_settings.window_size < (get_default_setting(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE) / 4)) {
+            if (client->local_window_size < (client->local_settings.init_window_size / 4)) {
                 http2_server_send_window_update(
                     ctx,
                     0,
-                    get_default_setting(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE) - client->local_settings.window_size);
-                client->local_settings.window_size = get_default_setting(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE);
+                    client->local_settings.init_window_size - client->local_window_size);
+                client->local_window_size = client->local_settings.init_window_size;
             }
-            if (stream->local_window_size < (get_default_setting(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE) / 4)) {
+            if (stream->local_window_size < (client->local_settings.init_window_size / 4)) {
                 http2_server_send_window_update(
                     ctx,
                     stream_id,
-                    get_default_setting(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE) - stream->local_window_size);
-                stream->local_window_size = get_default_setting(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE);
+                    client->local_settings.init_window_size - stream->local_window_size);
+                stream->local_window_size = client->local_settings.init_window_size;
             }
         }
 
@@ -1179,7 +1181,7 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
     case SW_HTTP2_TYPE_WINDOW_UPDATE: {
         value = ntohl(*(uint32_t *) buf);
         if (stream_id == 0) {
-            client->remote_settings.window_size += value;
+            client->remote_window_size += value;
         } else {
             if (client->streams.find(stream_id) != client->streams.end()) {
                 stream = client->streams[stream_id];

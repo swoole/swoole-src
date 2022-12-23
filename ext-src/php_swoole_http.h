@@ -246,6 +246,10 @@ class Session {
     http2::Settings local_settings = {};
     http2::Settings remote_settings = {};
 
+    // flow control
+    uint32_t remote_window_size;
+    uint32_t local_window_size;
+
     uint32_t last_stream_id;
     bool shutting_down;
     bool is_coro;
