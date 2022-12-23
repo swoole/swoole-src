@@ -37,7 +37,7 @@ static Settings default_settings = {
     SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE,
 };
 
-void put_setting(enum swHttp2SettingId id, uint32_t value) {
+void put_default_setting(enum swHttp2SettingId id, uint32_t value) {
     switch (id) {
     case SW_HTTP2_SETTING_HEADER_TABLE_SIZE:
         default_settings.header_table_size = value;
