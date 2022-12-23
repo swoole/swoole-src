@@ -3336,7 +3336,6 @@ function show_test($test_idx, $shortname)
     $str = "TEST $test_idx/$test_cnt [$shortname]";
     $line_length = strlen($str);
     echo $str;
-
     flush();
 }
 
@@ -3382,7 +3381,7 @@ function show_result($result, $tested, $tested_file, $extra = '', $temp_filename
     $result = "\033[3{$color}m[$result]\033[0m";
 
     if (!$SHOW_ONLY_GROUPS || in_array($result, $SHOW_ONLY_GROUPS)) {
-        echo "$result $tested $extra\n";
+        echo "$result $tested [$tested_file] $extra\n";
     } else if (!$SHOW_ONLY_GROUPS) {
         clear_show_test();
     }
