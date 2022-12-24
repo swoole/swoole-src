@@ -584,6 +584,7 @@ void Server::init_worker(Worker *worker) {
         }
     }
 
+    worker->pid = getpid();
     worker->start_time = ::time(nullptr);
     worker->request_count = 0;
 }
