@@ -743,10 +743,13 @@ int php_swoole_zlib_decompress(z_stream *stream, String *buffer, char *body, int
     stream->total_in = 0;
     stream->total_out = 0;
 
-#if 0
-    printf(SW_START_LINE"\nstatus=%d\tavail_in=%ld,\tavail_out=%ld,\ttotal_in=%ld,\ttotal_out=%ld\n", status,
-            stream->avail_in, stream->avail_out, stream->total_in, stream->total_out);
-#endif
+    swoole_trace_log(SW_TRACE_ZLIB,
+                     SW_START_LINE "\nstatus=%d\tavail_in=%ld,\tavail_out=%ld,\ttotal_in=%ld,\ttotal_out=%ld\n",
+                     status,
+                     stream->avail_in,
+                     stream->avail_out,
+                     stream->total_in,
+                     stream->total_out);
 
     buffer->clear();
 
@@ -756,10 +759,15 @@ int php_swoole_zlib_decompress(z_stream *stream, String *buffer, char *body, int
 
         status = inflate(stream, Z_SYNC_FLUSH);
 
-#if 0
-        printf("status=%d\tavail_in=%ld,\tavail_out=%ld,\ttotal_in=%ld,\ttotal_out=%ld,\tlength=%ld\n", status,
-                stream->avail_in, stream->avail_out, stream->total_in, stream->total_out, buffer->length);
-#endif
+        swoole_trace_log(SW_TRACE_ZLIB,
+                         "status=%d\tavail_in=%ld,\tavail_out=%ld,\ttotal_in=%ld,\ttotal_out=%ld,\tlength=%ld\n",
+                         status,
+                         stream->avail_in,
+                         stream->avail_out,
+                         stream->total_in,
+                         stream->total_out,
+                         buffer->length);
+
         if (status >= 0) {
             buffer->length = stream->total_out;
         }

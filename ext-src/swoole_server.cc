@@ -3818,7 +3818,7 @@ static PHP_METHOD(swoole_server, stop) {
         if (worker == nullptr) {
             RETURN_FALSE;
         } else if (swoole_kill(worker->pid, SIGTERM) < 0) {
-            php_swoole_sys_error(E_WARNING, "swKill(%d, SIGTERM) failed", worker->pid);
+            php_swoole_sys_error(E_WARNING, "kill(%d, SIGTERM) failed", worker->pid);
             RETURN_FALSE;
         }
     }

@@ -115,6 +115,15 @@ class OpcodeServer
                 assert($r !== false);
                 Assert::true($r);
                 $r = $swooleServer->send($fd, opcode_encode("return", $r));
+                Assert::true($r);
+                return;
+
+            case "stop":
+                $r = $swooleServer->stop();
+                assert($r !== false);
+                Assert::true($r);
+                $r = $swooleServer->send($fd, opcode_encode("return", $r));
+                Assert::true($r);
                 return;
 
             default:
@@ -124,6 +133,7 @@ class OpcodeServer
                         $r = true;
                     }
                     $r = $swooleServer->send($fd, opcode_encode("return", $r));
+                    Assert::true($r);
                     return;
                 } else {
 
