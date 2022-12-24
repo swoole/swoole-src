@@ -389,21 +389,13 @@ pid_t ProcessPool::spawn(Worker *worker) {
     switch (pid) {
     // child
     case 0:
-        /**
-         * Process start
-         */
+        worker->pid = SwooleG.pid;
         if (onWorkerStart != nullptr) {
             onWorkerStart(this, worker->id);
         }
-        /**
-         * Process main loop
-         */
         if (main_loop) {
             ret_code = main_loop(this, worker);
         }
-        /**
-         * Process stop
-         */
         if (onWorkerStop != nullptr) {
             onWorkerStop(this, worker->id);
         }

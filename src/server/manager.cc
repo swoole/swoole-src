@@ -601,7 +601,9 @@ pid_t Server::spawn_event_worker(Worker *worker) {
     if (pid < 0) {
         swoole_sys_warning("failed to fork event worker");
         return SW_ERR;
-    } else if (pid > 0) {
+    } else if (pid == 0) {
+        worker->pid = SwooleG.pid;
+    } else {
         worker->pid = pid;
         return pid;
     }
