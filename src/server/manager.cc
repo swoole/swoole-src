@@ -632,7 +632,7 @@ pid_t Server::spawn_user_worker(Worker *worker) {
         SwooleG.process_type = SW_PROCESS_USERWORKER;
         SwooleG.process_id = worker->id;
         SwooleWG.worker = worker;
-        worker->pid = getpid();
+        worker->pid = SwooleG.pid;
         onUserWorkerStart(this, worker);
         exit(0);
     }
