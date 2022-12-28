@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 2dd047382586d8c9918b9806711767a10474b0bc */
+ * Stub hash: 20f9cbe81acd5771dbf8e18dd8af8952540ead91 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_version, 0, 0, IS_STRING, 0)
 ZEND_END_ARG_INFO()
@@ -10,7 +10,7 @@ ZEND_END_ARG_INFO()
 #define arginfo_swoole_last_error arginfo_swoole_cpu_num
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_swoole_async_dns_lookup_coro, 0, 1, MAY_BE_STRING|MAY_BE_FALSE)
-	ZEND_ARG_TYPE_INFO(0, domain_name, IS_MIXED, 0)
+	ZEND_ARG_TYPE_INFO(0, domain_name, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, timeout, IS_DOUBLE, 0, "60")
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, type, IS_LONG, 0, "AF_INET")
 ZEND_END_ARG_INFO()
