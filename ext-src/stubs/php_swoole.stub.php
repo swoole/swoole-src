@@ -12,7 +12,7 @@ function swoole_last_error(): int
 {
 }
 
-function swoole_async_dns_lookup_coro(mixed $domain_name, float $timeout = 60, int $type = AF_INET): string|false
+function swoole_async_dns_lookup_coro(string $domain_name, float $timeout = 60, int $type = AF_INET): string|false
 {
 }
 
