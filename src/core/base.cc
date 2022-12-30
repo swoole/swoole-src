@@ -349,7 +349,7 @@ bool swoole_set_task_tmpdir(const std::string &dir) {
 }
 
 pid_t swoole_fork_exec(const std::function<void(void)> &fn) {
-    pid_t pid = swoole_fork(0);
+    pid_t pid = fork();
     switch (pid) {
     case -1:
         return false;

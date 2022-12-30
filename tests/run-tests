@@ -2056,6 +2056,7 @@ TEST $file
 
     if (!$SHOW_ONLY_GROUPS && !$workerID) {
         show_test($test_idx, $shortname);
+        echo PHP_EOL;
     }
 
     if (is_array($IN_REDIRECT)) {

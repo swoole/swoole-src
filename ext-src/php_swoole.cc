@@ -33,6 +33,7 @@ END_EXTERN_C()
 #include "swoole_mime_type.h"
 #include "swoole_server.h"
 #include "swoole_util.h"
+#include "swoole_http2.h"
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -239,6 +240,8 @@ void php_swoole_set_global_option(HashTable *vht) {
         sw_logger()->set_level(0);
     }
 #endif
+    // [Logger]
+    // ======================================================================
     if (php_swoole_array_get_value(vht, "trace_flags", ztmp)) {
         SwooleG.trace_flags = (uint32_t) SW_MAX(0, zval_get_long(ztmp));
     }
@@ -260,10 +263,13 @@ void php_swoole_set_global_option(HashTable *vht) {
     if (php_swoole_array_get_value(vht, "display_errors", ztmp)) {
         SWOOLE_G(display_errors) = zval_is_true(ztmp);
     }
+    // [DNS]
+    // ======================================================================
     if (php_swoole_array_get_value(vht, "dns_server", ztmp)) {
         swoole_set_dns_server(zend::String(ztmp).to_std_string());
     }
-
+    // [Socket]
+    // ======================================================================
     auto timeout_format = [](zval *v) -> double {
         double timeout = zval_get_double(v);
         if (timeout <= 0 || timeout > INT_MAX) {
@@ -272,7 +278,6 @@ void php_swoole_set_global_option(HashTable *vht) {
             return timeout;
         }
     };
-
     if (php_swoole_array_get_value(vht, "socket_dns_timeout", ztmp)) {
         Socket::default_dns_timeout = timeout_format(ztmp);
     }
@@ -292,6 +297,26 @@ void php_swoole_set_global_option(HashTable *vht) {
     }
     if (php_swoole_array_get_value(vht, "socket_timeout", ztmp)) {
         Socket::default_read_timeout = Socket::default_write_timeout = timeout_format(ztmp);
+    }
+    // [HTTP2]
+    // ======================================================================
+    if (php_swoole_array_get_value(vht, "http2_header_table_size", ztmp)) {
+        swoole::http2::put_default_setting(SW_HTTP2_SETTING_HEADER_TABLE_SIZE, zval_get_long(ztmp));
+    }
+    if (php_swoole_array_get_value(vht, "http2_enable_push", ztmp)) {
+        swoole::http2::put_default_setting(SW_HTTP2_SETTINGS_ENABLE_PUSH, zval_get_long(ztmp));
+    }
+    if (php_swoole_array_get_value(vht, "http2_max_concurrent_streams", ztmp)) {
+        swoole::http2::put_default_setting(SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS, zval_get_long(ztmp));
+    }
+    if (php_swoole_array_get_value(vht, "http2_init_window_size", ztmp)) {
+        swoole::http2::put_default_setting(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE, zval_get_long(ztmp));
+    }
+    if (php_swoole_array_get_value(vht, "http2_max_frame_size", ztmp)) {
+        swoole::http2::put_default_setting(SW_HTTP2_SETTINGS_MAX_FRAME_SIZE, zval_get_long(ztmp));
+    }
+    if (php_swoole_array_get_value(vht, "http2_max_header_list_size", ztmp)) {
+        swoole::http2::put_default_setting(SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE, zval_get_long(ztmp));
     }
 }
 

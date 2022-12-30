@@ -245,6 +245,8 @@ enum swTrace_type {
     SW_TRACE_CO_CURL = 1u << 29,
     SW_TRACE_CARES = 1u << 30,
 
+    SW_TRACE_ZLIB = 1u << 31,
+
     SW_TRACE_ALL = 0x7fffffffffffffff
 };
 
