@@ -201,20 +201,20 @@ void Manager::wait(Server *_server) {
     swoole_signal_set(SIGRTMIN, signal_handler);
 #endif
 
+    if (_server->is_process_mode()) {
 #if defined(__linux__)
-    prctl(PR_SET_PDEATHSIG, SIGTERM);
+        prctl(PR_SET_PDEATHSIG, SIGTERM);
 #elif defined(__FreeBSD__)
-    int sigid = SIGTERM;
-    procctl(P_PID, 0, PROC_PDEATHSIG_CTL, &sigid);
+        int sigid = SIGTERM;
+        procctl(P_PID, 0, PROC_PDEATHSIG_CTL, &sigid);
 #endif
 
 #if defined(HAVE_PTHREAD_BARRIER) && !(defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__))
-    if (_server->is_process_mode()) {
         pthread_barrier_wait(&_server->gs->manager_barrier);
-    }
 #else
-    SW_START_SLEEP;
+        SW_START_SLEEP;
 #endif
+    }
 
     if (_server->isset_hook(Server::HOOK_MANAGER_START)) {
         _server->call_hook(Server::HOOK_MANAGER_START, _server);
