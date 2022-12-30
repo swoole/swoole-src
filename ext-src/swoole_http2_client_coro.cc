@@ -744,7 +744,7 @@ int php_swoole_zlib_decompress(z_stream *stream, String *buffer, char *body, int
     stream->total_out = 0;
 
     swoole_trace_log(SW_TRACE_ZLIB,
-                     SW_START_LINE "\nstatus=%d\tavail_in=%ld,\tavail_out=%ld,\ttotal_in=%ld,\ttotal_out=%ld\n",
+                     SW_START_LINE "\nstatus=%d\tavail_in=%u,\tavail_out=%u,\ttotal_in=%lu,\ttotal_out=%lu\n",
                      status,
                      stream->avail_in,
                      stream->avail_out,
@@ -760,7 +760,7 @@ int php_swoole_zlib_decompress(z_stream *stream, String *buffer, char *body, int
         status = inflate(stream, Z_SYNC_FLUSH);
 
         swoole_trace_log(SW_TRACE_ZLIB,
-                         "status=%d\tavail_in=%ld,\tavail_out=%ld,\ttotal_in=%ld,\ttotal_out=%ld,\tlength=%ld\n",
+                         "status=%d\tavail_in=%d,\tavail_out=%d,\ttotal_in=%lu,\ttotal_out=%lu,\tlength=%lu\n",
                          status,
                          stream->avail_in,
                          stream->avail_out,
@@ -861,9 +861,9 @@ bool Client::send_window_update(int stream_id, uint32_t size) {
  */
 bool Client::send_setting() {
     char frame[SW_HTTP2_SETTING_FRAME_SIZE];
-    swoole::http2::pack_setting_frame(frame, local_settings);
-    swoole_trace_log(SW_TRACE_HTTP2, "[" SW_ECHO_GREEN "]\t[length=%d]", Http2::get_type(SW_HTTP2_TYPE_SETTINGS), 18);
-    return send(frame, SW_HTTP2_SETTING_FRAME_SIZE);
+    size_t n = Http2::pack_setting_frame(frame, local_settings, false);
+    swoole_trace_log(SW_TRACE_HTTP2, "[" SW_ECHO_GREEN "]\t[length=%lu]", Http2::get_type(SW_HTTP2_TYPE_SETTINGS), n);
+    return send(frame, n);
 }
 
 void http_parse_set_cookies(const char *at, size_t length, zval *zcookies, zval *zset_cookie_headers);
