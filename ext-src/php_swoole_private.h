@@ -588,13 +588,25 @@ static sw_inline int sw_zend_register_function_alias(zend_array *origin_function
     SW_ASSERT(origin_function->common.type == ZEND_INTERNAL_FUNCTION);
     char *_alias = (char *) emalloc(alias_length + 1);
     ((char *) memcpy(_alias, alias, alias_length))[alias_length] = '\0';
+
+    zend_string *class_name = nullptr;
+    zend_arg_info *arg_info = origin_function->common.arg_info - 1;
+    if (!ZEND_TYPE_IS_ONLY_MASK(arg_info->type)) {
+        class_name = ZEND_TYPE_NAME(arg_info->type);
+        ZEND_TYPE_SET_PTR(arg_info->type, (void *) ZSTR_VAL(class_name));
+    }
+
     zend_function_entry zfe[] = {{_alias,
                                   origin_function->internal_function.handler,
-                                  ((zend_internal_arg_info *) origin_function->common.arg_info) - 1,
+                                  (zend_internal_arg_info *) arg_info,
                                   origin_function->common.num_args,
                                   0},
                                  PHP_FE_END};
     int ret = zend_register_functions(nullptr, zfe, alias_function_table, origin_function->common.type);
+
+    if (!ZEND_TYPE_IS_ONLY_MASK(arg_info->type)) {
+        ZEND_TYPE_SET_PTR(arg_info->type, (void *) class_name);
+    }
     efree(_alias);
     return ret;
 }
