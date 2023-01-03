@@ -24,9 +24,12 @@ namespace curl {
 
 static int execute_callback(Event *event, int bitmask) {
     Handle *handle = (Handle *) event->socket->object;
-    handle->event_bitmask |= bitmask;
-    handle->event_fd = event->fd;
-    handle->multi->callback(handle, bitmask);
+    auto it = handle->sockets.find(event->fd);
+    if (it != handle->sockets.end()) {
+        it->second->event_bitmask |= bitmask;
+        it->second->event_fd = event->fd;
+    }
+    handle->multi->callback(handle, bitmask, event->fd);
     return 0;
 }
 
@@ -75,7 +78,9 @@ Socket *Multi::create_socket(CURL *cp, curl_socket_t sockfd) {
     curl_multi_assign(multi_handle_, sockfd, (void *) socket);
 
     Handle *handle = get_handle(cp);
-    handle->socket = socket;
+    HandleSocket *handle_socket = new HandleSocket();
+    handle_socket->socket = socket;
+    handle->sockets[sockfd] = handle_socket;
     handle->cp = cp;
     socket->object = handle;
 
@@ -94,7 +99,12 @@ void Multi::del_event(CURL *cp, void *socket_ptr, curl_socket_t sockfd) {
 
     Handle *handle = get_handle(cp);
     if (handle) {
-        handle->socket = nullptr;
+        auto it = handle->sockets.find(sockfd);
+        if (it != handle->sockets.end()) {
+            auto _socket = it->second;
+            handle->sockets.erase(it);
+            delete _socket;
+        }
     }
 
     swoole_trace_log(SW_TRACE_CO_CURL, SW_ECHO_RED " handle=%p, curl=%p, fd=%d", "[DEL_EVENT]", handle, cp, sockfd);
@@ -119,7 +129,10 @@ void Multi::set_event(CURL *cp, void *socket_ptr, curl_socket_t sockfd, int acti
         }
     }
     Handle *handle = get_handle(cp);
-    handle->action = action;
+    auto it = handle->sockets.find(sockfd);
+    if (it != handle->sockets.end()) {
+        it->second->action = action;
+    }
 
     swoole_trace_log(
         SW_TRACE_CO_CURL, SW_ECHO_GREEN " handle=%p, curl=%p, fd=%d, events=%d", "[ADD_EVENT]", handle, cp, sockfd, events);
@@ -160,15 +173,19 @@ CURLcode Multi::exec(php_curl *ch) {
     }
 
     Handle *handle = get_handle(ch->cp);
+    HandleSocket *handle_socket = nullptr;
     bool is_canceled = false;
 
     SW_LOOP {
-        if (handle->socket && handle->socket->removed) {
-            if (swoole_event_add(handle->socket, get_event(handle->action)) == SW_OK) {
-                event_count_++;
+        for (auto it : handle->sockets) {
+            handle_socket = it.second;
+            if (handle_socket->socket && handle_socket->socket->removed) {
+                if (swoole_event_add(handle_socket->socket, get_event(handle_socket->action)) == SW_OK) {
+                    event_count_++;
+                }
+                swoole_trace_log(
+                    SW_TRACE_CO_CURL, "resume, handle=%p, curl=%p, fd=%d", handle, ch->cp, handle_socket->socket->get_fd());
             }
-            swoole_trace_log(
-                SW_TRACE_CO_CURL, "resume, handle=%p, curl=%p, fd=%d", handle, ch->cp, handle->socket->get_fd());
         }
 
         co = check_bound_co();
@@ -184,9 +201,13 @@ CURLcode Multi::exec(php_curl *ch) {
         int sockfd = last_sockfd;
         int bitmask = 0;
         if (sockfd >= 0) {
-            bitmask = handle->event_bitmask;
-            if (handle->socket && !handle->socket->removed && swoole_event_del(handle->socket) == SW_OK) {
-                event_count_--;
+            auto it = handle->sockets.find(sockfd);
+            if (it != handle->sockets.end()) {
+                handle_socket = it->second;
+                bitmask = handle_socket->event_bitmask;
+                if (!handle_socket->socket->removed && swoole_event_del(handle_socket->socket) == SW_OK) {
+                    event_count_--;
+                }
             }
         }
         del_timer();
@@ -202,13 +223,36 @@ CURLcode Multi::exec(php_curl *ch) {
             break;
         }
         set_timer();
-        if (sockfd >= 0 && handle->socket && handle->socket->removed) {
-            if (swoole_event_add(handle->socket, get_event(handle->action)) == SW_OK) {
-                event_count_++;
+        if (sockfd >= 0) {
+            auto it = handle->sockets.find(sockfd);
+            if (it != handle->sockets.end()) {
+                handle_socket = it->second;
+                if (handle_socket->socket && handle_socket->socket->removed) {
+                    if (swoole_event_add(handle_socket->socket, get_event(handle_socket->action)) == SW_OK) {
+                        event_count_++;
+                    }
+                }
             }
         }
-        if (!timer && handle->socket->removed) {
-            break;
+
+        if (!timer) {
+            bool removed = true;
+            for (auto it = handle->sockets.begin(); it != handle->sockets.end();) {
+                handle_socket = it->second;
+                if (handle_socket->socket) {
+                    if (handle_socket->socket->removed) {
+                        it = handle->sockets.erase(it);
+                        delete handle_socket;
+                        continue;
+                    } else {
+                        removed = false;
+                    }
+                }
+                ++it;
+            }
+            if (removed) {
+                break;
+            }
         }
     }
 
@@ -240,9 +284,9 @@ CURLcode Multi::read_info() {
 
 int Multi::handle_timeout(CURLM *mh, long timeout_ms, void *userp) {
     Multi *multi = (Multi *) userp;
-    swoole_trace_log(SW_TRACE_CO_CURL, SW_ECHO_BLUE "timeout_ms=%d", "[HANDLE_TIMEOUT]", timeout_ms);
+    swoole_trace_log(SW_TRACE_CO_CURL, SW_ECHO_BLUE "timeout_ms=%ld", "[HANDLE_TIMEOUT]", timeout_ms);
     if (!swoole_event_is_available()) {
-        return 0;
+        return -1;
     }
     if (timeout_ms < 0) {
         multi->del_timer();
@@ -264,6 +308,8 @@ long Multi::select(php_curlm *mh, double timeout) {
         return CURLE_FAILED_INIT;
     }
 
+    Socket *socket = nullptr;
+
     for (zend_llist_element *element = mh->easyh.head; element; element = element->next) {
         zval *z_ch = (zval *) element->data;
         php_curl *ch;
@@ -272,14 +318,20 @@ long Multi::select(php_curlm *mh, double timeout) {
         }
         Handle *handle = get_handle(ch->cp);
 
-        swoole_trace_log(SW_TRACE_CO_CURL, "handle=%p, handle->socket=%p, handle->socket->removed=%d", handle, handle ? handle->socket :nullptr);
+        if (handle) {
+            for (auto it : handle->sockets) {
+                socket = it.second->socket;
+                
+                swoole_trace_log(SW_TRACE_CO_CURL, "handle=%p, socket=%p, socket->removed=%d", handle, socket, socket ? socket->removed : 0);
 
-        if (handle && handle->socket && handle->socket->removed) {
-            if (swoole_event_add(handle->socket, get_event(handle->action)) == SW_OK) {
-                event_count_++;
+                if (socket && socket->removed) {
+                    if (swoole_event_add(socket, get_event(it.second->action)) == SW_OK) {
+                        event_count_++;
+                    }
+                    swoole_trace_log(
+                        SW_TRACE_CO_CURL, "resume, handle=%p, curl=%p, fd=%d", handle, ch->cp, socket->get_fd());
+                }
             }
-            swoole_trace_log(
-                SW_TRACE_CO_CURL, "resume, handle=%p, curl=%p, fd=%d", handle, ch->cp, handle->socket->get_fd());
         }
     }
     set_timer();
@@ -293,7 +345,7 @@ long Multi::select(php_curlm *mh, double timeout) {
     co->yield_ex(timeout);
     co = nullptr;
 
-    swoole_trace_log(SW_TRACE_CO_CURL, "yield timeout, count=%d", zend_llist_count(&mh->easyh));
+    swoole_trace_log(SW_TRACE_CO_CURL, "yield timeout, count=%ld", zend_llist_count(&mh->easyh));
 
     auto count = selector->active_handles.size();
 
@@ -304,10 +356,15 @@ long Multi::select(php_curlm *mh, double timeout) {
             continue;
         }
         Handle *handle = get_handle(ch->cp);
-        if (handle && handle->socket && !handle->socket->removed && swoole_event_del(handle->socket) == SW_OK) {
-            swoole_trace_log(
-                SW_TRACE_CO_CURL, "suspend, handle=%p, curl=%p, fd=%d", handle, ch->cp, handle->socket->get_fd());
-            event_count_--;
+        if (handle) {
+            for (auto it : handle->sockets) {
+                socket = it.second->socket;
+                if (socket && !socket->removed && swoole_event_del(socket) == SW_OK) {
+                    swoole_trace_log(
+                        SW_TRACE_CO_CURL, "suspend, handle=%p, curl=%p, fd=%d", handle, ch->cp, socket->get_fd());
+                    event_count_--;
+                }
+            }
         }
     }
     del_timer();
@@ -320,8 +377,14 @@ long Multi::select(php_curlm *mh, double timeout) {
 
     for (auto iter = selector->active_handles.begin(); iter != selector->active_handles.end(); iter++) {
         Handle *handle = *iter;
-        curl_multi_socket_action(multi_handle_, handle->event_fd, handle->event_bitmask, &running_handles_);
-        swoole_trace_log(SW_TRACE_CO_CURL, "socket_action[socket], running_handles=%d", running_handles_);
+        if (handle) {
+            for (auto it = handle->sockets.begin(); it != handle->sockets.end(); ) {
+                HandleSocket *handle_socket = it->second;
+                it++;
+                curl_multi_socket_action(multi_handle_, handle_socket->event_fd, handle_socket->event_bitmask, &running_handles_);
+                swoole_trace_log(SW_TRACE_CO_CURL, "socket_action[socket], running_handles=%d", running_handles_);
+            }
+        }
     }
 
     selector->active_handles.clear();
@@ -329,10 +392,10 @@ long Multi::select(php_curlm *mh, double timeout) {
     return count;
 }
 
-void Multi::callback(Handle *handle, int event_bitmask) {
-    swoole_trace_log(SW_TRACE_CO_CURL, "handle=%p, event_bitmask=%d, co=%p", handle, event_bitmask, co);
+void Multi::callback(Handle *handle, int event_bitmask, int sockfd) {
+    swoole_trace_log(SW_TRACE_CO_CURL, "handle=%p, event_bitmask=%d, co=%p, sockfd=%d", handle, event_bitmask, co, sockfd);
     if (handle) {
-        last_sockfd = handle->event_fd;
+        last_sockfd = sockfd;
     } else {
         last_sockfd = -1;
     }
@@ -343,8 +406,10 @@ void Multi::callback(Handle *handle, int event_bitmask) {
     }
     if (!co) {
         if (handle) {
-            if (swoole_event_del(handle->socket) == SW_OK) {
-                event_count_--;
+            for (auto it : handle->sockets) {
+                if (swoole_event_del(it.second->socket) == SW_OK) {
+                    event_count_--;
+                }
             }
         } else {
             del_timer();

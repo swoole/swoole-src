@@ -257,3 +257,9 @@ function skip_unsupported(string $message = '')
 {
     skip($message ?: 'the test cannot continue to work for some implementation reasons');
 }
+
+function skip_if_no_ftp()
+{
+    require_once __DIR__ . '/config.php';
+    skip('no available proxy', !check_tcp_port(FTP_HOST, FTP_PORT));
+}
