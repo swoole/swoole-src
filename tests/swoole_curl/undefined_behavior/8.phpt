@@ -3,6 +3,7 @@ swoole_curl/undefined_behavior: 8
 --SKIPIF--
 <?php
 require __DIR__ . '/../../include/skipif.inc';
+skip_if_php_version_lower_than('8.0');
 ?>
 --FILE--
 <?php
