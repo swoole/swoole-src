@@ -220,7 +220,6 @@ static int php_curl_option_url(php_curl *ch, const char *url, const size_t len) 
     return php_curl_option_str(ch, CURLOPT_URL, url, len);
 }
 /* }}} */
-/* }}} */
 
 void swoole_curl_verify_handlers(php_curl *ch, int reporterror) /* {{{ */
 {
@@ -671,56 +670,6 @@ static size_t fn_progress(void *clientp, double dltotal, double dlnow, double ul
     return rval;
 }
 /* }}} */
-
-#if LIBCURL_VERSION_NUM >= 0x072000 && PHP_VERSION_ID >= 80200
-/* {{{ curl_xferinfo */
-static size_t fn_xferinfo(void *clientp, curl_off_t dltotal, curl_off_t dlnow, curl_off_t ultotal, curl_off_t ulnow)
-{
-	php_curl *ch = (php_curl *)clientp;
-	php_curl_fnxferinfo *t = curl_handlers(ch)->xferinfo;
-	size_t rval = 0;
-
-#if PHP_CURL_DEBUG
-	fprintf(stderr, "curl_xferinfo() called\n");
-	fprintf(stderr, "clientp = %x, dltotal = %ld, dlnow = %ld, ultotal = %ld, ulnow = %ld\n", clientp, dltotal, dlnow, ultotal, ulnow);
-#endif
-
-	zval argv[5];
-	zval retval;
-	zend_result error;
-	zend_fcall_info fci;
-
-	GC_ADDREF(&ch->std);
-	ZVAL_OBJ(&argv[0], &ch->std);
-	ZVAL_LONG(&argv[1], dltotal);
-	ZVAL_LONG(&argv[2], dlnow);
-	ZVAL_LONG(&argv[3], ultotal);
-	ZVAL_LONG(&argv[4], ulnow);
-
-	fci.size = sizeof(fci);
-	ZVAL_COPY_VALUE(&fci.function_name, &t->func_name);
-	fci.object = NULL;
-	fci.retval = &retval;
-	fci.param_count = 5;
-	fci.params = argv;
-	fci.named_params = NULL;
-
-	ch->in_callback = 1;
-	error = zend_call_function(&fci, &t->fci_cache);
-	ch->in_callback = 0;
-	if (error == FAILURE) {
-		php_error_docref(NULL, E_WARNING, "Cannot call the CURLOPT_XFERINFOFUNCTION");
-	} else if (!Z_ISUNDEF(retval)) {
-        swoole_curl_verify_handlers(ch, 1);
-		if (0 != zval_get_long(&retval)) {
-			rval = 1;
-		}
-	}
-	zval_ptr_dtor(&argv[0]);
-	return rval;
-}
-/* }}} */
-#endif
 
 /* {{{ curl_read
  */
