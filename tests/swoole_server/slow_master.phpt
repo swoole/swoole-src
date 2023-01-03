@@ -31,6 +31,8 @@ $pm->parentFunc = function ($pid) use ($pm, $counter_server, $counter_client, $d
     Assert::assert($r);
     $cli->send('hello world');
 
+    usleep(10000);
+
     $n = $counter_client->get();
     $data = '';
     while (strlen($data) < $n) {
