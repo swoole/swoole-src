@@ -132,15 +132,16 @@ PHP_FUNCTION(swoole_native_curl_multi_add_handle) {
     }
 
     swoole_curl_verify_handlers(ch, 1);
-
     swoole_curl_cleanup_handle(ch);
 
     Z_ADDREF_P(z_ch);
     zend_llist_add_element(&mh->easyh, z_ch);
 
-    error = mh->multi->add_handle(ch->cp);
-    SAVE_CURLM_ERROR(mh, error);
+    auto handle = swoole::curl::get_handle(ch->cp);
+    error = mh->multi->add_handle(handle);
 
+    swoole_trace_log(SW_TRACE_CO_CURL, "multi=%p, cp=%p, handle=%p, error=%d", mh->multi, ch->cp, handle, error);
+    SAVE_CURLM_ERROR(mh, error);
     RETURN_LONG((zend_long) error);
 }
 /* }}} */
@@ -209,9 +210,15 @@ PHP_FUNCTION(swoole_native_curl_multi_remove_handle) {
         RETURN_FALSE;
     }
     ch = Z_CURL_P(z_ch);
-    error = mh->multi->remove_handle(ch->cp);
-    SAVE_CURLM_ERROR(mh, error);
+    auto handle = swoole::curl::get_handle(ch->cp);
+    if (handle && handle->multi) {
+        error = mh->multi->remove_handle(handle);
+    } else {
+        error = curl_multi_remove_handle(mh->multi, ch->cp);
+    }
 
+    swoole_trace_log(SW_TRACE_CO_CURL, "multi=%p, cp=%p, handle=%p, error=%d", mh->multi, ch->cp, handle, error);
+    SAVE_CURLM_ERROR(mh, error);
     RETVAL_LONG((zend_long) error);
     zend_llist_del_element(&mh->easyh, z_ch, (int (*)(void *, void *)) curl_compare_objects);
 }
@@ -421,8 +428,9 @@ PHP_FUNCTION(swoole_native_curl_multi_close) {
             continue;
         }
         swoole_curl_verify_handlers(ch, 0);
-        if (is_in_coroutine) {
-            mh->multi->remove_handle(ch->cp);
+        auto handle = swoole::curl::get_handle(ch->cp);
+        if (handle) {
+            mh->multi->remove_handle(handle);
         } else {
             curl_multi_remove_handle(mh->multi, ch->cp);
         }
@@ -569,6 +577,12 @@ static int _php_server_push_callback(
     ch = swoole_curl_init_handle_into_zval(&pz_ch);
     ch->cp = easy;
     swoole_setup_easy_copy_handlers(ch, parent);
+
+    auto parent_handle = swoole::curl::get_handle(parent->cp);
+    if (parent_handle) {
+        auto handle = swoole::curl::create_handle(easy);
+        handle->multi = parent_handle->multi;
+    }
 
     size_t i;
     array_init(&headers);
@@ -813,8 +827,11 @@ static void _php_curl_multi_free(php_curlm *mh) {
 #endif
         if ((ch = swoole_curl_get_handle(z_ch, true, false))) {
             swoole_curl_verify_handlers(ch, 0);
-            if (is_in_coroutine) {
-                mh->multi->remove_handle(ch->cp);
+            auto handle = swoole::curl::get_handle(ch->cp);
+            if (is_in_coroutine && handle) {
+                mh->multi->remove_handle(handle);
+            } else {
+                curl_multi_remove_handle(mh->multi, ch->cp);
             }
         }
     }

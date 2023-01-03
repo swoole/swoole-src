@@ -77,7 +77,7 @@ typedef struct {
     zval std_err;
     php_curl_progress *progress;
 #if LIBCURL_VERSION_NUM >= 0x072000 && PHP_VERSION_ID >= 80200
-	php_curl_fnxferinfo *xferinfo;
+    php_curl_fnxferinfo *xferinfo;
 #endif
 #if LIBCURL_VERSION_NUM >= 0x071500 /* Available since 7.21.0 */
     php_curl_fnmatch *fnmatch;
@@ -127,11 +127,8 @@ typedef struct {
     zend_bool in_callback;
     uint32_t *clone;
     zval postfields;
-#if PHP_VERSION_ID >= 80100
+#if PHP_VERSION_ID >= 80100 || PHP_VERSION_ID < 80000
     zval private_data;
-#elif PHP_VERSION_ID < 80000
-    zval private_data;
-    bool in_coroutine;
 #endif
     /* CurlShareHandle object set using CURLOPT_SHARE. */
 #if PHP_VERSION_ID >= 80000
