@@ -1,12 +1,12 @@
 --TEST--
-swoole_curl: create before hook
+swoole_curl/undefined_behavior: 8
 --SKIPIF--
 <?php
-require __DIR__ . '/../include/skipif.inc';
+require __DIR__ . '/../../include/skipif.inc';
 ?>
 --FILE--
 <?php
-require __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../../include/bootstrap.php';
 
 use Swoole\Runtime;
 
@@ -19,9 +19,10 @@ run(function () use ($ch) {
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     curl_setopt($ch, CURLOPT_URL, "http://www.gov.cn/");
     $curl_content = curl_exec($ch);
-    Assert::contains($curl_content, '中国政府网');
+    Assert::false($curl_content);
 });
 curl_close($ch);
 Runtime::enableCoroutine(0);
 ?>
---EXPECT--
+--EXPECTF--
+Warning: curl_exec(): The given handle is not initialized in coroutine in %s on line %d

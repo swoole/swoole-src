@@ -1523,6 +1523,7 @@ PHP_FUNCTION(swoole_native_curl_copy_handle) {
     dupch->cp = cp;
 
     swoole_setup_easy_copy_handlers(dupch, ch);
+    swoole::curl::create_handle(dupch->cp);
 
 #if LIBCURL_VERSION_NUM >= 0x073800 /* 7.56.0 */
     postfields = &ch->postfields;
