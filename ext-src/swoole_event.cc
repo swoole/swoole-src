@@ -80,16 +80,16 @@ void php_swoole_event_minit(int module_number) {
     SW_INIT_CLASS_ENTRY(swoole_event, "Swoole\\Event", nullptr, swoole_event_methods);
     SW_SET_CLASS_CREATE(swoole_event, sw_zend_create_object_deny);
 
-    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "add", CG(function_table), "swoole_event_add");
-    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "del", CG(function_table), "swoole_event_del");
-    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "set", CG(function_table), "swoole_event_set");
-    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "isset", CG(function_table), "swoole_event_isset");
-    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "dispatch", CG(function_table), "swoole_event_dispatch");
-    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "defer", CG(function_table), "swoole_event_defer");
-    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "cycle", CG(function_table), "swoole_event_cycle");
-    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "write", CG(function_table), "swoole_event_write");
-    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "wait", CG(function_table), "swoole_event_wait");
-    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "exit", CG(function_table), "swoole_event_exit");
+    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table,     "add",          CG(function_table),     "swoole_event_add",         arginfo_swoole_event_add);
+    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table,     "del",          CG(function_table),     "swoole_event_del",         arginfo_swoole_event_del);
+    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table,     "set",          CG(function_table),     "swoole_event_set",         arginfo_swoole_event_set);
+    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table,     "isset",        CG(function_table),     "swoole_event_isset",       arginfo_swoole_event_isset);
+    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table,     "dispatch",     CG(function_table),     "swoole_event_dispatch",    arginfo_swoole_event_dispatch);
+    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table,     "defer",        CG(function_table),     "swoole_event_defer",       arginfo_swoole_event_defer);
+    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table,     "cycle",        CG(function_table),     "swoole_event_cycle",       arginfo_swoole_event_cycle);
+    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table,     "write",        CG(function_table),     "swoole_event_write",       arginfo_swoole_event_write);
+    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table,     "wait",         CG(function_table),     "swoole_event_wait",        arginfo_swoole_event_wait);
+    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table,     "exit",         CG(function_table),     "swoole_event_exit",        arginfo_swoole_event_rshutdown);
 }
 
 static void event_object_free(void *data) {

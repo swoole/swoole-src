@@ -569,15 +569,17 @@ static sw_inline void add_assoc_ulong_safe(zval *arg, const char *key, zend_ulon
         }                                                                                                              \
     } while (0)
 
-#define SW_FUNCTION_ALIAS(origin_function_table, origin, alias_function_table, alias)                                  \
-    sw_zend_register_function_alias(origin_function_table, ZEND_STRL(origin), alias_function_table, ZEND_STRL(alias))
+#define SW_FUNCTION_ALIAS(origin_function_table, origin, alias_function_table, alias, arg_info)                         \
+    sw_zend_register_function_alias(                                                                                   \
+        origin_function_table, ZEND_STRL(origin), alias_function_table, ZEND_STRL(alias), arg_info)
 
 static sw_inline int sw_zend_register_function_alias(zend_array *origin_function_table,
                                                      const char *origin,
                                                      size_t origin_length,
                                                      zend_array *alias_function_table,
                                                      const char *alias,
-                                                     size_t alias_length) {
+                                                     size_t alias_length,
+                                                     const zend_internal_arg_info *arg_info) {
     zend_string *lowercase_origin = zend_string_alloc(origin_length, 0);
     zend_str_tolower_copy(ZSTR_VAL(lowercase_origin), origin, origin_length);
     zend_function *origin_function = (zend_function *) zend_hash_find_ptr(origin_function_table, lowercase_origin);
@@ -589,24 +591,13 @@ static sw_inline int sw_zend_register_function_alias(zend_array *origin_function
     char *_alias = (char *) emalloc(alias_length + 1);
     ((char *) memcpy(_alias, alias, alias_length))[alias_length] = '\0';
 
-    zend_string *class_name = nullptr;
-    zend_arg_info *arg_info = origin_function->common.arg_info - 1;
-    if (!ZEND_TYPE_IS_ONLY_MASK(arg_info->type)) {
-        class_name = ZEND_TYPE_NAME(arg_info->type);
-        ZEND_TYPE_SET_PTR(arg_info->type, (void *) ZSTR_VAL(class_name));
-    }
-
     zend_function_entry zfe[] = {{_alias,
                                   origin_function->internal_function.handler,
-                                  (zend_internal_arg_info *) arg_info,
+                                  arg_info,
                                   origin_function->common.num_args,
                                   0},
                                  PHP_FE_END};
     int ret = zend_register_functions(nullptr, zfe, alias_function_table, origin_function->common.type);
-
-    if (!ZEND_TYPE_IS_ONLY_MASK(arg_info->type)) {
-        ZEND_TYPE_SET_PTR(arg_info->type, (void *) class_name);
-    }
     efree(_alias);
     return ret;
 }
