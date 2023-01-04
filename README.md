@@ -25,12 +25,6 @@ docker run --rm phpswoole/swoole "php --ri swoole"
 
 > For details on how to use it, see: [How to Use This Image](https://github.com/swoole/docker-swoole#how-to-use-this-image).
 
-## AD: Shiwo-Encryptor
-[Shiwo-Encryptor: encrypt and compile your PHP projects](https://encryptor.swoole.com/), supports php version `7.2-8.1`.
-
-> Notice: Shiwo-Encryptor is a commercial product, developed by the core developers of the swoole open source project, thank you for purchasing this product for sponsoring us.
-
-
 ### HTTP Service
 ```php
 $http = new Swoole\Http\Server('127.0.0.1', 9501);
