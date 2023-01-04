@@ -569,7 +569,7 @@ static sw_inline void add_assoc_ulong_safe(zval *arg, const char *key, zend_ulon
         }                                                                                                              \
     } while (0)
 
-#define SW_FUNCTION_ALIAS(origin_function_table, origin, alias_function_table, alias, arg_info)                         \
+#define SW_FUNCTION_ALIAS(origin_function_table, origin, alias_function_table, alias, arg_info)                        \
     sw_zend_register_function_alias(                                                                                   \
         origin_function_table, ZEND_STRL(origin), alias_function_table, ZEND_STRL(alias), arg_info)
 
@@ -591,12 +591,9 @@ static sw_inline int sw_zend_register_function_alias(zend_array *origin_function
     char *_alias = (char *) emalloc(alias_length + 1);
     ((char *) memcpy(_alias, alias, alias_length))[alias_length] = '\0';
 
-    zend_function_entry zfe[] = {{_alias,
-                                  origin_function->internal_function.handler,
-                                  arg_info,
-                                  origin_function->common.num_args,
-                                  0},
-                                 PHP_FE_END};
+    zend_function_entry zfe[] = {
+        {_alias, origin_function->internal_function.handler, arg_info, origin_function->common.num_args, 0},
+        PHP_FE_END};
     int ret = zend_register_functions(nullptr, zfe, alias_function_table, origin_function->common.type);
     efree(_alias);
     return ret;

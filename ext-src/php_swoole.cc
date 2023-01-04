@@ -664,8 +664,10 @@ PHP_MINIT_FUNCTION(swoole) {
     // clang-format on
 
     if (SWOOLE_G(use_shortname)) {
-        SW_FUNCTION_ALIAS(CG(function_table), "swoole_coroutine_create", CG(function_table), "go",    arginfo_swoole_coroutine_create);
-        SW_FUNCTION_ALIAS(CG(function_table), "swoole_coroutine_defer",  CG(function_table), "defer", arginfo_swoole_coroutine_defer);
+        SW_FUNCTION_ALIAS(
+            CG(function_table), "swoole_coroutine_create", CG(function_table), "go", arginfo_swoole_coroutine_create);
+        SW_FUNCTION_ALIAS(
+            CG(function_table), "swoole_coroutine_defer", CG(function_table), "defer", arginfo_swoole_coroutine_defer);
     }
 
     swoole_init();
@@ -731,13 +733,13 @@ PHP_MINIT_FUNCTION(swoole) {
     zend::known_strings_init();
 
     /* Debug extensions check */
-    static auto debug_zend_extension_names = { "Xdebug" };
+    static auto debug_zend_extension_names = {"Xdebug"};
     for (auto name : debug_zend_extension_names) {
         if (zend_get_extension(name) != NULL) {
             SWOOLE_G(has_debug_extension) = 1;
         }
     }
-    static auto debug_php_extension_names = { "ddtrace" };
+    static auto debug_php_extension_names = {"ddtrace"};
     for (auto name : debug_php_extension_names) {
         if (zend_hash_str_find_ptr(&module_registry, name, strlen(name))) {
             SWOOLE_G(has_debug_extension) = 1;
