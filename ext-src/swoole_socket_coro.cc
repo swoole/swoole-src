@@ -779,6 +779,26 @@ SW_API zend_object *php_swoole_dup_socket(int fd, enum swSocketType type) {
     return php_swoole_create_socket_from_fd(new_fd, type);
 }
 
+SW_API zend_object *php_swoole_create_socket(enum swSocketType type, bool reference) {
+    zval zobject;
+    zend_object *object = php_swoole_socket_coro_create_object(swoole_socket_coro_ce);
+    SocketObject *sock = (SocketObject *) php_swoole_socket_coro_fetch_object(object);
+
+    sock->socket = new Socket(type);
+    if (UNEXPECTED(sock->socket->get_fd() < 0)) {
+        php_swoole_sys_error(E_WARNING, "new Socket() failed");
+        delete sock->socket;
+        sock->socket = nullptr;
+        OBJ_RELEASE(object);
+        return nullptr;
+    }
+
+    sock->reference = reference;
+    ZVAL_OBJ(&zobject, object);
+    php_swoole_init_socket(&zobject, sock);
+    return object;
+}
+
 SW_API zend_object *php_swoole_create_socket_from_fd(int fd, enum swSocketType type) {
     zval zobject;
     zend_object *object = php_swoole_socket_coro_create_object(swoole_socket_coro_ce);
