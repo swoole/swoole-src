@@ -1586,14 +1586,14 @@ void HttpClient::reset() {
 }
 
 bool HttpClient::close(const bool should_be_reset) {
-    Socket *_socket = socket;
-    if (!_socket) {
+    if (!socket) {
         return false;
     }
 
     zend_update_property_bool(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("connected"), 0);
+    zend_update_property_null(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("socket"));
 
-    if (!_socket->has_bound()) {
+    if (!socket->has_bound()) {
         if (should_be_reset) {
             reset();
         }
@@ -1607,9 +1607,10 @@ bool HttpClient::close(const bool should_be_reset) {
         }
         tmp_write_buffer = socket->pop_write_buffer();
         socket = nullptr;
-        zend_update_property_null(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("socket"));
         zval_ptr_dtor(&socket_object);
         ZVAL_NULL(&socket_object);
+    } else {
+        socket->close();
     }
 
     return true;
