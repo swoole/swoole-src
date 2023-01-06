@@ -29,7 +29,7 @@ jobs:
 
       - name: Build Swoole
         run: |
-          sudo apt update -y && sudo apt install -y libcurl4-openssl-dev php-curl libc-ares-dev libpq-dev
+          sudo apt update -y && sudo apt install -y libcurl4-openssl-dev php-curl libc-ares-dev libpq-dev valgrind
           phpize
           ./configure --enable-openssl --enable-mysqlnd --enable-swoole-curl --enable-cares --enable-swoole-pgsql
           make -j$(nproc)
@@ -63,7 +63,7 @@ jobs:
           export TRAVIS_BUILD_DIR=$(pwd) && bash ./.travis/setup.mysql.sh
           export TRAVIS_BUILD_DIR=$(pwd) && bash ./.travis/setup.pgsql.sh
           cp .travis/.env.example .env
-          ./.travis/run.test.sh
+          USE_ZEND_ALLOC=0 valgrind ./.travis/run.test.sh
 
       - name: Simps Tests
         if: matrix.framework == 'Simps'
