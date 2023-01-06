@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: b1e79d2465a364d269d55456feacaa8ca5ebf793 */
+ * Stub hash: 9a71378e19a5d086fd50dfbf8b79ba2a53379472 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_class_Swoole_Coroutine_create, 0, 1, MAY_BE_LONG|MAY_BE_FALSE)
 	ZEND_ARG_TYPE_INFO(0, func, IS_CALLABLE, 0)
@@ -84,4 +84,5 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_class_Swoole_ExitException_getFlags arginfo_class_Swoole_Coroutine_getCid
 
-#define arginfo_class_Swoole_ExitException_getStatus arginfo_class_Swoole_Coroutine_getCid
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_ExitException_getStatus, 0, 0, IS_MIXED, 0)
+ZEND_END_ARG_INFO()

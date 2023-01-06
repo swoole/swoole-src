@@ -30,6 +30,6 @@ namespace Swoole {
 
     class ExitException {
         public function getFlags(): int {}
-        public function getStatus(): int {}
+        public function getStatus(): mixed {}
     }
 }

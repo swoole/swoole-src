@@ -65,6 +65,7 @@
     _(SW_ZEND_STR_PRIVATE_DATA,             "private_data") \
     _(SW_ZEND_STR_CLASS_NAME_RESOLVER,      "Swoole\\NameResolver") \
     _(SW_ZEND_STR_SOCKET,                   "socket") \
+    _(SW_ZEND_STR_CONNECTED,                "connected") \
 
 typedef enum sw_zend_known_string_id {
 #define _SW_ZEND_STR_ID(id, str) id,
@@ -84,6 +85,7 @@ extern zend_string **sw_zend_known_strings;
     module##_ce->create_object = [](zend_class_entry *ce) { return sw_zend_create_object(ce, &module##_handlers); }
 
 SW_API bool php_swoole_is_enable_coroutine();
+SW_API zend_object *php_swoole_create_socket(enum swSocketType type);
 SW_API zend_object *php_swoole_create_socket_from_fd(int fd, enum swSocketType type);
 SW_API bool php_swoole_export_socket(zval *zobject, swoole::coroutine::Socket *_socket);
 SW_API zend_object *php_swoole_dup_socket(int fd, enum swSocketType type);

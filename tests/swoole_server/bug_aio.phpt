@@ -22,6 +22,7 @@ $pm->childFunc = function () use ($pm) {
         Assert::same(Co::readFile(__FILE__), __FILE_CONTENTS__);
         echo 'read file ok' . PHP_EOL;
         $pm->wakeup();
+        usleep(100000);
         $server->shutdown();
     });
     $server->on('Receive', function () {

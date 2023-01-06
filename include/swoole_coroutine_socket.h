@@ -72,11 +72,11 @@ class Socket {
     bool close();
 
     inline bool is_connected() {
-        return connected && !closed;
+        return connected && !is_closed();
     }
 
     bool is_closed() {
-        return closed;
+        return closed || sock_fd == SW_BAD_SOCKET;
     }
 
     bool check_liveness();
@@ -370,7 +370,7 @@ class Socket {
 
     int move_fd() {
         int sockfd = socket->fd;
-        socket->fd = -1;
+        sock_fd = socket->fd = SW_BAD_SOCKET;
         return sockfd;
     }
 

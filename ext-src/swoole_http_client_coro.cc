@@ -61,8 +61,6 @@ enum http_client_error_status_code {
     HTTP_CLIENT_ESTATUS_SEND_FAILED = -4,
 };
 
-extern void php_swoole_client_coro_socket_free(Socket *cli);
-
 static int http_parser_on_header_field(swoole_http_parser *parser, const char *at, size_t length);
 static int http_parser_on_header_value(swoole_http_parser *parser, const char *at, size_t length);
 static int http_parser_on_headers_complete(swoole_http_parser *parser);
@@ -249,6 +247,7 @@ class HttpClient {
 
   private:
     Socket *socket = nullptr;
+    zval socket_object;
     NameResolver::Context resolve_context_ = {};
     SocketType socket_type = SW_SOCK_TCP;
     swoole_http_parser parser = {};
@@ -749,14 +748,14 @@ bool HttpClient::connect() {
     }
 
     php_swoole_check_reactor();
-    socket = new Socket(socket_type);
-    if (UNEXPECTED(socket->get_fd() < 0)) {
-        php_swoole_sys_error(E_WARNING, "new Socket() failed");
+    auto object = php_swoole_create_socket(socket_type);
+    if (UNEXPECTED(!object)) {
         set_error(errno, swoole_strerror(errno), HTTP_CLIENT_ESTATUS_CONNECT_FAILED);
-        delete socket;
-        socket = nullptr;
         return false;
     }
+    ZVAL_OBJ(&socket_object, object);
+    socket = php_swoole_get_socket(&socket_object);
+
 #ifdef SW_USE_OPENSSL
     if (ssl) {
         socket->enable_ssl_encrypt();
@@ -776,6 +775,7 @@ bool HttpClient::connect() {
         return false;
     }
 
+    zend_update_property(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("socket"), &socket_object);
     zend_update_property_bool(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("connected"), 1);
     return true;
 }
@@ -1586,13 +1586,22 @@ void HttpClient::reset() {
 }
 
 bool HttpClient::close(const bool should_be_reset) {
-    Socket *_socket = socket;
-    if (!_socket) {
+    if (!socket) {
         return false;
     }
 
     zend_update_property_bool(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("connected"), 0);
-    if (!_socket->has_bound()) {
+    zend_update_property_null(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("socket"));
+
+    if (socket && socket->has_bound(SW_EVENT_READ)) {
+        socket->cancel(SW_EVENT_READ);
+    }
+
+    if (socket && socket->has_bound(SW_EVENT_WRITE)) {
+        socket->cancel(SW_EVENT_WRITE);
+    }
+
+    if (socket) {
         if (should_be_reset) {
             reset();
         }
@@ -1606,8 +1615,10 @@ bool HttpClient::close(const bool should_be_reset) {
         }
         tmp_write_buffer = socket->pop_write_buffer();
         socket = nullptr;
+        zval_ptr_dtor(&socket_object);
+        ZVAL_NULL(&socket_object);
     }
-    php_swoole_client_coro_socket_free(_socket);
+
     return true;
 }
 
@@ -1664,8 +1675,14 @@ void php_swoole_http_client_coro_minit(int module_number) {
                                HttpClientObject,
                                std);
 #if PHP_VERSION_ID >= 80200
-	zend_add_parameter_attribute((zend_function *) zend_hash_str_find_ptr(&swoole_http_client_coro_ce->function_table, SW_STRL("setbasicauth")), 1, ZSTR_KNOWN(ZEND_STR_SENSITIVEPARAMETER), 0);
+    zend_add_parameter_attribute(
+        (zend_function *) zend_hash_str_find_ptr(&swoole_http_client_coro_ce->function_table, SW_STRL("setbasicauth")),
+        1,
+        ZSTR_KNOWN(ZEND_STR_SENSITIVEPARAMETER),
+        0);
 #endif
+
+    zend_declare_property_null(swoole_http_client_coro_ce, ZEND_STRL("socket"), ZEND_ACC_PUBLIC);
 
     // client status
     zend_declare_property_long(swoole_http_client_coro_ce, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);

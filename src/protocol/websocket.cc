@@ -165,7 +165,13 @@ bool encode(String *buffer, const char *data, size_t length, char opcode, uint8_
 }
 
 bool decode(Frame *frame, char *data, size_t length) {
-    memcpy(frame, data, SW_WEBSOCKET_HEADER_LEN);
+    frame->header.OPCODE = data[0] & 0xf;
+    frame->header.RSV1 = (data[0] >> 6) & 0x1;
+    frame->header.RSV2 = (data[0] >> 5) & 0x1;
+    frame->header.RSV3 =(data[0] >> 4) & 0x1;
+    frame->header.FIN =  (data[0] >> 7) & 0x1;
+    frame->header.MASK = (data[1] >> 7) & 0x1;
+    frame->header.LENGTH = data[1] & 0x7f;
 
     PacketLength pl{data, (uint32_t) length, 0};
     ssize_t total_length = get_package_length_impl(&pl);
