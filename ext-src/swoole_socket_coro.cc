@@ -145,7 +145,7 @@ static sw_inline SocketObject *php_swoole_socket_coro_fetch_object(zend_object *
 
 static void php_swoole_socket_coro_free_object(zend_object *object) {
     SocketObject *sock = (SocketObject *) php_swoole_socket_coro_fetch_object(object);
-    if (!sock->reference) {
+    if (!sock->reference && sock->socket) {
         if (!sock->socket->is_closed()) {
             if (!Z_ISUNDEF(sock->zstream)) {
                 sock->socket->move_fd();
