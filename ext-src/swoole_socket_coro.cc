@@ -127,13 +127,12 @@ static const zend_function_entry swoole_socket_coro_methods[] =
 };
 // clang-format on
 
-#define SW_BAD_SOCKET ((Socket *) -1)
 #define swoole_get_socket_coro(_sock, _zobject)                                                                        \
     SocketObject *_sock = php_swoole_socket_coro_fetch_object(Z_OBJ_P(_zobject));                                      \
     if (UNEXPECTED(!sock->socket)) {                                                                                   \
         php_swoole_fatal_error(E_ERROR, "you must call Socket constructor first");                                     \
     }                                                                                                                  \
-    if (UNEXPECTED(_sock->socket == SW_BAD_SOCKET)) {                                                                  \
+    if (UNEXPECTED(_sock->socket->is_closed())) {                                                                      \
         zend_update_property_long(swoole_socket_coro_ce, SW_Z8_OBJ_P(_zobject), ZEND_STRL("errCode"), EBADF);          \
         zend_update_property_string(                                                                                   \
             swoole_socket_coro_ce, SW_Z8_OBJ_P(_zobject), ZEND_STRL("errMsg"), strerror(EBADF));                       \
@@ -146,12 +145,14 @@ static sw_inline SocketObject *php_swoole_socket_coro_fetch_object(zend_object *
 
 static void php_swoole_socket_coro_free_object(zend_object *object) {
     SocketObject *sock = (SocketObject *) php_swoole_socket_coro_fetch_object(object);
-    if (!sock->reference && sock->socket && sock->socket != SW_BAD_SOCKET) {
-        if (!Z_ISUNDEF(sock->zstream)) {
-            sock->socket->move_fd();
-            zval_ptr_dtor(&sock->zstream);
-        } else {
-            sock->socket->close();
+    if (!sock->reference) {
+        if (!sock->socket->is_closed()) {
+            if (!Z_ISUNDEF(sock->zstream)) {
+                sock->socket->move_fd();
+                zval_ptr_dtor(&sock->zstream);
+            } else {
+                sock->socket->close();
+            }
         }
         delete sock->socket;
     }
@@ -779,7 +780,7 @@ SW_API zend_object *php_swoole_dup_socket(int fd, enum swSocketType type) {
     return php_swoole_create_socket_from_fd(new_fd, type);
 }
 
-SW_API zend_object *php_swoole_create_socket(enum swSocketType type, bool reference) {
+SW_API zend_object *php_swoole_create_socket(enum swSocketType type) {
     zval zobject;
     zend_object *object = php_swoole_socket_coro_create_object(swoole_socket_coro_ce);
     SocketObject *sock = (SocketObject *) php_swoole_socket_coro_fetch_object(object);
@@ -793,7 +794,6 @@ SW_API zend_object *php_swoole_create_socket(enum swSocketType type, bool refere
         return nullptr;
     }
 
-    sock->reference = reference;
     ZVAL_OBJ(&zobject, object);
     php_swoole_init_socket(&zobject, sock);
     return object;
@@ -826,7 +826,7 @@ SW_API Socket *php_swoole_get_socket(zval *zobject) {
 
 SW_API bool php_swoole_socket_is_closed(zval *zobject) {
     SocketObject *_sock = php_swoole_socket_coro_fetch_object(Z_OBJ_P(zobject));
-    return _sock->socket == SW_BAD_SOCKET || _sock->socket->is_closed();
+    return _sock->socket->is_closed();
 }
 
 SW_API void php_swoole_init_socket_object(zval *zobject, Socket *socket) {
@@ -1614,13 +1614,8 @@ static PHP_METHOD(swoole_socket_coro, close) {
         }
         ZVAL_UNDEF(&sock->zstream);
         sock->socket->move_fd();
-        delete sock->socket;
-        sock->socket = SW_BAD_SOCKET;
     } else {
-        if (sock->socket->close()) {
-            delete sock->socket;
-            sock->socket = SW_BAD_SOCKET;
-        }
+        sock->socket->close();
     }
     RETURN_TRUE;
 }
