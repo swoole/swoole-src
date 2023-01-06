@@ -146,13 +146,11 @@ static sw_inline SocketObject *php_swoole_socket_coro_fetch_object(zend_object *
 static void php_swoole_socket_coro_free_object(zend_object *object) {
     SocketObject *sock = (SocketObject *) php_swoole_socket_coro_fetch_object(object);
     if (!sock->reference && sock->socket) {
-        if (!sock->socket->is_closed()) {
-            if (!Z_ISUNDEF(sock->zstream)) {
-                sock->socket->move_fd();
-                zval_ptr_dtor(&sock->zstream);
-            } else {
-                sock->socket->close();
-            }
+        if (!Z_ISUNDEF(sock->zstream)) {
+            sock->socket->move_fd();
+            zval_ptr_dtor(&sock->zstream);
+        } else if (!sock->socket->is_closed()) {
+            sock->socket->close();
         }
         delete sock->socket;
     }
@@ -826,7 +824,7 @@ SW_API Socket *php_swoole_get_socket(zval *zobject) {
 
 SW_API bool php_swoole_socket_is_closed(zval *zobject) {
     SocketObject *_sock = php_swoole_socket_coro_fetch_object(Z_OBJ_P(zobject));
-    return _sock->socket->is_closed();
+    return _sock->socket == nullptr || _sock->socket->is_closed();
 }
 
 SW_API void php_swoole_init_socket_object(zval *zobject, Socket *socket) {

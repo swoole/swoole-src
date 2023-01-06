@@ -1724,7 +1724,7 @@ bool Socket::cancel(const EventType event) {
  * you can access errCode member to get error information
  */
 bool Socket::close() {
-    if (sock_fd < 0) {
+    if (sock_fd == SW_BAD_SOCKET) {
         set_err(EBADF);
         return true;
     }
@@ -1748,7 +1748,7 @@ bool Socket::close() {
         }
         return false;
     } else {
-        sock_fd = -1;
+        sock_fd = SW_BAD_SOCKET;
         closed = true;
         return true;
     }
