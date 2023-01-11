@@ -568,14 +568,13 @@ static PHP_METHOD(swoole_client_coro, getpeername) {
 static PHP_METHOD(swoole_client_coro, close) {
     zend_update_property_bool(Z_OBJCE_P(ZEND_THIS), SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("connected"), 0);
     zend_update_property_null(Z_OBJCE_P(ZEND_THIS), SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("socket"));
-    Socket *cli = client_get_ptr(ZEND_THIS);
+    Socket *cli = php_swoole_get_sock(ZEND_THIS);
     RETURN_BOOL(cli->close());
 }
 
 #ifdef SW_USE_OPENSSL
 static PHP_METHOD(swoole_client_coro, enableSSL) {
     Socket *cli = client_get_ptr(ZEND_THIS);
-
     if (!cli) {
         RETURN_FALSE;
     }
