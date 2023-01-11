@@ -1589,16 +1589,8 @@ bool HttpClient::close(const bool should_be_reset) {
     if (!socket) {
         return false;
     }
-    if (socket->is_connected()) {
-        socket->shutdown();
-    }
-    if (socket && socket->has_bound(SW_EVENT_READ)) {
-        socket->cancel(SW_EVENT_READ);
-        return true;
-    }
-    if (socket && socket->has_bound(SW_EVENT_WRITE)) {
-        socket->cancel(SW_EVENT_WRITE);
-        return true;
+    if (!socket->close()) {
+        return false;
     }
     if (socket) {
         if (should_be_reset) {

@@ -1751,14 +1751,15 @@ bool Socket::close() {
         shutdown();
     }
     sock_fd = SW_BAD_SOCKET;
-    if (write_co) {
-        set_err(ECONNRESET);
-        write_co->resume();
-        return false;
-    }
-    if (read_co) {
-        set_err(ECONNRESET);
-        read_co->resume();
+    if (has_bound()) {
+        if (write_co) {
+            set_err(ECONNRESET);
+            write_co->resume();
+        }
+        if (read_co) {
+            set_err(ECONNRESET);
+            read_co->resume();
+        }
         return false;
     }
     return true;
