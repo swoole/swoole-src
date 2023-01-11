@@ -711,7 +711,7 @@ void HttpClient::apply_setting(zval *zset, const bool check_all) {
 #endif
     }
     if (socket) {
-        php_swoole_client_set(socket, zset);
+        php_swoole_socket_set(socket, zset);
 #ifdef SW_USE_OPENSSL
         if (socket->http_proxy && !socket->ssl_is_enable())
 #else

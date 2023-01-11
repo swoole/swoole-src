@@ -147,7 +147,7 @@ class Client {
 
     inline void apply_setting(zval *zset) {
         if (client && ZVAL_IS_ARRAY(zset)) {
-            php_swoole_client_set(client, zset);
+            php_swoole_socket_set(client, zset);
         }
     }
 

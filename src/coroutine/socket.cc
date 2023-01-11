@@ -112,6 +112,31 @@ bool Socket::add_event(const EventType event) {
     return ret;
 }
 
+#ifdef SW_LOG_TRACE_OPEN
+static const char *get_trigger_event_name(Socket *socket, EventType added_event) {
+    if (socket->is_closed()) {
+        return "CLOSE";
+    }
+    if (socket->errCode) {
+        return socket->errCode == ETIMEDOUT ? "TIMEOUT" : "ERROR";
+    }
+    return added_event == SW_EVENT_READ ? "READ" : "WRITE";
+}
+
+static const char *get_wait_event_name(Socket *socket, EventType event) {
+#ifdef SW_USE_OPENSSL
+    if (socket->socket->ssl_want_read) {
+        return "SSL READ";
+    } else if (socket->socket->ssl_want_write) {
+        return "SSL WRITE";
+    } else
+#endif
+    {
+        return event == SW_EVENT_READ ? "READ" : "WRITE";
+    }
+}
+#endif
+
 /**
  * If an exception occurs while waiting for an event, false is returned.
  * For example, when waiting for a read event, timeout, connection closed, are exceptions to the interrupt event.
@@ -148,11 +173,7 @@ bool Socket::wait_event(const EventType event, const void **__buf, size_t __n) {
                      "socket#%d blongs to cid#%ld is waiting for %s event",
                      sock_fd,
                      co->get_cid(),
-#ifdef SW_USE_OPENSSL
-                     socket->ssl_want_read ? "SSL READ"
-                                           : socket->ssl_want_write ? "SSL WRITE" :
-#endif
-                                                                    event == SW_EVENT_READ ? "READ" : "WRITE");
+                     get_wait_event_name(this, event));
 
     Coroutine::CancelFunc cancel_fn = [this, event](Coroutine *co) { return cancel(event); };
 
@@ -196,9 +217,7 @@ _failed:
                      "socket#%d blongs to cid#%ld trigger %s event",
                      sock_fd,
                      co->get_cid(),
-                     closed ? "CLOSE"
-                            : errCode ? errCode == ETIMEDOUT ? "TIMEOUT" : "ERROR"
-                                      : added_event == SW_EVENT_READ ? "READ" : "WRITE");
+                     get_trigger_event_name(this, added_event));
     return !is_closed() && !errCode;
 }
 
