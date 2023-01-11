@@ -1735,10 +1735,12 @@ bool Socket::close() {
     if (write_co) {
         set_err(ECONNRESET);
         write_co->resume();
+        return false;
     }
     if (read_co) {
         set_err(ECONNRESET);
         read_co->resume();
+        return false;
     }
     return true;
 }

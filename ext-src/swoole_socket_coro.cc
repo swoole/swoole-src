@@ -1033,19 +1033,21 @@ static PHP_METHOD(swoole_socket_coro, __construct) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     SocketObject *sock = (SocketObject *) php_swoole_socket_coro_fetch_object(Z_OBJ_P(ZEND_THIS));
-
-    if (EXPECTED(!sock->socket)) {
-        php_swoole_check_reactor();
-        sock->socket = new Socket((int) domain, (int) type, (int) protocol);
-        if (UNEXPECTED(sock->socket->get_fd() < 0)) {
-            zend_throw_exception_ex(
-                swoole_socket_coro_exception_ce, errno, "new Socket() failed. Error: %s [%d]", strerror(errno), errno);
-            delete sock->socket;
-            sock->socket = nullptr;
-            RETURN_FALSE;
-        }
-        php_swoole_init_socket(ZEND_THIS, sock);
+    if (sock->socket) {
+        zend_throw_error(NULL, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        RETURN_FALSE;
     }
+
+    php_swoole_check_reactor();
+    sock->socket = new Socket((int) domain, (int) type, (int) protocol);
+    if (UNEXPECTED(sock->socket->get_fd() < 0)) {
+        zend_throw_exception_ex(
+            swoole_socket_coro_exception_ce, errno, "new Socket() failed. Error: %s [%d]", strerror(errno), errno);
+        delete sock->socket;
+        sock->socket = nullptr;
+        RETURN_FALSE;
+    }
+    php_swoole_init_socket(ZEND_THIS, sock);
 }
 
 static PHP_METHOD(swoole_socket_coro, bind) {
