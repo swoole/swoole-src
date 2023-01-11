@@ -125,9 +125,9 @@ static const char *get_trigger_event_name(Socket *socket, EventType added_event)
 
 static const char *get_wait_event_name(Socket *socket, EventType event) {
 #ifdef SW_USE_OPENSSL
-    if (socket->socket->ssl_want_read) {
+    if (socket->get_socket()->ssl_want_read) {
         return "SSL READ";
-    } else if (socket->socket->ssl_want_write) {
+    } else if (socket->get_socket()->ssl_want_write) {
         return "SSL WRITE";
     } else
 #endif
@@ -1751,7 +1751,7 @@ bool Socket::close() {
         shutdown();
     }
     sock_fd = SW_BAD_SOCKET;
-    if (has_bound()) {
+    if (sw_unlikely(has_bound())) {
         if (write_co) {
             set_err(ECONNRESET);
             write_co->resume();
