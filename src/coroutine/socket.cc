@@ -199,7 +199,7 @@ _failed:
                      closed ? "CLOSE"
                             : errCode ? errCode == ETIMEDOUT ? "TIMEOUT" : "ERROR"
                                       : added_event == SW_EVENT_READ ? "READ" : "WRITE");
-    return !closed && !errCode;
+    return !is_closed() && !errCode;
 }
 
 bool Socket::socks5_handshake() {
@@ -580,7 +580,7 @@ bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen) {
         } else {
             TimerController timer(&write_timer, connect_timeout, this, timer_callback);
             if (!timer.start() || !wait_event(SW_EVENT_WRITE)) {
-                if (closed) {
+                if (is_closed()) {
                     set_err(ECONNABORTED);
                 }
                 return false;
@@ -770,8 +770,8 @@ bool Socket::connect(std::string _host, int _port, int flags) {
 }
 
 bool Socket::check_liveness() {
-    if (closed) {
-        set_err(ECONNRESET);
+    if (is_closed()) {
+        set_err(EBADF);
         return false;
     }
     if (!socket->check_liveness()) {
@@ -1724,34 +1724,23 @@ bool Socket::cancel(const EventType event) {
  * you can access errCode member to get error information
  */
 bool Socket::close() {
-    if (sock_fd == SW_BAD_SOCKET) {
+    if (is_closed()) {
         set_err(EBADF);
         return true;
     }
     if (connected) {
         shutdown();
     }
-    if (sw_unlikely(has_bound())) {
-        if (closed) {
-            // close operation is in processing
-            set_err(EINPROGRESS);
-            return false;
-        }
-        closed = true;
-        if (write_co) {
-            set_err(ECONNRESET);
-            write_co->resume();
-        }
-        if (read_co) {
-            set_err(ECONNRESET);
-            read_co->resume();
-        }
-        return false;
-    } else {
-        sock_fd = SW_BAD_SOCKET;
-        closed = true;
-        return true;
+    sock_fd = SW_BAD_SOCKET;
+    if (write_co) {
+        set_err(ECONNRESET);
+        write_co->resume();
     }
+    if (read_co) {
+        set_err(ECONNRESET);
+        read_co->resume();
+    }
+    return true;
 }
 
 /**

@@ -1589,22 +1589,23 @@ bool HttpClient::close(const bool should_be_reset) {
     if (!socket) {
         return false;
     }
-
-    zend_update_property_bool(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("connected"), 0);
-    zend_update_property_null(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("socket"));
-
+    if (socket->is_connected()) {
+        socket->shutdown();
+    }
     if (socket && socket->has_bound(SW_EVENT_READ)) {
         socket->cancel(SW_EVENT_READ);
+        return true;
     }
-
     if (socket && socket->has_bound(SW_EVENT_WRITE)) {
         socket->cancel(SW_EVENT_WRITE);
+        return true;
     }
-
     if (socket) {
         if (should_be_reset) {
             reset();
         }
+        zend_update_property_bool(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("connected"), 0);
+        zend_update_property_null(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("socket"));
         // reset the properties that depend on the connection
         websocket = false;
 #ifdef SW_HAVE_ZLIB
@@ -1618,7 +1619,6 @@ bool HttpClient::close(const bool should_be_reset) {
         zval_ptr_dtor(&socket_object);
         ZVAL_NULL(&socket_object);
     }
-
     return true;
 }
 
