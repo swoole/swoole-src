@@ -1,5 +1,5 @@
 --TEST--
-swoole_client_coro: reconnect 1
+swoole_client_coro: reconnect 3
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -16,26 +16,25 @@ $pm->parentFunc = function () use ($pm) {
     run(function () use ($pm) {
         $flag = 0;
         $client = new Client(SWOOLE_SOCK_TCP);
-        reconnect:
-        if (!$client->connect('127.0.0.1', 9501)) {
-            /**
-            * if we want to reconnect server, we should call $client->close() first
-            */
-            Assert::eq($client->errCode, SOCKET_EISCONN);
-            Assert::eq($client->errMsg, swoole_strerror(SOCKET_EISCONN));
-        }
 
-        $pm->kill();
-
-        $data = $client->recv();
-        if (empty($data)) {
-            if ($flag === 0) {
-                $flag += 1;
-                goto reconnect;
-            }
+        $n = 2;
+        while ($n--) {
+            Assert::true($client->connect('127.0.0.1', 9501));
+            go(function () use ($client) {
+                while (1) {
+                    if (!$client->recv()) {
+                        break;
+                    }
+                }
+            });
+            Assert::false($client->close());
+            Assert::eq($client->errCode, SWOOLE_ERROR_CO_SOCKET_OCCUPIED);
         }
         echo "DONE\n";
     });
+
+    $pm->kill();
+
 };
 $pm->childFunc = function () use ($pm) {
     $serv = new Server('127.0.0.1', 9501);

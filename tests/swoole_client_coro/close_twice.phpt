@@ -7,8 +7,9 @@ swoole_client_coro: close twice
 require __DIR__ . '/../include/bootstrap.php';
 go(function () {
     $cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
-    $cli->close();
-    $cli->close();
+    Assert::true($cli->close());
+    Assert::false($cli->close());
+    Assert::eq($cli->errCode, SOCKET_EBADF);
 });
 Swoole\Event::wait();
 ?>

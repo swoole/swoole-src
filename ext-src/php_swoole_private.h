@@ -150,7 +150,7 @@ enum php_swoole_hook_type {
 };
 //---------------------------------------------------------
 
-static sw_inline enum swSocketType php_swoole_socktype(long type) {
+static sw_inline enum swSocketType php_swoole_get_socket_type(long type) {
     return (enum swSocketType)(type & (~SW_FLAG_SYNC) & (~SW_FLAG_ASYNC) & (~SW_FLAG_KEEP) & (~SW_SOCK_SSL));
 }
 
@@ -651,7 +651,7 @@ static sw_inline void sw_zend_class_unset_property_deny(zend_object *object, zen
     std_object_handlers.unset_property(object, member, cache_slot);
 }
 
-static sw_inline zval *sw_zend_read_property(zend_class_entry *ce, zval *obj, const char *s, int len, int silent) {
+static sw_inline zval *sw_zend_read_property(zend_class_entry *ce, zval *obj, const char *s, size_t len, int silent) {
     zval rv, *property = zend_read_property(ce, SW_Z8_OBJ_P(obj), s, len, silent, &rv);
     if (UNEXPECTED(property == &EG(uninitialized_zval))) {
         zend_update_property_null(ce, SW_Z8_OBJ_P(obj), s, len);

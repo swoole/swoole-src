@@ -246,6 +246,8 @@ const char *swoole_strerror(int code) {
         return "Coroutine canceled";
     case SW_ERROR_CO_TIMEDOUT:
         return "Coroutine timedout";
+    case SW_ERROR_CO_SOCKET_OCCUPIED:
+        return "Coroutine socket occupied";
     default:
         static char buffer[32];
 #ifndef __MACH__

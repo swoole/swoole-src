@@ -1760,6 +1760,7 @@ bool Socket::close() {
             set_err(ECONNRESET);
             read_co->resume();
         }
+        set_err(SW_ERROR_CO_SOCKET_OCCUPIED);
         return false;
     }
     return true;
