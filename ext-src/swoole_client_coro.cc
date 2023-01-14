@@ -248,7 +248,7 @@ static PHP_METHOD(swoole_client_coro, set) {
     } else {
         zsetting = sw_zend_read_and_convert_property_array(swoole_client_coro_ce, ZEND_THIS, ZEND_STRL("setting"), 0);
         php_array_merge(Z_ARRVAL_P(zsetting), Z_ARRVAL_P(zset));
-        if (cli) {
+        if (cli && cli->is_connected()) {
             RETURN_BOOL(php_swoole_socket_set(cli, zset));
         }
         RETURN_TRUE;
@@ -601,8 +601,8 @@ static PHP_METHOD(swoole_client_coro, close) {
         zend_update_property_string(swoole_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errMsg"), strerror(EBADF));
         RETURN_FALSE;
     }
+    zend_update_property_bool(swoole_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("connected"), 0);
     if (socket->close()) {
-        zend_update_property_bool(swoole_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("connected"), 0);
         zend_update_property_null(swoole_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("socket"));
         client_coro_free_socket(client);
         RETURN_TRUE;
