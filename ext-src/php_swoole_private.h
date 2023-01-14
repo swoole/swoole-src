@@ -677,7 +677,7 @@ static sw_inline zval *sw_zend_read_property_ex(zend_class_entry *ce, zval *obj,
 }
 
 static sw_inline zval *sw_zend_read_property_not_null(
-    zend_class_entry *ce, zval *obj, const char *s, int len, int silent) {
+    zend_class_entry *ce, zval *obj, const char *s, size_t len, int silent) {
     zval rv, *property = zend_read_property(ce, SW_Z8_OBJ_P(obj), s, len, silent, &rv);
     zend_uchar type = Z_TYPE_P(property);
     return (type == IS_NULL || UNEXPECTED(type == IS_UNDEF)) ? NULL : property;
@@ -689,7 +689,7 @@ static sw_inline zval *sw_zend_read_property_not_null_ex(zend_class_entry *ce, z
     return (type == IS_NULL || UNEXPECTED(type == IS_UNDEF)) ? NULL : property;
 }
 
-static sw_inline zval *sw_zend_update_and_read_property_array(zend_class_entry *ce, zval *obj, const char *s, int len) {
+static sw_inline zval *sw_zend_update_and_read_property_array(zend_class_entry *ce, zval *obj, const char *s, size_t len) {
     zval ztmp;
     array_init(&ztmp);
     zend_update_property(ce, SW_Z8_OBJ_P(obj), s, len, &ztmp);
@@ -698,7 +698,7 @@ static sw_inline zval *sw_zend_update_and_read_property_array(zend_class_entry *
 }
 
 static sw_inline zval *sw_zend_read_and_convert_property_array(
-    zend_class_entry *ce, zval *obj, const char *s, int len, int silent) {
+    zend_class_entry *ce, zval *obj, const char *s, size_t len, int silent) {
     zval rv, *property = zend_read_property(ce, SW_Z8_OBJ_P(obj), s, len, silent, &rv);
     if (Z_TYPE_P(property) != IS_ARRAY) {
         // NOTICE: if user unset the property, zend_read_property will return uninitialized_zval instead of NULL pointer
@@ -908,7 +908,7 @@ static sw_inline char *php_swoole_format_date(char *format, size_t format_len, t
     return return_str;
 }
 
-static sw_inline char *php_swoole_url_encode(const char *value, size_t value_len, int *exten) {
+static sw_inline char *php_swoole_url_encode(const char *value, size_t value_len, size_t *exten) {
     zend_string *str = php_url_encode(value, value_len);
     *exten = ZSTR_LEN(str);
     char *return_str = estrndup(ZSTR_VAL(str), ZSTR_LEN(str));

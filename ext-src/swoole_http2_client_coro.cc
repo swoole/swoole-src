@@ -1022,7 +1022,7 @@ ssize_t Client::build_header(zval *zobject, zval *zrequest, char *buffer) {
         zend_string *key;
         zval *zvalue;
         char *encoded_value;
-        int encoded_value_len;
+        size_t encoded_value_len;
         String *buffer = sw_tg_buffer();
 
         ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARRVAL_P(zcookies), key, zvalue) {

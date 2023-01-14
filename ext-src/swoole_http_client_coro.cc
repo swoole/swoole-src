@@ -1035,7 +1035,7 @@ bool HttpClient::send() {
             buffer->append(key, keylen);
             buffer->append("=", 1);
 
-            int encoded_value_len;
+            size_t encoded_value_len;
             encoded_value = php_swoole_url_encode(str_value.val(), str_value.len(), &encoded_value_len);
             if (encoded_value) {
                 buffer->append(encoded_value, encoded_value_len);
