@@ -18,8 +18,8 @@ $pm->parentFunc = function ($pid) use ($pm)
             'package_length_offset' => 0,
             'package_body_offset' => 4,
         ]);
-        Assert::assert($cli->socket instanceof Swoole\Coroutine\Socket);
         $cli->connect('127.0.0.1', $pm->getFreePort());
+        Assert::assert($cli->socket instanceof Swoole\Coroutine\Socket);
         $data = str_repeat('A', 1025);
         $cli->send(pack('N', strlen($data)).$data);
         co::sleep(0.2);

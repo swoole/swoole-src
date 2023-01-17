@@ -26,9 +26,10 @@ $pm->parentFunc = function () use ($pm) {
                         break;
                     }
                 }
+                Assert::true($client->close());
             });
             Assert::false($client->close());
-            Assert::eq($client->errCode, SWOOLE_ERROR_CO_SOCKET_OCCUPIED);
+            Assert::eq($client->errCode, SWOOLE_ERROR_CO_SOCKET_CLOSE_WAIT);
         }
         echo "DONE\n";
     });
