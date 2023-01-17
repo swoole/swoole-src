@@ -21,7 +21,7 @@ $pm->parentFunc = function () use ($pm) {
         });
         Assert::assert(!($ret = @$cli->recv(-1)));
         if ($ret === false) {
-            Assert::same($cli->errCode, SOCKET_ECONNRESET);
+            Assert::same($cli->errCode, SOCKET_ECANCELED);
         }
         echo "CLOSED\n";
         Assert::assert(!$cli->connected);

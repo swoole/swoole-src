@@ -30,9 +30,10 @@
 using swoole::AsyncEvent;
 using swoole::Coroutine;
 using swoole::async::dispatch;
+using swoole::coroutine::async;
+using swoole::coroutine::PollSocket;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
-using swoole::coroutine::async;
 
 static std::unordered_map<int, Socket *> socket_map;
 static std::mutex socket_map_lock;
@@ -123,8 +124,9 @@ int swoole_coroutine_close(int sockfd) {
         delete socket;
         std::unique_lock<std::mutex> _lock(socket_map_lock);
         socket_map.erase(sockfd);
+        return 0;
     }
-    return 0;
+    return -1;
 }
 
 int swoole_coroutine_connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen) {
@@ -135,30 +137,14 @@ int swoole_coroutine_connect(int sockfd, const struct sockaddr *addr, socklen_t 
     return socket->connect(addr, addrlen) ? 0 : -1;
 }
 
-#if 1
 int swoole_coroutine_poll(struct pollfd *fds, nfds_t nfds, int timeout) {
-    Socket *socket;
-    if (sw_unlikely(nfds != 1 || timeout == 0 || (socket = get_socket_ex(fds[0].fd)) == NULL)) {
-        return poll(fds, nfds, timeout);
-    }
-    socket->set_timeout((double) timeout / 1000);
-    if (fds[0].events & POLLIN) {
-        fds[0].revents |= POLLIN;
-    }
-    if (fds[0].events & POLLOUT) {
-        fds[0].revents |= POLLOUT;
-    }
-    return 1;
-}
-#else
-int swoole_coroutine_poll(struct pollfd *fds, nfds_t nfds, int timeout) {
-    if (sw_unlikely(is_no_coro() || nfds != 1 || timeout == 0)) {
+    if (sw_unlikely(is_no_coro() || timeout == 0)) {
         return poll(fds, nfds, timeout);
     }
 
-    std::unordered_map<int, swoole::socket_poll_fd> _fds;
-    for (int i = 0; i < nfds; i++) {
-        _fds.emplace(std::make_pair(fds[i].fd, swoole::socket_poll_fd(fds[i].events, &fds[i])));
+    std::unordered_map<int, PollSocket> _fds;
+    for (nfds_t i = 0; i < nfds; i++) {
+        _fds.emplace(std::make_pair(fds[i].fd, PollSocket(fds[i].events, &fds[i])));
     }
 
     if (!System::socket_poll(_fds, (double) timeout / 1000)) {
@@ -177,7 +163,6 @@ int swoole_coroutine_poll(struct pollfd *fds, nfds_t nfds, int timeout) {
 
     return retval;
 }
-#endif
 
 int swoole_coroutine_open(const char *pathname, int flags, mode_t mode) {
     if (sw_unlikely(is_no_coro())) {
@@ -445,9 +430,7 @@ struct dirent *swoole_coroutine_readdir(DIR *dirp) {
 
     struct dirent *retval;
 
-    async([&retval, dirp]() {
-        retval = readdir(dirp);
-    });
+    async([&retval, dirp]() { retval = readdir(dirp); });
 
     return retval;
 }

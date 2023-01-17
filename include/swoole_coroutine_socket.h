@@ -76,7 +76,7 @@ class Socket {
     }
 
     bool is_closed() {
-        return closed || sock_fd == SW_BAD_SOCKET;
+        return sock_fd == SW_BAD_SOCKET;
     }
 
     bool check_liveness();
@@ -440,7 +440,6 @@ class Socket {
     bool connected = false;
     bool shutdown_read = false;
     bool shutdown_write = false;
-    bool closed = false;
 
     bool zero_copy = false;
 
@@ -487,8 +486,12 @@ class Socket {
         if (event != SW_EVENT_NULL) {
             check_bound_co(event);
         }
-        if (sw_unlikely(closed)) {
-            set_err(ECONNRESET);
+        if (sw_unlikely(is_closed())) {
+            set_err(EBADF);
+            return false;
+        }
+        if (sw_unlikely(socket->close_wait)) {
+            set_err(SW_ERROR_CO_SOCKET_CLOSE_WAIT);
             return false;
         }
         return true;

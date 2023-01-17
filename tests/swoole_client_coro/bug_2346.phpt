@@ -29,7 +29,7 @@ $pm->parentFunc = function () use ($pm) {
                 $client->close();
             });
             Assert::assert(@!$client->recv(-1)); // connection closed
-            Assert::same($client->errCode, SOCKET_ECONNRESET);
+            Assert::same($client->errCode, SOCKET_ECANCELED);
             approximate(0.5, microtime(true) - $s);
             // canceled
             echo "DONE\n";

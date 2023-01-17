@@ -711,7 +711,7 @@ void HttpClient::apply_setting(zval *zset, const bool check_all) {
 #endif
     }
     if (socket) {
-        php_swoole_client_set(socket, zset);
+        php_swoole_socket_set(socket, zset);
 #ifdef SW_USE_OPENSSL
         if (socket->http_proxy && !socket->ssl_is_enable())
 #else
@@ -1035,7 +1035,7 @@ bool HttpClient::send() {
             buffer->append(key, keylen);
             buffer->append("=", 1);
 
-            int encoded_value_len;
+            size_t encoded_value_len;
             encoded_value = php_swoole_url_encode(str_value.val(), str_value.len(), &encoded_value_len);
             if (encoded_value) {
                 buffer->append(encoded_value, encoded_value_len);
@@ -1589,22 +1589,15 @@ bool HttpClient::close(const bool should_be_reset) {
     if (!socket) {
         return false;
     }
-
-    zend_update_property_bool(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("connected"), 0);
-    zend_update_property_null(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("socket"));
-
-    if (socket && socket->has_bound(SW_EVENT_READ)) {
-        socket->cancel(SW_EVENT_READ);
+    if (!socket->close()) {
+        return false;
     }
-
-    if (socket && socket->has_bound(SW_EVENT_WRITE)) {
-        socket->cancel(SW_EVENT_WRITE);
-    }
-
     if (socket) {
         if (should_be_reset) {
             reset();
         }
+        zend_update_property_bool(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("connected"), 0);
+        zend_update_property_null(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("socket"));
         // reset the properties that depend on the connection
         websocket = false;
 #ifdef SW_HAVE_ZLIB
@@ -1618,7 +1611,6 @@ bool HttpClient::close(const bool should_be_reset) {
         zval_ptr_dtor(&socket_object);
         ZVAL_NULL(&socket_object);
     }
-
     return true;
 }
 
