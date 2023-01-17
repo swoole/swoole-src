@@ -428,3 +428,52 @@ TEST(coroutine_hook, lseek) {
     swoole_coroutine_close(fd);
     ASSERT_EQ(offset, 0);
 }
+
+extern std::pair<std::shared_ptr<Socket>, std::shared_ptr<Socket>> create_socket_pair();
+
+TEST(coroutine_hook, socket_close) {
+    coroutine::run([&](void *arg) {
+        auto pair = create_socket_pair();
+
+        auto buffer = sw_tg_buffer();
+        buffer->clear();
+        buffer->append_random_bytes(256 * 1024, false);
+
+        std::map<std::string, bool> results;
+        auto _sock = pair.first;
+        auto _fd = _sock->move_fd();
+        swoole_coroutine_socket_create(_fd);
+
+        // write co
+        Coroutine::create([&](void *) {
+            SW_LOOP_N(32) {
+                ssize_t result = swoole_coroutine_write(_fd, buffer->value(), buffer->get_length());
+                if (result < 0 && errno == ECANCELED) {
+                    ASSERT_EQ(swoole_coroutine_close(_fd), -1);
+                    ASSERT_EQ(errno, SW_ERROR_CO_SOCKET_CLOSE_WAIT);
+                    results["write"] = true;
+                    break;
+                }
+            }
+        });
+
+        // read co
+        Coroutine::create([&](void *) {
+            SW_LOOP_N(32) {
+                char buf[4096];
+                ssize_t result = swoole_coroutine_read(_fd, buf, sizeof(buf));
+                if (result < 0 && errno == ECANCELED) {
+                    ASSERT_EQ(swoole_coroutine_close(_fd), 0);
+                    results["read"] = true;
+                    break;
+                }
+            }
+        });
+
+        System::sleep(0.1);
+        ASSERT_EQ(swoole_coroutine_close(_fd), -1);
+        ASSERT_EQ(errno, SW_ERROR_CO_SOCKET_CLOSE_WAIT);
+        ASSERT_TRUE(results["write"]);
+        ASSERT_TRUE(results["read"]);
+    });
+}

@@ -1734,36 +1734,37 @@ bool Socket::cancel(const EventType event) {
         write_co->resume();
         return true;
     } else {
+        set_err(EINVAL);
         return false;
     }
 }
 
 /**
- * @return bool (whether it can be freed)
- * you can access errCode member to get error information
+ * @return bool
+ * If true is returned, the related resources of this socket can be released
+ * If false is returned, it means that other coroutines are still referencing this socket,
+ * and need to wait for the coroutine bound to readable or writable event to execute close,
+ * and release when all references are 0
  */
 bool Socket::close() {
     if (is_closed()) {
         set_err(EBADF);
-        return true;
+        return false;
     }
     if (connected) {
         shutdown();
     }
-    sock_fd = SW_BAD_SOCKET;
     if (sw_unlikely(has_bound())) {
-        if (write_co) {
-            set_err(ECONNRESET);
-            write_co->resume();
-        }
-        if (read_co) {
-            set_err(ECONNRESET);
-            read_co->resume();
-        }
-        set_err(SW_ERROR_CO_SOCKET_OCCUPIED);
+        socket->close_wait = 1;
+        cancel(SW_EVENT_WRITE);
+        cancel(SW_EVENT_READ);
+        sock_fd = SW_BAD_SOCKET;
+        set_err(SW_ERROR_CO_SOCKET_CLOSE_WAIT);
         return false;
+    } else {
+        sock_fd = SW_BAD_SOCKET;
+        return true;
     }
-    return true;
 }
 
 /**

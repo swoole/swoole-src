@@ -1110,12 +1110,12 @@ TEST(coroutine_socket, sendmsg_and_recvmsg) {
     });
 }
 
-static std::pair<std::shared_ptr<Socket>, std::shared_ptr<Socket>> create_socket_pair() {
+std::pair<std::shared_ptr<Socket>, std::shared_ptr<Socket>> create_socket_pair() {
     int pairs[2];
     socketpair(AF_UNIX, SOCK_STREAM, 0, pairs);
 
-    Socket *sock0 = new Socket(pairs[0], SW_SOCK_UNIX_STREAM);
-    Socket *sock1 = new Socket(pairs[1], SW_SOCK_UNIX_STREAM);
+    auto sock0 = new Socket(pairs[0], SW_SOCK_UNIX_STREAM);
+    auto sock1 = new Socket(pairs[1], SW_SOCK_UNIX_STREAM);
 
     sock0->get_socket()->set_buffer_size(65536);
     sock1->get_socket()->set_buffer_size(65536);
@@ -1133,14 +1133,18 @@ TEST(coroutine_socket, close) {
         buffer->append_random_bytes(256 * 1024, false);
 
         std::map<std::string, bool> results;
+        auto _sock = pair.first;
 
         // write co
         Coroutine::create([&](void *) {
             SW_LOOP_N(32) {
-                ssize_t result = pair.first->write(buffer->value(), buffer->get_length());
-                if (result < 0 && pair.first->errCode == ECONNRESET) {
-                    pair.first->close();
+                ssize_t result = _sock->write(buffer->value(), buffer->get_length());
+                if (result < 0 && _sock->errCode == ECANCELED) {
+                    ASSERT_FALSE(_sock->close());
+                    ASSERT_EQ(_sock->errCode, SW_ERROR_CO_SOCKET_CLOSE_WAIT);
                     results["write"] = true;
+                    ASSERT_EQ(_sock->write(buffer->value(), buffer->get_length()), -1);
+                    ASSERT_EQ(_sock->errCode, EBADF);
                     break;
                 }
             }
@@ -1150,9 +1154,9 @@ TEST(coroutine_socket, close) {
         Coroutine::create([&](void *) {
             SW_LOOP_N(32) {
                 char buf[4096];
-                ssize_t result = pair.first->read(buf, sizeof(buf));
-                if (result < 0 && pair.first->errCode == ECONNRESET) {
-                    pair.first->close();
+                ssize_t result = _sock->read(buf, sizeof(buf));
+                if (result < 0 && _sock->errCode == ECANCELED) {
+                    ASSERT_TRUE(_sock->close());
                     results["read"] = true;
                     break;
                 }
@@ -1160,10 +1164,13 @@ TEST(coroutine_socket, close) {
         });
 
         System::sleep(0.1);
-        pair.first->close();
-        ASSERT_TRUE(pair.first->is_closed());
+        ASSERT_FALSE(_sock->close());
+        ASSERT_EQ(_sock->errCode, SW_ERROR_CO_SOCKET_CLOSE_WAIT);
+        ASSERT_TRUE(_sock->is_closed());
         ASSERT_TRUE(results["write"]);
         ASSERT_TRUE(results["read"]);
+        ASSERT_FALSE(_sock->close());
+        ASSERT_EQ(_sock->errCode, EBADF);
     });
 }
 

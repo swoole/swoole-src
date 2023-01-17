@@ -186,7 +186,7 @@ enum swErrorCode {
 
     // close failed, there are currently other coroutines holding this socket,
     // need to wait for the bound coroutine to return from the socket wait_event operation
-    SW_ERROR_CO_SOCKET_OCCUPIED,
+    SW_ERROR_CO_SOCKET_CLOSE_WAIT,
 
     SW_ERROR_END
 };

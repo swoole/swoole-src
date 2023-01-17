@@ -490,6 +490,10 @@ class Socket {
             set_err(EBADF);
             return false;
         }
+        if (sw_unlikely(socket->close_wait)) {
+            set_err(SW_ERROR_CO_SOCKET_CLOSE_WAIT);
+            return false;
+        }
         return true;
     }
 
