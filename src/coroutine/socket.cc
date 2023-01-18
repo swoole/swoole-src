@@ -1750,6 +1750,7 @@ bool Socket::close() {
     if (connected) {
         shutdown();
     }
+    set_err(0);
     if (sw_unlikely(has_bound())) {
         socket->close_wait = 1;
         /**

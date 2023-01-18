@@ -1609,10 +1609,7 @@ bool HttpClient::close(const bool should_be_reset) {
     if (!socket) {
         return false;
     }
-    if (!socket->close()) {
-        return false;
-    }
-    if (should_be_reset) {
+    if (socket->close() && should_be_reset) {
         reset();
     }
     return true;

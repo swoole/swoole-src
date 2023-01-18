@@ -494,10 +494,7 @@ bool Client::close() {
         update_error_properties(EBADF, strerror(EBADF));
         return false;
     }
-    if (!socket_->close()) {
-        update_error_properties(socket_->errCode, socket_->errMsg);
-        return false;
-    }
+    socket_->close();
     return true;
 }
 
