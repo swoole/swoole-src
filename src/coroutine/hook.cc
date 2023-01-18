@@ -124,9 +124,8 @@ int swoole_coroutine_close(int sockfd) {
         delete socket;
         std::unique_lock<std::mutex> _lock(socket_map_lock);
         socket_map.erase(sockfd);
-        return 0;
     }
-    return -1;
+    return 0;
 }
 
 int swoole_coroutine_connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen) {
