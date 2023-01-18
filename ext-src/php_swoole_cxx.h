@@ -97,6 +97,7 @@ SW_API bool php_swoole_socket_set_ssl(swoole::coroutine::Socket *sock, zval *zse
 #endif
 SW_API bool php_swoole_socket_set_protocol(swoole::coroutine::Socket *sock, zval *zset);
 SW_API bool php_swoole_socket_set(swoole::coroutine::Socket *cli, zval *zset);
+SW_API void php_swoole_socket_set_error_properties(zval *zobject, int code, const char *msg);
 #define php_swoole_client_set php_swoole_socket_set
 SW_API php_stream *php_swoole_create_stream_from_socket(php_socket_t _fd,
                                                         int domain,

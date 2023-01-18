@@ -63,6 +63,8 @@ class mysql_client {
   public:
     /* session related {{{ */
     Socket *socket = nullptr;
+    zval socket_object;
+    std::function<void(Socket *)> socket_dtor;
     Socket::timeout_controller *tc = nullptr;
 
     enum sw_mysql_state state = SW_MYSQL_STATE_CLOSED;
@@ -1109,8 +1111,8 @@ mysql_statement *mysql_client::recv_prepare_response() {
 
 void mysql_client::close() {
     state = SW_MYSQL_STATE_CLOSED;
-    Socket *socket = this->socket;
-    if (socket) {
+    Socket *_socket = socket;
+    if (_socket) {
         del_timeout_controller();
         if (!quit && is_writable()) {
             send_command_without_check(SW_MYSQL_COM_QUIT);
@@ -1122,11 +1124,9 @@ void mysql_client::close() {
             i->second->close(false);
             statements.erase(i);
         }
-        if (sw_likely(!socket->has_bound())) {
-            this->socket = nullptr;
-        }
-        if (sw_likely(socket->close())) {
-            delete socket;
+        if (sw_likely(_socket->close())) {
+            delete _socket;
+            socket = nullptr;
         }
     }
 }

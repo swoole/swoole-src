@@ -75,7 +75,9 @@ class Client {
     bool open_ssl;
     double timeout = network::Socket::default_read_timeout;
 
-    Socket *client = nullptr;
+    Socket *socket_ = nullptr;
+    zval socket_object;
+    std::function<void(Socket *)> socket_dtor;
 
     nghttp2_hd_inflater *inflater = nullptr;
     nghttp2_hd_deflater *deflater = nullptr;
@@ -119,12 +121,11 @@ class Client {
     ssize_t build_header(zval *zobject, zval *zrequest, char *buffer);
 
     inline void update_error_properties(int code, const char *msg) {
-        zend_update_property_long(swoole_http2_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), code);
-        zend_update_property_string(swoole_http2_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errMsg"), msg);
+        php_swoole_socket_set_error_properties(zobject, code, msg);
     }
 
     inline void io_error() {
-        update_error_properties(client->errCode, client->errMsg);
+        update_error_properties(socket_->errCode, socket_->errMsg);
     }
 
     inline void nghttp2_error(int code, const char *msg) {
@@ -132,7 +133,7 @@ class Client {
     }
 
     inline bool is_available() {
-        if (sw_unlikely(!client || !client->is_connected())) {
+        if (sw_unlikely(!socket_ || !socket_->is_connected())) {
             swoole_set_last_error(SW_ERROR_CLIENT_NO_CONNECTION);
             zend_update_property_long(
                 swoole_http2_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), SW_ERROR_CLIENT_NO_CONNECTION);
@@ -146,13 +147,13 @@ class Client {
     }
 
     inline void apply_setting(zval *zset) {
-        if (client && ZVAL_IS_ARRAY(zset)) {
-            php_swoole_socket_set(client, zset);
+        if (socket_ && ZVAL_IS_ARRAY(zset)) {
+            php_swoole_socket_set(socket_, zset);
         }
     }
 
     inline bool recv_packet(double timeout) {
-        if (sw_unlikely(client->recv_packet(timeout) <= 0)) {
+        if (sw_unlikely(socket_->recv_packet(timeout) <= 0)) {
             io_error();
             return false;
         }
@@ -201,23 +202,23 @@ class Client {
     }
 
     inline bool send(const char *buf, size_t len) {
-        if (client->has_bound(SW_EVENT_WRITE)) {
+        if (socket_->has_bound(SW_EVENT_WRITE)) {
             if (send_queue.size() > remote_settings.max_concurrent_streams) {
-                client->errCode = SW_ERROR_QUEUE_FULL;
-                client->errMsg = "the send queue is full, try again later";
+                socket_->errCode = SW_ERROR_QUEUE_FULL;
+                socket_->errMsg = "the send queue is full, try again later";
                 io_error();
                 return false;
             }
             send_queue.push(zend_string_init(buf, len, 0));
             return true;
         }
-        if (sw_unlikely(client->send_all(buf, len) != (ssize_t) len)) {
+        if (sw_unlikely(socket_->send_all(buf, len) != (ssize_t) len)) {
             io_error();
             return false;
         }
         while (send_queue.size() > 0) {
             zend_string *frame = send_queue.front();
-            if (sw_unlikely(client->send_all(frame->val, frame->len) != (ssize_t) frame->len)) {
+            if (sw_unlikely(socket_->send_all(frame->val, frame->len) != (ssize_t) frame->len)) {
                 io_error();
                 zend_throw_exception(swoole_http2_client_coro_exception_ce,
                                      "failed to send control frame",
@@ -345,6 +346,7 @@ void php_swoole_http2_client_coro_minit(int module_number) {
     zend_declare_property_long(swoole_http2_client_coro_ce, ZEND_STRL("sock"), -1, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_http2_client_coro_ce, ZEND_STRL("type"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http2_client_coro_ce, ZEND_STRL("setting"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_http2_client_coro_ce, ZEND_STRL("socket"), ZEND_ACC_PUBLIC);
     zend_declare_property_bool(swoole_http2_client_coro_ce, ZEND_STRL("connected"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http2_client_coro_ce, ZEND_STRL("host"), ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_http2_client_coro_ce, ZEND_STRL("port"), 0, ZEND_ACC_PUBLIC);
@@ -394,37 +396,61 @@ void php_swoole_http2_client_coro_minit(int module_number) {
 }
 
 bool Client::connect() {
-    if (sw_unlikely(client != nullptr)) {
+    if (sw_unlikely(socket_ != nullptr)) {
+        update_error_properties(EISCONN, strerror(EISCONN));
         return false;
     }
 
-    client = new Socket(network::Socket::convert_to_type(host));
-    if (UNEXPECTED(client->get_fd() < 0)) {
-        php_swoole_sys_error(E_WARNING, "new Socket() failed");
-        zend_update_property_long(swoole_http2_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), errno);
-        zend_update_property_string(
-            swoole_http2_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errMsg"), swoole_strerror(errno));
-        delete client;
-        client = nullptr;
+    auto object = php_swoole_create_socket(network::Socket::convert_to_type(host));
+    if (UNEXPECTED(!object)) {
+        php_swoole_socket_set_error_properties(zobject, errno, strerror(errno));
         return false;
     }
-    client->set_zero_copy(true);
+
+    ZVAL_OBJ(&socket_object, object);
+    socket_ = php_swoole_get_socket(&socket_object);
+    zend_update_property(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("socket"), &socket_object);
+
+    socket_dtor = [this](Socket *_socket) {
+        socket_ = nullptr;
+        clean_send_queue();
+        auto i = streams.begin();
+        while (i != streams.end()) {
+            destroy_stream(i->second);
+            streams.erase(i++);
+        }
+        if (inflater) {
+            nghttp2_hd_inflate_del(inflater);
+            inflater = nullptr;
+        }
+        if (deflater) {
+            nghttp2_hd_deflate_del(deflater);
+            deflater = nullptr;
+        }
+        zend_update_property_bool(swoole_http2_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("connected"), 0);
+        zend_update_property_null(swoole_http2_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("socket"));
+        zval_ptr_dtor(&socket_object);
+        ZVAL_NULL(&socket_object);
+    };
+
+    socket_->set_dtor(&socket_dtor);
+    socket_->set_zero_copy(true);
 #ifdef SW_USE_OPENSSL
     if (open_ssl) {
-        client->enable_ssl_encrypt();
+        socket_->enable_ssl_encrypt();
     }
 #endif
-    client->http2 = 1;
-    client->open_length_check = 1;
-    client->protocol.package_length_size = SW_HTTP2_FRAME_HEADER_SIZE;
-    client->protocol.package_length_offset = 0;
-    client->protocol.package_body_offset = 0;
-    client->protocol.get_package_length = Http2::get_frame_length;
+    socket_->http2 = 1;
+    socket_->open_length_check = 1;
+    socket_->protocol.package_length_size = SW_HTTP2_FRAME_HEADER_SIZE;
+    socket_->protocol.package_length_offset = 0;
+    socket_->protocol.package_body_offset = 0;
+    socket_->protocol.get_package_length = Http2::get_frame_length;
 
     apply_setting(
         sw_zend_read_property_ex(swoole_http2_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0));
 
-    if (!client->connect(host, port)) {
+    if (!socket_->connect(host, port)) {
         io_error();
         close();
         return false;
@@ -464,36 +490,19 @@ bool Client::connect() {
 }
 
 bool Client::close() {
-    Socket *_client = client;
-    if (!_client) {
+    if (socket_ == nullptr) {
+        update_error_properties(EBADF, strerror(EBADF));
         return false;
     }
-    clean_send_queue();
-    zend_update_property_bool(swoole_http2_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("connected"), 0);
-    if (!_client->has_bound()) {
-        auto i = streams.begin();
-        while (i != streams.end()) {
-            destroy_stream(i->second);
-            streams.erase(i++);
-        }
-        if (inflater) {
-            nghttp2_hd_inflate_del(inflater);
-            inflater = nullptr;
-        }
-        if (deflater) {
-            nghttp2_hd_deflate_del(deflater);
-            deflater = nullptr;
-        }
-        client = nullptr;
-    }
-    if (_client->close()) {
-        delete _client;
+    if (!socket_->close()) {
+        update_error_properties(socket_->errCode, socket_->errMsg);
+        return false;
     }
     return true;
 }
 
 ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
-    char *buf = client->get_read_buffer()->str;
+    char *buf = socket_->get_read_buffer()->str;
     uint8_t type = buf[3];
     uint8_t flags = buf[4];
     uint32_t stream_id = ntohl((*(int *) (buf + 5))) & 0x7fffffff;
@@ -1418,7 +1427,7 @@ static PHP_METHOD(swoole_http2_client_coro, isStreamExist) {
     }
 
     Client *h2c = php_swoole_get_h2c(ZEND_THIS);
-    if (!h2c->client) {
+    if (!h2c->socket_) {
         RETURN_FALSE;
     } else if (stream_id == 0) {
         RETURN_TRUE;

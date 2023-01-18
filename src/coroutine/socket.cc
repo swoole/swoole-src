@@ -1741,10 +1741,6 @@ bool Socket::cancel(const EventType event) {
 
 /**
  * @return bool
- * If true is returned, the related resources of this socket can be released
- * If false is returned, it means that other coroutines are still referencing this socket,
- * and need to wait for the coroutine bound to readable or writable event to execute close,
- * and release when all references are 0
  */
 bool Socket::close() {
     if (is_closed()) {
@@ -1756,13 +1752,23 @@ bool Socket::close() {
     }
     if (sw_unlikely(has_bound())) {
         socket->close_wait = 1;
+        /**
+         * Some coroutines are still referencing this socket,
+         * and need to wait for the coroutine bound to readable or writable event to execute close,
+         * and execute dtor when all references are 0
+         */
         cancel(SW_EVENT_WRITE);
         cancel(SW_EVENT_READ);
-        sock_fd = SW_BAD_SOCKET;
-        set_err(SW_ERROR_CO_SOCKET_CLOSE_WAIT);
         return false;
     } else {
         sock_fd = SW_BAD_SOCKET;
+        if (dtor_ != nullptr) {
+            (*dtor_)(this);
+        }
+        /**
+         * This socket may be deleted in the dtor function
+         * DO NOT access member variables of any object
+         */
         return true;
     }
 }

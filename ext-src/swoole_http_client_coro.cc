@@ -248,6 +248,7 @@ class HttpClient {
   private:
     Socket *socket = nullptr;
     zval socket_object;
+    std::function<void(Socket *)> socket_dtor;
     NameResolver::Context resolve_context_ = {};
     SocketType socket_type = SW_SOCK_TCP;
     swoole_http_parser parser = {};
@@ -762,13 +763,32 @@ bool HttpClient::connect() {
     }
 #endif
     // apply settings
-    apply_setting(sw_zend_read_property_ex(swoole_http_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0),
-                  false);
+    apply_setting(sw_zend_read_property_ex(Z_OBJCE_P(zobject), zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0), false);
 
     // socket->set_buffer_allocator(&SWOOLE_G(zend_string_allocator));
     // connect
     socket->set_timeout(connect_timeout, Socket::TIMEOUT_CONNECT);
     socket->set_resolve_context(&resolve_context_);
+
+    socket_dtor = [this](Socket *_socket) {
+        zend_update_property_bool(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("connected"), 0);
+        zend_update_property_null(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("socket"));
+        // reset the properties that depend on the connection
+        websocket = false;
+#ifdef SW_HAVE_ZLIB
+        websocket_compression = false;
+#endif
+        if (tmp_write_buffer) {
+            delete tmp_write_buffer;
+        }
+        tmp_write_buffer = socket->pop_write_buffer();
+        socket = nullptr;
+        zval_ptr_dtor(&socket_object);
+        ZVAL_NULL(&socket_object);
+    };
+
+    socket->set_dtor(&socket_dtor);
+
     if (!socket->connect(host, port)) {
         set_error(socket->errCode, socket->errMsg, HTTP_CLIENT_ESTATUS_CONNECT_FAILED);
         close();
@@ -1592,24 +1612,8 @@ bool HttpClient::close(const bool should_be_reset) {
     if (!socket->close()) {
         return false;
     }
-    if (socket) {
-        if (should_be_reset) {
-            reset();
-        }
-        zend_update_property_bool(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("connected"), 0);
-        zend_update_property_null(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("socket"));
-        // reset the properties that depend on the connection
-        websocket = false;
-#ifdef SW_HAVE_ZLIB
-        websocket_compression = false;
-#endif
-        if (tmp_write_buffer) {
-            delete tmp_write_buffer;
-        }
-        tmp_write_buffer = socket->pop_write_buffer();
-        socket = nullptr;
-        zval_ptr_dtor(&socket_object);
-        ZVAL_NULL(&socket_object);
+    if (should_be_reset) {
+        reset();
     }
     return true;
 }

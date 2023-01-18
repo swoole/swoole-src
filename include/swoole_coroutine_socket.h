@@ -335,6 +335,10 @@ class Socket {
         resolve_context_ = ctx;
     }
 
+    void set_dtor(std::function<void(Socket *)> *dtor) {
+        dtor_ = dtor;
+    }
+
     inline String *pop_read_buffer() {
         if (sw_unlikely(!read_buffer)) {
             return nullptr;
@@ -443,6 +447,9 @@ class Socket {
 
     bool zero_copy = false;
 
+    NameResolver::Context *resolve_context_ = nullptr;
+    std::function<void(Socket *)> *dtor_ = nullptr;
+
     Socket(network::Socket *sock, Socket *socket);
 
     static void timer_callback(Timer *timer, TimerNode *tnode);
@@ -479,8 +486,6 @@ class Socket {
 
     ssize_t recv_packet_with_length_protocol();
     ssize_t recv_packet_with_eof_protocol();
-
-    NameResolver::Context *resolve_context_ = nullptr;
 
     inline bool is_available(const EventType event) {
         if (event != SW_EVENT_NULL) {
