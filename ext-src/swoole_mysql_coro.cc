@@ -560,48 +560,50 @@ bool mysql_client::connect(std::string host, uint16_t port, bool ssl) {
     if (socket && (host != this->host || port != this->port || ssl != this->ssl)) {
         close();
     }
-    if (!socket) {
-        if (host.compare(0, 6, "unix:/", 0, 6) == 0) {
-            host = host.substr(sizeof("unix:") - 1);
-            host.erase(0, host.find_first_not_of('/') - 1);
-            socket = new Socket(SW_SOCK_UNIX_STREAM);
-        } else if (host.find(':') != std::string::npos) {
-            socket = new Socket(SW_SOCK_TCP6);
-        } else {
-            socket = new Socket(SW_SOCK_TCP);
-        }
-        if (sw_unlikely(socket->get_fd() < 0)) {
-            php_swoole_fatal_error(E_WARNING, "new Socket() failed. Error: %s [%d]", strerror(errno), errno);
-            non_sql_error(MYSQLND_CR_CONNECTION_ERROR, strerror(errno));
-            delete socket;
-            socket = nullptr;
-            return false;
-        }
-        socket->set_zero_copy(true);
-#ifdef SW_USE_OPENSSL
-        if (ssl) {
-            socket->enable_ssl_encrypt();
-        }
-#endif
-        socket->set_timeout(connect_timeout, Socket::TIMEOUT_CONNECT);
-        add_timeout_controller(connect_timeout, Socket::TIMEOUT_ALL);
-        if (!socket->connect(host, port)) {
-            io_error();
-            return false;
-        }
-        this->host = host;
-        this->port = port;
-#ifdef SW_USE_OPENSSL
-        this->ssl = ssl;
-#endif
-        if (!handshake()) {
-            close();
-            return false;
-        }
-        state = SW_MYSQL_STATE_IDLE;
-        quit = false;
-        del_timeout_controller();
+    if (socket) {
+        return true;
     }
+    enum swSocketType socket_type;
+    if (host.compare(0, 6, "unix:/", 0, 6) == 0) {
+        host = host.substr(sizeof("unix:") - 1);
+        host.erase(0, host.find_first_not_of('/') - 1);
+        socket_type = SW_SOCK_UNIX_STREAM;
+    } else if (host.find(':') != std::string::npos) {
+        socket_type = SW_SOCK_TCP6;
+    } else {
+        socket_type =SW_SOCK_TCP;
+    }
+    auto object = php_swoole_create_socket(socket_type);
+    if (UNEXPECTED(!object)) {
+        non_sql_error(MYSQLND_CR_CONNECTION_ERROR, strerror(errno));
+        return false;
+    }
+    ZVAL_OBJ(&socket_object, object);
+    socket = php_swoole_get_socket(&socket_object);
+    socket->set_zero_copy(true);
+#ifdef SW_USE_OPENSSL
+    if (ssl) {
+        socket->enable_ssl_encrypt();
+    }
+#endif
+    socket->set_timeout(connect_timeout, Socket::TIMEOUT_CONNECT);
+    add_timeout_controller(connect_timeout, Socket::TIMEOUT_ALL);
+    if (!socket->connect(host, port)) {
+        io_error();
+        return false;
+    }
+    this->host = host;
+    this->port = port;
+#ifdef SW_USE_OPENSSL
+    this->ssl = ssl;
+#endif
+    if (!handshake()) {
+        close();
+        return false;
+    }
+    state = SW_MYSQL_STATE_IDLE;
+    quit = false;
+    del_timeout_controller();
     return true;
 }
 
@@ -1113,6 +1115,11 @@ void mysql_client::close() {
     state = SW_MYSQL_STATE_CLOSED;
     Socket *_socket = socket;
     if (_socket) {
+        zval tmp_socket = socket_object;
+        zval_add_ref(&tmp_socket);
+        ON_SCOPE_EXIT {
+            zval_ptr_dtor(&tmp_socket);
+        };
         del_timeout_controller();
         if (!quit && is_writable()) {
             send_command_without_check(SW_MYSQL_COM_QUIT);
@@ -1125,8 +1132,8 @@ void mysql_client::close() {
             statements.erase(i);
         }
         if (sw_likely(_socket->close())) {
-            delete _socket;
             socket = nullptr;
+            zval_ptr_dtor(&socket_object);
         }
     }
 }

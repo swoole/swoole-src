@@ -604,7 +604,7 @@ static PHP_METHOD(swoole_client_coro, close) {
     zval tmp_socket = client->socket_object;
     zval_add_ref(&tmp_socket);
     ON_SCOPE_EXIT {
-        zval_add_ref(&tmp_socket);
+        zval_ptr_dtor(&tmp_socket);
     };
     Socket *_socket = php_swoole_get_socket(&tmp_socket);
     if (!_socket->close()) {
