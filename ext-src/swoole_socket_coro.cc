@@ -801,6 +801,10 @@ SW_API void php_swoole_socket_set_error_properties(zval *zobject, int code, cons
     zend_update_property_string(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("errMsg"), msg);
 }
 
+SW_API void php_swoole_socket_set_error_properties(zval *zobject, Socket *socket) {
+    php_swoole_socket_set_error_properties(zobject, socket->errCode, socket->errMsg);
+}
+
 SW_API zend_object *php_swoole_create_socket_from_fd(int fd, enum swSocketType type) {
     zval zobject;
     zend_object *object = socket_coro_create_object(swoole_socket_coro_ce);
