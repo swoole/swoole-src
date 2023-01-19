@@ -1015,7 +1015,7 @@ ssize_t Client::build_header(zval *zobject, zval *zrequest, char *buffer) {
         const std::string *host;
         std::string _host;
 #ifndef SW_USE_OPENSSL
-        if (client->port != 80)
+        if (h2c->port != 80)
 #else
         if (!h2c->open_ssl ? h2c->port != 80 : h2c->port != 443)
 #endif
@@ -1055,7 +1055,7 @@ ssize_t Client::build_header(zval *zobject, zval *zrequest, char *buffer) {
 
     size_t buflen = nghttp2_hd_deflate_bound(h2c->deflater, headers.get(), headers.len());
 #if 0
-    if (buflen > client->remote_settings.max_header_list_size) {
+    if (buflen > h2c->remote_settings.max_header_list_size) {
         php_swoole_error(E_WARNING,
                          "header cannot bigger than remote max_header_list_size %u",
                          client->remote_settings.max_header_list_size);

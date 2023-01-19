@@ -64,7 +64,6 @@ class mysql_client {
     /* session related {{{ */
     Socket *socket = nullptr;
     zval socket_object;
-    std::function<void(Socket *)> socket_dtor;
     Socket::timeout_controller *tc = nullptr;
 
     enum sw_mysql_state state = SW_MYSQL_STATE_CLOSED;
