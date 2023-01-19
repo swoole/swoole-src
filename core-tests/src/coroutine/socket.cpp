@@ -1141,6 +1141,7 @@ TEST(coroutine_socket, close) {
                 ssize_t result = _sock->write(buffer->value(), buffer->get_length());
                 if (result < 0 && _sock->errCode == ECANCELED) {
                     ASSERT_FALSE(_sock->close());
+                    ASSERT_EQ(_sock->errCode, SW_ERROR_CO_SOCKET_CLOSE_WAIT);
                     results["write"] = true;
                     ASSERT_EQ(_sock->write(buffer->value(), buffer->get_length()), -1);
                     ASSERT_EQ(_sock->errCode, EBADF);
@@ -1164,8 +1165,12 @@ TEST(coroutine_socket, close) {
 
         System::sleep(0.1);
         ASSERT_FALSE(_sock->close());
+        ASSERT_EQ(_sock->errCode, SW_ERROR_CO_SOCKET_CLOSE_WAIT);
+        ASSERT_TRUE(_sock->is_closed());
         ASSERT_TRUE(results["write"]);
         ASSERT_TRUE(results["read"]);
+        ASSERT_FALSE(_sock->close());
+        ASSERT_EQ(_sock->errCode, EBADF);
     });
 }
 

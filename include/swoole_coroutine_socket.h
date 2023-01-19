@@ -335,7 +335,7 @@ class Socket {
         resolve_context_ = ctx;
     }
 
-    void set_dtor(std::function<void(Socket *)> *dtor) {
+    void set_dtor(const std::function<void(Socket *)> &dtor) {
         dtor_ = dtor;
     }
 
@@ -448,7 +448,7 @@ class Socket {
     bool zero_copy = false;
 
     NameResolver::Context *resolve_context_ = nullptr;
-    std::function<void(Socket *)> *dtor_ = nullptr;
+    std::function<void(Socket *)> dtor_;
 
     Socket(network::Socket *sock, Socket *socket);
 

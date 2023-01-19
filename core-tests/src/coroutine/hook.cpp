@@ -449,7 +449,8 @@ TEST(coroutine_hook, socket_close) {
             SW_LOOP_N(32) {
                 ssize_t result = swoole_coroutine_write(_fd, buffer->value(), buffer->get_length());
                 if (result < 0 && errno == ECANCELED) {
-                    ASSERT_EQ(swoole_coroutine_close(_fd), 0);
+                    ASSERT_EQ(swoole_coroutine_close(_fd), -1);
+                    ASSERT_EQ(errno, SW_ERROR_CO_SOCKET_CLOSE_WAIT);
                     results["write"] = true;
                     break;
                 }
@@ -470,7 +471,8 @@ TEST(coroutine_hook, socket_close) {
         });
 
         System::sleep(0.1);
-        ASSERT_EQ(swoole_coroutine_close(_fd), 0);
+        ASSERT_EQ(swoole_coroutine_close(_fd), -1);
+        ASSERT_EQ(errno, SW_ERROR_CO_SOCKET_CLOSE_WAIT);
         ASSERT_TRUE(results["write"]);
         ASSERT_TRUE(results["read"]);
     });

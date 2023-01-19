@@ -77,7 +77,6 @@ class Client {
 
     Socket *socket_ = nullptr;
     zval socket_object;
-    std::function<void(Socket *)> socket_dtor;
 
     nghttp2_hd_inflater *inflater = nullptr;
     nghttp2_hd_deflater *deflater = nullptr;
@@ -411,7 +410,7 @@ bool Client::connect() {
     socket_ = php_swoole_get_socket(&socket_object);
     zend_update_property(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("socket"), &socket_object);
 
-    socket_dtor = [this](Socket *_socket) {
+    socket_->set_dtor([this](Socket *_socket) {
         socket_ = nullptr;
         clean_send_queue();
         auto i = streams.begin();
@@ -430,10 +429,8 @@ bool Client::connect() {
         zend_update_property_bool(swoole_http2_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("connected"), 0);
         zend_update_property_null(swoole_http2_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("socket"));
         zval_ptr_dtor(&socket_object);
-        ZVAL_NULL(&socket_object);
-    };
+    });
 
-    socket_->set_dtor(&socket_dtor);
     socket_->set_zero_copy(true);
 #ifdef SW_USE_OPENSSL
     if (open_ssl) {
@@ -494,7 +491,16 @@ bool Client::close() {
         update_error_properties(EBADF, strerror(EBADF));
         return false;
     }
-    socket_->close();
+    zval tmp_socket = socket_object;
+    zval_add_ref(&tmp_socket);
+    ON_SCOPE_EXIT {
+        zval_ptr_dtor(&tmp_socket);
+    };
+    Socket *_socket = php_swoole_get_socket(&tmp_socket);
+    if (!_socket->close()) {
+        update_error_properties(_socket->errCode, _socket->errMsg);
+        return false;
+    }
     return true;
 }
 

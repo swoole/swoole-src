@@ -248,7 +248,6 @@ class HttpClient {
   private:
     Socket *socket = nullptr;
     zval socket_object;
-    std::function<void(Socket *)> socket_dtor;
     NameResolver::Context resolve_context_ = {};
     SocketType socket_type = SW_SOCK_TCP;
     swoole_http_parser parser = {};
@@ -770,7 +769,7 @@ bool HttpClient::connect() {
     socket->set_timeout(connect_timeout, Socket::TIMEOUT_CONNECT);
     socket->set_resolve_context(&resolve_context_);
 
-    socket_dtor = [this](Socket *_socket) {
+    socket->set_dtor([this](Socket *_socket) {
         zend_update_property_bool(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("connected"), 0);
         zend_update_property_null(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("socket"));
         // reset the properties that depend on the connection
@@ -784,10 +783,7 @@ bool HttpClient::connect() {
         tmp_write_buffer = socket->pop_write_buffer();
         socket = nullptr;
         zval_ptr_dtor(&socket_object);
-        ZVAL_NULL(&socket_object);
-    };
-
-    socket->set_dtor(&socket_dtor);
+    });
 
     if (!socket->connect(host, port)) {
         set_error(socket->errCode, socket->errMsg, HTTP_CLIENT_ESTATUS_CONNECT_FAILED);
@@ -1609,7 +1605,17 @@ bool HttpClient::close(const bool should_be_reset) {
     if (!socket) {
         return false;
     }
-    if (socket->close() && should_be_reset) {
+    zval tmp_socket = socket_object;
+    zval_add_ref(&tmp_socket);
+    ON_SCOPE_EXIT {
+        zval_ptr_dtor(&tmp_socket);
+    };
+    Socket *_socket = php_swoole_get_socket(&tmp_socket);
+    if (!_socket->close()) {
+        php_swoole_socket_set_error_properties(zobject, _socket->errCode, _socket->errMsg);
+        return false;
+    }
+    if (should_be_reset) {
         reset();
     }
     return true;
