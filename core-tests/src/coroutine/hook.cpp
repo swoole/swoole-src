@@ -335,6 +335,7 @@ TEST(coroutine_hook, exists) {
         ASSERT_TRUE(swoole_coroutine_socket_exists(fd));
         auto sock = swoole_coroutine_get_socket_object(fd);
         ASSERT_EQ(sock->get_fd(), fd);
+        swoole_coroutine_close(fd);
     });
 }
 

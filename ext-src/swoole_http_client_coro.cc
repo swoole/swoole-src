@@ -411,7 +411,6 @@ static int http_parser_on_header_value(swoole_http_parser *parser, const char *a
     else if (http->websocket && http->websocket_compression &&
              SW_STREQ(header_name, header_len, "sec-websocket-extensions")) {
         if (swoole_strncasestr(at, length, SW_STRL("permessage-deflate"))) {
-            printf("accept_websocket_compression");
             http->accept_websocket_compression = true;
         }
     }
