@@ -121,7 +121,8 @@ class Client {
     bool body_decompression = true;
     bool http_compression = true;
 #ifdef SW_HAVE_ZLIB
-    bool websocket_compression = false;  // allow to compress websocket messages
+    bool websocket_compression = false;         // allow to compress websocket messages
+    bool accept_websocket_compression = false;  // websocket server accepts compression
 #endif
     File *download_file = nullptr;    // save http response to file
     zend::String download_file_name;  // unlink the file on error
@@ -409,9 +410,9 @@ static int http_parser_on_header_value(swoole_http_parser *parser, const char *a
 #ifdef SW_HAVE_ZLIB
     else if (http->websocket && http->websocket_compression &&
              SW_STREQ(header_name, header_len, "sec-websocket-extensions")) {
-        if (SW_STRCASECT(at, length, "permessage-deflate") && SW_STRCASECT(at, length, "client_no_context_takeover") &&
-            SW_STRCASECT(at, length, "server_no_context_takeover")) {
-            http->websocket_compression = true;
+        if (swoole_strncasestr(at, length, SW_STRL("permessage-deflate"))) {
+            printf("accept_websocket_compression");
+            http->accept_websocket_compression = true;
         }
     }
 #endif
@@ -764,6 +765,7 @@ bool Client::connect() {
         socket->enable_ssl_encrypt();
     }
 #endif
+
     // apply settings
     apply_setting(sw_zend_read_property_ex(Z_OBJCE_P(zobject), zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0), false);
 
@@ -778,12 +780,6 @@ bool Client::connect() {
         close();
         return false;
     }
-
-    // reset the properties that depend on the connection
-    websocket = false;
-#ifdef SW_HAVE_ZLIB
-    websocket_compression = false;
-#endif
 
     zend_update_property(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("socket"), &socket_object);
     zend_update_property_bool(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("connected"), 1);
@@ -1388,7 +1384,7 @@ void Client::recv(zval *zframe, double timeout) {
         msg.length = retval;
         msg.str = socket->get_read_buffer()->str;
 #ifdef SW_HAVE_ZLIB
-        php_swoole_websocket_frame_unpack_ex(&msg, zframe, websocket_compression);
+        php_swoole_websocket_frame_unpack_ex(&msg, zframe, accept_websocket_compression);
 #else
         php_swoole_websocket_frame_unpack(&msg, zframe);
 #endif
@@ -1523,11 +1519,12 @@ bool Client::push(zval *zdata, zend_long opcode, uint8_t flags) {
     String *buffer = socket->get_write_buffer();
     buffer->clear();
     if (php_swoole_websocket_frame_is_object(zdata)) {
-        if (php_swoole_websocket_frame_object_pack(buffer, zdata, websocket_mask, websocket_compression) < 0) {
+        if (php_swoole_websocket_frame_object_pack(buffer, zdata, websocket_mask, accept_websocket_compression) < 0) {
             return false;
         }
     } else {
-        if (php_swoole_websocket_frame_pack(buffer, zdata, opcode, flags, websocket_mask, websocket_compression) < 0) {
+        if (php_swoole_websocket_frame_pack(
+                buffer, zdata, opcode, flags, websocket_mask, accept_websocket_compression) < 0) {
             return false;
         }
     }
@@ -1580,6 +1577,11 @@ void Client::socket_dtor() {
     if (tmp_write_buffer) {
         delete tmp_write_buffer;
     }
+    // reset the properties that depend on the connection
+    websocket = false;
+#ifdef SW_HAVE_ZLIB
+    accept_websocket_compression = false;
+#endif
     tmp_write_buffer = socket->pop_write_buffer();
     socket = nullptr;
     zval_ptr_dtor(&socket_object);

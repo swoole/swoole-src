@@ -633,4 +633,4 @@ std::string get_ip_by_hosts(const std::string &domain);
 }  // namespace coroutine
 }  // namespace swoole
 
-swoole::coroutine::Socket *swoole_coroutine_get_socket_object(int sockfd);
+std::shared_ptr<swoole::coroutine::Socket> swoole_coroutine_get_socket_object(int sockfd);

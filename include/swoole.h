@@ -310,6 +310,25 @@ static inline const char *swoole_strnstr(const char *haystack,
     return NULL;
 }
 
+static inline const char *swoole_strncasestr(const char *haystack,
+                                         uint32_t haystack_length,
+                                         const char *needle,
+                                         uint32_t needle_length) {
+    assert(needle_length > 0);
+    uint32_t i;
+
+    if (sw_likely(needle_length <= haystack_length)) {
+        for (i = 0; i < haystack_length - needle_length + 1; i++) {
+            if ((haystack[0] == needle[0]) && (0 == strncasecmp(haystack, needle, needle_length))) {
+                return haystack;
+            }
+            haystack++;
+        }
+    }
+
+    return NULL;
+}
+
 static inline ssize_t swoole_strnpos(const char *haystack,
                                      uint32_t haystack_length,
                                      const char *needle,

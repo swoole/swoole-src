@@ -35,14 +35,14 @@ using swoole::coroutine::PollSocket;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 
-static std::unordered_map<int, Socket *> socket_map;
+static std::unordered_map<int, std::shared_ptr<Socket>> socket_map;
 static std::mutex socket_map_lock;
 
 static sw_inline bool is_no_coro() {
     return SwooleTG.reactor == nullptr || !Coroutine::get_current();
 }
 
-static sw_inline Socket *get_socket(int sockfd) {
+static sw_inline std::shared_ptr<Socket> get_socket(int sockfd) {
     std::unique_lock<std::mutex> _lock(socket_map_lock);
     auto socket_iterator = socket_map.find(sockfd);
     if (socket_iterator == socket_map.end()) {
@@ -51,14 +51,14 @@ static sw_inline Socket *get_socket(int sockfd) {
     return socket_iterator->second;
 }
 
-static sw_inline Socket *get_socket_ex(int sockfd) {
+static sw_inline std::shared_ptr<Socket> get_socket_ex(int sockfd) {
     if (sw_unlikely(is_no_coro())) {
         return nullptr;
     }
     return get_socket(sockfd);
 }
 
-Socket *swoole_coroutine_get_socket_object(int sockfd) {
+std::shared_ptr<Socket> swoole_coroutine_get_socket_object(int sockfd) {
     return get_socket(sockfd);
 }
 
@@ -68,10 +68,10 @@ int swoole_coroutine_socket(int domain, int type, int protocol) {
     if (sw_unlikely(is_no_coro())) {
         return ::socket(domain, type, protocol);
     }
-    Socket *socket = new Socket(domain, type, protocol);
+    auto socket = std::make_shared<Socket>(domain, type, protocol);
     int fd = socket->get_fd();
     if (sw_unlikely(fd < 0)) {
-        delete socket;
+        return -1;
     } else {
         std::unique_lock<std::mutex> _lock(socket_map_lock);
         socket_map[fd] = socket;
@@ -80,32 +80,32 @@ int swoole_coroutine_socket(int domain, int type, int protocol) {
 }
 
 ssize_t swoole_coroutine_send(int sockfd, const void *buf, size_t len, int flags) {
-    Socket *socket = get_socket_ex(sockfd);
-    if (sw_unlikely(socket == NULL)) {
+    auto socket = get_socket_ex(sockfd);
+    if (sw_unlikely(socket == nullptr)) {
         return ::send(sockfd, buf, len, flags);
     }
     return socket->send(buf, len);
 }
 
 ssize_t swoole_coroutine_sendmsg(int sockfd, const struct msghdr *msg, int flags) {
-    Socket *socket = get_socket_ex(sockfd);
-    if (sw_unlikely(socket == NULL)) {
+    auto socket = get_socket_ex(sockfd);
+    if (sw_unlikely(socket == nullptr)) {
         return ::sendmsg(sockfd, msg, flags);
     }
     return socket->sendmsg(msg, flags);
 }
 
 ssize_t swoole_coroutine_recvmsg(int sockfd, struct msghdr *msg, int flags) {
-    Socket *socket = get_socket_ex(sockfd);
-    if (sw_unlikely(socket == NULL)) {
+    auto socket = get_socket_ex(sockfd);
+    if (sw_unlikely(socket == nullptr)) {
         return ::recvmsg(sockfd, msg, flags);
     }
     return socket->recvmsg(msg, flags);
 }
 
 ssize_t swoole_coroutine_recv(int sockfd, void *buf, size_t len, int flags) {
-    Socket *socket = get_socket_ex(sockfd);
-    if (sw_unlikely(socket == NULL)) {
+    auto socket = get_socket_ex(sockfd);
+    if (sw_unlikely(socket == nullptr)) {
         return ::recv(sockfd, buf, len, flags);
     }
     if (flags & MSG_PEEK) {
@@ -116,12 +116,11 @@ ssize_t swoole_coroutine_recv(int sockfd, void *buf, size_t len, int flags) {
 }
 
 int swoole_coroutine_close(int sockfd) {
-    Socket *socket = get_socket(sockfd);
-    if (socket == NULL) {
+    auto socket = get_socket(sockfd);
+    if (socket == nullptr) {
         return ::close(sockfd);
     }
     if (socket->close()) {
-        delete socket;
         std::unique_lock<std::mutex> _lock(socket_map_lock);
         socket_map.erase(sockfd);
         return 0;
@@ -130,8 +129,8 @@ int swoole_coroutine_close(int sockfd) {
 }
 
 int swoole_coroutine_connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen) {
-    Socket *socket = get_socket_ex(sockfd);
-    if (sw_unlikely(socket == NULL)) {
+    auto socket = get_socket_ex(sockfd);
+    if (sw_unlikely(socket == nullptr)) {
         return ::connect(sockfd, addr, addrlen);
     }
     return socket->connect(addr, addrlen) ? 0 : -1;
@@ -178,15 +177,15 @@ int swoole_coroutine_socket_create(int fd) {
     if (sw_unlikely(is_no_coro())) {
         return -1;
     }
-    Socket *socket = new Socket(fd, SW_SOCK_RAW);
+    auto socket = std::make_shared<Socket>(fd, SW_SOCK_RAW);
     int _fd = socket->get_fd();
     if (sw_unlikely(_fd < 0)) {
-        delete socket;
+        return -1;
     } else {
         std::unique_lock<std::mutex> _lock(socket_map_lock);
         socket_map[fd] = socket;
+        return 0;
     }
-    return 0;
 }
 
 uint8_t swoole_coroutine_socket_exists(int fd) {
@@ -198,8 +197,8 @@ ssize_t swoole_coroutine_read(int sockfd, void *buf, size_t count) {
         return read(sockfd, buf, count);
     }
 
-    Socket *socket = get_socket(sockfd);
-    if (socket) {
+    auto socket = get_socket(sockfd);
+    if (socket != nullptr) {
         return socket->read(buf, count);
     }
 
@@ -213,8 +212,8 @@ ssize_t swoole_coroutine_write(int sockfd, const void *buf, size_t count) {
         return write(sockfd, buf, count);
     }
 
-    Socket *socket = get_socket(sockfd);
-    if (socket) {
+    auto socket = get_socket(sockfd);
+    if (socket != nullptr) {
         return socket->write(buf, count);
     }
 
@@ -454,8 +453,8 @@ void swoole_coroutine_usleep(int usec) {
 }
 
 int swoole_coroutine_socket_set_timeout(int sockfd, int which, double timeout) {
-    Socket *socket = get_socket_ex(sockfd);
-    if (sw_unlikely(socket == NULL)) {
+    auto socket = get_socket_ex(sockfd);
+    if (sw_unlikely(socket == nullptr)) {
         errno = EINVAL;
         return -1;
     }
@@ -472,8 +471,8 @@ int swoole_coroutine_socket_set_timeout(int sockfd, int which, double timeout) {
 }
 
 int swoole_coroutine_socket_set_connect_timeout(int sockfd, double timeout) {
-    Socket *socket = get_socket_ex(sockfd);
-    if (sw_unlikely(socket == NULL)) {
+    auto socket = get_socket_ex(sockfd);
+    if (sw_unlikely(socket == nullptr)) {
         errno = EINVAL;
         return -1;
     }
@@ -482,8 +481,8 @@ int swoole_coroutine_socket_set_connect_timeout(int sockfd, double timeout) {
 }
 
 int swoole_coroutine_socket_wait_event(int sockfd, int event, double timeout) {
-    Socket *socket = get_socket_ex(sockfd);
-    if (sw_unlikely(socket == NULL)) {
+    auto socket = get_socket_ex(sockfd);
+    if (sw_unlikely(socket == nullptr)) {
         errno = EINVAL;
         return -1;
     }
