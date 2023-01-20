@@ -768,6 +768,12 @@ bool Client::connect() {
     // apply settings
     apply_setting(sw_zend_read_property_ex(Z_OBJCE_P(zobject), zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0), false);
 
+    // reset the properties that depend on the connection
+    websocket = false;
+#ifdef SW_HAVE_ZLIB
+    accept_websocket_compression = false;
+#endif
+
     // socket->set_buffer_allocator(&SWOOLE_G(zend_string_allocator));
     // connect
     socket->set_timeout(connect_timeout, Socket::TIMEOUT_CONNECT);
@@ -1576,11 +1582,6 @@ void Client::socket_dtor() {
     if (tmp_write_buffer) {
         delete tmp_write_buffer;
     }
-    // reset the properties that depend on the connection
-    websocket = false;
-#ifdef SW_HAVE_ZLIB
-    accept_websocket_compression = false;
-#endif
     tmp_write_buffer = socket->pop_write_buffer();
     socket = nullptr;
     zval_ptr_dtor(&socket_object);
