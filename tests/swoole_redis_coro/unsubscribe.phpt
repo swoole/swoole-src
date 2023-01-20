@@ -6,7 +6,7 @@ swoole_redis_coro: redis unsubscribe
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-go(function () {
+Co\run(function () {
     $redis = new Co\Redis();
     $ret = $redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
     Assert::assert($ret);

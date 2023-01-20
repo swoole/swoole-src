@@ -1265,7 +1265,7 @@ static bool swoole_redis_coro_connect(RedisClient *redis) {
 
 static sw_inline bool swoole_redis_coro_keep_liveness(RedisClient *redis) {
     std::shared_ptr<Socket> socket;
-    if (!redis->context || (socket = swoole_redis_coro_get_socket(redis->context)) || !socket->check_liveness()) {
+    if (!redis->context || !(socket = swoole_redis_coro_get_socket(redis->context)) || !socket->check_liveness()) {
         if (socket) {
             zend_update_property_long(
                 swoole_redis_coro_ce, SW_Z8_OBJ_P(redis->zobject), ZEND_STRL("errType"), SW_REDIS_ERR_CLOSED);
