@@ -478,3 +478,134 @@ TEST(coroutine_hook, socket_close) {
         ASSERT_TRUE(results["read"]);
     });
 }
+
+TEST(coroutine_hook, poll) {
+    coroutine::run([&](void *arg) {
+        auto pair = create_socket_pair();
+
+        auto buffer = sw_tg_buffer();
+        buffer->clear();
+        buffer->append_random_bytes(256 * 1024, false);
+
+        std::map<std::string, bool> results;
+        auto _sock0 = pair.first;
+        auto _fd0 = _sock0->move_fd();
+        swoole_coroutine_socket_create(_fd0);
+
+        auto _sock1 = pair.second;
+        auto _fd1 = _sock1->move_fd();
+        swoole_coroutine_socket_create(_fd1);
+
+        Coroutine::create([&](void *) {
+            ssize_t result;
+            result = swoole_coroutine_write(_fd0, buffer->value(), buffer->get_length());
+            ASSERT_GT(result, 0);            
+            System::sleep(0.01);            
+            result = swoole_coroutine_write(_fd1, buffer->value(), 16 * 1024);
+            ASSERT_GT(result, 0);
+        });
+
+        struct pollfd fds[2];
+        char buf[4096];
+
+        bzero(fds, sizeof(pollfd));
+        fds[0].fd = _fd0;
+        fds[0].events = POLLIN;
+        fds[1].fd = _fd1;
+        fds[1].events = POLLIN;
+
+        ASSERT_EQ(swoole_coroutine_poll(fds, 2, 1000), 1);
+        ASSERT_TRUE(fds[1].revents & POLLIN);
+
+        ssize_t result = swoole_coroutine_read(_fd1, buf, sizeof(buf));
+        ASSERT_GT(result, 1024);
+
+        System::sleep(0.02);  
+
+        bzero(fds, sizeof(pollfd));
+        fds[0].fd = _fd0;
+        fds[0].events = POLLIN;
+        fds[1].fd = _fd1;
+        fds[1].events = POLLIN;
+
+        ASSERT_EQ(swoole_coroutine_poll(fds, 2, 1000), 2);
+        ASSERT_TRUE(fds[0].revents & POLLIN);
+        ASSERT_TRUE(fds[1].revents & POLLIN);
+        result = swoole_coroutine_read(_fd0, buf, sizeof(buf));
+        ASSERT_GT(result, 1024);
+        result = swoole_coroutine_read(_fd1, buf, sizeof(buf));
+        ASSERT_GT(result, 1024);
+
+        System::sleep(0.02);  
+
+        bzero(fds, sizeof(pollfd));
+        fds[0].fd = _fd0;
+        fds[0].events = POLLIN | POLLOUT;
+        fds[1].fd = _fd1;
+        fds[1].events = POLLIN | POLLOUT;
+
+        ASSERT_EQ(swoole_coroutine_poll(fds, 2, 1000), 2);
+        ASSERT_TRUE(fds[0].revents & POLLIN);
+        ASSERT_TRUE(fds[1].revents & POLLIN);
+        ASSERT_FALSE(fds[0].revents & POLLOUT); // not writable
+        ASSERT_TRUE(fds[1].revents & POLLOUT);
+        result = swoole_coroutine_read(_fd0, buf, sizeof(buf));
+        ASSERT_GT(result, 1024);
+        result = swoole_coroutine_read(_fd1, buf, sizeof(buf));
+        ASSERT_GT(result, 1024);
+    });
+}
+
+TEST(coroutine_hook, poll_fake) {
+    coroutine::run([&](void *arg) {
+        auto pair = create_socket_pair();
+
+        auto buffer = sw_tg_buffer();
+        buffer->clear();
+        buffer->append_random_bytes(256 * 1024, false);
+
+        std::map<std::string, bool> results;
+        auto _sock0 = pair.first;
+        auto _fd0 = _sock0->move_fd();
+        swoole_coroutine_socket_create(_fd0);
+
+        auto _sock1 = pair.second;
+        auto _fd1 = _sock1->move_fd();
+        swoole_coroutine_socket_create(_fd1);
+
+        Coroutine::create([&](void *) {
+            ssize_t result;
+            result = swoole_coroutine_write(_fd0, buffer->value(), buffer->get_length());
+            ASSERT_GT(result, 0);
+            System::sleep(0.01);
+            result = swoole_coroutine_write(_fd1, buffer->value(), 16 * 1024);
+            ASSERT_GT(result, 0);
+        });
+
+        struct pollfd fds[2];
+        char buf[4096];
+
+        bzero(fds, sizeof(pollfd));
+        fds[0].fd = _fd1;
+        fds[0].events = POLLIN;
+
+        ASSERT_EQ(swoole_coroutine_poll_fake(fds, 1, 1000), 1);
+        ASSERT_TRUE(fds[0].revents & POLLIN);
+
+        ssize_t result = swoole_coroutine_read(_fd1, buf, sizeof(buf));
+        ASSERT_GT(result, 1024);
+
+        bzero(fds, sizeof(pollfd));
+        ASSERT_EQ(swoole_coroutine_poll_fake(fds, 2, 1000), -1);
+        ASSERT_EQ(swoole_get_last_error(), SW_ERROR_INVALID_PARAMS);
+
+        System::sleep(0.02);
+
+        bzero(fds, sizeof(pollfd));
+        fds[0].fd = _fd0;
+        fds[0].events = POLLIN | POLLOUT;
+        ASSERT_EQ(swoole_coroutine_poll_fake(fds, 1, 1000), 1);
+        ASSERT_TRUE(fds[0].revents & POLLIN);
+        ASSERT_TRUE(fds[0].revents & POLLOUT);
+    });
+}

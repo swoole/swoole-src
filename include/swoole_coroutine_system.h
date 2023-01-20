@@ -39,6 +39,9 @@ struct PollSocket {
     }
 };
 
+int translate_events_to_poll(int events);
+int translate_events_from_poll(int events);
+
 class System {
   public:
     static void init_reactor(Reactor *reactor);

@@ -34,6 +34,8 @@ using swoole::coroutine::async;
 using swoole::coroutine::PollSocket;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
+using swoole::coroutine::translate_events_to_poll;
+using swoole::coroutine::translate_events_from_poll;
 
 static std::unordered_map<int, std::shared_ptr<Socket>> socket_map;
 static std::mutex socket_map_lock;
@@ -136,6 +138,26 @@ int swoole_coroutine_connect(int sockfd, const struct sockaddr *addr, socklen_t 
     return socket->connect(addr, addrlen) ? 0 : -1;
 }
 
+int swoole_coroutine_poll_fake(struct pollfd *fds, nfds_t nfds, int timeout) {
+    if (nfds != 1) {
+        swoole_set_last_error(SW_ERROR_INVALID_PARAMS);
+        swoole_warning("fake poll() implementation, only supports one socket");
+        return -1;
+    }
+    auto socket = get_socket_ex(fds[0].fd);
+    if (sw_unlikely(timeout == 0 || socket == nullptr)) {
+        return poll(fds, nfds, timeout);
+    }
+    socket->set_timeout((double) timeout / 1000);
+    if (fds[0].events & POLLIN) {
+        fds[0].revents |= POLLIN;
+    }
+    if (fds[0].events & POLLOUT) {
+        fds[0].revents |= POLLOUT;
+    }
+    return 1;
+}
+
 int swoole_coroutine_poll(struct pollfd *fds, nfds_t nfds, int timeout) {
     if (sw_unlikely(is_no_coro() || timeout == 0)) {
         return poll(fds, nfds, timeout);
@@ -143,18 +165,18 @@ int swoole_coroutine_poll(struct pollfd *fds, nfds_t nfds, int timeout) {
 
     std::unordered_map<int, PollSocket> _fds;
     for (nfds_t i = 0; i < nfds; i++) {
-        _fds.emplace(std::make_pair(fds[i].fd, PollSocket(fds[i].events, &fds[i])));
+        _fds.emplace(std::make_pair(fds[i].fd, PollSocket(translate_events_from_poll(fds[i].events), &fds[i])));
     }
 
     if (!System::socket_poll(_fds, (double) timeout / 1000)) {
         return -1;
     }
 
-    int retval;
+    int retval = 0;
     for (auto &i : _fds) {
         int revents = i.second.revents;
         struct pollfd *_fd = (struct pollfd *) i.second.ptr;
-        _fd->revents = revents;
+        _fd->revents = translate_events_to_poll(revents);
         if (revents > 0) {
             retval++;
         }

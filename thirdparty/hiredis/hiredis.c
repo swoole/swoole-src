@@ -42,6 +42,7 @@
 #include "net.h"
 #include "sds.h"
 
+#define SW_HOOK_POLL_FAKE
 #include "swoole_socket_hook.h"
 
 extern int redisContextUpdateConnectTimeout(redisContext *c, const struct timeval *timeout);
