@@ -1,5 +1,5 @@
 --TEST--
-swoole_client_coro: sendto
+swoole_client_coro: recvfrom 1
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

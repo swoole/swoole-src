@@ -36,21 +36,15 @@ $pm->childFunc = function () use ($pm) {
         'log_file' => '/dev/null'
     ));
     $ws->on('WorkerStart', function (Swoole\Server $serv) {
-        /**
-         * @var $pm ProcessManager
-         */
         global $pm;
         $pm->wakeup();
     });
-
     $ws->on('open', function ($serv, Swoole\Http\Request $request) {
 
     });
-
     $ws->on('message', function ($serv, $frame) {
         $serv->push($frame->fd, "hello client\n");
     });
-
     $ws->start();
 };
 

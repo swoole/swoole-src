@@ -22,14 +22,16 @@ $pm->parentFunc = function () use ($pm) {
         go(function () use ($cli) {
             echo "SEND\n";
             $size = 16 * 1024 * 1024;
-            Assert::assert($cli->send(str_repeat('S', $size)) < $size);
+            Assert::lessThan($cli->send(str_repeat('S', $size)), $size);
             Assert::assert(!$cli->connected);
+            Assert::eq($cli->errCode, SOCKET_ECANCELED);
             echo "SEND CLOSED\n";
         });
         go(function () use ($cli) {
             echo "RECV\n";
-            Assert::assert(!$cli->recv(-1));
+            Assert::false($cli->recv(-1));
             Assert::assert(!$cli->connected);
+            Assert::eq($cli->errCode, SOCKET_ECANCELED);
             echo "RECV CLOSED\n";
         });
     });

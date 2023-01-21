@@ -391,7 +391,7 @@ static int socket_poll_error_callback(Reactor *reactor, Event *event) {
     return SW_OK;
 }
 
-static int translate_events_to_poll(int events) {
+int translate_events_to_poll(int events) {
     int poll_events = 0;
 
     if (events & SW_EVENT_READ) {
@@ -404,7 +404,7 @@ static int translate_events_to_poll(int events) {
     return poll_events;
 }
 
-static int translate_events_from_poll(int events) {
+int translate_events_from_poll(int events) {
     int sw_events = 0;
 
     if (events & POLLIN) {

@@ -1065,7 +1065,7 @@ static sw_inline RedisClient *php_swoole_get_redis_client(zval *zobject) {
     return redis;
 }
 
-static sw_inline Socket *swoole_redis_coro_get_socket(redisContext *context) {
+static sw_inline std::shared_ptr<Socket> swoole_redis_coro_get_socket(redisContext *context) {
     if (context->fd > 0 && SwooleTG.reactor) {
         return swoole_coroutine_get_socket_object(context->fd);
     }
@@ -1075,15 +1075,15 @@ static sw_inline Socket *swoole_redis_coro_get_socket(redisContext *context) {
 static sw_inline bool swoole_redis_coro_close(RedisClient *redis) {
     if (redis->context) {
         int sockfd = redis->context->fd;
-        Socket *socket = swoole_redis_coro_get_socket(redis->context);
+        auto socket = swoole_redis_coro_get_socket(redis->context);
         swoole_trace_log(SW_TRACE_REDIS_CLIENT, "redis connection closed, fd=%d", sockfd);
         zend_update_property_bool(swoole_redis_coro_ce, SW_Z8_OBJ_P(redis->zobject), ZEND_STRL("connected"), 0);
-        if (!(socket && socket->has_bound())) {
+        if (!(socket != nullptr && socket->has_bound())) {
             redisFreeKeepFd(redis->context);
             redis->context = nullptr;
             redis->session = {false, 0, false};
         }
-        if (socket) {
+        if (socket != nullptr) {
             swoole_coroutine_close(sockfd);
         }
         return true;
@@ -1164,7 +1164,6 @@ static void redis_request(
 static bool swoole_redis_coro_connect(RedisClient *redis) {
     zval *zobject = redis->zobject;
     redisContext *context;
-    Socket *socket;
     struct timeval tv;
     zval *ztmp;
     zval *zhost = sw_zend_read_property_ex(swoole_redis_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_HOST), 0);
@@ -1225,7 +1224,8 @@ static bool swoole_redis_coro_connect(RedisClient *redis) {
         swoole_redis_coro_close(redis);
         return false;
     }
-    if (!(socket = swoole_redis_coro_get_socket(context))) {
+    auto socket = swoole_redis_coro_get_socket(context);
+    if (socket == nullptr) {
         zend_update_property_long(swoole_redis_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errType"), SW_REDIS_ERR_OTHER);
         zend_update_property_long(
             swoole_redis_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), sw_redis_convert_err(SW_REDIS_ERR_OTHER));
@@ -1264,7 +1264,7 @@ static bool swoole_redis_coro_connect(RedisClient *redis) {
 }
 
 static sw_inline bool swoole_redis_coro_keep_liveness(RedisClient *redis) {
-    Socket *socket = nullptr;
+    std::shared_ptr<Socket> socket;
     if (!redis->context || !(socket = swoole_redis_coro_get_socket(redis->context)) || !socket->check_liveness()) {
         if (socket) {
             zend_update_property_long(
@@ -2166,7 +2166,7 @@ static void swoole_redis_coro_set_options(RedisClient *redis, zval *zoptions, bo
             }
         }
         if (redis->context) {
-            Socket *socket = swoole_redis_coro_get_socket(redis->context);
+            auto socket = swoole_redis_coro_get_socket(redis->context);
             if (socket) {
                 socket->set_timeout(redis->timeout, Socket::TIMEOUT_RDWR);
             }

@@ -1763,6 +1763,9 @@ bool Socket::close() {
         return false;
     } else {
         sock_fd = SW_BAD_SOCKET;
+        if (dtor_ != nullptr) {
+            dtor_(this);
+        }
         return true;
     }
 }

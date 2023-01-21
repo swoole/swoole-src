@@ -12,14 +12,13 @@ $pm->parentFunc = function (int $pid) use ($pm) {
             $cli = new \Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
             $cli->set(['timeout' => 5]);
             for ($n = MAX_REQUESTS; $n--;) {
-                $ret = $cli->upgrade('/');
-                Assert::assert($ret);
+                Assert::true($cli->upgrade('/'));
                 $code = mt_rand(0, 5000);
                 $reason = md5($code);
                 $close_frame = new Swoole\WebSocket\CloseFrame;
                 $close_frame->code = $code;
                 $close_frame->reason = $reason;
-                $cli->push($close_frame);
+                Assert::true($cli->push($close_frame));
                 // recv the last close frame
                 $frame = $cli->recv();
                 Assert::isInstanceOf($frame, Swoole\WebSocket\CloseFrame::class);
