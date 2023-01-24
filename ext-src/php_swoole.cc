@@ -237,19 +237,19 @@ void php_swoole_set_global_option(HashTable *vht) {
 
 #ifdef SW_DEBUG
     if (php_swoole_array_get_value(vht, "debug_mode", ztmp) && zval_is_true(ztmp)) {
-        sw_logger()->set_level(0);
+        swoole_set_log_level(0);
     }
 #endif
     // [Logger]
     // ======================================================================
     if (php_swoole_array_get_value(vht, "trace_flags", ztmp)) {
-        SwooleG.trace_flags = (uint32_t) SW_MAX(0, zval_get_long(ztmp));
+        swoole_set_trace_flags(zval_get_long(ztmp));
     }
     if (php_swoole_array_get_value(vht, "log_file", ztmp)) {
-        sw_logger()->open(zend::String(ztmp).val());
+        swoole_set_log_file(zend::String(ztmp).val());
     }
     if (php_swoole_array_get_value(vht, "log_level", ztmp)) {
-        sw_logger()->set_level(zval_get_long(ztmp));
+        swoole_set_log_level(zval_get_long(ztmp));
     }
     if (php_swoole_array_get_value(vht, "log_date_format", ztmp)) {
         sw_logger()->set_date_format(zend::String(ztmp).val());

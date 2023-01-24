@@ -294,6 +294,20 @@ SW_API void swoole_set_log_level(int level) {
     }
 }
 
+SW_API int swoole_get_log_level() {
+    if (sw_logger()) {
+        return sw_logger()->get_level();
+    } else {
+        return SW_LOG_NONE;
+    }
+}
+
+SW_API void swoole_set_log_file(const char *file) {
+    if (sw_logger()) {
+        sw_logger()->open(file);
+    }
+}
+
 SW_API void swoole_set_trace_flags(int flags) {
     SwooleG.trace_flags = flags;
 }

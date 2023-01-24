@@ -784,6 +784,7 @@ SW_API void swoole_throw_error(int code);
 SW_API void swoole_ignore_error(int code);
 SW_API bool swoole_is_ignored_error(int code);
 SW_API void swoole_set_log_level(int level);
+SW_API void swoole_set_log_file(const char *file);
 SW_API void swoole_set_trace_flags(int flags);
 SW_API void swoole_set_dns_server(const std::string &server);
 SW_API void swoole_set_hosts_path(const std::string &hosts_file);
@@ -793,6 +794,7 @@ SW_API void swoole_name_resolver_add(const swoole::NameResolver &resolver, bool 
 SW_API void swoole_name_resolver_each(
     const std::function<enum swTraverseOperation(const std::list<swoole::NameResolver>::iterator &iter)> &fn);
 SW_API std::string swoole_name_resolver_lookup(const std::string &host_name, swoole::NameResolver::Context *ctx);
+SW_API int swoole_get_log_level();
 
 //-----------------------------------------------
 static sw_inline void sw_spinlock(sw_atomic_t *lock) {
