@@ -31,6 +31,9 @@
 #include <sys/event.h>
 #endif
 #endif
+#ifdef __NetBSD__
+#include <sys/param.h>
+#endif
 
 using swoole::Event;
 using swoole::Reactor;
@@ -361,7 +364,7 @@ static SignalHandler swoole_signal_kqueue_set(int signo, SignalHandler handler) 
         signals[signo].handler = handler;
         signals[signo].signo = signo;
         signals[signo].activated = true;
-#ifndef __NetBSD__
+#if !defined(__NetBSD__) || (defined(__NetBSD__) && __NetBSD_Version__ >= 1000000000)
         auto sigptr = &signals[signo];
 #else
         auto sigptr = reinterpret_cast<intptr_t>(&signals[signo]);
