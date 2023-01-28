@@ -157,23 +157,23 @@ TEST(table, calc_rows_size) {
     ASSERT_EQ(SW_TABLE_MAX_ROW_SIZE, table->get_size());
     table->destroy();
 
-    table = Table::make(SW_TABLE_MAX_ROW_SIZE, 0.31415);
+    table = Table::make(SW_TABLE_MAX_ROW_SIZE, conflict);
     ASSERT_EQ(SW_TABLE_MAX_ROW_SIZE, table->get_size());
     table->destroy();
 
-    table = Table::make(SW_TABLE_MAX_ROW_SIZE - 1, 0.31415);
+    table = Table::make(SW_TABLE_MAX_ROW_SIZE - 1, conflict);
     ASSERT_EQ(SW_TABLE_MAX_ROW_SIZE, table->get_size());
     table->destroy();
 
-    table = Table::make(SW_TABLE_MIN_ROW_SIZE + 1, 0.31415);
+    table = Table::make(SW_TABLE_MIN_ROW_SIZE + 1, conflict);
     ASSERT_EQ(SW_TABLE_MIN_ROW_SIZE << 1, table->get_size());
     table->destroy();
 
-    table = Table::make(SW_TABLE_MIN_ROW_SIZE, 0.31415);
+    table = Table::make(SW_TABLE_MIN_ROW_SIZE, conflict);
     ASSERT_EQ(SW_TABLE_MIN_ROW_SIZE, table->get_size());
     table->destroy();
 
-    table = Table::make(SW_TABLE_MIN_ROW_SIZE - 1, 0.31415);
+    table = Table::make(SW_TABLE_MIN_ROW_SIZE - 1, conflict);
     ASSERT_EQ(SW_TABLE_MIN_ROW_SIZE, table->get_size());
     table->destroy();
 
