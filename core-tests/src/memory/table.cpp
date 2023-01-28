@@ -150,6 +150,54 @@ TEST(table, create) {
     ASSERT_FALSE(table.exists("php"));
 }
 
+TEST(table, calc_rows_size) {
+    float conflict = 0.31415;
+
+    auto table = Table::make(SW_TABLE_MAX_ROW_SIZE + 1, conflict);
+    ASSERT_EQ(SW_TABLE_MAX_ROW_SIZE, table->get_size());
+    table->destroy();
+
+    table = Table::make(SW_TABLE_MAX_ROW_SIZE, 0.31415);
+    ASSERT_EQ(SW_TABLE_MAX_ROW_SIZE, table->get_size());
+    table->destroy();
+
+    table = Table::make(SW_TABLE_MAX_ROW_SIZE - 1, 0.31415);
+    ASSERT_EQ(SW_TABLE_MAX_ROW_SIZE, table->get_size());
+    table->destroy();
+
+    table = Table::make(SW_TABLE_MIN_ROW_SIZE + 1, 0.31415);
+    ASSERT_EQ(SW_TABLE_MIN_ROW_SIZE << 1, table->get_size());
+    table->destroy();
+
+    table = Table::make(SW_TABLE_MIN_ROW_SIZE, 0.31415);
+    ASSERT_EQ(SW_TABLE_MIN_ROW_SIZE, table->get_size());
+    table->destroy();
+
+    table = Table::make(SW_TABLE_MIN_ROW_SIZE - 1, 0.31415);
+    ASSERT_EQ(SW_TABLE_MIN_ROW_SIZE, table->get_size());
+    table->destroy();
+
+    uint32_t middle_random, original_version_res;
+    SW_LOOP_N(6) {
+        middle_random = swoole_rand(SW_TABLE_MIN_ROW_SIZE + 1, SW_TABLE_MAX_ROW_SIZE - 1);
+
+        // original version codes
+        if (middle_random >= 0x80000000) {
+            original_version_res = 0x80000000;
+        } else {
+            uint32_t move_bit = 6;
+            while ((1U << move_bit) < middle_random) {
+                move_bit++;
+            }
+            original_version_res = 1 << move_bit;
+        }
+
+        table = Table::make(middle_random, conflict);
+        ASSERT_EQ(original_version_res, table->get_size());
+        table->destroy();
+    }
+}
+
 void start_iterator(Table *_ptr) {
     _ptr->rewind();
     auto count = 0;
