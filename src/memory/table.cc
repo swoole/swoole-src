@@ -19,14 +19,22 @@
 namespace swoole {
 
 Table *Table::make(uint32_t rows_size, float conflict_proportion) {
-    if (rows_size >= 0x80000000) {
-        rows_size = 0x80000000;
+    if (sw_unlikely(rows_size > (SW_TABLE_MAX_ROW_SIZE >> 1))) {
+        rows_size = SW_TABLE_MAX_ROW_SIZE;
+    } else if (rows_size <= SW_TABLE_MIN_ROW_SIZE) {
+        rows_size = SW_TABLE_MIN_ROW_SIZE;
     } else {
-        uint32_t i = 6;
-        while ((1U << i) < rows_size) {
-            i++;
-        }
-        rows_size = 1 << i;
+#if (defined(__GNUC__) || __has_builtin(__builtin_clz))
+        rows_size = 0x2u << (__builtin_clz(rows_size - 1) ^ 0x1f);
+#else
+        rows_size -= 1;
+        rows_size |= (rows_size >> 1);
+        rows_size |= (rows_size >> 2);
+        rows_size |= (rows_size >> 4);
+        rows_size |= (rows_size >> 8);
+        rows_size |= (rows_size >> 16);
+        rows_size += 1;
+#endif
     }
 
     if (conflict_proportion > 1.0) {

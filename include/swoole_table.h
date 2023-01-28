@@ -22,13 +22,16 @@
 #include "swoole_lock.h"
 #include "swoole_hash.h"
 
-#include <signal.h>
+#include <csignal>
 
 #include <vector>
 #include <unordered_map>
 
-//#define SW_TABLE_DEBUG   0
+// #define SW_TABLE_DEBUG   0
 #define SW_TABLE_FORCE_UNLOCK_TIME 2000  // milliseconds
+#define SW_TABLE_USE_PHP_HASH
+#define SW_TABLE_MAX_ROW_SIZE 0x80000000
+#define SW_TABLE_MIN_ROW_SIZE 0x50
 #define SW_TABLE_USE_PHP_HASH
 
 namespace swoole {
