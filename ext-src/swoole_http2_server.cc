@@ -958,9 +958,9 @@ static int http2_server_parse_header(Http2Session *client, HttpContext *ctx, int
                 }
             } else {
                 if (SW_STRCASEEQ((char *) nv.name, nv.namelen, "content-type")) {
-                    if (SW_STRCASECT((char *) nv.value, nv.valuelen, "application/x-www-form-urlencoded")) {
+                    if (SW_STR_ISTARTS_WITH((char *) nv.value, nv.valuelen, "application/x-www-form-urlencoded")) {
                         ctx->request.post_form_urlencoded = 1;
-                    } else if (SW_STRCASECT((char *) nv.value, nv.valuelen, "multipart/form-data")) {
+                    } else if (SW_STR_ISTARTS_WITH((char *) nv.value, nv.valuelen, "multipart/form-data")) {
                         size_t offset = sizeof("multipart/form-data") - 1;
                         char *boundary_str;
                         int boundary_len;

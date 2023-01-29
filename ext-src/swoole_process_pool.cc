@@ -440,7 +440,7 @@ static PHP_METHOD(swoole_process_pool, listen) {
 
     int ret;
     // unix socket
-    if (SW_STRCASECT(host, l_host, "unix:/")) {
+    if (SW_STR_ISTARTS_WITH(host, l_host, "unix:/")) {
         ret = pool->listen(host + 5, backlog);
     } else {
         ret = pool->listen(host, port, backlog);

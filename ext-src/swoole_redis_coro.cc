@@ -1196,7 +1196,7 @@ static bool swoole_redis_coro_connect(RedisClient *redis) {
         tv.tv_sec = redis->connect_timeout;
         tv.tv_usec = (redis->connect_timeout - (double) tv.tv_sec) * 1000 * 1000;
     }
-    if (SW_STRCASECT(host.val(), host.len(), "unix:/")) {
+    if (SW_STR_ISTARTS_WITH(host.val(), host.len(), "unix:/")) {
         context = redisConnectUnixWithTimeout(host.val() + 5 + strspn(host.val() + 5, "/") - 1, tv);
     } else {
         if (port <= 0 || port > SW_CLIENT_MAX_PORT) {

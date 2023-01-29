@@ -427,23 +427,23 @@ static int http_parser_on_header_value(swoole_http_parser *parser, const char *a
         if (0) {
         }
 #ifdef SW_HAVE_BROTLI
-        else if (SW_STRCASECT(at, length, "br")) {
+        else if (SW_STR_ISTARTS_WITH(at, length, "br")) {
             http->compress_method = HTTP_COMPRESS_BR;
         }
 #endif
 #ifdef SW_HAVE_ZLIB
-        else if (SW_STRCASECT(at, length, "gzip")) {
+        else if (SW_STR_ISTARTS_WITH(at, length, "gzip")) {
             http->compress_method = HTTP_COMPRESS_GZIP;
-        } else if (SW_STRCASECT(at, length, "deflate")) {
+        } else if (SW_STR_ISTARTS_WITH(at, length, "deflate")) {
             http->compress_method = HTTP_COMPRESS_DEFLATE;
         }
 #endif
     }
 #endif
-    else if (SW_STREQ(header_name, header_len, "transfer-encoding") && SW_STRCASECT(at, length, "chunked")) {
+    else if (SW_STREQ(header_name, header_len, "transfer-encoding") && SW_STR_ISTARTS_WITH(at, length, "chunked")) {
         http->chunked = true;
     } else if (SW_STREQ(header_name, header_len, "connection")) {
-        http->connection_close = SW_STRCASECT(at, length, "close");
+        http->connection_close = SW_STR_ISTARTS_WITH(at, length, "close");
     }
 
     if (http->lowercase_header) {

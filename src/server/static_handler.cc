@@ -108,7 +108,7 @@ bool StaticHandler::hit() {
 
     if (serv->locations->size() > 0) {
         for (auto i = serv->locations->begin(); i != serv->locations->end(); i++) {
-            if (swoole_strcasect(url, url_length, i->c_str(), i->size())) {
+            if (swoole_str_istarts_with(url, url_length, i->c_str(), i->size())) {
                 last = true;
             }
         }
@@ -301,7 +301,7 @@ void StaticHandler::parse_range(const char *range, const char *if_range) {
     if (range && '\0' != *range) {
         const char *p = range;
         // bytes=
-        if (!SW_STRCASECT(p, strlen(range), "bytes=")) {
+        if (!SW_STR_ISTARTS_WITH(p, strlen(range), "bytes=")) {
             _task.offset = 0;
             _task.length = content_length = get_filesize();
             tasks.push_back(_task);

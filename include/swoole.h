@@ -225,9 +225,8 @@ typedef swoole::Event swEvent;
 #define SW_STREQ(str, len, const_str) swoole_streq(str, len, SW_STRL(const_str))
 #define SW_STRCASEEQ(str, len, const_str) swoole_strcaseeq(str, len, SW_STRL(const_str))
 
-/* string contain */
-#define SW_STRCT(str, len, const_sub_str) swoole_strct(str, len, SW_STRL(const_sub_str))
-#define SW_STRCASECT(str, len, const_sub_str) swoole_strcasect(str, len, SW_STRL(const_sub_str))
+#define SW_STR_STARTS_WITH(str, len, const_sub_str) swoole_str_starts_with(str, len, SW_STRL(const_sub_str))
+#define SW_STR_ISTARTS_WITH(str, len, const_sub_str) swoole_str_istarts_with(str, len, SW_STRL(const_sub_str))
 
 #if defined(SW_USE_JEMALLOC) || defined(SW_USE_TCMALLOC)
 #define sw_strdup swoole_strdup
@@ -283,11 +282,11 @@ static inline unsigned int swoole_strcaseeq(const char *str1, size_t len1, const
     return (len1 == len2) && (strncasecmp(str1, str2, len1) == 0);
 }
 
-static inline unsigned int swoole_strct(const char *pstr, size_t plen, const char *sstr, size_t slen) {
+static inline unsigned int swoole_str_starts_with(const char *pstr, size_t plen, const char *sstr, size_t slen) {
     return (plen >= slen) && (strncmp(pstr, sstr, slen) == 0);
 }
 
-static inline unsigned int swoole_strcasect(const char *pstr, size_t plen, const char *sstr, size_t slen) {
+static inline unsigned int swoole_str_istarts_with(const char *pstr, size_t plen, const char *sstr, size_t slen) {
     return (plen >= slen) && (strncasecmp(pstr, sstr, slen) == 0);
 }
 

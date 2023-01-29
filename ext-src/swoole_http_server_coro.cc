@@ -113,7 +113,7 @@ class HttpServer {
             if (&i->second == default_handler) {
                 continue;
             }
-            if (swoole_strcasect(ctx->request.path, ctx->request.path_len, i->first.c_str(), i->first.length())) {
+            if (swoole_str_istarts_with(ctx->request.path, ctx->request.path_len, i->first.c_str(), i->first.length())) {
                 return &i->second;
             }
         }

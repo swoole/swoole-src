@@ -377,7 +377,7 @@ static int multipart_on_body_end(multipart_parser *p) {
     char *ptr_end = request->multipart_buffer_->str + (request->multipart_buffer_->length - (sizeof("\r\n\r\n") - 1));
 
     for (; ptr < ptr_end; ptr++) {
-        if (SW_STRCASECT(ptr, ptr_end - ptr, "Content-Length:")) {
+        if (SW_STR_ISTARTS_WITH(ptr, ptr_end - ptr, "Content-Length:")) {
             ptr += (sizeof("Content-Length:") - 1);
             // skip spaces
             while (*ptr == ' ') {
@@ -583,7 +583,7 @@ bool parse_multipart_boundary(
             offset++;
             continue;
         }
-        if (SW_STRCASECT(at + offset, length - offset, "boundary=")) {
+        if (SW_STR_ISTARTS_WITH(at + offset, length - offset, "boundary=")) {
             offset += sizeof("boundary=") - 1;
             break;
         }
@@ -822,7 +822,7 @@ void Request::parse_header_info() {
 
     for (; p < pe; p++) {
         if (*(p - 1) == '\n' && *(p - 2) == '\r') {
-            if (SW_STRCASECT(p, pe - p, "Content-Length:")) {
+            if (SW_STR_ISTARTS_WITH(p, pe - p, "Content-Length:")) {
                 // strlen("Content-Length:")
                 p += (sizeof("Content-Length:") - 1);
                 // skip spaces
@@ -831,32 +831,32 @@ void Request::parse_header_info() {
                 }
                 content_length_ = strtoull(p, nullptr, 10);
                 known_length = 1;
-            } else if (SW_STRCASECT(p, pe - p, "Connection:")) {
+            } else if (SW_STR_ISTARTS_WITH(p, pe - p, "Connection:")) {
                 // strlen("Connection:")
                 p += (sizeof("Connection:") - 1);
                 // skip spaces
                 while (*p == ' ') {
                     p++;
                 }
-                if (SW_STRCASECT(p, pe - p, "keep-alive")) {
+                if (SW_STR_ISTARTS_WITH(p, pe - p, "keep-alive")) {
                     keep_alive = 1;
                 }
-            } else if (SW_STRCASECT(p, pe - p, "Transfer-Encoding:")) {
+            } else if (SW_STR_ISTARTS_WITH(p, pe - p, "Transfer-Encoding:")) {
                 // strlen("Transfer-Encoding:")
                 p += (sizeof("Transfer-Encoding:") - 1);
                 // skip spaces
                 while (*p == ' ') {
                     p++;
                 }
-                if (SW_STRCASECT(p, pe - p, "chunked")) {
+                if (SW_STR_ISTARTS_WITH(p, pe - p, "chunked")) {
                     chunked = 1;
                 }
-            } else if (SW_STRCASECT(p, pe - p, "Content-Type:")) {
+            } else if (SW_STR_ISTARTS_WITH(p, pe - p, "Content-Type:")) {
                 p += (sizeof("Content-Type:") - 1);
                 while (*p == ' ') {
                     p++;
                 }
-                if (SW_STRCASECT(p, pe - p, "multipart/form-data")) {
+                if (SW_STR_ISTARTS_WITH(p, pe - p, "multipart/form-data")) {
                     form_data_ = new FormData();
                     form_data_->multipart_boundary_buf = p + (sizeof("multipart/form-data") - 1);
                     form_data_->multipart_boundary_len = strchr(p, '\r') - form_data_->multipart_boundary_buf;
@@ -948,9 +948,9 @@ bool Request::has_expect_header() {
     for (p = buf; p < pe; p++) {
         if (*p == '\r' && (size_t)(pe - p) > sizeof("\r\nExpect")) {
             p += 2;
-            if (SW_STRCASECT(p, pe - p, "Expect: ")) {
+            if (SW_STR_ISTARTS_WITH(p, pe - p, "Expect: ")) {
                 p += sizeof("Expect: ") - 1;
-                if (SW_STRCASECT(p, pe - p, "100-continue")) {
+                if (SW_STR_ISTARTS_WITH(p, pe - p, "100-continue")) {
                     return true;
                 } else {
                     return false;
@@ -1029,13 +1029,13 @@ string Request::get_header(const char *name) {
     for (; p < pe; p++) {
         switch (state) {
         case 0:
-            if (SW_STRCASECT(p, pe - p, "\r\n")) {
+            if (SW_STR_ISTARTS_WITH(p, pe - p, "\r\n")) {
                 i = 0;
                 is_error_header_name = false;
                 break;
             }
 
-            if (!is_error_header_name && swoole_strcasect(p, pe - p, name, name_len)) {
+            if (!is_error_header_name && swoole_str_istarts_with(p, pe - p, name, name_len)) {
                 colon = p + name_len;
                 if (colon[0] != ':' || i > 1) {
                     is_error_header_name = true;
@@ -1055,7 +1055,7 @@ string Request::get_header(const char *name) {
             }
             break;
         case 2:
-            if (SW_STRCASECT(p, pe - p, "\r\n")) {
+            if (SW_STR_ISTARTS_WITH(p, pe - p, "\r\n")) {
                 return string(buffer, p - buffer);
             }
             break;

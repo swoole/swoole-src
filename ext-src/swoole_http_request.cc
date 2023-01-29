@@ -389,9 +389,9 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
     } else if ((parser->method == PHP_HTTP_POST || parser->method == PHP_HTTP_PUT ||
                 parser->method == PHP_HTTP_DELETE || parser->method == PHP_HTTP_PATCH) &&
                SW_STREQ(header_name, header_len, "content-type")) {
-        if (SW_STRCASECT(at, length, "application/x-www-form-urlencoded")) {
+        if (SW_STR_ISTARTS_WITH(at, length, "application/x-www-form-urlencoded")) {
             ctx->request.post_form_urlencoded = 1;
-        } else if (SW_STRCASECT(at, length, "multipart/form-data")) {
+        } else if (SW_STR_ISTARTS_WITH(at, length, "multipart/form-data")) {
             size_t offset = sizeof("multipart/form-data") - 1;
             char *boundary_str;
             int boundary_len;
@@ -407,7 +407,7 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
         ctx->set_compression_method(at, length);
     }
 #endif
-    else if (SW_STREQ(header_name, header_len, "transfer-encoding") && SW_STRCASECT(at, length, "chunked")) {
+    else if (SW_STREQ(header_name, header_len, "transfer-encoding") && SW_STR_ISTARTS_WITH(at, length, "chunked")) {
         ctx->recv_chunked = 1;
     }
 

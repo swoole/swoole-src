@@ -931,7 +931,7 @@ int Client::parse_header(Stream *stream, int flags, char *in, size_t inlen) {
             } else {
 #ifdef SW_HAVE_ZLIB
                 if (SW_STRCASEEQ((char *) nv.name, nv.namelen, "content-encoding") &&
-                    SW_STRCASECT((char *) nv.value, nv.valuelen, "gzip")) {
+                    SW_STR_ISTARTS_WITH((char *) nv.value, nv.valuelen, "gzip")) {
                     /**
                      * init zlib stream
                      */

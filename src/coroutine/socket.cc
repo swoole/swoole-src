@@ -426,7 +426,7 @@ bool Socket::http_proxy_handshake() {
     char *pe = buf + len;
     for (; p < buf + len; p++) {
         if (state == 0) {
-            if (SW_STRCASECT(p, pe - p, "HTTP/1.1") || SW_STRCASECT(p, pe - p, "HTTP/1.0")) {
+            if (SW_STR_ISTARTS_WITH(p, pe - p, "HTTP/1.1") || SW_STR_ISTARTS_WITH(p, pe - p, "HTTP/1.0")) {
                 state = 1;
                 p += sizeof("HTTP/1.x") - 1;
             } else {
@@ -436,7 +436,7 @@ bool Socket::http_proxy_handshake() {
             if (isspace(*p)) {
                 continue;
             } else {
-                if (SW_STRCASECT(p, pe - p, "200")) {
+                if (SW_STR_ISTARTS_WITH(p, pe - p, "200")) {
                     state = 2;
                     p += sizeof("200") - 1;
                 } else {
@@ -450,7 +450,7 @@ bool Socket::http_proxy_handshake() {
             if (isspace(*p)) {
                 continue;
             } else {
-                if (SW_STRCASECT(p, pe - p, "Connection established")) {
+                if (SW_STR_ISTARTS_WITH(p, pe - p, "Connection established")) {
                     ret = true;
                 }
                 break;
