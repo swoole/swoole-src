@@ -145,7 +145,7 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
             header_stream << "Content-Range: bytes";
             if (tasks[0].length != handler.get_filesize()) {
                 header_stream << " " << tasks[0].offset << "-" << (tasks[0].length + tasks[0].offset - 1) << "/"
-                            << handler.get_filesize();
+                              << handler.get_filesize();
             }
             header_stream << "\r\n";
         }
@@ -1117,7 +1117,7 @@ ssize_t get_package_length(const Protocol *protocol, Socket *socket, PacketLengt
 uint8_t get_package_length_size(Socket *socket) {
     Connection *conn = (Connection *) socket->object;
     if (conn->websocket_status >= websocket::STATUS_HANDSHAKE) {
-        return SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_MASK_LEN + sizeof(uint64_t);
+        return SW_WEBSOCKET_MESSAGE_HEADER_SIZE;
     } else if (conn->http2_stream) {
         return SW_HTTP2_FRAME_HEADER_SIZE;
     } else {
