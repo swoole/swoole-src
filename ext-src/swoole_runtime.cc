@@ -114,9 +114,11 @@ static struct {
 
 static std::vector<std::string> unsafe_functions {
     "pcntl_fork",
+    "pcntl_rfork",
     "pcntl_wait",
     "pcntl_waitpid",
     "pcntl_sigtimedwait",
+    "pcntl_sigwaitinfo",
 };
 
 static const zend_function_entry swoole_runtime_methods[] = {
