@@ -58,6 +58,7 @@ static PHP_METHOD(swoole_socket_coro, listen);
 static PHP_METHOD(swoole_socket_coro, accept);
 static PHP_METHOD(swoole_socket_coro, connect);
 static PHP_METHOD(swoole_socket_coro, checkLiveness);
+static PHP_METHOD(swoole_socket_coro, getBoundCid);
 static PHP_METHOD(swoole_socket_coro, peek);
 static PHP_METHOD(swoole_socket_coro, recv);
 static PHP_METHOD(swoole_socket_coro, send);
@@ -97,6 +98,7 @@ static const zend_function_entry swoole_socket_coro_methods[] =
     PHP_ME(swoole_socket_coro, accept,         arginfo_class_Swoole_Coroutine_Socket_accept,         ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, connect,        arginfo_class_Swoole_Coroutine_Socket_connect,        ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, checkLiveness,  arginfo_class_Swoole_Coroutine_Socket_checkLiveness,  ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, getBoundCid,    arginfo_class_Swoole_Coroutine_Socket_getBoundCid,    ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, peek,           arginfo_class_Swoole_Coroutine_Socket_peek,           ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, recv,           arginfo_class_Swoole_Coroutine_Socket_recv,           ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, recvAll,        arginfo_class_Swoole_Coroutine_Socket_recvAll,        ZEND_ACC_PUBLIC)
@@ -1371,6 +1373,16 @@ static PHP_METHOD(swoole_socket_coro, checkLiveness) {
     bool liveness = sock->socket->check_liveness();
     socket_coro_sync_properties(ZEND_THIS, sock);
     RETURN_BOOL(liveness);
+}
+
+static PHP_METHOD(swoole_socket_coro, getBoundCid) {
+    zend_long event;
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_LONG(event)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    swoole_get_socket_coro(sock, ZEND_THIS);
+    RETURN_LONG(sock->socket->get_bound_cid((swEventType)event));
 }
 
 static PHP_METHOD(swoole_socket_coro, peek) {
