@@ -1382,7 +1382,7 @@ static PHP_METHOD(swoole_socket_coro, getBoundCid) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     swoole_get_socket_coro(sock, ZEND_THIS);
-    RETURN_LONG(sock->socket->get_bound_cid((swEventType)event));
+    RETURN_LONG(sock->socket->get_bound_cid((swEventType) event));
 }
 
 static PHP_METHOD(swoole_socket_coro, peek) {

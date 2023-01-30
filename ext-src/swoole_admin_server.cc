@@ -148,7 +148,7 @@ static std::string handle_get_all_sockets(Server *, const std::string &msg) {
 
 static std::string handle_get_all_commands(Server *serv, const std::string &msg) {
     json command_list = json::array();
-    for (auto kv : serv->commands) {
+    for (auto &kv : serv->commands) {
         json info = json::object({
             {"id", kv.second.id},
             {"name", kv.second.name},

@@ -62,7 +62,6 @@ ssize_t Protocol::default_length_func(const Protocol *protocol, network::Socket 
 
 int Protocol::recv_split_by_eof(network::Socket *socket, String *buffer) {
     RecvData rdata{};
-    int retval;
 
     if (buffer->length < package_eof_len) {
         return SW_CONTINUE;
@@ -72,7 +71,6 @@ int Protocol::recv_split_by_eof(network::Socket *socket, String *buffer) {
         rdata.info.len = length;
         rdata.data = data;
         if (onPackage(this, socket, &rdata) < 0) {
-            retval = SW_CLOSE;
             return false;
         }
         if (socket->removed) {
@@ -81,12 +79,8 @@ int Protocol::recv_split_by_eof(network::Socket *socket, String *buffer) {
         return true;
     });
 
-    if (socket->removed) {
+    if (socket->removed || n < 0) {
         return SW_CLOSE;
-    }
-
-    if (n < 0) {
-        return retval;
     } else if (n == 0) {
         return SW_CONTINUE;
     } else if (n < (ssize_t) buffer->length) {

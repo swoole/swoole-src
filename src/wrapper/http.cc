@@ -295,7 +295,7 @@ bool Context::end(const char *data, size_t length) {
     if (length > 0) {
         response.headers["Content-Length"] = std::to_string(length);
     }
-    for (auto iter : response.headers) {
+    for (auto &iter : response.headers) {
         size_t n = sw_snprintf(buf, sizeof(buf), "%s: %s\r\n", iter.first.c_str(), iter.second.c_str());
         sw_tg_buffer()->append(buf, n);
     }
@@ -311,7 +311,7 @@ bool Context::end(const char *data, size_t length) {
 }
 
 Context::~Context() {
-    for (auto kv : files) {
+    for (auto &kv : files) {
         if (file_exists(kv.second)) {
             unlink(kv.second.c_str());
         }
