@@ -105,7 +105,6 @@ int Server::start_reactor_processes() {
         return SW_ERR;
     }
 
-    // single worker
     if (Server_is_single(this)) {
         int retval = ReactorProcess_loop(&gs->event_workers, &gs->event_workers.workers[0]);
         if (retval == SW_OK) {
@@ -114,67 +113,7 @@ int Server::start_reactor_processes() {
         return retval;
     }
 
-    SW_LOOP_N(worker_num) {
-        create_worker(&gs->event_workers.workers[i]);
-    }
-
-    // task workers
-    if (task_worker_num > 0) {
-        if (create_task_workers() < 0) {
-            return SW_ERR;
-        }
-        if (gs->task_workers.start() < 0) {
-            return SW_ERR;
-        }
-    }
-
-    // create user worker process
-    if (!user_worker_list.empty()) {
-        user_workers = (Worker *) sw_shm_calloc(get_user_worker_num(), sizeof(Worker));
-        if (user_workers == nullptr) {
-            swoole_sys_warning("gmalloc[server->user_workers] failed");
-            return SW_ERR;
-        }
-        for (auto worker : user_worker_list) {
-            /**
-             * store the pipe object
-             */
-            if (worker->pipe_object) {
-                store_pipe_fd(worker->pipe_object);
-            }
-            spawn_user_worker(worker);
-        }
-    }
-
-    /**
-     * manager process is the same as the master process
-     */
-    SwooleG.pid = gs->manager_pid = getpid();
-    SwooleG.process_type = SW_PROCESS_MANAGER;
-
-    gs->event_workers.onWorkerMessage = read_worker_message;
-    gs->event_workers.start();
-
-    init_signal_handler();
-
-    if (onManagerStart) {
-        onManagerStart(this);
-    }
-
-    gs->event_workers.wait();
-    gs->event_workers.shutdown();
-
-    kill_user_workers();
-
-    if (onManagerStop) {
-        onManagerStop(this);
-    }
-
-    SW_LOOP_N(worker_num) {
-        destroy_worker(&gs->event_workers.workers[i]);
-    }
-
-    return SW_OK;
+    return start_manager_process();
 }
 
 static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
@@ -322,12 +261,14 @@ static int ReactorProcess_loop(ProcessPool *pool, Worker *worker) {
     serv->init_reactor(reactor);
 
     if (worker->id == 0) {
-        if (serv->onStart) {
+        serv->gs->master_pid = getpid();
+        if (serv->onStart && !serv->gs->called_onStart) {
+            serv->gs->called_onStart = 1;
             serv->onStart(serv);
         }
     }
 
-    if ((serv->master_timer = swoole_timer_add(1000, true, Server::timer_callback, serv)) == nullptr) {
+    if ((serv->master_timer = swoole_timer_add(1000L, true, Server::timer_callback, serv)) == nullptr) {
     _fail:
         swoole_event_free();
         return SW_ERR;

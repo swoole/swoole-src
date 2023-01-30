@@ -27,7 +27,7 @@
 
 #include "swoole_coroutine_context.h"
 
-#include <limits.h>
+#include <climits>
 
 #include <functional>
 #include <string>
@@ -159,6 +159,12 @@ class Coroutine {
 #endif
     }
 
+    static inline Coroutine *init_main_coroutine() {
+        Coroutine *co = new Coroutine(0, nullptr, nullptr);
+        co->state = STATE_RUNNING;
+        return co;
+    }
+
     static void activate();
     static void deactivate();
 
@@ -264,11 +270,16 @@ class Coroutine {
         }
     }
 
+    Coroutine(long _cid, const CoroutineFunc &fn, void *private_data): ctx(stack_size, fn, private_data) {
+        cid = _cid;
+    }
+
     inline long run() {
         long cid = this->cid;
         origin = current;
         current = this;
         CALC_EXECUTE_USEC(origin, nullptr);
+        state = STATE_RUNNING;
         ctx.swap_in();
         check_end();
         return cid;
@@ -280,7 +291,6 @@ class Coroutine {
         } else if (sw_unlikely(on_bailout)) {
             SW_ASSERT(current == nullptr);
             on_bailout();
-            exit(SW_CORO_BAILOUT_EXIT_CODE);
         }
     }
 

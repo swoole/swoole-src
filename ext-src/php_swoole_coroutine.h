@@ -25,6 +25,12 @@
 #include "zend_vm.h"
 #include "zend_closures.h"
 
+#if PHP_VERSION_ID >= 80100
+#define SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT 1
+#include "zend_fibers.h"
+#include "zend_observer.h"
+#endif
+
 #include <stack>
 #include <thread>
 
@@ -68,6 +74,10 @@ struct PHPContext {
     int ori_error_reporting;
     int tmp_error_reporting;
     Coroutine *co;
+#ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
+    zend_fiber_context *fiber_context;
+    bool fiber_init_notified;
+#endif
     std::stack<zend::Function *> *defer_tasks;
     SwapCallback *on_yield;
     SwapCallback *on_resume;
@@ -129,7 +139,6 @@ class PHPCoroutine {
     static bool disable_hook();
     static void disable_unsafe_function();
     static void enable_unsafe_function();
-    static void error_cb(int type, error_filename_t *error_filename, const uint32_t error_lineno, ZEND_ERROR_CB_LAST_ARG_D);
     static void interrupt_thread_stop();
 
     static inline long get_cid() {
@@ -215,6 +224,14 @@ class PHPCoroutine {
         return sw_likely(activated) ? Coroutine::get_execute_time(cid) : -1;
     }
 
+    static inline void init_main_task() {
+        main_task.co = Coroutine::init_main_coroutine();
+#ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
+        main_task.fiber_context = EG(main_fiber_context);
+        main_task.fiber_init_notified = true;
+#endif
+    }
+
   protected:
     static bool activated;
     static PHPContext main_task;
@@ -235,12 +252,21 @@ class PHPCoroutine {
     static void restore_og(PHPContext *task);
     static void save_task(PHPContext *task);
     static void restore_task(PHPContext *task);
-    static void catch_exception();
+    static bool catch_exception();
+    static void bailout();
     static void on_yield(void *arg);
     static void on_resume(void *arg);
     static void on_close(void *arg);
     static void main_func(void *arg);
-
+#ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
+    static zend_fiber_status get_fiber_status(PHPContext *task);
+    static void fiber_context_init(PHPContext *task);
+    static void fiber_context_try_init(PHPContext *task);
+    static void fiber_context_destroy(PHPContext *task);
+    static void fiber_context_try_destroy(PHPContext *task);
+    static void fiber_context_switch_notify(PHPContext *from, PHPContext *to);
+    static void fiber_context_switch_try_notify(PHPContext *from, PHPContext *to);
+#endif
     static void interrupt_thread_start();
     static void record_last_msec(PHPContext *task) {
         if (interrupt_thread_running) {

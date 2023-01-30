@@ -8,9 +8,6 @@ require __DIR__ . '/../include/skipif.inc';
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-use Swoole\Coroutine\Client;
-use Swoole\Timer;
-use Swoole\Event;
 use Swoole\Server;
 
 $pm = new SwooleTest\ProcessManager;
@@ -24,7 +21,7 @@ $pm->childFunc = function () use ($pm) {
     ini_set('swoole.display_errors', 'Off');
     $serv = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $serv->set(array(
-        "worker_num" => 1,
+        'worker_num' => 1,
         'enable_coroutine' => false,
         'log_file' => '/dev/null',
     ));

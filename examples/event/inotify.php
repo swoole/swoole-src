@@ -13,3 +13,5 @@ Swoole\Event::add($fd, function ($fd) {
         }
     }
 });
+
+Swoole\Event::wait();

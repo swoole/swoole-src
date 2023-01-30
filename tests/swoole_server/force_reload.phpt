@@ -36,7 +36,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
 };
 
 $pm->childFunc = function () use ($pm, $atomic) {
-    $server = new Swoole\Server('127.0.0.1', $pm->getFreePort());
+    $server = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $server->set([
         'worker_num' => WORKER_NUM,
         'max_wait_time' => 1,
@@ -68,4 +68,3 @@ Assert::eq($atomic->get(), WORKER_NUM * 2);
 [%s]	WARNING	Server::check_worker_exit_status(): worker(pid=%d, id=%d) abnormal exit, status=0, signal=9
 [%s]	WARNING	Server::check_worker_exit_status(): worker(pid=%d, id=%d) abnormal exit, status=0, signal=9
 [%s]	WARNING	Server::check_worker_exit_status(): worker(pid=%d, id=%d) abnormal exit, status=0, signal=9
-[%s]	INFO	Server is shutdown now

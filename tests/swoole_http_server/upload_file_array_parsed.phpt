@@ -31,7 +31,7 @@ $pm->parentFunc = function () use ($pm) {
 
     $json = json_decode($result, true);
 
-    assert_upload_file($json['file'], '/tmp/swoole.upfile.fixture1', 'image.jpg', 'application/octet-stream', 218787, 0);
+    assert_upload_file($json['file'], '/tmp/swoole.upfile.fixture1', 'image.jpg', 'application/octet-stream', filesize(TEST_IMAGE), 0);
     assert_upload_file($json['form'], [
         'file' => '/tmp/swoole.upfile.fixture2',
         'group' => [
@@ -48,9 +48,9 @@ $pm->parentFunc = function () use ($pm) {
             'file' => 'image/svg+xml',
         ],
     ], [
-        'file' => 218787,
+        'file' => filesize(TEST_IMAGE),
         'group' => [
-            'file' => 7424,
+            'file' => filesize(TEST_IMAGE2),
         ],
     ], [
         'file' => 0,
@@ -62,7 +62,7 @@ $pm->parentFunc = function () use ($pm) {
 };
 
 $pm->childFunc = function () use ($pm) {
-    $http = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort());
+    $http = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $http->set([
         'log_file' => '/dev/null',
         'http_parse_files' => true,

@@ -185,7 +185,7 @@ void php_swoole_server_port_minit(int module_number) {
 }
 
 /**
- * [Master-Process]
+ * [Master/Worker]
  */
 static ssize_t php_swoole_server_length_func(const Protocol *protocol, network::Socket *conn, PacketLength *pl) {
     Server *serv = (Server *) protocol->private_data_2;
@@ -196,7 +196,6 @@ static ssize_t php_swoole_server_length_func(const Protocol *protocol, network::
     zval retval;
     ssize_t ret = -1;
 
-    // TODO: reduce memory copy
     ZVAL_STRINGL(&zdata, pl->buf, pl->buf_size);
     if (UNEXPECTED(sw_zend_call_function_ex(nullptr, fci_cache, 1, &zdata, &retval) != SUCCESS)) {
         php_swoole_fatal_error(E_WARNING, "length function handler error");
@@ -372,7 +371,6 @@ static PHP_METHOD(swoole_server_port, set) {
     if (php_swoole_array_get_value(vht, "open_websocket_pong_frame", ztmp)) {
         port->open_websocket_pong_frame = zval_is_true(ztmp);
     }
-#ifdef SW_USE_HTTP2
     // http2 protocol
     if (php_swoole_array_get_value(vht, "open_http2_protocol", ztmp)) {
         port->open_http2_protocol = zval_is_true(ztmp);
@@ -380,7 +378,6 @@ static PHP_METHOD(swoole_server_port, set) {
             port->open_http_protocol = 1;
         }
     }
-#endif
     // buffer: mqtt protocol
     if (php_swoole_array_get_value(vht, "open_mqtt_protocol", ztmp)) {
         port->open_mqtt_protocol = zval_is_true(ztmp);
@@ -390,7 +387,8 @@ static PHP_METHOD(swoole_server_port, set) {
         port->open_redis_protocol = zval_get_long(ztmp);
     }
     if (php_swoole_array_get_value(vht, "max_idle_time", ztmp)) {
-        port->max_idle_time = zval_get_double(ztmp);
+        double v = zval_get_double(ztmp);
+        port->max_idle_time = SW_MAX(v, SW_TIMER_MIN_SEC);
     }
     // tcp_keepidle
     if (php_swoole_array_get_value(vht, "tcp_keepidle", ztmp)) {

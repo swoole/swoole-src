@@ -22,3 +22,7 @@ TEST(time, get_seconds) {
     time_t sec2 = time(NULL);
     ASSERT_TRUE(sec1 == sec2 or sec1 == sec2 - 1);
 }
+
+TEST(time, get_timezone) {
+    ASSERT_GE(swoole::get_timezone(), 0);
+}

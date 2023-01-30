@@ -1,7 +1,10 @@
 <?php
-go(function () {
+
+use Swoole\Coroutine\Http\Client;
+
+Co\run(function () {
     $host = 'www.swoole.com';
-    $cli = new \Swoole\Coroutine\Http\Client($host, 443, true);
+    $cli = new Client($host, 443, true);
     $cli->set(['timeout' => -1]);
     $cli->setHeaders([
         'Host' => $host,
@@ -9,5 +12,5 @@ go(function () {
         'Accept' => '*',
         'Accept-Encoding' => 'gzip'
     ]);
-    $cli->download('/static/files/swoole-logo.svg', __DIR__ . '/logo.svg');
+    $cli->download('/dist/skin1/images/logo-white.png', '/tmp/logo.png');
 });

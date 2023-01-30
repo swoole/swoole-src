@@ -2,10 +2,8 @@
 
 BEGIN_EXTERN_C()
 #include "ext/standard/php_var.h"
-#ifdef SW_USE_JSON
 #include "ext/json/php_json.h"
 extern PHP_JSON_API zend_class_entry *php_json_exception_ce;
-#endif
 END_EXTERN_C()
 
 namespace zend {
@@ -13,7 +11,6 @@ void unserialize(zval *return_value, const char *buf, size_t buf_len, HashTable 
     php_unserialize_with_options(return_value, buf, buf_len, options, "swoole_ext_unserialize");
 }
 
-#ifdef SW_USE_JSON
 static const char *php_json_get_error_msg(php_json_error_code error_code) /* {{{ */
 {
     switch (error_code) {
@@ -70,5 +67,4 @@ void json_decode(zval *return_value, const char *str, size_t str_len, zend_long 
     }
     php_json_decode_ex(return_value, (char *) str, str_len, options, depth);
 }
-#endif
 }  // namespace zend

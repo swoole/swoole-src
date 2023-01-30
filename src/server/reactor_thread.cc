@@ -568,7 +568,8 @@ static int ReactorThread_onRead(Reactor *reactor, Event *event) {
     }
     if (serv->is_process_mode() && serv->max_queued_bytes && conn->recv_queued_bytes > serv->max_queued_bytes) {
         conn->waiting_time = 1;
-        conn->timer = swoole_timer_add(conn->waiting_time, false, ReactorThread_resume_data_receiving, event->socket);
+        conn->timer =
+            swoole_timer_add((long) conn->waiting_time, false, ReactorThread_resume_data_receiving, event->socket);
         if (conn->timer) {
             reactor->remove_read_event(event->socket);
         }
@@ -888,7 +889,7 @@ static void ReactorThread_resume_data_receiving(Timer *timer, TimerNode *tnode) 
         if (conn->waiting_time != 1024) {
             conn->waiting_time *= 2;
         }
-        conn->timer = swoole_timer_add(conn->waiting_time, false, ReactorThread_resume_data_receiving, _socket);
+        conn->timer = swoole_timer_add((long) conn->waiting_time, false, ReactorThread_resume_data_receiving, _socket);
         if (conn->timer) {
             return;
         }

@@ -21,6 +21,9 @@
 #include <sys/un.h>
 #include <sys/uio.h>
 #include <netinet/in.h>
+#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
+#include <sys/types.h>
+#endif
 #include <netinet/ip6.h>
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
@@ -51,6 +54,10 @@ int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size);
 #include <sys/sendfile.h>
 #define swoole_sendfile(out_fd, in_fd, offset, limit) sendfile(out_fd, in_fd, offset, limit)
 #endif
+
+enum {
+    SW_BAD_SOCKET = -1,
+};
 
 namespace swoole {
 namespace network {
@@ -366,7 +373,7 @@ struct Socket {
     ssize_t ssl_readv(IOVector *io_vector);
     ssize_t ssl_writev(IOVector *io_vector);
     int ssl_sendfile(const File &fp, off_t *offset, size_t size);
-    STACK_OF(X509) *ssl_get_peer_cert_chain();
+    STACK_OF(X509) * ssl_get_peer_cert_chain();
     std::vector<std::string> ssl_get_peer_cert_chain(int limit);
     X509 *ssl_get_peer_certificate();
     int ssl_get_peer_certificate(char *buf, size_t n);
@@ -618,4 +625,3 @@ network::Socket *make_server_socket(SocketType socket_type,
                                     int backlog = SW_BACKLOG);
 bool verify_ip(int __af, const std::string &str);
 }  // namespace swoole
-

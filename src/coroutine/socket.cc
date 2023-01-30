@@ -112,6 +112,31 @@ bool Socket::add_event(const EventType event) {
     return ret;
 }
 
+#ifdef SW_LOG_TRACE_OPEN
+static const char *get_trigger_event_name(Socket *socket, EventType added_event) {
+    if (socket->is_closed()) {
+        return "CLOSE";
+    }
+    if (socket->errCode) {
+        return socket->errCode == ETIMEDOUT ? "TIMEOUT" : "ERROR";
+    }
+    return added_event == SW_EVENT_READ ? "READ" : "WRITE";
+}
+
+static const char *get_wait_event_name(Socket *socket, EventType event) {
+#ifdef SW_USE_OPENSSL
+    if (socket->get_socket()->ssl_want_read) {
+        return "SSL READ";
+    } else if (socket->get_socket()->ssl_want_write) {
+        return "SSL WRITE";
+    } else
+#endif
+    {
+        return event == SW_EVENT_READ ? "READ" : "WRITE";
+    }
+}
+#endif
+
 /**
  * If an exception occurs while waiting for an event, false is returned.
  * For example, when waiting for a read event, timeout, connection closed, are exceptions to the interrupt event.
@@ -148,11 +173,7 @@ bool Socket::wait_event(const EventType event, const void **__buf, size_t __n) {
                      "socket#%d blongs to cid#%ld is waiting for %s event",
                      sock_fd,
                      co->get_cid(),
-#ifdef SW_USE_OPENSSL
-                     socket->ssl_want_read ? "SSL READ"
-                                           : socket->ssl_want_write ? "SSL WRITE" :
-#endif
-                                                                    event == SW_EVENT_READ ? "READ" : "WRITE");
+                     get_wait_event_name(this, event));
 
     Coroutine::CancelFunc cancel_fn = [this, event](Coroutine *co) { return cancel(event); };
 
@@ -196,10 +217,8 @@ _failed:
                      "socket#%d blongs to cid#%ld trigger %s event",
                      sock_fd,
                      co->get_cid(),
-                     closed ? "CLOSE"
-                            : errCode ? errCode == ETIMEDOUT ? "TIMEOUT" : "ERROR"
-                                      : added_event == SW_EVENT_READ ? "READ" : "WRITE");
-    return !closed && !errCode;
+                     get_trigger_event_name(this, added_event));
+    return !is_closed() && !errCode;
 }
 
 bool Socket::socks5_handshake() {
@@ -407,7 +426,7 @@ bool Socket::http_proxy_handshake() {
     char *pe = buf + len;
     for (; p < buf + len; p++) {
         if (state == 0) {
-            if (SW_STRCASECT(p, pe - p, "HTTP/1.1") || SW_STRCASECT(p, pe - p, "HTTP/1.0")) {
+            if (SW_STR_ISTARTS_WITH(p, pe - p, "HTTP/1.1") || SW_STR_ISTARTS_WITH(p, pe - p, "HTTP/1.0")) {
                 state = 1;
                 p += sizeof("HTTP/1.x") - 1;
             } else {
@@ -417,7 +436,7 @@ bool Socket::http_proxy_handshake() {
             if (isspace(*p)) {
                 continue;
             } else {
-                if (SW_STRCASECT(p, pe - p, "200")) {
+                if (SW_STR_ISTARTS_WITH(p, pe - p, "200")) {
                     state = 2;
                     p += sizeof("200") - 1;
                 } else {
@@ -431,7 +450,7 @@ bool Socket::http_proxy_handshake() {
             if (isspace(*p)) {
                 continue;
             } else {
-                if (SW_STRCASECT(p, pe - p, "Connection established")) {
+                if (SW_STR_ISTARTS_WITH(p, pe - p, "Connection established")) {
                     ret = true;
                 }
                 break;
@@ -580,7 +599,7 @@ bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen) {
         } else {
             TimerController timer(&write_timer, connect_timeout, this, timer_callback);
             if (!timer.start() || !wait_event(SW_EVENT_WRITE)) {
-                if (closed) {
+                if (is_closed()) {
                     set_err(ECONNABORTED);
                 }
                 return false;
@@ -770,8 +789,8 @@ bool Socket::connect(std::string _host, int _port, int flags) {
 }
 
 bool Socket::check_liveness() {
-    if (closed) {
-        set_err(ECONNRESET);
+    if (is_closed()) {
+        set_err(EBADF);
         return false;
     }
     if (!socket->check_liveness()) {
@@ -1715,41 +1734,38 @@ bool Socket::cancel(const EventType event) {
         write_co->resume();
         return true;
     } else {
+        set_err(EINVAL);
         return false;
     }
 }
 
 /**
- * @return bool (whether it can be freed)
- * you can access errCode member to get error information
+ * @return bool
+ * If true is returned, the related resources of this socket can be released
+ * If false is returned, it means that other coroutines are still referencing this socket,
+ * and need to wait for the coroutine bound to readable or writable event to execute close,
+ * and release when all references are 0
  */
 bool Socket::close() {
-    if (sock_fd < 0) {
+    if (is_closed()) {
         set_err(EBADF);
-        return true;
+        return false;
     }
     if (connected) {
         shutdown();
     }
     if (sw_unlikely(has_bound())) {
-        if (closed) {
-            // close operation is in processing
-            set_err(EINPROGRESS);
-            return false;
-        }
-        closed = true;
-        if (write_co) {
-            set_err(ECONNRESET);
-            write_co->resume();
-        }
-        if (read_co) {
-            set_err(ECONNRESET);
-            read_co->resume();
-        }
+        socket->close_wait = 1;
+        cancel(SW_EVENT_WRITE);
+        cancel(SW_EVENT_READ);
+        sock_fd = SW_BAD_SOCKET;
+        set_err(SW_ERROR_CO_SOCKET_CLOSE_WAIT);
         return false;
     } else {
-        sock_fd = -1;
-        closed = true;
+        sock_fd = SW_BAD_SOCKET;
+        if (dtor_ != nullptr) {
+            dtor_(this);
+        }
         return true;
     }
 }

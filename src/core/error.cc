@@ -31,7 +31,7 @@ const char *swoole_strerror(int code) {
         return strerror(code);
     }
     /* swstrerror {{{*/
-    switch(code) {
+    switch (code) {
     case SW_ERROR_MALLOC_FAIL:
         return "Malloc fail";
     case SW_ERROR_SYSTEM_CALL_FAIL:
@@ -246,6 +246,8 @@ const char *swoole_strerror(int code) {
         return "Coroutine canceled";
     case SW_ERROR_CO_TIMEDOUT:
         return "Coroutine timedout";
+    case SW_ERROR_CO_SOCKET_CLOSE_WAIT:
+        return "Coroutine socket close wait";
     default:
         static char buffer[32];
 #ifndef __MACH__

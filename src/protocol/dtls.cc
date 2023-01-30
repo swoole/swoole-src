@@ -123,9 +123,13 @@ BIO_METHOD *BIO_get_methods(void) {
     BIO_meth_set_destroy(_bio_methods, BIO_destroy);
 
 #ifdef OPENSSL_IS_BORINGSSL
-    BIO_meth_set_ctrl(_bio_methods, (long (*)(BIO *, int, long, void *)) BIO_callback_ctrl);
+    BIO_meth_set_ctrl(_bio_methods, (long (*)(BIO *, int, long, void *)) BIO_ctrl);
 #else
+#if OPENSSL_VERSION_NUMBER > 0x1010007fL
     BIO_meth_set_callback_ctrl(_bio_methods, (long (*)(BIO *, int, BIO_info_cb *)) BIO_callback_ctrl);
+#else
+    BIO_meth_set_callback_ctrl(_bio_methods, (long (*)(BIO *, int, bio_info_cb *)) BIO_callback_ctrl);
+#endif
 #endif
 
     return _bio_methods;
@@ -180,10 +184,10 @@ bool Session::listen() {
     } else if (retval < 0) {
         int reason = ERR_GET_REASON(ERR_peek_error());
         swoole_warning("DTLSv1_listen() failed, client[%s:%d], reason=%d, error_string=%s",
-               socket->info.get_ip(),
-               socket->info.get_port(),
-               reason,
-               swoole_ssl_get_error());
+                       socket->info.get_ip(),
+                       socket->info.get_port(),
+                       reason,
+                       swoole_ssl_get_error());
         return false;
     } else {
         listened = true;

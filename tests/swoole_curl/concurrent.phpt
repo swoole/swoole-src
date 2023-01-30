@@ -50,7 +50,7 @@ $pm->parentFunc = function () use ($pm) {
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
-    $http = new Swoole\Http\Server("127.0.0.1", $pm->getFreePort());
+    $http = new Swoole\Http\Server("127.0.0.1", $pm->getFreePort(), SWOOLE_PROCESS);
     $http->set(['worker_num' => N, 'log_file' => '/dev/null']);
 
     $http->on("start", function ($server) use ($pm) {

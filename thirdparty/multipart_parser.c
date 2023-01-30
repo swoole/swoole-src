@@ -120,7 +120,70 @@ void multipart_parser_free(multipart_parser *p) {
     free(p);
 }
 
-size_t multipart_parser_execute(multipart_parser *p, const char *buf, size_t len) {
+int multipart_parser_error_msg(multipart_parser *p, char *buf, size_t len) {
+    int ret;
+    switch (p->error_reason) {
+    case MPPE_OK:
+        return 0;
+    case MPPE_PAUSED:
+        return snprintf(buf, len, "parser paused");
+    case MPPE_UNKNOWN:
+    default:
+        abort();
+        return 0;
+    case MPPE_BOUNDARY_END_NO_CRLF:
+        ret = snprintf(buf, len, "no CRLF at first boundary end: ");
+        break;
+    case MPPE_BAD_START_BOUNDARY:
+        ret = snprintf(buf, len, "first boundary mismatching: ");
+        break;
+    case MPPE_INVALID_HEADER_FIELD_CHAR:
+        ret = snprintf(buf, len, "invalid char in header field: ");
+        break;
+    case MPPE_INVALID_HEADER_VALUE_CHAR:
+        ret = snprintf(buf, len, "invalid char in header value: ");
+        break;
+    case MPPE_BAD_PART_END:
+        ret = snprintf(buf, len, "no next part or final hyphen: expecting CR or '-' ");
+        break;
+    case MPPE_END_BOUNDARY_NO_DASH:
+        ret = snprintf(buf, len, "bad final hyphen: ");
+        break;
+    }
+    if (ret < 0) {
+        return 0;
+    }
+    if ((size_t) ret >= len) {
+        return ret;
+    }
+    switch (p->error_expected) {
+    case '\0':
+        break;
+    case CR:
+        ret += snprintf(buf + ret, len - ret, "expecting CR ");
+        break;
+    case LF:
+        ret += snprintf(buf + ret, len - ret, "expecting LF ");
+        break;
+    default:
+        ret += snprintf(buf + ret, len - ret, "expecting '%c' ", p->error_expected);
+        break;
+    }
+    if (ret < 0) {
+        return 0;
+    }
+    if ((size_t) ret >= len) {
+        return ret;
+    }
+    if (isprint(p->error_unexpected)) {
+        ret += snprintf(buf + ret, len - ret, "at %zu, but it is '%c'", p->error_i, p->error_unexpected);
+    } else {
+        ret += snprintf(buf + ret, len - ret, "at %zu, but it is '\\x%.2x'", p->error_i, p->error_unexpected);
+    }
+    return ret;
+}
+
+ssize_t multipart_parser_execute(multipart_parser *p, const char *buf, size_t len) {
     size_t i = 0;
     size_t mark = 0;
     size_t mark_end = 0;

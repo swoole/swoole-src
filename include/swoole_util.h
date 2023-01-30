@@ -53,15 +53,27 @@ inline std::string vformat(const char *format, va_list args) {
 }
 }  // namespace std_string
 
+// Keep parameter 'steady' as false for backward compatibility.
 template <typename T>
 static inline long time(bool steady = false) {
-    if (steady) {
+    if (sw_likely(steady)) {
         auto now = std::chrono::steady_clock::now();
         return std::chrono::duration_cast<T>(now.time_since_epoch()).count();
     } else {
         auto now = std::chrono::system_clock::now();
         return std::chrono::duration_cast<T>(now.time_since_epoch()).count();
     }
+}
+
+static inline long get_timezone() {
+#ifdef __linux__
+    return timezone;
+#else
+    struct timezone tz;
+    struct timeval tv;
+    gettimeofday(&tv, &tz);
+    return tz.tz_minuteswest * 60;
+#endif
 }
 
 class DeferTask {
@@ -124,6 +136,18 @@ inline ScopeGuard<Fun> operator+(ScopeGuardOnExit, Fun &&fn) {
     auto __SCOPEGUARD_CONCATENATE(ext_exitBlock_, __LINE__) = swoole::detail::ScopeGuardOnExit() + [&]()
 
 std::string intersection(std::vector<std::string> &vec1, std::set<std::string> &vec2);
+
+static inline size_t ltrim(char **str, size_t len) {
+    size_t i;
+    for (i = 0; i < len; ++i) {
+        if ('\0' != **str && isspace(**str)) {
+            ++*str;
+        } else {
+            break;
+        }
+    }
+    return len - i;
+}
 
 static inline size_t rtrim(char *str, size_t len) {
     for (size_t i = len; i > 0;) {

@@ -24,10 +24,7 @@
 #include "swoole_http.h"
 #include "swoole_websocket.h"
 #include "swoole_mime_type.h"
-
-#ifdef SW_USE_HTTP2
 #include "swoole_http2.h"
-#endif
 
 bool swoole_http_server_onBeforeRequest(swoole::http::Context *ctx);
 void swoole_http_server_onAfterResponse(swoole::http::Context *ctx);
@@ -39,7 +36,6 @@ void swoole_websocket_onOpen(swoole::http::Context *ctx);
 void swoole_websocket_onRequest(swoole::http::Context *ctx);
 bool swoole_websocket_handshake(swoole::http::Context *ctx);
 
-#ifdef SW_USE_HTTP2
 int swoole_http2_server_parse(swoole::http2::Session *client, const char *buf);
 int swoole_http2_server_onReceive(swoole::Server *serv, swoole::Connection *conn, swoole::RecvData *req);
 void swoole_http2_server_session_free(swoole::Connection *conn);
@@ -48,5 +44,3 @@ int swoole_http2_server_goaway(swoole::http::Context *ctx,
                                zend_long error_code,
                                const char *debug_data,
                                size_t debug_data_len);
-
-#endif

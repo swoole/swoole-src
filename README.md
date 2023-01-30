@@ -1,8 +1,7 @@
-English | [中文](./README-CN.md)
-
-<h1 align=center>
-<img width="200" height="120" alt="Swoole Logo" src="https://cdn.jsdelivr.net/gh/swoole/swoole-src/swoole-logo.svg" />
-</h1>
+<h2 align=center>
+<img width="200" height="120" alt="Swoole Logo" src="docs/swoole-logo.svg" /> <br />
+    Swoole is an event-driven, asynchronous, coroutine-based concurrency library with high performance for PHP.
+</h2>
 
 [![lib-swoole](https://github.com/swoole/swoole-src/workflows/lib-swoole/badge.svg)](https://github.com/swoole/swoole-src/actions?query=workflow%3Alib-swoole)
 [![ext-swoole](https://github.com/swoole/swoole-src/workflows/ext-swoole/badge.svg)](https://github.com/swoole/swoole-src/actions?query=workflow%3Aext-swoole)
@@ -16,8 +15,6 @@ English | [中文](./README-CN.md)
 [![License](https://badgen.net/github/license/swoole/swoole-src)](https://github.com/swoole/swoole-src/blob/master/LICENSE)
 [![Coverity Scan Build Status](https://scan.coverity.com/projects/11654/badge.svg)](https://scan.coverity.com/projects/swoole-swoole-src)
 
-**Swoole is an event-driven asynchronous & coroutine-based concurrency networking communication engine with high performance written in C++ for PHP.**
-
 ## ⚙️ Quick Start
 
 Run Swoole program by [Docker](https://github.com/swoole/docker-swoole)
@@ -26,9 +23,88 @@ Run Swoole program by [Docker](https://github.com/swoole/docker-swoole)
 docker run --rm phpswoole/swoole "php --ri swoole"
 ```
 
-For details on how to use it, see: [How to Use This Image](https://github.com/swoole/docker-swoole#how-to-use-this-image).
+> For details on how to use it, see: [How to Use This Image](https://github.com/swoole/docker-swoole#how-to-use-this-image).
 
-Or code and run the Swoole program on the official website of Swoole. [Coding Online](https://www.swoole.com/coding)
+### HTTP Service
+```php
+$http = new Swoole\Http\Server('127.0.0.1', 9501);
+$http->set(['hook_flags' => SWOOLE_HOOK_ALL]);
+
+$http->on('request', function ($request, $response) {
+    $result = [];
+    Co::join([
+        go(function () use (&$result) {
+            $result['google'] = file_get_contents("https://www.google.com/");
+        }),
+        go(function () use (&$result) {
+            $result['taobao'] = file_get_contents("https://www.taobao.com/");
+        })
+    ]);
+    $response->end(json_encode($result));
+});
+
+$http->start();
+```
+
+### Concurrency
+```php
+Co\run(function() {
+    Co\go(function() {
+        while(1) {
+            sleep(1);
+            $fp = stream_socket_client("tcp://127.0.0.1:8000", $errno, $errstr, 30);
+            echo fread($fp, 8192), PHP_EOL;
+        }
+    });
+
+    Co\go(function() {
+        $fp = stream_socket_server("tcp://0.0.0.0:8000", $errno, $errstr, STREAM_SERVER_BIND | STREAM_SERVER_LISTEN);
+        while(1) {
+            $conn = stream_socket_accept($fp);
+            fwrite($conn, 'The local time is ' . date('n/j/Y g:i a'));
+        }
+    });
+
+    Co\go(function() {
+        $redis = new Redis();
+        $redis->connect('127.0.0.1', 6379);
+        while(true) {
+            $redis->subscribe(['test'], function ($instance, $channelName, $message) {
+                echo 'New redis message: '.$channelName, "==>", $message, PHP_EOL;
+            });
+        }
+    });
+
+    Co\go(function() {
+        $redis = new Redis();
+        $redis->connect('127.0.0.1', 6379);
+        $count = 0;
+        while(true) {
+            sleep(2);
+            $redis->publish('test','hello, world, count='.$count++);
+        }
+    });
+});
+```
+
+## Runtime Hook
+
+**Swoole hooks the blocking io function of PHP at the `bottom layer` and `automatically` converts it to a non-blocking function, so that these functions can be called concurrently in coroutines.**
+
+### Supported extension/functions
+
+* `ext-redis`
+* `ext-mysqli`
+* `ext-pdo_mysql`
+* `ext-curl` (Support `symfony` or `guzzle`)
+* `stream functions` (e.g. `stream_socket_client`/`stream_socket_server`), Supports `TCP`/`UDP`/`UDG`/`Unix`/`SSL/TLS`/`FileSystem API`/`Pipe`
+* `ext-socket`
+* `ext-soap`
+* `sleep`/`usleep`/`time_sleep_until`
+* `proc_open`
+* `gethostbyname`/`shell_exec`/`exec`
+* `fread`/`fopen`/`fsockopen`/`fwrite`
+
 
 ## 🛠 Develop & Discussion
 
@@ -509,9 +585,7 @@ After compiling and installing to the system successfully, you have to add a new
 
 + `--enable-openssl` or `--with-openssl-dir=DIR`
 + `--enable-sockets`
-+ `--enable-http2`
 + `--enable-mysqlnd` (need mysqlnd, it just for supporting `$mysql->escape` method)
-+ `--enable-swoole-json`
 + `--enable-swoole-curl`
 
 ### Upgrade

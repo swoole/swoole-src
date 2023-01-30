@@ -231,7 +231,6 @@ void Server::init_port_protocol(ListenPort *ls) {
         ls->protocol.onPackage = Server::dispatch_task;
         ls->onRead = Port_onRead_check_length;
     } else if (ls->open_http_protocol) {
-#ifdef SW_USE_HTTP2
         if (ls->open_http2_protocol && ls->open_websocket_protocol) {
             ls->protocol.get_package_length = http_server::get_package_length;
             ls->protocol.get_package_length_size = http_server::get_package_length_size;
@@ -240,10 +239,8 @@ void Server::init_port_protocol(ListenPort *ls) {
             ls->protocol.package_length_size = SW_HTTP2_FRAME_HEADER_SIZE;
             ls->protocol.get_package_length = http2::get_frame_length;
             ls->protocol.onPackage = Server::dispatch_task;
-        } else
-#endif
-            if (ls->open_websocket_protocol) {
-            ls->protocol.package_length_size = SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_MASK_LEN + sizeof(uint64_t);
+        } else if (ls->open_websocket_protocol) {
+            ls->protocol.package_length_size = SW_WEBSOCKET_MESSAGE_HEADER_SIZE;
             ls->protocol.get_package_length = websocket::get_package_length;
             ls->protocol.onPackage = websocket::dispatch_frame;
         }
@@ -298,9 +295,7 @@ void ListenPort::clear_protocol() {
     open_length_check = 0;
     open_http_protocol = 0;
     open_websocket_protocol = 0;
-#ifdef SW_USE_HTTP2
     open_http2_protocol = 0;
-#endif
     open_mqtt_protocol = 0;
     open_redis_protocol = 0;
 }
@@ -392,11 +387,9 @@ static int Port_onRead_http(Reactor *reactor, ListenPort *port, Event *event) {
         return Port_onRead_check_length(reactor, port, event);
     }
 
-#ifdef SW_USE_HTTP2
     if (conn->http2_stream) {
         return Port_onRead_check_length(reactor, port, event);
     }
-#endif
 
     Request *request = nullptr;
     Protocol *protocol = &port->protocol;
@@ -473,15 +466,12 @@ _parse:
                          CLIENT_INFO_ARGS);
         goto _bad_request;
     } else if (request->method == SW_HTTP_PRI) {
-#ifdef SW_USE_HTTP2
         if (sw_unlikely(!port->open_http2_protocol)) {
-#endif
             swoole_error_log(SW_LOG_TRACE,
                              SW_ERROR_HTTP_INVALID_PROTOCOL,
                              "Bad Request: can not handle HTTP2 request" CLIENT_INFO_FMT,
                              CLIENT_INFO_ARGS);
             goto _bad_request;
-#ifdef SW_USE_HTTP2
         }
         conn->http2_stream = 1;
         http2::send_setting_frame(protocol, _socket);
@@ -494,7 +484,6 @@ _parse:
         serv->destroy_http_request(conn);
         conn->socket->skip_recv = 1;
         return Port_onRead_check_length(reactor, port, event);
-#endif
     }
 
     // http header is not the end
@@ -520,8 +509,8 @@ _parse:
                          request->keep_alive,
                          request->chunked);
         if (request->form_data_) {
-            if (serv->upload_max_filesize > 0
-                    && request->header_length_ + request->content_length_ > protocol->package_max_length) {
+            if (serv->upload_max_filesize > 0 &&
+                request->header_length_ + request->content_length_ > protocol->package_max_length) {
                 request->init_multipart_parser(serv);
                 buffer = request->buffer_;
             } else {
@@ -771,14 +760,11 @@ const char *ListenPort::get_protocols() {
     } else if (open_length_check) {
         return "length";
     } else if (open_http_protocol) {
-#ifdef SW_USE_HTTP2
         if (open_http2_protocol && open_websocket_protocol) {
             return "http|http2|websocket";
         } else if (open_http2_protocol) {
             return "http|http2";
-        } else
-#endif
-            if (open_websocket_protocol) {
+        } else if (open_websocket_protocol) {
             return "http|websocket";
         } else {
             return "http";

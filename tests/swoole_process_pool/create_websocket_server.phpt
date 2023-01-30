@@ -18,7 +18,7 @@ $pool = new Swoole\Process\Pool($workerNum);
 
 $pool->on("WorkerStart", function ($pool, $workerId) use ($port) {
     if ($workerId === 0) {
-        $server = new Server('127.0.0.1', $port);
+        $server = new Server('127.0.0.1', $port, SWOOLE_PROCESS);
         $server->on("message", function ($server, $frame) {
             $server->push($frame->fd, $frame->data);
         });
@@ -40,5 +40,4 @@ $pool->start();
 echo "DONE\n";
 ?>
 --EXPECTF--
-[%s]	INFO	Server is shutdown now
 DONE

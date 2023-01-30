@@ -1,7 +1,7 @@
 PROJECT(libswoole)
 
 ENABLE_LANGUAGE(ASM)
-set(SWOOLE_VERSION 5.0.0)
+set(SWOOLE_VERSION 5.0.1)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -g")
@@ -161,7 +161,16 @@ set_target_properties(ext-swoole PROPERTIES PREFIX "")
 set_target_properties(ext-swoole PROPERTIES OUTPUT_NAME "swoole")
 add_dependencies(ext-swoole lib-swoole)
 
-target_link_libraries(ext-swoole swoole)
+# find libpq
+if (DEFINED libpq_dir)
+    target_include_directories(ext-swoole BEFORE ${LIBPQ_INCLUDE_DIRS})
+else()
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(LIBPQ REQUIRED libpq)
+    target_include_directories(ext-swoole PRIVATE ${LIBPQ_INCLUDE_DIRS})
+endif()
+
+target_link_libraries(ext-swoole swoole pq)
 
 # install
 INSTALL(TARGETS ext-swoole LIBRARY DESTINATION ${PHP_EXTENSION_DIR})

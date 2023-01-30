@@ -4,6 +4,7 @@ on: [push, pull_request]
 
 jobs:
   build-ubuntu-latest:
+    if: "!contains(github.event.head_commit.message, '[test]')"
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -12,32 +13,32 @@ jobs:
     - name: phpize
       run: phpize
     - name: build1
-      run: ./configure && make clean && make -j$(nproc)
+      run: ./configure &&
+        make clean && make -j$(nproc)
     - name: build2
       run: ./configure --enable-sockets &&
         make clean && make -j$(nproc)
     - name: build3
-      run: ./configure --enable-sockets --enable-mysqlnd && make clean &&
-        make -j$(nproc)
-    - name: build4
-      run: ./configure --enable-sockets --enable-mysqlnd --enable-http2 &&
+      run: ./configure --enable-sockets --enable-mysqlnd &&
         make clean && make -j$(nproc)
     - name: build5
-      run: ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-openssl &&
+      run: ./configure --enable-sockets --enable-mysqlnd --enable-openssl &&
         make clean && make -j$(nproc)
     - name: build6
-      run: ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-openssl --enable-debug-log &&
+      run: ./configure --enable-sockets --enable-mysqlnd --enable-openssl --enable-debug-log &&
         make clean && make -j$(nproc)
     - name: build7
-      run: ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-swoole-curl --enable-swoole-json
-        --enable-openssl --enable-debug-log &&
+      run: ./configure --enable-sockets --enable-mysqlnd --enable-swoole-curl --enable-openssl --enable-debug-log &&
         make clean && make -j$(nproc)
     - name: build8
-      run: ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-swoole-curl --enable-swoole-json
-        --enable-openssl --enable-cares --enable-debug-log &&
+      run: ./configure --enable-sockets --enable-mysqlnd --enable-swoole-curl --enable-openssl --enable-cares --enable-debug-log &&
+        make clean && make -j$(nproc)
+    - name: build with thread context
+      run: ./configure --enable-sockets --enable-mysqlnd --enable-swoole-curl --enable-openssl --enable-cares --enable-debug-log --enable-thread-context &&
         make clean && make -j$(nproc)
 
   build-macos-latest:
+    if: "!contains(github.event.head_commit.message, '[test]')"
     runs-on: macos-latest
     steps:
     - name: install dependencies
@@ -51,30 +52,28 @@ jobs:
       run: ./configure --enable-sockets &&
         make clean && make -j$(sysctl -n hw.ncpu)
     - name: build3
-      run: ./configure --enable-sockets --enable-mysqlnd && make clean &&
-        make -j$(sysctl -n hw.ncpu)
-    - name: build4
-      run: ./configure --enable-sockets --enable-mysqlnd --enable-http2 &&
+      run: ./configure --enable-sockets --enable-mysqlnd &&
         make clean && make -j$(sysctl -n hw.ncpu)
     - name: build5
-      run: ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-openssl
+      run: ./configure --enable-sockets --enable-mysqlnd --enable-openssl
         --with-openssl-dir=/usr/local/opt/openssl@1.1 &&
         make clean && make -j$(sysctl -n hw.ncpu)
     - name: build6
-      run: ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-swoole-curl --enable-swoole-json
-        --enable-openssl --with-openssl-dir=/usr/local/opt/openssl@1.1 --enable-debug-log &&
+      run: ./configure --enable-sockets --enable-mysqlnd  --enable-openssl --enable-swoole-curl --enable-debug-log
+        --with-openssl-dir=/usr/local/opt/openssl@1.1 &&
         make clean && make -j$(sysctl -n hw.ncpu)
     - name: build7
-      run: ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-swoole-curl --enable-swoole-json
-        --enable-openssl --with-openssl-dir=/usr/local/opt/openssl@1.1 --enable-cares --enable-debug-log &&
+      run: ./configure --enable-sockets --enable-mysqlnd --enable-openssl --enable-swoole-curl --enable-debug-log --enable-cares
+        --with-openssl-dir=/usr/local/opt/openssl@1.1 &&
         make clean && make -j$(sysctl -n hw.ncpu)
 
   build-alpine-latest:
+    if: "!contains(github.event.head_commit.message, '[test]')"
     runs-on: ubuntu-latest
     strategy:
       matrix:
         php-version: [ '8.0', '8.1' ]
-        alpine-version: [ '3.12', '3.13', '3.14', '3.15' ]
+        alpine-version: [ '3.14', '3.15' ]
         exclude:
           - php-version: '8.1'
             alpine-version: '3.15'

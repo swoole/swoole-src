@@ -19,3 +19,4 @@ function stream_onRead($fp)
 Swoole\Event::add($fp, 'stream_onRead');
 
 echo "start\n";
+Swoole\Event::wait();

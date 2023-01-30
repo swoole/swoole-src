@@ -41,9 +41,10 @@ $fn = function() {
     $active = null;
     do {
         $status = curl_multi_exec($mh, $active);
-        // echo "active=$active, status=$status\n";
+        phpt_echo("active=$active, status=$status\n");
         do {
             $info = curl_multi_info_read($mh);
+            phpt_echo($info);
             if (false !== $info && $info['msg'] == CURLMSG_DONE) {
                 $handle = $info['handle'];
                 if ($handle !== null) {
@@ -53,6 +54,7 @@ $fn = function() {
                 }
             }
         } while ($info);
+        curl_multi_select($mh);
     } while ($transfers);
     curl_multi_close($mh);
 };

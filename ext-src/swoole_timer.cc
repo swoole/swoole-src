@@ -69,15 +69,37 @@ void php_swoole_timer_minit(int module_number) {
 
     SW_INIT_CLASS_ENTRY_BASE(swoole_timer_iterator, "Swoole\\Timer\\Iterator", nullptr, nullptr, spl_ce_ArrayIterator);
 
-    SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "set", CG(function_table), "swoole_timer_set");
-    SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "after", CG(function_table), "swoole_timer_after");
-    SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "tick", CG(function_table), "swoole_timer_tick");
-    SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "exists", CG(function_table), "swoole_timer_exists");
-    SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "info", CG(function_table), "swoole_timer_info");
-    SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "stats", CG(function_table), "swoole_timer_stats");
-    SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "list", CG(function_table), "swoole_timer_list");
-    SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "clear", CG(function_table), "swoole_timer_clear");
-    SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "clearAll", CG(function_table), "swoole_timer_clear_all");
+    SW_FUNCTION_ALIAS(
+        &swoole_timer_ce->function_table, "set", CG(function_table), "swoole_timer_set", arginfo_swoole_timer_set);
+    SW_FUNCTION_ALIAS(
+        &swoole_timer_ce->function_table, "after", CG(function_table), "swoole_timer_after", arginfo_swoole_timer_tick);
+    SW_FUNCTION_ALIAS(
+        &swoole_timer_ce->function_table, "tick", CG(function_table), "swoole_timer_tick", arginfo_swoole_timer_after);
+    SW_FUNCTION_ALIAS(
+        &swoole_timer_ce->function_table, "info", CG(function_table), "swoole_timer_info", arginfo_swoole_timer_info);
+    SW_FUNCTION_ALIAS(
+        &swoole_timer_ce->function_table, "list", CG(function_table), "swoole_timer_list", arginfo_swoole_timer_list);
+
+    SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table,
+                      "exists",
+                      CG(function_table),
+                      "swoole_timer_exists",
+                      arginfo_swoole_timer_exists);
+    SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table,
+                      "stats",
+                      CG(function_table),
+                      "swoole_timer_stats",
+                      arginfo_swoole_timer_stats);
+    SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table,
+                      "clear",
+                      CG(function_table),
+                      "swoole_timer_clear",
+                      arginfo_swoole_timer_clear);
+    SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table,
+                      "clearAll",
+                      CG(function_table),
+                      "swoole_timer_clear_all",
+                      arginfo_swoole_timer_clear_all);
 
     SW_REGISTER_LONG_CONSTANT("SWOOLE_TIMER_MIN_MS", SW_TIMER_MIN_MS);
     SW_REGISTER_DOUBLE_CONSTANT("SWOOLE_TIMER_MIN_SEC", SW_TIMER_MIN_SEC);
@@ -154,7 +176,7 @@ static void timer_add(INTERNAL_FUNCTION_PARAMETERS, bool persistent) {
         php_swoole_check_reactor();
     }
 
-    tnode = swoole_timer_add(ms, persistent, timer_callback, fci);
+    tnode = swoole_timer_add((long) ms, persistent, timer_callback, fci);
     if (UNEXPECTED(!tnode)) {
         php_swoole_fatal_error(E_WARNING, "add timer failed");
         goto _failed;

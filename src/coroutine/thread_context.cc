@@ -32,9 +32,13 @@ static std::mutex *current_lock = nullptr;
 
 void thread_context_init() {
     if (!swoole_timer_is_available()) {
-        swoole_timer_add(1, false, [](Timer *timer, TimerNode *tnode) {
-            // do nothing
-        }, nullptr);
+        swoole_timer_add(
+            1L,
+            false,
+            [](Timer *timer, TimerNode *tnode) {
+                // do nothing
+            },
+            nullptr);
     }
     if (SwooleTG.async_threads == nullptr) {
         SwooleTG.async_threads = new AsyncThreads();
@@ -56,8 +60,8 @@ void thread_context_clean() {
     g_lock.unlock();
 }
 
-Context::Context(size_t stack_size, const CoroutineFunc &fn, void *private_data)
-    : fn_(fn), private_data_(private_data) {
+Context::Context(size_t stack_size, CoroutineFunc fn, void *private_data)
+    : fn_(std::move(fn)), private_data_(private_data) {
     end_ = false;
     lock_.lock();
     swap_lock_ = nullptr;

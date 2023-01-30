@@ -14,7 +14,7 @@ $pm->parentFunc = function () use ($pm) {
     echo "OK\n";
 };
 $pm->childFunc = function () use ($pm) {
-    $server = new Swoole\Server('127.0.0.1', $pm->getFreePort());
+    $server = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $server->set([
         'reload_async' => true,
         'task_enable_coroutine' => true,
@@ -40,6 +40,5 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-[%s]	INFO	Server is shutdown now
 [%s]	WARNING	%s (ERRNO 9101): worker exit timeout, forced termination
 OK

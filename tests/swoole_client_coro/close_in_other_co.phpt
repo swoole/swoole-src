@@ -21,7 +21,8 @@ go(function () use ($client) {
     $client->connect('127.0.0.1', 9601);
     $data = @$client->recv();
     //socket is closed
-    Assert::assert(!$data && $client->errCode === SOCKET_ECONNRESET);
+    Assert::assert(!$data );
+    Assert::eq($client->errCode, SOCKET_ECANCELED);
 });
 
 go(function () use ($client, $cid) {

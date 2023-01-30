@@ -38,7 +38,7 @@ run(function () {
 });
 ?>
 --EXPECTF--
-Warning: Swoole\Coroutine\Socket::setOption(): setsockopt(4) failed, Error: Permission denied[13] in %s on line %d
+Warning: Swoole\Coroutine\Socket::setOption(): setsockopt(%d) failed, Error: Permission denied[13] in %s on line %d
 --CREDITS--
 Moritz Neuhaeuser, info@xcompile.net
 PHP Testfest Berlin 2009-05-10

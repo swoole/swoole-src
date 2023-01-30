@@ -1,5 +1,5 @@
 --TEST--
-swoole_client_coro: reconnect
+swoole_client_coro: reconnect 1
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -42,10 +42,11 @@ $pm->childFunc = function () use ($pm) {
     $serv->set([
         'log_file' => '/dev/null',
     ]);
-
+    $serv->on('start', function () use ($pm) {
+        $pm->wakeup();
+    });
     $serv->on('Receive', function () {
     });
-
     $serv->start();
 };
 $pm->childFirst();

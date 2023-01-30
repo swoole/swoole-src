@@ -64,13 +64,13 @@ Swoole\Coroutine\run(function () {
     $pgsql = new Swoole\Coroutine\PostgreSQL();
     $connected = $pgsql->connect(PGSQL_CONNECTION_STRING);
     if (!$connected) {
-        echo "[DB-init] Connect failed! Error#{$pgsql->error}: {$pgsql->notices}\n";
+        echo sprintf("[DB-init] Connect failed! Error#%s: %s", $pgsql->error, $pgsql->notices['sqlstate'] ?? ''), PHP_EOL;
         exit(1);
     }
     $sql_file = read_sql_file(__DIR__ . '/pgsql.sql');
     foreach ($sql_file as $line) {
         if (!$pgsql->query($line)) {
-            echo "[DB-init] Failed! Error#{$pgsql->error}: {$pgsql->notices}\n";
+            echo sprintf("[DB-init] Failed! Error#%s: %s", $pgsql->error, $pgsql->notices['sqlstate'] ?? ''), PHP_EOL;
             exit(1);
         }
     }

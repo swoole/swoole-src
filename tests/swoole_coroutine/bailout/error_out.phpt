@@ -1,10 +1,13 @@
 --TEST--
 swoole_coroutine/bailout: error out of the coroutine
 --SKIPIF--
-<?php require __DIR__ . '/../../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
+
+use Swoole\Event;
 Swoole\Runtime::enableCoroutine();
 
 $func = function () {
@@ -33,6 +36,8 @@ go(function () {
 });
 
 a();
+
+Event::wait();
 ?>
 --EXPECTF--
 Fatal error: Uncaught Error: Call to undefined function a() in %s:%d

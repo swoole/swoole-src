@@ -24,7 +24,7 @@ $pm->parentFunc = function ($pid) use ($port, $pm, $size, $_g_data) {
 };
 
 $pm->childFunc = function () use ($pm, $port, $size, $_g_data) {
-    $serv = new Server(TCP_SERVER_HOST, $port);
+    $serv = new Server(TCP_SERVER_HOST, $port, SWOOLE_PROCESS);
     $serv->set([
         "worker_num" => 1,
         'log_file' => '/dev/null',

@@ -162,9 +162,9 @@ function skip_if_in_valgrind(string $reason = 'valgrind is too slow')
     skip($reason, getenv('USE_ZEND_ALLOC') === '0');
 }
 
-function skip_if_in_travis(string $reason = 'not support in travis')
+function skip_if_in_ci(string $reason = 'not support in CI')
 {
-    skip($reason, file_exists('/.travisenv'));
+    skip($reason, file_exists('/.cienv'));
 }
 
 function skip_if_in_docker(string $reason = 'not support in docker')
@@ -261,4 +261,10 @@ function skip_unsupported(string $message = '')
 function skip_if_no_coroutine_get_execute_time()
 {
     skip('no Swoole\Coroutine::getExecuteTime', !method_exists(Swoole\Coroutine::class, 'getExecuteTime'));
+}
+
+function skip_if_no_ftp()
+{
+    require_once __DIR__ . '/config.php';
+    skip('no available proxy', !check_tcp_port(FTP_HOST, FTP_PORT));
 }

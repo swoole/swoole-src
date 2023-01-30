@@ -6,10 +6,11 @@ swoole_server: taskWaitMulti
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 $port = get_one_free_port();
+
 use Swoole\Server;
+
 $pm = new SwooleTest\ProcessManager;
-$pm->parentFunc = function ($pid) use ($port)
-{
+$pm->parentFunc = function ($pid) use ($port) {
     $cli = new Swoole\Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
     $cli->connect('127.0.0.1', $port, 0.5) or die("ERROR");
 
@@ -21,31 +22,26 @@ $pm->parentFunc = function ($pid) use ($port)
     Swoole\Process::kill($pid);
 };
 
-$pm->childFunc = function () use ($pm, $port)
-{
+$pm->childFunc = function () use ($pm, $port) {
     ini_set('swoole.display_errors', 'Off');
-    $serv = new Server('127.0.0.1', $port);
+    $serv = new Server('127.0.0.1', $port, SWOOLE_PROCESS);
     $serv->set(array(
-        "worker_num" => 1,
+        'worker_num' => 1,
         'task_worker_num' => 1,
+        'enable_coroutine' => random_int(0, 100) > 50,
         'log_file' => '/dev/null',
     ));
-    $serv->on("WorkerStart", function (Server $serv)  use ($pm)
-    {
+    $serv->on("WorkerStart", function (Server $serv) use ($pm) {
         $pm->wakeup();
     });
-    $serv->on('receive', function (Server $serv, $fd, $rid, $data)
-    {
-        if ($data == 'task-01')
-        {
+    $serv->on('receive', function (Server $serv, $fd, $rid, $data) {
+        if ($data == 'task-01') {
             $tasks[] = mt_rand(1000, 9999);
             $tasks[] = mt_rand(1000, 9999);
             $tasks[] = mt_rand(1000, 9999);
             $tasks[] = mt_rand(1000, 9999);
             $results = $serv->taskWaitMulti($tasks, 2);
-        }
-        else
-        {
+        } else {
             $tasks[] = mt_rand(1000, 9999);
             $tasks[] = mt_rand(1000, 9999);
             $tasks[] = mt_rand(1000, 9999);
@@ -53,27 +49,21 @@ $pm->childFunc = function () use ($pm, $port)
             $tasks[] = 0;
             $results = $serv->taskWaitMulti($tasks, 0.2);
         }
-        if (count($results) == 4)
-        {
+        if (count($results) == 4) {
             $serv->send($fd, 'OK');
-        }
-        else
-        {
+        } else {
             $serv->send($fd, 'ERR');
         }
     });
 
-    $serv->on('task', function (Server $serv, $task_id, $worker_id, $data)
-    {
-        if ($data == 0)
-        {
+    $serv->on('task', function (Server $serv, $task_id, $worker_id, $data) {
+        if ($data == 0) {
             usleep(300000);
         }
         return $data;
     });
 
-    $serv->on('finish', function (Server $serv, $fd, $rid, $data)
-    {
+    $serv->on('finish', function (Server $serv, $fd, $rid, $data) {
 
     });
     $serv->start();

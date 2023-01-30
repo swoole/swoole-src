@@ -1,5 +1,4 @@
 /.github/ export-ignore
 /benchmark/ export-ignore
 /core-tests/ export-ignore
-/.travis.yml export-ignore
 *.h linguist-language=cpp

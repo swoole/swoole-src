@@ -72,11 +72,11 @@ class Socket {
     bool close();
 
     inline bool is_connected() {
-        return connected && !closed;
+        return connected && !is_closed();
     }
 
     bool is_closed() {
-        return closed;
+        return sock_fd == SW_BAD_SOCKET;
     }
 
     bool check_liveness();
@@ -335,6 +335,10 @@ class Socket {
         resolve_context_ = ctx;
     }
 
+    void set_dtor(const std::function<void(Socket *)> &dtor) {
+        dtor_ = dtor;
+    }
+
     inline String *pop_read_buffer() {
         if (sw_unlikely(!read_buffer)) {
             return nullptr;
@@ -370,7 +374,7 @@ class Socket {
 
     int move_fd() {
         int sockfd = socket->fd;
-        socket->fd = -1;
+        sock_fd = socket->fd = SW_BAD_SOCKET;
         return sockfd;
     }
 
@@ -440,9 +444,11 @@ class Socket {
     bool connected = false;
     bool shutdown_read = false;
     bool shutdown_write = false;
-    bool closed = false;
 
     bool zero_copy = false;
+
+    NameResolver::Context *resolve_context_ = nullptr;
+    std::function<void(Socket *)> dtor_;
 
     Socket(network::Socket *sock, Socket *socket);
 
@@ -481,14 +487,16 @@ class Socket {
     ssize_t recv_packet_with_length_protocol();
     ssize_t recv_packet_with_eof_protocol();
 
-    NameResolver::Context *resolve_context_ = nullptr;
-
     inline bool is_available(const EventType event) {
         if (event != SW_EVENT_NULL) {
             check_bound_co(event);
         }
-        if (sw_unlikely(closed)) {
-            set_err(ECONNRESET);
+        if (sw_unlikely(is_closed())) {
+            set_err(EBADF);
+            return false;
+        }
+        if (sw_unlikely(socket->close_wait)) {
+            set_err(SW_ERROR_CO_SOCKET_CLOSE_WAIT);
             return false;
         }
         return true;
@@ -505,7 +513,7 @@ class Socket {
             if (timeout != 0 && !*timer_pp) {
                 enabled = true;
                 if (timeout > 0) {
-                    *timer_pp = swoole_timer_add((long) (timeout * 1000), false, callback, socket_);
+                    *timer_pp = swoole_timer_add(timeout, false, callback, socket_);
                     return *timer_pp != nullptr;
                 }
                 *timer_pp = (TimerNode *) -1;
@@ -625,4 +633,4 @@ std::string get_ip_by_hosts(const std::string &domain);
 }  // namespace coroutine
 }  // namespace swoole
 
-swoole::coroutine::Socket *swoole_coroutine_get_socket_object(int sockfd);
+std::shared_ptr<swoole::coroutine::Socket> swoole_coroutine_get_socket_object(int sockfd);

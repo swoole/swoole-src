@@ -6,7 +6,7 @@ swoole_atomic: wakeup & wait ex
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 $atomic = new Swoole\Atomic();
-$server = new Swoole\Http\Server('127.0.0.1', get_one_free_port());
+$server = new Swoole\Http\Server('127.0.0.1', get_one_free_port(), SWOOLE_PROCESS);
 $server->set(['worker_num' => 4, 'log_file' => '/dev/null']);
 $server->on('WorkerStart', function (Swoole\Http\Server $server, int $wid) use ($atomic) {
     if ($wid === 0) {

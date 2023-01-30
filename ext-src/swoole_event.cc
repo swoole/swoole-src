@@ -80,16 +80,45 @@ void php_swoole_event_minit(int module_number) {
     SW_INIT_CLASS_ENTRY(swoole_event, "Swoole\\Event", nullptr, swoole_event_methods);
     SW_SET_CLASS_CREATE(swoole_event, sw_zend_create_object_deny);
 
-    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "add", CG(function_table), "swoole_event_add");
-    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "del", CG(function_table), "swoole_event_del");
-    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "set", CG(function_table), "swoole_event_set");
-    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "isset", CG(function_table), "swoole_event_isset");
-    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "dispatch", CG(function_table), "swoole_event_dispatch");
-    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "defer", CG(function_table), "swoole_event_defer");
-    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "cycle", CG(function_table), "swoole_event_cycle");
-    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "write", CG(function_table), "swoole_event_write");
-    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "wait", CG(function_table), "swoole_event_wait");
-    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "exit", CG(function_table), "swoole_event_exit");
+    SW_FUNCTION_ALIAS(
+        &swoole_event_ce->function_table, "add", CG(function_table), "swoole_event_add", arginfo_swoole_event_add);
+    SW_FUNCTION_ALIAS(
+        &swoole_event_ce->function_table, "del", CG(function_table), "swoole_event_del", arginfo_swoole_event_del);
+    SW_FUNCTION_ALIAS(
+        &swoole_event_ce->function_table, "set", CG(function_table), "swoole_event_set", arginfo_swoole_event_set);
+    SW_FUNCTION_ALIAS(
+        &swoole_event_ce->function_table, "wait", CG(function_table), "swoole_event_wait", arginfo_swoole_event_wait);
+
+    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table,
+                      "isset",
+                      CG(function_table),
+                      "swoole_event_isset",
+                      arginfo_swoole_event_isset);
+    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table,
+                      "dispatch",
+                      CG(function_table),
+                      "swoole_event_dispatch",
+                      arginfo_swoole_event_dispatch);
+    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table,
+                      "defer",
+                      CG(function_table),
+                      "swoole_event_defer",
+                      arginfo_swoole_event_defer);
+    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table,
+                      "cycle",
+                      CG(function_table),
+                      "swoole_event_cycle",
+                      arginfo_swoole_event_cycle);
+    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table,
+                      "write",
+                      CG(function_table),
+                      "swoole_event_write",
+                      arginfo_swoole_event_write);
+    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table,
+                      "exit",
+                      CG(function_table),
+                      "swoole_event_exit",
+                      arginfo_swoole_event_rshutdown);
 }
 
 static void event_object_free(void *data) {
@@ -266,15 +295,6 @@ int php_swoole_convert_to_fd(zval *zsocket) {
                 return fd;
             }
         }
-#ifdef SWOOLE_SOCKETS_SUPPORT
-        else {
-            php_socket *php_sock;
-            if ((php_sock = SW_Z_SOCKET_P(zsocket))) {
-                fd = php_sock->bsd_socket;
-                return fd;
-            }
-        }
-#endif
         php_swoole_fatal_error(E_WARNING, "fd argument must be either valid PHP stream or valid PHP socket resource");
         return SW_ERR;
     }
@@ -294,6 +314,15 @@ int php_swoole_convert_to_fd(zval *zsocket) {
             zfd = sw_zend_read_property_ex(Z_OBJCE_P(zsocket), zsocket, SW_ZSTR_KNOWN(SW_ZEND_STR_SOCK), 0);
         } else if (instanceof_function(Z_OBJCE_P(zsocket), swoole_process_ce)) {
             zfd = sw_zend_read_property_ex(Z_OBJCE_P(zsocket), zsocket, SW_ZSTR_KNOWN(SW_ZEND_STR_PIPE), 0);
+#ifdef SWOOLE_SOCKETS_SUPPORT
+        } else if (instanceof_function(Z_OBJCE_P(zsocket), socket_ce)) {
+            php_socket *php_sock = SW_Z_SOCKET_P(zsocket);
+            if (IS_INVALID_SOCKET(php_sock)) {
+                php_swoole_fatal_error(E_WARNING, "contains a closed socket");
+                return SW_ERR;
+            }
+            return php_sock->bsd_socket;
+#endif
         }
         if (zfd == nullptr || Z_TYPE_P(zfd) != IS_LONG) {
             return SW_ERR;
@@ -653,7 +682,7 @@ static PHP_FUNCTION(swoole_event_wait) {
 static PHP_FUNCTION(swoole_event_rshutdown) {
     /* prevent the program from jumping out of the rshutdown */
     zend_try {
-        if (!sw_reactor()) {
+        if (php_swoole_is_fatal_error() || !sw_reactor()) {
             return;
         }
         // when throw Exception, do not show the info

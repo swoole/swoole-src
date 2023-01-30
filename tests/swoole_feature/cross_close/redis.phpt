@@ -26,7 +26,7 @@ $pm->parentFunc = function () use ($pm) {
             Assert::assert(!$redis->connected);
             Assert::assert(in_array($redis->errType, [SWOOLE_REDIS_ERR_IO, SWOOLE_REDIS_ERR_EOF], true));
             if ($redis->errType === SWOOLE_REDIS_ERR_IO) {
-                Assert::same($redis->errCode, SOCKET_ECONNRESET);
+                Assert::same($redis->errCode, SOCKET_ECANCELED);
             }
         });
     });

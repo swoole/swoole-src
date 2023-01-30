@@ -661,7 +661,7 @@ static int Client_tcp_connect_async(Client *cli, const char *host, int port, dou
             return SW_ERR;
         }
         if (timeout > 0) {
-            cli->timer = swoole_timer_add((long) (timeout * 1000), false, Client_onTimeout, cli);
+            cli->timer = swoole_timer_add(timeout, false, Client_onTimeout, cli);
         }
         return SW_OK;
     } else {
@@ -905,7 +905,7 @@ static int Client_https_proxy_handshake(Client *cli) {
     char *pe = buf + len;
     for (; p < pe; p++) {
         if (state == 0) {
-            if (SW_STRCASECT(p, pe - p, "HTTP/1.1") || SW_STRCASECT(p, pe - p, "HTTP/1.0")) {
+            if (SW_STR_ISTARTS_WITH(p, pe - p, "HTTP/1.1") || SW_STR_ISTARTS_WITH(p, pe - p, "HTTP/1.0")) {
                 state = 1;
                 p += sizeof("HTTP/1.x") - 1;
             } else {
@@ -915,7 +915,7 @@ static int Client_https_proxy_handshake(Client *cli) {
             if (isspace(*p)) {
                 continue;
             } else {
-                if (SW_STRCASECT(p, pe - p, "200")) {
+                if (SW_STR_ISTARTS_WITH(p, pe - p, "200")) {
                     state = 2;
                     p += sizeof("200") - 1;
                 } else {
@@ -926,7 +926,7 @@ static int Client_https_proxy_handshake(Client *cli) {
             if (isspace(*p)) {
                 continue;
             } else {
-                if (SW_STRCASECT(p, pe - p, "Connection established")) {
+                if (SW_STR_ISTARTS_WITH(p, pe - p, "Connection established")) {
                     return SW_OK;
                 } else {
                     break;

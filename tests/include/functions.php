@@ -148,10 +148,18 @@ function array_random(array $array)
 
 function phpt_echo(...$args)
 {
+    if (!SWOOLE_TEST_ECHO) {
+        return;
+    }
     global $argv;
     if (substr($argv[0], -5) === '.phpt') {
         foreach ($args as $arg) {
-            echo $arg;
+            if (!is_string($arg)) {
+                var_export($arg);
+                echo PHP_EOL;
+            } else {
+                echo $arg;
+            }
         }
     }
 }
@@ -829,4 +837,9 @@ function swoole_loop($fn)
     while (true) {
         $fn($i++);
     }
+}
+
+function build_ftp_url(string $path = ''): string
+{
+    return 'ftp://' . FTP_USER . ':' . FTP_PASS . '@' . FTP_HOST . ':' .  FTP_PORT . '/' . $path;
 }

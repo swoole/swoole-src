@@ -79,7 +79,7 @@ bool Coroutine::yield_ex(double timeout) {
     };
 
     if (timeout > 0) {
-        timer = swoole_timer_add((long) (timeout * 1000), false, timer_callback, nullptr);
+        timer = swoole_timer_add(timeout, false, timer_callback, nullptr);
     }
 
     CancelFunc cancel_fn = [](Coroutine *co) {

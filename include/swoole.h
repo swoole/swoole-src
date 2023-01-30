@@ -225,9 +225,8 @@ typedef swoole::Event swEvent;
 #define SW_STREQ(str, len, const_str) swoole_streq(str, len, SW_STRL(const_str))
 #define SW_STRCASEEQ(str, len, const_str) swoole_strcaseeq(str, len, SW_STRL(const_str))
 
-/* string contain */
-#define SW_STRCT(str, len, const_sub_str) swoole_strct(str, len, SW_STRL(const_sub_str))
-#define SW_STRCASECT(str, len, const_sub_str) swoole_strcasect(str, len, SW_STRL(const_sub_str))
+#define SW_STR_STARTS_WITH(str, len, const_sub_str) swoole_str_starts_with(str, len, SW_STRL(const_sub_str))
+#define SW_STR_ISTARTS_WITH(str, len, const_sub_str) swoole_str_istarts_with(str, len, SW_STRL(const_sub_str))
 
 #if defined(SW_USE_JEMALLOC) || defined(SW_USE_TCMALLOC)
 #define sw_strdup swoole_strdup
@@ -283,11 +282,11 @@ static inline unsigned int swoole_strcaseeq(const char *str1, size_t len1, const
     return (len1 == len2) && (strncasecmp(str1, str2, len1) == 0);
 }
 
-static inline unsigned int swoole_strct(const char *pstr, size_t plen, const char *sstr, size_t slen) {
+static inline unsigned int swoole_str_starts_with(const char *pstr, size_t plen, const char *sstr, size_t slen) {
     return (plen >= slen) && (strncmp(pstr, sstr, slen) == 0);
 }
 
-static inline unsigned int swoole_strcasect(const char *pstr, size_t plen, const char *sstr, size_t slen) {
+static inline unsigned int swoole_str_istarts_with(const char *pstr, size_t plen, const char *sstr, size_t slen) {
     return (plen >= slen) && (strncasecmp(pstr, sstr, slen) == 0);
 }
 
@@ -301,6 +300,25 @@ static inline const char *swoole_strnstr(const char *haystack,
     if (sw_likely(needle_length <= haystack_length)) {
         for (i = 0; i < haystack_length - needle_length + 1; i++) {
             if ((haystack[0] == needle[0]) && (0 == memcmp(haystack, needle, needle_length))) {
+                return haystack;
+            }
+            haystack++;
+        }
+    }
+
+    return NULL;
+}
+
+static inline const char *swoole_strncasestr(const char *haystack,
+                                         uint32_t haystack_length,
+                                         const char *needle,
+                                         uint32_t needle_length) {
+    assert(needle_length > 0);
+    uint32_t i;
+
+    if (sw_likely(needle_length <= haystack_length)) {
+        for (i = 0; i < haystack_length - needle_length + 1; i++) {
+            if ((haystack[0] == needle[0]) && (0 == strncasecmp(haystack, needle, needle_length))) {
                 return haystack;
             }
             haystack++;
@@ -449,6 +467,7 @@ typedef unsigned char uchar;
 #define swoole_toupper(c) (uchar)((c >= 'a' && c <= 'z') ? (c & ~0x20) : c)
 
 void swoole_random_string(char *buf, size_t size);
+void swoole_random_string(std::string &str, size_t size);
 size_t swoole_random_bytes(char *buf, size_t size);
 
 static sw_inline char *swoole_strlchr(char *p, char *last, char c) {
@@ -533,6 +552,7 @@ int swoole_get_systemd_listen_fds();
 void swoole_init(void);
 void swoole_clean(void);
 pid_t swoole_fork(int flags);
+pid_t swoole_fork_exec(const std::function<void(void)> &child_fn);
 void swoole_redirect_stdout(int new_fd);
 int swoole_shell_exec(const char *command, pid_t *pid, bool get_error_stream);
 int swoole_daemon(int nochdir, int noclose);
@@ -763,6 +783,7 @@ SW_API void swoole_throw_error(int code);
 SW_API void swoole_ignore_error(int code);
 SW_API bool swoole_is_ignored_error(int code);
 SW_API void swoole_set_log_level(int level);
+SW_API void swoole_set_log_file(const char *file);
 SW_API void swoole_set_trace_flags(int flags);
 SW_API void swoole_set_dns_server(const std::string &server);
 SW_API void swoole_set_hosts_path(const std::string &hosts_file);
@@ -772,6 +793,7 @@ SW_API void swoole_name_resolver_add(const swoole::NameResolver &resolver, bool 
 SW_API void swoole_name_resolver_each(
     const std::function<enum swTraverseOperation(const std::list<swoole::NameResolver>::iterator &iter)> &fn);
 SW_API std::string swoole_name_resolver_lookup(const std::string &host_name, swoole::NameResolver::Context *ctx);
+SW_API int swoole_get_log_level();
 
 //-----------------------------------------------
 static sw_inline void sw_spinlock(sw_atomic_t *lock) {

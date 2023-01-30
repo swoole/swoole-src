@@ -5,10 +5,13 @@ swoole_coroutine/exception: error
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
-go(function () {
+register_shutdown_function(function (){
+    echo "shutdown\n";
+});
+Co\run(function () {
     echo "start\n";
     throw new Exception('coro Exception');
-    co::sleep(.001);
+    Co::sleep(.001);
     echo "after sleep\n";
 });
 echo "end\n";
@@ -19,4 +22,5 @@ start
 Fatal error: Uncaught Exception: coro Exception %s
 Stack trace:
 %A
-  thrown in %s/tests/swoole_coroutine/exception/error.php on line 5
+  thrown in %s/tests/swoole_coroutine/exception/error.php on line %d
+shutdown

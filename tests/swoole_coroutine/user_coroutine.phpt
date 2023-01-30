@@ -3,7 +3,7 @@ swoole_coroutine: user coroutine
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
-skip_if_in_travis('foreign network dns error');
+skip_if_in_ci('foreign network dns error');
 skip_if_offline();
 ?>
 --FILE--

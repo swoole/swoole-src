@@ -35,11 +35,6 @@ bool ProcessFactory::shutdown() {
         swoole_sys_warning("waitpid(%d) failed", server_->gs->manager_pid);
     }
 
-    SW_LOOP_N(server_->worker_num) {
-        Worker *worker = &server_->workers[i];
-        server_->destroy_worker(worker);
-    }
-
     return SW_OK;
 }
 
@@ -66,10 +61,6 @@ bool ProcessFactory::start() {
     }
 
     SW_LOOP_N(server_->worker_num) {
-        server_->create_worker(server_->get_worker(i));
-    }
-
-    SW_LOOP_N(server_->worker_num) {
         auto _sock = new UnixSocket(true, SOCK_DGRAM);
         if (!_sock->ready()) {
             delete _sock;
@@ -80,7 +71,6 @@ bool ProcessFactory::start() {
         server_->workers[i].pipe_master = _sock->get_socket(true);
         server_->workers[i].pipe_worker = _sock->get_socket(false);
         server_->workers[i].pipe_object = _sock;
-        server_->store_pipe_fd(server_->workers[i].pipe_object);
     }
 
     server_->init_ipc_max_size();
@@ -88,14 +78,7 @@ bool ProcessFactory::start() {
         return false;
     }
 
-    /**
-     * The manager process must be started first, otherwise it will have a thread fork
-     */
-    if (server_->start_manager_process() < 0) {
-        swoole_warning("failed to start");
-        return false;
-    }
-    return true;
+    return server_->start_manager_process() == SW_OK;
 }
 
 /**
@@ -193,10 +176,12 @@ bool ProcessFactory::finish(SendData *resp) {
         conn = server_->get_connection_verify_no_ssl(session_id);
     }
     if (!conn) {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "session#%ld does not exists", session_id);
+        if (resp->info.type != SW_SERVER_EVENT_CLOSE) {
+            swoole_error_log(SW_LOG_TRACE, SW_ERROR_SESSION_NOT_EXIST, "session#%ld does not exists", session_id);
+        }
         return false;
     } else if ((conn->closed || conn->peer_closed) && resp->info.type != SW_SERVER_EVENT_CLOSE) {
-        swoole_error_log(SW_LOG_NOTICE,
+        swoole_error_log(SW_LOG_TRACE,
                          SW_ERROR_SESSION_CLOSED,
                          "send %d bytes failed, because session#%ld is closed",
                          resp->info.len,
@@ -251,7 +236,7 @@ bool ProcessFactory::end(SessionId session_id, int flags) {
 
     Connection *conn = server_->get_connection_verify_no_ssl(session_id);
     if (!conn) {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "session#%ld is closed", session_id);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "session#%ld does not exists", session_id);
         return false;
     }
     // Reset send buffer, Immediately close the connection.
@@ -294,7 +279,7 @@ _close:
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSING, "session#%ld is closing", session_id);
         return false;
     } else if (!(conn->close_force || conn->close_reset) && conn->closed) {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "session#%ld is closed", session_id);
+        swoole_error_log(SW_LOG_TRACE, SW_ERROR_SESSION_CLOSED, "session#%ld is closed", session_id);
         return false;
     }
 

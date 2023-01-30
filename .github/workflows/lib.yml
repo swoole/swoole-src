@@ -8,7 +8,7 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    if: "!contains(github.event.head_commit.message, '[test]')"
     services:
       tinyproxy:
         image: "vimagick/tinyproxy"
@@ -30,7 +30,7 @@ jobs:
         run: sudo apt update -y && sudo apt install -y googletest libgtest-dev redis-server libboost-stacktrace-dev libbrotli-dev
 
       - name: configure
-        run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-openssl
+        run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-openssl
 
       - name: make
         run: cmake . -DCODE_COVERAGE=ON &&

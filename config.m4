@@ -36,10 +36,10 @@ PHP_ARG_ENABLE([openssl],
   [AS_HELP_STRING([--enable-openssl],
     [Use openssl])], [no], [no])
 
-PHP_ARG_ENABLE([http2],
-  [enable http2.0 support],
-  [AS_HELP_STRING([--enable-http2],
-    [Use http2.0])], [no], [no])
+PHP_ARG_ENABLE([brotli],
+  [enable brotli support],
+  [AS_HELP_STRING([[--enable-brotli]],
+    [Use brotli])], [yes], [no])
 
 PHP_ARG_ENABLE([swoole],
   [swoole support],
@@ -61,6 +61,11 @@ PHP_ARG_WITH([openssl_dir],
   [AS_HELP_STRING([[--with-openssl-dir[=DIR]]],
     [Include OpenSSL support (requires OpenSSL >= 1.0.2)])], [no], [no])
 
+PHP_ARG_WITH([brotli_dir],
+  [dir of brotli],
+  [AS_HELP_STRING([[--with-brotli-dir[=DIR]]],
+    [Include Brotli support])], [no], [no])
+
 PHP_ARG_WITH([jemalloc_dir],
   [dir of jemalloc],
   [AS_HELP_STRING([[--with-jemalloc-dir[=DIR]]],
@@ -80,11 +85,6 @@ PHP_ARG_ENABLE([swoole-dev],
   [whether to enable Swoole developer build flags],
   [AS_HELP_STRING([--enable-swoole-dev],
     [Enable developer flags])], [no], [no])
-
-PHP_ARG_ENABLE([swoole-json],
-  [whether to enable Swoole JSON build flags],
-  [AS_HELP_STRING([--enable-swoole-json],
-    [Enable JSON support])], [no], [no])
 
 PHP_ARG_ENABLE([swoole-curl],
   [whether to enable Swoole CURL build flags],
@@ -313,19 +313,6 @@ AC_DEFUN([AC_SWOOLE_CHECK_SOCKETS], [
     if test "$ac_cv_gai_ai_idn" = yes; then
         AC_DEFINE(HAVE_AI_IDN,1,[Whether you have AI_IDN])
     fi
-
-    AC_CACHE_CHECK([if gethostbyname2_r is supported],[ac_cv_gethostbyname2_r],
-    [
-	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
-#include <sys/socket.h>
-#include <netdb.h>
-    ]], [[struct hostent s, *res; char ptr[256]; int err; gethostbyname2_r("example.com", AF_INET, &s, ptr, sizeof(ptr), &res, &err);]])],
-	    [ac_cv_gethostbyname2_r=yes], [ac_cv_gethostbyname2_r=no])
-    ])
-
-    if test "$ac_cv_gethostbyname2_r" = yes; then
-        AC_DEFINE(HAVE_GETHOSTBYNAME2_R,1,[Whether you have gethostbyname2_r])
-    fi
 ])
 
 AC_MSG_CHECKING([if compiling with clang])
@@ -358,6 +345,7 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(c, inotify_init, AC_DEFINE(HAVE_INOTIFY, 1, [have inotify]))
     AC_CHECK_LIB(c, malloc_trim, AC_DEFINE(HAVE_MALLOC_TRIM, 1, [have malloc_trim]))
     AC_CHECK_LIB(c, inotify_init1, AC_DEFINE(HAVE_INOTIFY_INIT1, 1, [have inotify_init1]))
+    AC_CHECK_LIB(c, gethostbyname2_r, AC_DEFINE(HAVE_GETHOSTBYNAME2_R, 1, [have gethostbyname2_r]))
     AC_CHECK_LIB(c, ptrace, AC_DEFINE(HAVE_PTRACE, 1, [have ptrace]))
     AC_CHECK_LIB(c, getrandom, AC_DEFINE(HAVE_GETRANDOM, 1, [have getrandom]))
     AC_CHECK_LIB(c, arc4random, AC_DEFINE(HAVE_ARC4RANDOM, 1, [have arc4random]))
@@ -405,10 +393,6 @@ if test "$PHP_SWOOLE" != "no"; then
         EXTRA_CFLAGS="$_MAINTAINER_CFLAGS"
         CFLAGS="-g -O0 -Wall $CFLAGS"
         CXXFLAGS="-g -O0 -Wall $CXXFLAGS"
-    fi
-
-    if test "$PHP_SWOOLE_JSON" = "yes"; then
-        AC_DEFINE(SW_USE_JSON, 1, [do we enable json decoder])
     fi
 
     if test "$PHP_SWOOLE_CURL" = "yes"; then
@@ -494,21 +478,23 @@ EOF
         AC_DEFINE(SW_HAVE_ZLIB, 1, [have zlib])
         PHP_ADD_LIBRARY(z, 1, SWOOLE_SHARED_LIBADD)
     ])
-
-    AC_CHECK_LIB(brotlienc, BrotliEncoderCreateInstance, [
-        AC_CHECK_LIB(brotlidec, BrotliDecoderCreateInstance, [
-            AC_DEFINE(SW_HAVE_COMPRESSION, 1, [have compression])
-            AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli encoder])
-            PHP_ADD_LIBRARY(brotlienc, 1, SWOOLE_SHARED_LIBADD)
-            PHP_ADD_LIBRARY(brotlidec, 1, SWOOLE_SHARED_LIBADD)
+    
+    if test "$PHP_BROTLI" = "yes"; then
+        AC_CHECK_LIB(brotlienc, BrotliEncoderCreateInstance, [
+            AC_CHECK_LIB(brotlidec, BrotliDecoderCreateInstance, [
+                AC_DEFINE(SW_HAVE_COMPRESSION, 1, [have compression])
+                AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli encoder])
+                PHP_ADD_LIBRARY(brotlienc, 1, SWOOLE_SHARED_LIBADD)
+                PHP_ADD_LIBRARY(brotlidec, 1, SWOOLE_SHARED_LIBADD)
+            ])
         ])
-    ])
+    fi
 
     PHP_ADD_LIBRARY(pthread)
     PHP_SUBST(SWOOLE_SHARED_LIBADD)
 
     AC_ARG_ENABLE(debug,
-        [  --enable-debug,         compile with debug symbols],
+        [  --enable-debug          Compile with debug symbols],
         [PHP_DEBUG=$enableval],
         [PHP_DEBUG=0]
     )
@@ -591,6 +577,19 @@ EOF
         PHP_ADD_LIBRARY(ssl, 1, SWOOLE_SHARED_LIBADD)
         PHP_ADD_LIBRARY(crypto, 1, SWOOLE_SHARED_LIBADD)
     fi
+    
+    if test "$PHP_BROTLI_DIR" != "no"; then
+        AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli encoder])
+        PHP_ADD_INCLUDE("${PHP_BROTLI_DIR}/include")
+        PHP_ADD_LIBRARY_WITH_PATH(brotli, "${PHP_BROTLI_DIR}/${PHP_LIBDIR}")
+    fi
+
+    if test "$PHP_BROTLI_DIR" != "no"; then
+        AC_DEFINE(SW_HAVE_COMPRESSION, 1, [have compression])
+        AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli encoder])
+        PHP_ADD_LIBRARY_WITH_PATH(brotlienc, "${PHP_BROTLI_DIR}/${PHP_LIBDIR}")
+        PHP_ADD_LIBRARY_WITH_PATH(brotlidec, "${PHP_BROTLI_DIR}/${PHP_LIBDIR}")
+    fi
 
     if test "$PHP_JEMALLOC_DIR" != "no"; then
         AC_DEFINE(SW_USE_JEMALLOC, 1, [use jemalloc])
@@ -600,10 +599,6 @@ EOF
     fi
 
     PHP_ADD_LIBRARY(pthread, 1, SWOOLE_SHARED_LIBADD)
-
-    if test "$PHP_HTTP2" = "yes"; then
-        AC_DEFINE(SW_USE_HTTP2, 1, [enable HTTP2 support])
-    fi
 
     if test "$PHP_MYSQLND" = "yes"; then
         PHP_ADD_EXTENSION_DEP(mysqli, mysqlnd)
@@ -844,7 +839,6 @@ EOF
 
     PHP_ADD_INCLUDE([$ext_srcdir])
     PHP_ADD_INCLUDE([$ext_srcdir/include])
-    PHP_ADD_INCLUDE([$ext_srcdir/stubs])
     PHP_ADD_INCLUDE([$ext_srcdir/ext-src])
     PHP_ADD_INCLUDE([$ext_srcdir/thirdparty])
     PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/hiredis])

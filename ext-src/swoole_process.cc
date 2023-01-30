@@ -1058,23 +1058,55 @@ static PHP_METHOD(swoole_process, setBlocking) {
     }
 }
 
+#define SW_CHECK_PRIORITY_WHO()                                                                                        \
+    if (who_is_null) {                                                                                                 \
+        if (which == PRIO_PROCESS) {                                                                                   \
+            Worker *process = php_swoole_process_get_and_check_worker(ZEND_THIS);                                      \
+            who = process->pid;                                                                                        \
+        } else {                                                                                                       \
+            php_swoole_fatal_error(E_WARNING, "$who parameter must not be null");                                      \
+            swoole_set_last_error(SW_ERROR_INVALID_PARAMS);                                                            \
+            RETURN_FALSE;                                                                                              \
+        }                                                                                                              \
+    }
+
 static PHP_METHOD(swoole_process, setPriority) {
-    zend_long which, priority;
-    ZEND_PARSE_PARAMETERS_START(2, 2)
+    zend_long which, priority, who;
+    bool who_is_null = 1;
+
+    ZEND_PARSE_PARAMETERS_START(2, 3)
     Z_PARAM_LONG(which)
     Z_PARAM_LONG(priority)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_LONG_OR_NULL(who, who_is_null)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    Worker *process = php_swoole_process_get_and_check_worker(ZEND_THIS);
-    RETURN_BOOL(setpriority(which, process->pid, priority) == 0);
+    SW_CHECK_PRIORITY_WHO();
+    if (setpriority(which, who, priority) < 0) {
+        swoole_set_last_error(errno);
+        RETURN_FALSE;
+    } else {
+        RETURN_TRUE;
+    }
 }
 
 static PHP_METHOD(swoole_process, getPriority) {
-    zend_long which;
-    ZEND_PARSE_PARAMETERS_START(1, 1)
+    zend_long which, who;
+    bool who_is_null = 1;
+
+    ZEND_PARSE_PARAMETERS_START(1, 2)
     Z_PARAM_LONG(which)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_LONG_OR_NULL(who, who_is_null)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    Worker *process = php_swoole_process_get_and_check_worker(ZEND_THIS);
-    RETURN_LONG(getpriority(which, process->pid));
+    SW_CHECK_PRIORITY_WHO();
+    errno = 0;
+    int priority = getpriority(which, who);
+    if (priority == -1 && errno != 0) {
+        swoole_set_last_error(errno);
+        RETURN_FALSE;
+    } else {
+        RETURN_LONG(priority);
+    }
 }

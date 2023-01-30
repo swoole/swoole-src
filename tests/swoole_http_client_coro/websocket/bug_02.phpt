@@ -24,7 +24,7 @@ $pm->parentFunc = function () use ($pm) {
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
-    $ws = new Swoole\WebSocket\Server('127.0.0.1', $pm->getFreePort());
+    $ws = new Swoole\WebSocket\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $ws->set([
         'log_file' => '/dev/null',
         'worker_num' => 1

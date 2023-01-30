@@ -26,6 +26,9 @@
 #else
 #include <sys/event.h>
 #endif
+#ifdef __NetBSD__
+#include <sys/param.h>
+#endif
 
 namespace swoole {
 
@@ -99,7 +102,7 @@ int ReactorKqueue::add(Socket *socket, int events) {
     int fd = socket->fd;
     int fflags = 0;
 
-#ifndef __NetBSD__
+#if !defined(__NetBSD__) || (defined(__NetBSD__) && __NetBSD_Version__ >= 1000000000)
     auto sobj = socket;
 #else
     auto sobj = reinterpret_cast<intptr_t>(socket);
@@ -141,7 +144,7 @@ int ReactorKqueue::set(Socket *socket, int events) {
     int fd = socket->fd;
     int fflags = 0;
 
-#ifndef __NetBSD__
+#if !defined(__NetBSD__) || (defined(__NetBSD__) && __NetBSD_Version__ >= 1000000000)
     auto sobj = socket;
 #else
     auto sobj = reinterpret_cast<intptr_t>(socket);
@@ -193,7 +196,7 @@ int ReactorKqueue::del(Socket *socket) {
     int ret;
     int fd = socket->fd;
 
-#ifndef __NetBSD__
+#if !defined(__NetBSD__) || (defined(__NetBSD__) && __NetBSD_Version__ >= 1000000000)
     auto sobj = socket;
 #else
     auto sobj = reinterpret_cast<intptr_t>(socket);

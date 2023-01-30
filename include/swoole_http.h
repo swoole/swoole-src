@@ -168,7 +168,7 @@ struct Request {
     bool parse_multipart_data(String *buffer);
     bool init_multipart_parser(Server *server);
     void destroy_multipart_parser();
-    std::string get_date_if_modified_since();
+    std::string get_header(const char *name);
     bool has_expect_header();
 };
 
@@ -184,11 +184,9 @@ bool parse_multipart_boundary(
     const char *at, size_t length, size_t offset, char **out_boundary_str, int *out_boundary_len);
 void parse_cookie(const char *at, size_t length, const ParseCookieCallback &cb);
 
-#ifdef SW_USE_HTTP2
 ssize_t get_package_length(const Protocol *protocol, network::Socket *conn, PacketLength *pl);
 uint8_t get_package_length_size(network::Socket *conn);
 int dispatch_frame(const Protocol *protocol, network::Socket *conn, const RecvData *rdata);
-#endif
 
 struct ContextImpl;
 

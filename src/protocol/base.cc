@@ -185,6 +185,8 @@ _do_recv:
         _do_get_length:
             pl.buf = buffer->str;
             pl.buf_size = buffer->length;
+            // TODO: support dynamic calculation of header buffer length (recv_size)
+            pl.header_len = 0;
             package_length = get_package_length(this, socket, &pl);
             // invalid package, close connection.
             if (package_length < 0) {
@@ -198,10 +200,10 @@ _do_recv:
             }
             // no length
             else if (package_length == 0) {
-                if (buffer->length == package_length_offset + package_length_size) {
+                if (buffer->length == recv_size) {
                     swoole_error_log(SW_LOG_WARNING,
                                      SW_ERROR_PACKAGE_LENGTH_NOT_FOUND,
-                                     "bad request, no length found in %ld bytes",
+                                     "bad request, no length found in %zu bytes",
                                      buffer->length);
                     return SW_ERR;
                 } else {
@@ -243,7 +245,7 @@ _do_recv:
  */
 int Protocol::recv_with_eof_protocol(network::Socket *socket, String *buffer) {
     bool recv_again = false;
-    int buf_size;
+    size_t buf_size;
     RecvData rdata{};
 
 _recv_data:
@@ -254,7 +256,7 @@ _recv_data:
         buf_size = SW_BUFFER_SIZE_STD;
     }
 
-    int n = socket->recv(buf_ptr, buf_size, 0);
+    ssize_t n = socket->recv(buf_ptr, buf_size, 0);
     if (n < 0) {
         switch (socket->catch_read_error(errno)) {
         case SW_ERROR:

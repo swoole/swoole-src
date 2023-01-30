@@ -584,7 +584,7 @@ static Client *php_swoole_client_new(zval *zobject, char *host, int host_len, in
     }
 
     long type = Z_LVAL_P(ztype);
-    int client_type = php_swoole_socktype(type);
+    int client_type = php_swoole_get_socket_type(type);
     if ((client_type == SW_SOCK_TCP || client_type == SW_SOCK_TCP6) && (port <= 0 || port > SW_CLIENT_MAX_PORT)) {
         php_swoole_fatal_error(E_WARNING, "The port is invalid");
         swoole_set_last_error(SW_ERROR_INVALID_PARAMS);
@@ -623,7 +623,7 @@ static Client *php_swoole_client_new(zval *zobject, char *host, int host_len, in
         }
     } else {
     _create_socket:
-        cli = new Client(php_swoole_socktype(type), false);
+        cli = new Client(php_swoole_get_socket_type(type), false);
         if (cli->socket == nullptr) {
             php_swoole_sys_error(E_WARNING, "Client_create() failed");
             zend_update_property_long(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), errno);
@@ -667,7 +667,7 @@ static PHP_METHOD(swoole_client, __construct) {
         RETURN_FALSE;
     }
 
-    int client_type = php_swoole_socktype(type);
+    int client_type = php_swoole_get_socket_type(type);
     if (client_type < SW_SOCK_TCP || client_type > SW_SOCK_UNIX_DGRAM) {
         const char *space, *class_name = get_active_class_name(&space);
         zend_type_error("%s%s%s() expects parameter %d to be client type, unknown type " ZEND_LONG_FMT " given",

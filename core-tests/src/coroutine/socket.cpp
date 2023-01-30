@@ -23,6 +23,7 @@
 
 using namespace swoole::test;
 
+using swoole::Coroutine;
 using swoole::HttpProxy;
 using swoole::Protocol;
 using swoole::Socks5Proxy;
@@ -667,7 +668,7 @@ TEST(coroutine_socket, event_hup) {
                         ASSERT_EQ(sock.errCode, 0);
 
                         auto buf = sock.get_read_buffer();
-                        swoole::Coroutine::create([&sock](void *args) {
+                        Coroutine::create([&sock](void *args) {
                             System::sleep(0.01);
                             sock.shutdown(SHUT_RDWR);
                         });
@@ -762,7 +763,7 @@ TEST(coroutine_socket, write_and_read) {
         std::string text = "Hello World";
         size_t length = text.length();
 
-        swoole::Coroutine::create([&](void *) {
+        Coroutine::create([&](void *) {
             Socket sock(pairs[0], SW_SOCK_UNIX_STREAM);
             ssize_t result = sock.write(text.c_str(), length);
             sock.close();
@@ -787,7 +788,7 @@ TEST(coroutine_socket, write_and_read_2) {
         std::string text = "Hello World";
         size_t length = text.length();
 
-        swoole::Coroutine::create([&](void *) {
+        Coroutine::create([&](void *) {
             Socket sock(pairs[0], AF_UNIX, SOCK_STREAM, 0);
             ssize_t result = sock.write(text.c_str(), length);
             sock.close();
@@ -812,7 +813,7 @@ TEST(coroutine_socket, writev_and_readv) {
         size_t length = text.length();
         socketpair(AF_UNIX, SOCK_STREAM, 0, pairs);
 
-        swoole::Coroutine::create([&](void *) {
+        Coroutine::create([&](void *) {
             std::unique_ptr<iovec[]> iov(new iovec[iovcnt]);
             for (int i = 0; i < iovcnt; i++) {
                 iov[i].iov_base = (void *) text.c_str();
@@ -854,7 +855,7 @@ TEST(coroutine_socket, writevall_and_readvall) {
         size_t length = text.length();
         socketpair(AF_UNIX, SOCK_STREAM, 0, pairs);
 
-        swoole::Coroutine::create([&](void *) {
+        Coroutine::create([&](void *) {
             std::unique_ptr<iovec[]> iov(new iovec[iovcnt]);
             for (int i = 0; i < iovcnt; i++) {
                 iov[i].iov_base = (void *) text.c_str();
@@ -892,7 +893,7 @@ TEST(coroutine_socket, sendfile) {
     coroutine::run([&](void *arg) {
         int pairs[2];
         socketpair(AF_UNIX, SOCK_STREAM, 0, pairs);
-        swoole::Coroutine::create([&](void *) {
+        Coroutine::create([&](void *) {
             std::string file = get_jpg_file();
             Socket sock(pairs[0], SW_SOCK_UNIX_STREAM);
             bool result = sock.sendfile(file.c_str(), 0, 0);
@@ -1040,7 +1041,7 @@ TEST(coroutine_socket, peek) {
         std::string text = "Hello World";
         size_t length = text.length();
 
-        swoole::Coroutine::create([&](void *) {
+        Coroutine::create([&](void *) {
             Socket sock(pairs[0], SW_SOCK_UNIX_STREAM);
             ssize_t result = sock.write(text.c_str(), length);
             sock.close();
@@ -1065,7 +1066,7 @@ TEST(coroutine_socket, sendmsg_and_recvmsg) {
         std::string text = "Hello World";
         size_t length = text.length();
 
-        swoole::Coroutine::create([&](void *) {
+        Coroutine::create([&](void *) {
             Socket sock(pairs[0], SW_SOCK_UNIX_STREAM);
             struct msghdr msg;
             struct iovec ivec;
@@ -1106,5 +1107,96 @@ TEST(coroutine_socket, sendmsg_and_recvmsg) {
         buf[ret] = '\0';
         sock.close();
         ASSERT_STREQ(buf, text.c_str());
+    });
+}
+
+std::pair<std::shared_ptr<Socket>, std::shared_ptr<Socket>> create_socket_pair() {
+    int pairs[2];
+    socketpair(AF_UNIX, SOCK_STREAM, 0, pairs);
+
+    auto sock0 = new Socket(pairs[0], SW_SOCK_UNIX_STREAM);
+    auto sock1 = new Socket(pairs[1], SW_SOCK_UNIX_STREAM);
+
+    sock0->get_socket()->set_buffer_size(65536);
+    sock1->get_socket()->set_buffer_size(65536);
+
+    std::pair<std::shared_ptr<Socket>, std::shared_ptr<Socket>> result(sock0, sock1);
+    return result;
+}
+
+TEST(coroutine_socket, close) {
+    coroutine::run([&](void *arg) {
+        auto pair = create_socket_pair();
+
+        auto buffer = sw_tg_buffer();
+        buffer->clear();
+        buffer->append_random_bytes(256 * 1024, false);
+
+        std::map<std::string, bool> results;
+        auto _sock = pair.first;
+
+        // write co
+        Coroutine::create([&](void *) {
+            SW_LOOP_N(32) {
+                ssize_t result = _sock->write(buffer->value(), buffer->get_length());
+                if (result < 0 && _sock->errCode == ECANCELED) {
+                    ASSERT_FALSE(_sock->close());
+                    ASSERT_EQ(_sock->errCode, SW_ERROR_CO_SOCKET_CLOSE_WAIT);
+                    results["write"] = true;
+                    ASSERT_EQ(_sock->write(buffer->value(), buffer->get_length()), -1);
+                    ASSERT_EQ(_sock->errCode, EBADF);
+                    break;
+                }
+            }
+        });
+
+        // read co
+        Coroutine::create([&](void *) {
+            SW_LOOP_N(32) {
+                char buf[4096];
+                ssize_t result = _sock->read(buf, sizeof(buf));
+                if (result < 0 && _sock->errCode == ECANCELED) {
+                    ASSERT_TRUE(_sock->close());
+                    results["read"] = true;
+                    break;
+                }
+            }
+        });
+
+        System::sleep(0.1);
+        ASSERT_FALSE(_sock->close());
+        ASSERT_EQ(_sock->errCode, SW_ERROR_CO_SOCKET_CLOSE_WAIT);
+        ASSERT_TRUE(_sock->is_closed());
+        ASSERT_TRUE(results["write"]);
+        ASSERT_TRUE(results["read"]);
+        ASSERT_FALSE(_sock->close());
+        ASSERT_EQ(_sock->errCode, EBADF);
+    });
+}
+
+TEST(coroutine_socket, cancel) {
+    coroutine::run([&](void *arg) {
+        auto pair = create_socket_pair();
+
+        auto buffer = sw_tg_buffer();
+        buffer->clear();
+        buffer->append_random_bytes(256 * 1024, false);
+
+        std::map<std::string, bool> results;
+        // read co
+        Coroutine::create([&](void *) {
+            SW_LOOP_N(32) {
+                char buf[4096];
+                ssize_t result = pair.first->read(buf, sizeof(buf));
+                if (result < 0 && pair.first->errCode == ECANCELED) {
+                    results["read"] = true;
+                    break;
+                }
+            }
+        });
+
+        System::sleep(0.1);
+        pair.first->cancel(SW_EVENT_READ);
+        ASSERT_TRUE(results["read"]);
     });
 }

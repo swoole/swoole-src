@@ -156,7 +156,7 @@ function main()
     // Parallel testing
     global $workers, $workerID;
 
-    define('IS_WINDOWS', substr(PHP_OS, 0, 3) == "WIN");
+    define('IS_WINDOWS', str_starts_with(PHP_OS, "WIN"));
 
     $workerID = 0;
     if (getenv("TEST_PHP_WORKER")) {
@@ -183,7 +183,7 @@ function main()
 +-----------------------------------------------------------+
 
 NO_PROC_OPEN_ERROR;
-        exit(1);
+        exit(200);
     }
 
     // If timezone is not set, use UTC.
@@ -643,7 +643,7 @@ NO_PROC_OPEN_ERROR;
                     break;
                 case '--version':
                     echo '$Id: ebcaabba02a5af6f5dc62dda027befb95385d5fc $' . "\n";
-                    exit(1);
+                    exit(2);
 
                 default:
                     echo "Illegal switch '$switch' specified!\n";
@@ -651,7 +651,7 @@ NO_PROC_OPEN_ERROR;
                 case '-help':
                 case '--help':
                     show_usage();
-                    exit(1);
+                    exit(2);
             }
         }
 
@@ -757,7 +757,7 @@ NO_PROC_OPEN_ERROR;
 
         if (getenv('REPORT_EXIT_STATUS') !== '0' &&
             getenv('REPORT_EXIT_STATUS') !== 'no' && ($sum_results['FAILED'] || $sum_results['BORKED'] || $sum_results['LEAKED'])) {
-            exit(1);
+            exit(201);
         }
 
         return;
@@ -834,7 +834,7 @@ NO_PROC_OPEN_ERROR;
     junit_save_xml();
     if (getenv('REPORT_EXIT_STATUS') !== '0' &&
         getenv('REPORT_EXIT_STATUS') !== 'no' && ($sum_results['FAILED'] || $sum_results['LEAKED'])) {
-        exit(1);
+        exit(202);
     }
     exit(0);
 }
@@ -851,6 +851,11 @@ if (!function_exists("hrtime")) {
         $s = floor($t);
         return array(0 => $s, 1 => ($t - $s) * 1000000000);
     }
+}
+
+function get_shortname($file)
+{
+    return str_replace(TEST_PHP_SRCDIR . '/', '', $file);
 }
 
 function verify_config()
@@ -1359,6 +1364,13 @@ function run_all_tests($test_files, $env, $redir_tested = null)
         $test_idx++;
 
         if ($workerID) {
+            send_message($workerSock, [
+                    "type" => "begin",
+                    "file" => $name,
+            ]);
+        }
+
+        if ($workerID) {
             $PHP_FAILED_TESTS = ['BORKED' => [], 'FAILED' => [], 'WARNED' => [], 'LEAKED' => [], 'XFAILED' => [], 'XLEAKED' => [], 'SLOW' => []];
             ob_start();
         }
@@ -1566,7 +1578,7 @@ function run_all_tests_parallel($test_files, $env, $redir_tested) {
                         $rawMessage = $rawMessageBuffers[$i] . $rawMessage;
                         $rawMessageBuffers[$i] = '';
                     }
-                    if (substr($rawMessage, -1) !== "\n") {
+                    if (!str_ends_with($rawMessage, "\n")) {
                         $rawMessageBuffers[$i] = $rawMessage;
                         continue;
                     }
@@ -1640,6 +1652,11 @@ function run_all_tests_parallel($test_files, $env, $redir_tested) {
                                 goto escape;
                             }
                             break;
+                        case "begin":
+                            if (!$SHOW_ONLY_GROUPS) {
+                                show_test($test_idx, get_shortname($message['file']));
+                            }
+                            break;
                         case "test_result":
                             list($name, $index, $result, $resultText) = [$message["name"], $message["index"], $message["result"], $message["text"]];
                             foreach ($message["PHP_FAILED_TESTS"] as $category => $tests) {
@@ -1652,10 +1669,6 @@ function run_all_tests_parallel($test_files, $env, $redir_tested) {
                             }
 
                             echo $resultText;
-
-                            if (!$SHOW_ONLY_GROUPS) {
-                                show_test($test_idx, count($workerProcs) . "/$workers concurrent test workers running");
-                            }
 
                             if (!is_array($name) && $result != 'REDIR') {
                                 $test_results[$index] = $result;
@@ -1961,7 +1974,7 @@ TEST $file
     }
     fclose($fp);
 
-    $shortname = str_replace(TEST_PHP_SRCDIR . '/', '', $file);
+    $shortname = get_shortname($file);
     $tested_file = $shortname;
 
     if ($bork_info !== null) {
@@ -2043,6 +2056,7 @@ TEST $file
 
     if (!$SHOW_ONLY_GROUPS && !$workerID) {
         show_test($test_idx, $shortname);
+        echo PHP_EOL;
     }
 
     if (is_array($IN_REDIRECT)) {
@@ -2992,7 +3006,7 @@ function generate_diff($wanted, $wanted_re, $output)
 function error($message)
 {
     echo "ERROR: {$message}\n";
-    exit(1);
+    exit(240);
 }
 
 function settings2array($settings, &$ini_settings)
@@ -3320,7 +3334,7 @@ function show_test($test_idx, $shortname)
     global $line_length;
 
     // swoole patch: pretty output
-    $str = "TEST $test_idx/$test_cnt ";
+    $str = "TEST $test_idx/$test_cnt [$shortname]";
     $line_length = strlen($str);
     echo $str;
     flush();
@@ -3333,7 +3347,7 @@ function clear_show_test() {
 
     if (!$workerID) {
         // Write over the last line to avoid random trailing chars on next echo
-        echo str_repeat(" ", $line_length), "\r";
+        echo str_repeat(" ", intval($line_length)), "\r";
     }
 }
 
@@ -3767,7 +3781,7 @@ class RuntestsValgrind
 }
 
 // swoole patch: color const
-define('SWOOLE_TEST_TIMEOUT', file_exists('/.travisenv') ? 10 : 30);
+define('SWOOLE_TEST_TIMEOUT', file_exists('/.cienv') ? 10 : 30);
 define('SWOOLE_COLOR_RED', 1);
 define('SWOOLE_COLOR_GREEN', 2);
 define('SWOOLE_COLOR_YELLOW', 3);

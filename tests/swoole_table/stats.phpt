@@ -8,7 +8,7 @@ require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Table;
 
-define('N',  IS_IN_TRAVIS ? 10000 : 100000);
+define('N',  IS_IN_CI ? 10000 : 100000);
 
 $table = new Table(N);
 $table->column('string', Table::TYPE_STRING, 256);

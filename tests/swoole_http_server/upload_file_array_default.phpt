@@ -31,15 +31,15 @@ $pm->parentFunc = function () use ($pm) {
 
     $json = json_decode($result, true);
 
-    assert_upload_file($json['file'], '/tmp/swoole.upfile.fixture1', 'image.jpg', 'application/octet-stream', 218787, 0);
-    assert_upload_file($json['form']['file'], '/tmp/swoole.upfile.fixture2', 'photo.jpg', 'image/jpeg', 218787, 0);
-    assert_upload_file($json['form']['group']['file'], '/tmp/swoole.upfile.fixture3', 'swoole-logo.svg', 'image/svg+xml', 7424, 0);
+    assert_upload_file($json['file'], '/tmp/swoole.upfile.fixture1', 'image.jpg', 'application/octet-stream', filesize(TEST_IMAGE), 0);
+    assert_upload_file($json['form']['file'], '/tmp/swoole.upfile.fixture2', 'photo.jpg', 'image/jpeg', filesize(TEST_IMAGE), 0);
+    assert_upload_file($json['form']['group']['file'], '/tmp/swoole.upfile.fixture3', 'swoole-logo.svg', 'image/svg+xml', filesize(TEST_IMAGE2), 0);
 
     $pm->kill();
 };
 
 $pm->childFunc = function () use ($pm) {
-    $http = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort());
+    $http = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $http->set([
         'log_file' => '/dev/null',
     ]);

@@ -5,7 +5,7 @@ swoole_server: getCallback
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-$server = new Swoole\Server('127.0.0.1');
+$server = new Swoole\Server('127.0.0.1', 0, SWOOLE_PROCESS);
 $server->on('start', function ($server) { });
 $server->on('shutdown', function ($server) { });
 Assert::isInstanceOf($server->getCallback('start'), Closure::class);

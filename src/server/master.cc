@@ -55,7 +55,7 @@ TimerCallback Server::get_timeout_callback(ListenPort *port, Reactor *reactor, C
 
 void Server::disable_accept() {
     enable_accept_timer = swoole_timer_add(
-        SW_ACCEPT_RETRY_TIME * 1000,
+        SW_ACCEPT_RETRY_TIME,
         false,
         [](Timer *timer, TimerNode *tnode) {
             Server *serv = (Server *) tnode->data;
@@ -78,18 +78,6 @@ void Server::disable_accept() {
             continue;
         }
         swoole_event_del(port->socket);
-    }
-}
-
-void Server::close_port(bool only_stream_port) {
-    for (auto port : ports) {
-        if (only_stream_port && port->is_dgram()) {
-            continue;
-        }
-        if (port->socket) {
-            port->socket->free();
-            port->socket = nullptr;
-        }
     }
 }
 
@@ -237,7 +225,7 @@ int Server::connection_incoming(Reactor *reactor, Connection *conn) {
     if (port->max_idle_time > 0) {
         auto timeout_callback = get_timeout_callback(port, reactor, conn);
         conn->socket->recv_timeout_ = port->max_idle_time;
-        conn->socket->recv_timer = swoole_timer_add(port->max_idle_time * 1000, true, timeout_callback);
+        conn->socket->recv_timer = swoole_timer_add((long) (port->max_idle_time * 1000), true, timeout_callback);
     }
 #ifdef SW_USE_OPENSSL
     if (conn->socket->ssl) {
@@ -443,7 +431,7 @@ int Server::start_master_thread() {
         reactor->add(pipe_command->get_socket(true), SW_EVENT_READ);
     }
 
-    if ((master_timer = swoole_timer_add(1000, true, Server::timer_callback, this)) == nullptr) {
+    if ((master_timer = swoole_timer_add(1000L, true, Server::timer_callback, this)) == nullptr) {
         swoole_event_free();
         return SW_ERR;
     }
@@ -452,10 +440,16 @@ int Server::start_master_thread() {
     if (!single_thread) {
         pthread_barrier_wait(&reactor_thread_barrier);
     }
+#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
+    SW_START_SLEEP;
+#else
     pthread_barrier_wait(&gs->manager_barrier);
+#endif
 #else
     SW_START_SLEEP;
 #endif
+
+    gs->master_pid = getpid();
 
     if (isset_hook(HOOK_MASTER_START)) {
         call_hook(HOOK_MASTER_START, this);
@@ -528,7 +522,6 @@ int Server::create_task_workers() {
  * @description:
  *  only the memory of the Worker structure is allocated, no process is fork.
  *  called when the manager process start.
- * @param Server
  * @return: SW_OK|SW_ERR
  */
 int Server::create_user_workers() {
@@ -537,6 +530,14 @@ int Server::create_user_workers() {
         swoole_sys_warning("gmalloc[server->user_workers] failed");
         return SW_ERR;
     }
+
+    int i = 0;
+    for (auto worker : user_worker_list) {
+        memcpy(&user_workers[i], worker, sizeof(user_workers[i]));
+        create_worker(worker);
+        i++;
+    }
+
     return SW_OK;
 }
 
@@ -545,6 +546,9 @@ int Server::create_user_workers() {
  */
 void Server::create_worker(Worker *worker) {
     worker->lock = new Mutex(Mutex::PROCESS_SHARED);
+    if (worker->pipe_object) {
+        store_pipe_fd(worker->pipe_object);
+    }
 }
 
 void Server::destroy_worker(Worker *worker) {
@@ -637,8 +641,6 @@ int Server::start() {
         }
     }
 
-    // master pid
-    gs->master_pid = getpid();
     gs->start_time = ::time(nullptr);
 
     /**
@@ -729,23 +731,12 @@ Server::Server(enum Mode _mode) {
     compression_min_length = SW_COMPRESSION_MIN_LENGTH_DEFAULT;
 #endif
 
-#ifdef __linux__
-    timezone_ = timezone;
-#else
-    struct timezone tz;
-    struct timeval tv;
-    gettimeofday(&tv, &tz);
-    timezone_ = tz.tz_minuteswest * 60;
-#endif
+    timezone_ = get_timezone();
 
-    /**
-     * alloc shared memory
-     */
     gs = (ServerGS *) sw_shm_malloc(sizeof(ServerGS));
     if (gs == nullptr) {
         swoole_error("[Master] Fatal Error: failed to allocate memory for Server->gs");
     }
-
     gs->pipe_packet_msg_id = 1;
     gs->max_concurrency = UINT_MAX;
 
@@ -856,8 +847,10 @@ int Server::create() {
 #ifdef HAVE_PTHREAD_BARRIER
     if (is_process_mode()) {
         pthread_barrier_init(&reactor_thread_barrier, nullptr, reactor_num + 1);
+#if !(defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__))
         pthread_barrierattr_setpshared(&gs->manager_barrier_attr, PTHREAD_PROCESS_SHARED);
         pthread_barrier_init(&gs->manager_barrier, &gs->manager_barrier_attr, 2);
+#endif
     }
 #endif
 
@@ -883,19 +876,31 @@ void Server::clear_timer() {
     }
 }
 
-void Server::shutdown() {
-    swoole_trace_log(SW_TRACE_SERVER, "shutdown service");
-    if (getpid() != gs->master_pid) {
-        kill(gs->master_pid, SIGTERM);
-        return;
+bool Server::shutdown() {
+    swoole_trace_log(SW_TRACE_SERVER, "shutdown begin");
+    if (is_base_mode()) {
+        if (gs->manager_pid > 0) {
+            if (getpid() == gs->manager_pid) {
+                running = false;
+                return true;
+            } else {
+                return swoole_kill(gs->manager_pid, SIGTERM) == 0;
+            }
+        } else {
+            gs->event_workers.running = 0;
+            stop_async_worker(SwooleWG.worker);
+            return true;
+        }
     }
-    if (is_process_mode()) {
-        if (swoole_isset_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN)) {
-            swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN, this);
-        }
-        if (onBeforeShutdown) {
-            onBeforeShutdown(this);
-        }
+
+    if (getpid() != gs->master_pid) {
+        return swoole_kill(gs->master_pid, SIGTERM) == 0;
+    }
+    if (swoole_isset_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN)) {
+        swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN, this);
+    }
+    if (onBeforeShutdown) {
+        onBeforeShutdown(this);
     }
     running = false;
     // stop all thread
@@ -928,11 +933,8 @@ void Server::shutdown() {
         }
     }
 
-    if (is_base_mode()) {
-        gs->event_workers.running = 0;
-    }
-
-    swoole_info("Server is shutdown now");
+    swoole_trace_log(SW_TRACE_SERVER, "shutdown end");
+    return true;
 }
 
 void Server::destroy() {
@@ -940,14 +942,17 @@ void Server::destroy() {
     if (swoole_isset_hook(SW_GLOBAL_HOOK_AFTER_SERVER_SHUTDOWN)) {
         swoole_call_hook(SW_GLOBAL_HOOK_AFTER_SERVER_SHUTDOWN, this);
     }
-    /**
-     * shutdown workers
-     */
+
     factory->shutdown();
+
+    SW_LOOP_N(worker_num) {
+        Worker *worker = &workers[i];
+        destroy_worker(worker);
+    }
+
     if (is_base_mode()) {
         swoole_trace_log(SW_TRACE_SERVER, "terminate task workers");
         if (task_worker_num > 0) {
-            gs->task_workers.shutdown();
             gs->task_workers.destroy();
         }
     } else {
@@ -997,8 +1002,10 @@ void Server::destroy() {
 #ifdef HAVE_PTHREAD_BARRIER
     if (is_process_mode()) {
         pthread_barrier_destroy(&reactor_thread_barrier);
+#if !(defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__))
         pthread_barrier_destroy(&gs->manager_barrier);
         pthread_barrierattr_destroy(&gs->manager_barrier_attr);
+#endif
     }
 #endif
     sw_shm_free(session_list);
@@ -1275,13 +1282,13 @@ int Server::send_to_connection(SendData *_send) {
     }
     if (!conn) {
         if (_send->info.type == SW_SERVER_EVENT_SEND_DATA) {
-            swoole_error_log(SW_LOG_NOTICE,
+            swoole_error_log(SW_LOG_TRACE,
                              SW_ERROR_SESSION_NOT_EXIST,
                              "send %d byte failed, session#%ld does not exist",
                              _send_length,
                              session_id);
         } else {
-            swoole_error_log(SW_LOG_NOTICE,
+            swoole_error_log(SW_LOG_TRACE,
                              SW_ERROR_SESSION_NOT_EXIST,
                              "send event[%d] failed, session#%ld does not exist",
                              _send->info.type,
@@ -1402,8 +1409,7 @@ int Server::send_to_connection(SendData *_send) {
     else {
         // connection is closed
         if (conn->peer_closed) {
-            swoole_error_log(
-                SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED_BY_CLIENT, "Server::send(): socket#%d is closed by client", fd);
+            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED_BY_CLIENT, "socket#%d is closed by client", fd);
             return false;
         }
         // connection output buffer overflow
@@ -1411,10 +1417,8 @@ int Server::send_to_connection(SendData *_send) {
             if (send_yield) {
                 swoole_set_last_error(SW_ERROR_OUTPUT_SEND_YIELD);
             } else {
-                swoole_error_log(SW_LOG_WARNING,
-                                 SW_ERROR_OUTPUT_BUFFER_OVERFLOW,
-                                 "Server::send(): connection#%d output buffer overflow",
-                                 fd);
+                swoole_error_log(
+                    SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "connection#%d output buffer overflow", fd);
             }
             conn->overflow = 1;
             if (onBufferEmpty && onBufferFull == nullptr) {
@@ -1436,7 +1440,7 @@ int Server::send_to_connection(SendData *_send) {
         auto timeout_callback = get_timeout_callback(port, reactor, conn);
         _socket->send_timeout_ = port->max_idle_time;
         _socket->last_sent_time = time<std::chrono::milliseconds>(true);
-        _socket->send_timer = swoole_timer_add(port->max_idle_time * 1000, true, timeout_callback);
+        _socket->send_timer = swoole_timer_add((long) (port->max_idle_time * 1000), true, timeout_callback);
     }
 
     if (!_socket->isset_writable_event()) {
@@ -1525,7 +1529,7 @@ bool Server::sendfile(SessionId session_id, const char *file, uint32_t l_file, o
 bool Server::sendwait(SessionId session_id, const void *data, uint32_t length) {
     Connection *conn = get_connection_verify(session_id);
     if (!conn) {
-        swoole_error_log(SW_LOG_NOTICE,
+        swoole_error_log(SW_LOG_TRACE,
                          SW_ERROR_SESSION_CLOSED,
                          "send %d byte failed, because session#%ld is closed",
                          length,
@@ -1811,25 +1815,12 @@ static void Server_signal_handler(int sig) {
                            swoole_signal_to_str(WTERMSIG(status)));
         }
         break;
-        /**
-         * for test
-         */
     case SIGVTALRM:
         swoole_warning("SIGVTALRM coming");
         break;
-        /**
-         * proxy the restart signal
-         */
     case SIGUSR1:
     case SIGUSR2:
-        if (serv->is_base_mode()) {
-            if (!serv->gs->event_workers.reload()) {
-                break;
-            }
-            serv->gs->event_workers.reload_init = false;
-        } else {
-            swoole_kill(serv->gs->manager_pid, sig);
-        }
+        serv->reload(sig == SIGUSR1);
         sw_logger()->reopen();
         break;
     case SIGIO:

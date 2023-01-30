@@ -62,6 +62,7 @@ extern PHPAPI int php_array_merge(zend_array *dest, zend_array *src);
     } else {                                                                                                           \
         RETURN_TRUE;                                                                                                   \
     }
+
 #define SW_LOCK_CHECK_RETURN(s)                                                                                        \
     zend_long ___tmp_return_value = s;                                                                                 \
     if (___tmp_return_value == 0) {                                                                                    \
@@ -149,7 +150,7 @@ enum php_swoole_hook_type {
 };
 //---------------------------------------------------------
 
-static sw_inline enum swSocketType php_swoole_socktype(long type) {
+static sw_inline enum swSocketType php_swoole_get_socket_type(long type) {
     return (enum swSocketType)(type & (~SW_FLAG_SYNC) & (~SW_FLAG_ASYNC) & (~SW_FLAG_KEEP) & (~SW_SOCK_SSL));
 }
 
@@ -227,13 +228,11 @@ void php_swoole_socket_coro_minit(int module_number);
 void php_swoole_client_minit(int module_number);
 void php_swoole_client_coro_minit(int module_number);
 void php_swoole_http_client_coro_minit(int module_number);
+void php_swoole_http2_client_coro_minit(int module_number);
 void php_swoole_mysql_coro_minit(int module_number);
 void php_swoole_redis_coro_minit(int module_number);
 #ifdef SW_USE_PGSQL
 void php_swoole_postgresql_coro_minit(int module_number);
-#endif
-#ifdef SW_USE_HTTP2
-void php_swoole_http2_client_coro_minit(int module_number);
 #endif
 // server
 void php_swoole_server_minit(int module_number);
@@ -305,14 +304,16 @@ php_socket *php_swoole_convert_to_socket(int sock);
 
 zend_bool php_swoole_signal_isset_handler(int signo);
 
+#if PHP_VERSION_ID < 80200
+#define zend_atomic_bool zend_bool
+#define zend_atomic_bool_store(atomic, desired) (*atomic = desired)
+#endif
+
 #define sw_zend7_object zend_object
 #define SW_Z7_OBJ_P(object) object
 #define SW_Z8_OBJ_P(zobj) Z_OBJ_P(zobj)
 
 typedef ssize_t php_stream_size_t;
-
-#define ZEND_ERROR_CB_LAST_ARG_D zend_string *message
-#define ZEND_ERROR_CB_LAST_ARG_RELAY message
 
 #if PHP_VERSION_ID < 80100
 typedef const char error_filename_t;
@@ -568,15 +569,17 @@ static sw_inline void add_assoc_ulong_safe(zval *arg, const char *key, zend_ulon
         }                                                                                                              \
     } while (0)
 
-#define SW_FUNCTION_ALIAS(origin_function_table, origin, alias_function_table, alias)                                  \
-    sw_zend_register_function_alias(origin_function_table, ZEND_STRL(origin), alias_function_table, ZEND_STRL(alias))
+#define SW_FUNCTION_ALIAS(origin_function_table, origin, alias_function_table, alias, arg_info)                        \
+    sw_zend_register_function_alias(                                                                                   \
+        origin_function_table, ZEND_STRL(origin), alias_function_table, ZEND_STRL(alias), arg_info)
 
 static sw_inline int sw_zend_register_function_alias(zend_array *origin_function_table,
                                                      const char *origin,
                                                      size_t origin_length,
                                                      zend_array *alias_function_table,
                                                      const char *alias,
-                                                     size_t alias_length) {
+                                                     size_t alias_length,
+                                                     const zend_internal_arg_info *arg_info) {
     zend_string *lowercase_origin = zend_string_alloc(origin_length, 0);
     zend_str_tolower_copy(ZSTR_VAL(lowercase_origin), origin, origin_length);
     zend_function *origin_function = (zend_function *) zend_hash_find_ptr(origin_function_table, lowercase_origin);
@@ -587,14 +590,11 @@ static sw_inline int sw_zend_register_function_alias(zend_array *origin_function
     SW_ASSERT(origin_function->common.type == ZEND_INTERNAL_FUNCTION);
     char *_alias = (char *) emalloc(alias_length + 1);
     ((char *) memcpy(_alias, alias, alias_length))[alias_length] = '\0';
-    zend_function_entry zfe[] = {{_alias,
-                                  origin_function->internal_function.handler,
-                                  ((zend_internal_arg_info *) origin_function->common.arg_info) - 1,
-                                  origin_function->common.num_args,
-                                  0},
-                                 PHP_FE_END};
-    int ret =
-        zend_register_functions(nullptr, zfe, alias_function_table, origin_function->common.type);
+
+    zend_function_entry zfe[] = {
+        {_alias, origin_function->internal_function.handler, arg_info, origin_function->common.num_args, 0},
+        PHP_FE_END};
+    int ret = zend_register_functions(nullptr, zfe, alias_function_table, origin_function->common.type);
     efree(_alias);
     return ret;
 }
@@ -651,7 +651,7 @@ static sw_inline void sw_zend_class_unset_property_deny(zend_object *object, zen
     std_object_handlers.unset_property(object, member, cache_slot);
 }
 
-static sw_inline zval *sw_zend_read_property(zend_class_entry *ce, zval *obj, const char *s, int len, int silent) {
+static sw_inline zval *sw_zend_read_property(zend_class_entry *ce, zval *obj, const char *s, size_t len, int silent) {
     zval rv, *property = zend_read_property(ce, SW_Z8_OBJ_P(obj), s, len, silent, &rv);
     if (UNEXPECTED(property == &EG(uninitialized_zval))) {
         zend_update_property_null(ce, SW_Z8_OBJ_P(obj), s, len);
@@ -677,7 +677,7 @@ static sw_inline zval *sw_zend_read_property_ex(zend_class_entry *ce, zval *obj,
 }
 
 static sw_inline zval *sw_zend_read_property_not_null(
-    zend_class_entry *ce, zval *obj, const char *s, int len, int silent) {
+    zend_class_entry *ce, zval *obj, const char *s, size_t len, int silent) {
     zval rv, *property = zend_read_property(ce, SW_Z8_OBJ_P(obj), s, len, silent, &rv);
     zend_uchar type = Z_TYPE_P(property);
     return (type == IS_NULL || UNEXPECTED(type == IS_UNDEF)) ? NULL : property;
@@ -689,7 +689,7 @@ static sw_inline zval *sw_zend_read_property_not_null_ex(zend_class_entry *ce, z
     return (type == IS_NULL || UNEXPECTED(type == IS_UNDEF)) ? NULL : property;
 }
 
-static sw_inline zval *sw_zend_update_and_read_property_array(zend_class_entry *ce, zval *obj, const char *s, int len) {
+static sw_inline zval *sw_zend_update_and_read_property_array(zend_class_entry *ce, zval *obj, const char *s, size_t len) {
     zval ztmp;
     array_init(&ztmp);
     zend_update_property(ce, SW_Z8_OBJ_P(obj), s, len, &ztmp);
@@ -698,7 +698,7 @@ static sw_inline zval *sw_zend_update_and_read_property_array(zend_class_entry *
 }
 
 static sw_inline zval *sw_zend_read_and_convert_property_array(
-    zend_class_entry *ce, zval *obj, const char *s, int len, int silent) {
+    zend_class_entry *ce, zval *obj, const char *s, size_t len, int silent) {
     zval rv, *property = zend_read_property(ce, SW_Z8_OBJ_P(obj), s, len, silent, &rv);
     if (Z_TYPE_P(property) != IS_ARRAY) {
         // NOTICE: if user unset the property, zend_read_property will return uninitialized_zval instead of NULL pointer
@@ -827,19 +827,12 @@ static sw_inline int sw_zend_call_function_ex2(
 
 static sw_inline int sw_zend_call_function_anyway(zend_fcall_info *fci, zend_fcall_info_cache *fci_cache) {
     zval retval;
-    zend_object *exception = EG(exception);
-    if (exception) {
-        EG(exception) = NULL;
-    }
     if (!fci->retval) {
         fci->retval = &retval;
     }
     int ret = zend_call_function(fci, fci_cache);
     if (fci->retval == &retval) {
         zval_ptr_dtor(&retval);
-    }
-    if (exception) {
-        EG(exception) = exception;
     }
     return ret;
 }
@@ -915,7 +908,7 @@ static sw_inline char *php_swoole_format_date(char *format, size_t format_len, t
     return return_str;
 }
 
-static sw_inline char *php_swoole_url_encode(const char *value, size_t value_len, int *exten) {
+static sw_inline char *php_swoole_url_encode(const char *value, size_t value_len, size_t *exten) {
     zend_string *str = php_url_encode(value, value_len);
     *exten = ZSTR_LEN(str);
     char *return_str = estrndup(ZSTR_VAL(str), ZSTR_LEN(str));

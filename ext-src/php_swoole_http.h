@@ -19,9 +19,7 @@
 #pragma once
 
 #include "swoole_http.h"
-#ifdef SW_USE_HTTP2
 #include "swoole_http2.h"
-#endif
 #include "thirdparty/swoole_http_parser.h"
 #include "thirdparty/multipart_parser.h"
 
@@ -36,9 +34,7 @@
 #define SW_ZLIB_ENCODING_ANY 0x2f
 #endif
 
-#ifdef SW_USE_HTTP2
 #include "thirdparty/nghttp2/nghttp2.h"
-#endif
 
 enum swHttpHeaderFlag {
     HTTP_HEADER_SERVER = 1u << 1,
@@ -59,13 +55,11 @@ enum swHttpCompressMethod {
 
 namespace swoole {
 class Server;
-#ifdef SW_USE_HTTP2
 class Coroutine;
 namespace http2 {
 class Stream;
 class Session;
 }  // namespace http2
-#endif
 
 namespace http {
 
@@ -81,9 +75,7 @@ struct Request {
     const char *body_at;
     size_t body_length;
     String *chunked_body;
-#ifdef SW_USE_HTTP2
     String *h2_data_buffer;
-#endif
 
     // Notice: Do not change the order
     zval *zobject;
@@ -145,12 +137,9 @@ struct Context {
     uchar parse_body : 1;
     uchar parse_files : 1;
     uchar co_socket : 1;
-
-#ifdef SW_USE_HTTP2
     uchar http2 : 1;
-    http2::Stream *stream;
-#endif
 
+    http2::Stream *stream;
     std::shared_ptr<String> write_buffer;
 
 #ifdef SW_HAVE_COMPRESSION
@@ -192,10 +181,11 @@ struct Context {
     void bind(Server *server);
     void bind(coroutine::Socket *socket);
     void copy(Context *ctx);
-    bool parse_form_data(const char *boundary_str, int boundary_len);
+    bool init_multipart_parser(const char *boundary_str, int boundary_len);
     bool get_multipart_boundary(
         const char *at, size_t length, size_t offset, char **out_boundary_str, int *out_boundary_len);
     size_t parse(const char *data, size_t length);
+    bool parse_multipart_data(const char *at, size_t length);
     bool set_header(const char *, size_t, zval *, bool);
     bool set_header(const char *, size_t, const char *, size_t, bool);
     void end(zval *zdata, zval *return_value);
@@ -215,10 +205,8 @@ struct Context {
     bool compress(const char *data, size_t length);
 #endif
 
-#ifdef SW_USE_HTTP2
     void http2_end(zval *zdata, zval *return_value);
     bool http2_send_file(const char *file, uint32_t l_file, off_t offset, size_t length);
-#endif
 
     bool is_available();
     void free();
@@ -226,7 +214,6 @@ struct Context {
 
 }  // namespace http
 
-#ifdef SW_USE_HTTP2
 namespace http2 {
 class Stream {
   public:
@@ -259,6 +246,10 @@ class Session {
     http2::Settings local_settings = {};
     http2::Settings remote_settings = {};
 
+    // flow control
+    uint32_t remote_window_size;
+    uint32_t local_window_size;
+
     uint32_t last_stream_id;
     bool shutting_down;
     bool is_coro;
@@ -272,7 +263,6 @@ class Session {
     ~Session();
 };
 }  // namespace http2
-#endif
 
 }  // namespace swoole
 
@@ -314,6 +304,7 @@ static inline bool swoole_http_has_crlf(const char *value, size_t length) {
 }
 
 void swoole_http_parse_cookie(zval *array, const char *at, size_t length);
+bool swoole_http_token_list_contains_value(const char *at, size_t length, const char *value);
 
 swoole::http::Context *php_swoole_http_request_get_context(zval *zobject);
 void php_swoole_http_request_set_context(zval *zobject, swoole::http::Context *context);
@@ -329,8 +320,6 @@ void php_zlib_free(voidpf opaque, voidpf address);
 void *php_brotli_alloc(void *opaque, size_t size);
 void php_brotli_free(void *opaque, void *address);
 #endif
-
-#ifdef SW_USE_HTTP2
 
 static sw_inline nghttp2_mem *php_nghttp2_mem() {
     static nghttp2_mem mem = {nullptr,
@@ -417,4 +406,3 @@ class HeaderSet {
 //-----------------------------------namespace end--------------------------------------------
 }  // namespace http2
 }  // namespace swoole
-#endif

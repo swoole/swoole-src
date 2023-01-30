@@ -79,9 +79,7 @@ struct Connection {
     uint8_t overflow;
     uint8_t high_watermark;
     uint8_t http_upgrade;
-#ifdef SW_USE_HTTP2
     uint8_t http2_stream;
-#endif
 #ifdef SW_HAVE_ZLIB
     uint8_t websocket_compression;
 #endif
@@ -348,7 +346,7 @@ struct ListenPort {
 
     int tcp_user_timeout = 0;
 
-    uint16_t max_idle_time = 0;
+    double max_idle_time = 0;
 
     int socket_buffer_size = network::Socket::default_buffer_size;
     uint32_t buffer_high_watermark = 0;
@@ -519,6 +517,7 @@ struct ServerGS {
     int max_fd;
     int min_fd;
 
+    bool called_onStart;
     time_t start_time;
     sw_atomic_t connection_num;
     sw_atomic_t tasking_num;
@@ -1083,7 +1082,8 @@ class Server {
 
     int create();
     int start();
-    void shutdown();
+    bool reload(bool reload_all_workers);
+    bool shutdown();
 
     int add_worker(Worker *worker);
     ListenPort *add_port(SocketType type, const char *host, int port);
@@ -1383,7 +1383,6 @@ class Server {
         lock_.unlock();
     }
 
-    void close_port(bool only_stream_port);
     void clear_timer();
     static void timer_callback(Timer *timer, TimerNode *tnode);
 

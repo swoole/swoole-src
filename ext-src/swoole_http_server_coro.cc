@@ -34,11 +34,9 @@ using HttpRequest = swoole::http::Request;
 using HttpResponse = swoole::http::Response;
 using HttpContext = swoole::http::Context;
 
-#ifdef SW_USE_HTTP2
 namespace http2 = swoole::http2;
 using Http2Stream = http2::Stream;
 using Http2Session = http2::Session;
-#endif
 
 static zend_class_entry *swoole_http_server_coro_ce;
 static zend_object_handlers swoole_http_server_coro_handlers;
@@ -47,9 +45,7 @@ static bool http_context_send_data(HttpContext *ctx, const char *data, size_t le
 static bool http_context_sendfile(HttpContext *ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
 static bool http_context_disconnect(HttpContext *ctx);
 
-#ifdef SW_USE_HTTP2
 static void http2_server_onRequest(Http2Session *session, Http2Stream *stream);
-#endif
 
 namespace swoole {
 namespace coroutine {
@@ -61,7 +57,6 @@ class HttpServer {
     std::map<std::string, zend_fcall_info_cache> handlers;
     zval zcallbacks;
     bool running;
-    std::list<Socket *> clients;
 
     /* options */
     bool parse_cookie;
@@ -118,7 +113,7 @@ class HttpServer {
             if (&i->second == default_handler) {
                 continue;
             }
-            if (swoole_strcasect(ctx->request.path, ctx->request.path_len, i->first.c_str(), i->first.length())) {
+            if (swoole_str_istarts_with(ctx->request.path, ctx->request.path_len, i->first.c_str(), i->first.length())) {
                 return &i->second;
             }
         }
@@ -153,7 +148,6 @@ class HttpServer {
         return ctx;
     }
 
-#ifdef SW_USE_HTTP2
     void recv_http2_frame(HttpContext *ctx) {
         Socket *sock = (Socket *) ctx->private_data;
         http2::send_setting_frame(&sock->protocol, sock->get_socket());
@@ -186,7 +180,6 @@ class HttpServer {
         zval_dtor(ctx->request.zobject);
         zval_dtor(ctx->response.zobject);
     }
-#endif
 };
 };  // namespace coroutine
 };  // namespace swoole
@@ -510,6 +503,8 @@ static PHP_METHOD(swoole_http_server_coro, start) {
         hs->upload_tmp_dir = str_v.dup();
     }
 
+    hs->running = true;
+
     while (hs->running) {
         auto conn = sock->accept();
         if (conn) {
@@ -563,12 +558,9 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
     off_t header_crlf_offset = 0;
     size_t total_length;
 
-    hs->clients.push_front(sock);
-    auto client_iterator = hs->clients.begin();
-
 #ifdef SW_USE_OPENSSL
     if (sock->ssl_is_enable() && !sock->ssl_handshake()) {
-        goto _handshake_failed;
+        RETURN_FALSE;
     }
 #endif
 
@@ -648,7 +640,6 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
             }
         }
 
-#ifdef SW_USE_HTTP2
         if (ctx->parser.method == PHP_HTTP_NOT_IMPLEMENTED && buffer->length >= (sizeof(SW_HTTP2_PRI_STRING) - 1) &&
             memcmp(buffer->str, SW_HTTP2_PRI_STRING, sizeof(SW_HTTP2_PRI_STRING) - 1) == 0) {
             buffer->offset = (sizeof(SW_HTTP2_PRI_STRING) - 1);
@@ -657,7 +648,6 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
             ctx = nullptr;
             break;
         }
-#endif
 
         zend::assign_zend_string_by_val(&ctx->request.zdata, buffer->pop(SW_BUFFER_SIZE_BIG), total_length);
 
@@ -698,28 +688,14 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
         zval_dtor(ctx->request.zobject);
         zval_dtor(ctx->response.zobject);
     }
-
-#ifdef SW_USE_OPENSSL
-_handshake_failed:
-#endif
-    /* notice: do not erase the element when server is shutting down */
-    if (hs->running) {
-        hs->clients.erase(client_iterator);
-    }
 }
 
 static PHP_METHOD(swoole_http_server_coro, shutdown) {
     HttpServer *hs = http_server_get_object(Z_OBJ_P(ZEND_THIS));
     hs->running = false;
     hs->socket->cancel(SW_EVENT_READ);
-    /* accept has been canceled, we only need to traverse once */
-    for (auto client : hs->clients) {
-        client->close();
-    }
-    hs->clients.clear();
 }
 
-#ifdef SW_USE_HTTP2
 static void http2_server_onRequest(Http2Session *session, Http2Stream *stream) {
     HttpContext *ctx = stream->ctx;
     HttpServer *hs = (HttpServer *) session->private_data;
@@ -748,4 +724,3 @@ static void http2_server_onRequest(Http2Session *session, Http2Stream *stream) {
     zval_ptr_dtor(&args[0]);
     zval_ptr_dtor(&args[1]);
 }
-#endif

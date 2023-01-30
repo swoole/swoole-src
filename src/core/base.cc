@@ -294,6 +294,20 @@ SW_API void swoole_set_log_level(int level) {
     }
 }
 
+SW_API int swoole_get_log_level() {
+    if (sw_logger()) {
+        return sw_logger()->get_level();
+    } else {
+        return SW_LOG_NONE;
+    }
+}
+
+SW_API void swoole_set_log_file(const char *file) {
+    if (sw_logger()) {
+        sw_logger()->open(file);
+    }
+}
+
 SW_API void swoole_set_trace_flags(int flags) {
     SwooleG.trace_flags = flags;
 }
@@ -346,6 +360,20 @@ bool swoole_set_task_tmpdir(const std::string &dir) {
     }
 
     return true;
+}
+
+pid_t swoole_fork_exec(const std::function<void(void)> &fn) {
+    pid_t pid = fork();
+    switch (pid) {
+    case -1:
+        return false;
+    case 0:
+        fn();
+        exit(0);
+    default:
+        break;
+    }
+    return pid;
 }
 
 pid_t swoole_fork(int flags) {
@@ -776,17 +804,25 @@ char *swoole_string_format(size_t n, const char *format, ...) {
     return nullptr;
 }
 
+static const char characters[] = {
+    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U',
+    'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p',
+    'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+};
+
 void swoole_random_string(char *buf, size_t size) {
-    static char characters[] = {
-        'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U',
-        'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p',
-        'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
-    };
     size_t i = 0;
     for (; i < size; i++) {
         buf[i] = characters[swoole_rand(0, sizeof(characters) - 1)];
     }
     buf[i] = '\0';
+}
+
+void swoole_random_string(std::string &str, size_t size) {
+    size_t i = 0;
+    for (; i < size; i++) {
+        str.append(1, characters[swoole_rand(0, sizeof(characters) - 1)]);
+    }
 }
 
 size_t swoole_random_bytes(char *buf, size_t size) {
@@ -939,18 +975,13 @@ void hook_call(void **hooks, int type, void *arg) {
  * return the first file of the intersection, in order of vec1
  */
 std::string intersection(std::vector<std::string> &vec1, std::set<std::string> &vec2) {
-    std::string result = "";
-
-    std::find_if(vec1.begin(), vec1.end(), [&](std::string &str) -> bool {
-        auto iter = std::find(vec2.begin(), vec2.end(), str);
-        if (iter != vec2.end()) {
-            result = *iter;
-            return true;
+    for (const auto &vec1_item : vec1) {
+        if (vec2.find(vec1_item) != vec2.end()) {
+            return vec1_item;
         }
-        return false;
-    });
+    }
 
-    return result;
+    return "";
 }
 
 double microtime(void) {

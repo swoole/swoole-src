@@ -10,7 +10,7 @@ require __DIR__ . '/../include/bootstrap.php';
 
 go(function () {
     $cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
-    Assert::true($cli->connect('www.tsinghua.edu.cn', 80));
+    Assert::true($cli->connect('www.qq.com', 80));
 });
 
 ?>

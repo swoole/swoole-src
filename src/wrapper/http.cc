@@ -104,9 +104,9 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
     if ((parser->method == PHP_HTTP_POST || parser->method == PHP_HTTP_PUT || parser->method == PHP_HTTP_DELETE ||
          parser->method == PHP_HTTP_PATCH) &&
         SW_STRCASEEQ(impl->current_header_name.c_str(), impl->current_header_name.length(), "content-type")) {
-        if (SW_STRCASECT(at, length, "application/x-www-form-urlencoded")) {
+        if (SW_STR_ISTARTS_WITH(at, length, "application/x-www-form-urlencoded")) {
             ctx->post_form_urlencoded = 1;
-        } else if (SW_STRCASECT(at, length, "multipart/form-data")) {
+        } else if (SW_STR_ISTARTS_WITH(at, length, "multipart/form-data")) {
             size_t offset = sizeof("multipart/form-data") - 1;
             char *boundary_str;
             int boundary_len;

@@ -36,6 +36,7 @@ $pm->childFunc = function () use ($pm) {
             'Accept-Encoding' => 'gzip',
         ]);
         $ret = ($cli->get('/'));
+        Assert::assert($cli->socket instanceof Swoole\Coroutine\Socket);
         if (!$ret) {
             $response->end("ERROR\n");
             return;

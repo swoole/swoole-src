@@ -33,7 +33,7 @@ $pm->childFunc = function () use ($pm) {
     $server->on('receive', function (Swoole\Server $serv, int $fd, int $rid, string $data) {
         $to_fd = null;
         eval("\$to_fd = ${data};");
-        $serv->send($to_fd, "hello {$fd}" . EOF);
+        Assert::false($serv->send($to_fd, "hello {$fd}" . EOF));
     });
     $server->start();
 };
@@ -44,5 +44,3 @@ $pm->run();
 Warning: Swoole\Server::send(): fd can not be null in %s/tests/swoole_server/invalid_fd.php on line %d
 
 Warning: Swoole\Server::send(): invalid fd[-1] in %s/tests/swoole_server/invalid_fd.php on line %d
-[%s]	NOTICE	Server::send_to_connection() (ERRNO 1005): send %d byte failed, session#100 does not exist
-[%s]	NOTICE	Server::send_to_connection() (ERRNO 1005): send %d byte failed, session#9223372036854775807 does not exist
