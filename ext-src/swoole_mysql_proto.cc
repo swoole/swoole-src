@@ -565,7 +565,7 @@ auth_switch_request_packet::auth_switch_request_packet(const char *data) : serve
     auth_method_name = std::string(data);
     data += (auth_method_name.length() + 1);
     // string[NUL] auth_method_data
-    strcpy(auth_method_data, data);
+    strlcpy(auth_method_data, data, sizeof(auth_method_data));
     swoole_trace_log(SW_TRACE_MYSQL_CLIENT, "auth switch plugin name=%s", auth_method_name.c_str());
 }
 

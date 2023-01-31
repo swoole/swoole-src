@@ -12,8 +12,7 @@ const M = 512;
 use Swoole\Server;
 
 $pm = new SwooleTest\ProcessManager;
-$pm->parentFunc = function ($pid) use ($pm)
-{
+$pm->parentFunc = function ($pid) use ($pm) {
     function run()
     {
         global $pm;
@@ -35,14 +34,14 @@ $pm->parentFunc = function ($pid) use ($pm)
             }
         }
     }
-    for ($i = 0; $i < N; $i ++) {
+
+    for ($i = 0; $i < N; $i++) {
         run();
     }
     $pm->kill();
 };
 
-$pm->childFunc = function () use ($pm)
-{
+$pm->childFunc = function () use ($pm) {
     $ss = [
         'daemonize' => 0,
         'dispatch_mode' => 1,
@@ -66,14 +65,12 @@ $pm->childFunc = function () use ($pm)
     $tcp->set($ss);
     $tcp->on('receive', function (Server $server, $fd, $reactorID, $data) use ($status) {
         $size = unpack('N', substr($data, 4, 4))[1];
-        if ($size !== strlen($data) - 8)
-        {
+        if ($size !== strlen($data) - 8) {
             $server->shutdown();
             $status->set(1);
         }
     });
-    $tcp->on("WorkerStart", function (Server $serv)  use ($pm)
-    {
+    $tcp->on("WorkerStart", function (Server $serv) use ($pm) {
         $pm->wakeup();
     });
     $tcp->on("shutdown", function (Server $serv) use ($status) {

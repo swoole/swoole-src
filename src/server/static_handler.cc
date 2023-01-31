@@ -295,7 +295,7 @@ bool StaticHandler::set_filename(const std::string &filename) {
 }
 
 void StaticHandler::parse_range(const char *range, const char *if_range) {
-    task_t _task;
+    task_t _task{};
     _task.length = 0;
     // range
     if (range && '\0' != *range) {

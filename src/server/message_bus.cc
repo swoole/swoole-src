@@ -276,7 +276,7 @@ bool MessageBus::write(Socket *sock, SendData *resp) {
 
 size_t MessageBus::get_memory_size() {
     size_t size = buffer_size_;
-    for (auto p : packet_pool_) {
+    for (auto &p : packet_pool_) {
         size += p.second->size;
     }
     return size;

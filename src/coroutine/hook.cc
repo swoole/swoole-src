@@ -526,7 +526,7 @@ int swoole_coroutine_getaddrinfo(const char *name,
 
 struct hostent *swoole_coroutine_gethostbyname(const char *name) {
     struct hostent *retval = nullptr;
-    int _tmp_h_errno;
+    int _tmp_h_errno = 0;
     async([&]() {
         retval = gethostbyname(name);
         _tmp_h_errno = h_errno;

@@ -249,9 +249,16 @@ static void http2_server_onRequest(Http2Session *client, Http2Stream *stream) {
     Server *serv = (Server *) ctx->private_data;
     zval args[2];
     zend_fcall_info_cache *fci_cache = nullptr;
+    Connection *serv_sock = nullptr;
+    int server_fd = 0;
+
     Connection *conn = serv->get_connection_by_session_id(ctx->fd);
-    int server_fd = conn->server_fd;
-    Connection *serv_sock = serv->get_connection(server_fd);
+    if (!conn) {
+        goto _destroy;
+    }
+
+    server_fd = conn->server_fd;
+    serv_sock = serv->get_connection(server_fd);
 
     ctx->request.version = SW_HTTP_VERSION_2;
 
@@ -732,7 +739,11 @@ static bool http2_server_send_range_file(HttpContext *ctx, swoole::http_server::
 
                 fp.set_offest(i->offset);
                 buf = (char *) emalloc(i->length);
-                fp.read(buf, i->length);
+                auto n_reads = fp.read(buf, i->length);
+                if (n_reads < 0) {
+                    efree(buf);
+                    return false;
+                }
                 body.reset(new String(buf, i->length));
                 efree(buf);
                 if (!ctx->stream->send_body(
@@ -754,16 +765,26 @@ static bool http2_server_send_range_file(HttpContext *ctx, swoole::http_server::
                 }
             }
         } else if (tasks[0].length > 0) {
-            auto callback = [&]() {
+            auto callback = [&]() -> bool {
                 fp.set_offest(tasks[0].offset);
-                buf = (char *) sw_malloc(tasks[0].length);
-                body.reset(new String(buf, fp.read(buf, tasks[0].length)));
-                sw_free(buf);
+                buf = (char *) emalloc(tasks[0].length);
+                auto n_reads = fp.read(buf, tasks[0].length);
+                if (n_reads < 0) {
+                    efree(buf);
+                    return false;
+                }
+                body.reset(new String(buf, n_reads));
+                efree(buf);
+                return true;
             };
             if (swoole_coroutine_is_in()) {
-                swoole::coroutine::async(callback);
+                if (!swoole::coroutine::async(callback)) {
+                    return false;
+                }
             } else {
-                callback();
+                if (!callback()) {
+                    return false;
+                }
             }
             if (!ctx->stream->send_body(
                     body.get(), end_stream, client->local_settings.max_frame_size, 0, body->length)) {

@@ -405,7 +405,7 @@ void Manager::wait(Server *_server) {
             }
         }
         if (!_server->user_worker_map.empty()) {
-            for (auto kv : _server->user_worker_map) {
+            for (auto &kv : _server->user_worker_map) {
                 kill_workers.push_back(kv.second->pid);
             }
         }

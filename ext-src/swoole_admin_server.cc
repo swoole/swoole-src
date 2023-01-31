@@ -148,7 +148,7 @@ static std::string handle_get_all_sockets(Server *, const std::string &msg) {
 
 static std::string handle_get_all_commands(Server *serv, const std::string &msg) {
     json command_list = json::array();
-    for (auto kv : serv->commands) {
+    for (auto &kv : serv->commands) {
         json info = json::object({
             {"id", kv.second.id},
             {"name", kv.second.name},
@@ -342,7 +342,7 @@ static size_t get_socket_out_buffer_total_size() {
         return 0;
     }
     size_t size = 0;
-    for (auto s : sw_reactor()->get_sockets()) {
+    for (auto &s : sw_reactor()->get_sockets()) {
         if (s.second->out_buffer) {
             size += s.second->out_buffer->length();
         }

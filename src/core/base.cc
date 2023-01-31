@@ -570,7 +570,7 @@ ulong_t swoole_hex2dec(const char *hex, size_t *parsed_bytes) {
 #endif
 
 int swoole_rand(int min, int max) {
-    static int _seed = 0;
+    static time_t _seed = 0;
     assert(max > min);
 
     if (_seed == 0) {
