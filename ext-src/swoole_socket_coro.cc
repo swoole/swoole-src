@@ -147,14 +147,16 @@ static sw_inline SocketObject *socket_coro_fetch_object(zend_object *obj) {
     return (SocketObject *) ((char *) obj - swoole_socket_coro_handlers.offset);
 }
 
+/**
+ * cannot execute close in the destructor, it may be shutting down,
+ * executing close will try to resume other coroutines.
+ */
 static void socket_coro_free_object(zend_object *object) {
     SocketObject *sock = (SocketObject *) socket_coro_fetch_object(object);
     if (!sock->reference && sock->socket) {
         if (!Z_ISUNDEF(sock->zstream)) {
             sock->socket->move_fd();
             zval_ptr_dtor(&sock->zstream);
-        } else if (!sock->socket->is_closed()) {
-            sock->socket->close();
         }
         delete sock->socket;
     }

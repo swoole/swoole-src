@@ -1765,6 +1765,7 @@ bool Socket::close() {
         sock_fd = SW_BAD_SOCKET;
         if (dtor_ != nullptr) {
             dtor_(this);
+            dtor_ = nullptr;
         }
         return true;
     }
@@ -1810,6 +1811,9 @@ Socket::~Socket() {
         ::unlink(socket->info.addr.un.sun_path);
     }
     socket->free();
+    if (dtor_ != nullptr) {
+        dtor_(this);
+    }
 }
 
 }  // namespace coroutine
