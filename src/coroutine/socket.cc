@@ -150,6 +150,10 @@ bool Socket::wait_event(const EventType event, const void **__buf, size_t __n) {
     if (!co) {
         return false;
     }
+    if (sw_unlikely(socket->close_wait)) {
+        set_err(SW_ERROR_CO_SOCKET_CLOSE_WAIT);
+        return false;
+    }
 
     // clear the last errCode
     set_err(0);
