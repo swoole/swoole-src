@@ -1758,14 +1758,14 @@ bool Socket::close() {
         socket->close_wait = 1;
         cancel(SW_EVENT_WRITE);
         cancel(SW_EVENT_READ);
-        sock_fd = SW_BAD_SOCKET;
         set_err(SW_ERROR_CO_SOCKET_CLOSE_WAIT);
         return false;
     } else {
         sock_fd = SW_BAD_SOCKET;
         if (dtor_ != nullptr) {
-            dtor_(this);
+            auto dtor = dtor_;
             dtor_ = nullptr;
+            dtor(this);
         }
         return true;
     }
@@ -1810,10 +1810,10 @@ Socket::~Socket() {
     if (socket->socket_type == SW_SOCK_UNIX_DGRAM) {
         ::unlink(socket->info.addr.un.sun_path);
     }
-    socket->free();
     if (dtor_ != nullptr) {
         dtor_(this);
     }
+    socket->free();
 }
 
 }  // namespace coroutine
