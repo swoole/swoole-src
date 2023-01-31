@@ -280,7 +280,7 @@ class Reactor {
     }
 
     void foreach_socket(const std::function<void(int, network::Socket *)> &callback) {
-        for (auto kv : sockets_) {
+        for (auto &kv : sockets_) {
             callback(kv.first, kv.second);
         }
     }

@@ -342,7 +342,7 @@ static size_t get_socket_out_buffer_total_size() {
         return 0;
     }
     size_t size = 0;
-    for (auto s : sw_reactor()->get_sockets()) {
+    for (auto &s : sw_reactor()->get_sockets()) {
         if (s.second->out_buffer) {
             size += s.second->out_buffer->length();
         }
