@@ -123,11 +123,12 @@ static void client_coro_free_object(zend_object *object) {
 }
 
 static zend_object *client_coro_create_object(zend_class_entry *ce) {
-    ClientCoroObject *sock_t = (ClientCoroObject *) zend_object_alloc(sizeof(ClientCoroObject), ce);
-    zend_object_std_init(&sock_t->std, ce);
-    object_properties_init(&sock_t->std, ce);
-    sock_t->std.handlers = &swoole_client_coro_handlers;
-    return &sock_t->std;
+    ClientCoroObject *sock = (ClientCoroObject *) zend_object_alloc(sizeof(ClientCoroObject), ce);
+    zend_object_std_init(&sock->std, ce);
+    object_properties_init(&sock->std, ce);
+    sock->std.handlers = &swoole_client_coro_handlers;
+    ZVAL_OBJ(&sock->zobject, &sock->std);
+    return &sock->std;
 }
 
 static void client_coro_socket_dtor(ClientCoroObject *client) {
@@ -254,7 +255,6 @@ static PHP_METHOD(swoole_client_coro, __construct) {
                         type);
         RETURN_FALSE;
     }
-    client_coro_get_client(ZEND_THIS)->zobject = *ZEND_THIS;
     php_swoole_check_reactor();
     zend_update_property_long(swoole_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("type"), type);
     RETURN_TRUE;

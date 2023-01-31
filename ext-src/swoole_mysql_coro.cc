@@ -309,6 +309,7 @@ class MysqlClient {
     MysqlStatement *recv_prepare_response();
 
     void close();
+    void socket_dtor();
 
     ~MysqlClient() {
         SW_ASSERT(statements.empty());
@@ -583,12 +584,7 @@ bool Client::connect(std::string host, uint16_t port, bool ssl) {
 
     socket = php_swoole_get_socket(&socket_object);
     socket->set_zero_copy(true);
-    socket->set_dtor([this](Socket *) {
-        zend_update_property_null(Z_OBJCE_P(&zobject), SW_Z8_OBJ_P(&zobject), ZEND_STRL("socket"));
-        socket = nullptr;
-        zval_ptr_dtor(&socket_object);
-        ZVAL_NULL(&socket_object);
-    });
+    socket->set_dtor([this](Socket *) { socket_dtor(); });
 #ifdef SW_USE_OPENSSL
     if (ssl) {
         socket->enable_ssl_encrypt();
@@ -1102,6 +1098,12 @@ bool Client::send_prepare_request(const char *statement, size_t statement_length
         return false;
     }
     return true;
+}
+
+void Client::socket_dtor() {
+    zend_update_property_null(Z_OBJCE_P(&zobject), SW_Z8_OBJ_P(&zobject), ZEND_STRL("socket"));
+    socket = nullptr;
+    zval_ptr_dtor(&socket_object);
 }
 
 Statement *Client::recv_prepare_response() {
