@@ -2,7 +2,7 @@
 <img width="200" height="120" alt="Swoole Logo" src="docs/swoole-logo.svg" /> <br />
     Swoole is an event-driven, asynchronous, coroutine-based concurrency library with high performance for PHP.
 </h2>
-
+add Chinese character better
 [![lib-swoole](https://github.com/swoole/swoole-src/workflows/lib-swoole/badge.svg)](https://github.com/swoole/swoole-src/actions?query=workflow%3Alib-swoole)
 [![ext-swoole](https://github.com/swoole/swoole-src/workflows/ext-swoole/badge.svg)](https://github.com/swoole/swoole-src/actions?query=workflow%3Aext-swoole)
 [![test-linux](https://github.com/swoole/swoole-src/workflows/test-linux/badge.svg)](https://github.com/swoole/swoole-src/actions?query=workflow%3Atest-linux)
