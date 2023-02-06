@@ -25,4 +25,3 @@ FATAL:  database "test123123" does not exist
 FATAL:  password authentication failed for user "root123"
 
 fe_sendauth: no password supplied
-
