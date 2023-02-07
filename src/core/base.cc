@@ -608,6 +608,26 @@ int swoole_system_random(int min, int max) {
     return min + (random_value % (max - min + 1));
 }
 
+/*
+ *  To calculate the smallest power of two which greater than or equal to n.
+ *
+ *  Ref: https://en.wikipedia.org/wiki/Power_of_two
+ */
+uint32_t swoole_least_power_of_two_32bit(uint32_t n) {
+#if (defined(__GNUC__) || __has_builtin(__builtin_clz))
+    n = 0x2u << (__builtin_clz(n - 1) ^ 0x1f);
+#else
+    n -= 1;
+    n |= (rows_size >> 1);
+    n |= (rows_size >> 2);
+    n |= (rows_size >> 4);
+    n |= (rows_size >> 8);
+    n |= (rows_size >> 16);
+    n += 1;
+#endif
+    return n;
+}
+
 void swoole_redirect_stdout(int new_fd) {
     if (dup2(new_fd, STDOUT_FILENO) < 0) {
         swoole_sys_warning("dup2(STDOUT_FILENO) failed");

@@ -24,17 +24,7 @@ Table *Table::make(uint32_t rows_size, float conflict_proportion) {
     } else if (rows_size <= SW_TABLE_MIN_ROW_SIZE) {
         rows_size = SW_TABLE_MIN_ROW_SIZE;
     } else {
-#if (defined(__GNUC__) || __has_builtin(__builtin_clz))
-        rows_size = 0x2u << (__builtin_clz(rows_size - 1) ^ 0x1f);
-#else
-        rows_size -= 1;
-        rows_size |= (rows_size >> 1);
-        rows_size |= (rows_size >> 2);
-        rows_size |= (rows_size >> 4);
-        rows_size |= (rows_size >> 8);
-        rows_size |= (rows_size >> 16);
-        rows_size += 1;
-#endif
+        rows_size = swoole_least_power_of_two_32bit(rows_size);
     }
 
     if (conflict_proportion > 1.0) {

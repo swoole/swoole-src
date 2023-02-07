@@ -543,6 +543,7 @@ bool swoole_mkdir_recursive(const std::string &dir);
 
 int swoole_rand(int min, int max);
 int swoole_system_random(int min, int max);
+uint32_t swoole_least_power_of_two_32bit(uint32_t n);
 
 int swoole_version_compare(const char *version1, const char *version2);
 void swoole_print_backtrace(void);
