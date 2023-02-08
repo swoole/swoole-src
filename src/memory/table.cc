@@ -35,7 +35,7 @@ Table *Table::make(uint32_t rows_size, float conflict_proportion) {
         conflict_proportion = SW_TABLE_CONFLICT_PROPORTION;
     }
 
-    Table *table = (Table *) sw_mem_pool()->alloc(sizeof(*table));
+    auto table = (Table *) sw_mem_pool()->alloc(sizeof(Table));
     if (table == nullptr) {
         return nullptr;
     }
@@ -57,9 +57,7 @@ Table *Table::make(uint32_t rows_size, float conflict_proportion) {
 
 void Table::free() {
     delete mutex;
-    if (iterator) {
-        delete iterator;
-    }
+    delete iterator;
     delete column_map;
     delete column_list;
 }
@@ -70,7 +68,7 @@ bool Table::add_column(const std::string &_name, enum TableColumn::Type _type, s
         return false;
     }
 
-    TableColumn *col = new TableColumn(_name, _type, _size);
+    auto col = new TableColumn(_name, _type, _size);
     col->index = item_size;
     item_size += col->size;
     column_map->emplace(_name, col);
@@ -79,7 +77,7 @@ bool Table::add_column(const std::string &_name, enum TableColumn::Type _type, s
     return true;
 }
 
-size_t Table::calc_memory_size() {
+size_t Table::calc_memory_size() const {
     /**
      * table size + conflict size
      */
@@ -110,7 +108,7 @@ size_t Table::calc_memory_size() {
     return _memory_size;
 }
 
-size_t Table::get_memory_size() {
+size_t Table::get_memory_size() const {
     return memory_size;
 }
 
@@ -174,9 +172,7 @@ void Table::destroy() {
     }
     delete column_map;
     delete column_list;
-    if (iterator) {
-        delete iterator;
-    }
+    delete iterator;
     delete pool;
     if (memory) {
         sw_shm_free(memory);
