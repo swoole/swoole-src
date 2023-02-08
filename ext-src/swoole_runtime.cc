@@ -369,7 +369,9 @@ static int socket_close(php_stream *stream, int close_handle) {
      * every calls passes through the hook function in PHP
      * so there is unnecessary to worry about the null pointer.
      */
-    abstract->socket->close();
+    if (abstract->socket) {
+        abstract->socket->close();
+    }
     delete abstract;
     return SUCCESS;
 }
