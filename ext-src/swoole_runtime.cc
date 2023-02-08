@@ -80,16 +80,16 @@ static php_stream_ops socket_ops {
     socket_read,
     socket_close,
     socket_flush,
-    "tcp_socket/coroutine",
+    "socket/coroutine",
     nullptr, /* seek */
     socket_cast,
     socket_stat,
     socket_set_option,
 };
 
-struct php_swoole_netstream_data_t {
+struct NetStream {
     php_netstream_data_t stream;
-    Socket *socket;
+    std::shared_ptr<Socket> socket;
     bool blocking;
 };
 
@@ -271,19 +271,15 @@ static inline char *parse_ip_address_ex(const char *str, size_t str_len, int *po
 }
 
 static php_stream_size_t socket_write(php_stream *stream, const char *buf, size_t count) {
-    php_swoole_netstream_data_t *abstract;
-    Socket *sock;
+    NetStream *abstract;
     ssize_t didwrite = -1;
+    std::shared_ptr<Socket> sock;
 
-    abstract = (php_swoole_netstream_data_t *) stream->abstract;
-    if (UNEXPECTED(!abstract)) {
+    abstract = (NetStream *) stream->abstract;
+    if (UNEXPECTED(!abstract || !abstract->socket)) {
         goto _exit;
     }
-
-    sock = (Socket *) abstract->socket;
-    if (UNEXPECTED(!sock)) {
-        goto _exit;
-    }
+    sock = abstract->socket;
 
     if (abstract->blocking) {
         didwrite = sock->send_all(buf, count);
@@ -322,19 +318,15 @@ _exit:
 }
 
 static php_stream_size_t socket_read(php_stream *stream, char *buf, size_t count) {
-    php_swoole_netstream_data_t *abstract;
-    Socket *sock;
+    std::shared_ptr<Socket> sock;
+    NetStream *abstract;
     ssize_t nr_bytes = -1;
 
-    abstract = (php_swoole_netstream_data_t *) stream->abstract;
-    if (UNEXPECTED(!abstract)) {
+    abstract = (NetStream *) stream->abstract;
+    if (UNEXPECTED(!abstract || !abstract->socket)) {
         goto _exit;
     }
-
-    sock = (Socket *) abstract->socket;
-    if (UNEXPECTED(!sock)) {
-        goto _exit;
-    }
+    sock = abstract->socket;
 
     if (abstract->blocking) {
         nr_bytes = sock->recv(buf, count);
@@ -366,24 +358,21 @@ static int socket_flush(php_stream *stream) {
 }
 
 static int socket_close(php_stream *stream, int close_handle) {
-    php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t *) stream->abstract;
+    NetStream *abstract = (NetStream *) stream->abstract;
     if (UNEXPECTED(!abstract)) {
         return FAILURE;
     }
     /** set it null immediately */
     stream->abstract = nullptr;
-    Socket *sock = (Socket *) abstract->socket;
-    if (UNEXPECTED(!sock)) {
-        return FAILURE;
-    }
     /**
      * it's always successful (even if the destructor rule is violated)
      * every calls passes through the hook function in PHP
      * so there is unnecessary to worry about the null pointer.
      */
-    sock->close();
-    delete sock;
-    pefree(abstract, php_stream_is_persistent(stream));
+    if (abstract->socket) {
+        abstract->socket->close();
+    }
+    delete abstract;
     return SUCCESS;
 }
 
@@ -403,15 +392,11 @@ enum {
 enum { STREAM_XPORT_CRYPTO_OP_SETUP, STREAM_XPORT_CRYPTO_OP_ENABLE };
 
 static int socket_cast(php_stream *stream, int castas, void **ret) {
-    php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t *) stream->abstract;
-    if (UNEXPECTED(!abstract)) {
+    NetStream *abstract = (NetStream *) stream->abstract;
+    if (UNEXPECTED(!abstract || !abstract->socket)) {
         return FAILURE;
     }
-    Socket *sock = (Socket *) abstract->socket;
-    if (UNEXPECTED(!sock)) {
-        return FAILURE;
-    }
-
+    std::shared_ptr<Socket> sock = abstract->socket;
     switch (castas) {
     case PHP_STREAM_AS_STDIO:
         if (ret) {
@@ -433,15 +418,14 @@ static int socket_cast(php_stream *stream, int castas, void **ret) {
 }
 
 static int socket_stat(php_stream *stream, php_stream_statbuf *ssb) {
-    php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t *) stream->abstract;
+    NetStream *abstract = (NetStream *) stream->abstract;
     if (UNEXPECTED(!abstract)) {
         return FAILURE;
     }
-    Socket *sock = (Socket *) abstract->socket;
-    if (UNEXPECTED(!sock)) {
+    if (UNEXPECTED(!abstract->socket)) {
         return FAILURE;
     }
-    return zend_fstat(sock->get_fd(), &ssb->sb);
+    return zend_fstat(abstract->socket->get_fd(), &ssb->sb);
 }
 
 static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xport_param *xparam) {
@@ -560,14 +544,13 @@ static inline int socket_accept(php_stream *stream, Socket *sock, php_stream_xpo
         sock->set_timeout(timeout, Socket::TIMEOUT_READ);
     }
 
-    Socket *clisock = sock->accept();
+    std::shared_ptr<Socket> clisock(sock->accept());
 
 #ifdef SW_USE_OPENSSL
     if (clisock != nullptr && clisock->ssl_is_enable()) {
         if (!clisock->ssl_handshake()) {
             sock->errCode = clisock->errCode;
-            delete clisock;
-            clisock = nullptr;
+            clisock.reset();
         }
     }
 #endif
@@ -588,9 +571,7 @@ static inline int socket_accept(php_stream *stream, Socket *sock, php_stream_xpo
             clisock->get_socket()->set_tcp_nodelay(tcp_nodelay);
         }
 #endif
-        php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t *) emalloc(sizeof(*abstract));
-        memset(abstract, 0, sizeof(*abstract));
-
+        auto abstract = new NetStream();
         abstract->socket = clisock;
         abstract->blocking = true;
 
@@ -601,7 +582,7 @@ static inline int socket_accept(php_stream *stream, Socket *sock, php_stream_xpo
                 GC_ADDREF(stream->ctx);
             }
         }
-        return 0;
+        return SUCCESS;
     }
 }
 
@@ -885,11 +866,12 @@ static inline int socket_xport_api(php_stream *stream, Socket *sock, php_stream_
 }
 
 static int socket_set_option(php_stream *stream, int option, int value, void *ptrparam) {
-    php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t *) stream->abstract;
+    NetStream *abstract = (NetStream *) stream->abstract;
     if (UNEXPECTED(!abstract || !abstract->socket)) {
         return PHP_STREAM_OPTION_RETURN_ERR;
     }
-    Socket *sock = (Socket *) abstract->socket;
+    std::shared_ptr<Socket> sock_wrapped = abstract->socket;
+    auto sock = sock_wrapped.get();
     switch (option) {
     case PHP_STREAM_OPTION_BLOCKING:
         if (abstract->blocking == (bool) value) {
@@ -1042,8 +1024,7 @@ static php_stream *socket_create(const char *proto,
                                  struct timeval *timeout,
                                  php_stream_context *context STREAMS_DC) {
     php_stream *stream = nullptr;
-    php_swoole_netstream_data_t *abstract = nullptr;
-    Socket *sock;
+    Socket *sock = nullptr;
 
     Coroutine::get_current_safe();
 
@@ -1082,8 +1063,8 @@ static php_stream *socket_create(const char *proto,
 
     sock->set_zero_copy(true);
 
-    abstract = (php_swoole_netstream_data_t *) pemalloc(sizeof(*abstract), persistent_id ? 1 : 0);
-    abstract->socket = sock;
+    auto abstract = new NetStream();
+    abstract->socket.reset(sock);
     abstract->stream.socket = sock->get_fd();
     abstract->blocking = true;
 
@@ -1917,23 +1898,19 @@ static void unhook_func(const char *name, size_t l_name) {
 }
 
 php_stream *php_swoole_create_stream_from_socket(php_socket_t _fd, int domain, int type, int protocol STREAMS_DC) {
-    Socket *sock = new Socket(_fd, domain, type, protocol);
-
+    auto *abstract = new NetStream();
+    abstract->socket = std::make_shared<Socket>(_fd, domain, type, protocol);
     if (FG(default_socket_timeout) > 0) {
-        sock->set_timeout((double) FG(default_socket_timeout));
+        abstract->socket->set_timeout((double) FG(default_socket_timeout));
     }
-
-    php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t *) ecalloc(1, sizeof(*abstract));
-
-    abstract->socket = sock;
     abstract->stream.timeout.tv_sec = FG(default_socket_timeout);
-    abstract->stream.socket = sock->get_fd();
+    abstract->stream.socket = abstract->socket->get_fd();
     abstract->blocking = true;
 
     php_stream *stream = php_stream_alloc_rel(&socket_ops, abstract, nullptr, "r+");
 
     if (stream == nullptr) {
-        delete sock;
+        delete abstract;
     } else {
         stream->flags |= PHP_STREAM_FLAG_AVOID_BLOCKING;
     }
