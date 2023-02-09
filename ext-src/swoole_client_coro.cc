@@ -147,7 +147,7 @@ static Socket *client_coro_create_socket(zval *zobject, zend_long type) {
     enum swSocketType socket_type = (enum swSocketType) php_swoole_get_socket_type(type);
     auto object = php_swoole_create_socket(socket_type);
     if (UNEXPECTED(!object)) {
-        php_swoole_socket_set_error_properties(zobject, errno, strerror(errno));
+        php_swoole_socket_set_error_properties(zobject, errno);
         return nullptr;
     }
     auto client = client_coro_get_client(zobject);
@@ -163,11 +163,10 @@ static Socket *client_coro_create_socket(zval *zobject, zend_long type) {
     socket->set_zero_copy(true);
 
 #ifdef SW_USE_OPENSSL
-    if (type & SW_SOCK_SSL) {
-        if (!socket->enable_ssl_encrypt()) {
-            client_coro_socket_dtor(client);
-            return nullptr;
-        }
+    if ((type & SW_SOCK_SSL) && !socket->enable_ssl_encrypt()) {
+        php_swoole_socket_set_error_properties(zobject, EISCONN);
+        client_coro_socket_dtor(client);
+        return nullptr;
     }
 #endif
 
