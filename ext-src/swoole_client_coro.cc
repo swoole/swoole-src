@@ -92,14 +92,6 @@ static const zend_function_entry swoole_client_coro_methods[] =
 };
 // clang-format on
 
-#define CLIENT_CORO_GET_SOCKET_SAFE(__sock)                                                                            \
-    SW_CLIENT_GET_SOCKET_SAFE(__sock, ZEND_THIS);                                                                      \
-    if (!__sock) {                                                                                                     \
-        php_swoole_socket_set_error_properties(                                                                        \
-            ZEND_THIS, SW_ERROR_CLIENT_NO_CONNECTION, swoole_strerror(SW_ERROR_CLIENT_NO_CONNECTION));                 \
-        RETURN_FALSE;                                                                                                  \
-    }
-
 static sw_inline ClientCoroObject *client_coro_fetch_object(zend_object *obj) {
     return (ClientCoroObject *) ((char *) obj - swoole_client_coro_handlers.offset);
 }
@@ -119,6 +111,14 @@ static void client_coro_free_object(zend_object *object) {
     }
     zend_object_std_dtor(&client->std);
 }
+
+#define CLIENT_CORO_GET_SOCKET_SAFE(__sock)                                                                            \
+    SW_CLIENT_GET_SOCKET_SAFE(__sock, &client_coro_get_client(ZEND_THIS)->zsocket);                                                                      \
+    if (!__sock) {                                                                                                     \
+        php_swoole_socket_set_error_properties(                                                                        \
+            ZEND_THIS, SW_ERROR_CLIENT_NO_CONNECTION, swoole_strerror(SW_ERROR_CLIENT_NO_CONNECTION));                 \
+        RETURN_FALSE;                                                                                                  \
+    }
 
 static zend_object *client_coro_create_object(zend_class_entry *ce) {
     ClientCoroObject *object = (ClientCoroObject *) zend_object_alloc(sizeof(ClientCoroObject), ce);
