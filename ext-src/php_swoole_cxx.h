@@ -91,8 +91,14 @@ extern zend_string **sw_zend_known_strings;
 #define SW_CLIENT_GET_SOCKET_SAFE(__sock, __zsocket)                                                                   \
     Socket *__sock = nullptr;                                                                                          \
     zend::Variable tmp_socket;                                                                                         \
-    if (!ZVAL_IS_NULL(__zsocket)) {                                                                                     \
+    if (!ZVAL_IS_NULL(__zsocket)) {                                                                                    \
         __sock = php_swoole_get_socket(__zsocket);                                                                     \
+        tmp_socket.assign(__zsocket);                                                                                  \
+    }
+
+#define SW_CLIENT_PRESERVE_SOCKET(__zsocket)                                                                           \
+    zend::Variable tmp_socket;                                                                                         \
+    if (!ZVAL_IS_NULL(__zsocket)) {                                                                                    \
         tmp_socket.assign(__zsocket);                                                                                  \
     }
 
