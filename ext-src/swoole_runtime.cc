@@ -691,7 +691,7 @@ static bool php_openssl_capture_peer_certs(php_stream *stream, Socket *sslsock) 
 
     zval argv[1];
     ZVAL_STRINGL(&argv[0], peer_cert.c_str(), peer_cert.length());
-    zend::function::ReturnValue retval = zend::function::call("openssl_x509_read", 1, argv);
+    auto retval = zend::function::call("openssl_x509_read", 1, argv);
     php_stream_context_set_option(PHP_STREAM_CONTEXT(stream), "ssl", "peer_certificate", &retval.value);
     zval_dtor(&argv[0]);
 
@@ -705,7 +705,7 @@ static bool php_openssl_capture_peer_certs(php_stream *stream, Socket *sslsock) 
             for (auto &cert : chain) {
                 zval argv[1];
                 ZVAL_STRINGL(&argv[0], cert.c_str(), cert.length());
-                zend::function::ReturnValue retval = zend::function::call("openssl_x509_read", 1, argv);
+                auto retval = zend::function::call("openssl_x509_read", 1, argv);
                 zval_add_ref(&retval.value);
                 add_next_index_zval(&arr, &retval.value);
                 zval_dtor(&argv[0]);
