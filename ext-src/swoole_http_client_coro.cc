@@ -61,8 +61,7 @@ static int http_parser_on_body(swoole_http_parser *parser, const char *at, size_
 static int http_parser_on_message_complete(swoole_http_parser *parser);
 
 // clang-format off
-static const swoole_http_parser_settings http_parser_settings =
-{
+static const swoole_http_parser_settings http_parser_settings = {
     nullptr,
     nullptr,
     nullptr,
@@ -268,7 +267,7 @@ class Client {
     NameResolver::Context resolve_context_ = {};
     SocketType socket_type = SW_SOCK_TCP;
     swoole_http_parser parser = {};
-    bool wait = false;
+    bool wait_response = false;
 };
 
 }  // namespace http
@@ -1252,7 +1251,7 @@ bool Client::send_request() {
         if (socket->send_all(header_buf, n) != n) {
             goto _send_fail;
         }
-        wait = true;
+        wait_response = true;
         return true;
     }
     // ============ x-www-form-urlencoded or raw ============
@@ -1306,7 +1305,7 @@ bool Client::send_request() {
         close();
         return false;
     }
-    wait = true;
+    wait_response = true;
     return true;
 }
 
@@ -1338,7 +1337,7 @@ bool Client::exec(std::string _path) {
 }
 
 bool Client::recv_response(double timeout) {
-    if (!wait) {
+    if (!wait_response) {
         return false;
     }
     ssize_t retval = 0;
@@ -1531,7 +1530,7 @@ bool Client::push(zval *zdata, zend_long opcode, uint8_t flags) {
 }
 
 void Client::reset() {
-    wait = false;
+    wait_response = false;
 #ifdef SW_HAVE_COMPRESSION
     compress_method = HTTP_COMPRESS_NONE;
     compression_error = false;
