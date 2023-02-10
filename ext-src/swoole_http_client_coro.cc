@@ -847,6 +847,11 @@ bool Client::send_request() {
     zend_update_property_null(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("headers"));
     zend_update_property_null(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("set_cookie_headers"));
     zend_update_property_string(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("body"), "");
+
+    if (!keep_liveness()) {
+        return false;
+    }
+
     zend_update_property_long(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), 0);
     zend_update_property_string(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errMsg"), "");
     zend_update_property_long(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("statusCode"), 0);
@@ -1313,9 +1318,6 @@ bool Client::exec(std::string _path) {
         resolve_context_.with_port = true;
     }
     SW_LOOP_N(max_retries + 1) {
-        if (!keep_liveness()) {
-            return false;
-        }
         if (send_request() == false) {
             return false;
         }
