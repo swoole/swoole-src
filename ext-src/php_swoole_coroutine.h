@@ -25,6 +25,12 @@
 #include "zend_vm.h"
 #include "zend_closures.h"
 
+#if PHP_VERSION_ID >= 80100
+#define SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT 1
+#include "zend_fibers.h"
+#include "zend_observer.h"
+#endif
+
 #include <stack>
 #include <thread>
 
@@ -77,6 +83,10 @@ struct PHPContext {
     long pcid;
     zend_object *context;
     int64_t last_msec;
+#ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
+    zend_fiber_context *fiber_context;
+    bool fiber_init_notified;
+#endif
 };
 
 class PHPCoroutine {
@@ -213,6 +223,14 @@ class PHPCoroutine {
         return activated;
     }
 
+    static inline void init_main_task() {
+        main_task.co = Coroutine::init_main_coroutine();
+#ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
+        main_task.fiber_context = EG(main_fiber_context);
+        main_task.fiber_init_notified = true;
+#endif
+    }
+
   protected:
     static bool activated;
     static PHPContext main_task;
@@ -244,6 +262,16 @@ class PHPCoroutine {
             task->last_msec = Timer::get_absolute_msec();
         }
     }
+
+#ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
+    static zend_fiber_status get_fiber_status(PHPContext *task);
+    static void fiber_context_init(PHPContext *task);
+    static void fiber_context_try_init(PHPContext *task);
+    static void fiber_context_destroy(PHPContext *task);
+    static void fiber_context_try_destroy(PHPContext *task);
+    static void fiber_context_switch_notify(PHPContext *from, PHPContext *to);
+    static void fiber_context_switch_try_notify(PHPContext *from, PHPContext *to);
+#endif
 };
 }  // namespace swoole
 

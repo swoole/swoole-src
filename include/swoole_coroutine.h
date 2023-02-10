@@ -139,6 +139,12 @@ class Coroutine {
 #endif
     }
 
+    static inline Coroutine *init_main_coroutine() {
+        Coroutine *co = new Coroutine(0, nullptr, nullptr);
+        co->state = STATE_RUNNING;
+        return co;
+    }
+
     static void activate();
     static void deactivate();
 
@@ -226,10 +232,15 @@ class Coroutine {
         }
     }
 
+    Coroutine(long _cid, const CoroutineFunc &fn, void *private_data): ctx(stack_size, fn, private_data) {
+        cid = _cid;
+    }
+
     inline long run() {
         long cid = this->cid;
         origin = current;
         current = this;
+        state = STATE_RUNNING;
         ctx.swap_in();
         check_end();
         return cid;

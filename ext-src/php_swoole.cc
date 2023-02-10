@@ -21,6 +21,7 @@
 #include "ext/pcre/php_pcre.h"
 #endif
 #include "zend_exceptions.h"
+#include "zend_extensions.h"
 
 BEGIN_EXTERN_C()
 #ifdef SW_USE_JSON
@@ -819,6 +820,22 @@ PHP_MINIT_FUNCTION(swoole) {
 #endif
 
     zend::known_strings_init();
+
+    /* Debug extensions check */
+    static const char *debug_zend_extension_names[] = { "Xdebug" };
+    static const char *debug_php_extension_names[] = { "ddtrace" };
+    for (size_t i = 0; i < sizeof(debug_zend_extension_names); i++) {
+        const char *name = debug_zend_extension_names[i];
+        if (zend_get_extension(name) != NULL) {
+            SWOOLE_G(has_debug_extension) = 1;
+        }
+    }
+    for (size_t i = 0; i < sizeof(debug_php_extension_names); i++) {
+        const char *name = debug_php_extension_names[i];
+        if (zend_hash_str_find_ptr(&module_registry, name, strlen(name))) {
+            SWOOLE_G(has_debug_extension) = 1;
+        }
+    }
 
     return SUCCESS;
 }
