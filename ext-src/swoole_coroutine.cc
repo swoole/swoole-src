@@ -328,7 +328,7 @@ void PHPCoroutine::activate() {
         return;
     }
 
-#ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
+#ifndef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
     if (zend_hash_str_find_ptr(&module_registry, ZEND_STRL("xdebug"))) {
         php_swoole_fatal_error(
             E_WARNING,
