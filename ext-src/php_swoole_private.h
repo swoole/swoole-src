@@ -345,6 +345,12 @@ static sw_inline zend_bool ZVAL_IS_TRUE(zval *v) {
 }
 #endif
 
+#ifndef ZVAL_IS_UNDEF
+static sw_inline zend_bool ZVAL_IS_UNDEF(zval *v) {
+    return Z_TYPE_P(v) == IS_UNDEF;
+}
+#endif
+
 #ifndef ZVAL_IS_FALSE
 static sw_inline zend_bool ZVAL_IS_FALSE(zval *v) {
     return Z_TYPE_P(v) == IS_FALSE;

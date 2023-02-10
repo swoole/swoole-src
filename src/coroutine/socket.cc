@@ -1347,6 +1347,7 @@ bool Socket::ssl_verify(bool allow_self_signed) {
 
 std::string Socket::ssl_get_peer_cert() {
     if (!socket->ssl_get_peer_certificate(sw_tg_buffer())) {
+        set_err(SW_ERROR_SSL_EMPTY_PEER_CERTIFICATE);
         return "";
     } else {
         return sw_tg_buffer()->to_std_string();

@@ -50,10 +50,10 @@ bool call(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv, zval *ret
     return success;
 }
 
-ReturnValue call(const std::string &func_name, int argc, zval *argv) {
+Variable call(const std::string &func_name, int argc, zval *argv) {
     zval function_name;
     ZVAL_STRINGL(&function_name, func_name.c_str(), func_name.length());
-    ReturnValue retval;
+    Variable retval;
     if (call_user_function(EG(function_table), NULL, &function_name, &retval.value, argc, argv) != SUCCESS) {
         ZVAL_NULL(&retval.value);
     }

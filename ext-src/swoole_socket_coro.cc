@@ -801,8 +801,13 @@ SW_API zend_object *php_swoole_create_socket(enum swSocketType type) {
 }
 
 SW_API void php_swoole_socket_set_error_properties(zval *zobject, int code, const char *msg) {
+    swoole_set_last_error(code);
     zend_update_property_long(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), code);
     zend_update_property_string(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("errMsg"), msg);
+}
+
+SW_API void php_swoole_socket_set_error_properties(zval *zobject, int code) {
+    php_swoole_socket_set_error_properties(zobject, code, swoole_strerror(code));
 }
 
 SW_API void php_swoole_socket_set_error_properties(zval *zobject, Socket *socket) {
