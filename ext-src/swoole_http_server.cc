@@ -319,6 +319,7 @@ bool http_context_send_data(HttpContext *ctx, const char *data, size_t length) {
         zval yield_data, return_value;
         ZVAL_STRINGL(&yield_data, data, length);
         php_swoole_server_send_yield(serv, ctx->fd, &yield_data, &return_value);
+        zval_ptr_dtor(&yield_data);
         return Z_BVAL_P(&return_value);
     }
     return retval;
