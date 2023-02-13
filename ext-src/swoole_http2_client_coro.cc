@@ -479,13 +479,18 @@ bool Client::connect() {
 }
 
 bool Client::close() {
-    if (socket_ == nullptr) {
+    /*
+     * The socket_ pointer MUST be staged,
+     * when client close the member variable may be set to nullptr in socket dtor
+     */
+    Socket *_socket = socket_;
+    if (_socket == nullptr) {
         update_error_properties(EBADF, strerror(EBADF));
         return false;
     }
     zend_update_property_bool(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("connected"), 0);
-    if (!socket_->close()) {
-        update_error_properties(socket_->errCode, socket_->errMsg);
+    if (!_socket->close()) {
+        update_error_properties(_socket->errCode, _socket->errMsg);
         return false;
     }
     return true;
