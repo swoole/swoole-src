@@ -438,6 +438,45 @@ class Variable {
     }
 };
 
+class CharPtr {
+  private:
+    char *str_;
+  public:
+    CharPtr() {
+        str_ = nullptr;
+    }
+    CharPtr(char *str) {
+        assign(str, strlen(str));
+    }
+    CharPtr(char *str, size_t len) {
+        assign(str, len);
+    }
+    void operator=(char *str) {
+        if (str_) {
+            release();
+        }
+        assign(str, strlen(str));
+    }
+    void release() {
+        efree(str_);
+        str_ = nullptr;
+    }
+    void assign(char *str, size_t len) {
+        str_ = estrndup(str, len);
+    }
+    void tolower_dup(char *str, size_t len) {
+        str_ = zend_str_tolower_dup(str, len);
+    }
+    ~CharPtr() {
+        if (str_) {
+            release();
+        }
+    }
+    char *get() {
+        return str_;
+    }
+};
+
 namespace function {
 /* must use this API to call event callbacks to ensure that exceptions are handled correctly */
 bool call(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv, zval *retval, const bool enable_coroutine);
