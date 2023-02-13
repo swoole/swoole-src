@@ -746,6 +746,7 @@ static sw_inline bool swoole_websocket_server_push(Server *serv, SessionId fd, S
         ZVAL_FALSE(return_value);
         php_swoole_server_send_yield(serv, fd, &_yield_data, return_value);
         ret = Z_BVAL_P(return_value);
+        zval_ptr_dtor(&_yield_data);
     }
     return ret;
 }
