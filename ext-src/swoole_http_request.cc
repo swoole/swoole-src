@@ -359,13 +359,14 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
     HttpContext *ctx = (HttpContext *) parser->data;
     zval *zheader = ctx->request.zheader;
     size_t header_len = ctx->current_header_name_len;
-    char *header_name = zend_str_tolower_dup(ctx->current_header_name, header_len);
+    zend::CharPtr _header_name;
+    _header_name.tolower_dup(ctx->current_header_name, header_len);
+    char *header_name = _header_name.get();
 
     if (ctx->parse_cookie && SW_STREQ(header_name, header_len, "cookie")) {
         zval *zcookie = swoole_http_init_and_read_property(
             swoole_http_request_ce, ctx->request.zobject, &ctx->request.zcookie, ZEND_STRL("cookie"));
         swoole_http_parse_cookie(zcookie, at, length);
-        efree(header_name);
         return 0;
     } else if (SW_STREQ(header_name, header_len, "upgrade") && swoole_http_token_list_contains_value(at, length, "websocket")) {
         ctx->websocket = 1;
@@ -379,7 +380,6 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
         Connection *conn = serv->get_connection_by_session_id(ctx->fd);
         if (!conn) {
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "session[%ld] is closed", ctx->fd);
-            efree(header_name);
             return -1;
         }
         ListenPort *port = serv->get_port_by_server_fd(conn->server_fd);
@@ -413,8 +413,6 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
 
 _add_header:
     add_assoc_stringl_ex(zheader, header_name, header_len, (char *) at, length);
-    efree(header_name);
-
     return 0;
 }
 
@@ -479,7 +477,9 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
     }
 
     size_t header_len = ctx->current_header_name_len;
-    char *header_name = zend_str_tolower_dup(ctx->current_header_name, header_len);
+    zend::CharPtr _header_name;
+    _header_name.tolower_dup(ctx->current_header_name, header_len);
+    char *header_name = _header_name.get();
 
     if (SW_STRCASEEQ(header_name, header_len, "content-disposition")) {
         size_t offset = 0;
@@ -489,7 +489,7 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
             offset += sizeof("attachment;") - 1;
         } else {
             swoole_warning("Unsupported Content-Disposition [%.*s]", (int) length, at);
-            goto _end;
+            return ret;
         }
 
         zval tmp_array;
@@ -498,13 +498,13 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
 
         zval *zform_name;
         if (!(zform_name = zend_hash_str_find(Z_ARRVAL(tmp_array), ZEND_STRL("name")))) {
-            goto _end;
+            return ret;
         }
 
         if (Z_STRLEN_P(zform_name) >= SW_HTTP_FORM_KEYLEN) {
             swoole_warning("form_name[%s] is too large", Z_STRVAL_P(zform_name));
             ret = -1;
-            goto _end;
+            return ret;
         }
 
         swoole_strlcpy(value_buf, Z_STRVAL_P(zform_name), sizeof(value_buf));
@@ -522,7 +522,7 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
             if (Z_STRLEN_P(zfilename) >= SW_HTTP_FORM_KEYLEN) {
                 swoole_warning("filename[%s] is too large", Z_STRVAL_P(zfilename));
                 ret = -1;
-                goto _end;
+                return ret;
             }
             ctx->current_input_name = estrndup(tmp, value_len);
             ctx->current_input_name_len = value_len;
@@ -561,10 +561,6 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
         add_assoc_long(z_multipart_header, "size", swoole::file_get_size(tmp_file.c_str()));
         http_request_add_upload_file(ctx, tmp_file.c_str(), tmp_file.length());
     }
-
-_end:
-    efree(header_name);
-
     return ret;
 }
 

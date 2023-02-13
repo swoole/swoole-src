@@ -407,9 +407,11 @@ static int http_parser_on_header_value(swoole_http_parser *parser, const char *a
         sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, zobject, ZEND_STRL("headers"), 0);
     char *header_name = http->tmp_header_field_name;
     size_t header_len = http->tmp_header_field_name_len;
+    zend::CharPtr _header_name;
 
     if (http->lowercase_header) {
-        header_name = zend_str_tolower_dup(header_name, header_len);
+        _header_name.tolower_dup(header_name, header_len);
+        header_name = _header_name.get();
     }
 
     add_assoc_stringl_ex(zheaders, header_name, header_len, (char *) at, length);
@@ -457,10 +459,6 @@ static int http_parser_on_header_value(swoole_http_parser *parser, const char *a
         http->chunked = true;
     } else if (SW_STREQ(header_name, header_len, "connection")) {
         http->connection_close = SW_STR_ISTARTS_WITH(at, length, "close");
-    }
-
-    if (http->lowercase_header) {
-        efree(header_name);
     }
 
     return 0;
