@@ -1104,6 +1104,7 @@ void Client::socket_dtor() {
     zend_update_property_null(Z_OBJCE_P(&zobject), SW_Z8_OBJ_P(&zobject), ZEND_STRL("socket"));
     socket = nullptr;
     zval_ptr_dtor(&zsocket);
+    ZVAL_NULL(&zsocket);
 }
 
 Statement *Client::recv_prepare_response() {
