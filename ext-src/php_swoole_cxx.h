@@ -205,32 +205,32 @@ class String {
     }
 
     void operator=(zval *v) {
-        if (str) {
-            zend_string_release(str);
-        }
+        release();
         str = zval_get_string(v);
     }
 
     String &operator=(String &&o) {
+        release();
         str = o.str;
         o.str = nullptr;
         return *this;
     }
 
     String &operator=(const String &o) {
+        release();
         str = zend_string_copy(o.str);
         return *this;
     }
 
-    inline char *val() {
+    char *val() {
         return ZSTR_VAL(str);
     }
 
-    inline size_t len() {
+    size_t len() {
         return ZSTR_LEN(str);
     }
 
-    inline zend_string *get() {
+    zend_string *get() {
         return str;
     }
 
@@ -238,19 +238,19 @@ class String {
         ZSTR_LEN(str) = swoole::rtrim(val(), len());
     }
 
-    inline const std::string to_std_string() {
+    const std::string to_std_string() {
         return std::string(val(), len());
     }
 
-    inline char *dup() {
+    char *dup() {
         return sw_likely(len() > 0) ? sw_strndup(val(), len()) : nullptr;
     }
 
-    inline char *edup() {
+    char *edup() {
         return sw_likely(len() > 0) ? estrndup(val(), len()) : nullptr;
     }
 
-    inline void release() {
+    void release() {
         if (str) {
             zend_string_release(str);
             str = nullptr;
@@ -279,7 +279,7 @@ class KeyValue {
         Z_TRY_ADDREF(zvalue);
     }
 
-    inline void add_to(zval *zarray) {
+    void add_to(zval *zarray) {
         HashTable *ht = Z_ARRVAL_P(zarray);
         zval *dest_elem = !key ? zend_hash_index_update(ht, index, &zvalue) : zend_hash_update(ht, key, &zvalue);
         Z_TRY_ADDREF_P(dest_elem);
@@ -302,6 +302,7 @@ class ArrayIterator {
         _index = _ptr->h;
         pe = p;
     }
+
     ArrayIterator(Bucket *p, Bucket *_pe) {
         _ptr = p;
         _key = _ptr->key;
@@ -310,22 +311,28 @@ class ArrayIterator {
         pe = _pe;
         skipUndefBucket();
     }
+
     void operator++(int i) {
         ++_ptr;
         skipUndefBucket();
     }
+
     bool operator!=(ArrayIterator b) {
         return b.ptr() != _ptr;
     }
+
     std::string key() {
         return std::string(_key->val, _key->len);
     }
+
     zend_ulong index() {
         return _index;
     }
+
     zval *value() {
         return _val;
     }
+
     Bucket *ptr() {
         return _ptr;
     }
@@ -368,19 +375,19 @@ class Array {
         arr = _arr;
     }
 
-    inline size_t count() {
+    size_t count() {
         return zend_hash_num_elements(Z_ARRVAL_P(arr));
     }
 
-    inline bool set(zend_ulong index, zval *value) {
+    bool set(zend_ulong index, zval *value) {
         return add_index_zval(arr, index, value) == SUCCESS;
     }
 
-    inline bool append(zval *value) {
+    bool append(zval *value) {
         return add_next_index_zval(arr, value) == SUCCESS;
     }
 
-    inline bool set(zend_ulong index, zend_resource *res) {
+    bool set(zend_ulong index, zend_resource *res) {
         zval tmp;
         ZVAL_RES(&tmp, res);
         return set(index, &tmp);
@@ -420,19 +427,24 @@ class Process {
 class Variable {
   public:
     zval value;
+
     Variable() {
         value = {};
     }
+
     Variable(zval *zvalue) {
         assign(zvalue);
     }
+
     void operator=(zval *zvalue) {
         assign(zvalue);
     }
+
     void assign(zval *zvalue) {
         value = *zvalue;
         zval_add_ref(zvalue);
     }
+
     ~Variable() {
         zval_ptr_dtor(&value);
     }
@@ -441,37 +453,45 @@ class Variable {
 class CharPtr {
   private:
     char *str_;
+
   public:
     CharPtr() {
         str_ = nullptr;
     }
+
     CharPtr(char *str) {
-        assign(str, strlen(str));
+        str_ = estrndup(str, strlen(str));
     }
+
     CharPtr(char *str, size_t len) {
-        assign(str, len);
-    }
-    void operator=(char *str) {
-        if (str_) {
-            release();
-        }
-        assign(str, strlen(str));
-    }
-    void release() {
-        efree(str_);
-        str_ = nullptr;
-    }
-    void assign(char *str, size_t len) {
         str_ = estrndup(str, len);
     }
-    void tolower_dup(char *str, size_t len) {
-        str_ = zend_str_tolower_dup(str, len);
+
+    void operator=(char *str) {
+        assign(str, strlen(str));
     }
-    ~CharPtr() {
+
+    void release() {
         if (str_) {
-            release();
+            efree(str_);
+            str_ = nullptr;
         }
     }
+
+    void assign(char *str, size_t len) {
+        release();
+        str_ = estrndup(str, len);
+    }
+
+    void assign_tolower(char *str, size_t len) {
+        release();
+        str_ = zend_str_tolower_dup(str, len);
+    }
+
+    ~CharPtr() {
+        release();
+    }
+
     char *get() {
         return str_;
     }
@@ -487,7 +507,7 @@ struct Function {
     zend_fcall_info fci;
     zend_fcall_info_cache fci_cache;
 
-    inline bool call(zval *retval, const bool enable_coroutine) {
+    bool call(zval *retval, const bool enable_coroutine) {
         return function::call(&fci_cache, fci.param_count, fci.params, retval, enable_coroutine);
     }
 };

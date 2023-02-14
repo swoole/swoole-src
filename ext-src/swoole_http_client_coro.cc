@@ -410,7 +410,7 @@ static int http_parser_on_header_value(swoole_http_parser *parser, const char *a
     zend::CharPtr _header_name;
 
     if (http->lowercase_header) {
-        _header_name.tolower_dup(header_name, header_len);
+        _header_name.assign_tolower(header_name, header_len);
         header_name = _header_name.get();
     }
 
