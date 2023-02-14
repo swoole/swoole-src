@@ -206,18 +206,24 @@ class String {
 
     void operator=(zval *v) {
         if (str) {
-            zend_string_release(str);
+            release();
         }
         str = zval_get_string(v);
     }
 
     String &operator=(String &&o) {
+        if (str) {
+            release();
+        }
         str = o.str;
         o.str = nullptr;
         return *this;
     }
 
     String &operator=(const String &o) {
+        if (str) {
+            release();
+        }
         str = zend_string_copy(o.str);
         return *this;
     }
@@ -251,14 +257,14 @@ class String {
     }
 
     inline void release() {
-        if (str) {
-            zend_string_release(str);
-            str = nullptr;
-        }
+        zend_string_release(str);
+        str = nullptr;
     }
 
     ~String() {
-        release();
+        if (str) {
+            release();
+        }
     }
 
   private:

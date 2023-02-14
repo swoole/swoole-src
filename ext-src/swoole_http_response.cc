@@ -329,10 +329,9 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
     zval *zheader =
         sw_zend_read_property_ex(swoole_http_response_ce, response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADER), 0);
     if (ZVAL_IS_ARRAY(zheader)) {
-        const char *key;
-        uint32_t keylen;
-        int type;
         zval *zvalue;
+        zend_string *string_key;
+        zend_ulong num_key;
 
         auto add_header = [](String *response, const char *key, size_t l_key, zval *value) {
             if (ZVAL_IS_NULL(value)) {
@@ -352,15 +351,15 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
 #ifdef SW_HAVE_COMPRESSION
         zend_string *content_type = nullptr;
 #endif
-        SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zheader), key, keylen, type, zvalue) {
-            // TODO: numeric key name neccessary?
-            if (UNEXPECTED(!key || ZVAL_IS_NULL(zvalue))) {
-                continue;
+        ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(zheader), num_key, string_key, zvalue) {
+            if (!string_key) {
+                string_key = zend_long_to_str(num_key);
+            } else {
+                zend_string_addref(string_key);
             }
-
-            int key_header = parse_header_name(key, keylen);
+            zend::String key(string_key, false);
+            int key_header = parse_header_name(ZSTR_VAL(string_key), ZSTR_LEN(string_key));
             if (key_header > 0) {
-                header_flags |= key_header;
 #ifdef SW_HAVE_COMPRESSION
                 if (key_header == HTTP_HEADER_CONTENT_TYPE && accept_compression && compression_types) {
                     content_type = zval_get_string(zvalue);
@@ -379,6 +378,7 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
                     php_swoole_error(E_WARNING, "You have set 'Transfer-Encoding', 'Content-Length' is ignored");
                     continue;
                 }
+                header_flags |= key_header;
                 if (ZVAL_IS_STRING(zvalue) && Z_STRLEN_P(zvalue) == 0) {
                     continue;
                 }
@@ -386,15 +386,13 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
             if (ZVAL_IS_ARRAY(zvalue)) {
                 zval *zvalue_2;
                 SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(zvalue), zvalue_2) {
-                    add_header(http_buffer, key, keylen, zvalue_2);
+                    add_header(http_buffer, ZSTR_VAL(string_key), ZSTR_LEN(string_key), zvalue_2);
                 }
                 SW_HASHTABLE_FOREACH_END();
             } else {
-                add_header(http_buffer, key, keylen, zvalue);
+                add_header(http_buffer, ZSTR_VAL(string_key), ZSTR_LEN(string_key), zvalue);
             }
-        }
-        SW_HASHTABLE_FOREACH_END();
-        (void) type;
+        } ZEND_HASH_FOREACH_END();
 
 #ifdef SW_HAVE_COMPRESSION
         if (accept_compression && compression_types) {
