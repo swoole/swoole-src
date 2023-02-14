@@ -44,6 +44,7 @@ enum swHttpHeaderFlag {
     HTTP_HEADER_CONTENT_TYPE = 1u << 5,
     HTTP_HEADER_TRANSFER_ENCODING = 1u << 6,
     HTTP_HEADER_ACCEPT_ENCODING = 1u << 7,
+    HTTP_HEADER_CONTENT_ENCODING = 1u << 8,
 };
 
 enum swHttpCompressMethod {
