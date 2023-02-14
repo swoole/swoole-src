@@ -360,7 +360,7 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
     zval *zheader = ctx->request.zheader;
     size_t header_len = ctx->current_header_name_len;
     zend::CharPtr _header_name;
-    _header_name.tolower_dup(ctx->current_header_name, header_len);
+    _header_name.assign_tolower(ctx->current_header_name, header_len);
     char *header_name = _header_name.get();
 
     if (ctx->parse_cookie && SW_STREQ(header_name, header_len, "cookie")) {
@@ -368,7 +368,8 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
             swoole_http_request_ce, ctx->request.zobject, &ctx->request.zcookie, ZEND_STRL("cookie"));
         swoole_http_parse_cookie(zcookie, at, length);
         return 0;
-    } else if (SW_STREQ(header_name, header_len, "upgrade") && swoole_http_token_list_contains_value(at, length, "websocket")) {
+    } else if (SW_STREQ(header_name, header_len, "upgrade") &&
+               swoole_http_token_list_contains_value(at, length, "websocket")) {
         ctx->websocket = 1;
         if (ctx->co_socket) {
             goto _add_header;
@@ -478,7 +479,7 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
 
     size_t header_len = ctx->current_header_name_len;
     zend::CharPtr _header_name;
-    _header_name.tolower_dup(ctx->current_header_name, header_len);
+    _header_name.assign_tolower(ctx->current_header_name, header_len);
     char *header_name = _header_name.get();
 
     if (SW_STRCASEEQ(header_name, header_len, "content-disposition")) {
