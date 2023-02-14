@@ -2824,7 +2824,6 @@ static PHP_METHOD(swoole_server, send) {
     }
     bool ret = serv->send(fd, data, length);
     if (!ret && swoole_get_last_error() == SW_ERROR_OUTPUT_SEND_YIELD) {
-        zval_add_ref(zdata);
         php_swoole_server_send_yield(serv, fd, zdata, return_value);
     } else {
         RETURN_BOOL(ret);
