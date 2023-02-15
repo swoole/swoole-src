@@ -112,7 +112,7 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
         zend_fcall_info_cache *fci_cache = nullptr;
 
         if (conn->websocket_status == WebSocket::STATUS_CONNECTION) {
-            fci_cache = php_swoole_server_get_fci_cache(serv, server_fd, SW_SERVER_CB_onHandShake);
+            fci_cache = php_swoole_server_get_fci_cache(serv, server_fd, SW_SERVER_CB_onHandshake);
             if (fci_cache == nullptr) {
                 swoole_websocket_onHandshake(serv, port, ctx);
                 goto _dtor_and_return;
