@@ -1570,6 +1570,11 @@ void Client::socket_dtor() {
     ZVAL_NULL(&zsocket);
 }
 
+/**
+ * The socket member variables cannot be read after Socket::close(),
+ * MUST return to the php layer, otherwise a memory error will occur.
+ * The client, mysql client, http2 client also need to follow this coding convention.
+ */
 bool Client::close(const bool should_be_reset) {
     Socket *_socket = socket;
     if (!_socket) {
