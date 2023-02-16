@@ -37,8 +37,8 @@ static std::unordered_map<std::string, ServerPortEvent> server_port_event_map({
     { "bufferfull",  ServerPortEvent(SW_SERVER_CB_onBufferFull,  "BufferFull") },
     { "bufferempty", ServerPortEvent(SW_SERVER_CB_onBufferEmpty, "BufferEmpty") },
     { "request",     ServerPortEvent(SW_SERVER_CB_onRequest,     "Request") },
-    { "handshake",   ServerPortEvent(SW_SERVER_CB_onHandShake,   "Handshake") },
-    { "beforehandshakeresponse",        ServerPortEvent(SW_SERVER_CB_onBeforeHandShakeResponse,        "BeforeHandShakeResponse") },
+    { "handshake",   ServerPortEvent(SW_SERVER_CB_onHandshake,   "Handshake") },
+    { "beforehandshakeresponse", ServerPortEvent(SW_SERVER_CB_onBeforeHandshakeResponse, "BeforeHandshakeResponse") },
     { "open",        ServerPortEvent(SW_SERVER_CB_onOpen,        "Open") },
     { "message",     ServerPortEvent(SW_SERVER_CB_onMessage,     "Message") },
     { "disconnect",  ServerPortEvent(SW_SERVER_CB_onDisconnect,  "Disconnect") },
@@ -169,10 +169,11 @@ void php_swoole_server_port_minit(int module_number) {
     zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("onBufferFull"), ZEND_ACC_PRIVATE);
     zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("onBufferEmpty"), ZEND_ACC_PRIVATE);
     zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("onRequest"), ZEND_ACC_PRIVATE);
-    zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("onHandShake"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("onHandshake"), ZEND_ACC_PRIVATE);
     zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("onOpen"), ZEND_ACC_PRIVATE);
     zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("onMessage"), ZEND_ACC_PRIVATE);
     zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("onDisconnect"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("onBeforeHandshakeResponse"), ZEND_ACC_PRIVATE);
 
     zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("host"), ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_server_port_ce, ZEND_STRL("port"), 0, ZEND_ACC_PUBLIC);
