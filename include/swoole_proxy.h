@@ -17,6 +17,7 @@
 #pragma once
 
 #include <string>
+#include <cstdint>
 
 #define SW_SOCKS5_VERSION_CODE 0x05
 
