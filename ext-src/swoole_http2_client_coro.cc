@@ -1506,6 +1506,8 @@ static PHP_METHOD(swoole_http2_client_coro, ping) {
     RETURN_BOOL(h2c->send_ping_frame());
 }
 
+
+
 /**
  * +-+-------------------------------------------------------------+
  * |R|                  Last-Stream-ID (31)                        |
@@ -1517,7 +1519,7 @@ static PHP_METHOD(swoole_http2_client_coro, ping) {
  */
 static PHP_METHOD(swoole_http2_client_coro, goaway) {
     Client *h2c = php_swoole_get_h2c(ZEND_THIS);
-    zend_long error_code = SW_HTTP2_ERROR_NO_ERROR;
+    zend_long _error_code = SW_HTTP2_ERROR_NO_ERROR;
     char *debug_data = nullptr;
     size_t debug_data_len = 0;
 
@@ -1527,11 +1529,11 @@ static PHP_METHOD(swoole_http2_client_coro, goaway) {
 
     ZEND_PARSE_PARAMETERS_START(0, 2)
     Z_PARAM_OPTIONAL
-    Z_PARAM_LONG(error_code);
+    Z_PARAM_LONG(_error_code);
     Z_PARAM_STRING(debug_data, debug_data_len);
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    RETURN_BOOL(h2c->send_goaway_frame(error_code, debug_data, debug_data_len));
+    RETURN_BOOL(h2c->send_goaway_frame(_error_code, debug_data, debug_data_len));
 }
 
 #endif
