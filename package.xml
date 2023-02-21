@@ -48,10 +48,10 @@
         <email>doubaokun@php.net</email>
         <active>yes</active>
     </developer>
-    <date>2022-09-21</date>
+    <date>2023-02-21</date>
     <time>19:00:00</time>
     <version>
-        <release>4.8.12</release>
+        <release>4.8.13</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -60,13 +60,17 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        - Supports PHP-8.2
-        - Enhanced Event::add() support for sockets resources
-        - Fixed incorrect error message when wrong multipart body is received
-        - Improved Http\Client::sendfile(), support large files over 4G
-        - Improved Server::taskWaitMulti(), support coroutine environment
-        - Fixed incorrect error message when add timer less than 1ms
-        - Fixed deadlock caused by writing log when disk is full
+        - Fixed parameter compatibility of Coroutine::printBackTrace() and debug_print_backtrace()
+        - Fixed parsing length is wrong when the websocket server enable http2 and websocket protocols at the same time
+        - Refactor curl native to support a curl handle with multiple sockets, such as the curl ftp protocol
+        - Support for configuring http2 default settings
+        - Improved websocket client, upgrade header contains websocket instead of equal
+        - Optimized http client, disable keep-alive when server sends connection close
+        - Optimized http client, prohibit adding the Accept-Encoding header without compression library
+        - Improved debug info, set password as sensitive parameter under PHP-8.2
+        - Fixed memory leak when send_yield occurs in Server::send(), Http\Response::end(), Http\Response::write(), WebSocket/Server::push()
+        - Fixed crash when using table::getMemorySize() before add columns
+        - Support HTTP Range Requests
     </notes>
     <contents>
         <dir name="/">
