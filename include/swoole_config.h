@@ -284,6 +284,8 @@ a { color: #0969da; } \
  * Coroutine
  */
 #define SW_DEFAULT_C_STACK_SIZE (2 * 1024 * 1024)
+#define SW_CORO_SUPPORT_BAILOUT 1
+#define SW_CORO_SWAP_BAILOUT 1
 #define SW_CORO_BAILOUT_EXIT_CODE 1
 //#define SW_CONTEXT_PROTECT_STACK_PAGE    1
 //#define SW_CONTEXT_DETECT_STACK_USAGE    1

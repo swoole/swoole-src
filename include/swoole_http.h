@@ -126,7 +126,7 @@ struct Request {
 
     uint32_t request_line_length_; /* without \r\n  */
     uint32_t header_length_;       /* include request_line_length + \r\n */
-    uint32_t content_length_;
+    uint64_t content_length_;
 
     String *buffer_;
 
