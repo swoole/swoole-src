@@ -476,7 +476,6 @@ static PHP_FUNCTION(swoole_event_add) {
 
     int socket_fd = php_swoole_convert_to_fd(zfd);
     if (socket_fd < 0) {
-        php_swoole_fatal_error(E_WARNING, "unknown fd type");
         RETURN_FALSE;
     }
     if (socket_fd == 0 && (events & SW_EVENT_WRITE)) {
@@ -544,7 +543,6 @@ static PHP_FUNCTION(swoole_event_write) {
 
     int socket_fd = php_swoole_convert_to_fd(zfd);
     if (socket_fd < 0) {
-        php_swoole_fatal_error(E_WARNING, "unknown type");
         RETURN_FALSE;
     }
 
@@ -585,7 +583,6 @@ static PHP_FUNCTION(swoole_event_set) {
 
     int socket_fd = php_swoole_convert_to_fd(zfd);
     if (socket_fd < 0) {
-        php_swoole_fatal_error(E_WARNING, "unknown type");
         RETURN_FALSE;
     }
 
@@ -643,7 +640,6 @@ static PHP_FUNCTION(swoole_event_del) {
 
     int socket_fd = php_swoole_convert_to_fd(zfd);
     if (socket_fd < 0) {
-        php_swoole_fatal_error(E_WARNING, "unknown type");
         RETURN_FALSE;
     }
 
@@ -787,7 +783,6 @@ static PHP_FUNCTION(swoole_event_isset) {
 
     int socket_fd = php_swoole_convert_to_fd(zfd);
     if (socket_fd < 0) {
-        php_swoole_fatal_error(E_WARNING, "unknown type");
         RETURN_FALSE;
     }
 
