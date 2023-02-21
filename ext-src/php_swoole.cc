@@ -780,10 +780,8 @@ PHP_MINIT_FUNCTION(swoole) {
     // clang-format on
 
     if (SWOOLE_G(use_shortname)) {
-        SW_FUNCTION_ALIAS(
-            CG(function_table), "swoole_coroutine_create", CG(function_table), "go", arginfo_swoole_coroutine_create);
-        SW_FUNCTION_ALIAS(
-            CG(function_table), "swoole_coroutine_defer", CG(function_table), "defer", arginfo_swoole_coroutine_defer);
+        SW_FUNCTION_ALIAS(CG(function_table), "swoole_coroutine_create", CG(function_table), "go");
+        SW_FUNCTION_ALIAS(CG(function_table), "swoole_coroutine_defer", CG(function_table), "defer");
     }
 
     swoole_init();
