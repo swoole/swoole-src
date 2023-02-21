@@ -460,7 +460,7 @@ struct ListenPort {
         open_length_check = true;
         protocol.package_length_type = length_type;
         protocol.package_length_size = swoole_type_size(length_type);
-        protocol.package_body_offset = length_offset;
+        protocol.package_length_offset = length_offset;
         protocol.package_body_offset = body_offset;
     }
 
