@@ -1096,7 +1096,11 @@ static sw_inline char *php_swoole_http_build_query(zval *zdata, size_t *length, 
 }
 
 static inline const char *php_swoole_get_last_error_message() {
+#if PHP_VERSION_ID >= 80000
     return PG(last_error_message) ? PG(last_error_message)->val : nullptr;
+#else
+    return PG(last_error_message);
+#endif
 }
 
 static inline const char *php_swoole_get_last_error_file() {
