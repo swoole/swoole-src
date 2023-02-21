@@ -116,16 +116,45 @@ void php_swoole_event_minit(int module_number) {
     SW_INIT_CLASS_ENTRY(swoole_event, "Swoole\\Event", "swoole_event", nullptr, swoole_event_methods);
     SW_SET_CLASS_CREATE(swoole_event, sw_zend_create_object_deny);
 
-    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "add", CG(function_table), "swoole_event_add");
-    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "del", CG(function_table), "swoole_event_del");
-    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "set", CG(function_table), "swoole_event_set");
-    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "isset", CG(function_table), "swoole_event_isset");
-    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "dispatch", CG(function_table), "swoole_event_dispatch");
-    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "defer", CG(function_table), "swoole_event_defer");
-    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "cycle", CG(function_table), "swoole_event_cycle");
-    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "write", CG(function_table), "swoole_event_write");
-    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "wait", CG(function_table), "swoole_event_wait");
-    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "exit", CG(function_table), "swoole_event_exit");
+    SW_FUNCTION_ALIAS(
+        &swoole_event_ce->function_table, "add", CG(function_table), "swoole_event_add", arginfo_swoole_event_add);
+    SW_FUNCTION_ALIAS(
+        &swoole_event_ce->function_table, "del", CG(function_table), "swoole_event_del", arginfo_swoole_event_del);
+    SW_FUNCTION_ALIAS(
+        &swoole_event_ce->function_table, "set", CG(function_table), "swoole_event_set", arginfo_swoole_event_set);
+    SW_FUNCTION_ALIAS(
+        &swoole_event_ce->function_table, "wait", CG(function_table), "swoole_event_wait", arginfo_swoole_void);
+
+    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table,
+                      "isset",
+                      CG(function_table),
+                      "swoole_event_isset",
+                      arginfo_swoole_event_isset);
+    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table,
+                      "dispatch",
+                      CG(function_table),
+                      "swoole_event_dispatch",
+                      arginfo_swoole_void);
+    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table,
+                      "defer",
+                      CG(function_table),
+                      "swoole_event_defer",
+                      arginfo_swoole_event_defer);
+    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table,
+                      "cycle",
+                      CG(function_table),
+                      "swoole_event_cycle",
+                      arginfo_swoole_event_cycle);
+    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table,
+                      "write",
+                      CG(function_table),
+                      "swoole_event_write",
+                      arginfo_swoole_event_write);
+    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table,
+                      "exit",
+                      CG(function_table),
+                      "swoole_event_exit",
+                      arginfo_swoole_void);
 }
 
 static void event_object_free(void *data) {
@@ -140,7 +169,7 @@ static void event_object_free(void *data) {
     efree(peo);
 }
 
-static int event_readable_callback(Reactor *reactor, swEvent *event) {
+static int event_readable_callback(Reactor *reactor, Event *event) {
     EventObject *peo = (EventObject *) event->socket->object;
 
     zval argv[1];
@@ -180,7 +209,7 @@ static int event_writable_callback(Reactor *reactor, Event *event) {
     return SW_OK;
 }
 
-static int event_error_callback(Reactor *reactor, swEvent *event) {
+static int event_error_callback(Reactor *reactor, Event *event) {
     if (!(event->socket->events & SW_EVENT_ERROR)) {
         if (event->socket->events & SW_EVENT_READ) {
             return reactor->get_handler(SW_EVENT_READ, event->socket->fd_type)(reactor, event);
@@ -476,6 +505,7 @@ static PHP_FUNCTION(swoole_event_add) {
 
     int socket_fd = php_swoole_convert_to_fd(zfd);
     if (socket_fd < 0) {
+        php_swoole_fatal_error(E_WARNING, "unknown fd type");
         RETURN_FALSE;
     }
     if (socket_fd == 0 && (events & SW_EVENT_WRITE)) {
@@ -543,6 +573,7 @@ static PHP_FUNCTION(swoole_event_write) {
 
     int socket_fd = php_swoole_convert_to_fd(zfd);
     if (socket_fd < 0) {
+        php_swoole_fatal_error(E_WARNING, "unknown type");
         RETURN_FALSE;
     }
 
@@ -583,6 +614,7 @@ static PHP_FUNCTION(swoole_event_set) {
 
     int socket_fd = php_swoole_convert_to_fd(zfd);
     if (socket_fd < 0) {
+        php_swoole_fatal_error(E_WARNING, "unknown type");
         RETURN_FALSE;
     }
 
@@ -640,6 +672,7 @@ static PHP_FUNCTION(swoole_event_del) {
 
     int socket_fd = php_swoole_convert_to_fd(zfd);
     if (socket_fd < 0) {
+        php_swoole_fatal_error(E_WARNING, "unknown type");
         RETURN_FALSE;
     }
 
@@ -738,7 +771,7 @@ static PHP_FUNCTION(swoole_event_wait) {
 static PHP_FUNCTION(swoole_event_rshutdown) {
     /* prevent the program from jumping out of the rshutdown */
     zend_try {
-        if (!sw_reactor()) {
+        if (php_swoole_is_fatal_error() || !sw_reactor()) {
             return;
         }
         // when throw Exception, do not show the info
@@ -765,7 +798,6 @@ static PHP_FUNCTION(swoole_event_dispatch) {
     if (sw_reactor()->wait(nullptr) < 0) {
         php_swoole_sys_error(E_ERROR, "reactor wait failed");
     }
-
     sw_reactor()->once = false;
     RETURN_TRUE;
 }
@@ -784,6 +816,7 @@ static PHP_FUNCTION(swoole_event_isset) {
 
     int socket_fd = php_swoole_convert_to_fd(zfd);
     if (socket_fd < 0) {
+        php_swoole_fatal_error(E_WARNING, "unknown type");
         RETURN_FALSE;
     }
 

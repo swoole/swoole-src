@@ -91,7 +91,8 @@ static ssize_t get_package_length_impl(PacketLength *pl) {
     if ((ssize_t) payload_length < 0) {
         return -1;
     }
-    swoole_trace_log(SW_TRACE_LENGTH_PROTOCOL, "header_length=%u, payload_length=%lu", pl->header_len, payload_length);
+    swoole_trace_log(
+        SW_TRACE_LENGTH_PROTOCOL, "header_length=%u, payload_length=%" PRIu64, pl->header_len, payload_length);
 
     return (ssize_t) pl->header_len + (ssize_t) payload_length;
 }
@@ -164,7 +165,13 @@ bool encode(String *buffer, const char *data, size_t length, char opcode, uint8_
 }
 
 bool decode(Frame *frame, char *data, size_t length) {
-    memcpy(frame, data, SW_WEBSOCKET_HEADER_LEN);
+    frame->header.OPCODE = data[0] & 0xf;
+    frame->header.RSV1 = (data[0] >> 6) & 0x1;
+    frame->header.RSV2 = (data[0] >> 5) & 0x1;
+    frame->header.RSV3 =(data[0] >> 4) & 0x1;
+    frame->header.FIN =  (data[0] >> 7) & 0x1;
+    frame->header.MASK = (data[1] >> 7) & 0x1;
+    frame->header.LENGTH = data[1] & 0x7f;
 
     PacketLength pl{data, (uint32_t) length, 0};
     ssize_t total_length = get_package_length_impl(&pl);
@@ -212,7 +219,9 @@ int pack_close_frame(String *buffer, int code, char *reason, size_t length, uint
         memcpy(payload + SW_WEBSOCKET_CLOSE_CODE_LEN, reason, length);
     }
     flags |= FLAG_FIN;
-    encode(buffer, payload, SW_WEBSOCKET_CLOSE_CODE_LEN + length, OPCODE_CLOSE, flags);
+    if (!encode(buffer, payload, SW_WEBSOCKET_CLOSE_CODE_LEN + length, OPCODE_CLOSE, flags)) {
+        return SW_ERR;
+    }
     return SW_OK;
 }
 
@@ -243,7 +252,9 @@ int dispatch_frame(const Protocol *proto, Socket *_socket, const RecvData *rdata
     send_frame.size = sizeof(buf);
 
     Frame ws;
-    decode(&ws, const_cast<char *>(data), length);
+    if (!decode(&ws, const_cast<char *>(data), length)) {
+        return SW_ERR;
+    }
 
     String *frame_buffer;
     int frame_length;

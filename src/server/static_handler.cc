@@ -295,7 +295,7 @@ bool StaticHandler::set_filename(const std::string &filename) {
 }
 
 void StaticHandler::parse_range(const char *range, const char *if_range) {
-    task_t _task;
+    task_t _task{};
     _task.length = 0;
     // range
     if (range && '\0' != *range) {
@@ -451,19 +451,19 @@ void StaticHandler::parse_range(const char *range, const char *if_range) {
 }  // namespace http_server
 void Server::add_static_handler_location(const std::string &location) {
     if (locations == nullptr) {
-        locations = new std::unordered_set<std::string>;
+        locations = std::make_shared<std::unordered_set<std::string>>();
     }
-    locations->insert(location);
+    locations->emplace(location);
 }
 
 void Server::add_static_handler_index_files(const std::string &file) {
     if (http_index_files == nullptr) {
-        http_index_files = new std::vector<std::string>;
+        http_index_files = std::make_shared<std::vector<std::string>>();
     }
 
     auto iter = std::find(http_index_files->begin(), http_index_files->end(), file);
     if (iter == http_index_files->end()) {
-        http_index_files->push_back(file);
+        http_index_files->emplace_back(file);
     }
 }
 }  // namespace swoole

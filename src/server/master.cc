@@ -792,7 +792,7 @@ int Server::create() {
     }
 
     if (enable_static_handler and locations == nullptr) {
-        locations = new std::unordered_set<std::string>;
+        locations = std::make_shared<std::unordered_set<std::string>>();
     }
 
     // Max Connections
@@ -972,13 +972,7 @@ void Server::destroy() {
     } else {
         destroy_reactor_threads();
     }
-    if (locations) {
-        delete locations;
-    }
-    if (http_index_files) {
-        delete http_index_files;
-    }
-    for (auto i = 0; i < SW_MAX_HOOK_TYPE; i++) {
+    SW_LOOP_N(SW_MAX_HOOK_TYPE) {
         if (hooks[i]) {
             std::list<Callback> *l = reinterpret_cast<std::list<Callback> *>(hooks[i]);
             hooks[i] = nullptr;

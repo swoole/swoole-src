@@ -68,8 +68,7 @@ static int http_parser_on_body(swoole_http_parser *parser, const char *at, size_
 static int http_parser_on_message_complete(swoole_http_parser *parser);
 
 // clang-format off
-static const swoole_http_parser_settings http_parser_settings =
-{
+static const swoole_http_parser_settings http_parser_settings = {
     nullptr,
     nullptr,
     nullptr,
@@ -106,7 +105,7 @@ class HttpClient {
     int tmp_header_field_name_len = 0;
     String *body = nullptr;
 #ifdef SW_HAVE_COMPRESSION
-    enum http_compress_method compress_method = HTTP_COMPRESS_NONE;
+    enum swHttpCompressMethod compress_method = HTTP_COMPRESS_NONE;
     bool compression_error = false;
 #endif
 
@@ -247,7 +246,7 @@ class HttpClient {
 
   private:
     Socket *socket = nullptr;
-    swSocketType socket_type = SW_SOCK_TCP;
+    SocketType socket_type = SW_SOCK_TCP;
     swoole_http_parser parser = {};
     bool wait = false;
 };
@@ -1116,7 +1115,7 @@ bool HttpClient::send() {
             buffer->append(key, keylen);
             buffer->append("=", 1);
 
-            int encoded_value_len;
+            size_t encoded_value_len;
             encoded_value = php_swoole_url_encode(str_value.val(), str_value.len(), &encoded_value_len);
             if (encoded_value) {
                 buffer->append(encoded_value, encoded_value_len);

@@ -1021,7 +1021,7 @@ static void php_swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const 
     } else {
         if (url_encode) {
             char *encoded_value;
-            int encoded_value_len;
+            size_t encoded_value_len;
             encoded_value = php_swoole_url_encode(value, value_len, &encoded_value_len);
             cookie_size += encoded_value_len;
             cookie = (char *) emalloc(cookie_size);

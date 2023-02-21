@@ -71,32 +71,27 @@ class WebSocketClient
         return $this->socket;
     }
 
-    /**
-     * Disconnect from swoole_server
-     */
     public function disconnect()
     {
         $this->connected = false;
-        $this->socket->close();
+        if ($this->socket) {
+            $this->socket->close();
+        }
     }
 
     public function recv()
     {
         $data = $this->socket->recv();
-        if ($data === false)
-        {
+        if ($data === false) {
             echo "Error: {$this->socket->errMsg}";
             return false;
         }
         $this->buffer .= $data;
         $recv_data = $this->parseData($this->buffer);
-        if ($recv_data)
-        {
+        if ($recv_data) {
             $this->buffer = '';
             return $recv_data;
-        }
-        else
-        {
+        } else {
             return false;
         }
     }

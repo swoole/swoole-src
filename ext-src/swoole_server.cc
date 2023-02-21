@@ -95,17 +95,8 @@ void php_swoole_server_rshutdown() {
             swoole_error_log(SW_LOG_ERROR,
                              SW_ERROR_PHP_FATAL_ERROR,
                              "Fatal error: %s in %s on line %d",
-#if PHP_VERSION_ID < 80000
-                             PG(last_error_message),
-#else
-                             PG(last_error_message)->val,
-#endif
-
-#if PHP_VERSION_ID >= 80100
-                             PG(last_error_file) ? PG(last_error_file)->val : "-",
-#else
-                             PG(last_error_file) ? PG(last_error_file) : "-",
-#endif
+                             php_swoole_get_last_error_message(),
+                             php_swoole_get_last_error_file(),
                              PG(last_error_lineno));
         } else {
             swoole_error_log(
@@ -509,7 +500,28 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_connection_iterator_offse
     ZEND_ARG_INFO(0, fd)
     ZEND_ARG_INFO(0, value)
 ZEND_END_ARG_INFO()
-//arginfo end
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_timer_after, 0, 0, 2)
+    ZEND_ARG_INFO(0, ms)
+    ZEND_ARG_CALLABLE_INFO(0, callback, 0)
+    ZEND_ARG_VARIADIC_INFO(0, params)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_timer_tick, 0, 0, 2)
+    ZEND_ARG_INFO(0, ms)
+    ZEND_ARG_CALLABLE_INFO(0, callback, 0)
+    ZEND_ARG_VARIADIC_INFO(0, params)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_timer_clear, 0, 0, 1)
+    ZEND_ARG_INFO(0, timer_id)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_defer, 0, 0, 1)
+    ZEND_ARG_CALLABLE_INFO(0, callback, 0)
+ZEND_END_ARG_INFO()
+
+// arginfo end
 // clang-format on
 
 SW_EXTERN_C_BEGIN
@@ -666,11 +678,11 @@ void php_swoole_server_minit(int module_number) {
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_server, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CUSTOM_OBJECT(swoole_server, server_create_object, server_free_object, ServerObject, std);
 
-    SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "after", &swoole_server_ce->function_table, "after");
-    SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "tick", &swoole_server_ce->function_table, "tick");
-    SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "clear", &swoole_server_ce->function_table, "clearTimer");
+    SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "after", &swoole_server_ce->function_table, "after", arginfo_swoole_timer_after);
+    SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "tick", &swoole_server_ce->function_table, "tick", arginfo_swoole_timer_tick);
+    SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "clear", &swoole_server_ce->function_table, "clearTimer", arginfo_swoole_timer_clear);
 
-    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "defer", &swoole_server_ce->function_table, "defer");
+    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "defer", &swoole_server_ce->function_table, "defer", arginfo_swoole_event_defer);
 
     // ---------------------------------------Task-------------------------------------
     SW_INIT_CLASS_ENTRY(

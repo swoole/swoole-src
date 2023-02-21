@@ -154,7 +154,12 @@ void php_swoole_websocket_frame_unpack_ex(String *data, zval *zframe, uchar unco
         return;
     }
 
-    WebSocket::decode(&frame, data);
+    if (!WebSocket::decode(&frame, data)) {
+        swoole_set_last_error(SW_ERROR_PROTOCOL_ERROR);
+        ZVAL_FALSE(zframe);
+        return;
+    }
+
     flags = WebSocket::get_flags(&frame);
 #ifdef SW_HAVE_ZLIB
     if (uncompress && frame.header.RSV1) {
@@ -224,9 +229,8 @@ static sw_inline int php_swoole_websocket_frame_pack_ex(String *buffer,
     case WebSocket::OPCODE_CLOSE:
         return WebSocket::pack_close_frame(buffer, code, data, length, flags);
     default:
-        WebSocket::encode(buffer, data, length, opcode, flags);
+        return WebSocket::encode(buffer, data, length, opcode, flags) ? SW_OK : SW_ERR;
     }
-    return SW_OK;
 }
 
 int php_swoole_websocket_frame_pack_ex(
@@ -821,7 +825,7 @@ static PHP_METHOD(swoole_websocket_server, push) {
     Connection *conn = serv->get_connection_verify(fd);
     if (!conn) {
         swoole_set_last_error(SW_ERROR_SESSION_NOT_EXIST);
-        php_swoole_fatal_error(E_WARNING, "session#%ld does not exists", fd);
+        php_swoole_fatal_error(E_WARNING, "session#" ZEND_LONG_FMT " does not exists", fd);
         RETURN_FALSE;
     }
     allow_compress = conn->websocket_compression;
