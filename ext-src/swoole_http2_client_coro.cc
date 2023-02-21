@@ -1506,8 +1506,6 @@ static PHP_METHOD(swoole_http2_client_coro, ping) {
     RETURN_BOOL(h2c->send_ping_frame());
 }
 
-
-
 /**
  * +-+-------------------------------------------------------------+
  * |R|                  Last-Stream-ID (31)                        |

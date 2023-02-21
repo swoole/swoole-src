@@ -53,15 +53,27 @@ inline std::string vformat(const char *format, va_list args) {
 }
 }  // namespace std_string
 
+// Keep parameter 'steady' as false for backward compatibility.
 template <typename T>
 static inline long time(bool steady = false) {
-    if (steady) {
+    if (sw_likely(steady)) {
         auto now = std::chrono::steady_clock::now();
         return std::chrono::duration_cast<T>(now.time_since_epoch()).count();
     } else {
         auto now = std::chrono::system_clock::now();
         return std::chrono::duration_cast<T>(now.time_since_epoch()).count();
     }
+}
+
+static inline long get_timezone() {
+#ifdef __linux__
+    return timezone;
+#else
+    struct timezone tz;
+    struct timeval tv;
+    gettimeofday(&tv, &tz);
+    return tz.tz_minuteswest * 60;
+#endif
 }
 
 class DeferTask {

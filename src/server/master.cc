@@ -732,18 +732,8 @@ Server::Server(enum Mode _mode) {
     compression_min_length = SW_COMPRESSION_MIN_LENGTH_DEFAULT;
 #endif
 
-#ifdef __linux__
-    timezone_ = timezone;
-#else
-    struct timezone tz;
-    struct timeval tv;
-    gettimeofday(&tv, &tz);
-    timezone_ = tz.tz_minuteswest * 60;
-#endif
+    timezone_ = get_timezone();
 
-    /**
-     * alloc shared memory
-     */
     gs = (ServerGS *) sw_shm_malloc(sizeof(ServerGS));
     if (gs == nullptr) {
         swoole_error("[Master] Fatal Error: failed to allocate memory for Server->gs");
@@ -1237,20 +1227,7 @@ int Server::schedule_worker(int fd, SendData *data) {
     }
     // deliver tasks to idle worker processes
     else {
-        uint32_t i;
-        bool found = false;
-        for (i = 0; i < worker_num + 1; i++) {
-            key = sw_atomic_fetch_add(&worker_round_id, 1) % worker_num;
-            if (workers[key].status == SW_WORKER_IDLE) {
-                found = true;
-                break;
-            }
-        }
-        if (sw_unlikely(!found)) {
-            scheduler_warning = true;
-        }
-        swoole_trace_log(SW_TRACE_SERVER, "schedule=%d, round=%d", key, worker_round_id);
-        return key;
+        return get_idle_worker_id();
     }
 
     return key % worker_num;
@@ -1809,15 +1786,9 @@ static void Server_signal_handler(int sig) {
                            swoole_signal_to_str(WTERMSIG(status)));
         }
         break;
-        /**
-         * for test
-         */
     case SIGVTALRM:
         swoole_warning("SIGVTALRM coming");
         break;
-        /**
-         * proxy the restart signal
-         */
     case SIGUSR1:
     case SIGUSR2:
         if (serv->is_base_mode()) {

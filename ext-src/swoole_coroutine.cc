@@ -493,7 +493,9 @@ inline void PHPCoroutine::vm_stack_destroy(void) {
  *
  */
 inline void PHPCoroutine::save_vm_stack(PHPContext *task) {
+#ifdef SW_CORO_SWAP_BAILOUT
     task->bailout = EG(bailout);
+#endif
     task->vm_stack_top = EG(vm_stack_top);
     task->vm_stack_end = EG(vm_stack_end);
     task->vm_stack = EG(vm_stack);
@@ -523,7 +525,9 @@ inline void PHPCoroutine::save_vm_stack(PHPContext *task) {
 }
 
 inline void PHPCoroutine::restore_vm_stack(PHPContext *task) {
+#ifdef SW_CORO_SWAP_BAILOUT
     EG(bailout) = task->bailout;
+#endif
     EG(vm_stack_top) = task->vm_stack_top;
     EG(vm_stack_end) = task->vm_stack_end;
     EG(vm_stack) = task->vm_stack;
