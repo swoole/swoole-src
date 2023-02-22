@@ -564,15 +564,13 @@ void Request::parse_header_info() {
     for (; p < pe; p++) {
         if (*(p - 1) == '\n' && *(p - 2) == '\r') {
             if (SW_STRCASECT(p, pe - p, "Content-Length:")) {
-                unsigned long long content_length;
                 // strlen("Content-Length:")
                 p += (sizeof("Content-Length:") - 1);
                 // skip spaces
                 while (*p == ' ') {
                     p++;
                 }
-                content_length = strtoull(p, nullptr, 10);
-                content_length_ = SW_MIN(content_length, UINT32_MAX);
+                content_length_ = strtoull(p, nullptr, 10);
                 known_length = 1;
             } else if (SW_STRCASECT(p, pe - p, "Connection:")) {
                 // strlen("Connection:")
@@ -609,13 +607,13 @@ bool Request::has_expect_header() {
     // char *buf = buffer->str + buffer->offset;
     char *buf = buffer_->str;
     // int len = buffer->length - buffer->offset;
-    int len = buffer_->length;
+    size_t len = buffer_->length;
 
     char *pe = buf + len;
     char *p;
 
     for (p = buf; p < pe; p++) {
-        if (*p == '\r' && pe - p > sizeof("\r\nExpect")) {
+        if (*p == '\r' && (size_t)(pe - p) > sizeof("\r\nExpect")) {
             p += 2;
             if (SW_STRCASECT(p, pe - p, "Expect: ")) {
                 p += sizeof("Expect: ") - 1;
@@ -782,7 +780,7 @@ ssize_t get_package_length(const Protocol *protocol, Socket *socket, PacketLengt
 uint8_t get_package_length_size(Socket *socket) {
     Connection *conn = (Connection *) socket->object;
     if (conn->websocket_status >= websocket::STATUS_HANDSHAKE) {
-        return SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_MASK_LEN + sizeof(uint64_t);
+        return SW_WEBSOCKET_MESSAGE_HEADER_SIZE;
     } else if (conn->http2_stream) {
         return SW_HTTP2_FRAME_HEADER_SIZE;
     } else {

@@ -39,7 +39,7 @@
 #include "thirdparty/nghttp2/nghttp2.h"
 #endif
 
-enum http_header_flag {
+enum swHttpHeaderFlag {
     HTTP_HEADER_SERVER = 1u << 1,
     HTTP_HEADER_CONNECTION = 1u << 2,
     HTTP_HEADER_CONTENT_LENGTH = 1u << 3,
@@ -47,9 +47,10 @@ enum http_header_flag {
     HTTP_HEADER_CONTENT_TYPE = 1u << 5,
     HTTP_HEADER_TRANSFER_ENCODING = 1u << 6,
     HTTP_HEADER_ACCEPT_ENCODING = 1u << 7,
+    HTTP_HEADER_CONTENT_ENCODING = 1u << 8,
 };
 
-enum http_compress_method {
+enum swHttpCompressMethod {
     HTTP_COMPRESS_NONE,
     HTTP_COMPRESS_GZIP,
     HTTP_COMPRESS_DEFLATE,
@@ -249,6 +250,10 @@ class Session {
 
     http2::Settings local_settings = {};
     http2::Settings remote_settings = {};
+
+    // flow control
+    uint32_t remote_window_size;
+    uint32_t local_window_size;
 
     uint32_t last_stream_id;
     bool shutting_down;

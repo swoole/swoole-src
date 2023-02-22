@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
  */
 
-/* $Id: 5a6baee052afc12b2affa070eed0339b1a007a42 */
+/* $Id: 1beb33c9d754aa391ec1da613ca41755aafcad1f */
 
 static const char* swoole_library_source_constants =
     "\n"
@@ -166,6 +166,18 @@ static const char* swoole_library_source_core_constant =
     "    public const OPTION_SOCKET_BUFFER_SIZE = 'socket_buffer_size';\n"
     "\n"
     "    public const OPTION_SOCKET_TIMEOUT = 'socket_timeout';\n"
+    "\n"
+    "    public const OPTION_HTTP2_HEADER_TABLE_SIZE = 'http2_header_table_size';\n"
+    "\n"
+    "    public const OPTION_HTTP2_ENABLE_PUSH = 'http2_enable_push';\n"
+    "\n"
+    "    public const OPTION_HTTP2_MAX_CONCURRENT_STREAMS = 'http2_max_concurrent_streams';\n"
+    "\n"
+    "    public const OPTION_HTTP2_INIT_WINDOW_SIZE = 'http2_init_window_size';\n"
+    "\n"
+    "    public const OPTION_HTTP2_MAX_FRAME_SIZE = 'http2_max_frame_size';\n"
+    "\n"
+    "    public const OPTION_HTTP2_MAX_HEADER_LIST_SIZE = 'http2_max_header_list_size';\n"
     "\n"
     "    public const OPTION_AIO_CORE_WORKER_NUM = 'aio_core_worker_num';\n"
     "\n"

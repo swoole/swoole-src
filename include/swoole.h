@@ -308,6 +308,25 @@ static inline const char *swoole_strnstr(const char *haystack,
     return NULL;
 }
 
+static inline const char *swoole_strncasestr(const char *haystack,
+                                         uint32_t haystack_length,
+                                         const char *needle,
+                                         uint32_t needle_length) {
+    assert(needle_length > 0);
+    uint32_t i;
+
+    if (sw_likely(needle_length <= haystack_length)) {
+        for (i = 0; i < haystack_length - needle_length + 1; i++) {
+            if ((haystack[0] == needle[0]) && (0 == strncasecmp(haystack, needle, needle_length))) {
+                return haystack;
+            }
+            haystack++;
+        }
+    }
+
+    return NULL;
+}
+
 static inline ssize_t swoole_strnpos(const char *haystack,
                                      uint32_t haystack_length,
                                      const char *needle,
@@ -427,6 +446,12 @@ enum swForkType {
     SW_FORK_EXEC = 1 << 1,
     SW_FORK_DAEMON = 1 << 2,
     SW_FORK_PRECHECK = 1 << 3,
+};
+
+enum swTraverseOperation {
+    SW_TRAVERSE_KEEP = 0,
+    SW_TRAVERSE_REMOVE = 1,
+    SW_TRAVERSE_STOP = 2,
 };
 
 //-------------------------------------------------------------------------------
@@ -720,16 +745,22 @@ static inline int swoole_get_process_id() {
     return SwooleG.process_id;
 }
 
+static inline uint32_t swoole_pagesize() {
+    return SwooleG.pagesize;
+}
+
 SW_API const char *swoole_strerror(int code);
 SW_API void swoole_throw_error(int code);
 SW_API void swoole_ignore_error(int code);
 SW_API bool swoole_is_ignored_error(int code);
 SW_API void swoole_set_log_level(int level);
+SW_API void swoole_set_log_file(const char *file);
 SW_API void swoole_set_trace_flags(int flags);
 SW_API void swoole_set_dns_server(const std::string &server);
 SW_API void swoole_set_hosts_path(const std::string &hosts_file);
 SW_API std::pair<std::string, int> swoole_get_dns_server();
 SW_API bool swoole_load_resolv_conf();
+SW_API int swoole_get_log_level();
 
 //-----------------------------------------------
 static sw_inline void sw_spinlock(sw_atomic_t *lock) {

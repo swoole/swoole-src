@@ -140,7 +140,7 @@ static void event_object_free(void *data) {
     efree(peo);
 }
 
-static int event_readable_callback(Reactor *reactor, swEvent *event) {
+static int event_readable_callback(Reactor *reactor, Event *event) {
     EventObject *peo = (EventObject *) event->socket->object;
 
     zval argv[1];
@@ -180,7 +180,7 @@ static int event_writable_callback(Reactor *reactor, Event *event) {
     return SW_OK;
 }
 
-static int event_error_callback(Reactor *reactor, swEvent *event) {
+static int event_error_callback(Reactor *reactor, Event *event) {
     if (!(event->socket->events & SW_EVENT_ERROR)) {
         if (event->socket->events & SW_EVENT_READ) {
             return reactor->get_handler(SW_EVENT_READ, event->socket->fd_type)(reactor, event);
@@ -738,7 +738,7 @@ static PHP_FUNCTION(swoole_event_wait) {
 static PHP_FUNCTION(swoole_event_rshutdown) {
     /* prevent the program from jumping out of the rshutdown */
     zend_try {
-        if (!sw_reactor()) {
+        if (php_swoole_is_fatal_error() || !sw_reactor()) {
             return;
         }
         // when throw Exception, do not show the info
@@ -765,7 +765,6 @@ static PHP_FUNCTION(swoole_event_dispatch) {
     if (sw_reactor()->wait(nullptr) < 0) {
         php_swoole_sys_error(E_ERROR, "reactor wait failed");
     }
-
     sw_reactor()->once = false;
     RETURN_TRUE;
 }

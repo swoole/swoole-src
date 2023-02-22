@@ -62,6 +62,7 @@ extern PHPAPI int php_array_merge(zend_array *dest, zend_array *src);
     } else {                                                                                                           \
         RETURN_TRUE;                                                                                                   \
     }
+
 #define SW_LOCK_CHECK_RETURN(s)                                                                                        \
     zend_long ___tmp_return_value = s;                                                                                 \
     if (___tmp_return_value == 0) {                                                                                    \
@@ -458,6 +459,12 @@ static sw_inline zend_bool ZVAL_IS_TRUE(zval *v) {
 }
 #endif
 
+#ifndef ZVAL_IS_UNDEF
+static sw_inline zend_bool ZVAL_IS_UNDEF(zval *v) {
+    return Z_TYPE_P(v) == IS_UNDEF;
+}
+#endif
+
 #ifndef ZVAL_IS_FALSE
 static sw_inline zend_bool ZVAL_IS_FALSE(zval *v) {
     return Z_TYPE_P(v) == IS_FALSE;
@@ -543,7 +550,7 @@ static sw_inline void sw_zval_free(zval *val) {
 static sw_inline zend_string *sw_zend_string_recycle(zend_string *s, size_t alloc_len, size_t real_len) {
     SW_ASSERT(!ZSTR_IS_INTERNED(s));
     if (UNEXPECTED(alloc_len != real_len)) {
-        if (alloc_len > SwooleG.pagesize && alloc_len > real_len * 2) {
+        if (alloc_len > swoole_pagesize() && alloc_len > real_len * 2) {
             s = zend_string_realloc(s, real_len, 0);
         } else {
             ZSTR_LEN(s) = real_len;
@@ -799,7 +806,7 @@ static sw_inline void sw_zend_class_unset_property_deny(zend_object *object, zen
 }
 #endif
 
-static sw_inline zval *sw_zend_read_property(zend_class_entry *ce, zval *obj, const char *s, int len, int silent) {
+static sw_inline zval *sw_zend_read_property(zend_class_entry *ce, zval *obj, const char *s, size_t len, int silent) {
     zval rv, *property = zend_read_property(ce, SW_Z8_OBJ_P(obj), s, len, silent, &rv);
     if (UNEXPECTED(property == &EG(uninitialized_zval))) {
         zend_update_property_null(ce, SW_Z8_OBJ_P(obj), s, len);
@@ -825,7 +832,7 @@ static sw_inline zval *sw_zend_read_property_ex(zend_class_entry *ce, zval *obj,
 }
 
 static sw_inline zval *sw_zend_read_property_not_null(
-    zend_class_entry *ce, zval *obj, const char *s, int len, int silent) {
+    zend_class_entry *ce, zval *obj, const char *s, size_t len, int silent) {
     zval rv, *property = zend_read_property(ce, SW_Z8_OBJ_P(obj), s, len, silent, &rv);
     zend_uchar type = Z_TYPE_P(property);
     return (type == IS_NULL || UNEXPECTED(type == IS_UNDEF)) ? NULL : property;
@@ -837,7 +844,7 @@ static sw_inline zval *sw_zend_read_property_not_null_ex(zend_class_entry *ce, z
     return (type == IS_NULL || UNEXPECTED(type == IS_UNDEF)) ? NULL : property;
 }
 
-static sw_inline zval *sw_zend_update_and_read_property_array(zend_class_entry *ce, zval *obj, const char *s, int len) {
+static sw_inline zval *sw_zend_update_and_read_property_array(zend_class_entry *ce, zval *obj, const char *s, size_t len) {
     zval ztmp;
     array_init(&ztmp);
     zend_update_property(ce, SW_Z8_OBJ_P(obj), s, len, &ztmp);
@@ -846,7 +853,7 @@ static sw_inline zval *sw_zend_update_and_read_property_array(zend_class_entry *
 }
 
 static sw_inline zval *sw_zend_read_and_convert_property_array(
-    zend_class_entry *ce, zval *obj, const char *s, int len, int silent) {
+    zend_class_entry *ce, zval *obj, const char *s, size_t len, int silent) {
     zval rv, *property = zend_read_property(ce, SW_Z8_OBJ_P(obj), s, len, silent, &rv);
     if (Z_TYPE_P(property) != IS_ARRAY) {
         // NOTICE: if user unset the property, zend_read_property will return uninitialized_zval instead of NULL pointer
@@ -1066,7 +1073,7 @@ static sw_inline char *php_swoole_format_date(char *format, size_t format_len, t
     return return_str;
 }
 
-static sw_inline char *php_swoole_url_encode(const char *value, size_t value_len, int *exten) {
+static sw_inline char *php_swoole_url_encode(const char *value, size_t value_len, size_t *exten) {
     zend_string *str = php_url_encode(value, value_len);
     *exten = ZSTR_LEN(str);
     char *return_str = estrndup(ZSTR_VAL(str), ZSTR_LEN(str));
@@ -1094,6 +1101,22 @@ static sw_inline char *php_swoole_http_build_query(zval *zdata, size_t *length, 
     smart_str_0(formstr);
     *length = formstr->s->len;
     return formstr->s->val;
+}
+
+static inline const char *php_swoole_get_last_error_message() {
+#if PHP_VERSION_ID >= 80000
+    return PG(last_error_message) ? PG(last_error_message)->val : nullptr;
+#else
+    return PG(last_error_message);
+#endif
+}
+
+static inline const char *php_swoole_get_last_error_file() {
+#if PHP_VERSION_ID >= 80100
+    return PG(last_error_file) ? PG(last_error_file)->val : "-";
+#else
+    return PG(last_error_file) ? PG(last_error_file) : "-";
+#endif
 }
 
 END_EXTERN_C()

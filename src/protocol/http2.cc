@@ -19,6 +19,7 @@
 #include "swoole.h"
 #include "swoole_socket.h"
 #include "swoole_http2.h"
+#include "swoole_protocol.h"
 
 using swoole::PacketLength;
 using swoole::Protocol;
@@ -27,33 +28,103 @@ using swoole::network::Socket;
 namespace swoole {
 namespace http2 {
 
-int send_setting_frame(Protocol *protocol, Socket *_socket) {
-    char setting_frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_SETTING_OPTION_SIZE * 3];
-    char *p = setting_frame;
+static Settings default_settings = {
+    SW_HTTP2_DEFAULT_HEADER_TABLE_SIZE,
+    SW_HTTP2_DEFAULT_ENABLE_PUSH,
+    SW_HTTP2_DEFAULT_MAX_CONCURRENT_STREAMS,
+    SW_HTTP2_DEFAULT_INIT_WINDOW_SIZE,
+    SW_HTTP2_DEFAULT_MAX_FRAME_SIZE,
+    SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE,
+};
+
+void put_default_setting(enum swHttp2SettingId id, uint32_t value) {
+    switch (id) {
+    case SW_HTTP2_SETTING_HEADER_TABLE_SIZE:
+        default_settings.header_table_size = value;
+        break;
+    case SW_HTTP2_SETTINGS_ENABLE_PUSH:
+        default_settings.enable_push = value;
+        break;
+    case SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS:
+        default_settings.max_concurrent_streams = value;
+        break;
+    case SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE:
+        default_settings.init_window_size = value;
+        break;
+    case SW_HTTP2_SETTINGS_MAX_FRAME_SIZE:
+        default_settings.max_frame_size = value;
+        break;
+    case SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE:
+        default_settings.max_header_list_size = value;
+        break;
+    default:
+        assert(0);
+        break;
+    }
+}
+
+uint32_t get_default_setting(enum swHttp2SettingId id) {
+    switch (id) {
+    case SW_HTTP2_SETTING_HEADER_TABLE_SIZE:
+        return default_settings.header_table_size;
+    case SW_HTTP2_SETTINGS_ENABLE_PUSH:
+        return default_settings.enable_push;
+    case SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS:
+        return default_settings.max_concurrent_streams;
+    case SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE:
+        return default_settings.init_window_size;
+    case SW_HTTP2_SETTINGS_MAX_FRAME_SIZE:
+        return default_settings.max_frame_size;
+    case SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE:
+        return default_settings.max_header_list_size;
+    default:
+        assert(0);
+        return 0;
+    }
+}
+
+static inline void pack_setting_item(char *_buf, enum swHttp2SettingId _id, uint32_t _value) {
     uint16_t id;
     uint32_t value;
+    id = htons(_id);
+    memcpy(_buf, &id, sizeof(id));
+    value = htonl(_value);
+    memcpy(_buf + 2, &value, sizeof(value));
+}
 
-    set_frame_header(p, SW_HTTP2_TYPE_SETTINGS, SW_HTTP2_SETTING_OPTION_SIZE * 3, 0, 0);
+size_t pack_setting_frame(char *buf, const Settings &settings, bool server_side) {
+    char *p = buf;
+    size_t size = SW_HTTP2_SETTING_OPTION_SIZE * (server_side ? 5 : 6);
+    set_frame_header(p, SW_HTTP2_TYPE_SETTINGS, size, 0, 0);
     p += SW_HTTP2_FRAME_HEADER_SIZE;
 
-    id = htons(SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS);
-    memcpy(p, &id, sizeof(id));
-    value = htonl(SW_HTTP2_MAX_MAX_CONCURRENT_STREAMS);
-    memcpy(p + 2, &value, sizeof(value));
+    pack_setting_item(p, SW_HTTP2_SETTING_HEADER_TABLE_SIZE, settings.header_table_size);
     p += SW_HTTP2_SETTING_OPTION_SIZE;
 
-    id = htons(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE);
-    memcpy(p, &id, sizeof(id));
-    value = htonl(SW_HTTP2_DEFAULT_WINDOW_SIZE);
-    memcpy(p + 2, &value, sizeof(value));
+    if (!server_side) {
+        pack_setting_item(p, SW_HTTP2_SETTINGS_ENABLE_PUSH, settings.enable_push);
+        p += SW_HTTP2_SETTING_OPTION_SIZE;
+    }
+
+    pack_setting_item(p, SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS, settings.max_concurrent_streams);
     p += SW_HTTP2_SETTING_OPTION_SIZE;
 
-    id = htons(SW_HTTP2_SETTINGS_MAX_FRAME_SIZE);
-    memcpy(p, &id, sizeof(id));
-    value = htonl(SW_HTTP2_MAX_MAX_FRAME_SIZE);
-    memcpy(p + 2, &value, sizeof(value));
+    pack_setting_item(p, SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE, settings.init_window_size);
+    p += SW_HTTP2_SETTING_OPTION_SIZE;
 
-    return _socket->send(setting_frame, sizeof(setting_frame), 0);
+    pack_setting_item(p, SW_HTTP2_SETTINGS_MAX_FRAME_SIZE, settings.max_frame_size);
+    p += SW_HTTP2_SETTING_OPTION_SIZE;
+
+    pack_setting_item(p, SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE, settings.max_header_list_size);
+    p += SW_HTTP2_SETTING_OPTION_SIZE;
+
+    return p - buf;
+}
+
+int send_setting_frame(Protocol *protocol, Socket *_socket) {
+    char setting_frame[SW_HTTP2_SETTING_FRAME_SIZE];
+    size_t n = pack_setting_frame(setting_frame, default_settings, true);
+    return _socket->send(setting_frame, n, 0);
 }
 
 /**

@@ -22,19 +22,20 @@
 #define SW_HTTP2_PRI_STRING "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
 
 enum swHttp2ErrorCode {
-    SW_HTTP2_ERROR_NO_ERROR = 0,
-    SW_HTTP2_ERROR_PROTOCOL_ERROR = 1,
-    SW_HTTP2_ERROR_INTERNAL_ERROR = 2,
-    SW_HTTP2_ERROR_FLOW_CONTROL_ERROR = 3,
-    SW_HTTP2_ERROR_SETTINGS_TIMEOUT = 4,
-    SW_HTTP2_ERROR_STREAM_CLOSED = 5,
-    SW_HTTP2_ERROR_FRAME_SIZE_ERROR = 6,
-    SW_HTTP2_ERROR_REFUSED_STREAM = 7,
-    SW_HTTP2_ERROR_CANCEL = 8,
-    SW_HTTP2_ERROR_COMPRESSION_ERROR = 9,
-    SW_HTTP2_ERROR_CONNECT_ERROR = 10,
-    SW_HTTP2_ERROR_ENHANCE_YOUR_CALM = 11,
-    SW_HTTP2_ERROR_INADEQUATE_SECURITY = 12,
+    SW_HTTP2_ERROR_NO_ERROR = 0x0,
+    SW_HTTP2_ERROR_PROTOCOL_ERROR = 0x1,
+    SW_HTTP2_ERROR_INTERNAL_ERROR = 0x2,
+    SW_HTTP2_ERROR_FLOW_CONTROL_ERROR = 0x3,
+    SW_HTTP2_ERROR_SETTINGS_TIMEOUT = 0x4,
+    SW_HTTP2_ERROR_STREAM_CLOSED = 0x5,
+    SW_HTTP2_ERROR_FRAME_SIZE_ERROR = 0x6,
+    SW_HTTP2_ERROR_REFUSED_STREAM = 0x7,
+    SW_HTTP2_ERROR_CANCEL = 0x8,
+    SW_HTTP2_ERROR_COMPRESSION_ERROR = 0x9,
+    SW_HTTP2_ERROR_CONNECT_ERROR = 0xa,
+    SW_HTTP2_ERROR_ENHANCE_YOUR_CALM = 0xb,
+    SW_HTTP2_ERROR_INADEQUATE_SECURITY = 0xc,
+    SW_HTTP2_ERROR_HTTP_1_1_REQUIRED = 0xd,
 };
 
 enum swHttp2FrameType {
@@ -78,6 +79,7 @@ enum swHttp2StreamFlag {
 
 #define SW_HTTP2_FRAME_HEADER_SIZE 9
 #define SW_HTTP2_SETTING_OPTION_SIZE 6
+#define SW_HTTP2_SETTING_FRAME_SIZE (SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_SETTING_OPTION_SIZE * 6)
 #define SW_HTTP2_FRAME_PING_PAYLOAD_SIZE 8
 
 #define SW_HTTP2_RST_STREAM_SIZE 4
@@ -105,8 +107,9 @@ namespace http2 {
 
 struct Settings {
     uint32_t header_table_size;
-    uint32_t window_size;
+    uint32_t enable_push;
     uint32_t max_concurrent_streams;
+    uint32_t init_window_size;
     uint32_t max_frame_size;
     uint32_t max_header_list_size;
 };
@@ -135,17 +138,21 @@ static sw_inline ssize_t get_length(const char *buf) {
     return (((uint8_t) buf[0]) << 16) + (((uint8_t) buf[1]) << 8) + (uint8_t) buf[2];
 }
 
+void put_default_setting(enum swHttp2SettingId id, uint32_t value);
+uint32_t get_default_setting(enum swHttp2SettingId id);
+size_t pack_setting_frame(char *buf, const Settings &settings, bool server_side);
 ssize_t get_frame_length(const Protocol *protocol, network::Socket *conn, PacketLength *pl);
 int send_setting_frame(Protocol *protocol, network::Socket *conn);
 const char *get_type(int type);
 int get_type_color(int type);
 
 static sw_inline void init_settings(Settings *settings) {
-    settings->header_table_size = SW_HTTP2_DEFAULT_HEADER_TABLE_SIZE;
-    settings->window_size = SW_HTTP2_DEFAULT_WINDOW_SIZE;
-    settings->max_concurrent_streams = SW_HTTP2_MAX_MAX_CONCURRENT_STREAMS;
-    settings->max_frame_size = SW_HTTP2_MAX_MAX_FRAME_SIZE;
-    settings->max_header_list_size = SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE;
+    settings->header_table_size = get_default_setting(SW_HTTP2_SETTING_HEADER_TABLE_SIZE);
+    settings->enable_push = get_default_setting(SW_HTTP2_SETTINGS_ENABLE_PUSH);
+    settings->max_concurrent_streams = get_default_setting(SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS);
+    settings->init_window_size = get_default_setting(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE);
+    settings->max_frame_size = get_default_setting(SW_HTTP2_SETTINGS_MAX_FRAME_SIZE);
+    settings->max_header_list_size = get_default_setting(SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE);
 }
 
 static inline const std::string get_flag_string(int __flags) {

@@ -62,7 +62,6 @@ ssize_t Protocol::default_length_func(const Protocol *protocol, network::Socket 
 
 int Protocol::recv_split_by_eof(network::Socket *socket, String *buffer) {
     RecvData rdata{};
-    int retval;
 
     if (buffer->length < package_eof_len) {
         return SW_CONTINUE;
@@ -72,7 +71,6 @@ int Protocol::recv_split_by_eof(network::Socket *socket, String *buffer) {
         rdata.info.len = length;
         rdata.data = data;
         if (onPackage(this, socket, &rdata) < 0) {
-            retval = SW_CLOSE;
             return false;
         }
         if (socket->removed) {
@@ -81,12 +79,8 @@ int Protocol::recv_split_by_eof(network::Socket *socket, String *buffer) {
         return true;
     });
 
-    if (socket->removed) {
+    if (socket->removed || n < 0) {
         return SW_CLOSE;
-    }
-
-    if (n < 0) {
-        return retval;
     } else if (n == 0) {
         return SW_CONTINUE;
     } else if (n < (ssize_t) buffer->length) {
@@ -185,6 +179,8 @@ _do_recv:
         _do_get_length:
             pl.buf = buffer->str;
             pl.buf_size = buffer->length;
+            // TODO: support dynamic calculation of header buffer length (recv_size)
+            pl.header_len = 0;
             package_length = get_package_length(this, socket, &pl);
             // invalid package, close connection.
             if (package_length < 0) {
@@ -198,10 +194,10 @@ _do_recv:
             }
             // no length
             else if (package_length == 0) {
-                if (buffer->length == package_length_offset + package_length_size) {
+                if (buffer->length == recv_size) {
                     swoole_error_log(SW_LOG_WARNING,
                                      SW_ERROR_PACKAGE_LENGTH_NOT_FOUND,
-                                     "bad request, no length found in %ld bytes",
+                                     "bad request, no length found in %zu bytes",
                                      buffer->length);
                     return SW_ERR;
                 } else {
@@ -243,7 +239,7 @@ _do_recv:
  */
 int Protocol::recv_with_eof_protocol(network::Socket *socket, String *buffer) {
     bool recv_again = false;
-    int buf_size;
+    size_t buf_size;
     RecvData rdata{};
 
 _recv_data:
@@ -254,7 +250,7 @@ _recv_data:
         buf_size = SW_BUFFER_SIZE_STD;
     }
 
-    int n = socket->recv(buf_ptr, buf_size, 0);
+    ssize_t n = socket->recv(buf_ptr, buf_size, 0);
     if (n < 0) {
         switch (socket->catch_read_error(errno)) {
         case SW_ERROR:
@@ -312,7 +308,7 @@ _recv_data:
         if (buffer->length == buffer->size) {
             recv_again = true;
             if (buffer->size < package_max_length) {
-                uint32_t extend_size = swoole_size_align(buffer->size * 2, SwooleG.pagesize);
+                uint32_t extend_size = swoole_size_align(buffer->size * 2, swoole_pagesize());
                 if (extend_size > package_max_length) {
                     extend_size = package_max_length;
                 }

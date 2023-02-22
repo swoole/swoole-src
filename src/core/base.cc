@@ -41,6 +41,7 @@
 #include "swoole_async.h"
 #include "swoole_c_api.h"
 #include "swoole_coroutine_c_api.h"
+#include "swoole_coroutine_system.h"
 #include "swoole_ssl.h"
 
 #if defined(__APPLE__) && defined(HAVE_CCRANDOMGENERATEBYTES)
@@ -54,6 +55,7 @@
 #endif
 
 using swoole::String;
+using swoole::coroutine::System;
 
 #ifdef HAVE_GETRANDOM
 #include <sys/random.h>
@@ -288,6 +290,20 @@ void swoole_clean(void) {
 SW_API void swoole_set_log_level(int level) {
     if (sw_logger()) {
         sw_logger()->set_level(level);
+    }
+}
+
+SW_API int swoole_get_log_level() {
+    if (sw_logger()) {
+        return sw_logger()->get_level();
+    } else {
+        return SW_LOG_NONE;
+    }
+}
+
+SW_API void swoole_set_log_file(const char *file) {
+    if (sw_logger()) {
+        sw_logger()->open(file);
     }
 }
 
@@ -539,7 +555,7 @@ ulong_t swoole_hex2dec(const char *hex, size_t *parsed_bytes) {
 #endif
 
 int swoole_rand(int min, int max) {
-    static int _seed = 0;
+    static time_t _seed = 0;
     assert(max > min);
 
     if (_seed == 0) {
@@ -879,7 +895,7 @@ size_t DataHead::dump(char *_buf, size_t _len) {
                        "DataHead[%p]\n"
                        "{\n"
                        "    long fd = %ld;\n"
-                       "    uint64_t msg_id = %lu;\n"
+                       "    uint64_t msg_id = %" PRIu64 ";\n"
                        "    uint32_t len = %d;\n"
                        "    int16_t reactor_id = %d;\n"
                        "    uint8_t type = %d;\n"

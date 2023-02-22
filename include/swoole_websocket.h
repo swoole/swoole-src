@@ -29,6 +29,7 @@
 #define SW_WEBSOCKET_CLOSE_CODE_LEN 2
 #define SW_WEBSOCKET_CLOSE_REASON_MAX_LEN 125
 #define SW_WEBSOCKET_OPCODE_MAX swoole::websocket::OPCODE_PONG
+#define SW_WEBSOCKET_MESSAGE_HEADER_SIZE (SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_MASK_LEN + sizeof(uint64_t))
 
 namespace swoole {
 namespace websocket {

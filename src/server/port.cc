@@ -53,8 +53,7 @@ bool ListenPort::ssl_add_sni_cert(const std::string &name, SSLContext *ctx) {
     return true;
 }
 
-static bool ssl_matches_wildcard_name(const char *subjectname, const char *certname) /* {{{ */
-{
+static bool ssl_matches_wildcard_name(const char *subjectname, const char *certname) {
     const char *wildcard = NULL;
     ptrdiff_t prefix_len;
     size_t suffix_len, subject_len;
@@ -244,7 +243,7 @@ void Server::init_port_protocol(ListenPort *ls) {
         } else
 #endif
             if (ls->open_websocket_protocol) {
-            ls->protocol.package_length_size = SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_MASK_LEN + sizeof(uint64_t);
+            ls->protocol.package_length_size = SW_WEBSOCKET_MESSAGE_HEADER_SIZE;
             ls->protocol.get_package_length = websocket::get_package_length;
             ls->protocol.onPackage = websocket::dispatch_frame;
         }
@@ -522,7 +521,7 @@ _parse:
     if (!request->header_parsed) {
         request->parse_header_info();
         swoole_trace_log(SW_TRACE_SERVER,
-                         "content-length=%u, keep-alive=%u, chunked=%u",
+                         "content-length=%" PRIu64 ", keep-alive=%u, chunked=%u",
                          request->content_length_,
                          request->keep_alive,
                          request->chunked);
@@ -546,7 +545,9 @@ _parse:
                 // dynamic request, dispatch to worker
                 dispatch_data.info.len = request->header_length_;
                 dispatch_data.data = buffer->str;
-                Server::dispatch_task(protocol, _socket, &dispatch_data);
+                if (Server::dispatch_task(protocol, _socket, &dispatch_data) < 0) {
+                    goto _close_fd;
+                }
             }
             if (!conn->active || _socket->removed) {
                 return SW_OK;
@@ -595,13 +596,15 @@ _parse:
         } else {
             request_length = request->header_length_ + request->content_length_;
         }
-        swoole_trace_log(SW_TRACE_SERVER, "received chunked eof, real content-length=%u", request->content_length_);
+        swoole_trace_log(
+            SW_TRACE_SERVER, "received chunked eof, real content-length=%" PRIu64, request->content_length_);
     } else {
         request_length = request->header_length_ + request->content_length_;
         if (request_length > protocol->package_max_length) {
             swoole_error_log(SW_LOG_WARNING,
                              SW_ERROR_HTTP_INVALID_PROTOCOL,
-                             "Request Entity Too Large: header-length (%u) + content-length (%u) is greater than the "
+                             "Request Entity Too Large: header-length (%u) + content-length (%" PRIu64
+                             ") is greater than the "
                              "package_max_length(%u)" CLIENT_INFO_FMT,
                              request->header_length_,
                              request->content_length_,
@@ -645,7 +648,10 @@ _parse:
     buffer->offset = request_length;
     dispatch_data.data = buffer->str;
     dispatch_data.info.len = buffer->length;
-    Server::dispatch_task(protocol, _socket, &dispatch_data);
+
+    if (Server::dispatch_task(protocol, _socket, &dispatch_data) < 0) {
+        goto _close_fd;
+    }
 
     if (conn->active && !_socket->removed) {
         serv->destroy_http_request(conn);

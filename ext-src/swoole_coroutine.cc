@@ -218,9 +218,13 @@ static const zend_function_entry swoole_coroutine_methods[] =
 static PHP_METHOD(swoole_exit_exception, getFlags);
 static PHP_METHOD(swoole_exit_exception, getStatus);
 
+// clang-format off
 static const zend_function_entry swoole_exit_exception_methods[] = {
     PHP_ME(swoole_exit_exception, getFlags, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC)
-        PHP_ME(swoole_exit_exception, getStatus, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC) PHP_FE_END};
+    PHP_ME(swoole_exit_exception, getStatus, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC)
+    PHP_FE_END
+};
+// clang-format on
 
 static int coro_exit_handler(zend_execute_data *execute_data) {
     zval ex;
@@ -234,7 +238,7 @@ static int coro_exit_handler(zend_execute_data *execute_data) {
     }
     if (flags) {
         const zend_op *opline = EX(opline);
-        zval _exit_status;
+        zval _exit_status{};
         zval *exit_status = nullptr;
 
         if (opline->op1_type != IS_UNUSED) {
@@ -1297,7 +1301,7 @@ static PHP_METHOD(swoole_coroutine, getBackTrace) {
 
 static PHP_METHOD(swoole_coroutine, printBackTrace) {
     zend_long cid = 0;
-    zend_long options = DEBUG_BACKTRACE_PROVIDE_OBJECT;
+    zend_long options = 0;
     zend_long limit = 0;
 
     ZEND_PARSE_PARAMETERS_START(0, 3)
