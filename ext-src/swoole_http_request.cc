@@ -137,14 +137,14 @@ bool HttpContext::parse_multipart_data(const char *at, size_t length) {
     ssize_t n = multipart_parser_execute(mt_parser, at, length);
     if (n < 0) {
         int l_error = multipart_parser_error_msg(mt_parser, sw_tg_buffer()->str, sw_tg_buffer()->size);
-        swoole_error_log(SW_LOG_WARNING,
+        swoole_error_log(SW_LOG_NOTICE,
                          SW_ERROR_SERVER_INVALID_REQUEST,
                          "parse multipart body failed, reason: %.*s",
                          l_error,
                          sw_tg_buffer()->str);
         return false;
     } else if (n != (ssize_t) length) {
-        swoole_error_log(SW_LOG_WARNING,
+        swoole_error_log(SW_LOG_NOTICE,
                          SW_ERROR_SERVER_INVALID_REQUEST,
                          "parse multipart body failed, %lu/%zu bytes processed",
                          n,
