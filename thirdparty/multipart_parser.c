@@ -199,6 +199,7 @@ ssize_t multipart_parser_execute(multipart_parser *p, const char *buf, size_t le
             p->index = 0;
             p->state = s_start_boundary;
             /* fallthrough */
+            /* no break */
         case s_start_boundary:
             multipart_log_c("s_start_boundary");
             if (p->index == p->boundary_length) {
@@ -226,6 +227,7 @@ ssize_t multipart_parser_execute(multipart_parser *p, const char *buf, size_t le
             mark = i;
             p->state = s_header_field;
             /* fallthrough */
+            /* no break */
         case s_header_field:
             multipart_log_c("s_header_field");
             if (c == CR) {
@@ -268,6 +270,7 @@ ssize_t multipart_parser_execute(multipart_parser *p, const char *buf, size_t le
             mark = i;
             p->state = s_header_value;
             /* fallthrough */
+            /* no break */
         case s_header_value:
             multipart_log_c("s_header_value");
             if (c == CR) {
@@ -291,6 +294,7 @@ ssize_t multipart_parser_execute(multipart_parser *p, const char *buf, size_t le
             p->state = s_part_data;
             NOTIFY_CB(headers_complete, i);
             /* fallthrough */
+            /* no break */
         case s_part_data:
         data_rollback:
             multipart_log_c("s_part_data");
