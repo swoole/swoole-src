@@ -1453,6 +1453,9 @@ int Socket::ssl_create(SSLContext *ssl_context, int _flags) {
 
 using network::Socket;
 
+/**
+ * return nullptr when fail to create socket, read errno to get failure reason
+ */
 Socket *make_socket(SocketType type, FdType fd_type, int flags) {
     int sock_domain;
     int sock_type;

@@ -1768,6 +1768,7 @@ ListenPort *Server::add_port(SocketType type, const char *host, int port) {
     ls->socket = make_socket(
         ls->type, ls->is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER, SW_SOCK_CLOEXEC | SW_SOCK_NONBLOCK);
     if (ls->socket == nullptr) {
+        swoole_set_last_error(errno);
         return nullptr;
     }
 #if defined(SW_SUPPORT_DTLS) && defined(HAVE_KQUEUE)
@@ -1777,6 +1778,7 @@ ListenPort *Server::add_port(SocketType type, const char *host, int port) {
 #endif
 
     if (ls->socket->bind(ls->host, &ls->port) < 0) {
+        swoole_set_last_error(errno);
         ls->socket->free();
         return nullptr;
     }

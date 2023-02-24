@@ -361,7 +361,7 @@ static int multipart_on_data_end(multipart_parser *p) {
 }
 
 static int multipart_on_part_begin(multipart_parser *p) {
-    swoole_trace("on_part_begi\n");
+    swoole_trace("on_part_begin");
     Request *request = (Request *) p->data;
     FormData *form_data = request->form_data_;
     form_data->multipart_buffer_->append(p->multipart_boundary, p->boundary_length);
