@@ -1885,12 +1885,12 @@ static PHP_METHOD(swoole_server, __construct) {
             ListenPort *port = serv->add_port((enum swSocketType) sock_type, host, serv_port);
             if (!port) {
                 zend_throw_exception_ex(swoole_exception_ce,
-                                        errno,
+                                        swoole_get_last_error(),
                                         "failed to listen server port[%s:" ZEND_LONG_FMT "], Error: %s[%d]",
                                         host,
                                         serv_port,
-                                        strerror(errno),
-                                        errno);
+                                        swoole_strerror(swoole_get_last_error()),
+                                        swoole_get_last_error());
                 RETURN_FALSE;
             }
         }
