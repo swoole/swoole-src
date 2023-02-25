@@ -301,7 +301,7 @@ ssize_t multipart_parser_execute(multipart_parser *p, const char *buf, size_t le
             mark_end = i + 1;
             if (c == CR) {
                 if (mark_end - mark - 1 > 0) {
-                    EMIT_DATA_CB(part_data, i, buf + mark, mark_end - mark - 1);
+                    EMIT_DATA_CB(part_data, i + 1, buf + mark, mark_end - mark - 1);
                 }
                 mark = i;
                 p->state = s_part_data_almost_boundary;
