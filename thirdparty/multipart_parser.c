@@ -98,9 +98,9 @@ multipart_parser *multipart_parser_init(const char *boundary,
                                         size_t boundary_length,
                                         const multipart_parser_settings *settings) {
     multipart_parser *p = calloc(sizeof(multipart_parser) + boundary_length + boundary_length + 9 + 4, sizeof(char));
-    memcpy(p->multipart_boundary, "--", 2);
-    memcpy(p->multipart_boundary + 2, boundary, boundary_length);
-    p->multipart_boundary[2 + boundary_length] = 0;
+    memcpy(p->boundary, "--", 2);
+    memcpy(p->boundary + 2, boundary, boundary_length);
+    p->boundary[2 + boundary_length] = 0;
 
     p->boundary_length = boundary_length + 2;
     p->index = 0;
@@ -217,8 +217,8 @@ ssize_t multipart_parser_execute(multipart_parser *p, const char *buf, size_t le
                 NOTIFY_CB(part_data_begin, i + 1);
                 break;
             }
-            if (c != p->multipart_boundary[p->index]) {
-                ERROR_EXPECT(MPPE_BAD_START_BOUNDARY, p->multipart_boundary[p->index]);
+            if (c != p->boundary[p->index]) {
+                ERROR_EXPECT(MPPE_BAD_START_BOUNDARY, p->boundary[p->index]);
             }
             p->index++;
             break;
@@ -325,10 +325,10 @@ ssize_t multipart_parser_execute(multipart_parser *p, const char *buf, size_t le
             }
         case s_part_data_boundary:
             multipart_log_c("s_part_data_boundary");
-            if (p->multipart_boundary[p->index] != c) {
+            if (p->boundary[p->index] != c) {
                 EMIT_DATA_CB(part_data, i + 1, "\r\n", 2);
                 if (p->index > 0) {
-                    EMIT_DATA_CB(part_data, i + 1, p->multipart_boundary, p->index);
+                    EMIT_DATA_CB(part_data, i + 1, p->boundary, p->index);
                 }
                 mark = i;
                 p->state = s_part_data;

@@ -19,11 +19,69 @@
 #include "test_core.h"
 #include "multipart_parser.h"
 
-using namespace std;
+using swoole::String;
+
+struct MppResult {
+    std::string data;
+    bool header_complete;
+    bool body_end;
+};
+
+static int multipart_on_header_field(multipart_parser *p, const char *at, size_t length) {
+    swoole_trace("on_header_field: at=%.*s, length=%lu", (int) length, at, length);
+    return 0;
+}
+
+static int multipart_on_header_value(multipart_parser *p, const char *at, size_t length) {
+    swoole_trace("on_header_value: at=%.*s, length=%lu", (int) length, at, length);
+    return 0;
+}
+
+static int multipart_on_data(multipart_parser *p, const char *at, size_t length) {
+    swoole_trace("on_data: length=%lu", length);
+    auto res = (MppResult *) p->data;
+    res->data.append(at, length);
+    return 0;
+}
+
+static int multipart_on_header_complete(multipart_parser *p) {
+    swoole_trace("on_header_complete");
+    auto res = (MppResult *) p->data;
+    res->header_complete = true;
+    return 0;
+}
+
+static int multipart_on_data_end(multipart_parser *p) {
+    swoole_trace("on_data_end");
+    return 0;
+}
+
+static int multipart_on_part_begin(multipart_parser *p) {
+    swoole_trace("on_part_begin");
+    return 0;
+}
+
+static int multipart_on_body_end(multipart_parser *p) {
+    swoole_trace("on_body_end");
+    auto res = (MppResult *) p->data;
+    res->body_end = true;
+    return 0;
+}
+
+static multipart_parser_settings _settings{
+    multipart_on_header_field,
+    multipart_on_header_value,
+    multipart_on_data,
+    multipart_on_part_begin,
+    multipart_on_header_complete,
+    multipart_on_data_end,
+    multipart_on_body_end,
+};
+
+static const std::string boundary = "--WebKitFormBoundaryeGOz80A8JnaO6kuw";
 
 static multipart_parser *create_parser() {
-    multipart_parser *parser = new multipart_parser();
-    return parser;
+    return multipart_parser_init(boundary.c_str(), boundary.length(), &_settings);
 }
 
 static void create_error(multipart_parser *parser, multipart_error error_reason, const char *error) {
@@ -35,14 +93,14 @@ static void create_error(multipart_parser *parser, multipart_error error_reason,
     ASSERT_GT(result_len, 0);
     buf[result_len] = '\0';
 
-    string response = string(buf, result_len);
-    ASSERT_TRUE(response.find(error) != string::npos);
+    std::string response(buf, result_len);
+    ASSERT_TRUE(response.find(error) != response.npos);
 }
 
 TEST(multipart_parser, error_message) {
     size_t length = 1024;
     char buf[length];
-    multipart_parser *parser = create_parser();
+    auto parser = create_parser();
 
     parser->error_reason = MPPE_OK;
     ASSERT_EQ(multipart_parser_error_msg(parser, buf, length), 0);
@@ -82,6 +140,68 @@ TEST(multipart_parser, error_message) {
     create_error(parser, MPPE_INVALID_HEADER_VALUE_CHAR, "invalid char in header value: ");
     create_error(parser, MPPE_BAD_PART_END, "no next part or final hyphen: expecting CR or '-' ");
     create_error(parser, MPPE_END_BOUNDARY_NO_DASH, "bad final hyphen: ");
+}
 
-    delete parser;
+TEST(multipart_parser, data) {
+    auto parser = create_parser();
+    ssize_t ret;
+
+    // header party
+    String header(1024);
+    header.append("--");
+    header.append(boundary);
+    header.append("\r\n");
+    header.append("Content-Disposition: form-data; name=\"test\"\r\n\r\n");
+    MppResult result;
+    parser->data = &result;
+    ret = multipart_parser_execute(parser, header.value(), header.get_length());
+    ASSERT_EQ(ret, header.length);
+
+    std::string boundary_str(parser->boundary, parser->boundary_length);
+
+    // data part
+    String data(128);
+    data.append_random_bytes(swoole_rand(60, 120), true);
+    data.append("\r");
+    data.append_random_bytes(swoole_rand(60, 120), true);
+    data.append("\r\n");
+    data.append_random_bytes(swoole_rand(60, 120), true);
+    data.append("\r\n");
+    data.append(boundary_str.substr(0, swoole_rand(1, parser->boundary_length - 2)));
+    data.append_random_bytes(swoole_rand(60, 120), true);
+    ASSERT_EQ(multipart_parser_execute(parser, data.value(), data.get_length()), data.get_length());
+
+    auto append_data = [&]() {
+        size_t offset = data.length;
+        data.append_random_bytes(swoole_rand(60, 120), true);
+        size_t len = data.length - offset;
+        ASSERT_EQ(multipart_parser_execute(parser, data.value() + offset, len), len);
+    };
+
+    append_data();
+    data.append("\r");
+    ASSERT_EQ(multipart_parser_execute(parser, SW_STRL("\r")), 1);
+
+    append_data();
+
+    data.append("\r\n");
+    ASSERT_EQ(multipart_parser_execute(parser, SW_STRL("\r\n")), 2);
+
+    append_data();
+
+    {
+        size_t offset = data.length;
+        data.append(boundary_str.substr(0, swoole_rand(1, parser->boundary_length - 2)));
+        size_t len = data.length - offset;
+        ASSERT_EQ(multipart_parser_execute(parser, data.value() + offset, len), len);
+    }
+
+    ASSERT_EQ(multipart_parser_execute(parser, SW_STRL("\r\n")), 2);
+    ASSERT_EQ(multipart_parser_execute(parser, boundary_str.c_str(), boundary_str.length()), boundary_str.length());
+    ASSERT_EQ(multipart_parser_execute(parser, "--\r\n\r\n", 6), 6);
+
+    ASSERT_MEMEQ(data.value(), result.data.c_str(), result.data.length());
+
+    ASSERT_TRUE(result.header_complete);
+    ASSERT_TRUE(result.body_end);
 }

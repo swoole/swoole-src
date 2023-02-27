@@ -55,7 +55,7 @@ struct multipart_parser {
     /* public error reason */
     unsigned char error_reason;
     /* private boundary storage: "--" + boundary */
-    char multipart_boundary[(2 + BOUNDARY_MAX_LEN) * 2 + 9];
+    char boundary[(2 + BOUNDARY_MAX_LEN) * 2 + 9];
     /* public error expected char */
     char error_expected;
     /* public error unexpected char */

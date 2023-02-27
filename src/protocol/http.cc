@@ -364,7 +364,7 @@ static int multipart_on_part_begin(multipart_parser *p) {
     swoole_trace("on_part_begin");
     Request *request = (Request *) p->data;
     FormData *form_data = request->form_data_;
-    form_data->multipart_buffer_->append(p->multipart_boundary, p->boundary_length);
+    form_data->multipart_buffer_->append(p->boundary, p->boundary_length);
     form_data->multipart_buffer_->append(SW_STRL("\r\n"));
     return 0;
 }
@@ -372,7 +372,7 @@ static int multipart_on_part_begin(multipart_parser *p) {
 static int multipart_on_body_end(multipart_parser *p) {
     Request *request = (Request *) p->data;
     FormData *form_data = request->form_data_;
-    form_data->multipart_buffer_->append(p->multipart_boundary, p->boundary_length);
+    form_data->multipart_buffer_->append(p->boundary, p->boundary_length);
     form_data->multipart_buffer_->append(SW_STRL("--"));
 
     request->content_length_ = form_data->multipart_buffer_->length - request->header_length_;
