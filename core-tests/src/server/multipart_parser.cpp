@@ -19,21 +19,25 @@
 #include "test_core.h"
 #include "multipart_parser.h"
 
-using swoole::String;
-
 struct MppResult {
     std::string data;
+    std::string header_field;
+    std::string header_value;
     bool header_complete;
     bool body_end;
 };
 
 static int multipart_on_header_field(multipart_parser *p, const char *at, size_t length) {
     swoole_trace("on_header_field: at=%.*s, length=%lu", (int) length, at, length);
+    auto res = (MppResult *) p->data;
+    res->header_field = std::string(at, length);
     return 0;
 }
 
 static int multipart_on_header_value(multipart_parser *p, const char *at, size_t length) {
     swoole_trace("on_header_value: at=%.*s, length=%lu", (int) length, at, length);
+    auto res = (MppResult *) p->data;
+    res->header_value = std::string(at, length);
     return 0;
 }
 
@@ -142,12 +146,56 @@ TEST(multipart_parser, error_message) {
     create_error(parser, MPPE_END_BOUNDARY_NO_DASH, "bad final hyphen: ");
 }
 
+TEST(multipart_parser, header_field) {
+    auto parser = create_parser();
+    ssize_t ret;
+
+    // header party
+    swoole::String header(1024);
+    header.append("--");
+    header.append(boundary);
+    header.append("\r\n");
+    header.append("Content-Disposition: form-data; name=\"test\"\r\n\r\n");
+    MppResult result;
+    parser->data = &result;
+
+    ret = multipart_parser_execute(parser, header.value(), header.get_length());
+    ASSERT_EQ(ret, header.length);
+
+    ASSERT_STREQ(result.header_field.c_str(), "Content-Disposition");
+    ASSERT_TRUE(result.header_value.find("test") != result.header_value.npos);
+
+    std::string boundary_str(parser->boundary, parser->boundary_length);
+    ASSERT_EQ(multipart_parser_execute(parser, SW_STRL("\r\n")), 2);
+    ASSERT_EQ(multipart_parser_execute(parser, boundary_str.c_str(), boundary_str.length()), boundary_str.length());
+    ASSERT_EQ(multipart_parser_execute(parser, "--\r\n\r\n", 6), 6);
+}
+
+TEST(multipart_parser, header_error) {
+    auto parser = create_parser();
+    ssize_t ret;
+
+    // header party
+    swoole::String header(1024);
+    header.append("--");
+    header.append(boundary);
+    header.append("\r\n");
+    header.append("Content-Disposition: form-data; name=\"test\"");
+    MppResult result;
+    parser->data = &result;
+
+    ret = multipart_parser_execute(parser, header.value(), header.get_length());
+    ASSERT_EQ(ret, -1);
+    ASSERT_EQ(parser->error_reason, MPPE_HEADER_VALUE_INCOMPLETE);
+    ASSERT_EQ(parser->error_expected, '\r');
+}
+
 TEST(multipart_parser, data) {
     auto parser = create_parser();
     ssize_t ret;
 
     // header party
-    String header(1024);
+    swoole::String header(1024);
     header.append("--");
     header.append(boundary);
     header.append("\r\n");
@@ -160,7 +208,7 @@ TEST(multipart_parser, data) {
     std::string boundary_str(parser->boundary, parser->boundary_length);
 
     // data part
-    String data(128);
+    swoole::String data(128);
     data.append_random_bytes(swoole_rand(60, 120), true);
     data.append("\r");
     data.append_random_bytes(swoole_rand(60, 120), true);
