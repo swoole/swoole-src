@@ -11,13 +11,11 @@ use Swoole\Http\Server;
 use Swoole\Http\Request;
 use Swoole\Http\Response;
 
-const OFFSET = 250;
-
 $pm = new ProcessManager;
 $pm->initFreePorts();
 
 $pm->parentFunc = function ($pid) use ($pm) {
-    form_data_test_1($pm);
+    form_data_test($pm, [250]);
 };
 
 $pm->childFunc = function () use ($pm) {

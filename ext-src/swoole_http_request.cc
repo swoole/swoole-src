@@ -752,7 +752,9 @@ static int http_request_on_body(swoole_http_parser *parser, const char *at, size
                 length--;
             } while (length != 0);
         }
-        ctx->parse_multipart_data(at, length);
+        if (!ctx->parse_multipart_data(at, length)) {
+            return -1;
+        }
     }
 
     return 0;

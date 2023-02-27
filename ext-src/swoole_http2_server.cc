@@ -1172,7 +1172,9 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
                     swoole_http_init_and_read_property(
                         swoole_http_request_ce, ctx->request.zobject, &ctx->request.zpost, ZEND_STRL("post")));
             } else if (ctx->mt_parser != nullptr) {
-                ctx->parse_multipart_data(buffer->str, buffer->length);
+                if (!ctx->parse_multipart_data(buffer->str, buffer->length)) {
+                    return SW_ERR;
+                }
             }
 
             if (!client->is_coro) {

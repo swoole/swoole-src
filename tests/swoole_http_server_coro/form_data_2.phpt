@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_server_coro: form data 1
+swoole_http_server_coro: form data 2
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -13,11 +13,13 @@ use Swoole\Http\Response;
 use Swoole\Process;
 use function Swoole\Coroutine\run;
 
+const OFFSET = 216;
+
 $pm = new ProcessManager;
 $pm->initFreePorts();
 
 $pm->parentFunc = function ($pid) use ($pm) {
-    form_data_test($pm, [250]);
+    form_data_test($pm, [225]);
 };
 
 $pm->childFunc = function () use ($pm) {
