@@ -63,19 +63,35 @@ function http2_compression_types_test(ProcessManager $pm)
 
 /**
  * @param ProcessManager $pm
+ * @param array $sizes
  * @throw RuntimeException
  */
-function form_data_test_1(ProcessManager $pm)
+function form_data_test(ProcessManager $pm, array $sizes = [])
 {
-    run(function () use ($pm) {
+    if (count($sizes) == 0) {
+        throw new \RuntimeException("size array cannot be empty");
+    }
+    run(function () use ($pm, $sizes) {
         $client = new Client(SWOOLE_SOCK_TCP);
         Assert::true($client->connect('127.0.0.1', $pm->getFreePort()));
         $req = file_get_contents(SOURCE_ROOT_PATH . '/core-tests/fuzz/cases/req1.bin');
+        $len = strlen($req);
 
-        Assert::eq($client->send(substr($req, 0, OFFSET)), OFFSET);
-        usleep(10000);
-        Assert::eq($client->send(substr($req, OFFSET)), strlen($req) - OFFSET);
-        usleep(10000);
+        $begin = 0;
+        foreach ($sizes as $end) {
+            if ($end >= $len) {
+                throw new \RuntimeException("error offset[$end]");
+            }
+            Assert::eq($client->send(substr($req, $begin, $end)), $end - $begin);
+            usleep(10000);
+        }
+
+        $end = $sizes[count($sizes) - 1];
+        if ($len - $end > 0) {
+            Assert::eq($client->send(substr($req, $end)), $len - $end);
+            usleep(10000);
+        }
+
         $resp = '';
         $length = 0;
         $header = '';
