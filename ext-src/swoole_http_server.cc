@@ -354,6 +354,12 @@ bool swoole_http_server_onBeforeRequest(HttpContext *ctx) {
 
 void swoole_http_server_onAfterResponse(HttpContext *ctx) {
     ctx->onAfterResponse = nullptr;
+
+    // https://github.com/laravel/octane/issues/651
+    if (!SwooleWG.worker) {
+        return;
+    }
+
     Server *serv = (Server *) ctx->private_data;
     SwooleWG.worker->concurrency--;
     sw_atomic_sub_fetch(&serv->gs->concurrency, 1);
