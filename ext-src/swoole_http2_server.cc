@@ -883,7 +883,7 @@ bool HttpContext::http2_send_file(const char *file, uint32_t l_file, off_t offse
     return true;
 }
 
-static bool http2_server_context_onBeforeRequest(HttpContext *ctx) {
+static bool http2_server_onBeforeRequest(HttpContext *ctx) {
     Server *serv = (Server *) ctx->private_data;
     if (serv->is_unavailable()) {
         String null_body{};
@@ -1252,9 +1252,6 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
     return retval;
 }
 
-/**
- * Http2
- */
 int swoole_http2_server_onReceive(Server *serv, Connection *conn, RecvData *req) {
     int session_id = req->info.fd;
     Http2Session *client = http2_sessions[session_id];
@@ -1270,7 +1267,7 @@ int swoole_http2_server_onReceive(Server *serv, Connection *conn, RecvData *req)
         client->default_ctx->http2 = true;
         client->default_ctx->stream = (Http2Stream *) -1;
         client->default_ctx->keepalive = true;
-        client->default_ctx->onBeforeRequest = http2_server_context_onBeforeRequest;
+        client->default_ctx->onBeforeRequest = http2_server_onBeforeRequest;
     }
 
     zval zdata;
