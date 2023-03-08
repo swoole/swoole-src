@@ -336,6 +336,7 @@ static bool http_context_disconnect(HttpContext *ctx) {
 }
 
 bool swoole_http_server_onBeforeRequest(HttpContext *ctx) {
+    ctx->onBeforeRequest = nullptr;
     Server *serv = (Server *) ctx->private_data;
     SwooleWG.worker->concurrency++;
     sw_atomic_add_fetch(&serv->gs->concurrency, 1);

@@ -888,6 +888,7 @@ static bool http2_server_context_onBeforeRequest(HttpContext *ctx) {
     if (serv->is_unavailable()) {
         String null_body{};
         ctx->response.status = SW_HTTP_SERVICE_UNAVAILABLE;
+        ctx->onAfterResponse = nullptr;
         http2_server_respond(ctx, &null_body);
         zval_ptr_dtor(ctx->request.zobject);
         zval_ptr_dtor(ctx->response.zobject);
