@@ -75,6 +75,7 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
 
     HttpContext *ctx = swoole_http_context_new(session_id);
     ctx->init(serv);
+    ctx->onBeforeRequest = swoole_http_server_onBeforeRequest;
 
     zval *zdata = &ctx->request.zdata;
     php_swoole_get_recv_data(serv, zdata, req);
@@ -210,7 +211,6 @@ void HttpContext::bind(Server *serv) {
     send = http_context_send_data;
     sendfile = http_context_sendfile;
     close = http_context_disconnect;
-    onBeforeRequest = swoole_http_server_onBeforeRequest;
 }
 
 void HttpContext::copy(HttpContext *ctx) {

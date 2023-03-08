@@ -1348,8 +1348,6 @@ static PHP_METHOD(swoole_http_response, create) {
     } else {
         if (serv) {
             ctx->bind(serv);
-            ctx->onBeforeRequest = nullptr;
-            ctx->onAfterResponse = nullptr;
         } else if (sock) {
             ctx->bind(sock);
         } else {
