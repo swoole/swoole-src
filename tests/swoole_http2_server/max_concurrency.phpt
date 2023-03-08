@@ -20,7 +20,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
     run(function () use ($pm) {
 
         $n = SERVER_MAX_CONCURRENCY;
-        // 200
+        // 200, low concurrency
         $cid_list = [];
         while ($n--) {
             $cid_list[] = go(function () use ($pm) {
@@ -36,7 +36,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
 
         System::sleep(0.005);
 
-        // 403, high concurrency
+        // 503, high concurrency
         $n = SERVER_MAX_CONCURRENCY;
         while ($n--) {
             $cid_list[] = go(function () use ($pm) {
