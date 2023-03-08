@@ -97,14 +97,12 @@ static void php_swoole_http_response_free_object(zend_object *object) {
     zval ztmp; /* bool, not required to release it */
 
     if (ctx) {
-
-        if (ctx->onAfterResponse) {
-            ctx->onAfterResponse(ctx);
-        }
-
         if (!ctx->end_ && (ctx->send_chunked || !ctx->send_header_) && !ctx->detached && sw_reactor()) {
             if (ctx->response.status == 0) {
                 ctx->response.status = SW_HTTP_INTERNAL_SERVER_ERROR;
+            }
+            if (ctx->onAfterResponse) {
+                ctx->onAfterResponse(ctx);
             }
             if (ctx->http2) {
                 if (ctx->stream) {
@@ -1350,6 +1348,8 @@ static PHP_METHOD(swoole_http_response, create) {
     } else {
         if (serv) {
             ctx->bind(serv);
+            ctx->onBeforeRequest = nullptr;
+            ctx->onAfterResponse = nullptr;
         } else if (sock) {
             ctx->bind(sock);
         } else {

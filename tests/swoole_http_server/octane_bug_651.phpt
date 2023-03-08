@@ -30,7 +30,7 @@ $pm->childFunc = function () use ($pm) {
     });
 
     $http->on('start', function ($server) use ($timerTable) {
-        Swoole\Timer::tick(1000, function ($id) use ($timerTable, $server) {
+        Swoole\Timer::tick(500, function ($id) use ($timerTable, $server) {
             foreach ($timerTable as $workerId => $row) {
                 if ((time() - $row['time']) > 3) {
                     $timerTable->del($workerId);
