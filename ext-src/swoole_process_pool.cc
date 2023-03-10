@@ -615,6 +615,13 @@ static PHP_METHOD(swoole_process_pool, getProcess) {
             zend_update_property_long(
                 swoole_process_ce, SW_Z8_OBJ_P(zprocess), ZEND_STRL("pipe"), worker->pipe_current->fd);
         }
+        /**
+         * The message bus is enabled and forbid to read/write/close the pipeline in the php layer
+         */
+        if (current_pool->message_bus) {
+            worker->pipe_current = nullptr;
+            worker->pipe_object = nullptr;
+        }
         php_swoole_process_set_worker(zprocess, worker);
         zend::Process *proc = new zend::Process(zend::PIPE_TYPE_STREAM, current_pool->async);
         worker->ptr2 = proc;
@@ -633,6 +640,9 @@ static PHP_METHOD(swoole_process_pool, getProcess) {
 static PHP_METHOD(swoole_process_pool, stop) {
     if (current_pool) {
         current_pool->running = false;
+        if (current_worker) {
+            current_pool->stop(current_worker);
+        }
     }
 }
 
