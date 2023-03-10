@@ -60,24 +60,24 @@ $pm->childFunc = function () use ($pm) {
 
     });
     $serv->on('task', function (Server $serv, $task_id, $worker_id, $data) {
-        global $outq;
+        global $result;
         switch ($task_id) {
             case 0:
                 Assert::isArray($data);
                 Assert::eq($data['type'], 1);
                 Assert::length($data['data'], 1024);
-                $outq->add(1);
+                $result->add(1);
                 break;
             case 1:
                 Assert::isArray($data);
                 Assert::eq($data['type'], 2);
                 Assert::length($data['data'], 1024 * 32);
-                $outq->add(1);
+                $result->add(1);
                 break;
             case 2:
                 Assert::assert(is_string($data));
                 Assert::length($data, 512);
-                $outq->add(1);
+                $result->add(1);
                 $serv->shutdown();
                 break;
             default:
