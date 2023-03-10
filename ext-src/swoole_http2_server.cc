@@ -1048,14 +1048,14 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
     switch (type) {
     case SW_HTTP2_TYPE_SETTINGS: {
         if (flags & SW_HTTP2_FLAG_ACK) {
-            swoole_http2_frame_trace_log(recv, "ACK");
+            swoole_http2_frame_trace_log("ACK");
             break;
         }
 
         while (length > 0) {
             id = ntohs(*(uint16_t *) (buf));
             value = ntohl(*(uint32_t *) (buf + sizeof(uint16_t)));
-            swoole_http2_frame_trace_log(recv, "id=%d, value=%d", id, value);
+            swoole_http2_frame_trace_log("id=%d, value=%d", id, value);
             switch (id) {
             case SW_HTTP2_SETTING_HEADER_TABLE_SIZE:
                 if (value != client->remote_settings.header_table_size) {
@@ -1100,7 +1100,7 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
     }
     case SW_HTTP2_TYPE_HEADERS: {
         stream = client->streams[stream_id];
-        swoole_http2_frame_trace_log(recv, "%s", (stream ? "exist stream" : "new stream"));
+        swoole_http2_frame_trace_log("%s", (stream ? "exist stream" : "new stream"));
         HttpContext *ctx;
         if (!stream) {
             stream = new Http2Stream(client, stream_id);
@@ -1128,7 +1128,7 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
         break;
     }
     case SW_HTTP2_TYPE_DATA: {
-        swoole_http2_frame_trace_log(recv, "data");
+        swoole_http2_frame_trace_log("data");
         auto stream_iterator = client->streams.find(stream_id);
         if (stream_iterator == client->streams.end()) {
             swoole_error_log(SW_LOG_WARNING, SW_ERROR_HTTP2_STREAM_NOT_FOUND, "http2 stream#%d not found", stream_id);
@@ -1186,7 +1186,7 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
         break;
     }
     case SW_HTTP2_TYPE_PING: {
-        swoole_http2_frame_trace_log(recv, "ping");
+        swoole_http2_frame_trace_log("ping");
         if (!(flags & SW_HTTP2_FLAG_ACK)) {
             char ping_frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE];
             Http2::set_frame_header(
@@ -1213,12 +1213,12 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
                 }
             }
         }
-        swoole_http2_frame_trace_log(recv, "window_size_increment=%d", value);
+        swoole_http2_frame_trace_log("window_size_increment=%d", value);
         break;
     }
     case SW_HTTP2_TYPE_RST_STREAM: {
         value = ntohl(*(int *) (buf));
-        swoole_http2_frame_trace_log(recv, "error_code=%d", value);
+        swoole_http2_frame_trace_log("error_code=%d", value);
         if (client->streams.find(stream_id) != client->streams.end()) {
             // TODO: i onRequest and use request->recv
             // stream exist
@@ -1233,8 +1233,7 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
         buf += 4;
         value = ntohl(*(uint32_t *) (buf));
         buf += 4;
-        swoole_http2_frame_trace_log(recv,
-                                     "last_stream_id=%d, error_code=%d, opaque_data=[%.*s]",
+        swoole_http2_frame_trace_log("last_stream_id=%d, error_code=%d, opaque_data=[%.*s]",
                                      server_last_stream_id,
                                      value,
                                      (int) (length - SW_HTTP2_GOAWAY_SIZE),
@@ -1245,7 +1244,7 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
         break;
     }
     default: {
-        swoole_http2_frame_trace_log(recv, "");
+        swoole_http2_frame_trace_log("");
     }
     }
 

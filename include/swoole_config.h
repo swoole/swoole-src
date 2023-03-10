@@ -119,7 +119,7 @@
 #define SW_SESSION_LIST_SIZE (1 * 1024 * 1024)
 
 #define SW_MSGMAX 65536
-#define SW_MESSAGE_BOX_SIZE  65536
+#define SW_MESSAGE_BOX_SIZE 65536
 
 #define SW_DGRAM_HEADER_SIZE 32
 
@@ -231,7 +231,8 @@
 #define SW_HTTP_REQUEST_ENTITY_TOO_LARGE_PACKET "HTTP/1.1 413 Request Entity Too Large\r\n\r\n"
 #define SW_HTTP_SERVICE_UNAVAILABLE_PACKET "HTTP/1.1 503 Service Unavailable\r\n\r\n"
 
-#define SW_HTTP_PAGE_CSS "<style> \
+#define SW_HTTP_PAGE_CSS                                                                                               \
+    "<style> \
 body { padding: 0.5em; line-height: 2; } \
 h1 { font-size: 1.5em; padding-bottom: 0.3em; border-bottom: 1px solid #ccc; } \
 ul { list-style-type: disc; } \
@@ -239,21 +240,23 @@ footer { border-top: 1px solid #ccc; } \
 a { color: #0969da; } \
 </style>"
 
-#define SW_HTTP_POWER_BY  "<footer><i>Powered by Swoole</i></footer>"
+#define SW_HTTP_POWER_BY "<footer><i>Powered by Swoole</i></footer>"
 
-#define SW_HTTP_PAGE_400 "<html><body>" SW_HTTP_PAGE_CSS "<h1>HTTP 400 Bad Request</h1>" SW_HTTP_POWER_BY "</body></html>"
+#define SW_HTTP_PAGE_400                                                                                               \
+    "<html><body>" SW_HTTP_PAGE_CSS "<h1>HTTP 400 Bad Request</h1>" SW_HTTP_POWER_BY "</body></html>"
 #define SW_HTTP_PAGE_404 "<html><body>" SW_HTTP_PAGE_CSS "<h1>HTTP 404 Not Found</h1>" SW_HTTP_POWER_BY "</body></html>"
-#define SW_HTTP_PAGE_500 "<html><body>" SW_HTTP_PAGE_CSS "<h1>HTTP 500 Internal Server Error</h1>" SW_HTTP_POWER_BY "</body></html>"
+#define SW_HTTP_PAGE_500                                                                                               \
+    "<html><body>" SW_HTTP_PAGE_CSS "<h1>HTTP 500 Internal Server Error</h1>" SW_HTTP_POWER_BY "</body></html>"
 
 /**
  * HTTP2 Protocol
  */
 #define SW_HTTP2_DATA_BUFFER_SIZE 8192
 #define SW_HTTP2_DEFAULT_HEADER_TABLE_SIZE (1 << 12)
-#define SW_HTTP2_DEFAULT_MAX_CONCURRENT_STREAMS 128
+#define SW_HTTP2_DEFAULT_MAX_CONCURRENT_STREAMS UINT_MAX
 #define SW_HTTP2_DEFAULT_ENABLE_PUSH 0
-#define SW_HTTP2_DEFAULT_MAX_FRAME_SIZE ((1u << 14))
-#define SW_HTTP2_DEFAULT_INIT_WINDOW_SIZE (1u << 24)
+#define SW_HTTP2_DEFAULT_MAX_FRAME_SIZE (1u << 14)
+#define SW_HTTP2_DEFAULT_INIT_WINDOW_SIZE ((1 << 16) - 1)
 #define SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE UINT_MAX
 
 #define SW_HTTP_CLIENT_USERAGENT "swoole-http-client"
