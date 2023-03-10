@@ -8,6 +8,7 @@ namespace Swoole\Process {
         public function getProcess(int $work_id = -1): \Swoole\Process|false {}
         public function listen(string $host, int $port = 0, int $backlog = 2048): bool {}
         public function write(string $data): bool {}
+        public function sendMessage(string $data, int $dst_worker_id): bool {}
         public function detach(): bool {}
         public function start(): null|false {}
         public function stop(): void {}

@@ -26,6 +26,7 @@
 #include "swoole_pipe.h"
 #include "swoole_channel.h"
 #include "swoole_msg_queue.h"
+#include "swoole_message_bus.h"
 
 enum swWorkerStatus {
     SW_WORKER_BUSY = 1,
@@ -173,6 +174,8 @@ struct ProcessPool {
     bool read_message;
     bool started;
     bool schedule_by_sysvmsg;
+    bool async;
+
     uint8_t ipc_mode;
     pid_t master_pid;
     uint32_t reload_worker_i;
@@ -220,9 +223,9 @@ struct ProcessPool {
     time_t warning_time;
 
     int (*onTask)(ProcessPool *pool, EventData *task);
-    void (*onWorkerStart)(ProcessPool *pool, int worker_id);
-    void (*onMessage)(ProcessPool *pool, const char *data, uint32_t length);
-    void (*onWorkerStop)(ProcessPool *pool, int worker_id);
+    void (*onWorkerStart)(ProcessPool *pool, Worker *worker);
+    void (*onMessage)(ProcessPool *pool, RecvData *msg);
+    void (*onWorkerStop)(ProcessPool *pool, Worker *worker);
     void (*onWorkerMessage)(ProcessPool *pool, EventData *msg);
     int (*onWorkerNotFound)(ProcessPool *pool, const ExitStatus &exit_status);
     int (*main_loop)(ProcessPool *pool, Worker *worker);
@@ -236,6 +239,7 @@ struct ProcessPool {
     MsgQueue *queue;
     StreamInfo *stream_info_;
     Channel *message_box = nullptr;
+    MessageBus *message_bus = nullptr;
 
     void *ptr;
 
@@ -276,6 +280,7 @@ struct ProcessPool {
     void shutdown();
     bool reload();
     pid_t spawn(Worker *worker);
+    void stop(Worker *worker);
     int dispatch(EventData *data, int *worker_id);
     int response(const char *data, int length);
     int dispatch_blocking(EventData *data, int *dst_worker_id);
@@ -285,6 +290,7 @@ struct ProcessPool {
     void destroy();
     int create(uint32_t worker_num, key_t msgqueue_key = 0, swIPCMode ipc_mode = SW_IPC_NONE);
     int create_message_box(size_t memory_size);
+    int create_message_bus();
     int push_message(uint8_t type, const void *data, size_t length);
     int push_message(EventData *msg);
     int pop_message(void *data, size_t size);

@@ -30,14 +30,10 @@ namespace swoole {
 using network::Socket;
 using network::Stream;
 
-/**
- * call onTask
- */
 static int ProcessPool_worker_loop(ProcessPool *pool, Worker *worker);
-/**
- * call onMessage
- */
+static int ProcessPool_worker_loop_async(ProcessPool *pool, Worker *worker);
 static int ProcessPool_worker_loop_ex(ProcessPool *pool, Worker *worker);
+static int ProcessPool_onPipeReceive(Reactor *reactor, Event *event);
 
 void ProcessPool::kill_timeout_worker(Timer *timer, TimerNode *tnode) {
     uint32_t i;
@@ -135,9 +131,51 @@ int ProcessPool::create_message_box(size_t memory_size) {
     return SW_OK;
 }
 
+int ProcessPool::create_message_bus() {
+    if (ipc_mode != SW_IPC_UNIXSOCK) {
+        swoole_error_log(
+            SW_LOG_WARNING, SW_ERROR_OPERATION_NOT_SUPPORT, "not support, ipc_mode must be SW_IPC_UNIXSOCK");
+        return SW_ERR;
+    }
+    if (!async) {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_OPERATION_NOT_SUPPORT, "not support, async must be true");
+        return SW_ERR;
+    }
+    if (message_bus) {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_WRONG_OPERATION, "the message bus has created");
+        return SW_ERR;
+    }
+    sw_atomic_long_t *msg_id = (sw_atomic_long_t *) sw_mem_pool()->alloc(sizeof(sw_atomic_long_t));
+    if (msg_id == nullptr) {
+        swoole_sys_warning("malloc[1] failed");
+        return SW_ERR;
+    }
+    *msg_id = 1;
+    message_bus = new MessageBus();
+    message_bus->set_id_generator([msg_id]() { return sw_atomic_fetch_add(msg_id, 1); });
+    size_t ipc_max_size;
+#ifndef __linux__
+    ipc_max_size = SW_IPC_MAX_SIZE;
+#else
+    int bufsize;
+    /**
+     * Get the maximum ipc[unix socket with dgram] transmission length
+     */
+    if (workers[0].pipe_master->get_option(SOL_SOCKET, SO_SNDBUF, &bufsize) != 0) {
+        bufsize = SW_IPC_MAX_SIZE;
+    }
+    ipc_max_size = SW_MIN(bufsize, SW_IPC_BUFFER_MAX_SIZE) - SW_DGRAM_HEADER_SIZE;
+#endif
+    message_bus->set_buffer_size(ipc_max_size);
+    if (!message_bus->alloc_buffer()) {
+        return SW_ERR;
+    }
+    return SW_OK;
+}
+
 int ProcessPool::listen(const char *socket_file, int blacklog) {
     if (ipc_mode != SW_IPC_SOCKET) {
-        swoole_warning("ipc_mode is not SW_IPC_SOCKET");
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_OPERATION_NOT_SUPPORT, "not support, ipc_mode must be SW_IPC_SOCKET");
         return SW_ERR;
     }
     stream_info_->socket_file = sw_strdup(socket_file);
@@ -182,11 +220,22 @@ int ProcessPool::start() {
     running = started = true;
     master_pid = getpid();
     reload_workers = new Worker[worker_num]();
+    SwooleG.process_type = SW_PROCESS_MASTER;
+
+    if (async) {
+        main_loop = ProcessPool_worker_loop_async;
+    }
 
     for (i = 0; i < worker_num; i++) {
         workers[i].pool = this;
         workers[i].id = start_id + i;
         workers[i].type = type;
+        if (workers[i].pipe_worker) {
+            workers[i].pipe_worker->buffer_size = UINT_MAX;
+        }
+        if (workers[i].pipe_master) {
+            workers[i].pipe_master->buffer_size = UINT_MAX;
+        }
     }
 
     for (i = 0; i < worker_num; i++) {
@@ -359,6 +408,12 @@ bool ProcessPool::reload() {
     return true;
 }
 
+void ProcessPool::stop(Worker *worker) {
+    if (async && worker->pipe_worker) {
+        swoole_event_del(worker->pipe_worker);
+    }
+}
+
 void ProcessPool::shutdown() {
     uint32_t i;
     int status;
@@ -390,14 +445,22 @@ pid_t ProcessPool::spawn(Worker *worker) {
     // child
     case 0:
         worker->pid = SwooleG.pid;
+        SwooleG.process_id = worker->id;
+        SwooleG.process_type = SW_PROCESS_WORKER;
+        if (async) {
+            if (swoole_event_init(SW_EVENTLOOP_WAIT_EXIT) < 0) {
+                exit(254);
+            }
+            sw_reactor()->ptr = this;
+        }
         if (onWorkerStart != nullptr) {
-            onWorkerStart(this, worker->id);
+            onWorkerStart(this, worker);
         }
         if (main_loop) {
             ret_code = main_loop(this, worker);
         }
         if (onWorkerStop != nullptr) {
-            onWorkerStop(this, worker->id);
+            onWorkerStop(this, worker);
         }
         exit(ret_code);
         break;
@@ -540,6 +603,48 @@ static int ProcessPool_worker_loop(ProcessPool *pool, Worker *worker) {
     return SW_OK;
 }
 
+static int ProcessPool_recv_packet(Reactor *reactor, Event *event) {
+    ProcessPool *pool = (ProcessPool *) reactor->ptr;
+    ssize_t n = event->socket->read(pool->packet_buffer, pool->max_packet_size_);
+    if (n < 0 && errno != EINTR) {
+        swoole_sys_warning("failed to read(%d) pipe", event->fd);
+    }
+    RecvData msg{};
+    msg.info.reactor_id = -1;
+    msg.info.len = n;
+    msg.data = pool->packet_buffer;
+    pool->onMessage(pool, &msg);
+    return SW_OK;
+}
+
+static int ProcessPool_recv_message(Reactor *reactor, Event *event) {
+    ProcessPool *pool = (ProcessPool *) reactor->ptr;
+    if (pool->message_bus->read(event->socket) <= 0) {
+        return SW_OK;
+    }
+    auto pipe_buffer = pool->message_bus->get_buffer();
+    auto packet = pool->message_bus->get_packet();
+    RecvData msg;
+    msg.info = pipe_buffer->info;
+    msg.info.len = packet.length;
+    msg.data = packet.data;
+    pool->onMessage(pool, &msg);
+    pool->message_bus->pop();
+    return SW_OK;
+}
+
+static int ProcessPool_worker_loop_async(ProcessPool *pool, Worker *worker) {
+    if (pool->ipc_mode == SW_IPC_UNIXSOCK && pool->onMessage) {
+        swoole_event_add(worker->pipe_worker, SW_EVENT_READ);
+        if (pool->message_bus) {
+            swoole_event_set_handler(SW_FD_PIPE, ProcessPool_recv_message);
+        } else {
+            swoole_event_set_handler(SW_FD_PIPE, ProcessPool_recv_packet);
+        }
+    }
+    return swoole_event_wait();
+}
+
 void ProcessPool::set_protocol(int task_protocol, uint32_t max_packet_size) {
     if (task_protocol) {
         main_loop = ProcessPool_worker_loop;
@@ -555,7 +660,8 @@ void ProcessPool::set_protocol(int task_protocol, uint32_t max_packet_size) {
 
 static int ProcessPool_worker_loop_ex(ProcessPool *pool, Worker *worker) {
     ssize_t n;
-    char *data;
+    RecvData msg{};
+    msg.info.reactor_id = -1;
 
     QueueNode *outbuf = (QueueNode *) pool->packet_buffer;
     outbuf->mtype = 0;
@@ -570,7 +676,7 @@ static int ProcessPool_worker_loop_ex(ProcessPool *pool, Worker *worker) {
                 swoole_sys_warning("[Worker#%d] msgrcv() failed", worker->id);
                 break;
             }
-            data = outbuf->mdata;
+            msg.data = outbuf->mdata;
             outbuf->mtype = 0;
         } else if (pool->use_socket) {
             Socket *conn = pool->stream_info_->socket->accept();
@@ -597,14 +703,14 @@ static int ProcessPool_worker_loop_ex(ProcessPool *pool, Worker *worker) {
                 conn->free();
                 continue;
             }
-            data = pool->packet_buffer;
+            msg.data = pool->packet_buffer;
             pool->stream_info_->last_connection = conn;
         } else {
             n = worker->pipe_worker->read(pool->packet_buffer, pool->max_packet_size_);
             if (n < 0 && errno != EINTR) {
                 swoole_sys_warning("[Worker#%d] read(%d) failed", worker->id, worker->pipe_worker->fd);
             }
-            data = pool->packet_buffer;
+            msg.data = pool->packet_buffer;
         }
 
         /**
@@ -619,7 +725,8 @@ static int ProcessPool_worker_loop_ex(ProcessPool *pool, Worker *worker) {
             continue;
         }
 
-        pool->onMessage(pool, data, n);
+        msg.info.len = n;
+        pool->onMessage(pool, &msg);
 
         if (pool->use_socket && pool->stream_info_->last_connection) {
             String *resp_buf = pool->stream_info_->response_buffer;
@@ -798,22 +905,32 @@ void ProcessPool::destroy() {
             delete stream_info_->response_buffer;
         }
         delete stream_info_;
+        stream_info_ = nullptr;
     }
 
     if (packet_buffer) {
         delete[] packet_buffer;
+        packet_buffer = nullptr;
     }
 
     if (map_) {
         delete map_;
+        map_ = nullptr;
     }
 
     if (message_box) {
         message_box->destroy();
+        message_box = nullptr;
+    }
+
+    if (message_bus) {
+        delete message_bus;
+        message_bus = nullptr;
     }
 
     if (reload_workers) {
         delete[] reload_workers;
+        reload_workers = nullptr;
     }
 
     sw_mem_pool()->free(workers);

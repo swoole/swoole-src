@@ -645,6 +645,7 @@ EOF
         src/core/base.cc \
         src/core/channel.cc \
         src/core/crc32.cc \
+        src/core/base64.cc \
         src/core/error.cc \
         src/core/heap.cc \
         src/core/log.cc \
@@ -684,7 +685,6 @@ EOF
         src/os/unix_socket.cc \
         src/os/wait.cc \
         src/protocol/base.cc \
-        src/protocol/base64.cc \
         src/protocol/dtls.cc \
         src/protocol/http.cc \
         src/protocol/http2.cc \
@@ -694,6 +694,7 @@ EOF
         src/protocol/socks5.cc \
         src/protocol/ssl.cc \
         src/protocol/websocket.cc \
+        src/protocol/message_bus.cc \
         src/reactor/base.cc \
         src/reactor/epoll.cc \
         src/reactor/kqueue.cc \
@@ -702,7 +703,6 @@ EOF
         src/server/base.cc \
         src/server/manager.cc \
         src/server/master.cc \
-        src/server/message_bus.cc \
         src/server/port.cc \
         src/server/process.cc \
         src/server/reactor_process.cc \
