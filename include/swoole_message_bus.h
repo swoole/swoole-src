@@ -19,6 +19,8 @@
 #include "swoole_api.h"
 #include "swoole_socket.h"
 
+#include <unordered_map>
+
 namespace swoole {
 
 struct PipeBuffer {
