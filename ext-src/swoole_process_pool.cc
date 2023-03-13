@@ -529,10 +529,12 @@ static PHP_METHOD(swoole_process_pool, start) {
     pool->onWorkerStart = pool_onWorkerStart;
     pool->onWorkerStop = pool_onWorkerStop;
 
-    if (pp->enable_message_bus && pool->create_message_bus() != SW_OK) {
-        RETURN_FALSE;
+    if (pp->enable_message_bus) {
+        if (pool->create_message_bus() != SW_OK) {
+            RETURN_FALSE;
+        }
+        pool->message_bus->set_allocator(sw_zend_string_allocator());
     }
-    pool->message_bus->set_allocator(sw_zend_string_allocator());
 
     zend_update_property_long(swoole_process_pool_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("master_pid"), getpid());
 
