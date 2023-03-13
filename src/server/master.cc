@@ -600,7 +600,7 @@ void Server::call_worker_start_callback(Worker *worker) {
         call_hook(Server::HOOK_WORKER_START, hook_args);
     }
     if (onWorkerStart) {
-        onWorkerStart(this, worker->id);
+        onWorkerStart(this, worker);
     }
 }
 

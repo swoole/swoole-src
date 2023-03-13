@@ -274,7 +274,7 @@ static int ReactorProcess_loop(ProcessPool *pool, Worker *worker) {
         return SW_ERR;
     }
 
-    serv->worker_start_callback();
+    serv->worker_start_callback(worker);
 
     /**
      * for heartbeat check
@@ -305,7 +305,7 @@ static int ReactorProcess_loop(ProcessPool *pool, Worker *worker) {
     }
 
     swoole_event_free();
-    serv->worker_stop_callback();
+    serv->worker_stop_callback(worker);
 
     return retval;
 }

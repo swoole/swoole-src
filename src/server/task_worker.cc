@@ -189,7 +189,7 @@ static void TaskWorker_onStart(ProcessPool *pool, Worker *worker) {
     }
 
     TaskWorker_signal_init(pool);
-    serv->worker_start_callback();
+    serv->worker_start_callback(worker);
 
     worker->start_time = ::time(nullptr);
     worker->request_count = 0;
@@ -209,7 +209,7 @@ static void TaskWorker_onStart(ProcessPool *pool, Worker *worker) {
 static void TaskWorker_onStop(ProcessPool *pool, Worker *worker) {
     swoole_event_free();
     Server *serv = (Server *) pool->ptr;
-    serv->worker_stop_callback();
+    serv->worker_stop_callback(worker);
 }
 
 /**

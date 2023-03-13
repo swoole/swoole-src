@@ -70,7 +70,7 @@ TEST(server, base) {
 
     sw_logger()->set_level(SW_LOG_WARNING);
 
-    swListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     ASSERT_TRUE(port);
 
     mutex lock;
@@ -93,9 +93,9 @@ TEST(server, base) {
         kill(getpid(), SIGTERM);
     });
 
-    serv.onWorkerStart = [&lock](swServer *serv, int worker_id) { lock.unlock(); };
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock.unlock(); };
 
-    serv.onReceive = [](swServer *serv, RecvData *req) -> int {
+    serv.onReceive = [](Server *serv, RecvData *req) -> int {
         EXPECT_EQ(string(req->data, req->info.len), string(packet));
 
         string resp = string("Server: ") + string(packet);
@@ -133,7 +133,7 @@ TEST(server, process) {
 
             lock->lock();
 
-            swListenPort *port = serv->get_primary_port();
+            ListenPort *port = serv->get_primary_port();
 
             network::SyncClient c(SW_SOCK_TCP);
             c.connect(TEST_HOST, port->port);
@@ -147,7 +147,7 @@ TEST(server, process) {
         t1.detach();
     };
 
-    serv.onWorkerStart = [&lock](Server *serv, int worker_id) { lock->unlock(); };
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock->unlock(); };
 
     serv.onReceive = [](Server *serv, RecvData *req) -> int {
         EXPECT_EQ(string(req->data, req->info.len), string(packet));
@@ -176,9 +176,9 @@ TEST(server, reload_all_workers) {
 
     ASSERT_EQ(serv.create(), SW_OK);
 
-    serv.onWorkerStart = [&](Server *serv, int worker_id) {
+    serv.onWorkerStart = [&](Server *serv, Worker *worker) {
         std::string filename = "/tmp/worker_1.pid";
-        if (worker_id == 1) {
+        if (worker->id == 1) {
             if (access(filename.c_str(), R_OK) == -1) {
                 ofstream file(filename);
                 file << getpid();
@@ -220,9 +220,9 @@ TEST(server, reload_all_workers2) {
 
     ASSERT_EQ(serv.create(), SW_OK);
 
-    serv.onWorkerStart = [&](Server *serv, int worker_id) {
+    serv.onWorkerStart = [&](Server *serv, Worker *worker) {
         std::string filename = "/tmp/worker_2.pid";
-        if (worker_id == 1) {
+        if (worker->id == 1) {
             if (access(filename.c_str(), R_OK) == -1) {
                 ofstream file(filename);
                 file << getpid();
@@ -274,8 +274,8 @@ TEST(server, kill_user_workers) {
         }
     };
 
-    serv.onWorkerStart = [&](Server *serv, int worker_id) {
-        if (worker_id == 1) {
+    serv.onWorkerStart = [&](Server *serv, Worker *worker) {
+        if (worker->id == 1) {
             sleep(1);
             kill(serv->get_manager_pid(), SIGTERM);
         }
@@ -306,8 +306,8 @@ TEST(server, kill_user_workers1) {
         }
     };
 
-    serv.onWorkerStart = [&](Server *serv, int worker_id) {
-        if (worker_id == 1) {
+    serv.onWorkerStart = [&](Server *serv, Worker *worker) {
+        if (worker->id == 1) {
             sleep(1);
             kill(serv->gs->master_pid, SIGTERM);
         }
@@ -364,7 +364,7 @@ TEST(server, ssl) {
         t1.detach();
     };
 
-    serv.onWorkerStart = [&lock](Server *serv, int worker_id) { lock->unlock(); };
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock->unlock(); };
 
     serv.onReceive = [](Server *serv, RecvData *req) -> int {
         EXPECT_EQ(string(req->data, req->info.len), string(packet));
@@ -426,7 +426,7 @@ TEST(server, dtls) {
         t1.detach();
     };
 
-    serv.onWorkerStart = [&lock](Server *serv, int worker_id) { lock->unlock(); };
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock->unlock(); };
 
     serv.onReceive = [](Server *serv, RecvData *req) -> int {
         EXPECT_EQ(string(req->data, req->info.len), string(packet));
@@ -567,15 +567,15 @@ TEST(server, task_worker2) {
     ASSERT_EQ(serv.create(), SW_OK);
     ASSERT_EQ(serv.create_task_workers(), SW_OK);
 
-    serv.onWorkerStart = [&](Server *serv, int worker_id) {
-        if (worker_id == 1) {
+    serv.onWorkerStart = [&](Server *serv, Worker *worker) {
+        if (worker->id == 1) {
             int _dst_worker_id = 0;
 
             EventData buf{};
             memset(&buf.info, 0, sizeof(buf.info));
             buf.info.len = strlen(packet);
             memcpy(buf.data, packet, strlen(packet));
-            buf.info.reactor_id = worker_id;
+            buf.info.reactor_id = worker->id;
             buf.info.ext_flags |= (SW_TASK_NONBLOCK | SW_TASK_CALLBACK);
             ASSERT_GE(serv->gs->task_workers.dispatch(&buf, &_dst_worker_id), 0);
             sleep(1);
@@ -616,8 +616,8 @@ TEST(server, task_worker3) {
     ASSERT_EQ(serv.create(), SW_OK);
     ASSERT_EQ(serv.create_task_workers(), SW_OK);
 
-    serv.onWorkerStart = [&](Server *serv, int worker_id) {
-        if (worker_id == 1) {
+    serv.onWorkerStart = [&](Server *serv, Worker *worker) {
+        if (worker->id == 1) {
             int _dst_worker_id = 0;
 
             EventData buf{};
@@ -625,7 +625,7 @@ TEST(server, task_worker3) {
             buf.info.len = strlen(packet);
             memcpy(buf.data, packet, strlen(packet));
             buf.info.ext_flags |= (SW_TASK_NONBLOCK | SW_TASK_COROUTINE);
-            buf.info.reactor_id = worker_id;
+            buf.info.reactor_id = worker->id;
             serv->gs->task_workers.dispatch(&buf, &_dst_worker_id);
             sleep(1);
             kill(serv->gs->master_pid, SIGTERM);
@@ -665,8 +665,8 @@ TEST(server, task_worker4) {
     ASSERT_EQ(serv.create(), SW_OK);
     ASSERT_EQ(serv.create_task_workers(), SW_OK);
 
-    serv.onWorkerStart = [&](Server *serv, int worker_id) {
-        if (worker_id == 1) {
+    serv.onWorkerStart = [&](Server *serv, Worker *worker) {
+        if (worker->id == 1) {
             int _dst_worker_id = 0;
 
             EventData buf{};
@@ -674,7 +674,7 @@ TEST(server, task_worker4) {
             buf.info.len = strlen(packet);
             memcpy(buf.data, packet, strlen(packet));
             buf.info.ext_flags |= (SW_TASK_NONBLOCK | SW_TASK_COROUTINE);
-            buf.info.reactor_id = worker_id;
+            buf.info.reactor_id = worker->id;
             serv->gs->task_workers.dispatch(&buf, &_dst_worker_id);
             sleep(1);
 
@@ -683,7 +683,7 @@ TEST(server, task_worker4) {
             memset(&buf.info, 0, sizeof(buf.info));
             buf.info.len = strlen(packet);
             memcpy(buf.data, packet, strlen(packet));
-            buf.info.reactor_id = worker_id;
+            buf.info.reactor_id = worker->id;
             sw_atomic_fetch_add(&serv->gs->tasking_num, 1);
             serv->gs->task_workers.dispatch(&buf, &_dst_worker_id);
             sw_atomic_fetch_add(&serv->gs->tasking_num, 0);
@@ -729,11 +729,11 @@ TEST(server, task_worker5) {
     ASSERT_EQ(serv.create(), SW_OK);
     ASSERT_EQ(serv.create_task_workers(), SW_OK);
 
-    serv.onWorkerStart = [&data](Server *serv, int worker_id) {
-        if (worker_id == 1) {
+    serv.onWorkerStart = [&data](Server *serv, Worker *worker) {
+        if (worker->id == 1) {
             int _dst_worker_id = 0;
 
-            EventData *task_result = &(serv->task_result[worker_id]);
+            EventData *task_result = &(serv->task_result[worker->id]);
             sw_memset_zero(task_result, sizeof(*task_result));
 
             File fp = make_tmpfile();
@@ -748,7 +748,7 @@ TEST(server, task_worker5) {
             memset(&buf.info, 0, sizeof(buf.info));
             Server::task_pack(&buf, data, SW_IPC_MAX_SIZE * 2);
             buf.info.ext_flags |= SW_TASK_WAITALL;
-            buf.info.reactor_id = worker_id;
+            buf.info.reactor_id = worker->id;
             serv->gs->task_workers.dispatch(&buf, &_dst_worker_id);
             sleep(3);
 
@@ -897,7 +897,7 @@ void test_command(enum Server::Mode _mode) {
         serv->command(1, Server::Command::MASTER, "test", "hello world [0]", fn);
     };
 
-    serv.onWorkerStart = [](Server *serv, int worker_id) {
+    serv.onWorkerStart = [](Server *serv, Worker *worker) {
 
     };
 
@@ -929,7 +929,7 @@ TEST(server, sendwait) {
 
     sw_logger()->set_level(SW_LOG_WARNING);
 
-    swListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     ASSERT_TRUE(port);
 
     mutex lock;
@@ -952,7 +952,7 @@ TEST(server, sendwait) {
         kill(getpid(), SIGTERM);
     });
 
-    serv.onWorkerStart = [&lock](Server *serv, int worker_id) { lock.unlock(); };
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock.unlock(); };
 
     serv.onReceive = [](Server *serv, RecvData *req) -> int {
         EXPECT_EQ(string(req->data, req->info.len), string(packet));
@@ -1005,7 +1005,7 @@ TEST(server, system) {
         kill(getpid(), SIGTERM);
     });
 
-    serv.onWorkerStart = [&lock](Server *serv, int worker_id) { lock.unlock(); };
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock.unlock(); };
 
     serv.onReceive = [](Server *serv, RecvData *req) -> int {
         EXPECT_EQ(string(req->data, req->info.len), string(packet));
@@ -1030,8 +1030,8 @@ TEST(server, reopen_log) {
 
     ASSERT_EQ(serv.create(), SW_OK);
 
-    serv.onWorkerStart = [&filename](Server *serv, int worker_id) {
-        if (worker_id != 0) {
+    serv.onWorkerStart = [&filename](Server *serv, Worker *worker) {
+        if (worker->id != 0) {
             return;
         }
         EXPECT_TRUE(access(filename.c_str(), R_OK) != -1);
@@ -1095,7 +1095,7 @@ TEST(server, protocols) {
     Server serv(Server::MODE_BASE);
     serv.worker_num = 1;
     sw_logger()->set_level(SW_LOG_WARNING);
-    swListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
 
     port->open_eof_check = true;
     ASSERT_STREQ(port->get_protocols(), "eof");
@@ -1161,8 +1161,8 @@ TEST(server, pipe_message) {
 
     server->onReceive = [](Server *server, RecvData *req) -> int { return SW_OK; };
 
-    server->onWorkerStart = [&](Server *server, int worker_id) {
-        if (worker_id == 1) {
+    server->onWorkerStart = [&](Server *server, Worker *worker) {
+        if (worker->id == 1) {
             EventData buf{};
             string data = string(packet);
 
@@ -1170,7 +1170,7 @@ TEST(server, pipe_message) {
             ASSERT_TRUE(Server::task_pack(&buf, data.c_str(), data.length()));
             buf.info.type = SW_SERVER_EVENT_PIPE_MESSAGE;
 
-            Worker *to_worker = server->get_worker(worker_id - 1);
+            Worker *to_worker = server->get_worker(worker->id - 1);
             server->send_to_worker_from_worker(
                 to_worker, &buf, sizeof(buf.info) + buf.info.len, SW_PIPE_MASTER | SW_PIPE_NONBLOCK);
             sleep(1);

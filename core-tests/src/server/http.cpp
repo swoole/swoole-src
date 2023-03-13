@@ -28,9 +28,9 @@
 
 using namespace swoole;
 using namespace std;
-using swoole::http_server::Context;
-using swoole::network::Client;
-using swoole::network::SyncClient;
+using http_server::Context;
+using network::Client;
+using network::SyncClient;
 
 SessionId session_id = 0;
 Connection *conn = nullptr;
@@ -56,7 +56,7 @@ struct http_context {
     }
 
     void response(int code) {
-        swString *buf = swoole::make_string(1024);
+        String *buf = make_string(1024);
         buf->length = sw_snprintf(buf->str, buf->size, "HTTP/1.1 %s\r\n", http_server::get_status_message(code));
         for (auto &kv : response_headers) {
             buf->append(kv.first.c_str(), kv.first.length());
@@ -96,7 +96,7 @@ static int handle_on_url(llhttp_t *parser, const char *at, size_t length) {
 
 static void test_base_server(function<void(Server *)> fn) {
     thread child_thread;
-    Server serv(swoole::Server::MODE_BASE);
+    Server serv(Server::MODE_BASE);
     serv.worker_num = 1;
     serv.enable_reuse_port = true;
     serv.heartbeat_check_interval = 1;
@@ -118,7 +118,7 @@ static void test_base_server(function<void(Server *)> fn) {
 
     serv.create();
 
-    serv.onWorkerStart = [&child_thread](Server *serv, int worker_id) {
+    serv.onWorkerStart = [&child_thread](Server *serv, Worker *worker) {
         function<void(Server *)> fn = *(function<void(Server *)> *) serv->private_data_2;
         child_thread = thread(fn, serv);
     };
@@ -133,18 +133,18 @@ static void test_base_server(function<void(Server *)> fn) {
         }
     };
 
-    serv.onReceive = [](Server *serv, swRecvData *req) -> int {
+    serv.onReceive = [](Server *serv, RecvData *req) -> int {
         session_id = req->info.fd;
         conn = serv->get_connection_by_session_id(session_id);
 
-        if (conn->websocket_status == swoole::websocket::STATUS_ACTIVE) {
+        if (conn->websocket_status == websocket::STATUS_ACTIVE) {
             sw_tg_buffer()->clear();
             std::string resp = "Swoole: " + string(req->data, req->info.len);
-            swoole::websocket::encode(sw_tg_buffer(),
+            websocket::encode(sw_tg_buffer(),
                                       resp.c_str(),
                                       resp.length(),
-                                      swoole::websocket::OPCODE_TEXT,
-                                      swoole::websocket::FLAG_FIN);
+                                      websocket::OPCODE_TEXT,
+                                      websocket::FLAG_FIN);
             serv->send(session_id, sw_tg_buffer()->str, sw_tg_buffer()->length);
             return SW_OK;
         }
@@ -174,7 +174,7 @@ static void test_base_server(function<void(Server *)> fn) {
 
             ctx.response(SW_HTTP_SWITCHING_PROTOCOLS);
 
-            conn->websocket_status = swoole::websocket::STATUS_ACTIVE;
+            conn->websocket_status = websocket::STATUS_ACTIVE;
 
             return SW_OK;
         }
@@ -202,7 +202,7 @@ static void test_base_server(function<void(Server *)> fn) {
 }
 
 static Server *test_process_server(Server::DispatchMode dispatch_mode = Server::DISPATCH_FDMOD, bool is_ssl = false) {
-    Server *server = new Server(swoole::Server::MODE_PROCESS);
+    Server *server = new Server(Server::MODE_PROCESS);
     server->user_ = std::string("root");
     server->group_ = std::string("root");
     server->chroot_ = std::string("/");
@@ -236,7 +236,7 @@ static Server *test_process_server(Server::DispatchMode dispatch_mode = Server::
         }
     };
 
-    server->onReceive = [&](Server *serv, swRecvData *req) -> int {
+    server->onReceive = [&](Server *serv, RecvData *req) -> int {
         session_id = req->info.fd;
         conn = serv->get_connection_by_session_id(session_id);
         session = serv->get_session(session_id);
@@ -282,7 +282,7 @@ static Server *test_process_server(Server::DispatchMode dispatch_mode = Server::
 }
 
 static Server *test_proxy_server() {
-    Server *server = new Server(swoole::Server::MODE_BASE);
+    Server *server = new Server(Server::MODE_BASE);
     server->worker_num = 1;
 
     ListenPort *port = server->add_port(SW_SOCK_TCP, TEST_HOST, 0);
@@ -304,7 +304,7 @@ static Server *test_proxy_server() {
 
     server->create();
 
-    server->onReceive = [&](Server *server, swRecvData *req) -> int {
+    server->onReceive = [&](Server *server, RecvData *req) -> int {
         session_id = req->info.fd;
         conn = server->get_connection_by_session_id(session_id);
 
@@ -612,7 +612,7 @@ TEST(http_server, websocket_medium) {
     test_base_server([](Server *serv) {
         swoole_signal_block_all();
 
-        swString str(8192);
+        String str(8192);
         str.repeat("A", 1, 8192);
         websocket_test(serv->get_primary_port()->get_port(), str.value(), str.get_length());
 
@@ -624,7 +624,7 @@ TEST(http_server, websocket_big) {
     test_base_server([](Server *serv) {
         swoole_signal_block_all();
 
-        swString str(128 * 1024);
+        String str(128 * 1024);
         str.repeat("A", 1, str.capacity() - 1);
         websocket_test(serv->get_primary_port()->get_port(), str.value(), str.get_length());
 
@@ -634,12 +634,12 @@ TEST(http_server, websocket_big) {
 
 TEST(http_server, parser1) {
     std::thread t;
-    auto server = swoole::http_server::listen(":0", [](Context &ctx) {
+    auto server = http_server::listen(":0", [](Context &ctx) {
         EXPECT_EQ(ctx.form_data.size(), 3);
         ctx.end("DONE");
     });
     server->worker_num = 1;
-    server->onWorkerStart = [&t](Server *server, uint32_t worker_id) {
+    server->onWorkerStart = [&t](Server *server, Worker *worker) {
         t = std::thread([server]() {
             swoole_signal_block_all();
             string file = test::get_root_path() + "/core-tests/fuzz/cases/req1.bin";
@@ -665,14 +665,14 @@ TEST(http_server, parser1) {
 
 TEST(http_server, parser2) {
     std::thread t;
-    auto server = swoole::http_server::listen(":0", [](Context &ctx) {
+    auto server = http_server::listen(":0", [](Context &ctx) {
         EXPECT_EQ(ctx.form_data.size(), 3);
         ctx.end("DONE");
     });
     server->worker_num = 1;
     server->get_primary_port()->set_package_max_length(64 * 1024);
     server->upload_max_filesize = 1024 * 1024;
-    server->onWorkerStart = [&t](Server *server, uint32_t worker_id) {
+    server->onWorkerStart = [&t](Server *server, Worker *worker) {
         t = std::thread([server]() {
             swoole_signal_block_all();
             string file = test::get_root_path() + "/core-tests/fuzz/cases/req2.bin";
@@ -994,7 +994,7 @@ TEST(http_server, chunked) {
         };
         sleep(1);
 
-        string jpg_path = swoole::test::get_jpg_file();
+        string jpg_path = test::get_jpg_file();
         string str_1 = "curl -H 'Transfer-Encoding: chunked' -F \"file=@" + jpg_path + "\" http://";
         string str_2 = ":";
         string host = TEST_HOST;
@@ -1029,7 +1029,7 @@ TEST(http_server, max_queued_bytes) {
 
         sleep(1);
 
-        string jpg_path = swoole::test::get_jpg_file();
+        string jpg_path = test::get_jpg_file();
         string str_1 = "curl -H 'Transfer-Encoding: chunked' -F \"file=@" + jpg_path + "\" http://";
         string str_2 = ":";
         string host = TEST_HOST;
@@ -1232,7 +1232,7 @@ TEST(http_server, http_range2) {
 
 // it is always last test
 TEST(http_server, abort_connection) {
-    Server serv(swoole::Server::MODE_PROCESS);
+    Server serv(Server::MODE_PROCESS);
     serv.worker_num = 2;
     SwooleG.max_sockets = 2;
     serv.set_max_connection(1);
@@ -1246,18 +1246,18 @@ TEST(http_server, abort_connection) {
     port->open_http_protocol = 1;
     serv.create();
 
-    serv.onWorkerStart = [](Server *serv, int worker_id) {
+    serv.onWorkerStart = [](Server *serv, Worker *worker) {
         auto port = serv->get_primary_port();
         httplib::Client cli(TEST_HOST, port->port);
         auto resp = cli.Get("/");
         EXPECT_EQ(resp, nullptr);
 
-        if (worker_id == 0) {
+        if (worker->id == 0) {
             sleep(1);
             kill(serv->get_master_pid(), SIGTERM);
         }
     };
 
-    serv.onReceive = [&](Server *server, swRecvData *req) -> int { return SW_OK; };
+    serv.onReceive = [&](Server *server, RecvData *req) -> int { return SW_OK; };
     serv.start();
 }

@@ -302,7 +302,7 @@ void Server::worker_accept_event(DataHead *info) {
     }
 }
 
-void Server::worker_start_callback() {
+void Server::worker_start_callback(Worker *worker) {
     if (SwooleG.process_id >= worker_num) {
         SwooleG.process_type = SW_PROCESS_TASKWORKER;
     } else {
@@ -349,12 +349,12 @@ void Server::worker_start_callback() {
     }
 
     SW_LOOP_N(worker_num + task_worker_num) {
-        Worker *worker = get_worker(i);
         if (SwooleG.process_id == i) {
             continue;
         }
-        if (is_worker() && worker->pipe_master) {
-            worker->pipe_master->set_nonblock();
+        Worker *other_worker = get_worker(i);
+        if (is_worker() && other_worker->pipe_master) {
+            other_worker->pipe_master->set_nonblock();
         }
     }
 
@@ -362,17 +362,17 @@ void Server::worker_start_callback() {
         sw_logger()->reopen();
     }
 
-    SwooleWG.worker = get_worker(SwooleG.process_id);
-    SwooleWG.worker->status = SW_WORKER_IDLE;
+    SwooleWG.worker = worker;
+    worker->status = SW_WORKER_IDLE;
 
     if (is_process_mode()) {
         sw_shm_protect(session_list, PROT_READ);
     }
 
-    call_worker_start_callback(SwooleWG.worker);
+    call_worker_start_callback(worker);
 }
 
-void Server::worker_stop_callback() {
+void Server::worker_stop_callback(Worker *worker) {
     void *hook_args[2];
     hook_args[0] = this;
     hook_args[1] = (void *) (uintptr_t) SwooleG.process_id;
@@ -380,7 +380,7 @@ void Server::worker_stop_callback() {
         swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_WORKER_STOP, hook_args);
     }
     if (onWorkerStop) {
-        onWorkerStop(this, SwooleG.process_id);
+        onWorkerStop(this, worker);
     }
     if (!message_bus.empty()) {
         swoole_error_log(
@@ -481,7 +481,7 @@ static void Worker_reactor_try_to_exit(Reactor *reactor) {
             break;
         } else {
             if (serv->onWorkerExit && call_worker_exit_func == 0) {
-                serv->onWorkerExit(serv, SwooleG.process_id);
+                serv->onWorkerExit(serv, SwooleWG.worker);
                 call_worker_exit_func = 1;
                 continue;
             }
@@ -565,7 +565,7 @@ int Server::start_event_worker(Worker *worker) {
     }
 
     worker->status = SW_WORKER_IDLE;
-    worker_start_callback();
+    worker_start_callback(worker);
 
     // main loop
     reactor->wait(nullptr);
@@ -574,7 +574,7 @@ int Server::start_event_worker(Worker *worker) {
     // reactor free
     swoole_event_free();
     // worker shutdown
-    worker_stop_callback();
+    worker_stop_callback(worker);
 
     if (buffer_pool) {
         delete buffer_pool;

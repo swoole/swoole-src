@@ -868,16 +868,16 @@ class Server {
      */
     std::function<void(Server *)> onManagerStart;
     std::function<void(Server *)> onManagerStop;
-    std::function<void(Server *, int, const ExitStatus &)> onWorkerError;
+    std::function<void(Server *, Worker *, const ExitStatus &)> onWorkerError;
     std::function<void(Server *)> onBeforeReload;
     std::function<void(Server *)> onAfterReload;
     /**
      * Worker Process
      */
     std::function<void(Server *, EventData *)> onPipeMessage;
-    std::function<void(Server *, uint32_t)> onWorkerStart;
-    std::function<void(Server *, uint32_t)> onWorkerStop;
-    std::function<void(Server *, uint32_t)> onWorkerExit;
+    std::function<void(Server *, Worker *)> onWorkerStart;
+    std::function<void(Server *, Worker *)> onWorkerStop;
+    std::function<void(Server *, Worker *)> onWorkerExit;
     std::function<void(Server *, Worker *)> onUserWorkerStart;
     /**
      * Connection
@@ -1346,13 +1346,13 @@ class Server {
 
     void drain_worker_pipe();
 
-    void check_worker_exit_status(int worker_id, const ExitStatus &exit_status);
+    void check_worker_exit_status(Worker *worker, const ExitStatus &exit_status);
 
     /**
      * [Worker]
      */
-    void worker_start_callback();
-    void worker_stop_callback();
+    void worker_start_callback(Worker *worker);
+    void worker_stop_callback(Worker *worker);
     void worker_accept_event(DataHead *info);
     static void worker_signal_handler(int signo);
     static void worker_signal_init(void);

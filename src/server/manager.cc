@@ -156,18 +156,18 @@ int Server::start_manager_process() {
     return SW_OK;
 }
 
-void Server::check_worker_exit_status(int worker_id, const ExitStatus &exit_status) {
+void Server::check_worker_exit_status(Worker *worker, const ExitStatus &exit_status) {
     if (exit_status.get_status() != 0) {
         swoole_warning("worker(pid=%d, id=%d) abnormal exit, status=%d, signal=%d"
                        "%s",
                        exit_status.get_pid(),
-                       worker_id,
+                       worker->id,
                        exit_status.get_code(),
                        exit_status.get_signal(),
                        exit_status.get_signal() == SIGSEGV ? SwooleG.bug_report_message.c_str() : "");
 
         if (onWorkerError != nullptr) {
-            onWorkerError(this, worker_id, exit_status);
+            onWorkerError(this, worker, exit_status);
         }
     }
 }
@@ -332,16 +332,16 @@ void Manager::wait(Server *_server) {
         if (_server->running) {
             // event workers
             SW_LOOP_N(_server->worker_num) {
+                Worker *worker = _server->get_worker(i);
                 // find worker
-                if (exit_status.get_pid() != _server->workers[i].pid) {
+                if (exit_status.get_pid() != worker->pid) {
                     continue;
                 }
 
                 // check the process return code and signal
-                _server->check_worker_exit_status(i, exit_status);
+                _server->check_worker_exit_status(worker, exit_status);
 
                 do {
-                    Worker *worker = _server->get_worker(i);
                     if (_server->spawn_event_worker(worker) < 0) {
                         SW_START_SLEEP;
                         continue;
@@ -353,7 +353,7 @@ void Manager::wait(Server *_server) {
             if (_server->gs->task_workers.map_) {
                 auto iter = _server->gs->task_workers.map_->find(exit_status.get_pid());
                 if (iter != _server->gs->task_workers.map_->end()) {
-                    _server->check_worker_exit_status(iter->second->id, exit_status);
+                    _server->check_worker_exit_status(iter->second, exit_status);
                     _server->spawn_task_worker(iter->second);
                 }
             }
@@ -493,7 +493,7 @@ int Server::wait_other_worker(ProcessPool *pool, const ExitStatus &exit_status) 
         return SW_ERR;
     } while (0);
 
-    serv->check_worker_exit_status(exit_worker->id, exit_status);
+    serv->check_worker_exit_status(exit_worker, exit_status);
 
     pid_t new_process_pid = -1;
 
