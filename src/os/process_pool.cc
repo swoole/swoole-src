@@ -30,10 +30,10 @@ namespace swoole {
 using network::Socket;
 using network::Stream;
 
-static int ProcessPool_worker_loop(ProcessPool *pool, Worker *worker);
+static int ProcessPool_worker_loop_with_task_protocol(ProcessPool *pool, Worker *worker);
+static int ProcessPool_worker_loop_with_stream_protocol(ProcessPool *pool, Worker *worker);
+static int ProcessPool_worker_loop_with_message_protocol(ProcessPool *pool, Worker *worker);
 static int ProcessPool_worker_loop_async(ProcessPool *pool, Worker *worker);
-static int ProcessPool_worker_loop_ex(ProcessPool *pool, Worker *worker);
-static int ProcessPool_onPipeReceive(Reactor *reactor, Event *event);
 
 void ProcessPool::kill_timeout_worker(Timer *timer, TimerNode *tnode) {
     uint32_t i;
@@ -110,11 +110,7 @@ int ProcessPool::create(uint32_t _worker_num, key_t _msgqueue_key, swIPCMode _ip
     }
 
     map_ = new std::unordered_map<pid_t, Worker *>;
-
     ipc_mode = _ipc_mode;
-    if (_ipc_mode > SW_IPC_NONE) {
-        main_loop = ProcessPool_worker_loop;
-    }
 
     SW_LOOP_N(_worker_num) {
         workers[i].pool = this;
@@ -137,12 +133,8 @@ int ProcessPool::create_message_bus() {
             SW_LOG_WARNING, SW_ERROR_OPERATION_NOT_SUPPORT, "not support, ipc_mode must be SW_IPC_UNIXSOCK");
         return SW_ERR;
     }
-    if (!async) {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_OPERATION_NOT_SUPPORT, "not support, async must be true");
-        return SW_ERR;
-    }
     if (message_bus) {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_WRONG_OPERATION, "the message bus has created");
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_WRONG_OPERATION, "the message bus has been created");
         return SW_ERR;
     }
     sw_atomic_long_t *msg_id = (sw_atomic_long_t *) sw_mem_pool()->alloc(sizeof(sw_atomic_long_t));
@@ -224,6 +216,25 @@ int ProcessPool::start() {
 
     if (async) {
         main_loop = ProcessPool_worker_loop_async;
+    } else if (onMessage != nullptr) {
+        switch (protocol_type_) {
+        case SW_PROTOCOL_STREAM:
+            packet_buffer = new char[max_packet_size_];
+            if (stream_info_) {
+                stream_info_->response_buffer = new String(SW_BUFFER_SIZE_STD);
+            }
+            main_loop = ProcessPool_worker_loop_with_stream_protocol;
+            break;
+        case SW_PROTOCOL_TASK:
+            main_loop = ProcessPool_worker_loop_with_task_protocol;
+            break;
+        case SW_PROTOCOL_MESSAGE:
+            main_loop = ProcessPool_worker_loop_with_message_protocol;
+            break;
+        default:
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_PROTOCOL_ERROR, "unsupported protocol type[%d]", protocol_type_);
+            return SW_ERR;
+        }
     }
 
     for (i = 0; i < worker_num; i++) {
@@ -499,7 +510,7 @@ void ProcessPool::set_max_request(uint32_t _max_request, uint32_t _max_request_g
     max_request_grace = _max_request_grace;
 }
 
-static int ProcessPool_worker_loop(ProcessPool *pool, Worker *worker) {
+static int ProcessPool_worker_loop_with_task_protocol(ProcessPool *pool, Worker *worker) {
     struct {
         long mtype;
         EventData buf;
@@ -645,20 +656,7 @@ static int ProcessPool_worker_loop_async(ProcessPool *pool, Worker *worker) {
     return swoole_event_wait();
 }
 
-void ProcessPool::set_protocol(int task_protocol, uint32_t max_packet_size) {
-    if (task_protocol) {
-        main_loop = ProcessPool_worker_loop;
-    } else {
-        packet_buffer = new char[max_packet_size];
-        if (stream_info_) {
-            stream_info_->response_buffer = new String(SW_BUFFER_SIZE_STD);
-        }
-        max_packet_size_ = max_packet_size;
-        main_loop = ProcessPool_worker_loop_ex;
-    }
-}
-
-static int ProcessPool_worker_loop_ex(ProcessPool *pool, Worker *worker) {
+static int ProcessPool_worker_loop_with_stream_protocol(ProcessPool *pool, Worker *worker) {
     ssize_t n;
     RecvData msg{};
     msg.info.reactor_id = -1;
@@ -747,6 +745,45 @@ static int ProcessPool_worker_loop_ex(ProcessPool *pool, Worker *worker) {
             goto _alarm_handler;
         }
     }
+    return SW_OK;
+}
+
+static int ProcessPool_worker_loop_with_message_protocol(ProcessPool *pool, Worker *worker) {
+    auto fn = [&]() -> int {
+        if (worker->pipe_worker->wait_event(-1, SW_EVENT_READ) < 0) {
+            return errno == EINTR ? 0 : -1;
+        }
+        if (pool->message_bus->read(worker->pipe_worker) < 0) {
+            return errno == EINTR ? 0 : -1;
+        }
+        auto pipe_buffer = pool->message_bus->get_buffer();
+        auto packet = pool->message_bus->get_packet();
+        RecvData msg;
+        msg.info = pipe_buffer->info;
+        msg.info.len = packet.length;
+        msg.data = packet.data;
+        pool->onMessage(pool, &msg);
+        pool->message_bus->pop();
+        return 1;
+    };
+
+    while (pool->running) {
+        switch (fn()) {
+        case 0:
+            if (SwooleG.signal_alarm && SwooleTG.timer) {
+                SwooleG.signal_alarm = false;
+                SwooleTG.timer->select();
+            }
+            break;
+        case 1:
+            break;
+        case -1:
+        default:
+            swoole_sys_warning("failed to read pipe");
+            return SW_OK;
+        }
+    }
+
     return SW_OK;
 }
 

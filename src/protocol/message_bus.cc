@@ -73,6 +73,11 @@ ReturnCode MessageBus::prepare_packet(uint16_t &recv_chunk_count, String *packet
     }
 }
 
+/**
+ * @return -1: a fatal error has occurred and needs to be terminated
+ * @return 0: continue
+ * @return >0: success
+ */
 ssize_t MessageBus::read(Socket *sock) {
     ssize_t recv_n = 0;
     uint16_t recv_chunk_count = 0;

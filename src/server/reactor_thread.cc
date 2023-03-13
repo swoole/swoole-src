@@ -360,10 +360,7 @@ static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev) {
     Server *serv = (Server *) reactor->ptr;
     ReactorThread *thread = serv->get_thread(reactor->id);
 
-#ifdef SW_REACTOR_RECV_AGAIN
-    while (1)
-#endif
-    {
+    SW_LOOP {
         PipeBuffer *resp = thread->message_bus.get_buffer();
         ssize_t n = thread->message_bus.read_with_buffer(ev->socket);
         if (n <= 0) {

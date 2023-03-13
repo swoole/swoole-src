@@ -47,6 +47,12 @@ enum WorkerMessageType {
     SW_WORKER_MESSAGE_STOP = 1,
 };
 
+enum ProtocolType {
+    SW_PROTOCOL_TASK = 1,
+    SW_PROTOCOL_STREAM,
+    SW_PROTOCOL_MESSAGE,
+};
+
 struct WorkerStopMessage {
     pid_t pid;
     uint16_t worker_id;
@@ -119,7 +125,7 @@ struct Worker {
      */
     uint8_t status;
     uint8_t type;
-    uint8_t ipc_mode;
+    uint8_t msgqueue_mode;
     uint8_t child_process;
 
     sw_atomic_t tasking_num;
@@ -177,6 +183,7 @@ struct ProcessPool {
     bool async;
 
     uint8_t ipc_mode;
+    enum ProtocolType protocol_type_;
     pid_t master_pid;
     uint32_t reload_worker_i;
     uint32_t max_wait_time;
@@ -271,9 +278,16 @@ struct ProcessPool {
         return iter->second;
     }
 
+    void set_max_packet_size(uint32_t _max_packet_size) {
+        max_packet_size_ = _max_packet_size;
+    }
+
+    void set_protocol_type(enum ProtocolType _protocol_type) {
+        protocol_type_ = _protocol_type;
+    }
+
     void set_max_request(uint32_t _max_request, uint32_t _max_request_grace);
     int get_max_request();
-    void set_protocol(int task_protocol, uint32_t max_packet_size);
     bool detach();
     int wait();
     int start();
@@ -314,3 +328,4 @@ static sw_inline int swoole_kill(pid_t __pid, int __sig) {
 }
 
 extern swoole::WorkerGlobal SwooleWG;  // Worker Global Variable
+typedef swoole::ProtocolType swProtocolType;

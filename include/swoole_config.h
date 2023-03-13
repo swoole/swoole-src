@@ -130,24 +130,6 @@
  */
 #define SW_REACTOR_MAX_THREAD 8
 
-/**
- * Loops read data from the pipeline,
- * helping to alleviate pipeline cache congestion
- * reduce the pressure of interprocess communication
- */
-#define SW_REACTOR_RECV_AGAIN 1
-
-/**
- * RINGBUFFER
- */
-#define SW_RINGQUEUE_LEN 1024
-#define SW_RINGBUFFER_FREE_N_MAX 4  // when free_n > MAX, execute collect
-#define SW_RINGBUFFER_WARNING 100
-
-/**
- * ringbuffer memory pool size
- */
-#define SW_OUTPUT_BUFFER_SIZE (2 * 1024 * 1024)
 #define SW_INPUT_BUFFER_SIZE (2 * 1024 * 1024)
 #define SW_BUFFER_MIN_SIZE 65536
 #define SW_SEND_BUFFER_SIZE 65536
@@ -164,8 +146,8 @@
 #define SW_TCP_KEEPIDLE 3600  // 1 hour
 #define SW_TCP_KEEPINTERVAL 60
 
-#define SW_USE_EVENTFD                                                                                                 \
-    1  // Whether to use eventfd for message notification, Linux 2.6.22 or later is required to support
+// Whether to use eventfd for message notification, Linux 2.6.22 or later is required to support
+#define SW_USE_EVENTFD 1
 
 #define SW_TASK_TMP_PATH_SIZE 256
 #define SW_TASK_TMP_DIR "/tmp"
