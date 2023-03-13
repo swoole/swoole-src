@@ -58,10 +58,10 @@ TEST(process_pool, tcp_raw) {
 
     pool.running = true;
     pool.ptr = &data;
-    pool.onMessage = [](ProcessPool *pool, const char *recv_data, uint32_t len) -> void {
+    pool.onMessage = [](ProcessPool *pool, RecvData *rdata) -> void {
         pool->running = false;
         String *_data = (String *) pool->ptr;
-        EXPECT_MEMEQ(_data->str, recv_data, len);
+        EXPECT_MEMEQ(_data->str, rdata->data, rdata->info.len);
     };
     pool.main_loop(&pool, pool.get_worker(0));
     pool.destroy();
@@ -85,7 +85,7 @@ TEST(process_pool, shutdown) {
     // init 
     pool.set_protocol(1, 8192);
     pool.ptr = shm_value;
-    pool.onWorkerStart = [](ProcessPool *pool, int worker_id) {
+    pool.onWorkerStart = [](ProcessPool *pool, Worker *worker) {
         int *shm_value = (int *) pool->ptr;
         *shm_value = magic_number;
         usleep(1);
