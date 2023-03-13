@@ -231,6 +231,9 @@ void php_swoole_process_minit(int module_number) {
         REGISTER_LONG_CONSTANT("PRIO_PGRP", (zend_long) PRIO_PGRP, CONST_CS | CONST_PERSISTENT);
         REGISTER_LONG_CONSTANT("PRIO_USER", (zend_long) PRIO_USER, CONST_CS | CONST_PERSISTENT);
     }
+
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_MSGQUEUE_ORIENT", SW_MSGQUEUE_ORIENT);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_MSGQUEUE_BALANCE", SW_MSGQUEUE_BALANCE);
 }
 
 static PHP_METHOD(swoole_process, __construct) {
@@ -341,7 +344,7 @@ static PHP_METHOD(swoole_process, wait) {
 
 static PHP_METHOD(swoole_process, useQueue) {
     long msgkey = 0;
-    long mode = 2;
+    long mode = SW_MSGQUEUE_BALANCE;
     long capacity = -1;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|lll", &msgkey, &mode, &capacity) == FAILURE) {
@@ -367,7 +370,7 @@ static PHP_METHOD(swoole_process, useQueue) {
         queue->set_capacity(capacity);
     }
     process->queue = queue;
-    process->ipc_mode = mode;
+    process->msgqueue_mode = mode;
     zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("msgQueueId"), queue->get_id());
     zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("msgQueueKey"), msgkey);
     RETURN_TRUE;
@@ -829,7 +832,7 @@ static PHP_METHOD(swoole_process, pop) {
         char data[SW_MSGMAX];
     } message;
 
-    if (process->ipc_mode == 2) {
+    if (process->msgqueue_mode == SW_MSGQUEUE_BALANCE) {
         message.type = 0;
     } else {
         message.type = process->id + 1;

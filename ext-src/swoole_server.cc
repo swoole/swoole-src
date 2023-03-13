@@ -3352,9 +3352,10 @@ static PHP_METHOD(swoole_server, sendMessage) {
     zval *zmessage;
     zend_long worker_id = -1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "zl", &zmessage, &worker_id) == FAILURE) {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+    Z_PARAM_ZVAL(zmessage)
+    Z_PARAM_LONG(worker_id)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if ((serv->is_worker() || serv->is_task_worker()) && worker_id == SwooleG.process_id) {
         php_swoole_fatal_error(E_WARNING, "can't send messages to self");

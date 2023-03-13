@@ -23,9 +23,14 @@
 
 namespace swoole {
 
+enum {
+    SW_MSGQUEUE_ORIENT = 1,
+    SW_MSGQUEUE_BALANCE = 2,
+};
+
 struct QueueNode {
-    long mtype;                      /* type of received/sent message */
-    char mdata[sizeof(EventData)];   /* text of the message */
+    long mtype;                    /* type of received/sent message */
+    char mdata[sizeof(EventData)]; /* text of the message */
 };
 
 class MsgQueue {
@@ -35,6 +40,7 @@ class MsgQueue {
     key_t msg_key_;
     int flags_;
     int perms_;
+
   public:
     explicit MsgQueue(key_t msg_key, bool blocking = true, int perms = 0);
     ~MsgQueue();
@@ -54,4 +60,4 @@ class MsgQueue {
     bool stat(size_t *queue_num, size_t *queue_bytes);
     bool destroy();
 };
-}
+}  // namespace swoole

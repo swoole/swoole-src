@@ -27,7 +27,6 @@
 
 using namespace std;
 using namespace swoole;
-using swoole::network::Client;
 
 int beforeReloadPid = 0;
 
@@ -84,7 +83,7 @@ TEST(server, base) {
 
         lock.lock();
 
-        swoole::network::SyncClient c(SW_SOCK_TCP);
+        network::SyncClient c(SW_SOCK_TCP);
         c.connect(TEST_HOST, port->port);
         c.send(packet, strlen(packet));
         char buf[1024];
@@ -96,7 +95,7 @@ TEST(server, base) {
 
     serv.onWorkerStart = [&lock](swServer *serv, int worker_id) { lock.unlock(); };
 
-    serv.onReceive = [](swServer *serv, swRecvData *req) -> int {
+    serv.onReceive = [](swServer *serv, RecvData *req) -> int {
         EXPECT_EQ(string(req->data, req->info.len), string(packet));
 
         string resp = string("Server: ") + string(packet);
@@ -128,7 +127,7 @@ TEST(server, process) {
 
     ASSERT_EQ(serv.create(), SW_OK);
 
-    serv.onStart = [&lock](swServer *serv) {
+    serv.onStart = [&lock](Server *serv) {
         thread t1([=]() {
             swoole_signal_block_all();
 
@@ -136,7 +135,7 @@ TEST(server, process) {
 
             swListenPort *port = serv->get_primary_port();
 
-            swoole::network::SyncClient c(SW_SOCK_TCP);
+            network::SyncClient c(SW_SOCK_TCP);
             c.connect(TEST_HOST, port->port);
             c.send(packet, strlen(packet));
             char buf[1024];
@@ -148,9 +147,9 @@ TEST(server, process) {
         t1.detach();
     };
 
-    serv.onWorkerStart = [&lock](swServer *serv, int worker_id) { lock->unlock(); };
+    serv.onWorkerStart = [&lock](Server *serv, int worker_id) { lock->unlock(); };
 
-    serv.onReceive = [](swServer *serv, swRecvData *req) -> int {
+    serv.onReceive = [](Server *serv, RecvData *req) -> int {
         EXPECT_EQ(string(req->data, req->info.len), string(packet));
 
         string resp = string("Server: ") + string(packet);
@@ -173,11 +172,11 @@ TEST(server, reload_all_workers) {
     SwooleG.running = 1;
     sw_logger()->set_level(SW_LOG_WARNING);
 
-    serv.onTask = [](swServer *serv, swEventData *task) -> int { return 0; };
+    serv.onTask = [](Server *serv, swEventData *task) -> int { return 0; };
 
     ASSERT_EQ(serv.create(), SW_OK);
 
-    serv.onWorkerStart = [&](swServer *serv, int worker_id) {
+    serv.onWorkerStart = [&](Server *serv, int worker_id) {
         std::string filename = "/tmp/worker_1.pid";
         if (worker_id == 1) {
             if (access(filename.c_str(), R_OK) == -1) {
@@ -217,11 +216,11 @@ TEST(server, reload_all_workers2) {
     SwooleG.running = 1;
     sw_logger()->set_level(SW_LOG_WARNING);
 
-    serv.onTask = [](swServer *serv, swEventData *task) -> int { return 0; };
+    serv.onTask = [](Server *serv, swEventData *task) -> int { return 0; };
 
     ASSERT_EQ(serv.create(), SW_OK);
 
-    serv.onWorkerStart = [&](swServer *serv, int worker_id) {
+    serv.onWorkerStart = [&](Server *serv, int worker_id) {
         std::string filename = "/tmp/worker_2.pid";
         if (worker_id == 1) {
             if (access(filename.c_str(), R_OK) == -1) {
@@ -302,12 +301,12 @@ TEST(server, kill_user_workers1) {
 
     serv.onUserWorkerStart = [&](Server *serv, Worker *worker) { EXPECT_GT(worker->id, 0); };
 
-    serv.onTask = [](swServer *serv, swEventData *task) -> int {
+    serv.onTask = [](Server *serv, swEventData *task) -> int {
         while (1) {
         }
     };
 
-    serv.onWorkerStart = [&](swServer *serv, int worker_id) {
+    serv.onWorkerStart = [&](Server *serv, int worker_id) {
         if (worker_id == 1) {
             sleep(1);
             kill(serv->gs->master_pid, SIGTERM);
@@ -352,7 +351,7 @@ TEST(server, ssl) {
             EXPECT_EQ(port->ssl, 1);
             EXPECT_EQ(swoole_ssl_is_thread_safety(), true);
 
-            swoole::network::SyncClient c(SW_SOCK_TCP);
+            network::SyncClient c(SW_SOCK_TCP);
             c.connect(TEST_HOST, port->port);
             c.enable_ssl_encrypt();
             c.send(packet, strlen(packet));
@@ -414,7 +413,7 @@ TEST(server, dtls) {
 
             EXPECT_EQ(port->ssl, 1);
 
-            swoole::network::SyncClient c(SW_SOCK_UDP);
+            network::SyncClient c(SW_SOCK_UDP);
             c.connect(TEST_HOST, port->port);
             c.enable_ssl_encrypt();
             c.send(packet, strlen(packet));
@@ -444,7 +443,7 @@ TEST(server, dtls) {
 }
 
 TEST(server, dtls2) {
-    Server *server = new Server(swoole::Server::MODE_PROCESS);
+    Server *server = new Server(Server::MODE_PROCESS);
     server->worker_num = 2;
     server->single_thread = false;
     ListenPort *port = server->add_port((enum swSocketType)(SW_SOCK_UDP | SW_SOCK_SSL), TEST_HOST, 0);
@@ -478,7 +477,7 @@ TEST(server, dtls2) {
         sleep(1);
         auto port = server->get_primary_port();
 
-        swoole::network::SyncClient c(SW_SOCK_UDP);
+        network::SyncClient c(SW_SOCK_UDP);
         c.connect(TEST_HOST, port->port);
         c.enable_ssl_encrypt();
         c.send(packet, strlen(packet));
@@ -500,7 +499,7 @@ TEST(server, task_worker) {
         exit(2);
     }
 
-    serv.onTask = [](swServer *serv, swEventData *task) -> int {
+    serv.onTask = [](Server *serv, swEventData *task) -> int {
         EXPECT_EQ(serv->get_task_count(), 1);
         EXPECT_EQ(string(task->data, task->info.len), string(packet));
         serv->gs->task_workers.running = 0;
@@ -551,16 +550,16 @@ TEST(server, task_worker2) {
         exit(2);
     }
 
-    serv.onReceive = [](Server *server, swRecvData *req) -> int { return SW_OK; };
+    serv.onReceive = [](Server *server, RecvData *req) -> int { return SW_OK; };
 
-    serv.onTask = [](swServer *serv, swEventData *task) -> int {
+    serv.onTask = [](Server *serv, swEventData *task) -> int {
         EXPECT_EQ(string(task->data, task->info.len), string(packet));
         int ret = serv->reply_task_result(task->data, task->info.len, 0, task);
         EXPECT_GT(ret, 0);
         return 0;
     };
 
-    serv.onFinish = [](swServer *serv, swEventData *task) -> int {
+    serv.onFinish = [](Server *serv, swEventData *task) -> int {
         EXPECT_EQ(string(task->data, task->info.len), string(packet));
         return 0;
     };
@@ -568,7 +567,7 @@ TEST(server, task_worker2) {
     ASSERT_EQ(serv.create(), SW_OK);
     ASSERT_EQ(serv.create_task_workers(), SW_OK);
 
-    serv.onWorkerStart = [&](swServer *serv, int worker_id) {
+    serv.onWorkerStart = [&](Server *serv, int worker_id) {
         if (worker_id == 1) {
             int _dst_worker_id = 0;
 
@@ -600,16 +599,16 @@ TEST(server, task_worker3) {
         exit(2);
     }
 
-    serv.onReceive = [](Server *server, swRecvData *req) -> int { return SW_OK; };
+    serv.onReceive = [](Server *server, RecvData *req) -> int { return SW_OK; };
 
-    serv.onTask = [](swServer *serv, swEventData *task) -> int {
+    serv.onTask = [](Server *serv, swEventData *task) -> int {
         EXPECT_EQ(string(task->data, task->info.len), string(packet));
         int ret = serv->reply_task_result(task->data, task->info.len, 0, task);
         EXPECT_GT(ret, 0);
         return 0;
     };
 
-    serv.onFinish = [](swServer *serv, swEventData *task) -> int {
+    serv.onFinish = [](Server *serv, swEventData *task) -> int {
         EXPECT_EQ(string(task->data, task->info.len), string(packet));
         return 0;
     };
@@ -617,7 +616,7 @@ TEST(server, task_worker3) {
     ASSERT_EQ(serv.create(), SW_OK);
     ASSERT_EQ(serv.create_task_workers(), SW_OK);
 
-    serv.onWorkerStart = [&](swServer *serv, int worker_id) {
+    serv.onWorkerStart = [&](Server *serv, int worker_id) {
         if (worker_id == 1) {
             int _dst_worker_id = 0;
 
@@ -649,16 +648,16 @@ TEST(server, task_worker4) {
         exit(2);
     }
 
-    serv.onReceive = [](Server *server, swRecvData *req) -> int { return SW_OK; };
+    serv.onReceive = [](Server *server, RecvData *req) -> int { return SW_OK; };
 
-    serv.onTask = [](swServer *serv, swEventData *task) -> int {
+    serv.onTask = [](Server *serv, swEventData *task) -> int {
         EXPECT_EQ(string(task->data, task->info.len), string(packet));
         int ret = serv->reply_task_result(task->data, task->info.len, 0, task);
         EXPECT_GT(ret, 0);
         return 0;
     };
 
-    serv.onFinish = [](swServer *serv, swEventData *task) -> int {
+    serv.onFinish = [](Server *serv, swEventData *task) -> int {
         EXPECT_EQ(string(task->data, task->info.len), string(packet));
         return 0;
     };
@@ -666,7 +665,7 @@ TEST(server, task_worker4) {
     ASSERT_EQ(serv.create(), SW_OK);
     ASSERT_EQ(serv.create_task_workers(), SW_OK);
 
-    serv.onWorkerStart = [&](swServer *serv, int worker_id) {
+    serv.onWorkerStart = [&](Server *serv, int worker_id) {
         if (worker_id == 1) {
             int _dst_worker_id = 0;
 
@@ -711,9 +710,9 @@ TEST(server, task_worker5) {
         exit(2);
     }
 
-    serv.onReceive = [](Server *server, swRecvData *req) -> int { return SW_OK; };
+    serv.onReceive = [](Server *server, RecvData *req) -> int { return SW_OK; };
 
-    serv.onTask = [&data](swServer *serv, swEventData *task) -> int {
+    serv.onTask = [&data](Server *serv, swEventData *task) -> int {
         PacketTask *pkg = (PacketTask *) task->data;
         ifstream ifs;
         ifs.open(pkg->tmpfile);
@@ -730,14 +729,14 @@ TEST(server, task_worker5) {
     ASSERT_EQ(serv.create(), SW_OK);
     ASSERT_EQ(serv.create_task_workers(), SW_OK);
 
-    serv.onWorkerStart = [&data](swServer *serv, int worker_id) {
+    serv.onWorkerStart = [&data](Server *serv, int worker_id) {
         if (worker_id == 1) {
             int _dst_worker_id = 0;
 
             EventData *task_result = &(serv->task_result[worker_id]);
             sw_memset_zero(task_result, sizeof(*task_result));
 
-            File fp = swoole::make_tmpfile();
+            File fp = make_tmpfile();
             std::string file_path = fp.get_path();
             fp.close();
             int *finish_count = (int *) task_result->data;
@@ -943,7 +942,7 @@ TEST(server, sendwait) {
 
         lock.lock();
 
-        swoole::network::SyncClient c(SW_SOCK_TCP);
+        network::SyncClient c(SW_SOCK_TCP);
         c.connect(TEST_HOST, port->port);
         c.send(packet, strlen(packet));
         char buf[1024];
@@ -953,9 +952,9 @@ TEST(server, sendwait) {
         kill(getpid(), SIGTERM);
     });
 
-    serv.onWorkerStart = [&lock](swServer *serv, int worker_id) { lock.unlock(); };
+    serv.onWorkerStart = [&lock](Server *serv, int worker_id) { lock.unlock(); };
 
-    serv.onReceive = [](swServer *serv, swRecvData *req) -> int {
+    serv.onReceive = [](Server *serv, RecvData *req) -> int {
         EXPECT_EQ(string(req->data, req->info.len), string(packet));
 
         string resp = string("Server: ") + string(packet);
@@ -996,7 +995,7 @@ TEST(server, system) {
         swoole_signal_block_all();
         lock.lock();
 
-        swoole::network::SyncClient c(SW_SOCK_TCP);
+        network::SyncClient c(SW_SOCK_TCP);
         c.connect(TEST_HOST, 8080);
         c.send(packet, strlen(packet));
         char buf[1024];
@@ -1006,9 +1005,9 @@ TEST(server, system) {
         kill(getpid(), SIGTERM);
     });
 
-    serv.onWorkerStart = [&lock](swServer *serv, int worker_id) { lock.unlock(); };
+    serv.onWorkerStart = [&lock](Server *serv, int worker_id) { lock.unlock(); };
 
-    serv.onReceive = [](swServer *serv, swRecvData *req) -> int {
+    serv.onReceive = [](Server *serv, RecvData *req) -> int {
         EXPECT_EQ(string(req->data, req->info.len), string(packet));
 
         string resp = string("Server: ") + string(packet);
@@ -1031,7 +1030,7 @@ TEST(server, reopen_log) {
 
     ASSERT_EQ(serv.create(), SW_OK);
 
-    serv.onWorkerStart = [&filename](swServer *serv, int worker_id) {
+    serv.onWorkerStart = [&filename](Server *serv, int worker_id) {
         if (worker_id != 0) {
             return;
         }
@@ -1048,13 +1047,13 @@ TEST(server, reopen_log) {
 }
 
 TEST(server, udp_packet) {
-    Server *server = new Server(swoole::Server::MODE_PROCESS);
+    Server *server = new Server(Server::MODE_PROCESS);
     server->worker_num = 2;
     server->add_port(SW_SOCK_UDP, TEST_HOST, 0);
 
     server->create();
     server->onPacket = [](Server *serv, RecvData *req) {
-        swoole::DgramPacket *recv_data = (swoole::DgramPacket *) req->data;
+        DgramPacket *recv_data = (DgramPacket *) req->data;
         EXPECT_EQ(string(recv_data->data, recv_data->length), string(packet));
         network::Socket *server_socket = serv->get_server_socket(req->info.server_fd);
         string resp = string(packet);
@@ -1062,7 +1061,7 @@ TEST(server, udp_packet) {
         return SW_OK;
     };
 
-    server->onReceive = [](Server *server, swRecvData *req) -> int { return SW_OK; };
+    server->onReceive = [](Server *server, RecvData *req) -> int { return SW_OK; };
 
     pid_t pid = fork();
 
@@ -1078,7 +1077,7 @@ TEST(server, udp_packet) {
         sleep(1);
         auto port = server->get_primary_port();
 
-        Client cli(SW_SOCK_UDP, false);
+        network::Client cli(SW_SOCK_UDP, false);
         int ret = cli.connect(&cli, TEST_HOST, port->port, -1, 0);
         EXPECT_EQ(ret, 0);
         ret = cli.send(&cli, packet, strlen(packet), 0);
@@ -1150,7 +1149,7 @@ TEST(server, protocols) {
 }
 
 TEST(server, pipe_message) {
-    Server *server = new Server(swoole::Server::MODE_PROCESS);
+    Server *server = new Server(Server::MODE_PROCESS);
     server->worker_num = 2;
     server->add_port(SW_SOCK_TCP, TEST_HOST, 0);
 
@@ -1160,9 +1159,9 @@ TEST(server, pipe_message) {
         return SW_OK;
     };
 
-    server->onReceive = [](Server *server, swRecvData *req) -> int { return SW_OK; };
+    server->onReceive = [](Server *server, RecvData *req) -> int { return SW_OK; };
 
-    server->onWorkerStart = [&](swServer *server, int worker_id) {
+    server->onWorkerStart = [&](Server *server, int worker_id) {
         if (worker_id == 1) {
             EventData buf{};
             string data = string(packet);
