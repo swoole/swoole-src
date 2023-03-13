@@ -48,7 +48,8 @@ TEST(process_pool, tcp_raw) {
     constexpr int size = 2*1024*1024;
     ASSERT_EQ(pool.create(1, 0, SW_IPC_SOCKET), SW_OK);
     ASSERT_EQ(pool.listen(TEST_HOST, TEST_PORT, 128), SW_OK);
-    pool.set_protocol(0, size);
+    pool.set_protocol_type(SW_PROTOCOL_STREAM);
+    pool.set_max_packet_size(size);
 
     String data(size);
     data.append_random_bytes(size-1);
@@ -83,7 +84,8 @@ TEST(process_pool, shutdown) {
     ASSERT_EQ(pool.create(1, 0x9501, SW_IPC_MSGQUEUE), SW_OK);
 
     // init 
-    pool.set_protocol(1, 8192);
+    pool.set_protocol_type(SW_PROTOCOL_TASK);
+    pool.set_max_packet_size(8192);
     pool.ptr = shm_value;
     pool.onWorkerStart = [](ProcessPool *pool, Worker *worker) {
         int *shm_value = (int *) pool->ptr;
