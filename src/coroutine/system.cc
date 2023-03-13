@@ -137,8 +137,8 @@ ssize_t System::write_file(const char *file, char *buf, size_t length, bool lock
 std::string gethostbyname_impl_with_async(const std::string &hostname, int domain, double timeout) {
     AsyncEvent ev{};
 
-    if (hostname.size() < SW_IP_MAX_LENGTH) {
-        ev.nbytes = SW_IP_MAX_LENGTH + 1;
+    if (hostname.size() < INET6_ADDRSTRLEN) {
+        ev.nbytes = INET6_ADDRSTRLEN + 1;
     } else {
         ev.nbytes = hostname.size() + 1;
     }

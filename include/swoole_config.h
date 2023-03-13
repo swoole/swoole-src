@@ -42,7 +42,6 @@
 #define SW_MAX_SOCKETS_DEFAULT 1024
 
 #define SW_SOCKET_OVERFLOW_WAIT 100
-#define SW_SOCKET_MAX_DEFAULT 65536
 #if defined(__MACH__) || defined(__FreeBSD__)
 #define SW_SOCKET_BUFFER_SIZE 262144
 #else
@@ -65,7 +64,6 @@
 #define SW_HOST_MAXSIZE                                                                                                \
     sizeof(((struct sockaddr_un *) NULL)->sun_path)  // Linux has 108 UNIX_PATH_MAX, but BSD/MacOS limit is only 104
 
-#define SW_LOG_NO_SRCINFO 1  // no source info
 #define SW_CLIENT_BUFFER_SIZE 65536
 #define SW_CLIENT_CONNECT_TIMEOUT 0.5
 #define SW_CLIENT_MAX_PORT 65535
@@ -85,10 +83,6 @@
 #define SW_BUFFER_SIZE_UDP 65536
 
 #define SW_SENDFILE_CHUNK_SIZE 65536
-#define SW_SENDFILE_MAXLEN 4194304
-
-#define SW_HASHMAP_KEY_MAXLEN 256
-#define SW_HASHMAP_INIT_BUCKET_N 32  // hashmap bucket num (default value for init)
 
 #define SW_DATA_EOF "\r\n\r\n"
 #define SW_DATA_EOF_MAXLEN 8
@@ -98,18 +92,10 @@
 #define SW_AIO_THREAD_NUM_MULTIPLE 8
 #define SW_AIO_THREAD_MAX_IDLE_TIME 1.0
 #define SW_AIO_TASK_MAX_WAIT_TIME 0.001
-#define SW_AIO_MAX_FILESIZE (4 * 1024 * 1024)
 #define SW_AIO_EVENT_NUM 128
-#define SW_AIO_DEFAULT_CHUNK_SIZE 65536
-#define SW_AIO_MAX_CHUNK_SIZE (1 * 1024 * 1024)
-#define SW_AIO_MAX_EVENTS 128
-#define SW_AIO_HANDLER_MAX_SIZE 8
-#define SW_THREADPOOL_QUEUE_LEN 10000
-#define SW_IP_MAX_LENGTH 46
 
 #define SW_WORKER_WAIT_TIMEOUT 1000
 
-#define SW_WORKER_USE_SIGNALFD 1
 #define SW_WORKER_MAX_WAIT_TIME 3
 #define SW_WORKER_MIN_REQUEST 10
 #define SW_WORKER_MAX_RECV_CHUNK_COUNT 32
@@ -146,9 +132,6 @@
 #define SW_TCP_KEEPIDLE 3600  // 1 hour
 #define SW_TCP_KEEPINTERVAL 60
 
-// Whether to use eventfd for message notification, Linux 2.6.22 or later is required to support
-#define SW_USE_EVENTFD 1
-
 #define SW_TASK_TMP_PATH_SIZE 256
 #define SW_TASK_TMP_DIR "/tmp"
 #define SW_TASK_TMP_FILE "swoole.task.XXXXXX"
@@ -163,11 +146,6 @@
 #define SW_SSL_ECDH_CURVE "auto"
 
 #define SW_SPINLOCK_LOOP_N 1024
-
-#define SW_STRING_BUFFER_MAXLEN (1024 * 1024 * 128)
-#define SW_STRING_BUFFER_DEFAULT 128
-#define SW_STRING_BUFFER_GARBAGE_MIN (1024 * 64)
-#define SW_STRING_BUFFER_GARBAGE_RATIO 4
 
 #define SW_SIGNO_MAX 128
 #define SW_UNREGISTERED_SIGNAL_FMT "Unable to find callback function for signal %s"

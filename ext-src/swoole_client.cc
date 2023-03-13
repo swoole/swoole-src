@@ -852,8 +852,8 @@ static PHP_METHOD(swoole_client, sendto) {
         php_swoole_client_set_cli(ZEND_THIS, cli);
     }
 
-    char addr[SW_IP_MAX_LENGTH];
-    char ip[SW_IP_MAX_LENGTH];
+    char addr[INET6_ADDRSTRLEN];
+    char ip[INET6_ADDRSTRLEN];
 
     /**
      * udg doesn't need to use ip and port, so we don't need to deal with SW_SOCK_UNIX_DGRAM

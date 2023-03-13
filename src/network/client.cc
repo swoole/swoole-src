@@ -617,8 +617,8 @@ static int Client_tcp_connect_async(Client *cli, const char *host, int port, dou
         AsyncEvent ev{};
 
         size_t len = strlen(cli->server_host);
-        if (len < SW_IP_MAX_LENGTH) {
-            ev.nbytes = SW_IP_MAX_LENGTH;
+        if (len < INET6_ADDRSTRLEN) {
+            ev.nbytes = INET6_ADDRSTRLEN;
         } else {
             ev.nbytes = len + 1;
         }

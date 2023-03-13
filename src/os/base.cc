@@ -84,7 +84,7 @@ namespace swoole {
 namespace async {
 
 void handler_gethostbyname(AsyncEvent *event) {
-    char addr[SW_IP_MAX_LENGTH];
+    char addr[INET6_ADDRSTRLEN];
     int ret = network::gethostbyname(event->flags, (char *) event->buf, addr);
     sw_memset_zero(event->buf, event->nbytes);
 
