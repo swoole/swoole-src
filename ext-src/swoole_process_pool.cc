@@ -600,7 +600,10 @@ static PHP_METHOD(swoole_process_pool, getProcess) {
             worker->pipe_current = nullptr;
             worker->pipe_object = nullptr;
         }
-        if (current_pool->ipc_mode == SW_IPC_MSGQUEUE) {
+        /**
+         * The onMessage callback is not set, use getProcess()->push()/pop() to operate msgqueue
+         */
+        if (current_pool->ipc_mode == SW_IPC_MSGQUEUE && current_pool->onMessage == nullptr) {
             worker->queue = current_pool->queue;
             worker->msgqueue_mode = SW_MSGQUEUE_BALANCE;
         }

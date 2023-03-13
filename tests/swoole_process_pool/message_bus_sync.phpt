@@ -10,7 +10,7 @@ require __DIR__ . '/../include/bootstrap.php';
 use Swoole\Constant;
 use Swoole\Process\Pool;
 
-const N = 1;
+const N = 256;
 
 $in = $out = [];
 for ($i = N; $i--;) {
