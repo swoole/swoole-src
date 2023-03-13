@@ -173,9 +173,14 @@ int Socket::wait_event(int timeout_ms, int events) {
         if (ret == 0) {
             swoole_set_last_error(SW_ERROR_SOCKET_POLL_TIMEOUT);
             return SW_ERR;
-        } else if (ret < 0 && errno != EINTR) {
-            swoole_sys_warning("poll() failed");
-            return SW_ERR;
+        } else if (ret < 0) {
+            if (errno != EINTR) {
+                swoole_sys_warning("poll() failed");
+            } else if (dont_restart) {
+                return SW_ERR;
+            } else {
+                continue;
+            }
         } else {
             return SW_OK;
         }

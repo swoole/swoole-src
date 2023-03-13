@@ -193,6 +193,7 @@ struct Socket {
     uchar skip_recv : 1;
     uchar recv_wait : 1;
     uchar event_hup : 1;
+    uchar dont_restart : 1;
 
     // memory buffer size [user space]
     uint32_t buffer_size;

@@ -778,6 +778,8 @@ static int ProcessPool_worker_loop_with_message_protocol(ProcessPool *pool, Work
         return 1;
     };
 
+    worker->pipe_worker->dont_restart = 1;
+
     while (pool->running) {
         switch (fn()) {
         case 0:
@@ -790,7 +792,7 @@ static int ProcessPool_worker_loop_with_message_protocol(ProcessPool *pool, Work
             break;
         case -1:
         default:
-            swoole_sys_warning("failed to read pipe");
+            swoole_sys_warning("failed to read data from pipe");
             return SW_OK;
         }
     }

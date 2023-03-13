@@ -483,6 +483,8 @@ static PHP_METHOD(swoole_process_pool, start) {
     ProcessPoolObject *pp = process_pool_fetch_object(ZEND_THIS);
     std::unordered_map<int, swSignalHandler> ori_handlers;
 
+    // The reactor must be cleaned up before registering signal
+    swoole_event_free();
     ori_handlers[SIGTERM] = swoole_signal_set(SIGTERM, process_pool_signal_handler);
     ori_handlers[SIGUSR1] = swoole_signal_set(SIGUSR1, process_pool_signal_handler);
     ori_handlers[SIGUSR2] = swoole_signal_set(SIGUSR2, process_pool_signal_handler);
@@ -519,7 +521,6 @@ static PHP_METHOD(swoole_process_pool, start) {
 
     zend_update_property_long(swoole_process_pool_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("master_pid"), getpid());
 
-    swoole_event_free();
     if (pool->start() < 0) {
         RETURN_FALSE;
     }
