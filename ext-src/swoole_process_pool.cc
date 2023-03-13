@@ -472,8 +472,8 @@ static PHP_METHOD(swoole_process_pool, sendMessage) {
         php_swoole_fatal_error(E_WARNING, "process pool is not started.");
         RETURN_FALSE;
     }
-    if (!pool->message_bus) {
-        php_swoole_fatal_error(E_WARNING, "not supported, message bus is not enabled");
+    if (pool->ipc_mode != SW_IPC_UNIXSOCK) {
+        php_swoole_fatal_error(E_WARNING, "unsupported ipc type[%d]", pool->ipc_mode);
         RETURN_FALSE;
     }
 
@@ -487,12 +487,15 @@ static PHP_METHOD(swoole_process_pool, sendMessage) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     Worker *worker = pool->get_worker(worker_id);
-    SendData _task{};
-    _task.info.reactor_id = current_worker ? current_worker->pid : -1;
-    _task.info.len = l_message;
-    _task.data = message;
-
-    RETURN_BOOL(pool->message_bus->write(worker->pipe_master, &_task));
+    if (pool->message_bus) {
+        SendData _task{};
+        _task.info.reactor_id = current_worker ? current_worker->pid : -1;
+        _task.info.len = l_message;
+        _task.data = message;
+        RETURN_BOOL(pool->message_bus->write(worker->pipe_master, &_task));
+    } else {
+        RETURN_BOOL(worker->pipe_master->send_async(message, l_message));
+    }
 }
 
 static PHP_METHOD(swoole_process_pool, start) {
