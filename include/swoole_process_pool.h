@@ -282,9 +282,7 @@ struct ProcessPool {
         max_packet_size_ = _max_packet_size;
     }
 
-    void set_protocol_type(enum ProtocolType _protocol_type) {
-        protocol_type_ = _protocol_type;
-    }
+    void set_protocol(enum ProtocolType _protocol_type);
 
     void set_max_request(uint32_t _max_request, uint32_t _max_request_grace);
     int get_max_request();

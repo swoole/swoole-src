@@ -156,6 +156,10 @@ static void process_pool_onWorkerStart(ProcessPool *pool, Worker *worker) {
     current_pool = pool;
     current_worker = worker;
 
+    if (pp->onMessage) {
+        swoole_signal_set(SIGTERM, process_pool_signal_handler);
+    }
+
     if (!pp->onWorkerStart) {
         return;
     }
@@ -476,8 +480,6 @@ static PHP_METHOD(swoole_process_pool, start) {
         RETURN_FALSE;
     }
 
-    swoole_event_free();
-
     ProcessPoolObject *pp = process_pool_fetch_object(ZEND_THIS);
     std::unordered_map<int, swSignalHandler> ori_handlers;
 
@@ -485,6 +487,16 @@ static PHP_METHOD(swoole_process_pool, start) {
     ori_handlers[SIGUSR1] = swoole_signal_set(SIGUSR1, process_pool_signal_handler);
     ori_handlers[SIGUSR2] = swoole_signal_set(SIGUSR2, process_pool_signal_handler);
     ori_handlers[SIGIO] = swoole_signal_set(SIGIO, process_pool_signal_handler);
+
+    if (pp->enable_message_bus) {
+        if (pool->create_message_bus() != SW_OK) {
+            RETURN_FALSE;
+        }
+        pool->message_bus->set_allocator(sw_zend_string_allocator());
+        pool->set_protocol(SW_PROTOCOL_MESSAGE);
+    } else {
+        pool->set_protocol(SW_PROTOCOL_STREAM);
+    }
 
     if (pp->onWorkerStart == nullptr && pp->onMessage == nullptr) {
         if (pool->async) {
@@ -498,22 +510,16 @@ static PHP_METHOD(swoole_process_pool, start) {
 
     if (pp->onMessage) {
         pool->onMessage = process_pool_onMessage;
+    } else {
+        pool->main_loop = nullptr;
     }
+
     pool->onWorkerStart = process_pool_onWorkerStart;
     pool->onWorkerStop = process_pool_onWorkerStop;
 
-    if (pp->enable_message_bus) {
-        if (pool->create_message_bus() != SW_OK) {
-            RETURN_FALSE;
-        }
-        pool->message_bus->set_allocator(sw_zend_string_allocator());
-        pool->set_protocol_type(SW_PROTOCOL_MESSAGE);
-    } else {
-        pool->set_protocol_type(SW_PROTOCOL_STREAM);
-    }
-
     zend_update_property_long(swoole_process_pool_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("master_pid"), getpid());
 
+    swoole_event_free();
     if (pool->start() < 0) {
         RETURN_FALSE;
     }

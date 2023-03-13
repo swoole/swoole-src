@@ -14,7 +14,7 @@ const N = 70000;
 
 $pool = new Pool(2, SWOOLE_IPC_UNIXSOCK);
 
-$pool->on('workerStart', function (Swoole\Process\Pool $pool, int $workerId) {
+$pool->on('workerStart', function (Pool $pool, int $workerId) {
     if ($workerId == 0) {
         usleep(1000);
         $process1 = $pool->getProcess(1);

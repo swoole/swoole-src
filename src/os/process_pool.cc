@@ -111,6 +111,9 @@ int ProcessPool::create(uint32_t _worker_num, key_t _msgqueue_key, swIPCMode _ip
 
     map_ = new std::unordered_map<pid_t, Worker *>;
     ipc_mode = _ipc_mode;
+    main_loop = ProcessPool_worker_loop_with_task_protocol;
+    protocol_type_ = SW_PROTOCOL_TASK;
+    max_packet_size_ = SW_INPUT_BUFFER_SIZE;
 
     SW_LOOP_N(_worker_num) {
         workers[i].pool = this;
@@ -199,6 +202,24 @@ int ProcessPool::listen(const char *host, int port, int blacklog) {
     return SW_OK;
 }
 
+void ProcessPool::set_protocol(enum ProtocolType _protocol_type) {
+    switch (_protocol_type) {
+    case SW_PROTOCOL_TASK:
+        main_loop = ProcessPool_worker_loop_with_task_protocol;
+        break;
+    case SW_PROTOCOL_STREAM:
+        main_loop = ProcessPool_worker_loop_with_stream_protocol;
+        break;
+    case SW_PROTOCOL_MESSAGE:
+        main_loop = ProcessPool_worker_loop_with_message_protocol;
+        break;
+    default:
+        abort();
+        break;
+    }
+    protocol_type_ = _protocol_type;
+}
+
 /**
  * start workers
  */
@@ -216,25 +237,6 @@ int ProcessPool::start() {
 
     if (async) {
         main_loop = ProcessPool_worker_loop_async;
-    } else if (onMessage != nullptr) {
-        switch (protocol_type_) {
-        case SW_PROTOCOL_STREAM:
-            packet_buffer = new char[max_packet_size_];
-            if (stream_info_) {
-                stream_info_->response_buffer = new String(SW_BUFFER_SIZE_STD);
-            }
-            main_loop = ProcessPool_worker_loop_with_stream_protocol;
-            break;
-        case SW_PROTOCOL_TASK:
-            main_loop = ProcessPool_worker_loop_with_task_protocol;
-            break;
-        case SW_PROTOCOL_MESSAGE:
-            main_loop = ProcessPool_worker_loop_with_message_protocol;
-            break;
-        default:
-            swoole_error_log(SW_LOG_WARNING, SW_ERROR_PROTOCOL_ERROR, "unsupported protocol type[%d]", protocol_type_);
-            return SW_ERR;
-        }
     }
 
     for (i = 0; i < worker_num; i++) {
@@ -650,6 +652,10 @@ static int ProcessPool_worker_loop_async(ProcessPool *pool, Worker *worker) {
         if (pool->message_bus) {
             swoole_event_set_handler(SW_FD_PIPE, ProcessPool_recv_message);
         } else {
+            pool->packet_buffer = new char[pool->max_packet_size_];
+            if (pool->stream_info_) {
+                pool->stream_info_->response_buffer = new String(SW_BUFFER_SIZE_STD);
+            }
             swoole_event_set_handler(SW_FD_PIPE, ProcessPool_recv_packet);
         }
     }
@@ -660,6 +666,11 @@ static int ProcessPool_worker_loop_with_stream_protocol(ProcessPool *pool, Worke
     ssize_t n;
     RecvData msg{};
     msg.info.reactor_id = -1;
+
+    pool->packet_buffer = new char[pool->max_packet_size_];
+    if (pool->stream_info_) {
+        pool->stream_info_->response_buffer = new String(SW_BUFFER_SIZE_STD);
+    }
 
     QueueNode *outbuf = (QueueNode *) pool->packet_buffer;
     outbuf->mtype = 0;
