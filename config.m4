@@ -752,7 +752,6 @@ EOF
 	        thirdparty/nghttp2/nghttp2_mem.c \
 	        thirdparty/nghttp2/nghttp2_hd_huffman.c \
 	        thirdparty/nghttp2/nghttp2_hd_huffman_data.c"
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/nghttp2)
 	fi
 
     SW_ASM_DIR="thirdparty/boost/asm/"
@@ -901,4 +900,7 @@ EOF
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/sockets)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/standard)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/curl)
+    if test "$PHP_NGHTTP2_DIR" = "no"; then
+        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/nghttp2)
+	fi
 fi
