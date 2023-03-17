@@ -148,7 +148,6 @@ static void bug_report_message_init() {
 
 #ifdef SW_USE_OPENSSL
     SwooleG.bug_report_message += swoole_ssl_get_version_message();
-
 #endif
 }
 

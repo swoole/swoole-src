@@ -66,6 +66,11 @@ PHP_ARG_WITH([brotli_dir],
   [AS_HELP_STRING([[--with-brotli-dir[=DIR]]],
     [Include Brotli support])], [no], [no])
 
+PHP_ARG_WITH([nghttp2_dir],
+  [dir of nghttp2],
+  [AS_HELP_STRING([[--with-nghttp2-dir[=DIR]]],
+    [Include nghttp2 support])], [no], [no])
+
 PHP_ARG_WITH([jemalloc_dir],
   [dir of jemalloc],
   [AS_HELP_STRING([[--with-jemalloc-dir[=DIR]]],
@@ -478,7 +483,7 @@ EOF
         AC_DEFINE(SW_HAVE_ZLIB, 1, [have zlib])
         PHP_ADD_LIBRARY(z, 1, SWOOLE_SHARED_LIBADD)
     ])
-    
+
     if test "$PHP_BROTLI" = "yes"; then
         AC_CHECK_LIB(brotlienc, BrotliEncoderCreateInstance, [
             AC_CHECK_LIB(brotlidec, BrotliDecoderCreateInstance, [
@@ -577,18 +582,21 @@ EOF
         PHP_ADD_LIBRARY(ssl, 1, SWOOLE_SHARED_LIBADD)
         PHP_ADD_LIBRARY(crypto, 1, SWOOLE_SHARED_LIBADD)
     fi
-    
-    if test "$PHP_BROTLI_DIR" != "no"; then
-        AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli encoder])
-        PHP_ADD_INCLUDE("${PHP_BROTLI_DIR}/include")
-        PHP_ADD_LIBRARY_WITH_PATH(brotli, "${PHP_BROTLI_DIR}/${PHP_LIBDIR}")
-    fi
 
     if test "$PHP_BROTLI_DIR" != "no"; then
         AC_DEFINE(SW_HAVE_COMPRESSION, 1, [have compression])
         AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli encoder])
+        PHP_ADD_INCLUDE("${PHP_BROTLI_DIR}/include")
+        PHP_ADD_LIBRARY_WITH_PATH(brotli, "${PHP_BROTLI_DIR}/${PHP_LIBDIR}")
         PHP_ADD_LIBRARY_WITH_PATH(brotlienc, "${PHP_BROTLI_DIR}/${PHP_LIBDIR}")
         PHP_ADD_LIBRARY_WITH_PATH(brotlidec, "${PHP_BROTLI_DIR}/${PHP_LIBDIR}")
+    fi
+
+    if test "$PHP_NGHTTP2_DIR" != "no"; then
+        AC_DEFINE(SW_USE_SYSTEM_LIBNGHTTP2, 1, [Use the system libnghttp2])
+        PHP_ADD_INCLUDE("${PHP_NGHTTP2_DIR}/include")
+        PHP_ADD_LIBRARY_WITH_PATH(nghttp2, "${PHP_NGHTTP2_DIR}/${PHP_LIBDIR}")
+        PHP_ADD_LIBRARY(nghttp2, 1, SWOOLE_SHARED_LIBADD)
     fi
 
     if test "$PHP_JEMALLOC_DIR" != "no"; then
@@ -735,14 +743,17 @@ EOF
         thirdparty/hiredis/read.c \
         thirdparty/hiredis/sds.c"
 
-    swoole_source_file="$swoole_source_file \
-        thirdparty/nghttp2/nghttp2_hd.c \
-        thirdparty/nghttp2/nghttp2_rcbuf.c \
-        thirdparty/nghttp2/nghttp2_helper.c \
-        thirdparty/nghttp2/nghttp2_buf.c \
-        thirdparty/nghttp2/nghttp2_mem.c \
-        thirdparty/nghttp2/nghttp2_hd_huffman.c \
-        thirdparty/nghttp2/nghttp2_hd_huffman_data.c"
+    if test "$PHP_NGHTTP2_DIR" = "no"; then
+	    swoole_source_file="$swoole_source_file \
+	        thirdparty/nghttp2/nghttp2_hd.c \
+	        thirdparty/nghttp2/nghttp2_rcbuf.c \
+	        thirdparty/nghttp2/nghttp2_helper.c \
+	        thirdparty/nghttp2/nghttp2_buf.c \
+	        thirdparty/nghttp2/nghttp2_mem.c \
+	        thirdparty/nghttp2/nghttp2_hd_huffman.c \
+	        thirdparty/nghttp2/nghttp2_hd_huffman_data.c"
+        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/nghttp2)
+	fi
 
     SW_ASM_DIR="thirdparty/boost/asm/"
     SW_USE_ASM_CONTEXT="yes"
@@ -887,7 +898,6 @@ EOF
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/boost)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/boost/asm)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/hiredis)
-    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/nghttp2)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/sockets)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/standard)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/curl)
