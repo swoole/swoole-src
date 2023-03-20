@@ -1069,6 +1069,8 @@ static void php_swoole_server_onPipeMessage(Server *serv, EventData *req) {
     if (serv->event_object) {
         zval_ptr_dtor(&args[1]);
     }
+
+    zval_ptr_dtor(&zresult);
 }
 
 int php_swoole_server_onReceive(Server *serv, RecvData *req) {
@@ -1263,6 +1265,8 @@ static int php_swoole_server_onTask(Server *serv, EventData *req) {
         zval_ptr_dtor(&retval);
     }
 
+    zval_ptr_dtor(&zresult);
+
     return SW_OK;
 }
 
@@ -1363,6 +1367,8 @@ static int php_swoole_server_onFinish(Server *serv, EventData *req) {
     if (serv->event_object) {
         zval_ptr_dtor(&args[1]);
     }
+
+    zval_ptr_dtor(&zresult);
 
     return SW_OK;
 }
