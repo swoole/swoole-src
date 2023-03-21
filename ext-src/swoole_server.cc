@@ -1069,6 +1069,8 @@ static void php_swoole_server_onPipeMessage(Server *serv, EventData *req) {
     if (serv->event_object) {
         zval_ptr_dtor(&args[1]);
     }
+
+    zval_ptr_dtor(&zresult);
 }
 
 int php_swoole_server_onReceive(Server *serv, RecvData *req) {
@@ -1263,6 +1265,8 @@ static int php_swoole_server_onTask(Server *serv, EventData *req) {
         zval_ptr_dtor(&retval);
     }
 
+    zval_ptr_dtor(&zresult);
+
     return SW_OK;
 }
 
@@ -1282,6 +1286,7 @@ static int php_swoole_server_onFinish(Server *serv, EventData *req) {
         if (task_co_iterator == server_object->property->task_coroutine_map.end()) {
             swoole_error_log(SW_LOG_WARNING, SW_ERROR_TASK_TIMEOUT, "task[%ld] has expired", task_id);
         _fail:
+            zval_ptr_dtor(&zresult);
             return SW_OK;
         }
         TaskCo *task_co = task_co_iterator->second;
@@ -1325,7 +1330,9 @@ static int php_swoole_server_onFinish(Server *serv, EventData *req) {
     } else {
         fci_cache = server_object->property->callbacks[SW_SERVER_CB_onFinish];
     }
+
     if (UNEXPECTED(fci_cache == nullptr)) {
+        zval_ptr_dtor(&zresult);
         php_swoole_fatal_error(E_WARNING, "require onFinish callback");
         return SW_ERR;
     }
@@ -1363,6 +1370,8 @@ static int php_swoole_server_onFinish(Server *serv, EventData *req) {
     if (serv->event_object) {
         zval_ptr_dtor(&args[1]);
     }
+
+    zval_ptr_dtor(&zresult);
 
     return SW_OK;
 }
