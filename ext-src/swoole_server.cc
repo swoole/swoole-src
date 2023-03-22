@@ -1291,7 +1291,7 @@ static int php_swoole_server_onFinish(Server *serv, EventData *req) {
         }
         // Server->taskCo
         int task_index = -1;
-        SW_LOOP_N (task_co->count) {
+        SW_LOOP_N(task_co->count) {
             if (task_co->list[i] == task_id) {
                 task_index = i;
                 break;
@@ -1565,7 +1565,8 @@ static void php_swoole_server_onWorkerError(Server *serv, Worker *worker, const 
     if (serv->event_object) {
         zval *object = &args[1];
         object_init_ex(object, swoole_server_status_info_ce);
-        zend_update_property_long(swoole_server_status_info_ce, SW_Z8_OBJ_P(object), ZEND_STRL("worker_id"), worker->id);
+        zend_update_property_long(
+            swoole_server_status_info_ce, SW_Z8_OBJ_P(object), ZEND_STRL("worker_id"), worker->id);
         zend_update_property_long(
             swoole_server_status_info_ce, SW_Z8_OBJ_P(object), ZEND_STRL("worker_pid"), exit_status.get_pid());
         zend_update_property_long(

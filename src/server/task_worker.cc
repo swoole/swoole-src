@@ -99,7 +99,7 @@ static int TaskWorker_onTask(ProcessPool *pool, EventData *task) {
 
 bool Server::task_pack(EventData *task, const void *_data, size_t _length) {
     task->info.type = SW_SERVER_EVENT_TASK;
-    task->info.fd = ++SwooleG.current_task_id;
+    task->info.fd = SwooleG.current_task_id++;
     task->info.reactor_id = SwooleG.process_id;
     task->info.time = swoole::microtime();
 

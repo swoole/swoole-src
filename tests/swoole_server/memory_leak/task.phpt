@@ -47,7 +47,7 @@ $GLOBALS['test_fn'] = function ($taskId, $data, $chunks) {
     }
     $GLOBALS['counter1']++;
     $GLOBALS['counter2'] += (strlen($data));
-    Assert::eq($chunks[$taskId - 1], $data);
+    Assert::eq($chunks[$taskId], $data);
 };
 
 $pm->childFunc = function () use ($pm, $total, $chunks) {
@@ -64,7 +64,7 @@ $pm->childFunc = function () use ($pm, $total, $chunks) {
     });
     $serv->on('receive', function (Server $serv, $fd, $rid, $_data) use ($chunks) {
         foreach ($chunks as $ch) {
-            Assert::greaterThan($serv->task($ch), 0);
+            Assert::greaterThanEq($serv->task($ch), 0);
             usleep(100);
         }
     });
