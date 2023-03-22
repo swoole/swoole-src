@@ -1299,6 +1299,7 @@ static int php_swoole_server_onFinish(Server *serv, EventData *req) {
         }
         if (task_index < 0) {
             php_swoole_fatal_error(E_WARNING, "task[%ld] is invalid", task_id);
+            return SW_OK;
         }
         (void) add_index_zval(task_co->result, task_index, zresult.ptr());
         server_object->property->task_coroutine_map.erase(task_id);
