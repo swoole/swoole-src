@@ -449,6 +449,10 @@ class Variable {
         return &value;
     }
 
+    void reset() {
+        value = {};
+    }
+
     ~Variable() {
         zval_ptr_dtor(&value);
     }

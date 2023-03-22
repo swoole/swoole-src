@@ -1302,6 +1302,7 @@ static int php_swoole_server_onFinish(Server *serv, EventData *req) {
             return SW_OK;
         }
         (void) add_index_zval(task_co->result, task_index, zresult.ptr());
+        zresult.reset();
         server_object->property->task_coroutine_map.erase(task_id);
 
         if (php_swoole_array_length(task_co->result) == task_co->count) {
