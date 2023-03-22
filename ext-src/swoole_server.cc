@@ -1286,6 +1286,7 @@ static int php_swoole_server_onFinish(Server *serv, EventData *req) {
         // Server->taskwait
         if (task_co->list == nullptr) {
             ZVAL_COPY_VALUE(task_co->result, zresult.ptr());
+            zresult.reset();
             task_co->co->resume();
             return SW_OK;
         }
