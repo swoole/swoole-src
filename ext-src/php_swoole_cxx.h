@@ -445,6 +445,10 @@ class Variable {
         zval_add_ref(zvalue);
     }
 
+    zval *ptr() {
+        return &value;
+    }
+
     ~Variable() {
         zval_ptr_dtor(&value);
     }
