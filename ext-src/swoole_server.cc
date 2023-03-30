@@ -1024,8 +1024,8 @@ static void php_swoole_server_onPipeMessage(Server *serv, EventData *req) {
     zend_fcall_info_cache *fci_cache = server_object->property->callbacks[SW_SERVER_CB_onPipeMessage];
     zval *zserv = (zval *) serv->private_data_2;
 
-    zval zresult;
-    if (UNEXPECTED(!php_swoole_server_task_unpack(&zresult, req))) {
+    zend::Variable zresult;
+    if (UNEXPECTED(!php_swoole_server_task_unpack(zresult.ptr(), req))) {
         return;
     }
 
@@ -1054,11 +1054,11 @@ static void php_swoole_server_onPipeMessage(Server *serv, EventData *req) {
                                   (zend_long) req->info.reactor_id);
         zend_update_property_double(
             swoole_server_pipe_message_ce, SW_Z8_OBJ_P(object), ZEND_STRL("dispatch_time"), req->info.time);
-        zend_update_property(swoole_server_pipe_message_ce, SW_Z8_OBJ_P(object), ZEND_STRL("data"), &zresult);
+        zend_update_property(swoole_server_pipe_message_ce, SW_Z8_OBJ_P(object), ZEND_STRL("data"), zresult.ptr());
         argc = 2;
     } else {
         ZVAL_LONG(&args[1], (zend_long) req->info.reactor_id);
-        args[2] = zresult;
+        args[2] = zresult.value;
         argc = 3;
     }
 
@@ -1069,8 +1069,6 @@ static void php_swoole_server_onPipeMessage(Server *serv, EventData *req) {
     if (serv->event_object) {
         zval_ptr_dtor(&args[1]);
     }
-
-    zval_ptr_dtor(&zresult);
 }
 
 int php_swoole_server_onReceive(Server *serv, RecvData *req) {
@@ -1227,8 +1225,8 @@ static int php_swoole_server_onTask(Server *serv, EventData *req) {
     zval *zserv = (zval *) serv->private_data_2;
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));
 
-    zval zresult;
-    if (!php_swoole_server_task_unpack(&zresult, req)) {
+    zend::Variable zresult;
+    if (!php_swoole_server_task_unpack(zresult.ptr(), req)) {
         return SW_ERR;
     }
 
@@ -1239,13 +1237,13 @@ static int php_swoole_server_onTask(Server *serv, EventData *req) {
     if (serv->task_enable_coroutine || serv->task_object) {
         argc = 2;
         argv[0] = *zserv;
-        php_swoole_create_task_object(&argv[1], serv, req, &zresult);
+        php_swoole_create_task_object(&argv[1], serv, req, zresult.ptr());
     } else {
         argc = 4;
         argv[0] = *zserv;
         ZVAL_LONG(&argv[1], (zend_long) req->info.fd);
         ZVAL_LONG(&argv[2], (zend_long) req->info.reactor_id);
-        argv[3] = zresult;
+        argv[3] = zresult.value;
     }
 
     if (UNEXPECTED(!zend::function::call(server_object->property->callbacks[SW_SERVER_CB_onTask],
@@ -1265,8 +1263,6 @@ static int php_swoole_server_onTask(Server *serv, EventData *req) {
         zval_ptr_dtor(&retval);
     }
 
-    zval_ptr_dtor(&zresult);
-
     return SW_OK;
 }
 
@@ -1274,33 +1270,29 @@ static int php_swoole_server_onFinish(Server *serv, EventData *req) {
     zval *zserv = (zval *) serv->private_data_2;
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));
 
-    zval zresult;
-    if (!php_swoole_server_task_unpack(&zresult, req)) {
+    zend::Variable zresult;
+    if (!php_swoole_server_task_unpack(zresult.ptr(), req)) {
         return SW_ERR;
     }
 
     if (req->info.ext_flags & SW_TASK_COROUTINE) {
         TaskId task_id = req->info.fd;
         auto task_co_iterator = server_object->property->task_coroutine_map.find(task_id);
-
         if (task_co_iterator == server_object->property->task_coroutine_map.end()) {
             swoole_error_log(SW_LOG_WARNING, SW_ERROR_TASK_TIMEOUT, "task[%ld] has expired", task_id);
-        _fail:
-            zval_ptr_dtor(&zresult);
             return SW_OK;
         }
         TaskCo *task_co = task_co_iterator->second;
         // Server->taskwait
         if (task_co->list == nullptr) {
-            ZVAL_COPY_VALUE(task_co->result, &zresult);
+            ZVAL_COPY_VALUE(task_co->result, zresult.ptr());
+            zresult.reset();
             task_co->co->resume();
             return SW_OK;
         }
         // Server->taskCo
-        uint32_t i;
         int task_index = -1;
-        zval *result = task_co->result;
-        for (i = 0; i < task_co->count; i++) {
+        SW_LOOP_N(task_co->count) {
             if (task_co->list[i] == task_id) {
                 task_index = i;
                 break;
@@ -1308,12 +1300,13 @@ static int php_swoole_server_onFinish(Server *serv, EventData *req) {
         }
         if (task_index < 0) {
             php_swoole_fatal_error(E_WARNING, "task[%ld] is invalid", task_id);
-            goto _fail;
+            return SW_OK;
         }
-        (void) add_index_zval(result, task_index, &zresult);
+        (void) add_index_zval(task_co->result, task_index, zresult.ptr());
+        zresult.reset();
         server_object->property->task_coroutine_map.erase(task_id);
 
-        if (php_swoole_array_length(result) == task_co->count) {
+        if (php_swoole_array_length(task_co->result) == task_co->count) {
             task_co->co->resume();
         }
         return SW_OK;
@@ -1332,7 +1325,6 @@ static int php_swoole_server_onFinish(Server *serv, EventData *req) {
     }
 
     if (UNEXPECTED(fci_cache == nullptr)) {
-        zval_ptr_dtor(&zresult);
         php_swoole_fatal_error(E_WARNING, "require onFinish callback");
         return SW_ERR;
     }
@@ -1352,11 +1344,11 @@ static int php_swoole_server_onFinish(Server *serv, EventData *req) {
                                   (zend_long) req->info.reactor_id);
         zend_update_property_double(
             swoole_server_task_result_ce, SW_Z8_OBJ_P(object), ZEND_STRL("dispatch_time"), req->info.time);
-        zend_update_property(swoole_server_task_result_ce, SW_Z8_OBJ_P(object), ZEND_STRL("data"), &zresult);
+        zend_update_property(swoole_server_task_result_ce, SW_Z8_OBJ_P(object), ZEND_STRL("data"), zresult.ptr());
         argc = 2;
     } else {
         ZVAL_LONG(&args[1], req->info.fd);
-        args[2] = zresult;
+        args[2] = zresult.value;
         argc = 3;
     }
 
@@ -1370,8 +1362,6 @@ static int php_swoole_server_onFinish(Server *serv, EventData *req) {
     if (serv->event_object) {
         zval_ptr_dtor(&args[1]);
     }
-
-    zval_ptr_dtor(&zresult);
 
     return SW_OK;
 }
@@ -1577,7 +1567,8 @@ static void php_swoole_server_onWorkerError(Server *serv, Worker *worker, const 
     if (serv->event_object) {
         zval *object = &args[1];
         object_init_ex(object, swoole_server_status_info_ce);
-        zend_update_property_long(swoole_server_status_info_ce, SW_Z8_OBJ_P(object), ZEND_STRL("worker_id"), worker->id);
+        zend_update_property_long(
+            swoole_server_status_info_ce, SW_Z8_OBJ_P(object), ZEND_STRL("worker_id"), worker->id);
         zend_update_property_long(
             swoole_server_status_info_ce, SW_Z8_OBJ_P(object), ZEND_STRL("worker_pid"), exit_status.get_pid());
         zend_update_property_long(
