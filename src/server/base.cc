@@ -93,7 +93,7 @@ bool BaseFactory::end(SessionId session_id, int flags) {
 
     Session *session = server_->get_session(session_id);
     if (!session->fd) {
-        swoole_error_log(SW_LOG_NOTICE,
+        swoole_error_log(SW_LOG_TRACE,
                          SW_ERROR_SESSION_NOT_EXIST,
                          "failed to close connection, session#%ld does not exist",
                          session_id);

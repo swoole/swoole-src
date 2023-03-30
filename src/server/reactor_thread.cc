@@ -94,7 +94,7 @@ static void ReactorThread_onStreamResponse(Stream *stream, const char *data, uin
     SessionId session_id = stream->private_data_fd;
 
     if (!conn->active || session_id != conn->session_id) {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "session#%ld does not exists", session_id);
+        swoole_error_log(SW_LOG_TRACE, SW_ERROR_SESSION_NOT_EXIST, "session#%ld does not exists", session_id);
         return;
     }
     if (data == nullptr) {
@@ -383,7 +383,7 @@ static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev) {
             SessionId session_id = resp->info.fd;
             Connection *conn = serv->get_connection_verify_no_ssl(session_id);
             if (!conn) {
-                swoole_error_log(SW_LOG_NOTICE,
+                swoole_error_log(SW_LOG_TRACE,
                                  SW_ERROR_SESSION_NOT_EXIST,
                                  "force close connection failed, session#%ld does not exist",
                                  session_id);

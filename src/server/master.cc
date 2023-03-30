@@ -1530,8 +1530,8 @@ bool Server::sendwait(SessionId session_id, const void *data, uint32_t length) {
     Connection *conn = get_connection_verify(session_id);
     if (!conn) {
         swoole_error_log(SW_LOG_TRACE,
-                         SW_ERROR_SESSION_CLOSED,
-                         "send %d byte failed, because session#%ld is closed",
+                         SW_ERROR_SESSION_NOT_EXIST,
+                         "send %d byte failed, because session#%ld is not exists",
                          length,
                          session_id);
         return false;

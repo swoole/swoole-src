@@ -341,7 +341,7 @@ std::shared_ptr<Server> listen(const std::string addr, std::function<void(Contex
         SessionId session_id = req->info.fd;
         Connection *conn = server->get_connection_verify_no_ssl(session_id);
         if (!conn) {
-            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "session[%ld] is closed", session_id);
+            swoole_error_log(SW_LOG_TRACE, SW_ERROR_SESSION_NOT_EXIST, "session[%ld] is closed", session_id);
             return SW_OK;
         }
         ContextImpl impl;
