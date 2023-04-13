@@ -371,14 +371,20 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
                     accept_compression = 0;
                 }
                 // https://github.com/swoole/swoole-src/issues/4857
+                // https://github.com/swoole/swoole-src/issues/5026
                 if (key_header == HTTP_HEADER_CONTENT_LENGTH && accept_compression) {
-                    php_swoole_error(E_WARNING, "The client has set 'Accept-Encoding', 'Content-Length' is ignored");
+                    swoole_error_log(SW_LOG_WARNING,
+                                     SW_ERROR_HTTP_CONFLICT_HEADER,
+                                     "The client has set 'Accept-Encoding', 'Content-Length' will be ignored");
                     continue;
                 }
 #endif
                 // https://github.com/swoole/swoole-src/issues/4857
+                // https://github.com/swoole/swoole-src/issues/5026
                 if (key_header == HTTP_HEADER_CONTENT_LENGTH && send_chunked) {
-                    php_swoole_error(E_WARNING, "You have set 'Transfer-Encoding', 'Content-Length' is ignored");
+                    swoole_error_log(SW_LOG_WARNING,
+                                     SW_ERROR_HTTP_CONFLICT_HEADER,
+                                     "You have set 'Transfer-Encoding', 'Content-Length' will be ignored");
                     continue;
                 }
                 header_flags |= key_header;
@@ -395,7 +401,8 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
             } else {
                 add_header(http_buffer, ZSTR_VAL(string_key), ZSTR_LEN(string_key), zvalue);
             }
-        } ZEND_HASH_FOREACH_END();
+        }
+        ZEND_HASH_FOREACH_END();
 
 #ifdef SW_HAVE_COMPRESSION
         if (accept_compression && compression_types) {
@@ -600,7 +607,7 @@ bool HttpContext::compress(const char *data, size_t length) {
         compression_level = Z_BEST_COMPRESSION;
     }
 
-    size_t memory_size = ((size_t)((double) length * (double) 1.015)) + 10 + 8 + 4 + 1;
+    size_t memory_size = ((size_t) ((double) length * (double) 1.015)) + 10 + 8 + 4 + 1;
     zlib_buffer = std::make_shared<String>(memory_size);
 
     z_stream zstream = {};
