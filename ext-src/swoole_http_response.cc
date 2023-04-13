@@ -347,14 +347,19 @@ static bool parse_header_flags(HttpContext *ctx, const char *key, size_t keylen,
         header_flags |= HTTP_HEADER_DATE;
     } else if (SW_STRCASEEQ(key, keylen, "Content-Length")) {
         // https://github.com/swoole/swoole-src/issues/4857
+        // https://github.com/swoole/swoole-src/issues/5026
 #ifdef SW_HAVE_COMPRESSION
         if (ctx->accept_compression) {
-            php_swoole_error(E_WARNING, "The client has set 'Accept-Encoding', 'Content-Length' is ignored");
+            swoole_error_log(SW_LOG_WARNING,
+                             SW_ERROR_HTTP_CONFLICT_HEADER,
+                             "The client has set 'Accept-Encoding', 'Content-Length' will be ignored");
             return false;
         }
 #endif
         if (ctx->send_chunked) {
-            php_swoole_error(E_WARNING, "You have set 'Transfer-Encoding', 'Content-Length' is ignored");
+            swoole_error_log(SW_LOG_WARNING,
+                             SW_ERROR_HTTP_CONFLICT_HEADER,
+                             "You have set 'Transfer-Encoding', 'Content-Length' will be ignored");
             return false;
         }
         header_flags |= HTTP_HEADER_CONTENT_LENGTH;
