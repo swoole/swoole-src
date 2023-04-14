@@ -19,7 +19,9 @@
 
 #include "test_core.h"
 #include "swoole_pipe.h"
+#include "swoole_util.h"
 
+using namespace std;
 using namespace swoole;
 
 TEST(reactor, create) {
@@ -269,4 +271,105 @@ TEST(reactor, defer_task) {
     swoole_event_wait();
     ASSERT_EQ(count, 1);
     swoole_event_free();
+}
+
+static void event_end_callback(void *data) {
+    ASSERT_STREQ((char *) data, "hello world");
+}
+
+TEST(reactor, cycle) {
+    Reactor reactor(1024, Reactor::TYPE_SELECT);
+    reactor.wait_exit = true;
+    reactor.activate_future_task();
+
+    const char *test = "hello world";
+    reactor.future_task.callback = event_end_callback;
+    reactor.future_task.data = (void *) test;
+    reactor_test_func(&reactor);
+}
+
+static void event_idle_callback(void *data) {
+    ASSERT_STREQ((char *) data, "hello world");
+}
+
+TEST(reactor, priority_idle_task) {
+    Reactor reactor(1024, Reactor::TYPE_SELECT);
+    reactor.wait_exit = true;
+    reactor.activate_future_task();
+
+    const char *test = "hello world";
+    reactor.idle_task.callback = event_idle_callback;
+    reactor.idle_task.data = (void *) test;
+    reactor_test_func(&reactor);
+}
+
+TEST(reactor, hook) {
+    Reactor *reactor = new Reactor(1024, Reactor::TYPE_SELECT);
+    reactor->wait_exit = true;
+
+    swoole_add_hook(
+        SW_GLOBAL_HOOK_ON_REACTOR_CREATE,
+        [](void *data) -> void {
+            Reactor *reactor = (Reactor *) data;
+            ASSERT_EQ(Reactor::TYPE_SELECT, reactor->type_);
+        },
+        1);
+
+    swoole_add_hook(
+        SW_GLOBAL_HOOK_ON_REACTOR_DESTROY,
+        [](void *data) -> void {
+            Reactor *reactor = (Reactor *) data;
+            ASSERT_EQ(Reactor::TYPE_SELECT, reactor->type_);
+        },
+        1);
+
+    ON_SCOPE_EXIT {
+        SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_CREATE] = nullptr;
+        SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_DESTROY] = nullptr;
+    };
+
+    reactor_test_func(reactor);
+    delete reactor;
+}
+
+TEST(reactor, set_fd) {
+    UnixSocket p(true, SOCK_DGRAM);
+    Reactor *reactor = new Reactor(1024, Reactor::TYPE_EPOLL);
+    ASSERT_EQ(reactor->add(p.get_socket(false), SW_EVENT_READ), SW_OK);
+    ASSERT_EQ(reactor->set(p.get_socket(false), SW_EVENT_WRITE), SW_OK);
+    delete reactor;
+
+    reactor = new Reactor(1024, Reactor::TYPE_POLL);
+    ASSERT_EQ(reactor->add(p.get_socket(false), SW_EVENT_READ), SW_OK);
+    ASSERT_EQ(reactor->set(p.get_socket(false), SW_EVENT_WRITE), SW_OK);
+    delete reactor;
+
+    reactor = new Reactor(1024, Reactor::TYPE_SELECT);
+    ASSERT_EQ(reactor->add(p.get_socket(false), SW_EVENT_READ), SW_OK);
+    ASSERT_EQ(reactor->set(p.get_socket(false), SW_EVENT_WRITE), SW_OK);
+    delete reactor;
+}
+
+static void error_event(Reactor::Type type) {
+    Pipe p(true);
+    ASSERT_TRUE(p.ready());
+
+    Reactor *reactor = new Reactor(1024, type);
+
+    reactor->set_handler(SW_FD_PIPE | SW_EVENT_ERROR, [](Reactor *reactor, Event *event) -> int {
+        EXPECT_EQ(reactor->del(event->socket), SW_OK);
+        reactor->running = false;
+        return SW_OK;
+    });
+
+    reactor->add(p.get_socket(true), SW_EVENT_ERROR);
+    reactor->add(p.get_socket(false), SW_EVENT_ERROR);
+
+    p.close(SW_PIPE_CLOSE_WORKER);
+    reactor->wait(nullptr);
+    delete reactor;
+}
+TEST(reactor, error_ev) {
+    error_event(Reactor::TYPE_EPOLL);
+    error_event(Reactor::TYPE_POLL);
 }
