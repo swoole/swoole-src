@@ -999,6 +999,7 @@ static void php_swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const 
         date = php_swoole_format_date((char *) ZEND_STRL("D, d-M-Y H:i:s T"), 1, 0);
         snprintf(cookie, cookie_size, "%s=deleted; expires=%s", name, date);
         efree(date);
+        strlcat(cookie, "; Max-Age=0", cookie_size);
     } else {
         if (url_encode) {
             char *encoded_value;
@@ -1025,6 +1026,17 @@ static void php_swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const 
             }
             strlcat(cookie, date, cookie_size);
             efree(date);
+
+            strlcat(cookie, "; Max-Age=", cookie_size);
+
+            double diff = difftime(expires, php_time());
+            if (diff < 0) {
+                diff = 0;
+            }
+
+            zend_string *max_age = zend_double_to_str(diff);
+            strlcat(cookie, ZSTR_VAL(max_age), cookie_size);
+            zend_string_release(max_age);
         }
     }
     if (path_len > 0) {
