@@ -1034,9 +1034,10 @@ static void php_swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const 
                 diff = 0;
             }
 
-            zend_string *max_age = zend_double_to_str(diff);
-            strlcat(cookie, ZSTR_VAL(max_age), cookie_size);
-            zend_string_release(max_age);
+            zval max_age;
+            ZVAL_DOUBLE(&max_age, diff);
+            convert_to_string(&max_age);
+            strlcat(cookie, Z_STRVAL_P(&max_age), cookie_size);
         }
     }
     if (path_len > 0) {
