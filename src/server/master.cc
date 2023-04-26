@@ -336,19 +336,19 @@ int Server::start_check() {
     if (is_process_mode()) {
         if (!is_support_unsafe_events()) {
             if (onConnect) {
-                swoole_warning("cannot set 'onConnect' event when using dispatch_mode=1/3/7");
+                swoole_warning("cannot set 'onConnect' event when using dispatch_mode=%d", dispatch_mode);
                 onConnect = nullptr;
             }
             if (onClose) {
-                swoole_warning("cannot set 'onClose' event when using dispatch_mode=1/3/7");
+                swoole_warning("cannot set 'onClose' event when using dispatch_mode=%d", dispatch_mode);
                 onClose = nullptr;
             }
             if (onBufferFull) {
-                swoole_warning("cannot set 'onBufferFull' event when using dispatch_mode=1/3/7");
+                swoole_warning("cannot set 'onBufferFull' event when using dispatch_mode=%d", dispatch_mode);
                 onBufferFull = nullptr;
             }
             if (onBufferEmpty) {
-                swoole_warning("cannot set 'onBufferEmpty' event when using dispatch_mode=1/3/7");
+                swoole_warning("cannot set 'onBufferEmpty' event when using dispatch_mode=%d", dispatch_mode);
                 onBufferEmpty = nullptr;
             }
             disable_notify = 1;

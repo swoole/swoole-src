@@ -811,29 +811,8 @@ TEST(http_server, process1) {
     }
 }
 
-TEST(http_server, stream_mode) {
-    Server *server = test_process_server(Server::DISPATCH_STREAM);
-    pid_t pid = fork();
-
-    if (pid == 0) {
-        server->start();
-        exit(0);
-    }
-
-    if (pid > 0) {
-        ON_SCOPE_EXIT {
-            kill(server->get_master_pid(), SIGTERM);
-        };
-        sleep(1);
-        auto port = server->get_primary_port();
-        httplib::Client cli(TEST_HOST, port->port);
-        auto resp = cli.Get("/");
-        ASSERT_EQ(resp->status, 200);
-    }
-}
-
 TEST(http_server, redundant_callback) {
-    Server *server = test_process_server(Server::DISPATCH_STREAM);
+    Server *server = test_process_server(Server::DISPATCH_IDLE_WORKER);
     server->onConnect = [](Server *serv, DataHead *info) -> int { return 0; };
     server->onClose = [](Server *serv, DataHead *info) -> int { return 0; };
     server->onBufferFull = [](Server *serv, DataHead *info) -> int { return 0; };

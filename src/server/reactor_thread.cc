@@ -17,7 +17,6 @@
 #include "swoole_server.h"
 #include "swoole_memory.h"
 #include "swoole_hash.h"
-#include "swoole_client.h"
 #include "swoole_util.h"
 
 #include <assert.h>
@@ -34,7 +33,6 @@ static int ReactorThread_onRead(Reactor *reactor, Event *ev);
 static int ReactorThread_onWrite(Reactor *reactor, Event *ev);
 static int ReactorThread_onPacketReceived(Reactor *reactor, Event *event);
 static int ReactorThread_onClose(Reactor *reactor, Event *event);
-static void ReactorThread_onStreamResponse(Stream *stream, const char *data, uint32_t length);
 static void ReactorThread_shutdown(Reactor *reactor);
 static void ReactorThread_resume_data_receiving(Timer *timer, TimerNode *tnode);
 
@@ -86,32 +84,6 @@ _delay_receive:
     return SW_READY;
 }
 #endif
-
-static void ReactorThread_onStreamResponse(Stream *stream, const char *data, uint32_t length) {
-    SendData response;
-    Server *serv = (Server *) stream->private_data;
-    Connection *conn = (Connection *) stream->private_data_2;
-    SessionId session_id = stream->private_data_fd;
-
-    if (!conn->active || session_id != conn->session_id) {
-        swoole_error_log(SW_LOG_TRACE, SW_ERROR_SESSION_NOT_EXIST, "session#%ld does not exists", session_id);
-        return;
-    }
-    if (data == nullptr) {
-        Event _ev = {};
-        _ev.fd = conn->fd;
-        _ev.socket = conn->socket;
-        sw_reactor()->trigger_close_event(&_ev);
-        return;
-    }
-
-    DataHead *pkg_info = (DataHead *) data;
-    response.info.fd = conn->session_id;
-    response.info.type = pkg_info->type;
-    response.info.len = length - sizeof(DataHead);
-    response.data = data + sizeof(DataHead);
-    serv->send_to_connection(&response);
-}
 
 /**
  * for udp
@@ -487,10 +459,6 @@ void Server::init_reactor(Reactor *reactor) {
     reactor->set_handler(SW_FD_SESSION | SW_EVENT_WRITE, ReactorThread_onWrite);
     // Read
     reactor->set_handler(SW_FD_SESSION | SW_EVENT_READ, ReactorThread_onRead);
-
-    if (dispatch_mode == DISPATCH_STREAM) {
-        Client::init_reactor(reactor);
-    }
 
     // listen the all tcp port
     for (auto port : ports) {
@@ -913,65 +881,35 @@ int Server::dispatch_task(const Protocol *proto, Socket *_socket, const RecvData
     task.info.type = SW_SERVER_EVENT_RECV_DATA;
     task.info.time = conn->last_recv_time;
 
-    int return_code = SW_OK;
+    swoole_trace("dispatch task, size=%u bytes", rdata->info.len);
 
-    swoole_trace("send string package, size=%u bytes", rdata->info.len);
+    task.info.fd = conn->fd;
+    task.info.len = rdata->info.len;
+    task.data = rdata->data;
 
-    if (serv->stream_socket_file) {
-        Stream *stream = Stream::create(serv->stream_socket_file, 0, SW_SOCK_UNIX_STREAM);
-        if (!stream) {
-            return_code = SW_ERR;
-            goto _return;
-        }
-        stream->response = ReactorThread_onStreamResponse;
-        stream->private_data = serv;
-        stream->private_data_2 = conn;
-        stream->private_data_fd = conn->session_id;
-        stream->set_max_length(port->protocol.package_max_length);
-
-        task.info.fd = conn->session_id;
-
-        if (stream->send((char *) &task.info, sizeof(task.info)) < 0) {
-        _cancel:
-            stream->cancel = 1;
-            delete stream;
-            return_code = SW_ERR;
-            goto _return;
-        }
-        if (rdata->data && rdata->info.len > 0 && stream->send(rdata->data, rdata->info.len) < 0) {
-            goto _cancel;
-        }
-    } else {
-        task.info.fd = conn->fd;
-        task.info.len = rdata->info.len;
-        task.data = rdata->data;
-        if (rdata->info.len > 0) {
-            sw_atomic_fetch_add(&conn->recv_queued_bytes, rdata->info.len);
-            swoole_trace_log(SW_TRACE_SERVER,
-                             "session_id=%ld, len=%d, qb=%d",
-                             conn->session_id,
-                             rdata->info.len,
-                             conn->recv_queued_bytes);
-        }
-        if (!serv->factory->dispatch(&task)) {
-            return_code = SW_ERR;
-            if (rdata->info.len > 0) {
-                sw_atomic_fetch_sub(&conn->recv_queued_bytes, rdata->info.len);
-            }
-        }
+    if (rdata->info.len > 0) {
+        sw_atomic_fetch_add(&conn->recv_queued_bytes, rdata->info.len);
+        swoole_trace_log(SW_TRACE_SERVER,
+                         "session_id=%ld, len=%d, qb=%d",
+                         conn->session_id,
+                         rdata->info.len,
+                         conn->recv_queued_bytes);
     }
 
-_return:
-    if (return_code == SW_OK) {
+    if (!serv->factory->dispatch(&task)) {
+        if (rdata->info.len > 0) {
+            sw_atomic_fetch_sub(&conn->recv_queued_bytes, rdata->info.len);
+        }
+        return SW_ERR;
+    } else {
         if (serv->is_process_mode()) {
             ReactorThread *thread = serv->get_thread(conn->reactor_id);
             thread->dispatch_count++;
         }
         sw_atomic_fetch_add(&serv->gs->dispatch_count, 1);
         sw_atomic_fetch_add(&port->gs->dispatch_count, 1);
+        return SW_OK;
     }
-
-    return return_code;
 }
 
 void Server::join_reactor_thread() {

@@ -506,7 +506,6 @@ class Server {
         DISPATCH_IPMOD = 4,
         DISPATCH_UIDMOD = 5,
         DISPATCH_USERFUNC = 6,
-        DISPATCH_STREAM = 7,
         DISPATCH_CO_CONN_LB = 8,
         DISPATCH_CO_REQ_LB = 9,
         DISPATCH_CONCURRENT_LB = 10,
@@ -834,13 +833,7 @@ class Server {
      * master process pid
      */
     std::string pid_file;
-    /**
-     * stream
-     */
-    char *stream_socket_file = nullptr;
-    network::Socket *stream_socket = nullptr;
-    Protocol stream_protocol = {};
-    network::Socket *last_stream_socket = nullptr;
+
     EventData *last_task = nullptr;
     std::queue<String *> *buffer_pool = nullptr;
 
@@ -991,8 +984,7 @@ class Server {
     }
 
     inline bool is_support_unsafe_events() {
-        if (dispatch_mode != DISPATCH_ROUND && dispatch_mode != DISPATCH_IDLE_WORKER &&
-            dispatch_mode != DISPATCH_STREAM) {
+        if (is_hash_dispatch_mode()) {
             return true;
         } else {
             return enable_unsafe_event;

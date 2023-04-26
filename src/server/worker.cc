@@ -22,7 +22,6 @@
 #include "swoole_server.h"
 #include "swoole_memory.h"
 #include "swoole_msg_queue.h"
-#include "swoole_client.h"
 #include "swoole_coroutine.h"
 
 swoole::WorkerGlobal SwooleWG = {};
@@ -31,10 +30,6 @@ namespace swoole {
 using namespace network;
 
 static int Worker_onPipeReceive(Reactor *reactor, Event *event);
-static int Worker_onStreamAccept(Reactor *reactor, Event *event);
-static int Worker_onStreamRead(Reactor *reactor, Event *event);
-static int Worker_onStreamPackage(const Protocol *proto, Socket *sock, const RecvData *rdata);
-static int Worker_onStreamClose(Reactor *reactor, Event *event);
 static void Worker_reactor_try_to_exit(Reactor *reactor);
 
 void Server::worker_signal_init(void) {
@@ -106,89 +101,6 @@ _discard_data:
                      info->len,
                      info->fd);
     return true;
-}
-
-static int Worker_onStreamAccept(Reactor *reactor, Event *event) {
-    Socket *sock = event->socket->accept();
-    if (sock == nullptr) {
-        switch (errno) {
-        case EINTR:
-        case EAGAIN:
-            return SW_OK;
-        default:
-            swoole_sys_warning("accept() failed");
-            return SW_OK;
-        }
-    }
-
-    sock->fd_type = SW_FD_STREAM;
-    sock->socket_type = SW_SOCK_UNIX_STREAM;
-
-    return reactor->add(sock, SW_EVENT_READ);
-}
-
-static int Worker_onStreamRead(Reactor *reactor, Event *event) {
-    Socket *conn = event->socket;
-    Server *serv = (Server *) reactor->ptr;
-    Protocol *protocol = &serv->stream_protocol;
-    String *buffer;
-
-    if (!event->socket->recv_buffer) {
-        if (serv->buffer_pool->empty()) {
-            buffer = new String(SW_BUFFER_SIZE_STD);
-        } else {
-            buffer = serv->buffer_pool->front();
-            serv->buffer_pool->pop();
-        }
-        event->socket->recv_buffer = buffer;
-    } else {
-        buffer = event->socket->recv_buffer;
-    }
-
-    if (protocol->recv_with_length_protocol(conn, buffer) < 0) {
-        Worker_onStreamClose(reactor, event);
-    }
-
-    return SW_OK;
-}
-
-static int Worker_onStreamClose(Reactor *reactor, Event *event) {
-    Socket *sock = event->socket;
-    Server *serv = (Server *) reactor->ptr;
-
-    sock->recv_buffer->clear();
-    serv->buffer_pool->push(sock->recv_buffer);
-    sock->recv_buffer = nullptr;
-
-    reactor->del(sock);
-    reactor->close(reactor, sock);
-
-    if (serv->last_stream_socket == sock) {
-        serv->last_stream_socket = nullptr;
-    }
-
-    return SW_OK;
-}
-
-static int Worker_onStreamPackage(const Protocol *proto, Socket *sock, const RecvData *rdata) {
-    Server *serv = (Server *) proto->private_data_2;
-
-    SendData task{};
-    memcpy(&task.info, rdata->data + proto->package_length_size, sizeof(task.info));
-    task.info.len = rdata->info.len - (uint32_t) sizeof(task.info) - proto->package_length_size;
-    if (task.info.len > 0) {
-        task.data = (char *) (rdata->data + proto->package_length_size + sizeof(task.info));
-    }
-
-    serv->last_stream_socket = sock;
-    serv->message_bus.pass(&task);
-    serv->worker_accept_event(&serv->message_bus.get_buffer()->info);
-    serv->last_stream_socket = nullptr;
-
-    int _end = 0;
-    swoole_event_write(sock, (void *) &_end, sizeof(_end));
-
-    return SW_OK;
 }
 
 typedef std::function<int(Server *, RecvData *)> TaskCallback;
@@ -412,12 +324,6 @@ void Server::stop_async_worker(Worker *worker) {
     *worker = *SwooleWG.worker;
     SwooleWG.worker = worker;
 
-    if (stream_socket) {
-        reactor->del(stream_socket);
-        stream_socket->free();
-        stream_socket = nullptr;
-    }
-
     if (worker->pipe_worker && !worker->pipe_worker->removed) {
         reactor->remove_read_event(worker->pipe_worker);
     }
@@ -550,16 +456,7 @@ int Server::start_event_worker(Worker *worker) {
     reactor->add(worker->pipe_worker, SW_EVENT_READ);
     reactor->set_handler(SW_FD_PIPE, Worker_onPipeReceive);
 
-    if (dispatch_mode == DISPATCH_STREAM) {
-        reactor->add(stream_socket, SW_EVENT_READ);
-        reactor->set_handler(SW_FD_STREAM_SERVER, Worker_onStreamAccept);
-        reactor->set_handler(SW_FD_STREAM, Worker_onStreamRead);
-        network::Stream::set_protocol(&stream_protocol);
-        stream_protocol.private_data_2 = this;
-        stream_protocol.package_max_length = UINT_MAX;
-        stream_protocol.onPackage = Worker_onStreamPackage;
-        buffer_pool = new std::queue<String *>;
-    } else if (dispatch_mode == DISPATCH_CO_CONN_LB || dispatch_mode == DISPATCH_CO_REQ_LB) {
+    if (dispatch_mode == DISPATCH_CO_CONN_LB || dispatch_mode == DISPATCH_CO_REQ_LB) {
         reactor->set_end_callback(Reactor::PRIORITY_WORKER_CALLBACK,
                                   [worker](Reactor *) { worker->coroutine_num = Coroutine::count(); });
     }

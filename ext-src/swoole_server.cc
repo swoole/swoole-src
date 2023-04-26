@@ -449,6 +449,8 @@ static const zend_function_entry swoole_server_task_methods[] =
 };
 // clang-format on
 
+#define SWOOLE_DISPATCH_STREAM 7  // Deprecated, kept for forward compatibility
+
 void php_swoole_server_minit(int module_number) {
     // ---------------------------------------Server-------------------------------------
     SW_INIT_CLASS_ENTRY(swoole_server, "Swoole\\Server", nullptr, swoole_server_methods);
@@ -577,7 +579,7 @@ void php_swoole_server_minit(int module_number) {
     SW_REGISTER_LONG_CONSTANT("SWOOLE_DISPATCH_IPMOD", Server::DISPATCH_IPMOD);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_DISPATCH_UIDMOD", Server::DISPATCH_UIDMOD);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_DISPATCH_USERFUNC", Server::DISPATCH_USERFUNC);
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_DISPATCH_STREAM", Server::DISPATCH_STREAM);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_DISPATCH_STREAM", SWOOLE_DISPATCH_STREAM);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_DISPATCH_CO_CONN_LB", Server::DISPATCH_CO_CONN_LB);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_DISPATCH_CO_REQ_LB", Server::DISPATCH_CO_REQ_LB);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_DISPATCH_CONCURRENT_LB", Server::DISPATCH_CONCURRENT_LB);
