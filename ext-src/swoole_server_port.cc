@@ -271,7 +271,7 @@ static PHP_METHOD(swoole_server_port, set) {
         port->backlog = SW_MAX(0, SW_MIN(v, UINT16_MAX));
     }
     if (php_swoole_array_get_value(vht, "socket_buffer_size", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
+        zend_long v = php_swoole_parse_to_size(ztmp);
         port->socket_buffer_size = SW_MAX(INT_MIN, SW_MIN(v, INT_MAX));
         if (port->socket_buffer_size <= 0) {
             port->socket_buffer_size = INT_MAX;
@@ -281,7 +281,7 @@ static PHP_METHOD(swoole_server_port, set) {
      * !!! Don't set this option, for tests only.
      */
     if (php_swoole_array_get_value(vht, "kernel_socket_recv_buffer_size", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
+        zend_long v = php_swoole_parse_to_size(ztmp);
         port->kernel_socket_recv_buffer_size = SW_MAX(INT_MIN, SW_MIN(v, INT_MAX));
         if (port->kernel_socket_recv_buffer_size <= 0) {
             port->kernel_socket_recv_buffer_size = INT_MAX;
@@ -291,7 +291,7 @@ static PHP_METHOD(swoole_server_port, set) {
      * !!! Don't set this option, for tests only.
      */
     if (php_swoole_array_get_value(vht, "kernel_socket_send_buffer_size", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
+        zend_long v = php_swoole_parse_to_size(ztmp);
         port->kernel_socket_send_buffer_size = SW_MAX(INT_MIN, SW_MIN(v, INT_MAX));
         if (port->kernel_socket_send_buffer_size <= 0) {
             port->kernel_socket_send_buffer_size = INT_MAX;
@@ -303,11 +303,11 @@ static PHP_METHOD(swoole_server_port, set) {
         port->heartbeat_idle_time = SW_MAX(0, SW_MIN(v, UINT16_MAX));
     }
     if (php_swoole_array_get_value(vht, "buffer_high_watermark", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
+        zend_long v = php_swoole_parse_to_size(ztmp);
         port->buffer_high_watermark = SW_MAX(0, SW_MIN(v, UINT32_MAX));
     }
     if (php_swoole_array_get_value(vht, "buffer_low_watermark", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
+        zend_long v = php_swoole_parse_to_size(ztmp);
         port->buffer_low_watermark = SW_MAX(0, SW_MIN(v, UINT32_MAX));
     }
     // server: tcp_nodelay
@@ -487,7 +487,7 @@ static PHP_METHOD(swoole_server_port, set) {
      * package max length
      */
     if (php_swoole_array_get_value(vht, "package_max_length", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
+        zend_long v = php_swoole_parse_to_size(ztmp);
         port->protocol.package_max_length = SW_MAX(0, SW_MIN(v, UINT32_MAX));
     }
 
