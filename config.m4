@@ -651,9 +651,9 @@ EOF
         ext-src/swoole_timer.cc \
         ext-src/swoole_websocket_server.cc \
         src/core/base.cc \
+        src/core/base64.cc \
         src/core/channel.cc \
         src/core/crc32.cc \
-        src/core/base64.cc \
         src/core/error.cc \
         src/core/heap.cc \
         src/core/log.cc \
@@ -696,13 +696,13 @@ EOF
         src/protocol/dtls.cc \
         src/protocol/http.cc \
         src/protocol/http2.cc \
+        src/protocol/message_bus.cc \
         src/protocol/mime_type.cc \
         src/protocol/mqtt.cc \
         src/protocol/redis.cc \
         src/protocol/socks5.cc \
         src/protocol/ssl.cc \
         src/protocol/websocket.cc \
-        src/protocol/message_bus.cc \
         src/reactor/base.cc \
         src/reactor/epoll.cc \
         src/reactor/kqueue.cc \

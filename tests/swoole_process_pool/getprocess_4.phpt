@@ -38,4 +38,3 @@ $pool->start();
 
 ?>
 --EXPECT--
-

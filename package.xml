@@ -51,10 +51,10 @@
         <email>doubaokun@php.net</email>
         <active>yes</active>
     </developer>
-    <date>2023-02-06</date>
-    <time>17:00:00</time>
+    <date>2023-04-26</date>
+    <time>18:00:00</time>
     <version>
-        <release>5.0.2</release>
+        <release>5.0.3</release>
         <api>5.0</api>
     </version>
     <stability>
@@ -63,18 +63,14 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        - Support for configuring http2 default settings
-        - Support xdebug under 8.1 or higher
-        - Refactor curl native to support a curl handle with multiple sockets, such as the curl ftp protocol
-        - Added $who parameter to Process::setPriority/getPriority
-        - Added Coroutine\Socket::getBoundCid()
-        - Adjusted the default value of Coroutine\Socket::recvLine/recvWithBuffer $length parameter to 65536
-        - Refactor cross-coroutine shutdown feature to make memory release safer and solve the crash problem when a fatal error occurs
-        - Added socket property for Coroutine\Client, Coroutine\Http\Client, Coroutine\Http2\Client, allow direct operation of socket resources
-        - Support Http\Server to send empty file to http2 client
-        - Support graceful restart for Coroutine\Http\Server. When server shuting down, the client connection will no longer be forcibly closed, and only stop listening to new requests
-        - Added pcntl_rfork pcntl_sigwaitinfo to list of unsafe function, will be closed when coroutine container starts
-        - Refactor Server process manager with base mode, the behavior of shutdown and reload will be consistent with base or process mode
+        - Added --with-nghttp2_dir option, Use the system nghttp2 library
+        - Added unit character supports for byte length or size related options
+        - Fixed memory leak Server task/pipemessage/finish event callback
+        - Added Process\Pool::sendMessage()
+        - Added support for max-age to Http\Response:cookie() method
+        - No longer thrown error log when http header conflicts
+        - No longer thrown error log when the server connection is closed
+        - Fixed memory leak caused by Server send_yield
     </notes>
     <contents>
         <dir name="/">
@@ -310,7 +306,9 @@
             <file role="doc" name="examples/http/detach.php" />
             <file role="doc" name="examples/http/download.php" />
             <file role="doc" name="examples/http/empty.txt" />
+            <file role="doc" name="examples/http/event-stream.php" />
             <file role="doc" name="examples/http/moc.moc" />
+            <file role="doc" name="examples/http/no-compression.php" />
             <file role="doc" name="examples/http/post.data" />
             <file role="doc" name="examples/http/raw.php" />
             <file role="doc" name="examples/http/redirect.php" />
@@ -622,6 +620,7 @@
             <file role="src" name="include/swoole_log.h" />
             <file role="src" name="include/swoole_lru_cache.h" />
             <file role="src" name="include/swoole_memory.h" />
+            <file role="src" name="include/swoole_message_bus.h" />
             <file role="src" name="include/swoole_mime_type.h" />
             <file role="src" name="include/swoole_mqtt.h" />
             <file role="src" name="include/swoole_msg_queue.h" />
@@ -661,6 +660,7 @@
             <file role="src" name="scripts/simple-compile-on-github.sh" />
             <file role="src" name="scripts/simple-compile.sh" />
             <file role="src" name="src/core/base.cc" />
+            <file role="src" name="src/core/base64.cc" />
             <file role="src" name="src/core/channel.cc" />
             <file role="src" name="src/core/crc32.cc" />
             <file role="src" name="src/core/error.cc" />
@@ -702,10 +702,10 @@
             <file role="src" name="src/os/unix_socket.cc" />
             <file role="src" name="src/os/wait.cc" />
             <file role="src" name="src/protocol/base.cc" />
-            <file role="src" name="src/protocol/base64.cc" />
             <file role="src" name="src/protocol/dtls.cc" />
             <file role="src" name="src/protocol/http.cc" />
             <file role="src" name="src/protocol/http2.cc" />
+            <file role="src" name="src/protocol/message_bus.cc" />
             <file role="src" name="src/protocol/mime_type.cc" />
             <file role="src" name="src/protocol/mqtt.cc" />
             <file role="src" name="src/protocol/redis.cc" />
@@ -720,7 +720,6 @@
             <file role="src" name="src/server/base.cc" />
             <file role="src" name="src/server/manager.cc" />
             <file role="src" name="src/server/master.cc" />
-            <file role="src" name="src/server/message_bus.cc" />
             <file role="src" name="src/server/port.cc" />
             <file role="src" name="src/server/process.cc" />
             <file role="src" name="src/server/reactor_process.cc" />
@@ -731,6 +730,7 @@
             <file role="src" name="src/wrapper/event.cc" />
             <file role="src" name="src/wrapper/http.cc" />
             <file role="src" name="src/wrapper/timer.cc" />
+            <file role="src" name="swoole-5.0.2.tgz" />
             <file role="test" name="tests/.php-cs-fixer.dist.php" />
             <file role="test" name="tests/CONTRIBUTION" />
             <file role="test" name="tests/README.md" />
@@ -1428,12 +1428,14 @@
             <file role="test" name="tests/swoole_http_server/cookies_parse.phpt" />
             <file role="test" name="tests/swoole_http_server/create_request.phpt" />
             <file role="test" name="tests/swoole_http_server/data_parse.phpt" />
+            <file role="test" name="tests/swoole_http_server/disable_compression.phpt" />
             <file role="test" name="tests/swoole_http_server/disable_coroutine.phpt" />
             <file role="test" name="tests/swoole_http_server/dispatch_mode_7.phpt" />
             <file role="test" name="tests/swoole_http_server/duplicate_header.phpt" />
             <file role="test" name="tests/swoole_http_server/enable_coroutine.phpt" />
             <file role="test" name="tests/swoole_http_server/error_1203.phpt" />
             <file role="test" name="tests/swoole_http_server/error_413.phpt" />
+            <file role="test" name="tests/swoole_http_server/event_stream.phpt" />
             <file role="test" name="tests/swoole_http_server/form_data_1.phpt" />
             <file role="test" name="tests/swoole_http_server/form_data_with_charset.phpt" />
             <file role="test" name="tests/swoole_http_server/head_method.phpt" />
@@ -1445,10 +1447,13 @@
             <file role="test" name="tests/swoole_http_server/https.phpt" />
             <file role="test" name="tests/swoole_http_server/issue_2360.phpt" />
             <file role="test" name="tests/swoole_http_server/large_url.phpt" />
+            <file role="test" name="tests/swoole_http_server/max-age.phpt" />
             <file role="test" name="tests/swoole_http_server/max_concurrency.phpt" />
             <file role="test" name="tests/swoole_http_server/max_coro_num.phpt" />
             <file role="test" name="tests/swoole_http_server/mixed_server.phpt" />
             <file role="test" name="tests/swoole_http_server/no_compression.phpt" />
+            <file role="test" name="tests/swoole_http_server/numeric_header_name.phpt" />
+            <file role="test" name="tests/swoole_http_server/octane_bug_651.phpt" />
             <file role="test" name="tests/swoole_http_server/pipeline.phpt" />
             <file role="test" name="tests/swoole_http_server/post.phpt" />
             <file role="test" name="tests/swoole_http_server/purge_method.phpt" />
@@ -1512,6 +1517,7 @@
             <file role="test" name="tests/swoole_http_server_coro/error_404.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/error_413.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/form_data_1.phpt" />
+            <file role="test" name="tests/swoole_http_server_coro/form_data_2.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/graceful_shutdown.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/handle.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/http2.phpt" />
@@ -1663,9 +1669,15 @@
             <file role="test" name="tests/swoole_process_pool/getprocess_1.phpt" />
             <file role="test" name="tests/swoole_process_pool/getprocess_2.phpt" />
             <file role="test" name="tests/swoole_process_pool/getprocess_3.phpt" />
+            <file role="test" name="tests/swoole_process_pool/getprocess_4.phpt" />
+            <file role="test" name="tests/swoole_process_pool/getprocess_5.phpt" />
             <file role="test" name="tests/swoole_process_pool/master_pid.phpt" />
             <file role="test" name="tests/swoole_process_pool/message.phpt" />
+            <file role="test" name="tests/swoole_process_pool/message_async.phpt" />
+            <file role="test" name="tests/swoole_process_pool/message_bus.phpt" />
+            <file role="test" name="tests/swoole_process_pool/message_bus_sync.phpt" />
             <file role="test" name="tests/swoole_process_pool/msgqueue.phpt" />
+            <file role="test" name="tests/swoole_process_pool/msgqueue_2.phpt" />
             <file role="test" name="tests/swoole_process_pool/reload.phpt" />
             <file role="test" name="tests/swoole_process_pool/reuse_port.phpt" />
             <file role="test" name="tests/swoole_process_pool/shutdown.phpt" />
@@ -1956,6 +1968,10 @@
             <file role="test" name="tests/swoole_server/max_request_grace_disabled.phpt" />
             <file role="test" name="tests/swoole_server/max_request_grace_enabled.phpt" />
             <file role="test" name="tests/swoole_server/max_request_threshold.phpt" />
+            <file role="test" name="tests/swoole_server/memory_leak/length.phpt" />
+            <file role="test" name="tests/swoole_server/memory_leak/pipe_message.phpt" />
+            <file role="test" name="tests/swoole_server/memory_leak/task.phpt" />
+            <file role="test" name="tests/swoole_server/memory_leak/tcp.phpt" />
             <file role="test" name="tests/swoole_server/mqtt/length_offset.phpt" />
             <file role="test" name="tests/swoole_server/mqtt/recv_fail.phpt" />
             <file role="test" name="tests/swoole_server/mqtt/send_big_pack.phpt" />
@@ -2194,6 +2210,7 @@
             <file role="test" name="tests/swoole_websocket_server/compression.phpt" />
             <file role="test" name="tests/swoole_websocket_server/disconnect.phpt" />
             <file role="test" name="tests/swoole_websocket_server/disconnect_with_code.phpt" />
+            <file role="test" name="tests/swoole_websocket_server/dynamic_property.phpt" />
             <file role="test" name="tests/swoole_websocket_server/empty_message.phpt" />
             <file role="test" name="tests/swoole_websocket_server/exists_and_isEstablished.phpt" />
             <file role="test" name="tests/swoole_websocket_server/fin.phpt" />
