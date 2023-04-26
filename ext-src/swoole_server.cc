@@ -1984,7 +1984,7 @@ static PHP_METHOD(swoole_server, set) {
         serv->max_wait_time = SW_MAX(0, SW_MIN(v, UINT32_MAX));
     }
     if (php_swoole_array_get_value(vht, "max_queued_bytes", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
+        zend_long v = php_swoole_parse_to_size(ztmp);
         serv->max_queued_bytes = SW_MAX(0, SW_MIN(v, UINT32_MAX));
     }
     if (php_swoole_array_get_value(vht, "max_concurrency", ztmp)) {
@@ -2216,7 +2216,7 @@ static PHP_METHOD(swoole_server, set) {
     }
     if (php_swoole_array_get_value(vht, "http_compression_min_length", ztmp) ||
         php_swoole_array_get_value(vht, "compression_min_length", ztmp)) {
-        serv->compression_min_length = zval_get_long(ztmp);
+        serv->compression_min_length = php_swoole_parse_to_size(ztmp);
     }
 #endif
 
@@ -2306,7 +2306,7 @@ static PHP_METHOD(swoole_server, set) {
      */
     if (php_swoole_array_get_value(vht, "input_buffer_size", ztmp) ||
         php_swoole_array_get_value(vht, "buffer_input_size", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
+        zend_long v = php_swoole_parse_to_size(ztmp);
         serv->input_buffer_size = SW_MAX(0, SW_MIN(v, UINT32_MAX));
     }
     /**
@@ -2314,7 +2314,7 @@ static PHP_METHOD(swoole_server, set) {
      */
     if (php_swoole_array_get_value(vht, "output_buffer_size", ztmp) ||
         php_swoole_array_get_value(vht, "buffer_output_size", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
+        zend_long v = php_swoole_parse_to_size(ztmp);
         serv->output_buffer_size = SW_MAX(0, SW_MIN(v, UINT32_MAX));
     }
     // message queue key

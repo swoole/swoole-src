@@ -386,7 +386,7 @@ bool php_swoole_client_check_setting(Client *cli, zval *zset) {
      * package max length
      */
     if (php_swoole_array_get_value(vht, "package_max_length", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
+        zend_long v = php_swoole_parse_to_size(ztmp);
         cli->protocol.package_max_length = SW_MAX(0, SW_MIN(v, UINT32_MAX));
     } else {
         cli->protocol.package_max_length = SW_INPUT_BUFFER_SIZE;
@@ -395,18 +395,18 @@ bool php_swoole_client_check_setting(Client *cli, zval *zset) {
      * socket send/recv buffer size
      */
     if (php_swoole_array_get_value(vht, "socket_buffer_size", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
+        zend_long v = php_swoole_parse_to_size(ztmp);
         value = SW_MAX(1, SW_MIN(v, INT_MAX));
         cli->socket->set_buffer_size(value);
         cli->socket->buffer_size = value;
     }
     if (php_swoole_array_get_value(vht, "buffer_high_watermark", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
+        zend_long v = php_swoole_parse_to_size(ztmp);
         value = SW_MAX(0, SW_MIN(v, UINT32_MAX));
         cli->buffer_high_watermark = value;
     }
     if (php_swoole_array_get_value(vht, "buffer_low_watermark", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
+        zend_long v = php_swoole_parse_to_size(ztmp);
         value = SW_MAX(0, SW_MIN(v, UINT32_MAX));
         cli->buffer_low_watermark = value;
     }

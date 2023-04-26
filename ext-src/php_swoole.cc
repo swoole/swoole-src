@@ -293,7 +293,7 @@ void php_swoole_set_global_option(HashTable *vht) {
         Socket::default_read_timeout = timeout_format(ztmp);
     }
     if (php_swoole_array_get_value(vht, "socket_buffer_size", ztmp)) {
-        Socket::default_buffer_size = zval_get_long(ztmp);
+        Socket::default_buffer_size = php_swoole_parse_to_size(ztmp);
     }
     if (php_swoole_array_get_value(vht, "socket_timeout", ztmp)) {
         Socket::default_read_timeout = Socket::default_write_timeout = timeout_format(ztmp);
@@ -301,22 +301,22 @@ void php_swoole_set_global_option(HashTable *vht) {
     // [HTTP2]
     // ======================================================================
     if (php_swoole_array_get_value(vht, "http2_header_table_size", ztmp)) {
-        swoole::http2::put_default_setting(SW_HTTP2_SETTING_HEADER_TABLE_SIZE, zval_get_long(ztmp));
+        swoole::http2::put_default_setting(SW_HTTP2_SETTING_HEADER_TABLE_SIZE, php_swoole_parse_to_size(ztmp));
     }
     if (php_swoole_array_get_value(vht, "http2_enable_push", ztmp)) {
         swoole::http2::put_default_setting(SW_HTTP2_SETTINGS_ENABLE_PUSH, zval_get_long(ztmp));
     }
     if (php_swoole_array_get_value(vht, "http2_max_concurrent_streams", ztmp)) {
-        swoole::http2::put_default_setting(SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS, zval_get_long(ztmp));
+        swoole::http2::put_default_setting(SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS, php_swoole_parse_to_size(ztmp));
     }
     if (php_swoole_array_get_value(vht, "http2_init_window_size", ztmp)) {
-        swoole::http2::put_default_setting(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE, zval_get_long(ztmp));
+        swoole::http2::put_default_setting(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE, php_swoole_parse_to_size(ztmp));
     }
     if (php_swoole_array_get_value(vht, "http2_max_frame_size", ztmp)) {
-        swoole::http2::put_default_setting(SW_HTTP2_SETTINGS_MAX_FRAME_SIZE, zval_get_long(ztmp));
+        swoole::http2::put_default_setting(SW_HTTP2_SETTINGS_MAX_FRAME_SIZE, php_swoole_parse_to_size(ztmp));
     }
     if (php_swoole_array_get_value(vht, "http2_max_header_list_size", ztmp)) {
-        swoole::http2::put_default_setting(SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE, zval_get_long(ztmp));
+        swoole::http2::put_default_setting(SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE, php_swoole_parse_to_size(ztmp));
     }
 }
 
@@ -329,6 +329,14 @@ SW_API bool php_swoole_is_enable_coroutine() {
         return sw_server()->is_enable_coroutine();
     } else {
         return SWOOLE_G(enable_coroutine);
+    }
+}
+
+SW_API zend_long php_swoole_parse_to_size(zval *zv) {
+    if (ZVAL_IS_STRING(zv)) {
+        return zend_atol(Z_STRVAL_P(zv), Z_STRLEN_P(zv));
+    } else {
+        return zval_get_long(zv);
     }
 }
 
