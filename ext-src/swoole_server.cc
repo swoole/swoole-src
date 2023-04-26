@@ -2236,7 +2236,7 @@ static PHP_METHOD(swoole_server, set) {
         serv->upload_tmp_dir = str_v.to_std_string();
     }
     if (php_swoole_array_get_value(vht, "upload_max_filesize", ztmp)) {
-        serv->upload_max_filesize = zval_get_long(ztmp);
+        serv->upload_max_filesize = php_swoole_parse_to_size(ztmp);
     }
     /**
      * http static file handler

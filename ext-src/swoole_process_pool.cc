@@ -313,7 +313,7 @@ static PHP_METHOD(swoole_process_pool, set) {
         pp->enable_message_bus = zval_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "max_package_size", ztmp)) {
-        pool->set_max_packet_size(zval_get_long(ztmp));
+        pool->set_max_packet_size(php_swoole_parse_to_size(ztmp));
     }
 }
 
