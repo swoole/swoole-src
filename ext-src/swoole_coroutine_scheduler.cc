@@ -154,7 +154,7 @@ void php_swoole_set_coroutine_option(zend_array *vht) {
         PHPCoroutine::enable_preemptive_scheduler(zval_is_true(ztmp));
     }
     if (php_swoole_array_get_value(vht, "c_stack_size", ztmp) || php_swoole_array_get_value(vht, "stack_size", ztmp)) {
-        Coroutine::set_stack_size(zval_get_long(ztmp));
+        Coroutine::set_stack_size(php_swoole_parse_to_size(ztmp));
     }
     if (php_swoole_array_get_value(vht, "name_resolver", ztmp)) {
         if (!ZVAL_IS_ARRAY(ztmp)) {

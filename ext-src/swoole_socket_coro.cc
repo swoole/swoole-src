@@ -991,7 +991,7 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, zval *zset) {
      * package max length
      */
     if (php_swoole_array_get_value(vht, "package_max_length", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
+        zend_long v = php_swoole_parse_to_size(ztmp);
         sock->protocol.package_max_length = SW_MAX(0, SW_MIN(v, UINT32_MAX));
     } else {
         sock->protocol.package_max_length = SW_INPUT_BUFFER_SIZE;
@@ -1037,7 +1037,7 @@ SW_API bool php_swoole_socket_set(Socket *cli, zval *zset) {
      * socket send/recv buffer size
      */
     if (php_swoole_array_get_value(vht, "socket_buffer_size", ztmp)) {
-        zend_long size = zval_get_long(ztmp);
+        zend_long size = php_swoole_parse_to_size(ztmp);
         if (size <= 0) {
             php_swoole_fatal_error(E_WARNING, "socket buffer size must be greater than 0, got " ZEND_LONG_FMT, size);
             ret = false;
