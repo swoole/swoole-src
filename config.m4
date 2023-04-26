@@ -744,6 +744,7 @@ EOF
         thirdparty/hiredis/sds.c"
 
     if test "$PHP_NGHTTP2_DIR" = "no"; then
+        PHP_ADD_INCLUDE([$ext_srcdir/thirdparty])
 	    swoole_source_file="$swoole_source_file \
 	        thirdparty/nghttp2/nghttp2_hd.c \
 	        thirdparty/nghttp2/nghttp2_rcbuf.c \

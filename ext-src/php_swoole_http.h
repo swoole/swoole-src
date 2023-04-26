@@ -34,7 +34,7 @@
 #define SW_ZLIB_ENCODING_ANY 0x2f
 #endif
 
-#include "thirdparty/nghttp2/nghttp2.h"
+#include <nghttp2/nghttp2.h>
 
 enum swHttpHeaderFlag {
     HTTP_HEADER_SERVER = 1u << 1,
