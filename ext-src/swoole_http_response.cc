@@ -866,7 +866,12 @@ _skip_copy:
 bool HttpContext::set_header(const char *k, size_t klen, const char *v, size_t vlen, bool format) {
     zval ztmp;
     ZVAL_STRINGL(&ztmp, v, vlen);
-    return set_header(k, klen, &ztmp, format);
+
+	bool result = set_header(k, klen, &ztmp, format);
+	if (!result) {
+		zend_string_release_ex(Z_STR_P(&ztmp), 0);
+	}
+    return result;
 }
 
 bool HttpContext::set_header(const char *k, size_t klen, zval *zvalue, bool format) {
