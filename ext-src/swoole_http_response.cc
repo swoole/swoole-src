@@ -890,7 +890,6 @@ _skip_copy:
 bool HttpContext::set_header(const char *k, size_t klen, const char *v, size_t vlen, bool format) {
     zval ztmp;
     ZVAL_STRINGL(&ztmp, v, vlen);
-    Z_ADDREF(ztmp);
     return set_header(k, klen, &ztmp, format);
 }
 
