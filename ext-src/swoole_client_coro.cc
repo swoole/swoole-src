@@ -20,6 +20,7 @@
 #include "swoole_protocol.h"
 #include "swoole_proxy.h"
 
+using zend::array_set;
 using swoole::HttpProxy;
 using swoole::Socks5Proxy;
 using swoole::String;
@@ -828,8 +829,7 @@ static PHP_METHOD(swoole_client_coro, getsockname) {
     zval zaddress;
     ZVAL_STRING(&zaddress, sa.get_ip());
     add_assoc_zval(return_value, "host", &zaddress); /* backward compatibility */
-    Z_ADDREF(zaddress);
-    add_assoc_zval(return_value, "address", &zaddress);
+    array_set(return_value, SW_STRL("address"), &zaddress);
     add_assoc_long(return_value, "port", sa.get_port());
 }
 

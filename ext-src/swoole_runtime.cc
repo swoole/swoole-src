@@ -42,6 +42,7 @@
 #define HAVE_SEC_LEVEL 1
 #endif
 
+using zend::array_set;
 using swoole::Coroutine;
 using swoole::PHPCoroutine;
 using swoole::coroutine::PollSocket;
@@ -1074,8 +1075,7 @@ static bool socket_ssl_set_options(Socket *sock, php_stream_context *context) {
             auto add_alias = [&zalias, options](const char *name, const char *alias) {
                 zval *ztmp;
                 if (php_swoole_array_get_value_ex(options, name, ztmp)) {
-                    add_assoc_zval_ex(&zalias, alias, strlen(alias), ztmp);
-                    zval_add_ref(ztmp);
+                    array_set(&zalias, alias, strlen(alias), ztmp);
                 }
             };
 
