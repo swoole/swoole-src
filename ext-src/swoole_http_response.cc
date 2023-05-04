@@ -864,21 +864,17 @@ _skip_copy:
 }
 
 bool HttpContext::set_header(const char *k, size_t klen, const char *v, size_t vlen, bool format) {
-    zval ztmp;
-    ZVAL_STRINGL(&ztmp, v, vlen);
-    Z_ADDREF(ztmp);
-    return set_header(k, klen, &ztmp, format);
+    zend::Variable ztmp(v, vlen);
+    return set_header(k, klen, ztmp.ptr(), format);
 }
 
 bool HttpContext::set_header(const char *k, size_t klen, zval *zvalue, bool format) {
     if (UNEXPECTED(klen > SW_HTTP_HEADER_KEY_SIZE - 1)) {
         php_swoole_error(E_WARNING, "header key is too long");
-        Z_TRY_DELREF_P(zvalue);
         return false;
     }
 
     if (swoole_http_has_crlf(k, klen)) {
-        Z_TRY_DELREF_P(zvalue);
         return false;
     }
 
@@ -893,7 +889,7 @@ bool HttpContext::set_header(const char *k, size_t klen, zval *zvalue, bool form
         }
         k = sw_tg_buffer()->str;
     }
-    add_assoc_zval_ex(zheader, k, klen, zvalue);
+    zend::array_set(zheader, k, klen, zvalue);
     return true;
 }
 
@@ -1117,7 +1113,6 @@ static PHP_METHOD(swoole_http_response, header) {
     if (UNEXPECTED(!ctx)) {
         RETURN_FALSE;
     }
-    Z_TRY_ADDREF_P(zvalue);
     RETURN_BOOL(ctx->set_header(k, klen, zvalue, format));
 }
 

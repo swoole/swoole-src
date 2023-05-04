@@ -104,8 +104,7 @@ class HttpServer {
         if (pattern == "/") {
             default_handler = &handlers[pattern];
         }
-        Z_ADDREF_P(zcallback);
-        add_assoc_zval_ex(&zcallbacks, pattern.c_str(), pattern.length(), zcallback);
+        zend::array_set(&zcallbacks, pattern.c_str(), pattern.length(), zcallback);
     }
 
     zend_fcall_info_cache *get_handler(HttpContext *ctx) {
