@@ -542,7 +542,7 @@ static inline void assign_zend_string_by_val(zval *zdata, char *addr, size_t len
 }
 
 static inline void array_set(zval *arg, const char *key, size_t l_key, zval *zvalue) {
-    zval_addref_p(zvalue);
+    Z_TRY_ADDREF_P(zvalue);
     add_assoc_zval_ex(arg, key, l_key, zvalue);
 }
 
@@ -553,7 +553,7 @@ static inline void array_set(zval *arg, const char *key, size_t l_key, const cha
 }
 
 static inline void array_add(zval *arg, zval *zvalue) {
-    zval_addref_p(zvalue);
+    Z_TRY_ADDREF_P(zvalue);
     add_next_index_zval(arg, zvalue);
 }
 
