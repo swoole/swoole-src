@@ -56,9 +56,9 @@ class HttpServer {
     Socket *socket;
     zend_fcall_info_cache *default_handler;
     std::unordered_map<std::string, zend_fcall_info_cache> handlers;
-    std::unordered_map<long, Socket *> clients;
     zval zcallbacks;
     bool running;
+    std::list<Socket *> clients;
 
     /* options */
     bool parse_cookie;
@@ -559,8 +559,9 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
     bool header_completed = false;
     off_t header_crlf_offset = 0;
     size_t total_length;
-    auto current_cid = Coroutine::get_current_cid();
-    hs->clients.emplace(current_cid, sock);
+
+    hs->clients.push_front(sock);
+    auto client_iterator = hs->clients.begin();
 
 #ifdef SW_USE_OPENSSL
     if (sock->ssl_is_enable() && !sock->ssl_handshake()) {
@@ -694,18 +695,23 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
         zval_dtor(ctx->request.zobject);
         zval_dtor(ctx->response.zobject);
     }
-    hs->clients.erase(current_cid);
+    /* notice: do not erase the element when server is shutting down */
+    if (hs->running) {
+        hs->clients.erase(client_iterator);
+    }
 }
 
 static PHP_METHOD(swoole_http_server_coro, shutdown) {
     HttpServer *hs = http_server_get_object(Z_OBJ_P(ZEND_THIS));
     hs->running = false;
     hs->socket->cancel(SW_EVENT_READ);
-    for (auto iter : hs->clients) {
-        if (iter.second->get_socket()->recv_wait) {
-            iter.second->cancel(SW_EVENT_READ);
+    /* accept has been canceled, we only need to traverse once */
+    for (auto client : hs->clients) {
+        if (client->get_socket()->recv_wait) {
+            client->cancel(SW_EVENT_READ);
         }
     }
+    hs->clients.clear();
 }
 
 static void http2_server_onRequest(Http2Session *session, Http2Stream *stream) {
