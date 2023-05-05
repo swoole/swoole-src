@@ -407,9 +407,15 @@ bool call(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv, zval *ret
 class ReturnValue {
   public:
     zval value;
+
     ReturnValue() {
         value = {};
     }
+
+    ReturnValue(const char *str, size_t l_str) {
+        ZVAL_STRINGL(&value, str, l_str);
+    }
+
     ~ReturnValue() {
         zval_dtor(&value);
     }
@@ -444,6 +450,22 @@ static inline void assign_zend_string_by_val(zval *zdata, char *addr, size_t len
     addr[length] = 0;
     zstr->len = length;
     ZVAL_STR(zdata, zstr);
+}
+
+static inline void array_set(zval *arg, const char *key, size_t l_key, zval *zvalue) {
+    Z_TRY_ADDREF_P(zvalue);
+    add_assoc_zval_ex(arg, key, l_key, zvalue);
+}
+
+static inline void array_set(zval *arg, const char *key, size_t l_key, const char *value, size_t l_value) {
+    zval ztmp;
+    ZVAL_STRINGL(&ztmp, value, l_value);
+    add_assoc_zval_ex(arg, key, l_key, &ztmp);
+}
+
+static inline void array_add(zval *arg, zval *zvalue) {
+    zval_addref_p(zvalue);
+    add_next_index_zval(arg, zvalue);
 }
 
 #if PHP_VERSION_ID < 80000

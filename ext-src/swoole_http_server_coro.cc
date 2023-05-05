@@ -19,6 +19,7 @@
 #include <string>
 #include <map>
 
+using zend::array_set;
 using swoole::microtime;
 using swoole::PHPCoroutine;
 using swoole::Server;
@@ -101,8 +102,8 @@ class http_server {
         if (pattern == "/") {
             default_handler = &handlers[pattern];
         }
-        Z_ADDREF_P(zcallback);
-        add_assoc_zval_ex(&zcallbacks, pattern.c_str(), pattern.length(), zcallback);
+
+        array_set(&zcallbacks, pattern.c_str(), pattern.length(), zcallback);
     }
 
     zend_fcall_info_cache *get_handler(HttpContext *ctx) {
