@@ -23,6 +23,7 @@ BEGIN_EXTERN_C()
 #include "stubs/php_swoole_http_server_coro_arginfo.h"
 END_EXTERN_C()
 
+using swoole::Coroutine;
 using swoole::microtime;
 using swoole::PHPCoroutine;
 using swoole::Server;
@@ -54,7 +55,8 @@ class HttpServer {
   public:
     Socket *socket;
     zend_fcall_info_cache *default_handler;
-    std::map<std::string, zend_fcall_info_cache> handlers;
+    std::unordered_map<std::string, zend_fcall_info_cache> handlers;
+    std::unordered_map<long, Socket *> clients;
     zval zcallbacks;
     bool running;
 
@@ -112,7 +114,8 @@ class HttpServer {
             if (&i->second == default_handler) {
                 continue;
             }
-            if (swoole_str_istarts_with(ctx->request.path, ctx->request.path_len, i->first.c_str(), i->first.length())) {
+            if (swoole_str_istarts_with(
+                    ctx->request.path, ctx->request.path_len, i->first.c_str(), i->first.length())) {
                 return &i->second;
             }
         }
@@ -556,6 +559,8 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
     bool header_completed = false;
     off_t header_crlf_offset = 0;
     size_t total_length;
+    auto current_cid = Coroutine::get_current_cid();
+    hs->clients.emplace(current_cid, sock);
 
 #ifdef SW_USE_OPENSSL
     if (sock->ssl_is_enable() && !sock->ssl_handshake()) {
@@ -565,6 +570,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
 
     while (true) {
     _recv_request : {
+        sock->get_socket()->recv_wait = 1;
         ssize_t retval = sock->recv(buffer->str + buffer->length, buffer->size - buffer->length);
         if (sw_unlikely(retval <= 0)) {
             break;
@@ -658,6 +664,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
         zend_fcall_info_cache *fci_cache = hs->get_handler(ctx);
         zval args[2] = {*ctx->request.zobject, *ctx->response.zobject};
         bool keep_alive = swoole_http_should_keep_alive(&ctx->parser) && !ctx->websocket;
+        sock->get_socket()->recv_wait = 0;
 
         if (fci_cache) {
             if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, nullptr, 0))) {
@@ -687,12 +694,18 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
         zval_dtor(ctx->request.zobject);
         zval_dtor(ctx->response.zobject);
     }
+    hs->clients.erase(current_cid);
 }
 
 static PHP_METHOD(swoole_http_server_coro, shutdown) {
     HttpServer *hs = http_server_get_object(Z_OBJ_P(ZEND_THIS));
     hs->running = false;
     hs->socket->cancel(SW_EVENT_READ);
+    for (auto iter : hs->clients) {
+        if (iter.second->get_socket()->recv_wait) {
+            iter.second->cancel(SW_EVENT_READ);
+        }
+    }
 }
 
 static void http2_server_onRequest(Http2Session *session, Http2Stream *stream) {
