@@ -110,7 +110,7 @@ class Socket {
         }
     }
 
-    bool poll(EventType type);
+    bool poll(EventType type, double timeout = 0);
     Socket *accept(double timeout = 0);
     bool bind(std::string address, int port = 0);
     bool bind(const struct sockaddr *sa, socklen_t len);

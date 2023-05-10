@@ -521,6 +521,9 @@ Socket::Socket(int _fd, SocketType _type) {
     if (sw_unlikely(!init_reactor_socket(_fd))) {
         return;
     }
+    if (_type == SW_SOCK_RAW) {
+        return;
+    }
     socket->set_nonblock();
     init_options();
 }
@@ -811,11 +814,15 @@ ssize_t Socket::peek(void *__buf, size_t __n) {
     return retval;
 }
 
-bool Socket::poll(EventType type) {
+bool Socket::poll(EventType type, double timeout) {
     if (sw_unlikely(!is_available(type))) {
         return -1;
     }
-    TimerController timer(&read_timer, read_timeout, this, timer_callback);
+    TimerNode **timer_pp = type == SW_EVENT_READ ? &read_timer : &write_timer;
+    if (timeout == 0) {
+        timeout = type == SW_EVENT_READ ? read_timeout : write_timeout;
+    }
+    TimerController timer(timer_pp, timeout, this, timer_callback);
     if (timer.start() && wait_event(type)) {
         return true;
     } else {
