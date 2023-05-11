@@ -233,6 +233,7 @@ void php_swoole_mysql_coro_minit(int module_number);
 void php_swoole_redis_coro_minit(int module_number);
 #ifdef SW_USE_PGSQL
 void php_swoole_postgresql_coro_minit(int module_number);
+void php_swoole_pgsql_minit(int module_number);
 #endif
 // server
 void php_swoole_server_minit(int module_number);
@@ -284,6 +285,9 @@ void php_swoole_event_exit();
  */
 void php_swoole_runtime_mshutdown();
 void php_swoole_websocket_server_mshutdown();
+#ifdef SW_USE_PGSQL
+void php_swoole_pgsql_mshutdown();
+#endif
 
 static sw_inline zend_bool php_swoole_websocket_frame_is_object(zval *zdata) {
     return Z_TYPE_P(zdata) == IS_OBJECT && instanceof_function(Z_OBJCE_P(zdata), swoole_websocket_frame_ce);

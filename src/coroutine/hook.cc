@@ -210,6 +210,20 @@ int swoole_coroutine_socket_create(int fd) {
     }
 }
 
+int swoole_coroutine_socket_unwrap(int fd) {
+    if (sw_unlikely(is_no_coro())) {
+        return -1;
+    }
+    auto socket = get_socket(fd);
+    if (socket == nullptr) {
+        return -1;
+    }
+    std::unique_lock<std::mutex> _lock(socket_map_lock);
+    socket->move_fd();
+    socket_map.erase(fd);
+    return 0;
+}
+
 uint8_t swoole_coroutine_socket_exists(int fd) {
     return socket_map.find(fd) != socket_map.end();
 }

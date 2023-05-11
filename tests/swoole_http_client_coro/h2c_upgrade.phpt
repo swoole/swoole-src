@@ -8,7 +8,7 @@ skip_if_offline();
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 go(function () {
-    $host = 'www.imiphp.com';
+    $host = 'www.jd.com';
     $cli = new Swoole\Coroutine\Http\Client($host, 443, true);
     $cli->set(['timeout' => 10]);
     $cli->setHeaders([
@@ -20,7 +20,7 @@ go(function () {
     ]);
     $ret = $cli->get('/');
     Assert::assert($ret);
-    Assert::assert(strpos($cli->body, 'Swoole') !== false);
+    Assert::assert(strpos($cli->body, '京东') !== false);
 });
 ?>
 --EXPECT--

@@ -13,6 +13,7 @@
   | Author:   Tianfeng Han  <mikan.tenny@gmail.com>                      |
   +----------------------------------------------------------------------+
  */
+
 #include "php_swoole_cxx.h"
 #include "swoole_socket.h"
 #include "swoole_util.h"
@@ -20,6 +21,10 @@
 #include "thirdparty/php/standard/proc_open.h"
 #ifdef SW_USE_CURL
 #include "thirdparty/php/curl/curl_interface.h"
+#endif
+
+#ifdef SW_USE_PGSQL
+#include "php_swoole_pgsql.h"
 #endif
 
 #include <unordered_map>
@@ -184,6 +189,9 @@ void php_swoole_runtime_minit(int module_number) {
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_NATIVE_CURL", PHPCoroutine::HOOK_NATIVE_CURL);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_BLOCKING_FUNCTION", PHPCoroutine::HOOK_BLOCKING_FUNCTION);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_SOCKETS", PHPCoroutine::HOOK_SOCKETS);
+#ifdef SW_USE_PGSQL
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_PDO_PGSQL", PHPCoroutine::HOOK_PDO_PGSQL);
+#endif
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_ALL", PHPCoroutine::HOOK_ALL);
 #ifdef SW_USE_CURL
     swoole_native_curl_minit(module_number);
@@ -1235,6 +1243,17 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
             }
         }
     }
+#ifdef SW_USE_PGSQL
+    if (flags & PHPCoroutine::HOOK_PDO_PGSQL) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_PDO_PGSQL)) {
+            swoole_pgsql_set_blocking(0);
+        }
+    } else {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_PDO_PGSQL) {
+            swoole_pgsql_set_blocking(1);
+        }
+    }
+#endif
     if (flags & PHPCoroutine::HOOK_STREAM_FUNCTION) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_STREAM_FUNCTION)) {
             SW_HOOK_FUNC(stream_select);

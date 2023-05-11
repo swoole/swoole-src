@@ -79,6 +79,7 @@ int swoole_coroutine_closedir(DIR *dirp);
  */
 int swoole_coroutine_socket(int domain, int type, int protocol);
 int swoole_coroutine_socket_create(int fd);
+int swoole_coroutine_socket_unwrap(int fd);
 uint8_t swoole_coroutine_socket_exists(int fd);
 ssize_t swoole_coroutine_send(int sockfd, const void *buf, size_t len, int flags);
 ssize_t swoole_coroutine_sendmsg(int sockfd, const struct msghdr *msg, int flags);

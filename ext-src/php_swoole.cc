@@ -147,6 +147,9 @@ static const zend_module_dep swoole_deps[] = {
 #ifdef SW_USE_CURL
     ZEND_MOD_REQUIRED("curl")
 #endif
+#ifdef SW_USE_PGSQL
+    ZEND_MOD_REQUIRED("pdo")
+#endif
     ZEND_MOD_END
 };
 
@@ -730,6 +733,7 @@ PHP_MINIT_FUNCTION(swoole) {
     php_swoole_name_resolver_minit(module_number);
 #ifdef SW_USE_PGSQL
     php_swoole_postgresql_coro_minit(module_number);
+    php_swoole_pgsql_minit(module_number);
 #endif
 
     SwooleG.fatal_error = fatal_error;
@@ -768,6 +772,9 @@ PHP_MSHUTDOWN_FUNCTION(swoole) {
 
     php_swoole_runtime_mshutdown();
     php_swoole_websocket_server_mshutdown();
+#ifdef SW_USE_PGSQL
+    php_swoole_pgsql_mshutdown();
+#endif
 
     swoole_clean();
 

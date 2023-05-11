@@ -639,6 +639,7 @@ EOF
         ext-src/swoole_mysql_proto.cc \
         ext-src/swoole_name_resolver.cc \
         ext-src/swoole_postgresql_coro.cc \
+        ext-src/swoole_pgsql.cc \
         ext-src/swoole_process.cc \
         ext-src/swoole_process_pool.cc \
         ext-src/swoole_redis_coro.cc \
@@ -753,6 +754,14 @@ EOF
 	        thirdparty/nghttp2/nghttp2_mem.c \
 	        thirdparty/nghttp2/nghttp2_hd_huffman.c \
 	        thirdparty/nghttp2/nghttp2_hd_huffman_data.c"
+	fi
+	
+	if test "$PHP_SWOOLE_PGSQL" != "no"; then
+	    swoole_source_file="$swoole_source_file \
+	        thirdparty/php80/pdo_pgsql/pgsql_driver.c \
+	        thirdparty/php80/pdo_pgsql/pgsql_statement.c \
+	        thirdparty/php81/pdo_pgsql/pgsql_driver.c \
+	        thirdparty/php81/pdo_pgsql/pgsql_statement.c"
 	fi
 
     SW_ASM_DIR="thirdparty/boost/asm/"
