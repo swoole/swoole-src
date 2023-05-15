@@ -647,6 +647,8 @@ PHP_MINIT_FUNCTION(swoole) {
     SW_REGISTER_LONG_CONSTANT("SWOOLE_TRACE_CO_CURL", SW_TRACE_CO_CURL);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_TRACE_CARES", SW_TRACE_CARES);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_TRACE_ZLIB", SW_TRACE_ZLIB);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_TRACE_CO_PGSQL", SW_TRACE_CO_PGSQL);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_TRACE_CO_ODBC", SW_TRACE_CO_ODBC);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_TRACE_ALL", SW_TRACE_ALL);
 
     /**
@@ -735,7 +737,9 @@ PHP_MINIT_FUNCTION(swoole) {
     php_swoole_postgresql_coro_minit(module_number);
     php_swoole_pgsql_minit(module_number);
 #endif
-
+#ifdef SW_USE_ODBC
+    php_swoole_odbc_minit(module_number);
+#endif
     SwooleG.fatal_error = fatal_error;
     Socket::default_buffer_size = SWOOLE_G(socket_buffer_size);
     SwooleG.dns_cache_refresh_time = 60;
@@ -886,6 +890,10 @@ PHP_MINFO_FUNCTION(swoole) {
 #ifdef SW_USE_PGSQL
     php_info_print_table_row(2, "coroutine_postgresql", "enabled");
 #endif
+#ifdef SW_USE_ODBC
+    php_info_print_table_row(2, "coroutine_odbc", "enabled");
+#endif
+
     php_info_print_table_end();
 
     DISPLAY_INI_ENTRIES();

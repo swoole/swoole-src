@@ -235,6 +235,9 @@ void php_swoole_redis_coro_minit(int module_number);
 void php_swoole_postgresql_coro_minit(int module_number);
 void php_swoole_pgsql_minit(int module_number);
 #endif
+#ifdef SW_USE_ODBC
+int php_swoole_odbc_minit(int module_id);
+#endif
 // server
 void php_swoole_server_minit(int module_number);
 void php_swoole_server_port_minit(int module_number);

@@ -73,7 +73,6 @@ if (IS_IN_CI) {
 }
 define('PGSQL_PORT', '5432');
 
-
 define('PGSQL_CONNECTION_STRING', getenv('PGSQL_CONNECTION_STRING') ?:
     ('host=' . PGSQL_HOST . ' port=' . PGSQL_PORT . ' dbname=' . PGSQL_DBNAME . ' user=' . PGSQL_USER . ' password=' . PGSQL_PASSWORD));
 
@@ -92,6 +91,13 @@ if (!getenv('SWOOLE_TEST_NO_DOCKER')) {
         is_numeric($matches[1])) {
         define('HTTPBIN_SERVER_PORT_IN_DOCKER', (int)$matches[1]);
     }
+}
+
+/** ============== ODBC ============== */
+if (IS_IN_CI) {
+    define('ODBC_DSN', 'odbc:mysql-test');
+} else {
+    define('ODBC_DSN', 'odbc:mysql-test');
 }
 
 define('SWOOLE_TEST_ECHO', empty(getenv('SWOOLE_TEST_NO_ECHO')));

@@ -787,7 +787,7 @@ SW_API void swoole_ignore_error(int code);
 SW_API bool swoole_is_ignored_error(int code);
 SW_API void swoole_set_log_level(int level);
 SW_API void swoole_set_log_file(const char *file);
-SW_API void swoole_set_trace_flags(int flags);
+SW_API void swoole_set_trace_flags(long flags);
 SW_API void swoole_set_dns_server(const std::string &server);
 SW_API void swoole_set_hosts_path(const std::string &hosts_file);
 SW_API std::pair<std::string, int> swoole_get_dns_server();
