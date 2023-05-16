@@ -41,11 +41,11 @@ Swoole\Coroutine\run(function () {
     echo "[DB-init] initialization MySQL database...\n";
     $mysql = new Swoole\Coroutine\MySQL();
     $connected = $mysql->connect([
-        'host' => MYSQL_SERVER_HOST,
-        'port' => MYSQL_SERVER_PORT,
-        'user' => MYSQL_SERVER_USER,
-        'password' => MYSQL_SERVER_PWD,
-        'database' => MYSQL_SERVER_DB
+            'host' => MYSQL_SERVER_HOST,
+            'port' => MYSQL_SERVER_PORT,
+            'user' => MYSQL_SERVER_USER,
+            'password' => MYSQL_SERVER_PWD,
+            'database' => MYSQL_SERVER_DB
     ]);
     if (!$connected) {
         echo "[DB-init] Connect failed! Error#{$mysql->connect_errno}: {$mysql->connect_error}\n";
@@ -96,8 +96,7 @@ Swoole\Coroutine\run(function () {
             . "USER = " . MYSQL_SERVER_USER . PHP_EOL
             . "PASSWORD =" . MYSQL_SERVER_PWD . PHP_EOL
             . "PORT = " . MYSQL_SERVER_PORT . PHP_EOL
-            . "DATABASE = " . MYSQL_SERVER_DB . PHP_EOL
-            . "Socket=/var/run/mysqld/mysqld.sock");
+            . "DATABASE = " . MYSQL_SERVER_DB);
     echo `odbcinst -i -d -f /etc/odbc.ini`;
 
     echo "[DB-init] ODBC Done!\n";
