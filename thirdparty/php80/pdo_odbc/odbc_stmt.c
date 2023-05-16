@@ -24,7 +24,6 @@
 #include "ext/standard/info.h"
 #include "pdo/php_pdo.h"
 #include "pdo/php_pdo_driver.h"
-#include "php_pdo_odbc_int.h"
 
 enum pdo_odbc_conv_result {
 	PDO_ODBC_CONV_NOT_REQUIRED,
