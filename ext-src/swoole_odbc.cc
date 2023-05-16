@@ -20,7 +20,7 @@
 #include "php_swoole_private.h"
 #include "swoole_coroutine_system.h"
 
-#ifdef SW_USE_PGSQL
+#ifdef SW_USE_ODBC
 
 static bool swoole_odbc_blocking = true;
 

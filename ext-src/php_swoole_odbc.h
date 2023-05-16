@@ -118,7 +118,6 @@ void swoole_odbc_set_blocking(bool blocking);
 #define SQLDisconnect swoole_odbc_SQLDisconnect
 
 #endif
-#endif
-
 END_EXTERN_C()
+#endif
 #endif
