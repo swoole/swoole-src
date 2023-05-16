@@ -75,4 +75,30 @@ Swoole\Coroutine\run(function () {
         }
     }
     echo "[DB-init] PostgreSQL Done!\n";
+
+
+    echo "[DB-init] initialization ODBC...\n";
+    echo `set -ex`;
+
+    file_put_contents('/etc/odbcinst.ini', "[mysql]" . PHP_EOL
+            . "Driver=libmaodbc.so" . PHP_EOL
+            . "Description=MariaDB Connector/ODBC(Unicode)" . PHP_EOL
+            . "UsageCount=1" . PHP_EOL
+    );
+    echo `odbcinst -q -d -n "mysql"`;
+
+    file_put_contents('/etc/odbc.ini', "[mysql-test]" . PHP_EOL
+            . "Description = MySQL test database" . PHP_EOL
+            . "Trace = On" . PHP_EOL
+            . "TraceFile = stderr" . PHP_EOL
+            . "Driver = mysql" . PHP_EOL
+            . "SERVER = " . MYSQL_SERVER_HOST . PHP_EOL
+            . "USER = " . MYSQL_SERVER_USER . PHP_EOL
+            . "PASSWORD =" . MYSQL_SERVER_PWD . PHP_EOL
+            . "PORT = " . MYSQL_SERVER_PORT . PHP_EOL
+            . "DATABASE = " . MYSQL_SERVER_DB . PHP_EOL
+            . "Socket=/var/run/mysqld/mysqld.sock");
+    echo `odbcinst -i -d -f /etc/odbc.ini`;
+
+    echo "[DB-init] ODBC Done!\n";
 });
