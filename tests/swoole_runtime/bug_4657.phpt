@@ -6,38 +6,20 @@ require __DIR__ . '/../include/skipif.inc';
 ?>
 --FILE--
 <?php
+require __DIR__ . '/../include/bootstrap.php';
 use Socket as BaseSocket;
 use function Swoole\Coroutine\run;
 
 $socket = socket_create(AF_INET, SOCK_STREAM, 0);
-var_dump($socket);
+Assert::eq(get_class($socket), Socket::class);
 
 run(function () {
     $socket = socket_create(AF_INET, SOCK_STREAM, 0);
-    var_dump($socket);
-    var_dump($socket instanceof BaseSocket);
+    Assert::eq(get_class($socket), Swoole\Coroutine\Socket::class);
+    Assert::true($socket instanceof BaseSocket);
 });
 
 $socket = socket_create(AF_INET, SOCK_STREAM, 0);
-var_dump($socket);
+Assert::eq(get_class($socket), Socket::class);
 ?>
 --EXPECTF--
-object(Socket)#%d (%d) {
-}
-object(Swoole\Coroutine\Socket)#%d (%d) {
-  ["fd"]=>
-  int(%d)
-  ["domain"]=>
-  int(%d)
-  ["type"]=>
-  int(%d)
-  ["protocol"]=>
-  int(%d)
-  ["errCode"]=>
-  int(0)
-  ["errMsg"]=>
-  string(0) ""
-}
-bool(true)
-object(Socket)#%d (%d) {
-}
