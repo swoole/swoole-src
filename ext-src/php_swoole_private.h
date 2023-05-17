@@ -78,11 +78,16 @@ extern PHPAPI int php_array_merge(zend_array *dest, zend_array *src);
 
 #define php_swoole_error(level, fmt_str, ...)                                                                          \
     swoole_set_last_error(SW_ERROR_PHP_RUNTIME_NOTICE);                                                                \
-    if (SWOOLE_G(display_errors) || level == E_ERROR) php_swoole_fatal_error(level, fmt_str, ##__VA_ARGS__)
+    if (SWOOLE_G(display_errors) || level == E_ERROR) php_error_docref(NULL, level, fmt_str, ##__VA_ARGS__)
+
+#define php_swoole_error_ex(level, err_code, fmt_str, ...)                                                             \
+    swoole_set_last_error(err_code);                                                                                   \
+    if (SWOOLE_G(display_errors) || level == E_ERROR) php_error_docref(NULL, level, fmt_str, ##__VA_ARGS__)
 
 #define php_swoole_sys_error(level, fmt_str, ...)                                                                      \
     swoole_set_last_error(errno);                                                                                      \
-    php_swoole_error(level, fmt_str ", Error: %s[%d]", ##__VA_ARGS__, strerror(errno), errno)
+    if (SWOOLE_G(display_errors) || level == E_ERROR)                                                                  \
+    php_error_docref(NULL, level, fmt_str ", Error: %s[%d]", ##__VA_ARGS__, strerror(errno), errno)
 
 #ifdef SW_USE_CARES
 #ifndef HAVE_CARES
@@ -237,6 +242,9 @@ void php_swoole_redis_coro_minit(int module_number);
 #ifdef SW_USE_PGSQL
 void php_swoole_postgresql_coro_minit(int module_number);
 void php_swoole_pgsql_minit(int module_number);
+#endif
+#ifdef SW_USE_ODBC
+int php_swoole_odbc_minit(int module_id);
 #endif
 // server
 void php_swoole_server_minit(int module_number);

@@ -8,7 +8,7 @@ skip_if_offline();
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 go(function () {
-    $host = 'www.jd.com';
+    $host = 'httpbin.org';
     $cli = new Swoole\Coroutine\Http\Client($host, 443, true);
     $cli->set(['timeout' => 10]);
     $cli->setHeaders([
@@ -20,7 +20,7 @@ go(function () {
     ]);
     $ret = $cli->get('/');
     Assert::assert($ret);
-    Assert::assert(strpos($cli->body, '京东') !== false);
+    Assert::assert(str_contains($cli->body, 'httpbin.org'));
 });
 ?>
 --EXPECT--

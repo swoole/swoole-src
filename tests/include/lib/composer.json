@@ -24,6 +24,12 @@
     "psr/http-factory": "^1.0",
     "symfony/http-client": "^5.3",
     "nyholm/psr7": "^1.4",
-    "friendsofphp/php-cs-fixer": "^3.3"
+    "friendsofphp/php-cs-fixer": "^3.3",
+    "php-http/message-factory": "^1.1"
+  },
+  "config": {
+    "allow-plugins": {
+      "php-http/discovery": true
+    }
   }
 }

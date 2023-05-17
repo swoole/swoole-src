@@ -1186,8 +1186,7 @@ static PHP_METHOD(swoole_coroutine, join) {
     ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(cid_array), zcid) {
         long cid = zval_get_long(zcid);
         if (co->get_cid() == cid) {
-            swoole_set_last_error(SW_ERROR_WRONG_OPERATION);
-            php_swoole_error(E_WARNING, "can not join self");
+            php_swoole_error_ex(E_WARNING, SW_ERROR_WRONG_OPERATION, "can not join self");
             delete canceled;
             RETURN_FALSE;
         }

@@ -16,7 +16,8 @@ phpize
 --enable-mysqlnd \
 --enable-swoole-curl \
 --enable-cares \
---enable-swoole-pgsql
+--enable-swoole-pgsql \
+--with-pdo-odbc=unixODBC,/usr
 
 make -j$(cat /proc/cpuinfo | grep processor | wc -l)
 make install

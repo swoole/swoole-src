@@ -307,7 +307,7 @@ SW_API void swoole_set_log_file(const char *file) {
     }
 }
 
-SW_API void swoole_set_trace_flags(int flags) {
+SW_API void swoole_set_trace_flags(long flags) {
     SwooleG.trace_flags = flags;
 }
 
