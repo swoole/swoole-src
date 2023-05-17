@@ -50,6 +50,8 @@ const char *swoole_strerror(int code) {
         return "Protocol error";
     case SW_ERROR_WRONG_OPERATION:
         return "Wrong operation";
+    case SW_ERROR_PHP_RUNTIME_NOTICE:
+        return "PHP runtime notice";
     case SW_ERROR_FILE_NOT_EXIST:
         return "File not exist";
     case SW_ERROR_FILE_TOO_LARGE:
