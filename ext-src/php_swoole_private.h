@@ -78,11 +78,11 @@ extern PHPAPI int php_array_merge(zend_array *dest, zend_array *src);
 
 #define php_swoole_error(level, fmt_str, ...)                                                                          \
     swoole_set_last_error(SW_ERROR_PHP_RUNTIME_NOTICE);                                                                \
-    if (SWOOLE_G(display_errors) || level == E_ERROR) php_swoole_fatal_error(level, fmt_str, ##__VA_ARGS__)
+    if (SWOOLE_G(display_errors) || level == E_ERROR) php_error_docref(NULL, level, fmt_str, ##__VA_ARGS__)
 
 #define php_swoole_sys_error(level, fmt_str, ...)                                                                      \
     swoole_set_last_error(errno);                                                                                      \
-    php_swoole_error(level, fmt_str ", Error: %s[%d]", ##__VA_ARGS__, strerror(errno), errno)
+    php_error_docref(NULL, level, fmt_str ", Error: %s[%d]", ##__VA_ARGS__, strerror(errno), errno)
 
 #ifdef SW_USE_CARES
 #ifndef HAVE_CARES

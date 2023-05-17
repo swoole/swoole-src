@@ -12,10 +12,8 @@ $pm->parentFunc = function () use ($pm) {
     go(function () use ($pm) {
         $client = new Co\Client(SWOOLE_SOCK_TCP);
         Assert::assert($client->connect('127.0.0.1', $pm->getFreePort()));
-        Assert::assert($client->send(serialize('null') . EOF));
-        Assert::assert($client->send(serialize('-1') . EOF));
-        Assert::assert($client->send(serialize('100') . EOF));
-        Assert::assert($client->send(serialize(PHP_INT_MAX) . EOF));
+        Assert::notEmpty($client->send("TEST" . EOF));
+        Assert::notEmpty($client->recv());
         switch_process();
         $pm->kill();
     });
@@ -31,8 +29,11 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
     });
     $server->on('receive', function (Swoole\Server $serv, int $fd, int $rid, string $data) {
-        $to_fd = unserialize(substr($data, 0, strlen($data) - strlen(EOF)));
-        Assert::false($serv->send($to_fd, "hello {$fd}" . EOF));
+        Assert::false($serv->send(null, "hello {$fd}"));
+        Assert::false($serv->send(-1, "hello {$fd}"));
+        Assert::false($serv->send(100, "hello {$fd}"));
+        Assert::false($serv->send(PHP_INT_MAX, "hello {$fd}"));
+        Assert::true($serv->send($fd, "DONE\n"));
     });
     $server->start();
 };

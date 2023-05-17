@@ -727,6 +727,7 @@ void php_swoole_socket_coro_minit(int module_number) {
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
     zend_declare_property_bool(swoole_socket_coro_ce, ZEND_STRL("__ext_sockets_nonblock"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_socket_coro_ce, ZEND_STRL("__ext_sockets_timeout"), 0, ZEND_ACC_PUBLIC);
 #endif
 
     SW_INIT_CLASS_ENTRY_EX(swoole_socket_coro_exception,
