@@ -979,7 +979,6 @@ static PHP_METHOD(swoole_client, recv) {
 
             ret = cli->recv(cli, buf, buf_len, 0);
             if (ret < 0) {
-                swoole_set_last_error(errno);
                 php_swoole_sys_error(E_WARNING, "recv() failed");
                 zend_update_property_long(
                     swoole_client_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), swoole_get_last_error());
@@ -1108,7 +1107,6 @@ static PHP_METHOD(swoole_client, recv) {
     }
 
     if (ret < 0) {
-        swoole_set_last_error(errno);
         php_swoole_sys_error(E_WARNING, "recv() failed");
         zend_update_property_long(
             swoole_client_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), swoole_get_last_error());
