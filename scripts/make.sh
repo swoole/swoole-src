@@ -1,7 +1,7 @@
 #!/bin/sh -e
 __CURRENT_DIR__=$(cd "$(dirname "$0")";pwd)
 __DIR__=$(cd "$(dirname "${__CURRENT_DIR__}")";pwd)
-COMPILE_PARAMS="--enable-openssl --enable-sockets --enable-mysqlnd --enable-swoole-curl --enable-cares --enable-swoole-pgsql"
+COMPILE_PARAMS="--enable-openssl --enable-sockets --enable-mysqlnd --enable-swoole-curl --enable-cares --enable-swoole-pgsql --with-pdo-odbc=unixODBC,/usr"
 
 if [ "$(uname | grep -i darwin)"x != ""x ]; then
   CPU_COUNT="$(sysctl -n machdep.cpu.core_count)"

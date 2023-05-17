@@ -23,14 +23,18 @@
 #include "thirdparty/php/curl/curl_interface.h"
 #endif
 
-#ifdef SW_USE_PGSQL
-#include "php_swoole_pgsql.h"
-#endif
-
 #include <unordered_map>
 
 BEGIN_EXTERN_C()
 #include "stubs/php_swoole_runtime_arginfo.h"
+
+#ifdef SW_USE_PGSQL
+extern void swoole_pgsql_set_blocking(bool blocking);
+#endif
+
+#ifdef SW_USE_ODBC
+extern void swoole_odbc_set_blocking(bool blocking);
+#endif
 
 #ifdef SW_USE_ORACLE
 extern void swoole_oracle_set_blocking(bool blocking);
@@ -195,6 +199,9 @@ void php_swoole_runtime_minit(int module_number) {
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_SOCKETS", PHPCoroutine::HOOK_SOCKETS);
 #ifdef SW_USE_PGSQL
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_PDO_PGSQL", PHPCoroutine::HOOK_PDO_PGSQL);
+#endif
+#ifdef SW_USE_ODBC
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_PDO_ODBC", PHPCoroutine::HOOK_PDO_ODBC);
 #endif
 #ifdef SW_USE_ORACLE
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_PDO_ORACLE", PHPCoroutine::HOOK_PDO_ORACLE);
@@ -1258,6 +1265,17 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
     } else {
         if (runtime_hook_flags & PHPCoroutine::HOOK_PDO_PGSQL) {
             swoole_pgsql_set_blocking(1);
+        }
+    }
+#endif
+#ifdef SW_USE_ODBC
+    if (flags & PHPCoroutine::HOOK_PDO_ODBC) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_PDO_ODBC)) {
+            swoole_odbc_set_blocking(0);
+        }
+    } else {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_PDO_ODBC) {
+            swoole_odbc_set_blocking(1);
         }
     }
 #endif

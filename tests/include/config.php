@@ -101,6 +101,13 @@ if (!getenv('SWOOLE_TEST_NO_DOCKER')) {
     }
 }
 
+/** ============== ODBC ============== */
+if (IS_IN_CI) {
+    define('ODBC_DSN', 'odbc:mysql-test');
+} else {
+    define('ODBC_DSN', 'odbc:mysql-test');
+}
+
 define('SWOOLE_TEST_ECHO', empty(getenv('SWOOLE_TEST_NO_ECHO')));
 
 /** ============== HttpBin ============== */

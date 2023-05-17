@@ -204,7 +204,7 @@ swoole::Logger *sw_logger();
 #define swoole_hex_dump(data, length)
 #endif
 
-enum swTraceWhat {
+enum swTraceWhat : long {
     /**
      * Server
      */
@@ -247,6 +247,8 @@ enum swTraceWhat {
 
     SW_TRACE_ZLIB = 1u << 31,
     SW_TRACE_CO_PGSQL = 1ul << 32,
+    SW_TRACE_CO_ODBC = 1ul << 33,
+    SW_TRACE_CO_ORACLE = 1ul << 34,
 
     SW_TRACE_ALL = 0x7fffffffffffffff
 };
