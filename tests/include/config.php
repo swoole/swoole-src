@@ -73,9 +73,16 @@ if (IS_IN_CI) {
 }
 define('PGSQL_PORT', '5432');
 
-
 define('PGSQL_CONNECTION_STRING', getenv('PGSQL_CONNECTION_STRING') ?:
     ('host=' . PGSQL_HOST . ' port=' . PGSQL_PORT . ' dbname=' . PGSQL_DBNAME . ' user=' . PGSQL_USER . ' password=' . PGSQL_PASSWORD));
+
+/** ============== Oracle ============== */
+define('SERVICE_NAME', 'helowin');
+define('ORACLE_TNS', 'oci:dbname=127.0.0.1:1521/'.SERVICE_NAME.';charset=AL32UTF8');
+define('ORACLE_USER', 'MARiA');
+define('ORACLE_PASSWORD', 'MARiA');
+define('ORACLE_DBNAME', 'MARiA');
+define('ORACLE_PORT', '1521');
 
 /** ============== Redis ============== */
 define('REDIS_SERVER_PATH', getenv('REDIS_SERVER_PATH') ?:

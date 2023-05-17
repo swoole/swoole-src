@@ -31,6 +31,10 @@
 
 BEGIN_EXTERN_C()
 #include "stubs/php_swoole_runtime_arginfo.h"
+
+#ifdef SW_USE_ORACLE
+extern void swoole_oracle_set_blocking(bool blocking);
+#endif
 END_EXTERN_C()
 
 /* openssl */
@@ -191,6 +195,9 @@ void php_swoole_runtime_minit(int module_number) {
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_SOCKETS", PHPCoroutine::HOOK_SOCKETS);
 #ifdef SW_USE_PGSQL
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_PDO_PGSQL", PHPCoroutine::HOOK_PDO_PGSQL);
+#endif
+#ifdef SW_USE_ORACLE
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_PDO_ORACLE", PHPCoroutine::HOOK_PDO_ORACLE);
 #endif
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_ALL", PHPCoroutine::HOOK_ALL);
 #ifdef SW_USE_CURL
@@ -1251,6 +1258,17 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
     } else {
         if (runtime_hook_flags & PHPCoroutine::HOOK_PDO_PGSQL) {
             swoole_pgsql_set_blocking(1);
+        }
+    }
+#endif
+#ifdef SW_USE_ORACLE
+	if (flags & PHPCoroutine::HOOK_PDO_ORACLE) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_PDO_ORACLE)) {
+            swoole_oracle_set_blocking(0);
+        }
+    } else {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_PDO_ORACLE) {
+            swoole_oracle_set_blocking(1);
         }
     }
 #endif
