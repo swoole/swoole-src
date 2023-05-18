@@ -77,8 +77,8 @@ define('PGSQL_CONNECTION_STRING', getenv('PGSQL_CONNECTION_STRING') ?:
     ('host=' . PGSQL_HOST . ' port=' . PGSQL_PORT . ' dbname=' . PGSQL_DBNAME . ' user=' . PGSQL_USER . ' password=' . PGSQL_PASSWORD));
 
 /** ============== Oracle ============== */
-define('SERVICE_NAME', 'TEST');
-define('ORACLE_TNS', 'oci:dbname=127.0.0.1:1521/'.SERVICE_NAME.';charset=AL32UTF8');
+define('ORACLE_SERVICE_NAME', 'TEST');
+define('ORACLE_TNS', 'oci:dbname=127.0.0.1:1521/'.ORACLE_SERVICE_NAME.';charset=AL32UTF8');
 define('ORACLE_USER', 'TEST');
 define('ORACLE_PASSWORD', 'TEST');
 define('ORACLE_DBNAME', 'TEST');
