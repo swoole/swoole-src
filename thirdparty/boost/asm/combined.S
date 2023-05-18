@@ -1,5 +1,5 @@
 #if defined(__linux__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
-    #elif defined(__x86_64__)
+    #if defined(__x86_64__)
         #include "make_x86_64_sysv_elf_gas.S"
         #include "jump_x86_64_sysv_elf_gas.S"
     #elif defined(__ppc64__)

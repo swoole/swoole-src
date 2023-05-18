@@ -622,7 +622,7 @@ EOF
 	    AC_MSG_ERROR([Your ODBC library does not exist or there was an error. Check config.log for more information])
 	  ], $PDO_ODBC_LDFLAGS)
 	
-    	AC_DEFINE(SW_USE_ODBC, 1, [do we enable pdo-pgsql coro support])
+    	AC_DEFINE(SW_USE_ODBC, 1, [do we enable pdo-odbc coro support])
 	fi
 	
     dnl odbc end
