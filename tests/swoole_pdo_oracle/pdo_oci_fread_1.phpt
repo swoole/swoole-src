@@ -38,8 +38,11 @@ run(function() {
     $r = $s->fetch();
     $sh = $r['data'];
 
-    while (!feof($sh)) {
+    while (1) {
         $buffer = fread($sh,1024);
+        if (!$buffer) {
+            break;
+        }
         echo '*'.$buffer.'*';
     }
     echo "\n";

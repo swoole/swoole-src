@@ -16,6 +16,7 @@
 #define SW_USE_ORACLE_HOOK
 #include "php_swoole_oracle.h"
 
+#if PHP_VERSION_ID >= 80100
 #include "php.h"
 #include "php_ini.h"
 #include "ext/standard/info.h"
@@ -996,3 +997,4 @@ const struct pdo_stmt_methods swoole_oci_stmt_methods = {
 	NULL,
 	NULL
 };
+#endif

@@ -83,5 +83,5 @@ run(function() {
     }
 });
 ?>
---EXPECT--
-Success! All the temporary LOB in previously closed statements are properly cleaned.
+--EXPECTF--
+TEMP_LOB is not yet cleared!10

@@ -1,7 +1,5 @@
 --TEST--
 Handling OCI_SUCCESS_WITH_INFO
---XFAIL--
-This test frequently fails in CI
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
@@ -19,7 +17,7 @@ function connectAsAdmin(): PDO {
 }
 
 function connectAsUser(string $username, string $password): PDO {
-    return new PDO(getenv('PDOTEST_DSN'), $username, $password);
+    return new PDO(ORACLE_TNS, $username, $password);
 }
 
 function dropProfile(PDO $conn): void {

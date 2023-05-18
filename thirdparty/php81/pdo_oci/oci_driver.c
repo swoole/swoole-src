@@ -15,9 +15,9 @@
 */
 
 #define SW_USE_ORACLE_HOOK
-
 #include "php_swoole_oracle.h"
 
+#if PHP_VERSION_ID >= 80100
 #include "php.h"
 #include "php_ini.h"
 #include "ext/standard/info.h"
@@ -909,3 +909,4 @@ pdo_oci_sanitize_prefetch(long prefetch) /* {{{ */
 	prefetch);
 }
 /* }}} */
+#endif
