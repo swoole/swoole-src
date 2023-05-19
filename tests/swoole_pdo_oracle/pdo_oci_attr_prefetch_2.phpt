@@ -44,6 +44,5 @@ Test 1: Can't set prefetch after prepare
 Fatal error: Uncaught PDOException: SQLSTATE[IM001]: Driver does not support this function: This driver doesn't support setting attributes in %s:%d
 Stack trace:
 #0 %s(%d): PDOStatement->setAttribute(1, 102)
-#1 [internal function]: {closure}()
-#2 {main}
+%A
   thrown in %s on line %d

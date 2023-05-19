@@ -2,6 +2,10 @@
 PDO OCI Bug #60994 (Reading a multibyte CLOB caps at 8192 characters)
 --SKIPIF--
 <?php
+if (PHP_VERSION < 80100) {
+	require __DIR__ . '/../include/skipif.inc';
+	skip('php version 8.1 or higher');
+}
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_oracle.inc';
 PdoOracleTest::skip();
