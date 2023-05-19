@@ -625,9 +625,9 @@ static int oci_handle_get_attribute(pdo_dbh_t *dbh, zend_long attr, zval *return
 			OCIClientVersion(&major, &minor, &update, &patch, &port_update);
 			slprintf(verstr, sizeof(verstr), "%d.%d.%d.%d.%d", major, minor, update, patch, port_update);
 			ZVAL_STRING(return_value, verstr);
-#elif defined(PHP_PDO_OCI_CLIENT_VERSION)
+#elif defined(SWOOLE_PDO_OCI_CLIENT_VERSION)
 			/* Compile time client version */
-			ZVAL_STRING(return_value, PHP_PDO_OCI_CLIENT_VERSION);
+			ZVAL_STRING(return_value, SWOOLE_PDO_OCI_CLIENT_VERSION);
 #else
 			return FALSE;
 

@@ -80,9 +80,9 @@ typedef struct {
 	unsigned used_for_output;
 } pdo_oci_bound_param;
 
-extern const ub4 PDO_OCI_INIT_MODE;
-extern const pdo_driver_t pdo_oci_driver;
-extern OCIEnv *pdo_oci_Env;
+extern const struct pdo_stmt_methods swoole_oci_stmt_methods;
+extern const ub4 SWOOLE_PDO_OCI_INIT_MODE;
+extern OCIEnv *swoole_pdo_oci_Env;
 
 ub4 _oci_error(OCIError *err, pdo_dbh_t *dbh, pdo_stmt_t *stmt, char *what, sword status, int isinit, const char *file, int line);
 #define oci_init_error(w)	_oci_error(H->err, dbh, NULL, w, H->last_err, TRUE, __FILE__, __LINE__)

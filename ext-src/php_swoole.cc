@@ -903,7 +903,7 @@ PHP_MINFO_FUNCTION(swoole) {
     php_info_print_table_row(2, "coroutine_postgresql", "enabled");
 #endif
 #ifdef SW_USE_ODBC
-    php_info_print_table_row(2, "coroutine_odbc", PDO_ODBC_TYPE);
+    php_info_print_table_row(2, "coroutine_odbc", "enabled");
 #endif
 #ifdef SW_USE_ORACLE
 		php_info_print_table_row(2, "coroutine_oracle", "enabled");

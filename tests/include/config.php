@@ -77,11 +77,15 @@ define('PGSQL_CONNECTION_STRING', getenv('PGSQL_CONNECTION_STRING') ?:
     ('host=' . PGSQL_HOST . ' port=' . PGSQL_PORT . ' dbname=' . PGSQL_DBNAME . ' user=' . PGSQL_USER . ' password=' . PGSQL_PASSWORD));
 
 /** ============== Oracle ============== */
-define('ORACLE_SERVICE_NAME', 'xe');
 define('ORACLE_PORT', '1521');
-define('ORACLE_TNS', 'oci:dbname=127.0.0.1:'.ORACLE_PORT.'/'.ORACLE_SERVICE_NAME.';charset=AL32UTF8');
-define('ORACLE_USER', 'SYSTEM');
+define('ORACLE_SERVICE_NAME', 'xe');
+define('ORACLE_USER', 'system');
 define('ORACLE_PASSWORD', 'oracle');
+if (IS_IN_CI) {
+	define('ORACLE_TNS', 'oci:dbname=oracle:'.ORACLE_PORT.'/'.ORACLE_SERVICE_NAME.';charset=AL32UTF8');
+} else {
+	define('ORACLE_TNS', 'oci:dbname=127.0.0.1:'.ORACLE_PORT.'/'.ORACLE_SERVICE_NAME.';charset=AL32UTF8');
+}
 
 /** ============== Redis ============== */
 define('REDIS_SERVER_PATH', getenv('REDIS_SERVER_PATH') ?:
