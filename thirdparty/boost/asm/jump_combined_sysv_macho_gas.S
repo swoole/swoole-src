@@ -7,7 +7,7 @@
 
 // Stub file for universal binary
 
-if defined(__x86_64__)
+#if defined(__x86_64__)
     #include "jump_x86_64_sysv_macho_gas.S"
 #elif defined(__ppc64__)
     #include "jump_ppc64_sysv_macho_gas.S"
