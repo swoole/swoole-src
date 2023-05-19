@@ -40,13 +40,12 @@ jobs:
           php --ri swoole
 
       - name: Laravel Octane Tests
-        if: matrix.framework == 'Laravel Octane'
+        if: matrix.framework == 'Laravel Octane' &&  matrix.php-version != '8.0'
         run: |
           git clone https://github.com/laravel/octane.git --depth=1
           cd octane/
-          composer require laravel/framework:"^8.35" --no-update
           composer update --prefer-dist --no-interaction --no-progress
-          vendor/bin/phpunit --verbose
+          vendor/bin/phpunit -v --debug
 
       - name: Hyperf Tests
         if: matrix.framework == 'Hyperf'
@@ -103,7 +102,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php-version: [ '8.0', '8.1' ]
+        php-version: [ '8.0', '8.1', '8.2' ]
         framework: [ 'Simps' ]
     name: ${{ matrix.framework }} - PHP ${{ matrix.php-version }} - macOS
     steps:
