@@ -15,7 +15,6 @@ require __DIR__ . '/pdo_oracle.inc';
 Co::set(['hook_flags'=> SWOOLE_HOOK_ALL]);
 run(function() {
     $db = PdoOracleTest::create();
-    @$db->exec('drop table transcation1');
     $db->exec('create table transcation1 (id int)');
     go(function () use($db){
         $db->beginTransaction();
