@@ -63,7 +63,7 @@ static int oci_stmt_dtor(pdo_stmt_t *stmt) /* {{{ */
     if (S->stmt) {
         /* cancel server side resources for the statement if we didn't
          * fetch it all */
-        SW_OCIStmtFetch(S->stmt, S->err, 0, OCI_FETCH_NEXT, OCI_DEFAULT);
+        OCIStmtFetch(S->stmt, S->err, 0, OCI_FETCH_NEXT, OCI_DEFAULT);
 
         /* free the handle */
         OCIHandleFree(S->stmt, OCI_HTYPE_STMT);
@@ -129,7 +129,7 @@ static int oci_stmt_execute(pdo_stmt_t *stmt) /* {{{ */
 
     if (stmt->executed) {
         /* ensure that we cancel the cursor from a previous fetch */
-        SW_OCIStmtFetch(S->stmt, S->err, 0, OCI_FETCH_NEXT, OCI_DEFAULT);
+        OCIStmtFetch(S->stmt, S->err, 0, OCI_FETCH_NEXT, OCI_DEFAULT);
     }
 
 #ifdef OCI_STMT_SCROLLABLE_READONLY /* needed for oci8 ? */
@@ -144,7 +144,7 @@ static int oci_stmt_execute(pdo_stmt_t *stmt) /* {{{ */
     }
 
     STMT_CALL(
-        SW_OCIStmtExecute,
+        OCIStmtExecute,
         (S->H->svc, S->stmt, S->err, (S->stmt_type == OCI_STMT_SELECT && !S->have_blobs) ? 0 : 1, 0, NULL, NULL, mode));
 
     if (!stmt->executed) {
@@ -512,9 +512,9 @@ static int oci_stmt_fetch(pdo_stmt_t *stmt, enum pdo_fetch_orientation ori, zend
         ociori = OCI_FETCH_RELATIVE;
         break;
     }
-    S->last_err = SW_OCIStmtFetch2(S->stmt, S->err, 1, ociori, (sb4) offset, OCI_DEFAULT);
+    S->last_err = OCIStmtFetch2(S->stmt, S->err, 1, ociori, (sb4) offset, OCI_DEFAULT);
 #else
-    S->last_err = SW_OCIStmtFetch(S->stmt, S->err, 1, OCI_FETCH_NEXT, OCI_DEFAULT);
+    S->last_err = OCIStmtFetch(S->stmt, S->err, 1, OCI_FETCH_NEXT, OCI_DEFAULT);
 #endif
 
     if (S->last_err == OCI_NO_DATA) {

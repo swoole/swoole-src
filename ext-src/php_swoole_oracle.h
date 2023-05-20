@@ -31,8 +31,6 @@ BEGIN_EXTERN_C()
 #include "thirdparty/php80/pdo_oci/php_pdo_oci_int.h"
 #endif
 
-#define SW_PREFIX "SW_"
-
 extern const pdo_driver_t swoole_pdo_oci_driver;
 
 void swoole_oracle_set_blocking(bool blocking);
@@ -55,25 +53,15 @@ sword swoole_oci_trans_rollback(OCISvcCtx *svchp, OCIError *errhp, ub4 flags);
 sword swoole_oci_ping(OCISvcCtx *svchp, OCIError *errhp, ub4 mode);
 
 #ifdef SW_USE_ORACLE_HOOK
-#define SW_OCISessionBegin swoole_oci_session_begin
-#define SW_OCIServerDetach swoole_oci_server_detach
-#define SW_OCIStmtPrepare swoole_oci_stmt_prepare
-#define SW_OCIStmtExecute swoole_oci_stmt_execute
-#define SW_OCIStmtFetch swoole_oci_stmt_fetch
-#define SW_OCIStmtFetch2 swoole_oci_stmt_fetch2
-#define SW_OCITransCommit swoole_oci_trans_commit
-#define SW_OCITransRollback swoole_oci_trans_rollback
-#define SW_OCIPing swoole_oci_ping
-#else
-#define SW_OCISessionBegin OCISessionBegin
-#define SW_OCIServerDetach OCIServerDetach
-#define SW_OCIStmtPrepare OCIStmtPrepare
-#define SW_OCIStmtExecute OCIStmtExecute
-#define SW_OCIStmtFetch OCIStmtFetch
-#define SW_OCIStmtFetch2 OCIStmtFetch2
-#define SW_OCITransCommit OCITransCommit
-#define SW_OCITransRollback OCITransRollback
-#define SW_OCIPing OCIPing
+#define OCISessionBegin swoole_oci_session_begin
+#define OCIServerDetach swoole_oci_server_detach
+#define OCIStmtPrepare swoole_oci_stmt_prepare
+#define OCIStmtExecute swoole_oci_stmt_execute
+#define OCIStmtFetch swoole_oci_stmt_fetch
+#define OCIStmtFetch2 swoole_oci_stmt_fetch2
+#define OCITransCommit swoole_oci_trans_commit
+#define OCITransRollback swoole_oci_trans_rollback
+#define OCIPing swoole_oci_ping
 #endif
 
 END_EXTERN_C()

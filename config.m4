@@ -818,6 +818,7 @@ EOF
            -L$PDO_OCI_LIB_DIR $SWOOLE_SHARED_LIBADD
         ])
 
+        EXTRA_CFLAGS="$EXTRA_CFLAGS -I$pdo_cv_inc_path $PDO_OCI_INCLUDE"
         PHP_CHECK_PDO_INCLUDES
         AC_DEFINE_UNQUOTED(SWOOLE_PDO_OCI_CLIENT_VERSION, "$PDO_OCI_VERSION", [ ])
         AC_DEFINE(SW_USE_ORACLE, 1, [do we enable oracle coro support])

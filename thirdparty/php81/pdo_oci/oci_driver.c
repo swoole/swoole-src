@@ -66,9 +66,6 @@ ub4 _oci_error(OCIError *err,
     pdo_oci_error_info *einfo;
     pdo_oci_stmt *S = NULL;
     pdo_error_type *pdo_err = &dbh->error_code;
-    if (strstr(what, SW_PREFIX) != NULL) {
-        what += sizeof(SW_PREFIX) - 1;  // remove SW_
-    }
 
     if (stmt) {
         S = (pdo_oci_stmt *) stmt->driver_data;
@@ -198,7 +195,7 @@ static void oci_handle_closer(pdo_dbh_t *dbh) /* {{{ */
 
     if (H->svc) {
         /* rollback any outstanding work */
-        SW_OCITransRollback(H->svc, H->err, 0);
+        OCITransRollback(H->svc, H->err, 0);
     }
 
     if (H->session) {
@@ -212,7 +209,7 @@ static void oci_handle_closer(pdo_dbh_t *dbh) /* {{{ */
     }
 
     if (H->server && H->attached) {
-        H->last_err = SW_OCIServerDetach(H->server, H->err, OCI_DEFAULT);
+        H->last_err = OCIServerDetach(H->server, H->err, OCI_DEFAULT);
         if (H->last_err) {
             oci_drv_error("OCIServerDetach");
         }
@@ -281,7 +278,7 @@ static bool oci_handle_preparer(pdo_dbh_t *dbh, zend_string *sql, pdo_stmt_t *st
     OCIHandleAlloc(H->env, (dvoid *) &S->err, OCI_HTYPE_ERROR, 0, NULL);
 
     if (ZSTR_LEN(sql) != 0) {
-        H->last_err = SW_OCIStmtPrepare(
+        H->last_err = OCIStmtPrepare(
             S->stmt, H->err, (text *) ZSTR_VAL(sql), (ub4) ZSTR_LEN(sql), OCI_NTV_SYNTAX, OCI_DEFAULT);
         if (nsql) {
             zend_string_release(nsql);
@@ -326,7 +323,7 @@ static zend_long oci_handle_doer(pdo_dbh_t *dbh, const zend_string *sql) /* {{{ 
     OCIHandleAlloc(H->env, (dvoid *) &stmt, OCI_HTYPE_STMT, 0, NULL);
 
     H->last_err =
-        SW_OCIStmtPrepare(stmt, H->err, (text *) ZSTR_VAL(sql), (ub4) ZSTR_LEN(sql), OCI_NTV_SYNTAX, OCI_DEFAULT);
+        OCIStmtPrepare(stmt, H->err, (text *) ZSTR_VAL(sql), (ub4) ZSTR_LEN(sql), OCI_NTV_SYNTAX, OCI_DEFAULT);
     if (H->last_err) {
         H->last_err = oci_drv_error("OCIStmtPrepare");
         OCIHandleFree(stmt, OCI_HTYPE_STMT);
@@ -343,7 +340,7 @@ static zend_long oci_handle_doer(pdo_dbh_t *dbh, const zend_string *sql) /* {{{ 
     }
 
     /* now we are good to go */
-    H->last_err = SW_OCIStmtExecute(H->svc,
+    H->last_err = OCIStmtExecute(H->svc,
                                     stmt,
                                     H->err,
                                     1,
@@ -424,7 +421,7 @@ static bool oci_handle_commit(pdo_dbh_t *dbh) /* {{{ */
 {
     pdo_oci_db_handle *H = (pdo_oci_db_handle *) dbh->driver_data;
 
-    H->last_err = SW_OCITransCommit(H->svc, H->err, 0);
+    H->last_err = OCITransCommit(H->svc, H->err, 0);
 
     if (H->last_err) {
         H->last_err = oci_drv_error("OCITransCommit");
@@ -439,7 +436,7 @@ static bool oci_handle_rollback(pdo_dbh_t *dbh) /* {{{ */
 {
     pdo_oci_db_handle *H = (pdo_oci_db_handle *) dbh->driver_data;
 
-    H->last_err = SW_OCITransRollback(H->svc, H->err, 0);
+    H->last_err = OCITransRollback(H->svc, H->err, 0);
 
     if (H->last_err) {
         H->last_err = oci_drv_error("OCITransRollback");
@@ -464,7 +461,7 @@ static bool oci_handle_set_attribute(pdo_dbh_t *dbh, zend_long attr, zval *val) 
 
         if (dbh->in_txn) {
             /* Assume they want to commit whatever is outstanding */
-            H->last_err = SW_OCITransCommit(H->svc, H->err, 0);
+            H->last_err = OCITransCommit(H->svc, H->err, 0);
 
             if (H->last_err) {
                 H->last_err = oci_drv_error("OCITransCommit");
@@ -698,7 +695,7 @@ static zend_result pdo_oci_check_liveness(pdo_dbh_t *dbh) /* {{{ */
      */
 #if ((OCI_MAJOR_VERSION > 10) ||                                                                                       \
      ((OCI_MAJOR_VERSION == 10) && (OCI_MINOR_VERSION >= 2))) /* OCIPing available 10.2 onwards */
-    H->last_err = SW_OCIPing(H->svc, H->err, OCI_DEFAULT);
+    H->last_err = OCIPing(H->svc, H->err, OCI_DEFAULT);
 #else
     /* use good old OCIServerVersion() */
     H->last_err = OCIServerVersion(H->svc, H->err, (text *) version, sizeof(version), OCI_HTYPE_SVCCTX);
@@ -840,7 +837,7 @@ static int pdo_oci_handle_factory(pdo_dbh_t *dbh, zval *driver_options) /* {{{ *
     }
 
     /* Now fire up the session */
-    H->last_err = SW_OCISessionBegin(H->svc, H->err, H->session, OCI_CRED_RDBMS, OCI_DEFAULT);
+    H->last_err = OCISessionBegin(H->svc, H->err, H->session, OCI_CRED_RDBMS, OCI_DEFAULT);
     if (H->last_err) {
         oci_drv_error("OCISessionBegin");
         /* OCISessionBegin returns OCI_SUCCESS_WITH_INFO when

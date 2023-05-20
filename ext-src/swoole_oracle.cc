@@ -22,31 +22,31 @@
 #ifdef SW_USE_ORACLE
 
 using swoole::Coroutine;
-using swoole::coroutine::async;
 
 static bool swoole_oracle_blocking = true;
 void swoole_oracle_set_blocking(bool blocking) {
     swoole_oracle_blocking = blocking;
 }
 
+static bool async(const std::function<void(void)> &fn) {
+    if (!swoole_oracle_blocking && Coroutine::get_current()) {
+        return swoole::coroutine::async(fn);
+    } else {
+        fn();
+        return true;
+    }
+}
+
 sword swoole_oci_session_begin(OCISvcCtx *svchp, OCIError *errhp, OCISession *usrhp, ub4 credt, ub4 mode) {
     sword result = 0;
-    if (!swoole_oracle_blocking && Coroutine::get_current()) {
-        swoole::coroutine::async([&]() { result = OCISessionBegin(svchp, errhp, usrhp, credt, mode); });
-    } else {
-        result = OCISessionBegin(svchp, errhp, usrhp, credt, mode);
-    }
+    async([&]() { result = OCISessionBegin(svchp, errhp, usrhp, credt, mode); });
 
     return result;
 }
 
 sword swoole_oci_server_detach(OCIServer *srvhp, OCIError *errhp, ub4 mode) {
     sword result = 0;
-    if (!swoole_oracle_blocking && Coroutine::get_current()) {
-        swoole::coroutine::async([&]() { result = OCIServerDetach(srvhp, errhp, mode); });
-    } else {
-        result = OCIServerDetach(srvhp, errhp, mode);
-    }
+    async([&]() { result = OCIServerDetach(srvhp, errhp, mode); });
 
     return result;
 }
@@ -54,11 +54,7 @@ sword swoole_oci_server_detach(OCIServer *srvhp, OCIError *errhp, ub4 mode) {
 sword swoole_oci_stmt_prepare(
     OCIStmt *stmtp, OCIError *errhp, const OraText *stmt, ub4 stmt_len, ub4 language, ub4 mode) {
     sword result = 0;
-    if (!swoole_oracle_blocking && Coroutine::get_current()) {
-        swoole::coroutine::async([&]() { result = OCIStmtPrepare(stmtp, errhp, stmt, stmt_len, language, mode); });
-    } else {
-        result = OCIStmtPrepare(stmtp, errhp, stmt, stmt_len, language, mode);
-    }
+    async([&]() { result = OCIStmtPrepare(stmtp, errhp, stmt, stmt_len, language, mode); });
 
     return result;
 }
@@ -72,68 +68,42 @@ sword swoole_oci_stmt_execute(OCISvcCtx *svchp,
                               OCISnapshot *snap_out,
                               ub4 mode) {
     sword result = 0;
-    if (!swoole_oracle_blocking && Coroutine::get_current()) {
-        swoole::coroutine::async(
-            [&]() { result = OCIStmtExecute(svchp, stmtp, errhp, iters, rowoff, snap_in, snap_out, mode); });
-    } else {
-        result = OCIStmtExecute(svchp, stmtp, errhp, iters, rowoff, snap_in, snap_out, mode);
-    }
+    async([&]() { result = OCIStmtExecute(svchp, stmtp, errhp, iters, rowoff, snap_in, snap_out, mode); });
 
     return result;
 }
 
 sword swoole_oci_stmt_fetch(OCIStmt *stmtp, OCIError *errhp, ub4 nrows, ub2 orientation, ub4 mode) {
     sword result = 0;
-    if (!swoole_oracle_blocking && Coroutine::get_current()) {
-        swoole::coroutine::async([&]() { result = OCIStmtFetch(stmtp, errhp, nrows, orientation, mode); });
-    } else {
-        result = OCIStmtFetch(stmtp, errhp, nrows, orientation, mode);
-    }
+    async([&]() { result = OCIStmtFetch(stmtp, errhp, nrows, orientation, mode); });
 
     return result;
 }
 
 sword swoole_oci_stmt_fetch2(OCIStmt *stmtp, OCIError *errhp, ub4 nrows, ub2 orientation, sb4 scrollOffset, ub4 mode) {
     sword result = 0;
-    if (!swoole_oracle_blocking && Coroutine::get_current()) {
-        swoole::coroutine::async(
-            [&]() { result = OCIStmtFetch2(stmtp, errhp, nrows, orientation, scrollOffset, mode); });
-    } else {
-        result = OCIStmtFetch2(stmtp, errhp, nrows, orientation, scrollOffset, mode);
-    }
+    async([&]() { result = OCIStmtFetch2(stmtp, errhp, nrows, orientation, scrollOffset, mode); });
 
     return result;
 }
 
 sword swoole_oci_trans_commit(OCISvcCtx *svchp, OCIError *errhp, ub4 flags) {
     sword result = 0;
-    if (!swoole_oracle_blocking && Coroutine::get_current()) {
-        swoole::coroutine::async([&]() { result = OCITransCommit(svchp, errhp, flags); });
-    } else {
-        result = OCITransCommit(svchp, errhp, flags);
-    }
+    async([&]() { result = OCITransCommit(svchp, errhp, flags); });
 
     return result;
 }
 
 sword swoole_oci_trans_rollback(OCISvcCtx *svchp, OCIError *errhp, ub4 flags) {
     sword result = 0;
-    if (!swoole_oracle_blocking && Coroutine::get_current()) {
-        swoole::coroutine::async([&]() { result = OCITransRollback(svchp, errhp, flags); });
-    } else {
-        result = OCITransRollback(svchp, errhp, flags);
-    }
+    async([&]() { result = OCITransRollback(svchp, errhp, flags); });
 
     return result;
 }
 
 sword swoole_oci_ping(OCISvcCtx *svchp, OCIError *errhp, ub4 mode) {
     sword result = 0;
-    if (!swoole_oracle_blocking && Coroutine::get_current()) {
-        swoole::coroutine::async([&]() { result = OCIPing(svchp, errhp, mode); });
-    } else {
-        result = OCIPing(svchp, errhp, mode);
-    }
+    async([&]() { result = OCIPing(svchp, errhp, mode); });
 
     return result;
 }
