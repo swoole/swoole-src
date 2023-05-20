@@ -18,6 +18,8 @@ function test()
     }
 }
 
+Co::set(['hook_flags' => SWOOLE_HOOK_PDO_ORACLE]);
+
 Co\run(function () {
     test();
 });
