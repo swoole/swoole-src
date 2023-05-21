@@ -246,6 +246,9 @@ void php_swoole_pgsql_minit(int module_number);
 #ifdef SW_USE_ODBC
 int php_swoole_odbc_minit(int module_id);
 #endif
+#ifdef SW_USE_ORACLE
+void php_swoole_oracle_minit(int module_number);
+#endif
 // server
 void php_swoole_server_minit(int module_number);
 void php_swoole_server_port_minit(int module_number);
@@ -264,6 +267,9 @@ void php_swoole_name_resolver_minit(int module_number);
 void php_swoole_http_server_rinit();
 void php_swoole_coroutine_rinit();
 void php_swoole_runtime_rinit();
+#ifdef SW_USE_ORACLE
+void php_swoole_oracle_rinit();
+#endif
 
 /**
  * RSHUTDOWN
@@ -298,6 +304,9 @@ void php_swoole_runtime_mshutdown();
 void php_swoole_websocket_server_mshutdown();
 #ifdef SW_USE_PGSQL
 void php_swoole_pgsql_mshutdown();
+#endif
+#ifdef SW_USE_ORACLE
+void php_swoole_oracle_mshutdown();
 #endif
 
 static sw_inline zend_bool php_swoole_websocket_frame_is_object(zval *zdata) {

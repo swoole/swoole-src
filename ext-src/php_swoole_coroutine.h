@@ -124,6 +124,7 @@ class PHPCoroutine {
         HOOK_STDIO             = 1u << 15,
         HOOK_PDO_PGSQL         = 1u << 16,
         HOOK_PDO_ODBC          = 1u << 17,
+        HOOK_PDO_ORACLE        = 1u << 18,
 #ifdef SW_USE_CURL
         HOOK_ALL               = 0x7fffffff ^ HOOK_CURL,
 #else
