@@ -56,7 +56,6 @@ static zend_always_inline zend_vm_stack zend_vm_stack_new_page(size_t size, zend
 #endif
 
 enum sw_exit_flags { SW_EXIT_IN_COROUTINE = 1 << 1, SW_EXIT_IN_SERVER = 1 << 2 };
-static zend_function coro_main_func = { ZEND_INTERNAL_FUNCTION };
 
 bool PHPCoroutine::activated = false;
 uint32_t PHPCoroutine::concurrency = 0;
@@ -290,7 +289,8 @@ PHPContext *PHPCoroutine::create_context(zend_fcall_info_cache *fci_cache) {
     EG(vm_stack_end) = EG(vm_stack)->end;
     EG(vm_stack_page_size) = SW_DEFAULT_PHP_STACK_PAGE_SIZE;
 
-    zend_execute_data *call = (zend_execute_data*) (EG(vm_stack_top));
+    zend_function *func = EG(current_execute_data)->func;
+    zend_execute_data *call = (zend_execute_data *) (EG(vm_stack_top));
     EG(current_execute_data) = call;
     memset(EG(current_execute_data), 0, sizeof(zend_execute_data));
 
@@ -299,7 +299,7 @@ PHPContext *PHPCoroutine::create_context(zend_fcall_info_cache *fci_cache) {
     EG(exception) = nullptr;
     EG(jit_trace_num) = 0;
 
-    call->func = &coro_main_func;
+    call->func = func;
     EG(vm_stack_top) += ZEND_CALL_FRAME_SLOT;
 
     save_vm_stack(ctx);
@@ -620,6 +620,24 @@ void PHPCoroutine::on_close(void *arg) {
     }
 #endif
 
+    if (ctx->defer_tasks) {
+        while (!ctx->defer_tasks->empty()) {
+            zend::Function *defer_fci = ctx->defer_tasks->top();
+            ctx->defer_tasks->pop();
+            sw_zend_fci_cache_discard(&defer_fci->fci_cache);
+            efree(defer_fci);
+        }
+        delete ctx->defer_tasks;
+        ctx->defer_tasks = nullptr;
+    }
+
+    // Release resources
+    if (ctx->context) {
+        zend_object *context = ctx->context;
+        ctx->context = (zend_object *) ~0;
+        OBJ_RELEASE(context);
+    }
+
     if (ctx->on_close) {
         (*ctx->on_close)(ctx);
     }
@@ -641,13 +659,6 @@ void PHPCoroutine::on_close(void *arg) {
                      (uintmax_t) zend_memory_usage(0),
                      (uintmax_t) zend_memory_usage(1));
 
-    // Release resources
-    if (ctx->context) {
-        zend_object *context = ctx->context;
-        ctx->context = (zend_object *) ~0;
-        OBJ_RELEASE(context);
-    }
-
     sw_zend_fci_cache_discard(&ctx->fci_cache);
     restore_context(origin_ctx);
     destroy_vm_stack(ctx->vm_stack);
@@ -661,14 +672,6 @@ void PHPCoroutine::main_func(void *_args) {
     zval retval;
 
     zend_first_try {
-        fci.size = sizeof(fci);
-        ZVAL_UNDEF(&fci.function_name);
-        fci.object = NULL;
-        fci.param_count = args->argc;
-        fci.params = args->argv;
-        fci.named_params = NULL;
-        fci.retval = &retval;
-
         PHPContext *ctx = create_context(args->fci_cache);
 
         swoole_trace_log(SW_TRACE_COROUTINE,
@@ -702,6 +705,14 @@ void PHPCoroutine::main_func(void *_args) {
             swoole_call_hook(SW_GLOBAL_HOOK_ON_CORO_START, ctx);
         }
 
+        fci.size = sizeof(fci);
+        ZVAL_UNDEF(&fci.function_name);
+        fci.object = NULL;
+        fci.param_count = args->argc;
+        fci.params = args->argv;
+        fci.named_params = NULL;
+        fci.retval = &retval;
+
         if (zend_call_function(&fci, &ctx->fci_cache) == SUCCESS) {
             zval_ptr_dtor(&retval);
         }
@@ -715,12 +726,15 @@ void PHPCoroutine::main_func(void *_args) {
             while (!tasks->empty()) {
                 zend::Function *defer_fci = tasks->top();
                 tasks->pop();
-                defer_fci->fci.param_count = 1;
-                defer_fci->fci.params = &retval;
+                if (Z_TYPE_P(&retval) != IS_UNDEF) {
+                    defer_fci->fci.param_count = 1;
+                    defer_fci->fci.params = &retval;
+                }
                 if (UNEXPECTED(sw_zend_call_function_anyway(&defer_fci->fci, &defer_fci->fci_cache) != SUCCESS)) {
                     php_swoole_fatal_error(E_WARNING, "defer callback handler error");
-                } else {
-                    zval_ptr_dtor(&retval);
+                }
+                if (EG(exception)) {
+                    zend_bailout();
                 }
                 sw_zend_fci_cache_discard(&defer_fci->fci_cache);
                 efree(defer_fci);
