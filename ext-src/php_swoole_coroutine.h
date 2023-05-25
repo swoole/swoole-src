@@ -171,6 +171,26 @@ class PHPCoroutine {
         return cid == -1 ? &main_context : (PHPContext *) Coroutine::get_task_by_cid(cid);
     }
 
+    static inline ssize_t get_stack_usage(long cid) {
+        zend_long current_cid = PHPCoroutine::get_cid();
+        if (cid == 0) {
+            cid = current_cid;
+        }
+        PHPContext *task = (PHPContext *) PHPCoroutine::get_context_by_cid(cid);
+        if (UNEXPECTED(!task)) {
+            swoole_set_last_error(SW_ERROR_CO_NOT_EXISTS);
+            return -1;
+        }
+        zend_vm_stack stack = cid == current_cid ? EG(vm_stack) : task->vm_stack;
+        size_t usage = 0;
+
+        while (stack) {
+            usage += (stack->end - stack->top) * sizeof(zval);
+            stack = stack->prev;
+        }
+        return usage;
+    }
+
     static inline uint64_t get_max_num() {
         return config.max_num;
     }
@@ -233,6 +253,7 @@ class PHPCoroutine {
         main_context.fiber_context = EG(main_fiber_context);
         main_context.fiber_init_notified = true;
 #endif
+        save_context(&main_context);
     }
 
   protected:

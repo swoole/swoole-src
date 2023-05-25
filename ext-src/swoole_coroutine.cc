@@ -56,6 +56,7 @@ static zend_always_inline zend_vm_stack zend_vm_stack_new_page(size_t size, zend
 #endif
 
 enum sw_exit_flags { SW_EXIT_IN_COROUTINE = 1 << 1, SW_EXIT_IN_SERVER = 1 << 2 };
+static zend_function coro_main_func = { ZEND_INTERNAL_FUNCTION };
 
 bool PHPCoroutine::activated = false;
 uint32_t PHPCoroutine::concurrency = 0;
@@ -217,7 +218,9 @@ static int coro_exit_handler(zend_execute_data *execute_data) {
             exit_status = &_exit_status;
             ZVAL_NULL(exit_status);
         }
+
         obj = zend_throw_exception(swoole_exit_exception_ce, "swoole exit", 0);
+
         ZVAL_OBJ(&ex, obj);
         zend_update_property_long(swoole_exit_exception_ce, SW_Z8_OBJ_P(&ex), ZEND_STRL("flags"), flags);
         Z_TRY_ADDREF_P(exit_status);
@@ -260,20 +263,6 @@ static void coro_interrupt_function(zend_execute_data *execute_data) {
 }
 
 PHPContext *PHPCoroutine::create_context(zend_fcall_info_cache *fci_cache) {
-    EG(vm_stack) = zend_vm_stack_new_page(SW_DEFAULT_PHP_STACK_PAGE_SIZE, nullptr);
-    EG(vm_stack_top) = EG(vm_stack)->top + ZEND_CALL_FRAME_SLOT;
-    EG(vm_stack_end) = EG(vm_stack)->end;
-    EG(vm_stack_page_size) = SW_DEFAULT_PHP_STACK_PAGE_SIZE;
-
-    zend_execute_data *call = (zend_execute_data*) (EG(vm_stack_top));
-    EG(current_execute_data) = call;
-    memset(EG(current_execute_data), 0, sizeof(zend_execute_data));
-
-    EG(error_handling) = EH_NORMAL;
-    EG(exception_class) = nullptr;
-    EG(exception) = nullptr;
-    EG(jit_trace_num) = 0;
-
     PHPContext *ctx = (PHPContext *) emalloc(sizeof(PHPContext));
     ctx->output_ptr = nullptr;
 #if PHP_VERSION_ID < 80100
@@ -290,18 +279,34 @@ PHPContext *PHPCoroutine::create_context(zend_fcall_info_cache *fci_cache) {
     ctx->on_resume = nullptr;
     ctx->on_close = nullptr;
     ctx->enable_scheduler = true;
-    ctx->vm_stack = EG(vm_stack);
 
 #ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
     fiber_context_try_init(ctx);
     ctx->fiber_init_notified = false;
 #endif
 
-    ctx->fci_cache = *fci_cache;
-    sw_zend_fci_cache_persist(&ctx->fci_cache);
+    EG(vm_stack) = zend_vm_stack_new_page(SW_DEFAULT_PHP_STACK_PAGE_SIZE, nullptr);
+    EG(vm_stack_top) = EG(vm_stack)->top + ZEND_CALL_FRAME_SLOT;
+    EG(vm_stack_end) = EG(vm_stack)->end;
+    EG(vm_stack_page_size) = SW_DEFAULT_PHP_STACK_PAGE_SIZE;
+
+    zend_execute_data *call = (zend_execute_data*) (EG(vm_stack_top));
+    EG(current_execute_data) = call;
+    memset(EG(current_execute_data), 0, sizeof(zend_execute_data));
+
+    EG(error_handling) = EH_NORMAL;
+    EG(exception_class) = nullptr;
+    EG(exception) = nullptr;
+    EG(jit_trace_num) = 0;
+
+    call->func = &coro_main_func;
+    EG(vm_stack_top) += ZEND_CALL_FRAME_SLOT;
 
     save_vm_stack(ctx);
     record_last_msec(ctx);
+
+    ctx->fci_cache = *fci_cache;
+    sw_zend_fci_cache_persist(&ctx->fci_cache);
 
     return ctx;
 }
@@ -469,6 +474,7 @@ inline void PHPCoroutine::save_vm_stack(PHPContext *ctx) {
     ctx->error_handling = EG(error_handling);
     ctx->exception_class = EG(exception_class);
     ctx->exception = EG(exception);
+
 #if PHP_VERSION_ID < 80100
     if (UNEXPECTED(BG(array_walk_fci).size != 0)) {
         if (!ctx->array_walk_fci) {
@@ -484,25 +490,25 @@ inline void PHPCoroutine::save_vm_stack(PHPContext *ctx) {
     }
 }
 
-inline void PHPCoroutine::restore_vm_stack(PHPContext *task) {
-    EG(bailout) = task->bailout;
-    EG(vm_stack_top) = task->vm_stack_top;
-    EG(vm_stack_end) = task->vm_stack_end;
-    EG(vm_stack) = task->vm_stack;
-    EG(vm_stack_page_size) = task->vm_stack_page_size;
-    EG(current_execute_data) = task->execute_data;
-    EG(jit_trace_num) = task->jit_trace_num;
-    EG(error_handling) = task->error_handling;
-    EG(exception_class) = task->exception_class;
-    EG(exception) = task->exception;
+inline void PHPCoroutine::restore_vm_stack(PHPContext *ctx) {
+    EG(bailout) = ctx->bailout;
+    EG(vm_stack_top) = ctx->vm_stack_top;
+    EG(vm_stack_end) = ctx->vm_stack_end;
+    EG(vm_stack) = ctx->vm_stack;
+    EG(vm_stack_page_size) = ctx->vm_stack_page_size;
+    EG(current_execute_data) = ctx->execute_data;
+    EG(jit_trace_num) = ctx->jit_trace_num;
+    EG(error_handling) = ctx->error_handling;
+    EG(exception_class) = ctx->exception_class;
+    EG(exception) = ctx->exception;
 #if PHP_VERSION_ID < 80100
-    if (UNEXPECTED(task->array_walk_fci && task->array_walk_fci->fci.size != 0)) {
-        memcpy(&BG(array_walk_fci), task->array_walk_fci, sizeof(*task->array_walk_fci));
-        task->array_walk_fci->fci.size = 0;
+    if (UNEXPECTED(ctx->array_walk_fci && ctx->array_walk_fci->fci.size != 0)) {
+        memcpy(&BG(array_walk_fci), ctx->array_walk_fci, sizeof(*ctx->array_walk_fci));
+        ctx->array_walk_fci->fci.size = 0;
     }
 #endif
-    if (UNEXPECTED(task->in_silence)) {
-        EG(error_reporting) = task->tmp_error_reporting;
+    if (UNEXPECTED(ctx->in_silence)) {
+        EG(error_reporting) = ctx->tmp_error_reporting;
     }
 }
 
@@ -1025,28 +1031,17 @@ static PHP_METHOD(swoole_coroutine, getElapsed) {
 }
 
 static PHP_METHOD(swoole_coroutine, getStackUsage) {
-    zend_long current_cid = PHPCoroutine::get_cid();
-    zend_long cid = current_cid;
+    zend_long cid = 0;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
     Z_PARAM_OPTIONAL
     Z_PARAM_LONG(cid)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    PHPContext *task = (PHPContext *) PHPCoroutine::get_context_by_cid(cid);
-    if (UNEXPECTED(!task)) {
-        swoole_set_last_error(SW_ERROR_CO_NOT_EXISTS);
+    ssize_t usage = PHPCoroutine::get_stack_usage(cid);
+    if (usage < 0) {
         RETURN_FALSE;
     }
-
-    zend_vm_stack stack = cid == current_cid ? EG(vm_stack) : task->vm_stack;
-    size_t usage = 0;
-
-    while (stack) {
-        usage += (stack->end - stack->top) * sizeof(zval);
-        stack = stack->prev;
-    }
-
     RETURN_LONG(usage);
 }
 
