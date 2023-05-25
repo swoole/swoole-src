@@ -58,13 +58,10 @@ static zend_always_inline zend_vm_stack zend_vm_stack_new_page(size_t size, zend
 enum sw_exit_flags { SW_EXIT_IN_COROUTINE = 1 << 1, SW_EXIT_IN_SERVER = 1 << 2 };
 
 bool PHPCoroutine::activated = false;
-uint32_t PHPCoroutine::concurrency = 0;
 zend_array *PHPCoroutine::options = nullptr;
 
 PHPCoroutine::Config PHPCoroutine::config{
     SW_DEFAULT_MAX_CORO_NUM,
-    UINT_MAX,
-    0,
     false,
     true,
 };
@@ -289,7 +286,6 @@ PHPContext *PHPCoroutine::create_context(zend_fcall_info_cache *fci_cache) {
     EG(vm_stack_end) = EG(vm_stack)->end;
     EG(vm_stack_page_size) = SW_DEFAULT_PHP_STACK_PAGE_SIZE;
 
-    zend_function *func = EG(current_execute_data)->func;
     zend_execute_data *call = (zend_execute_data *) (EG(vm_stack_top));
     EG(current_execute_data) = call;
     memset(EG(current_execute_data), 0, sizeof(zend_execute_data));
@@ -298,8 +294,6 @@ PHPContext *PHPCoroutine::create_context(zend_fcall_info_cache *fci_cache) {
     EG(exception_class) = nullptr;
     EG(exception) = nullptr;
     EG(jit_trace_num) = 0;
-
-    call->func = func;
     EG(vm_stack_top) += ZEND_CALL_FRAME_SLOT;
 
     save_vm_stack(ctx);
@@ -642,10 +636,6 @@ void PHPCoroutine::on_close(void *arg) {
         (*ctx->on_close)(ctx);
     }
 
-    if (ctx->pcid == -1) {
-        concurrency--;
-    }
-
 #ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
     fiber_context_switch_try_notify(ctx, origin_ctx);
     fiber_context_try_destroy(ctx);
@@ -669,42 +659,10 @@ void PHPCoroutine::main_func(void *_args) {
     bool exception_caught = false;
     Args *args = (Args *) _args;
     zend_fcall_info fci;
-    zval retval;
+    zval retval = {};
 
     zend_first_try {
         PHPContext *ctx = create_context(args->fci_cache);
-
-        swoole_trace_log(SW_TRACE_COROUTINE,
-                         "Create coro id: %ld, origin cid: %ld, coro total count: %zu, heap size: %zu",
-                         ctx->co->get_cid(),
-                         ctx->co->get_origin_cid(),
-                         (uintmax_t) Coroutine::count(),
-                         (uintmax_t) zend_memory_usage(0));
-
-        if (ctx->pcid == -1) {
-            // wait until concurrency slots are available
-            while (concurrency > config.max_concurrency - 1) {
-                swoole_trace_log(SW_TRACE_COROUTINE,
-                                 "php_coro cid=%ld waiting for concurrency slots: max: %d, used: %d",
-                                 ctx->co->get_cid(),
-                                 config.max_concurrency,
-                                 concurrency);
-
-                swoole_event_defer(
-                    [](void *data) {
-                        Coroutine *co = (Coroutine *) data;
-                        co->resume();
-                    },
-                    (void *) ctx->co);
-                ctx->co->yield();
-            }
-            concurrency++;
-        }
-
-        if (swoole_isset_hook(SW_GLOBAL_HOOK_ON_CORO_START)) {
-            swoole_call_hook(SW_GLOBAL_HOOK_ON_CORO_START, ctx);
-        }
-
         fci.size = sizeof(fci);
         ZVAL_UNDEF(&fci.function_name);
         fci.object = NULL;
@@ -713,10 +671,20 @@ void PHPCoroutine::main_func(void *_args) {
         fci.named_params = NULL;
         fci.retval = &retval;
 
-        if (zend_call_function(&fci, &ctx->fci_cache) == SUCCESS) {
-            zval_ptr_dtor(&retval);
+        swoole_trace_log(SW_TRACE_COROUTINE,
+                         "Create coro id: %ld, origin cid: %ld, coro total count: %zu, heap size: %zu",
+                         ctx->co->get_cid(),
+                         ctx->co->get_origin_cid(),
+                         (uintmax_t) Coroutine::count(),
+                         (uintmax_t) zend_memory_usage(0));
+
+        if (swoole_isset_hook(SW_GLOBAL_HOOK_ON_CORO_START)) {
+            swoole_call_hook(SW_GLOBAL_HOOK_ON_CORO_START, ctx);
         }
 
+        zend_function *func = args->fci_cache->function_handler;
+        ctx->execute_data->func = func;
+        zend_call_function(&fci, &ctx->fci_cache);
         // Catch exception in main function of the coroutine
         exception_caught = catch_exception();
 
@@ -742,6 +710,7 @@ void PHPCoroutine::main_func(void *_args) {
             delete ctx->defer_tasks;
             ctx->defer_tasks = nullptr;
         }
+        zval_ptr_dtor(&retval);
     }
     zend_catch {
         // zend_bailout is executed in the c function

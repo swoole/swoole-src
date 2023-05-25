@@ -94,11 +94,21 @@ class PHPCoroutine {
         zend_fcall_info_cache *fci_cache;
         zval *argv;
         uint32_t argc;
+
+        void copy(Args *src) {
+            fci_cache = src->fci_cache;
+            argc = src->argc;
+            argv = (zval *) ecalloc(argc, sizeof(zval));
+            sw_zend_fci_cache_persist(fci_cache);
+            SW_LOOP_N(argc) {
+                argv[i] = src->argv[i];
+                Z_TRY_ADDREF_P(&argv[i]);
+            }
+        }
     };
 
     struct Config {
         uint64_t max_num;
-        uint32_t max_concurrency;
         uint32_t hook_flags;
         bool enable_preemptive_scheduler;
         bool enable_deadlock_check;
@@ -235,10 +245,6 @@ class PHPCoroutine {
         config.enable_preemptive_scheduler = value;
     }
 
-    static inline void set_max_concurrency(uint32_t value) {
-        config.max_concurrency = value;
-    }
-
     static inline bool is_activated() {
         return activated;
     }
@@ -260,7 +266,6 @@ class PHPCoroutine {
     static bool activated;
     static PHPContext main_context;
     static Config config;
-    static uint32_t concurrency;
 
     static bool interrupt_thread_running;
     static std::thread interrupt_thread;
