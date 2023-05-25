@@ -685,8 +685,6 @@ void PHPCoroutine::main_func(void *_args) {
             swoole_call_hook(SW_GLOBAL_HOOK_ON_CORO_START, ctx);
         }
 
-        zend_function *func = args->fci_cache->function_handler;
-        ctx->execute_data->func = func;
         zend_call_function(&fci, &ctx->fci_cache);
         // Catch exception in main function of the coroutine
         exception_caught = catch_exception();
