@@ -19,6 +19,10 @@ use function Swoole\Coroutine\go;
 
 Runtime::enableCoroutine(SWOOLE_HOOK_NATIVE_CURL);
 
+register_shutdown_function(function (){
+   phpt_show_usage();
+});
+
 const N = 4;
 
 run(function () {
@@ -39,7 +43,7 @@ run(function () {
     });
 
     go(function () use ($barrier, &$result) {
-        $client = new Client(['base_uri' => 'http://httpbin.org/']);
+        $client = new Client(['base_uri' => 'https://httpbin.org/']);
         $n = N;
         $data = $promises = [];
         while ($n--) {
