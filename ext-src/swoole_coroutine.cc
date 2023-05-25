@@ -286,6 +286,7 @@ PHPContext *PHPCoroutine::create_context(zend_fcall_info_cache *fci_cache) {
     EG(vm_stack_end) = EG(vm_stack)->end;
     EG(vm_stack_page_size) = SW_DEFAULT_PHP_STACK_PAGE_SIZE;
 
+    zend_function *func = EG(current_execute_data)->func;
     zend_execute_data *call = (zend_execute_data *) (EG(vm_stack_top));
     EG(current_execute_data) = call;
     memset(EG(current_execute_data), 0, sizeof(zend_execute_data));
@@ -294,6 +295,8 @@ PHPContext *PHPCoroutine::create_context(zend_fcall_info_cache *fci_cache) {
     EG(exception_class) = nullptr;
     EG(exception) = nullptr;
     EG(jit_trace_num) = 0;
+    
+    call->func = func;
     EG(vm_stack_top) += ZEND_CALL_FRAME_SLOT;
 
     save_vm_stack(ctx);
