@@ -74,6 +74,7 @@ struct PHPContext {
     int ori_error_reporting;
     int tmp_error_reporting;
     Coroutine *co;
+    zend_fcall_info_cache fci_cache;
 #ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
     zend_fiber_context *fiber_context;
     bool fiber_init_notified;
@@ -106,35 +107,35 @@ class PHPCoroutine {
     static zend_array *options;
 
     enum HookType {
-        HOOK_NONE              = 0,
-        HOOK_TCP               = 1u << 1,
-        HOOK_UDP               = 1u << 2,
-        HOOK_UNIX              = 1u << 3,
-        HOOK_UDG               = 1u << 4,
-        HOOK_SSL               = 1u << 5,
-        HOOK_TLS               = 1u << 6,
-        HOOK_STREAM_FUNCTION   = 1u << 7,
-        HOOK_FILE              = 1u << 8,
-        HOOK_SLEEP             = 1u << 9,
-        HOOK_PROC              = 1u << 10,
-        HOOK_CURL              = 1u << 11,
-        HOOK_NATIVE_CURL       = 1u << 12,
+        HOOK_NONE = 0,
+        HOOK_TCP = 1u << 1,
+        HOOK_UDP = 1u << 2,
+        HOOK_UNIX = 1u << 3,
+        HOOK_UDG = 1u << 4,
+        HOOK_SSL = 1u << 5,
+        HOOK_TLS = 1u << 6,
+        HOOK_STREAM_FUNCTION = 1u << 7,
+        HOOK_FILE = 1u << 8,
+        HOOK_SLEEP = 1u << 9,
+        HOOK_PROC = 1u << 10,
+        HOOK_CURL = 1u << 11,
+        HOOK_NATIVE_CURL = 1u << 12,
         HOOK_BLOCKING_FUNCTION = 1u << 13,
-        HOOK_SOCKETS           = 1u << 14,
-        HOOK_STDIO             = 1u << 15,
-        HOOK_PDO_PGSQL         = 1u << 16,
-        HOOK_PDO_ODBC          = 1u << 17,
+        HOOK_SOCKETS = 1u << 14,
+        HOOK_STDIO = 1u << 15,
+        HOOK_PDO_PGSQL = 1u << 16,
+        HOOK_PDO_ODBC = 1u << 17,
 #ifdef SW_USE_CURL
-        HOOK_ALL               = 0x7fffffff ^ HOOK_CURL,
+        HOOK_ALL = 0x7fffffff ^ HOOK_CURL,
 #else
-        HOOK_ALL               = 0x7fffffff ^ HOOK_NATIVE_CURL,
+        HOOK_ALL = 0x7fffffff ^ HOOK_NATIVE_CURL,
 #endif
     };
 
     static const uint8_t MAX_EXEC_MSEC = 10;
-    static void init();
     static void shutdown();
     static long create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv);
+    static PHPContext *create_context(zend_fcall_info_cache *fci_cache);
     static void defer(zend::Function *fci);
     static void deadlock_check();
     static bool enable_hook(uint32_t flags);
@@ -148,8 +149,8 @@ class PHPCoroutine {
     }
 
     static inline long get_pcid(long cid = 0) {
-        PHPContext *task = cid == 0 ? get_context() : get_context_by_cid(cid);
-        return sw_likely(task) ? task->pcid : 0;
+        PHPContext *ctx = cid == 0 ? get_context() : get_context_by_cid(cid);
+        return sw_likely(ctx) ? ctx->pcid : 0;
     }
 
     static inline long get_elapsed(long cid = 0) {
@@ -157,17 +158,17 @@ class PHPCoroutine {
     }
 
     static inline PHPContext *get_context() {
-        PHPContext *task = (PHPContext *) Coroutine::get_current_task();
-        return task ? task : &main_task;
+        PHPContext *ctx = (PHPContext *) Coroutine::get_current_task();
+        return ctx ? ctx : &main_context;
     }
 
-    static inline PHPContext *get_origin_context(PHPContext *task) {
-        Coroutine *co = task->co->get_origin();
-        return co ? (PHPContext *) co->get_task() : &main_task;
+    static inline PHPContext *get_origin_context(PHPContext *ctx) {
+        Coroutine *co = ctx->co->get_origin();
+        return co ? (PHPContext *) co->get_task() : &main_context;
     }
 
     static inline PHPContext *get_context_by_cid(long cid) {
-        return cid == -1 ? &main_task : (PHPContext *) Coroutine::get_task_by_cid(cid);
+        return cid == -1 ? &main_context : (PHPContext *) Coroutine::get_task_by_cid(cid);
     }
 
     static inline uint64_t get_max_num() {
@@ -182,23 +183,23 @@ class PHPCoroutine {
         config.enable_deadlock_check = value;
     }
 
-    static inline bool is_schedulable(PHPContext *task) {
-        return task->enable_scheduler && (Timer::get_absolute_msec() - task->last_msec > MAX_EXEC_MSEC);
+    static inline bool is_schedulable(PHPContext *ctx) {
+        return ctx->enable_scheduler && (Timer::get_absolute_msec() - ctx->last_msec > MAX_EXEC_MSEC);
     }
 
     static inline bool enable_scheduler() {
-        PHPContext *task = (PHPContext *) Coroutine::get_current_task();
-        if (task && !task->enable_scheduler) {
-            task->enable_scheduler = true;
+        PHPContext *ctx = (PHPContext *) Coroutine::get_current_task();
+        if (ctx && !ctx->enable_scheduler) {
+            ctx->enable_scheduler = true;
             return true;
         }
         return false;
     }
 
     static inline bool disable_scheduler() {
-        PHPContext *task = (PHPContext *) Coroutine::get_current_task();
-        if (task && task->enable_scheduler) {
-            task->enable_scheduler = false;
+        PHPContext *ctx = (PHPContext *) Coroutine::get_current_task();
+        if (ctx && ctx->enable_scheduler) {
+            ctx->enable_scheduler = false;
             return true;
         }
         return false;
@@ -226,17 +227,17 @@ class PHPCoroutine {
         return sw_likely(activated) ? Coroutine::get_execute_time(cid) : -1;
     }
 
-    static inline void init_main_task() {
-        main_task.co = Coroutine::init_main_coroutine();
+    static inline void init_main_context() {
+        main_context.co = Coroutine::init_main_coroutine();
 #ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
-        main_task.fiber_context = EG(main_fiber_context);
-        main_task.fiber_init_notified = true;
+        main_context.fiber_context = EG(main_fiber_context);
+        main_context.fiber_init_notified = true;
 #endif
     }
 
   protected:
     static bool activated;
-    static PHPContext main_task;
+    static PHPContext main_context;
     static Config config;
     static uint32_t concurrency;
 
@@ -246,14 +247,13 @@ class PHPCoroutine {
     static void activate();
     static void deactivate(void *ptr);
 
-    static void vm_stack_init(void);
-    static void vm_stack_destroy(void);
-    static void save_vm_stack(PHPContext *task);
-    static void restore_vm_stack(PHPContext *task);
-    static void save_og(PHPContext *task);
-    static void restore_og(PHPContext *task);
-    static void save_task(PHPContext *task);
-    static void restore_task(PHPContext *task);
+    static void destroy_vm_stack(zend_vm_stack stack);
+    static void save_vm_stack(PHPContext *ctx);
+    static void restore_vm_stack(PHPContext *ctx);
+    static void save_og(PHPContext *ctx);
+    static void restore_og(PHPContext *ctx);
+    static void save_context(PHPContext *ctx);
+    static void restore_context(PHPContext *ctx);
     static bool catch_exception();
     static void bailout();
     static void on_yield(void *arg);
@@ -261,18 +261,18 @@ class PHPCoroutine {
     static void on_close(void *arg);
     static void main_func(void *arg);
 #ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
-    static zend_fiber_status get_fiber_status(PHPContext *task);
-    static void fiber_context_init(PHPContext *task);
-    static void fiber_context_try_init(PHPContext *task);
-    static void fiber_context_destroy(PHPContext *task);
-    static void fiber_context_try_destroy(PHPContext *task);
+    static zend_fiber_status get_fiber_status(PHPContext *ctx);
+    static void fiber_context_init(PHPContext *ctx);
+    static void fiber_context_try_init(PHPContext *ctx);
+    static void fiber_context_destroy(PHPContext *ctx);
+    static void fiber_context_try_destroy(PHPContext *ctx);
     static void fiber_context_switch_notify(PHPContext *from, PHPContext *to);
     static void fiber_context_switch_try_notify(PHPContext *from, PHPContext *to);
 #endif
     static void interrupt_thread_start();
-    static void record_last_msec(PHPContext *task) {
+    static void record_last_msec(PHPContext *ctx) {
         if (interrupt_thread_running) {
-            task->last_msec = Timer::get_absolute_msec();
+            ctx->last_msec = Timer::get_absolute_msec();
         }
     }
 };
