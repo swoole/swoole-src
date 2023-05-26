@@ -258,7 +258,7 @@ static void coro_interrupt_function(zend_execute_data *execute_data) {
     }
 }
 
-PHPContext *PHPCoroutine::create_context(zend_fcall_info_cache *fci_cache) {
+PHPContext *PHPCoroutine::create_context(Args *args) {
     PHPContext *ctx = (PHPContext *) emalloc(sizeof(PHPContext));
     ctx->output_ptr = nullptr;
 #if PHP_VERSION_ID < 80100
@@ -295,15 +295,28 @@ PHPContext *PHPCoroutine::create_context(zend_fcall_info_cache *fci_cache) {
     EG(exception_class) = nullptr;
     EG(exception) = nullptr;
     EG(jit_trace_num) = 0;
-    
+
     call->func = func;
     EG(vm_stack_top) += ZEND_CALL_FRAME_SLOT;
 
     save_vm_stack(ctx);
     record_last_msec(ctx);
 
-    ctx->fci_cache = *fci_cache;
+    ctx->fci_cache = *args->fci_cache;
     sw_zend_fci_cache_persist(&ctx->fci_cache);
+    ctx->fci.size = sizeof(ctx->fci);
+    if (args->callable) {
+        ctx->fci.function_name = *args->callable;
+        Z_TRY_ADDREF(ctx->fci.function_name);
+    } else {
+        ZVAL_UNDEF(&ctx->fci.function_name);
+    }
+    ctx->fci.object = NULL;
+    ctx->fci.param_count = args->argc;
+    ctx->fci.params = args->argv;
+    ctx->fci.named_params = NULL;
+    ctx->return_value = {};
+    ctx->fci.retval = &ctx->return_value;
 
     return ctx;
 }
@@ -655,24 +668,17 @@ void PHPCoroutine::on_close(void *arg) {
     sw_zend_fci_cache_discard(&ctx->fci_cache);
     restore_context(origin_ctx);
     destroy_vm_stack(ctx->vm_stack);
+    zval_ptr_dtor(&ctx->return_value);
+    Z_TRY_DELREF(ctx->fci.function_name);
     efree(ctx);
 }
 
 void PHPCoroutine::main_func(void *_args) {
     bool exception_caught = false;
     Args *args = (Args *) _args;
-    zend_fcall_info fci;
-    zval retval = {};
 
     zend_first_try {
-        PHPContext *ctx = create_context(args->fci_cache);
-        fci.size = sizeof(fci);
-        ZVAL_UNDEF(&fci.function_name);
-        fci.object = NULL;
-        fci.param_count = args->argc;
-        fci.params = args->argv;
-        fci.named_params = NULL;
-        fci.retval = &retval;
+        PHPContext *ctx = create_context(args);
 
         swoole_trace_log(SW_TRACE_COROUTINE,
                          "Create coro id: %ld, origin cid: %ld, coro total count: %zu, heap size: %zu",
@@ -685,7 +691,7 @@ void PHPCoroutine::main_func(void *_args) {
             swoole_call_hook(SW_GLOBAL_HOOK_ON_CORO_START, ctx);
         }
 
-        zend_call_function(&fci, &ctx->fci_cache);
+        zend_call_function(&ctx->fci, &ctx->fci_cache);
         // Catch exception in main function of the coroutine
         exception_caught = catch_exception();
 
@@ -695,9 +701,9 @@ void PHPCoroutine::main_func(void *_args) {
             while (!tasks->empty()) {
                 zend::Function *defer_fci = tasks->top();
                 tasks->pop();
-                if (Z_TYPE_P(&retval) != IS_UNDEF) {
+                if (Z_TYPE_P(&ctx->return_value) != IS_UNDEF) {
                     defer_fci->fci.param_count = 1;
-                    defer_fci->fci.params = &retval;
+                    defer_fci->fci.params = &ctx->return_value;
                 }
                 if (UNEXPECTED(sw_zend_call_function_anyway(&defer_fci->fci, &defer_fci->fci_cache) != SUCCESS)) {
                     php_swoole_fatal_error(E_WARNING, "defer callback handler error");
@@ -711,7 +717,6 @@ void PHPCoroutine::main_func(void *_args) {
             delete ctx->defer_tasks;
             ctx->defer_tasks = nullptr;
         }
-        zval_ptr_dtor(&retval);
     }
     zend_catch {
         // zend_bailout is executed in the c function
@@ -724,7 +729,7 @@ void PHPCoroutine::main_func(void *_args) {
     }
 }
 
-long PHPCoroutine::create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv) {
+long PHPCoroutine::create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv, zval *callable) {
     if (sw_unlikely(Coroutine::count() >= config.max_num)) {
         php_swoole_fatal_error(E_WARNING, "exceed max number of coroutine %zu", (uintmax_t) Coroutine::count());
         return Coroutine::ERR_LIMIT;
@@ -747,6 +752,7 @@ long PHPCoroutine::create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval 
     _args.fci_cache = fci_cache;
     _args.argv = argv;
     _args.argc = argc;
+    _args.callable = callable;
     save_context(get_context());
 
     return Coroutine::create(main_func, (void *) &_args);
@@ -907,7 +913,7 @@ PHP_FUNCTION(swoole_coroutine_create) {
         }
     }
 
-    long cid = PHPCoroutine::create(&fci_cache, fci.param_count, fci.params);
+    long cid = PHPCoroutine::create(&fci_cache, fci.param_count, fci.params, &fci.function_name);
     if (sw_likely(cid > 0)) {
         RETURN_LONG(cid);
     } else {

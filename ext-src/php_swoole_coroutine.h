@@ -74,7 +74,9 @@ struct PHPContext {
     int ori_error_reporting;
     int tmp_error_reporting;
     Coroutine *co;
+    zend_fcall_info fci;
     zend_fcall_info_cache fci_cache;
+    zval return_value;
 #ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
     zend_fiber_context *fiber_context;
     bool fiber_init_notified;
@@ -94,17 +96,7 @@ class PHPCoroutine {
         zend_fcall_info_cache *fci_cache;
         zval *argv;
         uint32_t argc;
-
-        void copy(Args *src) {
-            fci_cache = src->fci_cache;
-            argc = src->argc;
-            argv = (zval *) ecalloc(argc, sizeof(zval));
-            sw_zend_fci_cache_persist(fci_cache);
-            SW_LOOP_N(argc) {
-                argv[i] = src->argv[i];
-                Z_TRY_ADDREF_P(&argv[i]);
-            }
-        }
+        zval *callable;
     };
 
     struct Config {
@@ -144,8 +136,8 @@ class PHPCoroutine {
 
     static const uint8_t MAX_EXEC_MSEC = 10;
     static void shutdown();
-    static long create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv);
-    static PHPContext *create_context(zend_fcall_info_cache *fci_cache);
+    static long create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv, zval *callable);
+    static PHPContext *create_context(Args *args);
     static void defer(zend::Function *fci);
     static void deadlock_check();
     static bool enable_hook(uint32_t flags);
