@@ -1165,6 +1165,8 @@ EOF
 
 	if test "$PHP_SWOOLE_SQLITE" != "no"; then
         swoole_source_file="$swoole_source_file \
+            thirdparty/php80/pdo_sqlite/sqlite_driver.c \
+            thirdparty/php80/pdo_sqlite/sqlite_statement.c \
             thirdparty/php81/pdo_sqlite/sqlite_driver.c \
             thirdparty/php81/pdo_sqlite/sqlite_statement.c"
     fi
