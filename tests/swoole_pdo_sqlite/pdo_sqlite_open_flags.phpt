@@ -22,6 +22,9 @@ run(function() {
     $db = new PDO('sqlite:' . $filename, null, null, [PDO::SQLITE_ATTR_OPEN_FLAGS => PDO::SQLITE_OPEN_READONLY, PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
 
     var_dump($db->exec('CREATE TABLE test2 (id INT);'));
+
+    $db->exec('drop table test1');
+    $db->exec('drop table test2');
 });
 ?>
 --CLEAN--
@@ -37,5 +40,5 @@ int(0)
 Fatal error: Uncaught PDOException: SQLSTATE[HY000]: General error: 8 attempt to write a readonly database in %s
 Stack trace:
 %s
-#1 {main}
+%A
   thrown in %s

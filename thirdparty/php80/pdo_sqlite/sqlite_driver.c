@@ -820,7 +820,7 @@ cleanup:
 }
 /* }}} */
 
-const pdo_driver_t pdo_sqlite_driver = {
+const pdo_driver_t swoole_pdo_sqlite_driver = {
 	PDO_DRIVER_HEADER(sqlite),
 	pdo_sqlite_handle_factory
 };

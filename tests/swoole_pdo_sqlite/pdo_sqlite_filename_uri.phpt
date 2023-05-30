@@ -40,5 +40,5 @@ int(0)
 Fatal error: Uncaught PDOException: SQLSTATE[HY000]: General error: 8 attempt to write a readonly database in %s
 Stack trace:
 %s
-#1 {main}
+%A
   thrown in %s
