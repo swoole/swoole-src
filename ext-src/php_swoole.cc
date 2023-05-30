@@ -147,7 +147,7 @@ static const zend_module_dep swoole_deps[] = {
 #ifdef SW_USE_CURL
     ZEND_MOD_REQUIRED("curl")
 #endif
-#if defined(SW_USE_PGSQL) || defined(SW_USE_ORACLE)
+#if defined(SW_USE_PGSQL) || defined(SW_USE_ORACLE) || defined(SW_USE_SQLITE)
     ZEND_MOD_REQUIRED("pdo")
 #endif
 
@@ -748,6 +748,10 @@ PHP_MINIT_FUNCTION(swoole) {
     php_swoole_oracle_minit(module_number);
 #endif
 
+#ifdef SW_USE_SQLITE
+    php_swoole_sqlite_minit(module_number);
+#endif
+
     SwooleG.fatal_error = fatal_error;
     Socket::default_buffer_size = SWOOLE_G(socket_buffer_size);
     SwooleG.dns_cache_refresh_time = 60;
@@ -790,6 +794,10 @@ PHP_MSHUTDOWN_FUNCTION(swoole) {
 
 #ifdef SW_USE_ORACLE
     php_swoole_oracle_mshutdown();
+#endif
+
+#ifdef SW_USE_SQLITE
+    php_swoole_sqlite_mshutdown();
 #endif
 
     swoole_clean();
@@ -906,7 +914,10 @@ PHP_MINFO_FUNCTION(swoole) {
     php_info_print_table_row(2, "coroutine_odbc", "enabled");
 #endif
 #ifdef SW_USE_ORACLE
-		php_info_print_table_row(2, "coroutine_oracle", "enabled");
+    php_info_print_table_row(2, "coroutine_oracle", "enabled");
+#endif
+#ifdef SW_USE_SQLITR
+    php_info_print_table_row(2, "coroutine_sqlite", "enabled");
 #endif
     php_info_print_table_end();
 

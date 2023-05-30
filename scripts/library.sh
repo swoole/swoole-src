@@ -12,3 +12,5 @@ echo DISABLE_INTERRUPT=on > ./instantclient/network/admin/sqlnet.ora
 mv ./instantclient /usr/local/
 echo '/usr/local/instantclient' > /etc/ld.so.conf.d/oracle-instantclient.conf
 ldconfig
+
+apt install -y sqlite3 libsqlite3-dev

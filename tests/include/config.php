@@ -87,6 +87,9 @@ if (IS_IN_CI) {
 	define('ORACLE_TNS', 'oci:dbname=127.0.0.1:'.ORACLE_PORT.'/'.ORACLE_SERVICE_NAME.';charset=AL32UTF8');
 }
 
+/** ============== Sqlite ============== */
+define('SQLITE_DSN', 'sqlite::memory:');
+
 /** ============== Redis ============== */
 define('REDIS_SERVER_PATH', getenv('REDIS_SERVER_PATH') ?:
     (IS_IN_CI ? TRAVIS_DIR_PATH . '/data/run/redis/redis.sock' :

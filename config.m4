@@ -825,6 +825,39 @@ EOF
     fi
     dnl SWOOLE_ORACLE stop
 
+    dnl sqlite start
+    PHP_ARG_ENABLE([swoole-sqlite],
+        [for sqlite 3 support for PDO],
+        [AS_HELP_STRING([--enable-swoole-sqlite],
+            [PDO: sqlite 3 support.])],
+        [$PHP_PDO], [no], [no])
+
+    if test "$PHP_SWOOLE_SQLITE" != "no"; then
+
+        if test "$PHP_PDO" = "no" && test "$ext_shared" = "no"; then
+            AC_MSG_ERROR([PDO is not enabled! Add --enable-pdo to your configure line.])
+        fi
+
+        PHP_CHECK_PDO_INCLUDES
+
+        PKG_CHECK_MODULES([SQLITE], [sqlite3 >= 3.7.7])
+
+        PHP_EVAL_INCLINE($SQLITE_CFLAGS)
+        PHP_EVAL_LIBLINE($SQLITE_LIBS, SWOOLE_SHARED_LIBADD)
+        AC_DEFINE(HAVE_SW_PDO_SQLITELIB, 1, [Define to 1 if you have the pdo_sqlite extension enabled.])
+
+        PHP_CHECK_LIBRARY(sqlite3, sqlite3_close_v2, [
+            AC_DEFINE(HAVE_SW_SQLITE3_CLOSE_V2, 1, [have sqlite3_close_v2])
+        ], [], [$SWOOLE_SHARED_LIBADD])
+
+        PHP_CHECK_LIBRARY(sqlite3, sqlite3_column_table_name, [
+            AC_DEFINE(HAVE_SW_SQLITE3_COLUMN_TABLE_NAME, 1, [have sqlite3_column_table_name])
+        ], [], [$SWOOLE_SHARED_LIBADD])
+
+        AC_DEFINE(SW_USE_SQLITE, 1, [do we enable sqlite coro support])
+    fi
+    dnl sqlite stop
+
     AC_CHECK_LIB(z, gzgets, [
         AC_DEFINE(SW_HAVE_COMPRESSION, 1, [have compression])
         AC_DEFINE(SW_HAVE_ZLIB, 1, [have zlib])
@@ -989,6 +1022,7 @@ EOF
         ext-src/swoole_pgsql.cc \
         ext-src/swoole_odbc.cc \
         ext-src/swoole_oracle.cc \
+        ext-src/swoole_sqlite.cc \
         ext-src/swoole_process.cc \
         ext-src/swoole_process_pool.cc \
         ext-src/swoole_redis_coro.cc \
@@ -1121,8 +1155,6 @@ EOF
             thirdparty/php81/pdo_oci/oci_statement.c"
     fi
 
-
-
 	if test "$PHP_PDO_ODBC" != "no"; then
 	    swoole_source_file="$swoole_source_file \
 	        thirdparty/php80/pdo_odbc/odbc_driver.c \
@@ -1130,6 +1162,12 @@ EOF
 	        thirdparty/php81/pdo_odbc/odbc_driver.c \
 	        thirdparty/php81/pdo_odbc/odbc_stmt.c"
 	fi
+
+	if test "$PHP_SWOOLE_SQLITE" != "no"; then
+        swoole_source_file="$swoole_source_file \
+            thirdparty/php81/pdo_sqlite/sqlite_driver.c \
+            thirdparty/php81/pdo_sqlite/sqlite_statement.c"
+    fi
 		        
     SW_ASM_DIR="thirdparty/boost/asm/"
     SW_USE_ASM_CONTEXT="yes"

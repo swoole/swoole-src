@@ -2,7 +2,7 @@
 __CURRENT__=$(pwd)
 __DIR__=$(cd "$(dirname "$0")";pwd)
 
-sh instantclient.sh
+sh library.sh
 
 if [ ! -f "/.dockerenv" ]; then
     echo "" && echo "❌ This script is just for Docker!"
@@ -20,7 +20,8 @@ phpize
 --enable-cares \
 --enable-swoole-pgsql \
 --with-pdo-odbc=unixODBC,/usr \
---with-swoole-oracle=instantclient,/usr/local/instantclient
+--with-swoole-oracle=instantclient,/usr/local/instantclient \
+--enable-swoole-sqlite
 
 make -j$(cat /proc/cpuinfo | grep processor | wc -l)
 make install
