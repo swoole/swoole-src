@@ -29,6 +29,12 @@ void swoole_sqlite_set_blocking(bool blocking) {
         return;
     }
 
+    int sqlite_thread_mode = sqlite3_threadsafe();
+    if (sqlite_thread_mode == SQLITE_CONFIG_SERIALIZED) {
+        swoole_sqlite_blocking = blocking;
+        return;
+    }
+
     int result = sqlite3_config(SQLITE_CONFIG_SERIALIZED);
     if (result == SQLITE_OK) {
         swoole_sqlite_blocking = blocking;
