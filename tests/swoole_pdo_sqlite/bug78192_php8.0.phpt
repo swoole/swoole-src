@@ -2,6 +2,11 @@
 PDO SQLite Bug #78192 SegFault when reuse statement after schema change
 --SKIPIF--
 <?php
+if (PHP_VERSION_ID >= 80100) {
+    require __DIR__ . '/../include/skipif.inc';
+    skip('php version 8.0 or lower');
+}
+
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_sqlite.inc';
 PdoSqliteTest::skip();
@@ -35,7 +40,7 @@ array(1) {
   [0]=>
   array(2) {
     ["id"]=>
-    int(10)
+    string(2) "10"
     ["name"]=>
     string(4) "test"
   }
@@ -44,10 +49,11 @@ array(1) {
   [0]=>
   array(3) {
     ["id"]=>
-    int(10)
+    string(2) "10"
     ["name"]=>
     string(4) "test"
     ["new_col"]=>
     NULL
   }
 }
+

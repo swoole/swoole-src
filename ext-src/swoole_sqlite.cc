@@ -23,23 +23,18 @@
 using swoole::Coroutine;
 
 static bool swoole_sqlite_blocking = true;
-static bool sqlite_thread_mode = SQLITE_CONFIG_SERIALIZED;
 void swoole_sqlite_set_blocking(bool blocking) {
-    int result = SQLITE_OK;
     if (blocking) {
-        if (sqlite_thread_mode != SQLITE_CONFIG_SERIALIZED) {
-            result = sqlite3_config(sqlite_thread_mode);
-        }
-    } else {
-        sqlite_thread_mode = sqlite3_threadsafe();
-        if (sqlite_thread_mode != SQLITE_CONFIG_SERIALIZED) {
-            result = sqlite3_config(SQLITE_CONFIG_SERIALIZED);
-        }
+        swoole_sqlite_blocking = blocking;
+        return;
     }
 
+    int result = sqlite3_config(SQLITE_CONFIG_SERIALIZED);
     if (result == SQLITE_OK) {
         swoole_sqlite_blocking = blocking;
+        return;
     }
+    swoole_warning("Can not set sqlite thread mode to SQLITE_CONFIG_SERIALIZED");
 }
 
 static bool async(const std::function<void(void)> &fn) {
@@ -52,6 +47,7 @@ static bool async(const std::function<void(void)> &fn) {
 }
 
 int swoole_sqlite3_open_v2(const char *filename, sqlite3 **ppDb, int flags, const char *zVfs) {
+    swoole_trace_log(SW_TRACE_CO_SQLITE, "sqlite3_open_v2");
     int result = 0;
     async([&]() { result = sqlite3_open_v2(filename, ppDb, flags, zVfs); });
 
@@ -59,6 +55,7 @@ int swoole_sqlite3_open_v2(const char *filename, sqlite3 **ppDb, int flags, cons
 }
 
 int swoole_sqlite3_prepare_v2(sqlite3 *db, const char *zSql, int nByte, sqlite3_stmt **ppStmt, const char **pzTail) {
+    swoole_trace_log(SW_TRACE_CO_SQLITE, "sqlite3_prepare_v2");
     int result = 0;
     async([&]() { result = sqlite3_prepare_v2(db, zSql, nByte, ppStmt, pzTail); });
 
@@ -67,6 +64,7 @@ int swoole_sqlite3_prepare_v2(sqlite3 *db, const char *zSql, int nByte, sqlite3_
 
 int swoole_sqlite3_exec(
     sqlite3 *db, const char *sql, int (*callback)(void *, int, char **, char **), void *argument, char **errmsg) {
+    swoole_trace_log(SW_TRACE_CO_SQLITE, "sqlite3_exec");
     int result = 0;
     async([&]() { result = sqlite3_exec(db, sql, callback, argument, errmsg); });
 
@@ -74,6 +72,7 @@ int swoole_sqlite3_exec(
 }
 
 int swoole_sqlite3_close(sqlite3 *db) {
+    swoole_trace_log(SW_TRACE_CO_SQLITE, "sqlite3_close");
     int result = 0;
     async([&]() { result = sqlite3_close(db); });
 
@@ -81,6 +80,7 @@ int swoole_sqlite3_close(sqlite3 *db) {
 }
 
 int swoole_sqlite3_close_v2(sqlite3 *db) {
+    swoole_trace_log(SW_TRACE_CO_SQLITE, "sqlite3_close_v2");
     int result = 0;
     async([&]() { result = sqlite3_close_v2(db); });
 
@@ -88,6 +88,7 @@ int swoole_sqlite3_close_v2(sqlite3 *db) {
 }
 
 int swoole_sqlite3_step(sqlite3_stmt *stmt) {
+    swoole_trace_log(SW_TRACE_CO_SQLITE, "sqlite3_step");
     int result = 0;
     async([&]() { result = sqlite3_step(stmt); });
 

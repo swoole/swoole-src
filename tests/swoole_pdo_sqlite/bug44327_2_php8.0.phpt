@@ -2,6 +2,11 @@
 Bug #44327.2 (PDORow::queryString property & numeric offsets / Crash)
 --SKIPIF--
 <?php
+if (PHP_VERSION_ID >= 80100) {
+    require __DIR__ . '/../include/skipif.inc';
+    skip('php version 8.0 or lower');
+}
+
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_sqlite.inc';
 PdoSqliteTest::skip();
@@ -37,9 +42,9 @@ object(PDOStatement)#%d (1) {
 string(23) "select 1 as queryString"
 array(2) {
   ["queryString"]=>
-  int(1)
+  string(1) "1"
   [0]=>
-  int(1)
+  string(1) "1"
 }
 NULL
 --------------------------------------------
@@ -50,6 +55,6 @@ object(PDOStatement)#%d (1) {
 string(23) "select 1 as queryString"
 object(PDORow)#%d (1) {
   ["queryString"]=>
-  string(23) "select 1 as queryString"
+  string(1) "1"
 }
-string(23) "select 1 as queryString"
+string(1) "1"
