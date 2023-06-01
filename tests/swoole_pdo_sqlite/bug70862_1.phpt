@@ -2,9 +2,9 @@
 PDO_sqlite: Testing sqliteCreateCollation()
 --SKIPIF--
 <?php
-if (PHP_VERSION_ID >= 80200) {
+if (PHP_VERSION_ID < 80200) {
     require __DIR__ . '/../include/skipif.inc';
-    skip('php version 8.1 or lower');
+    skip('php version 8.2 or higher');
 }
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_sqlite.inc';
@@ -41,6 +41,8 @@ run(function() {
 });
 ?>
 +++DONE+++
---EXPECT--
+--EXPECTF--
+
+Deprecated: Creation of dynamic property HelloWrapper::$context is deprecated in %s on line %d
 string(0) ""
 +++DONE+++

@@ -2,9 +2,9 @@
 Testing several callbacks using PDO::FETCH_FUNC
 --SKIPIF--
 <?php
-if (PHP_VERSION_ID >= 80200) {
+if (PHP_VERSION_ID < 80200) {
     require __DIR__ . '/../include/skipif.inc';
-    skip('php version 8.1 or lower');
+    skip('php version 8.2 or higher');
 }
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_sqlite.inc';
@@ -137,6 +137,8 @@ function "" not found or invalid function name
 PDOStatement::fetchAll(): Argument #2 must be a callable, null given
 no array or string given
 cannot access "self" when no class scope is active
+
+Deprecated: Callables of the form ["bar", "parent::method"] are deprecated in %s on line %d
 array(2) {
   [0]=>
   string(9) "--- 1 ---"

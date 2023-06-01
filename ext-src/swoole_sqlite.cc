@@ -29,18 +29,12 @@ void swoole_sqlite_set_blocking(bool blocking) {
         return;
     }
 
-    int sqlite_thread_mode = sqlite3_threadsafe();
-    if (sqlite_thread_mode == SQLITE_CONFIG_SERIALIZED) {
-        swoole_sqlite_blocking = blocking;
+    int thread_safe_mode = sqlite3_threadsafe();
+    if (!thread_safe_mode) {
+        swoole_warning("hook sqlite coroutine failed because thread safe mode is single-thread.");
         return;
     }
-
-    int result = sqlite3_config(SQLITE_CONFIG_SERIALIZED);
-    if (result == SQLITE_OK) {
-        swoole_sqlite_blocking = blocking;
-        return;
-    }
-    swoole_warning("Can not set sqlite thread mode to SQLITE_CONFIG_SERIALIZED");
+    swoole_sqlite_blocking = blocking;
 }
 
 static bool async(const std::function<void(void)> &fn) {
@@ -54,6 +48,11 @@ static bool async(const std::function<void(void)> &fn) {
 
 int swoole_sqlite3_open_v2(const char *filename, sqlite3 **ppDb, int flags, const char *zVfs) {
     swoole_trace_log(SW_TRACE_CO_SQLITE, "sqlite3_open_v2");
+
+    if (!swoole_sqlite_blocking && Coroutine::get_current()) {
+        flags |= SQLITE_OPEN_FULLMUTEX;
+    }
+
     int result = 0;
     async([&]() { result = sqlite3_open_v2(filename, ppDb, flags, zVfs); });
 

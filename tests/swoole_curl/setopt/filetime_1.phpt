@@ -12,7 +12,7 @@ $cm->run(function ($host) {
     $ch = curl_init();
 
     $options = array(
-        CURLOPT_URL => 'http://www.gov.cn/govweb/xhtml/libs/jQuery/jquery-e.min.js',
+        CURLOPT_URL => 'https://static.zhihu.com/heifetz/chunks/5946.4600cc0c1b3dcecac17c.js',
         CURLOPT_RETURNTRANSFER => 1,
         CURLOPT_FILETIME => true,
         CURLOPT_NOBODY => true,
