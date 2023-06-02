@@ -829,8 +829,7 @@ EOF
     PHP_ARG_ENABLE([swoole-sqlite],
         [for sqlite 3 support for PDO],
         [AS_HELP_STRING([--enable-swoole-sqlite],
-            [PDO: sqlite 3 support.])],
-        [$PHP_PDO], [no], [no])
+            [PDO: sqlite 3 support.])], [no], [no])
 
     if test "$PHP_SWOOLE_SQLITE" != "no"; then
 
