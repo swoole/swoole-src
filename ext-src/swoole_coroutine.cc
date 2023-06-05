@@ -381,7 +381,7 @@ void PHPCoroutine::activate() {
 
     Coroutine::set_on_yield(on_yield);
     Coroutine::set_on_resume(on_resume);
-    Coroutine::set_on_close(on_close);
+    Coroutine::set_on_close(destroy_context);
 
     activated = true;
 }
@@ -600,7 +600,7 @@ void PHPCoroutine::on_resume(void *arg) {
     swoole_trace_log(SW_TRACE_COROUTINE, "from cid=%ld to cid=%ld", Coroutine::get_current_cid(), ctx->co->get_cid());
 }
 
-void PHPCoroutine::on_close(void *arg) {
+void PHPCoroutine::destroy_context(void *arg) {
     PHPContext *ctx = (PHPContext *) arg;
     PHPContext *origin_ctx = get_origin_context(ctx);
 #ifdef SW_LOG_TRACE_OPEN

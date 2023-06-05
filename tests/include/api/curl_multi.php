@@ -14,7 +14,7 @@ function swoole_test_curl_multi_ex($mh, $options = []) {
     curl_setopt($ch1, CURLOPT_HEADER, 0);
     curl_setopt($ch1, CURLOPT_RETURNTRANSFER, 1);
 
-    curl_setopt($ch2, CURLOPT_URL, "http://www.gov.cn/");
+    curl_setopt($ch2, CURLOPT_URL, "https://www.gov.cn/");
     curl_setopt($ch2, CURLOPT_HEADER, 0);
     curl_setopt($ch2, CURLOPT_RETURNTRANSFER, 1);
 

@@ -12,7 +12,7 @@ $cm->run(function ($host) {
     $ch = curl_init();
 
     $options = array(
-        CURLOPT_URL => 'http://www.gov.cn/govweb/xhtml/libs/jQuery/jquery-e.min.js',
+        CURLOPT_URL => 'https://www.gov.cn/govweb/xhtml/libs/jQuery/jquery-e.min.js',
         CURLOPT_RETURNTRANSFER => 1,
         CURLOPT_FILETIME => true,
         CURLOPT_NOBODY => true,

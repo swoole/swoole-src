@@ -272,11 +272,11 @@ class PHPCoroutine {
     static void restore_og(PHPContext *ctx);
     static void save_context(PHPContext *ctx);
     static void restore_context(PHPContext *ctx);
+    static void destroy_context(void *arg);
     static bool catch_exception();
     static void bailout();
     static void on_yield(void *arg);
     static void on_resume(void *arg);
-    static void on_close(void *arg);
     static void main_func(void *arg);
 #ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
     static zend_fiber_status get_fiber_status(PHPContext *ctx);
