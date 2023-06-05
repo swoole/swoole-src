@@ -39,6 +39,10 @@ extern void swoole_odbc_set_blocking(bool blocking);
 #ifdef SW_USE_ORACLE
 extern void swoole_oracle_set_blocking(bool blocking);
 #endif
+
+#ifdef SW_USE_SQLITE
+extern void swoole_sqlite_set_blocking(bool blocking);
+#endif
 END_EXTERN_C()
 
 /* openssl */
@@ -205,6 +209,9 @@ void php_swoole_runtime_minit(int module_number) {
 #endif
 #ifdef SW_USE_ORACLE
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_PDO_ORACLE", PHPCoroutine::HOOK_PDO_ORACLE);
+#endif
+#ifdef SW_USE_SQLITE
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_PDO_SQLITE", PHPCoroutine::HOOK_PDO_SQLITE);
 #endif
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_ALL", PHPCoroutine::HOOK_ALL);
 #ifdef SW_USE_CURL
@@ -1280,13 +1287,24 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
     }
 #endif
 #ifdef SW_USE_ORACLE
-	if (flags & PHPCoroutine::HOOK_PDO_ORACLE) {
+    if (flags & PHPCoroutine::HOOK_PDO_ORACLE) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_PDO_ORACLE)) {
             swoole_oracle_set_blocking(0);
         }
     } else {
         if (runtime_hook_flags & PHPCoroutine::HOOK_PDO_ORACLE) {
             swoole_oracle_set_blocking(1);
+        }
+    }
+#endif
+#ifdef SW_USE_SQLITE
+    if (flags & PHPCoroutine::HOOK_PDO_SQLITE) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_PDO_SQLITE)) {
+            swoole_sqlite_set_blocking(0);
+        }
+    } else {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_PDO_SQLITE) {
+            swoole_sqlite_set_blocking(1);
         }
     }
 #endif

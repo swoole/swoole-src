@@ -38,6 +38,7 @@ static bool async(const std::function<void(void)> &fn) {
 }
 
 sword swoole_oci_session_begin(OCISvcCtx *svchp, OCIError *errhp, OCISession *usrhp, ub4 credt, ub4 mode) {
+    swoole_trace_log(SW_TRACE_CO_ORACLE, "oci_session_begin");
     sword result = 0;
     async([&]() { result = OCISessionBegin(svchp, errhp, usrhp, credt, mode); });
 
@@ -45,6 +46,7 @@ sword swoole_oci_session_begin(OCISvcCtx *svchp, OCIError *errhp, OCISession *us
 }
 
 sword swoole_oci_server_detach(OCIServer *srvhp, OCIError *errhp, ub4 mode) {
+    swoole_trace_log(SW_TRACE_CO_ORACLE, "oci_server_detach");
     sword result = 0;
     async([&]() { result = OCIServerDetach(srvhp, errhp, mode); });
 
@@ -53,6 +55,7 @@ sword swoole_oci_server_detach(OCIServer *srvhp, OCIError *errhp, ub4 mode) {
 
 sword swoole_oci_stmt_prepare(
     OCIStmt *stmtp, OCIError *errhp, const OraText *stmt, ub4 stmt_len, ub4 language, ub4 mode) {
+    swoole_trace_log(SW_TRACE_CO_ORACLE, "oci_stmt_prepare");
     sword result = 0;
     async([&]() { result = OCIStmtPrepare(stmtp, errhp, stmt, stmt_len, language, mode); });
 
@@ -67,6 +70,7 @@ sword swoole_oci_stmt_execute(OCISvcCtx *svchp,
                               const OCISnapshot *snap_in,
                               OCISnapshot *snap_out,
                               ub4 mode) {
+    swoole_trace_log(SW_TRACE_CO_ORACLE, "oci_stmt_execute");
     sword result = 0;
     async([&]() { result = OCIStmtExecute(svchp, stmtp, errhp, iters, rowoff, snap_in, snap_out, mode); });
 
@@ -74,6 +78,7 @@ sword swoole_oci_stmt_execute(OCISvcCtx *svchp,
 }
 
 sword swoole_oci_stmt_fetch(OCIStmt *stmtp, OCIError *errhp, ub4 nrows, ub2 orientation, ub4 mode) {
+    swoole_trace_log(SW_TRACE_CO_ORACLE, "oci_stmt_fetch");
     sword result = 0;
     async([&]() { result = OCIStmtFetch(stmtp, errhp, nrows, orientation, mode); });
 
@@ -81,6 +86,7 @@ sword swoole_oci_stmt_fetch(OCIStmt *stmtp, OCIError *errhp, ub4 nrows, ub2 orie
 }
 
 sword swoole_oci_stmt_fetch2(OCIStmt *stmtp, OCIError *errhp, ub4 nrows, ub2 orientation, sb4 scrollOffset, ub4 mode) {
+    swoole_trace_log(SW_TRACE_CO_ORACLE, "oci_stmt_fetch2");
     sword result = 0;
     async([&]() { result = OCIStmtFetch2(stmtp, errhp, nrows, orientation, scrollOffset, mode); });
 
@@ -88,6 +94,7 @@ sword swoole_oci_stmt_fetch2(OCIStmt *stmtp, OCIError *errhp, ub4 nrows, ub2 ori
 }
 
 sword swoole_oci_trans_commit(OCISvcCtx *svchp, OCIError *errhp, ub4 flags) {
+    swoole_trace_log(SW_TRACE_CO_ORACLE, "oci_trans_commit");
     sword result = 0;
     async([&]() { result = OCITransCommit(svchp, errhp, flags); });
 
@@ -95,6 +102,7 @@ sword swoole_oci_trans_commit(OCISvcCtx *svchp, OCIError *errhp, ub4 flags) {
 }
 
 sword swoole_oci_trans_rollback(OCISvcCtx *svchp, OCIError *errhp, ub4 flags) {
+    swoole_trace_log(SW_TRACE_CO_ORACLE, "oci_trans_rollback");
     sword result = 0;
     async([&]() { result = OCITransRollback(svchp, errhp, flags); });
 
@@ -102,6 +110,7 @@ sword swoole_oci_trans_rollback(OCISvcCtx *svchp, OCIError *errhp, ub4 flags) {
 }
 
 sword swoole_oci_ping(OCISvcCtx *svchp, OCIError *errhp, ub4 mode) {
+    swoole_trace_log(SW_TRACE_CO_ORACLE, "oci_ping");
     sword result = 0;
     async([&]() { result = OCIPing(svchp, errhp, mode); });
 
