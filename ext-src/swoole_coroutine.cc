@@ -662,7 +662,7 @@ void PHPCoroutine::destroy_context(void *arg) {
     sw_zend_fci_cache_discard(&ctx->fci_cache);
     restore_context(origin_ctx);
     destroy_vm_stack(ctx->vm_stack);
-    Z_TRY_DELREF(&ctx->return_value);
+    Z_TRY_DELREF(ctx->return_value);
     efree(ctx);
 }
 
@@ -691,7 +691,7 @@ void PHPCoroutine::main_func(void *_args) {
             ZVAL_UNDEF(&ctx->fci.function_name);
         }
         zend_call_function(&ctx->fci, &ctx->fci_cache);
-        Z_TRY_DELREF(&ctx->fci.function_name);
+        Z_TRY_DELREF(ctx->fci.function_name);
         ZVAL_UNDEF(&ctx->fci.function_name);
 
         // Catch exception in main function of the coroutine
