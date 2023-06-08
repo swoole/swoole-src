@@ -305,12 +305,6 @@ PHPContext *PHPCoroutine::create_context(Args *args) {
     ctx->fci_cache = *args->fci_cache;
     sw_zend_fci_cache_persist(&ctx->fci_cache);
     ctx->fci.size = sizeof(ctx->fci);
-    if (args->callable) {
-        ctx->fci.function_name = *args->callable;
-        Z_TRY_ADDREF(ctx->fci.function_name);
-    } else {
-        ZVAL_UNDEF(&ctx->fci.function_name);
-    }
     ctx->fci.object = NULL;
     ctx->fci.param_count = args->argc;
     ctx->fci.params = args->argv;
@@ -669,7 +663,6 @@ void PHPCoroutine::destroy_context(void *arg) {
     restore_context(origin_ctx);
     destroy_vm_stack(ctx->vm_stack);
     zval_ptr_dtor(&ctx->return_value);
-    Z_TRY_DELREF(ctx->fci.function_name);
     efree(ctx);
 }
 
@@ -691,7 +684,16 @@ void PHPCoroutine::main_func(void *_args) {
             swoole_call_hook(SW_GLOBAL_HOOK_ON_CORO_START, ctx);
         }
 
+        if (args->callable) {
+            ctx->fci.function_name = *args->callable;
+            Z_TRY_ADDREF(ctx->fci.function_name);
+        } else {
+            ZVAL_UNDEF(&ctx->fci.function_name);
+        }
         zend_call_function(&ctx->fci, &ctx->fci_cache);
+        zval_ptr_dtor(&ctx->fci.function_name);
+        ZVAL_UNDEF(&ctx->fci.function_name);
+
         // Catch exception in main function of the coroutine
         exception_caught = catch_exception();
 
