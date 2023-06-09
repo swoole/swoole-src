@@ -168,6 +168,15 @@ bool php_swoole_name_resolver_add(zval *zresolver);
 const swoole::Allocator *sw_php_allocator();
 const swoole::Allocator *sw_zend_string_allocator();
 
+static inline bool php_swoole_async(bool blocking, const std::function<void(void)> &fn) {
+    if (blocking) {
+        fn();
+        return true;
+    } else {
+        return swoole::coroutine::async(fn);
+    }
+}
+
 namespace zend {
 //-----------------------------------namespace begin--------------------------------------------
 class String {

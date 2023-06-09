@@ -303,7 +303,6 @@ PHPContext *PHPCoroutine::create_context(Args *args) {
     record_last_msec(ctx);
 
     ctx->fci_cache = *args->fci_cache;
-    sw_zend_fci_cache_persist(&ctx->fci_cache);
     ctx->fci.size = sizeof(ctx->fci);
     ctx->fci.object = NULL;
     ctx->fci.param_count = args->argc;
@@ -659,7 +658,6 @@ void PHPCoroutine::destroy_context(void *arg) {
                      (uintmax_t) zend_memory_usage(0),
                      (uintmax_t) zend_memory_usage(1));
 
-    sw_zend_fci_cache_discard(&ctx->fci_cache);
     restore_context(origin_ctx);
     destroy_vm_stack(ctx->vm_stack);
     Z_TRY_DELREF(ctx->return_value);
@@ -690,9 +688,13 @@ void PHPCoroutine::main_func(void *_args) {
         } else {
             ZVAL_UNDEF(&ctx->fci.function_name);
         }
+        sw_zend_fci_cache_persist(&ctx->fci_cache);
+
         zend_call_function(&ctx->fci, &ctx->fci_cache);
+
         Z_TRY_DELREF(ctx->fci.function_name);
         ZVAL_UNDEF(&ctx->fci.function_name);
+        sw_zend_fci_cache_discard(&ctx->fci_cache);
 
         // Catch exception in main function of the coroutine
         exception_caught = catch_exception();
