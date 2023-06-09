@@ -147,9 +147,10 @@ static const zend_module_dep swoole_deps[] = {
 #ifdef SW_USE_CURL
     ZEND_MOD_REQUIRED("curl")
 #endif
-#ifdef SW_USE_PGSQL
+#if defined(SW_USE_PGSQL) || defined(SW_USE_ORACLE) || defined(SW_USE_SQLITE)
     ZEND_MOD_REQUIRED("pdo")
 #endif
+
     ZEND_MOD_END
 };
 
@@ -650,6 +651,7 @@ PHP_MINIT_FUNCTION(swoole) {
     SW_REGISTER_LONG_CONSTANT("SWOOLE_TRACE_ZLIB", SW_TRACE_ZLIB);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_TRACE_CO_PGSQL", SW_TRACE_CO_PGSQL);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_TRACE_CO_ODBC", SW_TRACE_CO_ODBC);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_TRACE_CO_ORACLE", SW_TRACE_CO_ORACLE);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_TRACE_ALL", SW_TRACE_ALL);
 
     /**
@@ -741,6 +743,15 @@ PHP_MINIT_FUNCTION(swoole) {
 #ifdef SW_USE_ODBC
     php_swoole_odbc_minit(module_number);
 #endif
+
+#ifdef SW_USE_ORACLE
+    php_swoole_oracle_minit(module_number);
+#endif
+
+#ifdef SW_USE_SQLITE
+    php_swoole_sqlite_minit(module_number);
+#endif
+
     SwooleG.fatal_error = fatal_error;
     Socket::default_buffer_size = SWOOLE_G(socket_buffer_size);
     SwooleG.dns_cache_refresh_time = 60;
@@ -779,6 +790,14 @@ PHP_MSHUTDOWN_FUNCTION(swoole) {
     php_swoole_websocket_server_mshutdown();
 #ifdef SW_USE_PGSQL
     php_swoole_pgsql_mshutdown();
+#endif
+
+#ifdef SW_USE_ORACLE
+    php_swoole_oracle_mshutdown();
+#endif
+
+#ifdef SW_USE_SQLITE
+    php_swoole_sqlite_mshutdown();
 #endif
 
     swoole_clean();
@@ -894,7 +913,12 @@ PHP_MINFO_FUNCTION(swoole) {
 #ifdef SW_USE_ODBC
     php_info_print_table_row(2, "coroutine_odbc", "enabled");
 #endif
-
+#ifdef SW_USE_ORACLE
+    php_info_print_table_row(2, "coroutine_oracle", "enabled");
+#endif
+#ifdef SW_USE_SQLITR
+    php_info_print_table_row(2, "coroutine_sqlite", "enabled");
+#endif
     php_info_print_table_end();
 
     DISPLAY_INI_ENTRIES();
@@ -994,6 +1018,9 @@ PHP_RINIT_FUNCTION(swoole) {
     php_swoole_http_server_rinit();
     php_swoole_coroutine_rinit();
     php_swoole_runtime_rinit();
+#ifdef SW_USE_ORACLE
+    php_swoole_oracle_rinit();
+#endif
 
     SWOOLE_G(req_status) = PHP_SWOOLE_RINIT_END;
 

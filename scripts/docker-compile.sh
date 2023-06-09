@@ -2,6 +2,8 @@
 __CURRENT__=$(pwd)
 __DIR__=$(cd "$(dirname "$0")";pwd)
 
+sh library.sh
+
 if [ ! -f "/.dockerenv" ]; then
     echo "" && echo "❌ This script is just for Docker!"
     exit
@@ -17,7 +19,9 @@ phpize
 --enable-swoole-curl \
 --enable-cares \
 --enable-swoole-pgsql \
---with-pdo-odbc=unixODBC,/usr
+--with-pdo-odbc=unixODBC,/usr \
+--with-swoole-oracle=instantclient,/usr/local/instantclient \
+--enable-swoole-sqlite
 
 make -j$(cat /proc/cpuinfo | grep processor | wc -l)
 make install
