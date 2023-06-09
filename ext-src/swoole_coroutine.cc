@@ -311,6 +311,14 @@ PHPContext *PHPCoroutine::create_context(Args *args) {
     ctx->return_value = {};
     ctx->fci.retval = &ctx->return_value;
 
+    if (args->callable) {
+        ctx->fci.function_name = *args->callable;
+        Z_TRY_ADDREF(ctx->fci.function_name);
+    } else {
+        ZVAL_UNDEF(&ctx->fci.function_name);
+    }
+    sw_zend_fci_cache_persist(&ctx->fci_cache);
+
     return ctx;
 }
 
@@ -374,7 +382,7 @@ void PHPCoroutine::activate() {
 
     Coroutine::set_on_yield(on_yield);
     Coroutine::set_on_resume(on_resume);
-    Coroutine::set_on_close(destroy_context);
+    Coroutine::set_on_close(on_close);
 
     activated = true;
 }
@@ -448,13 +456,6 @@ void PHPCoroutine::interrupt_thread_start() {
             std::this_thread::sleep_for(std::chrono::milliseconds(MAX_EXEC_MSEC / 2));
         }
     });
-}
-
-inline void PHPCoroutine::destroy_vm_stack(zend_vm_stack stack) {
-    zend_vm_stack current_stack = EG(vm_stack);
-    EG(vm_stack) = stack;
-    zend_vm_stack_destroy();
-    EG(vm_stack) = current_stack;
 }
 
 /**
@@ -593,8 +594,15 @@ void PHPCoroutine::on_resume(void *arg) {
     swoole_trace_log(SW_TRACE_COROUTINE, "from cid=%ld to cid=%ld", Coroutine::get_current_cid(), ctx->co->get_cid());
 }
 
-void PHPCoroutine::destroy_context(void *arg) {
+void PHPCoroutine::on_close(void *arg) {
     PHPContext *ctx = (PHPContext *) arg;
+    if (ctx->on_close) {
+        (*ctx->on_close)(ctx);
+    }
+    efree(ctx);
+}
+
+void PHPCoroutine::destroy_context(PHPContext *ctx) {
     PHPContext *origin_ctx = get_origin_context(ctx);
 #ifdef SW_LOG_TRACE_OPEN
     // MUST be assigned here, the task memory may have been released
@@ -641,9 +649,11 @@ void PHPCoroutine::destroy_context(void *arg) {
         OBJ_RELEASE(context);
     }
 
-    if (ctx->on_close) {
-        (*ctx->on_close)(ctx);
-    }
+    Z_TRY_DELREF(ctx->fci.function_name);
+    ZVAL_UNDEF(&ctx->fci.function_name);
+    sw_zend_fci_cache_discard(&ctx->fci_cache);
+
+    Z_TRY_DELREF(ctx->return_value);
 
 #ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
     fiber_context_switch_try_notify(ctx, origin_ctx);
@@ -658,19 +668,16 @@ void PHPCoroutine::destroy_context(void *arg) {
                      (uintmax_t) zend_memory_usage(0),
                      (uintmax_t) zend_memory_usage(1));
 
+    zend_vm_stack_destroy();
     restore_context(origin_ctx);
-    destroy_vm_stack(ctx->vm_stack);
-    Z_TRY_DELREF(ctx->return_value);
-    efree(ctx);
 }
 
 void PHPCoroutine::main_func(void *_args) {
     bool exception_caught = false;
     Args *args = (Args *) _args;
+    PHPContext *ctx = create_context(args);
 
     zend_first_try {
-        PHPContext *ctx = create_context(args);
-
         swoole_trace_log(SW_TRACE_COROUTINE,
                          "Create coro id: %ld, origin cid: %ld, coro total count: %zu, heap size: %zu",
                          ctx->co->get_cid(),
@@ -682,19 +689,7 @@ void PHPCoroutine::main_func(void *_args) {
             swoole_call_hook(SW_GLOBAL_HOOK_ON_CORO_START, ctx);
         }
 
-        if (args->callable) {
-            ctx->fci.function_name = *args->callable;
-            Z_TRY_ADDREF(ctx->fci.function_name);
-        } else {
-            ZVAL_UNDEF(&ctx->fci.function_name);
-        }
-        sw_zend_fci_cache_persist(&ctx->fci_cache);
-
         zend_call_function(&ctx->fci, &ctx->fci_cache);
-
-        Z_TRY_DELREF(ctx->fci.function_name);
-        ZVAL_UNDEF(&ctx->fci.function_name);
-        sw_zend_fci_cache_discard(&ctx->fci_cache);
 
         // Catch exception in main function of the coroutine
         exception_caught = catch_exception();
@@ -728,6 +723,7 @@ void PHPCoroutine::main_func(void *_args) {
         exception_caught = true;
     }
     zend_end_try();
+    destroy_context(ctx);
     if (exception_caught) {
         bailout();
     }

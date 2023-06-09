@@ -180,12 +180,12 @@ class PHPCoroutine {
         if (cid == 0) {
             cid = current_cid;
         }
-        PHPContext *task = (PHPContext *) PHPCoroutine::get_context_by_cid(cid);
-        if (UNEXPECTED(!task)) {
+        PHPContext *ctx = (PHPContext *) PHPCoroutine::get_context_by_cid(cid);
+        if (UNEXPECTED(!ctx)) {
             swoole_set_last_error(SW_ERROR_CO_NOT_EXISTS);
             return -1;
         }
-        zend_vm_stack stack = cid == current_cid ? EG(vm_stack) : task->vm_stack;
+        zend_vm_stack stack = cid == current_cid ? EG(vm_stack) : ctx->vm_stack;
         size_t usage = 0;
 
         while (stack) {
@@ -267,18 +267,18 @@ class PHPCoroutine {
     static void activate();
     static void deactivate(void *ptr);
 
-    static void destroy_vm_stack(zend_vm_stack stack);
     static void save_vm_stack(PHPContext *ctx);
     static void restore_vm_stack(PHPContext *ctx);
     static void save_og(PHPContext *ctx);
     static void restore_og(PHPContext *ctx);
     static void save_context(PHPContext *ctx);
     static void restore_context(PHPContext *ctx);
-    static void destroy_context(void *arg);
+    static void destroy_context(PHPContext *ctx);
     static bool catch_exception();
     static void bailout();
     static void on_yield(void *arg);
     static void on_resume(void *arg);
+    static void on_close(void *arg);
     static void main_func(void *arg);
 #ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
     static zend_fiber_status get_fiber_status(PHPContext *ctx);
