@@ -19,7 +19,7 @@ phpize
 --enable-swoole-curl \
 --enable-cares \
 --enable-swoole-pgsql \
---with-pdo-odbc=unixODBC,/usr \
+--with-swoole-odbc=unixODBC,/usr \
 --with-swoole-oracle=instantclient,/usr/local/instantclient \
 --enable-swoole-sqlite
 

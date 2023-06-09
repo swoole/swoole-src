@@ -908,7 +908,7 @@ PHP_MINFO_FUNCTION(swoole) {
 #endif
     php_info_print_table_row(2, "async_redis", "enabled");
 #ifdef SW_USE_PGSQL
-    php_info_print_table_row(2, "coroutine_postgresql", "enabled");
+    php_info_print_table_row(2, "coroutine_pgsql", "enabled");
 #endif
 #ifdef SW_USE_ODBC
     php_info_print_table_row(2, "coroutine_odbc", "enabled");
@@ -916,7 +916,7 @@ PHP_MINFO_FUNCTION(swoole) {
 #ifdef SW_USE_ORACLE
     php_info_print_table_row(2, "coroutine_oracle", "enabled");
 #endif
-#ifdef SW_USE_SQLITR
+#ifdef SW_USE_SQLITE
     php_info_print_table_row(2, "coroutine_sqlite", "enabled");
 #endif
     php_info_print_table_end();

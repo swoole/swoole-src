@@ -114,15 +114,15 @@ PHP_ARG_ENABLE([swoole-coro-time],
 define([PDO_ODBC_HELP_TEXT],[[
   The include and lib dirs are looked for under 'dir'. The 'flavour' can be one
   of: ibm-db2, iODBC, unixODBC, generic. If ',dir' part is omitted, default for
-  the flavour you have selected will be used. e.g.: --with-pdo-odbc=unixODBC
+  the flavour you have selected will be used. e.g.: --with-swoole-odbc=unixODBC
   will check for unixODBC under /usr/local. You may attempt to use an otherwise
   unsupported driver using the 'generic' flavour. The syntax for generic ODBC
-  support is: --with-pdo-odbc=generic,dir,libname,ldflags,cflags. When built as
+  support is: --with-swoole-odbc=generic,dir,libname,ldflags,cflags. When built as
   'shared' the extension filename is always pdo_odbc.so]])
 
-PHP_ARG_WITH([pdo-odbc],
+PHP_ARG_WITH([swoole-odbc],
   ["for ODBC v3 support for PDO"],
-  [AS_HELP_STRING([--with-pdo-odbc=flavour,dir],
+  [AS_HELP_STRING([--with-swoole-odbc=flavour,dir],
     ["PDO: Support for 'flavour' ODBC driver."]PDO_ODBC_HELP_TEXT)], [no], [no])
 
 AC_DEFUN([PDO_ODBC_CHECK_HEADER],[
@@ -510,15 +510,15 @@ EOF
     
     dnl odbc begin
     
-	if test "$PHP_PDO_ODBC" != "no"; then
+	if test "$PHP_SWOOLE_ODBC" != "no"; then
 	  PHP_CHECK_PDO_INCLUDES
 	
 	  AC_MSG_CHECKING([for selected PDO ODBC flavour])
 	
-	  pdo_odbc_flavour="`echo $PHP_PDO_ODBC | cut -d, -f1`"
-	  pdo_odbc_dir="`echo $PHP_PDO_ODBC | cut -d, -f2`"
+	  pdo_odbc_flavour="`echo $PHP_SWOOLE_ODBC | cut -d, -f1`"
+	  pdo_odbc_dir="`echo $PHP_SWOOLE_ODBC | cut -d, -f2`"
 	
-	  if test "$pdo_odbc_dir" = "$PHP_PDO_ODBC" ; then
+	  if test "$pdo_odbc_dir" = "$PHP_SWOOLE_ODBC" ; then
 	    pdo_odbc_dir=
 	  fi
 	
@@ -548,9 +548,9 @@ EOF
 	        ;;
 	
 	    generic)
-	        pdo_odbc_def_lib="`echo $PHP_PDO_ODBC | cut -d, -f3`"
-	        pdo_odbc_def_ldflags="`echo $PHP_PDO_ODBC | cut -d, -f4`"
-	        pdo_odbc_def_cflags="`echo $PHP_PDO_ODBC | cut -d, -f5`"
+	        pdo_odbc_def_lib="`echo $PHP_SWOOLE_ODBC | cut -d, -f3`"
+	        pdo_odbc_def_ldflags="`echo $PHP_SWOOLE_ODBC | cut -d, -f4`"
+	        pdo_odbc_def_cflags="`echo $PHP_SWOOLE_ODBC | cut -d, -f5`"
 	        pdo_odbc_flavour="generic-$pdo_odbc_def_lib"
 	        ;;
 	
@@ -622,7 +622,7 @@ EOF
 	    AC_MSG_ERROR([Your ODBC library does not exist or there was an error. Check config.log for more information])
 	  ], $PDO_ODBC_LDFLAGS)
 	
-    	AC_DEFINE(SW_USE_ODBC, 1, [do we enable pdo-odbc coro support])
+    	AC_DEFINE(SW_USE_ODBC, 1, [do we enable swoole-odbc coro support])
 	fi
 	
     dnl odbc end
@@ -1154,7 +1154,7 @@ EOF
             thirdparty/php81/pdo_oci/oci_statement.c"
     fi
 
-	if test "$PHP_PDO_ODBC" != "no"; then
+	if test "$PHP_SWOOLE_ODBC" != "no"; then
 	    swoole_source_file="$swoole_source_file \
 	        thirdparty/php80/pdo_odbc/odbc_driver.c \
 	        thirdparty/php80/pdo_odbc/odbc_stmt.c \
