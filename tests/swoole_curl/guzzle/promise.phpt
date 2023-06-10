@@ -18,17 +18,17 @@ use function Swoole\Coroutine\run;
 Runtime::enableCoroutine(SWOOLE_HOOK_NATIVE_CURL);
 
 run(function () {
-    $client = new Client(['base_uri' => 'http://httpbin.org']);
+    $client = new Client(['base_uri' => 'https://httpbin.org']);
 
     // Initiate each request but do not block
     $promises = [
         'a' => $client->requestAsync('POST', '/post', ['json' => ['data' => 'hello test1!']]),
         'b'   => $client->requestAsync('POST', '/post', ['json' => ['data' => 'hello test2!']]),
-        'b'  => $client->requestAsync('POST', '/post', ['json' => ['data' => 'hello test3!']]),
+        'c'  => $client->requestAsync('POST', '/post', ['json' => ['data' => 'hello test3!']]),
     ];
 
     // Wait on all of the requests to complete.
-    $results = Promise\unwrap($promises);
+    $results = GuzzleHttp\Promise\Utils::unwrap($promises);
 
     // You can access each result using the key provided to the unwrap
     // function.
