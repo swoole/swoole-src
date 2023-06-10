@@ -26,12 +26,16 @@ const char *Address::get_addr() {
 
     if (type == SW_SOCK_TCP || type == SW_SOCK_UDP) {
         if (inet_ntop(AF_INET, &addr.inet_v4.sin_addr, address, sizeof(address))) {
-            init_address = true;
+            if (type == SW_SOCK_TCP) {
+                init_address = true;
+            }
             return address;
         }
     } else if (type == SW_SOCK_TCP6 || type == SW_SOCK_UDP6) {
         if (inet_ntop(AF_INET6, &addr.inet_v6.sin6_addr, address, sizeof(address))) {
-            init_address = true;
+            if (type == SW_SOCK_TCP6) {
+                init_address = true;
+            }
             return address;
         }
     } else if (type == SW_SOCK_UNIX_STREAM || type == SW_SOCK_UNIX_DGRAM) {
@@ -46,11 +50,17 @@ int Address::get_port() {
     }
 
     if (type == SW_SOCK_TCP || type == SW_SOCK_UDP) {
-        init_port = true;
+        if (type == SW_SOCK_TCP) {
+            init_port = true;
+        }
+
         port = ntohs(addr.inet_v4.sin_port);
         return port;
     } else if (type == SW_SOCK_TCP6 || type == SW_SOCK_UDP6) {
-        init_port = true;
+        if (type == SW_SOCK_TCP6) {
+            init_port = true;
+        }
+
         port = ntohs(addr.inet_v6.sin6_port);
         return port;
     } else {
