@@ -141,7 +141,7 @@ struct Context {
     uchar http2 : 1;
 
     http2::Stream *stream;
-    std::shared_ptr<String> write_buffer;
+    String *write_buffer;
 
 #ifdef SW_HAVE_COMPRESSION
     int8_t compression_level;

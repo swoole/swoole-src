@@ -106,12 +106,23 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
     do {
         zval *zserver = ctx->request.zserver;
         Connection *serv_sock = serv->get_connection(conn->server_fd);
+
+        zval tmp;
+        HashTable *ht = Z_ARR_P(zserver);
+
         if (serv_sock) {
-            add_assoc_long(zserver, "server_port", serv_sock->info.get_port());
+            ZVAL_LONG(&tmp, serv_sock->info.get_port());
+            zend_hash_str_add(ht, ZEND_STRL("server_port"), &tmp);
         }
-        add_assoc_long(zserver, "remote_port", conn->info.get_port());
-        add_assoc_string(zserver, "remote_addr", (char *) conn->info.get_ip());
-        add_assoc_long(zserver, "master_time", (int) conn->last_recv_time);
+
+        ZVAL_LONG(&tmp, conn->info.get_port());
+        zend_hash_str_add(ht, ZEND_STRL("remote_port"), &tmp);
+
+        ZVAL_STRING(&tmp, (char *) conn->info.get_ip());
+        zend_hash_str_add(ht, ZEND_STRL("remote_addr"), &tmp);
+
+        ZVAL_LONG(&tmp, (int) conn->last_recv_time);
+        zend_hash_str_add(ht, ZEND_STRL("master_time"), &tmp);
     } while (0);
 
     if (swoole_isset_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_BEFORE_REQUEST)) {
@@ -179,9 +190,6 @@ HttpContext *swoole_http_context_new(SessionId fd) {
     ctx->response.zobject = zresponse_object;
     object_init_ex(zresponse_object, swoole_http_response_ce);
     php_swoole_http_response_set_context(zresponse_object, ctx);
-
-    zend_update_property_long(swoole_http_request_ce, SW_Z8_OBJ_P(zrequest_object), ZEND_STRL("fd"), fd);
-    zend_update_property_long(swoole_http_response_ce, SW_Z8_OBJ_P(zresponse_object), ZEND_STRL("fd"), fd);
 
     swoole_http_init_and_read_property(
         swoole_http_request_ce, zrequest_object, &ctx->request.zserver, ZEND_STRL("server"));
@@ -290,6 +298,9 @@ void HttpContext::free() {
     if (form_data_buffer) {
         delete form_data_buffer;
         form_data_buffer = nullptr;
+    }
+    if (write_buffer) {
+        delete write_buffer;
     }
     delete this;
 }

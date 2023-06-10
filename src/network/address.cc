@@ -19,16 +19,20 @@
 namespace swoole {
 namespace network {
 
-static thread_local char tmp_address[INET6_ADDRSTRLEN];
-
 const char *Address::get_addr() {
+    if (init_address) {
+        return address;
+    }
+
     if (type == SW_SOCK_TCP || type == SW_SOCK_UDP) {
-        if (inet_ntop(AF_INET, &addr.inet_v4.sin_addr, tmp_address, sizeof(tmp_address))) {
-            return tmp_address;
+        if (inet_ntop(AF_INET, &addr.inet_v4.sin_addr, address, sizeof(address))) {
+            init_address = true;
+            return address;
         }
     } else if (type == SW_SOCK_TCP6 || type == SW_SOCK_UDP6) {
-        if (inet_ntop(AF_INET6, &addr.inet_v6.sin6_addr, tmp_address, sizeof(tmp_address))) {
-            return tmp_address;
+        if (inet_ntop(AF_INET6, &addr.inet_v6.sin6_addr, address, sizeof(address))) {
+            init_address = true;
+            return address;
         }
     } else if (type == SW_SOCK_UNIX_STREAM || type == SW_SOCK_UNIX_DGRAM) {
         return addr.un.sun_path;
@@ -37,10 +41,18 @@ const char *Address::get_addr() {
 }
 
 int Address::get_port() {
+    if (init_port) {
+        return port;
+    }
+
     if (type == SW_SOCK_TCP || type == SW_SOCK_UDP) {
-        return ntohs(addr.inet_v4.sin_port);
+        init_port = true;
+        port = ntohs(addr.inet_v4.sin_port);
+        return port;
     } else if (type == SW_SOCK_TCP6 || type == SW_SOCK_UDP6) {
-        return ntohs(addr.inet_v6.sin6_port);
+        init_port = true;
+        port = ntohs(addr.inet_v6.sin6_port);
+        return port;
     } else {
         return 0;
     }

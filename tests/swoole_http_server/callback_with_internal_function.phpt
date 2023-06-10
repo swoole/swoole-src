@@ -71,7 +71,7 @@ object(Swoole\Http\Request)#%d (%d) {
   NULL
   ["post"]=>
   NULL
-  ["tmpfiles"]=>
+  ["tmpfiles":"Swoole\Http\Request":private]=>
   NULL
 }
 object(Swoole\Http\Response)#%d (%d) {
@@ -79,10 +79,10 @@ object(Swoole\Http\Response)#%d (%d) {
   int(1)
   ["socket"]=>
   NULL
-  ["header"]=>
+  ["header":"Swoole\Http\Response":private]=>
   NULL
-  ["cookie"]=>
+  ["cookie":"Swoole\Http\Response":private]=>
   NULL
-  ["trailer"]=>
+  ["trailer":"Swoole\Http\Response":private]=>
   NULL
 }
