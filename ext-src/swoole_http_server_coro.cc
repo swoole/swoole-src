@@ -695,10 +695,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
         zval_dtor(ctx->request.zobject);
         zval_dtor(ctx->response.zobject);
     }
-    /* notice: do not erase the element when server is shutting down */
-    if (hs->running) {
-        hs->clients.erase(client_iterator);
-    }
+    hs->clients.erase(client_iterator);
 }
 
 static PHP_METHOD(swoole_http_server_coro, shutdown) {
@@ -711,7 +708,6 @@ static PHP_METHOD(swoole_http_server_coro, shutdown) {
             client->cancel(SW_EVENT_READ);
         }
     }
-    hs->clients.clear();
 }
 
 static void http2_server_onRequest(Http2Session *session, Http2Stream *stream) {
