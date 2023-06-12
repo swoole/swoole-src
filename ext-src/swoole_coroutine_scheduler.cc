@@ -192,9 +192,6 @@ PHP_METHOD(swoole_coroutine_scheduler, set) {
     if (php_swoole_array_get_value(vht, "dns_cache_capacity", ztmp)) {
         System::set_dns_cache_capacity((size_t) zval_get_long(ztmp));
     }
-    if (php_swoole_array_get_value(vht, "max_concurrency", ztmp)) {
-        PHPCoroutine::set_max_concurrency((uint32_t) SW_MAX(1, zval_get_long(ztmp)));
-    }
     /* Reactor can exit */
     if ((ztmp = zend_hash_str_find(vht, ZEND_STRL("exit_condition")))) {
         char *func_name;

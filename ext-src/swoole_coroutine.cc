@@ -51,12 +51,10 @@ using swoole::coroutine::System;
 enum sw_exit_flags { SW_EXIT_IN_COROUTINE = 1 << 1, SW_EXIT_IN_SERVER = 1 << 2 };
 
 bool PHPCoroutine::activated = false;
-uint32_t PHPCoroutine::concurrency = 0;
 zend_array *PHPCoroutine::options = nullptr;
 
 PHPCoroutine::Config PHPCoroutine::config{
     SW_DEFAULT_MAX_CORO_NUM,
-    UINT_MAX,
     0,
     false,
     true,
@@ -579,10 +577,6 @@ void PHPCoroutine::on_close(void *arg) {
         (*task->on_close)(task);
     }
 
-    if (task->pcid == -1) {
-        concurrency--;
-    }
-
 #ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
     fiber_context_switch_try_notify(task, origin_task);
     fiber_context_try_destroy(task);
@@ -690,26 +684,6 @@ void PHPCoroutine::main_func(void *arg) {
                          task->co->get_origin_cid(),
                          (uintmax_t) Coroutine::count(),
                          (uintmax_t) zend_memory_usage(0));
-
-        if (task->pcid == -1) {
-            // wait until concurrency slots are available
-            while (concurrency > config.max_concurrency - 1) {
-                swoole_trace_log(SW_TRACE_COROUTINE,
-                                 "php_coro cid=%ld waiting for concurrency slots: max: %d, used: %d",
-                                 task->co->get_cid(),
-                                 config.max_concurrency,
-                                 concurrency);
-
-                swoole_event_defer(
-                    [](void *data) {
-                        Coroutine *co = (Coroutine *) data;
-                        co->resume();
-                    },
-                    (void *) task->co);
-                task->co->yield();
-            }
-            concurrency++;
-        }
 
         if (swoole_isset_hook(SW_GLOBAL_HOOK_ON_CORO_START)) {
             swoole_call_hook(SW_GLOBAL_HOOK_ON_CORO_START, task);

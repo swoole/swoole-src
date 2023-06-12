@@ -97,7 +97,6 @@ class PHPCoroutine {
 
     struct Config {
         uint64_t max_num;
-        uint32_t max_concurrency;
         uint32_t hook_flags;
         bool enable_preemptive_scheduler;
         bool enable_deadlock_check;
@@ -216,10 +215,6 @@ class PHPCoroutine {
         config.enable_preemptive_scheduler = value;
     }
 
-    static inline void set_max_concurrency(uint32_t value) {
-        config.max_concurrency = value;
-    }
-
     static inline bool is_activated() {
         return activated;
     }
@@ -240,7 +235,6 @@ class PHPCoroutine {
     static bool activated;
     static PHPContext main_task;
     static Config config;
-    static uint32_t concurrency;
 
     static bool interrupt_thread_running;
     static std::thread interrupt_thread;
