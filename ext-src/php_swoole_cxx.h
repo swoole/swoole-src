@@ -557,5 +557,9 @@ static inline void array_add(zval *arg, zval *zvalue) {
     add_next_index_zval(arg, zvalue);
 }
 
+static inline void array_unset(zval *arg, const char *key, size_t l_key) {
+    zend_hash_str_del(Z_ARRVAL_P(arg), key, l_key);
+}
+
 //-----------------------------------namespace end--------------------------------------------
 }  // namespace zend

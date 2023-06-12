@@ -58,7 +58,7 @@ class HttpServer {
     std::unordered_map<std::string, zend_fcall_info_cache> handlers;
     zval zcallbacks;
     bool running;
-    std::list<Socket *> clients;
+    zval zclients;
 
     /* options */
     bool parse_cookie;
@@ -81,6 +81,7 @@ class HttpServer {
         socket = new Socket(type);
         default_handler = nullptr;
         array_init(&zcallbacks);
+        array_init(&zclients);
         running = true;
 
         parse_cookie = true;
@@ -200,14 +201,12 @@ static PHP_METHOD(swoole_http_server_coro, handle);
 static PHP_METHOD(swoole_http_server_coro, start);
 static PHP_METHOD(swoole_http_server_coro, shutdown);
 static PHP_METHOD(swoole_http_server_coro, onAccept);
-static PHP_METHOD(swoole_http_server_coro, __destruct);
 SW_EXTERN_C_END
 
 // clang-format off
 static const zend_function_entry swoole_http_server_coro_methods[] =
 {
     PHP_ME(swoole_http_server_coro, __construct, arginfo_class_Swoole_Coroutine_Http_Server___construct, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_server_coro, __destruct,  arginfo_class_Swoole_Coroutine_Http_Server___destruct,  ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_server_coro, set,         arginfo_class_Swoole_Coroutine_Http_Server_set,         ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_server_coro, handle,      arginfo_class_Swoole_Coroutine_Http_Server_handle,      ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_server_coro, onAccept,    arginfo_class_Swoole_Coroutine_Http_Server_onAccept,    ZEND_ACC_PRIVATE)
@@ -258,6 +257,7 @@ static void php_swoole_http_server_coro_free_object(zend_object *object) {
     if (hsc->server) {
         HttpServer *hs = hsc->server;
         zval_ptr_dtor(&hs->zcallbacks);
+        zval_ptr_dtor(&hs->zclients);
         delete hs;
     }
     zend_object_std_dtor(&hsc->std);
@@ -542,8 +542,6 @@ static PHP_METHOD(swoole_http_server_coro, start) {
     RETURN_TRUE;
 }
 
-static PHP_METHOD(swoole_http_server_coro, __destruct) {}
-
 static PHP_METHOD(swoole_http_server_coro, onAccept) {
     HttpServer *hs = http_server_get_object(Z_OBJ_P(ZEND_THIS));
     zval *zconn;
@@ -552,6 +550,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
     Z_PARAM_OBJECT(zconn)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
+    Coroutine *co = Coroutine::get_current();
     Socket *sock = php_swoole_get_socket(zconn);
     sock->set_buffer_allocator(sw_zend_string_allocator());
     String *buffer = sock->get_read_buffer();
@@ -560,8 +559,8 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
     off_t header_crlf_offset = 0;
     size_t total_length;
 
-    hs->clients.push_front(sock);
-    auto client_iterator = hs->clients.begin();
+    std::string cid_str = std::to_string(co->get_cid());
+    zend::array_set(&hs->zclients, cid_str.c_str(), cid_str.length(), zconn);
 
 #ifdef SW_USE_OPENSSL
     if (sock->ssl_is_enable() && !sock->ssl_handshake()) {
@@ -695,19 +694,22 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
         zval_dtor(ctx->request.zobject);
         zval_dtor(ctx->response.zobject);
     }
-    hs->clients.erase(client_iterator);
+    zend::array_unset(&hs->zclients, cid_str.c_str(), cid_str.length());
 }
 
 static PHP_METHOD(swoole_http_server_coro, shutdown) {
     HttpServer *hs = http_server_get_object(Z_OBJ_P(ZEND_THIS));
     hs->running = false;
     hs->socket->cancel(SW_EVENT_READ);
-    /* accept has been canceled, we only need to traverse once */
-    for (auto client : hs->clients) {
-        if (client->get_socket()->recv_wait) {
-            client->cancel(SW_EVENT_READ);
+    zend_hash_apply(Z_ARRVAL_P(&hs->zclients), [](zval *zconn) -> int {
+        Socket *sock = php_swoole_get_socket(zconn);
+        if (sock->get_socket()->recv_wait) {
+            sock->cancel(SW_EVENT_READ);
+            return ZEND_HASH_APPLY_REMOVE;
+        } else {
+            return ZEND_HASH_APPLY_KEEP;
         }
-    }
+    });
 }
 
 static void http2_server_onRequest(Http2Session *session, Http2Stream *stream) {
