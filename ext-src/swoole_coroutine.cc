@@ -62,6 +62,7 @@ zend_array *PHPCoroutine::options = nullptr;
 
 PHPCoroutine::Config PHPCoroutine::config{
     SW_DEFAULT_MAX_CORO_NUM,
+    0,
     false,
     true,
 };
