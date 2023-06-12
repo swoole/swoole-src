@@ -248,8 +248,8 @@ class PHPCoroutine {
     static void restore_vm_stack(PHPContext *ctx);
     static void save_og(PHPContext *ctx);
     static void restore_og(PHPContext *ctx);
-    static void save_task(PHPContext *ctx);
-    static void restore_task(PHPContext *ctx);
+    static void save_context(PHPContext *ctx);
+    static void restore_context(PHPContext *ctx);
     static bool catch_exception();
     static void bailout();
     static void on_yield(void *arg);

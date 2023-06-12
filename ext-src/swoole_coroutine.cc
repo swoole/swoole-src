@@ -498,12 +498,12 @@ void PHPCoroutine::set_hook_flags(uint32_t flags) {
     config.hook_flags = flags;
 }
 
-void PHPCoroutine::save_task(PHPContext *ctx) {
+void PHPCoroutine::save_context(PHPContext *ctx) {
     save_vm_stack(ctx);
     save_og(ctx);
 }
 
-void PHPCoroutine::restore_task(PHPContext *ctx) {
+void PHPCoroutine::restore_context(PHPContext *ctx) {
     restore_vm_stack(ctx);
     restore_og(ctx);
 }
@@ -515,8 +515,8 @@ void PHPCoroutine::on_yield(void *arg) {
 #ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
     fiber_context_switch_try_notify(ctx, origin_ctx);
 #endif
-    save_task(ctx);
-    restore_task(origin_ctx);
+    save_context(ctx);
+    restore_context(origin_ctx);
 
     if (ctx->on_yield) {
         (*ctx->on_yield)(ctx);
@@ -532,8 +532,8 @@ void PHPCoroutine::on_resume(void *arg) {
 #ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
     fiber_context_switch_try_notify(current_ctx, ctx);
 #endif
-    save_task(current_ctx);
-    restore_task(ctx);
+    save_context(current_ctx);
+    restore_context(ctx);
     record_last_msec(ctx);
 
     if (ctx->on_resume) {
@@ -583,7 +583,7 @@ void PHPCoroutine::on_close(void *arg) {
 #endif
 
     vm_stack_destroy();
-    restore_task(origin_ctx);
+    restore_context(origin_ctx);
 
     swoole_trace_log(SW_TRACE_COROUTINE,
                      "coro close cid=%ld and resume to %ld, %zu remained. usage size: %zu. malloc size: %zu",
@@ -775,7 +775,7 @@ long PHPCoroutine::create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval 
     _args.fci_cache = fci_cache;
     _args.argv = argv;
     _args.argc = argc;
-    save_task(get_context());
+    save_context(get_context());
 
     return Coroutine::create(main_func, (void *) &_args);
 }
@@ -790,8 +790,7 @@ void PHPCoroutine::defer(zend::Function *fci) {
 
 #ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
 
-void PHPCoroutine::fiber_context_init(PHPContext *ctx)
-{
+void PHPCoroutine::fiber_context_init(PHPContext *ctx) {
     zend_fiber_context *fiber_context = (zend_fiber_context *) emalloc(sizeof(*fiber_context));
     fiber_context->handle = (void *) -1;
     fiber_context->kind = (void *) -1;
@@ -802,16 +801,14 @@ void PHPCoroutine::fiber_context_init(PHPContext *ctx)
     zend_observer_fiber_init_notify(fiber_context);
 }
 
-void PHPCoroutine::fiber_context_try_init(PHPContext *ctx)
-{
+void PHPCoroutine::fiber_context_try_init(PHPContext *ctx) {
     if (EXPECTED(!SWOOLE_G(has_debug_extension))) {
         return;
     }
     fiber_context_init(ctx);
 }
 
-void PHPCoroutine::fiber_context_destroy(PHPContext *ctx)
-{
+void PHPCoroutine::fiber_context_destroy(PHPContext *ctx) {
     zend_observer_fiber_destroy_notify(ctx->fiber_context);
 
     if (ctx->fiber_context != NULL) {
@@ -819,8 +816,7 @@ void PHPCoroutine::fiber_context_destroy(PHPContext *ctx)
     }
 }
 
-void PHPCoroutine::fiber_context_try_destroy(PHPContext *ctx)
-{
+void PHPCoroutine::fiber_context_try_destroy(PHPContext *ctx) {
     if (EXPECTED(!SWOOLE_G(has_debug_extension))) {
         return;
     }
@@ -829,17 +825,17 @@ void PHPCoroutine::fiber_context_try_destroy(PHPContext *ctx)
 
 zend_fiber_status PHPCoroutine::get_fiber_status(PHPContext *ctx) {
     switch (ctx->co->get_state()) {
-        case Coroutine::STATE_INIT:
-            return ZEND_FIBER_STATUS_INIT;
-        case Coroutine::STATE_WAITING:
-            return ZEND_FIBER_STATUS_SUSPENDED;
-        case Coroutine::STATE_RUNNING:
-            return ZEND_FIBER_STATUS_RUNNING;
-        case Coroutine::STATE_END:
-            return ZEND_FIBER_STATUS_DEAD;
-        default:
-            php_swoole_fatal_error(E_ERROR, "Unexpected state when get fiber status");
-            return ZEND_FIBER_STATUS_DEAD;
+    case Coroutine::STATE_INIT:
+        return ZEND_FIBER_STATUS_INIT;
+    case Coroutine::STATE_WAITING:
+        return ZEND_FIBER_STATUS_SUSPENDED;
+    case Coroutine::STATE_RUNNING:
+        return ZEND_FIBER_STATUS_RUNNING;
+    case Coroutine::STATE_END:
+        return ZEND_FIBER_STATUS_DEAD;
+    default:
+        php_swoole_fatal_error(E_ERROR, "Unexpected state when get fiber status");
+        return ZEND_FIBER_STATUS_DEAD;
     }
 }
 
@@ -860,8 +856,7 @@ void PHPCoroutine::fiber_context_switch_notify(PHPContext *from, PHPContext *to)
     }
 }
 
-void PHPCoroutine::fiber_context_switch_try_notify(PHPContext *from, PHPContext *to)
-{
+void PHPCoroutine::fiber_context_switch_try_notify(PHPContext *from, PHPContext *to) {
     if (EXPECTED(!SWOOLE_G(has_debug_extension))) {
         return;
     }

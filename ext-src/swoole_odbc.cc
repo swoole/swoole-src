@@ -17,6 +17,7 @@
  */
 
 #include "php_swoole_odbc.h"
+#include "php_swoole_cxx.h"
 #include "php_swoole_private.h"
 #include "swoole_coroutine_system.h"
 
@@ -33,15 +34,6 @@ void swoole_odbc_set_blocking(bool blocking) {
     swoole_odbc_blocking = blocking;
 }
 
-static bool async(const std::function<void(void)> &fn) {
-    if (swoole_odbc_blocking) {
-        fn();
-        return true;
-    } else {
-        return swoole::coroutine::async(fn);
-    }
-}
-
 RETCODE swoole_odbc_SQLConnect(SQLHDBC ConnectionHandle,
                                SQLCHAR *ServerName,
                                SQLSMALLINT NameLength1,
@@ -51,7 +43,7 @@ RETCODE swoole_odbc_SQLConnect(SQLHDBC ConnectionHandle,
                                SQLSMALLINT NameLength3) {
     RETCODE rc;
     swoole_trace_log(SW_TRACE_CO_ODBC, "SQLConnect(server=%s)", ServerName);
-    async([&]() {
+    php_swoole_async(swoole_odbc_blocking, [&]() {
         rc = SQLConnect(ConnectionHandle, ServerName, NameLength1, UserName, NameLength2, Authentication, NameLength3);
     });
     return rc;
@@ -67,7 +59,7 @@ SQLRETURN SQL_API swoole_odbc_SQLDriverConnect(SQLHDBC hdbc,
                                                SQLUSMALLINT fDriverCompletion) {
     RETCODE rc;
     swoole_trace_log(SW_TRACE_CO_ODBC, "SQLDriverConnect");
-    async([&]() {
+    php_swoole_async(swoole_odbc_blocking, [&]() {
         rc = SQLDriverConnect(
             hdbc, hwnd, szConnStrIn, cbConnStrIn, szConnStrOut, cbConnStrOutMax, pcbConnStrOut, fDriverCompletion);
     });
@@ -77,7 +69,7 @@ SQLRETURN SQL_API swoole_odbc_SQLDriverConnect(SQLHDBC hdbc,
 SQLRETURN SQL_API swoole_odbc_SQLExecDirect(SQLHSTMT StatementHandle, SQLCHAR *StatementText, SQLINTEGER TextLength) {
     RETCODE rc;
     swoole_trace_log(SW_TRACE_CO_ODBC, "SQLExecDirect");
-    async([&]() { rc = SQLExecDirect(StatementHandle, StatementText, TextLength); });
+    php_swoole_async(swoole_odbc_blocking, [&]() { rc = SQLExecDirect(StatementHandle, StatementText, TextLength); });
     return rc;
 }
 
@@ -109,14 +101,14 @@ SQLRETURN SQL_API swoole_odbc_SQLGetDiagRec(SQLSMALLINT HandleType,
 SQLRETURN SQL_API swoole_odbc_SQLPrepare(SQLHSTMT StatementHandle, SQLCHAR *StatementText, SQLINTEGER TextLength) {
     RETCODE rc;
     swoole_trace_log(SW_TRACE_CO_ODBC, "SQLPrepare(StatementText=%s)", StatementText);
-    async([&]() { rc = SQLPrepare(StatementHandle, StatementText, TextLength); });
+    php_swoole_async(swoole_odbc_blocking, [&]() { rc = SQLPrepare(StatementHandle, StatementText, TextLength); });
     return rc;
 }
 
 SQLRETURN SQL_API swoole_odbc_SQLExecute(SQLHSTMT StatementHandle) {
     RETCODE rc;
     swoole_trace_log(SW_TRACE_CO_ODBC, "SQLExecute");
-    async([&]() { rc = SQLExecute(StatementHandle); });
+    php_swoole_async(swoole_odbc_blocking, [&]() { rc = SQLExecute(StatementHandle); });
     return rc;
 }
 
@@ -130,7 +122,7 @@ SQLRETURN SQL_API swoole_odbc_SQLCloseCursor(SQLHSTMT StatementHandle) {
 SQLRETURN SQL_API swoole_odbc_SQLPutData(SQLHSTMT StatementHandle, SQLPOINTER Data, SQLLEN StrLen_or_Ind) {
     RETCODE rc;
     swoole_trace_log(SW_TRACE_CO_ODBC, "SQLPutData");
-    async([&]() { rc = SQLPutData(StatementHandle, Data, StrLen_or_Ind); });
+    php_swoole_async(swoole_odbc_blocking, [&]() { rc = SQLPutData(StatementHandle, Data, StrLen_or_Ind); });
     return rc;
 }
 
@@ -142,7 +134,7 @@ SQLRETURN SQL_API swoole_odbc_SQLGetData(SQLHSTMT StatementHandle,
                                          SQLLEN *StrLen_or_Ind) {
     RETCODE rc;
     swoole_trace_log(SW_TRACE_CO_ODBC, "SQLPutData");
-    async([&]() {
+    php_swoole_async(swoole_odbc_blocking, [&]() {
         rc = SQLGetData(StatementHandle, ColumnNumber, TargetType, TargetValue, BufferLength, StrLen_or_Ind);
     });
     return rc;
@@ -151,7 +143,7 @@ SQLRETURN SQL_API swoole_odbc_SQLGetData(SQLHSTMT StatementHandle,
 SQLRETURN SQL_API swoole_odbc_SQLMoreResults(SQLHSTMT hstmt) {
     RETCODE rc;
     swoole_trace_log(SW_TRACE_CO_ODBC, "SQLMoreResults");
-    async([&]() { rc = SQLMoreResults(hstmt); });
+    php_swoole_async(swoole_odbc_blocking, [&]() { rc = SQLMoreResults(hstmt); });
     return rc;
 }
 
@@ -166,7 +158,7 @@ SQLRETURN SQL_API swoole_odbc_SQLDescribeCol(SQLHSTMT StatementHandle,
                                              SQLSMALLINT *Nullable) {
     RETCODE rc;
     swoole_trace_log(SW_TRACE_CO_ODBC, "SQLMoreResults");
-    async([&]() {
+    php_swoole_async(swoole_odbc_blocking, [&]() {
         rc = SQLDescribeCol(StatementHandle,
                             ColumnNumber,
                             ColumnName,
@@ -197,14 +189,14 @@ SQLRETURN SQL_API swoole_odbc_SQLFreeHandle(SQLSMALLINT HandleType, SQLHANDLE Ha
 SQLRETURN SQL_API swoole_odbc_SQLEndTran(SQLSMALLINT HandleType, SQLHANDLE Handle, SQLSMALLINT CompletionType) {
     RETCODE rc;
     swoole_trace_log(SW_TRACE_CO_ODBC, "SQLEndTran(CompletionType=%d)", CompletionType);
-    async([&]() { rc = SQLEndTran(HandleType, Handle, CompletionType); });
+    php_swoole_async(swoole_odbc_blocking, [&]() { rc = SQLEndTran(HandleType, Handle, CompletionType); });
     return rc;
 }
 
 SQLRETURN SQL_API swoole_odbc_SQLDisconnect(SQLHDBC ConnectionHandle) {
     RETCODE rc;
     swoole_trace_log(SW_TRACE_CO_ODBC, "SQLDisconnect");
-    async([&]() { rc = SQLDisconnect(ConnectionHandle); });
+    php_swoole_async(swoole_odbc_blocking, [&]() { rc = SQLDisconnect(ConnectionHandle); });
     return rc;
 }
 
