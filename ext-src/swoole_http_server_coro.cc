@@ -559,14 +559,14 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
     off_t header_crlf_offset = 0;
     size_t total_length;
 
-    std::string cid_str = std::to_string(co->get_cid());
-    zend::array_set(&hs->zclients, cid_str.c_str(), cid_str.length(), zconn);
-
 #ifdef SW_USE_OPENSSL
     if (sock->ssl_is_enable() && !sock->ssl_handshake()) {
         RETURN_FALSE;
     }
 #endif
+
+    std::string cid_str = std::to_string(co->get_cid());
+    zend::array_set(&hs->zclients, cid_str.c_str(), cid_str.length(), zconn);
 
     while (true) {
     _recv_request : {
