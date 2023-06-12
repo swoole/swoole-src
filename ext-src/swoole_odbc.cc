@@ -17,6 +17,7 @@
  */
 
 #include "php_swoole_odbc.h"
+#include "php_swoole_cxx.h"
 #include "php_swoole_private.h"
 #include "php_swoole_cxx.h"
 #include "swoole_coroutine_system.h"

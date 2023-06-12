@@ -169,11 +169,11 @@ const swoole::Allocator *sw_php_allocator();
 const swoole::Allocator *sw_zend_string_allocator();
 
 static inline bool php_swoole_async(bool blocking, const std::function<void(void)> &fn) {
-    if (blocking) {
+    if (!blocking && swoole_coroutine_is_in()) {
+        return swoole::coroutine::async(fn);
+    } else {
         fn();
         return true;
-    } else {
-        return swoole::coroutine::async(fn);
     }
 }
 
