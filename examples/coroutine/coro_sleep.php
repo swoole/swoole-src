@@ -7,3 +7,4 @@ co::create(function () {
     echo "OK\n";
 });
 echo "11\n";
+Swoole\Event::wait();

@@ -21,7 +21,7 @@ $pm->parentFunc = function () use ($pm) {
         }
 
         $pm->kill();
-        usleep(10000);
+        usleep(100000);
 
         Assert::assert(!$cli->get('/'));
         Assert::same($cli->errCode, SOCKET_ECONNREFUSED);
@@ -39,7 +39,8 @@ $pm->childFunc = function () use ($pm) {
     $server = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $server->set([
         'worker_num' => 1,
-        'log_file' => '/dev/null'
+        'log_file' => '/dev/null',
+        'enable_coroutine' => false,
     ]);
     $server->on('workerStart', function () use ($pm) {
         $pm->wakeup();
