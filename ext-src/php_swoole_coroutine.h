@@ -149,8 +149,8 @@ class PHPCoroutine {
     }
 
     static inline long get_pcid(long cid = 0) {
-        PHPContext *task = cid == 0 ? get_context() : get_context_by_cid(cid);
-        return sw_likely(task) ? task->pcid : 0;
+        PHPContext *ctx = cid == 0 ? get_context() : get_context_by_cid(cid);
+        return sw_likely(ctx) ? ctx->pcid : 0;
     }
 
     static inline long get_elapsed(long cid = 0) {
@@ -158,17 +158,17 @@ class PHPCoroutine {
     }
 
     static inline PHPContext *get_context() {
-        PHPContext *task = (PHPContext *) Coroutine::get_current_task();
-        return task ? task : &main_task;
+        PHPContext *ctx = (PHPContext *) Coroutine::get_current_task();
+        return ctx ? ctx : &main_context;
     }
 
     static inline PHPContext *get_origin_context(PHPContext *task) {
         Coroutine *co = task->co->get_origin();
-        return co ? (PHPContext *) co->get_task() : &main_task;
+        return co ? (PHPContext *) co->get_task() : &main_context;
     }
 
     static inline PHPContext *get_context_by_cid(long cid) {
-        return cid == -1 ? &main_task : (PHPContext *) Coroutine::get_task_by_cid(cid);
+        return cid == -1 ? &main_context : (PHPContext *) Coroutine::get_task_by_cid(cid);
     }
 
     static inline uint64_t get_max_num() {
@@ -223,17 +223,17 @@ class PHPCoroutine {
         return sw_likely(activated) ? Coroutine::get_execute_time(cid) : -1;
     }
 
-    static inline void init_main_task() {
-        main_task.co = Coroutine::init_main_coroutine();
+    static inline void init_main_context() {
+        main_context.co = Coroutine::init_main_coroutine();
 #ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
-        main_task.fiber_context = EG(main_fiber_context);
-        main_task.fiber_init_notified = true;
+        main_context.fiber_context = EG(main_fiber_context);
+        main_context.fiber_init_notified = true;
 #endif
     }
 
   protected:
     static bool activated;
-    static PHPContext main_task;
+    static PHPContext main_context;
     static Config config;
 
     static bool interrupt_thread_running;
@@ -244,12 +244,12 @@ class PHPCoroutine {
 
     static void vm_stack_init(void);
     static void vm_stack_destroy(void);
-    static void save_vm_stack(PHPContext *task);
-    static void restore_vm_stack(PHPContext *task);
-    static void save_og(PHPContext *task);
-    static void restore_og(PHPContext *task);
-    static void save_task(PHPContext *task);
-    static void restore_task(PHPContext *task);
+    static void save_vm_stack(PHPContext *ctx);
+    static void restore_vm_stack(PHPContext *ctx);
+    static void save_og(PHPContext *ctx);
+    static void restore_og(PHPContext *ctx);
+    static void save_task(PHPContext *ctx);
+    static void restore_task(PHPContext *ctx);
     static bool catch_exception();
     static void bailout();
     static void on_yield(void *arg);
@@ -257,18 +257,18 @@ class PHPCoroutine {
     static void on_close(void *arg);
     static void main_func(void *arg);
 #ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
-    static zend_fiber_status get_fiber_status(PHPContext *task);
-    static void fiber_context_init(PHPContext *task);
-    static void fiber_context_try_init(PHPContext *task);
-    static void fiber_context_destroy(PHPContext *task);
-    static void fiber_context_try_destroy(PHPContext *task);
+    static zend_fiber_status get_fiber_status(PHPContext *ctx);
+    static void fiber_context_init(PHPContext *ctx);
+    static void fiber_context_try_init(PHPContext *ctx);
+    static void fiber_context_destroy(PHPContext *ctx);
+    static void fiber_context_try_destroy(PHPContext *ctx);
     static void fiber_context_switch_notify(PHPContext *from, PHPContext *to);
     static void fiber_context_switch_try_notify(PHPContext *from, PHPContext *to);
 #endif
     static void interrupt_thread_start();
-    static void record_last_msec(PHPContext *task) {
+    static void record_last_msec(PHPContext *ctx) {
         if (interrupt_thread_running) {
-            task->last_msec = Timer::get_absolute_msec();
+            ctx->last_msec = Timer::get_absolute_msec();
         }
     }
 };
