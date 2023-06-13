@@ -74,6 +74,9 @@ struct PHPContext {
     int ori_error_reporting;
     int tmp_error_reporting;
     Coroutine *co;
+    zend_fcall_info fci;
+    zend_fcall_info_cache fci_cache;
+    zval return_value;
 #ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
     zend_fiber_context *fiber_context;
     bool fiber_init_notified;
@@ -93,6 +96,7 @@ class PHPCoroutine {
         zend_fcall_info_cache *fci_cache;
         zval *argv;
         uint32_t argc;
+        zval *callable;
     };
 
     struct Config {
@@ -133,9 +137,9 @@ class PHPCoroutine {
     };
 
     static const uint8_t MAX_EXEC_MSEC = 10;
-    static void init();
     static void shutdown();
-    static long create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv);
+    static long create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv, zval *callable);
+    static PHPContext *create_context(Args *args);
     static void defer(zend::Function *fci);
     static void deadlock_check();
     static bool enable_hook(uint32_t flags);
@@ -162,13 +166,33 @@ class PHPCoroutine {
         return ctx ? ctx : &main_context;
     }
 
-    static inline PHPContext *get_origin_context(PHPContext *task) {
-        Coroutine *co = task->co->get_origin();
+    static inline PHPContext *get_origin_context(PHPContext *ctx) {
+        Coroutine *co = ctx->co->get_origin();
         return co ? (PHPContext *) co->get_task() : &main_context;
     }
 
     static inline PHPContext *get_context_by_cid(long cid) {
         return cid == -1 ? &main_context : (PHPContext *) Coroutine::get_task_by_cid(cid);
+    }
+
+    static inline ssize_t get_stack_usage(long cid) {
+        zend_long current_cid = PHPCoroutine::get_cid();
+        if (cid == 0) {
+            cid = current_cid;
+        }
+        PHPContext *ctx = (PHPContext *) PHPCoroutine::get_context_by_cid(cid);
+        if (UNEXPECTED(!ctx)) {
+            swoole_set_last_error(SW_ERROR_CO_NOT_EXISTS);
+            return -1;
+        }
+        zend_vm_stack stack = cid == current_cid ? EG(vm_stack) : ctx->vm_stack;
+        size_t usage = 0;
+
+        while (stack) {
+            usage += (stack->end - stack->top) * sizeof(zval);
+            stack = stack->prev;
+        }
+        return usage;
     }
 
     static inline uint64_t get_max_num() {
@@ -183,23 +207,23 @@ class PHPCoroutine {
         config.enable_deadlock_check = value;
     }
 
-    static inline bool is_schedulable(PHPContext *task) {
-        return task->enable_scheduler && (Timer::get_absolute_msec() - task->last_msec > MAX_EXEC_MSEC);
+    static inline bool is_schedulable(PHPContext *ctx) {
+        return ctx->enable_scheduler && (Timer::get_absolute_msec() - ctx->last_msec > MAX_EXEC_MSEC);
     }
 
     static inline bool enable_scheduler() {
-        PHPContext *task = (PHPContext *) Coroutine::get_current_task();
-        if (task && !task->enable_scheduler) {
-            task->enable_scheduler = true;
+        PHPContext *ctx = (PHPContext *) Coroutine::get_current_task();
+        if (ctx && !ctx->enable_scheduler) {
+            ctx->enable_scheduler = true;
             return true;
         }
         return false;
     }
 
     static inline bool disable_scheduler() {
-        PHPContext *task = (PHPContext *) Coroutine::get_current_task();
-        if (task && task->enable_scheduler) {
-            task->enable_scheduler = false;
+        PHPContext *ctx = (PHPContext *) Coroutine::get_current_task();
+        if (ctx && ctx->enable_scheduler) {
+            ctx->enable_scheduler = false;
             return true;
         }
         return false;
@@ -229,6 +253,7 @@ class PHPCoroutine {
         main_context.fiber_context = EG(main_fiber_context);
         main_context.fiber_init_notified = true;
 #endif
+        save_context(&main_context);
     }
 
   protected:
@@ -242,14 +267,13 @@ class PHPCoroutine {
     static void activate();
     static void deactivate(void *ptr);
 
-    static void vm_stack_init(void);
-    static void vm_stack_destroy(void);
     static void save_vm_stack(PHPContext *ctx);
     static void restore_vm_stack(PHPContext *ctx);
     static void save_og(PHPContext *ctx);
     static void restore_og(PHPContext *ctx);
     static void save_context(PHPContext *ctx);
     static void restore_context(PHPContext *ctx);
+    static void destroy_context(PHPContext *ctx);
     static bool catch_exception();
     static void bailout();
     static void on_yield(void *arg);

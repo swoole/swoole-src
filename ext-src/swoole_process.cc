@@ -970,6 +970,10 @@ static PHP_METHOD(swoole_process, exit) {
         ret_code = 1;
     }
 
+    if (swoole_event_is_available()) {
+        swoole_event_free();
+    }
+
     exit(ret_code);
 }
 

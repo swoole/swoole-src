@@ -315,7 +315,7 @@ static PHP_METHOD(swoole_coroutine_scheduler, start) {
         SchedulerTask *task = s->list->front();
         s->list->pop();
         for (zend_long i = 0; i < task->count; i++) {
-            PHPCoroutine::create(&task->fci_cache, task->fci.param_count, task->fci.params);
+            PHPCoroutine::create(&task->fci_cache, task->fci.param_count, task->fci.params, &task->fci.function_name);
         }
         sw_zend_fci_cache_discard(&task->fci_cache);
         sw_zend_fci_params_discard(&task->fci);

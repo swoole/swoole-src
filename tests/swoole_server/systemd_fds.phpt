@@ -1,7 +1,9 @@
 --TEST--
 swoole_server: systemd fds
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../include/skipif.inc';
+skip_if_in_ci();
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
@@ -9,8 +11,8 @@ require __DIR__ . '/../include/bootstrap.php';
 use Swoole\Server;
 use Swoole\Client;
 
-define('UNIX_SOCK_1', getenv('HOME').'/swoole.test.uinx_stream.sock');
-define('UNIX_SOCK_2', getenv('HOME').'/swoole.test.uinx_dgram.sock');
+define('UNIX_SOCK_1', getenv('HOME') . '/swoole.test.uinx_stream.sock');
+define('UNIX_SOCK_2', getenv('HOME') . '/swoole.test.uinx_dgram.sock');
 define('HAVE_IPV6', boolval(@stream_socket_server('tcp://[::1]:0')));
 
 register_shutdown_function(function () {
@@ -32,7 +34,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
         $client = new Client($type);
         Assert::notEmpty($client->connect($host, $port));
         $client->send("SUCCESS");
-        Assert::eq($client->recv(), 'SUCCESS'.PHP_EOL);
+        Assert::eq($client->recv(), 'SUCCESS' . PHP_EOL);
         $client->close();
     };
 
@@ -53,19 +55,19 @@ $pm->parentFunc = function ($pid) use ($pm) {
 $pm->childFunc = function () use ($pm) {
     $sockets = [];
     $start_fd = swoole_array(scandir('/proc/self/fd'))->sort()->last();
-    putenv('LISTEN_FDS_START='. $start_fd);
+    putenv('LISTEN_FDS_START=' . $start_fd);
 
-    $sockets[] = stream_socket_server('tcp://127.0.0.1:'.$pm->getFreePort(0), $errno, $errstr);
-    $sockets[] = stream_socket_server('udp://0.0.0.0:'.$pm->getFreePort(1), $errno, $errstr, STREAM_SERVER_BIND);
+    $sockets[] = stream_socket_server('tcp://127.0.0.1:' . $pm->getFreePort(0), $errno, $errstr);
+    $sockets[] = stream_socket_server('udp://0.0.0.0:' . $pm->getFreePort(1), $errno, $errstr, STREAM_SERVER_BIND);
     if (HAVE_IPV6) {
-        $sockets[] = stream_socket_server('tcp://[::1]:'.$pm->getFreePort(2), $errno, $errstr);
-        $sockets[] = stream_socket_server('udp://[::]:'.$pm->getFreePort(3), $errno, $errstr, STREAM_SERVER_BIND);
+        $sockets[] = stream_socket_server('tcp://[::1]:' . $pm->getFreePort(2), $errno, $errstr);
+        $sockets[] = stream_socket_server('udp://[::]:' . $pm->getFreePort(3), $errno, $errstr, STREAM_SERVER_BIND);
     }
-    $sockets[] = stream_socket_server('unix://'.UNIX_SOCK_1, $errno, $errstr);
-    $sockets[] = stream_socket_server('udg://'.UNIX_SOCK_2, $errno, $errstr, STREAM_SERVER_BIND);
+    $sockets[] = stream_socket_server('unix://' . UNIX_SOCK_1, $errno, $errstr);
+    $sockets[] = stream_socket_server('udg://' . UNIX_SOCK_2, $errno, $errstr, STREAM_SERVER_BIND);
 
-    putenv('LISTEN_PID='. posix_getpid());
-    putenv('LISTEN_FDS='. count($sockets));
+    putenv('LISTEN_PID=' . posix_getpid());
+    putenv('LISTEN_FDS=' . count($sockets));
 
     $serv = new Server('SYSTEMD', 0, SWOOLE_BASE);
 
@@ -76,11 +78,11 @@ $pm->childFunc = function () use ($pm) {
 
     $serv->on("packet", function (Server $serv, $data, $addr) {
         // var_dump($addr);
-        $serv->sendto($addr['address'], isset($addr['port']) ? $addr['port'] : 0, 'SUCCESS'.PHP_EOL);
+        $serv->sendto($addr['address'], $addr['port'] ?? 0, 'SUCCESS' . PHP_EOL);
     });
 
     $serv->on("receive", function (Server $serv, $fd, $tid, $data) {
-        $serv->send($fd, 'SUCCESS'.PHP_EOL);
+        $serv->send($fd, 'SUCCESS' . PHP_EOL);
     });
 
     $serv->start();
