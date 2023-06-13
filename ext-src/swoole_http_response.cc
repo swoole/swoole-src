@@ -254,9 +254,9 @@ void php_swoole_http_response_minit(int module_number) {
 
     zend_declare_property_long(swoole_http_response_ce, ZEND_STRL("fd"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_response_ce, ZEND_STRL("socket"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_http_response_ce, ZEND_STRL("header"), ZEND_ACC_PRIVATE);
-    zend_declare_property_null(swoole_http_response_ce, ZEND_STRL("cookie"), ZEND_ACC_PRIVATE);
-    zend_declare_property_null(swoole_http_response_ce, ZEND_STRL("trailer"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_http_response_ce, ZEND_STRL("header"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_http_response_ce, ZEND_STRL("cookie"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_http_response_ce, ZEND_STRL("trailer"), ZEND_ACC_PUBLIC);
 
     swoole_http_response_handlers.read_property = swoole_response_read_property;
     swoole_http_response_handlers.write_property = swoole_response_write_property;
@@ -406,8 +406,9 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
     /**
      * http header
      */
-    zval *zheader = response.zheader;
-    if (zheader && ZVAL_IS_ARRAY(zheader)) {
+    zval *zheader =
+        sw_zend_read_property_ex(swoole_http_response_ce, response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADER), 0);
+    if (ZVAL_IS_ARRAY(zheader)) {
         zval *zvalue;
         zend_string *string_key;
         zend_ulong num_key;
@@ -478,8 +479,9 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
     }
 
     // http cookies
-    zval *zcookie = response.zcookie;
-    if (zcookie && ZVAL_IS_ARRAY(zcookie)) {
+    zval *zcookie =
+        sw_zend_read_property_ex(swoole_http_response_ce, response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_COOKIE), 0);
+    if (ZVAL_IS_ARRAY(zcookie)) {
         zval *zvalue;
         SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(zcookie), zvalue) {
             if (Z_TYPE_P(zvalue) != IS_STRING) {

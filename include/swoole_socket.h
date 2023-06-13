@@ -102,19 +102,12 @@ struct Address {
     } addr;
     socklen_t len;
     SocketType type;
-    bool init_address = false;
-    bool init_port = false;
-    int port = 0;
-    char address[INET6_ADDRSTRLEN];
 
     bool assign(SocketType _type, const std::string &_host, int _port);
-
     const char *get_ip() {
         return get_addr();
     }
-
     int get_port();
-
     const char *get_addr();
 
     static bool verify_ip(int __af, const std::string &str) {
