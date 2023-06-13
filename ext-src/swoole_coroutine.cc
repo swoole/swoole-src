@@ -215,9 +215,7 @@ static int coro_exit_handler(zend_execute_data *execute_data) {
             exit_status = &_exit_status;
             ZVAL_NULL(exit_status);
         }
-
         obj = zend_throw_exception(swoole_exit_exception_ce, "swoole exit", 0);
-
         ZVAL_OBJ(&ex, obj);
         zend_update_property_long(swoole_exit_exception_ce, SW_Z8_OBJ_P(&ex), ZEND_STRL("flags"), flags);
         Z_TRY_ADDREF_P(exit_status);
@@ -479,7 +477,6 @@ inline void PHPCoroutine::save_vm_stack(PHPContext *ctx) {
     ctx->error_handling = EG(error_handling);
     ctx->exception_class = EG(exception_class);
     ctx->exception = EG(exception);
-
 #if PHP_VERSION_ID < 80100
     if (UNEXPECTED(BG(array_walk_fci).size != 0)) {
         if (!ctx->array_walk_fci) {
@@ -1246,13 +1243,13 @@ static PHP_METHOD(swoole_coroutine, printBackTrace) {
     if (!cid || cid == PHPCoroutine::get_cid()) {
         zend::function::call("debug_print_backtrace", 2, argv);
     } else {
-        PHPContext *task = (PHPContext *) PHPCoroutine::get_context_by_cid(cid);
-        if (UNEXPECTED(!task)) {
+        PHPContext *ctx = (PHPContext *) PHPCoroutine::get_context_by_cid(cid);
+        if (UNEXPECTED(!ctx)) {
             swoole_set_last_error(SW_ERROR_CO_NOT_EXISTS);
             RETURN_FALSE;
         }
         zend_execute_data *ex_backup = EG(current_execute_data);
-        EG(current_execute_data) = task->execute_data;
+        EG(current_execute_data) = ctx->execute_data;
         zend::function::call("debug_print_backtrace", 2, argv);
         EG(current_execute_data) = ex_backup;
     }
