@@ -345,13 +345,6 @@ void PHPCoroutine::activate() {
         return;
     }
 
-#ifndef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
-    if (zend_hash_str_find_ptr(&module_registry, ZEND_STRL("xdebug"))) {
-        php_swoole_fatal_error(
-            E_WARNING,
-            "Using Xdebug in coroutines is extremely dangerous, please notice that it may lead to coredump!");
-    }
-#endif
     zval *enable_library = zend_get_constant_str(ZEND_STRL("SWOOLE_LIBRARY"));
     if (enable_library == NULL || !zval_is_true(enable_library)) {
         php_swoole_load_library();
@@ -688,7 +681,7 @@ void PHPCoroutine::main_func(void *_args) {
         }
 
 #ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
-        if (EXPECTED(ctx->fci_cache.function_handler->type == ZEND_USER_FUNCTION)) {
+        if (EXPECTED(SWOOLE_G(enable_fiber_mock) && ctx->fci_cache.function_handler->type == ZEND_USER_FUNCTION)) {
             zend_execute_data *tmp = EG(current_execute_data);
             zend_execute_data call = {};
             EG(current_execute_data) = &call;
@@ -789,7 +782,7 @@ void PHPCoroutine::fiber_context_init(PHPContext *ctx) {
 }
 
 void PHPCoroutine::fiber_context_try_init(PHPContext *ctx) {
-    if (EXPECTED(!SWOOLE_G(has_debug_extension))) {
+    if (EXPECTED(!SWOOLE_G(enable_fiber_mock))) {
         return;
     }
     fiber_context_init(ctx);
@@ -804,7 +797,7 @@ void PHPCoroutine::fiber_context_destroy(PHPContext *ctx) {
 }
 
 void PHPCoroutine::fiber_context_try_destroy(PHPContext *ctx) {
-    if (EXPECTED(!SWOOLE_G(has_debug_extension))) {
+    if (EXPECTED(!SWOOLE_G(enable_fiber_mock))) {
         return;
     }
     fiber_context_destroy(ctx);
@@ -844,7 +837,7 @@ void PHPCoroutine::fiber_context_switch_notify(PHPContext *from, PHPContext *to)
 }
 
 void PHPCoroutine::fiber_context_switch_try_notify(PHPContext *from, PHPContext *to) {
-    if (EXPECTED(!SWOOLE_G(has_debug_extension))) {
+    if (EXPECTED(!SWOOLE_G(enable_fiber_mock))) {
         return;
     }
     fiber_context_switch_notify(from, to);

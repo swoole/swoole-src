@@ -190,6 +190,7 @@ PHP_INI_BEGIN()
  */
 STD_ZEND_INI_BOOLEAN("swoole.enable_coroutine", "On", PHP_INI_ALL, OnUpdateBool, enable_coroutine, zend_swoole_globals, swoole_globals)
 STD_ZEND_INI_BOOLEAN("swoole.enable_library", "On", PHP_INI_ALL, OnUpdateBool, enable_library, zend_swoole_globals, swoole_globals)
+STD_ZEND_INI_BOOLEAN("swoole.enable_fiber_mock", "Off", PHP_INI_ALL, OnUpdateBool, enable_fiber_mock, zend_swoole_globals, swoole_globals)
 /**
  * enable swoole coroutine epreemptive scheduler
  */
@@ -212,6 +213,7 @@ PHP_INI_END()
 static void php_swoole_init_globals(zend_swoole_globals *swoole_globals) {
     swoole_globals->enable_coroutine = 1;
     swoole_globals->enable_library = 1;
+    swoole_globals->enable_fiber_mock = 0;
     swoole_globals->enable_preemptive_scheduler = 0;
     swoole_globals->socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
     swoole_globals->display_errors = 1;
@@ -762,20 +764,6 @@ PHP_MINIT_FUNCTION(swoole) {
 #endif
 
     zend::known_strings_init();
-
-    /* Debug extensions check */
-    static auto debug_zend_extension_names = {"Xdebug"};
-    for (auto name : debug_zend_extension_names) {
-        if (zend_get_extension(name) != NULL) {
-            SWOOLE_G(has_debug_extension) = 1;
-        }
-    }
-    static auto debug_php_extension_names = {"ddtrace"};
-    for (auto name : debug_php_extension_names) {
-        if (zend_hash_str_find_ptr(&module_registry, name, strlen(name))) {
-            SWOOLE_G(has_debug_extension) = 1;
-        }
-    }
 
     return SUCCESS;
 }

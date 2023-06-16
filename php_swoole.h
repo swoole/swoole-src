@@ -54,7 +54,7 @@ ZEND_BEGIN_MODULE_GLOBALS(swoole)
     zend_bool enable_coroutine;
     zend_bool enable_preemptive_scheduler;
     zend_bool enable_library;
-    zend_bool has_debug_extension;
+    zend_bool enable_fiber_mock;
     long socket_buffer_size;
     int req_status;
 ZEND_END_MODULE_GLOBALS(swoole)
