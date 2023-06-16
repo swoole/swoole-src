@@ -687,6 +687,17 @@ void PHPCoroutine::main_func(void *_args) {
             swoole_call_hook(SW_GLOBAL_HOOK_ON_CORO_START, ctx);
         }
 
+#ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
+        if (EXPECTED(ctx->fci_cache.function_handler->type == ZEND_USER_FUNCTION)) {
+            zend_execute_data *tmp = EG(current_execute_data);
+            zend_execute_data call = {};
+            EG(current_execute_data) = &call;
+            EG(current_execute_data)->opline = ctx->fci_cache.function_handler->op_array.opcodes;
+            call.func = ctx->fci_cache.function_handler;
+            fiber_context_switch_try_notify(get_origin_context(ctx), ctx);
+            EG(current_execute_data) = tmp;
+        }
+#endif
         zend_call_function(&ctx->fci, &ctx->fci_cache);
 
         // Catch exception in main function of the coroutine
