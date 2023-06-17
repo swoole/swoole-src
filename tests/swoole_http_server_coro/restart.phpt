@@ -6,8 +6,6 @@ swoole_http_server_coro: graceful shutdown
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-use Swoole\Event;
-
 $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     Co\run(function () use ($pm) {

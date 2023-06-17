@@ -168,6 +168,15 @@ bool php_swoole_name_resolver_add(zval *zresolver);
 const swoole::Allocator *sw_php_allocator();
 const swoole::Allocator *sw_zend_string_allocator();
 
+static inline bool php_swoole_async(bool blocking, const std::function<void(void)> &fn) {
+    if (!blocking && swoole_coroutine_is_in()) {
+        return swoole::coroutine::async(fn);
+    } else {
+        fn();
+        return true;
+    }
+}
+
 namespace zend {
 //-----------------------------------namespace begin--------------------------------------------
 class String {
@@ -555,6 +564,10 @@ static inline void array_set(zval *arg, const char *key, size_t l_key, const cha
 static inline void array_add(zval *arg, zval *zvalue) {
     Z_TRY_ADDREF_P(zvalue);
     add_next_index_zval(arg, zvalue);
+}
+
+static inline void array_unset(zval *arg, const char *key, size_t l_key) {
+    zend_hash_str_del(Z_ARRVAL_P(arg), key, l_key);
 }
 
 //-----------------------------------namespace end--------------------------------------------

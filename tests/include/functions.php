@@ -172,6 +172,15 @@ function phpt_var_dump(...$args)
     }
 }
 
+function phpt_show_usage()
+{
+    global $argv;
+    if (substr($argv[0], -5) === '.phpt') {
+        var_dump('memory:' . memory_get_usage());
+        var_dump('coroutine:' . var_export(Co::stats(), 1));
+    }
+}
+
 function httpPost($url, $data)
 {
     $ch = curl_init();

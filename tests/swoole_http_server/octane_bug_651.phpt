@@ -18,6 +18,7 @@ $pm->parentFunc = function () use ($pm) {
 };
 $pm->childFunc = function () use ($pm) {
     $http = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS, SWOOLE_SOCK_TCP);
+    $http->set(['log_file' => '/dev/null']);
 
     $timerTable = new Swoole\Table(250);
     $timerTable->column('worker_pid', Swoole\Table::TYPE_INT);
@@ -35,16 +36,15 @@ $pm->childFunc = function () use ($pm) {
                 if ((time() - $row['time']) > 3) {
                     $timerTable->del($workerId);
                     $newRes = Swoole\Http\Response::create($server, $row['fd']);;
-                    if($newRes)
-                    {
+                    if ($newRes) {
                         Swoole\Timer::clear($id);
                         $newRes->status(408);
                         $newRes->end('timeout');
                         Swoole\Process::kill($row['worker_pid'], 9);
-    		            return;
+                        return;
                     }
-    	        }
-    	    }
+                }
+            }
         });
     });
 

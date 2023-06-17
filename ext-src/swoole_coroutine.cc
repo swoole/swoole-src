@@ -44,25 +44,30 @@ using swoole::PHPCoroutine;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 
-#define PHP_CORO_TASK_SLOT                                                                                             \
-    ((int) ((ZEND_MM_ALIGNED_SIZE(sizeof(PHPContext)) + ZEND_MM_ALIGNED_SIZE(sizeof(zval)) - 1) /                      \
-            ZEND_MM_ALIGNED_SIZE(sizeof(zval))))
+#if PHP_VERSION_ID < 80100
+static zend_always_inline zend_vm_stack zend_vm_stack_new_page(size_t size, zend_vm_stack prev) {
+    zend_vm_stack page = (zend_vm_stack) emalloc(size);
+
+    page->top = ZEND_VM_STACK_ELEMENTS(page);
+    page->end = (zval *) ((char *) page + size);
+    page->prev = prev;
+    return page;
+}
+#endif
 
 enum sw_exit_flags { SW_EXIT_IN_COROUTINE = 1 << 1, SW_EXIT_IN_SERVER = 1 << 2 };
 
 bool PHPCoroutine::activated = false;
-uint32_t PHPCoroutine::concurrency = 0;
 zend_array *PHPCoroutine::options = nullptr;
 
 PHPCoroutine::Config PHPCoroutine::config{
     SW_DEFAULT_MAX_CORO_NUM,
-    UINT_MAX,
     0,
     false,
     true,
 };
 
-PHPContext PHPCoroutine::main_task{};
+PHPContext PHPCoroutine::main_context{};
 std::thread PHPCoroutine::interrupt_thread;
 bool PHPCoroutine::interrupt_thread_running = false;
 
@@ -252,10 +257,68 @@ static void coro_interrupt_function(zend_execute_data *execute_data) {
     }
 }
 
-void PHPCoroutine::init() {
-    Coroutine::set_on_yield(on_yield);
-    Coroutine::set_on_resume(on_resume);
-    Coroutine::set_on_close(on_close);
+PHPContext *PHPCoroutine::create_context(Args *args) {
+    PHPContext *ctx = (PHPContext *) emalloc(sizeof(PHPContext));
+    ctx->output_ptr = nullptr;
+#if PHP_VERSION_ID < 80100
+    ctx->array_walk_fci = nullptr;
+#endif
+    ctx->in_silence = false;
+
+    ctx->co = Coroutine::get_current();
+    ctx->co->set_task((void *) ctx);
+    ctx->defer_tasks = nullptr;
+    ctx->pcid = ctx->co->get_origin_cid();
+    ctx->context = nullptr;
+    ctx->on_yield = nullptr;
+    ctx->on_resume = nullptr;
+    ctx->on_close = nullptr;
+    ctx->enable_scheduler = true;
+
+#ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
+    fiber_context_try_init(ctx);
+    ctx->fiber_init_notified = false;
+#endif
+
+    EG(vm_stack) = zend_vm_stack_new_page(SW_DEFAULT_PHP_STACK_PAGE_SIZE, nullptr);
+    EG(vm_stack_top) = EG(vm_stack)->top + ZEND_CALL_FRAME_SLOT;
+    EG(vm_stack_end) = EG(vm_stack)->end;
+    EG(vm_stack_page_size) = SW_DEFAULT_PHP_STACK_PAGE_SIZE;
+
+    zend_function *func = EG(current_execute_data)->func;
+    zend_execute_data *call = (zend_execute_data *) (EG(vm_stack_top));
+    EG(current_execute_data) = call;
+    memset(EG(current_execute_data), 0, sizeof(zend_execute_data));
+
+    EG(error_handling) = EH_NORMAL;
+    EG(exception_class) = nullptr;
+    EG(exception) = nullptr;
+    EG(jit_trace_num) = 0;
+
+    call->func = func;
+    EG(vm_stack_top) += ZEND_CALL_FRAME_SLOT;
+
+    save_vm_stack(ctx);
+    record_last_msec(ctx);
+
+    ctx->fci_cache = *args->fci_cache;
+    ctx->fci.size = sizeof(ctx->fci);
+    ctx->fci.object = NULL;
+    ctx->fci.param_count = args->argc;
+    ctx->fci.params = args->argv;
+    ctx->fci.named_params = NULL;
+    ctx->return_value = {};
+    ctx->fci.retval = &ctx->return_value;
+
+    if (args->callable) {
+        ctx->fci.function_name = *args->callable;
+        Z_TRY_ADDREF(ctx->fci.function_name);
+    } else {
+        ZVAL_UNDEF(&ctx->fci.function_name);
+    }
+    sw_zend_fci_cache_persist(&ctx->fci_cache);
+
+    return ctx;
 }
 
 void PHPCoroutine::bailout() {
@@ -315,6 +378,11 @@ void PHPCoroutine::activate() {
     /* deactivate when reactor free */
     sw_reactor()->add_destroy_callback(deactivate, nullptr);
     Coroutine::activate();
+
+    Coroutine::set_on_yield(on_yield);
+    Coroutine::set_on_resume(on_resume);
+    Coroutine::set_on_close(on_close);
+
     activated = true;
 }
 
@@ -324,6 +392,10 @@ void PHPCoroutine::deactivate(void *ptr) {
      * reset runtime hook
      */
     disable_hook();
+
+    Coroutine::set_on_yield(nullptr);
+    Coroutine::set_on_resume(nullptr);
+    Coroutine::set_on_close(nullptr);
 
     zend_interrupt_function = orig_interrupt_function;
 
@@ -385,31 +457,6 @@ void PHPCoroutine::interrupt_thread_start() {
     });
 }
 
-inline void PHPCoroutine::vm_stack_init(void) {
-    uint32_t size = SW_DEFAULT_PHP_STACK_PAGE_SIZE;
-    zend_vm_stack page = (zend_vm_stack) emalloc(size);
-
-    page->top = ZEND_VM_STACK_ELEMENTS(page);
-    page->end = (zval *) ((char *) page + size);
-    page->prev = nullptr;
-
-    EG(vm_stack) = page;
-    EG(vm_stack)->top++;
-    EG(vm_stack_top) = EG(vm_stack)->top;
-    EG(vm_stack_end) = EG(vm_stack)->end;
-    EG(vm_stack_page_size) = size;
-}
-
-inline void PHPCoroutine::vm_stack_destroy(void) {
-    zend_vm_stack stack = EG(vm_stack);
-
-    while (stack != nullptr) {
-        zend_vm_stack p = stack->prev;
-        efree(stack);
-        stack = p;
-    }
-}
-
 /**
  * The meaning of the task argument in coro switch functions
  *
@@ -419,69 +466,69 @@ inline void PHPCoroutine::vm_stack_destroy(void) {
  * close: current_task
  *
  */
-inline void PHPCoroutine::save_vm_stack(PHPContext *task) {
-    task->bailout = EG(bailout);
-    task->vm_stack_top = EG(vm_stack_top);
-    task->vm_stack_end = EG(vm_stack_end);
-    task->vm_stack = EG(vm_stack);
-    task->vm_stack_page_size = EG(vm_stack_page_size);
-    task->execute_data = EG(current_execute_data);
-    task->jit_trace_num = EG(jit_trace_num);
-    task->error_handling = EG(error_handling);
-    task->exception_class = EG(exception_class);
-    task->exception = EG(exception);
+inline void PHPCoroutine::save_vm_stack(PHPContext *ctx) {
+    ctx->bailout = EG(bailout);
+    ctx->vm_stack_top = EG(vm_stack_top);
+    ctx->vm_stack_end = EG(vm_stack_end);
+    ctx->vm_stack = EG(vm_stack);
+    ctx->vm_stack_page_size = EG(vm_stack_page_size);
+    ctx->execute_data = EG(current_execute_data);
+    ctx->jit_trace_num = EG(jit_trace_num);
+    ctx->error_handling = EG(error_handling);
+    ctx->exception_class = EG(exception_class);
+    ctx->exception = EG(exception);
 #if PHP_VERSION_ID < 80100
     if (UNEXPECTED(BG(array_walk_fci).size != 0)) {
-        if (!task->array_walk_fci) {
-            task->array_walk_fci = (zend::Function *) emalloc(sizeof(*task->array_walk_fci));
+        if (!ctx->array_walk_fci) {
+            ctx->array_walk_fci = (zend::Function *) emalloc(sizeof(*ctx->array_walk_fci));
         }
-        memcpy(task->array_walk_fci, &BG(array_walk_fci), sizeof(*task->array_walk_fci));
-        memset(&BG(array_walk_fci), 0, sizeof(*task->array_walk_fci));
+        memcpy(ctx->array_walk_fci, &BG(array_walk_fci), sizeof(*ctx->array_walk_fci));
+        memset(&BG(array_walk_fci), 0, sizeof(*ctx->array_walk_fci));
     }
 #endif
-    if (UNEXPECTED(task->in_silence)) {
-        task->tmp_error_reporting = EG(error_reporting);
-        EG(error_reporting) = task->ori_error_reporting;
+    if (UNEXPECTED(ctx->in_silence)) {
+        ctx->tmp_error_reporting = EG(error_reporting);
+        EG(error_reporting) = ctx->ori_error_reporting;
     }
 }
 
-inline void PHPCoroutine::restore_vm_stack(PHPContext *task) {
-    EG(bailout) = task->bailout;
-    EG(vm_stack_top) = task->vm_stack_top;
-    EG(vm_stack_end) = task->vm_stack_end;
-    EG(vm_stack) = task->vm_stack;
-    EG(vm_stack_page_size) = task->vm_stack_page_size;
-    EG(current_execute_data) = task->execute_data;
-    EG(jit_trace_num) = task->jit_trace_num;
-    EG(error_handling) = task->error_handling;
-    EG(exception_class) = task->exception_class;
-    EG(exception) = task->exception;
+inline void PHPCoroutine::restore_vm_stack(PHPContext *ctx) {
+    EG(bailout) = ctx->bailout;
+    EG(vm_stack_top) = ctx->vm_stack_top;
+    EG(vm_stack_end) = ctx->vm_stack_end;
+    EG(vm_stack) = ctx->vm_stack;
+    EG(vm_stack_page_size) = ctx->vm_stack_page_size;
+    EG(current_execute_data) = ctx->execute_data;
+    EG(jit_trace_num) = ctx->jit_trace_num;
+    EG(error_handling) = ctx->error_handling;
+    EG(exception_class) = ctx->exception_class;
+    EG(exception) = ctx->exception;
 #if PHP_VERSION_ID < 80100
-    if (UNEXPECTED(task->array_walk_fci && task->array_walk_fci->fci.size != 0)) {
-        memcpy(&BG(array_walk_fci), task->array_walk_fci, sizeof(*task->array_walk_fci));
-        task->array_walk_fci->fci.size = 0;
+    if (UNEXPECTED(ctx->array_walk_fci && ctx->array_walk_fci->fci.size != 0)) {
+        memcpy(&BG(array_walk_fci), ctx->array_walk_fci, sizeof(*ctx->array_walk_fci));
+        ctx->array_walk_fci->fci.size = 0;
     }
 #endif
-    if (UNEXPECTED(task->in_silence)) {
-        EG(error_reporting) = task->tmp_error_reporting;
+    if (UNEXPECTED(ctx->in_silence)) {
+        EG(error_reporting) = ctx->tmp_error_reporting;
     }
 }
 
-inline void PHPCoroutine::save_og(PHPContext *task) {
+inline void PHPCoroutine::save_og(PHPContext *ctx) {
     if (OG(handlers).elements) {
-        task->output_ptr = (zend_output_globals *) emalloc(sizeof(zend_output_globals));
-        memcpy(task->output_ptr, SWOG, sizeof(zend_output_globals));
+        ctx->output_ptr = (zend_output_globals *) emalloc(sizeof(zend_output_globals));
+        memcpy(ctx->output_ptr, SWOG, sizeof(zend_output_globals));
         php_output_activate();
     } else {
-        task->output_ptr = nullptr;
+        ctx->output_ptr = nullptr;
     }
 }
 
-inline void PHPCoroutine::restore_og(PHPContext *task) {
-    if (task->output_ptr) {
-        memcpy(SWOG, task->output_ptr, sizeof(zend_output_globals));
-        efree(task->output_ptr);
-        task->output_ptr = nullptr;
+inline void PHPCoroutine::restore_og(PHPContext *ctx) {
+    if (ctx->output_ptr) {
+        memcpy(SWOG, ctx->output_ptr, sizeof(zend_output_globals));
+        efree(ctx->output_ptr);
+        ctx->output_ptr = nullptr;
     }
 }
 
@@ -500,62 +547,69 @@ void PHPCoroutine::set_hook_flags(uint32_t flags) {
     config.hook_flags = flags;
 }
 
-void PHPCoroutine::save_task(PHPContext *task) {
-    save_vm_stack(task);
-    save_og(task);
+void PHPCoroutine::save_context(PHPContext *ctx) {
+    save_vm_stack(ctx);
+    save_og(ctx);
 }
 
-void PHPCoroutine::restore_task(PHPContext *task) {
-    restore_vm_stack(task);
-    restore_og(task);
+void PHPCoroutine::restore_context(PHPContext *ctx) {
+    restore_vm_stack(ctx);
+    restore_og(ctx);
 }
 
 void PHPCoroutine::on_yield(void *arg) {
-    PHPContext *task = (PHPContext *) arg;
-    PHPContext *origin_task = get_origin_context(task);
+    PHPContext *ctx = (PHPContext *) arg;
+    PHPContext *origin_ctx = get_origin_context(ctx);
 
 #ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
-    fiber_context_switch_try_notify(task, origin_task);
+    fiber_context_switch_try_notify(ctx, origin_ctx);
 #endif
-    save_task(task);
-    restore_task(origin_task);
+    save_context(ctx);
+    restore_context(origin_ctx);
 
-    if (task->on_yield) {
-        (*task->on_yield)(task);
+    if (ctx->on_yield) {
+        (*ctx->on_yield)(ctx);
     }
 
-    swoole_trace_log(SW_TRACE_COROUTINE, "from cid=%ld to cid=%ld", task->co->get_cid(), task->co->get_origin_cid());
+    swoole_trace_log(SW_TRACE_COROUTINE, "from cid=%ld to cid=%ld", ctx->co->get_cid(), ctx->co->get_origin_cid());
 }
 
 void PHPCoroutine::on_resume(void *arg) {
-    PHPContext *task = (PHPContext *) arg;
-    PHPContext *current_task = get_context();
+    PHPContext *ctx = (PHPContext *) arg;
+    PHPContext *current_ctx = get_context();
 
 #ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
-    fiber_context_switch_try_notify(current_task, task);
+    fiber_context_switch_try_notify(current_ctx, ctx);
 #endif
-    save_task(current_task);
-    restore_task(task);
-    record_last_msec(task);
+    save_context(current_ctx);
+    restore_context(ctx);
+    record_last_msec(ctx);
 
-    if (task->on_resume) {
-        (*task->on_resume)(task);
+    if (ctx->on_resume) {
+        (*ctx->on_resume)(ctx);
     }
 
-    swoole_trace_log(SW_TRACE_COROUTINE, "from cid=%ld to cid=%ld", Coroutine::get_current_cid(), task->co->get_cid());
+    swoole_trace_log(SW_TRACE_COROUTINE, "from cid=%ld to cid=%ld", Coroutine::get_current_cid(), ctx->co->get_cid());
 }
 
 void PHPCoroutine::on_close(void *arg) {
-    PHPContext *task = (PHPContext *) arg;
-    PHPContext *origin_task = get_origin_context(task);
+    PHPContext *ctx = (PHPContext *) arg;
+    if (ctx->on_close) {
+        (*ctx->on_close)(ctx);
+    }
+    efree(ctx);
+}
+
+void PHPCoroutine::destroy_context(PHPContext *ctx) {
+    PHPContext *origin_ctx = get_origin_context(ctx);
 #ifdef SW_LOG_TRACE_OPEN
     // MUST be assigned here, the task memory may have been released
-    long cid = task->co->get_cid();
-    long origin_cid = task->co->get_origin_cid();
+    long cid = ctx->co->get_cid();
+    long origin_cid = ctx->co->get_origin_cid();
 #endif
 
     if (swoole_isset_hook(SW_GLOBAL_HOOK_ON_CORO_STOP)) {
-        swoole_call_hook(SW_GLOBAL_HOOK_ON_CORO_STOP, task);
+        swoole_call_hook(SW_GLOBAL_HOOK_ON_CORO_STOP, ctx);
     }
 
     if (OG(handlers).elements) {
@@ -570,26 +624,39 @@ void PHPCoroutine::on_close(void *arg) {
         SG(request_info).no_headers = no_headers;
     }
 #if PHP_VERSION_ID < 80100
-    if (task->array_walk_fci) {
-        efree(task->array_walk_fci);
+    if (ctx->array_walk_fci) {
+        efree(ctx->array_walk_fci);
     }
 #endif
 
-    if (task->on_close) {
-        (*task->on_close)(task);
+    if (ctx->defer_tasks) {
+        while (!ctx->defer_tasks->empty()) {
+            zend::Function *defer_fci = ctx->defer_tasks->top();
+            ctx->defer_tasks->pop();
+            sw_zend_fci_cache_discard(&defer_fci->fci_cache);
+            efree(defer_fci);
+        }
+        delete ctx->defer_tasks;
+        ctx->defer_tasks = nullptr;
     }
 
-    if (task->pcid == -1) {
-        concurrency--;
+    // Release resources
+    if (ctx->context) {
+        zend_object *context = ctx->context;
+        ctx->context = (zend_object *) ~0;
+        OBJ_RELEASE(context);
     }
+
+    Z_TRY_DELREF(ctx->fci.function_name);
+    ZVAL_UNDEF(&ctx->fci.function_name);
+    sw_zend_fci_cache_discard(&ctx->fci_cache);
+
+    Z_TRY_DELREF(ctx->return_value);
 
 #ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
-    fiber_context_switch_try_notify(task, origin_task);
-    fiber_context_try_destroy(task);
+    fiber_context_switch_try_notify(ctx, origin_ctx);
+    fiber_context_try_destroy(ctx);
 #endif
-
-    vm_stack_destroy();
-    restore_task(origin_task);
 
     swoole_trace_log(SW_TRACE_COROUTINE,
                      "coro close cid=%ld and resume to %ld, %zu remained. usage size: %zu. malloc size: %zu",
@@ -598,174 +665,66 @@ void PHPCoroutine::on_close(void *arg) {
                      (uintmax_t) Coroutine::count() - 1,
                      (uintmax_t) zend_memory_usage(0),
                      (uintmax_t) zend_memory_usage(1));
+
+    zend_vm_stack_destroy();
+    restore_context(origin_ctx);
 }
 
-void PHPCoroutine::main_func(void *arg) {
+void PHPCoroutine::main_func(void *_args) {
     bool exception_caught = false;
+    Args *args = (Args *) _args;
+    PHPContext *ctx = create_context(args);
+
     zend_first_try {
-        Args *php_arg = (Args *) arg;
-        zend_fcall_info_cache fci_cache = *php_arg->fci_cache;
-        zend_function *func = fci_cache.function_handler;
-        zval *argv = php_arg->argv;
-        int argc = php_arg->argc;
-        PHPContext *task;
-        zend_execute_data *call;
-        zval _retval, *retval = &_retval;
-
-        if (fci_cache.object) {
-            GC_ADDREF(fci_cache.object);
-        }
-
-        vm_stack_init();
-        call = (zend_execute_data *) (EG(vm_stack_top));
-        task = (PHPContext *) EG(vm_stack_top);
-        EG(vm_stack_top) = (zval *) ((char *) call + PHP_CORO_TASK_SLOT * sizeof(zval));
-
-        do {
-            uint32_t call_info;
-            void *object_or_called_scope;
-            if ((func->common.fn_flags & ZEND_ACC_STATIC) || !fci_cache.object) {
-                object_or_called_scope = fci_cache.called_scope;
-                call_info = ZEND_CALL_TOP_FUNCTION | ZEND_CALL_DYNAMIC;
-            } else {
-                object_or_called_scope = fci_cache.object;
-                call_info = ZEND_CALL_TOP_FUNCTION | ZEND_CALL_DYNAMIC | ZEND_CALL_HAS_THIS;
-            }
-            call = zend_vm_stack_push_call_frame(call_info, func, argc, object_or_called_scope);
-        } while (0);
-
-        SW_LOOP_N(argc) {
-            zval *param;
-            zval *arg = &argv[i];
-            if (Z_ISREF_P(arg) && !(func->common.fn_flags & ZEND_ACC_CALL_VIA_TRAMPOLINE)) {
-                /* don't separate references for __call */
-                arg = Z_REFVAL_P(arg);
-            }
-            param = ZEND_CALL_ARG(call, i + 1);
-            ZVAL_COPY(param, arg);
-        }
-
-        call->symbol_table = nullptr;
-
-        if (func->op_array.fn_flags & ZEND_ACC_CLOSURE) {
-            uint32_t call_info;
-            GC_ADDREF(ZEND_CLOSURE_OBJECT(func));
-            call_info = ZEND_CALL_CLOSURE;
-            ZEND_ADD_CALL_FLAG(call, call_info);
-        }
-
-        EG(current_execute_data) = call;
-        EG(error_handling) = EH_NORMAL;
-        EG(exception_class) = nullptr;
-        EG(exception) = nullptr;
-        EG(jit_trace_num) = 0;
-
-        task->output_ptr = nullptr;
-#if PHP_VERSION_ID < 80100
-        task->array_walk_fci = nullptr;
-#endif
-        task->in_silence = false;
-
-        task->co = Coroutine::get_current();
-        task->co->set_task((void *) task);
-        task->defer_tasks = nullptr;
-        task->pcid = task->co->get_origin_cid();
-        task->context = nullptr;
-        task->on_yield = nullptr;
-        task->on_resume = nullptr;
-        task->on_close = nullptr;
-        task->enable_scheduler = true;
-
-#ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
-        fiber_context_try_init(task);
-        task->fiber_init_notified = false;
-#endif
-
-        save_vm_stack(task);
-        record_last_msec(task);
-
         swoole_trace_log(SW_TRACE_COROUTINE,
                          "Create coro id: %ld, origin cid: %ld, coro total count: %zu, heap size: %zu",
-                         task->co->get_cid(),
-                         task->co->get_origin_cid(),
+                         ctx->co->get_cid(),
+                         ctx->co->get_origin_cid(),
                          (uintmax_t) Coroutine::count(),
                          (uintmax_t) zend_memory_usage(0));
 
-        if (task->pcid == -1) {
-            // wait until concurrency slots are available
-            while (concurrency > config.max_concurrency - 1) {
-                swoole_trace_log(SW_TRACE_COROUTINE,
-                                 "php_coro cid=%ld waiting for concurrency slots: max: %d, used: %d",
-                                 task->co->get_cid(),
-                                 config.max_concurrency,
-                                 concurrency);
-
-                swoole_event_defer(
-                    [](void *data) {
-                        Coroutine *co = (Coroutine *) data;
-                        co->resume();
-                    },
-                    (void *) task->co);
-                task->co->yield();
-            }
-            concurrency++;
-        }
-
         if (swoole_isset_hook(SW_GLOBAL_HOOK_ON_CORO_START)) {
-            swoole_call_hook(SW_GLOBAL_HOOK_ON_CORO_START, task);
+            swoole_call_hook(SW_GLOBAL_HOOK_ON_CORO_START, ctx);
         }
 
-        if (EXPECTED(func->type == ZEND_USER_FUNCTION)) {
-            ZVAL_UNDEF(retval);
-            // TODO: enhancement it, separate execute data is necessary, but we lose the backtrace
-            EG(current_execute_data) = nullptr;
-            zend_init_func_execute_data(call, &func->op_array, retval);
 #ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
-            fiber_context_switch_try_notify(get_origin_context(task), get_context());
-#endif
-            zend_execute_ex(EG(current_execute_data));
-        } else { /* ZEND_INTERNAL_FUNCTION */
-            ZVAL_NULL(retval);
-            call->prev_execute_data = nullptr;
-            call->return_value = nullptr; /* this is not a constructor call */
-            execute_internal(call, retval);
-            zend_vm_stack_free_args(call);
+        if (EXPECTED(ctx->fci_cache.function_handler->type == ZEND_USER_FUNCTION)) {
+            zend_execute_data *tmp = EG(current_execute_data);
+            zend_execute_data call = {};
+            EG(current_execute_data) = &call;
+            EG(current_execute_data)->opline = ctx->fci_cache.function_handler->op_array.opcodes;
+            call.func = ctx->fci_cache.function_handler;
+            fiber_context_switch_try_notify(get_origin_context(ctx), ctx);
+            EG(current_execute_data) = tmp;
         }
+#endif
+        zend_call_function(&ctx->fci, &ctx->fci_cache);
 
         // Catch exception in main function of the coroutine
         exception_caught = catch_exception();
 
         // The defer tasks still need to be executed after an exception occurs
-        if (task->defer_tasks) {
-            std::stack<zend::Function *> *tasks = task->defer_tasks;
+        if (ctx->defer_tasks) {
+            std::stack<zend::Function *> *tasks = ctx->defer_tasks;
             while (!tasks->empty()) {
                 zend::Function *defer_fci = tasks->top();
                 tasks->pop();
-
-                if (Z_TYPE_P(retval) != IS_UNDEF) {
+                if (Z_TYPE_P(&ctx->return_value) != IS_UNDEF) {
                     defer_fci->fci.param_count = 1;
-                    defer_fci->fci.params = retval;
+                    defer_fci->fci.params = &ctx->return_value;
                 }
                 if (UNEXPECTED(sw_zend_call_function_anyway(&defer_fci->fci, &defer_fci->fci_cache) != SUCCESS)) {
                     php_swoole_fatal_error(E_WARNING, "defer callback handler error");
                 }
+                if (EG(exception)) {
+                    zend_bailout();
+                }
                 sw_zend_fci_cache_discard(&defer_fci->fci_cache);
                 efree(defer_fci);
             }
-            delete task->defer_tasks;
-            task->defer_tasks = nullptr;
+            delete ctx->defer_tasks;
+            ctx->defer_tasks = nullptr;
         }
-
-        // Release resources
-        if (task->context) {
-            zend_object *context = task->context;
-            task->context = (zend_object *) ~0;
-            OBJ_RELEASE(context);
-        }
-        if (fci_cache.object) {
-            OBJ_RELEASE(fci_cache.object);
-        }
-        zval_ptr_dtor(retval);
     }
     zend_catch {
         // zend_bailout is executed in the c function
@@ -773,12 +732,13 @@ void PHPCoroutine::main_func(void *arg) {
         exception_caught = true;
     }
     zend_end_try();
+    destroy_context(ctx);
     if (exception_caught) {
         bailout();
     }
 }
 
-long PHPCoroutine::create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv) {
+long PHPCoroutine::create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv, zval *callable) {
     if (sw_unlikely(Coroutine::count() >= config.max_num)) {
         php_swoole_fatal_error(E_WARNING, "exceed max number of coroutine %zu", (uintmax_t) Coroutine::count());
         return Coroutine::ERR_LIMIT;
@@ -801,71 +761,68 @@ long PHPCoroutine::create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval 
     _args.fci_cache = fci_cache;
     _args.argv = argv;
     _args.argc = argc;
-    save_task(get_context());
+    _args.callable = callable;
+    save_context(get_context());
 
     return Coroutine::create(main_func, (void *) &_args);
 }
 
 void PHPCoroutine::defer(zend::Function *fci) {
-    PHPContext *task = get_context();
-    if (task->defer_tasks == nullptr) {
-        task->defer_tasks = new std::stack<zend::Function *>;
+    PHPContext *ctx = get_context();
+    if (ctx->defer_tasks == nullptr) {
+        ctx->defer_tasks = new std::stack<zend::Function *>;
     }
-    task->defer_tasks->push(fci);
+    ctx->defer_tasks->push(fci);
 }
 
 #ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
 
-void PHPCoroutine::fiber_context_init(PHPContext *task)
-{
+void PHPCoroutine::fiber_context_init(PHPContext *ctx) {
     zend_fiber_context *fiber_context = (zend_fiber_context *) emalloc(sizeof(*fiber_context));
     fiber_context->handle = (void *) -1;
     fiber_context->kind = (void *) -1;
     fiber_context->function = (zend_fiber_coroutine) -1;
     fiber_context->stack = (zend_fiber_stack *) -1;
-    task->fiber_context = fiber_context;
+    ctx->fiber_context = fiber_context;
 
     zend_observer_fiber_init_notify(fiber_context);
 }
 
-void PHPCoroutine::fiber_context_try_init(PHPContext *task)
-{
+void PHPCoroutine::fiber_context_try_init(PHPContext *ctx) {
     if (EXPECTED(!SWOOLE_G(has_debug_extension))) {
         return;
     }
-    fiber_context_init(task);
+    fiber_context_init(ctx);
 }
 
-void PHPCoroutine::fiber_context_destroy(PHPContext *task)
-{
-    zend_observer_fiber_destroy_notify(task->fiber_context);
+void PHPCoroutine::fiber_context_destroy(PHPContext *ctx) {
+    zend_observer_fiber_destroy_notify(ctx->fiber_context);
 
-    if (task->fiber_context != NULL) {
-        efree(task->fiber_context);
+    if (ctx->fiber_context != NULL) {
+        efree(ctx->fiber_context);
     }
 }
 
-void PHPCoroutine::fiber_context_try_destroy(PHPContext *task)
-{
+void PHPCoroutine::fiber_context_try_destroy(PHPContext *ctx) {
     if (EXPECTED(!SWOOLE_G(has_debug_extension))) {
         return;
     }
-    fiber_context_destroy(task);
+    fiber_context_destroy(ctx);
 }
 
-zend_fiber_status PHPCoroutine::get_fiber_status(PHPContext *task) {
-    switch (task->co->get_state()) {
-        case Coroutine::STATE_INIT:
-            return ZEND_FIBER_STATUS_INIT;
-        case Coroutine::STATE_WAITING:
-            return ZEND_FIBER_STATUS_SUSPENDED;
-        case Coroutine::STATE_RUNNING:
-            return ZEND_FIBER_STATUS_RUNNING;
-        case Coroutine::STATE_END:
-            return ZEND_FIBER_STATUS_DEAD;
-        default:
-            php_swoole_fatal_error(E_ERROR, "Unexpected state when get fiber status");
-            return ZEND_FIBER_STATUS_DEAD;
+zend_fiber_status PHPCoroutine::get_fiber_status(PHPContext *ctx) {
+    switch (ctx->co->get_state()) {
+    case Coroutine::STATE_INIT:
+        return ZEND_FIBER_STATUS_INIT;
+    case Coroutine::STATE_WAITING:
+        return ZEND_FIBER_STATUS_SUSPENDED;
+    case Coroutine::STATE_RUNNING:
+        return ZEND_FIBER_STATUS_RUNNING;
+    case Coroutine::STATE_END:
+        return ZEND_FIBER_STATUS_DEAD;
+    default:
+        php_swoole_fatal_error(E_ERROR, "Unexpected state when get fiber status");
+        return ZEND_FIBER_STATUS_DEAD;
     }
 }
 
@@ -886,8 +843,7 @@ void PHPCoroutine::fiber_context_switch_notify(PHPContext *from, PHPContext *to)
     }
 }
 
-void PHPCoroutine::fiber_context_switch_try_notify(PHPContext *from, PHPContext *to)
-{
+void PHPCoroutine::fiber_context_switch_try_notify(PHPContext *from, PHPContext *to) {
     if (EXPECTED(!SWOOLE_G(has_debug_extension))) {
         return;
     }
@@ -896,8 +852,6 @@ void PHPCoroutine::fiber_context_switch_try_notify(PHPContext *from, PHPContext 
 #endif /* SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT */
 
 void php_swoole_coroutine_minit(int module_number) {
-    PHPCoroutine::init();
-
     SW_INIT_CLASS_ENTRY_BASE(swoole_coroutine_util, "Swoole\\Coroutine", "Co", swoole_coroutine_methods, nullptr);
     SW_SET_CLASS_CREATE(swoole_coroutine_util, sw_zend_create_object_deny);
 
@@ -935,7 +889,7 @@ void php_swoole_coroutine_rinit() {
         zend_set_user_opcode_handler(ZEND_END_SILENCE, coro_end_silence_handler);
     }
 
-    PHPCoroutine::init_main_task();
+    PHPCoroutine::init_main_context();
 }
 
 void php_swoole_coroutine_rshutdown() {
@@ -968,7 +922,7 @@ PHP_FUNCTION(swoole_coroutine_create) {
         }
     }
 
-    long cid = PHPCoroutine::create(&fci_cache, fci.param_count, fci.params);
+    long cid = PHPCoroutine::create(&fci_cache, fci.param_count, fci.params, &fci.function_name);
     if (sw_likely(cid > 0)) {
         RETURN_LONG(cid);
     } else {
@@ -1043,23 +997,23 @@ static PHP_METHOD(swoole_coroutine, getContext) {
     Z_PARAM_LONG(cid)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    PHPContext *task =
+    PHPContext *ctx =
         (PHPContext *) (EXPECTED(cid == 0) ? Coroutine::get_current_task() : Coroutine::get_task_by_cid(cid));
-    if (UNEXPECTED(!task)) {
+    if (UNEXPECTED(!ctx)) {
         swoole_set_last_error(SW_ERROR_CO_NOT_EXISTS);
         RETURN_NULL();
     }
-    if (UNEXPECTED(task->context == (zend_object *) ~0)) {
+    if (UNEXPECTED(ctx->context == (zend_object *) ~0)) {
         /* bad context (has been destroyed), see: https://github.com/swoole/swoole-src/issues/2991 */
         php_swoole_fatal_error(E_WARNING, "Context of this coroutine has been destroyed");
         RETURN_NULL();
     }
-    if (UNEXPECTED(!task->context)) {
+    if (UNEXPECTED(!ctx->context)) {
         object_init_ex(return_value, swoole_coroutine_context_ce);
-        task->context = Z_OBJ_P(return_value);
+        ctx->context = Z_OBJ_P(return_value);
     }
-    GC_ADDREF(task->context);
-    RETURN_OBJ(task->context);
+    GC_ADDREF(ctx->context);
+    RETURN_OBJ(ctx->context);
 }
 
 static PHP_METHOD(swoole_coroutine, getElapsed) {
@@ -1076,28 +1030,17 @@ static PHP_METHOD(swoole_coroutine, getElapsed) {
 }
 
 static PHP_METHOD(swoole_coroutine, getStackUsage) {
-    zend_long current_cid = PHPCoroutine::get_cid();
-    zend_long cid = current_cid;
+    zend_long cid = 0;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
     Z_PARAM_OPTIONAL
     Z_PARAM_LONG(cid)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    PHPContext *task = (PHPContext *) PHPCoroutine::get_context_by_cid(cid);
-    if (UNEXPECTED(!task)) {
-        swoole_set_last_error(SW_ERROR_CO_NOT_EXISTS);
+    ssize_t usage = PHPCoroutine::get_stack_usage(cid);
+    if (usage < 0) {
         RETURN_FALSE;
     }
-
-    zend_vm_stack stack = cid == current_cid ? EG(vm_stack) : task->vm_stack;
-    size_t usage = 0;
-
-    while (stack) {
-        usage += (stack->end - stack->top) * sizeof(zval);
-        stack = stack->prev;
-    }
-
     RETURN_LONG(usage);
 }
 
@@ -1311,13 +1254,13 @@ static PHP_METHOD(swoole_coroutine, printBackTrace) {
     if (!cid || cid == PHPCoroutine::get_cid()) {
         zend::function::call("debug_print_backtrace", 2, argv);
     } else {
-        PHPContext *task = (PHPContext *) PHPCoroutine::get_context_by_cid(cid);
-        if (UNEXPECTED(!task)) {
+        PHPContext *ctx = (PHPContext *) PHPCoroutine::get_context_by_cid(cid);
+        if (UNEXPECTED(!ctx)) {
             swoole_set_last_error(SW_ERROR_CO_NOT_EXISTS);
             RETURN_FALSE;
         }
         zend_execute_data *ex_backup = EG(current_execute_data);
-        EG(current_execute_data) = task->execute_data;
+        EG(current_execute_data) = ctx->execute_data;
         zend::function::call("debug_print_backtrace", 2, argv);
         EG(current_execute_data) = ex_backup;
     }
