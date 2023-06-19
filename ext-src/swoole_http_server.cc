@@ -118,14 +118,11 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
         ZVAL_LONG(&tmp, conn->info.get_port());
         zend_hash_str_add(ht, ZEND_STRL("remote_port"), &tmp);
 
-        if (conn->socket_type == SW_SOCK_TCP || conn->socket_type == SW_SOCK_TCP6) {
-            if (!conn->addr_cache) {
-                conn->addr_cache = (char *) conn->info.get_ip();
-            }
-            ZVAL_STRING(&tmp, conn->addr_cache);
-        } else {
-            ZVAL_STRING(&tmp, (char *) conn->info.get_ip());
+        if (!ctx->addr_cache) {
+            auto addr = conn->info.get_ip();
+            ctx->addr_cache = zend_string_init(addr, strlen(addr), 0);
         }
+        ZVAL_STR_COPY(&tmp, ctx->addr_cache);
         zend_hash_str_add(ht, ZEND_STRL("remote_addr"), &tmp);
 
         ZVAL_LONG(&tmp, (int) conn->last_recv_time);
@@ -308,6 +305,9 @@ void HttpContext::free() {
     }
     if (write_buffer) {
         delete write_buffer;
+    }
+    if (addr_cache) {
+        zend_string_release(addr_cache);
     }
     delete this;
 }

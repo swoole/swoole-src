@@ -139,7 +139,6 @@ struct Connection {
     pid_t ssl_client_cert_pid;
 #endif
     sw_atomic_t lock;
-    char *addr_cache;
 };
 
 //------------------------------------ReactorThread-------------------------------------------
