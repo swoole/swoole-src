@@ -141,7 +141,7 @@ struct Context {
     uchar http2 : 1;
 
     http2::Stream *stream;
-    std::shared_ptr<String> write_buffer;
+    String *write_buffer;
 
 #ifdef SW_HAVE_COMPRESSION
     int8_t compression_level;
@@ -166,6 +166,7 @@ struct Context {
     size_t current_form_data_name_len;
     zval *current_multipart_header;
     String *form_data_buffer;
+    zend_string *addr_cache;
 
     std::string upload_tmp_dir;
 

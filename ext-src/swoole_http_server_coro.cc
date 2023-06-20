@@ -659,7 +659,14 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
         zval *zserver = ctx->request.zserver;
         add_assoc_long(zserver, "server_port", hs->socket->get_bind_port());
         add_assoc_long(zserver, "remote_port", (zend_long) sock->get_port());
-        add_assoc_string(zserver, "remote_addr", (char *) sock->get_ip());
+
+        if (!ctx->addr_cache) {
+            auto addr = sock->get_ip();
+            ctx->addr_cache = zend_string_init(addr, strlen(addr), 0);
+        }
+        zval tmp;
+        ZVAL_STR_COPY(&tmp, ctx->addr_cache);
+        zend_hash_str_add(Z_ARRVAL_P(zserver), ZEND_STRL("remote_addr"), &tmp);
 
         zend_fcall_info_cache *fci_cache = hs->get_handler(ctx);
         zval args[2] = {*ctx->request.zobject, *ctx->response.zobject};
