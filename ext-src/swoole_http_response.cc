@@ -81,14 +81,14 @@ String *HttpContext::get_write_buffer() {
     }
 }
 
-typedef struct {
+struct HttpResponseObject {
     HttpContext *ctx;
     bool init_fd = false;
     zend_object std;
-} http_response_t;
+};
 
-static sw_inline http_response_t *php_swoole_http_response_fetch_object(zend_object *obj) {
-    return (http_response_t *) ((char *) obj - swoole_http_response_handlers.offset);
+static sw_inline HttpResponseObject *php_swoole_http_response_fetch_object(zend_object *obj) {
+    return (HttpResponseObject *) ((char *) obj - swoole_http_response_handlers.offset);
 }
 
 HttpContext *php_swoole_http_response_get_context(zval *zobject) {
@@ -100,7 +100,7 @@ void php_swoole_http_response_set_context(zval *zobject, HttpContext *ctx) {
 }
 
 static void php_swoole_http_response_free_object(zend_object *object) {
-    http_response_t *response = php_swoole_http_response_fetch_object(object);
+    HttpResponseObject *response = php_swoole_http_response_fetch_object(object);
     HttpContext *ctx = response->ctx;
     zval ztmp; /* bool, not required to release it */
 
@@ -130,7 +130,7 @@ static void php_swoole_http_response_free_object(zend_object *object) {
 }
 
 static zend_object *php_swoole_http_response_create_object(zend_class_entry *ce) {
-    http_response_t *response = (http_response_t *) zend_object_alloc(sizeof(http_response_t), ce);
+    HttpResponseObject *response = (HttpResponseObject *) zend_object_alloc(sizeof(HttpResponseObject), ce);
     zend_object_std_init(&response->std, ce);
     object_properties_init(&response->std, ce);
     response->std.handlers = &swoole_http_response_handlers;
@@ -146,7 +146,7 @@ static void swoole_response_read_fd_property(zend_object *object, HttpContext *c
  */
 static zval *swoole_response_read_property(
     zend_object *object, zend_string *name, int type, void **cache_slot, zval *rv) {
-    http_response_t *response = php_swoole_http_response_fetch_object(object);
+    HttpResponseObject *response = php_swoole_http_response_fetch_object(object);
     HttpContext *ctx = response->ctx;
     zval *property = zend_std_read_property(object, name, type, nullptr, rv);
 
@@ -163,7 +163,7 @@ static zval *swoole_response_read_property(
  */
 static zval *swoole_response_write_property(zend_object *object, zend_string *name, zval *value, void **cache_slot) {
     if (strcasecmp(ZSTR_VAL(name), "fd") == 0) {
-        http_response_t *response = php_swoole_http_response_fetch_object(object);
+        HttpResponseObject *response = php_swoole_http_response_fetch_object(object);
         response->init_fd = true;
     }
 
@@ -174,7 +174,7 @@ static zval *swoole_response_write_property(zend_object *object, zend_string *na
  * for json_encode and serialize
  */
 static HashTable *swoole_response_get_properties_for(zend_object *object, zend_prop_purpose purpose) {
-    http_response_t *response = php_swoole_http_response_fetch_object(object);
+    HttpResponseObject *response = php_swoole_http_response_fetch_object(object);
     HttpContext *ctx = response->ctx;
     if (!response->init_fd) {
         response->init_fd = true;
@@ -249,7 +249,7 @@ void php_swoole_http_response_minit(int module_number) {
     SW_SET_CLASS_CUSTOM_OBJECT(swoole_http_response,
                                php_swoole_http_response_create_object,
                                php_swoole_http_response_free_object,
-                               http_response_t,
+                               HttpResponseObject,
                                std);
 
     zend_declare_property_long(swoole_http_response_ce, ZEND_STRL("fd"), 0, ZEND_ACC_PUBLIC);

@@ -164,14 +164,14 @@ bool HttpContext::parse_multipart_data(const char *at, size_t length) {
 zend_class_entry *swoole_http_request_ce;
 static zend_object_handlers swoole_http_request_handlers;
 
-typedef struct {
+struct HttpRequestObject {
     HttpContext *ctx;
     bool init_fd = false;
     zend_object std;
-} http_request_t;
+};
 
-static sw_inline http_request_t *php_swoole_http_request_fetch_object(zend_object *obj) {
-    return (http_request_t *) ((char *) obj - swoole_http_request_handlers.offset);
+static sw_inline HttpRequestObject *php_swoole_http_request_fetch_object(zend_object *obj) {
+    return (HttpRequestObject *) ((char *) obj - swoole_http_request_handlers.offset);
 }
 
 HttpContext *php_swoole_http_request_get_context(zval *zobject) {
@@ -183,26 +183,24 @@ void php_swoole_http_request_set_context(zval *zobject, HttpContext *ctx) {
 }
 
 static void php_swoole_http_request_free_object(zend_object *object) {
-    http_request_t *request = php_swoole_http_request_fetch_object(object);
+    HttpRequestObject *request = php_swoole_http_request_fetch_object(object);
     HttpContext *ctx = request->ctx;
-    zval zobject, *ztmpfiles;
 
-    ZVAL_OBJ(&zobject, object);
-    ztmpfiles = ctx->request.ztmpfiles;
-    if (ztmpfiles && ZVAL_IS_ARRAY(ztmpfiles)) {
-        zval *z_file_path;
-        SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(ztmpfiles), z_file_path) {
-            if (Z_TYPE_P(z_file_path) != IS_STRING) {
-                continue;
-            }
-            unlink(Z_STRVAL_P(z_file_path));
-            if (SG(rfc1867_uploaded_files)) {
-                zend_hash_str_del(SG(rfc1867_uploaded_files), Z_STRVAL_P(z_file_path), Z_STRLEN_P(z_file_path));
-            }
-        }
-        SW_HASHTABLE_FOREACH_END();
-    }
     if (ctx) {
+        zval *ztmpfiles = ctx->request.ztmpfiles;
+        if (ztmpfiles && ZVAL_IS_ARRAY(ztmpfiles)) {
+            zval *z_file_path;
+            SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(ztmpfiles), z_file_path) {
+                if (Z_TYPE_P(z_file_path) != IS_STRING) {
+                    continue;
+                }
+                unlink(Z_STRVAL_P(z_file_path));
+                if (SG(rfc1867_uploaded_files)) {
+                    zend_hash_str_del(SG(rfc1867_uploaded_files), Z_STRVAL_P(z_file_path), Z_STRLEN_P(z_file_path));
+                }
+            }
+            SW_HASHTABLE_FOREACH_END();
+        }
         ctx->request.zobject = nullptr;
         ctx->free();
     }
@@ -211,7 +209,7 @@ static void php_swoole_http_request_free_object(zend_object *object) {
 }
 
 static zend_object *php_swoole_http_request_create_object(zend_class_entry *ce) {
-    http_request_t *request = (http_request_t *) zend_object_alloc(sizeof(http_request_t), ce);
+    HttpRequestObject *request = (HttpRequestObject *) zend_object_alloc(sizeof(HttpRequestObject), ce);
     zend_object_std_init(&request->std, ce);
     object_properties_init(&request->std, ce);
     request->std.handlers = &swoole_http_request_handlers;
@@ -249,7 +247,7 @@ void php_swoole_http_request_minit(int module_number) {
     SW_SET_CLASS_CUSTOM_OBJECT(swoole_http_request,
                                php_swoole_http_request_create_object,
                                php_swoole_http_request_free_object,
-                               http_request_t,
+                               HttpRequestObject,
                                std);
 
     zend_declare_property_long(swoole_http_request_ce, ZEND_STRL("fd"), 0, ZEND_ACC_PUBLIC);
@@ -867,7 +865,7 @@ static void swoole_request_read_fd_property(zend_object *object, HttpContext *ct
  */
 static zval *swoole_request_read_property(
     zend_object *object, zend_string *name, int type, void **cache_slot, zval *rv) {
-    http_request_t *request = php_swoole_http_request_fetch_object(object);
+    HttpRequestObject *request = php_swoole_http_request_fetch_object(object);
     HttpContext *ctx = request->ctx;
     zval *property = zend_std_read_property(object, name, type, nullptr, rv);
 
@@ -884,7 +882,7 @@ static zval *swoole_request_read_property(
  */
 static zval *swoole_request_write_property(zend_object *object, zend_string *name, zval *value, void **cache_slot) {
     if (strcasecmp(ZSTR_VAL(name), "fd") == 0) {
-        http_request_t *request = php_swoole_http_request_fetch_object(object);
+        HttpRequestObject *request = php_swoole_http_request_fetch_object(object);
         request->init_fd = true;
     }
 
@@ -895,7 +893,7 @@ static zval *swoole_request_write_property(zend_object *object, zend_string *nam
  * for json_encode and serialize
  */
 static HashTable *swoole_request_get_properties_for(zend_object *object, zend_prop_purpose purpose) {
-    http_request_t *request = php_swoole_http_request_fetch_object(object);
+    HttpRequestObject *request = php_swoole_http_request_fetch_object(object);
     HttpContext *ctx = request->ctx;
     if (!request->init_fd) {
         request->init_fd = true;
