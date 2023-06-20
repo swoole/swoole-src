@@ -63,13 +63,9 @@ jobs:
           export TRAVIS_BUILD_DIR=$(pwd) && bash ./.travis/setup.pgsql.sh
           cp .travis/.env.example .env
           export SWOOLE_BRANCH=${GITHUB_REF##*/}
-#          if [ "${SWOOLE_BRANCH}" = "valgrind" ]; then
-            USE_ZEND_ALLOC=0 valgrind php -dswoole.use_shortname='Off' bin/co-phpunit --exclude-group NonCoroutine
-            USE_ZEND_ALLOC=0 valgrind php -dswoole.use_shortname='Off' vendor/bin/phpunit --group NonCoroutine
-            USE_ZEND_ALLOC=0 valgrind php -dswoole.use_shortname='Off' vendor/bin/phpunit src/filesystem --group NonCoroutine
-#          else
-#            .travis/run.test.sh
-#          fi
+          USE_ZEND_ALLOC=0 valgrind php -dswoole.use_shortname='Off' bin/co-phpunit --exclude-group NonCoroutine
+          USE_ZEND_ALLOC=0 valgrind php -dswoole.use_shortname='Off' vendor/bin/phpunit --group NonCoroutine
+          USE_ZEND_ALLOC=0 valgrind php -dswoole.use_shortname='Off' vendor/bin/phpunit src/filesystem --group NonCoroutine
 
       - name: Simps Tests
         if: matrix.framework == 'Simps'
