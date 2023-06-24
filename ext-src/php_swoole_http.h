@@ -166,7 +166,6 @@ struct Context {
     size_t current_form_data_name_len;
     zval *current_multipart_header;
     String *form_data_buffer;
-    zend_string *addr_cache;
 
     std::string upload_tmp_dir;
 

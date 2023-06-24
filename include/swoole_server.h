@@ -133,6 +133,10 @@ struct Connection {
      * unfinished data frame
      */
     String *websocket_buffer;
+    /**
+     * ip addr cache
+     */
+     std::string *addr_cache;
 
 #ifdef SW_USE_OPENSSL
     String *ssl_client_cert;

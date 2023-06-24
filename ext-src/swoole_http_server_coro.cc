@@ -559,6 +559,10 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
     off_t header_crlf_offset = 0;
     size_t total_length;
 
+    const char *addr_cache = sock->get_ip();
+    zend_long server_port = hs->socket->get_bind_port();
+    zend_long remote_port = (zend_long) sock->get_port();
+
 #ifdef SW_USE_OPENSSL
     if (sock->ssl_is_enable() && !sock->ssl_handshake()) {
         RETURN_FALSE;
@@ -656,17 +660,18 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
 
         zend::assign_zend_string_by_val(&ctx->request.zdata, buffer->pop(SW_BUFFER_SIZE_BIG), total_length);
 
-        zval *zserver = ctx->request.zserver;
-        add_assoc_long(zserver, "server_port", hs->socket->get_bind_port());
-        add_assoc_long(zserver, "remote_port", (zend_long) sock->get_port());
-
-        if (!ctx->addr_cache) {
-            auto addr = sock->get_ip();
-            ctx->addr_cache = zend_string_init(addr, strlen(addr), 0);
-        }
         zval tmp;
-        ZVAL_STR_COPY(&tmp, ctx->addr_cache);
-        zend_hash_str_add(Z_ARRVAL_P(zserver), ZEND_STRL("remote_addr"), &tmp);
+        zval *zserver = ctx->request.zserver;
+        HashTable *ht = Z_ARR_P(zserver);
+
+        ZVAL_LONG(&tmp, server_port);
+        zend_hash_str_add(ht, ZEND_STRL("server_port"), &tmp);
+
+        ZVAL_LONG(&tmp, remote_port);
+        zend_hash_str_add(ht, ZEND_STRL("remote_port"), &tmp);
+
+        ZVAL_STRINGL(&tmp, addr_cache, strlen(addr_cache));
+        zend_hash_str_add(ht, ZEND_STRL("remote_addr"), &tmp);
 
         zend_fcall_info_cache *fci_cache = hs->get_handler(ctx);
         zval args[2] = {*ctx->request.zobject, *ctx->response.zobject};

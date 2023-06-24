@@ -182,6 +182,10 @@ int Server::close_connection(Reactor *reactor, Socket *socket) {
         swoole_timer_del(conn->timer);
     }
 
+    if (conn->addr_cache) {
+        delete conn->addr_cache;
+    }
+
     if (!socket->removed && reactor->del(socket) < 0) {
         return SW_ERR;
     }
