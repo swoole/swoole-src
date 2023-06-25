@@ -568,6 +568,9 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
     std::string cid_str = std::to_string(co->get_cid());
     zend::array_set(&hs->zclients, cid_str.c_str(), cid_str.length(), zconn);
 
+    auto addr = sock->get_ip();
+    zend_string *remote_addr = zend_string_init(addr, strlen(addr), 0);
+
     while (true) {
     _recv_request : {
         sock->get_socket()->recv_wait = 1;
@@ -660,12 +663,8 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
         add_assoc_long(zserver, "server_port", hs->socket->get_bind_port());
         add_assoc_long(zserver, "remote_port", (zend_long) sock->get_port());
 
-        if (!ctx->addr_cache) {
-            auto addr = sock->get_ip();
-            ctx->addr_cache = zend_string_init(addr, strlen(addr), 0);
-        }
         zval tmp;
-        ZVAL_STR_COPY(&tmp, ctx->addr_cache);
+        ZVAL_STR_COPY(&tmp, remote_addr);
         zend_hash_str_add(Z_ARRVAL_P(zserver), ZEND_STRL("remote_addr"), &tmp);
 
         zend_fcall_info_cache *fci_cache = hs->get_handler(ctx);
@@ -701,6 +700,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
         zval_dtor(ctx->request.zobject);
         zval_dtor(ctx->response.zobject);
     }
+    zend_string_release(remote_addr);
     zend::array_unset(&hs->zclients, cid_str.c_str(), cid_str.length());
 }
 

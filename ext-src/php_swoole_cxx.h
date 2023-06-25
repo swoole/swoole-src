@@ -66,6 +66,8 @@
     _(SW_ZEND_STR_CLASS_NAME_RESOLVER,      "Swoole\\NameResolver") \
     _(SW_ZEND_STR_SOCKET,                   "socket") \
     _(SW_ZEND_STR_CONNECTED,                "connected") \
+    _(SW_ZEND_STR_ADDR_LOOPBACK_V4,         "127.0.0.1") \
+    _(SW_ZEND_STR_ADDR_LOOPBACK_V6,         "::1") \
 
 typedef enum sw_zend_known_string_id {
 #define _SW_ZEND_STR_ID(id, str) id,

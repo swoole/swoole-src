@@ -47,6 +47,10 @@
 #define s6_addr32 _S6_un._S6_u32
 #endif
 
+static bool IN_IS_ADDR_LOOPBACK(struct in_addr *a) {
+    return a->s_addr == htonl(INADDR_LOOPBACK);
+}
+
 // OS Feature
 #if defined(HAVE_KQUEUE) || !defined(HAVE_SENDFILE)
 int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size);
@@ -109,6 +113,15 @@ struct Address {
     }
     int get_port();
     const char *get_addr();
+
+    bool is_loopback_addr() {
+        if (type == SW_SOCK_TCP || type == SW_SOCK_UDP) {
+            return IN_IS_ADDR_LOOPBACK(&addr.inet_v4.sin_addr);
+        } else if (type == SW_SOCK_TCP6 || type == SW_SOCK_UDP6) {
+            return IN6_IS_ADDR_LOOPBACK(&addr.inet_v6.sin6_addr);
+        }
+        return false;
+    }
 
     static bool verify_ip(int __af, const std::string &str) {
         char tmp_address[INET6_ADDRSTRLEN];
