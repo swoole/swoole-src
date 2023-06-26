@@ -1471,17 +1471,8 @@ Socket *make_socket(SocketType type, FdType fd_type, int flags) {
         swoole_set_last_error(errno);
         return nullptr;
     }
-    int sockfd = swoole::socket(sock_domain, sock_type, 0, flags);
-    if (sockfd < 0) {
-        swoole_set_last_error(errno);
-        return nullptr;
-    }
 
-    auto _socket = swoole::make_socket(sockfd, fd_type);
-    _socket->nonblock = flags & SW_SOCK_NONBLOCK;
-    _socket->cloexec = flags & SW_SOCK_CLOEXEC;
-    _socket->socket_type = type;
-    return _socket;
+    return make_socket(type, fd_type, sock_domain, sock_type, 0, flags);
 }
 
 Socket *make_socket(SocketType type, FdType fd_type, int sock_domain, int sock_type, int socket_protocol, int flags) {
