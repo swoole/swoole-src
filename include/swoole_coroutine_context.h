@@ -58,7 +58,7 @@ class Context {
 #if !defined(SW_USE_THREAD_CONTEXT) && defined(SW_CONTEXT_DETECT_STACK_USAGE)
     ssize_t get_stack_usage();
 #endif
-    inline bool is_end() const {
+    bool is_end() const {
         return end_;
     }
 

@@ -250,7 +250,7 @@ struct ProcessPool {
 
     void *ptr;
 
-    inline void set_type(int _type) {
+    void set_type(int _type) {
         uint32_t i;
         type = _type;
         for (i = 0; i < worker_num; i++) {
@@ -258,7 +258,7 @@ struct ProcessPool {
         }
     }
 
-    inline void set_start_id(int _start_id) {
+    void set_start_id(int _start_id) {
         uint32_t i;
         start_id = _start_id;
         for (i = 0; i < worker_num; i++) {
@@ -266,7 +266,7 @@ struct ProcessPool {
         }
     }
 
-    inline Worker *get_worker(int worker_id) {
+    Worker *get_worker(int worker_id) {
         return &(workers[worker_id - start_id]);
     }
 

@@ -143,7 +143,7 @@ struct IOVector {
 
     void update_iterator(ssize_t __n);
 
-    inline struct iovec *get_iterator() {
+    struct iovec *get_iterator() {
         return iov_iterator;
     }
 
@@ -155,15 +155,15 @@ struct IOVector {
         return len;
     }
 
-    inline int get_remain_count() {
+    int get_remain_count() {
         return remain_count;
     }
 
-    inline int get_index() {
+    int get_index() {
         return index;
     }
 
-    inline size_t get_offset_bytes() {
+    size_t get_offset_bytes() {
         return offset_bytes;
     }
 };
@@ -251,43 +251,43 @@ struct Socket {
     bool set_recv_timeout(double timeout);
     bool set_send_timeout(double timeout);
 
-    inline bool set_nonblock() {
+    bool set_nonblock() {
         return set_fd_option(1, -1);
     }
 
-    inline bool set_block() {
+    bool set_block() {
         return set_fd_option(0, -1);
     }
 
     bool set_fd_option(int _nonblock, int _cloexec);
 
-    inline int set_option(int level, int optname, int optval) {
+    int set_option(int level, int optname, int optval) {
         return setsockopt(fd, level, optname, &optval, sizeof(optval));
     }
 
-    inline int set_option(int level, int optname, const void *optval, socklen_t optlen) {
+    int set_option(int level, int optname, const void *optval, socklen_t optlen) {
         return setsockopt(fd, level, optname, optval, optlen);
     }
 
-    inline int get_option(int level, int optname, void *optval, socklen_t *optlen) {
+    int get_option(int level, int optname, void *optval, socklen_t *optlen) {
         return getsockopt(fd, level, optname, optval, optlen);
     }
 
-    inline int get_option(int level, int optname, int *optval) {
+    int get_option(int level, int optname, int *optval) {
         socklen_t optlen = sizeof(*optval);
         return get_option(level, optname, optval, &optlen);
     }
 
-    inline int get_fd() {
+    int get_fd() {
         return fd;
     }
 
-    inline int get_name(Address *sa) {
+    int get_name(Address *sa) {
         sa->len = sizeof(sa->addr);
         return getsockname(fd, &sa->addr.ss, &sa->len);
     }
 
-    inline int set_tcp_nopush(int nopush) {
+    int set_tcp_nopush(int nopush) {
 #ifdef TCP_CORK
         if (set_option(IPPROTO_TCP, TCP_CORK, nopush) == SW_ERR) {
             return -1;
@@ -359,15 +359,15 @@ struct Socket {
     int sendfile_blocking(const char *filename, off_t offset, size_t length, double timeout);
     ssize_t writev_blocking(const struct iovec *iov, size_t iovcnt);
 
-    inline int connect(const Address &sa) {
+    int connect(const Address &sa) {
         return ::connect(fd, &sa.addr.ss, sa.len);
     }
 
-    inline int connect(const Address *sa) {
+    int connect(const Address *sa) {
         return ::connect(fd, &sa->addr.ss, sa->len);
     }
 
-    inline int connect(const std::string &host, int port) {
+    int connect(const std::string &host, int port) {
         Address addr;
         addr.assign(socket_type, host, port);
         return connect(addr);
@@ -400,12 +400,12 @@ struct Socket {
     const char *ssl_get_error_reason(int *reason);
 #endif
 
-    inline ssize_t recvfrom(char *__buf, size_t __len, int flags, Address *sa) {
+    ssize_t recvfrom(char *__buf, size_t __len, int flags, Address *sa) {
         sa->len = sizeof(sa->addr);
         return ::recvfrom(fd, __buf, __len, flags, &sa->addr.ss, &sa->len);
     }
 
-    inline bool cork() {
+    bool cork() {
         if (tcp_nopush) {
             return false;
         }
@@ -422,7 +422,7 @@ struct Socket {
         return true;
     }
 
-    inline bool uncork() {
+    bool uncork() {
         if (!tcp_nopush) {
             return false;
         }
@@ -498,7 +498,7 @@ struct Socket {
     ssize_t sendto_blocking(const Address &dst_addr, const void *__buf, size_t __n, int flags = 0);
     ssize_t recvfrom_blocking(char *__buf, size_t __len, int flags, Address *sa);
 
-    inline ssize_t sendto(const char *dst_host, int dst_port, const void *data, size_t len, int flags = 0) const {
+    ssize_t sendto(const char *dst_host, int dst_port, const void *data, size_t len, int flags = 0) const {
         Address addr = {};
         if (!addr.assign(socket_type, dst_host, dst_port)) {
             return SW_ERR;
@@ -506,11 +506,11 @@ struct Socket {
         return sendto(addr, data, len, flags);
     }
 
-    inline ssize_t sendto(const Address &dst_addr, const void *data, size_t len, int flags) const {
+    ssize_t sendto(const Address &dst_addr, const void *data, size_t len, int flags) const {
         return ::sendto(fd, data, len, flags, &dst_addr.addr.ss, dst_addr.len);
     }
 
-    inline int catch_error(int err) const {
+    int catch_error(int err) const {
         switch (err) {
         case EFAULT:
             abort();
@@ -545,7 +545,7 @@ struct Socket {
         }
     }
 
-    inline int catch_write_error(int err) const {
+    int catch_write_error(int err) const {
         switch (err) {
         case ENOBUFS:
             return SW_WAIT;
@@ -554,7 +554,7 @@ struct Socket {
         }
     }
 
-    inline int catch_write_pipe_error(int err) {
+    int catch_write_pipe_error(int err) {
         switch (err) {
         case ENOBUFS:
         case EMSGSIZE:
@@ -564,7 +564,7 @@ struct Socket {
         }
     }
 
-    inline int catch_read_error(int err) const {
+    int catch_read_error(int err) const {
         return catch_error(err);
     }
 

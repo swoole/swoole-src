@@ -73,31 +73,31 @@ class Channel {
         }
     }
 
-    inline bool is_closed() {
+    bool is_closed() {
         return closed;
     }
 
-    inline bool is_empty() {
+    bool is_empty() {
         return data_queue.size() == 0;
     }
 
-    inline bool is_full() {
+    bool is_full() {
         return data_queue.size() == capacity;
     }
 
-    inline size_t length() {
+    size_t length() {
         return data_queue.size();
     }
 
-    inline size_t consumer_num() {
+    size_t consumer_num() {
         return consumer_queue.size();
     }
 
-    inline size_t producer_num() {
+    size_t producer_num() {
         return producer_queue.size();
     }
 
-    inline void *pop_data() {
+    void *pop_data() {
         if (data_queue.size() == 0) {
             return nullptr;
         }
@@ -122,15 +122,15 @@ class Channel {
 
     void yield(enum Opcode type);
 
-    inline void consumer_remove(Coroutine *co) {
+    void consumer_remove(Coroutine *co) {
         consumer_queue.remove(co);
     }
 
-    inline void producer_remove(Coroutine *co) {
+    void producer_remove(Coroutine *co) {
         producer_queue.remove(co);
     }
 
-    inline Coroutine *pop_coroutine(enum Opcode type) {
+    Coroutine *pop_coroutine(enum Opcode type) {
         Coroutine *co;
         if (type == PRODUCER) {
             co = producer_queue.front();

@@ -70,7 +70,7 @@ class Coroutine {
 
     typedef void (*SwapCallback)(void *);
     typedef std::function<void(void)> BailoutCallback;
-    typedef std::function<bool(swoole::Coroutine*)> CancelFunc;
+    typedef std::function<bool(swoole::Coroutine *)> CancelFunc;
 
     void resume();
     void yield();
@@ -79,31 +79,31 @@ class Coroutine {
 
     bool yield_ex(double timeout = -1);
 
-    inline enum State get_state() const {
+    enum State get_state() const {
         return state;
     }
 
-    inline long get_init_msec() const  {
+    long get_init_msec() const {
         return init_msec;
     }
 
-    inline long get_cid() const {
+    long get_cid() const {
         return cid;
     }
 
-    inline Coroutine *get_origin() {
+    Coroutine *get_origin() {
         return origin;
     }
 
-    inline long get_origin_cid() {
+    long get_origin_cid() {
         return sw_likely(origin) ? origin->get_cid() : -1;
     }
 
-    inline void *get_task() {
+    void *get_task() {
         return task;
     }
 
-    inline bool is_end() {
+    bool is_end() {
         return ctx.is_end();
     }
 
@@ -119,7 +119,7 @@ class Coroutine {
         return state == STATE_WAITING;
     }
 
-    inline void set_task(void *_task) {
+    void set_task(void *_task) {
         task = _task;
     }
 
@@ -127,7 +127,7 @@ class Coroutine {
         cancel_fn_ = cancel_fn;
     }
 
-    inline long get_execute_usec() const {
+    long get_execute_usec() const {
         return time<seconds_type>(true) - switch_usec + execute_usec;
     }
 
@@ -149,7 +149,7 @@ class Coroutine {
 #ifdef SW_USE_THREAD_CONTEXT
         try {
             return (new Coroutine(fn, args))->run();
-        } catch (const std::system_error& e) {
+        } catch (const std::system_error &e) {
             swoole_set_last_error(e.code().value());
             swoole_warning("failed to create coroutine, Error: %s[%d]", e.what(), swoole_get_last_error());
             return -1;
@@ -245,9 +245,9 @@ class Coroutine {
     static long last_cid;
     static uint64_t peak_num;
     static size_t stack_size;
-    static SwapCallback on_yield;   /* before yield */
-    static SwapCallback on_resume;  /* before resume */
-    static SwapCallback on_close;   /* before close */
+    static SwapCallback on_yield;      /* before yield */
+    static SwapCallback on_resume;     /* before resume */
+    static SwapCallback on_close;      /* before close */
     static BailoutCallback on_bailout; /* when bailout */
     static bool activated;
 
@@ -270,11 +270,11 @@ class Coroutine {
         }
     }
 
-    Coroutine(long _cid, const CoroutineFunc &fn, void *private_data): ctx(stack_size, fn, private_data) {
+    Coroutine(long _cid, const CoroutineFunc &fn, void *private_data) : ctx(stack_size, fn, private_data) {
         cid = _cid;
     }
 
-    inline long run() {
+    long run() {
         long cid = this->cid;
         origin = current;
         current = this;
@@ -285,7 +285,7 @@ class Coroutine {
         return cid;
     }
 
-    inline void check_end() {
+    void check_end() {
         if (ctx.is_end()) {
             close();
         } else if (sw_unlikely(on_bailout)) {

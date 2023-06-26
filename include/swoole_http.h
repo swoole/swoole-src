@@ -160,7 +160,7 @@ struct Request {
         buffer_ = nullptr;
     }
     ~Request();
-    inline void clean() {
+    void clean() {
         memset(this, 0, offsetof(Request, buffer_));
     }
     int get_protocol();
