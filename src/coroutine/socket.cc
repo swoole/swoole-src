@@ -472,9 +472,9 @@ bool Socket::http_proxy_handshake() {
     return ret;
 }
 
-void Socket::init_sock_type(SocketType _sw_type) {
-    type = _sw_type;
-    network::Socket::get_domain_and_type(_sw_type, &sock_domain, &sock_type);
+void Socket::init_sock_type(SocketType _type) {
+    type = _type;
+    network::Socket::get_domain_and_type(_type, &sock_domain, &sock_type);
 }
 
 bool Socket::init_sock() {

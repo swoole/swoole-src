@@ -1492,8 +1492,8 @@ Socket *make_socket(SocketType type, FdType fd_type, int sock_domain, int sock_t
     }
 
     auto _socket = swoole::make_socket(sockfd, fd_type);
-    _socket->nonblock = flags & SW_SOCK_NONBLOCK;
-    _socket->cloexec = flags & SW_SOCK_CLOEXEC;
+    _socket->nonblock = !!(flags & SW_SOCK_NONBLOCK);
+    _socket->cloexec = !!(flags & SW_SOCK_CLOEXEC);
     _socket->socket_type = type;
     return _socket;
 }
