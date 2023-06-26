@@ -79,6 +79,10 @@ class Socket {
         return sock_fd == SW_BAD_SOCKET;
     }
 
+    bool is_port_required() {
+        return (sock_domain == AF_INET6 || sock_domain == AF_INET) && (type != SW_SOCK_RAW);
+    }
+
     bool check_liveness();
     ssize_t peek(void *__buf, size_t __n);
     ssize_t recv(void *__buf, size_t __n);
