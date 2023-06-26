@@ -1231,7 +1231,7 @@ PHP_FUNCTION(swoole_coroutine_socketpair) {
 
     php_swoole_check_reactor();
 
-    auto sock_type = swoole::network::Socket::convert_to_type(domain, type, protocol);
+    auto sock_type = swoole::network::Socket::convert_to_type(domain, type);
 
     zend_object *s1 = php_swoole_create_socket_from_fd(pair[0], sock_type);
     if (s1 == nullptr) {
@@ -1362,7 +1362,7 @@ static PHP_METHOD(swoole_socket_coro, connect) {
 
     swoole_get_socket_coro(sock, ZEND_THIS);
 
-    if (sock->socket->get_sock_domain() == AF_INET6 || sock->socket->get_sock_domain() == AF_INET) {
+    if (sock->socket->is_port_required()) {
         if (ZEND_NUM_ARGS() == 1) {
             php_swoole_error(E_WARNING, "Socket of type AF_INET/AF_INET6 requires port argument");
             RETURN_FALSE;

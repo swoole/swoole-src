@@ -568,16 +568,21 @@ struct Socket {
         return catch_error(err);
     }
 
-    static inline SocketType convert_to_type(int domain, int type, int protocol = 0) {
-        switch (domain) {
-        case AF_INET:
-            return type == SOCK_STREAM ? SW_SOCK_TCP : SW_SOCK_UDP;
-        case AF_INET6:
-            return type == SOCK_STREAM ? SW_SOCK_TCP6 : SW_SOCK_UDP6;
-        case AF_UNIX:
-            return type == SOCK_STREAM ? SW_SOCK_UNIX_STREAM : SW_SOCK_UNIX_DGRAM;
-        default:
+    static inline SocketType convert_to_type(int domain, int type) {
+        if (domain == AF_INET && type == SOCK_STREAM) {
             return SW_SOCK_TCP;
+        } else if (domain == AF_INET6 && type == SOCK_STREAM) {
+            return SW_SOCK_TCP6;
+        } else if (domain == AF_UNIX && type == SOCK_STREAM) {
+            return SW_SOCK_UNIX_STREAM;
+        } else if (domain == AF_INET && type == SOCK_DGRAM) {
+            return SW_SOCK_UDP;
+        } else if (domain == AF_INET6 && type == SOCK_DGRAM) {
+            return SW_SOCK_UDP6;
+        } else if (domain == AF_UNIX && type == SOCK_DGRAM) {
+            return SW_SOCK_UNIX_DGRAM;
+        } else {
+            return SW_SOCK_RAW;
         }
     }
 
@@ -633,6 +638,9 @@ int getaddrinfo(GetaddrinfoRequest *req);
 }  // namespace network
 network::Socket *make_socket(int fd, FdType fd_type);
 network::Socket *make_socket(SocketType socket_type, FdType fd_type, int flags);
+network::Socket *make_socket(
+    SocketType type, FdType fd_type, int sock_domain, int sock_type, int socket_protocol, int flags);
+int socket(int sock_domain, int sock_type, int socket_protocol, int flags);
 network::Socket *make_server_socket(SocketType socket_type,
                                     const char *address,
                                     int port = 0,

@@ -79,6 +79,10 @@ class Socket {
         return sock_fd == SW_BAD_SOCKET;
     }
 
+    bool is_port_required() {
+        return type <= SW_SOCK_UDP6;
+    }
+
     bool check_liveness();
     ssize_t peek(void *__buf, size_t __n);
     ssize_t recv(void *__buf, size_t __n);
