@@ -80,7 +80,7 @@ class Socket {
     }
 
     bool is_port_required() {
-        return (sock_domain == AF_INET6 || sock_domain == AF_INET) && (type != SW_SOCK_RAW);
+        return type <= SW_SOCK_UDP6;
     }
 
     bool check_liveness();
