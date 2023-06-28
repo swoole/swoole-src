@@ -568,6 +568,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
 
     while (true) {
     _recv_request : {
+        sock->get_socket()->recv_wait = 1;
         ssize_t retval = sock->recv(buffer->str + buffer->length, buffer->size - buffer->length);
         if (sw_unlikely(retval <= 0)) {
             break;
@@ -663,6 +664,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
         zend_fcall_info_cache *fci_cache = hs->get_handler(ctx);
         zval args[2] = {*ctx->request.zobject, *ctx->response.zobject};
         bool keep_alive = swoole_http_should_keep_alive(&ctx->parser) && !ctx->websocket;
+        sock->get_socket()->recv_wait = 0;
 
         if (fci_cache) {
             if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, nullptr, 0))) {
@@ -708,7 +710,9 @@ static PHP_METHOD(swoole_http_server_coro, shutdown) {
     hs->socket->cancel(SW_EVENT_READ);
     /* accept has been canceled, we only need to traverse once */
     for (auto client : hs->clients) {
-        client->close();
+        if (client->get_socket()->recv_wait) {
+            client->cancel(SW_EVENT_READ);
+        }
     }
     hs->clients.clear();
 }
