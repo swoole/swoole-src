@@ -204,7 +204,7 @@ void swoole_init(void) {
     }
 
     // init signalfd
-#ifdef HAVE_SIGNALFD
+#if defined(HAVE_SIGNALFD) && !defined(SW_USE_THREAD_CONTEXT)
     swoole_signalfd_init();
     SwooleG.use_signalfd = 1;
     SwooleG.enable_signalfd = 1;

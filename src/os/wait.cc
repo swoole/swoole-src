@@ -70,7 +70,7 @@ static void signal_init() {
     if (!signal_ready) {
         Reactor *reactor = SwooleTG.reactor;
         swoole_signal_set(SIGCHLD, signal_handler);
-#ifdef HAVE_SIGNALFD
+#if defined(HAVE_SIGNALFD) && !defined(SW_USE_THREAD_CONTEXT)
         if (SwooleG.use_signalfd && !reactor->isset_handler(SW_FD_SIGNAL)) {
             swoole_signalfd_setup(reactor);
         }

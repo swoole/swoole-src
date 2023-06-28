@@ -898,7 +898,7 @@ PHP_MINFO_FUNCTION(swoole) {
 #ifdef HAVE_KQUEUE
     php_info_print_table_row(2, "kqueue", "enabled");
 #endif
-#ifdef HAVE_SIGNALFD
+#if defined(HAVE_SIGNALFD) && !defined(SW_USE_THREAD_CONTEXT)
     php_info_print_table_row(2, "signalfd", "enabled");
 #endif
 #ifdef SW_USE_ACCEPT4

@@ -263,7 +263,7 @@ void php_swoole_event_wait() {
     if (php_swoole_is_fatal_error() || !sw_reactor()) {
         return;
     }
-#ifdef HAVE_SIGNALFD
+#if defined(HAVE_SIGNALFD) && !defined(SW_USE_THREAD_CONTEXT)
     if (sw_reactor()->check_signalfd) {
         swoole_signalfd_setup(sw_reactor());
     }
@@ -756,7 +756,7 @@ static PHP_FUNCTION(swoole_event_dispatch) {
     }
     sw_reactor()->once = true;
 
-#ifdef HAVE_SIGNALFD
+#if defined(HAVE_SIGNALFD) && !defined(SW_USE_THREAD_CONTEXT)
     if (sw_reactor()->check_signalfd) {
         swoole_signalfd_setup(sw_reactor());
     }

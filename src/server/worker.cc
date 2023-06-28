@@ -370,7 +370,7 @@ void Server::worker_start_callback() {
     SwooleWG.worker = get_worker(SwooleG.process_id);
     SwooleWG.worker->status = SW_WORKER_IDLE;
 
-#ifdef HAVE_SIGNALFD
+#if defined(HAVE_SIGNALFD) && !defined(SW_USE_THREAD_CONTEXT)
     if (SwooleG.use_signalfd && SwooleTG.reactor && SwooleG.signal_fd == 0) {
         swoole_signalfd_setup(SwooleTG.reactor);
     }
