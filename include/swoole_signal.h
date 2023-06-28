@@ -32,7 +32,7 @@ struct Signal {
 
 typedef swoole::SignalHandler swSignalHandler;
 
-#ifdef HAVE_SIGNALFD
+#if defined(HAVE_SIGNALFD) && !defined(SW_USE_THREAD_CONTEXT)
 void swoole_signalfd_init();
 #endif
 

@@ -20,7 +20,7 @@
 #include "swoole_socket.h"
 #include "swoole_reactor.h"
 
-#ifdef HAVE_SIGNALFD
+#if defined(HAVE_SIGNALFD) && !defined(SW_USE_THREAD_CONTEXT)
 #include <sys/signalfd.h>
 #endif
 
@@ -41,7 +41,7 @@ using swoole::Signal;
 using swoole::SignalHandler;
 using swoole::network::Socket;
 
-#ifdef HAVE_SIGNALFD
+#if defined(HAVE_SIGNALFD) && !defined(SW_USE_THREAD_CONTEXT)
 static SignalHandler swoole_signalfd_set(int signo, SignalHandler handler);
 static bool swoole_signalfd_create();
 static bool swoole_signalfd_setup(Reactor *reactor);
@@ -55,7 +55,7 @@ static SignalHandler swoole_signal_kqueue_set(int signo, SignalHandler handler);
 
 static void swoole_signal_async_handler(int signo);
 
-#ifdef HAVE_SIGNALFD
+#if defined(HAVE_SIGNALFD) && !defined(SW_USE_THREAD_CONTEXT)
 static sigset_t signalfd_mask;
 static int signal_fd = -1;
 static pid_t signalfd_create_pid;
@@ -126,7 +126,7 @@ SignalHandler swoole_signal_set(int signo, SignalHandler func, int restart, int 
  * set new signal handler and return origin signal handler
  */
 SignalHandler swoole_signal_set(int signo, SignalHandler handler) {
-#ifdef HAVE_SIGNALFD
+#if defined(HAVE_SIGNALFD) && !defined(SW_USE_THREAD_CONTEXT)
     if (SwooleG.enable_signalfd && swoole_event_is_available()) {
         return swoole_signalfd_set(signo, handler);
     } else
@@ -187,7 +187,7 @@ SignalHandler swoole_signal_get_handler(int signo) {
 }
 
 void swoole_signal_clear(void) {
-#ifdef HAVE_SIGNALFD
+#if defined(HAVE_SIGNALFD) && !defined(SW_USE_THREAD_CONTEXT)
     if (SwooleG.enable_signalfd && swoole_signalfd_is_available()) {
         swoole_signalfd_clear();
     } else
@@ -209,7 +209,7 @@ void swoole_signal_clear(void) {
     sw_memset_zero(&signals, sizeof(signals));
 }
 
-#ifdef HAVE_SIGNALFD
+#if defined(HAVE_SIGNALFD) && !defined(SW_USE_THREAD_CONTEXT)
 void swoole_signalfd_init() {
     sigemptyset(&signalfd_mask);
     sw_memset_zero(&signals, sizeof(signals));
