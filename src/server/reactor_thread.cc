@@ -687,7 +687,7 @@ int Server::start_reactor_threads() {
 
     Reactor *reactor = sw_reactor();
 
-#if defined(HAVE_SIGNALFD) && !defined(SW_USE_THREAD_CONTEXT)
+#ifdef HAVE_SIGNALFD
     if (SwooleG.use_signalfd) {
         swoole_signalfd_setup(reactor);
     }

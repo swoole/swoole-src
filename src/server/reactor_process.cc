@@ -289,7 +289,7 @@ static int ReactorProcess_loop(ProcessPool *pool, Worker *worker) {
     reactor->id = worker->id;
     reactor->ptr = serv;
 
-#if defined(HAVE_SIGNALFD) && !defined(SW_USE_THREAD_CONTEXT)
+#ifdef HAVE_SIGNALFD
     if (SwooleG.use_signalfd) {
         swoole_signalfd_setup(SwooleTG.reactor);
     }
