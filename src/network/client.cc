@@ -615,30 +615,31 @@ static int Client_tcp_connect_async(Client *cli, const char *host, int port, dou
 
     if (cli->wait_dns) {
         AsyncEvent ev{};
+        auto data = (GethostbynameData *) sw_malloc(sizeof(GethostbynameData));
+        ev.data = data;
 
         size_t len = strlen(cli->server_host);
         if (len < INET6_ADDRSTRLEN) {
-            ev.nbytes = INET6_ADDRSTRLEN;
+            data->host_len = INET6_ADDRSTRLEN;
         } else {
-            ev.nbytes = len + 1;
+            data->host_len = len + 1;
         }
 
-        ev.buf = sw_malloc(ev.nbytes);
-        if (!ev.buf) {
+        data->host = (char *) sw_malloc(data->host_len);
+        if (!data->host) {
             swoole_warning("malloc failed");
             return SW_ERR;
         }
 
-        memcpy(ev.buf, cli->server_host, len);
-        ((char *) ev.buf)[len] = 0;
-        ev.flags = cli->_sock_domain;
+        data->hostname = host;
+        data->domain = cli->_sock_domain;
         ev.object = cli;
-        ev.fd = cli->socket->fd;
         ev.handler = async::handler_gethostbyname;
         ev.callback = Client_onResolveCompleted;
 
         if (swoole::async::dispatch(&ev) == nullptr) {
-            sw_free(ev.buf);
+            sw_free(data->host);
+            sw_free(data);
             return SW_ERR;
         } else {
             return SW_OK;
@@ -1128,8 +1129,10 @@ static void Client_onTimeout(Timer *timer, TimerNode *tnode) {
 }
 
 static void Client_onResolveCompleted(AsyncEvent *event) {
+    auto data = (GethostbynameData *) event->data;
     if (event->canceled) {
-        sw_free(event->buf);
+        sw_free(data->host);
+        sw_free(data);
         return;
     }
 
@@ -1137,7 +1140,7 @@ static void Client_onResolveCompleted(AsyncEvent *event) {
     cli->wait_dns = 0;
 
     if (event->error == 0) {
-        Client_tcp_connect_async(cli, (char *) event->buf, cli->server_port, cli->timeout, 1);
+        Client_tcp_connect_async(cli, data->host, cli->server_port, cli->timeout, 1);
     } else {
         swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
         cli->socket->removed = 1;
@@ -1146,7 +1149,8 @@ static void Client_onResolveCompleted(AsyncEvent *event) {
             cli->onError(cli);
         }
     }
-    sw_free(event->buf);
+    sw_free(data->host);
+    sw_free(data);
 }
 
 static int Client_onWrite(Reactor *reactor, Event *event) {
