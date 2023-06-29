@@ -2415,5 +2415,9 @@
         <configureoption default="no" name="enable-swoole-curl" prompt="enable curl support?"/>
         <configureoption default="no" name="enable-cares" prompt="enable cares support?"/>
         <configureoption default="yes" name="enable-brotli" prompt="enable brotli support?"/>
+        <configureoption default="no" name="enable-swoole-pgsql" prompt="enable PostgreSQL database support?"/>
+        <configureoption default="no" name="with-swoole-odbc" prompt="enable ODBC database support?"/>
+        <configureoption default="no" name="with-swoole-oracle" prompt="enable Oracle database support?"/>
+        <configureoption default="no" name="enable-swoole-sqlite" prompt="enable Sqlite database support?"/>
     </extsrcrelease>
 </package>
