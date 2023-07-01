@@ -780,4 +780,16 @@ const char *ListenPort::get_protocols() {
     }
 }
 
+size_t ListenPort::get_connection_num() {
+    if (gs->connection_nums) {
+        size_t num = 0;
+        for (uint32_t i = 0; i < sw_server()->worker_num; i++) {
+            num += gs->connection_nums[i];
+        }
+        return num;
+    } else {
+        return gs->connection_num;
+    }
+}
+
 }  // namespace swoole

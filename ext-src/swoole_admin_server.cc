@@ -430,7 +430,7 @@ static std::string handle_get_all_ports(Server *serv, const std::string &msg) {
             {"type", port->type},
             {"ssl", port->ssl},
             {"protocols", port->get_protocols()},
-            {"connection_num", (long) port->gs->connection_num},
+            {"connection_num", (long) port->get_connection_num()},
         });
         _list.push_back(info);
     };

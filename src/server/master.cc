@@ -760,6 +760,14 @@ int Server::create() {
         return SW_ERR;
     }
 
+    if (is_base_mode()) {
+        gs->connection_nums = (sw_atomic_t *) sw_shm_calloc(worker_num, sizeof(sw_atomic_t));
+        if (gs->connection_nums == nullptr) {
+            swoole_error("sw_shm_calloc(%ld) for gs->connection_nums failed", worker_num * sizeof(sw_atomic_t));
+            return SW_ERR;
+        }
+    }
+
     if (swoole_isset_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_CREATE)) {
         swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_CREATE, this);
     }
@@ -779,6 +787,13 @@ int Server::create() {
     int index = 0;
     for (auto port : ports) {
         port->gs = &port_gs_list[index++];
+        if (is_base_mode()) {
+            port->gs->connection_nums = (sw_atomic_t *) sw_shm_calloc(worker_num, sizeof(sw_atomic_t));
+            if (port->gs->connection_nums == nullptr) {
+                swoole_error("sw_shm_calloc(%ld) for port->connection_nums failed", worker_num * sizeof(sw_atomic_t));
+                return SW_ERR;
+            }
+        }
     }
 
     if (enable_static_handler and locations == nullptr) {
@@ -1008,13 +1023,24 @@ void Server::destroy() {
 #endif
     }
 #endif
+
+    for (auto port : ports) {
+        if (port->gs->connection_nums) {
+            sw_shm_free((void *) port->gs->connection_nums);
+        }
+    }
+
     sw_shm_free(session_list);
     sw_shm_free(port_gs_list);
     sw_shm_free(workers);
+    if (gs->connection_nums) {
+        sw_shm_free((void *) gs->connection_nums);
+    }
 
     session_list = nullptr;
     port_gs_list = nullptr;
     workers = nullptr;
+    gs->connection_nums = nullptr;
 
     delete factory;
     factory = nullptr;
@@ -1953,8 +1979,13 @@ _find_available_slot:
 
     gs->accept_count++;
     ls->gs->accept_count++;
-    sw_atomic_fetch_add(&gs->connection_num, 1);
-    sw_atomic_fetch_add(&ls->gs->connection_num, 1);
+    if (is_base_mode()) {
+        sw_atomic_fetch_add(&gs->connection_nums[reactor_id], 1);
+        sw_atomic_fetch_add(&ls->gs->connection_nums[reactor_id], 1);
+    } else {
+        sw_atomic_fetch_add(&gs->connection_num, 1);
+        sw_atomic_fetch_add(&ls->gs->connection_num, 1);
+    }
 
     return connection;
 }
