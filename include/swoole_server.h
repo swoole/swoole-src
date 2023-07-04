@@ -157,6 +157,7 @@ struct ReactorThread {
 
 struct ServerPortGS {
     sw_atomic_t connection_num;
+    sw_atomic_t *connection_nums = nullptr;
     sw_atomic_long_t abort_count;
     sw_atomic_long_t accept_count;
     sw_atomic_long_t close_count;
@@ -348,6 +349,8 @@ struct ListenPort {
     int get_fd() {
         return socket ? socket->fd : -1;
     }
+
+    size_t get_connection_num();
 };
 
 struct ServerGS {
@@ -364,6 +367,7 @@ struct ServerGS {
     bool called_onStart;
     time_t start_time;
     sw_atomic_t connection_num;
+    sw_atomic_t *connection_nums = nullptr;
     sw_atomic_t tasking_num;
     uint32_t max_concurrency;
     sw_atomic_t concurrency;
@@ -1321,6 +1325,18 @@ class Server {
     void destroy_http_request(Connection *conn);
 
     int schedule_worker(int fd, SendData *data);
+
+    size_t get_connection_num() {
+        if (gs->connection_nums) {
+            size_t num = 0;
+            for (uint32_t i = 0; i < worker_num; i++) {
+                num += gs->connection_nums[i];
+            }
+            return num;
+        } else {
+            return gs->connection_num;
+        }
+    }
 
     /**
      * [Manager]

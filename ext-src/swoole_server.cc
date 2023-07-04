@@ -2792,7 +2792,7 @@ static PHP_METHOD(swoole_server, stats) {
 
     array_init(return_value);
     add_assoc_long_ex(return_value, ZEND_STRL("start_time"), serv->gs->start_time);
-    add_assoc_long_ex(return_value, ZEND_STRL("connection_num"), serv->gs->connection_num);
+    add_assoc_long_ex(return_value, ZEND_STRL("connection_num"), serv->get_connection_num());
     add_assoc_long_ex(return_value, ZEND_STRL("abort_count"), serv->gs->abort_count);
     add_assoc_long_ex(return_value, ZEND_STRL("accept_count"), serv->gs->accept_count);
     add_assoc_long_ex(return_value, ZEND_STRL("close_count"), serv->gs->close_count);
@@ -3882,9 +3882,9 @@ static PHP_METHOD(swoole_connection_iterator, key) {
 static PHP_METHOD(swoole_connection_iterator, count) {
     ConnectionIterator *iterator = php_swoole_connection_iterator_get_and_check_ptr(ZEND_THIS);
     if (iterator->port) {
-        RETURN_LONG(iterator->port->gs->connection_num);
+        RETURN_LONG(iterator->port->get_connection_num());
     } else {
-        RETURN_LONG(iterator->serv->gs->connection_num);
+        RETURN_LONG(iterator->serv->get_connection_num());
     }
 }
 

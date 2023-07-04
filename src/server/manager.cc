@@ -609,6 +609,7 @@ pid_t Server::spawn_event_worker(Worker *worker) {
     }
 
     if (is_base_mode()) {
+        gs->connection_nums[worker->id] = 0;
         gs->event_workers.main_loop(&gs->event_workers, worker);
     } else {
         start_event_worker(worker);

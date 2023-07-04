@@ -187,10 +187,15 @@ int Server::close_connection(Reactor *reactor, Socket *socket) {
     }
 
     sw_atomic_fetch_add(&serv->gs->close_count, 1);
-    sw_atomic_fetch_sub(&serv->gs->connection_num, 1);
-
     sw_atomic_fetch_add(&port->gs->close_count, 1);
-    sw_atomic_fetch_sub(&port->gs->connection_num, 1);
+
+    if (serv->is_base_mode()) {
+        sw_atomic_fetch_sub(&serv->gs->connection_nums[reactor->id], 1);
+        sw_atomic_fetch_sub(&port->gs->connection_nums[reactor->id], 1);
+    } else {
+        sw_atomic_fetch_sub(&serv->gs->connection_num, 1);
+        sw_atomic_fetch_sub(&port->gs->connection_num, 1);
+    }
 
     swoole_trace("Close Event.fd=%d|from=%d", socket->fd, reactor->id);
 
