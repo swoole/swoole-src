@@ -110,7 +110,7 @@ PHP_ARG_ENABLE([swoole-coro-time],
   [whether to enable coroutine execution time ],
   [AS_HELP_STRING([--enable-swoole-coro-time],
     [Calculating coroutine execution time])], [no], [no])
-    
+
 define([PDO_ODBC_HELP_TEXT],[[
   The include and lib dirs are looked for under 'dir'. The 'flavour' can be one
   of: ibm-db2, iODBC, unixODBC, generic. If ',dir' part is omitted, default for
@@ -434,11 +434,11 @@ if test "$PHP_SWOOLE" != "no"; then
     fi
 
     dnl pgsql begin
-    
+
     if test "$PHP_SWOOLE_PGSQL" != "no"; then
         dnl TODO macros below can be reused to find curl things
         dnl prepare pkg-config
-        
+
         if test -z "$PKG_CONFIG"; then
             AC_PATH_PROG(PKG_CONFIG, pkg-config, no)
         fi
@@ -505,60 +505,60 @@ EOF
 
         AC_DEFINE(SW_USE_PGSQL, 1, [do we enable postgresql coro support])
     fi
-    
+
     dnl pgsql end
-    
+
     dnl odbc begin
-    
+
 	if test "$PHP_SWOOLE_ODBC" != "no"; then
 	  PHP_CHECK_PDO_INCLUDES
-	
+
 	  AC_MSG_CHECKING([for selected PDO ODBC flavour])
-	
+
 	  pdo_odbc_flavour="`echo $PHP_SWOOLE_ODBC | cut -d, -f1`"
 	  pdo_odbc_dir="`echo $PHP_SWOOLE_ODBC | cut -d, -f2`"
-	
+
 	  if test "$pdo_odbc_dir" = "$PHP_SWOOLE_ODBC" ; then
 	    pdo_odbc_dir=
 	  fi
-	
+
 	  case $pdo_odbc_flavour in
 	    ibm-db2)
 	        pdo_odbc_def_libdir=/home/db2inst1/sqllib/lib
 	        pdo_odbc_def_incdir=/home/db2inst1/sqllib/include
 	        pdo_odbc_def_lib=db2
 	        ;;
-	
+
 	    iODBC|iodbc)
 	        pdo_odbc_def_libdir=/usr/local/$PHP_LIBDIR
 	        pdo_odbc_def_incdir=/usr/local/include
 	        pdo_odbc_def_lib=iodbc
 	        ;;
-	
+
 	    unixODBC|unixodbc)
 	        pdo_odbc_def_libdir=/usr/local/$PHP_LIBDIR
 	        pdo_odbc_def_incdir=/usr/local/include
 	        pdo_odbc_def_lib=odbc
 	        ;;
-	
+
 	    ODBCRouter|odbcrouter)
 	        pdo_odbc_def_libdir=/usr/$PHP_LIBDIR
 	        pdo_odbc_def_incdir=/usr/include
 	        pdo_odbc_def_lib=odbcsdk
 	        ;;
-	
+
 	    generic)
 	        pdo_odbc_def_lib="`echo $PHP_SWOOLE_ODBC | cut -d, -f3`"
 	        pdo_odbc_def_ldflags="`echo $PHP_SWOOLE_ODBC | cut -d, -f4`"
 	        pdo_odbc_def_cflags="`echo $PHP_SWOOLE_ODBC | cut -d, -f5`"
 	        pdo_odbc_flavour="generic-$pdo_odbc_def_lib"
 	        ;;
-	
+
 	      *)
 	        AC_MSG_ERROR([Unknown ODBC flavour $pdo_odbc_flavour]PDO_ODBC_HELP_TEXT)
 	        ;;
 	  esac
-	
+
 	  if test -n "$pdo_odbc_dir"; then
 	    PDO_ODBC_INCDIR="$pdo_odbc_dir/include"
 	    PDO_ODBC_LIBDIR="$pdo_odbc_dir/$PHP_LIBDIR"
@@ -566,15 +566,15 @@ EOF
 	    PDO_ODBC_INCDIR="$pdo_odbc_def_incdir"
 	    PDO_ODBC_LIBDIR="$pdo_odbc_def_libdir"
 	  fi
-	
+
 	  AC_MSG_RESULT([$pdo_odbc_flavour
 	          libs       $PDO_ODBC_LIBDIR,
 	          headers    $PDO_ODBC_INCDIR])
-	
+
 	  if test ! -d "$PDO_ODBC_LIBDIR" ; then
 	    AC_MSG_WARN([library dir $PDO_ODBC_LIBDIR does not exist])
 	  fi
-	
+
 	  PDO_ODBC_CHECK_HEADER(odbc.h)
 	  PDO_ODBC_CHECK_HEADER(odbcsdk.h)
 	  PDO_ODBC_CHECK_HEADER(iodbc.h)
@@ -593,18 +593,18 @@ EOF
 	  PDO_ODBC_CHECK_HEADER(cli0cli.h)
 	  PDO_ODBC_CHECK_HEADER(cli0defs.h)
 	  PDO_ODBC_CHECK_HEADER(cli0env.h)
-	
+
 	  if test "$php_pdo_have_header" != "yes"; then
 	    AC_MSG_ERROR([Cannot find header file(s) for pdo_odbc])
 	  fi
-	
+
 	  PDO_ODBC_INCLUDE="$pdo_odbc_def_cflags -I$PDO_ODBC_INCDIR -DPDO_ODBC_TYPE=\\\"$pdo_odbc_flavour\\\""
 	  PDO_ODBC_LDFLAGS="$pdo_odbc_def_ldflags -L$PDO_ODBC_LIBDIR -l$pdo_odbc_def_lib"
-	
+
 	  PHP_EVAL_LIBLINE([$PDO_ODBC_LDFLAGS], [SWOOLE_SHARED_LIBADD])
-	  
+
 	  EXTRA_CFLAGS="$EXTRA_CFLAGS -I$pdo_cv_inc_path $PDO_ODBC_INCLUDE"
-	
+
 	  dnl Check first for an ODBC 1.0 function to assert that the libraries work
 	  PHP_CHECK_LIBRARY($pdo_odbc_def_lib, SQLBindCol,
 	  [
@@ -621,10 +621,10 @@ EOF
 	  ],[
 	    AC_MSG_ERROR([Your ODBC library does not exist or there was an error. Check config.log for more information])
 	  ], $PDO_ODBC_LDFLAGS)
-	
+
     	AC_DEFINE(SW_USE_ODBC, 1, [do we enable swoole-odbc coro support])
 	fi
-	
+
     dnl odbc end
 
     dnl SWOOLE_ORACLE start
@@ -1137,7 +1137,7 @@ EOF
 	        thirdparty/nghttp2/nghttp2_hd_huffman.c \
 	        thirdparty/nghttp2/nghttp2_hd_huffman_data.c"
 	fi
-	
+
 	if test "$PHP_SWOOLE_PGSQL" != "no"; then
 	    swoole_source_file="$swoole_source_file \
 	        thirdparty/php80/pdo_pgsql/pgsql_driver.c \
@@ -1169,7 +1169,7 @@ EOF
             thirdparty/php81/pdo_sqlite/sqlite_driver.c \
             thirdparty/php81/pdo_sqlite/sqlite_statement.c"
     fi
-		        
+
     SW_ASM_DIR="thirdparty/boost/asm/"
     SW_USE_ASM_CONTEXT="yes"
 
@@ -1260,7 +1260,7 @@ EOF
             ${SW_ASM_DIR}jump_${SW_CONTEXT_ASM_FILE} "
         AC_DEFINE(SW_USE_ASM_CONTEXT, 1, [use boost asm context])
     fi
-    
+
     EXTRA_CFLAGS="$EXTRA_CFLAGS -DENABLE_PHP_SWOOLE"
 
     PHP_NEW_EXTENSION(swoole, $swoole_source_file, $ext_shared,, "$EXTRA_CFLAGS", cxx)

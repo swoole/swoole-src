@@ -150,7 +150,7 @@ std::string gethostbyname_impl_with_async(const std::string &hostname, int domai
         swoole_set_last_error(ev.error);
         return "";
     } else {
-        std::string addr(dns_request.addr, dns_request.addr_len);
+        std::string addr(dns_request.addr);
         return addr;
     }
 }
