@@ -132,6 +132,7 @@ class Client {
     zval _zobject;
     zval *zobject = &_zobject;
     zval zsocket;
+    zend::Callable *write_func = nullptr;
     String *tmp_write_buffer = nullptr;
     bool connection_close = false;
 
@@ -474,15 +475,23 @@ static int http_parser_on_headers_complete(swoole_http_parser *parser) {
 
 static int http_parser_on_body(swoole_http_parser *parser, const char *at, size_t length) {
     Client *http = (Client *) parser->data;
+    if (http->write_func) {
+        zval zargv[2];
+        zargv[0] = *http->zobject;
+        ZVAL_STRINGL(&zargv[1], at, length);
+        bool success = http->write_func->call(2, zargv, nullptr);
+        zval_ptr_dtor(&zargv[1]);
+        return success ? 0 : -1;
+    }
 #ifdef SW_HAVE_COMPRESSION
-    if (http->body_decompression && !http->compression_error && http->compress_method != HTTP_COMPRESS_NONE) {
+    else if (http->body_decompression && !http->compression_error && http->compress_method != HTTP_COMPRESS_NONE) {
         if (!http->decompress_response(at, length)) {
             http->compression_error = true;
             goto _append_raw;
         }
-    } else
+    }
 #endif
-    {
+    else {
 #ifdef SW_HAVE_COMPRESSION
     _append_raw:
 #endif
@@ -496,17 +505,17 @@ static int http_parser_on_body(swoole_http_parser *parser, const char *at, size_
             std::unique_ptr<File> fp(new File(download_file_name, O_CREAT | O_WRONLY, 0664));
             if (!fp->ready()) {
                 swoole_sys_warning("open(%s, O_CREAT | O_WRONLY) failed", download_file_name);
-                return false;
+                return -1;
             }
             if (http->download_offset == 0) {
                 if (!fp->truncate(0)) {
                     swoole_sys_warning("ftruncate(%s) failed", download_file_name);
-                    return false;
+                    return -1;
                 }
             } else {
                 if (!fp->set_offest(http->download_offset)) {
                     swoole_sys_warning("fseek(%s, %jd) failed", download_file_name, (intmax_t) http->download_offset);
-                    return false;
+                    return -1;
                 }
             }
             http->download_file = fp.release();
@@ -723,6 +732,17 @@ void Client::apply_setting(zval *zset, const bool check_all) {
             websocket_compression = zval_is_true(ztmp);
         }
 #endif
+        if (php_swoole_array_get_value(vht, "write_func", ztmp)) {
+            if (write_func) {
+                delete write_func;
+            }
+            write_func = new zend::Callable(ztmp);
+            if (!write_func->is_callable()) {
+                delete write_func;
+                write_func = nullptr;
+                zend_throw_exception_ex(swoole_exception_ce, SW_ERROR_INVALID_PARAMS, "write_func must be of type callable, %s given", zend_zval_type_name(ztmp));
+            }
+        }
     }
     if (socket) {
         php_swoole_socket_set(socket, zset);
@@ -1598,6 +1618,9 @@ Client::~Client() {
     }
     if (tmp_write_buffer) {
         delete tmp_write_buffer;
+    }
+    if (write_func) {
+        delete write_func;
     }
 }
 

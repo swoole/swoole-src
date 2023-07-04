@@ -521,6 +521,28 @@ class CharPtr {
     }
 };
 
+struct Callable {
+    zval zfunc;
+    zend_fcall_info_cache fcc;
+
+    Callable(zval *_zfunc) {
+        zfunc = *_zfunc;
+        Z_TRY_ADDREF_P(&zfunc);
+    }
+
+    bool is_callable() {
+        return zend_is_callable_ex(&zfunc, NULL, 0, NULL, &fcc, NULL);
+    }
+
+    bool call(uint32_t argc, zval *argv, zval *retval) {
+        return sw_zend_call_function_ex(&zfunc, &fcc, argc, argv, retval) == SUCCESS;
+    }
+
+    ~Callable() {
+        Z_TRY_DELREF_P(&zfunc);
+    }
+};
+
 namespace function {
 /* must use this API to call event callbacks to ensure that exceptions are handled correctly */
 bool call(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv, zval *retval, const bool enable_coroutine);
