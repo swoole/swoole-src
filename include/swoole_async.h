@@ -60,11 +60,20 @@ struct AsyncEvent {
     }
 };
 
-struct GethostbynameData {
-    const char *hostname;
-    int domain;
-    char *host;
-    size_t host_len;
+struct GethostbynameRequest {
+    const char *name;
+    int family;
+    char *addr;
+    size_t addr_len;
+
+    GethostbynameRequest(const char *_name, int _family) : name(_name), family(_family) {
+        addr_len = _family == AF_INET6 ? INET6_ADDRSTRLEN : INET_ADDRSTRLEN;
+        addr = new char[addr_len];
+    }
+
+    ~GethostbynameRequest() {
+        delete[] addr;
+    }
 };
 
 class AsyncThreads {
@@ -88,6 +97,7 @@ class AsyncThreads {
     void notify_one();
 
     static int callback(Reactor *reactor, Event *event);
+
   private:
     std::mutex init_lock;
 };

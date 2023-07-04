@@ -85,14 +85,14 @@ namespace async {
 
 void handler_gethostbyname(AsyncEvent *event) {
     char addr[INET6_ADDRSTRLEN];
-    auto data = (GethostbynameData *) event->data;
-    int ret = network::gethostbyname(data->domain, data->hostname, addr);
-    sw_memset_zero(data->host, data->host_len);
+    auto request = (GethostbynameRequest *) event->data;
+    int ret = network::gethostbyname(request->family, request->name, addr);
+    sw_memset_zero(request->addr, request->addr_len);
 
     if (ret < 0) {
         event->error = SW_ERROR_DNSLOOKUP_RESOLVE_FAILED;
     } else {
-        if (inet_ntop(data->domain, addr, data->host, data->host_len) == nullptr) {
+        if (inet_ntop(request->family, addr, request->addr, request->addr_len) == nullptr) {
             ret = -1;
             event->error = SW_ERROR_BAD_IPV6_ADDRESS;
         } else {

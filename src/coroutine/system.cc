@@ -137,22 +137,8 @@ ssize_t System::write_file(const char *file, char *buf, size_t length, bool lock
 
 std::string gethostbyname_impl_with_async(const std::string &hostname, int domain, double timeout) {
     AsyncEvent ev{};
-    GethostbynameData data;
-    ev.data = &data;
-
-    if (hostname.size() < INET6_ADDRSTRLEN) {
-        data.host_len = INET6_ADDRSTRLEN + 1;
-    } else {
-        data.host_len = hostname.size() + 1;
-    }
-
-    data.host = (char *) sw_malloc(data.host_len);
-    if (!data.host) {
-        return "";
-    }
-
-    data.hostname = hostname.c_str();
-    data.domain = domain;
+    GethostbynameRequest dns_request(hostname.c_str(), domain);
+    ev.data = &dns_request;
     ev.retval = 1;
 
     coroutine::async(async::handler_gethostbyname, ev, timeout);
@@ -164,8 +150,7 @@ std::string gethostbyname_impl_with_async(const std::string &hostname, int domai
         swoole_set_last_error(ev.error);
         return "";
     } else {
-        std::string addr(data.host);
-        sw_free(data.host);
+        std::string addr(dns_request.addr, dns_request.addr_len);
         return addr;
     }
 }

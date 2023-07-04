@@ -615,31 +615,14 @@ static int Client_tcp_connect_async(Client *cli, const char *host, int port, dou
 
     if (cli->wait_dns) {
         AsyncEvent ev{};
-        auto data = (GethostbynameData *) sw_malloc(sizeof(GethostbynameData));
-        ev.data = data;
-
-        size_t len = strlen(cli->server_host);
-        if (len < INET6_ADDRSTRLEN) {
-            data->host_len = INET6_ADDRSTRLEN;
-        } else {
-            data->host_len = len + 1;
-        }
-
-        data->host = (char *) sw_malloc(data->host_len);
-        if (!data->host) {
-            swoole_warning("malloc failed");
-            return SW_ERR;
-        }
-
-        data->hostname = host;
-        data->domain = cli->_sock_domain;
+        auto dns_request = new GethostbynameRequest(cli->server_host, cli->_sock_domain);
+        ev.data = dns_request;
         ev.object = cli;
         ev.handler = async::handler_gethostbyname;
         ev.callback = Client_onResolveCompleted;
 
         if (swoole::async::dispatch(&ev) == nullptr) {
-            sw_free(data->host);
-            sw_free(data);
+            delete dns_request;
             return SW_ERR;
         } else {
             return SW_OK;
@@ -1129,10 +1112,9 @@ static void Client_onTimeout(Timer *timer, TimerNode *tnode) {
 }
 
 static void Client_onResolveCompleted(AsyncEvent *event) {
-    auto data = (GethostbynameData *) event->data;
+    auto dns_request = (GethostbynameRequest *) event->data;
     if (event->canceled) {
-        sw_free(data->host);
-        sw_free(data);
+        delete dns_request;
         return;
     }
 
@@ -1140,7 +1122,7 @@ static void Client_onResolveCompleted(AsyncEvent *event) {
     cli->wait_dns = 0;
 
     if (event->error == 0) {
-        Client_tcp_connect_async(cli, data->host, cli->server_port, cli->timeout, 1);
+        Client_tcp_connect_async(cli, dns_request->addr, cli->server_port, cli->timeout, 1);
     } else {
         swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
         cli->socket->removed = 1;
@@ -1149,8 +1131,7 @@ static void Client_onResolveCompleted(AsyncEvent *event) {
             cli->onError(cli);
         }
     }
-    sw_free(data->host);
-    sw_free(data);
+    delete dns_request;
 }
 
 static int Client_onWrite(Reactor *reactor, Event *event) {
