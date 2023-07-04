@@ -2288,5 +2288,9 @@
         <configureoption default="no" name="enable-swoole-json" prompt="enable json support?"/>
         <configureoption default="no" name="enable-swoole-curl" prompt="enable curl support?"/>
         <configureoption default="no" name="enable-cares" prompt="enable cares support?"/>
+        <configureoption default="no" name="enable-swoole-pgsql" prompt="enable PostgreSQL database support?"/>
+        <configureoption default="no" name="with-swoole-odbc" prompt="enable ODBC database support?"/>
+        <configureoption default="no" name="with-swoole-oracle" prompt="enable Oracle database support?"/>
+        <configureoption default="no" name="enable-swoole-sqlite" prompt="enable Sqlite database support?"/>
     </extsrcrelease>
 </package>

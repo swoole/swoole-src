@@ -269,6 +269,20 @@ bool System::wait_signal(int signo, double timeout) {
     }
     /* always enable signalfd */
     SwooleG.use_signalfd = SwooleG.enable_signalfd = 1;
+
+#ifdef SW_USE_THREAD_CONTEXT
+    swoole_event_defer(
+        [signo](void *) {
+            swoole_signal_set(signo, [](int signo) {
+                Coroutine *co = listeners[signo];
+                if (co) {
+                    listeners[signo] = nullptr;
+                    co->resume();
+                }
+            });
+        },
+        nullptr);
+#else
     swoole_signal_set(signo, [](int signo) {
         Coroutine *co = listeners[signo];
         if (co) {
@@ -276,6 +290,8 @@ bool System::wait_signal(int signo, double timeout) {
             co->resume();
         }
     });
+#endif
+
     SwooleTG.co_signal_listener_num++;
 
     TimerNode *timer = nullptr;
@@ -299,7 +315,12 @@ bool System::wait_signal(int signo, double timeout) {
     };
     co->yield(&cancel_fn);
 
+#ifdef SW_USE_THREAD_CONTEXT
+    swoole_event_defer([signo](void *) { swoole_signal_set(signo, nullptr); }, nullptr);
+#else
     swoole_signal_set(signo, nullptr);
+#endif
+
     SwooleTG.co_signal_listener_num--;
 
     if (listeners[signo] != nullptr) {
@@ -506,15 +527,16 @@ struct EventWaiter {
         }
 
         if (timeout > 0) {
-            timer = swoole_timer_add(timeout,
-                                     false,
-                                     [](Timer *timer, TimerNode *tnode) {
-                                         EventWaiter *waiter = (EventWaiter *) tnode->data;
-                                         waiter->timer = nullptr;
-                                         waiter->error_ = ETIMEDOUT;
-                                         waiter->co->resume();
-                                     },
-                                     this);
+            timer = swoole_timer_add(
+                timeout,
+                false,
+                [](Timer *timer, TimerNode *tnode) {
+                    EventWaiter *waiter = (EventWaiter *) tnode->data;
+                    waiter->timer = nullptr;
+                    waiter->error_ = ETIMEDOUT;
+                    waiter->co->resume();
+                },
+                this);
         }
 
         co->yield(&cancel_fn);
@@ -642,7 +664,7 @@ bool async(async::Handler handler, AsyncEvent &event, double timeout) {
         return false;
     } else {
         event.canceled = _ev->canceled;
-        event.error =  errno = _ev->error;
+        event.error = errno = _ev->error;
         event.retval = _ev->retval;
         return true;
     }
