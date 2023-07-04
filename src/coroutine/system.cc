@@ -137,21 +137,22 @@ ssize_t System::write_file(const char *file, char *buf, size_t length, bool lock
 
 std::string gethostbyname_impl_with_async(const std::string &hostname, int domain, double timeout) {
     AsyncEvent ev{};
+    GethostbynameData data;
+    ev.data = &data;
 
     if (hostname.size() < INET6_ADDRSTRLEN) {
-        ev.nbytes = INET6_ADDRSTRLEN + 1;
+        data.host_len = INET6_ADDRSTRLEN + 1;
     } else {
-        ev.nbytes = hostname.size() + 1;
+        data.host_len = hostname.size() + 1;
     }
 
-    ev.buf = sw_malloc(ev.nbytes);
-    if (!ev.buf) {
+    data.host = (char *) sw_malloc(data.host_len);
+    if (!data.host) {
         return "";
     }
 
-    memcpy(ev.buf, hostname.c_str(), hostname.size());
-    ((char *) ev.buf)[hostname.size()] = 0;
-    ev.flags = domain;
+    data.hostname = hostname.c_str();
+    data.domain = domain;
     ev.retval = 1;
 
     coroutine::async(async::handler_gethostbyname, ev, timeout);
@@ -163,8 +164,8 @@ std::string gethostbyname_impl_with_async(const std::string &hostname, int domai
         swoole_set_last_error(ev.error);
         return "";
     } else {
-        std::string addr((char *) ev.buf);
-        sw_free(ev.buf);
+        std::string addr(data.host);
+        sw_free(data.host);
         return addr;
     }
 }
@@ -215,7 +216,7 @@ std::vector<std::string> System::getaddrinfo(
     AsyncEvent ev{};
     network::GetaddrinfoRequest req{};
 
-    ev.req = &req;
+    ev.data = &req;
 
     struct sockaddr_in6 result_buffer[SW_DNS_HOST_BUFFER_SIZE];
 

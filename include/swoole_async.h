@@ -35,18 +35,12 @@ enum AsyncFlag {
 };
 
 struct AsyncEvent {
-    int fd;
     size_t task_id;
-    uint8_t lock;
     uint8_t canceled;
     /**
      * input & output
      */
-    uint16_t flags;
-    off_t offset;
-    size_t nbytes;
-    void *buf;
-    void *req;
+    void *data;
     /**
      * output
      */
@@ -64,6 +58,13 @@ struct AsyncEvent {
     bool catch_error() {
         return (error == SW_ERROR_AIO_TIMEOUT || error == SW_ERROR_AIO_CANCELED);
     }
+};
+
+struct GethostbynameData {
+    const char *hostname;
+    int domain;
+    char *host;
+    size_t host_len;
 };
 
 class AsyncThreads {
