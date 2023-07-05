@@ -123,7 +123,7 @@ class Client {
     bool websocket_compression = false;         // allow to compress websocket messages
     bool accept_websocket_compression = false;  // websocket server accepts compression
 #endif
-    bool in_callback;
+    bool in_callback = false;
     bool has_upload_files = false;
 
     File *download_file = nullptr;    // save http response to file
