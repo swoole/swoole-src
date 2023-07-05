@@ -123,10 +123,12 @@ class Client {
     bool websocket_compression = false;         // allow to compress websocket messages
     bool accept_websocket_compression = false;  // websocket server accepts compression
 #endif
+    bool in_callback;
+    bool has_upload_files = false;
+
     File *download_file = nullptr;    // save http response to file
     zend::String download_file_name;  // unlink the file on error
     zend_long download_offset = 0;
-    bool has_upload_files = false;
 
     /* safety zval */
     zval _zobject;
@@ -479,7 +481,9 @@ static int http_parser_on_body(swoole_http_parser *parser, const char *at, size_
         zval zargv[2];
         zargv[0] = *http->zobject;
         ZVAL_STRINGL(&zargv[1], at, length);
+        http->in_callback = true;
         bool success = http->write_func->call(2, zargv, nullptr);
+        http->in_callback = false;
         zval_ptr_dtor(&zargv[1]);
         return success ? 0 : -1;
     }
@@ -740,7 +744,10 @@ void Client::apply_setting(zval *zset, const bool check_all) {
             if (!write_func->is_callable()) {
                 delete write_func;
                 write_func = nullptr;
-                zend_throw_exception_ex(swoole_exception_ce, SW_ERROR_INVALID_PARAMS, "write_func must be of type callable, %s given", zend_zval_type_name(ztmp));
+                zend_throw_exception_ex(swoole_exception_ce,
+                                        SW_ERROR_INVALID_PARAMS,
+                                        "write_func must be of type callable, %s given",
+                                        zend_zval_type_name(ztmp));
             }
         }
     }
@@ -1417,6 +1424,10 @@ bool Client::recv_response(double timeout) {
                          retval,
                          total_bytes,
                          parser.state == s_start_res);
+        if (socket->get_socket()->close_wait) {
+            success = false;
+            break;
+        }
         if (parser.state == s_start_res) {
             // handle redundant data (websocket packet)
             if (parser.upgrade && (size_t) retval > parsed_n + SW_WEBSOCKET_HEADER_LEN) {
@@ -1599,6 +1610,10 @@ bool Client::close(const bool should_be_reset) {
     Socket *_socket = socket;
     if (!_socket) {
         return false;
+    }
+    if (in_callback) {
+        _socket->get_socket()->close_wait = 1;
+        return true;
     }
     zend_update_property_bool(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("connected"), 0);
     if (!_socket->close()) {
