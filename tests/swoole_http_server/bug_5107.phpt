@@ -10,14 +10,7 @@ $pm = new ProcessManager;
 $pm->initRandomData(1);
 $pm->parentFunc = function () use ($pm) {
     Co\run(function () use ($pm) {
-
-        // without special content-length
-        $headers = httpGetHeaders(
-            "http://127.0.0.1:{$pm->getFreePort()}?encoding=1",
-            [
-                'headers' => ['Accept-Encoding' => 'gzip, br'],
-            ]
-        );
+        $headers = httpGetHeaders("http://127.0.0.1:{$pm->getFreePort()}");
         var_dump($headers);
     });
 
