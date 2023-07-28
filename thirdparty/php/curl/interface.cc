@@ -1954,6 +1954,9 @@ PHP_FUNCTION(swoole_native_curl_exec) {
     swoole_curl_cleanup_handle(ch);
 
     swoole::curl::Handle *handle = swoole::curl::get_handle(ch->cp);
+    if (handle->curl == NULL) {
+        handle->curl = new Multi();
+    }
     error = handle->curl->exec(handle);
     SAVE_CURL_ERROR(ch, error);
 
@@ -2303,11 +2306,12 @@ PHP_FUNCTION(swoole_native_curl_close) {
         RETURN_FALSE;
     }
 
-    swoole::curl::destroy_handle(ch->cp);
     if (ch->in_callback) {
         php_error_docref(NULL, E_WARNING, "Attempt to close cURL handle from a callback");
         return;
     }
+
+    swoole::curl::destroy_handle(ch->cp);
 }
 /* }}} */
 
