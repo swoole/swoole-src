@@ -35,6 +35,7 @@ Handle *create_handle(CURL *cp) {
         return nullptr;
     }
     Handle *handle = new Handle(cp);
+    handle->curl = new Multi();
     handle_buckets[cp] = handle;
     swoole_trace_log(SW_TRACE_CO_CURL, SW_ECHO_MAGENTA " handle=%p, curl=%p", "[CREATE]", handle, cp);
     return handle;
@@ -46,6 +47,9 @@ void destroy_handle(CURL *cp) {
         return;
     }
     auto handle = iter->second;
+    if (handle->curl) {
+        delete handle->curl;
+    }
     handle_buckets.erase(iter);
     delete handle;
     swoole_trace_log(SW_TRACE_CO_CURL, SW_ECHO_RED " handle=%p, curl=%p", "[DESTROY]", handle, cp);

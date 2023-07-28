@@ -47,6 +47,7 @@ struct HandleSocket {
 struct Handle {
     CURL *cp;
     Multi *multi;
+    Multi *curl;
     std::unordered_map<int, HandleSocket *> sockets;
 
     Handle(CURL *_cp) {
