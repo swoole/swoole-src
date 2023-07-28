@@ -397,7 +397,7 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
         http_buffer->append(ZEND_STRL("HTTP/1.1 "));
         http_buffer->append(response.status);
         http_buffer->append(ZEND_STRL(" "));
-        http_buffer->append(ZEND_STRL(response.reason));
+        http_buffer->append(response.reason, strlen(response.reason));
         http_buffer->append(ZEND_STRL("\r\n"));
     }
 
