@@ -1828,11 +1828,19 @@ static PHP_FUNCTION(swoole_stream_select) {
     Z_PARAM_ARRAY_EX2(r_array, 1, 1, 0)
     Z_PARAM_ARRAY_EX2(w_array, 1, 1, 0)
     Z_PARAM_ARRAY_EX2(e_array, 1, 1, 0)
+#if PHP_VERSION_ID >= 80100
     Z_PARAM_LONG_OR_NULL(sec, secnull)
     Z_PARAM_OPTIONAL
-#if PHP_VERSION_ID >= 80100
     Z_PARAM_LONG_OR_NULL(usec, usecnull)
 #else
+
+#if PHP_VERSION_ID >= 80000
+    Z_PARAM_LONG_OR_NULL(sec, secnull)
+#else
+    Z_PARAM_LONG_EX(sec, secnull, 1, 0)
+#endif
+
+    Z_PARAM_OPTIONAL
     Z_PARAM_LONG(usec)
 #endif
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
