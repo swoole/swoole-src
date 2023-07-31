@@ -1819,16 +1819,40 @@ static PHP_FUNCTION(swoole_stream_select) {
     zval *r_array, *w_array, *e_array;
     zend_long sec, usec = 0;
     zend_bool secnull;
+#if PHP_VERSION_ID >= 80100
+    bool usecnull = 1;
+#endif
     int retval = 0;
 
     ZEND_PARSE_PARAMETERS_START(4, 5)
-    Z_PARAM_ARRAY_EX(r_array, 1, 1)
-    Z_PARAM_ARRAY_EX(w_array, 1, 1)
-    Z_PARAM_ARRAY_EX(e_array, 1, 1)
+    Z_PARAM_ARRAY_EX2(r_array, 1, 1, 0)
+    Z_PARAM_ARRAY_EX2(w_array, 1, 1, 0)
+    Z_PARAM_ARRAY_EX2(e_array, 1, 1, 0)
+#if PHP_VERSION_ID >= 80100
+    Z_PARAM_LONG_OR_NULL(sec, secnull)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_LONG_OR_NULL(usec, usecnull)
+#else
+
+#if PHP_VERSION_ID >= 80000
+    Z_PARAM_LONG_OR_NULL(sec, secnull)
+#else
     Z_PARAM_LONG_EX(sec, secnull, 1, 0)
+#endif
+
     Z_PARAM_OPTIONAL
     Z_PARAM_LONG(usec)
+#endif
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+#if PHP_VERSION_ID >= 80100
+    if (secnull && !usecnull) {
+        if (usec != 0) {
+            zend_argument_value_error(5, "must be null when argument #4 ($seconds) is null");
+            RETURN_THROWS();
+        }
+    }
+#endif
 
     double timeout = -1;
     if (!secnull) {
