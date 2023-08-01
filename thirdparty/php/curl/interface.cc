@@ -2310,8 +2310,6 @@ PHP_FUNCTION(swoole_native_curl_close) {
         php_error_docref(NULL, E_WARNING, "Attempt to close cURL handle from a callback");
         return;
     }
-
-    swoole::curl::destroy_handle(ch->cp);
 }
 /* }}} */
 
