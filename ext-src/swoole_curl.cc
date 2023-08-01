@@ -46,8 +46,8 @@ void destroy_handle(CURL *cp) {
         return;
     }
     auto handle = iter->second;
-    if (handle->curl) {
-        delete handle->curl;
+    if (handle->multi_for_exec) {
+        delete handle->multi_for_exec;
     }
     handle_buckets.erase(iter);
     delete handle;

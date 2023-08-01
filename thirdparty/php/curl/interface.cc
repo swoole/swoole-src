@@ -1954,10 +1954,10 @@ PHP_FUNCTION(swoole_native_curl_exec) {
     swoole_curl_cleanup_handle(ch);
 
     swoole::curl::Handle *handle = swoole::curl::get_handle(ch->cp);
-    if (handle->curl == NULL) {
-        handle->curl = new Multi();
+    if (handle->multi_for_exec == NULL) {
+        handle->multi_for_exec = new Multi();
     }
-    error = handle->curl->exec(handle);
+    error = handle->multi_for_exec->exec(handle);
     SAVE_CURL_ERROR(ch, error);
 
     if (error != CURLE_OK) {
