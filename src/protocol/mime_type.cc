@@ -18,6 +18,8 @@
 
 #include "swoole_mime_type.h"
 
+#include <algorithm>
+
 namespace swoole {
 namespace mime_type {
 
@@ -389,7 +391,9 @@ static std::unordered_map<std::string, std::string> map_(
 static const std::string octet_stream("application/octet-stream");
 
 static std::string get_suffix(const std::string &filename) {
-    return std::string(filename).substr(filename.find_last_of('.') + 1);
+    std::string suffix = std::string(filename).substr(filename.find_last_of('.') + 1);
+    std::transform(suffix.begin(), suffix.end(), suffix.begin(), ::tolower);
+    return suffix;
 }
 
 const std::unordered_map<std::string, std::string> &list() {
