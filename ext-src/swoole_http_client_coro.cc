@@ -740,15 +740,7 @@ void Client::apply_setting(zval *zset, const bool check_all) {
             if (write_func) {
                 delete write_func;
             }
-            write_func = new zend::Callable(ztmp);
-            if (!write_func->is_callable()) {
-                delete write_func;
-                write_func = nullptr;
-                zend_throw_exception_ex(swoole_exception_ce,
-                                        SW_ERROR_INVALID_PARAMS,
-                                        "write_func must be of type callable, %s given",
-                                        zend_zval_type_name(ztmp));
-            }
+            write_func = php_swoole_zval_to_callable(ztmp, "write_func");
         }
     }
     if (socket) {
