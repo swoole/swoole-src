@@ -1825,9 +1825,9 @@ static PHP_FUNCTION(swoole_stream_select) {
     int retval = 0;
 
     ZEND_PARSE_PARAMETERS_START(4, 5)
-    Z_PARAM_ARRAY_EX2(r_array, 1, 1, 0)
-    Z_PARAM_ARRAY_EX2(w_array, 1, 1, 0)
-    Z_PARAM_ARRAY_EX2(e_array, 1, 1, 0)
+    Z_PARAM_ARRAY_EX2(r_array, 1, 1, 1)
+    Z_PARAM_ARRAY_EX2(w_array, 1, 1, 1)
+    Z_PARAM_ARRAY_EX2(e_array, 1, 1, 1)
 #if PHP_VERSION_ID >= 80100
     Z_PARAM_LONG_OR_NULL(sec, secnull)
     Z_PARAM_OPTIONAL
