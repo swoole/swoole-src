@@ -482,9 +482,9 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
         if (!(header_flags & HTTP_HEADER_CONTENT_LENGTH)) {
             http_buffer->append(ZEND_STRL("Content-Length: "));
 
-            char content_length_string[128];
-            int content_result = swoole_itoa(content_length_string, length);
-            http_buffer->append(content_length_string, content_result);
+            char content_length2[128];
+            int convert_result = swoole_itoa(content_length2, length);
+            http_buffer->append(content_length2, convert_result);
             http_buffer->append(ZEND_STRL("\r\n"));
         }
     }

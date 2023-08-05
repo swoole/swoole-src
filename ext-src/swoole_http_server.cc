@@ -227,7 +227,7 @@ void php_swoole_http_server_rinit() {
 
 HttpContext *swoole_http_context_new(SessionId fd) {
     HttpContext *ctx = new HttpContext();
-`
+
     zval *zrequest_object = &ctx->request._zobject;
     ctx->request.zobject = zrequest_object;
     object_init_ex(zrequest_object, swoole_http_request_ce);
@@ -244,8 +244,11 @@ HttpContext *swoole_http_context_new(SessionId fd) {
     zend_update_property_ex(
         swoole_http_response_ce, SW_Z8_OBJ_P(zresponse_object), SW_ZSTR_KNOWN(SW_ZEND_STR_FD), &tmp);
 
-    swoole_http_init_and_read_property(
-        swoole_http_request_ce, zrequest_object, &ctx->request.zserver, SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER));
+    swoole_http_init_and_read_property(swoole_http_request_ce,
+                                       zrequest_object,
+                                       &ctx->request.zserver,
+                                       SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER),
+                                       HT_MIN_SIZE << 1);
     swoole_http_init_and_read_property(
         swoole_http_request_ce, zrequest_object, &ctx->request.zheader, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADER));
     ctx->fd = fd;

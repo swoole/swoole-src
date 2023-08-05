@@ -276,11 +276,11 @@ swoole::http::Context *php_swoole_http_request_get_and_check_context(zval *zobje
 swoole::http::Context *php_swoole_http_response_get_and_check_context(zval *zobject);
 
 static sw_inline zval *swoole_http_init_and_read_property(
-    zend_class_entry *ce, zval *zobject, zval **zproperty_store_pp, zend_string *name) {
+    zend_class_entry *ce, zval *zobject, zval **zproperty_store_pp, zend_string *name, int size = HT_MIN_SIZE) {
     if (UNEXPECTED(!*zproperty_store_pp)) {
         // Notice: swoole http server properties can not be unset anymore, so we can read it without checking
         zval rv, *property = zend_read_property_ex(ce, SW_Z8_OBJ_P(zobject), name, 0, &rv);
-        array_init(property);
+        array_init_size(property, size);
         *zproperty_store_pp = (zval *) (zproperty_store_pp + 1);
         **zproperty_store_pp = *property;
     }
