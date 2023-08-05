@@ -364,7 +364,7 @@ void HttpContext::free() {
 HttpContext *php_swoole_http_request_get_and_check_context(zval *zobject) {
     HttpContext *ctx = php_swoole_http_request_get_context(zobject);
     if (!ctx) {
-        php_swoole_fatal_error(E_WARNING, "http request is unavailable (maybe it has been ended)");
+        swoole_set_last_error(SW_ERROR_HTTP_CONTEXT_UNAVAILABLE);
     }
     return ctx;
 }
@@ -372,7 +372,7 @@ HttpContext *php_swoole_http_request_get_and_check_context(zval *zobject) {
 HttpContext *php_swoole_http_response_get_and_check_context(zval *zobject) {
     HttpContext *ctx = php_swoole_http_response_get_context(zobject);
     if (!ctx || (ctx->end_ || ctx->detached)) {
-        php_swoole_fatal_error(E_WARNING, "http response is unavailable (maybe it has been ended or detached)");
+        swoole_set_last_error(SW_ERROR_HTTP_CONTEXT_UNAVAILABLE);
         return nullptr;
     }
     return ctx;
