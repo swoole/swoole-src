@@ -48,6 +48,35 @@ static void http_server_process_request(Server *serv, zend_fcall_info_cache *fci
     }
 }
 
+static inline void http_server_add_server_array(HashTable *ht, zend_string *key, const char *value) {
+    zval tmp;
+    ZVAL_STRING(&tmp, value);
+    zend_hash_add(ht, key, &tmp);
+}
+
+static inline void http_server_add_server_array(HashTable *ht, zend_string *key, const char *value, size_t length) {
+    zval tmp;
+    ZVAL_STRINGL(&tmp, value, length);
+    zend_hash_add(ht, key, &tmp);
+}
+
+static inline void http_server_add_server_array(HashTable *ht, zend_string *key, int value) {
+    zval tmp;
+    ZVAL_LONG(&tmp, value);
+    zend_hash_add(ht, key, &tmp);
+}
+static inline void http_server_add_server_array(HashTable *ht, zend_string *key, double value) {
+    zval tmp;
+    ZVAL_DOUBLE(&tmp, value);
+    zend_hash_add(ht, key, &tmp);
+}
+
+static inline void http_server_add_server_array(HashTable *ht, zend_string *key, zend_string *value) {
+    zval tmp;
+    ZVAL_STR(&tmp, value);
+    zend_hash_add(ht, key, &tmp);
+}
+
 int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
     SessionId session_id = req->info.fd;
     int server_fd = req->info.server_fd;
@@ -106,29 +135,41 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
     do {
         zval *zserver = ctx->request.zserver;
         Connection *serv_sock = serv->get_connection(conn->server_fd);
-
-        zval tmp;
         HashTable *ht = Z_ARR_P(zserver);
 
-        if (serv_sock) {
-            ZVAL_LONG(&tmp, serv_sock->info.get_port());
-            zend_hash_str_add(ht, ZEND_STRL("server_port"), &tmp);
-        }
+        http_server_add_server_array(
+            ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_METHOD2), swoole_http_method_str(parser->method));
+        http_server_add_server_array(
+            ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_URI), ctx->request.path, ctx->request.path_len);
 
-        ZVAL_LONG(&tmp, conn->info.get_port());
-        zend_hash_str_add(ht, ZEND_STRL("remote_port"), &tmp);
+        // path_info should be decoded
+        zend_string *zstr_path = zend_string_init(ctx->request.path, ctx->request.path_len, 0);
+        ZSTR_LEN(zstr_path) = php_url_decode(ZSTR_VAL(zstr_path), ZSTR_LEN(zstr_path));
+        http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_PATH_INFO), zstr_path);
+
+        http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_TIME), (int) time(nullptr));
+        http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_TIME_FLOAT), microtime());
+        http_server_add_server_array(
+            ht,
+            SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER_PROTOCOL),
+            (ctx->request.version == 101 ? SW_ZSTR_KNOWN(SW_ZEND_STR_HTTP11) : SW_ZSTR_KNOWN(SW_ZEND_STR_HTTP10)));
+
+        if (serv_sock) {
+            http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER_PORT), serv_sock->info.get_port());
+        }
+        http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_PORT), conn->info.get_port());
 
         if (conn->info.type == SW_SOCK_TCP && IN_IS_ADDR_LOOPBACK(&conn->info.addr.inet_v4.sin_addr)) {
-            ZVAL_STR_COPY(&tmp, SW_ZSTR_KNOWN(SW_ZEND_STR_ADDR_LOOPBACK_V4));
+            http_server_add_server_array(
+                ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), SW_ZSTR_KNOWN(SW_ZEND_STR_ADDR_LOOPBACK_V4));
         } else if (conn->info.type == SW_SOCK_TCP6 && IN6_IS_ADDR_LOOPBACK(&conn->info.addr.inet_v6.sin6_addr)) {
-            ZVAL_STR_COPY(&tmp, SW_ZSTR_KNOWN(SW_ZEND_STR_ADDR_LOOPBACK_V6));
+            http_server_add_server_array(
+                ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), SW_ZSTR_KNOWN(SW_ZEND_STR_ADDR_LOOPBACK_V6));
         } else {
-            ZVAL_STRING(&tmp, conn->info.get_ip());
+            http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), conn->info.get_ip());
         }
-        zend_hash_str_add(ht, ZEND_STRL("remote_addr"), &tmp);
 
-        ZVAL_LONG(&tmp, (int) conn->last_recv_time);
-        zend_hash_str_add(ht, ZEND_STRL("master_time"), &tmp);
+        http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_MASTER_TIME), (int) conn->last_recv_time);
     } while (0);
 
     if (swoole_isset_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_BEFORE_REQUEST)) {
@@ -186,7 +227,7 @@ void php_swoole_http_server_rinit() {
 
 HttpContext *swoole_http_context_new(SessionId fd) {
     HttpContext *ctx = new HttpContext();
-
+`
     zval *zrequest_object = &ctx->request._zobject;
     ctx->request.zobject = zrequest_object;
     object_init_ex(zrequest_object, swoole_http_request_ce);
@@ -197,10 +238,16 @@ HttpContext *swoole_http_context_new(SessionId fd) {
     object_init_ex(zresponse_object, swoole_http_response_ce);
     php_swoole_http_response_set_context(zresponse_object, ctx);
 
+    zval tmp;
+    ZVAL_LONG(&tmp, fd);
+    zend_update_property_ex(swoole_http_request_ce, SW_Z8_OBJ_P(zrequest_object), SW_ZSTR_KNOWN(SW_ZEND_STR_FD), &tmp);
+    zend_update_property_ex(
+        swoole_http_response_ce, SW_Z8_OBJ_P(zresponse_object), SW_ZSTR_KNOWN(SW_ZEND_STR_FD), &tmp);
+
     swoole_http_init_and_read_property(
-        swoole_http_request_ce, zrequest_object, &ctx->request.zserver, ZEND_STRL("server"));
+        swoole_http_request_ce, zrequest_object, &ctx->request.zserver, SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER));
     swoole_http_init_and_read_property(
-        swoole_http_request_ce, zrequest_object, &ctx->request.zheader, ZEND_STRL("header"));
+        swoole_http_request_ce, zrequest_object, &ctx->request.zheader, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADER));
     ctx->fd = fd;
 
     return ctx;
@@ -314,7 +361,7 @@ void HttpContext::free() {
 HttpContext *php_swoole_http_request_get_and_check_context(zval *zobject) {
     HttpContext *ctx = php_swoole_http_request_get_context(zobject);
     if (!ctx) {
-        swoole_set_last_error(SW_ERROR_HTTP_CONTEXT_UNAVAILABLE);
+        php_swoole_fatal_error(E_WARNING, "http request is unavailable (maybe it has been ended)");
     }
     return ctx;
 }
@@ -322,7 +369,7 @@ HttpContext *php_swoole_http_request_get_and_check_context(zval *zobject) {
 HttpContext *php_swoole_http_response_get_and_check_context(zval *zobject) {
     HttpContext *ctx = php_swoole_http_response_get_context(zobject);
     if (!ctx || (ctx->end_ || ctx->detached)) {
-        swoole_set_last_error(SW_ERROR_HTTP_CONTEXT_UNAVAILABLE);
+        php_swoole_fatal_error(E_WARNING, "http response is unavailable (maybe it has been ended or detached)");
         return nullptr;
     }
     return ctx;

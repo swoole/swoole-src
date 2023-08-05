@@ -44,6 +44,7 @@
     _(SW_ZEND_STR_DOWNLOAD_FILE,            "downloadFile") \
     _(SW_ZEND_STR_DOWNLOAD_OFFSET,          "downloadOffset") \
     _(SW_ZEND_STR_TMPFILES,                 "tmpfiles") \
+    _(SW_ZEND_STR_SERVER,                   "server") \
     _(SW_ZEND_STR_HEADER,                   "header") \
     _(SW_ZEND_STR_COOKIE,                   "cookie") \
     _(SW_ZEND_STR_METHOD,                   "method") \
@@ -67,7 +68,19 @@
     _(SW_ZEND_STR_SOCKET,                   "socket") \
     _(SW_ZEND_STR_CONNECTED,                "connected") \
     _(SW_ZEND_STR_ADDR_LOOPBACK_V4,         "127.0.0.1") \
-    _(SW_ZEND_STR_ADDR_LOOPBACK_V6,         "::1") \
+    _(SW_ZEND_STR_ADDR_LOOPBACK_V6,         "::1")  \
+    _(SW_ZEND_STR_REQUEST_METHOD2,          "request_method")  \
+    _(SW_ZEND_STR_REQUEST_URI,              "request_uri")  \
+    _(SW_ZEND_STR_PATH_INFO,                "path_info")  \
+    _(SW_ZEND_STR_REQUEST_TIME,             "request_time")  \
+    _(SW_ZEND_STR_REQUEST_TIME_FLOAT,       "request_time_float")  \
+    _(SW_ZEND_STR_SERVER_PROTOCOL,          "server_protocol")  \
+    _(SW_ZEND_STR_SERVER_PORT,              "server_port")  \
+    _(SW_ZEND_STR_REMOTE_PORT,              "remote_port")  \
+    _(SW_ZEND_STR_REMOTE_ADDR,              "remote_addr")  \
+    _(SW_ZEND_STR_MASTER_TIME,              "master_time") \
+    _(SW_ZEND_STR_HTTP10,                   "HTTP/1.0") \
+    _(SW_ZEND_STR_HTTP11,                   "HTTP/1.1") \
 
 typedef enum sw_zend_known_string_id {
 #define _SW_ZEND_STR_ID(id, str) id,
@@ -596,29 +609,3 @@ static inline void array_unset(zval *arg, const char *key, size_t l_key) {
 
 //-----------------------------------namespace end--------------------------------------------
 }  // namespace zend
-
-static inline zend::Callable *php_swoole_zval_to_callable(zval *zfn, const char *fname, bool allow_null = true) {
-    if (zfn == nullptr || ZVAL_IS_NULL(zfn)) {
-        if (!allow_null) {
-            zend_throw_exception_ex(
-                swoole_exception_ce, SW_ERROR_INVALID_PARAMS, "%s must be of type callable, null given", fname);
-        }
-        return nullptr;
-    }
-    auto cb = new zend::Callable(zfn);
-    if (!cb->is_callable()) {
-        delete cb;
-        zend_throw_exception_ex(swoole_exception_ce,
-                                SW_ERROR_INVALID_PARAMS,
-                                "%s must be of type callable, %s given",
-                                fname,
-                                zend_zval_type_name(zfn));
-        return nullptr;
-    }
-    return cb;
-}
-
-static inline void php_swoole_callable_free(void *ptr) {
-    zend::Callable *cb = (zend::Callable *) ptr;
-    delete cb;
-}
