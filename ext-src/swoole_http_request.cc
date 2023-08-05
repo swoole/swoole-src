@@ -98,10 +98,6 @@ static inline char *http_trim_double_quote(char *ptr, size_t *len) {
     return tmp;
 }
 
-static sw_inline const char *http_get_method_name(enum swoole_http_method method) {
-    return swoole_http_method_str(method);
-}
-
 // clang-format off
 static const swoole_http_parser_settings http_parser_settings =
 {
@@ -439,6 +435,24 @@ static int http_request_on_headers_complete(swoole_http_parser *parser) {
             break;
         }
     }
+
+    HashTable *ht = Z_ARR_P(ctx->request.zserver);
+    http_server_add_server_array(
+        ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_METHOD2), swoole_http_method_str(parser->method));
+    http_server_add_server_array(
+        ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_URI), ctx->request.path, ctx->request.path_len);
+
+    // path_info should be decoded
+    zend_string *zstr_path = zend_string_init(ctx->request.path, ctx->request.path_len, 0);
+    ZSTR_LEN(zstr_path) = php_url_decode(ZSTR_VAL(zstr_path), ZSTR_LEN(zstr_path));
+    http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_PATH_INFO), zstr_path);
+
+    http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_TIME), (int) time(nullptr));
+    http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_TIME_FLOAT), microtime());
+    http_server_add_server_array(
+        ht,
+        SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER_PROTOCOL),
+        (ctx->request.version == 101 ? SW_ZSTR_KNOWN(SW_ZEND_STR_HTTP11) : SW_ZSTR_KNOWN(SW_ZEND_STR_HTTP10)));
 
     ctx->keepalive = swoole_http_should_keep_alive(parser);
     ctx->current_header_name = nullptr;
@@ -966,7 +980,7 @@ static PHP_METHOD(swoole_http_request, getMethod) {
     if (UNEXPECTED(!ctx)) {
         RETURN_FALSE;
     }
-    const char *method = http_get_method_name((ctx->parser).method);
+    const char *method = swoole_http_method_str((ctx->parser).method);
     RETURN_STRING(method);
 }
 

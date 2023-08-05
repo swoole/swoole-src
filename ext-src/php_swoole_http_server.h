@@ -44,3 +44,32 @@ int swoole_http2_server_goaway(swoole::http::Context *ctx,
                                zend_long error_code,
                                const char *debug_data,
                                size_t debug_data_len);
+
+static inline void http_server_add_server_array(HashTable *ht, zend_string *key, const char *value) {
+    zval tmp;
+    ZVAL_STRING(&tmp, value);
+    zend_hash_add(ht, key, &tmp);
+}
+
+static inline void http_server_add_server_array(HashTable *ht, zend_string *key, const char *value, size_t length) {
+    zval tmp;
+    ZVAL_STRINGL(&tmp, value, length);
+    zend_hash_add(ht, key, &tmp);
+}
+
+static inline void http_server_add_server_array(HashTable *ht, zend_string *key, int value) {
+    zval tmp;
+    ZVAL_LONG(&tmp, value);
+    zend_hash_add(ht, key, &tmp);
+}
+static inline void http_server_add_server_array(HashTable *ht, zend_string *key, double value) {
+    zval tmp;
+    ZVAL_DOUBLE(&tmp, value);
+    zend_hash_add(ht, key, &tmp);
+}
+
+static inline void http_server_add_server_array(HashTable *ht, zend_string *key, zend_string *value) {
+    zval tmp;
+    ZVAL_STR(&tmp, value);
+    zend_hash_add(ht, key, &tmp);
+}

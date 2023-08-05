@@ -48,35 +48,6 @@ static void http_server_process_request(Server *serv, zend_fcall_info_cache *fci
     }
 }
 
-static inline void http_server_add_server_array(HashTable *ht, zend_string *key, const char *value) {
-    zval tmp;
-    ZVAL_STRING(&tmp, value);
-    zend_hash_add(ht, key, &tmp);
-}
-
-static inline void http_server_add_server_array(HashTable *ht, zend_string *key, const char *value, size_t length) {
-    zval tmp;
-    ZVAL_STRINGL(&tmp, value, length);
-    zend_hash_add(ht, key, &tmp);
-}
-
-static inline void http_server_add_server_array(HashTable *ht, zend_string *key, int value) {
-    zval tmp;
-    ZVAL_LONG(&tmp, value);
-    zend_hash_add(ht, key, &tmp);
-}
-static inline void http_server_add_server_array(HashTable *ht, zend_string *key, double value) {
-    zval tmp;
-    ZVAL_DOUBLE(&tmp, value);
-    zend_hash_add(ht, key, &tmp);
-}
-
-static inline void http_server_add_server_array(HashTable *ht, zend_string *key, zend_string *value) {
-    zval tmp;
-    ZVAL_STR(&tmp, value);
-    zend_hash_add(ht, key, &tmp);
-}
-
 int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
     SessionId session_id = req->info.fd;
     int server_fd = req->info.server_fd;
@@ -136,23 +107,6 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
         zval *zserver = ctx->request.zserver;
         Connection *serv_sock = serv->get_connection(conn->server_fd);
         HashTable *ht = Z_ARR_P(zserver);
-
-        http_server_add_server_array(
-            ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_METHOD2), swoole_http_method_str(parser->method));
-        http_server_add_server_array(
-            ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_URI), ctx->request.path, ctx->request.path_len);
-
-        // path_info should be decoded
-        zend_string *zstr_path = zend_string_init(ctx->request.path, ctx->request.path_len, 0);
-        ZSTR_LEN(zstr_path) = php_url_decode(ZSTR_VAL(zstr_path), ZSTR_LEN(zstr_path));
-        http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_PATH_INFO), zstr_path);
-
-        http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_TIME), (int) time(nullptr));
-        http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_TIME_FLOAT), microtime());
-        http_server_add_server_array(
-            ht,
-            SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER_PROTOCOL),
-            (ctx->request.version == 101 ? SW_ZSTR_KNOWN(SW_ZEND_STR_HTTP11) : SW_ZSTR_KNOWN(SW_ZEND_STR_HTTP10)));
 
         if (serv_sock) {
             http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER_PORT), serv_sock->info.get_port());
