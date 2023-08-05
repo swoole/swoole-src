@@ -262,10 +262,11 @@ static int http_request_on_query_string(swoole_http_parser *parser, const char *
     zend_hash_str_add(ht, ZEND_STRL("query_string"), &tmp);
 
     // parse url params
-    sapi_module.treat_data(PARSE_STRING,
-                           estrndup(at, length),  // it will be freed by treat_data
-                           swoole_http_init_and_read_property(
-                               swoole_http_request_ce, ctx->request.zobject, &ctx->request.zget, ZEND_STRL("get")));
+    sapi_module.treat_data(
+        PARSE_STRING,
+        estrndup(at, length),  // it will be freed by treat_data
+        swoole_http_init_and_read_property(
+            swoole_http_request_ce, ctx->request.zobject, &ctx->request.zget, SW_ZSTR_KNOWN(SW_ZEND_STR_GET)));
     return 0;
 }
 
@@ -366,7 +367,7 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
 
     if (ctx->parse_cookie && SW_STREQ(header_name, header_len, "cookie")) {
         zval *zcookie = swoole_http_init_and_read_property(
-            swoole_http_request_ce, ctx->request.zobject, &ctx->request.zcookie, ZEND_STRL("cookie"));
+            swoole_http_request_ce, ctx->request.zobject, &ctx->request.zcookie, SW_ZSTR_KNOWN(SW_ZEND_STR_COOKIE));
         swoole_http_parse_cookie(zcookie, at, length);
         return 0;
     } else if (SW_STREQ(header_name, header_len, "upgrade") &&
@@ -640,7 +641,7 @@ static int multipart_body_on_data_end(multipart_parser *p) {
             ctx->form_data_buffer->str,
             ctx->form_data_buffer->length,
             swoole_http_init_and_read_property(
-                swoole_http_request_ce, ctx->request.zobject, &ctx->request.zpost, ZEND_STRL("post")));
+                swoole_http_request_ce, ctx->request.zobject, &ctx->request.zpost, SW_ZSTR_KNOWN(SW_ZEND_STR_POST)));
 
         efree(ctx->current_form_data_name);
         ctx->current_form_data_name = nullptr;
@@ -671,7 +672,7 @@ static int multipart_body_on_data_end(multipart_parser *p) {
     }
 
     zval *zfiles = swoole_http_init_and_read_property(
-        swoole_http_request_ce, ctx->request.zobject, &ctx->request.zfiles, ZEND_STRL("files"));
+        swoole_http_request_ce, ctx->request.zobject, &ctx->request.zfiles, SW_ZSTR_KNOWN(SW_ZEND_STR_FILES));
 
     int input_path_pos = swoole_strnpos(ctx->current_input_name, ctx->current_input_name_len, ZEND_STRL("["));
     if (ctx->parse_files && input_path_pos > 0) {
@@ -762,13 +763,13 @@ static int http_request_message_complete(swoole_http_parser *parser) {
             PARSE_STRING,
             estrndup(ctx->request.chunked_body->str, content_length),  // do not free, it will be freed by treat_data
             swoole_http_init_and_read_property(
-                swoole_http_request_ce, ctx->request.zobject, &ctx->request.zpost, ZEND_STRL("post")));
+                swoole_http_request_ce, ctx->request.zobject, &ctx->request.zpost, SW_ZSTR_KNOWN(SW_ZEND_STR_POST)));
     } else if (!ctx->recv_chunked && ctx->parse_body && ctx->request.post_form_urlencoded && ctx->request.body_at) {
         sapi_module.treat_data(
             PARSE_STRING,
             estrndup(ctx->request.body_at, ctx->request.body_length),  // do not free, it will be freed by treat_data
             swoole_http_init_and_read_property(
-                swoole_http_request_ce, ctx->request.zobject, &ctx->request.zpost, ZEND_STRL("post")));
+                swoole_http_request_ce, ctx->request.zobject, &ctx->request.zpost, SW_ZSTR_KNOWN(SW_ZEND_STR_POST)));
     }
     if (ctx->mt_parser) {
         multipart_parser_free(ctx->mt_parser);

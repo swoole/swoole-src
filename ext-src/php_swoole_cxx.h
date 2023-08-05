@@ -46,6 +46,9 @@
     _(SW_ZEND_STR_TMPFILES,                 "tmpfiles") \
     _(SW_ZEND_STR_SERVER,                   "server") \
     _(SW_ZEND_STR_HEADER,                   "header") \
+    _(SW_ZEND_STR_GET,                      "get") \
+    _(SW_ZEND_STR_POST,                     "post") \
+    _(SW_ZEND_STR_FILES,                    "files") \
     _(SW_ZEND_STR_COOKIE,                   "cookie") \
     _(SW_ZEND_STR_METHOD,                   "method") \
     _(SW_ZEND_STR_PATH,                     "path") \
