@@ -275,6 +275,9 @@ swoole::http::Context *swoole_http_context_new(swoole::SessionId fd);
 swoole::http::Context *php_swoole_http_request_get_and_check_context(zval *zobject);
 swoole::http::Context *php_swoole_http_response_get_and_check_context(zval *zobject);
 
+/**
+ * using this function can avoid memcpy old array to new array if the number of elements in an array can be sure.
+ */
 static sw_inline zval *swoole_http_init_and_read_property(
     zend_class_entry *ce, zval *zobject, zval **zproperty_store_pp, zend_string *name, int size = HT_MIN_SIZE) {
     if (UNEXPECTED(!*zproperty_store_pp)) {
