@@ -413,7 +413,29 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
 _add_header:
     zval tmp;
     ZVAL_STRINGL(&tmp, (char *) at, length);
-    zend_hash_str_update(Z_ARR_P(zheader), header_name, header_len, &tmp);
+
+    /**
+     * some common request header key
+     */
+    if (SW_STREQ(header_name, header_len, "host")) {
+        zend_hash_update(Z_ARR_P(zheader), SW_ZSTR_KNOWN(SW_ZEND_STR_HOST), &tmp);
+    } else if (SW_STREQ(header_name, header_len, "user-agent")) {
+        zend_hash_update(Z_ARR_P(zheader), SW_ZSTR_KNOWN(SW_ZEND_STR_USER_AGENT), &tmp);
+    } else if (SW_STREQ(header_name, header_len, "accept")) {
+        zend_hash_update(Z_ARR_P(zheader), SW_ZSTR_KNOWN(SW_ZEND_STR_ACCEPT), &tmp);
+    } else if (SW_STREQ(header_name, header_len, "content-type")) {
+        zend_hash_update(Z_ARR_P(zheader), SW_ZSTR_KNOWN(SW_ZEND_STR_CONTENT_TYPE), &tmp);
+    } else if (SW_STREQ(header_name, header_len, "content-length")) {
+        zend_hash_update(Z_ARR_P(zheader), SW_ZSTR_KNOWN(SW_ZEND_STR_CONTENT_LENGTH), &tmp);
+    } else if (SW_STREQ(header_name, header_len, "authorization")) {
+        zend_hash_update(Z_ARR_P(zheader), SW_ZSTR_KNOWN(SW_ZEND_STR_AUTHORIZATION), &tmp);
+    } else if (SW_STREQ(header_name, header_len, "connection")) {
+        zend_hash_update(Z_ARR_P(zheader), SW_ZSTR_KNOWN(SW_ZEND_STR_CONNECTION), &tmp);
+    } else if (SW_STREQ(header_name, header_len, "accept-encoding")) {
+        zend_hash_update(Z_ARR_P(zheader), SW_ZSTR_KNOWN(SW_ZEND_STR_ACCEPT_ENCODING), &tmp);
+    } else {
+        zend_hash_str_update(Z_ARR_P(zheader), header_name, header_len, &tmp);
+    }
 
     return 0;
 }
@@ -439,8 +461,7 @@ static int http_request_on_headers_complete(swoole_http_parser *parser) {
     HashTable *ht = Z_ARR_P(ctx->request.zserver);
     http_server_add_server_array(
         ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_METHOD2), swoole_http_method_str(parser->method));
-    http_server_add_server_array(
-        ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_URI), ctx->request.path, ctx->request.path_len);
+    http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_URI), ctx->request.path, ctx->request.path_len);
 
     // path_info should be decoded
     zend_string *zstr_path = zend_string_init(ctx->request.path, ctx->request.path_len, 0);

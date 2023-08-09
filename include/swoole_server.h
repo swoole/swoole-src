@@ -813,6 +813,7 @@ class Server {
     std::shared_ptr<std::unordered_set<std::string>> locations = nullptr;
     std::shared_ptr<std::vector<std::string>> http_index_files = nullptr;
     std::shared_ptr<std::unordered_set<std::string>> http_compression_types = nullptr;
+    std::unordered_map<int, std::string> client_ips;
 
 #ifdef HAVE_PTHREAD_BARRIER
     pthread_barrier_t reactor_thread_barrier = {};

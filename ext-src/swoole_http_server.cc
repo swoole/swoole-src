@@ -120,7 +120,18 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
             http_server_add_server_array(
                 ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), SW_ZSTR_KNOWN(SW_ZEND_STR_ADDR_LOOPBACK_V6));
         } else {
-            http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), conn->info.get_ip());
+            if (serv->is_base_mode()) {
+                auto iter = serv->client_ips.find(conn->fd);
+                if (iter != serv->client_ips.end()) {
+                    http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), iter->second.c_str());
+                } else {
+                    const char *client_ip = conn->info.get_ip();
+                    http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), client_ip);
+                    serv->client_ips[conn->fd] = client_ip;
+                }
+            } else {
+                http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), conn->info.get_ip());
+            }
         }
 
         http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_MASTER_TIME), (int) conn->last_recv_time);
