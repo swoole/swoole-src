@@ -120,7 +120,7 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
             http_server_add_server_array(
                 ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), SW_ZSTR_KNOWN(SW_ZEND_STR_ADDR_LOOPBACK_V6));
         } else {
-            if (serv->is_base_mode()) {
+            if (serv->is_base_mode() && ctx->keepalive) {
                 auto iter = serv->client_ips.find(conn->fd);
                 if (iter != serv->client_ips.end()) {
                     http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), iter->second.c_str());
