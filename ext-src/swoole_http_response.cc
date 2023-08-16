@@ -129,10 +129,6 @@ static zend_object *php_swoole_http_response_create_object(zend_class_entry *ce)
     return &response->std;
 }
 
-static void swoole_response_read_fd_property(zend_object *object, HttpContext *ctx) {
-    zend_update_property_long(swoole_http_response_ce, object, ZEND_STRL("fd"), ctx->fd);
-}
-
 SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_http_response, write);
 static PHP_METHOD(swoole_http_response, end);
