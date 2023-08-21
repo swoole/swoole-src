@@ -73,3 +73,23 @@ static inline void http_server_add_server_array(HashTable *ht, zend_string *key,
     ZVAL_STR(&tmp, value);
     zend_hash_add(ht, key, &tmp);
 }
+
+static inline void http_server_set_object_fd_property(zend_object *object, zend_class_entry *ce, long fd) {
+    // fd always the first property for swoole_http_request and  swoole_http_response.
+    Bucket *bucket = &((&ce->properties_info)->arData[0]);
+    zend_property_info *property_info = (zend_property_info *) Z_PTR_P(&bucket->val);
+    zval *property = OBJ_PROP(object, property_info->offset);
+    ZVAL_LONG(property, fd);
+}
+
+static inline void http_server_init_array_property(
+    zend_class_entry *ce, zend_object *object, zval **zproperty_store_pp, int pos, int size) {
+    if (UNEXPECTED(!*zproperty_store_pp)) {
+        Bucket *bucket = &((&ce->properties_info)->arData[pos]);
+        zend_property_info *property_info = (zend_property_info *) Z_PTR_P(&bucket->val);
+        zval *property = OBJ_PROP(object, property_info->offset);
+        array_init_size(property, size);
+        *zproperty_store_pp = (zval *) (zproperty_store_pp + 1);
+        **zproperty_store_pp = *property;
+    }
+}

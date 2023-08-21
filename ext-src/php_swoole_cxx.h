@@ -49,7 +49,6 @@
     _(SW_ZEND_STR_COOKIES,                  "cookies") \
     _(SW_ZEND_STR_DOWNLOAD_FILE,            "downloadFile") \
     _(SW_ZEND_STR_DOWNLOAD_OFFSET,          "downloadOffset") \
-    _(SW_ZEND_STR_SERVER,                   "server") \
     _(SW_ZEND_STR_HEADER,                   "header") \
     _(SW_ZEND_STR_GET,                      "get") \
     _(SW_ZEND_STR_POST,                     "post") \
