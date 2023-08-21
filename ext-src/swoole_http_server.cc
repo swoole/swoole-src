@@ -203,12 +203,20 @@ HttpContext *swoole_http_context_new(SessionId fd) {
     object_init_ex(zresponse_object, swoole_http_response_ce);
     php_swoole_http_response_set_context(zresponse_object, ctx);
 
+    /**
+     * see the order in the php_swoole_http_request_minit function.
+     * assign values based on the sorting position of property directly.
+     * Swoole\Http\Request::fd is the zero property.
+     * Swoole\Http\Response::fd is the zero property.
+     * Swoole\Http\Request::header is the second property.
+     * Swoole\Http\Request::server is the third property.
+     */
     http_server_set_object_fd_property(SW_Z8_OBJ_P(zrequest_object), swoole_http_request_ce, fd);
     http_server_set_object_fd_property(SW_Z8_OBJ_P(zresponse_object), swoole_http_response_ce, fd);
     http_server_init_array_property(
-        swoole_http_request_ce, SW_Z8_OBJ_P(zrequest_object), &ctx->request.zserver, 1, HT_MIN_SIZE << 1);
-    http_server_init_array_property(
         swoole_http_request_ce, SW_Z8_OBJ_P(zrequest_object), &ctx->request.zheader, 2, HT_MIN_SIZE);
+    http_server_init_array_property(
+        swoole_http_request_ce, SW_Z8_OBJ_P(zrequest_object), &ctx->request.zserver, 3, HT_MIN_SIZE << 1);
     ctx->fd = fd;
 
     return ctx;
