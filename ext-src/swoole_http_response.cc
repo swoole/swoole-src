@@ -347,9 +347,9 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
 
     /**
      * http header
-     * the offset of Swoole\Http\Response::header is 2.
      */
-    zval *zheader = sw_zend_read_property_by_offset(swoole_http_response_ce, SW_Z8_OBJ_P(response.zobject), 2);
+    zval *zheader =
+        sw_zend_read_property_ex(swoole_http_response_ce, response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADER), 0);
     if (ZVAL_IS_ARRAY(zheader)) {
         zval *zvalue;
         zend_string *string_key;
@@ -422,9 +422,9 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
 
     /**
      * http cookies
-     * the offset of Swoole\Http\Response::cookie is 3.
      */
-    zval *zcookie = sw_zend_read_property_by_offset(swoole_http_response_ce, SW_Z8_OBJ_P(response.zobject), 3);
+    zval *zcookie =
+        sw_zend_read_property_ex(swoole_http_response_ce, response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_COOKIE), 0);
     if (ZVAL_IS_ARRAY(zcookie)) {
         zval *zvalue;
         SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(zcookie), zvalue) {
