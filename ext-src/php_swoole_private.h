@@ -703,6 +703,20 @@ static sw_inline void sw_zend_update_property_null_ex(zend_class_entry *scope, z
     zend_update_property_ex(scope, SW_Z8_OBJ_P(object), s, &tmp);
 }
 
+/**
+ * find property by property offset.
+ */
+static sw_inline zval *sw_zend_read_property_by_offset(zend_class_entry *ce, zend_object *object, int offset) {
+    Bucket *bucket = &((&ce->properties_info)->arData[offset]);
+    zend_property_info *property_info = (zend_property_info *) Z_PTR_P(&bucket->val);
+    zval *property = OBJ_PROP(object, property_info->offset);
+    if (UNEXPECTED(property == &EG(uninitialized_zval))) {
+        ZVAL_NULL(property);
+    }
+
+    return property;
+}
+
 static sw_inline zval *sw_zend_read_property_ex(zend_class_entry *ce, zval *obj, zend_string *s, int silent) {
     zval rv, *property = zend_read_property_ex(ce, SW_Z8_OBJ_P(obj), s, silent, &rv);
     if (UNEXPECTED(property == &EG(uninitialized_zval))) {

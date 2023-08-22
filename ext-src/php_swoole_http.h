@@ -276,6 +276,22 @@ swoole::http::Context *php_swoole_http_request_get_and_check_context(zval *zobje
 swoole::http::Context *php_swoole_http_response_get_and_check_context(zval *zobject);
 
 /**
+ * operate object property ptr directly by offset
+ */
+static sw_inline zval *swoole_http_init_and_read_property(
+    zend_class_entry *ce, zend_object *object, zval **zproperty_store_pp, int offset, int size = HT_MIN_SIZE) {
+    if (UNEXPECTED(!*zproperty_store_pp)) {
+        Bucket *bucket = &((&ce->properties_info)->arData[offset]);
+        zend_property_info *property_info = (zend_property_info *) Z_PTR_P(&bucket->val);
+        zval *property = OBJ_PROP(object, property_info->offset);
+        array_init_size(property, size);
+        *zproperty_store_pp = (zval *) (zproperty_store_pp + 1);
+        **zproperty_store_pp = *property;
+    }
+    return *zproperty_store_pp;
+}
+
+/**
  * using this function can avoid copy elements form old array to new array if the number of elements in the array
  * can be sure.
  */
