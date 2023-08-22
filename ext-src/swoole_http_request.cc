@@ -238,7 +238,6 @@ void php_swoole_http_request_minit(int module_number) {
                                HttpRequestObject,
                                std);
 
-    // Notice: Do not change the order, see http_server_set_object_fd_property and http_server_init_array_property
     zend_declare_property_long(swoole_http_request_ce, ZEND_STRL("fd"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_http_request_ce, ZEND_STRL("streamId"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_request_ce, ZEND_STRL("header"), ZEND_ACC_PUBLIC);

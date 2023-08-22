@@ -197,7 +197,6 @@ void php_swoole_http_response_minit(int module_number) {
                                HttpResponseObject,
                                std);
 
-    // Notice: Do not change the order, see http_server_set_object_fd_property.
     zend_declare_property_long(swoole_http_response_ce, ZEND_STRL("fd"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_response_ce, ZEND_STRL("socket"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_response_ce, ZEND_STRL("header"), ZEND_ACC_PUBLIC);
