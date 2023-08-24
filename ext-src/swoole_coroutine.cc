@@ -298,6 +298,11 @@ PHPContext *PHPCoroutine::create_context(Args *args) {
     call->func = func;
     EG(vm_stack_top) += ZEND_CALL_FRAME_SLOT;
 
+#ifdef ZEND_CHECK_STACK_LIMIT
+    EG(stack_base) = nullptr;
+    EG(stack_limit) = nullptr;
+#endif
+
     save_vm_stack(ctx);
     record_last_msec(ctx);
 
