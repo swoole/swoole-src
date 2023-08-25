@@ -137,7 +137,7 @@ void php_swoole_get_recv_data(swServer *serv, zval *zdata, swRecvData *req);
 void php_swoole_server_onConnect(swServer *, swDataHead *);
 int php_swoole_server_onReceive(swServer *, swRecvData *);
 int php_swoole_http_server_onReceive(swServer *, swRecvData *);
-void php_swoole_http_server_onClose(Server *serv, swDataHead *info);
+void php_swoole_http_server_onClose(swServer *serv, swDataHead *info);
 int php_swoole_redis_server_onReceive(swServer *serv, swRecvData *req);
 int php_swoole_server_onPacket(swServer *, swRecvData *);
 void php_swoole_server_onClose(swServer *, swDataHead *);

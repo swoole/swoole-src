@@ -475,13 +475,28 @@ class Variable {
         ZVAL_STRING(&value, str);
     }
 
+    Variable(const Variable &&src) {
+        value = src.value;
+        add_ref();
+    }
+
+    Variable(Variable &&src) {
+        value = src.value;
+        src.reset();
+    }
+
     void operator=(zval *zvalue) {
         assign(zvalue);
     }
 
+    void operator=(const Variable &src) {
+        value = src.value;
+        add_ref();
+    }
+
     void assign(zval *zvalue) {
         value = *zvalue;
-        zval_add_ref(zvalue);
+        add_ref();
     }
 
     zval *ptr() {
@@ -489,7 +504,7 @@ class Variable {
     }
 
     void reset() {
-        value = {};
+        ZVAL_UNDEF(&value);
     }
 
     void add_ref() {
@@ -501,7 +516,7 @@ class Variable {
     }
 
     ~Variable() {
-        zval_ptr_dtor(&value);
+        del_ref();
     }
 };
 

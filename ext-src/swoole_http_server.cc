@@ -124,7 +124,8 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
             if (serv->is_base_mode() && ctx->keepalive) {
                 auto iter = client_ips.find(conn->fd);
                 if (iter == client_ips.end()) {
-                    iter = client_ips.emplace(session_id, conn->info.get_ip());
+                    auto rs = client_ips.emplace(session_id, conn->info.get_ip());
+                    iter = rs.first;
                     iter->second.add_ref();
                 }
                 zend_hash_add(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), iter->second.ptr());
