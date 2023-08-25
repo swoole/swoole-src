@@ -958,6 +958,9 @@ void ServerObject::on_before_start() {
 
     if (find_http_port) {
         serv->onReceive = php_swoole_http_server_onReceive;
+        if (serv->is_base_mode()) {
+            serv->onClose = php_swoole_http_server_onClose;
+        }
     }
 
     if (SWOOLE_G(enable_library)) {

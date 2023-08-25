@@ -176,7 +176,6 @@ _do_recvfrom:
 int Server::close_connection(Reactor *reactor, Socket *socket) {
     Server *serv = (Server *) reactor->ptr;
     Connection *conn = (Connection *) socket->object;
-    serv->client_ips.erase(conn->fd);
     ListenPort *port = serv->get_port_by_fd(socket->fd);
 
     if (conn->timer) {

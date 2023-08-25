@@ -30,6 +30,7 @@ zend_class_entry *swoole_http_server_ce;
 zend_object_handlers swoole_http_server_handlers;
 
 static std::queue<HttpContext *> queued_http_contexts;
+static std::unordered_map<SessionId, zend::Variable> client_ips;
 
 static bool http_context_send_data(HttpContext *ctx, const char *data, size_t length);
 static bool http_context_sendfile(HttpContext *ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
@@ -121,14 +122,12 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
                 ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), SW_ZSTR_KNOWN(SW_ZEND_STR_ADDR_LOOPBACK_V6));
         } else {
             if (serv->is_base_mode() && ctx->keepalive) {
-                auto iter = serv->client_ips.find(conn->fd);
-                if (iter != serv->client_ips.end()) {
-                    http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), iter->second.c_str());
-                } else {
-                    const char *client_ip = conn->info.get_ip();
-                    http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), client_ip);
-                    serv->client_ips[conn->fd] = client_ip;
+                auto iter = client_ips.find(conn->fd);
+                if (iter == client_ips.end()) {
+                    iter = client_ips.emplace(session_id, conn->info.get_ip());
+                    iter->second.add_ref();
                 }
+                zend_hash_add(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), iter->second.ptr());
             } else {
                 http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), conn->info.get_ip());
             }
@@ -173,6 +172,11 @@ _dtor_and_return:
     zval_ptr_dtor(zresponse_object);
 
     return SW_OK;
+}
+
+void php_swoole_http_server_onClose(Server *serv, DataHead *info) {
+    client_ips.erase(info->fd);
+    php_swoole_server_onClose(serv, info);
 }
 
 void php_swoole_http_server_minit(int module_number) {

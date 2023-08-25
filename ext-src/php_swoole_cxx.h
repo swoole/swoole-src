@@ -471,6 +471,10 @@ class Variable {
         ZVAL_STRINGL(&value, str, l_str);
     }
 
+    Variable(const char *str) {
+        ZVAL_STRING(&value, str);
+    }
+
     void operator=(zval *zvalue) {
         assign(zvalue);
     }
@@ -486,6 +490,14 @@ class Variable {
 
     void reset() {
         value = {};
+    }
+
+    void add_ref() {
+        Z_TRY_ADDREF_P(&value);
+    }
+
+    void del_ref() {
+        Z_TRY_DELREF_P(&value);
     }
 
     ~Variable() {
