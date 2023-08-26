@@ -128,7 +128,7 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
                     iter = rs.first;
                 }
                 iter->second.add_ref();
-                zend_hash_add(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), iter->second.ptr());
+                http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), iter->second.ptr());
             } else {
                 http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), conn->info.get_ip());
             }
