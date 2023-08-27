@@ -753,6 +753,7 @@ Server::~Server() {
         delete port;
     }
     sw_shm_free(gs);
+	free_pipe_buffers();
 }
 
 int Server::create() {
@@ -2011,6 +2012,10 @@ void Server::init_ipc_max_size() {
 int Server::create_pipe_buffers() {
     message_bus.set_buffer_size(ipc_max_size);
     return message_bus.alloc_buffer() ? SW_OK : SW_ERR;
+}
+
+void Server::free_pipe_buffers() {
+	message_bus.free_buffer();
 }
 
 int Server::get_idle_worker_num() {
