@@ -187,7 +187,6 @@ void Manager::wait(Server *_server) {
         delete[] pool->reload_workers;
         pool->reload_workers = nullptr;
         server_->manager = nullptr;
-		server_->free_pipe_buffers();
     };
 
     // for reload

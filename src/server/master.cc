@@ -753,7 +753,6 @@ Server::~Server() {
         delete port;
     }
     sw_shm_free(gs);
-	free_pipe_buffers();
 }
 
 int Server::create() {
@@ -978,6 +977,8 @@ void Server::destroy() {
          */
         join_reactor_thread();
     }
+
+	free_pipe_buffers();
 
     for (auto port : ports) {
         port->close();
