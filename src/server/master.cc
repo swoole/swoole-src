@@ -978,7 +978,7 @@ void Server::destroy() {
         join_reactor_thread();
     }
 
-	free_pipe_buffers();
+	release_pipe_buffers();
 
     for (auto port : ports) {
         port->close();
@@ -2015,7 +2015,7 @@ int Server::create_pipe_buffers() {
     return message_bus.alloc_buffer() ? SW_OK : SW_ERR;
 }
 
-void Server::free_pipe_buffers() {
+void Server::release_pipe_buffers() {
 	message_bus.free_buffer();
 }
 

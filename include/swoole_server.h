@@ -1318,7 +1318,6 @@ class Server {
     }
 
     int create_pipe_buffers();
-	void free_pipe_buffers();
     void release_pipe_buffers();
     void create_worker(Worker *worker);
     void destroy_worker(Worker *worker);
