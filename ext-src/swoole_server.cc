@@ -207,7 +207,7 @@ static void server_free_object(zend_object *object) {
     delete property;
 
     zend_object_std_dtor(object);
-    if (serv && ((serv->is_process_mode() && serv->is_master()) || serv->is_base_mode())) {
+    if (serv && serv->is_master()) {
         delete serv;
     }
 }
