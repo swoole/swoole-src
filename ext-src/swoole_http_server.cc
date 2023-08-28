@@ -16,6 +16,7 @@
 
 #include "php_swoole_http_server.h"
 #include "swoole_process_pool.h"
+#include "rfc1867.h"
 
 using namespace swoole;
 using swoole::coroutine::Socket;
@@ -192,6 +193,22 @@ void php_swoole_http_server_rinit() {
     if (!SG(rfc1867_uploaded_files)) {
         ALLOC_HASHTABLE(SG(rfc1867_uploaded_files));
         zend_hash_init(SG(rfc1867_uploaded_files), 8, nullptr, nullptr, 0);
+    }
+}
+
+void php_swoole_http_server_rshutdown() {
+    if (!SG(rfc1867_uploaded_files)) {
+        destroy_uploaded_files_hash();
+        SG(rfc1867_uploaded_files) = nullptr;
+    }
+    client_ips.clear();
+    while (!queued_http_contexts.empty()) {
+        HttpContext *ctx = queued_http_contexts.front();
+        queued_http_contexts.pop();
+        ctx->end_ = 1;
+        ctx->onAfterResponse = nullptr;
+        zval_ptr_dtor(ctx->request.zobject);
+        zval_ptr_dtor(ctx->response.zobject);
     }
 }
 

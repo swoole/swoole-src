@@ -1027,13 +1027,13 @@ PHP_RSHUTDOWN_FUNCTION(swoole) {
     swoole_event_free();
 
     php_swoole_server_rshutdown();
+    php_swoole_http_server_rshutdown();
     php_swoole_async_coro_rshutdown();
     php_swoole_redis_server_rshutdown();
     php_swoole_coroutine_rshutdown();
     php_swoole_coroutine_scheduler_rshutdown();
     php_swoole_runtime_rshutdown();
-
-    php_swoole_process_clean();
+    php_swoole_process_rshutdown();
 
     SwooleG.running = 0;
     SWOOLE_G(req_status) = PHP_SWOOLE_RSHUTDOWN_END;
