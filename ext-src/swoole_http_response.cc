@@ -1061,7 +1061,7 @@ static void php_swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const 
         date = php_swoole_format_date((char *) ZEND_STRL("D, d-M-Y H:i:s T"), 1, 0);
         snprintf(cookie, cookie_size, "%s=deleted; expires=%s", name, date);
         efree(date);
-        strlcat(cookie, "; Max-Age=0", cookie_size);
+        strncat(cookie, "; Max-Age=0", cookie_size);
     } else {
         if (url_encode) {
             char *encoded_value;
@@ -1077,7 +1077,7 @@ static void php_swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const 
             sw_snprintf(cookie, cookie_size, "%s=%s", name, value);
         }
         if (expires > 0) {
-            strlcat(cookie, "; expires=", cookie_size);
+            strncat(cookie, "; expires=", cookie_size);
             date = php_swoole_format_date((char *) ZEND_STRL("D, d-M-Y H:i:s T"), expires, 0);
             const char *p = (const char *) zend_memrchr(date, '-', strlen(date));
             if (!p || *(p + 5) != ' ') {
@@ -1086,10 +1086,10 @@ static void php_swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const 
                 efree(cookie);
                 RETURN_FALSE;
             }
-            strlcat(cookie, date, cookie_size);
+            strncat(cookie, date, cookie_size);
             efree(date);
 
-            strlcat(cookie, "; Max-Age=", cookie_size);
+            strncat(cookie, "; Max-Age=", cookie_size);
 
             double diff = difftime(expires, php_time());
             if (diff < 0) {
@@ -1099,30 +1099,30 @@ static void php_swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const 
             zval max_age;
             ZVAL_DOUBLE(&max_age, diff);
             convert_to_string(&max_age);
-            strlcat(cookie, Z_STRVAL_P(&max_age), cookie_size);
+            strncat(cookie, Z_STRVAL_P(&max_age), cookie_size);
         }
     }
     if (path_len > 0) {
-        strlcat(cookie, "; path=", cookie_size);
-        strlcat(cookie, path, cookie_size);
+        strncat(cookie, "; path=", cookie_size);
+        strncat(cookie, path, cookie_size);
     }
     if (domain_len > 0) {
-        strlcat(cookie, "; domain=", cookie_size);
-        strlcat(cookie, domain, cookie_size);
+        strncat(cookie, "; domain=", cookie_size);
+        strncat(cookie, domain, cookie_size);
     }
     if (secure) {
-        strlcat(cookie, "; secure", cookie_size);
+        strncat(cookie, "; secure", cookie_size);
     }
     if (httponly) {
-        strlcat(cookie, "; httponly", cookie_size);
+        strncat(cookie, "; httponly", cookie_size);
     }
     if (samesite_len > 0) {
-        strlcat(cookie, "; samesite=", cookie_size);
-        strlcat(cookie, samesite, cookie_size);
+        strncat(cookie, "; samesite=", cookie_size);
+        strncat(cookie, samesite, cookie_size);
     }
     if (priority_len > 0) {
-        strlcat(cookie, "; priority=", cookie_size);
-        strlcat(cookie, priority, cookie_size);
+        strncat(cookie, "; priority=", cookie_size);
+        strncat(cookie, priority, cookie_size);
     }
     add_next_index_stringl(
         swoole_http_init_and_read_property(
