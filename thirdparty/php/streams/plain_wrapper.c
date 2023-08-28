@@ -767,7 +767,7 @@ static php_stream *stream_fopen_rel(const char *filename,
     }
 
     if (options & STREAM_ASSUME_REALPATH) {
-        strlcpy(_realpath, filename, sizeof(_realpath));
+        strncpy(_realpath, filename, sizeof(_realpath));
     } else {
         if (expand_filepath(filename, _realpath) == NULL) {
             return NULL;

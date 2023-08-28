@@ -267,7 +267,7 @@ static void from_zval_write_ifindex(const zval *zv, char *uinteger, ser_context 
 #elif defined(SIOCGIFINDEX)
 		{
 			struct ifreq ifr;
-			if (strlcpy(ifr.ifr_name, ZSTR_VAL(str), sizeof(ifr.ifr_name))
+			if (strncpy(ifr.ifr_name, ZSTR_VAL(str), sizeof(ifr.ifr_name))
 					>= sizeof(ifr.ifr_name)) {
 				do_from_zval_err(ctx, "the interface name \"%s\" is too large ", ZSTR_VAL(str));
 			} else if (ioctl(ctx->sock->get_fd(), SIOCGIFINDEX, &ifr) < 0) {
