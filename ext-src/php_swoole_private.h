@@ -286,7 +286,6 @@ void php_swoole_process_rshutdown();
 void php_swoole_coroutine_scheduler_rshutdown();
 void php_swoole_runtime_rshutdown();
 void php_swoole_server_rshutdown();
-void php_swoole_process_rshutdown();
 
 int php_swoole_reactor_init();
 void php_swoole_set_global_option(zend_array *vht);
