@@ -978,6 +978,8 @@ void Server::destroy() {
         join_reactor_thread();
     }
 
+	release_pipe_buffers();
+
     for (auto port : ports) {
         port->close();
     }
@@ -2011,6 +2013,10 @@ void Server::init_ipc_max_size() {
 int Server::create_pipe_buffers() {
     message_bus.set_buffer_size(ipc_max_size);
     return message_bus.alloc_buffer() ? SW_OK : SW_ERR;
+}
+
+void Server::release_pipe_buffers() {
+	message_bus.free_buffer();
 }
 
 int Server::get_idle_worker_num() {
