@@ -199,15 +199,20 @@ void php_swoole_http_server_rinit() {
 void php_swoole_http_server_rshutdown() {
     if (SG(rfc1867_uploaded_files)) {
         zval *el;
-
+#if PHP_VERSION_ID >= 80200
         ZEND_HASH_MAP_FOREACH_VAL(SG(rfc1867_uploaded_files), el) {
+#else
+        ZEND_HASH_FOREACH_VAL(SG(rfc1867_uploaded_files), el) {
+#endif
             zend_string *filename = Z_STR_P(el);
             VCWD_UNLINK(ZSTR_VAL(filename));
         } ZEND_HASH_FOREACH_END();
+
         zend_hash_destroy(SG(rfc1867_uploaded_files));
         FREE_HASHTABLE(SG(rfc1867_uploaded_files));
         SG(rfc1867_uploaded_files) = nullptr;
     }
+
     client_ips.clear();
     while (!queued_http_contexts.empty()) {
         HttpContext *ctx = queued_http_contexts.front();
