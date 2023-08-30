@@ -516,7 +516,7 @@ class Variable {
     }
 
     ~Variable() {
-        del_ref();
+        zval_ptr_dtor(&value);
     }
 };
 
