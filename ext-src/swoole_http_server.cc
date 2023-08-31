@@ -201,7 +201,6 @@ void php_swoole_http_server_rinit() {
 void php_swoole_http_server_rshutdown() {
     if (SG(rfc1867_uploaded_files)) {
         destroy_uploaded_files_hash();
-        FREE_HASHTABLE(SG(rfc1867_uploaded_files));
         SG(rfc1867_uploaded_files) = nullptr;
     }
 
