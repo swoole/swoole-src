@@ -28,6 +28,13 @@
 #define SW_ZEND_KNOWN_STRINGS(_) \
     _(SW_ZEND_STR_TYPE,                     "type") \
     _(SW_ZEND_STR_HOST,                     "host") \
+    _(SW_ZEND_STR_USER_AGENT,               "user-agent") \
+    _(SW_ZEND_STR_ACCEPT,                   "accept") \
+    _(SW_ZEND_STR_CONTENT_TYPE,             "content-type") \
+    _(SW_ZEND_STR_CONTENT_LENGTH,           "content-length") \
+    _(SW_ZEND_STR_AUTHORIZATION,            "authorization") \
+    _(SW_ZEND_STR_CONNECTION,               "connection") \
+    _(SW_ZEND_STR_ACCEPT_ENCODING,          "accept-encoding") \
     _(SW_ZEND_STR_PORT,                     "port") \
     _(SW_ZEND_STR_SETTING,                  "setting") \
     _(SW_ZEND_STR_ID,                       "id") \
@@ -35,7 +42,6 @@
     _(SW_ZEND_STR_SOCK,                     "sock") \
     _(SW_ZEND_STR_PIPE,                     "pipe") \
     _(SW_ZEND_STR_HEADERS,                  "headers") \
-    _(SW_ZEND_STR_SET_COOKIE_HEADERS,       "set_cookie_headers") \
     _(SW_ZEND_STR_REQUEST_METHOD,           "requestMethod") \
     _(SW_ZEND_STR_REQUEST_HEADERS,          "requestHeaders") \
     _(SW_ZEND_STR_REQUEST_BODY,             "requestBody") \
@@ -43,8 +49,12 @@
     _(SW_ZEND_STR_COOKIES,                  "cookies") \
     _(SW_ZEND_STR_DOWNLOAD_FILE,            "downloadFile") \
     _(SW_ZEND_STR_DOWNLOAD_OFFSET,          "downloadOffset") \
-    _(SW_ZEND_STR_TMPFILES,                 "tmpfiles") \
+    _(SW_ZEND_STR_SERVER,                   "server") \
     _(SW_ZEND_STR_HEADER,                   "header") \
+    _(SW_ZEND_STR_GET,                      "get") \
+    _(SW_ZEND_STR_POST,                     "post") \
+    _(SW_ZEND_STR_FILES,                    "files") \
+    _(SW_ZEND_STR_TMPFILES,                 "tmpfiles") \
     _(SW_ZEND_STR_COOKIE,                   "cookie") \
     _(SW_ZEND_STR_METHOD,                   "method") \
     _(SW_ZEND_STR_PATH,                     "path") \
@@ -54,8 +64,6 @@
     _(SW_ZEND_STR_TRAILER,                  "trailer") \
     _(SW_ZEND_STR_MASTER_PID,               "master_pid") \
     _(SW_ZEND_STR_CALLBACK,                 "callback") \
-    _(SW_ZEND_STR_VALUE,                    "value") \
-    _(SW_ZEND_STR_KEY,                      "key") \
     _(SW_ZEND_STR_OPCODE,                   "opcode") \
     _(SW_ZEND_STR_CODE,                     "code") \
     _(SW_ZEND_STR_REASON,                   "reason") \
@@ -65,9 +73,20 @@
     _(SW_ZEND_STR_PRIVATE_DATA,             "private_data") \
     _(SW_ZEND_STR_CLASS_NAME_RESOLVER,      "Swoole\\NameResolver") \
     _(SW_ZEND_STR_SOCKET,                   "socket") \
-    _(SW_ZEND_STR_CONNECTED,                "connected") \
     _(SW_ZEND_STR_ADDR_LOOPBACK_V4,         "127.0.0.1") \
-    _(SW_ZEND_STR_ADDR_LOOPBACK_V6,         "::1") \
+    _(SW_ZEND_STR_ADDR_LOOPBACK_V6,         "::1")  \
+    _(SW_ZEND_STR_REQUEST_METHOD2,          "request_method")  \
+    _(SW_ZEND_STR_REQUEST_URI,              "request_uri")  \
+    _(SW_ZEND_STR_PATH_INFO,                "path_info")  \
+    _(SW_ZEND_STR_REQUEST_TIME,             "request_time")  \
+    _(SW_ZEND_STR_REQUEST_TIME_FLOAT,       "request_time_float")  \
+    _(SW_ZEND_STR_SERVER_PROTOCOL,          "server_protocol")  \
+    _(SW_ZEND_STR_SERVER_PORT,              "server_port")  \
+    _(SW_ZEND_STR_REMOTE_PORT,              "remote_port")  \
+    _(SW_ZEND_STR_REMOTE_ADDR,              "remote_addr")  \
+    _(SW_ZEND_STR_MASTER_TIME,              "master_time") \
+    _(SW_ZEND_STR_HTTP10,                   "HTTP/1.0") \
+    _(SW_ZEND_STR_HTTP11,                   "HTTP/1.1") \
 
 typedef enum sw_zend_known_string_id {
 #define _SW_ZEND_STR_ID(id, str) id,
@@ -452,13 +471,32 @@ class Variable {
         ZVAL_STRINGL(&value, str, l_str);
     }
 
+    Variable(const char *str) {
+        ZVAL_STRING(&value, str);
+    }
+
+    Variable(const Variable &&src) {
+        value = src.value;
+        add_ref();
+    }
+
+    Variable(Variable &&src) {
+        value = src.value;
+        src.reset();
+    }
+
     void operator=(zval *zvalue) {
         assign(zvalue);
     }
 
+    void operator=(const Variable &src) {
+        value = src.value;
+        add_ref();
+    }
+
     void assign(zval *zvalue) {
         value = *zvalue;
-        zval_add_ref(zvalue);
+        add_ref();
     }
 
     zval *ptr() {
@@ -466,7 +504,15 @@ class Variable {
     }
 
     void reset() {
-        value = {};
+        ZVAL_UNDEF(&value);
+    }
+
+    void add_ref() {
+        Z_TRY_ADDREF_P(&value);
+    }
+
+    void del_ref() {
+        Z_TRY_DELREF_P(&value);
     }
 
     ~Variable() {

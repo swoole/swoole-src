@@ -45,13 +45,6 @@ namespace HttpServer = swoole::http_server;
 zend_class_entry *swoole_http_response_ce;
 static zend_object_handlers swoole_http_response_handlers;
 
-static zval *swoole_response_read_property(
-    zend_object *object, zend_string *name, int type, void **cache_slot, zval *rv);
-
-static zval *swoole_response_write_property(zend_object *zobj, zend_string *name, zval *value, void **cache_slot);
-
-static HashTable *swoole_response_get_properties_for(zend_object *obj, zend_prop_purpose purpose);
-
 static inline void http_header_key_format(char *key, int length) {
     int i, state = 0;
     for (i = 0; i < length; i++) {
@@ -83,7 +76,6 @@ String *HttpContext::get_write_buffer() {
 
 struct HttpResponseObject {
     HttpContext *ctx;
-    bool init_fd = false;
     zend_object std;
 };
 
@@ -135,53 +127,6 @@ static zend_object *php_swoole_http_response_create_object(zend_class_entry *ce)
     object_properties_init(&response->std, ce);
     response->std.handlers = &swoole_http_response_handlers;
     return &response->std;
-}
-
-static void swoole_response_read_fd_property(zend_object *object, HttpContext *ctx) {
-    zend_update_property_long(swoole_http_response_ce, object, ZEND_STRL("fd"), ctx->fd);
-}
-
-/**
- * Swoole\\Http\\Response::$fd is not immediately needed so we create it when user needs it.
- */
-static zval *swoole_response_read_property(
-    zend_object *object, zend_string *name, int type, void **cache_slot, zval *rv) {
-    HttpResponseObject *response = php_swoole_http_response_fetch_object(object);
-    HttpContext *ctx = response->ctx;
-    zval *property = zend_std_read_property(object, name, type, nullptr, rv);
-
-    if (strcasecmp(ZSTR_VAL(name), "fd") == 0 && !response->init_fd) {
-        response->init_fd = true;
-        swoole_response_read_fd_property(object, ctx);
-    }
-
-    return property;
-}
-
-/**
- * user overwrites Swoole\\Http\\Response::$fd so we don't need to init it.
- */
-static zval *swoole_response_write_property(zend_object *object, zend_string *name, zval *value, void **cache_slot) {
-    if (strcasecmp(ZSTR_VAL(name), "fd") == 0) {
-        HttpResponseObject *response = php_swoole_http_response_fetch_object(object);
-        response->init_fd = true;
-    }
-
-    return zend_std_write_property(object, name, value, cache_slot);
-}
-
-/**
- * for json_encode and serialize
- */
-static HashTable *swoole_response_get_properties_for(zend_object *object, zend_prop_purpose purpose) {
-    HttpResponseObject *response = php_swoole_http_response_fetch_object(object);
-    HttpContext *ctx = response->ctx;
-    if (!response->init_fd) {
-        response->init_fd = true;
-        swoole_response_read_fd_property(object, ctx);
-    }
-
-    return zend_std_get_properties_for(object, purpose);
 }
 
 SW_EXTERN_C_BEGIN
@@ -257,10 +202,6 @@ void php_swoole_http_response_minit(int module_number) {
     zend_declare_property_null(swoole_http_response_ce, ZEND_STRL("header"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_response_ce, ZEND_STRL("cookie"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_response_ce, ZEND_STRL("trailer"), ZEND_ACC_PUBLIC);
-
-    swoole_http_response_handlers.read_property = swoole_response_read_property;
-    swoole_http_response_handlers.write_property = swoole_response_write_property;
-    swoole_http_response_handlers.get_properties_for = swoole_response_get_properties_for;
 }
 
 static PHP_METHOD(swoole_http_response, write) {
@@ -478,7 +419,9 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
 #endif
     }
 
-    // http cookies
+    /**
+     * http cookies
+     */
     zval *zcookie =
         sw_zend_read_property_ex(swoole_http_response_ce, response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_COOKIE), 0);
     if (ZVAL_IS_ARRAY(zcookie)) {
@@ -537,9 +480,9 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
         if (!(header_flags & HTTP_HEADER_CONTENT_LENGTH)) {
             http_buffer->append(ZEND_STRL("Content-Length: "));
 
-            char content_length_string[128];
-            int content_result = swoole_itoa(content_length_string, length);
-            http_buffer->append(content_length_string, content_result);
+            char content_length2[128];
+            int convert_result = swoole_itoa(content_length2, length);
+            http_buffer->append(content_length2, convert_result);
             http_buffer->append(ZEND_STRL("\r\n"));
         }
     }

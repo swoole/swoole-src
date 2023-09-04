@@ -44,3 +44,43 @@ int swoole_http2_server_goaway(swoole::http::Context *ctx,
                                zend_long error_code,
                                const char *debug_data,
                                size_t debug_data_len);
+
+static inline void http_server_add_server_array(HashTable *ht, zend_string *key, const char *value) {
+    zval tmp;
+    ZVAL_STRING(&tmp, value);
+    zend_hash_add(ht, key, &tmp);
+}
+
+static inline void http_server_add_server_array(HashTable *ht, zend_string *key, const char *value, size_t length) {
+    zval tmp;
+    ZVAL_STRINGL(&tmp, value, length);
+    zend_hash_add(ht, key, &tmp);
+}
+
+static inline void http_server_add_server_array(HashTable *ht, zend_string *key, int value) {
+    zval tmp;
+    ZVAL_LONG(&tmp, value);
+    zend_hash_add(ht, key, &tmp);
+}
+static inline void http_server_add_server_array(HashTable *ht, zend_string *key, double value) {
+    zval tmp;
+    ZVAL_DOUBLE(&tmp, value);
+    zend_hash_add(ht, key, &tmp);
+}
+
+static inline void http_server_add_server_array(HashTable *ht, zend_string *key, zend_string *value) {
+    zval tmp;
+    ZVAL_STR(&tmp, value);
+    zend_hash_add(ht, key, &tmp);
+}
+
+static inline void http_server_add_server_array(HashTable *ht, zend_string *key, zval *value) {
+    zend_hash_add(ht, key, value);
+}
+
+static inline void http_server_set_object_fd_property(zend_object *object, zend_class_entry *ce, long fd) {
+    zval *zv = zend_hash_find(&ce->properties_info, SW_ZSTR_KNOWN(SW_ZEND_STR_FD));
+    zend_property_info *property_info = (zend_property_info *) Z_PTR_P(zv);
+    zval *property = OBJ_PROP(object, property_info->offset);
+    ZVAL_LONG(property, fd);
+}

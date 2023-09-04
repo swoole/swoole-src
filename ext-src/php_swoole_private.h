@@ -278,9 +278,11 @@ void php_swoole_oracle_rinit();
  * RSHUTDOWN
  * ==============================================================
  */
+void php_swoole_http_server_rshutdown();
 void php_swoole_async_coro_rshutdown();
 void php_swoole_redis_server_rshutdown();
 void php_swoole_coroutine_rshutdown();
+void php_swoole_process_rshutdown();
 void php_swoole_coroutine_scheduler_rshutdown();
 void php_swoole_runtime_rshutdown();
 void php_swoole_server_rshutdown();

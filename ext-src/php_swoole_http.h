@@ -275,6 +275,23 @@ swoole::http::Context *swoole_http_context_new(swoole::SessionId fd);
 swoole::http::Context *php_swoole_http_request_get_and_check_context(zval *zobject);
 swoole::http::Context *php_swoole_http_response_get_and_check_context(zval *zobject);
 
+/**
+ * using this function can avoid copy elements form old array to new array if the number of elements in the array
+ * can be sure.
+ */
+static sw_inline zval *swoole_http_init_and_read_property(
+    zend_class_entry *ce, zval *zobject, zval **zproperty_store_pp, zend_string *name, int size = HT_MIN_SIZE) {
+    if (UNEXPECTED(!*zproperty_store_pp)) {
+        zval *zv = zend_hash_find(&ce->properties_info, name);
+        zend_property_info *property_info = (zend_property_info *) Z_PTR_P(zv);
+        zval *property = OBJ_PROP(SW_Z8_OBJ_P(zobject), property_info->offset);
+        array_init_size(property, size);
+        *zproperty_store_pp = (zval *) (zproperty_store_pp + 1);
+        **zproperty_store_pp = *property;
+    }
+    return *zproperty_store_pp;
+}
+
 static sw_inline zval *swoole_http_init_and_read_property(
     zend_class_entry *ce, zval *zobject, zval **zproperty_store_pp, const char *name, size_t name_len) {
     if (UNEXPECTED(!*zproperty_store_pp)) {
