@@ -125,7 +125,7 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
                 ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), SW_ZSTR_KNOWN(SW_ZEND_STR_ADDR_LOOPBACK_V6));
         } else {
             if (serv->is_base_mode() && ctx->keepalive) {
-                auto iter = client_ips.find(conn->fd);
+                auto iter = client_ips.find(session_id);
                 if (iter == client_ips.end()) {
                     auto rs = client_ips.emplace(session_id, conn->info.get_ip());
                     iter = rs.first;
