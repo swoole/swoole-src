@@ -1043,6 +1043,7 @@ static void php_swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const 
             ZVAL_DOUBLE(&max_age, diff);
             convert_to_string(&max_age);
             strlcat(cookie, Z_STRVAL_P(&max_age), cookie_size);
+            zval_ptr_dtor(&max_age);
         }
     }
     if (path_len > 0) {
