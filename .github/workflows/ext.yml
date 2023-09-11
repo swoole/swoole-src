@@ -7,7 +7,7 @@ jobs:
     if: "!contains(github.event.head_commit.message, '[test]')"
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: install-deps
       run: sudo apt update -y && sudo apt install -y libcurl4-openssl-dev php-curl libc-ares-dev
     - name: phpize
@@ -43,7 +43,7 @@ jobs:
     steps:
     - name: install dependencies
       run: brew install openssl && brew link openssl && brew install curl && brew link curl && brew install c-ares && brew link c-ares
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: phpize
       run: phpize
     - name: build1
@@ -80,7 +80,7 @@ jobs:
       max-parallel: 8
       fail-fast: false
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: build
         run: |
           cp .github/workflows/alpine.Dockerfile alpine.Dockerfile

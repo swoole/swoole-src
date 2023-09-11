@@ -24,7 +24,7 @@ jobs:
           PROXY_SERVER: 0.0.0.0:1080
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: install dependencies
         run: sudo apt update -y && sudo apt install -y googletest libgtest-dev redis-server libboost-stacktrace-dev libbrotli-dev
