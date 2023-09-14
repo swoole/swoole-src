@@ -299,8 +299,8 @@ PHPContext *PHPCoroutine::create_context(Args *args) {
     EG(vm_stack_top) += ZEND_CALL_FRAME_SLOT;
 
 #ifdef ZEND_CHECK_STACK_LIMIT
-    EG(stack_base) = fiber_stack_base(ctx);
-    EG(stack_limit) = fiber_stack_limit(ctx);
+    EG(stack_base) = stack_base(ctx);
+    EG(stack_limit) = stack_limit(ctx);
 #endif
 
     save_vm_stack(ctx);
@@ -489,8 +489,8 @@ inline void PHPCoroutine::save_vm_stack(PHPContext *ctx) {
         EG(error_reporting) = ctx->ori_error_reporting;
     }
 #ifdef ZEND_CHECK_STACK_LIMIT
-    ctx->fiber_stack_base = EG(stack_base);
-    ctx->fiber_stack_limit = EG(stack_limit);
+    ctx->stack_base = EG(stack_base);
+    ctx->stack_limit = EG(stack_limit);
 #endif
 }
 
@@ -515,8 +515,8 @@ inline void PHPCoroutine::restore_vm_stack(PHPContext *ctx) {
         EG(error_reporting) = ctx->tmp_error_reporting;
     }
 #ifdef ZEND_CHECK_STACK_LIMIT
-    EG(stack_base) = ctx->fiber_stack_base;
-    EG(stack_limit) = ctx->fiber_stack_limit;
+    EG(stack_base) = ctx->stack_base;
+    EG(stack_limit) = ctx->stack_limit;
 #endif
 }
 
@@ -858,7 +858,7 @@ void PHPCoroutine::fiber_context_switch_try_notify(PHPContext *from, PHPContext 
 #endif /* SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT */
 
 #ifdef ZEND_CHECK_STACK_LIMIT
-void* PHPCoroutine::fiber_stack_limit(PHPContext *ctx)
+void* PHPCoroutine::stack_limit(PHPContext *ctx)
 {
 #ifdef SW_USE_THREAD_CONTEXT
     return nullptr;
@@ -882,7 +882,7 @@ void* PHPCoroutine::fiber_stack_limit(PHPContext *ctx)
 	return (int8_t*)ctx->co->get_ctx().get_stack() + reserve;
 #endif
 }
-void* PHPCoroutine::fiber_stack_base(PHPContext *ctx)
+void* PHPCoroutine::stack_base(PHPContext *ctx)
 {
 #ifdef SW_USE_THREAD_CONTEXT
     return nullptr;
