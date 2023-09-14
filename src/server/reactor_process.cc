@@ -324,6 +324,11 @@ static int ReactorProcess_onClose(Reactor *reactor, Event *event) {
         if (conn->close_queued) {
             return Server::close_connection(reactor, event->socket);
         } else {
+            /**
+             * peer_closed indicates that the client has closed the connection
+             * and the connection is no longer available.
+             */
+            conn->peer_closed = 1;
             return serv->notify(conn, SW_SERVER_EVENT_CLOSE) ? SW_OK : SW_ERR;
         }
     } else {
