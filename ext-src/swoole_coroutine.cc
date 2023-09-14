@@ -860,6 +860,9 @@ void PHPCoroutine::fiber_context_switch_try_notify(PHPContext *from, PHPContext 
 #ifdef ZEND_CHECK_STACK_LIMIT
 void* PHPCoroutine::fiber_stack_limit(PHPContext *ctx)
 {
+#ifdef SW_USE_THREAD_CONTEXT
+    return nullptr;
+#else
 	zend_ulong reserve = EG(reserved_stack_size);
 
 #ifdef __APPLE__
@@ -877,14 +880,19 @@ void* PHPCoroutine::fiber_stack_limit(PHPContext *ctx)
 
 	/* stack->pointer is the end of the stack */
 	return (int8_t*)ctx->co->get_ctx().get_stack() + reserve;
+#endif
 }
 void* PHPCoroutine::fiber_stack_base(PHPContext *ctx)
 {
+#ifdef SW_USE_THREAD_CONTEXT
+    return nullptr;
+#else
     if (!ctx->co) {
         return nullptr;
     }
 
 	return (void*)((uintptr_t)ctx->co->get_ctx().get_stack() + ctx->co->get_ctx().get_stack_size());
+#endif
 }
 #endif /* ZEND_CHECK_STACK_LIMIT */
 
