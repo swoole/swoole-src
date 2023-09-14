@@ -299,8 +299,8 @@ PHPContext *PHPCoroutine::create_context(Args *args) {
     EG(vm_stack_top) += ZEND_CALL_FRAME_SLOT;
 
 #ifdef ZEND_CHECK_STACK_LIMIT
-    EG(stack_base) = nullptr;
-    EG(stack_limit) = nullptr;
+    EG(stack_base) = fiber_stack_base(ctx);
+    EG(stack_limit) = fiber_stack_limit(ctx);
 #endif
 
     save_vm_stack(ctx);
@@ -488,6 +488,10 @@ inline void PHPCoroutine::save_vm_stack(PHPContext *ctx) {
         ctx->tmp_error_reporting = EG(error_reporting);
         EG(error_reporting) = ctx->ori_error_reporting;
     }
+#ifdef ZEND_CHECK_STACK_LIMIT
+    ctx->fiber_stack_base = EG(stack_base);
+    ctx->fiber_stack_limit = EG(stack_limit);
+#endif
 }
 
 inline void PHPCoroutine::restore_vm_stack(PHPContext *ctx) {
@@ -510,6 +514,10 @@ inline void PHPCoroutine::restore_vm_stack(PHPContext *ctx) {
     if (UNEXPECTED(ctx->in_silence)) {
         EG(error_reporting) = ctx->tmp_error_reporting;
     }
+#ifdef ZEND_CHECK_STACK_LIMIT
+    EG(stack_base) = ctx->fiber_stack_base;
+    EG(stack_limit) = ctx->fiber_stack_limit;
+#endif
 }
 
 inline void PHPCoroutine::save_og(PHPContext *ctx) {
@@ -848,6 +856,37 @@ void PHPCoroutine::fiber_context_switch_try_notify(PHPContext *from, PHPContext 
     fiber_context_switch_notify(from, to);
 }
 #endif /* SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT */
+
+#ifdef ZEND_CHECK_STACK_LIMIT
+void* PHPCoroutine::fiber_stack_limit(PHPContext *ctx)
+{
+	zend_ulong reserve = EG(reserved_stack_size);
+
+#ifdef __APPLE__
+	/* On Apple Clang, the stack probing function ___chkstk_darwin incorrectly
+	 * probes a location that is twice the entered function's stack usage away
+	 * from the stack pointer, when using an alternative stack.
+	 * https://openradar.appspot.com/radar?id=5497722702397440
+	 */
+	reserve = reserve * 2;
+#endif
+
+    if (!ctx->co) {
+        return nullptr;
+    }
+
+	/* stack->pointer is the end of the stack */
+	return (int8_t*)ctx->co->get_ctx().get_stack() + reserve;
+}
+void* PHPCoroutine::fiber_stack_base(PHPContext *ctx)
+{
+    if (!ctx->co) {
+        return nullptr;
+    }
+
+	return (void*)((uintptr_t)ctx->co->get_ctx().get_stack() + ctx->co->get_ctx().get_stack_size());
+}
+#endif /* ZEND_CHECK_STACK_LIMIT */
 
 void php_swoole_coroutine_minit(int module_number) {
     SW_INIT_CLASS_ENTRY_BASE(swoole_coroutine_util, "Swoole\\Coroutine", "Co", swoole_coroutine_methods, nullptr);

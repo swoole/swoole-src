@@ -62,6 +62,14 @@ class Context {
         return end_;
     }
 
+    char *get_stack() const {
+        return stack_;
+    }
+
+    size_t get_stack_size() const {
+        return stack_size_;
+    }
+
   protected:
     CoroutineFunc fn_;
 #ifdef SW_USE_THREAD_CONTEXT
