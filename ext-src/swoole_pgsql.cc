@@ -88,7 +88,7 @@ PGconn *swoole_pgsql_connectdb(const char *conninfo) {
 
     SW_LOOP {
         int r = PQconnectPoll(conn);
-        if (r == PGRES_POLLING_OK) {
+        if (r == PGRES_POLLING_OK || r == PGRES_POLLING_FAILED) {
             break;
         }
         swEventType event;
