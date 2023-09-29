@@ -81,6 +81,10 @@ struct PHPContext {
     zend_fiber_context *fiber_context;
     bool fiber_init_notified;
 #endif
+#ifdef ZEND_CHECK_STACK_LIMIT
+	void *stack_base;
+	void *stack_limit;
+#endif
     std::stack<zend::Function *> *defer_tasks;
     SwapCallback *on_yield;
     SwapCallback *on_resume;
@@ -288,6 +292,10 @@ class PHPCoroutine {
     static void fiber_context_try_destroy(PHPContext *ctx);
     static void fiber_context_switch_notify(PHPContext *from, PHPContext *to);
     static void fiber_context_switch_try_notify(PHPContext *from, PHPContext *to);
+#endif
+#ifdef ZEND_CHECK_STACK_LIMIT
+    static void* stack_limit(PHPContext *ctx);
+    static void* stack_base(PHPContext *ctx);
 #endif
     static void interrupt_thread_start();
     static void record_last_msec(PHPContext *ctx) {

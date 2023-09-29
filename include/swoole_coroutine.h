@@ -131,6 +131,10 @@ class Coroutine {
         return time<seconds_type>(true) - switch_usec + execute_usec;
     }
 
+    coroutine::Context &get_ctx() {
+        return ctx;
+    }
+
     static std::unordered_map<long, Coroutine *> coroutines;
 
     static void set_on_yield(SwapCallback func);
