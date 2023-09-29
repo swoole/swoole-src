@@ -1321,4 +1321,20 @@ EOF
     if test "$PHP_NGHTTP2_DIR" = "no"; then
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/nghttp2)
 	fi
+	if test "$PHP_SWOOLE_PGSQL" != "no"; then
+        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php80/pdo_pgsql)
+        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php81/pdo_pgsql)
+    fi
+    if test "$PHP_SWOOLE_ODBC" != "no"; then
+        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php80/pdo_odbc)
+        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php81/pdo_odbc)
+    fi
+    if test "$PHP_SWOOLE_ORACLE" != "no"; then
+        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php80/pdo_oci)
+        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php81/pdo_oci)
+    fi
+    if test "$PHP_SWOOLE_SQLITE" != "no"; then
+        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php80/pdo_sqlite)
+        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php81/pdo_sqlite)
+    fi
 fi
