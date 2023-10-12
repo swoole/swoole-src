@@ -100,6 +100,8 @@ class HttpServer {
 
     ~HttpServer() {
         sw_free(upload_tmp_dir);
+        zval_ptr_dtor(&zcallbacks);
+        zval_ptr_dtor(&zclients);
         delete socket;
     }
 
@@ -257,8 +259,6 @@ static void php_swoole_http_server_coro_free_object(zend_object *object) {
     HttpServerObject *hsc = php_swoole_http_server_coro_fetch_object(object);
     if (hsc->server) {
         HttpServer *hs = hsc->server;
-        zval_ptr_dtor(&hs->zcallbacks);
-        zval_ptr_dtor(&hs->zclients);
         delete hs;
     }
     zend_object_std_dtor(&hsc->std);
