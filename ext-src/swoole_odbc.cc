@@ -202,7 +202,7 @@ SQLRETURN SQL_API swoole_odbc_SQLDisconnect(SQLHDBC ConnectionHandle) {
 }
 
 int php_swoole_odbc_minit(int module_id) {
-    if (zend_hash_str_find(&php_pdo_get_dbh_ce()->constants_table, ZEND_STRL("PGSQL_ATTR_DISABLE_PREPARES")) ==
+    if (zend_hash_str_find(&php_pdo_get_dbh_ce()->constants_table, ZEND_STRL("ODBC_ATTR_USE_CURSOR_LIBRARY")) ==
         nullptr) {
 #ifdef SQL_ATTR_CONNECTION_POOLING
         char *pooling_val = NULL;
