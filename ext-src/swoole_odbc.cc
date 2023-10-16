@@ -202,7 +202,7 @@ SQLRETURN SQL_API swoole_odbc_SQLDisconnect(SQLHDBC ConnectionHandle) {
 }
 
 int php_swoole_odbc_minit(int module_id) {
-    if (zend_hash_str_find(&php_pdo_get_dbh_ce()->constants_table, ZEND_STRL("PGSQL_ATTR_DISABLE_PREPARES")) ==
+    if (zend_hash_str_find(&php_pdo_get_dbh_ce()->constants_table, ZEND_STRL("ODBC_ATTR_USE_CURSOR_LIBRARY")) ==
         nullptr) {
 #ifdef SQL_ATTR_CONNECTION_POOLING
         char *pooling_val = NULL;
@@ -244,6 +244,8 @@ int php_swoole_odbc_minit(int module_id) {
         REGISTER_PDO_CLASS_CONST_LONG("ODBC_SQL_USE_DRIVER", SQL_CUR_USE_DRIVER);
         REGISTER_PDO_CLASS_CONST_LONG("ODBC_SQL_USE_ODBC", SQL_CUR_USE_ODBC);
     }
+
+    php_pdo_unregister_driver(&swoole_pdo_odbc_driver);
     php_pdo_register_driver(&swoole_pdo_odbc_driver);
 
     return SUCCESS;
