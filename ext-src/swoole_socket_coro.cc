@@ -2167,14 +2167,20 @@ static PHP_METHOD(swoole_socket_coro, import) {
     }
 
     int sock_domain = AF_INET, sock_type = SOCK_STREAM;
+	php_sockaddr_storage addr;
+	socklen_t addr_len = sizeof(addr);
 
 #ifdef SO_DOMAIN
     socklen_t sock_domain_len = sizeof(sock_domain);
-    if (getsockopt(socket_fd, SOL_SOCKET, SO_DOMAIN, &sock_domain, &sock_domain_len) < 0) {
-        php_swoole_sys_error(E_WARNING, "getsockopt(SOL_SOCKET, SO_DOMAIN) failed");
-        RETURN_FALSE;
-    }
+    if (getsockopt(socket_fd, SOL_SOCKET, SO_DOMAIN, &sock_domain, &sock_domain_len) == 0) {
+    } else
 #endif
+    if (getsockname(socket_fd, (struct sockaddr*)&addr, &addr_len) == 0) {
+		sock_domain = addr.ss_family;
+	} else {
+        php_swoole_sys_error(E_WARNING, "getsockname() failed");
+        RETURN_FALSE;
+	}
 
 #ifdef SO_TYPE
     socklen_t sock_type_len = sizeof(sock_type);
