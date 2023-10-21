@@ -43,5 +43,5 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
-NULL
 DONE
+NULL
