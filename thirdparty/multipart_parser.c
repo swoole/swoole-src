@@ -203,7 +203,10 @@ ssize_t multipart_parser_execute(multipart_parser *p, const char *buf, size_t le
         case s_start_boundary:
             multipart_log_c("s_start_boundary");
             if (p->index == p->boundary_length) {
-                if (c != CR) {
+                // https://github.com/swoole/swoole-src/issues/5168
+                if (c == '-') {
+                    p->state = s_part_data_final_hyphen;
+                } else if (c != CR) {
                     ERROR_EXPECT(MPPE_BOUNDARY_END_NO_CRLF, CR);
                 }
                 p->index++;
