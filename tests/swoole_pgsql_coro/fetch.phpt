@@ -19,8 +19,8 @@ Swoole\Coroutine\run(function () {
     var_dump($stmt->fetchRow(0), $stmt->fetchRow(1));
 });
 ?>
---EXPECT--
-object(stdClass)#6 (6) {
+--EXPECTF--
+object(stdClass)#%d (6) {
   ["id"]=>
   int(1)
   ["city"]=>
@@ -34,7 +34,7 @@ object(stdClass)#6 (6) {
   ["date"]=>
   string(10) "1994-11-27"
 }
-object(stdClass)#7 (6) {
+object(stdClass)#%d (6) {
   ["id"]=>
   int(2)
   ["city"]=>
