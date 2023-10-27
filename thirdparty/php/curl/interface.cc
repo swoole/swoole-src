@@ -139,7 +139,7 @@ php_curl *swoole_curl_get_handle(zval *zid, bool exclusive, bool required) {
     if (SWOOLE_G(req_status) == PHP_SWOOLE_RSHUTDOWN_END) {
         exclusive = false;
     }
-    if (exclusive) {
+    if (exclusive && swoole_coroutine_is_in()) {
         auto handle = swoole::curl::get_handle(ch->cp);
         if (handle && handle->multi && handle->multi->check_bound_co() == nullptr) {
             return nullptr;
@@ -1953,8 +1953,9 @@ PHP_FUNCTION(swoole_native_curl_exec) {
     swoole_curl_verify_handlers(ch, 1);
     swoole_curl_cleanup_handle(ch);
 
-    Multi multi{};
-    error = multi.exec(swoole::curl::get_handle(ch->cp));
+    Multi *multi = new Multi();
+    error = multi->exec(swoole::curl::get_handle(ch->cp));
+    delete multi;
     SAVE_CURL_ERROR(ch, error);
 
     if (error != CURLE_OK) {
