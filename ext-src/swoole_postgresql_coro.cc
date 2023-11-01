@@ -50,7 +50,6 @@ class Object {
     Statement *statement;
     std::list<Statement *> statements;
     enum QueryType request_type;
-    int row;
     bool connected;
     bool ignore_notices;
     bool log_notices;
@@ -70,6 +69,7 @@ class Statement {
     PGresult *result;
     char *name;
     char *query;
+    int row;
 };
 }  // namespace postgresql
 }  // namespace swoole
@@ -856,12 +856,12 @@ static int query_result_parse(PGObject *object) {
     case PGRES_COMMAND_OK: /* successful command that did not return rows */
     default:
         object->result = pgsql_result;
-        object->row = 0;
         /* Wait to finish sending buffer */
         res = PQflush(object->conn);
         zend_update_property_null(swoole_postgresql_coro_ce, SW_Z8_OBJ_P(object->object), ZEND_STRL("error"));
         zend_update_property_null(swoole_postgresql_coro_ce, SW_Z8_OBJ_P(object->object), ZEND_STRL("resultDiag"));
         if (object->statement) {
+            object->statement->row = 0;
             zend_update_property_null(
                 swoole_postgresql_coro_statement_ce, SW_Z8_OBJ_P(object->statement->object), ZEND_STRL("error"));
             zend_update_property_null(
@@ -1656,7 +1656,7 @@ static void php_pgsql_fetch_hash(INTERNAL_FUNCTION_PARAMETERS, zend_long result_
             RETURN_FALSE;
         }
     }
-    use_row = ZEND_NUM_ARGS() > 1 && row != -1;
+    use_row = ZEND_NUM_ARGS() > 0 && row != -1;
 
     if (!(result_type & PGSQL_BOTH)) {
         php_swoole_fatal_error(E_WARNING, "Invalid result type");
@@ -1679,14 +1679,14 @@ static void php_pgsql_fetch_hash(INTERNAL_FUNCTION_PARAMETERS, zend_long result_
             RETURN_FALSE;
         }
         pgsql_row = (int) row;
-        pg_result->row = pgsql_row;
+        statement->row = pgsql_row;
     } else {
         /* If 2nd param is nullptr, use internal row counter to access next row */
-        pgsql_row = pg_result->row;
+        pgsql_row = statement->row;
         if (pgsql_row < 0 || pgsql_row >= PQntuples(pgsql_result)) {
             RETURN_FALSE;
         }
-        pg_result->row++;
+        statement->row++;
     }
 
     array_init(return_value);
