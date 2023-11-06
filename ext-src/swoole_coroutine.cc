@@ -662,11 +662,6 @@ void PHPCoroutine::destroy_context(PHPContext *ctx) {
         OBJ_RELEASE(context);
     }
 
-    if (ctx->in_autoload) {
-        zend_hash_destroy(ctx->in_autoload);
-        FREE_HASHTABLE(ctx->in_autoload);
-    }
-
     Z_TRY_DELREF(ctx->fci.function_name);
     ZVAL_UNDEF(&ctx->fci.function_name);
     sw_zend_fci_cache_discard(&ctx->fci_cache);
