@@ -274,6 +274,7 @@ PHPContext *PHPCoroutine::create_context(Args *args) {
     ctx->on_resume = nullptr;
     ctx->on_close = nullptr;
     ctx->enable_scheduler = true;
+    ctx->in_autoload = nullptr;
 
 #ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
     fiber_context_try_init(ctx);
@@ -492,6 +493,13 @@ inline void PHPCoroutine::save_vm_stack(PHPContext *ctx) {
     ctx->stack_base = EG(stack_base);
     ctx->stack_limit = EG(stack_limit);
 #endif
+    if (ctx->in_autoload) {
+        ctx->in_autoload = EG(in_autoload);
+    } else {
+        auto in_autoload = ctx->in_autoload;
+        ctx->in_autoload = EG(in_autoload);
+        EG(in_autoload) = in_autoload;
+    }
 }
 
 inline void PHPCoroutine::restore_vm_stack(PHPContext *ctx) {
@@ -518,6 +526,7 @@ inline void PHPCoroutine::restore_vm_stack(PHPContext *ctx) {
     EG(stack_base) = ctx->stack_base;
     EG(stack_limit) = ctx->stack_limit;
 #endif
+    EG(in_autoload) = ctx->in_autoload;
 }
 
 inline void PHPCoroutine::save_og(PHPContext *ctx) {
@@ -651,6 +660,11 @@ void PHPCoroutine::destroy_context(PHPContext *ctx) {
         zend_object *context = ctx->context;
         ctx->context = (zend_object *) ~0;
         OBJ_RELEASE(context);
+    }
+
+    if (ctx->in_autoload) {
+        zend_hash_destroy(ctx->in_autoload);
+        FREE_HASHTABLE(ctx->in_autoload);
     }
 
     Z_TRY_DELREF(ctx->fci.function_name);
