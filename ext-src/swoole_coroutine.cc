@@ -298,6 +298,7 @@ PHPContext *PHPCoroutine::create_context(Args *args) {
 
     call->func = func;
     EG(vm_stack_top) += ZEND_CALL_FRAME_SLOT;
+    EG(in_autoload) = nullptr;
 
 #ifdef ZEND_CHECK_STACK_LIMIT
     EG(stack_base) = stack_base(ctx);
@@ -493,13 +494,7 @@ inline void PHPCoroutine::save_vm_stack(PHPContext *ctx) {
     ctx->stack_base = EG(stack_base);
     ctx->stack_limit = EG(stack_limit);
 #endif
-    if (ctx->in_autoload) {
-        ctx->in_autoload = EG(in_autoload);
-    } else {
-        auto in_autoload = ctx->in_autoload;
-        ctx->in_autoload = EG(in_autoload);
-        EG(in_autoload) = in_autoload;
-    }
+    ctx->in_autoload = EG(in_autoload);
 }
 
 inline void PHPCoroutine::restore_vm_stack(PHPContext *ctx) {
@@ -660,6 +655,11 @@ void PHPCoroutine::destroy_context(PHPContext *ctx) {
         zend_object *context = ctx->context;
         ctx->context = (zend_object *) ~0;
         OBJ_RELEASE(context);
+    }
+
+    if (ctx->in_autoload) {
+        zend_hash_destroy(ctx->in_autoload);
+        FREE_HASHTABLE(ctx->in_autoload);
     }
 
     Z_TRY_DELREF(ctx->fci.function_name);
