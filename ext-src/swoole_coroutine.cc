@@ -274,7 +274,6 @@ PHPContext *PHPCoroutine::create_context(Args *args) {
     ctx->on_resume = nullptr;
     ctx->on_close = nullptr;
     ctx->enable_scheduler = true;
-    ctx->in_autoload = nullptr;
 
 #ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
     fiber_context_try_init(ctx);
@@ -298,7 +297,6 @@ PHPContext *PHPCoroutine::create_context(Args *args) {
 
     call->func = func;
     EG(vm_stack_top) += ZEND_CALL_FRAME_SLOT;
-    EG(in_autoload) = nullptr;
 
 #ifdef ZEND_CHECK_STACK_LIMIT
     EG(stack_base) = stack_base(ctx);
@@ -494,7 +492,6 @@ inline void PHPCoroutine::save_vm_stack(PHPContext *ctx) {
     ctx->stack_base = EG(stack_base);
     ctx->stack_limit = EG(stack_limit);
 #endif
-    ctx->in_autoload = EG(in_autoload);
 }
 
 inline void PHPCoroutine::restore_vm_stack(PHPContext *ctx) {
@@ -521,7 +518,6 @@ inline void PHPCoroutine::restore_vm_stack(PHPContext *ctx) {
     EG(stack_base) = ctx->stack_base;
     EG(stack_limit) = ctx->stack_limit;
 #endif
-    EG(in_autoload) = ctx->in_autoload;
 }
 
 inline void PHPCoroutine::save_og(PHPContext *ctx) {
@@ -655,11 +651,6 @@ void PHPCoroutine::destroy_context(PHPContext *ctx) {
         zend_object *context = ctx->context;
         ctx->context = (zend_object *) ~0;
         OBJ_RELEASE(context);
-    }
-
-    if (ctx->in_autoload) {
-        zend_hash_destroy(ctx->in_autoload);
-        FREE_HASHTABLE(ctx->in_autoload);
     }
 
     Z_TRY_DELREF(ctx->fci.function_name);
@@ -905,6 +896,57 @@ void* PHPCoroutine::stack_base(PHPContext *ctx)
 }
 #endif /* ZEND_CHECK_STACK_LIMIT */
 
+/* hook autoload */
+
+static zend_class_entry *(*original_zend_autoload)(zend_string *name, zend_string *lc_name);
+
+typedef struct swoole_coroutine_autoload_context_s {
+    Coroutine *coroutine;
+    zend_class_entry *ce;
+} swoole_coroutine_autoload_context_t;
+
+static zend_class_entry *swoole_coroutine_autoload(zend_string *name, zend_string *lc_name)
+{
+    ZEND_ASSERT(EG(in_autoload) != nullptr);
+    zend_hash_del(EG(in_autoload), lc_name);
+
+    if (UNEXPECTED(SWOOLE_G(in_autoload) == nullptr)) {
+        ALLOC_HASHTABLE(SWOOLE_G(in_autoload));
+        zend_hash_init(SWOOLE_G(in_autoload), 8, nullptr, nullptr, 0);
+    }
+    zval *z_queue = zend_hash_find(SWOOLE_G(in_autoload), lc_name);
+    if (z_queue != nullptr) {
+        swoole_coroutine_autoload_context_t context;
+        auto current = Coroutine::get_current();
+        context.coroutine = current;
+        context.ce = nullptr;
+        auto queue = (std::queue<swoole_coroutine_autoload_context_s *> *) Z_PTR_P(z_queue);
+        queue->push(&context);
+        current->yield();
+        return context.ce;
+    }
+    std::queue<swoole_coroutine_autoload_context_s *> queue;
+    zval _z_queue;
+    z_queue = &_z_queue;
+    ZVAL_PTR(z_queue, &queue);
+
+    (void) zend_hash_add(SWOOLE_G(in_autoload), zend_string_copy(lc_name), z_queue);
+    zend_class_entry * ce = original_zend_autoload(name, lc_name);
+    (void) zend_hash_del(SWOOLE_G(in_autoload), lc_name);
+
+    swoole_coroutine_autoload_context_t *pending_context = nullptr;
+    while (!queue.empty()) {
+        auto context = queue.front();
+        queue.pop();
+        context->ce = ce;
+        context->coroutine->resume();
+    }
+
+    zend_string_release(lc_name);
+    zend_hash_add_empty_element(EG(in_autoload), lc_name);
+    return ce;
+}
+
 void php_swoole_coroutine_minit(int module_number) {
     SW_INIT_CLASS_ENTRY_BASE(swoole_coroutine_util, "Swoole\\Coroutine", "Co", swoole_coroutine_methods, nullptr);
     SW_SET_CLASS_CREATE(swoole_coroutine_util, sw_zend_create_object_deny);
@@ -929,6 +971,11 @@ void php_swoole_coroutine_minit(int module_number) {
 
     SW_REGISTER_LONG_CONSTANT("SWOOLE_EXIT_IN_COROUTINE", SW_EXIT_IN_COROUTINE);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_EXIT_IN_SERVER", SW_EXIT_IN_SERVER);
+
+    /* hook autoload */
+    original_zend_autoload = zend_autoload;
+    zend_autoload = swoole_coroutine_autoload;
+    SWOOLE_G(in_autoload) = nullptr;
 }
 
 void php_swoole_coroutine_rinit() {
@@ -941,6 +988,12 @@ void php_swoole_coroutine_rinit() {
 
         ori_end_silence_handler = zend_get_user_opcode_handler(ZEND_END_SILENCE);
         zend_set_user_opcode_handler(ZEND_END_SILENCE, coro_end_silence_handler);
+    }
+
+    if (SWOOLE_G(in_autoload)) {
+        zend_hash_destroy(SWOOLE_G(in_autoload));
+        FREE_HASHTABLE(SWOOLE_G(in_autoload));
+        SWOOLE_G(in_autoload) = nullptr;
     }
 
     PHPCoroutine::init_main_context();

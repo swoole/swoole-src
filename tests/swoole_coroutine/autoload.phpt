@@ -11,7 +11,7 @@ require __DIR__ . '/../include/bootstrap.php';
 spl_autoload_register(function ($class) {
     co::sleep(0.001); // coroutine context switch
     if ($class == 'SwooleTestClassA') {
-        require_once TESTS_ROOT_PATH . '/include/api/test_classes/A.php';
+        require TESTS_ROOT_PATH . '/include/api/test_classes/A.php';
     }
 });
 

@@ -92,7 +92,6 @@ struct PHPContext {
     long pcid;
     zend_object *context;
     int64_t last_msec;
-    HashTable *in_autoload;
 };
 
 class PHPCoroutine {
