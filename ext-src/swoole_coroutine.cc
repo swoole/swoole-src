@@ -917,7 +917,7 @@ static zend_class_entry *swoole_coroutine_autoload(zend_string *name, zend_strin
     zval *z_queue = zend_hash_find(SWOOLE_G(in_autoload), lc_name);
     if (z_queue != nullptr) {
         swoole_coroutine_autoload_context_t context;
-        auto current = Coroutine::get_current();
+        auto current = Coroutine::get_current_safe();
         context.coroutine = current;
         context.ce = nullptr;
         auto queue = (std::queue<swoole_coroutine_autoload_context_s *> *) Z_PTR_P(z_queue);
