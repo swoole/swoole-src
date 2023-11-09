@@ -1011,6 +1011,7 @@ PHP_RINIT_FUNCTION(swoole) {
 
         if (UNEXPECTED(old_zend_execute_ex)) {
             zend_execute_ex = old_zend_execute_ex;
+            old_zend_execute_ex = nullptr;
         }
     }
 
