@@ -998,7 +998,7 @@ PHP_RINIT_FUNCTION(swoole) {
         // https://github.com/swoole/swoole-src/issues/5182
         /**
          * xdebug will hook zend_execute_ex to xdebug_execute_ex.
-         * This would cause php_swoole_load_library not to execute correctly, so it must be replaced
+         * This would cause php_swoole_load_library function not to execute correctly, so it must be replaced
          * with the execute_ex function.
          */
         void (*old_zend_execute_ex)(zend_execute_data *execute_data) = nullptr;
