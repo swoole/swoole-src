@@ -15,6 +15,7 @@ jobs:
       uses: shivammathur/setup-php@v2
       with:
         php-version: "${{ matrix.php }}"
+        coverage: none
     - name: Show machine information
       run: |
         date
