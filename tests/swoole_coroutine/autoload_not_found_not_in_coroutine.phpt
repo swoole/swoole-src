@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: autoload not in coroutine
+swoole_coroutine: autoload not found and not in coroutine
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
