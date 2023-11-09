@@ -940,13 +940,10 @@ static zend_class_entry *swoole_coroutine_autoload(zend_string *name, zend_strin
     swoole_coroutine_autoload_queue_t queue;
     queue.coroutine = current;
     queue.queue = new std::queue<swoole_coroutine_autoload_context_t *>;
-    zval _z_queue;
-    z_queue = &_z_queue;
-    ZVAL_PTR(z_queue, &queue);
 
-    (void) zend_hash_add(SWOOLE_G(in_autoload), zend_string_copy(lc_name), z_queue);
-    zend_class_entry * ce = original_zend_autoload(name, lc_name);
-    (void) zend_hash_del(SWOOLE_G(in_autoload), lc_name);
+    zend_hash_add_ptr(SWOOLE_G(in_autoload), lc_name, &queue);
+    zend_class_entry *ce = original_zend_autoload(name, lc_name);
+    zend_hash_del(SWOOLE_G(in_autoload), lc_name);
 
     swoole_coroutine_autoload_context_t *pending_context = nullptr;
     while (!queue.queue->empty()) {
@@ -956,7 +953,6 @@ static zend_class_entry *swoole_coroutine_autoload(zend_string *name, zend_strin
         pending_context->coroutine->resume();
     }
     delete queue.queue;
-    zend_string_release(lc_name);
     zend_hash_add_empty_element(EG(in_autoload), lc_name);
     return ce;
 }
@@ -1004,16 +1000,16 @@ void php_swoole_coroutine_rinit() {
         zend_set_user_opcode_handler(ZEND_END_SILENCE, coro_end_silence_handler);
     }
 
+    PHPCoroutine::init_main_context();
+}
+
+void php_swoole_coroutine_rshutdown() {
     if (SWOOLE_G(in_autoload)) {
         zend_hash_destroy(SWOOLE_G(in_autoload));
         FREE_HASHTABLE(SWOOLE_G(in_autoload));
         SWOOLE_G(in_autoload) = nullptr;
     }
 
-    PHPCoroutine::init_main_context();
-}
-
-void php_swoole_coroutine_rshutdown() {
     PHPCoroutine::shutdown();
 }
 
