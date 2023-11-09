@@ -905,8 +905,18 @@ typedef struct swoole_coroutine_autoload_context_s {
     zend_class_entry *ce;
 } swoole_coroutine_autoload_context_t;
 
+typedef struct swoole_coroutine_autoload_queue_s {
+    Coroutine *coroutine;
+    std::queue<swoole_coroutine_autoload_context_t *> *queue;
+} swoole_coroutine_autoload_queue_t;
+
 static zend_class_entry *swoole_coroutine_autoload(zend_string *name, zend_string *lc_name)
 {
+    auto current = Coroutine::get_current();
+    if (!current) {
+        return original_zend_autoload(name, lc_name);
+    }
+
     ZEND_ASSERT(EG(in_autoload) != nullptr);
     zend_hash_del(EG(in_autoload), lc_name);
 
@@ -916,16 +926,20 @@ static zend_class_entry *swoole_coroutine_autoload(zend_string *name, zend_strin
     }
     zval *z_queue = zend_hash_find(SWOOLE_G(in_autoload), lc_name);
     if (z_queue != nullptr) {
+        auto queue = (swoole_coroutine_autoload_queue_t *) Z_PTR_P(z_queue);
+        if (queue->coroutine == current) {
+            return nullptr;
+        }
         swoole_coroutine_autoload_context_t context;
-        auto current = Coroutine::get_current_safe();
         context.coroutine = current;
         context.ce = nullptr;
-        auto queue = (std::queue<swoole_coroutine_autoload_context_s *> *) Z_PTR_P(z_queue);
-        queue->push(&context);
+        queue->queue->push(&context);
         current->yield();
         return context.ce;
     }
-    std::queue<swoole_coroutine_autoload_context_s *> queue;
+    swoole_coroutine_autoload_queue_t queue;
+    queue.coroutine = current;
+    queue.queue = new std::queue<swoole_coroutine_autoload_context_t *>;
     zval _z_queue;
     z_queue = &_z_queue;
     ZVAL_PTR(z_queue, &queue);
@@ -935,13 +949,13 @@ static zend_class_entry *swoole_coroutine_autoload(zend_string *name, zend_strin
     (void) zend_hash_del(SWOOLE_G(in_autoload), lc_name);
 
     swoole_coroutine_autoload_context_t *pending_context = nullptr;
-    while (!queue.empty()) {
-        auto context = queue.front();
-        queue.pop();
-        context->ce = ce;
-        context->coroutine->resume();
+    while (!queue.queue->empty()) {
+        pending_context = queue.queue->front();
+        queue.queue->pop();
+        pending_context->ce = ce;
+        pending_context->coroutine->resume();
     }
-
+    delete queue.queue;
     zend_string_release(lc_name);
     zend_hash_add_empty_element(EG(in_autoload), lc_name);
     return ce;
