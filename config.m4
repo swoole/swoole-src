@@ -956,7 +956,7 @@ EOF
 
 	if test "x$OS_SHOULD_HAVE_LIBRT" = "x1"; then
 		AC_MSG_NOTICE([Librt is required on $host_os.])
-		# Check for the existence of librt
+		dnl Check for the existence of librt
 		AC_CHECK_LIB([rt], [clock_gettime], [], [
 			AC_MSG_ERROR([We have to link to librt on your os, but librt not found.])
 		])
