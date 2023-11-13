@@ -953,7 +953,6 @@ static zend_class_entry *swoole_coroutine_autoload(zend_string *name, zend_strin
         pending_context->coroutine->resume();
     }
     delete queue.queue;
-    zend_hash_add_empty_element(EG(in_autoload), lc_name);
     return ce;
 }
 
