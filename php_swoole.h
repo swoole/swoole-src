@@ -57,6 +57,7 @@ ZEND_BEGIN_MODULE_GLOBALS(swoole)
     zend_bool enable_fiber_mock;
     long socket_buffer_size;
     int req_status;
+    HashTable *in_autoload;
 ZEND_END_MODULE_GLOBALS(swoole)
 // clang-format on
 
