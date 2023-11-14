@@ -939,20 +939,20 @@ static zend_class_entry *swoole_coroutine_autoload(zend_string *name, zend_strin
     }
     swoole_coroutine_autoload_queue_t queue;
     queue.coroutine = current;
-    queue.queue = new std::queue<swoole_coroutine_autoload_context_t *>;
+    std::queue<swoole_coroutine_autoload_context_t *> queue_object;
+    queue.queue = &queue_object;
 
     zend_hash_add_ptr(SWOOLE_G(in_autoload), lc_name, &queue);
     zend_class_entry *ce = original_zend_autoload(name, lc_name);
     zend_hash_del(SWOOLE_G(in_autoload), lc_name);
 
     swoole_coroutine_autoload_context_t *pending_context = nullptr;
-    while (!queue.queue->empty()) {
-        pending_context = queue.queue->front();
-        queue.queue->pop();
+    while (!queue_object.empty()) {
+        pending_context = queue_object.front();
+        queue_object.pop();
         pending_context->ce = ce;
         pending_context->coroutine->resume();
     }
-    delete queue.queue;
     return ce;
 }
 
