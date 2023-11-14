@@ -900,15 +900,15 @@ void* PHPCoroutine::stack_base(PHPContext *ctx)
 
 static zend_class_entry *(*original_zend_autoload)(zend_string *name, zend_string *lc_name);
 
-typedef struct swoole_coroutine_autoload_context_s {
+struct AutoloadContext {
     Coroutine *coroutine;
     zend_class_entry *ce;
-} swoole_coroutine_autoload_context_t;
+};
 
-typedef struct swoole_coroutine_autoload_queue_s {
+struct AutoloadQueue {
     Coroutine *coroutine;
-    std::queue<swoole_coroutine_autoload_context_t *> *queue;
-} swoole_coroutine_autoload_queue_t;
+    std::queue<AutoloadContext *> *queue;
+};
 
 static zend_class_entry *swoole_coroutine_autoload(zend_string *name, zend_string *lc_name)
 {
@@ -926,27 +926,27 @@ static zend_class_entry *swoole_coroutine_autoload(zend_string *name, zend_strin
     }
     zval *z_queue = zend_hash_find(SWOOLE_G(in_autoload), lc_name);
     if (z_queue != nullptr) {
-        auto queue = (swoole_coroutine_autoload_queue_t *) Z_PTR_P(z_queue);
+        auto queue = (AutoloadQueue *) Z_PTR_P(z_queue);
         if (queue->coroutine == current) {
             return nullptr;
         }
-        swoole_coroutine_autoload_context_t context;
+        AutoloadContext context;
         context.coroutine = current;
         context.ce = nullptr;
         queue->queue->push(&context);
         current->yield();
         return context.ce;
     }
-    swoole_coroutine_autoload_queue_t queue;
+    AutoloadQueue queue;
     queue.coroutine = current;
-    std::queue<swoole_coroutine_autoload_context_t *> queue_object;
+    std::queue<AutoloadContext *> queue_object;
     queue.queue = &queue_object;
 
     zend_hash_add_ptr(SWOOLE_G(in_autoload), lc_name, &queue);
     zend_class_entry *ce = original_zend_autoload(name, lc_name);
     zend_hash_del(SWOOLE_G(in_autoload), lc_name);
 
-    swoole_coroutine_autoload_context_t *pending_context = nullptr;
+    AutoloadContext *pending_context = nullptr;
     while (!queue_object.empty()) {
         pending_context = queue_object.front();
         queue_object.pop();
