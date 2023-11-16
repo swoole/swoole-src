@@ -944,9 +944,26 @@ EOF
     CFLAGS="-Wall -pthread $CFLAGS"
     LDFLAGS="$LDFLAGS -lpthread"
 
-    if test "$SW_OS" != "MAC"; then
+	dnl Check should we link to librt
+	OS_SHOULD_HAVE_LIBRT=1
+
+	if test "$SW_OS" = "MAC"; then
+		OS_SHOULD_HAVE_LIBRT = 0
+	fi
+	AS_CASE([$host_os],
+	  [openbsd*], [OS_SHOULD_HAVE_LIBRT=0]
+	)
+
+	if test "x$OS_SHOULD_HAVE_LIBRT" = "x1"; then
+		AC_MSG_NOTICE([Librt is required on $host_os.])
+		dnl Check for the existence of librt
+		AC_CHECK_LIB([rt], [clock_gettime], [], [
+			AC_MSG_ERROR([We have to link to librt on your os, but librt not found.])
+		])
         PHP_ADD_LIBRARY(rt, 1, SWOOLE_SHARED_LIBADD)
-    fi
+	else
+		AC_MSG_NOTICE([$host_os doesn't have librt -- don't link to librt.])
+	fi
 
     if test "$SW_OS" = "LINUX"; then
         LDFLAGS="$LDFLAGS -z now"
