@@ -93,17 +93,21 @@ Co\run(function() {
 
 ### Supported extension/functions
 
+* `ext-curl` (Support `symfony` and `guzzle`)
 * `ext-redis`
 * `ext-mysqli`
 * `ext-pdo_mysql`
-* `ext-curl` (Support `symfony` or `guzzle`)
+* `ext-pdo_pgsql`
+* `ext-pdo_sqlite`
+* `ext-pdo_oracle`
+* `ext-pdo_odbc`
 * `stream functions` (e.g. `stream_socket_client`/`stream_socket_server`), Supports `TCP`/`UDP`/`UDG`/`Unix`/`SSL/TLS`/`FileSystem API`/`Pipe`
-* `ext-socket`
+* `ext-sockets`
 * `ext-soap`
 * `sleep`/`usleep`/`time_sleep_until`
 * `proc_open`
 * `gethostbyname`/`shell_exec`/`exec`
-* `fread`/`fopen`/`fsockopen`/`fwrite`
+* `fread`/`fopen`/`fsockopen`/`fwrite`/`flock`
 
 
 ## 🛠 Develop & Discussion
