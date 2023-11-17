@@ -948,7 +948,7 @@ EOF
 	OS_SHOULD_HAVE_LIBRT=1
 
 	if test "$SW_OS" = "MAC"; then
-		OS_SHOULD_HAVE_LIBRT = 0
+		OS_SHOULD_HAVE_LIBRT=0
 	fi
 	AS_CASE([$host_os],
 	  [openbsd*], [OS_SHOULD_HAVE_LIBRT=0]
