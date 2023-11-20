@@ -1,6 +1,6 @@
 #!/bin/sh -e
-apt install -y libaio-dev
-apt install -y libaio1
+apt update
+apt install -y libaio-dev libaio1 sqlite3 libsqlite3-dev unixodbc unixodbc-dev odbc-mariadb
 wget -nv https://download.oracle.com/otn_software/linux/instantclient/instantclient-basiclite-linuxx64.zip
 unzip instantclient-basiclite-linuxx64.zip && rm instantclient-basiclite-linuxx64.zip
 wget -nv https://download.oracle.com/otn_software/linux/instantclient/instantclient-sdk-linuxx64.zip
@@ -12,5 +12,3 @@ echo DISABLE_INTERRUPT=on > ./instantclient/network/admin/sqlnet.ora
 mv ./instantclient /usr/local/
 echo '/usr/local/instantclient' > /etc/ld.so.conf.d/oracle-instantclient.conf
 ldconfig
-
-apt install -y sqlite3 libsqlite3-dev

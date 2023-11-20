@@ -1,0 +1,36 @@
+name: conflict-exts
+
+on: [push, pull_request]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.0', '8.1', '8.2', '8.3']
+
+    name: PHP ${{ matrix.php }} - Swoole
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: phpize
+          ini-values: extension=swoole
+          coverage: xdebug
+      - name: Build Swoole
+        run: |
+          phpize
+          ./configure
+          make -j$(nproc)
+          sudo make install
+      - name: Check extension conflict
+        run: |
+          php -v
+          php -m
+          php --ri swoole
