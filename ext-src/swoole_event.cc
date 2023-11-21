@@ -668,14 +668,13 @@ static PHP_FUNCTION(swoole_event_wait) {
 static PHP_FUNCTION(swoole_event_rshutdown) {
     /* prevent the program from jumping out of the rshutdown */
     zend_try {
-        if (php_swoole_is_fatal_error() || !sw_reactor()) {
-            return;
-        }
         // when throw Exception, do not show the info
-        if (!sw_reactor()->bailout) {
-            php_swoole_fatal_error(E_DEPRECATED, "Event::wait() in shutdown function is deprecated");
+        if (!php_swoole_is_fatal_error() && sw_reactor()) {
+            if (!sw_reactor()->bailout) {
+                php_swoole_fatal_error(E_DEPRECATED, "Event::wait() in shutdown function is deprecated");
+            }
+            php_swoole_event_wait();
         }
-        php_swoole_event_wait();
     }
     zend_end_try();
 }

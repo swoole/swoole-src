@@ -352,12 +352,9 @@ static void fatal_error(int code, const char *format, ...) {
     zend_object *exception =
         zend_throw_exception(swoole_error_ce, swoole::std_string::vformat(format, args).c_str(), code);
     va_end(args);
-    if (EG(bailout)) {
-        zend_bailout();
-    } else {
-        zend_exception_error(exception, E_ERROR);
-        exit(255);
-    }
+
+    zend_exception_error(exception, E_ERROR);
+    exit(255);
 }
 
 static void bug_report_message_init() {
