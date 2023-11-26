@@ -65,10 +65,10 @@
     <notes>
         - Fixed memory leak issue in HTTP coroutine client
         - Fixed the issue of can not hook pdo_odbc
-        - Fixed the error in executing socket import stream
+        - Fixed the error in executing socket_import_stream()
         - Fixed the issue with Context::parse_multipart_data() unable to handle empty request body
         - Fixed the issue with PostgreSQL coroutine client where the parameters are not working
-        - Fixed the bug where curl crashes during destruction.
+        - Fixed the bug where curl crashes during destruction
         - Fixed the compatibility issue between Swoole 5.x and the latest version of xdebug
         - Fixed the problem of class not found error caused by coroutine switching during the process of class autoloading
         - Fixed the issue of not being able to compile Swoole on OpenBSD
