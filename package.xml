@@ -51,10 +51,10 @@
         <email>doubaokun@php.net</email>
         <active>yes</active>
     </developer>
-    <date>2023-09-29</date>
-    <time>11:00:00</time>
+    <date>2023-11-26</date>
+    <time>21:56:00</time>
     <version>
-        <release>5.1.0</release>
+        <release>5.1.1</release>
         <api>5.0</api>
     </version>
     <stability>
@@ -63,26 +63,15 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        - Support pdo_pgsql coroutine hook
-        - Support pdo_odbc coroutine hook
-        - Support pdo_oci coroutine hook
-        - Support pdo_sqlite coroutine hook
-        - Add configuration for PDO connection pools for pdo_pgsql, pdo_odbc, pdo_oci, pdo_sqlite
-        - Improved performance of Http\Server, can increase up to 60% in extreme cases
-        - Fixed the memory leak caused by each request of the WebSocket coroutine client
-        - Fixed the issue where graceful shutdown of the HTTP coroutine server was not causing the client to exit
-        - Fixed the issue where adding the --enable-thread-context option during compilation was causing Process::signal() to not work
-        - Fixed the issue where the connection count was being calculated incorrectly when a process exited abnormally in SWOOLE_BASE mode
-        - Fixed the incorrect signature of the stream_select() function
-        - Fixed the case sensitivity issue with the MIME information in files
-        - Fixed the spelling mistake in Http2\Request::$usePipelineRead, which was causing a warning to be thrown in PHP 8.2 environment
-        - Fixed the memory leak issue in SWOOLE_BASE mode
-        - Fixed the memory leak issue caused by setting the expiration time of a cookie in Http\Response::cookie()
-        - Fixed the connection leak issue in SWOOLE_BASE mode
-        - Fixed the function signature issue of php_url_encode in Swoole under PHP 8.3
-        - Fixed the issue with unit testing options
-        - Optimized and refactored the code
-        - Fix compatibility with PHP 8.3
+        - Fixed memory leak issue in HTTP coroutine client
+        - Fixed the issue of can not hook pdo_odbc
+        - Fixed the error in executing socket import stream
+        - Fixed the issue with Context::parse_multipart_data() unable to handle empty request body
+        - Fixed the issue with PostgreSQL coroutine client where the parameters are not working
+        - Fixed the bug where curl crashes during destruction.
+        - Fixed the compatibility issue between Swoole 5.x and the latest version of xdebug
+        - Fixed the problem of class not found error caused by coroutine switching during the process of class autoloading
+        - Fixed the issue of not being able to compile Swoole on OpenBSD
     </notes>
     <contents>
         <dir name="/">
