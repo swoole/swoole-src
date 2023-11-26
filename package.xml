@@ -52,7 +52,7 @@
         <active>yes</active>
     </developer>
     <date>2023-11-26</date>
-    <time>21:56:00</time>
+    <time>23:00:00</time>
     <version>
         <release>5.1.1</release>
         <api>5.0</api>
@@ -797,6 +797,7 @@
             <file role="test" name="tests/include/api/syntax_error.txt" />
             <file role="test" name="tests/include/api/tcp_server.php" />
             <file role="test" name="tests/include/api/test_classes/A.php" />
+            <file role="test" name="tests/include/api/test_classes/A2.php" />
             <file role="test" name="tests/include/api/test_classes/B.php" />
             <file role="test" name="tests/include/bootstrap.php" />
             <file role="test" name="tests/include/config.php" />
@@ -986,6 +987,11 @@
             <file role="test" name="tests/swoole_coroutine/async_callback/event_cycle.phpt" />
             <file role="test" name="tests/swoole_coroutine/async_callback/signal.phpt" />
             <file role="test" name="tests/swoole_coroutine/async_callback/timer.phpt" />
+            <file role="test" name="tests/swoole_coroutine/autoload.phpt" />
+            <file role="test" name="tests/swoole_coroutine/autoload_not_found.phpt" />
+            <file role="test" name="tests/swoole_coroutine/autoload_not_found_not_in_coroutine.phpt" />
+            <file role="test" name="tests/swoole_coroutine/autoload_not_in_coroutine.phpt" />
+            <file role="test" name="tests/swoole_coroutine/bailout/co_redis_in_shutdown_function.phpt" />
             <file role="test" name="tests/swoole_coroutine/bailout/error.phpt" />
             <file role="test" name="tests/swoole_coroutine/bailout/error_in.phpt" />
             <file role="test" name="tests/swoole_coroutine/bailout/error_internal.phpt" />
@@ -1178,6 +1184,7 @@
             <file role="test" name="tests/swoole_curl/error.phpt" />
             <file role="test" name="tests/swoole_curl/event_exit.phpt" />
             <file role="test" name="tests/swoole_curl/exec_twice.phpt" />
+            <file role="test" name="tests/swoole_curl/fatal_error_in_callback.phpt" />
             <file role="test" name="tests/swoole_curl/ftp.phpt" />
             <file role="test" name="tests/swoole_curl/guzzle.phpt" />
             <file role="test" name="tests/swoole_curl/guzzle/cancel.phpt" />
@@ -1429,6 +1436,7 @@
             <file role="test" name="tests/swoole_http_server/bug_5107.phpt" />
             <file role="test" name="tests/swoole_http_server/bug_5114.phpt" />
             <file role="test" name="tests/swoole_http_server/bug_5146.phpt" />
+            <file role="test" name="tests/swoole_http_server/bug_5186.phpt" />
             <file role="test" name="tests/swoole_http_server/bug_compression_level.phpt" />
             <file role="test" name="tests/swoole_http_server/bug_get_request_data_after_end.phpt" />
             <file role="test" name="tests/swoole_http_server/callback_new_obj_method.phpt" />
@@ -1744,6 +1752,7 @@
             <file role="test" name="tests/swoole_pgsql_coro/connect_failed.phpt" />
             <file role="test" name="tests/swoole_pgsql_coro/error.phpt" />
             <file role="test" name="tests/swoole_pgsql_coro/escape.phpt" />
+            <file role="test" name="tests/swoole_pgsql_coro/fetch.phpt" />
             <file role="test" name="tests/swoole_pgsql_coro/insert.phpt" />
             <file role="test" name="tests/swoole_pgsql_coro/lob.phpt" />
             <file role="test" name="tests/swoole_pgsql_coro/no_field_name.phpt" />
@@ -2246,6 +2255,7 @@
             <file role="test" name="tests/swoole_socket_coro/import_2.phpt" />
             <file role="test" name="tests/swoole_socket_coro/import_3.phpt" />
             <file role="test" name="tests/swoole_socket_coro/import_4.phpt" />
+            <file role="test" name="tests/swoole_socket_coro/import_5.phpt" />
             <file role="test" name="tests/swoole_socket_coro/iov_max.phpt" />
             <file role="test" name="tests/swoole_socket_coro/peek_and_checkLiveness.phpt" />
             <file role="test" name="tests/swoole_socket_coro/protocol/bug_3586.phpt" />
