@@ -22,6 +22,7 @@
 #include <string>
 #include <mutex>
 #include <atomic>
+#include <queue>
 
 #ifndef O_DIRECT
 #define O_DIRECT 040000
@@ -36,16 +37,32 @@ enum AsyncFlag {
 
 struct AsyncEvent {
     size_t task_id;
+#if defined(__linux__) && defined(SW_USE_IOURING)
+    size_t count;
+#endif
     uint8_t canceled;
+    int error;
     /**
      * input & output
      */
     void *data;
+#if defined(__linux__) && defined(SW_USE_IOURING)
+    const char *pathname;
+    const char *pathname2;
+    struct statx *statxbuf;
+    void *rbuf;
+    const void *wbuf;
+#endif
     /**
      * output
      */
     ssize_t retval;
-    int error;
+#if defined(__linux__) && defined(SW_USE_IOURING)
+    int fd;
+    int flags;
+    int opcode;
+    mode_t mode;
+#endif
     /**
      * internal use only
      */
@@ -101,6 +118,65 @@ class AsyncThreads {
   private:
     std::mutex init_lock;
 };
+
+#if defined(__linux__) && defined(SW_USE_IOURING)
+class AsyncIOUring {
+  private:
+    int ring_fd;
+    uint32_t entries = 8192;
+    struct io_uring ring;
+    network::Socket *iou_socket = nullptr;
+    Reactor *reactor = nullptr;
+
+    struct io_uring_sqe *get_iouring_sqe();
+    bool store_events(AsyncEvent *event);
+    void set_iouring_sqe_data(struct io_uring_sqe *sqe, void *data);
+    void *get_iouring_cqe_data(struct io_uring_cqe *cqe);
+    int get_iouring_cqe(struct io_uring_cqe **cqe_ptr);
+    void finish_iouring_cqe(struct io_uring_cqe *cqe);
+    bool submit_iouring_sqe();
+
+  public:
+    uint64_t task_num = 0;
+    std::queue<AsyncEvent *> waitEvents;
+    AsyncIOUring(Reactor *reactor_);
+    ~AsyncIOUring();
+
+    enum opcodes {
+        SW_IORING_OP_OPENAT = 18,
+        SW_IORING_OP_CLOSE = 19,
+        SW_IORING_OP_STATX = 21,
+        SW_IORING_OP_READ = 22,
+        SW_IORING_OP_WRITE = 23,
+        SW_IORING_OP_RENAMEAT = 35,
+        SW_IORING_OP_UNLINKAT = 36,
+        SW_IORING_OP_MKDIRAT = 37,
+        SW_IORING_OP_FSTAT = 1000,
+        SW_IORING_OP_LSTAT = 1001,
+        SW_IORING_OP_UNLINK_FILE = 1002,
+        SW_IORING_OP_UNLINK_DIR = 1003,
+    };
+
+    void add_event();
+    void delete_event();
+    bool open(AsyncEvent *event);
+    bool close(AsyncEvent *event);
+    bool wr(AsyncEvent *event);
+    bool statx(AsyncEvent *event);
+    bool mkdir(AsyncEvent *event);
+    bool unlink(AsyncEvent *event);
+    bool rename(AsyncEvent *event);
+    inline bool is_empty_wait_events() {
+        return waitEvents.size() == 0;
+    }
+
+    inline uint64_t get_task_num() {
+        return task_num;
+    }
+
+    static int callback(Reactor *reactor, Event *event);
+};
+#endif
 
 namespace async {
 

@@ -28,14 +28,17 @@
 #include "swoole_coroutine_system.h"
 
 using swoole::AsyncEvent;
+#if defined(__linux__) && defined(SW_USE_IOURING)
+using swoole::AsyncIOUring;
+#endif
 using swoole::Coroutine;
 using swoole::async::dispatch;
 using swoole::coroutine::async;
 using swoole::coroutine::PollSocket;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
-using swoole::coroutine::translate_events_to_poll;
 using swoole::coroutine::translate_events_from_poll;
+using swoole::coroutine::translate_events_to_poll;
 
 static std::unordered_map<int, std::shared_ptr<Socket>> socket_map;
 static std::mutex socket_map_lock;
@@ -189,10 +192,123 @@ int swoole_coroutine_open(const char *pathname, int flags, mode_t mode) {
     if (sw_unlikely(is_no_coro())) {
         return open(pathname, flags, mode);
     }
-
+#if defined(__linux__) && defined(SW_USE_IOURING)
+    return async(AsyncIOUring::SW_IORING_OP_OPENAT, pathname, nullptr, mode, flags);
+#else
     int ret = -1;
     async([&]() { ret = open(pathname, flags, mode); });
     return ret;
+#endif
+}
+
+int swoole_coroutine_close_file(int fd) {
+    if (sw_unlikely(is_no_coro())) {
+        return close(fd);
+    }
+#if defined(__linux__) && defined(SW_USE_IOURING)
+    return async(AsyncIOUring::SW_IORING_OP_CLOSE, fd);
+#else
+    int ret = -1;
+    async([&]() { ret = close(fd); });
+    return ret;
+#endif
+}
+
+ssize_t swoole_coroutine_read(int sockfd, void *buf, size_t count) {
+    if (sw_unlikely(is_no_coro())) {
+        return read(sockfd, buf, count);
+    }
+
+    ssize_t ret = -1;
+#if defined(__linux__) && defined(SW_USE_IOURING)
+    ret = async(AsyncIOUring::SW_IORING_OP_READ, sockfd, buf, nullptr, nullptr, count);
+#else
+    auto socket = get_socket(sockfd);
+    if (socket != nullptr) {
+        return socket->read(buf, count);
+    }
+
+    async([&]() { ret = read(sockfd, buf, count); });
+#endif
+    return ret;
+}
+
+size_t swoole_coroutine_fread(void *ptr, size_t size, size_t nmemb, FILE *stream) {
+    if (sw_unlikely(is_no_coro())) {
+        return fread(ptr, size, nmemb, stream);
+    }
+
+    size_t retval = 0;
+    async([&]() { retval = fread(ptr, size, nmemb, stream); });
+    return retval;
+}
+
+ssize_t swoole_coroutine_write(int sockfd, const void *buf, size_t count) {
+    if (sw_unlikely(is_no_coro())) {
+        return write(sockfd, buf, count);
+    }
+
+    ssize_t ret = -1;
+#if defined(__linux__) && defined(SW_USE_IOURING)
+    ret = async(AsyncIOUring::SW_IORING_OP_WRITE, sockfd, nullptr, buf, nullptr, count);
+#else
+    auto socket = get_socket(sockfd);
+    if (socket != nullptr) {
+        return socket->write(buf, count);
+    }
+    async([&]() { ret = write(sockfd, buf, count); });
+#endif
+    return ret;
+}
+
+size_t swoole_coroutine_fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream) {
+    if (sw_unlikely(is_no_coro())) {
+        return fwrite(ptr, size, nmemb, stream);
+    }
+
+    size_t retval = 0;
+    async([&]() { retval = fwrite(ptr, size, nmemb, stream); });
+    return retval;
+}
+
+int swoole_coroutine_rename(const char *oldpath, const char *newpath) {
+    if (sw_unlikely(is_no_coro())) {
+        return rename(oldpath, newpath);
+    }
+#if defined(__linux__) && defined(SW_USE_IOURING)
+    return async(AsyncIOUring::SW_IORING_OP_RENAMEAT, oldpath, newpath);
+#else
+    int retval = -1;
+    async([&]() { retval = rename(oldpath, newpath); });
+    return retval;
+#endif
+}
+
+int swoole_coroutine_mkdir(const char *pathname, mode_t mode) {
+    if (sw_unlikely(is_no_coro())) {
+        return mkdir(pathname, mode);
+    }
+
+#if defined(__linux__) && defined(SW_USE_IOURING)
+    return async(AsyncIOUring::SW_IORING_OP_MKDIRAT, pathname, nullptr, mode);
+#else
+    int retval = -1;
+    async([&]() { retval = mkdir(pathname, mode); });
+    return retval;
+#endif
+}
+
+int swoole_coroutine_unlink(const char *pathname) {
+    if (sw_unlikely(is_no_coro())) {
+        return unlink(pathname);
+    }
+#if defined(__linux__) && defined(SW_USE_IOURING)
+    return async(AsyncIOUring::SW_IORING_OP_UNLINK_FILE, pathname);
+#else
+    int retval = -1;
+    async([&]() { retval = unlink(pathname); });
+    return retval;
+#endif
 }
 
 int swoole_coroutine_socket_create(int fd) {
@@ -228,45 +344,39 @@ uint8_t swoole_coroutine_socket_exists(int fd) {
     return socket_map.find(fd) != socket_map.end();
 }
 
-ssize_t swoole_coroutine_read(int sockfd, void *buf, size_t count) {
-    if (sw_unlikely(is_no_coro())) {
-        return read(sockfd, buf, count);
-    }
-
-    auto socket = get_socket(sockfd);
-    if (socket != nullptr) {
-        return socket->read(buf, count);
-    }
-
-    ssize_t ret = -1;
-    async([&]() { ret = read(sockfd, buf, count); });
-    return ret;
-}
-
-ssize_t swoole_coroutine_write(int sockfd, const void *buf, size_t count) {
-    if (sw_unlikely(is_no_coro())) {
-        return write(sockfd, buf, count);
-    }
-
-    auto socket = get_socket(sockfd);
-    if (socket != nullptr) {
-        return socket->write(buf, count);
-    }
-
-    ssize_t ret = -1;
-    async([&]() { ret = write(sockfd, buf, count); });
-    return ret;
-}
-
 off_t swoole_coroutine_lseek(int fd, off_t offset, int whence) {
     if (sw_unlikely(is_no_coro())) {
         return lseek(fd, offset, whence);
     }
-
+#if defined(__linux__) && defined(SW_USE_IOURING)
+    return lseek(fd, offset, whence);
+#else
     off_t retval = -1;
     async([&]() { retval = lseek(fd, offset, whence); });
     return retval;
+#endif
 }
+
+#if defined(__linux__) && defined(SW_USE_IOURING)
+void sw_statx_to_stat(const struct statx *statxbuf, struct stat *statbuf) {
+    statbuf->st_dev = (((unsigned int) statxbuf->stx_dev_major) << 8) | (unsigned int) statxbuf->stx_dev_minor;
+    statbuf->st_mode = statxbuf->stx_mode;
+    statbuf->st_nlink = statxbuf->stx_nlink;
+    statbuf->st_uid = statxbuf->stx_uid;
+    statbuf->st_gid = statxbuf->stx_gid;
+    statbuf->st_rdev = (((unsigned int) statxbuf->stx_rdev_major) << 8) | (unsigned int) statxbuf->stx_rdev_minor;
+    statbuf->st_ino = statxbuf->stx_ino;
+    statbuf->st_size = statxbuf->stx_size;
+    statbuf->st_blksize = statxbuf->stx_blksize;
+    statbuf->st_blocks = statxbuf->stx_blocks;
+    statbuf->st_atim.tv_sec = statxbuf->stx_atime.tv_sec;
+    statbuf->st_atim.tv_nsec = statxbuf->stx_atime.tv_nsec;
+    statbuf->st_mtim.tv_sec = statxbuf->stx_mtime.tv_sec;
+    statbuf->st_mtim.tv_nsec = statxbuf->stx_mtime.tv_nsec;
+    statbuf->st_ctim.tv_sec = statxbuf->stx_ctime.tv_sec;
+    statbuf->st_ctim.tv_nsec = statxbuf->stx_ctime.tv_nsec;
+}
+#endif
 
 int swoole_coroutine_fstat(int fd, struct stat *statbuf) {
     if (sw_unlikely(is_no_coro())) {
@@ -274,7 +384,45 @@ int swoole_coroutine_fstat(int fd, struct stat *statbuf) {
     }
 
     int retval = -1;
+#if defined(__linux__) && defined(SW_USE_IOURING)
+    struct statx statxbuf = {};
+    retval = async(AsyncIOUring::SW_IORING_OP_FSTAT, fd, nullptr, nullptr, &statxbuf);
+    sw_statx_to_stat(&statxbuf, statbuf);
+#else
     async([&]() { retval = fstat(fd, statbuf); });
+#endif
+    return retval;
+}
+
+int swoole_coroutine_stat(const char *path, struct stat *statbuf) {
+    if (sw_unlikely(is_no_coro())) {
+        return stat(path, statbuf);
+    }
+
+    int retval = -1;
+#if defined(__linux__) && defined(SW_USE_IOURING)
+    struct statx statxbuf = {};
+    retval = async(AsyncIOUring::SW_IORING_OP_LSTAT, path, nullptr, 0, 0, &statxbuf);
+    sw_statx_to_stat(&statxbuf, statbuf);
+#else
+    async([&]() { retval = stat(path, statbuf); });
+#endif
+    return retval;
+}
+
+int swoole_coroutine_lstat(const char *path, struct stat *statbuf) {
+    if (sw_unlikely(is_no_coro())) {
+        return lstat(path, statbuf);
+    }
+
+    int retval = -1;
+#if defined(__linux__) && defined(SW_USE_IOURING)
+    struct statx statxbuf = {};
+    retval = async(AsyncIOUring::SW_IORING_OP_LSTAT, path, nullptr, 0, 0, &statxbuf);
+    sw_statx_to_stat(&statxbuf, statbuf);
+#else
+    async([&]() { retval = lstat(path, statbuf); });
+#endif
     return retval;
 }
 
@@ -288,16 +436,6 @@ int swoole_coroutine_readlink(const char *pathname, char *buf, size_t len) {
     return retval;
 }
 
-int swoole_coroutine_unlink(const char *pathname) {
-    if (sw_unlikely(is_no_coro())) {
-        return unlink(pathname);
-    }
-
-    int retval = -1;
-    async([&]() { retval = unlink(pathname); });
-    return retval;
-}
-
 int swoole_coroutine_statvfs(const char *path, struct statvfs *buf) {
     if (sw_unlikely(is_no_coro())) {
         return statvfs(path, buf);
@@ -308,33 +446,17 @@ int swoole_coroutine_statvfs(const char *path, struct statvfs *buf) {
     return retval;
 }
 
-int swoole_coroutine_mkdir(const char *pathname, mode_t mode) {
-    if (sw_unlikely(is_no_coro())) {
-        return mkdir(pathname, mode);
-    }
-
-    int retval = -1;
-    async([&]() { retval = mkdir(pathname, mode); });
-    return retval;
-}
-
 int swoole_coroutine_rmdir(const char *pathname) {
     if (sw_unlikely(is_no_coro())) {
         return rmdir(pathname);
     }
 
     int retval = -1;
+#if defined(__linux__) && defined(SW_USE_IOURING)
+    return async(AsyncIOUring::SW_IORING_OP_UNLINK_DIR, pathname);
+#else
     async([&]() { retval = rmdir(pathname); });
-    return retval;
-}
-
-int swoole_coroutine_rename(const char *oldpath, const char *newpath) {
-    if (sw_unlikely(is_no_coro())) {
-        return rename(oldpath, newpath);
-    }
-
-    int retval = -1;
-    async([&]() { retval = rename(oldpath, newpath); });
+#endif
     return retval;
 }
 
@@ -375,26 +497,6 @@ FILE *swoole_coroutine_freopen(const char *pathname, const char *mode, FILE *str
 
     FILE *retval = nullptr;
     async([&]() { retval = freopen(pathname, mode, stream); });
-    return retval;
-}
-
-size_t swoole_coroutine_fread(void *ptr, size_t size, size_t nmemb, FILE *stream) {
-    if (sw_unlikely(is_no_coro())) {
-        return fread(ptr, size, nmemb, stream);
-    }
-
-    size_t retval = 0;
-    async([&]() { retval = fread(ptr, size, nmemb, stream); });
-    return retval;
-}
-
-size_t swoole_coroutine_fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream) {
-    if (sw_unlikely(is_no_coro())) {
-        return fwrite(ptr, size, nmemb, stream);
-    }
-
-    size_t retval = 0;
-    async([&]() { retval = fwrite(ptr, size, nmemb, stream); });
     return retval;
 }
 

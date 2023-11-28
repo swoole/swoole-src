@@ -904,6 +904,9 @@ PHP_MINFO_FUNCTION(swoole) {
 #ifdef SW_USE_SQLITE
     php_info_print_table_row(2, "coroutine_sqlite", "enabled");
 #endif
+#if defined(__linux__) && defined(SW_USE_IOURING)
+    php_info_print_table_row(2, "io_uring", "enabled");
+#endif
     php_info_print_table_end();
 
     DISPLAY_INI_ENTRIES();

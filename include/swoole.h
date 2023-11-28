@@ -61,6 +61,10 @@
 #include <list>
 #include <functional>
 
+#if defined(__linux__) && defined(SW_USE_IOURING)
+#include <liburing.h>
+#endif
+
 typedef unsigned long ulong_t;
 
 #ifndef PRId64
@@ -200,6 +204,9 @@ struct Socket;
 struct Address;
 }  // namespace network
 class AsyncThreads;
+#if defined(__linux__) && defined(SW_USE_IOURING)
+class AsyncIOUring;
+#endif
 namespace async {
 class ThreadPool;
 }
@@ -411,6 +418,10 @@ enum swFdType {
     SW_FD_SIGNAL,
     SW_FD_DNS_RESOLVER,
     SW_FD_CARES,
+    /**
+     * io_uring
+     */
+    SW_FD_IOURING,
     /**
      * SW_FD_USER or SW_FD_USER+n: for custom event
      */
@@ -656,6 +667,9 @@ struct ThreadGlobal {
     Reactor *reactor;
     Timer *timer;
     AsyncThreads *async_threads;
+#if defined(__linux__) && defined(SW_USE_IOURING)
+    AsyncIOUring *async_iouring;
+#endif
     uint32_t signal_listener_num;
     uint32_t co_signal_listener_num;
     int error;
@@ -736,6 +750,9 @@ struct Global {
     //-----------------------[AIO]--------------------------
     uint32_t aio_core_worker_num;
     uint32_t aio_worker_num;
+#if defined(__linux__) && defined(SW_USE_IOURING)
+    uint32_t iouring_entries;
+#endif
     double aio_max_wait_time;
     double aio_max_idle_time;
     network::Socket *aio_default_socket;

@@ -25,6 +25,8 @@
 #define write(fd, buf, count) swoole_coroutine_write(fd, buf, count)
 #define lseek(fd, offset, whence) swoole_coroutine_lseek(fd, offset, whence)
 #define fstat(fd, statbuf) swoole_coroutine_fstat(fd, statbuf)
+#define stat(path, statbuf) swoole_coroutine_stat(path, statbuf)
+#define lstat(path, statbuf) swoole_coroutine_lstat(path, statbuf)
 #define readlink(fd, buf, size) swoole_coroutine_readlink(fd, buf, size)
 #define unlink(pathname) swoole_coroutine_unlink(pathname)
 #define mkdir(pathname, mode) swoole_coroutine_mkdir(pathname, mode)
