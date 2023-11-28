@@ -139,15 +139,16 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
 
     std::stringstream header_stream;
     if (1 == tasks.size()) {
-        if (0 == tasks[0].offset && tasks[0].length == handler.get_filesize()) {
-            header_stream << "Accept-Ranges: bytes\r\n";
+        if (SW_HTTP_PARTIAL_CONTENT == handler.status_code) {
+            header_stream << "Content-Range: bytes "
+                          << tasks[0].offset
+                          << "-"
+                          << (tasks[0].length + tasks[0].offset - 1)
+                          << "/"
+                          << handler.get_filesize()
+                          << "\r\n";
         } else {
-            header_stream << "Content-Range: bytes";
-            if (tasks[0].length != handler.get_filesize()) {
-                header_stream << " " << tasks[0].offset << "-" << (tasks[0].length + tasks[0].offset - 1) << "/"
-                              << handler.get_filesize();
-            }
-            header_stream << "\r\n";
+            header_stream << "Accept-Ranges: bytes\r\n";
         }
     }
 
