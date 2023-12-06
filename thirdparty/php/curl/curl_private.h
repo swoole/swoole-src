@@ -64,6 +64,13 @@ typedef struct {
     zval stream;
 } php_curl_read;
 
+#if PHP_VERSION_ID >= 80100
+typedef struct {
+    zval                  func_name;
+    zend_fcall_info_cache fci_cache;
+} php_curl_callback;
+#endif
+
 typedef struct {
     zval func_name;
     zend_fcall_info_cache fci_cache;
@@ -80,6 +87,9 @@ typedef struct {
     php_curl_fnxferinfo *xferinfo;
 #endif
     php_curl_fnmatch *fnmatch;
+#if LIBCURL_VERSION_NUM >= 0x075400 && PHP_VERSION_ID >= 80100
+    php_curl_callback  *sshhostkey;
+#endif
 } php_curl_handlers;
 
 struct _php_curl_error {
