@@ -372,7 +372,7 @@ static HashTable *swoole_curl_get_gc(zend_object *object, zval **table, int *n) 
         }
 #endif
 
-        zend_get_gc_buffer_add_zval(gc_buffer, &curl->handlers.std_err);
+        zend_get_gc_buffer_add_zval(gc_buffer, &curl_handlers(curl)->std_err);
 #if PHP_VERSION_ID >= 80100
         zend_get_gc_buffer_add_zval(gc_buffer, &curl->private_data);
 #endif
