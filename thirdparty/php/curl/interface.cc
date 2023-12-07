@@ -907,6 +907,10 @@ void swoole_curl_init_handle(php_curl *ch) {
     zend_llist_init(&ch->to_free->post, sizeof(struct HttpPost *), (llist_dtor_func_t) curl_free_post, 0);
     zend_llist_init(&ch->to_free->stream, sizeof(struct mime_data_cb_arg *), (llist_dtor_func_t) curl_free_cb_arg, 0);
 
+#if LIBCURL_VERSION_NUM < 0x073800 && PHP_VERSION_ID >= 80100
+    zend_llist_init(&ch->to_free->buffers, sizeof(zend_string *), (llist_dtor_func_t)curl_free_buffers, 0);
+#endif
+
     ch->to_free->slist = (HashTable *) emalloc(sizeof(HashTable));
     zend_hash_init(ch->to_free->slist, 4, NULL, curl_free_slist, 0);
     ZVAL_UNDEF(&ch->postfields);
@@ -1079,7 +1083,7 @@ void swoole_setup_easy_copy_handlers(php_curl *ch, php_curl *source) {
         curl_easy_setopt(ch->cp, CURLOPT_FNMATCH_DATA, (void *) ch);
     }
 
-#if LIBCURL_VERSION_NUM >= 0x075400 && PHP_VERSION_ID
+#if LIBCURL_VERSION_NUM >= 0x075400 && PHP_VERSION_ID >= 80300
     if (curl_handlers(source)->sshhostkey) {
         curl_handlers(ch)->sshhostkey = (php_curl_sshhostkey *) ecalloc(1, sizeof(php_curl_sshhostkey));
         if (!Z_ISUNDEF(curl_handlers(source)->sshhostkey->func_name)) {
@@ -1088,6 +1092,10 @@ void swoole_setup_easy_copy_handlers(php_curl *ch, php_curl *source) {
         curl_handlers(ch)->sshhostkey->method = curl_handlers(source)->sshhostkey->method;
         curl_easy_setopt(ch->cp, CURLOPT_SSH_HOSTKEYDATA, (void *) ch);
     }
+#endif
+
+#if PHP_VERSION_ID >= 80100
+    ZVAL_COPY(&ch->private_data, &source->private_data);
 #endif
 
     efree(ch->to_free->slist);
