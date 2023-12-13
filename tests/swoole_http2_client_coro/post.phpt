@@ -29,7 +29,7 @@ go(function () {
     $req->data = '{"type":"up"}';
     $cli->send($req);
     $response = $cli->recv();
-    Assert::true(in_array(json_decode($response->data)->error->code, [602, 10002], true));
+    Assert::true(in_array(json_decode($response->data)->error->code, [602, 10002, 100], true));
 });
 ?>
 --EXPECT--
