@@ -18,6 +18,7 @@
 #include "php_swoole_http_server.h"
 #include "php_swoole_process.h"
 #include "swoole_msg_queue.h"
+#include "swoole_call_stack.h"
 
 #include "ext/standard/php_var.h"
 #include "zend_smart_str.h"
@@ -1773,7 +1774,10 @@ static int php_swoole_server_dispatch_func(Server *serv, Connection *conn, SendD
         zdata = &args[3];
         ZVAL_STRINGL(zdata, data->data, data->info.len > SW_IPC_BUFFER_SIZE ? SW_IPC_BUFFER_SIZE : data->info.len);
     }
-    if (UNEXPECTED(sw_zend_call_function_ex(nullptr, fci_cache, zdata ? 4 : 3, args, &retval) != SUCCESS)) {
+    HOOK_PHP_CALL_STACK(
+        auto call_result = sw_zend_call_function_ex(nullptr, fci_cache, zdata ? 4 : 3, args, &retval);
+    );
+    if (UNEXPECTED(call_result != SUCCESS)) {
         php_swoole_error(E_WARNING, "%s->onDispatch handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
     } else if (!ZVAL_IS_NULL(&retval)) {
         worker_id = zval_get_long(&retval);
