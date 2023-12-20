@@ -1009,8 +1009,14 @@ EOF
         AC_DEFINE(SW_USE_MYSQLND, 1, [use mysqlnd])
     fi
 
-    ext_src_files=$(find ext-src/ -name *.cc)
-	lib_src_files=$(find src/ -name *.cc)
+    if test -f "ext-src/php_swoole.cc"; then
+        swoole_source_dir=$(pwd)
+    else
+        swoole_source_dir="ext/swoole"
+    fi
+
+    ext_src_files=$(cd $swoole_source_dir && find ext-src/ -name *.cc)
+    lib_src_files=$(cd $swoole_source_dir && find src/ -name *.cc)
     swoole_source_file="${ext_src_files} ${lib_src_files}"
 
     swoole_source_file="$swoole_source_file \
