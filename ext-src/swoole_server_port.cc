@@ -15,7 +15,7 @@
  */
 
 #include "php_swoole_server.h"
-#include "swoole_call_stack.h"
+#include "php_swoole_call_stack.h"
 
 BEGIN_EXTERN_C()
 #include "stubs/php_swoole_server_port_arginfo.h"

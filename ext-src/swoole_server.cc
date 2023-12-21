@@ -17,8 +17,8 @@
 #include "php_swoole_server.h"
 #include "php_swoole_http_server.h"
 #include "php_swoole_process.h"
+#include "php_swoole_call_stack.h"
 #include "swoole_msg_queue.h"
-#include "swoole_call_stack.h"
 
 #include "ext/standard/php_var.h"
 #include "zend_smart_str.h"
