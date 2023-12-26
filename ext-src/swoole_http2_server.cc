@@ -211,17 +211,19 @@ static bool http2_server_is_static_file(Server *serv, HttpContext *ctx) {
         ctx->response.status = handler.status_code;
         auto tasks = handler.get_tasks();
         if (1 == tasks.size()) {
-            if (0 == tasks[0].offset && tasks[0].length == handler.get_filesize()) {
-                ctx->set_header(ZEND_STRL("Accept-Ranges"), SW_STRL("bytes"), 0);
-            } else {
+            if (SW_HTTP_PARTIAL_CONTENT == handler.status_code) {
                 std::stringstream content_range;
-                content_range << "bytes";
-                if (tasks[0].length != handler.get_filesize()) {
-                    content_range << " " << tasks[0].offset << "-" << (tasks[0].length + tasks[0].offset - 1) << "/"
-                                  << handler.get_filesize();
-                }
+                content_range << "bytes "
+                              << tasks[0].offset
+                              << "-"
+                              << (tasks[0].length + tasks[0].offset - 1)
+                              << "/"
+                              << handler.get_filesize()
+                              << "\r\n";
                 auto content_range_str = content_range.str();
                 ctx->set_header(ZEND_STRL("Content-Range"), content_range_str.c_str(), content_range_str.length(), 0);
+            } else {
+                ctx->set_header(ZEND_STRL("Accept-Ranges"), SW_STRL("bytes"), 0);
             }
         }
 
