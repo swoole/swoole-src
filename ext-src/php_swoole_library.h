@@ -9752,13 +9752,13 @@ void php_swoole_load_library()
     _eval(swoole_library_source_core_coroutine_http_client_proxy, "@swoole/library/core/Coroutine/Http/ClientProxy.php");
     _eval(swoole_library_source_core_coroutine_http_functions, "@swoole/library/core/Coroutine/Http/functions.php");
     _eval(swoole_library_source_core_connection_pool, "@swoole/library/core/ConnectionPool.php");
-    _eval(swoole_library_source_core_database_detects_lost_connections, "@swoole/library/core/Database/DetectsLostConnections.php");
+    _eval(swoole_library_source_core_database_object_proxy, "@swoole/library/core/Database/ObjectProxy.php");
     _eval(swoole_library_source_core_database_mysqli_config, "@swoole/library/core/Database/MysqliConfig.php");
     _eval(swoole_library_source_core_database_mysqli_exception, "@swoole/library/core/Database/MysqliException.php");
     _eval(swoole_library_source_core_database_mysqli_pool, "@swoole/library/core/Database/MysqliPool.php");
     _eval(swoole_library_source_core_database_mysqli_proxy, "@swoole/library/core/Database/MysqliProxy.php");
     _eval(swoole_library_source_core_database_mysqli_statement_proxy, "@swoole/library/core/Database/MysqliStatementProxy.php");
-    _eval(swoole_library_source_core_database_object_proxy, "@swoole/library/core/Database/ObjectProxy.php");
+    _eval(swoole_library_source_core_database_detects_lost_connections, "@swoole/library/core/Database/DetectsLostConnections.php");
     _eval(swoole_library_source_core_database_pdo_config, "@swoole/library/core/Database/PDOConfig.php");
     _eval(swoole_library_source_core_database_pdo_pool, "@swoole/library/core/Database/PDOPool.php");
     _eval(swoole_library_source_core_database_pdo_proxy, "@swoole/library/core/Database/PDOProxy.php");
