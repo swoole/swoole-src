@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
  */
 
-/* $Id: 4a621c9aee49c1bb2ce7653831e87164738eb62a */
+/* $Id: 2ff30e0a106505dd57c838de88af0254500e7ce5 */
 
 #ifndef SWOOLE_LIBRARY_H
 #define SWOOLE_LIBRARY_H
@@ -3246,6 +3246,11 @@ static const char* swoole_library_source_core_database_redis_config =
     "\n"
     "    protected int $dbIndex = 0;\n"
     "\n"
+    "    /**\n"
+    "     * @var array<int, mixed>\n"
+    "     */\n"
+    "    protected array $options = [];\n"
+    "\n"
     "    public function getHost(): string\n"
     "    {\n"
     "        return $this->host;\n"
@@ -3333,6 +3338,36 @@ static const char* swoole_library_source_core_database_redis_config =
     "        $this->dbIndex = $dbIndex;\n"
     "        return $this;\n"
     "    }\n"
+    "\n"
+    "    /**\n"
+    "     * Add a configurable option.\n"
+    "     */\n"
+    "    public function withOption(int $option, mixed $value): self\n"
+    "    {\n"
+    "        $this->options[$option] = $value;\n"
+    "        return $this;\n"
+    "    }\n"
+    "\n"
+    "    /**\n"
+    "     * Add/override configurable options.\n"
+    "     *\n"
+    "     * @param array<int, mixed> $options\n"
+    "     */\n"
+    "    public function setOptions(array $options): self\n"
+    "    {\n"
+    "        $this->options = $options;\n"
+    "        return $this;\n"
+    "    }\n"
+    "\n"
+    "    /**\n"
+    "     * Get configurable options.\n"
+    "     *\n"
+    "     * @return array<int, mixed>\n"
+    "     */\n"
+    "    public function getOptions(): array\n"
+    "    {\n"
+    "        return $this->options;\n"
+    "    }\n"
     "}\n";
 
 static const char* swoole_library_source_core_database_redis_pool =
@@ -3385,6 +3420,12 @@ static const char* swoole_library_source_core_database_redis_pool =
     "            if ($this->config->getDbIndex() !== 0) {\n"
     "                $redis->select($this->config->getDbIndex());\n"
     "            }\n"
+    "\n"
+    "            /* Set Redis options. */\n"
+    "            foreach ($this->config->getOptions() as $key => $value) {\n"
+    "                $redis->setOption($key, $value);\n"
+    "            }\n"
+    "\n"
     "            return $redis;\n"
     "        }, $size);\n"
     "    }\n"
