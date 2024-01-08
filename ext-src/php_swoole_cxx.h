@@ -85,6 +85,7 @@
     _(SW_ZEND_STR_REMOTE_PORT,              "remote_port")  \
     _(SW_ZEND_STR_REMOTE_ADDR,              "remote_addr")  \
     _(SW_ZEND_STR_MASTER_TIME,              "master_time") \
+    _(SW_ZEND_STR_QUERY_STRING,             "query_string") \
     _(SW_ZEND_STR_HTTP10,                   "HTTP/1.0") \
     _(SW_ZEND_STR_HTTP11,                   "HTTP/1.1") \
 
