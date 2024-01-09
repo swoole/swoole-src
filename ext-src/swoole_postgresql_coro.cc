@@ -48,7 +48,6 @@ class Object {
     zval _object;
     ConnStatusType status;
     Statement *statement;
-    std::list<Statement *> statements;
     enum QueryType request_type;
     bool connected;
     bool ignore_notices;
@@ -206,7 +205,6 @@ static void php_swoole_postgresql_coro_statement_free_object(zend_object *object
         efree(statement->query);
         statement->query = nullptr;
     }
-    statement->pg_object->statements.remove(statement);
     OBJ_RELEASE(SW_Z8_OBJ_P(statement->pg_object->object));
     delete statement;
     zend_object_std_dtor(&postgresql_coro_statement->std);
@@ -232,7 +230,6 @@ static zend_object *php_swoole_postgresql_coro_statement_create_object(PGObject 
         object->pg_object = pg_object;
         object->object = &object->_object;
         ZVAL_OBJ(object->object, &postgresql_coro_statement->std);
-        pg_object->statements.push_back(object);
     } while (0);
 
     GC_ADDREF(SW_Z8_OBJ_P(pg_object->object));

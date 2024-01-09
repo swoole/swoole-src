@@ -1021,118 +1021,15 @@ EOF
         AC_DEFINE(SW_USE_MYSQLND, 1, [use mysqlnd])
     fi
 
-    swoole_source_file=" \
-        ext-src/php_swoole.cc \
-        ext-src/php_swoole_cxx.cc \
-        ext-src/swoole_admin_server.cc \
-        ext-src/swoole_async_coro.cc \
-        ext-src/swoole_atomic.cc \
-        ext-src/swoole_channel_coro.cc \
-        ext-src/swoole_client.cc \
-        ext-src/swoole_client_coro.cc \
-        ext-src/swoole_coroutine.cc \
-        ext-src/swoole_coroutine_scheduler.cc \
-        ext-src/swoole_coroutine_system.cc \
-        ext-src/swoole_curl.cc \
-        ext-src/swoole_event.cc \
-        ext-src/swoole_http2_client_coro.cc \
-        ext-src/swoole_http2_server.cc \
-        ext-src/swoole_http_client_coro.cc \
-        ext-src/swoole_http_request.cc \
-        ext-src/swoole_http_response.cc \
-        ext-src/swoole_http_server.cc \
-        ext-src/swoole_http_server_coro.cc \
-        ext-src/swoole_lock.cc \
-        ext-src/swoole_mysql_coro.cc \
-        ext-src/swoole_mysql_proto.cc \
-        ext-src/swoole_name_resolver.cc \
-        ext-src/swoole_postgresql_coro.cc \
-        ext-src/swoole_pgsql.cc \
-        ext-src/swoole_odbc.cc \
-        ext-src/swoole_oracle.cc \
-        ext-src/swoole_sqlite.cc \
-        ext-src/swoole_process.cc \
-        ext-src/swoole_process_pool.cc \
-        ext-src/swoole_redis_coro.cc \
-        ext-src/swoole_redis_server.cc \
-        ext-src/swoole_runtime.cc \
-        ext-src/swoole_server.cc \
-        ext-src/swoole_server_port.cc \
-        ext-src/swoole_socket_coro.cc \
-        ext-src/swoole_table.cc \
-        ext-src/swoole_timer.cc \
-        ext-src/swoole_websocket_server.cc \
-        src/core/base.cc \
-        src/core/base64.cc \
-        src/core/channel.cc \
-        src/core/crc32.cc \
-        src/core/error.cc \
-        src/core/heap.cc \
-        src/core/log.cc \
-        src/core/string.cc \
-        src/core/timer.cc \
-        src/coroutine/base.cc \
-        src/coroutine/channel.cc \
-        src/coroutine/context.cc \
-        src/coroutine/file_lock.cc \
-        src/coroutine/hook.cc \
-        src/coroutine/socket.cc \
-        src/coroutine/system.cc \
-        src/coroutine/thread_context.cc \
-        src/lock/mutex.cc \
-        src/lock/rw_lock.cc \
-        src/lock/spin_lock.cc \
-        src/memory/buffer.cc \
-        src/memory/fixed_pool.cc \
-        src/memory/global_memory.cc \
-        src/memory/ring_buffer.cc \
-        src/memory/shared_memory.cc \
-        src/memory/table.cc \
-        src/network/address.cc \
-        src/network/client.cc \
-        src/network/dns.cc \
-        src/network/socket.cc \
-        src/network/stream.cc \
-        src/os/async_thread.cc \
-        src/os/base.cc \
-        src/os/file.cc \
-        src/os/msg_queue.cc \
-        src/os/pipe.cc \
-        src/os/process_pool.cc \
-        src/os/sendfile.cc \
-        src/os/signal.cc \
-        src/os/timer.cc \
-        src/os/unix_socket.cc \
-        src/os/wait.cc \
-        src/protocol/base.cc \
-        src/protocol/dtls.cc \
-        src/protocol/http.cc \
-        src/protocol/http2.cc \
-        src/protocol/message_bus.cc \
-        src/protocol/mime_type.cc \
-        src/protocol/mqtt.cc \
-        src/protocol/redis.cc \
-        src/protocol/socks5.cc \
-        src/protocol/ssl.cc \
-        src/protocol/websocket.cc \
-        src/reactor/base.cc \
-        src/reactor/epoll.cc \
-        src/reactor/kqueue.cc \
-        src/reactor/poll.cc \
-        src/reactor/select.cc \
-        src/server/base.cc \
-        src/server/manager.cc \
-        src/server/master.cc \
-        src/server/port.cc \
-        src/server/process.cc \
-        src/server/reactor_process.cc \
-        src/server/reactor_thread.cc \
-        src/server/static_handler.cc \
-        src/server/task_worker.cc \
-        src/server/worker.cc \
-        src/wrapper/event.cc \
-        src/wrapper/http.cc \
-        src/wrapper/timer.cc"
+    if test -f "ext-src/php_swoole.cc"; then
+        swoole_source_dir=$(pwd)
+    else
+        swoole_source_dir="ext/swoole"
+    fi
+
+    ext_src_files=$(cd $swoole_source_dir && find ext-src/ -name *.cc)
+    lib_src_files=$(cd $swoole_source_dir && find src/ -name *.cc)
+    swoole_source_file="${ext_src_files} ${lib_src_files}"
 
     swoole_source_file="$swoole_source_file \
         thirdparty/php/curl/interface.cc \
@@ -1142,7 +1039,8 @@ EOF
         thirdparty/php/sockets/conversions.cc \
         thirdparty/php/sockets/sockaddr_conv.cc \
         thirdparty/php/standard/var_decoder.cc \
-        thirdparty/php/standard/proc_open.cc"
+        thirdparty/php/standard/proc_open.cc \
+        thirdparty/php83/Zend/zend_call_stack.cc"
 
     swoole_source_file="$swoole_source_file \
         thirdparty/swoole_http_parser.c \

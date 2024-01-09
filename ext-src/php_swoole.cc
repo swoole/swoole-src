@@ -692,7 +692,8 @@ PHP_MINIT_FUNCTION(swoole) {
 
     // init bug report message
     bug_report_message_init();
-    if (strcmp("cli", sapi_module.name) == 0 || strcmp("phpdbg", sapi_module.name) == 0) {
+    if (strcmp("cli", sapi_module.name) == 0 || strcmp("phpdbg", sapi_module.name) == 0 ||
+        strcmp("embed", sapi_module.name) == 0) {
         SWOOLE_G(cli) = 1;
     }
 
@@ -1001,7 +1002,7 @@ PHP_RINIT_FUNCTION(swoole) {
          * This would cause php_swoole_load_library function not to execute correctly, so it must be replaced
          * with the execute_ex function.
          */
-        void (*old_zend_execute_ex)(zend_execute_data *execute_data) = nullptr;
+        void (*old_zend_execute_ex)(zend_execute_data * execute_data) = nullptr;
         if (UNEXPECTED(zend_execute_ex != execute_ex)) {
             old_zend_execute_ex = zend_execute_ex;
             zend_execute_ex = execute_ex;

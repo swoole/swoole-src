@@ -230,7 +230,7 @@ void Manager::wait(Server *_server) {
 
     while (_server->running) {
         ExitStatus exit_status = wait_process();
-
+        const auto errnoAfterWait = errno;
         if (pool->read_message) {
             EventData msg;
             while (pool->pop_message(&msg, sizeof(msg)) > 0) {
@@ -261,7 +261,7 @@ void Manager::wait(Server *_server) {
         if (exit_status.get_pid() < 0) {
             if (!pool->reloading) {
             _error:
-                if (errno > 0 && errno != EINTR) {
+                if (errnoAfterWait > 0 && errnoAfterWait != EINTR) {
                     swoole_sys_warning("wait() failed");
                 }
                 continue;
