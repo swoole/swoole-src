@@ -68,7 +68,7 @@ String *HttpContext::get_write_buffer() {
         return ((Socket *) private_data)->get_write_buffer();
     } else {
         if (!write_buffer) {
-            write_buffer = new String(SW_BUFFER_SIZE_STD);
+            write_buffer = new String(SW_BUFFER_SIZE_STD, sw_php_allocator());
         }
         return write_buffer;
     }

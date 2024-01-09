@@ -220,12 +220,12 @@ HttpContext *swoole_http_context_new(SessionId fd) {
 
     zval *zrequest_object = &ctx->request._zobject;
     ctx->request.zobject = zrequest_object;
-    object_init_ex(zrequest_object, swoole_http_request_ce);
+    ZVAL_OBJ(zrequest_object, swoole_http_request_ce->create_object(swoole_http_request_ce));
     php_swoole_http_request_set_context(zrequest_object, ctx);
 
     zval *zresponse_object = &ctx->response._zobject;
     ctx->response.zobject = zresponse_object;
-    object_init_ex(zresponse_object, swoole_http_response_ce);
+    ZVAL_OBJ(zresponse_object, swoole_http_response_ce->create_object(swoole_http_response_ce));
     php_swoole_http_response_set_context(zresponse_object, ctx);
 
     http_server_set_object_fd_property(SW_Z8_OBJ_P(zrequest_object), swoole_http_request_ce, fd);
