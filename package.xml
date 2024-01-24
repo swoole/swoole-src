@@ -54,7 +54,7 @@
     <date>2024-01-24</date>
     <time>12:00:00</time>
     <version>
-        <release>5.1.1</release>
+        <release>5.1.2</release>
         <api>5.0</api>
     </version>
     <stability>
@@ -71,7 +71,7 @@
         - Fixed native-curl crash on PHP 8.3 @NathanFreeman
         - Added CLOSE_SERVICE_RESTART, CLOSE_TRY_AGAIN_LATER, CLOSE_BAD_GATEWAY as valid close reasons for websocket @cjavad
         - Fixed invalid errno after Server::Manager::wait() @JacobBrownAustin
-        - Fixed HTTP2 Typo @@leocavalcante
+        - Fixed HTTP2 Typo @leocavalcante
     </notes>
     <contents>
         <dir name="/">
