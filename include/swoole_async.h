@@ -35,18 +35,12 @@ enum AsyncFlag {
 };
 
 struct AsyncEvent {
-    int fd;
     size_t task_id;
-    uint8_t lock;
     uint8_t canceled;
     /**
      * input & output
      */
-    uint16_t flags;
-    off_t offset;
-    size_t nbytes;
-    void *buf;
-    void *req;
+    void *data;
     /**
      * output
      */
@@ -63,6 +57,22 @@ struct AsyncEvent {
 
     bool catch_error() {
         return (error == SW_ERROR_AIO_TIMEOUT || error == SW_ERROR_AIO_CANCELED);
+    }
+};
+
+struct GethostbynameRequest {
+    const char *name;
+    int family;
+    char *addr;
+    size_t addr_len;
+
+    GethostbynameRequest(const char *_name, int _family) : name(_name), family(_family) {
+        addr_len = _family == AF_INET6 ? INET6_ADDRSTRLEN : INET_ADDRSTRLEN;
+        addr = new char[addr_len];
+    }
+
+    ~GethostbynameRequest() {
+        delete[] addr;
     }
 };
 
@@ -87,6 +97,7 @@ class AsyncThreads {
     void notify_one();
 
     static int callback(Reactor *reactor, Event *event);
+
   private:
     std::mutex init_lock;
 };

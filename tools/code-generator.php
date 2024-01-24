@@ -63,7 +63,7 @@ file_put_contents($swoole_c, $swoole_c_content);
 // generate ERROR strings
 $swoole_error_cc = ROOT_DIR . '/src/core/error.cc';
 $swoole_error_cc_content = file_get_contents($swoole_error_cc);
-$swstrerror_output = space(4) . "switch(code) {\n";
+$swstrerror_output = space(4) . "switch (code) {\n";
 foreach ($matches_error[0] as $match) {
     // convert error code to swstrerror
     $sw_error_str = implode(' ', explode('_', strtolower(str_replace('SW_ERROR_', '', $match))));

@@ -34,7 +34,7 @@
 #define SW_ZLIB_ENCODING_ANY 0x2f
 #endif
 
-#include "thirdparty/nghttp2/nghttp2.h"
+#include <nghttp2/nghttp2.h>
 
 enum swHttpHeaderFlag {
     HTTP_HEADER_SERVER = 1u << 1,
@@ -44,6 +44,7 @@ enum swHttpHeaderFlag {
     HTTP_HEADER_CONTENT_TYPE = 1u << 5,
     HTTP_HEADER_TRANSFER_ENCODING = 1u << 6,
     HTTP_HEADER_ACCEPT_ENCODING = 1u << 7,
+    HTTP_HEADER_CONTENT_ENCODING = 1u << 8,
 };
 
 enum swHttpCompressMethod {
@@ -140,7 +141,7 @@ struct Context {
     uchar http2 : 1;
 
     http2::Stream *stream;
-    std::shared_ptr<String> write_buffer;
+    String *write_buffer;
 
 #ifdef SW_HAVE_COMPRESSION
     int8_t compression_level;
@@ -273,6 +274,23 @@ extern zend_class_entry *swoole_http_response_ce;
 swoole::http::Context *swoole_http_context_new(swoole::SessionId fd);
 swoole::http::Context *php_swoole_http_request_get_and_check_context(zval *zobject);
 swoole::http::Context *php_swoole_http_response_get_and_check_context(zval *zobject);
+
+/**
+ *  These class properties cannot be modified by the user before assignment, such as Swoole\\Http\\Request.
+ *  So we can use this function to init property.
+ */
+static sw_inline zval *swoole_http_init_and_read_property(
+    zend_class_entry *ce, zval *zobject, zval **zproperty_store_pp, zend_string *name, int size = HT_MIN_SIZE) {
+    if (UNEXPECTED(!*zproperty_store_pp)) {
+        zval *zv = zend_hash_find(&ce->properties_info, name);
+        zend_property_info *property_info = (zend_property_info *) Z_PTR_P(zv);
+        zval *property = OBJ_PROP(SW_Z8_OBJ_P(zobject), property_info->offset);
+        array_init_size(property, size);
+        *zproperty_store_pp = (zval *) (zproperty_store_pp + 1);
+        **zproperty_store_pp = *property;
+    }
+    return *zproperty_store_pp;
+}
 
 static sw_inline zval *swoole_http_init_and_read_property(
     zend_class_entry *ce, zval *zobject, zval **zproperty_store_pp, const char *name, size_t name_len) {

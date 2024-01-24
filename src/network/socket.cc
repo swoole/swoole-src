@@ -173,9 +173,14 @@ int Socket::wait_event(int timeout_ms, int events) {
         if (ret == 0) {
             swoole_set_last_error(SW_ERROR_SOCKET_POLL_TIMEOUT);
             return SW_ERR;
-        } else if (ret < 0 && errno != EINTR) {
-            swoole_sys_warning("poll() failed");
-            return SW_ERR;
+        } else if (ret < 0) {
+            if (errno != EINTR) {
+                swoole_sys_warning("poll() failed");
+            } else if (dont_restart) {
+                return SW_ERR;
+            } else {
+                continue;
+            }
         } else {
             return SW_OK;
         }
@@ -418,7 +423,7 @@ bool Socket::set_buffer_size(uint32_t _buffer_size) {
 
 bool Socket::set_recv_buffer_size(uint32_t _buffer_size) {
     if (set_option(SOL_SOCKET, SO_RCVBUF, _buffer_size) != 0) {
-        swoole_sys_warning("setsockopt(%d, SOL_SOCKET, SO_SNDBUF, %d) failed", fd, _buffer_size);
+        swoole_sys_warning("setsockopt(%d, SOL_SOCKET, SO_RCVBUF, %d) failed", fd, _buffer_size);
         return false;
     }
     return true;
@@ -426,7 +431,7 @@ bool Socket::set_recv_buffer_size(uint32_t _buffer_size) {
 
 bool Socket::set_send_buffer_size(uint32_t _buffer_size) {
     if (set_option(SOL_SOCKET, SO_SNDBUF, _buffer_size) != 0) {
-        swoole_sys_warning("setsockopt(%d, SOL_SOCKET, SO_RCVBUF, %d) failed", fd, _buffer_size);
+        swoole_sys_warning("setsockopt(%d, SOL_SOCKET, SO_SNDBUF, %d) failed", fd, _buffer_size);
         return false;
     }
     return true;
@@ -1453,6 +1458,9 @@ int Socket::ssl_create(SSLContext *ssl_context, int _flags) {
 
 using network::Socket;
 
+/**
+ * return nullptr when fail to create socket, read errno to get failure reason
+ */
 Socket *make_socket(SocketType type, FdType fd_type, int flags) {
     int sock_domain;
     int sock_type;
@@ -1460,9 +1468,28 @@ Socket *make_socket(SocketType type, FdType fd_type, int flags) {
     if (Socket::get_domain_and_type(type, &sock_domain, &sock_type) < 0) {
         swoole_warning("unknown socket type [%d]", type);
         errno = ESOCKTNOSUPPORT;
+        swoole_set_last_error(errno);
         return nullptr;
     }
 
+    return make_socket(type, fd_type, sock_domain, sock_type, 0, flags);
+}
+
+Socket *make_socket(SocketType type, FdType fd_type, int sock_domain, int sock_type, int socket_protocol, int flags) {
+    int sockfd = swoole::socket(sock_domain, sock_type, socket_protocol, flags);
+    if (sockfd < 0) {
+        swoole_set_last_error(errno);
+        return nullptr;
+    }
+
+    auto _socket = swoole::make_socket(sockfd, fd_type);
+    _socket->nonblock = !!(flags & SW_SOCK_NONBLOCK);
+    _socket->cloexec = !!(flags & SW_SOCK_CLOEXEC);
+    _socket->socket_type = type;
+    return _socket;
+}
+
+int socket(int sock_domain, int sock_type, int socket_protocol, int flags) {
     bool nonblock = flags & SW_SOCK_NONBLOCK;
     bool cloexec = flags & SW_SOCK_CLOEXEC;
 
@@ -1474,27 +1501,23 @@ Socket *make_socket(SocketType type, FdType fd_type, int flags) {
     if (cloexec) {
         sock_flags |= SOCK_CLOEXEC;
     }
-    int sockfd = socket(sock_domain, sock_type | sock_flags, 0);
+    int sockfd = ::socket(sock_domain, sock_type | sock_flags, socket_protocol);
     if (sockfd < 0) {
-        return nullptr;
+        return sockfd;
     }
 #else
-    int sockfd = socket(sock_domain, sock_type, 0);
+    int sockfd = ::socket(sock_domain, sock_type, socket_protocol);
     if (sockfd < 0) {
-        return nullptr;
+        return sockfd;
     }
     if (nonblock || cloexec) {
         if (!network::_fcntl_set_option(sockfd, nonblock ? 1 : -1, cloexec ? 1 : -1)) {
             close(sockfd);
-            return nullptr;
+            return sockfd;
         }
     }
 #endif
-    auto _socket = swoole::make_socket(sockfd, fd_type);
-    _socket->nonblock = nonblock;
-    _socket->cloexec = cloexec;
-    _socket->socket_type = type;
-    return _socket;
+    return sockfd;
 }
 
 Socket *make_server_socket(SocketType type, const char *address, int port, int backlog) {

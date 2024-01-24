@@ -615,30 +615,14 @@ static int Client_tcp_connect_async(Client *cli, const char *host, int port, dou
 
     if (cli->wait_dns) {
         AsyncEvent ev{};
-
-        size_t len = strlen(cli->server_host);
-        if (len < SW_IP_MAX_LENGTH) {
-            ev.nbytes = SW_IP_MAX_LENGTH;
-        } else {
-            ev.nbytes = len + 1;
-        }
-
-        ev.buf = sw_malloc(ev.nbytes);
-        if (!ev.buf) {
-            swoole_warning("malloc failed");
-            return SW_ERR;
-        }
-
-        memcpy(ev.buf, cli->server_host, len);
-        ((char *) ev.buf)[len] = 0;
-        ev.flags = cli->_sock_domain;
+        auto dns_request = new GethostbynameRequest(cli->server_host, cli->_sock_domain);
+        ev.data = dns_request;
         ev.object = cli;
-        ev.fd = cli->socket->fd;
         ev.handler = async::handler_gethostbyname;
         ev.callback = Client_onResolveCompleted;
 
         if (swoole::async::dispatch(&ev) == nullptr) {
-            sw_free(ev.buf);
+            delete dns_request;
             return SW_ERR;
         } else {
             return SW_OK;
@@ -1128,8 +1112,9 @@ static void Client_onTimeout(Timer *timer, TimerNode *tnode) {
 }
 
 static void Client_onResolveCompleted(AsyncEvent *event) {
+    auto dns_request = (GethostbynameRequest *) event->data;
     if (event->canceled) {
-        sw_free(event->buf);
+        delete dns_request;
         return;
     }
 
@@ -1137,7 +1122,7 @@ static void Client_onResolveCompleted(AsyncEvent *event) {
     cli->wait_dns = 0;
 
     if (event->error == 0) {
-        Client_tcp_connect_async(cli, (char *) event->buf, cli->server_port, cli->timeout, 1);
+        Client_tcp_connect_async(cli, dns_request->addr, cli->server_port, cli->timeout, 1);
     } else {
         swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
         cli->socket->removed = 1;
@@ -1146,7 +1131,7 @@ static void Client_onResolveCompleted(AsyncEvent *event) {
             cli->onError(cli);
         }
     }
-    sw_free(event->buf);
+    delete dns_request;
 }
 
 static int Client_onWrite(Reactor *reactor, Event *event) {

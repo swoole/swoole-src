@@ -40,7 +40,7 @@ class LRUCache {
         cache_capacity = capacity;
     }
 
-    inline std::shared_ptr<void> get(const std::string &key) {
+    std::shared_ptr<void> get(const std::string &key) {
         auto iter = cache_map.find(key);
         if (iter == cache_map.end()) {
             return nullptr;
@@ -54,7 +54,7 @@ class LRUCache {
         return iter->second->second.second;  // iter -> list::iter -> cache_node_t -> value
     }
 
-    inline void set(const std::string &key, const std::shared_ptr<void> &val, time_t expire = 0) {
+    void set(const std::string &key, const std::shared_ptr<void> &val, time_t expire = 0) {
         time_t expire_time;
 
         if (expire <= 0) {
@@ -82,7 +82,7 @@ class LRUCache {
         cache_map[key] = cache_list.begin();
     }
 
-    inline void del(const std::string &key) {
+    void del(const std::string &key) {
         auto iter = cache_map.find(key);
         if (iter == cache_map.end()) {
             return;
@@ -92,7 +92,7 @@ class LRUCache {
         cache_map.erase(iter);
     }
 
-    inline void clear() {
+    void clear() {
         cache_list.clear();
         cache_map.clear();
     }

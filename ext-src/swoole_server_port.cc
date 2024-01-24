@@ -15,6 +15,7 @@
  */
 
 #include "php_swoole_server.h"
+#include "php_swoole_call_stack.h"
 
 BEGIN_EXTERN_C()
 #include "stubs/php_swoole_server_port_arginfo.h"
@@ -37,8 +38,8 @@ static std::unordered_map<std::string, ServerPortEvent> server_port_event_map({
     { "bufferfull",  ServerPortEvent(SW_SERVER_CB_onBufferFull,  "BufferFull") },
     { "bufferempty", ServerPortEvent(SW_SERVER_CB_onBufferEmpty, "BufferEmpty") },
     { "request",     ServerPortEvent(SW_SERVER_CB_onRequest,     "Request") },
-    { "handshake",   ServerPortEvent(SW_SERVER_CB_onHandShake,   "Handshake") },
-    { "beforehandshakeresponse",        ServerPortEvent(SW_SERVER_CB_onBeforeHandShakeResponse,        "BeforeHandShakeResponse") },
+    { "handshake",   ServerPortEvent(SW_SERVER_CB_onHandshake,   "Handshake") },
+    { "beforehandshakeresponse", ServerPortEvent(SW_SERVER_CB_onBeforeHandshakeResponse, "BeforeHandshakeResponse") },
     { "open",        ServerPortEvent(SW_SERVER_CB_onOpen,        "Open") },
     { "message",     ServerPortEvent(SW_SERVER_CB_onMessage,     "Message") },
     { "disconnect",  ServerPortEvent(SW_SERVER_CB_onDisconnect,  "Disconnect") },
@@ -169,10 +170,11 @@ void php_swoole_server_port_minit(int module_number) {
     zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("onBufferFull"), ZEND_ACC_PRIVATE);
     zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("onBufferEmpty"), ZEND_ACC_PRIVATE);
     zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("onRequest"), ZEND_ACC_PRIVATE);
-    zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("onHandShake"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("onHandshake"), ZEND_ACC_PRIVATE);
     zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("onOpen"), ZEND_ACC_PRIVATE);
     zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("onMessage"), ZEND_ACC_PRIVATE);
     zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("onDisconnect"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("onBeforeHandshakeResponse"), ZEND_ACC_PRIVATE);
 
     zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("host"), ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_server_port_ce, ZEND_STRL("port"), 0, ZEND_ACC_PUBLIC);
@@ -197,7 +199,10 @@ static ssize_t php_swoole_server_length_func(const Protocol *protocol, network::
     ssize_t ret = -1;
 
     ZVAL_STRINGL(&zdata, pl->buf, pl->buf_size);
-    if (UNEXPECTED(sw_zend_call_function_ex(nullptr, fci_cache, 1, &zdata, &retval) != SUCCESS)) {
+    HOOK_PHP_CALL_STACK(
+        auto call_result = sw_zend_call_function_ex(nullptr, fci_cache, 1, &zdata, &retval);
+    );
+    if (UNEXPECTED(call_result) != SUCCESS) {
         php_swoole_fatal_error(E_WARNING, "length function handler error");
     } else {
         ret = zval_get_long(&retval);
@@ -270,7 +275,7 @@ static PHP_METHOD(swoole_server_port, set) {
         port->backlog = SW_MAX(0, SW_MIN(v, UINT16_MAX));
     }
     if (php_swoole_array_get_value(vht, "socket_buffer_size", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
+        zend_long v = php_swoole_parse_to_size(ztmp);
         port->socket_buffer_size = SW_MAX(INT_MIN, SW_MIN(v, INT_MAX));
         if (port->socket_buffer_size <= 0) {
             port->socket_buffer_size = INT_MAX;
@@ -280,7 +285,7 @@ static PHP_METHOD(swoole_server_port, set) {
      * !!! Don't set this option, for tests only.
      */
     if (php_swoole_array_get_value(vht, "kernel_socket_recv_buffer_size", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
+        zend_long v = php_swoole_parse_to_size(ztmp);
         port->kernel_socket_recv_buffer_size = SW_MAX(INT_MIN, SW_MIN(v, INT_MAX));
         if (port->kernel_socket_recv_buffer_size <= 0) {
             port->kernel_socket_recv_buffer_size = INT_MAX;
@@ -290,7 +295,7 @@ static PHP_METHOD(swoole_server_port, set) {
      * !!! Don't set this option, for tests only.
      */
     if (php_swoole_array_get_value(vht, "kernel_socket_send_buffer_size", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
+        zend_long v = php_swoole_parse_to_size(ztmp);
         port->kernel_socket_send_buffer_size = SW_MAX(INT_MIN, SW_MIN(v, INT_MAX));
         if (port->kernel_socket_send_buffer_size <= 0) {
             port->kernel_socket_send_buffer_size = INT_MAX;
@@ -302,11 +307,11 @@ static PHP_METHOD(swoole_server_port, set) {
         port->heartbeat_idle_time = SW_MAX(0, SW_MIN(v, UINT16_MAX));
     }
     if (php_swoole_array_get_value(vht, "buffer_high_watermark", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
+        zend_long v = php_swoole_parse_to_size(ztmp);
         port->buffer_high_watermark = SW_MAX(0, SW_MIN(v, UINT32_MAX));
     }
     if (php_swoole_array_get_value(vht, "buffer_low_watermark", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
+        zend_long v = php_swoole_parse_to_size(ztmp);
         port->buffer_low_watermark = SW_MAX(0, SW_MIN(v, UINT32_MAX));
     }
     // server: tcp_nodelay
@@ -486,7 +491,7 @@ static PHP_METHOD(swoole_server_port, set) {
      * package max length
      */
     if (php_swoole_array_get_value(vht, "package_max_length", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
+        zend_long v = php_swoole_parse_to_size(ztmp);
         port->protocol.package_max_length = SW_MAX(0, SW_MIN(v, UINT32_MAX));
     }
 

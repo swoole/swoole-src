@@ -11,12 +11,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php-version: [ '8.0', '8.1' ]
+        php-version: [ '8.0', '8.1', '8.2', '8.3' ]
         framework: [ 'Laravel Octane', 'Hyperf', 'Simps', 'imi' ]
     name: ${{ matrix.framework }} - PHP ${{ matrix.php-version }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -40,16 +40,15 @@ jobs:
           php --ri swoole
 
       - name: Laravel Octane Tests
-        if: matrix.framework == 'Laravel Octane'
+        if: matrix.framework == 'Laravel Octane' && matrix.php-version != '8.0'
         run: |
           git clone https://github.com/laravel/octane.git --depth=1
           cd octane/
-          composer require laravel/framework:"^8.35" --no-update
           composer update --prefer-dist --no-interaction --no-progress
-          vendor/bin/phpunit --verbose
+          vendor/bin/phpunit
 
       - name: Hyperf Tests
-        if: matrix.framework == 'Hyperf'
+        if: matrix.framework == 'Hyperf' && matrix.php-version != '8.0'
         env:
           SW_VERSION: 'master'
           MYSQL_VERSION: '5.7'
@@ -63,9 +62,14 @@ jobs:
           export TRAVIS_BUILD_DIR=$(pwd) && bash ./.travis/setup.mysql.sh
           export TRAVIS_BUILD_DIR=$(pwd) && bash ./.travis/setup.pgsql.sh
           cp .travis/.env.example .env
-          USE_ZEND_ALLOC=0 valgrind php -dswoole.use_shortname='Off' bin/co-phpunit --exclude-group NonCoroutine
-          USE_ZEND_ALLOC=0 valgrind php -dswoole.use_shortname='Off' vendor/bin/phpunit --group NonCoroutine
-          USE_ZEND_ALLOC=0 valgrind php -dswoole.use_shortname='Off' vendor/bin/phpunit src/filesystem --group NonCoroutine
+          export SWOOLE_BRANCH=${GITHUB_REF##*/}
+          if [ "${SWOOLE_BRANCH}" = "valgrind" ]; then
+            USE_ZEND_ALLOC=0 valgrind php -dswoole.use_shortname='Off' bin/co-phpunit --exclude-group NonCoroutine
+            USE_ZEND_ALLOC=0 valgrind php -dswoole.use_shortname='Off' vendor/bin/phpunit --group NonCoroutine
+            USE_ZEND_ALLOC=0 valgrind php -dswoole.use_shortname='Off' vendor/bin/phpunit src/filesystem --group NonCoroutine
+          else
+            .travis/run.test.sh
+          fi
 
       - name: Simps Tests
         if: matrix.framework == 'Simps'
@@ -78,16 +82,16 @@ jobs:
       - name: imi Tests
         if: matrix.framework == 'imi'
         env:
-          SW_VERSION: 'master'
           MYSQL_VERSION: '5.7'
           MYSQL_SERVER_PASSWORD:
         run: |
+          docker run --name mysql -d -p 3306:3306 --health-cmd="mysqladmin ping --silent" --health-interval=1s --health-retries=60 --health-timeout=3s -e MYSQL_ALLOW_EMPTY_PASSWORD=true mysql:${MYSQL_VERSION} --bind-address=0.0.0.0 --default-authentication-plugin=mysql_native_password
+          docker run --name redis -d -p 6379:6379 redis
+          docker run --name rabbitmq -d -p 4369:4369 -p 5672:5672 -p 15672:15672 -p 25672:25672 rabbitmq:management-alpine
           git clone -b 2.1 https://github.com/imiphp/imi.git --depth=1
           cd imi/
           composer update -o
-          docker run --name mysql -p 3306:3306 -e MYSQL_ALLOW_EMPTY_PASSWORD=true -d mysql:${MYSQL_VERSION} --bind-address=0.0.0.0 --default-authentication-plugin=mysql_native_password
-          docker run --name redis -p 6379:6379 -d redis
-          docker run -d --restart=always --name rabbitmq -p 4369:4369 -p 5672:5672 -p 15672:15672 -p 25672:25672 rabbitmq:management-alpine
+          timeout 60s sh -c 'until docker ps | grep mysql | grep -q healthy; do echo "Waiting for container to be healthy..."; sleep 1; done'
           mysql -h 127.0.0.1 -u root -e "CREATE DATABASE IF NOT EXISTS db_imi_test charset=utf8mb4 collate=utf8mb4_unicode_ci;"
           ./tests/db/install-db.sh
           composer test-swoole
@@ -98,12 +102,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php-version: [ '8.0', '8.1' ]
+        php-version: [ '8.0', '8.1', '8.2', '8.3' ]
         framework: [ 'Simps' ]
     name: ${{ matrix.framework }} - PHP ${{ matrix.php-version }} - macOS
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2

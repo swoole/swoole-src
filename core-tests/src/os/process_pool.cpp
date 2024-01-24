@@ -12,7 +12,7 @@ using namespace swoole;
 static void test_func(ProcessPool &pool) {
     EventData data{};
     data.info.len = strlen(TEST_JPG_MD5SUM);
-    strcpy(data.data, TEST_JPG_MD5SUM);
+    memcpy(data.data, TEST_JPG_MD5SUM, data.info.len);
 
     int worker_id = -1;
     ASSERT_EQ(pool.dispatch_blocking(&data, &worker_id), SW_OK);
@@ -27,15 +27,15 @@ static void test_func(ProcessPool &pool) {
     pool.destroy();
 }
 
-TEST(process_pool, tcp) { 
+TEST(process_pool, tcp) {
     ProcessPool pool{};
     ASSERT_EQ(pool.create(1, 0, SW_IPC_SOCKET), SW_OK);
     ASSERT_EQ(pool.listen(TEST_HOST, TEST_PORT, 128), SW_OK);
-    
+
     test_func(pool);
 }
 
-TEST(process_pool, unix_sock) { 
+TEST(process_pool, unix_sock) {
     ProcessPool pool{};
     signal(SIGPIPE, SIG_IGN);
     ASSERT_EQ(pool.create(1, 0, SW_IPC_UNIXSOCK), SW_OK);
@@ -43,31 +43,32 @@ TEST(process_pool, unix_sock) {
     test_func(pool);
 }
 
-TEST(process_pool, tcp_raw) { 
+TEST(process_pool, tcp_raw) {
     ProcessPool pool{};
-    constexpr int size = 2*1024*1024;
+    constexpr int size = 2 * 1024 * 1024;
     ASSERT_EQ(pool.create(1, 0, SW_IPC_SOCKET), SW_OK);
     ASSERT_EQ(pool.listen(TEST_HOST, TEST_PORT, 128), SW_OK);
-    pool.set_protocol(0, size);
+    pool.set_max_packet_size(size);
+    pool.set_protocol(SW_PROTOCOL_STREAM);
 
     String data(size);
-    data.append_random_bytes(size-1);
+    data.append_random_bytes(size - 1);
     data.append("\0");
-    
+
     ASSERT_EQ(pool.dispatch_blocking(data.str, data.length), SW_OK);
 
     pool.running = true;
     pool.ptr = &data;
-    pool.onMessage = [](ProcessPool *pool, const char *recv_data, uint32_t len) -> void {
+    pool.onMessage = [](ProcessPool *pool, RecvData *rdata) -> void {
         pool->running = false;
         String *_data = (String *) pool->ptr;
-        EXPECT_MEMEQ(_data->str, recv_data, len);
+        EXPECT_MEMEQ(_data->str, rdata->data, rdata->info.len);
     };
     pool.main_loop(&pool, pool.get_worker(0));
     pool.destroy();
 }
 
-TEST(process_pool, msgqueue) { 
+TEST(process_pool, msgqueue) {
     ProcessPool pool{};
     ASSERT_EQ(pool.create(1, 0x9501, SW_IPC_MSGQUEUE), SW_OK);
 
@@ -77,31 +78,30 @@ TEST(process_pool, msgqueue) {
 constexpr int magic_number = 99900011;
 static ProcessPool *current_pool = nullptr;
 
-TEST(process_pool, shutdown) { 
+TEST(process_pool, shutdown) {
     ProcessPool pool{};
-    int *shm_value = (int *) sw_mem_pool()->alloc(sizeof(int));    
+    int *shm_value = (int *) sw_mem_pool()->alloc(sizeof(int));
     ASSERT_EQ(pool.create(1, 0x9501, SW_IPC_MSGQUEUE), SW_OK);
 
-    // init 
-    pool.set_protocol(1, 8192);
+    // init
+    pool.set_max_packet_size(8192);
+    pool.set_protocol(SW_PROTOCOL_TASK);
     pool.ptr = shm_value;
-    pool.onWorkerStart = [](ProcessPool *pool, int worker_id) {
+    pool.onWorkerStart = [](ProcessPool *pool, Worker *worker) {
         int *shm_value = (int *) pool->ptr;
         *shm_value = magic_number;
         usleep(1);
     };
 
-    pool.onTask =  [](ProcessPool *pool, EventData *task) -> int {
+    pool.onTask = [](ProcessPool *pool, EventData *task) -> int {
         kill(pool->master_pid, SIGTERM);
 
         return 0;
     };
 
     current_pool = &pool;
-    sysv_signal(SIGTERM, [](int sig) {
-        current_pool->running = false;
-    });
-    
+    sysv_signal(SIGTERM, [](int sig) { current_pool->running = false; });
+
     // start
     ASSERT_EQ(pool.start(), SW_OK);
 
@@ -117,6 +117,6 @@ TEST(process_pool, shutdown) {
     // shutdown
     pool.shutdown();
     pool.destroy();
-    
+
     ASSERT_EQ(*shm_value, magic_number);
 }

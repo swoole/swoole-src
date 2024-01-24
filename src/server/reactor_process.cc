@@ -274,7 +274,7 @@ static int ReactorProcess_loop(ProcessPool *pool, Worker *worker) {
         return SW_ERR;
     }
 
-    serv->worker_start_callback();
+    serv->worker_start_callback(worker);
 
     /**
      * for heartbeat check
@@ -305,7 +305,7 @@ static int ReactorProcess_loop(ProcessPool *pool, Worker *worker) {
     }
 
     swoole_event_free();
-    serv->worker_stop_callback();
+    serv->worker_stop_callback(worker);
 
     return retval;
 }
@@ -324,6 +324,11 @@ static int ReactorProcess_onClose(Reactor *reactor, Event *event) {
         if (conn->close_queued) {
             return Server::close_connection(reactor, event->socket);
         } else {
+            /**
+             * peer_closed indicates that the client has closed the connection
+             * and the connection is no longer available.
+             */
+            conn->peer_closed = 1;
             return serv->notify(conn, SW_SERVER_EVENT_CLOSE) ? SW_OK : SW_ERR;
         }
     } else {

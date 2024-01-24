@@ -7,16 +7,10 @@
 
 // Stub file for universal binary
 
-#if defined(__i386__)
-    #include "make_i386_sysv_macho_gas.S"
-#elif defined(__x86_64__)
+#if defined(__x86_64__)
     #include "make_x86_64_sysv_macho_gas.S"
-#elif defined(__ppc__)
-    #include "make_ppc32_sysv_macho_gas.S"
 #elif defined(__ppc64__)
     #include "make_ppc64_sysv_macho_gas.S"
-#elif defined(__arm__)
-    #include "make_arm_aapcs_macho_gas.S"
 #elif defined(__arm64__)
     #include "make_arm64_aapcs_macho_gas.S"
 #else

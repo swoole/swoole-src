@@ -10,7 +10,7 @@ go(function () {
     $cli->connect('www.baidu.com', 80);
     Assert::true($cli->close());
     Assert::false($cli->close());
-    Assert::eq($cli->errCode, SOCKET_EBADF);
+    Assert::eq($cli->errCode, SWOOLE_ERROR_CLIENT_NO_CONNECTION);
 });
 Swoole\Event::wait();
 ?>

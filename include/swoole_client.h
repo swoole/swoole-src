@@ -164,7 +164,7 @@ class Stream {
     int send(const char *data, size_t length);
     void set_max_length(uint32_t max_length);
 
-    inline static Stream *create(const char *dst_host, int dst_port, SocketType type) {
+    static inline Stream *create(const char *dst_host, int dst_port, SocketType type) {
         Stream *stream = new Stream(dst_host, dst_port, type);
         if (!stream->connected) {
             delete stream;

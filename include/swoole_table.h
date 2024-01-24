@@ -74,12 +74,12 @@ struct TableRow {
 
 struct TableIterator {
     size_t row_memory_size_;
-    uint32_t absolute_index;
-    uint32_t collision_index;
+    uint32_t absolute_index = 0;
+    uint32_t collision_index = 0;
     TableRow *current_;
     Mutex *mutex_;
 
-    TableIterator(size_t row_size) {
+    explicit TableIterator(size_t row_size) {
         current_ = (TableRow *) sw_malloc(row_size);
         if (!current_) {
             throw std::bad_alloc();
@@ -153,9 +153,6 @@ struct TableColumn {
 
 class Table {
   private:
-    Table() = delete;
-    ~Table() = delete;
-
     std::unordered_map<std::string, TableColumn *> *column_map;
     Mutex *mutex;
     size_t size;
@@ -187,9 +184,12 @@ class Table {
     sw_atomic_long_t update_count;
     uint32_t conflict_max_level;
 
+    Table() = delete;
+    ~Table() = delete;
+
     static Table *make(uint32_t rows_size, float conflict_proportion);
-    size_t calc_memory_size();
-    size_t get_memory_size();
+    size_t calc_memory_size() const;
+    size_t get_memory_size() const;
     uint32_t get_available_slice_num();
     uint32_t get_total_slice_num();
     bool create();
@@ -203,7 +203,7 @@ class Table {
     // release shared memory
     void destroy();
 
-    bool is_created() {
+    bool is_created() const {
         return created;
     }
 
@@ -215,7 +215,7 @@ class Table {
         hash_func = _fn;
     }
 
-    size_t get_size() {
+    size_t get_size() const {
         return size;
     }
 
@@ -233,7 +233,7 @@ class Table {
         }
     }
 
-    size_t count() {
+    size_t count() const {
         return row_num;
     }
 
@@ -259,8 +259,8 @@ class Table {
     }
 
     void clear_row(TableRow *row) {
-        for (auto i = column_list->begin(); i != column_list->end(); i++) {
-            (*i)->clear(row);
+        for (auto & i : *column_list) {
+            i->clear(row);
         }
     }
 
@@ -275,7 +275,7 @@ class Table {
 
     TableRow *alloc_row() {
         lock();
-        TableRow *new_row = (TableRow *) pool->alloc(0);
+        auto new_row = (TableRow *) pool->alloc(0);
         unlock();
         return new_row;
     }
@@ -287,7 +287,7 @@ class Table {
         unlock();
     }
 
-    void check_key_length(uint16_t *keylen) {
+    static void check_key_length(uint16_t *keylen) {
         if (*keylen >= SW_TABLE_KEY_SIZE) {
             *keylen = SW_TABLE_KEY_SIZE - 1;
         }

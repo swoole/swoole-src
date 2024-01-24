@@ -154,7 +154,7 @@ void php_swoole_set_coroutine_option(zend_array *vht) {
         PHPCoroutine::enable_preemptive_scheduler(zval_is_true(ztmp));
     }
     if (php_swoole_array_get_value(vht, "c_stack_size", ztmp) || php_swoole_array_get_value(vht, "stack_size", ztmp)) {
-        Coroutine::set_stack_size(zval_get_long(ztmp));
+        Coroutine::set_stack_size(php_swoole_parse_to_size(ztmp));
     }
     if (php_swoole_array_get_value(vht, "name_resolver", ztmp)) {
         if (!ZVAL_IS_ARRAY(ztmp)) {
@@ -191,9 +191,6 @@ PHP_METHOD(swoole_coroutine_scheduler, set) {
     }
     if (php_swoole_array_get_value(vht, "dns_cache_capacity", ztmp)) {
         System::set_dns_cache_capacity((size_t) zval_get_long(ztmp));
-    }
-    if (php_swoole_array_get_value(vht, "max_concurrency", ztmp)) {
-        PHPCoroutine::set_max_concurrency((uint32_t) SW_MAX(1, zval_get_long(ztmp)));
     }
     /* Reactor can exit */
     if ((ztmp = zend_hash_str_find(vht, ZEND_STRL("exit_condition")))) {
@@ -318,7 +315,7 @@ static PHP_METHOD(swoole_coroutine_scheduler, start) {
         SchedulerTask *task = s->list->front();
         s->list->pop();
         for (zend_long i = 0; i < task->count; i++) {
-            PHPCoroutine::create(&task->fci_cache, task->fci.param_count, task->fci.params);
+            PHPCoroutine::create(&task->fci_cache, task->fci.param_count, task->fci.params, &task->fci.function_name);
         }
         sw_zend_fci_cache_discard(&task->fci_cache);
         sw_zend_fci_params_discard(&task->fci);

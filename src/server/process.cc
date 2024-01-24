@@ -38,28 +38,9 @@ bool ProcessFactory::shutdown() {
     return SW_OK;
 }
 
-ProcessFactory::~ProcessFactory() {
-    if (server_->stream_socket_file) {
-        unlink(server_->stream_socket_file);
-        sw_free(server_->stream_socket_file);
-        server_->stream_socket->free();
-    }
-}
+ProcessFactory::~ProcessFactory() {}
 
 bool ProcessFactory::start() {
-    if (server_->dispatch_mode == Server::DISPATCH_STREAM) {
-        server_->stream_socket_file = swoole_string_format(64, "/tmp/swoole.%d.sock", server_->gs->master_pid);
-        if (server_->stream_socket_file == nullptr) {
-            return false;
-        }
-        Socket *sock = swoole::make_server_socket(SW_SOCK_UNIX_STREAM, server_->stream_socket_file);
-        if (sock == nullptr) {
-            return false;
-        }
-        sock->set_fd_option(1, 1);
-        server_->stream_socket = sock;
-    }
-
     SW_LOOP_N(server_->worker_num) {
         auto _sock = new UnixSocket(true, SOCK_DGRAM);
         if (!_sock->ready()) {
@@ -200,21 +181,6 @@ bool ProcessFactory::finish(SendData *resp) {
         return false;
     }
 
-    if (server_->last_stream_socket) {
-        uint32_t _len = resp->info.len;
-        uint32_t _header = htonl(_len + sizeof(resp->info));
-        if (swoole_event_write(server_->last_stream_socket, (char *) &_header, sizeof(_header)) < 0) {
-            return false;
-        }
-        if (swoole_event_write(server_->last_stream_socket, &resp->info, sizeof(resp->info)) < 0) {
-            return false;
-        }
-        if (_len > 0 && swoole_event_write(server_->last_stream_socket, resp->data, _len) < 0) {
-            return false;
-        }
-        return true;
-    }
-
     SendData task;
     memcpy(&task, resp, sizeof(SendData));
     task.info.fd = session_id;
@@ -236,7 +202,7 @@ bool ProcessFactory::end(SessionId session_id, int flags) {
 
     Connection *conn = server_->get_connection_verify_no_ssl(session_id);
     if (!conn) {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "session#%ld does not exists", session_id);
+        swoole_error_log(SW_LOG_TRACE, SW_ERROR_SESSION_NOT_EXIST, "session#%ld does not exists", session_id);
         return false;
     }
     // Reset send buffer, Immediately close the connection.
@@ -259,9 +225,6 @@ bool ProcessFactory::end(SessionId session_id, int flags) {
      * MUST forward to the correct worker process
      */
     if (conn->close_actively) {
-        if (server_->last_stream_socket) {
-            goto _close;
-        }
         bool hash = server_->is_hash_dispatch_mode();
         int worker_id = hash ? server_->schedule_worker(conn->fd, nullptr) : conn->fd % server_->worker_num;
         if (server_->is_worker() && (!hash || worker_id == (int) SwooleG.process_id)) {

@@ -10,12 +10,10 @@ $process = new Swoole\Process(function () {
         echo 'shutdown' . PHP_EOL;
     });
     go(function () {
-        try
-        {
+        try {
             exit(0);
-        } catch (Swoole\ExitException $e)
-        {
-            echo $e->getMessage()."\n";
+        } catch (Swoole\ExitException $e) {
+            echo $e->getMessage() . "\n";
         }
     });
 });

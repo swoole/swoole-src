@@ -49,8 +49,8 @@ enum php_swoole_server_port_callback_type {
     SW_SERVER_CB_onClose,                    // stream, worker(event)
     SW_SERVER_CB_onPacket,                   // dgram, worker(event)
     SW_SERVER_CB_onRequest,                  // http, worker(event)
-    SW_SERVER_CB_onHandShake,                // websocket, worker(event)
-    SW_SERVER_CB_onBeforeHandShakeResponse,  // websocket, worker(event)
+    SW_SERVER_CB_onHandshake,                // websocket, worker(event)
+    SW_SERVER_CB_onBeforeHandshakeResponse,  // websocket, worker(event)
     SW_SERVER_CB_onOpen,                     // websocket, worker(event)
     SW_SERVER_CB_onMessage,                  // websocket, worker(event)
     SW_SERVER_CB_onDisconnect,               // websocket (non websocket connection), worker(event)
@@ -137,6 +137,7 @@ void php_swoole_get_recv_data(swServer *serv, zval *zdata, swRecvData *req);
 void php_swoole_server_onConnect(swServer *, swDataHead *);
 int php_swoole_server_onReceive(swServer *, swRecvData *);
 int php_swoole_http_server_onReceive(swServer *, swRecvData *);
+void php_swoole_http_server_onClose(swServer *serv, swDataHead *info);
 int php_swoole_redis_server_onReceive(swServer *serv, swRecvData *req);
 int php_swoole_server_onPacket(swServer *, swRecvData *);
 void php_swoole_server_onClose(swServer *, swDataHead *);

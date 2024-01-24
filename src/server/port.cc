@@ -503,6 +503,7 @@ _parse:
     // parse http header and got http body length
     if (!request->header_parsed) {
         request->parse_header_info();
+        request->max_length_ = protocol->package_max_length;
         swoole_trace_log(SW_TRACE_SERVER,
                          "content-length=%" PRIu64 ", keep-alive=%u, chunked=%u",
                          request->content_length_,
@@ -510,8 +511,9 @@ _parse:
                          request->chunked);
         if (request->form_data_) {
             if (serv->upload_max_filesize > 0 &&
-                request->header_length_ + request->content_length_ > protocol->package_max_length) {
+                request->header_length_ + request->content_length_ > request->max_length_) {
                 request->init_multipart_parser(serv);
+
                 buffer = request->buffer_;
             } else {
                 delete request->form_data_;
@@ -527,10 +529,10 @@ _parse:
         if (!request->parse_multipart_data(buffer)) {
             goto _bad_request;
         }
-        if (request->too_large || request->form_data_->multipart_buffer_->length > protocol->package_max_length) {
+        if (request->too_large) {
             goto _too_large;
         }
-        if (request->excepted) {
+        if (request->unavailable) {
             goto _unavailable;
         }
         if (!request->tried_to_dispatch) {
@@ -775,6 +777,18 @@ const char *ListenPort::get_protocols() {
         return "redis";
     } else {
         return "raw";
+    }
+}
+
+size_t ListenPort::get_connection_num() {
+    if (gs->connection_nums) {
+        size_t num = 0;
+        for (uint32_t i = 0; i < sw_server()->worker_num; i++) {
+            num += gs->connection_nums[i];
+        }
+        return num;
+    } else {
+        return gs->connection_num;
     }
 }
 

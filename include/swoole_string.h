@@ -129,31 +129,31 @@ class String {
         }
     }
 
-    inline char *value() {
+    char *value() {
         return str;
     }
 
-    inline size_t get_length() {
+    size_t get_length() {
         return length;
     }
 
-    inline size_t capacity() {
+    size_t capacity() {
         return size;
     }
 
-    inline std::string to_std_string() {
+    std::string to_std_string() {
         return std::string(str, length);
     }
 
-    inline bool contains(const char *needle, size_t l_needle) {
+    bool contains(const char *needle, size_t l_needle) {
         return swoole_strnstr(str, length, needle, l_needle) != nullptr;
     }
 
-    inline bool contains(const std::string &needle) {
+    bool contains(const std::string &needle) {
         return contains(needle.c_str(), needle.size());
     }
 
-    inline bool grow(size_t incr_value) {
+    bool grow(size_t incr_value) {
         length += incr_value;
         if (length == size && !reserve(size * 2)) {
             return false;
@@ -175,21 +175,21 @@ class String {
         return str == nullptr || length == 0;
     }
 
-    inline void clear() {
+    void clear() {
         length = 0;
         offset = 0;
     }
 
-    inline bool extend() {
+    bool extend() {
         return extend(size * 2);
     }
 
-    inline bool extend(size_t new_size) {
+    bool extend(size_t new_size) {
         assert(new_size > size);
         return reserve(new_size);
     }
 
-    inline bool extend_align(size_t _new_size) {
+    bool extend_align(size_t _new_size) {
         size_t align_size = SW_MEM_ALIGNED_SIZE(size * 2);
         while (align_size < _new_size) {
             align_size *= 2;
@@ -201,15 +201,15 @@ class String {
     bool repeat(const char *data, size_t len, size_t n);
     int append(const char *append_str, size_t length);
 
-    inline int append(const std::string &append_str) {
+    int append(const std::string &append_str) {
         return append(append_str.c_str(), append_str.length());
     }
 
-    inline int append(char c) {
+    int append(char c) {
         return append(&c, sizeof(c));
     }
 
-    inline int append(const String &append_str) {
+    int append(const String &append_str) {
         size_t new_size = length + append_str.length;
         if (new_size > size) {
             if (!reserve(new_size)) {
@@ -222,7 +222,7 @@ class String {
         return SW_OK;
     }
 
-    inline void write(off_t _offset, String *write_str) {
+    void write(off_t _offset, String *write_str) {
         size_t new_length = _offset + write_str->length;
         if (new_length > size) {
             reserve(swoole_size_align(new_length * 2, swoole_pagesize()));
@@ -234,7 +234,7 @@ class String {
         }
     }
 
-    inline void write(off_t _offset, const char *write_str, size_t _length) {
+    void write(off_t _offset, const char *write_str, size_t _length) {
         size_t new_length = _offset + _length;
         if (new_length > size) {
             reserve(swoole_size_align(new_length * 2, swoole_pagesize()));
@@ -258,7 +258,7 @@ class String {
     };
 
     template <typename... Args>
-    inline size_t format_impl(int flags, const char *format, Args... args) {
+    size_t format_impl(int flags, const char *format, Args... args) {
         size_t _size = sw_snprintf(nullptr, 0, format, args...);
         if (_size == 0) {
             return 0;
@@ -294,7 +294,7 @@ class String {
     }
 
     template <typename... Args>
-    inline size_t format(const char *format, Args... args) {
+    size_t format(const char *format, Args... args) {
         return format_impl(0, format, args...);
     }
 

@@ -336,19 +336,19 @@ int Server::start_check() {
     if (is_process_mode()) {
         if (!is_support_unsafe_events()) {
             if (onConnect) {
-                swoole_warning("cannot set 'onConnect' event when using dispatch_mode=1/3/7");
+                swoole_warning("cannot set 'onConnect' event when using dispatch_mode=%d", dispatch_mode);
                 onConnect = nullptr;
             }
             if (onClose) {
-                swoole_warning("cannot set 'onClose' event when using dispatch_mode=1/3/7");
+                swoole_warning("cannot set 'onClose' event when using dispatch_mode=%d", dispatch_mode);
                 onClose = nullptr;
             }
             if (onBufferFull) {
-                swoole_warning("cannot set 'onBufferFull' event when using dispatch_mode=1/3/7");
+                swoole_warning("cannot set 'onBufferFull' event when using dispatch_mode=%d", dispatch_mode);
                 onBufferFull = nullptr;
             }
             if (onBufferEmpty) {
-                swoole_warning("cannot set 'onBufferEmpty' event when using dispatch_mode=1/3/7");
+                swoole_warning("cannot set 'onBufferEmpty' event when using dispatch_mode=%d", dispatch_mode);
                 onBufferEmpty = nullptr;
             }
             disable_notify = 1;
@@ -600,7 +600,7 @@ void Server::call_worker_start_callback(Worker *worker) {
         call_hook(Server::HOOK_WORKER_START, hook_args);
     }
     if (onWorkerStart) {
-        onWorkerStart(this, worker->id);
+        onWorkerStart(this, worker);
     }
 }
 
@@ -760,6 +760,14 @@ int Server::create() {
         return SW_ERR;
     }
 
+    if (is_base_mode()) {
+        gs->connection_nums = (sw_atomic_t *) sw_shm_calloc(worker_num, sizeof(sw_atomic_t));
+        if (gs->connection_nums == nullptr) {
+            swoole_error("sw_shm_calloc(%ld) for gs->connection_nums failed", worker_num * sizeof(sw_atomic_t));
+            return SW_ERR;
+        }
+    }
+
     if (swoole_isset_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_CREATE)) {
         swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_CREATE, this);
     }
@@ -779,6 +787,13 @@ int Server::create() {
     int index = 0;
     for (auto port : ports) {
         port->gs = &port_gs_list[index++];
+        if (is_base_mode()) {
+            port->gs->connection_nums = (sw_atomic_t *) sw_shm_calloc(worker_num, sizeof(sw_atomic_t));
+            if (port->gs->connection_nums == nullptr) {
+                swoole_error("sw_shm_calloc(%ld) for port->connection_nums failed", worker_num * sizeof(sw_atomic_t));
+                return SW_ERR;
+            }
+        }
     }
 
     if (enable_static_handler and locations == nullptr) {
@@ -963,6 +978,8 @@ void Server::destroy() {
         join_reactor_thread();
     }
 
+	release_pipe_buffers();
+
     for (auto port : ports) {
         port->close();
     }
@@ -1008,13 +1025,24 @@ void Server::destroy() {
 #endif
     }
 #endif
+
+    for (auto port : ports) {
+        if (port->gs->connection_nums) {
+            sw_shm_free((void *) port->gs->connection_nums);
+        }
+    }
+
     sw_shm_free(session_list);
     sw_shm_free(port_gs_list);
     sw_shm_free(workers);
+    if (gs->connection_nums) {
+        sw_shm_free((void *) gs->connection_nums);
+    }
 
     session_list = nullptr;
     port_gs_list = nullptr;
     workers = nullptr;
+    gs->connection_nums = nullptr;
 
     delete factory;
     factory = nullptr;
@@ -1530,8 +1558,8 @@ bool Server::sendwait(SessionId session_id, const void *data, uint32_t length) {
     Connection *conn = get_connection_verify(session_id);
     if (!conn) {
         swoole_error_log(SW_LOG_TRACE,
-                         SW_ERROR_SESSION_CLOSED,
-                         "send %d byte failed, because session#%ld is closed",
+                         SW_ERROR_SESSION_NOT_EXIST,
+                         "send %d byte failed, because session#%ld is not exists",
                          length,
                          session_id);
         return false;
@@ -1768,6 +1796,7 @@ ListenPort *Server::add_port(SocketType type, const char *host, int port) {
     ls->socket = make_socket(
         ls->type, ls->is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER, SW_SOCK_CLOEXEC | SW_SOCK_NONBLOCK);
     if (ls->socket == nullptr) {
+        swoole_set_last_error(errno);
         return nullptr;
     }
 #if defined(SW_SUPPORT_DTLS) && defined(HAVE_KQUEUE)
@@ -1777,6 +1806,7 @@ ListenPort *Server::add_port(SocketType type, const char *host, int port) {
 #endif
 
     if (ls->socket->bind(ls->host, &ls->port) < 0) {
+        swoole_set_last_error(errno);
         ls->socket->free();
         return nullptr;
     }
@@ -1951,8 +1981,13 @@ _find_available_slot:
 
     gs->accept_count++;
     ls->gs->accept_count++;
-    sw_atomic_fetch_add(&gs->connection_num, 1);
-    sw_atomic_fetch_add(&ls->gs->connection_num, 1);
+    if (is_base_mode()) {
+        sw_atomic_fetch_add(&gs->connection_nums[reactor_id], 1);
+        sw_atomic_fetch_add(&ls->gs->connection_nums[reactor_id], 1);
+    } else {
+        sw_atomic_fetch_add(&gs->connection_num, 1);
+        sw_atomic_fetch_add(&ls->gs->connection_num, 1);
+    }
 
     return connection;
 }
@@ -1978,6 +2013,10 @@ void Server::init_ipc_max_size() {
 int Server::create_pipe_buffers() {
     message_bus.set_buffer_size(ipc_max_size);
     return message_bus.alloc_buffer() ? SW_OK : SW_ERR;
+}
+
+void Server::release_pipe_buffers() {
+	message_bus.free_buffer();
 }
 
 int Server::get_idle_worker_num() {

@@ -50,6 +50,8 @@ const char *swoole_strerror(int code) {
         return "Protocol error";
     case SW_ERROR_WRONG_OPERATION:
         return "Wrong operation";
+    case SW_ERROR_PHP_RUNTIME_NOTICE:
+        return "PHP runtime notice";
     case SW_ERROR_FILE_NOT_EXIST:
         return "File not exist";
     case SW_ERROR_FILE_TOO_LARGE:
@@ -162,6 +164,10 @@ const char *swoole_strerror(int code) {
         return "Http proxy handshake failed";
     case SW_ERROR_HTTP_PROXY_BAD_RESPONSE:
         return "Http proxy bad response";
+    case SW_ERROR_HTTP_CONFLICT_HEADER:
+        return "Http conflict header";
+    case SW_ERROR_HTTP_CONTEXT_UNAVAILABLE:
+        return "Http context unavailable";
     case SW_ERROR_WEBSOCKET_BAD_CLIENT:
         return "Websocket bad client";
     case SW_ERROR_WEBSOCKET_BAD_OPCODE:

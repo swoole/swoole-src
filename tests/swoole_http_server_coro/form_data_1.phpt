@@ -13,13 +13,11 @@ use Swoole\Http\Response;
 use Swoole\Process;
 use function Swoole\Coroutine\run;
 
-const OFFSET = 250;
-
 $pm = new ProcessManager;
 $pm->initFreePorts();
 
 $pm->parentFunc = function ($pid) use ($pm) {
-    form_data_test_1($pm);
+    form_data_test($pm, [250]);
 };
 
 $pm->childFunc = function () use ($pm) {

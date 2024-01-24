@@ -13,6 +13,7 @@ services:
       - mysql
       - redis
       - pgsql
+      - oracle
     dns:
       - 8.8.8.8
       - 1.1.1.1
@@ -21,7 +22,7 @@ services:
     command: tail -f /etc/group
   mysql:
     container_name: "mysql"
-    image: "twosee/swoole:mysql5"
+    image: "phpswoole/mysql:5.6"
     volumes:
       - ./data/mysql:/var/lib/mysql:rw
       - ./data/run/mysqld:/var/run/mysqld:rw
@@ -37,9 +38,16 @@ services:
       POSTGRES_USER: root
       POSTGRES_DB: test
       POSTGRES_PASSWORD: root
+  oracle:
+    image: gvenzl/oracle-xe:slim
+    container_name: "oracle"
+    environment:
+      ORACLE_PASSWORD: oracle
+    ports:
+      - "1521:1521"
   redis:
     container_name: "redis"
-    image: "twosee/swoole:redis"
+    image: "phpswoole/redis:latest"
     volumes:
       - ./data/redis:/var/lib/redis:rw
       - ./data/run/redis:/var/run/redis:rw

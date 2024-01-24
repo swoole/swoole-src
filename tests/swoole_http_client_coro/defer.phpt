@@ -29,7 +29,7 @@ $pm->parentFunc = function () use ($pm) {
         $retry_time = microtime(true) - $retry_time;
 
         $pm->kill();
-        usleep(1000);
+        $pm->wait();
 
         // failed when connect
         $failed_time = microtime(true);
@@ -66,6 +66,7 @@ $pm->childFunc = function () use ($pm) {
         }
     });
     $server->start();
+    $pm->wakeup();
 };
 $pm->childFirst();
 $pm->run();

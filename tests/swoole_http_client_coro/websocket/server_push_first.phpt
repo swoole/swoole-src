@@ -36,8 +36,9 @@ Co\run(function () use ($pm) {
 
     go(function () use ($pm, $server) {
         $wr = WaitRef::create();
+        $childs = [];
         for ($c = MAX_CONCURRENCY_LOW; $c--;) {
-            go(function () use ($pm, $wr) {
+            $childs[] = go(function () use ($pm, $wr) {
                 $cli = new \Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
                 $cli->set(['timeout' => 5]);
                 $ret = $cli->upgrade('/websocket');
@@ -49,9 +50,11 @@ Co\run(function () use ($pm) {
             });
         }
         WaitRef::wait($wr);
+        echo "DONE\n";
         $server->shutdown();
     });
 });
 
 ?>
 --EXPECT--
+DONE

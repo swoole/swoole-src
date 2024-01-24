@@ -7,16 +7,10 @@
 
 // Stub file for universal binary
 
-#if defined(__i386__)
-    #include "jump_i386_sysv_macho_gas.S"
-#elif defined(__x86_64__)
+#if defined(__x86_64__)
     #include "jump_x86_64_sysv_macho_gas.S"
-#elif defined(__ppc__)
-    #include "jump_ppc32_sysv_macho_gas.S"
 #elif defined(__ppc64__)
     #include "jump_ppc64_sysv_macho_gas.S"
-#elif defined(__arm__)
-    #include "jump_arm_aapcs_macho_gas.S"
 #elif defined(__arm64__)
     #include "jump_arm64_aapcs_macho_gas.S"
 #else

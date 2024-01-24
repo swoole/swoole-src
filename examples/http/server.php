@@ -6,6 +6,7 @@ function dump($var)
 
 $key_dir = dirname(dirname(__DIR__)) . '/tests/ssl';
 $http = new Swoole\Http\Server("0.0.0.0", 9501, SWOOLE_BASE);
+//$http = new Swoole\Http\Server("::", 9501, SWOOLE_BASE, SWOOLE_SOCK_TCP6);
 //$http = new Swoole\Http\Server("0.0.0.0", 9501);
 //$http = new Swoole\Http\Server("0.0.0.0", 9501, SWOOLE_BASE, SWOOLE_SOCK_TCP | SWOOLE_SSL);
 //https

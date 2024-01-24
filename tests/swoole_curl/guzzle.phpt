@@ -19,6 +19,10 @@ use function Swoole\Coroutine\go;
 
 Runtime::enableCoroutine(SWOOLE_HOOK_NATIVE_CURL);
 
+register_shutdown_function(function (){
+   phpt_show_usage();
+});
+
 const N = 4;
 
 run(function () {
@@ -29,17 +33,17 @@ run(function () {
         $promises = [
             'baidu' => $client->getAsync('http://www.baidu.com/'),
             'qq' => $client->getAsync('https://www.qq.com/'),
-            'gov' => $client->getAsync('http://www.gov.cn/')
+            'zhihu' => $client->getAsync('http://www.zhihu.com/')
         ];
         $responses = Promise\Utils::unwrap($promises);
         Assert::contains($responses['baidu']->getBody(), '百度');
         Assert::contains(iconv('gbk', 'utf-8', $responses['qq']->getBody()), '腾讯');
-        Assert::contains($responses['gov']->getBody(), '中华人民共和国');
+        Assert::contains($responses['zhihu']->getBody(), '知乎');
         $result['task_1'] = 'OK';
     });
 
     go(function () use ($barrier, &$result) {
-        $client = new Client(['base_uri' => 'http://httpbin.org/']);
+        $client = new Client(['base_uri' => 'https://httpbin.org/']);
         $n = N;
         $data = $promises = [];
         while ($n--) {

@@ -147,6 +147,10 @@ static const zend_module_dep swoole_deps[] = {
 #ifdef SW_USE_CURL
     ZEND_MOD_REQUIRED("curl")
 #endif
+#if defined(SW_USE_PGSQL) || defined(SW_USE_ORACLE) || defined(SW_USE_SQLITE)
+    ZEND_MOD_REQUIRED("pdo")
+#endif
+
     ZEND_MOD_END
 };
 
@@ -186,6 +190,7 @@ PHP_INI_BEGIN()
  */
 STD_ZEND_INI_BOOLEAN("swoole.enable_coroutine", "On", PHP_INI_ALL, OnUpdateBool, enable_coroutine, zend_swoole_globals, swoole_globals)
 STD_ZEND_INI_BOOLEAN("swoole.enable_library", "On", PHP_INI_ALL, OnUpdateBool, enable_library, zend_swoole_globals, swoole_globals)
+STD_ZEND_INI_BOOLEAN("swoole.enable_fiber_mock", "Off", PHP_INI_ALL, OnUpdateBool, enable_fiber_mock, zend_swoole_globals, swoole_globals)
 /**
  * enable swoole coroutine epreemptive scheduler
  */
@@ -208,6 +213,7 @@ PHP_INI_END()
 static void php_swoole_init_globals(zend_swoole_globals *swoole_globals) {
     swoole_globals->enable_coroutine = 1;
     swoole_globals->enable_library = 1;
+    swoole_globals->enable_fiber_mock = 0;
     swoole_globals->enable_preemptive_scheduler = 0;
     swoole_globals->socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
     swoole_globals->display_errors = 1;
@@ -293,7 +299,7 @@ void php_swoole_set_global_option(HashTable *vht) {
         Socket::default_read_timeout = timeout_format(ztmp);
     }
     if (php_swoole_array_get_value(vht, "socket_buffer_size", ztmp)) {
-        Socket::default_buffer_size = zval_get_long(ztmp);
+        Socket::default_buffer_size = php_swoole_parse_to_size(ztmp);
     }
     if (php_swoole_array_get_value(vht, "socket_timeout", ztmp)) {
         Socket::default_read_timeout = Socket::default_write_timeout = timeout_format(ztmp);
@@ -301,7 +307,7 @@ void php_swoole_set_global_option(HashTable *vht) {
     // [HTTP2]
     // ======================================================================
     if (php_swoole_array_get_value(vht, "http2_header_table_size", ztmp)) {
-        swoole::http2::put_default_setting(SW_HTTP2_SETTING_HEADER_TABLE_SIZE, zval_get_long(ztmp));
+        swoole::http2::put_default_setting(SW_HTTP2_SETTING_HEADER_TABLE_SIZE, php_swoole_parse_to_size(ztmp));
     }
     if (php_swoole_array_get_value(vht, "http2_enable_push", ztmp)) {
         swoole::http2::put_default_setting(SW_HTTP2_SETTINGS_ENABLE_PUSH, zval_get_long(ztmp));
@@ -310,13 +316,13 @@ void php_swoole_set_global_option(HashTable *vht) {
         swoole::http2::put_default_setting(SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS, zval_get_long(ztmp));
     }
     if (php_swoole_array_get_value(vht, "http2_init_window_size", ztmp)) {
-        swoole::http2::put_default_setting(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE, zval_get_long(ztmp));
+        swoole::http2::put_default_setting(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE, php_swoole_parse_to_size(ztmp));
     }
     if (php_swoole_array_get_value(vht, "http2_max_frame_size", ztmp)) {
-        swoole::http2::put_default_setting(SW_HTTP2_SETTINGS_MAX_FRAME_SIZE, zval_get_long(ztmp));
+        swoole::http2::put_default_setting(SW_HTTP2_SETTINGS_MAX_FRAME_SIZE, php_swoole_parse_to_size(ztmp));
     }
     if (php_swoole_array_get_value(vht, "http2_max_header_list_size", ztmp)) {
-        swoole::http2::put_default_setting(SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE, zval_get_long(ztmp));
+        swoole::http2::put_default_setting(SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE, php_swoole_parse_to_size(ztmp));
     }
 }
 
@@ -332,18 +338,23 @@ SW_API bool php_swoole_is_enable_coroutine() {
     }
 }
 
+SW_API zend_long php_swoole_parse_to_size(zval *zv) {
+    if (ZVAL_IS_STRING(zv)) {
+        return zend_atol(Z_STRVAL_P(zv), Z_STRLEN_P(zv));
+    } else {
+        return zval_get_long(zv);
+    }
+}
+
 static void fatal_error(int code, const char *format, ...) {
     va_list args;
     va_start(args, format);
     zend_object *exception =
         zend_throw_exception(swoole_error_ce, swoole::std_string::vformat(format, args).c_str(), code);
     va_end(args);
-    if (EG(bailout)) {
-        zend_bailout();
-    } else {
-        zend_exception_error(exception, E_ERROR);
-        exit(255);
-    }
+
+    zend_exception_error(exception, E_ERROR);
+    exit(255);
 }
 
 static void bug_report_message_init() {
@@ -501,6 +512,7 @@ PHP_MINIT_FUNCTION(swoole) {
     SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_OPERATION_NOT_SUPPORT", SW_ERROR_OPERATION_NOT_SUPPORT);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_PROTOCOL_ERROR", SW_ERROR_PROTOCOL_ERROR);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_WRONG_OPERATION", SW_ERROR_WRONG_OPERATION);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_PHP_RUNTIME_NOTICE", SW_ERROR_PHP_RUNTIME_NOTICE);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_FILE_NOT_EXIST", SW_ERROR_FILE_NOT_EXIST);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_FILE_TOO_LARGE", SW_ERROR_FILE_TOO_LARGE);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_FILE_EMPTY", SW_ERROR_FILE_EMPTY);
@@ -557,6 +569,8 @@ PHP_MINIT_FUNCTION(swoole) {
     SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_HTTP_INVALID_PROTOCOL", SW_ERROR_HTTP_INVALID_PROTOCOL);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_HTTP_PROXY_HANDSHAKE_FAILED", SW_ERROR_HTTP_PROXY_HANDSHAKE_FAILED);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_HTTP_PROXY_BAD_RESPONSE", SW_ERROR_HTTP_PROXY_BAD_RESPONSE);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_HTTP_CONFLICT_HEADER", SW_ERROR_HTTP_CONFLICT_HEADER);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_HTTP_CONTEXT_UNAVAILABLE", SW_ERROR_HTTP_CONTEXT_UNAVAILABLE);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_WEBSOCKET_BAD_CLIENT", SW_ERROR_WEBSOCKET_BAD_CLIENT);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_WEBSOCKET_BAD_OPCODE", SW_ERROR_WEBSOCKET_BAD_OPCODE);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_WEBSOCKET_UNCONNECTED", SW_ERROR_WEBSOCKET_UNCONNECTED);
@@ -635,6 +649,10 @@ PHP_MINIT_FUNCTION(swoole) {
     SW_REGISTER_LONG_CONSTANT("SWOOLE_TRACE_CO_CURL", SW_TRACE_CO_CURL);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_TRACE_CARES", SW_TRACE_CARES);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_TRACE_ZLIB", SW_TRACE_ZLIB);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_TRACE_CO_PGSQL", SW_TRACE_CO_PGSQL);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_TRACE_CO_ODBC", SW_TRACE_CO_ODBC);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_TRACE_CO_ORACLE", SW_TRACE_CO_ORACLE);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_TRACE_CO_SQLITE", SW_TRACE_CO_SQLITE);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_TRACE_ALL", SW_TRACE_ALL);
 
     /**
@@ -676,7 +694,8 @@ PHP_MINIT_FUNCTION(swoole) {
 
     // init bug report message
     bug_report_message_init();
-    if (strcmp("cli", sapi_module.name) == 0 || strcmp("phpdbg", sapi_module.name) == 0) {
+    if (strcmp("cli", sapi_module.name) == 0 || strcmp("phpdbg", sapi_module.name) == 0 ||
+        strcmp("embed", sapi_module.name) == 0) {
         SWOOLE_G(cli) = 1;
     }
 
@@ -721,6 +740,18 @@ PHP_MINIT_FUNCTION(swoole) {
     php_swoole_name_resolver_minit(module_number);
 #ifdef SW_USE_PGSQL
     php_swoole_postgresql_coro_minit(module_number);
+    php_swoole_pgsql_minit(module_number);
+#endif
+#ifdef SW_USE_ODBC
+    php_swoole_odbc_minit(module_number);
+#endif
+
+#ifdef SW_USE_ORACLE
+    php_swoole_oracle_minit(module_number);
+#endif
+
+#ifdef SW_USE_SQLITE
+    php_swoole_sqlite_minit(module_number);
 #endif
 
     SwooleG.fatal_error = fatal_error;
@@ -734,20 +765,6 @@ PHP_MINIT_FUNCTION(swoole) {
 
     zend::known_strings_init();
 
-    /* Debug extensions check */
-    static auto debug_zend_extension_names = {"Xdebug"};
-    for (auto name : debug_zend_extension_names) {
-        if (zend_get_extension(name) != NULL) {
-            SWOOLE_G(has_debug_extension) = 1;
-        }
-    }
-    static auto debug_php_extension_names = {"ddtrace"};
-    for (auto name : debug_php_extension_names) {
-        if (zend_hash_str_find_ptr(&module_registry, name, strlen(name))) {
-            SWOOLE_G(has_debug_extension) = 1;
-        }
-    }
-
     return SUCCESS;
 }
 /* }}} */
@@ -759,6 +776,17 @@ PHP_MSHUTDOWN_FUNCTION(swoole) {
 
     php_swoole_runtime_mshutdown();
     php_swoole_websocket_server_mshutdown();
+#ifdef SW_USE_PGSQL
+    php_swoole_pgsql_mshutdown();
+#endif
+
+#ifdef SW_USE_ORACLE
+    php_swoole_oracle_mshutdown();
+#endif
+
+#ifdef SW_USE_SQLITE
+    php_swoole_sqlite_mshutdown();
+#endif
 
     swoole_clean();
 
@@ -868,7 +896,16 @@ PHP_MINFO_FUNCTION(swoole) {
 #endif
     php_info_print_table_row(2, "async_redis", "enabled");
 #ifdef SW_USE_PGSQL
-    php_info_print_table_row(2, "coroutine_postgresql", "enabled");
+    php_info_print_table_row(2, "coroutine_pgsql", "enabled");
+#endif
+#ifdef SW_USE_ODBC
+    php_info_print_table_row(2, "coroutine_odbc", "enabled");
+#endif
+#ifdef SW_USE_ORACLE
+    php_info_print_table_row(2, "coroutine_oracle", "enabled");
+#endif
+#ifdef SW_USE_SQLITE
+    php_info_print_table_row(2, "coroutine_sqlite", "enabled");
 #endif
     php_info_print_table_end();
 
@@ -958,7 +995,24 @@ PHP_RINIT_FUNCTION(swoole) {
         && !(CG(compiler_options) & ZEND_COMPILE_PRELOAD)
 #endif
     ) {
+        // https://github.com/swoole/swoole-src/issues/5182
+        /**
+         * xdebug will hook zend_execute_ex to xdebug_execute_ex.
+         * This would cause php_swoole_load_library function not to execute correctly, so it must be replaced
+         * with the execute_ex function.
+         */
+        void (*old_zend_execute_ex)(zend_execute_data * execute_data) = nullptr;
+        if (UNEXPECTED(zend_execute_ex != execute_ex)) {
+            old_zend_execute_ex = zend_execute_ex;
+            zend_execute_ex = execute_ex;
+        }
+
         php_swoole_load_library();
+
+        if (UNEXPECTED(old_zend_execute_ex)) {
+            zend_execute_ex = old_zend_execute_ex;
+            old_zend_execute_ex = nullptr;
+        }
     }
 
 #ifdef ZEND_SIGNALS
@@ -969,6 +1023,9 @@ PHP_RINIT_FUNCTION(swoole) {
     php_swoole_http_server_rinit();
     php_swoole_coroutine_rinit();
     php_swoole_runtime_rinit();
+#ifdef SW_USE_ORACLE
+    php_swoole_oracle_rinit();
+#endif
 
     SWOOLE_G(req_status) = PHP_SWOOLE_RINIT_END;
 
@@ -987,13 +1044,13 @@ PHP_RSHUTDOWN_FUNCTION(swoole) {
     swoole_event_free();
 
     php_swoole_server_rshutdown();
+    php_swoole_http_server_rshutdown();
     php_swoole_async_coro_rshutdown();
     php_swoole_redis_server_rshutdown();
     php_swoole_coroutine_rshutdown();
     php_swoole_coroutine_scheduler_rshutdown();
     php_swoole_runtime_rshutdown();
-
-    php_swoole_process_clean();
+    php_swoole_process_rshutdown();
 
     SwooleG.running = 0;
     SWOOLE_G(req_status) = PHP_SWOOLE_RSHUTDOWN_END;

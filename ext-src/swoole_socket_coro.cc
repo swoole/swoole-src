@@ -725,6 +725,11 @@ void php_swoole_socket_coro_minit(int module_number) {
     zend_declare_property_long(swoole_socket_coro_ce, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_string(swoole_socket_coro_ce, ZEND_STRL("errMsg"), "", ZEND_ACC_PUBLIC);
 
+#ifdef SWOOLE_SOCKETS_SUPPORT
+    zend_declare_property_bool(swoole_socket_coro_ce, ZEND_STRL("__ext_sockets_nonblock"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_socket_coro_ce, ZEND_STRL("__ext_sockets_timeout"), 0, ZEND_ACC_PUBLIC);
+#endif
+
     SW_INIT_CLASS_ENTRY_EX(swoole_socket_coro_exception,
                            "Swoole\\Coroutine\\Socket\\Exception",
                            "Co\\Socket\\Exception",
@@ -801,8 +806,13 @@ SW_API zend_object *php_swoole_create_socket(enum swSocketType type) {
 }
 
 SW_API void php_swoole_socket_set_error_properties(zval *zobject, int code, const char *msg) {
+    swoole_set_last_error(code);
     zend_update_property_long(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), code);
     zend_update_property_string(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("errMsg"), msg);
+}
+
+SW_API void php_swoole_socket_set_error_properties(zval *zobject, int code) {
+    php_swoole_socket_set_error_properties(zobject, code, swoole_strerror(code));
 }
 
 SW_API void php_swoole_socket_set_error_properties(zval *zobject, Socket *socket) {
@@ -986,7 +996,7 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, zval *zset) {
      * package max length
      */
     if (php_swoole_array_get_value(vht, "package_max_length", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
+        zend_long v = php_swoole_parse_to_size(ztmp);
         sock->protocol.package_max_length = SW_MAX(0, SW_MIN(v, UINT32_MAX));
     } else {
         sock->protocol.package_max_length = SW_INPUT_BUFFER_SIZE;
@@ -1032,7 +1042,7 @@ SW_API bool php_swoole_socket_set(Socket *cli, zval *zset) {
      * socket send/recv buffer size
      */
     if (php_swoole_array_get_value(vht, "socket_buffer_size", ztmp)) {
-        zend_long size = zval_get_long(ztmp);
+        zend_long size = php_swoole_parse_to_size(ztmp);
         if (size <= 0) {
             php_swoole_fatal_error(E_WARNING, "socket buffer size must be greater than 0, got " ZEND_LONG_FMT, size);
             ret = false;
@@ -1221,7 +1231,7 @@ PHP_FUNCTION(swoole_coroutine_socketpair) {
 
     php_swoole_check_reactor();
 
-    auto sock_type = swoole::network::Socket::convert_to_type(domain, type, protocol);
+    auto sock_type = swoole::network::Socket::convert_to_type(domain, type);
 
     zend_object *s1 = php_swoole_create_socket_from_fd(pair[0], sock_type);
     if (s1 == nullptr) {
@@ -1352,7 +1362,7 @@ static PHP_METHOD(swoole_socket_coro, connect) {
 
     swoole_get_socket_coro(sock, ZEND_THIS);
 
-    if (sock->socket->get_sock_domain() == AF_INET6 || sock->socket->get_sock_domain() == AF_INET) {
+    if (sock->socket->is_port_required()) {
         if (ZEND_NUM_ARGS() == 1) {
             php_swoole_error(E_WARNING, "Socket of type AF_INET/AF_INET6 requires port argument");
             RETURN_FALSE;
@@ -2157,14 +2167,20 @@ static PHP_METHOD(swoole_socket_coro, import) {
     }
 
     int sock_domain = AF_INET, sock_type = SOCK_STREAM;
+	php_sockaddr_storage addr;
+	socklen_t addr_len = sizeof(addr);
 
 #ifdef SO_DOMAIN
     socklen_t sock_domain_len = sizeof(sock_domain);
-    if (getsockopt(socket_fd, SOL_SOCKET, SO_DOMAIN, &sock_domain, &sock_domain_len) < 0) {
-        php_swoole_sys_error(E_WARNING, "getsockopt(SOL_SOCKET, SO_DOMAIN) failed");
-        RETURN_FALSE;
-    }
+    if (getsockopt(socket_fd, SOL_SOCKET, SO_DOMAIN, &sock_domain, &sock_domain_len) == 0) {
+    } else
 #endif
+    if (getsockname(socket_fd, (struct sockaddr*)&addr, &addr_len) == 0) {
+		sock_domain = addr.ss_family;
+	} else {
+        php_swoole_sys_error(E_WARNING, "getsockname() failed");
+        RETURN_FALSE;
+	}
 
 #ifdef SO_TYPE
     socklen_t sock_type_len = sizeof(sock_type);

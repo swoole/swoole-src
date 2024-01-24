@@ -68,7 +68,7 @@ struct Protocol {
 
     static ssize_t default_length_func(const Protocol *protocol, network::Socket *socket, PacketLength *pl);
 
-    inline static LengthFunc get_function(const std::string &name) {
+    static inline LengthFunc get_function(const std::string &name) {
         return (LengthFunc) swoole_get_function(name.c_str(), name.length());
     }
 };

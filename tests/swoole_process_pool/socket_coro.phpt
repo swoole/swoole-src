@@ -7,10 +7,12 @@ swoole_process_pool: co\socket
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
+use Swoole\Atomic;
 use SwooleTest\ProcessManager;
 use Swoole\Coroutine\Socket;
 use Swoole\Constant;
 use Swoole\Process;
+use Swoole\Process\Pool;
 
 $pm = new ProcessManager;
 
@@ -43,9 +45,9 @@ $pm->childFunc = function () use ($pm) {
     $socket = new Socket(AF_INET, SOCK_STREAM, 0);
     $socket->bind('127.0.0.1', $pm->getFreePort());
 
-    $atomic = new \Swoole\Atomic();
+    $atomic = new Atomic();
 
-    $pool = new Swoole\Process\Pool(2);
+    $pool = new Pool(2);
     $pool->set(['enable_coroutine' => true]);
     $pool->on(Constant::EVENT_WORKER_START, function ($pool, $id) use ($socket, $pm, $atomic) {
         $socket->listen(128);

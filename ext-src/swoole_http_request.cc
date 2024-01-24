@@ -98,10 +98,6 @@ static inline char *http_trim_double_quote(char *ptr, size_t *len) {
     return tmp;
 }
 
-static sw_inline const char *http_get_method_name(enum swoole_http_method method) {
-    return swoole_http_method_str(method);
-}
-
 // clang-format off
 static const swoole_http_parser_settings http_parser_settings =
 {
@@ -137,14 +133,14 @@ bool HttpContext::parse_multipart_data(const char *at, size_t length) {
     ssize_t n = multipart_parser_execute(mt_parser, at, length);
     if (n < 0) {
         int l_error = multipart_parser_error_msg(mt_parser, sw_tg_buffer()->str, sw_tg_buffer()->size);
-        swoole_error_log(SW_LOG_WARNING,
+        swoole_error_log(SW_LOG_NOTICE,
                          SW_ERROR_SERVER_INVALID_REQUEST,
                          "parse multipart body failed, reason: %.*s",
                          l_error,
                          sw_tg_buffer()->str);
         return false;
     } else if (n != (ssize_t) length) {
-        swoole_error_log(SW_LOG_WARNING,
+        swoole_error_log(SW_LOG_NOTICE,
                          SW_ERROR_SERVER_INVALID_REQUEST,
                          "parse multipart body failed, %lu/%zu bytes processed",
                          n,
@@ -157,13 +153,13 @@ bool HttpContext::parse_multipart_data(const char *at, size_t length) {
 zend_class_entry *swoole_http_request_ce;
 static zend_object_handlers swoole_http_request_handlers;
 
-typedef struct {
+struct HttpRequestObject {
     HttpContext *ctx;
     zend_object std;
-} http_request_t;
+};
 
-static sw_inline http_request_t *php_swoole_http_request_fetch_object(zend_object *obj) {
-    return (http_request_t *) ((char *) obj - swoole_http_request_handlers.offset);
+static sw_inline HttpRequestObject *php_swoole_http_request_fetch_object(zend_object *obj) {
+    return (HttpRequestObject *) ((char *) obj - swoole_http_request_handlers.offset);
 }
 
 HttpContext *php_swoole_http_request_get_context(zval *zobject) {
@@ -175,26 +171,24 @@ void php_swoole_http_request_set_context(zval *zobject, HttpContext *ctx) {
 }
 
 static void php_swoole_http_request_free_object(zend_object *object) {
-    http_request_t *request = php_swoole_http_request_fetch_object(object);
+    HttpRequestObject *request = php_swoole_http_request_fetch_object(object);
     HttpContext *ctx = request->ctx;
-    zval zobject, *ztmpfiles;
 
-    ZVAL_OBJ(&zobject, object);
-    ztmpfiles = sw_zend_read_property_ex(swoole_http_request_ce, &zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TMPFILES), 0);
-    if (ZVAL_IS_ARRAY(ztmpfiles)) {
-        zval *z_file_path;
-        SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(ztmpfiles), z_file_path) {
-            if (Z_TYPE_P(z_file_path) != IS_STRING) {
-                continue;
-            }
-            unlink(Z_STRVAL_P(z_file_path));
-            if (SG(rfc1867_uploaded_files)) {
-                zend_hash_str_del(SG(rfc1867_uploaded_files), Z_STRVAL_P(z_file_path), Z_STRLEN_P(z_file_path));
-            }
-        }
-        SW_HASHTABLE_FOREACH_END();
-    }
     if (ctx) {
+        zval *ztmpfiles = ctx->request.ztmpfiles;
+        if (ztmpfiles && ZVAL_IS_ARRAY(ztmpfiles)) {
+            zval *z_file_path;
+            SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(ztmpfiles), z_file_path) {
+                if (Z_TYPE_P(z_file_path) != IS_STRING) {
+                    continue;
+                }
+                unlink(Z_STRVAL_P(z_file_path));
+                if (SG(rfc1867_uploaded_files)) {
+                    zend_hash_str_del(SG(rfc1867_uploaded_files), Z_STRVAL_P(z_file_path), Z_STRLEN_P(z_file_path));
+                }
+            }
+            SW_HASHTABLE_FOREACH_END();
+        }
         ctx->request.zobject = nullptr;
         ctx->free();
     }
@@ -203,7 +197,7 @@ static void php_swoole_http_request_free_object(zend_object *object) {
 }
 
 static zend_object *php_swoole_http_request_create_object(zend_class_entry *ce) {
-    http_request_t *request = (http_request_t *) zend_object_alloc(sizeof(http_request_t), ce);
+    HttpRequestObject *request = (HttpRequestObject *) zend_object_alloc(sizeof(HttpRequestObject), ce);
     zend_object_std_init(&request->std, ce);
     object_properties_init(&request->std, ce);
     request->std.handlers = &swoole_http_request_handlers;
@@ -217,7 +211,6 @@ static PHP_METHOD(swoole_http_request, parse);
 static PHP_METHOD(swoole_http_request, isCompleted);
 static PHP_METHOD(swoole_http_request, getMethod);
 static PHP_METHOD(swoole_http_request, getContent);
-static PHP_METHOD(swoole_http_request, __destruct);
 SW_EXTERN_C_END
 
 // clang-format off
@@ -230,7 +223,6 @@ const zend_function_entry swoole_http_request_methods[] =
     PHP_ME(swoole_http_request, parse,                      arginfo_class_Swoole_Http_Request_parse,       ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_request, isCompleted,                arginfo_class_Swoole_Http_Request_isCompleted, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_request, getMethod,                  arginfo_class_Swoole_Http_Request_getMethod,   ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_request, __destruct,                 arginfo_class_Swoole_Http_Request___destruct,  ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 // clang-format on
@@ -243,7 +235,7 @@ void php_swoole_http_request_minit(int module_number) {
     SW_SET_CLASS_CUSTOM_OBJECT(swoole_http_request,
                                php_swoole_http_request_create_object,
                                php_swoole_http_request_free_object,
-                               http_request_t,
+                               HttpRequestObject,
                                std);
 
     zend_declare_property_long(swoole_http_request_ce, ZEND_STRL("fd"), 0, ZEND_ACC_PUBLIC);
@@ -259,12 +251,18 @@ void php_swoole_http_request_minit(int module_number) {
 
 static int http_request_on_query_string(swoole_http_parser *parser, const char *at, size_t length) {
     HttpContext *ctx = (HttpContext *) parser->data;
-    add_assoc_stringl_ex(ctx->request.zserver, ZEND_STRL("query_string"), (char *) at, length);
+
+    zval tmp;
+    HashTable *ht = Z_ARR_P(ctx->request.zserver);
+    ZVAL_STRINGL(&tmp, (char *) at, length);
+    http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_QUERY_STRING), &tmp);
+
     // parse url params
-    sapi_module.treat_data(PARSE_STRING,
-                           estrndup(at, length),  // it will be freed by treat_data
-                           swoole_http_init_and_read_property(
-                               swoole_http_request_ce, ctx->request.zobject, &ctx->request.zget, ZEND_STRL("get")));
+    sapi_module.treat_data(
+        PARSE_STRING,
+        estrndup(at, length),  // it will be freed by treat_data
+        swoole_http_init_and_read_property(
+            swoole_http_request_ce, ctx->request.zobject, &ctx->request.zget, SW_ZSTR_KNOWN(SW_ZEND_STR_GET)));
     return 0;
 }
 
@@ -320,7 +318,7 @@ void swoole_http_parse_cookie(zval *zarray, const char *at, size_t length) {
 
 static void http_request_add_upload_file(HttpContext *ctx, const char *file, size_t l_file) {
     zval *zfiles = swoole_http_init_and_read_property(
-        swoole_http_request_ce, ctx->request.zobject, &ctx->request.ztmpfiles, ZEND_STRL("tmpfiles"));
+        swoole_http_request_ce, ctx->request.zobject, &ctx->request.ztmpfiles, SW_ZSTR_KNOWN(SW_ZEND_STR_TMPFILES));
     add_next_index_stringl(zfiles, file, l_file);
     // support is_upload_file
     zend_hash_str_add_ptr(SG(rfc1867_uploaded_files), file, l_file, (char *) file);
@@ -359,15 +357,16 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
     HttpContext *ctx = (HttpContext *) parser->data;
     zval *zheader = ctx->request.zheader;
     size_t header_len = ctx->current_header_name_len;
-    char *header_name = zend_str_tolower_dup(ctx->current_header_name, header_len);
+    char header_name[header_len];
+    zend_str_tolower_copy(header_name, ctx->current_header_name, header_len);
 
     if (ctx->parse_cookie && SW_STREQ(header_name, header_len, "cookie")) {
         zval *zcookie = swoole_http_init_and_read_property(
-            swoole_http_request_ce, ctx->request.zobject, &ctx->request.zcookie, ZEND_STRL("cookie"));
+            swoole_http_request_ce, ctx->request.zobject, &ctx->request.zcookie, SW_ZSTR_KNOWN(SW_ZEND_STR_COOKIE));
         swoole_http_parse_cookie(zcookie, at, length);
-        efree(header_name);
         return 0;
-    } else if (SW_STREQ(header_name, header_len, "upgrade") && swoole_http_token_list_contains_value(at, length, "websocket")) {
+    } else if (SW_STREQ(header_name, header_len, "upgrade") &&
+               swoole_http_token_list_contains_value(at, length, "websocket")) {
         ctx->websocket = 1;
         if (ctx->co_socket) {
             goto _add_header;
@@ -378,8 +377,7 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
         }
         Connection *conn = serv->get_connection_by_session_id(ctx->fd);
         if (!conn) {
-            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "session[%ld] is closed", ctx->fd);
-            efree(header_name);
+            swoole_error_log(SW_LOG_TRACE, SW_ERROR_SESSION_CLOSED, "session[%ld] is closed", ctx->fd);
             return -1;
         }
         ListenPort *port = serv->get_port_by_server_fd(conn->server_fd);
@@ -412,8 +410,31 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
     }
 
 _add_header:
-    add_assoc_stringl_ex(zheader, header_name, header_len, (char *) at, length);
-    efree(header_name);
+    zval tmp;
+    ZVAL_STRINGL(&tmp, (char *) at, length);
+
+    /**
+     * some common request header key
+     */
+    if (SW_STREQ(header_name, header_len, "host")) {
+        zend_hash_update(Z_ARR_P(zheader), SW_ZSTR_KNOWN(SW_ZEND_STR_HOST), &tmp);
+    } else if (SW_STREQ(header_name, header_len, "user-agent")) {
+        zend_hash_update(Z_ARR_P(zheader), SW_ZSTR_KNOWN(SW_ZEND_STR_USER_AGENT), &tmp);
+    } else if (SW_STREQ(header_name, header_len, "accept")) {
+        zend_hash_update(Z_ARR_P(zheader), SW_ZSTR_KNOWN(SW_ZEND_STR_ACCEPT), &tmp);
+    } else if (SW_STREQ(header_name, header_len, "content-type")) {
+        zend_hash_update(Z_ARR_P(zheader), SW_ZSTR_KNOWN(SW_ZEND_STR_CONTENT_TYPE), &tmp);
+    } else if (SW_STREQ(header_name, header_len, "content-length")) {
+        zend_hash_update(Z_ARR_P(zheader), SW_ZSTR_KNOWN(SW_ZEND_STR_CONTENT_LENGTH), &tmp);
+    } else if (SW_STREQ(header_name, header_len, "authorization")) {
+        zend_hash_update(Z_ARR_P(zheader), SW_ZSTR_KNOWN(SW_ZEND_STR_AUTHORIZATION), &tmp);
+    } else if (SW_STREQ(header_name, header_len, "connection")) {
+        zend_hash_update(Z_ARR_P(zheader), SW_ZSTR_KNOWN(SW_ZEND_STR_CONNECTION), &tmp);
+    } else if (SW_STREQ(header_name, header_len, "accept-encoding")) {
+        zend_hash_update(Z_ARR_P(zheader), SW_ZSTR_KNOWN(SW_ZEND_STR_ACCEPT_ENCODING), &tmp);
+    } else {
+        zend_hash_str_update(Z_ARR_P(zheader), header_name, header_len, &tmp);
+    }
 
     return 0;
 }
@@ -421,7 +442,6 @@ _add_header:
 static int http_request_on_headers_complete(swoole_http_parser *parser) {
     HttpContext *ctx = (HttpContext *) parser->data;
     const char *vpath = ctx->request.path, *end = vpath + ctx->request.path_len, *p = end;
-    zval *zserver = ctx->request.zserver;
 
     ctx->request.version = parser->http_major * 100 + parser->http_minor;
     ctx->request.ext = end;
@@ -437,18 +457,24 @@ static int http_request_on_headers_complete(swoole_http_parser *parser) {
         }
     }
 
-    ctx->keepalive = swoole_http_should_keep_alive(parser);
+    HashTable *ht = Z_ARR_P(ctx->request.zserver);
+    http_server_add_server_array(
+        ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_METHOD2), swoole_http_method_str(parser->method));
+    http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_URI), ctx->request.path, ctx->request.path_len);
 
-    add_assoc_string(zserver, "request_method", http_get_method_name(parser->method));
-    add_assoc_stringl_ex(zserver, ZEND_STRL("request_uri"), ctx->request.path, ctx->request.path_len);
     // path_info should be decoded
     zend_string *zstr_path = zend_string_init(ctx->request.path, ctx->request.path_len, 0);
     ZSTR_LEN(zstr_path) = php_url_decode(ZSTR_VAL(zstr_path), ZSTR_LEN(zstr_path));
-    add_assoc_str_ex(zserver, ZEND_STRL("path_info"), zstr_path);
-    add_assoc_long_ex(zserver, ZEND_STRL("request_time"), time(nullptr));
-    add_assoc_double_ex(zserver, ZEND_STRL("request_time_float"), microtime());
-    add_assoc_string(zserver, "server_protocol", (char *) (ctx->request.version == 101 ? "HTTP/1.1" : "HTTP/1.0"));
+    http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_PATH_INFO), zstr_path);
 
+    http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_TIME), (int) time(nullptr));
+    http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_TIME_FLOAT), microtime());
+    http_server_add_server_array(
+        ht,
+        SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER_PROTOCOL),
+        (ctx->request.version == 101 ? SW_ZSTR_KNOWN(SW_ZEND_STR_HTTP11) : SW_ZSTR_KNOWN(SW_ZEND_STR_HTTP10)));
+
+    ctx->keepalive = swoole_http_should_keep_alive(parser);
     ctx->current_header_name = nullptr;
 
     return 0;
@@ -479,7 +505,9 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
     }
 
     size_t header_len = ctx->current_header_name_len;
-    char *header_name = zend_str_tolower_dup(ctx->current_header_name, header_len);
+    zend::CharPtr _header_name;
+    _header_name.assign_tolower(ctx->current_header_name, header_len);
+    char *header_name = _header_name.get();
 
     if (SW_STRCASEEQ(header_name, header_len, "content-disposition")) {
         size_t offset = 0;
@@ -489,7 +517,7 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
             offset += sizeof("attachment;") - 1;
         } else {
             swoole_warning("Unsupported Content-Disposition [%.*s]", (int) length, at);
-            goto _end;
+            return ret;
         }
 
         zval tmp_array;
@@ -498,13 +526,13 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
 
         zval *zform_name;
         if (!(zform_name = zend_hash_str_find(Z_ARRVAL(tmp_array), ZEND_STRL("name")))) {
-            goto _end;
+            return ret;
         }
 
         if (Z_STRLEN_P(zform_name) >= SW_HTTP_FORM_KEYLEN) {
             swoole_warning("form_name[%s] is too large", Z_STRVAL_P(zform_name));
             ret = -1;
-            goto _end;
+            return ret;
         }
 
         swoole_strlcpy(value_buf, Z_STRVAL_P(zform_name), sizeof(value_buf));
@@ -522,7 +550,7 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
             if (Z_STRLEN_P(zfilename) >= SW_HTTP_FORM_KEYLEN) {
                 swoole_warning("filename[%s] is too large", Z_STRVAL_P(zfilename));
                 ret = -1;
-                goto _end;
+                return ret;
             }
             ctx->current_input_name = estrndup(tmp, value_len);
             ctx->current_input_name_len = value_len;
@@ -561,10 +589,6 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
         add_assoc_long(z_multipart_header, "size", swoole::file_get_size(tmp_file.c_str()));
         http_request_add_upload_file(ctx, tmp_file.c_str(), tmp_file.length());
     }
-
-_end:
-    efree(header_name);
-
     return ret;
 }
 
@@ -651,7 +675,7 @@ static int multipart_body_on_data_end(multipart_parser *p) {
             ctx->form_data_buffer->str,
             ctx->form_data_buffer->length,
             swoole_http_init_and_read_property(
-                swoole_http_request_ce, ctx->request.zobject, &ctx->request.zpost, ZEND_STRL("post")));
+                swoole_http_request_ce, ctx->request.zobject, &ctx->request.zpost, SW_ZSTR_KNOWN(SW_ZEND_STR_POST)));
 
         efree(ctx->current_form_data_name);
         ctx->current_form_data_name = nullptr;
@@ -682,7 +706,7 @@ static int multipart_body_on_data_end(multipart_parser *p) {
     }
 
     zval *zfiles = swoole_http_init_and_read_property(
-        swoole_http_request_ce, ctx->request.zobject, &ctx->request.zfiles, ZEND_STRL("files"));
+        swoole_http_request_ce, ctx->request.zobject, &ctx->request.zfiles, SW_ZSTR_KNOWN(SW_ZEND_STR_FILES));
 
     int input_path_pos = swoole_strnpos(ctx->current_input_name, ctx->current_input_name_len, ZEND_STRL("["));
     if (ctx->parse_files && input_path_pos > 0) {
@@ -755,7 +779,9 @@ static int http_request_on_body(swoole_http_parser *parser, const char *at, size
                 length--;
             } while (length != 0);
         }
-        ctx->parse_multipart_data(at, length);
+        if (!ctx->parse_multipart_data(at, length)) {
+            return -1;
+        }
     }
 
     return 0;
@@ -771,13 +797,13 @@ static int http_request_message_complete(swoole_http_parser *parser) {
             PARSE_STRING,
             estrndup(ctx->request.chunked_body->str, content_length),  // do not free, it will be freed by treat_data
             swoole_http_init_and_read_property(
-                swoole_http_request_ce, ctx->request.zobject, &ctx->request.zpost, ZEND_STRL("post")));
+                swoole_http_request_ce, ctx->request.zobject, &ctx->request.zpost, SW_ZSTR_KNOWN(SW_ZEND_STR_POST)));
     } else if (!ctx->recv_chunked && ctx->parse_body && ctx->request.post_form_urlencoded && ctx->request.body_at) {
         sapi_module.treat_data(
             PARSE_STRING,
             estrndup(ctx->request.body_at, ctx->request.body_length),  // do not free, it will be freed by treat_data
             swoole_http_init_and_read_property(
-                swoole_http_request_ce, ctx->request.zobject, &ctx->request.zpost, ZEND_STRL("post")));
+                swoole_http_request_ce, ctx->request.zobject, &ctx->request.zpost, SW_ZSTR_KNOWN(SW_ZEND_STR_POST)));
     }
     if (ctx->mt_parser) {
         multipart_parser_free(ctx->mt_parser);
@@ -829,8 +855,11 @@ const char *HttpContext::get_content_encoding() {
         return nullptr;
     }
 }
-
 #endif
+
+static void swoole_request_read_fd_property(zend_object *object, HttpContext *ctx) {
+    zend_update_property_long(swoole_http_request_ce, object, ZEND_STRL("fd"), ctx->fd);
+}
 
 static PHP_METHOD(swoole_http_request, getContent) {
     HttpContext *ctx = php_swoole_http_request_get_and_check_context(ZEND_THIS);
@@ -971,7 +1000,7 @@ static PHP_METHOD(swoole_http_request, getMethod) {
     if (UNEXPECTED(!ctx)) {
         RETURN_FALSE;
     }
-    const char *method = http_get_method_name((ctx->parser).method);
+    const char *method = swoole_http_method_str((ctx->parser).method);
     RETURN_STRING(method);
 }
 
@@ -982,5 +1011,3 @@ static PHP_METHOD(swoole_http_request, isCompleted) {
     }
     RETURN_BOOL(ctx->completed);
 }
-
-static PHP_METHOD(swoole_http_request, __destruct) {}

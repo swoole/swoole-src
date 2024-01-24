@@ -107,7 +107,7 @@ _dns_lookup:
     if (swoole_coroutine_is_in()) {
         return System::gethostbyname(host_name, ctx->type, ctx->timeout);
     } else {
-        char addr[SW_IP_MAX_LENGTH];
+        char addr[INET6_ADDRSTRLEN] = {};
         if (swoole::network::gethostbyname(ctx->type, host_name.c_str(), sw_tg_buffer()->str) < 0) {
             swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
             return "";

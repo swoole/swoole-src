@@ -148,7 +148,6 @@ static void bug_report_message_init() {
 
 #ifdef SW_USE_OPENSSL
     SwooleG.bug_report_message += swoole_ssl_get_version_message();
-
 #endif
 }
 
@@ -308,7 +307,7 @@ SW_API void swoole_set_log_file(const char *file) {
     }
 }
 
-SW_API void swoole_set_trace_flags(int flags) {
+SW_API void swoole_set_trace_flags(long flags) {
     SwooleG.trace_flags = flags;
 }
 

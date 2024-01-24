@@ -21,15 +21,16 @@
 #include "swoole_server.h"
 
 using namespace std;
+using namespace swoole;
 using namespace swoole::network;
 
 TEST(stream, send) {
-    swServer serv(swoole::Server::MODE_BASE);
+    Server serv(Server::MODE_BASE);
     serv.worker_num = 1;
     int ori_log_level = sw_logger()->get_level();
     sw_logger()->set_level(SW_LOG_ERROR);
 
-    swListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, TEST_PORT);
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, TEST_PORT);
     if (!port) {
         swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
         exit(2);
@@ -83,9 +84,9 @@ TEST(stream, send) {
         kill(getpid(), SIGTERM);
     });
 
-    serv.onWorkerStart = [&lock](swServer *serv, int worker_id) { lock.unlock(); };
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock.unlock(); };
 
-    serv.onReceive = [&buf](swServer *serv, swRecvData *req) -> int {
+    serv.onReceive = [&buf](Server *serv, RecvData *req) -> int {
         string req_body(req->data + 4, req->info.len - 4);
 
         EXPECT_EQ(string(buf, sizeof(buf)), req_body);

@@ -84,7 +84,7 @@ TEST(client, udp) {
     wait(&status);
 }
 
-TEST(client, async_tcp) {
+static void test_async_client_tcp(const char *host, int port) {
     pid_t pid;
 
     Pipe p(true);
@@ -136,7 +136,7 @@ TEST(client, async_tcp) {
         ac->close();
     });
 
-    bool retval = ac.connect(TEST_HOST, TEST_PORT);
+    bool retval = ac.connect(host, port);
     EXPECT_TRUE(retval);
 
     swoole_event_wait();
@@ -144,6 +144,14 @@ TEST(client, async_tcp) {
     kill(pid, SIGTERM);
     int status;
     wait(&status);
+}
+
+TEST(client, async_tcp) {
+    test_async_client_tcp(TEST_HOST, TEST_PORT);
+}
+
+TEST(client, async_tcp_dns) {
+    test_async_client_tcp("localhost", TEST_PORT);
 }
 
 TEST(client, connect_refuse) {

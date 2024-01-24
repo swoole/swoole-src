@@ -91,16 +91,22 @@ enum swHttp2StreamFlag {
 #define SW_HTTP2_STREAM_ID_SIZE 4
 #define SW_HTTP2_SETTINGS_PARAM_SIZE 6
 
-#define swoole_http2_frame_trace_log(_trace_fn, _trace_str, ...)                                                       \
+#define swoole_http2_frame_trace_log(_trace_str, ...)                                                                  \
     swoole_trace_log(SW_TRACE_HTTP2,                                                                                   \
-                     "%s [" SW_ECHO_GREEN "] frame"                                                                    \
-                     "<length=%jd, flags=(%s), stream_id=%d> " _trace_str,                                             \
-                     #_trace_fn,                                                                                       \
+                     SW_ECHO_RED_BG " [" SW_ECHO_GREEN "] "                                                            \
+                                    "<length=%jd, flags=(%s), stream_id=%d> " _trace_str,                              \
+                     " RECV ",                                                                                         \
                      swoole::http2::get_type(type),                                                                    \
                      length,                                                                                           \
                      swoole::http2::get_flag_string(flags).c_str(),                                                    \
                      stream_id,                                                                                        \
                      ##__VA_ARGS__)
+
+#define swoole_http2_send_trace_log(_trace_str, ...)                                                                   \
+    swoole_trace_log(SW_TRACE_HTTP2, SW_ECHO_GREEN_BG " " _trace_str, " SEND ", ##__VA_ARGS__)
+
+#define swoole_http2_recv_trace_log(_trace_str, ...)                                                                   \
+    swoole_trace_log(SW_TRACE_HTTP2, SW_ECHO_RED_BG " " _trace_str, " RECV ", ##__VA_ARGS__)
 
 namespace swoole {
 namespace http2 {

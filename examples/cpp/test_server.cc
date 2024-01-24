@@ -14,8 +14,8 @@ void my_onStart(Server *serv);
 void my_onShutdown(Server *serv);
 void my_onConnect(Server *serv, DataHead *info);
 void my_onClose(Server *serv, DataHead *info);
-void my_onWorkerStart(Server *serv, int worker_id);
-void my_onWorkerStop(Server *serv, int worker_id);
+void my_onWorkerStart(Server *serv, Worker *worker);
+void my_onWorkerStop(Server *serv, Worker *worker);
 
 static int g_receive_count = 0;
 
@@ -83,12 +83,12 @@ int main(int argc, char **argv) {
     return 0;
 }
 
-void my_onWorkerStart(Server *serv, int worker_id) {
-    swoole_notice("WorkerStart[%d]PID=%d", worker_id, getpid());
+void my_onWorkerStart(Server *serv, Worker *worker) {
+    swoole_notice("WorkerStart[%d]PID=%d", worker->id, worker->pid);
 }
 
-void my_onWorkerStop(Server *serv, int worker_id) {
-    swoole_notice("WorkerStop[%d]PID=%d", worker_id, getpid());
+void my_onWorkerStop(Server *serv, Worker *worker) {
+    swoole_notice("WorkerStop[%d]PID=%d", worker->id, worker->pid);
 }
 
 int my_onReceive(Server *serv, RecvData *req) {

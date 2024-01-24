@@ -60,7 +60,35 @@ define('MYSQL_SERVER_PWD', getenv('MYSQL_SERVER_PWD') ?: 'root');
 define('MYSQL_SERVER_DB', getenv('MYSQL_SERVER_DB') ?: 'test');
 
 /** ============== PostgreSQL ============== */
-define('PGSQL_CONNECTION_STRING', getenv('PGSQL_CONNECTION_STRING') ?: ('host=' . (IS_IN_CI ? 'pgsql' : '127.0.0.1') . ' port=5432 dbname=test user=root password=root'));
+if (IS_IN_CI) {
+    define('PGSQL_HOST', 'pgsql');
+    define('PGSQL_USER', 'root');
+    define('PGSQL_PASSWORD', 'root');
+    define('PGSQL_DBNAME', 'test');
+} else {
+    define('PGSQL_HOST', '127.0.0.1');
+    define('PGSQL_USER', 'postgres');
+    define('PGSQL_PASSWORD', 'postgres');
+    define('PGSQL_DBNAME', 'postgres');
+}
+define('PGSQL_PORT', '5432');
+
+define('PGSQL_CONNECTION_STRING', getenv('PGSQL_CONNECTION_STRING') ?:
+    ('host=' . PGSQL_HOST . ' port=' . PGSQL_PORT . ' dbname=' . PGSQL_DBNAME . ' user=' . PGSQL_USER . ' password=' . PGSQL_PASSWORD));
+
+/** ============== Oracle ============== */
+define('ORACLE_PORT', '1521');
+define('ORACLE_SERVICE_NAME', 'xe');
+define('ORACLE_USER', 'system');
+define('ORACLE_PASSWORD', 'oracle');
+if (IS_IN_CI) {
+	define('ORACLE_TNS', 'oci:dbname=oracle:'.ORACLE_PORT.'/'.ORACLE_SERVICE_NAME.';charset=AL32UTF8');
+} else {
+	define('ORACLE_TNS', 'oci:dbname=127.0.0.1:'.ORACLE_PORT.'/'.ORACLE_SERVICE_NAME.';charset=AL32UTF8');
+}
+
+/** ============== Sqlite ============== */
+define('SQLITE_DSN', 'sqlite::memory:');
 
 /** ============== Redis ============== */
 define('REDIS_SERVER_PATH', getenv('REDIS_SERVER_PATH') ?:
@@ -77,6 +105,13 @@ if (!getenv('SWOOLE_TEST_NO_DOCKER')) {
         is_numeric($matches[1])) {
         define('HTTPBIN_SERVER_PORT_IN_DOCKER', (int)$matches[1]);
     }
+}
+
+/** ============== ODBC ============== */
+if (IS_IN_CI) {
+    define('ODBC_DSN', 'odbc:mysql-test');
+} else {
+    define('ODBC_DSN', 'odbc:mysql-test');
 }
 
 define('SWOOLE_TEST_ECHO', empty(getenv('SWOOLE_TEST_NO_ECHO')));

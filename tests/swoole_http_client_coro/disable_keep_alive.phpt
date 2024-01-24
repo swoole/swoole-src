@@ -7,7 +7,7 @@ skip_if_offline();
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-go(function () {
+Co\run(function () {
     $host = 'www.qq.com';
     $cli = new Swoole\Coroutine\Http\Client($host, 443, true);
     $cli->set([

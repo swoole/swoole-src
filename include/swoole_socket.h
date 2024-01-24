@@ -47,6 +47,10 @@
 #define s6_addr32 _S6_un._S6_u32
 #endif
 
+static bool IN_IS_ADDR_LOOPBACK(struct in_addr *a) {
+    return a->s_addr == htonl(INADDR_LOOPBACK);
+}
+
 // OS Feature
 #if defined(HAVE_KQUEUE) || !defined(HAVE_SENDFILE)
 int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size);
@@ -110,6 +114,15 @@ struct Address {
     int get_port();
     const char *get_addr();
 
+    bool is_loopback_addr() {
+        if (type == SW_SOCK_TCP || type == SW_SOCK_UDP) {
+            return IN_IS_ADDR_LOOPBACK(&addr.inet_v4.sin_addr);
+        } else if (type == SW_SOCK_TCP6 || type == SW_SOCK_UDP6) {
+            return IN6_IS_ADDR_LOOPBACK(&addr.inet_v6.sin6_addr);
+        }
+        return false;
+    }
+
     static bool verify_ip(int __af, const std::string &str) {
         char tmp_address[INET6_ADDRSTRLEN];
         return inet_pton(__af, str.c_str(), tmp_address) != -1;
@@ -130,7 +143,7 @@ struct IOVector {
 
     void update_iterator(ssize_t __n);
 
-    inline struct iovec *get_iterator() {
+    struct iovec *get_iterator() {
         return iov_iterator;
     }
 
@@ -142,15 +155,15 @@ struct IOVector {
         return len;
     }
 
-    inline int get_remain_count() {
+    int get_remain_count() {
         return remain_count;
     }
 
-    inline int get_index() {
+    int get_index() {
         return index;
     }
 
-    inline size_t get_offset_bytes() {
+    size_t get_offset_bytes() {
         return offset_bytes;
     }
 };
@@ -193,6 +206,7 @@ struct Socket {
     uchar skip_recv : 1;
     uchar recv_wait : 1;
     uchar event_hup : 1;
+    uchar dont_restart : 1;
 
     // memory buffer size [user space]
     uint32_t buffer_size;
@@ -237,43 +251,43 @@ struct Socket {
     bool set_recv_timeout(double timeout);
     bool set_send_timeout(double timeout);
 
-    inline bool set_nonblock() {
+    bool set_nonblock() {
         return set_fd_option(1, -1);
     }
 
-    inline bool set_block() {
+    bool set_block() {
         return set_fd_option(0, -1);
     }
 
     bool set_fd_option(int _nonblock, int _cloexec);
 
-    inline int set_option(int level, int optname, int optval) {
+    int set_option(int level, int optname, int optval) {
         return setsockopt(fd, level, optname, &optval, sizeof(optval));
     }
 
-    inline int set_option(int level, int optname, const void *optval, socklen_t optlen) {
+    int set_option(int level, int optname, const void *optval, socklen_t optlen) {
         return setsockopt(fd, level, optname, optval, optlen);
     }
 
-    inline int get_option(int level, int optname, void *optval, socklen_t *optlen) {
+    int get_option(int level, int optname, void *optval, socklen_t *optlen) {
         return getsockopt(fd, level, optname, optval, optlen);
     }
 
-    inline int get_option(int level, int optname, int *optval) {
+    int get_option(int level, int optname, int *optval) {
         socklen_t optlen = sizeof(*optval);
         return get_option(level, optname, optval, &optlen);
     }
 
-    inline int get_fd() {
+    int get_fd() {
         return fd;
     }
 
-    inline int get_name(Address *sa) {
+    int get_name(Address *sa) {
         sa->len = sizeof(sa->addr);
         return getsockname(fd, &sa->addr.ss, &sa->len);
     }
 
-    inline int set_tcp_nopush(int nopush) {
+    int set_tcp_nopush(int nopush) {
 #ifdef TCP_CORK
         if (set_option(IPPROTO_TCP, TCP_CORK, nopush) == SW_ERR) {
             return -1;
@@ -345,15 +359,15 @@ struct Socket {
     int sendfile_blocking(const char *filename, off_t offset, size_t length, double timeout);
     ssize_t writev_blocking(const struct iovec *iov, size_t iovcnt);
 
-    inline int connect(const Address &sa) {
+    int connect(const Address &sa) {
         return ::connect(fd, &sa.addr.ss, sa.len);
     }
 
-    inline int connect(const Address *sa) {
+    int connect(const Address *sa) {
         return ::connect(fd, &sa->addr.ss, sa->len);
     }
 
-    inline int connect(const std::string &host, int port) {
+    int connect(const std::string &host, int port) {
         Address addr;
         addr.assign(socket_type, host, port);
         return connect(addr);
@@ -386,12 +400,12 @@ struct Socket {
     const char *ssl_get_error_reason(int *reason);
 #endif
 
-    inline ssize_t recvfrom(char *__buf, size_t __len, int flags, Address *sa) {
+    ssize_t recvfrom(char *__buf, size_t __len, int flags, Address *sa) {
         sa->len = sizeof(sa->addr);
         return ::recvfrom(fd, __buf, __len, flags, &sa->addr.ss, &sa->len);
     }
 
-    inline bool cork() {
+    bool cork() {
         if (tcp_nopush) {
             return false;
         }
@@ -408,7 +422,7 @@ struct Socket {
         return true;
     }
 
-    inline bool uncork() {
+    bool uncork() {
         if (!tcp_nopush) {
             return false;
         }
@@ -484,7 +498,7 @@ struct Socket {
     ssize_t sendto_blocking(const Address &dst_addr, const void *__buf, size_t __n, int flags = 0);
     ssize_t recvfrom_blocking(char *__buf, size_t __len, int flags, Address *sa);
 
-    inline ssize_t sendto(const char *dst_host, int dst_port, const void *data, size_t len, int flags = 0) const {
+    ssize_t sendto(const char *dst_host, int dst_port, const void *data, size_t len, int flags = 0) const {
         Address addr = {};
         if (!addr.assign(socket_type, dst_host, dst_port)) {
             return SW_ERR;
@@ -492,11 +506,11 @@ struct Socket {
         return sendto(addr, data, len, flags);
     }
 
-    inline ssize_t sendto(const Address &dst_addr, const void *data, size_t len, int flags) const {
+    ssize_t sendto(const Address &dst_addr, const void *data, size_t len, int flags) const {
         return ::sendto(fd, data, len, flags, &dst_addr.addr.ss, dst_addr.len);
     }
 
-    inline int catch_error(int err) const {
+    int catch_error(int err) const {
         switch (err) {
         case EFAULT:
             abort();
@@ -531,7 +545,7 @@ struct Socket {
         }
     }
 
-    inline int catch_write_error(int err) const {
+    int catch_write_error(int err) const {
         switch (err) {
         case ENOBUFS:
             return SW_WAIT;
@@ -540,7 +554,7 @@ struct Socket {
         }
     }
 
-    inline int catch_write_pipe_error(int err) {
+    int catch_write_pipe_error(int err) {
         switch (err) {
         case ENOBUFS:
         case EMSGSIZE:
@@ -550,20 +564,25 @@ struct Socket {
         }
     }
 
-    inline int catch_read_error(int err) const {
+    int catch_read_error(int err) const {
         return catch_error(err);
     }
 
-    static inline SocketType convert_to_type(int domain, int type, int protocol = 0) {
-        switch (domain) {
-        case AF_INET:
-            return type == SOCK_STREAM ? SW_SOCK_TCP : SW_SOCK_UDP;
-        case AF_INET6:
-            return type == SOCK_STREAM ? SW_SOCK_TCP6 : SW_SOCK_UDP6;
-        case AF_UNIX:
-            return type == SOCK_STREAM ? SW_SOCK_UNIX_STREAM : SW_SOCK_UNIX_DGRAM;
-        default:
+    static inline SocketType convert_to_type(int domain, int type) {
+        if (domain == AF_INET && type == SOCK_STREAM) {
             return SW_SOCK_TCP;
+        } else if (domain == AF_INET6 && type == SOCK_STREAM) {
+            return SW_SOCK_TCP6;
+        } else if (domain == AF_UNIX && type == SOCK_STREAM) {
+            return SW_SOCK_UNIX_STREAM;
+        } else if (domain == AF_INET && type == SOCK_DGRAM) {
+            return SW_SOCK_UDP;
+        } else if (domain == AF_INET6 && type == SOCK_DGRAM) {
+            return SW_SOCK_UDP6;
+        } else if (domain == AF_UNIX && type == SOCK_DGRAM) {
+            return SW_SOCK_UNIX_DGRAM;
+        } else {
+            return SW_SOCK_RAW;
         }
     }
 
@@ -619,6 +638,9 @@ int getaddrinfo(GetaddrinfoRequest *req);
 }  // namespace network
 network::Socket *make_socket(int fd, FdType fd_type);
 network::Socket *make_socket(SocketType socket_type, FdType fd_type, int flags);
+network::Socket *make_socket(
+    SocketType type, FdType fd_type, int sock_domain, int sock_type, int socket_protocol, int flags);
+int socket(int sock_domain, int sock_type, int socket_protocol, int flags);
 network::Socket *make_server_socket(SocketType socket_type,
                                     const char *address,
                                     int port = 0,

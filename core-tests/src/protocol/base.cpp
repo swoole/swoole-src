@@ -61,7 +61,7 @@ TEST(protocol, eof) {
         }
     });
 
-    serv.onWorkerStart = [&lock](Server *serv, WorkerId worker_id) { lock.unlock(); };
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock.unlock(); };
 
     int recv_count = 0;
 

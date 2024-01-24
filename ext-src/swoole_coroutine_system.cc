@@ -152,17 +152,13 @@ PHP_METHOD(swoole_coroutine_system, fread) {
         }
     }
 
-    char *buf = (char *) emalloc(length + 1);
-    if (!buf) {
-        RETURN_FALSE;
-    }
-    buf[length] = 0;
-    int ret = -1;
+    zend_string *buf = zend_string_alloc(length, 0);
+    ssize_t ret = -1;
     swoole_trace("fd=%d, length=" ZEND_LONG_FMT, fd, length);
     php_swoole_check_reactor();
     bool async_success = swoole::coroutine::async([&]() {
         while (1) {
-            ret = read(fd, buf, length);
+            ret = read(fd, buf->val, length);
             if (ret < 0 && errno == EINTR) {
                 continue;
             }
@@ -171,13 +167,13 @@ PHP_METHOD(swoole_coroutine_system, fread) {
     });
 
     if (async_success && ret >= 0) {
-        // TODO: Optimization: reduce memory copy
-        ZVAL_STRINGL(return_value, buf, ret);
+        buf->len = ret;
+        buf->val[buf->len] = 0;
+        RETURN_STR(buf);
     } else {
-        ZVAL_FALSE(return_value);
+        zend_string_release(buf);
+        RETURN_FALSE;
     }
-
-    efree(buf);
 }
 
 PHP_METHOD(swoole_coroutine_system, fgets) {
@@ -259,29 +255,21 @@ PHP_METHOD(swoole_coroutine_system, fwrite) {
     if (fd < 0) {
         RETURN_FALSE;
     }
-
-    if (async) {
-        co_socket_write(
-            fd, str, (length <= 0 || (size_t) length > l_str) ? l_str : length, INTERNAL_FUNCTION_PARAM_PASSTHRU);
-        return;
-    }
-
     if (length <= 0 || (size_t) length > l_str) {
         length = l_str;
     }
-
-    char *buf = estrndup(str, length);
-
-    if (!buf) {
-        RETURN_FALSE;
+    if (async) {
+        co_socket_write(fd, str, length, INTERNAL_FUNCTION_PARAM_PASSTHRU);
+        return;
     }
 
-    int ret = -1;
+    zend::CharPtr buf(str, length);
+    ssize_t ret = -1;
     swoole_trace("fd=%d, length=" ZEND_LONG_FMT, fd, length);
     php_swoole_check_reactor();
     bool async_success = swoole::coroutine::async([&]() {
         while (1) {
-            ret = write(fd, buf, length);
+            ret = write(fd, buf.get(), length);
             if (ret < 0 && errno == EINTR) {
                 continue;
             }
@@ -294,8 +282,6 @@ PHP_METHOD(swoole_coroutine_system, fwrite) {
     } else {
         ZVAL_FALSE(return_value);
     }
-
-    efree(buf);
 }
 
 PHP_METHOD(swoole_coroutine_system, readFile) {

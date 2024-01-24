@@ -12,8 +12,7 @@ $pm->parentFunc = function () use ($pm) {
     Co\run(function () use ($pm) {
         $port = $pm->getFreePort();
         $client = new Co\Client(SWOOLE_SOCK_TCP); //同步阻塞
-        if (!$client->connect('127.0.0.1', $port))
-        {
+        if (!$client->connect('127.0.0.1', $port)) {
             exit("connect failed\n");
         }
         $client->send('hello world');

@@ -7,6 +7,6 @@ namespace Swoole\Coroutine\Http {
 		public function handle(string $pattern, callable $callback): void {}
 		public function start(): bool {}
 		public function shutdown(): void {}
-		private function onAccept(): void {}
+		private function onAccept(\Swoole\Coroutine\Socket $conn): void {}
 	}
 }

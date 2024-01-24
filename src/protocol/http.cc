@@ -139,15 +139,16 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
 
     std::stringstream header_stream;
     if (1 == tasks.size()) {
-        if (0 == tasks[0].offset && tasks[0].length == handler.get_filesize()) {
-            header_stream << "Accept-Ranges: bytes\r\n";
+        if (SW_HTTP_PARTIAL_CONTENT == handler.status_code) {
+            header_stream << "Content-Range: bytes "
+                          << tasks[0].offset
+                          << "-"
+                          << (tasks[0].length + tasks[0].offset - 1)
+                          << "/"
+                          << handler.get_filesize()
+                          << "\r\n";
         } else {
-            header_stream << "Content-Range: bytes";
-            if (tasks[0].length != handler.get_filesize()) {
-                header_stream << " " << tasks[0].offset << "-" << (tasks[0].length + tasks[0].offset - 1) << "/"
-                              << handler.get_filesize();
-            }
-            header_stream << "\r\n";
+            header_stream << "Accept-Ranges: bytes\r\n";
         }
     }
 
@@ -298,25 +299,34 @@ static int multipart_on_header_value(multipart_parser *p, const char *at, size_t
 }
 
 static int multipart_on_data(multipart_parser *p, const char *at, size_t length) {
-    Request *request = (Request *) p->data;
+    auto request = (Request *) p->data;
+    auto form_data = request->form_data_;
     swoole_trace("on_data: length=%lu", length);
 
     if (!p->fp) {
-        request->form_data_->multipart_buffer_->append(at, length);
+        if (form_data->multipart_buffer_->length + length > request->max_length_) {
+            request->excepted = 1;
+            request->unavailable = 1;
+            return 1;
+        }
+        form_data->multipart_buffer_->append(at, length);
         return 0;
     }
 
-    request->form_data_->upload_filesize += length;
-    if (request->form_data_->upload_filesize > request->form_data_->upload_max_filesize) {
+    form_data->upload_filesize += length;
+    if (form_data->upload_filesize > form_data->upload_max_filesize) {
+        request->excepted = 1;
         request->too_large = 1;
         return 1;
     }
+
     ssize_t n = fwrite(at, sizeof(char), length, p->fp);
     if (n != (off_t) length) {
         fclose(p->fp);
         p->fp = nullptr;
         request->excepted = 1;
-        swoole_sys_warning("write upload file failed");
+        request->unavailable = 1;
+        swoole_sys_warning("failed to write upload file");
         return 1;
     }
 
@@ -352,10 +362,10 @@ static int multipart_on_data_end(multipart_parser *p) {
 }
 
 static int multipart_on_part_begin(multipart_parser *p) {
-    swoole_trace("on_part_begi\n");
+    swoole_trace("on_part_begin");
     Request *request = (Request *) p->data;
     FormData *form_data = request->form_data_;
-    form_data->multipart_buffer_->append(p->multipart_boundary, p->boundary_length);
+    form_data->multipart_buffer_->append(p->boundary, p->boundary_length);
     form_data->multipart_buffer_->append(SW_STRL("\r\n"));
     return 0;
 }
@@ -363,7 +373,7 @@ static int multipart_on_part_begin(multipart_parser *p) {
 static int multipart_on_body_end(multipart_parser *p) {
     Request *request = (Request *) p->data;
     FormData *form_data = request->form_data_;
-    form_data->multipart_buffer_->append(p->multipart_boundary, p->boundary_length);
+    form_data->multipart_buffer_->append(p->boundary, p->boundary_length);
     form_data->multipart_buffer_->append(SW_STRL("--"));
 
     request->content_length_ = form_data->multipart_buffer_->length - request->header_length_;
@@ -916,15 +926,25 @@ void Request::destroy_multipart_parser() {
 }
 
 bool Request::parse_multipart_data(String *buffer) {
-    size_t n = multipart_parser_execute(form_data_->multipart_parser_, buffer->str, buffer->length);
+    excepted = 0;
+    ssize_t n = multipart_parser_execute(form_data_->multipart_parser_, buffer->str, buffer->length);
     swoole_trace("multipart_parser_execute: buffer->length=%lu, n=%lu\n", buffer->length, n);
-    if (n != buffer->length) {
-        swoole_error_log(SW_LOG_WARNING,
+    if (n < 0) {
+        int l_error =
+            multipart_parser_error_msg(form_data_->multipart_parser_, sw_tg_buffer()->str, sw_tg_buffer()->size);
+        swoole_error_log(SW_LOG_NOTICE,
+                         SW_ERROR_SERVER_INVALID_REQUEST,
+                         "parse multipart body failed, reason: %.*s",
+                         l_error,
+                         sw_tg_buffer()->str);
+        return false;
+    } else if ((size_t) n != buffer->length) {
+        swoole_error_log(SW_LOG_NOTICE,
                          SW_ERROR_SERVER_INVALID_REQUEST,
                          "parse multipart body failed, %zu/%zu bytes processed",
                          n,
                          buffer->length);
-        return false;
+        return excepted;
     }
     buffer->clear();
     return true;

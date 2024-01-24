@@ -11,7 +11,7 @@ go(function () {
     Assert::true($cli->connected);
     Assert::true($cli->socket->close());
     Assert::false($cli->close());
-    Assert::eq($cli->errCode, SOCKET_EBADF);
+    Assert::eq($cli->errCode, SWOOLE_ERROR_CLIENT_NO_CONNECTION);
     Assert::false($cli->connected);
     Assert::null($cli->socket);
     Assert::true($cli->connect('www.baidu.com', 80));

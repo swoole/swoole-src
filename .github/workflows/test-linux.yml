@@ -8,13 +8,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php: [8.0, 8.1]
+        php: ['8.0', '8.1', '8.2', '8.3']
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Setup PHP
       uses: shivammathur/setup-php@v2
       with:
         php-version: "${{ matrix.php }}"
+        coverage: none
     - name: Show machine information
       run: |
         date

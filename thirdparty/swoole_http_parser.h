@@ -38,7 +38,7 @@ extern "C" {
 #endif
 
 
-/* Maximium header size allowed */
+/* Maximum header size allowed */
 #define PHP_HTTP_MAX_HEADER_SIZE (80*1024)
 
 

@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 50fef9fc3f7f67d1c27a0f06cc0dbb64e1ba97bb */
+ * Stub hash: 2f5ecf154780c21ccc66ba5e2fd318eb117191b0 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Coroutine_Http_Server___construct, 0, 0, 1)
 	ZEND_ARG_TYPE_INFO(0, host, IS_STRING, 0)
@@ -26,4 +26,6 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Coroutine_Http_Server_shutdown, 0, 0, IS_VOID, 0)
 ZEND_END_ARG_INFO()
 
-#define arginfo_class_Swoole_Coroutine_Http_Server_onAccept arginfo_class_Swoole_Coroutine_Http_Server_shutdown
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Coroutine_Http_Server_onAccept, 0, 1, IS_VOID, 0)
+	ZEND_ARG_OBJ_INFO(0, conn, Swoole\\Coroutine\\Socket, 0)
+ZEND_END_ARG_INFO()

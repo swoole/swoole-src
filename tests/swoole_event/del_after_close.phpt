@@ -18,10 +18,10 @@ $cli->connect("www.qq.com", 80);
 
 $fd = $cli->sock;
 
-Event::add($fd, function($fd) use($cli) {
-    $resp = fread($fp, 8192);
-    Swoole\Event::del($fp);
-    fclose($fp);
+Event::add($fd, function ($fd) use ($cli) {
+    $resp = $cli->recv(8192);
+    Swoole\Event::del($fd);
+    $cli->close();
 });
 
 Event::write($fd, "GET / HTTP/1.1\r\nHost: www.qq.com\r\n\r\n");
@@ -30,7 +30,7 @@ $cli->close();
 
 if (Event::isset($fd)) {
     if (!Event::del($fd)) {
-        echo  "Unable to release fd {$fd} from EventLoop\n";
+        echo "Unable to release fd {$fd} from EventLoop\n";
     } else {
         echo "FD {$fd} released from EventLoop\n";
     }

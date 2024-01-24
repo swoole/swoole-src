@@ -472,13 +472,14 @@ bool Socket::http_proxy_handshake() {
     return ret;
 }
 
-void Socket::init_sock_type(SocketType _sw_type) {
-    type = _sw_type;
-    network::Socket::get_domain_and_type(_sw_type, &sock_domain, &sock_type);
+void Socket::init_sock_type(SocketType _type) {
+    type = _type;
+    network::Socket::get_domain_and_type(_type, &sock_domain, &sock_type);
 }
 
 bool Socket::init_sock() {
-    socket = make_socket(type, SW_FD_CO_SOCKET, SW_SOCK_CLOEXEC | SW_SOCK_NONBLOCK);
+    socket =
+        make_socket(type, SW_FD_CO_SOCKET, sock_domain, sock_type, sock_protocol, SW_SOCK_NONBLOCK | SW_SOCK_CLOEXEC);
     if (socket == nullptr) {
         return false;
     }
@@ -501,7 +502,7 @@ bool Socket::init_reactor_socket(int _fd) {
 
 Socket::Socket(int _domain, int _type, int _protocol)
     : sock_domain(_domain), sock_type(_type), sock_protocol(_protocol) {
-    type = network::Socket::convert_to_type(_domain, _type, _protocol);
+    type = network::Socket::convert_to_type(_domain, _type);
     if (sw_unlikely(!init_sock())) {
         return;
     }
@@ -517,17 +518,20 @@ Socket::Socket(SocketType _type) {
 }
 
 Socket::Socket(int _fd, SocketType _type) {
-    init_sock_type(_type);
     if (sw_unlikely(!init_reactor_socket(_fd))) {
         return;
     }
+    if (_type == SW_SOCK_RAW) {
+        return;
+    }
+    init_sock_type(_type);
     socket->set_nonblock();
     init_options();
 }
 
 Socket::Socket(int _fd, int _domain, int _type, int _protocol)
     : sock_domain(_domain), sock_type(_type), sock_protocol(_protocol) {
-    type = network::Socket::convert_to_type(_domain, _type, _protocol);
+    type = network::Socket::convert_to_type(_domain, _type);
     if (sw_unlikely(!init_reactor_socket(_fd))) {
         return;
     }
@@ -655,7 +659,7 @@ bool Socket::connect(std::string _host, int _port, int flags) {
         _port = http_proxy->proxy_port;
     }
 
-    if (sock_domain == AF_INET6 || sock_domain == AF_INET) {
+    if (is_port_required()) {
         if (_port == -1) {
             set_err(EINVAL, "Socket of type AF_INET/AF_INET6 requires port argument");
             return false;
@@ -811,11 +815,15 @@ ssize_t Socket::peek(void *__buf, size_t __n) {
     return retval;
 }
 
-bool Socket::poll(EventType type) {
+bool Socket::poll(EventType type, double timeout) {
     if (sw_unlikely(!is_available(type))) {
         return -1;
     }
-    TimerController timer(&read_timer, read_timeout, this, timer_callback);
+    TimerNode **timer_pp = type == SW_EVENT_READ ? &read_timer : &write_timer;
+    if (timeout == 0) {
+        timeout = type == SW_EVENT_READ ? read_timeout : write_timeout;
+    }
+    TimerController timer(timer_pp, timeout, this, timer_callback);
     if (timer.start() && wait_event(type)) {
         return true;
     } else {
@@ -1347,6 +1355,7 @@ bool Socket::ssl_verify(bool allow_self_signed) {
 
 std::string Socket::ssl_get_peer_cert() {
     if (!socket->ssl_get_peer_certificate(sw_tg_buffer())) {
+        set_err(SW_ERROR_SSL_EMPTY_PEER_CERTIFICATE);
         return "";
     } else {
         return sw_tg_buffer()->to_std_string();

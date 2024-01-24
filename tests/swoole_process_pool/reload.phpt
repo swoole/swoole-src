@@ -1,5 +1,5 @@
 --TEST--
-swoole_process_pool: sysv msgqueue
+swoole_process_pool: reload
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc';
 if (function_exists('msg_get_queue') == false) {
@@ -14,8 +14,7 @@ $pm = new ProcessManager;
 const PROC_NAME = 'swoole_unittest_process_pool';
 
 $pm->parentFunc = function ($pid) use ($pm) {
-    for ($i = 0; $i < 5; $i++)
-    {
+    for ($i = 0; $i < 5; $i++) {
         Swoole\Process::kill($pid, SIGUSR1);
         usleep(10000);
         //判断进程是否存在
@@ -25,17 +24,15 @@ $pm->parentFunc = function ($pid) use ($pm) {
 };
 
 $pm->childFunc = function () use ($pm) {
-    swoole_set_process_name(PROC_NAME);
+    cli_set_process_title(PROC_NAME);
 
     Co::set(['log_level' => SWOOLE_LOG_ERROR]);
 
     $pool = new Swoole\Process\Pool(2);
 
-    $pool->on('workerStart', function (Swoole\Process\Pool $pool, int $workerId) use ($pm)
-    {
+    $pool->on('workerStart', function (Swoole\Process\Pool $pool, int $workerId) use ($pm) {
         $pm->wakeup();
-        Swoole\Timer::tick(1000, function () use ($workerId)
-        {
+        Swoole\Timer::tick(1000, function () use ($workerId) {
             echo "sleep [$workerId] \n";
         });
         Swoole\Process::signal(SIGTERM, function () {

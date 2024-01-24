@@ -7,11 +7,6 @@ swoole_mysql_coro: illegal another coroutine
 require __DIR__ . '/../include/bootstrap.php';
 $process = new Swoole\Process(function () {
     Co\run(function () {
-        register_shutdown_function(function () {
-            $msg = (error_get_last() ?? [])['message'] ?? '';
-            Assert::true(str_contains($msg, 'has already been bound to another coroutine'));
-            echo "DONE\n";
-        });
         function get(Co\Mysql $cli)
         {
             $cli->query('SELECT SLEEP(1)');
@@ -54,4 +49,3 @@ Stack trace:
 #3 %s(%d): {closure}()
 %A
   thrown in %s on line %d
-DONE

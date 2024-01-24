@@ -118,6 +118,9 @@ typedef unsigned long ulong_t;
 #define SW_ECHO_LEN_CYAN "\e[36m%.*s\e[0m"
 #define SW_ECHO_LEN_WHITE "\e[37m%.*s\e[0m"
 
+#define SW_ECHO_RED_BG  "\e[41m%s\e[0m"
+#define SW_ECHO_GREEN_BG  "\e[42m%s\e[0m"
+
 #define SW_COLOR_RED 1
 #define SW_COLOR_GREEN 2
 #define SW_COLOR_YELLOW 3
@@ -784,7 +787,7 @@ SW_API void swoole_ignore_error(int code);
 SW_API bool swoole_is_ignored_error(int code);
 SW_API void swoole_set_log_level(int level);
 SW_API void swoole_set_log_file(const char *file);
-SW_API void swoole_set_trace_flags(int flags);
+SW_API void swoole_set_trace_flags(long flags);
 SW_API void swoole_set_dns_server(const std::string &server);
 SW_API void swoole_set_hosts_path(const std::string &hosts_file);
 SW_API std::pair<std::string, int> swoole_get_dns_server();
