@@ -7,5 +7,6 @@ pecl config-show && \
 php tools/pecl-package.php && package_file="`ls | grep swoole-*tgz`" && \
 echo "\n" | pecl install -f ${package_file} | tee pecl.log && \
 cat pecl.log | grep "successfully" && \
+php -d extension=swoole --ri swoole && \
 pecl uninstall swoole && \
 rm -f pecl.log
