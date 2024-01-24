@@ -467,7 +467,7 @@ static int http_request_on_headers_complete(swoole_http_parser *parser) {
     ZSTR_LEN(zstr_path) = php_url_decode(ZSTR_VAL(zstr_path), ZSTR_LEN(zstr_path));
     http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_PATH_INFO), zstr_path);
 
-    http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_TIME), (int) time(nullptr));
+    http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_TIME), (zend_long) time(nullptr));
     http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_TIME_FLOAT), microtime());
     http_server_add_server_array(
         ht,
