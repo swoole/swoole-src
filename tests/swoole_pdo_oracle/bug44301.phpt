@@ -1,6 +1,7 @@
 --TEST--
-PDO OCI Bug #44301 (Segfault when an exception is thrown on persistent connections)
+swoole_pdo_oracle: PDO OCI Bug #44301 (Segfault when an exception is thrown on persistent connections)
 --SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_oracle.inc';

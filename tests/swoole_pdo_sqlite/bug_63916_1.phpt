@@ -1,5 +1,5 @@
 --TEST--
-Bug #63916 PDO::PARAM_INT casts to 32bit int internally even on 64bit builds in pdo_sqlite
+swoole_pdo_sqlite:PARAM_INT casts to 32bit int internally even on 64bit builds in pdo_sqlite
 --SKIPIF--
 <?php
 if (PHP_VERSION_ID >= 80100) {

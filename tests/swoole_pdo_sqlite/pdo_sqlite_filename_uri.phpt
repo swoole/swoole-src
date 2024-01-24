@@ -1,5 +1,5 @@
 --TEST--
-PDO_sqlite: Testing filename uri
+swoole_pdo_sqlite: Testing filename uri
 --SKIPIF--
 <?php
 if (PHP_VERSION_ID < 80100) {

@@ -1,6 +1,7 @@
 --TEST--
-Bug #64705 errorInfo property of PDOException is null when PDO::__construct() fails
+swoole_pdo_sqlite:__construct() fails
 --SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_sqlite.inc';

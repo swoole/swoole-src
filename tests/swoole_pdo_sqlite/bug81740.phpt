@@ -1,6 +1,7 @@
 --TEST--
-Bug #81740 (PDO::quote() may return unquoted string)
+swoole_pdo_sqlite:quote() may return unquoted string)
 --SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_sqlite.inc';

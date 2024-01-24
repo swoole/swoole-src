@@ -1,6 +1,7 @@
 --TEST--
-PDO SQLite Feature Request #42589 (getColumnMeta() should also return table name)
+swoole_pdo_sqlite: PDO SQLite Feature Request #42589 (getColumnMeta() should also return table name)
 --SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_sqlite.inc';

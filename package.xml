@@ -51,8 +51,8 @@
         <email>doubaokun@php.net</email>
         <active>yes</active>
     </developer>
-    <date>2023-11-26</date>
-    <time>23:00:00</time>
+    <date>2024-01-24</date>
+    <time>12:00:00</time>
     <version>
         <release>5.1.1</release>
         <api>5.0</api>
@@ -63,15 +63,15 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        - Fixed memory leak issue in HTTP coroutine client
-        - Fixed the issue of can not hook pdo_odbc
-        - Fixed the error in executing socket_import_stream()
-        - Fixed the issue with Context::parse_multipart_data() unable to handle empty request body
-        - Fixed the issue with PostgreSQL coroutine client where the parameters are not working
-        - Fixed the bug where curl crashes during destruction
-        - Fixed the compatibility issue between Swoole 5.x and the latest version of xdebug
-        - Fixed the problem of class not found error caused by coroutine switching during the process of class autoloading
-        - Fixed the issue of not being able to compile Swoole on OpenBSD
+        - Added support for embed sapi @matyhtf
+        - Fixed compatibility with PHP 8.3 ZEND_CHECK_STACK_LIMIT @Yurunsoft
+        - Fixed no Content-Range response header when the range request returns all the contents of the file @Yurunsoft
+        - Optimized HTTP server performance @NathanFreeman
+        - Fixed truncated cookie @stnguyen90
+        - Fixed native-curl crash on PHP 8.3 @NathanFreeman
+        - Added CLOSE_SERVICE_RESTART, CLOSE_TRY_AGAIN_LATER, CLOSE_BAD_GATEWAY as valid close reasons for websocket @cjavad
+        - Fixed invalid errno after Server::Manager::wait() @JacobBrownAustin
+        - Fixed HTTP2 Typo @@leocavalcante
     </notes>
     <contents>
         <dir name="/">
@@ -492,6 +492,7 @@
             <file role="doc" name="examples/www/index.html" />
             <file role="doc" name="examples/www/index.txt" />
             <file role="src" name="ext-src/php_swoole.cc" />
+            <file role="src" name="ext-src/php_swoole_call_stack.h" />
             <file role="src" name="ext-src/php_swoole_client.h" />
             <file role="src" name="ext-src/php_swoole_coroutine.h" />
             <file role="src" name="ext-src/php_swoole_coroutine_system.h" />
@@ -2522,6 +2523,8 @@
             <file role="src" name="thirdparty/php81/pdo_sqlite/sqlite_driver.stub.php" />
             <file role="src" name="thirdparty/php81/pdo_sqlite/sqlite_driver_arginfo.h" />
             <file role="src" name="thirdparty/php81/pdo_sqlite/sqlite_statement.c" />
+            <file role="src" name="thirdparty/php83/Zend/zend_call_stack.cc" />
+            <file role="src" name="thirdparty/php83/Zend/zend_call_stack.h" />
             <file role="src" name="thirdparty/swoole_http_parser.c" />
             <file role="src" name="thirdparty/swoole_http_parser.h" />
             <file role="src" name="tools/analysis.php" />
@@ -2530,7 +2533,6 @@
             <file role="src" name="tools/build-library.php" />
             <file role="src" name="tools/code-generator.php" />
             <file role="src" name="tools/composer.json" />
-            <file role="src" name="tools/config-generator.php" />
             <file role="src" name="tools/constant-generator.php" />
             <file role="src" name="tools/export.php" />
             <file role="src" name="tools/gen-data.php" />

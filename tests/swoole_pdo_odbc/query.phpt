@@ -1,5 +1,5 @@
 --TEST--
-swoole_pdo_pgsql: test query
+swoole_pdo_odbc: test query
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

@@ -1,6 +1,7 @@
 --TEST--
-Bug #48773 (Incorrect error when setting PDO::ATTR_STATEMENT_CLASS with ctor_args)
+swoole_pdo_sqlite:ATTR_STATEMENT_CLASS with ctor_args)
 --SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_sqlite.inc';

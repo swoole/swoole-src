@@ -1,6 +1,7 @@
 --TEST--
-Bug #46542 Extending PDO class with a __call() function
+swoole_pdo_sqlite: Bug #46542 Extending PDO class with a __call() function
 --SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_sqlite.inc';

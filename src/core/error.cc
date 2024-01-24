@@ -166,6 +166,8 @@ const char *swoole_strerror(int code) {
         return "Http proxy bad response";
     case SW_ERROR_HTTP_CONFLICT_HEADER:
         return "Http conflict header";
+    case SW_ERROR_HTTP_CONTEXT_UNAVAILABLE:
+        return "Http context unavailable";
     case SW_ERROR_WEBSOCKET_BAD_CLIENT:
         return "Websocket bad client";
     case SW_ERROR_WEBSOCKET_BAD_OPCODE:

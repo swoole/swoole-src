@@ -1,6 +1,7 @@
 --TEST--
-PDO OCI Bug #33707 (Errors in select statements not reported)
+swoole_pdo_oracle: PDO OCI Bug #33707 (Errors in select statements not reported)
 --SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_oracle.inc';

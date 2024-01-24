@@ -1,5 +1,5 @@
 --TEST--
-PDO OCI Bug #60994 (Reading a multibyte CLOB caps at 8192 characters)
+swoole_pdo_oracle: PDO OCI Bug #60994 (Reading a multibyte CLOB caps at 8192 characters)
 --SKIPIF--
 <?php
 if (PHP_VERSION < 80100) {

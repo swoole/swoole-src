@@ -1,5 +1,5 @@
 --TEST--
-PDO SQLite open_basedir check
+swoole_pdo_sqlite: PDO SQLite open_basedir check
 --SKIPIF--
 <?php
 if (PHP_VERSION_ID < 80100) {

@@ -1,6 +1,7 @@
 --TEST--
-PDO_OCI: Attribute: closing a connection in non-autocommit mode commits data
+swoole_pdo_oracle: closing a connection in non-autocommit mode commits data
 --SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_oracle.inc';

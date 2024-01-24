@@ -1,6 +1,7 @@
 --TEST--
-Bug #70221 (persistent sqlite connection + custom function segfaults)
+swoole_pdo_sqlite: Bug #70221 (persistent sqlite connection + custom function segfaults)
 --SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_sqlite.inc';

@@ -1,6 +1,7 @@
 --TEST--
-Bug #35336 (crash on PDO::FETCH_CLASS + __set())
+swoole_pdo_sqlite:FETCH_CLASS + __set())
 --SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_sqlite.inc';

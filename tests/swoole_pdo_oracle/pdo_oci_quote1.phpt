@@ -1,6 +1,7 @@
 --TEST--
-Test PDO->quote() for PDO_OCI
+swoole_pdo_oracle: Test PDO->quote() for PDO_OCI
 --SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_oracle.inc';

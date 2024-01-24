@@ -1,6 +1,7 @@
 --TEST--
-PECL PDO_OCI Bug #6364 (segmentation fault on stored procedure call with OUT binds)
+swoole_pdo_oracle: PECL PDO_OCI Bug #6364 (segmentation fault on stored procedure call with OUT binds)
 --SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 <?php
 if (getenv('SKIP_ASAN')) die('skip leaks memory under asan');
 require __DIR__ . '/../include/bootstrap.php';

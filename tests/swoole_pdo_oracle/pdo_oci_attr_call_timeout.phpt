@@ -1,6 +1,7 @@
 --TEST--
-PDO_OCI: Attribute: Setting and using call timeout
+swoole_pdo_oracle: Setting and using call timeout
 --SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 <?php
 if (getenv('SKIP_SLOW_TESTS')) die('skip slow tests excluded by request');
 require __DIR__ . '/../include/bootstrap.php';

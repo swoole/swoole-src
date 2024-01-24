@@ -1,6 +1,7 @@
 --TEST--
-PDO_sqlite: Testing sqliteCreateFunction() with flags
+swoole_pdo_sqlite: Testing sqliteCreateFunction() with flags
 --SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_sqlite.inc';

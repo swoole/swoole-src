@@ -1,6 +1,7 @@
 --TEST--
-PDO_OCI: Attribute: Set prefetch on connection
+swoole_pdo_oracle: Set prefetch on connection
 --SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_oracle.inc';

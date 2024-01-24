@@ -1,5 +1,5 @@
 --TEST--
-PDO_OCI: stream_get_contents length & offset test
+swoole_pdo_oracle: stream_get_contents length & offset test
 --SKIPIF--
 <?php
 if (PHP_VERSION < 80100) {

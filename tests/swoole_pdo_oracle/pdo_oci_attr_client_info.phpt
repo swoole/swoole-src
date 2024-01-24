@@ -1,6 +1,7 @@
 --TEST--
-PDO_OCI: Attribute: Setting session client info
+swoole_pdo_oracle: Setting session client info
 --SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_oracle.inc';

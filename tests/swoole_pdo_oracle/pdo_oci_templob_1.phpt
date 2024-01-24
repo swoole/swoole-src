@@ -1,6 +1,7 @@
 --TEST--
-PDO OCI: Test to verify all implicitly created temporary LOB are cleaned up
+swoole_pdo_oracle: Test to verify all implicitly created temporary LOB are cleaned up
 --SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_oracle.inc';

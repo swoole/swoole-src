@@ -1,6 +1,7 @@
 --TEST--
-PDO_sqlite: Testing PDOStatement::getAttribute()
+swoole_pdo_sqlite:getAttribute()
 --SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_sqlite.inc';

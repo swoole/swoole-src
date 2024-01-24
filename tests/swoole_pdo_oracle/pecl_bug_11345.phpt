@@ -1,6 +1,7 @@
 --TEST--
-PECL PDO_OCI Bug #11345 (Test invalid character set name)
+swoole_pdo_oracle: PECL PDO_OCI Bug #11345 (Test invalid character set name)
 --SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_oracle.inc';

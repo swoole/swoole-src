@@ -1,5 +1,5 @@
 --TEST--
-Handling OCI_SUCCESS_WITH_INFO
+swoole_pdo_oracle: Handling OCI_SUCCESS_WITH_INFO
 --SKIPIF--
 <?php
 if (PHP_VERSION < 80100) {

@@ -1,6 +1,7 @@
 --TEST--
-SQLite3 authorizer crashes on NULL values
+swoole_pdo_sqlite: SQLite3 authorizer crashes on NULL values
 --SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_sqlite.inc';

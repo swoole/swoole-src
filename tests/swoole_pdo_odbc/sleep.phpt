@@ -1,5 +1,5 @@
 --TEST--
-swoole_pdo_pgsql: test hook pgsql
+swoole_pdo_odbc: test hook pgsql
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

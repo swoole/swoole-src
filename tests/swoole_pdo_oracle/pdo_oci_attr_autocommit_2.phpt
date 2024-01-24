@@ -1,6 +1,7 @@
 --TEST--
-PDO_OCI: Attribute: beginTransaction and native transactions
+swoole_pdo_oracle: beginTransaction and native transactions
 --SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_oracle.inc';

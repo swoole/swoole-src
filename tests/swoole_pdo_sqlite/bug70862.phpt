@@ -1,5 +1,5 @@
 --TEST--
-PDO_sqlite: Testing sqliteCreateCollation()
+swoole_pdo_sqlite: Testing sqliteCreateCollation()
 --SKIPIF--
 <?php
 if (PHP_VERSION_ID >= 80200) {

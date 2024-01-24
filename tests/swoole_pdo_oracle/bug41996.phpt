@@ -1,6 +1,7 @@
 --TEST--
-PDO OCI Bug #41996 (Problem accessing Oracle ROWID)
+swoole_pdo_oracle: PDO OCI Bug #41996 (Problem accessing Oracle ROWID)
 --SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_oracle.inc';

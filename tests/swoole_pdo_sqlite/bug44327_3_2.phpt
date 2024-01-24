@@ -1,5 +1,5 @@
 --TEST--
-Bug #44327.3 (PDORow::queryString property & numeric offsets / Crash)
+swoole_pdo_sqlite:queryString property & numeric offsets / Crash)
 --SKIPIF--
 <?php
 if (PHP_VERSION_ID < 80100) {

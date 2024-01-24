@@ -1,6 +1,7 @@
 --TEST--
-PDO SQLite Bug #33841 (rowCount() does not work on prepared statements)
+swoole_pdo_sqlite: PDO SQLite Bug #33841 (rowCount() does not work on prepared statements)
 --SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_sqlite.inc';

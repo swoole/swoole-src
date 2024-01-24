@@ -1,6 +1,7 @@
 --TEST--
-GC support for PDO Sqlite driver data
+swoole_pdo_sqlite: GC support for PDO Sqlite driver data
 --SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_sqlite.inc';
