@@ -267,7 +267,7 @@ static int sw_php_stdiop_close(php_stream *stream, int close_handle) {
             if ((data->lock_flag & LOCK_EX) || (data->lock_flag & LOCK_SH)) {
                 swoole_coroutine_flock_ex(stream->orig_path, data->fd, LOCK_UN);
             }
-            ret = swoole_coroutine_close_file(data->fd);
+            ret = _close(data->fd);
             data->fd = -1;
         } else {
             return 0; /* everything should be closed already -> success */
@@ -303,6 +303,27 @@ static int sw_php_stdiop_flush(php_stream *stream) {
         return fflush(data->file);
     }
     return 0;
+}
+
+static int sw_php_stdiop_sync(php_stream *stream, bool dataonly)
+{
+    php_stdio_stream_data *data = (php_stdio_stream_data*)stream->abstract;
+    FILE *fp;
+    int fd;
+
+    if (php_stream_cast(stream, PHP_STREAM_AS_STDIO, (void**)&fp, REPORT_ERRORS) == FAILURE) {
+        return -1;
+    }
+
+    if (sw_php_stdiop_flush(stream) == 0) {
+        PHP_STDIOP_GET_FD(fd, data);
+        if (dataonly) {
+            return fdatasync(fd);
+        } else {
+            return fsync(fd);
+        }
+    }
+    return -1;
 }
 
 static int sw_php_stdiop_seek(php_stream *stream, zend_off_t offset, int whence, zend_off_t *newoffset) {
@@ -631,6 +652,18 @@ static int sw_php_stdiop_set_option(php_stream *stream, int option, int value, v
 #endif
         return PHP_STREAM_OPTION_RETURN_NOTIMPL;
 
+    case PHP_STREAM_OPTION_SYNC_API:
+        switch (value) {
+        case PHP_STREAM_SYNC_SUPPORTED:
+            return fd == -1 ? PHP_STREAM_OPTION_RETURN_ERR : PHP_STREAM_OPTION_RETURN_OK;
+        case PHP_STREAM_SYNC_FSYNC:
+            return sw_php_stdiop_sync(stream, 0) == 0 ? PHP_STREAM_OPTION_RETURN_OK : PHP_STREAM_OPTION_RETURN_ERR;
+        case PHP_STREAM_SYNC_FDSYNC:
+            return sw_php_stdiop_sync(stream, 1) == 0 ? PHP_STREAM_OPTION_RETURN_OK : PHP_STREAM_OPTION_RETURN_ERR;
+        }
+        /* Invalid option passed */
+        return PHP_STREAM_OPTION_RETURN_ERR;
+
     case PHP_STREAM_OPTION_TRUNCATE_API:
         switch (value) {
         case PHP_STREAM_TRUNCATE_SUPPORTED:
@@ -832,7 +865,7 @@ static php_stream *stream_fopen_rel(const char *filename,
 
             return ret;
         }
-        swoole_coroutine_close_file(fd);
+        _close(fd);
     }
     if (persistent_id) {
         efree(persistent_id);
@@ -1168,7 +1201,7 @@ static int php_plain_files_metadata(
                 php_error_docref1(NULL, url, E_WARNING, "Unable to create file %s because %s", url, strerror(errno));
                 return 0;
             }
-            swoole_coroutine_close_file(file);
+            _close(file);
         }
 
         ret = utime(url, newtime);

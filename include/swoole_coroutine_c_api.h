@@ -59,8 +59,26 @@ int swoole_coroutine_flock(int fd, int operation);
 int swoole_coroutine_flock_ex(const char *filename, int fd, int operation);
 int swoole_coroutine_statvfs(const char *path, struct statvfs *buf);
 int swoole_coroutine_close_file(int fd);
+int swoole_coroutine_fsync(int fd);
+int swoole_coroutine_fdatasync(int fd);
+/**
+ * io_uring
+ */
 #if defined(__linux__) && defined(SW_USE_IOURING)
-void sw_statx_to_stat(const struct statx *statxbuf, struct stat *statbuf);
+int swoole_coroutine_iouring_open(const char *pathname, int flags, mode_t mode);
+int swoole_coroutine_iouring_close_file(int fd);
+ssize_t swoole_coroutine_iouring_read(int sockfd, void *buf, size_t count);
+ssize_t swoole_coroutine_iouring_write(int sockfd, const void *buf, size_t count);
+int swoole_coroutine_iouring_rename(const char *oldpath, const char *newpath);
+int swoole_coroutine_iouring_mkdir(const char *pathname, mode_t mode);
+int swoole_coroutine_iouring_unlink(const char *pathname);
+int swoole_coroutine_iouring_fstat(int fd, struct stat *statbuf);
+int swoole_coroutine_iouring_stat(const char *path, struct stat *statbuf);
+int swoole_coroutine_iouring_lstat(const char *path, struct stat *statbuf);
+int swoole_coroutine_iouring_rmdir(const char *pathname);
+int swoole_coroutine_iouring_fsync(int fd);
+int swoole_coroutine_iouring_fdatasync(int fd);
+void swoole_statx_to_stat(const struct statx *statxbuf, struct stat *statbuf);
 #endif
 /**
  * stdio

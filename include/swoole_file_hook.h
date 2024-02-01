@@ -19,8 +19,23 @@
 
 #include "swoole_coroutine_c_api.h"
 
-#define access(pathname, mode) swoole_coroutine_access(pathname, mode)
+#if defined(__linux__) && defined(SW_USE_IOURING)
+#define open(pathname, flags, mode) swoole_coroutine_iouring_open(pathname, flags, mode)
+#define _close(fd)  swoole_coroutine_iouring_close_file(fd)
+#define read(fd, buf, count) swoole_coroutine_iouring_read(fd, buf, count)
+#define write(fd, buf, count) swoole_coroutine_iouring_write(fd, buf, count)
+#define rename(oldpath, newpath) swoole_coroutine_iouring_rename(oldpath, newpath)
+#define mkdir(pathname, mode) swoole_coroutine_iouring_mkdir(pathname, mode)
+#define unlink(pathname) swoole_coroutine_iouring_unlink(pathname)
+#define fstat(fd, statbuf) swoole_coroutine_iouring_fstat(fd, statbuf)
+#define stat(path, statbuf) swoole_coroutine_iouring_stat(path, statbuf)
+#define lstat(path, statbuf) swoole_coroutine_iouring_lstat(path, statbuf)
+#define rmdir(pathname) swoole_coroutine_iouring_rmdir(pathname)
+#define fsync(fd) swoole_coroutine_fsync(fd)
+#define fdatasync(fd) swoole_coroutine_fdatasync(fd)
+#else
 #define open(pathname, flags, mode) swoole_coroutine_open(pathname, flags, mode)
+#define _close(fd)  swoole_coroutine_close_file(fd)
 #define read(fd, buf, count) swoole_coroutine_read(fd, buf, count)
 #define write(fd, buf, count) swoole_coroutine_write(fd, buf, count)
 #define lseek(fd, offset, whence) swoole_coroutine_lseek(fd, offset, whence)
@@ -32,7 +47,11 @@
 #define mkdir(pathname, mode) swoole_coroutine_mkdir(pathname, mode)
 #define rmdir(pathname) swoole_coroutine_rmdir(pathname)
 #define rename(oldpath, newpath) swoole_coroutine_rename(oldpath, newpath)
+#define fsync(fd) swoole_coroutine_iouring_fsync(fd)
+#define fdatasync(fd) swoole_coroutine_iouring_fdatasync(fd)
+#endif
 
+#define access(pathname, mode) swoole_coroutine_access(pathname, mode)
 #define fopen(pathname, mode)  swoole_coroutine_fopen(pathname, mode)
 #define fdopen(fd, mode)  swoole_coroutine_fdopen(fd, mode)
 #define freopen(pathname, mode, stream)  swoole_coroutine_freopen(pathname, mode, stream)

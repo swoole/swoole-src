@@ -776,6 +776,8 @@ int async(AsyncIOUring::opcodes opcode,
         result = iouring->close(&event);
     } else if (opcode == AsyncIOUring::SW_IORING_OP_FSTAT) {
         result = iouring->statx(&event);
+    } else if (opcode == AsyncIOUring::SW_IORING_OP_FSYNC || opcode == AsyncIOUring::SW_IORING_OP_FDATASYNC) {
+        result = iouring->fsync(&event);
     }
 
     if (!result || !task.co->yield_ex(timeout)) {

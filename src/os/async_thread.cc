@@ -24,6 +24,7 @@
 #include "swoole_async.h"
 #include "swoole_util.h"
 #include "swoole_coroutine.h"
+#include "linux/version.h"
 
 #include <thread>
 #include <atomic>
@@ -450,7 +451,15 @@ AsyncIOUring::AsyncIOUring(Reactor *reactor_) {
         entries = 1 << i;
     }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,19,0)
+    int ret = io_uring_queue_init(entries, &ring, IORING_SETUP_COOP_TASKRUN | IORING_SETUP_SUBMIT_ALL);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(6,0,0)
+    int ret = io_uring_queue_init(
+        entries, &ring, IORING_SETUP_COOP_TASKRUN | IORING_SETUP_SUBMIT_ALL | IORING_SETUP_SINGLE_ISSUER);
+#else
     int ret = io_uring_queue_init(entries, &ring, 0);
+#endif
+
     if (ret < 0) {
         swoole_warning("create io_uring failed");
         throw swoole::Exception(SW_ERROR_WRONG_OPERATION);
@@ -494,46 +503,6 @@ AsyncIOUring::~AsyncIOUring() {
     io_uring_queue_exit(&ring);
 }
 
-struct io_uring_sqe *AsyncIOUring::get_iouring_sqe() {
-    struct io_uring_sqe *sqe = io_uring_get_sqe(&ring);
-    /**
-     * We need to reset the values of each sqe structure so that they can be used in a loop.
-     */
-    if (sqe) {
-        memset(sqe, 0, sizeof(struct io_uring_sqe));
-    }
-    return sqe;
-}
-
-bool AsyncIOUring::store_events(AsyncEvent *event) {
-    if (task_num == entries) {
-        waitEvents.push(event);
-        return true;
-    }
-
-    return false;
-}
-
-void AsyncIOUring::set_iouring_sqe_data(struct io_uring_sqe *sqe, void *data) {
-    io_uring_sqe_set_data(sqe, data);
-}
-
-void *AsyncIOUring::get_iouring_cqe_data(struct io_uring_cqe *cqe) {
-    return io_uring_cqe_get_data(cqe);
-}
-
-int AsyncIOUring::get_iouring_cqe(struct io_uring_cqe **cqe_ptr) {
-    return io_uring_peek_cqe(&ring, cqe_ptr);
-}
-
-void AsyncIOUring::finish_iouring_cqe(struct io_uring_cqe *cqe) {
-    io_uring_cqe_seen(&ring, cqe);
-}
-
-bool AsyncIOUring::submit_iouring_sqe() {
-    return io_uring_submit(&ring);
-}
-
 void AsyncIOUring::add_event() {
     reactor->add(iou_socket, SW_EVENT_READ);
 }
@@ -542,14 +511,75 @@ void AsyncIOUring::delete_event() {
     reactor->del(iou_socket);
 }
 
-bool AsyncIOUring::open(AsyncEvent *event) {
-    if (store_events(event)) {
+bool AsyncIOUring::wakeup() {
+    unsigned num = entries * 2;
+    struct io_uring_cqe *cqes[num];
+    unsigned count = get_iouring_cqes(cqes, num);
+    if (count == 0) {
         return true;
     }
+    if (count < 0) {
+        return false;
+    }
 
+    unsigned i = 0;
+    AsyncEvent *tasks[count];
+    void *data = nullptr;
+    AsyncEvent *task = nullptr;
+    struct io_uring_cqe *cqe = nullptr;
+    for (i = 0; i < count; i++) {
+        cqe = cqes[i];
+        data = get_iouring_cqe_data(cqe);
+        task = reinterpret_cast<AsyncEvent *>(data);
+        task->retval = cqe->res;
+        tasks[i] = task;
+        task_num--;
+    }
+    finish_iouring_cqes(count);
+
+    AsyncEvent *waitEvent = nullptr;
+    for (i = 0; i < count; i++) {
+        task = tasks[i];
+        if (is_empty_wait_events()) {
+            task->callback(task);
+            continue;
+        }
+
+        waitEvent = waitEvents.front();
+        waitEvents.pop();
+        if (waitEvent->opcode == AsyncIOUring::SW_IORING_OP_OPENAT) {
+            open(waitEvent);
+        } else if (waitEvent->opcode == AsyncIOUring::SW_IORING_OP_CLOSE) {
+            close(waitEvent);
+        } else if (waitEvent->opcode == AsyncIOUring::SW_IORING_OP_FSTAT ||
+                   waitEvent->opcode == AsyncIOUring::SW_IORING_OP_LSTAT) {
+            statx(waitEvent);
+        } else if (waitEvent->opcode == AsyncIOUring::SW_IORING_OP_READ ||
+                   waitEvent->opcode == AsyncIOUring::SW_IORING_OP_WRITE) {
+            wr(waitEvent);
+        } else if (waitEvent->opcode == AsyncIOUring::SW_IORING_OP_RENAMEAT) {
+            rename(waitEvent);
+        } else if (waitEvent->opcode == AsyncIOUring::SW_IORING_OP_UNLINK_FILE ||
+                   waitEvent->opcode == AsyncIOUring::SW_IORING_OP_UNLINK_DIR) {
+            unlink(waitEvent);
+        } else if (waitEvent->opcode == AsyncIOUring::SW_IORING_OP_MKDIRAT) {
+            mkdir(waitEvent);
+        } else if (waitEvent->opcode == AsyncIOUring::SW_IORING_OP_FSYNC ||
+                   waitEvent->opcode == AsyncIOUring::SW_IORING_OP_FDATASYNC) {
+            fsync(waitEvent);
+        }
+
+        task->callback(task);
+    }
+
+    return true;
+}
+
+bool AsyncIOUring::open(AsyncEvent *event) {
     struct io_uring_sqe *sqe = get_iouring_sqe();
     if (!sqe) {
-        return false;
+        waitEvents.push(event);
+        return true;
     }
 
     set_iouring_sqe_data(sqe, (void *) event);
@@ -570,13 +600,10 @@ bool AsyncIOUring::open(AsyncEvent *event) {
 }
 
 bool AsyncIOUring::close(AsyncEvent *event) {
-    if (store_events(event)) {
-        return true;
-    }
-
     struct io_uring_sqe *sqe = get_iouring_sqe();
     if (!sqe) {
-        return false;
+        waitEvents.push(event);
+        return true;
     }
 
     set_iouring_sqe_data(sqe, (void *) event);
@@ -594,13 +621,10 @@ bool AsyncIOUring::close(AsyncEvent *event) {
 }
 
 bool AsyncIOUring::wr(AsyncEvent *event) {
-    if (store_events(event)) {
-        return true;
-    }
-
     struct io_uring_sqe *sqe = get_iouring_sqe();
     if (!sqe) {
-        return false;
+        waitEvents.push(event);
+        return true;
     }
 
     set_iouring_sqe_data(sqe, (void *) event);
@@ -621,13 +645,10 @@ bool AsyncIOUring::wr(AsyncEvent *event) {
 }
 
 bool AsyncIOUring::statx(AsyncEvent *event) {
-    if (store_events(event)) {
-        return true;
-    }
-
     struct io_uring_sqe *sqe = get_iouring_sqe();
     if (!sqe) {
-        return false;
+        waitEvents.push(event);
+        return true;
     }
 
     set_iouring_sqe_data(sqe, (void *) event);
@@ -655,13 +676,10 @@ bool AsyncIOUring::statx(AsyncEvent *event) {
 }
 
 bool AsyncIOUring::mkdir(AsyncEvent *event) {
-    if (store_events(event)) {
-        return true;
-    }
-
     struct io_uring_sqe *sqe = get_iouring_sqe();
     if (!sqe) {
-        return false;
+        waitEvents.push(event);
+        return true;
     }
 
     set_iouring_sqe_data(sqe, (void *) event);
@@ -680,13 +698,10 @@ bool AsyncIOUring::mkdir(AsyncEvent *event) {
 }
 
 bool AsyncIOUring::unlink(AsyncEvent *event) {
-    if (store_events(event)) {
-        return true;
-    }
-
     struct io_uring_sqe *sqe = get_iouring_sqe();
     if (!sqe) {
-        return false;
+        waitEvents.push(event);
+        return true;
     }
 
     set_iouring_sqe_data(sqe, (void *) event);
@@ -708,13 +723,10 @@ bool AsyncIOUring::unlink(AsyncEvent *event) {
 }
 
 bool AsyncIOUring::rename(AsyncEvent *event) {
-    if (store_events(event)) {
-        return true;
-    }
-
     struct io_uring_sqe *sqe = get_iouring_sqe();
     if (!sqe) {
-        return false;
+        waitEvents.push(event);
+        return true;
     }
 
     set_iouring_sqe_data(sqe, (void *) event);
@@ -734,48 +746,38 @@ bool AsyncIOUring::rename(AsyncEvent *event) {
     return true;
 }
 
+bool AsyncIOUring::fsync(AsyncEvent *event) {
+    struct io_uring_sqe *sqe = get_iouring_sqe();
+    if (!sqe) {
+        waitEvents.push(event);
+        return true;
+    }
+
+    set_iouring_sqe_data(sqe, (void *) event);
+    sqe->fd = event->fd;
+    sqe->addr = (unsigned long) nullptr;
+    sqe->opcode = IORING_OP_FSYNC;
+    sqe->len = 0;
+    sqe->off = 0;
+    sqe->fsync_flags = 0;
+
+    if (event->opcode == SW_IORING_OP_FDATASYNC) {
+        sqe->fsync_flags = IORING_FSYNC_DATASYNC;
+    }
+
+    bool result = submit_iouring_sqe();
+
+    if (!result) {
+        return false;
+    }
+
+    task_num++;
+    return true;
+}
+
 int AsyncIOUring::callback(Reactor *reactor, Event *event) {
     AsyncIOUring *iouring = SwooleTG.async_iouring;
-    struct io_uring_cqe *cqe = nullptr;
-    int ret = iouring->get_iouring_cqe(&cqe);
-    if (ret < 0) {
-        return 0;
-    }
-
-    void *data = iouring->get_iouring_cqe_data(cqe);
-    AsyncEvent *task = reinterpret_cast<AsyncEvent *>(data);
-    task->retval = cqe->res;
-    iouring->finish_iouring_cqe(cqe);
-    iouring->task_num--;
-
-    if (iouring->is_empty_wait_events()) {
-        task->callback(task);
-        return 1;
-    }
-
-    AsyncEvent *waitEvent = iouring->waitEvents.front();
-    iouring->waitEvents.pop();
-    if (waitEvent->opcode == AsyncIOUring::SW_IORING_OP_OPENAT) {
-        iouring->open(waitEvent);
-    } else if (waitEvent->opcode == AsyncIOUring::SW_IORING_OP_CLOSE) {
-        iouring->close(waitEvent);
-    } else if (waitEvent->opcode == AsyncIOUring::SW_IORING_OP_FSTAT ||
-               waitEvent->opcode == AsyncIOUring::SW_IORING_OP_LSTAT) {
-        iouring->statx(waitEvent);
-    } else if (waitEvent->opcode == AsyncIOUring::SW_IORING_OP_READ ||
-               waitEvent->opcode == AsyncIOUring::SW_IORING_OP_WRITE) {
-        iouring->wr(waitEvent);
-    } else if (waitEvent->opcode == AsyncIOUring::SW_IORING_OP_RENAMEAT) {
-        iouring->rename(waitEvent);
-    } else if (waitEvent->opcode == AsyncIOUring::SW_IORING_OP_UNLINK_FILE ||
-               waitEvent->opcode == AsyncIOUring::SW_IORING_OP_UNLINK_DIR) {
-        iouring->unlink(waitEvent);
-    } else if (waitEvent->opcode == AsyncIOUring::SW_IORING_OP_MKDIRAT) {
-        iouring->mkdir(waitEvent);
-    }
-
-    task->callback(task);
-    return 1;
+    return iouring->wakeup() ? 1 : 0;
 }
 #endif
 };  // namespace swoole

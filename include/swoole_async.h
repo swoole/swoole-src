@@ -123,42 +123,67 @@ class AsyncThreads {
 class AsyncIOUring {
   private:
     int ring_fd;
-    uint32_t entries = 8192;
+    uint64_t task_num = 0;
+    uint64_t entries = 8192;
     struct io_uring ring;
+    std::queue<AsyncEvent *> waitEvents;
     network::Socket *iou_socket = nullptr;
     Reactor *reactor = nullptr;
 
-    struct io_uring_sqe *get_iouring_sqe();
-    bool store_events(AsyncEvent *event);
-    void set_iouring_sqe_data(struct io_uring_sqe *sqe, void *data);
-    void *get_iouring_cqe_data(struct io_uring_cqe *cqe);
-    int get_iouring_cqe(struct io_uring_cqe **cqe_ptr);
-    void finish_iouring_cqe(struct io_uring_cqe *cqe);
-    bool submit_iouring_sqe();
+    inline struct io_uring_sqe *get_iouring_sqe() {
+        struct io_uring_sqe *sqe = io_uring_get_sqe(&ring);
+        // We need to reset the values of each sqe structure so that they can be used in a loop.
+        if (sqe) {
+            memset(sqe, 0, sizeof(struct io_uring_sqe));
+        }
+        return sqe;
+    }
+
+    inline void set_iouring_sqe_data(struct io_uring_sqe *sqe, void *data) {
+        io_uring_sqe_set_data(sqe, data);
+    }
+
+    inline void *get_iouring_cqe_data(struct io_uring_cqe *cqe) {
+        return io_uring_cqe_get_data(cqe);
+    }
+
+    inline int get_iouring_cqes(struct io_uring_cqe **cqe_ptr, unsigned count) {
+        return io_uring_peek_batch_cqe(&ring, cqe_ptr, count);
+    }
+
+    inline void finish_iouring_cqes(unsigned count) {
+        io_uring_cq_advance(&ring, count);
+    }
+
+    inline bool submit_iouring_sqe() {
+        return io_uring_submit(&ring);
+    }
 
   public:
-    uint64_t task_num = 0;
-    std::queue<AsyncEvent *> waitEvents;
     AsyncIOUring(Reactor *reactor_);
     ~AsyncIOUring();
 
     enum opcodes {
-        SW_IORING_OP_OPENAT = 18,
-        SW_IORING_OP_CLOSE = 19,
-        SW_IORING_OP_STATX = 21,
-        SW_IORING_OP_READ = 22,
-        SW_IORING_OP_WRITE = 23,
-        SW_IORING_OP_RENAMEAT = 35,
-        SW_IORING_OP_UNLINKAT = 36,
-        SW_IORING_OP_MKDIRAT = 37,
+        SW_IORING_OP_OPENAT = IORING_OP_OPENAT,
+        SW_IORING_OP_CLOSE = IORING_OP_CLOSE,
+        SW_IORING_OP_STATX = IORING_OP_STATX,
+        SW_IORING_OP_READ = IORING_OP_READ,
+        SW_IORING_OP_WRITE = IORING_OP_WRITE,
+        SW_IORING_OP_RENAMEAT = IORING_OP_RENAMEAT,
+        SW_IORING_OP_UNLINKAT = IORING_OP_UNLINKAT,
+        SW_IORING_OP_MKDIRAT = IORING_OP_MKDIRAT,
+
         SW_IORING_OP_FSTAT = 1000,
         SW_IORING_OP_LSTAT = 1001,
         SW_IORING_OP_UNLINK_FILE = 1002,
         SW_IORING_OP_UNLINK_DIR = 1003,
+        SW_IORING_OP_FSYNC = 1004,
+        SW_IORING_OP_FDATASYNC = 1005,
     };
 
     void add_event();
     void delete_event();
+    bool wakeup();
     bool open(AsyncEvent *event);
     bool close(AsyncEvent *event);
     bool wr(AsyncEvent *event);
@@ -166,6 +191,7 @@ class AsyncIOUring {
     bool mkdir(AsyncEvent *event);
     bool unlink(AsyncEvent *event);
     bool rename(AsyncEvent *event);
+    bool fsync(AsyncEvent *event);
     inline bool is_empty_wait_events() {
         return waitEvents.size() == 0;
     }
