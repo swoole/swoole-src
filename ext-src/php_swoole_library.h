@@ -14,10 +14,12 @@
   +----------------------------------------------------------------------+
  */
 
-/* $Id: 2ff30e0a106505dd57c838de88af0254500e7ce5 */
+/* $Id: 9504fec3ee5e8583aba99cf524a73b6f1b316d14 */
 
 #ifndef SWOOLE_LIBRARY_H
 #define SWOOLE_LIBRARY_H
+
+#include "zend_exceptions.h"
 
 #if PHP_VERSION_ID < 80000
 typedef zval zend_source_string_t;
@@ -369,8 +371,6 @@ static const char* swoole_library_source_core_constant =
     "\n"
     "    public const OPTION_DNS_CACHE_CAPACITY = 'dns_cache_capacity';\n"
     "\n"
-    "    public const OPTION_MAX_CONCURRENCY = 'max_concurrency';\n"
-    "\n"
     "    public const OPTION_CONNECT_TIMEOUT = 'connect_timeout';\n"
     "\n"
     "    public const OPTION_TIMEOUT = 'timeout';\n"
@@ -390,6 +390,8 @@ static const char* swoole_library_source_core_constant =
     "    public const OPTION_BODY_DECOMPRESSION = 'body_decompression';\n"
     "\n"
     "    public const OPTION_WEBSOCKET_COMPRESSION = 'websocket_compression';\n"
+    "\n"
+    "    public const OPTION_WRITE_FUNC = 'write_func';\n"
     "\n"
     "    public const OPTION_HTTP_PARSE_COOKIE = 'http_parse_cookie';\n"
     "\n"
@@ -458,6 +460,8 @@ static const char* swoole_library_source_core_constant =
     "    public const OPTION_MAX_WAIT_TIME = 'max_wait_time';\n"
     "\n"
     "    public const OPTION_MAX_QUEUED_BYTES = 'max_queued_bytes';\n"
+    "\n"
+    "    public const OPTION_MAX_CONCURRENCY = 'max_concurrency';\n"
     "\n"
     "    public const OPTION_WORKER_MAX_CONCURRENCY = 'worker_max_concurrency';\n"
     "\n"
@@ -9727,7 +9731,7 @@ static const char* swoole_library_source_alias_ns =
     "    }\n"
     "}\n";
 
-void php_swoole_load_library()
+void php_swoole_load_library(void)
 {
     _eval(swoole_library_source_constants, "@swoole/library/constants.php");
     _eval(swoole_library_source_std_exec, "@swoole/library/std/exec.php");

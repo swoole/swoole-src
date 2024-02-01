@@ -1,9 +1,10 @@
 --TEST--
-PDO_sqlite: Testing sqliteCreateFunction() produces warning when
+swoole_pdo_sqlite: Testing sqliteCreateFunction() produces warning when
 un-callable function passed
 --CREDITS--
 Chris MacPherson chris@kombine.co.uk
 --SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_sqlite.inc';

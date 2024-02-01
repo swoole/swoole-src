@@ -1,6 +1,7 @@
 --TEST--
-__toString() exception during PDO Sqlite parameter binding
+swoole_pdo_sqlite: __toString() exception during PDO Sqlite parameter binding
 --SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_sqlite.inc';

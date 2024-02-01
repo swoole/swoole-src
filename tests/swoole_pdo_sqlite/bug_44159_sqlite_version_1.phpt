@@ -1,5 +1,5 @@
 --TEST--
-PDO Common: Bug #44159: SQLite variant
+swoole_pdo_sqlite: SQLite variant
 --SKIPIF--
 <?php
 if (PHP_VERSION_ID >= 80100) {

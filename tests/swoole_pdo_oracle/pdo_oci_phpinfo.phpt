@@ -1,6 +1,7 @@
 --TEST--
-PDO_OCI: phpinfo() output
+swoole_pdo_oracle: phpinfo() output
 --SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_oracle.inc';

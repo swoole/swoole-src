@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_response: Github#5146 HTTP服务器，添加响应cookie时，如果设置了过期时间会内存泄漏
+swoole_http_server: Github#5146 HTTP服务器，添加响应cookie时，如果设置了过期时间会内存泄漏
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

@@ -1,6 +1,7 @@
 --TEST--
-Bug #66033 (Segmentation Fault when constructor of PDO statement throws an exception)
+swoole_pdo_sqlite: Bug #66033 (Segmentation Fault when constructor of PDO statement throws an exception)
 --SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_sqlite.inc';

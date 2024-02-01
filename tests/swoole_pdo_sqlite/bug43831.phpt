@@ -1,6 +1,7 @@
 --TEST--
-Bug #43831 ($this gets mangled when extending PDO with persistent connection)
+swoole_pdo_sqlite: Bug #43831 ($this gets mangled when extending PDO with persistent connection)
 --SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_sqlite.inc';

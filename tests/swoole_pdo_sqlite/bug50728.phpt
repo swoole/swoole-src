@@ -1,6 +1,7 @@
 --TEST--
-Bug #50728 (All PDOExceptions hardcode 'code' property to 0)
+swoole_pdo_sqlite: Bug #50728 (All PDOExceptions hardcode 'code' property to 0)
 --SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_sqlite.inc';

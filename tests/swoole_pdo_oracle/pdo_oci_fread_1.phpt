@@ -1,6 +1,7 @@
 --TEST--
-PDO_OCI: check fread() EOF
+swoole_pdo_oracle: check fread() EOF
 --SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_oracle.inc';

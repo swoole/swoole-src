@@ -1,5 +1,5 @@
 --TEST--
-PDO SQLite Bug #78192 SegFault when reuse statement after schema change
+swoole_pdo_sqlite: PDO SQLite Bug #78192 SegFault when reuse statement after schema change
 --SKIPIF--
 <?php
 if (PHP_VERSION_ID >= 80100) {
@@ -56,4 +56,3 @@ array(1) {
     NULL
   }
 }
-

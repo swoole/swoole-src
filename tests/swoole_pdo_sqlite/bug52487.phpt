@@ -1,6 +1,7 @@
 --TEST--
-Bug #52487 (PDO::FETCH_INTO leaks memory)
+swoole_pdo_sqlite:FETCH_INTO leaks memory)
 --SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_sqlite.inc';

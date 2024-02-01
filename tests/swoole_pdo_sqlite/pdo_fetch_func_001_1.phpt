@@ -1,5 +1,5 @@
 --TEST--
-Testing several callbacks using PDO::FETCH_FUNC
+swoole_pdo_sqlite:FETCH_FUNC
 --SKIPIF--
 <?php
 if (PHP_VERSION_ID < 80200) {

@@ -1,6 +1,7 @@
 --TEST--
-PDO_OCI: Bug #69356 (PDOStatement::debugDumpParams() truncates query)
+swoole_pdo_oracle:debugDumpParams() truncates query)
 --SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_oracle.inc';

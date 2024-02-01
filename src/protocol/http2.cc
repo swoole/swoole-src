@@ -168,7 +168,7 @@ const char *get_type(int type) {
     case SW_HTTP2_TYPE_CONTINUATION:
         return "CONTINUATION";
     default:
-        return "UNKOWN";
+        return "UNKNOWN";
     }
 }
 

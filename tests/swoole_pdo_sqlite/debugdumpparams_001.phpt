@@ -1,6 +1,7 @@
 --TEST--
-Testing PDOStatement::debugDumpParams() with bound params
+swoole_pdo_sqlite:debugDumpParams() with bound params
 --SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_sqlite.inc';

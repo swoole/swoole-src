@@ -1,5 +1,5 @@
 --TEST--
-Bug #38334: Proper data-type support for PDO_SQLITE
+swoole_pdo_sqlite: Proper data-type support for PDO_SQLITE
 --SKIPIF--
 <?php
 if (PHP_VERSION_ID < 80100) {

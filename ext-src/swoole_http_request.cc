@@ -255,7 +255,7 @@ static int http_request_on_query_string(swoole_http_parser *parser, const char *
     zval tmp;
     HashTable *ht = Z_ARR_P(ctx->request.zserver);
     ZVAL_STRINGL(&tmp, (char *) at, length);
-    zend_hash_str_add(ht, ZEND_STRL("query_string"), &tmp);
+    http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_QUERY_STRING), &tmp);
 
     // parse url params
     sapi_module.treat_data(
@@ -357,9 +357,8 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
     HttpContext *ctx = (HttpContext *) parser->data;
     zval *zheader = ctx->request.zheader;
     size_t header_len = ctx->current_header_name_len;
-    zend::CharPtr _header_name;
-    _header_name.assign_tolower(ctx->current_header_name, header_len);
-    char *header_name = _header_name.get();
+    char header_name[header_len];
+    zend_str_tolower_copy(header_name, ctx->current_header_name, header_len);
 
     if (ctx->parse_cookie && SW_STREQ(header_name, header_len, "cookie")) {
         zval *zcookie = swoole_http_init_and_read_property(

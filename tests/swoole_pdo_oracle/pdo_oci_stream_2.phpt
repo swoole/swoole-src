@@ -1,6 +1,7 @@
 --TEST--
-PDO OCI: Insert and fetch 1K records from a table that contains 1 number and 2 LOB columns (stress test)
+swoole_pdo_oracle: Insert and fetch 1K records from a table that contains 1 number and 2 LOB columns (stress test)
 --SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 <?php
 if (getenv('SKIP_SLOW_TESTS')) die('skip slow tests excluded by request');
 require __DIR__ . '/../include/bootstrap.php';

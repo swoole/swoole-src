@@ -1,6 +1,7 @@
 --TEST--
-Bug #60104 (Segmentation Fault in pdo_sqlite when using sqliteCreateFunction())
+swoole_pdo_sqlite: Bug #60104 (Segmentation Fault in pdo_sqlite when using sqliteCreateFunction())
 --SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_sqlite.inc';

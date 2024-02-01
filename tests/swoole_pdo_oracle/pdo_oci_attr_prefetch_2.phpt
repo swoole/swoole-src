@@ -1,6 +1,7 @@
 --TEST--
-PDO_OCI: Attribute: prefetch on statements
+swoole_pdo_oracle: prefetch on statements
 --SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_oracle.inc';

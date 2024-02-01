@@ -1,5 +1,5 @@
 --TEST--
-Bug #79664 (PDOStatement::getColumnMeta fails on empty result set)
+swoole_pdo_sqlite:getColumnMeta fails on empty result set)
 --SKIPIF--
 <?php
 if (PHP_VERSION_ID < 80100) {
