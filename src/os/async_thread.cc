@@ -533,7 +533,16 @@ bool AsyncIOUring::wakeup() {
         cqe = cqes[i];
         data = get_iouring_cqe_data(cqe);
         task = reinterpret_cast<AsyncEvent *>(data);
+
         task->retval = cqe->res;
+        /**
+         * cqe->res indicates a negative value of errno. Here, -17 indicates that the folder has already been
+         * created by another process, so we can simply return 0 in this case.
+         */
+        if (task->opcode == AsyncIOUring::SW_IORING_OP_MKDIRAT && cqe->res == -17) {
+            task->retval = 0;
+        }
+
         tasks[i] = task;
         task_num--;
     }
