@@ -24,7 +24,9 @@
 #include "swoole_async.h"
 #include "swoole_util.h"
 #include "swoole_coroutine.h"
+#if defined(__linux__) && defined(SW_USE_IOURING)
 #include "linux/version.h"
+#endif
 
 #include <thread>
 #include <atomic>

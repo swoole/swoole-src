@@ -305,6 +305,7 @@ static int sw_php_stdiop_flush(php_stream *stream) {
     return 0;
 }
 
+#if PHP_VERSION_ID >= 80100
 static int sw_php_stdiop_sync(php_stream *stream, bool dataonly)
 {
     php_stdio_stream_data *data = (php_stdio_stream_data*)stream->abstract;
@@ -325,6 +326,7 @@ static int sw_php_stdiop_sync(php_stream *stream, bool dataonly)
     }
     return -1;
 }
+#endif
 
 static int sw_php_stdiop_seek(php_stream *stream, zend_off_t offset, int whence, zend_off_t *newoffset) {
     php_stdio_stream_data *data = (php_stdio_stream_data *) stream->abstract;
@@ -651,7 +653,7 @@ static int sw_php_stdiop_set_option(php_stream *stream, int option, int value, v
 
 #endif
         return PHP_STREAM_OPTION_RETURN_NOTIMPL;
-
+#if PHP_VERSION_ID >= 80100
     case PHP_STREAM_OPTION_SYNC_API:
         switch (value) {
         case PHP_STREAM_SYNC_SUPPORTED:
@@ -663,6 +665,7 @@ static int sw_php_stdiop_set_option(php_stream *stream, int option, int value, v
         }
         /* Invalid option passed */
         return PHP_STREAM_OPTION_RETURN_ERR;
+#endif
 
     case PHP_STREAM_OPTION_TRUNCATE_API:
         switch (value) {
