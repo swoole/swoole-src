@@ -591,12 +591,19 @@ int swoole_coroutine_fsync(int fd) {
 
 int swoole_coroutine_fdatasync(int fd) {
     if (sw_unlikely(is_no_coro())) {
+#ifndef HAVE_FDATASYNC
+        return fsync(fd);
+#else
         return fdatasync(fd);
+#endif
     }
 
     int retval = -1;
+#ifndef HAVE_FDATASYNC
+    async([&]() { retval = fsync(fd); });
+#else
     async([&]() { retval = fdatasync(fd); });
+#endif
     return retval;
 }
-
 SW_EXTERN_C_END

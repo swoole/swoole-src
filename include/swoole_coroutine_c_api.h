@@ -32,6 +32,10 @@ extern "C" {
 #include <poll.h>
 #include <dirent.h>
 
+#ifdef __APPLE__
+extern int fdatasync(int);
+#endif
+
 /**
  * base
  */
