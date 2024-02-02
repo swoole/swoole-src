@@ -47,8 +47,8 @@
 #define mkdir(pathname, mode) swoole_coroutine_mkdir(pathname, mode)
 #define rmdir(pathname) swoole_coroutine_rmdir(pathname)
 #define rename(oldpath, newpath) swoole_coroutine_rename(oldpath, newpath)
-#define fsync(fd) swoole_coroutine_iouring_fsync(fd)
-#define fdatasync(fd) swoole_coroutine_iouring_fdatasync(fd)
+#define fsync(fd) swoole_coroutine_fsync(fd)
+#define fdatasync(fd) swoole_coroutine_fdatasync(fd)
 #endif
 
 #define access(pathname, mode) swoole_coroutine_access(pathname, mode)
