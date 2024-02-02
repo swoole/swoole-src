@@ -43,11 +43,26 @@
 extern int php_get_uid_by_name(const char *name, uid_t *uid);
 extern int php_get_gid_by_name(const char *name, gid_t *gid);
 #endif
-
+#if PHP_VERSION_ID >= 80100
+#if defined(PHP_WIN32)
+# define PLAIN_WRAP_BUF_SIZE(st) (((st) > UINT_MAX) ? UINT_MAX : (unsigned int)(st))
+#define fsync _commit
+#define fdatasync fsync
+#else
+# define PLAIN_WRAP_BUF_SIZE(st) (st)
+# if !defined(HAVE_FDATASYNC)
+#  define fdatasync fsync
+# elif defined(__APPLE__)
+// The symbol is present, however not in the headers
+extern int fdatasync(int);
+# endif
+#endif
+#else
 #if defined(PHP_WIN32)
 #define PLAIN_WRAP_BUF_SIZE(st) (((st) > UINT_MAX) ? UINT_MAX : (unsigned int) (st))
 #else
 #define PLAIN_WRAP_BUF_SIZE(st) (st)
+#endif
 #endif
 
 static php_stream_size_t sw_php_stdiop_write(php_stream *stream, const char *buf, size_t count);
