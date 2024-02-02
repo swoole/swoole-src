@@ -318,6 +318,26 @@ int swoole_coroutine_statvfs(const char *path, struct statvfs *buf) {
     return retval;
 }
 
+int swoole_coroutine_stat(const char *path, struct stat *statbuf) {
+    if (sw_unlikely(is_no_coro())) {
+        return stat(path, statbuf);
+    }
+
+    int retval = -1;
+    async([&]() { retval = stat(path, statbuf); });
+    return retval;
+}
+
+int swoole_coroutine_lstat(const char *path, struct stat *statbuf) {
+    if (sw_unlikely(is_no_coro())) {
+        return lstat(path, statbuf);
+    }
+
+    int retval = -1;
+    async([&]() { retval = lstat(path, statbuf); });
+    return retval;
+}
+
 int swoole_coroutine_mkdir(const char *pathname, mode_t mode) {
     if (sw_unlikely(is_no_coro())) {
         return mkdir(pathname, mode);

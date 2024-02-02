@@ -31,8 +31,8 @@
 #define stat(path, statbuf) swoole_coroutine_iouring_stat(path, statbuf)
 #define lstat(path, statbuf) swoole_coroutine_iouring_lstat(path, statbuf)
 #define rmdir(pathname) swoole_coroutine_iouring_rmdir(pathname)
-#define fsync(fd) swoole_coroutine_fsync(fd)
-#define fdatasync(fd) swoole_coroutine_fdatasync(fd)
+#define fsync(fd) swoole_coroutine_iouring_fsync(fd)
+#define fdatasync(fd) swoole_coroutine_iouring_fdatasync(fd)
 #else
 #define open(pathname, flags, mode) swoole_coroutine_open(pathname, flags, mode)
 #define _close(fd)  swoole_coroutine_close_file(fd)
