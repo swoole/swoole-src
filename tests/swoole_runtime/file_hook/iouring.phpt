@@ -37,7 +37,7 @@ run(function(){
     Assert::true(file_exists($fileName.'aaa'));
     unlink($fileName.'aaa');
 
-    $directory = '/tmp/test1/test1/test1/test1/test1/test1';
+    $directory = '/tmp/a/b/c/d/e/f';
     mkdir($directory, 0755, true);
     Assert::true(is_dir($directory));
     rmdir($directory);
