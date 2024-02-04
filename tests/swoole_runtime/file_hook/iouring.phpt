@@ -17,15 +17,19 @@ run(function(){
     $fileName = '/tmp/test_file';
     Assert::eq(file_put_contents($fileName, $content), 1048576);
     var_dump(stat($fileName));
-    Assert::eq(filesize($fileName), 1048576);
-    Assert::eq(file_get_contents($fileName), $content);
+    for ($i = 0; $i < 100; $i++) {
+        Assert::eq(filesize($fileName), 1048576);
+        Assert::eq(file_get_contents($fileName), $content);
+    }
     unlink($fileName);
     Assert::true(!file_exists($fileName));
 
     $stream = fopen($fileName, 'w');
     fwrite($stream, $content);
-    Assert::true(fdatasync($stream));
-    Assert::true(fsync($stream));
+    if (PHP_VERSION_ID >= 80100) {
+        Assert::true(fdatasync($stream));
+        Assert::true(fsync($stream));
+    }
     Assert::eq(file_get_contents($fileName), $content);
     var_dump(fstat($stream));
     fclose($stream);
