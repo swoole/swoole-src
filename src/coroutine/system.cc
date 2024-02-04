@@ -741,7 +741,7 @@ int async(AsyncIOUring::opcodes opcode,
         return 0;
     }
 
-    return event.retval < 0 ? -1 : event.retval;
+    return event.retval;
 }
 
 int async(AsyncIOUring::opcodes opcode,
@@ -784,7 +784,7 @@ int async(AsyncIOUring::opcodes opcode,
         return 0;
     }
 
-    return event.retval < 0 ? -1 : event.retval;
+    return event.retval;
 }
 #endif
 
