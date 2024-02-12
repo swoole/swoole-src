@@ -57,7 +57,7 @@ struct http_context {
 
     void response(int code) {
         String *buf = make_string(1024);
-        buf->length = sw_snprintf(buf->str, buf->size, "HTTP/1.1 %s\r\n", http_server::get_status_message(code));
+        buf->length = sw_snprintf(buf->str, buf->size, "%s", http_server::get_status_message(code));
         for (auto &kv : response_headers) {
             buf->append(kv.first.c_str(), kv.first.length());
             buf->append(SW_STRL(": "));

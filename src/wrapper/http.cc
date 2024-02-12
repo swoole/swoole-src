@@ -289,9 +289,7 @@ static int http_request_message_complete(swoole_http_parser *p) {
 bool Context::end(const char *data, size_t length) {
     char buf[1024];
     sw_tg_buffer()->clear();
-    sw_tg_buffer()->append(SW_STRL("HTTP/1.1 "));
     sw_tg_buffer()->append(get_status_message(response.code));
-    sw_tg_buffer()->append(SW_STRL("\r\n"));
     if (length > 0) {
         response.headers["Content-Length"] = std::to_string(length);
     }

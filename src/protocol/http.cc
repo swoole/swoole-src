@@ -60,7 +60,7 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
     if (handler.status_code == SW_HTTP_NOT_FOUND) {
         response.info.len = sw_snprintf(header_buffer,
                                         sizeof(header_buffer),
-                                        "HTTP/1.1 %s\r\n"
+                                        "%s"
                                         "Server: " SW_HTTP_SERVER_SOFTWARE "\r\n"
                                         "Content-Length: %zu\r\n"
                                         "\r\n%s",
@@ -155,7 +155,7 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
     response.info.len =
         sw_snprintf(header_buffer,
                     sizeof(header_buffer),
-                    "HTTP/1.1 %s\r\n"
+                    "%s"
                     "Connection: %s\r\n"
                     "Content-Length: %ld\r\n"
                     "Content-Type: %s\r\n"
@@ -429,120 +429,120 @@ static const multipart_parser_settings mt_parser_settings = {
 const char *get_status_message(int code) {
     switch (code) {
     case 100:
-        return "100 Continue";
+        return "HTTP/1.1 100 Continue\r\n";
     case 101:
-        return "101 Switching Protocols";
+        return "HTTP/1.1 101 Switching Protocols\r\n";
     case 201:
-        return "201 Created";
+        return "HTTP/1.1 201 Created\r\n";
     case 202:
-        return "202 Accepted";
+        return "HTTP/1.1 202 Accepted\r\n";
     case 203:
-        return "203 Non-Authoritative Information";
+        return "HTTP/1.1 203 Non-Authoritative Information\r\n";
     case 204:
-        return "204 No Content";
+        return "HTTP/1.1 204 No Content\r\n";
     case 205:
-        return "205 Reset Content";
+        return "HTTP/1.1 205 Reset Content\r\n";
     case 206:
-        return "206 Partial Content";
+        return "HTTP/1.1 206 Partial Content\r\n";
     case 207:
-        return "207 Multi-Status";
+        return "HTTP/1.1 207 Multi-Status\r\n";
     case 208:
-        return "208 Already Reported";
+        return "HTTP/1.1 208 Already Reported\r\n";
     case 226:
-        return "226 IM Used";
+        return "HTTP/1.1 226 IM Used\r\n";
     case 300:
-        return "300 Multiple Choices";
+        return "HTTP/1.1 300 Multiple Choices\r\n";
     case 301:
-        return "301 Moved Permanently";
+        return "HTTP/1.1 301 Moved Permanently\r\n";
     case 302:
-        return "302 Found";
+        return "HTTP/1.1 302 Found\r\n";
     case 303:
-        return "303 See Other";
+        return "HTTP/1.1 303 See Other\r\n";
     case 304:
-        return "304 Not Modified";
+        return "HTTP/1.1 304 Not Modified\r\n";
     case 305:
-        return "305 Use Proxy";
+        return "HTTP/1.1 305 Use Proxy\r\n";
     case 307:
-        return "307 Temporary Redirect";
+        return "HTTP/1.1 307 Temporary Redirect\r\n";
     case 400:
-        return "400 Bad Request";
+        return "HTTP/1.1 400 Bad Request\r\n";
     case 401:
-        return "401 Unauthorized";
+        return "HTTP/1.1 401 Unauthorized\r\n";
     case 402:
-        return "402 Payment Required";
+        return "HTTP/1.1 402 Payment Required\r\n";
     case 403:
-        return "403 Forbidden";
+        return "HTTP/1.1 403 Forbidden\r\n";
     case 404:
-        return "404 Not Found";
+        return "HTTP/1.1 404 Not Found\r\n";
     case 405:
-        return "405 Method Not Allowed";
+        return "HTTP/1.1 405 Method Not Allowed\r\n";
     case 406:
-        return "406 Not Acceptable";
+        return "HTTP/1.1 406 Not Acceptable\r\n";
     case 407:
-        return "407 Proxy Authentication Required";
+        return "HTTP/1.1 407 Proxy Authentication Required\r\n";
     case 408:
-        return "408 Request Timeout";
+        return "HTTP/1.1 408 Request Timeout\r\n";
     case 409:
-        return "409 Conflict";
+        return "HTTP/1.1 409 Conflict\r\n";
     case 410:
-        return "410 Gone";
+        return "HTTP/1.1 410 Gone\r\n";
     case 411:
-        return "411 Length Required";
+        return "HTTP/1.1 411 Length Required\r\n";
     case 412:
-        return "412 Precondition Failed";
+        return "HTTP/1.1 412 Precondition Failed\r\n";
     case 413:
-        return "413 Request Entity Too Large";
+        return "HTTP/1.1 413 Request Entity Too Large\r\n";
     case 414:
-        return "414 Request URI Too Long";
+        return "HTTP/1.1 414 Request URI Too Long\r\n";
     case 415:
-        return "415 Unsupported Media Type";
+        return "HTTP/1.1 415 Unsupported Media Type\r\n";
     case 416:
-        return "416 Requested Range Not Satisfiable";
+        return "HTTP/1.1 416 Requested Range Not Satisfiable\r\n";
     case 417:
-        return "417 Expectation Failed";
+        return "HTTP/1.1 417 Expectation Failed\r\n";
     case 418:
-        return "418 I'm a teapot";
+        return "HTTP/1.1 418 I'm a teapot\r\n";
     case 421:
-        return "421 Misdirected Request";
+        return "HTTP/1.1 421 Misdirected Request\r\n";
     case 422:
-        return "422 Unprocessable Entity";
+        return "HTTP/1.1 422 Unprocessable Entity\r\n";
     case 423:
-        return "423 Locked";
+        return "HTTP/1.1 423 Locked\r\n";
     case 424:
-        return "424 Failed Dependency";
+        return "HTTP/1.1 424 Failed Dependency\r\n";
     case 426:
-        return "426 Upgrade Required";
+        return "HTTP/1.1 426 Upgrade Required\r\n";
     case 428:
-        return "428 Precondition Required";
+        return "HTTP/1.1 428 Precondition Required\r\n";
     case 429:
-        return "429 Too Many Requests";
+        return "HTTP/1.1 429 Too Many Requests\r\n";
     case 431:
-        return "431 Request Header Fields Too Large";
+        return "HTTP/1.1 431 Request Header Fields Too Large\r\n";
     case 500:
-        return "500 Internal Server Error";
+        return "HTTP/1.1 500 Internal Server Error\r\n";
     case 501:
-        return "501 Method Not Implemented";
+        return "HTTP/1.1 501 Method Not Implemented\r\n";
     case 502:
-        return "502 Bad Gateway";
+        return "HTTP/1.1 502 Bad Gateway\r\n";
     case 503:
-        return "503 Service Unavailable";
+        return "HTTP/1.1 503 Service Unavailable\r\n";
     case 504:
-        return "504 Gateway Timeout";
+        return "HTTP/1.1 504 Gateway Timeout\r\n";
     case 505:
-        return "505 HTTP Version Not Supported";
+        return "HTTP/1.1 505 HTTP Version Not Supported\r\n";
     case 506:
-        return "506 Variant Also Negotiates";
+        return "HTTP/1.1 506 Variant Also Negotiates\r\n";
     case 507:
-        return "507 Insufficient Storage";
+        return "HTTP/1.1 507 Insufficient Storage\r\n";
     case 508:
-        return "508 Loop Detected";
+        return "HTTP/1.1 508 Loop Detected\r\n";
     case 510:
-        return "510 Not Extended";
+        return "HTTP/1.1 510 Not Extended\r\n";
     case 511:
-        return "511 Network Authentication Required";
+        return "HTTP/1.1 511 Network Authentication Required\r\n";
     case 200:
     default:
-        return "200 OK";
+        return "HTTP/1.1 200 OK\r\n";
     }
 }
 
