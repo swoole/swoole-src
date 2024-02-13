@@ -306,11 +306,11 @@ static void http2_server_set_date_header(Http2::HeaderSet *headers) {
 
     time_t now = time(nullptr);
     if (now != cache.time) {
-        char *date_str = php_swoole_format_date((char *) ZEND_STRL(SW_HTTP_DATE_FORMAT), now, 0);
-        cache.len = strlen(date_str);
-        memcpy(cache.buf, date_str, cache.len);
+        zend_string *date = php_swoole_format_date((char *) ZEND_STRL(SW_HTTP_DATE_FORMAT), now, 0);
+        memcpy(cache.buf, ZSTR_VAL(date), ZSTR_LEN(date));
         cache.time = now;
-        efree(date_str);
+        cache.len = ZSTR_LEN(date);
+        zend_string_release(date);
     }
     headers->add(ZEND_STRL("date"), cache.buf, cache.len);
 }

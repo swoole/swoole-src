@@ -292,23 +292,25 @@ static void http_set_date_header(String *response) {
     static struct {
         time_t time;
         size_t len;
-        char buf[64];
+        char buf[64] = "Date: ";
     } cache{};
 
     time_t now = time(nullptr);
     if (now != cache.time) {
-        char *date_str = php_swoole_format_date((char *) ZEND_STRL(SW_HTTP_DATE_FORMAT), now, 0);
-        cache.len = strlen(date_str);
-        memcpy(cache.buf, date_str, cache.len);
-        efree(date_str);
+        zend_string *date = php_swoole_format_date((char *) ZEND_STRL(SW_HTTP_DATE_FORMAT), now, 0);
+        memcpy(cache.buf + 6, ZSTR_VAL(date), ZSTR_LEN(date));
+
+        cache.buf[ZSTR_LEN(date) + 6] = '\r';
+        cache.buf[ZSTR_LEN(date) + 7] = '\n';
+
+        zend_string_release(date);
+        cache.len = ZSTR_LEN(date) + 8;
         cache.time = now;
     }
-    response->append(ZEND_STRL("Date: "));
     response->append(cache.buf, cache.len);
-    response->append(ZEND_STRL("\r\n"));
 }
 
-static void add_custom_header(String *response, const char *key, size_t l_key, zval *value) {
+static void add_custom_header(String *http_buffer, const char *key, size_t l_key, zval *value) {
     if (ZVAL_IS_NULL(value)) {
         return;
     }
@@ -317,10 +319,29 @@ static void add_custom_header(String *response, const char *key, size_t l_key, z
     if (swoole_http_has_crlf(str_value.val(), str_value.len())) {
         return;
     }
-    response->append(key, l_key);
-    response->append(SW_STRL(": "));
-    response->append(str_value.val(), str_value.len());
-    response->append(SW_STRL("\r\n"));
+
+    // some common response header
+    if (SW_STRCASEEQ(key, l_key, "Content-Type")) {
+        if (SW_STRCASEEQ(str_value.val(), str_value.len(), SW_HTTP_TEXT_PLAIN)) {
+            http_buffer->append("Content-Type: " SW_HTTP_TEXT_PLAIN "\r\n");
+            return;
+        }
+
+        if (SW_STRCASEEQ(str_value.val(), str_value.len(), SW_HTTP_DEFAULT_CONTENT_TYPE)) {
+            http_buffer->append("Content-Type: " SW_HTTP_DEFAULT_CONTENT_TYPE "\r\n");
+            return;
+        }
+
+        if (SW_STRCASEEQ(str_value.val(), str_value.len(), SW_HTTP_APPLICATION_JSON)) {
+            http_buffer->append("Content-Type: " SW_HTTP_APPLICATION_JSON "\r\n");
+            return;
+        }
+    }
+
+    http_buffer->append(key, l_key);
+    http_buffer->append(SW_STRL(": "));
+    http_buffer->append(str_value.val(), str_value.len());
+    http_buffer->append(SW_STRL("\r\n"));
 }
 
 void HttpContext::build_header(String *http_buffer, const char *body, size_t length) {
@@ -478,12 +499,12 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
         }
 #endif
         if (!(header_flags & HTTP_HEADER_CONTENT_LENGTH)) {
-            http_buffer->append(ZEND_STRL("Content-Length: "));
+            char content_length[64] = "Content-Length: ";
+            int convert_result = swoole_itoa(content_length + 16, length);
 
-            char content_length2[128];
-            int convert_result = swoole_itoa(content_length2, length);
-            http_buffer->append(content_length2, convert_result);
-            http_buffer->append(ZEND_STRL("\r\n"));
+            content_length[convert_result + 16] = '\r';
+            content_length[convert_result + 17] = '\n';
+            http_buffer->append(content_length, convert_result + 18);
         }
     }
 
@@ -823,23 +844,10 @@ void HttpContext::end(zval *zdata, zval *return_value) {
                 send_body_str = http_body.str;
                 send_body_len = http_body.length;
             }
-            // send twice to reduce memory copy
-            if (send_body_len < swoole_pagesize()) {
-                if (http_buffer->append(send_body_str, send_body_len) < 0) {
-                    send_header_ = 0;
-                    RETURN_FALSE;
-                }
-            } else {
-                if (!send(this, http_buffer->str, http_buffer->length)) {
-                    send_header_ = 0;
-                    RETURN_FALSE;
-                }
-                if (!send(this, send_body_str, send_body_len)) {
-                    end_ = 1;
-                    close(this);
-                    RETURN_FALSE;
-                }
-                goto _skip_copy;
+
+            if (http_buffer->append(send_body_str, send_body_len) < 0) {
+                send_header_ = 0;
+                RETURN_FALSE;
             }
         }
 
@@ -850,7 +858,6 @@ void HttpContext::end(zval *zdata, zval *return_value) {
         }
     }
 
-_skip_copy:
     if (upgrade && !co_socket) {
         Server *serv = (Server *) private_data;
         Connection *conn = serv->get_connection_verify(fd);
@@ -996,7 +1003,8 @@ static void php_swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const 
         RETURN_FALSE;
     }
 
-    char *cookie = nullptr, *date = nullptr;
+    char *cookie = nullptr;
+    zend_string *date = nullptr;
     size_t cookie_size = name_len + 1; // add 1 for null char
     cookie_size += 50; // strlen("; expires=Fri, 31-Dec-9999 23:59:59 GMT; Max-Age=0")
     if (value_len == 0) {
@@ -1029,8 +1037,8 @@ static void php_swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const 
     if (value_len == 0) {
         cookie = (char *) emalloc(cookie_size);
         date = php_swoole_format_date((char *) ZEND_STRL("D, d-M-Y H:i:s T"), 1, 0);
-        snprintf(cookie, cookie_size, "%s=deleted; expires=%s", name, date);
-        efree(date);
+        sw_snprintf(cookie, cookie_size, "%s=deleted; expires=%s", name, ZSTR_VAL(date));
+        zend_string_release(date);
         strlcat(cookie, "; Max-Age=0", cookie_size);
     } else {
         if (url_encode) {
@@ -1049,15 +1057,15 @@ static void php_swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const 
         if (expires > 0) {
             strlcat(cookie, "; expires=", cookie_size);
             date = php_swoole_format_date((char *) ZEND_STRL("D, d-M-Y H:i:s T"), expires, 0);
-            const char *p = (const char *) zend_memrchr(date, '-', strlen(date));
+            const char *p = (const char *) zend_memrchr(ZSTR_VAL(date), '-', ZSTR_LEN(date));
             if (!p || *(p + 5) != ' ') {
                 php_swoole_error(E_WARNING, "Expiry date can't be a year greater than 9999");
-                efree(date);
+                zend_string_release(date);
                 efree(cookie);
                 RETURN_FALSE;
             }
-            strlcat(cookie, date, cookie_size);
-            efree(date);
+            strlcat(cookie, ZSTR_VAL(date), cookie_size);
+            zend_string_release(date);
 
             strlcat(cookie, "; Max-Age=", cookie_size);
 
