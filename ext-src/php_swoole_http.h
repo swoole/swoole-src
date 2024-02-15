@@ -114,6 +114,165 @@ struct Response {
     zval _ztrailer;
 };
 
+struct Header {
+    const char *key = nullptr;
+    const char *value = nullptr;
+    Header *next = nullptr;
+    size_t length = 0;
+};
+
+struct Status {
+    const char *protocol = nullptr;
+    const char *status = nullptr;
+    const char *reason = nullptr;
+    Header *next = nullptr;
+    size_t length = 0;
+};
+
+struct ByteBuffer {
+    Status *start = nullptr;
+    Header *current = nullptr;
+    size_t total = 0;
+
+    inline void add_status(int status, const char *reason) {
+        char buf[16];
+        int length = swoole_itoa(buf, status);
+        buf[length] = '\0';
+        add_status(buf, reason);
+    }
+
+    inline void add_status(const char *status, const char *reason) {
+        start = (Status *) emalloc(sizeof(Status));
+        start->protocol = "HTTP/1.1 ";
+        start->status = status;
+        start->reason = reason;
+        start->next = nullptr;
+
+        // calculate http status line length
+        if (!reason) {
+            start->length = strlen(start->protocol) + strlen(status) + SW_CRLF_LEN;
+        } else {
+            start->length = strlen(start->protocol) + strlen(status) + strlen(status) + SW_CRLF_LEN + 1;
+        }
+    }
+
+    inline void add_header(const char *key, size_t key_length, const char *value, size_t value_length) {
+        Header *header = (Header *) emalloc(sizeof(Header));
+        header->key = key;
+        header->value = value;
+        header->next = nullptr;
+        // calculate http response header length, 2 => strlen(": ")
+        header->length = key_length + value_length + SW_CRLF_LEN + 2;
+
+        if (current) {
+            current->next = header;
+        } else {
+            start->next = header;
+        }
+        current = header;
+    }
+
+    inline size_t get_protocol_length(size_t length = 0) {
+        // calculate http protocol length
+        total = length + start->length + SW_CRLF_LEN;
+        Header *header = start->next;
+
+        while (header) {
+            total += header->length;
+            header = header->next;
+        }
+
+        return total;
+    }
+
+    inline void write_protocol(String *http_buffer, const char *data, size_t length) {
+        http_buffer->append(start->protocol, strlen(start->protocol));
+        http_buffer->append(start->status, strlen(start->status));
+        if (start->reason) {
+            http_buffer->append(" ", 1);
+            http_buffer->append(start->reason, strlen(start->reason));
+        }
+        http_buffer->append(SW_CRLF, SW_CRLF_LEN);
+
+        size_t key_length = 0;
+        size_t value_length = 0;
+        Header *header = start->next;
+        while (header) {
+            key_length = strlen(header->key);
+            value_length = strlen(header->value);
+
+            if (SW_STRCASEEQ(header->key, key_length, "Content-Type")) {
+                if (SW_STRCASEEQ(header->value, value_length, SW_HTTP_TEXT_PLAIN)) {
+                    http_buffer->append(ZEND_STRL("Content-Type: " SW_HTTP_TEXT_PLAIN "\r\n"));
+                    header = header->next;
+                    continue;
+                }
+
+                if (SW_STRCASEEQ(header->value, value_length, SW_HTTP_DEFAULT_CONTENT_TYPE)) {
+                    http_buffer->append(ZEND_STRL("Content-Type: " SW_HTTP_DEFAULT_CONTENT_TYPE "\r\n"));
+                    header = header->next;
+                    continue;
+                }
+
+                if (SW_STRCASEEQ(header->value, value_length, SW_HTTP_APPLICATION_JSON)) {
+                    http_buffer->append(ZEND_STRL("Content-Type: " SW_HTTP_APPLICATION_JSON "\r\n"));
+                    header = header->next;
+                    continue;
+                }
+            }
+
+            if (SW_STRCASEEQ(header->key, key_length, "Server") &&
+                SW_STRCASEEQ(header->value, value_length, SW_HTTP_SERVER_SOFTWARE)) {
+                http_buffer->append(ZEND_STRL("Server: " SW_HTTP_SERVER_SOFTWARE "\r\n"));
+                header = header->next;
+                continue;
+            }
+
+            if (SW_STRCASEEQ(header->key, key_length, "Transfer-Encoding") &&
+                SW_STRCASEEQ(header->value, value_length, "chunked")) {
+                http_buffer->append(ZEND_STRL("Transfer-Encoding: chunked\r\n"));
+                header = header->next;
+                continue;
+            }
+
+            if (SW_STRCASEEQ(header->key, key_length, "Connection")) {
+                if (SW_STRCASEEQ(header->value, value_length, "keep-alive")) {
+                    http_buffer->append(ZEND_STRL("Connection: keep-alive\r\n"));
+                } else {
+                    http_buffer->append(ZEND_STRL("Connection: close\r\n"));
+                }
+                header = header->next;
+                continue;
+            }
+
+            http_buffer->append(header->key, key_length);
+            http_buffer->append(ZEND_STRL(": "));
+            http_buffer->append(header->value, value_length);
+            http_buffer->append(SW_CRLF, SW_CRLF_LEN);
+            header = header->next;
+        }
+
+        http_buffer->append(SW_CRLF, SW_CRLF_LEN);
+
+        if (data) {
+            http_buffer->append(data, length);
+        }
+
+        assert(http_buffer->length == total);
+    }
+
+    ~ByteBuffer() {
+        Header *header = nullptr;
+        while (start->next) {
+            header = start->next;
+            start->next = header->next;
+            efree(header);
+        }
+
+        efree(start);
+    }
+};
+
 struct Context {
     SessionId fd;
     uchar completed : 1;
@@ -192,8 +351,8 @@ struct Context {
     void end(zval *zdata, zval *return_value);
     bool send_file(const char *file, uint32_t l_file, off_t offset, size_t length);
     void send_trailer(zval *return_value);
-    String *get_write_buffer();
-    void build_header(String *http_buffer, const char *body, size_t length);
+    String *get_write_buffer(size_t capacity = SW_BUFFER_SIZE_STD);
+    void build_header(const char *body, size_t length);
     ssize_t build_trailer(String *http_buffer);
 
     size_t get_content_length() {
@@ -212,7 +371,6 @@ struct Context {
     bool is_available();
     void free();
 };
-
 }  // namespace http
 
 namespace http2 {

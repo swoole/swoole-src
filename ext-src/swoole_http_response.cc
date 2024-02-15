@@ -38,6 +38,7 @@ using swoole::coroutine::Socket;
 
 using HttpResponse = swoole::http::Response;
 using HttpContext = swoole::http::Context;
+using HttpByteBuffer = swoole::http::ByteBuffer;
 
 namespace WebSocket = swoole::websocket;
 namespace HttpServer = swoole::http_server;
@@ -63,12 +64,12 @@ static inline void http_header_key_format(char *key, int length) {
     }
 }
 
-String *HttpContext::get_write_buffer() {
+String *HttpContext::get_write_buffer(size_t capacity) {
     if (co_socket) {
         return ((Socket *) private_data)->get_write_buffer();
     } else {
         if (!write_buffer) {
-            write_buffer = new String(SW_BUFFER_SIZE_STD, sw_php_allocator());
+            write_buffer = new String(capacity, sw_php_allocator());
         }
         return write_buffer;
     }
@@ -223,13 +224,10 @@ static PHP_METHOD(swoole_http_response, write) {
 #ifdef SW_HAVE_COMPRESSION
     ctx->accept_compression = 0;
 #endif
-
     String *http_buffer = ctx->get_write_buffer();
-
     if (!ctx->send_header_) {
         ctx->send_chunked = 1;
-        http_buffer->clear();
-        ctx->build_header(http_buffer, nullptr, 0);
+        ctx->build_header(nullptr, 0);
         if (!ctx->send(ctx, http_buffer->str, http_buffer->length)) {
             ctx->send_chunked = 0;
             ctx->send_header_ = 0;
@@ -288,7 +286,7 @@ static int parse_header_name(const char *key, size_t keylen) {
     return 0;
 }
 
-static void http_set_date_header(String *response) {
+static void http_set_date_header(HttpByteBuffer *http_byte_buffer) {
     static struct {
         time_t time;
         size_t len;
@@ -297,18 +295,16 @@ static void http_set_date_header(String *response) {
 
     time_t now = time(nullptr);
     if (now != cache.time) {
-        char *date_str = php_swoole_format_date((char *) ZEND_STRL(SW_HTTP_DATE_FORMAT), now, 0);
-        cache.len = strlen(date_str);
-        memcpy(cache.buf, date_str, cache.len);
-        efree(date_str);
+        zend_string *date = php_swoole_format_date((char *) ZEND_STRL(SW_HTTP_DATE_FORMAT), now, 0);
+        memcpy(cache.buf, ZSTR_VAL(date), ZSTR_LEN(date));
+        cache.len = ZSTR_LEN(date);
         cache.time = now;
+        zend_string_release(date);
     }
-    response->append(ZEND_STRL("Date: "));
-    response->append(cache.buf, cache.len);
-    response->append(ZEND_STRL("\r\n"));
+    http_byte_buffer->add_header(ZEND_STRL("Date"), cache.buf, cache.len);
 }
 
-static void add_custom_header(String *response, const char *key, size_t l_key, zval *value) {
+static void add_custom_header(HttpByteBuffer *http_byte_buffer, const char *key, size_t l_key, zval *value) {
     if (ZVAL_IS_NULL(value)) {
         return;
     }
@@ -317,36 +313,21 @@ static void add_custom_header(String *response, const char *key, size_t l_key, z
     if (swoole_http_has_crlf(str_value.val(), str_value.len())) {
         return;
     }
-    response->append(key, l_key);
-    response->append(SW_STRL(": "));
-    response->append(str_value.val(), str_value.len());
-    response->append(SW_STRL("\r\n"));
+
+    http_byte_buffer->add_header(key, l_key, str_value.val(), str_value.len());
 }
 
-void HttpContext::build_header(String *http_buffer, const char *body, size_t length) {
+void HttpContext::build_header(const char *body, size_t length) {
     assert(send_header_ == 0);
+    ByteBuffer http_byte_buffer;
+    String *http_buffer = nullptr;
 
-    /**
-     * http status line
-     */
-    if (!response.reason) {
-        const char *status = HttpServer::get_status_message(response.status);
-        http_buffer->append(ZEND_STRL("HTTP/1.1 "));
-        http_buffer->append((char *) status, strlen(status));
-        http_buffer->append(ZEND_STRL("\r\n"));
-    } else {
-        http_buffer->append(ZEND_STRL("HTTP/1.1 "));
-        http_buffer->append(response.status);
-        http_buffer->append(ZEND_STRL(" "));
-        http_buffer->append(response.reason, strlen(response.reason));
-        http_buffer->append(ZEND_STRL("\r\n"));
-    }
+    // http status line
+    response.reason ? http_byte_buffer.add_status(response.status, response.reason)
+                    : http_byte_buffer.add_status(HttpServer::get_status_message(response.status), nullptr);
 
+    // http header
     uint32_t header_flags = 0x0;
-
-    /**
-     * http header
-     */
     zval *zheader =
         sw_zend_read_property_ex(swoole_http_response_ce, response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADER), 0);
     if (ZVAL_IS_ARRAY(zheader)) {
@@ -398,11 +379,11 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
             if (ZVAL_IS_ARRAY(zvalue)) {
                 zval *zvalue_2;
                 SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(zvalue), zvalue_2) {
-                    add_custom_header(http_buffer, ZSTR_VAL(string_key), ZSTR_LEN(string_key), zvalue_2);
+                    add_custom_header(&http_byte_buffer, ZSTR_VAL(string_key), ZSTR_LEN(string_key), zvalue_2);
                 }
                 SW_HASHTABLE_FOREACH_END();
             } else {
-                add_custom_header(http_buffer, ZSTR_VAL(string_key), ZSTR_LEN(string_key), zvalue);
+                add_custom_header(&http_byte_buffer, ZSTR_VAL(string_key), ZSTR_LEN(string_key), zvalue);
             }
         }
         ZEND_HASH_FOREACH_END();
@@ -419,9 +400,7 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
 #endif
     }
 
-    /**
-     * http cookies
-     */
+    // http cookies
     zval *zcookie =
         sw_zend_read_property_ex(swoole_http_response_ce, response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_COOKIE), 0);
     if (ZVAL_IS_ARRAY(zcookie)) {
@@ -430,64 +409,70 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
             if (Z_TYPE_P(zvalue) != IS_STRING) {
                 continue;
             }
-            http_buffer->append(ZEND_STRL("Set-Cookie: "));
-            http_buffer->append(Z_STRVAL_P(zvalue), Z_STRLEN_P(zvalue));
-            http_buffer->append(ZEND_STRL("\r\n"));
+
+            http_byte_buffer.add_header(ZEND_STRL("Set-Cookie"), Z_STRVAL_P(zvalue), Z_STRLEN_P(zvalue));
         }
         SW_HASHTABLE_FOREACH_END();
     }
 
+    // http Server Name
     if (!(header_flags & HTTP_HEADER_SERVER)) {
-        http_buffer->append(ZEND_STRL("Server: " SW_HTTP_SERVER_SOFTWARE "\r\n"));
+        http_byte_buffer.add_header(ZEND_STRL("Server"), ZEND_STRL(SW_HTTP_SERVER_SOFTWARE));
     }
+
+    // http Date
     if (!(header_flags & HTTP_HEADER_DATE)) {
-        http_set_date_header(http_buffer);
+        http_set_date_header(&http_byte_buffer);
     }
 
     // websocket protocol (subsequent header info is unnecessary)
     if (upgrade == 1) {
-        http_buffer->append(ZEND_STRL("\r\n"));
+        http_buffer = get_write_buffer(http_byte_buffer.get_protocol_length());
+        http_buffer->clear();
+        http_byte_buffer.write_protocol(http_buffer, nullptr, 0);
         send_header_ = 1;
         return;
     }
+
+    // http Connection
     if (!(header_flags & HTTP_HEADER_CONNECTION)) {
-        if (keepalive) {
-            http_buffer->append(ZEND_STRL("Connection: keep-alive\r\n"));
-        } else {
-            http_buffer->append(ZEND_STRL("Connection: close\r\n"));
-        }
+        keepalive ? http_byte_buffer.add_header(ZEND_STRL("Connection"), ZEND_STRL("keep-alive"))
+                  : http_byte_buffer.add_header(ZEND_STRL("Connection"), ZEND_STRL("close"));
     }
+
+    // http Content-Type
     if (!(header_flags & HTTP_HEADER_CONTENT_TYPE)) {
-        http_buffer->append(ZEND_STRL("Content-Type: " SW_HTTP_DEFAULT_CONTENT_TYPE "\r\n"));
+        http_byte_buffer.add_header(ZEND_STRL("Content-Type"), ZEND_STRL(SW_HTTP_DEFAULT_CONTENT_TYPE));
     }
+
+    // http Chunk
     if (send_chunked) {
         SW_ASSERT(length == 0);
         if (!(header_flags & HTTP_HEADER_TRANSFER_ENCODING)) {
-            http_buffer->append(ZEND_STRL("Transfer-Encoding: chunked\r\n"));
+            http_byte_buffer.add_header(ZEND_STRL("Transfer-Encoding"), ZEND_STRL("chunked"));
         }
     }
+
     // Content-Length
     else if (length > 0 || parser.method != PHP_HTTP_HEAD) {
 #ifdef SW_HAVE_COMPRESSION
         if (compress(body, length)) {
             length = zlib_buffer->length;
             const char *content_encoding = get_content_encoding();
-            http_buffer->append(ZEND_STRL("Content-Encoding: "));
-            http_buffer->append((char *) content_encoding, strlen(content_encoding));
-            http_buffer->append(ZEND_STRL("\r\n"));
+            http_byte_buffer.add_header(ZEND_STRL("Content-Encoding"), content_encoding, strlen(content_encoding));
         }
 #endif
         if (!(header_flags & HTTP_HEADER_CONTENT_LENGTH)) {
-            http_buffer->append(ZEND_STRL("Content-Length: "));
-
-            char content_length2[128];
-            int convert_result = swoole_itoa(content_length2, length);
-            http_buffer->append(content_length2, convert_result);
-            http_buffer->append(ZEND_STRL("\r\n"));
+            char content_length[25];
+            int convert_result = swoole_itoa(content_length, length);
+            content_length[convert_result] = '\0';
+            http_byte_buffer.add_header(ZEND_STRL("Content-Length"), content_length, convert_result);
         }
     }
 
-    http_buffer->append(ZEND_STRL("\r\n"));
+    http_buffer = get_write_buffer(http_byte_buffer.get_protocol_length(body ? length : 0));
+    http_buffer->clear();
+    http_byte_buffer.write_protocol(http_buffer, (content_compressed ? zlib_buffer->str : body), length);
     send_header_ = 1;
 }
 
@@ -727,11 +712,8 @@ bool HttpContext::send_file(const char *file, uint32_t l_file, off_t offset, siz
 #ifdef SW_HAVE_COMPRESSION
         accept_compression = 0;
 #endif
+        build_header(nullptr, length);
         String *http_buffer = get_write_buffer();
-        http_buffer->clear();
-
-        build_header(http_buffer, nullptr, length);
-
         if (!send(this, http_buffer->str, http_buffer->length)) {
             send_header_ = 0;
             return false;
@@ -777,9 +759,6 @@ void HttpContext::end(zval *zdata, zval *return_value) {
         }
         send_chunked = 0;
     } else {
-        String *http_buffer = get_write_buffer();
-        http_buffer->clear();
-
 #ifdef SW_HAVE_ZLIB
         if (upgrade) {
             Server *serv = nullptr;
@@ -807,39 +786,12 @@ void HttpContext::end(zval *zdata, zval *return_value) {
         }
 #endif
 
-        build_header(http_buffer, http_body.str, http_body.length);
-
-        char *send_body_str;
-        size_t send_body_len;
-
+        build_header(http_body.str, http_body.length);
+        String *http_buffer = get_write_buffer();
         if (http_body.length > 0) {
-#ifdef SW_HAVE_COMPRESSION
-            if (content_compressed) {
-                send_body_str = zlib_buffer->str;
-                send_body_len = zlib_buffer->length;
-            } else
-#endif
-            {
-                send_body_str = http_body.str;
-                send_body_len = http_body.length;
-            }
-            // send twice to reduce memory copy
-            if (send_body_len < swoole_pagesize()) {
-                if (http_buffer->append(send_body_str, send_body_len) < 0) {
-                    send_header_ = 0;
-                    RETURN_FALSE;
-                }
-            } else {
-                if (!send(this, http_buffer->str, http_buffer->length)) {
-                    send_header_ = 0;
-                    RETURN_FALSE;
-                }
-                if (!send(this, send_body_str, send_body_len)) {
-                    end_ = 1;
-                    close(this);
-                    RETURN_FALSE;
-                }
-                goto _skip_copy;
+            if (!send(this, http_buffer->str, http_buffer->length)) {
+                send_header_ = 0;
+                RETURN_FALSE;
             }
         }
 
@@ -850,7 +802,6 @@ void HttpContext::end(zval *zdata, zval *return_value) {
         }
     }
 
-_skip_copy:
     if (upgrade && !co_socket) {
         Server *serv = (Server *) private_data;
         Connection *conn = serv->get_connection_verify(fd);
@@ -996,11 +947,12 @@ static void php_swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const 
         RETURN_FALSE;
     }
 
-    char *cookie = nullptr, *date = nullptr;
-    size_t cookie_size = name_len + 1; // add 1 for null char
-    cookie_size += 50; // strlen("; expires=Fri, 31-Dec-9999 23:59:59 GMT; Max-Age=0")
+    char *cookie = nullptr;
+    zend_string *date = nullptr;
+    size_t cookie_size = name_len + 1;  // add 1 for null char
+    cookie_size += 50;                  // strlen("; expires=Fri, 31-Dec-9999 23:59:59 GMT; Max-Age=0")
     if (value_len == 0) {
-        cookie_size += 8; // strlen("=deleted")
+        cookie_size += 8;  // strlen("=deleted")
     }
     if (expires > 0) {
         // Max-Age will be no longer than 12 digits since the
@@ -1008,29 +960,29 @@ static void php_swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const 
         cookie_size += 11;
     }
     if (path_len > 0) {
-        cookie_size += path_len + 7; // strlen("; path=")
+        cookie_size += path_len + 7;  // strlen("; path=")
     }
     if (domain_len > 0) {
-        cookie_size += domain_len + 9; // strlen("; domain=")
+        cookie_size += domain_len + 9;  // strlen("; domain=")
     }
     if (secure) {
-        cookie_size += 8; // strlen("; secure")
+        cookie_size += 8;  // strlen("; secure")
     }
     if (httponly) {
-        cookie_size += 10; // strlen("; httponly")
+        cookie_size += 10;  // strlen("; httponly")
     }
     if (samesite_len > 0) {
-        cookie_size += samesite_len + 11; // strlen("; samesite=")
+        cookie_size += samesite_len + 11;  // strlen("; samesite=")
     }
     if (priority_len > 0) {
-        cookie_size += priority_len + 11; // strlen("; priority=")
+        cookie_size += priority_len + 11;  // strlen("; priority=")
     }
 
     if (value_len == 0) {
         cookie = (char *) emalloc(cookie_size);
         date = php_swoole_format_date((char *) ZEND_STRL("D, d-M-Y H:i:s T"), 1, 0);
-        snprintf(cookie, cookie_size, "%s=deleted; expires=%s", name, date);
-        efree(date);
+        sw_snprintf(cookie, cookie_size, "%s=deleted; expires=%s", name, ZSTR_VAL(date));
+        zend_string_release(date);
         strlcat(cookie, "; Max-Age=0", cookie_size);
     } else {
         if (url_encode) {
@@ -1049,15 +1001,15 @@ static void php_swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const 
         if (expires > 0) {
             strlcat(cookie, "; expires=", cookie_size);
             date = php_swoole_format_date((char *) ZEND_STRL("D, d-M-Y H:i:s T"), expires, 0);
-            const char *p = (const char *) zend_memrchr(date, '-', strlen(date));
+            const char *p = (const char *) zend_memrchr(ZSTR_VAL(date), '-', ZSTR_LEN(date));
             if (!p || *(p + 5) != ' ') {
                 php_swoole_error(E_WARNING, "Expiry date can't be a year greater than 9999");
-                efree(date);
+                zend_string_release(date);
                 efree(cookie);
                 RETURN_FALSE;
             }
-            strlcat(cookie, date, cookie_size);
-            efree(date);
+            strlcat(cookie, ZSTR_VAL(date), cookie_size);
+            zend_string_release(date);
 
             strlcat(cookie, "; Max-Age=", cookie_size);
 
