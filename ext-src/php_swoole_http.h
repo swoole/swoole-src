@@ -114,25 +114,22 @@ struct Response {
     zval _ztrailer;
 };
 
-struct Header {
-    const char *key = nullptr;
-    const char *value = nullptr;
-    Header *next = nullptr;
-    size_t length = 0;
-};
-
-struct Status {
-    const char *protocol = nullptr;
-    const char *status = nullptr;
-    const char *reason = nullptr;
-    Header *next = nullptr;
-    size_t length = 0;
-};
-
 struct ByteBuffer {
-    Status *start = nullptr;
-    Header *current = nullptr;
-    size_t total = 0;
+    const char *_protocol = nullptr;
+    const char *_status = nullptr;
+    const char *_reason = nullptr;
+
+    size_t http_status_length = 0;
+    size_t http_headers_length = 0;
+
+    const char **headers;
+    size_t *lengths;
+    int index = 0;
+
+    ByteBuffer(const char **_headers, size_t *_lengths) {
+        headers = _headers;
+        lengths = _lengths;
+    }
 
     inline void add_status(int status, const char *reason) {
         char buf[16];
@@ -142,134 +139,105 @@ struct ByteBuffer {
     }
 
     inline void add_status(const char *status, const char *reason) {
-        start = (Status *) emalloc(sizeof(Status));
-        start->protocol = "HTTP/1.1 ";
-        start->status = status;
-        start->reason = reason;
-        start->next = nullptr;
+        _protocol = "HTTP/1.1 ";
+        _status = status;
+        _reason = reason;
 
         // calculate http status line length
-        if (!reason) {
-            start->length = strlen(start->protocol) + strlen(status) + SW_CRLF_LEN;
+        if (!_reason) {
+            http_status_length = strlen(_protocol) + strlen(_status) + SW_CRLF_LEN;
         } else {
-            start->length = strlen(start->protocol) + strlen(status) + strlen(status) + SW_CRLF_LEN + 1;
+            http_status_length = strlen(_protocol) + strlen(_status) + strlen(_reason) + SW_CRLF_LEN + 1;
         }
     }
 
     inline void add_header(const char *key, size_t key_length, const char *value, size_t value_length) {
-        Header *header = (Header *) emalloc(sizeof(Header));
-        header->key = key;
-        header->value = value;
-        header->next = nullptr;
-        // calculate http response header length, 2 => strlen(": ")
-        header->length = key_length + value_length + SW_CRLF_LEN + 2;
+        headers[index] = key;
+        lengths[index] = key_length;
+        index++;
 
-        if (current) {
-            current->next = header;
-        } else {
-            start->next = header;
-        }
-        current = header;
+        headers[index] = value;
+        lengths[index] = value_length;
+        index++;
+        // calculate http response header length, 2 => strlen(": ")
+        http_headers_length += key_length + value_length + SW_CRLF_LEN + 2;
     }
 
     inline size_t get_protocol_length(size_t length = 0) {
         // calculate http protocol length
-        total = length + start->length + SW_CRLF_LEN;
-        Header *header = start->next;
-
-        while (header) {
-            total += header->length;
-            header = header->next;
-        }
-
-        return total;
+        return http_status_length + http_headers_length + length + SW_CRLF_LEN;
     }
 
     inline void write_protocol(String *http_buffer, const char *data, size_t length) {
-        http_buffer->append(start->protocol, strlen(start->protocol));
-        http_buffer->append(start->status, strlen(start->status));
-        if (start->reason) {
+        http_buffer->append(_protocol, strlen(_protocol));
+        http_buffer->append(_status, strlen(_status));
+        if (_reason) {
             http_buffer->append(" ", 1);
-            http_buffer->append(start->reason, strlen(start->reason));
+            http_buffer->append(_reason, strlen(_reason));
         }
         http_buffer->append(SW_CRLF, SW_CRLF_LEN);
 
         size_t key_length = 0;
         size_t value_length = 0;
-        Header *header = start->next;
-        while (header) {
-            key_length = strlen(header->key);
-            value_length = strlen(header->value);
+        const char *key = nullptr;
+        const char *value = nullptr;
+        int i = 0;
 
-            if (SW_STRCASEEQ(header->key, key_length, "Content-Type")) {
-                if (SW_STRCASEEQ(header->value, value_length, SW_HTTP_TEXT_PLAIN)) {
+        while (i < index) {
+            key_length = lengths[i];
+            value_length = lengths[i + 1];
+            key = headers[i++];
+            value = headers[i++];
+            
+            if (SW_STRCASEEQ(key, key_length, "Content-Type")) {
+                if (SW_STRCASEEQ(value, value_length, SW_HTTP_TEXT_PLAIN)) {
                     http_buffer->append(ZEND_STRL("Content-Type: " SW_HTTP_TEXT_PLAIN "\r\n"));
-                    header = header->next;
                     continue;
                 }
-
-                if (SW_STRCASEEQ(header->value, value_length, SW_HTTP_DEFAULT_CONTENT_TYPE)) {
+                
+                if (SW_STRCASEEQ(value, value_length, SW_HTTP_DEFAULT_CONTENT_TYPE)) {
                     http_buffer->append(ZEND_STRL("Content-Type: " SW_HTTP_DEFAULT_CONTENT_TYPE "\r\n"));
-                    header = header->next;
                     continue;
                 }
 
-                if (SW_STRCASEEQ(header->value, value_length, SW_HTTP_APPLICATION_JSON)) {
+                if (SW_STRCASEEQ(value, value_length, SW_HTTP_APPLICATION_JSON)) {
                     http_buffer->append(ZEND_STRL("Content-Type: " SW_HTTP_APPLICATION_JSON "\r\n"));
-                    header = header->next;
                     continue;
                 }
             }
 
-            if (SW_STRCASEEQ(header->key, key_length, "Server") &&
-                SW_STRCASEEQ(header->value, value_length, SW_HTTP_SERVER_SOFTWARE)) {
+            if (SW_STRCASEEQ(key, key_length, "Server") &&
+                SW_STRCASEEQ(value, value_length, SW_HTTP_SERVER_SOFTWARE)) {
                 http_buffer->append(ZEND_STRL("Server: " SW_HTTP_SERVER_SOFTWARE "\r\n"));
-                header = header->next;
                 continue;
             }
 
-            if (SW_STRCASEEQ(header->key, key_length, "Transfer-Encoding") &&
-                SW_STRCASEEQ(header->value, value_length, "chunked")) {
+            if (SW_STRCASEEQ(key, key_length, "Transfer-Encoding") &&
+                SW_STRCASEEQ(value, value_length, "chunked")) {
                 http_buffer->append(ZEND_STRL("Transfer-Encoding: chunked\r\n"));
-                header = header->next;
                 continue;
             }
 
-            if (SW_STRCASEEQ(header->key, key_length, "Connection")) {
-                if (SW_STRCASEEQ(header->value, value_length, "keep-alive")) {
+            if (SW_STRCASEEQ(key, key_length, "Connection")) {
+                if (SW_STRCASEEQ(value, value_length, "keep-alive")) {
                     http_buffer->append(ZEND_STRL("Connection: keep-alive\r\n"));
                 } else {
                     http_buffer->append(ZEND_STRL("Connection: close\r\n"));
                 }
-                header = header->next;
                 continue;
             }
 
-            http_buffer->append(header->key, key_length);
+            http_buffer->append(key, key_length);
             http_buffer->append(ZEND_STRL(": "));
-            http_buffer->append(header->value, value_length);
+            http_buffer->append(value, value_length);
             http_buffer->append(SW_CRLF, SW_CRLF_LEN);
-            header = header->next;
         }
 
         http_buffer->append(SW_CRLF, SW_CRLF_LEN);
-
         if (data) {
             http_buffer->append(data, length);
         }
-
         assert(http_buffer->length == total);
-    }
-
-    ~ByteBuffer() {
-        Header *header = nullptr;
-        while (start->next) {
-            header = start->next;
-            start->next = header->next;
-            efree(header);
-        }
-
-        efree(start);
     }
 };
 

@@ -319,8 +319,25 @@ static void add_custom_header(HttpByteBuffer *http_byte_buffer, const char *key,
 
 void HttpContext::build_header(const char *body, size_t length) {
     assert(send_header_ == 0);
-    ByteBuffer http_byte_buffer;
     String *http_buffer = nullptr;
+
+    int count = 6;
+    zval *zheader =
+        sw_zend_read_property_ex(swoole_http_response_ce, response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADER), 0);
+    zval *zcookie =
+        sw_zend_read_property_ex(swoole_http_response_ce, response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_COOKIE), 0);
+
+    if (ZVAL_IS_ARRAY(zheader)) {
+        count += zend_hash_num_elements(Z_ARRVAL_P(zheader));
+    }
+
+    if (ZVAL_IS_ARRAY(zcookie)) {
+        count += zend_hash_num_elements(Z_ARRVAL_P(zcookie));
+    }
+
+    const char *headers[count * 2];
+    size_t lengths[count * 2];
+    ByteBuffer http_byte_buffer(headers, lengths);
 
     // http status line
     response.reason ? http_byte_buffer.add_status(response.status, response.reason)
@@ -328,8 +345,6 @@ void HttpContext::build_header(const char *body, size_t length) {
 
     // http header
     uint32_t header_flags = 0x0;
-    zval *zheader =
-        sw_zend_read_property_ex(swoole_http_response_ce, response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADER), 0);
     if (ZVAL_IS_ARRAY(zheader)) {
         zval *zvalue;
         zend_string *string_key;
@@ -401,8 +416,6 @@ void HttpContext::build_header(const char *body, size_t length) {
     }
 
     // http cookies
-    zval *zcookie =
-        sw_zend_read_property_ex(swoole_http_response_ce, response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_COOKIE), 0);
     if (ZVAL_IS_ARRAY(zcookie)) {
         zval *zvalue;
         SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(zcookie), zvalue) {
@@ -790,15 +803,10 @@ void HttpContext::end(zval *zdata, zval *return_value) {
         String *http_buffer = get_write_buffer();
         if (http_body.length > 0) {
             if (!send(this, http_buffer->str, http_buffer->length)) {
-                send_header_ = 0;
+                end_ = 1;
+                close(this);
                 RETURN_FALSE;
             }
-        }
-
-        if (!send(this, http_buffer->str, http_buffer->length)) {
-            end_ = 1;
-            close(this);
-            RETURN_FALSE;
         }
     }
 
