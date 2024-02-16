@@ -807,12 +807,10 @@ void HttpContext::end(zval *zdata, zval *return_value) {
 
         build_header(http_body.str, http_body.length);
         String *http_buffer = get_write_buffer();
-        if (http_body.length > 0) {
-            if (!send(this, http_buffer->str, http_buffer->length)) {
-                end_ = 1;
-                close(this);
-                RETURN_FALSE;
-            }
+        if (!send(this, http_buffer->str, http_buffer->length)) {
+            end_ = 1;
+            close(this);
+            RETURN_FALSE;
         }
     }
 
