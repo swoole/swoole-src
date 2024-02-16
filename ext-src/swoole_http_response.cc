@@ -340,8 +340,14 @@ void HttpContext::build_header(const char *body, size_t length) {
     ByteBuffer http_byte_buffer(headers, lengths);
 
     // http status line
-    response.reason ? http_byte_buffer.add_status(response.status, response.reason)
-                    : http_byte_buffer.add_status(HttpServer::get_status_message(response.status), nullptr);
+    char status_to_string[16];
+    if (!response.reason) {
+        http_byte_buffer.add_status(HttpServer::get_status_message(response.status), nullptr);
+    } else {
+        int length = swoole_itoa(status_to_string, response.status);
+        status_to_string[length] = '\0';
+        http_byte_buffer.add_status(status_to_string, response.reason);
+    }
 
     // http header
     uint32_t header_flags = 0x0;
@@ -430,7 +436,7 @@ void HttpContext::build_header(const char *body, size_t length) {
 
     // http Server Name
     if (!(header_flags & HTTP_HEADER_SERVER)) {
-        http_byte_buffer.add_header(ZEND_STRL("Server"), ZEND_STRL(SW_HTTP_SERVER_SOFTWARE));
+        http_byte_buffer.add_header(ZEND_STRL("Server: " SW_HTTP_SERVER_SOFTWARE "\r\n"), nullptr, 0);
     }
 
     // http Date
@@ -449,20 +455,20 @@ void HttpContext::build_header(const char *body, size_t length) {
 
     // http Connection
     if (!(header_flags & HTTP_HEADER_CONNECTION)) {
-        keepalive ? http_byte_buffer.add_header(ZEND_STRL("Connection"), ZEND_STRL("keep-alive"))
-                  : http_byte_buffer.add_header(ZEND_STRL("Connection"), ZEND_STRL("close"));
+        keepalive ? http_byte_buffer.add_header(ZEND_STRL("Connection: keep-alive\r\n"), nullptr, 0)
+                  : http_byte_buffer.add_header(ZEND_STRL("Connection: close\r\n"), nullptr, 0);
     }
 
     // http Content-Type
     if (!(header_flags & HTTP_HEADER_CONTENT_TYPE)) {
-        http_byte_buffer.add_header(ZEND_STRL("Content-Type"), ZEND_STRL(SW_HTTP_DEFAULT_CONTENT_TYPE));
+        http_byte_buffer.add_header(ZEND_STRL("Content-Type: " SW_HTTP_DEFAULT_CONTENT_TYPE "\r\n"), nullptr, 0);
     }
 
     // http Chunk
     if (send_chunked) {
         SW_ASSERT(length == 0);
         if (!(header_flags & HTTP_HEADER_TRANSFER_ENCODING)) {
-            http_byte_buffer.add_header(ZEND_STRL("Transfer-Encoding"), ZEND_STRL("chunked"));
+            http_byte_buffer.add_header(ZEND_STRL("Transfer-Encoding: chunked\r\n"), nullptr, 0);
         }
     }
 
@@ -475,8 +481,8 @@ void HttpContext::build_header(const char *body, size_t length) {
             http_byte_buffer.add_header(ZEND_STRL("Content-Encoding"), content_encoding, strlen(content_encoding));
         }
 #endif
+        char content_length[25];
         if (!(header_flags & HTTP_HEADER_CONTENT_LENGTH)) {
-            char content_length[25];
             int convert_result = swoole_itoa(content_length, length);
             content_length[convert_result] = '\0';
             http_byte_buffer.add_header(ZEND_STRL("Content-Length"), content_length, convert_result);

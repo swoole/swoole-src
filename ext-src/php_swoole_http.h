@@ -115,9 +115,9 @@ struct Response {
 };
 
 struct ByteBuffer {
-    const char *_protocol = nullptr;
-    const char *_status = nullptr;
-    const char *_reason = nullptr;
+    const char *protocol = nullptr;
+    const char *status = nullptr;
+    const char *reason = nullptr;
 
     size_t http_status_length = 0;
     size_t http_headers_length = 0;
@@ -131,23 +131,15 @@ struct ByteBuffer {
         lengths = _lengths;
     }
 
-    inline void add_status(int status, const char *reason) {
-        char buf[16];
-        int length = swoole_itoa(buf, status);
-        buf[length] = '\0';
-        add_status(buf, reason);
-    }
-
-    inline void add_status(const char *status, const char *reason) {
-        _protocol = "HTTP/1.1 ";
-        _status = status;
-        _reason = reason;
-
+    inline void add_status(const char *_status, const char *_reason) {
+        protocol = "HTTP/1.1 ";
+        status = _status;
+        reason = _reason;
         // calculate http status line length
-        if (!_reason) {
-            http_status_length = strlen(_protocol) + strlen(_status) + SW_CRLF_LEN;
+        if (!reason) {
+            http_status_length = strlen(protocol) + strlen(status) + SW_CRLF_LEN;
         } else {
-            http_status_length = strlen(_protocol) + strlen(_status) + strlen(_reason) + SW_CRLF_LEN + 1;
+            http_status_length = strlen(protocol) + strlen(status) + strlen(reason) + SW_CRLF_LEN + 1;
         }
     }
 
@@ -159,8 +151,13 @@ struct ByteBuffer {
         headers[index] = value;
         lengths[index] = value_length;
         index++;
-        // calculate http response header length, 2 => strlen(": ")
-        http_headers_length += key_length + value_length + SW_CRLF_LEN + 2;
+
+        if (value) {
+            http_headers_length += key_length + value_length + SW_CRLF_LEN + 2;
+        } else {
+            // When the value is a nullptr, it means that this response header has a fixed value.
+            http_headers_length += key_length;
+        }
     }
 
     inline size_t get_protocol_length(size_t length = 0) {
@@ -168,12 +165,12 @@ struct ByteBuffer {
         return http_status_length + http_headers_length + length + SW_CRLF_LEN;
     }
 
-    inline void write_protocol(String *http_buffer, const char *data, size_t length) {
-        http_buffer->append(_protocol, strlen(_protocol));
-        http_buffer->append(_status, strlen(_status));
-        if (_reason) {
+    void write_protocol(String *http_buffer, const char *data, size_t length) {
+        http_buffer->append(protocol, strlen(protocol));
+        http_buffer->append(status, strlen(status));
+        if (reason) {
             http_buffer->append(" ", 1);
-            http_buffer->append(_reason, strlen(_reason));
+            http_buffer->append(reason, strlen(reason));
         }
         http_buffer->append(SW_CRLF, SW_CRLF_LEN);
 
@@ -188,42 +185,9 @@ struct ByteBuffer {
             value_length = lengths[i + 1];
             key = headers[i++];
             value = headers[i++];
-            
-            if (SW_STRCASEEQ(key, key_length, "Content-Type")) {
-                if (SW_STRCASEEQ(value, value_length, SW_HTTP_TEXT_PLAIN)) {
-                    http_buffer->append(ZEND_STRL("Content-Type: " SW_HTTP_TEXT_PLAIN "\r\n"));
-                    continue;
-                }
-                
-                if (SW_STRCASEEQ(value, value_length, SW_HTTP_DEFAULT_CONTENT_TYPE)) {
-                    http_buffer->append(ZEND_STRL("Content-Type: " SW_HTTP_DEFAULT_CONTENT_TYPE "\r\n"));
-                    continue;
-                }
 
-                if (SW_STRCASEEQ(value, value_length, SW_HTTP_APPLICATION_JSON)) {
-                    http_buffer->append(ZEND_STRL("Content-Type: " SW_HTTP_APPLICATION_JSON "\r\n"));
-                    continue;
-                }
-            }
-
-            if (SW_STRCASEEQ(key, key_length, "Server") &&
-                SW_STRCASEEQ(value, value_length, SW_HTTP_SERVER_SOFTWARE)) {
-                http_buffer->append(ZEND_STRL("Server: " SW_HTTP_SERVER_SOFTWARE "\r\n"));
-                continue;
-            }
-
-            if (SW_STRCASEEQ(key, key_length, "Transfer-Encoding") &&
-                SW_STRCASEEQ(value, value_length, "chunked")) {
-                http_buffer->append(ZEND_STRL("Transfer-Encoding: chunked\r\n"));
-                continue;
-            }
-
-            if (SW_STRCASEEQ(key, key_length, "Connection")) {
-                if (SW_STRCASEEQ(value, value_length, "keep-alive")) {
-                    http_buffer->append(ZEND_STRL("Connection: keep-alive\r\n"));
-                } else {
-                    http_buffer->append(ZEND_STRL("Connection: close\r\n"));
-                }
+            if (value == nullptr) {
+                http_buffer->append(key, key_length);
                 continue;
             }
 
@@ -237,7 +201,6 @@ struct ByteBuffer {
         if (data) {
             http_buffer->append(data, length);
         }
-        assert(http_buffer->length == total);
     }
 };
 
