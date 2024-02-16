@@ -60,6 +60,6 @@ Test-Value: 3.1415926
 Server: swoole-http-server
 Date: %s
 Connection: keep-alive
-Content-Type: text/html
+Content-Type: text/html; charset=utf-8
 
 hello world

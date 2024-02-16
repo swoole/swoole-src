@@ -329,6 +329,13 @@ void HttpContext::build_header(const char *body, size_t length) {
 
     if (ZVAL_IS_ARRAY(zheader)) {
         count += zend_hash_num_elements(Z_ARRVAL_P(zheader));
+        zval *zvalue = nullptr;
+        ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(zheader), zvalue) {
+            if (ZVAL_IS_ARRAY(zvalue)) {
+                count += zend_hash_num_elements(Z_ARRVAL_P(zvalue)) - 1;
+            }
+        }
+        ZEND_HASH_FOREACH_END();
     }
 
     if (ZVAL_IS_ARRAY(zcookie)) {
