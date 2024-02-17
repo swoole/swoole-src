@@ -122,13 +122,24 @@ struct ByteBuffer {
     size_t http_status_length = 0;
     size_t http_headers_length = 0;
 
-    const char **headers;
-    size_t *lengths;
     int index = 0;
+    size_t *lengths;
+    const char **headers;
 
-    ByteBuffer(const char **_headers, size_t *_lengths) {
-        headers = _headers;
+    int free_num = 0;
+    zend_string **free_list;
+
+    ByteBuffer(size_t *_lengths, const char **_headers, zend_string **_free_list) {
         lengths = _lengths;
+        headers = _headers;
+        free_list = _free_list;
+    }
+
+    ~ByteBuffer() {
+        int i = 0;
+        while (i < free_num) {
+            zend_string_release(free_list[i++]);
+        }
     }
 
     inline void add_status(const char *_status, const char *_reason) {
@@ -141,6 +152,14 @@ struct ByteBuffer {
         } else {
             http_status_length = strlen(protocol) + strlen(status) + strlen(reason) + SW_CRLF_LEN + 1;
         }
+    }
+
+    inline void add_header(zend_string *key, zend_string *value) {
+        zend_string_addref(key);
+        zend_string_addref(value);
+        free_list[free_num++] = key;
+        free_list[free_num++] = value;
+        add_header(ZSTR_VAL(key), ZSTR_LEN(key), ZSTR_VAL(value), ZSTR_LEN(value));
     }
 
     inline void add_header(const char *key, size_t key_length, const char *value, size_t value_length) {

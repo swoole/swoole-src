@@ -304,7 +304,7 @@ static void http_set_date_header(HttpByteBuffer *http_byte_buffer) {
     http_byte_buffer->add_header(ZEND_STRL("Date"), cache.buf, cache.len);
 }
 
-static void add_custom_header(HttpByteBuffer *http_byte_buffer, const char *key, size_t l_key, zval *value) {
+static void add_custom_header(HttpByteBuffer *http_byte_buffer, zend_string *key, zval *value) {
     if (ZVAL_IS_NULL(value)) {
         return;
     }
@@ -314,7 +314,7 @@ static void add_custom_header(HttpByteBuffer *http_byte_buffer, const char *key,
         return;
     }
 
-    http_byte_buffer->add_header(key, l_key, str_value.val(), str_value.len());
+    http_byte_buffer->add_header(key, str_value.get());
 }
 
 void HttpContext::build_header(const char *body, size_t length) {
@@ -324,9 +324,6 @@ void HttpContext::build_header(const char *body, size_t length) {
     int count = 6;
     zval *zheader =
         sw_zend_read_property_ex(swoole_http_response_ce, response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADER), 0);
-    zval *zcookie =
-        sw_zend_read_property_ex(swoole_http_response_ce, response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_COOKIE), 0);
-
     if (ZVAL_IS_ARRAY(zheader)) {
         count += zend_hash_num_elements(Z_ARRVAL_P(zheader));
         zval *zvalue = nullptr;
@@ -338,13 +335,22 @@ void HttpContext::build_header(const char *body, size_t length) {
         ZEND_HASH_FOREACH_END();
     }
 
+    zval *zcookie =
+        sw_zend_read_property_ex(swoole_http_response_ce, response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_COOKIE), 0);
     if (ZVAL_IS_ARRAY(zcookie)) {
         count += zend_hash_num_elements(Z_ARRVAL_P(zcookie));
     }
 
-    const char *headers[count * 2];
-    size_t lengths[count * 2];
-    ByteBuffer http_byte_buffer(headers, lengths);
+    int total = count * 2;
+    size_t lengths[total];
+    const char *headers[total];
+    /**
+     * We need to convert the key and value of numeric types into strings so that we can write them into a buffer.
+     * However, after the conversion, we need to manually release the resulting strings to avoid automatic release
+     * before writing them into the buffer.
+     */
+    zend_string *free_list[total];
+    ByteBuffer http_byte_buffer(lengths, headers, free_list);
 
     // http status line
     char status_to_string[16];
@@ -369,10 +375,9 @@ void HttpContext::build_header(const char *body, size_t length) {
         ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(zheader), num_key, string_key, zvalue) {
             if (!string_key) {
                 string_key = zend_long_to_str(num_key);
-            } else {
-                zend_string_addref(string_key);
+                zend_string_delref(string_key);
             }
-            zend::String key(string_key, false);
+
             int key_header = parse_header_name(ZSTR_VAL(string_key), ZSTR_LEN(string_key));
             if (key_header > 0) {
 #ifdef SW_HAVE_COMPRESSION
@@ -407,11 +412,11 @@ void HttpContext::build_header(const char *body, size_t length) {
             if (ZVAL_IS_ARRAY(zvalue)) {
                 zval *zvalue_2;
                 SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(zvalue), zvalue_2) {
-                    add_custom_header(&http_byte_buffer, ZSTR_VAL(string_key), ZSTR_LEN(string_key), zvalue_2);
+                    add_custom_header(&http_byte_buffer, string_key, zvalue_2);
                 }
                 SW_HASHTABLE_FOREACH_END();
             } else {
-                add_custom_header(&http_byte_buffer, ZSTR_VAL(string_key), ZSTR_LEN(string_key), zvalue);
+                add_custom_header(&http_byte_buffer, string_key, zvalue);
             }
         }
         ZEND_HASH_FOREACH_END();
