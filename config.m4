@@ -329,7 +329,8 @@ AC_COMPILE_IFELSE([
 )
 AC_MSG_RESULT([$CLANG])
 
-AC_PROG_CC_C99
+dnl AC_PROG_CC_C99 is obsolete with autoconf >= 2.70 yet necessary for <= 2.69.
+m4_version_prereq([2.70],,[AC_PROG_CC_C99])
 
 AC_CANONICAL_HOST
 
