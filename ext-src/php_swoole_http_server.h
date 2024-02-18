@@ -57,11 +57,12 @@ static inline void http_server_add_server_array(HashTable *ht, zend_string *key,
     zend_hash_add(ht, key, &tmp);
 }
 
-static inline void http_server_add_server_array(HashTable *ht, zend_string *key, int value) {
+static inline void http_server_add_server_array(HashTable *ht, zend_string *key, zend_long value) {
     zval tmp;
     ZVAL_LONG(&tmp, value);
     zend_hash_add(ht, key, &tmp);
 }
+
 static inline void http_server_add_server_array(HashTable *ht, zend_string *key, double value) {
     zval tmp;
     ZVAL_DOUBLE(&tmp, value);

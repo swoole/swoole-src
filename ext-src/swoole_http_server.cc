@@ -113,9 +113,10 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
         HashTable *ht = Z_ARR_P(zserver);
 
         if (serv_sock) {
-            http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER_PORT), serv_sock->info.get_port());
+            http_server_add_server_array(
+                ht, SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER_PORT), (zend_long) serv_sock->info.get_port());
         }
-        http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_PORT), conn->info.get_port());
+        http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_PORT), (zend_long) conn->info.get_port());
 
         if (conn->info.type == SW_SOCK_TCP && IN_IS_ADDR_LOOPBACK(&conn->info.addr.inet_v4.sin_addr)) {
             http_server_add_server_array(
@@ -137,7 +138,7 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
             }
         }
 
-        http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_MASTER_TIME), (int) conn->last_recv_time);
+        http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_MASTER_TIME), (zend_long) conn->last_recv_time);
     } while (0);
 
     if (swoole_isset_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_BEFORE_REQUEST)) {
