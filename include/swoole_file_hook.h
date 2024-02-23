@@ -21,7 +21,7 @@
 
 #ifdef SW_USE_IOURING
 #define open(pathname, flags, mode) swoole_coroutine_iouring_open(pathname, flags, mode)
-#define _close(fd)  swoole_coroutine_iouring_close_file(fd)
+#define close_file(fd)  swoole_coroutine_iouring_close_file(fd)
 #define read(fd, buf, count) swoole_coroutine_iouring_read(fd, buf, count)
 #define write(fd, buf, count) swoole_coroutine_iouring_write(fd, buf, count)
 #define rename(oldpath, newpath) swoole_coroutine_iouring_rename(oldpath, newpath)
@@ -35,7 +35,7 @@
 #define fdatasync(fd) swoole_coroutine_iouring_fdatasync(fd)
 #else
 #define open(pathname, flags, mode) swoole_coroutine_open(pathname, flags, mode)
-#define _close(fd)  swoole_coroutine_close_file(fd)
+#define close_file(fd)  swoole_coroutine_close_file(fd)
 #define read(fd, buf, count) swoole_coroutine_read(fd, buf, count)
 #define write(fd, buf, count) swoole_coroutine_write(fd, buf, count)
 #define lseek(fd, offset, whence) swoole_coroutine_lseek(fd, offset, whence)

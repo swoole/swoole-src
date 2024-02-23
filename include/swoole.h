@@ -205,7 +205,7 @@ struct Address;
 }  // namespace network
 class AsyncThreads;
 #ifdef SW_USE_IOURING
-class AsyncIOUring;
+class AsyncIouring;
 #endif
 namespace async {
 class ThreadPool;
@@ -668,7 +668,7 @@ struct ThreadGlobal {
     Timer *timer;
     AsyncThreads *async_threads;
 #ifdef SW_USE_IOURING
-    AsyncIOUring *async_iouring;
+    AsyncIouring *async_iouring;
 #endif
     uint32_t signal_listener_num;
     uint32_t co_signal_listener_num;

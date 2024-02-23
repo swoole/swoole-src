@@ -21,7 +21,7 @@
 #include "swoole_coroutine_system.h"
 
 #ifdef SW_USE_IOURING
-using swoole::AsyncIOUring;
+using swoole::AsyncIouring;
 using swoole::Coroutine;
 using swoole::coroutine::async;
 
@@ -33,14 +33,7 @@ int swoole_coroutine_iouring_open(const char *pathname, int flags, mode_t mode) 
     if (sw_unlikely(is_no_coro())) {
         return open(pathname, flags, mode);
     }
-    return async(AsyncIOUring::SW_IORING_OP_OPENAT, pathname, nullptr, mode, flags);
-}
-
-int swoole_coroutine_iouring_close_file(int fd) {
-    if (sw_unlikely(is_no_coro())) {
-        return close(fd);
-    }
-    return async(AsyncIOUring::SW_IORING_OP_CLOSE, fd);
+    return async(AsyncIouring::SW_IORING_OP_OPENAT, pathname, nullptr, mode, flags);
 }
 
 ssize_t swoole_coroutine_iouring_read(int sockfd, void *buf, size_t count) {
@@ -48,7 +41,7 @@ ssize_t swoole_coroutine_iouring_read(int sockfd, void *buf, size_t count) {
         return read(sockfd, buf, count);
     }
 
-    return async(AsyncIOUring::SW_IORING_OP_READ, sockfd, buf, nullptr, nullptr, count);
+    return async(AsyncIouring::SW_IORING_OP_READ, sockfd, buf, nullptr, nullptr, count);
 }
 
 ssize_t swoole_coroutine_iouring_write(int sockfd, const void *buf, size_t count) {
@@ -56,28 +49,28 @@ ssize_t swoole_coroutine_iouring_write(int sockfd, const void *buf, size_t count
         return write(sockfd, buf, count);
     }
 
-    return async(AsyncIOUring::SW_IORING_OP_WRITE, sockfd, nullptr, buf, nullptr, count);;
+    return async(AsyncIouring::SW_IORING_OP_WRITE, sockfd, nullptr, buf, nullptr, count);;
 }
 
 int swoole_coroutine_iouring_rename(const char *oldpath, const char *newpath) {
     if (sw_unlikely(is_no_coro())) {
         return rename(oldpath, newpath);
     }
-    return async(AsyncIOUring::SW_IORING_OP_RENAMEAT, oldpath, newpath);
+    return async(AsyncIouring::SW_IORING_OP_RENAMEAT, oldpath, newpath);
 }
 
 int swoole_coroutine_iouring_mkdir(const char *pathname, mode_t mode) {
     if (sw_unlikely(is_no_coro())) {
         return mkdir(pathname, mode);
     }
-    return async(AsyncIOUring::SW_IORING_OP_MKDIRAT, pathname, nullptr, mode);
+    return async(AsyncIouring::SW_IORING_OP_MKDIRAT, pathname, nullptr, mode);
 }
 
 int swoole_coroutine_iouring_unlink(const char *pathname) {
     if (sw_unlikely(is_no_coro())) {
         return unlink(pathname);
     }
-    return async(AsyncIOUring::SW_IORING_OP_UNLINK_FILE, pathname);
+    return async(AsyncIouring::SW_IORING_OP_UNLINK_FILE, pathname);
 }
 
 void swoole_statx_to_stat(const struct statx *statxbuf, struct stat *statbuf) {
@@ -105,7 +98,7 @@ int swoole_coroutine_iouring_fstat(int fd, struct stat *statbuf) {
     }
 
     struct statx statxbuf = {};
-    int retval = async(AsyncIOUring::SW_IORING_OP_FSTAT, fd, nullptr, nullptr, &statxbuf);
+    int retval = async(AsyncIouring::SW_IORING_OP_FSTAT, fd, nullptr, nullptr, &statxbuf);
     swoole_statx_to_stat(&statxbuf, statbuf);
     return retval;
 }
@@ -116,7 +109,7 @@ int swoole_coroutine_iouring_stat(const char *path, struct stat *statbuf) {
     }
 
     struct statx statxbuf = {};
-    int retval = async(AsyncIOUring::SW_IORING_OP_LSTAT, path, nullptr, 0, 0, &statxbuf);
+    int retval = async(AsyncIouring::SW_IORING_OP_LSTAT, path, nullptr, 0, 0, &statxbuf);
     swoole_statx_to_stat(&statxbuf, statbuf);
     return retval;
 }
@@ -127,7 +120,7 @@ int swoole_coroutine_iouring_lstat(const char *path, struct stat *statbuf) {
     }
 
     struct statx statxbuf = {};
-    int retval = async(AsyncIOUring::SW_IORING_OP_LSTAT, path, nullptr, 0, 0, &statxbuf);
+    int retval = async(AsyncIouring::SW_IORING_OP_LSTAT, path, nullptr, 0, 0, &statxbuf);
     swoole_statx_to_stat(&statxbuf, statbuf);
     return retval;
 }
@@ -137,7 +130,7 @@ int swoole_coroutine_iouring_rmdir(const char *pathname) {
         return rmdir(pathname);
     }
 
-    return async(AsyncIOUring::SW_IORING_OP_UNLINK_DIR, pathname);
+    return async(AsyncIouring::SW_IORING_OP_UNLINK_DIR, pathname);
 }
 
 int swoole_coroutine_iouring_fsync(int fd) {
@@ -145,7 +138,7 @@ int swoole_coroutine_iouring_fsync(int fd) {
         return fsync(fd);
     }
 
-    return async(AsyncIOUring::SW_IORING_OP_FSYNC, fd);
+    return async(AsyncIouring::SW_IORING_OP_FSYNC, fd);
 }
 
 int swoole_coroutine_iouring_fdatasync(int fd) {
@@ -153,6 +146,6 @@ int swoole_coroutine_iouring_fdatasync(int fd) {
         return fdatasync(fd);
     }
 
-    return async(AsyncIOUring::SW_IORING_OP_FDATASYNC, fd);
+    return async(AsyncIouring::SW_IORING_OP_FDATASYNC, fd);
 }
 #endif

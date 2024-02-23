@@ -125,7 +125,7 @@ class AsyncThreads {
 };
 
 #ifdef SW_USE_IOURING
-class AsyncIOUring {
+class AsyncIouring {
   private:
     int ring_fd;
     uint64_t task_num = 0;
@@ -165,8 +165,8 @@ class AsyncIOUring {
     }
 
   public:
-    AsyncIOUring(Reactor *reactor_);
-    ~AsyncIOUring();
+    AsyncIouring(Reactor *reactor_);
+    ~AsyncIouring();
 
     enum opcodes {
         SW_IORING_OP_OPENAT = IORING_OP_OPENAT,

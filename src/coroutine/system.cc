@@ -615,7 +615,7 @@ void System::init_reactor(Reactor *reactor) {
 
     reactor->set_handler(SW_FD_AIO | SW_EVENT_READ, AsyncThreads::callback);
 #ifdef SW_USE_IOURING
-    reactor->set_handler(SW_FD_IOURING | SW_EVENT_READ, AsyncIOUring::callback);
+    reactor->set_handler(SW_FD_IOURING | SW_EVENT_READ, AsyncIouring::callback);
 #endif
 }
 
@@ -699,7 +699,7 @@ bool async(const std::function<void(void)> &fn, double timeout) {
 }
 
 #ifdef SW_USE_IOURING
-int async(AsyncIOUring::opcodes opcode,
+int async(AsyncIouring::opcodes opcode,
           const char *pathname,
           const char *pathname2,
           mode_t mode,
@@ -707,7 +707,7 @@ int async(AsyncIOUring::opcodes opcode,
           struct statx *statxbuf,
           double timeout) {
     if (SwooleTG.async_iouring == nullptr) {
-        SwooleTG.async_iouring = new AsyncIOUring(SwooleTG.reactor);
+        SwooleTG.async_iouring = new AsyncIouring(SwooleTG.reactor);
         SwooleTG.async_iouring->add_event();
     }
 
@@ -724,16 +724,16 @@ int async(AsyncIOUring::opcodes opcode,
     event.statxbuf = statxbuf;
 
     bool result = false;
-    AsyncIOUring *iouring = SwooleTG.async_iouring;
-    if (opcode == AsyncIOUring::SW_IORING_OP_OPENAT) {
+    AsyncIouring *iouring = SwooleTG.async_iouring;
+    if (opcode == AsyncIouring::SW_IORING_OP_OPENAT) {
         result = iouring->open(&event);
-    } else if (opcode == AsyncIOUring::SW_IORING_OP_MKDIRAT) {
+    } else if (opcode == AsyncIouring::SW_IORING_OP_MKDIRAT) {
         result = iouring->mkdir(&event);
-    } else if (opcode == AsyncIOUring::SW_IORING_OP_UNLINK_FILE || opcode == AsyncIOUring::SW_IORING_OP_UNLINK_DIR) {
+    } else if (opcode == AsyncIouring::SW_IORING_OP_UNLINK_FILE || opcode == AsyncIouring::SW_IORING_OP_UNLINK_DIR) {
         result = iouring->unlink(&event);
-    } else if (opcode == AsyncIOUring::SW_IORING_OP_RENAMEAT) {
+    } else if (opcode == AsyncIouring::SW_IORING_OP_RENAMEAT) {
         result = iouring->rename(&event);
-    } else if (opcode == AsyncIOUring::SW_IORING_OP_FSTAT || opcode == AsyncIOUring::SW_IORING_OP_LSTAT) {
+    } else if (opcode == AsyncIouring::SW_IORING_OP_FSTAT || opcode == AsyncIouring::SW_IORING_OP_LSTAT) {
         result = iouring->statx(&event);
     }
 
@@ -744,7 +744,7 @@ int async(AsyncIOUring::opcodes opcode,
     return event.retval;
 }
 
-int async(AsyncIOUring::opcodes opcode,
+int async(AsyncIouring::opcodes opcode,
           int fd,
           void *rbuf,
           const void *wbuf,
@@ -752,7 +752,7 @@ int async(AsyncIOUring::opcodes opcode,
           size_t count,
           double timeout) {
     if (SwooleTG.async_iouring == nullptr) {
-        SwooleTG.async_iouring = new AsyncIOUring(SwooleTG.reactor);
+        SwooleTG.async_iouring = new AsyncIouring(SwooleTG.reactor);
         SwooleTG.async_iouring->add_event();
     }
 
@@ -769,14 +769,14 @@ int async(AsyncIOUring::opcodes opcode,
     event.count = count;
 
     bool result = false;
-    AsyncIOUring *iouring = SwooleTG.async_iouring;
-    if (opcode == AsyncIOUring::SW_IORING_OP_READ || opcode == AsyncIOUring::SW_IORING_OP_WRITE) {
+    AsyncIouring *iouring = SwooleTG.async_iouring;
+    if (opcode == AsyncIouring::SW_IORING_OP_READ || opcode == AsyncIouring::SW_IORING_OP_WRITE) {
         result = iouring->wr(&event);
-    } else if (opcode == AsyncIOUring::SW_IORING_OP_CLOSE) {
+    } else if (opcode == AsyncIouring::SW_IORING_OP_CLOSE) {
         result = iouring->close(&event);
-    } else if (opcode == AsyncIOUring::SW_IORING_OP_FSTAT) {
+    } else if (opcode == AsyncIouring::SW_IORING_OP_FSTAT) {
         result = iouring->statx(&event);
-    } else if (opcode == AsyncIOUring::SW_IORING_OP_FSYNC || opcode == AsyncIOUring::SW_IORING_OP_FDATASYNC) {
+    } else if (opcode == AsyncIouring::SW_IORING_OP_FSYNC || opcode == AsyncIouring::SW_IORING_OP_FDATASYNC) {
         result = iouring->fsync(&event);
     }
 
