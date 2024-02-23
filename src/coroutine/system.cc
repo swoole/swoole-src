@@ -614,7 +614,7 @@ void System::init_reactor(Reactor *reactor) {
     reactor->set_handler(SW_FD_CO_EVENT | SW_EVENT_ERROR, event_waiter_error_callback);
 
     reactor->set_handler(SW_FD_AIO | SW_EVENT_READ, AsyncThreads::callback);
-#if defined(__linux__) && defined(SW_USE_IOURING)
+#ifdef SW_USE_IOURING
     reactor->set_handler(SW_FD_IOURING | SW_EVENT_READ, AsyncIOUring::callback);
 #endif
 }
@@ -698,7 +698,7 @@ bool async(const std::function<void(void)> &fn, double timeout) {
     }
 }
 
-#if defined(__linux__) && defined(SW_USE_IOURING)
+#ifdef SW_USE_IOURING
 int async(AsyncIOUring::opcodes opcode,
           const char *pathname,
           const char *pathname2,

@@ -24,7 +24,7 @@
 #include <atomic>
 #include <queue>
 
-#if defined(__linux__) && defined(SW_USE_IOURING)
+#ifdef SW_USE_IOURING
 #include "linux/version.h"
 #include <liburing.h>
 #endif
@@ -42,7 +42,7 @@ enum AsyncFlag {
 
 struct AsyncEvent {
     size_t task_id;
-#if defined(__linux__) && defined(SW_USE_IOURING)
+#ifdef SW_USE_IOURING
     size_t count;
 #endif
     uint8_t canceled;
@@ -51,7 +51,7 @@ struct AsyncEvent {
      * input & output
      */
     void *data;
-#if defined(__linux__) && defined(SW_USE_IOURING)
+#ifdef SW_USE_IOURING
     const char *pathname;
     const char *pathname2;
     struct statx *statxbuf;
@@ -62,7 +62,7 @@ struct AsyncEvent {
      * output
      */
     ssize_t retval;
-#if defined(__linux__) && defined(SW_USE_IOURING)
+#ifdef SW_USE_IOURING
     int fd;
     int flags;
     int opcode;
@@ -124,7 +124,7 @@ class AsyncThreads {
     std::mutex init_lock;
 };
 
-#if defined(__linux__) && defined(SW_USE_IOURING)
+#ifdef SW_USE_IOURING
 class AsyncIOUring {
   private:
     int ring_fd;

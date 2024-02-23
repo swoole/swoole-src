@@ -19,7 +19,7 @@
 
 #include "swoole_coroutine_c_api.h"
 
-#if defined(__linux__) && defined(SW_USE_IOURING)
+#ifdef SW_USE_IOURING
 #define open(pathname, flags, mode) swoole_coroutine_iouring_open(pathname, flags, mode)
 #define _close(fd)  swoole_coroutine_iouring_close_file(fd)
 #define read(fd, buf, count) swoole_coroutine_iouring_read(fd, buf, count)

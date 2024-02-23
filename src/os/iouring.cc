@@ -25,7 +25,7 @@
 #include "swoole_util.h"
 #include "swoole_coroutine.h"
 
-#if defined(__linux__) && defined(SW_USE_IOURING)
+#ifdef SW_USE_IOURING
 namespace swoole {
 //-------------------------------------------------------------------------------
 AsyncIOUring::AsyncIOUring(Reactor *reactor_) {

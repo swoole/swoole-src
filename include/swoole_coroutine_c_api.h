@@ -68,7 +68,7 @@ int swoole_coroutine_fdatasync(int fd);
 /**
  * io_uring
  */
-#if defined(__linux__) && defined(SW_USE_IOURING)
+#ifdef SW_USE_IOURING
 int swoole_coroutine_iouring_open(const char *pathname, int flags, mode_t mode);
 int swoole_coroutine_iouring_close_file(int fd);
 ssize_t swoole_coroutine_iouring_read(int sockfd, void *buf, size_t count);

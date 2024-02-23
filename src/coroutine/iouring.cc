@@ -20,7 +20,7 @@
 #include "swoole_coroutine_socket.h"
 #include "swoole_coroutine_system.h"
 
-#if defined(__linux__) && defined(SW_USE_IOURING)
+#ifdef SW_USE_IOURING
 using swoole::AsyncIOUring;
 using swoole::Coroutine;
 using swoole::coroutine::async;

@@ -304,7 +304,7 @@ class Coroutine {
 namespace coroutine {
 bool async(async::Handler handler, AsyncEvent &event, double timeout = -1);
 bool async(const std::function<void(void)> &fn, double timeout = -1);
-#if defined(__linux__) && defined(SW_USE_IOURING)
+#ifdef SW_USE_IOURING
 int async(AsyncIOUring::opcodes opcode,
           const char *pathname,
           const char *pathname2 = nullptr,

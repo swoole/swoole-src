@@ -61,7 +61,7 @@
 #include <list>
 #include <functional>
 
-#if defined(__linux__) && defined(SW_USE_IOURING)
+#ifdef SW_USE_IOURING
 #include <liburing.h>
 #endif
 
@@ -204,7 +204,7 @@ struct Socket;
 struct Address;
 }  // namespace network
 class AsyncThreads;
-#if defined(__linux__) && defined(SW_USE_IOURING)
+#ifdef SW_USE_IOURING
 class AsyncIOUring;
 #endif
 namespace async {
@@ -667,7 +667,7 @@ struct ThreadGlobal {
     Reactor *reactor;
     Timer *timer;
     AsyncThreads *async_threads;
-#if defined(__linux__) && defined(SW_USE_IOURING)
+#ifdef SW_USE_IOURING
     AsyncIOUring *async_iouring;
 #endif
     uint32_t signal_listener_num;
@@ -750,7 +750,7 @@ struct Global {
     //-----------------------[AIO]--------------------------
     uint32_t aio_core_worker_num;
     uint32_t aio_worker_num;
-#if defined(__linux__) && defined(SW_USE_IOURING)
+#ifdef SW_USE_IOURING
     uint32_t iouring_entries;
 #endif
     double aio_max_wait_time;
