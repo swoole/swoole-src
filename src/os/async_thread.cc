@@ -14,7 +14,6 @@
  +----------------------------------------------------------------------+
  */
 
-#include "swoole.h"
 #include "swoole_api.h"
 #include "swoole_socket.h"
 #include "swoole_reactor.h"
@@ -23,7 +22,6 @@
 #include "swoole_pipe.h"
 #include "swoole_async.h"
 #include "swoole_util.h"
-#include "swoole_coroutine.h"
 
 #include <thread>
 #include <atomic>
