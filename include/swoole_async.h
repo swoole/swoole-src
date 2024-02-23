@@ -24,6 +24,11 @@
 #include <atomic>
 #include <queue>
 
+#if defined(__linux__) && defined(SW_USE_IOURING)
+#include "linux/version.h"
+#include <liburing.h>
+#endif
+
 #ifndef O_DIRECT
 #define O_DIRECT 040000
 #endif

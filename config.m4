@@ -59,7 +59,7 @@ PHP_ARG_ENABLE([cares],
 PHP_ARG_ENABLE([iouring],
   [enable io-uring support],
   [AS_HELP_STRING([--enable-iouring],
-    [Enable io-uring])], [no], [no])
+    [Enable io-uring (Experimental)])], [no], [no])
 
 PHP_ARG_WITH([openssl_dir],
   [dir of openssl],
