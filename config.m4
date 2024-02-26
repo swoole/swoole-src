@@ -56,6 +56,11 @@ PHP_ARG_ENABLE([cares],
   [AS_HELP_STRING([--enable-cares],
     [Enable cares])], [no], [no])
 
+PHP_ARG_ENABLE([iouring],
+  [enable io-uring support],
+  [AS_HELP_STRING([--enable-iouring],
+    [Enable io-uring (Experimental)])], [no], [no])
+
 PHP_ARG_WITH([openssl_dir],
   [dir of openssl],
   [AS_HELP_STRING([[--with-openssl-dir[=DIR]]],
@@ -897,6 +902,13 @@ EOF
         AC_DEFINE(SW_USE_CARES, 1, [do we enable c-ares support])
         PHP_ADD_LIBRARY(cares, 1, SWOOLE_SHARED_LIBADD)
     fi
+
+   if test "$PHP_IOURING" = "yes"; then
+       AC_CHECK_LIB(uring, io_uring_queue_init, [
+           AC_DEFINE(SW_USE_IOURING, 1, [have io_uring])
+           PHP_ADD_LIBRARY(uring, 1, SWOOLE_SHARED_LIBADD)
+       ])
+   fi
 
     AC_SWOOLE_CPU_AFFINITY
     AC_SWOOLE_HAVE_REUSEPORT

@@ -129,10 +129,10 @@ class ThreadPool {
                     n = worker_num - threads.size();
                 }
                 swoole_trace_log(SW_TRACE_AIO,
-                           "Create %zu thread due to wait %fs, we will have %zu threads",
-                           n,
-                           _max_wait_time,
-                           threads.size() + n);
+                                 "Create %zu thread due to wait %fs, we will have %zu threads",
+                                 n,
+                                 _max_wait_time,
+                                 threads.size() + n);
                 while (n--) {
                     create_thread();
                 }
@@ -179,9 +179,9 @@ class ThreadPool {
         } else {
             std::thread *_thread = i->second;
             swoole_trace_log(SW_TRACE_AIO,
-                       "release idle thread#%s, we have %zu now",
-                       get_thread_id(tid).c_str(),
-                       threads.size() - 1);
+                             "release idle thread#%s, we have %zu now",
+                             get_thread_id(tid).c_str(),
+                             threads.size() - 1);
             if (_thread->joinable()) {
                 _thread->join();
             }
@@ -252,10 +252,10 @@ void ThreadPool::create_thread(const bool is_core_worker) {
                     }
 
                     swoole_trace_log(SW_TRACE_AIO,
-                               "aio_thread %s. ret=%ld, error=%d",
-                               event->retval > 0 ? "ok" : "failed",
-                               event->retval,
-                               event->error);
+                                     "aio_thread %s. ret=%ld, error=%d",
+                                     event->retval > 0 ? "ok" : "failed",
+                                     event->retval,
+                                     event->error);
 
                 _send_event:
                     while (true) {
@@ -292,7 +292,7 @@ void ThreadPool::create_thread(const bool is_core_worker) {
                         _cv.wait(lock);
                     } else {
                         while (true) {
-                            if (_cv.wait_for(lock, std::chrono::microseconds((size_t)(max_idle_time * 1000 * 1000))) ==
+                            if (_cv.wait_for(lock, std::chrono::microseconds((size_t) (max_idle_time * 1000 * 1000))) ==
                                 std::cv_status::timeout) {
                                 if (running && n_closing != 0) {
                                     // wait for the next round

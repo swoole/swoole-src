@@ -195,6 +195,16 @@ int swoole_coroutine_open(const char *pathname, int flags, mode_t mode) {
     return ret;
 }
 
+int swoole_coroutine_close_file(int fd) {
+    if (sw_unlikely(is_no_coro())) {
+        return close(fd);
+    }
+
+    int ret = -1;
+    async([&]() { ret = close(fd); });
+    return ret;
+}
+
 int swoole_coroutine_socket_create(int fd) {
     if (sw_unlikely(is_no_coro())) {
         return -1;
@@ -305,6 +315,26 @@ int swoole_coroutine_statvfs(const char *path, struct statvfs *buf) {
 
     int retval = -1;
     async([&]() { retval = statvfs(path, buf); });
+    return retval;
+}
+
+int swoole_coroutine_stat(const char *path, struct stat *statbuf) {
+    if (sw_unlikely(is_no_coro())) {
+        return stat(path, statbuf);
+    }
+
+    int retval = -1;
+    async([&]() { retval = stat(path, statbuf); });
+    return retval;
+}
+
+int swoole_coroutine_lstat(const char *path, struct stat *statbuf) {
+    if (sw_unlikely(is_no_coro())) {
+        return lstat(path, statbuf);
+    }
+
+    int retval = -1;
+    async([&]() { retval = lstat(path, statbuf); });
     return retval;
 }
 
@@ -549,4 +579,31 @@ struct hostent *swoole_coroutine_gethostbyname(const char *name) {
     return retval;
 }
 
+int swoole_coroutine_fsync(int fd) {
+    if (sw_unlikely(is_no_coro())) {
+        return fsync(fd);
+    }
+
+    int retval = -1;
+    async([&]() { retval = fsync(fd); });
+    return retval;
+}
+
+int swoole_coroutine_fdatasync(int fd) {
+    if (sw_unlikely(is_no_coro())) {
+#ifndef HAVE_FDATASYNC
+        return fsync(fd);
+#else
+        return fdatasync(fd);
+#endif
+    }
+
+    int retval = -1;
+#ifndef HAVE_FDATASYNC
+    async([&]() { retval = fsync(fd); });
+#else
+    async([&]() { retval = fdatasync(fd); });
+#endif
+    return retval;
+}
 SW_EXTERN_C_END

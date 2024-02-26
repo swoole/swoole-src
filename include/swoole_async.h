@@ -22,6 +22,12 @@
 #include <string>
 #include <mutex>
 #include <atomic>
+#include <queue>
+
+#ifdef SW_USE_IOURING
+#include "linux/version.h"
+#include <liburing.h>
+#endif
 
 #ifndef O_DIRECT
 #define O_DIRECT 040000
@@ -36,16 +42,32 @@ enum AsyncFlag {
 
 struct AsyncEvent {
     size_t task_id;
+#ifdef SW_USE_IOURING
+    size_t count;
+#endif
     uint8_t canceled;
+    int error;
     /**
      * input & output
      */
     void *data;
+#ifdef SW_USE_IOURING
+    const char *pathname;
+    const char *pathname2;
+    struct statx *statxbuf;
+    void *rbuf;
+    const void *wbuf;
+#endif
     /**
      * output
      */
     ssize_t retval;
-    int error;
+#ifdef SW_USE_IOURING
+    int fd;
+    int flags;
+    int opcode;
+    mode_t mode;
+#endif
     /**
      * internal use only
      */
@@ -101,6 +123,91 @@ class AsyncThreads {
   private:
     std::mutex init_lock;
 };
+
+#ifdef SW_USE_IOURING
+class AsyncIouring {
+  private:
+    int ring_fd;
+    uint64_t task_num = 0;
+    uint64_t entries = 8192;
+    struct io_uring ring;
+    std::queue<AsyncEvent *> waitEvents;
+    network::Socket *iou_socket = nullptr;
+    Reactor *reactor = nullptr;
+
+    inline struct io_uring_sqe *get_iouring_sqe() {
+        struct io_uring_sqe *sqe = io_uring_get_sqe(&ring);
+        // We need to reset the values of each sqe structure so that they can be used in a loop.
+        if (sqe) {
+            memset(sqe, 0, sizeof(struct io_uring_sqe));
+        }
+        return sqe;
+    }
+
+    inline void set_iouring_sqe_data(struct io_uring_sqe *sqe, void *data) {
+        io_uring_sqe_set_data(sqe, data);
+    }
+
+    inline void *get_iouring_cqe_data(struct io_uring_cqe *cqe) {
+        return io_uring_cqe_get_data(cqe);
+    }
+
+    inline int get_iouring_cqes(struct io_uring_cqe **cqe_ptr, unsigned count) {
+        return io_uring_peek_batch_cqe(&ring, cqe_ptr, count);
+    }
+
+    inline void finish_iouring_cqes(unsigned count) {
+        io_uring_cq_advance(&ring, count);
+    }
+
+    inline bool submit_iouring_sqe() {
+        return io_uring_submit(&ring);
+    }
+
+  public:
+    AsyncIouring(Reactor *reactor_);
+    ~AsyncIouring();
+
+    enum opcodes {
+        SW_IORING_OP_OPENAT = IORING_OP_OPENAT,
+        SW_IORING_OP_CLOSE = IORING_OP_CLOSE,
+        SW_IORING_OP_STATX = IORING_OP_STATX,
+        SW_IORING_OP_READ = IORING_OP_READ,
+        SW_IORING_OP_WRITE = IORING_OP_WRITE,
+        SW_IORING_OP_RENAMEAT = IORING_OP_RENAMEAT,
+        SW_IORING_OP_UNLINKAT = IORING_OP_UNLINKAT,
+        SW_IORING_OP_MKDIRAT = IORING_OP_MKDIRAT,
+
+        SW_IORING_OP_FSTAT = 1000,
+        SW_IORING_OP_LSTAT = 1001,
+        SW_IORING_OP_UNLINK_FILE = 1002,
+        SW_IORING_OP_UNLINK_DIR = 1003,
+        SW_IORING_OP_FSYNC = 1004,
+        SW_IORING_OP_FDATASYNC = 1005,
+    };
+
+    void add_event();
+    void delete_event();
+    bool wakeup();
+    bool open(AsyncEvent *event);
+    bool close(AsyncEvent *event);
+    bool wr(AsyncEvent *event);
+    bool statx(AsyncEvent *event);
+    bool mkdir(AsyncEvent *event);
+    bool unlink(AsyncEvent *event);
+    bool rename(AsyncEvent *event);
+    bool fsync(AsyncEvent *event);
+    inline bool is_empty_wait_events() {
+        return waitEvents.size() == 0;
+    }
+
+    inline uint64_t get_task_num() {
+        return task_num;
+    }
+
+    static int callback(Reactor *reactor, Event *event);
+};
+#endif
 
 namespace async {
 

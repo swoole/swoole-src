@@ -37,7 +37,7 @@ run(function () {
         ];
         $responses = Promise\Utils::unwrap($promises);
         Assert::contains($responses['baidu']->getBody(), '百度');
-        Assert::contains(iconv('gbk', 'utf-8', $responses['qq']->getBody()), '腾讯');
+        Assert::contains($responses['qq']->getBody(), '腾讯');
         Assert::contains($responses['zhihu']->getBody(), '知乎');
         $result['task_1'] = 'OK';
     });
