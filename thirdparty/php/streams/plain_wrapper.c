@@ -1,22 +1,18 @@
 /*
-   +----------------------------------------------------------------------+
-   | PHP Version 7                                                        |
-   +----------------------------------------------------------------------+
-   | Copyright (c) 1997-2017 The PHP Group                                |
-   +----------------------------------------------------------------------+
-   | This source file is subject to version 3.01 of the PHP license,      |
-   | that is bundled with this package in the file LICENSE, and is        |
-   | available through the world-wide-web at the following url:           |
-   | http://www.php.net/license/3_01.txt                                  |
-   | If you did not receive a copy of the PHP license and are unable to   |
-   | obtain it through the world-wide-web, please send a note to          |
-   | license@php.net so we can mail you a copy immediately.               |
-   +----------------------------------------------------------------------+
-   | Authors: Wez Furlong <wez@thebrainroom.com>                          |
-   +----------------------------------------------------------------------+
- */
-
-/* $Id$ */
+  +----------------------------------------------------------------------+
+  | Copyright (c) The PHP Group                                          |
+  +----------------------------------------------------------------------+
+  | This source file is subject to version 3.01 of the PHP license,      |
+  | that is bundled with this package in the file LICENSE, and is        |
+  | available through the world-wide-web at the following url:           |
+  | https://www.php.net/license/3_01.txt                                 |
+  | If you did not receive a copy of the PHP license and are unable to   |
+  | obtain it through the world-wide-web, please send a note to          |
+  | license@php.net so we can mail you a copy immediately.               |
+  +----------------------------------------------------------------------+
+  | Authors: Wez Furlong <wez@thebrainroom.com>                          |
+  +----------------------------------------------------------------------+
+*/
 
 #include "php_swoole.h"
 #include "php_open_temporary_file.h"
@@ -455,7 +451,7 @@ static int sw_php_stdiop_close(php_stream *stream, int close_handle) {
             if ((data->lock_flag & LOCK_EX) || (data->lock_flag & LOCK_SH)) {
                 swoole_coroutine_flock_ex(stream->orig_path, data->fd, LOCK_UN);
             }
-            ret = close(data->fd);
+            ret = close_file(data->fd);
             data->fd = -1;
         } else {
             return 0; /* everything should be closed already -> success */
@@ -1119,7 +1115,7 @@ static php_stream *_sw_php_stream_fopen(const char *filename,
 
             return ret;
         }
-        close(fd);
+        close_file(fd);
     }
     if (persistent_id) {
         efree(persistent_id);
@@ -1475,7 +1471,7 @@ static int php_plain_files_metadata(
                 php_error_docref1(NULL, url, E_WARNING, "Unable to create file %s because %s", url, strerror(errno));
                 return 0;
             }
-            close(file);
+            close_file(file);
         }
 
         ret = utime(url, newtime);

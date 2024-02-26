@@ -108,6 +108,10 @@ extern PHPAPI int php_array_merge(zend_array *dest, zend_array *src);
 #error "thread context cannot be used with ZTS"
 #endif
 
+#if defined(SW_USE_IOURING) && !defined(__linux__)
+#error "only linux support iouring"
+#endif
+
 //--------------------------------------------------------
 #define SW_MAX_FIND_COUNT 100  // for swoole_server::connection_list
 #define SW_PHP_CLIENT_BUFFER_SIZE 65535
