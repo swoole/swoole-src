@@ -34,7 +34,9 @@
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif
+
 #include "thirdparty/php/streams/php_streams_int.h"
+
 #include "swoole_file_hook.h"
 
 #if PHP_VERSION_ID >= 80200
@@ -199,7 +201,7 @@ static php_stream_ops sw_php_stream_stdio_ops = {
     sw_php_stdiop_read,
     sw_php_stdiop_close,
     sw_php_stdiop_flush,
-    "STDIO/swoole",
+    "STDIO/coroutine",
     sw_php_stdiop_seek,
     sw_php_stdiop_cast,
     sw_php_stdiop_stat,
@@ -1526,7 +1528,7 @@ static php_stream_wrapper_ops sw_php_plain_files_wrapper_ops = {
     NULL,
     php_plain_files_url_stater,
     php_plain_files_dir_opener,
-    "plainfile/swoole",
+    "plainfile/coroutine",
     php_plain_files_unlink,
     php_plain_files_rename,
     php_plain_files_mkdir,
