@@ -56,6 +56,11 @@ PHP_ARG_ENABLE([cares],
   [AS_HELP_STRING([--enable-cares],
     [Enable cares])], [no], [no])
 
+PHP_ARG_ENABLE([iouring],
+  [enable io-uring support],
+  [AS_HELP_STRING([--enable-iouring],
+    [Enable io-uring (Experimental)])], [no], [no])
+
 PHP_ARG_WITH([openssl_dir],
   [dir of openssl],
   [AS_HELP_STRING([[--with-openssl-dir[=DIR]]],
@@ -274,36 +279,9 @@ AC_DEFUN([AC_SWOOLE_HAVE_BOOST_STACKTRACE],
 ])
 
 AC_DEFUN([AC_SWOOLE_CHECK_SOCKETS], [
-    dnl Check for struct cmsghdr
-    AC_CACHE_CHECK([for struct cmsghdr], ac_cv_cmsghdr,
-    [
-        AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
-#include <sys/types.h>
-#include <sys/socket.h>]], [[struct cmsghdr s; s]])], [ac_cv_cmsghdr=yes], [ac_cv_cmsghdr=no])
-    ])
-
-    if test "$ac_cv_cmsghdr" = yes; then
-        AC_DEFINE(HAVE_CMSGHDR,1,[Whether you have struct cmsghdr])
-    fi
-
     AC_CHECK_FUNCS([hstrerror socketpair if_nametoindex if_indextoname])
     AC_CHECK_HEADERS([netdb.h netinet/tcp.h sys/un.h sys/sockio.h])
     AC_DEFINE([HAVE_SOCKETS], 1, [ ])
-
-    dnl Check for fied ss_family in sockaddr_storage (missing in AIX until 5.3)
-    AC_CACHE_CHECK([for field ss_family in struct sockaddr_storage], ac_cv_ss_family,
-    [
-        AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <netdb.h>
-    ]], [[struct sockaddr_storage sa_store; sa_store.ss_family = AF_INET6;]])],
-        [ac_cv_ss_family=yes], [ac_cv_ss_family=no])
-    ])
-
-    if test "$ac_cv_ss_family" = yes; then
-        AC_DEFINE(HAVE_SA_SS_FAMILY,1,[Whether you have sockaddr_storage.ss_family])
-    fi
 
     dnl Check for AI_V4MAPPED flag
     AC_CACHE_CHECK([if getaddrinfo supports AI_V4MAPPED],[ac_cv_gai_ai_v4mapped],
@@ -356,7 +334,8 @@ AC_COMPILE_IFELSE([
 )
 AC_MSG_RESULT([$CLANG])
 
-AC_PROG_CC_C99
+dnl AC_PROG_CC_C99 is obsolete with autoconf >= 2.70 yet necessary for <= 2.69.
+m4_version_prereq([2.70],,[AC_PROG_CC_C99])
 
 AC_CANONICAL_HOST
 
@@ -923,6 +902,13 @@ EOF
         AC_DEFINE(SW_USE_CARES, 1, [do we enable c-ares support])
         PHP_ADD_LIBRARY(cares, 1, SWOOLE_SHARED_LIBADD)
     fi
+
+   if test "$PHP_IOURING" = "yes"; then
+       AC_CHECK_LIB(uring, io_uring_queue_init, [
+           AC_DEFINE(SW_USE_IOURING, 1, [have io_uring])
+           PHP_ADD_LIBRARY(uring, 1, SWOOLE_SHARED_LIBADD)
+       ])
+   fi
 
     AC_SWOOLE_CPU_AFFINITY
     AC_SWOOLE_HAVE_REUSEPORT

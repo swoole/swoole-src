@@ -431,7 +431,21 @@ static PHP_FUNCTION(swoole_event_add) {
     }
 
     auto readable_callback = php_swoole_zval_to_callable(zreadable_callback, "readable_callback");
+    if ((events & SW_EVENT_READ) && readable_callback == nullptr) {
+        php_swoole_fatal_error(
+            E_WARNING, "%s: unable to find readable callback of fd [%d]", ZSTR_VAL(swoole_event_ce->name), socket_fd);
+        RETURN_FALSE;
+    }
+
     auto writable_callback = php_swoole_zval_to_callable(zwritable_callback, "writable_callback");
+    if ((events & SW_EVENT_WRITE) && writable_callback == nullptr) {
+        php_swoole_fatal_error(
+            E_WARNING, "%s: unable to find writable callback of fd [%d]", ZSTR_VAL(swoole_event_ce->name), socket_fd);
+        if (readable_callback) {
+            delete readable_callback;
+        }
+        RETURN_FALSE;
+    }
 
     EventObject *peo = (EventObject *) ecalloc(1, sizeof(*peo));
 
@@ -442,17 +456,6 @@ static PHP_FUNCTION(swoole_event_add) {
 
     socket->set_nonblock();
     socket->object = peo;
-
-    if ((events & SW_EVENT_READ) && peo->readable_callback == nullptr) {
-        php_swoole_fatal_error(
-            E_WARNING, "%s: unable to find readable callback of fd [%d]", ZSTR_VAL(swoole_event_ce->name), socket_fd);
-        RETURN_FALSE;
-    }
-    if ((events & SW_EVENT_WRITE) && peo->writable_callback == nullptr) {
-        php_swoole_fatal_error(
-            E_WARNING, "%s: unable to find writable callback of fd [%d]", ZSTR_VAL(swoole_event_ce->name), socket_fd);
-        RETURN_FALSE;
-    }
 
     if (swoole_event_add(socket, events) < 0) {
         php_swoole_fatal_error(E_WARNING, "swoole_event_add failed");

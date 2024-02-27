@@ -570,7 +570,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
     zend::Variable remote_addr = zend::Variable(sock->get_ip());
 
     while (true) {
-    _recv_request: {
+    _recv_request : {
         sock->get_socket()->recv_wait = 1;
         ssize_t retval = sock->recv(buffer->str + buffer->length, buffer->size - buffer->length);
         if (sw_unlikely(retval <= 0)) {
@@ -659,8 +659,9 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
 
         zval *zserver = ctx->request.zserver;
         http_server_add_server_array(
-            Z_ARRVAL_P(zserver), SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER_PORT), hs->socket->get_bind_port());
-        http_server_add_server_array(Z_ARRVAL_P(zserver), SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_PORT), sock->get_port());
+            Z_ARRVAL_P(zserver), SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER_PORT), (zend_long) hs->socket->get_bind_port());
+        http_server_add_server_array(
+            Z_ARRVAL_P(zserver), SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_PORT), (zend_long) sock->get_port());
         http_server_add_server_array(Z_ARRVAL_P(zserver), SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), remote_addr.ptr());
         remote_addr.add_ref();
 
@@ -713,7 +714,8 @@ static PHP_METHOD(swoole_http_server_coro, shutdown) {
             sock->cancel(SW_EVENT_READ);
             zend_hash_index_del(Z_ARRVAL_P(&hs->zclients), index);
         }
-    } ZEND_HASH_FOREACH_END();
+    }
+    ZEND_HASH_FOREACH_END();
 }
 
 static void http2_server_onRequest(Http2Session *session, Http2Stream *stream) {
