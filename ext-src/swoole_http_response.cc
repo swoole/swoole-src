@@ -330,7 +330,6 @@ static void add_custom_header(HttpByteBuffer *http_byte_buffer, zend_string *key
 
 bool HttpContext::start_send(const char *body, size_t length) {
     assert(send_header_ == 0);
-    const
 
     int count = 6;
     zval *zheader =
