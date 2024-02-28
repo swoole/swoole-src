@@ -695,7 +695,7 @@ PHP_MINIT_FUNCTION(swoole) {
     // init bug report message
     bug_report_message_init();
     if (strcmp("cli", sapi_module.name) == 0 || strcmp("phpdbg", sapi_module.name) == 0 ||
-        strcmp("embed", sapi_module.name) == 0) {
+        strcmp("embed", sapi_module.name) == 0 || strcmp("micro", sapi_module.name) == 0) {
         SWOOLE_G(cli) = 1;
     }
 
