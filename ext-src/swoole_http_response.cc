@@ -517,8 +517,8 @@ bool HttpContext::start_send(const char *body, size_t length) {
 
     protocol_length = http_byte_buffer.get_protocol_length(body ? length : 0);
     bool result;
-    printf("%d, %d\n", protocol_length, SwooleG.stack_size);
-    if (protocol_length > SwooleG.stack_size)) {
+    printf("%ld, %d, %d\n", protocol_length, SwooleG.stack_size, protocol_length > (SwooleG.stack_size / 2));
+    if (protocol_length > SwooleG.stack_size) {
         char *http_protocol = (char *) emalloc(protocol_length);
         http_byte_buffer.write_protocol(http_protocol, body, length);
         result = send(this, http_protocol, protocol_length);
