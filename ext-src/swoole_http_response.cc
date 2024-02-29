@@ -517,7 +517,7 @@ bool HttpContext::start_send(const char *body, size_t length) {
 
     protocol_length = http_byte_buffer.get_protocol_length(body ? length : 0);
     bool result;
-    if (UNEXPECTED((SwooleG.stack_size >> 1) < protocol_length)) {
+    if (protocol_length > 1 * 1024 * 1024) {
         char *http_protocol = (char *) emalloc(protocol_length);
         http_byte_buffer.write_protocol(http_protocol, body, length);
         result = send(this, http_protocol, protocol_length);
