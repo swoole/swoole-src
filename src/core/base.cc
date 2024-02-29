@@ -200,7 +200,7 @@ void swoole_init(void) {
     if (getrlimit(RLIMIT_STACK, &rlmt) < 0) {
         swoole_sys_warning("getrlimit(RLIMIT_STACK) failed");
     } else {
-        SwooleG.stack_size = rlmt.rlim_cur;
+        SwooleG.stack_size = (uint32_t) rlmt.rlim_cur;
     }
 
     SwooleTG.buffer_stack = new swoole::String(SW_STACK_BUFFER_SIZE);
