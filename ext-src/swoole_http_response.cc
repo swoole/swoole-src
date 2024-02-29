@@ -516,15 +516,21 @@ bool HttpContext::start_send(const char *body, size_t length) {
     }
 
     protocol_length = http_byte_buffer.get_protocol_length(body ? length : 0);
-    char http_protocol[protocol_length];
-    http_byte_buffer.write_protocol(http_protocol, body, length);
-    if (send(this, http_protocol, protocol_length)) {
-        send_header_ = 1;
-        return true;
+    bool overflow = protocol_length > (SwooleG.stack_size / 2);
+    bool result;
+    if (overflow) {
+        char *http_protocol = (char *) emalloc(protocol_length);
+        http_byte_buffer.write_protocol(http_protocol, body, length);
+        result = send(this, http_protocol, protocol_length);
+        efree(http_protocol);
     } else {
-        send_header_ = 0;
-        return false;
+        char _http_protocol[protocol_length];
+        http_byte_buffer.write_protocol(_http_protocol, body, length);
+        result = send(this, _http_protocol, protocol_length);
     }
+
+    send_header_ = result ? 1 : 0;
+    return result;
 }
 
 ssize_t HttpContext::build_trailer(String *http_buffer) {
