@@ -524,6 +524,7 @@ bool HttpContext::start_send(const char *body, size_t length) {
         result = send(this, http_protocol, protocol_length);
         efree(http_protocol);
     } else {
+        printf("test123123123\n");
         char _http_protocol[protocol_length];
         http_byte_buffer.write_protocol(_http_protocol, body, length);
         result = send(this, _http_protocol, protocol_length);
