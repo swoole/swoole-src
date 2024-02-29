@@ -517,16 +517,16 @@ bool HttpContext::start_send(const char *body, size_t length) {
 
     protocol_length = http_byte_buffer.get_protocol_length(body ? length : 0);
     bool result;
-//    if (protocol_length > (SwooleG.stack_size >> 1)) {
+    if (protocol_length > (size_t) (SwooleG.stack_size >> 1)) {
         char *http_protocol = (char *) emalloc(protocol_length);
         http_byte_buffer.write_protocol(http_protocol, body, length);
         result = send(this, http_protocol, protocol_length);
         efree(http_protocol);
-//    } else {
-//        char _http_protocol[protocol_length];
-//        http_byte_buffer.write_protocol(_http_protocol, body, length);
-//        result = send(this, _http_protocol, protocol_length);
-//    }
+    } else {
+        char _http_protocol[protocol_length];
+        http_byte_buffer.write_protocol(_http_protocol, body, length);
+        result = send(this, _http_protocol, protocol_length);
+    }
 
     send_header_ = result ? 1 : 0;
     return result;
