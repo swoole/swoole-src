@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
  */
 
-/* $Id: d0ac03753a22ce34a521c7eb75b2e19f0d6ec961 */
+/* $Id: 286fa34095664574dbb1c9c00cfe3ca052e04a59 */
 
 #ifndef SWOOLE_LIBRARY_H
 #define SWOOLE_LIBRARY_H
@@ -1939,7 +1939,7 @@ static const char* swoole_library_source_core_coroutine_http_client_proxy =
     "\n"
     "class ClientProxy\n"
     "{\n"
-    "    public function __construct(private string $body, private int $statusCode, private array $headers, private array $cookies)\n"
+    "    public function __construct(private string $body, private int $statusCode, private ?array $headers, private ?array $cookies)\n"
     "    {\n"
     "    }\n"
     "\n"
@@ -6609,6 +6609,7 @@ static const char* swoole_library_source_core_coroutine_fast_cgi_client =
     "\n"
     "namespace Swoole\\Coroutine\\FastCGI;\n"
     "\n"
+    "use Swoole\\Constant;\n"
     "use Swoole\\Coroutine\\FastCGI\\Client\\Exception;\n"
     "use Swoole\\Coroutine\\Socket;\n"
     "use Swoole\\FastCGI\\FrameParser;\n"
@@ -6655,8 +6656,8 @@ static const char* swoole_library_source_core_coroutine_fast_cgi_client =
     "        if (!isset($this->socket)) {\n"
     "            $this->socket = $socket = new Socket($this->af, SOCK_STREAM, IPPROTO_IP);\n"
     "            $socket->setProtocol([\n"
-    "                'open_ssl'              => $this->ssl,\n"
-    "                'open_fastcgi_protocol' => true,\n"
+    "                Constant::OPTION_OPEN_SSL              => $this->ssl,\n"
+    "                Constant::OPTION_OPEN_FASTCGI_PROTOCOL => true,\n"
     "            ]);\n"
     "            if (!$socket->connect($this->host, $this->port, $timeout)) {\n"
     "                $this->ioException();\n"
