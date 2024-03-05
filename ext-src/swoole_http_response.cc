@@ -351,16 +351,7 @@ bool HttpContext::start_send(const char *body, size_t length) {
         count += zend_hash_num_elements(Z_ARRVAL_P(zcookie));
     }
 
-    int total = count * 2;
-    size_t lengths[total];
-    const char *headers[total];
-    /**
-     * We need to convert the key and value of numeric types into strings so that we can write them into a buffer.
-     * However, after the conversion, we need to manually release the resulting strings to avoid automatic release
-     * before writing them into the buffer.
-     */
-    zend_string *free_list[total];
-    ByteBuffer http_byte_buffer(lengths, headers, free_list);
+    ByteBuffer http_byte_buffer(count * 2);
 
     // http status line
     char status_to_string[16];

@@ -73,26 +73,21 @@ struct ByteBuffer {
     size_t reason_length = 0;
 
     size_t position = 0;
-    size_t http_status_length = 0;
-    size_t http_headers_length = 0;
+    size_t http_response_length = 0;
 
-    int index = 0;
-    size_t *lengths;
-    const char **headers;
+    std::vector<size_t> lengths;
+    std::vector<const char *> headers;
+    std::vector<zend_string *> free_list;
 
-    int free_num = 0;
-    zend_string **free_list;
-
-    ByteBuffer(size_t *_lengths, const char **_headers, zend_string **_free_list) {
-        lengths = _lengths;
-        headers = _headers;
-        free_list = _free_list;
+    ByteBuffer(int total) {
+        lengths.reserve(total);
+        headers.reserve(total);
+        free_list.reserve(total);
     }
 
     ~ByteBuffer() {
-        int i = 0;
-        while (i < free_num) {
-            zend_string_release(free_list[i++]);
+        for (auto iter = free_list.begin(); iter != free_list.end(); iter++) {
+            zend_string_release(*iter);
         }
     }
 
@@ -103,40 +98,37 @@ struct ByteBuffer {
         reason_length = reason ? strlen(reason) : 0;
 
         // calculate http status line length
-        http_status_length = version_length + status_length + SW_CRLF_LEN;
+        http_response_length = version_length + status_length + SW_CRLF_LEN;
         if (reason) {
-            http_status_length += reason_length + 1;
+            http_response_length += reason_length + 1;
         }
     }
 
     inline void add_header(zend_string *key, zend_string *value) {
         zend_string_addref(key);
         zend_string_addref(value);
-        free_list[free_num++] = key;
-        free_list[free_num++] = value;
+        free_list.emplace_back(key);
+        free_list.emplace_back(value);
         add_header(ZSTR_VAL(key), ZSTR_LEN(key), ZSTR_VAL(value), ZSTR_LEN(value));
     }
 
     inline void add_header(const char *key, size_t key_length, const char *value, size_t value_length) {
-        headers[index] = key;
-        lengths[index] = key_length;
-        index++;
-
-        headers[index] = value;
-        lengths[index] = value_length;
-        index++;
+        headers.emplace_back(key);
+        lengths.emplace_back(key_length);
+        headers.emplace_back(value);
+        lengths.emplace_back(value_length);
 
         if (value) {
-            http_headers_length += key_length + value_length + SW_CRLF_LEN + 2;
+            http_response_length += key_length + value_length + SW_CRLF_LEN + 2;
         } else {
             // When the value is a nullptr, it means that this response header has a fixed value.
-            http_headers_length += key_length;
+            http_response_length += key_length;
         }
     }
 
     inline size_t get_protocol_length(size_t length = 0) {
         // calculate http protocol length
-        return http_status_length + http_headers_length + length + SW_CRLF_LEN;
+        return http_response_length + length + SW_CRLF_LEN;
     }
 
     inline void append(char *protocol, const char *data, size_t length) {
@@ -158,9 +150,10 @@ struct ByteBuffer {
         size_t value_length = 0;
         const char *key = nullptr;
         const char *value = nullptr;
-        int i = 0;
+        size_t i = 0;
+        size_t count = lengths.size();
 
-        while (i < index) {
+        while (i < count) {
             key_length = lengths[i];
             value_length = lengths[i + 1];
             key = headers[i++];
