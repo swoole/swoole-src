@@ -19,9 +19,8 @@
 SW_EXTERN_C_BEGIN
 #include "ext/standard/url.h"
 #include "stubs/php_swoole_http_request_arginfo.h"
+#include "thirdparty/php/main/SAPI.h"
 SW_EXTERN_C_END
-
-#include "main/php_variables.h"
 
 #ifdef SW_HAVE_ZLIB
 #include <zlib.h>
@@ -258,7 +257,7 @@ static int http_request_on_query_string(swoole_http_parser *parser, const char *
     http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_QUERY_STRING), &tmp);
 
     // parse url params
-    sapi_module.treat_data(
+    swoole_php_treat_data(
         PARSE_STRING,
         estrndup(at, length),  // it will be freed by treat_data
         swoole_http_init_and_read_property(
@@ -295,25 +294,12 @@ bool HttpContext::get_multipart_boundary(
     return true;
 }
 
-void swoole_http_parse_cookie(zval *zarray, const char *at, size_t length) {
+void swoole_http_parse_cookie(zval *zcookies, const char *at, size_t length) {
     if (length == 0) {
         return;
     }
-    zend_long count = 0;
-    ParseCookieCallback cb = [&count, zarray](char *key, size_t key_len, char *value, size_t value_len) {
-        if (++count > PG(max_input_vars)) {
-            swoole_warning("Input variables exceeded " ZEND_LONG_FMT
-                           ". To increase the limit change max_input_vars in php.ini.",
-                           PG(max_input_vars));
-            return false;
-        }
-        if (value_len > 0) {
-            value_len = php_raw_url_decode(value, value_len);
-        }
-        add_assoc_stringl_ex(zarray, key, key_len, value, value_len);
-        return true;
-    };
-    swoole::http_server::parse_cookie(at, length, cb);
+
+    swoole_php_treat_data(PARSE_COOKIE, estrndup(at, length), zcookies);
 }
 
 static void http_request_add_upload_file(HttpContext *ctx, const char *file, size_t l_file) {
@@ -793,13 +779,13 @@ static int http_request_message_complete(swoole_http_parser *parser) {
 
     if (ctx->request.chunked_body != nullptr && ctx->parse_body && ctx->request.post_form_urlencoded) {
         /* parse dechunked content */
-        sapi_module.treat_data(
+        swoole_php_treat_data(
             PARSE_STRING,
             estrndup(ctx->request.chunked_body->str, content_length),  // do not free, it will be freed by treat_data
             swoole_http_init_and_read_property(
                 swoole_http_request_ce, ctx->request.zobject, &ctx->request.zpost, SW_ZSTR_KNOWN(SW_ZEND_STR_POST)));
     } else if (!ctx->recv_chunked && ctx->parse_body && ctx->request.post_form_urlencoded && ctx->request.body_at) {
-        sapi_module.treat_data(
+        swoole_php_treat_data(
             PARSE_STRING,
             estrndup(ctx->request.body_at, ctx->request.body_length),  // do not free, it will be freed by treat_data
             swoole_http_init_and_read_property(
