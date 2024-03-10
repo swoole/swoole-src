@@ -104,70 +104,68 @@ void AsyncIouring::delete_event() {
 }
 
 bool AsyncIouring::wakeup() {
-    unsigned num = entries * 2;
+    unsigned num = 8192;
     struct io_uring_cqe *cqes[num];
-    unsigned count = get_iouring_cqes(cqes, num);
-    if (count == 0) {
-        return true;
-    }
-    if (count < 0) {
-        return false;
-    }
+    size_t cqes_size = num * sizeof(struct io_uring_cqe *);
+    unsigned count = 0;
 
     unsigned i = 0;
-    AsyncEvent *tasks[count];
     void *data = nullptr;
     AsyncEvent *task = nullptr;
     struct io_uring_cqe *cqe = nullptr;
-    for (i = 0; i < count; i++) {
-        cqe = cqes[i];
-        data = get_iouring_cqe_data(cqe);
-        task = reinterpret_cast<AsyncEvent *>(data);
-        task->retval = (cqe->res >= 0 ? cqe->res : -1);
-        if (cqe->res < 0) {
-            errno = abs(cqe->res);
-        }
-        tasks[i] = task;
-        task_num--;
-    }
-    finish_iouring_cqes(count);
-
     AsyncEvent *waitEvent = nullptr;
-    for (i = 0; i < count; i++) {
-        task = tasks[i];
-        if (is_empty_wait_events()) {
+
+    while (true) {
+        memset(cqes, 0, cqes_size);
+        count = get_iouring_cqes(cqes, num);
+        if (count == 0) {
+            return true;
+        }
+
+        for (i = 0; i < count; i++) {
+            cqe = cqes[i];
+            data = get_iouring_cqe_data(cqe);
+            task = reinterpret_cast<AsyncEvent *>(data);
+            task->retval = (cqe->res >= 0 ? cqe->res : -1);
+            if (cqe->res < 0) {
+                errno = abs(cqe->res);
+            }
+
+            task_num--;
+
+            if (is_empty_wait_events()) {
+                task->callback(task);
+                continue;
+            }
+
+            waitEvent = waitEvents.front();
+            waitEvents.pop();
+            if (waitEvent->opcode == AsyncIouring::SW_IORING_OP_OPENAT) {
+                open(waitEvent);
+            } else if (waitEvent->opcode == AsyncIouring::SW_IORING_OP_CLOSE) {
+                close(waitEvent);
+            } else if (waitEvent->opcode == AsyncIouring::SW_IORING_OP_FSTAT ||
+                       waitEvent->opcode == AsyncIouring::SW_IORING_OP_LSTAT) {
+                statx(waitEvent);
+            } else if (waitEvent->opcode == AsyncIouring::SW_IORING_OP_READ ||
+                       waitEvent->opcode == AsyncIouring::SW_IORING_OP_WRITE) {
+                wr(waitEvent);
+            } else if (waitEvent->opcode == AsyncIouring::SW_IORING_OP_RENAMEAT) {
+                rename(waitEvent);
+            } else if (waitEvent->opcode == AsyncIouring::SW_IORING_OP_UNLINK_FILE ||
+                       waitEvent->opcode == AsyncIouring::SW_IORING_OP_UNLINK_DIR) {
+                unlink(waitEvent);
+            } else if (waitEvent->opcode == AsyncIouring::SW_IORING_OP_MKDIRAT) {
+                mkdir(waitEvent);
+            } else if (waitEvent->opcode == AsyncIouring::SW_IORING_OP_FSYNC ||
+                       waitEvent->opcode == AsyncIouring::SW_IORING_OP_FDATASYNC) {
+                fsync(waitEvent);
+            }
+
             task->callback(task);
-            continue;
         }
-
-        waitEvent = waitEvents.front();
-        waitEvents.pop();
-        if (waitEvent->opcode == AsyncIouring::SW_IORING_OP_OPENAT) {
-            open(waitEvent);
-        } else if (waitEvent->opcode == AsyncIouring::SW_IORING_OP_CLOSE) {
-            close(waitEvent);
-        } else if (waitEvent->opcode == AsyncIouring::SW_IORING_OP_FSTAT ||
-                   waitEvent->opcode == AsyncIouring::SW_IORING_OP_LSTAT) {
-            statx(waitEvent);
-        } else if (waitEvent->opcode == AsyncIouring::SW_IORING_OP_READ ||
-                   waitEvent->opcode == AsyncIouring::SW_IORING_OP_WRITE) {
-            wr(waitEvent);
-        } else if (waitEvent->opcode == AsyncIouring::SW_IORING_OP_RENAMEAT) {
-            rename(waitEvent);
-        } else if (waitEvent->opcode == AsyncIouring::SW_IORING_OP_UNLINK_FILE ||
-                   waitEvent->opcode == AsyncIouring::SW_IORING_OP_UNLINK_DIR) {
-            unlink(waitEvent);
-        } else if (waitEvent->opcode == AsyncIouring::SW_IORING_OP_MKDIRAT) {
-            mkdir(waitEvent);
-        } else if (waitEvent->opcode == AsyncIouring::SW_IORING_OP_FSYNC ||
-                   waitEvent->opcode == AsyncIouring::SW_IORING_OP_FDATASYNC) {
-            fsync(waitEvent);
-        }
-
-        task->callback(task);
+        finish_iouring_cqes(count);
     }
-
-    return true;
 }
 
 bool AsyncIouring::open(AsyncEvent *event) {
