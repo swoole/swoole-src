@@ -1154,7 +1154,7 @@ static php_stream *php_plain_files_stream_opener(php_stream_wrapper *wrapper,
         return stream;
     }
 
-    return sw_php_stream_fopen_rel(path, mode, opened_path, options STREAMS_REL_CC);
+    return sw_php_stream_fopen_rel(path, mode, opened_path, options);
 }
 
 static int php_plain_files_url_stater(
