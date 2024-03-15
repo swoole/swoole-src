@@ -135,7 +135,7 @@ class Coroutine {
         return ctx;
     }
 
-    static std::unordered_map<long, Coroutine *> coroutines;
+    static thread_local std::unordered_map<long, Coroutine *> coroutines;
 
     static void set_on_yield(SwapCallback func);
     static void set_on_resume(SwapCallback func);
@@ -245,15 +245,15 @@ class Coroutine {
     static void print_list();
 
   protected:
-    static Coroutine *current;
-    static long last_cid;
-    static uint64_t peak_num;
-    static size_t stack_size;
-    static SwapCallback on_yield;      /* before yield */
-    static SwapCallback on_resume;     /* before resume */
-    static SwapCallback on_close;      /* before close */
-    static BailoutCallback on_bailout; /* when bailout */
-    static bool activated;
+    static thread_local Coroutine *current;
+    static thread_local long last_cid;
+    static thread_local uint64_t peak_num;
+    static thread_local size_t stack_size;
+    static thread_local SwapCallback on_yield;      /* before yield */
+    static thread_local SwapCallback on_resume;     /* before resume */
+    static thread_local SwapCallback on_close;      /* before close */
+    static thread_local BailoutCallback on_bailout; /* when bailout */
+    static thread_local bool activated;
 
     enum State state = STATE_INIT;
     enum ResumeCode resume_code_ = RC_OK;

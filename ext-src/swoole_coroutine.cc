@@ -57,19 +57,19 @@ static zend_always_inline zend_vm_stack zend_vm_stack_new_page(size_t size, zend
 
 enum sw_exit_flags { SW_EXIT_IN_COROUTINE = 1 << 1, SW_EXIT_IN_SERVER = 1 << 2 };
 
-bool PHPCoroutine::activated = false;
-zend_array *PHPCoroutine::options = nullptr;
+thread_local bool PHPCoroutine::activated = false;
+thread_local zend_array *PHPCoroutine::options = nullptr;
 
-PHPCoroutine::Config PHPCoroutine::config{
+thread_local PHPCoroutine::Config PHPCoroutine::config{
     SW_DEFAULT_MAX_CORO_NUM,
     0,
     false,
     true,
 };
 
-PHPContext PHPCoroutine::main_context{};
-std::thread PHPCoroutine::interrupt_thread;
-bool PHPCoroutine::interrupt_thread_running = false;
+thread_local PHPContext PHPCoroutine::main_context{};
+thread_local std::thread PHPCoroutine::interrupt_thread;
+thread_local bool PHPCoroutine::interrupt_thread_running = false;
 
 extern void php_swoole_load_library();
 

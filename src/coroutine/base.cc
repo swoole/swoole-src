@@ -19,17 +19,17 @@
 
 namespace swoole {
 
-Coroutine *Coroutine::current = nullptr;
-long Coroutine::last_cid = 0;
-std::unordered_map<long, Coroutine *> Coroutine::coroutines;
-uint64_t Coroutine::peak_num = 0;
-bool Coroutine::activated = false;
+thread_local Coroutine *Coroutine::current = nullptr;
+thread_local long Coroutine::last_cid = 0;
+thread_local std::unordered_map<long, Coroutine *> Coroutine::coroutines;
+thread_local uint64_t Coroutine::peak_num = 0;
+thread_local bool Coroutine::activated = false;
 
-size_t Coroutine::stack_size = SW_DEFAULT_C_STACK_SIZE;
-Coroutine::SwapCallback Coroutine::on_yield = nullptr;
-Coroutine::SwapCallback Coroutine::on_resume = nullptr;
-Coroutine::SwapCallback Coroutine::on_close = nullptr;
-Coroutine::BailoutCallback Coroutine::on_bailout = nullptr;
+thread_local size_t Coroutine::stack_size = SW_DEFAULT_C_STACK_SIZE;
+thread_local Coroutine::SwapCallback Coroutine::on_yield = nullptr;
+thread_local Coroutine::SwapCallback Coroutine::on_resume = nullptr;
+thread_local Coroutine::SwapCallback Coroutine::on_close = nullptr;
+thread_local Coroutine::BailoutCallback Coroutine::on_bailout = nullptr;
 
 #ifdef SW_USE_THREAD_CONTEXT
 namespace coroutine {

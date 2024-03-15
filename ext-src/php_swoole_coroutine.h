@@ -110,7 +110,7 @@ class PHPCoroutine {
         bool enable_deadlock_check;
     };
 
-    static zend_array *options;
+    static thread_local zend_array *options;
 
     enum HookType {
         HOOK_NONE              = 0,
@@ -261,12 +261,12 @@ class PHPCoroutine {
     }
 
   protected:
-    static bool activated;
-    static PHPContext main_context;
-    static Config config;
+    static thread_local bool activated;
+    static thread_local PHPContext main_context;
+    static thread_local Config config;
 
-    static bool interrupt_thread_running;
-    static std::thread interrupt_thread;
+    static thread_local bool interrupt_thread_running;
+    static thread_local std::thread interrupt_thread;
 
     static void activate();
     static void deactivate(void *ptr);
