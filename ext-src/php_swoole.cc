@@ -218,6 +218,11 @@ static void php_swoole_init_globals(zend_swoole_globals *swoole_globals) {
     swoole_globals->socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
     swoole_globals->display_errors = 1;
     swoole_globals->use_shortname = 1;
+    swoole_globals->in_autoload = nullptr;
+    if (strcmp("cli", sapi_module.name) == 0 || strcmp("phpdbg", sapi_module.name) == 0 ||
+        strcmp("embed", sapi_module.name) == 0) {
+        swoole_globals->cli = 1;
+    }
 }
 
 void php_swoole_register_shutdown_function(const char *function) {
@@ -694,10 +699,6 @@ PHP_MINIT_FUNCTION(swoole) {
 
     // init bug report message
     bug_report_message_init();
-    if (strcmp("cli", sapi_module.name) == 0 || strcmp("phpdbg", sapi_module.name) == 0 ||
-        strcmp("embed", sapi_module.name) == 0) {
-        SWOOLE_G(cli) = 1;
-    }
 
     SW_INIT_CLASS_ENTRY_EX2(
         swoole_exception, "Swoole\\Exception", nullptr, nullptr, zend_ce_exception, zend_get_std_object_handlers());
