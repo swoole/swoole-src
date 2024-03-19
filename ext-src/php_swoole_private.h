@@ -112,6 +112,10 @@ extern PHPAPI int php_array_merge(zend_array *dest, zend_array *src);
 #error "only linux support iouring"
 #endif
 
+#if defined(SW_THREAD) && !defined(ZTS)
+#error "swoole thread must be used with ZTS"
+#endif
+
 //--------------------------------------------------------
 #define SW_MAX_FIND_COUNT 100  // for swoole_server::connection_list
 #define SW_PHP_CLIENT_BUFFER_SIZE 65535
@@ -266,6 +270,9 @@ void php_swoole_http_server_coro_minit(int module_number);
 void php_swoole_websocket_server_minit(int module_number);
 void php_swoole_redis_server_minit(int module_number);
 void php_swoole_name_resolver_minit(int module_number);
+#ifdef ZTS
+void php_swoole_thread_minit(int module_number);
+#endif
 
 /**
  * RINIT
@@ -290,6 +297,9 @@ void php_swoole_process_rshutdown();
 void php_swoole_coroutine_scheduler_rshutdown();
 void php_swoole_runtime_rshutdown();
 void php_swoole_server_rshutdown();
+#ifdef ZTS
+void php_swoole_thread_rshutdown();
+#endif
 
 int php_swoole_reactor_init();
 void php_swoole_set_global_option(zend_array *vht);

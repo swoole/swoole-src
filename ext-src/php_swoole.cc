@@ -746,13 +746,15 @@ PHP_MINIT_FUNCTION(swoole) {
 #ifdef SW_USE_ODBC
     php_swoole_odbc_minit(module_number);
 #endif
-
 #ifdef SW_USE_ORACLE
     php_swoole_oracle_minit(module_number);
 #endif
 
 #ifdef SW_USE_SQLITE
     php_swoole_sqlite_minit(module_number);
+#endif
+#ifdef ZTS
+    php_swoole_thread_minit(module_number);
 #endif
 
     SwooleG.fatal_error = fatal_error;
@@ -826,6 +828,9 @@ PHP_MINFO_FUNCTION(swoole) {
 #endif
 #ifdef HAVE_KQUEUE
     php_info_print_table_row(2, "kqueue", "enabled");
+#endif
+#ifdef ZTS
+    php_info_print_table_row(2, "thread", "enabled");
 #endif
 #ifdef HAVE_SIGNALFD
     php_info_print_table_row(2, "signalfd", "enabled");
@@ -1055,6 +1060,9 @@ PHP_RSHUTDOWN_FUNCTION(swoole) {
     php_swoole_coroutine_scheduler_rshutdown();
     php_swoole_runtime_rshutdown();
     php_swoole_process_rshutdown();
+#ifdef ZTS
+    php_swoole_thread_rshutdown();
+#endif
 
     SwooleG.running = 0;
     SWOOLE_G(req_status) = PHP_SWOOLE_RSHUTDOWN_END;

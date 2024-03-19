@@ -172,8 +172,8 @@ static zend_internal_arg_info *get_arginfo(const char *name, size_t l_name) {
 #define SW_HOOK_LIBRARY_FE(name, arg_info)                                                                             \
     ZEND_RAW_FENTRY("swoole_hook_" #name, PHP_FN(swoole_user_func_handler), arg_info, 0)
 
-static thread_local zend_array *tmp_function_table = nullptr;
-static thread_local std::unordered_map<std::string, zend_class_entry *> child_class_entries;
+static SW_THREAD_LOCAL zend_array *tmp_function_table = nullptr;
+static SW_THREAD_LOCAL std::unordered_map<std::string, zend_class_entry *> child_class_entries;
 
 SW_EXTERN_C_BEGIN
 #include "ext/standard/file.h"

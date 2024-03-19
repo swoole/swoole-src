@@ -19,17 +19,17 @@
 
 namespace swoole {
 
-thread_local Coroutine *Coroutine::current = nullptr;
-thread_local long Coroutine::last_cid = 0;
-thread_local std::unordered_map<long, Coroutine *> Coroutine::coroutines;
-thread_local uint64_t Coroutine::peak_num = 0;
-thread_local bool Coroutine::activated = false;
+SW_THREAD_LOCAL Coroutine *Coroutine::current = nullptr;
+SW_THREAD_LOCAL long Coroutine::last_cid = 0;
+SW_THREAD_LOCAL std::unordered_map<long, Coroutine *> Coroutine::coroutines;
+SW_THREAD_LOCAL uint64_t Coroutine::peak_num = 0;
+SW_THREAD_LOCAL bool Coroutine::activated = false;
 
-thread_local size_t Coroutine::stack_size = SW_DEFAULT_C_STACK_SIZE;
-thread_local Coroutine::SwapCallback Coroutine::on_yield = nullptr;
-thread_local Coroutine::SwapCallback Coroutine::on_resume = nullptr;
-thread_local Coroutine::SwapCallback Coroutine::on_close = nullptr;
-thread_local Coroutine::BailoutCallback Coroutine::on_bailout = nullptr;
+SW_THREAD_LOCAL size_t Coroutine::stack_size = SW_DEFAULT_C_STACK_SIZE;
+SW_THREAD_LOCAL Coroutine::SwapCallback Coroutine::on_yield = nullptr;
+SW_THREAD_LOCAL Coroutine::SwapCallback Coroutine::on_resume = nullptr;
+SW_THREAD_LOCAL Coroutine::SwapCallback Coroutine::on_close = nullptr;
+SW_THREAD_LOCAL Coroutine::BailoutCallback Coroutine::on_bailout = nullptr;
 
 #ifdef SW_USE_THREAD_CONTEXT
 namespace coroutine {

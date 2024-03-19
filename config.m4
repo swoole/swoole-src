@@ -110,6 +110,11 @@ PHP_ARG_ENABLE([thread-context],
   [whether to enable thread context],
   [AS_HELP_STRING([--enable-thread-context],
     [Use thread context])], [no], [no])
+    
+PHP_ARG_ENABLE([swoole-thread],
+  [whether to enable swoole thread support],
+  [AS_HELP_STRING([--enable-swoole-thread],
+    [Enable swoole thread support])], [no], [no])
 
 PHP_ARG_ENABLE([swoole-coro-time],
   [whether to enable coroutine execution time ],
@@ -875,6 +880,10 @@ EOF
 
     if test "$PHP_TRACE_LOG" != "no"; then
         AC_DEFINE(SW_LOG_TRACE_OPEN, 1, [enable trace log])
+    fi
+
+    if test "$PHP_SWOOLE_THREAD" != "no"; then
+        AC_DEFINE(SW_THREAD, 1, [enable swoole thread support])
     fi
 
     if test "$PHP_SOCKETS" = "yes"; then

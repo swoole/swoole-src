@@ -41,6 +41,10 @@ typedef std::chrono::microseconds seconds_type;
 #define CALC_EXECUTE_USEC(yield_coroutine, resume_coroutine)
 #endif
 
+#ifdef SW_THREAD
+#define SW_THREAD_LOCAL thread_local
+#endif
+
 namespace swoole {
 class Coroutine {
   public:
@@ -135,7 +139,7 @@ class Coroutine {
         return ctx;
     }
 
-    static thread_local std::unordered_map<long, Coroutine *> coroutines;
+    static SW_THREAD_LOCAL std::unordered_map<long, Coroutine *> coroutines;
 
     static void set_on_yield(SwapCallback func);
     static void set_on_resume(SwapCallback func);
@@ -245,15 +249,15 @@ class Coroutine {
     static void print_list();
 
   protected:
-    static thread_local Coroutine *current;
-    static thread_local long last_cid;
-    static thread_local uint64_t peak_num;
-    static thread_local size_t stack_size;
-    static thread_local SwapCallback on_yield;      /* before yield */
-    static thread_local SwapCallback on_resume;     /* before resume */
-    static thread_local SwapCallback on_close;      /* before close */
-    static thread_local BailoutCallback on_bailout; /* when bailout */
-    static thread_local bool activated;
+    static SW_THREAD_LOCAL Coroutine *current;
+    static SW_THREAD_LOCAL long last_cid;
+    static SW_THREAD_LOCAL uint64_t peak_num;
+    static SW_THREAD_LOCAL size_t stack_size;
+    static SW_THREAD_LOCAL SwapCallback on_yield;      /* before yield */
+    static SW_THREAD_LOCAL SwapCallback on_resume;     /* before resume */
+    static SW_THREAD_LOCAL SwapCallback on_close;      /* before close */
+    static SW_THREAD_LOCAL BailoutCallback on_bailout; /* when bailout */
+    static SW_THREAD_LOCAL bool activated;
 
     enum State state = STATE_INIT;
     enum ResumeCode resume_code_ = RC_OK;
