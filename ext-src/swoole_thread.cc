@@ -201,8 +201,14 @@ static PHP_METHOD(swoole_thread, run) {
     object_init_ex(return_value, swoole_thread_ce);
     ThreadObject *to = php_swoole_thread_fetch_object(Z_OBJ_P(return_value));
     std::string file(execfile, execfile_len);
-    std::string argv = php_swoole_thread_serialize(args);
-    (void) argc;
+
+    zval zargv;
+    array_init(&zargv);
+    for (int i = 0; i < argc; i++) {
+        zend::array_add(&zargv, &args[i]);
+    }
+    std::string argv = php_swoole_thread_serialize(&zargv);
+    zval_dtor(&zargv);
 
     to->thread = new std::thread([file, argv]() { php_swoole_thread_start(file, argv); });
     zend_update_property_long(
