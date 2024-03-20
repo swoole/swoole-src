@@ -40,16 +40,21 @@ static zend_object_handlers swoole_thread_map_handlers;
 zend_class_entry *swoole_thread_arraylist_ce;
 static zend_object_handlers swoole_thread_arraylist_handlers;
 
-struct ThreadValue {
+static void thread_map_value_dtor(zval *pDest);
+
+struct MapItem {
     uint32_t type;
     uint32_t length;
+    zend_string *key;
     union {
         char *strval;
         zend_long lval;
         double dval;
     };
 
-    ThreadValue(zval *zvalue) {
+    MapItem(zval *zvalue) {
+        key = nullptr;
+        strval = nullptr;
         store(zvalue);
     }
 
@@ -99,6 +104,16 @@ struct ThreadValue {
     void release() {
         if (type == IS_STRING) {
             sw_free(strval);
+            strval = nullptr;
+        }
+    }
+
+    ~MapItem() {
+        if (strval) {
+            release();
+        }
+        if (key) {
+            zend_string_release(key);
         }
     }
 };
@@ -122,6 +137,7 @@ struct Resource {
 
 struct Map : public Resource {
     uint8_t type_;
+    zend_array ht;
 
     enum KeyType {
         KEY_INT = 1,
@@ -130,41 +146,22 @@ struct Map : public Resource {
 
     Map(uint8_t type) : Resource() {
         type_ = type;
+        zend_hash_init(&ht, 0, NULL, thread_map_value_dtor, 1);
     }
-};
 
-struct MapIntKey : public Map {
-    std::unordered_map<int64_t, ThreadValue> map_;
-
-    MapIntKey() : Map(KEY_INT) {}
-
-    ~MapIntKey() {
-        for (auto &iter : map_) {
-            iter.second.release();
-        }
-    }
-};
-
-struct MapStrKey : public Map {
-    std::unordered_map<std::string, ThreadValue> map_;
-
-    MapStrKey() : Map(KEY_STR) {}
-
-    ~MapStrKey() {
-        for (auto &iter : map_) {
-            iter.second.release();
-        }
+    ~Map() {
+        zend_hash_destroy(&ht);
     }
 };
 
 struct ArrayList : public Resource {
-    std::vector<ThreadValue> list_;
+    std::vector<MapItem *> list_;
 
     ArrayList() : Resource() {}
 
     ~ArrayList() {
         for (auto &value : list_) {
-            value.release();
+            delete value;
         }
     }
 
@@ -176,11 +173,11 @@ struct ArrayList : public Resource {
 typedef std::thread Thread;
 
 struct MapHandlers {
-    void (*offsetGet)(void *resource, zval *zkey, zval *return_value);
-    void (*offsetExists)(void *resource, zval *zkey, zval *return_value);
-    void (*offsetUnset)(void *resource, zval *zkey);
-    void (*offsetSet)(void *resource, zval *zkey, zval *zvalue);
-    void (*count)(void *resource, zval *return_value);
+    void (*offsetGet)(Map *map, zval *zkey, zval *return_value);
+    void (*offsetExists)(Map *map, zval *zkey, zval *return_value);
+    void (*offsetUnset)(Map *map, zval *zkey);
+    void (*offsetSet)(Map *map, zval *zkey, zval *zvalue);
+    void (*count)(Map *map, zval *return_value);
 };
 
 struct ThreadObject {
@@ -190,7 +187,7 @@ struct ThreadObject {
 
 struct ThreadMapObject {
     MapHandlers *handlers;
-    void *resource;
+    Map *map;
     zend_object std;
 };
 
@@ -200,17 +197,17 @@ struct ThreadArrayListObject {
 };
 
 static void php_swoole_thread_join(zend_object *object);
-static void thread_map_strkey_offsetGet(void *resource, zval *zkey, zval *return_value);
-static void thread_map_strkey_offsetExists(void *resource, zval *zkey, zval *return_value);
-static void thread_map_strkey_offsetUnset(void *resource, zval *zkey);
-static void thread_map_strkey_offsetSet(void *resource, zval *zkey, zval *zvalue);
-static void thread_map_strkey_count(void *resource, zval *return_value);
+static void thread_map_strkey_offsetGet(Map *map, zval *zkey, zval *return_value);
+static void thread_map_strkey_offsetExists(Map *map, zval *zkey, zval *return_value);
+static void thread_map_strkey_offsetUnset(Map *map, zval *zkey);
+static void thread_map_strkey_offsetSet(Map *map, zval *zkey, zval *zvalue);
 
-static void thread_map_intkey_offsetGet(void *resource, zval *zkey, zval *return_value);
-static void thread_map_intkey_offsetExists(void *resource, zval *zkey, zval *return_value);
-static void thread_map_intkey_offsetUnset(void *resource, zval *zkey);
-static void thread_map_intkey_offsetSet(void *resource, zval *zkey, zval *zvalue);
-static void thread_map_intkey_count(void *resource, zval *return_value);
+static void thread_map_intkey_offsetGet(Map *map, zval *zkey, zval *return_value);
+static void thread_map_intkey_offsetExists(Map *map, zval *zkey, zval *return_value);
+static void thread_map_intkey_offsetUnset(Map *map, zval *zkey);
+static void thread_map_intkey_offsetSet(Map *map, zval *zkey, zval *zvalue);
+
+static void thread_map_count(Map *map, zval *return_value);
 
 thread_local zval thread_argv;
 static std::mutex thread_lock;
@@ -222,7 +219,7 @@ MapHandlers map_intkey_handlers = {
     thread_map_intkey_offsetExists,
     thread_map_intkey_offsetUnset,
     thread_map_intkey_offsetSet,
-    thread_map_intkey_count,
+    thread_map_count,
 };
 
 MapHandlers map_strkey_handlers = {
@@ -230,7 +227,7 @@ MapHandlers map_strkey_handlers = {
     thread_map_strkey_offsetExists,
     thread_map_strkey_offsetUnset,
     thread_map_strkey_offsetSet,
-    thread_map_strkey_count,
+    thread_map_count,
 };
 
 static sw_inline ThreadObject *php_swoole_thread_fetch_object(zend_object *obj) {
@@ -275,19 +272,12 @@ static sw_inline zend_long thread_map_get_resource_id(zval *zobject) {
 static void thread_map_free_object(zend_object *object) {
     zend_long resource_id = thread_map_get_resource_id(object);
     ThreadMapObject *mo = thread_map_fetch_object(object);
-    if (mo->resource) {
-        Map *map = (Map *) mo->resource;
+    if (mo->map) {
         thread_lock.lock();
-        if (map->del_ref() == 0) {
+        if (mo->map->del_ref() == 0) {
             thread_resources.erase(resource_id);
-            if (map->type_ == Map::KEY_INT) {
-                auto map_intkey = (MapIntKey *) map;
-                delete map_intkey;
-            } else {
-                auto map_strkey = (MapStrKey *) map;
-                delete map_strkey;
-            }
-            mo->resource = nullptr;
+            delete mo->map;
+            mo->map = nullptr;
         }
         thread_lock.unlock();
     }
@@ -304,111 +294,80 @@ static zend_object *thread_map_create_object(zend_class_entry *ce) {
 
 ThreadMapObject *thread_map_fetch_object_check(zval *zobject) {
     ThreadMapObject *map = thread_map_fetch_object(Z_OBJ_P(zobject));
-    if (!map->resource) {
+    if (!map->map) {
         php_swoole_fatal_error(E_ERROR, "must call constructor first");
     }
     return map;
 }
 
-static void thread_map_strkey_offsetGet(void *resource, zval *zkey, zval *return_value) {
-    MapStrKey *map = (MapStrKey *) resource;
+static void thread_map_strkey_offsetGet(Map *map, zval *zkey, zval *return_value) {
     zend::String skey(zkey);
     map->lock_.lock_rd();
-    auto iter = map->map_.find(skey.to_std_string());
-    if (iter != map->map_.end()) {
-        iter->second.fetch(return_value);
+    MapItem *tv = (MapItem *) zend_hash_find_ptr(&map->ht, skey.get());
+    if (tv) {
+        tv->fetch(return_value);
     }
     map->lock_.unlock();
 }
 
-static void thread_map_strkey_offsetExists(void *resource, zval *zkey, zval *return_value) {
-    MapStrKey *map = (MapStrKey *) resource;
+static void thread_map_strkey_offsetExists(Map *map, zval *zkey, zval *return_value) {
     zend::String skey(zkey);
     map->lock_.lock_rd();
-    RETVAL_BOOL(map->map_.find(skey.to_std_string()) != map->map_.end());
+    RETVAL_BOOL(zend_hash_find_ptr(&map->ht, skey.get()) != NULL);
     map->lock_.unlock();
 }
 
-static void thread_map_strkey_offsetUnset(void *resource, zval *zkey) {
-    MapStrKey *map = (MapStrKey *) resource;
+static void thread_map_strkey_offsetUnset(Map *map, zval *zkey) {
     zend::String skey(zkey);
     map->lock_.lock();
-    auto iter = map->map_.find(skey.to_std_string());
-    if (iter != map->map_.end()) {
-        iter->second.release();
-        map->map_.erase(iter);
-    }
+    zend_hash_del(&map->ht, skey.get());
     map->lock_.unlock();
 }
 
-static void thread_map_strkey_offsetSet(void *resource, zval *zkey, zval *zvalue) {
-    MapStrKey *map = (MapStrKey *) resource;
+static void thread_map_strkey_offsetSet(Map *map, zval *zkey, zval *zvalue) {
     zend::String skey(zkey);
+    auto item = new MapItem(zvalue);
+    item->key = zend_string_init(skey.val(), skey.len(), 1);
     map->lock_.lock();
-    auto iter = map->map_.find(skey.to_std_string());
-    if (iter != map->map_.end()) {
-        iter->second.assign(zvalue);
-    } else {
-        map->map_.emplace(skey.to_std_string(), ThreadValue(zvalue));
+    zend_hash_update_ptr(&map->ht, item->key, item);
+    map->lock_.unlock();
+}
+
+static void thread_map_count(Map *map, zval *return_value) {
+    map->lock_.lock_rd();
+    RETVAL_LONG(zend_array_count(&map->ht));
+    map->lock_.unlock();
+}
+
+static void thread_map_intkey_offsetGet(Map *map, zval *zkey, zval *return_value) {
+    zend_long index = zval_get_long(zkey);
+    map->lock_.lock_rd();
+    MapItem *tv = (MapItem *) zend_hash_index_find(&map->ht, index);
+    if (tv) {
+        tv->fetch(return_value);
     }
     map->lock_.unlock();
 }
 
-static void thread_map_strkey_count(void *resource, zval *return_value) {
-    MapStrKey *map = (MapStrKey *) resource;
+static void thread_map_intkey_offsetExists(Map *map, zval *zkey, zval *return_value) {
+    zend_long index = zval_get_long(zkey);
     map->lock_.lock_rd();
-    RETVAL_LONG(map->map_.size());
+    RETVAL_BOOL(zend_hash_index_find_ptr(&map->ht, index) != NULL);
     map->lock_.unlock();
 }
 
-static void thread_map_intkey_offsetGet(void *resource, zval *zkey, zval *return_value) {
-    MapIntKey *map = (MapIntKey *) resource;
-    zend_long lkey = zval_get_long(zkey);
-    map->lock_.lock_rd();
-    auto iter = map->map_.find(lkey);
-    if (iter != map->map_.end()) {
-        iter->second.fetch(return_value);
-    }
-    map->lock_.unlock();
-}
-
-static void thread_map_intkey_offsetExists(void *resource, zval *zkey, zval *return_value) {
-    MapIntKey *map = (MapIntKey *) resource;
-    zend_long lkey = zval_get_long(zkey);
-    map->lock_.lock_rd();
-    RETVAL_BOOL(map->map_.find(lkey) != map->map_.end());
-    map->lock_.unlock();
-}
-
-static void thread_map_intkey_offsetUnset(void *resource, zval *zkey) {
-    MapIntKey *map = (MapIntKey *) resource;
-    zend_long lkey = zval_get_long(zkey);
+static void thread_map_intkey_offsetUnset(Map *map, zval *zkey) {
+    zend_long index = zval_get_long(zkey);
     map->lock_.lock();
-    auto iter = map->map_.find(lkey);
-    if (iter != map->map_.end()) {
-        iter->second.release();
-        map->map_.erase(iter);
-    }
+    zend_hash_index_del(&map->ht, index);
     map->lock_.unlock();
 }
 
-static void thread_map_intkey_offsetSet(void *resource, zval *zkey, zval *zvalue) {
-    MapIntKey *map = (MapIntKey *) resource;
-    zend_long lkey = zval_get_long(zkey);
+static void thread_map_intkey_offsetSet(Map *map, zval *zkey, zval *zvalue) {
+    zend_long index = zval_get_long(zkey);
+    auto item = new MapItem(zvalue);
     map->lock_.lock();
-    auto iter = map->map_.find(lkey);
-    if (iter != map->map_.end()) {
-        iter->second.assign(zvalue);
-    } else {
-        map->map_.emplace(lkey, ThreadValue(zvalue));
-    }
-    map->lock_.unlock();
-}
-
-static void thread_map_intkey_count(void *resource, zval *return_value) {
-    MapIntKey *map = (MapIntKey *) resource;
-    map->lock_.lock_rd();
-    RETVAL_LONG(map->map_.size());
+    zend_hash_index_update_ptr(&map->ht, index, item);
     map->lock_.unlock();
 }
 
@@ -699,6 +658,11 @@ static PHP_METHOD(swoole_thread, exec) {
         swoole_thread_ce, SW_Z8_OBJ_P(return_value), ZEND_STRL("id"), to->thread->native_handle());
 }
 
+static void thread_map_value_dtor(zval *pDest) {
+    MapItem *item = (MapItem *) Z_PTR_P(pDest);
+    delete item;
+}
+
 static PHP_METHOD(swoole_thread_map, __construct) {
     zend_long key_type;
 
@@ -707,17 +671,17 @@ static PHP_METHOD(swoole_thread_map, __construct) {
     ZEND_PARSE_PARAMETERS_END();
 
     auto mo = thread_map_fetch_object(Z_OBJ_P(ZEND_THIS));
+    mo->map = new Map(key_type);
+
     if (key_type == Map::KEY_INT) {
-        mo->resource = new MapIntKey();
         mo->handlers = &map_intkey_handlers;
     } else {
-        mo->resource = new MapStrKey();
         mo->handlers = &map_strkey_handlers;
     }
 
     thread_lock.lock();
     zend_long resource_id = ++thread_resource_id;
-    thread_resources[resource_id] = mo->resource;
+    thread_resources[resource_id] = mo->map;
     thread_lock.unlock();
 
     zend_update_property_long(swoole_thread_map_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("id"), resource_id);
@@ -731,7 +695,7 @@ static PHP_METHOD(swoole_thread_map, offsetGet) {
     ZEND_PARSE_PARAMETERS_END();
 
     auto mo = thread_map_fetch_object_check(ZEND_THIS);
-    mo->handlers->offsetGet(mo->resource, zkey, return_value);
+    mo->handlers->offsetGet(mo->map, zkey, return_value);
 }
 
 static PHP_METHOD(swoole_thread_map, offsetExists) {
@@ -742,7 +706,7 @@ static PHP_METHOD(swoole_thread_map, offsetExists) {
     ZEND_PARSE_PARAMETERS_END();
 
     auto mo = thread_map_fetch_object_check(ZEND_THIS);
-    mo->handlers->offsetExists(mo->resource, zkey, return_value);
+    mo->handlers->offsetExists(mo->map, zkey, return_value);
 }
 
 static PHP_METHOD(swoole_thread_map, offsetSet) {
@@ -755,7 +719,7 @@ static PHP_METHOD(swoole_thread_map, offsetSet) {
     ZEND_PARSE_PARAMETERS_END();
 
     auto mo = thread_map_fetch_object_check(ZEND_THIS);
-    mo->handlers->offsetSet(mo->resource, zkey, zvalue);
+    mo->handlers->offsetSet(mo->map, zkey, zvalue);
 }
 
 static PHP_METHOD(swoole_thread_map, offsetUnset) {
@@ -766,12 +730,12 @@ static PHP_METHOD(swoole_thread_map, offsetUnset) {
     ZEND_PARSE_PARAMETERS_END();
 
     auto mo = thread_map_fetch_object_check(ZEND_THIS);
-    mo->handlers->offsetUnset(mo->resource, zkey);
+    mo->handlers->offsetUnset(mo->map, zkey);
 }
 
 static PHP_METHOD(swoole_thread_map, count) {
     auto mo = thread_map_fetch_object_check(ZEND_THIS);
-    mo->handlers->count(mo->resource, return_value);
+    mo->handlers->count(mo->map, return_value);
 }
 
 static PHP_METHOD(swoole_thread_map, __wakeup) {
@@ -789,7 +753,7 @@ static PHP_METHOD(swoole_thread_map, __wakeup) {
         } else {
             mo->handlers = &map_strkey_handlers;
         }
-        mo->resource = map;
+        mo->map = map;
         success = true;
     }
     thread_lock.unlock();
@@ -825,7 +789,7 @@ static PHP_METHOD(swoole_thread_arraylist, offsetGet) {
     ao->resource->lock_.lock_rd();
     if (ao->resource->exists(index)) {
         out_of_range = false;
-        ao->resource->list_.at(index).fetch(return_value);
+        ao->resource->list_.at(index)->fetch(return_value);
     }
     ao->resource->lock_.unlock();
 
@@ -861,10 +825,10 @@ static PHP_METHOD(swoole_thread_arraylist, offsetSet) {
 
     array->lock_.lock();
     if (ZVAL_IS_NULL(zkey) || (ZVAL_IS_LONG(zkey) && Z_LVAL_P(zkey) == (zend_long) array->list_.size())) {
-        array->list_.emplace_back(ThreadValue(zvalue));
+        array->list_.emplace_back(new MapItem(zvalue));
     } else {
         zend_long index = zval_get_long(zkey);
-        array->list_.at(index).assign(zvalue);
+        array->list_.at(index)->assign(zvalue);
     }
     array->lock_.unlock();
 }
