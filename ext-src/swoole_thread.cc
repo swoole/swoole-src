@@ -538,8 +538,8 @@ void php_swoole_thread_minit(int module_number) {
 
     zend_class_implements(swoole_thread_map_ce, 2, zend_ce_arrayaccess, zend_ce_countable);
 
-    zend_declare_class_constant_long(swoole_thread_map_ce, ZEND_STRL("KEY_INT"), 1);
-    zend_declare_class_constant_long(swoole_thread_map_ce, ZEND_STRL("KEY_STRING"), 1);
+    zend_declare_class_constant_long(swoole_thread_map_ce, ZEND_STRL("KEY_INT"), Map::KEY_INT);
+    zend_declare_class_constant_long(swoole_thread_map_ce, ZEND_STRL("KEY_STR"), Map::KEY_STR);
 
     zend_declare_property_long(swoole_thread_map_ce, ZEND_STRL("id"), 0, ZEND_ACC_PUBLIC);
 
