@@ -16,6 +16,8 @@
 
 #include "php_swoole_cxx.h"
 
+#ifdef SW_THREAD
+
 #include <sys/ipc.h>
 #include <sys/resource.h>
 
@@ -66,7 +68,9 @@ static zend_object *php_swoole_thread_create_object(zend_class_entry *ce) {
 SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_thread, __construct);
 static PHP_METHOD(swoole_thread, join);
-static PHP_METHOD(swoole_thread, run);
+static PHP_METHOD(swoole_thread, joinable);
+static PHP_METHOD(swoole_thread, detach);
+static PHP_METHOD(swoole_thread, exec);
 static PHP_METHOD(swoole_thread, getArguments);
 static PHP_METHOD(swoole_thread, getId);
 SW_EXTERN_C_END
@@ -76,7 +80,9 @@ static const zend_function_entry swoole_thread_methods[] =
 {
     PHP_ME(swoole_thread, __construct,  arginfo_class_Swoole_Thread___construct,  ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread, join,         arginfo_class_Swoole_Thread_join,         ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_thread, run,          arginfo_class_Swoole_Thread_run,          ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_thread, joinable,     arginfo_class_Swoole_Thread_joinable,     ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_thread, detach,       arginfo_class_Swoole_Thread_detach,       ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_thread, exec,         arginfo_class_Swoole_Thread_exec,         ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_thread, getArguments, arginfo_class_Swoole_Thread_getArguments, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_thread, getId,        arginfo_class_Swoole_Thread_getId,        ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
@@ -98,10 +104,29 @@ static PHP_METHOD(swoole_thread, __construct) {}
 
 static PHP_METHOD(swoole_thread, join) {
     ThreadObject *to = php_swoole_thread_fetch_object(Z_OBJ_P(ZEND_THIS));
-    if (to == nullptr || !to->thread->joinable()) {
+    if (!to || !to->thread || !to->thread->joinable()) {
         RETURN_FALSE;
     }
     php_swoole_thread_join(Z_OBJ_P(ZEND_THIS));
+    RETURN_TRUE;
+}
+
+static PHP_METHOD(swoole_thread, joinable) {
+    ThreadObject *to = php_swoole_thread_fetch_object(Z_OBJ_P(ZEND_THIS));
+    if (to == nullptr || !to->thread) {
+        RETURN_FALSE;
+    }
+    RETURN_BOOL(to->thread->joinable());
+}
+
+static PHP_METHOD(swoole_thread, detach) {
+    ThreadObject *to = php_swoole_thread_fetch_object(Z_OBJ_P(ZEND_THIS));
+    if (to == nullptr || !to->thread) {
+        RETURN_FALSE;
+    }
+    to->thread->detach();
+    delete to->thread;
+    to->thread = nullptr;
     RETURN_TRUE;
 }
 
@@ -182,25 +207,25 @@ _startup_error:
     ts_free_thread();
 }
 
-static PHP_METHOD(swoole_thread, run) {
-    char *execfile = nullptr;
-    size_t execfile_len = 0;
+static PHP_METHOD(swoole_thread, exec) {
+    char *script_file = nullptr;
+    size_t l_script_file = 0;
     zval *args;
     int argc;
 
     ZEND_PARSE_PARAMETERS_START(1, -1)
-    Z_PARAM_STRING(execfile, execfile_len)
+    Z_PARAM_STRING(script_file, l_script_file)
     Z_PARAM_VARIADIC('+', args, argc)
     ZEND_PARSE_PARAMETERS_END();
 
-    if (execfile_len < 1) {
+    if (l_script_file < 1) {
         php_swoole_fatal_error(E_WARNING, "exec file name is empty");
         RETURN_FALSE;
     }
 
     object_init_ex(return_value, swoole_thread_ce);
     ThreadObject *to = php_swoole_thread_fetch_object(Z_OBJ_P(return_value));
-    std::string file(execfile, execfile_len);
+    std::string file(script_file, l_script_file);
 
     zval zargv;
     array_init(&zargv);
@@ -214,3 +239,5 @@ static PHP_METHOD(swoole_thread, run) {
     zend_update_property_long(
         swoole_thread_ce, SW_Z8_OBJ_P(return_value), ZEND_STRL("id"), to->thread->native_handle());
 }
+
+#endif
