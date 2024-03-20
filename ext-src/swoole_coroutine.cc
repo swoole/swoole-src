@@ -413,6 +413,7 @@ void PHPCoroutine::shutdown() {
         zend_array_destroy(options);
         options = nullptr;
     }
+    free_main_context();
 }
 
 void PHPCoroutine::deadlock_check() {

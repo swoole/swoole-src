@@ -37,6 +37,9 @@ static zend_object_handlers swoole_thread_handlers;
 zend_class_entry *swoole_thread_map_ce;
 static zend_object_handlers swoole_thread_map_handlers;
 
+zend_class_entry *swoole_thread_arraylist_ce;
+static zend_object_handlers swoole_thread_arraylist_handlers;
+
 struct ThreadValue {
     uint32_t type;
     uint32_t length;
@@ -71,6 +74,11 @@ struct ThreadValue {
         }
     }
 
+    void assign(zval *zvalue) {
+        release();
+        store(zvalue);
+    }
+
     void fetch(zval *return_value) {
         switch (type) {
         case IS_LONG:
@@ -95,19 +103,12 @@ struct ThreadValue {
     }
 };
 
-struct Map {
+struct Resource {
     RWLock lock_;
     uint32_t ref_count;
-    uint8_t type_;
 
-    enum KeyType {
-        KEY_INT = 1,
-        KEY_STR = 2,
-    };
-
-    Map(uint8_t type) : lock_(0) {
+    Resource() : lock_(0) {
         ref_count = 1;
-        type_ = type;
     }
 
     uint32_t add_ref() {
@@ -119,16 +120,57 @@ struct Map {
     }
 };
 
+struct Map : public Resource {
+    uint8_t type_;
+
+    enum KeyType {
+        KEY_INT = 1,
+        KEY_STR = 2,
+    };
+
+    Map(uint8_t type) : Resource() {
+        type_ = type;
+    }
+};
+
 struct MapIntKey : public Map {
     std::unordered_map<int64_t, ThreadValue> map_;
 
     MapIntKey() : Map(KEY_INT) {}
+
+    ~MapIntKey() {
+        for (auto &iter : map_) {
+            iter.second.release();
+        }
+    }
 };
 
 struct MapStrKey : public Map {
     std::unordered_map<std::string, ThreadValue> map_;
 
     MapStrKey() : Map(KEY_STR) {}
+
+    ~MapStrKey() {
+        for (auto &iter : map_) {
+            iter.second.release();
+        }
+    }
+};
+
+struct ArrayList : public Resource {
+    std::vector<ThreadValue> list_;
+
+    ArrayList() : Resource() {}
+
+    ~ArrayList() {
+        for (auto &value : list_) {
+            value.release();
+        }
+    }
+
+    bool exists(zend_long index) {
+        return index < (zend_long) list_.size();
+    }
 };
 
 typedef std::thread Thread;
@@ -152,33 +194,43 @@ struct ThreadMapObject {
     zend_object std;
 };
 
+struct ThreadArrayListObject {
+    ArrayList *resource;
+    zend_object std;
+};
+
 static void php_swoole_thread_join(zend_object *object);
 static void thread_map_strkey_offsetGet(void *resource, zval *zkey, zval *return_value);
 static void thread_map_strkey_offsetExists(void *resource, zval *zkey, zval *return_value);
 static void thread_map_strkey_offsetUnset(void *resource, zval *zkey);
 static void thread_map_strkey_offsetSet(void *resource, zval *zkey, zval *zvalue);
+static void thread_map_strkey_count(void *resource, zval *return_value);
+
 static void thread_map_intkey_offsetGet(void *resource, zval *zkey, zval *return_value);
 static void thread_map_intkey_offsetExists(void *resource, zval *zkey, zval *return_value);
 static void thread_map_intkey_offsetUnset(void *resource, zval *zkey);
 static void thread_map_intkey_offsetSet(void *resource, zval *zkey, zval *zvalue);
+static void thread_map_intkey_count(void *resource, zval *return_value);
 
 thread_local zval thread_argv;
 static std::mutex thread_lock;
 static zend_long thread_resource_id = 0;
 static std::unordered_map<uint32_t, void *> thread_resources;
 
-MapHandlers map_strkey_handlers = {
-    thread_map_strkey_offsetGet,
-    thread_map_strkey_offsetExists,
-    thread_map_strkey_offsetUnset,
-    thread_map_strkey_offsetSet,
-};
-
 MapHandlers map_intkey_handlers = {
     thread_map_intkey_offsetGet,
     thread_map_intkey_offsetExists,
     thread_map_intkey_offsetUnset,
     thread_map_intkey_offsetSet,
+    thread_map_intkey_count,
+};
+
+MapHandlers map_strkey_handlers = {
+    thread_map_strkey_offsetGet,
+    thread_map_strkey_offsetExists,
+    thread_map_strkey_offsetUnset,
+    thread_map_strkey_offsetSet,
+    thread_map_strkey_count,
 };
 
 static sw_inline ThreadObject *php_swoole_thread_fetch_object(zend_object *obj) {
@@ -228,7 +280,13 @@ static void thread_map_free_object(zend_object *object) {
         thread_lock.lock();
         if (map->del_ref() == 0) {
             thread_resources.erase(resource_id);
-            delete map;
+            if (map->type_ == Map::KEY_INT) {
+                auto map_intkey = (MapIntKey *) map;
+                delete map_intkey;
+            } else {
+                auto map_strkey = (MapStrKey *) map;
+                delete map_strkey;
+            }
             mo->resource = nullptr;
         }
         thread_lock.unlock();
@@ -287,7 +345,19 @@ static void thread_map_strkey_offsetSet(void *resource, zval *zkey, zval *zvalue
     MapStrKey *map = (MapStrKey *) resource;
     zend::String skey(zkey);
     map->lock_.lock();
-    map->map_.emplace(skey.to_std_string(), ThreadValue(zvalue));
+    auto iter = map->map_.find(skey.to_std_string());
+    if (iter != map->map_.end()) {
+        iter->second.assign(zvalue);
+    } else {
+        map->map_.emplace(skey.to_std_string(), ThreadValue(zvalue));
+    }
+    map->lock_.unlock();
+}
+
+static void thread_map_strkey_count(void *resource, zval *return_value) {
+    MapStrKey *map = (MapStrKey *) resource;
+    map->lock_.lock_rd();
+    RETVAL_LONG(map->map_.size());
     map->lock_.unlock();
 }
 
@@ -326,8 +396,64 @@ static void thread_map_intkey_offsetSet(void *resource, zval *zkey, zval *zvalue
     MapIntKey *map = (MapIntKey *) resource;
     zend_long lkey = zval_get_long(zkey);
     map->lock_.lock();
-    map->map_.emplace(lkey, ThreadValue(zvalue));
+    auto iter = map->map_.find(lkey);
+    if (iter != map->map_.end()) {
+        iter->second.assign(zvalue);
+    } else {
+        map->map_.emplace(lkey, ThreadValue(zvalue));
+    }
     map->lock_.unlock();
+}
+
+static void thread_map_intkey_count(void *resource, zval *return_value) {
+    MapIntKey *map = (MapIntKey *) resource;
+    map->lock_.lock_rd();
+    RETVAL_LONG(map->map_.size());
+    map->lock_.unlock();
+}
+
+static sw_inline ThreadArrayListObject *thread_arraylist_fetch_object(zend_object *obj) {
+    return (ThreadArrayListObject *) ((char *) obj - swoole_thread_arraylist_handlers.offset);
+}
+
+static sw_inline zend_long thread_arraylist_get_resource_id(zend_object *obj) {
+    zval rv, *property = zend_read_property(swoole_thread_arraylist_ce, obj, ZEND_STRL("id"), 1, &rv);
+    return property ? zval_get_long(property) : 0;
+}
+
+static sw_inline zend_long thread_arraylist_get_resource_id(zval *zobject) {
+    return thread_arraylist_get_resource_id(Z_OBJ_P(zobject));
+}
+
+static void thread_arraylist_free_object(zend_object *object) {
+    zend_long resource_id = thread_arraylist_get_resource_id(object);
+    ThreadArrayListObject *ao = thread_arraylist_fetch_object(object);
+    if (ao->resource) {
+        thread_lock.lock();
+        if (ao->resource->del_ref() == 0) {
+            thread_resources.erase(resource_id);
+            delete ao->resource;
+            ao->resource = nullptr;
+        }
+        thread_lock.unlock();
+    }
+    zend_object_std_dtor(object);
+}
+
+static zend_object *thread_arraylist_create_object(zend_class_entry *ce) {
+    ThreadArrayListObject *ao = (ThreadArrayListObject *) zend_object_alloc(sizeof(ThreadArrayListObject), ce);
+    zend_object_std_init(&ao->std, ce);
+    object_properties_init(&ao->std, ce);
+    ao->std.handlers = &swoole_thread_arraylist_handlers;
+    return &ao->std;
+}
+
+ThreadArrayListObject *thread_arraylist_fetch_object_check(zval *zobject) {
+    ThreadArrayListObject *ao = thread_arraylist_fetch_object(Z_OBJ_P(zobject));
+    if (!ao->resource) {
+        php_swoole_fatal_error(E_ERROR, "must call constructor first");
+    }
+    return ao;
 }
 
 SW_EXTERN_C_BEGIN
@@ -346,6 +472,14 @@ static PHP_METHOD(swoole_thread_map, offsetSet);
 static PHP_METHOD(swoole_thread_map, offsetUnset);
 static PHP_METHOD(swoole_thread_map, count);
 static PHP_METHOD(swoole_thread_map, __wakeup);
+
+static PHP_METHOD(swoole_thread_arraylist, __construct);
+static PHP_METHOD(swoole_thread_arraylist, offsetGet);
+static PHP_METHOD(swoole_thread_arraylist, offsetExists);
+static PHP_METHOD(swoole_thread_arraylist, offsetSet);
+static PHP_METHOD(swoole_thread_arraylist, offsetUnset);
+static PHP_METHOD(swoole_thread_arraylist, count);
+static PHP_METHOD(swoole_thread_arraylist, __wakeup);
 
 SW_EXTERN_C_END
 
@@ -369,6 +503,17 @@ static const zend_function_entry swoole_thread_map_methods[] = {
     PHP_ME(swoole_thread_map, offsetUnset,     arginfo_class_Swoole_Thread_Map_offsetUnset,   ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread_map, count,           arginfo_class_Swoole_Thread_Map_count,         ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread_map, __wakeup,        arginfo_class_Swoole_Thread_Map___wakeup,      ZEND_ACC_PUBLIC)
+    PHP_FE_END
+};
+
+static const zend_function_entry swoole_thread_arraylist_methods[] = {
+    PHP_ME(swoole_thread_arraylist, __construct,  arginfo_class_Swoole_Thread_ArrayList___construct,   ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_thread_arraylist, offsetGet,    arginfo_class_Swoole_Thread_ArrayList_offsetGet,     ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_thread_arraylist, offsetExists, arginfo_class_Swoole_Thread_ArrayList_offsetExists,  ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_thread_arraylist, offsetSet,    arginfo_class_Swoole_Thread_ArrayList_offsetSet,     ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_thread_arraylist, offsetUnset,  arginfo_class_Swoole_Thread_ArrayList_offsetUnset,   ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_thread_arraylist, count,        arginfo_class_Swoole_Thread_ArrayList_count,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_thread_arraylist, __wakeup,     arginfo_class_Swoole_Thread_ArrayList___wakeup,      ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 // clang-format on
@@ -397,6 +542,18 @@ void php_swoole_thread_minit(int module_number) {
     zend_declare_class_constant_long(swoole_thread_map_ce, ZEND_STRL("KEY_STRING"), 1);
 
     zend_declare_property_long(swoole_thread_map_ce, ZEND_STRL("id"), 0, ZEND_ACC_PUBLIC);
+
+    SW_INIT_CLASS_ENTRY(swoole_thread_arraylist, "Swoole\\Thread\\ArrayList", nullptr, swoole_thread_arraylist_methods);
+    SW_SET_CLASS_CLONEABLE(swoole_thread_arraylist, sw_zend_class_clone_deny);
+    SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_thread_arraylist, sw_zend_class_unset_property_deny);
+    SW_SET_CLASS_CUSTOM_OBJECT(swoole_thread_arraylist,
+                               thread_arraylist_create_object,
+                               thread_arraylist_free_object,
+                               ThreadArrayListObject,
+                               std);
+
+    zend_class_implements(swoole_thread_arraylist_ce, 2, zend_ce_arrayaccess, zend_ce_countable);
+    zend_declare_property_long(swoole_thread_arraylist_ce, ZEND_STRL("id"), 0, ZEND_ACC_PUBLIC);
 }
 
 static PHP_METHOD(swoole_thread, __construct) {}
@@ -633,6 +790,107 @@ static PHP_METHOD(swoole_thread_map, __wakeup) {
             mo->handlers = &map_strkey_handlers;
         }
         mo->resource = map;
+        success = true;
+    }
+    thread_lock.unlock();
+
+    if (!success) {
+        zend_throw_exception(swoole_exception_ce, "resource not found", -2);
+    }
+}
+
+static PHP_METHOD(swoole_thread_arraylist, __construct) {
+    ZEND_PARSE_PARAMETERS_NONE();
+
+    auto ao = thread_arraylist_fetch_object(Z_OBJ_P(ZEND_THIS));
+    ao->resource = new ArrayList();
+
+    thread_lock.lock();
+    zend_long resource_id = ++thread_resource_id;
+    thread_resources[resource_id] = ao->resource;
+    thread_lock.unlock();
+
+    zend_update_property_long(swoole_thread_arraylist_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("id"), resource_id);
+}
+
+static PHP_METHOD(swoole_thread_arraylist, offsetGet) {
+    zend_long index;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_LONG(index)
+    ZEND_PARSE_PARAMETERS_END();
+
+    bool out_of_range = true;
+    auto ao = thread_arraylist_fetch_object_check(ZEND_THIS);
+    ao->resource->lock_.lock_rd();
+    if (ao->resource->exists(index)) {
+        out_of_range = false;
+        ao->resource->list_.at(index).fetch(return_value);
+    }
+    ao->resource->lock_.unlock();
+
+    if (out_of_range) {
+        zend_throw_exception(swoole_exception_ce, "out of range", -1);
+    }
+}
+
+static PHP_METHOD(swoole_thread_arraylist, offsetExists) {
+    zend_long index;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_LONG(index)
+    ZEND_PARSE_PARAMETERS_END();
+
+    auto ao = thread_arraylist_fetch_object_check(ZEND_THIS);
+    ao->resource->lock_.lock_rd();
+    RETVAL_BOOL(ao->resource->exists(index));
+    ao->resource->lock_.unlock();
+}
+
+static PHP_METHOD(swoole_thread_arraylist, offsetSet) {
+    zval *zkey;
+    zval *zvalue;
+
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+    Z_PARAM_ZVAL(zkey)
+    Z_PARAM_ZVAL(zvalue)
+    ZEND_PARSE_PARAMETERS_END();
+
+    auto ao = thread_arraylist_fetch_object_check(ZEND_THIS);
+    ArrayList *array = ao->resource;
+
+    array->lock_.lock();
+    if (ZVAL_IS_NULL(zkey) || (ZVAL_IS_LONG(zkey) && Z_LVAL_P(zkey) == (zend_long) array->list_.size())) {
+        array->list_.emplace_back(ThreadValue(zvalue));
+    } else {
+        zend_long index = zval_get_long(zkey);
+        array->list_.at(index).assign(zvalue);
+    }
+    array->lock_.unlock();
+}
+
+static PHP_METHOD(swoole_thread_arraylist, offsetUnset) {
+    zend_throw_exception(swoole_exception_ce, "unsupported", -3);
+}
+
+static PHP_METHOD(swoole_thread_arraylist, count) {
+    auto ao = thread_arraylist_fetch_object_check(ZEND_THIS);
+    ao->resource->lock_.lock_rd();
+    RETVAL_LONG(ao->resource->list_.size());
+    ao->resource->lock_.unlock();
+}
+
+static PHP_METHOD(swoole_thread_arraylist, __wakeup) {
+    auto mo = thread_arraylist_fetch_object(Z_OBJ_P(ZEND_THIS));
+    bool success = false;
+    zend_long resource_id = thread_arraylist_get_resource_id(ZEND_THIS);
+
+    thread_lock.lock();
+    auto iter = thread_resources.find(resource_id);
+    if (iter != thread_resources.end()) {
+        ArrayList *array = (ArrayList *) iter->second;
+        array->add_ref();
+        mo->resource = array;
         success = true;
     }
     thread_lock.unlock();

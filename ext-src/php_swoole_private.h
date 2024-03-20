@@ -270,7 +270,7 @@ void php_swoole_http_server_coro_minit(int module_number);
 void php_swoole_websocket_server_minit(int module_number);
 void php_swoole_redis_server_minit(int module_number);
 void php_swoole_name_resolver_minit(int module_number);
-#ifdef ZTS
+#ifdef SW_THREAD
 void php_swoole_thread_minit(int module_number);
 #endif
 
@@ -297,7 +297,7 @@ void php_swoole_process_rshutdown();
 void php_swoole_coroutine_scheduler_rshutdown();
 void php_swoole_runtime_rshutdown();
 void php_swoole_server_rshutdown();
-#ifdef ZTS
+#ifdef SW_THREAD
 void php_swoole_thread_rshutdown();
 #endif
 
