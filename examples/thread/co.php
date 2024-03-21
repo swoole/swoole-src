@@ -1,6 +1,7 @@
 <?php
 $map = new Swoole\Thread\Map(2);
 $map['uuid'] = uniqid();
+$map[time()] = uniqid();
 
 $list = new Swoole\Thread\ArrayList();
 $list[] = base64_encode(random_bytes(32));

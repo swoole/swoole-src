@@ -40,19 +40,24 @@ static zend_object_handlers swoole_thread_map_handlers;
 zend_class_entry *swoole_thread_arraylist_ce;
 static zend_object_handlers swoole_thread_arraylist_handlers;
 
+zend_string *php_swoole_thread_serialize(zval *zdata);
+bool php_swoole_thread_unserialize(zend_string *data, zval *zv);
+
+#define IS_SERIALIZED_OBJECT 99
+
 struct MapItem {
     uint32_t type;
-    uint32_t length;
     zend_string *key;
     union {
-        char *strval;
+        zend_string *str;
         zend_long lval;
         double dval;
-    };
+        zend_string *serialized_object;
+    } value;
 
     MapItem(zval *zvalue) {
         key = nullptr;
-        strval = nullptr;
+        value = {};
         store(zvalue);
     }
 
@@ -60,49 +65,70 @@ struct MapItem {
         type = Z_TYPE_P(zvalue);
         switch (type) {
         case IS_LONG:
-            lval = zval_get_long(zvalue);
+            value.lval = zval_get_long(zvalue);
             break;
         case IS_DOUBLE:
-            dval = zval_get_double(zvalue);
+            value.dval = zval_get_double(zvalue);
             break;
         case IS_STRING: {
-            strval = swoole_strndup(Z_STRVAL_P(zvalue), Z_STRLEN_P(zvalue));
-            length = Z_STRLEN_P(zvalue);
+            value.str = zend_string_init(Z_STRVAL_P(zvalue), Z_STRLEN_P(zvalue), 1);
+            break;
+        case IS_TRUE:
+        case IS_FALSE:
+        case IS_NULL:
             break;
         }
-        default:
-            type = IS_LONG;
-            lval = 0;
+        default: {
+            auto _serialized_object = php_swoole_thread_serialize(zvalue);
+            if (!_serialized_object) {
+                type = IS_UNDEF;
+                break;
+            } else {
+                type = IS_SERIALIZED_OBJECT;
+                value.serialized_object = _serialized_object;
+            }
             break;
+        }
         }
     }
 
     void fetch(zval *return_value) {
         switch (type) {
         case IS_LONG:
-            RETVAL_LONG(lval);
+            RETVAL_LONG(value.lval);
             break;
         case IS_DOUBLE:
-            RETVAL_LONG(dval);
+            RETVAL_LONG(value.dval);
+            break;
+        case IS_TRUE:
+            RETVAL_TRUE;
+            break;
+        case IS_FALSE:
+            RETVAL_FALSE;
             break;
         case IS_STRING:
-            RETVAL_STRINGL(strval, length);
+            RETVAL_NEW_STR(zend_string_init(ZSTR_VAL(value.str), ZSTR_LEN(value.str), 0));
+            break;
+        case IS_SERIALIZED_OBJECT:
+            php_swoole_thread_unserialize(value.serialized_object, return_value);
             break;
         default:
-            RETVAL_NULL();
             break;
         }
     }
 
     void release() {
         if (type == IS_STRING) {
-            sw_free(strval);
-            strval = nullptr;
+            zend_string_release(value.str);
+            value.str = nullptr;
+        } else if (type == IS_SERIALIZED_OBJECT) {
+            zend_string_release(value.serialized_object);
+            value.serialized_object = nullptr;
         }
     }
 
     ~MapItem() {
-        if (strval) {
+        if (value.str) {
             release();
         }
         if (key) {
@@ -233,14 +259,16 @@ struct ZendArray {
 
     bool index_offsetSet(zval *zkey, zval *zvalue) {
         zend_long index = ZVAL_IS_NULL(zkey) ? -1 : zval_get_long(zkey);
+        auto item = new MapItem(zvalue);
         bool success = true;
         lock_.lock();
         if (index > zend_hash_num_elements(&ht)) {
             success = false;
+            delete item;
         } else if (index == -1 || index == zend_hash_num_elements(&ht)) {
-            zend_hash_next_index_insert_ptr(&ht, new MapItem(zvalue));
+            zend_hash_next_index_insert_ptr(&ht, item);
         } else {
-            zend_hash_index_update_ptr(&ht, index, new MapItem(zvalue));
+            zend_hash_index_update_ptr(&ht, index, item);
         }
         lock_.unlock();
         return success;
@@ -529,7 +557,7 @@ static PHP_METHOD(swoole_thread, getId) {
     RETURN_LONG(pthread_self());
 }
 
-std::string php_swoole_thread_serialize(zval *zdata) {
+zend_string *php_swoole_thread_serialize(zval *zdata) {
     php_serialize_data_t var_hash;
     smart_str serialized_data = {0};
 
@@ -537,25 +565,25 @@ std::string php_swoole_thread_serialize(zval *zdata) {
     php_var_serialize(&serialized_data, zdata, &var_hash);
     PHP_VAR_SERIALIZE_DESTROY(var_hash);
 
-    std::string result;
+    zend_string *result = nullptr;
     if (!EG(exception)) {
-        result = std::string(serialized_data.s->val, serialized_data.s->len);
+        result = zend_string_init(serialized_data.s->val, serialized_data.s->len, 1);
     }
     smart_str_free(&serialized_data);
     return result;
 }
 
-bool php_swoole_thread_unserialize(const std::string &data, zval *zv) {
+bool php_swoole_thread_unserialize(zend_string *data, zval *zv) {
     php_unserialize_data_t var_hash;
-    const char *p = data.c_str();
-    size_t l = data.length();
+    const char *p = ZSTR_VAL(data);
+    size_t l = ZSTR_LEN(data);
 
     PHP_VAR_UNSERIALIZE_INIT(var_hash);
     zend_bool unserialized = php_var_unserialize(zv, (const uchar **) &p, (const uchar *) (p + l), &var_hash);
     PHP_VAR_UNSERIALIZE_DESTROY(var_hash);
     if (!unserialized) {
         swoole_warning("unserialize() failed, Error at offset " ZEND_LONG_FMT " of %zd bytes",
-                       (zend_long) ((char *) p - data.c_str()),
+                       (zend_long) ((char *) p - ZSTR_VAL(data)),
                        l);
     }
     return unserialized;
@@ -565,7 +593,7 @@ void php_swoole_thread_rshutdown() {
     zval_dtor(&thread_argv);
 }
 
-void php_swoole_thread_start(const std::string &file, const std::string &argv) {
+void php_swoole_thread_start(zend_string *file, zend_string *argv) {
     ts_resource(0);
 #if defined(COMPILE_DL_SWOOLE)
     ZEND_TSRMLS_CACHE_UPDATE();
@@ -577,11 +605,11 @@ void php_swoole_thread_start(const std::string &file, const std::string &argv) {
         goto _startup_error;
     }
 
-    zend_stream_init_filename(&file_handle, file.c_str());
+    zend_stream_init_filename(&file_handle, ZSTR_VAL(file));
     file_handle.primary_script = 1;
 
     zend_first_try {
-        if (argv.empty()) {
+        if (ZSTR_LEN(file) == 0) {
             array_init(&thread_argv);
         } else {
             php_swoole_thread_unserialize(argv, &thread_argv);
@@ -595,6 +623,8 @@ void php_swoole_thread_start(const std::string &file, const std::string &argv) {
     file_handle.filename = NULL;
 
 _startup_error:
+    zend_string_release(file);
+    zend_string_release(argv);
     ts_free_thread();
 }
 
@@ -616,15 +646,20 @@ static PHP_METHOD(swoole_thread, exec) {
 
     object_init_ex(return_value, swoole_thread_ce);
     ThreadObject *to = php_swoole_thread_fetch_object(Z_OBJ_P(return_value));
-    std::string file(script_file, l_script_file);
+    zend_string *file = zend_string_init(script_file, l_script_file, 1);
 
     zval zargv;
     array_init(&zargv);
     for (int i = 0; i < argc; i++) {
         zend::array_add(&zargv, &args[i]);
     }
-    std::string argv = php_swoole_thread_serialize(&zargv);
+    zend_string *argv = php_swoole_thread_serialize(&zargv);
     zval_dtor(&zargv);
+
+    if (!argv) {
+        zend_string_release(file);
+        return;
+    }
 
     to->thread = new std::thread([file, argv]() { php_swoole_thread_start(file, argv); });
     zend_update_property_long(
