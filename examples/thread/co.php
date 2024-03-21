@@ -5,6 +5,7 @@ $map['uuid'] = uniqid();
 $list = new Swoole\Thread\ArrayList();
 $list[] = base64_encode(random_bytes(32));
 $list[1] = uniqid();
+var_dump(count($list));
 
 $t1 = Swoole\Thread::exec('mt.php', 'thread-1', PHP_OS, $map, $list);
 $t2 = Swoole\Thread::exec('mt.php', 'thread-2', PHP_OS, $map, $list);

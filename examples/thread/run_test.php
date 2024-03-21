@@ -2,7 +2,7 @@
 
 use Swoole\Thread\Map;
 
-$map = new Map(Map::KEY_STR);
+$map = new Map;
 $c = 4;
 $threads = [];
 

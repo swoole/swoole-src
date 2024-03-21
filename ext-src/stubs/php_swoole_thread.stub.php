@@ -16,7 +16,7 @@ namespace Swoole {
 
 namespace Swoole\Thread {
     class Map implements ArrayAccess, Countable {
-        public function __construct(int $key_type) {}
+        public function __construct() {}
         public function offsetGet(mixed $key): mixed {}
         public function offsetExists(mixed $key): bool {}
         public function offsetSet(mixed $key, mixed $value): void {}
