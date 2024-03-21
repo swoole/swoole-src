@@ -22,6 +22,8 @@ namespace Swoole\Thread {
         public function offsetSet(mixed $key, mixed $value): void {}
         public function offsetUnset(mixed $key): void {}
         public function count(): int {}
+        public function keys(): array {}
+        public function clean(): void {}
         public function __wakeup(): void {}
     }
     class ArrayList implements ArrayAccess, Countable {
@@ -31,6 +33,7 @@ namespace Swoole\Thread {
         public function offsetSet(mixed $key, mixed $value): void {}
         public function offsetUnset(mixed $key): void {}
         public function count(): int {}
+        public function clean(): void {}
         public function __wakeup(): void {}
     }
 }

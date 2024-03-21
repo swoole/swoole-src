@@ -45,7 +45,7 @@ bool php_swoole_thread_unserialize(zend_string *data, zval *zv);
 
 #define IS_SERIALIZED_OBJECT 99
 
-struct MapItem {
+struct ArrayItem {
     uint32_t type;
     zend_string *key;
     union {
@@ -55,7 +55,7 @@ struct MapItem {
         zend_string *serialized_object;
     } value;
 
-    MapItem(zval *zvalue) {
+    ArrayItem(zval *zvalue) {
         key = nullptr;
         value = {};
         store(zvalue);
@@ -127,7 +127,7 @@ struct MapItem {
         }
     }
 
-    ~MapItem() {
+    ~ArrayItem() {
         if (value.str) {
             release();
         }
@@ -143,7 +143,7 @@ struct ZendArray {
     zend_array ht;
 
     static void item_dtor(zval *pDest) {
-        MapItem *item = (MapItem *) Z_PTR_P(pDest);
+        ArrayItem *item = (ArrayItem *) Z_PTR_P(pDest);
         delete item;
     }
 
@@ -164,6 +164,12 @@ struct ZendArray {
         return --ref_count;
     }
 
+    void clean() {
+        lock_.lock();
+        zend_hash_clean(&ht);
+        lock_.unlock();
+    }
+
     bool index_exists(zend_long index) {
         return index < (zend_long) zend_hash_num_elements(&ht);
     }
@@ -171,7 +177,7 @@ struct ZendArray {
     void strkey_offsetGet(zval *zkey, zval *return_value) {
         zend::String skey(zkey);
         lock_.lock_rd();
-        MapItem *item = (MapItem *) zend_hash_find_ptr(&ht, skey.get());
+        ArrayItem *item = (ArrayItem *) zend_hash_find_ptr(&ht, skey.get());
         if (item) {
             item->fetch(return_value);
         }
@@ -194,7 +200,7 @@ struct ZendArray {
 
     void strkey_offsetSet(zval *zkey, zval *zvalue) {
         zend::String skey(zkey);
-        auto item = new MapItem(zvalue);
+        auto item = new ArrayItem(zvalue);
         item->key = zend_string_init(skey.val(), skey.len(), 1);
         lock_.lock();
         zend_hash_update_ptr(&ht, item->key, item);
@@ -207,9 +213,44 @@ struct ZendArray {
         lock_.unlock();
     }
 
+    void keys(zval *return_value) {
+        lock_.lock_rd();
+        zend_ulong elem_count = zend_hash_num_elements(&ht);
+        array_init_size(return_value, elem_count);
+        zend_hash_real_init_packed(Z_ARRVAL_P(return_value));
+        zend_ulong num_idx;
+        zend_string *str_idx;
+        zval *entry;
+        ZEND_HASH_FILL_PACKED(Z_ARRVAL_P(return_value)) {
+            if (HT_IS_PACKED(&ht) && HT_IS_WITHOUT_HOLES(&ht)) {
+                /* Optimistic case: range(0..n-1) for vector-like packed array */
+                zend_ulong lval = 0;
+
+                for (; lval < elem_count; ++lval) {
+                    ZEND_HASH_FILL_SET_LONG(lval);
+                    ZEND_HASH_FILL_NEXT();
+                }
+            } else {
+                /* Go through input array and add keys to the return array */
+                ZEND_HASH_FOREACH_KEY_VAL(&ht, num_idx, str_idx, entry) {
+                    if (str_idx) {
+                        ZEND_HASH_FILL_SET_STR_COPY(str_idx);
+                    } else {
+                        ZEND_HASH_FILL_SET_LONG(num_idx);
+                    }
+                    ZEND_HASH_FILL_NEXT();
+                }
+                ZEND_HASH_FOREACH_END();
+            }
+            (void) entry;
+        }
+        ZEND_HASH_FILL_END();
+        lock_.unlock();
+    }
+
     void intkey_offsetGet(zend_long index, zval *return_value) {
         lock_.lock_rd();
-        MapItem *item = (MapItem *) zend_hash_index_find(&ht, index);
+        ArrayItem *item = (ArrayItem *) zend_hash_index_find(&ht, index);
         if (item) {
             item->fetch(return_value);
         }
@@ -236,7 +277,7 @@ struct ZendArray {
 
     void intkey_offsetSet(zval *zkey, zval *zvalue) {
         zend_long index = zval_get_long(zkey);
-        auto item = new MapItem(zvalue);
+        auto item = new ArrayItem(zvalue);
         lock_.lock();
         zend_hash_index_update_ptr(&ht, index, item);
         lock_.unlock();
@@ -248,7 +289,7 @@ struct ZendArray {
         lock_.lock_rd();
         if (index_exists(index)) {
             out_of_range = false;
-            MapItem *item = (MapItem *) zend_hash_index_find_ptr(&ht, index);
+            ArrayItem *item = (ArrayItem *) zend_hash_index_find_ptr(&ht, index);
             if (item) {
                 item->fetch(return_value);
             }
@@ -259,7 +300,7 @@ struct ZendArray {
 
     bool index_offsetSet(zval *zkey, zval *zvalue) {
         zend_long index = ZVAL_IS_NULL(zkey) ? -1 : zval_get_long(zkey);
-        auto item = new MapItem(zvalue);
+        auto item = new ArrayItem(zvalue);
         bool success = true;
         lock_.lock();
         if (index > zend_hash_num_elements(&ht)) {
@@ -435,6 +476,8 @@ static PHP_METHOD(swoole_thread_map, offsetExists);
 static PHP_METHOD(swoole_thread_map, offsetSet);
 static PHP_METHOD(swoole_thread_map, offsetUnset);
 static PHP_METHOD(swoole_thread_map, count);
+static PHP_METHOD(swoole_thread_map, keys);
+static PHP_METHOD(swoole_thread_map, clean);
 static PHP_METHOD(swoole_thread_map, __wakeup);
 
 static PHP_METHOD(swoole_thread_arraylist, __construct);
@@ -443,6 +486,7 @@ static PHP_METHOD(swoole_thread_arraylist, offsetExists);
 static PHP_METHOD(swoole_thread_arraylist, offsetSet);
 static PHP_METHOD(swoole_thread_arraylist, offsetUnset);
 static PHP_METHOD(swoole_thread_arraylist, count);
+static PHP_METHOD(swoole_thread_arraylist, clean);
 static PHP_METHOD(swoole_thread_arraylist, __wakeup);
 
 SW_EXTERN_C_END
@@ -466,6 +510,8 @@ static const zend_function_entry swoole_thread_map_methods[] = {
     PHP_ME(swoole_thread_map, offsetSet,       arginfo_class_Swoole_Thread_Map_offsetSet,     ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread_map, offsetUnset,     arginfo_class_Swoole_Thread_Map_offsetUnset,   ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread_map, count,           arginfo_class_Swoole_Thread_Map_count,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_thread_map, clean,           arginfo_class_Swoole_Thread_Map_clean,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_thread_map, keys,            arginfo_class_Swoole_Thread_Map_keys,          ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread_map, __wakeup,        arginfo_class_Swoole_Thread_Map___wakeup,      ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
@@ -476,6 +522,7 @@ static const zend_function_entry swoole_thread_arraylist_methods[] = {
     PHP_ME(swoole_thread_arraylist, offsetExists, arginfo_class_Swoole_Thread_ArrayList_offsetExists,  ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread_arraylist, offsetSet,    arginfo_class_Swoole_Thread_ArrayList_offsetSet,     ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread_arraylist, offsetUnset,  arginfo_class_Swoole_Thread_ArrayList_offsetUnset,   ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_thread_arraylist, clean,        arginfo_class_Swoole_Thread_ArrayList_clean,         ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread_arraylist, count,        arginfo_class_Swoole_Thread_ArrayList_count,         ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread_arraylist, __wakeup,     arginfo_class_Swoole_Thread_ArrayList___wakeup,      ZEND_ACC_PUBLIC)
     PHP_FE_END
@@ -736,6 +783,16 @@ static PHP_METHOD(swoole_thread_map, count) {
     mo->map->count(return_value);
 }
 
+static PHP_METHOD(swoole_thread_map, keys) {
+    auto mo = thread_map_fetch_object_check(ZEND_THIS);
+    mo->map->keys(return_value);
+}
+
+static PHP_METHOD(swoole_thread_map, clean) {
+    auto mo = thread_map_fetch_object_check(ZEND_THIS);
+    mo->map->clean();
+}
+
 static PHP_METHOD(swoole_thread_map, __wakeup) {
     auto mo = thread_map_fetch_object(Z_OBJ_P(ZEND_THIS));
     bool success = false;
@@ -816,6 +873,11 @@ static PHP_METHOD(swoole_thread_arraylist, offsetUnset) {
 static PHP_METHOD(swoole_thread_arraylist, count) {
     auto ao = thread_arraylist_fetch_object_check(ZEND_THIS);
     ao->list->count(return_value);
+}
+
+static PHP_METHOD(swoole_thread_arraylist, clean) {
+    auto ao = thread_arraylist_fetch_object_check(ZEND_THIS);
+    ao->list->clean();
 }
 
 static PHP_METHOD(swoole_thread_arraylist, __wakeup) {

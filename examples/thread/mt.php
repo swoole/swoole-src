@@ -2,15 +2,21 @@
 //echo "begin\n";
 
 $args = Swoole\Thread::getArguments();
-echo Swoole\Thread::getId() . "\t" . 'gmap[uuid]' . "\t" . $args[2]['uuid'] . "\n";
-$args[2]['hello'] = uniqid('swoole');
-var_dump(count($args[2]));
 
-$args[3][] = uniqid('swoole');
-$args[3][count($args[3])] = uniqid('php');
+$map = $args[2];
+$list = $args[3];
 
-echo Swoole\Thread::getId() . "\t" . 'glist[0]' . "\t" . $args[3][0] . "\n";
-var_dump(count($args[3]));
+echo Swoole\Thread::getId() . "\t" . 'gmap[uuid]' . "\t" . $map['uuid'] . "\n";
+$map['hello'] = uniqid('swoole');
+var_dump($map->keys());
+
+$list[] = uniqid('swoole');
+$list[count($list)] = uniqid('php');
+
+var_dump($args);
+
+echo Swoole\Thread::getId() . "\t" . 'glist[0]' . "\t" . $list[0] . "\n";
+var_dump(count($list));
 
 //if ($args[0] == 'thread-2') {
 //    $t3 = Swoole\Thread::exec('mt.php', 'thread-3', PHP_OS);

@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 8278b4b79d73cc176a240b37d2dffe837f349eeb */
+ * Stub hash: 86ee0e408295738c52a0f9944e4ed83b6f4fadf3 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Thread___construct, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -43,8 +43,12 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_class_Swoole_Thread_Map_count arginfo_class_Swoole_Thread_getId
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Thread_Map___wakeup, 0, 0, IS_VOID, 0)
+#define arginfo_class_Swoole_Thread_Map_keys arginfo_class_Swoole_Thread_getArguments
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Thread_Map_clean, 0, 0, IS_VOID, 0)
 ZEND_END_ARG_INFO()
+
+#define arginfo_class_Swoole_Thread_Map___wakeup arginfo_class_Swoole_Thread_Map_clean
 
 #define arginfo_class_Swoole_Thread_ArrayList___construct arginfo_class_Swoole_Thread___construct
 
@@ -58,4 +62,6 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_class_Swoole_Thread_ArrayList_count arginfo_class_Swoole_Thread_getId
 
-#define arginfo_class_Swoole_Thread_ArrayList___wakeup arginfo_class_Swoole_Thread_Map___wakeup
+#define arginfo_class_Swoole_Thread_ArrayList_clean arginfo_class_Swoole_Thread_Map_clean
+
+#define arginfo_class_Swoole_Thread_ArrayList___wakeup arginfo_class_Swoole_Thread_Map_clean

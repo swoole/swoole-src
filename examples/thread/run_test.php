@@ -3,7 +3,7 @@
 use Swoole\Thread\Map;
 
 $map = new Map;
-$c = 4;
+$c = 1;
 $threads = [];
 
 for ($i = 0; $i < $c; $i++) {
