@@ -234,7 +234,7 @@ struct ZendArray {
                 /* Go through input array and add keys to the return array */
                 ZEND_HASH_FOREACH_KEY_VAL(&ht, num_idx, str_idx, entry) {
                     if (str_idx) {
-                        ZEND_HASH_FILL_SET_STR_COPY(str_idx);
+                        ZEND_HASH_FILL_SET_STR(zend_string_init(str_idx->val, str_idx->len, 0));
                     } else {
                         ZEND_HASH_FILL_SET_LONG(num_idx);
                     }
