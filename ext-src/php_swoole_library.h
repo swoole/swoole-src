@@ -2768,6 +2768,7 @@ static const char* swoole_library_source_core_database_detects_lost_connections 
     "        'SQLSTATE[08006] [7] SSL error: sslv3 alert unexpected message',\n"
     "        'SQLSTATE[08006] [7] unrecognized SSL error code:',\n"
     "        'SQLSTATE[HY000] [2002] No connection could be made because the target machine actively refused it',\n"
+    "        'Broken pipe',\n"
     "    ];\n"
     "\n"
     "    public static function causedByLostConnection(\\Throwable $e): bool\n"
