@@ -27,6 +27,9 @@
 #include "swoole_pipe.h"
 #include "swoole_channel.h"
 #include "swoole_message_bus.h"
+#ifdef SW_THREAD
+#include "swoole_lock.h"
+#endif
 
 #ifdef SW_USE_OPENSSL
 #include "swoole_dtls.h"
@@ -488,6 +491,9 @@ class Server {
     enum Mode {
         MODE_BASE = 1,
         MODE_PROCESS = 2,
+#ifdef SW_THREAD
+        MODE_THREAD = 3,
+#endif
     };
 
     enum TaskIpcMode {
@@ -1000,8 +1006,18 @@ class Server {
     }
 
     bool is_base_mode() {
+#ifndef SW_THREAD
         return mode_ == MODE_BASE;
+#else
+        return mode_ == MODE_BASE || mode_ == MODE_THREAD;
+#endif
     }
+
+#ifdef SW_THREAD
+    bool is_thread_mode() {
+        return mode_ == MODE_THREAD;
+    }
+#endif
 
     bool is_enable_coroutine() {
         if (is_task_worker()) {
@@ -1451,7 +1467,7 @@ typedef swoole::Server swServer;
 typedef swoole::ListenPort swListenPort;
 typedef swoole::RecvData swRecvData;
 
-extern swoole::Server *g_server_instance;
+extern SW_THREAD_LOCAL swoole::Server *g_server_instance;
 
 static inline swoole::Server *sw_server() {
     return g_server_instance;

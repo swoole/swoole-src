@@ -16,7 +16,9 @@
 
 #include "swoole_server.h"
 #include "swoole_memory.h"
+#ifndef SW_THREAD
 #include "swoole_lock.h"
+#endif
 #include "swoole_util.h"
 
 #include <assert.h>
@@ -25,7 +27,11 @@ using swoole::network::Address;
 using swoole::network::SendfileTask;
 using swoole::network::Socket;
 
-swoole::Server *g_server_instance = nullptr;
+SW_THREAD_LOCAL swoole::Server *g_server_instance = nullptr;
+#ifdef SW_THREAD
+swoole::Mutex thread_lock(0);
+static std::vector<swListenPort *> listen_ports;
+#endif
 
 namespace swoole {
 
@@ -696,10 +702,10 @@ int Server::start() {
         file_put_contents(pid_file, sw_tg_buffer()->str, n);
     }
     int ret;
-    if (is_base_mode()) {
-        ret = start_reactor_processes();
-    } else {
+    if (is_process_mode()) {
         ret = start_reactor_threads();
+    } else {
+        ret = start_reactor_processes();
     }
     // failed to start
     if (ret < 0) {
@@ -851,12 +857,12 @@ int Server::create() {
     }
 
     int retval;
-    if (is_base_mode()) {
-        factory = new BaseFactory(this);
-        retval = create_reactor_processes();
-    } else {
+    if (is_process_mode()) {
         factory = new ProcessFactory(this);
         retval = create_reactor_threads();
+    } else {
+        factory = new BaseFactory(this);
+        retval = create_reactor_processes();
     }
 
 #ifdef HAVE_PTHREAD_BARRIER
@@ -978,7 +984,7 @@ void Server::destroy() {
         join_reactor_thread();
     }
 
-	release_pipe_buffers();
+    release_pipe_buffers();
 
     for (auto port : ports) {
         port->close();
@@ -1515,7 +1521,7 @@ bool Server::sendfile(SessionId session_id, const char *file, uint32_t l_file, o
                          "sendfile name[%.8s...] length %u is exceed the max name len %u",
                          file,
                          l_file,
-                         (uint32_t)(SW_IPC_BUFFER_SIZE - sizeof(SendfileTask) - 1));
+                         (uint32_t) (SW_IPC_BUFFER_SIZE - sizeof(SendfileTask) - 1));
         return false;
     }
     // string must be zero termination (for `state` system call)
@@ -1769,7 +1775,7 @@ ListenPort *Server::add_port(SocketType type, const char *host, int port) {
 
 #ifdef SW_USE_OPENSSL
     if (type & SW_SOCK_SSL) {
-        type = (SocketType)(type & (~SW_SOCK_SSL));
+        type = (SocketType) (type & (~SW_SOCK_SSL));
         ls->type = type;
         ls->ssl = 1;
         ls->ssl_context = new SSLContext();
@@ -1793,24 +1799,53 @@ ListenPort *Server::add_port(SocketType type, const char *host, int port) {
     }
 #endif
 
-    ls->socket = make_socket(
-        ls->type, ls->is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER, SW_SOCK_CLOEXEC | SW_SOCK_NONBLOCK);
-    if (ls->socket == nullptr) {
-        swoole_set_last_error(errno);
-        return nullptr;
+#ifdef SW_THREAD
+    thread_lock.lock();
+    if (listen_ports.size() > 0) {
+        for (auto listen_port : listen_ports) {
+            if (listen_port->type == type && listen_port->port == port && listen_port->host == host) {
+                ls->socket = listen_port->socket;
+                thread_lock.unlock();
+                break;
+            }
+        }
     }
+
+    if (ls->socket == nullptr) {
+#endif
+        ls->socket = make_socket(
+            ls->type, ls->is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER, SW_SOCK_CLOEXEC | SW_SOCK_NONBLOCK);
+        if (ls->socket == nullptr) {
+            swoole_set_last_error(errno);
+#ifdef SW_THREAD
+            thread_lock.unlock();
+#endif
+            return nullptr;
+        }
+
 #if defined(SW_SUPPORT_DTLS) && defined(HAVE_KQUEUE)
-    if (ls->is_dtls()) {
-        ls->socket->set_reuse_port();
+        if (ls->is_dtls()) {
+            ls->socket->set_reuse_port();
+        }
+#endif
+
+        if (ls->socket->bind(ls->host, &ls->port) < 0) {
+            swoole_set_last_error(errno);
+            ls->socket->free();
+#ifdef SW_THREAD
+            thread_lock.unlock();
+#endif
+            return nullptr;
+        }
+
+        ls->socket->info.assign(ls->type, ls->host, ls->port);
+
+#ifdef SW_THREAD
+        listen_ports.push_back(ls);
+        thread_lock.unlock();
     }
 #endif
 
-    if (ls->socket->bind(ls->host, &ls->port) < 0) {
-        swoole_set_last_error(errno);
-        ls->socket->free();
-        return nullptr;
-    }
-    ls->socket->info.assign(ls->type, ls->host, ls->port);
     check_port_type(ls);
     ptr.release();
     ports.push_back(ls);
@@ -2016,7 +2051,7 @@ int Server::create_pipe_buffers() {
 }
 
 void Server::release_pipe_buffers() {
-	message_bus.free_buffer();
+    message_bus.free_buffer();
 }
 
 int Server::get_idle_worker_num() {
