@@ -181,6 +181,8 @@ typedef unsigned long ulong_t;
 #define SW_THREAD_LOCAL thread_local
 #include "swoole_lock.h"
 extern swoole::Mutex thread_lock;
+#else
+#define SW_THREAD_LOCAL
 #endif
 
 /*-----------------------------------Memory------------------------------------*/
