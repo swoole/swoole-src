@@ -829,7 +829,7 @@ PHP_MINFO_FUNCTION(swoole) {
 #ifdef HAVE_KQUEUE
     php_info_print_table_row(2, "kqueue", "enabled");
 #endif
-#ifdef ZTS
+#ifdef SW_THREAD
     php_info_print_table_row(2, "thread", "enabled");
 #endif
 #ifdef HAVE_SIGNALFD

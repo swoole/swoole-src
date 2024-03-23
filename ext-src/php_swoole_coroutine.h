@@ -260,6 +260,11 @@ class PHPCoroutine {
         save_context(&main_context);
     }
 
+    static inline void free_main_context() {
+        delete main_context.co;
+        main_context = {};
+    }
+
   protected:
     static SW_THREAD_LOCAL bool activated;
     static SW_THREAD_LOCAL PHPContext main_context;
