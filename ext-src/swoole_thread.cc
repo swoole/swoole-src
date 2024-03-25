@@ -40,6 +40,9 @@ static zend_object_handlers swoole_thread_map_handlers;
 zend_class_entry *swoole_thread_arraylist_ce;
 static zend_object_handlers swoole_thread_arraylist_handlers;
 
+zend_class_entry *swoole_thread_queue_ce;
+static zend_object_handlers swoole_thread_queue_handlers;
+
 zend_string *php_swoole_thread_serialize(zval *zdata);
 bool php_swoole_thread_unserialize(zend_string *data, zval *zv);
 
@@ -137,23 +140,12 @@ struct ArrayItem {
     }
 };
 
-struct ZendArray {
+struct Resource {
     RWLock lock_;
     uint32_t ref_count;
-    zend_array ht;
 
-    static void item_dtor(zval *pDest) {
-        ArrayItem *item = (ArrayItem *) Z_PTR_P(pDest);
-        delete item;
-    }
-
-    ZendArray() : lock_(0) {
+    Resource() : lock_(0) {
         ref_count = 1;
-        zend_hash_init(&ht, 0, NULL, item_dtor, 1);
-    }
-
-    ~ZendArray() {
-        zend_hash_destroy(&ht);
     }
 
     uint32_t add_ref() {
@@ -162,6 +154,23 @@ struct ZendArray {
 
     uint32_t del_ref() {
         return --ref_count;
+    }
+};
+
+struct ZendArray : Resource {
+    zend_array ht;
+
+    static void item_dtor(zval *pDest) {
+        ArrayItem *item = (ArrayItem *) Z_PTR_P(pDest);
+        delete item;
+    }
+
+    ZendArray() : Resource() {
+        zend_hash_init(&ht, 0, NULL, item_dtor, 1);
+    }
+
+    ~ZendArray() {
+        zend_hash_destroy(&ht);
     }
 
     void clean() {
@@ -340,12 +349,61 @@ struct ThreadArrayListObject {
     zend_object std;
 };
 
+struct Queue : Resource {
+    std::queue<ArrayItem *> queue;
+
+    Queue() : Resource() {}
+
+    ~Queue() {
+        clean();
+    }
+
+    void push(zval *zvalue) {
+        auto item = new ArrayItem(zvalue);
+        lock_.lock();
+        queue.push(item);
+        lock_.unlock();
+    }
+
+    void pop(zval *return_value) {
+        lock_.lock();
+        ArrayItem *item = queue.front();
+        if (item) {
+            queue.pop();
+            item->fetch(return_value);
+        }
+        lock_.unlock();
+    }
+
+    void count(zval *return_value) {
+        lock_.lock_rd();
+        RETVAL_LONG(queue.size());
+        lock_.unlock();
+    }
+
+    void clean() {
+        lock_.lock();
+        while (!queue.empty()) {
+            ArrayItem *item = queue.front();
+            delete item;
+            queue.pop();
+        }
+        lock_.unlock();
+    }
+};
+
+struct ThreadQueueObject {
+    Queue *queue;
+    zend_object std;
+};
+
 static void php_swoole_thread_join(zend_object *object);
 
 thread_local zval thread_argv;
 static std::mutex thread_lock;
 static zend_long thread_resource_id = 0;
-static std::unordered_map<uint32_t, ZendArray *> thread_resources;
+static std::unordered_map<uint32_t, ZendArray *> thread_hashtables;
+static std::unordered_map<uint32_t, Queue *> thread_queues;
 
 static sw_inline ThreadObject *php_swoole_thread_fetch_object(zend_object *obj) {
     return (ThreadObject *) ((char *) obj - swoole_thread_handlers.offset);
@@ -373,6 +431,7 @@ static void php_swoole_thread_join(zend_object *object) {
     }
 }
 
+// =======================================Map==============================================
 static sw_inline ThreadMapObject *thread_map_fetch_object(zend_object *obj) {
     return (ThreadMapObject *) ((char *) obj - swoole_thread_map_handlers.offset);
 }
@@ -392,7 +451,7 @@ static void thread_map_free_object(zend_object *object) {
     if (mo->map) {
         thread_lock.lock();
         if (mo->map->del_ref() == 0) {
-            thread_resources.erase(resource_id);
+            thread_hashtables.erase(resource_id);
             delete mo->map;
             mo->map = nullptr;
         }
@@ -417,6 +476,7 @@ ThreadMapObject *thread_map_fetch_object_check(zval *zobject) {
     return map;
 }
 
+// =======================================ArrayList==============================================
 static sw_inline ThreadArrayListObject *thread_arraylist_fetch_object(zend_object *obj) {
     return (ThreadArrayListObject *) ((char *) obj - swoole_thread_arraylist_handlers.offset);
 }
@@ -436,7 +496,7 @@ static void thread_arraylist_free_object(zend_object *object) {
     if (ao->list) {
         thread_lock.lock();
         if (ao->list->del_ref() == 0) {
-            thread_resources.erase(resource_id);
+            thread_hashtables.erase(resource_id);
             delete ao->list;
             ao->list = nullptr;
         }
@@ -459,6 +519,51 @@ ThreadArrayListObject *thread_arraylist_fetch_object_check(zval *zobject) {
         php_swoole_fatal_error(E_ERROR, "must call constructor first");
     }
     return ao;
+}
+
+// =======================================Queue==============================================
+static sw_inline ThreadQueueObject *thread_queue_fetch_object(zend_object *obj) {
+    return (ThreadQueueObject *) ((char *) obj - swoole_thread_map_handlers.offset);
+}
+
+static sw_inline zend_long thread_queue_get_resource_id(zend_object *obj) {
+    zval rv, *property = zend_read_property(swoole_thread_queue_ce, obj, ZEND_STRL("id"), 1, &rv);
+    return property ? zval_get_long(property) : 0;
+}
+
+static sw_inline zend_long thread_queue_get_resource_id(zval *zobject) {
+    return thread_queue_get_resource_id(Z_OBJ_P(zobject));
+}
+
+static void thread_queue_free_object(zend_object *object) {
+    zend_long resource_id = thread_queue_get_resource_id(object);
+    ThreadQueueObject *qo = thread_queue_fetch_object(object);
+    if (qo->queue) {
+        thread_lock.lock();
+        if (qo->queue->del_ref() == 0) {
+            thread_hashtables.erase(resource_id);
+            delete qo->queue;
+            qo->queue = nullptr;
+        }
+        thread_lock.unlock();
+    }
+    zend_object_std_dtor(object);
+}
+
+static zend_object *thread_queue_create_object(zend_class_entry *ce) {
+    ThreadQueueObject *mo = (ThreadQueueObject *) zend_object_alloc(sizeof(ThreadQueueObject), ce);
+    zend_object_std_init(&mo->std, ce);
+    object_properties_init(&mo->std, ce);
+    mo->std.handlers = &swoole_thread_map_handlers;
+    return &mo->std;
+}
+
+ThreadQueueObject *thread_queue_fetch_object_check(zval *zobject) {
+    ThreadQueueObject *qo = thread_queue_fetch_object(Z_OBJ_P(zobject));
+    if (!qo->queue) {
+        php_swoole_fatal_error(E_ERROR, "must call constructor first");
+    }
+    return qo;
 }
 
 SW_EXTERN_C_BEGIN
@@ -488,6 +593,13 @@ static PHP_METHOD(swoole_thread_arraylist, offsetUnset);
 static PHP_METHOD(swoole_thread_arraylist, count);
 static PHP_METHOD(swoole_thread_arraylist, clean);
 static PHP_METHOD(swoole_thread_arraylist, __wakeup);
+
+static PHP_METHOD(swoole_thread_queue, __construct);
+static PHP_METHOD(swoole_thread_queue, push);
+static PHP_METHOD(swoole_thread_queue, pop);
+static PHP_METHOD(swoole_thread_queue, count);
+static PHP_METHOD(swoole_thread_queue, clean);
+static PHP_METHOD(swoole_thread_queue, __wakeup);
 
 SW_EXTERN_C_END
 
@@ -527,6 +639,16 @@ static const zend_function_entry swoole_thread_arraylist_methods[] = {
     PHP_ME(swoole_thread_arraylist, __wakeup,     arginfo_class_Swoole_Thread_ArrayList___wakeup,      ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
+
+static const zend_function_entry swoole_thread_queue_methods[] = {
+    PHP_ME(swoole_thread_queue, __construct,  arginfo_class_Swoole_Thread_Queue___construct,   ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_thread_queue, push,         arginfo_class_Swoole_Thread_Queue_push,          ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_thread_queue, pop,          arginfo_class_Swoole_Thread_Queue_pop,           ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_thread_queue, clean,        arginfo_class_Swoole_Thread_Queue_clean,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_thread_queue, count,        arginfo_class_Swoole_Thread_Queue_count,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_thread_queue, __wakeup,     arginfo_class_Swoole_Thread_Queue___wakeup,      ZEND_ACC_PUBLIC)
+    PHP_FE_END
+};
 // clang-format on
 
 void php_swoole_thread_minit(int module_number) {
@@ -561,6 +683,15 @@ void php_swoole_thread_minit(int module_number) {
 
     zend_class_implements(swoole_thread_arraylist_ce, 2, zend_ce_arrayaccess, zend_ce_countable);
     zend_declare_property_long(swoole_thread_arraylist_ce, ZEND_STRL("id"), 0, ZEND_ACC_PUBLIC);
+
+    SW_INIT_CLASS_ENTRY(swoole_thread_queue, "Swoole\\Thread\\Queue", nullptr, swoole_thread_queue_methods);
+    SW_SET_CLASS_CLONEABLE(swoole_thread_queue, sw_zend_class_clone_deny);
+    SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_thread_queue, sw_zend_class_unset_property_deny);
+    SW_SET_CLASS_CUSTOM_OBJECT(
+        swoole_thread_queue, thread_queue_create_object, thread_queue_free_object, ThreadQueueObject, std);
+
+    zend_class_implements(swoole_thread_queue_ce, 1, zend_ce_countable);
+    zend_declare_property_long(swoole_thread_queue_ce, ZEND_STRL("id"), 0, ZEND_ACC_PUBLIC);
 }
 
 static PHP_METHOD(swoole_thread, __construct) {}
@@ -719,7 +850,7 @@ static PHP_METHOD(swoole_thread_map, __construct) {
 
     thread_lock.lock();
     zend_long resource_id = ++thread_resource_id;
-    thread_resources[resource_id] = mo->map;
+    thread_hashtables[resource_id] = mo->map;
     thread_lock.unlock();
 
     zend_update_property_long(swoole_thread_map_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("id"), resource_id);
@@ -799,8 +930,8 @@ static PHP_METHOD(swoole_thread_map, __wakeup) {
     zend_long resource_id = thread_map_get_resource_id(ZEND_THIS);
 
     thread_lock.lock();
-    auto iter = thread_resources.find(resource_id);
-    if (iter != thread_resources.end()) {
+    auto iter = thread_hashtables.find(resource_id);
+    if (iter != thread_hashtables.end()) {
         ZendArray *map = iter->second;
         map->add_ref();
         mo->map = map;
@@ -821,7 +952,7 @@ static PHP_METHOD(swoole_thread_arraylist, __construct) {
 
     thread_lock.lock();
     zend_long resource_id = ++thread_resource_id;
-    thread_resources[resource_id] = ao->list;
+    thread_hashtables[resource_id] = ao->list;
     thread_lock.unlock();
 
     zend_update_property_long(swoole_thread_arraylist_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("id"), resource_id);
@@ -886,11 +1017,69 @@ static PHP_METHOD(swoole_thread_arraylist, __wakeup) {
     zend_long resource_id = thread_arraylist_get_resource_id(ZEND_THIS);
 
     thread_lock.lock();
-    auto iter = thread_resources.find(resource_id);
-    if (iter != thread_resources.end()) {
+    auto iter = thread_hashtables.find(resource_id);
+    if (iter != thread_hashtables.end()) {
         ZendArray *list = iter->second;
         list->add_ref();
         mo->list = list;
+        success = true;
+    }
+    thread_lock.unlock();
+
+    if (!success) {
+        zend_throw_exception(swoole_exception_ce, "resource not found", -2);
+    }
+}
+
+static PHP_METHOD(swoole_thread_queue, __construct) {
+    auto qo = thread_queue_fetch_object(Z_OBJ_P(ZEND_THIS));
+    qo->queue = new Queue();
+
+    thread_lock.lock();
+    zend_long resource_id = ++thread_resource_id;
+    thread_queues[resource_id] = qo->queue;
+    thread_lock.unlock();
+
+    zend_update_property_long(swoole_thread_queue_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("id"), resource_id);
+}
+
+static PHP_METHOD(swoole_thread_queue, push) {
+    zval *zvalue;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_ZVAL(zvalue)
+    ZEND_PARSE_PARAMETERS_END();
+
+    auto qo = thread_queue_fetch_object_check(ZEND_THIS);
+    qo->queue->push(zvalue);
+}
+
+static PHP_METHOD(swoole_thread_queue, pop) {
+     auto qo = thread_queue_fetch_object_check(ZEND_THIS);
+     qo->queue->pop(return_value);
+}
+
+static PHP_METHOD(swoole_thread_queue, count) {
+    auto qo = thread_queue_fetch_object_check(ZEND_THIS);
+    qo->queue->count(return_value);
+}
+
+static PHP_METHOD(swoole_thread_queue, clean) {
+    auto qo = thread_queue_fetch_object_check(ZEND_THIS);
+    qo->queue->clean();
+}
+
+static PHP_METHOD(swoole_thread_queue, __wakeup) {
+    auto qo = thread_queue_fetch_object(Z_OBJ_P(ZEND_THIS));
+    bool success = false;
+    zend_long resource_id = thread_queue_get_resource_id(ZEND_THIS);
+
+    thread_lock.lock();
+    auto iter = thread_queues.find(resource_id);
+    if (iter != thread_queues.end()) {
+        Queue *queue = iter->second;
+        queue->add_ref();
+        qo->queue = queue;
         success = true;
     }
     thread_lock.unlock();

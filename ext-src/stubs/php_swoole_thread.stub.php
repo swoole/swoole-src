@@ -36,4 +36,12 @@ namespace Swoole\Thread {
         public function clean(): void {}
         public function __wakeup(): void {}
     }
+    class Queue implements Countable {
+        public function __construct() {}
+        public function push(mixed $key): mixed {}
+        public function pop(mixed $key): bool {}
+        public function count(): int {}
+        public function clean(): void {}
+        public function __wakeup(): void {}
+    }
 }

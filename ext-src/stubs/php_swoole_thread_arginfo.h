@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 86ee0e408295738c52a0f9944e4ed83b6f4fadf3 */
+ * Stub hash: aa86c24d1a84295bb8daee060270b5185f09bac1 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Thread___construct, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -65,3 +65,15 @@ ZEND_END_ARG_INFO()
 #define arginfo_class_Swoole_Thread_ArrayList_clean arginfo_class_Swoole_Thread_Map_clean
 
 #define arginfo_class_Swoole_Thread_ArrayList___wakeup arginfo_class_Swoole_Thread_Map_clean
+
+#define arginfo_class_Swoole_Thread_Queue___construct arginfo_class_Swoole_Thread___construct
+
+#define arginfo_class_Swoole_Thread_Queue_push arginfo_class_Swoole_Thread_Map_offsetGet
+
+#define arginfo_class_Swoole_Thread_Queue_pop arginfo_class_Swoole_Thread_Map_offsetExists
+
+#define arginfo_class_Swoole_Thread_Queue_count arginfo_class_Swoole_Thread_getId
+
+#define arginfo_class_Swoole_Thread_Queue_clean arginfo_class_Swoole_Thread_Map_clean
+
+#define arginfo_class_Swoole_Thread_Queue___wakeup arginfo_class_Swoole_Thread_Map_clean
