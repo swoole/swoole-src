@@ -22,6 +22,7 @@
 #include <sys/resource.h>
 
 #include <thread>
+#include <condition_variable>
 
 #include "swoole_lock.h"
 
@@ -141,10 +142,9 @@ struct ArrayItem {
 };
 
 struct Resource {
-    RWLock lock_;
     uint32_t ref_count;
 
-    Resource() : lock_(0) {
+    Resource() {
         ref_count = 1;
     }
 
@@ -158,6 +158,7 @@ struct Resource {
 };
 
 struct ZendArray : Resource {
+    RWLock lock_;
     zend_array ht;
 
     static void item_dtor(zval *pDest) {
@@ -165,7 +166,7 @@ struct ZendArray : Resource {
         delete item;
     }
 
-    ZendArray() : Resource() {
+    ZendArray() : Resource(), lock_(0) {
         zend_hash_init(&ht, 0, NULL, item_dtor, 1);
     }
 
@@ -351,8 +352,16 @@ struct ThreadArrayListObject {
 
 struct Queue : Resource {
     std::queue<ArrayItem *> queue;
+    std::mutex lock_;
+    std::condition_variable cv_;
 
-    Queue() : Resource() {}
+    enum {
+        NOTIFY_NONE = 0,
+        NOTIFY_ONE = 1,
+        NOTIFY_ALL = 2,
+    };
+
+    Queue() : Resource(), queue() {}
 
     ~Queue() {
         clean();
@@ -366,17 +375,55 @@ struct Queue : Resource {
     }
 
     void pop(zval *return_value) {
+        ArrayItem *item = nullptr;
         lock_.lock();
-        ArrayItem *item = queue.front();
-        if (item) {
+        if (!queue.empty()) {
+            item = queue.front();
             queue.pop();
-            item->fetch(return_value);
         }
         lock_.unlock();
+        if (item) {
+            item->fetch(return_value);
+        }
+    }
+
+    void push_notify(zval *zvalue, bool notify_all) {
+        auto item = new ArrayItem(zvalue);
+        std::unique_lock<std::mutex> _lock(lock_);
+        queue.push(item);
+        if (notify_all) {
+            cv_.notify_all();
+        } else {
+            cv_.notify_one();
+        }
+    }
+
+    void pop_wait(zval *return_value, double timeout) {
+        ArrayItem *item = nullptr;
+        std::unique_lock<std::mutex> _lock(lock_);
+        SW_LOOP {
+            if (!queue.empty()) {
+                item = queue.front();
+                queue.pop();
+                break;
+            } else {
+                if (timeout > 0) {
+                    if (cv_.wait_for(_lock, std::chrono::duration<double>(timeout)) == std::cv_status::timeout) {
+                        break;
+                    }
+                } else {
+                    cv_.wait(_lock);
+                }
+            }
+        }
+        _lock.unlock();
+        if (item) {
+            item->fetch(return_value);
+        }
     }
 
     void count(zval *return_value) {
-        lock_.lock_rd();
+        lock_.lock();
         RETVAL_LONG(queue.size());
         lock_.unlock();
     }
@@ -541,7 +588,7 @@ static void thread_queue_free_object(zend_object *object) {
     if (qo->queue) {
         thread_lock.lock();
         if (qo->queue->del_ref() == 0) {
-            thread_hashtables.erase(resource_id);
+            thread_queues.erase(resource_id);
             delete qo->queue;
             qo->queue = nullptr;
         }
@@ -551,11 +598,11 @@ static void thread_queue_free_object(zend_object *object) {
 }
 
 static zend_object *thread_queue_create_object(zend_class_entry *ce) {
-    ThreadQueueObject *mo = (ThreadQueueObject *) zend_object_alloc(sizeof(ThreadQueueObject), ce);
-    zend_object_std_init(&mo->std, ce);
-    object_properties_init(&mo->std, ce);
-    mo->std.handlers = &swoole_thread_map_handlers;
-    return &mo->std;
+    ThreadQueueObject *qo = (ThreadQueueObject *) zend_object_alloc(sizeof(ThreadQueueObject), ce);
+    zend_object_std_init(&qo->std, ce);
+    object_properties_init(&qo->std, ce);
+    qo->std.handlers = &swoole_thread_queue_handlers;
+    return &qo->std;
 }
 
 ThreadQueueObject *thread_queue_fetch_object_check(zval *zobject) {
@@ -692,6 +739,9 @@ void php_swoole_thread_minit(int module_number) {
 
     zend_class_implements(swoole_thread_queue_ce, 1, zend_ce_countable);
     zend_declare_property_long(swoole_thread_queue_ce, ZEND_STRL("id"), 0, ZEND_ACC_PUBLIC);
+
+    zend_declare_class_constant_long(swoole_thread_queue_ce, ZEND_STRL("NOTIFY_ONE"), Queue::NOTIFY_ONE);
+    zend_declare_class_constant_long(swoole_thread_queue_ce, ZEND_STRL("NOTIFY_ALL"), Queue::NOTIFY_ALL);
 }
 
 static PHP_METHOD(swoole_thread, __construct) {}
@@ -1045,18 +1095,36 @@ static PHP_METHOD(swoole_thread_queue, __construct) {
 
 static PHP_METHOD(swoole_thread_queue, push) {
     zval *zvalue;
+    zend_long notify_which = 0;
 
-    ZEND_PARSE_PARAMETERS_START(1, 1)
+    ZEND_PARSE_PARAMETERS_START(1, 2)
     Z_PARAM_ZVAL(zvalue)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_LONG(notify_which)
     ZEND_PARSE_PARAMETERS_END();
 
     auto qo = thread_queue_fetch_object_check(ZEND_THIS);
-    qo->queue->push(zvalue);
+    if (notify_which > 0) {
+        qo->queue->push_notify(zvalue, notify_which == Queue::NOTIFY_ALL);
+    } else {
+        qo->queue->push(zvalue);
+    }
 }
 
 static PHP_METHOD(swoole_thread_queue, pop) {
-     auto qo = thread_queue_fetch_object_check(ZEND_THIS);
-     qo->queue->pop(return_value);
+    double timeout = 0;
+
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_DOUBLE(timeout)
+    ZEND_PARSE_PARAMETERS_END();
+
+    auto qo = thread_queue_fetch_object_check(ZEND_THIS);
+    if (timeout == 0) {
+        qo->queue->pop(return_value);
+    } else {
+        qo->queue->pop_wait(return_value, timeout);
+    }
 }
 
 static PHP_METHOD(swoole_thread_queue, count) {

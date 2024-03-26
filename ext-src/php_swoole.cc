@@ -727,8 +727,6 @@ PHP_MINIT_FUNCTION(swoole) {
     php_swoole_client_coro_minit(module_number);
     php_swoole_http_client_coro_minit(module_number);
     php_swoole_http2_client_coro_minit(module_number);
-    php_swoole_mysql_coro_minit(module_number);
-    php_swoole_redis_coro_minit(module_number);
     // server
     php_swoole_server_minit(module_number);
     php_swoole_server_port_minit(module_number);
@@ -740,7 +738,6 @@ PHP_MINIT_FUNCTION(swoole) {
     php_swoole_redis_server_minit(module_number);
     php_swoole_name_resolver_minit(module_number);
 #ifdef SW_USE_PGSQL
-    php_swoole_postgresql_coro_minit(module_number);
     php_swoole_pgsql_minit(module_number);
 #endif
 #ifdef SW_USE_ODBC
@@ -749,7 +746,6 @@ PHP_MINIT_FUNCTION(swoole) {
 #ifdef SW_USE_ORACLE
     php_swoole_oracle_minit(module_number);
 #endif
-
 #ifdef SW_USE_SQLITE
     php_swoole_sqlite_minit(module_number);
 #endif

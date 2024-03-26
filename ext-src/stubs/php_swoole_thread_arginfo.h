@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: aa86c24d1a84295bb8daee060270b5185f09bac1 */
+ * Stub hash: 864a92efe87d024e2084ae162912d64cf1498290 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Thread___construct, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -68,9 +68,14 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_class_Swoole_Thread_Queue___construct arginfo_class_Swoole_Thread___construct
 
-#define arginfo_class_Swoole_Thread_Queue_push arginfo_class_Swoole_Thread_Map_offsetGet
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Thread_Queue_push, 0, 1, IS_VOID, 0)
+	ZEND_ARG_TYPE_INFO(0, value, IS_MIXED, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, notify_which, IS_LONG, 0, "0")
+ZEND_END_ARG_INFO()
 
-#define arginfo_class_Swoole_Thread_Queue_pop arginfo_class_Swoole_Thread_Map_offsetExists
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Thread_Queue_pop, 0, 0, IS_MIXED, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, wait, IS_DOUBLE, 0, "0")
+ZEND_END_ARG_INFO()
 
 #define arginfo_class_Swoole_Thread_Queue_count arginfo_class_Swoole_Thread_getId
 
