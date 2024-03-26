@@ -111,7 +111,7 @@ struct ArrayItem {
             RETVAL_FALSE;
             break;
         case IS_STRING:
-            RETVAL_NEW_STR(zend_string_init(ZSTR_VAL(value.str), ZSTR_LEN(value.str), 0));
+            RETVAL_STR_COPY(value.str);
             break;
         case IS_SERIALIZED_OBJECT:
             php_swoole_thread_unserialize(value.serialized_object, return_value);
