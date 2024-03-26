@@ -10,5 +10,8 @@ namespace Swoole {
         public function trylock_read(): bool {}
         public function unlock(): bool {}
         public function destroy(): void {}
+        #ifdef SW_THREAD
+        public function __wakeup(): void {}
+        #endif
     }
 }

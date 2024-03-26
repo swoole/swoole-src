@@ -15,6 +15,7 @@
 */
 
 #include "php_swoole_cxx.h"
+#include "php_swoole_thread.h"
 
 #ifdef SW_THREAD
 
@@ -46,11 +47,6 @@ static zend_object_handlers swoole_thread_queue_handlers;
 
 zend_string *php_swoole_thread_serialize(zval *zdata);
 bool php_swoole_thread_unserialize(zend_string *data, zval *zv);
-
-#define EMSG_NO_RESOURCE "resource not found"
-#define ECODE_NO_RESOURCE -2
-
-#define IS_SERIALIZED_OBJECT 99
 
 struct ArrayItem {
     uint32_t type;
@@ -141,22 +137,6 @@ struct ArrayItem {
         if (key) {
             zend_string_release(key);
         }
-    }
-};
-
-struct ThreadResource {
-    uint32_t ref_count;
-
-    ThreadResource() {
-        ref_count = 1;
-    }
-
-    uint32_t add_ref() {
-        return ++ref_count;
-    }
-
-    uint32_t del_ref() {
-        return --ref_count;
     }
 };
 

@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 8cacb39e88a0467e15371d94a0efc62534bb383a */
+ * Stub hash: ba4e97afe28b9cd1d6f0de33c10827fc3382c952 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Lock___construct, 0, 0, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, type, IS_LONG, 0, "SWOOLE_MUTEX")
@@ -26,3 +26,8 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Lock_destroy, 0, 0, IS_VOID, 0)
 ZEND_END_ARG_INFO()
+
+#if defined(SW_THREAD)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Lock___wakeup, 0, 0, IS_VOID, 0)
+ZEND_END_ARG_INFO()
+#endif
