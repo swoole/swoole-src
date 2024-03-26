@@ -47,6 +47,9 @@ static zend_object_handlers swoole_thread_queue_handlers;
 zend_string *php_swoole_thread_serialize(zval *zdata);
 bool php_swoole_thread_unserialize(zend_string *data, zval *zv);
 
+#define EMSG_NO_RESOURCE "resource not found"
+#define ECODE_NO_RESOURCE -2
+
 #define IS_SERIALIZED_OBJECT 99
 
 struct ArrayItem {
@@ -141,10 +144,10 @@ struct ArrayItem {
     }
 };
 
-struct Resource {
+struct ThreadResource {
     uint32_t ref_count;
 
-    Resource() {
+    ThreadResource() {
         ref_count = 1;
     }
 
@@ -157,7 +160,7 @@ struct Resource {
     }
 };
 
-struct ZendArray : Resource {
+struct ZendArray : ThreadResource {
     RWLock lock_;
     zend_array ht;
 
@@ -166,7 +169,7 @@ struct ZendArray : Resource {
         delete item;
     }
 
-    ZendArray() : Resource(), lock_(0) {
+    ZendArray() : ThreadResource(), lock_(0) {
         zend_hash_init(&ht, 0, NULL, item_dtor, 1);
     }
 
@@ -350,7 +353,7 @@ struct ThreadArrayListObject {
     zend_object std;
 };
 
-struct Queue : Resource {
+struct Queue : ThreadResource {
     std::queue<ArrayItem *> queue;
     std::mutex lock_;
     std::condition_variable cv_;
@@ -361,7 +364,7 @@ struct Queue : Resource {
         NOTIFY_ALL = 2,
     };
 
-    Queue() : Resource(), queue() {}
+    Queue() : ThreadResource(), queue() {}
 
     ~Queue() {
         clean();
@@ -449,10 +452,38 @@ struct ThreadQueueObject {
 static void php_swoole_thread_join(zend_object *object);
 
 thread_local zval thread_argv;
-static std::mutex thread_lock;
+std::mutex thread_lock;
+
 static zend_long thread_resource_id = 0;
-static std::unordered_map<uint32_t, ZendArray *> thread_hashtables;
-static std::unordered_map<uint32_t, Queue *> thread_queues;
+static std::unordered_map<ThreadResourceId, ThreadResource *> thread_resources;
+
+ThreadResourceId php_swoole_thread_resource_insert(ThreadResource *res) {
+    std::unique_lock<std::mutex> _lock(thread_lock);
+    zend_long resource_id = ++thread_resource_id;
+    thread_resources[resource_id] = res;
+    return resource_id;
+}
+
+ThreadResource *php_swoole_thread_resource_fetch(ThreadResourceId resource_id) {
+    ThreadResource *res = nullptr;
+    std::unique_lock<std::mutex> _lock(thread_lock);
+    auto iter = thread_resources.find(resource_id);
+    if (iter != thread_resources.end()) {
+        res = iter->second;
+        res->add_ref();
+    }
+    return res;
+}
+
+bool php_swoole_thread_resource_free(ThreadResourceId resource_id, ThreadResource *res) {
+    std::unique_lock<std::mutex> _lock(thread_lock);
+    if (res->del_ref() == 0) {
+        thread_resources.erase(resource_id);
+        return true;
+    } else {
+        return false;
+    }
+}
 
 static sw_inline ThreadObject *php_swoole_thread_fetch_object(zend_object *obj) {
     return (ThreadObject *) ((char *) obj - swoole_thread_handlers.offset);
@@ -497,14 +528,9 @@ static sw_inline zend_long thread_map_get_resource_id(zval *zobject) {
 static void thread_map_free_object(zend_object *object) {
     zend_long resource_id = thread_map_get_resource_id(object);
     ThreadMapObject *mo = thread_map_fetch_object(object);
-    if (mo->map) {
-        thread_lock.lock();
-        if (mo->map->del_ref() == 0) {
-            thread_hashtables.erase(resource_id);
-            delete mo->map;
-            mo->map = nullptr;
-        }
-        thread_lock.unlock();
+    if (mo->map && php_swoole_thread_resource_free(resource_id, mo->map)) {
+        delete mo->map;
+        mo->map = nullptr;
     }
     zend_object_std_dtor(object);
 }
@@ -542,14 +568,9 @@ static sw_inline zend_long thread_arraylist_get_resource_id(zval *zobject) {
 static void thread_arraylist_free_object(zend_object *object) {
     zend_long resource_id = thread_arraylist_get_resource_id(object);
     ThreadArrayListObject *ao = thread_arraylist_fetch_object(object);
-    if (ao->list) {
-        thread_lock.lock();
-        if (ao->list->del_ref() == 0) {
-            thread_hashtables.erase(resource_id);
-            delete ao->list;
-            ao->list = nullptr;
-        }
-        thread_lock.unlock();
+    if (ao->list && php_swoole_thread_resource_free(resource_id, ao->list)) {
+        delete ao->list;
+        ao->list = nullptr;
     }
     zend_object_std_dtor(object);
 }
@@ -587,14 +608,9 @@ static sw_inline zend_long thread_queue_get_resource_id(zval *zobject) {
 static void thread_queue_free_object(zend_object *object) {
     zend_long resource_id = thread_queue_get_resource_id(object);
     ThreadQueueObject *qo = thread_queue_fetch_object(object);
-    if (qo->queue) {
-        thread_lock.lock();
-        if (qo->queue->del_ref() == 0) {
-            thread_queues.erase(resource_id);
-            delete qo->queue;
-            qo->queue = nullptr;
-        }
-        thread_lock.unlock();
+    if (qo->queue && php_swoole_thread_resource_free(resource_id, qo->queue)) {
+        delete qo->queue;
+        qo->queue = nullptr;
     }
     zend_object_std_dtor(object);
 }
@@ -708,7 +724,7 @@ void php_swoole_thread_minit(int module_number) {
     SW_SET_CLASS_CUSTOM_OBJECT(
         swoole_thread, php_swoole_thread_create_object, php_swoole_thread_free_object, ThreadObject, std);
 
-    zend_declare_property_long(swoole_thread_ce, ZEND_STRL("id"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_thread_ce, ZEND_STRL("id"), 0, ZEND_ACC_PUBLIC | ZEND_ACC_READONLY);
     zend_declare_class_constant_long(
         swoole_thread_ce, ZEND_STRL("HARDWARE_CONCURRENCY"), std::thread::hardware_concurrency());
 
@@ -731,7 +747,7 @@ void php_swoole_thread_minit(int module_number) {
                                std);
 
     zend_class_implements(swoole_thread_arraylist_ce, 2, zend_ce_arrayaccess, zend_ce_countable);
-    zend_declare_property_long(swoole_thread_arraylist_ce, ZEND_STRL("id"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_thread_arraylist_ce, ZEND_STRL("id"), 0, ZEND_ACC_PUBLIC | ZEND_ACC_READONLY);
 
     SW_INIT_CLASS_ENTRY(swoole_thread_queue, "Swoole\\Thread\\Queue", nullptr, swoole_thread_queue_methods);
     SW_SET_CLASS_CLONEABLE(swoole_thread_queue, sw_zend_class_clone_deny);
@@ -740,7 +756,7 @@ void php_swoole_thread_minit(int module_number) {
         swoole_thread_queue, thread_queue_create_object, thread_queue_free_object, ThreadQueueObject, std);
 
     zend_class_implements(swoole_thread_queue_ce, 1, zend_ce_countable);
-    zend_declare_property_long(swoole_thread_queue_ce, ZEND_STRL("id"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_thread_queue_ce, ZEND_STRL("id"), 0, ZEND_ACC_PUBLIC | ZEND_ACC_READONLY);
 
     zend_declare_class_constant_long(swoole_thread_queue_ce, ZEND_STRL("NOTIFY_ONE"), Queue::NOTIFY_ONE);
     zend_declare_class_constant_long(swoole_thread_queue_ce, ZEND_STRL("NOTIFY_ALL"), Queue::NOTIFY_ALL);
@@ -899,12 +915,7 @@ static PHP_METHOD(swoole_thread, exec) {
 static PHP_METHOD(swoole_thread_map, __construct) {
     auto mo = thread_map_fetch_object(Z_OBJ_P(ZEND_THIS));
     mo->map = new ZendArray();
-
-    thread_lock.lock();
-    zend_long resource_id = ++thread_resource_id;
-    thread_hashtables[resource_id] = mo->map;
-    thread_lock.unlock();
-
+    auto resource_id = php_swoole_thread_resource_insert(mo->map);
     zend_update_property_long(swoole_thread_map_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("id"), resource_id);
 }
 
@@ -978,21 +989,10 @@ static PHP_METHOD(swoole_thread_map, clean) {
 
 static PHP_METHOD(swoole_thread_map, __wakeup) {
     auto mo = thread_map_fetch_object(Z_OBJ_P(ZEND_THIS));
-    bool success = false;
     zend_long resource_id = thread_map_get_resource_id(ZEND_THIS);
-
-    thread_lock.lock();
-    auto iter = thread_hashtables.find(resource_id);
-    if (iter != thread_hashtables.end()) {
-        ZendArray *map = iter->second;
-        map->add_ref();
-        mo->map = map;
-        success = true;
-    }
-    thread_lock.unlock();
-
-    if (!success) {
-        zend_throw_exception(swoole_exception_ce, "resource not found", -2);
+    mo->map = static_cast<ZendArray *>(php_swoole_thread_resource_fetch(resource_id));
+    if (!mo->map) {
+        zend_throw_exception(swoole_exception_ce, EMSG_NO_RESOURCE, ECODE_NO_RESOURCE);
     }
 }
 
@@ -1001,12 +1001,7 @@ static PHP_METHOD(swoole_thread_arraylist, __construct) {
 
     auto ao = thread_arraylist_fetch_object(Z_OBJ_P(ZEND_THIS));
     ao->list = new ZendArray();
-
-    thread_lock.lock();
-    zend_long resource_id = ++thread_resource_id;
-    thread_hashtables[resource_id] = ao->list;
-    thread_lock.unlock();
-
+    auto resource_id = php_swoole_thread_resource_insert(ao->list);
     zend_update_property_long(swoole_thread_arraylist_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("id"), resource_id);
 }
 
@@ -1065,33 +1060,17 @@ static PHP_METHOD(swoole_thread_arraylist, clean) {
 
 static PHP_METHOD(swoole_thread_arraylist, __wakeup) {
     auto mo = thread_arraylist_fetch_object(Z_OBJ_P(ZEND_THIS));
-    bool success = false;
     zend_long resource_id = thread_arraylist_get_resource_id(ZEND_THIS);
-
-    thread_lock.lock();
-    auto iter = thread_hashtables.find(resource_id);
-    if (iter != thread_hashtables.end()) {
-        ZendArray *list = iter->second;
-        list->add_ref();
-        mo->list = list;
-        success = true;
-    }
-    thread_lock.unlock();
-
-    if (!success) {
-        zend_throw_exception(swoole_exception_ce, "resource not found", -2);
+    mo->list = static_cast<ZendArray *>(php_swoole_thread_resource_fetch(resource_id));
+    if (!mo->list) {
+        zend_throw_exception(swoole_exception_ce, EMSG_NO_RESOURCE, ECODE_NO_RESOURCE);
     }
 }
 
 static PHP_METHOD(swoole_thread_queue, __construct) {
     auto qo = thread_queue_fetch_object(Z_OBJ_P(ZEND_THIS));
     qo->queue = new Queue();
-
-    thread_lock.lock();
-    zend_long resource_id = ++thread_resource_id;
-    thread_queues[resource_id] = qo->queue;
-    thread_lock.unlock();
-
+    auto resource_id = php_swoole_thread_resource_insert(qo->queue);
     zend_update_property_long(swoole_thread_queue_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("id"), resource_id);
 }
 
@@ -1141,21 +1120,10 @@ static PHP_METHOD(swoole_thread_queue, clean) {
 
 static PHP_METHOD(swoole_thread_queue, __wakeup) {
     auto qo = thread_queue_fetch_object(Z_OBJ_P(ZEND_THIS));
-    bool success = false;
     zend_long resource_id = thread_queue_get_resource_id(ZEND_THIS);
-
-    thread_lock.lock();
-    auto iter = thread_queues.find(resource_id);
-    if (iter != thread_queues.end()) {
-        Queue *queue = iter->second;
-        queue->add_ref();
-        qo->queue = queue;
-        success = true;
-    }
-    thread_lock.unlock();
-
-    if (!success) {
-        zend_throw_exception(swoole_exception_ce, "resource not found", -2);
+    qo->queue = static_cast<Queue *>(php_swoole_thread_resource_fetch(resource_id));
+    if (!qo->queue) {
+        zend_throw_exception(swoole_exception_ce, EMSG_NO_RESOURCE, ECODE_NO_RESOURCE);
     }
 }
 

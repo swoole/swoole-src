@@ -111,9 +111,7 @@ void php_swoole_lock_minit(int module_number) {
     SW_SET_CLASS_CUSTOM_OBJECT(
         swoole_lock, php_swoole_lock_create_object, php_swoole_lock_free_object, LockObject, std);
 
-    zend_declare_class_constant_long(swoole_lock_ce, ZEND_STRL("FILELOCK"), Lock::FILE_LOCK);
     zend_declare_class_constant_long(swoole_lock_ce, ZEND_STRL("MUTEX"), Lock::MUTEX);
-    zend_declare_class_constant_long(swoole_lock_ce, ZEND_STRL("SEM"), Lock::SEM);
 #ifdef HAVE_RWLOCK
     zend_declare_class_constant_long(swoole_lock_ce, ZEND_STRL("RWLOCK"), Lock::RW_LOCK);
 #endif
@@ -122,9 +120,7 @@ void php_swoole_lock_minit(int module_number) {
 #endif
     zend_declare_property_long(swoole_lock_ce, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
 
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_FILELOCK", Lock::FILE_LOCK);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_MUTEX", Lock::MUTEX);
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_SEM", Lock::SEM);
 #ifdef HAVE_RWLOCK
     SW_REGISTER_LONG_CONSTANT("SWOOLE_RWLOCK", Lock::RW_LOCK);
 #endif
@@ -141,20 +137,13 @@ static PHP_METHOD(swoole_lock, __construct) {
     }
 
     zend_long type = Lock::MUTEX;
-    char *filelock;
-    size_t filelock_len = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|ls", &type, &filelock, &filelock_len) == FAILURE) {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_LONG(type)
+    ZEND_PARSE_PARAMETERS_END();
 
     switch (type) {
-    case Lock::FILE_LOCK:
-    case Lock::SEM:
-        zend_throw_exception(
-            swoole_exception_ce, "FileLock and SemLock is no longer supported, please use mutex lock", errno);
-        RETURN_FALSE;
-        break;
 #ifdef HAVE_SPINLOCK
     case Lock::SPIN_LOCK:
         lock = new SpinLock(1);
