@@ -709,11 +709,12 @@ static sw_inline void sw_zend_update_property_null_ex(zend_class_entry *scope, z
     zend_update_property_ex(scope, SW_Z8_OBJ_P(object), s, &tmp);
 }
 
-static sw_inline zval *sw_zend_read_property_ex(zend_class_entry *ce, zval *obj, zend_string *s, int silent) {
-    zval rv, *property = zend_read_property_ex(ce, SW_Z8_OBJ_P(obj), s, silent, &rv);
+static sw_inline zval *sw_zend_read_property_ex(zend_class_entry *ce, zval *zobject, zend_string *name, int silent) {
+    zval *zv = zend_hash_find(&ce->properties_info, name);
+    zend_property_info *property_info = (zend_property_info *) Z_PTR_P(zv);
+    zval *property = OBJ_PROP(SW_Z8_OBJ_P(zobject), property_info->offset);
     if (UNEXPECTED(property == &EG(uninitialized_zval))) {
-        sw_zend_update_property_null_ex(ce, obj, s);
-        return zend_read_property_ex(ce, SW_Z8_OBJ_P(obj), s, silent, &rv);
+        ZVAL_NULL(property);
     }
     return property;
 }
@@ -946,11 +947,8 @@ static sw_inline int php_swoole_check_reactor() {
     }
 }
 
-static sw_inline char *php_swoole_format_date(char *format, size_t format_len, time_t ts, int localtime) {
-    zend_string *time = php_format_date(format, format_len, ts, localtime);
-    char *return_str = estrndup(ZSTR_VAL(time), ZSTR_LEN(time));
-    zend_string_release(time);
-    return return_str;
+static sw_inline zend_string *php_swoole_format_date(char *format, size_t format_len, time_t ts, int localtime) {
+    return php_format_date(format, format_len, ts, localtime);
 }
 
 static sw_inline char *php_swoole_url_encode(const char *value, size_t value_len, size_t *exten) {

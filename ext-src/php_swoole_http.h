@@ -64,6 +64,119 @@ class Session;
 
 namespace http {
 
+struct ByteBuffer {
+    const char *version = "HTTP/1.1 ";
+    size_t version_length = 9;
+    const char *status = nullptr;
+    size_t status_length = 0;
+    const char *reason = nullptr;
+    size_t reason_length = 0;
+
+    size_t position = 0;
+    size_t http_response_length = 0;
+
+    std::vector<size_t> lengths;
+    std::vector<const char *> headers;
+    std::vector<zend_string *> free_list;
+
+    ByteBuffer(int total) {
+        lengths.reserve(total);
+        headers.reserve(total);
+        free_list.reserve(total);
+    }
+
+    ~ByteBuffer() {
+        for (auto iter = free_list.begin(); iter != free_list.end(); iter++) {
+            zend_string_release(*iter);
+        }
+    }
+
+    inline void add_status(const char *_status, const char *_reason) {
+        status = _status;
+        status_length = strlen(status);
+        reason = _reason;
+        reason_length = reason ? strlen(reason) : 0;
+
+        // calculate http status line length
+        http_response_length = version_length + status_length + SW_CRLF_LEN;
+        if (reason) {
+            http_response_length += reason_length + 1;
+        }
+    }
+
+    inline void add_header(zend_string *key, zend_string *value) {
+        zend_string_addref(key);
+        zend_string_addref(value);
+        free_list.emplace_back(key);
+        free_list.emplace_back(value);
+        add_header(ZSTR_VAL(key), ZSTR_LEN(key), ZSTR_VAL(value), ZSTR_LEN(value));
+    }
+
+    inline void add_header(const char *key, size_t key_length, const char *value, size_t value_length) {
+        headers.emplace_back(key);
+        lengths.emplace_back(key_length);
+        headers.emplace_back(value);
+        lengths.emplace_back(value_length);
+
+        if (value) {
+            http_response_length += key_length + value_length + SW_CRLF_LEN + 2;
+        } else {
+            // When the value is a nullptr, it means that this response header has a fixed value.
+            http_response_length += key_length;
+        }
+    }
+
+    inline size_t get_protocol_length(size_t length = 0) {
+        // calculate http protocol length
+        return http_response_length + length + SW_CRLF_LEN;
+    }
+
+    inline void append(char *protocol, const char *data, size_t length) {
+        memcpy(protocol + position, data, length);
+        position += length;
+    }
+
+    void write_protocol(char *protocol, const char *data, size_t length) {
+        append(protocol, version, version_length);
+        append(protocol, status, status_length);
+        if (reason) {
+            append(protocol, " ", 1);
+            append(protocol, reason, reason_length);
+        }
+
+        append(protocol, SW_CRLF, SW_CRLF_LEN);
+
+        size_t key_length = 0;
+        size_t value_length = 0;
+        const char *key = nullptr;
+        const char *value = nullptr;
+        size_t i = 0;
+        size_t count = lengths.size();
+
+        while (i < count) {
+            key_length = lengths[i];
+            value_length = lengths[i + 1];
+            key = headers[i++];
+            value = headers[i++];
+
+            if (value == nullptr) {
+                append(protocol, key, key_length);
+                continue;
+            }
+
+            append(protocol, key, key_length);
+            append(protocol, ": ", 2);
+            append(protocol, value, value_length);
+            append(protocol, SW_CRLF, SW_CRLF_LEN);
+        }
+
+        append(protocol, SW_CRLF, SW_CRLF_LEN);
+        if (data) {
+            append(protocol, data, length);
+        }
+    }
+};
+
 struct Request {
     int version;
     char *path;
@@ -193,7 +306,7 @@ struct Context {
     bool send_file(const char *file, uint32_t l_file, off_t offset, size_t length);
     void send_trailer(zval *return_value);
     String *get_write_buffer();
-    void build_header(String *http_buffer, const char *body, size_t length);
+    bool start_send(const char *body, size_t length);
     ssize_t build_trailer(String *http_buffer);
 
     size_t get_content_length() {

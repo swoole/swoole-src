@@ -191,10 +191,16 @@ void swoole_init(void) {
     SwooleG.max_sockets = SW_MAX_SOCKETS_DEFAULT;
     struct rlimit rlmt;
     if (getrlimit(RLIMIT_NOFILE, &rlmt) < 0) {
-        swoole_sys_warning("getrlimit() failed");
+        swoole_sys_warning("getrlimit(RLIMIT_NOFILE) failed");
     } else {
         SwooleG.max_sockets = SW_MAX((uint32_t) rlmt.rlim_cur, SW_MAX_SOCKETS_DEFAULT);
         SwooleG.max_sockets = SW_MIN((uint32_t) rlmt.rlim_cur, SW_SESSION_LIST_SIZE);
+    }
+
+    if (getrlimit(RLIMIT_STACK, &rlmt) < 0) {
+        swoole_sys_warning("getrlimit(RLIMIT_STACK) failed");
+    } else {
+        SwooleG.stack_size = (uint32_t) rlmt.rlim_cur;
     }
 
     SwooleTG.buffer_stack = new swoole::String(SW_STACK_BUFFER_SIZE);

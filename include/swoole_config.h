@@ -183,7 +183,9 @@
 #define SW_HTTP_ASCTIME_DATE "%a %b %e %T %Y"
 #define SW_HTTP_UPLOAD_FILE "Swoole-Upload-File"
 #define SW_HTTP_CHUNK_EOF "0\r\n\r\n"
-#define SW_HTTP_DEFAULT_CONTENT_TYPE "text/html"
+#define SW_HTTP_DEFAULT_CONTENT_TYPE "text/html; charset=utf-8"
+#define SW_HTTP_APPLICATION_JSON "application/json"
+#define SW_HTTP_TEXT_PLAIN "text/plain; charset=utf-8"
 
 // #define SW_HTTP_100_CONTINUE
 #define SW_HTTP_100_CONTINUE_PACKET "HTTP/1.1 100 Continue\r\n\r\n"

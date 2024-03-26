@@ -67,7 +67,7 @@ array(6) {
   ["connection"]=>
   string(10) "keep-alive"
   ["content-type"]=>
-  string(9) "text/html"
+  string(24) "text/html; charset=utf-8"
   ["content-encoding"]=>
   string(%d) %s
   ["content-length"]=>
@@ -82,7 +82,7 @@ array(5) {
   ["connection"]=>
   string(10) "keep-alive"
   ["content-type"]=>
-  string(9) "text/html"
+  string(24) "text/html; charset=utf-8"
   ["transfer-encoding"]=>
   string(7) "chunked"
 }
@@ -95,7 +95,7 @@ array(6) {
   ["connection"]=>
   string(10) "keep-alive"
   ["content-type"]=>
-  string(9) "text/html"
+  string(24) "text/html; charset=utf-8"
   ["content-encoding"]=>
   string(%d) %s
   ["content-length"]=>
