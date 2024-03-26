@@ -384,6 +384,7 @@ struct Queue : Resource {
         lock_.unlock();
         if (item) {
             item->fetch(return_value);
+            delete item;
         }
     }
 
@@ -419,6 +420,7 @@ struct Queue : Resource {
         _lock.unlock();
         if (item) {
             item->fetch(return_value);
+            delete item;
         }
     }
 
