@@ -2579,10 +2579,6 @@ static PHP_METHOD(swoole_server, start) {
     server_object->register_callback();
     server_object->on_before_start();
 
-#ifdef SW_THREAD
-    serv->worker_num = 1;
-#endif
-
     if (serv->start() < 0) {
         php_swoole_fatal_error(E_ERROR, "failed to start server. Error: %s", sw_error);
     }

@@ -180,6 +180,7 @@ typedef unsigned long ulong_t;
 
 #ifdef SW_THREAD
 #define SW_THREAD_LOCAL thread_local
+extern std::mutex sw_thread_lock;
 #else
 #define SW_THREAD_LOCAL
 #endif
@@ -779,7 +780,6 @@ double microtime(void);
 
 extern swoole::Global SwooleG;                  // Local Global Variable
 extern __thread swoole::ThreadGlobal SwooleTG;  // Thread Global Variable
-extern std::mutex sw_thread_lock;
 
 #define SW_CPU_NUM (SwooleG.cpu_num)
 

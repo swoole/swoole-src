@@ -16,6 +16,7 @@
 
 #include "swoole_server.h"
 #include "swoole_memory.h"
+#include "swoole_lock.h"
 #include "swoole_util.h"
 
 #include <assert.h>
@@ -699,10 +700,10 @@ int Server::start() {
         file_put_contents(pid_file, sw_tg_buffer()->str, n);
     }
     int ret;
-    if (is_process_mode()) {
-        ret = start_reactor_threads();
-    } else {
+    if (is_base_mode()) {
         ret = start_reactor_processes();
+    } else {
+        ret = start_reactor_threads();
     }
     // failed to start
     if (ret < 0) {
@@ -852,12 +853,12 @@ int Server::create() {
     }
 
     int retval;
-    if (is_process_mode()) {
-        factory = new ProcessFactory(this);
-        retval = create_reactor_threads();
-    } else {
+    if (is_base_mode()) {
         factory = new BaseFactory(this);
         retval = create_reactor_processes();
+    } else {
+        factory = new ProcessFactory(this);
+        retval = create_reactor_threads();
     }
 
 #ifdef HAVE_PTHREAD_BARRIER
