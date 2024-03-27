@@ -281,20 +281,7 @@ static void proc_open_rsrc_dtor(zend_resource *rsrc) {
      * called? If so, we need to wait until the child process exits, because its exit code is
      * needed as the return value of those functions.
      * But if we're freeing the resource because of GC, don't wait. */
-#ifdef PHP_WIN32
-    if (FG(pclose_wait)) {
-        WaitForSingleObject(proc->childHandle, INFINITE);
-    }
-    GetExitCodeProcess(proc->childHandle, &wstatus);
-    if (wstatus == STILL_ACTIVE) {
-        FG(pclose_ret) = -1;
-    } else {
-        FG(pclose_ret) = wstatus;
-    }
-    CloseHandle(proc->childHandle);
-
-#elif HAVE_SYS_WAIT_H
-    if (!FG(pclose_wait)) {
+    if (!proc->pclose_wait) {
         waitpid_options = WNOHANG;
     }
     do {
@@ -302,17 +289,13 @@ static void proc_open_rsrc_dtor(zend_resource *rsrc) {
     } while (wait_pid == -1 && errno == EINTR);
 
     if (wait_pid <= 0) {
-        FG(pclose_ret) = -1;
+        *proc->wstatus = -1;
     } else {
         if (WIFEXITED(wstatus)) {
             wstatus = WEXITSTATUS(wstatus);
         }
-        FG(pclose_ret) = wstatus;
+        *proc->wstatus = wstatus;
     }
-
-#else
-    FG(pclose_ret) = -1;
-#endif
 
     _php_free_envp(proc->env);
     efree(proc->pipes);
@@ -355,6 +338,7 @@ PHP_FUNCTION(swoole_proc_terminate) {
 /* {{{ Close a process opened by `proc_open` */
 PHP_FUNCTION(swoole_proc_close) {
     zval *zproc;
+    int wstatus = 0;
     php_process_handle *proc;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
@@ -365,11 +349,10 @@ PHP_FUNCTION(swoole_proc_close) {
     if (proc == NULL) {
         RETURN_THROWS();
     }
-
-    FG(pclose_wait) = 1; /* See comment in `proc_open_rsrc_dtor` */
+    proc->wstatus = &wstatus;
+    proc->pclose_wait = 1;
     zend_list_close(Z_RES_P(zproc));
-    FG(pclose_wait) = 0;
-    RETURN_LONG(FG(pclose_ret));
+    RETURN_LONG(wstatus);
 }
 /* }}} */
 

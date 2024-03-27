@@ -2007,7 +2007,11 @@ php_stream *php_swoole_create_stream_from_socket(php_socket_t _fd, int domain, i
 }
 
 php_stream *php_swoole_create_stream_from_pipe(int fd, const char *mode, const char *persistent_id STREAMS_DC) {
+#if PHP_VERSION_ID >= 80200
+    return _sw_php_stream_fopen_from_fd(fd, mode, persistent_id, false STREAMS_CC);
+#else
     return _sw_php_stream_fopen_from_fd(fd, mode, persistent_id STREAMS_CC);
+#endif
 }
 
 php_stream_ops *php_swoole_get_ori_php_stream_stdio_ops() {

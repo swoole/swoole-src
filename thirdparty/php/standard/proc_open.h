@@ -16,16 +16,6 @@
 
 #include "php_swoole_cxx.h"
 
-#include "ext/standard/php_string.h"
-#include "ext/standard/head.h"
-#include "ext/standard/basic_functions.h"
-#include "ext/standard/file.h"
-#include "ext/standard/exec.h"
-#include "php_globals.h"
-#include "SAPI.h"
-#include "main/php_network.h"
-#include "zend_smart_str.h"
-
 SW_EXTERN_C_BEGIN
 extern void swoole_proc_open_init(int module_number);
 extern PHP_FUNCTION(swoole_proc_close);
@@ -55,6 +45,8 @@ typedef struct _php_process_env {
 } php_process_env;
 
 typedef struct _php_process_handle {
+    bool pclose_wait;
+    int *wstatus;
     php_process_id_t child;
 #ifdef PHP_WIN32
     HANDLE childHandle;
