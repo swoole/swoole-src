@@ -978,7 +978,7 @@ void Server::destroy() {
         join_reactor_thread();
     }
 
-	release_pipe_buffers();
+    release_pipe_buffers();
 
     for (auto port : ports) {
         port->close();
@@ -1515,7 +1515,7 @@ bool Server::sendfile(SessionId session_id, const char *file, uint32_t l_file, o
                          "sendfile name[%.8s...] length %u is exceed the max name len %u",
                          file,
                          l_file,
-                         (uint32_t)(SW_IPC_BUFFER_SIZE - sizeof(SendfileTask) - 1));
+                         (uint32_t) (SW_IPC_BUFFER_SIZE - sizeof(SendfileTask) - 1));
         return false;
     }
     // string must be zero termination (for `state` system call)
@@ -1769,7 +1769,7 @@ ListenPort *Server::add_port(SocketType type, const char *host, int port) {
 
 #ifdef SW_USE_OPENSSL
     if (type & SW_SOCK_SSL) {
-        type = (SocketType)(type & (~SW_SOCK_SSL));
+        type = (SocketType) (type & (~SW_SOCK_SSL));
         ls->type = type;
         ls->ssl = 1;
         ls->ssl_context = new SSLContext();
@@ -2016,7 +2016,7 @@ int Server::create_pipe_buffers() {
 }
 
 void Server::release_pipe_buffers() {
-	message_bus.free_buffer();
+    message_bus.free_buffer();
 }
 
 int Server::get_idle_worker_num() {
