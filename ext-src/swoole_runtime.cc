@@ -2006,6 +2006,10 @@ php_stream *php_swoole_create_stream_from_socket(php_socket_t _fd, int domain, i
     return stream;
 }
 
+php_stream *php_swoole_create_stream_from_pipe(int fd, const char *mode, const char *persistent_id STREAMS_DC) {
+    return _sw_php_stream_fopen_from_fd(fd, mode, persistent_id STREAMS_CC);
+}
+
 php_stream_ops *php_swoole_get_ori_php_stream_stdio_ops() {
     return &ori_php_stream_stdio_ops;
 }

@@ -170,7 +170,8 @@ typedef struct {
     unsigned is_pipe_blocking:1;                /* allow blocking read() on pipes, currently Windows only */
     unsigned no_forced_fstat:1;                 /* Use fstat cache even if forced */
     unsigned is_seekable:1;		        /* don't try and seek, if not set */
-    unsigned _reserved:26;
+    unsigned can_poll:1;
+    unsigned _reserved:25;
 
     int lock_flag;			        /* stores the lock state */
     zend_string *temp_name;	                /* if non-null, this is the path to a temporary file that
@@ -234,11 +235,15 @@ static php_stream *_sw_php_stream_fopen_from_fd_int(int fd, const char *mode, co
     return php_stream_alloc_rel(&sw_php_stream_stdio_ops, self, persistent_id, mode);
 }
 
-static void detect_is_seekable(php_stdio_stream_data *self) {
+static void _sw_detect_is_seekable(php_stdio_stream_data *self) {
 #if defined(S_ISFIFO) && defined(S_ISCHR)
     if (self->fd >= 0 && do_fstat(self, 0) == 0) {
         self->is_seekable = !(S_ISFIFO(self->sb.st_mode) || S_ISCHR(self->sb.st_mode));
         self->is_pipe = S_ISFIFO(self->sb.st_mode);
+        self->can_poll = S_ISFIFO(self->sb.st_mode) || S_ISSOCK(self->sb.st_mode) || S_ISCHR(self->sb.st_mode);
+        if (self->can_poll) {
+            swoole_coroutine_socket_create(self->fd);
+        }
     }
 #elif defined(PHP_WIN32)
     zend_uintptr_t handle = _get_osfhandle(self->fd);
@@ -267,7 +272,7 @@ static php_stream *_sw_php_stream_fopen_from_fd(int fd, const char *mode, const 
     if (stream) {
         php_stdio_stream_data *self = (php_stdio_stream_data*)stream->abstract;
 
-        detect_is_seekable(self);
+        _sw_detect_is_seekable(self);
         if (!self->is_seekable) {
             stream->flags |= PHP_STREAM_FLAG_NO_SEEK;
             stream->position = -1;
@@ -306,7 +311,10 @@ static php_stream_size_t sw_php_stdiop_write(php_stream *stream, const char *buf
         }
         bytes_written = _write(data->fd, buf, (unsigned int)count);
 #else
-        ssize_t bytes_written = write(data->fd, buf, count);
+        php_stdio_stream_data *self = (php_stdio_stream_data*) stream->abstract;
+        ssize_t bytes_written = self->can_poll ?
+                        swoole_coroutine_write(data->fd, buf, PLAIN_WRAP_BUF_SIZE(count)) :
+                        write(data->fd, buf, count);
 #endif
         if (bytes_written < 0) {
             if (PHP_IS_TRANSIENT_ERROR(errno)) {
@@ -368,13 +376,18 @@ static php_stream_size_t sw_php_stdiop_read(php_stream *stream, char *buf, size_
             }
         }
 #endif
-        ret = read(data->fd, buf, PLAIN_WRAP_BUF_SIZE(count));
+        php_stdio_stream_data *self = (php_stdio_stream_data*) stream->abstract;
+        ret = self->can_poll ?
+                swoole_coroutine_read(data->fd, buf, PLAIN_WRAP_BUF_SIZE(count)) :
+                read(data->fd, buf, PLAIN_WRAP_BUF_SIZE(count));
 
         if (ret == (ssize_t) -1 && errno == EINTR) {
             /* Read was interrupted, retry once,
-                    If read still fails, giveup with feof==0
-                    so script can retry if desired */
-            ret = read(data->fd, buf, PLAIN_WRAP_BUF_SIZE(count));
+             If read still fails, giveup with feof==0
+             so script can retry if desired */
+            ret = self->can_poll ?
+                    swoole_coroutine_read(data->fd, buf, PLAIN_WRAP_BUF_SIZE(count)) :
+                    read(data->fd, buf, PLAIN_WRAP_BUF_SIZE(count));
         }
 
         if (ret < 0) {
@@ -433,6 +446,9 @@ static int sw_php_stdiop_close(php_stream *stream, int close_handle) {
 #endif
 
     if (close_handle) {
+        if (data->can_poll) {
+            swoole_coroutine_socket_unwrap(data->fd);
+        }
         if (data->file) {
             if (data->is_process_pipe) {
                 errno = 0;

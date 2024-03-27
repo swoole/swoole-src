@@ -1,31 +1,72 @@
+/*
+   +----------------------------------------------------------------------+
+   | Copyright (c) The PHP Group                                          |
+   +----------------------------------------------------------------------+
+   | This source file is subject to version 3.01 of the PHP license,      |
+   | that is bundled with this package in the file LICENSE, and is        |
+   | available through the world-wide-web at the following url:           |
+   | https://www.php.net/license/3_01.txt                                 |
+   | If you did not receive a copy of the PHP license and are unable to   |
+   | obtain it through the world-wide-web, please send a note to          |
+   | license@php.net so we can mail you a copy immediately.               |
+   +----------------------------------------------------------------------+
+   | Author: Wez Furlong <wez@thebrainroom.com>                           |
+   +----------------------------------------------------------------------+
+ */
+
 #include "php_swoole_cxx.h"
 
-extern "C"
-{
-PHP_FUNCTION(swoole_proc_open);
-PHP_FUNCTION(swoole_proc_close);
-PHP_FUNCTION(swoole_proc_get_status);
-PHP_FUNCTION(swoole_proc_terminate);
-}
+#include "ext/standard/php_string.h"
+#include "ext/standard/head.h"
+#include "ext/standard/basic_functions.h"
+#include "ext/standard/file.h"
+#include "ext/standard/exec.h"
+#include "php_globals.h"
+#include "SAPI.h"
+#include "main/php_network.h"
+#include "zend_smart_str.h"
 
+SW_EXTERN_C_BEGIN
+extern void swoole_proc_open_init(int module_number);
+extern PHP_FUNCTION(swoole_proc_close);
+extern PHP_FUNCTION(swoole_proc_get_status);
+extern PHP_FUNCTION(swoole_proc_open);
+extern PHP_FUNCTION(swoole_proc_terminate);
+SW_EXTERN_C_END
+
+#ifdef PHP_WIN32
+typedef HANDLE php_file_descriptor_t;
+typedef DWORD php_process_id_t;
+#define PHP_INVALID_FD INVALID_HANDLE_VALUE
+#else
 typedef int php_file_descriptor_t;
+typedef pid_t php_process_id_t;
+#define PHP_INVALID_FD (-1)
+#endif
 
-void swoole_proc_open_init(int module_number);
-
-struct proc_co_env_t
-{
+/* Environment block under Win32 is a NUL terminated sequence of NUL terminated
+ *   name=value strings.
+ * Under Unix, it is an argv style array. */
+typedef struct _php_process_env {
     char *envp;
+#ifndef PHP_WIN32
     char **envarray;
-};
+#endif
+} php_process_env;
 
-struct proc_co_t
-{
-    pid_t child;
-    bool running;
+typedef struct _php_process_handle {
+    php_process_id_t child;
+#ifdef PHP_WIN32
+    HANDLE childHandle;
+#endif
     int npipes;
-    int *wstatus;
     zend_resource **pipes;
-    char *command;
-    int is_persistent;
-    proc_co_env_t env;
-};
+    zend_string *command;
+    php_process_env env;
+#if HAVE_SYS_WAIT_H
+    /* We can only request the status once before it becomes unavailable.
+     * Cache the result so we can request it multiple times. */
+    int cached_exit_wait_status_value;
+    bool has_cached_exit_wait_status;
+#endif
+} php_process_handle;
