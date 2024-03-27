@@ -491,9 +491,6 @@ class Server {
     enum Mode {
         MODE_BASE = 1,
         MODE_PROCESS = 2,
-#ifdef SW_THREAD
-        MODE_THREAD = 3,
-#endif
     };
 
     enum TaskIpcMode {
@@ -1006,18 +1003,8 @@ class Server {
     }
 
     bool is_base_mode() {
-#ifndef SW_THREAD
         return mode_ == MODE_BASE;
-#else
-        return mode_ == MODE_BASE || mode_ == MODE_THREAD;
-#endif
     }
-
-#ifdef SW_THREAD
-    bool is_thread_mode() {
-        return mode_ == MODE_THREAD;
-    }
-#endif
 
     bool is_enable_coroutine() {
         if (is_task_worker()) {

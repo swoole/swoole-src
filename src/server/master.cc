@@ -16,9 +16,6 @@
 
 #include "swoole_server.h"
 #include "swoole_memory.h"
-#ifndef SW_THREAD
-#include "swoole_lock.h"
-#endif
 #include "swoole_util.h"
 
 #include <assert.h>
@@ -1743,7 +1740,7 @@ int Server::add_systemd_socket() {
 
 static bool Server_create_socket(ListenPort *ls) {
 #ifdef SW_THREAD
-    std::unique_lock<std::mutex> _lock(SwooleG.thread_lock);
+    std::unique_lock<std::mutex> _lock(sw_thread_lock);
     if (listen_ports.size() > 0) {
         for (auto _lp : listen_ports) {
             if (_lp->type == ls->type && _lp->port == ls->port && _lp->host == ls->host) {
@@ -1754,10 +1751,24 @@ static bool Server_create_socket(ListenPort *ls) {
     }
 #endif
     ls->socket = make_socket(
-            ls->type, ls->is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER, SW_SOCK_CLOEXEC | SW_SOCK_NONBLOCK);
+        ls->type, ls->is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER, SW_SOCK_CLOEXEC | SW_SOCK_NONBLOCK);
     if (!ls->socket) {
         return false;
     }
+#if defined(SW_SUPPORT_DTLS) && defined(HAVE_KQUEUE)
+    if (ls->is_dtls()) {
+        ls->socket->set_reuse_port();
+    }
+#endif
+
+    if (ls->socket->bind(ls->host, &ls->port) < 0) {
+        swoole_set_last_error(errno);
+        ls->socket->free();
+        return false;
+    }
+
+    ls->socket->info.assign(ls->type, ls->host, ls->port);
+
 #ifdef SW_THREAD
     listen_ports.push_back(ls);
 #endif
@@ -1825,20 +1836,6 @@ ListenPort *Server::add_port(SocketType type, const char *host, int port) {
         swoole_set_last_error(errno);
         return nullptr;
     }
-
-#if defined(SW_SUPPORT_DTLS) && defined(HAVE_KQUEUE)
-    if (ls->is_dtls()) {
-        ls->socket->set_reuse_port();
-    }
-#endif
-
-    if (ls->socket->bind(ls->host, &ls->port) < 0) {
-        swoole_set_last_error(errno);
-        ls->socket->free();
-        return nullptr;
-    }
-
-    ls->socket->info.assign(ls->type, ls->host, ls->port);
 
     check_port_type(ls);
     ptr.release();

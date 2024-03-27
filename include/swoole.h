@@ -746,7 +746,6 @@ struct Global {
     MemoryPool *memory_pool;
     Allocator std_allocator;
     std::string task_tmpfile;
-    std::mutex thread_lock;
     //-----------------------[DNS]--------------------------
     std::string dns_server_host;
     int dns_server_port;
@@ -779,6 +778,7 @@ double microtime(void);
 
 extern swoole::Global SwooleG;                  // Local Global Variable
 extern __thread swoole::ThreadGlobal SwooleTG;  // Thread Global Variable
+extern std::mutex sw_thread_lock;
 
 #define SW_CPU_NUM (SwooleG.cpu_num)
 

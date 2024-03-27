@@ -98,6 +98,7 @@ static ssize_t getrandom(void *buffer, size_t size, unsigned int __flags) {
 
 swoole::Global SwooleG = {};
 __thread swoole::ThreadGlobal SwooleTG = {};
+std::mutex sw_thread_lock;
 
 static std::unordered_map<std::string, void *> functions;
 static SW_THREAD_LOCAL swoole::Logger *g_logger_instance = nullptr;

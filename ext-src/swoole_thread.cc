@@ -433,7 +433,7 @@ static zend_long thread_resource_id = 0;
 static std::unordered_map<ThreadResourceId, ThreadResource *> thread_resources;
 
 ThreadResourceId php_swoole_thread_resource_insert(ThreadResource *res) {
-    std::unique_lock<std::mutex> _lock(SwooleG.thread_lock);
+    std::unique_lock<std::mutex> _lock(sw_thread_lock);
     zend_long resource_id = ++thread_resource_id;
     thread_resources[resource_id] = res;
     return resource_id;
@@ -441,7 +441,7 @@ ThreadResourceId php_swoole_thread_resource_insert(ThreadResource *res) {
 
 ThreadResource *php_swoole_thread_resource_fetch(ThreadResourceId resource_id) {
     ThreadResource *res = nullptr;
-    std::unique_lock<std::mutex> _lock(SwooleG.thread_lock);
+    std::unique_lock<std::mutex> _lock(sw_thread_lock);
     auto iter = thread_resources.find(resource_id);
     if (iter != thread_resources.end()) {
         res = iter->second;
@@ -451,7 +451,7 @@ ThreadResource *php_swoole_thread_resource_fetch(ThreadResourceId resource_id) {
 }
 
 bool php_swoole_thread_resource_free(ThreadResourceId resource_id, ThreadResource *res) {
-    std::unique_lock<std::mutex> _lock(SwooleG.thread_lock);
+    std::unique_lock<std::mutex> _lock(sw_thread_lock);
     if (res->del_ref() == 0) {
         thread_resources.erase(resource_id);
         return true;
