@@ -225,13 +225,7 @@ void ThreadPool::create_thread(const bool is_core_worker) {
     try {
         std::thread *_thread = new std::thread([this, is_core_worker]() {
             bool exit_flag = false;
-            SwooleTG.buffer_stack = new String(SW_STACK_BUFFER_SIZE);
-            ON_SCOPE_EXIT {
-                delete SwooleTG.buffer_stack;
-                SwooleTG.buffer_stack = nullptr;
-            };
-
-            swoole_signal_block_all();
+            swoole_thread_init();
 
             while (running) {
                 event_mutex.lock();

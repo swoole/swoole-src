@@ -154,15 +154,6 @@ static void bug_report_message_init() {
 
 void swoole_init(void) {
     if (SwooleG.init) {
-#ifdef SW_THREAD
-        SwooleTG.buffer_stack = new swoole::String(SW_STACK_BUFFER_SIZE);
-        g_logger_instance = new swoole::Logger;
-#ifdef SW_DEBUG
-        sw_logger()->set_level(0);
-#else
-        sw_logger()->set_level(SW_LOG_INFO);
-#endif
-#endif
         return;
     }
 
@@ -438,6 +429,15 @@ pid_t swoole_fork(int flags) {
     }
 
     return pid;
+}
+
+void swoole_thread_init(void) {
+    SwooleTG.buffer_stack = new String(SW_STACK_BUFFER_SIZE);
+    ON_SCOPE_EXIT {
+        delete SwooleTG.buffer_stack;
+        SwooleTG.buffer_stack = nullptr;
+    };
+    swoole_signal_block_all();
 }
 
 void swoole_dump_ascii(const char *data, size_t size) {

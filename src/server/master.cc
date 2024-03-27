@@ -720,8 +720,6 @@ int Server::start() {
  * initializing server config, set default
  */
 Server::Server(enum Mode _mode) {
-    swoole_init();
-
     reactor_num = SW_CPU_NUM > SW_REACTOR_MAX_THREAD ? SW_REACTOR_MAX_THREAD : SW_CPU_NUM;
     worker_num = SW_CPU_NUM;
     max_connection = SW_MIN(SW_MAX_CONNECTION, SwooleG.max_sockets);

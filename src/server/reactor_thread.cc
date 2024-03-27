@@ -797,12 +797,7 @@ int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
 static void ReactorThread_loop(Server *serv, int reactor_id) {
     SwooleTG.id = reactor_id;
     SwooleTG.type = Server::THREAD_REACTOR;
-
-    SwooleTG.buffer_stack = new String(SW_STACK_BUFFER_SIZE);
-    ON_SCOPE_EXIT {
-        delete SwooleTG.buffer_stack;
-        SwooleTG.buffer_stack = nullptr;
-    };
+    swoole_thread_init();
 
     if (swoole_event_init(0) < 0) {
         return;
@@ -829,8 +824,6 @@ static void ReactorThread_loop(Server *serv, int reactor_id) {
         }
     }
 #endif
-
-    swoole_signal_block_all();
 
     if (thread->init(serv, reactor, reactor_id) < 0) {
         return;

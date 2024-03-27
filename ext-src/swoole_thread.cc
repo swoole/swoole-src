@@ -821,6 +821,8 @@ void php_swoole_thread_start(zend_string *file, zend_string *argv) {
 #endif
     zend_file_handle file_handle{};
 
+    swoole_thread_init();
+
     if (php_request_startup() != SUCCESS) {
         EG(exit_status) = 1;
         goto _startup_error;
