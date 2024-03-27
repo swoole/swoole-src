@@ -30,8 +30,12 @@ static int ReactorProcess_reuse_port(ListenPort *ls);
 #endif
 
 static bool Server_is_single(Server *serv) {
-    return serv->worker_num == 1 && serv->task_worker_num == 0 && serv->max_request == 0 &&
-           serv->user_worker_list.empty();
+    return
+#ifdef SW_THREAD
+        serv->is_thread_mode() ||
+#endif
+        (serv->worker_num == 1 && serv->task_worker_num == 0 && serv->max_request == 0 &&
+         serv->user_worker_list.empty());
 }
 
 int Server::create_reactor_processes() {
@@ -48,32 +52,48 @@ void Server::destroy_reactor_processes() {
     sw_free(connection_list);
 }
 
+#ifdef SW_THREAD
+static bool one_off_task = false;
+#endif
+
 int Server::start_reactor_processes() {
     single_thread = 1;
 
     // listen TCP
     if (have_stream_sock == 1) {
-        for (auto ls : ports) {
-            if (ls->is_dgram()) {
-                continue;
-            }
-#ifdef HAVE_REUSEPORT
-            if (enable_reuse_port) {
-                if (::close(ls->socket->fd) < 0) {
-                    swoole_sys_warning("close(%d) failed", ls->socket->fd);
-                }
-                delete ls->socket;
-                ls->socket = nullptr;
-                continue;
-            } else
+#ifdef SW_THREAD
+        thread_lock.lock();
+        if (!one_off_task) {
 #endif
-            {
-                // listen server socket
-                if (ls->listen() < 0) {
-                    return SW_ERR;
+            for (auto ls : ports) {
+                if (ls->is_dgram()) {
+                    continue;
+                }
+#ifdef HAVE_REUSEPORT
+                if (enable_reuse_port) {
+                    if (::close(ls->socket->fd) < 0) {
+                        swoole_sys_warning("close(%d) failed", ls->socket->fd);
+                    }
+                    delete ls->socket;
+                    ls->socket = nullptr;
+                    continue;
+                } else
+#endif
+                {
+                    // listen server socket
+                    if (ls->listen() < 0) {
+#ifdef SW_THREAD
+                        thread_lock.unlock();
+#endif
+                        return SW_ERR;
+                    }
                 }
             }
+#ifdef SW_THREAD
+            one_off_task = true;
         }
+        thread_lock.unlock();
+#endif
     }
 
     ProcessPool *pool = &gs->event_workers;

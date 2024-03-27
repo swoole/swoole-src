@@ -177,6 +177,14 @@ typedef unsigned long ulong_t;
 #endif
 #define SW_START_SLEEP usleep(100000)  // sleep 1s,wait fork and pthread_create
 
+#ifdef SW_THREAD
+#define SW_THREAD_LOCAL thread_local
+#include "swoole_lock.h"
+extern swoole::Mutex thread_lock;
+#else
+#define SW_THREAD_LOCAL
+#endif
+
 /*-----------------------------------Memory------------------------------------*/
 void *sw_malloc(size_t size);
 void sw_free(void *ptr);

@@ -24,7 +24,7 @@
 #include "swoole_msg_queue.h"
 #include "swoole_coroutine.h"
 
-swoole::WorkerGlobal SwooleWG = {};
+SW_THREAD_LOCAL swoole::WorkerGlobal SwooleWG = {};
 
 namespace swoole {
 using namespace network;

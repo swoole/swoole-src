@@ -1868,11 +1868,14 @@ static PHP_METHOD(swoole_server, __construct) {
     Z_PARAM_LONG(serv_mode)
     Z_PARAM_LONG(sock_type)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
-
+#ifndef SW_THREAD
     if (serv_mode != Server::MODE_BASE && serv_mode != Server::MODE_PROCESS) {
         zend_throw_error(NULL, "invalid $mode parameters %d", (int) serv_mode);
         RETURN_FALSE;
     }
+#else
+    serv_mode = Server::MODE_THREAD;
+#endif
 
     serv = new Server((enum Server::Mode) serv_mode);
     serv->private_data_2 = sw_zval_dup(zserv);
@@ -2576,6 +2579,10 @@ static PHP_METHOD(swoole_server, start) {
     ServerObject *server_object = server_fetch_object(Z_OBJ_P((zval *) serv->private_data_2));
     server_object->register_callback();
     server_object->on_before_start();
+
+#ifdef SW_THREAD
+    serv->worker_num = 1;
+#endif
 
     if (serv->start() < 0) {
         php_swoole_fatal_error(E_ERROR, "failed to start server. Error: %s", sw_error);

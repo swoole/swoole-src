@@ -100,7 +100,7 @@ swoole::Global SwooleG = {};
 __thread swoole::ThreadGlobal SwooleTG = {};
 
 static std::unordered_map<std::string, void *> functions;
-static swoole::Logger *g_logger_instance = nullptr;
+static SW_THREAD_LOCAL swoole::Logger *g_logger_instance = nullptr;
 
 #ifdef __MACH__
 static __thread char _sw_error_buf[SW_ERROR_MSG_SIZE];
@@ -152,7 +152,20 @@ static void bug_report_message_init() {
 }
 
 void swoole_init(void) {
+#ifdef SW_THREAD
+    thread_lock.lock();
+#endif
     if (SwooleG.init) {
+#ifdef SW_THREAD
+        thread_lock.unlock();
+        SwooleTG.buffer_stack = new swoole::String(SW_STACK_BUFFER_SIZE);
+        g_logger_instance = new swoole::Logger;
+#ifdef SW_DEBUG
+        sw_logger()->set_level(0);
+#else
+        sw_logger()->set_level(SW_LOG_INFO);
+#endif
+#endif
         return;
     }
 
@@ -211,6 +224,10 @@ void swoole_init(void) {
 
     // init bug report message
     bug_report_message_init();
+
+#ifdef SW_THREAD
+    thread_lock.unlock();
+#endif
 }
 
 SW_EXTERN_C_BEGIN

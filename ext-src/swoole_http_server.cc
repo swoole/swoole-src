@@ -32,8 +32,8 @@ namespace WebSocket = swoole::websocket;
 zend_class_entry *swoole_http_server_ce;
 zend_object_handlers swoole_http_server_handlers;
 
-static std::queue<HttpContext *> queued_http_contexts;
-static std::unordered_map<SessionId, zend::Variable> client_ips;
+static SW_THREAD_LOCAL std::queue<HttpContext *> queued_http_contexts;
+static SW_THREAD_LOCAL std::unordered_map<SessionId, zend::Variable> client_ips;
 
 static bool http_context_send_data(HttpContext *ctx, const char *data, size_t length);
 static bool http_context_sendfile(HttpContext *ctx, const char *file, uint32_t l_file, off_t offset, size_t length);

@@ -41,12 +41,6 @@ typedef std::chrono::microseconds seconds_type;
 #define CALC_EXECUTE_USEC(yield_coroutine, resume_coroutine)
 #endif
 
-#ifdef SW_THREAD
-#define SW_THREAD_LOCAL thread_local
-#else
-#define SW_THREAD_LOCAL
-#endif
-
 namespace swoole {
 class Coroutine {
   public:
