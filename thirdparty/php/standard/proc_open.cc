@@ -585,7 +585,7 @@ static zend_result set_proc_descriptor_to_pipe(descriptorspec_item *desc, zend_s
         return FAILURE;
     }
 
-    desc->type = DESCRIPTOR_TYPE_SOCKET;
+    desc->type = DESCRIPTOR_TYPE_PIPE;
 
     if (strncmp(ZSTR_VAL(zmode), "w", 1) != 0) {
         desc->parentend = newpipe[1];
