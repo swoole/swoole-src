@@ -60,6 +60,7 @@
 #include <memory>
 #include <list>
 #include <functional>
+#include <mutex>
 
 #ifdef SW_USE_IOURING
 #include <liburing.h>
@@ -179,8 +180,6 @@ typedef unsigned long ulong_t;
 
 #ifdef SW_THREAD
 #define SW_THREAD_LOCAL thread_local
-#include "swoole_lock.h"
-extern swoole::Mutex thread_lock;
 #else
 #define SW_THREAD_LOCAL
 #endif
@@ -747,6 +746,7 @@ struct Global {
     MemoryPool *memory_pool;
     Allocator std_allocator;
     std::string task_tmpfile;
+    std::mutex thread_lock;
     //-----------------------[DNS]--------------------------
     std::string dns_server_host;
     int dns_server_port;

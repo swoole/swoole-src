@@ -441,6 +441,13 @@ bool Socket::set_timeout(double timeout) {
     return set_recv_timeout(timeout) and set_send_timeout(timeout);
 }
 
+Socket *Socket::dup() {
+    Socket *_socket = new Socket();
+    *_socket = *this;
+    _socket->fd = ::dup(fd);
+    return _socket;
+}
+
 static bool _set_timeout(int fd, int type, double timeout) {
     int ret;
     struct timeval timeo;

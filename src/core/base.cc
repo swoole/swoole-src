@@ -152,12 +152,8 @@ static void bug_report_message_init() {
 }
 
 void swoole_init(void) {
-#ifdef SW_THREAD
-    thread_lock.lock();
-#endif
     if (SwooleG.init) {
 #ifdef SW_THREAD
-        thread_lock.unlock();
         SwooleTG.buffer_stack = new swoole::String(SW_STACK_BUFFER_SIZE);
         g_logger_instance = new swoole::Logger;
 #ifdef SW_DEBUG
@@ -224,10 +220,6 @@ void swoole_init(void) {
 
     // init bug report message
     bug_report_message_init();
-
-#ifdef SW_THREAD
-    thread_lock.unlock();
-#endif
 }
 
 SW_EXTERN_C_BEGIN
