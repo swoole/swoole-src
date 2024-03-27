@@ -17,11 +17,11 @@
 #include "php_swoole_cxx.h"
 
 SW_EXTERN_C_BEGIN
-extern void swoole_proc_open_init(int module_number);
-extern PHP_FUNCTION(swoole_proc_close);
-extern PHP_FUNCTION(swoole_proc_get_status);
-extern PHP_FUNCTION(swoole_proc_open);
-extern PHP_FUNCTION(swoole_proc_terminate);
+void swoole_proc_open_init(int module_number);
+PHP_FUNCTION(swoole_proc_open);
+PHP_FUNCTION(swoole_proc_close);
+PHP_FUNCTION(swoole_proc_get_status);
+PHP_FUNCTION(swoole_proc_terminate);
 SW_EXTERN_C_END
 
 #ifdef PHP_WIN32
@@ -37,15 +37,15 @@ typedef pid_t php_process_id_t;
 /* Environment block under Win32 is a NUL terminated sequence of NUL terminated
  *   name=value strings.
  * Under Unix, it is an argv style array. */
-typedef struct _php_process_env {
+typedef struct {
     char *envp;
 #ifndef PHP_WIN32
     char **envarray;
 #endif
-} php_process_env;
+} sw_php_process_env;
 
-typedef struct _php_process_handle {
-    bool pclose_wait;
+typedef struct {
+    bool running;
     int *wstatus;
     php_process_id_t child;
 #ifdef PHP_WIN32
@@ -54,11 +54,11 @@ typedef struct _php_process_handle {
     int npipes;
     zend_resource **pipes;
     zend_string *command;
-    php_process_env env;
+    sw_php_process_env env;
 #if HAVE_SYS_WAIT_H
     /* We can only request the status once before it becomes unavailable.
      * Cache the result so we can request it multiple times. */
     int cached_exit_wait_status_value;
     bool has_cached_exit_wait_status;
 #endif
-} php_process_handle;
+} sw_php_process_handle;

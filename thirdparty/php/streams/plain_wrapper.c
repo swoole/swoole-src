@@ -446,9 +446,6 @@ static int sw_php_stdiop_close(php_stream *stream, int close_handle) {
 #endif
 
     if (close_handle) {
-        if (data->can_poll) {
-            swoole_coroutine_socket_unwrap(data->fd);
-        }
         if (data->file) {
             if (data->is_process_pipe) {
                 errno = 0;
@@ -467,7 +464,11 @@ static int sw_php_stdiop_close(php_stream *stream, int close_handle) {
             if ((data->lock_flag & LOCK_EX) || (data->lock_flag & LOCK_SH)) {
                 swoole_coroutine_flock_ex(stream->orig_path, data->fd, LOCK_UN);
             }
-            ret = close_file(data->fd);
+            if (data->can_poll) {
+                ret = swoole_coroutine_close(data->fd);
+            } else {
+                ret = close_file(data->fd);
+            }
             data->fd = -1;
         } else {
             return 0; /* everything should be closed already -> success */

@@ -17,11 +17,10 @@
 #include "thirdparty/php/standard/proc_open.h"
 #include "swoole_coroutine_c_api.h"
 
-#include <stdio.h>
-#include <ctype.h>
-#include <signal.h>
-
-static const char *le_proc_name = "process/coroutine";
+using namespace std;
+using swoole::Coroutine;
+using swoole::PHPCoroutine;
+using swoole::coroutine::Socket;
 
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
@@ -31,25 +30,6 @@ static const char *le_proc_name = "process/coroutine";
 #include <fcntl.h>
 #endif
 
-#ifdef HAVE_POSIX_SPAWN_FILE_ACTIONS_ADDCHDIR_NP
-/* Only defined on glibc >= 2.29, FreeBSD CURRENT, musl >= 1.1.24,
- * MacOS Catalina or later..
- * It should be posible to modify this so it is also
- * used in older systems when $cwd == NULL but care must be taken
- * as at least glibc < 2.24 has a legacy implementation known
- * to be really buggy.
- */
-#include <spawn.h>
-#define USE_POSIX_SPAWN
-#endif
-
-/* This symbol is defined in ext/standard/config.m4.
- * Essentially, it is set if you HAVE_FORK || PHP_WIN32
- * Other platforms may modify that configure check and add suitable #ifdefs
- * around the alternate code. */
-#ifdef PHP_CAN_SUPPORT_PROC_OPEN
-
-#ifdef HAVE_OPENPTY
 #ifdef HAVE_PTY_H
 #include <pty.h>
 #elif defined(__FreeBSD__)
@@ -69,73 +49,17 @@ extern int openpty(int *, int *, char *, struct termios *, struct winsize *);
 /* Mac OS X (and some BSDs) define `openpty` in <util.h> */
 #include <util.h>
 #endif
-#elif defined(__sun)
-#include <fcntl.h>
-#include <stropts.h>
-#include <termios.h>
-#define HAVE_OPENPTY 1
 
-/* Solaris before version 11.4 and Illumos do not have any openpty implementation */
-int openpty(int *master, int *slave, char *name, struct termios *termp, struct winsize *winp) {
-    int fd, sd;
-    const char *slaveid;
-
-    assert(master);
-    assert(slave);
-
-    sd = *master = *slave = -1;
-    fd = open("/dev/ptmx", O_NOCTTY | O_RDWR);
-    if (fd == -1) {
-        return -1;
-    }
-    /* Checking if we can have to the pseudo terminal */
-    if (grantpt(fd) != 0 || unlockpt(fd) != 0) {
-        goto fail;
-    }
-    slaveid = ptsname(fd);
-    if (!slaveid) {
-        goto fail;
-    }
-
-    /* Getting the slave path and pushing pseudo terminal */
-    sd = open(slaveid, O_NOCTTY | O_RDONLY);
-    if (sd == -1 || ioctl(sd, I_PUSH, "ptem") == -1) {
-        goto fail;
-    }
-    if (termp) {
-        if (tcgetattr(sd, termp) < 0) {
-            goto fail;
-        }
-    }
-    if (winp) {
-        if (ioctl(sd, TIOCSWINSZ, winp) == -1) {
-            goto fail;
-        }
-    }
-
-    *slave = sd;
-    *master = fd;
-    return 0;
-fail:
-    if (sd != -1) {
-        close(sd);
-    }
-    if (fd != -1) {
-        close(fd);
-    }
-    return -1;
-}
-#endif
-
-static int le_proc_open; /* Resource number for `proc` resources */
+static int le_proc_open;
+static const char *le_proc_name = "process/coroutine";
 
 /* {{{ _php_array_to_envp
  * Process the `environment` argument to `proc_open`
  * Convert into data structures which can be passed to underlying OS APIs like `exec` on POSIX or
  * `CreateProcessW` on Win32 */
-static php_process_env _php_array_to_envp(zval *environment) {
+static sw_php_process_env _php_array_to_envp(zval *environment) {
     zval *element;
-    php_process_env env;
+    sw_php_process_env env;
 #ifndef PHP_WIN32
     char **ep;
 #endif
@@ -222,51 +146,20 @@ static php_process_env _php_array_to_envp(zval *environment) {
 
 /* {{{ _php_free_envp
  * Free the structures allocated by `_php_array_to_envp` */
-static void _php_free_envp(php_process_env env) {
-#ifndef PHP_WIN32
+static void _php_free_envp(sw_php_process_env env) {
     if (env.envarray) {
         efree(env.envarray);
     }
-#endif
     if (env.envp) {
         efree(env.envp);
     }
 }
 /* }}} */
 
-#if HAVE_SYS_WAIT_H
-static pid_t waitpid_cached(php_process_handle *proc, int *wait_status, int options) {
-    if (proc->has_cached_exit_wait_status) {
-        *wait_status = proc->cached_exit_wait_status_value;
-        return proc->child;
-    }
-
-    pid_t wait_pid = swoole_coroutine_waitpid(proc->child, wait_status, options);
-
-    /* The "exit" status is the final status of the process.
-     * If we were to cache the status unconditionally,
-     * we would return stale statuses in the future after the process continues. */
-    if (wait_pid > 0 && WIFEXITED(*wait_status)) {
-        proc->has_cached_exit_wait_status = true;
-        proc->cached_exit_wait_status_value = *wait_status;
-    }
-
-    return wait_pid;
-}
-#endif
-
-/* {{{ proc_open_rsrc_dtor
- * Free `proc` resource, either because all references to it were dropped or because `pclose` or
- * `proc_close` were called */
-static void proc_open_rsrc_dtor(zend_resource *rsrc) {
-    php_process_handle *proc = (php_process_handle *) rsrc->ptr;
-#ifdef PHP_WIN32
-    DWORD wstatus;
-#elif HAVE_SYS_WAIT_H
-    int wstatus;
-    int waitpid_options = 0;
-    pid_t wait_pid;
-#endif
+static void proc_co_rsrc_dtor(zend_resource *rsrc) {
+    sw_php_process_handle *proc = (sw_php_process_handle *) rsrc->ptr;
+    int i;
+    int wstatus = 0;
 
     /* Close all handles to avoid a deadlock */
     for (int i = 0; i < proc->npipes; i++) {
@@ -277,23 +170,12 @@ static void proc_open_rsrc_dtor(zend_resource *rsrc) {
         }
     }
 
-    /* `pclose_wait` tells us: Are we freeing this resource because `pclose` or `proc_close` were
-     * called? If so, we need to wait until the child process exits, because its exit code is
-     * needed as the return value of those functions.
-     * But if we're freeing the resource because of GC, don't wait. */
-    if (!proc->pclose_wait) {
-        waitpid_options = WNOHANG;
-    }
-    do {
-        wait_pid = waitpid_cached(proc, &wstatus, waitpid_options);
-    } while (wait_pid == -1 && errno == EINTR);
-
-    if (wait_pid <= 0) {
-        *proc->wstatus = -1;
-    } else {
-        if (WIFEXITED(wstatus)) {
-            wstatus = WEXITSTATUS(wstatus);
+    if (proc->running) {
+        if (::waitpid(proc->child, &wstatus, WNOHANG) == 0) {
+            swoole_coroutine_waitpid(proc->child, &wstatus, 0);
         }
+    }
+    if (proc->wstatus) {
         *proc->wstatus = wstatus;
     }
 
@@ -306,14 +188,14 @@ static void proc_open_rsrc_dtor(zend_resource *rsrc) {
 
 /* {{{ PHP_MINIT_FUNCTION(proc_open) */
 void swoole_proc_open_init(int module_number) {
-    le_proc_open = zend_register_list_destructors_ex(proc_open_rsrc_dtor, NULL, le_proc_name, module_number);
+    le_proc_open = zend_register_list_destructors_ex(proc_co_rsrc_dtor, NULL, le_proc_name, module_number);
 }
 /* }}} */
 
 /* {{{ Kill a process opened by `proc_open` */
 PHP_FUNCTION(swoole_proc_terminate) {
     zval *zproc;
-    php_process_handle *proc;
+    sw_php_process_handle *proc;
     zend_long sig_no = SIGTERM;
 
     ZEND_PARSE_PARAMETERS_START(1, 2)
@@ -322,7 +204,7 @@ PHP_FUNCTION(swoole_proc_terminate) {
     Z_PARAM_LONG(sig_no)
     ZEND_PARSE_PARAMETERS_END();
 
-    proc = (php_process_handle *) zend_fetch_resource(Z_RES_P(zproc), "process", le_proc_open);
+    proc = (sw_php_process_handle *) zend_fetch_resource(Z_RES_P(zproc), le_proc_name, le_proc_open);
     if (proc == NULL) {
         RETURN_THROWS();
     }
@@ -339,18 +221,16 @@ PHP_FUNCTION(swoole_proc_terminate) {
 PHP_FUNCTION(swoole_proc_close) {
     zval *zproc;
     int wstatus = 0;
-    php_process_handle *proc;
+    sw_php_process_handle *proc;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
     Z_PARAM_RESOURCE(zproc)
     ZEND_PARSE_PARAMETERS_END();
 
-    proc = (php_process_handle *) zend_fetch_resource(Z_RES_P(zproc), "process", le_proc_open);
-    if (proc == NULL) {
+    if ((proc = (sw_php_process_handle *) zend_fetch_resource(Z_RES_P(zproc), le_proc_name, le_proc_open)) == NULL) {
         RETURN_THROWS();
     }
     proc->wstatus = &wstatus;
-    proc->pclose_wait = 1;
     zend_list_close(Z_RES_P(zproc));
     RETURN_LONG(wstatus);
 }
@@ -359,13 +239,9 @@ PHP_FUNCTION(swoole_proc_close) {
 /* {{{ Get information about a process opened by `proc_open` */
 PHP_FUNCTION(swoole_proc_get_status) {
     zval *zproc;
-    php_process_handle *proc;
-#ifdef PHP_WIN32
-    DWORD wstatus;
-#elif HAVE_SYS_WAIT_H
+    sw_php_process_handle *proc;
     int wstatus;
     pid_t wait_pid;
-#endif
     bool running = 1, signaled = 0, stopped = 0;
     int exitcode = -1, termsig = 0, stopsig = 0;
 
@@ -373,8 +249,7 @@ PHP_FUNCTION(swoole_proc_get_status) {
     Z_PARAM_RESOURCE(zproc)
     ZEND_PARSE_PARAMETERS_END();
 
-    proc = (php_process_handle *) zend_fetch_resource(Z_RES_P(zproc), "process", le_proc_open);
-    if (proc == NULL) {
+    if ((proc = (sw_php_process_handle *) zend_fetch_resource(Z_RES_P(zproc), le_proc_name, le_proc_open)) == NULL) {
         RETURN_THROWS();
     }
 
@@ -382,17 +257,8 @@ PHP_FUNCTION(swoole_proc_get_status) {
     add_assoc_str(return_value, "command", zend_string_copy(proc->command));
     add_assoc_long(return_value, "pid", (zend_long) proc->child);
 
-#ifdef PHP_WIN32
-    GetExitCodeProcess(proc->childHandle, &wstatus);
-    running = wstatus == STILL_ACTIVE;
-    exitcode = running ? -1 : wstatus;
-
-    /* The status is always available on Windows and will always read the same,
-     * even if the child has already exited. This is because the result stays available
-     * until the child handle is closed. Hence no caching is used on Windows. */
-    add_assoc_bool(return_value, "cached", false);
-#elif HAVE_SYS_WAIT_H
-    wait_pid = waitpid_cached(proc, &wstatus, WNOHANG | WUNTRACED);
+    errno = 0;
+    wait_pid = swoole_coroutine_waitpid(proc->child, &wstatus, WNOHANG | WUNTRACED);
 
     if (wait_pid == proc->child) {
         if (WIFEXITED(wstatus)) {
@@ -414,8 +280,7 @@ PHP_FUNCTION(swoole_proc_get_status) {
         running = 0;
     }
 
-    add_assoc_bool(return_value, "cached", proc->has_cached_exit_wait_status);
-#endif
+    proc->running = running;
 
     add_assoc_bool(return_value, "running", running);
     add_assoc_bool(return_value, "signaled", signaled);
@@ -1034,7 +899,7 @@ PHP_FUNCTION(swoole_proc_open) {
     size_t cwd_len = 0;                              /* Optional argument */
     zval *environment = NULL, *other_options = NULL; /* Optional arguments */
 
-    php_process_env env;
+    sw_php_process_env env;
     int ndesc = 0;
     int i;
     zval *descitem = NULL;
@@ -1061,7 +926,7 @@ PHP_FUNCTION(swoole_proc_open) {
 #endif
     int pty_master_fd = -1, pty_slave_fd = -1;
     php_process_id_t child;
-    php_process_handle *proc;
+    sw_php_process_handle *proc;
 
     ZEND_PARSE_PARAMETERS_START(3, 6)
     Z_PARAM_ARRAY_HT_OR_STR(command_ht, command_str)
@@ -1309,18 +1174,14 @@ PHP_FUNCTION(swoole_proc_open) {
         goto exit_fail;
     }
 
-    proc = (php_process_handle *) emalloc(sizeof(php_process_handle));
+    proc = (sw_php_process_handle *) emalloc(sizeof(sw_php_process_handle));
     proc->command = zend_string_copy(command_str);
+    proc->wstatus = nullptr;
+    proc->running = true;
     proc->pipes = (zend_resource **) emalloc(sizeof(zend_resource *) * ndesc);
     proc->npipes = ndesc;
     proc->child = child;
-#ifdef PHP_WIN32
-    proc->childHandle = childHandle;
-#endif
     proc->env = env;
-#if HAVE_SYS_WAIT_H
-    proc->has_cached_exit_wait_status = false;
-#endif
 
     /* Clean up all the child ends and then open streams on the parent
      *   ends, where appropriate */
@@ -1357,7 +1218,7 @@ PHP_FUNCTION(swoole_proc_open) {
                 _open_osfhandle((intptr_t) descriptors[i].parentend, descriptors[i].mode_flags), mode_string, NULL);
             php_stream_set_option(stream, PHP_STREAM_OPTION_PIPE_BLOCKING, blocking_pipes, NULL);
 #else
-            stream = php_swoole_create_stream_from_pipe(descriptors[i].parentend, mode_string, NULL);
+            stream = php_swoole_create_stream_from_pipe(descriptors[i].parentend, mode_string, NULL STREAMS_CC);
 #endif
         } else if (descriptors[i].type == DESCRIPTOR_TYPE_SOCKET) {
             stream = php_swoole_create_stream_from_socket(
@@ -1410,4 +1271,3 @@ PHP_FUNCTION(swoole_proc_open) {
 }
 /* }}} */
 
-#endif /* PHP_CAN_SUPPORT_PROC_OPEN */
