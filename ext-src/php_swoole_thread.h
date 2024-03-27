@@ -19,6 +19,8 @@
 
 #include "php_swoole_cxx.h"
 
+#ifdef SW_THREAD
+
 zend_string *php_swoole_thread_serialize(zval *zdata);
 bool php_swoole_thread_unserialize(zend_string *data, zval *zv);
 
@@ -43,3 +45,4 @@ struct ThreadResource {
     }
 };
 
+#endif
