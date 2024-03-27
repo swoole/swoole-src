@@ -101,7 +101,7 @@ __thread swoole::ThreadGlobal SwooleTG = {};
 std::mutex sw_thread_lock;
 
 static std::unordered_map<std::string, void *> functions;
-static SW_THREAD_LOCAL swoole::Logger *g_logger_instance = nullptr;
+static swoole::Logger *g_logger_instance = nullptr;
 
 #ifdef __MACH__
 static __thread char _sw_error_buf[SW_ERROR_MSG_SIZE];

@@ -210,7 +210,9 @@ static int ReactorProcess_loop(ProcessPool *pool, Worker *worker) {
         SwooleTG.timer->reinit(reactor);
     }
 
+#ifndef SW_THREAD
     Server::worker_signal_init();
+#endif
 
     for (auto ls : serv->ports) {
 #ifdef HAVE_REUSEPORT
