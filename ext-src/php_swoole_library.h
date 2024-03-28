@@ -14,10 +14,12 @@
   +----------------------------------------------------------------------+
  */
 
-/* $Id: d0ac03753a22ce34a521c7eb75b2e19f0d6ec961 */
+/* $Id: 7c0fc50cdcb22325090e55f619b5c4cb1337efd5 */
 
 #ifndef SWOOLE_LIBRARY_H
 #define SWOOLE_LIBRARY_H
+
+#include "zend_exceptions.h"
 
 #if PHP_VERSION_ID < 80000
 typedef zval zend_source_string_t;
@@ -1939,7 +1941,7 @@ static const char* swoole_library_source_core_coroutine_http_client_proxy =
     "\n"
     "class ClientProxy\n"
     "{\n"
-    "    public function __construct(private string $body, private int $statusCode, private array $headers, private array $cookies)\n"
+    "    public function __construct(private string $body, private int $statusCode, private ?array $headers, private ?array $cookies)\n"
     "    {\n"
     "    }\n"
     "\n"
@@ -2768,7 +2770,6 @@ static const char* swoole_library_source_core_database_detects_lost_connections 
     "        'SQLSTATE[08006] [7] SSL error: sslv3 alert unexpected message',\n"
     "        'SQLSTATE[08006] [7] unrecognized SSL error code:',\n"
     "        'SQLSTATE[HY000] [2002] No connection could be made because the target machine actively refused it',\n"
-    "        'Broken pipe',\n"
     "    ];\n"
     "\n"
     "    public static function causedByLostConnection(\\Throwable $e): bool\n"
@@ -5937,7 +5938,7 @@ static const char* swoole_library_source_core_fast_cgi_request =
     "        $paramsFrame       = new Params($this->getParams());\n"
     "        $paramsEofFrame    = new Params([]);\n"
     "        if (empty($body)) {\n"
-    "            $message = \"{$beginRequestFrame}{$paramsFrame}{$paramsEofFrame}\";\n"
+    "            $message = \"{$beginRequestFrame}{$paramsFrame}{$paramsEofFrame}}\";\n"
     "        } else {\n"
     "            $stdinList = [];\n"
     "            while (true) {\n"
@@ -5950,7 +5951,7 @@ static const char* swoole_library_source_core_fast_cgi_request =
     "            }\n"
     "            $stdinList[] = new Stdin('');\n"
     "            $stdin       = implode('', $stdinList);\n"
-    "            $message     = \"{$beginRequestFrame}{$paramsFrame}{$paramsEofFrame}{$stdin}\";\n"
+    "            $message     = \"{$beginRequestFrame}{$paramsFrame}{$paramsEofFrame}{$stdin}}\";\n"
     "        }\n"
     "        return $message;\n"
     "    }\n"
@@ -9822,7 +9823,7 @@ static const char* swoole_library_source_alias_ns =
     "    }\n"
     "}\n";
 
-void php_swoole_load_library()
+void php_swoole_load_library(void)
 {
     _eval(swoole_library_source_constants, "@swoole/library/constants.php");
     _eval(swoole_library_source_std_exec, "@swoole/library/std/exec.php");
