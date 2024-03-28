@@ -27,6 +27,9 @@
 #include "swoole_pipe.h"
 #include "swoole_channel.h"
 #include "swoole_message_bus.h"
+#ifdef SW_THREAD
+#include "swoole_lock.h"
+#endif
 
 #ifdef SW_USE_OPENSSL
 #include "swoole_dtls.h"
@@ -1451,7 +1454,7 @@ typedef swoole::Server swServer;
 typedef swoole::ListenPort swListenPort;
 typedef swoole::RecvData swRecvData;
 
-extern swoole::Server *g_server_instance;
+extern SW_THREAD_LOCAL swoole::Server *g_server_instance;
 
 static inline swoole::Server *sw_server() {
     return g_server_instance;

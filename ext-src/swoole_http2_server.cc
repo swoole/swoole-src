@@ -34,7 +34,7 @@ using HttpContext = swoole::http::Context;
 using Http2Stream = Http2::Stream;
 using Http2Session = Http2::Session;
 
-static std::unordered_map<SessionId, Http2Session *> http2_sessions;
+static SW_THREAD_LOCAL std::unordered_map<SessionId, Http2Session *> http2_sessions;
 
 static bool http2_server_respond(HttpContext *ctx, const String *body);
 static bool http2_server_send_range_file(HttpContext *ctx, swoole::http_server::StaticHandler *handler);

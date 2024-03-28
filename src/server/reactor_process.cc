@@ -30,8 +30,12 @@ static int ReactorProcess_reuse_port(ListenPort *ls);
 #endif
 
 static bool Server_is_single(Server *serv) {
-    return serv->worker_num == 1 && serv->task_worker_num == 0 && serv->max_request == 0 &&
-           serv->user_worker_list.empty();
+#ifdef SW_THREAD
+    return true;
+#else
+    return (serv->worker_num == 1 && serv->task_worker_num == 0 && serv->max_request == 0 &&
+            serv->user_worker_list.empty());
+#endif
 }
 
 int Server::create_reactor_processes() {
@@ -206,7 +210,9 @@ static int ReactorProcess_loop(ProcessPool *pool, Worker *worker) {
         SwooleTG.timer->reinit(reactor);
     }
 
+#ifndef SW_THREAD
     Server::worker_signal_init();
+#endif
 
     for (auto ls : serv->ports) {
 #ifdef HAVE_REUSEPORT

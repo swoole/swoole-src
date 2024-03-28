@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 7d2b3ea5b4d1613340006de2fa67d2a0bf314f09 */
+ * Stub hash: d117c3c8b36d0918b5c030a67e9d37ff9a76c669 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Coroutine_Socket___construct, 0, 0, 2)
 	ZEND_ARG_TYPE_INFO(0, domain, IS_LONG, 0)
@@ -130,3 +130,8 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(arginfo_class_Swoole_Coroutine_Socket_import, 0, 1, Swoole\\Coroutine\\Socket, MAY_BE_FALSE)
 	ZEND_ARG_INFO(0, stream)
 ZEND_END_ARG_INFO()
+
+#if defined(SW_THREAD)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Coroutine_Socket___wakeup, 0, 0, IS_VOID, 0)
+ZEND_END_ARG_INFO()
+#endif

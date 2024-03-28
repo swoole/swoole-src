@@ -98,6 +98,7 @@ static ssize_t getrandom(void *buffer, size_t size, unsigned int __flags) {
 
 swoole::Global SwooleG = {};
 __thread swoole::ThreadGlobal SwooleTG = {};
+std::mutex sw_thread_lock;
 
 static std::unordered_map<std::string, void *> functions;
 static swoole::Logger *g_logger_instance = nullptr;
@@ -428,6 +429,15 @@ pid_t swoole_fork(int flags) {
     }
 
     return pid;
+}
+
+void swoole_thread_init(void) {
+    SwooleTG.buffer_stack = new String(SW_STACK_BUFFER_SIZE);
+    ON_SCOPE_EXIT {
+        delete SwooleTG.buffer_stack;
+        SwooleTG.buffer_stack = nullptr;
+    };
+    swoole_signal_block_all();
 }
 
 void swoole_dump_ascii(const char *data, size_t size) {

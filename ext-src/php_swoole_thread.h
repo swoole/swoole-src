@@ -19,6 +19,11 @@
 
 #include "php_swoole_cxx.h"
 
+#ifdef SW_THREAD
+
+zend_string *php_swoole_thread_serialize(zval *zdata);
+bool php_swoole_thread_unserialize(zend_string *data, zval *zv);
+
 #define EMSG_NO_RESOURCE "resource not found"
 #define ECODE_NO_RESOURCE -2
 
@@ -40,3 +45,4 @@ struct ThreadResource {
     }
 };
 
+#endif

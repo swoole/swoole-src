@@ -25,7 +25,11 @@ using swoole::network::Address;
 using swoole::network::SendfileTask;
 using swoole::network::Socket;
 
-swoole::Server *g_server_instance = nullptr;
+SW_THREAD_LOCAL swoole::Server *g_server_instance = nullptr;
+
+#ifdef SW_THREAD
+static std::vector<swoole::ListenPort *> listen_ports;
+#endif
 
 namespace swoole {
 
@@ -717,8 +721,6 @@ int Server::start() {
  * initializing server config, set default
  */
 Server::Server(enum Mode _mode) {
-    swoole_init();
-
     reactor_num = SW_CPU_NUM > SW_REACTOR_MAX_THREAD ? SW_REACTOR_MAX_THREAD : SW_CPU_NUM;
     worker_num = SW_CPU_NUM;
     max_connection = SW_MIN(SW_MAX_CONNECTION, SwooleG.max_sockets);
@@ -1735,6 +1737,43 @@ int Server::add_systemd_socket() {
     return count;
 }
 
+static bool Server_create_socket(ListenPort *ls) {
+#ifdef SW_THREAD
+    std::unique_lock<std::mutex> _lock(sw_thread_lock);
+    if (listen_ports.size() > 0) {
+        for (auto _lp : listen_ports) {
+            if (_lp->type == ls->type && _lp->port == ls->port && _lp->host == ls->host) {
+                ls->socket = _lp->socket->dup();
+                return true;
+            }
+        }
+    }
+#endif
+    ls->socket = make_socket(
+        ls->type, ls->is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER, SW_SOCK_CLOEXEC | SW_SOCK_NONBLOCK);
+    if (!ls->socket) {
+        return false;
+    }
+#if defined(SW_SUPPORT_DTLS) && defined(HAVE_KQUEUE)
+    if (ls->is_dtls()) {
+        ls->socket->set_reuse_port();
+    }
+#endif
+
+    if (ls->socket->bind(ls->host, &ls->port) < 0) {
+        swoole_set_last_error(errno);
+        ls->socket->free();
+        return false;
+    }
+
+    ls->socket->info.assign(ls->type, ls->host, ls->port);
+
+#ifdef SW_THREAD
+    listen_ports.push_back(ls);
+#endif
+    return true;
+}
+
 ListenPort *Server::add_port(SocketType type, const char *host, int port) {
     if (session_list) {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_WRONG_OPERATION, "must add port before server is created");
@@ -1784,7 +1823,6 @@ ListenPort *Server::add_port(SocketType type, const char *host, int port) {
 #ifdef SW_SUPPORT_DTLS
             ls->ssl_context->protocols = SW_SSL_DTLS;
             ls->dtls_sessions = new std::unordered_map<int, dtls::Session *>;
-
 #else
             swoole_warning("DTLS support require openssl-1.1 or later");
             return nullptr;
@@ -1793,24 +1831,11 @@ ListenPort *Server::add_port(SocketType type, const char *host, int port) {
     }
 #endif
 
-    ls->socket = make_socket(
-        ls->type, ls->is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER, SW_SOCK_CLOEXEC | SW_SOCK_NONBLOCK);
-    if (ls->socket == nullptr) {
+    if (!Server_create_socket(ls)) {
         swoole_set_last_error(errno);
         return nullptr;
     }
-#if defined(SW_SUPPORT_DTLS) && defined(HAVE_KQUEUE)
-    if (ls->is_dtls()) {
-        ls->socket->set_reuse_port();
-    }
-#endif
 
-    if (ls->socket->bind(ls->host, &ls->port) < 0) {
-        swoole_set_last_error(errno);
-        ls->socket->free();
-        return nullptr;
-    }
-    ls->socket->info.assign(ls->type, ls->host, ls->port);
     check_port_type(ls);
     ptr.release();
     ports.push_back(ls);

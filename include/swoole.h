@@ -60,6 +60,7 @@
 #include <memory>
 #include <list>
 #include <functional>
+#include <mutex>
 
 #ifdef SW_USE_IOURING
 #include <liburing.h>
@@ -176,6 +177,13 @@ typedef unsigned long ulong_t;
 #define SW_ASSERT_1BYTE(v)
 #endif
 #define SW_START_SLEEP usleep(100000)  // sleep 1s,wait fork and pthread_create
+
+#ifdef SW_THREAD
+#define SW_THREAD_LOCAL thread_local
+extern std::mutex sw_thread_lock;
+#else
+#define SW_THREAD_LOCAL
+#endif
 
 /*-----------------------------------Memory------------------------------------*/
 void *sw_malloc(size_t size);
@@ -567,6 +575,7 @@ void swoole_init(void);
 void swoole_clean(void);
 pid_t swoole_fork(int flags);
 pid_t swoole_fork_exec(const std::function<void(void)> &child_fn);
+void swoole_thread_init(void);
 void swoole_redirect_stdout(int new_fd);
 int swoole_shell_exec(const char *command, pid_t *pid, bool get_error_stream);
 int swoole_daemon(int nochdir, int noclose);

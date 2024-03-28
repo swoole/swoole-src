@@ -1872,6 +1872,10 @@ static PHP_METHOD(swoole_server, __construct) {
         RETURN_FALSE;
     }
 
+#ifdef SW_THREAD
+    serv_mode = Server::MODE_BASE;
+#endif
+
     serv = new Server((enum Server::Mode) serv_mode);
     serv->private_data_2 = sw_zval_dup(zserv);
     server_set_ptr(zserv, serv);

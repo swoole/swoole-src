@@ -44,7 +44,7 @@ static zend_object_handlers swoole_websocket_frame_handlers;
 static zend_class_entry *swoole_websocket_closeframe_ce;
 static zend_object_handlers swoole_websocket_closeframe_handlers;
 
-static String *swoole_websocket_buffer = nullptr;
+static SW_THREAD_LOCAL String *swoole_websocket_buffer = nullptr;
 
 SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_websocket_server, push);

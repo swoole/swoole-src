@@ -45,9 +45,6 @@ static zend_object_handlers swoole_thread_arraylist_handlers;
 zend_class_entry *swoole_thread_queue_ce;
 static zend_object_handlers swoole_thread_queue_handlers;
 
-zend_string *php_swoole_thread_serialize(zval *zdata);
-bool php_swoole_thread_unserialize(zend_string *data, zval *zv);
-
 struct ArrayItem {
     uint32_t type;
     zend_string *key;
@@ -431,14 +428,12 @@ struct ThreadQueueObject {
 
 static void php_swoole_thread_join(zend_object *object);
 
-thread_local zval thread_argv;
-std::mutex thread_lock;
-
+static thread_local zval thread_argv;
 static zend_long thread_resource_id = 0;
 static std::unordered_map<ThreadResourceId, ThreadResource *> thread_resources;
 
 ThreadResourceId php_swoole_thread_resource_insert(ThreadResource *res) {
-    std::unique_lock<std::mutex> _lock(thread_lock);
+    std::unique_lock<std::mutex> _lock(sw_thread_lock);
     zend_long resource_id = ++thread_resource_id;
     thread_resources[resource_id] = res;
     return resource_id;
@@ -446,7 +441,7 @@ ThreadResourceId php_swoole_thread_resource_insert(ThreadResource *res) {
 
 ThreadResource *php_swoole_thread_resource_fetch(ThreadResourceId resource_id) {
     ThreadResource *res = nullptr;
-    std::unique_lock<std::mutex> _lock(thread_lock);
+    std::unique_lock<std::mutex> _lock(sw_thread_lock);
     auto iter = thread_resources.find(resource_id);
     if (iter != thread_resources.end()) {
         res = iter->second;
@@ -456,7 +451,7 @@ ThreadResource *php_swoole_thread_resource_fetch(ThreadResourceId resource_id) {
 }
 
 bool php_swoole_thread_resource_free(ThreadResourceId resource_id, ThreadResource *res) {
-    std::unique_lock<std::mutex> _lock(thread_lock);
+    std::unique_lock<std::mutex> _lock(sw_thread_lock);
     if (res->del_ref() == 0) {
         thread_resources.erase(resource_id);
         return true;
@@ -825,6 +820,8 @@ void php_swoole_thread_start(zend_string *file, zend_string *argv) {
     ZEND_TSRMLS_CACHE_UPDATE();
 #endif
     zend_file_handle file_handle{};
+
+    swoole_thread_init();
 
     if (php_request_startup() != SUCCESS) {
         EG(exit_status) = 1;
