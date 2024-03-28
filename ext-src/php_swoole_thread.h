@@ -21,6 +21,13 @@
 
 #ifdef SW_THREAD
 
+typedef uint32_t ThreadResourceId;
+struct ThreadResource;
+
+ThreadResourceId php_swoole_thread_resource_insert(ThreadResource *res);
+bool php_swoole_thread_resource_free(ThreadResourceId resource_id, ThreadResource *res);
+ThreadResource *php_swoole_thread_resource_fetch(ThreadResourceId resource_id);
+
 zend_string *php_swoole_thread_serialize(zval *zdata);
 bool php_swoole_thread_unserialize(zend_string *data, zval *zv);
 

@@ -100,8 +100,8 @@ extern PHPAPI int php_array_merge(zend_array *dest, zend_array *src);
 #define SWOOLE_SOCKETS_SUPPORT
 #endif
 
-#if PHP_VERSION_ID < 80000
-#error "require PHP version 8.0 or later"
+#if PHP_VERSION_ID < 80100
+#error "require PHP version 8.1 or later"
 #endif
 
 #if defined(ZTS) && defined(SW_USE_THREAD_CONTEXT)
@@ -357,21 +357,7 @@ zend_bool php_swoole_signal_isset_handler(int signo);
 #define SW_Z8_OBJ_P(zobj) Z_OBJ_P(zobj)
 
 typedef ssize_t php_stream_size_t;
-
-#if PHP_VERSION_ID < 80100
-typedef const char error_filename_t;
-#else
 typedef zend_string error_filename_t;
-#endif
-
-#ifdef SW_THREAD
-typedef uint32_t ThreadResourceId;
-struct ThreadResource;
-
-ThreadResourceId php_swoole_thread_resource_insert(ThreadResource *res);
-bool php_swoole_thread_resource_free(ThreadResourceId resource_id, ThreadResource *res);
-ThreadResource *php_swoole_thread_resource_fetch(ThreadResourceId resource_id);
-#endif
 
 //----------------------------------Zval API------------------------------------
 
