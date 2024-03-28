@@ -308,10 +308,6 @@ void php_swoole_atomic_minit(int module_number) {
 
 PHP_METHOD(swoole_atomic, __construct) {
     auto o = php_swoole_atomic_fetch_object(Z_OBJ_P(ZEND_THIS));
-    if (o->ptr) {
-        zend_throw_error(NULL, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
-        RETURN_FALSE;
-    }
     zend_long value = 0;
 
     ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 0, 1)
@@ -320,6 +316,10 @@ PHP_METHOD(swoole_atomic, __construct) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
 #ifdef SW_THREAD
+    if (o->ptr) {
+        zend_throw_error(NULL, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        RETURN_FALSE;
+    }
     o->res = new AtomicResource();
     auto resource_id = php_swoole_thread_resource_insert(o->res);
     zend_update_property_long(swoole_atomic_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("id"), resource_id);
@@ -428,10 +428,6 @@ static PHP_METHOD(swoole_atomic, __wakeup) {
 
 PHP_METHOD(swoole_atomic_long, __construct) {
     auto o = php_swoole_atomic_long_fetch_object(Z_OBJ_P(ZEND_THIS));
-    if (o->ptr) {
-        zend_throw_error(NULL, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
-        RETURN_FALSE;
-    }
     zend_long value = 0;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
@@ -440,6 +436,10 @@ PHP_METHOD(swoole_atomic_long, __construct) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
 #ifdef SW_THREAD
+    if (o->ptr) {
+        zend_throw_error(NULL, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        RETURN_FALSE;
+    }
     o->res = new AtomicLongResource();
     auto resource_id = php_swoole_thread_resource_insert(o->res);
     zend_update_property_long(swoole_atomic_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("id"), resource_id);

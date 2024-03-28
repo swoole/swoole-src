@@ -749,7 +749,7 @@ PHP_MINIT_FUNCTION(swoole) {
 #ifdef SW_USE_SQLITE
     php_swoole_sqlite_minit(module_number);
 #endif
-#ifdef ZTS
+#ifdef SW_THREAD
     php_swoole_thread_minit(module_number);
 #endif
 
@@ -1056,7 +1056,7 @@ PHP_RSHUTDOWN_FUNCTION(swoole) {
     php_swoole_coroutine_scheduler_rshutdown();
     php_swoole_runtime_rshutdown();
     php_swoole_process_rshutdown();
-#ifdef ZTS
+#ifdef SW_THREAD
     php_swoole_thread_rshutdown();
 #endif
 
