@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: fd753870dff9cec5f5a0e5eb825f550627c93416 */
+ * Stub hash: 7e29be6a4a1a8c8fff1a11bf117b2b388ccdbca9 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Server___construct, 0, 0, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, host, IS_STRING, 0, "\'0.0.0.0\'")
@@ -46,6 +46,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Server_addCommand, 
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Server_start, 0, 0, _IS_BOOL, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, bootstrap, IS_STRING, 0, "\'\'")
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Server_stop, 0, 0, _IS_BOOL, 0)
@@ -134,7 +135,8 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Server_reload, 0, 0
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, only_reload_taskworker, _IS_BOOL, 0, "false")
 ZEND_END_ARG_INFO()
 
-#define arginfo_class_Swoole_Server_shutdown arginfo_class_Swoole_Server_start
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Server_shutdown, 0, 0, _IS_BOOL, 0)
+ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_class_Swoole_Server_heartbeat, 0, 0, MAY_BE_FALSE|MAY_BE_ARRAY)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, ifCloseConnection, _IS_BOOL, 0, "true")
@@ -181,6 +183,11 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_class_Swoole_Server_getLastError arginfo_class_Swoole_Server_getManagerPid
 
+#if defined(SW_THREAD)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Server___wakeup, 0, 0, IS_VOID, 0)
+ZEND_END_ARG_INFO()
+#endif
+
 #define arginfo_class_Swoole_Connection_Iterator___construct arginfo_class_Swoole_Server___destruct
 
 #define arginfo_class_Swoole_Connection_Iterator___destruct arginfo_class_Swoole_Server___destruct
@@ -195,7 +202,7 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_class_Swoole_Connection_Iterator_key arginfo_class_Swoole_Connection_Iterator_current
 
-#define arginfo_class_Swoole_Connection_Iterator_valid arginfo_class_Swoole_Server_start
+#define arginfo_class_Swoole_Connection_Iterator_valid arginfo_class_Swoole_Server_shutdown
 
 #define arginfo_class_Swoole_Connection_Iterator_count arginfo_class_Swoole_Server_getManagerPid
 
