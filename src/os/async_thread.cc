@@ -32,6 +32,9 @@
 #include <queue>
 #include <sstream>
 
+static std::mutex async_thread_lock;
+static std::shared_ptr<swoole::async::ThreadPool> async_thread_pool;
+
 namespace swoole {
 namespace async {
 //-------------------------------------------------------------------------------
@@ -82,6 +85,10 @@ class ThreadPool {
         shutdown();
     }
 
+    bool is_running() {
+        return running;
+    }
+
     bool start() {
         running = true;
         current_task_id = 0;
@@ -110,16 +117,14 @@ class ThreadPool {
             }
             delete _thread;
         }
+        threads.clear();
 
         return true;
     }
 
     void schedule() {
         if (n_waiting == 0 && threads.size() < worker_num && max_wait_time > 0) {
-            event_mutex.lock();
             double _max_wait_time = _queue.get_max_wait_time();
-            event_mutex.unlock();
-
             if (_max_wait_time > max_wait_time) {
                 size_t n = 1;
                 /**
@@ -141,14 +146,12 @@ class ThreadPool {
     }
 
     AsyncEvent *dispatch(const AsyncEvent *request) {
-        if (SwooleTG.async_threads->schedule) {
-            schedule();
-        }
         auto _event_copy = new AsyncEvent(*request);
+        event_mutex.lock();
+        schedule();
         _event_copy->task_id = current_task_id++;
         _event_copy->timestamp = microtime();
         _event_copy->pipe_socket = SwooleTG.async_threads->write_socket;
-        event_mutex.lock();
         _queue.push(_event_copy);
         _cv.notify_one();
         event_mutex.unlock();
@@ -204,6 +207,7 @@ class ThreadPool {
 
   private:
     void create_thread(const bool is_core_worker = false);
+    void main_func(const bool is_core_worker);
 
     size_t core_worker_num;
     size_t worker_num;
@@ -221,96 +225,98 @@ class ThreadPool {
     std::condition_variable _cv;
 };
 
-void ThreadPool::create_thread(const bool is_core_worker) {
-    try {
-        std::thread *_thread = new std::thread([this, is_core_worker]() {
-            bool exit_flag = false;
-            swoole_thread_init();
+void ThreadPool::main_func(bool is_core_worker) {
+    bool exit_flag = false;
+    swoole_thread_init();
 
-            while (running) {
-                event_mutex.lock();
-                AsyncEvent *event = _queue.pop();
-                event_mutex.unlock();
+    while (running) {
+        event_mutex.lock();
+        AsyncEvent *event = _queue.pop();
+        event_mutex.unlock();
 
-                swoole_debug("%s: %f", event ? "pop 1 event" : "no event", microtime());
+        swoole_debug("%s: %f", event ? "pop 1 event" : "no event", microtime());
 
-                if (event) {
-                    if (sw_unlikely(event->handler == nullptr)) {
-                        event->error = SW_ERROR_AIO_BAD_REQUEST;
-                        event->retval = -1;
-                    } else if (sw_unlikely(event->canceled)) {
-                        event->error = SW_ERROR_AIO_CANCELED;
-                        event->retval = -1;
-                    } else {
-                        event->handler(event);
-                    }
+        if (event) {
+            if (sw_unlikely(event->handler == nullptr)) {
+                event->error = SW_ERROR_AIO_BAD_REQUEST;
+                event->retval = -1;
+            } else if (sw_unlikely(event->canceled)) {
+                event->error = SW_ERROR_AIO_CANCELED;
+                event->retval = -1;
+            } else {
+                event->handler(event);
+            }
 
-                    swoole_trace_log(SW_TRACE_AIO,
-                                     "aio_thread %s. ret=%ld, error=%d",
-                                     event->retval > 0 ? "ok" : "failed",
-                                     event->retval,
-                                     event->error);
+            swoole_trace_log(SW_TRACE_AIO,
+                             "aio_thread %s. ret=%ld, error=%d",
+                             event->retval > 0 ? "ok" : "failed",
+                             event->retval,
+                             event->error);
 
-                _send_event:
-                    while (true) {
-                        ssize_t ret = event->pipe_socket->write(&event, sizeof(event));
-                        if (ret < 0) {
-                            if (errno == EAGAIN) {
-                                event->pipe_socket->wait_event(1000, SW_EVENT_WRITE);
-                                continue;
-                            } else if (errno == EINTR) {
-                                continue;
-                            } else {
-                                delete event;
-                                swoole_sys_warning("sendto swoole_aio_pipe_write failed");
-                            }
-                        }
-                        break;
-                    }
-
-                    // exit
-                    if (exit_flag) {
-                        n_closing--;
-                        break;
-                    }
-                } else {
-                    std::unique_lock<std::mutex> lock(event_mutex);
-                    if (_queue.count() > 0) {
+        _send_event:
+            while (true) {
+                ssize_t ret = event->pipe_socket->write(&event, sizeof(event));
+                if (ret < 0) {
+                    if (errno == EAGAIN) {
+                        event->pipe_socket->wait_event(1000, SW_EVENT_WRITE);
                         continue;
-                    }
-                    if (!running) {
-                        break;
-                    }
-                    ++n_waiting;
-                    if (is_core_worker || max_idle_time <= 0) {
-                        _cv.wait(lock);
+                    } else if (errno == EINTR) {
+                        continue;
                     } else {
-                        while (true) {
-                            if (_cv.wait_for(lock, std::chrono::microseconds((size_t) (max_idle_time * 1000 * 1000))) ==
-                                std::cv_status::timeout) {
-                                if (running && n_closing != 0) {
-                                    // wait for the next round
-                                    continue;
-                                }
-                                /* notifies the main thread to release this thread */
-                                event = new AsyncEvent;
-                                event->object = new std::thread::id(std::this_thread::get_id());
-                                event->callback = release_callback;
-                                event->pipe_socket = SwooleG.aio_default_socket;
-                                event->canceled = false;
-
-                                --n_waiting;
-                                ++n_closing;
-                                exit_flag = true;
-                                goto _send_event;
-                            }
-                            break;
-                        }
+                        delete event;
+                        swoole_sys_warning("sendto swoole_aio_pipe_write failed");
                     }
-                    --n_waiting;
+                }
+                break;
+            }
+
+            // exit
+            if (exit_flag) {
+                n_closing--;
+                break;
+            }
+        } else {
+            std::unique_lock<std::mutex> lock(event_mutex);
+            if (_queue.count() > 0) {
+                continue;
+            }
+            if (!running) {
+                break;
+            }
+            ++n_waiting;
+            if (is_core_worker || max_idle_time <= 0) {
+                _cv.wait(lock);
+            } else {
+                while (true) {
+                    if (_cv.wait_for(lock, std::chrono::microseconds((size_t) (max_idle_time * 1000 * 1000))) ==
+                        std::cv_status::timeout) {
+                        if (running && n_closing != 0) {
+                            // wait for the next round
+                            continue;
+                        }
+                        /* notifies the main thread to release this thread */
+                        event = new AsyncEvent;
+                        event->object = new std::thread::id(std::this_thread::get_id());
+                        event->callback = release_callback;
+                        event->pipe_socket = SwooleG.aio_default_socket;
+                        event->canceled = false;
+
+                        --n_waiting;
+                        ++n_closing;
+                        exit_flag = true;
+                        goto _send_event;
+                    }
+                    break;
                 }
             }
-        });
+            --n_waiting;
+        }
+    }
+}
+
+void ThreadPool::create_thread(const bool is_core_worker) {
+    try {
+        std::thread *_thread = new std::thread([this, is_core_worker]() { main_func(is_core_worker); });
         threads[_thread->get_id()] = _thread;
     } catch (const std::system_error &e) {
         swoole_sys_notice("create aio thread failed, please check your system configuration or adjust aio_worker_num");
@@ -333,10 +339,6 @@ AsyncEvent *dispatch(const AsyncEvent *request) {
 }  // namespace async
 
 int AsyncThreads::callback(Reactor *reactor, Event *event) {
-    if (SwooleTG.async_threads->schedule) {
-        SwooleTG.async_threads->pool->schedule();
-    }
-
     AsyncEvent *events[SW_AIO_EVENT_NUM];
     ssize_t n = event->socket->read(events, sizeof(AsyncEvent *) * SW_AIO_EVENT_NUM);
     if (n < 0) {
@@ -405,20 +407,32 @@ AsyncThreads::AsyncThreads() {
         return true;
     });
 
-    init_lock.lock();
-    pool = new async::ThreadPool(
-        SwooleG.aio_core_worker_num, SwooleG.aio_worker_num, SwooleG.aio_max_wait_time, SwooleG.aio_max_idle_time);
-    pool->start();
-    schedule = true;
-    init_lock.unlock();
+    async_thread_lock.lock();
+    if (!async_thread_pool) {
+        async_thread_pool = std::make_shared<async::ThreadPool>(
+            SwooleG.aio_core_worker_num, SwooleG.aio_worker_num, SwooleG.aio_max_wait_time, SwooleG.aio_max_idle_time);
+    }
+    if (!async_thread_pool->is_running()) {
+        async_thread_pool->start();
+    }
+    pool = async_thread_pool;
+    async_thread_lock.unlock();
 
     SwooleG.aio_default_socket = write_socket;
     SwooleTG.async_threads = this;
 }
 
 AsyncThreads::~AsyncThreads() {
-    delete pool;
-    pool = nullptr;
+    pool.reset();
+    async_thread_lock.lock();
+    /**
+     * When the reference count is 1, it means that all reactor threads have ended
+     * and all aio threads can be terminated.
+     */
+    if (async_thread_pool.use_count() == 1) {
+        async_thread_pool->shutdown();
+    }
+    async_thread_lock.unlock();
     pipe->close();
     read_socket = nullptr;
     write_socket = nullptr;
