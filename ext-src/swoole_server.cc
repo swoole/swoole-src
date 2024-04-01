@@ -346,8 +346,6 @@ static PHP_METHOD(swoole_server, getMasterPid);
 #ifdef SWOOLE_SOCKETS_SUPPORT
 static PHP_METHOD(swoole_server, getSocket);
 #endif
-static PHP_METHOD(swoole_server, __get);
-static PHP_METHOD(swoole_server, __set);
 
 /**
  * Server\Connection
@@ -425,8 +423,6 @@ static zend_function_entry swoole_server_methods[] = {
     PHP_ME(swoole_server, getSocket, arginfo_class_Swoole_Server_getSocket, ZEND_ACC_PUBLIC)
 #endif
     PHP_ME(swoole_server, bind, arginfo_class_Swoole_Server_bind, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_server, __get, arginfo_class_Swoole_Server___get, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_server, __set, arginfo_class_Swoole_Server___set, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
@@ -562,7 +558,6 @@ void php_swoole_server_minit(int module_number) {
 #ifdef SW_THREAD
     zend_declare_property_string(swoole_server_ce, ZEND_STRL("bootstrap"), "", ZEND_ACC_PUBLIC);
 #endif
-    zend_declare_property_null(swoole_server_ce, ZEND_STRL("objects"), ZEND_ACC_PUBLIC);
 
     /**
      * mode type
@@ -2449,30 +2444,6 @@ static PHP_METHOD(swoole_server, getCallback) {
         server_object->property->ports.at(0), swoole_server_port_ce, nullptr, "getcallback", return_value, name);
 }
 
-static PHP_METHOD(swoole_server, __get) {
-    char *name;
-    size_t l_name;
-    ZEND_PARSE_PARAMETERS_START(1, 1)
-    Z_PARAM_STRING(name, l_name)
-    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
-
-    zval *objects = sw_zend_read_and_convert_property_array(swoole_server_ce, ZEND_THIS, ZEND_STRL("objects"), 0);
-    RETURN_ZVAL(zend::array_get(objects, name, l_name), 1, 0);
-}
-
-static PHP_METHOD(swoole_server, __set) {
-    char *name;
-    size_t l_name;
-    zval *value;
-    ZEND_PARSE_PARAMETERS_START(2, 2)
-    Z_PARAM_STRING(name, l_name)
-    Z_PARAM_ZVAL(value);
-    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
-
-    zval *objects = sw_zend_read_and_convert_property_array(swoole_server_ce, ZEND_THIS, ZEND_STRL("objects"), 0);
-    zend::array_set(objects, name, l_name, value);
-}
-
 static PHP_METHOD(swoole_server, listen) {
     Server *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (serv->is_started()) {
@@ -2631,24 +2602,17 @@ static PHP_METHOD(swoole_server, start) {
         RETURN_FALSE;
     }
 
-    zval *cb = nullptr;
+    zval *thread_argv = nullptr;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
     Z_PARAM_OPTIONAL
-    Z_PARAM_ZVAL(cb)
+    Z_PARAM_ZVAL(thread_argv)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if (cb) {
-        zval retval;
-        call_user_function(NULL, NULL, cb, &retval, 0, NULL);
-        zval_ptr_dtor(&retval);
-    }
-
 #ifdef SW_THREAD
-    zval *objects = sw_zend_read_and_convert_property_array(swoole_server_ce, ZEND_THIS, ZEND_STRL("objects"), 0);
     zval *_bootstrap = zend::object_get(ZEND_THIS, ZEND_STRL("bootstrap"));
     zend_string *bootstrap = zend_string_dup(Z_STR_P(_bootstrap), 1);
-    zend_string *argv = php_swoole_thread_serialize(objects);
+    zend_string *argv = php_swoole_thread_serialize(thread_argv);
 
     serv->worker_thread_start = [bootstrap, argv](const WorkerFn &fn) {
         worker_thread_fn = fn;
