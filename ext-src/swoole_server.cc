@@ -2370,6 +2370,8 @@ static PHP_METHOD(swoole_server, set) {
     // thread arguments
     if (php_swoole_array_get_value(vht, "init_arguments", ztmp)) {
         server_object->init_arguments = *ztmp;
+    } else {
+        ZVAL_NULL(&server_object->init_arguments);
     }
 
     if (serv->task_enable_coroutine &&

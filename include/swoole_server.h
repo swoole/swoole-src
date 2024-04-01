@@ -1100,7 +1100,11 @@ class Server {
     }
 
     bool is_worker() {
-        return SwooleG.process_type == SW_PROCESS_WORKER;
+#ifdef SW_THREAD
+        return SwooleWG.worker->type == SW_PROCESS_EVENTWORKER;
+#else
+        return SwooleG.process_type == SW_PROCESS_EVENTWORKER;
+#endif
     }
 
     bool is_worker_thread() {
@@ -1109,7 +1113,11 @@ class Server {
 
 
     bool is_task_worker() {
+#ifdef SW_THREAD
+        return SwooleWG.worker->type == SW_PROCESS_TASKWORKER;
+#else
         return SwooleG.process_type == SW_PROCESS_TASKWORKER;
+#endif
     }
 
     bool is_manager() {
@@ -1117,7 +1125,11 @@ class Server {
     }
 
     bool is_user_worker() {
+#ifdef SW_THREAD
+        return SwooleWG.worker->type == SW_PROCESS_USERWORKER;
+#else
         return SwooleG.process_type == SW_PROCESS_USERWORKER;
+#endif
     }
 
     bool is_reactor_thread() {

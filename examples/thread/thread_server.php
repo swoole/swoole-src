@@ -5,17 +5,18 @@ $http->set([
 //    'task_worker_num' => 3,
     'enable_coroutine' => false,
     'init_arguments' => function () use ($http) {
-        return [new Swoole\Thread\Map];
+        $map = new Swoole\Thread\Map;
+        return [$map];
     }
 ]);
 
 $http->on('Request', function ($req, $resp) use ($http) {
-    $resp->end("tid=" . \Swoole\Thread::getId());
+    $resp->end("tid=" . \Swoole\Thread::getId() . ', fd=' . $req->fd);
 });
 
 $http->addProcess(new \Swoole\Process(function () {
-    echo "user process";
-    sleep(100);
+    echo "user process, id=" . \Swoole\Thread::getId();
+    sleep(2);
 }));
 
 $http->on('Task', function () {

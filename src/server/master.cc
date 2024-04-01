@@ -467,6 +467,9 @@ int Server::start_master_thread() {
 }
 
 void Server::store_listen_socket() {
+#ifdef SW_THREAD
+    std::unique_lock<std::mutex> _lock(lock_);
+#endif
     for (auto ls : ports) {
         int sockfd = ls->socket->fd;
         // save server socket to connection_list
