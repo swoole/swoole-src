@@ -45,6 +45,8 @@ static zend_object_handlers swoole_thread_arraylist_handlers;
 zend_class_entry *swoole_thread_queue_ce;
 static zend_object_handlers swoole_thread_queue_handlers;
 
+TSRMLS_CACHE_DEFINE();
+
 struct ArrayItem {
     uint32_t type;
     zend_string *key;
@@ -820,10 +822,16 @@ void php_swoole_thread_rshutdown() {
 
 void php_swoole_thread_start(zend_string *file, zend_string *argv) {
     ts_resource(0);
-#if defined(COMPILE_DL_SWOOLE)
-    ZEND_TSRMLS_CACHE_UPDATE();
-#endif
+    TSRMLS_CACHE_UPDATE();
     zend_file_handle file_handle{};
+
+    PG(expose_php) = 0;
+    PG(auto_globals_jit) = 1;
+#if PHP_VERSION_ID >= 80100
+    PG(enable_dl) = false;
+#else
+    PG(enable_dl) = 0;
+#endif
 
     swoole_thread_init();
 
@@ -831,6 +839,11 @@ void php_swoole_thread_start(zend_string *file, zend_string *argv) {
         EG(exit_status) = 1;
         goto _startup_error;
     }
+
+    PG(during_request_startup) = 0;
+    SG(sapi_started) = 0;
+    SG(headers_sent) = 1;
+    SG(request_info).no_headers = 1;
 
     zend_stream_init_filename(&file_handle, ZSTR_VAL(file));
     file_handle.primary_script = 1;

@@ -624,7 +624,7 @@ static PHP_METHOD(swoole_server_port, on) {
 
     ServerPortProperty *property = php_swoole_server_port_get_and_check_property(ZEND_THIS);
     Server *serv = property->serv;
-    if (SwooleTG.type != Server::THREAD_WORKER && serv->is_started()) {
+    if (!serv->is_worker_thread() && serv->is_started()) {
         php_swoole_fatal_error(E_WARNING, "can't register event callback function after server started");
         RETURN_FALSE;
     }

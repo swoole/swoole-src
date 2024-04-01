@@ -2375,7 +2375,7 @@ static PHP_METHOD(swoole_server, set) {
 
 static PHP_METHOD(swoole_server, on) {
     Server *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
-    if (SwooleTG.type != Server::THREAD_WORKER && serv->is_started()) {
+    if (!serv->is_worker_thread() && serv->is_started()) {
         php_swoole_fatal_error(E_WARNING, "server is running, unable to register event callback function");
         RETURN_FALSE;
     }
@@ -2644,15 +2644,17 @@ static PHP_METHOD(swoole_server, start) {
         zval_ptr_dtor(&retval);
     }
 
+#ifdef SW_THREAD
     zval *objects = sw_zend_read_and_convert_property_array(swoole_server_ce, ZEND_THIS, ZEND_STRL("objects"), 0);
     zval *_bootstrap = zend::object_get(ZEND_THIS, ZEND_STRL("bootstrap"));
     zend_string *bootstrap = zend_string_dup(Z_STR_P(_bootstrap), 1);
     zend_string *argv = php_swoole_thread_serialize(objects);
 
-#ifdef SW_THREAD
     serv->worker_thread_start = [bootstrap, argv](const WorkerFn &fn) {
         worker_thread_fn = fn;
-        php_swoole_thread_start(bootstrap, argv);
+        zend_string *bootstrap_copy = zend_string_dup(bootstrap, 1);
+        zend_string *argv_copy = zend_string_dup(argv, 1);
+        php_swoole_thread_start(bootstrap_copy, argv_copy);
     };
 #endif
 
@@ -2663,6 +2665,11 @@ static PHP_METHOD(swoole_server, start) {
     if (serv->start() < 0) {
         php_swoole_fatal_error(E_ERROR, "failed to start server. Error: %s", sw_error);
     }
+
+#ifdef SW_THREAD
+    zend_string_release(bootstrap);
+    zend_string_release(argv);
+#endif
 
     RETURN_TRUE;
 }

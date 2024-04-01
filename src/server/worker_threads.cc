@@ -99,6 +99,7 @@ int Server::start_worker_threads() {
         SW_LOOP_N(task_worker_num) {
             threads[worker_num + i] = std::thread([=]() {
                 SwooleTG.type = Server::THREAD_WORKER;
+                SwooleTG.id = worker_num + i;
                 Worker *worker = gs->task_workers.get_worker(i);
                 worker_thread_start(
                     [=](void) -> bool { return gs->task_workers.main_loop(&gs->task_workers, worker) == SW_OK; });
@@ -109,6 +110,7 @@ int Server::start_worker_threads() {
     SW_LOOP_N(worker_num) {
         threads[i] = std::thread([=]() {
             SwooleTG.type = Server::THREAD_WORKER;
+            SwooleTG.id = i;
             Worker *worker = get_worker(i);
             worker_thread_start([=](void) -> bool { return worker_main_loop(&gs->event_workers, worker) == SW_OK; });
         });
@@ -119,6 +121,7 @@ int Server::start_worker_threads() {
         for (auto worker : user_worker_list) {
             threads[task_worker_num + worker_num + i] = std::thread([=]() {
                 SwooleTG.type = Server::THREAD_WORKER;
+                SwooleTG.id = task_worker_num + worker_num + i;
                 worker_thread_start([=](void) -> bool {
                     onUserWorkerStart(this, worker);
                     return SW_OK;
