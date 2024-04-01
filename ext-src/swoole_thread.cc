@@ -849,7 +849,7 @@ void php_swoole_thread_start(zend_string *file, zend_string *argv) {
     file_handle.primary_script = 1;
 
     zend_first_try {
-        if (ZSTR_LEN(file) == 0) {
+        if (argv == nullptr || ZSTR_LEN(argv) == 0) {
             array_init(&thread_argv);
         } else {
             php_swoole_thread_unserialize(argv, &thread_argv);

@@ -4,10 +4,13 @@ $http->set([
     'worker_num' => 2,
 //    'task_worker_num' => 3,
     'enable_coroutine' => false,
+    'init_arguments' => function () use ($http) {
+        return [new Swoole\Thread\Map];
+    }
 ]);
 
 $http->on('Request', function ($req, $resp) use ($http) {
-    var_dump($http);
+    $resp->end("tid=" . \Swoole\Thread::getId());
 });
 
 $http->addProcess(new \Swoole\Process(function () {
@@ -19,6 +22,8 @@ $http->on('Task', function () {
     var_dump(func_get_args());
 });
 
-$http->start(function () use ($http) {
-    $http->map = new Swoole\Thread\Map();
+$http->on('WorkerStart', function ($serv, $wid) {
+    var_dump(\Swoole\Thread::getArguments());
 });
+
+$http->start();

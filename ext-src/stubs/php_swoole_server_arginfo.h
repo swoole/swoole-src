@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 0389b504333cec64a55f31dad33ec84b88ceab06 */
+ * Stub hash: fd753870dff9cec5f5a0e5eb825f550627c93416 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Server___construct, 0, 0, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, host, IS_STRING, 0, "\'0.0.0.0\'")
@@ -45,8 +45,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Server_addCommand, 
 	ZEND_ARG_TYPE_INFO(0, callback, IS_CALLABLE, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Server_start, 0, 1, _IS_BOOL, 0)
-	ZEND_ARG_TYPE_INFO(0, argv, IS_ARRAY, 1)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Server_start, 0, 0, _IS_BOOL, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Server_stop, 0, 0, _IS_BOOL, 0)
@@ -135,8 +134,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Server_reload, 0, 0
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, only_reload_taskworker, _IS_BOOL, 0, "false")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Server_shutdown, 0, 0, _IS_BOOL, 0)
-ZEND_END_ARG_INFO()
+#define arginfo_class_Swoole_Server_shutdown arginfo_class_Swoole_Server_start
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_class_Swoole_Server_heartbeat, 0, 0, MAY_BE_FALSE|MAY_BE_ARRAY)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, ifCloseConnection, _IS_BOOL, 0, "true")
@@ -197,7 +195,7 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_class_Swoole_Connection_Iterator_key arginfo_class_Swoole_Connection_Iterator_current
 
-#define arginfo_class_Swoole_Connection_Iterator_valid arginfo_class_Swoole_Server_shutdown
+#define arginfo_class_Swoole_Connection_Iterator_valid arginfo_class_Swoole_Server_start
 
 #define arginfo_class_Swoole_Connection_Iterator_count arginfo_class_Swoole_Server_getManagerPid
 

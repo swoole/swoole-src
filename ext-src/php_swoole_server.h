@@ -94,6 +94,7 @@ struct ServerProperty {
 struct ServerObject {
     Server *serv;
     ServerProperty *property;
+    zval init_arguments;
     zend_object std;
 
     zend_class_entry *get_ce() {

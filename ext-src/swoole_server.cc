@@ -2367,6 +2367,10 @@ static PHP_METHOD(swoole_server, set) {
     } else {
         zend::object_set(ZEND_THIS, ZEND_STRL("bootstrap"), SG(request_info).path_translated);
     }
+    // thread arguments
+    if (php_swoole_array_get_value(vht, "init_arguments", ztmp)) {
+        server_object->init_arguments = *ztmp;
+    }
 
     if (serv->task_enable_coroutine &&
         (serv->task_ipc_mode == Server::TASK_IPC_MSGQUEUE || serv->task_ipc_mode == Server::TASK_IPC_PREEMPTIVE)) {
@@ -2594,8 +2598,6 @@ static PHP_METHOD(swoole_server, start) {
 
 #ifdef SW_THREAD
     if (serv->is_worker_thread()) {
-        zval *thread_argv = php_swoole_thread_get_arguments();
-        zend::object_set(ZEND_THIS, ZEND_STRL("objects"), thread_argv);
         RETURN_BOOL(worker_thread_fn());
     }
 #endif
@@ -2617,27 +2619,27 @@ static PHP_METHOD(swoole_server, start) {
         RETURN_FALSE;
     }
 
-    zval *thread_argv = nullptr;
-
-    ZEND_PARSE_PARAMETERS_START(0, 1)
-    Z_PARAM_OPTIONAL
-    Z_PARAM_ZVAL(thread_argv)
-    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+    ServerObject *server_object = server_fetch_object(Z_OBJ_P(php_swoole_server_zval_ptr(serv)));
 
 #ifdef SW_THREAD
     zval *_bootstrap = zend::object_get(ZEND_THIS, ZEND_STRL("bootstrap"));
     zend_string *bootstrap = zend_string_dup(Z_STR_P(_bootstrap), 1);
-    zend_string *argv = php_swoole_thread_serialize(thread_argv);
+    zend_string *argv = nullptr;
+    zval thread_argv;
+
+    if (!ZVAL_IS_NULL(&server_object->init_arguments)) {
+        call_user_function(NULL, NULL, &server_object->init_arguments, &thread_argv, 0, NULL);
+        argv = php_swoole_thread_serialize(&thread_argv);
+    }
 
     serv->worker_thread_start = [bootstrap, argv](const WorkerFn &fn) {
         worker_thread_fn = fn;
         zend_string *bootstrap_copy = zend_string_dup(bootstrap, 1);
-        zend_string *argv_copy = zend_string_dup(argv, 1);
+        zend_string *argv_copy = argv ? zend_string_dup(argv, 1) : nullptr;
         php_swoole_thread_start(bootstrap_copy, argv_copy);
     };
 #endif
 
-    ServerObject *server_object = server_fetch_object(Z_OBJ_P(php_swoole_server_zval_ptr(serv)));
     server_object->register_callback();
     server_object->on_before_start();
 
@@ -2647,7 +2649,10 @@ static PHP_METHOD(swoole_server, start) {
 
 #ifdef SW_THREAD
     zend_string_release(bootstrap);
-    zend_string_release(argv);
+    if (argv) {
+        zend_string_release(argv);
+    }
+    zval_ptr_dtor(&thread_argv);
 #endif
 
     RETURN_TRUE;
