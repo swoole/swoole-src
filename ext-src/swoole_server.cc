@@ -1562,7 +1562,7 @@ static void php_swoole_server_onWorkerExit(Server *serv, Worker *worker) {
 
 static void php_swoole_server_onUserWorkerStart(Server *serv, Worker *worker) {
     zval *object = (zval *) worker->ptr;
-    zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(object), ZEND_STRL("id"), SwooleG.process_id);
+    zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(object), ZEND_STRL("id"), worker->id);
 
     zval *zserv = php_swoole_server_zval_ptr(serv);
     zend_update_property_long(swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("master_pid"), serv->gs->master_pid);
@@ -3811,7 +3811,7 @@ static PHP_METHOD(swoole_server, getWorkerId) {
     if (!serv->is_worker() && !serv->is_task_worker()) {
         RETURN_FALSE;
     } else {
-        RETURN_LONG(SwooleG.process_id);
+        RETURN_LONG(SwooleWG.worker->id);
     }
 }
 
@@ -3894,7 +3894,7 @@ static PHP_METHOD(swoole_server, stop) {
     }
 
     zend_bool wait_reactor = 0;
-    zend_long worker_id = SwooleG.process_id;
+    zend_long worker_id = SwooleWG.worker->id;
 
     ZEND_PARSE_PARAMETERS_START(0, 2)
     Z_PARAM_OPTIONAL
@@ -3902,7 +3902,7 @@ static PHP_METHOD(swoole_server, stop) {
     Z_PARAM_BOOL(wait_reactor)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if (worker_id == SwooleG.process_id && wait_reactor == 0) {
+    if (worker_id == SwooleWG.worker->id && wait_reactor == 0) {
         if (SwooleTG.reactor != nullptr) {
             SwooleTG.reactor->defer(
                 [](void *data) {

@@ -301,7 +301,7 @@ int Server::worker_main_loop(ProcessPool *pool, Worker *worker) {
     if (serv->isset_hook(Server::HOOK_WORKER_CLOSE)) {
         void *hook_args[2];
         hook_args[0] = serv;
-        hook_args[1] = (void *) (uintptr_t) SwooleG.process_id;
+        hook_args[1] = (void *) (uintptr_t) worker->id;
         serv->call_hook(Server::HOOK_WORKER_CLOSE, hook_args);
     }
 

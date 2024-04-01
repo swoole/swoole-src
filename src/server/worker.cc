@@ -261,7 +261,7 @@ void Server::worker_start_callback(Worker *worker) {
     }
 
     SW_LOOP_N(worker_num + task_worker_num) {
-        if (SwooleG.process_id == i) {
+        if (worker->id == i) {
             continue;
         }
         Worker *other_worker = get_worker(i);
@@ -287,7 +287,7 @@ void Server::worker_start_callback(Worker *worker) {
 void Server::worker_stop_callback(Worker *worker) {
     void *hook_args[2];
     hook_args[0] = this;
-    hook_args[1] = (void *) (uintptr_t) SwooleG.process_id;
+    hook_args[1] = (void *) (uintptr_t) worker->id;
     if (swoole_isset_hook(SW_GLOBAL_HOOK_BEFORE_WORKER_STOP)) {
         swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_WORKER_STOP, hook_args);
     }
@@ -354,7 +354,7 @@ void Server::stop_async_worker(Worker *worker) {
     } else {
         WorkerStopMessage msg;
         msg.pid = SwooleG.pid;
-        msg.worker_id = SwooleG.process_id;
+        msg.worker_id = worker->id;
 
         if (gs->event_workers.push_message(SW_WORKER_MESSAGE_STOP, &msg, sizeof(msg)) < 0) {
             running = 0;
