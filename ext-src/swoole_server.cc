@@ -140,6 +140,7 @@ static zend_object_handlers swoole_server_task_result_handlers;
 
 static SW_THREAD_LOCAL zval swoole_server_instance;
 static SW_THREAD_LOCAL WorkerFn worker_thread_fn;
+static SW_THREAD_LOCAL std::vector<ServerPortProperty *> swoole_server_port_properties;
 
 static sw_inline ServerObject *server_fetch_object(zend_object *obj) {
     return (ServerObject *) ((char *) obj - swoole_server_handlers.offset);
@@ -159,6 +160,25 @@ Server *php_swoole_server_get_and_check_server(zval *zobject) {
 
 zval *php_swoole_server_zval_ptr(Server *serv) {
     return &swoole_server_instance;
+}
+
+ServerPortProperty *php_swoole_server_get_port_property(ListenPort *port) {
+#ifdef SW_THREAD
+    return swoole_server_port_properties.at(port->socket->get_fd());
+#else
+    return (ServerPortProperty *) port->ptr;
+#endif
+}
+
+void php_swoole_server_set_port_property(ListenPort *port, ServerPortProperty *property) {
+#ifdef SW_THREAD
+    if (swoole_server_port_properties.size() < (size_t) port->socket->get_fd() + 1) {
+        swoole_server_port_properties.resize((size_t) port->socket->get_fd() + 1);
+    }
+    swoole_server_port_properties[port->socket->get_fd()] = property;
+#else
+    port->ptr = property;
+#endif
 }
 
 ServerObject *php_swoole_server_get_zend_object(Server *serv) {
@@ -610,17 +630,16 @@ void php_swoole_server_minit(int module_number) {
 
 zend_fcall_info_cache *php_swoole_server_get_fci_cache(Server *serv, int server_fd, int event_type) {
     ListenPort *port = serv->get_port_by_server_fd(server_fd);
-    ServerPortProperty *property;
+    ServerPortProperty *property = php_swoole_server_get_port_property(port);
     zend_fcall_info_cache *fci_cache;
-    ServerObject *server_object = server_fetch_object(Z_OBJ_P(php_swoole_server_zval_ptr(serv)));
 
     if (sw_unlikely(!port)) {
         return nullptr;
     }
-    if ((property = (ServerPortProperty *) port->ptr) && (fci_cache = property->caches[event_type])) {
+    if (property && (fci_cache = property->caches[event_type])) {
         return fci_cache;
     } else {
-        return server_object->property->primary_port->caches[event_type];
+        return php_swoole_server_get_port_property(serv->get_primary_port())->caches[event_type];
     }
 }
 
@@ -752,7 +771,7 @@ static zval *php_swoole_server_add_port(ServerObject *server_object, ListenPort 
     property->port = port;
 
     /* linked */
-    port->ptr = property;
+    php_swoole_server_set_port_property(port, property);
 
     zend_update_property_string(swoole_server_port_ce, SW_Z8_OBJ_P(zport), ZEND_STRL("host"), port->get_host());
     zend_update_property_long(swoole_server_port_ce, SW_Z8_OBJ_P(zport), ZEND_STRL("port"), port->get_port());
@@ -1842,13 +1861,9 @@ static void server_ctor(zval *zserv, Server *serv) {
     server_set_ptr(zserv, serv);
 
     /* primary port */
-    do {
-        for (auto ls : serv->ports) {
-            php_swoole_server_add_port(server_object, ls);
-        }
-
-        server_object->property->primary_port = (ServerPortProperty *) serv->get_primary_port()->ptr;
-    } while (0);
+    for (auto ls : serv->ports) {
+        php_swoole_server_add_port(server_object, ls);
+    }
 
     /* iterator */
     do {

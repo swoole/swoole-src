@@ -737,11 +737,11 @@ class Server {
         return ports.front();
     }
 
-    enum Mode get_mode() {
+    enum Mode get_mode() const {
         return mode_;
     };
 
-    ListenPort *get_port(int _port) {
+    ListenPort *get_port(int _port) const {
         for (auto port : ports) {
             if (port->port == _port || _port == 0) {
                 return port;
