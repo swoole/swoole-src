@@ -2220,7 +2220,7 @@ static PHP_METHOD(swoole_socket_coro, import) {
 
 #ifdef SW_THREAD
 static PHP_METHOD(swoole_socket_coro, __wakeup) {
-    zend_long sockfd = zend::read_property_long(ZEND_THIS, ZEND_STRL("fd"));
+    zend_long sockfd = zend::object_get_long(ZEND_THIS, ZEND_STRL("fd"));
     if (sockfd < 0) {
         zend_throw_exception(swoole_exception_ce, EMSG_NO_RESOURCE, ECODE_NO_RESOURCE);
         return;
@@ -2234,9 +2234,9 @@ static PHP_METHOD(swoole_socket_coro, __wakeup) {
 
     SocketObject *sock = (SocketObject *) socket_coro_fetch_object(Z_OBJ_P(ZEND_THIS));
 
-    zend_long domain = zend::read_property_long(ZEND_THIS, ZEND_STRL("domain"));
-    zend_long type = zend::read_property_long(ZEND_THIS, ZEND_STRL("type"));
-    zend_long protocol = zend::read_property_long(ZEND_THIS, ZEND_STRL("protocol"));
+    zend_long domain = zend::object_get_long(ZEND_THIS, ZEND_STRL("domain"));
+    zend_long type = zend::object_get_long(ZEND_THIS, ZEND_STRL("type"));
+    zend_long protocol = zend::object_get_long(ZEND_THIS, ZEND_STRL("protocol"));
 
     php_swoole_check_reactor();
     sock->socket = new Socket((int) new_sockfd, (int) domain, (int) type, (int) protocol);

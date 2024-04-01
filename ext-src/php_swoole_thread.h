@@ -28,8 +28,11 @@ ThreadResourceId php_swoole_thread_resource_insert(ThreadResource *res);
 bool php_swoole_thread_resource_free(ThreadResourceId resource_id, ThreadResource *res);
 ThreadResource *php_swoole_thread_resource_fetch(ThreadResourceId resource_id);
 
+void php_swoole_thread_start(zend_string *file, zend_string *argv);
 zend_string *php_swoole_thread_serialize(zval *zdata);
 bool php_swoole_thread_unserialize(zend_string *data, zval *zv);
+
+zval *php_swoole_thread_get_arguments();
 
 #define EMSG_NO_RESOURCE "resource not found"
 #define ECODE_NO_RESOURCE -2

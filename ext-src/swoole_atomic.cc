@@ -125,7 +125,7 @@ void php_swoole_atomic_set_ptr(zval *zobject, sw_atomic_t *ptr) {
 static void php_swoole_atomic_free_object(zend_object *object) {
 #ifdef SW_THREAD
     AtomicObject *o = php_swoole_atomic_fetch_object(object);
-    zend_long resource_id = zend::read_property_long(object, ZEND_STRL("id"));
+    zend_long resource_id = zend::object_get_long(object, ZEND_STRL("id"));
     if (o->res && php_swoole_thread_resource_free(resource_id, o->res)) {
         delete o->res;
         o->res = nullptr;
@@ -192,7 +192,7 @@ void php_swoole_atomic_long_set_ptr(zval *zobject, sw_atomic_long_t *ptr) {
 static void php_swoole_atomic_long_free_object(zend_object *object) {
 #ifdef SW_THREAD
     AtomicLongObject *o = php_swoole_atomic_long_fetch_object(object);
-    zend_long resource_id = zend::read_property_long(object, ZEND_STRL("id"));
+    zend_long resource_id = zend::object_get_long(object, ZEND_STRL("id"));
     if (o->res && php_swoole_thread_resource_free(resource_id, o->res)) {
         delete o->res;
         o->res = nullptr;
@@ -416,7 +416,7 @@ PHP_METHOD(swoole_atomic, wakeup) {
 #ifdef SW_THREAD
 static PHP_METHOD(swoole_atomic, __wakeup) {
     auto o = php_swoole_atomic_fetch_object(Z_OBJ_P(ZEND_THIS));
-    zend_long resource_id = zend::read_property_long(ZEND_THIS, ZEND_STRL("id"));
+    zend_long resource_id = zend::object_get_long(ZEND_THIS, ZEND_STRL("id"));
     o->res = static_cast<AtomicResource *>(php_swoole_thread_resource_fetch(resource_id));
     if (!o->res) {
         zend_throw_exception(swoole_exception_ce, EMSG_NO_RESOURCE, ECODE_NO_RESOURCE);
@@ -504,7 +504,7 @@ PHP_METHOD(swoole_atomic_long, cmpset) {
 #ifdef SW_THREAD
 static PHP_METHOD(swoole_atomic_long, __wakeup) {
     auto o = php_swoole_atomic_long_fetch_object(Z_OBJ_P(ZEND_THIS));
-    zend_long resource_id = zend::read_property_long(ZEND_THIS, ZEND_STRL("id"));
+    zend_long resource_id = zend::object_get_long(ZEND_THIS, ZEND_STRL("id"));
     o->res = static_cast<AtomicLongResource *>(php_swoole_thread_resource_fetch(resource_id));
     if (!o->res) {
         zend_throw_exception(swoole_exception_ce, EMSG_NO_RESOURCE, ECODE_NO_RESOURCE);

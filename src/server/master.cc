@@ -25,7 +25,7 @@ using swoole::network::Address;
 using swoole::network::SendfileTask;
 using swoole::network::Socket;
 
-SW_THREAD_LOCAL swoole::Server *g_server_instance = nullptr;
+swoole::Server *g_server_instance = nullptr;
 
 #ifdef SW_THREAD
 static std::vector<swoole::ListenPort *> listen_ports;
@@ -701,7 +701,11 @@ int Server::start() {
     }
     int ret;
     if (is_base_mode()) {
+#ifdef SW_THREAD
+        ret = start_worker_threads();
+#else
         ret = start_reactor_processes();
+#endif
     } else {
         ret = start_reactor_threads();
     }

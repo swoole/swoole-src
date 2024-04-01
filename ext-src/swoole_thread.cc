@@ -767,11 +767,15 @@ static PHP_METHOD(swoole_thread, detach) {
     RETURN_TRUE;
 }
 
-static PHP_METHOD(swoole_thread, getArguments) {
+zval *php_swoole_thread_get_arguments() {
     if (!ZVAL_IS_ARRAY(&thread_argv)) {
         array_init(&thread_argv);
     }
-    RETURN_ZVAL(&thread_argv, 1, 0);
+    return &thread_argv;
+}
+
+static PHP_METHOD(swoole_thread, getArguments) {
+    RETURN_ZVAL(php_swoole_thread_get_arguments(), 1, 0);
 }
 
 static PHP_METHOD(swoole_thread, getId) {

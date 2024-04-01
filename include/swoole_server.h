@@ -57,6 +57,8 @@ struct Request;
 class Server;
 struct Manager;
 
+typedef std::function<bool(void)> WorkerFn;
+
 struct Session {
     SessionId id;
     int fd;
@@ -504,6 +506,7 @@ class Server {
         THREAD_MASTER = 1,
         THREAD_REACTOR = 2,
         THREAD_HEARTBEAT = 3,
+        THREAD_WORKER = 5,
     };
 
     enum DispatchMode {
@@ -733,6 +736,10 @@ class Server {
     ListenPort *get_primary_port() {
         return ports.front();
     }
+
+    enum Mode get_mode() {
+        return mode_;
+    };
 
     ListenPort *get_port(int _port) {
         for (auto port : ports) {
@@ -1096,6 +1103,11 @@ class Server {
         return SwooleG.process_type == SW_PROCESS_WORKER;
     }
 
+    bool is_worker_thread() {
+        return SwooleTG.type == THREAD_WORKER;
+    }
+
+
     bool is_task_worker() {
         return SwooleG.process_type == SW_PROCESS_TASKWORKER;
     }
@@ -1365,6 +1377,9 @@ class Server {
     void worker_start_callback(Worker *worker);
     void worker_stop_callback(Worker *worker);
     void worker_accept_event(DataHead *info);
+    std::function<void(const WorkerFn &fn)> worker_thread_start;
+
+    static int worker_main_loop(ProcessPool *pool, Worker *worker);
     static void worker_signal_handler(int signo);
     static void worker_signal_init(void);
     static bool task_pack(EventData *task, const void *data, size_t data_len);
@@ -1398,6 +1413,7 @@ class Server {
     int create_reactor_threads();
     int start_reactor_threads();
     int start_reactor_processes();
+    int start_worker_threads();
     int start_master_thread();
     int start_event_worker(Worker *worker);
     void start_heartbeat_thread();
@@ -1454,7 +1470,7 @@ typedef swoole::Server swServer;
 typedef swoole::ListenPort swListenPort;
 typedef swoole::RecvData swRecvData;
 
-extern SW_THREAD_LOCAL swoole::Server *g_server_instance;
+extern swoole::Server *g_server_instance;
 
 static inline swoole::Server *sw_server() {
     return g_server_instance;

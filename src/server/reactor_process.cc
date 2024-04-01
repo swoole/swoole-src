@@ -20,7 +20,6 @@
 namespace swoole {
 using network::Socket;
 
-static int ReactorProcess_loop(ProcessPool *pool, Worker *worker);
 static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event);
 static int ReactorProcess_onClose(Reactor *reactor, Event *event);
 static void ReactorProcess_onTimeout(Timer *timer, TimerNode *tnode);
@@ -30,12 +29,8 @@ static int ReactorProcess_reuse_port(ListenPort *ls);
 #endif
 
 static bool Server_is_single(Server *serv) {
-#ifdef SW_THREAD
-    return true;
-#else
     return (serv->worker_num == 1 && serv->task_worker_num == 0 && serv->max_request == 0 &&
             serv->user_worker_list.empty());
-#endif
 }
 
 int Server::create_reactor_processes() {
@@ -93,8 +88,8 @@ int Server::start_reactor_processes() {
     gs->event_workers.ptr = this;
     gs->event_workers.max_wait_time = max_wait_time;
     gs->event_workers.use_msgqueue = 0;
-    gs->event_workers.main_loop = ReactorProcess_loop;
-    gs->event_workers.onWorkerNotFound = Server::wait_other_worker;
+    gs->event_workers.main_loop = worker_main_loop;
+    gs->event_workers.onWorkerNotFound = wait_other_worker;
     memcpy(workers, gs->event_workers.workers, sizeof(*workers) * worker_num);
     gs->event_workers.workers = workers;
 
@@ -110,7 +105,7 @@ int Server::start_reactor_processes() {
     }
 
     if (Server_is_single(this)) {
-        int retval = ReactorProcess_loop(&gs->event_workers, &gs->event_workers.workers[0]);
+        int retval = worker_main_loop(&gs->event_workers, &gs->event_workers.workers[0]);
         if (retval == SW_OK) {
             gs->event_workers.destroy();
         }
@@ -182,7 +177,7 @@ static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
     return SW_OK;
 }
 
-static int ReactorProcess_loop(ProcessPool *pool, Worker *worker) {
+int Server::worker_main_loop(ProcessPool *pool, Worker *worker) {
     Server *serv = (Server *) pool->ptr;
 
     SwooleG.process_type = SW_PROCESS_WORKER;

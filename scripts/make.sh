@@ -7,7 +7,6 @@ COMPILE_PARAMS="--enable-openssl \
 --enable-swoole-curl \
 --enable-cares \
 --enable-swoole-pgsql \
---enable-iouring \
 --enable-swoole-thread \
 --with-swoole-odbc=unixODBC,/usr \
 --enable-swoole-sqlite"

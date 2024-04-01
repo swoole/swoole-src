@@ -78,7 +78,7 @@ void php_swoole_lock_set_ptr(zval *zobject, Lock *ptr) {
 static void php_swoole_lock_free_object(zend_object *object) {
     LockObject *o = php_swoole_lock_fetch_object(object);
 #ifdef SW_THREAD
-    zend_long resource_id = zend::read_property_long(object, ZEND_STRL("id"));
+    zend_long resource_id = zend::object_get_long(object, ZEND_STRL("id"));
     if (o->lock_res && php_swoole_thread_resource_free(resource_id, o->lock_res)) {
         delete o->lock_res;
         o->lock_res = nullptr;
@@ -268,7 +268,7 @@ static PHP_METHOD(swoole_lock, destroy) {
 #ifdef SW_THREAD
 static PHP_METHOD(swoole_lock, __wakeup) {
     auto o = php_swoole_lock_fetch_object(Z_OBJ_P(ZEND_THIS));
-    zend_long resource_id = zend::read_property_long(ZEND_THIS, ZEND_STRL("id"));
+    zend_long resource_id = zend::object_get_long(ZEND_THIS, ZEND_STRL("id"));
     o->lock_res = static_cast<LockResource *>(php_swoole_thread_resource_fetch(resource_id));
     if (!o->lock_res) {
         zend_throw_exception(swoole_exception_ce, EMSG_NO_RESOURCE, ECODE_NO_RESOURCE);

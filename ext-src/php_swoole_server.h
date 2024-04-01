@@ -61,6 +61,8 @@ enum php_swoole_server_port_callback_type {
 #define PHP_SWOOLE_SERVER_CALLBACK_NUM (SW_SERVER_CB_onPipeMessage + 1)
 #define PHP_SWOOLE_SERVER_PORT_CALLBACK_NUM (SW_SERVER_CB_onBufferEmpty + 1)
 
+zval *php_swoole_server_zval_ptr(swoole::Server *serv);
+
 namespace swoole {
 struct TaskCo;
 
@@ -90,11 +92,7 @@ struct ServerObject {
     zend_object std;
 
     zend_class_entry *get_ce() {
-        return Z_OBJCE_P(get_object());
-    }
-
-    zval *get_object() {
-        return (zval *) serv->private_data_2;
+        return Z_OBJCE_P(php_swoole_server_zval_ptr(serv));
     }
 
     bool isset_callback(ListenPort *port, int event_type) {
@@ -147,4 +145,4 @@ void php_swoole_server_onBufferEmpty(swServer *, swDataHead *);
 swServer *php_swoole_server_get_and_check_server(zval *zobject);
 void php_swoole_server_port_deref(zend_object *object);
 swoole::ServerObject *php_swoole_server_get_zend_object(swoole::Server *serv);
-zval *php_swoole_server_get_zval_object(swoole::Server *serv);
+

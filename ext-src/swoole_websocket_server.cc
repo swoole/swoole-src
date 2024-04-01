@@ -257,7 +257,7 @@ void swoole_websocket_onBeforeHandshakeResponse(Server *serv, int server_fd, Htt
         php_swoole_server_get_fci_cache(serv, server_fd, SW_SERVER_CB_onBeforeHandshakeResponse);
     if (fci_cache) {
         zval args[3];
-        args[0] = *php_swoole_server_get_zval_object(serv);
+        args[0] = *php_swoole_server_zval_ptr(serv);
         args[1] = *ctx->request.zobject;
         args[2] = *ctx->response.zobject;
         if (UNEXPECTED(!zend::function::call(fci_cache, 3, args, nullptr, serv->is_enable_coroutine()))) {
@@ -277,7 +277,7 @@ void swoole_websocket_onOpen(Server *serv, HttpContext *ctx) {
     zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, conn->server_fd, SW_SERVER_CB_onOpen);
     if (fci_cache) {
         zval args[2];
-        args[0] = *php_swoole_server_get_zval_object(serv);
+        args[0] = *php_swoole_server_zval_ptr(serv);
         args[1] = *ctx->request.zobject;
         if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, nullptr, serv->is_enable_coroutine()))) {
             php_swoole_error(E_WARNING, "%s->onOpen handler error", ZSTR_VAL(swoole_websocket_server_ce->name));
@@ -561,7 +561,7 @@ int swoole_websocket_onMessage(Server *serv, RecvData *req) {
         php_swoole_server_get_fci_cache(serv, req->info.server_fd, SW_SERVER_CB_onMessage);
     zval args[2];
 
-    args[0] = *(zval *) serv->private_data_2;
+    args[0] = *php_swoole_server_zval_ptr(serv);
     php_swoole_websocket_construct_frame(&args[1], opcode, &zdata, flags);
     zend_update_property_long(swoole_websocket_frame_ce, SW_Z8_OBJ_P(&args[1]), ZEND_STRL("fd"), fd);
 
@@ -593,7 +593,9 @@ void php_swoole_websocket_server_minit(int module_number) {
                            nullptr,
                            swoole_websocket_server_methods,
                            swoole_http_server);
+#ifndef SW_THREAD
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_websocket_server);
+#endif
     SW_SET_CLASS_CLONEABLE(swoole_websocket_server, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_websocket_server, sw_zend_class_unset_property_deny);
 
