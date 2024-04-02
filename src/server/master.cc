@@ -27,10 +27,6 @@ using swoole::network::Socket;
 
 swoole::Server *g_server_instance = nullptr;
 
-#ifdef SW_THREAD
-static std::vector<swoole::ListenPort *> listen_ports;
-#endif
-
 namespace swoole {
 
 static void Server_signal_handler(int sig);
@@ -151,7 +147,7 @@ int Server::accept_command_result(Reactor *reactor, Event *event) {
 
 int Server::accept_connection(Reactor *reactor, Event *event) {
     Server *serv = (Server *) reactor->ptr;
-    ListenPort *listen_host = serv->get_port_by_server_fd(event->fd);
+    ListenPort *listen_host = (ListenPort *) event->socket->object;
 
     for (int i = 0; i < SW_ACCEPT_MAX_COUNT; i++) {
         Socket *sock = event->socket->accept();
@@ -478,6 +474,7 @@ void Server::store_listen_socket() {
         connection_list[sockfd].socket_type = ls->type;
         connection_list[sockfd].object = ls;
         connection_list[sockfd].info.assign(ls->type, ls->host, ls->port);
+        ls->socket->object = ls;
         if (sockfd >= 0) {
             set_minfd(sockfd);
             set_maxfd(sockfd);
@@ -1745,17 +1742,6 @@ int Server::add_systemd_socket() {
 }
 
 static bool Server_create_socket(ListenPort *ls) {
-#ifdef SW_THREAD
-    std::unique_lock<std::mutex> _lock(sw_thread_lock);
-    if (listen_ports.size() > 0) {
-        for (auto _lp : listen_ports) {
-            if (_lp->type == ls->type && _lp->port == ls->port && _lp->host == ls->host) {
-                ls->socket = _lp->socket->dup();
-                return true;
-            }
-        }
-    }
-#endif
     ls->socket = make_socket(
         ls->type, ls->is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER, SW_SOCK_CLOEXEC | SW_SOCK_NONBLOCK);
     if (!ls->socket) {
@@ -1775,9 +1761,6 @@ static bool Server_create_socket(ListenPort *ls) {
 
     ls->socket->info.assign(ls->type, ls->host, ls->port);
 
-#ifdef SW_THREAD
-    listen_ports.push_back(ls);
-#endif
     return true;
 }
 
