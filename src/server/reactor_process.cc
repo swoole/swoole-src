@@ -205,9 +205,7 @@ int Server::worker_main_loop(ProcessPool *pool, Worker *worker) {
         SwooleTG.timer->reinit(reactor);
     }
 
-#ifndef SW_THREAD
-    Server::worker_signal_init();
-#endif
+    worker_signal_init();
 
     for (auto ls : serv->ports) {
 #ifdef HAVE_REUSEPORT
@@ -227,11 +225,11 @@ int Server::worker_main_loop(ProcessPool *pool, Worker *worker) {
     reactor->ptr = serv;
     reactor->max_socket = serv->get_max_connection();
 
-    reactor->close = Server::close_connection;
+    reactor->close = close_connection;
 
     // set event handler
     // connect
-    reactor->set_handler(SW_FD_STREAM_SERVER, Server::accept_connection);
+    reactor->set_handler(SW_FD_STREAM_SERVER, accept_connection);
     // close
     reactor->default_error_handler = ReactorProcess_onClose;
     // pipe
@@ -269,7 +267,7 @@ int Server::worker_main_loop(ProcessPool *pool, Worker *worker) {
         }
     }
 
-    if ((serv->master_timer = swoole_timer_add(1000L, true, Server::timer_callback, serv)) == nullptr) {
+    if ((serv->master_timer = swoole_timer_add(1000L, true, timer_callback, serv)) == nullptr) {
     _fail:
         swoole_event_free();
         return SW_ERR;
@@ -298,11 +296,11 @@ int Server::worker_main_loop(ProcessPool *pool, Worker *worker) {
     /**
      * call internal serv hooks
      */
-    if (serv->isset_hook(Server::HOOK_WORKER_CLOSE)) {
+    if (serv->isset_hook(HOOK_WORKER_CLOSE)) {
         void *hook_args[2];
         hook_args[0] = serv;
         hook_args[1] = (void *) (uintptr_t) worker->id;
-        serv->call_hook(Server::HOOK_WORKER_CLOSE, hook_args);
+        serv->call_hook(HOOK_WORKER_CLOSE, hook_args);
     }
 
     swoole_event_free();

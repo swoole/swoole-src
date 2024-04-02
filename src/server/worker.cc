@@ -33,6 +33,7 @@ static int Worker_onPipeReceive(Reactor *reactor, Event *event);
 static void Worker_reactor_try_to_exit(Reactor *reactor);
 
 void Server::worker_signal_init(void) {
+#ifndef SW_THREAD
     swoole_signal_set(SIGHUP, nullptr);
     swoole_signal_set(SIGPIPE, SIG_IGN);
     swoole_signal_set(SIGUSR1, nullptr);
@@ -43,6 +44,7 @@ void Server::worker_signal_init(void) {
     swoole_signal_set(SIGVTALRM, Server::worker_signal_handler);
 #ifdef SIGRTMIN
     swoole_signal_set(SIGRTMIN, Server::worker_signal_handler);
+#endif
 #endif
 }
 
@@ -215,7 +217,7 @@ void Server::worker_accept_event(DataHead *info) {
 }
 
 void Server::worker_start_callback(Worker *worker) {
-    if (SwooleG.process_id >= worker_num) {
+    if (get_worker_id() >= worker_num) {
         SwooleG.process_type = SW_PROCESS_TASKWORKER;
     } else {
         SwooleG.process_type = SW_PROCESS_WORKER;
