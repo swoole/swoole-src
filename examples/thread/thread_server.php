@@ -16,7 +16,7 @@ $http->on('Request', function ($req, $resp) use ($http) {
 
 $http->addProcess(new \Swoole\Process(function () {
     echo "user process, id=" . \Swoole\Thread::getId();
-    sleep(2);
+    sleep(2000);
 }));
 
 $http->on('Task', function () {

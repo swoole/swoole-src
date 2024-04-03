@@ -506,7 +506,6 @@ class Server {
         THREAD_MASTER = 1,
         THREAD_REACTOR = 2,
         THREAD_HEARTBEAT = 3,
-        THREAD_WORKER = 5,
     };
 
     enum DispatchMode {
@@ -1100,40 +1099,36 @@ class Server {
     }
 
     bool is_worker() {
-#ifdef SW_THREAD
-        return SwooleWG.worker->type == SW_PROCESS_EVENTWORKER;
-#else
-        return SwooleG.process_type == SW_PROCESS_EVENTWORKER;
-#endif
+        return sw_get_process_type() == SW_PROCESS_EVENTWORKER;
     }
-
-    bool is_worker_thread() {
-        return SwooleTG.type == THREAD_WORKER;
-    }
-
 
     bool is_task_worker() {
-#ifdef SW_THREAD
-        return SwooleWG.worker->type == SW_PROCESS_TASKWORKER;
-#else
-        return SwooleG.process_type == SW_PROCESS_TASKWORKER;
-#endif
+        return sw_get_process_type() == SW_PROCESS_TASKWORKER;
     }
 
     bool is_manager() {
-        return SwooleG.process_type == SW_PROCESS_MANAGER;
+        return sw_get_process_type() == SW_PROCESS_MANAGER;
     }
 
     bool is_user_worker() {
+        return sw_get_process_type() == SW_PROCESS_USERWORKER;
+    }
+
+    bool is_worker_thread() {
 #ifdef SW_THREAD
-        return SwooleWG.worker->type == SW_PROCESS_USERWORKER;
+        return sw_get_process_type() == SW_PROCESS_EVENTWORKER || sw_get_process_type() == SW_PROCESS_TASKWORKER ||
+               sw_get_process_type() == SW_PROCESS_USERWORKER;
 #else
-        return SwooleG.process_type == SW_PROCESS_USERWORKER;
+        return false;
 #endif
     }
 
     bool is_reactor_thread() {
-        return SwooleG.process_type == SW_PROCESS_MASTER && SwooleTG.type == Server::THREAD_REACTOR;
+#ifdef SW_THREAD
+        return false;
+#else
+        return sw_get_process_type() == SW_PROCESS_MASTER && SwooleTG.type == Server::THREAD_REACTOR;
+#endif
     }
 
     bool isset_hook(enum HookType type) {

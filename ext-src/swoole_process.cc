@@ -601,10 +601,11 @@ void php_swoole_process_clean() {
             signal_fci_caches[i] = nullptr;
         }
     }
-
+#ifndef SW_THREAD
     if (sw_get_process_type() != SW_PROCESS_USERWORKER) {
         sw_set_process_type(0);
     }
+#endif
 }
 
 void php_swoole_process_rshutdown() {
