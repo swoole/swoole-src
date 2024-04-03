@@ -3039,9 +3039,9 @@ static PHP_METHOD(swoole_server, taskwait) {
     }
 
     uint64_t notify;
-    EventData *task_result = &(serv->task_result[SwooleG.process_id]);
+    EventData *task_result = &(serv->task_result[sw_get_process_id()]);
     sw_memset_zero(task_result, sizeof(*task_result));
-    Pipe *pipe = serv->task_notify_pipes.at(SwooleG.process_id).get();
+    Pipe *pipe = serv->task_notify_pipes.at(sw_get_process_id()).get();
     network::Socket *task_notify_socket = pipe->get_socket(false);
 
     // clear history task
@@ -3121,10 +3121,10 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
     int list_of_id[SW_MAX_CONCURRENT_TASK] = {};
 
     uint64_t notify;
-    EventData *task_result = &(serv->task_result[SwooleG.process_id]);
+    EventData *task_result = &(serv->task_result[sw_get_process_id()]);
     sw_memset_zero(task_result, sizeof(*task_result));
-    Pipe *pipe = serv->task_notify_pipes.at(SwooleG.process_id).get();
-    Worker *worker = serv->get_worker(SwooleG.process_id);
+    Pipe *pipe = serv->task_notify_pipes.at(sw_get_process_id()).get();
+    Worker *worker = serv->get_worker(sw_get_process_id());
 
     File fp = swoole::make_tmpfile();
     if (!fp.ready()) {
@@ -3442,7 +3442,7 @@ static PHP_METHOD(swoole_server, sendMessage) {
     Z_PARAM_LONG(worker_id)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if ((serv->is_worker() || serv->is_task_worker()) && worker_id == SwooleG.process_id) {
+    if ((serv->is_worker() || serv->is_task_worker()) && worker_id == sw_get_process_id()) {
         php_swoole_fatal_error(E_WARNING, "can't send messages to self");
         RETURN_FALSE;
     }

@@ -179,11 +179,10 @@ static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
 
 int Server::worker_main_loop(ProcessPool *pool, Worker *worker) {
     Server *serv = (Server *) pool->ptr;
-
-    SwooleG.process_type = SW_PROCESS_WORKER;
     SwooleG.pid = getpid();
+    sw_set_process_type(SW_PROCESS_WORKER);
+    sw_set_process_id(worker->id);
 
-    SwooleG.process_id = worker->id;
     if (serv->max_request > 0) {
         SwooleWG.run_always = false;
     }

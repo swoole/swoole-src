@@ -419,7 +419,7 @@ int Server::start_master_thread() {
     init_signal_handler();
 
     SwooleG.pid = getpid();
-    SwooleG.process_type = SW_PROCESS_MASTER;
+    sw_set_process_type(SW_PROCESS_MASTER);
 
     reactor->ptr = this;
     reactor->set_handler(SW_FD_STREAM_SERVER, Server::accept_connection);
@@ -564,14 +564,14 @@ void Server::destroy_worker(Worker *worker) {
  * [Worker]
  */
 void Server::init_worker(Worker *worker) {
-#ifdef HAVE_CPU_AFFINITY
+#if defined(HAVE_CPU_AFFINITY) && !defined(SW_THREAD)
     if (open_cpu_affinity) {
         cpu_set_t cpu_set;
         CPU_ZERO(&cpu_set);
         if (cpu_affinity_available_num) {
-            CPU_SET(cpu_affinity_available[SwooleG.process_id % cpu_affinity_available_num], &cpu_set);
+            CPU_SET(cpu_affinity_available[sw_get_process_id() % cpu_affinity_available_num], &cpu_set);
         } else {
-            CPU_SET(SwooleG.process_id % SW_CPU_NUM, &cpu_set);
+            CPU_SET(sw_get_process_id() % SW_CPU_NUM, &cpu_set);
         }
         if (swoole_set_cpu_affinity(&cpu_set) < 0) {
             swoole_sys_warning("swoole_set_cpu_affinity() failed");
@@ -1917,7 +1917,7 @@ Connection *Server::add_connection(ListenPort *ls, Socket *_socket, int server_f
     int fd = _socket->fd;
 
     Connection *connection = &(connection_list[fd]);
-    ReactorId reactor_id = is_base_mode() ? SwooleG.process_id : fd % reactor_num;
+    ReactorId reactor_id = is_base_mode() ? sw_get_process_id() : fd % reactor_num;
     *connection = {};
 
     sw_spinlock(&gs->spinlock);

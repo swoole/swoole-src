@@ -973,14 +973,6 @@ class Server {
         return gs->manager_pid;
     }
 
-    WorkerId get_worker_id() {
-#ifdef SW_THREAD
-        return SwooleTG.id;
-#else
-        return SwooleG.process_id;
-#endif
-    }
-
     void store_listen_socket();
     void store_pipe_fd(UnixSocket *p);
 

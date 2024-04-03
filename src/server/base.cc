@@ -89,7 +89,7 @@ bool BaseFactory::end(SessionId session_id, int flags) {
     _send.info.fd = session_id;
     _send.info.len = 0;
     _send.info.type = SW_SERVER_EVENT_CLOSE;
-    _send.info.reactor_id = server_->get_worker_id();
+    _send.info.reactor_id = sw_get_process_id();
 
     Session *session = server_->get_session(session_id);
     if (!session->fd) {
@@ -100,7 +100,7 @@ bool BaseFactory::end(SessionId session_id, int flags) {
         return false;
     }
 
-    if (session->reactor_id != server_->get_worker_id()) {
+    if (session->reactor_id != sw_get_process_id()) {
         Worker *worker = server_->get_worker(session->reactor_id);
         if (worker->pipe_master->send_async((const char *) &_send.info, sizeof(_send.info)) < 0) {
             swoole_sys_warning("failed to send %lu bytes to pipe_master", sizeof(_send.info));
@@ -167,7 +167,7 @@ bool BaseFactory::finish(SendData *data) {
     SessionId session_id = data->info.fd;
 
     Session *session = server_->get_session(session_id);
-    if (session->reactor_id != server_->get_worker_id()) {
+    if (session->reactor_id != sw_get_process_id()) {
         swoole_trace("session->reactor_id=%d, SwooleG.process_id=%d", session->reactor_id, server_->get_worker_id());
         Worker *worker = server_->gs->event_workers.get_worker(session->reactor_id);
         EventData proxy_msg{};

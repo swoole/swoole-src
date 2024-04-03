@@ -100,7 +100,7 @@ static int TaskWorker_onTask(ProcessPool *pool, EventData *task) {
 bool Server::task_pack(EventData *task, const void *_data, size_t _length) {
     task->info.type = SW_SERVER_EVENT_TASK;
     task->info.fd = SwooleG.current_task_id++;
-    task->info.reactor_id = get_worker_id();
+    task->info.reactor_id = sw_get_process_id();
     task->info.time = microtime();
 
     if (_length < SW_IPC_MAX_SIZE - sizeof(task->info)) {
@@ -172,7 +172,7 @@ static void TaskWorker_signal_init(ProcessPool *pool) {
 
 static void TaskWorker_onStart(ProcessPool *pool, Worker *worker) {
     Server *serv = (Server *) pool->ptr;
-    SwooleG.process_id = worker->id;
+    sw_set_process_id(worker->id);
 
     /**
      * Make the task worker support asynchronous

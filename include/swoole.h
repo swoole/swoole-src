@@ -185,6 +185,13 @@ extern std::mutex sw_thread_lock;
 #define SW_THREAD_LOCAL
 #endif
 
+/**
+ * API naming rules
+ * -----------------------------------
+ * - starts with swoole_, means it is ready or has been used as an external API
+ * - starts with sw_, internal use only
+ */
+
 /*-----------------------------------Memory------------------------------------*/
 void *sw_malloc(size_t size);
 void sw_free(void *ptr);
@@ -328,9 +335,9 @@ static inline const char *swoole_strnstr(const char *haystack,
 }
 
 static inline const char *swoole_strncasestr(const char *haystack,
-                                         uint32_t haystack_length,
-                                         const char *needle,
-                                         uint32_t needle_length) {
+                                             uint32_t haystack_length,
+                                             const char *needle,
+                                             uint32_t needle_length) {
     assert(needle_length > 0);
     uint32_t i;
 
@@ -728,7 +735,7 @@ struct Global {
     uchar use_async_resolver : 1;
     uchar use_name_resolver : 1;
 
-    int process_type;
+    uint8_t process_type;
     uint32_t process_id;
     TaskId current_task_id;
     pid_t pid;
@@ -857,4 +864,36 @@ static sw_inline swoole::MemoryPool *sw_mem_pool() {
 
 static sw_inline const swoole::Allocator *sw_std_allocator() {
     return &SwooleG.std_allocator;
+}
+
+static sw_inline swoole::WorkerId sw_get_process_id() {
+#ifdef SW_THREAD
+    return SwooleTG.id;
+#else
+    return SwooleG.process_id;
+#endif
+}
+
+static sw_inline void sw_set_process_id(swoole::WorkerId id) {
+#ifdef SW_THREAD
+    SwooleTG.id = id;
+#else
+    SwooleG.process_id = id;
+#endif
+}
+
+static sw_inline void sw_set_process_type(int type) {
+#ifdef SW_THREAD
+    SwooleTG.type = type;
+#else
+    SwooleG.process_type = type;
+#endif
+}
+
+static sw_inline int sw_get_process_type() {
+#ifdef SW_THREAD
+    return SwooleTG.type;
+#else
+    return SwooleG.process_type;
+#endif
 }

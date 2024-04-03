@@ -217,10 +217,10 @@ void Server::worker_accept_event(DataHead *info) {
 }
 
 void Server::worker_start_callback(Worker *worker) {
-    if (get_worker_id() >= worker_num) {
-        SwooleG.process_type = SW_PROCESS_TASKWORKER;
+    if (sw_get_process_id() >= worker_num) {
+        sw_set_process_type(SW_PROCESS_TASKWORKER);
     } else {
-        SwooleG.process_type = SW_PROCESS_WORKER;
+        sw_set_process_type(SW_PROCESS_WORKER);
     }
 
     int is_root = !geteuid();
@@ -375,7 +375,7 @@ void Server::stop_async_worker(Worker *worker) {
 
 static void Worker_reactor_try_to_exit(Reactor *reactor) {
     Server *serv;
-    if (SwooleG.process_type == SW_PROCESS_TASKWORKER) {
+    if (sw_get_process_type() == SW_PROCESS_TASKWORKER) {
         ProcessPool *pool = (ProcessPool *) reactor->ptr;
         serv = (Server *) pool->ptr;
     } else {
@@ -428,8 +428,8 @@ void Server::drain_worker_pipe() {
  * main loop [Worker]
  */
 int Server::start_event_worker(Worker *worker) {
-    // worker_id
-    SwooleG.process_id = worker->id;
+    sw_set_process_id(worker->id);
+    sw_set_process_type(SW_PROCESS_EVENTWORKER);
 
     init_worker(worker);
 

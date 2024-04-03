@@ -128,7 +128,7 @@ static bool inline process_is_supported_send_yield(Server *serv, Connection *con
     if (!serv->is_hash_dispatch_mode()) {
         return false;
     } else {
-        return serv->schedule_worker(conn->fd, nullptr) == (int) serv->get_worker_id();
+        return serv->schedule_worker(conn->fd, nullptr) == (int) sw_get_process_id();
     }
 }
 
@@ -185,7 +185,7 @@ bool ProcessFactory::finish(SendData *resp) {
     memcpy(&task, resp, sizeof(SendData));
     task.info.fd = session_id;
     task.info.reactor_id = conn->reactor_id;
-    task.info.server_fd = server_->get_worker_id();
+    task.info.server_fd = sw_get_process_id();
 
     swoole_trace("worker_id=%d, type=%d", SwooleG.process_id, task.info.type);
 
@@ -227,7 +227,7 @@ bool ProcessFactory::end(SessionId session_id, int flags) {
     if (conn->close_actively) {
         bool hash = server_->is_hash_dispatch_mode();
         int worker_id = hash ? server_->schedule_worker(conn->fd, nullptr) : conn->fd % server_->worker_num;
-        if (server_->is_worker() && (!hash || worker_id == (int) server_->get_worker_id())) {
+        if (server_->is_worker() && (!hash || worker_id == (int) sw_get_process_id())) {
             goto _close;
         }
         worker = server_->get_worker(worker_id);

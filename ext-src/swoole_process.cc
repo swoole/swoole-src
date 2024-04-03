@@ -602,8 +602,8 @@ void php_swoole_process_clean() {
         }
     }
 
-    if (SwooleG.process_type != SW_PROCESS_USERWORKER) {
-        SwooleG.process_type = 0;
+    if (sw_get_process_type() != SW_PROCESS_USERWORKER) {
+        sw_set_process_type(0);
     }
 }
 
@@ -644,7 +644,7 @@ int php_swoole_process_start(Worker *process, zval *zobject) {
     }
 
     php_swoole_process_clean();
-    SwooleG.process_id = process->id;
+    sw_set_process_id(process->id);
     SwooleWG.worker = process;
 
     zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("pid"), process->pid);

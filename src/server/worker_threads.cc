@@ -56,8 +56,6 @@ struct WorkerThreads {
 
     void spawn_event_worker(int i) {
         create_thread(i, [=]() {
-            SwooleTG.type = Server::THREAD_WORKER;
-            SwooleTG.id = i;
             Worker *worker = server_->get_worker(i);
             worker->type = SW_PROCESS_WORKER;
             server_->worker_thread_start(
@@ -68,8 +66,6 @@ struct WorkerThreads {
 
     void spawn_task_worker(int i) {
         create_thread(i, [=]() {
-            SwooleTG.type = Server::THREAD_WORKER;
-            SwooleTG.id = i;
             Worker *worker = server_->get_worker(i);
             worker->type = SW_PROCESS_TASKWORKER;
             server_->worker_thread_start([=](void) -> bool {
@@ -82,8 +78,6 @@ struct WorkerThreads {
     void spawn_user_worker(int i) {
         create_thread(i, [=]() {
             Worker *worker = server_->user_worker_list.at(i - server_->task_worker_num - server_->worker_num);
-            SwooleTG.type = Server::THREAD_WORKER;
-            worker->type = SW_PROCESS_USERWORKER;
             SwooleTG.id = i;
             server_->worker_thread_start([=](void) -> bool {
                 server_->onUserWorkerStart(server_, worker);
