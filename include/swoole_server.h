@@ -356,6 +356,7 @@ struct ListenPort {
     }
 
     size_t get_connection_num();
+    int create_socket(swoole::Server *server);
 };
 
 struct ServerGS {

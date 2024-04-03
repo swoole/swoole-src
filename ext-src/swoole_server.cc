@@ -1965,6 +1965,7 @@ static PHP_METHOD(swoole_server, set) {
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(ZEND_THIS));
     Server *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (serv->is_worker_thread()) {
+        RETURN_TRUE;
         return;
     }
     if (serv->is_started()) {
@@ -2361,6 +2362,7 @@ static PHP_METHOD(swoole_server, set) {
         zend_long v = zval_get_long(ztmp);
         serv->message_queue_key = SW_MAX(0, SW_MIN(v, INT64_MAX));
     }
+#ifdef SW_THREAD
     // bootstrap
     if (php_swoole_array_get_value(vht, "bootstrap", ztmp)) {
         zend::object_set(ZEND_THIS, ZEND_STRL("bootstrap"), ztmp);
@@ -2373,6 +2375,7 @@ static PHP_METHOD(swoole_server, set) {
     } else {
         ZVAL_NULL(&server_object->init_arguments);
     }
+#endif
 
     if (serv->task_enable_coroutine &&
         (serv->task_ipc_mode == Server::TASK_IPC_MSGQUEUE || serv->task_ipc_mode == Server::TASK_IPC_PREEMPTIVE)) {

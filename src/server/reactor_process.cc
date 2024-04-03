@@ -24,10 +24,6 @@ static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event);
 static int ReactorProcess_onClose(Reactor *reactor, Event *event);
 static void ReactorProcess_onTimeout(Timer *timer, TimerNode *tnode);
 
-#ifdef HAVE_REUSEPORT
-static int ReactorProcess_reuse_port(ListenPort *ls);
-#endif
-
 static bool Server_is_single(Server *serv) {
     return (serv->worker_num == 1 && serv->task_worker_num == 0 && serv->max_request == 0 &&
             serv->user_worker_list.empty());
@@ -53,24 +49,17 @@ int Server::start_reactor_processes() {
     // listen TCP
     if (have_stream_sock == 1) {
         for (auto ls : ports) {
-            if (ls->is_dgram()) {
-                continue;
-            }
-#ifdef HAVE_REUSEPORT
-            if (enable_reuse_port) {
-                if (::close(ls->socket->fd) < 0) {
-                    swoole_sys_warning("close(%d) failed", ls->socket->fd);
-                }
-                delete ls->socket;
-                ls->socket = nullptr;
-                continue;
-            } else
+            if (ls->is_stream()) {
+#if defined(__linux__) && defined(HAVE_REUSEPORT)
+                if (!enable_reuse_port) {
 #endif
-            {
-                // listen server socket
-                if (ls->listen() < 0) {
-                    return SW_ERR;
+                    // listen server socket
+                    if (ls->listen() < 0) {
+                        return SW_ERR;
+                    }
+#if defined(__linux__) && defined(HAVE_REUSEPORT)
                 }
+#endif
             }
         }
     }
@@ -207,10 +196,14 @@ int Server::worker_main_loop(ProcessPool *pool, Worker *worker) {
     worker_signal_init();
 
     for (auto ls : serv->ports) {
-#ifdef HAVE_REUSEPORT
+#if defined(__linux__) && defined(HAVE_REUSEPORT)
         if (ls->is_stream() && serv->enable_reuse_port) {
-            if (ReactorProcess_reuse_port(ls) < 0) {
+            if (ls->create_socket(serv) < 0) {
                 swoole_event_free();
+                return SW_ERR;
+            }
+
+            if (ls->listen() < 0) {
                 return SW_ERR;
             }
         }
@@ -363,21 +356,4 @@ static void ReactorProcess_onTimeout(Timer *timer, TimerNode *tnode) {
         ReactorProcess_onClose(reactor, &notify_ev);
     });
 }
-
-#ifdef HAVE_REUSEPORT
-static int ReactorProcess_reuse_port(ListenPort *ls) {
-    ls->socket = swoole::make_socket(
-        ls->type, ls->is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER, SW_SOCK_CLOEXEC | SW_SOCK_NONBLOCK);
-    if (ls->socket->set_reuse_port() < 0) {
-        ls->socket->free();
-        return SW_ERR;
-    }
-    if (ls->socket->bind(ls->host, &ls->port) < 0) {
-        ls->socket->free();
-        return SW_ERR;
-    }
-    return ls->listen();
-}
-#endif
-
 }  // namespace swoole

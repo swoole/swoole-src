@@ -125,6 +125,22 @@ static zend_object *php_swoole_server_port_create_object(zend_class_entry *ce) {
     return &server_port->std;
 }
 
+/**
+ * Since the socket creation occurs after executing Swoole\\Server::start, the fd here is -1, indicating that
+ * the connection has not been established yet.
+ */
+static zval* swoole_server_port_read_property(zend_object *object, zend_string *name, int type, void **cache_slot, zval *rv) {
+    zval *property = zend_std_read_property(object, name, type, cache_slot, rv);
+    if (SW_STREQ(ZSTR_VAL(name), ZSTR_LEN(name), "sock")) {
+        ListenPort *port = php_swoole_server_port_fetch_object(object)->port;;
+        if (Z_LVAL_P(property) == -1 && port->socket) {
+            ZVAL_LONG(property, port->get_fd());
+        }
+    }
+
+    return property;
+}
+
 SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_server_port, __construct);
 static PHP_METHOD(swoole_server_port, __destruct);
@@ -186,6 +202,8 @@ void php_swoole_server_port_minit(int module_number) {
     zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("setting"), ZEND_ACC_PUBLIC);
 
     zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("connections"), ZEND_ACC_PUBLIC);
+
+    swoole_server_port_handlers.read_property = swoole_server_port_read_property;
 }
 
 /**

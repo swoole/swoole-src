@@ -46,7 +46,7 @@ struct WorkerThreads {
         cv_.notify_one();
     }
 
-    template<typename _Callable>
+    template <typename _Callable>
     void create_thread(int i, _Callable fn) {
         if (threads_[i].joinable()) {
             threads_[i].join();
@@ -128,24 +128,17 @@ int Server::start_worker_threads() {
     // listen TCP
     if (have_stream_sock == 1) {
         for (auto ls : ports) {
-            if (ls->is_dgram()) {
-                continue;
-            }
-#ifdef HAVE_REUSEPORT
-            if (enable_reuse_port) {
-                if (::close(ls->socket->fd) < 0) {
-                    swoole_sys_warning("close(%d) failed", ls->socket->fd);
-                }
-                delete ls->socket;
-                ls->socket = nullptr;
-                continue;
-            } else
+            if (ls->is_stream()) {
+#if defined(__linux__) && defined(HAVE_REUSEPORT)
+                if (!enable_reuse_port) {
 #endif
-            {
-                // listen server socket
-                if (ls->listen() < 0) {
-                    return SW_ERR;
+                    // listen server socket
+                    if (ls->listen() < 0) {
+                        return SW_ERR;
+                    }
+#if defined(__linux__) && defined(HAVE_REUSEPORT)
                 }
+#endif
             }
         }
     }
