@@ -137,6 +137,8 @@ int Server::start_worker_threads() {
                         return SW_ERR;
                     }
 #if defined(__linux__) && defined(HAVE_REUSEPORT)
+                } else {
+                    ls->close_socket_fd();
                 }
 #endif
             }

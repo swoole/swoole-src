@@ -840,4 +840,12 @@ int ListenPort::create_socket(Server *server) {
     return SW_OK;
 }
 
+void ListenPort::close_socket_fd() {
+    if (::close(socket->fd) < 0) {
+        swoole_sys_warning("close(%d) failed", socket->fd);
+    }
+    delete socket;
+    socket = nullptr;
+}
+
 }  // namespace swoole

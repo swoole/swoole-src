@@ -58,6 +58,8 @@ int Server::start_reactor_processes() {
                         return SW_ERR;
                     }
 #if defined(__linux__) && defined(HAVE_REUSEPORT)
+                } else {
+                    ls->close_socket_fd();
                 }
 #endif
             }

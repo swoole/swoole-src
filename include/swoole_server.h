@@ -324,6 +324,8 @@ struct ListenPort {
     void close();
     bool import(int sock);
     const char *get_protocols();
+    int create_socket(swoole::Server *server);
+    void close_socket_fd();
 
 #ifdef SW_USE_OPENSSL
     bool ssl_create_context(SSLContext *context);
@@ -356,7 +358,6 @@ struct ListenPort {
     }
 
     size_t get_connection_num();
-    int create_socket(swoole::Server *server);
 };
 
 struct ServerGS {
