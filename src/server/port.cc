@@ -792,7 +792,22 @@ size_t ListenPort::get_connection_num() {
     }
 }
 
+#if defined(__linux__) && defined(HAVE_REUSEPORT) && defined(SW_THREAD)
+/**
+ * When `bind` is set to false, it indicates that it is the process of duplicating `ListenPort`
+ * using `Server::duplicate_port`.
+ */
+int ListenPort::create_socket(Server *server, bool bind) {
+    /**
+     * When `worker_id` is greater than 0, the socket is created through `Server::duplicate_port`, and no additional
+     * operations are required. Simply execute the bind operation.
+     */
+    if (worker_id > 0) {
+        goto start_bind;
+    }
+#else
 int ListenPort::create_socket(Server *server) {
+#endif
     if (socket) {
 #if defined(__linux__) && defined(HAVE_REUSEPORT)
         if (server->enable_reuse_port) {
@@ -830,11 +845,18 @@ int ListenPort::create_socket(Server *server) {
     }
 #endif
 
-    if (socket->bind(host, &port) < 0) {
-        swoole_set_last_error(errno);
-        socket->free();
-        return SW_ERR;
+#if defined(__linux__) && defined(HAVE_REUSEPORT) && defined(SW_THREAD)
+start_bind:
+    if (bind) {
+#endif
+        if (socket->bind(host, &port) < 0) {
+            swoole_set_last_error(errno);
+            socket->free();
+            return SW_ERR;
+        }
+#if defined(__linux__) && defined(HAVE_REUSEPORT) && defined(SW_THREAD)
     }
+#endif
 
     socket->info.assign(type, host, port);
     return SW_OK;

@@ -272,6 +272,10 @@ struct ListenPort {
      */
     int kernel_socket_recv_buffer_size = 0;
     int kernel_socket_send_buffer_size = 0;
+#if defined(__linux__) && defined(HAVE_REUSEPORT) && defined(SW_THREAD)
+    WorkerId worker_id = 0;
+    size_t number = 0;
+#endif
 
 #ifdef SW_USE_OPENSSL
     SSLContext *ssl_context = nullptr;
@@ -324,7 +328,11 @@ struct ListenPort {
     void close();
     bool import(int sock);
     const char *get_protocols();
+#if defined(__linux__) && defined(HAVE_REUSEPORT) && defined(SW_THREAD)
+    int create_socket(swoole::Server *server, bool bind = true);
+#else
     int create_socket(swoole::Server *server);
+#endif
     void close_socket_fd();
 
 #ifdef SW_USE_OPENSSL
@@ -735,7 +743,14 @@ class Server {
     std::vector<ListenPort *> ports;
 
     ListenPort *get_primary_port() {
-        return ports.front();
+#if defined(__linux__) && defined(HAVE_REUSEPORT) && defined(SW_THREAD)
+        if (enable_reuse_port && is_worker_thread()) {
+            return ports.at((ports.size() / (worker_num + 1)) * (sw_get_process_id() + 1));
+        } else
+#endif
+        {
+            return ports.front();
+        }
     }
 
     enum Mode get_mode() const {
@@ -938,7 +953,12 @@ class Server {
     bool shutdown();
 
     int add_worker(Worker *worker);
+#if defined(__linux__) && defined(HAVE_REUSEPORT) && defined(SW_THREAD)
+    ListenPort *add_port(SocketType type, const char *host, int port, bool bind = true);
+    ListenPort *duplicate_port(ListenPort *ls, int worker_id, size_t index, size_t number);
+#else
     ListenPort *add_port(SocketType type, const char *host, int port);
+#endif
     int add_systemd_socket();
     int add_hook(enum HookType type, const Callback &func, int push_back);
     bool add_command(const std::string &command, int accepted_process_types, const Command::Handler &func);

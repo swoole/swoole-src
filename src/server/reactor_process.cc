@@ -179,7 +179,13 @@ int Server::worker_main_loop(ProcessPool *pool, Worker *worker) {
     }
     SwooleWG.max_request = serv->max_request;
     SwooleWG.worker = worker;
-    SwooleTG.id = 0;
+#if defined(__linux__) && defined(HAVE_REUSEPORT) && defined(SW_THREAD)
+    if (!serv->enable_reuse_port) {
+#endif
+        SwooleTG.id = 0;
+#if defined(__linux__) && defined(HAVE_REUSEPORT) && defined(SW_THREAD)
+    }
+#endif
 
     serv->init_worker(worker);
 
@@ -200,11 +206,15 @@ int Server::worker_main_loop(ProcessPool *pool, Worker *worker) {
     for (auto ls : serv->ports) {
 #if defined(__linux__) && defined(HAVE_REUSEPORT)
         if (ls->is_stream() && serv->enable_reuse_port) {
+#ifdef SW_THREAD
+            if (ls->worker_id != worker->id + 1) {
+                continue;
+            }
+#endif
             if (ls->create_socket(serv) < 0) {
                 swoole_event_free();
                 return SW_ERR;
             }
-
             if (ls->listen() < 0) {
                 return SW_ERR;
             }

@@ -139,8 +139,10 @@ static zend_class_entry *swoole_server_task_result_ce;
 static zend_object_handlers swoole_server_task_result_handlers;
 
 static SW_THREAD_LOCAL zval swoole_server_instance;
+#ifdef SW_THREAD
 static SW_THREAD_LOCAL WorkerFn worker_thread_fn;
-static SW_THREAD_LOCAL std::vector<ServerPortProperty *> swoole_server_port_properties;
+static SW_THREAD_LOCAL std::unordered_map<size_t, ServerPortProperty *> swoole_server_port_properties;
+#endif
 
 static sw_inline ServerObject *server_fetch_object(zend_object *obj) {
     return (ServerObject *) ((char *) obj - swoole_server_handlers.offset);
@@ -164,7 +166,19 @@ zval *php_swoole_server_zval_ptr(Server *serv) {
 
 ServerPortProperty *php_swoole_server_get_port_property(ListenPort *port) {
 #ifdef SW_THREAD
-    return swoole_server_port_properties.at(port->socket->get_fd());
+#if defined(__linux__) && defined(HAVE_REUSEPORT)
+    if (sw_server()->enable_reuse_port && sw_server()->is_worker_thread()) {
+        /**
+         * If the ListenPort of other threads is delivered here, we can return the callback function
+         * based on the number of the ListenPort. This is because ListenPorts with the same order will
+         * have the same callback function.
+         */
+        return swoole_server_port_properties[port->number];
+    } else
+#endif
+    {
+        return swoole_server_port_properties[port->socket->get_fd()];
+    }
 #else
     return (ServerPortProperty *) port->ptr;
 #endif
@@ -172,10 +186,19 @@ ServerPortProperty *php_swoole_server_get_port_property(ListenPort *port) {
 
 void php_swoole_server_set_port_property(ListenPort *port, ServerPortProperty *property) {
 #ifdef SW_THREAD
-    if (swoole_server_port_properties.size() < (size_t) port->socket->get_fd() + 1) {
-        swoole_server_port_properties.resize((size_t) port->socket->get_fd() + 1);
+#if defined(__linux__) && defined(HAVE_REUSEPORT)
+    if (property->serv->enable_reuse_port && property->serv->is_worker_thread()) {
+        /**
+         * If the ListenPort of other threads is delivered here, we can return the callback function
+         * based on the number of the ListenPort. This is because ListenPorts with the same order will
+         * have the same callback function.
+         */
+        swoole_server_port_properties[port->number] = property;
+    } else
+#endif
+    {
+        swoole_server_port_properties[port->socket->get_fd()] = property;
     }
-    swoole_server_port_properties[port->socket->get_fd()] = property;
 #else
     port->ptr = property;
 #endif
@@ -915,6 +938,31 @@ void ServerObject::on_before_start() {
         }
         serv->onReceive = php_swoole_server_onReceive;
     }
+
+#if defined(__linux__) && defined(HAVE_REUSEPORT) && defined(SW_THREAD)
+    /**
+     * The specific process is as follows: If `enable_reuse_port` is enabled, the main thread will create
+     * `worker_num` copies of all ListenPorts. When the child threads are generated, these copies
+     * will be distributed based on the `worker_id`. At this point, the child thread will add these ListenPorts
+     * to its own `ServerObject::property` in the `ports` section.
+     */
+    if (serv->enable_reuse_port) {
+        size_t port_count, index;
+        port_count = index = serv->ports.size();
+        for (uint32_t worker_id = 1; worker_id <= serv->worker_num; worker_id++) {
+            for (size_t i = 0; i < port_count; i++) {
+                ListenPort *ls = serv->duplicate_port(serv->ports[i], worker_id, index++, i);
+                if (ls) {
+                    /**
+                     * Add it to `property->ports` so that all the properties of the main thread's `ListenPort`
+                     * can be copied to the newly generated `ListenPort`.
+                     */
+                    php_swoole_server_add_port(this, ls);
+                }
+            }
+        }
+    }
+#endif
 
     for (size_t i = 1; i < property->ports.size(); i++) {
         zval *zport = property->ports.at(i);
@@ -1862,7 +1910,17 @@ static void server_ctor(zval *zserv, Server *serv) {
 
     /* primary port */
     for (auto ls : serv->ports) {
-        php_swoole_server_add_port(server_object, ls);
+#if defined(__linux__) && defined(HAVE_REUSEPORT) && defined(SW_THREAD)
+        if (serv->enable_reuse_port && serv->is_worker_thread()) {
+            // The child thread only adds its own ListenPort.
+            if (ls->worker_id == sw_get_process_id()) {
+                php_swoole_server_add_port(server_object, ls);
+            }
+        } else
+#endif
+        {
+            php_swoole_server_add_port(server_object, ls);
+        }
     }
 
     /* iterator */
