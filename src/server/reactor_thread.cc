@@ -26,7 +26,6 @@ using std::unordered_map;
 namespace swoole {
 using namespace network;
 
-static void ReactorThread_loop(Server *serv, int reactor_id);
 static int ReactorThread_onPipeWrite(Reactor *reactor, Event *ev);
 static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev);
 static int ReactorThread_onRead(Reactor *reactor, Event *ev);
@@ -670,21 +669,7 @@ int Server::start_reactor_threads() {
     }
 
     SW_LOOP_N(reactor_num) {
-        if (is_thread_mode()) {
-            get_thread(i)->thread = std::thread([=]() {
-                swoole_set_process_id(i);
-                swoole_set_process_type(SW_PROCESS_EVENTWORKER);
-                swoole_set_thread_id(i);
-                swoole_set_thread_type(Server::THREAD_REACTOR);
-                SwooleWG.worker = get_worker(i);
-                worker_thread_start([=](void) -> bool {
-                    ReactorThread_loop(this, i);
-                    return true;
-                });
-            });
-        } else {
-            get_thread(i)->thread = std::thread(ReactorThread_loop, this, i);
-        }
+        get_thread(i)->thread = std::thread(reactor_thread_main_loop, this, i);
     }
 
 _init_master_thread:
@@ -791,10 +776,7 @@ int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
     return SW_OK;
 }
 
-/**
- * ReactorThread main Loop
- */
-static void ReactorThread_loop(Server *serv, int reactor_id) {
+void Server::reactor_thread_main_loop(Server *serv, int reactor_id) {
     SwooleTG.id = reactor_id;
     SwooleTG.type = Server::THREAD_REACTOR;
     swoole_thread_init();

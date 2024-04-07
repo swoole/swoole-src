@@ -46,6 +46,7 @@
 #include <atomic>
 #include <unordered_map>
 #include <unordered_set>
+#include <condition_variable>
 
 //------------------------------------Server-------------------------------------------
 namespace swoole {
@@ -57,7 +58,7 @@ struct Request;
 class Server;
 struct Manager;
 
-typedef std::function<bool(void)> WorkerFn;
+typedef std::function<void(void)> WorkerFn;
 
 struct Session {
     SessionId id;
@@ -430,6 +431,13 @@ class ProcessFactory : public Factory {
   public:
     ProcessFactory(Server *server);
     ~ProcessFactory();
+    pid_t spawn_event_worker(Worker *worker);
+    pid_t spawn_user_worker(Worker *worker);
+    pid_t spawn_task_worker(Worker *worker);
+    void kill_user_workers();
+    void kill_event_workers();
+    void kill_task_workers();
+    void check_worker_exit_status(Worker *worker, const ExitStatus &exit_status);
     bool start() override;
     bool shutdown() override;
     bool dispatch(SendData *) override;
@@ -439,9 +447,23 @@ class ProcessFactory : public Factory {
 };
 
 class ThreadFactory : public BaseFactory {
+  private:
+    std::vector<std::thread> threads_;
+    std::mutex lock_;
+    std::condition_variable cv_;
+    std::queue<Worker *> queue_;
+    Worker manager;
+    template <typename _Callable>
+    void create_thread(int i, _Callable fn);
+    void at_thread_exit(Worker *worker);
   public:
     ThreadFactory(Server *server);
     ~ThreadFactory();
+    void spawn_event_worker(int i);
+    void spawn_task_worker(int i);
+    void spawn_user_worker(int i);
+    void spawn_manager_thread(int i);
+    void wait();
     bool start() override;
     bool shutdown() override;
 };
@@ -512,6 +534,7 @@ class Server {
         THREAD_MASTER = 1,
         THREAD_REACTOR = 2,
         THREAD_HEARTBEAT = 3,
+        THREAD_WORKER = 4,
     };
 
     enum DispatchMode {
@@ -1134,7 +1157,7 @@ class Server {
     }
 
     bool is_worker_thread() {
-        return is_thread_mode() && is_reactor_thread();
+        return is_thread_mode() && swoole_get_thread_type() == Server::THREAD_WORKER;
     }
 
     bool is_reactor_thread() {
@@ -1370,23 +1393,10 @@ class Server {
         }
     }
 
-    /**
-     * [Manager]
-     */
-    pid_t spawn_event_worker(Worker *worker);
-    pid_t spawn_user_worker(Worker *worker);
-    pid_t spawn_task_worker(Worker *worker);
-
-    void kill_user_workers();
-    void kill_event_workers();
-    void kill_task_workers();
-
     static int wait_other_worker(ProcessPool *pool, const ExitStatus &exit_status);
     static void read_worker_message(ProcessPool *pool, EventData *msg);
 
     void drain_worker_pipe();
-
-    void check_worker_exit_status(Worker *worker, const ExitStatus &exit_status);
 
     /**
      * [Worker]
@@ -1399,8 +1409,13 @@ class Server {
     static int worker_main_loop(ProcessPool *pool, Worker *worker);
     static void worker_signal_handler(int signo);
     static void worker_signal_init(void);
+    static void reactor_thread_main_loop(Server *serv, int reactor_id);
     static bool task_pack(EventData *task, const void *data, size_t data_len);
     static bool task_unpack(EventData *task, String *buffer, PacketPtr *packet);
+
+    int start_master_thread(Reactor *reactor);
+    int start_event_worker(Worker *worker);
+    void start_heartbeat_thread();
 
   private:
     enum Mode mode_;
@@ -1427,9 +1442,6 @@ class Server {
     int start_reactor_threads();
     int start_reactor_processes();
     int start_worker_threads();
-    int start_master_thread(Reactor *reactor);
-    int start_event_worker(Worker *worker);
-    void start_heartbeat_thread();
     void join_reactor_thread();
     TimerCallback get_timeout_callback(ListenPort *port, Reactor *reactor, Connection *conn);
 

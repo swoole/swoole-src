@@ -683,8 +683,13 @@ int Server::start() {
     int ret;
     if (is_base_mode()) {
         ret = start_reactor_processes();
-    } else {
+    } else if (is_process_mode()) {
         ret = start_reactor_threads();
+    } else if (is_thread_mode()) {
+        ret = start_worker_threads();
+    } else {
+        abort();
+        return SW_ERR;
     }
     // failed to start
     if (ret < 0) {

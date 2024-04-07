@@ -2604,7 +2604,8 @@ static PHP_METHOD(swoole_server, start) {
 
 #ifdef SW_THREAD
     if (serv->is_worker_thread()) {
-        RETURN_BOOL(worker_thread_fn());
+        worker_thread_fn();
+        return;
     }
 #endif
 
