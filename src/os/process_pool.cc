@@ -233,7 +233,7 @@ int ProcessPool::start() {
     running = started = true;
     master_pid = getpid();
     reload_workers = new Worker[worker_num]();
-    sw_set_process_type(SW_PROCESS_MASTER);
+    swoole_set_process_type(SW_PROCESS_MASTER);
 
     if (async) {
         main_loop = ProcessPool_worker_loop_async;
@@ -458,8 +458,8 @@ pid_t ProcessPool::spawn(Worker *worker) {
     // child
     case 0:
         worker->pid = SwooleG.pid;
-        sw_set_process_type(SW_PROCESS_WORKER);
-        sw_set_process_id(worker->id);
+        swoole_set_process_type(SW_PROCESS_WORKER);
+        swoole_set_process_id(worker->id);
         if (async) {
             if (swoole_event_init(SW_EVENTLOOP_WAIT_EXIT) < 0) {
                 exit(254);
@@ -811,7 +811,7 @@ bool ProcessPool::detach() {
 
     WorkerStopMessage msg;
     msg.pid = getpid();
-    msg.worker_id = sw_get_process_id();
+    msg.worker_id = swoole_get_process_id();
 
     if (push_message(SW_WORKER_MESSAGE_STOP, &msg, sizeof(msg)) < 0) {
         return false;

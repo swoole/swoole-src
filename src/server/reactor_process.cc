@@ -33,20 +33,6 @@ static bool Server_is_single(Server *serv) {
             serv->user_worker_list.empty());
 }
 
-int Server::create_reactor_processes() {
-    reactor_num = worker_num;
-    connection_list = (Connection *) sw_calloc(max_connection, sizeof(Connection));
-    if (connection_list == nullptr) {
-        swoole_sys_warning("calloc[2](%d) failed", (int) (max_connection * sizeof(Connection)));
-        return SW_ERR;
-    }
-    return SW_OK;
-}
-
-void Server::destroy_reactor_processes() {
-    sw_free(connection_list);
-}
-
 int Server::start_reactor_processes() {
     single_thread = 1;
 
@@ -180,8 +166,8 @@ static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
 int Server::worker_main_loop(ProcessPool *pool, Worker *worker) {
     Server *serv = (Server *) pool->ptr;
     SwooleG.pid = getpid();
-    sw_set_process_type(SW_PROCESS_WORKER);
-    sw_set_process_id(worker->id);
+    swoole_set_process_type(SW_PROCESS_WORKER);
+    swoole_set_process_id(worker->id);
 
     if (serv->max_request > 0) {
         SwooleWG.run_always = false;

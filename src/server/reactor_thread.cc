@@ -630,23 +630,6 @@ static int ReactorThread_onWrite(Reactor *reactor, Event *ev) {
     return SW_OK;
 }
 
-int Server::create_reactor_threads() {
-    /**
-     * init reactor thread pool
-     */
-    reactor_threads = new ReactorThread[reactor_num]();
-    /**
-     * alloc the memory for connection_list
-     */
-    connection_list = (Connection *) sw_shm_calloc(max_connection, sizeof(Connection));
-    if (connection_list == nullptr) {
-        swoole_error("calloc[1] failed");
-        return SW_ERR;
-    }
-    reactor_pipe_num = worker_num / reactor_num;
-    return SW_OK;
-}
-
 /**
  * [master]
  */
@@ -687,7 +670,21 @@ int Server::start_reactor_threads() {
     }
 
     SW_LOOP_N(reactor_num) {
-        get_thread(i)->thread = std::thread(ReactorThread_loop, this, i);
+        if (is_thread_mode()) {
+            get_thread(i)->thread = std::thread([=]() {
+                swoole_set_process_id(i);
+                swoole_set_process_type(SW_PROCESS_EVENTWORKER);
+                swoole_set_thread_id(i);
+                swoole_set_thread_type(Server::THREAD_REACTOR);
+                SwooleWG.worker = get_worker(i);
+                worker_thread_start([=](void) -> bool {
+                    ReactorThread_loop(this, i);
+                    return true;
+                });
+            });
+        } else {
+            get_thread(i)->thread = std::thread(ReactorThread_loop, this, i);
+        }
     }
 
 _init_master_thread:
@@ -699,7 +696,7 @@ _init_master_thread:
         start_heartbeat_thread();
     }
 
-    return start_master_thread();
+    return start_master_thread(reactor);
 }
 
 int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
@@ -745,6 +742,9 @@ int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
     }
 
     serv->init_reactor(reactor);
+    if (serv->is_thread_mode()) {
+        serv->init_worker(serv->get_worker(reactor_id));
+    }
 
     int max_pipe_fd = serv->get_worker(serv->worker_num - 1)->pipe_master->fd + 2;
     pipe_sockets = (Socket *) sw_calloc(max_pipe_fd, sizeof(Socket));
@@ -803,27 +803,13 @@ static void ReactorThread_loop(Server *serv, int reactor_id) {
         return;
     }
 
+    if (serv->is_thread_mode()) {
+        serv->call_worker_start_callback(serv->get_worker(reactor_id));
+    }
+
     ReactorThread *thread = serv->get_thread(reactor_id);
     thread->id = reactor_id;
     Reactor *reactor = sw_reactor();
-
-#ifdef HAVE_CPU_AFFINITY
-    // cpu affinity setting
-    if (serv->open_cpu_affinity) {
-        cpu_set_t cpu_set;
-        CPU_ZERO(&cpu_set);
-
-        if (serv->cpu_affinity_available_num) {
-            CPU_SET(serv->cpu_affinity_available[reactor_id % serv->cpu_affinity_available_num], &cpu_set);
-        } else {
-            CPU_SET(reactor_id % SW_CPU_NUM, &cpu_set);
-        }
-
-        if (0 != pthread_setaffinity_np(pthread_self(), sizeof(cpu_set), &cpu_set)) {
-            swoole_sys_warning("pthread_setaffinity_np() failed");
-        }
-    }
-#endif
 
     if (thread->init(serv, reactor, reactor_id) < 0) {
         return;
@@ -837,6 +823,9 @@ static void ReactorThread_loop(Server *serv, int reactor_id) {
 #endif
     // main loop
     swoole_event_wait();
+    if (serv->is_thread_mode()) {
+        serv->worker_stop_callback(serv->get_worker(reactor_id));
+    }
     sw_free(thread->pipe_sockets);
     if (thread->pipe_command) {
         thread->pipe_command->fd = -1;
@@ -944,15 +933,6 @@ void Server::join_reactor_thread() {
             }
         }
         thread->thread.join();
-    }
-}
-
-void Server::destroy_reactor_threads() {
-    sw_shm_free(connection_list);
-    delete[] reactor_threads;
-
-    if (gs->event_workers.message_box) {
-        gs->event_workers.message_box->destroy();
     }
 }
 

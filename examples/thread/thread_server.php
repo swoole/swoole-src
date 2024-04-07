@@ -11,7 +11,8 @@ $http->set([
 ]);
 
 $http->on('Request', function ($req, $resp) use ($http) {
-    $resp->end("tid=" . \Swoole\Thread::getId() . ', fd=' . $req->fd);
+//    $resp->end("tid=" . \Swoole\Thread::getId() . ', fd=' . $req->fd);
+    $resp->end('hello world');
 });
 
 $http->addProcess(new \Swoole\Process(function () {
@@ -25,6 +26,10 @@ $http->on('Task', function () {
 
 $http->on('WorkerStart', function ($serv, $wid) {
     var_dump(\Swoole\Thread::getArguments());
+});
+
+$http->on('WorkerStop', function ($serv, $wid) {
+    var_dump('stop: T' . \Swoole\Thread::getId());
 });
 
 $http->start();

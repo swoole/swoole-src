@@ -398,7 +398,7 @@ int Server::start_check() {
     /**
      * OpenSSL thread-safe
      */
-    if (is_process_mode() && !single_thread) {
+    if ((is_process_mode() && !single_thread) || is_thread_mode()) {
         swoole_ssl_init_thread_safety();
     }
 #endif
@@ -406,11 +406,9 @@ int Server::start_check() {
     return SW_OK;
 }
 
-int Server::start_master_thread() {
-    SwooleTG.type = THREAD_MASTER;
-    SwooleTG.id = single_thread ? 0 : reactor_num;
-
-    Reactor *reactor = sw_reactor();
+int Server::start_master_thread(Reactor *reactor) {
+    swoole_set_thread_type(THREAD_MASTER);
+    swoole_set_thread_id(single_thread ? 0 : reactor_num);
 
     if (SwooleTG.timer && SwooleTG.timer->get_reactor() == nullptr) {
         SwooleTG.timer->reinit(reactor);
@@ -419,7 +417,7 @@ int Server::start_master_thread() {
     init_signal_handler();
 
     SwooleG.pid = getpid();
-    sw_set_process_type(SW_PROCESS_MASTER);
+    swoole_set_process_type(SW_PROCESS_MASTER);
 
     reactor->ptr = this;
     reactor->set_handler(SW_FD_STREAM_SERVER, Server::accept_connection);
@@ -443,7 +441,9 @@ int Server::start_master_thread() {
 #if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
     SW_START_SLEEP;
 #else
-    pthread_barrier_wait(&gs->manager_barrier);
+    if (is_process_mode()) {
+        pthread_barrier_wait(&gs->manager_barrier);
+    }
 #endif
 #else
     SW_START_SLEEP;
@@ -463,9 +463,6 @@ int Server::start_master_thread() {
 }
 
 void Server::store_listen_socket() {
-#ifdef SW_THREAD
-    std::unique_lock<std::mutex> _lock(lock_);
-#endif
     for (auto ls : ports) {
         int sockfd = ls->socket->fd;
         // save server socket to connection_list
@@ -564,21 +561,6 @@ void Server::destroy_worker(Worker *worker) {
  * [Worker]
  */
 void Server::init_worker(Worker *worker) {
-#if defined(HAVE_CPU_AFFINITY) && !defined(SW_THREAD)
-    if (open_cpu_affinity) {
-        cpu_set_t cpu_set;
-        CPU_ZERO(&cpu_set);
-        if (cpu_affinity_available_num) {
-            CPU_SET(cpu_affinity_available[sw_get_process_id() % cpu_affinity_available_num], &cpu_set);
-        } else {
-            CPU_SET(sw_get_process_id() % SW_CPU_NUM, &cpu_set);
-        }
-        if (swoole_set_cpu_affinity(&cpu_set) < 0) {
-            swoole_sys_warning("swoole_set_cpu_affinity() failed");
-        }
-    }
-#endif
-
     if (max_request < 1) {
         SwooleWG.run_always = true;
     } else {
@@ -587,7 +569,6 @@ void Server::init_worker(Worker *worker) {
             SwooleWG.max_request += swoole_system_random(1, max_request_grace);
         }
     }
-
     worker->start_time = ::time(nullptr);
     worker->request_count = 0;
 }
@@ -701,11 +682,7 @@ int Server::start() {
     }
     int ret;
     if (is_base_mode()) {
-#ifdef SW_THREAD
-        ret = start_worker_threads();
-#else
         ret = start_reactor_processes();
-#endif
     } else {
         ret = start_reactor_threads();
     }
@@ -766,14 +743,6 @@ int Server::create() {
         return SW_ERR;
     }
 
-    if (is_base_mode()) {
-        gs->connection_nums = (sw_atomic_t *) sw_shm_calloc(worker_num, sizeof(sw_atomic_t));
-        if (gs->connection_nums == nullptr) {
-            swoole_error("sw_shm_calloc(%ld) for gs->connection_nums failed", worker_num * sizeof(sw_atomic_t));
-            return SW_ERR;
-        }
-    }
-
     if (swoole_isset_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_CREATE)) {
         swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_CREATE, this);
     }
@@ -793,13 +762,6 @@ int Server::create() {
     int index = 0;
     for (auto port : ports) {
         port->gs = &port_gs_list[index++];
-        if (is_base_mode()) {
-            port->gs->connection_nums = (sw_atomic_t *) sw_shm_calloc(worker_num, sizeof(sw_atomic_t));
-            if (port->gs->connection_nums == nullptr) {
-                swoole_error("sw_shm_calloc(%ld) for port->connection_nums failed", worker_num * sizeof(sw_atomic_t));
-                return SW_ERR;
-            }
-        }
     }
 
     if (enable_static_handler and locations == nullptr) {
@@ -856,17 +818,19 @@ int Server::create() {
         return SW_ERR;
     }
 
-    int retval;
     if (is_base_mode()) {
-        factory = new BaseFactory(this);
-        retval = create_reactor_processes();
+        factory = create_base_factory();
+    } else if (is_thread_mode()) {
+        factory = create_thread_factory();
     } else {
-        factory = new ProcessFactory(this);
-        retval = create_reactor_threads();
+        factory = create_process_factory();
+    }
+    if (!factory) {
+        return SW_ERR;
     }
 
 #ifdef HAVE_PTHREAD_BARRIER
-    if (is_process_mode()) {
+    if (is_process_mode() || is_thread_mode()) {
         pthread_barrier_init(&reactor_thread_barrier, nullptr, reactor_num + 1);
 #if !(defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__))
         pthread_barrierattr_setpshared(&gs->manager_barrier_attr, PTHREAD_PROCESS_SHARED);
@@ -879,7 +843,7 @@ int Server::create() {
         swoole_call_hook(SW_GLOBAL_HOOK_AFTER_SERVER_CREATE, this);
     }
 
-    return retval;
+    return SW_OK;
 }
 
 void Server::clear_timer() {
@@ -1010,11 +974,6 @@ void Server::destroy() {
     if (onShutdown) {
         onShutdown(this);
     }
-    if (is_base_mode()) {
-        destroy_reactor_processes();
-    } else {
-        destroy_reactor_threads();
-    }
     SW_LOOP_N(SW_MAX_HOOK_TYPE) {
         if (hooks[i]) {
             std::list<Callback> *l = reinterpret_cast<std::list<Callback> *>(hooks[i]);
@@ -1032,23 +991,21 @@ void Server::destroy() {
     }
 #endif
 
-    for (auto port : ports) {
-        if (port->gs->connection_nums) {
-            sw_shm_free((void *) port->gs->connection_nums);
-        }
+    if (is_base_mode()) {
+        destroy_base_factory();
+    } else if (is_thread_mode()) {
+        destroy_thread_factory();
+    } else {
+        destroy_process_factory();
     }
 
     sw_shm_free(session_list);
     sw_shm_free(port_gs_list);
     sw_shm_free(workers);
-    if (gs->connection_nums) {
-        sw_shm_free((void *) gs->connection_nums);
-    }
 
     session_list = nullptr;
     port_gs_list = nullptr;
     workers = nullptr;
-    gs->connection_nums = nullptr;
 
     delete factory;
     factory = nullptr;
@@ -1602,7 +1559,9 @@ void Server::init_signal_handler() {
     // for test
     swoole_signal_set(SIGVTALRM, Server_signal_handler);
 
-    set_minfd(SwooleG.signal_fd);
+    if (SwooleG.signal_fd > 0) {
+        set_minfd(SwooleG.signal_fd);
+    }
 }
 
 void Server::timer_callback(Timer *timer, TimerNode *tnode) {
@@ -1917,7 +1876,7 @@ Connection *Server::add_connection(ListenPort *ls, Socket *_socket, int server_f
     int fd = _socket->fd;
 
     Connection *connection = &(connection_list[fd]);
-    ReactorId reactor_id = is_base_mode() ? sw_get_process_id() : fd % reactor_num;
+    ReactorId reactor_id = is_base_mode() ? swoole_get_process_id() : fd % reactor_num;
     *connection = {};
 
     sw_spinlock(&gs->spinlock);
@@ -1949,7 +1908,7 @@ _find_available_slot:
 
     // TCP Nodelay
     if (ls->open_tcp_nodelay && (ls->type == SW_SOCK_TCP || ls->type == SW_SOCK_TCP6)) {
-        if (ls->socket->set_tcp_nodelay() != 0) {
+        if (_socket->set_tcp_nodelay() != 0) {
             swoole_sys_warning("setsockopt(TCP_NODELAY) failed");
         }
         _socket->enable_tcp_nodelay = true;

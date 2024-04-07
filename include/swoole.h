@@ -680,6 +680,10 @@ struct RecvData {
 struct ThreadGlobal {
     uint16_t id;
     uint8_t type;
+#ifdef SW_THREAD
+    uint8_t process_type;
+    uint32_t process_id;
+#endif
     String *buffer_stack;
     Reactor *reactor;
     Timer *timer;
@@ -795,20 +799,56 @@ static inline void swoole_set_last_error(int error) {
     SwooleTG.error = error;
 }
 
-static inline int swoole_get_last_error() {
+static inline int swoole_get_last_error(void) {
     return SwooleTG.error;
 }
 
-static inline int swoole_get_thread_id() {
+static inline int swoole_get_thread_id(void) {
     return SwooleTG.id;
 }
 
-static inline int swoole_get_process_type() {
-    return SwooleG.process_type;
+static inline int swoole_get_thread_type(void) {
+    return SwooleTG.type;
 }
 
-static inline int swoole_get_process_id() {
+static inline void swoole_set_thread_id(uint16_t id) {
+    SwooleTG.id = id;
+}
+
+static inline void swoole_set_thread_type(uint8_t type) {
+    SwooleTG.type = type;
+}
+
+static inline swoole::WorkerId swoole_get_process_id(void) {
+#ifdef SW_THREAD
+    return SwooleTG.process_id;
+#else
     return SwooleG.process_id;
+#endif
+}
+
+static inline void swoole_set_process_id(swoole::WorkerId id) {
+#ifdef SW_THREAD
+    SwooleTG.process_id = id;
+#else
+    SwooleG.process_id = id;
+#endif
+}
+
+static inline void swoole_set_process_type(int type) {
+#ifdef SW_THREAD
+    SwooleTG.process_type = type;
+#else
+    SwooleG.process_type = type;
+#endif
+}
+
+static inline int swoole_get_process_type(void) {
+#ifdef SW_THREAD
+    return SwooleTG.process_type;
+#else
+    return SwooleG.process_type;
+#endif
 }
 
 static inline uint32_t swoole_pagesize() {
@@ -866,34 +906,3 @@ static sw_inline const swoole::Allocator *sw_std_allocator() {
     return &SwooleG.std_allocator;
 }
 
-static sw_inline swoole::WorkerId sw_get_process_id() {
-#ifdef SW_THREAD
-    return SwooleTG.id;
-#else
-    return SwooleG.process_id;
-#endif
-}
-
-static sw_inline void sw_set_process_id(swoole::WorkerId id) {
-#ifdef SW_THREAD
-    SwooleTG.id = id;
-#else
-    SwooleG.process_id = id;
-#endif
-}
-
-static sw_inline void sw_set_process_type(int type) {
-#ifdef SW_THREAD
-    SwooleTG.type = type;
-#else
-    SwooleG.process_type = type;
-#endif
-}
-
-static sw_inline int sw_get_process_type() {
-#ifdef SW_THREAD
-    return SwooleTG.type;
-#else
-    return SwooleG.process_type;
-#endif
-}

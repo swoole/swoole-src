@@ -416,7 +416,7 @@ class Factory {
 
 class BaseFactory : public Factory {
   public:
-    BaseFactory(Server *server) : Factory(server) {}
+    BaseFactory(Server *server);
     ~BaseFactory();
     bool start() override;
     bool shutdown() override;
@@ -427,9 +427,6 @@ class BaseFactory : public Factory {
 };
 
 class ProcessFactory : public Factory {
-  private:
-    std::vector<std::shared_ptr<UnixSocket>> pipes;
-
   public:
     ProcessFactory(Server *server);
     ~ProcessFactory();
@@ -439,6 +436,14 @@ class ProcessFactory : public Factory {
     bool finish(SendData *) override;
     bool notify(DataHead *) override;
     bool end(SessionId sesion_id, int flags) override;
+};
+
+class ThreadFactory : public BaseFactory {
+  public:
+    ThreadFactory(Server *server);
+    ~ThreadFactory();
+    bool start() override;
+    bool shutdown() override;
 };
 
 enum ServerEventType {
@@ -493,6 +498,7 @@ class Server {
     enum Mode {
         MODE_BASE = 1,
         MODE_PROCESS = 2,
+        MODE_THREAD = 3,
     };
 
     enum TaskIpcMode {
@@ -731,6 +737,7 @@ class Server {
     Manager *manager = nullptr;
 
     std::vector<ListenPort *> ports;
+    std::vector<std::shared_ptr<UnixSocket>> worker_pipes;
 
     ListenPort *get_primary_port() {
         return ports.front();
@@ -931,6 +938,14 @@ class Server {
     void add_http_compression_type(const std::string &type);
 
     int create();
+    Factory *create_base_factory();
+    Factory *create_thread_factory();
+    Factory *create_process_factory();
+    bool create_worker_pipes();
+    void destroy_base_factory();
+    void destroy_thread_factory();
+    void destroy_process_factory();
+
     int start();
     bool reload(bool reload_all_workers);
     bool shutdown();
@@ -1010,6 +1025,10 @@ class Server {
 
     bool is_base_mode() {
         return mode_ == MODE_BASE;
+    }
+
+    bool is_thread_mode() {
+        return mode_ == MODE_THREAD;
     }
 
     bool is_enable_coroutine() {
@@ -1095,40 +1114,31 @@ class Server {
     }
 
     bool is_master() {
-        return SwooleG.process_type == SW_PROCESS_MASTER;
+        return swoole_get_process_type() == SW_PROCESS_MASTER;
     }
 
     bool is_worker() {
-        return sw_get_process_type() == SW_PROCESS_EVENTWORKER;
+        return swoole_get_process_type() == SW_PROCESS_EVENTWORKER;
     }
 
     bool is_task_worker() {
-        return sw_get_process_type() == SW_PROCESS_TASKWORKER;
+        return swoole_get_process_type() == SW_PROCESS_TASKWORKER;
     }
 
     bool is_manager() {
-        return sw_get_process_type() == SW_PROCESS_MANAGER;
+        return swoole_get_process_type() == SW_PROCESS_MANAGER;
     }
 
     bool is_user_worker() {
-        return sw_get_process_type() == SW_PROCESS_USERWORKER;
+        return swoole_get_process_type() == SW_PROCESS_USERWORKER;
     }
 
     bool is_worker_thread() {
-#ifdef SW_THREAD
-        return sw_get_process_type() == SW_PROCESS_EVENTWORKER || sw_get_process_type() == SW_PROCESS_TASKWORKER ||
-               sw_get_process_type() == SW_PROCESS_USERWORKER;
-#else
-        return false;
-#endif
+        return is_thread_mode() && is_reactor_thread();
     }
 
     bool is_reactor_thread() {
-#ifdef SW_THREAD
-        return false;
-#else
-        return sw_get_process_type() == SW_PROCESS_MASTER && SwooleTG.type == Server::THREAD_REACTOR;
-#endif
+        return swoole_get_thread_type() == Server::THREAD_REACTOR;
     }
 
     bool isset_hook(enum HookType type) {
@@ -1414,14 +1424,10 @@ class Server {
     int start_check();
     void check_port_type(ListenPort *ls);
     void destroy();
-    void destroy_reactor_threads();
-    void destroy_reactor_processes();
-    int create_reactor_processes();
-    int create_reactor_threads();
     int start_reactor_threads();
     int start_reactor_processes();
     int start_worker_threads();
-    int start_master_thread();
+    int start_master_thread(Reactor *reactor);
     int start_event_worker(Worker *worker);
     void start_heartbeat_thread();
     void join_reactor_thread();

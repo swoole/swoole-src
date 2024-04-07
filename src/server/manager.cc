@@ -114,7 +114,7 @@ int Server::start_manager_process() {
     }
 
     auto fn = [this](void) {
-        sw_set_process_type(SW_PROCESS_MANAGER);
+        swoole_set_process_type(SW_PROCESS_MANAGER);
         gs->manager_pid = SwooleG.pid = getpid();
 
         if (task_worker_num > 0) {
@@ -630,8 +630,8 @@ pid_t Server::spawn_user_worker(Worker *worker) {
     }
     // child
     else if (pid == 0) {
-        sw_set_process_type(SW_PROCESS_USERWORKER);
-        sw_set_process_id(worker->id);
+        swoole_set_process_type(SW_PROCESS_USERWORKER);
+        swoole_set_process_id(worker->id);
         SwooleWG.worker = worker;
         worker->pid = SwooleG.pid;
         onUserWorkerStart(this, worker);

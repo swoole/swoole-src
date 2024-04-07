@@ -14,15 +14,41 @@
  +----------------------------------------------------------------------+
  */
 
-#include <signal.h>
-
 #include "swoole_server.h"
 
 namespace swoole {
 
 using network::Socket;
 
+Factory *Server::create_process_factory() {
+    /**
+     * init reactor thread pool
+     */
+    reactor_threads = new ReactorThread[reactor_num]();
+    /**
+     * alloc the memory for connection_list
+     */
+    connection_list = (Connection *) sw_shm_calloc(max_connection, sizeof(Connection));
+    if (connection_list == nullptr) {
+        swoole_error("calloc[1] failed");
+        return nullptr;
+    }
+    reactor_pipe_num = worker_num / reactor_num;
+    return new ProcessFactory(this);
+}
+
+void Server::destroy_process_factory() {
+    sw_shm_free(connection_list);
+    delete[] reactor_threads;
+
+    if (gs->event_workers.message_box) {
+        gs->event_workers.message_box->destroy();
+    }
+}
+
 ProcessFactory::ProcessFactory(Server *server) : Factory(server) {}
+
+ProcessFactory::~ProcessFactory() {}
 
 bool ProcessFactory::shutdown() {
     int status;
@@ -38,27 +64,31 @@ bool ProcessFactory::shutdown() {
     return SW_OK;
 }
 
-ProcessFactory::~ProcessFactory() {}
-
-bool ProcessFactory::start() {
-    SW_LOOP_N(server_->worker_num) {
+bool Server::create_worker_pipes() {
+    SW_LOOP_N(worker_num) {
         auto _sock = new UnixSocket(true, SOCK_DGRAM);
         if (!_sock->ready()) {
             delete _sock;
             return false;
         }
 
-        pipes.emplace_back(_sock);
-        server_->workers[i].pipe_master = _sock->get_socket(true);
-        server_->workers[i].pipe_worker = _sock->get_socket(false);
-        server_->workers[i].pipe_object = _sock;
+        worker_pipes.emplace_back(_sock);
+        workers[i].pipe_master = _sock->get_socket(true);
+        workers[i].pipe_worker = _sock->get_socket(false);
+        workers[i].pipe_object = _sock;
     }
 
-    server_->init_ipc_max_size();
-    if (server_->create_pipe_buffers() < 0) {
+    init_ipc_max_size();
+    if (create_pipe_buffers() < 0) {
         return false;
     }
+    return true;
+}
 
+bool ProcessFactory::start() {
+    if (!server_->create_worker_pipes()) {
+        return false;
+    }
     return server_->start_manager_process() == SW_OK;
 }
 
@@ -128,7 +158,7 @@ static bool inline process_is_supported_send_yield(Server *serv, Connection *con
     if (!serv->is_hash_dispatch_mode()) {
         return false;
     } else {
-        return serv->schedule_worker(conn->fd, nullptr) == (int) sw_get_process_id();
+        return serv->schedule_worker(conn->fd, nullptr) == (int) swoole_get_process_id();
     }
 }
 
@@ -185,7 +215,7 @@ bool ProcessFactory::finish(SendData *resp) {
     memcpy(&task, resp, sizeof(SendData));
     task.info.fd = session_id;
     task.info.reactor_id = conn->reactor_id;
-    task.info.server_fd = sw_get_process_id();
+    task.info.server_fd = swoole_get_process_id();
 
     swoole_trace("worker_id=%d, type=%d", SwooleG.process_id, task.info.type);
 
@@ -227,7 +257,7 @@ bool ProcessFactory::end(SessionId session_id, int flags) {
     if (conn->close_actively) {
         bool hash = server_->is_hash_dispatch_mode();
         int worker_id = hash ? server_->schedule_worker(conn->fd, nullptr) : conn->fd % server_->worker_num;
-        if (server_->is_worker() && (!hash || worker_id == (int) sw_get_process_id())) {
+        if (server_->is_worker() && (!hash || worker_id == (int) swoole_get_process_id())) {
             goto _close;
         }
         worker = server_->get_worker(worker_id);

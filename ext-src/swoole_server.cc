@@ -99,7 +99,7 @@ void php_swoole_server_rshutdown() {
     Server *serv = sw_server();
     serv->drain_worker_pipe();
 
-    if (serv->is_started() && !serv->is_user_worker()) {
+    if (serv->is_started() && !serv->is_user_worker() && !serv->is_worker_thread()) {
         if (php_swoole_is_fatal_error()) {
             swoole_error_log(SW_LOG_ERROR,
                              SW_ERROR_PHP_FATAL_ERROR,
@@ -1900,7 +1900,11 @@ static PHP_METHOD(swoole_server, __construct) {
     size_t host_len = 0;
     zend_long sock_type = SW_SOCK_TCP;
     zend_long serv_port = 0;
+#ifdef SW_THREAD
+    zend_long serv_mode = Server::MODE_THREAD;
+#else
     zend_long serv_mode = Server::MODE_BASE;
+#endif
 
     // only cli env
     if (!SWOOLE_G(cli)) {
@@ -1917,13 +1921,13 @@ static PHP_METHOD(swoole_server, __construct) {
     Z_PARAM_LONG(sock_type)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if (serv_mode != Server::MODE_BASE && serv_mode != Server::MODE_PROCESS) {
+    if (serv_mode != Server::MODE_BASE && serv_mode != Server::MODE_PROCESS && serv_mode != Server::MODE_THREAD) {
         zend_throw_error(NULL, "invalid $mode parameters %d", (int) serv_mode);
         RETURN_FALSE;
     }
 
 #ifdef SW_THREAD
-    if (sw_server() || sw_server()->is_worker_thread()) {
+    if (sw_server() && sw_server()->is_worker_thread()) {
         server_ctor(ZEND_THIS, sw_server());
         return;
     }
@@ -3039,9 +3043,9 @@ static PHP_METHOD(swoole_server, taskwait) {
     }
 
     uint64_t notify;
-    EventData *task_result = &(serv->task_result[sw_get_process_id()]);
+    EventData *task_result = &(serv->task_result[swoole_get_process_id()]);
     sw_memset_zero(task_result, sizeof(*task_result));
-    Pipe *pipe = serv->task_notify_pipes.at(sw_get_process_id()).get();
+    Pipe *pipe = serv->task_notify_pipes.at(swoole_get_process_id()).get();
     network::Socket *task_notify_socket = pipe->get_socket(false);
 
     // clear history task
@@ -3121,10 +3125,10 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
     int list_of_id[SW_MAX_CONCURRENT_TASK] = {};
 
     uint64_t notify;
-    EventData *task_result = &(serv->task_result[sw_get_process_id()]);
+    EventData *task_result = &(serv->task_result[swoole_get_process_id()]);
     sw_memset_zero(task_result, sizeof(*task_result));
-    Pipe *pipe = serv->task_notify_pipes.at(sw_get_process_id()).get();
-    Worker *worker = serv->get_worker(sw_get_process_id());
+    Pipe *pipe = serv->task_notify_pipes.at(swoole_get_process_id()).get();
+    Worker *worker = serv->get_worker(swoole_get_process_id());
 
     File fp = swoole::make_tmpfile();
     if (!fp.ready()) {
@@ -3442,7 +3446,7 @@ static PHP_METHOD(swoole_server, sendMessage) {
     Z_PARAM_LONG(worker_id)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if ((serv->is_worker() || serv->is_task_worker()) && worker_id == sw_get_process_id()) {
+    if ((serv->is_worker() || serv->is_task_worker()) && worker_id == swoole_get_process_id()) {
         php_swoole_fatal_error(E_WARNING, "can't send messages to self");
         RETURN_FALSE;
     }

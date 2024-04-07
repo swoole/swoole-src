@@ -22,6 +22,38 @@
 namespace swoole {
 using network::Socket;
 
+Factory *Server::create_thread_factory() {
+    reactor_num = worker_num;
+    connection_list = (Connection *) sw_calloc(max_connection, sizeof(Connection));
+    if (connection_list == nullptr) {
+        swoole_sys_warning("calloc[2](%d) failed", (int) (max_connection * sizeof(Connection)));
+        return nullptr;
+    }
+    /**
+     * init reactor thread pool
+     */
+    reactor_threads = new ReactorThread[reactor_num]();
+    reactor_pipe_num = 1;
+    return new ThreadFactory(this);
+}
+
+void Server::destroy_thread_factory() {
+    sw_free(connection_list);
+    delete[] reactor_threads;
+}
+
+ThreadFactory::ThreadFactory(Server *server) : BaseFactory(server) {}
+
+bool ThreadFactory::start() {
+    return server_->create_worker_pipes();
+}
+
+bool ThreadFactory::shutdown() {
+    return true;
+}
+
+ThreadFactory::~ThreadFactory() {}
+
 struct WorkerThreads {
     std::vector<std::thread> threads_;
     std::mutex lock_;
@@ -46,7 +78,7 @@ struct WorkerThreads {
         cv_.notify_one();
     }
 
-    template<typename _Callable>
+    template <typename _Callable>
     void create_thread(int i, _Callable fn) {
         if (threads_[i].joinable()) {
             threads_[i].join();
@@ -56,8 +88,8 @@ struct WorkerThreads {
 
     void spawn_event_worker(int i) {
         create_thread(i, [=]() {
-            sw_set_process_type(SW_PROCESS_EVENTWORKER);
-            sw_set_process_id(i);
+            swoole_set_process_type(SW_PROCESS_EVENTWORKER);
+            swoole_set_process_id(i);
             Worker *worker = server_->get_worker(i);
             worker->type = SW_PROCESS_EVENTWORKER;
             server_->worker_thread_start(
@@ -68,8 +100,8 @@ struct WorkerThreads {
 
     void spawn_task_worker(int i) {
         create_thread(i, [=]() {
-            sw_set_process_type(SW_PROCESS_TASKWORKER);
-            sw_set_process_id(i);
+            swoole_set_process_type(SW_PROCESS_TASKWORKER);
+            swoole_set_process_id(i);
             Worker *worker = server_->get_worker(i);
             worker->type = SW_PROCESS_TASKWORKER;
             server_->worker_thread_start([=](void) -> bool {
@@ -82,8 +114,8 @@ struct WorkerThreads {
     void spawn_user_worker(int i) {
         create_thread(i, [=]() {
             Worker *worker = server_->user_worker_list.at(i - server_->task_worker_num - server_->worker_num);
-            sw_set_process_type(SW_PROCESS_USERWORKER);
-            sw_set_process_id(i);
+            swoole_set_process_type(SW_PROCESS_USERWORKER);
+            swoole_set_process_id(i);
             worker->type = SW_PROCESS_USERWORKER;
             server_->worker_thread_start([=](void) -> bool {
                 server_->onUserWorkerStart(server_, worker);
@@ -123,7 +155,7 @@ struct WorkerThreads {
 
 int Server::start_worker_threads() {
     single_thread = 1;
-    sw_set_process_type(SW_PROCESS_MANAGER);
+    swoole_set_process_type(SW_PROCESS_MANAGER);
 
     // listen TCP
     if (have_stream_sock == 1) {
