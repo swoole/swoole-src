@@ -1,5 +1,5 @@
 /*
-            Copyright Edward Nevill 2015
+            Copyright Edward Nevill + Oliver Kowalke 2015
    Distributed under the Boost Software License, Version 1.0.
       (See accompanying file LICENSE_1_0.txt or copy at
           http://www.boost.org/LICENSE_1_0.txt)
@@ -51,7 +51,7 @@
  *                                                     *
  *******************************************************/
 
-.cpu    generic+fp+simd
+.file "make_arm64_aapcs_elf_gas.S"
 .text
 .align  2
 .global swoole_make_fcontext
@@ -81,7 +81,5 @@ finish:
     bl  _exit
 
 .size   swoole_make_fcontext,.-swoole_make_fcontext
-#ifndef __NetBSD__
 # Mark that we don't need executable stack.
 .section .note.GNU-stack,"",%progbits
-#endif

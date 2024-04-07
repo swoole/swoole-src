@@ -29,6 +29,11 @@ SW_EXTERN_C_BEGIN
 
 typedef void *fcontext_t;
 
+struct transfer_t {
+    fcontext_t  fctx;
+    void    *   data;
+};
+
 #ifdef __GNUC__
 #define SW_GCC_VERSION (__GNUC__ * 1000 + __GNUC_MINOR__)
 #else
@@ -41,8 +46,19 @@ typedef void *fcontext_t;
 #define SW_INDIRECT_RETURN
 #endif
 
-intptr_t swoole_jump_fcontext(fcontext_t *ofc, fcontext_t nfc, intptr_t vp, bool preserve_fpu = false);
-SW_INDIRECT_RETURN fcontext_t swoole_make_fcontext(void *sp, size_t size, void (*fn)(intptr_t));
+#undef BOOST_CONTEXT_CALLDECL
+#if (defined(i386) || defined(__i386__) || defined(__i386) \
+     || defined(__i486__) || defined(__i586__) || defined(__i686__) \
+     || defined(__X86__) || defined(_X86_) || defined(__THW_INTEL__) \
+     || defined(__I86__) || defined(__INTEL__) || defined(__IA32__) \
+     || defined(_M_IX86) || defined(_I86_)) && defined(BOOST_WINDOWS)
+# define BOOST_CONTEXT_CALLDECL __cdecl
+#else
+# define BOOST_CONTEXT_CALLDECL
+#endif
+
+transfer_t BOOST_CONTEXT_CALLDECL swoole_jump_fcontext( fcontext_t const to, void * vp);
+fcontext_t BOOST_CONTEXT_CALLDECL swoole_make_fcontext( void * sp, std::size_t size, void (* fn)( transfer_t) );
 
 SW_EXTERN_C_END
 
