@@ -76,7 +76,7 @@ void ThreadFactory::spawn_event_worker(int i) {
         swoole_set_process_id(i);
         swoole_set_thread_id(i);
         Worker *worker = server_->get_worker(i);
-        SwooleWG.worker = worker;
+        g_worker_instance = worker;
         worker->type = SW_PROCESS_EVENTWORKER;
         server_->worker_thread_start([=](void) -> void { Server::reactor_thread_main_loop(server_, i); });
         at_thread_exit(worker);

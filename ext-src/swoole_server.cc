@@ -1535,10 +1535,10 @@ static void php_swoole_server_onAfterReload(Server *serv) {
 }
 
 static void php_swoole_server_onWorkerStop(Server *serv, Worker *worker) {
-    if (SwooleWG.shutdown) {
+    if (worker->shutdown) {
         return;
     }
-    SwooleWG.shutdown = true;
+    worker->shutdown = true;
 
     zval *zserv = php_swoole_server_zval_ptr(serv);
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));
@@ -2898,10 +2898,10 @@ static PHP_METHOD(swoole_server, stats) {
     add_assoc_long_ex(return_value, ZEND_STRL("min_fd"), serv->gs->min_fd);
     add_assoc_long_ex(return_value, ZEND_STRL("max_fd"), serv->gs->max_fd);
 
-    if (SwooleWG.worker) {
-        add_assoc_long_ex(return_value, ZEND_STRL("worker_request_count"), SwooleWG.worker->request_count);
-        add_assoc_long_ex(return_value, ZEND_STRL("worker_response_count"), SwooleWG.worker->response_count);
-        add_assoc_long_ex(return_value, ZEND_STRL("worker_dispatch_count"), SwooleWG.worker->dispatch_count);
+    if (sw_worker()) {
+        add_assoc_long_ex(return_value, ZEND_STRL("worker_request_count"), sw_worker()->request_count);
+        add_assoc_long_ex(return_value, ZEND_STRL("worker_response_count"), sw_worker()->response_count);
+        add_assoc_long_ex(return_value, ZEND_STRL("worker_dispatch_count"), sw_worker()->dispatch_count);
     }
 
     if (serv->task_ipc_mode > Server::TASK_IPC_UNIXSOCK && serv->gs->task_workers.queue) {
@@ -3802,7 +3802,7 @@ static PHP_METHOD(swoole_server, getWorkerId) {
     if (!serv->is_worker() && !serv->is_task_worker()) {
         RETURN_FALSE;
     } else {
-        RETURN_LONG(SwooleWG.worker->id);
+        RETURN_LONG(sw_worker()->id);
     }
 }
 
@@ -3820,7 +3820,7 @@ static PHP_METHOD(swoole_server, getWorkerStatus) {
 
     Worker *worker;
     if (worker_id == -1) {
-        worker = SwooleWG.worker;
+        worker = sw_worker();
     } else {
         worker = serv->get_worker(worker_id);
     }
@@ -3838,7 +3838,7 @@ static PHP_METHOD(swoole_server, getWorkerPid) {
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &worker_id) == FAILURE) {
         RETURN_FALSE;
     }
-    Worker *worker = worker_id < 0 ? SwooleWG.worker : serv->get_worker(worker_id);
+    Worker *worker = worker_id < 0 ? sw_worker() : serv->get_worker(worker_id);
     if (!worker) {
         RETURN_FALSE;
     }
@@ -3885,7 +3885,7 @@ static PHP_METHOD(swoole_server, stop) {
     }
 
     zend_bool wait_reactor = 0;
-    zend_long worker_id = SwooleWG.worker->id;
+    zend_long worker_id = sw_worker()->id;
 
     ZEND_PARSE_PARAMETERS_START(0, 2)
     Z_PARAM_OPTIONAL
@@ -3893,7 +3893,7 @@ static PHP_METHOD(swoole_server, stop) {
     Z_PARAM_BOOL(wait_reactor)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if (worker_id == SwooleWG.worker->id && wait_reactor == 0) {
+    if (worker_id == sw_worker()->id && wait_reactor == 0) {
         if (SwooleTG.reactor != nullptr) {
             SwooleTG.reactor->defer(
                 [](void *data) {

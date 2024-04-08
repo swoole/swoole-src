@@ -81,11 +81,11 @@ void ProcessFactory::kill_event_workers() {
     }
 
     SW_LOOP_N(server_->worker_num) {
-        swoole_trace("kill worker#%d[pid=%d]", workers[i].id, workers[i].pid);
+        swoole_trace_log(SW_TRACE_SERVER, "kill worker#%d[pid=%d]", server_->workers[i].id, server_->workers[i].pid);
         swoole_kill(server_->workers[i].pid, SIGTERM);
     }
     SW_LOOP_N(server_->worker_num) {
-        swoole_trace("wait worker#%d[pid=%d]", workers[i].id, workers[i].pid);
+        swoole_trace_log(SW_TRACE_SERVER, "wait worker#%d[pid=%d]", server_->workers[i].id, server_->workers[i].pid);
         if (swoole_waitpid(server_->workers[i].pid, &status, 0) < 0) {
             swoole_sys_warning("waitpid(%d) failed", server_->workers[i].pid);
         }
@@ -139,7 +139,7 @@ pid_t ProcessFactory::spawn_user_worker(Worker *worker) {
     else if (pid == 0) {
         swoole_set_process_type(SW_PROCESS_USERWORKER);
         swoole_set_process_id(worker->id);
-        SwooleWG.worker = worker;
+        g_worker_instance = worker;
         worker->pid = SwooleG.pid;
         server_->onUserWorkerStart(server_, worker);
         exit(0);

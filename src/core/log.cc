@@ -317,11 +317,11 @@ void Logger::put(int level, const char *content, size_t length) {
 
     n = sw_snprintf(log_str,
                     SW_LOG_BUFFER_SIZE,
-                    "[%.*s %c%d.%d]\t%s\t%.*s\n",
+                    "[%.*s %c%ld.%d]\t%s\t%.*s\n",
                     static_cast<int>(l_data_str),
                     date_str,
                     process_flag,
-                    SwooleG.pid,
+                    pthread_self(),
                     process_id,
                     level_str,
                     static_cast<int>(length),

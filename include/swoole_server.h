@@ -1089,6 +1089,10 @@ class Server {
 #endif
     }
 
+    bool if_forward_message(Session *session) {
+        return session->reactor_id != swoole_get_process_id();
+    }
+
     Worker *get_worker(uint16_t worker_id) {
         // Event Worker
         if (worker_id < worker_num) {

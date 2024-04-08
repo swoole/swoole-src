@@ -562,11 +562,11 @@ void Server::destroy_worker(Worker *worker) {
  */
 void Server::init_worker(Worker *worker) {
     if (max_request < 1) {
-        SwooleWG.run_always = true;
+        worker->run_always = true;
     } else {
-        SwooleWG.max_request = max_request;
+        worker->max_request = max_request;
         if (max_request_grace > 0) {
-            SwooleWG.max_request += swoole_system_random(1, max_request_grace);
+            worker->max_request += swoole_system_random(1, max_request_grace);
         }
     }
     worker->start_time = ::time(nullptr);
@@ -878,7 +878,7 @@ bool Server::shutdown() {
             }
         } else {
             gs->event_workers.running = 0;
-            stop_async_worker(SwooleWG.worker);
+            stop_async_worker(sw_worker());
             return true;
         }
     }
@@ -1051,7 +1051,7 @@ bool Server::command(WorkerId process_id,
     if (is_process_mode() && !is_master()) {
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_INVALID_PARAMS, "command() can only be used in master process");
         return false;
-    } else if (is_base_mode() && SwooleWG.worker->id != 0) {
+    } else if (is_base_mode() && sw_worker()->id != 0) {
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_INVALID_PARAMS, "command() can only be used in worker process 0");
         return false;
     }
@@ -1185,8 +1185,8 @@ bool Server::send(SessionId session_id, const void *data, uint32_t length) {
             sw_atomic_fetch_add(&port->gs->response_count, 1);
             sw_atomic_fetch_add(&port->gs->total_send_bytes, length);
         }
-        if (SwooleWG.worker) {
-            SwooleWG.worker->response_count++;
+        if (sw_worker()) {
+            sw_worker()->response_count++;
         }
         return true;
     }
@@ -1302,7 +1302,7 @@ int Server::send_to_connection(SendData *_send) {
         assert(fd % reactor_num == SwooleTG.id);
     }
 
-    if (is_base_mode() && conn->overflow) {
+    if (!is_process_mode() && conn->overflow) {
         if (send_yield) {
             swoole_set_last_error(SW_ERROR_OUTPUT_SEND_YIELD);
         } else {

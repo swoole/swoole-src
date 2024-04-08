@@ -394,10 +394,10 @@ bool swoole_http_server_onBeforeRequest(HttpContext *ctx) {
     ctx->onBeforeRequest = nullptr;
     ctx->onAfterResponse = swoole_http_server_onAfterResponse;
     Server *serv = (Server *) ctx->private_data;
-    SwooleWG.worker->concurrency++;
+    sw_worker()->concurrency++;
     sw_atomic_add_fetch(&serv->gs->concurrency, 1);
     swoole_trace("serv->gs->concurrency=%u, max_concurrency=%u", serv->gs->concurrency, serv->gs->max_concurrency);
-    if (SwooleWG.worker->concurrency > serv->worker_max_concurrency) {
+    if (sw_worker()->concurrency > serv->worker_max_concurrency) {
         swoole_trace_log(SW_TRACE_COROUTINE,
                          "exceed worker_max_concurrency[%u] limit, request[%p] queued",
                          serv->worker_max_concurrency,
@@ -412,13 +412,13 @@ bool swoole_http_server_onBeforeRequest(HttpContext *ctx) {
 void swoole_http_server_onAfterResponse(HttpContext *ctx) {
     ctx->onAfterResponse = nullptr;
     Server *serv = (Server *) ctx->private_data;
-    SwooleWG.worker->concurrency--;
+    sw_worker()->concurrency--;
     sw_atomic_sub_fetch(&serv->gs->concurrency, 1);
     swoole_trace("serv->gs->concurrency=%u, max_concurrency=%u", serv->gs->concurrency, serv->gs->max_concurrency);
     if (!queued_http_contexts.empty()) {
         HttpContext *ctx = queued_http_contexts.front();
         swoole_trace(
-            "[POP 1] concurrency=%u, ctx=%p, request=%p", SwooleWG.worker->concurrency, ctx, ctx->request.zobject);
+            "[POP 1] concurrency=%u, ctx=%p, request=%p", sw_worker()->concurrency, ctx, ctx->request.zobject);
         queued_http_contexts.pop();
         swoole_event_defer(
             [](void *private_data) {

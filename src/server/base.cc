@@ -56,7 +56,7 @@ BaseFactory::BaseFactory(Server *server) : Factory(server) {}
 BaseFactory::~BaseFactory() {}
 
 bool BaseFactory::start() {
-    SwooleWG.run_always = true;
+    sw_worker()->run_always = true;
     return true;
 }
 
@@ -91,8 +91,14 @@ bool BaseFactory::dispatch(SendData *task) {
         }
     }
 
-    server_->message_bus.pass(task);
-    server_->worker_accept_event(&server_->message_bus.get_buffer()->info);
+#ifdef SW_THREAD
+    MessageBus *bus = sw_likely(server_->is_thread_mode()) ? &server_->get_thread(swoole_get_thread_id())->message_bus
+                                                           : &server_->message_bus;
+#else
+    MessageBus *bus = &server_->message_bus;
+#endif
+    bus->pass(task);
+    server_->worker_accept_event(&bus->get_buffer()->info);
 
     return true;
 }
@@ -137,7 +143,11 @@ bool BaseFactory::end(SessionId session_id, int flags) {
         return false;
     }
 
-    if (session->reactor_id != swoole_get_process_id()) {
+    if (server_->if_forward_message(session)) {
+        swoole_trace_log(SW_TRACE_SERVER, "session_id=%ld, fd=%d, session->reactor_id=%d",
+                       session_id,
+                       session->fd,
+                       session->reactor_id);
         Worker *worker = server_->get_worker(session->reactor_id);
         if (worker->pipe_master->send_async((const char *) &_send.info, sizeof(_send.info)) < 0) {
             swoole_sys_warning("failed to send %lu bytes to pipe_master", sizeof(_send.info));
@@ -204,8 +214,11 @@ bool BaseFactory::finish(SendData *data) {
     SessionId session_id = data->info.fd;
 
     Session *session = server_->get_session(session_id);
-    if (session->reactor_id != swoole_get_process_id()) {
-        swoole_trace("session->reactor_id=%d, SwooleG.process_id=%d", session->reactor_id, server_->get_worker_id());
+    if (server_->if_forward_message(session)) {
+        swoole_trace_log(SW_TRACE_SERVER, "session_id=%ld, fd=%d, session->reactor_id=%d",
+                               session_id,
+                               session->fd,
+                               session->reactor_id);
         Worker *worker = server_->gs->event_workers.get_worker(session->reactor_id);
         EventData proxy_msg{};
 

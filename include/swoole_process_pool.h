@@ -102,14 +102,6 @@ static inline ExitStatus wait_process(pid_t _pid, int options) {
 struct ProcessPool;
 struct Worker;
 
-struct WorkerGlobal {
-    bool run_always;
-    bool shutdown;
-    uint32_t max_request;
-    Worker *worker;
-    time_t exit_time;
-};
-
 struct Worker {
     pid_t pid;
     WorkerId id;
@@ -119,6 +111,11 @@ struct Worker {
     bool redirect_stdout;
     bool redirect_stdin;
     bool redirect_stderr;
+
+    bool run_always;
+    bool shutdown;
+    uint32_t max_request;
+    time_t exit_time;
 
     /**
      * worker status, IDLE or BUSY
@@ -325,5 +322,10 @@ static sw_inline int swoole_kill(pid_t __pid, int __sig) {
     return kill(__pid, __sig);
 }
 
-extern SW_THREAD_LOCAL swoole::WorkerGlobal SwooleWG;  // Worker Global Variable
 typedef swoole::ProtocolType swProtocolType;
+
+extern SW_THREAD_LOCAL swoole::Worker *g_worker_instance;
+
+static inline swoole::Worker *sw_worker() {
+    return g_worker_instance;
+}

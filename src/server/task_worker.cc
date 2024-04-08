@@ -72,7 +72,7 @@ static int TaskWorker_call_command_handler(ProcessPool *pool, EventData *req) {
 
     SendData task{};
     task.info.fd = req->info.fd;
-    task.info.reactor_id = SwooleWG.worker->id;
+    task.info.reactor_id = sw_worker()->id;
     task.info.server_fd = -1;
     task.info.type = SW_SERVER_EVENT_COMMAND_RESPONSE;
     task.info.len = result.length();
@@ -173,6 +173,7 @@ static void TaskWorker_signal_init(ProcessPool *pool) {
 static void TaskWorker_onStart(ProcessPool *pool, Worker *worker) {
     Server *serv = (Server *) pool->ptr;
     swoole_set_process_id(worker->id);
+    g_worker_instance = worker;
 
     /**
      * Make the task worker support asynchronous
@@ -193,16 +194,15 @@ static void TaskWorker_onStart(ProcessPool *pool, Worker *worker) {
 
     worker->start_time = ::time(nullptr);
     worker->request_count = 0;
-    SwooleWG.worker = worker;
-    SwooleWG.worker->status = SW_WORKER_IDLE;
+    worker->status = SW_WORKER_IDLE;
     /**
      * task_max_request
      */
     if (pool->max_request > 0) {
-        SwooleWG.run_always = false;
-        SwooleWG.max_request = pool->get_max_request();
+        worker->run_always = false;
+        worker->max_request = pool->get_max_request();
     } else {
-        SwooleWG.run_always = true;
+        worker->run_always = true;
     }
 }
 
@@ -218,7 +218,7 @@ static void TaskWorker_onStop(ProcessPool *pool, Worker *worker) {
 static int TaskWorker_onPipeReceive(Reactor *reactor, Event *event) {
     EventData task;
     ProcessPool *pool = (ProcessPool *) reactor->ptr;
-    Worker *worker = SwooleWG.worker;
+    Worker *worker = sw_worker();
     Server *serv = (Server *) pool->ptr;
 
     if (event->socket->read(&task, sizeof(task)) > 0) {
@@ -227,7 +227,7 @@ static int TaskWorker_onPipeReceive(Reactor *reactor, Event *event) {
         worker->status = SW_WORKER_IDLE;
         worker->request_count++;
         // maximum number of requests, process will exit.
-        if (!SwooleWG.run_always && worker->request_count >= SwooleWG.max_request) {
+        if (!worker->run_always && worker->request_count >= worker->max_request) {
             serv->stop_async_worker(worker);
         }
         return retval;

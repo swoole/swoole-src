@@ -536,7 +536,7 @@ static int ProcessPool_worker_loop_with_task_protocol(ProcessPool *pool, Worker 
         out.mtype = worker->id + 1;
     }
 
-    while (pool->running && !SwooleWG.shutdown && task_n > 0) {
+    while (pool->running && !worker->shutdown && task_n > 0) {
         /**
          * fetch task
          */

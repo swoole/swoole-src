@@ -24,7 +24,7 @@
 #include "swoole_msg_queue.h"
 #include "swoole_coroutine.h"
 
-SW_THREAD_LOCAL swoole::WorkerGlobal SwooleWG = {};
+SW_THREAD_LOCAL swoole::Worker *g_worker_instance;
 
 namespace swoole {
 using namespace network;
@@ -49,18 +49,18 @@ void Server::worker_signal_init(void) {
 }
 
 void Server::worker_signal_handler(int signo) {
-    if (!SwooleG.running || !sw_server()) {
+    if (!SwooleG.running || !sw_server() || !sw_worker()) {
         return;
     }
     switch (signo) {
     case SIGTERM:
         // Event worker
         if (swoole_event_is_available()) {
-            sw_server()->stop_async_worker(SwooleWG.worker);
+            sw_server()->stop_async_worker(sw_worker());
         }
         // Task worker
         else {
-            SwooleWG.shutdown = true;
+            sw_worker()->shutdown = true;
         }
         break;
     // for test
@@ -121,7 +121,7 @@ static sw_inline void Worker_do_task(Server *serv, Worker *worker, DataHead *inf
 }
 
 void Server::worker_accept_event(DataHead *info) {
-    Worker *worker = SwooleWG.worker;
+    Worker *worker = sw_worker();
     // worker busy
     worker->status = SW_WORKER_BUSY;
 
@@ -211,7 +211,7 @@ void Server::worker_accept_event(DataHead *info) {
     worker->status = SW_WORKER_IDLE;
 
     // maximum number of requests, process will exit.
-    if (!SwooleWG.run_always && worker->request_count >= SwooleWG.max_request) {
+    if (!worker->run_always && worker->request_count >= worker->max_request) {
         stop_async_worker(worker);
     }
 }
@@ -276,7 +276,7 @@ void Server::worker_start_callback(Worker *worker) {
         sw_logger()->reopen();
     }
 
-    SwooleWG.worker = worker;
+    g_worker_instance = worker;
     worker->status = SW_WORKER_IDLE;
 
     if (is_process_mode()) {
@@ -322,9 +322,9 @@ void Server::stop_async_worker(Worker *worker) {
     }
 
     // Separated from the event worker process pool
-    worker = (Worker *) sw_malloc(sizeof(*worker));
-    *worker = *SwooleWG.worker;
-    SwooleWG.worker = worker;
+    Worker *worker_copy = (Worker *) sw_malloc(sizeof(*worker));
+    *worker_copy = *worker;
+    g_worker_instance = worker_copy;
 
     if (worker->pipe_worker && !worker->pipe_worker->removed) {
         reactor->remove_read_event(worker->pipe_worker);
@@ -365,7 +365,7 @@ void Server::stop_async_worker(Worker *worker) {
 
     reactor->set_wait_exit(true);
     reactor->set_end_callback(Reactor::PRIORITY_TRY_EXIT, Worker_reactor_try_to_exit);
-    SwooleWG.exit_time = ::time(nullptr);
+    worker->exit_time = ::time(nullptr);
 
     Worker_reactor_try_to_exit(reactor);
     if (!reactor->running) {
@@ -389,11 +389,11 @@ static void Worker_reactor_try_to_exit(Reactor *reactor) {
             break;
         } else {
             if (serv->onWorkerExit && call_worker_exit_func == 0) {
-                serv->onWorkerExit(serv, SwooleWG.worker);
+                serv->onWorkerExit(serv, sw_worker());
                 call_worker_exit_func = 1;
                 continue;
             }
-            int remaining_time = serv->max_wait_time - (::time(nullptr) - SwooleWG.exit_time);
+            int remaining_time = serv->max_wait_time - (::time(nullptr) - sw_worker()->exit_time);
             if (remaining_time <= 0) {
                 swoole_error_log(
                     SW_LOG_WARNING, SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT, "worker exit timeout, forced termination");

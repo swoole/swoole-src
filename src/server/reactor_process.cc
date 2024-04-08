@@ -145,7 +145,7 @@ static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
         break;
     }
     case SW_SERVER_EVENT_COMMAND_REQUEST: {
-        serv->call_command_handler(serv->message_bus, SwooleWG.worker->id, serv->get_worker(0)->pipe_master);
+        serv->call_command_handler(serv->message_bus, sw_worker()->id, serv->get_worker(0)->pipe_master);
         break;
     }
     case SW_SERVER_EVENT_COMMAND_RESPONSE: {
@@ -170,10 +170,10 @@ int Server::worker_main_loop(ProcessPool *pool, Worker *worker) {
     swoole_set_process_id(worker->id);
 
     if (serv->max_request > 0) {
-        SwooleWG.run_always = false;
+        worker->run_always = false;
     }
-    SwooleWG.max_request = serv->max_request;
-    SwooleWG.worker = worker;
+    worker->max_request = serv->max_request;
+    g_worker_instance = worker;
     SwooleTG.id = 0;
 
     serv->init_worker(worker);
