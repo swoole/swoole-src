@@ -1934,7 +1934,7 @@ _find_available_slot:
 
     // TCP Nodelay
     if (ls->open_tcp_nodelay && (ls->type == SW_SOCK_TCP || ls->type == SW_SOCK_TCP6)) {
-        if (ls->socket->set_tcp_nodelay() != 0) {
+        if (_socket->set_tcp_nodelay() != 0) {
             swoole_sys_warning("setsockopt(TCP_NODELAY) failed");
         }
         _socket->enable_tcp_nodelay = true;
