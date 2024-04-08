@@ -581,7 +581,7 @@ static int ProcessPool_worker_loop_with_task_protocol(ProcessPool *pool, Worker 
             continue;
         }
 
-        if (n != (ssize_t)(out.buf.info.len + sizeof(out.buf.info))) {
+        if (n != (ssize_t) (out.buf.info.len + sizeof(out.buf.info))) {
             swoole_warning("bad task packet, The received data-length[%ld] is inconsistent with the packet-length[%ld]",
                            n,
                            out.buf.info.len + sizeof(out.buf.info));

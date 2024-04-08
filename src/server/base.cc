@@ -144,10 +144,11 @@ bool BaseFactory::end(SessionId session_id, int flags) {
     }
 
     if (server_->if_forward_message(session)) {
-        swoole_trace_log(SW_TRACE_SERVER, "session_id=%ld, fd=%d, session->reactor_id=%d",
-                       session_id,
-                       session->fd,
-                       session->reactor_id);
+        swoole_trace_log(SW_TRACE_SERVER,
+                         "session_id=%ld, fd=%d, session->reactor_id=%d",
+                         session_id,
+                         session->fd,
+                         session->reactor_id);
         Worker *worker = server_->get_worker(session->reactor_id);
         if (worker->pipe_master->send_async((const char *) &_send.info, sizeof(_send.info)) < 0) {
             swoole_sys_warning("failed to send %lu bytes to pipe_master", sizeof(_send.info));
@@ -215,10 +216,11 @@ bool BaseFactory::finish(SendData *data) {
 
     Session *session = server_->get_session(session_id);
     if (server_->if_forward_message(session)) {
-        swoole_trace_log(SW_TRACE_SERVER, "session_id=%ld, fd=%d, session->reactor_id=%d",
-                               session_id,
-                               session->fd,
-                               session->reactor_id);
+        swoole_trace_log(SW_TRACE_SERVER,
+                         "session_id=%ld, fd=%d, session->reactor_id=%d",
+                         session_id,
+                         session->fd,
+                         session->reactor_id);
         Worker *worker = server_->gs->event_workers.get_worker(session->reactor_id);
         EventData proxy_msg{};
 

@@ -86,7 +86,6 @@ bool MsgQueue::push(QueueNode *in, size_t mdata_length) {
         }
         swoole_set_last_error(errno);
         break;
-
     }
     return false;
 }

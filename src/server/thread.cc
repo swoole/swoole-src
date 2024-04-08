@@ -78,7 +78,7 @@ void ThreadFactory::spawn_event_worker(int i) {
         Worker *worker = server_->get_worker(i);
         g_worker_instance = worker;
         worker->type = SW_PROCESS_EVENTWORKER;
-        server_->worker_thread_start([=](void) -> void { Server::reactor_thread_main_loop(server_, i); });
+        server_->worker_thread_start([=]() { Server::reactor_thread_main_loop(server_, i); });
         at_thread_exit(worker);
     });
 }
@@ -91,8 +91,8 @@ void ThreadFactory::spawn_task_worker(int i) {
         swoole_set_thread_id(i);
         Worker *worker = server_->get_worker(i);
         worker->type = SW_PROCESS_TASKWORKER;
-        server_->worker_thread_start(
-            [=](void) { server_->gs->task_workers.main_loop(&server_->gs->task_workers, worker); });
+        auto pool = &server_->gs->task_workers;
+        server_->worker_thread_start([=]() { pool->main_loop(pool, worker); });
         at_thread_exit(worker);
     });
 }
@@ -105,7 +105,7 @@ void ThreadFactory::spawn_user_worker(int i) {
         swoole_set_process_id(i);
         swoole_set_thread_id(i);
         worker->type = SW_PROCESS_USERWORKER;
-        server_->worker_thread_start([=](void) { server_->onUserWorkerStart(server_, worker); });
+        server_->worker_thread_start([=]() { server_->onUserWorkerStart(server_, worker); });
         at_thread_exit(worker);
     });
 }
@@ -118,7 +118,7 @@ void ThreadFactory::spawn_manager_thread(int i) {
         swoole_set_thread_id(i);
         manager.id = i;
         manager.type = SW_PROCESS_MANAGER;
-        server_->worker_thread_start([=](void) {
+        server_->worker_thread_start([=]() {
             if (server_->onManagerStart) {
                 server_->onManagerStart(server_);
             }
