@@ -1030,6 +1030,14 @@ class Server {
         return buffer;
     }
 
+    MessageBus *get_worker_message_bus() {
+#ifdef SW_THREAD
+        return sw_likely(is_thread_mode()) ? &get_thread(swoole_get_thread_id())->message_bus : &message_bus;
+#else
+        return &message_bus;
+#endif
+    }
+
     uint32_t get_worker_buffer_num() {
         return is_base_mode() ? 1 : reactor_num + dgram_port_num;
     }
@@ -1408,11 +1416,11 @@ class Server {
     void worker_start_callback(Worker *worker);
     void worker_stop_callback(Worker *worker);
     void worker_accept_event(DataHead *info);
+    void worker_signal_init(void);
     std::function<void(const WorkerFn &fn)> worker_thread_start;
 
     static int worker_main_loop(ProcessPool *pool, Worker *worker);
     static void worker_signal_handler(int signo);
-    static void worker_signal_init(void);
     static void reactor_thread_main_loop(Server *serv, int reactor_id);
     static bool task_pack(EventData *task, const void *data, size_t data_len);
     static bool task_unpack(EventData *task, String *buffer, PacketPtr *packet);

@@ -42,7 +42,17 @@ ThreadFactory::ThreadFactory(Server *server) : BaseFactory(server) {
 }
 
 bool ThreadFactory::start() {
-    return server_->create_worker_pipes();
+    if (!server_->create_worker_pipes()) {
+        return false;
+    }
+    if (server_->task_worker_num > 0 &&
+        (server_->create_task_workers() < 0 || server_->gs->task_workers.start_check() < 0)) {
+        return false;
+    }
+    if (server_->get_user_worker_num() > 0 && server_->create_user_workers() < 0) {
+        return false;
+    }
+    return true;
 }
 
 bool ThreadFactory::shutdown() {
@@ -91,8 +101,17 @@ void ThreadFactory::spawn_task_worker(int i) {
         swoole_set_thread_id(i);
         Worker *worker = server_->get_worker(i);
         worker->type = SW_PROCESS_TASKWORKER;
+        worker->status = SW_WORKER_IDLE;
         auto pool = &server_->gs->task_workers;
-        server_->worker_thread_start([=]() { pool->main_loop(pool, worker); });
+        server_->worker_thread_start([=]() {
+            if (pool->onWorkerStart != nullptr) {
+                pool->onWorkerStart(pool, worker);
+            }
+            pool->main_loop(pool, worker);
+            if (pool->onWorkerStop != nullptr) {
+                pool->onWorkerStop(pool, worker);
+            }
+        });
         at_thread_exit(worker);
     });
 }
@@ -127,7 +146,9 @@ void ThreadFactory::spawn_manager_thread(int i) {
                 server_->onManagerStop(server_);
             }
         });
-        at_thread_exit(&manager);
+        if (server_->running) {
+            swoole_warning("Fatal Error: manager thread exits abnormally");
+        }
     });
 }
 
@@ -146,9 +167,6 @@ void ThreadFactory::wait() {
                 break;
             case SW_PROCESS_USERWORKER:
                 spawn_user_worker(exited_worker->id);
-                break;
-            case SW_PROCESS_MANAGER:
-                swoole_warning("Fatal Error: manager process exit");
                 break;
             default:
                 abort();

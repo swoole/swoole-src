@@ -698,7 +698,7 @@ void php_swoole_get_recv_data(Server *serv, zval *zdata, RecvData *req) {
     } else {
         if (req->info.flags & SW_EVENT_DATA_OBJ_PTR) {
             zend::assign_zend_string_by_val(zdata, (char *) data, length);
-            serv->message_bus.move_packet();
+            serv->get_worker_message_bus()->move_packet();
         } else if (req->info.flags & SW_EVENT_DATA_POP_PTR) {
             String *recv_buffer = serv->get_recv_buffer(serv->get_connection_by_session_id(req->info.fd)->socket);
             zend::assign_zend_string_by_val(zdata, recv_buffer->pop(serv->recv_buffer_size), length);
@@ -834,7 +834,7 @@ void ServerObject::on_before_start() {
 
     serv->message_bus.set_allocator(sw_zend_string_allocator());
 
-    if (serv->is_base_mode()) {
+    if (serv->is_base_mode() || serv->is_thread_mode()) {
         serv->recv_buffer_allocator = sw_zend_string_allocator();
     }
 
@@ -1492,6 +1492,8 @@ static void php_swoole_server_onWorkerStart(Server *serv, Worker *worker) {
     if (serv->is_task_worker() && !serv->task_enable_coroutine) {
         PHPCoroutine::disable_hook();
     }
+
+    serv->get_worker_message_bus()->set_allocator(sw_zend_string_allocator());
 
     zval args[2];
     args[0] = *zserv;

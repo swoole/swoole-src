@@ -33,7 +33,9 @@ static int Worker_onPipeReceive(Reactor *reactor, Event *event);
 static void Worker_reactor_try_to_exit(Reactor *reactor);
 
 void Server::worker_signal_init(void) {
-#ifndef SW_THREAD
+    if (is_thread_mode()) {
+        return;
+    }
     swoole_signal_set(SIGHUP, nullptr);
     swoole_signal_set(SIGPIPE, SIG_IGN);
     swoole_signal_set(SIGUSR1, nullptr);
@@ -44,7 +46,6 @@ void Server::worker_signal_init(void) {
     swoole_signal_set(SIGVTALRM, Server::worker_signal_handler);
 #ifdef SIGRTMIN
     swoole_signal_set(SIGRTMIN, Server::worker_signal_handler);
-#endif
 #endif
 }
 
@@ -109,7 +110,7 @@ typedef std::function<int(Server *, RecvData *)> TaskCallback;
 
 static sw_inline void Worker_do_task(Server *serv, Worker *worker, DataHead *info, const TaskCallback &callback) {
     RecvData recv_data;
-    auto packet = serv->message_bus.get_packet();
+    auto packet = serv->get_worker_message_bus()->get_packet();
     recv_data.info = *info;
     recv_data.info.len = packet.length;
     recv_data.data = packet.data;
@@ -130,7 +131,7 @@ void Server::worker_accept_event(DataHead *info) {
         Connection *conn = get_connection_verify(info->fd);
         if (conn) {
             if (info->len > 0) {
-                auto packet = message_bus.get_packet();
+                auto packet = get_worker_message_bus()->get_packet();
                 sw_atomic_fetch_sub(&conn->recv_queued_bytes, packet.length);
                 swoole_trace_log(SW_TRACE_SERVER,
                                  "[Worker] session_id=%ld, len=%lu, qb=%d",
@@ -166,7 +167,7 @@ void Server::worker_accept_event(DataHead *info) {
         if (info->len > 0) {
             Connection *conn = get_connection_verify_no_ssl(info->fd);
             if (conn) {
-                auto packet = message_bus.get_packet();
+                auto packet = get_worker_message_bus()->get_packet();
                 conn->ssl_client_cert = new String(packet.data, packet.length);
                 conn->ssl_client_cert_pid = SwooleG.pid;
             }
@@ -191,11 +192,11 @@ void Server::worker_accept_event(DataHead *info) {
         break;
     }
     case SW_SERVER_EVENT_FINISH: {
-        onFinish(this, (EventData *) message_bus.get_buffer());
+        onFinish(this, (EventData *) get_worker_message_bus()->get_buffer());
         break;
     }
     case SW_SERVER_EVENT_PIPE_MESSAGE: {
-        onPipeMessage(this, (EventData *) message_bus.get_buffer());
+        onPipeMessage(this, (EventData *) get_worker_message_bus()->get_buffer());
         break;
     }
     case SW_SERVER_EVENT_COMMAND_REQUEST: {
@@ -296,10 +297,10 @@ void Server::worker_stop_callback(Worker *worker) {
     if (onWorkerStop) {
         onWorkerStop(this, worker);
     }
-    if (!message_bus.empty()) {
+    if (!get_worker_message_bus()->empty()) {
         swoole_error_log(
             SW_LOG_WARNING, SW_ERROR_SERVER_WORKER_UNPROCESSED_DATA, "unprocessed data in the worker process buffer");
-        message_bus.clear();
+        get_worker_message_bus()->clear();
     }
 }
 
@@ -506,14 +507,14 @@ ssize_t Server::send_to_worker_from_worker(Worker *dst_worker, const void *buf, 
  */
 static int Worker_onPipeReceive(Reactor *reactor, Event *event) {
     Server *serv = (Server *) reactor->ptr;
-    PipeBuffer *pipe_buffer = serv->message_bus.get_buffer();
+    PipeBuffer *pipe_buffer = serv->get_worker_message_bus()->get_buffer();
 
-    if (serv->message_bus.read(event->socket) <= 0) {
+    if (serv->get_worker_message_bus()->read(event->socket) <= 0) {
         return SW_OK;
     }
 
     serv->worker_accept_event(&pipe_buffer->info);
-    serv->message_bus.pop();
+    serv->get_worker_message_bus()->pop();
 
     return SW_OK;
 }

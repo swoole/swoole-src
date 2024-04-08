@@ -285,6 +285,7 @@ struct ProcessPool {
     int get_max_request();
     bool detach();
     int wait();
+    int start_check();
     int start();
     void shutdown();
     bool reload();

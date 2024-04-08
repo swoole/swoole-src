@@ -160,6 +160,10 @@ bool Server::task_unpack(EventData *task, String *buffer, PacketPtr *packet) {
 }
 
 static void TaskWorker_signal_init(ProcessPool *pool) {
+    Server *serv = (Server *) pool->ptr;
+    if (serv->is_thread_mode()) {
+        return;
+    }
     swoole_signal_set(SIGHUP, nullptr);
     swoole_signal_set(SIGPIPE, nullptr);
     swoole_signal_set(SIGUSR1, Server::worker_signal_handler);

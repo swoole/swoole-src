@@ -220,16 +220,12 @@ void ProcessPool::set_protocol(enum ProtocolType _protocol_type) {
     protocol_type_ = _protocol_type;
 }
 
-/**
- * start workers
- */
-int ProcessPool::start() {
+int ProcessPool::start_check() {
     if (ipc_mode == SW_IPC_SOCKET && (stream_info_ == nullptr || stream_info_->socket == 0)) {
         swoole_warning("must first listen to an tcp port");
         return SW_ERR;
     }
 
-    uint32_t i;
     running = started = true;
     master_pid = getpid();
     reload_workers = new Worker[worker_num]();
@@ -239,7 +235,7 @@ int ProcessPool::start() {
         main_loop = ProcessPool_worker_loop_async;
     }
 
-    for (i = 0; i < worker_num; i++) {
+    SW_LOOP_N(worker_num) {
         workers[i].pool = this;
         workers[i].id = start_id + i;
         workers[i].type = type;
@@ -251,12 +247,21 @@ int ProcessPool::start() {
         }
     }
 
-    for (i = 0; i < worker_num; i++) {
+    return SW_OK;
+}
+
+/**
+ * start workers
+ */
+int ProcessPool::start() {
+    if (start_check() < 0) {
+        return SW_ERR;
+    }
+    SW_LOOP_N(worker_num) {
         if (spawn(&(workers[i])) < 0) {
             return SW_ERR;
         }
     }
-
     return SW_OK;
 }
 

@@ -355,6 +355,10 @@ static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev) {
             return SW_OK;
         } else if (resp->info.type == SW_SERVER_EVENT_SHUTDOWN) {
             ReactorThread_shutdown(reactor);
+        } else if (resp->info.type == SW_SERVER_EVENT_FINISH) {
+            serv->onFinish(serv, (EventData *) resp);
+        } else if (resp->info.type == SW_SERVER_EVENT_PIPE_MESSAGE) {
+            serv->onPipeMessage(serv, (EventData *) resp);
         } else if (resp->info.type == SW_SERVER_EVENT_CLOSE_FORCE) {
             SessionId session_id = resp->info.fd;
             Connection *conn = serv->get_connection_verify_no_ssl(session_id);
@@ -728,7 +732,11 @@ int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
 
     serv->init_reactor(reactor);
     if (serv->is_thread_mode()) {
-        serv->init_worker(serv->get_worker(reactor_id));
+        Worker *worker = serv->get_worker(reactor_id);
+        serv->init_worker(worker);
+        worker->pipe_worker->set_nonblock();
+        worker->pipe_worker->buffer_size = UINT_MAX;
+        reactor->add(worker->pipe_worker, SW_EVENT_READ);
     }
 
     int max_pipe_fd = serv->get_worker(serv->worker_num - 1)->pipe_master->fd + 2;

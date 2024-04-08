@@ -91,12 +91,7 @@ bool BaseFactory::dispatch(SendData *task) {
         }
     }
 
-#ifdef SW_THREAD
-    MessageBus *bus = sw_likely(server_->is_thread_mode()) ? &server_->get_thread(swoole_get_thread_id())->message_bus
-                                                           : &server_->message_bus;
-#else
-    MessageBus *bus = &server_->message_bus;
-#endif
+    auto bus = server_->get_worker_message_bus();
     bus->pass(task);
     server_->worker_accept_event(&bus->get_buffer()->info);
 
@@ -225,7 +220,7 @@ bool BaseFactory::finish(SendData *data) {
         EventData proxy_msg{};
 
         if (data->info.type == SW_SERVER_EVENT_SEND_DATA) {
-            if (!server_->message_bus.write(worker->pipe_master, data)) {
+            if (!server_->get_worker_message_bus()->write(worker->pipe_master, data)) {
                 swoole_sys_warning("failed to send %u bytes to pipe_master", data->info.len);
                 return false;
             }

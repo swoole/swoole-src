@@ -1,9 +1,10 @@
 <?php
 $http = new Swoole\Http\Server("0.0.0.0", 9503);
 $http->set([
-    'worker_num' => 4,
-//    'task_worker_num' => 3,
-    'enable_coroutine' => false,
+    'worker_num' => 2,
+    'task_worker_num' => 3,
+    'enable_coroutine' => true,
+    'hook_flags' => SWOOLE_HOOK_ALL,
 //    'trace_flags' => SWOOLE_TRACE_SERVER,
 //    'log_level' => SWOOLE_LOG_TRACE,
     'init_arguments' => function () use ($http) {
@@ -14,7 +15,20 @@ $http->set([
 
 $http->on('Request', function ($req, $resp) use ($http) {
 //    $resp->end("tid=" . \Swoole\Thread::getId() . ', fd=' . $req->fd);
+    if ($req->server['request_uri'] == '/task') {
+        $http->task(['code' => uniqid()]);
+    } elseif ($req->server['request_uri'] == '/msg') {
+        $dstWorkerId = random_int(0, 4);
+        if ($dstWorkerId != $http->getWorkerId()) {
+            $http->sendMessage('hello ' . base64_encode(random_bytes(16)), $dstWorkerId);
+            echo "[worker#" . $http->getWorkerId() . "]\tsend pipe message to " . $dstWorkerId . "\n";
+        }
+    }
     $resp->end('hello world');
+});
+
+$http->on('pipeMessage', function ($http, $srcWorkerId, $msg) {
+    echo "[worker#" . $http->getWorkerId() . "]\treceived pipe message[$msg] from " . $srcWorkerId . "\n";
 });
 
 //$http->addProcess(new \Swoole\Process(function () {
@@ -22,12 +36,17 @@ $http->on('Request', function ($req, $resp) use ($http) {
 //    sleep(2000);
 //}));
 
-$http->on('Task', function () {
-    var_dump(func_get_args());
+$http->on('Task', function ($server, $taskId, $srcWorkerId, $data) {
+    var_dump($taskId, $srcWorkerId, $data);
+    return ['result' => uniqid()];
+});
+
+$http->on('Finish', function ($server, $taskId, $data) {
+    var_dump($taskId, $data);
 });
 
 $http->on('WorkerStart', function ($serv, $wid) {
-    var_dump(\Swoole\Thread::getArguments());
+    var_dump(\Swoole\Thread::getArguments(), $wid);
 });
 
 $http->on('WorkerStop', function ($serv, $wid) {
