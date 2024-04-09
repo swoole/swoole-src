@@ -25,6 +25,9 @@ docker run --rm phpswoole/swoole "php --ri swoole"
 
 > For details on how to use it, see: [How to Use This Image](https://github.com/swoole/docker-swoole#how-to-use-this-image).
 
+## Documentation
+<https://wiki.swoole.com/>
+
 ### HTTP Service
 ```php
 $http = new Swoole\Http\Server('127.0.0.1', 9501);
@@ -115,7 +118,6 @@ Co\run(function() {
 + __IDE Helper & API__: <https://github.com/swoole/ide-helper>
 + __Twitter__: <https://twitter.com/phpswoole>
 + __Discord__: <https://discord.swoole.dev>
-+ __中文文档__: <https://wiki.swoole.com>
 + __中文社区__: <https://wiki.swoole.com/#/other/discussion>
 
 ## 💎 Awesome Swoole
