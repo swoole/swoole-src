@@ -123,7 +123,8 @@ bool Context::swap_in() {
 #if USE_UCONTEXT
     return 0 == swapcontext(&swap_ctx_, &ctx_);
 #else
-    swoole_jump_fcontext(ctx_, (void *) this);
+    coroutine_transfer_t transfer_data = swoole_jump_fcontext(ctx_, (void *) this);
+    ctx_ = transfer_data.fctx;
     return true;
 #endif
 }
@@ -132,7 +133,8 @@ bool Context::swap_out() {
 #if USE_UCONTEXT
     return 0 == swapcontext(&ctx_, &swap_ctx_);
 #else
-    swoole_jump_fcontext(swap_ctx_, (void *) this);
+    coroutine_transfer_t transfer_data = swoole_jump_fcontext(swap_ctx_, (void *) this);
+    swap_ctx_ = transfer_data.fctx;
     return true;
 #endif
 }

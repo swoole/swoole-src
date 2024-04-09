@@ -33,8 +33,8 @@
 
 # if defined __CET__
 #  include <cet.h>
-#  define SHSTK_ENABLED (__CET__ & 0x2)
-#  define BOOST_CONTEXT_SHADOW_STACK (SHSTK_ENABLED && SHADOW_STACK_SYSCALL)
+#  define SWOOLE_SHSTK_ENABLED (__CET__ & 0x2)
+#  define SWOOLE_CONTEXT_SHADOW_STACK (SWOOLE_SHSTK_ENABLED && SHADOW_STACK_SYSCALL)
 # else
 #  define _CET_ENDBR
 # endif
@@ -47,12 +47,12 @@ swoole_jump_fcontext:
     _CET_ENDBR
     leaq  -0x40(%rsp), %rsp /* prepare stack */
 
-#if !defined(BOOST_USE_TSX)
+#if !defined(SWOOLE_USE_TSX)
     stmxcsr  (%rsp)     /* save MMX control- and status-word */
     fnstcw   0x4(%rsp)  /* save x87 control-word */
 #endif
 
-#if defined(BOOST_CONTEXT_TLS_STACK_PROTECTOR)
+#if defined(SWOOLE_CONTEXT_TLS_STACK_PROTECTOR)
     movq  %fs:0x28, %rcx    /* read stack guard from TLS record */
     movq  %rcx, 0x8(%rsp)   /* save stack guard */
 #endif
@@ -64,7 +64,7 @@ swoole_jump_fcontext:
     movq  %rbx, 0x30(%rsp)  /* save RBX */
     movq  %rbp, 0x38(%rsp)  /* save RBP */
 
-#if BOOST_CONTEXT_SHADOW_STACK
+#if SWOOLE_CONTEXT_SHADOW_STACK
     /* grow the stack to reserve space for shadow stack pointer(SSP) */
     leaq  -0x8(%rsp), %rsp
     /* read the current SSP and store it */
@@ -78,7 +78,7 @@ swoole_jump_fcontext:
     /* restore RSP (pointing to context-data) from RDI */
     movq  %rdi, %rsp
 
-#if BOOST_CONTEXT_SHADOW_STACK
+#if SWOOLE_CONTEXT_SHADOW_STACK
     /* first 8 bytes are SSP */
     movq  (%rsp), %rcx
     leaq  0x8(%rsp), %rsp
@@ -98,12 +98,12 @@ swoole_jump_fcontext:
 
     movq  0x40(%rsp), %r8  /* restore return-address */
 
-#if !defined(BOOST_USE_TSX)
+#if !defined(SWOOLE_USE_TSX)
     ldmxcsr  (%rsp)     /* restore MMX control- and status-word */
     fldcw    0x4(%rsp)  /* restore x87 control-word */
 #endif
 
-#if defined(BOOST_CONTEXT_TLS_STACK_PROTECTOR)
+#if defined(SWOOLE_CONTEXT_TLS_STACK_PROTECTOR)
     movq  0x8(%rsp), %rdx  /* load stack guard */
     movq  %rdx, %fs:0x28   /* restore stack guard to TLS record */
 #endif

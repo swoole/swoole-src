@@ -30,7 +30,7 @@
 _swoole_jump_fcontext:
     leaq  -0x38(%rsp), %rsp /* prepare stack */
 
-#if !defined(BOOST_USE_TSX)
+#if !defined(SWOOLE_USE_TSX)
     stmxcsr  (%rsp)     /* save MMX control- and status-word */
     fnstcw   0x4(%rsp)  /* save x87 control-word */
 #endif
@@ -50,7 +50,7 @@ _swoole_jump_fcontext:
 
     movq  0x38(%rsp), %r8  /* restore return-address */
 
-#if !defined(BOOST_USE_TSX)
+#if !defined(SWOOLE_USE_TSX)
     ldmxcsr  (%rsp)     /* restore MMX control- and status-word */
     fldcw    0x4(%rsp)  /* restore x87 control-word */
 #endif

@@ -33,8 +33,8 @@
 
 # if defined __CET__
 #  include <cet.h>
-#  define SHSTK_ENABLED (__CET__ & 0x2)
-#  define BOOST_CONTEXT_SHADOW_STACK (SHSTK_ENABLED && SHADOW_STACK_SYSCALL)
+#  define SWOOLE_SHSTK_ENABLED (__CET__ & 0x2)
+#  define SWOOLE_CONTEXT_SHADOW_STACK (SWOOLE_SHSTK_ENABLED && SHADOW_STACK_SYSCALL)
 # else
 #  define _CET_ENDBR
 # endif
@@ -45,7 +45,7 @@
 .align 16
 swoole_make_fcontext:
     _CET_ENDBR
-#if BOOST_CONTEXT_SHADOW_STACK
+#if SWOOLE_CONTEXT_SHADOW_STACK
     /* the new shadow stack pointer (SSP) */
     movq  -0x8(%rdi), %r9
 #endif
@@ -69,7 +69,7 @@ swoole_make_fcontext:
     /* save x87 control-word */
     fnstcw   0x4(%rax)
 
-#if defined(BOOST_CONTEXT_TLS_STACK_PROTECTOR)
+#if defined(SWOOLE_CONTEXT_TLS_STACK_PROTECTOR)
     /* save stack guard */
     movq  %fs:0x28, %rcx    /* read stack guard from TLS record */
     movq  %rcx, 0x8(%rsp)   /* save stack guard */
@@ -87,7 +87,7 @@ swoole_make_fcontext:
     /* will be entered after context-function returns */
     movq  %rcx, 0x38(%rax)
 
-#if BOOST_CONTEXT_SHADOW_STACK
+#if SWOOLE_CONTEXT_SHADOW_STACK
     /* Populate the shadow stack and normal stack */
     /* get original SSP */
     rdsspq  %r8
@@ -122,7 +122,7 @@ trampoline:
     _CET_ENDBR
     /* store return address on stack */
     /* fix stack alignment */
-#if BOOST_CONTEXT_SHADOW_STACK
+#if SWOOLE_CONTEXT_SHADOW_STACK
     /* save address of "jmp *%rbp" as return-address */
     /* on stack and shadow stack */
     call  2f
