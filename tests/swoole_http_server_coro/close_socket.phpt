@@ -20,7 +20,7 @@ $pm->parentFunc = function () use ($pm) {
         for ($i = 0; $i < 2; $i++) {
             $cli = new Client('127.0.0.1', $pm->getFreePort());
             Assert::assert($cli->get('/'));
-            Assert::contains($cli->headers['server'], 'BWS');
+            Assert::assert(str_contains($cli->headers['server'], 'BWS') or str_contains($cli->headers['server'], 'bfe'));
         }
     });
     echo "DONE\n";

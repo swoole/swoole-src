@@ -1343,8 +1343,7 @@ ssize_t Socket::ssl_recv(void *__buf, size_t __n) {
             return SW_ERR;
 
         case SSL_ERROR_SYSCALL:
-            errno = SW_ERROR_SSL_RESET;
-            return SW_ERR;
+            return errno == 0 ? 0 : SW_ERR;
 
         case SSL_ERROR_SSL:
             ssl_catch_error();
