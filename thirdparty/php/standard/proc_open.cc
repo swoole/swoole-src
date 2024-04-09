@@ -1010,7 +1010,7 @@ PHP_FUNCTION(swoole_proc_open) {
                 goto exit_fail;
             }
         } else {
-            zend_argument_value_error(2, "must only contain arrays and streams");
+            php_swoole_fatal_error(E_WARNING, "Descriptor item must be either an array or a File-Handle");
             goto exit_fail;
         }
         ndesc++;
