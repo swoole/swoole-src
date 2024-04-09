@@ -213,11 +213,11 @@ int swoole_coroutine_socket_create(int fd) {
     int _fd = socket->get_fd();
     if (sw_unlikely(_fd < 0)) {
         return -1;
-    } else {
-        std::unique_lock<std::mutex> _lock(socket_map_lock);
-        socket_map[fd] = socket;
-        return 0;
     }
+    socket->get_socket()->set_nonblock();
+    std::unique_lock<std::mutex> _lock(socket_map_lock);
+    socket_map[fd] = socket;
+    return 0;
 }
 
 int swoole_coroutine_socket_unwrap(int fd) {
