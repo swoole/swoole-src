@@ -158,7 +158,6 @@ static void _php_free_envp(sw_php_process_env env) {
 
 static void proc_co_rsrc_dtor(zend_resource *rsrc) {
     sw_php_process_handle *proc = (sw_php_process_handle *) rsrc->ptr;
-    int i;
     int wstatus = 0;
 
     /* Close all handles to avoid a deadlock */
@@ -732,6 +731,7 @@ static zend_result set_proc_descriptor_from_array(
     zend_string *zmode = NULL, *zfile = NULL;
     zend_result retval = FAILURE;
 
+#if 0
     if (zend_string_equals_literal(ztype, "pipe")) {
         /* Set descriptor to pipe */
         zmode = get_string_parameter(descitem, 1, "mode parameter for 'pipe'");
@@ -739,7 +739,9 @@ static zend_result set_proc_descriptor_from_array(
             goto finish;
         }
         retval = set_proc_descriptor_to_pipe(&descriptors[ndesc], zmode);
-    } else if (zend_string_equals_literal(ztype, "socket")) {
+    } else
+#endif
+    if (zend_string_equals_literal(ztype, "socket") || zend_string_equals_literal(ztype, "pipe")) {
         /* Set descriptor to socketpair */
         retval = set_proc_descriptor_to_socket(&descriptors[ndesc]);
     } else if (zend_string_equals(ztype, ZSTR_KNOWN(ZEND_STR_FILE))) {
