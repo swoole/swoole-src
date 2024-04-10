@@ -406,6 +406,13 @@ class Factory {
     Factory(Server *_server) {
         server_ = _server;
     }
+    pid_t spawn_event_worker(Worker *worker);
+    pid_t spawn_user_worker(Worker *worker);
+    pid_t spawn_task_worker(Worker *worker);
+    void kill_user_workers();
+    void kill_event_workers();
+    void kill_task_workers();
+    void check_worker_exit_status(Worker *worker, const ExitStatus &exit_status);
     virtual ~Factory() {}
     virtual bool start() = 0;
     virtual bool shutdown() = 0;
@@ -431,13 +438,6 @@ class ProcessFactory : public Factory {
   public:
     ProcessFactory(Server *server);
     ~ProcessFactory();
-    pid_t spawn_event_worker(Worker *worker);
-    pid_t spawn_user_worker(Worker *worker);
-    pid_t spawn_task_worker(Worker *worker);
-    void kill_user_workers();
-    void kill_event_workers();
-    void kill_task_workers();
-    void check_worker_exit_status(Worker *worker, const ExitStatus &exit_status);
     bool start() override;
     bool shutdown() override;
     bool dispatch(SendData *) override;

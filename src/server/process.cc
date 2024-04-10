@@ -53,7 +53,7 @@ ProcessFactory::~ProcessFactory() {}
 /**
  * kill and wait all user process
  */
-void ProcessFactory::kill_user_workers() {
+void Factory::kill_user_workers() {
     if (server_->user_worker_map.empty()) {
         return;
     }
@@ -73,7 +73,7 @@ void ProcessFactory::kill_user_workers() {
 /**
  * [Manager] kill and wait all event worker process
  */
-void ProcessFactory::kill_event_workers() {
+void Factory::kill_event_workers() {
     int status;
 
     if (server_->worker_num == 0) {
@@ -95,14 +95,14 @@ void ProcessFactory::kill_event_workers() {
 /**
  * [Manager] kill and wait task worker process
  */
-void ProcessFactory::kill_task_workers() {
+void Factory::kill_task_workers() {
     if (server_->task_worker_num == 0) {
         return;
     }
     server_->gs->task_workers.shutdown();
 }
 
-pid_t ProcessFactory::spawn_event_worker(Worker *worker) {
+pid_t Factory::spawn_event_worker(Worker *worker) {
     pid_t pid = swoole_fork(0);
 
     if (pid < 0) {
@@ -126,7 +126,7 @@ pid_t ProcessFactory::spawn_event_worker(Worker *worker) {
     return 0;
 }
 
-pid_t ProcessFactory::spawn_user_worker(Worker *worker) {
+pid_t Factory::spawn_user_worker(Worker *worker) {
     pid_t pid = swoole_fork(0);
     if (worker->pid) {
         server_->user_worker_map.erase(worker->pid);
@@ -156,11 +156,11 @@ pid_t ProcessFactory::spawn_user_worker(Worker *worker) {
     }
 }
 
-pid_t ProcessFactory::spawn_task_worker(Worker *worker) {
+pid_t Factory::spawn_task_worker(Worker *worker) {
     return server_->gs->task_workers.spawn(worker);
 }
 
-void ProcessFactory::check_worker_exit_status(Worker *worker, const ExitStatus &exit_status) {
+void Factory::check_worker_exit_status(Worker *worker, const ExitStatus &exit_status) {
     if (exit_status.get_status() != 0) {
         swoole_warning("worker(pid=%d, id=%d) abnormal exit, status=%d, signal=%d"
                        "%s",

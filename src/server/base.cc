@@ -56,7 +56,6 @@ BaseFactory::BaseFactory(Server *server) : Factory(server) {}
 BaseFactory::~BaseFactory() {}
 
 bool BaseFactory::start() {
-    sw_worker()->run_always = true;
     return true;
 }
 

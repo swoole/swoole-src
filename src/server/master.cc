@@ -564,6 +564,7 @@ void Server::init_worker(Worker *worker) {
     if (max_request < 1) {
         worker->run_always = true;
     } else {
+        worker->run_always = false;
         worker->max_request = max_request;
         if (max_request_grace > 0) {
             worker->max_request += swoole_system_random(1, max_request_grace);
