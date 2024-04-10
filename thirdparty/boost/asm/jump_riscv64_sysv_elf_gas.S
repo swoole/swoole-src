@@ -66,8 +66,6 @@ swoole_jump_fcontext:
     # prepare stack for GP + FPU
     addi  sp, sp, -0xd0
 
-    beqz a3, .L1
-
     # save fs0 - fs11
     fsd  fs0, 0x00(sp)
     fsd  fs1, 0x08(sp)
@@ -81,7 +79,6 @@ swoole_jump_fcontext:
     fsd  fs9, 0x48(sp)
     fsd  fs10, 0x50(sp)
     fsd  fs11, 0x58(sp)
-.L1:
 
     # save s0-s11, ra
     sd  s0, 0x60(sp)
@@ -101,13 +98,12 @@ swoole_jump_fcontext:
     # save RA as PC
     sd  ra, 0xc8(sp)
 
-    # store SP (pointing to context-data) in A0
-    sd  sp, (a0)
+    # store SP (pointing to context-data) in A2
+    mv  a2, sp
 
-    # restore SP (pointing to context-data) from A1
-    mv  sp, a1
+    # restore SP (pointing to context-data) from A0
+    mv  sp, a0
 
-    beqz a3, .L2
     # load fs0 - fs11
     fld  fs0, 0x00(sp)
     fld  fs1, 0x08(sp)
@@ -121,7 +117,6 @@ swoole_jump_fcontext:
     fld  fs9, 0x48(sp)
     fld  fs10, 0x50(sp)
     fld  fs11, 0x58(sp)
-.L2:
 
     # load s0-s11,ra
     ld  s0, 0x60(sp)
@@ -138,7 +133,9 @@ swoole_jump_fcontext:
     ld  s11, 0xb8(sp)
     ld  ra, 0xc0(sp)
 
-    # use A2 as return value
+    # return transfer_t from jump
+    # pass transfer_t as first arg in context function
+    # a0 == FCTX, a1 == DATA
     mv a0, a2
 
     # load pc

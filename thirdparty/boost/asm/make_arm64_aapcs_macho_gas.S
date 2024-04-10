@@ -1,3 +1,9 @@
+/*
+            Copyright Edward Nevill + Oliver Kowalke 2015
+   Distributed under the Boost Software License, Version 1.0.
+      (See accompanying file LICENSE_1_0.txt or copy at
+          http://www.boost.org/LICENSE_1_0.txt)
+*/
 /*******************************************************
  *                                                     *
  *  -------------------------------------------------  *
@@ -45,7 +51,6 @@
  *                                                     *
  *******************************************************/
 
-
 .text
 .globl _swoole_make_fcontext
 .balign 16
@@ -60,9 +65,6 @@ _swoole_make_fcontext:
     ; third arg of swoole_make_fcontext() == address of context-function
     ; store address as a PC to jump in
     str  x2, [x0, #0xa0]
-
-    ; compute abs address of label finish
-    ; 0x0c = 3 instructions * size (4) before label 'finish'
 
     adr  x1, finish
 
