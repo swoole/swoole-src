@@ -42,6 +42,7 @@
 typedef ucontext_t coroutine_context_t;
 #elif defined(USE_ASM_CONTEXT)
 typedef fcontext_t coroutine_context_t;
+typedef transfer_t coroutine_transfer_t;
 #endif
 
 typedef std::function<void(void *)> CoroutineFunc;
@@ -89,7 +90,11 @@ class Context {
     void *private_data_;
     bool end_;
 
+#if USE_UCONTEXT
     static void context_func(void *arg);
+#else
+    static void context_func(transfer_t arg);
+#endif
 };
 
 }  // namespace coroutine
