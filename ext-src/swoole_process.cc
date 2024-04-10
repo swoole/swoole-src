@@ -602,8 +602,8 @@ void php_swoole_process_clean() {
         }
     }
 #ifndef SW_THREAD
-    if (sw_get_process_type() != SW_PROCESS_USERWORKER) {
-        sw_set_process_type(0);
+    if (swoole_get_process_type() != SW_PROCESS_USERWORKER) {
+        swoole_set_process_type(0);
     }
 #endif
 }
