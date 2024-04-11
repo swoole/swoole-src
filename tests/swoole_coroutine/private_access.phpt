@@ -19,6 +19,8 @@ class Bar
 
     public function foo()
     {
+        \Swoole\Runtime::setHookFlags(SWOOLE_HOOK_ALL);
+
         go(function () {
             var_dump(self::$s_private);
             var_dump(self::$s_protect);
@@ -47,16 +49,16 @@ class Bar
             var_dump($this->private);
             var_dump($this->protect);
             var_dump($this->public);
-            $mysql = new Swoole\Coroutine\MySQL;
-            $res = $mysql->connect([
-                'host' => MYSQL_SERVER_HOST,
-                'port' => MYSQL_SERVER_PORT,
-                'user' => MYSQL_SERVER_USER,
-                'password' => MYSQL_SERVER_PWD,
-                'database' => MYSQL_SERVER_DB
-            ]);
+            $mysql = new mysqli();
+            $res = $mysql->connect(
+                MYSQL_SERVER_HOST,
+                MYSQL_SERVER_USER,
+                MYSQL_SERVER_PWD,
+                MYSQL_SERVER_DB,
+                MYSQL_SERVER_PORT,
+            );
             Assert::assert($res);
-            $ret = $mysql->query('show tables', 1);
+            $ret = $mysql->query('show tables', 1)->fetch_all();
             Assert::assert(is_array($ret));
             Assert::assert(count($ret) > 0);
             var_dump(self::$s_private);

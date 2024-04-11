@@ -8,7 +8,8 @@ require __DIR__ . '/../../include/bootstrap.php';
 $pm = new ProcessManager();
 $pm->initRandomData(1);
 $pm->parentFunc = function () use ($pm) {
-    $redis = new Co\Redis;
+    Swoole\Runtime::setHookFlags(SWOOLE_HOOK_ALL);
+    $redis = new \redis;
     go(function () use ($pm, $redis) {
         $redis->connect('127.0.0.1', $pm->getFreePort());
         go(function () use ($pm, $redis) {

@@ -11,7 +11,7 @@ cmake_minimum_required(VERSION 2.8)
 file(READ ./config.h SWOOLE_CONFIG_FILE)
 
 set(CMAKE_MACOSX_RPATH 1)
-set(SWOOLE_LINK_LIBRARIES pthread dl uring)
+set(SWOOLE_LINK_LIBRARIES pthread dl)
 
 if (APPLE)
     set(CMAKE_SHARED_LINKER_FLAGS "-undefined dynamic_lookup")

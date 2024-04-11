@@ -19,7 +19,7 @@ class RedisPool
     {
         $this->pool = new \Swoole\Coroutine\Channel($size);
         for ($i = 0; $i < $size; $i++) {
-            $redis = new Swoole\Coroutine\Redis();
+            $redis = new \redis();
             $res = $redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
             if ($res == false) {
                 throw new \RuntimeException("failed to connect redis server.");
@@ -29,12 +29,12 @@ class RedisPool
         }
     }
 
-    public function get(): \Swoole\Coroutine\Redis
+    public function get(): \redis
     {
         return $this->pool->pop();
     }
 
-    public function put(\Swoole\Coroutine\Redis $redis)
+    public function put(\redis $redis)
     {
         $this->pool->push($redis);
     }
@@ -47,6 +47,7 @@ class RedisPool
 }
 
 $count = 0;
+\Swoole\Runtime::setHookFlags(SWOOLE_HOOK_ALL);
 go(function () {
     $pool = new RedisPool();
     // max concurrency num is more than max connections
