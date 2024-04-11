@@ -584,6 +584,7 @@ void swoole_clean(void);
 pid_t swoole_fork(int flags);
 pid_t swoole_fork_exec(const std::function<void(void)> &child_fn);
 void swoole_thread_init(void);
+void swoole_thread_clean(void);
 void swoole_redirect_stdout(int new_fd);
 int swoole_shell_exec(const char *command, pid_t *pid, bool get_error_stream);
 int swoole_daemon(int nochdir, int noclose);

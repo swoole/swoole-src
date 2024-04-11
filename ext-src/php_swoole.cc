@@ -896,7 +896,6 @@ PHP_MINFO_FUNCTION(swoole) {
 #ifdef SW_USE_TCMALLOC
     php_info_print_table_row(2, "tcmalloc", "enabled");
 #endif
-    php_info_print_table_row(2, "async_redis", "enabled");
 #ifdef SW_USE_PGSQL
     php_info_print_table_row(2, "coroutine_pgsql", "enabled");
 #endif

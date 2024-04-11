@@ -312,6 +312,7 @@ void ThreadPool::main_func(bool is_core_worker) {
             --n_waiting;
         }
     }
+    swoole_thread_clean();
 }
 
 void ThreadPool::create_thread(const bool is_core_worker) {

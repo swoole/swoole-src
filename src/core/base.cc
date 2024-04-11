@@ -432,12 +432,17 @@ pid_t swoole_fork(int flags) {
 }
 
 void swoole_thread_init(void) {
-    SwooleTG.buffer_stack = new String(SW_STACK_BUFFER_SIZE);
-    ON_SCOPE_EXIT {
+    if (!SwooleTG.buffer_stack) {
+        SwooleTG.buffer_stack = new String(SW_STACK_BUFFER_SIZE);
+    }
+    swoole_signal_block_all();
+}
+
+void swoole_thread_clean(void) {
+    if (SwooleTG.buffer_stack) {
         delete SwooleTG.buffer_stack;
         SwooleTG.buffer_stack = nullptr;
-    };
-    swoole_signal_block_all();
+    }
 }
 
 void swoole_dump_ascii(const char *data, size_t size) {

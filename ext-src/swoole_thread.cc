@@ -866,6 +866,7 @@ _startup_error:
     zend_string_release(file);
     zend_string_release(argv);
     ts_free_thread();
+    swoole_thread_clean();
 }
 
 static PHP_METHOD(swoole_thread, exec) {

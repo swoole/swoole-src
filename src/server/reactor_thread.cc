@@ -673,7 +673,11 @@ int Server::start_reactor_threads() {
     }
 
     SW_LOOP_N(reactor_num) {
-        get_thread(i)->thread = std::thread(reactor_thread_main_loop, this, i);
+        get_thread(i)->thread = std::thread([=]() {
+            swoole_thread_init();
+            reactor_thread_main_loop(this, i);
+            swoole_thread_clean();
+        });
     }
 
 _init_master_thread:
@@ -787,7 +791,6 @@ int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
 void Server::reactor_thread_main_loop(Server *serv, int reactor_id) {
     SwooleTG.id = reactor_id;
     SwooleTG.type = Server::THREAD_REACTOR;
-    swoole_thread_init();
 
     if (swoole_event_init(0) < 0) {
         return;
