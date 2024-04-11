@@ -110,7 +110,7 @@ PHP_ARG_ENABLE([thread-context],
   [whether to enable thread context],
   [AS_HELP_STRING([--enable-thread-context],
     [Use thread context])], [no], [no])
-    
+
 PHP_ARG_ENABLE([swoole-thread],
   [whether to enable swoole thread support],
   [AS_HELP_STRING([--enable-swoole-thread],
@@ -1034,13 +1034,6 @@ EOF
         thirdparty/swoole_http_parser.c \
         thirdparty/multipart_parser.c"
 
-    swoole_source_file="$swoole_source_file \
-        thirdparty/hiredis/hiredis.c \
-        thirdparty/hiredis/alloc.c \
-        thirdparty/hiredis/net.c \
-        thirdparty/hiredis/read.c \
-        thirdparty/hiredis/sds.c"
-
     if test "$PHP_NGHTTP2_DIR" = "no"; then
         PHP_ADD_INCLUDE([$ext_srcdir/thirdparty])
 	    swoole_source_file="$swoole_source_file \
@@ -1191,7 +1184,6 @@ EOF
     PHP_ADD_INCLUDE([$ext_srcdir/include])
     PHP_ADD_INCLUDE([$ext_srcdir/ext-src])
     PHP_ADD_INCLUDE([$ext_srcdir/thirdparty])
-    PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/hiredis])
 
     AC_MSG_CHECKING([swoole coverage])
     if test "$PHP_SWOOLE_COVERAGE" != "no"; then
@@ -1206,8 +1198,7 @@ EOF
         include/*.h \
         stubs/*.h \
         thirdparty/*.h \
-        thirdparty/nghttp2/*.h \
-        thirdparty/hiredis/*.h])
+        thirdparty/nghttp2/*.h])
 
     PHP_REQUIRE_CXX()
 
@@ -1236,7 +1227,6 @@ EOF
     PHP_ADD_BUILD_DIR($ext_builddir/src/wrapper)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/boost)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/boost/asm)
-    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/hiredis)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/sockets)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/standard)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/curl)

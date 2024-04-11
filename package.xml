@@ -2407,21 +2407,6 @@
             <file role="src" name="thirdparty/boost/asm/make_sparc64_sysv_elf_gas.S" />
             <file role="src" name="thirdparty/boost/asm/make_x86_64_sysv_elf_gas.S" />
             <file role="src" name="thirdparty/boost/asm/make_x86_64_sysv_macho_gas.S" />
-            <file role="doc" name="thirdparty/hiredis/CHANGELOG.md" />
-            <file role="doc" name="thirdparty/hiredis/COPYING" />
-            <file role="doc" name="thirdparty/hiredis/README.md" />
-            <file role="src" name="thirdparty/hiredis/alloc.c" />
-            <file role="src" name="thirdparty/hiredis/alloc.h" />
-            <file role="src" name="thirdparty/hiredis/fmacros.h" />
-            <file role="src" name="thirdparty/hiredis/hiredis.c" />
-            <file role="src" name="thirdparty/hiredis/hiredis.h" />
-            <file role="src" name="thirdparty/hiredis/net.c" />
-            <file role="src" name="thirdparty/hiredis/net.h" />
-            <file role="src" name="thirdparty/hiredis/read.c" />
-            <file role="src" name="thirdparty/hiredis/read.h" />
-            <file role="src" name="thirdparty/hiredis/sds.c" />
-            <file role="src" name="thirdparty/hiredis/sds.h" />
-            <file role="src" name="thirdparty/hiredis/sdsalloc.h" />
             <file role="src" name="thirdparty/multipart_parser.c" />
             <file role="src" name="thirdparty/multipart_parser.h" />
             <file role="doc" name="thirdparty/nghttp2/COPYING" />
