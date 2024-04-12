@@ -1706,29 +1706,6 @@ int Server::add_systemd_socket() {
     return count;
 }
 
-static bool Server_create_socket(ListenPort *ls) {
-    ls->socket = make_socket(
-        ls->type, ls->is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER, SW_SOCK_CLOEXEC | SW_SOCK_NONBLOCK);
-    if (!ls->socket) {
-        return false;
-    }
-#if defined(SW_SUPPORT_DTLS) && defined(HAVE_KQUEUE)
-    if (ls->is_dtls()) {
-        ls->socket->set_reuse_port();
-    }
-#endif
-
-    if (ls->socket->bind(ls->host, &ls->port) < 0) {
-        swoole_set_last_error(errno);
-        ls->socket->free();
-        return false;
-    }
-
-    ls->socket->info.assign(ls->type, ls->host, ls->port);
-
-    return true;
-}
-
 ListenPort *Server::add_port(SocketType type, const char *host, int port) {
     if (session_list) {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_WRONG_OPERATION, "must add port before server is created");
@@ -1786,7 +1763,7 @@ ListenPort *Server::add_port(SocketType type, const char *host, int port) {
     }
 #endif
 
-    if (!Server_create_socket(ls)) {
+    if (!ls->create_socket(this)) {
         swoole_set_last_error(errno);
         return nullptr;
     }
