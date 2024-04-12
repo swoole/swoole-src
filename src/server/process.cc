@@ -110,6 +110,7 @@ pid_t Factory::spawn_event_worker(Worker *worker) {
         return SW_ERR;
     } else if (pid == 0) {
         worker->pid = SwooleG.pid;
+        SwooleWG.worker = worker;
     } else {
         worker->pid = pid;
         return pid;
@@ -139,8 +140,8 @@ pid_t Factory::spawn_user_worker(Worker *worker) {
     else if (pid == 0) {
         swoole_set_process_type(SW_PROCESS_USERWORKER);
         swoole_set_process_id(worker->id);
-        g_worker_instance = worker;
         worker->pid = SwooleG.pid;
+        SwooleWG.worker = worker;
         server_->onUserWorkerStart(server_, worker);
         exit(0);
     }

@@ -170,10 +170,9 @@ int Server::worker_main_loop(ProcessPool *pool, Worker *worker) {
     swoole_set_process_id(worker->id);
 
     if (serv->max_request > 0) {
-        worker->run_always = false;
+        SwooleWG.run_always = false;
     }
-    worker->max_request = serv->max_request;
-    g_worker_instance = worker;
+    SwooleWG.max_request = serv->max_request;
     SwooleTG.id = 0;
 
     serv->init_worker(worker);

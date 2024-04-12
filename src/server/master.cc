@@ -562,12 +562,12 @@ void Server::destroy_worker(Worker *worker) {
  */
 void Server::init_worker(Worker *worker) {
     if (max_request < 1) {
-        worker->run_always = true;
+        SwooleWG.run_always = true;
     } else {
-        worker->run_always = false;
-        worker->max_request = max_request;
+        SwooleWG.run_always = false;
+        SwooleWG.max_request = max_request;
         if (max_request_grace > 0) {
-            worker->max_request += swoole_system_random(1, max_request_grace);
+            SwooleWG.max_request += swoole_system_random(1, max_request_grace);
         }
     }
     worker->start_time = ::time(nullptr);

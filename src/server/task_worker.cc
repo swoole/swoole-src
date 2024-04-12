@@ -177,7 +177,6 @@ static void TaskWorker_signal_init(ProcessPool *pool) {
 static void TaskWorker_onStart(ProcessPool *pool, Worker *worker) {
     Server *serv = (Server *) pool->ptr;
     swoole_set_process_id(worker->id);
-    g_worker_instance = worker;
 
     /**
      * Make the task worker support asynchronous
@@ -203,10 +202,10 @@ static void TaskWorker_onStart(ProcessPool *pool, Worker *worker) {
      * task_max_request
      */
     if (pool->max_request > 0) {
-        worker->run_always = false;
-        worker->max_request = pool->get_max_request();
+        SwooleWG.run_always = false;
+        SwooleWG.max_request = pool->get_max_request();
     } else {
-        worker->run_always = true;
+        SwooleWG.run_always = true;
     }
 }
 
@@ -231,7 +230,7 @@ static int TaskWorker_onPipeReceive(Reactor *reactor, Event *event) {
         worker->status = SW_WORKER_IDLE;
         worker->request_count++;
         // maximum number of requests, process will exit.
-        if (!worker->run_always && worker->request_count >= worker->max_request) {
+        if (!SwooleWG.run_always && worker->request_count >= SwooleWG.max_request) {
             serv->stop_async_worker(worker);
         }
         return retval;

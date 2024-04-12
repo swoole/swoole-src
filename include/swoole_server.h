@@ -343,20 +343,20 @@ struct ListenPort {
     network::Socket *get_socket() {
         return socket;
     }
-    int get_port() {
+    int get_port() const {
         return port;
     }
-    const char *get_host() {
+    const char *get_host() const {
         return host.c_str();
     }
-    SocketType get_type() {
+    SocketType get_type() const {
         return type;
     }
-    int get_fd() {
+    int get_fd() const {
         return socket ? socket->fd : -1;
     }
 
-    size_t get_connection_num();
+    size_t get_connection_num() const;
 };
 
 struct ServerGS {
@@ -770,7 +770,7 @@ class Server {
         return mode_;
     };
 
-    ListenPort *get_port(int _port) const {
+    const ListenPort *get_port(int _port) const {
         for (auto port : ports) {
             if (port->port == _port || _port == 0) {
                 return port;
@@ -1393,7 +1393,7 @@ class Server {
 
     int schedule_worker(int fd, SendData *data);
 
-    size_t get_connection_num() {
+    size_t get_connection_num() const {
         if (gs->connection_nums) {
             size_t num = 0;
             for (uint32_t i = 0; i < worker_num; i++) {

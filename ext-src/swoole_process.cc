@@ -646,7 +646,7 @@ int php_swoole_process_start(Worker *process, zval *zobject) {
 
     php_swoole_process_clean();
     swoole_set_process_id(process->id);
-    g_worker_instance = process;
+    SwooleWG.worker = process;
 
     zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("pid"), process->pid);
     if (process->pipe_current) {

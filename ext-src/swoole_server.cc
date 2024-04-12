@@ -1537,10 +1537,10 @@ static void php_swoole_server_onAfterReload(Server *serv) {
 }
 
 static void php_swoole_server_onWorkerStop(Server *serv, Worker *worker) {
-    if (worker->shutdown) {
+    if (SwooleWG.shutdown) {
         return;
     }
-    worker->shutdown = true;
+    SwooleWG.shutdown = true;
 
     zval *zserv = php_swoole_server_zval_ptr(serv);
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));
@@ -3590,7 +3590,7 @@ static PHP_METHOD(swoole_server, getSocket) {
         RETURN_FALSE;
     }
 
-    ListenPort *lp = serv->get_port(port);
+    const ListenPort *lp = serv->get_port(port);
     php_socket *socket_object = php_swoole_convert_to_socket(lp->get_fd());
 
     if (!socket_object) {

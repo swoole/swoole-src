@@ -25,6 +25,8 @@
 #include "swoole_process_pool.h"
 #include "swoole_client.h"
 
+SW_THREAD_LOCAL swoole::WorkerGlobal SwooleWG = {};
+
 namespace swoole {
 
 using network::Socket;
@@ -465,6 +467,7 @@ pid_t ProcessPool::spawn(Worker *worker) {
         worker->pid = SwooleG.pid;
         swoole_set_process_type(SW_PROCESS_WORKER);
         swoole_set_process_id(worker->id);
+        SwooleWG.worker = worker;
         if (async) {
             if (swoole_event_init(SW_EVENTLOOP_WAIT_EXIT) < 0) {
                 exit(254);
@@ -541,7 +544,7 @@ static int ProcessPool_worker_loop_with_task_protocol(ProcessPool *pool, Worker 
         out.mtype = worker->id + 1;
     }
 
-    while (pool->running && !worker->shutdown && task_n > 0) {
+    while (pool->running && !SwooleWG.shutdown && task_n > 0) {
         /**
          * fetch task
          */

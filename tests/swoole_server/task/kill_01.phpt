@@ -14,9 +14,8 @@ const PROC_NAME = 'swoole_unittest_server_task_worker';
 $pm = new SwooleTest\ProcessManager;
 
 $pm->parentFunc = function ($pid) use ($pm) {
-    for ($i = 0; $i < 5; $i++)
-    {
-        //杀死进程
+    for ($i = 0; $i < 5; $i++) {
+        // 杀死进程
         kill_process_by_name(PROC_NAME);
         usleep(10000);
         //判断进程是否存在
