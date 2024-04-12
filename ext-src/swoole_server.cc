@@ -1943,6 +1943,11 @@ static PHP_METHOD(swoole_server, __construct) {
 
     serv = new Server((enum Server::Mode) serv_mode);
 
+    if (serv_mode == Server::MODE_BASE) {
+        serv->reactor_num = 1;
+        serv->worker_num = 1;
+    }
+
     if (serv_port == 0 && strcasecmp(host, "SYSTEMD") == 0) {
         if (serv->add_systemd_socket() <= 0) {
             zend_throw_error(NULL, "failed to add systemd socket");
