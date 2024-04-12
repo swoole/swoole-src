@@ -91,7 +91,9 @@ int Server::start_reactor_processes() {
     }
 
     if (Server_is_single(this)) {
-        int retval = worker_main_loop(&gs->event_workers, &gs->event_workers.workers[0]);
+        Worker *worker = &gs->event_workers.workers[0];
+        SwooleWG.worker = worker;
+        int retval = worker_main_loop(&gs->event_workers, worker);
         if (retval == SW_OK) {
             gs->event_workers.destroy();
         }

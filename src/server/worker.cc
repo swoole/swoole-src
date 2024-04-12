@@ -53,9 +53,9 @@ void Server::worker_signal_handler(int signo) {
     }
     switch (signo) {
     case SIGTERM:
-        if (swoole_event_is_available()) { // Event worker
+        if (swoole_event_is_available()) {  // Event worker
             sw_server()->stop_async_worker(sw_worker());
-        } else { // Task worker
+        } else {  // Task worker
             SwooleWG.shutdown = true;
         }
         break;
