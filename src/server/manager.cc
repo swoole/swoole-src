@@ -343,7 +343,7 @@ void Manager::wait(Server *_server) {
             }
             // user process
             if (!_server->user_worker_map.empty()) {
-                pool->onWorkerNotFound(&_server->gs->event_workers, exit_status);
+                Server::wait_other_worker(&_server->gs->event_workers, exit_status);
             }
             if (exit_status.get_pid() == reload_worker_pid && pool->reloading) {
                 pool->reload_worker_i++;
