@@ -35,22 +35,6 @@ go(function () {
         Assert::same(strpos($exception->getMessage(), 'Serialization'), 0);
     }
     try {
-        $hcc = new \Swoole\Coroutine\Mysql();
-        serialize($hcc);
-        Assert::true(false, 'never here');
-    } catch (\Exception $exception) {
-        Assert::same(strpos($exception->getMessage(), 'Serialization'), 0);
-    }
-    if (HAS_ASYNC_REDIS) {
-        try {
-            $hcc = new \Swoole\Coroutine\Redis();
-            serialize($hcc);
-            Assert::true(false, 'never here');
-        } catch (\Exception $exception) {
-            Assert::same(strpos($exception->getMessage(), 'Serialization'), 0);
-        }
-    }
-    try {
         $hcc = new \Swoole\Table(1);
         serialize($hcc);
         Assert::true(false, 'never here');
