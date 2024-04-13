@@ -1763,7 +1763,7 @@ ListenPort *Server::add_port(SocketType type, const char *host, int port) {
     }
 #endif
 
-    if (!ls->create_socket(this)) {
+    if (ls->create_socket(this) < 0) {
         swoole_set_last_error(errno);
         return nullptr;
     }
