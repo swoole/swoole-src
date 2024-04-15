@@ -13,9 +13,9 @@ uname -a && echo ""
 php -v && echo ""
 
 # compile in docker
-echo "" && echo "📦 Compile thread test in docker..." && echo ""
+echo "" && echo "📦 Compile ext-swoole[thread] in docker..." && echo ""
 ./docker-compile-with-thread.sh
 
 # run unit tests
-echo "" && echo "📋 PHP unit tests in docker..." && echo ""
-./run-tests.sh swoole-thread
+echo "" && echo "📋 Run phpt tests[thread] in docker..." && echo ""
+./run-tests.sh
