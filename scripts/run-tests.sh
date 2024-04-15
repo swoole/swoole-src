@@ -29,7 +29,7 @@ done
 
 # run tests @params($1=list_file, $2=options)
 run_tests(){
-    ./start.sh \
+    echo \
     "`tr '\n' ' ' < ${1} | xargs`" \
     -w ${1} \
     ${2}
@@ -59,11 +59,12 @@ echo "" && echo "🌵️️ Current branch is ${SWOOLE_BRANCH}" && echo ""
 if [ "${SWOOLE_BRANCH}" = "valgrind" ]; then
     dir="base"
     options="${options} -m"
-elif [ $SWOOLE_THREAD = 1 ]; then
+elif [ "$SWOOLE_THREAD" = 1 ]; then
     dir="swoole_thread"
 else
     dir="swoole_*"
 fi
+echo "${dir}"
 echo "${dir}" > tests.list
 for i in 1 2 3 4 5
 do

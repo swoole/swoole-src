@@ -107,7 +107,7 @@ start_docker_containers # && trap "remove_tests_resources"
 
 echo "\n⏳ Run tests in docker...\n"
 
-if [ $SWOOLE_THREAD = 1 ]; then
+if [ "$SWOOLE_THREAD" = 1 ]; then
     run_thread_tests_in_docker
 else
     run_tests_in_docker
