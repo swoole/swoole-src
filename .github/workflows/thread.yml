@@ -35,6 +35,8 @@ jobs:
       run: |
         export SWOOLE_BRANCH=${GITHUB_REF##*/}
         export SWOOLE_THREAD=1
-        export SWOOLE_BUILD_DIR=${{runner.workspace}}
+        export SWOOLE_BUILD_DIR=$(realpath(.))
         export PHP_VERSION=${{ matrix.php }}
-        ${{runner.workspace}}/swoole-src/scripts/route.sh
+        echo ${SWOOLE_BUILD_DIR}
+        echo ${SWOOLE_BRANCH}
+        ${SWOOLE_BUILD_DIR}/swoole-src/scripts/route.sh
