@@ -29,7 +29,7 @@ done
 
 # run tests @params($1=list_file, $2=options)
 run_tests(){
-    echo \
+    ./start.sh \
     "`tr '\n' ' ' < ${1} | xargs`" \
     -w ${1} \
     ${2}

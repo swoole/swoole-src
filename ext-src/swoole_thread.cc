@@ -242,7 +242,7 @@ struct ZendArray : ThreadResource {
 
     void intkey_offsetGet(zend_long index, zval *return_value) {
         lock_.lock_rd();
-        ArrayItem *item = (ArrayItem *) zend_hash_index_find(&ht, index);
+        ArrayItem *item = (ArrayItem *) zend_hash_index_find_ptr(&ht, index);
         if (item) {
             item->fetch(return_value);
         }
