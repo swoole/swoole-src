@@ -37,6 +37,4 @@ jobs:
         export SWOOLE_THREAD=1
         export SWOOLE_BUILD_DIR=$(realpath .)
         export PHP_VERSION=${{ matrix.php }}
-        echo ${SWOOLE_BUILD_DIR}
-        echo ${SWOOLE_BRANCH}
-        ${SWOOLE_BUILD_DIR}/swoole-src/scripts/route.sh
+        ${SWOOLE_BUILD_DIR}/scripts/route.sh
