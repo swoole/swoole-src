@@ -45,7 +45,7 @@ int Server::start_reactor_processes() {
                     }
 #if defined(__linux__) && defined(HAVE_REUSEPORT)
                 } else {
-                    ls->close_socket_fd();
+                    ls->close_socket();
                 }
 #endif
             }

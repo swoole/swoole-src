@@ -796,7 +796,7 @@ int ListenPort::create_socket(Server *server) {
     if (socket) {
 #if defined(__linux__) && defined(HAVE_REUSEPORT)
         if (server->enable_reuse_port) {
-            close_socket_fd();
+            close_socket();
         } else
 #endif
         {
@@ -804,7 +804,7 @@ int ListenPort::create_socket(Server *server) {
         }
     }
 
-    socket = swoole::make_socket(
+    socket = make_socket(
         type, is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER, SW_SOCK_CLOEXEC | SW_SOCK_NONBLOCK);
     if (socket == nullptr) {
         swoole_set_last_error(errno);
@@ -836,7 +836,7 @@ int ListenPort::create_socket(Server *server) {
     return SW_OK;
 }
 
-void ListenPort::close_socket_fd() {
+void ListenPort::close_socket() {
     if (::close(socket->fd) < 0) {
         swoole_sys_warning("close(%d) failed", socket->fd);
     }
