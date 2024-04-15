@@ -739,6 +739,7 @@ struct Global {
     uchar dns_lookup_random : 1;
     uchar use_async_resolver : 1;
     uchar use_name_resolver : 1;
+    uchar enable_coroutine : 1;
 
     uint8_t process_type;
     uint32_t process_id;

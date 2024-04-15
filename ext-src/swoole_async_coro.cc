@@ -69,6 +69,11 @@ void php_swoole_set_aio_option(HashTable *vht) {
 }
 
 PHP_FUNCTION(swoole_async_set) {
+#ifdef SW_THREAD
+    if (!tsrm_is_main_thread()) {
+        RETURN_FALSE;
+    }
+#endif
     if (sw_reactor()) {
         php_swoole_fatal_error(E_ERROR, "eventLoop has already been created. unable to change settings");
         RETURN_FALSE;
@@ -117,7 +122,7 @@ PHP_FUNCTION(swoole_async_set) {
         SwooleG.use_async_resolver = zval_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "enable_coroutine", ztmp)) {
-        SWOOLE_G(enable_coroutine) = zval_is_true(ztmp);
+        SwooleG.enable_coroutine = zval_is_true(ztmp);
     }
 }
 

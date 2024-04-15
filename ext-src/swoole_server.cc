@@ -2053,7 +2053,7 @@ static PHP_METHOD(swoole_server, set) {
     if (php_swoole_array_get_value(vht, "enable_coroutine", ztmp)) {
         serv->enable_coroutine = zval_is_true(ztmp);
     } else {
-        serv->enable_coroutine = SWOOLE_G(enable_coroutine);
+        serv->enable_coroutine = SwooleG.enable_coroutine;
     }
     if (php_swoole_array_get_value(vht, "send_timeout", ztmp)) {
         serv->send_timeout = zval_get_double(ztmp);

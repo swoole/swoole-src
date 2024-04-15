@@ -188,7 +188,6 @@ PHP_INI_BEGIN()
 /**
  * enable swoole coroutine
  */
-STD_ZEND_INI_BOOLEAN("swoole.enable_coroutine", "On", PHP_INI_ALL, OnUpdateBool, enable_coroutine, zend_swoole_globals, swoole_globals)
 STD_ZEND_INI_BOOLEAN("swoole.enable_library", "On", PHP_INI_ALL, OnUpdateBool, enable_library, zend_swoole_globals, swoole_globals)
 STD_ZEND_INI_BOOLEAN("swoole.enable_fiber_mock", "Off", PHP_INI_ALL, OnUpdateBool, enable_fiber_mock, zend_swoole_globals, swoole_globals)
 /**
@@ -211,7 +210,6 @@ PHP_INI_END()
 // clang-format on
 
 static void php_swoole_init_globals(zend_swoole_globals *swoole_globals) {
-    swoole_globals->enable_coroutine = 1;
     swoole_globals->enable_library = 1;
     swoole_globals->enable_fiber_mock = 0;
     swoole_globals->enable_preemptive_scheduler = 0;
@@ -339,7 +337,7 @@ SW_API bool php_swoole_is_enable_coroutine() {
     if (sw_server()) {
         return sw_server()->is_enable_coroutine();
     } else {
-        return SWOOLE_G(enable_coroutine);
+        return SwooleG.enable_coroutine;
     }
 }
 

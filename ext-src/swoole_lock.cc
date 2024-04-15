@@ -138,6 +138,8 @@ void php_swoole_lock_minit(int module_number) {
     SW_INIT_CLASS_ENTRY(swoole_lock, "Swoole\\Lock", nullptr, swoole_lock_methods);
 #ifndef SW_THREAD
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_lock);
+#else
+    zend_declare_property_long(swoole_lock_ce, ZEND_STRL("id"), 0, ZEND_ACC_PUBLIC);
 #endif
     SW_SET_CLASS_CLONEABLE(swoole_lock, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_lock, sw_zend_class_unset_property_deny);

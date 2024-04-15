@@ -162,6 +162,7 @@ void swoole_init(void) {
 
     SwooleG.running = 1;
     SwooleG.init = 1;
+    SwooleG.enable_coroutine = 1;
     SwooleG.std_allocator = {malloc, calloc, realloc, free};
     SwooleG.fatal_error = swoole_fatal_error_impl;
     SwooleG.cpu_num = SW_MAX(1, sysconf(_SC_NPROCESSORS_ONLN));

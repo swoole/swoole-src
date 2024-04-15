@@ -287,6 +287,8 @@ void php_swoole_atomic_minit(int module_number) {
     SW_INIT_CLASS_ENTRY(swoole_atomic, "Swoole\\Atomic", nullptr, swoole_atomic_methods);
 #ifndef SW_THREAD
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_atomic);
+#else
+    zend_declare_property_long(swoole_atomic_ce, ZEND_STRL("id"), 0, ZEND_ACC_PUBLIC);
 #endif
     SW_SET_CLASS_CLONEABLE(swoole_atomic, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_atomic, sw_zend_class_unset_property_deny);
@@ -296,6 +298,8 @@ void php_swoole_atomic_minit(int module_number) {
     SW_INIT_CLASS_ENTRY(swoole_atomic_long, "Swoole\\Atomic\\Long", nullptr, swoole_atomic_long_methods);
 #ifndef SW_THREAD
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_atomic_long);
+#else
+    zend_declare_property_long(swoole_atomic_long_ce, ZEND_STRL("id"), 0, ZEND_ACC_PUBLIC);
 #endif
     SW_SET_CLASS_CLONEABLE(swoole_atomic_long, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_atomic_long, sw_zend_class_unset_property_deny);
