@@ -1,6 +1,7 @@
 #!/bin/sh -e
 __CURRENT__=$(pwd)
 __DIR__=$(cd "$(dirname "$0")";pwd)
+export SWOOLE_THREAD=1
 
 # enter the dir
 cd "${__DIR__}"
