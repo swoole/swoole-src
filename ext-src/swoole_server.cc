@@ -584,7 +584,9 @@ void php_swoole_server_minit(int module_number) {
      */
     SW_REGISTER_LONG_CONSTANT("SWOOLE_BASE", swoole::Server::MODE_BASE);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_PROCESS", swoole::Server::MODE_PROCESS);
-
+#ifdef SW_THREAD
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_THREAD", swoole::Server::MODE_THREAD);
+#endif
     /**
      * task ipc mode
      */

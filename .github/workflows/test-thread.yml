@@ -5,7 +5,6 @@ on: [push, pull_request]
 jobs:
   test-linux:
     runs-on: ubuntu-latest
-    if: 0
     strategy:
       fail-fast: false
       matrix:
@@ -17,6 +16,8 @@ jobs:
       with:
         php-version: "${{ matrix.php }}"
         coverage: none
+      env:
+        phpts: ts
     - name: Show machine information
       run: |
         date
@@ -35,4 +36,5 @@ jobs:
     - name: Run Swoole test
       run: |
         export SWOOLE_BRANCH=${GITHUB_REF##*/}
+        export SWOOLE_THREAD=1
         ${{runner.workspace}}/swoole-src/scripts/route.sh
