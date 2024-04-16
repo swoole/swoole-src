@@ -124,6 +124,7 @@ PHP_FUNCTION(swoole_async_set) {
     if (php_swoole_array_get_value(vht, "enable_coroutine", ztmp)) {
         SwooleG.enable_coroutine = zval_is_true(ztmp);
     }
+    RETURN_TRUE;
 }
 
 PHP_FUNCTION(swoole_async_dns_lookup_coro) {

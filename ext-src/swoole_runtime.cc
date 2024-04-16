@@ -110,9 +110,6 @@ struct NetStream {
     bool blocking;
 };
 
-static bool runtime_hook_init = false;
-static int runtime_hook_flags = 0;
-
 static struct {
     php_stream_transport_factory tcp;
     php_stream_transport_factory udp;
@@ -172,8 +169,14 @@ static zend_internal_arg_info *get_arginfo(const char *name, size_t l_name) {
 #define SW_HOOK_LIBRARY_FE(name, arg_info)                                                                             \
     ZEND_RAW_FENTRY("swoole_hook_" #name, PHP_FN(swoole_user_func_handler), arg_info, 0)
 
+static SW_THREAD_LOCAL bool runtime_hook_init = false;
+static SW_THREAD_LOCAL int runtime_hook_flags = 0;
 static SW_THREAD_LOCAL zend_array *tmp_function_table = nullptr;
 static SW_THREAD_LOCAL std::unordered_map<std::string, zend_class_entry *> child_class_entries;
+
+#ifdef SW_THREAD
+static std::unordered_map<std::string, zif_handler> ori_func_handlers;
+#endif
 
 SW_EXTERN_C_BEGIN
 #include "ext/standard/file.h"
@@ -1956,6 +1959,10 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
         zf->internal_function.arg_info = arg_info;
     }
 
+#ifdef SW_THREAD
+    ori_func_handlers[std::string(zf->common.function_name->val, zf->common.function_name->len)] = rf->ori_handler;
+#endif
+
     if (use_php_func) {
         char func[128];
         memcpy(func, ZEND_STRL("swoole_"));
@@ -2051,17 +2058,22 @@ static PHP_FUNCTION(swoole_stream_socket_pair) {
 }
 
 static PHP_FUNCTION(swoole_user_func_handler) {
-    zend_fcall_info fci;
-    fci.size = sizeof(fci);
-    fci.object = nullptr;
-    ZVAL_UNDEF(&fci.function_name);
-    fci.retval = return_value;
-    fci.param_count = ZEND_NUM_ARGS();
-    fci.params = ZEND_CALL_ARG(execute_data, 1);
-    fci.named_params = NULL;
-
     real_func *rf = (real_func *) zend_hash_find_ptr(tmp_function_table, execute_data->func->common.function_name);
-    zend_call_function(&fci, rf->fci_cache);
+    if (rf) {
+        zend_fcall_info fci;
+        fci.size = sizeof(fci);
+        fci.object = nullptr;
+        fci.retval = return_value;
+        fci.param_count = ZEND_NUM_ARGS();
+        fci.params = ZEND_CALL_ARG(execute_data, 1);
+        fci.named_params = NULL;
+        ZVAL_UNDEF(&fci.function_name);
+        zend_call_function(&fci, rf->fci_cache);
+    } else {
+        zend_string *fn_str =  execute_data->func->common.function_name;
+        auto ori_handler = ori_func_handlers[std::string(fn_str->val, fn_str->len)];
+        ori_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+    }
 }
 
 zend_class_entry *find_class_entry(const char *name, size_t length) {
