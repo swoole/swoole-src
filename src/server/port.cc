@@ -812,7 +812,7 @@ int ListenPort::create_socket(Server *server) {
     }
 
 #if defined(SW_SUPPORT_DTLS) && defined(HAVE_KQUEUE)
-    if (ls->is_dtls()) {
+    if (is_dtls()) {
         socket->set_reuse_port();
     }
 #endif

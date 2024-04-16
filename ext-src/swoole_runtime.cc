@@ -169,8 +169,8 @@ static zend_internal_arg_info *get_arginfo(const char *name, size_t l_name) {
 #define SW_HOOK_LIBRARY_FE(name, arg_info)                                                                             \
     ZEND_RAW_FENTRY("swoole_hook_" #name, PHP_FN(swoole_user_func_handler), arg_info, 0)
 
-static SW_THREAD_LOCAL bool runtime_hook_init = false;
-static SW_THREAD_LOCAL int runtime_hook_flags = 0;
+static bool runtime_hook_init = false;
+static int runtime_hook_flags = 0;
 static SW_THREAD_LOCAL zend_array *tmp_function_table = nullptr;
 static SW_THREAD_LOCAL std::unordered_map<std::string, zend_class_entry *> child_class_entries;
 
@@ -265,6 +265,7 @@ void php_swoole_runtime_mshutdown() {
 #ifdef SW_USE_CURL
     swoole_native_curl_mshutdown();
 #endif
+    PHPCoroutine::disable_hook();
 }
 
 static inline char *parse_ip_address_ex(const char *str, size_t str_len, int *portno, int get_err, zend_string **err) {
