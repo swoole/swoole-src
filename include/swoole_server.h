@@ -325,6 +325,8 @@ struct ListenPort {
     void close();
     bool import(int sock);
     const char *get_protocols();
+    int create_socket(Server *server);
+    void close_socket();
 
 #ifdef SW_USE_OPENSSL
     bool ssl_create_context(SSLContext *context);

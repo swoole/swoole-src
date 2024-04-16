@@ -792,4 +792,56 @@ size_t ListenPort::get_connection_num() const {
     }
 }
 
+int ListenPort::create_socket(Server *server) {
+    if (socket) {
+#if defined(__linux__) && defined(HAVE_REUSEPORT)
+        if (server->enable_reuse_port) {
+            close_socket();
+        } else
+#endif
+        {
+            return SW_OK;
+        }
+    }
+
+    socket = make_socket(
+        type, is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER, SW_SOCK_CLOEXEC | SW_SOCK_NONBLOCK);
+    if (socket == nullptr) {
+        swoole_set_last_error(errno);
+        return SW_ERR;
+    }
+
+#if defined(SW_SUPPORT_DTLS) && defined(HAVE_KQUEUE)
+    if (ls->is_dtls()) {
+        socket->set_reuse_port();
+    }
+#endif
+
+#if defined(__linux__) && defined(HAVE_REUSEPORT)
+    if (server->enable_reuse_port) {
+        if (socket->set_reuse_port() < 0) {
+            socket->free();
+            return SW_ERR;
+        }
+    }
+#endif
+
+    if (socket->bind(host, &port) < 0) {
+        swoole_set_last_error(errno);
+        socket->free();
+        return SW_ERR;
+    }
+
+    socket->info.assign(type, host, port);
+    return SW_OK;
+}
+
+void ListenPort::close_socket() {
+    if (::close(socket->fd) < 0) {
+        swoole_sys_warning("close(%d) failed", socket->fd);
+    }
+    delete socket;
+    socket = nullptr;
+}
+
 }  // namespace swoole

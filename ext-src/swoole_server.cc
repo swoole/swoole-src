@@ -139,8 +139,10 @@ static zend_class_entry *swoole_server_task_result_ce;
 static zend_object_handlers swoole_server_task_result_handlers;
 
 static SW_THREAD_LOCAL zval swoole_server_instance;
+#ifdef SW_THREAD
 static SW_THREAD_LOCAL WorkerFn worker_thread_fn;
 static SW_THREAD_LOCAL std::vector<ServerPortProperty *> swoole_server_port_properties;
+#endif
 
 static sw_inline ServerObject *server_fetch_object(zend_object *obj) {
     return (ServerObject *) ((char *) obj - swoole_server_handlers.offset);
@@ -2374,6 +2376,7 @@ static PHP_METHOD(swoole_server, set) {
         zend_long v = zval_get_long(ztmp);
         serv->message_queue_key = SW_MAX(0, SW_MIN(v, INT64_MAX));
     }
+#ifdef SW_THREAD
     // bootstrap
     if (php_swoole_array_get_value(vht, "bootstrap", ztmp)) {
         zend::object_set(ZEND_THIS, ZEND_STRL("bootstrap"), ztmp);
@@ -2386,6 +2389,7 @@ static PHP_METHOD(swoole_server, set) {
     } else {
         ZVAL_NULL(&server_object->init_arguments);
     }
+#endif
 
     if (serv->task_enable_coroutine &&
         (serv->task_ipc_mode == Server::TASK_IPC_MSGQUEUE || serv->task_ipc_mode == Server::TASK_IPC_PREEMPTIVE)) {
