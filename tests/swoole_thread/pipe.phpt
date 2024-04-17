@@ -1,5 +1,5 @@
 --TEST--
-swoole_thread: lock
+swoole_thread: pipe
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
@@ -23,10 +23,14 @@ if (empty($args)) {
         echo "DONE\n";
     });
 } else {
+    $argv = $args[0];
     $sockets = $args[1];
     $rdata = $args[2];
-    Co\run(function () use ($sockets, $rdata){
+    // Child threads are not allowed to modify hook flags
+    Assert::false(Swoole\Runtime::enableCoroutine(SWOOLE_HOOK_ALL));
+    Co\run(function () use ($sockets, $rdata, $argv) {
         usleep(100);
+        shell_exec('sleep 0.01');
         $sockets[1]->send($rdata);
     });
     exit(0);
