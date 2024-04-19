@@ -246,9 +246,15 @@ static void _sw_detect_is_seekable(php_stdio_stream_data *self) {
         }
     }
 #elif defined(PHP_WIN32)
+#if PHP_VERSION_ID >= 80300
+    uintptr_t handle = _get_osfhandle(self->fd);
+
+    if (handle != (uintptr_t)INVALID_HANDLE_VALUE) {
+#else
     zend_uintptr_t handle = _get_osfhandle(self->fd);
 
     if (handle != (zend_uintptr_t)INVALID_HANDLE_VALUE) {
+#endif
         DWORD file_type = GetFileType((HANDLE)handle);
 
         self->is_seekable = !(file_type == FILE_TYPE_PIPE || file_type == FILE_TYPE_CHAR);
@@ -687,10 +693,15 @@ static int sw_php_stdiop_set_option(php_stream *stream, int option, int value, v
         if (fd == -1) {
             return -1;
         }
-
+#if PHP_VERSION_ID >= 80300
+        if ((uintptr_t) ptrparam == PHP_STREAM_LOCK_SUPPORTED) {
+            return 0;
+        }
+#else
         if ((zend_uintptr_t) ptrparam == PHP_STREAM_LOCK_SUPPORTED) {
             return 0;
         }
+#endif
 
         if (!swoole_coroutine_flock_ex(stream->orig_path, fd, value)) {
             data->lock_flag = value;
@@ -972,6 +983,13 @@ static php_stream_size_t php_plain_files_dirstream_read(php_stream *stream, char
     result = readdir(dir);
     if (result) {
         PHP_STRLCPY(ent->d_name, result->d_name, sizeof(ent->d_name), strlen(result->d_name));
+#if PHP_VERSION_ID >= 80300
+#ifdef _DIRENT_HAVE_D_TYPE
+        ent->d_type = result->d_type;
+#else
+        ent->d_type = DT_UNKNOWN;
+#endif
+#endif
         return sizeof(php_stream_dirent);
     }
     return 0;
