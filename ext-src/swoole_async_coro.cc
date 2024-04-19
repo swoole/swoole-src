@@ -71,11 +71,13 @@ void php_swoole_set_aio_option(HashTable *vht) {
 PHP_FUNCTION(swoole_async_set) {
 #ifdef SW_THREAD
     if (!tsrm_is_main_thread()) {
+        swoole_set_last_error(SW_ERROR_OPERATION_NOT_SUPPORT);
         RETURN_FALSE;
     }
 #endif
     if (sw_reactor()) {
         php_swoole_fatal_error(E_ERROR, "eventLoop has already been created. unable to change settings");
+        swoole_set_last_error(SW_ERROR_OPERATION_NOT_SUPPORT);
         RETURN_FALSE;
     }
 
