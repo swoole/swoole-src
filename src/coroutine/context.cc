@@ -139,12 +139,10 @@ bool Context::swap_out() {
 #endif
 }
 
-void Context::context_func(
+void Context::context_func(coroutine_transfer_t arg) {
 #if defined(USE_UCONTEXT) || defined(SW_USE_THREAD_CONTEXT)
-    void *arg) {
     auto *_this = (Context *) arg;
 #else
-    coroutine_transfer_t arg) {
     auto *_this = (Context *) arg.data;
     _this->swap_ctx_ = arg.fctx;
 #endif

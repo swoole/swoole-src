@@ -163,12 +163,6 @@ class Coroutine {
 #endif
     }
 
-    static inline Coroutine *init_main_coroutine() {
-        Coroutine *co = new Coroutine(0, nullptr, nullptr);
-        co->state = STATE_RUNNING;
-        return co;
-    }
-
     static void activate();
     static void deactivate();
 

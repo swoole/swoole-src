@@ -252,7 +252,7 @@ class PHPCoroutine {
     }
 
     static inline void init_main_context() {
-        main_context.co = Coroutine::init_main_coroutine();
+        main_context.co = nullptr;
 #ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
         main_context.fiber_context = EG(main_fiber_context);
         main_context.fiber_init_notified = true;
@@ -261,7 +261,6 @@ class PHPCoroutine {
     }
 
     static inline void free_main_context() {
-        delete main_context.co;
         main_context = {};
     }
 

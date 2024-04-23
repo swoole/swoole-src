@@ -45,6 +45,10 @@ typedef fcontext_t coroutine_context_t;
 typedef transfer_t coroutine_transfer_t;
 #endif
 
+#if defined(USE_UCONTEXT) || defined(SW_USE_THREAD_CONTEXT)
+typedef void * coroutine_transfer_t;
+#endif
+
 typedef std::function<void(void *)> CoroutineFunc;
 
 namespace swoole {
@@ -90,11 +94,7 @@ class Context {
     void *private_data_;
     bool end_;
 
-#if defined(USE_UCONTEXT) || defined(SW_USE_THREAD_CONTEXT)
-    static void context_func(void *arg);
-#else
     static void context_func(coroutine_transfer_t arg);
-#endif
 };
 
 }  // namespace coroutine
