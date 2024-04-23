@@ -159,8 +159,7 @@ static PHP_METHOD(swoole_lock, __construct) {
         lock = new Mutex(Mutex::PROCESS_SHARED);
         break;
     default:
-        zend_throw_exception(
-            swoole_exception_ce, "lock type[%d] is not support", type);
+        zend_throw_exception(swoole_exception_ce, "lock type[%d] is not support", type);
         RETURN_FALSE;
         break;
     }

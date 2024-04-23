@@ -108,7 +108,6 @@ void php_swoole_thread_map_minit(int module_number) {
     zend_declare_property_long(swoole_thread_map_ce, ZEND_STRL("id"), 0, ZEND_ACC_PUBLIC);
 }
 
-
 static PHP_METHOD(swoole_thread_map, __construct) {
     auto mo = thread_map_fetch_object(Z_OBJ_P(ZEND_THIS));
     mo->map = new ZendArray();

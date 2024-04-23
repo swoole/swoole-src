@@ -213,13 +213,8 @@ static bool http2_server_is_static_file(Server *serv, HttpContext *ctx) {
         if (1 == tasks.size()) {
             if (SW_HTTP_PARTIAL_CONTENT == handler.status_code) {
                 std::stringstream content_range;
-                content_range << "bytes "
-                              << tasks[0].offset
-                              << "-"
-                              << (tasks[0].length + tasks[0].offset - 1)
-                              << "/"
-                              << handler.get_filesize()
-                              << "\r\n";
+                content_range << "bytes " << tasks[0].offset << "-" << (tasks[0].length + tasks[0].offset - 1) << "/"
+                              << handler.get_filesize() << "\r\n";
                 auto content_range_str = content_range.str();
                 ctx->set_header(ZEND_STRL("Content-Range"), content_range_str.c_str(), content_range_str.length(), 0);
             } else {

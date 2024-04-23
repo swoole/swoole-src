@@ -859,32 +859,30 @@ void PHPCoroutine::fiber_context_switch_try_notify(PHPContext *from, PHPContext 
 #endif /* SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT */
 
 #ifdef ZEND_CHECK_STACK_LIMIT
-void* PHPCoroutine::stack_limit(PHPContext *ctx)
-{
+void *PHPCoroutine::stack_limit(PHPContext *ctx) {
 #ifdef SW_USE_THREAD_CONTEXT
     return nullptr;
 #else
-	zend_ulong reserve = EG(reserved_stack_size);
+    zend_ulong reserve = EG(reserved_stack_size);
 
 #ifdef __APPLE__
-	/* On Apple Clang, the stack probing function ___chkstk_darwin incorrectly
-	 * probes a location that is twice the entered function's stack usage away
-	 * from the stack pointer, when using an alternative stack.
-	 * https://openradar.appspot.com/radar?id=5497722702397440
-	 */
-	reserve = reserve * 2;
+    /* On Apple Clang, the stack probing function ___chkstk_darwin incorrectly
+     * probes a location that is twice the entered function's stack usage away
+     * from the stack pointer, when using an alternative stack.
+     * https://openradar.appspot.com/radar?id=5497722702397440
+     */
+    reserve = reserve * 2;
 #endif
 
     if (!ctx->co) {
         return nullptr;
     }
 
-	/* stack->pointer is the end of the stack */
-	return (int8_t*)ctx->co->get_ctx().get_stack() + reserve;
+    /* stack->pointer is the end of the stack */
+    return (int8_t *) ctx->co->get_ctx().get_stack() + reserve;
 #endif
 }
-void* PHPCoroutine::stack_base(PHPContext *ctx)
-{
+void *PHPCoroutine::stack_base(PHPContext *ctx) {
 #ifdef SW_USE_THREAD_CONTEXT
     return nullptr;
 #else
@@ -892,7 +890,7 @@ void* PHPCoroutine::stack_base(PHPContext *ctx)
         return nullptr;
     }
 
-	return (void*)((uintptr_t)ctx->co->get_ctx().get_stack() + ctx->co->get_ctx().get_stack_size());
+    return (void *) ((uintptr_t) ctx->co->get_ctx().get_stack() + ctx->co->get_ctx().get_stack_size());
 #endif
 }
 #endif /* ZEND_CHECK_STACK_LIMIT */
@@ -911,8 +909,7 @@ struct AutoloadQueue {
     std::queue<AutoloadContext *> *queue;
 };
 
-static zend_class_entry *swoole_coroutine_autoload(zend_string *name, zend_string *lc_name)
-{
+static zend_class_entry *swoole_coroutine_autoload(zend_string *name, zend_string *lc_name) {
     auto current = Coroutine::get_current();
     if (!current) {
         return original_zend_autoload(name, lc_name);

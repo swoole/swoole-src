@@ -291,7 +291,7 @@ static json get_socket_info(int fd) {
         {"rcv_space", info.tcpi_rcv_space},
         {"total_retrans", info.tcpi_total_retrans},
     };
-#endif		// defined(__FreeBSD__) || defined(__NetBSD__)
+#endif  // defined(__FreeBSD__) || defined(__NetBSD__)
     return jinfo;
 }
 #endif

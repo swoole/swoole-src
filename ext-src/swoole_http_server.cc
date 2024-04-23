@@ -417,8 +417,7 @@ void swoole_http_server_onAfterResponse(HttpContext *ctx) {
     swoole_trace("serv->gs->concurrency=%u, max_concurrency=%u", serv->gs->concurrency, serv->gs->max_concurrency);
     if (!queued_http_contexts.empty()) {
         HttpContext *ctx = queued_http_contexts.front();
-        swoole_trace(
-            "[POP 1] concurrency=%u, ctx=%p, request=%p", sw_worker()->concurrency, ctx, ctx->request.zobject);
+        swoole_trace("[POP 1] concurrency=%u, ctx=%p, request=%p", sw_worker()->concurrency, ctx, ctx->request.zobject);
         queued_http_contexts.pop();
         swoole_event_defer(
             [](void *private_data) {

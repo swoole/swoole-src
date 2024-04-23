@@ -30,7 +30,7 @@ static zend_object_handlers swoole_thread_atomic_handlers;
 zend_class_entry *swoole_thread_atomic_long_ce;
 static zend_object_handlers swoole_thread_atomic_long_handlers;
 
-struct AtomicResource: public ThreadResource {
+struct AtomicResource : public ThreadResource {
     sw_atomic_t value;
 };
 
@@ -70,7 +70,7 @@ static zend_object *php_swoole_thread_atomic_create_object(zend_class_entry *ce)
     return &atomic->std;
 }
 
-struct AtomicLongResource: public ThreadResource {
+struct AtomicLongResource : public ThreadResource {
     sw_atomic_long_t value;
 };
 
@@ -162,10 +162,14 @@ void php_swoole_thread_atomic_minit(int module_number) {
     zend_declare_property_long(swoole_thread_atomic_ce, ZEND_STRL("id"), 0, ZEND_ACC_PUBLIC);
     SW_SET_CLASS_CLONEABLE(swoole_thread_atomic, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_thread_atomic, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CUSTOM_OBJECT(
-        swoole_thread_atomic, php_swoole_thread_atomic_create_object, php_swoole_thread_atomic_free_object, AtomicObject, std);
+    SW_SET_CLASS_CUSTOM_OBJECT(swoole_thread_atomic,
+                               php_swoole_thread_atomic_create_object,
+                               php_swoole_thread_atomic_free_object,
+                               AtomicObject,
+                               std);
 
-    SW_INIT_CLASS_ENTRY(swoole_thread_atomic_long, "Swoole\\Thread\\Atomic\\Long", nullptr, swoole_thread_atomic_long_methods);
+    SW_INIT_CLASS_ENTRY(
+        swoole_thread_atomic_long, "Swoole\\Thread\\Atomic\\Long", nullptr, swoole_thread_atomic_long_methods);
     zend_declare_property_long(swoole_thread_atomic_long_ce, ZEND_STRL("id"), 0, ZEND_ACC_PUBLIC);
     SW_SET_CLASS_CLONEABLE(swoole_thread_atomic_long, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_thread_atomic_long, sw_zend_class_unset_property_deny);
