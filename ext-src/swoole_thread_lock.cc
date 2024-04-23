@@ -19,6 +19,8 @@
 #include "swoole_memory.h"
 #include "swoole_lock.h"
 
+#ifdef SW_THREAD
+
 BEGIN_EXTERN_C()
 #include "stubs/php_swoole_thread_lock_arginfo.h"
 END_EXTERN_C()
@@ -228,3 +230,5 @@ static PHP_METHOD(swoole_thread_lock, __wakeup) {
         return;
     }
 }
+
+#endif
