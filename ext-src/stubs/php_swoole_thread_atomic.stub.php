@@ -1,5 +1,5 @@
 <?php
-namespace Swoole {
+namespace Swoole\Thread {
     class Atomic {
         public function __construct(int $value = 0) {}
         public function add(int $add_value = 1): int {}
@@ -9,10 +9,11 @@ namespace Swoole {
         public function cmpset(int $cmp_value, int $new_value): bool {}
         public function wait(float $timeout = 1.0): bool {}
         public function wakeup(int $count = 1): bool {}
+        public function __wakeup(): void {}
     }
 }
 
-namespace Swoole\Atomic {
+namespace Swoole\Thread\Atomic {
     class Long {
         public function __construct(int $value = 0) {}
         public function add(int $add_value = 1): int {}
@@ -20,5 +21,6 @@ namespace Swoole\Atomic {
         public function get(): int {}
         public function set(int $value): void {}
         public function cmpset(int $cmp_value, int $new_value): bool {}
+        public function __wakeup(): void {}
     }
 }

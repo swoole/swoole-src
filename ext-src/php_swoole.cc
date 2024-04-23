@@ -749,6 +749,11 @@ PHP_MINIT_FUNCTION(swoole) {
 #endif
 #ifdef SW_THREAD
     php_swoole_thread_minit(module_number);
+    php_swoole_thread_atomic_minit(module_number);
+    php_swoole_thread_lock_minit(module_number);
+    php_swoole_thread_queue_minit(module_number);
+    php_swoole_thread_map_minit(module_number);
+    php_swoole_thread_arraylist_minit(module_number);
 #endif
 
     SwooleG.fatal_error = fatal_error;

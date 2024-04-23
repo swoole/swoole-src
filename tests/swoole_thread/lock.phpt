@@ -9,7 +9,7 @@ require __DIR__ . '/../include/skipif.inc';
 require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Thread;
-use Swoole\Lock;
+use Swoole\Thread\Lock;
 
 $args = Thread::getArguments();
 

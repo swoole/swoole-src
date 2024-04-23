@@ -13,35 +13,3 @@ namespace Swoole {
         public static function getId(): int {}
     }
 }
-
-namespace Swoole\Thread {
-    class Map implements ArrayAccess, Countable {
-        public function __construct() {}
-        public function offsetGet(mixed $key): mixed {}
-        public function offsetExists(mixed $key): bool {}
-        public function offsetSet(mixed $key, mixed $value): void {}
-        public function offsetUnset(mixed $key): void {}
-        public function count(): int {}
-        public function keys(): array {}
-        public function clean(): void {}
-        public function __wakeup(): void {}
-    }
-    class ArrayList implements ArrayAccess, Countable {
-        public function __construct() {}
-        public function offsetGet(mixed $key): mixed {}
-        public function offsetExists(mixed $key): bool {}
-        public function offsetSet(mixed $key, mixed $value): void {}
-        public function offsetUnset(mixed $key): void {}
-        public function count(): int {}
-        public function clean(): void {}
-        public function __wakeup(): void {}
-    }
-    class Queue implements Countable {
-        public function __construct() {}
-        public function push(mixed $value, int $notify_which = 0): void {}
-        public function pop(float $wait = 0): mixed {}
-        public function count(): int {}
-        public function clean(): void {}
-        public function __wakeup(): void {}
-    }
-}

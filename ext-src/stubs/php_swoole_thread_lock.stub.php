@@ -1,5 +1,5 @@
 <?php
-namespace Swoole {
+namespace Swoole\Thread {
     class Lock {
         public function __construct(int $type = SWOOLE_MUTEX) {}
         public function __destruct() {}
@@ -9,6 +9,6 @@ namespace Swoole {
         public function lock_read(): bool {}
         public function trylock_read(): bool {}
         public function unlock(): bool {}
-        public function destroy(): void {}
+        public function __wakeup(): void {}
     }
 }
