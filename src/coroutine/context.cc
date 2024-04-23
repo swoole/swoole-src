@@ -140,7 +140,7 @@ bool Context::swap_out() {
 }
 
 void Context::context_func(
-#ifdef USE_UCONTEXT
+#if defined(USE_UCONTEXT) || defined(SW_USE_THREAD_CONTEXT)
     void *arg) {
     auto *_this = (Context *) arg;
 #else

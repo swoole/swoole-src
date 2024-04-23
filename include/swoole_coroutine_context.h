@@ -90,7 +90,7 @@ class Context {
     void *private_data_;
     bool end_;
 
-#ifdef USE_UCONTEXT
+#if defined(USE_UCONTEXT) || defined(SW_USE_THREAD_CONTEXT)
     static void context_func(void *arg);
 #else
     static void context_func(coroutine_transfer_t arg);
