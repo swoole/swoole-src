@@ -5,7 +5,7 @@ on: [push, pull_request]
 jobs:
   test-linux:
     runs-on: ubuntu-latest
-    if: 0
+    if: "!contains(github.event.head_commit.message, '[zts]')"
     strategy:
       fail-fast: false
       matrix:

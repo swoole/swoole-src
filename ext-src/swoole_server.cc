@@ -1927,7 +1927,11 @@ static PHP_METHOD(swoole_server, __construct) {
     Z_PARAM_LONG(sock_type)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
+#ifdef SW_THREAD
     if (serv_mode != Server::MODE_BASE && serv_mode != Server::MODE_PROCESS && serv_mode != Server::MODE_THREAD) {
+#else
+    if (serv_mode != Server::MODE_BASE && serv_mode != Server::MODE_PROCESS) {
+#endif
         zend_throw_error(NULL, "invalid $mode parameters %d", (int) serv_mode);
         RETURN_FALSE;
     }
