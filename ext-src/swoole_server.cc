@@ -206,7 +206,6 @@ static void server_free_object(zend_object *object) {
             sw_zend_fci_cache_discard((zend_fcall_info_cache *) serv->private_data_3);
             efree(serv->private_data_3);
         }
-        ZVAL_NULL(php_swoole_server_zval_ptr(serv));
         for (int i = 0; i < PHP_SWOOLE_SERVER_CALLBACK_NUM; i++) {
             zend_fcall_info_cache *fci_cache = property->callbacks[i];
             if (fci_cache) {
@@ -2646,22 +2645,32 @@ static PHP_METHOD(swoole_server, start) {
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(php_swoole_server_zval_ptr(serv)));
 
 #ifdef SW_THREAD
-    zval *_bootstrap = zend::object_get(ZEND_THIS, ZEND_STRL("bootstrap"));
-    zend_string *bootstrap = zend_string_dup(Z_STR_P(_bootstrap), 1);
-    zend_string *argv = nullptr;
-    zval thread_argv;
+    if (serv->is_thread_mode()) {
+        zval *_bootstrap = zend::object_get(ZEND_THIS, ZEND_STRL("bootstrap"));
+        zend_string *bootstrap = zend_string_dup(Z_STR_P(_bootstrap), 1);
+        zend_string *argv = nullptr;
+        zval thread_argv = {};
 
-    if (!ZVAL_IS_NULL(&server_object->init_arguments)) {
-        call_user_function(NULL, NULL, &server_object->init_arguments, &thread_argv, 0, NULL);
-        argv = php_swoole_thread_serialize(&thread_argv);
+        if (!ZVAL_IS_NULL(&server_object->init_arguments)) {
+            call_user_function(NULL, NULL, &server_object->init_arguments, &thread_argv, 0, NULL);
+            argv = php_swoole_thread_serialize(&thread_argv);
+        }
+
+        serv->worker_thread_start = [bootstrap, argv](const WorkerFn &fn) {
+            worker_thread_fn = fn;
+            zend_string *bootstrap_copy = zend_string_dup(bootstrap, 1);
+            zend_string *argv_copy = argv ? zend_string_dup(argv, 1) : nullptr;
+            php_swoole_thread_start(bootstrap_copy, argv_copy);
+        };
+
+        ON_SCOPE_EXIT {
+            zend_string_release(bootstrap);
+            if (argv) {
+                zend_string_release(argv);
+            }
+            zval_ptr_dtor(&thread_argv);
+        };
     }
-
-    serv->worker_thread_start = [bootstrap, argv](const WorkerFn &fn) {
-        worker_thread_fn = fn;
-        zend_string *bootstrap_copy = zend_string_dup(bootstrap, 1);
-        zend_string *argv_copy = argv ? zend_string_dup(argv, 1) : nullptr;
-        php_swoole_thread_start(bootstrap_copy, argv_copy);
-    };
 #endif
 
     server_object->register_callback();
@@ -2670,15 +2679,6 @@ static PHP_METHOD(swoole_server, start) {
     if (serv->start() < 0) {
         php_swoole_fatal_error(E_ERROR, "failed to start server. Error: %s", sw_error);
     }
-
-#ifdef SW_THREAD
-    zend_string_release(bootstrap);
-    if (argv) {
-        zend_string_release(argv);
-    }
-    zval_ptr_dtor(&thread_argv);
-#endif
-
     RETURN_TRUE;
 }
 

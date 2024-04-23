@@ -236,6 +236,10 @@ void php_swoole_runtime_rinit() {
 }
 
 void php_swoole_runtime_rshutdown() {
+#ifdef SW_THREAD
+    PHPCoroutine::disable_hook();
+#endif
+
     void *ptr;
     ZEND_HASH_FOREACH_PTR(tmp_function_table, ptr) {
         real_func *rf = reinterpret_cast<real_func *>(ptr);
@@ -255,6 +259,7 @@ void php_swoole_runtime_rshutdown() {
     efree(tmp_function_table);
     tmp_function_table = nullptr;
 
+    ori_func_handlers.clear();
     clear_class_entries();
 }
 
@@ -262,10 +267,6 @@ void php_swoole_runtime_mshutdown() {
 #ifdef SW_USE_CURL
     swoole_native_curl_mshutdown();
 #endif
-#ifdef SW_THREAD
-    PHPCoroutine::disable_hook();
-#endif
-    ori_func_handlers.clear();
 }
 
 static inline char *parse_ip_address_ex(const char *str, size_t str_len, int *portno, int get_err, zend_string **err) {

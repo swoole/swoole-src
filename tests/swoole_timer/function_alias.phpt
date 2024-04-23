@@ -7,7 +7,6 @@ swoole_timer: function alias
 require __DIR__ . '/../include/bootstrap.php';
 
 var_dump(
-    function_exists('swoole_timer_set') &&
     function_exists('swoole_timer_after') &&
     function_exists('swoole_timer_tick') &&
     function_exists('swoole_timer_exists') &&

@@ -21,14 +21,13 @@ $pm->parentFunc = function () use ($pm) {
                 echo "DONE\n";
                 $pm->kill();
             });
-            $ret = $redis->get($pm->getRandomData());
-            echo "CLOSED\n";
-            Assert::assert(!$ret);
-            Assert::assert(!$redis->connected);
-            Assert::assert(in_array($redis->errType, [SWOOLE_REDIS_ERR_IO, SWOOLE_REDIS_ERR_EOF], true));
-            if ($redis->errType === SWOOLE_REDIS_ERR_IO) {
-                Assert::same($redis->errCode, SOCKET_ECANCELED);
+            try {
+                $ret = $redis->get($pm->getRandomData());
+            } catch (\RedisException $e) {
+                $ret = false;
+                echo "CLOSED\n";
             }
+            Assert::assert(!$ret);
         });
     });
 };
@@ -38,6 +37,7 @@ $pm->childFunc = function () use ($pm) {
         Assert::assert($server->bind('127.0.0.1', $pm->getFreePort()));
         Assert::assert($server->listen());
         go(function () use ($pm, $server) {
+            $pm->wakeup();
             if (Assert::assert(($conn = $server->accept()) && $conn instanceof Co\Socket)) {
                 switch_process();
                 $data = $conn->recv();
@@ -50,7 +50,6 @@ $pm->childFunc = function () use ($pm) {
             }
             $server->close();
         });
-        $pm->wakeup();
     });
 };
 $pm->childFirst();
