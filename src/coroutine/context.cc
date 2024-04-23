@@ -57,7 +57,7 @@ Context::Context(size_t stack_size, CoroutineFunc fn, void *private_data)
     valgrind_stack_id = VALGRIND_STACK_REGISTER(sp, stack_);
 #endif
 
-#if USE_UCONTEXT
+#ifdef USE_UCONTEXT
     if (-1 == getcontext(&ctx_)) {
         swoole_throw_error(SW_ERROR_CO_GETCONTEXT_FAILED);
         sw_free(stack_);
@@ -120,7 +120,7 @@ ssize_t Context::get_stack_usage() {
 #endif
 
 bool Context::swap_in() {
-#if USE_UCONTEXT
+#ifdef USE_UCONTEXT
     return 0 == swapcontext(&swap_ctx_, &ctx_);
 #else
     coroutine_transfer_t transfer_data = swoole_jump_fcontext(ctx_, (void *) this);
@@ -130,7 +130,7 @@ bool Context::swap_in() {
 }
 
 bool Context::swap_out() {
-#if USE_UCONTEXT
+#ifdef USE_UCONTEXT
     return 0 == swapcontext(&ctx_, &swap_ctx_);
 #else
     coroutine_transfer_t transfer_data = swoole_jump_fcontext(swap_ctx_, (void *) this);
@@ -140,11 +140,11 @@ bool Context::swap_out() {
 }
 
 void Context::context_func(
-#if USE_UCONTEXT
+#if defined(USE_UCONTEXT) || defined(SW_USE_THREAD_CONTEXT)
     void *arg) {
     auto *_this = (Context *) arg;
 #else
-    transfer_t arg) {
+    coroutine_transfer_t arg) {
     auto *_this = (Context *) arg.data;
     _this->swap_ctx_ = arg.fctx;
 #endif
