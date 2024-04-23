@@ -7,8 +7,8 @@ swoole_runtime/stream_select: base
 require __DIR__ . '/../../include/bootstrap.php';
 Swoole\Runtime::enableCoroutine();
 go(function () {
-    $fp1 = stream_socket_client("tcp://www.baidu.com:80", $errno, $errstr, 30);
-    $fp2 = stream_socket_client("tcp://www.qq.com:80", $errno, $errstr, 30);
+    $fp1 = stream_socket_client("tcp://" . TEST_DOMAIN_1 . ":80", $errno, $errstr, 30);
+    $fp2 = stream_socket_client("tcp://" . TEST_DOMAIN_2 . ":80", $errno, $errstr, 30);
     if (!$fp1) {
         echo "$errstr ($errno)<br />\n";
     } else {

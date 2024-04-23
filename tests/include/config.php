@@ -147,6 +147,14 @@ if (IS_IN_CI) {
     ]);
 }
 
+if (IS_IN_CI) {
+    define('TEST_DOMAIN_1', 'www.google.com');
+    define('TEST_DOMAIN_2', 'www.yahoo.com');
+} else {
+    define('TEST_DOMAIN_1', 'www.baidu.com');
+    define('TEST_DOMAIN_2', 'www.qq.com');
+}
+
 /** =============== IP ================ */
 define('IP_REGEX', '/^(?:[\d]{1,3}\.){3}[\d]{1,3}$/');
 
