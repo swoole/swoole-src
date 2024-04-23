@@ -90,10 +90,10 @@ class Context {
     void *private_data_;
     bool end_;
 
-#if USE_UCONTEXT
+#ifdef USE_UCONTEXT
     static void context_func(void *arg);
 #else
-    static void context_func(transfer_t arg);
+    static void context_func(coroutine_transfer_t arg);
 #endif
 };
 
