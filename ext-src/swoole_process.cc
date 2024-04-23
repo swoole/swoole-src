@@ -702,10 +702,6 @@ static PHP_METHOD(swoole_process, read) {
         RETURN_FALSE;
     }
 
-    if (buf_size > 65536) {
-        buf_size = 65536;
-    }
-
     Worker *process = php_swoole_process_get_and_check_worker(ZEND_THIS);
 
     if (process->pipe_current == nullptr) {
