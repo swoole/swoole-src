@@ -3,6 +3,7 @@ swoole_thread: async-io
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
+skip_if_nts();
 ?>
 --FILE--
 <?php

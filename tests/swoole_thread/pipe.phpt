@@ -3,6 +3,7 @@ swoole_thread: pipe
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
+skip_if_nts();
 ?>
 --FILE--
 <?php
