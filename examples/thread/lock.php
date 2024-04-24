@@ -1,7 +1,7 @@
 <?php
 
 use Swoole\Thread;
-use Swoole\Lock;
+use Swoole\Thread\Lock;
 
 $args = Thread::getArguments();
 

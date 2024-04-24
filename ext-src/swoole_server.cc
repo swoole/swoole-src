@@ -1905,13 +1905,8 @@ static PHP_METHOD(swoole_server, __construct) {
     size_t host_len = 0;
     zend_long sock_type = SW_SOCK_TCP;
     zend_long serv_port = 0;
-#ifdef SW_THREAD
-    zend_long serv_mode = Server::MODE_THREAD;
-#else
     zend_long serv_mode = Server::MODE_BASE;
-#endif
 
-    // only cli env
     if (!SWOOLE_G(cli)) {
         zend_throw_exception_ex(
             swoole_exception_ce, -1, "%s can only be used in CLI mode", SW_Z_OBJCE_NAME_VAL_P(zserv));
@@ -1983,7 +1978,8 @@ static PHP_METHOD(swoole_server, set) {
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(ZEND_THIS));
     Server *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (serv->is_worker_thread()) {
-        return;
+        swoole_set_last_error(SW_ERROR_OPERATION_NOT_SUPPORT);
+        RETURN_FALSE;
     }
     if (serv->is_started()) {
         php_swoole_fatal_error(

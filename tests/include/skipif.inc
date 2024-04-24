@@ -26,12 +26,6 @@ skip(
 (function () {
     global $argv;
     skip_if_php_version_lower_than('7.0');
-    if (defined('SWOOLE_THREAD')) {
-        $targs = Swoole\Thread::getArguments();
-        if ($targs) {
-            $argv = $targs[0];
-        }
-    }
     if (!getenv('PHPT') && substr($argv[0], -4) === '.php') {
         skip('please read ' . dirname(dirname(__FILE__)) . '/README.md and try again');
     }

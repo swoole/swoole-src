@@ -12,23 +12,25 @@ require __DIR__ . '/../include/bootstrap.php';
 use Swoole\Thread;
 use Swoole\Thread\Lock;
 
-$args = Thread::getArguments();
+$tm = new \SwooleTest\ThreadManager();
 
-if (empty($args)) {
-    global $argv;
+$tm->parentFunc = function () {
     $lock = new Lock;
     $lock->lock();
-    $thread = Thread::exec(__FILE__, $argv, $lock);
+    $thread = Thread::exec(__FILE__, $lock);
     $lock->lock();
     echo "main thread\n";
     $thread->join();
-} else {
+};
+
+$tm->childFunc = function ($lock) {
     echo "child thread\n";
-    $lock = $args[1];
     usleep(200_000);
     $lock->unlock();
     exit(0);
-}
+};
+
+$tm->run();
 ?>
 --EXPECTF--
 child thread

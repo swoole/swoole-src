@@ -286,6 +286,7 @@ void php_swoole_runtime_rinit();
 #ifdef SW_USE_ORACLE
 void php_swoole_oracle_rinit();
 #endif
+void php_swoole_thread_rinit();
 
 /**
  * RSHUTDOWN

@@ -11,5 +11,6 @@ namespace Swoole {
         public static function exec(string $script_file, mixed ...$args): Thread {}
         public static function getArguments(): array {}
         public static function getId(): int {}
+        public static function getTsrmInfo(): array {}
     }
 }

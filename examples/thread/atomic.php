@@ -1,8 +1,8 @@
 <?php
 
 use Swoole\Thread;
-use Swoole\Atomic;
-use Swoole\Atomic\Long;
+use Swoole\Thread\Atomic;
+use Swoole\Thread\Atomic\Long;
 
 $args = Thread::getArguments();
 $c = 4;

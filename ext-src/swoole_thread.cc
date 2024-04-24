@@ -23,6 +23,7 @@
 #include <sys/resource.h>
 
 #include <thread>
+#include <unordered_map>
 
 #include "swoole_lock.h"
 
@@ -32,6 +33,12 @@ END_EXTERN_C()
 
 zend_class_entry *swoole_thread_ce;
 static zend_object_handlers swoole_thread_handlers;
+
+static struct {
+    char *path_translated;
+    zend_string *argv_serialized;
+    int argc;
+} request_info;
 
 TSRMLS_CACHE_DEFINE();
 
@@ -110,6 +117,7 @@ static PHP_METHOD(swoole_thread, detach);
 static PHP_METHOD(swoole_thread, exec);
 static PHP_METHOD(swoole_thread, getArguments);
 static PHP_METHOD(swoole_thread, getId);
+static PHP_METHOD(swoole_thread, getTsrmInfo);
 SW_EXTERN_C_END
 
 // clang-format off
@@ -121,6 +129,7 @@ static const zend_function_entry swoole_thread_methods[] = {
     PHP_ME(swoole_thread, exec,         arginfo_class_Swoole_Thread_exec,         ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_thread, getArguments, arginfo_class_Swoole_Thread_getArguments, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_thread, getId,        arginfo_class_Swoole_Thread_getId,        ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_thread, getTsrmInfo,  arginfo_class_Swoole_Thread_getTsrmInfo,  ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
 // clang-format on
@@ -215,14 +224,37 @@ bool php_swoole_thread_unserialize(zend_string *data, zval *zv) {
     return unserialized;
 }
 
-void php_swoole_thread_rshutdown() {
-    zval_dtor(&thread_argv);
+void php_swoole_thread_rinit() {
+    if (tsrm_is_main_thread()) {
+        if (SG(request_info).path_translated) {
+            request_info.path_translated = strdup(SG(request_info).path_translated);
+        }
+        // Return reference
+        zval *global_argv = zend_hash_find_ind(&EG(symbol_table), ZSTR_KNOWN(ZEND_STR_ARGV));
+        request_info.argv_serialized = php_swoole_thread_serialize(global_argv);
+        request_info.argc = SG(request_info).argc;
+    }
 }
 
-void php_swoole_thread_start(zend_string *file, zend_string *argv) {
+void php_swoole_thread_rshutdown() {
+    zval_dtor(&thread_argv);
+    if (tsrm_is_main_thread()) {
+        if (request_info.path_translated) {
+            free((void *) request_info.path_translated);
+            request_info.path_translated = nullptr;
+        }
+        if (request_info.argv_serialized) {
+            zend_string_release(request_info.argv_serialized);
+            request_info.argv_serialized = nullptr;
+        }
+    }
+}
+
+void php_swoole_thread_start(zend_string *file, zend_string *argv_serialized) {
     ts_resource(0);
     TSRMLS_CACHE_UPDATE();
     zend_file_handle file_handle{};
+    zval global_argc, global_argv;
 
     PG(expose_php) = 0;
     PG(auto_globals_jit) = 1;
@@ -243,15 +275,23 @@ void php_swoole_thread_start(zend_string *file, zend_string *argv) {
     SG(sapi_started) = 0;
     SG(headers_sent) = 1;
     SG(request_info).no_headers = 1;
+    SG(request_info).path_translated = request_info.path_translated;
+    SG(request_info).argc = request_info.argc;
 
     zend_stream_init_filename(&file_handle, ZSTR_VAL(file));
     file_handle.primary_script = 1;
 
     zend_first_try {
-        if (argv == nullptr || ZSTR_LEN(argv) == 0) {
+        if (argv_serialized == nullptr || ZSTR_LEN(argv_serialized) == 0) {
             array_init(&thread_argv);
         } else {
-            php_swoole_thread_unserialize(argv, &thread_argv);
+            php_swoole_thread_unserialize(argv_serialized, &thread_argv);
+        }
+        if (request_info.argv_serialized) {
+            php_swoole_thread_unserialize(request_info.argv_serialized, &global_argv);
+            ZVAL_LONG(&global_argc, request_info.argc);
+            zend_hash_update(&EG(symbol_table), ZSTR_KNOWN(ZEND_STR_ARGV), &global_argv);
+            zend_hash_update(&EG(symbol_table), ZSTR_KNOWN(ZEND_STR_ARGC), &global_argc);
         }
         php_execute_script(&file_handle);
     }
@@ -263,7 +303,7 @@ void php_swoole_thread_start(zend_string *file, zend_string *argv) {
 
 _startup_error:
     zend_string_release(file);
-    zend_string_release(argv);
+    zend_string_release(argv_serialized);
     ts_free_thread();
     swoole_thread_clean();
 }
@@ -304,6 +344,13 @@ static PHP_METHOD(swoole_thread, exec) {
     to->thread = new std::thread([file, argv]() { php_swoole_thread_start(file, argv); });
     zend_update_property_long(
         swoole_thread_ce, SW_Z8_OBJ_P(return_value), ZEND_STRL("id"), to->thread->native_handle());
+}
+
+static PHP_METHOD(swoole_thread, getTsrmInfo) {
+    array_init(return_value);
+    add_assoc_bool(return_value, "is_main_thread", tsrm_is_main_thread());
+    add_assoc_bool(return_value, "is_shutdown", tsrm_is_shutdown());
+    add_assoc_string(return_value, "api_name", tsrm_api_name());
 }
 
 #endif

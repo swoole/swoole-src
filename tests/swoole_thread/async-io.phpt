@@ -24,7 +24,7 @@ if (empty($args)) {
     $atomic = new Swoole\Thread\Atomic();
     $atomicLong = new Swoole\Thread\Atomic\Long();
     for ($i = 0; $i < C; $i++) {
-        $threads[] = Thread::exec(__FILE__, $argv, $i, $atomic, $atomicLong);
+        $threads[] = Thread::exec(__FILE__, $i, $atomic, $atomicLong);
     }
     for ($i = 0; $i < C; $i++) {
         $threads[$i]->join();
@@ -32,8 +32,9 @@ if (empty($args)) {
     Assert::eq($atomic->get(), C * N);
     Assert::eq($atomicLong->get(), C * N * M);
 } else {
-    $atomic = $args[2];
-    $atomicLong = $args[3];
+    $id = $args[0];
+    $atomic = $args[1];
+    $atomicLong = $args[2];
     Co\run(function () use ($atomic, $atomicLong, $md5) {
         $n = N;
         while ($n--) {

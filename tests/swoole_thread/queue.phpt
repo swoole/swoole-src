@@ -24,7 +24,7 @@ if (empty($args)) {
     $queue = new Queue;
     $map = new Thread\Map();
     for ($i = 0; $i < C; $i++) {
-        $threads[] = Thread::exec(__FILE__, $argv, $i, $queue, $map);
+        $threads[] = Thread::exec(__FILE__, $i, $queue, $map);
     }
     $n = N;
     while ($n--) {
@@ -44,9 +44,9 @@ if (empty($args)) {
     Assert::eq($queue->count(), 0);
     Assert::eq($total_parent, $total_child);
 } else {
-    $i = $args[1];
-    $queue = $args[2];
-    $map = $args[3];
+    $i = $args[0];
+    $queue = $args[1];
+    $map = $args[2];
     $map[$i] = 0;
     while (1) {
         $job = $queue->pop(-1);

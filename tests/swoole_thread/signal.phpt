@@ -18,9 +18,8 @@ $args = Thread::getArguments();
 
 if (empty($args)) {
     Co\run(function () {
-        global $argv;
         $sockets = swoole_coroutine_socketpair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, STREAM_IPPROTO_IP);
-        $thread = Thread::exec(__FILE__, $argv, $sockets);
+        $thread = Thread::exec(__FILE__, $sockets);
         $parent_pipe = $sockets[1];
         Timer::after(500, function () {
             echo "timer\n";
@@ -39,10 +38,9 @@ if (empty($args)) {
         });
     });
 } else {
-    $argv = $args[0];
-    $sockets = $args[1];
+    $sockets = $args[0];
     $child_pipe = $sockets[0];
-    Co\run(function () use ($child_pipe, $argv) {
+    Co\run(function () use ($child_pipe) {
         // 收到父线程的指令，开始退出
         echo $child_pipe->recv(8192), PHP_EOL;
         // 通知父线程已退出

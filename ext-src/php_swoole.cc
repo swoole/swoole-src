@@ -1033,6 +1033,9 @@ PHP_RINIT_FUNCTION(swoole) {
 #ifdef SW_USE_ORACLE
     php_swoole_oracle_rinit();
 #endif
+#ifdef SW_THREAD
+    php_swoole_thread_rinit();
+#endif
 
     SWOOLE_G(req_status) = PHP_SWOOLE_RINIT_END;
 

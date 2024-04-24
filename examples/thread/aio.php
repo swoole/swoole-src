@@ -10,7 +10,7 @@ $running = true;
 
 if (empty($args)) {
     $threads = [];
-    $atomic = new Swoole\Atomic();
+    $atomic = new Swoole\Thread\Atomic();
     for ($i = 0; $i < $c; $i++) {
         $threads[] = Thread::exec(__FILE__, $i, $atomic);
     }
