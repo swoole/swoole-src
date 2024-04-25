@@ -329,8 +329,39 @@ void ReactorThread::shutdown(Reactor *reactor) {
     });
 
     reactor->set_wait_exit(true);
+}
 
-    message_bus.free_buffer();
+int ReactorThread::close_connection(Reactor *reactor, SessionId session_id) {
+    Server *serv = (Server *) reactor->ptr;
+    Connection *conn = serv->get_connection_verify_no_ssl(session_id);
+    if (!conn) {
+        swoole_error_log(SW_LOG_TRACE,
+                         SW_ERROR_SESSION_NOT_EXIST,
+                         "force close connection failed, session#%ld does not exist",
+                         session_id);
+        return SW_OK;
+    }
+
+    if (serv->disable_notify || conn->close_force) {
+        return Server::close_connection(reactor, conn->socket);
+    }
+
+#ifdef SW_USE_OPENSSL
+    /**
+     * SSL connections that have not completed the handshake,
+     * do not need to notify the workers, just close
+     */
+    if (conn->ssl && !conn->ssl_ready) {
+        return Server::close_connection(reactor, conn->socket);
+    }
+#endif
+    conn->close_force = 1;
+    Event _ev = {};
+    _ev.fd = conn->fd;
+    _ev.socket = conn->socket;
+    reactor->trigger_close_event(&_ev);
+
+    return SW_OK;
 }
 
 /**
@@ -350,49 +381,21 @@ static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev) {
         if (resp->info.type == SW_SERVER_EVENT_INCOMING) {
             Connection *conn = serv->get_connection_verify_no_ssl(resp->info.fd);
             if (conn && serv->connection_incoming(reactor, conn) < 0) {
-                return reactor->close(reactor, conn->socket);
+                reactor->close(reactor, conn->socket);
             }
         } else if (resp->info.type == SW_SERVER_EVENT_COMMAND_REQUEST) {
-            return serv->call_command_handler(thread->message_bus, thread->id, thread->pipe_command);
+            serv->call_command_handler(thread->message_bus, thread->id, thread->pipe_command);
         } else if (resp->info.type == SW_SERVER_EVENT_COMMAND_RESPONSE) {
             auto packet = thread->message_bus.get_packet();
             serv->call_command_callback(resp->info.fd, std::string(packet.data, packet.length));
         } else if (resp->info.type == SW_SERVER_EVENT_SHUTDOWN) {
             thread->shutdown(reactor);
-            return SW_OK;
         } else if (resp->info.type == SW_SERVER_EVENT_FINISH) {
             serv->onFinish(serv, (EventData *) resp);
         } else if (resp->info.type == SW_SERVER_EVENT_PIPE_MESSAGE) {
             serv->onPipeMessage(serv, (EventData *) resp);
         } else if (resp->info.type == SW_SERVER_EVENT_CLOSE_FORCE) {
-            SessionId session_id = resp->info.fd;
-            Connection *conn = serv->get_connection_verify_no_ssl(session_id);
-            if (!conn) {
-                swoole_error_log(SW_LOG_TRACE,
-                                 SW_ERROR_SESSION_NOT_EXIST,
-                                 "force close connection failed, session#%ld does not exist",
-                                 session_id);
-                return SW_OK;
-            }
-
-            if (serv->disable_notify || conn->close_force) {
-                return Server::close_connection(reactor, conn->socket);
-            }
-
-#ifdef SW_USE_OPENSSL
-            /**
-             * SSL connections that have not completed the handshake,
-             * do not need to notify the workers, just close
-             */
-            if (conn->ssl && !conn->ssl_ready) {
-                return Server::close_connection(reactor, conn->socket);
-            }
-#endif
-            conn->close_force = 1;
-            Event _ev = {};
-            _ev.fd = conn->fd;
-            _ev.socket = conn->socket;
-            reactor->trigger_close_event(&_ev);
+            thread->close_connection(reactor, resp->info.fd);
         } else {
             PacketPtr packet = thread->message_bus.get_packet();
             _send.info = resp->info;
@@ -793,6 +796,15 @@ int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
     return SW_OK;
 }
 
+void ReactorThread::clean() {
+    sw_free(pipe_sockets);
+    if (pipe_command) {
+        pipe_command->fd = -1;
+        delete pipe_command;
+    }
+    message_bus.free_buffer();
+}
+
 void Server::reactor_thread_main_loop(Server *serv, int reactor_id) {
     SwooleTG.id = reactor_id;
     SwooleTG.type = Server::THREAD_REACTOR;
@@ -824,11 +836,7 @@ void Server::reactor_thread_main_loop(Server *serv, int reactor_id) {
     if (serv->is_thread_mode()) {
         serv->worker_stop_callback(serv->get_worker(reactor_id));
     }
-    sw_free(thread->pipe_sockets);
-    if (thread->pipe_command) {
-        thread->pipe_command->fd = -1;
-        delete thread->pipe_command;
-    }
+    thread->clean();
 }
 
 static void ReactorThread_resume_data_receiving(Timer *timer, TimerNode *tnode) {

@@ -93,13 +93,13 @@ void Server::call_command_callback(int64_t request_id, const std::string &result
     iter->second(this, result);
 }
 
-ResultCode Server::call_command_handler(MessageBus &mb, uint16_t worker_id, Socket *sock) {
+void Server::call_command_handler(MessageBus &mb, uint16_t worker_id, Socket *sock) {
     PipeBuffer *buffer = mb.get_buffer();
     int command_id = buffer->info.server_fd;
     auto iter = command_handlers.find(command_id);
     if (iter == command_handlers.end()) {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_INVALID_COMMAND, "Unknown command[command_id=%d]", command_id);
-        return SW_OK;
+        return;
     }
 
     Server::Command::Handler handler = iter->second;
@@ -114,7 +114,7 @@ ResultCode Server::call_command_handler(MessageBus &mb, uint16_t worker_id, Sock
     task.info.len = result.length();
     task.data = result.c_str();
 
-    return mb.write(sock, &task) ? SW_OK : SW_ERR;
+    mb.write(sock, &task);
 }
 
 std::string Server::call_command_handler_in_master(int command_id, const std::string &msg) {
@@ -877,7 +877,12 @@ bool Server::shutdown() {
     if (is_base_mode()) {
         pid = get_manager_pid() == 0 ? get_master_pid() : get_manager_pid();
     } else if (is_thread_mode()) {
-        return factory->shutdown();
+        if (is_master_thread()) {
+            stop_master_thread();
+        } else {
+            running = false;
+        }
+        return true;
     } else {
         pid = get_master_pid();
     }
@@ -943,6 +948,14 @@ void Server::stop_master_thread() {
         };
         reactor->set_exit_condition(Reactor::EXIT_CONDITION_FORCED_TERMINATION, fn);
     }
+    if (is_thread_mode()) {
+        SW_LOOP_N(reactor_num) {
+            auto thread = get_thread(i);
+            DataHead ev = {};
+            ev.type = SW_SERVER_EVENT_SHUTDOWN;
+            thread->notify_pipe->send_blocking((void *) &ev, sizeof(ev));
+        }
+    }
 }
 
 bool Server::signal_handler_shutdown() {
@@ -1004,7 +1017,7 @@ void Server::destroy() {
         if (task_worker_num > 0) {
             gs->task_workers.destroy();
         }
-    } else {
+    } else if (is_process_mode()) {
         swoole_trace_log(SW_TRACE_SERVER, "terminate reactor threads");
         /**
          * Wait until all the end of the thread
@@ -1646,6 +1659,11 @@ void Server::timer_callback(Timer *timer, TimerNode *tnode) {
     if (serv->hooks[Server::HOOK_MASTER_TIMER]) {
         serv->call_hook(Server::HOOK_MASTER_TIMER, serv);
     }
+
+    if (!serv->is_running()) {
+        sw_reactor()->running = false;
+        serv->stop_master_thread();
+    }
 }
 
 int Server::add_worker(Worker *worker) {
@@ -1664,7 +1682,7 @@ bool Server::add_command(const std::string &name, int accepted_process_types, co
     if (commands.find(name) != commands.end()) {
         return false;
     }
-    if (is_process_mode() && pipe_command == nullptr) {
+    if (!is_base_mode() && pipe_command == nullptr) {
         auto _pipe = new UnixSocket(false, SOCK_DGRAM);
         if (!_pipe->ready()) {
             delete _pipe;

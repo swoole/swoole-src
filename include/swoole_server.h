@@ -160,6 +160,8 @@ struct ReactorThread {
 
     int init(Server *serv, Reactor *reactor, uint16_t reactor_id);
     void shutdown(Reactor *reactor);
+    int close_connection(Reactor *reactor, SessionId session_id);
+    void clean();
 };
 
 struct ServerPortGS {
@@ -1075,6 +1077,10 @@ class Server {
         }
     }
 
+    bool is_master_thread() {
+        return swoole_get_thread_type() == Server::THREAD_MASTER;
+    }
+
     bool is_hash_dispatch_mode() {
         return dispatch_mode == DISPATCH_FDMOD || dispatch_mode == DISPATCH_IPMOD ||
                dispatch_mode == DISPATCH_CO_CONN_LB;
@@ -1311,7 +1317,7 @@ class Server {
 
     void call_hook(enum HookType type, void *arg);
     void call_worker_start_callback(Worker *worker);
-    ResultCode call_command_handler(MessageBus &mb, uint16_t worker_id, network::Socket *sock);
+    void call_command_handler(MessageBus &mb, uint16_t worker_id, network::Socket *sock);
     std::string call_command_handler_in_master(int command_id, const std::string &msg);
     void call_command_callback(int64_t request_id, const std::string &result);
     void foreach_connection(const std::function<void(Connection *)> &callback);

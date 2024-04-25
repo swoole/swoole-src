@@ -2641,30 +2641,24 @@ static PHP_METHOD(swoole_server, start) {
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(php_swoole_server_zval_ptr(serv)));
 
 #ifdef SW_THREAD
+    zend_string *bootstrap = nullptr;
+    zend_string *thread_argv_serialized = nullptr;
+    zval thread_argv = {};
+
     if (serv->is_thread_mode()) {
         zval *_bootstrap = zend::object_get(ZEND_THIS, ZEND_STRL("bootstrap"));
-        zend_string *bootstrap = zend_string_dup(Z_STR_P(_bootstrap), 1);
-        zend_string *argv = nullptr;
-        zval thread_argv = {};
+        bootstrap = zend_string_dup(Z_STR_P(_bootstrap), 1);
 
         if (!ZVAL_IS_NULL(&server_object->init_arguments)) {
             call_user_function(NULL, NULL, &server_object->init_arguments, &thread_argv, 0, NULL);
-            argv = php_swoole_thread_serialize(&thread_argv);
+            thread_argv_serialized = php_swoole_thread_serialize(&thread_argv);
         }
 
-        serv->worker_thread_start = [bootstrap, argv](const WorkerFn &fn) {
+        serv->worker_thread_start = [bootstrap, thread_argv_serialized](const WorkerFn &fn) {
             worker_thread_fn = fn;
             zend_string *bootstrap_copy = zend_string_dup(bootstrap, 1);
-            zend_string *argv_copy = argv ? zend_string_dup(argv, 1) : nullptr;
+            zend_string *argv_copy = thread_argv_serialized ? zend_string_dup(thread_argv_serialized, 1) : nullptr;
             php_swoole_thread_start(bootstrap_copy, argv_copy);
-        };
-
-        ON_SCOPE_EXIT {
-            zend_string_release(bootstrap);
-            if (argv) {
-                zend_string_release(argv);
-            }
-            zval_ptr_dtor(&thread_argv);
         };
     }
 #endif
@@ -2675,6 +2669,17 @@ static PHP_METHOD(swoole_server, start) {
     if (serv->start() < 0) {
         php_swoole_fatal_error(E_ERROR, "failed to start server. Error: %s", sw_error);
     }
+
+#ifdef SW_THREAD
+    if (bootstrap) {
+        zend_string_release(bootstrap);
+    }
+    if (thread_argv_serialized) {
+        zend_string_release(thread_argv_serialized);
+    }
+    zval_ptr_dtor(&thread_argv);
+#endif
+
     RETURN_TRUE;
 }
 
