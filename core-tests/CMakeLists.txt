@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.1)
+cmake_minimum_required(VERSION 2.8.12)
 
 project(core_tests)
 
@@ -10,14 +10,14 @@ file(GLOB_RECURSE SOURCE_FILES FOLLOW_SYMLINKS src/*.cpp deps/llhttp/src/*.c)
 
 add_definitions(-DHAVE_CONFIG_H)
 
-set(core_tests_includes ./include/ ../thirdparty ../thirdparty/hiredis ./deps/llhttp/include)
+set(core_tests_includes ./include/ ../thirdparty ../thirdparty/hiredis ./deps/llhttp/include /usr/local/include)
 set(core_tests_libraries)
 set(core_tests_link_directories /usr/local/lib)
 
-list(APPEND core_tests_libraries pthread)
+list(APPEND core_tests_libraries pthread gtest gtest_main)
 
 # find GTest
-find_package(GTest)
+find_package(GTest REQUIRED)
 if (!${GTEST_FOUND})
     message(FATAL_ERROR "Not found GTest")
 endif()
