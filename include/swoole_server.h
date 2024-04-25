@@ -159,6 +159,7 @@ struct ReactorThread {
     MessageBus message_bus;
 
     int init(Server *serv, Reactor *reactor, uint16_t reactor_id);
+    void shutdown(Reactor *reactor);
 };
 
 struct ServerPortGS {
@@ -1125,6 +1126,7 @@ class Server {
     }
 
     void stop_async_worker(Worker *worker);
+    void stop_master_thread();
 
     Pipe *get_pipe_object(int pipe_fd) {
         return (Pipe *) connection_list[pipe_fd].object;
@@ -1150,6 +1152,10 @@ class Server {
         return factory != nullptr;
     }
 
+    bool is_running() {
+        return running;
+    }
+
     bool is_master() {
         return swoole_get_process_type() == SW_PROCESS_MASTER;
     }
@@ -1172,6 +1178,10 @@ class Server {
 
     bool is_worker_thread() {
         return is_thread_mode() && swoole_get_thread_type() == Server::THREAD_WORKER;
+    }
+
+    bool is_worker_process() {
+        return !is_thread_mode() && (is_worker() || is_task_worker());
     }
 
     bool is_reactor_thread() {
@@ -1420,6 +1430,15 @@ class Server {
     void worker_accept_event(DataHead *info);
     void worker_signal_init(void);
     std::function<void(const WorkerFn &fn)> worker_thread_start;
+
+    /**
+     * [Master]
+     */
+    bool signal_handler_shutdown();
+    bool signal_handler_child_exit();
+    bool signal_handler_reload(bool reload_all_workers);
+    bool signal_handler_read_message();
+    bool signal_handler_reopen_logger();
 
     static int worker_main_loop(ProcessPool *pool, Worker *worker);
     static void worker_signal_handler(int signo);
