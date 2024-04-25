@@ -32,7 +32,6 @@ static int ReactorThread_onRead(Reactor *reactor, Event *ev);
 static int ReactorThread_onWrite(Reactor *reactor, Event *ev);
 static int ReactorThread_onPacketReceived(Reactor *reactor, Event *event);
 static int ReactorThread_onClose(Reactor *reactor, Event *event);
-static void ReactorThread_shutdown(Reactor *reactor);
 static void ReactorThread_resume_data_receiving(Timer *timer, TimerNode *tnode);
 
 #ifdef SW_USE_OPENSSL
@@ -302,7 +301,7 @@ static int ReactorThread_onClose(Reactor *reactor, Event *event) {
     }
 }
 
-static void ReactorThread_shutdown(Reactor *reactor) {
+void ReactorThread::shutdown(Reactor *reactor) {
     Server *serv = (Server *) reactor->ptr;
     // stop listen UDP Port
     if (serv->have_dgram_sock == 1) {
@@ -316,6 +315,10 @@ static void ReactorThread_shutdown(Reactor *reactor) {
         }
     }
 
+    if (serv->is_thread_mode()) {
+        reactor->del(serv->get_worker(reactor->id)->pipe_worker);
+    }
+
     serv->foreach_connection([serv, reactor](Connection *conn) {
         if (conn->fd % serv->reactor_num != reactor->id) {
             return;
@@ -326,6 +329,8 @@ static void ReactorThread_shutdown(Reactor *reactor) {
     });
 
     reactor->set_wait_exit(true);
+
+    message_bus.free_buffer();
 }
 
 /**
@@ -352,9 +357,9 @@ static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev) {
         } else if (resp->info.type == SW_SERVER_EVENT_COMMAND_RESPONSE) {
             auto packet = thread->message_bus.get_packet();
             serv->call_command_callback(resp->info.fd, std::string(packet.data, packet.length));
-            return SW_OK;
         } else if (resp->info.type == SW_SERVER_EVENT_SHUTDOWN) {
-            ReactorThread_shutdown(reactor);
+            thread->shutdown(reactor);
+            return SW_OK;
         } else if (resp->info.type == SW_SERVER_EVENT_FINISH) {
             serv->onFinish(serv, (EventData *) resp);
         } else if (resp->info.type == SW_SERVER_EVENT_PIPE_MESSAGE) {

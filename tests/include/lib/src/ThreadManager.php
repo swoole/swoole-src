@@ -15,7 +15,6 @@ class ThreadManager extends ProcessManager
             ($this->parentFunc)();
         } else {
             ($this->childFunc)(...$args);
-            exit(0);
         }
     }
 }

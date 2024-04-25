@@ -231,8 +231,10 @@ void php_swoole_thread_rinit() {
         }
         // Return reference
         zval *global_argv = zend_hash_find_ind(&EG(symbol_table), ZSTR_KNOWN(ZEND_STR_ARGV));
-        request_info.argv_serialized = php_swoole_thread_serialize(global_argv);
-        request_info.argc = SG(request_info).argc;
+        if (global_argv) {
+            request_info.argv_serialized = php_swoole_thread_serialize(global_argv);
+            request_info.argc = SG(request_info).argc;
+        }
     }
 }
 

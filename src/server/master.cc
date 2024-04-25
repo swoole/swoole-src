@@ -868,24 +868,94 @@ void Server::clear_timer() {
 }
 
 bool Server::shutdown() {
+    if (sw_unlikely(!is_started())) {
+        swoole_set_last_error(SW_ERROR_OPERATION_NOT_SUPPORT);
+        return false;
+    }
+
+    pid_t pid;
+    if (is_base_mode()) {
+        pid = get_manager_pid() == 0 ? get_master_pid() : get_manager_pid();
+    } else if (is_thread_mode()) {
+        return factory->shutdown();
+    } else {
+        pid = get_master_pid();
+    }
+
+    if (swoole_kill(pid, SIGTERM) < 0) {
+        swoole_error_log(
+            SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "failed to shutdown, kill(%d, SIGTERM) failed", pid);
+        return false;
+    }
+
+    return true;
+}
+
+bool Server::signal_handler_reload(bool reload_all_workers) {
+    reload(reload_all_workers);
+    sw_logger()->reopen();
+    return true;
+}
+
+bool Server::signal_handler_read_message() {
+    gs->event_workers.read_message = true;
+    return true;
+}
+
+bool Server::signal_handler_reopen_logger() {
+    uint32_t i;
+    Worker *worker;
+    for (i = 0; i < worker_num + task_worker_num + get_user_worker_num(); i++) {
+        worker = get_worker(i);
+        swoole_kill(worker->pid, SIGRTMIN);
+    }
+    if (is_process_mode()) {
+        swoole_kill(gs->manager_pid, SIGRTMIN);
+    }
+    sw_logger()->reopen();
+    return true;
+}
+
+void Server::stop_master_thread() {
+    Reactor *reactor = SwooleTG.reactor;
+    reactor->set_wait_exit(true);
+    for (auto port : ports) {
+        if (port->is_dgram() and is_process_mode()) {
+            continue;
+        }
+        reactor->del(port->socket);
+    }
+    if (pipe_command) {
+        reactor->del(pipe_command->get_socket(true));
+    }
+    clear_timer();
+    if (max_wait_time > 0) {
+        time_t shutdown_time = std::time(nullptr);
+        auto fn = [shutdown_time, this](Reactor *reactor, size_t &) {
+            time_t now = std::time(nullptr);
+            if (now - shutdown_time > max_wait_time) {
+                swoole_error_log(SW_LOG_WARNING,
+                                 SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT,
+                                 "graceful shutdown failed, forced termination");
+                reactor->running = false;
+            }
+            return true;
+        };
+        reactor->set_exit_condition(Reactor::EXIT_CONDITION_FORCED_TERMINATION, fn);
+    }
+}
+
+bool Server::signal_handler_shutdown() {
     swoole_trace_log(SW_TRACE_SERVER, "shutdown begin");
     if (is_base_mode()) {
         if (gs->manager_pid > 0) {
-            if (getpid() == gs->manager_pid) {
-                running = false;
-                return true;
-            } else {
-                return swoole_kill(gs->manager_pid, SIGTERM) == 0;
-            }
+            running = false;
         } else {
+            // single process worker, exit directly
             gs->event_workers.running = 0;
             stop_async_worker(sw_worker());
-            return true;
         }
-    }
-
-    if (getpid() != gs->master_pid) {
-        return swoole_kill(gs->master_pid, SIGTERM) == 0;
+        return true;
     }
     if (swoole_isset_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN)) {
         swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN, this);
@@ -894,37 +964,25 @@ bool Server::shutdown() {
         onBeforeShutdown(this);
     }
     running = false;
-    // stop all thread
-    if (SwooleTG.reactor) {
-        Reactor *reactor = SwooleTG.reactor;
-        reactor->set_wait_exit(true);
-        for (auto port : ports) {
-            if (port->is_dgram() and is_process_mode()) {
-                continue;
-            }
-            reactor->del(port->socket);
-        }
-        if (pipe_command) {
-            reactor->del(pipe_command->get_socket(true));
-        }
-        clear_timer();
-        if (max_wait_time > 0) {
-            time_t shutdown_time = std::time(nullptr);
-            auto fn = [shutdown_time, this](Reactor *reactor, size_t &) {
-                time_t now = std::time(nullptr);
-                if (now - shutdown_time > max_wait_time) {
-                    swoole_error_log(SW_LOG_WARNING,
-                                     SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT,
-                                     "graceful shutdown failed, forced termination");
-                    reactor->running = false;
-                }
-                return true;
-            };
-            reactor->set_exit_condition(Reactor::EXIT_CONDITION_FORCED_TERMINATION, fn);
-        }
-    }
-
+    stop_master_thread();
     swoole_trace_log(SW_TRACE_SERVER, "shutdown end");
+    return true;
+}
+
+bool Server::signal_handler_child_exit() {
+    if (!running) {
+        return false;
+    }
+    if (is_base_mode()) {
+        return false;
+    }
+    int status;
+    pid_t pid = waitpid(-1, &status, WNOHANG);
+    if (pid > 0 && pid == gs->manager_pid) {
+        swoole_warning("Fatal Error: manager process exit. status=%d, signal=[%s]",
+                       WEXITSTATUS(status),
+                       swoole_signal_to_str(WTERMSIG(status)));
+    }
     return true;
 }
 
@@ -1782,51 +1840,27 @@ static void Server_signal_handler(int sig) {
         return;
     }
 
-    int status;
-    pid_t pid;
     switch (sig) {
     case SIGTERM:
-        serv->shutdown();
+        serv->signal_handler_shutdown();
         break;
     case SIGCHLD:
-        if (!serv->running) {
-            break;
-        }
-        if (sw_server()->is_base_mode()) {
-            break;
-        }
-        pid = waitpid(-1, &status, WNOHANG);
-        if (pid > 0 && pid == serv->gs->manager_pid) {
-            swoole_warning("Fatal Error: manager process exit. status=%d, signal=[%s]",
-                           WEXITSTATUS(status),
-                           swoole_signal_to_str(WTERMSIG(status)));
-        }
+        serv->signal_handler_child_exit();
         break;
     case SIGVTALRM:
         swoole_warning("SIGVTALRM coming");
         break;
     case SIGUSR1:
     case SIGUSR2:
-        serv->reload(sig == SIGUSR1);
-        sw_logger()->reopen();
+        serv->signal_handler_reload(sig == SIGUSR1);
         break;
     case SIGIO:
-        serv->gs->event_workers.read_message = true;
+        serv->signal_handler_read_message();
         break;
     default:
-
 #ifdef SIGRTMIN
         if (sig == SIGRTMIN) {
-            uint32_t i;
-            Worker *worker;
-            for (i = 0; i < serv->worker_num + serv->task_worker_num + serv->get_user_worker_num(); i++) {
-                worker = serv->get_worker(i);
-                swoole_kill(worker->pid, SIGRTMIN);
-            }
-            if (serv->is_process_mode()) {
-                swoole_kill(serv->gs->manager_pid, SIGRTMIN);
-            }
-            sw_logger()->reopen();
+            serv->signal_handler_reopen_logger();
         }
 #endif
         break;

@@ -237,7 +237,10 @@ void php_swoole_runtime_rinit() {
 
 void php_swoole_runtime_rshutdown() {
 #ifdef SW_THREAD
-    PHPCoroutine::disable_hook();
+    if (tsrm_is_main_thread()) {
+        PHPCoroutine::disable_hook();
+        ori_func_handlers.clear();
+    }
 #endif
 
     void *ptr;
@@ -259,7 +262,6 @@ void php_swoole_runtime_rshutdown() {
     efree(tmp_function_table);
     tmp_function_table = nullptr;
 
-    ori_func_handlers.clear();
     clear_class_entries();
 }
 

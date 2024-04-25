@@ -56,6 +56,14 @@ bool ThreadFactory::start() {
 }
 
 bool ThreadFactory::shutdown() {
+    server_->running = false;
+    SW_LOOP_N(server_->reactor_num) {
+        auto thread = server_->get_thread(i);
+        DataHead ev = {};
+        ev.type = SW_SERVER_EVENT_SHUTDOWN;
+        thread->notify_pipe->send_blocking((void *) &ev, sizeof(ev));
+    }
+    server_->stop_master_thread();
     return true;
 }
 

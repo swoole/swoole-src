@@ -99,7 +99,7 @@ void php_swoole_server_rshutdown() {
     Server *serv = sw_server();
     serv->drain_worker_pipe();
 
-    if (serv->is_started() && !serv->is_user_worker() && !serv->is_worker_thread()) {
+    if (serv->is_started() && serv->is_running() && !serv->is_user_worker()) {
         if (php_swoole_is_fatal_error()) {
             swoole_error_log(SW_LOG_ERROR,
                              SW_ERROR_PHP_FATAL_ERROR,
@@ -2617,7 +2617,7 @@ static PHP_METHOD(swoole_server, start) {
 #ifdef SW_THREAD
     if (serv->is_worker_thread()) {
         worker_thread_fn();
-        return;
+        RETURN_TRUE;
     }
 #endif
 
@@ -3865,29 +3865,12 @@ static PHP_METHOD(swoole_server, getManagerPid) {
 
 static PHP_METHOD(swoole_server, getMasterPid) {
     Server *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
-    RETURN_LONG(serv->gs->master_pid);
+    RETURN_LONG(serv->get_master_pid());
 }
 
 static PHP_METHOD(swoole_server, shutdown) {
     Server *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
-    if (sw_unlikely(!serv->is_started())) {
-        php_swoole_fatal_error(E_WARNING, "server is not running");
-        RETURN_FALSE;
-    }
-
-    pid_t pid;
-    if (serv->is_base_mode()) {
-        pid = serv->get_manager_pid() == 0 ? serv->get_master_pid() : serv->get_manager_pid();
-    } else {
-        pid = serv->get_master_pid();
-    }
-
-    if (swoole_kill(pid, SIGTERM) < 0) {
-        php_swoole_sys_error(E_WARNING, "failed to shutdown, kill(%d, SIGTERM) failed", pid);
-        RETURN_FALSE;
-    } else {
-        RETURN_TRUE;
-    }
+    RETURN_BOOL(serv->shutdown());
 }
 
 static PHP_METHOD(swoole_server, stop) {
