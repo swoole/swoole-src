@@ -196,6 +196,7 @@ PHP_METHOD(swoole_thread_atomic, __construct) {
     o->res = new AtomicResource();
     auto resource_id = php_swoole_thread_resource_insert(o->res);
     zend_update_property_long(swoole_thread_atomic_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("id"), resource_id);
+    o->res->value = value;
 }
 
 PHP_METHOD(swoole_thread_atomic, add) {
@@ -300,6 +301,7 @@ PHP_METHOD(swoole_thread_atomic_long, __construct) {
     o->res = new AtomicLongResource();
     auto resource_id = php_swoole_thread_resource_insert(o->res);
     zend_update_property_long(swoole_thread_atomic_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("id"), resource_id);
+    o->res->value = value;
 }
 
 PHP_METHOD(swoole_thread_atomic_long, add) {
