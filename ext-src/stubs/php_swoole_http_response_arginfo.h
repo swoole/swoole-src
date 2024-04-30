@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: f233694bac2a3ab5469d8ffd95d4d44f5ce9c340 */
+ * Stub hash: 42be4b14b18a10cedd4a5f33bf99233cef164b2e */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Http_Response_write, 0, 1, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, content, IS_STRING, 0)
@@ -30,6 +30,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Http_Response_cooki
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, httponly, _IS_BOOL, 0, "false")
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, samesite, IS_STRING, 0, "\'\'")
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, priority, IS_STRING, 0, "\'\'")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, partitioned, _IS_BOOL, 0, "false")
 ZEND_END_ARG_INFO()
 
 #define arginfo_class_Swoole_Http_Response_rawcookie arginfo_class_Swoole_Http_Response_cookie

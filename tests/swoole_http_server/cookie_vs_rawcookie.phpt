@@ -14,8 +14,7 @@ $pm->parentFunc = function () use ($pm) {
         Assert::same($cli->statusCode, 200);
         Assert::assert($cli->set_cookie_headers ===
             [
-                'cookie=' . urlencode($cookie),
-                'rawcookie=' . $cookie,
+                'cookie=' . urlencode($cookie)
             ]
         );
     });
@@ -51,5 +50,6 @@ $pm->childFunc = function () use ($pm) {
 $pm->childFirst();
 $pm->run();
 ?>
---EXPECT--
+--EXPECTF--
+Warning: Swoole\Http\Response::rawcookie(): Cookie value cannot contain ",", ";", " ", "\t", "\r", "\n", "\013", or "\014" in %s
 SUCCESS
