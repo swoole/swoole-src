@@ -16,7 +16,7 @@
 #define SW_USE_SQLITE_HOOK
 #include "php_swoole_sqlite.h"
 
-#if PHP_VERSION_ID >= 80100 && PHP_VERSION_ID < 80300
+#if PHP_VERSION_ID >= 80300
 #include "php.h"
 #include "php_ini.h"
 #include "ext/standard/info.h"
@@ -186,12 +186,9 @@ static bool sqlite_handle_preparer(pdo_dbh_t *dbh, zend_string *sql, pdo_stmt_t 
 
 static zend_long sqlite_handle_doer(pdo_dbh_t *dbh, const zend_string *sql) {
     pdo_sqlite_db_handle *H = (pdo_sqlite_db_handle *) dbh->driver_data;
-    char *errmsg = NULL;
 
-    if (sqlite3_exec(H->db, ZSTR_VAL(sql), NULL, NULL, &errmsg) != SQLITE_OK) {
+    if (sqlite3_exec(H->db, ZSTR_VAL(sql), NULL, NULL, NULL) != SQLITE_OK) {
         pdo_sqlite_error(dbh);
-        if (errmsg) sqlite3_free(errmsg);
-
         return -1;
     } else {
         return sqlite3_changes(H->db);
@@ -220,11 +217,9 @@ static zend_string *sqlite_handle_quoter(pdo_dbh_t *dbh, const zend_string *unqu
 
 static bool sqlite_handle_begin(pdo_dbh_t *dbh) {
     pdo_sqlite_db_handle *H = (pdo_sqlite_db_handle *) dbh->driver_data;
-    char *errmsg = NULL;
 
-    if (sqlite3_exec(H->db, "BEGIN", NULL, NULL, &errmsg) != SQLITE_OK) {
+    if (sqlite3_exec(H->db, "BEGIN", NULL, NULL, NULL) != SQLITE_OK) {
         pdo_sqlite_error(dbh);
-        if (errmsg) sqlite3_free(errmsg);
         return false;
     }
     return true;
@@ -232,11 +227,9 @@ static bool sqlite_handle_begin(pdo_dbh_t *dbh) {
 
 static bool sqlite_handle_commit(pdo_dbh_t *dbh) {
     pdo_sqlite_db_handle *H = (pdo_sqlite_db_handle *) dbh->driver_data;
-    char *errmsg = NULL;
 
-    if (sqlite3_exec(H->db, "COMMIT", NULL, NULL, &errmsg) != SQLITE_OK) {
+    if (sqlite3_exec(H->db, "COMMIT", NULL, NULL, NULL) != SQLITE_OK) {
         pdo_sqlite_error(dbh);
-        if (errmsg) sqlite3_free(errmsg);
         return false;
     }
     return true;
@@ -244,11 +237,9 @@ static bool sqlite_handle_commit(pdo_dbh_t *dbh) {
 
 static bool sqlite_handle_rollback(pdo_dbh_t *dbh) {
     pdo_sqlite_db_handle *H = (pdo_sqlite_db_handle *) dbh->driver_data;
-    char *errmsg = NULL;
 
-    if (sqlite3_exec(H->db, "ROLLBACK", NULL, NULL, &errmsg) != SQLITE_OK) {
+    if (sqlite3_exec(H->db, "ROLLBACK", NULL, NULL, NULL) != SQLITE_OK) {
         pdo_sqlite_error(dbh);
-        if (errmsg) sqlite3_free(errmsg);
         return false;
     }
     return true;
@@ -731,15 +722,6 @@ static int authorizer(
     void *autharg, int access_type, const char *arg3, const char *arg4, const char *arg5, const char *arg6) {
     char *filename;
     switch (access_type) {
-    case SQLITE_COPY: {
-        filename = make_filename_safe(arg4);
-        if (!filename) {
-            return SQLITE_DENY;
-        }
-        efree(filename);
-        return SQLITE_OK;
-    }
-
     case SQLITE_ATTACH: {
         filename = make_filename_safe(arg3);
         if (!filename) {
