@@ -15,6 +15,7 @@
 */
 #define SW_USE_SQLITE_HOOK
 #include "php_swoole_sqlite.h"
+#include "php_swoole_call_stack.h"
 
 #if PHP_VERSION_ID >= 80300
 #include "php.h"
@@ -350,7 +351,8 @@ static int do_callback(
 
     fc->fci.params = zargs;
 
-    if ((ret = zend_call_function(&fc->fci, &fc->fcc)) == FAILURE) {
+    HOOK_PHP_CALL_STACK(ret = zend_call_function(&fc->fci, &fc->fcc););
+    if (ret == FAILURE) {
         php_error_docref(NULL, E_WARNING, "An error occurred while invoking the callback");
     }
 
@@ -454,7 +456,8 @@ static int php_sqlite3_collation_callback(
     collation->fc.fci.param_count = 2;
     collation->fc.fci.params = zargs;
 
-    if ((ret = zend_call_function(&collation->fc.fci, &collation->fc.fcc)) == FAILURE) {
+    HOOK_PHP_CALL_STACK(ret = zend_call_function(&collation->fc.fci, &collation->fc.fcc););
+    if (ret == FAILURE) {
         php_error_docref(NULL, E_WARNING, "An error occurred while invoking the callback");
     } else if (!Z_ISUNDEF(retval)) {
         if (Z_TYPE(retval) != IS_LONG) {
