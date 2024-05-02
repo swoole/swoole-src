@@ -26,7 +26,7 @@ run(function() {
         var_dump($row);
     }
 
-    //$db->query('DROP TABLE foobar');
+    $db->query('DROP TABLE foobar');
 });
 ?>
 --EXPECT--
