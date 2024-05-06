@@ -35,6 +35,7 @@ zend_class_entry *swoole_thread_ce;
 static zend_object_handlers swoole_thread_handlers;
 
 zend_class_entry *swoole_thread_stream_ce;
+static zend_object_handlers swoole_thread_stream_handlers;
 
 static struct {
     char *path_translated;
@@ -151,9 +152,8 @@ void php_swoole_thread_minit(int module_number) {
     zend_declare_class_constant_long(
         swoole_thread_ce, ZEND_STRL("HARDWARE_CONCURRENCY"), std::thread::hardware_concurrency());
 
-    zend_class_entry ce;
-    INIT_CLASS_ENTRY(ce, "Swoole\\Thread\\Stream", nullptr);
-    swoole_thread_stream_ce = zend_register_internal_class_ex(&ce, ZEND_STANDARD_CLASS_DEF_PTR);
+    // only used for thread argument forwarding
+    SW_INIT_CLASS_ENTRY_DATA_OBJECT(swoole_thread_stream, "Swoole\\Thread\\Stream");
     zend_declare_property_long(swoole_thread_stream_ce, ZEND_STRL("fd"), 0, ZEND_ACC_PUBLIC | ZEND_ACC_READONLY);
 }
 
