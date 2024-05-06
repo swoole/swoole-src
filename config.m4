@@ -1073,7 +1073,9 @@ EOF
             thirdparty/php80/pdo_sqlite/sqlite_driver.c \
             thirdparty/php80/pdo_sqlite/sqlite_statement.c \
             thirdparty/php81/pdo_sqlite/sqlite_driver.c \
-            thirdparty/php81/pdo_sqlite/sqlite_statement.c"
+            thirdparty/php81/pdo_sqlite/sqlite_statement.c \
+            thirdparty/php83/pdo_sqlite/sqlite_driver.c \
+            thirdparty/php83/pdo_sqlite/sqlite_statement.c"
     fi
 
     SW_ASM_DIR="thirdparty/boost/asm/"
