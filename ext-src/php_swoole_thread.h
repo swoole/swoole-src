@@ -39,6 +39,7 @@ zval *php_swoole_thread_get_arguments();
 #define EMSG_NO_RESOURCE "resource not found"
 #define ECODE_NO_RESOURCE -2
 
+#define IS_STREAM_SOCKET 98
 #define IS_SERIALIZED_OBJECT 99
 
 struct ThreadResource {
@@ -74,71 +75,9 @@ struct ArrayItem {
         store(zvalue);
     }
 
-    void store(zval *zvalue) {
-        type = Z_TYPE_P(zvalue);
-        switch (type) {
-        case IS_LONG:
-            value.lval = zval_get_long(zvalue);
-            break;
-        case IS_DOUBLE:
-            value.dval = zval_get_double(zvalue);
-            break;
-        case IS_STRING: {
-            value.str = zend_string_init(Z_STRVAL_P(zvalue), Z_STRLEN_P(zvalue), 1);
-            break;
-        case IS_TRUE:
-        case IS_FALSE:
-        case IS_NULL:
-            break;
-        }
-        default: {
-            auto _serialized_object = php_swoole_thread_serialize(zvalue);
-            if (!_serialized_object) {
-                type = IS_UNDEF;
-                break;
-            } else {
-                type = IS_SERIALIZED_OBJECT;
-                value.serialized_object = _serialized_object;
-            }
-            break;
-        }
-        }
-    }
-
-    void fetch(zval *return_value) {
-        switch (type) {
-        case IS_LONG:
-            RETVAL_LONG(value.lval);
-            break;
-        case IS_DOUBLE:
-            RETVAL_LONG(value.dval);
-            break;
-        case IS_TRUE:
-            RETVAL_TRUE;
-            break;
-        case IS_FALSE:
-            RETVAL_FALSE;
-            break;
-        case IS_STRING:
-            RETVAL_NEW_STR(zend_string_init(ZSTR_VAL(value.str), ZSTR_LEN(value.str), 0));
-            break;
-        case IS_SERIALIZED_OBJECT:
-            php_swoole_thread_unserialize(value.serialized_object, return_value);
-            break;
-        default:
-            break;
-        }
-    }
-
-    void release() {
-        if (type == IS_STRING) {
-            zend_string_release(value.str);
-            value.str = nullptr;
-        } else if (type == IS_SERIALIZED_OBJECT) {
-            zend_string_release(value.serialized_object);
-            value.serialized_object = nullptr;
-        }
-    }
+    void store(zval *zvalue);
+    void fetch(zval *return_value);
+    void release();
 
     ~ArrayItem() {
         if (value.str) {

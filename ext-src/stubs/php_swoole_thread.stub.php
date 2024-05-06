@@ -2,7 +2,7 @@
 namespace Swoole {
     class Thread {
         public int $id;
-        private function __construct() {}
+        public function __construct(string $script_file, mixed ...$args) {}
 
         public function join(): bool {}
         public function joinable(): bool {}

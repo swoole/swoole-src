@@ -50,6 +50,7 @@ struct ThreadObject {
 };
 
 static void php_swoole_thread_join(zend_object *object);
+static void php_swoole_thread_create(INTERNAL_FUNCTION_PARAMETERS, zval *zobject);
 
 static thread_local zval thread_argv;
 static zend_long thread_resource_id = 0;
@@ -147,7 +148,9 @@ void php_swoole_thread_minit(int module_number) {
         swoole_thread_ce, ZEND_STRL("HARDWARE_CONCURRENCY"), std::thread::hardware_concurrency());
 }
 
-static PHP_METHOD(swoole_thread, __construct) {}
+static PHP_METHOD(swoole_thread, __construct) {
+    php_swoole_thread_create(INTERNAL_FUNCTION_PARAM_PASSTHRU, ZEND_THIS);
+}
 
 static PHP_METHOD(swoole_thread, join) {
     ThreadObject *to = php_swoole_thread_fetch_object(Z_OBJ_P(ZEND_THIS));
@@ -252,6 +255,42 @@ void php_swoole_thread_rshutdown() {
     }
 }
 
+static void php_swoole_thread_create(INTERNAL_FUNCTION_PARAMETERS, zval *zobject) {
+    char *script_file;
+    size_t l_script_file;
+    zval *args;
+    int argc;
+
+    ZEND_PARSE_PARAMETERS_START(1, -1)
+    Z_PARAM_STRING(script_file, l_script_file)
+    Z_PARAM_VARIADIC('+', args, argc)
+    ZEND_PARSE_PARAMETERS_END();
+
+    if (l_script_file < 1) {
+        zend_throw_exception(swoole_exception_ce, "exec file name is empty", SW_ERROR_INVALID_PARAMS);
+        return;
+    }
+
+    ThreadObject *to = php_swoole_thread_fetch_object(Z_OBJ_P(zobject));
+    zend_string *file = zend_string_init(script_file, l_script_file, 1);
+
+    zval zargv;
+    array_init(&zargv);
+    for (int i = 0; i < argc; i++) {
+        zend::array_add(&zargv, &args[i]);
+    }
+    zend_string *argv = php_swoole_thread_serialize(&zargv);
+    zval_dtor(&zargv);
+
+    if (!argv) {
+        zend_string_release(file);
+        return;
+    }
+
+    to->thread = new std::thread([file, argv]() { php_swoole_thread_start(file, argv); });
+    zend_update_property_long(swoole_thread_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("id"), to->thread->native_handle());
+}
+
 void php_swoole_thread_start(zend_string *file, zend_string *argv_serialized) {
     ts_resource(0);
     TSRMLS_CACHE_UPDATE();
@@ -311,41 +350,8 @@ _startup_error:
 }
 
 static PHP_METHOD(swoole_thread, exec) {
-    char *script_file;
-    size_t l_script_file;
-    zval *args;
-    int argc;
-
-    ZEND_PARSE_PARAMETERS_START(1, -1)
-    Z_PARAM_STRING(script_file, l_script_file)
-    Z_PARAM_VARIADIC('+', args, argc)
-    ZEND_PARSE_PARAMETERS_END();
-
-    if (l_script_file < 1) {
-        php_swoole_fatal_error(E_WARNING, "exec file name is empty");
-        RETURN_FALSE;
-    }
-
     object_init_ex(return_value, swoole_thread_ce);
-    ThreadObject *to = php_swoole_thread_fetch_object(Z_OBJ_P(return_value));
-    zend_string *file = zend_string_init(script_file, l_script_file, 1);
-
-    zval zargv;
-    array_init(&zargv);
-    for (int i = 0; i < argc; i++) {
-        zend::array_add(&zargv, &args[i]);
-    }
-    zend_string *argv = php_swoole_thread_serialize(&zargv);
-    zval_dtor(&zargv);
-
-    if (!argv) {
-        zend_string_release(file);
-        return;
-    }
-
-    to->thread = new std::thread([file, argv]() { php_swoole_thread_start(file, argv); });
-    zend_update_property_long(
-        swoole_thread_ce, SW_Z8_OBJ_P(return_value), ZEND_STRL("id"), to->thread->native_handle());
+    php_swoole_thread_create(INTERNAL_FUNCTION_PARAM_PASSTHRU, return_value);
 }
 
 static PHP_METHOD(swoole_thread, getTsrmInfo) {
@@ -353,6 +359,98 @@ static PHP_METHOD(swoole_thread, getTsrmInfo) {
     add_assoc_bool(return_value, "is_main_thread", tsrm_is_main_thread());
     add_assoc_bool(return_value, "is_shutdown", tsrm_is_shutdown());
     add_assoc_string(return_value, "api_name", tsrm_api_name());
+}
+
+void ArrayItem::store(zval *zvalue) {
+    type = Z_TYPE_P(zvalue);
+    switch (type) {
+    case IS_LONG:
+        value.lval = zval_get_long(zvalue);
+        break;
+    case IS_DOUBLE:
+        value.dval = zval_get_double(zvalue);
+        break;
+    case IS_STRING: {
+        value.str = zend_string_init(Z_STRVAL_P(zvalue), Z_STRLEN_P(zvalue), 1);
+        break;
+    }
+    case IS_TRUE:
+    case IS_FALSE:
+    case IS_NULL:
+        break;
+    case IS_RESOURCE: {
+        php_stream *stream;
+        int sock_fd;
+        int cast_flags = PHP_STREAM_AS_FD_FOR_SELECT | PHP_STREAM_CAST_INTERNAL;
+        if ((php_stream_from_zval_no_verify(stream, zvalue))) {
+            if (php_stream_cast(stream, cast_flags, (void **) &sock_fd, 1) == SUCCESS && sock_fd >= 0) {
+                value.lval = dup(sock_fd);
+                if (value.lval != -1) {
+                    type = IS_STREAM_SOCKET;
+                    break;
+                }
+            }
+        }
+    }
+    /* no break */
+    default: {
+        auto _serialized_object = php_swoole_thread_serialize(zvalue);
+        if (!_serialized_object) {
+            type = IS_UNDEF;
+            break;
+        } else {
+            type = IS_SERIALIZED_OBJECT;
+            value.serialized_object = _serialized_object;
+        }
+        break;
+    }
+    }
+}
+
+void ArrayItem::fetch(zval *return_value) {
+    switch (type) {
+    case IS_LONG:
+        RETVAL_LONG(value.lval);
+        break;
+    case IS_DOUBLE:
+        RETVAL_LONG(value.dval);
+        break;
+    case IS_TRUE:
+        RETVAL_TRUE;
+        break;
+    case IS_FALSE:
+        RETVAL_FALSE;
+        break;
+    case IS_STRING:
+        RETVAL_NEW_STR(zend_string_init(ZSTR_VAL(value.str), ZSTR_LEN(value.str), 0));
+        break;
+    case IS_STREAM_SOCKET: {
+        std::string path = "php://fd/" + std::to_string(value.lval);
+        php_stream *stream = php_stream_open_wrapper_ex(path.c_str(), "", 0, NULL, NULL);
+        if (stream) {
+            php_stream_to_zval(stream, return_value);
+        }
+        break;
+    }
+    case IS_SERIALIZED_OBJECT:
+        php_swoole_thread_unserialize(value.serialized_object, return_value);
+        break;
+    default:
+        break;
+    }
+}
+
+void ArrayItem::release() {
+    if (type == IS_STRING) {
+        zend_string_release(value.str);
+        value.str = nullptr;
+    } else if (type == IS_STREAM_SOCKET) {
+        ::close(value.lval);
+        value.lval = -1;
+    } else if (type == IS_SERIALIZED_OBJECT) {
+        zend_string_release(value.serialized_object);
+        value.serialized_object = nullptr;
+    }
 }
 
 #endif
