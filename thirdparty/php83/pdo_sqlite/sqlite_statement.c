@@ -17,7 +17,7 @@
 #define SW_USE_SQLITE_HOOK
 #include "php_swoole_sqlite.h"
 
-#if PHP_VERSION_ID >= 80100 && PHP_VERSION_ID < 80300
+#if PHP_VERSION_ID >= 80300
 #include "php.h"
 #include "php_ini.h"
 #include "ext/standard/info.h"
@@ -299,12 +299,12 @@ static int pdo_sqlite_stmt_col_meta(pdo_stmt_t *stmt, zend_long colno, zval *ret
 
     switch (sqlite3_column_type(S->stmt, colno)) {
     case SQLITE_NULL:
-        add_assoc_string(return_value, "native_type", "null");
+        add_assoc_str(return_value, "native_type", ZSTR_KNOWN(ZEND_STR_NULL_LOWERCASE));
         add_assoc_long(return_value, "pdo_type", PDO_PARAM_NULL);
         break;
 
     case SQLITE_FLOAT:
-        add_assoc_string(return_value, "native_type", "double");
+        add_assoc_str(return_value, "native_type", ZSTR_KNOWN(ZEND_STR_DOUBLE));
         add_assoc_long(return_value, "pdo_type", PDO_PARAM_STR);
         break;
 
@@ -313,12 +313,12 @@ static int pdo_sqlite_stmt_col_meta(pdo_stmt_t *stmt, zend_long colno, zval *ret
         /* TODO Check this is correct */
         ZEND_FALLTHROUGH;
     case SQLITE_TEXT:
-        add_assoc_string(return_value, "native_type", "string");
+        add_assoc_str(return_value, "native_type", ZSTR_KNOWN(ZEND_STR_STRING));
         add_assoc_long(return_value, "pdo_type", PDO_PARAM_STR);
         break;
 
     case SQLITE_INTEGER:
-        add_assoc_string(return_value, "native_type", "integer");
+        add_assoc_str(return_value, "native_type", ZSTR_KNOWN(ZEND_STR_INTEGER));
         add_assoc_long(return_value, "pdo_type", PDO_PARAM_INT);
         break;
     }
