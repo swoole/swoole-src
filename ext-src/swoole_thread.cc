@@ -34,6 +34,8 @@ END_EXTERN_C()
 zend_class_entry *swoole_thread_ce;
 static zend_object_handlers swoole_thread_handlers;
 
+zend_class_entry *swoole_thread_stream_ce;
+
 static struct {
     char *path_translated;
     zend_string *argv_serialized;
@@ -51,6 +53,8 @@ struct ThreadObject {
 
 static void php_swoole_thread_join(zend_object *object);
 static void php_swoole_thread_create(INTERNAL_FUNCTION_PARAMETERS, zval *zobject);
+static int php_swoole_thread_stream_fileno(zval *zstream);
+static bool php_swoole_thread_stream_restore(zend_long sockfd, zval *return_value);
 
 static thread_local zval thread_argv;
 static zend_long thread_resource_id = 0;
@@ -146,6 +150,11 @@ void php_swoole_thread_minit(int module_number) {
     zend_declare_property_long(swoole_thread_ce, ZEND_STRL("id"), 0, ZEND_ACC_PUBLIC | ZEND_ACC_READONLY);
     zend_declare_class_constant_long(
         swoole_thread_ce, ZEND_STRL("HARDWARE_CONCURRENCY"), std::thread::hardware_concurrency());
+
+    zend_class_entry ce;
+    INIT_CLASS_ENTRY(ce, "Swoole\\Thread\\Stream", nullptr);
+    swoole_thread_stream_ce = zend_register_internal_class_ex(&ce, ZEND_STANDARD_CLASS_DEF_PTR);
+    zend_declare_property_long(swoole_thread_stream_ce, ZEND_STRL("fd"), 0, ZEND_ACC_PUBLIC | ZEND_ACC_READONLY);
 }
 
 static PHP_METHOD(swoole_thread, __construct) {
@@ -199,6 +208,24 @@ zend_string *php_swoole_thread_serialize(zval *zdata) {
     php_serialize_data_t var_hash;
     smart_str serialized_data = {0};
 
+    if (ZVAL_IS_ARRAY(zdata)) {
+        zval *elem;
+        ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(zdata), elem) {
+            ZVAL_DEREF(elem);
+            if (Z_TYPE_P(elem) != IS_RESOURCE) {
+                continue;
+            }
+            int sockfd = php_swoole_thread_stream_fileno(elem);
+            if (sockfd < 0) {
+                continue;
+            }
+            zval_ptr_dtor(elem);
+            object_init_ex(elem, swoole_thread_stream_ce);
+            zend_update_property_long(swoole_thread_stream_ce, SW_Z8_OBJ_P(elem), ZEND_STRL("fd"), sockfd);
+        }
+        ZEND_HASH_FOREACH_END();
+    }
+
     PHP_VAR_SERIALIZE_INIT(var_hash);
     php_var_serialize(&serialized_data, zdata, &var_hash);
     PHP_VAR_SERIALIZE_DESTROY(var_hash);
@@ -223,6 +250,22 @@ bool php_swoole_thread_unserialize(zend_string *data, zval *zv) {
         swoole_warning("unserialize() failed, Error at offset " ZEND_LONG_FMT " of %zd bytes",
                        (zend_long) ((char *) p - ZSTR_VAL(data)),
                        l);
+    } else {
+        if (ZVAL_IS_ARRAY(zv)) {
+            zval *elem;
+            ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(zv), elem) {
+                ZVAL_DEREF(elem);
+                if (Z_TYPE_P(elem) != IS_OBJECT || !instanceof_function(Z_OBJCE_P(elem), swoole_thread_stream_ce)) {
+                    continue;
+                }
+                zend_long sockfd = zend::object_get_long(elem, ZEND_STRL("fd"));
+                zval_ptr_dtor(elem);
+                zval zstream;
+                php_swoole_thread_stream_restore(sockfd, &zstream);
+                ZVAL_COPY(elem, &zstream);
+            }
+            ZEND_HASH_FOREACH_END();
+        }
     }
     return unserialized;
 }
@@ -349,6 +392,28 @@ _startup_error:
     swoole_thread_clean();
 }
 
+static int php_swoole_thread_stream_fileno(zval *zstream) {
+    php_stream *stream;
+    int sockfd;
+    int cast_flags = PHP_STREAM_AS_FD_FOR_SELECT | PHP_STREAM_CAST_INTERNAL;
+    if ((php_stream_from_zval_no_verify(stream, zstream))) {
+        if (php_stream_cast(stream, cast_flags, (void **) &sockfd, 1) == SUCCESS && sockfd >= 0) {
+            return dup(sockfd);
+        }
+    }
+    return -1;
+}
+
+static bool php_swoole_thread_stream_restore(zend_long sockfd, zval *return_value) {
+    std::string path = "php://fd/" + std::to_string(sockfd);
+    php_stream *stream = php_stream_open_wrapper_ex(path.c_str(), "", 0, NULL, NULL);
+    if (stream) {
+        php_stream_to_zval(stream, return_value);
+        return true;
+    }
+    return false;
+}
+
 static PHP_METHOD(swoole_thread, exec) {
     object_init_ex(return_value, swoole_thread_ce);
     php_swoole_thread_create(INTERNAL_FUNCTION_PARAM_PASSTHRU, return_value);
@@ -379,17 +444,11 @@ void ArrayItem::store(zval *zvalue) {
     case IS_NULL:
         break;
     case IS_RESOURCE: {
-        php_stream *stream;
-        int sock_fd;
-        int cast_flags = PHP_STREAM_AS_FD_FOR_SELECT | PHP_STREAM_CAST_INTERNAL;
-        if ((php_stream_from_zval_no_verify(stream, zvalue))) {
-            if (php_stream_cast(stream, cast_flags, (void **) &sock_fd, 1) == SUCCESS && sock_fd >= 0) {
-                value.lval = dup(sock_fd);
-                if (value.lval != -1) {
-                    type = IS_STREAM_SOCKET;
-                    break;
-                }
-            }
+        int sock_fd = php_swoole_thread_stream_fileno(zvalue);
+        if (sock_fd != -1) {
+            value.lval = sock_fd;
+            type = IS_STREAM_SOCKET;
+            break;
         }
     }
     /* no break */
@@ -424,14 +483,9 @@ void ArrayItem::fetch(zval *return_value) {
     case IS_STRING:
         RETVAL_NEW_STR(zend_string_init(ZSTR_VAL(value.str), ZSTR_LEN(value.str), 0));
         break;
-    case IS_STREAM_SOCKET: {
-        std::string path = "php://fd/" + std::to_string(value.lval);
-        php_stream *stream = php_stream_open_wrapper_ex(path.c_str(), "", 0, NULL, NULL);
-        if (stream) {
-            php_stream_to_zval(stream, return_value);
-        }
+    case IS_STREAM_SOCKET:
+        php_swoole_thread_stream_restore(value.lval, return_value);
         break;
-    }
     case IS_SERIALIZED_OBJECT:
         php_swoole_thread_unserialize(value.serialized_object, return_value);
         break;
