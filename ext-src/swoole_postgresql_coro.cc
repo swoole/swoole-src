@@ -1533,12 +1533,16 @@ static PHP_METHOD(swoole_postgresql_coro, createLOB) {
 }
 
 static PHP_METHOD(swoole_postgresql_coro, openLOB) {
-    Oid oid = 0;
-    char *modestr = "rb";
-    size_t modestrlen;
-    if (FAILURE == zend_parse_parameters(ZEND_NUM_ARGS(), "l|s", &oid, &modestr, &modestrlen)) {
-        RETURN_THROWS();
-    }
+    zend_long oid = 0;
+    // default: "rb"
+    zend_string *mode_str = NULL;
+    int mode = INV_READ;
+
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+    Z_PARAM_LONG(oid)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_STR(mode_str)
+    ZEND_PARSE_PARAMETERS_END();
 
     PGObject *object = php_swoole_postgresql_coro_get_object(ZEND_THIS);
     if (!object || !object->conn) {
@@ -1549,9 +1553,7 @@ static PHP_METHOD(swoole_postgresql_coro, openLOB) {
         RETURN_FALSE;
     }
 
-    int mode = INV_READ;
-
-    if (strpbrk(modestr, "+w")) {
+    if (mode_str && strpbrk(ZSTR_VAL(mode_str), "+w")) {
         mode = INV_READ | INV_WRITE;
     }
 
@@ -1579,11 +1581,11 @@ static PHP_METHOD(swoole_postgresql_coro, openLOB) {
 }
 
 static PHP_METHOD(swoole_postgresql_coro, unlinkLOB) {
-    Oid oid = 0;
+    zend_long oid = 0;
 
-    if (FAILURE == zend_parse_parameters(ZEND_NUM_ARGS(), "l", &oid)) {
-        RETURN_THROWS();
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_LONG(oid)
+    ZEND_PARSE_PARAMETERS_END();
 
     PGObject *object = php_swoole_postgresql_coro_get_object(ZEND_THIS);
     if (!object || !object->conn) {
