@@ -101,6 +101,8 @@ PGconn *swoole_pgsql_connectdb(const char *conninfo) {
             event = SW_EVENT_WRITE;
             break;
         default:
+            // should not be here including PGRES_POLLING_ACTIVE
+            abort();
             break;
         }
 
