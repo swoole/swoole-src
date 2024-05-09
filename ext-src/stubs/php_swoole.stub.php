@@ -16,7 +16,7 @@ function swoole_async_dns_lookup_coro(string $domain_name, float $timeout = 60, 
 {
 }
 
-function swoole_async_set(array $settings): void
+function swoole_async_set(array $settings): bool
 {
 }
 

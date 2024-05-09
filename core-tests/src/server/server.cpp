@@ -678,7 +678,7 @@ TEST(server, task_worker4) {
             serv->gs->task_workers.dispatch(&buf, &_dst_worker_id);
             sleep(1);
 
-            EventData *task_result = &(serv->task_result[SwooleG.process_id]);
+            EventData *task_result = &(serv->task_result[swoole_get_process_id()]);
             sw_memset_zero(task_result, sizeof(*task_result));
             memset(&buf.info, 0, sizeof(buf.info));
             buf.info.len = strlen(packet);

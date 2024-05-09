@@ -15,7 +15,6 @@ define('IS_IN_CI', file_exists('/.cienv'));
 define('IS_PHPTESTSING', !!getenv('PHPT'));
 define('USE_VALGRIND', getenv('USE_ZEND_ALLOC') === '0');
 define('HAS_SSL', defined("SWOOLE_SSL"));
-define('HAS_ASYNC_REDIS', class_exists("Swoole\\Redis", false));
 define('HAS_HTTP2', class_exists("Swoole\\Http2\\Request", false));
 define('DEV_NULL', '/dev/null');
 

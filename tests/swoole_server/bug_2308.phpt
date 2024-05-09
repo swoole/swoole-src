@@ -19,10 +19,11 @@ $pm->childFunc = function () use ($pm) {
         'worker_num' => MAX_PROCESS_NUM,
         'log_file' => '/dev/null',
         'enable_coroutine' => false,
+        'hook_flags' => SWOOLE_HOOK_ALL,
     ]);
     $server->on('start', function () {
         Swoole\Coroutine::create(function () {
-            $redis = new Swoole\Coroutine\Redis();
+            $redis = new \Redis();
             $redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
             $ret = $redis->set('foo', 'bar');
             Assert::assert($ret);

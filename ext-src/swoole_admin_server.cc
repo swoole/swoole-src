@@ -291,7 +291,7 @@ static json get_socket_info(int fd) {
         {"rcv_space", info.tcpi_rcv_space},
         {"total_retrans", info.tcpi_total_retrans},
     };
-#endif		// defined(__FreeBSD__) || defined(__NetBSD__)
+#endif  // defined(__FreeBSD__) || defined(__NetBSD__)
     return jinfo;
 }
 #endif
@@ -421,7 +421,7 @@ static std::string handle_get_connections(Server *serv, const std::string &msg) 
         if (serv->is_process_mode() && conn->reactor_id != SwooleTG.id) {
             return;
         }
-        if (serv->is_base_mode() && SwooleWG.worker && conn->reactor_id != SwooleWG.worker->id) {
+        if (serv->is_base_mode() && sw_worker() && conn->reactor_id != sw_worker()->id) {
             return;
         }
         list.push_back(get_connection_info(serv, conn));

@@ -27,6 +27,9 @@
 #include "swoole_pipe.h"
 #include "swoole_channel.h"
 #include "swoole_message_bus.h"
+#ifdef SW_THREAD
+#include "swoole_lock.h"
+#endif
 
 #ifdef SW_USE_OPENSSL
 #include "swoole_dtls.h"
@@ -43,6 +46,7 @@
 #include <atomic>
 #include <unordered_map>
 #include <unordered_set>
+#include <condition_variable>
 
 //------------------------------------Server-------------------------------------------
 namespace swoole {
@@ -53,6 +57,8 @@ struct Request;
 
 class Server;
 struct Manager;
+
+typedef std::function<void(void)> WorkerFn;
 
 struct Session {
     SessionId id;
@@ -153,6 +159,9 @@ struct ReactorThread {
     MessageBus message_bus;
 
     int init(Server *serv, Reactor *reactor, uint16_t reactor_id);
+    void shutdown(Reactor *reactor);
+    int close_connection(Reactor *reactor, SessionId session_id);
+    void clean();
 };
 
 struct ServerPortGS {
@@ -319,6 +328,8 @@ struct ListenPort {
     void close();
     bool import(int sock);
     const char *get_protocols();
+    int create_socket(Server *server);
+    void close_socket();
 
 #ifdef SW_USE_OPENSSL
     bool ssl_create_context(SSLContext *context);
@@ -337,20 +348,20 @@ struct ListenPort {
     network::Socket *get_socket() {
         return socket;
     }
-    int get_port() {
+    int get_port() const {
         return port;
     }
-    const char *get_host() {
+    const char *get_host() const {
         return host.c_str();
     }
-    SocketType get_type() {
+    SocketType get_type() const {
         return type;
     }
-    int get_fd() {
+    int get_fd() const {
         return socket ? socket->fd : -1;
     }
 
-    size_t get_connection_num();
+    size_t get_connection_num() const;
 };
 
 struct ServerGS {
@@ -400,6 +411,13 @@ class Factory {
     Factory(Server *_server) {
         server_ = _server;
     }
+    pid_t spawn_event_worker(Worker *worker);
+    pid_t spawn_user_worker(Worker *worker);
+    pid_t spawn_task_worker(Worker *worker);
+    void kill_user_workers();
+    void kill_event_workers();
+    void kill_task_workers();
+    void check_worker_exit_status(Worker *worker, const ExitStatus &exit_status);
     virtual ~Factory() {}
     virtual bool start() = 0;
     virtual bool shutdown() = 0;
@@ -411,7 +429,7 @@ class Factory {
 
 class BaseFactory : public Factory {
   public:
-    BaseFactory(Server *server) : Factory(server) {}
+    BaseFactory(Server *server);
     ~BaseFactory();
     bool start() override;
     bool shutdown() override;
@@ -422,9 +440,6 @@ class BaseFactory : public Factory {
 };
 
 class ProcessFactory : public Factory {
-  private:
-    std::vector<std::shared_ptr<UnixSocket>> pipes;
-
   public:
     ProcessFactory(Server *server);
     ~ProcessFactory();
@@ -434,6 +449,28 @@ class ProcessFactory : public Factory {
     bool finish(SendData *) override;
     bool notify(DataHead *) override;
     bool end(SessionId sesion_id, int flags) override;
+};
+
+class ThreadFactory : public BaseFactory {
+  private:
+    std::vector<std::thread> threads_;
+    std::mutex lock_;
+    std::condition_variable cv_;
+    std::queue<Worker *> queue_;
+    Worker manager;
+    template <typename _Callable>
+    void create_thread(int i, _Callable fn);
+    void at_thread_exit(Worker *worker);
+  public:
+    ThreadFactory(Server *server);
+    ~ThreadFactory();
+    void spawn_event_worker(WorkerId i);
+    void spawn_task_worker(WorkerId i);
+    void spawn_user_worker(WorkerId i);
+    void spawn_manager_thread(WorkerId i);
+    void wait();
+    bool start() override;
+    bool shutdown() override;
 };
 
 enum ServerEventType {
@@ -488,6 +525,7 @@ class Server {
     enum Mode {
         MODE_BASE = 1,
         MODE_PROCESS = 2,
+        MODE_THREAD = 3,
     };
 
     enum TaskIpcMode {
@@ -501,6 +539,7 @@ class Server {
         THREAD_MASTER = 1,
         THREAD_REACTOR = 2,
         THREAD_HEARTBEAT = 3,
+        THREAD_WORKER = 4,
     };
 
     enum DispatchMode {
@@ -726,12 +765,17 @@ class Server {
     Manager *manager = nullptr;
 
     std::vector<ListenPort *> ports;
+    std::vector<std::shared_ptr<UnixSocket>> worker_pipes;
 
     ListenPort *get_primary_port() {
         return ports.front();
     }
 
-    ListenPort *get_port(int _port) {
+    enum Mode get_mode() const {
+        return mode_;
+    };
+
+    const ListenPort *get_port(int _port) const {
         for (auto port : ports) {
             if (port->port == _port || _port == 0) {
                 return port;
@@ -922,6 +966,14 @@ class Server {
     void add_http_compression_type(const std::string &type);
 
     int create();
+    Factory *create_base_factory();
+    Factory *create_thread_factory();
+    Factory *create_process_factory();
+    bool create_worker_pipes();
+    void destroy_base_factory();
+    void destroy_thread_factory();
+    void destroy_process_factory();
+
     int start();
     bool reload(bool reload_all_workers);
     bool shutdown();
@@ -983,6 +1035,14 @@ class Server {
         return buffer;
     }
 
+    MessageBus *get_worker_message_bus() {
+#ifdef SW_THREAD
+        return sw_likely(is_thread_mode()) ? &get_thread(swoole_get_thread_id())->message_bus : &message_bus;
+#else
+        return &message_bus;
+#endif
+    }
+
     uint32_t get_worker_buffer_num() {
         return is_base_mode() ? 1 : reactor_num + dgram_port_num;
     }
@@ -1003,6 +1063,10 @@ class Server {
         return mode_ == MODE_BASE;
     }
 
+    bool is_thread_mode() {
+        return mode_ == MODE_THREAD;
+    }
+
     bool is_enable_coroutine() {
         if (is_task_worker()) {
             return task_enable_coroutine;
@@ -1011,6 +1075,10 @@ class Server {
         } else {
             return enable_coroutine;
         }
+    }
+
+    bool is_master_thread() {
+        return swoole_get_thread_type() == Server::THREAD_MASTER;
     }
 
     bool is_hash_dispatch_mode() {
@@ -1038,6 +1106,10 @@ class Server {
 #endif
     }
 
+    bool if_forward_message(Session *session) {
+        return session->reactor_id != swoole_get_process_id();
+    }
+
     Worker *get_worker(uint16_t worker_id) {
         // Event Worker
         if (worker_id < worker_num) {
@@ -1060,6 +1132,7 @@ class Server {
     }
 
     void stop_async_worker(Worker *worker);
+    void stop_master_thread();
 
     Pipe *get_pipe_object(int pipe_fd) {
         return (Pipe *) connection_list[pipe_fd].object;
@@ -1085,28 +1158,40 @@ class Server {
         return factory != nullptr;
     }
 
+    bool is_running() {
+        return running;
+    }
+
     bool is_master() {
-        return SwooleG.process_type == SW_PROCESS_MASTER;
+        return swoole_get_process_type() == SW_PROCESS_MASTER;
     }
 
     bool is_worker() {
-        return SwooleG.process_type == SW_PROCESS_WORKER;
+        return swoole_get_process_type() == SW_PROCESS_EVENTWORKER;
     }
 
     bool is_task_worker() {
-        return SwooleG.process_type == SW_PROCESS_TASKWORKER;
+        return swoole_get_process_type() == SW_PROCESS_TASKWORKER;
     }
 
     bool is_manager() {
-        return SwooleG.process_type == SW_PROCESS_MANAGER;
+        return swoole_get_process_type() == SW_PROCESS_MANAGER;
     }
 
     bool is_user_worker() {
-        return SwooleG.process_type == SW_PROCESS_USERWORKER;
+        return swoole_get_process_type() == SW_PROCESS_USERWORKER;
+    }
+
+    bool is_worker_thread() {
+        return is_thread_mode() && swoole_get_thread_type() == Server::THREAD_WORKER;
+    }
+
+    bool is_worker_process() {
+        return !is_thread_mode() && (is_worker() || is_task_worker());
     }
 
     bool is_reactor_thread() {
-        return SwooleG.process_type == SW_PROCESS_MASTER && SwooleTG.type == Server::THREAD_REACTOR;
+        return swoole_get_thread_type() == Server::THREAD_REACTOR;
     }
 
     bool isset_hook(enum HookType type) {
@@ -1232,7 +1317,7 @@ class Server {
 
     void call_hook(enum HookType type, void *arg);
     void call_worker_start_callback(Worker *worker);
-    ResultCode call_command_handler(MessageBus &mb, uint16_t worker_id, network::Socket *sock);
+    void call_command_handler(MessageBus &mb, uint16_t worker_id, network::Socket *sock);
     std::string call_command_handler_in_master(int command_id, const std::string &msg);
     void call_command_callback(int64_t request_id, const std::string &result);
     void foreach_connection(const std::function<void(Connection *)> &callback);
@@ -1326,7 +1411,7 @@ class Server {
 
     int schedule_worker(int fd, SendData *data);
 
-    size_t get_connection_num() {
+    size_t get_connection_num() const {
         if (gs->connection_nums) {
             size_t num = 0;
             for (uint32_t i = 0; i < worker_num; i++) {
@@ -1338,23 +1423,10 @@ class Server {
         }
     }
 
-    /**
-     * [Manager]
-     */
-    pid_t spawn_event_worker(Worker *worker);
-    pid_t spawn_user_worker(Worker *worker);
-    pid_t spawn_task_worker(Worker *worker);
-
-    void kill_user_workers();
-    void kill_event_workers();
-    void kill_task_workers();
-
     static int wait_other_worker(ProcessPool *pool, const ExitStatus &exit_status);
     static void read_worker_message(ProcessPool *pool, EventData *msg);
 
     void drain_worker_pipe();
-
-    void check_worker_exit_status(Worker *worker, const ExitStatus &exit_status);
 
     /**
      * [Worker]
@@ -1362,10 +1434,27 @@ class Server {
     void worker_start_callback(Worker *worker);
     void worker_stop_callback(Worker *worker);
     void worker_accept_event(DataHead *info);
+    void worker_signal_init(void);
+    std::function<void(const WorkerFn &fn)> worker_thread_start;
+
+    /**
+     * [Master]
+     */
+    bool signal_handler_shutdown();
+    bool signal_handler_child_exit();
+    bool signal_handler_reload(bool reload_all_workers);
+    bool signal_handler_read_message();
+    bool signal_handler_reopen_logger();
+
+    static int worker_main_loop(ProcessPool *pool, Worker *worker);
     static void worker_signal_handler(int signo);
-    static void worker_signal_init(void);
+    static void reactor_thread_main_loop(Server *serv, int reactor_id);
     static bool task_pack(EventData *task, const void *data, size_t data_len);
     static bool task_unpack(EventData *task, String *buffer, PacketPtr *packet);
+
+    int start_master_thread(Reactor *reactor);
+    int start_event_worker(Worker *worker);
+    void start_heartbeat_thread();
 
   private:
     enum Mode mode_;
@@ -1389,15 +1478,9 @@ class Server {
     int start_check();
     void check_port_type(ListenPort *ls);
     void destroy();
-    void destroy_reactor_threads();
-    void destroy_reactor_processes();
-    int create_reactor_processes();
-    int create_reactor_threads();
     int start_reactor_threads();
     int start_reactor_processes();
-    int start_master_thread();
-    int start_event_worker(Worker *worker);
-    void start_heartbeat_thread();
+    int start_worker_threads();
     void join_reactor_thread();
     TimerCallback get_timeout_callback(ListenPort *port, Reactor *reactor, Connection *conn);
 

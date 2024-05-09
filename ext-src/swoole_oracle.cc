@@ -49,7 +49,8 @@ sword swoole_oci_stmt_prepare(
     OCIStmt *stmtp, OCIError *errhp, const OraText *stmt, ub4 stmt_len, ub4 language, ub4 mode) {
     swoole_trace_log(SW_TRACE_CO_ORACLE, "oci_stmt_prepare");
     sword result = 0;
-    php_swoole_async(swoole_oracle_blocking, [&]() { result = OCIStmtPrepare(stmtp, errhp, stmt, stmt_len, language, mode); });
+    php_swoole_async(swoole_oracle_blocking,
+                     [&]() { result = OCIStmtPrepare(stmtp, errhp, stmt, stmt_len, language, mode); });
 
     return result;
 }
@@ -64,7 +65,8 @@ sword swoole_oci_stmt_execute(OCISvcCtx *svchp,
                               ub4 mode) {
     swoole_trace_log(SW_TRACE_CO_ORACLE, "oci_stmt_execute");
     sword result = 0;
-    php_swoole_async(swoole_oracle_blocking, [&]() { result = OCIStmtExecute(svchp, stmtp, errhp, iters, rowoff, snap_in, snap_out, mode); });
+    php_swoole_async(swoole_oracle_blocking,
+                     [&]() { result = OCIStmtExecute(svchp, stmtp, errhp, iters, rowoff, snap_in, snap_out, mode); });
 
     return result;
 }
@@ -80,7 +82,8 @@ sword swoole_oci_stmt_fetch(OCIStmt *stmtp, OCIError *errhp, ub4 nrows, ub2 orie
 sword swoole_oci_stmt_fetch2(OCIStmt *stmtp, OCIError *errhp, ub4 nrows, ub2 orientation, sb4 scrollOffset, ub4 mode) {
     swoole_trace_log(SW_TRACE_CO_ORACLE, "oci_stmt_fetch2");
     sword result = 0;
-    php_swoole_async(swoole_oracle_blocking, [&]() { result = OCIStmtFetch2(stmtp, errhp, nrows, orientation, scrollOffset, mode); });
+    php_swoole_async(swoole_oracle_blocking,
+                     [&]() { result = OCIStmtFetch2(stmtp, errhp, nrows, orientation, scrollOffset, mode); });
 
     return result;
 }

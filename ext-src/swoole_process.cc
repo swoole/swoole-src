@@ -52,7 +52,7 @@ Worker *php_swoole_process_get_worker(zval *zobject) {
 Worker *php_swoole_process_get_and_check_worker(zval *zobject) {
     Worker *worker = php_swoole_process_get_worker(zobject);
     if (!worker) {
-        php_swoole_fatal_error(E_ERROR, "you must call Process constructor first");
+        php_swoole_fatal_error(E_ERROR, "must call constructor first");
     }
     return worker;
 }
@@ -601,10 +601,11 @@ void php_swoole_process_clean() {
             signal_fci_caches[i] = nullptr;
         }
     }
-
-    if (SwooleG.process_type != SW_PROCESS_USERWORKER) {
-        SwooleG.process_type = 0;
+#ifndef SW_THREAD
+    if (swoole_get_process_type() != SW_PROCESS_USERWORKER) {
+        swoole_set_process_type(0);
     }
+#endif
 }
 
 void php_swoole_process_rshutdown() {
@@ -644,7 +645,7 @@ int php_swoole_process_start(Worker *process, zval *zobject) {
     }
 
     php_swoole_process_clean();
-    SwooleG.process_id = process->id;
+    swoole_set_process_id(process->id);
     SwooleWG.worker = process;
 
     zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("pid"), process->pid);
@@ -699,10 +700,6 @@ static PHP_METHOD(swoole_process, read) {
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &buf_size) == FAILURE) {
         RETURN_FALSE;
-    }
-
-    if (buf_size > 65536) {
-        buf_size = 65536;
     }
 
     Worker *process = php_swoole_process_get_and_check_worker(ZEND_THIS);

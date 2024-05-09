@@ -9,7 +9,7 @@ require __DIR__ . '/../include/bootstrap.php';
 use Swoole\Coroutine;
 use Swoole\Process;
 
-ini_set('swoole.enable_coroutine', 'off');
+swoole_async_set(['enable_coroutine' => false]);
 
 $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {

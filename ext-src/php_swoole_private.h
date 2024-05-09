@@ -100,8 +100,8 @@ extern PHPAPI int php_array_merge(zend_array *dest, zend_array *src);
 #define SWOOLE_SOCKETS_SUPPORT
 #endif
 
-#if PHP_VERSION_ID < 80000
-#error "require PHP version 8.0 or later"
+#if PHP_VERSION_ID < 80100
+#error "require PHP version 8.1 or later"
 #endif
 
 #if defined(ZTS) && defined(SW_USE_THREAD_CONTEXT)
@@ -110,6 +110,10 @@ extern PHPAPI int php_array_merge(zend_array *dest, zend_array *src);
 
 #if defined(SW_USE_IOURING) && !defined(__linux__)
 #error "only linux support iouring"
+#endif
+
+#if defined(SW_THREAD) && !defined(ZTS)
+#error "swoole thread must be used with ZTS"
 #endif
 
 //--------------------------------------------------------
@@ -241,10 +245,7 @@ void php_swoole_client_minit(int module_number);
 void php_swoole_client_coro_minit(int module_number);
 void php_swoole_http_client_coro_minit(int module_number);
 void php_swoole_http2_client_coro_minit(int module_number);
-void php_swoole_mysql_coro_minit(int module_number);
-void php_swoole_redis_coro_minit(int module_number);
 #ifdef SW_USE_PGSQL
-void php_swoole_postgresql_coro_minit(int module_number);
 void php_swoole_pgsql_minit(int module_number);
 #endif
 #ifdef SW_USE_ODBC
@@ -266,6 +267,14 @@ void php_swoole_http_server_coro_minit(int module_number);
 void php_swoole_websocket_server_minit(int module_number);
 void php_swoole_redis_server_minit(int module_number);
 void php_swoole_name_resolver_minit(int module_number);
+#ifdef SW_THREAD
+void php_swoole_thread_minit(int module_number);
+void php_swoole_thread_atomic_minit(int module_number);
+void php_swoole_thread_lock_minit(int module_number);
+void php_swoole_thread_queue_minit(int module_number);
+void php_swoole_thread_map_minit(int module_number);
+void php_swoole_thread_arraylist_minit(int module_number);
+#endif
 
 /**
  * RINIT
@@ -277,6 +286,7 @@ void php_swoole_runtime_rinit();
 #ifdef SW_USE_ORACLE
 void php_swoole_oracle_rinit();
 #endif
+void php_swoole_thread_rinit();
 
 /**
  * RSHUTDOWN
@@ -290,6 +300,9 @@ void php_swoole_process_rshutdown();
 void php_swoole_coroutine_scheduler_rshutdown();
 void php_swoole_runtime_rshutdown();
 void php_swoole_server_rshutdown();
+#ifdef SW_THREAD
+void php_swoole_thread_rshutdown();
+#endif
 
 int php_swoole_reactor_init();
 void php_swoole_set_global_option(zend_array *vht);
@@ -350,12 +363,8 @@ zend_bool php_swoole_signal_isset_handler(int signo);
 #define SW_Z8_OBJ_P(zobj) Z_OBJ_P(zobj)
 
 typedef ssize_t php_stream_size_t;
-
-#if PHP_VERSION_ID < 80100
-typedef const char error_filename_t;
-#else
 typedef zend_string error_filename_t;
-#endif
+
 //----------------------------------Zval API------------------------------------
 
 // Deprecated: do not use it anymore

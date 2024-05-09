@@ -188,7 +188,6 @@ PHP_INI_BEGIN()
 /**
  * enable swoole coroutine
  */
-STD_ZEND_INI_BOOLEAN("swoole.enable_coroutine", "On", PHP_INI_ALL, OnUpdateBool, enable_coroutine, zend_swoole_globals, swoole_globals)
 STD_ZEND_INI_BOOLEAN("swoole.enable_library", "On", PHP_INI_ALL, OnUpdateBool, enable_library, zend_swoole_globals, swoole_globals)
 STD_ZEND_INI_BOOLEAN("swoole.enable_fiber_mock", "Off", PHP_INI_ALL, OnUpdateBool, enable_fiber_mock, zend_swoole_globals, swoole_globals)
 /**
@@ -211,13 +210,17 @@ PHP_INI_END()
 // clang-format on
 
 static void php_swoole_init_globals(zend_swoole_globals *swoole_globals) {
-    swoole_globals->enable_coroutine = 1;
     swoole_globals->enable_library = 1;
     swoole_globals->enable_fiber_mock = 0;
     swoole_globals->enable_preemptive_scheduler = 0;
     swoole_globals->socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
     swoole_globals->display_errors = 1;
     swoole_globals->use_shortname = 1;
+    swoole_globals->in_autoload = nullptr;
+    if (strcmp("cli", sapi_module.name) == 0 || strcmp("phpdbg", sapi_module.name) == 0 ||
+        strcmp("embed", sapi_module.name) == 0) {
+        swoole_globals->cli = 1;
+    }
 }
 
 void php_swoole_register_shutdown_function(const char *function) {
@@ -334,7 +337,7 @@ SW_API bool php_swoole_is_enable_coroutine() {
     if (sw_server()) {
         return sw_server()->is_enable_coroutine();
     } else {
-        return SWOOLE_G(enable_coroutine);
+        return SwooleG.enable_coroutine;
     }
 }
 
@@ -694,10 +697,6 @@ PHP_MINIT_FUNCTION(swoole) {
 
     // init bug report message
     bug_report_message_init();
-    if (strcmp("cli", sapi_module.name) == 0 || strcmp("phpdbg", sapi_module.name) == 0 ||
-        strcmp("embed", sapi_module.name) == 0) {
-        SWOOLE_G(cli) = 1;
-    }
 
     SW_INIT_CLASS_ENTRY_EX2(
         swoole_exception, "Swoole\\Exception", nullptr, nullptr, zend_ce_exception, zend_get_std_object_handlers());
@@ -726,8 +725,6 @@ PHP_MINIT_FUNCTION(swoole) {
     php_swoole_client_coro_minit(module_number);
     php_swoole_http_client_coro_minit(module_number);
     php_swoole_http2_client_coro_minit(module_number);
-    php_swoole_mysql_coro_minit(module_number);
-    php_swoole_redis_coro_minit(module_number);
     // server
     php_swoole_server_minit(module_number);
     php_swoole_server_port_minit(module_number);
@@ -739,19 +736,24 @@ PHP_MINIT_FUNCTION(swoole) {
     php_swoole_redis_server_minit(module_number);
     php_swoole_name_resolver_minit(module_number);
 #ifdef SW_USE_PGSQL
-    php_swoole_postgresql_coro_minit(module_number);
     php_swoole_pgsql_minit(module_number);
 #endif
 #ifdef SW_USE_ODBC
     php_swoole_odbc_minit(module_number);
 #endif
-
 #ifdef SW_USE_ORACLE
     php_swoole_oracle_minit(module_number);
 #endif
-
 #ifdef SW_USE_SQLITE
     php_swoole_sqlite_minit(module_number);
+#endif
+#ifdef SW_THREAD
+    php_swoole_thread_minit(module_number);
+    php_swoole_thread_atomic_minit(module_number);
+    php_swoole_thread_lock_minit(module_number);
+    php_swoole_thread_queue_minit(module_number);
+    php_swoole_thread_map_minit(module_number);
+    php_swoole_thread_arraylist_minit(module_number);
 #endif
 
     SwooleG.fatal_error = fatal_error;
@@ -826,6 +828,9 @@ PHP_MINFO_FUNCTION(swoole) {
 #ifdef HAVE_KQUEUE
     php_info_print_table_row(2, "kqueue", "enabled");
 #endif
+#ifdef SW_THREAD
+    php_info_print_table_row(2, "thread", "enabled");
+#endif
 #ifdef HAVE_SIGNALFD
     php_info_print_table_row(2, "signalfd", "enabled");
 #endif
@@ -894,7 +899,6 @@ PHP_MINFO_FUNCTION(swoole) {
 #ifdef SW_USE_TCMALLOC
     php_info_print_table_row(2, "tcmalloc", "enabled");
 #endif
-    php_info_print_table_row(2, "async_redis", "enabled");
 #ifdef SW_USE_PGSQL
     php_info_print_table_row(2, "coroutine_pgsql", "enabled");
 #endif
@@ -1029,6 +1033,9 @@ PHP_RINIT_FUNCTION(swoole) {
 #ifdef SW_USE_ORACLE
     php_swoole_oracle_rinit();
 #endif
+#ifdef SW_THREAD
+    php_swoole_thread_rinit();
+#endif
 
     SWOOLE_G(req_status) = PHP_SWOOLE_RINIT_END;
 
@@ -1054,6 +1061,9 @@ PHP_RSHUTDOWN_FUNCTION(swoole) {
     php_swoole_coroutine_scheduler_rshutdown();
     php_swoole_runtime_rshutdown();
     php_swoole_process_rshutdown();
+#ifdef SW_THREAD
+    php_swoole_thread_rshutdown();
+#endif
 
     SwooleG.running = 0;
     SWOOLE_G(req_status) = PHP_SWOOLE_RSHUTDOWN_END;

@@ -131,4 +131,4 @@ size_t base64_decode(const char *in, size_t inlen, char *out) {
     return j;
 }
 
-}
+}  // namespace swoole

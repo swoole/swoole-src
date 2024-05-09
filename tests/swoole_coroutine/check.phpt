@@ -80,32 +80,8 @@ $map = [
         (new Co\Http\Client('127.0.0.1', 1234))->get('/');
         Assert::assert(0); // never here
     },
-    function () {
-        (new Co\Mysql)->connect([
-            'host' => MYSQL_SERVER_HOST,
-            'port' => MYSQL_SERVER_PORT,
-            'user' => MYSQL_SERVER_USER,
-            'password' => MYSQL_SERVER_PWD,
-            'database' => MYSQL_SERVER_DB
-        ]);
-        Assert::assert(0); // never here
-    },
-    function () {
-        (new Co\Redis)->connect('127.0.0.1', 6379);
-        Assert::assert(0); // never here
-    },
 ];
 
-function pgsql_test() {
-    (new Co\Postgresql())->connect('host=127.0.0.1 port=12345 dbname=test user=root password=root');
-    Assert::assert(0); // never here
-}
-
-if (class_exists(Co\Postgresql::class)) {
-    $map[] = function () {
-        pgsql_test();
-    };
-}
 if (class_exists(Co\Http2\Client::class)) {
     $map[] = function () {
         (new Co\Http2\Client('127.0.0.1', 1234))->connect();

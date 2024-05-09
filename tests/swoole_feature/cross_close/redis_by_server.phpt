@@ -8,14 +8,16 @@ require __DIR__ . '/../../include/bootstrap.php';
 $pm = new ProcessManager();
 $pm->initRandomData(1);
 $pm->parentFunc = function () use ($pm) {
+    Swoole\Runtime::setHookFlags(SWOOLE_HOOK_ALL);
     go(function () use ($pm) {
-        $redis = new Co\Redis;
+        $redis = new \redis;
         Assert::assert($redis->connect('127.0.0.1', $pm->getFreePort()));
         echo "GET\n";
-        Assert::assert(!$redis->get($pm->getRandomData()));
-        echo "CLOSED\n";
-        Assert::same($redis->errType, SWOOLE_REDIS_ERR_EOF);
-        Assert::same($redis->errCode, SOCKET_ECONNRESET);
+        try {
+            $redis->get($pm->getRandomData());
+        } catch (\RedisException $e) {
+            echo "CLOSED\n";
+        }
         $pm->kill();
         echo "DONE\n";
     });

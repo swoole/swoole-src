@@ -60,6 +60,7 @@
 #include <memory>
 #include <list>
 #include <functional>
+#include <mutex>
 
 #ifdef SW_USE_IOURING
 #include <liburing.h>
@@ -176,6 +177,20 @@ typedef unsigned long ulong_t;
 #define SW_ASSERT_1BYTE(v)
 #endif
 #define SW_START_SLEEP usleep(100000)  // sleep 1s,wait fork and pthread_create
+
+#ifdef SW_THREAD
+#define SW_THREAD_LOCAL thread_local
+extern std::mutex sw_thread_lock;
+#else
+#define SW_THREAD_LOCAL
+#endif
+
+/**
+ * API naming rules
+ * -----------------------------------
+ * - starts with swoole_, means it is ready or has been used as an external API
+ * - starts with sw_, internal use only
+ */
 
 /*-----------------------------------Memory------------------------------------*/
 void *sw_malloc(size_t size);
@@ -320,9 +335,9 @@ static inline const char *swoole_strnstr(const char *haystack,
 }
 
 static inline const char *swoole_strncasestr(const char *haystack,
-                                         uint32_t haystack_length,
-                                         const char *needle,
-                                         uint32_t needle_length) {
+                                             uint32_t haystack_length,
+                                             const char *needle,
+                                             uint32_t needle_length) {
     assert(needle_length > 0);
     uint32_t i;
 
@@ -535,6 +550,7 @@ enum swProcessType {
     SW_PROCESS_MASTER = 1,
     SW_PROCESS_WORKER = 2,
     SW_PROCESS_MANAGER = 3,
+    SW_PROCESS_EVENTWORKER = 2,
     SW_PROCESS_TASKWORKER = 4,
     SW_PROCESS_USERWORKER = 5,
 };
@@ -567,6 +583,8 @@ void swoole_init(void);
 void swoole_clean(void);
 pid_t swoole_fork(int flags);
 pid_t swoole_fork_exec(const std::function<void(void)> &child_fn);
+void swoole_thread_init(void);
+void swoole_thread_clean(void);
 void swoole_redirect_stdout(int new_fd);
 int swoole_shell_exec(const char *command, pid_t *pid, bool get_error_stream);
 int swoole_daemon(int nochdir, int noclose);
@@ -663,6 +681,10 @@ struct RecvData {
 struct ThreadGlobal {
     uint16_t id;
     uint8_t type;
+#ifdef SW_THREAD
+    uint8_t process_type;
+    uint32_t process_id;
+#endif
     String *buffer_stack;
     Reactor *reactor;
     Timer *timer;
@@ -717,8 +739,9 @@ struct Global {
     uchar dns_lookup_random : 1;
     uchar use_async_resolver : 1;
     uchar use_name_resolver : 1;
+    uchar enable_coroutine : 1;
 
-    int process_type;
+    uint8_t process_type;
     uint32_t process_id;
     TaskId current_task_id;
     pid_t pid;
@@ -778,20 +801,56 @@ static inline void swoole_set_last_error(int error) {
     SwooleTG.error = error;
 }
 
-static inline int swoole_get_last_error() {
+static inline int swoole_get_last_error(void) {
     return SwooleTG.error;
 }
 
-static inline int swoole_get_thread_id() {
+static inline int swoole_get_thread_id(void) {
     return SwooleTG.id;
 }
 
-static inline int swoole_get_process_type() {
-    return SwooleG.process_type;
+static inline int swoole_get_thread_type(void) {
+    return SwooleTG.type;
 }
 
-static inline int swoole_get_process_id() {
+static inline void swoole_set_thread_id(uint16_t id) {
+    SwooleTG.id = id;
+}
+
+static inline void swoole_set_thread_type(uint8_t type) {
+    SwooleTG.type = type;
+}
+
+static inline swoole::WorkerId swoole_get_process_id(void) {
+#ifdef SW_THREAD
+    return SwooleTG.process_id;
+#else
     return SwooleG.process_id;
+#endif
+}
+
+static inline void swoole_set_process_id(swoole::WorkerId id) {
+#ifdef SW_THREAD
+    SwooleTG.process_id = id;
+#else
+    SwooleG.process_id = id;
+#endif
+}
+
+static inline void swoole_set_process_type(int type) {
+#ifdef SW_THREAD
+    SwooleTG.process_type = type;
+#else
+    SwooleG.process_type = type;
+#endif
+}
+
+static inline int swoole_get_process_type(void) {
+#ifdef SW_THREAD
+    return SwooleTG.process_type;
+#else
+    return SwooleG.process_type;
+#endif
 }
 
 static inline uint32_t swoole_pagesize() {
@@ -848,3 +907,4 @@ static sw_inline swoole::MemoryPool *sw_mem_pool() {
 static sw_inline const swoole::Allocator *sw_std_allocator() {
     return &SwooleG.std_allocator;
 }
+

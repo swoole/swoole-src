@@ -27,5 +27,6 @@ go(function () {
         fclose($fp1);
     }
 });
+Swoole\Runtime::enableCoroutine(0);
 ?>
 --EXPECT--

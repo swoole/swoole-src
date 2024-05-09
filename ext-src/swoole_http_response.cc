@@ -997,10 +997,10 @@ static void php_swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const 
     }
 
     char *cookie = nullptr, *date = nullptr;
-    size_t cookie_size = name_len + 1; // add 1 for null char
-    cookie_size += 50; // strlen("; expires=Fri, 31-Dec-9999 23:59:59 GMT; Max-Age=0")
+    size_t cookie_size = name_len + 1;  // add 1 for null char
+    cookie_size += 50;                  // strlen("; expires=Fri, 31-Dec-9999 23:59:59 GMT; Max-Age=0")
     if (value_len == 0) {
-        cookie_size += 8; // strlen("=deleted")
+        cookie_size += 8;  // strlen("=deleted")
     }
     if (expires > 0) {
         // Max-Age will be no longer than 12 digits since the
@@ -1008,22 +1008,22 @@ static void php_swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const 
         cookie_size += 11;
     }
     if (path_len > 0) {
-        cookie_size += path_len + 7; // strlen("; path=")
+        cookie_size += path_len + 7;  // strlen("; path=")
     }
     if (domain_len > 0) {
-        cookie_size += domain_len + 9; // strlen("; domain=")
+        cookie_size += domain_len + 9;  // strlen("; domain=")
     }
     if (secure) {
-        cookie_size += 8; // strlen("; secure")
+        cookie_size += 8;  // strlen("; secure")
     }
     if (httponly) {
-        cookie_size += 10; // strlen("; httponly")
+        cookie_size += 10;  // strlen("; httponly")
     }
     if (samesite_len > 0) {
-        cookie_size += samesite_len + 11; // strlen("; samesite=")
+        cookie_size += samesite_len + 11;  // strlen("; samesite=")
     }
     if (priority_len > 0) {
-        cookie_size += priority_len + 11; // strlen("; priority=")
+        cookie_size += priority_len + 11;  // strlen("; priority=")
     }
 
     if (value_len == 0) {

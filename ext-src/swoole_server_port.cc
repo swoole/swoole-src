@@ -154,7 +154,9 @@ const zend_function_entry swoole_server_port_methods[] =
 
 void php_swoole_server_port_minit(int module_number) {
     SW_INIT_CLASS_ENTRY(swoole_server_port, "Swoole\\Server\\Port", nullptr, swoole_server_port_methods);
+#ifndef SW_THREAD
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_server_port);
+#endif
     SW_SET_CLASS_CLONEABLE(swoole_server_port, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_server_port, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CUSTOM_OBJECT(swoole_server_port,
@@ -199,9 +201,7 @@ static ssize_t php_swoole_server_length_func(const Protocol *protocol, network::
     ssize_t ret = -1;
 
     ZVAL_STRINGL(&zdata, pl->buf, pl->buf_size);
-    HOOK_PHP_CALL_STACK(
-        auto call_result = sw_zend_call_function_ex(nullptr, fci_cache, 1, &zdata, &retval);
-    );
+    HOOK_PHP_CALL_STACK(auto call_result = sw_zend_call_function_ex(nullptr, fci_cache, 1, &zdata, &retval););
     if (UNEXPECTED(call_result) != SUCCESS) {
         php_swoole_fatal_error(E_WARNING, "length function handler error");
     } else {
@@ -622,7 +622,7 @@ static PHP_METHOD(swoole_server_port, on) {
 
     ServerPortProperty *property = php_swoole_server_port_get_and_check_property(ZEND_THIS);
     Server *serv = property->serv;
-    if (serv->is_started()) {
+    if (!serv->is_worker_thread() && serv->is_started()) {
         php_swoole_fatal_error(E_WARNING, "can't register event callback function after server started");
         RETURN_FALSE;
     }

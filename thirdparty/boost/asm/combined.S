@@ -8,6 +8,9 @@
     #elif defined(__arm64__)
         #include "make_arm64_aapcs_elf_gas.S"
         #include "jump_arm64_aapcs_elf_gas.S"
+    #elif defined(__loongarch64)
+        #include "make_loongarch64_sysv_elf_gas.S"
+        #include "jump_loongarch64_sysv_elf_gas.S"
     #else
         #error "No arch's"
     #endif

@@ -18,8 +18,44 @@
 
 namespace swoole {
 
+Factory *Server::create_base_factory() {
+    reactor_num = worker_num;
+    connection_list = (Connection *) sw_calloc(max_connection, sizeof(Connection));
+    if (connection_list == nullptr) {
+        swoole_sys_warning("calloc[2](%d) failed", (int) (max_connection * sizeof(Connection)));
+        return nullptr;
+    }
+    gs->connection_nums = (sw_atomic_t *) sw_shm_calloc(worker_num, sizeof(sw_atomic_t));
+    if (gs->connection_nums == nullptr) {
+        swoole_error("sw_shm_calloc(%ld) for gs->connection_nums failed", worker_num * sizeof(sw_atomic_t));
+        return nullptr;
+    }
+
+    for (auto port : ports) {
+        port->gs->connection_nums = (sw_atomic_t *) sw_shm_calloc(worker_num, sizeof(sw_atomic_t));
+        if (port->gs->connection_nums == nullptr) {
+            swoole_error("sw_shm_calloc(%ld) for port->connection_nums failed", worker_num * sizeof(sw_atomic_t));
+            return nullptr;
+        }
+    }
+
+    return new BaseFactory(this);
+}
+
+void Server::destroy_base_factory() {
+    sw_free(connection_list);
+    sw_shm_free((void *) gs->connection_nums);
+    for (auto port : ports) {
+        sw_shm_free((void *) port->gs->connection_nums);
+    }
+    gs->connection_nums = nullptr;
+}
+
+BaseFactory::BaseFactory(Server *server) : Factory(server) {}
+
+BaseFactory::~BaseFactory() {}
+
 bool BaseFactory::start() {
-    SwooleWG.run_always = true;
     return true;
 }
 
@@ -54,8 +90,9 @@ bool BaseFactory::dispatch(SendData *task) {
         }
     }
 
-    server_->message_bus.pass(task);
-    server_->worker_accept_event(&server_->message_bus.get_buffer()->info);
+    auto bus = server_->get_worker_message_bus();
+    bus->pass(task);
+    server_->worker_accept_event(&bus->get_buffer()->info);
 
     return true;
 }
@@ -89,7 +126,7 @@ bool BaseFactory::end(SessionId session_id, int flags) {
     _send.info.fd = session_id;
     _send.info.len = 0;
     _send.info.type = SW_SERVER_EVENT_CLOSE;
-    _send.info.reactor_id = SwooleG.process_id;
+    _send.info.reactor_id = swoole_get_process_id();
 
     Session *session = server_->get_session(session_id);
     if (!session->fd) {
@@ -100,7 +137,12 @@ bool BaseFactory::end(SessionId session_id, int flags) {
         return false;
     }
 
-    if (session->reactor_id != SwooleG.process_id) {
+    if (server_->if_forward_message(session)) {
+        swoole_trace_log(SW_TRACE_SERVER,
+                         "session_id=%ld, fd=%d, session->reactor_id=%d",
+                         session_id,
+                         session->fd,
+                         session->reactor_id);
         Worker *worker = server_->get_worker(session->reactor_id);
         if (worker->pipe_master->send_async((const char *) &_send.info, sizeof(_send.info)) < 0) {
             swoole_sys_warning("failed to send %lu bytes to pipe_master", sizeof(_send.info));
@@ -167,13 +209,17 @@ bool BaseFactory::finish(SendData *data) {
     SessionId session_id = data->info.fd;
 
     Session *session = server_->get_session(session_id);
-    if (session->reactor_id != SwooleG.process_id) {
-        swoole_trace("session->reactor_id=%d, SwooleG.process_id=%d", session->reactor_id, SwooleG.process_id);
+    if (server_->if_forward_message(session)) {
+        swoole_trace_log(SW_TRACE_SERVER,
+                         "session_id=%ld, fd=%d, session->reactor_id=%d",
+                         session_id,
+                         session->fd,
+                         session->reactor_id);
         Worker *worker = server_->gs->event_workers.get_worker(session->reactor_id);
         EventData proxy_msg{};
 
         if (data->info.type == SW_SERVER_EVENT_SEND_DATA) {
-            if (!server_->message_bus.write(worker->pipe_master, data)) {
+            if (!server_->get_worker_message_bus()->write(worker->pipe_master, data)) {
                 swoole_sys_warning("failed to send %u bytes to pipe_master", data->info.len);
                 return false;
             }
@@ -193,7 +239,5 @@ bool BaseFactory::finish(SendData *data) {
         return server_->send_to_connection(data) == SW_OK;
     }
 }
-
-BaseFactory::~BaseFactory() {}
 
 }  // namespace swoole

@@ -98,6 +98,7 @@ static ssize_t getrandom(void *buffer, size_t size, unsigned int __flags) {
 
 swoole::Global SwooleG = {};
 __thread swoole::ThreadGlobal SwooleTG = {};
+std::mutex sw_thread_lock;
 
 static std::unordered_map<std::string, void *> functions;
 static swoole::Logger *g_logger_instance = nullptr;
@@ -161,6 +162,7 @@ void swoole_init(void) {
 
     SwooleG.running = 1;
     SwooleG.init = 1;
+    SwooleG.enable_coroutine = 1;
     SwooleG.std_allocator = {malloc, calloc, realloc, free};
     SwooleG.fatal_error = swoole_fatal_error_impl;
     SwooleG.cpu_num = SW_MAX(1, sysconf(_SC_NPROCESSORS_ONLN));
@@ -428,6 +430,20 @@ pid_t swoole_fork(int flags) {
     }
 
     return pid;
+}
+
+void swoole_thread_init(void) {
+    if (!SwooleTG.buffer_stack) {
+        SwooleTG.buffer_stack = new String(SW_STACK_BUFFER_SIZE);
+    }
+    swoole_signal_block_all();
+}
+
+void swoole_thread_clean(void) {
+    if (SwooleTG.buffer_stack) {
+        delete SwooleTG.buffer_stack;
+        SwooleTG.buffer_stack = nullptr;
+    }
 }
 
 void swoole_dump_ascii(const char *data, size_t size) {

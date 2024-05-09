@@ -327,7 +327,7 @@ void StaticHandler::parse_range(const char *range, const char *if_range) {
                 }
 
                 while (*p >= '0' && *p <= '9') {
-                    if (start >= cutoff && (start > cutoff || (size_t)(*p - '0') > cutlim)) {
+                    if (start >= cutoff && (start > cutoff || (size_t) (*p - '0') > cutlim)) {
                         status_code = SW_HTTP_RANGE_NOT_SATISFIABLE;
                         return;
                     }
@@ -364,7 +364,7 @@ void StaticHandler::parse_range(const char *range, const char *if_range) {
             }
 
             while (*p >= '0' && *p <= '9') {
-                if (end >= cutoff && (end > cutoff || (size_t)(*p - '0') > cutlim)) {
+                if (end >= cutoff && (end > cutoff || (size_t) (*p - '0') > cutlim)) {
                     status_code = SW_HTTP_RANGE_NOT_SATISFIABLE;
                     return;
                 }

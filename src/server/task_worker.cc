@@ -72,7 +72,7 @@ static int TaskWorker_call_command_handler(ProcessPool *pool, EventData *req) {
 
     SendData task{};
     task.info.fd = req->info.fd;
-    task.info.reactor_id = SwooleWG.worker->id;
+    task.info.reactor_id = sw_worker()->id;
     task.info.server_fd = -1;
     task.info.type = SW_SERVER_EVENT_COMMAND_RESPONSE;
     task.info.len = result.length();
@@ -100,8 +100,8 @@ static int TaskWorker_onTask(ProcessPool *pool, EventData *task) {
 bool Server::task_pack(EventData *task, const void *_data, size_t _length) {
     task->info.type = SW_SERVER_EVENT_TASK;
     task->info.fd = SwooleG.current_task_id++;
-    task->info.reactor_id = SwooleG.process_id;
-    task->info.time = swoole::microtime();
+    task->info.reactor_id = swoole_get_process_id();
+    task->info.time = microtime();
 
     if (_length < SW_IPC_MAX_SIZE - sizeof(task->info)) {
         memcpy(task->data, _data, _length);
@@ -160,6 +160,10 @@ bool Server::task_unpack(EventData *task, String *buffer, PacketPtr *packet) {
 }
 
 static void TaskWorker_signal_init(ProcessPool *pool) {
+    Server *serv = (Server *) pool->ptr;
+    if (serv->is_thread_mode()) {
+        return;
+    }
     swoole_signal_set(SIGHUP, nullptr);
     swoole_signal_set(SIGPIPE, nullptr);
     swoole_signal_set(SIGUSR1, Server::worker_signal_handler);
@@ -172,7 +176,7 @@ static void TaskWorker_signal_init(ProcessPool *pool) {
 
 static void TaskWorker_onStart(ProcessPool *pool, Worker *worker) {
     Server *serv = (Server *) pool->ptr;
-    SwooleG.process_id = worker->id;
+    swoole_set_process_id(worker->id);
 
     /**
      * Make the task worker support asynchronous
@@ -193,8 +197,7 @@ static void TaskWorker_onStart(ProcessPool *pool, Worker *worker) {
 
     worker->start_time = ::time(nullptr);
     worker->request_count = 0;
-    SwooleWG.worker = worker;
-    SwooleWG.worker->status = SW_WORKER_IDLE;
+    worker->status = SW_WORKER_IDLE;
     /**
      * task_max_request
      */
@@ -218,7 +221,7 @@ static void TaskWorker_onStop(ProcessPool *pool, Worker *worker) {
 static int TaskWorker_onPipeReceive(Reactor *reactor, Event *event) {
     EventData task;
     ProcessPool *pool = (ProcessPool *) reactor->ptr;
-    Worker *worker = SwooleWG.worker;
+    Worker *worker = sw_worker();
     Server *serv = (Server *) pool->ptr;
 
     if (event->socket->read(&task, sizeof(task)) > 0) {

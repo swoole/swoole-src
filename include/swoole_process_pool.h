@@ -107,6 +107,7 @@ struct WorkerGlobal {
     bool shutdown;
     uint32_t max_request;
     Worker *worker;
+    Worker *worker_copy;
     time_t exit_time;
 };
 
@@ -288,6 +289,7 @@ struct ProcessPool {
     int get_max_request();
     bool detach();
     int wait();
+    int start_check();
     int start();
     void shutdown();
     bool reload();
@@ -325,5 +327,10 @@ static sw_inline int swoole_kill(pid_t __pid, int __sig) {
     return kill(__pid, __sig);
 }
 
-extern swoole::WorkerGlobal SwooleWG;  // Worker Global Variable
 typedef swoole::ProtocolType swProtocolType;
+
+extern SW_THREAD_LOCAL swoole::WorkerGlobal SwooleWG;
+
+static inline swoole::Worker *sw_worker() {
+    return SwooleWG.worker;
+}
