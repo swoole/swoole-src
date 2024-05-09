@@ -505,7 +505,7 @@ static PHP_METHOD(swoole_client_coro, peek) {
 
     CLIENT_CORO_GET_SOCKET_SAFE(cli);
 
-    buf = (char *) emalloc(buf_len + 1);
+    buf = (char *) emalloc((size_t)buf_len + 1);
     ret = cli->peek(buf, buf_len);
     if (ret < 0) {
         php_swoole_socket_set_error_properties(ZEND_THIS, cli);
