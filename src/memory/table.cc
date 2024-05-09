@@ -189,7 +189,6 @@ void Table::destroy() {
 void TableRow::lock() {
     sw_atomic_t *lock = &lock_;
     uint32_t i, n;
-    long t = 0;
 
     while (1) {
         if (*lock == 0 && sw_atomic_cmp_set(lock, 0, 1)) {
@@ -215,22 +214,6 @@ void TableRow::lock() {
         if (kill(lock_pid, 0) < 0 && errno == ESRCH) {
             *lock = 1;
             swoole_warning("lock process[%d] not exists, force unlock", lock_pid);
-            goto _success;
-        }
-        /**
-         * Mark time
-         */
-        if (t == 0) {
-            t = swoole::time<std::chrono::milliseconds>(true);
-        }
-        /**
-         * The deadlock time exceeds 2 seconds (SW_TABLE_FORCE_UNLOCK_TIME),
-         * indicating that the lock process has OOM,
-         * and the PID has been reused, forcing the unlock
-         */
-        else if ((swoole::time<std::chrono::milliseconds>(true) - t) > SW_TABLE_FORCE_UNLOCK_TIME) {
-            *lock = 1;
-            swoole_warning("timeout, force unlock");
             goto _success;
         }
         sw_yield();
