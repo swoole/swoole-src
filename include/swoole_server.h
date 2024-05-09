@@ -464,10 +464,10 @@ class ThreadFactory : public BaseFactory {
   public:
     ThreadFactory(Server *server);
     ~ThreadFactory();
-    void spawn_event_worker(int i);
-    void spawn_task_worker(int i);
-    void spawn_user_worker(int i);
-    void spawn_manager_thread(int i);
+    void spawn_event_worker(WorkerId i);
+    void spawn_task_worker(WorkerId i);
+    void spawn_user_worker(WorkerId i);
+    void spawn_manager_thread(WorkerId i);
     void wait();
     bool start() override;
     bool shutdown() override;

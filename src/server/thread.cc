@@ -82,7 +82,7 @@ void ThreadFactory::create_thread(int i, _Callable fn) {
     threads_[i] = std::thread(fn);
 }
 
-void ThreadFactory::spawn_event_worker(int i) {
+void ThreadFactory::spawn_event_worker(WorkerId i) {
     create_thread(i, [=]() {
         swoole_set_process_type(SW_PROCESS_EVENTWORKER);
         swoole_set_thread_type(Server::THREAD_WORKER);
@@ -96,7 +96,7 @@ void ThreadFactory::spawn_event_worker(int i) {
     });
 }
 
-void ThreadFactory::spawn_task_worker(int i) {
+void ThreadFactory::spawn_task_worker(WorkerId i) {
     create_thread(i, [=]() {
         swoole_set_process_type(SW_PROCESS_TASKWORKER);
         swoole_set_thread_type(Server::THREAD_WORKER);
@@ -120,7 +120,7 @@ void ThreadFactory::spawn_task_worker(int i) {
     });
 }
 
-void ThreadFactory::spawn_user_worker(int i) {
+void ThreadFactory::spawn_user_worker(WorkerId i) {
     create_thread(i, [=]() {
         Worker *worker = server_->user_worker_list.at(i - server_->task_worker_num - server_->worker_num);
         swoole_set_process_type(SW_PROCESS_USERWORKER);
@@ -134,7 +134,7 @@ void ThreadFactory::spawn_user_worker(int i) {
     });
 }
 
-void ThreadFactory::spawn_manager_thread(int i) {
+void ThreadFactory::spawn_manager_thread(WorkerId i) {
     create_thread(i, [=]() {
         swoole_set_process_type(SW_PROCESS_MANAGER);
         swoole_set_thread_type(Server::THREAD_WORKER);
