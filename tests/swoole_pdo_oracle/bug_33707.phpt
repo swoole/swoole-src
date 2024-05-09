@@ -31,6 +31,6 @@ array(3) {
   int(942)
   [2]=>
   string(%d) "OCIStmtExecute: ORA-00942: table or view does not exist
- Help: %s
+Help: %s
  (%s:%d)"
 }
