@@ -110,7 +110,7 @@ int Protocol::recv_with_length_protocol(network::Socket *socket, String *buffer)
     PacketLength pl{};
     ssize_t package_length;
     uint8_t _package_length_size = get_package_length_size ? get_package_length_size(socket) : package_length_size;
-    uint32_t recv_size;
+    uint32_t recv_size = 0;
     ssize_t recv_n = 0;
 
     // protocol error

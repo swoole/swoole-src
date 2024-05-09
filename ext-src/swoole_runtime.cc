@@ -1098,7 +1098,7 @@ static php_stream *socket_create(const char *proto,
 
     stream = php_stream_alloc_rel(&socket_ops, abstract, persistent_id, "r+");
     if (stream == nullptr) {
-        pefree(abstract, persistent_id ? 1 : 0);
+        delete abstract;
         goto _failed;
     }
 
