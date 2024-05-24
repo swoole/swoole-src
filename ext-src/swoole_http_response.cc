@@ -972,7 +972,8 @@ static void php_swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const 
         RETURN_FALSE;
     }
 
-    char *cookie = nullptr, *date = nullptr;
+    char *cookie = nullptr;
+    zend_string *date = nullptr;
     size_t cookie_size = name_len + 1;  // add 1 for null char
     cookie_size += 50;                  // strlen("; expires=Fri, 31-Dec-9999 23:59:59 GMT; Max-Age=0")
     if (value_len == 0) {
