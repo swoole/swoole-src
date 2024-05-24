@@ -19,21 +19,6 @@
 
 #include "swoole_coroutine_c_api.h"
 
-#ifdef SW_USE_IOURING
-#define open(pathname, flags, mode) swoole_coroutine_iouring_open(pathname, flags, mode)
-#define close_file(fd)  swoole_coroutine_iouring_close_file(fd)
-#define read(fd, buf, count) swoole_coroutine_iouring_read(fd, buf, count)
-#define write(fd, buf, count) swoole_coroutine_iouring_write(fd, buf, count)
-#define rename(oldpath, newpath) swoole_coroutine_iouring_rename(oldpath, newpath)
-#define mkdir(pathname, mode) swoole_coroutine_iouring_mkdir(pathname, mode)
-#define unlink(pathname) swoole_coroutine_iouring_unlink(pathname)
-#define fstat(fd, statbuf) swoole_coroutine_iouring_fstat(fd, statbuf)
-#define stat(path, statbuf) swoole_coroutine_iouring_stat(path, statbuf)
-#define lstat(path, statbuf) swoole_coroutine_iouring_lstat(path, statbuf)
-#define rmdir(pathname) swoole_coroutine_iouring_rmdir(pathname)
-#define fsync(fd) swoole_coroutine_iouring_fsync(fd)
-#define fdatasync(fd) swoole_coroutine_iouring_fdatasync(fd)
-#else
 #define open(pathname, flags, mode) swoole_coroutine_open(pathname, flags, mode)
 #define close_file(fd)  swoole_coroutine_close_file(fd)
 #define read(fd, buf, count) swoole_coroutine_read(fd, buf, count)
@@ -49,7 +34,6 @@
 #define rename(oldpath, newpath) swoole_coroutine_rename(oldpath, newpath)
 #define fsync(fd) swoole_coroutine_fsync(fd)
 #define fdatasync(fd) swoole_coroutine_fdatasync(fd)
-#endif
 
 #define access(pathname, mode) swoole_coroutine_access(pathname, mode)
 #define fopen(pathname, mode)  swoole_coroutine_fopen(pathname, mode)

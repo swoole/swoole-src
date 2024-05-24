@@ -61,10 +61,6 @@
 #include <list>
 #include <functional>
 
-#ifdef SW_USE_IOURING
-#include <liburing.h>
-#endif
-
 typedef unsigned long ulong_t;
 
 #ifndef PRId64
@@ -204,9 +200,6 @@ struct Socket;
 struct Address;
 }  // namespace network
 class AsyncThreads;
-#ifdef SW_USE_IOURING
-class AsyncIouring;
-#endif
 namespace async {
 class ThreadPool;
 }
@@ -667,9 +660,6 @@ struct ThreadGlobal {
     Reactor *reactor;
     Timer *timer;
     AsyncThreads *async_threads;
-#ifdef SW_USE_IOURING
-    AsyncIouring *async_iouring;
-#endif
     uint32_t signal_listener_num;
     uint32_t co_signal_listener_num;
     int error;
@@ -750,9 +740,6 @@ struct Global {
     //-----------------------[AIO]--------------------------
     uint32_t aio_core_worker_num;
     uint32_t aio_worker_num;
-#ifdef SW_USE_IOURING
-    uint32_t iouring_entries;
-#endif
     double aio_max_wait_time;
     double aio_max_idle_time;
     network::Socket *aio_default_socket;
