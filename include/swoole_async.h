@@ -22,7 +22,6 @@
 #include <string>
 #include <mutex>
 #include <atomic>
-#include <queue>
 
 #ifndef O_DIRECT
 #define O_DIRECT 040000
@@ -38,7 +37,6 @@ enum AsyncFlag {
 struct AsyncEvent {
     size_t task_id;
     uint8_t canceled;
-    int error;
     /**
      * input & output
      */
@@ -47,6 +45,7 @@ struct AsyncEvent {
      * output
      */
     ssize_t retval;
+    int error;
     /**
      * internal use only
      */

@@ -412,10 +412,6 @@ enum swFdType {
     SW_FD_DNS_RESOLVER,
     SW_FD_CARES,
     /**
-     * io_uring
-     */
-    SW_FD_IOURING,
-    /**
      * SW_FD_USER or SW_FD_USER+n: for custom event
      */
     SW_FD_USER = 16,
