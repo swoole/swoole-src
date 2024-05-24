@@ -441,6 +441,13 @@ bool Socket::set_timeout(double timeout) {
     return set_recv_timeout(timeout) and set_send_timeout(timeout);
 }
 
+Socket *Socket::dup() {
+    Socket *_socket = new Socket();
+    *_socket = *this;
+    _socket->fd = ::dup(fd);
+    return _socket;
+}
+
 static bool _set_timeout(int fd, int type, double timeout) {
     int ret;
     struct timeval timeo;
@@ -1343,8 +1350,7 @@ ssize_t Socket::ssl_recv(void *__buf, size_t __n) {
             return SW_ERR;
 
         case SSL_ERROR_SYSCALL:
-            errno = SW_ERROR_SSL_RESET;
-            return SW_ERR;
+            return errno == 0 ? 0 : SW_ERR;
 
         case SSL_ERROR_SSL:
             ssl_catch_error();

@@ -135,7 +135,7 @@ class Coroutine {
         return ctx;
     }
 
-    static std::unordered_map<long, Coroutine *> coroutines;
+    static SW_THREAD_LOCAL std::unordered_map<long, Coroutine *> coroutines;
 
     static void set_on_yield(SwapCallback func);
     static void set_on_resume(SwapCallback func);
@@ -161,12 +161,6 @@ class Coroutine {
 #else
         return (new Coroutine(fn, args))->run();
 #endif
-    }
-
-    static inline Coroutine *init_main_coroutine() {
-        Coroutine *co = new Coroutine(0, nullptr, nullptr);
-        co->state = STATE_RUNNING;
-        return co;
     }
 
     static void activate();
@@ -245,15 +239,15 @@ class Coroutine {
     static void print_list();
 
   protected:
-    static Coroutine *current;
-    static long last_cid;
-    static uint64_t peak_num;
-    static size_t stack_size;
-    static SwapCallback on_yield;      /* before yield */
-    static SwapCallback on_resume;     /* before resume */
-    static SwapCallback on_close;      /* before close */
-    static BailoutCallback on_bailout; /* when bailout */
-    static bool activated;
+    static SW_THREAD_LOCAL Coroutine *current;
+    static SW_THREAD_LOCAL long last_cid;
+    static SW_THREAD_LOCAL uint64_t peak_num;
+    static SW_THREAD_LOCAL size_t stack_size;
+    static SW_THREAD_LOCAL SwapCallback on_yield;      /* before yield */
+    static SW_THREAD_LOCAL SwapCallback on_resume;     /* before resume */
+    static SW_THREAD_LOCAL SwapCallback on_close;      /* before close */
+    static SW_THREAD_LOCAL BailoutCallback on_bailout; /* when bailout */
+    static SW_THREAD_LOCAL bool activated;
 
     enum State state = STATE_INIT;
     enum ResumeCode resume_code_ = RC_OK;

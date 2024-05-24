@@ -17,6 +17,8 @@
  */
 
 #include "php_swoole_cxx.h"
+#include "php_swoole_thread.h"
+
 #include "swoole_string.h"
 #include "swoole_socket.h"
 #include "swoole_util.h"
@@ -87,6 +89,9 @@ static PHP_METHOD(swoole_socket_coro, getsockname);
 static PHP_METHOD(swoole_socket_coro, getpeername);
 static PHP_METHOD(swoole_socket_coro, isClosed);
 static PHP_METHOD(swoole_socket_coro, import);
+#ifdef SW_THREAD
+static PHP_METHOD(swoole_socket_coro, __wakeup);
+#endif
 SW_EXTERN_C_END
 
 // clang-format off
@@ -127,6 +132,9 @@ static const zend_function_entry swoole_socket_coro_methods[] =
     PHP_ME(swoole_socket_coro, getsockname,   arginfo_class_Swoole_Coroutine_Socket_getsockname,     ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, isClosed,      arginfo_class_Swoole_Coroutine_Socket_isClosed,        ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, import,        arginfo_class_Swoole_Coroutine_Socket_import,          ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+#ifdef SW_THREAD
+    PHP_ME(swoole_socket_coro, __wakeup,      arginfo_class_Swoole_Coroutine_Socket___wakeup,        ZEND_ACC_PUBLIC)
+#endif
     PHP_FE_END
 };
 // clang-format on
@@ -712,16 +720,18 @@ static void socket_coro_register_constants(int module_number) {
 
 void php_swoole_socket_coro_minit(int module_number) {
     SW_INIT_CLASS_ENTRY(swoole_socket_coro, "Swoole\\Coroutine\\Socket", "Co\\Socket", swoole_socket_coro_methods);
+#ifndef SW_THREAD
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_socket_coro);
+#endif
     SW_SET_CLASS_CLONEABLE(swoole_socket_coro, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_socket_coro, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CUSTOM_OBJECT(
         swoole_socket_coro, socket_coro_create_object, socket_coro_free_object, SocketObject, std);
 
-    zend_declare_property_long(swoole_socket_coro_ce, ZEND_STRL("fd"), -1, ZEND_ACC_PUBLIC);
-    zend_declare_property_long(swoole_socket_coro_ce, ZEND_STRL("domain"), 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_long(swoole_socket_coro_ce, ZEND_STRL("type"), 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_long(swoole_socket_coro_ce, ZEND_STRL("protocol"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_socket_coro_ce, ZEND_STRL("fd"), -1, ZEND_ACC_PUBLIC | ZEND_ACC_READONLY);
+    zend_declare_property_long(swoole_socket_coro_ce, ZEND_STRL("domain"), 0, ZEND_ACC_PUBLIC | ZEND_ACC_READONLY);
+    zend_declare_property_long(swoole_socket_coro_ce, ZEND_STRL("type"), 0, ZEND_ACC_PUBLIC | ZEND_ACC_READONLY);
+    zend_declare_property_long(swoole_socket_coro_ce, ZEND_STRL("protocol"), 0, ZEND_ACC_PUBLIC | ZEND_ACC_READONLY);
     zend_declare_property_long(swoole_socket_coro_ce, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_string(swoole_socket_coro_ce, ZEND_STRL("errMsg"), "", ZEND_ACC_PUBLIC);
 
@@ -2167,20 +2177,20 @@ static PHP_METHOD(swoole_socket_coro, import) {
     }
 
     int sock_domain = AF_INET, sock_type = SOCK_STREAM;
-	php_sockaddr_storage addr;
-	socklen_t addr_len = sizeof(addr);
+    php_sockaddr_storage addr;
+    socklen_t addr_len = sizeof(addr);
 
 #ifdef SO_DOMAIN
     socklen_t sock_domain_len = sizeof(sock_domain);
     if (getsockopt(socket_fd, SOL_SOCKET, SO_DOMAIN, &sock_domain, &sock_domain_len) == 0) {
     } else
 #endif
-    if (getsockname(socket_fd, (struct sockaddr*)&addr, &addr_len) == 0) {
-		sock_domain = addr.ss_family;
-	} else {
+        if (getsockname(socket_fd, (struct sockaddr *) &addr, &addr_len) == 0) {
+        sock_domain = addr.ss_family;
+    } else {
         php_swoole_sys_error(E_WARNING, "getsockname() failed");
         RETURN_FALSE;
-	}
+    }
 
 #ifdef SO_TYPE
     socklen_t sock_type_len = sizeof(sock_type);
@@ -2207,3 +2217,31 @@ static PHP_METHOD(swoole_socket_coro, import) {
 
     RETURN_OBJ(object);
 }
+
+#ifdef SW_THREAD
+static PHP_METHOD(swoole_socket_coro, __wakeup) {
+    zend_long sockfd = zend::object_get_long(ZEND_THIS, ZEND_STRL("fd"));
+    if (sockfd < 0) {
+        zend_throw_exception(swoole_exception_ce, EMSG_NO_RESOURCE, ECODE_NO_RESOURCE);
+        return;
+    }
+
+    zend_long new_sockfd = dup(sockfd);
+    if (sockfd < 0) {
+        zend_throw_exception(swoole_exception_ce, EMSG_NO_RESOURCE, ECODE_NO_RESOURCE);
+        return;
+    }
+
+    SocketObject *sock = (SocketObject *) socket_coro_fetch_object(Z_OBJ_P(ZEND_THIS));
+
+    zend_long domain = zend::object_get_long(ZEND_THIS, ZEND_STRL("domain"));
+    zend_long type = zend::object_get_long(ZEND_THIS, ZEND_STRL("type"));
+    zend_long protocol = zend::object_get_long(ZEND_THIS, ZEND_STRL("protocol"));
+
+    php_swoole_check_reactor();
+    sock->socket = new Socket((int) new_sockfd, (int) domain, (int) type, (int) protocol);
+    sock->socket->set_zero_copy(true);
+    sock->socket->set_buffer_allocator(sw_zend_string_allocator());
+    zend_update_property_long(swoole_socket_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("fd"), sock->socket->get_fd());
+}
+#endif

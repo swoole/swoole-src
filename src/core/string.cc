@@ -180,7 +180,12 @@ ssize_t String::split(const char *delimiter, size_t delimiter_length, const Stri
     off_t _offset = offset;
     size_t ret;
 
-    swoole_trace_log(SW_TRACE_EOF_PROTOCOL, "#[0] count=%d, length=%ld, size=%ld, offset=%jd", count, length, size, (intmax_t) offset);
+    swoole_trace_log(SW_TRACE_EOF_PROTOCOL,
+                     "#[0] count=%d, length=%ld, size=%ld, offset=%jd",
+                     count,
+                     length,
+                     size,
+                     (intmax_t) offset);
 
     while (delimiter_addr) {
         size_t _length = delimiter_addr - start_addr + delimiter_length;
@@ -207,9 +212,11 @@ ssize_t String::split(const char *delimiter, size_t delimiter_length, const Stri
 
     ret = start_addr - str - _offset;
     if (ret > 0 && ret < length) {
-        swoole_trace_log(SW_TRACE_EOF_PROTOCOL, "#[5] count=%d, remaining_length=%zu", count, (size_t) (length - offset));
+        swoole_trace_log(
+            SW_TRACE_EOF_PROTOCOL, "#[5] count=%d, remaining_length=%zu", count, (size_t) (length - offset));
     } else if (ret >= length) {
-        swoole_trace_log(SW_TRACE_EOF_PROTOCOL, "#[3] length=%ld, size=%zu, offset=%jd", length, size, (intmax_t) offset);
+        swoole_trace_log(
+            SW_TRACE_EOF_PROTOCOL, "#[3] length=%ld, size=%zu, offset=%jd", length, size, (intmax_t) offset);
     }
 
     return ret;

@@ -101,6 +101,8 @@ PGconn *swoole_pgsql_connectdb(const char *conninfo) {
             event = SW_EVENT_WRITE;
             break;
         default:
+            // should not be here including PGRES_POLLING_ACTIVE
+            abort();
             break;
         }
 
@@ -188,7 +190,8 @@ void swoole_pgsql_set_blocking(bool blocking) {
 }
 
 void php_swoole_pgsql_minit(int module_id) {
-    if (zend_hash_str_find(&php_pdo_get_dbh_ce()->constants_table, ZEND_STRL("PGSQL_ATTR_DISABLE_PREPARES")) == nullptr) {
+    if (zend_hash_str_find(&php_pdo_get_dbh_ce()->constants_table, ZEND_STRL("PGSQL_ATTR_DISABLE_PREPARES")) ==
+        nullptr) {
         REGISTER_PDO_CLASS_CONST_LONG("PGSQL_ATTR_DISABLE_PREPARES", PDO_PGSQL_ATTR_DISABLE_PREPARES);
         REGISTER_PDO_CLASS_CONST_LONG("PGSQL_TRANSACTION_IDLE", (zend_long) PGSQL_TRANSACTION_IDLE);
         REGISTER_PDO_CLASS_CONST_LONG("PGSQL_TRANSACTION_ACTIVE", (zend_long) PGSQL_TRANSACTION_ACTIVE);

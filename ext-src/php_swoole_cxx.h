@@ -145,6 +145,7 @@ SW_API php_stream *php_swoole_create_stream_from_socket(php_socket_t _fd,
                                                         int domain,
                                                         int type,
                                                         int protocol STREAMS_DC);
+SW_API php_stream *php_swoole_create_stream_from_pipe(int fd, const char *mode, const char *persistent_id STREAMS_DC);
 SW_API php_stream_ops *php_swoole_get_ori_php_stream_stdio_ops();
 SW_API void php_swoole_register_rshutdown_callback(swoole::Callback cb, void *private_data);
 
@@ -637,8 +638,40 @@ static inline void array_add(zval *arg, zval *zvalue) {
     add_next_index_zval(arg, zvalue);
 }
 
+/**
+ * return reference
+ */
+static inline zval *array_get(zval *arg, const char *key, size_t l_key) {
+    return zend_hash_str_find(Z_ARRVAL_P(arg), key, l_key);
+}
+
 static inline void array_unset(zval *arg, const char *key, size_t l_key) {
     zend_hash_str_del(Z_ARRVAL_P(arg), key, l_key);
+}
+
+static inline zend_long object_get_long(zval *obj, const char *key, size_t l_key) {
+    static zval rv;
+    zval *property = zend_read_property(Z_OBJCE_P(obj), Z_OBJ_P(obj), key, l_key, 1, &rv);
+    return property ? zval_get_long(property) : 0;
+}
+
+static inline zend_long object_get_long(zend_object *obj, const char *key, size_t l_key) {
+    static zval rv;
+    zval *property = zend_read_property(obj->ce, obj, key, l_key, 1, &rv);
+    return property ? zval_get_long(property) : 0;
+}
+
+static inline void object_set(zval *obj, const char *name, size_t l_name, zval *zvalue) {
+    zend_update_property(Z_OBJCE_P(obj), Z_OBJ_P(obj), name, l_name, zvalue);
+}
+
+static inline void object_set(zval *obj, const char *name, size_t l_name, const char *value) {
+    zend_update_property_string(Z_OBJCE_P(obj), Z_OBJ_P(obj), name, l_name, value);
+}
+
+static inline zval *object_get(zval *obj, const char *name, size_t l_name) {
+    static zval rv;
+    return zend_read_property(Z_OBJCE_P(obj), Z_OBJ_P(obj), name, l_name, 1, &rv);
 }
 
 //-----------------------------------namespace end--------------------------------------------

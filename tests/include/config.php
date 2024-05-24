@@ -15,7 +15,6 @@ define('IS_IN_CI', file_exists('/.cienv'));
 define('IS_PHPTESTSING', !!getenv('PHPT'));
 define('USE_VALGRIND', getenv('USE_ZEND_ALLOC') === '0');
 define('HAS_SSL', defined("SWOOLE_SSL"));
-define('HAS_ASYNC_REDIS', class_exists("Swoole\\Redis", false));
 define('HAS_HTTP2', class_exists("Swoole\\Http2\\Request", false));
 define('DEV_NULL', '/dev/null');
 
@@ -146,6 +145,14 @@ if (IS_IN_CI) {
         'class' => Swoole\NameResolver\Consul::class,
         'server_url' => 'http://127.0.0.1:8500',
     ]);
+}
+
+if (IS_IN_CI) {
+    define('TEST_DOMAIN_1', 'www.google.com');
+    define('TEST_DOMAIN_2', 'www.yahoo.com');
+} else {
+    define('TEST_DOMAIN_1', 'www.baidu.com');
+    define('TEST_DOMAIN_2', 'www.qq.com');
 }
 
 /** =============== IP ================ */

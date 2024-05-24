@@ -18,8 +18,7 @@
 #include "swoole_socket.h"
 
 namespace swoole {
-UnixSocket::UnixSocket(bool blocking, int _protocol) :
-        SocketPair(blocking), protocol_(_protocol) {
+UnixSocket::UnixSocket(bool blocking, int _protocol) : SocketPair(blocking), protocol_(_protocol) {
     if (socketpair(AF_UNIX, protocol_, 0, socks) < 0) {
         swoole_sys_warning("socketpair() failed");
         return;
@@ -39,4 +38,4 @@ bool UnixSocket::set_buffer_size(size_t _size) {
     }
     return true;
 }
-}
+}  // namespace swoole

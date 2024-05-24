@@ -113,7 +113,7 @@ static void client_coro_free_object(zend_object *object) {
 }
 
 #define CLIENT_CORO_GET_SOCKET_SAFE(__sock)                                                                            \
-    SW_CLIENT_GET_SOCKET_SAFE(__sock, &client_coro_get_client(ZEND_THIS)->zsocket);                                                                      \
+    SW_CLIENT_GET_SOCKET_SAFE(__sock, &client_coro_get_client(ZEND_THIS)->zsocket);                                    \
     if (!__sock) {                                                                                                     \
         php_swoole_socket_set_error_properties(                                                                        \
             ZEND_THIS, SW_ERROR_CLIENT_NO_CONNECTION, swoole_strerror(SW_ERROR_CLIENT_NO_CONNECTION));                 \
@@ -505,7 +505,7 @@ static PHP_METHOD(swoole_client_coro, peek) {
 
     CLIENT_CORO_GET_SOCKET_SAFE(cli);
 
-    buf = (char *) emalloc(buf_len + 1);
+    buf = (char *) emalloc((size_t)buf_len + 1);
     ret = cli->peek(buf, buf_len);
     if (ret < 0) {
         php_swoole_socket_set_error_properties(ZEND_THIS, cli);

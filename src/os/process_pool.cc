@@ -25,6 +25,8 @@
 #include "swoole_process_pool.h"
 #include "swoole_client.h"
 
+SW_THREAD_LOCAL swoole::WorkerGlobal SwooleWG = {};
+
 namespace swoole {
 
 using network::Socket;
@@ -220,26 +222,22 @@ void ProcessPool::set_protocol(enum ProtocolType _protocol_type) {
     protocol_type_ = _protocol_type;
 }
 
-/**
- * start workers
- */
-int ProcessPool::start() {
+int ProcessPool::start_check() {
     if (ipc_mode == SW_IPC_SOCKET && (stream_info_ == nullptr || stream_info_->socket == 0)) {
         swoole_warning("must first listen to an tcp port");
         return SW_ERR;
     }
 
-    uint32_t i;
     running = started = true;
     master_pid = getpid();
     reload_workers = new Worker[worker_num]();
-    SwooleG.process_type = SW_PROCESS_MASTER;
+    swoole_set_process_type(SW_PROCESS_MASTER);
 
     if (async) {
         main_loop = ProcessPool_worker_loop_async;
     }
 
-    for (i = 0; i < worker_num; i++) {
+    SW_LOOP_N(worker_num) {
         workers[i].pool = this;
         workers[i].id = start_id + i;
         workers[i].type = type;
@@ -251,12 +249,21 @@ int ProcessPool::start() {
         }
     }
 
-    for (i = 0; i < worker_num; i++) {
+    return SW_OK;
+}
+
+/**
+ * start workers
+ */
+int ProcessPool::start() {
+    if (start_check() < 0) {
+        return SW_ERR;
+    }
+    SW_LOOP_N(worker_num) {
         if (spawn(&(workers[i])) < 0) {
             return SW_ERR;
         }
     }
-
     return SW_OK;
 }
 
@@ -458,8 +465,9 @@ pid_t ProcessPool::spawn(Worker *worker) {
     // child
     case 0:
         worker->pid = SwooleG.pid;
-        SwooleG.process_id = worker->id;
-        SwooleG.process_type = SW_PROCESS_WORKER;
+        swoole_set_process_type(SW_PROCESS_WORKER);
+        swoole_set_process_id(worker->id);
+        SwooleWG.worker = worker;
         if (async) {
             if (swoole_event_init(SW_EVENTLOOP_WAIT_EXIT) < 0) {
                 exit(254);
@@ -581,7 +589,7 @@ static int ProcessPool_worker_loop_with_task_protocol(ProcessPool *pool, Worker 
             continue;
         }
 
-        if (n != (ssize_t)(out.buf.info.len + sizeof(out.buf.info))) {
+        if (n != (ssize_t) (out.buf.info.len + sizeof(out.buf.info))) {
             swoole_warning("bad task packet, The received data-length[%ld] is inconsistent with the packet-length[%ld]",
                            n,
                            out.buf.info.len + sizeof(out.buf.info));
@@ -811,7 +819,7 @@ bool ProcessPool::detach() {
 
     WorkerStopMessage msg;
     msg.pid = getpid();
-    msg.worker_id = SwooleG.process_id;
+    msg.worker_id = swoole_get_process_id();
 
     if (push_message(SW_WORKER_MESSAGE_STOP, &msg, sizeof(msg)) < 0) {
         return false;

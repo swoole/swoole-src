@@ -24,7 +24,7 @@ $pm->parentFunc = function ($pid) use ($port, $pkg, $pm) {
     $client->send("recv\r\n\r\n");
     $recvPkg = $client->recv();
     Assert::assert($recvPkg != false);
-    $_pkg = unserialize($recvPkg);
+    $_pkg = swoole_substr_unserialize($recvPkg, 0, strlen($recvPkg) - 4);
     Assert::assert(is_array($_pkg));
     Assert::eq($_pkg['data'], $pkg);
     $recvPkg = $client->recv();

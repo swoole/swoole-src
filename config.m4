@@ -111,6 +111,11 @@ PHP_ARG_ENABLE([thread-context],
   [AS_HELP_STRING([--enable-thread-context],
     [Use thread context])], [no], [no])
 
+PHP_ARG_ENABLE([swoole-thread],
+  [whether to enable swoole thread support],
+  [AS_HELP_STRING([--enable-swoole-thread],
+    [Enable swoole thread support])], [no], [no])
+
 PHP_ARG_ENABLE([swoole-coro-time],
   [whether to enable coroutine execution time ],
   [AS_HELP_STRING([--enable-swoole-coro-time],
@@ -877,6 +882,10 @@ EOF
         AC_DEFINE(SW_LOG_TRACE_OPEN, 1, [enable trace log])
     fi
 
+    if test "$PHP_SWOOLE_THREAD" != "no"; then
+        AC_DEFINE(SW_THREAD, 1, [enable swoole thread support])
+    fi
+
     if test "$PHP_SOCKETS" = "yes"; then
         AC_MSG_CHECKING([for php_sockets.h])
 
@@ -1025,13 +1034,6 @@ EOF
         thirdparty/swoole_http_parser.c \
         thirdparty/multipart_parser.c"
 
-    swoole_source_file="$swoole_source_file \
-        thirdparty/hiredis/hiredis.c \
-        thirdparty/hiredis/alloc.c \
-        thirdparty/hiredis/net.c \
-        thirdparty/hiredis/read.c \
-        thirdparty/hiredis/sds.c"
-
     if test "$PHP_NGHTTP2_DIR" = "no"; then
         PHP_ADD_INCLUDE([$ext_srcdir/thirdparty])
 	    swoole_source_file="$swoole_source_file \
@@ -1073,7 +1075,9 @@ EOF
             thirdparty/php80/pdo_sqlite/sqlite_driver.c \
             thirdparty/php80/pdo_sqlite/sqlite_statement.c \
             thirdparty/php81/pdo_sqlite/sqlite_driver.c \
-            thirdparty/php81/pdo_sqlite/sqlite_statement.c"
+            thirdparty/php81/pdo_sqlite/sqlite_statement.c \
+            thirdparty/php83/pdo_sqlite/sqlite_driver.c \
+            thirdparty/php83/pdo_sqlite/sqlite_statement.c"
     fi
 
     SW_ASM_DIR="thirdparty/boost/asm/"
@@ -1090,6 +1094,7 @@ EOF
       [mips64*], [SW_CPU="mips64"],
       [mips*], [SW_CPU="mips32"],
       [riscv64*], [SW_CPU="riscv64"],
+      [loongarch64*], [SW_CPU="loongarch64"],
       [
         SW_USE_ASM_CONTEXT="no"
       ]
@@ -1151,6 +1156,12 @@ EOF
         else
             SW_USE_ASM_CONTEXT="no"
         fi
+    elif test "$SW_CPU" = "loongarch64"; then
+        if test "$SW_OS" = "LINUX"; then
+           SW_CONTEXT_ASM_FILE="loongarch64_sysv_elf_gas.S"
+        else
+            SW_USE_ASM_CONTEXT="no"
+        fi
     else
         SW_USE_ASM_CONTEXT="no"
     fi
@@ -1175,7 +1186,6 @@ EOF
     PHP_ADD_INCLUDE([$ext_srcdir/include])
     PHP_ADD_INCLUDE([$ext_srcdir/ext-src])
     PHP_ADD_INCLUDE([$ext_srcdir/thirdparty])
-    PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/hiredis])
 
     AC_MSG_CHECKING([swoole coverage])
     if test "$PHP_SWOOLE_COVERAGE" != "no"; then
@@ -1190,8 +1200,7 @@ EOF
         include/*.h \
         stubs/*.h \
         thirdparty/*.h \
-        thirdparty/nghttp2/*.h \
-        thirdparty/hiredis/*.h])
+        thirdparty/nghttp2/*.h])
 
     PHP_REQUIRE_CXX()
 
@@ -1220,10 +1229,10 @@ EOF
     PHP_ADD_BUILD_DIR($ext_builddir/src/wrapper)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/boost)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/boost/asm)
-    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/hiredis)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/sockets)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/standard)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/curl)
+    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php83/Zend)
     if test "$PHP_NGHTTP2_DIR" = "no"; then
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/nghttp2)
 	fi
@@ -1242,5 +1251,6 @@ EOF
     if test "$PHP_SWOOLE_SQLITE" != "no"; then
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php80/pdo_sqlite)
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php81/pdo_sqlite)
+        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php83/pdo_sqlite)
     fi
 fi

@@ -29,9 +29,7 @@ class Lock {
     enum Type {
         NONE,
         RW_LOCK = 1,
-        FILE_LOCK = 2,
         MUTEX = 3,
-        SEM = 4,
         SPIN_LOCK = 5,
         ATOMIC_LOCK = 6,
     };

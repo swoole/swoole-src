@@ -336,6 +336,7 @@ struct Socket {
     ssize_t peek(void *__buf, size_t __n, int __flags);
     Socket *accept();
     int bind(const std::string &_host, int *port);
+    Socket *dup();
 
     ssize_t readv(IOVector *io_vector);
     ssize_t writev(IOVector *io_vector);

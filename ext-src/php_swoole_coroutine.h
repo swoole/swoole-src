@@ -110,7 +110,7 @@ class PHPCoroutine {
         bool enable_deadlock_check;
     };
 
-    static zend_array *options;
+    static SW_THREAD_LOCAL zend_array *options;
 
     enum HookType {
         HOOK_NONE              = 0,
@@ -252,7 +252,7 @@ class PHPCoroutine {
     }
 
     static inline void init_main_context() {
-        main_context.co = Coroutine::init_main_coroutine();
+        main_context.co = nullptr;
 #ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
         main_context.fiber_context = EG(main_fiber_context);
         main_context.fiber_init_notified = true;
@@ -260,13 +260,17 @@ class PHPCoroutine {
         save_context(&main_context);
     }
 
-  protected:
-    static bool activated;
-    static PHPContext main_context;
-    static Config config;
+    static inline void free_main_context() {
+        main_context = {};
+    }
 
-    static bool interrupt_thread_running;
-    static std::thread interrupt_thread;
+  protected:
+    static SW_THREAD_LOCAL bool activated;
+    static SW_THREAD_LOCAL PHPContext main_context;
+    static SW_THREAD_LOCAL Config config;
+
+    static SW_THREAD_LOCAL bool interrupt_thread_running;
+    static SW_THREAD_LOCAL std::thread interrupt_thread;
 
     static void activate();
     static void deactivate(void *ptr);

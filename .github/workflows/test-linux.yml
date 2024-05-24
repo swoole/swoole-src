@@ -5,10 +5,11 @@ on: [push, pull_request]
 jobs:
   test-linux:
     runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, '[zts]')"
     strategy:
       fail-fast: false
       matrix:
-        php: ['8.0', '8.1', '8.2', '8.3']
+        php: ['8.1', '8.2', '8.3']
     steps:
     - uses: actions/checkout@v4
     - name: Setup PHP
@@ -34,4 +35,6 @@ jobs:
     - name: Run Swoole test
       run: |
         export SWOOLE_BRANCH=${GITHUB_REF##*/}
+        export SWOOLE_BUILD_DIR=$(realpath .)
+        export PHP_VERSION=${{ matrix.php }}
         ${{runner.workspace}}/swoole-src/scripts/route.sh

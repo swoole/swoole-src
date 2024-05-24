@@ -503,13 +503,13 @@ bool HttpContext::start_send(const char *body, size_t length) {
     protocol_length = http_byte_buffer.get_protocol_length(body ? length : 0);
 send_response:
     bool result;
-    if (UNEXPECTED(protocol_length > SW_HTTP_RESPONSE_INIT_SIZE || SW_HTTP_RESPONSE_INIT_SIZE > SwooleG.stack_size)) {
+    if (UNEXPECTED(protocol_length > SW_BUFFER_SIZE_STD)) {
         char *protocol = (char *) emalloc(protocol_length);
         http_byte_buffer.write_protocol(protocol, body, length);
         result = send(this, protocol, protocol_length);
         efree(protocol);
     } else {
-        char _protocol[protocol_length];
+        char _protocol[SW_BUFFER_SIZE_STD];
         http_byte_buffer.write_protocol(_protocol, body, length);
         result = send(this, _protocol, protocol_length);
     }
@@ -972,8 +972,7 @@ static void php_swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const 
         RETURN_FALSE;
     }
 
-    char *cookie = nullptr;
-    zend_string *date = nullptr;
+    char *cookie = nullptr, *date = nullptr;
     size_t cookie_size = name_len + 1;  // add 1 for null char
     cookie_size += 50;                  // strlen("; expires=Fri, 31-Dec-9999 23:59:59 GMT; Max-Age=0")
     if (value_len == 0) {

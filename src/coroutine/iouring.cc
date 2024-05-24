@@ -36,6 +36,13 @@ int swoole_coroutine_iouring_open(const char *pathname, int flags, mode_t mode) 
     return async(AsyncIouring::SW_IORING_OP_OPENAT, pathname, nullptr, mode, flags);
 }
 
+int swoole_coroutine_iouring_close_file(int fd) {
+    if (sw_unlikely(is_no_coro())) {
+        return close(fd);
+    }
+    return async(AsyncIouring::SW_IORING_OP_CLOSE, fd);
+}
+
 ssize_t swoole_coroutine_iouring_read(int sockfd, void *buf, size_t count) {
     if (sw_unlikely(is_no_coro())) {
         return read(sockfd, buf, count);

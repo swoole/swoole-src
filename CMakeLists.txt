@@ -1,12 +1,12 @@
 PROJECT(libswoole)
+cmake_minimum_required(VERSION 2.8.12)
 
 ENABLE_LANGUAGE(ASM)
-set(SWOOLE_VERSION 5.1.2)
+set(SWOOLE_VERSION 6.0.0-dev)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -g")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
-cmake_minimum_required(VERSION 2.8)
 
 file(READ ./config.h SWOOLE_CONFIG_FILE)
 

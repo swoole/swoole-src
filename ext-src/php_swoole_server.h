@@ -62,7 +62,15 @@ enum php_swoole_server_port_callback_type {
 #define PHP_SWOOLE_SERVER_PORT_CALLBACK_NUM (SW_SERVER_CB_onBufferEmpty + 1)
 
 namespace swoole {
+struct ServerPortProperty;
 struct TaskCo;
+};  // namespace swoole
+
+zval *php_swoole_server_zval_ptr(swoole::Server *serv);
+swoole::ServerPortProperty *php_swoole_server_get_port_property(swoole::ListenPort *port);
+void php_swoole_server_set_port_property(swoole::ListenPort *port, swoole::ServerPortProperty *property);
+
+namespace swoole {
 
 struct ServerPortProperty {
     zval *callbacks[PHP_SWOOLE_SERVER_PORT_CALLBACK_NUM];
@@ -76,7 +84,6 @@ struct ServerPortProperty {
 struct ServerProperty {
     std::vector<zval *> ports;
     std::vector<zval *> user_processes;
-    ServerPortProperty *primary_port;
     zend_fcall_info_cache *callbacks[PHP_SWOOLE_SERVER_CALLBACK_NUM];
     std::unordered_map<TaskId, zend_fcall_info_cache> task_callbacks;
     std::unordered_map<TaskId, TaskCo *> task_coroutine_map;
@@ -87,19 +94,16 @@ struct ServerProperty {
 struct ServerObject {
     Server *serv;
     ServerProperty *property;
+    zval init_arguments;
     zend_object std;
 
     zend_class_entry *get_ce() {
-        return Z_OBJCE_P(get_object());
-    }
-
-    zval *get_object() {
-        return (zval *) serv->private_data_2;
+        return Z_OBJCE_P(php_swoole_server_zval_ptr(serv));
     }
 
     bool isset_callback(ListenPort *port, int event_type) {
-        ServerPortProperty *port_property = (ServerPortProperty *) port->ptr;
-        return (port_property->callbacks[event_type] || property->primary_port->callbacks[event_type]);
+        return (php_swoole_server_get_port_property(port)->callbacks[event_type] ||
+                php_swoole_server_get_port_property(serv->get_primary_port())->callbacks[event_type]);
     }
 
     zend_bool is_websocket_server() {
@@ -147,4 +151,4 @@ void php_swoole_server_onBufferEmpty(swServer *, swDataHead *);
 swServer *php_swoole_server_get_and_check_server(zval *zobject);
 void php_swoole_server_port_deref(zend_object *object);
 swoole::ServerObject *php_swoole_server_get_zend_object(swoole::Server *serv);
-zval *php_swoole_server_get_zval_object(swoole::Server *serv);
+

@@ -36,17 +36,16 @@ function read_sql_file(string $file)
 }
 
 require __DIR__ . '/include/config.php';
+require __DIR__ . '/swoole_pdo_pgsql/pdo_pgsql.inc';
 
 Swoole\Coroutine\run(function () {
     echo "[DB-init] initialization MySQL database...\n";
-    $mysql = new Swoole\Coroutine\MySQL();
-    $connected = $mysql->connect([
-            'host' => MYSQL_SERVER_HOST,
-            'port' => MYSQL_SERVER_PORT,
-            'user' => MYSQL_SERVER_USER,
-            'password' => MYSQL_SERVER_PWD,
-            'database' => MYSQL_SERVER_DB
-    ]);
+    $mysql = new mysqli();
+    $connected = $mysql->connect(MYSQL_SERVER_HOST,
+            MYSQL_SERVER_USER,
+            MYSQL_SERVER_PWD,
+            MYSQL_SERVER_DB,
+            MYSQL_SERVER_PORT);
     if (!$connected) {
         echo "[DB-init] Connect failed! Error#{$mysql->connect_errno}: {$mysql->connect_error}\n";
         exit(1);
@@ -59,23 +58,6 @@ Swoole\Coroutine\run(function () {
         }
     }
     echo "[DB-init] MySQL Done!\n";
-
-    echo "[DB-init] initialization PostgreSQL database...\n";
-    $pgsql = new Swoole\Coroutine\PostgreSQL();
-    $connected = $pgsql->connect(PGSQL_CONNECTION_STRING);
-    if (!$connected) {
-        echo sprintf("[DB-init] Connect failed! Error#%s: %s", $pgsql->error, $pgsql->notices['sqlstate'] ?? ''), PHP_EOL;
-        exit(1);
-    }
-    $sql_file = read_sql_file(__DIR__ . '/pgsql.sql');
-    foreach ($sql_file as $line) {
-        if (!$pgsql->query($line)) {
-            echo sprintf("[DB-init] Failed! Error#%s: %s", $pgsql->error, $pgsql->notices['sqlstate'] ?? ''), PHP_EOL;
-            exit(1);
-        }
-    }
-    echo "[DB-init] PostgreSQL Done!\n";
-
 
     echo "[DB-init] initialization ODBC...\n";
     echo `set -ex`;

@@ -42,3 +42,65 @@ typedef sw_atomic_uint32_t sw_atomic_t;
 #endif
 
 #define sw_spinlock_release(lock) __sync_lock_release(lock)
+
+#ifdef HAVE_FUTEX
+#include <linux/futex.h>
+#include <syscall.h>
+
+static inline int sw_atomic_futex_wait(sw_atomic_t *atomic, double timeout) {
+    if (sw_atomic_cmp_set(atomic, 1, 0)) {
+        return 0;
+    }
+
+    int ret;
+    struct timespec _timeout;
+
+    if (timeout > 0) {
+        _timeout.tv_sec = (long) timeout;
+        _timeout.tv_nsec = (timeout - _timeout.tv_sec) * 1000 * 1000 * 1000;
+        ret = syscall(SYS_futex, atomic, FUTEX_WAIT, 0, &_timeout, NULL, 0);
+    } else {
+        ret = syscall(SYS_futex, atomic, FUTEX_WAIT, 0, NULL, NULL, 0);
+    }
+    if (ret == 0 && sw_atomic_cmp_set(atomic, 1, 0)) {
+        return 0;
+    } else {
+        return -1;
+    }
+}
+
+static inline int sw_atomic_futex_wakeup(sw_atomic_t *atomic, int n) {
+    if (sw_atomic_cmp_set(atomic, 0, 1)) {
+        return syscall(SYS_futex, atomic, FUTEX_WAKE, n, NULL, NULL, 0);
+    } else {
+        return 0;
+    }
+}
+
+#else
+static inline int sw_atomic_futex_wait(sw_atomic_t *atomic, double timeout) {
+    if (sw_atomic_cmp_set(atomic, (sw_atomic_t) 1, (sw_atomic_t) 0)) {
+        return 0;
+    }
+    timeout = timeout <= 0 ? INT_MAX : timeout;
+    int32_t i = (int32_t) sw_atomic_sub_fetch(atomic, 1);
+    while (timeout > 0) {
+        if ((int32_t) *atomic > i) {
+            return 0;
+        } else {
+            usleep(1000);
+            timeout -= 0.001;
+        }
+    }
+    sw_atomic_fetch_add(atomic, 1);
+    return -1;
+}
+
+static inline int sw_atomic_futex_wakeup(sw_atomic_t *atomic, int n) {
+    if (1 == (int32_t) *atomic) {
+        return 0;
+    }
+    sw_atomic_fetch_add(atomic, n);
+    return 0;
+}
+#endif

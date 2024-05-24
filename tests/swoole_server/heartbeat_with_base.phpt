@@ -8,13 +8,13 @@ skip_if_in_valgrind();
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
+
 use Swoole\Server;
+
 $pm = new SwooleTest\ProcessManager;
-$pm->parentFunc = function ($pid) use ($pm)
-{
+$pm->parentFunc = function ($pid) use ($pm) {
     $client = new Swoole\Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
-    if (!$client->connect('127.0.0.1', $pm->getFreePort(), 5, 0))
-    {
+    if (!$client->connect('127.0.0.1', $pm->getFreePort(), 5, 0)) {
         echo "Over flow. errno=" . $client->errCode;
         die("\n");
     }
@@ -25,19 +25,17 @@ $pm->parentFunc = function ($pid) use ($pm)
     Swoole\Process::kill($pid);
 };
 
-$pm->childFunc = function () use ($pm)
-{
+$pm->childFunc = function () use ($pm) {
     $serv = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $serv->set(array(
         'heartbeat_check_interval' => 1,
         'heartbeat_idle_time' => 2,
+        'worker_num' => 1,
     ));
-    $serv->on("WorkerStart", function (Server $serv)  use ($pm)
-    {
+    $serv->on("WorkerStart", function (Server $serv) use ($pm) {
         $pm->wakeup();
     });
-    $serv->on('receive', function (Server $serv, $fd, $rid, $data)
-    {
+    $serv->on('receive', function (Server $serv, $fd, $rid, $data) {
     });
     $serv->start();
 };

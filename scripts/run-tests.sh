@@ -59,9 +59,12 @@ echo "" && echo "🌵️️ Current branch is ${SWOOLE_BRANCH}" && echo ""
 if [ "${SWOOLE_BRANCH}" = "valgrind" ]; then
     dir="base"
     options="${options} -m"
+elif [ "$SWOOLE_THREAD" = 1 ]; then
+    dir="swoole_thread"
 else
     dir="swoole_*"
 fi
+echo "${dir}"
 echo "${dir}" > tests.list
 for i in 1 2 3 4 5
 do

@@ -21,68 +21,6 @@ BEGIN_EXTERN_C()
 #include "stubs/php_swoole_atomic_arginfo.h"
 END_EXTERN_C()
 
-#ifdef HAVE_FUTEX
-#include <linux/futex.h>
-#include <syscall.h>
-
-static sw_inline int swoole_futex_wait(sw_atomic_t *atomic, double timeout) {
-    if (sw_atomic_cmp_set(atomic, 1, 0)) {
-        return SW_OK;
-    }
-
-    int ret;
-    struct timespec _timeout;
-
-    if (timeout > 0) {
-        _timeout.tv_sec = (long) timeout;
-        _timeout.tv_nsec = (timeout - _timeout.tv_sec) * 1000 * 1000 * 1000;
-        ret = syscall(SYS_futex, atomic, FUTEX_WAIT, 0, &_timeout, nullptr, 0);
-    } else {
-        ret = syscall(SYS_futex, atomic, FUTEX_WAIT, 0, nullptr, nullptr, 0);
-    }
-    if (ret == SW_OK && sw_atomic_cmp_set(atomic, 1, 0)) {
-        return SW_OK;
-    } else {
-        return SW_ERR;
-    }
-}
-
-static sw_inline int swoole_futex_wakeup(sw_atomic_t *atomic, int n) {
-    if (sw_atomic_cmp_set(atomic, 0, 1)) {
-        return syscall(SYS_futex, atomic, FUTEX_WAKE, n, nullptr, nullptr, 0);
-    } else {
-        return SW_OK;
-    }
-}
-
-#else
-static sw_inline int swoole_atomic_wait(sw_atomic_t *atomic, double timeout) {
-    if (sw_atomic_cmp_set(atomic, (sw_atomic_t) 1, (sw_atomic_t) 0)) {
-        return SW_OK;
-    }
-    timeout = timeout <= 0 ? INT_MAX : timeout;
-    int32_t i = (int32_t) sw_atomic_sub_fetch(atomic, 1);
-    while (timeout > 0) {
-        if ((int32_t) *atomic > i) {
-            return SW_OK;
-        } else {
-            usleep(1000);
-            timeout -= 0.001;
-        }
-    }
-    sw_atomic_fetch_add(atomic, 1);
-    return SW_ERR;
-}
-
-static sw_inline int swoole_atomic_wakeup(sw_atomic_t *atomic, int n) {
-    if (1 == (int32_t) *atomic) {
-        return SW_OK;
-    }
-    sw_atomic_fetch_add(atomic, n);
-    return SW_OK;
-}
-#endif
-
 zend_class_entry *swoole_atomic_ce;
 static zend_object_handlers swoole_atomic_handlers;
 
@@ -306,11 +244,7 @@ PHP_METHOD(swoole_atomic, wait) {
     Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-#ifdef HAVE_FUTEX
-    SW_CHECK_RETURN(swoole_futex_wait(atomic, timeout));
-#else
-    SW_CHECK_RETURN(swoole_atomic_wait(atomic, timeout));
-#endif
+    SW_CHECK_RETURN(sw_atomic_futex_wait(atomic, timeout));
 }
 
 PHP_METHOD(swoole_atomic, wakeup) {
@@ -322,11 +256,7 @@ PHP_METHOD(swoole_atomic, wakeup) {
     Z_PARAM_LONG(n)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-#ifdef HAVE_FUTEX
-    SW_CHECK_RETURN(swoole_futex_wakeup(atomic, (int) n));
-#else
-    SW_CHECK_RETURN(swoole_atomic_wakeup(atomic, n));
-#endif
+    SW_CHECK_RETURN(sw_atomic_futex_wakeup(atomic, (int) n));
 }
 
 PHP_METHOD(swoole_atomic_long, __construct) {

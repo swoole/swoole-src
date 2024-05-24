@@ -34,7 +34,7 @@ $pm->parentFunc = function ($pid) use ($port) {
     for ($i = 0; $i < 1000; $i++) {
         $pkg = $client->recv();
         Assert::assert($pkg != false);
-        $_pkg = unserialize($pkg);
+        $_pkg = swoole_substr_unserialize($pkg, 0, strlen($pkg) - 4);
         Assert::assert(is_array($_pkg));
         Assert::same($_pkg['i'], $i);
         Assert::assert(strlen($_pkg['data']) > 8192 and strlen($_pkg['data']) <= 256 * 1024);

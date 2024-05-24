@@ -255,6 +255,10 @@ void php_swoole_event_wait() {
     if (php_swoole_is_fatal_error() || !sw_reactor()) {
         return;
     }
+    if (swoole_coroutine_is_in()) {
+        php_swoole_fatal_error(E_ERROR, "Unable to call Event::wait() in coroutine");
+        return;
+    }
     if (!sw_reactor()->if_exit() && !sw_reactor()->bailout) {
         // Don't disable object slot reuse while running shutdown functions:
         // https://github.com/php/php-src/commit/bd6eabd6591ae5a7c9ad75dfbe7cc575fa907eac

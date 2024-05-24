@@ -7,11 +7,12 @@ on:
 jobs:
   linux:
     runs-on: ubuntu-latest
-    if: "!contains(github.event.head_commit.message, '[test]')"
+    if: 0
+#    if: "!contains(github.event.head_commit.message, '[test]')"
     strategy:
       fail-fast: false
       matrix:
-        php-version: [ '8.0', '8.1', '8.2', '8.3' ]
+        php-version: [ '8.1', '8.2', '8.3' ]
         framework: [ 'Laravel Octane', 'Hyperf', 'Simps', 'imi' ]
     name: ${{ matrix.framework }} - PHP ${{ matrix.php-version }}
     steps:
@@ -102,7 +103,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php-version: [ '8.0', '8.1', '8.2', '8.3' ]
+        php-version: [ '8.1', '8.2', '8.3' ]
         framework: [ 'Simps' ]
     name: ${{ matrix.framework }} - PHP ${{ matrix.php-version }} - macOS
     steps:

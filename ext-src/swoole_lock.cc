@@ -50,7 +50,7 @@ static Lock *php_swoole_lock_get_ptr(zval *zobject) {
 static Lock *php_swoole_lock_get_and_check_ptr(zval *zobject) {
     Lock *lock = php_swoole_lock_get_ptr(zobject);
     if (!lock) {
-        php_swoole_fatal_error(E_ERROR, "you must call Lock constructor first");
+        php_swoole_fatal_error(E_ERROR, "must call constructor first");
     }
     return lock;
 }
@@ -111,9 +111,7 @@ void php_swoole_lock_minit(int module_number) {
     SW_SET_CLASS_CUSTOM_OBJECT(
         swoole_lock, php_swoole_lock_create_object, php_swoole_lock_free_object, LockObject, std);
 
-    zend_declare_class_constant_long(swoole_lock_ce, ZEND_STRL("FILELOCK"), Lock::FILE_LOCK);
     zend_declare_class_constant_long(swoole_lock_ce, ZEND_STRL("MUTEX"), Lock::MUTEX);
-    zend_declare_class_constant_long(swoole_lock_ce, ZEND_STRL("SEM"), Lock::SEM);
 #ifdef HAVE_RWLOCK
     zend_declare_class_constant_long(swoole_lock_ce, ZEND_STRL("RWLOCK"), Lock::RW_LOCK);
 #endif
@@ -122,9 +120,7 @@ void php_swoole_lock_minit(int module_number) {
 #endif
     zend_declare_property_long(swoole_lock_ce, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
 
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_FILELOCK", Lock::FILE_LOCK);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_MUTEX", Lock::MUTEX);
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_SEM", Lock::SEM);
 #ifdef HAVE_RWLOCK
     SW_REGISTER_LONG_CONSTANT("SWOOLE_RWLOCK", Lock::RW_LOCK);
 #endif
@@ -149,12 +145,6 @@ static PHP_METHOD(swoole_lock, __construct) {
     }
 
     switch (type) {
-    case Lock::FILE_LOCK:
-    case Lock::SEM:
-        zend_throw_exception(
-            swoole_exception_ce, "FileLock and SemLock is no longer supported, please use mutex lock", errno);
-        RETURN_FALSE;
-        break;
 #ifdef HAVE_SPINLOCK
     case Lock::SPIN_LOCK:
         lock = new SpinLock(1);
@@ -166,8 +156,11 @@ static PHP_METHOD(swoole_lock, __construct) {
         break;
 #endif
     case Lock::MUTEX:
-    default:
         lock = new Mutex(Mutex::PROCESS_SHARED);
+        break;
+    default:
+        zend_throw_exception(swoole_exception_ce, "lock type[%d] is not support", type);
+        RETURN_FALSE;
         break;
     }
     php_swoole_lock_set_ptr(ZEND_THIS, lock);

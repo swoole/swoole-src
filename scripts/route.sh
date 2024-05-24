@@ -3,14 +3,6 @@ __CURRENT__=`pwd`
 __DIR__=$(cd "$(dirname "$0")";pwd)
 
 export DOCKER_COMPOSE_VERSION="1.21.0"
-[ -z "${SWOOLE_BRANCH}" ] && export SWOOLE_BRANCH="master"
-[ -z "${SWOOLE_BUILD_DIR}" ] && export SWOOLE_BUILD_DIR=$(cd "$(dirname "$0")";cd ../;pwd)
-[ -z "${PHP_VERSION_ID}" ] && export PHP_VERSION_ID=`php -r "echo PHP_VERSION_ID;"`
-if [ ${PHP_VERSION_ID} -lt 80300 ]; then
-    export PHP_VERSION="`php -r "echo PHP_MAJOR_VERSION;"`.`php -r "echo PHP_MINOR_VERSION;"`"
-else
-    export PHP_VERSION="rc"
-fi
 if [ "${SWOOLE_BRANCH}" = "alpine" ]; then
     export PHP_VERSION="${PHP_VERSION}-alpine"
 fi
@@ -90,6 +82,16 @@ run_tests_in_docker(){
     fi
 }
 
+run_thread_tests_in_docker(){
+    docker exec swoole touch /.cienv && \
+    docker exec swoole /swoole-src/scripts/docker-thread-route.sh
+    code=$?
+    if [ $code -ne 0 ]; then
+        echo "\n❌ Run thread tests failed! ExitCode: $code"
+        exit 1
+    fi
+}
+
 remove_tests_resources(){
     remove_docker_containers
     remove_data_files
@@ -104,6 +106,11 @@ echo "📦 Start docker containers...\n"
 start_docker_containers # && trap "remove_tests_resources"
 
 echo "\n⏳ Run tests in docker...\n"
-run_tests_in_docker
+
+if [ "$SWOOLE_THREAD" = 1 ]; then
+    run_thread_tests_in_docker
+else
+    run_tests_in_docker
+fi
 
 echo "\n🚀🚀🚀Completed successfully🚀🚀🚀\n"

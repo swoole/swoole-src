@@ -8,10 +8,16 @@ require __DIR__ . '/../../include/skipif.inc';
 <?php
 use Swoole\Runtime;
 use function Swoole\Coroutine\run;
+use Swoole\Coroutine\WaitGroup;
 require __DIR__ . '/../../include/bootstrap.php';
 
 Runtime::enableCoroutine(SWOOLE_HOOK_ALL);
-run(function(){
+$results = [];
+for ($i = 1; $i <= 10000; $i++) {
+    $results[$i] = random_bytes(rand(8192, 8192 * 3));
+}
+
+run(function() use ($results) {
     $filesize = 1048576;
     $content = random_bytes($filesize);
     $fileName = '/tmp/test_file';
@@ -47,6 +53,16 @@ run(function(){
     rmdir($directory);
     Assert::true(!is_dir($directory));
 
+	$waitGroup = new WaitGroup();
+    for ($i = 1; $i <= 10000; $i++) {
+        go(function() use ($waitGroup, $i, $results){
+            $waitGroup->add();
+            file_put_contents('/tmp/file'.$i, $results[$i]);
+            Assert::true($results[$i] == file_get_contents('/tmp/file'.$i));
+            $waitGroup->done();
+        });
+    }
+	$waitGroup->wait();
     echo 'SUCCESS';
 });
 ?>

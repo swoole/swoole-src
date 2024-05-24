@@ -33,7 +33,8 @@ $pm->childFunc = function () use ($pm) {
     $httpServer = new Swoole\Http\Server('0.0.0.0', $pm->getFreePort(), SWOOLE_BASE);
     $httpServer->set([
         'log_file' => '/dev/null',
-        'worker_num' => 1
+        'worker_num' => 1,
+        'hook_flags' => SWOOLE_HOOK_ALL,
     ]);
     $httpServer->on('WorkerStart', function (Swoole\Http\Server $server) use ($pm, $config) {
         try {

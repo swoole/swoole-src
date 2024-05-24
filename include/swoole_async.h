@@ -100,10 +100,9 @@ struct GethostbynameRequest {
 
 class AsyncThreads {
   public:
-    bool schedule = false;
     size_t task_num = 0;
     Pipe *pipe = nullptr;
-    async::ThreadPool *pool = nullptr;
+    std::shared_ptr<async::ThreadPool> pool;
     network::Socket *read_socket = nullptr;
     network::Socket *write_socket = nullptr;
 
@@ -119,9 +118,6 @@ class AsyncThreads {
     void notify_one();
 
     static int callback(Reactor *reactor, Event *event);
-
-  private:
-    std::mutex init_lock;
 };
 
 #ifdef SW_USE_IOURING

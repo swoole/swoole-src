@@ -51,7 +51,6 @@ ZEND_BEGIN_MODULE_GLOBALS(swoole)
     zend_bool display_errors;
     zend_bool cli;
     zend_bool use_shortname;
-    zend_bool enable_coroutine;
     zend_bool enable_preemptive_scheduler;
     zend_bool enable_library;
     zend_bool enable_fiber_mock;
