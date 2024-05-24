@@ -1078,7 +1078,7 @@ PHP_RSHUTDOWN_FUNCTION(swoole) {
             return;
         }
         stream =
-            (php_stream *) zend_fetch_resource2_ex((zstream), "stream", php_file_le_stream(), php_file_le_pstream());
+            (php_stream *) zend_fetch_resource2_ex((zstream), NULL, php_file_le_stream(), php_file_le_pstream());
         if (!stream) {
             return;
         }
