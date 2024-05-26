@@ -14,8 +14,6 @@
         - millisecond timer
         - built-in tcp/http/websocket/http2 server
         - coroutine tcp/http/websocket client
-        - coroutine mysql client
-        - coroutine redis client
         - coroutine read/write file system
         - coroutine dns lookup
         - support IPv4/IPv6/UnixSocket/TCP/UDP
@@ -2537,7 +2535,7 @@
     <dependencies>
         <required>
             <php>
-                <min>8.0.0</min>
+                <min>8.1.0</min>
             </php>
             <pearinstaller>
                 <min>1.4.0</min>
@@ -2556,5 +2554,7 @@
         <configureoption default="no" name="with-swoole-odbc" prompt="enable ODBC database support?"/>
         <configureoption default="no" name="with-swoole-oracle" prompt="enable Oracle database support?"/>
         <configureoption default="no" name="enable-swoole-sqlite" prompt="enable Sqlite database support?"/>
+        <configureoption default="no" name="enable-swoole-thread" prompt="enable swoole thread support (need php zts support)?"/>
+        <configureoption default="no" name="enable-iouring" prompt="enable iouring for file async support?"/>
     </extsrcrelease>
 </package>
