@@ -218,7 +218,7 @@ static void php_swoole_init_globals(zend_swoole_globals *swoole_globals) {
     swoole_globals->use_shortname = 1;
     swoole_globals->in_autoload = nullptr;
     if (strcmp("cli", sapi_module.name) == 0 || strcmp("phpdbg", sapi_module.name) == 0 ||
-        strcmp("embed", sapi_module.name) == 0) {
+        strcmp("embed", sapi_module.name) == 0 || strcmp("micro", sapi_module.name) == 0) {
         swoole_globals->cli = 1;
     }
 }
