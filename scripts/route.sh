@@ -74,7 +74,7 @@ remove_docker_containers(){
 
 run_tests_in_docker(){
     docker exec swoole touch /.cienv && \
-    docker exec swoole /swoole-src/scripts/docker-route.sh
+    docker exec swoole /swoole-src/scripts/docker-route.sh $SWOOLE_FILE_DRIVER
     code=$?
     if [ $code -ne 0 ]; then
         echo "\n❌ Run tests failed! ExitCode: $code"
@@ -84,7 +84,7 @@ run_tests_in_docker(){
 
 run_thread_tests_in_docker(){
     docker exec swoole touch /.cienv && \
-    docker exec swoole /swoole-src/scripts/docker-thread-route.sh
+    docker exec swoole /swoole-src/scripts/docker-thread-route.sh $SWOOLE_FILE_DRIVER
     code=$?
     if [ $code -ne 0 ]; then
         echo "\n❌ Run thread tests failed! ExitCode: $code"
