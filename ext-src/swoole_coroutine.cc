@@ -385,6 +385,10 @@ void PHPCoroutine::activate() {
 }
 
 void PHPCoroutine::deactivate(void *ptr) {
+    if (sw_unlikely(!activated)) {
+        return;
+    }
+    activated = false;
     interrupt_thread_stop();
     /**
      * reset runtime hook
@@ -403,11 +407,12 @@ void PHPCoroutine::deactivate(void *ptr) {
 
     enable_unsafe_function();
     Coroutine::deactivate();
-    activated = false;
 }
 
 void PHPCoroutine::shutdown() {
-    interrupt_thread_stop();
+    if (activated) {
+        deactivate(nullptr);
+    }
     if (options) {
         zend_array_destroy(options);
         options = nullptr;
