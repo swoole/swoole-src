@@ -472,7 +472,7 @@ void ArrayItem::fetch(zval *return_value) {
         RETVAL_LONG(value.lval);
         break;
     case IS_DOUBLE:
-        RETVAL_LONG(value.dval);
+        RETVAL_DOUBLE(value.dval);
         break;
     case IS_TRUE:
         RETVAL_TRUE;
@@ -505,6 +505,206 @@ void ArrayItem::release() {
         zend_string_release(value.serialized_object);
         value.serialized_object = nullptr;
     }
+}
+
+#define INIT_DECR_VALUE(v) \
+    zval rvalue = *v;\
+    if (Z_TYPE_P(v) == IS_DOUBLE) {\
+        rvalue.value.dval = -rvalue.value.dval;\
+    } else {\
+        ZVAL_LONG(&rvalue, -zval_get_long(v)); \
+    }
+
+
+void ZendArray::incr_update(ArrayItem *item, zval *zvalue, zval *return_value) {
+    if (item->type == IS_DOUBLE) {
+        item->value.dval += zval_get_double(zvalue);
+        RETVAL_DOUBLE(item->value.dval);
+    } else {
+        item->value.lval += zval_get_long(zvalue);
+        RETVAL_LONG(item->value.lval);
+    }
+}
+
+ArrayItem *ZendArray::incr_create(zval *zvalue, zval *return_value) {
+    zval rvalue = *zvalue;
+    if (Z_TYPE_P(zvalue) == IS_DOUBLE) {
+        RETVAL_DOUBLE(rvalue.value.dval);
+    } else {
+        ZVAL_LONG(&rvalue, zval_get_long(zvalue));
+        RETVAL_LONG(rvalue.value.lval);
+    }
+    return new ArrayItem(&rvalue);
+}
+
+void ZendArray::strkey_incr(zval *zkey, zval *zvalue, zval *return_value) {
+    zend::String skey(zkey);
+    ArrayItem *item;
+
+    lock_.lock();
+    item = (ArrayItem *) zend_hash_find_ptr(&ht, skey.get());
+    if (item) {
+        incr_update(item, zvalue, return_value);
+    } else {
+        item = incr_create(zvalue, return_value);
+        item->setKey(skey);
+        zend_hash_update_ptr(&ht, item->key, item);
+    }
+    lock_.unlock();
+}
+
+void ZendArray::intkey_incr(zval *zkey, zval *zvalue, zval *return_value) {
+    ArrayItem *item;
+    zend_long index = zval_get_long(zkey);
+    lock_.lock();
+    item = (ArrayItem *) (ArrayItem *) zend_hash_index_find_ptr(&ht, index);
+    if (item) {
+        incr_update(item, zvalue, return_value);
+    } else {
+        item = incr_create(zvalue, return_value);
+        item = new ArrayItem(zvalue);
+        zend_hash_index_update_ptr(&ht, index, item);
+    }
+    lock_.unlock();
+}
+
+void ZendArray::strkey_decr(zval *zkey, zval *zvalue, zval *return_value) {
+    INIT_DECR_VALUE(zvalue);
+    strkey_incr(zkey, &rvalue, return_value);
+}
+
+void ZendArray::intkey_decr(zval *zkey, zval *zvalue, zval *return_value) {
+    INIT_DECR_VALUE(zvalue);
+    intkey_incr(zkey, &rvalue, return_value);
+}
+
+void ZendArray::strkey_add(zval *zkey, zval *zvalue, zval *return_value) {
+    zend::String skey(zkey);
+    lock_.lock();
+    if (strkey_exists(skey)) {
+        RETVAL_FALSE;
+    } else {
+        auto item = new ArrayItem(zvalue);
+        item->setKey(skey);
+        zend_hash_update_ptr(&ht, item->key, item);
+        RETVAL_TRUE;
+    }
+    lock_.unlock();
+}
+
+void ZendArray::intkey_add(zval *zkey, zval *zvalue, zval *return_value) {
+    zend_long index = zval_get_long(zkey);
+    lock_.lock();
+    if (intkey_exists(index)) {
+        RETVAL_FALSE;
+    } else {
+        auto item = new ArrayItem(zvalue);
+        zend_hash_index_update_ptr(&ht, index, item);
+        RETVAL_TRUE;
+    }
+    lock_.unlock();
+}
+
+void ZendArray::strkey_update(zval *zkey, zval *zvalue, zval *return_value) {
+    zend::String skey(zkey);
+    lock_.lock();
+    if (!strkey_exists(skey)) {
+        RETVAL_FALSE;
+    } else {
+        auto item = new ArrayItem(zvalue);
+        item->setKey(skey);
+        zend_hash_update_ptr(&ht, item->key, item);
+        RETVAL_TRUE;
+    }
+    lock_.unlock();
+}
+
+void ZendArray::intkey_update(zval *zkey, zval *zvalue, zval *return_value) {
+    zend_long index = zval_get_long(zkey);
+    lock_.lock();
+    if (!intkey_exists(index)) {
+        RETVAL_FALSE;
+    } else {
+        auto item = new ArrayItem(zvalue);
+        zend_hash_index_update_ptr(&ht, index, item);
+        RETVAL_TRUE;
+    }
+    lock_.unlock();
+}
+
+bool ZendArray::index_offsetSet(zval *zkey, zval *zvalue) {
+    zend_long index = ZVAL_IS_NULL(zkey) ? -1 : zval_get_long(zkey);
+    auto item = new ArrayItem(zvalue);
+    bool success = true;
+    lock_.lock();
+    if (index > zend_hash_num_elements(&ht)) {
+        success = false;
+        delete item;
+    } else if (index == -1 || index == zend_hash_num_elements(&ht)) {
+        zend_hash_next_index_insert_ptr(&ht, item);
+    } else {
+        zend_hash_index_update_ptr(&ht, index, item);
+    }
+    lock_.unlock();
+    return success;
+}
+
+bool ZendArray::index_incr(zval *zkey, zval *zvalue, zval *return_value) {
+    zend_long index = ZVAL_IS_NULL(zkey) ? -1 : zval_get_long(zkey);
+
+    bool success = true;
+    lock_.lock();
+    if (index > zend_hash_num_elements(&ht)) {
+        success = false;
+    } else if (index == -1 || index == zend_hash_num_elements(&ht)) {
+        auto item = incr_create(zvalue, return_value);
+        zend_hash_next_index_insert_ptr(&ht, item);
+    } else {
+        auto item = (ArrayItem *) zend_hash_index_find_ptr(&ht, index);
+        incr_update(item, zvalue, return_value);
+    }
+    lock_.unlock();
+    return success;
+}
+
+bool ZendArray::index_decr(zval *zkey, zval *zvalue, zval *return_value) {
+    INIT_DECR_VALUE(zvalue);
+    return index_incr(zkey, &rvalue, return_value);
+}
+
+void ZendArray::keys(zval *return_value) {
+    lock_.lock_rd();
+    zend_ulong elem_count = zend_hash_num_elements(&ht);
+    array_init_size(return_value, elem_count);
+    zend_hash_real_init_packed(Z_ARRVAL_P(return_value));
+    zend_ulong num_idx;
+    zend_string *str_idx;
+    zval *entry;
+    ZEND_HASH_FILL_PACKED(Z_ARRVAL_P(return_value)) {
+        if (HT_IS_PACKED(&ht) && HT_IS_WITHOUT_HOLES(&ht)) {
+            /* Optimistic case: range(0..n-1) for vector-like packed array */
+            zend_ulong lval = 0;
+
+            for (; lval < elem_count; ++lval) {
+                ZEND_HASH_FILL_SET_LONG(lval);
+                ZEND_HASH_FILL_NEXT();
+            }
+        } else {
+            /* Go through input array and add keys to the return array */
+            ZEND_HASH_FOREACH_KEY_VAL(&ht, num_idx, str_idx, entry) {
+                if (str_idx) {
+                    ZEND_HASH_FILL_SET_STR(zend_string_init(str_idx->val, str_idx->len, 0));
+                } else {
+                    ZEND_HASH_FILL_SET_LONG(num_idx);
+                }
+                ZEND_HASH_FILL_NEXT();
+            }
+            ZEND_HASH_FOREACH_END();
+        }
+        (void) entry;
+    }
+    ZEND_HASH_FILL_END();
+    lock_.unlock();
 }
 
 #endif

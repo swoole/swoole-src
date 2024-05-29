@@ -78,6 +78,10 @@ static PHP_METHOD(swoole_thread_map, offsetSet);
 static PHP_METHOD(swoole_thread_map, offsetUnset);
 static PHP_METHOD(swoole_thread_map, count);
 static PHP_METHOD(swoole_thread_map, keys);
+static PHP_METHOD(swoole_thread_map, incr);
+static PHP_METHOD(swoole_thread_map, decr);
+static PHP_METHOD(swoole_thread_map, add);
+static PHP_METHOD(swoole_thread_map, update);
 static PHP_METHOD(swoole_thread_map, clean);
 static PHP_METHOD(swoole_thread_map, __wakeup);
 SW_EXTERN_C_END
@@ -90,6 +94,10 @@ static const zend_function_entry swoole_thread_map_methods[] = {
     PHP_ME(swoole_thread_map, offsetSet,       arginfo_class_Swoole_Thread_Map_offsetSet,     ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread_map, offsetUnset,     arginfo_class_Swoole_Thread_Map_offsetUnset,   ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread_map, count,           arginfo_class_Swoole_Thread_Map_count,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_thread_map, incr,            arginfo_class_Swoole_Thread_Map_incr,          ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_thread_map, decr,            arginfo_class_Swoole_Thread_Map_decr,          ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_thread_map, add,             arginfo_class_Swoole_Thread_Map_add,           ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_thread_map, update,          arginfo_class_Swoole_Thread_Map_update,        ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread_map, clean,           arginfo_class_Swoole_Thread_Map_clean,         ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread_map, keys,            arginfo_class_Swoole_Thread_Map_keys,          ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread_map, __wakeup,        arginfo_class_Swoole_Thread_Map___wakeup,      ZEND_ACC_PUBLIC)
@@ -155,6 +163,44 @@ static PHP_METHOD(swoole_thread_map, offsetSet) {
 
     auto mo = thread_map_fetch_object_check(ZEND_THIS);
     ZEND_ARRAY_CALL_METHOD(mo->map, offsetSet, zkey, zvalue);
+}
+
+static PHP_METHOD(swoole_thread_map, incr) {
+    INIT_ARRAY_INCR_PARAMS
+    auto mo = thread_map_fetch_object_check(ZEND_THIS);
+    ZEND_ARRAY_CALL_METHOD(mo->map, incr, zkey, zvalue, return_value);
+}
+
+static PHP_METHOD(swoole_thread_map, decr) {
+    INIT_ARRAY_INCR_PARAMS
+    auto mo = thread_map_fetch_object_check(ZEND_THIS);
+    ZEND_ARRAY_CALL_METHOD(mo->map, decr, zkey, zvalue, return_value);
+}
+
+static PHP_METHOD(swoole_thread_map, add) {
+    zval *zkey;
+    zval *zvalue;
+
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+    Z_PARAM_ZVAL(zkey)
+    Z_PARAM_ZVAL(zvalue)
+    ZEND_PARSE_PARAMETERS_END();
+
+    auto mo = thread_map_fetch_object_check(ZEND_THIS);
+    ZEND_ARRAY_CALL_METHOD(mo->map, add, zkey, zvalue, return_value);
+}
+
+static PHP_METHOD(swoole_thread_map, update) {
+    zval *zkey;
+    zval *zvalue;
+
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+    Z_PARAM_ZVAL(zkey)
+    Z_PARAM_ZVAL(zvalue)
+    ZEND_PARSE_PARAMETERS_END();
+
+    auto mo = thread_map_fetch_object_check(ZEND_THIS);
+    ZEND_ARRAY_CALL_METHOD(mo->map, update, zkey, zvalue, return_value);
 }
 
 static PHP_METHOD(swoole_thread_map, offsetUnset) {

@@ -38,6 +38,8 @@ static PHP_METHOD(swoole_thread_arraylist, offsetExists);
 static PHP_METHOD(swoole_thread_arraylist, offsetSet);
 static PHP_METHOD(swoole_thread_arraylist, offsetUnset);
 static PHP_METHOD(swoole_thread_arraylist, count);
+static PHP_METHOD(swoole_thread_arraylist, incr);
+static PHP_METHOD(swoole_thread_arraylist, decr);
 static PHP_METHOD(swoole_thread_arraylist, clean);
 static PHP_METHOD(swoole_thread_arraylist, __wakeup);
 SW_EXTERN_C_END
@@ -88,6 +90,8 @@ static const zend_function_entry swoole_thread_arraylist_methods[] = {
     PHP_ME(swoole_thread_arraylist, offsetExists, arginfo_class_Swoole_Thread_ArrayList_offsetExists,  ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread_arraylist, offsetSet,    arginfo_class_Swoole_Thread_ArrayList_offsetSet,     ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread_arraylist, offsetUnset,  arginfo_class_Swoole_Thread_ArrayList_offsetUnset,   ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_thread_arraylist, incr,         arginfo_class_Swoole_Thread_ArrayList_incr,          ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_thread_arraylist, decr,         arginfo_class_Swoole_Thread_ArrayList_decr,          ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread_arraylist, clean,        arginfo_class_Swoole_Thread_ArrayList_clean,         ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread_arraylist, count,        arginfo_class_Swoole_Thread_ArrayList_count,         ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread_arraylist, __wakeup,     arginfo_class_Swoole_Thread_ArrayList___wakeup,      ZEND_ACC_PUBLIC)
@@ -153,6 +157,22 @@ static PHP_METHOD(swoole_thread_arraylist, offsetSet) {
 
     auto ao = thread_arraylist_fetch_object_check(ZEND_THIS);
     if (!ao->list->index_offsetSet(zkey, zvalue)) {
+        zend_throw_exception(swoole_exception_ce, "out of range", -1);
+    }
+}
+
+static PHP_METHOD(swoole_thread_arraylist, incr) {
+    INIT_ARRAY_INCR_PARAMS
+    auto ao = thread_arraylist_fetch_object_check(ZEND_THIS);
+    if (!ao->list->index_incr(zkey, zvalue, return_value)) {
+        zend_throw_exception(swoole_exception_ce, "out of range", -1);
+    }
+}
+
+static PHP_METHOD(swoole_thread_arraylist, decr) {
+    INIT_ARRAY_INCR_PARAMS
+    auto ao = thread_arraylist_fetch_object_check(ZEND_THIS);
+    if (!ao->list->index_decr(zkey, zvalue, return_value)) {
         zend_throw_exception(swoole_exception_ce, "out of range", -1);
     }
 }

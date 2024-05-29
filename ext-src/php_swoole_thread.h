@@ -58,10 +58,9 @@ struct ThreadResource {
     }
 };
 
-
 struct ArrayItem {
-    uint32_t type;
-    zend_string *key;
+    uint32_t type = IS_UNDEF;
+    zend_string *key = nullptr;
     union {
         zend_string *str;
         zend_long lval;
@@ -70,9 +69,12 @@ struct ArrayItem {
     } value;
 
     ArrayItem(zval *zvalue) {
-        key = nullptr;
         value = {};
         store(zvalue);
+    }
+
+    void setKey(zend::String &_key) {
+        key = zend_string_init(_key.val(), _key.len(), 1);
     }
 
     void store(zval *zvalue);
@@ -116,6 +118,14 @@ struct ZendArray : ThreadResource {
         return index < (zend_long) zend_hash_num_elements(&ht);
     }
 
+    bool strkey_exists(zend::String &skey) {
+        return zend_hash_find_ptr(&ht, skey.get()) != NULL;
+    }
+
+    bool intkey_exists(zend_long index) {
+        return zend_hash_index_find_ptr(&ht, index) != NULL;
+    }
+
     void strkey_offsetGet(zval *zkey, zval *return_value) {
         zend::String skey(zkey);
         lock_.lock_rd();
@@ -129,7 +139,7 @@ struct ZendArray : ThreadResource {
     void strkey_offsetExists(zval *zkey, zval *return_value) {
         zend::String skey(zkey);
         lock_.lock_rd();
-        RETVAL_BOOL(zend_hash_find_ptr(&ht, skey.get()) != NULL);
+        RETVAL_BOOL(strkey_exists(skey));
         lock_.unlock();
     }
 
@@ -143,11 +153,23 @@ struct ZendArray : ThreadResource {
     void strkey_offsetSet(zval *zkey, zval *zvalue) {
         zend::String skey(zkey);
         auto item = new ArrayItem(zvalue);
-        item->key = zend_string_init(skey.val(), skey.len(), 1);
+        item->setKey(skey);
         lock_.lock();
         zend_hash_update_ptr(&ht, item->key, item);
         lock_.unlock();
     }
+
+    void strkey_incr(zval *zkey, zval *zvalue, zval *return_value);
+    void intkey_incr(zval *zkey, zval *zvalue, zval *return_value);
+    void strkey_decr(zval *zkey, zval *zvalue, zval *return_value);
+    void intkey_decr(zval *zkey, zval *zvalue, zval *return_value);
+    bool index_incr(zval *zkey, zval *zvalue, zval *return_value);
+    bool index_decr(zval *zkey, zval *zvalue, zval *return_value);
+
+    void strkey_add(zval *zkey, zval *zvalue, zval *return_value);
+    void intkey_add(zval *zkey, zval *zvalue, zval *return_value);
+    void strkey_update(zval *zkey, zval *zvalue, zval *return_value);
+    void intkey_update(zval *zkey, zval *zvalue, zval *return_value);
 
     void count(zval *return_value) {
         lock_.lock_rd();
@@ -155,40 +177,7 @@ struct ZendArray : ThreadResource {
         lock_.unlock();
     }
 
-    void keys(zval *return_value) {
-        lock_.lock_rd();
-        zend_ulong elem_count = zend_hash_num_elements(&ht);
-        array_init_size(return_value, elem_count);
-        zend_hash_real_init_packed(Z_ARRVAL_P(return_value));
-        zend_ulong num_idx;
-        zend_string *str_idx;
-        zval *entry;
-        ZEND_HASH_FILL_PACKED(Z_ARRVAL_P(return_value)) {
-            if (HT_IS_PACKED(&ht) && HT_IS_WITHOUT_HOLES(&ht)) {
-                /* Optimistic case: range(0..n-1) for vector-like packed array */
-                zend_ulong lval = 0;
-
-                for (; lval < elem_count; ++lval) {
-                    ZEND_HASH_FILL_SET_LONG(lval);
-                    ZEND_HASH_FILL_NEXT();
-                }
-            } else {
-                /* Go through input array and add keys to the return array */
-                ZEND_HASH_FOREACH_KEY_VAL(&ht, num_idx, str_idx, entry) {
-                    if (str_idx) {
-                        ZEND_HASH_FILL_SET_STR(zend_string_init(str_idx->val, str_idx->len, 0));
-                    } else {
-                        ZEND_HASH_FILL_SET_LONG(num_idx);
-                    }
-                    ZEND_HASH_FILL_NEXT();
-                }
-                ZEND_HASH_FOREACH_END();
-            }
-            (void) entry;
-        }
-        ZEND_HASH_FILL_END();
-        lock_.unlock();
-    }
+    void keys(zval *return_value);
 
     void intkey_offsetGet(zend_long index, zval *return_value) {
         lock_.lock_rd();
@@ -206,7 +195,7 @@ struct ZendArray : ThreadResource {
     void intkey_offsetExists(zval *zkey, zval *return_value) {
         zend_long index = zval_get_long(zkey);
         lock_.lock_rd();
-        RETVAL_BOOL(zend_hash_index_find_ptr(&ht, index) != NULL);
+        RETVAL_BOOL(intkey_exists(index));
         lock_.unlock();
     }
 
@@ -240,22 +229,7 @@ struct ZendArray : ThreadResource {
         return !out_of_range;
     }
 
-    bool index_offsetSet(zval *zkey, zval *zvalue) {
-        zend_long index = ZVAL_IS_NULL(zkey) ? -1 : zval_get_long(zkey);
-        auto item = new ArrayItem(zvalue);
-        bool success = true;
-        lock_.lock();
-        if (index > zend_hash_num_elements(&ht)) {
-            success = false;
-            delete item;
-        } else if (index == -1 || index == zend_hash_num_elements(&ht)) {
-            zend_hash_next_index_insert_ptr(&ht, item);
-        } else {
-            zend_hash_index_update_ptr(&ht, index, item);
-        }
-        lock_.unlock();
-        return success;
-    }
+    bool index_offsetSet(zval *zkey, zval *zvalue);
 
     void index_offsetExists(zval *zkey, zval *return_value) {
         zend_long index = zval_get_long(zkey);
@@ -263,6 +237,24 @@ struct ZendArray : ThreadResource {
         RETVAL_BOOL(index_exists(index));
         lock_.unlock();
     }
+
+    static void incr_update(ArrayItem *item, zval *zvalue, zval *return_value);
+    static ArrayItem *incr_create(zval *zvalue, zval *return_value);
 };
+
+#define INIT_ARRAY_INCR_PARAMS                                                                                         \
+    zval *zkey;                                                                                                        \
+    zval zvalue_, *zvalue = NULL;                                                                                      \
+                                                                                                                       \
+    ZEND_PARSE_PARAMETERS_START(1, 2)                                                                                  \
+    Z_PARAM_ZVAL(zkey)                                                                                                 \
+    Z_PARAM_OPTIONAL                                                                                                   \
+    Z_PARAM_ZVAL(zvalue)                                                                                               \
+    ZEND_PARSE_PARAMETERS_END();                                                                                       \
+                                                                                                                       \
+    if (!zvalue) {                                                                                                     \
+        zvalue = &zvalue_;                                                                                             \
+        ZVAL_LONG(zvalue, 1);                                                                                          \
+    }
 
 #endif

@@ -7,6 +7,8 @@ namespace Swoole\Thread {
         public function offsetSet(mixed $key, mixed $value): void {}
         public function offsetUnset(mixed $key): void {}
         public function count(): int {}
+        public function incr(mixed $key, mixed $value = 1): mixed {}
+        public function decr(mixed $key, mixed $value = 1): mixed {}
         public function clean(): void {}
         public function __wakeup(): void {}
     }
