@@ -7,8 +7,7 @@ on:
 jobs:
   linux:
     runs-on: ubuntu-latest
-    if: 0
-#    if: "!contains(github.event.head_commit.message, '[test]')"
+    if: "!contains(github.event.head_commit.message, '[test]')"
     strategy:
       fail-fast: false
       matrix:
@@ -124,7 +123,7 @@ jobs:
           brew install openssl && brew link openssl
           brew install c-ares && brew link c-ares
           phpize
-          ./configure --enable-openssl --with-openssl-dir=/usr/local/opt/openssl@1.1 --enable-mysqlnd --enable-swoole-curl --enable-cares
+          ./configure --enable-openssl --with-openssl-dir=/usr/local/opt/openssl@3 --enable-mysqlnd --enable-swoole-curl --enable-cares
           make -j$(sysctl -n hw.ncpu)
           sudo make install
           php --ri swoole
