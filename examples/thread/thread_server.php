@@ -1,5 +1,5 @@
 <?php
-$http = new Swoole\Http\Server("0.0.0.0", 9503);
+$http = new Swoole\Http\Server("0.0.0.0", 9503, SWOOLE_THREAD);
 $http->set([
     'worker_num' => 2,
     'task_worker_num' => 3,
@@ -31,10 +31,10 @@ $http->on('pipeMessage', function ($http, $srcWorkerId, $msg) {
     echo "[worker#" . $http->getWorkerId() . "]\treceived pipe message[$msg] from " . $srcWorkerId . "\n";
 });
 
-//$http->addProcess(new \Swoole\Process(function () {
-//    echo "user process, id=" . \Swoole\Thread::getId();
-//    sleep(2000);
-//}));
+$http->addProcess(new \Swoole\Process(function () {
+    echo "user process, id=" . \Swoole\Thread::getId() . "\n";
+    sleep(2);
+}));
 
 $http->on('Task', function ($server, $taskId, $srcWorkerId, $data) {
     var_dump($taskId, $srcWorkerId, $data);

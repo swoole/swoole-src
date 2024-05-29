@@ -435,7 +435,7 @@ int Server::start_master_thread(Reactor *reactor) {
     }
 
 #ifdef HAVE_PTHREAD_BARRIER
-    if (!single_thread) {
+    if (is_process_mode() && !single_thread) {
         pthread_barrier_wait(&reactor_thread_barrier);
     }
 #if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)

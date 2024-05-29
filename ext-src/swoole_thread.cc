@@ -387,7 +387,9 @@ void php_swoole_thread_start(zend_string *file, zend_string *argv_serialized) {
 
 _startup_error:
     zend_string_release(file);
-    zend_string_release(argv_serialized);
+    if (argv_serialized) {
+        zend_string_release(argv_serialized);
+    }
     ts_free_thread();
     swoole_thread_clean();
 }
