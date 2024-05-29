@@ -408,7 +408,6 @@ void PHPCoroutine::deactivate(void *ptr) {
 
 void PHPCoroutine::shutdown() {
     interrupt_thread_stop();
-    Coroutine::bailout(nullptr);
     if (options) {
         zend_array_destroy(options);
         options = nullptr;

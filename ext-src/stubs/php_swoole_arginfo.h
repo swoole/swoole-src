@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 1ab45a47bad71a13ad16c3d92dcb8612920ae84c */
+ * Stub hash: ac43701147665b52de0dce97b7581d37183158a1 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_version, 0, 0, IS_STRING, 0)
 ZEND_END_ARG_INFO()
@@ -128,4 +128,8 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_substr_json_decode, 0, 2,
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_internal_call_user_shutdown_begin, 0, 0, _IS_BOOL, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_test_fn, 0, 1, IS_VOID, 0)
+	ZEND_ARG_TYPE_INFO(0, case, IS_STRING, 0)
 ZEND_END_ARG_INFO()

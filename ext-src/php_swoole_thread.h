@@ -33,6 +33,7 @@ ThreadResource *php_swoole_thread_resource_fetch(ThreadResourceId resource_id);
 void php_swoole_thread_start(zend_string *file, zend_string *argv);
 zend_string *php_swoole_thread_serialize(zval *zdata);
 bool php_swoole_thread_unserialize(zend_string *data, zval *zv);
+void php_swoole_thread_bailout(void);
 
 zval *php_swoole_thread_get_arguments();
 

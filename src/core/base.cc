@@ -914,7 +914,14 @@ static void swoole_fatal_error_impl(int code, const char *format, ...) {
     retval += sw_vsnprintf(sw_error + retval, SW_ERROR_MSG_SIZE - retval, format, args);
     va_end(args);
     sw_logger()->put(SW_LOG_ERROR, sw_error, retval);
-    exit(1);
+    swoole_exit(1);
+}
+
+void swoole_exit(int __status) {
+#ifdef SW_THREAD
+    std::unique_lock<std::mutex> _lock(sw_thread_lock);
+#endif
+    exit(__status);
 }
 
 namespace swoole {

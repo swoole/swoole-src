@@ -56,8 +56,10 @@ static void php_swoole_thread_join(zend_object *object);
 static void php_swoole_thread_create(INTERNAL_FUNCTION_PARAMETERS, zval *zobject);
 static int php_swoole_thread_stream_fileno(zval *zstream);
 static bool php_swoole_thread_stream_restore(zend_long sockfd, zval *return_value);
+static void php_swoole_thread_register_stdio_file_handles(bool no_close);
 
 static thread_local zval thread_argv;
+static thread_local JMP_BUF *thread_bailout = nullptr;
 static zend_long thread_resource_id = 0;
 static std::unordered_map<ThreadResourceId, ThreadResource *> thread_resources;
 
@@ -298,6 +300,45 @@ void php_swoole_thread_rshutdown() {
     }
 }
 
+static void php_swoole_thread_register_stdio_file_handles(bool no_close) {
+    php_stream *s_in, *s_out, *s_err;
+    php_stream_context *sc_in = NULL, *sc_out = NULL, *sc_err = NULL;
+    zend_constant ic, oc, ec;
+
+    s_in = php_stream_open_wrapper_ex("php://stdin", "rb", 0, NULL, sc_in);
+    s_out = php_stream_open_wrapper_ex("php://stdout", "wb", 0, NULL, sc_out);
+    s_err = php_stream_open_wrapper_ex("php://stderr", "wb", 0, NULL, sc_err);
+
+    if (s_in == NULL || s_out == NULL || s_err == NULL) {
+        if (s_in) php_stream_close(s_in);
+        if (s_out) php_stream_close(s_out);
+        if (s_err) php_stream_close(s_err);
+        return;
+    }
+
+    if (no_close) {
+        s_in->flags |= PHP_STREAM_FLAG_NO_CLOSE;
+        s_out->flags |= PHP_STREAM_FLAG_NO_CLOSE;
+        s_err->flags |= PHP_STREAM_FLAG_NO_CLOSE;
+    }
+
+    php_stream_to_zval(s_in, &ic.value);
+    php_stream_to_zval(s_out, &oc.value);
+    php_stream_to_zval(s_err, &ec.value);
+
+    ZEND_CONSTANT_SET_FLAGS(&ic, CONST_CS, 0);
+    ic.name = zend_string_init_interned("STDIN", sizeof("STDIN") - 1, 0);
+    zend_register_constant(&ic);
+
+    ZEND_CONSTANT_SET_FLAGS(&oc, CONST_CS, 0);
+    oc.name = zend_string_init_interned("STDOUT", sizeof("STDOUT") - 1, 0);
+    zend_register_constant(&oc);
+
+    ZEND_CONSTANT_SET_FLAGS(&ec, CONST_CS, 0);
+    ec.name = zend_string_init_interned("STDERR", sizeof("STDERR") - 1, 0);
+    zend_register_constant(&ec);
+}
+
 static void php_swoole_thread_create(INTERNAL_FUNCTION_PARAMETERS, zval *zobject) {
     char *script_file;
     size_t l_script_file;
@@ -366,6 +407,7 @@ void php_swoole_thread_start(zend_string *file, zend_string *argv_serialized) {
     file_handle.primary_script = 1;
 
     zend_first_try {
+        thread_bailout = EG(bailout);
         if (argv_serialized == nullptr || ZSTR_LEN(argv_serialized) == 0) {
             array_init(&thread_argv);
         } else {
@@ -377,11 +419,13 @@ void php_swoole_thread_start(zend_string *file, zend_string *argv_serialized) {
             zend_hash_update(&EG(symbol_table), ZSTR_KNOWN(ZEND_STR_ARGV), &global_argv);
             zend_hash_update(&EG(symbol_table), ZSTR_KNOWN(ZEND_STR_ARGC), &global_argc);
         }
+        php_swoole_thread_register_stdio_file_handles(true);
         php_execute_script(&file_handle);
     }
     zend_end_try();
 
     zend_destroy_file_handle(&file_handle);
+
     php_request_shutdown(NULL);
     file_handle.filename = NULL;
 
@@ -392,6 +436,13 @@ _startup_error:
     }
     ts_free_thread();
     swoole_thread_clean();
+}
+
+void php_swoole_thread_bailout(void) {
+    if (thread_bailout) {
+        EG(bailout) = thread_bailout;
+        zend_bailout();
+    }
 }
 
 static int php_swoole_thread_stream_fileno(zval *zstream) {
@@ -509,14 +560,13 @@ void ArrayItem::release() {
     }
 }
 
-#define INIT_DECR_VALUE(v) \
-    zval rvalue = *v;\
-    if (Z_TYPE_P(v) == IS_DOUBLE) {\
-        rvalue.value.dval = -rvalue.value.dval;\
-    } else {\
-        ZVAL_LONG(&rvalue, -zval_get_long(v)); \
+#define INIT_DECR_VALUE(v)                                                                                             \
+    zval rvalue = *v;                                                                                                  \
+    if (Z_TYPE_P(v) == IS_DOUBLE) {                                                                                    \
+        rvalue.value.dval = -rvalue.value.dval;                                                                        \
+    } else {                                                                                                           \
+        ZVAL_LONG(&rvalue, -zval_get_long(v));                                                                         \
     }
-
 
 void ZendArray::incr_update(ArrayItem *item, zval *zvalue, zval *return_value) {
     if (item->type == IS_DOUBLE) {

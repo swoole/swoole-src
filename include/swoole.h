@@ -123,8 +123,8 @@ typedef unsigned long ulong_t;
 #define SW_ECHO_LEN_CYAN "\e[36m%.*s\e[0m"
 #define SW_ECHO_LEN_WHITE "\e[37m%.*s\e[0m"
 
-#define SW_ECHO_RED_BG  "\e[41m%s\e[0m"
-#define SW_ECHO_GREEN_BG  "\e[42m%s\e[0m"
+#define SW_ECHO_RED_BG "\e[41m%s\e[0m"
+#define SW_ECHO_GREEN_BG "\e[42m%s\e[0m"
 
 #define SW_COLOR_RED 1
 #define SW_COLOR_GREEN 2
@@ -581,6 +581,7 @@ int swoole_get_systemd_listen_fds();
 
 void swoole_init(void);
 void swoole_clean(void);
+void swoole_exit(int __status);
 pid_t swoole_fork(int flags);
 pid_t swoole_fork_exec(const std::function<void(void)> &child_fn);
 void swoole_thread_init(void);
@@ -601,7 +602,8 @@ typedef cpuset_t cpu_set_t;
 int swoole_set_cpu_affinity(cpu_set_t *set);
 #endif
 
-#if defined(_POSIX_TIMERS) && ((_POSIX_TIMERS > 0) || defined(__OpenBSD__)) && defined(_POSIX_MONOTONIC_CLOCK) && defined(CLOCK_MONOTONIC)
+#if defined(_POSIX_TIMERS) && ((_POSIX_TIMERS > 0) || defined(__OpenBSD__)) && defined(_POSIX_MONOTONIC_CLOCK) &&      \
+    defined(CLOCK_MONOTONIC)
 #ifndef HAVE_CLOCK_GETTIME
 #define HAVE_CLOCK_GETTIME
 #endif
@@ -907,4 +909,3 @@ static sw_inline swoole::MemoryPool *sw_mem_pool() {
 static sw_inline const swoole::Allocator *sw_std_allocator() {
     return &SwooleG.std_allocator;
 }
-

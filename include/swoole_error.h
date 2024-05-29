@@ -35,6 +35,8 @@ enum swErrorCode {
     SW_ERROR_PROTOCOL_ERROR,
     SW_ERROR_WRONG_OPERATION,
     SW_ERROR_PHP_RUNTIME_NOTICE, // Non-fatal errors, just runtime warnings
+    SW_ERROR_FOR_TEST,
+
     SW_ERROR_UNDEFINED_BEHAVIOR = 600,
     SW_ERROR_NOT_THREAD_SAFETY,
 

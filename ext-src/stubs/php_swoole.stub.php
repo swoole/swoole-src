@@ -119,3 +119,9 @@ function swoole_substr_json_decode(string $str, int $offset, int $length = 0, bo
 function swoole_internal_call_user_shutdown_begin(): bool
 {
 }
+
+
+function swoole_test_fn(string $case): void
+{
+
+}

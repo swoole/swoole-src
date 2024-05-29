@@ -674,6 +674,13 @@ static inline zval *object_get(zval *obj, const char *name, size_t l_name) {
     return zend_read_property(Z_OBJCE_P(obj), Z_OBJ_P(obj), name, l_name, 1, &rv);
 }
 
+/**
+ * print exception, The virtual machine will not be terminated.
+ */
+static inline void print_error(zend_object *exception, int severity) {
+    zend_exception_error(exception, severity);
+}
+
 //-----------------------------------namespace end--------------------------------------------
 }  // namespace zend
 
