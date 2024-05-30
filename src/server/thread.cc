@@ -205,10 +205,8 @@ int Server::start_worker_threads() {
     }
 
     if (!user_worker_list.empty()) {
-        int i = 0;
-        for (auto worker : user_worker_list) {
+        for (size_t i = 0; i < user_worker_list.size(); i++) {
             _factory->spawn_user_worker(task_worker_num + worker_num + i);
-            i++;
         }
     }
 
