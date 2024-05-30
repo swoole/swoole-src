@@ -907,6 +907,7 @@ bool Server::signal_handler_read_message() {
     return true;
 }
 
+#ifdef SIGRTMIN
 bool Server::signal_handler_reopen_logger() {
     uint32_t i;
     Worker *worker;
@@ -920,6 +921,7 @@ bool Server::signal_handler_reopen_logger() {
     sw_logger()->reopen();
     return true;
 }
+#endif
 
 void Server::stop_master_thread() {
     Reactor *reactor = SwooleTG.reactor;
