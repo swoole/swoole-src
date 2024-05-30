@@ -61,6 +61,8 @@ if [ "${SWOOLE_BRANCH}" = "valgrind" ]; then
     options="${options} -m"
 elif [ "$SWOOLE_THREAD" = 1 ]; then
     dir="swoole_thread"
+elif [ "$SWOOLE_USE_IOURING" = 1 ]; then
+    dir="swoole_runtime/file_hook"
 else
     dir="swoole_*"
 fi
