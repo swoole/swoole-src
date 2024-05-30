@@ -203,7 +203,7 @@ static PHP_METHOD(swoole_thread, getArguments) {
 }
 
 static PHP_METHOD(swoole_thread, getId) {
-    RETURN_LONG(pthread_self());
+    RETURN_LONG((zend_long) pthread_self());
 }
 
 zend_string *php_swoole_thread_serialize(zval *zdata) {
@@ -250,7 +250,7 @@ bool php_swoole_thread_unserialize(zend_string *data, zval *zv) {
     PHP_VAR_UNSERIALIZE_DESTROY(var_hash);
     if (!unserialized) {
         swoole_warning("unserialize() failed, Error at offset " ZEND_LONG_FMT " of %zd bytes",
-                       (zend_long) ((char *) p - ZSTR_VAL(data)),
+                       (zend_long)((char *) p - ZSTR_VAL(data)),
                        l);
     } else {
         if (ZVAL_IS_ARRAY(zv)) {
@@ -372,7 +372,8 @@ static void php_swoole_thread_create(INTERNAL_FUNCTION_PARAMETERS, zval *zobject
     }
 
     to->thread = new std::thread([file, argv]() { php_swoole_thread_start(file, argv); });
-    zend_update_property_long(swoole_thread_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("id"), to->thread->native_handle());
+    zend_update_property_long(
+        swoole_thread_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("id"), (zend_long) to->thread->native_handle());
 }
 
 void php_swoole_thread_start(zend_string *file, zend_string *argv_serialized) {
