@@ -43,6 +43,7 @@ void Coroutine::activate() {
     coroutine::thread_context_init();
 #endif
     activated = true;
+    on_bailout = nullptr;
 }
 
 void Coroutine::deactivate() {
