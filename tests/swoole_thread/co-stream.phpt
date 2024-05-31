@@ -14,7 +14,7 @@ use Swoole\Thread;
 use Swoole\Thread\Queue;
 
 $tm = new \SwooleTest\ThreadManager();
-$tm->initFreePorts();
+$tm->initFreePorts(increment: crc32(__FILE__) % 1000);
 
 $tm->parentFunc = function () use ($tm) {
     Runtime::enableCoroutine(SWOOLE_HOOK_ALL);

@@ -13,7 +13,7 @@ use Swoole\Thread;
 use Swoole\Thread\Queue;
 
 $tm = new \SwooleTest\ThreadManager();
-$tm->initFreePorts();
+$tm->initFreePorts(increment: crc32(__FILE__) % 1000);
 
 $tm->parentFunc = function () use ($tm) {
     $fp = stream_socket_server('tcp://127.0.0.1:' . $tm->getFreePort(), $errno, $errstr);

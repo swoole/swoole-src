@@ -49,9 +49,7 @@ TEST(coroutine_system, flock) {
     ASSERT_EQ(swoole_random_bytes(buf->str, buf->size - 1), buf->size - 1);
     buf->str[buf->size - 1] = 0;
 
-    swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
-
-    Coroutine::create([&buf](void *) {
+    test::coroutine::run([&buf](void *) {
         int fd = swoole_coroutine_open(test_file, File::WRITE | File::CREATE, 0666);
         ASSERT_TRUE(fd > 0);
         swoole_coroutine_flock_ex(test_file, fd, LOCK_EX);
@@ -77,7 +75,6 @@ TEST(coroutine_system, flock) {
         swoole_coroutine_close(fd);
     });
 
-    swoole_event_wait();
     unlink(test_file);
 }
 

@@ -15,7 +15,7 @@ use Swoole\Thread\Lock;
 const SIZE = 2 * 1024 * 1024;
 
 $tm = new \SwooleTest\ThreadManager();
-$tm->initFreePorts();
+$tm->initFreePorts(increment: crc32(__FILE__) % 1000);
 
 $tm->parentFunc = function () use ($tm) {
     $queue = new Swoole\Thread\Queue();
