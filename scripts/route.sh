@@ -92,6 +92,16 @@ run_thread_tests_in_docker(){
     fi
 }
 
+run_iouring_tests_in_docker(){
+      docker exec swoole touch /.cienv && \
+      docker exec swoole /swoole-src/scripts/docker-iouring-route.sh
+      code=$?
+      if [ $code -ne 0 ]; then
+          echo "\n❌ Run iouring tests failed! ExitCode: $code"
+          exit 1
+      fi
+}
+
 remove_tests_resources(){
     remove_docker_containers
     remove_data_files
@@ -109,6 +119,8 @@ echo "\n⏳ Run tests in docker...\n"
 
 if [ "$SWOOLE_THREAD" = 1 ]; then
     run_thread_tests_in_docker
+elif [ "$SWOOLE_USE_IOURING" = 1 ]; then
+    run_iouring_tests_in_docker
 else
     run_tests_in_docker
 fi
