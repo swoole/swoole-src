@@ -3,8 +3,7 @@ name: ext-swoole
 on: [ push, pull_request ]
 
 env:
-  CPPFLAGS: "-I/opt/homebrew/opt/c-ares/include/ -I/opt/homebrew/opt/pcre2/include/ -I/opt/homebrew/opt/openssl/include/"
-  LDFLAGS: "-L/opt/homebrew/opt/c-ares/lib -L/opt/homebrew/opt/openssl/lib/"
+  CPPFLAGS: "-I/opt/homebrew/opt/pcre2/include/"
 
 jobs:
   build-ubuntu-latest:
@@ -20,25 +19,25 @@ jobs:
         run: ./configure &&
           make clean && make -j$(nproc)
       - name: build2
-        run: ./configure --enable-sockets &&
+        run: ./configure CPPFLAGS="${CPPFLAGS}" --enable-sockets &&
           make clean && make -j$(nproc)
       - name: build3
-        run: ./configure --enable-sockets --enable-mysqlnd &&
+        run: ./configure CPPFLAGS="${CPPFLAGS}" --enable-sockets --enable-mysqlnd &&
           make clean && make -j$(nproc)
       - name: build5
-        run: ./configure --enable-sockets --enable-mysqlnd --enable-openssl &&
+        run: ./configure CPPFLAGS="${CPPFLAGS}" --enable-sockets --enable-mysqlnd --enable-openssl &&
           make clean && make -j$(nproc)
       - name: build6
-        run: ./configure --enable-sockets --enable-mysqlnd --enable-openssl --enable-debug-log &&
+        run: ./configure CPPFLAGS="${CPPFLAGS}" --enable-sockets --enable-mysqlnd --enable-openssl --enable-debug-log &&
           make clean && make -j$(nproc)
       - name: build7
-        run: ./configure --enable-sockets --enable-mysqlnd --enable-swoole-curl --enable-openssl --enable-debug-log &&
+        run: ./configure CPPFLAGS="${CPPFLAGS}" --enable-sockets --enable-mysqlnd --enable-swoole-curl --enable-openssl --enable-debug-log &&
           make clean && make -j$(nproc)
       - name: build8
-        run: ./configure --enable-sockets --enable-mysqlnd --enable-swoole-curl --enable-openssl --enable-cares --enable-debug-log &&
+        run: ./configure CPPFLAGS="${CPPFLAGS}" --enable-sockets --enable-mysqlnd --enable-swoole-curl --enable-openssl --enable-cares --enable-debug-log &&
           make clean && make -j$(nproc)
       - name: build with thread context
-        run: ./configure --enable-sockets --enable-mysqlnd --enable-swoole-curl --enable-openssl --enable-cares --enable-debug-log --enable-thread-context &&
+        run: ./configure CPPFLAGS="${CPPFLAGS}" --enable-sockets --enable-mysqlnd --enable-swoole-curl --enable-openssl --enable-cares --enable-debug-log --enable-thread-context &&
           make clean && make -j$(nproc)
 
   build-macos-latest:
@@ -51,22 +50,21 @@ jobs:
       - name: phpize
         run: phpize
       - name: build1
-        run: ./configure CPPFLAGS="${CPPFLAGS}" && make clean && make -j$(sysctl -n hw.ncpu)
+        run: ./configure && make clean && make -j$(sysctl -n hw.ncpu)
       - name: build2
-        run: ./configure CPPFLAGS="${CPPFLAGS}" --enable-sockets &&
+        run: ./configure --enable-sockets &&
           make clean && make -j$(sysctl -n hw.ncpu)
       - name: build3
-        run: ./configure CPPFLAGS="${CPPFLAGS}" --enable-sockets --enable-mysqlnd &&
+        run: ./configure --enable-sockets --enable-mysqlnd &&
           make clean && make -j$(sysctl -n hw.ncpu)
       - name: build5
-        run: ./configure CPPFLAGS="${CPPFLAGS}" --enable-sockets --enable-mysqlnd --enable-openssl &&
+        run: ./configure --enable-sockets --enable-mysqlnd --enable-openssl &&
           make clean && make -j$(sysctl -n hw.ncpu)
       - name: build6
-        run: ./configure CPPFLAGS="${CPPFLAGS}" --enable-sockets --enable-mysqlnd  --enable-openssl
-          --enable-swoole-curl --enable-debug-log &&
+        run: ./configure --enable-sockets --enable-mysqlnd  --enable-openssl --enable-swoole-curl --enable-debug-log &&
           make clean && make -j$(sysctl -n hw.ncpu)
       - name: build7
-        run: ./configure CPPFLAGS="${CPPFLAGS}" LDFLAGS="${LDFLAGS}" --enable-sockets --enable-mysqlnd --enable-openssl --enable-swoole-curl
+        run: ./configure --enable-sockets --enable-mysqlnd --enable-openssl --enable-swoole-curl
           --enable-debug-log --enable-cares &&
           make clean && make -j$(sysctl -n hw.ncpu)
 

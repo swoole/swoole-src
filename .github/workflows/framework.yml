@@ -5,8 +5,7 @@ on:
   pull_request:
 
 env:
-  CPPFLAGS: "-I/opt/homebrew/opt/c-ares/include/ -I/opt/homebrew/opt/pcre2/include/ -I/opt/homebrew/opt/openssl/include/"
-  LDFLAGS: "-L/opt/homebrew/opt/c-ares/lib -L/opt/homebrew/opt/openssl/lib/"
+  CPPFLAGS: "-I/opt/homebrew/opt/pcre2/include/"
 
 jobs:
   linux:
@@ -125,7 +124,7 @@ jobs:
       - name: Build Swoole
         run: |
           phpize
-          ./configure LDFLAGS="${LDFLAGS}" CPPFLAGS="${CPPFLAGS}" --enable-openssl --enable-mysqlnd --enable-swoole-curl --enable-cares
+          ./configure CPPFLAGS="${CPPFLAGS}" --enable-openssl --enable-mysqlnd --enable-swoole-curl --enable-cares
           make -j$(sysctl -n hw.ncpu)
           sudo make install
           php --ri swoole
