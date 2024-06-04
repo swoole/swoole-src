@@ -39,7 +39,7 @@ PHP_ARG_ENABLE([openssl],
 PHP_ARG_ENABLE([brotli],
   [enable brotli support],
   [AS_HELP_STRING([[--enable-brotli]],
-    [Use brotli])], [no], [no])
+    [Use brotli])], [yes], [no])
 
 PHP_ARG_ENABLE([swoole],
   [swoole support],

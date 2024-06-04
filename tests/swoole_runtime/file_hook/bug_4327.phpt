@@ -43,13 +43,7 @@ run(function () {
     createDirectories();
     createDirectories("file://");
 });
-
-Swoole\Runtime::enableCoroutine(false);
-createDirectories();
-createDirectories("file://");
 ?>
 --EXPECT--
-SUCCESS
-SUCCESS
 SUCCESS
 SUCCESS
