@@ -41,7 +41,7 @@ array(5) {
   ["connection"]=>
   string(10) "keep-alive"
   ["content-type"]=>
-  string(9) "text/html"
+  string(24) "text/html; charset=utf-8"
   ["content-length"]=>
   string(2) "11"
 }
