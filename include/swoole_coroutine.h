@@ -266,6 +266,9 @@ class Coroutine {
         if (sw_unlikely(count() > peak_num)) {
             peak_num = count();
         }
+        if (!activated) {
+            activate();
+        }
     }
 
     Coroutine(long _cid, const CoroutineFunc &fn, void *private_data) : ctx(stack_size, fn, private_data) {

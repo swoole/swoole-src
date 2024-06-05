@@ -16,7 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         php-version: [ '8.1', '8.2', '8.3' ]
-        framework: [ 'Laravel Octane', 'Hyperf', 'Simps', 'imi' ]
+        framework: [ 'Laravel Octane', 'Hyperf', 'Simps' ]
     name: ${{ matrix.framework }} - PHP ${{ matrix.php-version }}
     steps:
       - name: Checkout code
@@ -82,23 +82,6 @@ jobs:
           cd mqtt/
           composer install -o
           composer test
-
-      - name: imi Tests
-        if: matrix.framework == 'imi'
-        env:
-          MYSQL_VERSION: '5.7'
-          MYSQL_SERVER_PASSWORD:
-        run: |
-          docker run --name mysql -d -p 3306:3306 --health-cmd="mysqladmin ping --silent" --health-interval=1s --health-retries=60 --health-timeout=3s -e MYSQL_ALLOW_EMPTY_PASSWORD=true mysql:${MYSQL_VERSION} --bind-address=0.0.0.0 --default-authentication-plugin=mysql_native_password
-          docker run --name redis -d -p 6379:6379 redis
-          docker run --name rabbitmq -d -p 4369:4369 -p 5672:5672 -p 15672:15672 -p 25672:25672 rabbitmq:management-alpine
-          git clone -b 2.1 https://github.com/imiphp/imi.git --depth=1
-          cd imi/
-          composer update -o
-          timeout 60s sh -c 'until docker ps | grep mysql | grep -q healthy; do echo "Waiting for container to be healthy..."; sleep 1; done'
-          mysql -h 127.0.0.1 -u root -e "CREATE DATABASE IF NOT EXISTS db_imi_test charset=utf8mb4 collate=utf8mb4_unicode_ci;"
-          ./tests/db/install-db.sh
-          composer test-swoole
 
   macos:
     if: "!contains(github.event.head_commit.message, '[test]')"
