@@ -512,7 +512,7 @@ static descriptorspec_item *alloc_descriptor_array(HashTable *descriptorspec) {
     return (descriptorspec_item *) ecalloc(sizeof(descriptorspec_item), ndescriptors);
 }
 
-static zend_string *get_string_parameter(zval *array, int index, char *param_name) {
+static zend_string *get_string_parameter(zval *array, int index, const char *param_name) {
     zval *array_item;
     if ((array_item = zend_hash_index_find(Z_ARRVAL_P(array), index)) == NULL) {
         zend_value_error("Missing %s", param_name);
@@ -1193,7 +1193,7 @@ PHP_FUNCTION(swoole_proc_open) {
         close_descriptor(descriptors[i].childend);
 
         if (descriptors[i].type == DESCRIPTOR_TYPE_PIPE) {
-            char *mode_string = NULL;
+            const char *mode_string = NULL;
 
             switch (descriptors[i].mode_flags) {
 #ifdef PHP_WIN32
