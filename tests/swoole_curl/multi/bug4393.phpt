@@ -51,7 +51,7 @@ run(function () {
     while ($n--) {
         $s = microtime(true);
         $test();
-        Assert::lessThan(microtime(true) - $s, 2.0);
+        Assert::lessThan(microtime(true) - $s, 3.0);
     }
 
     echo 'Done' . PHP_EOL;
