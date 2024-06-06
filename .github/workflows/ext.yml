@@ -3,8 +3,7 @@ name: ext-swoole
 on: [ push, pull_request ]
 
 env:
-  CPPFLAGS: "-I/opt/homebrew/opt/c-ares/include/ -I/opt/homebrew/opt/pcre2/include/ -I/opt/homebrew/opt/openssl/include/"
-  LDFLAGS: "-L/opt/homebrew/opt/c-ares/lib -L/opt/homebrew/opt/openssl/lib/"
+  CPPFLAGS: "-I/opt/homebrew/opt/pcre2/include/"
 
 jobs:
   build-ubuntu-latest:
@@ -66,7 +65,7 @@ jobs:
           --enable-swoole-curl --enable-debug-log &&
           make clean && make -j$(sysctl -n hw.ncpu)
       - name: build7
-        run: ./configure CPPFLAGS="${CPPFLAGS}" LDFLAGS="${LDFLAGS}" --enable-sockets --enable-mysqlnd --enable-openssl --enable-swoole-curl
+        run: ./configure CPPFLAGS="${CPPFLAGS}" --enable-sockets --enable-mysqlnd --enable-openssl --enable-swoole-curl
           --enable-debug-log --enable-cares &&
           make clean && make -j$(sysctl -n hw.ncpu)
 

@@ -39,7 +39,7 @@ PHP_ARG_ENABLE([openssl],
 PHP_ARG_ENABLE([brotli],
   [enable brotli support],
   [AS_HELP_STRING([[--enable-brotli]],
-    [Use brotli])], [yes], [no])
+    [Use brotli])], [no], [no])
 
 PHP_ARG_ENABLE([swoole],
   [swoole support],
@@ -75,11 +75,6 @@ PHP_ARG_WITH([nghttp2_dir],
   [dir of nghttp2],
   [AS_HELP_STRING([[--with-nghttp2-dir[=DIR]]],
     [Include nghttp2 support])], [no], [no])
-
-PHP_ARG_WITH([jemalloc_dir],
-  [dir of jemalloc],
-  [AS_HELP_STRING([[--with-jemalloc-dir[=DIR]]],
-    [Include jemalloc support])], [no], [no])
 
 PHP_ARG_ENABLE([asan],
   [enable asan],
@@ -372,7 +367,6 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(pthread, pthread_mutexattr_setrobust, AC_DEFINE(HAVE_PTHREAD_MUTEXATTR_SETROBUST, 1, [have pthread_mutexattr_setrobust]))
     AC_CHECK_LIB(pthread, pthread_mutex_consistent, AC_DEFINE(HAVE_PTHREAD_MUTEX_CONSISTENT, 1, [have pthread_mutex_consistent]))
     AC_CHECK_LIB(pcre, pcre_compile, AC_DEFINE(HAVE_PCRE, 1, [have pcre]))
-    AC_CHECK_LIB(cares, ares_gethostbyname, AC_DEFINE(HAVE_CARES, 1, [have c-ares]))
 
     if test "$PHP_SWOOLE_DEV" = "yes"; then
         AX_CHECK_COMPILE_FLAG(-Wbool-conversion,                _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wbool-conversion")
@@ -410,6 +404,9 @@ if test "$PHP_SWOOLE" != "no"; then
     fi
 
     if test "$PHP_SWOOLE_CURL" = "yes"; then
+        PKG_CHECK_MODULES([CURL], [libcurl >= 7.56.0])
+        PHP_EVAL_LIBLINE($CURL_LIBS, SWOOLE_SHARED_LIBADD)
+        PHP_EVAL_INCLINE($CURL_CFLAGS)
         AC_DEFINE(SW_USE_CURL, 1, [do we enable cURL native client])
     fi
 
@@ -847,15 +844,24 @@ EOF
         PHP_ADD_LIBRARY(z, 1, SWOOLE_SHARED_LIBADD)
     ])
 
-    if test "$PHP_BROTLI" = "yes"; then
-        AC_CHECK_LIB(brotlienc, BrotliEncoderCreateInstance, [
-            AC_CHECK_LIB(brotlidec, BrotliDecoderCreateInstance, [
-                AC_DEFINE(SW_HAVE_COMPRESSION, 1, [have compression])
-                AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli encoder])
-                PHP_ADD_LIBRARY(brotlienc, 1, SWOOLE_SHARED_LIBADD)
-                PHP_ADD_LIBRARY(brotlidec, 1, SWOOLE_SHARED_LIBADD)
-            ])
-        ])
+	if test "$PHP_BROTLI" != "no" || test "$PHP_BROTLI_DIR" != "no"; then
+        if test "$PHP_BROTLI_DIR" != "no"; then
+            PHP_ADD_INCLUDE("${PHP_BROTLI_DIR}/include")
+            PHP_ADD_LIBRARY_WITH_PATH(brotli, "${PHP_BROTLI_DIR}/${PHP_LIBDIR}")
+            PHP_ADD_LIBRARY_WITH_PATH(brotlienc, "${PHP_BROTLI_DIR}/${PHP_LIBDIR}")
+            PHP_ADD_LIBRARY_WITH_PATH(brotlidec, "${PHP_BROTLI_DIR}/${PHP_LIBDIR}")
+        else
+            PKG_CHECK_MODULES([BROTLIENC], [libbrotlienc])
+            PHP_EVAL_LIBLINE($BROTLIENC_LIBS, SWOOLE_SHARED_LIBADD)
+            PHP_EVAL_INCLINE($BROTLIENC_CFLAGS)
+
+            PKG_CHECK_MODULES([BROTLIDEC], [libbrotlidec])
+            PHP_EVAL_LIBLINE($BROTLIDEC_LIBS, SWOOLE_SHARED_LIBADD)
+            PHP_EVAL_INCLINE($BROTLIDEC_CFLAGS)
+        fi
+
+        AC_DEFINE(SW_HAVE_COMPRESSION, 1, [have compression])
+        AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli encoder])
     fi
 
     PHP_ADD_LIBRARY(pthread)
@@ -908,15 +914,18 @@ EOF
     fi
 
     if test "$PHP_CARES" = "yes"; then
+        PKG_CHECK_MODULES([CARES], [libcares])
+        PHP_EVAL_LIBLINE($CARES_LIBS, SWOOLE_SHARED_LIBADD)
+        PHP_EVAL_INCLINE($CARES_CFLAGS)
         AC_DEFINE(SW_USE_CARES, 1, [do we enable c-ares support])
-        PHP_ADD_LIBRARY(cares, 1, SWOOLE_SHARED_LIBADD)
+        AC_DEFINE(HAVE_CARES, 1, [have c-ares])
     fi
 
    if test "$PHP_IOURING" = "yes"; then
-       AC_CHECK_LIB(uring, io_uring_queue_init, [
-           AC_DEFINE(SW_USE_IOURING, 1, [have io_uring])
-           PHP_ADD_LIBRARY(uring, 1, SWOOLE_SHARED_LIBADD)
-       ])
+       PKG_CHECK_MODULES([URING], [liburing])
+       PHP_EVAL_LIBLINE($URING_LIBS, SWOOLE_SHARED_LIBADD)
+       PHP_EVAL_INCLINE($URING_CFLAGS)
+       AC_DEFINE(SW_USE_IOURING, 1, [have io_uring])
    fi
 
     AC_SWOOLE_CPU_AFFINITY
@@ -965,13 +974,23 @@ EOF
     fi
 
     if test "$PHP_OPENSSL" != "no" || test "$PHP_OPENSSL_DIR" != "no"; then
-        if test "$PHP_OPENSSL_DIR" != "no"; then
+		if test "$PHP_OPENSSL_DIR" != "no"; then
             PHP_ADD_INCLUDE("${PHP_OPENSSL_DIR}/include")
             PHP_ADD_LIBRARY_WITH_PATH(ssl, "${PHP_OPENSSL_DIR}/${PHP_LIBDIR}")
+
+            PHP_ADD_LIBRARY(ssl, 1, SWOOLE_SHARED_LIBADD)
+            PHP_ADD_LIBRARY(crypto, 1, SWOOLE_SHARED_LIBADD)
+        else
+            PKG_CHECK_MODULES([SSL], [libssl])
+            PHP_EVAL_LIBLINE($SSL_LIBS, SWOOLE_SHARED_LIBADD)
+            PHP_EVAL_INCLINE($SSL_CFLAGS)
+
+            PKG_CHECK_MODULES([CRYPTO], [libcrypto])
+            PHP_EVAL_LIBLINE($CRYPTO_LIBS, SWOOLE_SHARED_LIBADD)
+            PHP_EVAL_INCLINE($CRYPTO_CFLAGS)
         fi
+
         AC_DEFINE(SW_USE_OPENSSL, 1, [enable openssl support])
-        PHP_ADD_LIBRARY(ssl, 1, SWOOLE_SHARED_LIBADD)
-        PHP_ADD_LIBRARY(crypto, 1, SWOOLE_SHARED_LIBADD)
     fi
 
     if test "$PHP_BROTLI_DIR" != "no"; then
@@ -988,13 +1007,6 @@ EOF
         PHP_ADD_INCLUDE("${PHP_NGHTTP2_DIR}/include")
         PHP_ADD_LIBRARY_WITH_PATH(nghttp2, "${PHP_NGHTTP2_DIR}/${PHP_LIBDIR}")
         PHP_ADD_LIBRARY(nghttp2, 1, SWOOLE_SHARED_LIBADD)
-    fi
-
-    if test "$PHP_JEMALLOC_DIR" != "no"; then
-        AC_DEFINE(SW_USE_JEMALLOC, 1, [use jemalloc])
-        PHP_ADD_INCLUDE("${PHP_JEMALLOC_DIR}/include")
-        PHP_ADD_LIBRARY_WITH_PATH(jemalloc, "${PHP_JEMALLOC_DIR}/${PHP_LIBDIR}")
-        PHP_ADD_LIBRARY(jemalloc, 1, SWOOLE_SHARED_LIBADD)
     fi
 
     PHP_ADD_LIBRARY(pthread, 1, SWOOLE_SHARED_LIBADD)
