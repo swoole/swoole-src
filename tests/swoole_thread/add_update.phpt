@@ -49,4 +49,3 @@ Assert::eq($m2[INDEX_EXISTS], $value);
 
 ?>
 --EXPECTF--
-

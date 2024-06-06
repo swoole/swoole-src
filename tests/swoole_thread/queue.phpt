@@ -60,4 +60,3 @@ if (empty($args)) {
 }
 ?>
 --EXPECTF--
-

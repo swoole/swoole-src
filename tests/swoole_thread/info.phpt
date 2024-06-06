@@ -30,4 +30,3 @@ $tm->childFunc = function () {
 $tm->run();
 ?>
 --EXPECTF--
-

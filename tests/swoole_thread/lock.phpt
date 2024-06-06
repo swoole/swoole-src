@@ -35,4 +35,3 @@ $tm->run();
 --EXPECTF--
 child thread
 main thread
-

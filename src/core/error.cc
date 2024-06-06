@@ -52,6 +52,12 @@ const char *swoole_strerror(int code) {
         return "Wrong operation";
     case SW_ERROR_PHP_RUNTIME_NOTICE:
         return "PHP runtime notice";
+    case SW_ERROR_FOR_TEST:
+        return "For test";
+    case SW_ERROR_UNDEFINED_BEHAVIOR:
+        return "Undefined behavior";
+    case SW_ERROR_NOT_THREAD_SAFETY:
+        return "Not thread safety";
     case SW_ERROR_FILE_NOT_EXIST:
         return "File not exist";
     case SW_ERROR_FILE_TOO_LARGE:

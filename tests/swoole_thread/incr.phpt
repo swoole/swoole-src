@@ -76,4 +76,3 @@ Assert::eq($l->incr(0, $add_dval), intval($add_dval));
 
 ?>
 --EXPECTF--
-
