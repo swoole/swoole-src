@@ -26,7 +26,6 @@
 #include "ext/standard/info.h"
 #include "pdo/php_pdo.h"
 #include "pdo/php_pdo_driver.h"
-#include "php_pdo_pgsql.h"
 #include "php_pdo_pgsql_int.h"
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
