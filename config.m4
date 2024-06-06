@@ -1027,8 +1027,7 @@ EOF
         thirdparty/php/sockets/conversions.cc \
         thirdparty/php/sockets/sockaddr_conv.cc \
         thirdparty/php/standard/var_decoder.cc \
-        thirdparty/php/standard/proc_open.cc \
-        thirdparty/php83/Zend/zend_call_stack.cc"
+        thirdparty/php/standard/proc_open.cc"
 
     swoole_source_file="$swoole_source_file \
         thirdparty/swoole_http_parser.c \
