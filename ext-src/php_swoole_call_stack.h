@@ -14,25 +14,16 @@
   +----------------------------------------------------------------------+
 */
 
-#pragma once
-
 #include "php_swoole.h"
 
 #ifdef ZEND_CHECK_STACK_LIMIT
-    #include "thirdparty/php83/Zend/zend_call_stack.h"
-#endif
-
-#ifdef ZEND_CHECK_STACK_LIMIT
-    #define HOOK_PHP_CALL_STACK(exp) \
-        zend_call_stack __stack; \
-        zend_call_stack_get(&__stack); \
-        auto __stack_base = EG(stack_base); \
-        auto __stack_limit = EG(stack_limit); \
-        EG(stack_base) = __stack.base; \
-        EG(stack_limit) = zend_call_stack_limit(__stack.base, __stack.max_size, EG(reserved_stack_size)); \
-        exp \
-        EG(stack_base) = __stack_base; \
-        EG(stack_limit) = __stack_limit;
+#define HOOK_PHP_CALL_STACK(callback)                                                                                  \
+    auto __stack_limit = EG(stack_limit);                                                                              \
+    auto __stack_base = EG(stack_base);                                                                                \
+    EG(stack_base) = (void *) 0;                                                                                       \
+    EG(stack_limit) = (void *) 0;                                                                                      \
+    callback EG(stack_limit) = __stack_limit;                                                                          \
+    EG(stack_base) = __stack_base;
 #else
-    #define HOOK_PHP_CALL_STACK(exp) exp
+#define HOOK_PHP_CALL_STACK(callback) callback
 #endif

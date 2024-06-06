@@ -4,6 +4,9 @@ on:
   push:
   pull_request:
 
+env:
+  CPPFLAGS: "-I/opt/homebrew/opt/pcre2/include/"
+
 jobs:
   linux:
     runs-on: ubuntu-latest
@@ -120,10 +123,8 @@ jobs:
 
       - name: Build Swoole
         run: |
-          brew install openssl && brew link openssl
-          brew install c-ares && brew link c-ares
           phpize
-          ./configure --enable-openssl --with-openssl-dir=/usr/local/opt/openssl@1.1 --enable-mysqlnd --enable-swoole-curl --enable-cares
+          ./configure CPPFLAGS="${CPPFLAGS}" --enable-openssl --enable-mysqlnd --enable-swoole-curl --enable-cares
           make -j$(sysctl -n hw.ncpu)
           sudo make install
           php --ri swoole

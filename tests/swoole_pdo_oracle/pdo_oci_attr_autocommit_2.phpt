@@ -110,7 +110,8 @@ Test 1 Check beginTransaction insertion
 Test 2 Cause an exception and test beginTransaction rollback
 Caught expected exception at line %d
 SQLSTATE[HY000]: General error: 12899 OCIStmtExecute: ORA-12899: %s
-%s
+Help: %s
+ (%s:%d)
 Test 3 Setting ATTR_AUTOCOMMIT to true will commit and end the transaction
 PDO::ATTR_AUTOCOMMIT: bool(true)
 Caught expected exception at line %d
