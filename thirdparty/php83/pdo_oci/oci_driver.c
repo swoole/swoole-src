@@ -17,7 +17,7 @@
 #define SW_USE_ORACLE_HOOK
 #include "php_swoole_oracle.h"
 
-#if PHP_VERSION_ID >= 80100 && PHP_VERSION_ID < 80300
+#if PHP_VERSION_ID >= 80300
 
 #include "php.h"
 #include "php_ini.h"
@@ -25,9 +25,7 @@
 #include "pdo/php_pdo.h"
 #include "Zend/zend_exceptions.h"
 
-static inline ub4
-
-pdo_oci_sanitize_prefetch(long prefetch);
+static inline ub4 pdo_oci_sanitize_prefetch(long prefetch);
 
 static void pdo_oci_fetch_error_func(pdo_dbh_t *dbh, pdo_stmt_t *stmt, zval *info) /* {{{ */
 {
@@ -49,7 +47,6 @@ static void pdo_oci_fetch_error_func(pdo_dbh_t *dbh, pdo_stmt_t *stmt, zval *inf
         add_next_index_string(info, einfo->errmsg);
     }
 }
-
 /* }}} */
 
 ub4 _oci_error(OCIError *err,
@@ -187,7 +184,6 @@ ub4 _oci_error(OCIError *err,
 
     return einfo->errcode;
 }
-
 /* }}} */
 
 static void oci_handle_closer(pdo_dbh_t *dbh) /* {{{ */
@@ -239,7 +235,6 @@ static void oci_handle_closer(pdo_dbh_t *dbh) /* {{{ */
 
     pefree(H, dbh->is_persistent);
 }
-
 /* }}} */
 
 static bool oci_handle_preparer(pdo_dbh_t *dbh, zend_string *sql, pdo_stmt_t *stmt, zval *driver_options) /* {{{ */
@@ -279,8 +274,8 @@ static bool oci_handle_preparer(pdo_dbh_t *dbh, zend_string *sql, pdo_stmt_t *st
     OCIHandleAlloc(H->env, (dvoid *) &S->err, OCI_HTYPE_ERROR, 0, NULL);
 
     if (ZSTR_LEN(sql) != 0) {
-        H->last_err = OCIStmtPrepare(
-            S->stmt, H->err, (text *) ZSTR_VAL(sql), (ub4) ZSTR_LEN(sql), OCI_NTV_SYNTAX, OCI_DEFAULT);
+        H->last_err =
+            OCIStmtPrepare(S->stmt, H->err, (text *) ZSTR_VAL(sql), (ub4) ZSTR_LEN(sql), OCI_NTV_SYNTAX, OCI_DEFAULT);
         if (nsql) {
             zend_string_release(nsql);
             nsql = NULL;
@@ -310,7 +305,6 @@ static bool oci_handle_preparer(pdo_dbh_t *dbh, zend_string *sql, pdo_stmt_t *st
 
     return true;
 }
-
 /* }}} */
 
 static zend_long oci_handle_doer(pdo_dbh_t *dbh, const zend_string *sql) /* {{{ */
@@ -342,13 +336,13 @@ static zend_long oci_handle_doer(pdo_dbh_t *dbh, const zend_string *sql) /* {{{ 
 
     /* now we are good to go */
     H->last_err = OCIStmtExecute(H->svc,
-                                    stmt,
-                                    H->err,
-                                    1,
-                                    0,
-                                    NULL,
-                                    NULL,
-                                    (dbh->auto_commit && !dbh->in_txn) ? OCI_COMMIT_ON_SUCCESS : OCI_DEFAULT);
+                                 stmt,
+                                 H->err,
+                                 1,
+                                 0,
+                                 NULL,
+                                 NULL,
+                                 (dbh->auto_commit && !dbh->in_txn) ? OCI_COMMIT_ON_SUCCESS : OCI_DEFAULT);
 
     sword last_err = H->last_err;
 
@@ -366,7 +360,6 @@ static zend_long oci_handle_doer(pdo_dbh_t *dbh, const zend_string *sql) /* {{{ 
 
     return ret;
 }
-
 /* }}} */
 
 static zend_string *oci_handle_quoter(pdo_dbh_t *dbh,
@@ -380,7 +373,7 @@ static zend_string *oci_handle_quoter(pdo_dbh_t *dbh,
     zend_string *quoted_str;
 
     if (ZSTR_LEN(unquoted) == 0) {
-        return zend_string_init("''", 2, 0);
+        return ZSTR_INIT_LITERAL("''", 0);
     }
 
     /* count single quotes */
@@ -407,7 +400,6 @@ static zend_string *oci_handle_quoter(pdo_dbh_t *dbh,
     efree(quoted);
     return quoted_str;
 }
-
 /* }}} */
 
 static bool oci_handle_begin(pdo_dbh_t *dbh) /* {{{ */
@@ -415,7 +407,6 @@ static bool oci_handle_begin(pdo_dbh_t *dbh) /* {{{ */
     /* with Oracle, there is nothing special to be done */
     return true;
 }
-
 /* }}} */
 
 static bool oci_handle_commit(pdo_dbh_t *dbh) /* {{{ */
@@ -430,7 +421,6 @@ static bool oci_handle_commit(pdo_dbh_t *dbh) /* {{{ */
     }
     return true;
 }
-
 /* }}} */
 
 static bool oci_handle_rollback(pdo_dbh_t *dbh) /* {{{ */
@@ -445,7 +435,6 @@ static bool oci_handle_rollback(pdo_dbh_t *dbh) /* {{{ */
     }
     return true;
 }
-
 /* }}} */
 
 static bool oci_handle_set_attribute(pdo_dbh_t *dbh, zend_long attr, zval *val) /* {{{ */
@@ -588,7 +577,6 @@ static bool oci_handle_set_attribute(pdo_dbh_t *dbh, zend_long attr, zval *val) 
         return false;
     }
 }
-
 /* }}} */
 
 static int oci_handle_get_attribute(pdo_dbh_t *dbh, zend_long attr, zval *return_value) /* {{{ */
@@ -672,7 +660,6 @@ static int oci_handle_get_attribute(pdo_dbh_t *dbh, zend_long attr, zval *return
     }
     return FALSE;
 }
-
 /* }}} */
 
 static zend_result pdo_oci_check_liveness(pdo_dbh_t *dbh) /* {{{ */
@@ -712,7 +699,6 @@ static zend_result pdo_oci_check_liveness(pdo_dbh_t *dbh) /* {{{ */
     }
     return FAILURE;
 }
-
 /* }}} */
 
 static const struct pdo_dbh_methods oci_methods = {
@@ -758,8 +744,7 @@ static int pdo_oci_handle_factory(pdo_dbh_t *dbh, zval *driver_options) /* {{{ *
             oci_init_error("OCINlsCharSetNameToId: unknown character set name");
             goto cleanup;
         } else {
-            if (OCIEnvNlsCreate(
-                    &H->env, SWOOLE_PDO_OCI_INIT_MODE, 0, NULL, NULL, NULL, 0, NULL, H->charset, H->charset) !=
+            if (OCIEnvNlsCreate(&H->env, SWOOLE_PDO_OCI_INIT_MODE, 0, NULL, NULL, NULL, 0, NULL, H->charset, H->charset) !=
                 OCI_SUCCESS) {
                 oci_init_error("OCIEnvNlsCreate: Check the character set is valid and that PHP has access to Oracle "
                                "libraries and NLS data");
@@ -882,14 +867,11 @@ cleanup:
 
     return ret;
 }
-
 /* }}} */
 
 const pdo_driver_t swoole_pdo_oci_driver = {PDO_DRIVER_HEADER(oci), pdo_oci_handle_factory};
 
-static inline ub4
-
-pdo_oci_sanitize_prefetch(long prefetch) /* {{{ */
+static inline ub4 pdo_oci_sanitize_prefetch(long prefetch) /* {{{ */
 {
     if (prefetch < 0) {
         prefetch = 0;

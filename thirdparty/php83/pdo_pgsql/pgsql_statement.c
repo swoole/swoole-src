@@ -19,13 +19,14 @@
 #define SW_USE_PGSQL_HOOK
 #include "php_swoole_pgsql.h"
 
-#if PHP_VERSION_ID >= 80100 && PHP_VERSION_ID < 80300
+#if PHP_VERSION_ID >= 80300
 
 #include "php.h"
 #include "php_ini.h"
 #include "ext/standard/info.h"
 #include "pdo/php_pdo.h"
 #include "pdo/php_pdo_driver.h"
+#include "php_pdo_pgsql.h"
 #include "php_pdo_pgsql_int.h"
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
