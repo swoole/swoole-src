@@ -25,6 +25,7 @@
 #include "pdo/php_pdo.h"
 #include "pdo/php_pdo_driver.h"
 #include "zend_exceptions.h"
+#include <php_odbc_utils.h>
 
 static void pdo_odbc_fetch_error_func(pdo_dbh_t *dbh, pdo_stmt_t *stmt, zval *info) {
     pdo_odbc_db_handle *H = (pdo_odbc_db_handle *) dbh->driver_data;
