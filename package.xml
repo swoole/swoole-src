@@ -63,11 +63,26 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        - Fixed crash in pdo_sqlite hook in version 8.3
-        - Optimized HTTP COOKIE parsing to no longer throw PHP warnings, preventing them from being converted to exceptions
-        - Fixed issue where OpenSSL would not correctly return an empty string when the peer closed the connection
-        - Fixed incorrect setting of TCP_NODELAY
-        - Fixed issue with proc_open hook not supporting pty
+        - Fix the problem of being unable to install through pecl.
+        - Fix the issue of Swoole\Coroutine\FastCGI\Client client being unable to set keepalive.
+        - Fix the issue of process continuously restarting due to error thrown when request parameters exceed max_input_vars.
+        - Fix the unknown issue caused by using Swoole\Event::wait() in a coroutine.
+        - Fix the issue of proc_open not supporting pty when used in a coroutine.
+        - Fix the segmentation fault issue in pdo_sqlite on PHP 8.3.
+        - Fix the unnecessary warning when compiling Swoole.
+        - Fix the error thrown when calling zend_fetch_resource2_ex on closed STDOUT/STDERR.
+        - Fix the invalid set_tcp_nodelay configuration.
+        - Fix the occasional unreachable branch issue triggered during file uploads.
+        - Fix the issue causing PHP core to throw errors when dispatch_func is set.
+        - Fix the obsolete warning of AC_PROG_CC_C99 in autoconf >= 2.70 version.
+        - Remove unnecessary checks for socket structs.
+        - Upgrade the Swoole library.
+        - Add support for http status code 451 in Swoole\Http\Response.
+        - Synchronize file operation code across different versions of PHP.
+        - Synchronize PDO operation code across different versions of PHP.
+        - Optimize the code for Socket::ssl_recv() function.
+        - Optimized config.m4 by allowing some configurations to set dependency library locations using pkg-config.
+        - Optimize the issue with using dynamic arrays when parsing request headers.
     </notes>
     <contents>
         <dir name="/">
