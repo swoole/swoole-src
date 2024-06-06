@@ -1003,7 +1003,6 @@ EOF
     fi
 
     if test "$PHP_NGHTTP2_DIR" != "no"; then
-        AC_DEFINE(SW_USE_SYSTEM_LIBNGHTTP2, 1, [Use the system libnghttp2])
         PHP_ADD_INCLUDE("${PHP_NGHTTP2_DIR}/include")
         PHP_ADD_LIBRARY_WITH_PATH(nghttp2, "${PHP_NGHTTP2_DIR}/${PHP_LIBDIR}")
         PHP_ADD_LIBRARY(nghttp2, 1, SWOOLE_SHARED_LIBADD)
