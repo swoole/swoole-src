@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
  */
 
-/* $Id: 3bc066dd5d5f3498f7bb2ef8c5a7408d0cd33149 */
+/* $Id: b1dfd92c6bcb71413e561d75fe860bfb3ca38434 */
 
 #ifndef SWOOLE_LIBRARY_H
 #define SWOOLE_LIBRARY_H
