@@ -725,7 +725,7 @@ static int sw_php_stdiop_set_option(php_stream *stream, int option, int value, v
             if (do_fstat(data, 1) != 0) {
                 return PHP_STREAM_OPTION_RETURN_ERR;
             }
-            if (range->offset > data->sb.st_size) {
+            if (range->offset > (size_t) data->sb.st_size) {
                 range->offset = data->sb.st_size;
             }
             if (range->length == 0 ||
