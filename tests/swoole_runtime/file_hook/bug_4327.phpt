@@ -17,11 +17,6 @@ Swoole\Runtime::enableCoroutine($flags = SWOOLE_HOOK_ALL);
 
 function createDirectories($protocol = "")
 {
-	if (defined('SWOOLE_THREAD')) {
-		echo "SUCCESS".PHP_EOL;
-		return;
-	}
-
     $barrier = Barrier::make();
     $first   = "$protocol/".rand(0, 1000);
     $second  = "/".rand(0, 1000);
@@ -49,9 +44,14 @@ run(function () {
     createDirectories("file://");
 });
 
-Swoole\Runtime::enableCoroutine(false);
-createDirectories();
-createDirectories("file://");
+if (defined('SWOOLE_THREAD')) {
+	echo "SUCCESS".PHP_EOL;
+} else {
+    Swoole\Runtime::enableCoroutine(false);
+    createDirectories();
+    createDirectories("file://");
+}
+
 ?>
 --EXPECT--
 SUCCESS
