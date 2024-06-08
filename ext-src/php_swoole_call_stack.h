@@ -14,14 +14,12 @@
   +----------------------------------------------------------------------+
 */
 
-#pragma once
-
 #include "php_swoole.h"
 
 #ifdef ZEND_CHECK_STACK_LIMIT
 #define HOOK_PHP_CALL_STACK(callback)                                                                                  \
-    auto __stack_limit = EG(stack_limit);                                                                              \
-    auto __stack_base = EG(stack_base);                                                                                \
+    void *__stack_limit = EG(stack_limit);                                                                             \
+    void *__stack_base = EG(stack_base);                                                                               \
     EG(stack_base) = (void *) 0;                                                                                       \
     EG(stack_limit) = (void *) 0;                                                                                      \
     callback EG(stack_limit) = __stack_limit;                                                                          \
