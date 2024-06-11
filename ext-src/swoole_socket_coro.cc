@@ -821,7 +821,7 @@ SW_API void php_swoole_socket_set_error_properties(zval *zobject, Socket *socket
     php_swoole_socket_set_error_properties(zobject, socket->errCode, socket->errMsg);
 }
 
-static  zend_object *create_socket_object(Socket *socket) {
+static zend_object *create_socket_object(Socket *socket) {
     zval zobject;
     zend_object *object = socket_coro_create_object(swoole_socket_coro_ce);
     SocketObject *sock = (SocketObject *) socket_coro_fetch_object(object);
@@ -2185,7 +2185,7 @@ static PHP_METHOD(swoole_socket_coro, import) {
     if (getsockopt(socket_fd, SOL_SOCKET, SO_DOMAIN, &sock_domain, &sock_domain_len) == 0) {
     } else
 #endif
-    if (getsockname(socket_fd, (struct sockaddr *) &addr, &addr_len) == 0) {
+        if (getsockname(socket_fd, (struct sockaddr *) &addr, &addr_len) == 0) {
         sock_domain = addr.ss_family;
     } else {
         php_swoole_sys_error(E_WARNING, "getsockname() failed");
