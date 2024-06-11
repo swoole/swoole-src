@@ -304,7 +304,6 @@ zend_string *php_swoole_serialize(zval *zdata) {
         result = zend_string_init(serialized_data.s->val, serialized_data.s->len, 1);
     }
     smart_str_free(&serialized_data);
-
     return result;
 }
 
@@ -324,7 +323,7 @@ bool php_swoole_unserialize(zend_string *data, zval *zv) {
     return unserialized;
 }
 
-void php_swoole_thread_argv_dtor(zval *zdata) {
+void php_swoole_thread_argv_clean(zval *zdata) {
     if (!ZVAL_IS_ARRAY(zdata)) {
         return;
     }
@@ -338,7 +337,6 @@ void php_swoole_thread_argv_dtor(zval *zdata) {
         }
     }
     ZEND_HASH_FOREACH_END();
-    zval_dtor(zdata);
 }
 
 void php_swoole_thread_rinit() {
@@ -356,6 +354,7 @@ void php_swoole_thread_rinit() {
 }
 
 void php_swoole_thread_rshutdown() {
+    zval_dtor(&thread_argv);
     if (tsrm_is_main_thread()) {
         if (request_info.path_translated) {
             free((void *) request_info.path_translated);
@@ -451,7 +450,9 @@ static void php_swoole_thread_create(INTERNAL_FUNCTION_PARAMETERS, zval *zobject
 
 void php_swoole_thread_start(zend_string *file, zend_string *argv_serialized) {
     ts_resource(0);
-    TSRMLS_CACHE_UPDATE();
+#if defined(COMPILE_DL_SWOOLE) && defined(ZTS)
+        ZEND_TSRMLS_CACHE_UPDATE();
+#endif
     zend_file_handle file_handle{};
     zval global_argc, global_argv;
 
@@ -498,8 +499,8 @@ void php_swoole_thread_start(zend_string *file, zend_string *argv_serialized) {
     }
     zend_end_try();
 
-    php_swoole_thread_argv_dtor(&thread_argv);
-    php_swoole_thread_argv_dtor(&global_argv);
+    php_swoole_thread_argv_clean(&thread_argv);
+    php_swoole_thread_argv_clean(&global_argv);
     zend_destroy_file_handle(&file_handle);
 
     php_request_shutdown(NULL);

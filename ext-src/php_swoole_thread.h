@@ -35,7 +35,7 @@ zend_string *php_swoole_thread_argv_serialize(zval *zdata);
 bool php_swoole_thread_argv_unserialize(zend_string *data, zval *zv);
 zend_string *php_swoole_serialize(zval *zdata);
 bool php_swoole_unserialize(zend_string *data, zval *zv);
-void php_swoole_thread_argv_dtor(zval *zdata);
+void php_swoole_thread_argv_clean(zval *zdata);
 void php_swoole_thread_bailout(void);
 
 zval *php_swoole_thread_get_arguments();
