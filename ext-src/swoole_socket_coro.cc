@@ -89,9 +89,6 @@ static PHP_METHOD(swoole_socket_coro, getsockname);
 static PHP_METHOD(swoole_socket_coro, getpeername);
 static PHP_METHOD(swoole_socket_coro, isClosed);
 static PHP_METHOD(swoole_socket_coro, import);
-#ifdef SW_THREAD
-static PHP_METHOD(swoole_socket_coro, __wakeup);
-#endif
 SW_EXTERN_C_END
 
 // clang-format off
@@ -132,9 +129,6 @@ static const zend_function_entry swoole_socket_coro_methods[] =
     PHP_ME(swoole_socket_coro, getsockname,   arginfo_class_Swoole_Coroutine_Socket_getsockname,     ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, isClosed,      arginfo_class_Swoole_Coroutine_Socket_isClosed,        ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, import,        arginfo_class_Swoole_Coroutine_Socket_import,          ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-#ifdef SW_THREAD
-    PHP_ME(swoole_socket_coro, __wakeup,      arginfo_class_Swoole_Coroutine_Socket___wakeup,        ZEND_ACC_PUBLIC)
-#endif
     PHP_FE_END
 };
 // clang-format on
@@ -720,9 +714,7 @@ static void socket_coro_register_constants(int module_number) {
 
 void php_swoole_socket_coro_minit(int module_number) {
     SW_INIT_CLASS_ENTRY(swoole_socket_coro, "Swoole\\Coroutine\\Socket", "Co\\Socket", swoole_socket_coro_methods);
-#ifndef SW_THREAD
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_socket_coro);
-#endif
     SW_SET_CLASS_CLONEABLE(swoole_socket_coro, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_socket_coro, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CUSTOM_OBJECT(
@@ -829,12 +821,12 @@ SW_API void php_swoole_socket_set_error_properties(zval *zobject, Socket *socket
     php_swoole_socket_set_error_properties(zobject, socket->errCode, socket->errMsg);
 }
 
-SW_API zend_object *php_swoole_create_socket_from_fd(int fd, enum swSocketType type) {
+static  zend_object *create_socket_object(Socket *socket) {
     zval zobject;
     zend_object *object = socket_coro_create_object(swoole_socket_coro_ce);
     SocketObject *sock = (SocketObject *) socket_coro_fetch_object(object);
 
-    sock->socket = new Socket(fd, type);
+    sock->socket = socket;
     if (UNEXPECTED(sock->socket->get_fd() < 0)) {
         php_swoole_sys_error(E_WARNING, "new Socket() failed");
         delete sock->socket;
@@ -846,6 +838,14 @@ SW_API zend_object *php_swoole_create_socket_from_fd(int fd, enum swSocketType t
     ZVAL_OBJ(&zobject, object);
     socket_coro_init(&zobject, sock);
     return object;
+}
+
+SW_API zend_object *php_swoole_create_socket_from_fd(int fd, enum swSocketType type) {
+    return create_socket_object(new Socket(fd, type));
+}
+
+SW_API zend_object *php_swoole_create_socket_from_fd(int fd, int _domain, int _type, int _protocol) {
+    return create_socket_object(new Socket(fd, _domain, _type, _protocol));
 }
 
 SW_API Socket *php_swoole_get_socket(zval *zobject) {
@@ -2185,7 +2185,7 @@ static PHP_METHOD(swoole_socket_coro, import) {
     if (getsockopt(socket_fd, SOL_SOCKET, SO_DOMAIN, &sock_domain, &sock_domain_len) == 0) {
     } else
 #endif
-        if (getsockname(socket_fd, (struct sockaddr *) &addr, &addr_len) == 0) {
+    if (getsockname(socket_fd, (struct sockaddr *) &addr, &addr_len) == 0) {
         sock_domain = addr.ss_family;
     } else {
         php_swoole_sys_error(E_WARNING, "getsockname() failed");
@@ -2217,31 +2217,3 @@ static PHP_METHOD(swoole_socket_coro, import) {
 
     RETURN_OBJ(object);
 }
-
-#ifdef SW_THREAD
-static PHP_METHOD(swoole_socket_coro, __wakeup) {
-    zend_long sockfd = zend::object_get_long(ZEND_THIS, ZEND_STRL("fd"));
-    if (sockfd < 0) {
-        zend_throw_exception(swoole_exception_ce, EMSG_NO_RESOURCE, ECODE_NO_RESOURCE);
-        return;
-    }
-
-    zend_long new_sockfd = dup(sockfd);
-    if (sockfd < 0) {
-        zend_throw_exception(swoole_exception_ce, EMSG_NO_RESOURCE, ECODE_NO_RESOURCE);
-        return;
-    }
-
-    SocketObject *sock = (SocketObject *) socket_coro_fetch_object(Z_OBJ_P(ZEND_THIS));
-
-    zend_long domain = zend::object_get_long(ZEND_THIS, ZEND_STRL("domain"));
-    zend_long type = zend::object_get_long(ZEND_THIS, ZEND_STRL("type"));
-    zend_long protocol = zend::object_get_long(ZEND_THIS, ZEND_STRL("protocol"));
-
-    php_swoole_check_reactor();
-    sock->socket = new Socket((int) new_sockfd, (int) domain, (int) type, (int) protocol);
-    sock->socket->set_zero_copy(true);
-    sock->socket->set_buffer_allocator(sw_zend_string_allocator());
-    zend_update_property_long(swoole_socket_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("fd"), sock->socket->get_fd());
-}
-#endif

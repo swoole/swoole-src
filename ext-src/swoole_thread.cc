@@ -37,6 +37,9 @@ static zend_object_handlers swoole_thread_handlers;
 zend_class_entry *swoole_thread_stream_ce;
 static zend_object_handlers swoole_thread_stream_handlers;
 
+zend_class_entry *swoole_thread_socket_ce;
+static zend_object_handlers swoole_thread_socket_handlers;
+
 static struct {
     char *path_translated;
     zend_string *argv_serialized;
@@ -157,6 +160,12 @@ void php_swoole_thread_minit(int module_number) {
     // only used for thread argument forwarding
     SW_INIT_CLASS_ENTRY_DATA_OBJECT(swoole_thread_stream, "Swoole\\Thread\\Stream");
     zend_declare_property_long(swoole_thread_stream_ce, ZEND_STRL("fd"), 0, ZEND_ACC_PUBLIC | ZEND_ACC_READONLY);
+
+    SW_INIT_CLASS_ENTRY_DATA_OBJECT(swoole_thread_socket, "Swoole\\Thread\\Socket");
+    zend_declare_property_long(swoole_thread_socket_ce, ZEND_STRL("fd"), 0, ZEND_ACC_PUBLIC | ZEND_ACC_READONLY);
+    zend_declare_property_long(swoole_thread_socket_ce, ZEND_STRL("domain"), 0, ZEND_ACC_PUBLIC | ZEND_ACC_READONLY);
+    zend_declare_property_long(swoole_thread_socket_ce, ZEND_STRL("type"), 0, ZEND_ACC_PUBLIC | ZEND_ACC_READONLY);
+    zend_declare_property_long(swoole_thread_socket_ce, ZEND_STRL("protocol"), 0, ZEND_ACC_PUBLIC | ZEND_ACC_READONLY);
 }
 
 static PHP_METHOD(swoole_thread, __construct) {
@@ -206,17 +215,19 @@ static PHP_METHOD(swoole_thread, getId) {
     RETURN_LONG((zend_long) pthread_self());
 }
 
-zend_string *php_swoole_thread_serialize(zval *zdata) {
-    php_serialize_data_t var_hash;
-    smart_str serialized_data = {0};
+zend_string *php_swoole_thread_argv_serialize(zval *zdata) {
+    if (!ZVAL_IS_ARRAY(zdata)) {
+        return nullptr;
+    }
 
-    if (ZVAL_IS_ARRAY(zdata)) {
-        zval *elem;
-        ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(zdata), elem) {
-            ZVAL_DEREF(elem);
-            if (Z_TYPE_P(elem) != IS_RESOURCE) {
-                continue;
-            }
+    zval zdata_copy;
+    array_init(&zdata_copy);
+    zend_hash_copy(Z_ARRVAL(zdata_copy), Z_ARRVAL_P(zdata), (copy_ctor_func_t) zval_add_ref);
+
+    zval *elem;
+    ZEND_HASH_FOREACH_VAL(Z_ARRVAL(zdata_copy), elem) {
+        ZVAL_DEREF(elem);
+        if (Z_TYPE_P(elem) == IS_RESOURCE) {
             int sockfd = php_swoole_thread_stream_fileno(elem);
             if (sockfd < 0) {
                 continue;
@@ -224,9 +235,65 @@ zend_string *php_swoole_thread_serialize(zval *zdata) {
             zval_ptr_dtor(elem);
             object_init_ex(elem, swoole_thread_stream_ce);
             zend_update_property_long(swoole_thread_stream_ce, SW_Z8_OBJ_P(elem), ZEND_STRL("fd"), sockfd);
+        } else if (Z_TYPE_P(elem) == IS_OBJECT && instanceof_function(Z_OBJCE_P(elem), swoole_socket_coro_ce)) {
+            zend_long domain = zend::object_get_long(elem, ZEND_STRL("domain"));
+            zend_long type = zend::object_get_long(elem, ZEND_STRL("type"));
+            zend_long protocol = zend::object_get_long(elem, ZEND_STRL("protocol"));
+            zend_long fd = zend::object_get_long(elem, ZEND_STRL("fd"));
+            int sockfd = dup(fd);
+            if (sockfd < 0) {
+                continue;
+            }
+            zval_ptr_dtor(elem);
+            object_init_ex(elem, swoole_thread_socket_ce);
+            zend_update_property_long(swoole_thread_socket_ce, SW_Z8_OBJ_P(elem), ZEND_STRL("fd"), sockfd);
+            zend_update_property_long(swoole_thread_socket_ce, SW_Z8_OBJ_P(elem), ZEND_STRL("domain"), domain);
+            zend_update_property_long(swoole_thread_socket_ce, SW_Z8_OBJ_P(elem), ZEND_STRL("type"), type);
+            zend_update_property_long(swoole_thread_socket_ce, SW_Z8_OBJ_P(elem), ZEND_STRL("protocol"), protocol);
         }
-        ZEND_HASH_FOREACH_END();
     }
+    ZEND_HASH_FOREACH_END();
+
+    auto result = php_swoole_serialize(&zdata_copy);
+    zval_ptr_dtor(&zdata_copy);
+    return result;
+}
+
+bool php_swoole_thread_argv_unserialize(zend_string *data, zval *zv) {
+    bool unserialized = php_swoole_unserialize(data, zv);
+    if (!unserialized) {
+        return false;
+    }
+
+    zval *elem;
+    ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(zv), elem) {
+        ZVAL_DEREF(elem);
+        if (Z_TYPE_P(elem) != IS_OBJECT) {
+            continue;
+        }
+        if (instanceof_function(Z_OBJCE_P(elem), swoole_thread_stream_ce)) {
+            zend_long sockfd = zend::object_get_long(elem, ZEND_STRL("fd"));
+            zval_ptr_dtor(elem);
+            zval zstream;
+            php_swoole_thread_stream_restore(sockfd, &zstream);
+            ZVAL_COPY(elem, &zstream);
+        } else if (instanceof_function(Z_OBJCE_P(elem), swoole_thread_socket_ce)) {
+            zend_long fd = zend::object_get_long(elem, ZEND_STRL("fd"));
+            zend_long domain = zend::object_get_long(elem, ZEND_STRL("domain"));
+            zend_long type = zend::object_get_long(elem, ZEND_STRL("type"));
+            zend_long protocol = zend::object_get_long(elem, ZEND_STRL("protocol"));
+            auto sockobj = php_swoole_create_socket_from_fd(fd, domain, type, protocol);
+            zval_ptr_dtor(elem);
+            ZVAL_OBJ(elem, sockobj);
+        }
+    }
+    ZEND_HASH_FOREACH_END();
+    return true;
+}
+
+zend_string *php_swoole_serialize(zval *zdata) {
+    php_serialize_data_t var_hash;
+    smart_str serialized_data = {0};
 
     PHP_VAR_SERIALIZE_INIT(var_hash);
     php_var_serialize(&serialized_data, zdata, &var_hash);
@@ -237,10 +304,11 @@ zend_string *php_swoole_thread_serialize(zval *zdata) {
         result = zend_string_init(serialized_data.s->val, serialized_data.s->len, 1);
     }
     smart_str_free(&serialized_data);
+
     return result;
 }
 
-bool php_swoole_thread_unserialize(zend_string *data, zval *zv) {
+bool php_swoole_unserialize(zend_string *data, zval *zv) {
     php_unserialize_data_t var_hash;
     const char *p = ZSTR_VAL(data);
     size_t l = ZSTR_LEN(data);
@@ -252,24 +320,25 @@ bool php_swoole_thread_unserialize(zend_string *data, zval *zv) {
         swoole_warning("unserialize() failed, Error at offset " ZEND_LONG_FMT " of %zd bytes",
                        (zend_long) ((char *) p - ZSTR_VAL(data)),
                        l);
-    } else {
-        if (ZVAL_IS_ARRAY(zv)) {
-            zval *elem;
-            ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(zv), elem) {
-                ZVAL_DEREF(elem);
-                if (Z_TYPE_P(elem) != IS_OBJECT || !instanceof_function(Z_OBJCE_P(elem), swoole_thread_stream_ce)) {
-                    continue;
-                }
-                zend_long sockfd = zend::object_get_long(elem, ZEND_STRL("fd"));
-                zval_ptr_dtor(elem);
-                zval zstream;
-                php_swoole_thread_stream_restore(sockfd, &zstream);
-                ZVAL_COPY(elem, &zstream);
-            }
-            ZEND_HASH_FOREACH_END();
-        }
     }
     return unserialized;
+}
+
+void php_swoole_thread_argv_dtor(zval *zdata) {
+    if (!ZVAL_IS_ARRAY(zdata)) {
+        return;
+    }
+    zval *elem;
+    ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(zdata), elem) {
+        ZVAL_DEREF(elem);
+        if (Z_TYPE_P(elem) == IS_OBJECT && (instanceof_function(Z_OBJCE_P(elem), swoole_thread_stream_ce) ||
+                                            instanceof_function(Z_OBJCE_P(elem), swoole_thread_socket_ce))) {
+            zend_long sockfd = zend::object_get_long(elem, ZEND_STRL("fd"));
+            close(sockfd);
+        }
+    }
+    ZEND_HASH_FOREACH_END();
+    zval_dtor(zdata);
 }
 
 void php_swoole_thread_rinit() {
@@ -280,14 +349,13 @@ void php_swoole_thread_rinit() {
         // Return reference
         zval *global_argv = zend_hash_find_ind(&EG(symbol_table), ZSTR_KNOWN(ZEND_STR_ARGV));
         if (global_argv) {
-            request_info.argv_serialized = php_swoole_thread_serialize(global_argv);
+            request_info.argv_serialized = php_swoole_thread_argv_serialize(global_argv);
             request_info.argc = SG(request_info).argc;
         }
     }
 }
 
 void php_swoole_thread_rshutdown() {
-    zval_dtor(&thread_argv);
     if (tsrm_is_main_thread()) {
         if (request_info.path_translated) {
             free((void *) request_info.path_translated);
@@ -363,7 +431,7 @@ static void php_swoole_thread_create(INTERNAL_FUNCTION_PARAMETERS, zval *zobject
     for (int i = 0; i < argc; i++) {
         zend::array_add(&zargv, &args[i]);
     }
-    zend_string *argv = php_swoole_thread_serialize(&zargv);
+    zend_string *argv = php_swoole_thread_argv_serialize(&zargv);
     zval_dtor(&zargv);
 
     if (!argv) {
@@ -417,10 +485,10 @@ void php_swoole_thread_start(zend_string *file, zend_string *argv_serialized) {
         if (argv_serialized == nullptr || ZSTR_LEN(argv_serialized) == 0) {
             array_init(&thread_argv);
         } else {
-            php_swoole_thread_unserialize(argv_serialized, &thread_argv);
+            php_swoole_thread_argv_unserialize(argv_serialized, &thread_argv);
         }
         if (request_info.argv_serialized) {
-            php_swoole_thread_unserialize(request_info.argv_serialized, &global_argv);
+            php_swoole_thread_argv_unserialize(request_info.argv_serialized, &global_argv);
             ZVAL_LONG(&global_argc, request_info.argc);
             zend_hash_update(&EG(symbol_table), ZSTR_KNOWN(ZEND_STR_ARGV), &global_argv);
             zend_hash_update(&EG(symbol_table), ZSTR_KNOWN(ZEND_STR_ARGC), &global_argc);
@@ -430,6 +498,8 @@ void php_swoole_thread_start(zend_string *file, zend_string *argv_serialized) {
     }
     zend_end_try();
 
+    php_swoole_thread_argv_dtor(&thread_argv);
+    php_swoole_thread_argv_dtor(&global_argv);
     zend_destroy_file_handle(&file_handle);
 
     php_request_shutdown(NULL);
@@ -511,8 +581,20 @@ void ArrayItem::store(zval *zvalue) {
         }
     }
     /* no break */
+    case IS_OBJECT: {
+        if (instanceof_function(Z_OBJCE_P(zvalue), swoole_socket_coro_ce)) {
+            swoole::coroutine::Socket *socket = php_swoole_get_socket(zvalue);
+            if (socket) {
+                value.socket.fd = socket->get_fd();
+                value.socket.type = socket->get_type();
+                type = IS_CO_SOCKET;
+                break;
+            }
+        }
+    }
+    /* no break */
     default: {
-        auto _serialized_object = php_swoole_thread_serialize(zvalue);
+        auto _serialized_object = php_swoole_serialize(zvalue);
         if (!_serialized_object) {
             type = IS_UNDEF;
             break;
@@ -545,8 +627,15 @@ void ArrayItem::fetch(zval *return_value) {
     case IS_STREAM_SOCKET:
         php_swoole_thread_stream_restore(value.lval, return_value);
         break;
+    case IS_CO_SOCKET: {
+        zend_object *sockobj = php_swoole_create_socket_from_fd(value.socket.fd, value.socket.type);
+        if (sockobj) {
+            ZVAL_OBJ(return_value, sockobj);
+        }
+        break;
+    }
     case IS_SERIALIZED_OBJECT:
-        php_swoole_thread_unserialize(value.serialized_object, return_value);
+        php_swoole_unserialize(value.serialized_object, return_value);
         break;
     default:
         break;
