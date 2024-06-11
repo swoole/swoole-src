@@ -31,8 +31,11 @@ bool php_swoole_thread_resource_free(ThreadResourceId resource_id, ThreadResourc
 ThreadResource *php_swoole_thread_resource_fetch(ThreadResourceId resource_id);
 
 void php_swoole_thread_start(zend_string *file, zend_string *argv);
-zend_string *php_swoole_thread_serialize(zval *zdata);
-bool php_swoole_thread_unserialize(zend_string *data, zval *zv);
+zend_string *php_swoole_thread_argv_serialize(zval *zdata);
+bool php_swoole_thread_argv_unserialize(zend_string *data, zval *zv);
+zend_string *php_swoole_serialize(zval *zdata);
+bool php_swoole_unserialize(zend_string *data, zval *zv);
+void php_swoole_thread_argv_clean(zval *zdata);
 void php_swoole_thread_bailout(void);
 
 zval *php_swoole_thread_get_arguments();
@@ -40,8 +43,11 @@ zval *php_swoole_thread_get_arguments();
 #define EMSG_NO_RESOURCE "resource not found"
 #define ECODE_NO_RESOURCE -2
 
-#define IS_STREAM_SOCKET 98
-#define IS_SERIALIZED_OBJECT 99
+enum {
+    IS_CO_SOCKET = 97,
+    IS_STREAM_SOCKET = 98,
+    IS_SERIALIZED_OBJECT = 99,
+};
 
 struct ThreadResource {
     uint32_t ref_count;
@@ -66,6 +72,10 @@ struct ArrayItem {
         zend_string *str;
         zend_long lval;
         double dval;
+        struct {
+            int fd;
+            swSocketType type;
+        } socket;
         zend_string *serialized_object;
     } value;
 

@@ -22,7 +22,7 @@ $tm->parentFunc = function () {
     $num2 = random_int(1 << 31, PHP_INT_MAX);
     $atomic1 = new Swoole\Thread\Atomic($num1);
     $atomic2 = new Swoole\Thread\Atomic\Long($num2);
-    $thread = Thread::exec(__FILE__, $lock, $atomic1, $atomic2, $num1, $num2);
+    $thread = new Thread(__FILE__, $lock, $atomic1, $atomic2, $num1, $num2);
     $lock->lock();
     echo "main thread\n";
     $thread->join();

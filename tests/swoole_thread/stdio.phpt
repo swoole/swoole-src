@@ -17,7 +17,7 @@ $tm = new \SwooleTest\ThreadManager();
 $tm->parentFunc = function () {
     $lock = new Lock;
     $lock->lock();
-    $thread = Thread::exec(__FILE__, $lock);
+    $thread = new Thread(__FILE__, $lock);
     $lock->lock();
     $thread->join();
     echo "main thread\n";

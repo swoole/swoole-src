@@ -14,7 +14,7 @@ $pm = ProcessManager::exec(function () {
     $args = Thread::getArguments();
     if (empty($args)) {
         echo "start child thread\n";
-        $threads[] = Thread::exec(__FILE__, 'error');
+        $threads[] = new Thread(__FILE__, 'error');
         $threads[0]->join();
         echo "stop thread exited\n";
     } else {

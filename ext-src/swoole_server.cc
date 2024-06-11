@@ -2651,7 +2651,7 @@ static PHP_METHOD(swoole_server, start) {
 
         if (!ZVAL_IS_NULL(&server_object->init_arguments)) {
             call_user_function(NULL, NULL, &server_object->init_arguments, &thread_argv, 0, NULL);
-            thread_argv_serialized = php_swoole_thread_serialize(&thread_argv);
+            thread_argv_serialized = php_swoole_thread_argv_serialize(&thread_argv);
         }
 
         serv->worker_thread_start = [bootstrap, thread_argv_serialized](const WorkerFn &fn) {

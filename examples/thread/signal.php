@@ -9,7 +9,7 @@ if (empty($args)) {
     Co\run(function () {
         echo "main thread\n";
         $sockets = swoole_coroutine_socketpair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, STREAM_IPPROTO_IP);
-        $thread = Thread::exec(__FILE__, $sockets);
+        $thread = new Thread(__FILE__, $sockets);
         $parent_pipe = $sockets[1];
         // 收到信号之后向子线程发送指令让子线程退出
         if (System::waitSignal(SIGTERM)) {

@@ -24,7 +24,7 @@ if (empty($args)) {
     $queue = new Queue;
     $map = new Thread\Map();
     for ($i = 0; $i < C; $i++) {
-        $threads[] = Thread::exec(__FILE__, $i, $queue, $map);
+        $threads[] = new Thread(__FILE__, $i, $queue, $map);
     }
     $n = N;
     while ($n--) {

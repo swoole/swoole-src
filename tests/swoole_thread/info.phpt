@@ -14,7 +14,7 @@ use Swoole\Thread;
 $tm = new \SwooleTest\ThreadManager();
 
 $tm->parentFunc = function () {
-    $thread = Thread::exec(__FILE__, 'child');
+    $thread = new Thread(__FILE__, 'child');
     $info = Thread::getTsrmInfo();
     Assert::true($info['is_main_thread']);
     Assert::eq($info['api_name'], 'POSIX Threads');

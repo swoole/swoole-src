@@ -180,6 +180,9 @@ zend_class_entry *swoole_error_ce;
 zend_object_handlers swoole_error_handlers;
 
 #ifdef COMPILE_DL_SWOOLE
+#ifdef ZTS
+ZEND_TSRMLS_CACHE_DEFINE()
+#endif
 ZEND_GET_MODULE(swoole)
 #endif
 
@@ -1089,8 +1092,7 @@ PHP_RSHUTDOWN_FUNCTION(swoole) {
         if (!zstream) {
             return;
         }
-        stream =
-            (php_stream *) zend_fetch_resource2_ex((zstream), NULL, php_file_le_stream(), php_file_le_pstream());
+        stream = (php_stream *) zend_fetch_resource2_ex((zstream), NULL, php_file_le_stream(), php_file_le_pstream());
         if (!stream) {
             return;
         }

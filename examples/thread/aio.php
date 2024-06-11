@@ -12,7 +12,7 @@ if (empty($args)) {
     $threads = [];
     $atomic = new Swoole\Thread\Atomic();
     for ($i = 0; $i < $c; $i++) {
-        $threads[] = Thread::exec(__FILE__, $i, $atomic);
+        $threads[] = new Thread(__FILE__, $i, $atomic);
     }
     for ($i = 0; $i < $c; $i++) {
         $threads[$i]->join();
