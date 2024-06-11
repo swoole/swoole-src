@@ -43,7 +43,7 @@ static struct {
     int argc;
 } request_info;
 
-TSRMLS_CACHE_DEFINE();
+TSRMLS_CACHE_EXTERN();
 
 typedef std::thread Thread;
 
