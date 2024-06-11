@@ -17,7 +17,7 @@ if (empty($args)) {
     $rdata = random_bytes(random_int(1024, 2048));
     Co\run(function () use ($rdata) {
         $sockets = swoole_coroutine_socketpair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, STREAM_IPPROTO_IP);
-        $thread = Thread::exec(__FILE__, $sockets[1], $rdata);
+        $thread = new Thread(__FILE__, $sockets[1], $rdata);
         Assert::eq($sockets[0]->recv(8192), $rdata);
         $thread->join();
         echo "DONE\n";

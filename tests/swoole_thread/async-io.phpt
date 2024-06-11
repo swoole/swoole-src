@@ -24,7 +24,7 @@ if (empty($args)) {
     $atomic = new Swoole\Thread\Atomic();
     $atomicLong = new Swoole\Thread\Atomic\Long();
     for ($i = 0; $i < C; $i++) {
-        $threads[] = Thread::exec(__FILE__, $i, $atomic, $atomicLong);
+        $threads[] = new Thread(__FILE__, $i, $atomic, $atomicLong);
     }
     for ($i = 0; $i < C; $i++) {
         $threads[$i]->join();

@@ -11,7 +11,7 @@ if (empty($args)) {
     $threads = [];
     $queue = new Queue;
     for ($i = 0; $i < $c; $i++) {
-        $threads[] = Thread::exec(__FILE__, $i, $queue);
+        $threads[] = new Thread(__FILE__, $i, $queue);
     }
     for ($i = 0; $i < $c; $i++) {
         $threads[$i]->join();

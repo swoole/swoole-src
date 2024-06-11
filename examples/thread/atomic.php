@@ -13,7 +13,7 @@ if (empty($args)) {
     $a1 = new Atomic;
     $a2 = new Long;
     for ($i = 0; $i < $c; $i++) {
-        $threads[] = Thread::exec(__FILE__, $i, $a1, $a2);
+        $threads[] = new Thread(__FILE__, $i, $a1, $a2);
     }
     for ($i = 0; $i < $c; $i++) {
         $threads[$i]->join();

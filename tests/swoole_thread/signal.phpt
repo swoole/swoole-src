@@ -19,7 +19,7 @@ $args = Thread::getArguments();
 if (empty($args)) {
     Co\run(function () {
         $sockets = swoole_coroutine_socketpair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, STREAM_IPPROTO_IP);
-        $thread = Thread::exec(__FILE__, $sockets[0]);
+        $thread = new Thread(__FILE__, $sockets[0]);
         $parent_pipe = $sockets[1];
         Timer::after(500, function () {
             echo "timer\n";

@@ -8,7 +8,7 @@ $args = Thread::getArguments();
 if (empty($args)) {
     $lock = new Lock;
     $lock->lock();
-    $thread = Thread::exec(__FILE__, $lock);
+    $thread = new Thread(__FILE__, $lock);
     $lock->lock();
     echo "main thread\n";
     $thread->join();

@@ -19,7 +19,7 @@ echo Swoole\Thread::getId() . "\t" . 'glist[0]' . "\t" . $list[0] . "\n";
 var_dump(count($list));
 
 //if ($args[0] == 'thread-2') {
-//    $t3 = Swoole\Thread::exec('mt.php', 'thread-3', PHP_OS);
+//    $t3 = new Swoole\Thread('mt.php', 'thread-3', PHP_OS);
 //    $t3->join();
 //}
 

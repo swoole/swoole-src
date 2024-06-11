@@ -8,7 +8,7 @@ if (empty($args)) {
     var_dump($GLOBALS['argv']);
     $n = 2;
     while ($n--) {
-        $thread = Thread::exec(__FILE__, 'thread-' . $n, $argc, $argv);
+        $thread = new Thread(__FILE__, 'thread-' . $n, $argc, $argv);
         $thread->join();
     }
 } else {
