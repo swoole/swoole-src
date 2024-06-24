@@ -49,27 +49,55 @@
         <email>doubaokun@php.net</email>
         <active>yes</active>
     </developer>
-    <date>2024-06-06</date>
-    <time>18:00:00</time>
+    <date>2024-06-24</date>
+    <time>11:00:00</time>
     <version>
-        <release>5.1.2</release>
-        <api>5.0</api>
+        <release>6.0.0</release>
+        <api>6.0</api>
     </version>
     <stability>
-        <release>stable</release>
-        <api>stable</api>
+        <release>alpha</release>
+        <api>alpha</api>
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        - Added support for embed sapi @matyhtf
-        - Fixed compatibility with PHP 8.3 ZEND_CHECK_STACK_LIMIT @Yurunsoft
-        - Fixed no Content-Range response header when the range request returns all the contents of the file @Yurunsoft
-        - Optimized HTTP server performance @NathanFreeman
-        - Fixed truncated cookie @stnguyen90
-        - Fixed native-curl crash on PHP 8.3 @NathanFreeman
-        - Added CLOSE_SERVICE_RESTART, CLOSE_TRY_AGAIN_LATER, CLOSE_BAD_GATEWAY as valid close reasons for websocket @cjavad
-        - Fixed invalid errno after Server::Manager::wait() @JacobBrownAustin
-        - Fixed HTTP2 Typo @leocavalcante
+        - Swoole supports multi-threading mode. When PHP is in ZTS mode and Swoole is compiled with --enable-swoole-thread, the multi-threading mode can be utilized.
+        - Added a new thread management class Swoole\Thread.
+        - Introduced thread lock Swoole\Thread\Lock.
+        - Added thread atomic counter Swoole\Thread\Atomic, Swoole\Thread\Atomic\Long.
+        - Added safe concurrent containers Swoole\Thread\Map, Swoole\Thread\ArrayList, Swoole\Thread\Queue.
+        - File asynchronous operations support iouring as the underlying engine. Installing liburing and compiling Swoole with --enable-iouring enables asynchronous operations for functions like file_get_contents, file_put_contents, fopen, fclose, fread, fwrite, mkdir, unlink, fsync, fdatasync, rename, fstat, lstat, filesize through iouring.
+        - Upgraded Boost Context to version 1.84. Now, Loongson CPUs can also supports coroutines.
+        - Fixed the issue where installation via pecl was not possible.
+        - Fixed the bug where setting keepalive was not possible for Swoole\Coroutine\FastCGI\Client.
+        - Fixed the issue where exceeding the max_input_vars would throw an error, causing the process to restart repeatedly.
+        - Fixed unknown issues caused by using Swoole\Event::wait() within a coroutine.
+        - Fixed the problem where proc_open does not support pty in coroutine mode.
+        - Fixed segmentation fault issues with pdo_sqlite on PHP 8.3.
+        - Fixed unnecessary warnings during the compilation of Swoole.
+        - Fixed the error thrown by zend_fetch_resource2_ex when STDOUT/STDERR are already closed.
+        - Fixed ineffective set_tcp_nodelay configuration.
+        - Fixed the occasional unreachable branch issue during file upload.
+        - Fixed the problem where setting dispatch_func would cause PHP's internals to throw errors.
+        - Fixed the deprecation of AC_PROG_CC_C99 in autoconf >= 2.70.
+        - Capture exceptions when thread creation fails.
+        - Fixed the undefined problem with _tsrm_ls_cache.
+        - Fixed the fatal compile error with GCC 14.
+        - Removed unnecessary checks for socket structs.
+        - Upgraded Swoole Library.
+        - Added support for status code 451 in Swoole\Http\Response.
+        - Synchronized file operation code across different PHP versions.
+        - Synchronized pdo operation code across different PHP versions.
+        - Optimized the code for Socket::ssl_recv().
+        - Improved config.m4; some configurations can now set library locations via pkg-config.
+        - Optimized the use of dynamic arrays during request header parsing.
+        - Optimized file descriptor fd lifecycle issues in multi-threading mode.
+        - Optimized some fundamental coroutine logic.
+        - No longer supports PHP 8.0.
+        - No longer supports Swoole\Coroutine\MySQL coroutine client.
+        - No longer supports Swoole\Coroutine\Redis coroutine client.
+        - No longer supports Swoole\Coroutine\PostgreSQL coroutine client.
+        - Swoole-v6.0.0-alpha is a test version and cannot be used in any production environment; it is for testing purposes only.
     </notes>
     <contents>
         <dir name="/">
@@ -2475,6 +2503,16 @@
             <file role="src" name="thirdparty/php81/pdo_sqlite/sqlite_driver.stub.php" />
             <file role="src" name="thirdparty/php81/pdo_sqlite/sqlite_driver_arginfo.h" />
             <file role="src" name="thirdparty/php81/pdo_sqlite/sqlite_statement.c" />
+            <file role="src" name="thirdparty/php83/pdo_oci/oci_driver.c" />
+            <file role="src" name="thirdparty/php83/pdo_oci/oci_statement.c" />
+            <file role="src" name="thirdparty/php83/pdo_oci/php_pdo_oci_int.h" />
+            <file role="src" name="thirdparty/php83/pdo_odbc/odbc_driver.c" />
+            <file role="src" name="thirdparty/php83/pdo_odbc/odbc_stmt.c" />
+            <file role="src" name="thirdparty/php83/pdo_odbc/php_pdo_odbc_int.h" />
+            <file role="src" name="thirdparty/php83/pdo_pgsql/pgsql_driver.c" />
+            <file role="src" name="thirdparty/php83/pdo_pgsql/pgsql_driver_arginfo.h" />
+            <file role="src" name="thirdparty/php83/pdo_pgsql/pgsql_statement.c" />
+            <file role="src" name="thirdparty/php83/pdo_pgsql/php_pdo_pgsql_int.h" />
             <file role="src" name="thirdparty/php83/pdo_sqlite/php_pdo_sqlite_int.h" />
             <file role="src" name="thirdparty/php83/pdo_sqlite/sqlite_driver.c" />
             <file role="src" name="thirdparty/php83/pdo_sqlite/sqlite_driver.stub.php" />
