@@ -176,7 +176,7 @@ typedef unsigned long ulong_t;
 #define SW_ASSERT(e)
 #define SW_ASSERT_1BYTE(v)
 #endif
-#define SW_START_SLEEP usleep(100000)  // sleep 1s,wait fork and pthread_create
+#define SW_START_SLEEP usleep(100000)  // sleep 0.1s, wait fork and pthread_create
 
 #ifdef SW_THREAD
 #define SW_THREAD_LOCAL thread_local

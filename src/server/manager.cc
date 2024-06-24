@@ -192,12 +192,7 @@ void Manager::wait(Server *_server) {
         int sigid = SIGTERM;
         procctl(P_PID, 0, PROC_PDEATHSIG_CTL, &sigid);
 #endif
-
-#if defined(HAVE_PTHREAD_BARRIER) && !(defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__))
-        pthread_barrier_wait(&_server->gs->manager_barrier);
-#else
-        SW_START_SLEEP;
-#endif
+        _server->gs->manager_barrier.wait();
     }
 
     if (_server->isset_hook(Server::HOOK_MANAGER_START)) {

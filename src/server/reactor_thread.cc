@@ -826,11 +826,7 @@ void Server::reactor_thread_main_loop(Server *serv, int reactor_id) {
     }
 
     // wait other thread
-#ifdef HAVE_PTHREAD_BARRIER
-    pthread_barrier_wait(&serv->reactor_thread_barrier);
-#else
-    SW_START_SLEEP;
-#endif
+    serv->reactor_thread_barrier.wait();
     // main loop
     swoole_event_wait();
     if (serv->is_thread_mode()) {
