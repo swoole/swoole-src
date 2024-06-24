@@ -106,7 +106,7 @@ class SpinLock : public Lock {
 };
 #endif
 
-#if defined(HAVE_PTHREAD_BARRIER) && !(defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || 1)
+#if defined(HAVE_PTHREAD_BARRIER) && !(defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__))
 #define SW_USE_PTHREAD_BARRIER
 #endif
 
