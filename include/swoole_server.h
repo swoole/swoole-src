@@ -394,10 +394,7 @@ struct ServerGS {
 
     sw_atomic_t spinlock;
 
-#ifdef HAVE_PTHREAD_BARRIER
-    pthread_barrier_t manager_barrier;
-    pthread_barrierattr_t manager_barrier_attr;
-#endif
+    Barrier manager_barrier;
 
     ProcessPool task_workers;
     ProcessPool event_workers;
@@ -858,9 +855,7 @@ class Server {
     std::shared_ptr<std::vector<std::string>> http_index_files = nullptr;
     std::shared_ptr<std::unordered_set<std::string>> http_compression_types = nullptr;
 
-#ifdef HAVE_PTHREAD_BARRIER
-    pthread_barrier_t reactor_thread_barrier = {};
-#endif
+    Barrier reactor_thread_barrier = {};
 
     /**
      * temporary directory for HTTP uploaded file.

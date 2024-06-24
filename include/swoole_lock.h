@@ -105,4 +105,23 @@ class SpinLock : public Lock {
     int trylock() override;
 };
 #endif
+
+#if defined(HAVE_PTHREAD_BARRIER) && !(defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__))
+#define SW_USE_PTHREAD_BARRIER
+#endif
+
+struct Barrier {
+#ifdef SW_USE_PTHREAD_BARRIER
+    pthread_barrier_t barrier_;
+    pthread_barrierattr_t barrier_attr_;
+    bool shared_;
+#else
+    sw_atomic_t count_;
+    sw_atomic_t barrier_;
+#endif
+    void init(bool shared, int count);
+    void wait();
+    void destroy();
+};
+
 }  // namespace swoole

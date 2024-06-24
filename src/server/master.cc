@@ -434,21 +434,12 @@ int Server::start_master_thread(Reactor *reactor) {
         return SW_ERR;
     }
 
-#ifdef HAVE_PTHREAD_BARRIER
     if (!single_thread) {
-        pthread_barrier_wait(&reactor_thread_barrier);
+        reactor_thread_barrier.wait();
     }
-#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
-    SW_START_SLEEP;
-#else
     if (is_process_mode()) {
-        pthread_barrier_wait(&gs->manager_barrier);
+        gs->manager_barrier.wait();
     }
-#endif
-#else
-    SW_START_SLEEP;
-#endif
-
     gs->master_pid = getpid();
 
     if (isset_hook(HOOK_MASTER_START)) {
@@ -835,15 +826,10 @@ int Server::create() {
         return SW_ERR;
     }
 
-#ifdef HAVE_PTHREAD_BARRIER
     if (is_process_mode() || is_thread_mode()) {
-        pthread_barrier_init(&reactor_thread_barrier, nullptr, reactor_num + 1);
-#if !(defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__))
-        pthread_barrierattr_setpshared(&gs->manager_barrier_attr, PTHREAD_PROCESS_SHARED);
-        pthread_barrier_init(&gs->manager_barrier, &gs->manager_barrier_attr, 2);
-#endif
+        reactor_thread_barrier.init(false, reactor_num + 1);
+        gs->manager_barrier.init(true, 2);
     }
-#endif
 
     if (swoole_isset_hook(SW_GLOBAL_HOOK_AFTER_SERVER_CREATE)) {
         swoole_call_hook(SW_GLOBAL_HOOK_AFTER_SERVER_CREATE, this);
@@ -1060,16 +1046,10 @@ void Server::destroy() {
             delete l;
         }
     }
-#ifdef HAVE_PTHREAD_BARRIER
     if (is_process_mode()) {
-        pthread_barrier_destroy(&reactor_thread_barrier);
-#if !(defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__))
-        pthread_barrier_destroy(&gs->manager_barrier);
-        pthread_barrierattr_destroy(&gs->manager_barrier_attr);
-#endif
+        reactor_thread_barrier.destroy();
+        gs->manager_barrier.destroy();
     }
-#endif
-
     if (is_base_mode()) {
         destroy_base_factory();
     } else if (is_thread_mode()) {
