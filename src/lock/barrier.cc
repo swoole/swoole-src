@@ -42,7 +42,7 @@ void Barrier::wait() {
 #else
     sw_atomic_add_fetch(&barrier_, 1);
     SW_LOOP {
-        if (*barrier_ == count_) {
+        if (barrier_ == count_) {
             break;
         }
         usleep(BARRIER_USEC);

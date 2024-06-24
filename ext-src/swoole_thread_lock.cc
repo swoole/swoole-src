@@ -37,7 +37,6 @@ using swoole::RWLock;
 static zend_class_entry *swoole_thread_lock_ce;
 static zend_object_handlers swoole_thread_lock_handlers;
 
-#ifdef SW_THREAD
 struct LockResource : public ThreadResource {
     Lock *lock_;
     LockResource(int type) : ThreadResource() {
@@ -62,7 +61,6 @@ struct LockResource : public ThreadResource {
         delete lock_;
     }
 };
-#endif
 
 struct LockObject {
     LockResource *lock;
@@ -113,9 +111,7 @@ static PHP_METHOD(swoole_thread_lock, lock_read);
 static PHP_METHOD(swoole_thread_lock, trylock_read);
 static PHP_METHOD(swoole_thread_lock, unlock);
 static PHP_METHOD(swoole_thread_lock, destroy);
-#ifdef SW_THREAD
 static PHP_METHOD(swoole_thread_lock, __wakeup);
-#endif
 SW_EXTERN_C_END
 
 // clang-format off

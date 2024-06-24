@@ -766,6 +766,7 @@ PHP_MINIT_FUNCTION(swoole) {
     php_swoole_thread_minit(module_number);
     php_swoole_thread_atomic_minit(module_number);
     php_swoole_thread_lock_minit(module_number);
+    php_swoole_thread_barrier_minit(module_number);
     php_swoole_thread_queue_minit(module_number);
     php_swoole_thread_map_minit(module_number);
     php_swoole_thread_arraylist_minit(module_number);

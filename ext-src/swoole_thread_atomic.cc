@@ -114,9 +114,7 @@ static PHP_METHOD(swoole_thread_atomic, set);
 static PHP_METHOD(swoole_thread_atomic, cmpset);
 static PHP_METHOD(swoole_thread_atomic, wait);
 static PHP_METHOD(swoole_thread_atomic, wakeup);
-#ifdef SW_THREAD
 static PHP_METHOD(swoole_thread_atomic, __wakeup);
-#endif
 
 static PHP_METHOD(swoole_thread_atomic_long, __construct);
 static PHP_METHOD(swoole_thread_atomic_long, add);
@@ -124,9 +122,7 @@ static PHP_METHOD(swoole_thread_atomic_long, sub);
 static PHP_METHOD(swoole_thread_atomic_long, get);
 static PHP_METHOD(swoole_thread_atomic_long, set);
 static PHP_METHOD(swoole_thread_atomic_long, cmpset);
-#ifdef SW_THREAD
 static PHP_METHOD(swoole_thread_atomic_long, __wakeup);
-#endif
 SW_EXTERN_C_END
 
 // clang-format off

@@ -271,6 +271,7 @@ void php_swoole_name_resolver_minit(int module_number);
 void php_swoole_thread_minit(int module_number);
 void php_swoole_thread_atomic_minit(int module_number);
 void php_swoole_thread_lock_minit(int module_number);
+void php_swoole_thread_barrier_minit(int module_number);
 void php_swoole_thread_queue_minit(int module_number);
 void php_swoole_thread_map_minit(int module_number);
 void php_swoole_thread_arraylist_minit(int module_number);
