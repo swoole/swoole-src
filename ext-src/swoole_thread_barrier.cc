@@ -30,7 +30,6 @@ using swoole::Barrier;
 static zend_class_entry *swoole_thread_barrier_ce;
 static zend_object_handlers swoole_thread_barrier_handlers;
 
-
 struct BarrierResource : public ThreadResource {
     Barrier barrier_;
     BarrierResource(int count) : ThreadResource() {
@@ -104,8 +103,11 @@ void php_swoole_thread_barrier_minit(int module_number) {
     zend_declare_property_long(swoole_thread_barrier_ce, ZEND_STRL("id"), 0, ZEND_ACC_PUBLIC);
     SW_SET_CLASS_CLONEABLE(swoole_thread_barrier, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_thread_barrier, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CUSTOM_OBJECT(
-        swoole_thread_barrier, php_swoole_thread_barrier_create_object, php_swoole_thread_barrier_free_object, BarrierObject, std);
+    SW_SET_CLASS_CUSTOM_OBJECT(swoole_thread_barrier,
+                               php_swoole_thread_barrier_create_object,
+                               php_swoole_thread_barrier_free_object,
+                               BarrierObject,
+                               std);
 }
 
 static PHP_METHOD(swoole_thread_barrier, __construct) {
@@ -119,6 +121,12 @@ static PHP_METHOD(swoole_thread_barrier, __construct) {
     ZEND_PARSE_PARAMETERS_START(1, 1)
     Z_PARAM_LONG(count)
     ZEND_PARSE_PARAMETERS_END();
+
+    if (count < 2) {
+        zend_throw_exception(
+            swoole_exception_ce, "The parameter $count must be greater than 1", SW_ERROR_INVALID_PARAMS);
+        RETURN_FALSE;
+    }
 
     bo->barrier = new BarrierResource(count);
     auto resource_id = php_swoole_thread_resource_insert(bo->barrier);
