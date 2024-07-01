@@ -1,7 +1,7 @@
 <?php
 namespace Swoole\Thread {
     class Map implements ArrayAccess, Countable {
-        public function __construct() {}
+        public function __construct(?array $array = null) {}
         public function offsetGet(mixed $key): mixed {}
         public function offsetExists(mixed $key): bool {}
         public function offsetSet(mixed $key, mixed $value): void {}

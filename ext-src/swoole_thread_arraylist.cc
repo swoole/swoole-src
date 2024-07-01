@@ -116,14 +116,27 @@ void php_swoole_thread_arraylist_minit(int module_number) {
 }
 
 static PHP_METHOD(swoole_thread_arraylist, __construct) {
-    ZEND_PARSE_PARAMETERS_NONE();
+    zend_array *array = nullptr;
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_ARRAY_HT_OR_NULL(array)
+    ZEND_PARSE_PARAMETERS_END();
 
     auto ao = arraylist_fetch_object(Z_OBJ_P(ZEND_THIS));
     if (ao->list != nullptr) {
         zend_throw_error(NULL, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
         return;
     }
-    ao->list = new ZendArray();
+
+    if (array) {
+        if (!zend_array_is_list(array)) {
+            zend_throw_error(NULL, "the parameter $array must be an array of type list");
+            return;
+        }
+        ao->list = ZendArray::from(array);
+    } else {
+        ao->list = new ZendArray();
+    }
 }
 
 static PHP_METHOD(swoole_thread_arraylist, offsetGet) {

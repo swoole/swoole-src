@@ -118,12 +118,23 @@ void php_swoole_thread_map_minit(int module_number) {
 }
 
 static PHP_METHOD(swoole_thread_map, __construct) {
+    zend_array *array = nullptr;
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_ARRAY_HT_OR_NULL(array)
+    ZEND_PARSE_PARAMETERS_END();
+
     auto mo = map_fetch_object(Z_OBJ_P(ZEND_THIS));
     if (mo->map != nullptr) {
         zend_throw_error(NULL, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
         return;
     }
-    mo->map = new ZendArray();
+
+    if (array) {
+        mo->map = ZendArray::from(array);
+    } else {
+        mo->map = new ZendArray();
+    }
 }
 
 #define ZEND_ARRAY_CALL_METHOD(array, method, zkey, ...)                                                               \

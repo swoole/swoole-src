@@ -2651,13 +2651,16 @@ static PHP_METHOD(swoole_server, start) {
         if (!ZVAL_IS_NULL(&server_object->init_arguments)) {
             zval _thread_argv;
             call_user_function(NULL, NULL, &server_object->init_arguments, &_thread_argv, 0, NULL);
-            thread_argv = php_swoole_thread_argv_create(&_thread_argv);
+            if (ZVAL_IS_ARRAY(&_thread_argv)) {
+                thread_argv = ZendArray::from(Z_ARRVAL(_thread_argv));
+            }
             zval_ptr_dtor(&_thread_argv);
         }
 
         serv->worker_thread_start = [bootstrap, thread_argv](const WorkerFn &fn) {
             worker_thread_fn = fn;
             zend_string *bootstrap_copy = zend_string_dup(bootstrap, 1);
+            thread_argv->add_ref();
             php_swoole_thread_start(bootstrap_copy, thread_argv);
         };
     }
@@ -2673,6 +2676,9 @@ static PHP_METHOD(swoole_server, start) {
 #ifdef SW_THREAD
     if (bootstrap) {
         zend_string_release(bootstrap);
+    }
+    if (thread_argv) {
+        thread_argv->del_ref();
     }
 #endif
 

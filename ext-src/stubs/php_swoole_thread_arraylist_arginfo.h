@@ -1,7 +1,8 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 180fa4468e220b852fabc5320f2a463a219f7aa3 */
+ * Stub hash: 70c2427e37953ac2ceefe4c972cbd8b9845b43ab */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Thread_ArrayList___construct, 0, 0, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, array, IS_ARRAY, 1, "null")
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Thread_ArrayList_offsetGet, 0, 1, IS_MIXED, 0)

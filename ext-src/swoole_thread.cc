@@ -34,12 +34,6 @@ END_EXTERN_C()
 zend_class_entry *swoole_thread_ce;
 static zend_object_handlers swoole_thread_handlers;
 
-zend_class_entry *swoole_thread_stream_ce;
-static zend_object_handlers swoole_thread_stream_handlers;
-
-zend_class_entry *swoole_thread_socket_ce;
-static zend_object_handlers swoole_thread_socket_handlers;
-
 static struct {
     char *path_translated;
     zend_string *argv_serialized;
@@ -63,16 +57,16 @@ static void php_swoole_thread_register_stdio_file_handles(bool no_close);
 static thread_local zval thread_argv;
 static thread_local JMP_BUF *thread_bailout = nullptr;
 
-static sw_inline ThreadObject *php_swoole_thread_fetch_object(zend_object *obj) {
+static sw_inline ThreadObject *thread_fetch_object(zend_object *obj) {
     return (ThreadObject *) ((char *) obj - swoole_thread_handlers.offset);
 }
 
-static void php_swoole_thread_free_object(zend_object *object) {
+static void thread_free_object(zend_object *object) {
     php_swoole_thread_join(object);
     zend_object_std_dtor(object);
 }
 
-static zend_object *php_swoole_thread_create_object(zend_class_entry *ce) {
+static zend_object *thread_create_object(zend_class_entry *ce) {
     ThreadObject *to = (ThreadObject *) zend_object_alloc(sizeof(ThreadObject), ce);
     zend_object_std_init(&to->std, ce);
     object_properties_init(&to->std, ce);
@@ -81,7 +75,7 @@ static zend_object *php_swoole_thread_create_object(zend_class_entry *ce) {
 }
 
 static void php_swoole_thread_join(zend_object *object) {
-    ThreadObject *to = php_swoole_thread_fetch_object(object);
+    ThreadObject *to = thread_fetch_object(object);
     if (to->thread && to->thread->joinable()) {
         to->thread->join();
         delete to->thread;
@@ -118,21 +112,11 @@ void php_swoole_thread_minit(int module_number) {
     SW_SET_CLASS_CLONEABLE(swoole_thread, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_thread, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CUSTOM_OBJECT(
-        swoole_thread, php_swoole_thread_create_object, php_swoole_thread_free_object, ThreadObject, std);
+        swoole_thread, thread_create_object, thread_free_object, ThreadObject, std);
 
     zend_declare_property_long(swoole_thread_ce, ZEND_STRL("id"), 0, ZEND_ACC_PUBLIC | ZEND_ACC_READONLY);
     zend_declare_class_constant_long(
         swoole_thread_ce, ZEND_STRL("HARDWARE_CONCURRENCY"), std::thread::hardware_concurrency());
-
-    // only used for thread argument forwarding
-    SW_INIT_CLASS_ENTRY_DATA_OBJECT(swoole_thread_stream, "Swoole\\Thread\\Stream");
-    zend_declare_property_long(swoole_thread_stream_ce, ZEND_STRL("fd"), 0, ZEND_ACC_PUBLIC | ZEND_ACC_READONLY);
-
-    SW_INIT_CLASS_ENTRY_DATA_OBJECT(swoole_thread_socket, "Swoole\\Thread\\Socket");
-    zend_declare_property_long(swoole_thread_socket_ce, ZEND_STRL("fd"), 0, ZEND_ACC_PUBLIC | ZEND_ACC_READONLY);
-    zend_declare_property_long(swoole_thread_socket_ce, ZEND_STRL("domain"), 0, ZEND_ACC_PUBLIC | ZEND_ACC_READONLY);
-    zend_declare_property_long(swoole_thread_socket_ce, ZEND_STRL("type"), 0, ZEND_ACC_PUBLIC | ZEND_ACC_READONLY);
-    zend_declare_property_long(swoole_thread_socket_ce, ZEND_STRL("protocol"), 0, ZEND_ACC_PUBLIC | ZEND_ACC_READONLY);
 }
 
 static PHP_METHOD(swoole_thread, __construct) {
@@ -152,7 +136,7 @@ static PHP_METHOD(swoole_thread, __construct) {
         return;
     }
 
-    ThreadObject *to = php_swoole_thread_fetch_object(Z_OBJ_P(ZEND_THIS));
+    ThreadObject *to = thread_fetch_object(Z_OBJ_P(ZEND_THIS));
     zend_string *file = zend_string_init(script_file, l_script_file, 1);
 
     if (argc > 0) {
@@ -173,7 +157,7 @@ static PHP_METHOD(swoole_thread, __construct) {
 }
 
 static PHP_METHOD(swoole_thread, join) {
-    ThreadObject *to = php_swoole_thread_fetch_object(Z_OBJ_P(ZEND_THIS));
+    ThreadObject *to = thread_fetch_object(Z_OBJ_P(ZEND_THIS));
     if (!to || !to->thread || !to->thread->joinable()) {
         RETURN_FALSE;
     }
@@ -182,7 +166,7 @@ static PHP_METHOD(swoole_thread, join) {
 }
 
 static PHP_METHOD(swoole_thread, joinable) {
-    ThreadObject *to = php_swoole_thread_fetch_object(Z_OBJ_P(ZEND_THIS));
+    ThreadObject *to = thread_fetch_object(Z_OBJ_P(ZEND_THIS));
     if (to == nullptr || !to->thread) {
         RETURN_FALSE;
     }
@@ -190,7 +174,7 @@ static PHP_METHOD(swoole_thread, joinable) {
 }
 
 static PHP_METHOD(swoole_thread, detach) {
-    ThreadObject *to = php_swoole_thread_fetch_object(Z_OBJ_P(ZEND_THIS));
+    ThreadObject *to = thread_fetch_object(Z_OBJ_P(ZEND_THIS));
     if (to == nullptr || !to->thread) {
         RETURN_FALSE;
     }
@@ -206,22 +190,6 @@ static PHP_METHOD(swoole_thread, getArguments) {
 
 static PHP_METHOD(swoole_thread, getId) {
     RETURN_LONG((zend_long) pthread_self());
-}
-
-ZendArray *php_swoole_thread_argv_create(zval *zdata) {
-    if (!ZVAL_IS_ARRAY(zdata)) {
-        return nullptr;
-    }
-
-    auto array = new ZendArray();
-    zval *elem;
-    ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(zdata), elem) {
-        ZVAL_DEREF(elem);
-        array->append(elem);
-    }
-    ZEND_HASH_FOREACH_END();
-
-    return array;
 }
 
 zend_string *php_swoole_serialize(zval *zdata) {
@@ -366,7 +334,7 @@ void php_swoole_thread_start(zend_string *file, ZendArray *argv) {
         }
         if (argv) {
             argv->toArray(&thread_argv);
-            delete argv;
+            argv->del_ref();
         }
         php_swoole_thread_register_stdio_file_handles(true);
         php_execute_script(&file_handle);
@@ -810,6 +778,7 @@ ZendArray *ZendArray::from(zend_array *src) {
     zval *tmp;
     ZendArray *result = new ZendArray();
     ZEND_HASH_FOREACH_KEY_VAL(src, index, key, tmp) {
+        ZVAL_DEREF(tmp);
         if (key) {
             result->add(key, tmp);
         } else {
