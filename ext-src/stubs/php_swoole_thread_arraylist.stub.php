@@ -10,6 +10,6 @@ namespace Swoole\Thread {
         public function incr(mixed $key, mixed $value = 1): mixed {}
         public function decr(mixed $key, mixed $value = 1): mixed {}
         public function clean(): void {}
-        public function __wakeup(): void {}
+        public function toArray(): array {}
     }
 }

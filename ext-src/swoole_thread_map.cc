@@ -31,30 +31,20 @@ struct ThreadMapObject {
     zend_object std;
 };
 
-static sw_inline ThreadMapObject *thread_map_fetch_object(zend_object *obj) {
+static sw_inline ThreadMapObject *map_fetch_object(zend_object *obj) {
     return (ThreadMapObject *) ((char *) obj - swoole_thread_map_handlers.offset);
 }
 
-static sw_inline zend_long thread_map_get_resource_id(zend_object *obj) {
-    zval rv, *property = zend_read_property(swoole_thread_map_ce, obj, ZEND_STRL("id"), 1, &rv);
-    return property ? zval_get_long(property) : 0;
-}
-
-static sw_inline zend_long thread_map_get_resource_id(zval *zobject) {
-    return thread_map_get_resource_id(Z_OBJ_P(zobject));
-}
-
-static void thread_map_free_object(zend_object *object) {
-    zend_long resource_id = thread_map_get_resource_id(object);
-    ThreadMapObject *mo = thread_map_fetch_object(object);
-    if (mo->map && php_swoole_thread_resource_free(resource_id, mo->map)) {
-        delete mo->map;
+static void map_free_object(zend_object *object) {
+    ThreadMapObject *mo = map_fetch_object(object);
+    if (mo->map) {
+        mo->map->del_ref();
         mo->map = nullptr;
     }
     zend_object_std_dtor(object);
 }
 
-static zend_object *thread_map_create_object(zend_class_entry *ce) {
+static zend_object *map_create_object(zend_class_entry *ce) {
     ThreadMapObject *mo = (ThreadMapObject *) zend_object_alloc(sizeof(ThreadMapObject), ce);
     zend_object_std_init(&mo->std, ce);
     object_properties_init(&mo->std, ce);
@@ -62,12 +52,23 @@ static zend_object *thread_map_create_object(zend_class_entry *ce) {
     return &mo->std;
 }
 
-ThreadMapObject *thread_map_fetch_object_check(zval *zobject) {
-    ThreadMapObject *map = thread_map_fetch_object(Z_OBJ_P(zobject));
+static ThreadMapObject *map_fetch_object_check(zval *zobject) {
+    ThreadMapObject *map = map_fetch_object(Z_OBJ_P(zobject));
     if (!map->map) {
         php_swoole_fatal_error(E_ERROR, "must call constructor first");
     }
     return map;
+}
+
+ThreadResource *php_swoole_thread_map_cast(zval *zobject) {
+    return map_fetch_object(Z_OBJ_P(zobject))->map;
+}
+
+void php_swoole_thread_map_create(zval *return_value, ThreadResource *resource) {
+    auto obj = map_create_object(swoole_thread_map_ce);
+    auto mo = (ThreadMapObject *) map_fetch_object(obj);
+    mo->map = static_cast<ZendArray *>(resource);
+    ZVAL_OBJ(return_value, obj);
 }
 
 SW_EXTERN_C_BEGIN
@@ -83,7 +84,7 @@ static PHP_METHOD(swoole_thread_map, decr);
 static PHP_METHOD(swoole_thread_map, add);
 static PHP_METHOD(swoole_thread_map, update);
 static PHP_METHOD(swoole_thread_map, clean);
-static PHP_METHOD(swoole_thread_map, __wakeup);
+static PHP_METHOD(swoole_thread_map, toArray);
 SW_EXTERN_C_END
 
 // clang-format off
@@ -100,27 +101,29 @@ static const zend_function_entry swoole_thread_map_methods[] = {
     PHP_ME(swoole_thread_map, update,          arginfo_class_Swoole_Thread_Map_update,        ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread_map, clean,           arginfo_class_Swoole_Thread_Map_clean,         ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread_map, keys,            arginfo_class_Swoole_Thread_Map_keys,          ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_thread_map, __wakeup,        arginfo_class_Swoole_Thread_Map___wakeup,      ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_thread_map, toArray,         arginfo_class_Swoole_Thread_Map_toArray,       ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 // clang-format on
 
 void php_swoole_thread_map_minit(int module_number) {
     SW_INIT_CLASS_ENTRY(swoole_thread_map, "Swoole\\Thread\\Map", nullptr, swoole_thread_map_methods);
+    swoole_thread_map_ce->ce_flags |= ZEND_ACC_FINAL | ZEND_ACC_NOT_SERIALIZABLE;
     SW_SET_CLASS_CLONEABLE(swoole_thread_map, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_thread_map, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CUSTOM_OBJECT(
-        swoole_thread_map, thread_map_create_object, thread_map_free_object, ThreadMapObject, std);
+        swoole_thread_map, map_create_object, map_free_object, ThreadMapObject, std);
 
     zend_class_implements(swoole_thread_map_ce, 2, zend_ce_arrayaccess, zend_ce_countable);
-    zend_declare_property_long(swoole_thread_map_ce, ZEND_STRL("id"), 0, ZEND_ACC_PUBLIC);
 }
 
 static PHP_METHOD(swoole_thread_map, __construct) {
-    auto mo = thread_map_fetch_object(Z_OBJ_P(ZEND_THIS));
+    auto mo = map_fetch_object(Z_OBJ_P(ZEND_THIS));
+    if (mo->map != nullptr) {
+        zend_throw_error(NULL, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        return;
+    }
     mo->map = new ZendArray();
-    auto resource_id = php_swoole_thread_resource_insert(mo->map);
-    zend_update_property_long(swoole_thread_map_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("id"), resource_id);
 }
 
 #define ZEND_ARRAY_CALL_METHOD(array, method, zkey, ...)                                                               \
@@ -137,7 +140,7 @@ static PHP_METHOD(swoole_thread_map, offsetGet) {
     Z_PARAM_ZVAL(zkey)
     ZEND_PARSE_PARAMETERS_END();
 
-    auto mo = thread_map_fetch_object_check(ZEND_THIS);
+    auto mo = map_fetch_object_check(ZEND_THIS);
     ZEND_ARRAY_CALL_METHOD(mo->map, offsetGet, zkey, return_value);
 }
 
@@ -148,7 +151,7 @@ static PHP_METHOD(swoole_thread_map, offsetExists) {
     Z_PARAM_ZVAL(zkey)
     ZEND_PARSE_PARAMETERS_END();
 
-    auto mo = thread_map_fetch_object_check(ZEND_THIS);
+    auto mo = map_fetch_object_check(ZEND_THIS);
     ZEND_ARRAY_CALL_METHOD(mo->map, offsetExists, zkey, return_value);
 }
 
@@ -161,19 +164,19 @@ static PHP_METHOD(swoole_thread_map, offsetSet) {
     Z_PARAM_ZVAL(zvalue)
     ZEND_PARSE_PARAMETERS_END();
 
-    auto mo = thread_map_fetch_object_check(ZEND_THIS);
+    auto mo = map_fetch_object_check(ZEND_THIS);
     ZEND_ARRAY_CALL_METHOD(mo->map, offsetSet, zkey, zvalue);
 }
 
 static PHP_METHOD(swoole_thread_map, incr) {
     INIT_ARRAY_INCR_PARAMS
-    auto mo = thread_map_fetch_object_check(ZEND_THIS);
+    auto mo = map_fetch_object_check(ZEND_THIS);
     ZEND_ARRAY_CALL_METHOD(mo->map, incr, zkey, zvalue, return_value);
 }
 
 static PHP_METHOD(swoole_thread_map, decr) {
     INIT_ARRAY_INCR_PARAMS
-    auto mo = thread_map_fetch_object_check(ZEND_THIS);
+    auto mo = map_fetch_object_check(ZEND_THIS);
     ZEND_ARRAY_CALL_METHOD(mo->map, decr, zkey, zvalue, return_value);
 }
 
@@ -186,7 +189,7 @@ static PHP_METHOD(swoole_thread_map, add) {
     Z_PARAM_ZVAL(zvalue)
     ZEND_PARSE_PARAMETERS_END();
 
-    auto mo = thread_map_fetch_object_check(ZEND_THIS);
+    auto mo = map_fetch_object_check(ZEND_THIS);
     ZEND_ARRAY_CALL_METHOD(mo->map, add, zkey, zvalue, return_value);
 }
 
@@ -199,7 +202,7 @@ static PHP_METHOD(swoole_thread_map, update) {
     Z_PARAM_ZVAL(zvalue)
     ZEND_PARSE_PARAMETERS_END();
 
-    auto mo = thread_map_fetch_object_check(ZEND_THIS);
+    auto mo = map_fetch_object_check(ZEND_THIS);
     ZEND_ARRAY_CALL_METHOD(mo->map, update, zkey, zvalue, return_value);
 }
 
@@ -210,32 +213,28 @@ static PHP_METHOD(swoole_thread_map, offsetUnset) {
     Z_PARAM_ZVAL(zkey)
     ZEND_PARSE_PARAMETERS_END();
 
-    auto mo = thread_map_fetch_object_check(ZEND_THIS);
+    auto mo = map_fetch_object_check(ZEND_THIS);
     ZEND_ARRAY_CALL_METHOD(mo->map, offsetUnset, zkey);
 }
 
 static PHP_METHOD(swoole_thread_map, count) {
-    auto mo = thread_map_fetch_object_check(ZEND_THIS);
+    auto mo = map_fetch_object_check(ZEND_THIS);
     mo->map->count(return_value);
 }
 
 static PHP_METHOD(swoole_thread_map, keys) {
-    auto mo = thread_map_fetch_object_check(ZEND_THIS);
+    auto mo = map_fetch_object_check(ZEND_THIS);
     mo->map->keys(return_value);
 }
 
-static PHP_METHOD(swoole_thread_map, clean) {
-    auto mo = thread_map_fetch_object_check(ZEND_THIS);
-    mo->map->clean();
+static PHP_METHOD(swoole_thread_map, toArray) {
+    auto mo = map_fetch_object_check(ZEND_THIS);
+    mo->map->toArray(return_value);
 }
 
-static PHP_METHOD(swoole_thread_map, __wakeup) {
-    auto mo = thread_map_fetch_object(Z_OBJ_P(ZEND_THIS));
-    zend_long resource_id = thread_map_get_resource_id(ZEND_THIS);
-    mo->map = static_cast<ZendArray *>(php_swoole_thread_resource_fetch(resource_id));
-    if (!mo->map) {
-        zend_throw_exception(swoole_exception_ce, EMSG_NO_RESOURCE, ECODE_NO_RESOURCE);
-    }
+static PHP_METHOD(swoole_thread_map, clean) {
+    auto mo = map_fetch_object_check(ZEND_THIS);
+    mo->map->clean();
 }
 
 #endif

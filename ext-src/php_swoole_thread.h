@@ -25,44 +25,73 @@
 
 typedef uint32_t ThreadResourceId;
 struct ThreadResource;
+struct ZendArray;
 
-ThreadResourceId php_swoole_thread_resource_insert(ThreadResource *res);
-bool php_swoole_thread_resource_free(ThreadResourceId resource_id, ThreadResource *res);
-ThreadResource *php_swoole_thread_resource_fetch(ThreadResourceId resource_id);
+extern zend_class_entry *swoole_thread_arraylist_ce;
+extern zend_class_entry *swoole_thread_atomic_ce;
+extern zend_class_entry *swoole_thread_atomic_long_ce;
+extern zend_class_entry *swoole_thread_barrier_ce;
+extern zend_class_entry *swoole_thread_lock_ce;
+extern zend_class_entry *swoole_thread_map_ce;
+extern zend_class_entry *swoole_thread_queue_ce;
 
-void php_swoole_thread_start(zend_string *file, zend_string *argv);
-zend_string *php_swoole_thread_argv_serialize(zval *zdata);
-bool php_swoole_thread_argv_unserialize(zend_string *data, zval *zv);
+void php_swoole_thread_start(zend_string *file, ZendArray *argv);
+ZendArray *php_swoole_thread_argv_create(zval *zdata);
 zend_string *php_swoole_serialize(zval *zdata);
 bool php_swoole_unserialize(zend_string *data, zval *zv);
-void php_swoole_thread_argv_clean(zval *zdata);
 void php_swoole_thread_bailout(void);
 
-zval *php_swoole_thread_get_arguments();
+ThreadResource *php_swoole_thread_arraylist_cast(zval *zobject);
+ThreadResource *php_swoole_thread_map_cast(zval *zobject);
+ThreadResource *php_swoole_thread_queue_cast(zval *zobject);
+ThreadResource *php_swoole_thread_lock_cast(zval *zobject);
+ThreadResource *php_swoole_thread_atomic_cast(zval *zobject);
+ThreadResource *php_swoole_thread_atomic_long_cast(zval *zobject);
+ThreadResource *php_swoole_thread_barrier_cast(zval *zobject);
+
+void php_swoole_thread_arraylist_create(zval *return_value, ThreadResource *resource);
+void php_swoole_thread_map_create(zval *return_value, ThreadResource *resource);
+void php_swoole_thread_queue_create(zval *return_value, ThreadResource *resource);
+void php_swoole_thread_lock_create(zval *return_value, ThreadResource *resource);
+void php_swoole_thread_atomic_create(zval *return_value, ThreadResource *resource);
+void php_swoole_thread_atomic_long_create(zval *return_value, ThreadResource *resource);
+void php_swoole_thread_barrier_create(zval *return_value, ThreadResource *resource);
 
 #define EMSG_NO_RESOURCE "resource not found"
 #define ECODE_NO_RESOURCE -2
 
 enum {
+    IS_ARRAYLIST = 80,
+    IS_QUEUE = 81,
+    IS_LOCK = 82,
+    IS_MAP = 83,
+    IS_BARRIER = 84,
+    IS_ATOMIC = 85,
+    IS_ATOMIC_LONG = 86,
     IS_CO_SOCKET = 97,
     IS_STREAM_SOCKET = 98,
     IS_SERIALIZED_OBJECT = 99,
 };
 
-struct ThreadResource {
-    uint32_t ref_count;
+class ThreadResource {
+    sw_atomic_t ref_count;
 
+  public:
     ThreadResource() {
         ref_count = 1;
     }
 
-    uint32_t add_ref() {
-        return ++ref_count;
+    void add_ref() {
+        sw_atomic_add_fetch(&ref_count, 1);
     }
 
-    uint32_t del_ref() {
-        return --ref_count;
+    void del_ref() {
+        if (sw_atomic_sub_fetch(&ref_count, 1) == 0) {
+            delete this;
+        }
     }
+
+    virtual ~ThreadResource() {}
 };
 
 struct ArrayItem {
@@ -77,6 +106,7 @@ struct ArrayItem {
             swSocketType type;
         } socket;
         zend_string *serialized_object;
+        ThreadResource *resource;
     } value;
 
     ArrayItem(zval *zvalue) {
@@ -86,6 +116,10 @@ struct ArrayItem {
 
     void setKey(zend::String &_key) {
         key = zend_string_init(_key.val(), _key.len(), 1);
+    }
+
+    void setKey(zend_string *_key) {
+        key = zend_string_init(ZSTR_VAL(_key), ZSTR_LEN(_key), 1);
     }
 
     void store(zval *zvalue);
@@ -115,7 +149,7 @@ struct ZendArray : ThreadResource {
         zend_hash_init(&ht, 0, NULL, item_dtor, 1);
     }
 
-    ~ZendArray() {
+    ~ZendArray() override {
         zend_hash_destroy(&ht);
     }
 
@@ -123,6 +157,25 @@ struct ZendArray : ThreadResource {
         lock_.lock();
         zend_hash_clean(&ht);
         lock_.unlock();
+    }
+
+    void append(zval *zvalue);
+
+    void add(zend_string *skey, zval *zvalue) {
+        auto item = new ArrayItem(zvalue);
+        item->setKey(skey);
+        zend_hash_add_ptr(&ht, item->key, item);
+    }
+
+    void add(zend::String &skey, zval *zvalue) {
+        auto item = new ArrayItem(zvalue);
+        item->setKey(skey);
+        zend_hash_add_ptr(&ht, item->key, item);
+    }
+
+    void add(zend_long index, zval *zvalue) {
+        auto item = new ArrayItem(zvalue);
+        zend_hash_index_add_ptr(&ht, index, item);
     }
 
     bool index_exists(zend_long index) {
@@ -189,6 +242,7 @@ struct ZendArray : ThreadResource {
     }
 
     void keys(zval *return_value);
+    void toArray(zval *return_value);
 
     void intkey_offsetGet(zend_long index, zval *return_value) {
         lock_.lock_rd();
@@ -251,6 +305,7 @@ struct ZendArray : ThreadResource {
 
     static void incr_update(ArrayItem *item, zval *zvalue, zval *return_value);
     static ArrayItem *incr_create(zval *zvalue, zval *return_value);
+    static ZendArray *from(zend_array *ht);
 };
 
 #define INIT_ARRAY_INCR_PARAMS                                                                                         \

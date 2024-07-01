@@ -13,6 +13,6 @@ namespace Swoole\Thread {
         public function add(mixed $key, mixed $value): bool {}
         public function update(mixed $key, mixed $value): bool {}
         public function clean(): void {}
-        public function __wakeup(): void {}
+        public function toArray(): array {}
     }
 }

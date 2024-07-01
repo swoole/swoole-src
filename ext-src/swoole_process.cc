@@ -51,8 +51,8 @@ Worker *php_swoole_process_get_worker(zval *zobject) {
 
 Worker *php_swoole_process_get_and_check_worker(zval *zobject) {
     Worker *worker = php_swoole_process_get_worker(zobject);
-    if (!worker) {
-        php_swoole_fatal_error(E_ERROR, "must call constructor first");
+    if (UNEXPECTED(!worker)) {
+        swoole_fatal_error(SW_ERROR_WRONG_OPERATION, "must call constructor first");
     }
     return worker;
 }

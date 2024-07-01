@@ -2642,23 +2642,23 @@ static PHP_METHOD(swoole_server, start) {
 
 #ifdef SW_THREAD
     zend_string *bootstrap = nullptr;
-    zend_string *thread_argv_serialized = nullptr;
-    zval thread_argv = {};
+    ZendArray *thread_argv = nullptr;
 
     if (serv->is_thread_mode()) {
         zval *_bootstrap = zend::object_get(ZEND_THIS, ZEND_STRL("bootstrap"));
         bootstrap = zend_string_dup(Z_STR_P(_bootstrap), 1);
 
         if (!ZVAL_IS_NULL(&server_object->init_arguments)) {
-            call_user_function(NULL, NULL, &server_object->init_arguments, &thread_argv, 0, NULL);
-            thread_argv_serialized = php_swoole_thread_argv_serialize(&thread_argv);
+            zval _thread_argv;
+            call_user_function(NULL, NULL, &server_object->init_arguments, &_thread_argv, 0, NULL);
+            thread_argv = php_swoole_thread_argv_create(&_thread_argv);
+            zval_ptr_dtor(&_thread_argv);
         }
 
-        serv->worker_thread_start = [bootstrap, thread_argv_serialized](const WorkerFn &fn) {
+        serv->worker_thread_start = [bootstrap, thread_argv](const WorkerFn &fn) {
             worker_thread_fn = fn;
             zend_string *bootstrap_copy = zend_string_dup(bootstrap, 1);
-            zend_string *argv_copy = thread_argv_serialized ? zend_string_dup(thread_argv_serialized, 1) : nullptr;
-            php_swoole_thread_start(bootstrap_copy, argv_copy);
+            php_swoole_thread_start(bootstrap_copy, thread_argv);
         };
     }
 #endif
@@ -2674,10 +2674,6 @@ static PHP_METHOD(swoole_server, start) {
     if (bootstrap) {
         zend_string_release(bootstrap);
     }
-    if (thread_argv_serialized) {
-        zend_string_release(thread_argv_serialized);
-    }
-    zval_ptr_dtor(&thread_argv);
 #endif
 
     RETURN_TRUE;
