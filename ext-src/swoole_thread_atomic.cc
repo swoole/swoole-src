@@ -111,11 +111,11 @@ static zend_object *atomic_long_create_object(zend_class_entry *ce) {
     return &atomic_long->std;
 }
 
-ThreadResource *php_swoole_thread_atomic_atomic_cast(zval *zobject) {
+ThreadResource *php_swoole_thread_atomic_cast(zval *zobject) {
     return atomic_fetch_object(Z_OBJ_P(zobject))->atomic;
 }
 
-ThreadResource *php_swoole_thread_atomic_atomic_long_cast(zval *zobject) {
+ThreadResource *php_swoole_thread_atomic_long_cast(zval *zobject) {
     return atomic_long_fetch_object(Z_OBJ_P(zobject))->atomic;
 }
 
