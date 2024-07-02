@@ -49,8 +49,8 @@ static Lock *php_swoole_lock_get_ptr(zval *zobject) {
 
 static Lock *php_swoole_lock_get_and_check_ptr(zval *zobject) {
     Lock *lock = php_swoole_lock_get_ptr(zobject);
-    if (!lock) {
-        php_swoole_fatal_error(E_ERROR, "must call constructor first");
+    if (UNEXPECTED(!lock)) {
+        swoole_fatal_error(SW_ERROR_WRONG_OPERATION, "must call constructor first");
     }
     return lock;
 }

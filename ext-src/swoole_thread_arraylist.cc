@@ -41,33 +41,23 @@ static PHP_METHOD(swoole_thread_arraylist, count);
 static PHP_METHOD(swoole_thread_arraylist, incr);
 static PHP_METHOD(swoole_thread_arraylist, decr);
 static PHP_METHOD(swoole_thread_arraylist, clean);
-static PHP_METHOD(swoole_thread_arraylist, __wakeup);
+static PHP_METHOD(swoole_thread_arraylist, toArray);
 SW_EXTERN_C_END
 
-static sw_inline ThreadArrayListObject *thread_arraylist_fetch_object(zend_object *obj) {
+static sw_inline ThreadArrayListObject *arraylist_fetch_object(zend_object *obj) {
     return (ThreadArrayListObject *) ((char *) obj - swoole_thread_arraylist_handlers.offset);
 }
 
-static sw_inline zend_long thread_arraylist_get_resource_id(zend_object *obj) {
-    zval rv, *property = zend_read_property(swoole_thread_arraylist_ce, obj, ZEND_STRL("id"), 1, &rv);
-    return property ? zval_get_long(property) : 0;
-}
-
-static sw_inline zend_long thread_arraylist_get_resource_id(zval *zobject) {
-    return thread_arraylist_get_resource_id(Z_OBJ_P(zobject));
-}
-
-static void thread_arraylist_free_object(zend_object *object) {
-    zend_long resource_id = thread_arraylist_get_resource_id(object);
-    ThreadArrayListObject *ao = thread_arraylist_fetch_object(object);
-    if (ao->list && php_swoole_thread_resource_free(resource_id, ao->list)) {
-        delete ao->list;
+static void arraylist_free_object(zend_object *object) {
+    ThreadArrayListObject *ao = arraylist_fetch_object(object);
+    if (ao->list) {
+        ao->list->del_ref();
         ao->list = nullptr;
     }
     zend_object_std_dtor(object);
 }
 
-static zend_object *thread_arraylist_create_object(zend_class_entry *ce) {
+static zend_object *arraylist_create_object(zend_class_entry *ce) {
     ThreadArrayListObject *ao = (ThreadArrayListObject *) zend_object_alloc(sizeof(ThreadArrayListObject), ce);
     zend_object_std_init(&ao->std, ce);
     object_properties_init(&ao->std, ce);
@@ -75,12 +65,23 @@ static zend_object *thread_arraylist_create_object(zend_class_entry *ce) {
     return &ao->std;
 }
 
-ThreadArrayListObject *thread_arraylist_fetch_object_check(zval *zobject) {
-    ThreadArrayListObject *ao = thread_arraylist_fetch_object(Z_OBJ_P(zobject));
+static ThreadArrayListObject *arraylist_fetch_object_check(zval *zobject) {
+    ThreadArrayListObject *ao = arraylist_fetch_object(Z_OBJ_P(zobject));
     if (!ao->list) {
-        php_swoole_fatal_error(E_ERROR, "must call constructor first");
+        swoole_fatal_error(SW_ERROR_WRONG_OPERATION, "must call constructor first");
     }
     return ao;
+}
+
+ThreadResource *php_swoole_thread_arraylist_cast(zval *zobject) {
+    return arraylist_fetch_object_check(zobject)->list;
+}
+
+void php_swoole_thread_arraylist_create(zval *return_value, ThreadResource *resource) {
+    auto obj = arraylist_create_object(swoole_thread_arraylist_ce);
+    auto ao = (ThreadArrayListObject *) arraylist_fetch_object(obj);
+    ao->list = static_cast<ZendArray *>(resource);
+    ZVAL_OBJ(return_value, obj);
 }
 
 // clang-format off
@@ -94,18 +95,19 @@ static const zend_function_entry swoole_thread_arraylist_methods[] = {
     PHP_ME(swoole_thread_arraylist, decr,         arginfo_class_Swoole_Thread_ArrayList_decr,          ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread_arraylist, clean,        arginfo_class_Swoole_Thread_ArrayList_clean,         ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread_arraylist, count,        arginfo_class_Swoole_Thread_ArrayList_count,         ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_thread_arraylist, __wakeup,     arginfo_class_Swoole_Thread_ArrayList___wakeup,      ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_thread_arraylist, toArray,      arginfo_class_Swoole_Thread_ArrayList_toArray,       ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 // clang-format on
 
 void php_swoole_thread_arraylist_minit(int module_number) {
     SW_INIT_CLASS_ENTRY(swoole_thread_arraylist, "Swoole\\Thread\\ArrayList", nullptr, swoole_thread_arraylist_methods);
+    swoole_thread_arraylist_ce->ce_flags |= ZEND_ACC_FINAL | ZEND_ACC_NOT_SERIALIZABLE;
     SW_SET_CLASS_CLONEABLE(swoole_thread_arraylist, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_thread_arraylist, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CUSTOM_OBJECT(swoole_thread_arraylist,
-                               thread_arraylist_create_object,
-                               thread_arraylist_free_object,
+                               arraylist_create_object,
+                               arraylist_free_object,
                                ThreadArrayListObject,
                                std);
 
@@ -114,12 +116,27 @@ void php_swoole_thread_arraylist_minit(int module_number) {
 }
 
 static PHP_METHOD(swoole_thread_arraylist, __construct) {
-    ZEND_PARSE_PARAMETERS_NONE();
+    zend_array *array = nullptr;
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_ARRAY_HT_OR_NULL(array)
+    ZEND_PARSE_PARAMETERS_END();
 
-    auto ao = thread_arraylist_fetch_object(Z_OBJ_P(ZEND_THIS));
-    ao->list = new ZendArray();
-    auto resource_id = php_swoole_thread_resource_insert(ao->list);
-    zend_update_property_long(swoole_thread_arraylist_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("id"), resource_id);
+    auto ao = arraylist_fetch_object(Z_OBJ_P(ZEND_THIS));
+    if (ao->list != nullptr) {
+        zend_throw_error(NULL, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        return;
+    }
+
+    if (array) {
+        if (!zend_array_is_list(array)) {
+            zend_throw_error(NULL, "the parameter $array must be an array of type list");
+            return;
+        }
+        ao->list = ZendArray::from(array);
+    } else {
+        ao->list = new ZendArray();
+    }
 }
 
 static PHP_METHOD(swoole_thread_arraylist, offsetGet) {
@@ -129,7 +146,7 @@ static PHP_METHOD(swoole_thread_arraylist, offsetGet) {
     Z_PARAM_ZVAL(zkey)
     ZEND_PARSE_PARAMETERS_END();
 
-    auto ao = thread_arraylist_fetch_object_check(ZEND_THIS);
+    auto ao = arraylist_fetch_object_check(ZEND_THIS);
     if (!ao->list->index_offsetGet(zkey, return_value)) {
         zend_throw_exception(swoole_exception_ce, "out of range", -1);
     }
@@ -142,7 +159,7 @@ static PHP_METHOD(swoole_thread_arraylist, offsetExists) {
     Z_PARAM_ZVAL(zkey)
     ZEND_PARSE_PARAMETERS_END();
 
-    auto ao = thread_arraylist_fetch_object_check(ZEND_THIS);
+    auto ao = arraylist_fetch_object_check(ZEND_THIS);
     ao->list->index_offsetExists(zkey, return_value);
 }
 
@@ -155,7 +172,7 @@ static PHP_METHOD(swoole_thread_arraylist, offsetSet) {
     Z_PARAM_ZVAL(zvalue)
     ZEND_PARSE_PARAMETERS_END();
 
-    auto ao = thread_arraylist_fetch_object_check(ZEND_THIS);
+    auto ao = arraylist_fetch_object_check(ZEND_THIS);
     if (!ao->list->index_offsetSet(zkey, zvalue)) {
         zend_throw_exception(swoole_exception_ce, "out of range", -1);
     }
@@ -163,7 +180,7 @@ static PHP_METHOD(swoole_thread_arraylist, offsetSet) {
 
 static PHP_METHOD(swoole_thread_arraylist, incr) {
     INIT_ARRAY_INCR_PARAMS
-    auto ao = thread_arraylist_fetch_object_check(ZEND_THIS);
+    auto ao = arraylist_fetch_object_check(ZEND_THIS);
     if (!ao->list->index_incr(zkey, zvalue, return_value)) {
         zend_throw_exception(swoole_exception_ce, "out of range", -1);
     }
@@ -171,7 +188,7 @@ static PHP_METHOD(swoole_thread_arraylist, incr) {
 
 static PHP_METHOD(swoole_thread_arraylist, decr) {
     INIT_ARRAY_INCR_PARAMS
-    auto ao = thread_arraylist_fetch_object_check(ZEND_THIS);
+    auto ao = arraylist_fetch_object_check(ZEND_THIS);
     if (!ao->list->index_decr(zkey, zvalue, return_value)) {
         zend_throw_exception(swoole_exception_ce, "out of range", -1);
     }
@@ -182,21 +199,17 @@ static PHP_METHOD(swoole_thread_arraylist, offsetUnset) {
 }
 
 static PHP_METHOD(swoole_thread_arraylist, count) {
-    auto ao = thread_arraylist_fetch_object_check(ZEND_THIS);
+    auto ao = arraylist_fetch_object_check(ZEND_THIS);
     ao->list->count(return_value);
 }
 
 static PHP_METHOD(swoole_thread_arraylist, clean) {
-    auto ao = thread_arraylist_fetch_object_check(ZEND_THIS);
+    auto ao = arraylist_fetch_object_check(ZEND_THIS);
     ao->list->clean();
 }
 
-static PHP_METHOD(swoole_thread_arraylist, __wakeup) {
-    auto mo = thread_arraylist_fetch_object(Z_OBJ_P(ZEND_THIS));
-    zend_long resource_id = thread_arraylist_get_resource_id(ZEND_THIS);
-    mo->list = static_cast<ZendArray *>(php_swoole_thread_resource_fetch(resource_id));
-    if (!mo->list) {
-        zend_throw_exception(swoole_exception_ce, EMSG_NO_RESOURCE, ECODE_NO_RESOURCE);
-    }
+static PHP_METHOD(swoole_thread_arraylist, toArray) {
+    auto ao = arraylist_fetch_object_check(ZEND_THIS);
+    ao->list->toArray(return_value);
 }
 #endif

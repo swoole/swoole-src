@@ -6,6 +6,5 @@ namespace Swoole\Thread {
         public function pop(float $wait = 0): mixed {}
         public function count(): int {}
         public function clean(): void {}
-        public function __wakeup(): void {}
     }
 }

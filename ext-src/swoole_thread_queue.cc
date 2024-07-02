@@ -39,7 +39,7 @@ struct Queue : ThreadResource {
 
     Queue() : ThreadResource(), queue() {}
 
-    ~Queue() {
+    ~Queue() override {
         clean();
     }
 
@@ -122,30 +122,20 @@ struct ThreadQueueObject {
     zend_object std;
 };
 
-static sw_inline ThreadQueueObject *thread_queue_fetch_object(zend_object *obj) {
+static sw_inline ThreadQueueObject *queue_fetch_object(zend_object *obj) {
     return (ThreadQueueObject *) ((char *) obj - swoole_thread_queue_handlers.offset);
 }
 
-static sw_inline zend_long thread_queue_get_resource_id(zend_object *obj) {
-    zval rv, *property = zend_read_property(swoole_thread_queue_ce, obj, ZEND_STRL("id"), 1, &rv);
-    return property ? zval_get_long(property) : 0;
-}
-
-static sw_inline zend_long thread_queue_get_resource_id(zval *zobject) {
-    return thread_queue_get_resource_id(Z_OBJ_P(zobject));
-}
-
-static void thread_queue_free_object(zend_object *object) {
-    zend_long resource_id = thread_queue_get_resource_id(object);
-    ThreadQueueObject *qo = thread_queue_fetch_object(object);
-    if (qo->queue && php_swoole_thread_resource_free(resource_id, qo->queue)) {
-        delete qo->queue;
+static void queue_free_object(zend_object *object) {
+    ThreadQueueObject *qo = queue_fetch_object(object);
+    if (qo->queue) {
+        qo->queue->del_ref();
         qo->queue = nullptr;
     }
     zend_object_std_dtor(object);
 }
 
-static zend_object *thread_queue_create_object(zend_class_entry *ce) {
+static zend_object *queue_create_object(zend_class_entry *ce) {
     ThreadQueueObject *qo = (ThreadQueueObject *) zend_object_alloc(sizeof(ThreadQueueObject), ce);
     zend_object_std_init(&qo->std, ce);
     object_properties_init(&qo->std, ce);
@@ -153,12 +143,23 @@ static zend_object *thread_queue_create_object(zend_class_entry *ce) {
     return &qo->std;
 }
 
-ThreadQueueObject *thread_queue_fetch_object_check(zval *zobject) {
-    ThreadQueueObject *qo = thread_queue_fetch_object(Z_OBJ_P(zobject));
+ThreadQueueObject *queue_fetch_object_check(zval *zobject) {
+    ThreadQueueObject *qo = queue_fetch_object(Z_OBJ_P(zobject));
     if (!qo->queue) {
         php_swoole_fatal_error(E_ERROR, "must call constructor first");
     }
     return qo;
+}
+
+ThreadResource *php_swoole_thread_queue_cast(zval *zobject) {
+    return queue_fetch_object(Z_OBJ_P(zobject))->queue;
+}
+
+void php_swoole_thread_queue_create(zval *return_value, ThreadResource *resource) {
+    auto obj = queue_create_object(swoole_thread_queue_ce);
+    auto qo = (ThreadQueueObject *) queue_fetch_object(obj);
+    qo->queue = static_cast<Queue *>(resource);
+    ZVAL_OBJ(return_value, obj);
 }
 
 SW_EXTERN_C_BEGIN
@@ -167,7 +168,6 @@ static PHP_METHOD(swoole_thread_queue, push);
 static PHP_METHOD(swoole_thread_queue, pop);
 static PHP_METHOD(swoole_thread_queue, count);
 static PHP_METHOD(swoole_thread_queue, clean);
-static PHP_METHOD(swoole_thread_queue, __wakeup);
 SW_EXTERN_C_END
 
 // clang-format off
@@ -177,30 +177,31 @@ static const zend_function_entry swoole_thread_queue_methods[] = {
     PHP_ME(swoole_thread_queue, pop,          arginfo_class_Swoole_Thread_Queue_pop,           ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread_queue, clean,        arginfo_class_Swoole_Thread_Queue_clean,         ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread_queue, count,        arginfo_class_Swoole_Thread_Queue_count,         ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_thread_queue, __wakeup,     arginfo_class_Swoole_Thread_Queue___wakeup,      ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 // clang-format on
 
 void php_swoole_thread_queue_minit(int module_number) {
     SW_INIT_CLASS_ENTRY(swoole_thread_queue, "Swoole\\Thread\\Queue", nullptr, swoole_thread_queue_methods);
+    swoole_thread_queue_ce->ce_flags |= ZEND_ACC_FINAL | ZEND_ACC_NOT_SERIALIZABLE;
     SW_SET_CLASS_CLONEABLE(swoole_thread_queue, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_thread_queue, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CUSTOM_OBJECT(
-        swoole_thread_queue, thread_queue_create_object, thread_queue_free_object, ThreadQueueObject, std);
+        swoole_thread_queue, queue_create_object, queue_free_object, ThreadQueueObject, std);
 
     zend_class_implements(swoole_thread_queue_ce, 1, zend_ce_countable);
-    zend_declare_property_long(swoole_thread_queue_ce, ZEND_STRL("id"), 0, ZEND_ACC_PUBLIC | ZEND_ACC_READONLY);
 
     zend_declare_class_constant_long(swoole_thread_queue_ce, ZEND_STRL("NOTIFY_ONE"), Queue::NOTIFY_ONE);
     zend_declare_class_constant_long(swoole_thread_queue_ce, ZEND_STRL("NOTIFY_ALL"), Queue::NOTIFY_ALL);
 }
 
 static PHP_METHOD(swoole_thread_queue, __construct) {
-    auto qo = thread_queue_fetch_object(Z_OBJ_P(ZEND_THIS));
+    auto qo = queue_fetch_object(Z_OBJ_P(ZEND_THIS));
+    if (qo->queue != nullptr) {
+        zend_throw_error(NULL, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        return;
+    }
     qo->queue = new Queue();
-    auto resource_id = php_swoole_thread_resource_insert(qo->queue);
-    zend_update_property_long(swoole_thread_queue_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("id"), resource_id);
 }
 
 static PHP_METHOD(swoole_thread_queue, push) {
@@ -213,7 +214,7 @@ static PHP_METHOD(swoole_thread_queue, push) {
     Z_PARAM_LONG(notify_which)
     ZEND_PARSE_PARAMETERS_END();
 
-    auto qo = thread_queue_fetch_object_check(ZEND_THIS);
+    auto qo = queue_fetch_object_check(ZEND_THIS);
     if (notify_which > 0) {
         qo->queue->push_notify(zvalue, notify_which == Queue::NOTIFY_ALL);
     } else {
@@ -229,7 +230,7 @@ static PHP_METHOD(swoole_thread_queue, pop) {
     Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END();
 
-    auto qo = thread_queue_fetch_object_check(ZEND_THIS);
+    auto qo = queue_fetch_object_check(ZEND_THIS);
     if (timeout == 0) {
         qo->queue->pop(return_value);
     } else {
@@ -238,22 +239,13 @@ static PHP_METHOD(swoole_thread_queue, pop) {
 }
 
 static PHP_METHOD(swoole_thread_queue, count) {
-    auto qo = thread_queue_fetch_object_check(ZEND_THIS);
+    auto qo = queue_fetch_object_check(ZEND_THIS);
     qo->queue->count(return_value);
 }
 
 static PHP_METHOD(swoole_thread_queue, clean) {
-    auto qo = thread_queue_fetch_object_check(ZEND_THIS);
+    auto qo = queue_fetch_object_check(ZEND_THIS);
     qo->queue->clean();
-}
-
-static PHP_METHOD(swoole_thread_queue, __wakeup) {
-    auto qo = thread_queue_fetch_object(Z_OBJ_P(ZEND_THIS));
-    zend_long resource_id = thread_queue_get_resource_id(ZEND_THIS);
-    qo->queue = static_cast<Queue *>(php_swoole_thread_resource_fetch(resource_id));
-    if (!qo->queue) {
-        zend_throw_exception(swoole_exception_ce, EMSG_NO_RESOURCE, ECODE_NO_RESOURCE);
-    }
 }
 
 #endif

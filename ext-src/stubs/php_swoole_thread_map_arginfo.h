@@ -1,7 +1,8 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 44e8467dc5e0e3cc91e46840d4a1ae686ee6c0a6 */
+ * Stub hash: 7001a2953b9babe6ed51b8beed9e8ada7e390429 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Thread_Map___construct, 0, 0, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, array, IS_ARRAY, 1, "null")
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Thread_Map_offsetGet, 0, 1, IS_MIXED, 0)
@@ -44,4 +45,4 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Thread_Map_clean, 0, 0, IS_VOID, 0)
 ZEND_END_ARG_INFO()
 
-#define arginfo_class_Swoole_Thread_Map___wakeup arginfo_class_Swoole_Thread_Map_clean
+#define arginfo_class_Swoole_Thread_Map_toArray arginfo_class_Swoole_Thread_Map_keys

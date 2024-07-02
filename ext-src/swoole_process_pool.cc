@@ -58,8 +58,8 @@ static sw_inline ProcessPool *process_pool_get_pool(zval *zobject) {
 
 static sw_inline ProcessPool *process_pool_get_and_check_pool(zval *zobject) {
     ProcessPool *pool = process_pool_get_pool(zobject);
-    if (!pool) {
-        php_swoole_fatal_error(E_ERROR, "you must call Process\\Pool constructor first");
+    if (UNEXPECTED(!pool)) {
+        swoole_fatal_error(SW_ERROR_WRONG_OPERATION, "must call constructor first");
     }
     return pool;
 }

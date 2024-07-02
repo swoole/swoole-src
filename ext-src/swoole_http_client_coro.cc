@@ -1638,7 +1638,7 @@ static sw_inline HttpClientObject *http_client_coro_fetch_object(zend_object *ob
 static sw_inline Client *http_client_coro_get_client(zval *zobject) {
     Client *phc = http_client_coro_fetch_object(Z_OBJ_P(zobject))->client;
     if (UNEXPECTED(!phc)) {
-        php_swoole_fatal_error(E_ERROR, "you must call Http Client constructor first");
+        swoole_fatal_error(SW_ERROR_WRONG_OPERATION, "must call constructor first");
     }
     return phc;
 }

@@ -136,7 +136,7 @@ static const zend_function_entry swoole_socket_coro_methods[] =
 #define swoole_get_socket_coro(_sock, _zobject)                                                                        \
     SocketObject *_sock = socket_coro_fetch_object(Z_OBJ_P(_zobject));                                                 \
     if (UNEXPECTED(!sock->socket)) {                                                                                   \
-        php_swoole_fatal_error(E_ERROR, "you must call Socket constructor first");                                     \
+        swoole_fatal_error(SW_ERROR_WRONG_OPERATION, "must call constructor first");                                   \
     }                                                                                                                  \
     if (UNEXPECTED(_sock->socket->is_closed())) {                                                                      \
         zend_update_property_long(swoole_socket_coro_ce, SW_Z8_OBJ_P(_zobject), ZEND_STRL("errCode"), EBADF);          \
