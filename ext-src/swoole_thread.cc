@@ -31,7 +31,10 @@ BEGIN_EXTERN_C()
 #include "stubs/php_swoole_thread_arginfo.h"
 END_EXTERN_C()
 
+zend_class_entry *swoole_thread_ce;
 static zend_object_handlers swoole_thread_handlers;
+
+zend_class_entry *swoole_thread_error_ce;
 static zend_object_handlers swoole_thread_error_handlers;
 
 static struct {
