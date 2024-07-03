@@ -27,6 +27,8 @@ typedef uint32_t ThreadResourceId;
 struct ThreadResource;
 struct ZendArray;
 
+extern zend_class_entry *swoole_thread_ce;
+extern zend_class_entry *swoole_thread_error_ce;
 extern zend_class_entry *swoole_thread_arraylist_ce;
 extern zend_class_entry *swoole_thread_atomic_ce;
 extern zend_class_entry *swoole_thread_atomic_long_ce;
@@ -55,6 +57,12 @@ void php_swoole_thread_lock_create(zval *return_value, ThreadResource *resource)
 void php_swoole_thread_atomic_create(zval *return_value, ThreadResource *resource);
 void php_swoole_thread_atomic_long_create(zval *return_value, ThreadResource *resource);
 void php_swoole_thread_barrier_create(zval *return_value, ThreadResource *resource);
+
+int php_swoole_thread_stream_cast(zval *zstream);
+void php_swoole_thread_stream_create(zval *return_value, zend_long sockfd);
+
+int php_swoole_thread_co_socket_cast(zval *zstream, swSocketType *type);
+void php_swoole_thread_co_socket_create(zval *return_value, zend_long sockfd, swSocketType type);
 
 #define EMSG_NO_RESOURCE "resource not found"
 #define ECODE_NO_RESOURCE -2

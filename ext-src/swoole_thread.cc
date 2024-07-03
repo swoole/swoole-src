@@ -31,8 +31,8 @@ BEGIN_EXTERN_C()
 #include "stubs/php_swoole_thread_arginfo.h"
 END_EXTERN_C()
 
-zend_class_entry *swoole_thread_ce;
 static zend_object_handlers swoole_thread_handlers;
+static zend_object_handlers swoole_thread_error_handlers;
 
 static struct {
     char *path_translated;
@@ -50,8 +50,6 @@ struct ThreadObject {
 };
 
 static void php_swoole_thread_join(zend_object *object);
-static int php_swoole_thread_stream_fileno(zval *zstream);
-static bool php_swoole_thread_stream_restore(zend_long sockfd, zval *return_value);
 static void php_swoole_thread_register_stdio_file_handles(bool no_close);
 
 static thread_local zval thread_argv;
@@ -117,6 +115,9 @@ void php_swoole_thread_minit(int module_number) {
     zend_declare_property_long(swoole_thread_ce, ZEND_STRL("id"), 0, ZEND_ACC_PUBLIC | ZEND_ACC_READONLY);
     zend_declare_class_constant_long(
         swoole_thread_ce, ZEND_STRL("HARDWARE_CONCURRENCY"), std::thread::hardware_concurrency());
+
+    SW_INIT_CLASS_ENTRY_DATA_OBJECT(swoole_thread_error, "Swoole\\Thread\\Error");
+    zend_declare_property_long(swoole_thread_error_ce, ZEND_STRL("code"), 0, ZEND_ACC_PUBLIC | ZEND_ACC_READONLY);
 }
 
 static PHP_METHOD(swoole_thread, __construct) {
@@ -359,7 +360,7 @@ void php_swoole_thread_bailout(void) {
     }
 }
 
-static int php_swoole_thread_stream_fileno(zval *zstream) {
+int php_swoole_thread_stream_cast(zval *zstream) {
     php_stream *stream;
     int sockfd;
     int cast_flags = PHP_STREAM_AS_FD_FOR_SELECT | PHP_STREAM_CAST_INTERNAL;
@@ -371,15 +372,49 @@ static int php_swoole_thread_stream_fileno(zval *zstream) {
     return -1;
 }
 
-static bool php_swoole_thread_stream_restore(zend_long sockfd, zval *return_value) {
+int php_swoole_thread_co_socket_cast(zval *zvalue, swSocketType *type) {
+    swoole::coroutine::Socket *socket = php_swoole_get_socket(zvalue);
+    if (!socket) {
+        return -1;
+    }
+    int sockfd = socket->get_fd();
+    if (sockfd < 0) {
+        return -1;
+    }
+    int newfd = dup(sockfd);
+    if (newfd < 0) {
+        return -1;
+    }
+    *type = socket->get_type();
+    return newfd;
+}
+
+void php_swoole_thread_stream_create(zval *return_value, zend_long sockfd) {
     std::string path = "php://fd/" + std::to_string(sockfd);
     // The file descriptor will be duplicated once here
     php_stream *stream = php_stream_open_wrapper_ex(path.c_str(), "", 0, NULL, NULL);
     if (stream) {
         php_stream_to_zval(stream, return_value);
-        return true;
+    } else {
+        object_init_ex(return_value, swoole_thread_error_ce);
+        zend::object_set(return_value, ZEND_STRL("code"), errno);
     }
-    return false;
+}
+
+void php_swoole_thread_co_socket_create(zval *return_value, zend_long sockfd, swSocketType type) {
+    int newfd = dup(sockfd);
+    if (newfd < 0) {
+        object_init_ex(return_value, swoole_thread_error_ce);
+        zend::object_set(return_value, ZEND_STRL("code"), errno);
+        return;
+    }
+    zend_object *sockobj = php_swoole_create_socket_from_fd(newfd, type);
+    if (sockobj) {
+        ZVAL_OBJ(return_value, sockobj);
+    } else {
+        // never here
+        abort();
+    }
 }
 
 static PHP_METHOD(swoole_thread, getTsrmInfo) {
@@ -415,14 +450,13 @@ void ArrayItem::store(zval *zvalue) {
     case IS_NULL:
         break;
     case IS_RESOURCE: {
-        int sock_fd = php_swoole_thread_stream_fileno(zvalue);
-        if (sock_fd != -1) {
-            value.socket.fd = sock_fd;
-            type = IS_STREAM_SOCKET;
-            break;
+        value.socket.fd = php_swoole_thread_stream_cast(zvalue);
+        type = IS_STREAM_SOCKET;
+        if (value.socket.fd == -1) {
+            zend_throw_exception(swoole_exception_ce, "failed to convert to socket fd", errno);
         }
+        break;
     }
-    /* no break */
     case IS_ARRAY: {
         type = zend_array_is_list(Z_ARRVAL_P(zvalue)) ? IS_ARRAYLIST : IS_MAP;
         value.resource = ZendArray::from(Z_ARRVAL_P(zvalue));
@@ -430,20 +464,12 @@ void ArrayItem::store(zval *zvalue) {
     }
     case IS_OBJECT: {
         if (instanceof_function(Z_OBJCE_P(zvalue), swoole_socket_coro_ce)) {
-            swoole::coroutine::Socket *socket = php_swoole_get_socket(zvalue);
-            if (socket) {
-                int sockfd = socket->get_fd();
-                if (sockfd < 0) {
-                    break;
-                }
-                value.socket.fd = dup(sockfd);
-                if (value.socket.fd < 0) {
-                    break;
-                }
-                value.socket.type = socket->get_type();
-                type = IS_CO_SOCKET;
-                break;
+            value.socket.fd = php_swoole_thread_co_socket_cast(zvalue, &value.socket.type);
+            type = IS_CO_SOCKET;
+            if (value.socket.fd == -1) {
+                zend_throw_exception(swoole_exception_ce, "failed to convert to socket fd", errno);
             }
+            break;
         }
         CAST_OBJ_TO_RESOURCE(arraylist, IS_ARRAYLIST)
         CAST_OBJ_TO_RESOURCE(map, IS_MAP)
@@ -514,19 +540,11 @@ void ArrayItem::fetch(zval *return_value) {
         php_swoole_thread_atomic_long_create(return_value, value.resource);
         break;
     case IS_STREAM_SOCKET:
-        php_swoole_thread_stream_restore(value.socket.fd, return_value);
+        php_swoole_thread_stream_create(return_value, value.socket.fd);
         break;
-    case IS_CO_SOCKET: {
-        int sockfd = dup(value.socket.fd);
-        if (sockfd < 0) {
-            break;
-        }
-        zend_object *sockobj = php_swoole_create_socket_from_fd(sockfd, value.socket.type);
-        if (sockobj) {
-            ZVAL_OBJ(return_value, sockobj);
-        }
+    case IS_CO_SOCKET:
+        php_swoole_thread_co_socket_create(return_value, value.socket.fd, value.socket.type);
         break;
-    }
     case IS_SERIALIZED_OBJECT:
         php_swoole_unserialize(value.serialized_object, return_value);
         break;
