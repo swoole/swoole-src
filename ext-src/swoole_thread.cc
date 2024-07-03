@@ -55,7 +55,7 @@ struct ThreadObject {
 static void php_swoole_thread_join(zend_object *object);
 static void php_swoole_thread_register_stdio_file_handles(bool no_close);
 
-static thread_local zval thread_argv;
+static thread_local zval thread_argv = {};
 static thread_local JMP_BUF *thread_bailout = nullptr;
 
 static sw_inline ThreadObject *thread_fetch_object(zend_object *obj) {
@@ -189,7 +189,9 @@ static PHP_METHOD(swoole_thread, detach) {
 }
 
 static PHP_METHOD(swoole_thread, getArguments) {
-    RETURN_ZVAL(&thread_argv, 1, 0);
+    if (Z_TYPE(thread_argv) == IS_ARRAY) {
+        RETURN_ZVAL(&thread_argv, 1, 0);
+    }
 }
 
 static PHP_METHOD(swoole_thread, getId) {
