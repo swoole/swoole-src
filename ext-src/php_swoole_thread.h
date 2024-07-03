@@ -90,6 +90,7 @@ class ThreadResource {
         }
     }
 
+  protected:
     virtual ~ThreadResource() {}
 };
 
