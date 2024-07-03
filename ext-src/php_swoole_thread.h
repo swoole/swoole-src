@@ -250,6 +250,7 @@ struct ZendArray : ThreadResource {
     }
 
     void keys(zval *return_value);
+    void values(zval *return_value);
     void toArray(zval *return_value);
 
     void intkey_offsetGet(zend_long index, zval *return_value) {

@@ -8,6 +8,7 @@ namespace Swoole\Thread {
         public function offsetUnset(mixed $key): void {}
         public function count(): int {}
         public function keys(): array {}
+        public function values(): array {}
         public function incr(mixed $key, mixed $value = 1): mixed {}
         public function decr(mixed $key, mixed $value = 1): mixed {}
         public function add(mixed $key, mixed $value): bool {}

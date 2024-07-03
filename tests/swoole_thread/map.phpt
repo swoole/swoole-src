@@ -32,5 +32,6 @@ $array2 = [
 $m['map'] = $array2;
 
 Assert::eq($m['map']->toArray(), $array2);
+Assert::eq($m['map']->values(), array_values($array2));
 ?>
 --EXPECTF--

@@ -772,6 +772,21 @@ void ZendArray::keys(zval *return_value) {
     lock_.unlock();
 }
 
+void ZendArray::values(zval *return_value) {
+    lock_.lock_rd();
+    zend_ulong elem_count = zend_hash_num_elements(&ht);
+    array_init_size(return_value, elem_count);
+    void *tmp;
+    ZEND_HASH_FOREACH_PTR(&ht, tmp) {
+        zval value;
+        ArrayItem *item = (ArrayItem *) tmp;
+        item->fetch(&value);
+        zend_hash_next_index_insert_new(Z_ARR_P(return_value), &value);
+    }
+    ZEND_HASH_FOREACH_END();
+    lock_.unlock();
+}
+
 void ZendArray::toArray(zval *return_value) {
     lock_.lock_rd();
     zend_ulong elem_count = zend_hash_num_elements(&ht);

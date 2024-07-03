@@ -79,6 +79,7 @@ static PHP_METHOD(swoole_thread_map, offsetSet);
 static PHP_METHOD(swoole_thread_map, offsetUnset);
 static PHP_METHOD(swoole_thread_map, count);
 static PHP_METHOD(swoole_thread_map, keys);
+static PHP_METHOD(swoole_thread_map, values);
 static PHP_METHOD(swoole_thread_map, incr);
 static PHP_METHOD(swoole_thread_map, decr);
 static PHP_METHOD(swoole_thread_map, add);
@@ -101,6 +102,7 @@ static const zend_function_entry swoole_thread_map_methods[] = {
     PHP_ME(swoole_thread_map, update,          arginfo_class_Swoole_Thread_Map_update,        ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread_map, clean,           arginfo_class_Swoole_Thread_Map_clean,         ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread_map, keys,            arginfo_class_Swoole_Thread_Map_keys,          ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_thread_map, values,          arginfo_class_Swoole_Thread_Map_values,        ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread_map, toArray,         arginfo_class_Swoole_Thread_Map_toArray,       ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
@@ -236,6 +238,11 @@ static PHP_METHOD(swoole_thread_map, count) {
 static PHP_METHOD(swoole_thread_map, keys) {
     auto mo = map_fetch_object_check(ZEND_THIS);
     mo->map->keys(return_value);
+}
+
+static PHP_METHOD(swoole_thread_map, values) {
+    auto mo = map_fetch_object_check(ZEND_THIS);
+    mo->map->values(return_value);
 }
 
 static PHP_METHOD(swoole_thread_map, toArray) {
