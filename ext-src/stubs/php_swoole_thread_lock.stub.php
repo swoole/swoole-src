@@ -9,6 +9,5 @@ namespace Swoole\Thread {
         public function lock_read(): bool {}
         public function trylock_read(): bool {}
         public function unlock(): bool {}
-        public function __wakeup(): void {}
     }
 }

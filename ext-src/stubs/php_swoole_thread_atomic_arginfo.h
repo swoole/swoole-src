@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: c27562c58b557e8e211bbf52859e4e9818c35f55 */
+ * Stub hash: 4b6cbceb50641f6204da9caed8c514a526c57ee8 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Thread_Atomic___construct, 0, 0, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, value, IS_LONG, 0, "0")
@@ -33,9 +33,6 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Thread_Atomic_wakeu
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, count, IS_LONG, 0, "1")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Thread_Atomic___wakeup, 0, 0, IS_VOID, 0)
-ZEND_END_ARG_INFO()
-
 #define arginfo_class_Swoole_Thread_Atomic_Long___construct arginfo_class_Swoole_Thread_Atomic___construct
 
 #define arginfo_class_Swoole_Thread_Atomic_Long_add arginfo_class_Swoole_Thread_Atomic_add
@@ -47,5 +44,3 @@ ZEND_END_ARG_INFO()
 #define arginfo_class_Swoole_Thread_Atomic_Long_set arginfo_class_Swoole_Thread_Atomic_set
 
 #define arginfo_class_Swoole_Thread_Atomic_Long_cmpset arginfo_class_Swoole_Thread_Atomic_cmpset
-
-#define arginfo_class_Swoole_Thread_Atomic_Long___wakeup arginfo_class_Swoole_Thread_Atomic___wakeup

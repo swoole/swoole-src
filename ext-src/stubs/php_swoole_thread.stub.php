@@ -8,7 +8,7 @@ namespace Swoole {
         public function joinable(): bool {}
         public function detach(): bool {}
 
-        public static function getArguments(): array {}
+        public static function getArguments(): ?array {}
         public static function getId(): int {}
         public static function getTsrmInfo(): array {}
     }

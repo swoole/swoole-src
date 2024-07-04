@@ -9,7 +9,6 @@ namespace Swoole\Thread {
         public function cmpset(int $cmp_value, int $new_value): bool {}
         public function wait(float $timeout = 1.0): bool {}
         public function wakeup(int $count = 1): bool {}
-        public function __wakeup(): void {}
     }
 }
 
@@ -21,6 +20,5 @@ namespace Swoole\Thread\Atomic {
         public function get(): int {}
         public function set(int $value): void {}
         public function cmpset(int $cmp_value, int $new_value): bool {}
-        public function __wakeup(): void {}
     }
 }
