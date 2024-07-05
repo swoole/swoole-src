@@ -25,11 +25,7 @@
 BEGIN_EXTERN_C()
 
 #include "ext/pdo/php_pdo_driver.h"
-#if PHP_VERSION_ID >= 80100
 #include "thirdparty/php81/pdo_oci/php_pdo_oci_int.h"
-#else
-#include "thirdparty/php80/pdo_oci/php_pdo_oci_int.h"
-#endif
 
 extern const pdo_driver_t swoole_pdo_oci_driver;
 

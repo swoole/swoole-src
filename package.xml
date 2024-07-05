@@ -49,8 +49,8 @@
         <email>doubaokun@php.net</email>
         <active>yes</active>
     </developer>
-    <date>2024-06-24</date>
-    <time>11:00:00</time>
+    <date>2024-07-05</date>
+    <time>17:00:00</time>
     <version>
         <release>6.0.0</release>
         <api>6.0</api>
@@ -504,6 +504,7 @@
             <file role="doc" name="examples/thread/co.php" />
             <file role="doc" name="examples/thread/lock.php" />
             <file role="doc" name="examples/thread/mt.php" />
+            <file role="doc" name="examples/thread/nested_map.php" />
             <file role="doc" name="examples/thread/pipe.php" />
             <file role="doc" name="examples/thread/run_test.php" />
             <file role="doc" name="examples/thread/server.php" />
@@ -608,6 +609,8 @@
             <file role="src" name="ext-src/stubs/php_swoole_thread_arraylist_arginfo.h" />
             <file role="src" name="ext-src/stubs/php_swoole_thread_atomic.stub.php" />
             <file role="src" name="ext-src/stubs/php_swoole_thread_atomic_arginfo.h" />
+            <file role="src" name="ext-src/stubs/php_swoole_thread_barrier.stub.php" />
+            <file role="src" name="ext-src/stubs/php_swoole_thread_barrier_arginfo.h" />
             <file role="src" name="ext-src/stubs/php_swoole_thread_lock.stub.php" />
             <file role="src" name="ext-src/stubs/php_swoole_thread_lock_arginfo.h" />
             <file role="src" name="ext-src/stubs/php_swoole_thread_map.stub.php" />
@@ -653,6 +656,7 @@
             <file role="src" name="ext-src/swoole_thread.cc" />
             <file role="src" name="ext-src/swoole_thread_arraylist.cc" />
             <file role="src" name="ext-src/swoole_thread_atomic.cc" />
+            <file role="src" name="ext-src/swoole_thread_barrier.cc" />
             <file role="src" name="ext-src/swoole_thread_lock.cc" />
             <file role="src" name="ext-src/swoole_thread_map.cc" />
             <file role="src" name="ext-src/swoole_thread_queue.cc" />
@@ -751,6 +755,7 @@
             <file role="src" name="src/coroutine/socket.cc" />
             <file role="src" name="src/coroutine/system.cc" />
             <file role="src" name="src/coroutine/thread_context.cc" />
+            <file role="src" name="src/lock/barrier.cc" />
             <file role="src" name="src/lock/mutex.cc" />
             <file role="src" name="src/lock/rw_lock.cc" />
             <file role="src" name="src/lock/spin_lock.cc" />
@@ -2277,14 +2282,18 @@
             <file role="test" name="tests/swoole_table/stats.phpt" />
             <file role="test" name="tests/swoole_table/type_conv.phpt" />
             <file role="test" name="tests/swoole_thread/add_update.phpt" />
+            <file role="test" name="tests/swoole_thread/arraylist.phpt" />
             <file role="test" name="tests/swoole_thread/async-io.phpt" />
             <file role="test" name="tests/swoole_thread/atomic_ctor.phpt" />
+            <file role="test" name="tests/swoole_thread/barrier.phpt" />
             <file role="test" name="tests/swoole_thread/co-stream.phpt" />
+            <file role="test" name="tests/swoole_thread/empty_args.phpt" />
             <file role="test" name="tests/swoole_thread/fatal_error_1.phpt" />
             <file role="test" name="tests/swoole_thread/fatal_error_2.phpt" />
             <file role="test" name="tests/swoole_thread/incr.phpt" />
             <file role="test" name="tests/swoole_thread/info.phpt" />
             <file role="test" name="tests/swoole_thread/lock.phpt" />
+            <file role="test" name="tests/swoole_thread/map.phpt" />
             <file role="test" name="tests/swoole_thread/pipe.phpt" />
             <file role="test" name="tests/swoole_thread/queue.phpt" />
             <file role="test" name="tests/swoole_thread/server/base.phpt" />
@@ -2473,21 +2482,6 @@
             <file role="src" name="thirdparty/php/standard/var_decoder.cc" />
             <file role="src" name="thirdparty/php/streams/php_streams_int.h" />
             <file role="src" name="thirdparty/php/streams/plain_wrapper.c" />
-            <file role="src" name="thirdparty/php80/pdo_oci/oci_driver.c" />
-            <file role="src" name="thirdparty/php80/pdo_oci/oci_statement.c" />
-            <file role="src" name="thirdparty/php80/pdo_oci/php_pdo_oci_int.h" />
-            <file role="src" name="thirdparty/php80/pdo_odbc/odbc_driver.c" />
-            <file role="src" name="thirdparty/php80/pdo_odbc/odbc_stmt.c" />
-            <file role="src" name="thirdparty/php80/pdo_odbc/php_pdo_odbc_int.h" />
-            <file role="src" name="thirdparty/php80/pdo_pgsql/pgsql_driver.c" />
-            <file role="src" name="thirdparty/php80/pdo_pgsql/pgsql_driver_arginfo.h" />
-            <file role="src" name="thirdparty/php80/pdo_pgsql/pgsql_statement.c" />
-            <file role="src" name="thirdparty/php80/pdo_pgsql/php_pdo_pgsql_int.h" />
-            <file role="src" name="thirdparty/php80/pdo_sqlite/php_pdo_sqlite_int.h" />
-            <file role="src" name="thirdparty/php80/pdo_sqlite/sqlite_driver.c" />
-            <file role="src" name="thirdparty/php80/pdo_sqlite/sqlite_driver.stub.php" />
-            <file role="src" name="thirdparty/php80/pdo_sqlite/sqlite_driver_arginfo.h" />
-            <file role="src" name="thirdparty/php80/pdo_sqlite/sqlite_statement.c" />
             <file role="src" name="thirdparty/php81/pdo_oci/oci_driver.c" />
             <file role="src" name="thirdparty/php81/pdo_oci/oci_statement.c" />
             <file role="src" name="thirdparty/php81/pdo_oci/php_pdo_oci_int.h" />

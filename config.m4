@@ -1058,8 +1058,6 @@ EOF
 
 	if test "$PHP_SWOOLE_PGSQL" != "no"; then
 	    swoole_source_file="$swoole_source_file \
-	        thirdparty/php80/pdo_pgsql/pgsql_driver.c \
-	        thirdparty/php80/pdo_pgsql/pgsql_statement.c \
 	        thirdparty/php81/pdo_pgsql/pgsql_driver.c \
 	        thirdparty/php81/pdo_pgsql/pgsql_statement.c \
 	        thirdparty/php83/pdo_pgsql/pgsql_driver.c \
@@ -1068,8 +1066,6 @@ EOF
 
 	if test "$PHP_SWOOLE_ORACLE" != "no"; then
         swoole_source_file="$swoole_source_file \
-            thirdparty/php80/pdo_oci/oci_driver.c \
-            thirdparty/php80/pdo_oci/oci_statement.c \
             thirdparty/php81/pdo_oci/oci_driver.c \
             thirdparty/php81/pdo_oci/oci_statement.c \
             thirdparty/php83/pdo_oci/oci_driver.c \
@@ -1078,8 +1074,6 @@ EOF
 
 	if test "$PHP_SWOOLE_ODBC" != "no"; then
 	    swoole_source_file="$swoole_source_file \
-	        thirdparty/php80/pdo_odbc/odbc_driver.c \
-	        thirdparty/php80/pdo_odbc/odbc_stmt.c \
 	        thirdparty/php81/pdo_odbc/odbc_driver.c \
 	        thirdparty/php81/pdo_odbc/odbc_stmt.c \
 	        thirdparty/php83/pdo_odbc/odbc_driver.c \
@@ -1088,8 +1082,6 @@ EOF
 
 	if test "$PHP_SWOOLE_SQLITE" != "no"; then
         swoole_source_file="$swoole_source_file \
-            thirdparty/php80/pdo_sqlite/sqlite_driver.c \
-            thirdparty/php80/pdo_sqlite/sqlite_statement.c \
             thirdparty/php81/pdo_sqlite/sqlite_driver.c \
             thirdparty/php81/pdo_sqlite/sqlite_statement.c \
             thirdparty/php83/pdo_sqlite/sqlite_driver.c \
@@ -1252,22 +1244,18 @@ EOF
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/nghttp2)
 	fi
 	if test "$PHP_SWOOLE_PGSQL" != "no"; then
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php80/pdo_pgsql)
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php81/pdo_pgsql)
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php83/pdo_pgsql)
     fi
     if test "$PHP_SWOOLE_ODBC" != "no"; then
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php80/pdo_odbc)
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php81/pdo_odbc)
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php83/pdo_odbc)
     fi
     if test "$PHP_SWOOLE_ORACLE" != "no"; then
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php80/pdo_oci)
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php81/pdo_oci)
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php83/pdo_oci)
     fi
     if test "$PHP_SWOOLE_SQLITE" != "no"; then
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php80/pdo_sqlite)
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php81/pdo_sqlite)
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php83/pdo_sqlite)
     fi
