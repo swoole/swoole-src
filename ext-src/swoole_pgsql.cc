@@ -27,14 +27,37 @@
 #include "thirdparty/php80/pdo_pgsql/php_pdo_pgsql_int.h"
 #endif
 
+using swoole::Reactor;
 using swoole::coroutine::Socket;
 
 static bool swoole_pgsql_blocking = true;
 
 static int swoole_pgsql_socket_poll(PGconn *conn, swEventType event, double timeout = -1) {
     if (swoole_pgsql_blocking) {
-        return 1;
+        struct pollfd fds[1] = {};
+        fds[0].fd = PQsocket(conn);
+        fds[0].events = 0;
+
+        if (Reactor::isset_read_event(event)) {
+            fds[0].events |= POLLIN;
+        }
+
+        if (Reactor::isset_write_event(event)) {
+            fds[0].events |= POLLOUT;
+        }
+
+        if (Reactor::isset_error_event(event)) {
+            fds[0].events |= POLLHUP;
+        }
+
+        int result = 0;
+        do {
+             result = poll(fds, 1, timeout);
+        } while (result < 0 && errno == EINTR);
+
+        return result > 0 ? 1 : errno == ETIMEDOUT ? 0 : -1;
     }
+
     Socket sock(PQsocket(conn), SW_SOCK_RAW);
     sock.get_socket()->nonblock = 1;
     bool retval = sock.poll(event, timeout);
@@ -74,10 +97,6 @@ static PGresult *swoole_pgsql_get_result(PGconn *conn) {
 }
 
 PGconn *swoole_pgsql_connectdb(const char *conninfo) {
-    if (swoole_pgsql_blocking) {
-        return PQconnectdb(conninfo);
-    }
-
     PGconn *conn = PQconnectStart(conninfo);
     if (conn == nullptr) {
         return nullptr;
@@ -120,10 +139,6 @@ PGconn *swoole_pgsql_connectdb(const char *conninfo) {
 
 PGresult *swoole_pgsql_prepare(
     PGconn *conn, const char *stmt_name, const char *query, int n_params, const Oid *param_types) {
-    if (swoole_pgsql_blocking) {
-        return PQprepare(conn, stmt_name, query, n_params, param_types);
-    }
-
     swoole_trace_log(SW_TRACE_CO_PGSQL, "PQsendPrepare(conn=%p, stmt_name='%s')", conn, stmt_name);
     int ret = PQsendPrepare(conn, stmt_name, query, n_params, param_types);
     if (ret == 0) {
@@ -144,9 +159,6 @@ PGresult *swoole_pgsql_exec_prepared(PGconn *conn,
                                      const int *param_lengths,
                                      const int *param_formats,
                                      int result_format) {
-    if (swoole_pgsql_blocking) {
-        return PQexecPrepared(conn, stmt_name, n_params, param_values, param_lengths, param_formats, result_format);
-    }
     swoole_trace_log(SW_TRACE_CO_PGSQL, "PQsendQueryPrepared(conn=%p, stmt_name='%s')", conn, stmt_name);
     int ret = PQsendQueryPrepared(conn, stmt_name, n_params, param_values, param_lengths, param_formats, result_format);
     if (ret == 0) {
@@ -161,10 +173,6 @@ PGresult *swoole_pgsql_exec_prepared(PGconn *conn,
 }
 
 PGresult *swoole_pgsql_exec(PGconn *conn, const char *query) {
-    if (swoole_pgsql_blocking) {
-        return PQexec(conn, query);
-    }
-
     swoole_trace_log(SW_TRACE_CO_PGSQL, "PQsendQuery(conn=%p, query='%s')", conn, query);
     int ret = PQsendQuery(conn, query);
     if (ret == 0) {
@@ -186,10 +194,6 @@ PGresult *swoole_pgsql_exec_params(PGconn *conn,
                                    const int *param_lengths,
                                    const int *param_formats,
                                    int result_format) {
-    if (swoole_pgsql_blocking) {
-        return PQexecParams(conn, command, n_params, param_types, param_values, param_lengths, param_formats, result_format);
-    }
-
     swoole_trace_log(SW_TRACE_CO_PGSQL, "PQsendQueryParams(conn=%p, command='%s')", conn, command);
     int ret = PQsendQueryParams(
         conn, command, n_params, param_types, param_values, param_lengths, param_formats, result_format);
