@@ -19,6 +19,7 @@
 #include "php_swoole_pgsql.h"
 #include "php_swoole_private.h"
 #include "swoole_coroutine_socket.h"
+#include "swoole_coroutine_system.h"
 
 #ifdef SW_USE_PGSQL
 #if PHP_VERSION_ID > 80100
@@ -29,26 +30,15 @@
 
 using swoole::Reactor;
 using swoole::coroutine::Socket;
+using swoole::coroutine::translate_events_to_poll;
 
 static bool swoole_pgsql_blocking = true;
 
 static int swoole_pgsql_socket_poll(PGconn *conn, swEventType event, double timeout = -1) {
     if (swoole_pgsql_blocking) {
-        struct pollfd fds[1] = {};
+        struct pollfd fds[1];
         fds[0].fd = PQsocket(conn);
-        fds[0].events = 0;
-
-        if (Reactor::isset_read_event(event)) {
-            fds[0].events |= POLLIN;
-        }
-
-        if (Reactor::isset_write_event(event)) {
-            fds[0].events |= POLLOUT;
-        }
-
-        if (Reactor::isset_error_event(event)) {
-            fds[0].events |= POLLHUP;
-        }
+        fds[0].events |= translate_events_to_poll(event);
 
         int result = 0;
         do {
