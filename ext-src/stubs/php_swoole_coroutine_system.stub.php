@@ -13,20 +13,5 @@ namespace Swoole\Coroutine {
         public static function waitPid(int $pid, float $timeout = -1): array|false {}
         public static function waitSignal(int $signo, float $timeout = -1): bool {}
         public static function waitEvent(mixed $socket, int $events = SWOOLE_EVENT_READ, float $timeout = -1): int|false {}
-        /**
-         * @param resource $handle
-         * @deprecated
-         */
-        public static function fread($handle, int $length = 0): string|false {}
-        /**
-         * @param resource $handle
-         * @deprecated
-         */
-        public static function fwrite($handle, string $data, int $length = 0): int|false {}
-        /**
-         * @param resource $handle
-         * @deprecated
-         */
-        public static function fgets($handle): string|false {}
     }
 }
