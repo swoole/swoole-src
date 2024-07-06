@@ -30,15 +30,15 @@ $map = [
         Assert::assert(0); // never here
     },
     function () {
-        Co::fread(STDIN);
+        fread(STDIN);
         Assert::assert(0); // never here
     },
     function () {
-        Co::fgets(fopen(__FILE__, 'r'));
+        fgets(fopen(__FILE__, 'r'));
         Assert::assert(0); // never here
     },
     function () {
-        Co::fwrite(fopen(TEST_LOG_FILE, 'w+'), 'foo');
+        fwrite(fopen(TEST_LOG_FILE, 'w+'), 'foo');
         Assert::assert(0); // never here
     },
     function () {
