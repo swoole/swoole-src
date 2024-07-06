@@ -13,7 +13,7 @@ Swoole\Runtime::enableCoroutine();
 go(function () {
     $fp = fopen(__FILE__, 'r');
     echo "open\n";
-    $data = Co::fread($fp, 1024);
+    $data = fread($fp, 1024);
     echo "read\n";
     Swoole\Runtime::enableCoroutine(false);
     Assert::assert(!empty($data));

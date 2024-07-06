@@ -19,6 +19,7 @@ $array = [
 ];
 
 $l = new ArrayList($array);
+Assert::eq(count($l), count($array));
 Assert::eq($l->toArray(), $array);
 
 for ($i = 0; $i < count($array); $i++) {
@@ -31,6 +32,7 @@ $array2 = [
 ];
 $l[] = $array2;
 
+Assert::eq(count($l), 5);
 Assert::eq($l[4]->toArray(), $array2);
 
 try {

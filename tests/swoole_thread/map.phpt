@@ -20,6 +20,7 @@ $array = [
 
 $m = new Map($array);
 Assert::eq($m->toArray(), $array);
+Assert::eq(count($m), count($array));
 
 foreach ($array as $k => $v) {
     Assert::eq($m[$k], $array[$k]);
@@ -30,8 +31,9 @@ $array2 = [
     'hello' => 'world',
 ];
 $m['map'] = $array2;
-
+Assert::eq(count($m), 5);
 Assert::eq($m['map']->toArray(), $array2);
+Assert::eq(count($m['map']), count($array2));
 Assert::eq($m['map']->values(), array_values($array2));
 ?>
 --EXPECTF--
