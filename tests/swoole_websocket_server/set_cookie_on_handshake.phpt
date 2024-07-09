@@ -54,7 +54,12 @@ $pm->childFunc = function () use ($pm) {
         foreach ($headers as $key => $val) {
             $response->header($key, $val);
         }
-        $response->cookie('abc', 'def');
+
+        $cookie = new Swoole\Http\Cookie();
+        $cookie->setName('abc');
+        $cookie->setValue('def');
+        $response->cookie($cookie);
+
         $response->status(101);
         $response->end();
         return true;

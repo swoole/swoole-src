@@ -42,11 +42,26 @@ $pm->childFunc = function () use ($pm, $simple_http_server) {
         $secure = false;
         $httpOnly = true;
         // string $name [, string $value = "" [, int $expire = 0 [, string $path = "" [, string $domain = "" [, bool $secure = false [, bool $httponly = false ]]]]]]
-        $response->cookie($name, $value, $expire, $path, $domain, $secure, $httpOnly);
-        $expect = "name=value; path=/; httponly";
+
+        $cookie = new Swoole\Http\Cookie();
+        $cookie->setName($name);
+        $cookie->setValue($value);
+        $cookie->setExpires($expire);
+        $cookie->setPath($path);
+        $cookie->setDomain($domain);
+        $cookie->setSecure($secure);
+        $cookie->setHttpOnly($httpOnly);
+        $response->cookie($cookie);
+
+        $expect = "name=value; path=/; HttpOnly";
         Assert::assert(in_array($expect, $response->cookie, true));
-        $response->cookie($name, $value, $expire, $path, $domain, $secure, $httpOnly);
-        $response->rawcookie("rawcontent", $request->rawcontent());
+
+        $response->cookie($cookie);
+
+        $cookie->reset();
+        $cookie->setName("rawcontent");
+        $cookie->setValue($request->rawcontent());
+        $response->rawcookie($cookie);
         $response->end("Hello World!");
     });
     $http->start();

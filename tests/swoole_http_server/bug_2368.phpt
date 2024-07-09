@@ -28,7 +28,10 @@ $pm->childFunc = function () use ($pm) {
         'log_file' => '/dev/null',
     ));
     $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
-        $response->cookie('name', COOKIE);
+        $cookie = new Swoole\Http\Cookie();
+        $cookie->setName('name');
+        $cookie->setValue(COOKIE);
+        $response->cookie($cookie);
         $response->end();
     });
     $http->start();

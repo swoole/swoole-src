@@ -12,7 +12,7 @@ $pm->parentFunc = function () use ($pm) {
         $cli->get('/');
         Assert::assert($cli->set_cookie_headers ===
             [
-                'a=123; samesite=Lax',
+                'a=123; SameSite=Lax',
             ]
         );
     });
@@ -24,7 +24,16 @@ $pm->childFunc = function () use ($pm) {
     $http = new Swoole\Http\Server('0.0.0.0', $pm->getFreePort(), SWOOLE_BASE);
     $http->set(['worker_num' => 1, 'log_file' => '/dev/null']);
     $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
-        $response->cookie('a', '123', 0, '', '', false, false, 'Lax');
+        $cookie = new Swoole\Http\Cookie();
+        $cookie->setName('a');
+        $cookie->setValue('123');
+        $cookie->setExpires(0);
+        $cookie->setPath('');
+        $cookie->setDomain('');
+        $cookie->setSecure(false);
+        $cookie->setHttpOnly(false);
+        $cookie->setSameSite('Lax');
+        $response->cookie($cookie);
         $response->end();
     });
     $http->start();

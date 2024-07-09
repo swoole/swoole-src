@@ -20,10 +20,36 @@ $pm->childFunc = function () use ($pm) {
     });
     $server->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($pm) {
         $time_left = time() + 84600;
-        $response->cookie('key1', 'val1', $time_left, '/', 'id.test.com');
-        $response->cookie('key1', '', 0, '/', 'test.com');
-        $response->cookie('key2', 'val2', $time_left, '/', 'id.test.com');
-        $response->cookie('key2', '', 0, '/', 'test.com');
+
+        $cookie = new Swoole\Http\Cookie();
+        $cookie->setName('key1');
+        $cookie->setValue('val1');
+        $cookie->setExpires($time_left);
+        $cookie->setPath('/');
+        $cookie->setDomain('id.test.com');
+        $response->cookie($cookie);
+
+        $cookie->setName('key1');
+        $cookie->setValue('');
+        $cookie->setExpires(0);
+        $cookie->setPath('/');
+        $cookie->setDomain('test.com');
+        $response->cookie($cookie);
+
+        $cookie->setName('key1');
+        $cookie->setValue('val2');
+        $cookie->setExpires($time_left);
+        $cookie->setPath('/');
+        $cookie->setDomain('id.test.com');
+        $response->cookie($cookie);
+
+        $cookie->setName('key2');
+        $cookie->setValue('');
+        $cookie->setExpires(0);
+        $cookie->setPath('/');
+        $cookie->setDomain('test.com');
+        $response->cookie($cookie);
+
         $response->end("<h1>Hello Swoole. #" . rand(1000, 9999) . "</h1>");
     });
     $server->start();
@@ -36,9 +62,9 @@ array(4) {
   [0]=>
   string(91) "key1=val1; expires=%s; Max-Age=84600; path=/; domain=id.test.com"
   [1]=>
-  string(87) "key1=deleted; expires=Thu, 01-Jan-1970 00:00:01 GMT; Max-Age=0; path=/; domain=test.com"
+  string(62) "key1=deleted; expires=%s; Max-Age=0"
   [2]=>
-  string(91) "key2=val2; expires=%s; Max-Age=84600; path=/; domain=id.test.com"
+  string(91) "key1=val2; expires=%s; Max-Age=84600; path=/; domain=id.test.com"
   [3]=>
-  string(87) "key2=deleted; expires=Thu, 01-Jan-1970 00:00:01 GMT; Max-Age=0; path=/; domain=test.com"
+  string(62) "key2=deleted; expires=%s; Max-Age=0"
 }

@@ -14,8 +14,7 @@ $pm->parentFunc = function () use ($pm) {
         Assert::same($cli->statusCode, 200);
         Assert::assert($cli->set_cookie_headers ===
             [
-                'cookie=' . urlencode($cookie),
-                'rawcookie=' . $cookie,
+                'cookie=' . urlencode($cookie)
             ]
         );
     });
@@ -42,8 +41,15 @@ $pm->childFunc = function () use ($pm) {
     $http->set(['worker_num' => 1, 'log_file' => '/dev/null']);
     $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         $request->get['cookie'] = urldecode($request->get['cookie']);
-        $response->cookie('cookie', $request->get['cookie']);
-        $response->rawcookie('rawcookie', $request->get['cookie']);
+
+        $cookie = new Swoole\Http\Cookie();
+        $cookie->setName('cookie');
+        $cookie->setValue($request->get['cookie']);
+        $response->cookie($cookie);
+
+        $cookie->setName('rawcookie');
+        $cookie->setValue($request->get['cookie']);
+        $response->rawcookie($cookie);
         $response->end();
     });
     $http->start();
@@ -51,5 +57,6 @@ $pm->childFunc = function () use ($pm) {
 $pm->childFirst();
 $pm->run();
 ?>
---EXPECT--
+--EXPECTF--
+Warning: Swoole\Http\Response::rawcookie(): Cookie value cannot contain ",", ";", " ", "\t", "\r", "\n", "\013", or "\014" in %S
 SUCCESS

@@ -33,11 +33,12 @@ $pm->childFunc = function () use ($pm) {
     });
     $http->on('request', function (Request $request, Response $response) use ($http) {
         $previous = memory_get_usage();
-        $response->cookie(
-            'test_cookie',
-            'hello',
-            time() + (24 * 60 * 60)
-        );
+
+        $cookie = new Swoole\Http\Cookie();
+        $cookie->setName('test_cookie');
+        $cookie->setValue('hello');
+        $cookie->setExpires(time() + (24 * 60 * 60));
+        $response->cookie($cookie);
 
         global $previous;
         global $item;

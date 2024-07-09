@@ -745,6 +745,7 @@ PHP_MINIT_FUNCTION(swoole) {
     php_swoole_server_port_minit(module_number);
     php_swoole_http_request_minit(module_number);
     php_swoole_http_response_minit(module_number);
+    php_swoole_http_cookie_minit(module_number);
     php_swoole_http_server_minit(module_number);
     php_swoole_http_server_coro_minit(module_number);
     php_swoole_websocket_server_minit(module_number);
