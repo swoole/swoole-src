@@ -112,8 +112,7 @@ void php_swoole_thread_minit(int module_number) {
     swoole_thread_ce->ce_flags |= ZEND_ACC_FINAL | ZEND_ACC_NOT_SERIALIZABLE;
     SW_SET_CLASS_CLONEABLE(swoole_thread, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_thread, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CUSTOM_OBJECT(
-        swoole_thread, thread_create_object, thread_free_object, ThreadObject, std);
+    SW_SET_CLASS_CUSTOM_OBJECT(swoole_thread, thread_create_object, thread_free_object, ThreadObject, std);
 
     zend_declare_property_long(swoole_thread_ce, ZEND_STRL("id"), 0, ZEND_ACC_PUBLIC | ZEND_ACC_READONLY);
     zend_declare_class_constant_long(
@@ -499,6 +498,26 @@ void ArrayItem::store(zval *zvalue) {
     }
 }
 
+bool ArrayItem::equals(zval *zvalue) {
+    if (Z_TYPE_P(zvalue) != type) {
+        return false;
+    }
+    switch (type) {
+    case IS_LONG:
+        return Z_LVAL_P(zvalue) == value.lval;
+    case IS_DOUBLE:
+        return Z_DVAL_P(zvalue) == value.dval;
+    case IS_TRUE:
+    case IS_FALSE:
+    case IS_NULL:
+        return true;
+    case IS_STRING:
+        return zend_string_equals(value.str, Z_STR_P(zvalue));
+    default:
+        return false;
+    }
+}
+
 void ArrayItem::fetch(zval *return_value) {
     switch (type) {
     case IS_LONG:
@@ -695,8 +714,21 @@ void ZendArray::intkey_update(zval *zkey, zval *zvalue, zval *return_value) {
     lock_.unlock();
 }
 
-bool ZendArray::index_offsetSet(zval *zkey, zval *zvalue) {
-    zend_long index = ZVAL_IS_NULL(zkey) ? -1 : zval_get_long(zkey);
+bool ZendArray::index_offsetGet(zend_long index, zval *return_value) {
+    bool out_of_range = true;
+    lock_.lock_rd();
+    if (index_exists(index)) {
+        out_of_range = false;
+        ArrayItem *item = (ArrayItem *) zend_hash_index_find_ptr(&ht, index);
+        if (item) {
+            item->fetch(return_value);
+        }
+    }
+    lock_.unlock();
+    return !out_of_range;
+}
+
+bool ZendArray::index_offsetSet(zend_long index, zval *zvalue) {
     auto item = new ArrayItem(zvalue);
     bool success = true;
     lock_.lock();
@@ -732,6 +764,26 @@ bool ZendArray::index_incr(zval *zkey, zval *zvalue, zval *return_value) {
     }
     lock_.unlock();
     return success;
+}
+
+void ZendArray::index_offsetExists(zend_long index, zval *return_value) {
+    lock_.lock_rd();
+    RETVAL_BOOL(index_exists(index));
+    lock_.unlock();
+}
+
+void ZendArray::index_offsetUnset(zend_long index) {
+    lock_.lock();
+    zend_long i = index;
+    zend_long n = zend_hash_num_elements(&ht);
+    HT_FLAGS(&ht) |= HASH_FLAG_PACKED | HASH_FLAG_STATIC_KEYS;
+    while (i < n) {
+        Z_PTR(ht.arData[i].val) = Z_PTR(ht.arData[i + 1].val);
+        i++;
+    }
+    ht.nNumUsed--;
+    ht.nNumOfElements--;
+    lock_.unlock();
 }
 
 bool ZendArray::index_decr(zval *zkey, zval *zvalue, zval *return_value) {
@@ -804,6 +856,26 @@ void ZendArray::toArray(zval *return_value) {
             zend_hash_add(Z_ARR_P(return_value), key, &value);
         } else {
             zend_hash_index_add(Z_ARR_P(return_value), index, &value);
+        }
+    }
+    ZEND_HASH_FOREACH_END();
+    lock_.unlock();
+}
+
+void ZendArray::find(zval *search, zval *return_value) {
+    lock_.lock_rd();
+    zend_string *key;
+    zend_ulong index;
+    void *tmp;
+    ZEND_HASH_FOREACH_KEY_PTR(&ht, index, key, tmp) {
+        ArrayItem *item = (ArrayItem *) tmp;
+        if (item->equals(search)) {
+            if (key) {
+                RETVAL_STRINGL(ZSTR_VAL(key), ZSTR_LEN(key));
+            } else {
+                RETVAL_LONG(index);
+            }
+            break;
         }
     }
     ZEND_HASH_FOREACH_END();

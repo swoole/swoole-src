@@ -6,6 +6,7 @@ namespace Swoole\Thread {
         public function offsetExists(mixed $key): bool {}
         public function offsetSet(mixed $key, mixed $value): void {}
         public function offsetUnset(mixed $key): void {}
+        public function find(mixed $value): int {}
         public function count(): int {}
         public function incr(mixed $key, mixed $value = 1): mixed {}
         public function decr(mixed $key, mixed $value = 1): mixed {}
