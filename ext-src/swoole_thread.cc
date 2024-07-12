@@ -777,12 +777,19 @@ void ZendArray::index_offsetUnset(zend_long index) {
     zend_long i = index;
     zend_long n = zend_hash_num_elements(&ht);
     HT_FLAGS(&ht) |= HASH_FLAG_PACKED | HASH_FLAG_STATIC_KEYS;
-    while (i < n) {
+    ArrayItem *item = (ArrayItem *) zend_hash_index_find_ptr(&ht, index);
+    delete item;
+    while (i < n - 1) {
+#if PHP_VERSION_ID >= 80200
+        Z_PTR(ht.arPacked[i]) = Z_PTR(ht.arPacked[i + 1]);
+#else
         Z_PTR(ht.arData[i].val) = Z_PTR(ht.arData[i + 1].val);
+#endif
         i++;
     }
     ht.nNumUsed--;
     ht.nNumOfElements--;
+    ht.nNextFreeElement--;
     lock_.unlock();
 }
 
