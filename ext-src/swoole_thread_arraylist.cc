@@ -37,6 +37,7 @@ static PHP_METHOD(swoole_thread_arraylist, offsetGet);
 static PHP_METHOD(swoole_thread_arraylist, offsetExists);
 static PHP_METHOD(swoole_thread_arraylist, offsetSet);
 static PHP_METHOD(swoole_thread_arraylist, offsetUnset);
+static PHP_METHOD(swoole_thread_arraylist, find);
 static PHP_METHOD(swoole_thread_arraylist, count);
 static PHP_METHOD(swoole_thread_arraylist, incr);
 static PHP_METHOD(swoole_thread_arraylist, decr);
@@ -91,6 +92,7 @@ static const zend_function_entry swoole_thread_arraylist_methods[] = {
     PHP_ME(swoole_thread_arraylist, offsetExists, arginfo_class_Swoole_Thread_ArrayList_offsetExists,  ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread_arraylist, offsetSet,    arginfo_class_Swoole_Thread_ArrayList_offsetSet,     ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread_arraylist, offsetUnset,  arginfo_class_Swoole_Thread_ArrayList_offsetUnset,   ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_thread_arraylist, find,         arginfo_class_Swoole_Thread_ArrayList_find,          ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread_arraylist, incr,         arginfo_class_Swoole_Thread_ArrayList_incr,          ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread_arraylist, decr,         arginfo_class_Swoole_Thread_ArrayList_decr,          ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread_arraylist, clean,        arginfo_class_Swoole_Thread_ArrayList_clean,         ZEND_ACC_PUBLIC)
@@ -105,11 +107,8 @@ void php_swoole_thread_arraylist_minit(int module_number) {
     swoole_thread_arraylist_ce->ce_flags |= ZEND_ACC_FINAL | ZEND_ACC_NOT_SERIALIZABLE;
     SW_SET_CLASS_CLONEABLE(swoole_thread_arraylist, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_thread_arraylist, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CUSTOM_OBJECT(swoole_thread_arraylist,
-                               arraylist_create_object,
-                               arraylist_free_object,
-                               ThreadArrayListObject,
-                               std);
+    SW_SET_CLASS_CUSTOM_OBJECT(
+        swoole_thread_arraylist, arraylist_create_object, arraylist_free_object, ThreadArrayListObject, std);
 
     zend_class_implements(swoole_thread_arraylist_ce, 2, zend_ce_arrayaccess, zend_ce_countable);
     zend_declare_property_long(swoole_thread_arraylist_ce, ZEND_STRL("id"), 0, ZEND_ACC_PUBLIC | ZEND_ACC_READONLY);
@@ -140,27 +139,27 @@ static PHP_METHOD(swoole_thread_arraylist, __construct) {
 }
 
 static PHP_METHOD(swoole_thread_arraylist, offsetGet) {
-    zval *zkey;
+    zend_long index;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
-    Z_PARAM_ZVAL(zkey)
+    Z_PARAM_LONG(index)
     ZEND_PARSE_PARAMETERS_END();
 
     auto ao = arraylist_fetch_object_check(ZEND_THIS);
-    if (!ao->list->index_offsetGet(zkey, return_value)) {
+    if (!ao->list->index_offsetGet(index, return_value)) {
         zend_throw_exception(swoole_exception_ce, "out of range", -1);
     }
 }
 
 static PHP_METHOD(swoole_thread_arraylist, offsetExists) {
-    zval *zkey;
+    zend_long index;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
-    Z_PARAM_ZVAL(zkey)
+    Z_PARAM_LONG(index)
     ZEND_PARSE_PARAMETERS_END();
 
     auto ao = arraylist_fetch_object_check(ZEND_THIS);
-    ao->list->index_offsetExists(zkey, return_value);
+    ao->list->index_offsetExists(index, return_value);
 }
 
 static PHP_METHOD(swoole_thread_arraylist, offsetSet) {
@@ -173,7 +172,8 @@ static PHP_METHOD(swoole_thread_arraylist, offsetSet) {
     ZEND_PARSE_PARAMETERS_END();
 
     auto ao = arraylist_fetch_object_check(ZEND_THIS);
-    if (!ao->list->index_offsetSet(zkey, zvalue)) {
+    zend_long index = ZVAL_IS_NULL(zkey) ? -1 : zval_get_long(zkey);
+    if (!ao->list->index_offsetSet(index, zvalue)) {
         zend_throw_exception(swoole_exception_ce, "out of range", -1);
     }
 }
@@ -195,7 +195,25 @@ static PHP_METHOD(swoole_thread_arraylist, decr) {
 }
 
 static PHP_METHOD(swoole_thread_arraylist, offsetUnset) {
-    zend_throw_exception(swoole_exception_ce, "unsupported", -3);
+    zend_long index;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_LONG(index)
+    ZEND_PARSE_PARAMETERS_END();
+
+    auto ao = arraylist_fetch_object_check(ZEND_THIS);
+    ao->list->index_offsetUnset(index);
+}
+
+static PHP_METHOD(swoole_thread_arraylist, find) {
+    zval *zvalue;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_ZVAL(zvalue)
+    ZEND_PARSE_PARAMETERS_END();
+
+    auto ao = arraylist_fetch_object_check(ZEND_THIS);
+    ao->list->find(zvalue, return_value);
 }
 
 static PHP_METHOD(swoole_thread_arraylist, count) {

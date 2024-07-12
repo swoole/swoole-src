@@ -133,6 +133,7 @@ struct ArrayItem {
     void store(zval *zvalue);
     void fetch(zval *return_value);
     void release();
+    bool equals(zval *zvalue);
 
     ~ArrayItem() {
         if (value.str) {
@@ -252,6 +253,7 @@ struct ZendArray : ThreadResource {
     void keys(zval *return_value);
     void values(zval *return_value);
     void toArray(zval *return_value);
+    void find(zval *search, zval *return_value);
 
     void intkey_offsetGet(zend_long index, zval *return_value) {
         lock_.lock_rd();
@@ -288,29 +290,10 @@ struct ZendArray : ThreadResource {
         lock_.unlock();
     }
 
-    bool index_offsetGet(zval *zkey, zval *return_value) {
-        zend_long index = zval_get_long(zkey);
-        bool out_of_range = true;
-        lock_.lock_rd();
-        if (index_exists(index)) {
-            out_of_range = false;
-            ArrayItem *item = (ArrayItem *) zend_hash_index_find_ptr(&ht, index);
-            if (item) {
-                item->fetch(return_value);
-            }
-        }
-        lock_.unlock();
-        return !out_of_range;
-    }
-
-    bool index_offsetSet(zval *zkey, zval *zvalue);
-
-    void index_offsetExists(zval *zkey, zval *return_value) {
-        zend_long index = zval_get_long(zkey);
-        lock_.lock_rd();
-        RETVAL_BOOL(index_exists(index));
-        lock_.unlock();
-    }
+    bool index_offsetGet(zend_long index, zval *return_value);
+    bool index_offsetSet(zend_long index, zval *zvalue);
+    void index_offsetUnset(zend_long index);
+    void index_offsetExists(zend_long index, zval *return_value);
 
     static void incr_update(ArrayItem *item, zval *zvalue, zval *return_value);
     static ArrayItem *incr_create(zval *zvalue, zval *return_value);
