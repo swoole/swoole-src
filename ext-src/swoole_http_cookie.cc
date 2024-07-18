@@ -141,7 +141,7 @@ static PHP_METHOD(swoole_http_cookie, setValue) {
     zend_bool encode = true;
     HttpCookie *cookie = php_swoole_http_get_cookie(ZEND_THIS);
 
-    ZEND_PARSE_PARAMETERS_START(0, 1)
+    ZEND_PARSE_PARAMETERS_START(0, 2)
         Z_PARAM_OPTIONAL
         Z_PARAM_STR(value)
         Z_PARAM_BOOL(encode)
