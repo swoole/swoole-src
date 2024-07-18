@@ -46,11 +46,8 @@ $pm->childFunc = function () use ($pm) {
             ]);
             $http->handle('/', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
                 $response->header('id', $request->header['id']);
-                $cookie = new Swoole\Http\Cookie();
                 foreach ($request->cookie as $name => $value) {
-                    $cookie->setName($name);
-                    $cookie->setValue($value);
-                    $response->cookie($cookie);
+                    $response->cookie($name, $value);
                 }
                 $response->end('OK');
             });

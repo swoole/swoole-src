@@ -22,7 +22,7 @@ $cookie->reset();
 var_dump($cookie->getCookie());
 ?>
 --EXPECTF--
-array(9) {
+array(10) {
   ["name"]=>
   string(4) "test"
   ["value"]=>
@@ -33,6 +33,8 @@ array(9) {
   string(4) "test"
   ["priority"]=>
   string(0) ""
+  ["encode"]=>
+  bool(true)
   ["expires"]=>
   int(%d)
   ["secure"]=>
@@ -42,7 +44,7 @@ array(9) {
   ["partitioned"]=>
   bool(false)
 }
-array(9) {
+array(10) {
   ["name"]=>
   string(0) ""
   ["value"]=>
@@ -53,6 +55,8 @@ array(9) {
   string(0) ""
   ["priority"]=>
   string(0) ""
+  ["encode"]=>
+  bool(true)
   ["expires"]=>
   int(0)
   ["secure"]=>

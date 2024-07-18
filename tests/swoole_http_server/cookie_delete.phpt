@@ -33,51 +33,14 @@ $pm->childFunc = function () use ($pm) {
     $http = new Swoole\Http\Server('0.0.0.0', $pm->getFreePort(), SWOOLE_BASE);
     $http->set(['worker_num' => 1, 'log_file' => '/dev/null']);
     $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
-        $cookie = new Swoole\Http\Cookie();
-        $cookie->setName('cookie1');
-        $cookie->setValue(null);
-        $response->cookie($cookie);
-
-        $cookie->reset();
-        $cookie->setName('cookie2');
-        $cookie->setValue('');
-        $response->cookie($cookie);
-
-        $cookie->reset();
-        $cookie->setName('cookie3');
-        $cookie->setValue('cookie3');
-        $cookie->setExpires(0);
-        $response->cookie($cookie); // must be > 0
-
-        $cookie->reset();
-        $cookie->setName('cookie4');
-        $cookie->setValue('cookie4');
-        $cookie->setExpires(-1);
-        $response->cookie($cookie); // must be > 0
-
-        $cookie->reset();
-        $cookie->setName('cookie5');
-        $cookie->setValue('cookie5');
-        $cookie->setExpires(1);
-        $response->cookie($cookie);
-
-        $cookie->reset();
-        $cookie->setName('cookie6');
-        $cookie->setValue(null);
-        $cookie->setExpires(0);
-        $response->cookie($cookie);
-
-        $cookie->reset();
-        $cookie->setName('cookie7');
-        $cookie->setValue(null);
-        $cookie->setExpires(-1);
-        $response->cookie($cookie);
-
-        $cookie->reset();
-        $cookie->setName('cookie8');
-        $cookie->setValue(null);
-        $cookie->setExpires(1);
-        $response->cookie($cookie);
+        $response->cookie('cookie1', null);
+        $response->cookie('cookie2', '');
+        $response->cookie('cookie3', 'cookie3', 0); // must be > 0
+        $response->cookie('cookie4', 'cookie4', -1); // must be > 0
+        $response->cookie('cookie5', 'cookie5', 1);
+        $response->cookie('cookie6', null, 0);
+        $response->cookie('cookie7', null, -1);
+        $response->cookie('cookie8', null, 1);
         $response->end();
     });
     $http->start();

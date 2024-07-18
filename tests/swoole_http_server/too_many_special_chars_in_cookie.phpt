@@ -32,13 +32,7 @@ $pm->childFunc = function () use ($pm) {
         if ($pre_cookie) {
             Assert::same($request->cookie['foo'], $pre_cookie);
         }
-
-        $cookie = new Swoole\Http\Cookie();
-        $cookie->setName('foo');
-        $cookie->setValue($pre_cookie = $pm->getRandomData());
-        $cookie->setExpires(time() + 60 * 30);
-        $cookie->setPath('/');
-        $response->cookie($cookie);
+        $response->cookie('foo', $pre_cookie = $pm->getRandomData(), time() + 60 * 30, '/');
         $response->end();
     });
     $http->start();

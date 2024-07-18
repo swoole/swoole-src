@@ -224,6 +224,7 @@ struct Cookie {
     zend_bool secure = false;
     zend_bool httpOnly = false;
     zend_bool partitioned = false;
+    zend_bool encode = true;
     smart_str buffer = {0};
 
     zend_string *create() {

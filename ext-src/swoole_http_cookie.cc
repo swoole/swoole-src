@@ -76,6 +76,7 @@ static PHP_METHOD(swoole_http_cookie, setHttpOnly);
 static PHP_METHOD(swoole_http_cookie, setSameSite);
 static PHP_METHOD(swoole_http_cookie, setPriority);
 static PHP_METHOD(swoole_http_cookie, setPartitioned);
+static PHP_METHOD(swoole_http_cookie, setUrlEncode);
 static PHP_METHOD(swoole_http_cookie, getCookie);
 static PHP_METHOD(swoole_http_cookie, reset);
 SW_EXTERN_C_END
@@ -132,26 +133,32 @@ static PHP_METHOD(swoole_http_cookie, setName) {
 
     zend_string_addref(name);
     cookie->name = name;
+    RETURN_OBJ_COPY(Z_OBJ_P(ZEND_THIS));
 }
 
 static PHP_METHOD(swoole_http_cookie, setValue) {
     zend_string *value = nullptr;
+    zend_bool encode = true;
     HttpCookie *cookie = php_swoole_http_get_cookie(ZEND_THIS);
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
         Z_PARAM_STR(value)
+        Z_PARAM_BOOL(encode)
     ZEND_PARSE_PARAMETERS_END();
 
     if (cookie->value) {
         zend_string_release(cookie->value);
         cookie->value = nullptr;
+        cookie->encode = true;
     }
 
     if (value && ZSTR_LEN(value) > 0) {
         zend_string_addref(value);
         cookie->value = value;
+        cookie->encode = encode;
     }
+    RETURN_OBJ_COPY(Z_OBJ_P(ZEND_THIS));
 }
 
 static PHP_METHOD(swoole_http_cookie, setExpires) {
@@ -164,6 +171,7 @@ static PHP_METHOD(swoole_http_cookie, setExpires) {
     ZEND_PARSE_PARAMETERS_END();
 
     cookie->expires = expires;
+    RETURN_OBJ_COPY(Z_OBJ_P(ZEND_THIS));
 }
 
 static PHP_METHOD(swoole_http_cookie, setPath) {
@@ -182,6 +190,7 @@ static PHP_METHOD(swoole_http_cookie, setPath) {
 
     zend_string_addref(path);
     cookie->path = path;
+    RETURN_OBJ_COPY(Z_OBJ_P(ZEND_THIS));
 }
 
 static PHP_METHOD(swoole_http_cookie, setDomain) {
@@ -200,6 +209,7 @@ static PHP_METHOD(swoole_http_cookie, setDomain) {
 
     zend_string_addref(domain);
     cookie->domain = domain;
+    RETURN_OBJ_COPY(Z_OBJ_P(ZEND_THIS));
 }
 
 static PHP_METHOD(swoole_http_cookie, setSecure) {
@@ -212,6 +222,7 @@ static PHP_METHOD(swoole_http_cookie, setSecure) {
     ZEND_PARSE_PARAMETERS_END();
 
     cookie->secure = secure;
+    RETURN_OBJ_COPY(Z_OBJ_P(ZEND_THIS));
 }
 
 static PHP_METHOD(swoole_http_cookie, setHttpOnly) {
@@ -224,6 +235,7 @@ static PHP_METHOD(swoole_http_cookie, setHttpOnly) {
     ZEND_PARSE_PARAMETERS_END();
 
     cookie->httpOnly = httpOnly;
+    RETURN_OBJ_COPY(Z_OBJ_P(ZEND_THIS));
 }
 
 static PHP_METHOD(swoole_http_cookie, setSameSite) {
@@ -242,6 +254,7 @@ static PHP_METHOD(swoole_http_cookie, setSameSite) {
 
     zend_string_addref(sameSite);
     cookie->sameSite = sameSite;
+    RETURN_OBJ_COPY(Z_OBJ_P(ZEND_THIS));
 }
 
 static PHP_METHOD(swoole_http_cookie, setPriority) {
@@ -260,6 +273,7 @@ static PHP_METHOD(swoole_http_cookie, setPriority) {
 
     zend_string_addref(priority);
     cookie->priority = priority;
+    RETURN_OBJ_COPY(Z_OBJ_P(ZEND_THIS));
 }
 
 static PHP_METHOD(swoole_http_cookie, setPartitioned) {
@@ -272,6 +286,7 @@ static PHP_METHOD(swoole_http_cookie, setPartitioned) {
     ZEND_PARSE_PARAMETERS_END();
 
     cookie->partitioned = partitioned;
+    RETURN_OBJ_COPY(Z_OBJ_P(ZEND_THIS));
 }
 
 static PHP_METHOD(swoole_http_cookie, getCookie) {
@@ -285,6 +300,7 @@ static PHP_METHOD(swoole_http_cookie, getCookie) {
     cookie->domain ? add_assoc_str(return_value, "domain", cookie->path) : add_assoc_string(return_value, "domain", "");
     cookie->sameSite ? add_assoc_str(return_value, "sameSite", cookie->name) : add_assoc_string(return_value, "sameSite", "");
     cookie->priority ? add_assoc_str(return_value, "priority", cookie->name) : add_assoc_string(return_value, "priority", "");
+    add_assoc_bool(return_value, "encode", cookie->encode);
     add_assoc_long(return_value, "expires", cookie->expires);
     add_assoc_bool(return_value, "secure", cookie->secure);
     add_assoc_bool(return_value, "httpOnly", cookie->httpOnly);
@@ -300,6 +316,7 @@ static PHP_METHOD(swoole_http_cookie, reset) {
     cookie->secure = false;
     cookie->httpOnly = false;
     cookie->partitioned = false;
+    cookie->encode = true;
 
     if (cookie->name) {
         zend_string_release(cookie->name);

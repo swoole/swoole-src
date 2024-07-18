@@ -37,12 +37,7 @@ $pm->childFunc = function () use ($pm) {
         $server = new Co\Http\Server("127.0.0.1", $pm->getFreePort(), false);
         $server->handle('/websocket', function ($request, $ws) {
             $ws->header('x-swoole', 'hello');
-
-            $cookie = new Swoole\Http\Cookie();
-            $cookie->setName('test-file');
-            $cookie->setValue(__FILE__);
-            $ws->cookie($cookie);
-
+            $ws->cookie('test-file', __FILE__);
             $ws->upgrade();
             while (true) {
                 $frame = $ws->recv();

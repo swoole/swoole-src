@@ -37,20 +37,13 @@ $pm->childFunc = function () use ($pm) {
 
         $server->handle('/rawcookie', function (Request $request, Response $response) {
             $value = "cn\r\nmalicious-header:injected\r\nContent-Length:27\r\n\r\n<h3>malicious response body";
-
-            $cookie = new Swoole\Http\Cookie();
-            $cookie->setName('lang');
-            $cookie->setValue($value);
-            $response->rawcookie($cookie);
+            $response->rawcookie('lang', $value);
             $response->end('hello world');
         });
 
         $server->handle('/cookie', function (Request $request, Response $response) {
             $value = "cn\r\nmalicious-header:injected\r\nContent-Length:27\r\n\r\n<h3>malicious response body";
-            $cookie = new Swoole\Http\Cookie();
-            $cookie->setName('lang');
-            $cookie->setValue($value);
-            $response->cookie($cookie);
+            $response->cookie('lang', $value);
             $response->end('hello world');
         });
 

@@ -30,10 +30,7 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
     });
     $server->on('beforeHandShakeResponse', function (Server $server, Request $request, Response $response) {
-        $cookie = new Swoole\Http\Cookie();
-        $cookie->setName('abc');
-        $cookie->setValue('def');
-        $response->cookie($cookie);
+        $response->cookie('abc', 'def');
     });
     $server->on('message', function () { });
     $server->start();

@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_server: Github#5146 HTTP服务器，添加响应cookie时，如果设置了过期时间会内存泄漏
+swoole_http_cookie: new cookie memory
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -33,11 +33,20 @@ $pm->childFunc = function () use ($pm) {
     });
     $http->on('request', function (Request $request, Response $response) use ($http) {
         $previous = memory_get_usage();
-        $response->cookie(
-            'test_cookie',
-            'hello',
-            time() + (24 * 60 * 60)
-        );
+        $cookie = new Swoole\Http\Cookie();
+        $i = 10000;
+        while($i--) {
+            $cookie->setName('key1')
+                ->setValue('val1')
+                ->setExpires(time() + 84600)
+                ->setPath('/')
+                ->setDomain('id.test.com')
+                ->setSecure(true)
+                ->setHttpOnly(true)
+                ->setSameSite('None')
+                ->setPriority('High')
+                ->setPartitioned(true);
+        }
 
         global $previous;
         global $item;

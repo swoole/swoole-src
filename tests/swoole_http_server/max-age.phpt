@@ -35,21 +35,8 @@ $pm->childFunc = function () use ($pm) {
     });
 
     $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($pm) {
-        $cookie = new Swoole\Http\Cookie();
-        $cookie->setName('test');
-        $cookie->setValue('123456789');
-        $cookie->setExpires(time() + 3600);
-        $cookie->setPath('/');
-        $cookie->setDomain('example.com');
-        $cookie->setSecure(true);
-        $cookie->setHttpOnly(true);
-        $cookie->setSameSite('None');
-        $response->cookie($cookie);
-
-        $cookie->reset();
-        $cookie->setName('test');
-        $cookie->setValue('');
-        $response->cookie($cookie);
+        $response->cookie('test', '123456789', time() + 3600, '/', 'example.com', true, true, 'None');
+        $response->cookie('test', '');
         $response->end();
     });
     $http->start();
