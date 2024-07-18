@@ -988,8 +988,13 @@ static PHP_METHOD(swoole_http_request, getMethod) {
     if (UNEXPECTED(!ctx)) {
         RETURN_FALSE;
     }
-    const char *method = swoole_http_method_str((ctx->parser).method);
-    RETURN_STRING(method);
+    if (ctx->http2) {
+        zval *zmethod = zend_hash_str_find(Z_ARR_P(ctx->request.zserver), ZEND_STRL("request_method"));
+        RETURN_ZVAL(zmethod, 1, 0);
+    } else {
+        const char *method = swoole_http_method_str((ctx->parser).method);
+        RETURN_STRING(method);
+    }
 }
 
 static PHP_METHOD(swoole_http_request, isCompleted) {
