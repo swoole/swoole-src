@@ -36,16 +36,16 @@ $pm->childFunc = function () use ($pm) {
         $cookie = new Swoole\Http\Cookie();
         $i = 10000;
         while($i--) {
-            $cookie->setName('key1')
-                ->setValue('val1')
-                ->setExpires(time() + 84600)
-                ->setPath('/')
-                ->setDomain('id.test.com')
-                ->setSecure(true)
-                ->setHttpOnly(true)
-                ->setSameSite('None')
-                ->setPriority('High')
-                ->setPartitioned(true);
+            $cookie->withName('key1')
+                ->withValue('val1')
+                ->withExpires(time() + 84600)
+                ->withPath('/')
+                ->withDomain('id.test.com')
+                ->withSecure(true)
+                ->withHttpOnly(true)
+                ->withSameSite('None')
+                ->withPriority('High')
+                ->withPartitioned(true);
         }
 
         global $previous;

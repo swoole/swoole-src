@@ -20,18 +20,18 @@ $pm->childFunc = function () use ($pm) {
     });
     $server->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($pm) {
         $cookie = new Swoole\Http\Cookie();
-        $cookie->setName('key1')
-            ->setValue('val1')
-            ->setExpires(time() + 84600)
-            ->setPath('/')
-            ->setDomain('id.test.com')
-            ->setSecure(true)
-            ->setHttpOnly(true)
-            ->setSameSite('None')
-            ->setPriority('High')
-            ->setPartitioned(true);
+        $cookie->withName('key1')
+            ->withValue('val1')
+            ->withExpires(time() + 84600)
+            ->withPath('/')
+            ->withDomain('id.test.com')
+            ->withSecure(true)
+            ->withHttpOnly(true)
+            ->withSameSite('None')
+            ->withPriority('High')
+            ->withPartitioned(true);
         $response->setObjectCookie($cookie);
-        $cookie->setValue('');
+        $cookie->withValue('');
         $response->setObjectCookie($cookie);
         $response->end("<h1>Hello Swoole. #" . rand(1000, 9999) . "</h1>");
     });

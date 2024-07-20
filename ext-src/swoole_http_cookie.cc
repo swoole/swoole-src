@@ -66,17 +66,17 @@ static void php_swoole_http_cookie_free_object(zend_object *object) {
 
 SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_http_cookie, __construct);
-static PHP_METHOD(swoole_http_cookie, setName);
-static PHP_METHOD(swoole_http_cookie, setValue);
-static PHP_METHOD(swoole_http_cookie, setExpires);
-static PHP_METHOD(swoole_http_cookie, setPath);
-static PHP_METHOD(swoole_http_cookie, setDomain);
-static PHP_METHOD(swoole_http_cookie, setSecure);
-static PHP_METHOD(swoole_http_cookie, setHttpOnly);
-static PHP_METHOD(swoole_http_cookie, setSameSite);
-static PHP_METHOD(swoole_http_cookie, setPriority);
-static PHP_METHOD(swoole_http_cookie, setPartitioned);
-static PHP_METHOD(swoole_http_cookie, setUrlEncode);
+static PHP_METHOD(swoole_http_cookie, withName);
+static PHP_METHOD(swoole_http_cookie, withValue);
+static PHP_METHOD(swoole_http_cookie, withExpires);
+static PHP_METHOD(swoole_http_cookie, withPath);
+static PHP_METHOD(swoole_http_cookie, withDomain);
+static PHP_METHOD(swoole_http_cookie, withSecure);
+static PHP_METHOD(swoole_http_cookie, withHttpOnly);
+static PHP_METHOD(swoole_http_cookie, withSameSite);
+static PHP_METHOD(swoole_http_cookie, withPriority);
+static PHP_METHOD(swoole_http_cookie, withPartitioned);
+static PHP_METHOD(swoole_http_cookie, withUrlEncode);
 static PHP_METHOD(swoole_http_cookie, getCookie);
 static PHP_METHOD(swoole_http_cookie, reset);
 SW_EXTERN_C_END
@@ -85,16 +85,16 @@ SW_EXTERN_C_END
 const zend_function_entry swoole_http_cookie_methods[] =
 {
     PHP_ME(swoole_http_cookie, __construct,     arginfo_class_Swoole_Http_Cookie___construct,       ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_cookie, setName,         arginfo_class_Swoole_Http_Cookie_setName,           ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_cookie, setValue,        arginfo_class_Swoole_Http_Cookie_setValue,          ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_cookie, setExpires,      arginfo_class_Swoole_Http_Cookie_setExpires,        ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_cookie, setPath,         arginfo_class_Swoole_Http_Cookie_setPath,           ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_cookie, setDomain,       arginfo_class_Swoole_Http_Cookie_setDomain,         ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_cookie, setSecure,       arginfo_class_Swoole_Http_Cookie_setSecure,         ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_cookie, setHttpOnly,     arginfo_class_Swoole_Http_Cookie_setHttpOnly,       ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_cookie, setSameSite,     arginfo_class_Swoole_Http_Cookie_setSameSite,       ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_cookie, setPriority,     arginfo_class_Swoole_Http_Cookie_setPriority,       ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_cookie, setPartitioned,  arginfo_class_Swoole_Http_Cookie_setPartitioned,    ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_cookie, withName,         arginfo_class_Swoole_Http_Cookie_withName,           ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_cookie, withValue,        arginfo_class_Swoole_Http_Cookie_withValue,          ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_cookie, withExpires,      arginfo_class_Swoole_Http_Cookie_withExpires,        ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_cookie, withPath,         arginfo_class_Swoole_Http_Cookie_withPath,           ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_cookie, withDomain,       arginfo_class_Swoole_Http_Cookie_withDomain,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_cookie, withSecure,       arginfo_class_Swoole_Http_Cookie_withSecure,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_cookie, withHttpOnly,     arginfo_class_Swoole_Http_Cookie_withHttpOnly,       ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_cookie, withSameSite,     arginfo_class_Swoole_Http_Cookie_withSameSite,       ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_cookie, withPriority,     arginfo_class_Swoole_Http_Cookie_withPriority,       ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_cookie, withPartitioned,  arginfo_class_Swoole_Http_Cookie_withPartitioned,    ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_cookie, getCookie,       arginfo_class_Swoole_Http_Cookie_getCookie,         ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_cookie, reset,           arginfo_class_Swoole_Http_Cookie_reset,             ZEND_ACC_PUBLIC)
     PHP_FE_END
@@ -118,7 +118,7 @@ static PHP_METHOD(swoole_http_cookie, __construct) {
     RETURN_TRUE;
 }
 
-static PHP_METHOD(swoole_http_cookie, setName) {
+static PHP_METHOD(swoole_http_cookie, withName) {
     zend_string *name = nullptr;
     HttpCookie *cookie = php_swoole_http_get_cookie(ZEND_THIS);
 
@@ -136,7 +136,7 @@ static PHP_METHOD(swoole_http_cookie, setName) {
     RETURN_OBJ_COPY(Z_OBJ_P(ZEND_THIS));
 }
 
-static PHP_METHOD(swoole_http_cookie, setValue) {
+static PHP_METHOD(swoole_http_cookie, withValue) {
     zend_string *value = nullptr;
     zend_bool encode = true;
     HttpCookie *cookie = php_swoole_http_get_cookie(ZEND_THIS);
@@ -161,7 +161,7 @@ static PHP_METHOD(swoole_http_cookie, setValue) {
     RETURN_OBJ_COPY(Z_OBJ_P(ZEND_THIS));
 }
 
-static PHP_METHOD(swoole_http_cookie, setExpires) {
+static PHP_METHOD(swoole_http_cookie, withExpires) {
     zend_long expires = 0;
     HttpCookie *cookie = php_swoole_http_get_cookie(ZEND_THIS);
 
@@ -174,7 +174,7 @@ static PHP_METHOD(swoole_http_cookie, setExpires) {
     RETURN_OBJ_COPY(Z_OBJ_P(ZEND_THIS));
 }
 
-static PHP_METHOD(swoole_http_cookie, setPath) {
+static PHP_METHOD(swoole_http_cookie, withPath) {
     zend_string *path = nullptr;
     HttpCookie *cookie = php_swoole_http_get_cookie(ZEND_THIS);
 
@@ -193,7 +193,7 @@ static PHP_METHOD(swoole_http_cookie, setPath) {
     RETURN_OBJ_COPY(Z_OBJ_P(ZEND_THIS));
 }
 
-static PHP_METHOD(swoole_http_cookie, setDomain) {
+static PHP_METHOD(swoole_http_cookie, withDomain) {
     zend_string *domain = nullptr;
     HttpCookie *cookie = php_swoole_http_get_cookie(ZEND_THIS);
 
@@ -212,7 +212,7 @@ static PHP_METHOD(swoole_http_cookie, setDomain) {
     RETURN_OBJ_COPY(Z_OBJ_P(ZEND_THIS));
 }
 
-static PHP_METHOD(swoole_http_cookie, setSecure) {
+static PHP_METHOD(swoole_http_cookie, withSecure) {
     zend_bool secure = false;
     HttpCookie *cookie = php_swoole_http_get_cookie(ZEND_THIS);
 
@@ -225,7 +225,7 @@ static PHP_METHOD(swoole_http_cookie, setSecure) {
     RETURN_OBJ_COPY(Z_OBJ_P(ZEND_THIS));
 }
 
-static PHP_METHOD(swoole_http_cookie, setHttpOnly) {
+static PHP_METHOD(swoole_http_cookie, withHttpOnly) {
     zend_bool httpOnly = false;
     HttpCookie *cookie = php_swoole_http_get_cookie(ZEND_THIS);
 
@@ -238,7 +238,7 @@ static PHP_METHOD(swoole_http_cookie, setHttpOnly) {
     RETURN_OBJ_COPY(Z_OBJ_P(ZEND_THIS));
 }
 
-static PHP_METHOD(swoole_http_cookie, setSameSite) {
+static PHP_METHOD(swoole_http_cookie, withSameSite) {
     zend_string *sameSite = nullptr;
     HttpCookie *cookie = php_swoole_http_get_cookie(ZEND_THIS);
 
@@ -257,7 +257,7 @@ static PHP_METHOD(swoole_http_cookie, setSameSite) {
     RETURN_OBJ_COPY(Z_OBJ_P(ZEND_THIS));
 }
 
-static PHP_METHOD(swoole_http_cookie, setPriority) {
+static PHP_METHOD(swoole_http_cookie, withPriority) {
     zend_string *priority = nullptr;
     HttpCookie *cookie = php_swoole_http_get_cookie(ZEND_THIS);
 
@@ -276,7 +276,7 @@ static PHP_METHOD(swoole_http_cookie, setPriority) {
     RETURN_OBJ_COPY(Z_OBJ_P(ZEND_THIS));
 }
 
-static PHP_METHOD(swoole_http_cookie, setPartitioned) {
+static PHP_METHOD(swoole_http_cookie, withPartitioned) {
     zend_bool partitioned = false;
     HttpCookie *cookie = php_swoole_http_get_cookie(ZEND_THIS);
 
