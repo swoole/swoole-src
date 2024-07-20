@@ -248,12 +248,6 @@ void Manager::wait(Server *_server) {
                 } else {
                     Worker *worker = _server->get_worker(worker_stop_msg.worker_id);
                     _server->spawn_event_worker(worker);
-
-                    // see https://github.com/swoole/swoole-src/issues/5407
-                    if (worker->concurrency > 0 && _server->worker_num > 1) {
-                        sw_atomic_sub_fetch(&_server->gs->concurrency, worker->concurrency);
-                        worker->concurrency = 0;
-                    }
                 }
             }
             pool->read_message = false;
@@ -342,12 +336,6 @@ void Manager::wait(Server *_server) {
                 // find worker
                 if (exit_status.get_pid() != worker->pid) {
                     continue;
-                }
-
-                // see https://github.com/swoole/swoole-src/issues/5407
-                if (worker->concurrency > 0 && _server->worker_num > 1) {
-                    sw_atomic_sub_fetch(&_server->gs->concurrency, worker->concurrency);
-                    worker->concurrency = 0;
                 }
 
                 // check the process return code and signal
@@ -618,6 +606,12 @@ pid_t Server::spawn_event_worker(Worker *worker) {
     } else {
         worker->pid = pid;
         return pid;
+    }
+
+    // see https://github.com/swoole/swoole-src/issues/5407
+    if (worker->concurrency > 0 && worker_num > 1) {
+        sw_atomic_sub_fetch(&gs->concurrency, worker->concurrency);
+        worker->concurrency = 0;
     }
 
     if (is_base_mode()) {
