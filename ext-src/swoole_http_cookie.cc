@@ -133,7 +133,7 @@ static PHP_METHOD(swoole_http_cookie, withName) {
 
     zend_string_addref(name);
     cookie->name = name;
-    RETURN_OBJ_COPY(Z_OBJ_P(ZEND_THIS));
+    RETURN_ZVAL(ZEND_THIS, 1, 0);
 }
 
 static PHP_METHOD(swoole_http_cookie, withValue) {
@@ -158,7 +158,7 @@ static PHP_METHOD(swoole_http_cookie, withValue) {
         cookie->value = value;
         cookie->encode = encode;
     }
-    RETURN_OBJ_COPY(Z_OBJ_P(ZEND_THIS));
+    RETURN_ZVAL(ZEND_THIS, 1, 0);
 }
 
 static PHP_METHOD(swoole_http_cookie, withExpires) {
@@ -171,7 +171,7 @@ static PHP_METHOD(swoole_http_cookie, withExpires) {
     ZEND_PARSE_PARAMETERS_END();
 
     cookie->expires = expires;
-    RETURN_OBJ_COPY(Z_OBJ_P(ZEND_THIS));
+    RETURN_ZVAL(ZEND_THIS, 1, 0);
 }
 
 static PHP_METHOD(swoole_http_cookie, withPath) {
@@ -190,7 +190,7 @@ static PHP_METHOD(swoole_http_cookie, withPath) {
 
     zend_string_addref(path);
     cookie->path = path;
-    RETURN_OBJ_COPY(Z_OBJ_P(ZEND_THIS));
+    RETURN_ZVAL(ZEND_THIS, 1, 0);
 }
 
 static PHP_METHOD(swoole_http_cookie, withDomain) {
@@ -209,7 +209,7 @@ static PHP_METHOD(swoole_http_cookie, withDomain) {
 
     zend_string_addref(domain);
     cookie->domain = domain;
-    RETURN_OBJ_COPY(Z_OBJ_P(ZEND_THIS));
+    RETURN_ZVAL(ZEND_THIS, 1, 0);
 }
 
 static PHP_METHOD(swoole_http_cookie, withSecure) {
@@ -222,7 +222,7 @@ static PHP_METHOD(swoole_http_cookie, withSecure) {
     ZEND_PARSE_PARAMETERS_END();
 
     cookie->secure = secure;
-    RETURN_OBJ_COPY(Z_OBJ_P(ZEND_THIS));
+    RETURN_ZVAL(ZEND_THIS, 1, 0);
 }
 
 static PHP_METHOD(swoole_http_cookie, withHttpOnly) {
@@ -235,7 +235,7 @@ static PHP_METHOD(swoole_http_cookie, withHttpOnly) {
     ZEND_PARSE_PARAMETERS_END();
 
     cookie->httpOnly = httpOnly;
-    RETURN_OBJ_COPY(Z_OBJ_P(ZEND_THIS));
+    RETURN_ZVAL(ZEND_THIS, 1, 0);
 }
 
 static PHP_METHOD(swoole_http_cookie, withSameSite) {
@@ -254,7 +254,7 @@ static PHP_METHOD(swoole_http_cookie, withSameSite) {
 
     zend_string_addref(sameSite);
     cookie->sameSite = sameSite;
-    RETURN_OBJ_COPY(Z_OBJ_P(ZEND_THIS));
+    RETURN_ZVAL(ZEND_THIS, 1, 0);
 }
 
 static PHP_METHOD(swoole_http_cookie, withPriority) {
@@ -273,7 +273,7 @@ static PHP_METHOD(swoole_http_cookie, withPriority) {
 
     zend_string_addref(priority);
     cookie->priority = priority;
-    RETURN_OBJ_COPY(Z_OBJ_P(ZEND_THIS));
+    RETURN_ZVAL(ZEND_THIS, 1, 0);
 }
 
 static PHP_METHOD(swoole_http_cookie, withPartitioned) {
@@ -286,7 +286,7 @@ static PHP_METHOD(swoole_http_cookie, withPartitioned) {
     ZEND_PARSE_PARAMETERS_END();
 
     cookie->partitioned = partitioned;
-    RETURN_OBJ_COPY(Z_OBJ_P(ZEND_THIS));
+    RETURN_ZVAL(ZEND_THIS, 1, 0);
 }
 
 static PHP_METHOD(swoole_http_cookie, getCookie) {
