@@ -213,6 +213,113 @@ struct Context {
     void free();
 };
 
+struct Cookie {
+    zend_string *name = nullptr;
+    zend_string *value = nullptr;
+    zend_string *path = nullptr;
+    zend_string *domain = nullptr;
+    zend_string *sameSite = nullptr;
+    zend_string *priority = nullptr;
+    zend_long expires = 0;
+    zend_bool secure = false;
+    zend_bool httpOnly = false;
+    zend_bool partitioned = false;
+    zend_bool encode = true;
+    smart_str buffer = {0};
+
+    zend_string *create() {
+        zend_string *date = nullptr;
+        if (!value) {
+            smart_str_append(&buffer, name);
+            smart_str_appends(&buffer, "=deleted; expires=");
+
+            date = php_format_date((char *) ZEND_STRL("D, d-M-Y H:i:s T"), 1, 0);
+            smart_str_append(&buffer, date);
+            smart_str_appends(&buffer, "; Max-Age=0");
+            zend_string_free(date);
+
+            smart_str_0(&buffer);
+            return buffer.s;
+        }
+
+        smart_str_append(&buffer, name);
+        smart_str_appendc(&buffer, '=');
+        smart_str_append(&buffer, value);
+
+        if (expires > 0) {
+            smart_str_appends(&buffer, "; expires=");
+            date = php_format_date((char *) ZEND_STRL("D, d-M-Y H:i:s T"), expires, 0);
+            smart_str_append(&buffer, date);
+            smart_str_appends(&buffer, "; Max-Age=");
+
+            double diff = difftime(expires, php_time());
+            smart_str_append_long(&buffer, (zend_long) (diff >= 0 ? diff : 0));
+            zend_string_free(date);
+        }
+
+        if (path && ZSTR_LEN(path) > 0) {
+            smart_str_appends(&buffer, "; path=");
+            smart_str_append(&buffer, path);
+        }
+
+        if (domain && ZSTR_LEN(domain) > 0) {
+            smart_str_appends(&buffer, "; domain=");
+            smart_str_append(&buffer, domain);
+        }
+
+        if (secure) {
+            smart_str_appends(&buffer, "; secure");
+        }
+
+        if (httpOnly) {
+            smart_str_appends(&buffer, "; HttpOnly");
+        }
+
+        if (sameSite && ZSTR_LEN(sameSite) > 0) {
+            smart_str_appends(&buffer, "; SameSite=");
+            smart_str_append(&buffer, sameSite);
+        }
+
+        if (priority && ZSTR_LEN(priority) > 0) {
+            smart_str_appends(&buffer, "; Priority=");
+            smart_str_append(&buffer, priority);
+        }
+
+        if (partitioned) {
+            smart_str_appends(&buffer, "; Partitioned");
+        }
+
+        smart_str_0(&buffer);
+        return buffer.s;
+    }
+
+    ~Cookie() {
+        if (name) {
+            zend_string_release(name);
+        }
+
+        if (value) {
+            zend_string_release(value);
+        }
+
+        if (path) {
+            zend_string_release(path);
+        }
+
+        if (domain) {
+            zend_string_release(domain);
+        }
+
+        if (sameSite) {
+            zend_string_release(sameSite);
+        }
+
+        if (priority) {
+            zend_string_release(priority);
+        }
+    }
+};
+
 }  // namespace http
 
 namespace http2 {
@@ -270,10 +377,12 @@ class Session {
 extern zend_class_entry *swoole_http_server_ce;
 extern zend_class_entry *swoole_http_request_ce;
 extern zend_class_entry *swoole_http_response_ce;
+extern zend_class_entry *swoole_http_cookie_ce;
 
 swoole::http::Context *swoole_http_context_new(swoole::SessionId fd);
 swoole::http::Context *php_swoole_http_request_get_and_check_context(zval *zobject);
 swoole::http::Context *php_swoole_http_response_get_and_check_context(zval *zobject);
+swoole::http::Cookie *php_swoole_http_response_get_and_check_cookie(zval *zobject);
 
 /**
  *  These class properties cannot be modified by the user before assignment, such as Swoole\\Http\\Request.
