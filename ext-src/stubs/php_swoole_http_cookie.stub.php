@@ -13,7 +13,7 @@ namespace Swoole\Http {
 	    public function withPriority(string $priority = ''): \Swoole\Http\Cookie {}
 	    public function withPartitioned(bool $partitioned = false): \Swoole\Http\Cookie {}
 	    public function toArray(): array {}
-        public function toString(): string {}
+        public function toString(): string | false {}
 	    public function reset(): void {}
 	}
 }

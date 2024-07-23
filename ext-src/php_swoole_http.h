@@ -214,10 +214,11 @@ struct Context {
 };
 
 class Cookie {
- private:
+  private:
     bool encode_;
     smart_str buffer_ = {0};
- protected:
+
+  protected:
     zend_string *name = nullptr;
     zend_string *value = nullptr;
     zend_string *path = nullptr;
@@ -228,7 +229,8 @@ class Cookie {
     zend_bool secure = false;
     zend_bool httpOnly = false;
     zend_bool partitioned = false;
- public:
+
+  public:
     Cookie(bool _encode = true) {
         encode_ = _encode;
     }
@@ -242,10 +244,9 @@ class Cookie {
     Cookie *withDomain(zend_string *);
     Cookie *withSameSite(zend_string *);
     Cookie *withPriority(zend_string *);
-    zend_string *create();
     void reset();
     void toArray(zval *return_value);
-    void toString(zval *return_value);
+    zend_string *toString();
     ~Cookie();
 };
 

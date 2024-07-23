@@ -966,11 +966,8 @@ static PHP_METHOD(swoole_http_response, sendfile) {
 
 static bool inline php_swoole_http_response_create_cookie(HttpCookie *cookie, zval *zobject) {
     HttpContext *ctx = php_swoole_http_response_get_and_check_context(zobject);
-    if (UNEXPECTED(!ctx)) {
-        return false;
-    }
 
-    zend_string *cookie_str = cookie->create();
+    zend_string *cookie_str = cookie->toString();
     if (!cookie_str) {
         cookie->reset();
         return false;

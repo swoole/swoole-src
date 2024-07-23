@@ -54,5 +54,5 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-Warning: Swoole\Http\Response::rawcookie(): Cookie value cannot contain ",", ";", " ", "\t", "\r", "\n", "\013", or "\014" in %s
+Warning: Swoole\Http\Response::rawcookie(): The value cannot contain ",", ";", " ", "\t", "\r", "\n", "\013", or "\014" in %s
 DONE

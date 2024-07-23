@@ -174,14 +174,14 @@ HttpCookie *HttpCookie::withPartitioned(zend_bool _partitioned) {
     return this;
 }
 
-zend_string *HttpCookie::create() {
+zend_string *HttpCookie::toString() {
     zend_string *date = nullptr;
     if (name == nullptr || ZSTR_LEN(name) == 0) {
         php_swoole_error(E_WARNING, "The name cannot be empty");
         return nullptr;
     }
 
-    if (strpbrk(ZSTR_VAL(name),  "=" ILLEGAL_COOKIE_CHARACTER) != nullptr) {
+    if (strpbrk(ZSTR_VAL(name), "=" ILLEGAL_COOKIE_CHARACTER) != nullptr) {
         php_swoole_error(E_WARNING, "The name cannot contain \"=\", " ILLEGAL_COOKIE_CHARACTER_PRINT);
         return nullptr;
     }
@@ -334,15 +334,6 @@ void HttpCookie::toArray(zval *return_value) {
     add_assoc_bool(return_value, "partitioned", partitioned);
 }
 
-void HttpCookie::toString(zval *return_value) {
-    auto cookie_str = create();
-    if (!cookie_str) {
-        reset();
-        RETURN_FALSE;
-    }
-    ZVAL_STR(return_value, cookie_str);
-}
-
 HttpCookie::~Cookie() {
     reset();
 }
@@ -371,7 +362,7 @@ static PHP_METHOD(swoole_http_cookie, __construct) {
 
 #define PHP_METHOD_HTTP_COOKIE_WITH_BOOL(field)                                                                        \
     zend_bool field = false;                                                                                           \
-    HttpCookie *cookie = php_swoole_http_get_cookie(ZEND_THIS);                                                        \
+    HttpCookie *cookie = php_swoole_http_get_cooke_safety(ZEND_THIS);                                                  \
                                                                                                                        \
     ZEND_PARSE_PARAMETERS_START(0, 1)                                                                                  \
     Z_PARAM_OPTIONAL                                                                                                   \
@@ -431,13 +422,19 @@ static PHP_METHOD(swoole_http_cookie, withPartitioned) {
 }
 
 static PHP_METHOD(swoole_http_cookie, toString) {
-    php_swoole_http_get_cookie(ZEND_THIS)->toString(return_value);
+    auto cookie = php_swoole_http_get_cooke_safety(ZEND_THIS);
+    auto cookie_str = cookie->toString();
+    if (!cookie_str) {
+        cookie->reset();
+        RETURN_FALSE;
+    }
+    ZVAL_STR(return_value, cookie_str);
 }
 
 static PHP_METHOD(swoole_http_cookie, toArray) {
-    php_swoole_http_get_cookie(ZEND_THIS)->toArray(return_value);
+    php_swoole_http_get_cooke_safety(ZEND_THIS)->toArray(return_value);
 }
 
 static PHP_METHOD(swoole_http_cookie, reset) {
-    php_swoole_http_get_cookie(ZEND_THIS)->reset();
+    php_swoole_http_get_cooke_safety(ZEND_THIS)->reset();
 }
