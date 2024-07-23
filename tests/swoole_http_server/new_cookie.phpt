@@ -7,30 +7,34 @@ require __DIR__ . '/../include/skipif.inc';
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
+
 use Swoole\Http\Cookie;
 $cookie = new Cookie();
-$cookie->setName('test');
-$cookie->setValue('123456789');
-$cookie->setExpires(time() + 3600);
-$cookie->setPath('/');
-$cookie->setDomain('example.com');
-$cookie->setSecure(true);
-$cookie->setHttpOnly(true);
-$cookie->setSameSite('None');
-var_dump($cookie->getCookie());
+$cookie->withName('test')
+    ->withValue('123456789')
+    ->withExpires(time() + 3600)
+    ->withPath('/path')
+    ->withDomain('example.com')
+    ->withSecure(true)
+    ->withHttpOnly(true)
+    ->withSameSite('None');
+
+var_dump($cookie->toArray());
 $cookie->reset();
-var_dump($cookie->getCookie());
+var_dump($cookie->toArray());
 ?>
 --EXPECTF--
-array(10) {
+array(11) {
   ["name"]=>
   string(4) "test"
   ["value"]=>
   string(9) "123456789"
+  ["path"]=>
+  string(5) "/path"
   ["domain"]=>
-  string(1) "/"
+  string(11) "example.com"
   ["sameSite"]=>
-  string(4) "test"
+  string(4) "None"
   ["priority"]=>
   string(0) ""
   ["encode"]=>
@@ -44,10 +48,12 @@ array(10) {
   ["partitioned"]=>
   bool(false)
 }
-array(10) {
+array(11) {
   ["name"]=>
   string(0) ""
   ["value"]=>
+  string(0) ""
+  ["path"]=>
   string(0) ""
   ["domain"]=>
   string(0) ""

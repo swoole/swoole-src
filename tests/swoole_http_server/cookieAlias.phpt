@@ -30,12 +30,12 @@ $pm->childFunc = function () use ($pm) {
             ->withSameSite('None')
             ->withPriority('High')
             ->withPartitioned(true);
-        $response->setObjectCookie($cookie);
+        $response->setCookie($cookie);
         $response->setCookie('key1', 'val1', time() + 84600, '/', 'id.test.com', true, true, 'None', 'High', true);
         $response->setRawCookie('key1', 'val1', time() + 84600, '/', 'id.test.com', true, true, 'None', 'High', true);
 
         $cookie->withValue('');
-        $response->setObjectCookie($cookie);
+        $response->setCookie($cookie);
         $response->end("<h1>Hello Swoole. #" . rand(1000, 9999) . "</h1>");
     });
     $server->start();

@@ -21,6 +21,11 @@ END_EXTERN_C()
 
 using HttpCookie = swoole::http::Cookie;
 
+#define ILLEGAL_COOKIE_CHARACTER_PRINT "\",\", \";\", \" \", \"\\t\", \"\\r\", \"\\n\", \"\\013\", or \"\\014\""
+#define ILLEGAL_COOKIE_CHARACTER ",; \t\r\n\013\014"
+
+static const zend_long maxValidSeconds = 253402300800;
+
 zend_class_entry *swoole_http_cookie_ce;
 static zend_object_handlers swoole_http_cookie_handlers;
 
@@ -33,17 +38,16 @@ static sw_inline HttpCookieObject *php_swoole_http_cookie_fetch_object(zend_obje
     return (HttpCookieObject *) ((char *) obj - swoole_http_cookie_handlers.offset);
 }
 
-HttpCookie *php_swoole_http_get_cookie(zval *zobject) {
+static HttpCookie *php_swoole_http_get_cookie(zval *zobject) {
     return php_swoole_http_cookie_fetch_object(Z_OBJ_P(zobject))->cookie;
 }
 
-HttpCookie *php_swoole_http_response_get_and_check_cookie(zval *zobject) {
+HttpCookie *php_swoole_http_get_cooke_safety(zval *zobject) {
     HttpCookie *cookie = php_swoole_http_get_cookie(zobject);
     if (!cookie) {
         swoole_set_last_error(SW_ERROR_HTTP_COOKIE_UNAVAILABLE);
         return nullptr;
     }
-
     return cookie;
 }
 
@@ -76,15 +80,15 @@ static PHP_METHOD(swoole_http_cookie, withHttpOnly);
 static PHP_METHOD(swoole_http_cookie, withSameSite);
 static PHP_METHOD(swoole_http_cookie, withPriority);
 static PHP_METHOD(swoole_http_cookie, withPartitioned);
-static PHP_METHOD(swoole_http_cookie, withUrlEncode);
-static PHP_METHOD(swoole_http_cookie, getCookie);
+static PHP_METHOD(swoole_http_cookie, toArray);
+static PHP_METHOD(swoole_http_cookie, toString);
 static PHP_METHOD(swoole_http_cookie, reset);
 SW_EXTERN_C_END
 
 // clang-format off
 const zend_function_entry swoole_http_cookie_methods[] =
 {
-    PHP_ME(swoole_http_cookie, __construct,     arginfo_class_Swoole_Http_Cookie___construct,       ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_cookie, __construct,      arginfo_class_Swoole_Http_Cookie___construct,        ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_cookie, withName,         arginfo_class_Swoole_Http_Cookie_withName,           ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_cookie, withValue,        arginfo_class_Swoole_Http_Cookie_withValue,          ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_cookie, withExpires,      arginfo_class_Swoole_Http_Cookie_withExpires,        ZEND_ACC_PUBLIC)
@@ -95,8 +99,9 @@ const zend_function_entry swoole_http_cookie_methods[] =
     PHP_ME(swoole_http_cookie, withSameSite,     arginfo_class_Swoole_Http_Cookie_withSameSite,       ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_cookie, withPriority,     arginfo_class_Swoole_Http_Cookie_withPriority,       ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_cookie, withPartitioned,  arginfo_class_Swoole_Http_Cookie_withPartitioned,    ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_cookie, getCookie,       arginfo_class_Swoole_Http_Cookie_getCookie,         ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_cookie, reset,           arginfo_class_Swoole_Http_Cookie_reset,             ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_cookie, toString,         arginfo_class_Swoole_Http_Cookie_toString,           ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_cookie, toArray,          arginfo_class_Swoole_Http_Cookie_toArray,            ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_cookie, reset,            arginfo_class_Swoole_Http_Cookie_reset,              ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 // clang-format on
@@ -113,52 +118,275 @@ void php_swoole_http_cookie_minit(int module_number) {
                                std);
 }
 
-static PHP_METHOD(swoole_http_cookie, __construct) {
-    php_swoole_http_response_set_cookie(ZEND_THIS, new HttpCookie());
-    RETURN_TRUE;
+#define HTTP_COOKIE_WITH_STR(field)                                                                                    \
+    if (field) {                                                                                                       \
+        zend_string_release(field);                                                                                    \
+    }                                                                                                                  \
+    if (_##field && ZSTR_LEN(_##field) > 0) {                                                                          \
+        zend_string_addref(_##field);                                                                                  \
+        field = _##field;                                                                                              \
+    } else {                                                                                                           \
+        field = nullptr;                                                                                               \
+    }                                                                                                                  \
+    return this;
+
+HttpCookie *HttpCookie::withName(zend_string *_name) {
+    HTTP_COOKIE_WITH_STR(name);
 }
 
-static PHP_METHOD(swoole_http_cookie, withName) {
-    zend_string *name = nullptr;
-    HttpCookie *cookie = php_swoole_http_get_cookie(ZEND_THIS);
+HttpCookie *HttpCookie::withValue(zend_string *_value) {
+    HTTP_COOKIE_WITH_STR(value);
+}
 
-    ZEND_PARSE_PARAMETERS_START(1, 1)
-        Z_PARAM_STR(name)
-    ZEND_PARSE_PARAMETERS_END();
+HttpCookie *HttpCookie::withDomain(zend_string *_domain) {
+    HTTP_COOKIE_WITH_STR(domain);
+}
 
-    if (cookie->name) {
-        zend_string_release(cookie->name);
-        cookie->name = nullptr;
+HttpCookie *HttpCookie::withPath(zend_string *_path) {
+    HTTP_COOKIE_WITH_STR(path);
+}
+
+HttpCookie *HttpCookie::withSameSite(zend_string *_sameSite) {
+    HTTP_COOKIE_WITH_STR(sameSite);
+}
+
+HttpCookie *HttpCookie::withPriority(zend_string *_priority) {
+    HTTP_COOKIE_WITH_STR(priority);
+}
+
+HttpCookie *HttpCookie::withExpires(zend_long _expires) {
+    expires = _expires;
+    return this;
+}
+
+HttpCookie *HttpCookie::withSecure(zend_bool _secure) {
+    secure = _secure;
+    return this;
+}
+
+HttpCookie *HttpCookie::withHttpOnly(zend_bool _httpOnly) {
+    httpOnly = _httpOnly;
+    return this;
+}
+
+HttpCookie *HttpCookie::withPartitioned(zend_bool _partitioned) {
+    partitioned = _partitioned;
+    return this;
+}
+
+zend_string *HttpCookie::create() {
+    zend_string *date = nullptr;
+    if (name == nullptr || ZSTR_LEN(name) == 0) {
+        php_swoole_error(E_WARNING, "The name cannot be empty");
+        return nullptr;
     }
 
-    zend_string_addref(name);
-    cookie->name = name;
+    if (strpbrk(ZSTR_VAL(name),  "=" ILLEGAL_COOKIE_CHARACTER) != nullptr) {
+        php_swoole_error(E_WARNING, "The name cannot contain \"=\", " ILLEGAL_COOKIE_CHARACTER_PRINT);
+        return nullptr;
+    }
+
+    smart_str_append(&buffer_, name);
+
+    if (!value) {
+        smart_str_appends(&buffer_, "=deleted; expires=");
+
+        date = php_format_date((char *) ZEND_STRL("D, d-M-Y H:i:s T"), 1, 0);
+        smart_str_append(&buffer_, date);
+        smart_str_appends(&buffer_, "; Max-Age=0");
+        zend_string_free(date);
+    } else {
+        if (!encode_ && strpbrk(ZSTR_VAL(value), ILLEGAL_COOKIE_CHARACTER) != nullptr) {
+            php_swoole_error(E_WARNING, "The value cannot contain " ILLEGAL_COOKIE_CHARACTER_PRINT);
+            return nullptr;
+        }
+
+        smart_str_appendc(&buffer_, '=');
+
+        if (encode_) {
+            zend_string *encoded_value = php_url_encode(ZSTR_VAL(value), ZSTR_LEN(value));
+            smart_str_append(&buffer_, encoded_value);
+            zend_string_free(encoded_value);
+        } else {
+            smart_str_append(&buffer_, value);
+        }
+
+        if (expires > 0) {
+            if (expires >= maxValidSeconds) {
+                php_swoole_error(E_WARNING, "The expires cannot have a year greater than 9999");
+                return nullptr;
+            }
+            smart_str_appends(&buffer_, "; expires=");
+            date = php_format_date((char *) ZEND_STRL("D, d-M-Y H:i:s T"), expires, 0);
+            smart_str_append(&buffer_, date);
+            smart_str_appends(&buffer_, "; Max-Age=");
+
+            double diff = difftime(expires, php_time());
+            smart_str_append_long(&buffer_, (zend_long) (diff >= 0 ? diff : 0));
+            zend_string_free(date);
+        }
+
+        if (path && ZSTR_LEN(path) > 0) {
+            if (strpbrk(ZSTR_VAL(path), ILLEGAL_COOKIE_CHARACTER) != NULL) {
+                php_swoole_error(E_WARNING, "The path option cannot contain " ILLEGAL_COOKIE_CHARACTER_PRINT);
+                return nullptr;
+            }
+            smart_str_appends(&buffer_, "; path=");
+            smart_str_append(&buffer_, path);
+        }
+
+        if (domain && ZSTR_LEN(domain) > 0) {
+            if (strpbrk(ZSTR_VAL(domain), ILLEGAL_COOKIE_CHARACTER) != NULL) {
+                php_swoole_error(E_WARNING, "The domain option cannot contain " ILLEGAL_COOKIE_CHARACTER_PRINT);
+                return nullptr;
+            }
+            smart_str_appends(&buffer_, "; domain=");
+            smart_str_append(&buffer_, domain);
+        }
+
+        if (secure) {
+            smart_str_appends(&buffer_, "; secure");
+        }
+
+        if (httpOnly) {
+            smart_str_appends(&buffer_, "; HttpOnly");
+        }
+
+        if (sameSite && ZSTR_LEN(sameSite) > 0) {
+            smart_str_appends(&buffer_, "; SameSite=");
+            smart_str_append(&buffer_, sameSite);
+        }
+
+        if (priority && ZSTR_LEN(priority) > 0) {
+            smart_str_appends(&buffer_, "; Priority=");
+            smart_str_append(&buffer_, priority);
+        }
+
+        if (partitioned) {
+            smart_str_appends(&buffer_, "; Partitioned");
+        }
+    }
+
+    return smart_str_extract(&buffer_);
+}
+
+void HttpCookie::reset() {
+    expires = 0;
+    secure = false;
+    httpOnly = false;
+    partitioned = false;
+    encode_ = true;
+
+    if (name) {
+        zend_string_release(name);
+        name = nullptr;
+    }
+
+    if (value) {
+        zend_string_release(value);
+        value = nullptr;
+    }
+
+    if (path) {
+        zend_string_release(path);
+        path = nullptr;
+    }
+
+    if (domain) {
+        zend_string_release(domain);
+        domain = nullptr;
+    }
+
+    if (sameSite) {
+        zend_string_release(sameSite);
+        sameSite = nullptr;
+    }
+
+    if (priority) {
+        zend_string_release(priority);
+        priority = nullptr;
+    }
+
+    smart_str_free_ex(&buffer_, false);
+}
+
+#define HTTP_COOKIE_ADD_STR_TO_ARRAY(field)                                                                            \
+    if (field) {                                                                                                       \
+        add_assoc_str(return_value, #field, field);                                                                    \
+    } else {                                                                                                           \
+        add_assoc_string(return_value, #field, "");                                                                    \
+    }
+
+void HttpCookie::toArray(zval *return_value) {
+    array_init(return_value);
+
+    HTTP_COOKIE_ADD_STR_TO_ARRAY(name);
+    HTTP_COOKIE_ADD_STR_TO_ARRAY(value);
+    HTTP_COOKIE_ADD_STR_TO_ARRAY(path);
+    HTTP_COOKIE_ADD_STR_TO_ARRAY(domain);
+    HTTP_COOKIE_ADD_STR_TO_ARRAY(sameSite);
+    HTTP_COOKIE_ADD_STR_TO_ARRAY(priority);
+
+    add_assoc_bool(return_value, "encode", encode_);
+    add_assoc_long(return_value, "expires", expires);
+    add_assoc_bool(return_value, "secure", secure);
+    add_assoc_bool(return_value, "httpOnly", httpOnly);
+    add_assoc_bool(return_value, "partitioned", partitioned);
+}
+
+void HttpCookie::toString(zval *return_value) {
+    auto cookie_str = create();
+    if (!cookie_str) {
+        reset();
+        RETURN_FALSE;
+    }
+    ZVAL_STR(return_value, cookie_str);
+}
+
+HttpCookie::~Cookie() {
+    reset();
+}
+
+static PHP_METHOD(swoole_http_cookie, __construct) {
+    zend_bool encode = true;
+
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_BOOL(encode)
+    ZEND_PARSE_PARAMETERS_END();
+
+    php_swoole_http_response_set_cookie(ZEND_THIS, new HttpCookie(encode));
+}
+
+#define PHP_METHOD_HTTP_COOKIE_WITH_STR(field)                                                                         \
+    zend_string *field;                                                                                                \
+    HttpCookie *cookie = php_swoole_http_get_cookie(ZEND_THIS);                                                        \
+                                                                                                                       \
+    ZEND_PARSE_PARAMETERS_START(1, 1)                                                                                  \
+    Z_PARAM_STR(field)                                                                                                 \
+    ZEND_PARSE_PARAMETERS_END();                                                                                       \
+                                                                                                                       \
+    cookie->with##field(field);                                                                                        \
     RETURN_ZVAL(ZEND_THIS, 1, 0);
+
+#define PHP_METHOD_HTTP_COOKIE_WITH_BOOL(field)                                                                        \
+    zend_bool field = false;                                                                                           \
+    HttpCookie *cookie = php_swoole_http_get_cookie(ZEND_THIS);                                                        \
+                                                                                                                       \
+    ZEND_PARSE_PARAMETERS_START(0, 1)                                                                                  \
+    Z_PARAM_OPTIONAL                                                                                                   \
+    Z_PARAM_BOOL(field)                                                                                                \
+    ZEND_PARSE_PARAMETERS_END();                                                                                       \
+                                                                                                                       \
+    cookie->with##field(field);                                                                                        \
+    RETURN_ZVAL(ZEND_THIS, 1, 0);
+
+static PHP_METHOD(swoole_http_cookie, withName) {
+    PHP_METHOD_HTTP_COOKIE_WITH_STR(Name);
 }
 
 static PHP_METHOD(swoole_http_cookie, withValue) {
-    zend_string *value = nullptr;
-    zend_bool encode = true;
-    HttpCookie *cookie = php_swoole_http_get_cookie(ZEND_THIS);
-
-    ZEND_PARSE_PARAMETERS_START(0, 2)
-        Z_PARAM_OPTIONAL
-        Z_PARAM_STR(value)
-        Z_PARAM_BOOL(encode)
-    ZEND_PARSE_PARAMETERS_END();
-
-    if (cookie->value) {
-        zend_string_release(cookie->value);
-        cookie->value = nullptr;
-        cookie->encode = true;
-    }
-
-    if (value && ZSTR_LEN(value) > 0) {
-        zend_string_addref(value);
-        cookie->value = value;
-        cookie->encode = encode;
-    }
-    RETURN_ZVAL(ZEND_THIS, 1, 0);
+    PHP_METHOD_HTTP_COOKIE_WITH_STR(Value);
 }
 
 static PHP_METHOD(swoole_http_cookie, withExpires) {
@@ -166,187 +394,50 @@ static PHP_METHOD(swoole_http_cookie, withExpires) {
     HttpCookie *cookie = php_swoole_http_get_cookie(ZEND_THIS);
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
-        Z_PARAM_OPTIONAL
-        Z_PARAM_LONG(expires)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_LONG(expires)
     ZEND_PARSE_PARAMETERS_END();
 
-    cookie->expires = expires;
+    cookie->withExpires(expires);
     RETURN_ZVAL(ZEND_THIS, 1, 0);
 }
 
 static PHP_METHOD(swoole_http_cookie, withPath) {
-    zend_string *path = nullptr;
-    HttpCookie *cookie = php_swoole_http_get_cookie(ZEND_THIS);
-
-    ZEND_PARSE_PARAMETERS_START(0, 1)
-        Z_PARAM_OPTIONAL
-        Z_PARAM_STR(path)
-    ZEND_PARSE_PARAMETERS_END();
-
-    if (cookie->path) {
-        zend_string_release(cookie->path);
-        cookie->path = nullptr;
-    }
-
-    zend_string_addref(path);
-    cookie->path = path;
-    RETURN_ZVAL(ZEND_THIS, 1, 0);
+    PHP_METHOD_HTTP_COOKIE_WITH_STR(Path);
 }
 
 static PHP_METHOD(swoole_http_cookie, withDomain) {
-    zend_string *domain = nullptr;
-    HttpCookie *cookie = php_swoole_http_get_cookie(ZEND_THIS);
-
-    ZEND_PARSE_PARAMETERS_START(0, 1)
-        Z_PARAM_OPTIONAL
-        Z_PARAM_STR(domain)
-    ZEND_PARSE_PARAMETERS_END();
-
-    if (cookie->domain) {
-        zend_string_release(cookie->domain);
-        cookie->domain = nullptr;
-    }
-
-    zend_string_addref(domain);
-    cookie->domain = domain;
-    RETURN_ZVAL(ZEND_THIS, 1, 0);
+    PHP_METHOD_HTTP_COOKIE_WITH_STR(Domain);
 }
 
 static PHP_METHOD(swoole_http_cookie, withSecure) {
-    zend_bool secure = false;
-    HttpCookie *cookie = php_swoole_http_get_cookie(ZEND_THIS);
-
-    ZEND_PARSE_PARAMETERS_START(0, 1)
-        Z_PARAM_OPTIONAL
-        Z_PARAM_BOOL(secure)
-    ZEND_PARSE_PARAMETERS_END();
-
-    cookie->secure = secure;
-    RETURN_ZVAL(ZEND_THIS, 1, 0);
+    PHP_METHOD_HTTP_COOKIE_WITH_BOOL(Secure);
 }
 
 static PHP_METHOD(swoole_http_cookie, withHttpOnly) {
-    zend_bool httpOnly = false;
-    HttpCookie *cookie = php_swoole_http_get_cookie(ZEND_THIS);
-
-    ZEND_PARSE_PARAMETERS_START(0, 1)
-        Z_PARAM_OPTIONAL
-        Z_PARAM_BOOL(httpOnly)
-    ZEND_PARSE_PARAMETERS_END();
-
-    cookie->httpOnly = httpOnly;
-    RETURN_ZVAL(ZEND_THIS, 1, 0);
+    PHP_METHOD_HTTP_COOKIE_WITH_BOOL(HttpOnly);
 }
 
 static PHP_METHOD(swoole_http_cookie, withSameSite) {
-    zend_string *sameSite = nullptr;
-    HttpCookie *cookie = php_swoole_http_get_cookie(ZEND_THIS);
-
-    ZEND_PARSE_PARAMETERS_START(0, 1)
-        Z_PARAM_OPTIONAL
-        Z_PARAM_STR(sameSite)
-    ZEND_PARSE_PARAMETERS_END();
-
-    if (cookie->sameSite) {
-        zend_string_release(cookie->sameSite);
-        cookie->sameSite = nullptr;
-    }
-
-    zend_string_addref(sameSite);
-    cookie->sameSite = sameSite;
-    RETURN_ZVAL(ZEND_THIS, 1, 0);
+    PHP_METHOD_HTTP_COOKIE_WITH_STR(SameSite);
 }
 
 static PHP_METHOD(swoole_http_cookie, withPriority) {
-    zend_string *priority = nullptr;
-    HttpCookie *cookie = php_swoole_http_get_cookie(ZEND_THIS);
-
-    ZEND_PARSE_PARAMETERS_START(0, 1)
-        Z_PARAM_OPTIONAL
-        Z_PARAM_STR(priority)
-    ZEND_PARSE_PARAMETERS_END();
-
-    if (cookie->priority) {
-        zend_string_release(cookie->priority);
-        cookie->priority = nullptr;
-    }
-
-    zend_string_addref(priority);
-    cookie->priority = priority;
-    RETURN_ZVAL(ZEND_THIS, 1, 0);
+    PHP_METHOD_HTTP_COOKIE_WITH_STR(Priority);
 }
 
 static PHP_METHOD(swoole_http_cookie, withPartitioned) {
-    zend_bool partitioned = false;
-    HttpCookie *cookie = php_swoole_http_get_cookie(ZEND_THIS);
-
-    ZEND_PARSE_PARAMETERS_START(0, 1)
-        Z_PARAM_OPTIONAL
-        Z_PARAM_BOOL(partitioned)
-    ZEND_PARSE_PARAMETERS_END();
-
-    cookie->partitioned = partitioned;
-    RETURN_ZVAL(ZEND_THIS, 1, 0);
+    PHP_METHOD_HTTP_COOKIE_WITH_BOOL(Partitioned);
 }
 
-static PHP_METHOD(swoole_http_cookie, getCookie) {
-    HttpCookie *cookie = php_swoole_http_get_cookie(ZEND_THIS);
+static PHP_METHOD(swoole_http_cookie, toString) {
+    php_swoole_http_get_cookie(ZEND_THIS)->toString(return_value);
+}
 
-    ZEND_PARSE_PARAMETERS_NONE();
-
-    array_init(return_value);
-    cookie->name ? add_assoc_str(return_value, "name", cookie->name) : add_assoc_string(return_value, "name", "");
-    cookie->value ? add_assoc_str(return_value, "value", cookie->value) : add_assoc_string(return_value, "value", "");
-    cookie->domain ? add_assoc_str(return_value, "domain", cookie->path) : add_assoc_string(return_value, "domain", "");
-    cookie->sameSite ? add_assoc_str(return_value, "sameSite", cookie->name) : add_assoc_string(return_value, "sameSite", "");
-    cookie->priority ? add_assoc_str(return_value, "priority", cookie->name) : add_assoc_string(return_value, "priority", "");
-    add_assoc_bool(return_value, "encode", cookie->encode);
-    add_assoc_long(return_value, "expires", cookie->expires);
-    add_assoc_bool(return_value, "secure", cookie->secure);
-    add_assoc_bool(return_value, "httpOnly", cookie->httpOnly);
-    add_assoc_bool(return_value, "partitioned", cookie->partitioned);
+static PHP_METHOD(swoole_http_cookie, toArray) {
+    php_swoole_http_get_cookie(ZEND_THIS)->toArray(return_value);
 }
 
 static PHP_METHOD(swoole_http_cookie, reset) {
-    HttpCookie *cookie = php_swoole_http_get_cookie(ZEND_THIS);
-
-    ZEND_PARSE_PARAMETERS_NONE();
-
-    cookie->expires = 0;
-    cookie->secure = false;
-    cookie->httpOnly = false;
-    cookie->partitioned = false;
-    cookie->encode = true;
-
-    if (cookie->name) {
-        zend_string_release(cookie->name);
-        cookie->name = nullptr;
-    }
-
-    if (cookie->value) {
-        zend_string_release(cookie->value);
-        cookie->value = nullptr;
-    }
-
-    if (cookie->path) {
-        zend_string_release(cookie->path);
-        cookie->path = nullptr;
-    }
-
-    if (cookie->domain) {
-        zend_string_release(cookie->domain);
-        cookie->domain = nullptr;
-    }
-
-    if (cookie->sameSite) {
-        zend_string_release(cookie->sameSite);
-        cookie->sameSite = nullptr;
-    }
-
-    if (cookie->priority) {
-        zend_string_release(cookie->priority);
-        cookie->priority = nullptr;
-    }
-
-    RETURN_TRUE;
+    php_swoole_http_get_cookie(ZEND_THIS)->reset();
 }

@@ -47,6 +47,10 @@ else
         fi
     else
         glob="$@"
+        if [ $(expr substr "$glob" 1 6) = "tests/" ]; then
+            # 去掉 tests/ 前缀
+            glob="${glob#tests/}"
+        fi
     fi
 fi
 
