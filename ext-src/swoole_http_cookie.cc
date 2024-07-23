@@ -351,7 +351,7 @@ static PHP_METHOD(swoole_http_cookie, __construct) {
 
 #define PHP_METHOD_HTTP_COOKIE_WITH_STR(field)                                                                         \
     zend_string *field;                                                                                                \
-    HttpCookie *cookie = php_swoole_http_get_cookie(ZEND_THIS);                                                        \
+    HttpCookie *cookie = php_swoole_http_get_cooke_safety(ZEND_THIS);                                                  \
                                                                                                                        \
     ZEND_PARSE_PARAMETERS_START(1, 1)                                                                                  \
     Z_PARAM_STR(field)                                                                                                 \
@@ -382,7 +382,7 @@ static PHP_METHOD(swoole_http_cookie, withValue) {
 
 static PHP_METHOD(swoole_http_cookie, withExpires) {
     zend_long expires = 0;
-    HttpCookie *cookie = php_swoole_http_get_cookie(ZEND_THIS);
+    HttpCookie *cookie = php_swoole_http_get_cooke_safety(ZEND_THIS);
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
     Z_PARAM_OPTIONAL
