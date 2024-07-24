@@ -213,6 +213,43 @@ struct Context {
     void free();
 };
 
+class Cookie {
+  private:
+    bool encode_;
+    smart_str buffer_ = {0};
+
+  protected:
+    zend_string *name = nullptr;
+    zend_string *value = nullptr;
+    zend_string *path = nullptr;
+    zend_string *domain = nullptr;
+    zend_string *sameSite = nullptr;
+    zend_string *priority = nullptr;
+    zend_long expires = 0;
+    zend_bool secure = false;
+    zend_bool httpOnly = false;
+    zend_bool partitioned = false;
+
+  public:
+    Cookie(bool _encode = true) {
+        encode_ = _encode;
+    }
+    Cookie *withName(zend_string *);
+    Cookie *withExpires(zend_long);
+    Cookie *withSecure(zend_bool);
+    Cookie *withHttpOnly(zend_bool);
+    Cookie *withPartitioned(zend_bool);
+    Cookie *withValue(zend_string *);
+    Cookie *withPath(zend_string *);
+    Cookie *withDomain(zend_string *);
+    Cookie *withSameSite(zend_string *);
+    Cookie *withPriority(zend_string *);
+    void reset();
+    void toArray(zval *return_value);
+    zend_string *toString();
+    ~Cookie();
+};
+
 }  // namespace http
 
 namespace http2 {
@@ -270,10 +307,12 @@ class Session {
 extern zend_class_entry *swoole_http_server_ce;
 extern zend_class_entry *swoole_http_request_ce;
 extern zend_class_entry *swoole_http_response_ce;
+extern zend_class_entry *swoole_http_cookie_ce;
 
 swoole::http::Context *swoole_http_context_new(swoole::SessionId fd);
 swoole::http::Context *php_swoole_http_request_get_and_check_context(zval *zobject);
 swoole::http::Context *php_swoole_http_response_get_and_check_context(zval *zobject);
+swoole::http::Cookie *php_swoole_http_get_cooke_safety(zval *zobject);
 
 /**
  *  These class properties cannot be modified by the user before assignment, such as Swoole\\Http\\Request.
