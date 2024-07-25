@@ -311,30 +311,33 @@ static void http_set_date_header(String *response) {
 }
 
 static void add_custom_header(String *http_buffer, const char *key, size_t l_key, zval *value, int key_header) {
-    if (ZVAL_IS_NULL(value) || swoole_http_has_crlf(key, l_key) ||
-        swoole_http_has_crlf(Z_STRVAL_P(value), Z_STRLEN_P(value))) {
+    if (ZVAL_IS_NULL(value)) {
+        return;
+    }
+
+    zend::String str_value(value);
+    str_value.rtrim();
+    if (swoole_http_has_crlf(str_value.val(), str_value.len())) {
         return;
     }
 
     if (key_header == HTTP_HEADER_CONTENT_TYPE && ZVAL_IS_STRING(value)) {
-        if (SW_STRCASEEQ(Z_STRVAL_P(value), Z_STRLEN_P(value), SW_HTTP_APPLICATION_JSON)) {
+        if (SW_STRCASEEQ(str_value.val(), str_value.len(), SW_HTTP_APPLICATION_JSON)) {
             http_buffer->append(SW_STRL("Content-Type: " SW_HTTP_APPLICATION_JSON "\r\n"));
             return;
         }
 
-        if (SW_STRCASEEQ(Z_STRVAL_P(value), Z_STRLEN_P(value), SW_HTTP_DEFAULT_CONTENT_TYPE)) {
+        if (SW_STRCASEEQ(str_value.val(), str_value.len(), SW_HTTP_DEFAULT_CONTENT_TYPE)) {
             http_buffer->append(SW_STRL("Content-Type: " SW_HTTP_DEFAULT_CONTENT_TYPE "\r\n"));
             return;
         }
 
-        if (SW_STRCASEEQ(Z_STRVAL_P(value), Z_STRLEN_P(value), SW_HTTP_TEXT_PLAIN)) {
+        if (SW_STRCASEEQ(str_value.val(), str_value.len(), SW_HTTP_TEXT_PLAIN)) {
             http_buffer->append(SW_STRL("Content-Type: " SW_HTTP_TEXT_PLAIN "\r\n"));
             return;
         }
     }
 
-    zend::String str_value(value);
-    str_value.rtrim();
     http_buffer->append(key, l_key);
     http_buffer->append(SW_STRL(": "));
     http_buffer->append(str_value.val(), str_value.len());
@@ -400,10 +403,10 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
                     continue;
                 }
 
+                header_flags |= key_header;
                 if (ZVAL_IS_STRING(zvalue) && Z_STRLEN_P(zvalue) == 0) {
                     continue;
                 }
-                header_flags |= key_header;
             }
             if (ZVAL_IS_ARRAY(zvalue)) {
                 zval *zvalue_2;
