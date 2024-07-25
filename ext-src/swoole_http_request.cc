@@ -548,6 +548,7 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
 
             if (ctx->tmp_content_type) {
                 add_assoc_stringl(z_multipart_header, "type", ctx->tmp_content_type, ctx->tmp_content_type_len);
+                ctx->tmp_content_type = nullptr;
             } else {
                 add_assoc_string(z_multipart_header, "type", (char *) "");
             }
