@@ -158,13 +158,15 @@ struct Context {
     multipart_parser *mt_parser;
 
     uint16_t input_var_num;
-    char *current_header_name;
+    const char *current_header_name;
     size_t current_header_name_len;
     char *current_input_name;
     size_t current_input_name_len;
     char *current_form_data_name;
     size_t current_form_data_name_len;
     zval *current_multipart_header;
+    const char *tmp_content_type;
+    size_t tmp_content_type_len;
     String *form_data_buffer;
 
     std::string upload_tmp_dir;
