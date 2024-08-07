@@ -122,6 +122,11 @@ pid_t Factory::spawn_event_worker(Worker *worker) {
         worker->concurrency = 0;
     }
 
+    // see https://github.com/swoole/swoole-src/issues/5432
+    worker->request_count = 0;
+    worker->response_count = 0;
+    worker->dispatch_count = 0;
+
     if (server_->is_base_mode()) {
         server_->gs->connection_nums[worker->id] = 0;
         server_->gs->event_workers.main_loop(&server_->gs->event_workers, worker);
