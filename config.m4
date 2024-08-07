@@ -848,7 +848,6 @@ EOF
 	if test "$PHP_BROTLI" != "no" || test "$PHP_BROTLI_DIR" != "no"; then
         if test "$PHP_BROTLI_DIR" != "no"; then
             PHP_ADD_INCLUDE("${PHP_BROTLI_DIR}/include")
-            PHP_ADD_LIBRARY_WITH_PATH(brotli, "${PHP_BROTLI_DIR}/${PHP_LIBDIR}")
             PHP_ADD_LIBRARY_WITH_PATH(brotlienc, "${PHP_BROTLI_DIR}/${PHP_LIBDIR}")
             PHP_ADD_LIBRARY_WITH_PATH(brotlidec, "${PHP_BROTLI_DIR}/${PHP_LIBDIR}")
         else
@@ -998,7 +997,6 @@ EOF
         AC_DEFINE(SW_HAVE_COMPRESSION, 1, [have compression])
         AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli encoder])
         PHP_ADD_INCLUDE("${PHP_BROTLI_DIR}/include")
-        PHP_ADD_LIBRARY_WITH_PATH(brotli, "${PHP_BROTLI_DIR}/${PHP_LIBDIR}")
         PHP_ADD_LIBRARY_WITH_PATH(brotlienc, "${PHP_BROTLI_DIR}/${PHP_LIBDIR}")
         PHP_ADD_LIBRARY_WITH_PATH(brotlidec, "${PHP_BROTLI_DIR}/${PHP_LIBDIR}")
     fi
