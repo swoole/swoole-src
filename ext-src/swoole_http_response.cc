@@ -293,80 +293,90 @@ static int parse_header_name(const char *key, size_t keylen) {
 static void http_set_date_header(String *response) {
     static struct {
         time_t time;
-        size_t len;
-        char buf[64];
+        zend_string *date = nullptr;
     } cache{};
 
     time_t now = time(nullptr);
     if (now != cache.time) {
-        char *date_str = php_swoole_format_date((char *) ZEND_STRL(SW_HTTP_DATE_FORMAT), now, 0);
-        cache.len = strlen(date_str);
-        memcpy(cache.buf, date_str, cache.len);
-        efree(date_str);
+        if (cache.date) {
+            zend_string_release(cache.date);
+        }
+
         cache.time = now;
+        cache.date = php_format_date((char *) ZEND_STRL(SW_HTTP_DATE_FORMAT), now, 0);
     }
     response->append(ZEND_STRL("Date: "));
-    response->append(cache.buf, cache.len);
+    response->append(ZSTR_VAL(cache.date), ZSTR_LEN(cache.date));
     response->append(ZEND_STRL("\r\n"));
 }
 
-static void add_custom_header(String *response, const char *key, size_t l_key, zval *value) {
+static void add_custom_header(String *http_buffer, const char *key, size_t l_key, zval *value, int key_header) {
     if (ZVAL_IS_NULL(value)) {
         return;
     }
+
     zend::String str_value(value);
     str_value.rtrim();
     if (swoole_http_has_crlf(str_value.val(), str_value.len())) {
         return;
     }
-    response->append(key, l_key);
-    response->append(SW_STRL(": "));
-    response->append(str_value.val(), str_value.len());
-    response->append(SW_STRL("\r\n"));
+
+    if (key_header == HTTP_HEADER_CONTENT_TYPE && ZVAL_IS_STRING(value)) {
+        if (SW_STRCASEEQ(str_value.val(), str_value.len(), SW_HTTP_APPLICATION_JSON)) {
+            http_buffer->append(SW_STRL("Content-Type: " SW_HTTP_APPLICATION_JSON "\r\n"));
+            return;
+        }
+
+        if (SW_STRCASEEQ(str_value.val(), str_value.len(), SW_HTTP_DEFAULT_CONTENT_TYPE)) {
+            http_buffer->append(SW_STRL("Content-Type: " SW_HTTP_DEFAULT_CONTENT_TYPE "\r\n"));
+            return;
+        }
+
+        if (SW_STRCASEEQ(str_value.val(), str_value.len(), SW_HTTP_TEXT_PLAIN)) {
+            http_buffer->append(SW_STRL("Content-Type: " SW_HTTP_TEXT_PLAIN "\r\n"));
+            return;
+        }
+    }
+
+    http_buffer->append(key, l_key);
+    http_buffer->append(SW_STRL(": "));
+    http_buffer->append(str_value.val(), str_value.len());
+    http_buffer->append(SW_STRL("\r\n"));
 }
 
 void HttpContext::build_header(String *http_buffer, const char *body, size_t length) {
     assert(send_header_ == 0);
 
-    /**
-     * http status line
-     */
-    if (!response.reason) {
-        const char *status = HttpServer::get_status_message(response.status);
-        http_buffer->append(ZEND_STRL("HTTP/1.1 "));
-        http_buffer->append((char *) status, strlen(status));
-        http_buffer->append(ZEND_STRL("\r\n"));
-    } else {
-        http_buffer->append(ZEND_STRL("HTTP/1.1 "));
+    // http status line
+    http_buffer->append(ZEND_STRL("HTTP/1.1 "));
+    if (response.reason) {
         http_buffer->append(response.status);
         http_buffer->append(ZEND_STRL(" "));
         http_buffer->append(response.reason, strlen(response.reason));
-        http_buffer->append(ZEND_STRL("\r\n"));
+    } else {
+        const char *status = HttpServer::get_status_message(response.status);
+        http_buffer->append((char *) status, strlen(status));
     }
+    http_buffer->append(ZEND_STRL("\r\n"));
 
+    // http headers
     uint32_t header_flags = 0x0;
-
-    /**
-     * http header
-     */
     zval *zheader =
         sw_zend_read_property_ex(swoole_http_response_ce, response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADER), 0);
     if (ZVAL_IS_ARRAY(zheader)) {
+#ifdef SW_HAVE_COMPRESSION
+        zend_string *content_type = nullptr;
+#endif
         zval *zvalue;
         zend_string *string_key;
         zend_ulong num_key;
 
-#ifdef SW_HAVE_COMPRESSION
-        zend_string *content_type = nullptr;
-#endif
         ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(zheader), num_key, string_key, zvalue) {
             if (!string_key) {
                 string_key = zend_long_to_str(num_key);
-            } else {
-                zend_string_addref(string_key);
             }
-            zend::String key(string_key, false);
             int key_header = parse_header_name(ZSTR_VAL(string_key), ZSTR_LEN(string_key));
+
             if (key_header > 0) {
 #ifdef SW_HAVE_COMPRESSION
                 if (key_header == HTTP_HEADER_CONTENT_TYPE && accept_compression && compression_types) {
@@ -392,6 +402,7 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
                                      "You have set 'Transfer-Encoding', 'Content-Length' will be ignored");
                     continue;
                 }
+
                 header_flags |= key_header;
                 if (ZVAL_IS_STRING(zvalue) && Z_STRLEN_P(zvalue) == 0) {
                     continue;
@@ -400,11 +411,11 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
             if (ZVAL_IS_ARRAY(zvalue)) {
                 zval *zvalue_2;
                 SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(zvalue), zvalue_2) {
-                    add_custom_header(http_buffer, ZSTR_VAL(string_key), ZSTR_LEN(string_key), zvalue_2);
+                    add_custom_header(http_buffer, ZSTR_VAL(string_key), ZSTR_LEN(string_key), zvalue_2, key_header);
                 }
                 SW_HASHTABLE_FOREACH_END();
             } else {
-                add_custom_header(http_buffer, ZSTR_VAL(string_key), ZSTR_LEN(string_key), zvalue);
+                add_custom_header(http_buffer, ZSTR_VAL(string_key), ZSTR_LEN(string_key), zvalue, key_header);
             }
         }
         ZEND_HASH_FOREACH_END();
@@ -421,15 +432,13 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
 #endif
     }
 
-    /**
-     * http cookies
-     */
+    // http cookies
     zval *zcookie =
         sw_zend_read_property_ex(swoole_http_response_ce, response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_COOKIE), 0);
     if (ZVAL_IS_ARRAY(zcookie)) {
         zval *zvalue;
         SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(zcookie), zvalue) {
-            if (Z_TYPE_P(zvalue) != IS_STRING) {
+            if (Z_TYPE_P(zvalue) != IS_STRING || swoole_http_has_crlf(Z_STRVAL_P(zvalue), Z_STRLEN_P(zvalue))) {
                 continue;
             }
             http_buffer->append(ZEND_STRL("Set-Cookie: "));
@@ -442,6 +451,7 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
     if (!(header_flags & HTTP_HEADER_SERVER)) {
         http_buffer->append(ZEND_STRL("Server: " SW_HTTP_SERVER_SOFTWARE "\r\n"));
     }
+
     if (!(header_flags & HTTP_HEADER_DATE)) {
         http_set_date_header(http_buffer);
     }
@@ -482,9 +492,9 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
         if (!(header_flags & HTTP_HEADER_CONTENT_LENGTH)) {
             http_buffer->append(ZEND_STRL("Content-Length: "));
 
-            char content_length2[128];
-            int convert_result = swoole_itoa(content_length2, length);
-            http_buffer->append(content_length2, convert_result);
+            char result[128];
+            int len = swoole_itoa(result, length);
+            http_buffer->append(result, len);
             http_buffer->append(ZEND_STRL("\r\n"));
         }
     }
@@ -754,16 +764,8 @@ bool HttpContext::send_file(const char *file, uint32_t l_file, off_t offset, siz
 }
 
 void HttpContext::end(zval *zdata, zval *return_value) {
-    struct {
-        char *str;
-        size_t length;
-    } http_body;
-    if (zdata) {
-        http_body.length = php_swoole_get_send_data(zdata, &http_body.str);
-    } else {
-        http_body.length = 0;
-        http_body.str = nullptr;
-    }
+    char *data = nullptr;
+    size_t length = zdata ? php_swoole_get_send_data(zdata, &data) : 0;
 
     if (send_chunked) {
         if (send_trailer_) {
@@ -773,86 +775,64 @@ void HttpContext::end(zval *zdata, zval *return_value) {
             send_trailer(return_value);
             send_trailer_ = 0;
         } else {
-            if (!send(this, ZEND_STRL("0\r\n\r\n"))) {
+            if (!send(this, ZEND_STRL(SW_HTTP_CHUNK_EOF))) {
                 RETURN_FALSE;
             }
         }
         send_chunked = 0;
-    } else {
-        String *http_buffer = get_write_buffer();
-        http_buffer->clear();
+        return;
+    }
 
 #ifdef SW_HAVE_ZLIB
-        if (upgrade) {
-            Server *serv = nullptr;
-            Connection *conn = nullptr;
-            if (!co_socket) {
-                serv = (Server *) private_data;
-                conn = serv->get_connection_verify(fd);
-            }
-            bool enable_websocket_compression = co_socket ? websocket_compression : serv->websocket_compression;
-            bool accept_websocket_compression = false;
-            zval *pData;
-            if (enable_websocket_compression && request.zobject &&
-                (pData = zend_hash_str_find(Z_ARRVAL_P(request.zheader), ZEND_STRL("sec-websocket-extensions"))) &&
-                Z_TYPE_P(pData) == IS_STRING) {
-                std::string value(Z_STRVAL_P(pData), Z_STRLEN_P(pData));
-                if (value.substr(0, value.find_first_of(';')) == "permessage-deflate") {
-                    accept_websocket_compression = true;
-                    set_header(ZEND_STRL("Sec-Websocket-Extensions"), ZEND_STRL(SW_WEBSOCKET_EXTENSION_DEFLATE), false);
-                }
-            }
-            websocket_compression = accept_websocket_compression;
-            if (conn) {
-                conn->websocket_compression = accept_websocket_compression;
+    if (upgrade) {
+        Server *serv = nullptr;
+        Connection *conn = nullptr;
+        if (!co_socket) {
+            serv = (Server *) private_data;
+            conn = serv->get_connection_verify(fd);
+        }
+        bool enable_websocket_compression = co_socket ? websocket_compression : serv->websocket_compression;
+        bool accept_websocket_compression = false;
+        zval *pData;
+        if (enable_websocket_compression && request.zobject &&
+            (pData = zend_hash_str_find(Z_ARRVAL_P(request.zheader), ZEND_STRL("sec-websocket-extensions"))) &&
+            Z_TYPE_P(pData) == IS_STRING) {
+            std::string value(Z_STRVAL_P(pData), Z_STRLEN_P(pData));
+            if (value.substr(0, value.find_first_of(';')) == "permessage-deflate") {
+                accept_websocket_compression = true;
+                set_header(ZEND_STRL("Sec-Websocket-Extensions"), ZEND_STRL(SW_WEBSOCKET_EXTENSION_DEFLATE), false);
             }
         }
+        websocket_compression = accept_websocket_compression;
+        if (conn) {
+            conn->websocket_compression = accept_websocket_compression;
+        }
+    }
 #endif
 
-        build_header(http_buffer, http_body.str, http_body.length);
+    String *http_buffer = get_write_buffer();
+    http_buffer->clear();
+    build_header(http_buffer, data, length);
 
-        char *send_body_str;
-        size_t send_body_len;
-
-        if (http_body.length > 0) {
+    if (length > 0) {
 #ifdef SW_HAVE_COMPRESSION
-            if (content_compressed) {
-                send_body_str = zlib_buffer->str;
-                send_body_len = zlib_buffer->length;
-            } else
-#endif
-            {
-                send_body_str = http_body.str;
-                send_body_len = http_body.length;
-            }
-            // send twice to reduce memory copy
-            if (send_body_len < swoole_pagesize()) {
-                if (http_buffer->append(send_body_str, send_body_len) < 0) {
-                    send_header_ = 0;
-                    RETURN_FALSE;
-                }
-            } else {
-                if (!send(this, http_buffer->str, http_buffer->length)) {
-                    send_header_ = 0;
-                    RETURN_FALSE;
-                }
-                if (!send(this, send_body_str, send_body_len)) {
-                    end_ = 1;
-                    close(this);
-                    RETURN_FALSE;
-                }
-                goto _skip_copy;
-            }
+        if (content_compressed) {
+            data = zlib_buffer->str;
+            length = zlib_buffer->length;
         }
-
-        if (!send(this, http_buffer->str, http_buffer->length)) {
-            end_ = 1;
-            close(this);
+#endif
+        if (http_buffer->append(data, length) < 0) {
+            send_header_ = 0;
             RETURN_FALSE;
         }
     }
 
-_skip_copy:
+    if (!send(this, http_buffer->str, http_buffer->length)) {
+        end_ = 1;
+        close(this);
+        RETURN_FALSE;
+    }
+
     if (upgrade && !co_socket) {
         Server *serv = (Server *) private_data;
         Connection *conn = serv->get_connection_verify(fd);
