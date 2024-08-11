@@ -515,6 +515,7 @@ void php_swoole_server_minit(int module_number) {
     // ---------------------------------------PipeMessage-------------------------------------
     SW_INIT_CLASS_ENTRY_DATA_OBJECT(swoole_server_pipe_message, "Swoole\\Server\\PipeMessage");
     zend_declare_property_long(swoole_server_pipe_message_ce, ZEND_STRL("source_worker_id"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_server_pipe_message_ce, ZEND_STRL("worker_id"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_double(swoole_server_pipe_message_ce, ZEND_STRL("dispatch_time"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_server_pipe_message_ce, ZEND_STRL("data"), ZEND_ACC_PUBLIC);
     // ---------------------------------------StatusInfo-------------------------------------
