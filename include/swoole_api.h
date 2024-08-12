@@ -58,6 +58,7 @@ SW_API int swoole_event_free();
 SW_API bool swoole_event_set_handler(int fdtype, swoole::ReactorHandler handler);
 SW_API bool swoole_event_isset_handler(int fdtype);
 SW_API bool swoole_event_is_available();
+SW_API bool swoole_event_is_running();
 
 #ifdef __MACH__
 swoole::Reactor *sw_reactor();
