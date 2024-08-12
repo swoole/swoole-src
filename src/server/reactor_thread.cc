@@ -901,11 +901,7 @@ int Server::dispatch_task(const Protocol *proto, Socket *_socket, const RecvData
     }
 }
 
-void Server::join_reactor_thread() {
-    if (single_thread) {
-        return;
-    }
-    ReactorThread *thread;
+void Server::join_heartbeat_thread() {
     /**
      * Shutdown heartbeat thread
      */
@@ -917,11 +913,19 @@ void Server::join_reactor_thread() {
         // wait thread
         heartbeat_thread.join();
     }
-    /**
-     * kill threads
-     */
+}
+
+void Server::join_reactor_thread() {
+    if (single_thread) {
+        return;
+    }
+
+    if (heartbeat_check_interval > 0) {
+        join_heartbeat_thread();
+    }
+
     for (int i = 0; i < reactor_num; i++) {
-        thread = get_thread(i);
+        ReactorThread *thread = get_thread(i);
         if (thread->notify_pipe) {
             DataHead ev = {};
             ev.type = SW_SERVER_EVENT_SHUTDOWN;

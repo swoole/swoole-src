@@ -76,8 +76,17 @@ extern PHPAPI int php_array_merge(zend_array *dest, zend_array *src);
     swoole_set_last_error(SW_ERROR_PHP_FATAL_ERROR);                                                                   \
     php_error_docref(NULL, level, (const char *) (fmt_str), ##__VA_ARGS__)
 
+/**
+ * The error occurred at the PHP layer and no error code was set
+ */
 #define php_swoole_error(level, fmt_str, ...)                                                                          \
     swoole_set_last_error(SW_ERROR_PHP_RUNTIME_NOTICE);                                                                \
+    if (SWOOLE_G(display_errors) || level == E_ERROR) php_error_docref(NULL, level, fmt_str, ##__VA_ARGS__)
+
+/**
+ * The error occurred in the core must have error code
+ */
+#define php_swoole_core_error(level, fmt_str, ...)                                                                          \
     if (SWOOLE_G(display_errors) || level == E_ERROR) php_error_docref(NULL, level, fmt_str, ##__VA_ARGS__)
 
 #define php_swoole_error_ex(level, err_code, fmt_str, ...)                                                             \

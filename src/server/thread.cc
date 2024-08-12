@@ -61,6 +61,9 @@ bool ThreadFactory::shutdown() {
             thread.join();
         }
     }
+    if (server_->heartbeat_check_interval > 0) {
+        server_->join_heartbeat_thread();
+    }
     return true;
 }
 
@@ -188,7 +191,7 @@ int Server::start_worker_threads() {
     /**
      * heartbeat thread
      */
-    if (heartbeat_check_interval >= 1) {
+    if (heartbeat_check_interval > 0) {
         start_heartbeat_thread();
     }
 

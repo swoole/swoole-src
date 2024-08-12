@@ -2660,7 +2660,9 @@ static PHP_METHOD(swoole_server, start) {
         serv->worker_thread_start = [bootstrap, thread_argv](const WorkerFn &fn) {
             worker_thread_fn = fn;
             zend_string *bootstrap_copy = zend_string_dup(bootstrap, 1);
-            thread_argv->add_ref();
+            if (thread_argv) {
+                thread_argv->add_ref();
+            }
             php_swoole_thread_start(bootstrap_copy, thread_argv);
         };
     }

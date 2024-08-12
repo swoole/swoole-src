@@ -1128,6 +1128,7 @@ class Server {
 
     void stop_async_worker(Worker *worker);
     void stop_master_thread();
+    void join_heartbeat_thread();
 
     Pipe *get_pipe_object(int pipe_fd) {
         return (Pipe *) connection_list[pipe_fd].object;

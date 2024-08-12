@@ -1235,7 +1235,7 @@ PHP_FUNCTION(swoole_coroutine_socketpair) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (0 != socketpair((int) domain, (int) type, (int) protocol, pair)) {
-        php_swoole_error(E_WARNING, "failed to create sockets: [%d]: %s", errno, strerror(errno));
+        php_swoole_sys_error(E_WARNING, "failed to create socket");
         RETURN_FALSE;
     }
 
