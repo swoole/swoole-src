@@ -79,7 +79,7 @@ extern PHPAPI int php_array_merge(zend_array *dest, zend_array *src);
         op;                                                                                                            \
     }
 #else
-#define SW_MUST_BE_MAIN_THREAD()
+#define SW_MUST_BE_MAIN_THREAD_EX()
 #endif
 
 #define SW_MUST_BE_MAIN_THREAD() SW_MUST_BE_MAIN_THREAD_EX(RETURN_TRUE)
