@@ -72,6 +72,18 @@ extern PHPAPI int php_array_merge(zend_array *dest, zend_array *src);
         RETURN_FALSE;                                                                                                  \
     }
 
+#ifdef SW_THREAD
+#define SW_MUST_BE_MAIN_THREAD_EX(op)                                                                                  \
+    if (!tsrm_is_main_thread()) {                                                                                      \
+        swoole_set_last_error(SW_ERROR_OPERATION_NOT_SUPPORT);                                                         \
+        op;                                                                                                            \
+    }
+#else
+#define SW_MUST_BE_MAIN_THREAD()
+#endif
+
+#define SW_MUST_BE_MAIN_THREAD() SW_MUST_BE_MAIN_THREAD_EX(RETURN_TRUE)
+
 #define php_swoole_fatal_error(level, fmt_str, ...)                                                                    \
     swoole_set_last_error(SW_ERROR_PHP_FATAL_ERROR);                                                                   \
     php_error_docref(NULL, level, (const char *) (fmt_str), ##__VA_ARGS__)

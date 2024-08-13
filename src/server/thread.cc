@@ -67,9 +67,7 @@ bool ThreadFactory::shutdown() {
     return true;
 }
 
-ThreadFactory::~ThreadFactory() {
-
-}
+ThreadFactory::~ThreadFactory() {}
 
 void ThreadFactory::at_thread_exit(Worker *worker) {
     std::unique_lock<std::mutex> _lock(lock_);
@@ -234,5 +232,20 @@ int Server::start_worker_threads() {
     SwooleTG.id = reactor->id = manager_thread_id + 1;
     store_listen_socket();
     return start_master_thread(reactor);
+}
+
+void Server::stop_worker_threads() {
+    DataHead event = {};
+    event.type = SW_SERVER_EVENT_SHUTDOWN;
+
+    SW_LOOP_N(worker_num) {
+        send_to_worker_from_worker(get_worker(i), &event, sizeof(event), SW_PIPE_MASTER);
+    }
+
+    if (task_worker_num > 0) {
+        SW_LOOP_N(task_worker_num) {
+            send_to_worker_from_worker(get_worker(worker_num + i), &event, sizeof(event), SW_PIPE_MASTER);
+        }
+    }
 }
 }  // namespace swoole

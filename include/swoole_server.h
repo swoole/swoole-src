@@ -1126,6 +1126,7 @@ class Server {
         return nullptr;
     }
 
+    bool kill_worker(WorkerId worker_id, bool wait_reactor);
     void stop_async_worker(Worker *worker);
     void stop_master_thread();
     void join_heartbeat_thread();
@@ -1164,6 +1165,10 @@ class Server {
 
     bool is_worker() {
         return swoole_get_process_type() == SW_PROCESS_EVENTWORKER;
+    }
+
+    bool is_event_worker() {
+        return is_worker();
     }
 
     bool is_task_worker() {
@@ -1313,6 +1318,7 @@ class Server {
 
     void call_hook(enum HookType type, void *arg);
     void call_worker_start_callback(Worker *worker);
+    void call_worker_stop_callback(Worker *worker);
     void call_command_handler(MessageBus &mb, uint16_t worker_id, network::Socket *sock);
     std::string call_command_handler_in_master(int command_id, const std::string &msg);
     void call_command_callback(int64_t request_id, const std::string &result);
@@ -1431,6 +1437,7 @@ class Server {
     void worker_stop_callback(Worker *worker);
     void worker_accept_event(DataHead *info);
     void worker_signal_init(void);
+    bool worker_is_running();
     std::function<void(const WorkerFn &fn)> worker_thread_start;
 
     /**
@@ -1451,6 +1458,7 @@ class Server {
     int start_master_thread(Reactor *reactor);
     int start_event_worker(Worker *worker);
     void start_heartbeat_thread();
+    const char *get_startup_error_message();
 
   private:
     enum Mode mode_;
@@ -1477,6 +1485,7 @@ class Server {
     int start_reactor_threads();
     int start_reactor_processes();
     int start_worker_threads();
+    void stop_worker_threads();
     void join_reactor_thread();
     TimerCallback get_timeout_callback(ListenPort *port, Reactor *reactor, Connection *conn);
 
