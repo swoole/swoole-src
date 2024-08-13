@@ -1986,7 +1986,7 @@ static PHP_METHOD(swoole_server, set) {
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(ZEND_THIS));
     Server *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (serv->is_worker_thread()) {
-        swoole_set_last_error(SW_ERROR_OPERATION_NOT_SUPPORT);
+        swoole_set_last_error(SW_ERROR_SERVER_UNRELATED_THREAD);
         RETURN_FALSE;
     }
     if (serv->is_started()) {
@@ -2524,6 +2524,8 @@ static PHP_METHOD(swoole_server, addProcess) {
         RETURN_FALSE;
     }
 
+    int worker_id;
+    Worker *worker;
     zval *process = nullptr;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &process) == FAILURE) {
@@ -2549,29 +2551,27 @@ static PHP_METHOD(swoole_server, addProcess) {
     process = tmp_process;
     Z_TRY_ADDREF_P(process);
 
-    int worker_id;
+    ServerObject *server_object = server_fetch_object(Z_OBJ_P(ZEND_THIS));
+    server_object->property->user_processes.push_back(process);
 
     if (serv->is_worker_thread()) {
         if (!serv->is_user_worker()) {
-            swoole_set_last_error(SW_ERROR_OPERATION_NOT_SUPPORT);
+            swoole_set_last_error(SW_ERROR_SERVER_UNRELATED_THREAD);
             RETURN_FALSE;
         }
         worker_id = swoole_get_process_id();
-        Worker *worker = serv->get_worker(worker_id);
-        worker->ptr = process;
+        worker = serv->get_worker(worker_id);
+        worker_id -= (serv->worker_num + serv->task_worker_num);
     } else {
-        ServerObject *server_object = server_fetch_object(Z_OBJ_P(ZEND_THIS));
-        server_object->property->user_processes.push_back(process);
-
-        Worker *worker = php_swoole_process_get_and_check_worker(process);
-        worker->ptr = process;
-
+        worker = php_swoole_process_get_and_check_worker(process);
         worker_id = serv->add_worker(worker);
         if (worker_id < 0) {
-            php_swoole_fatal_error(E_WARNING, "Server::add_worker() failed");
+            php_swoole_fatal_error(E_WARNING, "failed to add worker");
             RETURN_FALSE;
         }
     }
+
+    worker->ptr = process;
     zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(process), ZEND_STRL("id"), worker_id);
     RETURN_LONG(worker_id);
 }
