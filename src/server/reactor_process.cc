@@ -24,11 +24,6 @@ static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event);
 static int ReactorProcess_onClose(Reactor *reactor, Event *event);
 static void ReactorProcess_onTimeout(Timer *timer, TimerNode *tnode);
 
-static bool Server_is_single(Server *serv) {
-    return (serv->worker_num == 1 && serv->task_worker_num == 0 && serv->max_request == 0 &&
-            serv->user_worker_list.empty());
-}
-
 int Server::start_reactor_processes() {
     single_thread = 1;
 
@@ -81,7 +76,7 @@ int Server::start_reactor_processes() {
         return SW_ERR;
     }
 
-    if (Server_is_single(this)) {
+    if (is_single_worker()) {
         Worker *worker = &gs->event_workers.workers[0];
         SwooleWG.worker = worker;
         int retval = worker_main_loop(&gs->event_workers, worker);

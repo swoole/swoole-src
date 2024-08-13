@@ -38,10 +38,10 @@ $http->on('pipeMessage', function ($http, $srcWorkerId, $msg) {
     echo "[worker#" . $http->getWorkerId() . "]\treceived pipe message[$msg] from " . $srcWorkerId . "\n";
 });
 
-//$http->addProcess(new \Swoole\Process(function () {
-//    echo "user process, id=" . \Swoole\Thread::getId() . "\n";
-//    sleep(2);
-//}));
+$http->addProcess(new \Swoole\Process(function () {
+    echo "user process, id=" . \Swoole\Thread::getId() . "\n";
+    sleep(2);
+}));
 
 $http->on('Task', function ($server, $taskId, $srcWorkerId, $data) {
     var_dump($taskId, $srcWorkerId, $data);

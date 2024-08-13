@@ -2547,22 +2547,33 @@ static PHP_METHOD(swoole_server, addProcess) {
     zval *tmp_process = (zval *) emalloc(sizeof(zval));
     memcpy(tmp_process, process, sizeof(zval));
     process = tmp_process;
-
-    ServerObject *server_object = server_fetch_object(Z_OBJ_P(ZEND_THIS));
-    server_object->property->user_processes.push_back(process);
-
     Z_TRY_ADDREF_P(process);
 
-    Worker *worker = php_swoole_process_get_and_check_worker(process);
-    worker->ptr = process;
+    int worker_id;
 
-    int id = serv->add_worker(worker);
-    if (id < 0) {
-        php_swoole_fatal_error(E_WARNING, "Server::add_worker() failed");
-        RETURN_FALSE;
+    if (serv->is_worker_thread()) {
+        if (!serv->is_user_worker()) {
+            swoole_set_last_error(SW_ERROR_OPERATION_NOT_SUPPORT);
+            RETURN_FALSE;
+        }
+        worker_id = swoole_get_process_id();
+        Worker *worker = serv->get_worker(worker_id);
+        worker->ptr = process;
+    } else {
+        ServerObject *server_object = server_fetch_object(Z_OBJ_P(ZEND_THIS));
+        server_object->property->user_processes.push_back(process);
+
+        Worker *worker = php_swoole_process_get_and_check_worker(process);
+        worker->ptr = process;
+
+        worker_id = serv->add_worker(worker);
+        if (worker_id < 0) {
+            php_swoole_fatal_error(E_WARNING, "Server::add_worker() failed");
+            RETURN_FALSE;
+        }
     }
-    zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(process), ZEND_STRL("id"), id);
-    RETURN_LONG(id);
+    zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(process), ZEND_STRL("id"), worker_id);
+    RETURN_LONG(worker_id);
 }
 
 static PHP_METHOD(swoole_server, addCommand) {

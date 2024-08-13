@@ -836,10 +836,12 @@ class Server {
     EventData *task_result = nullptr;
 
     /**
-     * user process
+     * Used for process management, saving the mapping relationship between PID and worker pointers
      */
-    std::vector<Worker *> user_worker_list;
     std::unordered_map<pid_t, Worker *> user_worker_map;
+    /**
+     * Shared memory, sharing state between processes
+     */
     Worker *user_workers = nullptr;
 
     std::unordered_map<std::string, Command> commands;
@@ -1195,6 +1197,10 @@ class Server {
         return swoole_get_thread_type() == Server::THREAD_REACTOR;
     }
 
+    bool is_single_worker() {
+        return (worker_num == 1 && task_worker_num == 0 && max_request == 0 && get_user_worker_num() == 0);
+    }
+
     bool isset_hook(enum HookType type) {
         assert(type <= HOOK_END);
         return hooks[type];
@@ -1478,6 +1484,10 @@ class Server {
      */
     uint16_t reactor_pipe_num = 0;
     ReactorThread *reactor_threads = nullptr;
+    /**
+     * Only used for temporarily saving pointers in add_worker()
+     */
+    std::vector<Worker *> user_worker_list;
 
     int start_check();
     void check_port_type(ListenPort *ls);

@@ -123,7 +123,7 @@ void ThreadFactory::spawn_task_worker(WorkerId i) {
 
 void ThreadFactory::spawn_user_worker(WorkerId i) {
     create_thread(i, [=]() {
-        Worker *worker = server_->user_worker_list.at(i - server_->task_worker_num - server_->worker_num);
+        Worker *worker = server_->get_worker(i);
         swoole_set_process_type(SW_PROCESS_USERWORKER);
         swoole_set_thread_type(Server::THREAD_WORKER);
         swoole_set_process_id(i);

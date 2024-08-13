@@ -1655,6 +1655,7 @@ void Server::timer_callback(Timer *timer, TimerNode *tnode) {
 
 int Server::add_worker(Worker *worker) {
     user_worker_list.push_back(worker);
+    worker->id = user_worker_list.size() - 1;
     return worker->id;
 }
 
