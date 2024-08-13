@@ -199,6 +199,7 @@ void Server::worker_accept_event(DataHead *info) {
         break;
     }
     case SW_SERVER_EVENT_SHUTDOWN: {
+        stop_async_worker(worker);
         break;
     }
     default:
@@ -299,6 +300,9 @@ void Server::call_worker_start_callback(Worker *worker) {
     if (isset_hook(HOOK_WORKER_START)) {
         call_hook(Server::HOOK_WORKER_START, hook_args);
     }
+
+    swoole_clear_last_error();
+    swoole_clear_last_error_msg();
 
     SwooleWG.running = true;
     if (onWorkerStart) {
