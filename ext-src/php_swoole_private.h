@@ -78,11 +78,11 @@ extern PHPAPI int php_array_merge(zend_array *dest, zend_array *src);
         swoole_set_last_error(SW_ERROR_OPERATION_NOT_SUPPORT);                                                         \
         op;                                                                                                            \
     }
-#else
-#define SW_MUST_BE_MAIN_THREAD_EX()
-#endif
-
 #define SW_MUST_BE_MAIN_THREAD() SW_MUST_BE_MAIN_THREAD_EX(RETURN_TRUE)
+#else
+#define SW_MUST_BE_MAIN_THREAD_EX(op)
+#define SW_MUST_BE_MAIN_THREAD()
+#endif
 
 #define php_swoole_fatal_error(level, fmt_str, ...)                                                                    \
     swoole_set_last_error(SW_ERROR_PHP_FATAL_ERROR);                                                                   \
