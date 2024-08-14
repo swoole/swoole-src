@@ -950,14 +950,24 @@ EOF
     LDFLAGS="$LDFLAGS -lpthread"
 
 	dnl Check should we link to librt
-	OS_SHOULD_HAVE_LIBRT=1
 
-	if test "$SW_OS" = "MAC"; then
+    if test "$SW_OS" = "LINUX"; then
+        GLIBC_VERSION=$(getconf GNU_LIBC_VERSION | awk '{print $2}')
+        AC_MSG_NOTICE([glibc version: $GLIBC_VERSION])
+        if [[ $(echo "$GLIBC_VERSION < 2.17" | bc -l) -eq 1 ]]; then
+		    OS_SHOULD_HAVE_LIBRT=1
+		else
+			AC_MSG_NOTICE([link with -lrt (only for glibc versions before 2.17)])
+		    OS_SHOULD_HAVE_LIBRT=0
+		fi
+	elif test "$SW_OS" = "MAC"; then
 		OS_SHOULD_HAVE_LIBRT=0
+	else
+        AS_CASE([$host_os],
+          [openbsd*], [OS_SHOULD_HAVE_LIBRT=0]
+          [OS_SHOULD_HAVE_LIBRT=1]
+        )
 	fi
-	AS_CASE([$host_os],
-	  [openbsd*], [OS_SHOULD_HAVE_LIBRT=0]
-	)
 
 	if test "x$OS_SHOULD_HAVE_LIBRT" = "x1"; then
 		AC_MSG_NOTICE([Librt is required on $host_os.])
