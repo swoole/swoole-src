@@ -117,15 +117,8 @@ pid_t Factory::spawn_event_worker(Worker *worker) {
     }
 
     // see https://github.com/swoole/swoole-src/issues/5407
-    if (worker->concurrency > 0 && server_->worker_num > 1) {
-        sw_atomic_sub_fetch(&server_->gs->concurrency, worker->concurrency);
-        worker->concurrency = 0;
-    }
-
     // see https://github.com/swoole/swoole-src/issues/5432
-    worker->request_count = 0;
-    worker->response_count = 0;
-    worker->dispatch_count = 0;
+    server_->reset_worker_counter(worker);
 
     if (server_->is_base_mode()) {
         server_->gs->connection_nums[worker->id] = 0;
