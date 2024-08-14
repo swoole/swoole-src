@@ -175,6 +175,7 @@
 #define SW_HTTP_RESPONSE_INIT_SIZE 65536
 #define SW_HTTP_HEADER_MAX_SIZE 65536
 #define SW_HTTP_HEADER_KEY_SIZE 128
+#define SW_HTTP_MAX_DATA_LENGTH 32768
 #define SW_HTTP_UPLOAD_TMPDIR_SIZE SW_TASK_TMP_PATH_SIZE
 #define SW_HTTP_DATE_FORMAT "D, d M Y H:i:s T"
 #define SW_HTTP_RFC1123_DATE_GMT "%a, %d %b %Y %T GMT"
@@ -184,9 +185,6 @@
 #define SW_HTTP_UPLOAD_FILE "Swoole-Upload-File"
 #define SW_HTTP_CHUNK_EOF "0\r\n\r\n"
 #define SW_HTTP_DEFAULT_CONTENT_TYPE "text/html"
-#define SW_HTTP_CONTENT_TYPE_WITH_CHARSET "text/html; charset=utf-8"
-#define SW_HTTP_APPLICATION_JSON "application/json"
-#define SW_HTTP_TEXT_PLAIN "text/plain; charset=utf-8"
 
 // #define SW_HTTP_100_CONTINUE
 #define SW_HTTP_100_CONTINUE_PACKET "HTTP/1.1 100 Continue\r\n\r\n"

@@ -319,23 +319,6 @@ static void add_custom_header(String *http_buffer, const char *key, size_t l_key
         return;
     }
 
-    if (key_header == HTTP_HEADER_CONTENT_TYPE && ZVAL_IS_STRING(value)) {
-        if (SW_STRCASEEQ(str_value.val(), str_value.len(), SW_HTTP_APPLICATION_JSON)) {
-            http_buffer->append(SW_STRL("Content-Type: " SW_HTTP_APPLICATION_JSON "\r\n"));
-            return;
-        }
-
-        if (SW_STRCASEEQ(str_value.val(), str_value.len(), SW_HTTP_DEFAULT_CONTENT_TYPE)) {
-            http_buffer->append(SW_STRL("Content-Type: " SW_HTTP_DEFAULT_CONTENT_TYPE "\r\n"));
-            return;
-        }
-
-        if (SW_STRCASEEQ(str_value.val(), str_value.len(), SW_HTTP_TEXT_PLAIN)) {
-            http_buffer->append(SW_STRL("Content-Type: " SW_HTTP_TEXT_PLAIN "\r\n"));
-            return;
-        }
-    }
-
     http_buffer->append(key, l_key);
     http_buffer->append(SW_STRL(": "));
     http_buffer->append(str_value.val(), str_value.len());
@@ -819,9 +802,24 @@ void HttpContext::end(zval *zdata, zval *return_value) {
             length = zlib_buffer->length;
         }
 #endif
-        if (http_buffer->append(data, length) < 0) {
-            send_header_ = 0;
-            RETURN_FALSE;
+
+        if (length > SW_HTTP_MAX_DATA_LENGTH) {
+            if (!send(this, http_buffer->str, http_buffer->length)) {
+                send_header_ = 0;
+                RETURN_FALSE;
+            }
+
+            if (!send(this, data, length)) {
+                end_ = 1;
+                close(this);
+                RETURN_FALSE;
+            }
+            goto _skip_copy;
+        } else {
+            if (http_buffer->append(data, length) < 0) {
+                send_header_ = 0;
+                RETURN_FALSE;
+            }
         }
     }
 
@@ -831,6 +829,7 @@ void HttpContext::end(zval *zdata, zval *return_value) {
         RETURN_FALSE;
     }
 
+_skip_copy:
     if (upgrade && !co_socket) {
         Server *serv = (Server *) private_data;
         Connection *conn = serv->get_connection_verify(fd);
@@ -977,10 +976,10 @@ static void php_swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const 
     }
 
     char *cookie = nullptr, *date = nullptr;
-    size_t cookie_size = name_len + 1; // add 1 for null char
-    cookie_size += 50; // strlen("; expires=Fri, 31-Dec-9999 23:59:59 GMT; Max-Age=0")
+    size_t cookie_size = name_len + 1;  // add 1 for null char
+    cookie_size += 50;                  // strlen("; expires=Fri, 31-Dec-9999 23:59:59 GMT; Max-Age=0")
     if (value_len == 0) {
-        cookie_size += 8; // strlen("=deleted")
+        cookie_size += 8;  // strlen("=deleted")
     }
     if (expires > 0) {
         // Max-Age will be no longer than 12 digits since the
@@ -988,22 +987,22 @@ static void php_swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const 
         cookie_size += 11;
     }
     if (path_len > 0) {
-        cookie_size += path_len + 7; // strlen("; path=")
+        cookie_size += path_len + 7;  // strlen("; path=")
     }
     if (domain_len > 0) {
-        cookie_size += domain_len + 9; // strlen("; domain=")
+        cookie_size += domain_len + 9;  // strlen("; domain=")
     }
     if (secure) {
-        cookie_size += 8; // strlen("; secure")
+        cookie_size += 8;  // strlen("; secure")
     }
     if (httponly) {
-        cookie_size += 10; // strlen("; httponly")
+        cookie_size += 10;  // strlen("; httponly")
     }
     if (samesite_len > 0) {
-        cookie_size += samesite_len + 11; // strlen("; samesite=")
+        cookie_size += samesite_len + 11;  // strlen("; samesite=")
     }
     if (priority_len > 0) {
-        cookie_size += priority_len + 11; // strlen("; priority=")
+        cookie_size += priority_len + 11;  // strlen("; priority=")
     }
 
     if (value_len == 0) {
