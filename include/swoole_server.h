@@ -154,7 +154,6 @@ struct ReactorThread {
     network::Socket *notify_pipe = nullptr;
     uint32_t pipe_num = 0;
     uint64_t dispatch_count = 0;
-    network::Socket *pipe_sockets = nullptr;
     network::Socket *pipe_command = nullptr;
     MessageBus message_bus;
 
@@ -434,6 +433,7 @@ class BaseFactory : public Factory {
     bool finish(SendData *) override;
     bool notify(DataHead *) override;
     bool end(SessionId sesion_id, int flags) override;
+    bool forward_message(Session *session, SendData *data);
 };
 
 class ProcessFactory : public Factory {
@@ -805,7 +805,7 @@ class Server {
      * [ReactorThread]
      */
     network::Socket *get_worker_pipe_socket(Worker *worker) {
-        return &get_thread(SwooleTG.id)->pipe_sockets[worker->pipe_master->fd];
+        return get_thread(SwooleTG.id)->message_bus.get_pipe_socket(worker->pipe_master->get_fd());
     }
 
     network::Socket *get_command_reply_socket() {

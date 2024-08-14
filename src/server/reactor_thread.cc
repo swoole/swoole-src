@@ -750,20 +750,12 @@ int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
     if (serv->is_thread_mode()) {
         Worker *worker = serv->get_worker(reactor_id);
         serv->init_worker(worker);
-        worker->pipe_worker->set_nonblock();
-        worker->pipe_worker->buffer_size = UINT_MAX;
-        reactor->add(worker->pipe_worker, SW_EVENT_READ);
-    }
-
-    int max_pipe_fd = serv->get_worker(serv->worker_num - 1)->pipe_master->fd + 2;
-    pipe_sockets = (Socket *) sw_calloc(max_pipe_fd, sizeof(Socket));
-    if (!pipe_sockets) {
-        swoole_sys_error("calloc(%d, %ld) failed", max_pipe_fd, sizeof(Socket));
-        return SW_ERR;
+        auto pipe_worker = message_bus.get_pipe_socket(worker->pipe_worker->get_fd());
+        reactor->add(pipe_worker, SW_EVENT_READ);
     }
 
     if (serv->pipe_command) {
-        pipe_command = make_socket(serv->pipe_command->get_socket(false)->get_fd(), SW_FD_PIPE);
+        pipe_command = message_bus.get_pipe_socket(serv->pipe_command->get_socket(false)->get_fd());
         pipe_command->buffer_size = UINT_MAX;
     }
 
@@ -775,22 +767,17 @@ int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
     }
 
     SW_LOOP_N(serv->worker_num) {
-        int pipe_fd = serv->workers[i].pipe_master->fd;
-        Socket *socket = &pipe_sockets[pipe_fd];
-
-        socket->fd = pipe_fd;
-        socket->fd_type = SW_FD_PIPE;
-        socket->buffer_size = UINT_MAX;
-
         if (i % serv->reactor_num != reactor_id) {
             continue;
         }
-
-        socket->set_nonblock();
-
+        Socket *socket = message_bus.get_pipe_socket(serv->workers[i].pipe_master->get_fd());
         if (reactor->add(socket, SW_EVENT_READ) < 0) {
             return SW_ERR;
         }
+        /**
+         * It will only send data to the notify pipeline synchronously,
+         * which is thread-safe and does not require separate memory
+         */
         if (notify_pipe == nullptr) {
             notify_pipe = serv->workers[i].pipe_worker;
         }
@@ -801,11 +788,6 @@ int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
 }
 
 void ReactorThread::clean() {
-    sw_free(pipe_sockets);
-    if (pipe_command) {
-        pipe_command->fd = -1;
-        delete pipe_command;
-    }
     pipe_num = 0;
     message_bus.free_buffer();
 }
@@ -816,13 +798,13 @@ void Server::reactor_thread_main_loop(Server *serv, int reactor_id) {
 
     ReactorThread *thread = serv->get_thread(reactor_id);
     thread->id = reactor_id;
+    SwooleTG.message_bus = &thread->message_bus;
 
     if (swoole_event_init(0) < 0) {
         return;
     }
 
     if (serv->is_thread_mode()) {
-        SwooleTG.message_bus = &thread->message_bus;
         serv->call_worker_start_callback(serv->get_worker(reactor_id));
     }
 

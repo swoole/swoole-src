@@ -2559,6 +2559,7 @@ static PHP_METHOD(swoole_server, addProcess) {
         }
         worker_id = swoole_get_process_id();
         worker = serv->get_worker(worker_id);
+        worker->redirect_stdin = worker->redirect_stdout = worker->redirect_stderr = 0;
         worker_id -= (serv->worker_num + serv->task_worker_num);
     } else {
         worker = php_swoole_process_get_and_check_worker(process);
