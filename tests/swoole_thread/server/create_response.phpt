@@ -1,5 +1,5 @@
 --TEST--
-swoole_thread/server: stop worker
+swoole_thread/server: create response
 --SKIPIF--
 <?php
 require __DIR__ . '/../../include/skipif.inc';
@@ -38,29 +38,26 @@ $serv->on('WorkerStop', function (Swoole\Server $serv, $workerId) {
     $atomic2->add();
 });
 $serv->on('Request', function ($req, $resp) use ($serv) {
-    if ($req->server['request_uri'] == '/stop') {
-        $serv->stop($req->get['worker'] ?? 0);
-        $resp->end("OK\n");
-    }
+    $resp->detach();
+    $serv->task(['fd' => $resp->fd, 'uid' => $req->get['uid']]);
 });
 $serv->on('Task', function ($serv, $task_id, $worker_id, $data) {
-
+    $response = Swoole\Http\Response::create($data['fd']);
+    $response->end($data['uid']);
+    $response->close();
 });
 $serv->on('shutdown', function () {
     global $queue, $atomic1, $atomic2;
-    echo 'shutdown', PHP_EOL;
-    Assert::eq($atomic1->get(), 7);
-    Assert::eq($atomic2->get(), 7);
+    Assert::eq($atomic1->get(), 5);
+    Assert::eq($atomic2->get(), 5);
+    echo "shutdown\n";
 });
 $serv->addProcess(new Swoole\Process(function ($process) use ($serv) {
     [$queue, $atomic] = Thread::getArguments();
     global $port;
     echo $queue->pop(-1);
-
-    echo file_get_contents('http://127.0.0.1:' . $port . '/stop?worker=' . random_int(0, 1));
-    echo file_get_contents('http://127.0.0.1:' . $port . '/stop?worker=' . random_int(2, 4));
-
-    sleep(1);
+    $reqUid = uniqid();
+    Assert::eq(file_get_contents('http://127.0.0.1:' . $port . '/?uid=' . $reqUid), $reqUid);
     echo "done\n";
     $serv->shutdown();
 }));
@@ -68,8 +65,5 @@ $serv->start();
 ?>
 --EXPECTF--
 begin
-OK
-OK
 done
 shutdown
-

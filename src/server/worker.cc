@@ -322,7 +322,7 @@ void Server::call_worker_stop_callback(Worker *worker) {
         onWorkerStop(this, worker);
     }
 
-    if (is_event_worker() && !get_worker_message_bus()->empty()) {
+    if (!get_worker_message_bus()->empty()) {
         swoole_error_log(
             SW_LOG_WARNING, SW_ERROR_SERVER_WORKER_UNPROCESSED_DATA, "unprocessed data in the worker process buffer");
         get_worker_message_bus()->clear();

@@ -194,6 +194,16 @@ static void TaskWorker_onStart(ProcessPool *pool, Worker *worker) {
         SwooleTG.reactor = nullptr;
     }
 
+    if (serv->is_thread_mode()) {
+        SwooleTG.message_bus = new MessageBus();
+        SwooleTG.message_bus->set_id_generator([serv]() { return sw_atomic_fetch_add(&serv->gs->pipe_packet_msg_id, 1); });
+        SwooleTG.message_bus->set_buffer_size(serv->ipc_max_size);
+        SwooleTG.message_bus->set_always_chunked_transfer();
+        if (!SwooleTG.message_bus->alloc_buffer()) {
+            throw std::bad_alloc();
+        }
+    }
+
     TaskWorker_signal_init(pool);
     serv->worker_start_callback(worker);
 
@@ -215,6 +225,12 @@ static void TaskWorker_onStop(ProcessPool *pool, Worker *worker) {
     swoole_event_free();
     Server *serv = (Server *) pool->ptr;
     serv->worker_stop_callback(worker);
+
+    if (serv->is_thread_mode() ) {
+        SwooleTG.message_bus->clear();
+        delete SwooleTG.message_bus;
+        SwooleTG.message_bus = nullptr;
+    }
 }
 
 /**

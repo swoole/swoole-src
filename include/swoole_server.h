@@ -1034,7 +1034,7 @@ class Server {
 
     MessageBus *get_worker_message_bus() {
 #ifdef SW_THREAD
-        return sw_likely(is_thread_mode()) ? &get_thread(swoole_get_thread_id())->message_bus : &message_bus;
+        return sw_likely(is_thread_mode()) ? SwooleTG.message_bus : &message_bus;
 #else
         return &message_bus;
 #endif

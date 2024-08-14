@@ -814,18 +814,19 @@ void Server::reactor_thread_main_loop(Server *serv, int reactor_id) {
     SwooleTG.id = reactor_id;
     SwooleTG.type = Server::THREAD_REACTOR;
 
+    ReactorThread *thread = serv->get_thread(reactor_id);
+    thread->id = reactor_id;
+
     if (swoole_event_init(0) < 0) {
         return;
     }
 
     if (serv->is_thread_mode()) {
+        SwooleTG.message_bus = &thread->message_bus;
         serv->call_worker_start_callback(serv->get_worker(reactor_id));
     }
 
-    ReactorThread *thread = serv->get_thread(reactor_id);
-    thread->id = reactor_id;
     Reactor *reactor = sw_reactor();
-
     if (thread->init(serv, reactor, reactor_id) < 0) {
         return;
     }

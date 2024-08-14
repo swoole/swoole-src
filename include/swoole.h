@@ -214,6 +214,7 @@ class Timer;
 struct TimerNode;
 struct Event;
 class Pipe;
+class MessageBus;
 namespace network {
 struct Socket;
 struct Address;
@@ -690,6 +691,9 @@ struct ThreadGlobal {
     String *buffer_stack;
     Reactor *reactor;
     Timer *timer;
+#ifdef SW_THREAD
+    MessageBus *message_bus;
+#endif
     AsyncThreads *async_threads;
 #ifdef SW_USE_IOURING
     AsyncIouring *async_iouring;
