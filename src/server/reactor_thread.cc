@@ -389,7 +389,11 @@ static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev) {
             auto packet = thread->message_bus.get_packet();
             serv->call_command_callback(resp->info.fd, std::string(packet.data, packet.length));
         } else if (resp->info.type == SW_SERVER_EVENT_SHUTDOWN) {
-            thread->shutdown(reactor);
+            if (serv->is_thread_mode()) {
+                serv->stop_async_worker(serv->get_worker(reactor->id));
+            } else {
+                thread->shutdown(reactor);
+            }
         } else if (resp->info.type == SW_SERVER_EVENT_FINISH) {
             serv->onFinish(serv, (EventData *) resp);
         } else if (resp->info.type == SW_SERVER_EVENT_PIPE_MESSAGE) {
@@ -802,6 +806,7 @@ void ReactorThread::clean() {
         pipe_command->fd = -1;
         delete pipe_command;
     }
+    pipe_num = 0;
     message_bus.free_buffer();
 }
 
@@ -826,11 +831,13 @@ void Server::reactor_thread_main_loop(Server *serv, int reactor_id) {
     }
 
     // wait other thread
-    serv->reactor_thread_barrier.wait();
+    if (serv->is_process_mode()) {
+        serv->reactor_thread_barrier.wait();
+    }
     // main loop
     swoole_event_wait();
     if (serv->is_thread_mode()) {
-        serv->worker_stop_callback(serv->get_worker(reactor_id));
+        serv->call_worker_stop_callback(serv->get_worker(reactor_id));
     }
     thread->clean();
 }
@@ -901,11 +908,7 @@ int Server::dispatch_task(const Protocol *proto, Socket *_socket, const RecvData
     }
 }
 
-void Server::join_reactor_thread() {
-    if (single_thread) {
-        return;
-    }
-    ReactorThread *thread;
+void Server::join_heartbeat_thread() {
     /**
      * Shutdown heartbeat thread
      */
@@ -917,11 +920,19 @@ void Server::join_reactor_thread() {
         // wait thread
         heartbeat_thread.join();
     }
-    /**
-     * kill threads
-     */
+}
+
+void Server::join_reactor_thread() {
+    if (single_thread) {
+        return;
+    }
+
+    if (heartbeat_check_interval > 0) {
+        join_heartbeat_thread();
+    }
+
     for (int i = 0; i < reactor_num; i++) {
-        thread = get_thread(i);
+        ReactorThread *thread = get_thread(i);
         if (thread->notify_pipe) {
             DataHead ev = {};
             ev.type = SW_SERVER_EVENT_SHUTDOWN;

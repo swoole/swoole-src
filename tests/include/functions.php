@@ -88,6 +88,11 @@ function get_one_free_port(): int
     return $port;
 }
 
+function get_constant_port(string $str, int $base = 9500): int
+{
+    return $base + crc32(__FILE__) % 1000;
+}
+
 function get_one_free_port_ipv6(): int
 {
     $hookFlags = Swoole\Runtime::getHookFlags();

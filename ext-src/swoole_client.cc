@@ -780,7 +780,7 @@ static PHP_METHOD(swoole_client, connect) {
         if (cli->async_connect) {
             RETURN_TRUE;
         }
-        php_swoole_error(E_WARNING,
+        php_swoole_core_error(E_WARNING,
                          "connect to server[%s:%d] failed. Error: %s[%d]",
                          host,
                          (int) port,

@@ -424,6 +424,7 @@ static PHP_METHOD(swoole_process, kill) {
 }
 
 static PHP_METHOD(swoole_process, signal) {
+    SW_MUST_BE_MAIN_THREAD();
     zend_long signo = 0;
     zval *zcallback = nullptr;
     zend_fcall_info_cache *fci_cache = nullptr;

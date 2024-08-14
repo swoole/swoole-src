@@ -174,6 +174,8 @@ const char *swoole_strerror(int code) {
         return "Http conflict header";
     case SW_ERROR_HTTP_CONTEXT_UNAVAILABLE:
         return "Http context unavailable";
+    case SW_ERROR_HTTP_COOKIE_UNAVAILABLE:
+        return "Http cookie unavailable";
     case SW_ERROR_WEBSOCKET_BAD_CLIENT:
         return "Websocket bad client";
     case SW_ERROR_WEBSOCKET_BAD_OPCODE:
@@ -216,6 +218,8 @@ const char *swoole_strerror(int code) {
         return "Server is not regular file";
     case SW_ERROR_SERVER_SEND_TO_WOKER_TIMEOUT:
         return "Server send to woker timeout";
+    case SW_ERROR_SERVER_INVALID_CALLBACK:
+        return "Server invalid callback";
     case SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT:
         return "Server worker exit timeout";
     case SW_ERROR_SERVER_WORKER_ABNORMAL_PIPE_DATA:
@@ -282,4 +286,12 @@ void swoole_ignore_error(int code) {
 
 bool swoole_is_ignored_error(int code) {
     return ignored_errors.find(code) != ignored_errors.end();
+}
+
+void swoole_clear_last_error_msg(void) {
+    sw_error[0] = '\0';
+}
+
+const char *swoole_get_last_error_msg(void) {
+    return sw_error;
 }

@@ -88,6 +88,8 @@ static int TaskWorker_onTask(ProcessPool *pool, EventData *task) {
 
     if (task->info.type == SW_SERVER_EVENT_PIPE_MESSAGE) {
         serv->onPipeMessage(serv, task);
+    } else if (task->info.type == SW_SERVER_EVENT_SHUTDOWN) {
+        SwooleWG.shutdown = true;
     } else if (task->info.type == SW_SERVER_EVENT_COMMAND_REQUEST) {
         ret = TaskWorker_call_command_handler(pool, task);
     } else {
