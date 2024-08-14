@@ -321,23 +321,6 @@ static void add_custom_header(String *http_buffer, const char *key, size_t l_key
         return;
     }
 
-    if (key_header == HTTP_HEADER_CONTENT_TYPE && ZVAL_IS_STRING(value)) {
-        if (SW_STRCASEEQ(str_value.val(), str_value.len(), SW_HTTP_APPLICATION_JSON)) {
-            http_buffer->append(SW_STRL("Content-Type: " SW_HTTP_APPLICATION_JSON "\r\n"));
-            return;
-        }
-
-        if (SW_STRCASEEQ(str_value.val(), str_value.len(), SW_HTTP_DEFAULT_CONTENT_TYPE)) {
-            http_buffer->append(SW_STRL("Content-Type: " SW_HTTP_DEFAULT_CONTENT_TYPE "\r\n"));
-            return;
-        }
-
-        if (SW_STRCASEEQ(str_value.val(), str_value.len(), SW_HTTP_TEXT_PLAIN)) {
-            http_buffer->append(SW_STRL("Content-Type: " SW_HTTP_TEXT_PLAIN "\r\n"));
-            return;
-        }
-    }
-
     http_buffer->append(key, l_key);
     http_buffer->append(SW_STRL(": "));
     http_buffer->append(str_value.val(), str_value.len());
@@ -821,9 +804,24 @@ void HttpContext::end(zval *zdata, zval *return_value) {
             length = zlib_buffer->length;
         }
 #endif
-        if (http_buffer->append(data, length) < 0) {
-            send_header_ = 0;
-            RETURN_FALSE;
+
+        if (length > SW_HTTP_MAX_DATA_LENGTH) {
+            if (!send(this, http_buffer->str, http_buffer->length)) {
+                send_header_ = 0;
+                RETURN_FALSE;
+            }
+
+            if (!send(this, data, length)) {
+                end_ = 1;
+                close(this);
+                RETURN_FALSE;
+            }
+            goto _skip_copy;
+        } else {
+            if (http_buffer->append(data, length) < 0) {
+                send_header_ = 0;
+                RETURN_FALSE;
+            }
         }
     }
 
@@ -833,6 +831,7 @@ void HttpContext::end(zval *zdata, zval *return_value) {
         RETURN_FALSE;
     }
 
+_skip_copy:
     if (upgrade && !co_socket) {
         Server *serv = (Server *) private_data;
         Connection *conn = serv->get_connection_verify(fd);
