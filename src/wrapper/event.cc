@@ -124,6 +124,10 @@ bool swoole_event_is_available() {
     return SwooleTG.reactor and !SwooleTG.reactor->destroyed;
 }
 
+bool swoole_event_is_running() {
+    return SwooleTG.reactor and SwooleTG.reactor->running;
+}
+
 Socket *swoole_event_get_socket(int fd) {
     return SwooleTG.reactor->get_socket(fd);
 }

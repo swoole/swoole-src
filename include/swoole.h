@@ -807,6 +807,13 @@ static inline int swoole_get_last_error(void) {
     return SwooleTG.error;
 }
 
+static inline void swoole_clear_last_error(void) {
+    SwooleTG.error = 0;
+}
+
+void swoole_clear_last_error_msg(void);
+const char *swoole_get_last_error_msg(void);
+
 static inline int swoole_get_thread_id(void) {
     return SwooleTG.id;
 }

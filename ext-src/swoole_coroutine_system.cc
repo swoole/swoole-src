@@ -334,6 +334,7 @@ PHP_METHOD(swoole_coroutine_system, waitPid) {
 }
 
 PHP_METHOD(swoole_coroutine_system, waitSignal) {
+    SW_MUST_BE_MAIN_THREAD();
     zend_long signo;
     double timeout = -1;
 

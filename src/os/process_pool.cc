@@ -683,7 +683,7 @@ static int ProcessPool_worker_loop_with_stream_protocol(ProcessPool *pool, Worke
     QueueNode *outbuf = (QueueNode *) pool->packet_buffer;
     outbuf->mtype = 0;
 
-    while (pool->running) {
+    while (pool->running && !SwooleWG.shutdown) {
         /**
          * fetch task
          */
@@ -788,7 +788,7 @@ static int ProcessPool_worker_loop_with_message_protocol(ProcessPool *pool, Work
 
     worker->pipe_worker->dont_restart = 1;
 
-    while (pool->running) {
+    while (pool->running && !SwooleWG.shutdown) {
         switch (fn()) {
         case 0:
             if (SwooleG.signal_alarm && SwooleTG.timer) {

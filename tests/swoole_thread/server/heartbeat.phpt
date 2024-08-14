@@ -1,5 +1,5 @@
 --TEST--
-swoole_thread/server: base
+swoole_thread/server: heartbeat
 --SKIPIF--
 <?php
 require __DIR__ . '/../../include/skipif.inc';
@@ -16,10 +16,10 @@ $port = get_constant_port(__FILE__);
 
 $serv = new Swoole\Server('127.0.0.1', $port, SWOOLE_THREAD);
 $serv->set(array(
-    'worker_num' => 2,
+    'worker_num' => 1,
     'log_level' => SWOOLE_LOG_ERROR,
-    'open_eof_check' => true,
-    'package_eof' => "\r\n",
+    'heartbeat_check_interval' => 1,
+    'heartbeat_idle_time' => 2,
     'init_arguments' => function () {
         global $queue, $atomic;
         $queue = new Swoole\Thread\Queue();
@@ -34,10 +34,6 @@ $serv->on('WorkerStart', function (Swoole\Server $serv, $workerId) use ($port) {
     }
 });
 $serv->on('receive', function (Swoole\Server $serv, $fd, $rid, $data) {
-    $json = json_decode(rtrim($data));
-    if ($json->type == 'eof') {
-        $serv->send($fd, "EOF\r\n");
-    }
 });
 $serv->on('shutdown', function () {
     global $queue, $atomic;
@@ -48,16 +44,17 @@ $serv->addProcess(new Swoole\Process(function ($process) use ($serv) {
     [$queue, $atomic] = Thread::getArguments();
     global $port;
     echo $queue->pop(-1);
-    Co\run(function () use ($port) {
-        $cli = new Co\Client(SWOOLE_SOCK_TCP);
-        $cli->set([
-            'open_eof_check' => true,
-            'package_eof' => "\r\n",
-        ]);
-        Assert::assert($cli->connect('127.0.0.1', $port, 2));
-        $cli->send(json_encode(['type' => 'eof']) . "\r\n");
-        Assert::eq($cli->recv(), "EOF\r\n");
-    });
+
+    $client = new Swoole\Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
+    if (!$client->connect('127.0.0.1', $port, 5, 0)) {
+        echo "Error: " . $client->errCode;
+        die("\n");
+    }
+    $s1 = time();
+    Assert::same(@$client->recv(), '');
+    $s2 = time();
+    Assert::assert($s2 - $s1 > 1);
+
     $atomic->set(0);
     echo "done\n";
     $serv->shutdown();
