@@ -319,7 +319,7 @@ Context::~Context() {
 }
 
 std::shared_ptr<Server> listen(const std::string addr, std::function<void(Context &ctx)> cb, int mode) {
-    Server *server = new Server((Server::Mode) mode);
+    std::shared_ptr<Server> server = std::make_shared<Server>((Server::Mode) mode);
     auto index = addr.find(':');
     if (index == addr.npos) {
         swoole_warning("incorrect server listening address");
@@ -358,7 +358,7 @@ std::shared_ptr<Server> listen(const std::string addr, std::function<void(Contex
         return nullptr;
     }
 
-    return std::shared_ptr<Server>(server);
+    return server;
 }
 }  // namespace http_server
 }  // namespace swoole

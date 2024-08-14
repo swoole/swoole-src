@@ -214,6 +214,7 @@ class Timer;
 struct TimerNode;
 struct Event;
 class Pipe;
+class MessageBus;
 namespace network {
 struct Socket;
 struct Address;
@@ -690,6 +691,9 @@ struct ThreadGlobal {
     String *buffer_stack;
     Reactor *reactor;
     Timer *timer;
+#ifdef SW_THREAD
+    MessageBus *message_bus;
+#endif
     AsyncThreads *async_threads;
 #ifdef SW_USE_IOURING
     AsyncIouring *async_iouring;
@@ -806,6 +810,13 @@ static inline void swoole_set_last_error(int error) {
 static inline int swoole_get_last_error(void) {
     return SwooleTG.error;
 }
+
+static inline void swoole_clear_last_error(void) {
+    SwooleTG.error = 0;
+}
+
+void swoole_clear_last_error_msg(void);
+const char *swoole_get_last_error_msg(void);
 
 static inline int swoole_get_thread_id(void) {
     return SwooleTG.id;

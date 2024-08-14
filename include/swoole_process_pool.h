@@ -105,6 +105,7 @@ struct Worker;
 struct WorkerGlobal {
     bool run_always;
     bool shutdown;
+    bool running;
     uint32_t max_request;
     Worker *worker;
     Worker *worker_copy;

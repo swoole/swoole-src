@@ -1176,12 +1176,7 @@ void PHPCoroutine::enable_unsafe_function() {
 }
 
 bool PHPCoroutine::enable_hook(uint32_t flags) {
-#ifdef SW_THREAD
-    if (!tsrm_is_main_thread()) {
-        swoole_set_last_error(SW_ERROR_OPERATION_NOT_SUPPORT);
-        return false;
-    }
-#endif
+    SW_MUST_BE_MAIN_THREAD_EX(return false);
     if (swoole_isset_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_BEFORE_ENABLE_HOOK)) {
         swoole_call_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_BEFORE_ENABLE_HOOK, &flags);
     }

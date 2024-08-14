@@ -134,7 +134,8 @@ AC_DEFUN([PDO_ODBC_CHECK_HEADER],[
   AC_MSG_CHECKING([for $1 in $PDO_ODBC_INCDIR])
   if test -f "$PDO_ODBC_INCDIR/$1"; then
     php_pdo_have_header=yes
-    PHP_DEF_HAVE(translit($1,.,_))
+    AC_DEFINE_UNQUOTED(AS_TR_CPP([HAVE_$1]), [1],
+      [Define to 1 if you have the <$1> header file.])
     AC_MSG_RESULT(yes)
   else
     AC_MSG_RESULT(no)
@@ -847,7 +848,6 @@ EOF
 	if test "$PHP_BROTLI" != "no" || test "$PHP_BROTLI_DIR" != "no"; then
         if test "$PHP_BROTLI_DIR" != "no"; then
             PHP_ADD_INCLUDE("${PHP_BROTLI_DIR}/include")
-            PHP_ADD_LIBRARY_WITH_PATH(brotli, "${PHP_BROTLI_DIR}/${PHP_LIBDIR}")
             PHP_ADD_LIBRARY_WITH_PATH(brotlienc, "${PHP_BROTLI_DIR}/${PHP_LIBDIR}")
             PHP_ADD_LIBRARY_WITH_PATH(brotlidec, "${PHP_BROTLI_DIR}/${PHP_LIBDIR}")
         else
@@ -949,14 +949,24 @@ EOF
     LDFLAGS="$LDFLAGS -lpthread"
 
 	dnl Check should we link to librt
-	OS_SHOULD_HAVE_LIBRT=1
 
-	if test "$SW_OS" = "MAC"; then
+    if test "$SW_OS" = "LINUX"; then
+        GLIBC_VERSION=$(getconf GNU_LIBC_VERSION | awk '{print $2}')
+        AC_MSG_NOTICE([glibc version: $GLIBC_VERSION])
+        if [[ $(echo "$GLIBC_VERSION < 2.17" | bc -l) -eq 1 ]]; then
+		    OS_SHOULD_HAVE_LIBRT=1
+		else
+			AC_MSG_NOTICE([link with -lrt (only for glibc versions before 2.17)])
+		    OS_SHOULD_HAVE_LIBRT=0
+		fi
+	elif test "$SW_OS" = "MAC"; then
 		OS_SHOULD_HAVE_LIBRT=0
+	else
+        AS_CASE([$host_os],
+          [openbsd*], [OS_SHOULD_HAVE_LIBRT=0]
+          [OS_SHOULD_HAVE_LIBRT=1]
+        )
 	fi
-	AS_CASE([$host_os],
-	  [openbsd*], [OS_SHOULD_HAVE_LIBRT=0]
-	)
 
 	if test "x$OS_SHOULD_HAVE_LIBRT" = "x1"; then
 		AC_MSG_NOTICE([Librt is required on $host_os.])
@@ -997,7 +1007,6 @@ EOF
         AC_DEFINE(SW_HAVE_COMPRESSION, 1, [have compression])
         AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli encoder])
         PHP_ADD_INCLUDE("${PHP_BROTLI_DIR}/include")
-        PHP_ADD_LIBRARY_WITH_PATH(brotli, "${PHP_BROTLI_DIR}/${PHP_LIBDIR}")
         PHP_ADD_LIBRARY_WITH_PATH(brotlienc, "${PHP_BROTLI_DIR}/${PHP_LIBDIR}")
         PHP_ADD_LIBRARY_WITH_PATH(brotlidec, "${PHP_BROTLI_DIR}/${PHP_LIBDIR}")
     fi

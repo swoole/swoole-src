@@ -836,10 +836,12 @@ class Server {
     EventData *task_result = nullptr;
 
     /**
-     * user process
+     * Used for process management, saving the mapping relationship between PID and worker pointers
      */
-    std::vector<Worker *> user_worker_list;
     std::unordered_map<pid_t, Worker *> user_worker_map;
+    /**
+     * Shared memory, sharing state between processes
+     */
     Worker *user_workers = nullptr;
 
     std::unordered_map<std::string, Command> commands;
@@ -1032,7 +1034,7 @@ class Server {
 
     MessageBus *get_worker_message_bus() {
 #ifdef SW_THREAD
-        return sw_likely(is_thread_mode()) ? &get_thread(swoole_get_thread_id())->message_bus : &message_bus;
+        return sw_likely(is_thread_mode()) ? SwooleTG.message_bus : &message_bus;
 #else
         return &message_bus;
 #endif
@@ -1126,8 +1128,10 @@ class Server {
         return nullptr;
     }
 
+    bool kill_worker(WorkerId worker_id, bool wait_reactor);
     void stop_async_worker(Worker *worker);
     void stop_master_thread();
+    void join_heartbeat_thread();
 
     Pipe *get_pipe_object(int pipe_fd) {
         return (Pipe *) connection_list[pipe_fd].object;
@@ -1165,6 +1169,10 @@ class Server {
         return swoole_get_process_type() == SW_PROCESS_EVENTWORKER;
     }
 
+    bool is_event_worker() {
+        return is_worker();
+    }
+
     bool is_task_worker() {
         return swoole_get_process_type() == SW_PROCESS_TASKWORKER;
     }
@@ -1187,6 +1195,10 @@ class Server {
 
     bool is_reactor_thread() {
         return swoole_get_thread_type() == Server::THREAD_REACTOR;
+    }
+
+    bool is_single_worker() {
+        return (worker_num == 1 && task_worker_num == 0 && max_request == 0 && get_user_worker_num() == 0);
     }
 
     bool isset_hook(enum HookType type) {
@@ -1312,6 +1324,7 @@ class Server {
 
     void call_hook(enum HookType type, void *arg);
     void call_worker_start_callback(Worker *worker);
+    void call_worker_stop_callback(Worker *worker);
     void call_command_handler(MessageBus &mb, uint16_t worker_id, network::Socket *sock);
     std::string call_command_handler_in_master(int command_id, const std::string &msg);
     void call_command_callback(int64_t request_id, const std::string &result);
@@ -1430,6 +1443,7 @@ class Server {
     void worker_stop_callback(Worker *worker);
     void worker_accept_event(DataHead *info);
     void worker_signal_init(void);
+    bool worker_is_running();
     std::function<void(const WorkerFn &fn)> worker_thread_start;
 
     /**
@@ -1450,6 +1464,7 @@ class Server {
     int start_master_thread(Reactor *reactor);
     int start_event_worker(Worker *worker);
     void start_heartbeat_thread();
+    const char *get_startup_error_message();
 
   private:
     enum Mode mode_;
@@ -1469,6 +1484,10 @@ class Server {
      */
     uint16_t reactor_pipe_num = 0;
     ReactorThread *reactor_threads = nullptr;
+    /**
+     * Only used for temporarily saving pointers in add_worker()
+     */
+    std::vector<Worker *> user_worker_list;
 
     int start_check();
     void check_port_type(ListenPort *ls);
@@ -1476,6 +1495,7 @@ class Server {
     int start_reactor_threads();
     int start_reactor_processes();
     int start_worker_threads();
+    void stop_worker_threads();
     void join_reactor_thread();
     TimerCallback get_timeout_callback(ListenPort *port, Reactor *reactor, Connection *conn);
 

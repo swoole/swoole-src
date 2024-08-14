@@ -267,7 +267,7 @@ static int http_request_on_query_string(swoole_http_parser *parser, const char *
 
 static int http_request_on_header_field(swoole_http_parser *parser, const char *at, size_t length) {
     HttpContext *ctx = (HttpContext *) parser->data;
-    ctx->current_header_name = (char *) at;
+    ctx->current_header_name = at;
     ctx->current_header_name_len = length;
     return 0;
 }
@@ -342,7 +342,7 @@ bool swoole_http_token_list_contains_value(const char *at, size_t length, const 
 static int http_request_on_header_value(swoole_http_parser *parser, const char *at, size_t length) {
     HttpContext *ctx = (HttpContext *) parser->data;
     zval *zheader = ctx->request.zheader;
-    char *header_name = ctx->current_header_name;
+    const char *header_name = ctx->current_header_name;
     size_t header_len = ctx->current_header_name_len;
 
     if (ctx->parse_cookie && SW_STRCASEEQ(header_name, header_len, "cookie")) {
@@ -546,7 +546,12 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
             zval *z_multipart_header = sw_malloc_zval();
             array_init(z_multipart_header);
 
-            add_assoc_string(z_multipart_header, "type", (char *) "");
+            if (ctx->tmp_content_type) {
+                add_assoc_stringl(z_multipart_header, "type", ctx->tmp_content_type, ctx->tmp_content_type_len);
+                ctx->tmp_content_type = nullptr;
+            } else {
+                add_assoc_string(z_multipart_header, "type", (char *) "");
+            }
             add_assoc_string(z_multipart_header, "tmp_name", (char *) "");
             add_assoc_long(z_multipart_header, "size", 0);
 
@@ -563,11 +568,16 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
             ctx->current_multipart_header = z_multipart_header;
         }
         zval_ptr_dtor(&tmp_array);
-    } else if (SW_STRCASEEQ(header_name, header_len, "content-type") && ctx->current_multipart_header) {
-        zval *z_multipart_header = ctx->current_multipart_header;
-        zval *zerr = zend_hash_str_find(Z_ARRVAL_P(z_multipart_header), ZEND_STRL("error"));
-        if (zerr && Z_TYPE_P(zerr) == IS_LONG && Z_LVAL_P(zerr) == HTTP_UPLOAD_ERR_OK) {
-            add_assoc_stringl(z_multipart_header, "type", (char *) at, length);
+    } else if (SW_STRCASEEQ(header_name, header_len, "content-type")) {
+        if (ctx->current_multipart_header) {
+            zval *z_multipart_header = ctx->current_multipart_header;
+            zval *zerr = zend_hash_str_find(Z_ARRVAL_P(z_multipart_header), ZEND_STRL("error"));
+            if (zerr && Z_TYPE_P(zerr) == IS_LONG && Z_LVAL_P(zerr) == HTTP_UPLOAD_ERR_OK) {
+                add_assoc_stringl(z_multipart_header, "type", (char *) at, length);
+            }
+        } else {
+            ctx->tmp_content_type = at;
+            ctx->tmp_content_type_len = length;
         }
     } else if (SW_STRCASEEQ(header_name, header_len, SW_HTTP_UPLOAD_FILE)) {
         zval *z_multipart_header = ctx->current_multipart_header;

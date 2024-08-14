@@ -556,7 +556,7 @@ class CharPtr {
         str_ = estrndup(str, len);
     }
 
-    void assign_tolower(char *str, size_t len) {
+    void assign_tolower(const char *str, size_t len) {
         release();
         str_ = zend_str_tolower_dup(str, len);
     }

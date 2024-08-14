@@ -72,12 +72,33 @@ extern PHPAPI int php_array_merge(zend_array *dest, zend_array *src);
         RETURN_FALSE;                                                                                                  \
     }
 
+#ifdef SW_THREAD
+#define SW_MUST_BE_MAIN_THREAD_EX(op)                                                                                  \
+    if (!tsrm_is_main_thread()) {                                                                                      \
+        swoole_set_last_error(SW_ERROR_OPERATION_NOT_SUPPORT);                                                         \
+        op;                                                                                                            \
+    }
+#define SW_MUST_BE_MAIN_THREAD() SW_MUST_BE_MAIN_THREAD_EX(RETURN_TRUE)
+#else
+#define SW_MUST_BE_MAIN_THREAD_EX(op)
+#define SW_MUST_BE_MAIN_THREAD()
+#endif
+
 #define php_swoole_fatal_error(level, fmt_str, ...)                                                                    \
     swoole_set_last_error(SW_ERROR_PHP_FATAL_ERROR);                                                                   \
     php_error_docref(NULL, level, (const char *) (fmt_str), ##__VA_ARGS__)
 
+/**
+ * The error occurred at the PHP layer and no error code was set
+ */
 #define php_swoole_error(level, fmt_str, ...)                                                                          \
     swoole_set_last_error(SW_ERROR_PHP_RUNTIME_NOTICE);                                                                \
+    if (SWOOLE_G(display_errors) || level == E_ERROR) php_error_docref(NULL, level, fmt_str, ##__VA_ARGS__)
+
+/**
+ * The error occurred in the core must have error code
+ */
+#define php_swoole_core_error(level, fmt_str, ...)                                                                     \
     if (SWOOLE_G(display_errors) || level == E_ERROR) php_error_docref(NULL, level, fmt_str, ##__VA_ARGS__)
 
 #define php_swoole_error_ex(level, err_code, fmt_str, ...)                                                             \
@@ -975,11 +996,11 @@ static sw_inline char *php_swoole_url_encode(const char *value, size_t value_len
 
 static sw_inline char *php_swoole_http_build_query(zval *zdata, size_t *length, smart_str *formstr) {
     if (HASH_OF(zdata)) {
-        #if PHP_VERSION_ID < 80300
-            php_url_encode_hash_ex(HASH_OF(zdata), formstr, NULL, 0, NULL, 0, NULL, 0, NULL, NULL, (int) PHP_QUERY_RFC1738);
-        #else
-            php_url_encode_hash_ex(HASH_OF(zdata), formstr, NULL, 0, NULL, NULL, NULL, (int) PHP_QUERY_RFC1738);
-        #endif
+#if PHP_VERSION_ID < 80300
+        php_url_encode_hash_ex(HASH_OF(zdata), formstr, NULL, 0, NULL, 0, NULL, 0, NULL, NULL, (int) PHP_QUERY_RFC1738);
+#else
+        php_url_encode_hash_ex(HASH_OF(zdata), formstr, NULL, 0, NULL, NULL, NULL, (int) PHP_QUERY_RFC1738);
+#endif
     } else {
         if (formstr->s) {
             smart_str_free(formstr);
