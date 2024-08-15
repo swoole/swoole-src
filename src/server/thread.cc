@@ -84,6 +84,7 @@ void ThreadFactory::create_message_bus() {
     if (!mb->alloc_buffer()) {
         throw std::bad_alloc();
     }
+    server_->init_pipe_sockets(mb);
     SwooleTG.message_bus = mb;
 }
 
