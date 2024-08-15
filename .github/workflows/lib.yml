@@ -8,7 +8,7 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    if: "!contains(github.event.head_commit.message, '[test]')"
+    if: "!contains(github.event.head_commit.message, '[test]') || contains(github.event.head_commit.message, '[lib]')"
     services:
       tinyproxy:
         image: "vimagick/tinyproxy"
@@ -39,7 +39,7 @@ jobs:
 
       - name: make test
         run:
-          cd core-tests && ./run.sh
+          cd core-tests && valgrind ./run.sh
 
       - name: run coverage
         shell: bash

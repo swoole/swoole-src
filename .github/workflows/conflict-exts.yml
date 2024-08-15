@@ -4,7 +4,7 @@ on: [push, pull_request]
 
 jobs:
   tests:
-    if: "github.repository_owner == 'swoole' && !contains(github.event.head_commit.message, '[test]')"
+    if: "!contains(github.event.head_commit.message, '[test]') || contains(github.event.head_commit.message, '[conflict]')"
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

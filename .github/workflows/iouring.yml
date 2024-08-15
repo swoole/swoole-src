@@ -4,8 +4,8 @@ on: [push, pull_request]
 
 jobs:
   test-linux:
+    if: "!contains(github.event.head_commit.message, '[test]') || contains(github.event.head_commit.message, '[iouring]')"
     runs-on: ubuntu-latest
-    if: "!contains(github.event.head_commit.message, '[test]')"
     strategy:
       fail-fast: false
       matrix:
