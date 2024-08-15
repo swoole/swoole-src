@@ -761,7 +761,9 @@ int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
     }
 
     if (serv->pipe_command) {
-        pipe_command = message_bus.get_pipe_socket(serv->pipe_command->get_socket(false));
+        auto pipe_socket = serv->pipe_command->get_socket(false);
+        message_bus.init_pipe_socket(pipe_socket);
+        pipe_command = message_bus.get_pipe_socket(pipe_socket);
         pipe_command->buffer_size = UINT_MAX;
     }
 

@@ -1079,7 +1079,7 @@ TEST(server, reopen_log) {
             return;
         }
         EXPECT_TRUE(access(filename.c_str(), R_OK) != -1);
-        remove(filename.c_str());
+        unlink(filename.c_str());
         EXPECT_TRUE(access(filename.c_str(), R_OK) == -1);
         kill(serv->gs->master_pid, SIGRTMIN);
         sleep(2);

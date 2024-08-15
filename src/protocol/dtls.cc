@@ -103,6 +103,12 @@ long BIO_ctrl(BIO *b, int cmd, long lval, void *ptrval) {
     case BIO_CTRL_DGRAM_SET_NEXT_TIMEOUT:
         retval = 0;
         break;
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+    case BIO_CTRL_GET_KTLS_SEND:
+    case BIO_CTRL_GET_KTLS_RECV:
+        retval = 0;
+        break;
+#endif
     default:
         swoole_warning("unknown cmd: %d", cmd);
         retval = 0;
