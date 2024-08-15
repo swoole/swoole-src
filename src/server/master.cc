@@ -29,8 +29,6 @@ swoole::Server *g_server_instance = nullptr;
 
 namespace swoole {
 
-static void Server_signal_handler(int sig);
-
 TimerCallback Server::get_timeout_callback(ListenPort *port, Reactor *reactor, Connection *conn) {
     return [this, port, conn, reactor](Timer *, TimerNode *) {
         if (conn->protect) {
@@ -1613,18 +1611,18 @@ void Server::init_signal_handler() {
     swoole_signal_set(SIGPIPE, nullptr);
     swoole_signal_set(SIGHUP, nullptr);
     if (is_process_mode()) {
-        swoole_signal_set(SIGCHLD, Server_signal_handler);
+        swoole_signal_set(SIGCHLD, master_signal_handler);
     } else {
-        swoole_signal_set(SIGIO, Server_signal_handler);
+        swoole_signal_set(SIGIO, master_signal_handler);
     }
-    swoole_signal_set(SIGUSR1, Server_signal_handler);
-    swoole_signal_set(SIGUSR2, Server_signal_handler);
-    swoole_signal_set(SIGTERM, Server_signal_handler);
+    swoole_signal_set(SIGUSR1, master_signal_handler);
+    swoole_signal_set(SIGUSR2, master_signal_handler);
+    swoole_signal_set(SIGTERM, master_signal_handler);
 #ifdef SIGRTMIN
-    swoole_signal_set(SIGRTMIN, Server_signal_handler);
+    swoole_signal_set(SIGRTMIN, master_signal_handler);
 #endif
     // for test
-    swoole_signal_set(SIGVTALRM, Server_signal_handler);
+    swoole_signal_set(SIGVTALRM, master_signal_handler);
 
     if (SwooleG.signal_fd > 0) {
         set_minfd(SwooleG.signal_fd);
@@ -1841,7 +1839,7 @@ ListenPort *Server::add_port(SocketType type, const char *host, int port) {
     return ls;
 }
 
-static void Server_signal_handler(int sig) {
+void Server::master_signal_handler(int signo) {
     swoole_trace_log(SW_TRACE_SERVER, "signal[%d] %s triggered in %d", sig, swoole_signal_to_str(sig), getpid());
 
     Server *serv = sw_server();
@@ -1849,7 +1847,7 @@ static void Server_signal_handler(int sig) {
         return;
     }
 
-    switch (sig) {
+    switch (signo) {
     case SIGTERM:
         serv->signal_handler_shutdown();
         break;
@@ -1861,14 +1859,14 @@ static void Server_signal_handler(int sig) {
         break;
     case SIGUSR1:
     case SIGUSR2:
-        serv->signal_handler_reload(sig == SIGUSR1);
+        serv->signal_handler_reload(signo == SIGUSR1);
         break;
     case SIGIO:
         serv->signal_handler_read_message();
         break;
     default:
 #ifdef SIGRTMIN
-        if (sig == SIGRTMIN) {
+        if (signo == SIGRTMIN) {
             serv->signal_handler_reopen_logger();
         }
 #endif
