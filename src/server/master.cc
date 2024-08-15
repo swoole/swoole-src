@@ -1841,7 +1841,7 @@ ListenPort *Server::add_port(SocketType type, const char *host, int port) {
 }
 
 void Server::master_signal_handler(int signo) {
-    swoole_trace_log(SW_TRACE_SERVER, "signal[%d] %s triggered in %d", sig, swoole_signal_to_str(sig), getpid());
+    swoole_trace_log(SW_TRACE_SERVER, "signal[%d] %s triggered in %d", signo, swoole_signal_to_str(signo), getpid());
 
     Server *serv = sw_server();
     if (!SwooleG.running || !serv || !serv->is_running()) {
