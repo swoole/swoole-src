@@ -75,6 +75,23 @@ void ThreadFactory::at_thread_exit(Worker *worker) {
     cv_.notify_one();
 }
 
+void ThreadFactory::create_message_bus() {
+    auto mb = new MessageBus();
+    mb->set_id_generator([server_]() { return sw_atomic_fetch_add(&server_->gs->pipe_packet_msg_id, 1); });
+    mb->set_buffer_size(server_->ipc_max_size);
+    mb->set_always_chunked_transfer();
+    if (!mb->alloc_buffer()) {
+        throw std::bad_alloc();
+    }
+    SwooleTG.message_bus = mb;
+}
+
+void ThreadFactory::destroy_message_bus() {
+    SwooleTG.message_bus->clear();
+    delete SwooleTG.message_bus;
+    SwooleTG.message_bus = nullptr;
+}
+
 template <typename _Callable>
 void ThreadFactory::create_thread(int i, _Callable fn) {
     if (threads_[i].joinable()) {
@@ -103,6 +120,7 @@ void ThreadFactory::spawn_task_worker(WorkerId i) {
         swoole_set_thread_type(Server::THREAD_WORKER);
         swoole_set_process_id(i);
         swoole_set_thread_id(i);
+        create_message_bus();
         Worker *worker = server_->get_worker(i);
         worker->type = SW_PROCESS_TASKWORKER;
         worker->status = SW_WORKER_IDLE;
@@ -117,6 +135,7 @@ void ThreadFactory::spawn_task_worker(WorkerId i) {
                 pool->onWorkerStop(pool, worker);
             }
         });
+        destroy_message_bus();
         at_thread_exit(worker);
     });
 }
@@ -128,9 +147,11 @@ void ThreadFactory::spawn_user_worker(WorkerId i) {
         swoole_set_thread_type(Server::THREAD_WORKER);
         swoole_set_process_id(i);
         swoole_set_thread_id(i);
+        create_message_bus();
         worker->type = SW_PROCESS_USERWORKER;
         SwooleWG.worker = worker;
         server_->worker_thread_start([=]() { server_->onUserWorkerStart(server_, worker); });
+        destroy_message_bus();
         at_thread_exit(worker);
     });
 }

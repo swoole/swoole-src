@@ -502,10 +502,10 @@ static PHP_METHOD(swoole_process_pool, start) {
 
     if (pp->onWorkerStart == nullptr && pp->onMessage == nullptr) {
         if (pool->async) {
-            php_swoole_fatal_error(E_ERROR, "require onWorkerStart callback");
+            php_swoole_fatal_error(E_ERROR, "require 'onWorkerStart' callback");
             RETURN_FALSE;
         } else if (pool->ipc_mode != SW_IPC_NONE && pp->onMessage == nullptr) {
-            php_swoole_fatal_error(E_ERROR, "require onMessage callback");
+            php_swoole_fatal_error(E_ERROR, "require 'onMessage' callback");
             RETURN_FALSE;
         }
     }

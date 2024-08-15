@@ -152,7 +152,6 @@ struct ReactorThread {
     int id;
     std::thread thread;
     network::Socket *notify_pipe = nullptr;
-    uint32_t pipe_num = 0;
     uint64_t dispatch_count = 0;
     network::Socket *pipe_command = nullptr;
     MessageBus message_bus;
@@ -458,6 +457,8 @@ class ThreadFactory : public BaseFactory {
     template <typename _Callable>
     void create_thread(int i, _Callable fn);
     void at_thread_exit(Worker *worker);
+    void create_message_bus();
+    void destroy_message_bus();
   public:
     ThreadFactory(Server *server);
     ~ThreadFactory();
@@ -533,6 +534,7 @@ class Server {
     };
 
     enum ThreadType {
+        THREAD_NORMAL = 0,
         THREAD_MASTER = 1,
         THREAD_REACTOR = 2,
         THREAD_HEARTBEAT = 3,
@@ -810,6 +812,14 @@ class Server {
 
     network::Socket *get_command_reply_socket() {
         return is_base_mode() ? get_worker(0)->pipe_master : pipe_command->get_socket(false);
+    }
+
+    int get_worker_pipe_master_fd(WorkerId id) {
+        return get_worker(id)->pipe_master->get_fd();
+    }
+
+    int get_worker_pipe_worker_fd(WorkerId id) {
+        return get_worker(id)->pipe_worker->get_fd();
     }
 
     /**
@@ -1140,11 +1150,15 @@ class Server {
     }
 
     size_t get_all_worker_num() {
-        return worker_num + task_worker_num + get_user_worker_num();
+        return get_core_worker_num() + get_user_worker_num();
     }
 
     size_t get_user_worker_num() {
         return user_worker_list.size();
+    }
+
+    size_t get_core_worker_num() {
+        return worker_num + task_worker_num;
     }
 
     ReactorThread *get_thread(int reactor_id) {

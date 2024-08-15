@@ -292,7 +292,7 @@ network::Socket *MessageBus::get_pipe_socket(int pipe_fd) {
         auto _socket = make_socket(pipe_fd, SW_FD_PIPE);
         _socket->buffer_size = UINT_MAX;
         _socket->set_nonblock();
-        pipe_sockets_.reserve(pipe_fd + 1);
+        pipe_sockets_.resize(pipe_fd + 1);
         pipe_sockets_[pipe_fd] = _socket;
         return _socket;
     } else {

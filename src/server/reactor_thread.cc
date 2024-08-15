@@ -316,7 +316,16 @@ void ReactorThread::shutdown(Reactor *reactor) {
     }
 
     if (serv->is_thread_mode()) {
-        reactor->del(serv->get_worker(reactor->id)->pipe_worker);
+        Socket *socket = message_bus.get_pipe_socket(serv->get_worker_pipe_worker_fd(reactor->id));
+        reactor->del(socket);
+    }
+
+    SW_LOOP_N(serv->worker_num) {
+        if (i % serv->reactor_num != reactor->id) {
+            continue;
+        }
+        Socket *socket = message_bus.get_pipe_socket(serv->get_worker_pipe_master_fd(i));
+        reactor->del(socket);
     }
 
     serv->foreach_connection([serv, reactor](Connection *conn) {
@@ -327,6 +336,10 @@ void ReactorThread::shutdown(Reactor *reactor) {
             reactor->remove_read_event(conn->socket);
         }
     });
+
+    if (serv->is_thread_mode()) {
+        serv->stop_async_worker(serv->get_worker(reactor->id));
+    }
 
     reactor->set_wait_exit(true);
 }
@@ -389,11 +402,7 @@ static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev) {
             auto packet = thread->message_bus.get_packet();
             serv->call_command_callback(resp->info.fd, std::string(packet.data, packet.length));
         } else if (resp->info.type == SW_SERVER_EVENT_SHUTDOWN) {
-            if (serv->is_thread_mode()) {
-                serv->stop_async_worker(serv->get_worker(reactor->id));
-            } else {
-                thread->shutdown(reactor);
-            }
+            thread->shutdown(reactor);
         } else if (resp->info.type == SW_SERVER_EVENT_FINISH) {
             serv->onFinish(serv, (EventData *) resp);
         } else if (resp->info.type == SW_SERVER_EVENT_PIPE_MESSAGE) {
@@ -710,11 +719,6 @@ int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
     reactor->wait_exit = 0;
     reactor->max_socket = serv->get_max_connection();
     reactor->close = Server::close_connection;
-
-    reactor->set_exit_condition(Reactor::EXIT_CONDITION_DEFAULT, [this](Reactor *reactor, size_t &event_num) -> bool {
-        return event_num == (size_t) pipe_num;
-    });
-
     reactor->default_error_handler = ReactorThread_onClose;
 
     reactor->set_handler(SW_FD_PIPE | SW_EVENT_READ, ReactorThread_onPipeRead);
@@ -770,7 +774,7 @@ int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
         if (i % serv->reactor_num != reactor_id) {
             continue;
         }
-        Socket *socket = message_bus.get_pipe_socket(serv->workers[i].pipe_master->get_fd());
+        Socket *socket = message_bus.get_pipe_socket(serv->get_worker_pipe_master_fd(i));
         if (reactor->add(socket, SW_EVENT_READ) < 0) {
             return SW_ERR;
         }
@@ -781,14 +785,12 @@ int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
         if (notify_pipe == nullptr) {
             notify_pipe = serv->workers[i].pipe_worker;
         }
-        pipe_num++;
     }
 
     return SW_OK;
 }
 
 void ReactorThread::clean() {
-    pipe_num = 0;
     message_bus.free_buffer();
 }
 
