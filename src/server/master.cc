@@ -949,6 +949,9 @@ void Server::stop_master_thread() {
     if (is_thread_mode()) {
         stop_worker_threads();
     }
+    if (is_process_mode() && single_thread) {
+        get_thread(0)->shutdown(reactor);
+    }
 }
 
 bool Server::signal_handler_shutdown() {

@@ -71,16 +71,16 @@ static void php_swoole_process_free_object(zend_object *object) {
     Worker *worker = process->worker;
 
     if (worker) {
-        zend::Process *proc = (zend::Process *) worker->ptr2;
-        if (proc) {
-            delete proc;
-        }
         UnixSocket *_pipe = worker->pipe_object;
         if (_pipe && !worker->shared) {
             delete _pipe;
         }
         if (worker->queue) {
             delete worker->queue;
+        }
+        zend::Process *proc = (zend::Process *) worker->ptr2;
+        if (proc) {
+            delete proc;
         }
         delete worker;
     }
