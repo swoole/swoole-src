@@ -29,6 +29,7 @@ Factory *Server::create_thread_factory() {
     }
     reactor_threads = new ReactorThread[reactor_num]();
     reactor_pipe_num = 1;
+    worker_thread_start = [](const WorkerFn &fn) { fn(); };
     return new ThreadFactory(this);
 }
 

@@ -289,7 +289,7 @@ size_t MessageBus::get_memory_size() {
 
 void MessageBus::init_pipe_socket(network::Socket *sock) {
     int pipe_fd = sock->get_fd();
-    if (pipe_fd >= pipe_sockets_.size()) {
+    if ((size_t) pipe_fd >= pipe_sockets_.size()) {
         pipe_sockets_.resize(pipe_fd + 1);
     }
     auto _socket = make_socket(pipe_fd, SW_FD_PIPE);
