@@ -195,6 +195,9 @@ class MessageBus {
      * It is possible to operate the same pipe in multiple threads.
      * Each thread must have a unique buffer and the socket memory must be separated.
      */
-    network::Socket *get_pipe_socket(int pipe_fd);
+    network::Socket *get_pipe_socket(network::Socket *sock) {
+        return pipe_sockets_[sock->get_fd()];
+    }
+    void init_pipe_socket(network::Socket *sock);
 };
 }  // namespace swoole

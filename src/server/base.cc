@@ -224,10 +224,16 @@ bool BaseFactory::finish(SendData *data) {
 
 bool BaseFactory::forward_message(Session *session, SendData *data) {
     Worker *worker = server_->gs->event_workers.get_worker(session->reactor_id);
-    int pipe_fd = worker->pipe_master->get_fd();
-    swoole_trace_log(SW_TRACE_SERVER, "forward message, fd=%d, len=%ld", pipe_fd, data->info.len);
-    auto message_bus = server_->get_worker_message_bus();
-    if (!message_bus->write(message_bus->get_pipe_socket(pipe_fd), data)) {
+    swoole_trace_log(SW_TRACE_SERVER,
+                     "fd=%d, worker_id=%d, type=%d, len=%ld",
+                     worker->pipe_master->get_fd(),
+                     session->reactor_id,
+                     data->info.type,
+                     data->info.len);
+
+    auto mb = server_->get_worker_message_bus();
+    auto sock = server_->is_thread_mode() ? mb->get_pipe_socket(worker->pipe_master) : worker->pipe_master;
+    if (!mb->write(sock, data)) {
         swoole_sys_warning("failed to send %u bytes to pipe_master", data->info.len);
         return false;
     }

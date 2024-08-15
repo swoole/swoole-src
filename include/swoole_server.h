@@ -803,23 +803,16 @@ class Server {
         return connection_list[fd].socket;
     }
 
-    /**
-     * [ReactorThread]
-     */
-    network::Socket *get_worker_pipe_socket(Worker *worker) {
-        return get_thread(SwooleTG.id)->message_bus.get_pipe_socket(worker->pipe_master->get_fd());
-    }
-
     network::Socket *get_command_reply_socket() {
         return is_base_mode() ? get_worker(0)->pipe_master : pipe_command->get_socket(false);
     }
 
-    int get_worker_pipe_master_fd(WorkerId id) {
-        return get_worker(id)->pipe_master->get_fd();
+    network::Socket *get_worker_pipe_master(WorkerId id) {
+        return get_worker(id)->pipe_master;
     }
 
-    int get_worker_pipe_worker_fd(WorkerId id) {
-        return get_worker(id)->pipe_worker->get_fd();
+    network::Socket *get_worker_pipe_worker(WorkerId id) {
+        return get_worker(id)->pipe_worker;
     }
 
     /**
@@ -1382,6 +1375,7 @@ class Server {
     void init_port_protocol(ListenPort *port);
     void init_signal_handler();
     void init_ipc_max_size();
+    void init_pipe_sockets(MessageBus *mb);
 
     void set_max_connection(uint32_t _max_connection);
 

@@ -287,17 +287,17 @@ size_t MessageBus::get_memory_size() {
     return size;
 }
 
-network::Socket *MessageBus::get_pipe_socket(int pipe_fd) {
-    if ((size_t) pipe_fd >= pipe_sockets_.size()) {
-        auto _socket = make_socket(pipe_fd, SW_FD_PIPE);
-        _socket->buffer_size = UINT_MAX;
-        _socket->set_nonblock();
+void MessageBus::init_pipe_socket(network::Socket *sock) {
+    int pipe_fd = sock->get_fd();
+    if (pipe_fd >= pipe_sockets_.size()) {
         pipe_sockets_.resize(pipe_fd + 1);
-        pipe_sockets_[pipe_fd] = _socket;
-        return _socket;
-    } else {
-        return pipe_sockets_[pipe_fd];
     }
+    auto _socket = make_socket(pipe_fd, SW_FD_PIPE);
+    _socket->buffer_size = UINT_MAX;
+    if (!_socket->nonblock) {
+        _socket->set_nonblock();
+    }
+    pipe_sockets_[pipe_fd] = _socket;
 }
 
 MessageBus::~MessageBus() {

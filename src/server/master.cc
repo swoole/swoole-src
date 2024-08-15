@@ -2027,6 +2027,17 @@ void Server::init_ipc_max_size() {
 #endif
 }
 
+void Server::init_pipe_sockets(MessageBus *mb) {
+    assert(is_started());
+    size_t n = get_core_worker_num();
+
+    SW_LOOP_N(n) {
+        Worker *worker = get_worker(i);
+        mb->init_pipe_socket(worker->pipe_master);
+        mb->init_pipe_socket(worker->pipe_worker);
+    }
+}
+
 /**
  * allocate memory for Server::pipe_buffers
  */
