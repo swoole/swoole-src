@@ -544,10 +544,6 @@ static int ProcessPool_worker_loop_with_task_protocol(ProcessPool *pool, Worker 
         out.mtype = worker->id + 1;
     }
 
-    if (worker->pipe_worker) {
-        worker->pipe_worker->set_block();
-    }
-
     while (pool->running && !SwooleWG.shutdown && task_n > 0) {
         /**
          * fetch task
@@ -575,10 +571,7 @@ static int ProcessPool_worker_loop_with_task_protocol(ProcessPool *pool, Worker 
             }
             pool->stream_info_->last_connection = conn;
         } else {
-            n = worker->pipe_worker->read(&out.buf, sizeof(out.buf));
-            if (n < 0 && errno != EINTR) {
-                swoole_sys_warning("read(%d) failed", worker->pipe_worker->fd);
-            }
+            n = worker->pipe_worker->read_sync(&out.buf, sizeof(out.buf));
         }
 
         /**

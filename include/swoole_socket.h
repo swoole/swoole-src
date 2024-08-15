@@ -492,6 +492,14 @@ struct Socket {
         return ::read(fd, __buf, __len);
     }
 
+    ssize_t read_sync(void *__buf, size_t __len, int timeout_ms = -1) {
+        if (wait_event(timeout_ms, SW_EVENT_READ) == SW_OK) {
+            return read(__buf, __len);
+        } else {
+            return -1;
+        }
+    }
+
     int shutdown(int __how) {
         return ::shutdown(fd, __how);
     }
