@@ -17,7 +17,6 @@ $port = get_constant_port(__FILE__);
 $serv = new Swoole\Http\Server('127.0.0.1', $port, SWOOLE_THREAD);
 
 $proc = new Swoole\Process(function ($process) use ($serv) {
-    var_dump('proc 1');
     [$queue, $atomic] = Thread::getArguments();
     global $port;
     echo $queue->pop(-1);
@@ -29,7 +28,6 @@ $proc = new Swoole\Process(function ($process) use ($serv) {
 $serv->addProcess($proc);
 
 $proc2 = new Swoole\Process(function ($process) use ($serv) {
-    var_dump('proc 2');
     $json = $process->read();
     $data = json_decode($json, true);
     $response = Swoole\Http\Response::create($data['fd']);
@@ -40,7 +38,7 @@ $serv->addProcess($proc2);
 
 $serv->set(array(
     'worker_num' => 1,
-//    'log_level' => SWOOLE_LOG_ERROR,
+    'log_level' => SWOOLE_LOG_ERROR,
     'init_arguments' => function () {
         global $queue, $atomic;
         $queue = new Swoole\Thread\Queue();
@@ -69,4 +67,7 @@ $serv->on('shutdown', function () {
 
 $serv->start();
 ?>
---EXPECTF--
+--EXPECT--
+begin
+done
+shutdown

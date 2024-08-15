@@ -77,8 +77,9 @@ void ThreadFactory::at_thread_exit(Worker *worker) {
 
 void ThreadFactory::create_message_bus() {
     auto mb = new MessageBus();
-    mb->set_id_generator([server_]() { return sw_atomic_fetch_add(&server_->gs->pipe_packet_msg_id, 1); });
-    mb->set_buffer_size(server_->ipc_max_size);
+    auto server = server_;
+    mb->set_id_generator([server]() { return sw_atomic_fetch_add(&server->gs->pipe_packet_msg_id, 1); });
+    mb->set_buffer_size(server->ipc_max_size);
     mb->set_always_chunked_transfer();
     if (!mb->alloc_buffer()) {
         throw std::bad_alloc();
