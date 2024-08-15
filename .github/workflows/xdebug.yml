@@ -1,10 +1,10 @@
-name: conflict-exts
+name: Xdebug Support Tests
 
 on: [push, pull_request]
 
 jobs:
   tests:
-    if: "!contains(github.event.head_commit.message, '[test]') || contains(github.event.head_commit.message, '[conflict]')"
+    if: "!contains(github.event.head_commit.message, '[workflow-filter]') || contains(github.event.head_commit.message, '[xdebug]')"
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

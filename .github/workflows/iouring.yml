@@ -1,10 +1,10 @@
-name: Async IO With IOUring
+name: Linux io_uring Tests
 
 on: [push, pull_request]
 
 jobs:
   test-linux:
-    if: "!contains(github.event.head_commit.message, '[test]') || contains(github.event.head_commit.message, '[iouring]')"
+    if: "!contains(github.event.head_commit.message, '[workflow-filter]') || contains(github.event.head_commit.message, '[iouring]')"
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

@@ -1,4 +1,4 @@
-name: lib-swoole
+name: Core Tests
 
 on: [ push, pull_request ]
 
@@ -8,7 +8,7 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    if: "!contains(github.event.head_commit.message, '[test]') || contains(github.event.head_commit.message, '[lib]')"
+    if: "!contains(github.event.head_commit.message, '[workflow-filter]') || contains(github.event.head_commit.message, '[core]')"
     services:
       tinyproxy:
         image: "vimagick/tinyproxy"
@@ -36,6 +36,9 @@ jobs:
         run: cmake . -DCODE_COVERAGE=ON &&
           make VERBOSE=1 -j &&
           sudo make install
+
+      - name: install valgrind
+        run: sudo apt install -y valgrind
 
       - name: make test
         run:

@@ -1,11 +1,11 @@
-name: test-linux
+name: Unit Tests
 
 on: [push, pull_request]
 
 jobs:
   test-linux:
     runs-on: ubuntu-latest
-    if: "!contains(github.event.head_commit.message, '[test]') || contains(github.event.head_commit.message, '[test]')"
+    if: "!contains(github.event.head_commit.message, '[workflow-filter]') || contains(github.event.head_commit.message, '[unit]')"
     strategy:
       fail-fast: false
       matrix:
