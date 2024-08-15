@@ -519,8 +519,11 @@ function pstree()
     }
     $y = function ($pid, $path = []) use (&$y, $pinfo) {
         if (isset($pinfo[$pid])) {
-            list($ppid,) = $pinfo[$pid];
-            $ppid = $ppid;
+            if (isset($pinfo[$pid][0])) {
+                list($ppid,) = $pinfo[$pid];
+            } else {
+                $ppid = null;
+            }
             $path[] = $pid;
             return $y($ppid, $path);
         } else {
