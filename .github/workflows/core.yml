@@ -33,7 +33,7 @@ jobs:
         run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-openssl
 
       - name: make
-        run: cmake . -DCODE_COVERAGE=ON &&
+        run: cmake . -DCODE_COVERAGE=ON -DSW_THREAD &&
           make VERBOSE=1 -j &&
           sudo make install
 
