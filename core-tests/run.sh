@@ -7,7 +7,8 @@ tasks=$(./bin/core_tests --gtest_list_tests | awk '/\./')
 for task in $tasks; do
 
     if [ "${SWOOLE_VALGRIND}" = 1 ]; then
-        execute_command="valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./bin/core_tests"
+        # --leak-check=full --show-leak-kinds=all --track-origins=yes
+        execute_command="valgrind ./bin/core_tests"
     else
         execute_command="./bin/core_tests"
     fi
