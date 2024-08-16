@@ -39,7 +39,7 @@ jobs:
 
       - name: make test with valgrind
         if: "contains(github.event.head_commit.message, '--valgrind')"
-        run:
+        run: |
           sudo apt install -y valgrind
           cd core-tests && SWOOLE_VALGRIND=1 ./run.sh
 
