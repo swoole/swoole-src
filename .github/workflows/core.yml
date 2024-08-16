@@ -8,7 +8,7 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    if: "!contains(github.event.head_commit.message, '[workflow-filter]') || contains(github.event.head_commit.message, '[core]')"
+    if: "!contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[core]')"
     services:
       tinyproxy:
         image: "vimagick/tinyproxy"
@@ -37,12 +37,15 @@ jobs:
           make VERBOSE=1 -j &&
           sudo make install
 
-      - name: install valgrind
-        run: sudo apt install -y valgrind
+      - name: make test with valgrind
+        if: "contains(github.event.head_commit.message, '--valgrind')"
+        run:
+          sudo apt install -y valgrind
+          cd core-tests && SWOOLE_VALGRIND=1 ./run.sh
 
       - name: make test
         run:
-          cd core-tests && valgrind ./run.sh
+          cd core-tests && ./run.sh
 
       - name: run coverage
         shell: bash

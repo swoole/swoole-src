@@ -5,7 +5,7 @@ on: [push, pull_request]
 jobs:
   test-linux:
     runs-on: ubuntu-latest
-    if: "!contains(github.event.head_commit.message, '[workflow-filter]') || contains(github.event.head_commit.message, '[unit]')"
+    if: "!contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[unit]')"
     strategy:
       fail-fast: false
       matrix:
@@ -32,7 +32,7 @@ jobs:
     - name: Run pecl-install.sh
       run: |
         sudo ${{runner.workspace}}/swoole-src/scripts/pecl-install.sh
-    - name: Run Swoole test
+    - name: Run unit tests
       run: |
         export SWOOLE_BRANCH=${GITHUB_REF##*/}
         export SWOOLE_BUILD_DIR=$(realpath .)
