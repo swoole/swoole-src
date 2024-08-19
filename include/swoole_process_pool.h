@@ -117,6 +117,7 @@ struct Worker {
     WorkerId id;
     ProcessPool *pool;
     MsgQueue *queue;
+    bool shared;
 
     bool redirect_stdout;
     bool redirect_stdin;

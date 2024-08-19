@@ -33,7 +33,8 @@ using namespace swoole;
 zend_class_entry *swoole_process_ce;
 static zend_object_handlers swoole_process_handlers;
 
-static uint32_t php_swoole_worker_round_id = 0;
+static uint32_t round_process_id = 0;
+static thread_local uint32_t server_user_worker_id = 0;
 static zend_fcall_info_cache *signal_fci_caches[SW_SIGNO_MAX] = {};
 
 struct ProcessObject {
@@ -43,6 +44,10 @@ struct ProcessObject {
 
 static sw_inline ProcessObject *php_swoole_process_fetch_object(zend_object *obj) {
     return (ProcessObject *) ((char *) obj - swoole_process_handlers.offset);
+}
+
+static sw_inline ProcessObject *php_swoole_process_fetch_object(zval *zobj) {
+    return php_swoole_process_fetch_object(Z_OBJ_P(zobj));
 }
 
 Worker *php_swoole_process_get_worker(zval *zobject) {
@@ -67,19 +72,17 @@ static void php_swoole_process_free_object(zend_object *object) {
 
     if (worker) {
         UnixSocket *_pipe = worker->pipe_object;
-        if (_pipe) {
+        if (_pipe && !worker->shared) {
             delete _pipe;
         }
-
         if (worker->queue) {
             delete worker->queue;
         }
-
         zend::Process *proc = (zend::Process *) worker->ptr2;
         if (proc) {
             delete proc;
         }
-        efree(worker);
+        delete worker;
     }
 
     zend_object_std_dtor(object);
@@ -237,9 +240,10 @@ void php_swoole_process_minit(int module_number) {
 }
 
 static PHP_METHOD(swoole_process, __construct) {
-    Worker *process = php_swoole_process_get_worker(ZEND_THIS);
+    auto po = php_swoole_process_fetch_object(ZEND_THIS);
+    Server *server = sw_server();
 
-    if (process) {
+    if (po->worker) {
         zend_throw_error(NULL, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
         RETURN_FALSE;
     }
@@ -250,7 +254,7 @@ static PHP_METHOD(swoole_process, __construct) {
         RETURN_FALSE;
     }
 
-    if (sw_server() && sw_server()->is_started() && sw_server()->is_master()) {
+    if (server && server->is_started() && server->is_master()) {
         zend_throw_error(NULL, "%s can't be used in master process", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
         RETURN_FALSE;
     }
@@ -265,6 +269,9 @@ static PHP_METHOD(swoole_process, __construct) {
     zend_long pipe_type = zend::PIPE_TYPE_DGRAM;
     zend_bool enable_coroutine = false;
 
+    po->worker = new Worker();
+    Worker *process = po->worker;
+
     ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 4)
     Z_PARAM_FUNC(func.fci, func.fci_cache);
     Z_PARAM_OPTIONAL
@@ -273,45 +280,60 @@ static PHP_METHOD(swoole_process, __construct) {
     Z_PARAM_BOOL(enable_coroutine)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    process = (Worker *) ecalloc(1, sizeof(Worker));
-
-    uint32_t base = 1;
-    if (sw_server() && sw_server()->is_started()) {
-        base = sw_server()->worker_num + sw_server()->task_worker_num + sw_server()->get_user_worker_num();
-    }
-    if (php_swoole_worker_round_id == 0) {
-        php_swoole_worker_round_id = base;
-    }
-    process->id = php_swoole_worker_round_id++;
-
-    if (redirect_stdin_and_stdout) {
-        process->redirect_stdin = true;
-        process->redirect_stdout = true;
-        process->redirect_stderr = true;
-        /**
-         * Forced to use stream pipe
-         */
-        pipe_type = zend::PIPE_TYPE_STREAM;
-    }
-
-    if (pipe_type > 0) {
-        int socket_type = pipe_type == zend::PIPE_TYPE_STREAM ? SOCK_STREAM : SOCK_DGRAM;
-        UnixSocket *_pipe = new UnixSocket(true, socket_type);
-        if (!_pipe->ready()) {
-            zend_throw_exception(swoole_exception_ce, "failed to create unix soccket", errno);
-            delete _pipe;
-            efree(process);
-            RETURN_FALSE;
+    if (server && server->is_worker_thread()) {
+        Worker *shared_worker;
+        if (server->is_user_worker()) {
+            shared_worker = server->get_worker(swoole_get_process_id());
+        } else {
+            shared_worker = server->get_worker((server_user_worker_id++) + server->get_core_worker_num());
+        }
+        *process = *shared_worker;
+        process->shared = true;
+        if (server->is_user_worker()) {
+            process->pipe_current = process->pipe_worker;
+        } else {
+            process->pipe_current = process->pipe_master;
+        }
+    } else {
+        if (redirect_stdin_and_stdout) {
+            process->redirect_stdin = true;
+            process->redirect_stdout = true;
+            process->redirect_stderr = true;
+            /**
+             * Forced to use stream pipe
+             */
+            pipe_type = zend::PIPE_TYPE_STREAM;
         }
 
-        process->pipe_master = _pipe->get_socket(true);
-        process->pipe_worker = _pipe->get_socket(false);
+        uint32_t base = 1;
+        if (server && server->is_started()) {
+            base = server->get_all_worker_num();
+        }
+        if (round_process_id == 0) {
+            round_process_id = base;
+        }
+        process->id = round_process_id++;
+        process->shared = false;
 
-        process->pipe_object = _pipe;
-        process->pipe_current = process->pipe_master;
+        if (pipe_type > 0) {
+            int socket_type = pipe_type == zend::PIPE_TYPE_STREAM ? SOCK_STREAM : SOCK_DGRAM;
+            UnixSocket *_pipe = new UnixSocket(true, socket_type);
+            if (!_pipe->ready()) {
+                zend_throw_exception(swoole_exception_ce, "failed to create unix soccket", errno);
+                delete _pipe;
+                efree(process);
+                RETURN_FALSE;
+            }
 
-        zend_update_property_long(
-            swoole_process_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("pipe"), process->pipe_master->fd);
+            process->pipe_master = _pipe->get_socket(true);
+            process->pipe_worker = _pipe->get_socket(false);
+
+            process->pipe_object = _pipe;
+            process->pipe_current = process->pipe_master;
+
+            zend_update_property_long(
+                swoole_process_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("pipe"), process->pipe_master->fd);
+        }
     }
 
     zend::Process *proc = new zend::Process((enum zend::PipeType) pipe_type, enable_coroutine);

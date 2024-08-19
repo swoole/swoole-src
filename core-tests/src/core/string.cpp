@@ -262,10 +262,10 @@ TEST(string, ends_with) {
 
 TEST(string, append_number) {
     string data = "hello";
-    auto str = swoole::make_string(data.length());
+    auto str = swoole::make_string(data.length() + 32);
     str->append(data.c_str(), data.length());
     str->append(123);
-    str->str[str->length] = '\0';
+    str->set_null_terminated();
     EXPECT_STREQ(str->str, data.append("123").c_str());
 
     str->print(true);

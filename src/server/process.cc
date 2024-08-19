@@ -117,15 +117,8 @@ pid_t Factory::spawn_event_worker(Worker *worker) {
     }
 
     // see https://github.com/swoole/swoole-src/issues/5407
-    if (worker->concurrency > 0 && server_->worker_num > 1) {
-        sw_atomic_sub_fetch(&server_->gs->concurrency, worker->concurrency);
-        worker->concurrency = 0;
-    }
-
     // see https://github.com/swoole/swoole-src/issues/5432
-    worker->request_count = 0;
-    worker->response_count = 0;
-    worker->dispatch_count = 0;
+    server_->reset_worker_counter(worker);
 
     if (server_->is_base_mode()) {
         server_->gs->connection_nums[worker->id] = 0;
@@ -286,10 +279,18 @@ bool ProcessFactory::dispatch(SendData *task) {
 
     SendData _task;
     memcpy(&_task, task, sizeof(SendData));
+    network::Socket *sock;
+    MessageBus *mb;
 
-    network::Socket *pipe_socket =
-        server_->is_reactor_thread() ? server_->get_worker_pipe_socket(worker) : worker->pipe_master;
-    return server_->message_bus.write(pipe_socket, &_task);
+    if (server_->is_reactor_thread()) {
+        mb = &server_->get_thread(swoole_get_thread_id())->message_bus;
+        sock = mb->get_pipe_socket(worker->pipe_master);
+    } else {
+        mb = &server_->message_bus;
+        sock = worker->pipe_master;
+    }
+
+    return mb->write(sock, &_task);
 }
 
 static bool inline process_is_supported_send_yield(Server *serv, Connection *conn) {

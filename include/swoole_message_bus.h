@@ -62,6 +62,7 @@ class MessageBus {
   private:
     const Allocator *allocator_;
     std::unordered_map<uint64_t, std::shared_ptr<String>> packet_pool_;
+    std::vector<network::Socket *> pipe_sockets_;
     std::function<uint64_t(void)> id_generator_;
     size_t buffer_size_;
     PipeBuffer *buffer_ = nullptr;
@@ -76,9 +77,7 @@ class MessageBus {
         buffer_size_ = SW_BUFFER_SIZE_STD;
     }
 
-    ~MessageBus() {
-
-    }
+    ~MessageBus();
 
     bool empty() {
         return packet_pool_.empty();
@@ -131,6 +130,7 @@ class MessageBus {
      */
     void free_buffer() {
         allocator_->free(buffer_);
+        buffer_ = nullptr;
     }
 
     void pass(SendData *task) {
@@ -146,6 +146,7 @@ class MessageBus {
     /**
      * Send data to socket. If the data sent is larger than Server::ipc_max_size, then it is sent in chunks.
      * Otherwise send it directly.
+     * When sending data in multi-thread environment, must use get_pipe_socket() to separate socket memory.
      * @return: send success returns true, send failure returns false.
      */
     bool write(network::Socket *sock, SendData *packet);
@@ -190,5 +191,13 @@ class MessageBus {
             packet_pool_.erase(buffer_->info.msg_id);
         }
     }
+    /**
+     * It is possible to operate the same pipe in multiple threads.
+     * Each thread must have a unique buffer and the socket memory must be separated.
+     */
+    network::Socket *get_pipe_socket(network::Socket *sock) {
+        return pipe_sockets_[sock->get_fd()];
+    }
+    void init_pipe_socket(network::Socket *sock);
 };
 }  // namespace swoole

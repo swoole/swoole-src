@@ -229,7 +229,7 @@ bool MessageBus::write(Socket *sock, SendData *resp) {
         iov[1].iov_base = (void *) payload;
         iov[1].iov_len = l_payload;
 
-        if (send_fn(sock, iov, 2) == (ssize_t)(sizeof(resp->info) + l_payload)) {
+        if (send_fn(sock, iov, 2) == (ssize_t) (sizeof(resp->info) + l_payload)) {
             return true;
         }
         if (sock->catch_write_pipe_error(errno) == SW_REDUCE_SIZE && max_length > SW_BUFFER_SIZE_STD) {
@@ -285,6 +285,28 @@ size_t MessageBus::get_memory_size() {
         size += p.second->size;
     }
     return size;
+}
+
+void MessageBus::init_pipe_socket(network::Socket *sock) {
+    int pipe_fd = sock->get_fd();
+    if ((size_t) pipe_fd >= pipe_sockets_.size()) {
+        pipe_sockets_.resize(pipe_fd + 1);
+    }
+    auto _socket = make_socket(pipe_fd, SW_FD_PIPE);
+    _socket->buffer_size = UINT_MAX;
+    if (!_socket->nonblock) {
+        _socket->set_nonblock();
+    }
+    pipe_sockets_[pipe_fd] = _socket;
+}
+
+MessageBus::~MessageBus() {
+    for (auto _socket : pipe_sockets_) {
+        if (_socket) {
+            _socket->fd = -1;
+            _socket->free();
+        }
+    }
 }
 
 }  // namespace swoole

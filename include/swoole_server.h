@@ -152,9 +152,7 @@ struct ReactorThread {
     int id;
     std::thread thread;
     network::Socket *notify_pipe = nullptr;
-    uint32_t pipe_num = 0;
     uint64_t dispatch_count = 0;
-    network::Socket *pipe_sockets = nullptr;
     network::Socket *pipe_command = nullptr;
     MessageBus message_bus;
 
@@ -434,6 +432,7 @@ class BaseFactory : public Factory {
     bool finish(SendData *) override;
     bool notify(DataHead *) override;
     bool end(SessionId sesion_id, int flags) override;
+    bool forward_message(Session *session, SendData *data);
 };
 
 class ProcessFactory : public Factory {
@@ -458,6 +457,8 @@ class ThreadFactory : public BaseFactory {
     template <typename _Callable>
     void create_thread(int i, _Callable fn);
     void at_thread_exit(Worker *worker);
+    void create_message_bus();
+    void destroy_message_bus();
   public:
     ThreadFactory(Server *server);
     ~ThreadFactory();
@@ -533,6 +534,7 @@ class Server {
     };
 
     enum ThreadType {
+        THREAD_NORMAL = 0,
         THREAD_MASTER = 1,
         THREAD_REACTOR = 2,
         THREAD_HEARTBEAT = 3,
@@ -801,15 +803,16 @@ class Server {
         return connection_list[fd].socket;
     }
 
-    /**
-     * [ReactorThread]
-     */
-    network::Socket *get_worker_pipe_socket(Worker *worker) {
-        return &get_thread(SwooleTG.id)->pipe_sockets[worker->pipe_master->fd];
-    }
-
     network::Socket *get_command_reply_socket() {
         return is_base_mode() ? get_worker(0)->pipe_master : pipe_command->get_socket(false);
+    }
+
+    network::Socket *get_worker_pipe_master(WorkerId id) {
+        return get_worker(id)->pipe_master;
+    }
+
+    network::Socket *get_worker_pipe_worker(WorkerId id) {
+        return get_worker(id)->pipe_worker;
     }
 
     /**
@@ -982,6 +985,8 @@ class Server {
     bool add_command(const std::string &command, int accepted_process_types, const Command::Handler &func);
     Connection *add_connection(ListenPort *ls, network::Socket *_socket, int server_fd);
     void abort_connection(Reactor *reactor, ListenPort *ls, network::Socket *_socket);
+    void abort_worker(Worker *worker);
+    void reset_worker_counter(Worker *worker);
     int connection_incoming(Reactor *reactor, Connection *conn);
 
     int get_idle_worker_num();
@@ -1138,11 +1143,15 @@ class Server {
     }
 
     size_t get_all_worker_num() {
-        return worker_num + task_worker_num + get_user_worker_num();
+        return get_core_worker_num() + get_user_worker_num();
     }
 
     size_t get_user_worker_num() {
         return user_worker_list.size();
+    }
+
+    size_t get_core_worker_num() {
+        return worker_num + task_worker_num;
     }
 
     ReactorThread *get_thread(int reactor_id) {
@@ -1366,6 +1375,7 @@ class Server {
     void init_port_protocol(ListenPort *port);
     void init_signal_handler();
     void init_ipc_max_size();
+    void init_pipe_sockets(MessageBus *mb);
 
     void set_max_connection(uint32_t _max_connection);
 
@@ -1460,6 +1470,7 @@ class Server {
     static void reactor_thread_main_loop(Server *serv, int reactor_id);
     static bool task_pack(EventData *task, const void *data, size_t data_len);
     static bool task_unpack(EventData *task, String *buffer, PacketPtr *packet);
+    static void master_signal_handler(int signo);
 
     int start_master_thread(Reactor *reactor);
     int start_event_worker(Worker *worker);

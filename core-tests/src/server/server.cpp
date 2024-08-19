@@ -163,6 +163,50 @@ TEST(server, process) {
     delete lock;
 }
 
+TEST(server, thread) {
+    Server serv(Server::MODE_THREAD);
+    serv.worker_num = 2;
+
+    sw_logger()->set_level(SW_LOG_WARNING);
+
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_TRUE(port);
+
+    mutex lock;
+    lock.lock();
+
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    std::thread t1([&]() {
+        swoole_signal_block_all();
+
+        lock.lock();
+
+        network::SyncClient c(SW_SOCK_TCP);
+        c.connect(TEST_HOST, port->port);
+        c.send(packet, strlen(packet));
+        char buf[1024];
+        c.recv(buf, sizeof(buf));
+        c.close();
+
+        serv.shutdown();
+    });
+
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock.unlock(); };
+
+    serv.onReceive = [](Server *serv, RecvData *req) -> int {
+        EXPECT_EQ(string(req->data, req->info.len), string(packet));
+
+        string resp = string("Server: ") + string(packet);
+        serv->send(req->info.fd, resp.c_str(), resp.length());
+
+        return SW_OK;
+    };
+
+    serv.start();
+    t1.join();
+}
+
 TEST(server, reload_all_workers) {
     Server serv(Server::MODE_PROCESS);
     serv.worker_num = 2;
@@ -1035,7 +1079,7 @@ TEST(server, reopen_log) {
             return;
         }
         EXPECT_TRUE(access(filename.c_str(), R_OK) != -1);
-        remove(filename.c_str());
+        unlink(filename.c_str());
         EXPECT_TRUE(access(filename.c_str(), R_OK) == -1);
         kill(serv->gs->master_pid, SIGRTMIN);
         sleep(2);

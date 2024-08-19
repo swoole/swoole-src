@@ -492,6 +492,12 @@ struct Socket {
         return ::read(fd, __buf, __len);
     }
 
+    /**
+     * Read data from the socket synchronously without setting non-blocking or blocking IO,
+     * and allow interruptions by signals.
+     */
+    ssize_t read_sync(void *__buf, size_t __len, int timeout_ms = -1);
+
     int shutdown(int __how) {
         return ::shutdown(fd, __how);
     }

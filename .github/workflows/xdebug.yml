@@ -1,10 +1,10 @@
-name: conflict-exts
+name: Xdebug Support Tests
 
 on: [push, pull_request]
 
 jobs:
   tests:
-    if: "github.repository_owner == 'swoole' && !contains(github.event.head_commit.message, '[test]')"
+    if: "!contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[xdebug]')"
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

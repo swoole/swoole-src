@@ -90,7 +90,7 @@ function get_one_free_port(): int
 
 function get_constant_port(string $str, int $base = 9500): int
 {
-    return $base + crc32(__FILE__) % 1000;
+    return $base + crc32(__FILE__) % 10000;
 }
 
 function get_one_free_port_ipv6(): int
@@ -519,8 +519,11 @@ function pstree()
     }
     $y = function ($pid, $path = []) use (&$y, $pinfo) {
         if (isset($pinfo[$pid])) {
-            list($ppid,) = $pinfo[$pid];
-            $ppid = $ppid;
+            if (isset($pinfo[$pid][0])) {
+                list($ppid,) = $pinfo[$pid];
+            } else {
+                $ppid = null;
+            }
             $path[] = $pid;
             return $y($ppid, $path);
         } else {

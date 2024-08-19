@@ -246,6 +246,13 @@ class String {
         }
     }
 
+    void set_null_terminated() {
+        if (length == size) {
+            extend(length + 1);
+        }
+        str[length] = '\0';
+    }
+
     int append(int value);
 
     ssize_t split(const char *delimiter, size_t delimiter_length, const StringExplodeHandler &handler);

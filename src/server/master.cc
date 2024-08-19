@@ -29,8 +29,6 @@ swoole::Server *g_server_instance = nullptr;
 
 namespace swoole {
 
-static void Server_signal_handler(int sig);
-
 TimerCallback Server::get_timeout_callback(ListenPort *port, Reactor *reactor, Connection *conn) {
     return [this, port, conn, reactor](Timer *, TimerNode *) {
         if (conn->protect) {
@@ -731,6 +729,7 @@ Server::Server(enum Mode _mode) {
     gs->max_concurrency = UINT_MAX;
 
     message_bus.set_id_generator([this]() { return sw_atomic_fetch_add(&gs->pipe_packet_msg_id, 1); });
+    worker_thread_start = [](const WorkerFn &fn) { fn(); };
 
     g_server_instance = this;
 }
@@ -948,6 +947,9 @@ void Server::stop_master_thread() {
     }
     if (is_thread_mode()) {
         stop_worker_threads();
+    }
+    if (is_process_mode() && single_thread) {
+        get_thread(0)->shutdown(reactor);
     }
 }
 
@@ -1610,18 +1612,18 @@ void Server::init_signal_handler() {
     swoole_signal_set(SIGPIPE, nullptr);
     swoole_signal_set(SIGHUP, nullptr);
     if (is_process_mode()) {
-        swoole_signal_set(SIGCHLD, Server_signal_handler);
+        swoole_signal_set(SIGCHLD, master_signal_handler);
     } else {
-        swoole_signal_set(SIGIO, Server_signal_handler);
+        swoole_signal_set(SIGIO, master_signal_handler);
     }
-    swoole_signal_set(SIGUSR1, Server_signal_handler);
-    swoole_signal_set(SIGUSR2, Server_signal_handler);
-    swoole_signal_set(SIGTERM, Server_signal_handler);
+    swoole_signal_set(SIGUSR1, master_signal_handler);
+    swoole_signal_set(SIGUSR2, master_signal_handler);
+    swoole_signal_set(SIGTERM, master_signal_handler);
 #ifdef SIGRTMIN
-    swoole_signal_set(SIGRTMIN, Server_signal_handler);
+    swoole_signal_set(SIGRTMIN, master_signal_handler);
 #endif
     // for test
-    swoole_signal_set(SIGVTALRM, Server_signal_handler);
+    swoole_signal_set(SIGVTALRM, master_signal_handler);
 
     if (SwooleG.signal_fd > 0) {
         set_minfd(SwooleG.signal_fd);
@@ -1838,15 +1840,15 @@ ListenPort *Server::add_port(SocketType type, const char *host, int port) {
     return ls;
 }
 
-static void Server_signal_handler(int sig) {
-    swoole_trace_log(SW_TRACE_SERVER, "signal[%d] %s triggered in %d", sig, swoole_signal_to_str(sig), getpid());
+void Server::master_signal_handler(int signo) {
+    swoole_trace_log(SW_TRACE_SERVER, "signal[%d] %s triggered in %d", signo, swoole_signal_to_str(signo), getpid());
 
     Server *serv = sw_server();
     if (!SwooleG.running || !serv || !serv->is_running()) {
         return;
     }
 
-    switch (sig) {
+    switch (signo) {
     case SIGTERM:
         serv->signal_handler_shutdown();
         break;
@@ -1858,14 +1860,14 @@ static void Server_signal_handler(int sig) {
         break;
     case SIGUSR1:
     case SIGUSR2:
-        serv->signal_handler_reload(sig == SIGUSR1);
+        serv->signal_handler_reload(signo == SIGUSR1);
         break;
     case SIGIO:
         serv->signal_handler_read_message();
         break;
     default:
 #ifdef SIGRTMIN
-        if (sig == SIGRTMIN) {
+        if (signo == SIGRTMIN) {
             serv->signal_handler_reopen_logger();
         }
 #endif
@@ -1889,6 +1891,28 @@ void Server::abort_connection(Reactor *reactor, ListenPort *ls, Socket *_socket)
         reactor->close(reactor, _socket);
     } else {
         _socket->free();
+    }
+}
+
+void Server::reset_worker_counter(Worker *worker) {
+    auto value = worker->concurrency;
+    if (value > 0 && sw_atomic_value_cmp_set(&worker->concurrency, value, 0) == value) {
+        sw_atomic_sub_fetch(&gs->concurrency, worker->concurrency);
+    }
+    worker->request_count = 0;
+    worker->response_count = 0;
+    worker->dispatch_count = 0;
+}
+
+void Server::abort_worker(Worker *worker) {
+    reset_worker_counter(worker);
+    if (!is_process_mode()) {
+        SW_LOOP_N(SW_SESSION_LIST_SIZE) {
+            Session *session = get_session(i);
+            if (session->reactor_id == worker->id) {
+                session->fd = 0;
+            }
+        }
     }
 }
 
@@ -2002,6 +2026,17 @@ void Server::init_ipc_max_size() {
     }
     ipc_max_size = SW_MIN(bufsize, SW_IPC_BUFFER_MAX_SIZE) - SW_DGRAM_HEADER_SIZE;
 #endif
+}
+
+void Server::init_pipe_sockets(MessageBus *mb) {
+    assert(is_started());
+    size_t n = get_core_worker_num();
+
+    SW_LOOP_N(n) {
+        Worker *worker = get_worker(i);
+        mb->init_pipe_socket(worker->pipe_master);
+        mb->init_pipe_socket(worker->pipe_worker);
+    }
 }
 
 /**

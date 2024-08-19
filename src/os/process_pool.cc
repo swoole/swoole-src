@@ -571,9 +571,9 @@ static int ProcessPool_worker_loop_with_task_protocol(ProcessPool *pool, Worker 
             }
             pool->stream_info_->last_connection = conn;
         } else {
-            n = worker->pipe_worker->read(&out.buf, sizeof(out.buf));
+            n = worker->pipe_worker->read_sync(&out.buf, sizeof(out.buf));
             if (n < 0 && errno != EINTR) {
-                swoole_sys_warning("[Worker#%d] read(%d) failed", worker->id, worker->pipe_worker->fd);
+                swoole_sys_warning("read(%d) failed", worker->pipe_worker->fd);
             }
         }
 
@@ -723,9 +723,9 @@ static int ProcessPool_worker_loop_with_stream_protocol(ProcessPool *pool, Worke
             msg.data = pool->packet_buffer;
             pool->stream_info_->last_connection = conn;
         } else {
-            n = worker->pipe_worker->read(pool->packet_buffer, pool->max_packet_size_);
+            n = worker->pipe_worker->read_sync(pool->packet_buffer, pool->max_packet_size_);
             if (n < 0 && errno != EINTR) {
-                swoole_sys_warning("[Worker#%d] read(%d) failed", worker->id, worker->pipe_worker->fd);
+                swoole_sys_warning("read(%d) failed", worker->pipe_worker->fd);
             }
             msg.data = pool->packet_buffer;
         }

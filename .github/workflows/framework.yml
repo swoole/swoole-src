@@ -1,4 +1,4 @@
-name: Frameworks Tests
+name: Framework Tests
 
 on:
   push:
@@ -10,7 +10,7 @@ env:
 jobs:
   linux:
     runs-on: ubuntu-latest
-    if: "!contains(github.event.head_commit.message, '[test]')"
+    if: "!contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[framework]')"
     strategy:
       fail-fast: false
       matrix:
@@ -43,7 +43,7 @@ jobs:
           php --ri swoole
 
       - name: Laravel Octane Tests
-        if: matrix.framework == 'Laravel Octane' && matrix.php-version != '8.0'
+        if: matrix.framework == 'Laravel Octane' && matrix.php-version != '8.3'
         run: |
           git clone https://github.com/laravel/octane.git --depth=1
           cd octane/
@@ -51,7 +51,7 @@ jobs:
           vendor/bin/phpunit
 
       - name: Hyperf Tests
-        if: matrix.framework == 'Hyperf' && matrix.php-version != '8.0'
+        if: matrix.framework == 'Hyperf' && matrix.php-version != '8.3'
         env:
           SW_VERSION: 'master'
           MYSQL_VERSION: '5.7'
@@ -83,7 +83,7 @@ jobs:
           composer test
 
   macos:
-    if: "!contains(github.event.head_commit.message, '[test]')"
+    if: "!contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[framework]')"
     runs-on: macos-latest
     strategy:
       fail-fast: false
