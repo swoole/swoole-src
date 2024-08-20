@@ -350,6 +350,7 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
         ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(zheader), num_key, string_key, zvalue) {
             if (!string_key) {
                 string_key = zend_long_to_str(num_key);
+                zend::String key(string_key, false);
             }
             int key_header = parse_header_name(ZSTR_VAL(string_key), ZSTR_LEN(string_key));
 
@@ -760,30 +761,30 @@ void HttpContext::end(zval *zdata, zval *return_value) {
     }
 
 #ifdef SW_HAVE_ZLIB
-        if (upgrade) {
-            Server *serv = nullptr;
-            Connection *conn = nullptr;
-            if (!co_socket) {
-                serv = (Server *) private_data;
-                conn = serv->get_connection_verify(fd);
-            }
-            bool enable_websocket_compression = co_socket ? websocket_compression : serv->websocket_compression;
-            bool accept_websocket_compression = false;
-            zval *pData;
-            if (enable_websocket_compression && request.zobject &&
-                (pData = zend_hash_str_find(Z_ARRVAL_P(request.zheader), ZEND_STRL("sec-websocket-extensions"))) &&
-                Z_TYPE_P(pData) == IS_STRING) {
-                std::string value(Z_STRVAL_P(pData), Z_STRLEN_P(pData));
-                if (value.substr(0, value.find_first_of(';')) == "permessage-deflate") {
-                    accept_websocket_compression = true;
-                    set_header(ZEND_STRL("Sec-Websocket-Extensions"), ZEND_STRL(SW_WEBSOCKET_EXTENSION_DEFLATE), false);
-                }
-            }
-            websocket_compression = accept_websocket_compression;
-            if (conn) {
-                conn->websocket_compression = accept_websocket_compression;
+    if (upgrade) {
+        Server *serv = nullptr;
+        Connection *conn = nullptr;
+        if (!co_socket) {
+            serv = (Server *) private_data;
+            conn = serv->get_connection_verify(fd);
+        }
+        bool enable_websocket_compression = co_socket ? websocket_compression : serv->websocket_compression;
+        bool accept_websocket_compression = false;
+        zval *pData;
+        if (enable_websocket_compression && request.zobject &&
+            (pData = zend_hash_str_find(Z_ARRVAL_P(request.zheader), ZEND_STRL("sec-websocket-extensions"))) &&
+            Z_TYPE_P(pData) == IS_STRING) {
+            std::string value(Z_STRVAL_P(pData), Z_STRLEN_P(pData));
+            if (value.substr(0, value.find_first_of(';')) == "permessage-deflate") {
+                accept_websocket_compression = true;
+                set_header(ZEND_STRL("Sec-Websocket-Extensions"), ZEND_STRL(SW_WEBSOCKET_EXTENSION_DEFLATE), false);
             }
         }
+        websocket_compression = accept_websocket_compression;
+        if (conn) {
+            conn->websocket_compression = accept_websocket_compression;
+        }
+    }
 #endif
 
     String *http_buffer = get_write_buffer();
