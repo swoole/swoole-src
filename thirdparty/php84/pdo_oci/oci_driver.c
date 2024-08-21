@@ -880,3 +880,4 @@ static inline ub4 pdo_oci_sanitize_prefetch(long prefetch) /* {{{ */
     return ((ub4) prefetch);
 }
 /* }}} */
+#endif
