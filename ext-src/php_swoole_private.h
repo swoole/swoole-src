@@ -182,6 +182,10 @@ extern zend_object_handlers swoole_exception_handlers;
 extern zend_class_entry *swoole_error_ce;
 extern zend_class_entry *swoole_resolve_context_ce;
 extern zend_object_handlers swoole_resolve_context_handlers;
+#if PHP_VERSION_ID >= 80400
+extern zend_class_entry *swoole_exit_exception_ce;
+extern zend_object_handlers swoole_exit_exception_handlers;
+#endif
 
 PHP_FUNCTION(swoole_clear_dns_cache);
 PHP_FUNCTION(swoole_last_error);

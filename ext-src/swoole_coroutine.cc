@@ -20,7 +20,9 @@
 #include "php_swoole_cxx.h"
 #include "php_swoole_coroutine_system.h"
 
+#if PHP_VERSION_ID < 80400
 #include "swoole_server.h"
+#endif
 #include "swoole_signal.h"
 
 #include "zend_builtin_functions.h"
@@ -55,8 +57,6 @@ static zend_always_inline zend_vm_stack zend_vm_stack_new_page(size_t size, zend
 }
 #endif
 
-enum sw_exit_flags { SW_EXIT_IN_COROUTINE = 1 << 1, SW_EXIT_IN_SERVER = 1 << 2 };
-
 bool PHPCoroutine::activated = false;
 zend_array *PHPCoroutine::options = nullptr;
 
@@ -73,8 +73,11 @@ bool PHPCoroutine::interrupt_thread_running = false;
 
 extern void php_swoole_load_library();
 
-static zend_atomic_bool *zend_vm_interrupt = nullptr;
+#if PHP_VERSION_ID < 80400
 static user_opcode_handler_t ori_exit_handler = nullptr;
+#endif
+
+static zend_atomic_bool *zend_vm_interrupt = nullptr;
 static user_opcode_handler_t ori_begin_silence_handler = nullptr;
 static user_opcode_handler_t ori_end_silence_handler = nullptr;
 static unordered_map<long, Coroutine *> user_yield_coros;
@@ -82,10 +85,15 @@ static unordered_map<long, Coroutine *> user_yield_coros;
 static void (*orig_interrupt_function)(zend_execute_data *execute_data) = nullptr;
 
 static zend_class_entry *swoole_coroutine_util_ce;
-static zend_class_entry *swoole_exit_exception_ce;
-static zend_object_handlers swoole_exit_exception_handlers;
 static zend_class_entry *swoole_coroutine_iterator_ce;
 static zend_class_entry *swoole_coroutine_context_ce;
+#if PHP_VERSION_ID >= 80400
+zend_class_entry *swoole_exit_exception_ce;
+zend_object_handlers swoole_exit_exception_handlers;
+#else
+static zend_class_entry *swoole_exit_exception_ce;
+static zend_object_handlers swoole_exit_exception_handlers;
+#endif
 
 SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_coroutine, exists);
@@ -180,6 +188,7 @@ static const zend_function_entry swoole_exit_exception_methods[] = {
 };
 // clang-format on
 
+#if PHP_VERSION_ID < 80400
 static int coro_exit_handler(zend_execute_data *execute_data) {
     zval ex;
     zend_object *obj;
@@ -224,6 +233,7 @@ static int coro_exit_handler(zend_execute_data *execute_data) {
 
     return ZEND_USER_OPCODE_DISPATCH;
 }
+#endif
 
 static int coro_begin_silence_handler(zend_execute_data *execute_data) {
     PHPContext *task = PHPCoroutine::get_context();
@@ -989,8 +999,10 @@ void php_swoole_coroutine_minit(int module_number) {
 
 void php_swoole_coroutine_rinit() {
     if (SWOOLE_G(cli)) {
+#if PHP_VERSION_ID < 80400
         ori_exit_handler = zend_get_user_opcode_handler(ZEND_EXIT);
         zend_set_user_opcode_handler(ZEND_EXIT, coro_exit_handler);
+#endif
 
         ori_begin_silence_handler = zend_get_user_opcode_handler(ZEND_BEGIN_SILENCE);
         zend_set_user_opcode_handler(ZEND_BEGIN_SILENCE, coro_begin_silence_handler);
