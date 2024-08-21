@@ -350,8 +350,11 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
         ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(zheader), num_key, string_key, zvalue) {
             if (!string_key) {
                 string_key = zend_long_to_str(num_key);
-                zend::String key(string_key, false);
+            } else {
+                zend_string_addref(string_key);
             }
+            zend::String key(string_key, false);
+
             int key_header = parse_header_name(ZSTR_VAL(string_key), ZSTR_LEN(string_key));
 
             if (key_header > 0) {
