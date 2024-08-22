@@ -183,18 +183,18 @@ bool BaseFactory::end(SessionId session_id, int flags) {
     conn->closing = 0;
     conn->closed = 1;
     conn->close_errno = 0;
+    network::Socket *_socket = conn->socket;
 
-    if (conn->socket == nullptr) {
+    if (_socket == nullptr) {
         swoole_warning("session#%ld->socket is nullptr", session_id);
         return false;
     }
 
-    if (Buffer::empty(conn->socket->out_buffer) || (conn->close_reset || conn->peer_closed || conn->close_force)) {
+    if (Buffer::empty(_socket->out_buffer) || (conn->close_reset || conn->peer_closed || conn->close_force)) {
         Reactor *reactor = SwooleTG.reactor;
-        return Server::close_connection(reactor, conn->socket) == SW_OK;
+        return Server::close_connection(reactor, _socket) == SW_OK;
     } else {
-        BufferChunk *chunk = conn->socket->out_buffer->alloc(BufferChunk::TYPE_CLOSE, 0);
-        chunk->value.data.val1 = _send.info.type;
+        _socket->out_buffer->alloc(BufferChunk::TYPE_CLOSE, 0);
         conn->close_queued = 1;
         return true;
     }

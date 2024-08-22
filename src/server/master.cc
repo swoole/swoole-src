@@ -1449,11 +1449,9 @@ int Server::send_to_connection(SendData *_send) {
         }
     }
 
-    BufferChunk *chunk;
     // close connection
     if (_send->info.type == SW_SERVER_EVENT_CLOSE) {
-        chunk = _socket->out_buffer->alloc(BufferChunk::TYPE_CLOSE, 0);
-        chunk->value.data.val1 = _send->info.type;
+        _socket->out_buffer->alloc(BufferChunk::TYPE_CLOSE, 0);
         conn->close_queued = 1;
     }
     // sendfile to client

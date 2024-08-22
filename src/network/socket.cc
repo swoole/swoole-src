@@ -552,7 +552,7 @@ int Socket::handle_sendfile() {
     int ret;
     Buffer *buffer = out_buffer;
     BufferChunk *chunk = buffer->front();
-    SendfileRequest *task = (SendfileRequest *) chunk->value.object;
+    SendfileRequest *task = (SendfileRequest *) chunk->value.ptr;
 
     if (task->offset == 0) {
         cork();
@@ -616,7 +616,7 @@ int Socket::handle_send() {
         return SW_OK;
     }
 
-    ssize_t ret = send(chunk->value.ptr + chunk->offset, sendn, 0);
+    ssize_t ret = send(chunk->value.str + chunk->offset, sendn, 0);
     if (ret < 0) {
         switch (catch_write_error(errno)) {
         case SW_ERROR:
@@ -648,7 +648,7 @@ int Socket::handle_send() {
 }
 
 static void Socket_sendfile_destructor(BufferChunk *chunk) {
-    SendfileRequest *task = (SendfileRequest *) chunk->value.object;
+    SendfileRequest *task = (SendfileRequest *) chunk->value.ptr;
     delete task;
 }
 
@@ -688,7 +688,7 @@ int Socket::sendfile(const char *filename, off_t offset, size_t length) {
     }
 
     BufferChunk *chunk = out_buffer->alloc(BufferChunk::TYPE_SENDFILE, 0);
-    chunk->value.object = task.release();
+    chunk->value.ptr = task.release();
     chunk->destroy = Socket_sendfile_destructor;
 
     return SW_OK;

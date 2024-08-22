@@ -433,7 +433,7 @@ static int ReactorThread_onPipeWrite(Reactor *reactor, Event *ev) {
 
     while (!Buffer::empty(buffer)) {
         BufferChunk *chunk = buffer->front();
-        EventData *send_data = (EventData *) chunk->value.ptr;
+        EventData *send_data = (EventData *) chunk->value.str;
 
         // server actively closed connection, should discard the data
         if (Server::is_stream_event(send_data->info.type)) {
@@ -460,7 +460,7 @@ static int ReactorThread_onPipeWrite(Reactor *reactor, Event *ev) {
             }
         }
 
-        ret = ev->socket->send(chunk->value.ptr, chunk->length, 0);
+        ret = ev->socket->send(chunk->value.str, chunk->length, 0);
         if (ret < 0) {
             return (ev->socket->catch_write_error(errno) == SW_WAIT) ? SW_OK : SW_ERR;
         } else {

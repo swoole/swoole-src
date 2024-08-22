@@ -63,7 +63,7 @@ TEST(buffer, append_iov) {
 
     while (!buf_for_offset.empty()) {
         auto chunk = buf_for_offset.front();
-        str.append(chunk->value.ptr, chunk->length);
+        str.append(chunk->value.str, chunk->length);
         buf_for_offset.pop();
     }
 
