@@ -21,6 +21,10 @@ namespace swoole {
 using network::Socket;
 
 Factory *Server::create_thread_factory() {
+#ifndef SW_THREAD
+    swoole_error("Thread support is not enabled, cannot create server with MODE_THREAD");
+    return nullptr;
+#endif
     reactor_num = worker_num;
     connection_list = (Connection *) sw_calloc(max_connection, sizeof(Connection));
     if (connection_list == nullptr) {
