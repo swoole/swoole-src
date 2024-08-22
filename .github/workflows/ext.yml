@@ -1,13 +1,13 @@
-name: ext-swoole
+name: Compile Tests
 
-on: [push, pull_request]
+on: [ push, pull_request ]
 
 env:
   CPPFLAGS: "-I/opt/homebrew/opt/pcre2/include/"
 
 jobs:
   build-ubuntu-latest:
-    if: "!contains(github.event.head_commit.message, '[test]')"
+    if: "!contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[ext]')"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -41,7 +41,7 @@ jobs:
           make clean && make -j$(nproc)
 
   build-macos-latest:
-    if: "!contains(github.event.head_commit.message, '[test]')"
+    if: "!contains(github.event.head_commit.message, '--filter=')"
     runs-on: macos-latest
     steps:
       - name: install dependencies
@@ -70,7 +70,7 @@ jobs:
           make clean && make -j$(sysctl -n hw.ncpu)
 
   build-alpine-latest:
-    if: "!contains(github.event.head_commit.message, '[test]')"
+    if: "!contains(github.event.head_commit.message, '--filter=')"
     runs-on: ubuntu-latest
     strategy:
       matrix:
