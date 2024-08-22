@@ -51,10 +51,10 @@
         <email>doubaokun@php.net</email>
         <active>yes</active>
     </developer>
-    <date>2024-05-24</date>
-    <time>21:00:00</time>
+    <date>2024-08-22</date>
+    <time>22:00:00</time>
     <version>
-        <release>5.1.3</release>
+        <release>5.1.4</release>
         <api>5.0</api>
     </version>
     <stability>
@@ -63,26 +63,11 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        - Fix the problem of being unable to install through pecl.
-        - Fix the issue of Swoole\Coroutine\FastCGI\Client client being unable to set keepalive.
-        - Fix the issue of process continuously restarting due to error thrown when request parameters exceed max_input_vars.
-        - Fix the unknown issue caused by using Swoole\Event::wait() in a coroutine.
-        - Fix the issue of proc_open not supporting pty when used in a coroutine.
-        - Fix the segmentation fault issue in pdo_sqlite on PHP 8.3.
-        - Fix the unnecessary warning when compiling Swoole.
-        - Fix the error thrown when calling zend_fetch_resource2_ex on closed STDOUT/STDERR.
-        - Fix the invalid set_tcp_nodelay configuration.
-        - Fix the occasional unreachable branch issue triggered during file uploads.
-        - Fix the issue causing PHP core to throw errors when dispatch_func is set.
-        - Fix the obsolete warning of AC_PROG_CC_C99 in autoconf >= 2.70 version.
-        - Remove unnecessary checks for socket structs.
-        - Upgrade the Swoole library.
-        - Add support for http status code 451 in Swoole\Http\Response.
-        - Synchronize file operation code across different versions of PHP.
-        - Synchronize PDO operation code across different versions of PHP.
-        - Optimize the code for Socket::ssl_recv() function.
-        - Optimized config.m4 by allowing some configurations to set dependency library locations using pkg-config.
-        - Optimize the issue with using dynamic arrays when parsing request headers.
+        - Fix broken build with GCC 14. @remicollet
+        - Fix could not send SSL negotiation packet(Resource temporarily unavailable). @NathanFreeman
+        - Fix the issue where certain critical parameters of `Swoole\Server` are not reset to 0 during process restart. @NathanFreeman
+        - Fix the problem where `Swoole\Http\Request::getMethod()` returns the incorrect request method when `HTTP2` is enabled. @matyhtf
+        - Optimize `Swoole\Http\Response::end()`. Response data larger than 16K will be sent directly through the socket, while data smaller than or equal to 16K will be copied to the buffer first before being sent out via the socket. @NathanFreeman
     </notes>
     <contents>
         <dir name="/">
@@ -1316,6 +1301,7 @@
             <file role="test" name="tests/swoole_function/swoole_strerror.phpt" />
             <file role="test" name="tests/swoole_function/swoole_version.phpt" />
             <file role="test" name="tests/swoole_global/channel_construct_check.phpt" />
+            <file role="test" name="tests/swoole_global/closed_stdout.phpt" />
             <file role="test" name="tests/swoole_global/create_deny.phpt" />
             <file role="test" name="tests/swoole_global/function_alias.phpt" />
             <file role="test" name="tests/swoole_global/serialize_deny.phpt" />
@@ -1349,6 +1335,7 @@
             <file role="test" name="tests/swoole_http2_server/big_data.phpt" />
             <file role="test" name="tests/swoole_http2_server/compression.phpt" />
             <file role="test" name="tests/swoole_http2_server/compression_types.phpt" />
+            <file role="test" name="tests/swoole_http2_server/getMethod.phpt" />
             <file role="test" name="tests/swoole_http2_server/goaway.phpt" />
             <file role="test" name="tests/swoole_http2_server/http2_headers.phpt" />
             <file role="test" name="tests/swoole_http2_server/issue_4365.phpt" />
@@ -2537,8 +2524,16 @@
             <file role="src" name="thirdparty/php81/pdo_sqlite/sqlite_driver.stub.php" />
             <file role="src" name="thirdparty/php81/pdo_sqlite/sqlite_driver_arginfo.h" />
             <file role="src" name="thirdparty/php81/pdo_sqlite/sqlite_statement.c" />
-            <file role="src" name="thirdparty/php83/Zend/zend_call_stack.cc" />
-            <file role="src" name="thirdparty/php83/Zend/zend_call_stack.h" />
+            <file role="src" name="thirdparty/php83/pdo_oci/oci_driver.c" />
+            <file role="src" name="thirdparty/php83/pdo_oci/oci_statement.c" />
+            <file role="src" name="thirdparty/php83/pdo_oci/php_pdo_oci_int.h" />
+            <file role="src" name="thirdparty/php83/pdo_odbc/odbc_driver.c" />
+            <file role="src" name="thirdparty/php83/pdo_odbc/odbc_stmt.c" />
+            <file role="src" name="thirdparty/php83/pdo_odbc/php_pdo_odbc_int.h" />
+            <file role="src" name="thirdparty/php83/pdo_pgsql/pgsql_driver.c" />
+            <file role="src" name="thirdparty/php83/pdo_pgsql/pgsql_driver_arginfo.h" />
+            <file role="src" name="thirdparty/php83/pdo_pgsql/pgsql_statement.c" />
+            <file role="src" name="thirdparty/php83/pdo_pgsql/php_pdo_pgsql_int.h" />
             <file role="src" name="thirdparty/php83/pdo_sqlite/php_pdo_sqlite_int.h" />
             <file role="src" name="thirdparty/php83/pdo_sqlite/sqlite_driver.c" />
             <file role="src" name="thirdparty/php83/pdo_sqlite/sqlite_driver.stub.php" />
