@@ -103,19 +103,16 @@ int Socket::sendfile_blocking(const char *filename, off_t offset, size_t length,
         length = offset + length;
     }
 
-    int n, sendn;
+    ssize_t n, sent_bytes;
     while (offset < (off_t) length) {
         if (wait_event(timeout_ms, SW_EVENT_WRITE) < 0) {
             return SW_ERR;
-        } else {
-            sendn = (length - offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : length - offset;
-            n = ::swoole_sendfile(fd, file.get_fd(), &offset, sendn);
-            if (n <= 0) {
-                swoole_sys_warning("sendfile(%d, %s) failed", fd, filename);
-                return SW_ERR;
-            } else {
-                continue;
-            }
+        }
+        sent_bytes = (length - offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : length - offset;
+        n = ::swoole_sendfile(fd, file.get_fd(), &offset, sent_bytes);
+        if (n <= 0) {
+            swoole_sys_warning("sendfile(%d, %s) failed", fd, filename);
+            return SW_ERR;
         }
     }
     return SW_OK;
@@ -1190,7 +1187,7 @@ int Socket::ssl_connect() {
     return SW_ERR;
 }
 
-int Socket::ssl_sendfile(const File &fp, off_t *_offset, size_t _size) {
+ssize_t Socket::ssl_sendfile(const File &fp, off_t *_offset, size_t _size) {
     char buf[SW_BUFFER_SIZE_BIG];
     ssize_t readn = _size > sizeof(buf) ? sizeof(buf) : _size;
 

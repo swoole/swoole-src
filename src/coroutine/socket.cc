@@ -752,7 +752,7 @@ bool Socket::connect(std::string _host, int _port, int flags) {
             }
             socket->info.addr.un.sun_family = AF_UNIX;
             memcpy(&socket->info.addr.un.sun_path, connect_host.c_str(), connect_host.size());
-            socket->info.len = (socklen_t)(offsetof(struct sockaddr_un, sun_path) + connect_host.size());
+            socket->info.len = (socklen_t) (offsetof(struct sockaddr_un, sun_path) + connect_host.size());
             _target_addr = (struct sockaddr *) &socket->info.addr.un;
             break;
         } else {
@@ -1387,16 +1387,16 @@ bool Socket::sendfile(const char *filename, off_t offset, size_t length) {
     }
 
     TimerController timer(&write_timer, write_timeout, this, timer_callback);
-    int n, sendn;
+    ssize_t n, sent_bytes;
     while ((size_t) offset < length) {
-        sendn = (length - offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : length - offset;
+        sent_bytes = (length - offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : length - offset;
 #ifdef SW_USE_OPENSSL
         if (socket->ssl) {
-            n = socket->ssl_sendfile(file, &offset, sendn);
+            n = socket->ssl_sendfile(file, &offset, sent_bytes);
         } else
 #endif
         {
-            n = ::swoole_sendfile(sock_fd, file.get_fd(), &offset, sendn);
+            n = ::swoole_sendfile(sock_fd, file.get_fd(), &offset, sent_bytes);
         }
         if (n > 0) {
             continue;
