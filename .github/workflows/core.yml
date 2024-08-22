@@ -43,6 +43,11 @@ jobs:
           sudo apt install -y valgrind
           cd core-tests && SWOOLE_VALGRIND=1 ./run.sh
 
+      - name: make test with asan
+        if: "contains(github.event.head_commit.message, '--asan')"
+        run: |
+          cd core-tests && SWOOLE_ENABLE_ASAN=1 ./run.sh
+
       - name: make test
         run:
           cd core-tests && ./run.sh

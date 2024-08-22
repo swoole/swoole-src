@@ -12,3 +12,6 @@ Setting this parameter will cause the test program to be run with `valgrind`.
 ```shell
 git commit -m "commit message --filter=[core][unit] --valgrind"
 ```
+
+## --asan
+Setting this parameter will cause the test program to be run with `ASAN`.
