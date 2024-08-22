@@ -1,5 +1,5 @@
 #!/bin/bash
-cmake .
+cmake . -DSW_THREAD=1
 make -j8
 ipcs -q
 
