@@ -728,7 +728,8 @@ Server::Server(enum Mode _mode) {
     gs->pipe_packet_msg_id = 1;
     gs->max_concurrency = UINT_MAX;
 
-    message_bus.set_id_generator([this]() { return sw_atomic_fetch_add(&gs->pipe_packet_msg_id, 1); });
+    msg_id_generator = [this]() { return sw_atomic_fetch_add(&gs->pipe_packet_msg_id, 1); };
+    message_bus.set_id_generator(msg_id_generator);
     worker_thread_start = [](const WorkerFn &fn) { fn(); };
 
     g_server_instance = this;
@@ -1448,11 +1449,9 @@ int Server::send_to_connection(SendData *_send) {
         }
     }
 
-    BufferChunk *chunk;
     // close connection
     if (_send->info.type == SW_SERVER_EVENT_CLOSE) {
-        chunk = _socket->out_buffer->alloc(BufferChunk::TYPE_CLOSE, 0);
-        chunk->value.data.val1 = _send->info.type;
+        _socket->out_buffer->alloc(BufferChunk::TYPE_CLOSE, 0);
         conn->close_queued = 1;
     }
     // sendfile to client

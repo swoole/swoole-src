@@ -433,7 +433,7 @@ static int ReactorThread_onPipeWrite(Reactor *reactor, Event *ev) {
 
     while (!Buffer::empty(buffer)) {
         BufferChunk *chunk = buffer->front();
-        EventData *send_data = (EventData *) chunk->value.ptr;
+        EventData *send_data = (EventData *) chunk->value.str;
 
         // server actively closed connection, should discard the data
         if (Server::is_stream_event(send_data->info.type)) {
@@ -460,7 +460,7 @@ static int ReactorThread_onPipeWrite(Reactor *reactor, Event *ev) {
             }
         }
 
-        ret = ev->socket->send(chunk->value.ptr, chunk->length, 0);
+        ret = ev->socket->send(chunk->value.str, chunk->length, 0);
         if (ret < 0) {
             return (ev->socket->catch_write_error(errno) == SW_WAIT) ? SW_OK : SW_ERR;
         } else {
@@ -767,7 +767,7 @@ int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
         pipe_command->buffer_size = UINT_MAX;
     }
 
-    message_bus.set_id_generator([serv]() { return sw_atomic_fetch_add(&serv->gs->pipe_packet_msg_id, 1); });
+    message_bus.set_id_generator(serv->msg_id_generator);
     message_bus.set_buffer_size(serv->ipc_max_size);
     message_bus.set_always_chunked_transfer();
     if (!message_bus.alloc_buffer()) {

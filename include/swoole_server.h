@@ -934,7 +934,10 @@ class Server {
      */
     std::function<int(Server *, EventData *)> onTask;
     std::function<int(Server *, EventData *)> onFinish;
-
+    /**
+     * for MessageBus
+     */
+    std::function<uint64_t(void)> msg_id_generator;
     /**
      * Hook
      */

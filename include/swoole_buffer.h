@@ -32,12 +32,10 @@ struct BufferChunk {
     uint32_t length = 0;
     uint32_t offset = 0;
     union {
-        char *ptr;
-        void *object;
-        struct {
-            uint32_t val1;
-            uint32_t val2;
-        } data;
+        char *str;
+        void *ptr;
+        uint32_t u32;
+        uint64_t u64;
     } value{};
     uint32_t size = 0;
 

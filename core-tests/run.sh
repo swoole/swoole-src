@@ -1,5 +1,9 @@
 #!/bin/bash
-cmake . -DSW_THREAD=1
+if [ "${SWOOLE_ENABLE_ASAN}" = 1 ]; then
+    cmake . -D enable_thread=1 -D enable_asan=1
+else
+    cmake . -D enable_thread=1
+fi
 make -j8
 ipcs -q
 
