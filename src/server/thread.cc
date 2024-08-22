@@ -38,7 +38,7 @@ void Server::destroy_thread_factory() {
 }
 
 ThreadFactory::ThreadFactory(Server *server) : BaseFactory(server) {
-    threads_.resize(server_->task_worker_num + server_->worker_num + server_->get_user_worker_num() + 1);
+    threads_.resize(server_->get_all_worker_num() + 1);
 }
 
 bool ThreadFactory::start() {
@@ -77,9 +77,8 @@ void ThreadFactory::at_thread_exit(Worker *worker) {
 
 void ThreadFactory::create_message_bus() {
     auto mb = new MessageBus();
-    auto server = server_;
-    mb->set_id_generator([server]() { return sw_atomic_fetch_add(&server->gs->pipe_packet_msg_id, 1); });
-    mb->set_buffer_size(server->ipc_max_size);
+    mb->set_id_generator(server_->msg_id_generator);
+    mb->set_buffer_size(server_->ipc_max_size);
     mb->set_always_chunked_transfer();
     if (!mb->alloc_buffer()) {
         throw std::bad_alloc();
@@ -209,14 +208,11 @@ void ThreadFactory::wait() {
 }
 
 int Server::start_worker_threads() {
-    /**
-     * heartbeat thread
-     */
+    ThreadFactory *_factory = dynamic_cast<ThreadFactory *>(factory);
+
     if (heartbeat_check_interval > 0) {
         start_heartbeat_thread();
     }
-
-    ThreadFactory *_factory = dynamic_cast<ThreadFactory *>(factory);
 
     if (task_worker_num > 0) {
         SW_LOOP_N(task_worker_num) {
@@ -234,12 +230,13 @@ int Server::start_worker_threads() {
         }
     }
 
-    int manager_thread_id = task_worker_num + worker_num + get_user_worker_num();
+    int manager_thread_id = get_all_worker_num();
     _factory->spawn_manager_thread(manager_thread_id);
 
     if (swoole_event_init(0) < 0) {
         return SW_ERR;
     }
+
     Reactor *reactor = sw_reactor();
     for (auto iter = ports.begin(); iter != ports.end(); iter++) {
         auto port = *iter;
@@ -252,8 +249,10 @@ int Server::start_worker_threads() {
         }
         reactor->add(port->socket, SW_EVENT_READ);
     }
+
     SwooleTG.id = reactor->id = manager_thread_id + 1;
     store_listen_socket();
+
     return start_master_thread(reactor);
 }
 
