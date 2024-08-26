@@ -2507,8 +2507,8 @@ static PHP_METHOD(swoole_server, listen) {
 
     char *host;
     size_t host_len;
-    long sock_type;
-    long port;
+    zend_long sock_type;
+    zend_long port;
 
     ZEND_PARSE_PARAMETERS_START(3, 3)
     Z_PARAM_STRING(host, host_len)
