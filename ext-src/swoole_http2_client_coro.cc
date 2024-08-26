@@ -1428,9 +1428,11 @@ static PHP_METHOD(swoole_http2_client_coro, stats) {
 
 static PHP_METHOD(swoole_http2_client_coro, isStreamExist) {
     zend_long stream_id = 0;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &stream_id) == FAILURE) {
-        RETURN_FALSE;
-    }
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_LONG(stream_id)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
     if (stream_id < 0) {
         RETURN_FALSE;
     }

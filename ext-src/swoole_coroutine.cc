@@ -1169,10 +1169,11 @@ static PHP_METHOD(swoole_coroutine, exists) {
 }
 
 static PHP_METHOD(swoole_coroutine, resume) {
-    long cid;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &cid) == FAILURE) {
-        RETURN_FALSE;
-    }
+    zend_long cid;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_LONG(cid)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     auto coroutine_iterator = user_yield_coros.find(cid);
     if (coroutine_iterator == user_yield_coros.end()) {
@@ -1283,10 +1284,11 @@ static PHP_METHOD(swoole_coroutine, join) {
 }
 
 static PHP_METHOD(swoole_coroutine, cancel) {
-    long cid;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &cid) == FAILURE) {
-        RETURN_FALSE;
-    }
+    zend_long cid;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_LONG(cid)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     Coroutine *co = swoole_coroutine_get(cid);
     if (!co) {

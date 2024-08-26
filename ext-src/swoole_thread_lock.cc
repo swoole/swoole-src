@@ -183,9 +183,11 @@ static PHP_METHOD(swoole_thread_lock, lock) {
 static PHP_METHOD(swoole_thread_lock, lockwait) {
     double timeout = 1.0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "d", &timeout) == FAILURE) {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_DOUBLE(timeout)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
     Lock *lock = lock_get_and_check_ptr(ZEND_THIS);
     if (lock->get_type() != Lock::MUTEX) {
         zend_throw_exception(swoole_exception_ce, "only mutex supports lockwait", -2);

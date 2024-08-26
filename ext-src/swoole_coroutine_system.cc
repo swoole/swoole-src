@@ -128,9 +128,12 @@ PHP_FUNCTION(swoole_coroutine_gethostbyname) {
     zend_long family = AF_INET;
     double timeout = -1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|ld", &domain_name, &l_domain_name, &family, &timeout) == FAILURE) {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 3)
+    Z_PARAM_STRING(domain_name, l_domain_name)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_LONG(family)
+    Z_PARAM_DOUBLE(timeout)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (l_domain_name == 0) {
         php_swoole_fatal_error(E_WARNING, "domain name is empty");
@@ -164,18 +167,15 @@ PHP_METHOD(swoole_coroutine_system, getaddrinfo) {
     size_t l_service = 0;
     double timeout = -1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(),
-                              "s|lllsd",
-                              &hostname,
-                              &l_hostname,
-                              &family,
-                              &socktype,
-                              &protocol,
-                              &service,
-                              &l_service,
-                              &timeout) == FAILURE) {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 6)
+    Z_PARAM_STRING(hostname, l_hostname)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_LONG(family)
+    Z_PARAM_LONG(socktype)
+    Z_PARAM_LONG(protocol)
+    Z_PARAM_STRING(service, l_service)
+    Z_PARAM_DOUBLE(timeout)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (l_hostname == 0) {
         php_swoole_fatal_error(E_WARNING, "hostname is empty");

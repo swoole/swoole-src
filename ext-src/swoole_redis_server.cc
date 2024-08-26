@@ -195,9 +195,10 @@ static PHP_METHOD(swoole_redis_server, setHandler) {
     size_t command_len;
     zval *zcallback;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz", &command, &command_len, &zcallback) == FAILURE) {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+    Z_PARAM_STRING(command, command_len)
+    Z_PARAM_ZVAL(zcallback)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (command_len == 0 || command_len >= SW_REDIS_MAX_COMMAND_SIZE) {
         php_swoole_fatal_error(E_ERROR, "invalid command");
@@ -234,9 +235,9 @@ static PHP_METHOD(swoole_redis_server, getHandler) {
     char *command;
     size_t command_len;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &command, &command_len) == FAILURE) {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_STRING(command, command_len)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     char _command[SW_REDIS_MAX_COMMAND_SIZE];
     size_t _command_len = sw_snprintf(_command, sizeof(_command), "_handler_%s", command);
@@ -251,9 +252,11 @@ static PHP_METHOD(swoole_redis_server, format) {
     zend_long type;
     zval *value = nullptr;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|z", &type, &value) == FAILURE) {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+    Z_PARAM_LONG(type)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_ZVAL(value)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     char message[256];
     int length;

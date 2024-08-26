@@ -752,9 +752,13 @@ static PHP_METHOD(swoole_websocket_server, disconnect) {
     char *data = nullptr;
     size_t length = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|ls", &fd, &code, &data, &length) == FAILURE) {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 3)
+    Z_PARAM_LONG(fd)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_LONG(code)
+    Z_PARAM_STRING(data, length)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
     swoole_websocket_buffer->clear();
     if (WebSocket::pack_close_frame(swoole_websocket_buffer, code, data, length, 0) < 0) {
         RETURN_FALSE;
@@ -894,9 +898,9 @@ static PHP_METHOD(swoole_websocket_frame, __toString) {
 static PHP_METHOD(swoole_websocket_server, unpack) {
     String buffer = {};
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &buffer.str, &buffer.length) == FAILURE) {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_STRING(buffer.str, buffer.length)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     php_swoole_websocket_frame_unpack(&buffer, return_value);
 }
@@ -910,9 +914,9 @@ static PHP_METHOD(swoole_websocket_server, isEstablished) {
 
     zend_long session_id;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &session_id) == FAILURE) {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_LONG(session_id)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     Connection *conn = serv->get_connection_verify(session_id);
     // not isEstablished

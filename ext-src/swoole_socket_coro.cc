@@ -1743,9 +1743,13 @@ static PHP_METHOD(swoole_socket_coro, sendFile) {
     zend_long offset = 0;
     zend_long length = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|ll", &file, &file_len, &offset, &length) == FAILURE) {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 3)
+    Z_PARAM_STRING(file, file_len)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_LONG(offset)
+    Z_PARAM_LONG(length)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
     if (file_len == 0) {
         php_swoole_fatal_error(E_WARNING, "file to send is empty");
         RETURN_FALSE;
@@ -1905,9 +1909,10 @@ static PHP_METHOD(swoole_socket_coro, getOption) {
     int other_val;
     zend_long level, optname;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "ll", &level, &optname) == FAILURE) {
-        return;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+    Z_PARAM_LONG(level)
+    Z_PARAM_LONG(optname)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     swoole_get_socket_coro(sock, ZEND_THIS);
     auto _socket = sock->socket->get_socket();
@@ -2005,9 +2010,11 @@ static PHP_METHOD(swoole_socket_coro, setOption) {
     zval *l_onoff, *l_linger;
     zval *sec, *usec;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "llz", &level, &optname, &arg4) == FAILURE) {
-        return;
-    }
+    ZEND_PARSE_PARAMETERS_START(3, 3)
+    Z_PARAM_LONG(level)
+    Z_PARAM_LONG(optname)
+    Z_PARAM_ZVAL(arg4)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     swoole_get_socket_coro(sock, ZEND_THIS);
 

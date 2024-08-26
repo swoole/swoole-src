@@ -128,11 +128,15 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro) {
     Coroutine::get_current_safe();
 
     zval *domain;
-    long type = AF_INET;
+    zend_long type = AF_INET;
     double timeout = swoole::network::Socket::default_dns_timeout;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|dl", &domain, &timeout, &type) == FAILURE) {
-        RETURN_FALSE;
-    }
+
+    ZEND_PARSE_PARAMETERS_START(1, 3)
+    Z_PARAM_ZVAL(domain)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_DOUBLE(timeout)
+    Z_PARAM_LONG(type)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (Z_TYPE_P(domain) != IS_STRING) {
         php_swoole_fatal_error(E_WARNING, "invalid domain name");
