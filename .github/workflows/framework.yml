@@ -1,4 +1,4 @@
-name: Frameworks Tests
+name: Framework Tests
 
 on:
   push:
@@ -10,7 +10,7 @@ env:
 jobs:
   linux:
     runs-on: ubuntu-latest
-    if: "!contains(github.event.head_commit.message, '[test]')"
+    if: "!contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[framework]')"
     strategy:
       fail-fast: false
       matrix:
