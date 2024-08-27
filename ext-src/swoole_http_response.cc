@@ -218,58 +218,21 @@ static PHP_METHOD(swoole_http_response, write) {
         RETURN_FALSE;
     }
 
-    if (ctx->http2) {
-        php_swoole_error(E_WARNING, "HTTP2 client does not support HTTP-CHUNK");
-        RETURN_FALSE;
-    }
-
 #ifdef SW_HAVE_COMPRESSION
-    ctx->accept_compression = 0;
-#endif
-
-    String *http_buffer = ctx->get_write_buffer();
-
-    if (!ctx->send_header_) {
-        ctx->send_chunked = 1;
-        http_buffer->clear();
-        ctx->build_header(http_buffer, nullptr, 0);
-        if (!ctx->send(ctx, http_buffer->str, http_buffer->length)) {
-            ctx->send_chunked = 0;
-            ctx->send_header_ = 0;
-            RETURN_FALSE;
-        }
-    }
-
-    struct {
-        char *str;
-        size_t length;
-    } http_body;
-    size_t length = php_swoole_get_send_data(zdata, &http_body.str);
-
-    if (length == 0) {
-        php_swoole_error(E_WARNING, "data to send is empty");
-        RETURN_FALSE;
-    } else {
-        http_body.length = length;
-    }
-
     // Why not enable compression?
     // If both compression and chunked encoding are enabled,
     // then the content stream is first compressed, then chunked;
     // so the chunk encoding itself is not compressed,
     // **and the data in each chunk is not compressed individually.**
     // The remote endpoint then decodes the stream by concatenating the chunks and decompressing the result.
-    http_buffer->clear();
-    char *hex_string = swoole_dec2hex(http_body.length, 16);
-    int hex_len = strlen(hex_string);
-    //"%.*s\r\n%.*s\r\n", hex_len, hex_string, body.length, body.str
-    http_buffer->append(hex_string, hex_len);
-    http_buffer->append(ZEND_STRL("\r\n"));
-    http_buffer->append(http_body.str, http_body.length);
-    http_buffer->append(ZEND_STRL("\r\n"));
-    sw_free(hex_string);
+    ctx->accept_compression = 0;
+#endif
 
-    RETURN_BOOL(ctx->send(ctx, http_buffer->str, http_buffer->length));
+    if (ctx->http2) {
+        ctx->http2_write(zdata, return_value);
+    } else {
+        ctx->write(zdata, return_value);
+    }
 }
 
 static int parse_header_name(const char *key, size_t keylen) {
@@ -752,6 +715,46 @@ bool HttpContext::send_file(const char *file, uint32_t l_file, off_t offset, siz
         close(this);
     }
     return true;
+}
+
+void HttpContext::write(zval *zdata, zval *return_value) {
+    String *http_buffer = get_write_buffer();
+
+    if (!send_header_) {
+        send_chunked = 1;
+        http_buffer->clear();
+        build_header(http_buffer, nullptr, 0);
+        if (!send(this, http_buffer->str, http_buffer->length)) {
+            send_chunked = 0;
+            send_header_ = 0;
+            RETURN_FALSE;
+        }
+    }
+
+    struct {
+        char *str;
+        size_t length;
+    } http_body;
+    size_t length = php_swoole_get_send_data(zdata, &http_body.str);
+
+    if (length == 0) {
+        php_swoole_error(E_WARNING, "data to send is empty");
+        RETURN_FALSE;
+    } else {
+        http_body.length = length;
+    }
+
+    http_buffer->clear();
+    char *hex_string = swoole_dec2hex(http_body.length, 16);
+    int hex_len = strlen(hex_string);
+    //"%.*s\r\n%.*s\r\n", hex_len, hex_string, body.length, body.str
+    http_buffer->append(hex_string, hex_len);
+    http_buffer->append(ZEND_STRL("\r\n"));
+    http_buffer->append(http_body.str, http_body.length);
+    http_buffer->append(ZEND_STRL("\r\n"));
+    sw_free(hex_string);
+
+    RETURN_BOOL(send(this, http_buffer->str, http_buffer->length));
 }
 
 void HttpContext::end(zval *zdata, zval *return_value) {

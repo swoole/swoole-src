@@ -37,7 +37,8 @@ using Http2Session = Http2::Session;
 static SW_THREAD_LOCAL std::unordered_map<SessionId, Http2Session *> http2_sessions;
 
 static bool http2_server_respond(HttpContext *ctx, const String *body);
-static bool http2_server_send_range_file(HttpContext *ctx, swoole::http_server::StaticHandler *handler);
+static bool http2_server_write(HttpContext *ctx, const String *chunk);
+static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handler);
 
 Http2Stream::Stream(Http2Session *client, uint32_t _id) {
     ctx = swoole_http_context_new(client->fd);
@@ -417,18 +418,20 @@ static ssize_t http2_server_build_header(HttpContext *ctx, uchar *buffer, const 
         SW_HASHTABLE_FOREACH_END();
     }
 
-    size_t content_length = body->length;
-    // content length
+    if (body) {
+        size_t content_length = body->length;
+        // content length
 #ifdef SW_HAVE_COMPRESSION
-    if (ctx->compress(body->str, body->length)) {
-        content_length = ctx->zlib_buffer->length;
-        // content encoding
-        const char *content_encoding = ctx->get_content_encoding();
-        headers.add(ZEND_STRL("content-encoding"), (char *) content_encoding, strlen(content_encoding));
-    }
+        if (ctx->compress(body->str, body->length)) {
+            content_length = ctx->zlib_buffer->length;
+            // content encoding
+            const char *content_encoding = ctx->get_content_encoding();
+            headers.add(ZEND_STRL("content-encoding"), (char *) content_encoding, strlen(content_encoding));
+        }
 #endif
-    ret = swoole_itoa(intbuf[1], content_length);
-    headers.add(ZEND_STRL("content-length"), intbuf[1], ret);
+        ret = swoole_itoa(intbuf[1], content_length);
+        headers.add(ZEND_STRL("content-length"), intbuf[1], ret);
+    }
 
     Http2Session *client = http2_sessions[ctx->fd];
     nghttp2_hd_deflater *deflater = client->deflater;
@@ -508,7 +511,7 @@ bool Http2Stream::send_header(const String *body, bool end_stream) {
      */
     char frame_header[SW_HTTP2_FRAME_HEADER_SIZE];
 
-    if (end_stream && body->length == 0) {
+    if (end_stream && body && body->length == 0) {
         http2::set_frame_header(
             frame_header, SW_HTTP2_TYPE_HEADERS, bytes, SW_HTTP2_FLAG_END_HEADERS | SW_HTTP2_FLAG_END_STREAM, id);
     } else {
@@ -593,32 +596,9 @@ bool Http2Stream::send_trailer() {
     return true;
 }
 
-static bool http2_server_respond(HttpContext *ctx, const String *body) {
-    Http2Session *client = http2_sessions[ctx->fd];
-    Http2Stream *stream = ctx->stream;
-
-    zval *ztrailer =
-        sw_zend_read_property_ex(swoole_http_response_ce, ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TRAILER), 0);
-    if (php_swoole_array_length_safe(ztrailer) == 0) {
-        ztrailer = nullptr;
-    }
-
-    bool end_stream = (ztrailer == nullptr);
-    if (!stream->send_header(body, end_stream)) {
-        return false;
-    }
-
-    // The headers has already been sent, retries are no longer allowed (even if send body failed)
-    ctx->end_ = 1;
-
+static bool http2_server_send_data(
+    HttpContext *ctx, Http2Session *client, Http2Stream *stream, const String *body, bool end_stream) {
     bool error = false;
-
-#ifdef SW_HAVE_COMPRESSION
-    if (ctx->content_compressed) {
-        body = ctx->zlib_buffer.get();
-    }
-#endif
-
     // If send_yield is not supported, ignore flow control
     if (ctx->co_socket || !((Server *) ctx->private_data)->send_yield || !swoole_coroutine_is_in()) {
         if (body->length > client->remote_window_size) {
@@ -668,7 +648,56 @@ static bool http2_server_respond(HttpContext *ctx, const String *body) {
         }
     }
 
-    if (!error && ztrailer && !stream->send_trailer()) {
+    return !error;
+}
+
+static bool http2_server_write(HttpContext *ctx, const String *chunk) {
+    Http2Session *client = http2_sessions[ctx->fd];
+    Http2Stream *stream = ctx->stream;
+
+    ctx->send_chunked = 1;
+
+    if (!ctx->send_header_ && !stream->send_header(nullptr, false)) {
+        return false;
+    }
+
+    if (!http2_server_send_data(ctx, client, stream, chunk, false)) {
+        return false;
+    }
+
+    return true;
+}
+
+static bool http2_server_respond(HttpContext *ctx, const String *body) {
+    Http2Session *client = http2_sessions[ctx->fd];
+    Http2Stream *stream = ctx->stream;
+
+    zval *ztrailer =
+        sw_zend_read_property_ex(swoole_http_response_ce, ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TRAILER), 0);
+    if (php_swoole_array_length_safe(ztrailer) == 0) {
+        ztrailer = nullptr;
+    }
+
+    bool end_stream = (ztrailer == nullptr);
+
+    if (!ctx->send_header_ && !stream->send_header(body, end_stream)) {
+        return false;
+    }
+
+    // The headers has already been sent, retries are no longer allowed (even if send body failed)
+    ctx->end_ = 1;
+
+    bool error = false;
+
+#ifdef SW_HAVE_COMPRESSION
+    if (ctx->content_compressed) {
+        body = ctx->zlib_buffer.get();
+    }
+#endif
+
+    if (!http2_server_send_data(ctx, client, stream, body, end_stream)) {
+        error = true;
+    } else if (ztrailer && !stream->send_trailer()) {
         error = true;
     }
 
@@ -686,7 +715,7 @@ static bool http2_server_respond(HttpContext *ctx, const String *body) {
     return !error;
 }
 
-static bool http2_server_send_range_file(HttpContext *ctx, swoole::http_server::StaticHandler *handler) {
+static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handler) {
     Http2Session *client = http2_sessions[ctx->fd];
     std::shared_ptr<String> body;
 
@@ -1291,6 +1320,11 @@ void HttpContext::http2_end(zval *zdata, zval *return_value) {
         http_body.length = 0;
         http_body.str = nullptr;
     }
-
     RETURN_BOOL(http2_server_respond(this, &http_body));
+}
+
+void HttpContext::http2_write(zval *zdata, zval *return_value) {
+    String http_body = {};
+    http_body.length = php_swoole_get_send_data(zdata, &http_body.str);
+    RETURN_BOOL(http2_server_write(this, &http_body));
 }
