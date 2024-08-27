@@ -195,6 +195,7 @@ class Client {
     bool exec(std::string _path);
     bool recv_response(double timeout = 0);
     bool recv_websocket_frame(zval *zframe, double timeout = 0);
+    void add_header(const char *key, size_t key_len, const char *str, size_t length);
     bool upgrade(std::string path);
     bool push(zval *zdata, zend_long opcode = websocket::OPCODE_TEXT, uint8_t flags = websocket::FLAG_FIN);
     bool close(const bool should_be_reset = true);
@@ -406,8 +407,7 @@ static int http_parser_on_header_field(swoole_http_parser *parser, const char *a
 static int http_parser_on_header_value(swoole_http_parser *parser, const char *at, size_t length) {
     Client *http = (Client *) parser->data;
     zval *zobject = (zval *) http->zobject;
-    zval *zheaders =
-        sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, zobject, ZEND_STRL("headers"), 0);
+
     char *header_name = http->tmp_header_field_name;
     size_t header_len = http->tmp_header_field_name_len;
     zend::CharPtr _header_name;
@@ -417,7 +417,7 @@ static int http_parser_on_header_value(swoole_http_parser *parser, const char *a
         header_name = _header_name.get();
     }
 
-    add_assoc_stringl_ex(zheaders, header_name, header_len, (char *) at, length);
+    http->add_header(header_name, header_len, (char *) at, length);
 
     if (parser->status_code == SW_HTTP_SWITCHING_PROTOCOLS && SW_STREQ(header_name, header_len, "upgrade")) {
         if (swoole_http_token_list_contains_value(at, length, "websocket")) {
@@ -765,6 +765,32 @@ void Client::set_basic_auth(const std::string &username, const std::string &pass
         output_len += base64_encode((const unsigned char *) input.c_str(), input.size(), output + output_len);
         basic_auth = std::string((const char *) output, output_len);
         efree(output);
+    }
+}
+
+void Client::add_header(const char *key, size_t key_len, const char *str, size_t length) {
+    zval *zheaders =
+        sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, zobject, ZEND_STRL("headers"), 0);
+    zend_array *array = Z_ARRVAL_P(zheaders);
+
+    zval zvalue_new;
+    ZVAL_STRINGL(&zvalue_new, str, length);
+    zval *zresult = zend_hash_str_add(array, key, key_len, &zvalue_new);
+    /**
+     * Adding failed, indicating that this header already exists and must be converted to an array
+     */
+    if (!zresult) {
+        zval *zvalue_found = zend_hash_str_find(array, key, key_len);
+        if (ZVAL_IS_ARRAY(zvalue_found)) {
+            add_next_index_zval(zvalue_found, &zvalue_new);
+        } else {
+            zval zvalue_array;
+            array_init_size(&zvalue_array, 2);
+            Z_ADDREF_P(zvalue_found);
+            add_next_index_zval(&zvalue_array, zvalue_found);
+            add_next_index_zval(&zvalue_array, &zvalue_new);
+            zend_hash_str_update(array, key, key_len, &zvalue_array);
+        }
     }
 }
 
