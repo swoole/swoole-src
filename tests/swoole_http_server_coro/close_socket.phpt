@@ -71,7 +71,7 @@ $pm->childFunc = function () use ($pm) {
                     foreach (array_merge([
                         'Content-Type' => 'application/octet-stream',
                         'X-Accel-Buffering' => 'no',
-                        'server' => 'webserver/1.0'
+                        'X-Server' => 'webserver/1.0'
                     ], $headers) as $k => $v) {
                         $socket->send("{$k}: {$v}\r\n");
                     }
