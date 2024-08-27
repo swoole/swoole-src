@@ -330,7 +330,7 @@ void Logger::put(int level, const char *content, size_t length) {
     if (opened && flock(log_fd, LOCK_EX) == -1) {
         return;
     }
-    write(log_fd, log_str, n);
+    (void)write(log_fd, log_str, n);
     if (opened && flock(log_fd, LOCK_UN) == -1) {
         return;
     }
