@@ -18,9 +18,17 @@
 #include "swoole_socket.h"
 #include "swoole_util.h"
 
+#if PHP_VERSION_ID >= 80400
+#include "swoole_server.h"
+#endif
+
 #include "thirdparty/php/standard/proc_open.h"
 #ifdef SW_USE_CURL
+#if PHP_VERSION_ID >= 80400
+#include "thirdparty/php84/curl/curl_interface.h"
+#else
 #include "thirdparty/php/curl/curl_interface.h"
+#endif
 #endif
 
 #include <unordered_map>
@@ -76,6 +84,9 @@ static PHP_FUNCTION(swoole_time_sleep_until);
 static PHP_FUNCTION(swoole_stream_select);
 static PHP_FUNCTION(swoole_stream_socket_pair);
 static PHP_FUNCTION(swoole_user_func_handler);
+#if PHP_VERSION_ID >= 80400
+static PHP_FUNCTION(swoole_exit);
+#endif
 SW_EXTERN_C_END
 
 static void inherit_class(const char *child_name, size_t child_length, const char *parent_name, size_t parent_length);
@@ -233,6 +244,9 @@ struct real_func {
 void php_swoole_runtime_rinit() {
     tmp_function_table = (zend_array *) emalloc(sizeof(zend_array));
     zend_hash_init(tmp_function_table, 8, nullptr, nullptr, 0);
+#if PHP_VERSION_ID >= 80400
+    SW_HOOK_FUNC(exit);
+#endif
 }
 
 void php_swoole_runtime_rshutdown() {
@@ -2120,3 +2134,48 @@ static void clear_class_entries() {
     }
     child_class_entries.clear();
 }
+
+#if PHP_VERSION_ID >= 80400
+static PHP_FUNCTION(swoole_exit) {
+    zend_string *message = NULL;
+    zend_long status = 0;
+
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_STR_OR_LONG(message, status)
+    ZEND_PARSE_PARAMETERS_END();
+
+    zend_long flags = 0;
+    if (Coroutine::get_current()) {
+        flags |= SW_EXIT_IN_COROUTINE;
+    }
+
+    if (sw_server() && sw_server()->is_started()) {
+        flags |= SW_EXIT_IN_SERVER;
+    }
+
+    if (flags) {
+        zval ex = {};
+        zend_object *obj = zend_throw_exception(swoole_exit_exception_ce, (message ? ZSTR_VAL(message) : "swoole exit"), 0);
+        ZVAL_OBJ(&ex, obj);
+        zend_update_property_long(swoole_exit_exception_ce, SW_Z8_OBJ_P(&ex), ZEND_STRL("flags"), flags);
+        zend_update_property_long(swoole_exit_exception_ce, SW_Z8_OBJ_P(&ex), ZEND_STRL("status"), status);
+    } else {
+        if (message) {
+            size_t len = ZSTR_LEN(message);
+            if (len != 0) {
+                /* An exception might be emitted by an output handler */
+                zend_write(ZSTR_VAL(message), len);
+                if (EG(exception)) {
+                    RETURN_THROWS();
+                }
+            }
+        } else {
+            EG(exit_status) = status;
+        }
+
+        ZEND_ASSERT(!EG(exception));
+        zend_throw_unwind_exit();
+    }
+}
+#endif

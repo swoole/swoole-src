@@ -17,12 +17,15 @@
 #define SW_USE_ORACLE_HOOK
 #include "php_swoole_oracle.h"
 
-#if PHP_VERSION_ID >= 80300 && PHP_VERSION_ID < 80400
+#if PHP_VERSION_ID >= 80400
 
 #include "php.h"
 #include "php_ini.h"
 #include "ext/standard/info.h"
 #include "pdo/php_pdo.h"
+#include "pdo/php_pdo_driver.h"
+#include "php_pdo_oci.h"
+#include "php_pdo_oci_int.h"
 #include "Zend/zend_exceptions.h"
 
 static inline ub4 pdo_oci_sanitize_prefetch(long prefetch);
@@ -245,13 +248,9 @@ static bool oci_handle_preparer(pdo_dbh_t *dbh, zend_string *sql, pdo_stmt_t *st
     zend_string *nsql = NULL;
     int ret;
 
-#ifdef HAVE_OCISTMTFETCH2
     S->exec_type = pdo_attr_lval(driver_options, PDO_ATTR_CURSOR, PDO_CURSOR_FWDONLY) == PDO_CURSOR_SCROLL
                        ? OCI_STMT_SCROLLABLE_READONLY
                        : OCI_DEFAULT;
-#else
-    S->exec_type = OCI_DEFAULT;
-#endif
 
     S->H = H;
     stmt->supports_placeholders = PDO_PLACEHOLDER_NAMED;
@@ -737,14 +736,14 @@ static int pdo_oci_handle_factory(pdo_dbh_t *dbh, zval *driver_options) /* {{{ *
     H->prefetch = PDO_OCI_PREFETCH_DEFAULT;
 
     /* allocate an environment */
-#ifdef HAVE_OCIENVNLSCREATE
     if (vars[0].optval) {
         H->charset = OCINlsCharSetNameToId(swoole_pdo_oci_Env, (const oratext *) vars[0].optval);
         if (!H->charset) {
             oci_init_error("OCINlsCharSetNameToId: unknown character set name");
             goto cleanup;
         } else {
-            if (OCIEnvNlsCreate(&H->env, SWOOLE_PDO_OCI_INIT_MODE, 0, NULL, NULL, NULL, 0, NULL, H->charset, H->charset) !=
+            if (OCIEnvNlsCreate(
+                    &H->env, SWOOLE_PDO_OCI_INIT_MODE, 0, NULL, NULL, NULL, 0, NULL, H->charset, H->charset) !=
                 OCI_SUCCESS) {
                 oci_init_error("OCIEnvNlsCreate: Check the character set is valid and that PHP has access to Oracle "
                                "libraries and NLS data");
@@ -752,7 +751,7 @@ static int pdo_oci_handle_factory(pdo_dbh_t *dbh, zval *driver_options) /* {{{ *
             }
         }
     }
-#endif
+
     if (H->env == NULL) {
         /* use the global environment */
         H->env = swoole_pdo_oci_Env;
