@@ -18,7 +18,6 @@
 #include "php_swoole_odbc.h"
 
 #if PHP_VERSION_ID >= 80300 && PHP_VERSION_ID < 80400
-
 #include "php.h"
 #include "php_ini.h"
 #include "ext/standard/info.h"

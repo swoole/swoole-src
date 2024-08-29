@@ -28,7 +28,6 @@
 #include "ext/pdo/php_pdo_driver.h"
 #include "ext/pdo/php_pdo_error.h"
 #include "ext/standard/file.h"
-#include "php_pdo_pgsql.h"
 #include "php_pdo_pgsql_int.h"
 #include "zend_exceptions.h"
 #include "zend_smart_str.h"

@@ -188,8 +188,6 @@ PHP_FUNCTION(swoole_native_curl_multi_select) {
     zval *z_mh;
     php_curlm *mh;
     double timeout = 1.0;
-    int numfds = 0;
-    CURLMcode error = CURLM_OK;
 
     ZEND_PARSE_PARAMETERS_START(1, 2)
     Z_PARAM_OBJECT_OF_CLASS(z_mh, swoole_coroutine_curl_multi_handle_ce)

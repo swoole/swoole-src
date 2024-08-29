@@ -23,9 +23,6 @@
 #include "php_ini.h"
 #include "ext/standard/info.h"
 #include "pdo/php_pdo.h"
-#include "pdo/php_pdo_driver.h"
-#include "php_pdo_oci.h"
-#include "php_pdo_oci_int.h"
 #include "Zend/zend_exceptions.h"
 
 static inline ub4 pdo_oci_sanitize_prefetch(long prefetch);

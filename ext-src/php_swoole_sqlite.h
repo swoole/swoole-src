@@ -24,10 +24,17 @@
 BEGIN_EXTERN_C()
 
 #include "ext/pdo/php_pdo_driver.h"
-#if PHP_VERSION_ID >= 80100
-#include "thirdparty/php81/pdo_sqlite/php_pdo_sqlite_int.h"
-#else
+
+#if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80100
 #include "thirdparty/php80/pdo_sqlite/php_pdo_sqlite_int.h"
+#elif PHP_VERSION_ID >= 80100 && PHP_VERSION_ID < 80200
+#include "thirdparty/php81/pdo_sqlite/php_pdo_sqlite_int.h"
+#elif PHP_VERSION_ID >= 80200 && PHP_VERSION_ID < 80300
+#include "thirdparty/php81/pdo_sqlite/php_pdo_sqlite_int.h"
+#elif PHP_VERSION_ID >= 80300 && PHP_VERSION_ID < 80400
+#include "thirdparty/php83/pdo_sqlite/php_pdo_sqlite_int.h"
+#else
+#include "thirdparty/php84/pdo_sqlite/php_pdo_sqlite_int.h"
 #endif
 
 extern const pdo_driver_t swoole_pdo_sqlite_driver;

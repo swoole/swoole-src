@@ -1056,7 +1056,8 @@ EOF
 	        thirdparty/php83/pdo_pgsql/pgsql_driver.c \
             thirdparty/php83/pdo_pgsql/pgsql_statement.c \
             thirdparty/php84/pdo_pgsql/pgsql_driver.c \
-            thirdparty/php84/pdo_pgsql/pgsql_statement.c"
+            thirdparty/php84/pdo_pgsql/pgsql_statement.c \
+            thirdparty/php84/pdo_pgsql/pgsql_sql_parser.c"
 	fi
 
 	if test "$PHP_SWOOLE_ORACLE" != "no"; then
@@ -1092,7 +1093,8 @@ EOF
             thirdparty/php83/pdo_sqlite/sqlite_driver.c \
             thirdparty/php83/pdo_sqlite/sqlite_statement.c \
             thirdparty/php84/pdo_sqlite/sqlite_driver.c \
-            thirdparty/php84/pdo_sqlite/sqlite_statement.c"
+            thirdparty/php84/pdo_sqlite/sqlite_statement.c \
+            thirdparty/php84/pdo_sqlite/sqlite_sql_parser.c"
     fi
 
     SW_ASM_DIR="thirdparty/boost/asm/"

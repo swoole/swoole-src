@@ -1421,7 +1421,7 @@ static zend_result _php_curl_setopt(php_curl *ch, zend_long option, zval *zvalue
         HANDLE_CURL_OPTION_CALLABLE(ch, CURLOPT_XFERINFO, handlers.xferinfo, fn_xferinfo);
         HANDLE_CURL_OPTION_CALLABLE(ch, CURLOPT_FNMATCH_, handlers.fnmatch, fn_fnmatch);
 #if LIBCURL_VERSION_NUM >= 0x075400 /* Available since 7.84.0 */
-        HANDLE_CURL_OPTION_CALLABLE(ch, CURLOPT_SSH_HOSTKEY, handlers.sshhostkey, curl_ssh_hostkeyfunction);
+        HANDLE_CURL_OPTION_CALLABLE(ch, CURLOPT_SSH_HOSTKEY, handlers.sshhostkey, fn_ssh_hostkeyfunction);
 #endif
 
     /* Long options */

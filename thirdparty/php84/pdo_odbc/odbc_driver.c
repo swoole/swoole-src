@@ -20,13 +20,10 @@
 #include "php.h"
 #include "php_ini.h"
 #include "ext/standard/info.h"
-#include "ext/pdo/php_pdo.h"
-#include "ext/pdo/php_pdo_driver.h"
-/* this file actually lives in main/ */
-#include "php_odbc_utils.h"
-#include "php_pdo_odbc.h"
-#include "php_pdo_odbc_int.h"
+#include "pdo/php_pdo.h"
+#include "pdo/php_pdo_driver.h"
 #include "zend_exceptions.h"
+#include <php_odbc_utils.h>
 
 static void pdo_odbc_fetch_error_func(pdo_dbh_t *dbh, pdo_stmt_t *stmt, zval *info) {
     pdo_odbc_db_handle *H = (pdo_odbc_db_handle *) dbh->driver_data;
