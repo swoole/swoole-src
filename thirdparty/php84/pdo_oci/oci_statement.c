@@ -17,7 +17,7 @@
 #define SW_USE_ORACLE_HOOK
 #include "php_swoole_oracle.h"
 
-#if PHP_VERSION_ID >= 80300 && PHP_VERSION_ID < 80400
+#if PHP_VERSION_ID >= 80400
 
 #include "php.h"
 #include "php_ini.h"
@@ -488,12 +488,9 @@ static int oci_stmt_param_hook(pdo_stmt_t *stmt,
 
 static int oci_stmt_fetch(pdo_stmt_t *stmt, enum pdo_fetch_orientation ori, zend_long offset) /* {{{ */
 {
-#ifdef HAVE_OCISTMTFETCH2
     ub4 ociori = OCI_FETCH_NEXT;
-#endif
     pdo_oci_stmt *S = (pdo_oci_stmt *) stmt->driver_data;
 
-#ifdef HAVE_OCISTMTFETCH2
     switch (ori) {
     case PDO_FETCH_ORI_NEXT:
         ociori = OCI_FETCH_NEXT;
@@ -515,9 +512,6 @@ static int oci_stmt_fetch(pdo_stmt_t *stmt, enum pdo_fetch_orientation ori, zend
         break;
     }
     S->last_err = OCIStmtFetch2(S->stmt, S->err, 1, ociori, (sb4) offset, OCI_DEFAULT);
-#else
-    S->last_err = OCIStmtFetch(S->stmt, S->err, 1, OCI_FETCH_NEXT, OCI_DEFAULT);
-#endif
 
     if (S->last_err == OCI_NO_DATA) {
         /* no (more) data */
@@ -699,7 +693,6 @@ static ssize_t oci_blob_write(php_stream *stream, const char *buf, size_t count)
 
 static ssize_t oci_blob_read(php_stream *stream, char *buf, size_t count) {
     struct oci_lob_self *self = (struct oci_lob_self *) stream->abstract;
-#if HAVE_OCILOBREAD2
     oraub8 byte_amt = (oraub8) count;
     oraub8 char_amt = 0;
 
@@ -716,31 +709,12 @@ static ssize_t oci_blob_read(php_stream *stream, char *buf, size_t count) {
                           NULL,
                           0,
                           self->csfrm);
-#else
-    ub4 byte_amt = (ub4) count;
-
-    sword r = OCILobRead(self->E->svc,
-                         self->E->err,
-                         self->lob,
-                         &byte_amt,
-                         self->offset,
-                         buf,
-                         (ub4) count,
-                         NULL,
-                         NULL,
-                         0,
-                         SQLCS_IMPLICIT);
-#endif
 
     if (r != OCI_SUCCESS && r != OCI_NEED_DATA) {
         return (ssize_t) -1;
     }
 
-#if HAVE_OCILOBREAD2
     self->offset += self->csfrm == 0 ? byte_amt : char_amt;
-#else
-    self->offset += byte_amt;
-#endif
     if (byte_amt < count) {
         stream->eof = 1;
     }
