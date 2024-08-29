@@ -36,6 +36,7 @@
 
 #define SW_DEFAULT_MAX_CORO_NUM 100000
 #define SW_DEFAULT_PHP_STACK_PAGE_SIZE 8192
+enum sw_exit_flags { SW_EXIT_IN_COROUTINE = 1 << 1, SW_EXIT_IN_SERVER = 1 << 2 };
 
 #define SWOG ((zend_output_globals *) &OG(handlers))
 
