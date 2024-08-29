@@ -1019,7 +1019,8 @@ EOF
         thirdparty/php/sockets/conversions.cc \
         thirdparty/php/sockets/sockaddr_conv.cc \
         thirdparty/php/standard/var_decoder.cc \
-        thirdparty/php/standard/proc_open.cc"
+        thirdparty/php/standard/proc_open.cc \
+        thirdparty/php84/hash/hash_sha.c "
 
     swoole_source_file="$swoole_source_file \
         thirdparty/swoole_http_parser.c \
@@ -1232,6 +1233,7 @@ EOF
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/sockets)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/standard)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/curl)
+    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/hash)
     if test "$PHP_NGHTTP2_DIR" = "no"; then
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/nghttp2)
 	fi
