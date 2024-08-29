@@ -1,5 +1,5 @@
 --TEST--
-swoole_http2_server: streaming
+swoole_http2_server: streaming 2
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
@@ -17,7 +17,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
     $out = '';
     while($line = $proc->read()) {
         $out .= $line;
-        if (str_contains($line, 'hello world, end')) {
+        if (str_contains($line, 'hello world, #0')) {
             break;
         }
     }
@@ -40,7 +40,7 @@ $pm->childFunc = function () use ($pm) {
             $response->write("hello world, #$n\n");
             Co\System::sleep(0.1);
         }
-        $response->end("hello world, end\n");
+        $response->end();
     });
     $http->start();
 };
@@ -53,4 +53,3 @@ hello world, #3
 hello world, #2
 hello world, #1
 hello world, #0
-hello world, end

@@ -2740,7 +2740,7 @@ static PHP_METHOD(swoole_server, send) {
     size_t length = php_swoole_get_send_data(zdata, &data);
 
     if (length == 0) {
-        php_swoole_fatal_error(E_WARNING, "data is empty");
+        php_swoole_error_ex(E_WARNING, SW_ERROR_NO_PAYLOAD, "the data sent must not be empty");
         RETURN_FALSE;
     }
 
@@ -2790,7 +2790,7 @@ static PHP_METHOD(swoole_server, sendto) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (len == 0) {
-        php_swoole_fatal_error(E_WARNING, "data is empty");
+        php_swoole_error_ex(E_WARNING, SW_ERROR_NO_PAYLOAD, "the data sent must not be empty");
         RETURN_FALSE;
     }
 
@@ -3810,12 +3810,12 @@ static PHP_METHOD(swoole_server, sendwait) {
     size_t length = php_swoole_get_send_data(zdata, &data);
 
     if (length == 0) {
-        php_swoole_fatal_error(E_WARNING, "data is empty");
+        php_swoole_error_ex(E_WARNING, SW_ERROR_NO_PAYLOAD, "the data sent must not be empty");
         RETURN_FALSE;
     }
 
     if (serv->is_process_mode() || serv->is_task_worker()) {
-        php_swoole_fatal_error(E_WARNING, "can't sendwait");
+        php_swoole_fatal_error(E_WARNING, "can only be used with base mode and must be within worker process");
         RETURN_FALSE;
     }
 

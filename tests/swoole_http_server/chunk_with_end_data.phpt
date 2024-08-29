@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_server: http chunk
+swoole_http_server: send data in the end method with chunked encoding
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -33,10 +33,13 @@ $pm->childFunc = function () use ($pm) {
 
     $http->on("request", function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         $data = str_split(file_get_contents(TEST_IMAGE), 8192);
-        foreach ($data as $chunk) {
+        foreach ($data as $k => $chunk) {
+            if ($k == count($data) - 1) {
+                break;
+            }
             $response->write($chunk);
         }
-        $response->end();
+        $response->end($data[count($data) - 1]);
     });
 
     $http->start();

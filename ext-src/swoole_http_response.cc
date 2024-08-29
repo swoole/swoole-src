@@ -738,7 +738,7 @@ void HttpContext::write(zval *zdata, zval *return_value) {
     size_t length = php_swoole_get_send_data(zdata, &http_body.str);
 
     if (length == 0) {
-        php_swoole_error(E_WARNING, "data to send is empty");
+        php_swoole_error_ex(E_WARNING, SW_ERROR_NO_PAYLOAD, "the data sent must not be empty");
         RETURN_FALSE;
     } else {
         http_body.length = length;
@@ -770,6 +770,13 @@ void HttpContext::end(zval *zdata, zval *return_value) {
     }
 
     if (send_chunked) {
+        if (zdata && Z_STRLEN_P(zdata) > 0) {
+            zval retval;
+            write(zdata, &retval);
+            if (ZVAL_IS_FALSE(&retval)) {
+                RETURN_FALSE;
+            }
+        }
         if (send_trailer_) {
             if (!send(this, ZEND_STRL("0\r\n"))) {
                 RETURN_FALSE;

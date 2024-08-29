@@ -529,6 +529,12 @@ bool Http2Stream::send_header(const String *body, bool end_stream) {
     return true;
 }
 
+bool Http2Stream::send_end_stream_data_frame() {
+    char frame_header[SW_HTTP2_FRAME_HEADER_SIZE];
+    http2::set_frame_header(frame_header, SW_HTTP2_TYPE_DATA, 0, SW_HTTP2_FLAG_END_STREAM, id);
+    return ctx->send(ctx, frame_header, SW_HTTP2_FRAME_HEADER_SIZE);
+}
+
 bool Http2Stream::send_body(const String *body, bool end_stream, size_t max_frame_size, off_t offset, size_t length) {
     char frame_header[SW_HTTP2_FRAME_HEADER_SIZE];
     char *p = body->str + offset;
@@ -687,7 +693,7 @@ static bool http2_server_respond(HttpContext *ctx, const String *body) {
     // The headers has already been sent, retries are no longer allowed (even if send body failed)
     ctx->end_ = 1;
 
-    bool error = false;
+    bool error = true;
 
 #ifdef SW_HAVE_COMPRESSION
     if (ctx->content_compressed) {
@@ -695,10 +701,16 @@ static bool http2_server_respond(HttpContext *ctx, const String *body) {
     }
 #endif
 
-    if (!http2_server_send_data(ctx, client, stream, body, end_stream)) {
-        error = true;
-    } else if (ztrailer && !stream->send_trailer()) {
-        error = true;
+    SW_LOOP {
+        if (ctx->send_chunked && body->length == 0 && !stream->send_end_stream_data_frame()) {
+            break;
+        } else if (!http2_server_send_data(ctx, client, stream, body, end_stream)) {
+            break;
+        } else if (ztrailer && !stream->send_trailer()) {
+            break;
+        }
+        error = false;
+        break;
     }
 
     if (error) {
@@ -1326,5 +1338,9 @@ void HttpContext::http2_end(zval *zdata, zval *return_value) {
 void HttpContext::http2_write(zval *zdata, zval *return_value) {
     String http_body = {};
     http_body.length = php_swoole_get_send_data(zdata, &http_body.str);
+    if (http_body.length == 0) {
+        php_swoole_error_ex(E_WARNING, SW_ERROR_NO_PAYLOAD, "the data sent must not be empty");
+        RETURN_FALSE;
+    }
     RETURN_BOOL(http2_server_write(this, &http_body));
 }

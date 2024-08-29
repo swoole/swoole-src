@@ -272,6 +272,7 @@ class Stream {
 
     bool send_header(const String *body, bool end_stream);
     bool send_body(const String *body, bool end_stream, size_t max_frame_size, off_t offset = 0, size_t length = 0);
+    bool send_end_stream_data_frame();
     bool send_trailer();
 
     void reset(uint32_t error_code);

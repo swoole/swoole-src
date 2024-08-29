@@ -76,7 +76,14 @@ function skip_if_ini_bool_equal_to(string $name, bool $value)
     }
 }
 
-function skip_if_constant_not_defined(string $constant_name)
+function skip_if_no_nghttp(): void
+{
+    if (!str_contains(`nghttp --version 2>&1`, 'nghttp2')) {
+        skip('no nghttp');
+    }
+}
+
+function skip_if_constant_not_defined(string $constant_name): void
 {
     require_once __DIR__ . '/config.php';
     skip("{$constant_name} is not defined", !defined($constant_name));
