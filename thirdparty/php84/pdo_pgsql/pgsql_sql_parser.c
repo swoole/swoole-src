@@ -16,6 +16,10 @@
   +----------------------------------------------------------------------+
 */
 
+#define SW_USE_PGSQL_HOOK
+#include "php_swoole_pgsql.h"
+
+#if PHP_VERSION_ID >= 80400
 
 #include "php.h"
 #include "ext/pdo/php_pdo_driver.h"
@@ -550,3 +554,4 @@ yy37:
 #line 52 "ext/pdo_pgsql/pgsql_sql_parser.re"
 
 }
+#endif

@@ -16,6 +16,10 @@
   +----------------------------------------------------------------------+
 */
 
+#define SW_USE_SQLITE_HOOK
+#include "php_swoole_sqlite.h"
+
+#if PHP_VERSION_ID >= 80400
 
 #include "php.h"
 #include "ext/pdo/php_pdo_driver.h"
@@ -418,3 +422,4 @@ yy39:
 #line 48 "ext/pdo_sqlite/sqlite_sql_parser.re"
 
 }
+#endif
