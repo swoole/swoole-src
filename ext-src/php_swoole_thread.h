@@ -24,7 +24,7 @@
 #include "swoole_lock.h"
 
 typedef uint32_t ThreadResourceId;
-struct ThreadResource;
+class ThreadResource;
 struct ZendArray;
 
 extern zend_class_entry *swoole_thread_ce;
@@ -145,7 +145,8 @@ struct ArrayItem {
     }
 };
 
-struct ZendArray : ThreadResource {
+class ZendArray : public ThreadResource {
+ protected:
     swoole::RWLock lock_;
     zend_array ht;
 
@@ -154,6 +155,7 @@ struct ZendArray : ThreadResource {
         delete item;
     }
 
+ public:
     ZendArray() : ThreadResource(), lock_(0) {
         zend_hash_init(&ht, 0, NULL, item_dtor, 1);
     }

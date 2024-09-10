@@ -226,14 +226,6 @@ static int coro_exit_handler(zend_execute_data *execute_data) {
 #else
 extern ZEND_FUNCTION(exit);
 PHP_FUNCTION(swoole_exit) {
-    zend_string *message = NULL;
-    zend_long status = 0;
-
-    ZEND_PARSE_PARAMETERS_START(0, 1)
-    Z_PARAM_OPTIONAL
-    Z_PARAM_STR_OR_LONG(message, status)
-    ZEND_PARSE_PARAMETERS_END();
-
     zend_long flags = 0;
     if (Coroutine::get_current()) {
         flags |= SW_EXIT_IN_COROUTINE;
@@ -244,6 +236,14 @@ PHP_FUNCTION(swoole_exit) {
     }
 
     if (flags) {
+        zend_string *message = NULL;
+        zend_long status = 0;
+
+        ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_STR_OR_LONG(message, status)
+        ZEND_PARSE_PARAMETERS_END();
+
         zval ex = {};
         zend_object *obj = zend_throw_exception(swoole_exit_exception_ce, (message ? ZSTR_VAL(message) : "swoole exit"), 0);
         ZVAL_OBJ(&ex, obj);
