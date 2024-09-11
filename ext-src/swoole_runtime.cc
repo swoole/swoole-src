@@ -18,10 +18,6 @@
 #include "swoole_socket.h"
 #include "swoole_util.h"
 
-#if PHP_VERSION_ID >= 80400
-#include "swoole_server.h"
-#endif
-
 #include "thirdparty/php/standard/proc_open.h"
 #ifdef SW_USE_CURL
 #if PHP_VERSION_ID >= 80400

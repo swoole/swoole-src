@@ -57,6 +57,8 @@ static zend_always_inline zend_vm_stack zend_vm_stack_new_page(size_t size, zend
 }
 #endif
 
+enum sw_exit_flags { SW_EXIT_IN_COROUTINE = 1 << 1, SW_EXIT_IN_SERVER = 1 << 2 };
+
 bool PHPCoroutine::activated = false;
 zend_array *PHPCoroutine::options = nullptr;
 
@@ -85,15 +87,10 @@ static unordered_map<long, Coroutine *> user_yield_coros;
 static void (*orig_interrupt_function)(zend_execute_data *execute_data) = nullptr;
 
 static zend_class_entry *swoole_coroutine_util_ce;
-static zend_class_entry *swoole_coroutine_iterator_ce;
-static zend_class_entry *swoole_coroutine_context_ce;
-#if PHP_VERSION_ID >= 80400
-zend_class_entry *swoole_exit_exception_ce;
-zend_object_handlers swoole_exit_exception_handlers;
-#else
 static zend_class_entry *swoole_exit_exception_ce;
 static zend_object_handlers swoole_exit_exception_handlers;
-#endif
+static zend_class_entry *swoole_coroutine_iterator_ce;
+static zend_class_entry *swoole_coroutine_context_ce;
 
 SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_coroutine, exists);
