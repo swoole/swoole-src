@@ -1,10 +1,8 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: f1d616c644ad366405816cde0384f6f391773ebf */
-
+ * Stub hash: ddfcdd8a0bf0ee6c338ec1689c6de5d7fd87303d */
 #include "curl_interface.h"
 
-#if defined(SW_USE_CURL) && PHP_VERSION_ID < 80400
-
+#if defined(SW_USE_CURL) && PHP_VERSION_ID >= 80400
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_native_curl_close, 0, 1, IS_VOID, 0)
 	ZEND_ARG_OBJ_INFO(0, handle, CurlHandle, 0)
 ZEND_END_ARG_INFO()
@@ -28,6 +26,12 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_swoole_native_curl_unescape arginfo_swoole_native_curl_escape
 
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_native_curl_multi_setopt, 0, 3, _IS_BOOL, 0)
+	ZEND_ARG_OBJ_INFO(0, multi_handle, CurlMultiHandle, 0)
+	ZEND_ARG_TYPE_INFO(0, option, IS_LONG, 0)
+	ZEND_ARG_TYPE_INFO(0, value, IS_MIXED, 0)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_swoole_native_curl_exec, 0, 1, MAY_BE_STRING|MAY_BE_BOOL)
 	ZEND_ARG_OBJ_INFO(0, handle, CurlHandle, 0)
 ZEND_END_ARG_INFO()
@@ -40,6 +44,12 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(arginfo_swoole_native_curl_init, 0, 0, CurlHandle, MAY_BE_FALSE)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, url, IS_STRING, 1, "null")
 ZEND_END_ARG_INFO()
+
+#if LIBCURL_VERSION_NUM >= 0x073E00 /* Available since 7.62.0 */
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_native_curl_upkeep, 0, 1, _IS_BOOL, 0)
+	ZEND_ARG_OBJ_INFO(0, handle, CurlHandle, 0)
+ZEND_END_ARG_INFO()
+#endif
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_native_curl_multi_add_handle, 0, 2, IS_LONG, 0)
 	ZEND_ARG_OBJ_INFO(0, multi_handle, CurlMultiHandle, 0)
@@ -74,14 +84,12 @@ ZEND_END_ARG_INFO()
 #define arginfo_swoole_native_curl_multi_remove_handle arginfo_swoole_native_curl_multi_add_handle
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_native_curl_multi_select, 0, 1, IS_LONG, 0)
-    ZEND_ARG_OBJ_INFO(0, multi_handle, CurlMultiHandle, 0)
-    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, timeout, IS_DOUBLE, 0, "1.0")
+	ZEND_ARG_OBJ_INFO(0, multi_handle, CurlMultiHandle, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, timeout, IS_DOUBLE, 0, "1.0")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_native_curl_multi_setopt, 0, 3, _IS_BOOL, 0)
-    ZEND_ARG_OBJ_INFO(0, multi_handle, CurlMultiHandle, 0)
-    ZEND_ARG_TYPE_INFO(0, option, IS_LONG, 0)
-    ZEND_ARG_TYPE_INFO(0, value, IS_MIXED, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_native_curl_multi_strerror, 0, 1, IS_STRING, 1)
+	ZEND_ARG_TYPE_INFO(0, error_code, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_native_curl_pause, 0, 2, IS_LONG, 0)
@@ -102,31 +110,53 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_native_curl_setopt, 0, 3,
 	ZEND_ARG_TYPE_INFO(0, value, IS_MIXED, 0)
 ZEND_END_ARG_INFO()
 
-static const zend_function_entry swoole_native_curl_functions[] = {
-    PHP_FE(swoole_native_curl_close, arginfo_swoole_native_curl_close)
-    PHP_FE(swoole_native_curl_copy_handle, arginfo_swoole_native_curl_copy_handle)
-    PHP_FE(swoole_native_curl_errno, arginfo_swoole_native_curl_errno)
-    PHP_FE(swoole_native_curl_error, arginfo_swoole_native_curl_error)
-    PHP_FE(swoole_native_curl_exec, arginfo_swoole_native_curl_exec)
-    PHP_FE(swoole_native_curl_getinfo, arginfo_swoole_native_curl_getinfo)
-    PHP_FE(swoole_native_curl_init, arginfo_swoole_native_curl_init)
-    PHP_FE(swoole_native_curl_setopt, arginfo_swoole_native_curl_setopt)
-    PHP_FE(swoole_native_curl_setopt_array, arginfo_swoole_native_curl_setopt_array)
-    PHP_FE(swoole_native_curl_reset, arginfo_swoole_native_curl_reset)
-    PHP_FE(swoole_native_curl_escape, arginfo_swoole_native_curl_escape)
-    PHP_FE(swoole_native_curl_unescape, arginfo_swoole_native_curl_unescape)
-    PHP_FE(swoole_native_curl_pause, arginfo_swoole_native_curl_pause)
-    PHP_FE(swoole_native_curl_multi_add_handle, arginfo_swoole_native_curl_multi_add_handle)
-    PHP_FE(swoole_native_curl_multi_close, arginfo_swoole_native_curl_multi_close)
-    PHP_FE(swoole_native_curl_multi_errno, arginfo_swoole_native_curl_multi_errno)
-    PHP_FE(swoole_native_curl_multi_exec, arginfo_swoole_native_curl_multi_exec)
-    PHP_FE(swoole_native_curl_multi_select, arginfo_swoole_native_curl_multi_select)
-    PHP_FE(swoole_native_curl_multi_setopt, arginfo_swoole_native_curl_multi_setopt)
-    PHP_FE(swoole_native_curl_multi_getcontent, arginfo_swoole_native_curl_multi_getcontent)
-    PHP_FE(swoole_native_curl_multi_info_read, arginfo_swoole_native_curl_multi_info_read)
-    PHP_FE(swoole_native_curl_multi_init, arginfo_swoole_native_curl_multi_init)
-    PHP_FE(swoole_native_curl_multi_remove_handle, arginfo_swoole_native_curl_multi_remove_handle)
+#define arginfo_swoole_native_curl_strerror arginfo_swoole_native_curl_multi_strerror
 
-    PHP_FE_END
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_swoole_native_curl_version, 0, 0, MAY_BE_ARRAY|MAY_BE_FALSE)
+ZEND_END_ARG_INFO()
+
+static const zend_function_entry swoole_native_curl_functions[] = {
+	ZEND_FE(swoole_native_curl_close, arginfo_swoole_native_curl_close)
+	ZEND_FE(swoole_native_curl_copy_handle, arginfo_swoole_native_curl_copy_handle)
+	ZEND_FE(swoole_native_curl_errno, arginfo_swoole_native_curl_errno)
+	ZEND_FE(swoole_native_curl_error, arginfo_swoole_native_curl_error)
+	ZEND_FE(swoole_native_curl_escape, arginfo_swoole_native_curl_escape)
+	ZEND_FE(swoole_native_curl_unescape, arginfo_swoole_native_curl_unescape)
+	ZEND_FE(swoole_native_curl_multi_setopt, arginfo_swoole_native_curl_multi_setopt)
+	ZEND_FE(swoole_native_curl_exec, arginfo_swoole_native_curl_exec)
+	ZEND_FE(swoole_native_curl_getinfo, arginfo_swoole_native_curl_getinfo)
+	ZEND_FE(swoole_native_curl_init, arginfo_swoole_native_curl_init)
+#if LIBCURL_VERSION_NUM >= 0x073E00 /* Available since 7.62.0 */
+	ZEND_FE(swoole_native_curl_upkeep, arginfo_swoole_native_curl_upkeep)
+#endif
+	ZEND_FE(swoole_native_curl_multi_add_handle, arginfo_swoole_native_curl_multi_add_handle)
+	ZEND_FE(swoole_native_curl_multi_close, arginfo_swoole_native_curl_multi_close)
+	ZEND_FE(swoole_native_curl_multi_errno, arginfo_swoole_native_curl_multi_errno)
+	ZEND_FE(swoole_native_curl_multi_exec, arginfo_swoole_native_curl_multi_exec)
+	ZEND_FE(swoole_native_curl_multi_getcontent, arginfo_swoole_native_curl_multi_getcontent)
+	ZEND_FE(swoole_native_curl_multi_info_read, arginfo_swoole_native_curl_multi_info_read)
+	ZEND_FE(swoole_native_curl_multi_init, arginfo_swoole_native_curl_multi_init)
+	ZEND_FE(swoole_native_curl_multi_remove_handle, arginfo_swoole_native_curl_multi_remove_handle)
+	ZEND_FE(swoole_native_curl_multi_select, arginfo_swoole_native_curl_multi_select)
+	ZEND_FE(swoole_native_curl_multi_strerror, arginfo_swoole_native_curl_multi_strerror)
+	ZEND_FE(swoole_native_curl_pause, arginfo_swoole_native_curl_pause)
+	ZEND_FE(swoole_native_curl_reset, arginfo_swoole_native_curl_reset)
+	ZEND_FE(swoole_native_curl_setopt_array, arginfo_swoole_native_curl_setopt_array)
+	ZEND_FE(swoole_native_curl_setopt, arginfo_swoole_native_curl_setopt)
+	ZEND_FE(swoole_native_curl_strerror, arginfo_swoole_native_curl_strerror)
+	ZEND_FE(swoole_native_curl_version, arginfo_swoole_native_curl_version)
+	ZEND_FE_END
+};
+
+static const zend_function_entry class_CurlHandle_methods[] = {
+	ZEND_FE_END
+};
+
+static const zend_function_entry class_CurlMultiHandle_methods[] = {
+	ZEND_FE_END
+};
+
+static const zend_function_entry class_CurlShareHandle_methods[] = {
+	ZEND_FE_END
 };
 #endif

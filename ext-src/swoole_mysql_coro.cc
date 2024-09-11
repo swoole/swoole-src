@@ -27,13 +27,8 @@
 
 SW_EXTERN_C_BEGIN
 
-#if PHP_VERSION_ID >= 80400
-#include "thirdparty/php84/hash/php_hash.h"
-#include "thirdparty/php84/hash/php_hash_sha.h"
-#else
 #include "ext/hash/php_hash.h"
 #include "ext/hash/php_hash_sha.h"
-#endif
 #include "ext/standard/php_math.h"
 #ifdef SW_USE_MYSQLND
 #include "ext/mysqlnd/mysqlnd.h"

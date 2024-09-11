@@ -24,7 +24,13 @@
 SW_EXTERN_C_BEGIN
 #include <curl/curl.h>
 #include <curl/multi.h>
+#ifdef SW_USE_CURL
+#if PHP_VERSION_ID >= 80400
+#include "thirdparty/php84/curl/curl_private.h"
+#else
 #include "thirdparty/php/curl/curl_private.h"
+#endif
+#endif
 SW_EXTERN_C_END
 
 #if LIBCURL_VERSION_NUM < 0x073800
