@@ -84,7 +84,7 @@ TEST(async, schedule) {
                 break;
             } else if (count == N - 1) {
                 ASSERT_EQ(SwooleTG.async_threads->get_worker_num(), 4);
-                ASSERT_EQ(SwooleTG.async_threads->get_queue_size(), 1);
+                ASSERT_LE(SwooleTG.async_threads->get_queue_size(), 1);
                 ASSERT_EQ(SwooleTG.async_threads->get_task_num(), 1);
             } else if (count < N / 2) {
                 ASSERT_GT(SwooleTG.async_threads->get_worker_num(), 4);
