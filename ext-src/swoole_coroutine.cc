@@ -20,9 +20,7 @@
 #include "php_swoole_cxx.h"
 #include "php_swoole_coroutine_system.h"
 
-#if PHP_VERSION_ID < 80400
 #include "swoole_server.h"
-#endif
 #include "swoole_signal.h"
 
 #include "zend_builtin_functions.h"
