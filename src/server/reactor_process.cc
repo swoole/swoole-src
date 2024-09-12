@@ -25,7 +25,7 @@ static int ReactorProcess_onClose(Reactor *reactor, Event *event);
 static void ReactorProcess_onTimeout(Timer *timer, TimerNode *tnode);
 
 int Server::start_reactor_processes() {
-    single_thread = 1;
+    single_thread = true;
 
     // listen TCP
     if (have_stream_sock == 1) {

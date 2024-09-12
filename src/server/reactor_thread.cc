@@ -88,7 +88,7 @@ _delay_receive:
  */
 static int ReactorThread_onPacketReceived(Reactor *reactor, Event *event) {
     int fd = event->fd;
-    int ret;
+    ssize_t ret;
 
     Server *serv = (Server *) reactor->ptr;
     Connection *server_sock = serv->get_connection(fd);

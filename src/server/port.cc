@@ -142,7 +142,7 @@ bool ListenPort::ssl_create_context(SSLContext *context) {
         context->http_v2 = 1;
     }
     if (!context->create()) {
-        swoole_warning("swSSL_get_context() error");
+        swoole_warning("failed to create ssl content");
         return false;
     }
     return true;

@@ -151,6 +151,7 @@ struct Worker {
     void *ptr2;
 
     ssize_t send_pipe_message(const void *buf, size_t n, int flags);
+    bool has_exceeded_max_request();
 
     void set_status(enum swWorkerStatus _status) {
         status = _status;
@@ -232,7 +233,7 @@ struct ProcessPool {
     uint8_t scheduler_warning;
     time_t warning_time;
 
-    int (*onTask)(ProcessPool *pool, EventData *task);
+    int (*onTask)(ProcessPool *pool, Worker *worker, EventData *task);
     void (*onWorkerStart)(ProcessPool *pool, Worker *worker);
     void (*onMessage)(ProcessPool *pool, RecvData *msg);
     void (*onWorkerStop)(ProcessPool *pool, Worker *worker);

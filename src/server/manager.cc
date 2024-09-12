@@ -42,6 +42,7 @@ struct Manager {
 
     void wait(Server *_server);
     void add_timeout_killer(Worker *workers, int n);
+    void terminate_all_worker();
 
     static void signal_handler(int sig);
     static void timer_callback(Timer *timer, TimerNode *tnode);
@@ -405,6 +406,14 @@ void Manager::wait(Server *_server) {
     }
 }
 
+void Manager::terminate_all_worker() {
+	// clear the timer
+    alarm(0);
+    for (auto i = kill_workers.begin(); i != kill_workers.end(); i++) {
+        swoole_kill(*i, SIGKILL);
+    }
+}
+
 void Manager::signal_handler(int signo) {
     Server *_server = sw_server();
     if (!_server || !_server->manager) {
@@ -428,10 +437,7 @@ void Manager::signal_handler(int signo) {
     case SIGALRM:
         SwooleG.signal_alarm = 1;
         if (manager->force_kill) {
-            alarm(0);
-            for (auto i = manager->kill_workers.begin(); i != manager->kill_workers.end(); i++) {
-                swoole_kill(*i, SIGKILL);
-            }
+            manager->terminate_all_worker();
         }
         break;
     default:

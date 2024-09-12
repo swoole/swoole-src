@@ -137,7 +137,7 @@ pid_t Factory::spawn_user_worker(Worker *worker) {
         server_->user_worker_map.erase(worker->pid);
     }
     if (pid < 0) {
-        swoole_sys_warning("Fork Worker failed");
+        swoole_sys_warning("failed to spawn the user worker");
         return SW_ERR;
     }
     // child

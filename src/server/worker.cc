@@ -211,7 +211,7 @@ void Server::worker_accept_event(DataHead *info) {
     worker->status = SW_WORKER_IDLE;
 
     // maximum number of requests, process will exit.
-    if (!SwooleWG.run_always && worker->request_count >= SwooleWG.max_request) {
+    if (worker->has_exceeded_max_request()) {
         stop_async_worker(worker);
     }
 }
@@ -576,6 +576,10 @@ static int Worker_onPipeReceive(Reactor *reactor, Event *event) {
     serv->get_worker_message_bus()->pop();
 
     return SW_OK;
+}
+
+bool Worker::has_exceeded_max_request() {
+	return !SwooleWG.run_always && request_count >= SwooleWG.max_request;
 }
 
 ssize_t Worker::send_pipe_message(const void *buf, size_t n, int flags) {

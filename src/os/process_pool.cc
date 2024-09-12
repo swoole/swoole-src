@@ -526,11 +526,9 @@ static int ProcessPool_worker_loop_with_task_protocol(ProcessPool *pool, Worker 
         EventData buf;
     } out{};
 
-    ssize_t n = 0, ret, worker_task_always = 0;
-    int task_n = pool->get_max_request();
-    if (task_n <= 0) {
-        worker_task_always = 1;
-        task_n = 1;
+    ssize_t n = 0, ret;
+    if (pool->get_max_request() <= 0) {
+        SwooleWG.run_always = 1;
     }
 
     /**
@@ -544,7 +542,7 @@ static int ProcessPool_worker_loop_with_task_protocol(ProcessPool *pool, Worker 
         out.mtype = worker->id + 1;
     }
 
-    while (pool->running && !SwooleWG.shutdown && task_n > 0) {
+    while (pool->running && !SwooleWG.shutdown) {
         /**
          * fetch task
          */
@@ -596,12 +594,7 @@ static int ProcessPool_worker_loop_with_task_protocol(ProcessPool *pool, Worker 
             continue;
         }
 
-        /**
-         * do task
-         */
-        worker->status = SW_WORKER_BUSY;
-        ret = pool->onTask(pool, &out.buf);
-        worker->status = SW_WORKER_IDLE;
+        ret = pool->onTask(pool, worker, &out.buf);
 
         if (pool->use_socket && pool->stream_info_->last_connection) {
             int _end = 0;
@@ -617,8 +610,8 @@ static int ProcessPool_worker_loop_with_task_protocol(ProcessPool *pool, Worker 
             goto _alarm_handler;
         }
 
-        if (ret >= 0 && !worker_task_always) {
-            task_n--;
+        if (worker->has_exceeded_max_request()) {
+        	break;
         }
     }
     return SW_OK;
@@ -763,6 +756,10 @@ static int ProcessPool_worker_loop_with_stream_protocol(ProcessPool *pool, Worke
         if (SwooleG.signal_alarm) {
             goto _alarm_handler;
         }
+
+        if (worker->has_exceeded_max_request()) {
+        	break;
+        }
     }
     return SW_OK;
 }
@@ -802,6 +799,9 @@ static int ProcessPool_worker_loop_with_message_protocol(ProcessPool *pool, Work
         default:
             swoole_sys_warning("failed to read data from pipe");
             return SW_OK;
+        }
+        if (worker->has_exceeded_max_request()) {
+        	break;
         }
     }
 

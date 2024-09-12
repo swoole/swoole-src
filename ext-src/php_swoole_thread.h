@@ -25,7 +25,7 @@
 
 typedef uint32_t ThreadResourceId;
 class ThreadResource;
-struct ZendArray;
+class ZendArray;
 
 extern zend_class_entry *swoole_thread_ce;
 extern zend_class_entry *swoole_thread_error_ce;

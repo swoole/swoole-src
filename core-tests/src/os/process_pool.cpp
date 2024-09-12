@@ -18,7 +18,7 @@ static void test_func(ProcessPool &pool) {
     ASSERT_EQ(pool.dispatch_blocking(&data, &worker_id), SW_OK);
 
     pool.running = true;
-    pool.onTask = [](ProcessPool *pool, EventData *task) -> int {
+    pool.onTask = [](ProcessPool *pool, Worker *worker, EventData *task) -> int {
         pool->running = false;
         EXPECT_MEMEQ(task->data, TEST_JPG_MD5SUM, task->info.len);
         return 0;
@@ -93,7 +93,7 @@ TEST(process_pool, shutdown) {
         usleep(1);
     };
 
-    pool.onTask = [](ProcessPool *pool, EventData *task) -> int {
+    pool.onTask = [](ProcessPool *pool, Worker *worker, EventData *task) -> int {
         kill(pool->master_pid, SIGTERM);
 
         return 0;

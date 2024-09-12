@@ -45,7 +45,7 @@ bool StaticHandler::is_modified(const std::string &date_if_modified_since) {
     } else if (strptime(date_tmp, SW_HTTP_ASCTIME_DATE, &tm3) != nullptr) {
         date_format = SW_HTTP_ASCTIME_DATE;
     }
-    return date_format && mktime(&tm3) - (int) serv->timezone_ >= get_file_mtime();
+    return date_format && mktime(&tm3) - (time_t) serv->timezone_ >= get_file_mtime();
 }
 
 bool StaticHandler::is_modified_range(const std::string &date_range) {
@@ -167,7 +167,7 @@ check_stat:
         }
     }
 
-    if (S_ISLNK(file_stat.st_mode)) {
+    if (is_link()) {
         char buf[PATH_MAX];
         ssize_t byte = ::readlink(filename, buf, sizeof(buf) - 1);
         if (byte <= 0) {
@@ -186,11 +186,11 @@ check_stat:
         return true;
     }
 
-    if (!swoole::mime_type::exists(filename) && !last) {
+    if (!mime_type::exists(filename) && !last) {
         return false;
     }
 
-    if (!S_ISREG(file_stat.st_mode)) {
+    if (!is_file()) {
         return false;
     }
 
@@ -271,23 +271,23 @@ bool StaticHandler::get_dir_files() {
     return true;
 }
 
-bool StaticHandler::set_filename(const std::string &filename) {
-    char *p = this->filename + l_filename;
+bool StaticHandler::set_filename(const std::string &_filename) {
+    char *p = filename + l_filename;
 
     if (*p != '/') {
         *p = '/';
         p += 1;
     }
 
-    memcpy(p, filename.c_str(), filename.length());
-    p += filename.length();
+    memcpy(p, _filename.c_str(), _filename.length());
+    p += _filename.length();
     *p = 0;
 
-    if (lstat(this->filename, &file_stat) < 0) {
+    if (lstat(filename, &file_stat) < 0) {
         return false;
     }
 
-    if (!S_ISREG(file_stat.st_mode)) {
+    if (!is_file()) {
         return false;
     }
 

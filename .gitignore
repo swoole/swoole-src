@@ -8,13 +8,13 @@
 *.loT
 *.pid
 *.dep
-/Debug/*
 modules/*
 /.deps
 /.libs/
 /core
 /examples/core
 /Debug
+/Release
 /CMakeFiles
 /cmake_install.cmake
 /CMakeCache.txt
@@ -80,11 +80,25 @@ cmake-build-debug/
 /.vs
 /configure.in
 /configure.ac
+
+# core-tests
 /core-tests/CMakeCache.txt
 /core-tests/CMakeFiles/
 /core-tests/Makefile
 /core-tests/bin/
 /core-tests/cmake_install.cmake
+/core-tests/samples/Makefile
+/core-tests/samples/cmake_install\.cmake
+/core-tests/samples/CMakeCache\.txt
+/core-tests/samples/bin/
+/core-tests/samples/CMakeFiles/
+/core-tests/.project
+/core-tests/.cproject
+/core-tests/compile_commands.json
+/core-tests/samples/.project
+/core-tests/fuzz/fuzz_results/
+/core-tests/fuzz/bin/
+
 /tools/vendor
 /tools/composer.lock
 /examples/wrapper/CMakeFiles
@@ -92,11 +106,6 @@ cmake-build-debug/
 /examples/wrapper/Makefile
 /examples/wrapper/server
 /examples/wrapper/cmake_install.cmake
-core-tests/samples/Makefile
-core-tests/samples/cmake_install\.cmake
-core-tests/samples/CMakeCache\.txt
-core-tests/samples/bin/
-core-tests/samples/CMakeFiles/
 /out
 /gcov_result
 
@@ -108,6 +117,4 @@ core-tests/samples/CMakeFiles/
 /html
 /tests/include/lib/vendor/
 /tests/include/lib/composer.lock
-/core-tests/fuzz/fuzz_results/
-/core-tests/fuzz/bin/
 /scripts/data

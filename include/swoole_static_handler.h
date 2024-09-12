@@ -128,6 +128,14 @@ class StaticHandler {
         return S_ISDIR(file_stat.st_mode);
     }
 
+    bool is_link() {
+    	return S_ISLNK(file_stat.st_mode);
+    }
+
+    bool is_file() {
+    	return S_ISREG(file_stat.st_mode);
+    }
+
     size_t get_content_length() {
         return content_length;
     }
