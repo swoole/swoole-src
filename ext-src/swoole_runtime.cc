@@ -80,6 +80,9 @@ static PHP_FUNCTION(swoole_time_sleep_until);
 static PHP_FUNCTION(swoole_stream_select);
 static PHP_FUNCTION(swoole_stream_socket_pair);
 static PHP_FUNCTION(swoole_user_func_handler);
+#if PHP_VERSION_ID >= 80400
+extern PHP_FUNCTION(swoole_exit);
+#endif
 SW_EXTERN_C_END
 
 static void inherit_class(const char *child_name, size_t child_length, const char *parent_name, size_t parent_length);
@@ -237,6 +240,9 @@ struct real_func {
 void php_swoole_runtime_rinit() {
     tmp_function_table = (zend_array *) emalloc(sizeof(zend_array));
     zend_hash_init(tmp_function_table, 8, nullptr, nullptr, 0);
+#if PHP_VERSION_ID >= 80400
+    SW_HOOK_FUNC(exit);
+#endif
 }
 
 void php_swoole_runtime_rshutdown() {

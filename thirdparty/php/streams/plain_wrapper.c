@@ -21,12 +21,23 @@
 #include "ext/standard/php_filestat.h"
 
 #include <fcntl.h>
+
+#if PHP_VERSION_ID >= 80400
+#ifdef HAVE_SYS_WAIT_H
+#include <sys/wait.h>
+#endif
+#ifdef HAVE_SYS_FILE_H
+#include <sys/file.h>
+#endif
+#else
 #if HAVE_SYS_WAIT_H
 #include <sys/wait.h>
 #endif
 #if HAVE_SYS_FILE_H
 #include <sys/file.h>
 #endif
+#endif
+
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif

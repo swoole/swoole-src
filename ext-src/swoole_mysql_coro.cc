@@ -26,6 +26,7 @@
 #undef L64
 
 SW_EXTERN_C_BEGIN
+
 #include "ext/hash/php_hash.h"
 #include "ext/hash/php_hash_sha.h"
 #include "ext/standard/php_math.h"
