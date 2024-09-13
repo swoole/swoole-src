@@ -626,7 +626,7 @@ TEST(server, task_worker2) {
             memcpy(buf.data, packet, strlen(packet));
             buf.info.reactor_id = worker->id;
             buf.info.ext_flags |= (SW_TASK_NONBLOCK | SW_TASK_CALLBACK);
-            ASSERT_GE(serv->gs->task_workers.dispatch(&buf, &_dst_worker_id), 0);
+            ASSERT_EQ(serv->gs->task_workers.dispatch(&buf, &_dst_worker_id), SW_OK);
             sleep(1);
             kill(serv->gs->master_pid, SIGTERM);
         }

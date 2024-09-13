@@ -1002,6 +1002,10 @@ class Server {
         return gs->task_workers.get_task_id(task);
     }
 
+    uint16_t get_command_id(EventData *cmd) {
+    	return cmd->info.server_fd;
+    }
+
     EventData *get_task_result() {
         return &(task_results[swoole_get_process_id()]);
     }

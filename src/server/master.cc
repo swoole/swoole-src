@@ -89,6 +89,7 @@ void Server::call_command_callback(int64_t request_id, const std::string &result
         return;
     }
     iter->second(this, result);
+    command_callbacks.erase(request_id);
 }
 
 void Server::call_command_handler(MessageBus &mb, uint16_t worker_id, Socket *sock) {
@@ -1126,56 +1127,58 @@ bool Server::command(WorkerId process_id,
     }
 
     int command_id = iter->second.id;
-    int64_t requset_id = command_current_request_id++;
+    int64_t request_id = command_current_request_id++;
     Socket *pipe_sock;
 
     SendData task{};
-    task.info.fd = requset_id;
+    task.info.fd = request_id;
     task.info.reactor_id = process_id;
     task.info.server_fd = command_id;
     task.info.type = SW_SERVER_EVENT_COMMAND_REQUEST;
     task.info.len = msg.length();
     task.data = msg.c_str();
 
+    command_callbacks[request_id] = fn;
+
     if (!(process_type & iter->second.accepted_process_types)) {
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_OPERATION_NOT_SUPPORT, "unsupported [process_type]");
+    _fail:
+        command_callbacks.erase(request_id);
         return false;
     }
 
     if (process_type == Command::REACTOR_THREAD) {
         if (!is_process_mode()) {
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_OPERATION_NOT_SUPPORT, "unsupported [server_mode]");
-            return false;
+            goto _fail;
         }
         if (process_id >= reactor_num) {
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_INVALID_PARAMS, "invalid thread_id[%d]", process_id);
-            return false;
+            goto _fail;
         }
         pipe_sock = get_worker(process_id)->pipe_worker;
     } else if (process_type == Command::EVENT_WORKER) {
         if (process_id >= worker_num) {
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_INVALID_PARAMS, "invalid worker_id[%d]", process_id);
-            return false;
+            goto _fail;
         }
         pipe_sock = get_worker(process_id)->pipe_master;
     } else if (process_type == Command::TASK_WORKER) {
         if (process_id >= task_worker_num) {
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_INVALID_PARAMS, "invalid task_worker_id[%d]", process_id);
-            return false;
+            goto _fail;
         }
         EventData buf;
-        memset(&buf.info, 0, sizeof(buf.info));
         if (!task_pack(&buf, msg.c_str(), msg.length())) {
-            return false;
+            goto _fail;
         }
         buf.info.type = SW_SERVER_EVENT_COMMAND_REQUEST;
-        buf.info.fd = requset_id;
+        buf.info.fd = request_id;
         buf.info.server_fd = command_id;
         int _dst_worker_id = process_id;
-        if (gs->task_workers.dispatch(&buf, &_dst_worker_id) <= 0) {
-            return false;
+        if (gs->task_workers.dispatch(&buf, &_dst_worker_id) == SW_ERR) {
+            goto _fail;
         }
-        command_callbacks[requset_id] = fn;
         return true;
     } else if (process_type == Command::MANAGER) {
         EventData buf;
@@ -1185,18 +1188,17 @@ bool Server::command(WorkerId process_id,
                              "message is too large, maximum length is %lu, the given length is %lu",
                              sizeof(buf.data),
                              msg.length());
-            return false;
+            goto _fail;
         }
         memset(&buf.info, 0, sizeof(buf.info));
         buf.info.type = SW_SERVER_EVENT_COMMAND_REQUEST;
-        buf.info.fd = requset_id;
+        buf.info.fd = request_id;
         buf.info.server_fd = command_id;
         buf.info.len = msg.length();
         memcpy(buf.data, msg.c_str(), msg.length());
         if (gs->event_workers.push_message(&buf) < 0) {
-            return false;
+            goto _fail;
         }
-        command_callbacks[requset_id] = fn;
         return true;
     } else if (process_type == Command::MASTER) {
         auto result = call_command_handler_in_master(command_id, msg);
@@ -1204,12 +1206,11 @@ bool Server::command(WorkerId process_id,
         return true;
     } else {
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_OPERATION_NOT_SUPPORT, "unsupported [process_type]");
-        return false;
+        goto _fail;
     }
     if (!message_bus.write(pipe_sock, &task)) {
-        return false;
+        goto _fail;
     }
-    command_callbacks[requset_id] = fn;
     return true;
 }
 

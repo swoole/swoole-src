@@ -53,9 +53,9 @@ void Server::init_task_workers() {
     }
 }
 
-static int TaskWorker_call_command_handler(ProcessPool *pool, EventData *req) {
+static int TaskWorker_call_command_handler(ProcessPool *pool, Worker *worker, EventData *req) {
     Server *serv = (Server *) pool->ptr;
-    int command_id = req->info.server_fd;
+    int command_id = serv->get_command_id(req);
     auto iter = serv->command_handlers.find(command_id);
     if (iter == serv->command_handlers.end()) {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_INVALID_COMMAND, "Unknown command[%d]", command_id);
@@ -71,8 +71,8 @@ static int TaskWorker_call_command_handler(ProcessPool *pool, EventData *req) {
     auto result = handler(serv, std::string(packet.data, packet.length));
 
     SendData task{};
-    task.info.fd = req->info.fd;
-    task.info.reactor_id = sw_worker()->id;
+    task.info.fd = serv->get_task_id(req);
+    task.info.reactor_id = worker->id;
     task.info.server_fd = -1;
     task.info.type = SW_SERVER_EVENT_COMMAND_RESPONSE;
     task.info.len = result.length();
@@ -92,7 +92,7 @@ static int TaskWorker_onTask(ProcessPool *pool, Worker *worker, EventData *task)
     } else if (task->info.type == SW_SERVER_EVENT_SHUTDOWN) {
         SwooleWG.shutdown = true;
     } else if (task->info.type == SW_SERVER_EVENT_COMMAND_REQUEST) {
-        ret = TaskWorker_call_command_handler(pool, task);
+        ret = TaskWorker_call_command_handler(pool, worker, task);
     } else {
         ret = serv->onTask(serv, task);
         /**
@@ -367,7 +367,7 @@ bool Server::finish(const char *data, size_t data_len, int flags, EventData *cur
         }
         buf.info.ext_flags |= flags;
         buf.info.type = SW_SERVER_EVENT_FINISH;
-        buf.info.fd = current_task->info.fd;
+        buf.info.fd = get_task_id(current_task);
 
         if (worker->pool->use_socket && worker->pool->stream_info_->last_connection) {
             uint32_t _len = htonl(data_len);
@@ -376,7 +376,7 @@ bool Server::finish(const char *data, size_t data_len, int flags, EventData *cur
                 retval = worker->pool->stream_info_->last_connection->send_blocking(data, data_len);
             }
         } else {
-            retval = send_to_worker_from_worker(worker, &buf, sizeof(buf.info) + buf.info.len, SW_PIPE_MASTER);
+            retval = send_to_worker_from_worker(worker, &buf, buf.size(), SW_PIPE_MASTER);
         }
     } else {
         uint64_t flag = 1;
@@ -418,7 +418,7 @@ bool Server::finish(const char *data, size_t data_len, int flags, EventData *cur
             }
             result->info.ext_flags |= flags;
             result->info.type = SW_SERVER_EVENT_FINISH;
-            result->info.fd = current_task->info.fd;
+            result->info.fd = get_task_id(current_task);
         }
 
         // unlock worker
