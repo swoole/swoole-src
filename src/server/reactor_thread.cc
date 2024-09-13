@@ -310,7 +310,9 @@ void ReactorThread::shutdown(Reactor *reactor) {
                 if (ls->socket->fd % serv->reactor_num != reactor->id) {
                     continue;
                 }
-                reactor->del(ls->socket);
+                if (!ls->socket->removed) {
+                    reactor->del(ls->socket);
+                }
             }
         }
     }

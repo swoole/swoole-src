@@ -925,7 +925,9 @@ void Server::stop_master_thread() {
         if (port->is_dgram() and is_process_mode()) {
             continue;
         }
-        reactor->del(port->socket);
+        if (!port->socket->removed) {
+            reactor->del(port->socket);
+        }
     }
     if (pipe_command) {
         reactor->del(pipe_command->get_socket(true));
