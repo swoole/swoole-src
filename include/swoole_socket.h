@@ -108,9 +108,12 @@ struct Address {
     SocketType type;
 
     bool assign(SocketType _type, const std::string &_host, int _port);
+    bool assign(const std::string &url);
+
     const char *get_ip() {
         return get_addr();
     }
+
     int get_port();
     const char *get_addr();
 
@@ -497,6 +500,12 @@ struct Socket {
      * and allow interruptions by signals.
      */
     ssize_t read_sync(void *__buf, size_t __len, int timeout_ms = -1);
+
+    /**
+     * Write data to the socket synchronously without setting non-blocking or blocking IO,
+     * and allow interruptions by signals.
+     */
+    ssize_t write_sync(const void *__buf, size_t __len, int timeout_ms = -1);
 
     int shutdown(int __how) {
         return ::shutdown(fd, __how);

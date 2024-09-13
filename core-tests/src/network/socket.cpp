@@ -333,3 +333,46 @@ TEST(socket, check_liveness) {
     t1.join();
     t2.join();
 }
+
+#define CRLF "\r\n"
+
+TEST(socket, sync) {
+	auto sock = make_socket(SW_SOCK_TCP, SW_FD_STREAM, 0);
+
+	swoole::network::Address addr;
+	ASSERT_TRUE(addr.assign("tcp://httpbin.org:80"));
+
+	ASSERT_EQ(sock->connect(addr), 0);
+
+	const char *req = "GET / HTTP/1.1" CRLF \
+			"Host: httpbin.org" CRLF \
+			"User-Agent: curl/7.81.0" CRLF \
+			"Accept: */*" CRLF \
+			"Connection: close" CRLF \
+			CRLF CRLF;
+	ssize_t n = strlen(req);
+	ASSERT_EQ(sock->write_sync(req, n), n);
+
+	string resp;
+	SW_LOOP {
+		char buf[1024];
+		n = sock->read_sync(buf, sizeof(buf));
+		if (n == 0) {
+			break;
+		}
+		ASSERT_GT(n, 0);
+		resp.append(buf, n);
+	}
+
+	ASSERT_GT(resp.length(), 4096);
+	sock->free();
+}
+
+TEST(socket, ipv6_addr) {
+	auto sock = make_socket(SW_SOCK_TCP6, SW_FD_STREAM, 0);
+	swoole::network::Address addr;
+	ASSERT_TRUE(addr.assign("tcp://[::1]:12345"));
+	ASSERT_EQ(sock->connect(addr), SW_ERR);
+	ASSERT_EQ(errno, ECONNREFUSED);
+	sock->free();
+}

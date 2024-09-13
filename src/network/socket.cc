@@ -781,6 +781,17 @@ ssize_t Socket::read_sync(void *__buf, size_t __len, int timeout_ms) {
     }
 }
 
+ssize_t Socket::write_sync(const void *__buf, size_t __len, int timeout_ms) {
+    struct pollfd event;
+    event.fd = fd;
+    event.events = POLLOUT;
+    if (poll(&event, 1, timeout_ms) == 1) {
+        return write(__buf, __len);
+    } else {
+        return -1;
+    }
+}
+
 ssize_t Socket::readv(IOVector *io_vector) {
     ssize_t retval;
 
