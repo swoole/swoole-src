@@ -545,8 +545,8 @@ TEST(server, task_worker) {
         exit(2);
     }
 
-    serv.onTask = [](Server *serv, swEventData *task) -> int {
-        EXPECT_EQ(serv->get_task_count(), 1);
+    serv.onTask = [](Server *serv, EventData *task) -> int {
+        EXPECT_EQ(serv->get_tasking_num(), 1);
         EXPECT_EQ(string(task->data, task->info.len), string(packet));
         serv->gs->task_workers.running = 0;
         return 0;
@@ -556,13 +556,14 @@ TEST(server, task_worker) {
     ASSERT_EQ(serv.create_task_workers(), SW_OK);
 
     thread t1([&serv]() {
+    	SwooleWG.run_always = true;
         serv.gs->task_workers.running = 1;
         serv.gs->tasking_num++;
         serv.gs->task_workers.main_loop(&serv.gs->task_workers, &serv.gs->task_workers.workers[0]);
         serv.gs->tasking_num--;
-        EXPECT_EQ(serv.get_task_count(), 0);
+        EXPECT_EQ(serv.get_tasking_num(), 0);
         serv.gs->tasking_num--;
-        EXPECT_EQ(serv.get_task_count(), 0);
+        EXPECT_EQ(serv.get_tasking_num(), 0);
         EXPECT_EQ(serv.get_idle_task_worker_num(), serv.task_worker_num);
     });
 
@@ -581,6 +582,8 @@ TEST(server, task_worker) {
 
     t1.join();
     serv.gs->task_workers.destroy();
+
+    ASSERT_EQ(serv.gs->)
 }
 
 // PHP_METHOD(swoole_server, task)
@@ -724,7 +727,7 @@ TEST(server, task_worker4) {
             serv->gs->task_workers.dispatch(&buf, &_dst_worker_id);
             sleep(1);
 
-            EventData *task_result = &(serv->task_result[swoole_get_process_id()]);
+            EventData *task_result = serv->get_task_result();
             sw_memset_zero(task_result, sizeof(*task_result));
             memset(&buf.info, 0, sizeof(buf.info));
             buf.info.len = strlen(packet);
@@ -779,7 +782,7 @@ TEST(server, task_worker5) {
         if (worker->id == 1) {
             int _dst_worker_id = 0;
 
-            EventData *task_result = &(serv->task_result[worker->id]);
+            EventData *task_result = &(serv->task_results[worker->id]);
             sw_memset_zero(task_result, sizeof(*task_result));
 
             File fp = make_tmpfile();

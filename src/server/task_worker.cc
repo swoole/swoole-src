@@ -107,6 +107,7 @@ static int TaskWorker_onTask(ProcessPool *pool, Worker *worker, EventData *task)
 }
 
 bool Server::task_pack(EventData *task, const void *_data, size_t _length) {
+    task->info = {};
     task->info.type = SW_SERVER_EVENT_TASK;
     task->info.fd = SwooleG.current_task_id++;
     task->info.reactor_id = swoole_get_process_id();
@@ -136,6 +137,59 @@ bool Server::task_pack(EventData *task, const void *_data, size_t _length) {
     memcpy(task->data, &pkg, sizeof(pkg));
 
     return true;
+}
+
+bool Server::task(EventData *_task, int *dst_worker_id, bool blocking) {
+    sw_atomic_fetch_add(&gs->tasking_num, 1);
+
+    int retval;
+    if (blocking) {
+        retval = gs->task_workers.dispatch_blocking(_task, dst_worker_id);
+    } else {
+        retval = gs->task_workers.dispatch(_task, dst_worker_id);
+    }
+
+    if (retval == SW_OK) {
+        sw_atomic_fetch_add(&gs->task_count, 1);
+        return true;
+    }
+
+    sw_atomic_fetch_sub(&gs->tasking_num, 1);
+    return false;
+}
+
+bool Server::task_sync(EventData *_task, int *dst_worker_id, double timeout) {
+    uint64_t notify;
+    EventData *task_result = get_task_result();
+    sw_memset_zero(task_result, sizeof(*task_result));
+    Pipe *pipe = task_notify_pipes.at(swoole_get_process_id()).get();
+    network::Socket *task_notify_socket = pipe->get_socket(false);
+    TaskId task_id = get_task_id(_task);
+
+    // clear history task
+    while (task_notify_socket->wait_event(0, SW_EVENT_READ) == SW_OK) {
+        if (task_notify_socket->read(&notify, sizeof(notify)) <= 0) {
+            break;
+        }
+    }
+
+    if (!task(_task, dst_worker_id, true)) {
+        return false;
+    }
+
+    SW_LOOP {
+        if (task_notify_socket->wait_event((int) (timeout * 1000), SW_EVENT_READ) == SW_OK) {
+            if (pipe->read(&notify, sizeof(notify)) > 0) {
+                if (get_task_id(task_result) != task_id) {
+                    continue;
+                }
+                return true;
+            }
+        }
+        break;
+    }
+
+    return false;
 }
 
 bool Server::task_unpack(EventData *task, String *buffer, PacketPtr *packet) {
@@ -331,7 +385,7 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, Even
         /**
          * Use worker shm store the result
          */
-        EventData *result = &(task_result[source_worker_id]);
+        EventData *result = &(task_results[source_worker_id]);
         Pipe *pipe = task_notify_pipes.at(source_worker_id).get();
 
         // lock worker
@@ -348,8 +402,8 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, Even
                 }
                 buf.info.ext_flags |= flags;
                 buf.info.type = SW_SERVER_EVENT_FINISH;
-                buf.info.fd = current_task->info.fd;
-                size_t bytes = sizeof(buf.info) + buf.info.len;
+                buf.info.fd = get_task_id(current_task);
+                size_t bytes = buf.size();
                 if (file.write_all(&buf, bytes) != bytes) {
                     swoole_sys_warning("write(%s, %ld) failed", _tmpfile, bytes);
                 }

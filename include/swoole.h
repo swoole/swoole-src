@@ -669,6 +669,14 @@ struct DataHead {
 struct EventData {
     DataHead info;
     char data[SW_IPC_BUFFER_SIZE];
+
+    uint32_t size() {
+    	return sizeof(info) + len();
+    }
+
+    uint32_t len() {
+    	return info.len;
+    }
 };
 
 struct SendData {

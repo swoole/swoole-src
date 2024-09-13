@@ -527,6 +527,24 @@ int Server::create_task_workers() {
         }
     }
 
+    /*
+	 * For Server::task_sync(), create notify pipe and result shared memory.
+	 */
+    task_results = (EventData *) sw_shm_calloc(worker_num, sizeof(EventData));
+    if (!task_results) {
+        swoole_warning("malloc[task_result] failed");
+        return SW_ERR;
+    }
+    SW_LOOP_N(worker_num) {
+        auto _pipe = new Pipe(true);
+        if (!_pipe->ready()) {
+            sw_shm_free(task_results);
+            delete _pipe;
+            return SW_ERR;
+        }
+        task_notify_pipes.emplace_back(_pipe);
+    }
+
     init_task_workers();
 
     return SW_OK;
@@ -640,26 +658,6 @@ int Server::start() {
         gs->event_workers.workers[i].pool = &gs->event_workers;
         gs->event_workers.workers[i].id = i;
         gs->event_workers.workers[i].type = SW_PROCESS_WORKER;
-    }
-
-    /*
-     * For swoole_server->taskwait, create notify pipe and result shared memory.
-     */
-    if (task_worker_num > 0 && worker_num > 0) {
-        task_result = (EventData *) sw_shm_calloc(worker_num, sizeof(EventData));
-        if (!task_result) {
-            swoole_warning("malloc[task_result] failed");
-            return SW_ERR;
-        }
-        SW_LOOP_N(worker_num) {
-            auto _pipe = new Pipe(true);
-            if (!_pipe->ready()) {
-                sw_shm_free(task_result);
-                delete _pipe;
-                return SW_ERR;
-            }
-            task_notify_pipes.emplace_back(_pipe);
-        }
     }
 
     if (!user_worker_list.empty()) {
@@ -1607,6 +1605,12 @@ bool Server::close(SessionId session_id, bool reset) {
     return factory->end(session_id, reset ? (CLOSE_ACTIVELY | CLOSE_RESET) : CLOSE_ACTIVELY);
 }
 
+bool Server::send_pipe_message(WorkerId worker_id, EventData *msg) {
+    msg->info.type = SW_SERVER_EVENT_PIPE_MESSAGE;
+
+    return send_to_worker_from_worker(get_worker(worker_id), msg, msg->size(), SW_PIPE_MASTER | SW_PIPE_NONBLOCK) > 0;
+}
+
 void Server::init_signal_handler() {
     swoole_signal_set(SIGPIPE, nullptr);
     swoole_signal_set(SIGHUP, nullptr);
@@ -2077,7 +2081,7 @@ int Server::get_idle_task_worker_num() {
     return idle_worker_num;
 }
 
-int Server::get_task_count() {
+int Server::get_tasking_num() {
     // TODO Why need to reset ?
     int tasking_num = gs->tasking_num;
     if (tasking_num < 0) {

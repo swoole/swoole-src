@@ -299,7 +299,7 @@ int ProcessPool::response(const char *data, int length) {
 }
 
 int ProcessPool::push_message(EventData *msg) {
-    if (message_box->push(msg, sizeof(msg->info) + msg->info.len) < 0) {
+    if (message_box->push(msg, msg->size()) < 0) {
         return SW_ERR;
     }
     return swoole_kill(master_pid, SIGIO);
@@ -332,7 +332,6 @@ int ProcessPool::pop_message(void *data, size_t size) {
  * dispatch data to worker
  */
 int ProcessPool::dispatch(EventData *data, int *dst_worker_id) {
-    int ret = 0;
     Worker *worker;
 
     if (use_socket) {
@@ -341,7 +340,7 @@ int ProcessPool::dispatch(EventData *data, int *dst_worker_id) {
             return SW_ERR;
         }
         stream->response = nullptr;
-        if (stream->send((char *) data, sizeof(data->info) + data->info.len) < 0) {
+        if (stream->send((char *) data, data->size()) < 0) {
             stream->cancel = 1;
             delete stream;
             return SW_ERR;
@@ -356,16 +355,12 @@ int ProcessPool::dispatch(EventData *data, int *dst_worker_id) {
     *dst_worker_id += start_id;
     worker = get_worker(*dst_worker_id);
 
-    int sendn = sizeof(data->info) + data->info.len;
-    ret = worker->send_pipe_message(data, sendn, SW_PIPE_MASTER | SW_PIPE_NONBLOCK);
-
-    if (ret >= 0) {
-        sw_atomic_fetch_add(&worker->tasking_num, 1);
-    } else {
-        swoole_warning("send %d bytes to worker#%d failed", sendn, *dst_worker_id);
+    if (worker->send_pipe_message(data, data->size(), SW_PIPE_MASTER | SW_PIPE_NONBLOCK) < 0) {
+        swoole_warning("send %d bytes to worker#%d failed", data->size(), *dst_worker_id);
+        return SW_ERR;
     }
 
-    return ret;
+    return SW_OK;
 }
 
 int ProcessPool::dispatch_blocking(const char *data, uint32_t len) {
@@ -394,11 +389,8 @@ int ProcessPool::dispatch_blocking(const char *data, uint32_t len) {
  * @return SW_OK/SW_ERR
  */
 int ProcessPool::dispatch_blocking(EventData *data, int *dst_worker_id) {
-    int ret = 0;
-    int sendn = sizeof(data->info) + data->info.len;
-
     if (use_socket) {
-        return dispatch_blocking((char *) data, sendn);
+        return dispatch_blocking((char *) data, data->size());
     }
 
     if (*dst_worker_id < 0) {
@@ -408,14 +400,11 @@ int ProcessPool::dispatch_blocking(EventData *data, int *dst_worker_id) {
     *dst_worker_id += start_id;
     Worker *worker = get_worker(*dst_worker_id);
 
-    ret = worker->send_pipe_message(data, sendn, SW_PIPE_MASTER);
-    if (ret < 0) {
-        swoole_warning("send %d bytes to worker#%d failed", sendn, *dst_worker_id);
-    } else {
-        sw_atomic_fetch_add(&worker->tasking_num, 1);
+    if (worker->send_pipe_message(data, data->size(), SW_PIPE_MASTER) < 0) {
+        swoole_warning("send %d bytes to worker#%d failed", data->size(), *dst_worker_id);
+        return SW_ERR;
     }
-
-    return ret > 0 ? SW_OK : SW_ERR;
+    return SW_OK;
 }
 
 bool ProcessPool::reload() {
@@ -589,7 +578,7 @@ static int ProcessPool_worker_loop_with_task_protocol(ProcessPool *pool, Worker 
             continue;
         }
 
-        if (n != (ssize_t) (out.buf.info.len + sizeof(out.buf.info))) {
+        if (n != (ssize_t) out.buf.size()) {
             swoole_warning("bad task packet, The received data-length[%ld] is inconsistent with the packet-length[%ld]",
                            n,
                            out.buf.info.len + sizeof(out.buf.info));
