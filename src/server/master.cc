@@ -1176,7 +1176,7 @@ bool Server::command(WorkerId process_id,
         buf.info.fd = request_id;
         buf.info.server_fd = command_id;
         int _dst_worker_id = process_id;
-        if (gs->task_workers.dispatch(&buf, &_dst_worker_id) == SW_ERR) {
+        if (!this->task(&buf, &_dst_worker_id)) {
             goto _fail;
         }
         return true;

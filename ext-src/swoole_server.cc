@@ -3191,8 +3191,8 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
     buf.info.ext_flags |= SW_TASK_WAITALL;
     dst_worker_id = -1;
     sw_atomic_fetch_add(&serv->gs->tasking_num, 1);
-    if (serv->gs->task_workers.dispatch_blocking(&buf, &dst_worker_id) < 0) {
-        php_swoole_sys_error(E_WARNING, "taskwait failed");
+    if (!serv->task(&buf, &dst_worker_id, true)) {
+        php_swoole_sys_error(E_WARNING, "failed to dispatch task");
         task_id = -1;
     _fail:
         add_index_bool(return_value, i, 0);

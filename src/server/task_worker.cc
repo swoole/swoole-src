@@ -142,7 +142,7 @@ bool Server::task_pack(EventData *task, const void *_data, size_t _length) {
 bool Server::task(EventData *_task, int *dst_worker_id, bool blocking) {
     sw_atomic_fetch_add(&gs->tasking_num, 1);
 
-    int retval;
+    swResultCode retval;
     if (blocking) {
         retval = gs->task_workers.dispatch_blocking(_task, dst_worker_id);
     } else {

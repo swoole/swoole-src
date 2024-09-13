@@ -328,10 +328,7 @@ int ProcessPool::pop_message(void *data, size_t size) {
     return message_box->pop(data, size);
 }
 
-/**
- * dispatch data to worker
- */
-int ProcessPool::dispatch(EventData *data, int *dst_worker_id) {
+swResultCode ProcessPool::dispatch(EventData *data, int *dst_worker_id) {
     Worker *worker;
 
     if (use_socket) {
@@ -363,7 +360,7 @@ int ProcessPool::dispatch(EventData *data, int *dst_worker_id) {
     return SW_OK;
 }
 
-int ProcessPool::dispatch_blocking(const char *data, uint32_t len) {
+swResultCode ProcessPool::dispatch_blocking(const char *data, uint32_t len) {
     assert(use_socket);
 
     network::Client _socket(stream_info_->socket->socket_type, false);
@@ -384,11 +381,7 @@ int ProcessPool::dispatch_blocking(const char *data, uint32_t len) {
     return SW_OK;
 }
 
-/**
- * dispatch data to worker
- * @return SW_OK/SW_ERR
- */
-int ProcessPool::dispatch_blocking(EventData *data, int *dst_worker_id) {
+swResultCode ProcessPool::dispatch_blocking(EventData *data, int *dst_worker_id) {
     if (use_socket) {
         return dispatch_blocking((char *) data, data->size());
     }
