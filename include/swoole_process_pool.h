@@ -107,7 +107,17 @@ struct WorkerGlobal {
     bool shutdown;
     bool running;
     uint32_t max_request;
+    /**
+     * worker is shared memory, visible in other work processes.
+     * When a worker process restarts, it may be held by both the old and new processes simultaneously,
+     * necessitating careful handling of the state.
+     */
     Worker *worker;
+    /**
+     *  worker_copy is a copy of worker,
+     *  but it must be local memory and only used within the current process or thread.
+     *  It is not visible to other worker processes.
+     */
     Worker *worker_copy;
     time_t exit_time;
 };
@@ -158,11 +168,11 @@ struct Worker {
     }
 
     void set_status_to_idle() {
-    	set_status(SW_WORKER_IDLE);
+        set_status(SW_WORKER_IDLE);
     }
 
     void set_status_to_busy() {
-    	set_status(SW_WORKER_BUSY);
+        set_status(SW_WORKER_BUSY);
     }
 
     void add_request_count() {
@@ -298,6 +308,10 @@ struct ProcessPool {
         return task->info.fd;
     }
 
+    WorkerId get_task_src_worker_id(EventData *task) {
+        return task->info.reactor_id;
+    }
+
     void set_max_packet_size(uint32_t _max_packet_size) {
         max_packet_size_ = _max_packet_size;
     }
@@ -330,6 +344,7 @@ struct ProcessPool {
     int listen(const char *socket_file, int blacklog);
     int listen(const char *host, int port, int blacklog);
     int schedule();
+    bool is_worker_running(Worker *worker);
     static void kill_timeout_worker(Timer *timer, TimerNode *tnode);
 };
 };  // namespace swoole

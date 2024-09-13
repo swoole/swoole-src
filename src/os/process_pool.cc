@@ -521,6 +521,10 @@ void ProcessPool::set_max_request(uint32_t _max_request, uint32_t _max_request_g
     max_request_grace = _max_request_grace;
 }
 
+bool ProcessPool::is_worker_running(Worker *worker) {
+    return running && !SwooleWG.shutdown && !worker->has_exceeded_max_request();
+}
+
 static int ProcessPool_worker_loop_with_task_protocol(ProcessPool *pool, Worker *worker) {
     struct {
         long mtype;
@@ -540,7 +544,7 @@ static int ProcessPool_worker_loop_with_task_protocol(ProcessPool *pool, Worker 
         out.mtype = worker->id + 1;
     }
 
-    while (pool->running && !SwooleWG.shutdown) {
+    while (pool->is_worker_running(worker)) {
         /**
          * fetch task
          */
@@ -606,10 +610,6 @@ static int ProcessPool_worker_loop_with_task_protocol(ProcessPool *pool, Worker 
         if (SwooleG.signal_alarm) {
             goto _alarm_handler;
         }
-
-        if (worker->has_exceeded_max_request()) {
-            break;
-        }
     }
     return SW_OK;
 }
@@ -673,7 +673,7 @@ static int ProcessPool_worker_loop_with_stream_protocol(ProcessPool *pool, Worke
     QueueNode *outbuf = (QueueNode *) pool->packet_buffer;
     outbuf->mtype = 0;
 
-    while (pool->running && !SwooleWG.shutdown) {
+    while (pool->is_worker_running(worker)) {
         /**
          * fetch task
          */
@@ -753,10 +753,6 @@ static int ProcessPool_worker_loop_with_stream_protocol(ProcessPool *pool, Worke
         if (SwooleG.signal_alarm) {
             goto _alarm_handler;
         }
-
-        if (worker->has_exceeded_max_request()) {
-            break;
-        }
     }
     return SW_OK;
 }
@@ -782,7 +778,7 @@ static int ProcessPool_worker_loop_with_message_protocol(ProcessPool *pool, Work
 
     worker->pipe_worker->dont_restart = 1;
 
-    while (pool->running && !SwooleWG.shutdown) {
+    while (pool->is_worker_running(worker)) {
         switch (fn()) {
         case 0:
             if (SwooleG.signal_alarm && SwooleTG.timer) {
@@ -796,9 +792,6 @@ static int ProcessPool_worker_loop_with_message_protocol(ProcessPool *pool, Work
         default:
             swoole_sys_warning("failed to read data from pipe");
             return SW_OK;
-        }
-        if (worker->has_exceeded_max_request()) {
-            break;
         }
     }
 

@@ -1001,6 +1001,10 @@ class Server {
         return gs->task_workers.get_task_id(task);
     }
 
+    WorkerId get_task_src_worker_id(EventData *task) {
+        return gs->task_workers.get_task_src_worker_id(task);
+    }
+
     int get_minfd() {
         return gs->min_fd;
     }
