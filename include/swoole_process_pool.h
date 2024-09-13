@@ -157,6 +157,18 @@ struct Worker {
         status = _status;
     }
 
+    void set_status_to_idle() {
+    	set_status(SW_WORKER_IDLE);
+    }
+
+    void set_status_to_busy() {
+    	set_status(SW_WORKER_BUSY);
+    }
+
+    void add_request_count() {
+        request_count++;
+    }
+
     bool is_busy() {
         return status == SW_WORKER_BUSY;
     }
@@ -280,6 +292,10 @@ struct ProcessPool {
             return nullptr;
         }
         return iter->second;
+    }
+
+    TaskId get_task_id(EventData *task) {
+        return task->info.fd;
     }
 
     void set_max_packet_size(uint32_t _max_packet_size) {

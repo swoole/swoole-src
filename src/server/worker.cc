@@ -111,15 +111,14 @@ static sw_inline void Worker_do_task(Server *serv, Worker *worker, DataHead *inf
     recv_data.data = packet.data;
 
     if (callback(serv, &recv_data) == SW_OK) {
-        worker->request_count++;
+        worker->add_request_count();
         sw_atomic_fetch_add(&serv->gs->request_count, 1);
     }
 }
 
 void Server::worker_accept_event(DataHead *info) {
     Worker *worker = sw_worker();
-    // worker busy
-    worker->status = SW_WORKER_BUSY;
+    worker->set_status_to_busy();
 
     switch (info->type) {
     case SW_SERVER_EVENT_RECV_DATA: {
@@ -207,8 +206,7 @@ void Server::worker_accept_event(DataHead *info) {
         break;
     }
 
-    // worker idle
-    worker->status = SW_WORKER_IDLE;
+    worker->set_status_to_idle();
 
     // maximum number of requests, process will exit.
     if (worker->has_exceeded_max_request()) {
@@ -276,7 +274,7 @@ void Server::worker_start_callback(Worker *worker) {
         sw_logger()->reopen();
     }
 
-    worker->status = SW_WORKER_IDLE;
+    worker->set_status_to_idle();
 
     if (is_process_mode()) {
         sw_shm_protect(session_list, PROT_READ);
@@ -349,10 +347,7 @@ bool Server::kill_worker(WorkerId worker_id, bool wait_reactor) {
 
     if (worker_id == sw_worker()->id && !wait_reactor) {
         if (swoole_event_is_available()) {
-            swoole_event_defer(
-                [](void *data) {
-                    sw_reactor()->running = false;
-                }, nullptr);
+            swoole_event_defer([](void *data) { sw_reactor()->running = false; }, nullptr);
         }
         running = false;
     } else {
@@ -523,7 +518,6 @@ int Server::start_event_worker(Worker *worker) {
                                   [worker](Reactor *) { worker->coroutine_num = Coroutine::count(); });
     }
 
-    worker->status = SW_WORKER_IDLE;
     worker_start_callback(worker);
 
     // main loop
@@ -578,36 +572,4 @@ static int Worker_onPipeReceive(Reactor *reactor, Event *event) {
     return SW_OK;
 }
 
-bool Worker::has_exceeded_max_request() {
-	return !SwooleWG.run_always && request_count >= SwooleWG.max_request;
-}
-
-ssize_t Worker::send_pipe_message(const void *buf, size_t n, int flags) {
-    Socket *pipe_sock;
-
-    if (flags & SW_PIPE_MASTER) {
-        pipe_sock = pipe_master;
-    } else {
-        pipe_sock = pipe_worker;
-    }
-
-    // message-queue
-    if (pool->use_msgqueue) {
-        struct {
-            long mtype;
-            EventData buf;
-        } msg;
-
-        msg.mtype = id + 1;
-        memcpy(&msg.buf, buf, n);
-
-        return pool->queue->push((QueueNode *) &msg, n) ? n : -1;
-    }
-
-    if ((flags & SW_PIPE_NONBLOCK) && swoole_event_is_available()) {
-        return swoole_event_write(pipe_sock, buf, n);
-    } else {
-        return pipe_sock->send_blocking(buf, n);
-    }
-}
 }  // namespace swoole

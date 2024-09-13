@@ -19,8 +19,8 @@ $pm->initFreePorts();
 
 $pm->parentFunc = function ($pid) use ($pm, $atomic) {
     foreach (range(1, 2) as $i) {
-        $fp = stream_socket_client("tcp://127.0.0.1:".$pm->getFreePort(), $errno, $errstr) or die("error: $errstr\n");
-        $msg =  "HELLO-{$i}";
+        $fp = stream_socket_client("tcp://127.0.0.1:" . $pm->getFreePort(), $errno, $errstr) or die("error: $errstr\n");
+        $msg = "HELLO-{$i}";
         fwrite($fp, pack('N', strlen($msg)) . $msg);
     }
     $pm->wait();
@@ -32,25 +32,25 @@ $pm->parentFunc = function ($pid) use ($pm, $atomic) {
 $pm->childFunc = function () use ($pm, $atomic) {
     $pool = new Pool(1, SWOOLE_IPC_SOCKET);
 
-    $pool->on('WorkerStart', function (Pool $pool, $workerId) use($pm, $atomic) {
+    $pool->on('WorkerStart', function (Pool $pool, $workerId) use ($pm, $atomic) {
         echo("[Worker #{$workerId}] WorkerStart\n");
-         if ($atomic->get() == 0) {
-             $pm->wakeup();
-         }
+        if ($atomic->get() == 0) {
+            $pm->wakeup();
+        }
     });
 
-    $pool->on('Message', function (Pool $pool, $msg) use($pm, $atomic) {
+    $pool->on('Message', function (Pool $pool, $msg) use ($pm, $atomic) {
         if ($atomic->get() == 0) {
             $atomic->add();
             $pool->detach();
             $n = N;
-            while($n--) {
+            while ($n--) {
                 usleep(1000);
                 $atomic->add();
             }
             $pm->wakeup();
         } else {
-            echo $msg.PHP_EOL;
+            echo $msg . PHP_EOL;
         }
     });
 

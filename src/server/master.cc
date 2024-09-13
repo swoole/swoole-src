@@ -2056,7 +2056,7 @@ int Server::get_idle_worker_num() {
 
     for (i = 0; i < worker_num; i++) {
         Worker *worker = get_worker(i);
-        if (worker->status == SW_WORKER_IDLE) {
+        if (worker->is_idle()) {
             idle_worker_num++;
         }
     }
@@ -2069,7 +2069,7 @@ int Server::get_idle_task_worker_num() {
 
     for (uint32_t i = worker_num; i < (worker_num + task_worker_num); i++) {
         Worker *worker = get_worker(i);
-        if (worker->status == SW_WORKER_IDLE) {
+        if (worker->is_idle()) {
             idle_worker_num++;
         }
     }

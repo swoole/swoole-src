@@ -459,6 +459,7 @@ class ThreadFactory : public BaseFactory {
     void at_thread_exit(Worker *worker);
     void create_message_bus();
     void destroy_message_bus();
+
   public:
     ThreadFactory(Server *server);
     ~ThreadFactory();
@@ -995,6 +996,10 @@ class Server {
     int get_idle_worker_num();
     int get_idle_task_worker_num();
     int get_task_count();
+
+    TaskId get_task_id(EventData *task) {
+        return gs->task_workers.get_task_id(task);
+    }
 
     int get_minfd() {
         return gs->min_fd;
@@ -1544,7 +1549,7 @@ class Server {
         uint32_t key = 0;
         SW_LOOP_N(worker_num + 1) {
             key = sw_atomic_fetch_add(&worker_round_id, 1) % worker_num;
-            if (workers[key].status == SW_WORKER_IDLE) {
+            if (workers[key].is_idle()) {
                 found = true;
                 break;
             }

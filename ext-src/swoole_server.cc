@@ -1276,7 +1276,7 @@ static int php_swoole_server_onTask(Server *serv, EventData *req) {
     } else {
         argc = 4;
         argv[0] = *zserv;
-        ZVAL_LONG(&argv[1], (zend_long) req->info.fd);
+        ZVAL_LONG(&argv[1], (zend_long) serv->get_task_id(req));
         ZVAL_LONG(&argv[2], (zend_long) req->info.reactor_id);
         argv[3] = zresult.value;
     }
@@ -1304,6 +1304,7 @@ static int php_swoole_server_onTask(Server *serv, EventData *req) {
 static int php_swoole_server_onFinish(Server *serv, EventData *req) {
     zval *zserv = php_swoole_server_zval_ptr(serv);
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));
+    TaskId task_id = serv->get_task_id(req);
 
     zend::Variable zresult;
     if (!php_swoole_server_task_unpack(zresult.ptr(), req)) {
@@ -1311,7 +1312,6 @@ static int php_swoole_server_onFinish(Server *serv, EventData *req) {
     }
 
     if (req->info.ext_flags & SW_TASK_COROUTINE) {
-        TaskId task_id = req->info.fd;
         auto task_co_iterator = server_object->property->task_coroutine_map.find(task_id);
         if (task_co_iterator == server_object->property->task_coroutine_map.end()) {
             swoole_error_log(SW_LOG_WARNING, SW_ERROR_TASK_TIMEOUT, "task[%ld] has expired", task_id);
@@ -1349,7 +1349,7 @@ static int php_swoole_server_onFinish(Server *serv, EventData *req) {
 
     zend_fcall_info_cache *fci_cache = nullptr;
     if (req->info.ext_flags & SW_TASK_CALLBACK) {
-        auto callback_iterator = server_object->property->task_callbacks.find(req->info.fd);
+        auto callback_iterator = server_object->property->task_callbacks.find(task_id);
         if (callback_iterator == server_object->property->task_callbacks.end()) {
             req->info.ext_flags = req->info.ext_flags & (~SW_TASK_CALLBACK);
         } else {
@@ -1372,7 +1372,7 @@ static int php_swoole_server_onFinish(Server *serv, EventData *req) {
         zval *object = &args[1];
         object_init_ex(object, swoole_server_task_result_ce);
         zend_update_property_long(
-            swoole_server_task_result_ce, SW_Z8_OBJ_P(object), ZEND_STRL("task_id"), (zend_long) req->info.fd);
+            swoole_server_task_result_ce, SW_Z8_OBJ_P(object), ZEND_STRL("task_id"), (zend_long) task_id);
         zend_update_property_long(swoole_server_task_result_ce,
                                   SW_Z8_OBJ_P(object),
                                   ZEND_STRL("task_worker_id"),
@@ -1382,7 +1382,7 @@ static int php_swoole_server_onFinish(Server *serv, EventData *req) {
         zend_update_property(swoole_server_task_result_ce, SW_Z8_OBJ_P(object), ZEND_STRL("data"), zresult.ptr());
         argc = 2;
     } else {
-        ZVAL_LONG(&args[1], req->info.fd);
+        ZVAL_LONG(&args[1], (zend_long) task_id);
         args[2] = zresult.value;
         argc = 3;
     }
@@ -1392,7 +1392,7 @@ static int php_swoole_server_onFinish(Server *serv, EventData *req) {
     }
     if (req->info.ext_flags & SW_TASK_CALLBACK) {
         sw_zend_fci_cache_discard(fci_cache);
-        server_object->property->task_callbacks.erase(req->info.fd);
+        server_object->property->task_callbacks.erase(task_id);
     }
     if (serv->event_object) {
         zval_ptr_dtor(&args[1]);
@@ -3076,7 +3076,7 @@ static PHP_METHOD(swoole_server, taskwait) {
     }
 
     int _dst_worker_id = (int) dst_worker_id;
-    TaskId task_id = buf.info.fd;
+    TaskId task_id = serv->get_task_id(&buf);
 
     // coroutine
     if (swoole_coroutine_is_in()) {
@@ -3125,7 +3125,7 @@ static PHP_METHOD(swoole_server, taskwait) {
                 break;
             }
             if (pipe->read(&notify, sizeof(notify)) > 0) {
-                if (task_result->info.fd != task_id) {
+                if (serv->get_task_id(task_result) != task_id) {
                     continue;
                 }
                 zval zresult;
@@ -3264,7 +3264,7 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
 
     do {
         EventData *result = (EventData *) (content->str + content->offset);
-        TaskId task_id = result->info.fd;
+        TaskId task_id = serv->get_task_id(result);
         zval zresult;
         if (!php_swoole_server_task_unpack(&zresult, result)) {
             goto _next;
@@ -3409,12 +3409,14 @@ static PHP_METHOD(swoole_server, task) {
         RETURN_FALSE;
     }
 
+    TaskId task_id = serv->get_task_id(&buf);
+
     if (!serv->is_worker()) {
         buf.info.ext_flags |= SW_TASK_NOREPLY;
     } else if (fci.size) {
         buf.info.ext_flags |= SW_TASK_CALLBACK;
         sw_zend_fci_cache_persist(&fci_cache);
-        server_object->property->task_callbacks[buf.info.fd] = fci_cache;
+        server_object->property->task_callbacks[task_id] = fci_cache;
     }
 
     buf.info.ext_flags |= SW_TASK_NONBLOCK;
@@ -3423,7 +3425,7 @@ static PHP_METHOD(swoole_server, task) {
     sw_atomic_fetch_add(&serv->gs->tasking_num, 1);
 
     if (serv->gs->task_workers.dispatch(&buf, &_dst_worker_id) >= 0) {
-        RETURN_LONG(buf.info.fd);
+        RETURN_LONG(task_id);
     }
 
     sw_atomic_fetch_sub(&serv->gs->tasking_num, 1);

@@ -86,7 +86,7 @@ static int TaskWorker_onTask(ProcessPool *pool, Worker *worker, EventData *task)
     Server *serv = (Server *) pool->ptr;
     serv->last_task = task;
 
-    worker->status = SW_WORKER_BUSY;
+    worker->set_status_to_busy();
     if (task->info.type == SW_SERVER_EVENT_PIPE_MESSAGE) {
         serv->onPipeMessage(serv, task);
     } else if (task->info.type == SW_SERVER_EVENT_SHUTDOWN) {
@@ -95,9 +95,13 @@ static int TaskWorker_onTask(ProcessPool *pool, Worker *worker, EventData *task)
         ret = TaskWorker_call_command_handler(pool, task);
     } else {
         ret = serv->onTask(serv, task);
-        worker->request_count++;
+        /**
+         * only server task as requests,
+         * do not increase the count for pipeline communication and command processing.
+         */
+        worker->add_request_count();
     }
-    worker->status = SW_WORKER_IDLE;
+    worker->set_status_to_idle();
 
     return ret;
 }
@@ -202,7 +206,7 @@ static void TaskWorker_onStart(ProcessPool *pool, Worker *worker) {
 
     worker->start_time = ::time(nullptr);
     worker->request_count = 0;
-    worker->status = SW_WORKER_IDLE;
+    worker->set_status_to_idle();
     /**
      * task_max_request
      */
@@ -248,7 +252,7 @@ static int TaskWorker_onPipeReceive(Reactor *reactor, Event *event) {
 static int TaskWorker_loop_async(ProcessPool *pool, Worker *worker) {
     Server *serv = (Server *) pool->ptr;
     Socket *socket = worker->pipe_worker;
-    worker->status = SW_WORKER_IDLE;
+    worker->set_status_to_idle();
 
     socket->set_nonblock();
     sw_reactor()->ptr = pool;
@@ -316,10 +320,10 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, Even
             uint32_t _len = htonl(data_len);
             retval = worker->pool->stream_info_->last_connection->send_blocking((void *) &_len, sizeof(_len));
             if (retval > 0) {
-            	retval = worker->pool->stream_info_->last_connection->send_blocking(data, data_len);
+                retval = worker->pool->stream_info_->last_connection->send_blocking(data, data_len);
             }
         } else {
-        	retval = send_to_worker_from_worker(worker, &buf, sizeof(buf.info) + buf.info.len, SW_PIPE_MASTER);
+            retval = send_to_worker_from_worker(worker, &buf, sizeof(buf.info) + buf.info.len, SW_PIPE_MASTER);
         }
     } else {
         uint64_t flag = 1;
@@ -367,7 +371,7 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, Even
         worker->lock->unlock();
 
         while (1) {
-        	retval = pipe->write(&flag, sizeof(flag));
+            retval = pipe->write(&flag, sizeof(flag));
             auto _sock = pipe->get_socket(true);
             if (retval < 0 && _sock->catch_write_error(errno) == SW_WAIT) {
                 if (_sock->wait_event(-1, SW_EVENT_WRITE) == 0) {

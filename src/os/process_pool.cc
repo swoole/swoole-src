@@ -278,7 +278,7 @@ int ProcessPool::schedule() {
 
     for (i = 0; i < worker_num + 1; i++) {
         target_worker_id = sw_atomic_fetch_add(&round_id, 1) % worker_num;
-        if (workers[target_worker_id].status == SW_WORKER_IDLE) {
+        if (workers[target_worker_id].is_idle()) {
             found = 1;
             break;
         }
@@ -468,6 +468,7 @@ pid_t ProcessPool::spawn(Worker *worker) {
         swoole_set_process_type(SW_PROCESS_WORKER);
         swoole_set_process_id(worker->id);
         SwooleWG.worker = worker;
+        SwooleWG.run_always = true;
         if (async) {
             if (swoole_event_init(SW_EVENTLOOP_WAIT_EXIT) < 0) {
                 exit(254);
@@ -526,10 +527,7 @@ static int ProcessPool_worker_loop_with_task_protocol(ProcessPool *pool, Worker 
         EventData buf;
     } out{};
 
-    ssize_t n = 0, ret;
-    if (pool->get_max_request() <= 0) {
-        SwooleWG.run_always = 1;
-    }
+    ssize_t n = 0;
 
     /**
      * Use from_fd save the task_worker->id
@@ -591,10 +589,9 @@ static int ProcessPool_worker_loop_with_task_protocol(ProcessPool *pool, Worker 
             swoole_warning("bad task packet, The received data-length[%ld] is inconsistent with the packet-length[%ld]",
                            n,
                            out.buf.info.len + sizeof(out.buf.info));
-            continue;
+        } else if (pool->onTask(pool, worker, &out.buf) < 0) {
+            swoole_warning("[Worker#%d] the execution of task#%ld has failed", worker->id, pool->get_task_id(&out.buf));
         }
-
-        ret = pool->onTask(pool, worker, &out.buf);
 
         if (pool->use_socket && pool->stream_info_->last_connection) {
             int _end = 0;
@@ -611,7 +608,7 @@ static int ProcessPool_worker_loop_with_task_protocol(ProcessPool *pool, Worker 
         }
 
         if (worker->has_exceeded_max_request()) {
-        	break;
+            break;
         }
     }
     return SW_OK;
@@ -758,7 +755,7 @@ static int ProcessPool_worker_loop_with_stream_protocol(ProcessPool *pool, Worke
         }
 
         if (worker->has_exceeded_max_request()) {
-        	break;
+            break;
         }
     }
     return SW_OK;
@@ -801,7 +798,7 @@ static int ProcessPool_worker_loop_with_message_protocol(ProcessPool *pool, Work
             return SW_OK;
         }
         if (worker->has_exceeded_max_request()) {
-        	break;
+            break;
         }
     }
 
@@ -992,6 +989,39 @@ void ProcessPool::destroy() {
     }
 
     sw_mem_pool()->free(workers);
+}
+
+bool Worker::has_exceeded_max_request() {
+    return !SwooleWG.run_always && request_count >= SwooleWG.max_request;
+}
+
+ssize_t Worker::send_pipe_message(const void *buf, size_t n, int flags) {
+    Socket *pipe_sock;
+
+    if (flags & SW_PIPE_MASTER) {
+        pipe_sock = pipe_master;
+    } else {
+        pipe_sock = pipe_worker;
+    }
+
+    // message-queue
+    if (pool->use_msgqueue) {
+        struct {
+            long mtype;
+            EventData buf;
+        } msg;
+
+        msg.mtype = id + 1;
+        memcpy(&msg.buf, buf, n);
+
+        return pool->queue->push((QueueNode *) &msg, n) ? n : -1;
+    }
+
+    if ((flags & SW_PIPE_NONBLOCK) && swoole_event_is_available()) {
+        return swoole_event_write(pipe_sock, buf, n);
+    } else {
+        return pipe_sock->send_blocking(buf, n);
+    }
 }
 
 }  // namespace swoole

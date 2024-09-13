@@ -128,7 +128,7 @@ void ThreadFactory::spawn_task_worker(WorkerId i) {
         create_message_bus();
         Worker *worker = server_->get_worker(i);
         worker->type = SW_PROCESS_TASKWORKER;
-        worker->status = SW_WORKER_IDLE;
+        worker->set_status_to_idle();
         SwooleWG.worker = worker;
         auto pool = &server_->gs->task_workers;
         server_->worker_thread_start([=]() {

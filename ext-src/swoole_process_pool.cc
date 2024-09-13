@@ -190,9 +190,13 @@ static void process_pool_onMessage(ProcessPool *pool, RecvData *msg) {
             ZVAL_STRINGL(&args[1], data, length);
         }
     }
+    auto *worker = sw_worker();
+    worker->set_status_to_busy();
     if (UNEXPECTED(!zend::function::call(pp->onMessage, 2, args, nullptr, pp->enable_coroutine))) {
         php_swoole_error(E_WARNING, "%s->onMessage handler error", SW_Z_OBJCE_NAME_VAL_P(zobject));
     }
+    worker->add_request_count();
+    worker->set_status_to_idle();
     zval_ptr_dtor(&args[1]);
 }
 

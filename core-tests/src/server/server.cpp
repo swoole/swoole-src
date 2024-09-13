@@ -39,7 +39,7 @@ TEST(server, schedule) {
     ASSERT_EQ(SW_OK, ret);
 
     for (uint32_t i = 0; i < serv.worker_num; i++) {
-        serv.workers[i].status = SW_WORKER_BUSY;
+        serv.workers[i].set_status_to_busy();
     }
 
     std::set<int> _worker_id_set;
@@ -51,7 +51,7 @@ TEST(server, schedule) {
     ASSERT_EQ(_worker_id_set.size(), serv.worker_num);
 
     for (uint32_t i = 1; i < serv.worker_num - 1; i++) {
-        serv.workers[i].status = SW_WORKER_IDLE;
+        serv.workers[i].set_status_to_idle();
     }
 
     _worker_id_set.clear();
