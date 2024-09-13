@@ -549,6 +549,8 @@ TEST(server, task_worker) {
         EXPECT_EQ(serv->get_tasking_num(), 1);
         EXPECT_EQ(string(task->data, task->info.len), string(packet));
         serv->gs->task_workers.running = 0;
+        serv->gs->task_count++;
+        serv->gs->tasking_num--;
         return 0;
     };
 
@@ -558,9 +560,7 @@ TEST(server, task_worker) {
     thread t1([&serv]() {
     	SwooleWG.run_always = true;
         serv.gs->task_workers.running = 1;
-        serv.gs->tasking_num++;
         serv.gs->task_workers.main_loop(&serv.gs->task_workers, &serv.gs->task_workers.workers[0]);
-        serv.gs->tasking_num--;
         EXPECT_EQ(serv.get_tasking_num(), 0);
         serv.gs->tasking_num--;
         EXPECT_EQ(serv.get_tasking_num(), 0);
@@ -578,12 +578,13 @@ TEST(server, task_worker) {
 
     int _dst_worker_id = 0;
 
-    ASSERT_GE(serv.gs->task_workers.dispatch(&buf, &_dst_worker_id), 0);
+    ASSERT_TRUE(serv.task(&buf, &_dst_worker_id));
+    ASSERT_EQ(serv.gs->task_count, 1);
 
     t1.join();
     serv.gs->task_workers.destroy();
 
-    ASSERT_EQ(serv.gs->)
+    ASSERT_EQ(serv.gs->task_count, 2);
 }
 
 // PHP_METHOD(swoole_server, task)
@@ -603,8 +604,7 @@ TEST(server, task_worker2) {
 
     serv.onTask = [](Server *serv, swEventData *task) -> int {
         EXPECT_EQ(string(task->data, task->info.len), string(packet));
-        int ret = serv->reply_task_result(task->data, task->info.len, 0, task);
-        EXPECT_GT(ret, 0);
+        EXPECT_TRUE(serv->finish(task->data, task->info.len, 0, task));
         return 0;
     };
 
@@ -652,8 +652,7 @@ TEST(server, task_worker3) {
 
     serv.onTask = [](Server *serv, swEventData *task) -> int {
         EXPECT_EQ(string(task->data, task->info.len), string(packet));
-        int ret = serv->reply_task_result(task->data, task->info.len, 0, task);
-        EXPECT_GT(ret, 0);
+        EXPECT_TRUE(serv->finish(task->data, task->info.len, 0, task));
         return 0;
     };
 
@@ -701,8 +700,7 @@ TEST(server, task_worker4) {
 
     serv.onTask = [](Server *serv, swEventData *task) -> int {
         EXPECT_EQ(string(task->data, task->info.len), string(packet));
-        int ret = serv->reply_task_result(task->data, task->info.len, 0, task);
-        EXPECT_GT(ret, 0);
+        EXPECT_TRUE(serv->finish(task->data, task->info.len, 0, task));
         return 0;
     };
 
@@ -770,8 +768,7 @@ TEST(server, task_worker5) {
         ifs.close();
 
         EXPECT_EQ(string(resp), string(data));
-        int ret = serv->reply_task_result(resp, SW_IPC_MAX_SIZE * 2, 0, task);
-        EXPECT_GT(ret, 0);
+        EXPECT_TRUE(serv->finish(resp, SW_IPC_MAX_SIZE * 2, 0, task));
         return 0;
     };
 

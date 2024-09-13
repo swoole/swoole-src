@@ -1003,7 +1003,7 @@ class Server {
     }
 
     EventData *get_task_result() {
-    	return &(task_results[swoole_get_process_id()]);
+        return &(task_results[swoole_get_process_id()]);
     }
 
     WorkerId get_task_src_worker_id(EventData *task) {
@@ -1371,7 +1371,6 @@ class Server {
     }
 
     ssize_t send_to_reactor_thread(const EventData *ev_data, size_t sendn, SessionId session_id);
-    int reply_task_result(const char *data, size_t data_len, int flags, EventData *current_task);
 
     bool send(SessionId session_id, const void *data, uint32_t length);
     bool sendfile(SessionId session_id, const char *file, uint32_t l_file, off_t offset, size_t length);
@@ -1387,6 +1386,7 @@ class Server {
                  const Command::Callback &fn);
 
     bool task(EventData *task, int *dst_worker_id, bool blocking = false);
+    bool finish(const char *data, size_t data_len, int flags, EventData *current_task);
     bool task_sync(EventData *task, int *dst_worker_id, double timeout);
     bool send_pipe_message(WorkerId worker_id, EventData *msg);
 

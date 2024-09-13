@@ -85,7 +85,7 @@ static void php_swoole_server_onWorkerError(Server *serv, Worker *worker, const 
 static void php_swoole_server_onManagerStart(Server *serv);
 static void php_swoole_server_onManagerStop(Server *serv);
 
-static int php_swoole_server_task_finish(Server *serv, zval *zdata, EventData *current_task);
+static bool php_swoole_server_task_finish(Server *serv, zval *zdata, EventData *current_task);
 static TaskId php_swoole_server_task_pack(zval *data, EventData *task);
 static bool php_swoole_server_task_unpack(zval *zresult, EventData *task_result);
 static int php_swoole_server_dispatch_func(Server *serv, Connection *conn, SendData *data);
@@ -1025,13 +1025,12 @@ void ServerObject::register_callback() {
     }
 }
 
-static int php_swoole_server_task_finish(Server *serv, zval *zdata, EventData *current_task) {
+static bool php_swoole_server_task_finish(Server *serv, zval *zdata, EventData *current_task) {
     int flags = 0;
     smart_str serialized_data = {};
     php_serialize_data_t var_hash;
     char *data_str;
     size_t data_len = 0;
-    int ret;
 
     // need serialize
     if (Z_TYPE_P(zdata) != IS_STRING) {
@@ -1049,9 +1048,9 @@ static int php_swoole_server_task_finish(Server *serv, zval *zdata, EventData *c
         data_len = Z_STRLEN_P(zdata);
     }
 
-    ret = serv->reply_task_result(data_str, data_len, flags, current_task);
+    bool success = serv->finish(data_str, data_len, flags, current_task);
     smart_str_free(&serialized_data);
-    return ret;
+    return success;
 }
 
 static void php_swoole_server_onPipeMessage(Server *serv, EventData *req) {
@@ -3101,7 +3100,7 @@ static PHP_METHOD(swoole_server, taskwait) {
             RETURN_FALSE;
         }
     } else {
-    	auto retval = serv->task_sync(&buf, (int *) &dst_worker_id, timeout);
+        auto retval = serv->task_sync(&buf, (int *) &dst_worker_id, timeout);
         if (!retval) {
             RETURN_FALSE;
         }
@@ -3299,7 +3298,7 @@ static PHP_METHOD(swoole_server, taskCo) {
 
     zval *ztask;
     SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(ztasks), ztask) {
-    	EventData buf;
+        EventData buf;
         task_id = php_swoole_server_task_pack(ztask, &buf);
         if (task_id < 0) {
             php_swoole_fatal_error(E_WARNING, "failed to pack task");
@@ -3503,7 +3502,7 @@ static PHP_METHOD(swoole_server, finish) {
     Z_PARAM_ZVAL(zdata)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    SW_CHECK_RETURN(php_swoole_server_task_finish(serv, zdata, nullptr));
+    RETURN_BOOL(php_swoole_server_task_finish(serv, zdata, nullptr));
 }
 
 static PHP_METHOD(swoole_server_task, finish) {
@@ -3520,7 +3519,7 @@ static PHP_METHOD(swoole_server_task, finish) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     DataHead *info = php_swoole_server_task_get_info(ZEND_THIS);
-    SW_CHECK_RETURN(php_swoole_server_task_finish(serv, zdata, (EventData *) info));
+    RETURN_BOOL(php_swoole_server_task_finish(serv, zdata, (EventData *) info));
 }
 
 static PHP_METHOD(swoole_server_task, pack) {

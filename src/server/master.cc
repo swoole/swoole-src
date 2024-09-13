@@ -528,8 +528,8 @@ int Server::create_task_workers() {
     }
 
     /*
-	 * For Server::task_sync(), create notify pipe and result shared memory.
-	 */
+     * For Server::task_sync(), create notify pipe and result shared memory.
+     */
     task_results = (EventData *) sw_shm_calloc(worker_num, sizeof(EventData));
     if (!task_results) {
         swoole_warning("malloc[task_result] failed");
