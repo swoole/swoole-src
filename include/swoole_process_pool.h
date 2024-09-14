@@ -344,7 +344,14 @@ struct ProcessPool {
     int listen(const char *host, int port, int blacklog);
     int schedule();
     bool is_worker_running(Worker *worker);
+
     static void kill_timeout_worker(Timer *timer, TimerNode *tnode);
+
+ private:
+    static int run_with_task_protocol(ProcessPool *pool, Worker *worker);
+    static int run_with_stream_protocol(ProcessPool *pool, Worker *worker);
+    static int run_with_message_protocol(ProcessPool *pool, Worker *worker);
+    static int run_async(ProcessPool *pool, Worker *worker);
 };
 };  // namespace swoole
 

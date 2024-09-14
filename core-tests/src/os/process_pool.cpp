@@ -11,20 +11,56 @@ using namespace swoole;
 
 static void test_func(ProcessPool &pool) {
     EventData data{};
-    data.info.len = strlen(TEST_JPG_MD5SUM);
-    memcpy(data.data, TEST_JPG_MD5SUM, data.info.len);
+    size_t size = swoole_system_random(1024, 4096);
+    String rmem(size);
+    rmem.append_random_bytes(size - 1);
+    rmem.append("\0");
+
+    data.info.len = size;
+    memcpy(data.data, rmem.value(), size);
 
     int worker_id = -1;
     ASSERT_EQ(pool.dispatch_blocking(&data, &worker_id), SW_OK);
 
     pool.running = true;
+    pool.ptr = &rmem;
+    SwooleWG.run_always = true;
+    pool.main_loop(&pool, pool.get_worker(0));
+    pool.destroy();
+}
+
+static void test_func_task_protocol(ProcessPool &pool) {
+    pool.set_protocol(SW_PROTOCOL_TASK);
     pool.onTask = [](ProcessPool *pool, Worker *worker, EventData *task) -> int {
         pool->running = false;
+        usleep(10000);
         EXPECT_MEMEQ(task->data, TEST_JPG_MD5SUM, task->info.len);
         return 0;
     };
-    pool.main_loop(&pool, pool.get_worker(0));
-    pool.destroy();
+    test_func(pool);
+}
+
+static void test_func_message_protocol(ProcessPool &pool) {
+    pool.set_protocol(SW_PROTOCOL_MESSAGE);
+    pool.onMessage = [](ProcessPool *pool, RecvData *rdata) {
+        pool->running = false;
+        String *_data = (String *) pool->ptr;
+        usleep(10000);
+        EXPECT_MEMEQ(_data->str, rdata->data, rdata->info.len);
+    };
+    test_func(pool);
+}
+
+static void test_func_stream_protocol(ProcessPool &pool) {
+    pool.set_protocol(SW_PROTOCOL_STREAM);
+    pool.onMessage = [](ProcessPool *pool, RecvData *rdata) {
+        pool->running = false;
+        String *_data = (String *) pool->ptr;
+        EventData *msg = (EventData *) rdata->data;
+        usleep(10000);
+        EXPECT_MEMEQ(_data->str, msg->data, msg->len());
+    };
+    test_func(pool);
 }
 
 TEST(process_pool, tcp) {
@@ -32,7 +68,7 @@ TEST(process_pool, tcp) {
     ASSERT_EQ(pool.create(1, 0, SW_IPC_SOCKET), SW_OK);
     ASSERT_EQ(pool.listen(TEST_HOST, TEST_PORT, 128), SW_OK);
 
-    test_func(pool);
+    test_func_task_protocol(pool);
 }
 
 TEST(process_pool, unix_sock) {
@@ -40,7 +76,7 @@ TEST(process_pool, unix_sock) {
     signal(SIGPIPE, SIG_IGN);
     ASSERT_EQ(pool.create(1, 0, SW_IPC_UNIXSOCK), SW_OK);
 
-    test_func(pool);
+    test_func_task_protocol(pool);
 }
 
 TEST(process_pool, tcp_raw) {
@@ -72,7 +108,21 @@ TEST(process_pool, msgqueue) {
     ProcessPool pool{};
     ASSERT_EQ(pool.create(1, 0x9501, SW_IPC_MSGQUEUE), SW_OK);
 
-    test_func(pool);
+    test_func_task_protocol(pool);
+}
+
+TEST(process_pool, message_protocol) {
+    ProcessPool pool{};
+    ASSERT_EQ(pool.create(1, 0, SW_IPC_UNIXSOCK), SW_OK);
+
+    test_func_message_protocol(pool);
+}
+
+TEST(process_pool, stream_protocol) {
+    ProcessPool pool{};
+    ASSERT_EQ(pool.create(1, 0, SW_IPC_UNIXSOCK), SW_OK);
+
+    test_func_stream_protocol(pool);
 }
 
 constexpr int magic_number = 99900011;

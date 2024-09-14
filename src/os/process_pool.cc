@@ -32,11 +32,6 @@ namespace swoole {
 using network::Socket;
 using network::Stream;
 
-static int ProcessPool_worker_loop_with_task_protocol(ProcessPool *pool, Worker *worker);
-static int ProcessPool_worker_loop_with_stream_protocol(ProcessPool *pool, Worker *worker);
-static int ProcessPool_worker_loop_with_message_protocol(ProcessPool *pool, Worker *worker);
-static int ProcessPool_worker_loop_async(ProcessPool *pool, Worker *worker);
-
 void ProcessPool::kill_timeout_worker(Timer *timer, TimerNode *tnode) {
     uint32_t i;
     pid_t reload_worker_pid = 0;
@@ -113,7 +108,7 @@ int ProcessPool::create(uint32_t _worker_num, key_t _msgqueue_key, swIPCMode _ip
 
     map_ = new std::unordered_map<pid_t, Worker *>;
     ipc_mode = _ipc_mode;
-    main_loop = ProcessPool_worker_loop_with_task_protocol;
+    main_loop = run_with_task_protocol;
     protocol_type_ = SW_PROTOCOL_TASK;
     max_packet_size_ = SW_INPUT_BUFFER_SIZE;
 
@@ -207,13 +202,13 @@ int ProcessPool::listen(const char *host, int port, int blacklog) {
 void ProcessPool::set_protocol(enum ProtocolType _protocol_type) {
     switch (_protocol_type) {
     case SW_PROTOCOL_TASK:
-        main_loop = ProcessPool_worker_loop_with_task_protocol;
+        main_loop = run_with_task_protocol;
         break;
     case SW_PROTOCOL_STREAM:
-        main_loop = ProcessPool_worker_loop_with_stream_protocol;
+        main_loop = run_with_stream_protocol;
         break;
     case SW_PROTOCOL_MESSAGE:
-        main_loop = ProcessPool_worker_loop_with_message_protocol;
+        main_loop = run_with_message_protocol;
         break;
     default:
         abort();
@@ -234,7 +229,7 @@ int ProcessPool::start_check() {
     swoole_set_process_type(SW_PROCESS_MASTER);
 
     if (async) {
-        main_loop = ProcessPool_worker_loop_async;
+        main_loop = run_async;
     }
 
     SW_LOOP_N(worker_num) {
@@ -507,7 +502,7 @@ bool ProcessPool::is_worker_running(Worker *worker) {
     return running && !SwooleWG.shutdown && !worker->has_exceeded_max_request();
 }
 
-static int ProcessPool_worker_loop_with_task_protocol(ProcessPool *pool, Worker *worker) {
+int ProcessPool::run_with_task_protocol(ProcessPool *pool, Worker *worker) {
     struct {
         long mtype;
         EventData buf;
@@ -626,7 +621,7 @@ static int ProcessPool_recv_message(Reactor *reactor, Event *event) {
     return SW_OK;
 }
 
-static int ProcessPool_worker_loop_async(ProcessPool *pool, Worker *worker) {
+int ProcessPool::run_async(ProcessPool *pool, Worker *worker) {
     if (pool->ipc_mode == SW_IPC_UNIXSOCK && pool->onMessage) {
         swoole_event_add(worker->pipe_worker, SW_EVENT_READ);
         if (pool->message_bus) {
@@ -642,7 +637,7 @@ static int ProcessPool_worker_loop_async(ProcessPool *pool, Worker *worker) {
     return swoole_event_wait();
 }
 
-static int ProcessPool_worker_loop_with_stream_protocol(ProcessPool *pool, Worker *worker) {
+int ProcessPool::run_with_stream_protocol(ProcessPool *pool, Worker *worker) {
     ssize_t n;
     RecvData msg{};
     msg.info.reactor_id = -1;
@@ -650,6 +645,10 @@ static int ProcessPool_worker_loop_with_stream_protocol(ProcessPool *pool, Worke
     pool->packet_buffer = new char[pool->max_packet_size_];
     if (pool->stream_info_) {
         pool->stream_info_->response_buffer = new String(SW_BUFFER_SIZE_STD);
+    }
+
+    if (pool->ipc_mode == SW_IPC_UNIXSOCK && pool->message_bus == nullptr) {
+        pool->create_message_bus();
     }
 
     QueueNode *outbuf = (QueueNode *) pool->packet_buffer;
@@ -739,7 +738,7 @@ static int ProcessPool_worker_loop_with_stream_protocol(ProcessPool *pool, Worke
     return SW_OK;
 }
 
-static int ProcessPool_worker_loop_with_message_protocol(ProcessPool *pool, Worker *worker) {
+int ProcessPool::run_with_message_protocol(ProcessPool *pool, Worker *worker) {
     auto fn = [&]() -> int {
         if (worker->pipe_worker->wait_event(-1, SW_EVENT_READ) < 0) {
             return errno == EINTR ? 0 : -1;
@@ -757,6 +756,16 @@ static int ProcessPool_worker_loop_with_message_protocol(ProcessPool *pool, Work
         pool->message_bus->pop();
         return 1;
     };
+
+    if (pool->ipc_mode != SW_IPC_UNIXSOCK) {
+        swoole_error_log(
+            SW_LOG_WARNING, SW_ERROR_OPERATION_NOT_SUPPORT, "not support, ipc_mode must be SW_IPC_UNIXSOCK");
+        return SW_ERR;
+    }
+
+    if (pool->message_bus == nullptr) {
+        pool->create_message_bus();
+    }
 
     worker->pipe_worker->dont_restart = 1;
 
