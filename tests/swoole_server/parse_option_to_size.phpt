@@ -1,7 +1,12 @@
 --TEST--
 swoole_server: parse option value to size
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+if (PHP_VERSION_ID < 80200) {
+    require __DIR__ . '/../include/skipif.inc';
+    skip('php version 8.2 or higher');
+}
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
