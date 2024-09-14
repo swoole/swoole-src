@@ -32,11 +32,6 @@ namespace swoole {
 using network::Socket;
 using network::Stream;
 
-static int ProcessPool_worker_loop_with_task_protocol(ProcessPool *pool, Worker *worker);
-static int ProcessPool_worker_loop_with_stream_protocol(ProcessPool *pool, Worker *worker);
-static int ProcessPool_worker_loop_with_message_protocol(ProcessPool *pool, Worker *worker);
-static int ProcessPool_worker_loop_async(ProcessPool *pool, Worker *worker);
-
 void ProcessPool::kill_timeout_worker(Timer *timer, TimerNode *tnode) {
     uint32_t i;
     pid_t reload_worker_pid = 0;
@@ -113,7 +108,7 @@ int ProcessPool::create(uint32_t _worker_num, key_t _msgqueue_key, swIPCMode _ip
 
     map_ = new std::unordered_map<pid_t, Worker *>;
     ipc_mode = _ipc_mode;
-    main_loop = ProcessPool_worker_loop_with_task_protocol;
+    main_loop = run_with_task_protocol;
     protocol_type_ = SW_PROTOCOL_TASK;
     max_packet_size_ = SW_INPUT_BUFFER_SIZE;
 
@@ -207,13 +202,13 @@ int ProcessPool::listen(const char *host, int port, int blacklog) {
 void ProcessPool::set_protocol(enum ProtocolType _protocol_type) {
     switch (_protocol_type) {
     case SW_PROTOCOL_TASK:
-        main_loop = ProcessPool_worker_loop_with_task_protocol;
+        main_loop = run_with_task_protocol;
         break;
     case SW_PROTOCOL_STREAM:
-        main_loop = ProcessPool_worker_loop_with_stream_protocol;
+        main_loop = run_with_stream_protocol;
         break;
     case SW_PROTOCOL_MESSAGE:
-        main_loop = ProcessPool_worker_loop_with_message_protocol;
+        main_loop = run_with_message_protocol;
         break;
     default:
         abort();
@@ -234,7 +229,7 @@ int ProcessPool::start_check() {
     swoole_set_process_type(SW_PROCESS_MASTER);
 
     if (async) {
-        main_loop = ProcessPool_worker_loop_async;
+        main_loop = run_async;
     }
 
     SW_LOOP_N(worker_num) {
@@ -299,7 +294,7 @@ int ProcessPool::response(const char *data, int length) {
 }
 
 int ProcessPool::push_message(EventData *msg) {
-    if (message_box->push(msg, sizeof(msg->info) + msg->info.len) < 0) {
+    if (message_box->push(msg, msg->size()) < 0) {
         return SW_ERR;
     }
     return swoole_kill(master_pid, SIGIO);
@@ -328,11 +323,7 @@ int ProcessPool::pop_message(void *data, size_t size) {
     return message_box->pop(data, size);
 }
 
-/**
- * dispatch data to worker
- */
-int ProcessPool::dispatch(EventData *data, int *dst_worker_id) {
-    int ret = 0;
+swResultCode ProcessPool::dispatch(EventData *data, int *dst_worker_id) {
     Worker *worker;
 
     if (use_socket) {
@@ -341,7 +332,7 @@ int ProcessPool::dispatch(EventData *data, int *dst_worker_id) {
             return SW_ERR;
         }
         stream->response = nullptr;
-        if (stream->send((char *) data, sizeof(data->info) + data->info.len) < 0) {
+        if (stream->send((char *) data, data->size()) < 0) {
             stream->cancel = 1;
             delete stream;
             return SW_ERR;
@@ -356,19 +347,15 @@ int ProcessPool::dispatch(EventData *data, int *dst_worker_id) {
     *dst_worker_id += start_id;
     worker = get_worker(*dst_worker_id);
 
-    int sendn = sizeof(data->info) + data->info.len;
-    ret = worker->send_pipe_message(data, sendn, SW_PIPE_MASTER | SW_PIPE_NONBLOCK);
-
-    if (ret >= 0) {
-        sw_atomic_fetch_add(&worker->tasking_num, 1);
-    } else {
-        swoole_warning("send %d bytes to worker#%d failed", sendn, *dst_worker_id);
+    if (worker->send_pipe_message(data, data->size(), SW_PIPE_MASTER | SW_PIPE_NONBLOCK) < 0) {
+        swoole_warning("send %d bytes to worker#%d failed", data->size(), *dst_worker_id);
+        return SW_ERR;
     }
 
-    return ret;
+    return SW_OK;
 }
 
-int ProcessPool::dispatch_blocking(const char *data, uint32_t len) {
+swResultCode ProcessPool::dispatch_blocking(const char *data, uint32_t len) {
     assert(use_socket);
 
     network::Client _socket(stream_info_->socket->socket_type, false);
@@ -389,16 +376,9 @@ int ProcessPool::dispatch_blocking(const char *data, uint32_t len) {
     return SW_OK;
 }
 
-/**
- * dispatch data to worker
- * @return SW_OK/SW_ERR
- */
-int ProcessPool::dispatch_blocking(EventData *data, int *dst_worker_id) {
-    int ret = 0;
-    int sendn = sizeof(data->info) + data->info.len;
-
+swResultCode ProcessPool::dispatch_blocking(EventData *data, int *dst_worker_id) {
     if (use_socket) {
-        return dispatch_blocking((char *) data, sendn);
+        return dispatch_blocking((char *) data, data->size());
     }
 
     if (*dst_worker_id < 0) {
@@ -408,14 +388,11 @@ int ProcessPool::dispatch_blocking(EventData *data, int *dst_worker_id) {
     *dst_worker_id += start_id;
     Worker *worker = get_worker(*dst_worker_id);
 
-    ret = worker->send_pipe_message(data, sendn, SW_PIPE_MASTER);
-    if (ret < 0) {
-        swoole_warning("send %d bytes to worker#%d failed", sendn, *dst_worker_id);
-    } else {
-        sw_atomic_fetch_add(&worker->tasking_num, 1);
+    if (worker->send_pipe_message(data, data->size(), SW_PIPE_MASTER) < 0) {
+        swoole_warning("send %d bytes to worker#%d failed", data->size(), *dst_worker_id);
+        return SW_ERR;
     }
-
-    return ret > 0 ? SW_OK : SW_ERR;
+    return SW_OK;
 }
 
 bool ProcessPool::reload() {
@@ -525,7 +502,7 @@ bool ProcessPool::is_worker_running(Worker *worker) {
     return running && !SwooleWG.shutdown && !worker->has_exceeded_max_request();
 }
 
-static int ProcessPool_worker_loop_with_task_protocol(ProcessPool *pool, Worker *worker) {
+int ProcessPool::run_with_task_protocol(ProcessPool *pool, Worker *worker) {
     struct {
         long mtype;
         EventData buf;
@@ -589,7 +566,7 @@ static int ProcessPool_worker_loop_with_task_protocol(ProcessPool *pool, Worker 
             continue;
         }
 
-        if (n != (ssize_t) (out.buf.info.len + sizeof(out.buf.info))) {
+        if (n != (ssize_t) out.buf.size()) {
             swoole_warning("bad task packet, The received data-length[%ld] is inconsistent with the packet-length[%ld]",
                            n,
                            out.buf.info.len + sizeof(out.buf.info));
@@ -644,7 +621,7 @@ static int ProcessPool_recv_message(Reactor *reactor, Event *event) {
     return SW_OK;
 }
 
-static int ProcessPool_worker_loop_async(ProcessPool *pool, Worker *worker) {
+int ProcessPool::run_async(ProcessPool *pool, Worker *worker) {
     if (pool->ipc_mode == SW_IPC_UNIXSOCK && pool->onMessage) {
         swoole_event_add(worker->pipe_worker, SW_EVENT_READ);
         if (pool->message_bus) {
@@ -660,7 +637,7 @@ static int ProcessPool_worker_loop_async(ProcessPool *pool, Worker *worker) {
     return swoole_event_wait();
 }
 
-static int ProcessPool_worker_loop_with_stream_protocol(ProcessPool *pool, Worker *worker) {
+int ProcessPool::run_with_stream_protocol(ProcessPool *pool, Worker *worker) {
     ssize_t n;
     RecvData msg{};
     msg.info.reactor_id = -1;
@@ -757,7 +734,7 @@ static int ProcessPool_worker_loop_with_stream_protocol(ProcessPool *pool, Worke
     return SW_OK;
 }
 
-static int ProcessPool_worker_loop_with_message_protocol(ProcessPool *pool, Worker *worker) {
+int ProcessPool::run_with_message_protocol(ProcessPool *pool, Worker *worker) {
     auto fn = [&]() -> int {
         if (worker->pipe_worker->wait_event(-1, SW_EVENT_READ) < 0) {
             return errno == EINTR ? 0 : -1;
@@ -775,6 +752,16 @@ static int ProcessPool_worker_loop_with_message_protocol(ProcessPool *pool, Work
         pool->message_bus->pop();
         return 1;
     };
+
+    if (pool->ipc_mode != SW_IPC_UNIXSOCK) {
+        swoole_error_log(
+            SW_LOG_WARNING, SW_ERROR_OPERATION_NOT_SUPPORT, "not support, ipc_mode must be SW_IPC_UNIXSOCK");
+        return SW_ERR;
+    }
+
+    if (pool->message_bus == nullptr) {
+        pool->create_message_bus();
+    }
 
     worker->pipe_worker->dont_restart = 1;
 

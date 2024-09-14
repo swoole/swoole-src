@@ -141,7 +141,6 @@ struct Worker {
     uint8_t msgqueue_mode;
     uint8_t child_process;
 
-    sw_atomic_t tasking_num;
     uint32_t concurrency;
     time_t start_time;
 
@@ -328,10 +327,10 @@ struct ProcessPool {
     bool reload();
     pid_t spawn(Worker *worker);
     void stop(Worker *worker);
-    int dispatch(EventData *data, int *worker_id);
+    swResultCode dispatch(EventData *data, int *worker_id);
     int response(const char *data, int length);
-    int dispatch_blocking(EventData *data, int *dst_worker_id);
-    int dispatch_blocking(const char *data, uint32_t len);
+    swResultCode dispatch_blocking(EventData *data, int *dst_worker_id);
+    swResultCode dispatch_blocking(const char *data, uint32_t len);
     void add_worker(Worker *worker);
     int del_worker(Worker *worker);
     void destroy();
@@ -345,7 +344,14 @@ struct ProcessPool {
     int listen(const char *host, int port, int blacklog);
     int schedule();
     bool is_worker_running(Worker *worker);
+
     static void kill_timeout_worker(Timer *timer, TimerNode *tnode);
+
+ private:
+    static int run_with_task_protocol(ProcessPool *pool, Worker *worker);
+    static int run_with_stream_protocol(ProcessPool *pool, Worker *worker);
+    static int run_with_message_protocol(ProcessPool *pool, Worker *worker);
+    static int run_async(ProcessPool *pool, Worker *worker);
 };
 };  // namespace swoole
 

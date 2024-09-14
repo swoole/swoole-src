@@ -430,9 +430,9 @@ static PHP_METHOD(swoole_process_pool, write) {
     char *data;
     size_t length;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &data, &length) == FAILURE) {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_STRING(data, length)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     ProcessPool *pool = process_pool_get_and_check_pool(ZEND_THIS);
     if (pool->ipc_mode != SW_IPC_SOCKET) {

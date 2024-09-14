@@ -389,6 +389,7 @@ struct ServerGS {
     sw_atomic_long_t total_recv_bytes;
     sw_atomic_long_t total_send_bytes;
     sw_atomic_long_t pipe_packet_msg_id;
+    sw_atomic_long_t task_count;
 
     sw_atomic_t spinlock;
 
@@ -837,7 +838,7 @@ class Server {
     uint32_t task_max_request = 0;
     uint32_t task_max_request_grace = 0;
     std::vector<std::shared_ptr<Pipe>> task_notify_pipes;
-    EventData *task_result = nullptr;
+    EventData *task_results = nullptr;
 
     /**
      * Used for process management, saving the mapping relationship between PID and worker pointers
@@ -995,10 +996,18 @@ class Server {
 
     int get_idle_worker_num();
     int get_idle_task_worker_num();
-    int get_task_count();
+    int get_tasking_num();
 
     TaskId get_task_id(EventData *task) {
         return gs->task_workers.get_task_id(task);
+    }
+
+    uint16_t get_command_id(EventData *cmd) {
+    	return cmd->info.server_fd;
+    }
+
+    EventData *get_task_result() {
+        return &(task_results[swoole_get_process_id()]);
     }
 
     WorkerId get_task_src_worker_id(EventData *task) {
@@ -1362,11 +1371,10 @@ class Server {
     ssize_t send_to_worker_from_worker(Worker *dst_worker, const void *buf, size_t len, int flags);
 
     ssize_t send_to_worker_from_worker(WorkerId id, EventData *data, int flags) {
-        return send_to_worker_from_worker(get_worker(id), data, sizeof(data->info) + data->info.len, flags);
+        return send_to_worker_from_worker(get_worker(id), data, data->size(), flags);
     }
 
     ssize_t send_to_reactor_thread(const EventData *ev_data, size_t sendn, SessionId session_id);
-    int reply_task_result(const char *data, size_t data_len, int flags, EventData *current_task);
 
     bool send(SessionId session_id, const void *data, uint32_t length);
     bool sendfile(SessionId session_id, const char *file, uint32_t l_file, off_t offset, size_t length);
@@ -1380,6 +1388,11 @@ class Server {
                  const std::string &name,
                  const std::string &msg,
                  const Command::Callback &fn);
+
+    bool task(EventData *task, int *dst_worker_id, bool blocking = false);
+    bool finish(const char *data, size_t data_len, int flags, EventData *current_task);
+    bool task_sync(EventData *task, int *dst_worker_id, double timeout);
+    bool send_pipe_message(WorkerId worker_id, EventData *msg);
 
     void init_reactor(Reactor *reactor);
     void init_worker(Worker *worker);

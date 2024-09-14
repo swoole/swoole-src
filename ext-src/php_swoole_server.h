@@ -124,7 +124,7 @@ struct ServerObject {
 
 struct TaskCo {
     Coroutine *co;
-    int *list;
+    TaskId *list;
     uint32_t count;
     zval *result;
 };
