@@ -21,6 +21,12 @@
 #include <vector>
 #include <string>
 
+SW_EXTERN_C_BEGIN
+#if PHP_VERSION_ID >= 80400
+#include <Zend/zend_operators.h>
+#endif
+SW_EXTERN_C_END
+
 #define SW_REDIS_RETURN_NIL "$-1\r\n"
 
 #define SW_REDIS_MAX_COMMAND_SIZE 64
