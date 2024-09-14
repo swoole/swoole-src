@@ -33,8 +33,9 @@ static void test_func_task_protocol(ProcessPool &pool) {
     pool.set_protocol(SW_PROTOCOL_TASK);
     pool.onTask = [](ProcessPool *pool, Worker *worker, EventData *task) -> int {
         pool->running = false;
+        String *_data = (String *) pool->ptr;
         usleep(10000);
-        EXPECT_MEMEQ(task->data, TEST_JPG_MD5SUM, task->info.len);
+        EXPECT_MEMEQ(_data->str, task->data, task->len());
         return 0;
     };
     test_func(pool);
