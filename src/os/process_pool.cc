@@ -647,10 +647,6 @@ int ProcessPool::run_with_stream_protocol(ProcessPool *pool, Worker *worker) {
         pool->stream_info_->response_buffer = new String(SW_BUFFER_SIZE_STD);
     }
 
-    if (pool->ipc_mode == SW_IPC_UNIXSOCK && pool->message_bus == nullptr) {
-        pool->create_message_bus();
-    }
-
     QueueNode *outbuf = (QueueNode *) pool->packet_buffer;
     outbuf->mtype = 0;
 
