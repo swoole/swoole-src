@@ -22,12 +22,6 @@
 #include "swoole_coroutine_system.h"
 
 #ifdef SW_USE_PGSQL
-#if PHP_VERSION_ID > 80100
-#include "thirdparty/php81/pdo_pgsql/php_pdo_pgsql_int.h"
-#else
-#include "thirdparty/php80/pdo_pgsql/php_pdo_pgsql_int.h"
-#endif
-
 using swoole::Reactor;
 using swoole::coroutine::Socket;
 using swoole::coroutine::translate_events_to_poll;
