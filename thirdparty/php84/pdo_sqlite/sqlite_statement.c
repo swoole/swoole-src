@@ -17,7 +17,7 @@
 #define SW_USE_SQLITE_HOOK
 #include "php_swoole_sqlite.h"
 
-#if PHP_VERSION_ID >= 80300 && PHP_VERSION_ID < 80400
+#if PHP_VERSION_ID >= 80400
 #include "php.h"
 #include "php_ini.h"
 #include "ext/standard/info.h"
@@ -328,7 +328,7 @@ static int pdo_sqlite_stmt_col_meta(pdo_stmt_t *stmt, zend_long colno, zval *ret
         add_assoc_string(return_value, "sqlite:decl_type", (char *) str);
     }
 
-#ifdef HAVE_SW_SQLITE3_COLUMN_TABLE_NAME
+#ifdef HAVE_SQLITE3_COLUMN_TABLE_NAME
     str = sqlite3_column_table_name(S->stmt, colno);
     if (str) {
         add_assoc_string(return_value, "table", (char *) str);

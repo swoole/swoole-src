@@ -22,7 +22,6 @@
 #include "swoole_coroutine_system.h"
 
 #ifdef SW_USE_PGSQL
-#include "thirdparty/php81/pdo_pgsql/php_pdo_pgsql_int.h"
 
 using swoole::Reactor;
 using swoole::coroutine::Socket;
