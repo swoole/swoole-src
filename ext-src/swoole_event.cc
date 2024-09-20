@@ -311,14 +311,14 @@ int php_swoole_convert_to_fd(zval *zsocket) {
     }
     case IS_OBJECT: {
         zval *zfd = nullptr;
-        if (instanceof_function(Z_OBJCE_P(zsocket), swoole_socket_coro_ce)) {
+        if (sw_zval_is_co_socket(zsocket)) {
             zfd = sw_zend_read_property_ex(Z_OBJCE_P(zsocket), zsocket, SW_ZSTR_KNOWN(SW_ZEND_STR_FD), 0);
-        } else if (instanceof_function(Z_OBJCE_P(zsocket), swoole_client_ce)) {
+        } else if (sw_zval_is_client(zsocket)) {
             zfd = sw_zend_read_property_ex(Z_OBJCE_P(zsocket), zsocket, SW_ZSTR_KNOWN(SW_ZEND_STR_SOCK), 0);
-        } else if (instanceof_function(Z_OBJCE_P(zsocket), swoole_process_ce)) {
+        } else if (sw_zval_is_process(zsocket)) {
             zfd = sw_zend_read_property_ex(Z_OBJCE_P(zsocket), zsocket, SW_ZSTR_KNOWN(SW_ZEND_STR_PIPE), 0);
 #ifdef SWOOLE_SOCKETS_SUPPORT
-        } else if (instanceof_function(Z_OBJCE_P(zsocket), socket_ce)) {
+        } else if (sw_zval_is_php_socket(zsocket)) {
             php_socket *php_sock = SW_Z_SOCKET_P(zsocket);
             if (IS_INVALID_SOCKET(php_sock)) {
                 php_swoole_fatal_error(E_WARNING, "contains a closed socket");

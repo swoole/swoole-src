@@ -470,6 +470,24 @@ static sw_inline void sw_zval_free(zval *val) {
     efree(val);
 }
 
+#ifdef SWOOLE_SOCKETS_SUPPORT
+static inline bool sw_zval_is_php_socket(zval *val) {
+    return instanceof_function(Z_OBJCE_P(val), socket_ce);
+}
+#endif
+
+static inline bool sw_zval_is_co_socket(zval *val) {
+    return instanceof_function(Z_OBJCE_P(val), swoole_socket_coro_ce);
+}
+
+static inline bool sw_zval_is_client(zval *val) {
+    return instanceof_function(Z_OBJCE_P(val), swoole_client_ce);
+}
+
+static inline bool sw_zval_is_process(zval *val) {
+    return instanceof_function(Z_OBJCE_P(val), swoole_process_ce);
+}
+
 //----------------------------------Constant API------------------------------------
 
 #define SW_REGISTER_NULL_CONSTANT(name) REGISTER_NULL_CONSTANT(name, CONST_CS | CONST_PERSISTENT)

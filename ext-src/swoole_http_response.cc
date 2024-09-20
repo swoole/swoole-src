@@ -1291,7 +1291,7 @@ static PHP_METHOD(swoole_http_response, create) {
                 php_swoole_fatal_error(E_WARNING, "parameter $2 must be valid connection session id");
                 RETURN_FALSE;
             }
-        } else if (instanceof_function(Z_OBJCE_P(zobject), swoole_socket_coro_ce)) {
+        } else if (sw_zval_is_co_socket(zobject)) {
             sock = php_swoole_get_socket(zobject);
             fd = sock->get_fd();
         } else {
