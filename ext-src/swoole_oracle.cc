@@ -22,8 +22,6 @@
 
 #ifdef SW_USE_ORACLE
 
-using swoole::Coroutine;
-
 static bool swoole_oracle_blocking = true;
 void swoole_oracle_set_blocking(bool blocking) {
     swoole_oracle_blocking = blocking;

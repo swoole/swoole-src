@@ -24,6 +24,7 @@
 #ifdef SW_USE_PGSQL
 
 using swoole::Reactor;
+using swoole::Coroutine;
 using swoole::coroutine::Socket;
 using swoole::coroutine::translate_events_to_poll;
 
@@ -92,7 +93,11 @@ PGconn *swoole_pgsql_connectdb(const char *conninfo) {
         return conn;
     }
 
-    PQsetnonblocking(conn, 1);
+    if (!swoole_pgsql_blocking && Coroutine::get_current()) {
+        PQsetnonblocking(conn, 1);
+    } else {
+        PQsetnonblocking(conn, 0);
+    }
 
     SW_LOOP {
         int r = PQconnectPoll(conn);
