@@ -57,6 +57,7 @@ static void php_swoole_thread_register_stdio_file_handles(bool no_close);
 
 static thread_local zval thread_argv = {};
 static thread_local JMP_BUF *thread_bailout = nullptr;
+static std::atomic<size_t> thread_num(1);
 
 static sw_inline ThreadObject *thread_fetch_object(zend_object *obj) {
     return (ThreadObject *) ((char *) obj - swoole_thread_handlers.offset);
@@ -103,6 +104,7 @@ static const zend_function_entry swoole_thread_methods[] = {
     PHP_ME(swoole_thread, getArguments, arginfo_class_Swoole_Thread_getArguments, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_thread, getId,        arginfo_class_Swoole_Thread_getId,        ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_thread, getTsrmInfo,  arginfo_class_Swoole_Thread_getTsrmInfo,  ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_MALIAS(swoole_thread, info, getTsrmInfo, arginfo_class_Swoole_Thread_getTsrmInfo, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
 // clang-format on
@@ -245,15 +247,20 @@ void php_swoole_thread_rinit() {
 
 void php_swoole_thread_rshutdown() {
     zval_dtor(&thread_argv);
-    if (tsrm_is_main_thread()) {
-        if (request_info.path_translated) {
-            free((void *) request_info.path_translated);
-            request_info.path_translated = nullptr;
-        }
-        if (request_info.argv_serialized) {
-            zend_string_release(request_info.argv_serialized);
-            request_info.argv_serialized = nullptr;
-        }
+    if (!tsrm_is_main_thread()) {
+        return;
+    }
+    if (thread_num.load() > 1) {
+        swoole_warning("Fatal Error: %zu active threads are running, cannot exit safely.", thread_num.load());
+        exit(200);
+    }
+    if (request_info.path_translated) {
+        free((void *) request_info.path_translated);
+        request_info.path_translated = nullptr;
+    }
+    if (request_info.argv_serialized) {
+        zend_string_release(request_info.argv_serialized);
+        request_info.argv_serialized = nullptr;
     }
 }
 
@@ -297,6 +304,7 @@ static void php_swoole_thread_register_stdio_file_handles(bool no_close) {
 }
 
 void php_swoole_thread_start(zend_string *file, ZendArray *argv) {
+    thread_num.fetch_add(1);
     ts_resource(0);
 #if defined(COMPILE_DL_SWOOLE) && defined(ZTS)
     ZEND_TSRMLS_CACHE_UPDATE();
@@ -355,6 +363,7 @@ _startup_error:
     zend_string_release(file);
     ts_free_thread();
     swoole_thread_clean();
+    thread_num.fetch_sub(1);
 }
 
 void php_swoole_thread_bailout(void) {
@@ -426,6 +435,7 @@ static PHP_METHOD(swoole_thread, getTsrmInfo) {
     add_assoc_bool(return_value, "is_main_thread", tsrm_is_main_thread());
     add_assoc_bool(return_value, "is_shutdown", tsrm_is_shutdown());
     add_assoc_string(return_value, "api_name", tsrm_api_name());
+    add_assoc_long(return_value, "thread_num", thread_num.load());
 }
 
 #define CAST_OBJ_TO_RESOURCE(_name, _type)                                                                             \
