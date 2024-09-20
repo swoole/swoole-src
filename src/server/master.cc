@@ -790,9 +790,8 @@ int Server::create() {
     }
     // Reactor Thread Num
     if (reactor_num > SW_CPU_NUM * SW_MAX_THREAD_NCPU) {
-        swoole_warning("serv->reactor_num == %d, Too many threads, reset to max value %d",
-                       reactor_num,
-                       SW_CPU_NUM * SW_MAX_THREAD_NCPU);
+        swoole_warning(
+            "reactor_num == %d, Too many threads, reset to max value %d", reactor_num, SW_CPU_NUM * SW_MAX_THREAD_NCPU);
         reactor_num = SW_CPU_NUM * SW_MAX_THREAD_NCPU;
     } else if (reactor_num == 0) {
         reactor_num = SW_CPU_NUM;
@@ -812,7 +811,7 @@ int Server::create() {
     // TaskWorker Process Num
     if (task_worker_num > 0) {
         if (task_worker_num > SW_CPU_NUM * SW_MAX_WORKER_NCPU) {
-            swoole_warning("serv->task_worker_num == %d, Too many processes, reset to max value %d",
+            swoole_warning("task_worker_num == %d, Too many processes, reset to max value %d",
                            task_worker_num,
                            SW_CPU_NUM * SW_MAX_WORKER_NCPU);
             task_worker_num = SW_CPU_NUM * SW_MAX_WORKER_NCPU;
