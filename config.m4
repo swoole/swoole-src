@@ -1071,7 +1071,6 @@ EOF
 	        thirdparty/php81/pdo_pgsql/pgsql_statement.c \
 	        thirdparty/php83/pdo_pgsql/pgsql_driver.c \
             thirdparty/php83/pdo_pgsql/pgsql_statement.c \
-            thirdparty/php83/pdo_pgsql/pgsql_statement.c \
             thirdparty/php84/pdo_pgsql/pgsql_driver.c \
             thirdparty/php84/pdo_pgsql/pgsql_statement.c \
             thirdparty/php84/pdo_pgsql/pgsql_sql_parser.c"
