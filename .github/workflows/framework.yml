@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php-version: [ '8.1', '8.2', '8.3', '8.4-dev' ]
+        php-version: [ '8.1', '8.2', '8.3' ]
         framework: [ 'Laravel Octane', 'Hyperf', 'Simps' ]
     name: ${{ matrix.framework }} - PHP ${{ matrix.php-version }}
     steps:
@@ -88,7 +88,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php-version: [ '8.1', '8.2', '8.3', '8.4-dev' ]
+        php-version: [ '8.1', '8.2', '8.3' ]
         framework: [ 'Simps' ]
     name: ${{ matrix.framework }} - PHP ${{ matrix.php-version }} - macOS
     steps:
