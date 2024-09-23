@@ -67,6 +67,15 @@ class StaticHandler {
     bool get_dir_files();
     bool set_filename(const std::string &filename);
 
+    bool catch_error(int code) {
+        if (last) {
+            status_code = code;
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     bool has_index_file() {
         return !index_file.empty();
     }

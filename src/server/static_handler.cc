@@ -118,7 +118,7 @@ bool StaticHandler::hit() {
     }
 
     if (document_root.length() + n >= PATH_MAX) {
-        return false;
+        return catch_error(SW_HTTP_FORBIDDEN);
     }
 
     memcpy(p, url, n);
@@ -132,46 +132,30 @@ bool StaticHandler::hit() {
     l_filename = http_server::url_decode(filename, p - filename);
     filename[l_filename] = '\0';
 
-    if (swoole_strnpos(filename, n, SW_STRL("..")) == -1) {
-        goto _detect_mime_type;
-    }
-
-    char real_path[PATH_MAX];
-    if (!realpath(filename, real_path)) {
-        if (last) {
-            status_code = SW_HTTP_NOT_FOUND;
-            return true;
-        } else {
-            return false;
+    if (swoole_strnpos(filename, l_filename, SW_STRL("..")) != -1) {
+        char abs_path[PATH_MAX];
+        if (!realpath(filename, abs_path)) {
+            return catch_error(SW_HTTP_NOT_FOUND);
         }
+        strncpy(filename, abs_path, sizeof(abs_path));
+        l_filename = strlen(filename);
     }
 
-    if (real_path[document_root.length()] != '/') {
-        return false;
+    if (!swoole_str_starts_with(filename, l_filename, document_root.c_str(), document_root.length())) {
+        return catch_error(SW_HTTP_FORBIDDEN);
     }
 
-    if (swoole_streq(real_path, strlen(real_path), document_root.c_str(), document_root.length()) != 0) {
-        return false;
-    }
-
-// non-static file
-_detect_mime_type:
-// file does not exist
 check_stat:
+    // file does not exist
     if (lstat(filename, &file_stat) < 0) {
-        if (last) {
-            status_code = SW_HTTP_NOT_FOUND;
-            return true;
-        } else {
-            return false;
-        }
+        return catch_error(SW_HTTP_NOT_FOUND);
     }
 
     if (is_link()) {
         char buf[PATH_MAX];
         ssize_t byte = ::readlink(filename, buf, sizeof(buf) - 1);
         if (byte <= 0) {
-            return false;
+            return catch_error(SW_HTTP_NOT_FOUND);
         }
         buf[byte] = 0;
         swoole_strlcpy(filename, buf, sizeof(filename));
