@@ -132,7 +132,7 @@ bool StaticHandler::hit() {
     l_filename = http_server::url_decode(filename, p - filename);
     filename[l_filename] = '\0';
 
-    if (swoole_strnpos(url, n, SW_STRL("..")) == -1) {
+    if (swoole_strnpos(filename, n, SW_STRL("..")) == -1) {
         goto _detect_mime_type;
     }
 
