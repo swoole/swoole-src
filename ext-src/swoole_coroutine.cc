@@ -224,6 +224,7 @@ static int coro_exit_handler(zend_execute_data *execute_data) {
     return ZEND_USER_OPCODE_DISPATCH;
 }
 #else
+SW_EXTERN_C_BEGIN
 extern ZEND_FUNCTION(exit);
 PHP_FUNCTION(swoole_exit) {
     zend_long flags = 0;
@@ -253,6 +254,7 @@ PHP_FUNCTION(swoole_exit) {
         ZEND_FN(exit)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
     }
 }
+SW_EXTERN_C_END
 #endif
 
 static int coro_begin_silence_handler(zend_execute_data *execute_data) {
