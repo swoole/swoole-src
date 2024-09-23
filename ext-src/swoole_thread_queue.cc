@@ -91,6 +91,13 @@ struct Queue : ThreadResource {
                 } else {
                     cv_.wait(_lock);
                 }
+                // All threads have been awakened,
+                // but the data has already been acquired by other thread, returning NULL.
+                if (queue.empty()) {
+                    RETVAL_NULL();
+                    swoole_set_last_error(SW_ERROR_NO_PAYLOAD);
+                    break;
+                }
             }
         }
         _lock.unlock();

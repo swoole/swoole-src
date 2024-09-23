@@ -54,6 +54,8 @@ const char *swoole_strerror(int code) {
         return "PHP runtime notice";
     case SW_ERROR_FOR_TEST:
         return "For test";
+    case SW_ERROR_NO_PAYLOAD:
+        return "No payload";
     case SW_ERROR_UNDEFINED_BEHAVIOR:
         return "Undefined behavior";
     case SW_ERROR_NOT_THREAD_SAFETY:
@@ -78,6 +80,8 @@ const char *swoole_strerror(int code) {
         return "Bad ipv6 address";
     case SW_ERROR_UNREGISTERED_SIGNAL:
         return "Unregistered signal";
+    case SW_ERROR_BAD_HOST_ADDR:
+        return "Bad host addr";
     case SW_ERROR_EVENT_SOCKET_REMOVED:
         return "Event socket removed";
     case SW_ERROR_SESSION_CLOSED_BY_SERVER:
@@ -220,6 +224,8 @@ const char *swoole_strerror(int code) {
         return "Server send to woker timeout";
     case SW_ERROR_SERVER_INVALID_CALLBACK:
         return "Server invalid callback";
+    case SW_ERROR_SERVER_UNRELATED_THREAD:
+        return "Server unrelated thread";
     case SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT:
         return "Server worker exit timeout";
     case SW_ERROR_SERVER_WORKER_ABNORMAL_PIPE_DATA:
