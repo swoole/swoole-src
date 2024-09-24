@@ -67,6 +67,15 @@ class StaticHandler {
     bool get_dir_files();
     bool set_filename(const std::string &filename);
 
+    bool catch_error() {
+        if (last) {
+            status_code = SW_HTTP_NOT_FOUND;
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     bool has_index_file() {
         return !index_file.empty();
     }
@@ -126,6 +135,26 @@ class StaticHandler {
 
     bool is_dir() {
         return S_ISDIR(file_stat.st_mode);
+    }
+
+    bool is_link() {
+        return S_ISLNK(file_stat.st_mode);
+    }
+
+    bool is_file() {
+        return S_ISREG(file_stat.st_mode);
+    }
+
+    bool is_absolute_path() {
+        return swoole_strnpos(filename, l_filename, SW_STRL("..")) == -1;
+    }
+
+    bool is_located_in_document_root() {
+        const std::string &document_root = serv->get_document_root();
+        const size_t l_document_root = document_root.length();
+
+        return l_filename > l_document_root && filename[l_document_root] == '/' &&
+               swoole_str_starts_with(filename, l_filename, document_root.c_str(), l_document_root);
     }
 
     size_t get_content_length() {
