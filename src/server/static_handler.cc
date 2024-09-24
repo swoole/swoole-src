@@ -87,6 +87,16 @@ std::string StaticHandler::get_date_last_modified() {
     return std::string(date_last_modified);
 }
 
+bool StaticHandler::get_absolute_path() {
+    char abs_path[PATH_MAX];
+    if (!realpath(filename, abs_path)) {
+        return false;
+    }
+    strncpy(filename, abs_path, sizeof(abs_path));
+    l_filename = strlen(filename);
+    return true;
+}
+
 bool StaticHandler::hit() {
     char *p = filename;
     const char *url = request_url.c_str();
@@ -102,9 +112,10 @@ bool StaticHandler::hit() {
     size_t n = params ? params - url : url_length;
 
     const std::string &document_root = serv->get_document_root();
+    const size_t l_document_root = document_root.length();
 
-    memcpy(p, document_root.c_str(), document_root.length());
-    p += document_root.length();
+    memcpy(p, document_root.c_str(), l_document_root);
+    p += l_document_root;
 
     if (serv->locations->size() > 0) {
         for (auto i = serv->locations->begin(); i != serv->locations->end(); i++) {
@@ -117,8 +128,8 @@ bool StaticHandler::hit() {
         }
     }
 
-    if (document_root.length() + n >= PATH_MAX) {
-        return false;
+    if (l_document_root + n >= PATH_MAX) {
+        return catch_error();
     }
 
     memcpy(p, url, n);
@@ -132,50 +143,27 @@ bool StaticHandler::hit() {
     l_filename = http_server::url_decode(filename, p - filename);
     filename[l_filename] = '\0';
 
-    if (swoole_strnpos(filename, n, SW_STRL("..")) == -1) {
-        goto _detect_mime_type;
-    }
-
-    char real_path[PATH_MAX];
-    if (!realpath(filename, real_path)) {
-        if (last) {
-            status_code = SW_HTTP_NOT_FOUND;
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-    if (real_path[document_root.length()] != '/') {
-        return false;
-    }
-
-    if (swoole_streq(real_path, strlen(real_path), document_root.c_str(), document_root.length()) != 0) {
-        return false;
-    }
-
-// non-static file
-_detect_mime_type:
-// file does not exist
-check_stat:
+    // The file does not exist
     if (lstat(filename, &file_stat) < 0) {
-        if (last) {
-            status_code = SW_HTTP_NOT_FOUND;
-            return true;
-        } else {
-            return false;
-        }
+        return catch_error();
     }
 
-    if (is_link()) {
-        char buf[PATH_MAX];
-        ssize_t byte = ::readlink(filename, buf, sizeof(buf) - 1);
-        if (byte <= 0) {
-            return false;
+    // The filename is relative path, allows for the resolution of symbolic links.
+    // This path is formed by concatenating the document root and that is permitted for access.
+    if (is_absolute_path()) {
+        if (is_link()) {
+            // Use the realpath function to resolve a symbolic link to its actual path.
+            if (!get_absolute_path()) {
+                return catch_error();
+            }
+            if (lstat(filename, &file_stat) < 0) {
+                return catch_error();
+            }
         }
-        buf[byte] = 0;
-        swoole_strlcpy(filename, buf, sizeof(filename));
-        goto check_stat;
+    } else {
+        if (!get_absolute_path() || !is_located_in_document_root()) {
+            return catch_error();
+        }
     }
 
     if (serv->http_index_files && !serv->http_index_files->empty() && is_dir()) {
