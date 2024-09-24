@@ -29,7 +29,7 @@ $pm->childFunc = function () use ($pm) {
         'log_file' => '/dev/null',
         'open_http2_protocol' => true,
         'enable_static_handler' => true,
-        'document_root' => dirname(dirname(dirname(__DIR__))) . '/',
+        'document_root' => dirname(__DIR__, 3) . '/',
         'static_handler_locations' => ['/examples']
     ]);
     $http->on('workerStart', function () use ($pm) {

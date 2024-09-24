@@ -289,6 +289,14 @@ static inline unsigned int swoole_strcasect(const char *pstr, size_t plen, const
     return (plen >= slen) && (strncasecmp(pstr, sstr, slen) == 0);
 }
 
+static inline unsigned int swoole_str_starts_with(const char *pstr, size_t plen, const char *sstr, size_t slen) {
+    return (plen >= slen) && (strncmp(pstr, sstr, slen) == 0);
+}
+
+static inline unsigned int swoole_str_istarts_with(const char *pstr, size_t plen, const char *sstr, size_t slen) {
+    return (plen >= slen) && (strncasecmp(pstr, sstr, slen) == 0);
+}
+
 static inline const char *swoole_strnstr(const char *haystack,
                                          uint32_t haystack_length,
                                          const char *needle,

@@ -45,7 +45,7 @@ bool StaticHandler::is_modified(const std::string &date_if_modified_since) {
     } else if (strptime(date_tmp, SW_HTTP_ASCTIME_DATE, &tm3) != nullptr) {
         date_format = SW_HTTP_ASCTIME_DATE;
     }
-    return date_format && mktime(&tm3) - (int) serv->timezone_ >= get_file_mtime();
+    return date_format && mktime(&tm3) - (time_t) serv->timezone_ >= get_file_mtime();
 }
 
 bool StaticHandler::is_modified_range(const std::string &date_range) {
@@ -87,6 +87,16 @@ std::string StaticHandler::get_date_last_modified() {
     return std::string(date_last_modified);
 }
 
+bool StaticHandler::get_absolute_path() {
+    char abs_path[PATH_MAX];
+    if (!realpath(filename, abs_path)) {
+        return false;
+    }
+    strncpy(filename, abs_path, sizeof(abs_path));
+    l_filename = strlen(filename);
+    return true;
+}
+
 bool StaticHandler::hit() {
     char *p = filename;
     const char *url = request_url.c_str();
@@ -102,13 +112,14 @@ bool StaticHandler::hit() {
     size_t n = params ? params - url : url_length;
 
     const std::string &document_root = serv->get_document_root();
+    const size_t l_document_root = document_root.length();
 
-    memcpy(p, document_root.c_str(), document_root.length());
-    p += document_root.length();
+    memcpy(p, document_root.c_str(), l_document_root);
+    p += l_document_root;
 
     if (serv->locations->size() > 0) {
         for (auto i = serv->locations->begin(); i != serv->locations->end(); i++) {
-            if (swoole_strcasect(url, url_length, i->c_str(), i->size())) {
+            if (swoole_str_istarts_with(url, url_length, i->c_str(), i->size())) {
                 last = true;
             }
         }
@@ -117,8 +128,8 @@ bool StaticHandler::hit() {
         }
     }
 
-    if (document_root.length() + n >= PATH_MAX) {
-        return false;
+    if (l_document_root + n >= PATH_MAX) {
+        return catch_error();
     }
 
     memcpy(p, url, n);
@@ -132,50 +143,27 @@ bool StaticHandler::hit() {
     l_filename = http_server::url_decode(filename, p - filename);
     filename[l_filename] = '\0';
 
-    if (swoole_strnpos(filename, n, SW_STRL("..")) == -1) {
-        goto _detect_mime_type;
-    }
-
-    char real_path[PATH_MAX];
-    if (!realpath(filename, real_path)) {
-        if (last) {
-            status_code = SW_HTTP_NOT_FOUND;
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-    if (real_path[document_root.length()] != '/') {
-        return false;
-    }
-
-    if (swoole_streq(real_path, strlen(real_path), document_root.c_str(), document_root.length()) != 0) {
-        return false;
-    }
-
-// non-static file
-_detect_mime_type:
-// file does not exist
-check_stat:
+    // The file does not exist
     if (lstat(filename, &file_stat) < 0) {
-        if (last) {
-            status_code = SW_HTTP_NOT_FOUND;
-            return true;
-        } else {
-            return false;
-        }
+        return catch_error();
     }
 
-    if (S_ISLNK(file_stat.st_mode)) {
-        char buf[PATH_MAX];
-        ssize_t byte = ::readlink(filename, buf, sizeof(buf) - 1);
-        if (byte <= 0) {
-            return false;
+    // The filename is relative path, allows for the resolution of symbolic links.
+    // This path is formed by concatenating the document root and that is permitted for access.
+    if (is_absolute_path()) {
+        if (is_link()) {
+            // Use the realpath function to resolve a symbolic link to its actual path.
+            if (!get_absolute_path()) {
+                return catch_error();
+            }
+            if (lstat(filename, &file_stat) < 0) {
+                return catch_error();
+            }
         }
-        buf[byte] = 0;
-        swoole_strlcpy(filename, buf, sizeof(filename));
-        goto check_stat;
+    } else {
+        if (!get_absolute_path() || !is_located_in_document_root()) {
+            return catch_error();
+        }
     }
 
     if (serv->http_index_files && !serv->http_index_files->empty() && is_dir()) {
@@ -186,11 +174,11 @@ check_stat:
         return true;
     }
 
-    if (!swoole::mime_type::exists(filename) && !last) {
+    if (!mime_type::exists(filename) && !last) {
         return false;
     }
 
-    if (!S_ISREG(file_stat.st_mode)) {
+    if (!is_file()) {
         return false;
     }
 
@@ -271,23 +259,23 @@ bool StaticHandler::get_dir_files() {
     return true;
 }
 
-bool StaticHandler::set_filename(const std::string &filename) {
-    char *p = this->filename + l_filename;
+bool StaticHandler::set_filename(const std::string &_filename) {
+    char *p = filename + l_filename;
 
     if (*p != '/') {
         *p = '/';
         p += 1;
     }
 
-    memcpy(p, filename.c_str(), filename.length());
-    p += filename.length();
+    memcpy(p, _filename.c_str(), _filename.length());
+    p += _filename.length();
     *p = 0;
 
-    if (lstat(this->filename, &file_stat) < 0) {
+    if (lstat(filename, &file_stat) < 0) {
         return false;
     }
 
-    if (!S_ISREG(file_stat.st_mode)) {
+    if (!is_file()) {
         return false;
     }
 
@@ -301,7 +289,7 @@ void StaticHandler::parse_range(const char *range, const char *if_range) {
     if (range && '\0' != *range) {
         const char *p = range;
         // bytes=
-        if (!SW_STRCASECT(p, strlen(range), "bytes=")) {
+        if (!SW_STR_ISTARTS_WITH(p, strlen(range), "bytes=")) {
             _task.offset = 0;
             _task.length = content_length = get_filesize();
             tasks.push_back(_task);
@@ -327,7 +315,7 @@ void StaticHandler::parse_range(const char *range, const char *if_range) {
                 }
 
                 while (*p >= '0' && *p <= '9') {
-                    if (start >= cutoff && (start > cutoff || (size_t)(*p - '0') > cutlim)) {
+                    if (start >= cutoff && (start > cutoff || (size_t) (*p - '0') > cutlim)) {
                         status_code = SW_HTTP_RANGE_NOT_SATISFIABLE;
                         return;
                     }
@@ -364,7 +352,7 @@ void StaticHandler::parse_range(const char *range, const char *if_range) {
             }
 
             while (*p >= '0' && *p <= '9') {
-                if (end >= cutoff && (end > cutoff || (size_t)(*p - '0') > cutlim)) {
+                if (end >= cutoff && (end > cutoff || (size_t) (*p - '0') > cutlim)) {
                     status_code = SW_HTTP_RANGE_NOT_SATISFIABLE;
                     return;
                 }

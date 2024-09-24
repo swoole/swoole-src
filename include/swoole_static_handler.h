@@ -67,6 +67,15 @@ class StaticHandler {
     bool get_dir_files();
     bool set_filename(const std::string &filename);
 
+    bool catch_error() {
+        if (last) {
+            status_code = SW_HTTP_NOT_FOUND;
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     bool has_index_file() {
         return !index_file.empty();
     }
@@ -77,7 +86,7 @@ class StaticHandler {
 
     std::string get_date();
 
-    inline time_t get_file_mtime() {
+    time_t get_file_mtime() {
 #ifdef __MACH__
         return file_stat.st_mtimespec.tv_sec;
 #else
@@ -87,11 +96,11 @@ class StaticHandler {
 
     std::string get_date_last_modified();
 
-    inline const char *get_filename() {
+    const char *get_filename() {
         return filename;
     }
 
-    inline const char *get_boundary() {
+    const char *get_boundary() {
         if (boundary.empty()) {
             boundary = std::string(SW_HTTP_SERVER_BOUNDARY_PREKEY);
             swoole_random_string(boundary, SW_HTTP_SERVER_BOUNDARY_TOTAL_SIZE - sizeof(SW_HTTP_SERVER_BOUNDARY_PREKEY));
@@ -99,7 +108,7 @@ class StaticHandler {
         return boundary.c_str();
     }
 
-    inline const char *get_content_type() {
+    const char *get_content_type() {
         if (tasks.size() > 1) {
             content_type = std::string("multipart/byteranges; boundary=") + get_boundary();
             return content_type.c_str();
@@ -108,31 +117,53 @@ class StaticHandler {
         }
     }
 
-    inline const char *get_mimetype() {
+    const char *get_mimetype() {
         return swoole::mime_type::get(get_filename()).c_str();
     }
 
-    inline std::string get_filename_std_string() {
+    std::string get_filename_std_string() {
         return std::string(filename, l_filename);
     }
 
-    inline size_t get_filesize() {
+    bool get_absolute_path();
+
+    size_t get_filesize() {
         return file_stat.st_size;
     }
 
-    inline const std::vector<task_t> &get_tasks() {
+    const std::vector<task_t> &get_tasks() {
         return tasks;
     }
 
-    inline bool is_dir() {
+    bool is_dir() {
         return S_ISDIR(file_stat.st_mode);
     }
 
-    inline size_t get_content_length() {
+    bool is_link() {
+        return S_ISLNK(file_stat.st_mode);
+    }
+
+    bool is_file() {
+        return S_ISREG(file_stat.st_mode);
+    }
+
+    bool is_absolute_path() {
+        return swoole_strnpos(filename, l_filename, SW_STRL("..")) == -1;
+    }
+
+    bool is_located_in_document_root() {
+        const std::string &document_root = serv->get_document_root();
+        const size_t l_document_root = document_root.length();
+
+        return l_filename > l_document_root && filename[l_document_root] == '/' &&
+               swoole_str_starts_with(filename, l_filename, document_root.c_str(), l_document_root);
+    }
+
+    size_t get_content_length() {
         return content_length;
     }
 
-    inline const char *get_end_part() {
+    const char *get_end_part() {
         return end_part.c_str();
     }
 
