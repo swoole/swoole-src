@@ -166,17 +166,6 @@ bool StaticHandler::hit() {
         }
     }
 
-    if (is_link()) {
-        char buf[PATH_MAX];
-        ssize_t byte = ::readlink(filename, buf, sizeof(buf) - 1);
-        if (byte <= 0) {
-            return false;
-        }
-        buf[byte] = 0;
-        swoole_strlcpy(filename, buf, sizeof(filename));
-        goto check_stat;
-    }
-
     if (serv->http_index_files && !serv->http_index_files->empty() && is_dir()) {
         return true;
     }

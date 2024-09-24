@@ -125,6 +125,8 @@ class StaticHandler {
         return std::string(filename, l_filename);
     }
 
+    bool get_absolute_path();
+
     size_t get_filesize() {
         return file_stat.st_size;
     }
