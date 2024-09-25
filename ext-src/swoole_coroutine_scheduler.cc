@@ -136,8 +136,8 @@ void php_swoole_coroutine_scheduler_rshutdown() {
     });
 
     if (exit_condition_fci_cache) {
-        exit_condition_fci_cache = nullptr;
         sw_zend_fci_cache_free(exit_condition_fci_cache);
+        exit_condition_fci_cache = nullptr;
     }
 }
 

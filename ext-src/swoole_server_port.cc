@@ -94,7 +94,7 @@ void php_swoole_server_port_deref(zend_object *object) {
     if (property->serv) {
         for (int j = 0; j < PHP_SWOOLE_SERVER_PORT_CALLBACK_NUM; j++) {
             if (property->caches[j]) {
-                efree(property->caches[j]);
+                sw_zend_fci_cache_free(property->caches[j]);
                 property->caches[j] = nullptr;
             }
         }
@@ -191,8 +191,6 @@ void php_swoole_server_port_minit(int module_number) {
  * [Master/Worker]
  */
 static ssize_t php_swoole_server_length_func(const Protocol *protocol, network::Socket *conn, PacketLength *pl) {
-    Server *serv = (Server *) protocol->private_data_2;
-
     zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) protocol->private_data;
     zval zdata;
     zval retval;
@@ -622,7 +620,7 @@ static PHP_METHOD(swoole_server_port, on) {
             sw_zend_read_property(swoole_server_port_ce, ZEND_THIS, property_name.c_str(), property_name.length(), 0);
         sw_copy_to_stack(property->callbacks[index], property->_callbacks[index]);
         if (property->caches[index]) {
-            efree(property->caches[index]);
+            sw_zend_fci_cache_free(property->caches[index]);
         }
 
         auto fci_cache = sw_zend_fci_cache_create(cb);

@@ -209,7 +209,7 @@ static void server_free_object(zend_object *object) {
         for (int i = 0; i < PHP_SWOOLE_SERVER_CALLBACK_NUM; i++) {
             zend_fcall_info_cache *fci_cache = property->callbacks[i];
             if (fci_cache) {
-                efree(fci_cache);
+                sw_zend_fci_cache_free(fci_cache);
                 property->callbacks[i] = nullptr;
             }
         }
@@ -2424,7 +2424,7 @@ static PHP_METHOD(swoole_server, on) {
             swoole_server_ce, SW_Z8_OBJ_P(ZEND_THIS), property_name.c_str(), property_name.length(), cb);
 
         if (server_object->property->callbacks[event_type]) {
-            efree(server_object->property->callbacks[event_type]);
+            sw_zend_fci_cache_free(server_object->property->callbacks[event_type]);
         }
 
         auto fci_cache = sw_zend_fci_cache_create(cb);
