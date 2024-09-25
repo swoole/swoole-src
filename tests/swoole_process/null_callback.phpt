@@ -14,4 +14,4 @@ $process->start();
 
 ?>
 --EXPECTF--
-Fatal error: Swoole\Process::start(): Illegal callback function of Swoole\Process in %s
+Warning: Swoole\Process::start(): illegal callback function in %s
