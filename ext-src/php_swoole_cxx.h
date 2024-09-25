@@ -571,24 +571,43 @@ class CharPtr {
 };
 
 struct Callable {
-    zval zfunc;
+    zval zfn;
     zend_fcall_info_cache fcc;
+    char *fn_name = nullptr;
 
-    Callable(zval *_zfunc) {
-        zfunc = *_zfunc;
-        Z_TRY_ADDREF_P(&zfunc);
+    Callable(zval *_zfn) {
+        ZVAL_UNDEF(&zfn);
+        if (!zval_is_true(_zfn)) {
+            php_swoole_fatal_error(E_WARNING, "illegal callback function");
+            return;
+        }
+        if (!sw_zend_is_callable_ex(_zfn, nullptr, 0, &fn_name, nullptr, &fcc, nullptr)) {
+            php_swoole_fatal_error(E_WARNING, "function '%s' is not callable", fn_name);
+            return;
+        }
+        zfn = *_zfn;
+        zval_add_ref(&zfn);
     }
 
-    bool is_callable() {
-        return zend_is_callable_ex(&zfunc, NULL, 0, NULL, &fcc, NULL);
+    zend_fcall_info_cache *ptr() {
+        return &fcc;
+    }
+
+    bool ready() {
+        return !ZVAL_IS_UNDEF(&zfn);
     }
 
     bool call(uint32_t argc, zval *argv, zval *retval) {
-        return sw_zend_call_function_ex(&zfunc, &fcc, argc, argv, retval) == SUCCESS;
+        return sw_zend_call_function_ex(&zfn, &fcc, argc, argv, retval) == SUCCESS;
     }
 
     ~Callable() {
-        Z_TRY_DELREF_P(&zfunc);
+        if (!ZVAL_IS_UNDEF(&zfn)) {
+            zval_ptr_dtor(&zfn);
+        }
+        if (fn_name) {
+            efree(fn_name);
+        }
     }
 };
 
@@ -689,25 +708,19 @@ static inline void print_error(zend_object *exception, int severity) {
 //-----------------------------------namespace end--------------------------------------------
 }  // namespace zend
 
-static inline zend::Callable *php_swoole_zval_to_callable(zval *zfn, const char *fname, bool allow_null = true) {
-    if (zfn == nullptr || ZVAL_IS_NULL(zfn)) {
-        if (!allow_null) {
-            zend_throw_exception_ex(
-                swoole_exception_ce, SW_ERROR_INVALID_PARAMS, "%s must be of type callable, null given", fname);
-        }
+/* use void* to match some C callback function pointers */
+static sw_inline void sw_callable_free(void *fci_cache) {
+    delete (zend::Callable *) fci_cache;
+}
+
+static zend::Callable *sw_callable_create(zval *zfn) {
+    auto fn = new zend::Callable(zfn);
+    if (fn->ready()) {
+        return fn;
+    } else {
+        delete fn;
         return nullptr;
     }
-    auto cb = new zend::Callable(zfn);
-    if (!cb->is_callable()) {
-        delete cb;
-        zend_throw_exception_ex(swoole_exception_ce,
-                                SW_ERROR_INVALID_PARAMS,
-                                "%s must be of type callable, %s given",
-                                fname,
-                                zend_zval_type_name(zfn));
-        return nullptr;
-    }
-    return cb;
 }
 
 static inline void php_swoole_callable_free(void *ptr) {

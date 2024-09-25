@@ -234,7 +234,7 @@ struct real_func {
     zend_internal_arg_info *ori_arg_info;
     uint32_t ori_fn_flags;
     uint32_t ori_num_args;
-    zend_fcall_info_cache *fci_cache;
+    zend::Callable *fci_cache;
     zval name;
 };
 
@@ -262,7 +262,7 @@ void php_swoole_runtime_rshutdown() {
          */
         if (rf->fci_cache) {
             zval_dtor(&rf->name);
-            sw_zend_fci_cache_free(rf->fci_cache);
+            sw_callable_free(rf->fci_cache);
         }
         rf->function->internal_function.handler = rf->ori_handler;
         rf->function->internal_function.arg_info = rf->ori_arg_info;
@@ -2000,7 +2000,7 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
         memcpy(func + 7, fn_str->val, fn_str->len);
 
         ZVAL_STRINGL(&rf->name, func, fn_str->len + 7);
-        auto fci_cache = sw_zend_fci_cache_create(&rf->name);
+        auto fci_cache = sw_callable_create(&rf->name);
         if (!fci_cache) {
             return;
         }
@@ -2111,7 +2111,7 @@ static PHP_FUNCTION(swoole_user_func_handler) {
     fci.params = ZEND_CALL_ARG(execute_data, 1);
     fci.named_params = NULL;
     ZVAL_UNDEF(&fci.function_name);
-    zend_call_function(&fci, rf->fci_cache);
+    zend_call_function(&fci, rf->fci_cache->ptr());
 }
 
 zend_class_entry *find_class_entry(const char *name, size_t length) {

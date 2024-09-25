@@ -138,7 +138,7 @@ static int event_readable_callback(Reactor *reactor, Event *event) {
 
     zval argv[1];
     argv[0] = peo->zsocket;
-    auto *fcc = &peo->readable_callback->fcc;
+    auto fcc = peo->readable_callback->ptr();
 
     if (UNEXPECTED(!zend::function::call(fcc, 1, argv, nullptr, php_swoole_is_enable_coroutine()))) {
         php_swoole_fatal_error(E_WARNING,
@@ -159,7 +159,7 @@ static int event_writable_callback(Reactor *reactor, Event *event) {
 
     zval argv[1];
     argv[0] = peo->zsocket;
-    auto *fcc = &peo->writable_callback->fcc;
+    auto fcc = peo->writable_callback->ptr();
 
     if (UNEXPECTED(!zend::function::call(fcc, 1, argv, nullptr, php_swoole_is_enable_coroutine()))) {
         php_swoole_fatal_error(E_WARNING,
@@ -434,14 +434,14 @@ static PHP_FUNCTION(swoole_event_add) {
         RETURN_FALSE;
     }
 
-    auto readable_callback = php_swoole_zval_to_callable(zreadable_callback, "readable_callback");
+    auto readable_callback = sw_callable_create(zreadable_callback);
     if ((events & SW_EVENT_READ) && readable_callback == nullptr) {
         php_swoole_fatal_error(
             E_WARNING, "%s: unable to find readable callback of fd [%d]", ZSTR_VAL(swoole_event_ce->name), socket_fd);
         RETURN_FALSE;
     }
 
-    auto writable_callback = php_swoole_zval_to_callable(zwritable_callback, "writable_callback");
+    auto writable_callback = sw_callable_create(zwritable_callback);
     if ((events & SW_EVENT_WRITE) && writable_callback == nullptr) {
         php_swoole_fatal_error(
             E_WARNING, "%s: unable to find writable callback of fd [%d]", ZSTR_VAL(swoole_event_ce->name), socket_fd);
@@ -539,8 +539,8 @@ static PHP_FUNCTION(swoole_event_set) {
     }
 
     EventObject *peo = (EventObject *) socket->object;
-    auto readable_callback = php_swoole_zval_to_callable(zreadable_callback, "readable_callback");
-    auto writable_callback = php_swoole_zval_to_callable(zwritable_callback, "writable_callback");
+    auto readable_callback = sw_callable_create(zreadable_callback);
+    auto writable_callback = sw_callable_create(zwritable_callback);
     if (readable_callback) {
         if (peo->readable_callback) {
             swoole_event_defer(php_swoole_callable_free, peo->readable_callback);
@@ -609,7 +609,7 @@ static PHP_FUNCTION(swoole_event_defer) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     php_swoole_check_reactor();
-    auto fn = php_swoole_zval_to_callable(zfn, "fn");
+    auto fn = sw_callable_create(zfn);
     swoole_event_defer(event_defer_callback, fn);
 
     RETURN_TRUE;
@@ -627,7 +627,7 @@ static PHP_FUNCTION(swoole_event_cycle) {
 
     event_check_reactor();
 
-    auto callback = php_swoole_zval_to_callable(zcallback, "callback");
+    auto callback = sw_callable_create(zcallback);
 
     if (callback == nullptr) {
         if (sw_reactor()->idle_task.callback == nullptr) {

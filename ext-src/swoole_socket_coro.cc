@@ -973,11 +973,11 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, zval *zset) {
     }
     // length function
     if (php_swoole_array_get_value(vht, "package_length_func", ztmp)) {
-        auto fci_cache = sw_zend_fci_cache_create(ztmp);
+        auto fci_cache = sw_callable_create(ztmp);
         if (fci_cache) {
             sock->protocol.get_package_length = php_swoole_length_func;
             if (sock->protocol.private_data) {
-                sw_zend_fci_cache_free((zend_fcall_info_cache *) sock->protocol.private_data);
+                sw_callable_free(sock->protocol.private_data);
             }
             sock->protocol.private_data = fci_cache;
             sock->protocol.package_length_size = 0;
@@ -1836,7 +1836,7 @@ static PHP_METHOD(swoole_socket_coro, close) {
         RETURN_FALSE;
     }
     if (sock->socket->protocol.private_data) {
-        sw_zend_fci_cache_free((zend_fcall_info_cache *) sock->socket->protocol.private_data);
+        sw_callable_free(sock->socket->protocol.private_data);
         sock->socket->protocol.private_data = nullptr;
     }
     if (!Z_ISUNDEF(sock->zstream)) {

@@ -740,7 +740,7 @@ void Client::apply_setting(zval *zset, const bool check_all) {
             if (write_func) {
                 delete write_func;
             }
-            write_func = php_swoole_zval_to_callable(ztmp, "write_func");
+            write_func = sw_callable_create(ztmp);
         }
     }
     if (socket) {

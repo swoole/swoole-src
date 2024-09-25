@@ -352,13 +352,13 @@ bool php_swoole_client_check_setting(Client *cli, zval *zset) {
     }
     // length function
     if (php_swoole_array_get_value(vht, "package_length_func", ztmp)) {
-        auto fci_cache = sw_zend_fci_cache_create(ztmp);
+        auto fci_cache = sw_callable_create(ztmp);
         if (!fci_cache) {
             return false;
         }
         cli->protocol.get_package_length = php_swoole_length_func;
         if (cli->protocol.private_data) {
-            sw_zend_fci_cache_free((zend_fcall_info_cache *) cli->protocol.private_data);
+            sw_callable_free(cli->protocol.private_data);
         }
         cli->protocol.private_data = fci_cache;
         cli->protocol.package_length_size = 0;
@@ -510,7 +510,7 @@ static void php_swoole_client_free(zval *zobject, Client *cli) {
         cli->timer = nullptr;
     }
     if (cli->protocol.private_data) {
-        sw_zend_fci_cache_free((zend_fcall_info_cache *) cli->protocol.private_data);
+        sw_callable_free(cli->protocol.private_data);
         cli->protocol.private_data = nullptr;
     }
     // long tcp connection, delete from php_sw_long_connections

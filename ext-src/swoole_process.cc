@@ -35,7 +35,7 @@ static zend_object_handlers swoole_process_handlers;
 
 static uint32_t round_process_id = 0;
 static thread_local uint32_t server_user_worker_id = 0;
-static zend_fcall_info_cache *signal_fci_caches[SW_SIGNO_MAX] = {};
+static zend::Callable *signal_fci_caches[SW_SIGNO_MAX] = {};
 
 struct ProcessObject {
     Worker *worker;
@@ -449,7 +449,7 @@ static PHP_METHOD(swoole_process, signal) {
     SW_MUST_BE_MAIN_THREAD();
     zend_long signo = 0;
     zval *zcallback = nullptr;
-    zend_fcall_info_cache *fci_cache = nullptr;
+    zend::Callable *fci_cache = nullptr;
 
     ZEND_PARSE_PARAMETERS_START(1, 2)
     Z_PARAM_LONG(signo)
@@ -483,7 +483,7 @@ static PHP_METHOD(swoole_process, signal) {
             swoole_signal_set(signo, nullptr);
 #endif
             signal_fci_caches[signo] = nullptr;
-            swoole_event_defer(sw_zend_fci_cache_free, fci_cache);
+            swoole_event_defer(sw_callable_free, fci_cache);
             SwooleTG.signal_listener_num--;
             RETURN_TRUE;
         } else {
@@ -493,7 +493,7 @@ static PHP_METHOD(swoole_process, signal) {
     } else if (Z_TYPE_P(zcallback) == IS_LONG && Z_LVAL_P(zcallback) == (zend_long) SIG_IGN) {
         handler = nullptr;
     } else {
-        fci_cache = sw_zend_fci_cache_create(zcallback);
+        fci_cache = sw_callable_create(zcallback);
         if (!fci_cache) {
             RETURN_FALSE;
         }
@@ -502,7 +502,7 @@ static PHP_METHOD(swoole_process, signal) {
 
     if (sw_server() && sw_server()->is_sync_process()) {
         if (signal_fci_caches[signo]) {
-            sw_zend_fci_cache_free(signal_fci_caches[signo]);
+            sw_callable_free(signal_fci_caches[signo]);
         } else {
             SwooleTG.signal_listener_num++;
         }
@@ -525,7 +525,7 @@ static PHP_METHOD(swoole_process, signal) {
 
     if (signal_fci_caches[signo]) {
         // free the old fci_cache
-        swoole_event_defer(sw_zend_fci_cache_free, signal_fci_caches[signo]);
+        swoole_event_defer(sw_callable_free, signal_fci_caches[signo]);
     } else {
         SwooleTG.signal_listener_num++;
     }
@@ -588,13 +588,13 @@ static PHP_METHOD(swoole_process, alarm) {
  * safe signal
  */
 static void php_swoole_onSignal(int signo) {
-    zend_fcall_info_cache *fci_cache = signal_fci_caches[signo];
+    auto fci_cache = signal_fci_caches[signo];
 
     if (fci_cache) {
         zval argv[1];
         ZVAL_LONG(&argv[0], signo);
 
-        if (UNEXPECTED(!zend::function::call(fci_cache, 1, argv, nullptr, php_swoole_is_enable_coroutine()))) {
+        if (UNEXPECTED(!zend::function::call(fci_cache->ptr(), 1, argv, nullptr, php_swoole_is_enable_coroutine()))) {
             php_swoole_fatal_error(
                 E_WARNING, "%s: signal [%d] handler error", ZSTR_VAL(swoole_process_ce->name), signo);
         }
@@ -611,9 +611,9 @@ zend_bool php_swoole_signal_isset_handler(int signo) {
 
 void php_swoole_process_clean() {
     for (int i = 0; i < SW_SIGNO_MAX; i++) {
-        zend_fcall_info_cache *fci_cache = signal_fci_caches[i];
+        auto fci_cache = signal_fci_caches[i];
         if (fci_cache) {
-            sw_zend_fci_cache_free(fci_cache);
+            sw_callable_free(fci_cache);
             signal_fci_caches[i] = nullptr;
         }
     }
@@ -630,7 +630,7 @@ void php_swoole_process_rshutdown() {
 
 int php_swoole_process_start(Worker *process, zval *zobject) {
     zval *zcallback = sw_zend_read_property_ex(swoole_process_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_CALLBACK), 0);
-    auto fci_cache = sw_zend_fci_cache_create(zcallback);
+    auto fci_cache = sw_callable_create(zcallback);
     if (!fci_cache) {
         return SW_ERR;
     }
@@ -672,14 +672,14 @@ int php_swoole_process_start(Worker *process, zval *zobject) {
         return SW_ERR;
     }
     // main function
-    if (UNEXPECTED(!zend::function::call(fci_cache, 1, zobject, nullptr, proc->enable_coroutine))) {
+    if (UNEXPECTED(!zend::function::call(fci_cache->ptr(), 1, zobject, nullptr, proc->enable_coroutine))) {
         php_swoole_error(E_WARNING, "%s->onStart handler error", SW_Z_OBJCE_NAME_VAL_P(zobject));
     }
     // eventloop start
     if (proc->enable_coroutine) {
         php_swoole_event_wait();
     }
-    sw_zend_fci_cache_free(fci_cache);
+    sw_callable_free(fci_cache);
     // equivalent to exit
     zend_bailout();
 

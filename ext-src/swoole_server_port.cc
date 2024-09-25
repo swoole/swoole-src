@@ -93,9 +93,9 @@ void php_swoole_server_port_deref(zend_object *object) {
     ServerPortProperty *property = &server_port->property;
     if (property->serv) {
         for (int j = 0; j < PHP_SWOOLE_SERVER_PORT_CALLBACK_NUM; j++) {
-            if (property->caches[j]) {
-                sw_zend_fci_cache_free(property->caches[j]);
-                property->caches[j] = nullptr;
+            if (property->callbacks[j]) {
+                sw_callable_free(property->callbacks[j]);
+                property->callbacks[j] = nullptr;
             }
         }
         property->serv = nullptr;
@@ -104,7 +104,7 @@ void php_swoole_server_port_deref(zend_object *object) {
     ListenPort *port = server_port->port;
     if (port) {
         if (port->protocol.private_data) {
-            sw_zend_fci_cache_free((zend_fcall_info_cache *) port->protocol.private_data);
+            sw_callable_free(port->protocol.private_data);
             port->protocol.private_data = nullptr;
         }
         server_port->port = nullptr;
@@ -446,11 +446,11 @@ static PHP_METHOD(swoole_server_port, set) {
     }
     // length function
     if (php_swoole_array_get_value(vht, "package_length_func", ztmp)) {
-        auto fci_cache = sw_zend_fci_cache_create(ztmp);
+        auto fci_cache = sw_callable_create(ztmp);
         if (fci_cache) {
             port->protocol.get_package_length = php_swoole_server_length_func;
             if (port->protocol.private_data) {
-                sw_zend_fci_cache_free((zend_fcall_info_cache *) port->protocol.private_data);
+                sw_callable_free(port->protocol.private_data);
             }
             port->protocol.private_data = fci_cache;
             port->protocol.package_length_size = 0;
@@ -616,18 +616,16 @@ static PHP_METHOD(swoole_server_port, on) {
         std::string property_name = std::string("on") + i->second.name;
         zend_update_property(
             swoole_server_port_ce, SW_Z8_OBJ_P(ZEND_THIS), property_name.c_str(), property_name.length(), cb);
-        property->callbacks[index] =
-            sw_zend_read_property(swoole_server_port_ce, ZEND_THIS, property_name.c_str(), property_name.length(), 0);
-        sw_copy_to_stack(property->callbacks[index], property->_callbacks[index]);
-        if (property->caches[index]) {
-            sw_zend_fci_cache_free(property->caches[index]);
+
+        if (property->callbacks[index]) {
+            sw_callable_free(property->callbacks[index]);
         }
 
-        auto fci_cache = sw_zend_fci_cache_create(cb);
+        auto fci_cache = sw_callable_create(cb);
         if (!fci_cache) {
             RETURN_FALSE;
         }
-        property->caches[index] = fci_cache;
+        property->callbacks[index] = fci_cache;
 
         if (index == SW_SERVER_CB_onConnect && !serv->onConnect) {
             serv->onConnect = php_swoole_server_onConnect;

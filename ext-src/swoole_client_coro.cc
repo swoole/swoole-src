@@ -132,7 +132,7 @@ static zend_object *client_coro_create_object(zend_class_entry *ce) {
 
 static void client_coro_socket_dtor(ClientCoroObject *client) {
     if (client->socket->protocol.private_data) {
-        sw_zend_fci_cache_free((zend_fcall_info_cache *) client->socket->protocol.private_data);
+        sw_callable_free(client->socket->protocol.private_data);
         client->socket->protocol.private_data = nullptr;
     }
     client->socket = nullptr;

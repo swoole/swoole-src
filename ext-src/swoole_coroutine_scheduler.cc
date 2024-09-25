@@ -106,7 +106,7 @@ void php_swoole_coroutine_scheduler_minit(int module_number) {
     swoole_coroutine_scheduler_ce->ce_flags |= ZEND_ACC_FINAL;
 }
 
-static zend_fcall_info_cache *exit_condition_fci_cache = nullptr;
+static zend::Callable *exit_condition_fci_cache = nullptr;
 
 static bool php_swoole_coroutine_reactor_can_exit(Reactor *reactor, size_t &event_num) {
     zval retval;
@@ -114,7 +114,7 @@ static bool php_swoole_coroutine_reactor_can_exit(Reactor *reactor, size_t &even
 
     SW_ASSERT(exit_condition_fci_cache);
     ZVAL_NULL(&retval);
-    success = sw_zend_call_function_ex(nullptr, exit_condition_fci_cache, 0, nullptr, &retval);
+    success = sw_zend_call_function_ex(nullptr, exit_condition_fci_cache->ptr(), 0, nullptr, &retval);
     if (UNEXPECTED(success != SUCCESS)) {
         php_swoole_fatal_error(E_ERROR, "Coroutine can_exit callback handler error");
     }
@@ -136,7 +136,7 @@ void php_swoole_coroutine_scheduler_rshutdown() {
     });
 
     if (exit_condition_fci_cache) {
-        sw_zend_fci_cache_free(exit_condition_fci_cache);
+        sw_callable_free(exit_condition_fci_cache);
         exit_condition_fci_cache = nullptr;
     }
 }
@@ -199,10 +199,10 @@ PHP_METHOD(swoole_coroutine_scheduler, set) {
     /* Reactor can exit */
     if ((ztmp = zend_hash_str_find(vht, ZEND_STRL("exit_condition")))) {
         if (exit_condition_fci_cache) {
-            sw_zend_fci_cache_free(&exit_condition_fci_cache);
+            sw_callable_free(exit_condition_fci_cache);
         }
 
-        exit_condition_fci_cache = sw_zend_fci_cache_create(ztmp);
+        exit_condition_fci_cache = sw_callable_create(ztmp);
         if (exit_condition_fci_cache) {
             SwooleG.user_exit_condition = php_swoole_coroutine_reactor_can_exit;
             if (sw_reactor()) {
