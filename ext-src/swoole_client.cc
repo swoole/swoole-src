@@ -352,32 +352,15 @@ bool php_swoole_client_check_setting(Client *cli, zval *zset) {
     }
     // length function
     if (php_swoole_array_get_value(vht, "package_length_func", ztmp)) {
-        while (1) {
-            if (Z_TYPE_P(ztmp) == IS_STRING) {
-                Protocol::LengthFunc func = Protocol::get_function(std::string(Z_STRVAL_P(ztmp), Z_STRLEN_P(ztmp)));
-                if (func != nullptr) {
-                    cli->protocol.get_package_length = func;
-                    break;
-                }
-            }
-
-            char *func_name;
-            zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) ecalloc(1, sizeof(zend_fcall_info_cache));
-            if (!sw_zend_is_callable_ex(ztmp, nullptr, 0, &func_name, nullptr, fci_cache, nullptr)) {
-                php_swoole_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
-                return false;
-            }
-            efree(func_name);
-            cli->protocol.get_package_length = php_swoole_length_func;
-            if (cli->protocol.private_data) {
-                sw_zend_fci_cache_discard((zend_fcall_info_cache *) cli->protocol.private_data);
-                efree(cli->protocol.private_data);
-            }
-            sw_zend_fci_cache_persist(fci_cache);
-            cli->protocol.private_data = fci_cache;
-            break;
+        auto fci_cache = sw_zend_fci_cache_create(ztmp);
+        if (!fci_cache) {
+            return false;
         }
-
+        cli->protocol.get_package_length = php_swoole_length_func;
+        if (cli->protocol.private_data) {
+            sw_zend_fci_cache_free((zend_fcall_info_cache *) cli->protocol.private_data);
+        }
+        cli->protocol.private_data = fci_cache;
         cli->protocol.package_length_size = 0;
         cli->protocol.package_length_type = '\0';
         cli->protocol.package_length_offset = SW_IPC_BUFFER_SIZE;
@@ -527,8 +510,7 @@ static void php_swoole_client_free(zval *zobject, Client *cli) {
         cli->timer = nullptr;
     }
     if (cli->protocol.private_data) {
-        sw_zend_fci_cache_discard((zend_fcall_info_cache *) cli->protocol.private_data);
-        efree(cli->protocol.private_data);
+        sw_zend_fci_cache_free((zend_fcall_info_cache *) cli->protocol.private_data);
         cli->protocol.private_data = nullptr;
     }
     // long tcp connection, delete from php_sw_long_connections

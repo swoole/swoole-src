@@ -978,6 +978,20 @@ static sw_inline void sw_zend_fci_cache_free(void *fci_cache) {
     efree((zend_fcall_info_cache *) fci_cache);
 }
 
+static zend_fcall_info_cache *sw_zend_fci_cache_create(zval *zfn) {
+    char *func_name = nullptr;
+    zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) emalloc(sizeof(zend_fcall_info_cache));
+    if (!sw_zend_is_callable_ex(zfn, nullptr, 0, &func_name, nullptr, fci_cache, nullptr)) {
+        php_swoole_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
+        efree(fci_cache);
+        efree(func_name);
+        return nullptr;
+    }
+    efree(func_name);
+    sw_zend_fci_cache_persist(fci_cache);
+    return fci_cache;
+}
+
 #if PHP_VERSION_ID >= 80100
 #define sw_php_spl_object_hash(o) php_spl_object_hash(Z_OBJ_P(o))
 #else

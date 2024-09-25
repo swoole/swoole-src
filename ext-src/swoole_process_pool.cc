@@ -75,20 +75,16 @@ static void process_pool_free_object(zend_object *object) {
     }
 
     if (pp->onWorkerStart) {
-        sw_zend_fci_cache_discard(pp->onWorkerStart);
-        efree(pp->onWorkerStart);
+        sw_zend_fci_cache_free(pp->onWorkerStart);
     }
     if (pp->onMessage) {
-        sw_zend_fci_cache_discard(pp->onMessage);
-        efree(pp->onMessage);
+        sw_zend_fci_cache_free(pp->onMessage);
     }
     if (pp->onWorkerStop) {
-        sw_zend_fci_cache_discard(pp->onWorkerStop);
-        efree(pp->onWorkerStop);
+        sw_zend_fci_cache_free(pp->onWorkerStop);
     }
     if (pp->onStart) {
-        sw_zend_fci_cache_discard(pp->onStart);
-        efree(pp->onStart);
+        sw_zend_fci_cache_free(pp->onStart);
     }
 
     zend_object_std_dtor(object);
@@ -344,8 +340,7 @@ static PHP_METHOD(swoole_process_pool, on) {
 
     if (SW_STRCASEEQ(name, l_name, "WorkerStart")) {
         if (pp->onWorkerStart) {
-            sw_zend_fci_cache_discard(pp->onWorkerStart);
-            efree(pp->onWorkerStart);
+            sw_zend_fci_cache_free(pp->onWorkerStart);
         } else {
             pp->onWorkerStart = (zend_fcall_info_cache *) emalloc(sizeof(zend_fcall_info_cache));
         }
@@ -358,8 +353,7 @@ static PHP_METHOD(swoole_process_pool, on) {
             RETURN_FALSE;
         }
         if (pp->onMessage) {
-            sw_zend_fci_cache_discard(pp->onMessage);
-            efree(pp->onMessage);
+            sw_zend_fci_cache_free(pp->onMessage);
         } else {
             pp->onMessage = (zend_fcall_info_cache *) emalloc(sizeof(zend_fcall_info_cache));
         }
@@ -368,8 +362,7 @@ static PHP_METHOD(swoole_process_pool, on) {
         RETURN_TRUE;
     } else if (SW_STRCASEEQ(name, l_name, "WorkerStop")) {
         if (pp->onWorkerStop) {
-            sw_zend_fci_cache_discard(pp->onWorkerStop);
-            efree(pp->onWorkerStop);
+            sw_zend_fci_cache_free(pp->onWorkerStop);
         } else {
             pp->onWorkerStop = (zend_fcall_info_cache *) emalloc(sizeof(zend_fcall_info_cache));
         }
@@ -378,8 +371,7 @@ static PHP_METHOD(swoole_process_pool, on) {
         RETURN_TRUE;
     } else if (SW_STRCASEEQ(name, l_name, "Start")) {
         if (pp->onStart) {
-            sw_zend_fci_cache_discard(pp->onStart);
-            efree(pp->onStart);
+            sw_zend_fci_cache_free(pp->onStart);
         } else {
             pp->onStart = (zend_fcall_info_cache *) emalloc(sizeof(zend_fcall_info_cache));
         }

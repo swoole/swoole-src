@@ -973,34 +973,17 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, zval *zset) {
     }
     // length function
     if (php_swoole_array_get_value(vht, "package_length_func", ztmp)) {
-        do {
-            Protocol::LengthFunc func;
-            if (Z_TYPE_P(ztmp) == IS_STRING &&
-                (func = Protocol::get_function(std::string(Z_STRVAL_P(ztmp), Z_STRLEN_P(ztmp))))) {
-                sock->protocol.get_package_length = func;
-            } else {
-                char *func_name;
-                zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) ecalloc(1, sizeof(zend_fcall_info_cache));
-                if (!sw_zend_is_callable_ex(ztmp, nullptr, 0, &func_name, nullptr, fci_cache, nullptr)) {
-                    php_swoole_fatal_error(E_WARNING, "function '%s' is not callable", func_name);
-                    efree(func_name);
-                    efree(fci_cache);
-                    ret = false;
-                    break;
-                }
-                efree(func_name);
-                sock->protocol.get_package_length = php_swoole_length_func;
-                if (sock->protocol.private_data) {
-                    sw_zend_fci_cache_discard((zend_fcall_info_cache *) sock->protocol.private_data);
-                    efree(sock->protocol.private_data);
-                }
-                sw_zend_fci_cache_persist(fci_cache);
-                sock->protocol.private_data = fci_cache;
+        auto fci_cache = sw_zend_fci_cache_create(ztmp);
+        if (fci_cache) {
+            sock->protocol.get_package_length = php_swoole_length_func;
+            if (sock->protocol.private_data) {
+                sw_zend_fci_cache_free((zend_fcall_info_cache *) sock->protocol.private_data);
             }
+            sock->protocol.private_data = fci_cache;
             sock->protocol.package_length_size = 0;
             sock->protocol.package_length_type = '\0';
             sock->protocol.package_length_offset = SW_IPC_BUFFER_SIZE;
-        } while (0);
+        }
     }
     /**
      * package max length
@@ -1853,9 +1836,8 @@ static PHP_METHOD(swoole_socket_coro, close) {
         RETURN_FALSE;
     }
     if (sock->socket->protocol.private_data) {
-        zend_fcall_info_cache *package_length_func = (zend_fcall_info_cache *) sock->socket->protocol.private_data;
-        sw_zend_fci_cache_discard(package_length_func);
-        efree(package_length_func);
+        sw_zend_fci_cache_free((zend_fcall_info_cache *) sock->socket->protocol.private_data);
+        sock->socket->protocol.private_data = nullptr;
     }
     if (!Z_ISUNDEF(sock->zstream)) {
         php_stream *stream = NULL;

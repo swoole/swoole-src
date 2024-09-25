@@ -223,17 +223,6 @@ static std::string test_func(std::string test_data_2) {
     return test_data + test_data_2;
 }
 
-TEST(base, add_function) {
-    typedef std::string (*_func_t)(std::string);
-    swoole_add_function("test_func", (void *) test_func);
-    ASSERT_EQ(swoole_add_function("test_func", (void *) test_func), SW_ERR);
-    _func_t _func = (_func_t) swoole_get_function(SW_STRL("test_func"));
-    std::string b = ", swoole is best";
-    auto rs = _func(", swoole is best");
-    ASSERT_EQ(rs, test_data + b);
-    ASSERT_EQ(swoole_get_function(SW_STRL("test_func31")), nullptr);
-}
-
 TEST(base, hook) {
     int count = 0;
     swoole_add_hook(

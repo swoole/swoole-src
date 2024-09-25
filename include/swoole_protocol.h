@@ -67,10 +67,6 @@ struct Protocol {
     int recv_split_by_eof(network::Socket *socket, String *buffer);
 
     static ssize_t default_length_func(const Protocol *protocol, network::Socket *socket, PacketLength *pl);
-
-    static inline LengthFunc get_function(const std::string &name) {
-        return (LengthFunc) swoole_get_function(name.c_str(), name.length());
-    }
 };
 }  // namespace swoole
 

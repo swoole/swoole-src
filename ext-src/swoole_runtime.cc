@@ -262,7 +262,7 @@ void php_swoole_runtime_rshutdown() {
          */
         if (rf->fci_cache) {
             zval_dtor(&rf->name);
-            efree(rf->fci_cache);
+            sw_zend_fci_cache_free(rf->fci_cache);
         }
         rf->function->internal_function.handler = rf->ori_handler;
         rf->function->internal_function.arg_info = rf->ori_arg_info;
@@ -2000,15 +2000,11 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
         memcpy(func + 7, fn_str->val, fn_str->len);
 
         ZVAL_STRINGL(&rf->name, func, fn_str->len + 7);
-
-        char *func_name;
-        zend_fcall_info_cache *func_cache = (zend_fcall_info_cache *) emalloc(sizeof(zend_fcall_info_cache));
-        if (!sw_zend_is_callable_ex(&rf->name, nullptr, 0, &func_name, nullptr, func_cache, nullptr)) {
-            php_swoole_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
+        auto fci_cache = sw_zend_fci_cache_create(&rf->name);
+        if (!fci_cache) {
             return;
         }
-        efree(func_name);
-        rf->fci_cache = func_cache;
+        rf->fci_cache = fci_cache;
     }
 
     zend_hash_add_ptr(tmp_function_table, fn_str, rf);
