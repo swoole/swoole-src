@@ -13,18 +13,18 @@ use Swoole\Thread;
 
 $tm = new \SwooleTest\ThreadManager();
 
+Assert::eq(Thread::API_NAME, 'POSIX Threads');
+
 $tm->parentFunc = function () {
     $thread = new Thread(__FILE__, 'child');
     $info = Thread::getTsrmInfo();
     Assert::true($info['is_main_thread']);
-    Assert::eq($info['api_name'], 'POSIX Threads');
     $thread->join();
 };
 
 $tm->childFunc = function () {
     $info = Thread::getTsrmInfo();
     Assert::false($info['is_main_thread']);
-    Assert::eq($info['api_name'], 'POSIX Threads');
 };
 
 $tm->run();

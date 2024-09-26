@@ -119,6 +119,7 @@ void php_swoole_thread_minit(int module_number) {
     zend_declare_property_long(swoole_thread_ce, ZEND_STRL("id"), 0, ZEND_ACC_PUBLIC | ZEND_ACC_READONLY);
     zend_declare_class_constant_long(
         swoole_thread_ce, ZEND_STRL("HARDWARE_CONCURRENCY"), std::thread::hardware_concurrency());
+    zend_declare_class_constant_string(swoole_thread_ce, ZEND_STRL("API_NAME"), tsrm_api_name());
 
     SW_INIT_CLASS_ENTRY_DATA_OBJECT(swoole_thread_error, "Swoole\\Thread\\Error");
     zend_declare_property_long(swoole_thread_error_ce, ZEND_STRL("code"), 0, ZEND_ACC_PUBLIC | ZEND_ACC_READONLY);
@@ -451,7 +452,6 @@ static PHP_METHOD(swoole_thread, getTsrmInfo) {
     array_init(return_value);
     add_assoc_bool(return_value, "is_main_thread", tsrm_is_main_thread());
     add_assoc_bool(return_value, "is_shutdown", tsrm_is_shutdown());
-    add_assoc_string(return_value, "api_name", tsrm_api_name());
     add_assoc_long(return_value, "thread_num", thread_num.load());
 }
 
