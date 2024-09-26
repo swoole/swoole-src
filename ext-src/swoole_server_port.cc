@@ -103,9 +103,9 @@ void php_swoole_server_port_deref(zend_object *object) {
 
     ListenPort *port = server_port->port;
     if (port) {
-        if (port->protocol.cb) {
-            sw_callable_free(port->protocol.cb);
-            port->protocol.cb = nullptr;
+        if (port->protocol.private_data_1) {
+            sw_callable_free(port->protocol.private_data_1);
+            port->protocol.private_data_1 = nullptr;
         }
         server_port->port = nullptr;
     }
@@ -191,7 +191,7 @@ void php_swoole_server_port_minit(int module_number) {
  * [Master/Worker]
  */
 static ssize_t php_swoole_server_length_func(const Protocol *protocol, network::Socket *conn, PacketLength *pl) {
-    zend::Callable *cb = (zend::Callable *) protocol->cb;
+    zend::Callable *cb = (zend::Callable *) protocol->private_data_1;
     zval zdata;
     zval retval;
     ssize_t ret = -1;
@@ -446,13 +446,13 @@ static PHP_METHOD(swoole_server_port, set) {
     }
     // length function
     if (php_swoole_array_get_value(vht, "package_length_func", ztmp)) {
-        auto fci_cache = sw_callable_create(ztmp);
-        if (fci_cache) {
+        auto cb = sw_callable_create(ztmp);
+        if (cb) {
             port->protocol.get_package_length = php_swoole_server_length_func;
-            if (port->protocol.cb) {
-                sw_callable_free(port->protocol.cb);
+            if (port->protocol.private_data_1) {
+                sw_callable_free(port->protocol.private_data_1);
             }
-            port->protocol.cb = fci_cache;
+            port->protocol.private_data_1 = cb;
             port->protocol.package_length_size = 0;
             port->protocol.package_length_type = '\0';
             port->protocol.package_length_offset = SW_IPC_BUFFER_SIZE;

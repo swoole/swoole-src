@@ -131,9 +131,9 @@ static zend_object *client_coro_create_object(zend_class_entry *ce) {
 }
 
 static void client_coro_socket_dtor(ClientCoroObject *client) {
-    if (client->socket->protocol.cb) {
-        sw_callable_free(client->socket->protocol.cb);
-        client->socket->protocol.cb = nullptr;
+    if (client->socket->protocol.private_data_1) {
+        sw_callable_free(client->socket->protocol.private_data_1);
+        client->socket->protocol.private_data_1 = nullptr;
     }
     client->socket = nullptr;
     zend_update_property_null(Z_OBJCE_P(&client->zobject), SW_Z8_OBJ_P(&client->zobject), ZEND_STRL("socket"));

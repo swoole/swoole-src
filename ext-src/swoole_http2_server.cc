@@ -247,9 +247,9 @@ static void http2_server_onRequest(Http2Session *client, Http2Stream *stream) {
     Server *serv = (Server *) ctx->private_data;
     zval args[2];
     Connection *serv_sock = nullptr;
+    zend::Callable *cb = nullptr;
     int server_fd = 0;
 
-    zend::Callable *cb = php_swoole_server_get_callback(serv, server_fd, SW_SERVER_CB_onRequest);
     Connection *conn = serv->get_connection_by_session_id(ctx->fd);
     if (!conn) {
         goto _destroy;
@@ -274,6 +274,7 @@ static void http2_server_onRequest(Http2Session *client, Http2Stream *stream) {
     add_assoc_long(zserver, "master_time", conn->last_recv_time);
     add_assoc_string(zserver, "server_protocol", (char *) "HTTP/2");
 
+    cb = php_swoole_server_get_callback(serv, server_fd, SW_SERVER_CB_onRequest);
     ctx->private_data_2 = cb;
 
     if (ctx->onBeforeRequest && !ctx->onBeforeRequest(ctx)) {

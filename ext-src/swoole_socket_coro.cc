@@ -976,10 +976,10 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, zval *zset) {
         auto cb = sw_callable_create(ztmp);
         if (cb) {
             sock->protocol.get_package_length = php_swoole_length_func;
-            if (sock->protocol.cb) {
-                sw_callable_free(sock->protocol.cb);
+            if (sock->protocol.private_data_1) {
+                sw_callable_free(sock->protocol.private_data_1);
             }
-            sock->protocol.cb = cb;
+            sock->protocol.private_data_1 = cb;
             sock->protocol.package_length_size = 0;
             sock->protocol.package_length_type = '\0';
             sock->protocol.package_length_offset = SW_IPC_BUFFER_SIZE;
@@ -1829,9 +1829,9 @@ static PHP_METHOD(swoole_socket_coro, close) {
         php_swoole_error(E_WARNING, "cannot close the referenced resource");
         RETURN_FALSE;
     }
-    if (sock->socket->protocol.cb) {
-        sw_callable_free(sock->socket->protocol.cb);
-        sock->socket->protocol.cb = nullptr;
+    if (sock->socket->protocol.private_data_1) {
+        sw_callable_free(sock->socket->protocol.private_data_1);
+        sock->socket->protocol.private_data_1 = nullptr;
     }
     if (!Z_ISUNDEF(sock->zstream)) {
         php_stream *stream = NULL;

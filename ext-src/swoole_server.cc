@@ -634,13 +634,13 @@ void php_swoole_server_minit(int module_number) {
 zend::Callable *php_swoole_server_get_callback(Server *serv, int server_fd, int event_type) {
     ListenPort *port = serv->get_port_by_server_fd(server_fd);
     ServerPortProperty *property = php_swoole_server_get_port_property(port);
-    zend::Callable *fci_cache;
+    zend::Callable *cb;
 
     if (sw_unlikely(!port)) {
         return nullptr;
     }
-    if (property && (fci_cache = property->callbacks[event_type])) {
-        return fci_cache;
+    if (property && (cb = property->callbacks[event_type])) {
+        return cb;
     } else {
         return php_swoole_server_get_port_property(serv->get_primary_port())->callbacks[event_type];
     }

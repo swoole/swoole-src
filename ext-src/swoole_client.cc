@@ -335,10 +335,10 @@ bool php_swoole_client_check_setting(Client *cli, zval *zset) {
             return false;
         }
         cli->protocol.get_package_length = php_swoole_length_func;
-        if (cli->protocol.cb) {
-            sw_callable_free(cli->protocol.cb);
+        if (cli->protocol.private_data_1) {
+            sw_callable_free(cli->protocol.private_data_1);
         }
-        cli->protocol.cb = fci_cache;
+        cli->protocol.private_data_1 = fci_cache;
         cli->protocol.package_length_size = 0;
         cli->protocol.package_length_type = '\0';
         cli->protocol.package_length_offset = SW_IPC_BUFFER_SIZE;
@@ -487,9 +487,9 @@ static void php_swoole_client_free(zval *zobject, Client *cli) {
         swoole_timer_del(cli->timer);
         cli->timer = nullptr;
     }
-    if (cli->protocol.cb) {
-        sw_callable_free(cli->protocol.cb);
-        cli->protocol.cb = nullptr;
+    if (cli->protocol.private_data_1) {
+        sw_callable_free(cli->protocol.private_data_1);
+        cli->protocol.private_data_1 = nullptr;
     }
     // long tcp connection, delete from php_sw_long_connections
     if (cli->keep) {
@@ -518,7 +518,7 @@ static void php_swoole_client_free(zval *zobject, Client *cli) {
 }
 
 ssize_t php_swoole_length_func(const Protocol *protocol, Socket *_socket, PacketLength *pl) {
-    zend::Callable *cb = (zend::Callable *) protocol->cb;
+    zend::Callable *cb = (zend::Callable *) protocol->private_data_1;
     zval zdata;
     zval retval;
     ssize_t ret = -1;
