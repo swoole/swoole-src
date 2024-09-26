@@ -434,14 +434,14 @@ static PHP_FUNCTION(swoole_event_add) {
         RETURN_FALSE;
     }
 
-    auto readable_callback = sw_callable_create(zreadable_callback);
+    auto readable_callback = zreadable_callback ? sw_callable_create(zreadable_callback) : nullptr;
     if ((events & SW_EVENT_READ) && readable_callback == nullptr) {
         php_swoole_fatal_error(
             E_WARNING, "%s: unable to find readable callback of fd [%d]", ZSTR_VAL(swoole_event_ce->name), socket_fd);
         RETURN_FALSE;
     }
 
-    auto writable_callback = sw_callable_create(zwritable_callback);
+    auto writable_callback = zwritable_callback ? sw_callable_create(zwritable_callback) : nullptr;
     if ((events & SW_EVENT_WRITE) && writable_callback == nullptr) {
         php_swoole_fatal_error(
             E_WARNING, "%s: unable to find writable callback of fd [%d]", ZSTR_VAL(swoole_event_ce->name), socket_fd);
