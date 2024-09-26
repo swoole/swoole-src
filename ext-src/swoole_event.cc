@@ -543,13 +543,13 @@ static PHP_FUNCTION(swoole_event_set) {
     auto writable_callback = sw_callable_create(zwritable_callback);
     if (readable_callback) {
         if (peo->readable_callback) {
-            swoole_event_defer(php_swoole_callable_free, peo->readable_callback);
+            swoole_event_defer(sw_callable_free, peo->readable_callback);
         }
         peo->readable_callback = readable_callback;
     }
     if (writable_callback) {
         if (peo->writable_callback) {
-            swoole_event_defer(php_swoole_callable_free, peo->writable_callback);
+            swoole_event_defer(sw_callable_free, peo->writable_callback);
         }
         peo->writable_callback = writable_callback;
     }
@@ -633,7 +633,7 @@ static PHP_FUNCTION(swoole_event_cycle) {
         if (sw_reactor()->idle_task.callback == nullptr) {
             RETURN_FALSE;
         } else {
-            swoole_event_defer(php_swoole_callable_free, sw_reactor()->idle_task.data);
+            swoole_event_defer(sw_callable_free, sw_reactor()->idle_task.data);
             sw_reactor()->idle_task.callback = nullptr;
             sw_reactor()->idle_task.data = nullptr;
             RETURN_TRUE;
@@ -642,14 +642,14 @@ static PHP_FUNCTION(swoole_event_cycle) {
 
     if (!before) {
         if (sw_reactor()->idle_task.data != nullptr) {
-            swoole_event_defer(php_swoole_callable_free, sw_reactor()->idle_task.data);
+            swoole_event_defer(sw_callable_free, sw_reactor()->idle_task.data);
         }
 
         sw_reactor()->idle_task.callback = event_end_callback;
         sw_reactor()->idle_task.data = callback;
     } else {
         if (sw_reactor()->future_task.data != nullptr) {
-            swoole_event_defer(php_swoole_callable_free, sw_reactor()->future_task.data);
+            swoole_event_defer(sw_callable_free, sw_reactor()->future_task.data);
         }
 
         sw_reactor()->future_task.callback = event_end_callback;

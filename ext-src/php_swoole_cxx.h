@@ -709,11 +709,11 @@ static inline void print_error(zend_object *exception, int severity) {
 }  // namespace zend
 
 /* use void* to match some C callback function pointers */
-static sw_inline void sw_callable_free(void *fci_cache) {
-    delete (zend::Callable *) fci_cache;
+static inline void sw_callable_free(void *ptr) {
+    delete (zend::Callable *) ptr;
 }
 
-static zend::Callable *sw_callable_create(zval *zfn) {
+static inline zend::Callable *sw_callable_create(zval *zfn) {
     auto fn = new zend::Callable(zfn);
     if (fn->ready()) {
         return fn;
@@ -721,9 +721,4 @@ static zend::Callable *sw_callable_create(zval *zfn) {
         delete fn;
         return nullptr;
     }
-}
-
-static inline void php_swoole_callable_free(void *ptr) {
-    zend::Callable *cb = (zend::Callable *) ptr;
-    delete cb;
 }
