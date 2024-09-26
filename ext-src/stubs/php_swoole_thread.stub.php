@@ -11,5 +11,16 @@ namespace Swoole {
         public static function getArguments(): ?array {}
         public static function getId(): int {}
         public static function getTsrmInfo(): array {}
+
+        public static function setName(string $name): bool {}
+        #ifdef HAVE_CPU_AFFINITY
+        public static function setAffinity(array $cpu_settings): bool {}
+        public static function getAffinity(): array {}
+        #endif
+        public function setPriority(int $priority, int $policy = 0): bool {}
+        public function getPriority(): array {}
+        #ifdef __linux__
+        public function gettid(): int {}
+        #endif
     }
 }

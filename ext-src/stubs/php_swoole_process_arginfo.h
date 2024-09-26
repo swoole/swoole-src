@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: da9456fa0529629d994305f53fd07b250c36a56a */
+ * Stub hash: e772aa72b9cf7af24c2ed5ab7bbabb7f6a34c3ed */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Process___construct, 0, 0, 1)
 	ZEND_ARG_TYPE_INFO(0, callback, IS_CALLABLE, 0)
@@ -59,6 +59,11 @@ ZEND_END_ARG_INFO()
 #if defined(HAVE_CPU_AFFINITY)
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Process_setAffinity, 0, 1, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, cpu_settings, IS_ARRAY, 0)
+ZEND_END_ARG_INFO()
+#endif
+
+#if defined(HAVE_CPU_AFFINITY)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Process_getAffinity, 0, 0, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
 #endif
 

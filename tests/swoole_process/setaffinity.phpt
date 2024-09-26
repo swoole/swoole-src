@@ -1,5 +1,5 @@
 --TEST--
-swoole_process: setaffinity
+swoole_process: setAffinity
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';

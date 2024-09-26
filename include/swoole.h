@@ -601,6 +601,7 @@ int swoole_tmpfile(char *filename);
 typedef cpuset_t cpu_set_t;
 #endif
 int swoole_set_cpu_affinity(cpu_set_t *set);
+int swoole_get_cpu_affinity(cpu_set_t *set);
 #endif
 
 #if defined(_POSIX_TIMERS) && ((_POSIX_TIMERS > 0) || defined(__OpenBSD__)) && defined(_POSIX_MONOTONIC_CLOCK) &&      \

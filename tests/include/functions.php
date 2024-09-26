@@ -860,3 +860,8 @@ function build_ftp_url(string $path = ''): string
 {
     return 'ftp://' . FTP_USER . ':' . FTP_PASS . '@' . FTP_HOST . ':' .  FTP_PORT . '/' . $path;
 }
+
+function get_thread_name(): string
+{
+    return trim(file_get_contents('/proc/' . posix_getpid() . '/task/' . \Swoole\Thread::gettid() . '/comm'));
+}

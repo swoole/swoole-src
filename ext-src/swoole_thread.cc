@@ -93,6 +93,16 @@ static PHP_METHOD(swoole_thread, detach);
 static PHP_METHOD(swoole_thread, getArguments);
 static PHP_METHOD(swoole_thread, getId);
 static PHP_METHOD(swoole_thread, getTsrmInfo);
+static PHP_METHOD(swoole_thread, setName);
+#ifdef HAVE_CPU_AFFINITY
+static PHP_METHOD(swoole_thread, setAffinity);
+static PHP_METHOD(swoole_thread, getAffinity);
+#endif
+static PHP_METHOD(swoole_thread, setPriority);
+static PHP_METHOD(swoole_thread, getPriority);
+#ifdef __linux__
+static PHP_METHOD(swoole_thread, gettid);
+#endif
 SW_EXTERN_C_END
 
 // clang-format off
@@ -104,6 +114,16 @@ static const zend_function_entry swoole_thread_methods[] = {
     PHP_ME(swoole_thread, getArguments, arginfo_class_Swoole_Thread_getArguments, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_thread, getId,        arginfo_class_Swoole_Thread_getId,        ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_thread, getTsrmInfo,  arginfo_class_Swoole_Thread_getTsrmInfo,  ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_thread, setName,      arginfo_class_Swoole_Thread_setName,      ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+#ifdef HAVE_CPU_AFFINITY
+    PHP_ME(swoole_thread, setAffinity,  arginfo_class_Swoole_Thread_setAffinity,  ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_thread, getAffinity,  arginfo_class_Swoole_Thread_getAffinity,  ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+#endif
+    PHP_ME(swoole_thread, setPriority,  arginfo_class_Swoole_Thread_setPriority,  ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_thread, getPriority,  arginfo_class_Swoole_Thread_getPriority,  ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+#ifdef __linux__
+    PHP_ME(swoole_thread, gettid,       arginfo_class_Swoole_Thread_gettid,       ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+#endif
     PHP_MALIAS(swoole_thread, info, getTsrmInfo, arginfo_class_Swoole_Thread_getTsrmInfo, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
@@ -120,6 +140,14 @@ void php_swoole_thread_minit(int module_number) {
     zend_declare_class_constant_long(
         swoole_thread_ce, ZEND_STRL("HARDWARE_CONCURRENCY"), std::thread::hardware_concurrency());
     zend_declare_class_constant_string(swoole_thread_ce, ZEND_STRL("API_NAME"), tsrm_api_name());
+
+    zend_declare_class_constant_long(swoole_thread_ce, ZEND_STRL("SCHED_OTHER"), SCHED_OTHER);
+    zend_declare_class_constant_long(swoole_thread_ce, ZEND_STRL("SCHED_FIFO"), SCHED_FIFO);
+    zend_declare_class_constant_long(swoole_thread_ce, ZEND_STRL("SCHED_RR"), SCHED_RR);
+    zend_declare_class_constant_long(swoole_thread_ce, ZEND_STRL("SCHED_BATCH"), SCHED_BATCH);
+    zend_declare_class_constant_long(swoole_thread_ce, ZEND_STRL("SCHED_ISO"), SCHED_ISO);
+    zend_declare_class_constant_long(swoole_thread_ce, ZEND_STRL("SCHED_IDLE"), SCHED_IDLE);
+    zend_declare_class_constant_long(swoole_thread_ce, ZEND_STRL("SCHED_DEADLINE"), SCHED_DEADLINE);
 
     SW_INIT_CLASS_ENTRY_DATA_OBJECT(swoole_thread_error, "Swoole\\Thread\\Error");
     zend_declare_property_long(swoole_thread_error_ce, ZEND_STRL("code"), 0, ZEND_ACC_PUBLIC | ZEND_ACC_READONLY);
@@ -199,6 +227,89 @@ static PHP_METHOD(swoole_thread, getArguments) {
 static PHP_METHOD(swoole_thread, getId) {
     RETURN_LONG((zend_long) pthread_self());
 }
+
+static PHP_METHOD(swoole_thread, setName) {
+    char *name;
+    size_t l_name;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_STRING(name, l_name)
+    ZEND_PARSE_PARAMETERS_END();
+
+    RETURN_BOOL(pthread_setname_np(pthread_self(), name) == 0);
+}
+
+#ifdef HAVE_CPU_AFFINITY
+static PHP_METHOD(swoole_thread, setAffinity) {
+    zval *array;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_ARRAY(array)
+    ZEND_PARSE_PARAMETERS_END();
+
+    cpu_set_t cpu_set;
+    if (!php_swoole_array_to_cpu_set(array, &cpu_set)) {
+        RETURN_FALSE;
+    }
+
+    if (pthread_setaffinity_np(pthread_self(), sizeof(cpu_set), &cpu_set) < 0) {
+        php_swoole_error(E_WARNING, "pthread_setaffinity_np() failed");
+        RETURN_FALSE;
+    }
+    RETURN_TRUE;
+}
+
+static PHP_METHOD(swoole_thread, getAffinity) {
+    cpu_set_t cpu_set;
+    if (pthread_getaffinity_np(pthread_self(), sizeof(cpu_set), &cpu_set) < 0) {
+        php_swoole_error(E_WARNING, "pthread_getaffinity_np() failed");
+        RETURN_FALSE;
+    }
+    php_swoole_cpu_set_to_array(return_value, &cpu_set);
+}
+#endif
+
+static PHP_METHOD(swoole_thread, setPriority) {
+    zend_long priority, policy = -1;
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+    Z_PARAM_LONG(priority)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_LONG(policy)
+    ZEND_PARSE_PARAMETERS_END();
+
+    struct sched_param param;
+    if (policy == -1) {
+        pthread_setschedparam(pthread_self(), policy, &param);
+    }
+
+    param.sched_priority = priority;
+    int retval = pthread_setschedparam(pthread_self(), policy, &param);
+    if (retval == 0) {
+        RETURN_TRUE;
+    } else {
+        php_swoole_sys_error(E_WARNING, "pthread_setschedparam() failed");
+        RETURN_FALSE;
+    }
+}
+
+static PHP_METHOD(swoole_thread, getPriority) {
+    struct sched_param param;
+    int policy;
+    if (pthread_getschedparam(pthread_self(), &policy, &param) != 0) {
+        php_swoole_error(E_WARNING, "pthread_getschedparam() failed");
+        RETURN_FALSE;
+    }
+
+    array_init(return_value);
+    add_assoc_long_ex(return_value, ZEND_STRL("policy"), policy);
+    add_assoc_long_ex(return_value, ZEND_STRL("priority"), param.sched_priority);
+}
+
+#ifdef __linux__
+static PHP_METHOD(swoole_thread, gettid) {
+    RETURN_LONG(syscall(SYS_gettid));
+}
+#endif
 
 zend_string *php_swoole_serialize(zval *zdata) {
     php_serialize_data_t var_hash;

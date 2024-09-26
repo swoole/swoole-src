@@ -15,6 +15,7 @@ namespace Swoole {
         public static function daemon(bool $nochdir = true, bool $noclose = true, array $pipes = []): bool {}
         #ifdef HAVE_CPU_AFFINITY
         public static function setAffinity(array $cpu_settings): bool {}
+        public static function getAffinity(): array {}
         #endif
         public function set(array $settings): void {}
         public function setTimeout(float $seconds): bool {}

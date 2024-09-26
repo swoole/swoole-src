@@ -374,6 +374,11 @@ int php_swoole_convert_to_fd_ex(zval *zsocket, int *async);
 php_socket *php_swoole_convert_to_socket(int sock);
 #endif
 
+#ifdef HAVE_CPU_AFFINITY
+bool php_swoole_array_to_cpu_set(zval *array, cpu_set_t *cpu_set);
+void php_swoole_cpu_set_to_array(zval *array, cpu_set_t *cpu_set);
+#endif
+
 zend_bool php_swoole_signal_isset_handler(int signo);
 
 #if PHP_VERSION_ID < 80200

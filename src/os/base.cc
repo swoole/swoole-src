@@ -78,6 +78,14 @@ int swoole_set_cpu_affinity(cpu_set_t *set) {
     return sched_setaffinity(getpid(), sizeof(*set), set);
 #endif
 }
+
+int swoole_get_cpu_affinity(cpu_set_t *set) {
+#ifdef __FreeBSD__
+    return cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID, -1, sizeof(*set), set);
+#else
+    return sched_getaffinity(getpid(), sizeof(*set), set);
+#endif
+}
 #endif
 
 namespace swoole {

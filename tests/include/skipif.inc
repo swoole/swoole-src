@@ -159,6 +159,11 @@ function skip_if_nts()
     skip('not support in nts', !defined('SWOOLE_THREAD'));
 }
 
+function skip_if_not_linux()
+{
+    skip('only support linux', PHP_OS !== 'Linux');
+}
+
 function skip_if_musl_libc()
 {
     skip('not support when use musl libc', !empty(`ldd 2>&1 | grep -i musl`));
@@ -279,4 +284,9 @@ function skip_if_no_ftp()
 {
     require_once __DIR__ . '/config.php';
     skip('no available proxy', !check_tcp_port(FTP_HOST, FTP_PORT));
+}
+
+function skip_if_not_root()
+{
+    skip('not root user', posix_geteuid() !== 0);
 }

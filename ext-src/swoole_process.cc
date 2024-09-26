@@ -111,6 +111,7 @@ static PHP_METHOD(swoole_process, wait);
 static PHP_METHOD(swoole_process, daemon);
 #ifdef HAVE_CPU_AFFINITY
 static PHP_METHOD(swoole_process, setAffinity);
+static PHP_METHOD(swoole_process, getAffinity);
 #endif
 static PHP_METHOD(swoole_process, set);
 static PHP_METHOD(swoole_process, setTimeout);
@@ -142,6 +143,7 @@ static const zend_function_entry swoole_process_methods[] =
     PHP_ME(swoole_process, daemon,      arginfo_class_Swoole_Process_daemon,      ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 #ifdef HAVE_CPU_AFFINITY
     PHP_ME(swoole_process, setAffinity, arginfo_class_Swoole_Process_setAffinity, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_process, getAffinity, arginfo_class_Swoole_Process_getAffinity, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 #endif
     PHP_ME(swoole_process, setPriority,       arginfo_class_Swoole_Process_setPriority,  ZEND_ACC_PUBLIC)
     PHP_ME(swoole_process, getPriority,       arginfo_class_Swoole_Process_getPriority,  ZEND_ACC_PUBLIC)
@@ -946,36 +948,66 @@ static PHP_METHOD(swoole_process, daemon) {
 }
 
 #ifdef HAVE_CPU_AFFINITY
-static PHP_METHOD(swoole_process, setAffinity) {
-    zval *array;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "a", &array) == FAILURE) {
-        RETURN_FALSE;
-    }
+bool php_swoole_array_to_cpu_set(zval *array, cpu_set_t *cpu_set) {
     if (php_swoole_array_length(array) == 0) {
-        RETURN_FALSE;
+        return false;
     }
+
     if (php_swoole_array_length(array) > SW_CPU_NUM) {
         php_swoole_fatal_error(E_WARNING, "More than the number of CPU");
-        RETURN_FALSE;
+        return false;
     }
 
     zval *value = nullptr;
-    cpu_set_t cpu_set;
-    CPU_ZERO(&cpu_set);
+    CPU_ZERO(cpu_set);
 
     SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(array), value)
     if (zval_get_long(value) >= SW_CPU_NUM) {
         php_swoole_fatal_error(E_WARNING, "invalid cpu id [%d]", (int) Z_LVAL_P(value));
+        return false;
+    }
+    CPU_SET(Z_LVAL_P(value), cpu_set);
+    SW_HASHTABLE_FOREACH_END();
+
+    return true;
+}
+
+void php_swoole_cpu_set_to_array(zval *array, cpu_set_t *cpu_set) {
+    array_init(array);
+
+    int cpu_n = SW_CPU_NUM;
+    SW_LOOP_N(cpu_n) {
+        if (CPU_ISSET(i, cpu_set)) {
+            add_next_index_long(array, i);
+        }
+    }
+}
+
+static PHP_METHOD(swoole_process, setAffinity) {
+    zval *array;
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_ARRAY(array)
+    ZEND_PARSE_PARAMETERS_END();
+
+    cpu_set_t cpu_set;
+    if (!php_swoole_array_to_cpu_set(array, &cpu_set)) {
         RETURN_FALSE;
     }
-    CPU_SET(Z_LVAL_P(value), &cpu_set);
-    SW_HASHTABLE_FOREACH_END();
 
     if (swoole_set_cpu_affinity(&cpu_set) < 0) {
         php_swoole_sys_error(E_WARNING, "sched_setaffinity() failed");
         RETURN_FALSE;
     }
     RETURN_TRUE;
+}
+
+static PHP_METHOD(swoole_process, getAffinity) {
+    cpu_set_t cpu_set;
+    if (swoole_get_cpu_affinity(&cpu_set) < 0) {
+        php_swoole_sys_error(E_WARNING, "sched_getaffinity() failed");
+        RETURN_FALSE;
+    }
+    php_swoole_cpu_set_to_array(return_value, &cpu_set);
 }
 #endif
 
