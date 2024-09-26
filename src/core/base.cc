@@ -100,7 +100,6 @@ swoole::Global SwooleG = {};
 __thread swoole::ThreadGlobal SwooleTG = {};
 std::mutex sw_thread_lock;
 
-static std::unordered_map<std::string, void *> functions;
 static swoole::Logger *g_logger_instance = nullptr;
 
 #ifdef __MACH__
@@ -216,27 +215,6 @@ void swoole_init(void) {
 }
 
 SW_EXTERN_C_BEGIN
-
-SW_API int swoole_add_function(const char *name, void *func) {
-    std::string _name(name);
-    auto iter = functions.find(_name);
-    if (iter != functions.end()) {
-        swoole_warning("Function '%s' has already been added", name);
-        return SW_ERR;
-    } else {
-        functions.emplace(std::make_pair(_name, func));
-        return SW_OK;
-    }
-}
-
-SW_API void *swoole_get_function(const char *name, uint32_t length) {
-    auto iter = functions.find(std::string(name, length));
-    if (iter != functions.end()) {
-        return iter->second;
-    } else {
-        return nullptr;
-    }
-}
 
 SW_API int swoole_add_hook(enum swGlobalHookType type, swHookFunc func, int push_back) {
     assert(type <= SW_GLOBAL_HOOK_END);

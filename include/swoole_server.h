@@ -1337,14 +1337,6 @@ class Server {
         return &session_list[session_id % SW_SESSION_LIST_SIZE];
     }
 
-    void lock() {
-        lock_.lock();
-    }
-
-    void unlock() {
-        lock_.unlock();
-    }
-
     void clear_timer();
     static void timer_callback(Timer *timer, TimerNode *tnode);
 
@@ -1576,6 +1568,14 @@ class Server {
         }
         swoole_trace_log(SW_TRACE_SERVER, "schedule=%d, round=%d", key, worker_round_id);
         return key;
+    }
+
+    void lock() {
+        lock_.lock();
+    }
+
+    void unlock() {
+        lock_.unlock();
     }
 };
 

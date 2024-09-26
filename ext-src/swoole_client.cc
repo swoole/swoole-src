@@ -34,19 +34,6 @@ using swoole::String;
 using swoole::network::Client;
 using swoole::network::Socket;
 
-struct ClientCallback {
-    zend_fcall_info_cache cache_onConnect;
-    zend_fcall_info_cache cache_onReceive;
-    zend_fcall_info_cache cache_onClose;
-    zend_fcall_info_cache cache_onError;
-    zend_fcall_info_cache cache_onBufferFull;
-    zend_fcall_info_cache cache_onBufferEmpty;
-#ifdef SW_USE_OPENSSL
-    zend_fcall_info_cache cache_onSSLReady;
-#endif
-    zval _object;
-};
-
 static std::unordered_map<std::string, std::queue<Client *> *> long_connections;
 
 zend_class_entry *swoole_client_ce;
@@ -58,7 +45,6 @@ static zend_object_handlers swoole_client_exception_handlers;
 struct ClientObject {
     Client *cli;
     zval *zsocket;
-    ClientCallback *cb;
     zend_object std;
 };
 
@@ -86,14 +72,6 @@ static sw_inline void php_swoole_client_set_zsocket(zval *zobject, zval *zsocket
     php_swoole_client_fetch_object(Z_OBJ_P(zobject))->zsocket = zsocket;
 }
 #endif
-
-static sw_inline ClientCallback *php_swoole_client_get_cb(zval *zobject) {
-    return php_swoole_client_fetch_object(Z_OBJ_P(zobject))->cb;
-}
-
-static sw_inline void php_swoole_client_set_cb(zval *zobject, ClientCallback *cb) {
-    php_swoole_client_fetch_object(Z_OBJ_P(zobject))->cb = cb;
-}
 
 static void php_swoole_client_free_object(zend_object *object) {
     zend_object_std_dtor(object);
@@ -352,32 +330,15 @@ bool php_swoole_client_check_setting(Client *cli, zval *zset) {
     }
     // length function
     if (php_swoole_array_get_value(vht, "package_length_func", ztmp)) {
-        while (1) {
-            if (Z_TYPE_P(ztmp) == IS_STRING) {
-                Protocol::LengthFunc func = Protocol::get_function(std::string(Z_STRVAL_P(ztmp), Z_STRLEN_P(ztmp)));
-                if (func != nullptr) {
-                    cli->protocol.get_package_length = func;
-                    break;
-                }
-            }
-
-            char *func_name;
-            zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) ecalloc(1, sizeof(zend_fcall_info_cache));
-            if (!sw_zend_is_callable_ex(ztmp, nullptr, 0, &func_name, nullptr, fci_cache, nullptr)) {
-                php_swoole_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
-                return false;
-            }
-            efree(func_name);
-            cli->protocol.get_package_length = php_swoole_length_func;
-            if (cli->protocol.private_data) {
-                sw_zend_fci_cache_discard((zend_fcall_info_cache *) cli->protocol.private_data);
-                efree(cli->protocol.private_data);
-            }
-            sw_zend_fci_cache_persist(fci_cache);
-            cli->protocol.private_data = fci_cache;
-            break;
+        auto fci_cache = sw_callable_create(ztmp);
+        if (!fci_cache) {
+            return false;
         }
-
+        cli->protocol.get_package_length = php_swoole_length_func;
+        if (cli->protocol.private_data_1) {
+            sw_callable_free(cli->protocol.private_data_1);
+        }
+        cli->protocol.private_data_1 = fci_cache;
         cli->protocol.package_length_size = 0;
         cli->protocol.package_length_type = '\0';
         cli->protocol.package_length_offset = SW_IPC_BUFFER_SIZE;
@@ -526,10 +487,9 @@ static void php_swoole_client_free(zval *zobject, Client *cli) {
         swoole_timer_del(cli->timer);
         cli->timer = nullptr;
     }
-    if (cli->protocol.private_data) {
-        sw_zend_fci_cache_discard((zend_fcall_info_cache *) cli->protocol.private_data);
-        efree(cli->protocol.private_data);
-        cli->protocol.private_data = nullptr;
+    if (cli->protocol.private_data_1) {
+        sw_callable_free(cli->protocol.private_data_1);
+        cli->protocol.private_data_1 = nullptr;
     }
     // long tcp connection, delete from php_sw_long_connections
     if (cli->keep) {
@@ -558,14 +518,14 @@ static void php_swoole_client_free(zval *zobject, Client *cli) {
 }
 
 ssize_t php_swoole_length_func(const Protocol *protocol, Socket *_socket, PacketLength *pl) {
-    zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) protocol->private_data;
+    zend::Callable *cb = (zend::Callable *) protocol->private_data_1;
     zval zdata;
     zval retval;
     ssize_t ret = -1;
 
     // TODO: reduce memory copy
     ZVAL_STRINGL(&zdata, pl->buf, pl->buf_size);
-    if (UNEXPECTED(sw_zend_call_function_ex2(nullptr, fci_cache, 1, &zdata, &retval) != SUCCESS)) {
+    if (UNEXPECTED(sw_zend_call_function_ex2(nullptr, cb->ptr(), 1, &zdata, &retval) != SUCCESS)) {
         php_swoole_fatal_error(E_WARNING, "length function handler error");
     } else {
         ret = zval_get_long(&retval);
@@ -685,7 +645,6 @@ static PHP_METHOD(swoole_client, __construct) {
     }
     // init
     php_swoole_client_set_cli(ZEND_THIS, nullptr);
-    php_swoole_client_set_cb(ZEND_THIS, nullptr);
 #ifdef SWOOLE_SOCKETS_SUPPORT
     php_swoole_client_set_zsocket(ZEND_THIS, nullptr);
 #endif
@@ -699,12 +658,6 @@ static PHP_METHOD(swoole_client, __destruct) {
     // no keep connection
     if (cli) {
         sw_zend_call_method_with_0_params(ZEND_THIS, swoole_client_ce, nullptr, "close", nullptr);
-    }
-    // free memory
-    ClientCallback *cb = php_swoole_client_get_cb(ZEND_THIS);
-    if (cb) {
-        efree(cb);
-        php_swoole_client_set_cb(ZEND_THIS, nullptr);
     }
 }
 

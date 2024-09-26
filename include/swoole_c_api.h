@@ -45,9 +45,6 @@ enum swGlobalHookType {
 
 typedef void (*swHookFunc)(void *data);
 
-int swoole_add_function(const char *name, void *func);
-void *swoole_get_function(const char *name, uint32_t length);
-
 int swoole_add_hook(enum swGlobalHookType type, swHookFunc cb, int push_back);
 void swoole_call_hook(enum swGlobalHookType type, void *arg);
 bool swoole_isset_hook(enum swGlobalHookType type);

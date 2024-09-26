@@ -246,8 +246,8 @@ static void http2_server_onRequest(Http2Session *client, Http2Stream *stream) {
     zval *zserver = ctx->request.zserver;
     Server *serv = (Server *) ctx->private_data;
     zval args[2];
-    zend_fcall_info_cache *fci_cache = nullptr;
     Connection *serv_sock = nullptr;
+    zend::Callable *cb = nullptr;
     int server_fd = 0;
 
     Connection *conn = serv->get_connection_by_session_id(ctx->fd);
@@ -274,8 +274,8 @@ static void http2_server_onRequest(Http2Session *client, Http2Stream *stream) {
     add_assoc_long(zserver, "master_time", conn->last_recv_time);
     add_assoc_string(zserver, "server_protocol", (char *) "HTTP/2");
 
-    fci_cache = php_swoole_server_get_fci_cache(serv, server_fd, SW_SERVER_CB_onRequest);
-    ctx->private_data_2 = fci_cache;
+    cb = php_swoole_server_get_callback(serv, server_fd, SW_SERVER_CB_onRequest);
+    ctx->private_data_2 = cb;
 
     if (ctx->onBeforeRequest && !ctx->onBeforeRequest(ctx)) {
         return;
@@ -283,7 +283,7 @@ static void http2_server_onRequest(Http2Session *client, Http2Stream *stream) {
 
     args[0] = *ctx->request.zobject;
     args[1] = *ctx->response.zobject;
-    if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, nullptr, serv->is_enable_coroutine()))) {
+    if (UNEXPECTED(!zend::function::call(cb, 2, args, nullptr, serv->is_enable_coroutine()))) {
         stream->reset(SW_HTTP2_ERROR_INTERNAL_ERROR);
         php_swoole_error(E_WARNING, "%s->onRequest[v2] handler error", ZSTR_VAL(swoole_http_server_ce->name));
     }

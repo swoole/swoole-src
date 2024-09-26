@@ -570,25 +570,59 @@ class CharPtr {
     }
 };
 
-struct Callable {
-    zval zfunc;
+class Callable {
+  private:
+    zval zfn;
     zend_fcall_info_cache fcc;
+    char *fn_name = nullptr;
 
-    Callable(zval *_zfunc) {
-        zfunc = *_zfunc;
-        Z_TRY_ADDREF_P(&zfunc);
+    Callable() {}
+
+  public:
+    Callable(zval *_zfn) {
+        ZVAL_UNDEF(&zfn);
+        if (!zval_is_true(_zfn)) {
+            php_swoole_fatal_error(E_WARNING, "illegal callback function");
+            return;
+        }
+        if (!sw_zend_is_callable_ex(_zfn, nullptr, 0, &fn_name, nullptr, &fcc, nullptr)) {
+            php_swoole_fatal_error(E_WARNING, "function '%s' is not callable", fn_name);
+            return;
+        }
+        zfn = *_zfn;
+        zval_add_ref(&zfn);
     }
 
-    bool is_callable() {
-        return zend_is_callable_ex(&zfunc, NULL, 0, NULL, &fcc, NULL);
+    zend_fcall_info_cache *ptr() {
+        return &fcc;
+    }
+
+    bool ready() {
+        return !ZVAL_IS_UNDEF(&zfn);
+    }
+
+    Callable *dup() {
+        auto copy = new Callable();
+        copy->fcc = fcc;
+        copy->zfn = zfn;
+        zval_add_ref(&copy->zfn);
+        if (fn_name) {
+            copy->fn_name = estrdup(fn_name);
+        }
+        return copy;
     }
 
     bool call(uint32_t argc, zval *argv, zval *retval) {
-        return sw_zend_call_function_ex(&zfunc, &fcc, argc, argv, retval) == SUCCESS;
+        return sw_zend_call_function_ex(&zfn, &fcc, argc, argv, retval) == SUCCESS;
     }
 
     ~Callable() {
-        Z_TRY_DELREF_P(&zfunc);
+        if (!ZVAL_IS_UNDEF(&zfn)) {
+            zval_ptr_dtor(&zfn);
+        }
+        if (fn_name) {
+            efree(fn_name);
+        }
     }
 };
 
@@ -596,6 +630,10 @@ namespace function {
 /* must use this API to call event callbacks to ensure that exceptions are handled correctly */
 bool call(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv, zval *retval, const bool enable_coroutine);
 Variable call(const std::string &func_name, int argc, zval *argv);
+
+static inline bool call(Callable *cb, uint32_t argc, zval *argv, zval *retval, const bool enable_coroutine) {
+    return call(cb->ptr(), argc, argv, retval, enable_coroutine);
+}
 }  // namespace function
 
 struct Function {
@@ -689,7 +727,22 @@ static inline void print_error(zend_object *exception, int severity) {
 //-----------------------------------namespace end--------------------------------------------
 }  // namespace zend
 
-static inline zend::Callable *php_swoole_zval_to_callable(zval *zfn, const char *fname, bool allow_null = true) {
+/* use void* to match some C callback function pointers */
+static inline void sw_callable_free(void *ptr) {
+    delete (zend::Callable *) ptr;
+}
+
+static inline zend::Callable *sw_callable_create(zval *zfn) {
+    auto fn = new zend::Callable(zfn);
+    if (fn->ready()) {
+        return fn;
+    } else {
+        delete fn;
+        return nullptr;
+    }
+}
+
+static inline zend::Callable *sw_callable_create_ex(zval *zfn, const char *fname, bool allow_null = true) {
     if (zfn == nullptr || ZVAL_IS_NULL(zfn)) {
         if (!allow_null) {
             zend_throw_exception_ex(
@@ -697,9 +750,8 @@ static inline zend::Callable *php_swoole_zval_to_callable(zval *zfn, const char 
         }
         return nullptr;
     }
-    auto cb = new zend::Callable(zfn);
-    if (!cb->is_callable()) {
-        delete cb;
+    auto cb = sw_callable_create(zfn);
+    if (!cb) {
         zend_throw_exception_ex(swoole_exception_ce,
                                 SW_ERROR_INVALID_PARAMS,
                                 "%s must be of type callable, %s given",
@@ -708,9 +760,4 @@ static inline zend::Callable *php_swoole_zval_to_callable(zval *zfn, const char 
         return nullptr;
     }
     return cb;
-}
-
-static inline void php_swoole_callable_free(void *ptr) {
-    zend::Callable *cb = (zend::Callable *) ptr;
-    delete cb;
 }

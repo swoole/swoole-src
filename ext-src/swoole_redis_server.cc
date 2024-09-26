@@ -35,7 +35,7 @@ namespace Redis = swoole::redis;
 zend_class_entry *swoole_redis_server_ce;
 zend_object_handlers swoole_redis_server_handlers;
 
-static SW_THREAD_LOCAL std::unordered_map<std::string, zend_fcall_info_cache> redis_handlers;
+static SW_THREAD_LOCAL std::unordered_map<std::string, zend::Callable *> redis_handlers;
 
 SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_redis_server, setHandler);
@@ -71,7 +71,7 @@ void php_swoole_redis_server_minit(int module_number) {
 
 void php_swoole_redis_server_rshutdown() {
     for (auto i = redis_handlers.begin(); i != redis_handlers.end(); i++) {
-        sw_zend_fci_cache_discard(&i->second);
+        sw_callable_free(i->second);
     }
     redis_handlers.clear();
 }
@@ -169,14 +169,14 @@ int php_swoole_redis_server_onReceive(Server *serv, RecvData *req) {
         return serv->send(fd, err_msg, length) ? SW_OK : SW_ERR;
     }
 
-    zend_fcall_info_cache *fci_cache = &i->second;
+    auto fci_cache = i->second;
     zval args[2];
     zval retval;
 
     ZVAL_LONG(&args[0], fd);
     args[1] = zparams;
 
-    if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, &retval, serv->is_enable_coroutine()))) {
+    if (UNEXPECTED(!zend::function::call(fci_cache->ptr(), 2, args, &retval, serv->is_enable_coroutine()))) {
         php_swoole_error(E_WARNING,
                          "%s->onRequest with command '%.*s' handler error",
                          ZSTR_VAL(swoole_redis_server_ce->name),
@@ -209,13 +209,10 @@ static PHP_METHOD(swoole_redis_server, setHandler) {
         RETURN_FALSE;
     }
 
-    char *func_name;
-    zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) emalloc(sizeof(zend_fcall_info_cache));
-    if (!sw_zend_is_callable_ex(zcallback, nullptr, 0, &func_name, nullptr, fci_cache, nullptr)) {
-        php_swoole_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
+    auto fci_cache = sw_callable_create(zcallback);
+    if (!fci_cache) {
         return;
     }
-    efree(func_name);
 
     char _command[SW_REDIS_MAX_COMMAND_SIZE];
     size_t _command_len = sw_snprintf(_command, sizeof(_command), "_handler_%s", command);
@@ -230,11 +227,10 @@ static PHP_METHOD(swoole_redis_server, setHandler) {
     std::string key(_command, _command_len);
     auto i = redis_handlers.find(key);
     if (i != redis_handlers.end()) {
-        sw_zend_fci_cache_discard(&i->second);
+        sw_callable_free(i->second);
     }
 
-    sw_zend_fci_cache_persist(fci_cache);
-    redis_handlers[key] = *fci_cache;
+    redis_handlers[key] = fci_cache;
 
     RETURN_TRUE;
 }

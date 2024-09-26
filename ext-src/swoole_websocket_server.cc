@@ -253,14 +253,13 @@ int php_swoole_websocket_frame_object_pack_ex(String *buffer, zval *zdata, zend_
 }
 
 void swoole_websocket_onBeforeHandshakeResponse(Server *serv, int server_fd, HttpContext *ctx) {
-    zend_fcall_info_cache *fci_cache =
-        php_swoole_server_get_fci_cache(serv, server_fd, SW_SERVER_CB_onBeforeHandshakeResponse);
-    if (fci_cache) {
+    auto cb = php_swoole_server_get_callback(serv, server_fd, SW_SERVER_CB_onBeforeHandshakeResponse);
+    if (cb) {
         zval args[3];
         args[0] = *php_swoole_server_zval_ptr(serv);
         args[1] = *ctx->request.zobject;
         args[2] = *ctx->response.zobject;
-        if (UNEXPECTED(!zend::function::call(fci_cache, 3, args, nullptr, serv->is_enable_coroutine()))) {
+        if (UNEXPECTED(!zend::function::call(cb, 3, args, nullptr, serv->is_enable_coroutine()))) {
             php_swoole_error(
                 E_WARNING, "%s->onBeforeHandshakeResponse handler error", ZSTR_VAL(swoole_websocket_server_ce->name));
             serv->close(ctx->fd, false);
@@ -274,12 +273,12 @@ void swoole_websocket_onOpen(Server *serv, HttpContext *ctx) {
         swoole_error_log(SW_LOG_TRACE, SW_ERROR_SESSION_NOT_EXIST, "session[%ld] is closed", ctx->fd);
         return;
     }
-    zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, conn->server_fd, SW_SERVER_CB_onOpen);
-    if (fci_cache) {
+    auto cb = php_swoole_server_get_callback(serv, conn->server_fd, SW_SERVER_CB_onOpen);
+    if (cb) {
         zval args[2];
         args[0] = *php_swoole_server_zval_ptr(serv);
         args[1] = *ctx->request.zobject;
-        if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, nullptr, serv->is_enable_coroutine()))) {
+        if (UNEXPECTED(!zend::function::call(cb, 2, args, nullptr, serv->is_enable_coroutine()))) {
             php_swoole_error(E_WARNING, "%s->onOpen handler error", ZSTR_VAL(swoole_websocket_server_ce->name));
             serv->close(ctx->fd, false);
         }
@@ -557,15 +556,14 @@ int swoole_websocket_onMessage(Server *serv, RecvData *req) {
     }
 #endif
 
-    zend_fcall_info_cache *fci_cache =
-        php_swoole_server_get_fci_cache(serv, req->info.server_fd, SW_SERVER_CB_onMessage);
+    auto cb = php_swoole_server_get_callback(serv, req->info.server_fd, SW_SERVER_CB_onMessage);
     zval args[2];
 
     args[0] = *php_swoole_server_zval_ptr(serv);
     php_swoole_websocket_construct_frame(&args[1], opcode, &zdata, flags);
     zend_update_property_long(swoole_websocket_frame_ce, SW_Z8_OBJ_P(&args[1]), ZEND_STRL("fd"), fd);
 
-    if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, nullptr, serv->is_enable_coroutine()))) {
+    if (UNEXPECTED(!zend::function::call(cb, 2, args, nullptr, serv->is_enable_coroutine()))) {
         php_swoole_error(E_WARNING, "%s->onMessage handler error", ZSTR_VAL(swoole_websocket_server_ce->name));
         serv->close(fd, false);
     }

@@ -73,9 +73,7 @@ void php_swoole_server_set_port_property(swoole::ListenPort *port, swoole::Serve
 namespace swoole {
 
 struct ServerPortProperty {
-    zval *callbacks[PHP_SWOOLE_SERVER_PORT_CALLBACK_NUM];
-    zend_fcall_info_cache *caches[PHP_SWOOLE_SERVER_PORT_CALLBACK_NUM];
-    zval _callbacks[PHP_SWOOLE_SERVER_PORT_CALLBACK_NUM];
+    zend::Callable *callbacks[PHP_SWOOLE_SERVER_PORT_CALLBACK_NUM];
     Server *serv;
     ListenPort *port;
     zval *zsetting;
@@ -84,11 +82,11 @@ struct ServerPortProperty {
 struct ServerProperty {
     std::vector<zval *> ports;
     std::vector<zval *> user_processes;
-    zend_fcall_info_cache *callbacks[PHP_SWOOLE_SERVER_CALLBACK_NUM];
-    std::unordered_map<TaskId, zend_fcall_info_cache> task_callbacks;
+    zend::Callable *callbacks[PHP_SWOOLE_SERVER_CALLBACK_NUM];
+    std::unordered_map<TaskId, zend::Callable *> task_callbacks;
     std::unordered_map<TaskId, TaskCo *> task_coroutine_map;
     std::unordered_map<SessionId, std::list<Coroutine *> *> send_coroutine_map;
-    std::vector<zend_fcall_info_cache *> command_callbacks;
+    std::vector<zend::Callable *> command_callbacks;
 };
 
 struct ServerObject {
@@ -104,6 +102,14 @@ struct ServerObject {
     bool isset_callback(ListenPort *port, int event_type) {
         return (php_swoole_server_get_port_property(port)->callbacks[event_type] ||
                 php_swoole_server_get_port_property(serv->get_primary_port())->callbacks[event_type]);
+    }
+
+    bool isset_callback(int event_type) {
+        return property->callbacks[event_type] != nullptr;
+    }
+
+    zend::Callable *get_callback(int event_type) {
+        return property->callbacks[event_type];
     }
 
     zend_bool is_websocket_server() {
@@ -132,7 +138,7 @@ void register_admin_server_commands(Server *serv);
 }  // namespace swoole
 
 void php_swoole_server_register_callbacks(swServer *serv);
-zend_fcall_info_cache *php_swoole_server_get_fci_cache(swServer *serv, int server_fd, int event_type);
+zend::Callable *php_swoole_server_get_callback(swServer *serv, int server_fd, int event_type);
 int php_swoole_create_dir(const char *path, size_t length);
 void php_swoole_server_before_start(swServer *serv, zval *zobject);
 bool php_swoole_server_isset_callback(swServer *serv, swListenPort *port, int event_type);

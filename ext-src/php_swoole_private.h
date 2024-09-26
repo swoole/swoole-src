@@ -972,12 +972,6 @@ static sw_inline void sw_zend_fci_cache_discard(zend_fcall_info_cache *fci_cache
     }
 }
 
-/* use void* to match some C callback function pointers */
-static sw_inline void sw_zend_fci_cache_free(void *fci_cache) {
-    sw_zend_fci_cache_discard((zend_fcall_info_cache *) fci_cache);
-    efree((zend_fcall_info_cache *) fci_cache);
-}
-
 #if PHP_VERSION_ID >= 80100
 #define sw_php_spl_object_hash(o) php_spl_object_hash(Z_OBJ_P(o))
 #else
