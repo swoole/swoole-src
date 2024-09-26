@@ -3339,13 +3339,13 @@ static PHP_METHOD(swoole_server, task) {
 
     if (!serv->is_worker()) {
         buf.info.ext_flags |= SW_TASK_NOREPLY;
-    } else if (zfn) {
+    } else if (zfn && zval_is_true(zfn)) {
         buf.info.ext_flags |= SW_TASK_CALLBACK;
-        auto fci_cache = sw_callable_create(zfn);
-        if (!fci_cache) {
+        auto cb = sw_callable_create(zfn);
+        if (!cb) {
             RETURN_FALSE;
         }
-        server_object->property->task_callbacks[task_id] = fci_cache;
+        server_object->property->task_callbacks[task_id] = cb;
     }
 
     buf.info.ext_flags |= SW_TASK_NONBLOCK;

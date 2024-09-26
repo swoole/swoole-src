@@ -1328,6 +1328,11 @@ static PHP_METHOD(swoole_socket_coro, accept) {
         client_sock->socket = conn;
         ZVAL_OBJ(return_value, &client_sock->std);
         socket_coro_init(return_value, client_sock);
+        // It must be copied once to avoid destroying the function when the connection closes.
+        if (sock->socket->protocol.private_data_1) {
+            zend::Callable *cb = (zend::Callable *) sock->socket->protocol.private_data_1;
+            conn->protocol.private_data_1 = cb->dup();
+        }
     } else {
         socket_coro_sync_properties(ZEND_THIS, sock);
         RETURN_FALSE;

@@ -570,11 +570,15 @@ class CharPtr {
     }
 };
 
-struct Callable {
+class Callable {
+  private:
     zval zfn;
     zend_fcall_info_cache fcc;
     char *fn_name = nullptr;
 
+    Callable() {}
+
+  public:
     Callable(zval *_zfn) {
         ZVAL_UNDEF(&zfn);
         if (!zval_is_true(_zfn)) {
@@ -595,6 +599,16 @@ struct Callable {
 
     bool ready() {
         return !ZVAL_IS_UNDEF(&zfn);
+    }
+
+    Callable *dup() {
+        auto copy = new Callable();
+        copy->fcc = fcc;
+        copy->zfn = zfn;
+        if (fn_name) {
+            copy->fn_name = estrdup(fn_name);
+        }
+        return copy;
     }
 
     bool call(uint32_t argc, zval *argv, zval *retval) {
@@ -725,4 +739,24 @@ static inline zend::Callable *sw_callable_create(zval *zfn) {
         delete fn;
         return nullptr;
     }
+}
+
+static inline zend::Callable *sw_callable_create_ex(zval *zfn, const char *fname, bool allow_null = true) {
+    if (zfn == nullptr || ZVAL_IS_NULL(zfn)) {
+        if (!allow_null) {
+            zend_throw_exception_ex(
+                swoole_exception_ce, SW_ERROR_INVALID_PARAMS, "%s must be of type callable, null given", fname);
+        }
+        return nullptr;
+    }
+    auto cb = sw_callable_create(zfn);
+    if (!cb) {
+        zend_throw_exception_ex(swoole_exception_ce,
+                                SW_ERROR_INVALID_PARAMS,
+                                "%s must be of type callable, %s given",
+                                fname,
+                                zend_zval_type_name(zfn));
+        return nullptr;
+    }
+    return cb;
 }
