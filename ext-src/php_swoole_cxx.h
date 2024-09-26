@@ -605,6 +605,7 @@ class Callable {
         auto copy = new Callable();
         copy->fcc = fcc;
         copy->zfn = zfn;
+        zval_add_ref(&copy->zfn);
         if (fn_name) {
             copy->fn_name = estrdup(fn_name);
         }
