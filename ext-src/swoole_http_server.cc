@@ -39,11 +39,11 @@ static bool http_context_send_data(HttpContext *ctx, const char *data, size_t le
 static bool http_context_sendfile(HttpContext *ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
 static bool http_context_disconnect(HttpContext *ctx);
 
-static void http_server_process_request(Server *serv, zend_fcall_info_cache *fci_cache, HttpContext *ctx) {
+static void http_server_process_request(Server *serv, zend::Callable *cb, HttpContext *ctx) {
     zval args[2];
     args[0] = *ctx->request.zobject;
     args[1] = *ctx->response.zobject;
-    if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, nullptr, serv->is_enable_coroutine()))) {
+    if (UNEXPECTED(!zend::function::call(cb, 2, args, nullptr, serv->is_enable_coroutine()))) {
         php_swoole_error(E_WARNING, "%s->onRequest handler error", ZSTR_VAL(swoole_http_server_ce->name));
 #ifdef SW_HTTP_SERVICE_UNAVAILABLE_PACKET
         ctx->send(ctx, SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET));
@@ -147,11 +147,11 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
 
     // begin to check and call registerd callback
     do {
-        zend_fcall_info_cache *fci_cache = nullptr;
+        zend::Callable *cb = nullptr;
 
         if (conn->websocket_status == WebSocket::STATUS_CONNECTION) {
-            fci_cache = php_swoole_server_get_fci_cache(serv, server_fd, SW_SERVER_CB_onHandshake);
-            if (fci_cache == nullptr) {
+            cb = php_swoole_server_get_callback(serv, server_fd, SW_SERVER_CB_onHandshake);
+            if (cb == nullptr) {
                 swoole_websocket_onHandshake(serv, port, ctx);
                 goto _dtor_and_return;
             } else {
@@ -159,17 +159,17 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
                 ctx->upgrade = 1;
             }
         } else {
-            fci_cache = php_swoole_server_get_fci_cache(serv, server_fd, SW_SERVER_CB_onRequest);
-            if (fci_cache == nullptr) {
+            cb = php_swoole_server_get_callback(serv, server_fd, SW_SERVER_CB_onRequest);
+            if (cb == nullptr) {
                 swoole_websocket_onRequest(ctx);
                 goto _dtor_and_return;
             }
         }
-        ctx->private_data_2 = fci_cache;
+        ctx->private_data_2 = cb;
         if (ctx->onBeforeRequest && !ctx->onBeforeRequest(ctx)) {
             return SW_OK;
         }
-        http_server_process_request(serv, fci_cache, ctx);
+        http_server_process_request(serv, cb, ctx);
     } while (0);
 
 _dtor_and_return:
@@ -423,9 +423,9 @@ void swoole_http_server_onAfterResponse(HttpContext *ctx) {
             [](void *private_data) {
                 HttpContext *ctx = (HttpContext *) private_data;
                 Server *serv = (Server *) ctx->private_data;
-                zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) ctx->private_data_2;
+                zend::Callable *cb = (zend::Callable *) ctx->private_data_2;
                 swoole_trace("[POP 2] ctx=%p, request=%p", ctx, ctx->request.zobject);
-                http_server_process_request(serv, fci_cache, ctx);
+                http_server_process_request(serv, cb, ctx);
                 zval_ptr_dtor(ctx->request.zobject);
                 zval_ptr_dtor(ctx->response.zobject);
             },

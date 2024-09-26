@@ -103,9 +103,9 @@ void php_swoole_server_port_deref(zend_object *object) {
 
     ListenPort *port = server_port->port;
     if (port) {
-        if (port->protocol.private_data) {
-            sw_callable_free(port->protocol.private_data);
-            port->protocol.private_data = nullptr;
+        if (port->protocol.cb) {
+            sw_callable_free(port->protocol.cb);
+            port->protocol.cb = nullptr;
         }
         server_port->port = nullptr;
     }
@@ -191,13 +191,13 @@ void php_swoole_server_port_minit(int module_number) {
  * [Master/Worker]
  */
 static ssize_t php_swoole_server_length_func(const Protocol *protocol, network::Socket *conn, PacketLength *pl) {
-    zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) protocol->private_data;
+    zend::Callable *cb = (zend::Callable *) protocol->cb;
     zval zdata;
     zval retval;
     ssize_t ret = -1;
 
     ZVAL_STRINGL(&zdata, pl->buf, pl->buf_size);
-    HOOK_PHP_CALL_STACK(auto call_result = sw_zend_call_function_ex(nullptr, fci_cache, 1, &zdata, &retval););
+    HOOK_PHP_CALL_STACK(auto call_result = sw_zend_call_function_ex(nullptr, cb->ptr(), 1, &zdata, &retval););
     if (UNEXPECTED(call_result) != SUCCESS) {
         php_swoole_fatal_error(E_WARNING, "length function handler error");
     } else {
@@ -449,10 +449,10 @@ static PHP_METHOD(swoole_server_port, set) {
         auto fci_cache = sw_callable_create(ztmp);
         if (fci_cache) {
             port->protocol.get_package_length = php_swoole_server_length_func;
-            if (port->protocol.private_data) {
-                sw_callable_free(port->protocol.private_data);
+            if (port->protocol.cb) {
+                sw_callable_free(port->protocol.cb);
             }
-            port->protocol.private_data = fci_cache;
+            port->protocol.cb = fci_cache;
             port->protocol.package_length_size = 0;
             port->protocol.package_length_type = '\0';
             port->protocol.package_length_offset = SW_IPC_BUFFER_SIZE;

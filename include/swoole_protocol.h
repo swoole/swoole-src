@@ -46,7 +46,7 @@ struct Protocol {
     uint16_t package_body_offset;
     uint32_t package_max_length;
 
-    void *private_data;
+    void *cb;
     void *private_data_2;
 
     /**

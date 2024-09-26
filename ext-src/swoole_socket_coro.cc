@@ -973,13 +973,13 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, zval *zset) {
     }
     // length function
     if (php_swoole_array_get_value(vht, "package_length_func", ztmp)) {
-        auto fci_cache = sw_callable_create(ztmp);
-        if (fci_cache) {
+        auto cb = sw_callable_create(ztmp);
+        if (cb) {
             sock->protocol.get_package_length = php_swoole_length_func;
-            if (sock->protocol.private_data) {
-                sw_callable_free(sock->protocol.private_data);
+            if (sock->protocol.cb) {
+                sw_callable_free(sock->protocol.cb);
             }
-            sock->protocol.private_data = fci_cache;
+            sock->protocol.cb = cb;
             sock->protocol.package_length_size = 0;
             sock->protocol.package_length_type = '\0';
             sock->protocol.package_length_offset = SW_IPC_BUFFER_SIZE;
@@ -1327,12 +1327,6 @@ static PHP_METHOD(swoole_socket_coro, accept) {
         SocketObject *client_sock = (SocketObject *) socket_coro_fetch_object(client);
         client_sock->socket = conn;
         ZVAL_OBJ(return_value, &client_sock->std);
-        if (conn->protocol.private_data) {
-            zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) emalloc(sizeof(*fci_cache));
-            *fci_cache = *(zend_fcall_info_cache *) conn->protocol.private_data;
-            sw_zend_fci_cache_persist(fci_cache);
-            conn->protocol.private_data = fci_cache;
-        }
         socket_coro_init(return_value, client_sock);
     } else {
         socket_coro_sync_properties(ZEND_THIS, sock);
@@ -1835,9 +1829,9 @@ static PHP_METHOD(swoole_socket_coro, close) {
         php_swoole_error(E_WARNING, "cannot close the referenced resource");
         RETURN_FALSE;
     }
-    if (sock->socket->protocol.private_data) {
-        sw_callable_free(sock->socket->protocol.private_data);
-        sock->socket->protocol.private_data = nullptr;
+    if (sock->socket->protocol.cb) {
+        sw_callable_free(sock->socket->protocol.cb);
+        sock->socket->protocol.cb = nullptr;
     }
     if (!Z_ISUNDEF(sock->zstream)) {
         php_stream *stream = NULL;
