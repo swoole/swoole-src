@@ -17,13 +17,13 @@ Assert::eq(Thread::API_NAME, 'POSIX Threads');
 
 $tm->parentFunc = function () {
     $thread = new Thread(__FILE__, 'child');
-    $info = Thread::getTsrmInfo();
+    $info = Thread::getInfo();
     Assert::true($info['is_main_thread']);
     $thread->join();
 };
 
 $tm->childFunc = function () {
-    $info = Thread::getTsrmInfo();
+    $info = Thread::getInfo();
     Assert::false($info['is_main_thread']);
 };
 

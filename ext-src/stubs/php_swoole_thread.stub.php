@@ -10,7 +10,7 @@ namespace Swoole {
 
         public static function getArguments(): ?array {}
         public static function getId(): int {}
-        public static function getTsrmInfo(): array {}
+        public static function getInfo(): array {}
 
         public static function setName(string $name): bool {}
         #ifdef HAVE_CPU_AFFINITY

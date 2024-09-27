@@ -92,7 +92,7 @@ static PHP_METHOD(swoole_thread, joinable);
 static PHP_METHOD(swoole_thread, detach);
 static PHP_METHOD(swoole_thread, getArguments);
 static PHP_METHOD(swoole_thread, getId);
-static PHP_METHOD(swoole_thread, getTsrmInfo);
+static PHP_METHOD(swoole_thread, getInfo);
 static PHP_METHOD(swoole_thread, setName);
 #ifdef HAVE_CPU_AFFINITY
 static PHP_METHOD(swoole_thread, setAffinity);
@@ -113,7 +113,7 @@ static const zend_function_entry swoole_thread_methods[] = {
     PHP_ME(swoole_thread, detach,       arginfo_class_Swoole_Thread_detach,       ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread, getArguments, arginfo_class_Swoole_Thread_getArguments, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_thread, getId,        arginfo_class_Swoole_Thread_getId,        ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_thread, getTsrmInfo,  arginfo_class_Swoole_Thread_getTsrmInfo,  ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_thread, getInfo,      arginfo_class_Swoole_Thread_getInfo,      ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_thread, setName,      arginfo_class_Swoole_Thread_setName,      ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 #ifdef HAVE_CPU_AFFINITY
     PHP_ME(swoole_thread, setAffinity,  arginfo_class_Swoole_Thread_setAffinity,  ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -124,7 +124,6 @@ static const zend_function_entry swoole_thread_methods[] = {
 #ifdef __linux__
     PHP_ME(swoole_thread, gettid,       arginfo_class_Swoole_Thread_gettid,       ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 #endif
-    PHP_MALIAS(swoole_thread, info, getTsrmInfo, arginfo_class_Swoole_Thread_getTsrmInfo, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
 // clang-format on
@@ -559,7 +558,7 @@ void php_swoole_thread_php_socket_create(zval *return_value, zend_long sockfd) {
 }
 #endif
 
-static PHP_METHOD(swoole_thread, getTsrmInfo) {
+static PHP_METHOD(swoole_thread, getInfo) {
     array_init(return_value);
     add_assoc_bool(return_value, "is_main_thread", tsrm_is_main_thread());
     add_assoc_bool(return_value, "is_shutdown", tsrm_is_shutdown());
