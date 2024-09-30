@@ -18,11 +18,11 @@ $tm->parentFunc = function () {
     register_shutdown_function(function () {
         echo "shutdown\n";
     });
-    Assert::eq(Thread::info()['thread_num'], 1);
+    Assert::eq(Thread::getInfo()['thread_num'], 1);
     $thread = new Thread(__FILE__, 'child');
     usleep(100000);
     echo "main thread\n";
-    Assert::eq(Thread::info()['thread_num'], 2);
+    Assert::eq(Thread::getInfo()['thread_num'], 2);
     $thread->detach();
 };
 
