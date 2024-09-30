@@ -116,6 +116,9 @@ typedef unsigned long ulong_t;
 #define SW_ECHO_LEN_CYAN "\e[36m%.*s\e[0m"
 #define SW_ECHO_LEN_WHITE "\e[37m%.*s\e[0m"
 
+#define SW_ECHO_RED_BG  "\e[41m%s\e[0m"
+#define SW_ECHO_GREEN_BG  "\e[42m%s\e[0m"
+
 #define SW_COLOR_RED 1
 #define SW_COLOR_GREEN 2
 #define SW_COLOR_YELLOW 3
@@ -226,6 +229,9 @@ typedef swoole::Event swEvent;
 /* string contain */
 #define SW_STRCT(str, len, const_sub_str) swoole_strct(str, len, SW_STRL(const_sub_str))
 #define SW_STRCASECT(str, len, const_sub_str) swoole_strcasect(str, len, SW_STRL(const_sub_str))
+
+#define SW_STR_STARTS_WITH(str, len, const_sub_str) swoole_str_starts_with(str, len, SW_STRL(const_sub_str))
+#define SW_STR_ISTARTS_WITH(str, len, const_sub_str) swoole_str_istarts_with(str, len, SW_STRL(const_sub_str))
 
 #if defined(SW_USE_JEMALLOC) || defined(SW_USE_TCMALLOC)
 #define sw_strdup swoole_strdup
