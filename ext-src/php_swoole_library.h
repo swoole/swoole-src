@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
  */
 
-/* $Id: e8af69b505224ddfa29b66092cd74f8d6da8d1ab */
+/* $Id: fa7b522bcdd905d18e08b545edb54d142c766064 */
 
 #ifndef SWOOLE_LIBRARY_H
 #define SWOOLE_LIBRARY_H
@@ -8499,6 +8499,8 @@ static const char* swoole_library_source_core_server_helper =
     "        'output_buffer_size'          => true,\n"
     "        'buffer_output_size'          => true,\n"
     "        'message_queue_key'           => true,\n"
+    "        'init_arguments'              => true,\n"
+    "        'bootstrap'                   => true,\n"
     "    ];\n"
     "\n"
     "    public const PORT_OPTIONS = [\n"

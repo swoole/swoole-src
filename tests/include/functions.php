@@ -863,5 +863,5 @@ function build_ftp_url(string $path = ''): string
 
 function get_thread_name(): string
 {
-    return trim(file_get_contents('/proc/' . posix_getpid() . '/task/' . \Swoole\Thread::gettid() . '/comm'));
+    return trim(file_get_contents('/proc/' . posix_getpid() . '/task/' . \Swoole\Thread::getNativeId() . '/comm'));
 }

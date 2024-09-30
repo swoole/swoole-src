@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: d3b07b5e94c81065bab39c16b70384c4572a00dc */
+ * Stub hash: 51be89a17d2714b489a0d67a927b6b3e8a1f0cff */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Thread___construct, 0, 0, 1)
 	ZEND_ARG_TYPE_INFO(0, script_file, IS_STRING, 0)
@@ -44,7 +44,4 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_class_Swoole_Thread_getPriority arginfo_class_Swoole_Thread_getInfo
 
-#if defined(__linux__)
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Thread_gettid, 0, 0, IS_LONG, 0)
-ZEND_END_ARG_INFO()
-#endif
+#define arginfo_class_Swoole_Thread_getNativeId arginfo_class_Swoole_Thread_getId

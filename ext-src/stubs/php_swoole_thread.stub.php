@@ -19,8 +19,6 @@ namespace Swoole {
         #endif
         public function setPriority(int $priority, int $policy = 0): bool {}
         public function getPriority(): array {}
-        #ifdef __linux__
-        public function gettid(): int {}
-        #endif
+        public function getNativeId(): int {}
     }
 }

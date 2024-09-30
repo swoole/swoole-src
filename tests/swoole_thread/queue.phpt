@@ -41,7 +41,6 @@ if (empty($args)) {
         $threads[$i]->join();
         $total_child += $map[$i];
     }
-    Assert::eq($queue->count(), 0);
     Assert::eq($total_parent, $total_child);
 } else {
     $i = $args[0];

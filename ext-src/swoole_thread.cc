@@ -100,9 +100,7 @@ static PHP_METHOD(swoole_thread, getAffinity);
 #endif
 static PHP_METHOD(swoole_thread, setPriority);
 static PHP_METHOD(swoole_thread, getPriority);
-#ifdef __linux__
-static PHP_METHOD(swoole_thread, gettid);
-#endif
+static PHP_METHOD(swoole_thread, getNativeId);
 SW_EXTERN_C_END
 
 // clang-format off
@@ -121,9 +119,7 @@ static const zend_function_entry swoole_thread_methods[] = {
 #endif
     PHP_ME(swoole_thread, setPriority,  arginfo_class_Swoole_Thread_setPriority,  ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_thread, getPriority,  arginfo_class_Swoole_Thread_getPriority,  ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-#ifdef __linux__
-    PHP_ME(swoole_thread, gettid,       arginfo_class_Swoole_Thread_gettid,       ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-#endif
+    PHP_ME(swoole_thread, getNativeId,  arginfo_class_Swoole_Thread_getNativeId,  ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
 // clang-format on
@@ -304,11 +300,40 @@ static PHP_METHOD(swoole_thread, getPriority) {
     add_assoc_long_ex(return_value, ZEND_STRL("priority"), param.sched_priority);
 }
 
-#ifdef __linux__
-static PHP_METHOD(swoole_thread, gettid) {
-    RETURN_LONG(syscall(SYS_gettid));
-}
+#if defined(__linux__)
+#include <sys/syscall.h> /* syscall(SYS_gettid) */
+#elif defined(__FreeBSD__)
+#include <pthread_np.h> /* pthread_getthreadid_np() */
+#elif defined(__OpenBSD__)
+#include <unistd.h> /* getthrid() */
+#elif defined(_AIX)
+#include <sys/thread.h> /* thread_self() */
+#elif defined(__NetBSD__)
+#include <lwp.h> /* _lwp_self() */
 #endif
+
+static PHP_METHOD(swoole_thread, getNativeId) {
+#ifdef __APPLE__
+    uint64_t native_id;
+    (void) pthread_threadid_np(NULL, &native_id);
+#elif defined(__linux__)
+    pid_t native_id;
+    native_id = syscall(SYS_gettid);
+#elif defined(__FreeBSD__)
+    int native_id;
+    native_id = pthread_getthreadid_np();
+#elif defined(__OpenBSD__)
+    pid_t native_id;
+    native_id = getthrid();
+#elif defined(_AIX)
+    tid_t native_id;
+    native_id = thread_self();
+#elif defined(__NetBSD__)
+    lwpid_t native_id;
+    native_id = _lwp_self();
+#endif
+    RETURN_LONG((zend_long) native_id);
+}
 
 zend_string *php_swoole_serialize(zval *zdata) {
     php_serialize_data_t var_hash;

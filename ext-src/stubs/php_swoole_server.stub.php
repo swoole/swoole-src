@@ -8,7 +8,7 @@ namespace Swoole {
         public function getCallback(string $event_name): \Closure|string|null|array {}
         public function listen(string $host, int $port, int $sock_type): false|Server\Port {}
         public function sendMessage(mixed $message, int $dst_worker_id): bool {}
-        public function addProcess(\Swoole\Process $process): int {}
+        public function addProcess(\Swoole\Process $process): int|false {}
         public function addCommand(string $name, int $accepted_process_types, callable $callback): bool {}
         public function start(): bool {}
         public function stop(int $workerId = -1, bool $waitEvent = false): bool {}
