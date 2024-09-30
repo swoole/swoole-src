@@ -25,6 +25,18 @@
 #include <thread>
 #include <unordered_map>
 
+#if defined(__linux__)
+#include <sys/syscall.h> /* syscall(SYS_gettid) */
+#elif defined(__FreeBSD__)
+#include <pthread_np.h> /* pthread_getthreadid_np() */
+#elif defined(__OpenBSD__)
+#include <unistd.h> /* getthrid() */
+#elif defined(_AIX)
+#include <sys/thread.h> /* thread_self() */
+#elif defined(__NetBSD__)
+#include <lwp.h> /* _lwp_self() */
+#endif
+
 #include "swoole_lock.h"
 
 BEGIN_EXTERN_C()
@@ -139,10 +151,18 @@ void php_swoole_thread_minit(int module_number) {
     zend_declare_class_constant_long(swoole_thread_ce, ZEND_STRL("SCHED_OTHER"), SCHED_OTHER);
     zend_declare_class_constant_long(swoole_thread_ce, ZEND_STRL("SCHED_FIFO"), SCHED_FIFO);
     zend_declare_class_constant_long(swoole_thread_ce, ZEND_STRL("SCHED_RR"), SCHED_RR);
+#ifdef SCHED_BATCH
     zend_declare_class_constant_long(swoole_thread_ce, ZEND_STRL("SCHED_BATCH"), SCHED_BATCH);
+#endif
+#ifdef SCHED_ISO
     zend_declare_class_constant_long(swoole_thread_ce, ZEND_STRL("SCHED_ISO"), SCHED_ISO);
+#endif
+#ifdef SCHED_IDLE
     zend_declare_class_constant_long(swoole_thread_ce, ZEND_STRL("SCHED_IDLE"), SCHED_IDLE);
+#endif
+#ifdef SCHED_DEADLINE
     zend_declare_class_constant_long(swoole_thread_ce, ZEND_STRL("SCHED_DEADLINE"), SCHED_DEADLINE);
+#endif
 
     SW_INIT_CLASS_ENTRY_DATA_OBJECT(swoole_thread_error, "Swoole\\Thread\\Error");
     zend_declare_property_long(swoole_thread_error_ce, ZEND_STRL("code"), 0, ZEND_ACC_PUBLIC | ZEND_ACC_READONLY);
@@ -231,7 +251,11 @@ static PHP_METHOD(swoole_thread, setName) {
     Z_PARAM_STRING(name, l_name)
     ZEND_PARSE_PARAMETERS_END();
 
+#if defined(__APPLE__)
+    RETURN_BOOL(pthread_setname_np(name) == 0);
+#else
     RETURN_BOOL(pthread_setname_np(pthread_self(), name) == 0);
+#endif
 }
 
 #ifdef HAVE_CPU_AFFINITY
@@ -299,18 +323,6 @@ static PHP_METHOD(swoole_thread, getPriority) {
     add_assoc_long_ex(return_value, ZEND_STRL("policy"), policy);
     add_assoc_long_ex(return_value, ZEND_STRL("priority"), param.sched_priority);
 }
-
-#if defined(__linux__)
-#include <sys/syscall.h> /* syscall(SYS_gettid) */
-#elif defined(__FreeBSD__)
-#include <pthread_np.h> /* pthread_getthreadid_np() */
-#elif defined(__OpenBSD__)
-#include <unistd.h> /* getthrid() */
-#elif defined(_AIX)
-#include <sys/thread.h> /* thread_self() */
-#elif defined(__NetBSD__)
-#include <lwp.h> /* _lwp_self() */
-#endif
 
 static PHP_METHOD(swoole_thread, getNativeId) {
 #ifdef __APPLE__
