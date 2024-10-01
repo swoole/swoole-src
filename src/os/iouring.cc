@@ -43,15 +43,7 @@ AsyncIouring::AsyncIouring(Reactor *reactor_) {
         entries = 1 << i;
     }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 19, 0)
-    int ret = io_uring_queue_init(entries, &ring, IORING_SETUP_COOP_TASKRUN | IORING_SETUP_SUBMIT_ALL);
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0)
-    int ret = io_uring_queue_init(
-        entries, &ring, IORING_SETUP_COOP_TASKRUN | IORING_SETUP_SUBMIT_ALL | IORING_SETUP_SINGLE_ISSUER);
-#else
     int ret = io_uring_queue_init(entries, &ring, 0);
-#endif
-
     if (ret < 0) {
         swoole_warning("create io_uring failed");
         throw swoole::Exception(SW_ERROR_WRONG_OPERATION);
@@ -67,7 +59,7 @@ AsyncIouring::AsyncIouring(Reactor *reactor_) {
 
     reactor->set_exit_condition(Reactor::EXIT_CONDITION_IOURING, [](Reactor *reactor, size_t &event_num) -> bool {
         if (SwooleTG.async_iouring && SwooleTG.async_iouring->get_task_num() == 0 &&
-            SwooleTG.async_iouring->is_empty_wait_events()) {
+            SwooleTG.async_iouring->is_empty_waiting_tasks()) {
             event_num--;
         }
         return true;
@@ -104,74 +96,78 @@ void AsyncIouring::delete_event() {
 }
 
 bool AsyncIouring::wakeup() {
-    unsigned num = 8192;
-    struct io_uring_cqe *cqes[num];
-    size_t cqes_size = num * sizeof(struct io_uring_cqe *);
     unsigned count = 0;
-
-    unsigned i = 0;
+    unsigned num = 8192;
     void *data = nullptr;
     AsyncEvent *task = nullptr;
+    AsyncEvent *waiting_task = nullptr;
     struct io_uring_cqe *cqe = nullptr;
-    AsyncEvent *waitEvent = nullptr;
+    struct io_uring_cqe *cqes[num];
 
     while (true) {
-        memset(cqes, 0, cqes_size);
-        count = get_iouring_cqes(cqes, num);
+        count = io_uring_peek_batch_cqe(&ring, cqes, num);
         if (count == 0) {
             return true;
         }
 
-        for (i = 0; i < count; i++) {
+        for (unsigned i = 0; i < count; i++) {
             cqe = cqes[i];
-            data = get_iouring_cqe_data(cqe);
+            data = io_uring_cqe_get_data(cqe);
             task = reinterpret_cast<AsyncEvent *>(data);
-            task->retval = (cqe->res >= 0 ? cqe->res : -1);
-            if (cqe->res < 0) {
-                errno = abs(cqe->res);
-            }
-
             task_num--;
-
-            if (is_empty_wait_events()) {
-                task->callback(task);
-                continue;
+            if (cqe->res < 0) {
+                errno = -(cqe->res);
+                /**
+                 * If the error code is EAGAIN, it indicates that the resource is temporarily unavailable,
+                 * but it can be retried. However, for the fairness of the tasks, this task should be placed
+                 * at the end of the queue.
+                 */
+                if (cqe->res == -EAGAIN) {
+                    io_uring_cq_advance(&ring, 1);
+                    waiting_tasks.push(task);
+                    continue;
+                }
             }
 
-            waitEvent = waitEvents.front();
-            waitEvents.pop();
-            if (waitEvent->opcode == AsyncIouring::SW_IORING_OP_OPENAT) {
-                open(waitEvent);
-            } else if (waitEvent->opcode == AsyncIouring::SW_IORING_OP_CLOSE) {
-                close(waitEvent);
-            } else if (waitEvent->opcode == AsyncIouring::SW_IORING_OP_FSTAT ||
-                       waitEvent->opcode == AsyncIouring::SW_IORING_OP_LSTAT) {
-                statx(waitEvent);
-            } else if (waitEvent->opcode == AsyncIouring::SW_IORING_OP_READ ||
-                       waitEvent->opcode == AsyncIouring::SW_IORING_OP_WRITE) {
-                wr(waitEvent);
-            } else if (waitEvent->opcode == AsyncIouring::SW_IORING_OP_RENAMEAT) {
-                rename(waitEvent);
-            } else if (waitEvent->opcode == AsyncIouring::SW_IORING_OP_UNLINK_FILE ||
-                       waitEvent->opcode == AsyncIouring::SW_IORING_OP_UNLINK_DIR) {
-                unlink(waitEvent);
-            } else if (waitEvent->opcode == AsyncIouring::SW_IORING_OP_MKDIRAT) {
-                mkdir(waitEvent);
-            } else if (waitEvent->opcode == AsyncIouring::SW_IORING_OP_FSYNC ||
-                       waitEvent->opcode == AsyncIouring::SW_IORING_OP_FDATASYNC) {
-                fsync(waitEvent);
-            }
-
+            task->retval = (cqe->res >= 0 ? cqe->res : -1);
+            io_uring_cq_advance(&ring, 1);
             task->callback(task);
+
+            if (!is_empty_waiting_tasks()) {
+                waiting_task = waiting_tasks.front();
+                waiting_tasks.pop();
+                if (waiting_task->opcode == AsyncIouring::SW_IORING_OP_OPENAT) {
+                    open(waiting_task);
+                } else if (waiting_task->opcode == AsyncIouring::SW_IORING_OP_CLOSE) {
+                    close(waiting_task);
+                } else if (waiting_task->opcode == AsyncIouring::SW_IORING_OP_FSTAT ||
+                           waiting_task->opcode == AsyncIouring::SW_IORING_OP_LSTAT) {
+                    statx(waiting_task);
+                } else if (waiting_task->opcode == AsyncIouring::SW_IORING_OP_READ ||
+                           waiting_task->opcode == AsyncIouring::SW_IORING_OP_WRITE) {
+                    wr(waiting_task);
+                } else if (waiting_task->opcode == AsyncIouring::SW_IORING_OP_RENAMEAT) {
+                    rename(waiting_task);
+                } else if (waiting_task->opcode == AsyncIouring::SW_IORING_OP_UNLINK_FILE ||
+                           waiting_task->opcode == AsyncIouring::SW_IORING_OP_UNLINK_DIR) {
+                    unlink(waiting_task);
+                } else if (waiting_task->opcode == AsyncIouring::SW_IORING_OP_MKDIRAT) {
+                    mkdir(waiting_task);
+                } else if (waiting_task->opcode == AsyncIouring::SW_IORING_OP_FSYNC ||
+                           waiting_task->opcode == AsyncIouring::SW_IORING_OP_FDATASYNC) {
+                    fsync(waiting_task);
+                }
+            }
         }
-        finish_iouring_cqes(count);
     }
+
+    return true;
 }
 
 bool AsyncIouring::open(AsyncEvent *event) {
     struct io_uring_sqe *sqe = get_iouring_sqe();
     if (!sqe) {
-        waitEvents.push(event);
+        waiting_tasks.push(event);
         return true;
     }
 
@@ -195,7 +191,7 @@ bool AsyncIouring::open(AsyncEvent *event) {
 bool AsyncIouring::close(AsyncEvent *event) {
     struct io_uring_sqe *sqe = get_iouring_sqe();
     if (!sqe) {
-        waitEvents.push(event);
+        waiting_tasks.push(event);
         return true;
     }
 
@@ -216,7 +212,7 @@ bool AsyncIouring::close(AsyncEvent *event) {
 bool AsyncIouring::wr(AsyncEvent *event) {
     struct io_uring_sqe *sqe = get_iouring_sqe();
     if (!sqe) {
-        waitEvents.push(event);
+        waiting_tasks.push(event);
         return true;
     }
 
@@ -240,7 +236,7 @@ bool AsyncIouring::wr(AsyncEvent *event) {
 bool AsyncIouring::statx(AsyncEvent *event) {
     struct io_uring_sqe *sqe = get_iouring_sqe();
     if (!sqe) {
-        waitEvents.push(event);
+        waiting_tasks.push(event);
         return true;
     }
 
@@ -271,7 +267,7 @@ bool AsyncIouring::statx(AsyncEvent *event) {
 bool AsyncIouring::mkdir(AsyncEvent *event) {
     struct io_uring_sqe *sqe = get_iouring_sqe();
     if (!sqe) {
-        waitEvents.push(event);
+        waiting_tasks.push(event);
         return true;
     }
 
@@ -293,7 +289,7 @@ bool AsyncIouring::mkdir(AsyncEvent *event) {
 bool AsyncIouring::unlink(AsyncEvent *event) {
     struct io_uring_sqe *sqe = get_iouring_sqe();
     if (!sqe) {
-        waitEvents.push(event);
+        waiting_tasks.push(event);
         return true;
     }
 
@@ -318,7 +314,7 @@ bool AsyncIouring::unlink(AsyncEvent *event) {
 bool AsyncIouring::rename(AsyncEvent *event) {
     struct io_uring_sqe *sqe = get_iouring_sqe();
     if (!sqe) {
-        waitEvents.push(event);
+        waiting_tasks.push(event);
         return true;
     }
 
@@ -342,7 +338,7 @@ bool AsyncIouring::rename(AsyncEvent *event) {
 bool AsyncIouring::fsync(AsyncEvent *event) {
     struct io_uring_sqe *sqe = get_iouring_sqe();
     if (!sqe) {
-        waitEvents.push(event);
+        waiting_tasks.push(event);
         return true;
     }
 

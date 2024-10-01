@@ -25,7 +25,6 @@
 #include <queue>
 
 #ifdef SW_USE_IOURING
-#include "linux/version.h"
 #include <liburing.h>
 #endif
 
@@ -127,7 +126,7 @@ class AsyncIouring {
     uint64_t task_num = 0;
     uint64_t entries = 8192;
     struct io_uring ring;
-    std::queue<AsyncEvent *> waitEvents;
+    std::queue<AsyncEvent *> waiting_tasks;
     network::Socket *iou_socket = nullptr;
     Reactor *reactor = nullptr;
 
@@ -142,18 +141,6 @@ class AsyncIouring {
 
     inline void set_iouring_sqe_data(struct io_uring_sqe *sqe, void *data) {
         io_uring_sqe_set_data(sqe, data);
-    }
-
-    inline void *get_iouring_cqe_data(struct io_uring_cqe *cqe) {
-        return io_uring_cqe_get_data(cqe);
-    }
-
-    inline int get_iouring_cqes(struct io_uring_cqe **cqe_ptr, unsigned count) {
-        return io_uring_peek_batch_cqe(&ring, cqe_ptr, count);
-    }
-
-    inline void finish_iouring_cqes(unsigned count) {
-        io_uring_cq_advance(&ring, count);
     }
 
     inline bool submit_iouring_sqe() {
@@ -193,8 +180,8 @@ class AsyncIouring {
     bool unlink(AsyncEvent *event);
     bool rename(AsyncEvent *event);
     bool fsync(AsyncEvent *event);
-    inline bool is_empty_wait_events() {
-        return waitEvents.size() == 0;
+    inline bool is_empty_waiting_tasks() {
+        return waiting_tasks.size() == 0;
     }
 
     inline uint64_t get_task_num() {
