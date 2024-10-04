@@ -2548,7 +2548,7 @@
     </dependencies>
     <providesextension>swoole</providesextension>
     <extsrcrelease>
-        <configureoption default="no" name="enable-sockets" prompt="enable sockets supports?"/>
+        <configureoption default="no" name="enable-sockets" prompt="enable sockets support?"/>
         <configureoption default="no" name="enable-openssl" prompt="enable openssl support?"/>
         <configureoption default="no" name="enable-mysqlnd" prompt="enable mysqlnd support?"/>
         <configureoption default="no" name="enable-swoole-curl" prompt="enable curl support?"/>

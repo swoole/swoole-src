@@ -555,7 +555,7 @@ echo 'use ' . (microtime(true) - $s) . ' s';
 ### Compiling requirements
 
 + Linux, OS X or Cygwin, WSL
-+ PHP 7.2.0 or later (The higher the version, the better the performance.)
++ PHP 8.1.0 or later (The higher the version, the better the performance.)
 + GCC 4.8 or later
 
 ### 1. Install via PECL (beginners)
