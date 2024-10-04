@@ -45,7 +45,7 @@ AsyncIouring::AsyncIouring(Reactor *reactor_) {
 
     int ret = io_uring_queue_init(entries, &ring, 0);
     if (ret < 0) {
-        swoole_warning("Create io_uring failed");
+        swoole_warning("Create io_uring failed, the error code is %d", -ret);
         throw swoole::Exception(SW_ERROR_WRONG_OPERATION);
         return;
     }
@@ -55,7 +55,7 @@ AsyncIouring::AsyncIouring(Reactor *reactor_) {
         ret = io_uring_register_iowq_max_workers(&ring, workers);
 
         if (ret < 0) {
-            swoole_warning("Failed to increase io_uring async workers");
+            swoole_warning("Failed to increase io_uring async workers, the error code is %d", -ret);
             throw swoole::Exception(SW_ERROR_WRONG_OPERATION);
             return;
         }
