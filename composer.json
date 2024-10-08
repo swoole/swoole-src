@@ -1,0 +1,74 @@
+{
+  "name": "swoole/swoole",
+  "type": "php-ext",
+  "license": "Apache-2.0",
+  "description": "Swoole is an event-driven, asynchronous, coroutine-based concurrency library with high performance for PHP.",
+  "require": {
+    "php": ">= 8.1"
+  },
+  "php-ext": {
+    "extension-name": "swoole",
+    "configure-options": [
+      {
+        "name": "enable-sockets",
+        "description": "Enable sockets support"
+      },
+      {
+        "name": "enable-openssl",
+        "description": "Enable openssl support"
+      },
+      {
+        "name": "with-openssl-dir",
+        "description": "Include OpenSSL support (requires OpenSSL >= 1.0.2)",
+        "needs-value": true
+      },
+      {
+        "name": "enable-mysqlnd",
+        "description": "Enable mysqlnd support"
+      },
+      {
+        "name": "enable-swoole-curl",
+        "description": "Enable curl support"
+      },
+      {
+        "name": "enable-cares",
+        "description": "Enable cares support"
+      },
+      {
+        "name": "enable-brotli",
+        "description": "Enable brotli support"
+      },
+      {
+        "name": "with-brotli-dir",
+        "description": "Include Brotli support",
+        "needs-value": true
+      },
+      {
+        "name": "enable-swoole-pgsql",
+        "description": "Enable PostgreSQL database support"
+      },
+      {
+        "name": "with-swoole-odbc",
+        "description": "Enable ODBC database support",
+        "needs-value": true
+      },
+      {
+        "name": "with-swoole-oracle",
+        "description": "Enable Oracle database support",
+        "needs-value": true
+      },
+      {
+        "name": "enable-swoole-sqlite",
+        "description": "Enable Sqlite database support"
+      },
+      {
+        "name": "enable-swoole-thread",
+        "description": "Enable swoole thread support (need php zts support)"
+      },
+      {
+        "name": "enable-iouring",
+        "description": "Enable iouring for file async support"
+      }
+    ]
+  }
+}
