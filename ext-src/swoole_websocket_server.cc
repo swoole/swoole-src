@@ -681,17 +681,23 @@ void php_swoole_websocket_server_minit(int module_number) {
     SW_REGISTER_LONG_CONSTANT("WEBSOCKET_CLOSE_TRY_AGAIN_LATER", WebSocket::CLOSE_TRY_AGAIN_LATER);
     SW_REGISTER_LONG_CONSTANT("WEBSOCKET_CLOSE_BAD_GATEWAY", WebSocket::CLOSE_BAD_GATEWAY);
     SW_REGISTER_LONG_CONSTANT("WEBSOCKET_CLOSE_TLS", WebSocket::CLOSE_TLS);
+}
 
+void php_swoole_websocket_server_rinit() {
     if (swoole_websocket_buffer == nullptr) {
         swoole_websocket_buffer = swoole::make_string(SW_BUFFER_SIZE_BIG);
     }
 }
 
-void php_swoole_websocket_server_mshutdown() {
+void php_swoole_websocket_server_rshutdown() {
     if (swoole_websocket_buffer) {
         delete swoole_websocket_buffer;
         swoole_websocket_buffer = nullptr;
     }
+}
+
+void php_swoole_websocket_server_mshutdown() {
+
 }
 
 static sw_inline bool swoole_websocket_server_push(Server *serv, SessionId fd, String *buffer) {
