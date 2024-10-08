@@ -65,6 +65,10 @@ void php_swoole_set_aio_option(HashTable *vht) {
         zend_long v = zval_get_long(ztmp);
         SwooleG.iouring_entries = SW_MAX(0, SW_MIN(v, UINT32_MAX));
     }
+    if (php_swoole_array_get_value(vht, "iouring_workers", ztmp)) {
+        zend_long v = zval_get_long(ztmp);
+        SwooleG.iouring_workers = SW_MAX(0, SW_MIN(v, UINT32_MAX));
+    }
 #endif
 }
 

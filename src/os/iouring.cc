@@ -45,10 +45,22 @@ AsyncIouring::AsyncIouring(Reactor *reactor_) {
 
     int ret = io_uring_queue_init(entries, &ring, 0);
     if (ret < 0) {
-        swoole_warning("create io_uring failed");
+        swoole_warning("Create io_uring failed, the error code is %d", -ret);
         throw swoole::Exception(SW_ERROR_WRONG_OPERATION);
         return;
     }
+
+    if (SwooleG.iouring_workers > 0) {
+        unsigned int workers[2] = {SwooleG.iouring_workers, SwooleG.iouring_workers};
+        ret = io_uring_register_iowq_max_workers(&ring, workers);
+
+        if (ret < 0) {
+            swoole_warning("Failed to increase io_uring async workers, the error code is %d", -ret);
+            throw swoole::Exception(SW_ERROR_WRONG_OPERATION);
+            return;
+        }
+    }
+
     ring_fd = ring.ring_fd;
 
     iou_socket = make_socket(ring_fd, SW_FD_IOURING);

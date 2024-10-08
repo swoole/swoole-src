@@ -787,7 +787,8 @@ struct Global {
     uint32_t aio_core_worker_num;
     uint32_t aio_worker_num;
 #ifdef SW_USE_IOURING
-    uint32_t iouring_entries;
+    uint32_t iouring_entries = 0;
+    uint32_t iouring_workers = 0;
 #endif
     double aio_max_wait_time;
     double aio_max_idle_time;

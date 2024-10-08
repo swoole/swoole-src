@@ -12,6 +12,12 @@ use Swoole\Coroutine\WaitGroup;
 require __DIR__ . '/../../include/bootstrap.php';
 
 Runtime::enableCoroutine(SWOOLE_HOOK_ALL);
+
+swoole_async_set([
+    'iouring_workers' => 32,
+    'iouring_entries' => 30000
+]);
+
 $results = [];
 for ($i = 1; $i <= 10000; $i++) {
     $results[$i] = random_bytes(rand(8192, 8192 * 3));
