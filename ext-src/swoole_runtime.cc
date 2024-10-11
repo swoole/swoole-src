@@ -1394,14 +1394,10 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
     if (flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION)) {
             hook_func(ZEND_STRL("gethostbyname"), PHP_FN(swoole_coroutine_gethostbyname));
-            hook_func(ZEND_STRL("exec"));
-            hook_func(ZEND_STRL("shell_exec"));
         }
     } else {
         if (runtime_hook_flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION) {
             SW_UNHOOK_FUNC(gethostbyname);
-            SW_UNHOOK_FUNC(exec);
-            SW_UNHOOK_FUNC(shell_exec);
         }
     }
     if (flags & PHPCoroutine::HOOK_SOCKETS) {
