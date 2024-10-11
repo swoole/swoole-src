@@ -13,10 +13,16 @@ require __DIR__ . '/../../include/bootstrap.php';
 
 Runtime::enableCoroutine(SWOOLE_HOOK_ALL);
 
-swoole_async_set([
+$setting = [
     'iouring_workers' => 32,
-    'iouring_entries' => 30000
-]);
+    'iouring_entries' => 30000,
+];
+
+if (defined('SWOOLE_IOURING_SQPOLL')) {
+    $setting['iouring_flag'] = SWOOLE_IOURING_SQPOLL;
+}
+
+swoole_async_set($setting);
 
 $results = [];
 for ($i = 1; $i <= 10000; $i++) {
@@ -65,6 +71,9 @@ run(function() use ($results) {
             $waitGroup->add();
             file_put_contents('/tmp/file'.$i, $results[$i]);
             Assert::true($results[$i] == file_get_contents('/tmp/file'.$i));
+            file_put_contents('/tmp/file'.$i, $results[$i], FILE_APPEND);
+            file_put_contents('/tmp/file'.$i, $results[$i], FILE_APPEND);
+            Assert::true(strlen($results[$i]) * 3 == strlen(file_get_contents('/tmp/file'.$i)));
             $waitGroup->done();
         });
     }

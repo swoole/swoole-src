@@ -139,12 +139,20 @@ class AsyncIouring {
         return sqe;
     }
 
-    inline void set_iouring_sqe_data(struct io_uring_sqe *sqe, void *data) {
-        io_uring_sqe_set_data(sqe, data);
-    }
+    inline bool submit_iouring_sqe(AsyncEvent *event) {
+        int ret = io_uring_submit(&ring);
 
-    inline bool submit_iouring_sqe() {
-        return io_uring_submit(&ring);
+        if (ret < 0) {
+            errno = -ret;
+            if (ret == -EAGAIN) {
+                waiting_tasks.push(event);
+                return true;
+            }
+            return false;
+        }
+
+        task_num++;
+        return true;
     }
 
   public:
@@ -167,6 +175,11 @@ class AsyncIouring {
         SW_IORING_OP_UNLINK_DIR = 1003,
         SW_IORING_OP_FSYNC = 1004,
         SW_IORING_OP_FDATASYNC = 1005,
+    };
+
+    enum flags {
+        SW_IOURING_DEFAULT = 0,
+        SW_IOURING_SQPOLL = IORING_SETUP_SQPOLL,
     };
 
     void add_event();
