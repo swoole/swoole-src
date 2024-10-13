@@ -46,6 +46,10 @@ namespace HttpServer = swoole::http_server;
 zend_class_entry *swoole_http_response_ce;
 static zend_object_handlers swoole_http_response_handlers;
 
+// see https://github.com/swoole/swoole-src/issues/5507
+SW_THREAD_LOCAL time_t timestamp = 0;
+SW_THREAD_LOCAL zend_string *current_date = nullptr;
+
 static inline void http_header_key_format(char *key, int length) {
     int i, state = 0;
     for (i = 0; i < length; i++) {
@@ -255,22 +259,17 @@ static int parse_header_name(const char *key, size_t keylen) {
 }
 
 static void http_set_date_header(String *response) {
-    static struct {
-        time_t time;
-        zend_string *date = nullptr;
-    } cache{};
-
     time_t now = time(nullptr);
-    if (now != cache.time) {
-        if (cache.date) {
-            zend_string_release(cache.date);
+    if (now != timestamp) {
+        if (current_date) {
+            zend_string_release(current_date);
         }
 
-        cache.time = now;
-        cache.date = php_format_date((char *) ZEND_STRL(SW_HTTP_DATE_FORMAT), now, 0);
+        timestamp = now;
+        current_date = php_format_date((char *) ZEND_STRL(SW_HTTP_DATE_FORMAT), now, 0);
     }
     response->append(ZEND_STRL("Date: "));
-    response->append(ZSTR_VAL(cache.date), ZSTR_LEN(cache.date));
+    response->append(ZSTR_VAL(current_date), ZSTR_LEN(current_date));
     response->append(ZEND_STRL("\r\n"));
 }
 
