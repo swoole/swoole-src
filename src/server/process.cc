@@ -116,10 +116,6 @@ pid_t Factory::spawn_event_worker(Worker *worker) {
         return pid;
     }
 
-    // see https://github.com/swoole/swoole-src/issues/5407
-    // see https://github.com/swoole/swoole-src/issues/5432
-    server_->reset_worker_counter(worker);
-
     if (server_->is_base_mode()) {
         server_->gs->connection_nums[worker->id] = 0;
         server_->gs->event_workers.main_loop(&server_->gs->event_workers, worker);
@@ -178,6 +174,12 @@ void Factory::check_worker_exit_status(Worker *worker, const ExitStatus &exit_st
         if (server_->onWorkerError != nullptr) {
             server_->onWorkerError(server_, worker, exit_status);
         }
+        /**
+         * The work process has exited unexpectedly, requiring a cleanup of the shared memory state.
+         * This must be done between the termination of the old process and the initiation of the new one;
+         * otherwise, data contention may occur.
+         */
+        server_->abort_worker(worker);
     }
 }
 

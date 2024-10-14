@@ -1899,18 +1899,17 @@ void Server::abort_connection(Reactor *reactor, ListenPort *ls, Socket *_socket)
     }
 }
 
-void Server::reset_worker_counter(Worker *worker) {
-    auto value = worker->concurrency;
+void Server::abort_worker(Worker *worker) {
+	// see https://github.com/swoole/swoole-src/issues/5407
+	// see https://github.com/swoole/swoole-src/issues/5432
+	auto value = worker->concurrency;
     if (value > 0 && sw_atomic_value_cmp_set(&worker->concurrency, value, 0) == value) {
         sw_atomic_sub_fetch(&gs->concurrency, worker->concurrency);
     }
     worker->request_count = 0;
     worker->response_count = 0;
     worker->dispatch_count = 0;
-}
 
-void Server::abort_worker(Worker *worker) {
-    reset_worker_counter(worker);
     if (!is_process_mode()) {
         SW_LOOP_N(SW_SESSION_LIST_SIZE) {
             Session *session = get_session(i);
