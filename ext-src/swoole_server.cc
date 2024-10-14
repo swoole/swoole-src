@@ -2813,6 +2813,7 @@ static PHP_METHOD(swoole_server, stats) {
     add_assoc_long_ex(return_value, ZEND_STRL("total_recv_bytes"), serv->gs->total_recv_bytes);
     add_assoc_long_ex(return_value, ZEND_STRL("total_send_bytes"), serv->gs->total_send_bytes);
     add_assoc_long_ex(return_value, ZEND_STRL("pipe_packet_msg_id"), serv->gs->pipe_packet_msg_id);
+    add_assoc_long_ex(return_value, ZEND_STRL("concurrency"), serv->get_concurrency());
     add_assoc_long_ex(return_value, ZEND_STRL("session_round"), serv->gs->session_round);
     add_assoc_long_ex(return_value, ZEND_STRL("min_fd"), serv->gs->min_fd);
     add_assoc_long_ex(return_value, ZEND_STRL("max_fd"), serv->gs->max_fd);
@@ -2821,6 +2822,7 @@ static PHP_METHOD(swoole_server, stats) {
         add_assoc_long_ex(return_value, ZEND_STRL("worker_request_count"), SwooleWG.worker->request_count);
         add_assoc_long_ex(return_value, ZEND_STRL("worker_response_count"), SwooleWG.worker->response_count);
         add_assoc_long_ex(return_value, ZEND_STRL("worker_dispatch_count"), SwooleWG.worker->dispatch_count);
+        add_assoc_long_ex(return_value, ZEND_STRL("worker_concurrency"), SwooleWG.worker->concurrency);
     }
 
     if (serv->task_ipc_mode > Server::TASK_IPC_UNIXSOCK && serv->gs->task_workers.queue) {

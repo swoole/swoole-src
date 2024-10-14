@@ -169,6 +169,14 @@ void Server::check_worker_exit_status(Worker *worker, const ExitStatus &exit_sta
         if (onWorkerError != nullptr) {
             onWorkerError(this, worker, exit_status);
         }
+        /**
+         * The work process has exited unexpectedly, requiring a cleanup of the shared memory state.
+         * This must be done between the termination of the old process and the initiation of the new one;
+         * otherwise, data contention may occur.
+         */
+        if (worker->type == SW_PROCESS_WORKER) {
+            abort_worker(worker);
+        }
     }
 }
 
