@@ -60,6 +60,9 @@ END_EXTERN_C()
 
 using swoole::Server;
 using swoole::network::Socket;
+#ifdef SW_USE_IOURING
+using swoole::AsyncIouring;
+#endif
 
 ZEND_DECLARE_MODULE_GLOBALS(swoole)
 
@@ -354,7 +357,7 @@ SW_API zend_long php_swoole_parse_to_size(zval *zv) {
         auto size = zend_ini_parse_quantity(Z_STR_P(zv), &errstr);
         if (errstr) {
             php_swoole_fatal_error(
-            		E_ERROR, "failed to parse '%s' to size, Error: %s", Z_STRVAL_P(zv), ZSTR_VAL(errstr));
+                E_ERROR, "failed to parse '%s' to size, Error: %s", Z_STRVAL_P(zv), ZSTR_VAL(errstr));
             zend_string_release(errstr);
         }
         return size;
@@ -715,6 +718,14 @@ PHP_MINIT_FUNCTION(swoole) {
      */
     SW_REGISTER_LONG_CONSTANT("SWOOLE_IOV_MAX", IOV_MAX);
 
+    /**
+     * iouring
+     */
+#ifdef SW_USE_IOURING
+     SW_REGISTER_LONG_CONSTANT("SWOOLE_IOURING_DEFAULT", AsyncIouring::SW_IOURING_DEFAULT);
+     SW_REGISTER_LONG_CONSTANT("SWOOLE_IOURING_SQPOLL", AsyncIouring::SW_IOURING_SQPOLL);
+#endif
+
     // clang-format on
 
     if (SWOOLE_G(use_shortname)) {
@@ -1040,7 +1051,7 @@ PHP_RINIT_FUNCTION(swoole) {
          * This would cause php_swoole_load_library function not to execute correctly, so it must be replaced
          * with the execute_ex function.
          */
-        void (*old_zend_execute_ex)(zend_execute_data * execute_data) = nullptr;
+        void (*old_zend_execute_ex)(zend_execute_data *execute_data) = nullptr;
         if (UNEXPECTED(zend_execute_ex != execute_ex)) {
             old_zend_execute_ex = zend_execute_ex;
             zend_execute_ex = execute_ex;

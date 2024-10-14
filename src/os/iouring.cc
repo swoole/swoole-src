@@ -43,7 +43,8 @@ AsyncIouring::AsyncIouring(Reactor *reactor_) {
         entries = 1 << i;
     }
 
-    int ret = io_uring_queue_init(entries, &ring, 0);
+    int ret =
+        io_uring_queue_init(entries, &ring, (SwooleG.iouring_flag == IORING_SETUP_SQPOLL ? IORING_SETUP_SQPOLL : 0));
     if (ret < 0) {
         swoole_warning("Create io_uring failed, the error code is %d", -ret);
         throw swoole::Exception(SW_ERROR_WRONG_OPERATION);
@@ -183,21 +184,14 @@ bool AsyncIouring::open(AsyncEvent *event) {
         return true;
     }
 
-    set_iouring_sqe_data(sqe, (void *) event);
+    io_uring_sqe_set_data(sqe, (void *) event);
     sqe->addr = (uintptr_t) event->pathname;
     sqe->fd = AT_FDCWD;
     sqe->len = event->mode;
     sqe->opcode = SW_IORING_OP_OPENAT;
     sqe->open_flags = event->flags | O_CLOEXEC;
 
-    bool result = submit_iouring_sqe();
-
-    if (!result) {
-        return false;
-    }
-
-    task_num++;
-    return true;
+    return submit_iouring_sqe(event);
 }
 
 bool AsyncIouring::close(AsyncEvent *event) {
@@ -207,18 +201,11 @@ bool AsyncIouring::close(AsyncEvent *event) {
         return true;
     }
 
-    set_iouring_sqe_data(sqe, (void *) event);
+    io_uring_sqe_set_data(sqe, (void *) event);
     sqe->fd = event->fd;
     sqe->opcode = SW_IORING_OP_CLOSE;
 
-    bool result = submit_iouring_sqe();
-
-    if (!result) {
-        return false;
-    }
-
-    task_num++;
-    return true;
+    return submit_iouring_sqe(event);
 }
 
 bool AsyncIouring::wr(AsyncEvent *event) {
@@ -228,21 +215,14 @@ bool AsyncIouring::wr(AsyncEvent *event) {
         return true;
     }
 
-    set_iouring_sqe_data(sqe, (void *) event);
+    io_uring_sqe_set_data(sqe, (void *) event);
     sqe->fd = event->fd;
     sqe->addr = event->opcode == SW_IORING_OP_READ ? (uintptr_t) event->rbuf : (uintptr_t) event->wbuf;
     sqe->len = event->count;
     sqe->off = -1;
     sqe->opcode = event->opcode;
 
-    bool result = submit_iouring_sqe();
-
-    if (!result) {
-        return false;
-    }
-
-    task_num++;
-    return true;
+    return submit_iouring_sqe(event);
 }
 
 bool AsyncIouring::statx(AsyncEvent *event) {
@@ -252,7 +232,7 @@ bool AsyncIouring::statx(AsyncEvent *event) {
         return true;
     }
 
-    set_iouring_sqe_data(sqe, (void *) event);
+    io_uring_sqe_set_data(sqe, (void *) event);
     if (event->opcode == SW_IORING_OP_FSTAT) {
         sqe->addr = (uintptr_t) "";
         sqe->fd = event->fd;
@@ -266,14 +246,7 @@ bool AsyncIouring::statx(AsyncEvent *event) {
     sqe->opcode = SW_IORING_OP_STATX;
     sqe->off = (uintptr_t) event->statxbuf;
 
-    bool result = submit_iouring_sqe();
-
-    if (!result) {
-        return false;
-    }
-
-    task_num++;
-    return true;
+    return submit_iouring_sqe(event);
 }
 
 bool AsyncIouring::mkdir(AsyncEvent *event) {
@@ -283,19 +256,13 @@ bool AsyncIouring::mkdir(AsyncEvent *event) {
         return true;
     }
 
-    set_iouring_sqe_data(sqe, (void *) event);
+    io_uring_sqe_set_data(sqe, (void *) event);
     sqe->addr = (uintptr_t) event->pathname;
     sqe->fd = AT_FDCWD;
     sqe->len = event->mode;
     sqe->opcode = SW_IORING_OP_MKDIRAT;
-    bool result = submit_iouring_sqe();
 
-    if (!result) {
-        return false;
-    }
-
-    task_num++;
-    return true;
+    return submit_iouring_sqe(event);
 }
 
 bool AsyncIouring::unlink(AsyncEvent *event) {
@@ -305,7 +272,7 @@ bool AsyncIouring::unlink(AsyncEvent *event) {
         return true;
     }
 
-    set_iouring_sqe_data(sqe, (void *) event);
+    io_uring_sqe_set_data(sqe, (void *) event);
 
     sqe->addr = (uintptr_t) event->pathname;
     sqe->fd = AT_FDCWD;
@@ -313,14 +280,8 @@ bool AsyncIouring::unlink(AsyncEvent *event) {
     if (event->opcode == SW_IORING_OP_UNLINK_DIR) {
         sqe->unlink_flags |= AT_REMOVEDIR;
     }
-    bool result = submit_iouring_sqe();
 
-    if (!result) {
-        return false;
-    }
-
-    task_num++;
-    return true;
+    return submit_iouring_sqe(event);
 }
 
 bool AsyncIouring::rename(AsyncEvent *event) {
@@ -330,21 +291,15 @@ bool AsyncIouring::rename(AsyncEvent *event) {
         return true;
     }
 
-    set_iouring_sqe_data(sqe, (void *) event);
+    io_uring_sqe_set_data(sqe, (void *) event);
 
     sqe->addr = (uintptr_t) event->pathname;
     sqe->addr2 = (uintptr_t) event->pathname2;
     sqe->fd = AT_FDCWD;
     sqe->len = AT_FDCWD;
     sqe->opcode = SW_IORING_OP_RENAMEAT;
-    bool result = submit_iouring_sqe();
 
-    if (!result) {
-        return false;
-    }
-
-    task_num++;
-    return true;
+    return submit_iouring_sqe(event);
 }
 
 bool AsyncIouring::fsync(AsyncEvent *event) {
@@ -354,7 +309,7 @@ bool AsyncIouring::fsync(AsyncEvent *event) {
         return true;
     }
 
-    set_iouring_sqe_data(sqe, (void *) event);
+    io_uring_sqe_set_data(sqe, (void *) event);
     sqe->fd = event->fd;
     sqe->addr = (unsigned long) nullptr;
     sqe->opcode = IORING_OP_FSYNC;
@@ -366,14 +321,7 @@ bool AsyncIouring::fsync(AsyncEvent *event) {
         sqe->fsync_flags = IORING_FSYNC_DATASYNC;
     }
 
-    bool result = submit_iouring_sqe();
-
-    if (!result) {
-        return false;
-    }
-
-    task_num++;
-    return true;
+    return submit_iouring_sqe(event);
 }
 
 int AsyncIouring::callback(Reactor *reactor, Event *event) {

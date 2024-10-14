@@ -60,7 +60,7 @@ void php_swoole_set_aio_option(HashTable *vht) {
     if (php_swoole_array_get_value(vht, "aio_max_idle_time", ztmp)) {
         SwooleG.aio_max_idle_time = zval_get_double(ztmp);
     }
-#if defined(__linux__) && defined(SW_USE_IOURING)
+#ifdef SW_USE_IOURING
     if (php_swoole_array_get_value(vht, "iouring_entries", ztmp)) {
         zend_long v = zval_get_long(ztmp);
         SwooleG.iouring_entries = SW_MAX(0, SW_MIN(v, UINT32_MAX));
@@ -68,6 +68,9 @@ void php_swoole_set_aio_option(HashTable *vht) {
     if (php_swoole_array_get_value(vht, "iouring_workers", ztmp)) {
         zend_long v = zval_get_long(ztmp);
         SwooleG.iouring_workers = SW_MAX(0, SW_MIN(v, UINT32_MAX));
+    }
+    if (php_swoole_array_get_value(vht, "iouring_flag", ztmp)) {
+        SwooleG.iouring_flag = zval_get_long(ztmp);
     }
 #endif
 }
