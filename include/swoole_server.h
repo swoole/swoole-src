@@ -1002,7 +1002,7 @@ class Server {
     }
 
     uint16_t get_command_id(EventData *cmd) {
-    	return cmd->info.server_fd;
+        return cmd->info.server_fd;
     }
 
     EventData *get_task_result() {
@@ -1346,6 +1346,7 @@ class Server {
     void call_hook(enum HookType type, void *arg);
     void call_worker_start_callback(Worker *worker);
     void call_worker_stop_callback(Worker *worker);
+    void call_worker_error_callback(Worker *worker, const ExitStatus &status);
     void call_command_handler(MessageBus &mb, uint16_t worker_id, network::Socket *sock);
     std::string call_command_handler_in_master(int command_id, const std::string &msg);
     void call_command_callback(int64_t request_id, const std::string &result);

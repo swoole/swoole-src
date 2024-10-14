@@ -64,7 +64,7 @@ Assert::eq($atomic->get(), WORKER_NUM * 2);
 [%s]	WARNING	Manager::kill_timeout_process() (ERRNO 9101): worker(pid=%d, id=%d) exit timeout, force kill the process
 [%s]	WARNING	Manager::kill_timeout_process() (ERRNO 9101): worker(pid=%d, id=%d) exit timeout, force kill the process
 [%s]	WARNING	Manager::kill_timeout_process() (ERRNO 9101): worker(pid=%d, id=%d) exit timeout, force kill the process
-[%s]	WARNING	Factory::check_worker_exit_status(): worker(pid=%d, id=%d) abnormal exit, status=0, signal=9
-[%s]	WARNING	Factory::check_worker_exit_status(): worker(pid=%d, id=%d) abnormal exit, status=0, signal=9
-[%s]	WARNING	Factory::check_worker_exit_status(): worker(pid=%d, id=%d) abnormal exit, status=0, signal=9
-[%s]	WARNING	Factory::check_worker_exit_status(): worker(pid=%d, id=%d) abnormal exit, status=0, signal=9
+[%s]	WARNING	Worker::report_error(): worker(pid=%d, id=%d) abnormal exit, status=0, signal=9
+[%s]	WARNING	Worker::report_error(): worker(pid=%d, id=%d) abnormal exit, status=0, signal=9
+[%s]	WARNING	Worker::report_error(): worker(pid=%d, id=%d) abnormal exit, status=0, signal=9
+[%s]	WARNING	Worker::report_error(): worker(pid=%d, id=%d) abnormal exit, status=0, signal=9
