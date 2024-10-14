@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_server: reset concurrency [SWOOLE_BASE]
+swoole_http_server: reset concurrency [SWOOLE_PROCESS]
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
