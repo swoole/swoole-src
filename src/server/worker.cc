@@ -334,6 +334,20 @@ void Server::call_worker_stop_callback(Worker *worker) {
     }
 }
 
+void Server::call_worker_error_callback(Worker *worker, const ExitStatus &status) {
+    if (onWorkerError != nullptr) {
+        onWorkerError(this, worker, status);
+    }
+    /**
+     * The work process has exited unexpectedly, requiring a cleanup of the shared memory state.
+     * This must be done between the termination of the old process and the initiation of the new one;
+     * otherwise, data contention may occur.
+     */
+    if (worker->type == SW_PROCESS_EVENTWORKER) {
+        abort_worker(worker);
+    }
+}
+
 bool Server::worker_is_running() {
     return SwooleWG.running;
 }

@@ -875,12 +875,10 @@ int ProcessPool::wait() {
             }
 
             if (!exit_status.is_normal_exit()) {
-                swoole_warning("worker#%d abnormal exit, status=%d, signal=%d"
-                               "%s",
-                               exit_worker->id,
-                               exit_status.get_code(),
-                               exit_status.get_signal(),
-                               exit_status.get_signal() == SIGSEGV ? SwooleG.bug_report_message.c_str() : "");
+                exit_worker->report_error(exit_status);
+                if (onWorkerError) {
+                    onWorkerError(this, exit_worker, exit_status);
+                }
             }
             new_pid = spawn(exit_worker);
             if (new_pid < 0) {
@@ -1002,6 +1000,16 @@ ssize_t Worker::send_pipe_message(const void *buf, size_t n, int flags) {
     } else {
         return pipe_sock->send_blocking(buf, n);
     }
+}
+
+void Worker::report_error(const ExitStatus &exit_status) {
+    swoole_warning("worker(pid=%d, id=%d) abnormal exit, status=%d, signal=%d"
+                   "%s",
+                   exit_status.get_pid(),
+                   id,
+                   exit_status.get_code(),
+                   exit_status.get_signal(),
+                   exit_status.get_signal() == SIGSEGV ? SwooleG.bug_report_message.c_str() : "");
 }
 
 }  // namespace swoole
