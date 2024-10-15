@@ -382,6 +382,11 @@ void Server::stop_async_worker(Worker *worker) {
     worker->status = SW_WORKER_EXIT;
     Reactor *reactor = SwooleTG.reactor;
 
+    SwooleWG.shutdown = true;
+    if (worker->type == SW_PROCESS_EVENTWORKER) {
+        reset_worker_counter(worker);
+    }
+
     /**
      * force to end.
      */
@@ -399,7 +404,6 @@ void Server::stop_async_worker(Worker *worker) {
     SwooleWG.worker_copy = new Worker{};
     *SwooleWG.worker_copy = *worker;
     SwooleWG.worker = worker;
-    SwooleWG.shutdown = true;
 
     if (worker->pipe_worker && !worker->pipe_worker->removed) {
         reactor->remove_read_event(worker->pipe_worker);
