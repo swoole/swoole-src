@@ -1914,13 +1914,20 @@ void Server::abort_worker(Worker *worker) {
     worker->response_count = 0;
     worker->dispatch_count = 0;
 
-    if (!is_process_mode()) {
+    if (is_base_mode()) {
         SW_LOOP_N(SW_SESSION_LIST_SIZE) {
             Session *session = get_session(i);
             if (session->reactor_id == worker->id) {
                 session->fd = 0;
             }
         }
+    } else if (is_thread_mode()) {
+        sw_reactor()->destroyed = true;
+        foreach_connection([this, worker](Connection *conn) {
+            if (conn->reactor_id == worker->id) {
+                close(conn->session_id, true);
+            }
+        });
     }
 }
 

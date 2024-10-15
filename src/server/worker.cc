@@ -399,6 +399,7 @@ void Server::stop_async_worker(Worker *worker) {
     SwooleWG.worker_copy = new Worker{};
     *SwooleWG.worker_copy = *worker;
     SwooleWG.worker = worker;
+    SwooleWG.shutdown = true;
 
     if (worker->pipe_worker && !worker->pipe_worker->removed) {
         reactor->remove_read_event(worker->pipe_worker);
@@ -435,6 +436,14 @@ void Server::stop_async_worker(Worker *worker) {
         if (gs->event_workers.push_message(SW_WORKER_MESSAGE_STOP, &msg, sizeof(msg)) < 0) {
             swoole_sys_warning("failed to push WORKER_STOP message");
         }
+    } else if (is_thread_mode()) {
+        foreach_connection([this, reactor](Connection *conn) {
+            if (conn->reactor_id == reactor->id) {
+                close(conn->session_id, true);
+            }
+        });
+    } else {
+        assert(0);
     }
 
     reactor->set_wait_exit(true);
