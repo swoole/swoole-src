@@ -100,6 +100,12 @@ void php_swoole_server_rshutdown() {
     serv->drain_worker_pipe();
 
     if (serv->is_started() && serv->worker_is_running() && !serv->is_user_worker()) {
+        SwooleWG.shutdown = true;
+#ifdef SW_THREAD
+        if (serv->is_thread_mode()) {
+            serv->abort_worker(sw_worker());
+        }
+#endif
         if (php_swoole_is_fatal_error()) {
             swoole_error_log(SW_LOG_ERROR,
                              SW_ERROR_PHP_FATAL_ERROR,

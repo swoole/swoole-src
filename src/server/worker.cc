@@ -382,6 +382,11 @@ void Server::stop_async_worker(Worker *worker) {
     worker->status = SW_WORKER_EXIT;
     Reactor *reactor = SwooleTG.reactor;
 
+    SwooleWG.shutdown = true;
+    if (worker->type == SW_PROCESS_EVENTWORKER) {
+        reset_worker_counter(worker);
+    }
+
     /**
      * force to end.
      */
@@ -435,6 +440,14 @@ void Server::stop_async_worker(Worker *worker) {
         if (gs->event_workers.push_message(SW_WORKER_MESSAGE_STOP, &msg, sizeof(msg)) < 0) {
             swoole_sys_warning("failed to push WORKER_STOP message");
         }
+    } else if (is_thread_mode()) {
+        foreach_connection([this, reactor](Connection *conn) {
+            if (conn->reactor_id == reactor->id) {
+                close(conn->session_id, true);
+            }
+        });
+    } else {
+        assert(0);
     }
 
     reactor->set_wait_exit(true);

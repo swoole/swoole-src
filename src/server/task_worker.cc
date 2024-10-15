@@ -270,6 +270,7 @@ static void TaskWorker_onStart(ProcessPool *pool, Worker *worker) {
     } else {
         SwooleWG.run_always = true;
     }
+    SwooleWG.shutdown = false;
 }
 
 static void TaskWorker_onStop(ProcessPool *pool, Worker *worker) {

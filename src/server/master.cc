@@ -1899,11 +1899,10 @@ void Server::abort_connection(Reactor *reactor, ListenPort *ls, Socket *_socket)
     }
 }
 
-void Server::abort_worker(Worker *worker) {
-    // see https://github.com/swoole/swoole-src/issues/5407
-    // see https://github.com/swoole/swoole-src/issues/5432
+// see https://github.com/swoole/swoole-src/issues/5407
+// see https://github.com/swoole/swoole-src/issues/5432
+void Server::reset_worker_counter(Worker *worker) {
     auto value = worker->concurrency;
-
     if (value > 0 && sw_atomic_value_cmp_set(&worker->concurrency, value, 0) == value) {
         sw_atomic_sub_fetch(&gs->concurrency, value);
         if ((int) gs->concurrency < 0) {
@@ -1913,14 +1912,25 @@ void Server::abort_worker(Worker *worker) {
     worker->request_count = 0;
     worker->response_count = 0;
     worker->dispatch_count = 0;
+}
 
-    if (!is_process_mode()) {
+void Server::abort_worker(Worker *worker) {
+    reset_worker_counter(worker);
+
+    if (is_base_mode()) {
         SW_LOOP_N(SW_SESSION_LIST_SIZE) {
             Session *session = get_session(i);
             if (session->reactor_id == worker->id) {
                 session->fd = 0;
             }
         }
+    } else if (is_thread_mode()) {
+        sw_reactor()->destroyed = true;
+        foreach_connection([this, worker](Connection *conn) {
+            if (conn->reactor_id == worker->id) {
+                close(conn->session_id, true);
+            }
+        });
     }
 }
 
