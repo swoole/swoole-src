@@ -1,7 +1,9 @@
 --TEST--
 swoole_http_server: reset concurrency [SWOOLE_THREAD]
 --SKIPIF--
-<?php require __DIR__ . '/../../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../../include/skipif.inc';
+skip_if_nts();
+?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
