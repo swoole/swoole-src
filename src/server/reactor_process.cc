@@ -60,7 +60,7 @@ int Server::start_reactor_processes() {
     gs->event_workers.ptr = this;
     gs->event_workers.max_wait_time = max_wait_time;
     gs->event_workers.use_msgqueue = 0;
-    gs->event_workers.main_loop = worker_main_loop;
+    gs->event_workers.main_loop = reactor_process_main_loop;
     gs->event_workers.onWorkerNotFound = wait_other_worker;
     memcpy(workers, gs->event_workers.workers, sizeof(*workers) * worker_num);
     gs->event_workers.workers = workers;
@@ -79,7 +79,7 @@ int Server::start_reactor_processes() {
     if (is_single_worker()) {
         Worker *worker = &gs->event_workers.workers[0];
         SwooleWG.worker = worker;
-        int retval = worker_main_loop(&gs->event_workers, worker);
+        int retval = reactor_process_main_loop(&gs->event_workers, worker);
         if (retval == SW_OK) {
             gs->event_workers.destroy();
         }
@@ -151,7 +151,7 @@ static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
     return SW_OK;
 }
 
-int Server::worker_main_loop(ProcessPool *pool, Worker *worker) {
+int Server::reactor_process_main_loop(ProcessPool *pool, Worker *worker) {
     Server *serv = (Server *) pool->ptr;
     SwooleG.pid = getpid();
     swoole_set_process_type(SW_PROCESS_WORKER);
@@ -179,6 +179,8 @@ int Server::worker_main_loop(ProcessPool *pool, Worker *worker) {
 
     serv->worker_signal_init();
 
+    serv->gs->connection_nums[worker->id] = 0;
+
     for (auto ls : serv->ports) {
 #if defined(__linux__) and defined(HAVE_REUSEPORT)
         if (ls->is_stream() && serv->enable_reuse_port) {
@@ -192,6 +194,7 @@ int Server::worker_main_loop(ProcessPool *pool, Worker *worker) {
             }
         }
 #endif
+        ls->gs->connection_nums[worker->id] = 0;
         if (reactor->add(ls->socket, SW_EVENT_READ) < 0) {
             return SW_ERR;
         }

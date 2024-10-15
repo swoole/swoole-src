@@ -334,6 +334,20 @@ void Server::call_worker_stop_callback(Worker *worker) {
     }
 }
 
+void Server::call_worker_error_callback(Worker *worker, const ExitStatus &status) {
+    if (onWorkerError != nullptr) {
+        onWorkerError(this, worker, status);
+    }
+    /**
+     * The work process has exited unexpectedly, requiring a cleanup of the shared memory state.
+     * This must be done between the termination of the old process and the initiation of the new one;
+     * otherwise, data contention may occur.
+     */
+    if (worker->type == SW_PROCESS_EVENTWORKER) {
+        abort_worker(worker);
+    }
+}
+
 bool Server::worker_is_running() {
     return SwooleWG.running;
 }
@@ -367,6 +381,11 @@ bool Server::kill_worker(WorkerId worker_id, bool wait_reactor) {
 void Server::stop_async_worker(Worker *worker) {
     worker->status = SW_WORKER_EXIT;
     Reactor *reactor = SwooleTG.reactor;
+
+    SwooleWG.shutdown = true;
+    if (worker->type == SW_PROCESS_EVENTWORKER) {
+        reset_worker_counter(worker);
+    }
 
     /**
      * force to end.
@@ -421,6 +440,14 @@ void Server::stop_async_worker(Worker *worker) {
         if (gs->event_workers.push_message(SW_WORKER_MESSAGE_STOP, &msg, sizeof(msg)) < 0) {
             swoole_sys_warning("failed to push WORKER_STOP message");
         }
+    } else if (is_thread_mode()) {
+        foreach_connection([this, reactor](Connection *conn) {
+            if (conn->reactor_id == reactor->id) {
+                close(conn->session_id, true);
+            }
+        });
+    } else {
+        assert(0);
     }
 
     reactor->set_wait_exit(true);
@@ -476,6 +503,23 @@ void Server::drain_worker_pipe() {
                 sw_reactor()->drain_write_buffer(worker->pipe_master);
             }
         }
+    }
+}
+
+void Server::clean_worker_connections(Worker *worker) {
+    SwooleWG.shutdown = true;
+    sw_reactor()->destroyed = true;
+
+    if (is_thread_mode()) {
+        foreach_connection([this, worker](Connection *conn) {
+            if (conn->reactor_id == worker->id) {
+                close(conn->session_id, true);
+            }
+        });
+    } else if (is_base_mode()) {
+        foreach_connection([this](Connection *conn) { close(conn->session_id, true); });
+    } else {
+        abort();
     }
 }
 

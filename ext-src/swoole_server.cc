@@ -100,6 +100,9 @@ void php_swoole_server_rshutdown() {
     serv->drain_worker_pipe();
 
     if (serv->is_started() && serv->worker_is_running() && !serv->is_user_worker()) {
+        if (serv->is_event_worker() && !serv->is_process_mode()) {
+            serv->clean_worker_connections(sw_worker());
+        }
         if (php_swoole_is_fatal_error()) {
             swoole_error_log(SW_LOG_ERROR,
                              SW_ERROR_PHP_FATAL_ERROR,
@@ -2658,6 +2661,12 @@ static PHP_METHOD(swoole_server, start) {
             }
             php_swoole_thread_start(bootstrap_copy, thread_argv);
         };
+
+        serv->worker_thread_get_exit_status = [](pthread_t ptid) -> int {
+            return php_swoole_thread_get_exit_status(ptid);
+        };
+
+        serv->worker_thread_join = [](pthread_t ptid) { php_swoole_thread_join(ptid); };
     }
 #endif
 
@@ -2917,6 +2926,7 @@ static PHP_METHOD(swoole_server, stats) {
     add_assoc_long_ex(return_value, ZEND_STRL("total_recv_bytes"), serv->gs->total_recv_bytes);
     add_assoc_long_ex(return_value, ZEND_STRL("total_send_bytes"), serv->gs->total_send_bytes);
     add_assoc_long_ex(return_value, ZEND_STRL("pipe_packet_msg_id"), serv->gs->pipe_packet_msg_id);
+    add_assoc_long_ex(return_value, ZEND_STRL("concurrency"), serv->get_concurrency());
     add_assoc_long_ex(return_value, ZEND_STRL("session_round"), serv->gs->session_round);
     add_assoc_long_ex(return_value, ZEND_STRL("min_fd"), serv->gs->min_fd);
     add_assoc_long_ex(return_value, ZEND_STRL("max_fd"), serv->gs->max_fd);
@@ -2925,6 +2935,7 @@ static PHP_METHOD(swoole_server, stats) {
         add_assoc_long_ex(return_value, ZEND_STRL("worker_request_count"), sw_worker()->request_count);
         add_assoc_long_ex(return_value, ZEND_STRL("worker_response_count"), sw_worker()->response_count);
         add_assoc_long_ex(return_value, ZEND_STRL("worker_dispatch_count"), sw_worker()->dispatch_count);
+        add_assoc_long_ex(return_value, ZEND_STRL("worker_concurrency"), sw_worker()->concurrency);
     }
 
     if (serv->task_ipc_mode > Server::TASK_IPC_UNIXSOCK && serv->gs->task_workers.queue) {

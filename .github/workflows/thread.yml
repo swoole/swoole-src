@@ -32,7 +32,7 @@ jobs:
         pwd
         echo "`git log -20 --pretty --oneline`"
         echo "`git log -10 --stat --pretty --oneline`"
-    - name: Run Swoole test
+    - name: Run tests
       run: |
         export SWOOLE_BRANCH=${GITHUB_REF##*/}
         export SWOOLE_THREAD=1

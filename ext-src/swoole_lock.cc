@@ -31,6 +31,12 @@ using swoole::SpinLock;
 using swoole::RWLock;
 #endif
 
+#ifdef HAVE_IOURING_FUTEX
+#include "swoole_coroutine.h"
+using swoole::Coroutine;
+using swoole::CoroutineLock;
+#endif
+
 static zend_class_entry *swoole_lock_ce;
 static zend_object_handlers swoole_lock_handlers;
 
@@ -118,6 +124,9 @@ void php_swoole_lock_minit(int module_number) {
 #ifdef HAVE_SPINLOCK
     zend_declare_class_constant_long(swoole_lock_ce, ZEND_STRL("SPINLOCK"), Lock::SPIN_LOCK);
 #endif
+#ifdef HAVE_IOURING_FUTEX
+    zend_declare_class_constant_long(swoole_lock_ce, ZEND_STRL("COROUTINELOCK"), Lock::COROUTINE_LOCK);
+#endif
     zend_declare_property_long(swoole_lock_ce, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
 
     SW_REGISTER_LONG_CONSTANT("SWOOLE_MUTEX", Lock::MUTEX);
@@ -126,6 +135,9 @@ void php_swoole_lock_minit(int module_number) {
 #endif
 #ifdef HAVE_SPINLOCK
     SW_REGISTER_LONG_CONSTANT("SWOOLE_SPINLOCK", Lock::SPIN_LOCK);
+#endif
+#ifdef HAVE_IOURING_FUTEX
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_COROUTINE_LOCK", Lock::COROUTINE_LOCK);
 #endif
 }
 
@@ -158,8 +170,13 @@ static PHP_METHOD(swoole_lock, __construct) {
     case Lock::MUTEX:
         lock = new Mutex(Mutex::PROCESS_SHARED);
         break;
+#ifdef HAVE_IOURING_FUTEX
+    case Lock::COROUTINE_LOCK:
+        lock = new CoroutineLock();
+        break;
+#endif
     default:
-        zend_throw_exception(swoole_exception_ce, "lock type[%d] is not support", type);
+        zend_throw_exception_ex(swoole_exception_ce, SW_ERROR_INVALID_PARAMS, "lock type[%d] is not support", type);
         RETURN_FALSE;
         break;
     }
@@ -171,6 +188,15 @@ static PHP_METHOD(swoole_lock, __destruct) {}
 
 static PHP_METHOD(swoole_lock, lock) {
     Lock *lock = php_swoole_lock_get_and_check_ptr(ZEND_THIS);
+#ifdef HAVE_IOURING_FUTEX
+    if (lock->get_type() == Lock::COROUTINE_LOCK && (SwooleTG.reactor == nullptr || !Coroutine::get_current())) {
+        zend_throw_exception_ex(swoole_exception_ce,
+                                SW_ERROR_OPERATION_NOT_SUPPORT,
+                                "lock type[%d] must be used in a coroutine environment",
+                                (int) Lock::COROUTINE_LOCK);
+        RETURN_FALSE;
+    }
+#endif
     SW_LOCK_CHECK_RETURN(lock->lock());
 }
 
@@ -197,6 +223,15 @@ static PHP_METHOD(swoole_lock, lockwait) {
 
 static PHP_METHOD(swoole_lock, unlock) {
     Lock *lock = php_swoole_lock_get_and_check_ptr(ZEND_THIS);
+#ifdef HAVE_IOURING_FUTEX
+    if (lock->get_type() == Lock::COROUTINE_LOCK && (SwooleTG.reactor == nullptr || !Coroutine::get_current())) {
+        zend_throw_exception_ex(swoole_exception_ce,
+                                SW_ERROR_OPERATION_NOT_SUPPORT,
+                                "lock type[%d] must be used in a coroutine environment",
+                                (int) Lock::COROUTINE_LOCK);
+        RETURN_FALSE;
+    }
+#endif
     SW_LOCK_CHECK_RETURN(lock->unlock());
 }
 

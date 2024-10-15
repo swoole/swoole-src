@@ -117,7 +117,6 @@ pid_t Factory::spawn_event_worker(Worker *worker) {
     }
 
     if (server_->is_base_mode()) {
-        server_->gs->connection_nums[worker->id] = 0;
         server_->gs->event_workers.main_loop(&server_->gs->event_workers, worker);
     } else {
         server_->start_event_worker(worker);
@@ -163,23 +162,8 @@ pid_t Factory::spawn_task_worker(Worker *worker) {
 
 void Factory::check_worker_exit_status(Worker *worker, const ExitStatus &exit_status) {
     if (exit_status.get_status() != 0) {
-        swoole_warning("worker(pid=%d, id=%d) abnormal exit, status=%d, signal=%d"
-                       "%s",
-                       exit_status.get_pid(),
-                       worker->id,
-                       exit_status.get_code(),
-                       exit_status.get_signal(),
-                       exit_status.get_signal() == SIGSEGV ? SwooleG.bug_report_message.c_str() : "");
-
-        if (server_->onWorkerError != nullptr) {
-            server_->onWorkerError(server_, worker, exit_status);
-        }
-        /**
-         * The work process has exited unexpectedly, requiring a cleanup of the shared memory state.
-         * This must be done between the termination of the old process and the initiation of the new one;
-         * otherwise, data contention may occur.
-         */
-        server_->abort_worker(worker);
+        worker->report_error(exit_status);
+        server_->call_worker_error_callback(worker, exit_status);
     }
 }
 

@@ -255,7 +255,7 @@ static int parse_header_name(const char *key, size_t keylen) {
 }
 
 static void http_set_date_header(String *response) {
-    static struct {
+    static SW_THREAD_LOCAL struct {
         time_t time;
         zend_string *date = nullptr;
     } cache{};

@@ -22,6 +22,10 @@
 
 #include <system_error>
 
+#ifdef HAVE_IOURING_FUTEX
+#include "swoole_coroutine_system.h"
+#endif
+
 namespace swoole {
 
 class Lock {
@@ -31,11 +35,15 @@ class Lock {
         RW_LOCK = 1,
         MUTEX = 3,
         SPIN_LOCK = 5,
-        ATOMIC_LOCK = 6,
+#ifdef HAVE_IOURING_FUTEX
+        COROUTINE_LOCK = 6,
+#endif
     };
+
     Type get_type() {
         return type_;
     }
+
     virtual ~Lock(){};
     virtual int lock_rd() = 0;
     virtual int lock() = 0;
@@ -98,6 +106,23 @@ class SpinLock : public Lock {
   public:
     SpinLock(int use_in_process);
     ~SpinLock();
+    int lock_rd() override;
+    int lock() override;
+    int unlock() override;
+    int trylock_rd() override;
+    int trylock() override;
+};
+#endif
+
+#ifdef HAVE_IOURING_FUTEX
+class CoroutineLock : public Lock {
+  private:
+    sw_atomic_t *value = nullptr;
+    Coroutine *current_coroutine = nullptr;
+
+  public:
+    CoroutineLock();
+    ~CoroutineLock();
     int lock_rd() override;
     int lock() override;
     int unlock() override;

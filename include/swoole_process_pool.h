@@ -161,6 +161,7 @@ struct Worker {
 
     ssize_t send_pipe_message(const void *buf, size_t n, int flags);
     bool has_exceeded_max_request();
+    void report_error(const ExitStatus &exit_status);
 
     void set_status(enum swWorkerStatus _status) {
         status = _status;
@@ -258,6 +259,7 @@ struct ProcessPool {
     void (*onWorkerStart)(ProcessPool *pool, Worker *worker);
     void (*onMessage)(ProcessPool *pool, RecvData *msg);
     void (*onWorkerStop)(ProcessPool *pool, Worker *worker);
+    void (*onWorkerError)(ProcessPool *pool, Worker *worker, const ExitStatus &exit_status);
     void (*onWorkerMessage)(ProcessPool *pool, EventData *msg);
     int (*onWorkerNotFound)(ProcessPool *pool, const ExitStatus &exit_status);
     int (*main_loop)(ProcessPool *pool, Worker *worker);
@@ -347,7 +349,7 @@ struct ProcessPool {
 
     static void kill_timeout_worker(Timer *timer, TimerNode *tnode);
 
- private:
+  private:
     static int run_with_task_protocol(ProcessPool *pool, Worker *worker);
     static int run_with_stream_protocol(ProcessPool *pool, Worker *worker);
     static int run_with_message_protocol(ProcessPool *pool, Worker *worker);

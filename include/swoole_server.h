@@ -457,6 +457,7 @@ class ThreadFactory : public BaseFactory {
     Worker manager;
     template <typename _Callable>
     void create_thread(int i, _Callable fn);
+    void join_thread(std::thread &thread);
     void at_thread_exit(Worker *worker);
     void create_message_bus();
     void destroy_message_bus();
@@ -991,6 +992,7 @@ class Server {
     Connection *add_connection(ListenPort *ls, network::Socket *_socket, int server_fd);
     void abort_connection(Reactor *reactor, ListenPort *ls, network::Socket *_socket);
     void abort_worker(Worker *worker);
+    void reset_worker_counter(Worker *worker);
     int connection_incoming(Reactor *reactor, Connection *conn);
 
     int get_idle_worker_num();
@@ -1002,7 +1004,7 @@ class Server {
     }
 
     uint16_t get_command_id(EventData *cmd) {
-    	return cmd->info.server_fd;
+        return cmd->info.server_fd;
     }
 
     EventData *get_task_result() {
@@ -1346,6 +1348,7 @@ class Server {
     void call_hook(enum HookType type, void *arg);
     void call_worker_start_callback(Worker *worker);
     void call_worker_stop_callback(Worker *worker);
+    void call_worker_error_callback(Worker *worker, const ExitStatus &status);
     void call_command_handler(MessageBus &mb, uint16_t worker_id, network::Socket *sock);
     std::string call_command_handler_in_master(int command_id, const std::string &msg);
     void call_command_callback(int64_t request_id, const std::string &result);
@@ -1461,6 +1464,7 @@ class Server {
     static void read_worker_message(ProcessPool *pool, EventData *msg);
 
     void drain_worker_pipe();
+    void clean_worker_connections(Worker *worker);
 
     /**
      * [Worker]
@@ -1470,7 +1474,10 @@ class Server {
     void worker_accept_event(DataHead *info);
     void worker_signal_init(void);
     bool worker_is_running();
+
     std::function<void(const WorkerFn &fn)> worker_thread_start;
+    std::function<void(pthread_t ptid)> worker_thread_join;
+    std::function<int(pthread_t ptid)> worker_thread_get_exit_status;
 
     /**
      * [Master]
@@ -1481,8 +1488,8 @@ class Server {
     bool signal_handler_read_message();
     bool signal_handler_reopen_logger();
 
-    static int worker_main_loop(ProcessPool *pool, Worker *worker);
     static void worker_signal_handler(int signo);
+    static int reactor_process_main_loop(ProcessPool *pool, Worker *worker);
     static void reactor_thread_main_loop(Server *serv, int reactor_id);
     static bool task_pack(EventData *task, const void *data, size_t data_len);
     static bool task_unpack(EventData *task, String *buffer, PacketPtr *packet);
