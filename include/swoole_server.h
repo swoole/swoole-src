@@ -934,6 +934,7 @@ class Server {
     Connection *add_connection(ListenPort *ls, network::Socket *_socket, int server_fd);
     void abort_connection(Reactor *reactor, ListenPort *ls, network::Socket *_socket);
     void abort_worker(Worker *worker);
+    void reset_worker_counter(Worker *worker);
     int connection_incoming(Reactor *reactor, Connection *conn);
 
     int get_idle_worker_num();

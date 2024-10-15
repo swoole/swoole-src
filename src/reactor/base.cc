@@ -48,7 +48,7 @@ ReactorImpl *make_reactor_kqueue(Reactor *_reactor, int max_events);
 
 ReactorImpl *make_reactor_select(Reactor *_reactor);
 
-void ReactorImpl::after_removal_failure(network::Socket *_socket) {
+void ReactorImpl::after_removal_failure(Socket *_socket) {
     if (!_socket->silent_remove) {
         swoole_sys_warning("failed to delete events[fd=%d#%d, type=%d, events=%d]",
                            _socket->fd,
@@ -297,7 +297,7 @@ ssize_t Reactor::_write(Reactor *reactor, Socket *socket, const void *buf, size_
     return write_func(reactor, socket, n, send_fn, append_fn);
 }
 
-ssize_t Reactor::_writev(Reactor *reactor, network::Socket *socket, const iovec *iov, size_t iovcnt) {
+ssize_t Reactor::_writev(Reactor *reactor, Socket *socket, const iovec *iov, size_t iovcnt) {
 #ifdef SW_USE_OPENSSL
     if (socket->ssl) {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_OPERATION_NOT_SUPPORT, "does not support SSL");
@@ -359,13 +359,13 @@ int Reactor::_writable_callback(Reactor *reactor, Event *ev) {
     return SW_OK;
 }
 
-void Reactor::drain_write_buffer(swSocket *socket) {
+void Reactor::drain_write_buffer(Socket *socket) {
     Event event = {};
     event.socket = socket;
     event.fd = socket->fd;
 
     while (!Buffer::empty(socket->out_buffer)) {
-        if (socket->wait_event(network::Socket::default_write_timeout, SW_EVENT_WRITE) == SW_ERR) {
+        if (socket->wait_event(Socket::default_write_timeout, SW_EVENT_WRITE) == SW_ERR) {
             break;
         }
         _writable_callback(this, &event);

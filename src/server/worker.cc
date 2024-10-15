@@ -305,6 +305,11 @@ void Server::stop_async_worker(Worker *worker) {
     worker->status = SW_WORKER_EXIT;
     Reactor *reactor = SwooleTG.reactor;
 
+    SwooleWG.shutdown = true;
+    if (worker->type == SW_PROCESS_WORKER) {
+        reset_worker_counter(worker);
+    }
+
     /**
      * force to end.
      */
