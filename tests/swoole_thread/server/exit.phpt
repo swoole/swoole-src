@@ -46,7 +46,7 @@ $serv->on('WorkerStop', function (Server $serv, $workerId) {
 });
 $serv->on('Request', function ($req, $resp) use ($serv) {
     if ($req->server['request_uri'] == '/exit') {
-        swoole_test_fn('exit');
+        swoole_test_fn('bailout');
     }
 });
 $serv->on('shutdown', function () {

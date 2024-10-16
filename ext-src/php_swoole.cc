@@ -1508,14 +1508,13 @@ static PHP_FUNCTION(swoole_test_fn) {
         swoole_fatal_error(SW_ERROR_FOR_TEST, "test");
         php_printf("never be executed here\n");
     } else if (SW_STRCASEEQ(test_case, test_case_len, "bailout")) {
+        EG(exit_status) = 95;
+#ifdef SW_THREAD
         zend_bailout();
+#else
+        php_swoole_thread_bailout();
+#endif
     } else if (SW_STRCASEEQ(test_case, test_case_len, "abort")) {
         abort();
     }
-#ifdef SW_THREAD
-    else if (SW_STRCASEEQ(test_case, test_case_len, "exit")) {
-        EG(exit_status) = 95;
-        php_swoole_thread_bailout();
-    }
-#endif
 }
