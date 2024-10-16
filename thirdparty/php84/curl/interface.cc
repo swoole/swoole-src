@@ -770,7 +770,7 @@ static size_t fn_write_header(char *data, size_t size, size_t nmemb, void *ctx) 
 }
 /* }}} */
 
-static int curl_debug(CURL *handle, curl_infotype type, char *data, size_t size, void *clientp) /* {{{ */
+static int fn_debug(CURL *handle, curl_infotype type, char *data, size_t size, void *clientp) /* {{{ */
 {
     php_curl *ch = (php_curl *)clientp;
 
@@ -1508,7 +1508,7 @@ static zend_result _php_curl_setopt(php_curl *ch, zend_long option, zval *zvalue
         HANDLE_CURL_OPTION_CALLABLE(ch, CURLOPT_PROGRESS, handlers.progress, fn_progress);
         HANDLE_CURL_OPTION_CALLABLE(ch, CURLOPT_XFERINFO, handlers.xferinfo, fn_xferinfo);
         HANDLE_CURL_OPTION_CALLABLE(ch, CURLOPT_FNMATCH_, handlers.fnmatch, fn_fnmatch);
-        HANDLE_CURL_OPTION_CALLABLE(ch, CURLOPT_DEBUG, handlers.debug, curl_debug);
+        HANDLE_CURL_OPTION_CALLABLE(ch, CURLOPT_DEBUG, handlers.debug, fn_debug);
 #if LIBCURL_VERSION_NUM >= 0x075000 /* Available since 7.80.0 */
         HANDLE_CURL_OPTION_CALLABLE(ch, CURLOPT_PREREQ, handlers.prereq, fn_prereqfunction);
 #endif
