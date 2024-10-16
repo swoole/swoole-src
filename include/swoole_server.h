@@ -1464,6 +1464,7 @@ class Server {
     static void read_worker_message(ProcessPool *pool, EventData *msg);
 
     void drain_worker_pipe();
+    void clean_worker_connections(Worker *worker);
 
     /**
      * [Worker]

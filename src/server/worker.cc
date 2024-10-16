@@ -506,6 +506,23 @@ void Server::drain_worker_pipe() {
     }
 }
 
+void Server::clean_worker_connections(Worker *worker) {
+    SwooleWG.shutdown = true;
+    sw_reactor()->destroyed = true;
+
+    if (is_thread_mode()) {
+        foreach_connection([this, worker](Connection *conn) {
+            if (conn->reactor_id == worker->id) {
+                close(conn->session_id, true);
+            }
+        });
+    } else if (is_base_mode()) {
+        foreach_connection([this](Connection *conn) { close(conn->session_id, true); });
+    } else {
+        abort();
+    }
+}
+
 /**
  * main loop [Worker]
  */

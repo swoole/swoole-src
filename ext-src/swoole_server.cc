@@ -100,17 +100,9 @@ void php_swoole_server_rshutdown() {
     serv->drain_worker_pipe();
 
     if (serv->is_started() && serv->worker_is_running() && !serv->is_user_worker()) {
-        SwooleWG.shutdown = true;
-#ifdef SW_THREAD
-        if (serv->is_thread_mode()) {
-            sw_reactor()->destroyed = true;
-            serv->foreach_connection([serv](Connection *conn) {
-                if (conn->reactor_id == sw_worker()->id) {
-                    serv->close(conn->session_id, true);
-                }
-            });
+        if (serv->is_event_worker() && !serv->is_process_mode()) {
+            serv->clean_worker_connections(sw_worker());
         }
-#endif
         if (php_swoole_is_fatal_error()) {
             swoole_error_log(SW_LOG_ERROR,
                              SW_ERROR_PHP_FATAL_ERROR,
