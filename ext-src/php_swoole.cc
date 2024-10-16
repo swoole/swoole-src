@@ -1051,7 +1051,7 @@ PHP_RINIT_FUNCTION(swoole) {
          * This would cause php_swoole_load_library function not to execute correctly, so it must be replaced
          * with the execute_ex function.
          */
-        void (*old_zend_execute_ex)(zend_execute_data *execute_data) = nullptr;
+        void (*old_zend_execute_ex)(zend_execute_data * execute_data) = nullptr;
         if (UNEXPECTED(zend_execute_ex != execute_ex)) {
             old_zend_execute_ex = zend_execute_ex;
             zend_execute_ex = execute_ex;
@@ -1508,7 +1508,12 @@ static PHP_FUNCTION(swoole_test_fn) {
         swoole_fatal_error(SW_ERROR_FOR_TEST, "test");
         php_printf("never be executed here\n");
     } else if (SW_STRCASEEQ(test_case, test_case_len, "bailout")) {
+        EG(exit_status) = 95;
+#ifdef SW_THREAD
+        php_swoole_thread_bailout();
+#else
         zend_bailout();
+#endif
     } else if (SW_STRCASEEQ(test_case, test_case_len, "abort")) {
         abort();
     }
