@@ -525,8 +525,8 @@ int php_swoole_thread_get_exit_status(pthread_t ptid) {
 void php_swoole_thread_bailout(void) {
     if (thread_bailout) {
         EG(bailout) = thread_bailout;
-        zend_bailout();
     }
+    zend_bailout();
 }
 
 int php_swoole_thread_stream_cast(zval *zstream) {
