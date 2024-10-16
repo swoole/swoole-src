@@ -91,7 +91,7 @@ static PHP_FUNCTION(swoole_mime_type_list);
 static PHP_FUNCTION(swoole_substr_unserialize);
 static PHP_FUNCTION(swoole_substr_json_decode);
 static PHP_FUNCTION(swoole_internal_call_user_shutdown_begin);
-static PHP_FUNCTION(swoole_test_fn);  // only for unit tests
+static PHP_FUNCTION(swoole_implicit_fn);
 SW_EXTERN_C_END
 
 // clang-format off
@@ -130,8 +130,9 @@ const zend_function_entry swoole_functions[] = {
     PHP_FE(swoole_clear_dns_cache,    arginfo_swoole_clear_dns_cache)
     PHP_FE(swoole_substr_unserialize, arginfo_swoole_substr_unserialize)
     PHP_FE(swoole_substr_json_decode, arginfo_swoole_substr_json_decode)
-    PHP_FE(swoole_test_fn,            arginfo_swoole_test_fn)
     PHP_FE(swoole_internal_call_user_shutdown_begin, arginfo_swoole_internal_call_user_shutdown_begin)
+    // for test
+    PHP_FE(swoole_implicit_fn,           arginfo_swoole_implicit_fn)
     // for admin server
     ZEND_FE(swoole_get_objects,          arginfo_swoole_get_objects)
     ZEND_FE(swoole_get_vm_status,        arginfo_swoole_get_vm_status)
@@ -1497,24 +1498,32 @@ static PHP_FUNCTION(swoole_substr_json_decode) {
     zend::json_decode(return_value, str + offset, length, options, depth);
 }
 
-static PHP_FUNCTION(swoole_test_fn) {
-    char *test_case;
-    size_t test_case_len;
-    ZEND_PARSE_PARAMETERS_START(1, 1)
-    Z_PARAM_STRING(test_case, test_case_len)
+/**
+ * The implicit functions are intended solely for internal testing and will not be documented.
+ * These functions are unsafe, do not use if you are not an internal developer.
+ */
+static PHP_FUNCTION(swoole_implicit_fn) {
+    char *fn;
+    size_t l_fn;
+    zval *zargs = nullptr;
+
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+    Z_PARAM_STRING(fn, l_fn)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_ZVAL(zargs)
     ZEND_PARSE_PARAMETERS_END();
 
-    if (SW_STRCASEEQ(test_case, test_case_len, "fatal_error")) {
+    if (SW_STRCASEEQ(fn, l_fn, "fatal_error")) {
         swoole_fatal_error(SW_ERROR_FOR_TEST, "test");
         php_printf("never be executed here\n");
-    } else if (SW_STRCASEEQ(test_case, test_case_len, "bailout")) {
-        EG(exit_status) = 95;
+    } else if (SW_STRCASEEQ(fn, l_fn, "bailout")) {
+        EG(exit_status) = zargs ? zval_get_long(zargs) : 95;
 #ifdef SW_THREAD
         php_swoole_thread_bailout();
 #else
         zend_bailout();
 #endif
-    } else if (SW_STRCASEEQ(test_case, test_case_len, "abort")) {
+    } else if (SW_STRCASEEQ(fn, l_fn, "abort")) {
         abort();
     }
 }

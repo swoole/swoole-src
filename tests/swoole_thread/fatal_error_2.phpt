@@ -19,7 +19,7 @@ $pm = ProcessManager::exec(function () {
         echo "stop thread exited\n";
     } else {
         (function () {
-            swoole_test_fn('fatal_error');
+            swoole_implicit_fn('fatal_error');
         })();
     }
     echo "DONE\n";

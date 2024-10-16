@@ -121,7 +121,7 @@ function swoole_internal_call_user_shutdown_begin(): bool
 }
 
 
-function swoole_test_fn(string $case): void
+function swoole_implicit_fn(string $fn, mixed $args = null): void
 {
 
 }

@@ -21,7 +21,7 @@ $pm = ProcessManager::exec(function () {
     } else {
         Co\run(function () {
             (function () {
-                swoole_test_fn('fatal_error');
+                swoole_implicit_fn('fatal_error');
             })();
         });
     }

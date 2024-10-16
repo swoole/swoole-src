@@ -12,7 +12,7 @@ require __DIR__ . '/../../include/bootstrap.php';
 use Swoole\Thread;
 use Swoole\Http\Server;
 
-const CODE = 95;
+const CODE = 235;
 const SIZE = 2 * 1024 * 1024;
 $port = get_constant_port(__FILE__);
 
@@ -46,7 +46,7 @@ $serv->on('WorkerStop', function (Server $serv, $workerId) {
 });
 $serv->on('Request', function ($req, $resp) use ($serv) {
     if ($req->server['request_uri'] == '/exit') {
-        swoole_test_fn('bailout');
+        swoole_implicit_fn('exit', CODE);
     }
 });
 $serv->on('shutdown', function () {

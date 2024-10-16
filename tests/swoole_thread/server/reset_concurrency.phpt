@@ -45,7 +45,7 @@ $serv->on('WorkerStop', function (Server $serv, $workerId) {
     echo 'WORKER STOP', PHP_EOL;
 });
 $serv->on('pipeMessage', function (Server $serv, $wid, $msg) {
-    swoole_test_fn('bailout');
+    swoole_implicit_fn('bailout');
 });
 $serv->on('Request', function (Request $req, Response $resp) use ($serv) {
     [$queue, $atomic1, $atomic2] = Thread::getArguments();
@@ -61,7 +61,7 @@ $serv->on('Request', function (Request $req, Response $resp) use ($serv) {
                 $serv->sendMessage('error', $i);
             }
         }
-        swoole_test_fn('bailout');
+        swoole_implicit_fn('bailout');
     } else {
         $stats = $serv->stats();
         Assert::eq($stats['concurrency'], 1);
