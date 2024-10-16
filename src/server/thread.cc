@@ -105,7 +105,9 @@ void ThreadFactory::create_thread(int i, _Callable fn) {
 
 void ThreadFactory::join_thread(std::thread &thread) {
     thread.join();
-    server_->worker_thread_join(thread.native_handle());
+    if (server_->worker_thread_join) {
+        server_->worker_thread_join(thread.native_handle());
+    }
 }
 
 void ThreadFactory::spawn_event_worker(WorkerId i) {
@@ -198,10 +200,12 @@ void ThreadFactory::wait() {
             queue_.pop();
 
             std::thread &thread = threads_[exited_worker->id];
-            int status_code = server_->worker_thread_get_exit_status(thread.native_handle());
-            ExitStatus exit_status(exited_worker->pid, status_code << 8);
-
+            int status_code = 0;
+            if (server_->worker_thread_get_exit_status) {
+                status_code = server_->worker_thread_get_exit_status(thread.native_handle());
+            }
             if (status_code != 0) {
+                ExitStatus exit_status(exited_worker->pid, status_code << 8);
                 server_->call_worker_error_callback(exited_worker, exit_status);
                 swoole_warning("worker(tid=%d, id=%d) abnormal exit, status=%d",
                                exit_status.get_pid(),
