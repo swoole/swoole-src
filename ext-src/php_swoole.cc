@@ -1510,9 +1510,9 @@ static PHP_FUNCTION(swoole_test_fn) {
     } else if (SW_STRCASEEQ(test_case, test_case_len, "bailout")) {
         EG(exit_status) = 95;
 #ifdef SW_THREAD
-        zend_bailout();
-#else
         php_swoole_thread_bailout();
+#else
+        zend_bailout();
 #endif
     } else if (SW_STRCASEEQ(test_case, test_case_len, "abort")) {
         abort();

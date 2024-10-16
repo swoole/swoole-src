@@ -228,6 +228,6 @@ static PHP_METHOD(swoole_thread_arraylist, clean) {
 
 static PHP_METHOD(swoole_thread_arraylist, toArray) {
     auto ao = arraylist_fetch_object_check(ZEND_THIS);
-    ao->list->toArray(return_value);
+    ao->list->to_array(return_value);
 }
 #endif

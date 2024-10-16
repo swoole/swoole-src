@@ -260,7 +260,7 @@ static PHP_METHOD(swoole_thread_map, values) {
 
 static PHP_METHOD(swoole_thread_map, toArray) {
     auto mo = map_fetch_object_check(ZEND_THIS);
-    mo->map->toArray(return_value);
+    mo->map->to_array(return_value);
 }
 
 static PHP_METHOD(swoole_thread_map, clean) {

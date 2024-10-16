@@ -480,7 +480,7 @@ void php_swoole_thread_start(zend_string *file, ZendArray *argv) {
             zend_hash_update(&EG(symbol_table), ZSTR_KNOWN(ZEND_STR_ARGC), &global_argc);
         }
         if (argv) {
-            argv->toArray(&thread_argv);
+            argv->to_array(&thread_argv);
             argv->del_ref();
         }
         thread_register_stdio_file_handles(true);
@@ -1050,7 +1050,7 @@ void ZendArray::values(zval *return_value) {
     lock_.unlock();
 }
 
-void ZendArray::toArray(zval *return_value) {
+void ZendArray::to_array(zval *return_value) {
     lock_.lock_rd();
     zend_ulong elem_count = zend_hash_num_elements(&ht);
     array_init_size(return_value, elem_count);
