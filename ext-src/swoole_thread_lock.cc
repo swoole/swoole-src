@@ -33,6 +33,11 @@ using swoole::SpinLock;
 #ifdef HAVE_RWLOCK
 using swoole::RWLock;
 #endif
+#ifdef HAVE_IOURING_FUTEX
+#include "swoole_coroutine.h"
+using swoole::Coroutine;
+using swoole::CoroutineLock;
+#endif
 
 zend_class_entry *swoole_thread_lock_ce;
 static zend_object_handlers swoole_thread_lock_handlers;
@@ -49,6 +54,11 @@ struct LockResource : public ThreadResource {
 #ifdef HAVE_RWLOCK
         case Lock::RW_LOCK:
             lock_ = new RWLock(0);
+            break;
+#endif
+#ifdef HAVE_IOURING_FUTEX
+        case Lock::CoroutineLock:
+            lock_ = new COROUTINE_LOCK();
             break;
 #endif
         case Lock::MUTEX:
@@ -153,6 +163,9 @@ void php_swoole_thread_lock_minit(int module_number) {
 #ifdef HAVE_SPINLOCK
     zend_declare_class_constant_long(swoole_thread_lock_ce, ZEND_STRL("SPINLOCK"), Lock::SPIN_LOCK);
 #endif
+#ifdef HAVE_IOURING_FUTEX
+    zend_declare_class_constant_long(swoole_lock_ce, ZEND_STRL("COROUTINELOCK"), Lock::COROUTINE_LOCK);
+#endif
     zend_declare_property_long(swoole_thread_lock_ce, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
 }
 
@@ -177,6 +190,15 @@ static PHP_METHOD(swoole_thread_lock, __destruct) {}
 
 static PHP_METHOD(swoole_thread_lock, lock) {
     Lock *lock = lock_get_and_check_ptr(ZEND_THIS);
+#ifdef HAVE_IOURING_FUTEX
+    if (lock->get_type() == Lock::COROUTINE_LOCK && (SwooleTG.reactor == nullptr || !Coroutine::get_current())) {
+        zend_throw_exception_ex(swoole_exception_ce,
+                                SW_ERROR_OPERATION_NOT_SUPPORT,
+                                "lock type[%d] must be used in a coroutine environment",
+                                (zend_long) Lock::COROUTINE_LOCK);
+        RETURN_FALSE;
+    }
+#endif
     SW_LOCK_CHECK_RETURN(lock->lock());
 }
 
@@ -203,6 +225,15 @@ static PHP_METHOD(swoole_thread_lock, lockwait) {
 
 static PHP_METHOD(swoole_thread_lock, unlock) {
     Lock *lock = lock_get_and_check_ptr(ZEND_THIS);
+#ifdef HAVE_IOURING_FUTEX
+    if (lock->get_type() == Lock::COROUTINE_LOCK && (SwooleTG.reactor == nullptr || !Coroutine::get_current())) {
+        zend_throw_exception_ex(swoole_exception_ce,
+                                SW_ERROR_OPERATION_NOT_SUPPORT,
+                                "lock type[%d] must be used in a coroutine environment",
+                                (zend_long) Lock::COROUTINE_LOCK);
+        RETURN_FALSE;
+    }
+#endif
     SW_LOCK_CHECK_RETURN(lock->unlock());
 }
 

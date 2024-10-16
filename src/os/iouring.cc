@@ -170,6 +170,12 @@ bool AsyncIouring::wakeup() {
                            waiting_task->opcode == AsyncIouring::SW_IORING_OP_FDATASYNC) {
                     fsync(waiting_task);
                 }
+#ifdef HAVE_IOURING_FUTEX
+                else if (waiting_task->opcode == AsyncIouring::SW_IORING_OP_FUTEX_WAIT ||
+                           waiting_task->opcode == AsyncIouring::SW_IORING_OP_FUTEX_WAKE) {
+                    futex(waiting_task);
+                }
+#endif
             }
         }
     }
@@ -323,6 +329,27 @@ bool AsyncIouring::fsync(AsyncEvent *event) {
 
     return submit_iouring_sqe(event);
 }
+
+#ifdef HAVE_IOURING_FUTEX
+bool AsyncIouring::futex(AsyncEvent *event) {
+    struct io_uring_sqe *sqe = get_iouring_sqe();
+    if (!sqe) {
+        waiting_tasks.push(event);
+        return true;
+    }
+
+    io_uring_sqe_set_data(sqe, (void *) event);
+    sqe->opcode = event->opcode;
+    sqe->fd = event->fd;
+    sqe->off = event->value;
+    sqe->addr = (unsigned long) event->futex;
+    sqe->len = 0;
+    sqe->futex_flags = event->flags;
+    sqe->addr3 = event->mask;
+
+    return submit_iouring_sqe(event);
+}
+#endif
 
 int AsyncIouring::callback(Reactor *reactor, Event *event) {
     AsyncIouring *iouring = SwooleTG.async_iouring;
