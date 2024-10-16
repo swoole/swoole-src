@@ -208,6 +208,8 @@ static int ReactorProcess_loop(ProcessPool *pool, Worker *worker) {
 
     Server::worker_signal_init();
 
+    serv->gs->connection_nums[worker->id] = 0;
+
     for (auto ls : serv->ports) {
 #ifdef HAVE_REUSEPORT
         if (ls->is_stream() && serv->enable_reuse_port) {
@@ -217,6 +219,7 @@ static int ReactorProcess_loop(ProcessPool *pool, Worker *worker) {
             }
         }
 #endif
+        ls->gs->connection_nums[worker->id] = 0;
         if (reactor->add(ls->socket, SW_EVENT_READ) < 0) {
             return SW_ERR;
         }
