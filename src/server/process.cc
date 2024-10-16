@@ -117,7 +117,6 @@ pid_t Factory::spawn_event_worker(Worker *worker) {
     }
 
     if (server_->is_base_mode()) {
-        server_->gs->connection_nums[worker->id] = 0;
         server_->gs->event_workers.main_loop(&server_->gs->event_workers, worker);
     } else {
         server_->start_event_worker(worker);

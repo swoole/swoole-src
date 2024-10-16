@@ -103,7 +103,12 @@ void php_swoole_server_rshutdown() {
         SwooleWG.shutdown = true;
 #ifdef SW_THREAD
         if (serv->is_thread_mode()) {
-            serv->abort_worker(sw_worker());
+            sw_reactor()->destroyed = true;
+            serv->foreach_connection([serv](Connection *conn) {
+                if (conn->reactor_id == sw_worker()->id) {
+                    serv->close(conn->session_id, true);
+                }
+            });
         }
 #endif
         if (php_swoole_is_fatal_error()) {
@@ -2664,6 +2669,12 @@ static PHP_METHOD(swoole_server, start) {
             }
             php_swoole_thread_start(bootstrap_copy, thread_argv);
         };
+
+        serv->worker_thread_get_exit_status = [](pthread_t ptid) -> int {
+            return php_swoole_thread_get_exit_status(ptid);
+        };
+
+        serv->worker_thread_join = [](pthread_t ptid) { php_swoole_thread_join(ptid); };
     }
 #endif
 

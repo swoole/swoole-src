@@ -389,7 +389,6 @@ zend_bool php_swoole_signal_isset_handler(int signo);
 #endif
 
 #define sw_zend7_object zend_object
-#define SW_Z7_OBJ_P(object) object
 #define SW_Z8_OBJ_P(zobj) Z_OBJ_P(zobj)
 
 typedef ssize_t php_stream_size_t;

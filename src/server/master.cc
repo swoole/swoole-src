@@ -1924,13 +1924,6 @@ void Server::abort_worker(Worker *worker) {
                 session->fd = 0;
             }
         }
-    } else if (is_thread_mode()) {
-        sw_reactor()->destroyed = true;
-        foreach_connection([this, worker](Connection *conn) {
-            if (conn->reactor_id == worker->id) {
-                close(conn->session_id, true);
-            }
-        });
     }
 }
 

@@ -38,6 +38,8 @@ extern zend_class_entry *swoole_thread_map_ce;
 extern zend_class_entry *swoole_thread_queue_ce;
 
 void php_swoole_thread_start(zend_string *file, ZendArray *argv);
+void php_swoole_thread_join(pthread_t ptid);
+int php_swoole_thread_get_exit_status(pthread_t ptid);
 zend_string *php_swoole_serialize(zval *zdata);
 bool php_swoole_unserialize(zend_string *data, zval *zv);
 void php_swoole_thread_bailout(void);

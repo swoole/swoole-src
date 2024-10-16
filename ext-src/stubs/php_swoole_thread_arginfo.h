@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 51be89a17d2714b489a0d67a927b6b3e8a1f0cff */
+ * Stub hash: d1d1e5d35cfda110527408faf9376dda24680c7f */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Thread___construct, 0, 0, 1)
 	ZEND_ARG_TYPE_INFO(0, script_file, IS_STRING, 0)
@@ -11,13 +11,15 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_class_Swoole_Thread_joinable arginfo_class_Swoole_Thread_join
 
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Thread_getExitStatus, 0, 0, IS_LONG, 0)
+ZEND_END_ARG_INFO()
+
 #define arginfo_class_Swoole_Thread_detach arginfo_class_Swoole_Thread_join
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Thread_getArguments, 0, 0, IS_ARRAY, 1)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Thread_getId, 0, 0, IS_LONG, 0)
-ZEND_END_ARG_INFO()
+#define arginfo_class_Swoole_Thread_getId arginfo_class_Swoole_Thread_getExitStatus
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Thread_getInfo, 0, 0, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
@@ -44,4 +46,4 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_class_Swoole_Thread_getPriority arginfo_class_Swoole_Thread_getInfo
 
-#define arginfo_class_Swoole_Thread_getNativeId arginfo_class_Swoole_Thread_getId
+#define arginfo_class_Swoole_Thread_getNativeId arginfo_class_Swoole_Thread_getExitStatus

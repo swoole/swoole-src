@@ -1511,5 +1511,8 @@ static PHP_FUNCTION(swoole_test_fn) {
         zend_bailout();
     } else if (SW_STRCASEEQ(test_case, test_case_len, "abort")) {
         abort();
+    } else if (SW_STRCASEEQ(test_case, test_case_len, "exit")) {
+        EG(exit_status) = 95;
+        php_swoole_thread_bailout();
     }
 }

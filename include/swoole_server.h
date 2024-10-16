@@ -457,6 +457,7 @@ class ThreadFactory : public BaseFactory {
     Worker manager;
     template <typename _Callable>
     void create_thread(int i, _Callable fn);
+    void join_thread(std::thread &thread);
     void at_thread_exit(Worker *worker);
     void create_message_bus();
     void destroy_message_bus();
@@ -1472,7 +1473,10 @@ class Server {
     void worker_accept_event(DataHead *info);
     void worker_signal_init(void);
     bool worker_is_running();
+
     std::function<void(const WorkerFn &fn)> worker_thread_start;
+    std::function<void(pthread_t ptid)> worker_thread_join;
+    std::function<int(pthread_t ptid)> worker_thread_get_exit_status;
 
     /**
      * [Master]
@@ -1483,8 +1487,8 @@ class Server {
     bool signal_handler_read_message();
     bool signal_handler_reopen_logger();
 
-    static int worker_main_loop(ProcessPool *pool, Worker *worker);
     static void worker_signal_handler(int signo);
+    static int reactor_process_main_loop(ProcessPool *pool, Worker *worker);
     static void reactor_thread_main_loop(Server *serv, int reactor_id);
     static bool task_pack(EventData *task, const void *data, size_t data_len);
     static bool task_unpack(EventData *task, String *buffer, PacketPtr *packet);

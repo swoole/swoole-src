@@ -16,6 +16,7 @@
 
 #include "swoole_server.h"
 #include "swoole_memory.h"
+#include "swoole_thread.h"
 
 namespace swoole {
 using network::Socket;
@@ -62,7 +63,7 @@ bool ThreadFactory::start() {
 bool ThreadFactory::shutdown() {
     for (auto &thread : threads_) {
         if (thread.joinable()) {
-            thread.join();
+            join_thread(thread);
         }
     }
     if (server_->heartbeat_check_interval > 0) {
@@ -99,10 +100,12 @@ void ThreadFactory::destroy_message_bus() {
 
 template <typename _Callable>
 void ThreadFactory::create_thread(int i, _Callable fn) {
-    if (threads_[i].joinable()) {
-        threads_[i].join();
-    }
     threads_[i] = std::thread(fn);
+}
+
+void ThreadFactory::join_thread(std::thread &thread) {
+    thread.join();
+    server_->worker_thread_join(thread.native_handle());
 }
 
 void ThreadFactory::spawn_event_worker(WorkerId i) {
@@ -113,6 +116,7 @@ void ThreadFactory::spawn_event_worker(WorkerId i) {
         swoole_set_thread_id(i);
         Worker *worker = server_->get_worker(i);
         worker->type = SW_PROCESS_EVENTWORKER;
+        worker->pid = swoole_thread_get_native_id();
         SwooleWG.worker = worker;
         server_->worker_thread_start([=]() { Server::reactor_thread_main_loop(server_, i); });
         at_thread_exit(worker);
@@ -128,6 +132,7 @@ void ThreadFactory::spawn_task_worker(WorkerId i) {
         create_message_bus();
         Worker *worker = server_->get_worker(i);
         worker->type = SW_PROCESS_TASKWORKER;
+        worker->pid = swoole_thread_get_native_id();
         worker->set_status_to_idle();
         SwooleWG.worker = worker;
         auto pool = &server_->gs->task_workers;
@@ -154,6 +159,7 @@ void ThreadFactory::spawn_user_worker(WorkerId i) {
         swoole_set_thread_id(i);
         create_message_bus();
         worker->type = SW_PROCESS_USERWORKER;
+        worker->pid = swoole_thread_get_native_id();
         SwooleWG.worker = worker;
         server_->worker_thread_start([=]() { server_->onUserWorkerStart(server_, worker); });
         destroy_message_bus();
@@ -190,6 +196,21 @@ void ThreadFactory::wait() {
         if (!queue_.empty()) {
             Worker *exited_worker = queue_.front();
             queue_.pop();
+
+            std::thread &thread = threads_[exited_worker->id];
+            int status_code = server_->worker_thread_get_exit_status(thread.native_handle());
+            ExitStatus exit_status(exited_worker->pid, status_code << 8);
+
+            if (status_code != 0) {
+                server_->call_worker_error_callback(exited_worker, exit_status);
+                swoole_warning("worker(tid=%d, id=%d) abnormal exit, status=%d",
+                               exit_status.get_pid(),
+                               exited_worker->id,
+                               exit_status.get_code());
+            }
+
+            join_thread(threads_[exited_worker->id]);
+
             switch (exited_worker->type) {
             case SW_PROCESS_EVENTWORKER:
                 spawn_event_worker(exited_worker->id);
