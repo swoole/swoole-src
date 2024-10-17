@@ -181,6 +181,13 @@ void ThreadFactory::spawn_manager_thread(WorkerId i) {
         swoole_set_thread_id(i);
         manager.id = i;
         manager.type = SW_PROCESS_MANAGER;
+
+        TimerScheduler timer_scheduler = [this](Timer *timer, long exec_msec) -> int {
+            cv_timeout_ms_ = exec_msec;
+            return SW_OK;
+        };
+        SwooleTG.timer_scheduler = &timer_scheduler;
+
         server_->worker_thread_start([=]() {
             if (server_->onManagerStart) {
                 server_->onManagerStart(server_);
@@ -190,9 +197,12 @@ void ThreadFactory::spawn_manager_thread(WorkerId i) {
                 server_->onManagerStop(server_);
             }
         });
+
         if (server_->running) {
             swoole_warning("Fatal Error: manager thread exits abnormally");
         }
+
+        SwooleTG.timer_scheduler = nullptr;
     });
 }
 
@@ -235,7 +245,14 @@ void ThreadFactory::wait() {
             }
             _lock.unlock();
         } else {
-            cv_.wait(_lock);
+            if (cv_timeout_ms_ > 0) {
+                cv_.wait_for(_lock, std::chrono::milliseconds(cv_timeout_ms_));
+            } else {
+                cv_.wait(_lock);
+            }
+        }
+        if (SwooleTG.timer) {
+            swoole_timer_select();
         }
         if (server_->running && reloading) {
             reload(reload_all_workers);

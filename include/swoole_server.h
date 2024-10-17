@@ -454,6 +454,7 @@ class ThreadFactory : public BaseFactory {
     std::mutex lock_;
     std::condition_variable cv_;
     std::queue<Worker *> queue_;
+    long cv_timeout_ms_;
     bool reload_all_workers;
     bool reloading;
     Worker manager;

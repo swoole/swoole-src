@@ -232,6 +232,7 @@ struct DataHead;
 typedef int (*ReactorHandler)(Reactor *reactor, Event *event);
 typedef std::function<void(void *)> Callback;
 typedef std::function<void(Timer *, TimerNode *)> TimerCallback;
+typedef std::function<int(Timer *, long)> TimerScheduler;
 }  // namespace swoole
 
 typedef swoole::Reactor swReactor;
@@ -700,6 +701,7 @@ struct ThreadGlobal {
     String *buffer_stack;
     Reactor *reactor;
     Timer *timer;
+    TimerScheduler *timer_scheduler;
     MessageBus *message_bus;
     AsyncThreads *async_threads;
 #ifdef SW_USE_IOURING

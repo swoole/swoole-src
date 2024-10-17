@@ -62,11 +62,12 @@ class Timer {
     /*---------------event timer--------------*/
     struct timeval base_time;
     /*----------------------------------------*/
-    int (*set)(Timer *timer, long exec_msec) = nullptr;
-    void (*close)(Timer *timer) = nullptr;
+    std::function<int(Timer *timer, long exec_msec)> set;
+    std::function<void(Timer *timer)> close;
 
-    bool init_reactor(Reactor *reactor);
-    bool init_system_timer();
+    bool init_with_reactor(Reactor *reactor);
+    bool init_with_user_scheduler(TimerScheduler *scheduler);
+    bool init_with_system_timer();
 
   public:
     long next_msec_;
