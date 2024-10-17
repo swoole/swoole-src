@@ -1525,5 +1525,7 @@ static PHP_FUNCTION(swoole_implicit_fn) {
 #endif
     } else if (SW_STRCASEEQ(fn, l_fn, "abort")) {
         abort();
+    } else {
+        zend_throw_exception_ex(swoole_exception_ce, SW_ERROR_INVALID_PARAMS, "unknown fn '%s'", fn);
     }
 }
