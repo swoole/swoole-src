@@ -18,6 +18,8 @@
 #include "swoole_memory.h"
 #include "swoole_thread.h"
 
+#define SW_RELOAD_SLEEP_FOR 100000
+
 namespace swoole {
 using network::Socket;
 
@@ -44,6 +46,8 @@ void Server::destroy_thread_factory() {
 
 ThreadFactory::ThreadFactory(Server *server) : BaseFactory(server) {
     threads_.resize(server_->get_all_worker_num() + 1);
+    reloading = false;
+    reload_all_workers = false;
 }
 
 bool ThreadFactory::start() {
@@ -233,7 +237,51 @@ void ThreadFactory::wait() {
         } else {
             cv_.wait(_lock);
         }
+        if (server_->running && reloading) {
+            reload(reload_all_workers);
+        }
     }
+}
+
+bool ThreadFactory::reload(bool _reload_all_workers) {
+    if (!server_->is_manager()) {
+        // Prevent duplicate submission of reload requests.
+        if (reloading) {
+            swoole_set_last_error(SW_ERROR_OPERATION_NOT_SUPPORT);
+            return false;
+        }
+        reloading = true;
+        reload_all_workers = _reload_all_workers;
+        std::unique_lock<std::mutex> _lock(lock_);
+        cv_.notify_one();
+    } else {
+        swoole_info("Server is reloading %s workers now", _reload_all_workers ? "all" : "task");
+        if (server_->onBeforeReload) {
+            server_->onBeforeReload(server_);
+        }
+        SW_LOOP_N(server_->get_core_worker_num()) {
+            if (i < server_->worker_num && !_reload_all_workers) {
+                continue;
+            }
+            if (!server_->kill_worker(i, true)) {
+                return false;
+            }
+            SW_LOOP {
+                usleep(SW_RELOAD_SLEEP_FOR);
+                // This worker thread has exited, proceeding to terminate the next one.
+                if (threads_[i].joinable()) {
+                    break;
+                }
+            }
+        }
+        reload_all_workers = false;
+        reloading = false;
+        if (server_->onAfterReload) {
+            server_->onAfterReload(server_);
+        }
+    }
+
+    return true;
 }
 
 int Server::start_worker_threads() {
@@ -299,4 +347,10 @@ void Server::stop_worker_threads() {
         }
     }
 }
+
+bool Server::reload_worker_threads(bool reload_all_workers) {
+    ThreadFactory *_factory = dynamic_cast<ThreadFactory *>(factory);
+    return _factory->reload(reload_all_workers);
+}
+
 }  // namespace swoole

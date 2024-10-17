@@ -407,7 +407,7 @@ void Manager::wait(Server *_server) {
 }
 
 void Manager::terminate_all_worker() {
-	// clear the timer
+    // clear the timer
     alarm(0);
     for (auto i = kill_workers.begin(); i != kill_workers.end(); i++) {
         swoole_kill(*i, SIGKILL);
@@ -529,7 +529,12 @@ void Server::read_worker_message(ProcessPool *pool, EventData *msg) {
 }
 
 bool Server::reload(bool reload_all_workers) {
+    if (is_thread_mode()) {
+        return reload_worker_threads(reload_all_workers);
+    }
+
     if (gs->manager_pid == 0) {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_OPERATION_NOT_SUPPORT, "not supported with single process mode");
         return false;
     }
 
