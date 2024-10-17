@@ -394,11 +394,11 @@ bool swoole_http_server_onBeforeRequest(HttpContext *ctx) {
     ctx->onBeforeRequest = nullptr;
     ctx->onAfterResponse = swoole_http_server_onAfterResponse;
     Server *serv = (Server *) ctx->private_data;
-    if (!sw_server() || !SwooleWG.worker || SwooleWG.shutdown) {
+    if (!sw_server() || !sw_worker() || SwooleWG.shutdown) {
         return false;
     }
 
-    auto worker = SwooleWG.worker;
+    auto worker = sw_worker();
     swoole_trace("serv->gs->concurrency=%u, max_concurrency=%u", serv->gs->concurrency, serv->gs->max_concurrency);
     sw_atomic_add_fetch(&serv->gs->concurrency, 1);
     worker->concurrency++;
@@ -417,11 +417,11 @@ bool swoole_http_server_onBeforeRequest(HttpContext *ctx) {
 void swoole_http_server_onAfterResponse(HttpContext *ctx) {
     ctx->onAfterResponse = nullptr;
     Server *serv = (Server *) ctx->private_data;
-    if (!sw_server() || !SwooleWG.worker || SwooleWG.shutdown) {
+    if (!sw_server() || !sw_worker() || SwooleWG.shutdown) {
         return;
     }
 
-    auto worker = SwooleWG.worker;
+    auto worker = sw_worker();
     swoole_trace("serv->gs->concurrency=%u, max_concurrency=%u", serv->gs->concurrency, serv->gs->max_concurrency);
     sw_atomic_sub_fetch(&serv->gs->concurrency, 1);
     worker->concurrency--;
