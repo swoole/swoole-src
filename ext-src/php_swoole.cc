@@ -1052,8 +1052,6 @@ PHP_RSHUTDOWN_FUNCTION(swoole) {
 
     rshutdown_callbacks.execute();
 
-    swoole_event_free();
-
     php_swoole_server_rshutdown();
     php_swoole_http_server_rshutdown();
     php_swoole_async_coro_rshutdown();
@@ -1062,6 +1060,8 @@ PHP_RSHUTDOWN_FUNCTION(swoole) {
     php_swoole_coroutine_scheduler_rshutdown();
     php_swoole_runtime_rshutdown();
     php_swoole_process_rshutdown();
+
+    swoole_event_free();
 
     SwooleG.running = 0;
     SWOOLE_G(req_status) = PHP_SWOOLE_RSHUTDOWN_END;

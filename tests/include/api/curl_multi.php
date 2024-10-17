@@ -8,17 +8,14 @@ function swoole_test_curl_multi($options = []) {
 function swoole_test_curl_multi_ex($mh, $options = []) {
     $ch1 = curl_init();
     $ch2 = curl_init();
-	$userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:129.0) Gecko/20100101 Firefox/129.0';
 
     // 设置URL和相应的选项
     curl_setopt($ch1, CURLOPT_URL, "https://www.baidu.com/");
     curl_setopt($ch1, CURLOPT_HEADER, 0);
-    curl_setopt($ch2, CURLOPT_USERAGENT, $userAgent);
     curl_setopt($ch1, CURLOPT_RETURNTRANSFER, 1);
 
-    curl_setopt($ch2, CURLOPT_URL, "https://www.zhihu.com/");
+    curl_setopt($ch2, CURLOPT_URL, "https://www.gov.cn/");
     curl_setopt($ch2, CURLOPT_HEADER, 0);
-    curl_setopt($ch2, CURLOPT_USERAGENT, $userAgent);
     curl_setopt($ch2, CURLOPT_RETURNTRANSFER, 1);
 
     $mh = curl_multi_init();
@@ -64,7 +61,7 @@ function swoole_test_curl_multi_ex($mh, $options = []) {
     Assert::eq($info3, false);
 
     Assert::contains(curl_multi_getcontent($ch1), 'baidu.com');
-    Assert::contains(curl_multi_getcontent($ch2), 'zhihu');
+    Assert::contains(curl_multi_getcontent($ch2), '中国政府网');
 
     curl_multi_remove_handle($mh, $ch1);
     curl_multi_remove_handle($mh, $ch2);
