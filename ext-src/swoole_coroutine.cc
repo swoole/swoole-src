@@ -423,6 +423,10 @@ void PHPCoroutine::activate() {
 }
 
 void PHPCoroutine::deactivate(void *ptr) {
+    if (sw_unlikely(!activated)) {
+        return;
+    }
+    activated = false;
     interrupt_thread_stop();
     /**
      * reset runtime hook
@@ -441,10 +445,12 @@ void PHPCoroutine::deactivate(void *ptr) {
 
     enable_unsafe_function();
     Coroutine::deactivate();
-    activated = false;
 }
 
 void PHPCoroutine::shutdown() {
+    if (activated) {
+        deactivate(nullptr);
+    }
     interrupt_thread_stop();
     Coroutine::bailout(nullptr);
     if (options) {
