@@ -499,7 +499,7 @@ TEST(server, task_worker) {
         exit(2);
     }
 
-    serv.onTask = [](Server *serv, swEventData *task) -> int {
+    serv.onTask = [](Server *serv, EventData *task) -> int {
         EXPECT_EQ(serv->get_task_count(), 1);
         EXPECT_EQ(string(task->data, task->info.len), string(packet));
         serv->gs->task_workers.running = 0;
@@ -508,6 +508,10 @@ TEST(server, task_worker) {
 
     ASSERT_EQ(serv.create(), SW_OK);
     ASSERT_EQ(serv.create_task_workers(), SW_OK);
+
+    SwooleWG.shutdown = false;
+    SwooleWG.running = true;
+    SwooleWG.run_always = true;
 
     thread t1([&serv]() {
         serv.gs->task_workers.running = 1;
