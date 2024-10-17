@@ -99,6 +99,9 @@ void php_swoole_server_rshutdown() {
     serv->drain_worker_pipe();
 
     if (serv->is_started() && !serv->is_user_worker()) {
+        if (serv->is_event_worker()) {
+            serv->clean_worker_connections(sw_worker());
+        }
         if (php_swoole_is_fatal_error()) {
             swoole_error_log(SW_LOG_ERROR,
                              SW_ERROR_PHP_FATAL_ERROR,

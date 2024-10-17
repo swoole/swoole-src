@@ -427,6 +427,16 @@ void Server::drain_worker_pipe() {
     }
 }
 
+void Server::clean_worker_connections(Worker *worker) {
+    sw_reactor()->destroyed = true;
+
+    if (is_base_mode()) {
+        foreach_connection([this](Connection *conn) { close(conn->session_id, true); });
+    } else {
+        return;
+    }
+}
+
 /**
  * main loop [Worker]
  */

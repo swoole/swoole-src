@@ -1095,6 +1095,10 @@ class Server {
         return SwooleG.process_type == SW_PROCESS_WORKER;
     }
 
+    bool is_event_worker() {
+        return is_worker();
+    }
+
     bool is_task_worker() {
         return SwooleG.process_type == SW_PROCESS_TASKWORKER;
     }
@@ -1355,6 +1359,7 @@ class Server {
     static void read_worker_message(ProcessPool *pool, EventData *msg);
 
     void drain_worker_pipe();
+    void clean_worker_connections(Worker *worker);
 
     void check_worker_exit_status(Worker *worker, const ExitStatus &exit_status);
 

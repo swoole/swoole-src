@@ -327,3 +327,7 @@ static sw_inline int swoole_kill(pid_t __pid, int __sig) {
 
 extern swoole::WorkerGlobal SwooleWG;  // Worker Global Variable
 typedef swoole::ProtocolType swProtocolType;
+
+static inline swoole::Worker *sw_worker() {
+    return SwooleWG.worker;
+}
