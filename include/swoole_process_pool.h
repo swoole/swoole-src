@@ -105,8 +105,20 @@ struct Worker;
 struct WorkerGlobal {
     bool run_always;
     bool shutdown;
+    bool running;
     uint32_t max_request;
+    /**
+     * worker is shared memory, visible in other work processes.
+     * When a worker process restarts, it may be held by both the old and new processes simultaneously,
+     * necessitating careful handling of the state.
+     */
     Worker *worker;
+    /**
+     *  worker_copy is a copy of worker,
+     *  but it must be local memory and only used within the current process or thread.
+     *  It is not visible to other worker processes.
+     */
+    Worker *worker_copy;
     time_t exit_time;
 };
 
@@ -115,6 +127,7 @@ struct Worker {
     WorkerId id;
     ProcessPool *pool;
     MsgQueue *queue;
+    bool shared;
 
     bool redirect_stdout;
     bool redirect_stdin;
@@ -148,6 +161,8 @@ struct Worker {
     void *ptr2;
 
     ssize_t send_pipe_message(const void *buf, size_t n, int flags);
+    void shutdown();
+    bool is_shutdown();
 
     void set_status(enum swWorkerStatus _status) {
         status = _status;

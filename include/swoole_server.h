@@ -795,10 +795,13 @@ class Server {
     EventData *task_result = nullptr;
 
     /**
-     * user process
+     * Used for process management, saving the mapping relationship between PID and worker pointers
      */
     std::vector<Worker *> user_worker_list;
     std::unordered_map<pid_t, Worker *> user_worker_map;
+    /**
+     * Shared memory, sharing state between processes
+     */
     Worker *user_workers = nullptr;
 
     std::unordered_map<std::string, Command> commands;
@@ -1087,6 +1090,10 @@ class Server {
         return factory != nullptr;
     }
 
+    bool is_running() {
+        return running;
+    }
+
     bool is_master() {
         return SwooleG.process_type == SW_PROCESS_MASTER;
     }
@@ -1238,6 +1245,8 @@ class Server {
 
     void call_hook(enum HookType type, void *arg);
     void call_worker_start_callback(Worker *worker);
+    void call_worker_stop_callback(Worker *worker);
+    void call_worker_error_callback(Worker *worker, const ExitStatus &status);
     ResultCode call_command_handler(MessageBus &mb, uint16_t worker_id, network::Socket *sock);
     std::string call_command_handler_in_master(int command_id, const std::string &msg);
     void call_command_callback(int64_t request_id, const std::string &result);

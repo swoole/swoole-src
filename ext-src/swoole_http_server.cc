@@ -394,7 +394,7 @@ bool swoole_http_server_onBeforeRequest(HttpContext *ctx) {
     ctx->onBeforeRequest = nullptr;
     ctx->onAfterResponse = swoole_http_server_onAfterResponse;
     Server *serv = (Server *) ctx->private_data;
-    if (!sw_server() || !sw_worker() || SwooleWG.shutdown) {
+    if (!sw_server() || !sw_worker() || sw_worker()->is_shutdown()) {
         return false;
     }
 
@@ -417,7 +417,7 @@ bool swoole_http_server_onBeforeRequest(HttpContext *ctx) {
 void swoole_http_server_onAfterResponse(HttpContext *ctx) {
     ctx->onAfterResponse = nullptr;
     Server *serv = (Server *) ctx->private_data;
-    if (!sw_server() || !sw_worker() || SwooleWG.shutdown) {
+    if (!sw_server() || !sw_worker() || sw_worker()->is_shutdown()) {
         return;
     }
 

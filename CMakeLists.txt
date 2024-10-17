@@ -1,4 +1,5 @@
 PROJECT(libswoole)
+cmake_minimum_required(VERSION 2.8.12)
 
 ENABLE_LANGUAGE(ASM)
 set(SWOOLE_VERSION 5.1.5-dev)
@@ -6,7 +7,6 @@ set(SWOOLE_VERSION 5.1.5-dev)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -g")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
-cmake_minimum_required(VERSION 2.8)
 
 file(READ ./config.h SWOOLE_CONFIG_FILE)
 
@@ -122,7 +122,8 @@ link_directories(${LIBRARY_OUTPUT_PATH})
 add_library(lib-swoole SHARED ${SRC_LIST})
 set_target_properties(lib-swoole PROPERTIES OUTPUT_NAME "swoole" VERSION ${SWOOLE_VERSION})
 target_link_libraries(lib-swoole ${SWOOLE_LINK_LIBRARIES})
-if(CODE_COVERAGE)
+
+if (CODE_COVERAGE)
     target_link_libraries(lib-swoole coverage_config gcov)
 endif(CODE_COVERAGE)
 
