@@ -480,26 +480,13 @@ pid_t ProcessPool::spawn(Worker *worker) {
     return pid;
 }
 
-int ProcessPool::get_max_request() {
-    int task_n;
-    if (max_request < 1) {
-        return -1;
-    } else {
-        task_n = max_request;
-        if (max_request_grace > 0) {
-            task_n += swoole_system_random(1, max_request_grace);
-        }
-    }
-    return task_n;
-}
-
 void ProcessPool::set_max_request(uint32_t _max_request, uint32_t _max_request_grace) {
     max_request = _max_request;
     max_request_grace = _max_request_grace;
 }
 
 bool ProcessPool::is_worker_running(Worker *worker) {
-    return running && !SwooleWG.shutdown && !worker->has_exceeded_max_request();
+    return running && !worker->is_shutdown() && !worker->has_exceeded_max_request();
 }
 
 int ProcessPool::run_with_task_protocol(ProcessPool *pool, Worker *worker) {
@@ -971,6 +958,33 @@ void ProcessPool::destroy() {
 
 bool Worker::has_exceeded_max_request() {
     return !SwooleWG.run_always && request_count >= SwooleWG.max_request;
+}
+
+void Worker::start() {
+    start_time = ::time(nullptr);
+    set_status_to_idle();
+    SwooleWG.shutdown = false;
+}
+
+void Worker::set_max_request(uint32_t max_request, uint32_t max_request_grace) {
+    if (max_request < 1) {
+        SwooleWG.run_always = true;
+    } else {
+        SwooleWG.run_always = false;
+        SwooleWG.max_request = max_request;
+        if (max_request_grace > 0) {
+            SwooleWG.max_request += swoole_system_random(1, max_request_grace);
+        }
+    }
+}
+
+void Worker::shutdown() {
+    status = SW_WORKER_EXIT;
+    SwooleWG.shutdown = true;
+}
+
+bool Worker::is_shutdown() {
+    return SwooleWG.shutdown;
 }
 
 ssize_t Worker::send_pipe_message(const void *buf, size_t n, int flags) {

@@ -53,10 +53,12 @@ void Server::worker_signal_handler(int signo) {
     }
     switch (signo) {
     case SIGTERM:
-        if (swoole_event_is_available()) {  // Event worker
+        if (swoole_event_is_available()) {
+            // Event Worker
             sw_server()->stop_async_worker(sw_worker());
-        } else {  // Task worker
-            SwooleWG.shutdown = true;
+        } else {
+            // Task Worker
+            sw_worker()->shutdown();
         }
         break;
     // for test
@@ -379,10 +381,9 @@ bool Server::kill_worker(WorkerId worker_id, bool wait_reactor) {
 }
 
 void Server::stop_async_worker(Worker *worker) {
-    worker->status = SW_WORKER_EXIT;
     Reactor *reactor = SwooleTG.reactor;
 
-    SwooleWG.shutdown = true;
+    worker->shutdown();
     if (worker->type == SW_PROCESS_EVENTWORKER) {
         reset_worker_counter(worker);
     }
@@ -507,7 +508,6 @@ void Server::drain_worker_pipe() {
 }
 
 void Server::clean_worker_connections(Worker *worker) {
-    SwooleWG.shutdown = true;
     sw_reactor()->destroyed = true;
 
     if (is_thread_mode()) {
@@ -519,7 +519,7 @@ void Server::clean_worker_connections(Worker *worker) {
     } else if (is_base_mode()) {
         foreach_connection([this](Connection *conn) { close(conn->session_id, true); });
     } else {
-        abort();
+        return;
     }
 }
 
@@ -530,7 +530,7 @@ int Server::start_event_worker(Worker *worker) {
     swoole_set_process_id(worker->id);
     swoole_set_process_type(SW_PROCESS_EVENTWORKER);
 
-    init_worker(worker);
+    init_event_worker(worker);
 
     if (swoole_event_init(0) < 0) {
         return SW_ERR;

@@ -161,7 +161,11 @@ struct Worker {
 
     ssize_t send_pipe_message(const void *buf, size_t n, int flags);
     bool has_exceeded_max_request();
+    void set_max_request(uint32_t max_request, uint32_t max_request_grace);
     void report_error(const ExitStatus &exit_status);
+    void start();
+    void shutdown();
+    bool is_shutdown();
 
     void set_status(enum swWorkerStatus _status) {
         status = _status;

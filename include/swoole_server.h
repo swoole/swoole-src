@@ -1389,7 +1389,7 @@ class Server {
     bool send_pipe_message(WorkerId worker_id, EventData *msg);
 
     void init_reactor(Reactor *reactor);
-    void init_worker(Worker *worker);
+    void init_event_worker(Worker *worker);
     void init_task_workers();
     void init_port_protocol(ListenPort *port);
     void init_signal_handler();

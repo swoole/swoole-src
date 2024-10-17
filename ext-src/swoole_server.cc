@@ -100,7 +100,8 @@ void php_swoole_server_rshutdown() {
     serv->drain_worker_pipe();
 
     if (serv->is_started() && serv->worker_is_running() && !serv->is_user_worker()) {
-        if (serv->is_event_worker() && !serv->is_process_mode()) {
+        sw_worker()->shutdown();
+        if (serv->is_event_worker()) {
             serv->clean_worker_connections(sw_worker());
         }
         if (php_swoole_is_fatal_error()) {
