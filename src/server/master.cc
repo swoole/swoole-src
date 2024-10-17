@@ -588,22 +588,6 @@ void Server::init_worker(Worker *worker) {
     worker->request_count = 0;
 }
 
-void Server::call_worker_start_callback(Worker *worker) {
-    void *hook_args[2];
-    hook_args[0] = this;
-    hook_args[1] = (void *) (uintptr_t) worker->id;
-
-    if (swoole_isset_hook(SW_GLOBAL_HOOK_BEFORE_WORKER_START)) {
-        swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_WORKER_START, hook_args);
-    }
-    if (isset_hook(HOOK_WORKER_START)) {
-        call_hook(Server::HOOK_WORKER_START, hook_args);
-    }
-    if (onWorkerStart) {
-        onWorkerStart(this, worker);
-    }
-}
-
 int Server::start() {
     if (start_check() < 0) {
         return SW_ERR;

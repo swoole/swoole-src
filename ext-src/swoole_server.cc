@@ -99,6 +99,7 @@ void php_swoole_server_rshutdown() {
     serv->drain_worker_pipe();
 
     if (serv->is_started() && !serv->is_user_worker()) {
+        sw_worker()->shutdown();
         if (serv->is_event_worker()) {
             serv->clean_worker_connections(sw_worker());
         }
@@ -1514,10 +1515,9 @@ static void php_swoole_server_onAfterReload(Server *serv) {
 }
 
 static void php_swoole_server_onWorkerStop(Server *serv, Worker *worker) {
-    if (SwooleWG.shutdown) {
+    if (!SwooleWG.running) {
         return;
     }
-    SwooleWG.shutdown = true;
 
     zval *zserv = (zval *) serv->private_data_2;
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));

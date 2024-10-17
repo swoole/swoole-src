@@ -986,4 +986,13 @@ void ProcessPool::destroy() {
     sw_mem_pool()->free(workers);
 }
 
+void Worker::shutdown() {
+    status = SW_WORKER_EXIT;
+    SwooleWG.shutdown = true;
+}
+
+bool Worker::is_shutdown() {
+    return SwooleWG.shutdown;
+}
+
 }  // namespace swoole

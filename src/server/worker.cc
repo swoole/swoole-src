@@ -47,18 +47,17 @@ void Server::worker_signal_init(void) {
 }
 
 void Server::worker_signal_handler(int signo) {
-    if (!SwooleG.running || !sw_server()) {
+    if (!SwooleG.running || !sw_server() || !sw_worker() || !sw_server()->is_running()) {
         return;
     }
     switch (signo) {
     case SIGTERM:
-        // Event worker
         if (swoole_event_is_available()) {
-            sw_server()->stop_async_worker(SwooleWG.worker);
-        }
-        // Task worker
-        else {
-            SwooleWG.shutdown = true;
+            // Event Worker
+            sw_server()->stop_async_worker(sw_worker());
+        } else {
+            // Task Worker
+            sw_worker()->shutdown();
         }
         break;
     // for test
@@ -261,7 +260,7 @@ void Server::worker_start_callback(Worker *worker) {
     }
 
     SW_LOOP_N(worker_num + task_worker_num) {
-        if (SwooleG.process_id == i) {
+        if (worker->id == i) {
             continue;
         }
         Worker *other_worker = get_worker(i);
@@ -285,19 +284,50 @@ void Server::worker_start_callback(Worker *worker) {
 }
 
 void Server::worker_stop_callback(Worker *worker) {
+    call_worker_stop_callback(worker);
+}
+
+void Server::call_worker_start_callback(Worker *worker) {
     void *hook_args[2];
     hook_args[0] = this;
-    hook_args[1] = (void *) (uintptr_t) SwooleG.process_id;
+    hook_args[1] = (void *) (uintptr_t) worker->id;
+
+    if (swoole_isset_hook(SW_GLOBAL_HOOK_BEFORE_WORKER_START)) {
+        swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_WORKER_START, hook_args);
+    }
+    if (isset_hook(HOOK_WORKER_START)) {
+        call_hook(Server::HOOK_WORKER_START, hook_args);
+    }
+
+    SwooleWG.running = true;
+    if (onWorkerStart) {
+        onWorkerStart(this, worker);
+    }
+}
+
+void Server::call_worker_stop_callback(Worker *worker) {
+    void *hook_args[2];
+    hook_args[0] = this;
+    hook_args[1] = (void *) (uintptr_t) worker->id;
+
     if (swoole_isset_hook(SW_GLOBAL_HOOK_BEFORE_WORKER_STOP)) {
         swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_WORKER_STOP, hook_args);
     }
     if (onWorkerStop) {
         onWorkerStop(this, worker);
     }
+
     if (!message_bus.empty()) {
         swoole_error_log(
             SW_LOG_WARNING, SW_ERROR_SERVER_WORKER_UNPROCESSED_DATA, "unprocessed data in the worker process buffer");
         message_bus.clear();
+    }
+
+    SwooleWG.running = false;
+    if (SwooleWG.worker_copy) {
+        delete SwooleWG.worker_copy;
+        SwooleWG.worker_copy = nullptr;
+        SwooleWG.worker = nullptr;
     }
 }
 
@@ -305,7 +335,7 @@ void Server::stop_async_worker(Worker *worker) {
     worker->status = SW_WORKER_EXIT;
     Reactor *reactor = SwooleTG.reactor;
 
-    SwooleWG.shutdown = true;
+    worker->shutdown();
     if (worker->type == SW_PROCESS_WORKER) {
         reset_worker_counter(worker);
     }
@@ -314,7 +344,6 @@ void Server::stop_async_worker(Worker *worker) {
      * force to end.
      */
     if (reload_async == 0) {
-        running = false;
         reactor->running = false;
         return;
     }
@@ -325,8 +354,8 @@ void Server::stop_async_worker(Worker *worker) {
     }
 
     // Separated from the event worker process pool
-    worker = (Worker *) sw_malloc(sizeof(*worker));
-    *worker = *SwooleWG.worker;
+    SwooleWG.worker_copy = new Worker{};
+    *SwooleWG.worker_copy = *worker;
     SwooleWG.worker = worker;
 
     if (worker->pipe_worker && !worker->pipe_worker->removed) {
@@ -359,10 +388,10 @@ void Server::stop_async_worker(Worker *worker) {
     } else {
         WorkerStopMessage msg;
         msg.pid = SwooleG.pid;
-        msg.worker_id = SwooleG.process_id;
+        msg.worker_id = worker->id;
 
         if (gs->event_workers.push_message(SW_WORKER_MESSAGE_STOP, &msg, sizeof(msg)) < 0) {
-            running = 0;
+            swoole_sys_warning("failed to push WORKER_STOP message");
         }
     }
 
@@ -371,9 +400,6 @@ void Server::stop_async_worker(Worker *worker) {
     SwooleWG.exit_time = ::time(nullptr);
 
     Worker_reactor_try_to_exit(reactor);
-    if (!reactor->running) {
-        running = false;
-    }
 }
 
 static void Worker_reactor_try_to_exit(Reactor *reactor) {
@@ -389,10 +415,9 @@ static void Worker_reactor_try_to_exit(Reactor *reactor) {
     while (1) {
         if (reactor->if_exit()) {
             reactor->running = false;
-            break;
         } else {
             if (serv->onWorkerExit && call_worker_exit_func == 0) {
-                serv->onWorkerExit(serv, SwooleWG.worker);
+                serv->onWorkerExit(serv, sw_worker());
                 call_worker_exit_func = 1;
                 continue;
             }
@@ -401,7 +426,6 @@ static void Worker_reactor_try_to_exit(Reactor *reactor) {
                 swoole_error_log(
                     SW_LOG_WARNING, SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT, "worker exit timeout, forced termination");
                 reactor->running = false;
-                break;
             } else {
                 int timeout_msec = remaining_time * 1000;
                 if (reactor->timeout_msec < 0 || reactor->timeout_msec > timeout_msec) {
