@@ -17,7 +17,7 @@
 #include "php_swoole_cxx.h"
 #include "zend_object_handlers.h"
 
-#if defined(SW_USE_CURL) && PHP_VERSION_ID < 80400
+#ifdef SW_USE_CURL
 #include "php_swoole_curl.h"
 
 using swoole::curl::Multi;

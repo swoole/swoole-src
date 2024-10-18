@@ -17,7 +17,7 @@
 
 /* Copied from PHP-4f68662f5b61aecf90f6d8005976f5f91d4ce8d3 */
 
-#if defined(SW_USE_CURL) && PHP_VERSION_ID < 80400
+#ifdef SW_USE_CURL
 
 #ifndef _PHP_CURL_PRIVATE_H
 #define _PHP_CURL_PRIVATE_H
