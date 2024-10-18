@@ -494,19 +494,6 @@ pid_t ProcessPool::spawn(Worker *worker) {
     return pid;
 }
 
-int ProcessPool::get_max_request() {
-    int task_n;
-    if (max_request < 1) {
-        return -1;
-    } else {
-        task_n = max_request;
-        if (max_request_grace > 0) {
-            task_n += swoole_system_random(1, max_request_grace);
-        }
-    }
-    return task_n;
-}
-
 void ProcessPool::set_max_request(uint32_t _max_request, uint32_t _max_request_grace) {
     max_request = _max_request;
     max_request_grace = _max_request_grace;
@@ -518,12 +505,7 @@ static int ProcessPool_worker_loop_with_task_protocol(ProcessPool *pool, Worker 
         EventData buf;
     } out{};
 
-    ssize_t n = 0, ret, worker_task_always = 0;
-    int task_n = pool->get_max_request();
-    if (task_n <= 0) {
-        worker_task_always = 1;
-        task_n = 1;
-    }
+    ssize_t n = 0, ret;
 
     /**
      * Use from_fd save the task_worker->id
@@ -536,7 +518,7 @@ static int ProcessPool_worker_loop_with_task_protocol(ProcessPool *pool, Worker 
         out.mtype = worker->id + 1;
     }
 
-    while (pool->running && !SwooleWG.shutdown && task_n > 0) {
+    while (pool->running && !worker->is_shutdown() && !worker->has_exceeded_max_request()) {
         /**
          * fetch task
          */
@@ -609,8 +591,8 @@ static int ProcessPool_worker_loop_with_task_protocol(ProcessPool *pool, Worker 
             goto _alarm_handler;
         }
 
-        if (ret >= 0 && !worker_task_always) {
-            task_n--;
+        if (ret >= 0) {
+            worker->add_request_count();
         }
     }
     return SW_OK;
@@ -986,6 +968,30 @@ void ProcessPool::destroy() {
     sw_mem_pool()->free(workers);
 }
 
+bool Worker::has_exceeded_max_request() {
+    return !SwooleWG.run_always && request_count >= SwooleWG.max_request;
+}
+
+void Worker::start() {
+    start_time = ::time(nullptr);
+    request_count = 0;
+    set_status_to_idle();
+    SwooleWG.running = true;
+    SwooleWG.shutdown = false;
+}
+
+void Worker::set_max_request(uint32_t max_request, uint32_t max_request_grace) {
+    if (max_request < 1) {
+        SwooleWG.run_always = true;
+    } else {
+        SwooleWG.run_always = false;
+        SwooleWG.max_request = max_request;
+        if (max_request_grace > 0) {
+            SwooleWG.max_request += swoole_system_random(1, max_request_grace);
+        }
+    }
+}
+
 void Worker::shutdown() {
     status = SW_WORKER_EXIT;
     SwooleWG.shutdown = true;
@@ -995,4 +1001,7 @@ bool Worker::is_shutdown() {
     return SwooleWG.shutdown;
 }
 
+bool Worker::is_running() {
+    return SwooleWG.running;
+}
 }  // namespace swoole

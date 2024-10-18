@@ -208,7 +208,7 @@ void Server::worker_accept_event(DataHead *info) {
     worker->status = SW_WORKER_IDLE;
 
     // maximum number of requests, process will exit.
-    if (!SwooleWG.run_always && worker->request_count >= SwooleWG.max_request) {
+    if (worker->has_exceeded_max_request()) {
         stop_async_worker(worker);
     }
 }

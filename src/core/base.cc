@@ -97,19 +97,11 @@ static ssize_t getrandom(void *buffer, size_t size, unsigned int __flags) {
 #endif
 
 swoole::Global SwooleG = {};
-__thread swoole::ThreadGlobal SwooleTG = {};
+thread_local swoole::ThreadGlobal SwooleTG = {};
+thread_local char sw_error[SW_ERROR_MSG_SIZE];
 
 static std::unordered_map<std::string, void *> functions;
 static swoole::Logger *g_logger_instance = nullptr;
-
-#ifdef __MACH__
-static __thread char _sw_error_buf[SW_ERROR_MSG_SIZE];
-char *sw_error_() {
-    return _sw_error_buf;
-}
-#else
-__thread char sw_error[SW_ERROR_MSG_SIZE];
-#endif
 
 static void swoole_fatal_error_impl(int code, const char *format, ...);
 

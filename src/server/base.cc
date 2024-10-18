@@ -19,7 +19,6 @@
 namespace swoole {
 
 bool BaseFactory::start() {
-    SwooleWG.run_always = true;
     return true;
 }
 

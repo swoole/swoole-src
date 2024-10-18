@@ -575,17 +575,8 @@ void Server::init_worker(Worker *worker) {
     }
 #endif
 
-    if (max_request < 1) {
-        SwooleWG.run_always = true;
-    } else {
-        SwooleWG.max_request = max_request;
-        if (max_request_grace > 0) {
-            SwooleWG.max_request += swoole_system_random(1, max_request_grace);
-        }
-    }
-
-    worker->start_time = ::time(nullptr);
-    worker->request_count = 0;
+    worker->start();
+    worker->set_max_request(max_request, max_request_grace);
 }
 
 int Server::start() {

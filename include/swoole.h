@@ -513,17 +513,13 @@ enum swDNSLookupFlag {
     SW_DNS_LOOKUP_RANDOM = (1u << 11),
 };
 
-#ifdef __MACH__
-char *sw_error_();
-#define sw_error sw_error_()
-#else
-extern __thread char sw_error[SW_ERROR_MSG_SIZE];
-#endif
+extern thread_local char sw_error[SW_ERROR_MSG_SIZE];
 
 enum swProcessType {
     SW_PROCESS_MASTER = 1,
     SW_PROCESS_WORKER = 2,
     SW_PROCESS_MANAGER = 3,
+    SW_PROCESS_EVENTWORKER = 2,
     SW_PROCESS_TASKWORKER = 4,
     SW_PROCESS_USERWORKER = 5,
 };
@@ -753,7 +749,7 @@ double microtime(void);
 }  // namespace swoole
 
 extern swoole::Global SwooleG;                  // Local Global Variable
-extern __thread swoole::ThreadGlobal SwooleTG;  // Thread Global Variable
+extern thread_local swoole::ThreadGlobal SwooleTG;  // Thread Global Variable
 
 #define SW_CPU_NUM (SwooleG.cpu_num)
 

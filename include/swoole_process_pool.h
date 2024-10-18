@@ -161,11 +161,27 @@ struct Worker {
     void *ptr2;
 
     ssize_t send_pipe_message(const void *buf, size_t n, int flags);
+    bool has_exceeded_max_request();
+    void set_max_request(uint32_t max_request, uint32_t max_request_grace);
+    void start();
     void shutdown();
     bool is_shutdown();
+    bool is_running();
 
     void set_status(enum swWorkerStatus _status) {
         status = _status;
+    }
+
+    void set_status_to_idle() {
+        set_status(SW_WORKER_IDLE);
+    }
+
+    void set_status_to_busy() {
+        set_status(SW_WORKER_BUSY);
+    }
+
+    void add_request_count() {
+        request_count++;
     }
 
     bool is_busy() {
@@ -300,7 +316,6 @@ struct ProcessPool {
     void set_protocol(enum ProtocolType _protocol_type);
 
     void set_max_request(uint32_t _max_request, uint32_t _max_request_grace);
-    int get_max_request();
     bool detach();
     int wait();
     int start();
