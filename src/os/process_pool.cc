@@ -34,6 +34,7 @@ using network::Stream;
 
 static inline swReturnCode catch_system_error(int error) {
     switch (error) {
+    case SW_SUCCESS:
     case EAGAIN:
     case EINTR:
         return SW_CONTINUE;

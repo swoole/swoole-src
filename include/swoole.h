@@ -401,6 +401,7 @@ enum swResultCode {
 };
 
 enum swReturnCode {
+    SW_SUCCESS = 0,
     SW_CONTINUE = 1,
     SW_WAIT = 2,
     SW_CLOSE = 3,
