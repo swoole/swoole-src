@@ -68,11 +68,11 @@ bool Timer::init() {
     }
 }
 
-bool Timer::init_with_user_scheduler(TimerScheduler *scheduler) {
-    set = [scheduler](Timer *timer, long exec_msec) -> int {
-        return (*scheduler)(timer, exec_msec);
+bool Timer::init_with_user_scheduler(const TimerScheduler &scheduler) {
+    set = [&scheduler](Timer *timer, long exec_msec) -> int {
+        return scheduler(timer, exec_msec);
     };
-    close = [scheduler](Timer *timer) { (*scheduler)(timer, -1); };
+    close = [&scheduler](Timer *timer) { scheduler(timer, -1); };
     return true;
 }
 

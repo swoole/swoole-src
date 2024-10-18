@@ -166,6 +166,7 @@ struct Worker {
     void start();
     void shutdown();
     bool is_shutdown();
+    bool is_running();
 
     void set_status(enum swWorkerStatus _status) {
         status = _status;

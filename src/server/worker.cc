@@ -304,7 +304,6 @@ void Server::call_worker_start_callback(Worker *worker) {
     swoole_clear_last_error();
     swoole_clear_last_error_msg();
 
-    SwooleWG.running = true;
     if (onWorkerStart) {
         onWorkerStart(this, worker);
     }
