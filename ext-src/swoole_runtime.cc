@@ -22,6 +22,8 @@
 #ifdef SW_USE_CURL
 #if PHP_VERSION_ID >= 80400
 #include "thirdparty/php84/curl/curl_interface.h"
+#elif PHP_VERSION_ID >= 80300 && PHP_VERSION_ID < 80400
+#include "thirdparty/php83/curl/curl_interface.h"
 #else
 #include "thirdparty/php/curl/curl_interface.h"
 #endif
