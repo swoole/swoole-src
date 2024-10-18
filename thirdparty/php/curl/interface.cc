@@ -860,6 +860,15 @@ static void curl_free_cb_arg(void **cb_arg_p) {
 }
 /* }}} */
 
+#if LIBCURL_VERSION_NUM < 0x073800 && PHP_VERSION_ID >= 80100/* 7.56.0 */
+/* {{{ curl_free_buffers */
+static void curl_free_buffers(void **buffer)
+{
+    zend_string_release((zend_string *) *buffer);
+}
+/* }}} */
+#endif
+
 /* {{{ curl_free_slist
  */
 static void curl_free_slist(zval *el) {
