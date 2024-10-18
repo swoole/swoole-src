@@ -101,14 +101,16 @@ PHP_FUNCTION(swoole_native_curl_multi_add_handle) {
     swoole_curl_verify_handlers(ch, /* reporterror */ true);
     swoole_curl_cleanup_handle(ch);
 
-    Z_ADDREF_P(z_ch);
-    zend_llist_add_element(&mh->easyh, z_ch);
-
     auto handle = swoole::curl::get_handle(ch->cp);
     error = mh->multi->add_handle(handle);
+    SAVE_CURLM_ERROR(mh, error);
+
+    if (error == CURLM_OK) {
+        Z_ADDREF_P(z_ch);
+        zend_llist_add_element(&mh->easyh, z_ch);
+    }
 
     swoole_trace_log(SW_TRACE_CO_CURL, "multi=%p, cp=%p, handle=%p, error=%d", mh->multi, ch->cp, handle, error);
-    SAVE_CURLM_ERROR(mh, error);
     RETURN_LONG((zend_long) error);
 }
 /* }}} */
@@ -178,8 +180,11 @@ PHP_FUNCTION(swoole_native_curl_multi_remove_handle) {
 
     swoole_trace_log(SW_TRACE_CO_CURL, "multi=%p, cp=%p, handle=%p, error=%d", mh->multi, ch->cp, handle, error);
     SAVE_CURLM_ERROR(mh, error);
+    if (error == CURLM_OK) {
+        zend_llist_del_element(&mh->easyh, z_ch, (int (*)(void *, void *)) curl_compare_objects);
+    }
+
     RETVAL_LONG((zend_long) error);
-    zend_llist_del_element(&mh->easyh, z_ch, (int (*)(void *, void *)) curl_compare_objects);
 }
 /* }}} */
 
