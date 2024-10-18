@@ -537,7 +537,7 @@ bool Server::reload(bool reload_all_workers) {
     }
 
     if (getpid() != gs->manager_pid) {
-        return swoole_kill(get_manager_pid(), reload_all_workers ? SIGUSR1 : SIGUSR2) != 0;
+        return swoole_kill(get_manager_pid(), reload_all_workers ? SIGUSR1 : SIGUSR2) == 0;
     }
 
     ProcessPool *pool = &gs->event_workers;
