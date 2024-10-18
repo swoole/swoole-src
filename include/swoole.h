@@ -185,6 +185,14 @@ extern std::mutex sw_thread_lock;
 #define SW_THREAD_LOCAL
 #endif
 
+#ifdef SW_USE_IOURING
+#include <liburing.h>
+#include <linux/version.h>
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 7, 0)
+#define HAVE_IOURING_FUTEX 1  // futex lock available since kernel 6.7.
+#endif
+#endif
+
 /**
  * API naming rules
  * -----------------------------------

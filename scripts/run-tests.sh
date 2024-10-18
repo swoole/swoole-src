@@ -62,7 +62,7 @@ if [ "${SWOOLE_BRANCH}" = "valgrind" ]; then
 elif [ "$SWOOLE_THREAD" = 1 ]; then
     dir="swoole_thread"
 elif [ "$SWOOLE_USE_IOURING" = 1 ]; then
-    dir="swoole_runtime/file_hook"
+    dir="swoole_runtime/file_hook swoole_lock/lock.phpt"
 else
     dir="swoole_*"
 fi
