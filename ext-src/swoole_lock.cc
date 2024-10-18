@@ -177,7 +177,7 @@ static PHP_METHOD(swoole_lock, __construct) {
 #endif
     default:
         zend_throw_exception_ex(
-            swoole_exception_ce, SW_ERROR_INVALID_PARAMS, "lock type[%d] is not support", (zend_long) type);
+            swoole_exception_ce, SW_ERROR_INVALID_PARAMS, "lock type[%ld] is not support", (zend_long) type);
         RETURN_FALSE;
         break;
     }
@@ -193,7 +193,7 @@ static PHP_METHOD(swoole_lock, lock) {
     if (lock->get_type() == Lock::COROUTINE_LOCK && (SwooleTG.reactor == nullptr || !Coroutine::get_current())) {
         zend_throw_exception_ex(swoole_exception_ce,
                                 SW_ERROR_OPERATION_NOT_SUPPORT,
-                                "lock type[%d] must be used in a coroutine environment",
+                                "lock type[%ld] must be used in a coroutine environment",
                                 (zend_long) Lock::COROUTINE_LOCK);
         RETURN_FALSE;
     }
@@ -228,7 +228,7 @@ static PHP_METHOD(swoole_lock, unlock) {
     if (lock->get_type() == Lock::COROUTINE_LOCK && (SwooleTG.reactor == nullptr || !Coroutine::get_current())) {
         zend_throw_exception_ex(swoole_exception_ce,
                                 SW_ERROR_OPERATION_NOT_SUPPORT,
-                                "lock type[%d] must be used in a coroutine environment",
+                                "lock type[%ld] must be used in a coroutine environment",
                                 (zend_long) Lock::COROUTINE_LOCK);
         RETURN_FALSE;
     }

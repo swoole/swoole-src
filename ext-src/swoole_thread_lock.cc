@@ -194,7 +194,7 @@ static PHP_METHOD(swoole_thread_lock, lock) {
     if (lock->get_type() == Lock::COROUTINE_LOCK && (SwooleTG.reactor == nullptr || !Coroutine::get_current())) {
         zend_throw_exception_ex(swoole_exception_ce,
                                 SW_ERROR_OPERATION_NOT_SUPPORT,
-                                "lock type[%d] must be used in a coroutine environment",
+                                "lock type[%ld] must be used in a coroutine environment",
                                 (zend_long) Lock::COROUTINE_LOCK);
         RETURN_FALSE;
     }
@@ -229,7 +229,7 @@ static PHP_METHOD(swoole_thread_lock, unlock) {
     if (lock->get_type() == Lock::COROUTINE_LOCK && (SwooleTG.reactor == nullptr || !Coroutine::get_current())) {
         zend_throw_exception_ex(swoole_exception_ce,
                                 SW_ERROR_OPERATION_NOT_SUPPORT,
-                                "lock type[%d] must be used in a coroutine environment",
+                                "lock type[%ld] must be used in a coroutine environment",
                                 (zend_long) Lock::COROUTINE_LOCK);
         RETURN_FALSE;
     }
