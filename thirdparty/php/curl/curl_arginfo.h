@@ -3,7 +3,7 @@
 
 #include "curl_interface.h"
 
-#if defined(SW_USE_CURL) && PHP_VERSION_ID < 80400
+#ifdef SW_USE_CURL
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_native_curl_close, 0, 1, IS_VOID, 0)
 	ZEND_ARG_OBJ_INFO(0, handle, CurlHandle, 0)
