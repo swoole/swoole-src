@@ -66,7 +66,7 @@ class Timer {
     std::function<void(Timer *timer)> close;
 
     bool init_with_reactor(Reactor *reactor);
-    bool init_with_user_scheduler(TimerScheduler *scheduler);
+    bool init_with_user_scheduler(const TimerScheduler &scheduler);
     bool init_with_system_timer();
 
   public:

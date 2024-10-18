@@ -233,9 +233,8 @@ void Manager::wait(Server *_server) {
             pool->read_message = false;
         }
 
-        if (SwooleG.signal_alarm && SwooleTG.timer) {
-            SwooleG.signal_alarm = 0;
-            swoole_timer_select();
+        if (SwooleTG.timer) {
+            SwooleTG.timer->select();
         }
 
         if (exit_status.get_pid() < 0) {
@@ -435,7 +434,6 @@ void Manager::signal_handler(int signo) {
         pool->read_message = true;
         break;
     case SIGALRM:
-        SwooleG.signal_alarm = 1;
         if (manager->force_kill) {
             manager->terminate_all_worker();
         }

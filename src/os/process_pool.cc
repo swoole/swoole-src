@@ -32,6 +32,16 @@ namespace swoole {
 using network::Socket;
 using network::Stream;
 
+static inline swReturnCode catch_system_error(int error) {
+    switch (error) {
+    case EAGAIN:
+    case EINTR:
+        return SW_CONTINUE;
+    default:
+        return SW_ERROR;
+    }
+}
+
 void ProcessPool::kill_timeout_worker(Timer *timer, TimerNode *tnode) {
     uint32_t i;
     pid_t reload_worker_pid = 0;
@@ -508,59 +518,62 @@ int ProcessPool::run_with_task_protocol(ProcessPool *pool, Worker *worker) {
         out.mtype = worker->id + 1;
     }
 
+    int read_timeout_ms = -1;
+    if (pool->ipc_mode == SW_IPC_UNIXSOCK) {
+        SwooleTG.timer_scheduler = [&read_timeout_ms](Timer *timer, long exec_msec) -> int {
+            read_timeout_ms = exec_msec;
+            return SW_OK;
+        };
+    }
+
     while (pool->is_worker_running(worker)) {
         /**
          * fetch task
          */
         if (pool->use_msgqueue) {
             n = pool->queue->pop((QueueNode *) &out, sizeof(out.buf));
-            if (n < 0 && errno != EINTR) {
-                swoole_sys_warning("[Worker#%d] msgrcv() failed", worker->id);
+            if (n < 0 && catch_system_error(errno) == SW_ERROR) {
+                swoole_sys_warning("[Worker#%d] msgrcv(%d) failed", worker->id, pool->queue->get_id());
                 break;
             }
         } else if (pool->use_socket) {
             Socket *conn = pool->stream_info_->socket->accept();
             if (conn == nullptr) {
-                if (errno == EAGAIN || errno == EINTR) {
-                    continue;
-                } else {
-                    swoole_sys_warning("accept(%d) failed", pool->stream_info_->socket->get_fd());
+                if (catch_system_error(errno) == SW_ERROR) {
+                    swoole_sys_warning(
+                        "[Worker#%d] accept(%d) failed", worker->id, pool->stream_info_->socket->get_fd());
                     break;
+                } else {
+                    goto _end;
                 }
             }
             n = Stream::recv_blocking(conn, (void *) &out.buf, sizeof(out.buf));
-            if (n < 0) {
+            if (n <= 0) {
                 conn->free();
-                continue;
+                goto _end;
             }
             pool->stream_info_->last_connection = conn;
         } else {
-            n = worker->pipe_worker->read_sync(&out.buf, sizeof(out.buf));
-            if (n < 0 && errno != EINTR) {
-                swoole_sys_warning("read(%d) failed", worker->pipe_worker->fd);
+            n = worker->pipe_worker->read_sync(&out.buf, sizeof(out.buf), read_timeout_ms);
+            if (n < 0 && catch_system_error(errno) == SW_ERROR) {
+                swoole_sys_warning("[Worker#%d] read(%d) failed", worker->id, worker->pipe_worker->fd);
+                break;
             }
         }
 
-        /**
-         * timer
-         */
         if (n < 0) {
-            if (errno == EINTR && SwooleG.signal_alarm && SwooleTG.timer) {
-            _alarm_handler:
-                SwooleG.signal_alarm = false;
-                SwooleTG.timer->select();
-            }
-            continue;
+            goto _end;
         }
-
         if (n != (ssize_t) out.buf.size()) {
-            swoole_warning("bad task packet, The received data-length[%ld] is inconsistent with the packet-length[%ld]",
+            swoole_warning("[Worker#%d] bad task packet, The received data-length[%ld] is inconsistent with the "
+                           "packet-length[%ld]",
+                           worker->id,
                            n,
                            out.buf.info.len + sizeof(out.buf.info));
-        } else if (pool->onTask(pool, worker, &out.buf) < 0) {
+        }
+        if (pool->onTask(pool, worker, &out.buf) < 0) {
             swoole_warning("[Worker#%d] the execution of task#%ld has failed", worker->id, pool->get_task_id(&out.buf));
         }
-
         if (pool->use_socket && pool->stream_info_->last_connection) {
             int _end = 0;
             pool->stream_info_->last_connection->send_blocking((void *) &_end, sizeof(_end));
@@ -568,13 +581,14 @@ int ProcessPool::run_with_task_protocol(ProcessPool *pool, Worker *worker) {
             pool->stream_info_->last_connection = nullptr;
         }
 
-        /**
-         * timer
-         */
-        if (SwooleG.signal_alarm) {
-            goto _alarm_handler;
+    _end:
+        if (sw_timer()) {
+            sw_timer()->select();
         }
     }
+
+    SwooleTG.timer_scheduler = nullptr;
+
     return SW_OK;
 }
 
@@ -637,14 +651,25 @@ int ProcessPool::run_with_stream_protocol(ProcessPool *pool, Worker *worker) {
     QueueNode *outbuf = (QueueNode *) pool->packet_buffer;
     outbuf->mtype = 0;
 
+    int read_timeout_ms = -1;
+    if (pool->ipc_mode == SW_IPC_UNIXSOCK) {
+        SwooleTG.timer_scheduler = [&read_timeout_ms](Timer *timer, long exec_msec) -> int {
+            read_timeout_ms = exec_msec;
+            return SW_OK;
+        };
+    }
+
     while (pool->is_worker_running(worker)) {
         /**
          * fetch task
          */
         if (pool->use_msgqueue) {
             n = pool->queue->pop(outbuf, SW_MSGMAX);
-            if (n < 0 && errno != EINTR) {
-                swoole_sys_warning("[Worker#%d] msgrcv() failed", worker->id);
+            /**
+             * A fatal error has occurred; the message queue is no longer available, and the loop must be exited.
+             */
+            if (n < 0 && catch_system_error(errno) == SW_ERROR) {
+                swoole_sys_warning("[Worker#%d] msgrcv(%d) failed", worker->id, pool->queue->get_id());
                 break;
             }
             msg.data = outbuf->mdata;
@@ -652,18 +677,23 @@ int ProcessPool::run_with_stream_protocol(ProcessPool *pool, Worker *worker) {
         } else if (pool->use_socket) {
             Socket *conn = pool->stream_info_->socket->accept();
             if (conn == nullptr) {
-                if (errno == EAGAIN || errno == EINTR) {
-                    continue;
-                } else {
-                    swoole_sys_warning("accept(%d) failed", pool->stream_info_->socket->get_fd());
+                if (catch_system_error(errno) == SW_ERROR) {
+                    swoole_sys_warning(
+                        "[Worker#%d] accept(%d) failed", worker->id, pool->stream_info_->socket->get_fd());
                     break;
+                } else {
+                    goto _end;
                 }
             }
-            int tmp = 0;
-            if (conn->recv_blocking(&tmp, sizeof(tmp), MSG_WAITALL) <= 0) {
+            uint32_t packet_len = 0;
+            if (conn->recv_blocking(&packet_len, sizeof(packet_len), MSG_WAITALL) <= 0) {
                 goto _close;
             }
-            n = ntohl(tmp);
+            n = ntohl(packet_len);
+            /**
+             * Errors occurring during client connections do not affect subsequent requests,
+             * they continue after closure.
+             */
             if (n <= 0) {
                 goto _close;
             } else if (n > pool->max_packet_size_) {
@@ -672,28 +702,21 @@ int ProcessPool::run_with_stream_protocol(ProcessPool *pool, Worker *worker) {
             if (conn->recv_blocking(pool->packet_buffer, n, MSG_WAITALL) <= 0) {
             _close:
                 conn->free();
-                continue;
+                goto _end;
             }
             msg.data = pool->packet_buffer;
             pool->stream_info_->last_connection = conn;
         } else {
-            n = worker->pipe_worker->read_sync(pool->packet_buffer, pool->max_packet_size_);
-            if (n < 0 && errno != EINTR) {
-                swoole_sys_warning("read(%d) failed", worker->pipe_worker->fd);
+            n = worker->pipe_worker->read_sync(pool->packet_buffer, pool->max_packet_size_, read_timeout_ms);
+            if (n < 0 && catch_system_error(errno) == SW_ERROR) {
+                swoole_sys_warning("[Worker#%d] read(%d) failed", worker->id, worker->pipe_worker->fd);
+                break;
             }
             msg.data = pool->packet_buffer;
         }
 
-        /**
-         * timer
-         */
         if (n < 0) {
-            if (errno == EINTR && SwooleG.signal_alarm && SwooleTG.timer) {
-            _alarm_handler:
-                SwooleG.signal_alarm = false;
-                SwooleTG.timer->select();
-            }
-            continue;
+            goto _end;
         }
 
         msg.info.len = n;
@@ -711,19 +734,32 @@ int ProcessPool::run_with_stream_protocol(ProcessPool *pool, Worker *worker) {
             pool->stream_info_->last_connection = nullptr;
         }
 
-        /**
-         * timer
-         */
-        if (SwooleG.signal_alarm) {
-            goto _alarm_handler;
+    _end:
+        if (sw_timer()) {
+            sw_timer()->select();
         }
     }
+
+    SwooleTG.timer_scheduler = nullptr;
+
     return SW_OK;
 }
 
 int ProcessPool::run_with_message_protocol(ProcessPool *pool, Worker *worker) {
+    if (pool->ipc_mode != SW_IPC_UNIXSOCK) {
+        swoole_error_log(
+            SW_LOG_WARNING, SW_ERROR_OPERATION_NOT_SUPPORT, "not support, ipc_mode must be SW_IPC_UNIXSOCK");
+        return SW_ERR;
+    }
+
+    int read_timeout_ms = -1;
+    SwooleTG.timer_scheduler = [&read_timeout_ms](Timer *timer, long exec_msec) -> int {
+        read_timeout_ms = exec_msec;
+        return SW_OK;
+    };
+
     auto fn = [&]() -> int {
-        if (worker->pipe_worker->wait_event(-1, SW_EVENT_READ) < 0) {
+        if (worker->pipe_worker->wait_event(read_timeout_ms, SW_EVENT_READ) < 0) {
             return errno == EINTR ? 0 : -1;
         }
         if (pool->message_bus->read(worker->pipe_worker) < 0) {
@@ -740,12 +776,6 @@ int ProcessPool::run_with_message_protocol(ProcessPool *pool, Worker *worker) {
         return 1;
     };
 
-    if (pool->ipc_mode != SW_IPC_UNIXSOCK) {
-        swoole_error_log(
-            SW_LOG_WARNING, SW_ERROR_OPERATION_NOT_SUPPORT, "not support, ipc_mode must be SW_IPC_UNIXSOCK");
-        return SW_ERR;
-    }
-
     if (pool->message_bus == nullptr) {
         pool->create_message_bus();
     }
@@ -755,19 +785,20 @@ int ProcessPool::run_with_message_protocol(ProcessPool *pool, Worker *worker) {
     while (pool->is_worker_running(worker)) {
         switch (fn()) {
         case 0:
-            if (SwooleG.signal_alarm && SwooleTG.timer) {
-                SwooleG.signal_alarm = false;
-                SwooleTG.timer->select();
+            if (sw_timer()) {
+                sw_timer()->select();
             }
             break;
         case 1:
             break;
         case -1:
         default:
-            swoole_sys_warning("failed to read data from pipe");
+            swoole_sys_warning("[Worker #%d]failed to read data from pipe", worker->id);
             return SW_OK;
         }
     }
+
+    SwooleTG.timer_scheduler = nullptr;
 
     return SW_OK;
 }
@@ -800,9 +831,8 @@ int ProcessPool::wait() {
     while (running) {
         ExitStatus exit_status = wait_process();
 
-        if (SwooleG.signal_alarm && SwooleTG.timer) {
-            SwooleG.signal_alarm = false;
-            SwooleTG.timer->select();
+        if (sw_timer()) {
+            sw_timer()->select();
         }
         if (read_message) {
             EventData msg;

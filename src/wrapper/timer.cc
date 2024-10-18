@@ -123,12 +123,10 @@ void swoole_timer_free() {
     }
     delete SwooleTG.timer;
     SwooleTG.timer = nullptr;
-    SwooleG.signal_alarm = false;
 }
 
 int swoole_timer_select() {
     if (!swoole_timer_is_available()) {
-        swoole_warning("timer is not available");
         return SW_ERR;
     }
     return SwooleTG.timer->select();

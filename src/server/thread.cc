@@ -48,6 +48,7 @@ ThreadFactory::ThreadFactory(Server *server) : BaseFactory(server) {
     threads_.resize(server_->get_all_worker_num() + 1);
     reloading = false;
     reload_all_workers = false;
+    cv_timeout_ms_ = -1;
 }
 
 bool ThreadFactory::start() {
@@ -182,11 +183,10 @@ void ThreadFactory::spawn_manager_thread(WorkerId i) {
         manager.id = i;
         manager.type = SW_PROCESS_MANAGER;
 
-        TimerScheduler timer_scheduler = [this](Timer *timer, long exec_msec) -> int {
+        SwooleTG.timer_scheduler = [this](Timer *timer, long exec_msec) -> int {
             cv_timeout_ms_ = exec_msec;
             return SW_OK;
         };
-        SwooleTG.timer_scheduler = &timer_scheduler;
 
         server_->worker_thread_start([=]() {
             if (server_->onManagerStart) {
@@ -251,8 +251,8 @@ void ThreadFactory::wait() {
                 cv_.wait(_lock);
             }
         }
-        if (SwooleTG.timer) {
-            swoole_timer_select();
+        if (sw_timer()) {
+            sw_timer()->select();
         }
         if (server_->running && reloading) {
             reload(reload_all_workers);
