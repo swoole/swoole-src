@@ -90,7 +90,8 @@ static int TaskWorker_onTask(ProcessPool *pool, Worker *worker, EventData *task)
     if (task->info.type == SW_SERVER_EVENT_PIPE_MESSAGE) {
         serv->onPipeMessage(serv, task);
     } else if (task->info.type == SW_SERVER_EVENT_SHUTDOWN) {
-        SwooleWG.shutdown = true;
+        worker->shutdown();
+        return SW_OK;
     } else if (task->info.type == SW_SERVER_EVENT_COMMAND_REQUEST) {
         ret = TaskWorker_call_command_handler(pool, worker, task);
     } else {
@@ -258,19 +259,8 @@ static void TaskWorker_onStart(ProcessPool *pool, Worker *worker) {
     TaskWorker_signal_init(pool);
     serv->worker_start_callback(worker);
 
-    worker->start_time = ::time(nullptr);
-    worker->request_count = 0;
-    worker->set_status_to_idle();
-    /**
-     * task_max_request
-     */
-    if (pool->max_request > 0) {
-        SwooleWG.run_always = false;
-        SwooleWG.max_request = pool->get_max_request();
-    } else {
-        SwooleWG.run_always = true;
-    }
-    SwooleWG.shutdown = false;
+    worker->start();
+    worker->set_max_request(pool->max_request, pool->max_request_grace);
 }
 
 static void TaskWorker_onStop(ProcessPool *pool, Worker *worker) {

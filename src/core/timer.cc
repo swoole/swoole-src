@@ -60,13 +60,23 @@ bool Timer::init() {
         return false;
     }
     if (SwooleTG.reactor) {
-        return init_reactor(SwooleTG.reactor);
+        return init_with_reactor(SwooleTG.reactor);
+    } else if (SwooleTG.timer_scheduler) {
+        return init_with_user_scheduler(SwooleTG.timer_scheduler);
     } else {
-        return init_system_timer();
+        return init_with_system_timer();
     }
 }
 
-bool Timer::init_reactor(Reactor *reactor) {
+bool Timer::init_with_user_scheduler(const TimerScheduler &scheduler) {
+    set = [&scheduler](Timer *timer, long exec_msec) -> int {
+        return scheduler(timer, exec_msec);
+    };
+    close = [&scheduler](Timer *timer) { scheduler(timer, -1); };
+    return true;
+}
+
+bool Timer::init_with_reactor(Reactor *reactor) {
     reactor_ = reactor;
     set = [](Timer *timer, long exec_msec) -> int {
         timer->reactor_->timeout_msec = exec_msec;
@@ -89,7 +99,7 @@ bool Timer::init_reactor(Reactor *reactor) {
 }
 
 void Timer::reinit(Reactor *reactor) {
-    init_reactor(reactor);
+    init_with_reactor(reactor);
     reactor->timeout_msec = next_msec_;
 }
 

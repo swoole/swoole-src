@@ -233,9 +233,8 @@ void Manager::wait(Server *_server) {
             pool->read_message = false;
         }
 
-        if (SwooleG.signal_alarm && SwooleTG.timer) {
-            SwooleG.signal_alarm = 0;
-            swoole_timer_select();
+        if (SwooleTG.timer) {
+            SwooleTG.timer->select();
         }
 
         if (exit_status.get_pid() < 0) {
@@ -407,7 +406,7 @@ void Manager::wait(Server *_server) {
 }
 
 void Manager::terminate_all_worker() {
-	// clear the timer
+    // clear the timer
     alarm(0);
     for (auto i = kill_workers.begin(); i != kill_workers.end(); i++) {
         swoole_kill(*i, SIGKILL);
@@ -435,7 +434,6 @@ void Manager::signal_handler(int signo) {
         pool->read_message = true;
         break;
     case SIGALRM:
-        SwooleG.signal_alarm = 1;
         if (manager->force_kill) {
             manager->terminate_all_worker();
         }
@@ -529,12 +527,17 @@ void Server::read_worker_message(ProcessPool *pool, EventData *msg) {
 }
 
 bool Server::reload(bool reload_all_workers) {
+    if (is_thread_mode()) {
+        return reload_worker_threads(reload_all_workers);
+    }
+
     if (gs->manager_pid == 0) {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_OPERATION_NOT_SUPPORT, "not supported with single process mode");
         return false;
     }
 
     if (getpid() != gs->manager_pid) {
-        return swoole_kill(get_manager_pid(), reload_all_workers ? SIGUSR1 : SIGUSR2) != 0;
+        return swoole_kill(get_manager_pid(), reload_all_workers ? SIGUSR1 : SIGUSR2) == 0;
     }
 
     ProcessPool *pool = &gs->event_workers;

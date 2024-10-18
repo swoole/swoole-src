@@ -154,16 +154,11 @@ static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
 int Server::reactor_process_main_loop(ProcessPool *pool, Worker *worker) {
     Server *serv = (Server *) pool->ptr;
     SwooleG.pid = getpid();
+    SwooleTG.id = 0;
     swoole_set_process_type(SW_PROCESS_WORKER);
     swoole_set_process_id(worker->id);
 
-    if (serv->max_request > 0) {
-        SwooleWG.run_always = false;
-    }
-    SwooleWG.max_request = serv->max_request;
-    SwooleTG.id = 0;
-
-    serv->init_worker(worker);
+    serv->init_event_worker(worker);
 
     if (!SwooleTG.reactor) {
         if (swoole_event_init(0) < 0) {

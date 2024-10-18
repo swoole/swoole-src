@@ -757,7 +757,7 @@ int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
 
     if (serv->is_thread_mode()) {
         Worker *worker = serv->get_worker(reactor_id);
-        serv->init_worker(worker);
+        serv->init_event_worker(worker);
         auto pipe_worker = message_bus.get_pipe_socket(worker->pipe_worker);
         reactor->add(pipe_worker, SW_EVENT_READ);
     }

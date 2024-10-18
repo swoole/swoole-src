@@ -23,7 +23,7 @@ namespace swoole {
 
 static int SystemTimer_set(Timer *timer, long next_msec);
 
-bool Timer::init_system_timer() {
+bool Timer::init_with_system_timer() {
     set = SystemTimer_set;
     close = [](Timer *timer) { SystemTimer_set(timer, -1); };
     swoole_signal_set(SIGALRM, [](int sig) { SwooleG.signal_alarm = true; });

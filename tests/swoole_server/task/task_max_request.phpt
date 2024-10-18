@@ -25,10 +25,9 @@ $process = new Swoole\Process(function() {
         'log_file' => TEST_LOG_FILE,
     ]);
 
-    $serv->on("WorkerStart", function (Server $serv, $worker_id)
-    {
+    $serv->on("WorkerStart", function (Server $serv, $worker_id) {
         if (!$serv->taskworker) {
-            for($i = 0; $i< N; $i++) {
+            for ($i = 0; $i < N; $i++) {
                 $serv->task(array('type' => 'php', 'data' => RandStr::gen(100)));
             }
         } else {
@@ -38,20 +37,17 @@ $process = new Swoole\Process(function() {
         }
     });
 
-    $serv->on("Receive", function (Server $serv, $fd, $reactorId, $data)
-    {
+    $serv->on("Receive", function (Server $serv, $fd, $reactorId, $data) {
         $serv->send($fd, "Server: $data");
     });
 
-    $serv->on('Task', function ($swooleServer, $task_id, $workerId, $data)
-    {
+    $serv->on('Task', function ($swooleServer, $task_id, $workerId, $data) {
         global $counter1;
         $counter1->add(1);
         return json_encode($data);
     });
 
-    $serv->on('Finish', function (Server $swooleServer, $workerId, $task_data)
-    {
+    $serv->on('Finish', function (Server $swooleServer, $workerId, $task_data) {
         global $counter2;
         $counter2->add(1);
         if ($counter2->get() == N) {

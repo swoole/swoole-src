@@ -240,6 +240,7 @@ struct DataHead;
 typedef int (*ReactorHandler)(Reactor *reactor, Event *event);
 typedef std::function<void(void *)> Callback;
 typedef std::function<void(Timer *, TimerNode *)> TimerCallback;
+typedef std::function<int(Timer *, long)> TimerScheduler;
 }  // namespace swoole
 
 typedef swoole::Reactor swReactor;
@@ -408,6 +409,7 @@ enum swResultCode {
 };
 
 enum swReturnCode {
+    SW_SUCCESS = 0,
     SW_CONTINUE = 1,
     SW_WAIT = 2,
     SW_CLOSE = 3,
@@ -548,12 +550,7 @@ enum swDNSLookupFlag {
     SW_DNS_LOOKUP_RANDOM = (1u << 11),
 };
 
-#ifdef __MACH__
-char *sw_error_();
-#define sw_error sw_error_()
-#else
-extern __thread char sw_error[SW_ERROR_MSG_SIZE];
-#endif
+extern thread_local char sw_error[SW_ERROR_MSG_SIZE];
 
 enum swProcessType {
     SW_PROCESS_MASTER = 1,
@@ -708,6 +705,7 @@ struct ThreadGlobal {
     String *buffer_stack;
     Reactor *reactor;
     Timer *timer;
+    TimerScheduler timer_scheduler;
     MessageBus *message_bus;
     AsyncThreads *async_threads;
 #ifdef SW_USE_IOURING
@@ -816,7 +814,7 @@ double microtime(void);
 }  // namespace swoole
 
 extern swoole::Global SwooleG;                  // Local Global Variable
-extern __thread swoole::ThreadGlobal SwooleTG;  // Thread Global Variable
+extern thread_local swoole::ThreadGlobal SwooleTG;  // Thread Global Variable
 
 #define SW_CPU_NUM (SwooleG.cpu_num)
 

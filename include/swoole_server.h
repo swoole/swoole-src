@@ -454,6 +454,9 @@ class ThreadFactory : public BaseFactory {
     std::mutex lock_;
     std::condition_variable cv_;
     std::queue<Worker *> queue_;
+    long cv_timeout_ms_;
+    bool reload_all_workers;
+    bool reloading;
     Worker manager;
     template <typename _Callable>
     void create_thread(int i, _Callable fn);
@@ -470,6 +473,7 @@ class ThreadFactory : public BaseFactory {
     void spawn_user_worker(WorkerId i);
     void spawn_manager_thread(WorkerId i);
     void wait();
+    bool reload(bool reload_all_workers);
     bool start() override;
     bool shutdown() override;
 };
@@ -1389,7 +1393,7 @@ class Server {
     bool send_pipe_message(WorkerId worker_id, EventData *msg);
 
     void init_reactor(Reactor *reactor);
-    void init_worker(Worker *worker);
+    void init_event_worker(Worker *worker);
     void init_task_workers();
     void init_port_protocol(ListenPort *port);
     void init_signal_handler();
@@ -1530,6 +1534,7 @@ class Server {
     int start_reactor_processes();
     int start_worker_threads();
     void stop_worker_threads();
+    bool reload_worker_threads(bool reload_all_workers);
     void join_reactor_thread();
     TimerCallback get_timeout_callback(ListenPort *port, Reactor *reactor, Connection *conn);
 
