@@ -993,7 +993,9 @@ bool Worker::has_exceeded_max_request() {
 
 void Worker::start() {
     start_time = ::time(nullptr);
+    request_count = 0;
     set_status_to_idle();
+    SwooleWG.running = true;
     SwooleWG.shutdown = false;
 }
 
@@ -1016,6 +1018,10 @@ void Worker::shutdown() {
 
 bool Worker::is_shutdown() {
     return SwooleWG.shutdown;
+}
+
+bool Worker::is_running() {
+    return SwooleWG.running;
 }
 
 ssize_t Worker::send_pipe_message(const void *buf, size_t n, int flags) {

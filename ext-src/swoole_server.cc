@@ -1538,7 +1538,7 @@ static void php_swoole_server_onAfterReload(Server *serv) {
 }
 
 static void php_swoole_server_onWorkerStop(Server *serv, Worker *worker) {
-    if (!SwooleWG.running) {
+    if (!worker->is_running()) {
         return;
     }
 
