@@ -261,6 +261,9 @@ void swoole_native_curl_minit(int module_number) {
     }
     swoole_coroutine_curl_handle_ce = curl_ce;
     swoole_coroutine_curl_handle_ce->create_object = swoole_curl_create_object;
+#if PHP_VERSION_ID >= 80300
+    swoole_coroutine_curl_handle_ce->default_object_handlers = &swoole_coroutine_curl_handle_handlers;
+#endif
     memcpy(&swoole_coroutine_curl_handle_handlers, &std_object_handlers, sizeof(zend_object_handlers));
     swoole_coroutine_curl_handle_handlers.offset = XtOffsetOf(php_curl, std);
     swoole_coroutine_curl_handle_handlers.free_obj = swoole_curl_free_obj;
@@ -274,7 +277,7 @@ void swoole_native_curl_minit(int module_number) {
 
     zend_declare_property_null(swoole_coroutine_curl_handle_ce, ZEND_STRL("private_data"), ZEND_ACC_PUBLIC);
 
-    curl_multi_register_class(nullptr);
+    swoole_curl_multi_register_handlers();
 
     zend_unregister_functions(swoole_native_curl_functions, -1, CG(function_table));
     zend_register_functions(NULL, swoole_native_curl_functions, NULL, MODULE_PERSISTENT);
@@ -293,7 +296,9 @@ static zend_object *swoole_curl_create_object(zend_class_entry *class_type) {
 
     zend_object_std_init(&intern->std, class_type);
     object_properties_init(&intern->std, class_type);
+#if PHP_VERSION_ID < 80300
     intern->std.handlers = &swoole_coroutine_curl_handle_handlers;
+#endif
 
     return &intern->std;
 }
@@ -859,6 +864,15 @@ static void curl_free_cb_arg(void **cb_arg_p) {
     efree(cb_arg);
 }
 /* }}} */
+
+#if LIBCURL_VERSION_NUM < 0x073800 && PHP_VERSION_ID >= 80100/* 7.56.0 */
+/* {{{ curl_free_buffers */
+static void curl_free_buffers(void **buffer)
+{
+    zend_string_release((zend_string *) *buffer);
+}
+/* }}} */
+#endif
 
 /* {{{ curl_free_slist
  */
@@ -2445,7 +2459,7 @@ static void _php_curl_free(php_curl *ch) {
 #if PHP_VERSION_ID < 80100
         zend_llist_clean(&ch->to_free->str);
 #else
-#if LIBCURL_VERSION_NUM < 0x073800 /* 7.56.0 */
+#if LIBCURL_VERSION_NUM < 0x073800 && PHP_VERSION_ID >= 80100 /* 7.56.0 */
         zend_llist_clean(&ch->to_free->buffers);
 #endif
 #endif
