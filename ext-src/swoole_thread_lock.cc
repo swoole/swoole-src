@@ -33,6 +33,11 @@ using swoole::SpinLock;
 #ifdef HAVE_RWLOCK
 using swoole::RWLock;
 #endif
+#ifdef HAVE_IOURING_FUTEX
+#include "swoole_coroutine.h"
+using swoole::Coroutine;
+using swoole::CoroutineLock;
+#endif
 
 zend_class_entry *swoole_thread_lock_ce;
 static zend_object_handlers swoole_thread_lock_handlers;
@@ -49,6 +54,11 @@ struct LockResource : public ThreadResource {
 #ifdef HAVE_RWLOCK
         case Lock::RW_LOCK:
             lock_ = new RWLock(0);
+            break;
+#endif
+#ifdef HAVE_IOURING_FUTEX
+        case Lock::CoroutineLock:
+            lock_ = new COROUTINE_LOCK();
             break;
 #endif
         case Lock::MUTEX:
@@ -143,8 +153,7 @@ void php_swoole_thread_lock_minit(int module_number) {
     swoole_thread_lock_ce->ce_flags |= ZEND_ACC_FINAL | ZEND_ACC_NOT_SERIALIZABLE;
     SW_SET_CLASS_CLONEABLE(swoole_thread_lock, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_thread_lock, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CUSTOM_OBJECT(
-        swoole_thread_lock, lock_create_object, lock_free_object, LockObject, std);
+    SW_SET_CLASS_CUSTOM_OBJECT(swoole_thread_lock, lock_create_object, lock_free_object, LockObject, std);
 
     zend_declare_class_constant_long(swoole_thread_lock_ce, ZEND_STRL("MUTEX"), Lock::MUTEX);
 #ifdef HAVE_RWLOCK
@@ -152,6 +161,9 @@ void php_swoole_thread_lock_minit(int module_number) {
 #endif
 #ifdef HAVE_SPINLOCK
     zend_declare_class_constant_long(swoole_thread_lock_ce, ZEND_STRL("SPINLOCK"), Lock::SPIN_LOCK);
+#endif
+#ifdef HAVE_IOURING_FUTEX
+    zend_declare_class_constant_long(swoole_lock_ce, ZEND_STRL("COROUTINELOCK"), Lock::COROUTINE_LOCK);
 #endif
     zend_declare_property_long(swoole_thread_lock_ce, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
 }
@@ -177,6 +189,7 @@ static PHP_METHOD(swoole_thread_lock, __destruct) {}
 
 static PHP_METHOD(swoole_thread_lock, lock) {
     Lock *lock = lock_get_and_check_ptr(ZEND_THIS);
+    CHECK_COROUTINE_ENV
     SW_LOCK_CHECK_RETURN(lock->lock());
 }
 
@@ -203,22 +216,25 @@ static PHP_METHOD(swoole_thread_lock, lockwait) {
 
 static PHP_METHOD(swoole_thread_lock, unlock) {
     Lock *lock = lock_get_and_check_ptr(ZEND_THIS);
+    CHECK_COROUTINE_ENV
     SW_LOCK_CHECK_RETURN(lock->unlock());
 }
 
 static PHP_METHOD(swoole_thread_lock, trylock) {
     Lock *lock = lock_get_and_check_ptr(ZEND_THIS);
+    CHECK_COROUTINE_ENV
     SW_LOCK_CHECK_RETURN(lock->trylock());
 }
 
 static PHP_METHOD(swoole_thread_lock, trylock_read) {
     Lock *lock = lock_get_and_check_ptr(ZEND_THIS);
+    CHECK_COROUTINE_ENV
     SW_LOCK_CHECK_RETURN(lock->trylock_rd());
 }
 
 static PHP_METHOD(swoole_thread_lock, lock_read) {
     Lock *lock = lock_get_and_check_ptr(ZEND_THIS);
+    CHECK_COROUTINE_ENV
     SW_LOCK_CHECK_RETURN(lock->lock_rd());
 }
-
 #endif

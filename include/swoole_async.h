@@ -24,12 +24,20 @@
 #include <atomic>
 #include <queue>
 
-#ifdef SW_USE_IOURING
-#include <liburing.h>
-#endif
-
 #ifndef O_DIRECT
 #define O_DIRECT 040000
+#endif
+
+#ifdef SW_USE_IOURING
+#include <liburing.h>
+#include <linux/version.h>
+
+#define SW_CHECK_IOURING_VERSION(major, minor)                                                                         \
+    ((IO_URING_VERSION_MAJOR > major) || (IO_URING_VERSION_MAJOR == major && IO_URING_VERSION_MINOR >= minor))
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 7, 0) && SW_CHECK_IOURING_VERSION(2, 6)
+#define HAVE_IOURING_FUTEX 1  // futex lock available since kernel 6.7 and liburing >= 2.6.
+#endif
 #endif
 
 namespace swoole {
@@ -40,41 +48,36 @@ enum AsyncFlag {
 };
 
 struct AsyncEvent {
-    size_t task_id;
 #ifdef SW_USE_IOURING
     size_t count;
-#endif
-    uint8_t canceled;
-    int error;
-    /**
-     * input & output
-     */
-    void *data;
-#ifdef SW_USE_IOURING
     const char *pathname;
     const char *pathname2;
     struct statx *statxbuf;
     void *rbuf;
     const void *wbuf;
-#endif
-    /**
-     * output
-     */
-    ssize_t retval;
-#ifdef SW_USE_IOURING
-    int fd;
-    int flags;
+    int fd;  // alias futex_flags
+    uint32_t flags;
     int opcode;
     mode_t mode;
+#ifdef HAVE_IOURING_FUTEX
+    uint32_t *futex;
+    uint64_t value;
+    uint64_t mask;
 #endif
-    /**
-     * internal use only
-     */
+#endif
+
+    // internal use only
     network::Socket *pipe_socket;
     double timestamp;
     void *object;
     void (*handler)(AsyncEvent *event);
     void (*callback)(AsyncEvent *event);
+
+    size_t task_id;
+    ssize_t retval;  // output
+    void *data;      // input & output
+    uint8_t canceled;
+    int error;
 
     bool catch_error() {
         return (error == SW_ERROR_AIO_TIMEOUT || error == SW_ERROR_AIO_CANCELED);
@@ -168,6 +171,10 @@ class AsyncIouring {
         SW_IORING_OP_RENAMEAT = IORING_OP_RENAMEAT,
         SW_IORING_OP_UNLINKAT = IORING_OP_UNLINKAT,
         SW_IORING_OP_MKDIRAT = IORING_OP_MKDIRAT,
+#ifdef HAVE_IOURING_FUTEX
+        SW_IORING_OP_FUTEX_WAIT = IORING_OP_FUTEX_WAIT,
+        SW_IORING_OP_FUTEX_WAKE = IORING_OP_FUTEX_WAKE,
+#endif
 
         SW_IORING_OP_FSTAT = 1000,
         SW_IORING_OP_LSTAT = 1001,
@@ -193,6 +200,9 @@ class AsyncIouring {
     bool unlink(AsyncEvent *event);
     bool rename(AsyncEvent *event);
     bool fsync(AsyncEvent *event);
+#ifdef HAVE_IOURING_FUTEX
+    bool futex(AsyncEvent *event);
+#endif
     inline bool is_empty_waiting_tasks() {
         return waiting_tasks.size() == 0;
     }
