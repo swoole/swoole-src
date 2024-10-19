@@ -1065,47 +1065,44 @@ EOF
 	        thirdparty/nghttp2/nghttp2_hd_huffman.c \
 	        thirdparty/nghttp2/nghttp2_hd_huffman_data.c"
 	fi
+	
+    if test -z "$PHP_VERSION"; then
+        if test -z "$PHP_CONFIG"; then
+            AC_MSG_ERROR([php-config not found])
+        fi
+        PHP_VERSION=`$PHP_CONFIG --version`
+    fi
+    
+    PHP_VERSION_ID=`echo "${PHP_VERSION}" | $AWK 'BEGIN { FS = "."; } { printf "%d", ([$]1 * 10 + [$]2); }'`
+    
+    if test "$PHP_VERSION_ID" = "82"; then
+        PHP_THIRDPARTY_DIR="thirdparty/php81"
+    else
+        PHP_THIRDPARTY_DIR="thirdparty/php${PHP_VERSION_ID}"
+    fi
 
 	if test "$PHP_SWOOLE_PGSQL" != "no"; then
 	    swoole_source_file="$swoole_source_file \
-	        thirdparty/php81/pdo_pgsql/pgsql_driver.c \
-	        thirdparty/php81/pdo_pgsql/pgsql_statement.c \
-	        thirdparty/php83/pdo_pgsql/pgsql_driver.c \
-            thirdparty/php83/pdo_pgsql/pgsql_statement.c \
-            thirdparty/php84/pdo_pgsql/pgsql_driver.c \
-            thirdparty/php84/pdo_pgsql/pgsql_statement.c \
-            thirdparty/php84/pdo_pgsql/pgsql_sql_parser.c"
+	        ${PHP_THIRDPARTY_DIR}/pdo_pgsql/pgsql_driver.c \
+	        ${PHP_THIRDPARTY_DIR}/pdo_pgsql/pgsql_statement.c"
 	fi
 
 	if test "$PHP_SWOOLE_ORACLE" != "no"; then
         swoole_source_file="$swoole_source_file \
-            thirdparty/php81/pdo_oci/oci_driver.c \
-            thirdparty/php81/pdo_oci/oci_statement.c \
-            thirdparty/php83/pdo_oci/oci_driver.c \
-            thirdparty/php83/pdo_oci/oci_statement.c \
-            thirdparty/php84/pdo_oci/oci_driver.c \
-            thirdparty/php84/pdo_oci/oci_statement.c"
+            ${PHP_THIRDPARTY_DIR}/pdo_oci/oci_driver.c \
+            ${PHP_THIRDPARTY_DIR}/pdo_oci/oci_statement.c"
     fi
 
 	if test "$PHP_SWOOLE_ODBC" != "no"; then
 	    swoole_source_file="$swoole_source_file \
-	        thirdparty/php81/pdo_odbc/odbc_driver.c \
-	        thirdparty/php81/pdo_odbc/odbc_stmt.c \
-	        thirdparty/php83/pdo_odbc/odbc_driver.c \
-            thirdparty/php83/pdo_odbc/odbc_stmt.c \
-            thirdparty/php84/pdo_odbc/odbc_driver.c \
-            thirdparty/php84/pdo_odbc/odbc_stmt.c"
+	        ${PHP_THIRDPARTY_DIR}/pdo_odbc/odbc_driver.c \
+	        ${PHP_THIRDPARTY_DIR}/pdo_odbc/odbc_stmt.c"
 	fi
 
 	if test "$PHP_SWOOLE_SQLITE" != "no"; then
         swoole_source_file="$swoole_source_file \
-            thirdparty/php81/pdo_sqlite/sqlite_driver.c \
-            thirdparty/php81/pdo_sqlite/sqlite_statement.c \
-            thirdparty/php83/pdo_sqlite/sqlite_driver.c \
-            thirdparty/php83/pdo_sqlite/sqlite_statement.c \
-            thirdparty/php84/pdo_sqlite/sqlite_driver.c \
-            thirdparty/php84/pdo_sqlite/sqlite_statement.c \
-            thirdparty/php84/pdo_sqlite/sqlite_sql_parser.c"
+            ${PHP_THIRDPARTY_DIR}/pdo_sqlite/sqlite_driver.c \
+            ${PHP_THIRDPARTY_DIR}/pdo_sqlite/sqlite_statement.c"
     fi
 
     SW_ASM_DIR="thirdparty/boost/asm/"
