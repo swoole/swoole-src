@@ -25,7 +25,7 @@
 using namespace swoole;
 
 SW_EXTERN_C_BEGIN
-#include "curl_interface.h"
+#include "swoole_curl_interface.h"
 #include "curl_arginfo.h"
 
 #include <stdio.h>

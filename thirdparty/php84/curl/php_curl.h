@@ -15,10 +15,15 @@
    +----------------------------------------------------------------------+
 */
 
+#if defined(SW_USE_CURL) && PHP_VERSION_ID >= 80400
+
 #ifndef _PHP_CURL_H
 #define _PHP_CURL_H
 
 #include "php.h"
+#include "zend_smart_str.h"
+
+#define PHP_CURL_DEBUG 0
 
 #ifdef PHP_WIN32
 # ifdef PHP_CURL_EXPORTS
@@ -32,13 +37,13 @@
 # define PHP_CURL_API
 #endif
 
-extern zend_module_entry curl_module_entry;
-#define phpext_curl_ptr &curl_module_entry
-
 PHP_CURL_API extern zend_class_entry *curl_ce;
 PHP_CURL_API extern zend_class_entry *curl_share_ce;
 PHP_CURL_API extern zend_class_entry *curl_multi_ce;
+PHP_CURL_API extern zend_class_entry *swoole_coroutine_curl_handle_ce;
+PHP_CURL_API extern zend_class_entry *swoole_coroutine_curl_multi_handle_ce;
 PHP_CURL_API extern zend_class_entry *curl_CURLFile_class;
 PHP_CURL_API extern zend_class_entry *curl_CURLStringFile_class;
 
 #endif  /* _PHP_CURL_H */
+#endif

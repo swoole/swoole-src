@@ -1,7 +1,7 @@
 /* This is a generated file, edit the .stub.php file instead.
  * Stub hash: f1d616c644ad366405816cde0384f6f391773ebf */
 
-#include "curl_interface.h"
+#include "swoole_curl_interface.h"
 
 #if defined(SW_USE_CURL) && PHP_VERSION_ID < 80400
 
