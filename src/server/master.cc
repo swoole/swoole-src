@@ -575,7 +575,7 @@ void Server::init_worker(Worker *worker) {
     }
 #endif
 
-    worker->start();
+    worker->init();
     worker->set_max_request(max_request, max_request_grace);
 }
 

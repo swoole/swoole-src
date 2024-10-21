@@ -509,14 +509,12 @@ TEST(server, task_worker) {
     ASSERT_EQ(serv.create(), SW_OK);
     ASSERT_EQ(serv.create_task_workers(), SW_OK);
 
-    SwooleWG.shutdown = false;
-    SwooleWG.running = true;
-    SwooleWG.run_always = true;
-
     thread t1([&serv]() {
         serv.gs->task_workers.running = 1;
         serv.gs->tasking_num++;
-        serv.gs->task_workers.main_loop(&serv.gs->task_workers, &serv.gs->task_workers.workers[0]);
+        Worker *worker = &serv.gs->task_workers.workers[0];
+        worker->init();
+        serv.gs->task_workers.main_loop(&serv.gs->task_workers, worker);
         serv.gs->tasking_num--;
         EXPECT_EQ(serv.get_task_count(), 0);
         serv.gs->tasking_num--;
