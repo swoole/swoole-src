@@ -259,7 +259,7 @@ static void TaskWorker_onStart(ProcessPool *pool, Worker *worker) {
     TaskWorker_signal_init(pool);
     serv->worker_start_callback(worker);
 
-    worker->start();
+    worker->init();
     worker->set_max_request(pool->max_request, pool->max_request_grace);
 }
 
