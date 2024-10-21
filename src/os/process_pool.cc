@@ -997,7 +997,7 @@ void Worker::init() {
 
 void Worker::set_max_request(uint32_t max_request, uint32_t max_request_grace) {
     if (max_request > 0 && max_request_grace > 0) {
-        SwooleWG.max_request += swoole_system_random(1, max_request_grace);
+        max_request += swoole_system_random(1, max_request_grace);
     }
     SwooleWG.max_request = max_request;
 }
