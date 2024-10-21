@@ -41,7 +41,7 @@ jobs:
           make clean && make -j$(nproc)
 
   build-macos-latest:
-    if: "!contains(github.event.head_commit.message, '--filter=')"
+    if: "!contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[macos]')"
     runs-on: macos-latest
     steps:
       - name: install dependencies
@@ -70,23 +70,11 @@ jobs:
           make clean && make -j$(sysctl -n hw.ncpu)
 
   build-alpine-latest:
-    if: "!contains(github.event.head_commit.message, '--filter=')"
+    if: "!contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[alpine]')"
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        php-version: [ '8.1', '8.2', '8.3' ]
-        alpine-version: [ '3.16', '3.17', '3.18', '3.19', 'edge' ]
-        exclude:
-          - php-version: '8.3'
-            alpine-version: '3.16'
-          - php-version: '8.3'
-            alpine-version: '3.17'
-          - php-version: '8.3'
-            alpine-version: '3.18'
-          - php-version: '8.2'
-            alpine-version: '3.16'
-          - php-version: '8.2'
-            alpine-version: '3.17'
+        php-version: [ '8.0', '8.1', '8.2', '8.3' ]
       max-parallel: 8
       fail-fast: false
     steps:
@@ -94,4 +82,4 @@ jobs:
       - name: build
         run: |
           cp .github/workflows/alpine.Dockerfile alpine.Dockerfile
-          docker build -t swoole . -f alpine.Dockerfile --build-arg PHP_VERSION=${{ matrix.php-version }} --build-arg ALPINE_VERSION=${{ matrix.alpine-version }}
+          docker build -t swoole . -f alpine.Dockerfile --build-arg PHP_VERSION=${{ matrix.php-version }}
