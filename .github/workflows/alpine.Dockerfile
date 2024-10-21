@@ -7,16 +7,16 @@ LABEL maintainer="Swoole Team <team@swoole.com>" version="1.0" license="Apache2"
 
 ARG PHP_VERSION
 
-COPY . /opt/www
+COPY . /swoole
 
-WORKDIR /opt/www
+WORKDIR /swoole
 
 RUN set -ex \
     && phpize \
     && ./configure --enable-openssl --enable-swoole-curl \
     && make -s -j$(nproc) && make install
 
-RUN echo "extension=swoole.so" > "$(php-config --lib-dir)/php.ini"
+RUN echo "extension=swoole.so" > "/usr/local/etc/php/conf.d/swoole.ini"
 RUN php -v
 RUN php -m
 RUN php --ri swoole
