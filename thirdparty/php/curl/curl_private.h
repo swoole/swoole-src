@@ -98,9 +98,6 @@ struct _php_curl_send_headers {
 struct _php_curl_free {
     zend_llist post;
     zend_llist stream;
-#if LIBCURL_VERSION_NUM < 0x073800 /* 7.56.0 */
-    zend_llist buffers;
-#endif
     HashTable *slist;
 };
 #else

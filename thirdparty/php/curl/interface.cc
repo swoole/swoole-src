@@ -865,15 +865,6 @@ static void curl_free_cb_arg(void **cb_arg_p) {
 }
 /* }}} */
 
-#if LIBCURL_VERSION_NUM < 0x073800 && PHP_VERSION_ID >= 80100/* 7.56.0 */
-/* {{{ curl_free_buffers */
-static void curl_free_buffers(void **buffer)
-{
-    zend_string_release((zend_string *) *buffer);
-}
-/* }}} */
-#endif
-
 /* {{{ curl_free_slist
  */
 static void curl_free_slist(zval *el) {
@@ -920,10 +911,6 @@ void swoole_curl_init_handle(php_curl *ch) {
 #endif
     zend_llist_init(&ch->to_free->post, sizeof(struct HttpPost *), (llist_dtor_func_t) curl_free_post, 0);
     zend_llist_init(&ch->to_free->stream, sizeof(struct mime_data_cb_arg *), (llist_dtor_func_t) curl_free_cb_arg, 0);
-
-#if LIBCURL_VERSION_NUM < 0x073800 && PHP_VERSION_ID >= 80100
-    zend_llist_init(&ch->to_free->buffers, sizeof(zend_string *), (llist_dtor_func_t)curl_free_buffers, 0);
-#endif
 
     ch->to_free->slist = (HashTable *) emalloc(sizeof(HashTable));
     zend_hash_init(ch->to_free->slist, 4, NULL, curl_free_slist, 0);
@@ -2458,10 +2445,6 @@ static void _php_curl_free(php_curl *ch) {
     if (--(*ch->clone) == 0) {
 #if PHP_VERSION_ID < 80100
         zend_llist_clean(&ch->to_free->str);
-#else
-#if LIBCURL_VERSION_NUM < 0x073800 && PHP_VERSION_ID >= 80100 /* 7.56.0 */
-        zend_llist_clean(&ch->to_free->buffers);
-#endif
 #endif
         zend_llist_clean(&ch->to_free->post);
         zend_llist_clean(&ch->to_free->stream);
