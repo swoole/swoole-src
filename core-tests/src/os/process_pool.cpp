@@ -88,7 +88,6 @@ TEST(process_pool, shutdown) {
     pool.set_protocol(SW_PROTOCOL_TASK);
     pool.ptr = shm_value;
     pool.onWorkerStart = [](ProcessPool *pool, Worker *worker) {
-        SwooleWG.worker->set_max_request(100, 1000);
         int *shm_value = (int *) pool->ptr;
         *shm_value = magic_number;
         usleep(1);
