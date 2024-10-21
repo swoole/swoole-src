@@ -2048,6 +2048,14 @@ php_stream_ops *php_swoole_get_ori_php_stream_stdio_ops() {
     return &ori_php_stream_stdio_ops;
 }
 
+zif_handler php_swoole_runtime_get_ori_handler(const char *name, size_t len) {
+    real_func *rf = (real_func *) zend_hash_str_find_ptr(tmp_function_table, name, len);
+    if (!rf) {
+        return nullptr;
+    }
+    return rf->ori_handler;
+}
+
 static PHP_FUNCTION(swoole_stream_socket_pair) {
     zend_long domain, type, protocol;
     php_stream *s1, *s2;

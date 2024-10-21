@@ -18,6 +18,7 @@
  */
 
 #include "php_swoole_cxx.h"
+#include "php_swoole_thread.h"
 #include "php_swoole_coroutine_system.h"
 
 #include "swoole_server.h"
@@ -235,23 +236,37 @@ PHP_FUNCTION(swoole_exit) {
         flags |= SW_EXIT_IN_SERVER;
     }
 
+    zend_string *message = NULL;
+    zend_long status = 0;
+
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_STR_OR_LONG(message, status)
+    ZEND_PARSE_PARAMETERS_END();
+
     if (flags) {
-        zend_string *message = NULL;
-        zend_long status = 0;
-
-        ZEND_PARSE_PARAMETERS_START(0, 1)
-        Z_PARAM_OPTIONAL
-        Z_PARAM_STR_OR_LONG(message, status)
-        ZEND_PARSE_PARAMETERS_END();
-
         zval ex = {};
-        zend_object *obj = zend_throw_exception(swoole_exit_exception_ce, (message ? ZSTR_VAL(message) : "swoole exit"), 0);
+        zend_object *obj =
+            zend_throw_exception(swoole_exit_exception_ce, (message ? ZSTR_VAL(message) : "swoole exit"), 0);
         ZVAL_OBJ(&ex, obj);
         zend_update_property_long(swoole_exit_exception_ce, SW_Z8_OBJ_P(&ex), ZEND_STRL("flags"), flags);
         zend_update_property_long(swoole_exit_exception_ce, SW_Z8_OBJ_P(&ex), ZEND_STRL("status"), status);
     } else {
-        zend_function *zf = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("exit"));
-        zf->internal_function.handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+        zif_handler fn = php_swoole_runtime_get_ori_handler(ZEND_STRL("exit"));
+        if (fn) {
+            fn(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+        } else {
+            if (message) {
+                php_write(ZSTR_VAL(message), ZSTR_LEN(message));
+            } else {
+                EG(exit_status) = status;
+            }
+#ifdef SW_THREAD
+            php_swoole_thread_bailout();
+#else
+            zend_bailout();
+#endif
+        }
     }
 }
 SW_EXTERN_C_END
