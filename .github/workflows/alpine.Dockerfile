@@ -1,7 +1,7 @@
 ARG PHP_VERSION
 ARG ALPINE_VERSION
 
-FROM hyperf/hyperf:${PHP_VERSION}-alpine-v${ALPINE_VERSION}-dev
+FROM phpswoole/php:${PHP_VERSION}-alpine
 
 LABEL maintainer="Swoole Team <team@swoole.com>" version="1.0" license="Apache2"
 
