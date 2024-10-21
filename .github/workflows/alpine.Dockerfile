@@ -15,7 +15,7 @@ RUN set -ex \
     && phpize \
     && ./configure --enable-openssl --enable-swoole-curl \
     && make -s -j$(nproc) && make install \
-    && echo "extension=swoole.so" > /etc/php$(echo $PHP_VERSION | sed 's/\.//g')/conf.d/50_swoole.ini \
+    && echo "extension=swoole.so" > "$(php-config --lib-dir)/php.ini" \
     # check
     && php -v \
     && php -m \
