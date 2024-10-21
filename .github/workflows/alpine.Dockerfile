@@ -14,7 +14,7 @@ WORKDIR /opt/www
 RUN set -ex \
     && phpize \
     && ./configure --enable-openssl --enable-swoole-curl \
-    && make -s -j$(nproc) && make install  \
+    && make -s -j$(nproc) && make install
 
 RUN php-config
 RUN echo "extension=swoole.so" > "$(php-config --lib-dir)/php.ini"
