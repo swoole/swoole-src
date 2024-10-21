@@ -14,10 +14,11 @@ WORKDIR /opt/www
 RUN set -ex \
     && phpize \
     && ./configure --enable-openssl --enable-swoole-curl \
-    && make -s -j$(nproc) && make install \
-    && echo "extension=swoole.so" > "$(php-config --lib-dir)/php.ini" \
-    # check
-    && php -v \
-    && php -m \
-    && php --ri swoole \
-    && echo -e "\033[42;37m Build Completed :).\033[0m\n"
+    && make -s -j$(nproc) && make install  \
+
+RUN php-config
+RUN echo "extension=swoole.so" > "$(php-config --lib-dir)/php.ini"
+RUN php -v
+RUN php -m
+RUN php --ri swoole
+RUN echo -e "\033[42;37m Build Completed :).\033[0m\n"
