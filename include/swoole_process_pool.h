@@ -103,7 +103,6 @@ struct ProcessPool;
 struct Worker;
 
 struct WorkerGlobal {
-    bool run_always;
     bool shutdown;
     bool running;
     uint32_t max_request;
@@ -163,7 +162,11 @@ struct Worker {
     bool has_exceeded_max_request();
     void set_max_request(uint32_t max_request, uint32_t max_request_grace);
     void report_error(const ExitStatus &exit_status);
-    void start();
+    /**
+     * Init global state for worker process.
+     * Must be called after the process is spawned and before the main loop is executed.
+     */
+    void init();
     void shutdown();
     bool is_shutdown();
     bool is_running();

@@ -558,7 +558,6 @@ TEST(server, task_worker) {
     ASSERT_EQ(serv.create_task_workers(), SW_OK);
 
     thread t1([&serv]() {
-    	SwooleWG.run_always = true;
         serv.gs->task_workers.running = 1;
         serv.gs->task_workers.main_loop(&serv.gs->task_workers, &serv.gs->task_workers.workers[0]);
         EXPECT_EQ(serv.get_tasking_num(), 0);
