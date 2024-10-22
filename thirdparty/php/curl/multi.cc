@@ -551,7 +551,9 @@ static zend_object *swoole_curl_multi_create_object(zend_class_entry *class_type
 
     zend_object_std_init(&intern->std, class_type);
     object_properties_init(&intern->std, class_type);
+#if PHP_VERSION_ID < 80300
     intern->std.handlers = &swoole_coroutine_curl_multi_handle_handlers;
+#endif
 
     return &intern->std;
 }
@@ -600,9 +602,12 @@ static HashTable *swoole_curl_multi_get_gc(zend_object *object, zval **table, in
     return zend_std_get_properties(object);
 }
 
-void curl_multi_register_class(const zend_function_entry *method_entries) {
+void swoole_curl_multi_register_handlers(void) {
     swoole_coroutine_curl_multi_handle_ce = curl_multi_ce;
     swoole_coroutine_curl_multi_handle_ce->create_object = swoole_curl_multi_create_object;
+#if PHP_VERSION_ID >= 80300
+    swoole_coroutine_curl_multi_handle_ce->default_object_handlers = &swoole_coroutine_curl_multi_handle_handlers;
+#endif
 
     memcpy(&swoole_coroutine_curl_multi_handle_handlers, &std_object_handlers, sizeof(zend_object_handlers));
     swoole_coroutine_curl_multi_handle_handlers.offset = XtOffsetOf(php_curlm, std);

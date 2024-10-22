@@ -203,7 +203,7 @@ static inline php_curlsh *curl_share_from_obj(zend_object *obj) {
 }
 
 #define Z_CURL_SHARE_P(zv) curl_share_from_obj(Z_OBJ_P(zv))
-void curl_multi_register_class(const zend_function_entry *method_entries);
+void swoole_curl_multi_register_handlers(void);
 curl_result_t swoole_curl_cast_object(zend_object *obj, zval *result, int type);
 
 php_curl *swoole_curl_get_handle(zval *zid, bool exclusive = true, bool required = true);
