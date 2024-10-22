@@ -22,7 +22,7 @@ using namespace swoole;
 
 SW_EXTERN_C_BEGIN
 #define ZEND_INCLUDE_FULL_WINDOWS_HEADERS
-#include "curl_interface.h"
+#include "swoole_curl_interface.h"
 #include "curl_arginfo.h"
 
 #include <stdio.h>
@@ -2097,7 +2097,7 @@ static zend_result _php_curl_setopt(php_curl *ch, zend_long option, zval *zvalue
             return FAILURE;
         }
         if (zend_is_true(zvalue)) {
-            curl_easy_setopt(ch->cp, CURLOPT_DEBUGFUNCTION, curl_debug);
+            curl_easy_setopt(ch->cp, CURLOPT_DEBUGFUNCTION, fn_debug);
             curl_easy_setopt(ch->cp, CURLOPT_DEBUGDATA, (void *) ch);
             curl_easy_setopt(ch->cp, CURLOPT_VERBOSE, 1);
         } else {

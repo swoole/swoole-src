@@ -593,7 +593,7 @@ void Server::destroy_worker(Worker *worker) {
  * [Worker]
  */
 void Server::init_event_worker(Worker *worker) {
-    worker->start();
+    worker->init();
     worker->set_max_request(max_request, max_request_grace);
 }
 

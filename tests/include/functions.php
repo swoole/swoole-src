@@ -385,7 +385,7 @@ function get_big_random(int $length = 1024 * 1024)
     return str_repeat(get_safe_random(1024), $length / 1024);
 }
 
-function makeCoTcpClient($host, $port, callable $onConnect = null, callable $onReceive = null)
+function makeCoTcpClient($host, $port, ?callable $onConnect = null, ?callable $onReceive = null)
 {
     go(function () use ($host, $port, $onConnect, $onReceive) {
         $cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
@@ -462,7 +462,7 @@ function killself_in_syncmode($lifetime = 1000, $sig = SIGKILL)
  * @param callable $cb
  * @return mixed
  */
-function suicide($lifetime, $sig = SIGKILL, callable $cb = null)
+function suicide($lifetime, $sig = SIGKILL, ?callable $cb = null)
 {
     return Swoole\Timer::after($lifetime, function () use ($lifetime, $sig, $cb) {
         if ($cb) {
@@ -684,7 +684,7 @@ function php_fork_exec(callable $fn, $f_stdout = "/dev/null", $f_stderr = null)
  * @param array|null $env env
  * @return array [out, err]
  */
-function spawn_exec($cmd, $input = null, $tv_sec = null, $tv_usec = null, $cwd = null, array $env = null)
+function spawn_exec($cmd, $input = null, $tv_sec = null, $tv_usec = null, $cwd = null, ?array $env = null)
 {
     $out = $err = null;
     $winOpt = ['suppress_errors' => true, 'binary_pipes' => true];

@@ -24,7 +24,6 @@ static void test_func(ProcessPool &pool) {
 
     pool.running = true;
     pool.ptr = &rmem;
-    SwooleWG.run_always = true;
     pool.main_loop(&pool, pool.get_worker(0));
     pool.destroy();
 }

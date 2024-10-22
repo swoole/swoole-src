@@ -225,7 +225,7 @@ static int coro_exit_handler(zend_execute_data *execute_data) {
 }
 #else
 SW_EXTERN_C_BEGIN
-extern ZEND_FUNCTION(exit);
+bool swoole_call_original_handler(const char *name, INTERNAL_FUNCTION_PARAMETERS);
 PHP_FUNCTION(swoole_exit) {
     zend_long flags = 0;
     if (Coroutine::get_current()) {
@@ -251,7 +251,7 @@ PHP_FUNCTION(swoole_exit) {
         zend_update_property_long(swoole_exit_exception_ce, SW_Z8_OBJ_P(&ex), ZEND_STRL("flags"), flags);
         zend_update_property_long(swoole_exit_exception_ce, SW_Z8_OBJ_P(&ex), ZEND_STRL("status"), status);
     } else {
-        ZEND_FN(exit)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+        swoole_call_original_handler("exit", INTERNAL_FUNCTION_PARAM_PASSTHRU);
     }
 }
 SW_EXTERN_C_END

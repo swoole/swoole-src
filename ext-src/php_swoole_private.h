@@ -125,6 +125,10 @@ extern PHPAPI int php_array_merge(zend_array *dest, zend_array *src);
 #error "require PHP version 8.1 or later"
 #endif
 
+#if PHP_VERSION_ID > 80500
+#error "require PHP version 8.4 or earlier"
+#endif
+
 #if defined(ZTS) && defined(SW_USE_THREAD_CONTEXT)
 #error "thread context cannot be used with ZTS"
 #endif

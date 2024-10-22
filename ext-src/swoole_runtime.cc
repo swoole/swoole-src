@@ -21,11 +21,7 @@
 #include "thirdparty/php/standard/proc_open.h"
 
 #ifdef SW_USE_CURL
-#if PHP_VERSION_ID >= 80400
-#include "thirdparty/php84/curl/curl_interface.h"
-#else
-#include "thirdparty/php/curl/curl_interface.h"
-#endif
+#include "swoole_curl_interface.h"
 #endif
 
 #include <unordered_map>
@@ -1173,6 +1169,18 @@ static bool enable_func(const char *name, size_t l_name) {
 
     return true;
 }
+
+SW_EXTERN_C_BEGIN
+bool swoole_call_original_handler(const char *name, INTERNAL_FUNCTION_PARAMETERS) {
+    real_func *rf = (real_func *) zend_hash_str_find_ptr(tmp_function_table, name, strlen(name));
+    if (!rf) {
+        return false;
+    }
+    rf->ori_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+
+    return true;
+}
+SW_EXTERN_C_END
 
 void PHPCoroutine::disable_unsafe_function() {
     for (auto &f : unsafe_functions) {

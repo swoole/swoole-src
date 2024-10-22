@@ -1,6 +1,6 @@
 /* This is a generated file, edit the .stub.php file instead.
  * Stub hash: ddfcdd8a0bf0ee6c338ec1689c6de5d7fd87303d */
-#include "curl_interface.h"
+#include "swoole_curl_interface.h"
 
 #if defined(SW_USE_CURL) && PHP_VERSION_ID >= 80400
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_native_curl_close, 0, 1, IS_VOID, 0)

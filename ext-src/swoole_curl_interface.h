@@ -2,7 +2,7 @@
 
 #include "php_swoole_cxx.h"
 
-#if defined(SW_USE_CURL) && PHP_VERSION_ID < 80400
+#ifdef SW_USE_CURL
 SW_EXTERN_C_BEGIN
 
 #include <curl/curl.h>
@@ -34,5 +34,13 @@ PHP_FUNCTION(swoole_native_curl_multi_setopt);
 PHP_FUNCTION(swoole_native_curl_multi_getcontent);
 PHP_FUNCTION(swoole_native_curl_multi_info_read);
 PHP_FUNCTION(swoole_native_curl_multi_init);
+
+#if PHP_VERSION_ID >= 80400
+PHP_FUNCTION(swoole_native_curl_upkeep);
+PHP_FUNCTION(swoole_native_curl_version);
+PHP_FUNCTION(swoole_native_curl_strerror);
+PHP_FUNCTION(swoole_native_curl_multi_strerror);
+#endif
+
 SW_EXTERN_C_END
 #endif
