@@ -1081,16 +1081,15 @@ EOF
         PHP_THIRDPARTY_DIR="thirdparty/php${PHP_VERSION_ID}"
     fi
 
-    if test "$PHP_SWOOLE_PGSQL" != "no"; then
-        swoole_source_file="$swoole_source_file \
-            ${PHP_THIRDPARTY_DIR}/pdo_pgsql/pgsql_driver.c \
-            ${PHP_THIRDPARTY_DIR}/pdo_pgsql/pgsql_statement.c"
-
-        if test "${PHP_VERSION_ID}" -ge "84"; then
-            swoole_source_file="$swoole_source_file \
-                ${PHP_THIRDPARTY_DIR}/pdo_pgsql/pgsql_sql_parser.c"
-        fi
-    fi
+	if test "$PHP_SWOOLE_PGSQL" != "no"; then
+	    swoole_source_file="$swoole_source_file \
+	        ${PHP_THIRDPARTY_DIR}/pdo_pgsql/pgsql_driver.c \
+	        ${PHP_THIRDPARTY_DIR}/pdo_pgsql/pgsql_statement.c"
+		if test "$PHP_VERSION_ID" -ge "84"; then
+			swoole_source_file="$swoole_source_file \
+				${PHP_THIRDPARTY_DIR}/pdo_pgsql/pgsql_sql_parser.c"
+		fi
+	fi
 
     if test "$PHP_SWOOLE_ORACLE" != "no"; then
         swoole_source_file="$swoole_source_file \
@@ -1108,11 +1107,10 @@ EOF
         swoole_source_file="$swoole_source_file \
             ${PHP_THIRDPARTY_DIR}/pdo_sqlite/sqlite_driver.c \
             ${PHP_THIRDPARTY_DIR}/pdo_sqlite/sqlite_statement.c"
-
-        if test "${PHP_VERSION_ID}" -ge "84"; then
-            swoole_source_file="$swoole_source_file \
-                ${PHP_THIRDPARTY_DIR}/pdo_sqlite/sqlite_sql_parser.c"
-        fi
+		if test "$PHP_VERSION_ID" -ge "84"; then
+			swoole_source_file="$swoole_source_file \
+				${PHP_THIRDPARTY_DIR}/pdo_sqlite/sqlite_sql_parser.c"
+		fi
     fi
 
     SW_ASM_DIR="thirdparty/boost/asm/"

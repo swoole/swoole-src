@@ -1174,6 +1174,16 @@ static bool enable_func(const char *name, size_t l_name) {
     return true;
 }
 
+bool php_swoole_call_original_handler(const char *name, size_t len, INTERNAL_FUNCTION_PARAMETERS) {
+    auto ori_handler = php_swoole_get_original_handler(name, len);
+    if (!ori_handler) {
+        return false;
+    }
+    ori_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+
+    return true;
+}
+
 void PHPCoroutine::disable_unsafe_function() {
     for (auto &f : unsafe_functions) {
         disable_func(f.c_str(), f.length());
@@ -2052,7 +2062,7 @@ php_stream_ops *php_swoole_get_ori_php_stream_stdio_ops() {
     return &ori_php_stream_stdio_ops;
 }
 
-zif_handler php_swoole_runtime_get_ori_handler(const char *name, size_t len) {
+zif_handler php_swoole_get_original_handler(const char *name, size_t len) {
     if (sw_is_main_thread()) {
         real_func *rf = (real_func *) zend_hash_str_find_ptr(tmp_function_table, name, len);
         if (!rf) {

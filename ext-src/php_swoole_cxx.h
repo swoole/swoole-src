@@ -149,7 +149,8 @@ SW_API php_stream *php_swoole_create_stream_from_socket(php_socket_t _fd,
 SW_API php_stream *php_swoole_create_stream_from_pipe(int fd, const char *mode, const char *persistent_id STREAMS_DC);
 SW_API php_stream_ops *php_swoole_get_ori_php_stream_stdio_ops();
 SW_API void php_swoole_register_rshutdown_callback(swoole::Callback cb, void *private_data);
-SW_API zif_handler php_swoole_runtime_get_ori_handler(const char *name, size_t len);
+SW_API zif_handler php_swoole_get_original_handler(const char *name, size_t len);
+SW_API bool php_swoole_call_original_handler(const char *name, size_t len, INTERNAL_FUNCTION_PARAMETERS);
 
 // timer
 SW_API bool php_swoole_timer_clear(swoole::TimerNode *tnode);

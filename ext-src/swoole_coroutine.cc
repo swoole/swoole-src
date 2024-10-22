@@ -111,6 +111,9 @@ static PHP_METHOD(swoole_coroutine, disableScheduler);
 #ifdef SW_CORO_TIME
 static PHP_METHOD(swoole_coroutine, getExecuteTime);
 #endif
+#if PHP_VERSION_ID >= 80400
+static PHP_FUNCTION(swoole_exit);
+#endif
 SW_EXTERN_C_END
 
 // clang-format off
@@ -225,7 +228,6 @@ static int coro_exit_handler(zend_execute_data *execute_data) {
     return ZEND_USER_OPCODE_DISPATCH;
 }
 #else
-SW_EXTERN_C_BEGIN
 PHP_FUNCTION(swoole_exit) {
     zend_long flags = 0;
     if (Coroutine::get_current()) {
@@ -256,10 +258,7 @@ PHP_FUNCTION(swoole_exit) {
             zend_update_property_long(swoole_exit_exception_ce, SW_Z8_OBJ_P(&ex), ZEND_STRL("status"), status);
         }
     } else {
-        zif_handler fn = php_swoole_runtime_get_ori_handler(ZEND_STRL("exit"));
-        if (fn) {
-            fn(INTERNAL_FUNCTION_PARAM_PASSTHRU);
-        } else {
+        if (!php_swoole_call_original_handler(ZEND_STRL("exit"), INTERNAL_FUNCTION_PARAM_PASSTHRU)) {
             if (message) {
                 php_write(ZSTR_VAL(message), ZSTR_LEN(message));
             }
@@ -267,7 +266,6 @@ PHP_FUNCTION(swoole_exit) {
         }
     }
 }
-SW_EXTERN_C_END
 #endif
 
 static int coro_begin_silence_handler(zend_execute_data *execute_data) {
