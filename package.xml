@@ -52,9 +52,9 @@
         <active>yes</active>
     </developer>
     <date>2024-10-22</date>
-    <time>09:00:00</time>
+    <time>10:00:00</time>
     <version>
-        <release>5.1.4</release>
+        <release>5.1.5</release>
         <api>5.0</api>
     </version>
     <stability>
