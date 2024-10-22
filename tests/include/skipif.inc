@@ -56,6 +56,13 @@ function skip_if_php_version_lower_than($require_version = '7.0')
     }
 }
 
+function skip_if_php_version_ge($require_version = '7.0')
+{
+    if (version_compare(PHP_VERSION, $require_version, '>=')) {
+        skip('need php version >= ' . $require_version);
+    }
+}
+
 function skip_if_php_version_between($a, $b)
 {
     if (version_compare(PHP_VERSION, $a, '>=') && version_compare(PHP_VERSION, $b, '<=')) {
