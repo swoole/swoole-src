@@ -18,13 +18,13 @@
 #include "php_swoole_process.h"
 #include "php_swoole_thread.h"
 
-#if (HAVE_PCRE || HAVE_BUNDLED_PCRE) && !defined(COMPILE_DL_PCRE)
-#include "ext/pcre/php_pcre.h"
-#endif
+BEGIN_EXTERN_C()
 #include "zend_exceptions.h"
 #include "zend_extensions.h"
 
-BEGIN_EXTERN_C()
+#if (HAVE_PCRE || HAVE_BUNDLED_PCRE) && !defined(COMPILE_DL_PCRE)
+#include "ext/pcre/php_pcre.h"
+#endif
 #include "ext/json/php_json.h"
 
 #include "stubs/php_swoole_arginfo.h"
@@ -1031,6 +1031,19 @@ const swoole::Allocator *sw_zend_string_allocator() {
     return &zend_string_allocator;
 }
 
+void sw_php_exit(int status) {
+    EG(exit_status) = status;
+#ifdef SW_THREAD
+    php_swoole_thread_bailout();
+#else
+    zend_bailout();
+#endif
+}
+
+static void sw_after_fork(void *args) {
+    zend_max_execution_timer_init();
+}
+
 PHP_RINIT_FUNCTION(swoole) {
     if (!SWOOLE_G(cli)) {
         return SUCCESS;
@@ -1070,6 +1083,8 @@ PHP_RINIT_FUNCTION(swoole) {
     /* Disable warning even in ZEND_DEBUG because we may register our own signal handlers  */
     SIGG(check) = 0;
 #endif
+
+    swoole_add_hook(SW_GLOBAL_HOOK_AFTER_FORK, sw_after_fork, 0);
 
     php_swoole_http_server_rinit();
     php_swoole_websocket_server_rinit();
@@ -1517,12 +1532,7 @@ static PHP_FUNCTION(swoole_implicit_fn) {
         swoole_fatal_error(SW_ERROR_FOR_TEST, "test");
         php_printf("never be executed here\n");
     } else if (SW_STRCASEEQ(fn, l_fn, "bailout")) {
-        EG(exit_status) = zargs ? zval_get_long(zargs) : 95;
-#ifdef SW_THREAD
-        php_swoole_thread_bailout();
-#else
-        zend_bailout();
-#endif
+        sw_php_exit(zargs ? zval_get_long(zargs) : 95);
     } else if (SW_STRCASEEQ(fn, l_fn, "abort")) {
         abort();
     } else {
