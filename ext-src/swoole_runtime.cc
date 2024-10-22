@@ -15,6 +15,7 @@
  */
 
 #include "php_swoole_cxx.h"
+
 #include "swoole_socket.h"
 #include "swoole_util.h"
 
@@ -177,7 +178,7 @@ static bool runtime_hook_init = false;
 static int runtime_hook_flags = 0;
 static SW_THREAD_LOCAL zend_array *tmp_function_table = nullptr;
 static SW_THREAD_LOCAL std::unordered_map<std::string, zend_class_entry *> child_class_entries;
-static std::unordered_map<std::string, zif_handler> ori_func_handlers;
+static zend::ConcurrencyHashMap<std::string, zif_handler> ori_func_handlers(nullptr);
 
 SW_EXTERN_C_BEGIN
 #include "ext/standard/file.h"
@@ -238,6 +239,9 @@ void php_swoole_runtime_rinit() {
     tmp_function_table = (zend_array *) emalloc(sizeof(zend_array));
     zend_hash_init(tmp_function_table, 8, nullptr, nullptr, 0);
 #if PHP_VERSION_ID >= 80400
+    if (!sw_is_main_thread()) {
+        return;
+    }
     SW_HOOK_FUNC(exit);
 #endif
 }
@@ -1988,7 +1992,7 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
         zf->internal_function.arg_info = arg_info;
     }
 
-    ori_func_handlers[std::string(fn_str->val, fn_str->len)] = rf->ori_handler;
+    ori_func_handlers.set(std::string(fn_str->val, fn_str->len), rf->ori_handler);
 
     if (use_php_func) {
         char func[128];
@@ -2049,11 +2053,15 @@ php_stream_ops *php_swoole_get_ori_php_stream_stdio_ops() {
 }
 
 zif_handler php_swoole_runtime_get_ori_handler(const char *name, size_t len) {
-    real_func *rf = (real_func *) zend_hash_str_find_ptr(tmp_function_table, name, len);
-    if (!rf) {
-        return nullptr;
+    if (sw_is_main_thread()) {
+        real_func *rf = (real_func *) zend_hash_str_find_ptr(tmp_function_table, name, len);
+        if (!rf) {
+            return nullptr;
+        }
+        return rf->ori_handler;
+    } else {
+        return ori_func_handlers.get(std::string(name, len));
     }
-    return rf->ori_handler;
 }
 
 static PHP_FUNCTION(swoole_stream_socket_pair) {
@@ -2091,7 +2099,7 @@ static PHP_FUNCTION(swoole_stream_socket_pair) {
 static PHP_FUNCTION(swoole_user_func_handler) {
     auto fn_str = execute_data->func->common.function_name;
     if (!swoole_coroutine_is_in()) {
-        auto ori_handler = ori_func_handlers[std::string(fn_str->val, fn_str->len)];
+        auto ori_handler = ori_func_handlers.get(std::string(fn_str->val, fn_str->len));
         ori_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
         return;
     }
@@ -2099,6 +2107,10 @@ static PHP_FUNCTION(swoole_user_func_handler) {
     real_func *rf = (real_func *) zend_hash_find_ptr(tmp_function_table, fn_str);
     if (!rf) {
 #ifdef SW_THREAD
+        /**
+         * The Callable object with ZTS needs to be reconstructed for each thread,
+         * ensuring that each thread is isolated from the others.
+         */
         hook_func(fn_str->val, fn_str->len);
         rf = (real_func *) zend_hash_find_ptr(tmp_function_table, fn_str);
 #else

@@ -889,6 +889,10 @@ static void swoole_fatal_error_impl(int code, const char *format, ...) {
 
 void swoole_exit(int __status) {
 #ifdef SW_THREAD
+    /**
+     * If multiple threads call exit simultaneously, it can result in a crash.
+     * Implementing locking mechanisms can prevent concurrent calls to exit.
+     */
     std::unique_lock<std::mutex> _lock(sw_thread_lock);
 #endif
     exit(__status);

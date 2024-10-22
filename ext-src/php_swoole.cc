@@ -1031,6 +1031,15 @@ const swoole::Allocator *sw_zend_string_allocator() {
     return &zend_string_allocator;
 }
 
+void sw_php_exit(int status) {
+    EG(exit_status) = status;
+#ifdef SW_THREAD
+    php_swoole_thread_bailout();
+#else
+    zend_bailout();
+#endif
+}
+
 PHP_RINIT_FUNCTION(swoole) {
     if (!SWOOLE_G(cli)) {
         return SUCCESS;
@@ -1517,12 +1526,7 @@ static PHP_FUNCTION(swoole_implicit_fn) {
         swoole_fatal_error(SW_ERROR_FOR_TEST, "test");
         php_printf("never be executed here\n");
     } else if (SW_STRCASEEQ(fn, l_fn, "bailout")) {
-        EG(exit_status) = zargs ? zval_get_long(zargs) : 95;
-#ifdef SW_THREAD
-        php_swoole_thread_bailout();
-#else
-        zend_bailout();
-#endif
+        sw_php_exit(zargs ? zval_get_long(zargs) : 95);
     } else if (SW_STRCASEEQ(fn, l_fn, "abort")) {
         abort();
     } else {

@@ -250,7 +250,11 @@ PHP_FUNCTION(swoole_exit) {
             zend_throw_exception(swoole_exit_exception_ce, (message ? ZSTR_VAL(message) : "swoole exit"), 0);
         ZVAL_OBJ(&ex, obj);
         zend_update_property_long(swoole_exit_exception_ce, SW_Z8_OBJ_P(&ex), ZEND_STRL("flags"), flags);
-        zend_update_property_long(swoole_exit_exception_ce, SW_Z8_OBJ_P(&ex), ZEND_STRL("status"), status);
+        if (message) {
+            zend_update_property_str(swoole_exit_exception_ce, SW_Z8_OBJ_P(&ex), ZEND_STRL("status"), message);
+        } else {
+            zend_update_property_long(swoole_exit_exception_ce, SW_Z8_OBJ_P(&ex), ZEND_STRL("status"), status);
+        }
     } else {
         zif_handler fn = php_swoole_runtime_get_ori_handler(ZEND_STRL("exit"));
         if (fn) {
@@ -258,14 +262,8 @@ PHP_FUNCTION(swoole_exit) {
         } else {
             if (message) {
                 php_write(ZSTR_VAL(message), ZSTR_LEN(message));
-            } else {
-                EG(exit_status) = status;
             }
-#ifdef SW_THREAD
-            php_swoole_thread_bailout();
-#else
-            zend_bailout();
-#endif
+            sw_php_exit(status);
         }
     }
 }

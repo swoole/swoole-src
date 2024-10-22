@@ -498,6 +498,16 @@ static inline bool sw_zval_is_process(zval *val) {
     return instanceof_function(Z_OBJCE_P(val), swoole_process_ce);
 }
 
+static inline bool sw_is_main_thread() {
+#ifdef SW_THREAD
+    return tsrm_is_main_thread();
+#else
+    return true;
+#endif
+}
+
+void sw_php_exit(int status);
+
 //----------------------------------Constant API------------------------------------
 
 #define SW_REGISTER_NULL_CONSTANT(name) REGISTER_NULL_CONSTANT(name, CONST_CS | CONST_PERSISTENT)

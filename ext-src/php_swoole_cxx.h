@@ -627,6 +627,43 @@ class Callable {
     }
 };
 
+template<typename KeyT, typename ValueT>
+class ConcurrencyHashMap {
+ private:
+    std::unordered_map<KeyT, ValueT> map_;
+    std::mutex lock_;
+    ValueT default_value_;
+
+ public:
+    ConcurrencyHashMap(ValueT _default_value): map_(), lock_() {
+        default_value_ = _default_value;
+    }
+
+    void set(const KeyT &key, const ValueT &value) {
+        std::unique_lock<std::mutex> _lock(lock_);
+        map_[key] = value;
+    }
+
+    ValueT get(const KeyT &key) {
+        std::unique_lock<std::mutex> _lock(lock_);
+        auto iter = map_.find(key);
+        if (iter == map_.end()) {
+            return default_value_;
+        }
+        return iter->second;
+    }
+
+    void del(const KeyT &key) {
+        std::unique_lock<std::mutex> _lock(lock_);
+        map_.erase(key);
+    }
+
+    void clear() {
+        std::unique_lock<std::mutex> _lock(lock_);
+        map_.clear();
+    }
+};
+
 namespace function {
 /* must use this API to call event callbacks to ensure that exceptions are handled correctly */
 bool call(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv, zval *retval, const bool enable_coroutine);

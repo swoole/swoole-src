@@ -15,7 +15,7 @@ $port1 = get_one_free_port();
 $port2 = get_one_free_port();
 $port3 = get_one_free_port();
 
-function makeTcpClient_without_protocol($host, $port, callable $onConnect = null, callable $onReceive = null)
+function makeTcpClient_without_protocol($host, $port, ?callable $onConnect = null, ?callable $onReceive = null)
 {
     go(function () use ($host, $port, $onConnect, $onReceive) {
         $cli = new Client(SWOOLE_SOCK_TCP);
