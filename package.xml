@@ -51,10 +51,10 @@
         <email>doubaokun@php.net</email>
         <active>yes</active>
     </developer>
-    <date>2024-08-22</date>
-    <time>22:00:00</time>
+    <date>2024-10-22</date>
+    <time>10:00:00</time>
     <version>
-        <release>5.1.4</release>
+        <release>5.1.5</release>
         <api>5.0</api>
     </version>
     <stability>
@@ -63,11 +63,15 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        - Fix broken build with GCC 14. @remicollet
-        - Fix could not send SSL negotiation packet(Resource temporarily unavailable). @NathanFreeman
-        - Fix the issue where certain critical parameters of `Swoole\Server` are not reset to 0 during process restart. @NathanFreeman
-        - Fix the problem where `Swoole\Http\Request::getMethod()` returns the incorrect request method when `HTTP2` is enabled. @matyhtf
-        - Optimize `Swoole\Http\Response::end()`. Response data larger than 16K will be sent directly through the socket, while data smaller than or equal to 16K will be copied to the buffer first before being sent out via the socket. @NathanFreeman
+        - Fix the need to use `zend_ini_parse_quantity` to parse string numbers for PHP versions greater than 8.2. @matyhtf
+        - Fix an occasional resource unavailability issue when coroutineizing `pdo_pgsql`. @NathanFreeman
+        - Fix header file reference issues when coroutineizing `pdo_pgsql`. @NathanFreeman
+        - Fix incorrect relative path checks to avoid bypassing path validation. @matyhtf
+        - Fix incorrect concurrency count caused by process restarts in high-concurrency environments. @matyhtf
+        - Sync some related code for `php8.3 curl`. @NathanFreeman
+        - Fix core test errors in the `process` module. @NathanFreeman
+        - In `SWOOLE_BASE` mode, all connections should be closed during the `PHP RSHUTDOWN` phase. @matyhtf
+        - Optimize kernel code. @matyhtf
     </notes>
     <contents>
         <dir name="/">
@@ -76,6 +80,7 @@
             <file role="src" name="Makefile.frag" />
             <file role="doc" name="README.md" />
             <file role="src" name="codecov.yml" />
+            <file role="src" name="composer.json" />
             <file role="src" name="config.m4" />
             <file role="src" name="core-tests/CMakeLists.txt" />
             <file role="doc" name="core-tests/README-CN.md" />
@@ -1494,6 +1499,8 @@
             <file role="test" name="tests/swoole_http_server/rawContent.phpt" />
             <file role="test" name="tests/swoole_http_server/rawCookie.phpt" />
             <file role="test" name="tests/swoole_http_server/redirect.phpt" />
+            <file role="test" name="tests/swoole_http_server/reset_concurrency_with_base.phpt" />
+            <file role="test" name="tests/swoole_http_server/reset_concurrency_with_process.phpt" />
             <file role="test" name="tests/swoole_http_server/response_create.phpt" />
             <file role="test" name="tests/swoole_http_server/send_empty_file.phpt" />
             <file role="test" name="tests/swoole_http_server/send_yield.phpt" />
@@ -1511,8 +1518,11 @@
             <file role="test" name="tests/swoole_http_server/static_handler.phpt" />
             <file role="test" name="tests/swoole_http_server/static_handler/locations.phpt" />
             <file role="test" name="tests/swoole_http_server/static_handler/mimetype_not_exists.phpt" />
+            <file role="test" name="tests/swoole_http_server/static_handler/read_link_2.phpt" />
             <file role="test" name="tests/swoole_http_server/static_handler/read_link_file.phpt" />
             <file role="test" name="tests/swoole_http_server/static_handler/relative_path.phpt" />
+            <file role="test" name="tests/swoole_http_server/static_handler/relative_path_2.phpt" />
+            <file role="test" name="tests/swoole_http_server/static_handler/relative_path_3.phpt" />
             <file role="test" name="tests/swoole_http_server/static_handler/urldecode.phpt" />
             <file role="test" name="tests/swoole_http_server/task/enable_coroutine.phpt" />
             <file role="test" name="tests/swoole_http_server/task/enable_coroutine_with_wrong_usage.phpt" />
@@ -2129,6 +2139,7 @@
             <file role="test" name="tests/swoole_server/object/status_info.phpt" />
             <file role="test" name="tests/swoole_server/object/task_result.phpt" />
             <file role="test" name="tests/swoole_server/onReload.phpt" />
+            <file role="test" name="tests/swoole_server/parse_option_to_size.phpt" />
             <file role="test" name="tests/swoole_server/pid_file.phpt" />
             <file role="test" name="tests/swoole_server/protect.phpt" />
             <file role="test" name="tests/swoole_server/protect_false.phpt" />
@@ -2575,7 +2586,7 @@
     </dependencies>
     <providesextension>swoole</providesextension>
     <extsrcrelease>
-        <configureoption default="no" name="enable-sockets" prompt="enable sockets supports?"/>
+        <configureoption default="no" name="enable-sockets" prompt="enable sockets support?"/>
         <configureoption default="no" name="enable-openssl" prompt="enable openssl support?"/>
         <configureoption default="no" name="enable-mysqlnd" prompt="enable mysqlnd support?"/>
         <configureoption default="no" name="enable-swoole-curl" prompt="enable curl support?"/>
