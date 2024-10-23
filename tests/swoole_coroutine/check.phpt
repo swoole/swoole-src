@@ -110,9 +110,16 @@ foreach ($map as $i => $f) {
     $process::wait();
     if (Assert::contains($info, 'Swoole\\Error')) {
         $_info = trim($info);
-        $_info = preg_replace('/(\#0.+?: )[^\n]+/', '$1%s', $_info, 1);
-        $_info = preg_replace('/(: )[^\n]+( in )/', '$1%s$2', $_info, 1);
-        $_info = preg_replace('/\/[^(:]+:?\(?\d+\)?/', '%s:%d', $_info);
+        if (PHP_VERSION_ID >= 80400) {
+            $_info = preg_replace('/(\#0.+?: )[^\n]+/', '$1%s', $_info, 1);
+            $_info = preg_replace('/(: )[^\n]+( in )/', '$1%s$2', $_info, 1);
+            $_info = preg_replace('/closure:[^(:]+:?\(?\d+\)?/', 'closure', $_info);
+            $_info = preg_replace('/\/[^(:]+:?\(?\d+\)?/', '%s:%d', $_info);
+        } else {
+            $_info = preg_replace('/(\#0.+?: )[^\n]+/', '$1%s', $_info, 1);
+            $_info = preg_replace('/(: )[^\n]+( in )/', '$1%s$2', $_info, 1);
+            $_info = preg_replace('/\/[^(:]+:?\(?\d+\)?/', '%s:%d', $_info);
+        }
         $info_list[] = $_info;
         if (!Assert::assert($info_list[0] === $_info)) {
             var_dump($map[$i]);

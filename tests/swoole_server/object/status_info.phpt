@@ -83,12 +83,12 @@ $pm->run();
 
 Fatal error: Uncaught RuntimeException: error in %s:%d
 Stack trace:
-#0 [internal function]: {closure}(Object(Swoole\Server), Object(Swoole\Server\PipeMessage))
+#0 [internal function]: {closure%S}(Object(Swoole\Server), Object(Swoole\Server\PipeMessage))
 #1 %s(%d): Swoole\Server->start()
-#2 [internal function]: {closure}()
+#2 [internal function]: {closure%S}()
 #3 %s(%d): call_user_func(Object(Closure))
 #4 %s(%d): SwooleTest\ProcessManager->runChildFunc()
-#5 [internal function]: SwooleTest\ProcessManager->SwooleTest\{closure}(Object(Swoole\Process))
+#5 [internal function]: SwooleTest\ProcessManager->%s(Object(Swoole\Process))
 #6 %s(%d): Swoole\Process->start()
 #7 %s(%d): SwooleTest\ProcessManager->run()
 #8 {main}

@@ -2034,6 +2034,9 @@ void Server::init_pipe_sockets(MessageBus *mb) {
 
     SW_LOOP_N(n) {
         Worker *worker = get_worker(i);
+        if (i >= worker_num && task_ipc_mode != TASK_IPC_UNIXSOCK) {
+            continue;
+        }
         mb->init_pipe_socket(worker->pipe_master);
         mb->init_pipe_socket(worker->pipe_worker);
     }
