@@ -149,6 +149,8 @@ SW_API php_stream *php_swoole_create_stream_from_socket(php_socket_t _fd,
 SW_API php_stream *php_swoole_create_stream_from_pipe(int fd, const char *mode, const char *persistent_id STREAMS_DC);
 SW_API php_stream_ops *php_swoole_get_ori_php_stream_stdio_ops();
 SW_API void php_swoole_register_rshutdown_callback(swoole::Callback cb, void *private_data);
+SW_API zif_handler php_swoole_get_original_handler(const char *name, size_t len);
+SW_API bool php_swoole_call_original_handler(const char *name, size_t len, INTERNAL_FUNCTION_PARAMETERS);
 
 // timer
 SW_API bool php_swoole_timer_clear(swoole::TimerNode *tnode);
@@ -623,6 +625,43 @@ class Callable {
         if (fn_name) {
             efree(fn_name);
         }
+    }
+};
+
+template<typename KeyT, typename ValueT>
+class ConcurrencyHashMap {
+ private:
+    std::unordered_map<KeyT, ValueT> map_;
+    std::mutex lock_;
+    ValueT default_value_;
+
+ public:
+    ConcurrencyHashMap(ValueT _default_value): map_(), lock_() {
+        default_value_ = _default_value;
+    }
+
+    void set(const KeyT &key, const ValueT &value) {
+        std::unique_lock<std::mutex> _lock(lock_);
+        map_[key] = value;
+    }
+
+    ValueT get(const KeyT &key) {
+        std::unique_lock<std::mutex> _lock(lock_);
+        auto iter = map_.find(key);
+        if (iter == map_.end()) {
+            return default_value_;
+        }
+        return iter->second;
+    }
+
+    void del(const KeyT &key) {
+        std::unique_lock<std::mutex> _lock(lock_);
+        map_.erase(key);
+    }
+
+    void clear() {
+        std::unique_lock<std::mutex> _lock(lock_);
+        map_.clear();
     }
 };
 
