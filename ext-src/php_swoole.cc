@@ -1041,7 +1041,9 @@ void sw_php_exit(int status) {
 }
 
 static void sw_after_fork(void *args) {
+#ifdef ZEND_MAX_EXECUTION_TIMERS
     zend_max_execution_timer_init();
+#endif
 }
 
 PHP_RINIT_FUNCTION(swoole) {
