@@ -56,8 +56,7 @@ static void thread_register_stdio_file_handles(bool no_close);
 static thread_local zval thread_argv = {};
 static thread_local JMP_BUF *thread_bailout = nullptr;
 static std::atomic<size_t> thread_num(1);
-static std::unordered_map<pthread_t, int> thread_exit_status;
-static std::mutex thread_lock;
+static zend::ConcurrencyHashMap<pthread_t, int> thread_exit_status(-1);
 
 static sw_inline ThreadObject *thread_fetch_object(zend_object *obj) {
     return (ThreadObject *) ((char *) obj - swoole_thread_handlers.offset);
@@ -494,10 +493,7 @@ void php_swoole_thread_start(zend_string *file, ZendArray *argv) {
     file_handle.filename = NULL;
 
 _startup_error:
-
-    thread_lock.lock();
-    thread_exit_status[pthread_self()] = EG(exit_status);
-    thread_lock.unlock();
+    thread_exit_status.set(pthread_self(), EG(exit_status));
 
     zend_string_release(file);
     ts_free_thread();
@@ -506,20 +502,11 @@ _startup_error:
 }
 
 void php_swoole_thread_join(pthread_t ptid) {
-    thread_lock.lock();
-    thread_exit_status.erase(ptid);
-    thread_lock.unlock();
+    thread_exit_status.del(ptid);
 }
 
 int php_swoole_thread_get_exit_status(pthread_t ptid) {
-    int exit_status;
-
-    thread_lock.lock();
-    auto iter = thread_exit_status.find(ptid);
-    exit_status = iter == thread_exit_status.end() ? -1 : iter->second;
-    thread_lock.unlock();
-
-    return exit_status;
+    return thread_exit_status.get(ptid);
 }
 
 void php_swoole_thread_bailout(void) {

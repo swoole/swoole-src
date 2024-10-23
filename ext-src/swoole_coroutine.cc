@@ -18,6 +18,7 @@
  */
 
 #include "php_swoole_cxx.h"
+#include "php_swoole_thread.h"
 #include "php_swoole_coroutine_system.h"
 
 #include "swoole_server.h"
@@ -225,7 +226,6 @@ static int coro_exit_handler(zend_execute_data *execute_data) {
 }
 #else
 SW_EXTERN_C_BEGIN
-bool swoole_call_original_handler(const char *name, INTERNAL_FUNCTION_PARAMETERS);
 PHP_FUNCTION(swoole_exit) {
     zend_long flags = 0;
     if (Coroutine::get_current()) {
@@ -236,22 +236,32 @@ PHP_FUNCTION(swoole_exit) {
         flags |= SW_EXIT_IN_SERVER;
     }
 
+    zend_string *message = NULL;
+    zend_long status = 0;
+
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_STR_OR_LONG(message, status)
+    ZEND_PARSE_PARAMETERS_END();
+
     if (flags) {
-        zend_string *message = NULL;
-        zend_long status = 0;
-
-        ZEND_PARSE_PARAMETERS_START(0, 1)
-        Z_PARAM_OPTIONAL
-        Z_PARAM_STR_OR_LONG(message, status)
-        ZEND_PARSE_PARAMETERS_END();
-
         zval ex = {};
-        zend_object *obj = zend_throw_exception(swoole_exit_exception_ce, (message ? ZSTR_VAL(message) : "swoole exit"), 0);
+        zend_object *obj =
+            zend_throw_exception(swoole_exit_exception_ce, (message ? ZSTR_VAL(message) : "swoole exit"), 0);
         ZVAL_OBJ(&ex, obj);
         zend_update_property_long(swoole_exit_exception_ce, SW_Z8_OBJ_P(&ex), ZEND_STRL("flags"), flags);
-        zend_update_property_long(swoole_exit_exception_ce, SW_Z8_OBJ_P(&ex), ZEND_STRL("status"), status);
+        if (message) {
+            zend_update_property_str(swoole_exit_exception_ce, SW_Z8_OBJ_P(&ex), ZEND_STRL("status"), message);
+        } else {
+            zend_update_property_long(swoole_exit_exception_ce, SW_Z8_OBJ_P(&ex), ZEND_STRL("status"), status);
+        }
     } else {
-        swoole_call_original_handler("exit", INTERNAL_FUNCTION_PARAM_PASSTHRU);
+        if (!php_swoole_call_original_handler(ZEND_STRL("exit"), INTERNAL_FUNCTION_PARAM_PASSTHRU)) {
+            if (message) {
+                php_write(ZSTR_VAL(message), ZSTR_LEN(message));
+            }
+            sw_php_exit(status);
+        }
     }
 }
 SW_EXTERN_C_END
