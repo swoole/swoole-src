@@ -316,6 +316,15 @@ int async(AsyncIouring::opcodes opcode,
           struct statx *statxbuf = nullptr,
           size_t count = 0,
           double timeout = -1);
+#ifdef HAVE_IOURING_FUTEX
+int futex(AsyncIouring::opcodes opcode,
+          uint32_t *futex,
+          uint64_t value,
+          uint64_t mask,
+          uint32_t futex_flags,
+          uint32_t flags,
+          double timeout = -1);
+#endif
 #endif
 bool run(const CoroutineFunc &fn, void *arg = nullptr);
 }  // namespace coroutine

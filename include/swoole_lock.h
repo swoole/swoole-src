@@ -19,8 +19,24 @@
 
 #include "swoole.h"
 #include "swoole_memory.h"
+#include "swoole_coroutine.h"
 
 #include <system_error>
+
+#ifdef HAVE_IOURING_FUTEX
+#define CHECK_COROUTINE_ENV                                                                                            \
+    do {                                                                                                               \
+        if (lock->get_type() == Lock::COROUTINE_LOCK && (SwooleTG.reactor == nullptr || !Coroutine::get_current())) {  \
+            zend_throw_exception_ex(swoole_exception_ce,                                                               \
+                                    SW_ERROR_OPERATION_NOT_SUPPORT,                                                    \
+                                    "lock type[%ld] must be used in a coroutine environment",                          \
+                                    (zend_long) Lock::COROUTINE_LOCK);                                                 \
+            RETURN_FALSE;                                                                                              \
+        }                                                                                                              \
+    } while (0);
+#else
+#define CHECK_COROUTINE_ENV
+#endif
 
 namespace swoole {
 
@@ -31,11 +47,15 @@ class Lock {
         RW_LOCK = 1,
         MUTEX = 3,
         SPIN_LOCK = 5,
-        ATOMIC_LOCK = 6,
+#ifdef HAVE_IOURING_FUTEX
+        COROUTINE_LOCK = 6,
+#endif
     };
+
     Type get_type() {
         return type_;
     }
+
     virtual ~Lock(){};
     virtual int lock_rd() = 0;
     virtual int lock() = 0;
@@ -98,6 +118,25 @@ class SpinLock : public Lock {
   public:
     SpinLock(int use_in_process);
     ~SpinLock();
+    int lock_rd() override;
+    int lock() override;
+    int unlock() override;
+    int trylock_rd() override;
+    int trylock() override;
+};
+#endif
+
+#ifdef HAVE_IOURING_FUTEX
+class CoroutineLock : public Lock {
+  private:
+    sw_atomic_t *value = nullptr;
+    Coroutine *current_coroutine = nullptr;
+
+    int start_lock(bool blocking = true);
+
+  public:
+    CoroutineLock();
+    ~CoroutineLock();
     int lock_rd() override;
     int lock() override;
     int unlock() override;

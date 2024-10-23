@@ -786,6 +786,40 @@ int async(AsyncIouring::opcodes opcode,
 
     return event.retval;
 }
+
+#ifdef HAVE_IOURING_FUTEX
+int futex(AsyncIouring::opcodes opcode,
+          uint32_t *futex,
+          uint64_t value,
+          uint64_t mask,
+          uint32_t futex_flags,
+          uint32_t flags,
+          double timeout) {
+    if (SwooleTG.async_iouring == nullptr) {
+        SwooleTG.async_iouring = new AsyncIouring(SwooleTG.reactor);
+        SwooleTG.async_iouring->add_event();
+    }
+
+    AsyncEvent event{};
+    AsyncLambdaTask task{Coroutine::get_current_safe(), nullptr};
+
+    event.object = &task;
+    event.callback = async_lambda_callback;
+    event.opcode = opcode;
+    event.fd = futex_flags;
+    event.value = value;
+    event.futex = futex;
+    event.flags = flags;
+    event.mask = mask;
+
+    bool result = SwooleTG.async_iouring->futex(&event);
+    if (!result || !task.co->yield_ex(timeout)) {
+        return 0;
+    }
+
+    return event.retval;
+}
+#endif
 #endif
 
 AsyncLock::AsyncLock(void *resource) {
