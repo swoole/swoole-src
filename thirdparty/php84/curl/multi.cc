@@ -139,11 +139,11 @@ static zval *_php_curl_multi_find_easy_handle(php_curlm *mh, CURL *easy) /* {{{ 
 
     for (pz_ch_temp = (zval *) zend_llist_get_first_ex(&mh->easyh, &pos); pz_ch_temp;
          pz_ch_temp = (zval *) zend_llist_get_next_ex(&mh->easyh, &pos)) {
-         tmp_ch = swoole_curl_get_handle(pz_ch_temp, false, false);
+        tmp_ch = swoole_curl_get_handle(pz_ch_temp, false, false);
 
-         if (tmp_ch && tmp_ch->cp == easy) {
-             return pz_ch_temp;
-         }
+        if (tmp_ch && tmp_ch->cp == easy) {
+            return pz_ch_temp;
+        }
     }
 
     return NULL;
@@ -207,10 +207,10 @@ PHP_FUNCTION(swoole_native_curl_multi_select) {
         RETURN_FALSE;
     }
 
-	if (!(timeout >= 0.0 && timeout <= ((double)INT_MAX / 1000.0))) {
-		zend_argument_value_error(2, "must be between 0 and %d", (int)ceilf((double)INT_MAX / 1000));
-		RETURN_THROWS();
-	}
+    if (!(timeout >= 0.0 && timeout <= ((double) INT_MAX / 1000.0))) {
+        zend_argument_value_error(2, "must be between 0 and %d", (int) ceilf((double) INT_MAX / 1000));
+        RETURN_THROWS();
+    }
 
     RETURN_LONG(mh->multi->select(mh, timeout));
 }

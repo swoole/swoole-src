@@ -165,7 +165,5 @@ static inline php_curlsh *curl_share_from_obj(zend_object *obj) {
 void curl_multi_register_class(const zend_function_entry *method_entries);
 zend_result swoole_curl_cast_object(zend_object *obj, zval *result, int type);
 
-php_curl *swoole_curl_get_handle(zval *zid, bool exclusive = true, bool required = true);
-
 #endif /* _PHP_CURL_PRIVATE_H */
 #endif
