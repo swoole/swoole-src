@@ -110,9 +110,16 @@ foreach ($map as $i => $f) {
     $process::wait();
     if (Assert::contains($info, 'Swoole\\Error')) {
         $_info = trim($info);
-        $_info = preg_replace('/(\#0.+?: )[^\n]+/', '$1%s', $_info, 1);
-        $_info = preg_replace('/(: )[^\n]+( in )/', '$1%s$2', $_info, 1);
-        $_info = preg_replace('/\/[^(:]+:?\(?\d+\)?/', '%s:%d', $_info);
+        if (PHP_VERSION_ID >= 80400) {
+            $_info = preg_replace('/(\#0.+?: )[^\n]+/', '$1%s', $_info, 1);
+            $_info = preg_replace('/(: )[^\n]+( in )/', '$1%s$2', $_info, 1);
+            $_info = preg_replace('/closure:[^(:]+:?\(?\d+\)?/', 'closure', $_info);
+            $_info = preg_replace('/\/[^(:]+:?\(?\d+\)?/', '%s:%d', $_info);
+        } else {
+            $_info = preg_replace('/(\#0.+?: )[^\n]+/', '$1%s', $_info, 1);
+            $_info = preg_replace('/(: )[^\n]+( in )/', '$1%s$2', $_info, 1);
+            $_info = preg_replace('/\/[^(:]+:?\(?\d+\)?/', '%s:%d', $_info);
+        }
         $info_list[] = $_info;
         if (!Assert::assert($info_list[0] === $_info)) {
             var_dump($map[$i]);
@@ -129,11 +136,11 @@ Swoole\Event::wait();
 Fatal error: %s in %s:%d
 Stack trace:
 #0 %s:%d: %s
-#1 %s:%d: {closure%S}()
+#1 %s:%d: {closure}()
 #2 %s:%d: c()
 #3 %s:%d: b()
 #4 %s:%d: a()
-#5 [internal function]: {closure%S}(Object(Swoole\Process))
+#5 [internal function]: {closure}(Object(Swoole\Process))
 #6 %s:%d: Swoole\Process->start()
 #7 {main}
   thrown in %s:%d

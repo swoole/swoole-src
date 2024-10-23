@@ -1,7 +1,9 @@
 --TEST--
 swoole_coroutine: exit exception backtrace
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../include/skipif.inc';
+skip_if_php_version_ge('8.4');
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
