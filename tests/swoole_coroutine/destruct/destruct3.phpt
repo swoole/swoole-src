@@ -46,6 +46,6 @@ dtor
 
 Fatal error: Uncaught Exception: error in %s:%d
 Stack trace:
-#0 [internal function]: class@anonymous->{closure}()
+#0 [internal function]: class@anonymous->{closure%S()
 #1 {main}
   thrown in %s on line %d

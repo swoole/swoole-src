@@ -129,11 +129,11 @@ Swoole\Event::wait();
 Fatal error: %s in %s:%d
 Stack trace:
 #0 %s:%d: %s
-#1 %s:%d: {closure}()
+#1 %s:%d: {closure%S}()
 #2 %s:%d: c()
 #3 %s:%d: b()
 #4 %s:%d: a()
-#5 [internal function]: {closure}(Object(Swoole\Process))
+#5 [internal function]: {closure%S}(Object(Swoole\Process))
 #6 %s:%d: Swoole\Process->start()
 #7 {main}
   thrown in %s:%d

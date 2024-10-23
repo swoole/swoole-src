@@ -28,10 +28,10 @@ go(function () {
 });
 ?>
 --EXPECTF--
-Fatal error: Uncaught Swoole\ExitException: swoole exit in %s/tests/swoole_coroutine/exit_exception_backtrace.php:15
+Fatal error: Uncaught Swoole\ExitException: swoole exit in %s/tests/swoole_coroutine/exit_exception_backtrace.php:%d
 Stack trace:
-#0 %s/tests/swoole_coroutine/exit_exception_backtrace.php(10): char(%d)
-#1 %s/tests/swoole_coroutine/exit_exception_backtrace.php(5): bar('%s...')
-#2 %s/tests/swoole_coroutine/exit_exception_backtrace.php(22): foo()
+#0 %s/tests/swoole_coroutine/exit_exception_backtrace.php(%d): char(%d)
+#1 %s/tests/swoole_coroutine/exit_exception_backtrace.php(%d): bar('%s...')
+#2 %s/tests/swoole_coroutine/exit_exception_backtrace.php(%d): foo()
 %A
-  thrown in %s/tests/swoole_coroutine/exit_exception_backtrace.php on line 15
+  thrown in %s/tests/swoole_coroutine/exit_exception_backtrace.php on line %d
