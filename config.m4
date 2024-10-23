@@ -36,11 +36,6 @@ PHP_ARG_ENABLE([openssl],
   [AS_HELP_STRING([--enable-openssl],
     [Use openssl])], [no], [no])
 
-PHP_ARG_ENABLE([brotli],
-  [enable brotli support],
-  [AS_HELP_STRING([[--enable-brotli]],
-    [Use brotli])], [yes], [no])
-
 PHP_ARG_ENABLE([swoole],
   [swoole support],
   [AS_HELP_STRING([--enable-swoole],
@@ -65,6 +60,11 @@ PHP_ARG_WITH([openssl_dir],
   [dir of openssl],
   [AS_HELP_STRING([[--with-openssl-dir[=DIR]]],
     [Include OpenSSL support (requires OpenSSL >= 1.0.2)])], [no], [no])
+
+PHP_ARG_ENABLE([brotli],
+  [enable brotli support],
+  [AS_HELP_STRING([[--enable-brotli]],
+    [Use brotli])], [auto], [no])
 
 PHP_ARG_WITH([brotli_dir],
   [dir of brotli],
@@ -840,28 +840,37 @@ EOF
     dnl sqlite stop
 
     AC_CHECK_LIB(z, gzgets, [
-        AC_DEFINE(SW_HAVE_COMPRESSION, 1, [have compression])
         AC_DEFINE(SW_HAVE_ZLIB, 1, [have zlib])
         PHP_ADD_LIBRARY(z, 1, SWOOLE_SHARED_LIBADD)
     ])
 
-    if test "$PHP_BROTLI" != "no" || test "$PHP_BROTLI_DIR" != "no"; then
-        if test "$PHP_BROTLI_DIR" != "no"; then
-            PHP_ADD_INCLUDE("${PHP_BROTLI_DIR}/include")
-            PHP_ADD_LIBRARY_WITH_PATH(brotlienc, "${PHP_BROTLI_DIR}/${PHP_LIBDIR}")
-            PHP_ADD_LIBRARY_WITH_PATH(brotlidec, "${PHP_BROTLI_DIR}/${PHP_LIBDIR}")
-        else
-            PKG_CHECK_MODULES([BROTLIENC], [libbrotlienc])
+    if test "$PHP_BROTLI_DIR" != "no"; then
+        AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli])
+        PHP_ADD_INCLUDE("${PHP_BROTLI_DIR}/include")
+        PHP_ADD_LIBRARY_WITH_PATH(brotlienc, "${PHP_BROTLI_DIR}/${PHP_LIBDIR}")
+        PHP_ADD_LIBRARY_WITH_PATH(brotlidec, "${PHP_BROTLI_DIR}/${PHP_LIBDIR}")
+    elif test "$PHP_BROTLI" = "yes"; then
+        PKG_CHECK_MODULES([BROTLIENC], [libbrotlienc])
+        PKG_CHECK_MODULES([BROTLIDEC], [libbrotlidec])
+        AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli])
+        PHP_EVAL_LIBLINE($BROTLIENC_LIBS, SWOOLE_SHARED_LIBADD)
+        PHP_EVAL_INCLINE($BROTLIENC_CFLAGS)
+        PHP_EVAL_LIBLINE($BROTLIDEC_LIBS, SWOOLE_SHARED_LIBADD)
+        PHP_EVAL_INCLINE($BROTLIDEC_CFLAGS)
+    elif test "$PHP_BROTLI" = "auto"; then
+        PKG_CHECK_MODULES([BROTLIENC], [libbrotlienc], [found_brotlienc=yes], [found_brotlienc=no])
+        if test "$found_brotlienc" = "yes"; then
+            AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli])
             PHP_EVAL_LIBLINE($BROTLIENC_LIBS, SWOOLE_SHARED_LIBADD)
             PHP_EVAL_INCLINE($BROTLIENC_CFLAGS)
+        fi
 
-            PKG_CHECK_MODULES([BROTLIDEC], [libbrotlidec])
+        PKG_CHECK_MODULES([BROTLIDEC], [libbrotlidec], [found_brotlidec=yes], [found_brotlidec=no])
+        if test "$found_brotlidec" = "yes"; then
+            AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli])
             PHP_EVAL_LIBLINE($BROTLIDEC_LIBS, SWOOLE_SHARED_LIBADD)
             PHP_EVAL_INCLINE($BROTLIDEC_CFLAGS)
         fi
-
-        AC_DEFINE(SW_HAVE_COMPRESSION, 1, [have compression])
-        AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli encoder])
     fi
 
     PHP_ADD_LIBRARY(pthread)
@@ -1003,14 +1012,6 @@ EOF
         AC_DEFINE(SW_USE_OPENSSL, 1, [enable openssl support])
     fi
 
-    if test "$PHP_BROTLI_DIR" != "no"; then
-        AC_DEFINE(SW_HAVE_COMPRESSION, 1, [have compression])
-        AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli encoder])
-        PHP_ADD_INCLUDE("${PHP_BROTLI_DIR}/include")
-        PHP_ADD_LIBRARY_WITH_PATH(brotlienc, "${PHP_BROTLI_DIR}/${PHP_LIBDIR}")
-        PHP_ADD_LIBRARY_WITH_PATH(brotlidec, "${PHP_BROTLI_DIR}/${PHP_LIBDIR}")
-    fi
-
     if test "$PHP_NGHTTP2_DIR" != "no"; then
         PHP_ADD_INCLUDE("${PHP_NGHTTP2_DIR}/include")
         PHP_ADD_LIBRARY_WITH_PATH(nghttp2, "${PHP_NGHTTP2_DIR}/${PHP_LIBDIR}")
@@ -1065,16 +1066,16 @@ EOF
             thirdparty/nghttp2/nghttp2_hd_huffman.c \
             thirdparty/nghttp2/nghttp2_hd_huffman_data.c"
     fi
-    
+
     if test -z "$PHP_VERSION"; then
         if test -z "$PHP_CONFIG"; then
             AC_MSG_ERROR([php-config not found])
         fi
         PHP_VERSION=`$PHP_CONFIG --version`
     fi
-    
+
     PHP_VERSION_ID=`echo "${PHP_VERSION}" | $AWK 'BEGIN { FS = "."; } { printf "%d", ([$]1 * 10 + [$]2); }'`
-    
+
     if test "$PHP_VERSION_ID" = "82"; then
         PHP_THIRDPARTY_DIR="thirdparty/php81"
     else

@@ -880,10 +880,8 @@ class Server {
     /**
      * http compression level for gzip/br
      */
-#ifdef SW_HAVE_COMPRESSION
     uint8_t http_compression_level = 0;
     uint32_t compression_min_length;
-#endif
     /**
      * master process pid
      */

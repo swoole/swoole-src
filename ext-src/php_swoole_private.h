@@ -116,6 +116,10 @@ extern PHPAPI int php_array_merge(zend_array *dest, zend_array *src);
 #endif
 #endif
 
+#if defined(SW_HAVE_ZLIB) || defined(SW_HAVE_BROTLI)
+#define SW_HAVE_COMPRESSION
+#endif
+
 #ifdef SW_SOCKETS
 #include "ext/sockets/php_sockets.h"
 #define SWOOLE_SOCKETS_SUPPORT
