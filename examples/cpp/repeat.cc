@@ -21,8 +21,8 @@ int main(int argc, char **argv) {
 
         serv.onPacket = [](Server *serv, RecvData *req) { return SW_OK; };
 
-        serv.onWorkerStart = [](Server *serv, int worker_id) {
-            swoole_notice("WorkerStart[%d]PID=%d, serv=%p,", worker_id, getpid(), serv);
+        serv.onWorkerStart = [](Server *serv, Worker *worker) {
+            swoole_notice("WorkerStart[%d]PID=%d, serv=%p,", worker->id, getpid(), serv);
             swoole_timer_after(
                 1000,
                 [serv](Timer *, TimerNode *tnode) {
