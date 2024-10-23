@@ -8,11 +8,13 @@ require __DIR__ . '/../../include/bootstrap.php';
 $pm = new SwooleTest\ProcessManager;
 $pm->initRandomData(1);
 $pm->parentFunc = function () use ($pm) {
-    go(function () use ($pm) {
+    Co\run(function () use ($pm) {
         $client = new Co\Client(SWOOLE_SOCK_TCP);
         Assert::assert($client->connect('127.0.0.1', $pm->getFreePort()));
         Assert::assert($client->send($pm->getRandomData()) > 0);
     });
+    $pm->kill();
+    $pm->wait();
 };
 $pm->childFunc = function () use ($pm) {
     $server = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
@@ -28,8 +30,9 @@ $pm->childFunc = function () use ($pm) {
         Assert::same($data, $pm->getRandomData());
         $server->shutdown();
     });
-    $server->on('shutdown', function () {
+    $server->on('shutdown', function () use ($pm) {
         echo "SHUTDOWN\n";
+        $pm->wakeup();
     });
     $server->start();
 };

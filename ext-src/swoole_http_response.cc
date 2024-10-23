@@ -1280,7 +1280,7 @@ static PHP_METHOD(swoole_http_response, create) {
         if (instanceof_function(Z_OBJCE_P(zobject), swoole_server_ce)) {
             serv = php_swoole_server_get_and_check_server(zobject);
             if (serv->get_connection_verify(fd) == nullptr) {
-                php_swoole_fatal_error(E_WARNING, "parameter $2 must be valid connection session id");
+                php_swoole_fatal_error(E_WARNING, "parameter $2 %d must be valid connection session id", fd);
                 RETURN_FALSE;
             }
         } else if (sw_zval_is_co_socket(zobject)) {
