@@ -207,6 +207,11 @@ PHP_FUNCTION(swoole_native_curl_multi_select) {
         RETURN_FALSE;
     }
 
+	if (!(timeout >= 0.0 && timeout <= ((double)INT_MAX / 1000.0))) {
+		zend_argument_value_error(2, "must be between 0 and %d", (int)ceilf((double)INT_MAX / 1000));
+		RETURN_THROWS();
+	}
+
     RETURN_LONG(mh->multi->select(mh, timeout));
 }
 /* }}} */
@@ -470,7 +475,7 @@ static bool _php_curl_multi_setopt(php_curlm *mh, zend_long option, zval *zvalue
             php_error_docref(NULL, E_DEPRECATED, "CURLPIPE_HTTP1 is deprecated");
 #endif
         }
-        error = curl_multi_setopt(mh->multi, (CURLMoption) option, lval);
+        error = curl_multi_setopt(mh->multi->get_multi_handle(), (CURLMoption) option, lval);
         break;
     }
     case CURLMOPT_PUSHFUNCTION: {
@@ -494,11 +499,11 @@ static bool _php_curl_multi_setopt(php_curlm *mh, zend_long option, zval *zvalue
         }
         zend_fcc_addref(&mh->handlers.server_push);
 
-        error = curl_multi_setopt(mh->multi, CURLMOPT_PUSHFUNCTION, _php_server_push_callback);
+        error = curl_multi_setopt(mh->multi->get_multi_handle(), CURLMOPT_PUSHFUNCTION, _php_server_push_callback);
         if (error != CURLM_OK) {
             return false;
         }
-        error = curl_multi_setopt(mh->multi, CURLMOPT_PUSHDATA, mh);
+        error = curl_multi_setopt(mh->multi->get_multi_handle(), CURLMOPT_PUSHDATA, mh);
         break;
     }
     default:
@@ -571,6 +576,39 @@ static void swoole_curl_multi_free_obj(zend_object *object) {
     zend_object_std_dtor(&mh->std);
 }
 
+static void _php_curl_multi_free(php_curlm *mh) {
+    bool is_in_coroutine = swoole_curl_multi_is_in_coroutine(mh);
+    for (zend_llist_element *element = mh->easyh.head; element; element = element->next) {
+        zval *z_ch = (zval *) element->data;
+        php_curl *ch;
+        if (OBJ_FLAGS(Z_OBJ_P(z_ch)) & IS_OBJ_FREE_CALLED) {
+            continue;
+        }
+        if ((ch = swoole_curl_get_handle(z_ch, true, false))) {
+            swoole_curl_verify_handlers(ch, 0);
+            auto handle = swoole::curl::get_handle(ch->cp);
+            if (is_in_coroutine && handle) {
+                mh->multi->remove_handle(handle);
+            } else {
+                curl_multi_remove_handle(mh->multi, ch->cp);
+            }
+        }
+    }
+    if (mh->multi) {
+        if (is_in_coroutine) {
+            delete mh->multi;
+        } else {
+            curl_multi_cleanup(mh->multi);
+        }
+        mh->multi = nullptr;
+    }
+    zend_llist_clean(&mh->easyh);
+
+    if (ZEND_FCC_INITIALIZED(mh->handlers.server_push)) {
+        zend_fcc_dtor(&mh->handlers.server_push);
+    }
+}
+
 static HashTable *swoole_curl_multi_get_gc(zend_object *object, zval **table, int *n) {
     php_curlm *curl_multi = curl_multi_from_obj(object);
 
@@ -605,37 +643,5 @@ void curl_multi_register_class(const zend_function_entry *method_entries) {
     swoole_coroutine_curl_multi_handle_handlers.compare = [](zval *o1, zval *o2) { return ZEND_UNCOMPARABLE; };
 
     zend_declare_property_bool(swoole_coroutine_curl_multi_handle_ce, ZEND_STRL("in_coroutine"), 0, ZEND_ACC_PUBLIC);
-}
-
-static void _php_curl_multi_free(php_curlm *mh) {
-    bool is_in_coroutine = swoole_curl_multi_is_in_coroutine(mh);
-    for (zend_llist_element *element = mh->easyh.head; element; element = element->next) {
-        zval *z_ch = (zval *) element->data;
-        php_curl *ch;
-        if (OBJ_FLAGS(Z_OBJ_P(z_ch)) & IS_OBJ_FREE_CALLED) {
-            continue;
-        }
-        if ((ch = swoole_curl_get_handle(z_ch, true, false))) {
-            swoole_curl_verify_handlers(ch, 0);
-            auto handle = swoole::curl::get_handle(ch->cp);
-            if (is_in_coroutine && handle) {
-                mh->multi->remove_handle(handle);
-            } else {
-                curl_multi_remove_handle(mh->multi, ch->cp);
-            }
-        }
-    }
-    if (mh->multi) {
-        if (is_in_coroutine) {
-            delete mh->multi;
-        } else {
-            curl_multi_cleanup(mh->multi);
-        }
-        mh->multi = nullptr;
-    }
-    zend_llist_clean(&mh->easyh);
-    if (ZEND_FCC_INITIALIZED(mh->handlers.server_push)) {
-        zend_fcc_dtor(&mh->handlers.server_push);
-    }
 }
 #endif

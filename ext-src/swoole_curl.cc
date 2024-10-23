@@ -22,7 +22,7 @@
 namespace swoole {
 namespace curl {
 
-static std::unordered_map<CURL *, Handle *> handle_buckets;
+static SW_THREAD_LOCAL std::unordered_map<CURL *, Handle *> handle_buckets;
 
 Handle *get_handle(CURL *cp) {
     auto iter = handle_buckets.find(cp);
@@ -488,4 +488,26 @@ void Multi::callback(Handle *handle, int event_bitmask, int sockfd) {
 }
 }  // namespace curl
 }  // namespace swoole
+
+CURLcode swoole_curl_easy_perform(CURL *cp) {
+    Multi *multi = new Multi();
+    CURLcode error = multi->exec(swoole::curl::get_handle(cp));
+    delete multi;
+    return error;
+}
+
+php_curl *swoole_curl_get_handle(zval *zid, bool exclusive, bool required) {
+    php_curl *ch = Z_CURL_P(zid);
+    if (SWOOLE_G(req_status) == PHP_SWOOLE_RSHUTDOWN_END) {
+        exclusive = false;
+    }
+    if (exclusive && swoole_coroutine_is_in()) {
+        auto handle = swoole::curl::get_handle(ch->cp);
+        if (handle && handle->multi && handle->multi->check_bound_co() == nullptr) {
+            return nullptr;
+        }
+    }
+    return ch;
+}
+
 #endif

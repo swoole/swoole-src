@@ -32,7 +32,11 @@ $cm->run(function ($host) {
     curl_setopt($ch, CURLOPT_POSTFIELDS, array("file" => $file));
     var_dump(curl_exec($ch));
 
-    curl_setopt($ch, CURLOPT_SAFE_UPLOAD, 0);
+    try {
+        curl_setopt($ch, CURLOPT_SAFE_UPLOAD, 0);
+    } catch (throwable $e) {
+        trigger_error($e->getMessage(), E_USER_WARNING);
+    }
     $params = array('file' => '@' . __DIR__ . '/curl_testdata1.txt');
     curl_setopt($ch, CURLOPT_POSTFIELDS, $params);
     var_dump(curl_exec($ch));

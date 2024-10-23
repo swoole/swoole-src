@@ -35,8 +35,10 @@ SW_EXTERN_C_END
 #error "require cURL version 7.56.0 or later"
 #endif
 
-namespace swoole {
+CURLcode swoole_curl_easy_perform(CURL *cp);
+php_curl *swoole_curl_get_handle(zval *zid, bool exclusive = true, bool required = true);
 
+namespace swoole {
 namespace curl {
 
 class Multi;

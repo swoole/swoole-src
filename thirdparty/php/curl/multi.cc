@@ -69,9 +69,6 @@ PHP_FUNCTION(swoole_native_curl_multi_init) {
     mh = Z_CURL_MULTI_P(return_value);
     mh->multi = new Multi();
     mh->multi->set_selector(new Selector());
-#if PHP_VERSION_ID < 80100
-    mh->handlers = (php_curlm_handlers *) ecalloc(1, sizeof(php_curlm_handlers));
-#endif
     swoole_curl_multi_set_in_coroutine(mh, true);
     zend_llist_init(&mh->easyh, sizeof(zval), swoole_curl_multi_cleanup_list, 0);
 }
@@ -643,20 +640,10 @@ static void _php_curl_multi_free(php_curlm *mh) {
         mh->multi = nullptr;
     }
     zend_llist_clean(&mh->easyh);
-#if PHP_VERSION_ID < 80100
-    if (mh->handlers->server_push) {
-        zval_ptr_dtor(&mh->handlers->server_push->func_name);
-        efree(mh->handlers->server_push);
-    }
-    if (mh->handlers) {
-        efree(mh->handlers);
-    }
-#else
     if (mh->handlers.server_push) {
         zval_ptr_dtor(&mh->handlers.server_push->func_name);
         efree(mh->handlers.server_push);
     }
-#endif
 }
 
 #endif
