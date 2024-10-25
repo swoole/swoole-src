@@ -31,6 +31,8 @@
 #include <sys/thread.h> /* thread_self() */
 #elif defined(__NetBSD__)
 #include <lwp.h> /* _lwp_self() */
+#elif defined(__CYGWIN__) || defined(WIN32)
+#include <windows.h> /* GetCurrentThreadId() */
 #endif
 
 static long swoole_thread_get_native_id(void) {
@@ -52,6 +54,8 @@ static long swoole_thread_get_native_id(void) {
 #elif defined(__NetBSD__)
     lwpid_t native_id;
     native_id = _lwp_self();
+#elif defined(__CYGWIN__) || defined(WIN32)
+    DWORD native_id = GetCurrentThreadId();
 #endif
     return native_id;
 }
