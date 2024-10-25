@@ -770,7 +770,9 @@ int async(AsyncIouring::opcodes opcode,
     event.wbuf = wbuf;
     event.statxbuf = statxbuf;
     event.count = count;
+#ifdef HAVE_IOURING_FTRUNCATE
     event.offset = offset;
+#endif
 
     bool result = false;
     AsyncIouring *iouring = SwooleTG.async_iouring;
