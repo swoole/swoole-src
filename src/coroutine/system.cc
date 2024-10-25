@@ -750,6 +750,9 @@ int async(AsyncIouring::opcodes opcode,
           const void *wbuf,
           struct statx *statxbuf,
           size_t count,
+#ifdef HAVE_IOURING_FTRUNCATE
+          uint64_t offset,
+#endif
           double timeout) {
     if (SwooleTG.async_iouring == nullptr) {
         SwooleTG.async_iouring = new AsyncIouring(SwooleTG.reactor);
@@ -767,6 +770,7 @@ int async(AsyncIouring::opcodes opcode,
     event.wbuf = wbuf;
     event.statxbuf = statxbuf;
     event.count = count;
+    event.offset = offset;
 
     bool result = false;
     AsyncIouring *iouring = SwooleTG.async_iouring;
@@ -779,6 +783,11 @@ int async(AsyncIouring::opcodes opcode,
     } else if (opcode == AsyncIouring::SW_IORING_OP_FSYNC || opcode == AsyncIouring::SW_IORING_OP_FDATASYNC) {
         result = iouring->fsync(&event);
     }
+#ifdef HAVE_IOURING_FTRUNCATE
+    else if (opcode == AsyncIouring::SW_IORING_OP_FTRUNCATE) {
+        result = iouring->ftruncate(&event);
+    }
+#endif
 
     if (!result || !task.co->yield_ex(timeout)) {
         return 0;

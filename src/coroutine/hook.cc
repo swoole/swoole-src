@@ -606,4 +606,14 @@ int swoole_coroutine_fdatasync(int fd) {
 #endif
     return retval;
 }
+
+int swoole_coroutine_ftruncate(int fd, ptrdiff_t new_size) {
+    if (sw_unlikely(is_no_coro())) {
+        return ftruncate(fd, new_size);
+    }
+
+    int retval = -1;
+    async([&]() { retval = ftruncate(fd, new_size); });
+    return retval;
+}
 SW_EXTERN_C_END

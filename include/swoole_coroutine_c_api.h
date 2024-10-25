@@ -65,6 +65,7 @@ int swoole_coroutine_statvfs(const char *path, struct statvfs *buf);
 int swoole_coroutine_close_file(int fd);
 int swoole_coroutine_fsync(int fd);
 int swoole_coroutine_fdatasync(int fd);
+int swoole_coroutine_ftruncate(int fd, ptrdiff_t new_size);
 /**
  * io_uring
  */
@@ -83,6 +84,7 @@ int swoole_coroutine_iouring_rmdir(const char *pathname);
 int swoole_coroutine_iouring_fsync(int fd);
 int swoole_coroutine_iouring_fdatasync(int fd);
 void swoole_statx_to_stat(const struct statx *statxbuf, struct stat *statbuf);
+int swoole_coroutine_iouring_ftruncate(int fd, ptrdiff_t new_size);
 #endif
 /**
  * stdio

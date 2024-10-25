@@ -25,7 +25,10 @@
 #include <queue>
 
 #ifdef SW_USE_IOURING
-#include <liburing.h>
+#include "linux/version.h"
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 9, 0) && !IO_URING_CHECK_VERSION(2, 6) && defined(_GNU_SOURCE)
+#define HAVE_IOURING_FTRUNCATE 1
+#endif
 #endif
 
 #ifndef O_DIRECT
@@ -56,6 +59,9 @@ struct AsyncEvent {
     struct statx *statxbuf;
     void *rbuf;
     const void *wbuf;
+#ifdef HAVE_IOURING_FTRUNCATE
+    uint64_t offset;
+#endif
 #endif
     /**
      * output
@@ -169,6 +175,10 @@ class AsyncIouring {
         SW_IORING_OP_UNLINKAT = IORING_OP_UNLINKAT,
         SW_IORING_OP_MKDIRAT = IORING_OP_MKDIRAT,
 
+#ifdef HAVE_IOURING_FTRUNCATE
+        SW_IORING_OP_FTRUNCATE = IORING_OP_FTRUNCATE,
+#endif
+
         SW_IORING_OP_FSTAT = 1000,
         SW_IORING_OP_LSTAT = 1001,
         SW_IORING_OP_UNLINK_FILE = 1002,
@@ -193,6 +203,11 @@ class AsyncIouring {
     bool unlink(AsyncEvent *event);
     bool rename(AsyncEvent *event);
     bool fsync(AsyncEvent *event);
+
+#ifdef HAVE_IOURING_FTRUNCATE
+    bool ftruncate(AsyncEvent *event);
+#endif
+
     inline bool is_empty_waiting_tasks() {
         return waiting_tasks.size() == 0;
     }

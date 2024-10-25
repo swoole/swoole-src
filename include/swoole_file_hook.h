@@ -33,6 +33,9 @@
 #define rmdir(pathname) swoole_coroutine_iouring_rmdir(pathname)
 #define fsync(fd) swoole_coroutine_iouring_fsync(fd)
 #define fdatasync(fd) swoole_coroutine_iouring_fdatasync(fd)
+#ifdef HAVE_IOURING_FTRUNCATE
+#define ftruncate(fd, new_size) swoole_coroutine_iouring_ftruncate(fd, new_size)
+#endif
 #else
 #define open(pathname, flags, mode) swoole_coroutine_open(pathname, flags, mode)
 #define close_file(fd)  swoole_coroutine_close_file(fd)
@@ -49,6 +52,7 @@
 #define rename(oldpath, newpath) swoole_coroutine_rename(oldpath, newpath)
 #define fsync(fd) swoole_coroutine_fsync(fd)
 #define fdatasync(fd) swoole_coroutine_fdatasync(fd)
+#define ftruncate(fd, new_size) swoole_coroutine_ftruncate(fd, new_size)
 #endif
 
 #define access(pathname, mode) swoole_coroutine_access(pathname, mode)

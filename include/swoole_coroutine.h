@@ -315,6 +315,9 @@ int async(AsyncIouring::opcodes opcode,
           const void *wbuf = nullptr,
           struct statx *statxbuf = nullptr,
           size_t count = 0,
+#ifdef HAVE_IOURING_FTRUNCATE
+          uint64_t offset = 0,
+#endif
           double timeout = -1);
 #endif
 bool run(const CoroutineFunc &fn, void *arg = nullptr);
