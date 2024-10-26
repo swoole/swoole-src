@@ -17,8 +17,8 @@
 #include <sys/stat.h>
 #include <sys/statvfs.h>
 
-#include "swoole_coroutine_socket.h"
-#include "swoole_coroutine_system.h"
+#include "swoole_coroutine.h"
+#include "swoole_file_iouring_hook.h"
 
 #ifdef SW_USE_IOURING
 using swoole::AsyncIouring;
@@ -56,7 +56,7 @@ ssize_t swoole_coroutine_iouring_write(int sockfd, const void *buf, size_t count
         return write(sockfd, buf, count);
     }
 
-    return async(AsyncIouring::SW_IORING_OP_WRITE, sockfd, nullptr, buf, nullptr, count);;
+    return async(AsyncIouring::SW_IORING_OP_WRITE, sockfd, nullptr, buf, nullptr, count);
 }
 
 int swoole_coroutine_iouring_rename(const char *oldpath, const char *newpath) {

@@ -20,6 +20,7 @@
 #include "test_coroutine.h"
 #include "swoole_file.h"
 #include "swoole_util.h"
+#include "swoole_file_thread_hook.h"
 
 using namespace swoole::test;
 

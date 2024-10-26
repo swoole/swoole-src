@@ -29,6 +29,7 @@
 #include "swoole_c_api.h"
 #include "swoole_api.h"
 #include "swoole_async.h"
+#include "swoole_file_thread_hook.h"
 
 #ifdef SW_HAVE_ZLIB
 #include <zlib.h>

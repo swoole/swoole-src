@@ -18,10 +18,13 @@
 #define SW_FILE_HOOK_H_
 
 #include "swoole_coroutine_c_api.h"
+#include "swoole_file_thread_hook.h"
+#include "swoole_file_iouring_hook.h"
 
 #ifdef SW_USE_IOURING
+// io_uring
 #define open(pathname, flags, mode) swoole_coroutine_iouring_open(pathname, flags, mode)
-#define close_file(fd)  swoole_coroutine_iouring_close_file(fd)
+#define close_file(fd) swoole_coroutine_iouring_close_file(fd)
 #define read(fd, buf, count) swoole_coroutine_iouring_read(fd, buf, count)
 #define write(fd, buf, count) swoole_coroutine_iouring_write(fd, buf, count)
 #define rename(oldpath, newpath) swoole_coroutine_iouring_rename(oldpath, newpath)
@@ -34,8 +37,9 @@
 #define fsync(fd) swoole_coroutine_iouring_fsync(fd)
 #define fdatasync(fd) swoole_coroutine_iouring_fdatasync(fd)
 #else
+// thread
 #define open(pathname, flags, mode) swoole_coroutine_open(pathname, flags, mode)
-#define close_file(fd)  swoole_coroutine_close_file(fd)
+#define close_file(fd) swoole_coroutine_close_file(fd)
 #define read(fd, buf, count) swoole_coroutine_read(fd, buf, count)
 #define write(fd, buf, count) swoole_coroutine_write(fd, buf, count)
 #define lseek(fd, offset, whence) swoole_coroutine_lseek(fd, offset, whence)
@@ -51,19 +55,20 @@
 #define fdatasync(fd) swoole_coroutine_fdatasync(fd)
 #endif
 
+// stdio
 #define access(pathname, mode) swoole_coroutine_access(pathname, mode)
-#define fopen(pathname, mode)  swoole_coroutine_fopen(pathname, mode)
-#define fdopen(fd, mode)  swoole_coroutine_fdopen(fd, mode)
-#define freopen(pathname, mode, stream)  swoole_coroutine_freopen(pathname, mode, stream)
-#define fread(ptr, size, nmemb, stream)  swoole_coroutine_fread(ptr, size, nmemb, stream)
-#define fwrite(ptr, size, nmemb, stream)  swoole_coroutine_fwrite(ptr, size, nmemb, stream)
-#define fgets(s, size, stream)  swoole_coroutine_fgets(s, size, stream)
-#define fputs(s, stream)  swoole_coroutine_fputs(s, stream)
-#define feof(stream)  swoole_coroutine_feof(stream)
-#define fclose(stream)  swoole_coroutine_fclose(stream)
+#define fopen(pathname, mode) swoole_coroutine_fopen(pathname, mode)
+#define fdopen(fd, mode) swoole_coroutine_fdopen(fd, mode)
+#define freopen(pathname, mode, stream) swoole_coroutine_freopen(pathname, mode, stream)
+#define fread(ptr, size, nmemb, stream) swoole_coroutine_fread(ptr, size, nmemb, stream)
+#define fwrite(ptr, size, nmemb, stream) swoole_coroutine_fwrite(ptr, size, nmemb, stream)
+#define fgets(s, size, stream) swoole_coroutine_fgets(s, size, stream)
+#define fputs(s, stream) swoole_coroutine_fputs(s, stream)
+#define feof(stream) swoole_coroutine_feof(stream)
+#define fclose(stream) swoole_coroutine_fclose(stream)
 
+// dir
 #define opendir(name) swoole_coroutine_opendir(name)
 #define readdir(dir) swoole_coroutine_readdir(dir)
 #define closedir(dir) swoole_coroutine_closedir(dir)
-
 #endif

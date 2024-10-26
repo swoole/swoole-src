@@ -26,16 +26,15 @@
 
 #include "swoole_coroutine_socket.h"
 #include "swoole_coroutine_system.h"
+#include "swoole_file_thread_hook.h"
 
-using swoole::AsyncEvent;
 using swoole::Coroutine;
-using swoole::async::dispatch;
 using swoole::coroutine::async;
 using swoole::coroutine::PollSocket;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
-using swoole::coroutine::translate_events_to_poll;
 using swoole::coroutine::translate_events_from_poll;
+using swoole::coroutine::translate_events_to_poll;
 
 static std::unordered_map<int, std::shared_ptr<Socket>> socket_map;
 static std::mutex socket_map_lock;
