@@ -122,6 +122,56 @@ class ScopeGuard {
     bool _active;
 };
 
+class BitMap {
+  private:
+    uint64_t *array_;
+    size_t n_bits_;
+
+    size_t get_array_size(size_t n_bits) {
+        return (((n_bits) + 63) / 64 * 8);
+    }
+
+    size_t get_offset(size_t i) {
+        assert(i < n_bits_);
+        /* (i / 64) */
+        return i >> 6;
+    }
+
+    uint64_t to_int(size_t i, size_t offset) {
+        return ((uint64_t) 1) << (i - (offset << 6));
+    }
+
+  public:
+    BitMap(size_t n_bits) {
+        assert(n_bits > 0);
+        array_ = (uint64_t *) new uint64_t[get_array_size(n_bits)];
+        n_bits_ = n_bits;
+    }
+
+    ~BitMap() {
+        delete[] array_;
+    }
+
+    void clear() {
+        memset(array_, 0, get_array_size(n_bits_));
+    }
+
+    void set(size_t i) {
+        const size_t off = get_offset(i);
+        array_[off] |= to_int(i, off);
+    }
+
+    void unset(size_t i) {
+        const size_t off = get_offset(i);
+        array_[off] &= ~to_int(i, off);
+    }
+
+    bool get(size_t i) {
+        const size_t off = get_offset(i);
+        return array_[off] & to_int(i, off);
+    }
+};
+
 namespace detail {
 enum class ScopeGuardOnExit {};
 
