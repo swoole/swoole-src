@@ -1961,7 +1961,7 @@ static PHP_METHOD(swoole_socket_coro, getOption) {
         break;
     }
     case TCP_INFO: {
-        struct tcp_info info;
+        tcp_info info;
         socklen_t len = sizeof(info);
         if (_socket->get_option(SOL_TCP, TCP_INFO, &info, &len) < 0) {
             php_swoole_sys_error(E_WARNING, "getsockopt(%d, SOL_TCP, TCP_INFO)", sock->socket->get_fd());

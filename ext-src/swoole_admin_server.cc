@@ -165,7 +165,7 @@ static std::string handle_get_all_commands(Server *serv, const std::string &msg)
 
 #ifdef TCP_INFO
 static json get_socket_info(int fd) {
-    struct tcp_info info;
+    tcp_info info;
     socklen_t len = sizeof(info);
     if (getsockopt(fd, IPPROTO_TCP, TCP_INFO, &info, &len) < 0) {
         json return_value{
@@ -415,7 +415,7 @@ static uint32_t object_store_count() {
 
 #ifdef TCP_INFO
 // clang-format off
-std::unordered_map<std::string, uint64_t> sw_socket_parse_tcp_info(struct tcp_info *info) {
+std::unordered_map<std::string, uint64_t> sw_socket_parse_tcp_info(tcp_info *info) {
 #if defined(__FreeBSD__) || defined(__NetBSD__)
     return {
         {"state", info->tcpi_state},
@@ -541,15 +541,15 @@ std::unordered_map<std::string, uint64_t> sw_socket_parse_tcp_info(struct tcp_in
         {"options", (uint32_t) info->tcpi_options},
         {"flags", (uint32_t) info->tcpi_flags},
         {"rto", info->tcpi_rto},
-        {"maxseg", info->maxseg},
-        {"snd_ssthresh", info->snd_ssthresh},
+        {"maxseg", info->tcpi_maxseg},
+        {"snd_ssthresh", info->tcpi_snd_ssthresh},
         {"snd_cwnd", info->tcpi_snd_cwnd},
         {"snd_wnd", info->tcpi_snd_wnd},
         {"snd_sbbytes", info->tcpi_snd_sbbytes},
         {"rcv_wnd", info->tcpi_rcv_wnd},
         {"srtt", info->tcpi_srtt},
         {"rttvar", info->tcpi_rttvar},
-    }
+    };
 #else
     return {};
 #endif
