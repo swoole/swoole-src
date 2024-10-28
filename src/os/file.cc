@@ -162,6 +162,25 @@ size_t File::read_all(void *buf, size_t len) {
     return read_bytes;
 }
 
+ssize_t File::read_line(void *__buf, size_t __n) {
+    char *buf = (char *) __buf;
+    auto offset = get_offset();
+    ssize_t read_bytes = read(buf, __n - 1);
+    if (read_bytes <= 0) {
+        return read_bytes;
+    }
+    for (ssize_t i = 0; i < read_bytes; ++i) {
+        if (buf[i] == '\0' || buf[i] == '\n') {
+            buf[i + 1] = '\0';
+            set_offset(offset + i + 1);
+            return i + 1;
+        }
+    }
+    buf[read_bytes] = '\0';
+    set_offset(offset + read_bytes + 1);
+    return read_bytes;
+}
+
 std::shared_ptr<String> File::read_content() {
     ssize_t n = 0;
     std::shared_ptr<String> data = std::make_shared<String>(SW_BUFFER_SIZE_STD);

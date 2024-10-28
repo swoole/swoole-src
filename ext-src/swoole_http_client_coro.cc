@@ -517,7 +517,7 @@ static int http_parser_on_body(swoole_http_parser *parser, const char *at, size_
                     return -1;
                 }
             } else {
-                if (!fp->set_offest(http->download_offset)) {
+                if (!fp->set_offset(http->download_offset)) {
                     swoole_sys_warning("fseek(%s, %jd) failed", download_file_name, (intmax_t) http->download_offset);
                     return -1;
                 }

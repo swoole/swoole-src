@@ -76,7 +76,7 @@ TEST(base, file_get_size) {
 
     ASSERT_TRUE(f.ready());
     f.truncate(0);
-    f.set_offest(0);
+    f.set_offset(0);
     f.write(buf, sizeof(buf) - 1);
     f.close();
 

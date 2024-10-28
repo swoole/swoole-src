@@ -1,5 +1,8 @@
 **Swoole core unit testing**
 ===========
+
+> All test files have the `.cpp` extension
+
 ## **1. Compiling googletest**
 Since swoole core unit testing rely on googletest, we need compile googletest at first.
 
