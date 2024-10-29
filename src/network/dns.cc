@@ -777,21 +777,20 @@ int getaddrinfo(GetaddrinfoRequest *req) {
     for (ptr = result; ptr != nullptr; ptr = ptr->ai_next, i++) {
     }
     req->count = SW_MIN(i, SW_DNS_HOST_BUFFER_SIZE);
+    req->results.resize(req->count);
 
     for (ptr = result, i = 0; ptr != nullptr; ptr = ptr->ai_next, i++) {
-        char *buffer = (char *) &req->results[i];
         switch (ptr->ai_family) {
         case AF_INET:
-            memcpy(buffer, ptr->ai_addr, sizeof(struct sockaddr_in));
+            memcpy(&req->results[i], ptr->ai_addr, sizeof(struct sockaddr_in));
             break;
         case AF_INET6:
-            memcpy(buffer, ptr->ai_addr, sizeof(struct sockaddr_in6));
+            memcpy(&req->results[i], ptr->ai_addr, sizeof(struct sockaddr_in6));
             break;
         default:
             swoole_warning("unknown socket family[%d]", ptr->ai_family);
             break;
         }
-        i++;
         if (i == SW_DNS_HOST_BUFFER_SIZE) {
             break;
         }

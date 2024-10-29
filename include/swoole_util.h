@@ -153,7 +153,7 @@ class BitMap {
     }
 
     void clear() {
-        memset(array_, 0, get_array_size(n_bits_));
+        memset(array_, 0, sizeof(uint64_t) * get_array_size(n_bits_));
     }
 
     void set(size_t i) {
