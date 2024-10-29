@@ -45,7 +45,7 @@ function swoole_color(string $content, int $color): string
 function skip(string $reason, bool $is_skip = true, int $color = SWOOLE_COLOR_YELLOW)
 {
     if ($is_skip) {
-        exit('skip ' . swoole_color($reason, $color));
+        exit('skip ' . swoole_color($reason, $color) . "\n");
     }
 }
 

@@ -865,3 +865,10 @@ function get_thread_name(): string
 {
     return trim(file_get_contents('/proc/' . posix_getpid() . '/task/' . \Swoole\Thread::getNativeId() . '/comm'));
 }
+
+function mkdir_if_not_exists(string $string): void
+{
+    if (!is_dir($string)) {
+        mkdir($string, 0777, true);
+    }
+}

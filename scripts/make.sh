@@ -1,16 +1,20 @@
-#!/bin/sh -e
+#!/bin/sh
 __CURRENT_DIR__=$(cd "$(dirname "$0")";pwd)
 __DIR__=$(cd "$(dirname "${__CURRENT_DIR__}")";pwd)
+__HAVE_ZTS__=$(php -v|grep ZTS)
+
 COMPILE_PARAMS="--enable-openssl \
 --enable-sockets \
 --enable-mysqlnd \
 --enable-swoole-curl \
 --enable-cares \
---enable-swoole-thread \
 --enable-swoole-pgsql \
 --with-swoole-odbc=unixODBC,/usr \
 --enable-swoole-sqlite"
 
+if [ -n "$__HAVE_ZTS__" ]; then
+    COMPILE_PARAMS="$COMPILE_PARAMS --enable-swoole-thread"
+fi
 
 if [ "$(uname | grep -i darwin)"x != ""x ]; then
   CPU_COUNT="$(sysctl -n machdep.cpu.core_count)"
