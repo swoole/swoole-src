@@ -615,14 +615,13 @@ static int Client_tcp_connect_async(Client *cli, const char *host, int port, dou
 
     if (cli->wait_dns) {
         AsyncEvent ev{};
-        auto dns_request = new GethostbynameRequest(cli->server_host, cli->_sock_domain);
-        ev.data = dns_request;
+        auto req = new GethostbynameRequest(cli->server_host, cli->_sock_domain);
+        ev.data = std::shared_ptr<AsyncRequest>(req);
         ev.object = cli;
         ev.handler = async::handler_gethostbyname;
         ev.callback = Client_onResolveCompleted;
 
         if (swoole::async::dispatch(&ev) == nullptr) {
-            delete dns_request;
             return SW_ERR;
         } else {
             return SW_OK;
@@ -1112,17 +1111,13 @@ static void Client_onTimeout(Timer *timer, TimerNode *tnode) {
 }
 
 static void Client_onResolveCompleted(AsyncEvent *event) {
-    auto dns_request = (GethostbynameRequest *) event->data;
-    if (event->canceled) {
-        delete dns_request;
-        return;
-    }
+    GethostbynameRequest *req = dynamic_cast<GethostbynameRequest *>(event->data.get());
 
     Client *cli = (Client *) event->object;
     cli->wait_dns = 0;
 
     if (event->error == 0) {
-        Client_tcp_connect_async(cli, dns_request->addr, cli->server_port, cli->timeout, 1);
+        Client_tcp_connect_async(cli, req->addr, cli->server_port, cli->timeout, 1);
     } else {
         swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
         cli->socket->removed = 1;
@@ -1131,7 +1126,6 @@ static void Client_onResolveCompleted(AsyncEvent *event) {
             cli->onError(cli);
         }
     }
-    delete dns_request;
 }
 
 static int Client_onWrite(Reactor *reactor, Event *event) {
