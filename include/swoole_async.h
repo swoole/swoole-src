@@ -24,13 +24,6 @@
 #include <atomic>
 #include <queue>
 
-#ifdef SW_USE_IOURING
-#include "linux/version.h"
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 9, 0) && !IO_URING_CHECK_VERSION(2, 6) && defined(_GNU_SOURCE)
-#define HAVE_IOURING_FTRUNCATE 1
-#endif
-#endif
-
 #ifndef O_DIRECT
 #define O_DIRECT 040000
 #endif
