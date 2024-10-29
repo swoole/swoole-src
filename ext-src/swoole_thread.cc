@@ -255,11 +255,7 @@ static PHP_METHOD(swoole_thread, setName) {
     Z_PARAM_STRING(name, l_name)
     ZEND_PARSE_PARAMETERS_END();
 
-#if defined(__APPLE__)
-    RETURN_BOOL(pthread_setname_np(name) == 0);
-#else
-    RETURN_BOOL(pthread_setname_np(pthread_self(), name) == 0);
-#endif
+    RETURN_BOOL(swoole_thread_set_name(name));
 }
 
 #ifdef HAVE_CPU_AFFINITY

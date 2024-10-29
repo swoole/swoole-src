@@ -194,6 +194,16 @@ bool php_swoole_name_resolver_add(zval *zresolver);
 const swoole::Allocator *sw_php_allocator();
 const swoole::Allocator *sw_zend_string_allocator();
 
+#ifdef __APPLE__
+#define SOL_TCP IPPROTO_TCP
+#define TCP_INFO TCP_CONNECTION_INFO
+using tcp_info = tcp_connection_info;
+#endif
+
+#ifdef TCP_INFO
+std::unordered_map<std::string, uint64_t> sw_socket_parse_tcp_info(tcp_info *info);
+#endif
+
 static inline bool php_swoole_async(bool blocking, const std::function<void(void)> &fn) {
     if (!blocking && swoole_coroutine_is_in()) {
         return swoole::coroutine::async(fn);

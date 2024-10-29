@@ -40,22 +40,25 @@ static long swoole_thread_get_native_id(void) {
     uint64_t native_id;
     (void) pthread_threadid_np(NULL, &native_id);
 #elif defined(__linux__)
-    pid_t native_id;
-    native_id = syscall(SYS_gettid);
+    pid_t native_id = syscall(SYS_gettid);
 #elif defined(__FreeBSD__)
-    int native_id;
-    native_id = pthread_getthreadid_np();
+    int native_id = pthread_getthreadid_np();
 #elif defined(__OpenBSD__)
-    pid_t native_id;
-    native_id = getthrid();
+    pid_t native_id = getthrid();
 #elif defined(_AIX)
-    tid_t native_id;
-    native_id = thread_self();
+    tid_t native_id = thread_self();
 #elif defined(__NetBSD__)
-    lwpid_t native_id;
-    native_id = _lwp_self();
+    lwpid_t native_id = _lwp_self();
 #elif defined(__CYGWIN__) || defined(WIN32)
     DWORD native_id = GetCurrentThreadId();
 #endif
     return native_id;
+}
+
+static bool swoole_thread_set_name(const char *name) {
+#if defined(__APPLE__)
+    return pthread_setname_np(name) == 0;
+#else
+    return pthread_setname_np(pthread_self(), name) == 0;
+#endif
 }

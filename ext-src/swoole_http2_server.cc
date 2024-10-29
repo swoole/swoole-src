@@ -775,7 +775,7 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
                     client->remote_window_size -= body->length;  // TODO: flow control?
                 }
 
-                fp.set_offest(i->offset);
+                fp.set_offset(i->offset);
                 buf = (char *) emalloc(i->length);
                 auto n_reads = fp.read(buf, i->length);
                 if (n_reads < 0) {
@@ -804,7 +804,7 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
             }
         } else if (tasks[0].length > 0) {
             auto callback = [&]() -> bool {
-                fp.set_offest(tasks[0].offset);
+                fp.set_offset(tasks[0].offset);
                 buf = (char *) emalloc(tasks[0].length);
                 auto n_reads = fp.read(buf, tasks[0].length);
                 if (n_reads < 0) {

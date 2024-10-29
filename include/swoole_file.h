@@ -101,6 +101,14 @@ class File {
 
     size_t write_all(const void *__buf, size_t __n);
     size_t read_all(void *__buf, size_t __n);
+    /**
+     * Read one line of file, reading ends when __n - 1 bytes have been read,
+     * or a newline (which is included in the return value),
+     * or an EOF (read bytes less than __n)
+     * Returns length of line on sucess, -1 otherwise.
+     * NOTE: `buf' must be end with zero.
+     */
+    ssize_t read_line(void *__buf, size_t __n);
 
     std::shared_ptr<String> read_content();
 
@@ -121,7 +129,7 @@ class File {
         return ::ftruncate(fd_, size) == 0;
     }
 
-    off_t set_offest(off_t offset) {
+    off_t set_offset(off_t offset) {
         return lseek(fd_, offset, SEEK_SET);
     }
 

@@ -744,6 +744,9 @@ void php_swoole_socket_coro_minit(int module_number) {
 #ifdef ECANCELED
     SW_REGISTER_LONG_CONSTANT("SOCKET_ECANCELED", ECANCELED);
 #endif
+#ifdef TCP_INFO
+    SW_REGISTER_LONG_CONSTANT("TCP_INFO", TCP_INFO);
+#endif
 }
 
 static sw_inline void socket_coro_sync_properties(zval *zobject, SocketObject *sock) {
@@ -1955,6 +1958,20 @@ static PHP_METHOD(swoole_socket_coro, getOption) {
         int sec = (int) timeout;
         add_assoc_long(return_value, "sec", (int) timeout);
         add_assoc_long(return_value, "usec", (timeout - (double) sec) * 1000000);
+        break;
+    }
+    case TCP_INFO: {
+        tcp_info info;
+        socklen_t len = sizeof(info);
+        if (_socket->get_option(SOL_TCP, TCP_INFO, &info, &len) < 0) {
+            php_swoole_sys_error(E_WARNING, "getsockopt(%d, SOL_TCP, TCP_INFO)", sock->socket->get_fd());
+        } else {
+            array_init(return_value);
+            auto info_map = sw_socket_parse_tcp_info(&info);
+            for (const auto &iter : info_map) {
+                add_assoc_long_ex(return_value, iter.first.c_str(), iter.first.length(), (zend_long) iter.second);
+            }
+        }
         break;
     }
     default: {
