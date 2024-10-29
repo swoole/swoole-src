@@ -40,7 +40,7 @@ enum AsyncFlag {
 };
 
 struct AsyncRequest {
-    virtual ~AsyncRequest() {}
+    virtual ~AsyncRequest() = default;
 };
 
 struct AsyncEvent {
@@ -91,7 +91,7 @@ struct GethostbynameRequest : public AsyncRequest {
     char *addr;
     size_t addr_len;
 
-    GethostbynameRequest(const std::string _name, int _family) : name(_name), family(_family) {
+    GethostbynameRequest(std::string _name, int _family) : name(std::move(_name)), family(_family) {
         addr_len = _family == AF_INET6 ? INET6_ADDRSTRLEN : INET_ADDRSTRLEN;
         addr = new char[addr_len];
     }
@@ -113,18 +113,17 @@ struct GetaddrinfoRequest : public AsyncRequest {
 
     void parse_result(std::vector<std::string> &retval);
 
-    GetaddrinfoRequest(
-        const std::string &_hostname, int _family, int _socktype, int _protocol, const std::string &_service) {
-        hostname = _hostname;
-        family = _family;
-        socktype = _socktype;
-        protocol = _protocol;
-        service = _service;
+    GetaddrinfoRequest(std::string _hostname, int _family, int _socktype, int _protocol, std::string _service)
+        : hostname(std::move(_hostname)),
+          service(std::move(_service)) {
+        family =_family;
+        socktype =_socktype;
+        protocol =_protocol;
         count = 0;
         error = 0;
     }
 
-    ~GetaddrinfoRequest() override {}
+    ~GetaddrinfoRequest() override = default;
 };
 
 class AsyncThreads {
