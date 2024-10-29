@@ -1111,8 +1111,7 @@ static void Client_onTimeout(Timer *timer, TimerNode *tnode) {
 }
 
 static void Client_onResolveCompleted(AsyncEvent *event) {
-    auto async_req = event->data;
-    GethostbynameRequest *req = dynamic_cast<GethostbynameRequest *>(async_req.get());
+    GethostbynameRequest *req = dynamic_cast<GethostbynameRequest *>(event->data.get());
 
     Client *cli = (Client *) event->object;
     cli->wait_dns = 0;

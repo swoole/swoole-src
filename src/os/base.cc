@@ -93,8 +93,7 @@ namespace async {
 
 void handler_gethostbyname(AsyncEvent *event) {
     char addr[INET6_ADDRSTRLEN];
-    std::shared_ptr<AsyncRequest> async_req = event->data;
-    auto req = dynamic_cast<GethostbynameRequest *>(async_req.get());
+    auto req = dynamic_cast<GethostbynameRequest *>(event->data.get());
     int ret = network::gethostbyname(req->family, req->name.c_str(), addr);
     sw_memset_zero(req->addr, req->addr_len);
 
@@ -113,8 +112,7 @@ void handler_gethostbyname(AsyncEvent *event) {
 }
 
 void handler_getaddrinfo(AsyncEvent *event) {
-    std::shared_ptr<AsyncRequest> async_req = event->data;
-    auto req = dynamic_cast<GetaddrinfoRequest *>(async_req.get());
+    auto req = dynamic_cast<GetaddrinfoRequest *>(event->data.get());
     event->retval = network::getaddrinfo(req);
     event->error = req->error;
 }
