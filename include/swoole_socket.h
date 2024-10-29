@@ -64,20 +64,9 @@ enum {
 };
 
 namespace swoole {
+struct GetaddrinfoRequest;
+
 namespace network {
-
-struct GetaddrinfoRequest {
-    const char *hostname;
-    const char *service;
-    int family;
-    int socktype;
-    int protocol;
-    int error;
-    void *result;
-    int count;
-
-    void parse_result(std::vector<std::string> &retval);
-};
 
 struct SendfileTask {
     off_t offset;

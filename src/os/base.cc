@@ -93,14 +93,15 @@ namespace async {
 
 void handler_gethostbyname(AsyncEvent *event) {
     char addr[INET6_ADDRSTRLEN];
-    auto request = (GethostbynameRequest *) event->data;
-    int ret = network::gethostbyname(request->family, request->name, addr);
-    sw_memset_zero(request->addr, request->addr_len);
+    std::shared_ptr<AsyncRequest> async_req = event->data;
+    auto req = dynamic_cast<GethostbynameRequest *>(async_req.get());
+    int ret = network::gethostbyname(req->family, req->name.c_str(), addr);
+    sw_memset_zero(req->addr, req->addr_len);
 
     if (ret < 0) {
         event->error = SW_ERROR_DNSLOOKUP_RESOLVE_FAILED;
     } else {
-        if (inet_ntop(request->family, addr, request->addr, request->addr_len) == nullptr) {
+        if (inet_ntop(req->family, addr, req->addr, req->addr_len) == nullptr) {
             ret = -1;
             event->error = SW_ERROR_BAD_IPV6_ADDRESS;
         } else {
@@ -112,7 +113,8 @@ void handler_gethostbyname(AsyncEvent *event) {
 }
 
 void handler_getaddrinfo(AsyncEvent *event) {
-    network::GetaddrinfoRequest *req = (network::GetaddrinfoRequest *) event->data;
+    std::shared_ptr<AsyncRequest> async_req = event->data;
+    auto req = dynamic_cast<GetaddrinfoRequest *>(async_req.get());
     event->retval = network::getaddrinfo(req);
     event->error = req->error;
 }
