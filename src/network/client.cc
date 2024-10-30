@@ -579,6 +579,26 @@ static int Client_tcp_connect_sync(Client *cli, const char *host, int port, doub
                 }
                 return SW_ERR;
             }
+        } else if (cli->http_proxy) {
+            auto proxy_buf = sw_tg_buffer();
+            const std::string *host_name = &cli->http_proxy->target_host;
+#ifdef SW_USE_OPENSSL
+            if (cli->ssl_context && !cli->ssl_context->tls_host_name.empty()) {
+                host_name = &cli->ssl_context->tls_host_name;
+            }
+#endif
+            size_t n_write = cli->http_proxy->pack(proxy_buf, host_name);
+            if (cli->send(cli, proxy_buf->str, n_write, 0) < 0) {
+                return SW_ERR;
+            }
+            ssize_t n_read = cli->recv(cli, proxy_buf->str, proxy_buf->size, 0);
+            if (n_read <= 0) {
+                return SW_ERR;
+            }
+            proxy_buf->length = n_read;
+            if (!cli->http_proxy->handshake(proxy_buf)) {
+                return SW_ERR;
+            }
         }
 
 #ifdef SW_USE_OPENSSL
@@ -879,48 +899,6 @@ static ssize_t Client_udp_recv(Client *cli, char *data, size_t length, int flags
     return ret;
 }
 
-#ifdef SW_USE_OPENSSL
-static int Client_https_proxy_handshake(Client *cli) {
-    char *buf = cli->buffer->str;
-    size_t len = cli->buffer->length;
-    int state = 0;
-    char *p = buf;
-    char *pe = buf + len;
-    for (; p < pe; p++) {
-        if (state == 0) {
-            if (SW_STR_ISTARTS_WITH(p, pe - p, "HTTP/1.1") || SW_STR_ISTARTS_WITH(p, pe - p, "HTTP/1.0")) {
-                state = 1;
-                p += sizeof("HTTP/1.x") - 1;
-            } else {
-                break;
-            }
-        } else if (state == 1) {
-            if (isspace(*p)) {
-                continue;
-            } else {
-                if (SW_STR_ISTARTS_WITH(p, pe - p, "200")) {
-                    state = 2;
-                    p += sizeof("200") - 1;
-                } else {
-                    break;
-                }
-            }
-        } else if (state == 2) {
-            if (isspace(*p)) {
-                continue;
-            } else {
-                if (SW_STR_ISTARTS_WITH(p, pe - p, "Connection established")) {
-                    return SW_OK;
-                } else {
-                    break;
-                }
-            }
-        }
-    }
-    return SW_ERR;
-}
-#endif
-
 static int Client_onPackage(const Protocol *proto, Socket *conn, const RecvData *rdata) {
     Client *cli = (Client *) conn->object;
     cli->onReceive(cli, rdata->data, rdata->info.len);
@@ -932,69 +910,50 @@ static int Client_onStreamRead(Reactor *reactor, Event *event) {
     Client *cli = (Client *) event->socket->object;
     char *buf = cli->buffer->str + cli->buffer->length;
     ssize_t buf_size = cli->buffer->size - cli->buffer->length;
+#ifdef SW_USE_OPENSSL
+    bool do_ssl_handshake = cli->open_ssl;
+#else
+    bool do_ssl_handshake = false;
+#endif
 
     if (cli->http_proxy && cli->http_proxy->state != SW_HTTP_PROXY_STATE_READY) {
-#ifdef SW_USE_OPENSSL
-        if (cli->open_ssl) {
-            n = event->socket->recv(buf, buf_size, 0);
-            if (n <= 0) {
-                goto __close;
-            }
-            cli->buffer->length += n;
-            if (cli->buffer->length < sizeof(SW_HTTPS_PROXY_HANDSHAKE_RESPONSE) - 1) {
-                return SW_OK;
-            }
-            if (Client_https_proxy_handshake(cli) < 0) {
-                swoole_error_log(
-                    SW_LOG_NOTICE, SW_ERROR_HTTP_PROXY_HANDSHAKE_ERROR, "failed to handshake with http proxy");
-                goto _connect_fail;
-            } else {
-                cli->http_proxy->state = SW_HTTP_PROXY_STATE_READY;
-                cli->buffer->clear();
-            }
-            if (cli->ssl_handshake() < 0) {
-                goto _connect_fail;
-            } else {
-                if (cli->socket->ssl_state == SW_SSL_STATE_READY) {
-                    execute_onConnect(cli);
-                } else if (cli->socket->ssl_state == SW_SSL_STATE_WAIT_STREAM && cli->socket->ssl_want_write) {
-                    swoole_event_set(event->socket, SW_EVENT_WRITE);
-                }
+        n = event->socket->recv(buf, buf_size, 0);
+        if (n <= 0) {
+            _connect_fail:
+            cli->active = 0;
+            cli->close();
+            if (cli->onError) {
+                cli->onError(cli);
             }
             return SW_OK;
         }
-#endif
+        cli->buffer->length += n;
+        if (!cli->http_proxy->handshake(cli->buffer)) {
+            swoole_error_log(
+                SW_LOG_NOTICE, SW_ERROR_HTTP_PROXY_HANDSHAKE_ERROR, "failed to handshake with http proxy");
+            goto _connect_fail;
+        }
+        cli->http_proxy->state = SW_HTTP_PROXY_STATE_READY;
+        cli->buffer->clear();
+        if (!do_ssl_handshake) {
+            execute_onConnect(cli);
+            return SW_OK;
+        }
     }
+
     if (cli->socks5_proxy && cli->socks5_proxy->state != SW_SOCKS5_STATE_READY) {
         n = event->socket->recv(buf, buf_size, 0);
         if (n <= 0) {
-            goto __close;
+            goto _connect_fail;
         }
-        if (cli->socks5_handshake(buf, buf_size) < 0) {
-            goto __close;
+        cli->buffer->length += n;
+        if (cli->socks5_handshake(buf, buf_size) < 0 || cli->socks5_proxy->state != SW_SOCKS5_STATE_READY) {
+            goto _connect_fail;
         }
-        if (cli->socks5_proxy->state != SW_SOCKS5_STATE_READY) {
+        if (!do_ssl_handshake) {
+            execute_onConnect(cli);
             return SW_OK;
         }
-#ifdef SW_USE_OPENSSL
-        if (cli->open_ssl) {
-            if (cli->ssl_handshake() < 0) {
-            _connect_fail:
-                cli->active = 0;
-                cli->close();
-                if (cli->onError) {
-                    cli->onError(cli);
-                }
-            } else {
-                cli->socket->ssl_state = SW_SSL_STATE_WAIT_STREAM;
-                return swoole_event_set(event->socket, SW_EVENT_WRITE);
-            }
-        } else
-#endif
-        {
-            execute_onConnect(cli);
-        }
-        return SW_OK;
     }
 
 #ifdef SW_USE_OPENSSL
@@ -1035,9 +994,6 @@ static int Client_onStreamRead(Reactor *reactor, Event *event) {
         }
     }
 
-#ifdef SW_CLIENT_RECV_AGAIN
-_recv_again:
-#endif
     n = event->socket->recv(buf, buf_size, 0);
     if (n < 0) {
         switch (event->socket->catch_read_error(errno)) {
@@ -1056,11 +1012,6 @@ _recv_again:
         return cli->close();
     } else {
         cli->onReceive(cli, buf, n);
-#ifdef SW_CLIENT_RECV_AGAIN
-        if (n == buf_size) {
-            goto _recv_again;
-        }
-#endif
         return SW_OK;
     }
     return SW_OK;
@@ -1184,12 +1135,17 @@ static int Client_onWrite(Reactor *reactor, Event *event) {
 #ifdef SW_USE_OPENSSL
             if (cli->open_ssl) {
                 cli->http_proxy->state = SW_HTTP_PROXY_STATE_HANDSHAKE;
-                int n = sw_snprintf(cli->http_proxy->buf,
-                                    sizeof(cli->http_proxy->buf),
-                                    "CONNECT %s:%d HTTP/1.1\r\n\r\n",
-                                    cli->http_proxy->target_host.c_str(),
-                                    cli->http_proxy->target_port);
-                return cli->send(cli, cli->http_proxy->buf, n, 0);
+                auto proxy_buf = sw_tg_buffer();
+                const std::string *host_name = &cli->http_proxy->target_host;
+#ifdef SW_USE_OPENSSL
+                if (cli->ssl_context && !cli->ssl_context->tls_host_name.empty()) {
+                    host_name = &cli->ssl_context->tls_host_name;
+                }
+#endif
+                size_t n = cli->http_proxy->pack(proxy_buf, host_name);
+                swoole_trace_log(SW_TRACE_HTTP_CLIENT, "proxy request: <<EOF\n%.*sEOF", (int) n, proxy_buf->str);
+
+                return cli->send(cli, proxy_buf->str, n, 0);
             }
 #endif
         }

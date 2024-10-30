@@ -351,20 +351,10 @@ bool Socket::socks5_handshake() {
 }
 
 bool Socket::http_proxy_handshake() {
-#define HTTP_PROXY_FMT                                                                                                 \
-    "CONNECT %.*s:%d HTTP/1.1\r\n"                                                                                     \
-    "Host: %.*s:%d\r\n"                                                                                                \
-    "User-Agent: Swoole/" SWOOLE_VERSION "\r\n"                                                                        \
-    "Proxy-Connection: Keep-Alive\r\n"
-
-    // CONNECT
-    int n;
-    const char *host = http_proxy->target_host.c_str();
-    int host_len = http_proxy->target_host.length();
+    const std::string *real_host = &http_proxy->target_host;
 #ifdef SW_USE_OPENSSL
     if (ssl_context && !ssl_context->tls_host_name.empty()) {
-        host = ssl_context->tls_host_name.c_str();
-        host_len = ssl_context->tls_host_name.length();
+        real_host = &ssl_context->tls_host_name;
     }
 #endif
 
@@ -373,34 +363,11 @@ bool Socket::http_proxy_handshake() {
         send_buffer->clear();
     };
 
-    if (!http_proxy->password.empty()) {
-        auto auth_str = http_proxy->get_auth_str();
-        n = sw_snprintf(send_buffer->str,
-                        send_buffer->size,
-                        HTTP_PROXY_FMT "Proxy-Authorization: Basic %s\r\n\r\n",
-                        (int) http_proxy->target_host.length(),
-                        http_proxy->target_host.c_str(),
-                        http_proxy->target_port,
-                        host_len,
-                        host,
-                        http_proxy->target_port,
-                        auth_str.c_str());
-    } else {
-        n = sw_snprintf(send_buffer->str,
-                        send_buffer->size,
-                        HTTP_PROXY_FMT "\r\n",
-                        (int) http_proxy->target_host.length(),
-                        http_proxy->target_host.c_str(),
-                        http_proxy->target_port,
-                        host_len,
-                        host,
-                        http_proxy->target_port);
-    }
-
-    swoole_trace_log(SW_TRACE_HTTP_CLIENT, "proxy request: <<EOF\n%.*sEOF", n, send_buffer->str);
-
+    size_t n = http_proxy->pack(send_buffer, real_host);
     send_buffer->length = n;
-    if (send(send_buffer->str, n) != n) {
+    swoole_trace_log(SW_TRACE_HTTP_CLIENT, "proxy request: <<EOF\n%.*sEOF", (int) n, send_buffer->str);
+
+    if (send(send_buffer->str, n) != (ssize_t) n) {
         return false;
     }
 
@@ -415,61 +382,20 @@ bool Socket::http_proxy_handshake() {
     protocol.package_eof_len = sizeof("\r\n\r\n") - 1;
     memcpy(protocol.package_eof, SW_STRS("\r\n\r\n"));
 
-    n = recv_packet();
-    if (n <= 0) {
+    if (recv_packet() <= 0) {
         return false;
     }
 
     swoole_trace_log(SW_TRACE_HTTP_CLIENT, "proxy response: <<EOF\n%.*sEOF", n, recv_buffer->str);
 
-    bool ret = false;
-    char *buf = recv_buffer->str;
-    int len = n;
-    int state = 0;
-    char *p = buf;
-    char *pe = buf + len;
-    for (; p < buf + len; p++) {
-        if (state == 0) {
-            if (SW_STR_ISTARTS_WITH(p, pe - p, "HTTP/1.1") || SW_STR_ISTARTS_WITH(p, pe - p, "HTTP/1.0")) {
-                state = 1;
-                p += sizeof("HTTP/1.x") - 1;
-            } else {
-                break;
-            }
-        } else if (state == 1) {
-            if (isspace(*p)) {
-                continue;
-            } else {
-                if (SW_STR_ISTARTS_WITH(p, pe - p, "200")) {
-                    state = 2;
-                    p += sizeof("200") - 1;
-                } else {
-                    break;
-                }
-            }
-        } else if (state == 2) {
-            ret = true;
-            break;
-#if 0
-            if (isspace(*p)) {
-                continue;
-            } else {
-                if (SW_STR_ISTARTS_WITH(p, pe - p, "Connection established")) {
-                    ret = true;
-                }
-                break;
-            }
-#endif
-        }
-    }
-
-    if (!ret) {
+    if (!http_proxy->handshake(recv_buffer)) {
         set_err(SW_ERROR_HTTP_PROXY_BAD_RESPONSE,
                 std::string("wrong http_proxy response received, \n[Request]: ") + send_buffer->to_std_string() +
-                    "\n[Response]: " + std::string(buf, len));
+                    "\n[Response]: " + send_buffer->to_std_string());
+        return false;
     }
 
-    return ret;
+    return true;
 }
 
 void Socket::init_sock_type(SocketType _type) {
@@ -1830,19 +1756,4 @@ Socket::~Socket() {
 }
 
 }  // namespace coroutine
-
-std::string HttpProxy::get_auth_str() {
-    char auth_buf[256];
-    char encode_buf[512];
-    size_t n = sw_snprintf(auth_buf,
-                           sizeof(auth_buf),
-                           "%.*s:%.*s",
-                           (int) username.length(),
-                           username.c_str(),
-                           (int) password.length(),
-                           password.c_str());
-    base64_encode((unsigned char *) auth_buf, n, encode_buf);
-    return std::string(encode_buf);
-}
-
 }  // namespace swoole

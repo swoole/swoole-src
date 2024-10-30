@@ -23,8 +23,6 @@
 #include "swoole_protocol.h"
 #include "swoole_proxy.h"
 
-#define SW_HTTPS_PROXY_HANDSHAKE_RESPONSE "HTTP/1.1 200 Connection established"
-
 namespace swoole {
 namespace network {
 

@@ -16,6 +16,8 @@
 
 #include "swoole_http.h"
 #include "swoole_server.h"
+#include "swoole_proxy.h"
+#include "swoole_base64.h"
 
 #include <string>
 #include <sstream>
@@ -42,6 +44,101 @@ static const char *method_strings[] = {
 // clang-format on
 
 namespace swoole {
+
+std::string HttpProxy::get_auth_str() {
+    char auth_buf[256];
+    char encode_buf[512];
+    size_t n = sw_snprintf(auth_buf,
+                           sizeof(auth_buf),
+                           "%.*s:%.*s",
+                           (int) username.length(),
+                           username.c_str(),
+                           (int) password.length(),
+                           password.c_str());
+    base64_encode((unsigned char *) auth_buf, n, encode_buf);
+    return std::string(encode_buf);
+}
+
+size_t HttpProxy::pack(String *send_buffer, const std::string *host_name) {
+    if (!password.empty()) {
+        auto auth_str = get_auth_str();
+        return sw_snprintf(send_buffer->str,
+                           send_buffer->size,
+                           SW_HTTP_PROXY_FMT "Proxy-Authorization: Basic %.*s\r\n\r\n",
+                           (int) target_host.length(),
+                           target_host.c_str(),
+                           target_port,
+                           (int) host_name->length(),
+                           host_name->c_str(),
+                           target_port,
+                           (int) auth_str.length(),
+                           auth_str.c_str());
+    } else {
+        return sw_snprintf(send_buffer->str,
+                           send_buffer->size,
+                           SW_HTTP_PROXY_FMT "\r\n",
+                           (int) target_host.length(),
+                           target_host.c_str(),
+                           target_port,
+                           (int) host_name->length(),
+                           host_name->c_str(),
+                           target_port);
+    }
+}
+
+bool HttpProxy::handshake(String *recv_buffer) {
+    bool ret = false;
+    char *buf = recv_buffer->str;
+    size_t len = recv_buffer->length;
+    int state = 0;
+    char *p = buf;
+    char *pe = buf + len;
+
+    if (recv_buffer->length < sizeof(SW_HTTP_PROXY_HANDSHAKE_RESPONSE) - 1) {
+        return false;
+    }
+
+    for (; p < buf + len; p++) {
+        if (state == 0) {
+            if (SW_STR_ISTARTS_WITH(p, pe - p, "HTTP/1.1") || SW_STR_ISTARTS_WITH(p, pe - p, "HTTP/1.0")) {
+                state = 1;
+                p += sizeof("HTTP/1.x") - 1;
+            } else {
+                break;
+            }
+        } else if (state == 1) {
+            if (isspace(*p)) {
+                continue;
+            } else {
+                if (SW_STR_ISTARTS_WITH(p, pe - p, "200")) {
+                    state = 2;
+                    p += sizeof("200") - 1;
+                } else {
+                    break;
+                }
+            }
+        } else if (state == 2) {
+            ret = true;
+            break;
+            /**
+             * The response message is generally "Connection established,"
+             * although it is not specified in the RFC documents, and thus will not be checked for now.
+             */
+#if SW_HTTP_PROXY_CHECK_MESSAGE
+            if (isspace(*p)) {
+                continue;
+            } else {
+                if (SW_STR_ISTARTS_WITH(p, pe - p, "Connection established")) {
+                    ret = true;
+                }
+                break;
+            }
+#endif
+        }
+    }
+
+    return ret;
+}
 
 bool Server::select_static_handler(http_server::Request *request, Connection *conn) {
     const char *url = request->buffer_->str + request->url_offset_;
@@ -140,13 +237,8 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
     std::stringstream header_stream;
     if (1 == tasks.size()) {
         if (SW_HTTP_PARTIAL_CONTENT == handler.status_code) {
-            header_stream << "Content-Range: bytes "
-                          << tasks[0].offset
-                          << "-"
-                          << (tasks[0].length + tasks[0].offset - 1)
-                          << "/"
-                          << handler.get_filesize()
-                          << "\r\n";
+            header_stream << "Content-Range: bytes " << tasks[0].offset << "-"
+                          << (tasks[0].length + tasks[0].offset - 1) << "/" << handler.get_filesize() << "\r\n";
         } else {
             header_stream << "Accept-Ranges: bytes\r\n";
         }
@@ -801,7 +893,7 @@ int Request::get_protocol() {
             if (isspace(*p)) {
                 continue;
             }
-            if ((size_t)(pe - p) < (sizeof("HTTP/1.x") - 1)) {
+            if ((size_t) (pe - p) < (sizeof("HTTP/1.x") - 1)) {
                 return SW_ERR;
             }
             if (memcmp(p, SW_STRL("HTTP/1.1")) == 0) {
@@ -968,7 +1060,7 @@ bool Request::has_expect_header() {
     char *p;
 
     for (p = buf; p < pe; p++) {
-        if (*p == '\r' && (size_t)(pe - p) > sizeof("\r\nExpect")) {
+        if (*p == '\r' && (size_t) (pe - p) > sizeof("\r\nExpect")) {
             p += 2;
             if (SW_STR_ISTARTS_WITH(p, pe - p, "Expect: ")) {
                 p += sizeof("Expect: ") - 1;
@@ -1006,7 +1098,7 @@ int Request::get_chunked_body_length() {
     char *pe = buffer_->str + buffer_->length;
 
     while (1) {
-        if ((size_t)(pe - p) < (1 + (sizeof("\r\n") - 1))) {
+        if ((size_t) (pe - p) < (1 + (sizeof("\r\n") - 1))) {
             /* need the next chunk */
             return SW_ERR;
         }
