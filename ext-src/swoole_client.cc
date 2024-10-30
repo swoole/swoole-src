@@ -614,7 +614,7 @@ static PHP_METHOD(swoole_client, __construct) {
     }
 
     if (async) {
-        zend_throw_error(NULL, "please install the ext-async extension, using Swoole\\Async\\Client");
+        zend_throw_error(NULL, "The $async parameter is not supported");
         RETURN_FALSE;
     }
 
@@ -1215,6 +1215,7 @@ static PHP_METHOD(swoole_client, close) {
     SW_CHECK_RETURN(ret);
 }
 
+#ifdef SW_USE_OPENSSL
 bool php_swoole_client_enable_ssl_encryption(Client *cli, zval *zobject) {
     if (cli->socket->socket_type != SW_SOCK_TCP && cli->socket->socket_type != SW_SOCK_TCP6) {
         php_swoole_fatal_error(E_WARNING, "cannot use enableSSL");
@@ -1232,7 +1233,6 @@ bool php_swoole_client_enable_ssl_encryption(Client *cli, zval *zobject) {
     return cli->enable_ssl_encrypt() == SW_OK;
 }
 
-#ifdef SW_USE_OPENSSL
 static PHP_METHOD(swoole_client, enableSSL) {
     Client *cli = php_swoole_client_get_cli_safe(ZEND_THIS);
     if (!cli) {

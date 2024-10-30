@@ -33,7 +33,7 @@ struct DNSCacheEntity {
     time_t update_time;
 };
 
-static std::unordered_map<std::string, DNSCacheEntity *> request_cache_map;
+static SW_THREAD_LOCAL std::unordered_map<std::string, DNSCacheEntity *> request_cache_map;
 
 void php_swoole_async_coro_rshutdown() {
     for (auto i = request_cache_map.begin(); i != request_cache_map.end(); i++) {
