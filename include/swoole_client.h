@@ -129,6 +129,10 @@ class Client {
         return socket;
     }
 
+    SocketType get_socket_type() {
+        return socket->socket_type;
+    }
+
     int sleep();
     int wakeup();
     int shutdown(int __how);

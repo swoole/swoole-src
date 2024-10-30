@@ -765,6 +765,7 @@ PHP_MINIT_FUNCTION(swoole) {
     // client
     php_swoole_socket_coro_minit(module_number);
     php_swoole_client_minit(module_number);
+    php_swoole_client_async_minit(module_number);
     php_swoole_client_coro_minit(module_number);
     php_swoole_http_client_coro_minit(module_number);
     php_swoole_http2_client_coro_minit(module_number);

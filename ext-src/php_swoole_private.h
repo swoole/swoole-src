@@ -203,6 +203,7 @@ extern zend_class_entry *swoole_event_ce;
 extern zend_class_entry *swoole_timer_ce;
 extern zend_class_entry *swoole_socket_coro_ce;
 extern zend_class_entry *swoole_client_ce;
+extern zend_object_handlers swoole_client_handlers;
 extern zend_class_entry *swoole_server_ce;
 extern zend_object_handlers swoole_server_handlers;
 extern zend_class_entry *swoole_redis_server_ce;
@@ -271,6 +272,7 @@ void php_swoole_runtime_minit(int module_number);
 // client
 void php_swoole_socket_coro_minit(int module_number);
 void php_swoole_client_minit(int module_number);
+void php_swoole_client_async_minit(int module_number);
 void php_swoole_client_coro_minit(int module_number);
 void php_swoole_http_client_coro_minit(int module_number);
 void php_swoole_http2_client_coro_minit(int module_number);

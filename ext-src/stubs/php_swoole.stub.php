@@ -36,7 +36,7 @@ function swoole_test_kernel_coroutine(int $count = 100, float $sleep_time = 1.0)
 {
 }
 
-function swoole_client_select(array &$read_array, array &$write_array, array &$error_array, float $timeout = 0.5): false|int
+function swoole_client_select(?array &$read, ?array &$write, ?array &$except, ?float $timeout = 0.5): false|int
 {
 }
 
