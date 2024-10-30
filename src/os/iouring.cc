@@ -14,21 +14,14 @@
  +----------------------------------------------------------------------+
  */
 
-#include "swoole.h"
-#include "swoole_api.h"
-#include "swoole_socket.h"
-#include "swoole_reactor.h"
-#include "swoole_string.h"
-#include "swoole_signal.h"
-#include "swoole_pipe.h"
-#include "swoole_async.h"
-#include "swoole_util.h"
-#include "swoole_coroutine.h"
+#include "swoole_iouring.h"
 
 #ifdef SW_USE_IOURING
+using swoole::Coroutine;
+
 namespace swoole {
 //-------------------------------------------------------------------------------
-AsyncIouring::AsyncIouring(Reactor *reactor_) {
+Iouring::Iouring(Reactor *reactor_) {
     if (!SwooleTG.reactor) {
         swoole_warning("no event loop, cannot initialized");
         throw swoole::Exception(SW_ERROR_WRONG_OPERATION);
@@ -71,24 +64,23 @@ AsyncIouring::AsyncIouring(Reactor *reactor_) {
     }
 
     reactor->set_exit_condition(Reactor::EXIT_CONDITION_IOURING, [](Reactor *reactor, size_t &event_num) -> bool {
-        if (SwooleTG.async_iouring && SwooleTG.async_iouring->get_task_num() == 0 &&
-            SwooleTG.async_iouring->is_empty_waiting_tasks()) {
+        if (SwooleTG.iouring && SwooleTG.iouring->get_task_num() == 0 && SwooleTG.iouring->is_empty_waiting_tasks()) {
             event_num--;
         }
         return true;
     });
 
     reactor->add_destroy_callback([](void *data) {
-        if (!SwooleTG.async_iouring) {
+        if (!SwooleTG.iouring) {
             return;
         }
-        SwooleTG.async_iouring->delete_event();
-        delete SwooleTG.async_iouring;
-        SwooleTG.async_iouring = nullptr;
+        SwooleTG.iouring->delete_event();
+        delete SwooleTG.iouring;
+        SwooleTG.iouring = nullptr;
     });
 }
 
-AsyncIouring::~AsyncIouring() {
+Iouring::~Iouring() {
     if (ring_fd >= 0) {
         ::close(ring_fd);
     }
@@ -100,20 +92,20 @@ AsyncIouring::~AsyncIouring() {
     io_uring_queue_exit(&ring);
 }
 
-void AsyncIouring::add_event() {
+void Iouring::add_event() {
     reactor->add(iou_socket, SW_EVENT_READ);
 }
 
-void AsyncIouring::delete_event() {
+void Iouring::delete_event() {
     reactor->del(iou_socket);
 }
 
-bool AsyncIouring::wakeup() {
+bool Iouring::wakeup() {
     unsigned count = 0;
     unsigned num = 8192;
     void *data = nullptr;
-    AsyncEvent *task = nullptr;
-    AsyncEvent *waiting_task = nullptr;
+    IouringEvent *task = nullptr;
+    IouringEvent *waiting_task = nullptr;
     struct io_uring_cqe *cqe = nullptr;
     struct io_uring_cqe *cqes[num];
 
@@ -126,7 +118,7 @@ bool AsyncIouring::wakeup() {
         for (unsigned i = 0; i < count; i++) {
             cqe = cqes[i];
             data = io_uring_cqe_get_data(cqe);
-            task = reinterpret_cast<AsyncEvent *>(data);
+            task = reinterpret_cast<IouringEvent *>(data);
             task_num--;
             if (cqe->res < 0) {
                 errno = -(cqe->res);
@@ -142,32 +134,36 @@ bool AsyncIouring::wakeup() {
                 }
             }
 
-            task->retval = (cqe->res >= 0 ? cqe->res : -1);
+            task->result = (cqe->res >= 0 ? cqe->res : -1);
             io_uring_cq_advance(&ring, 1);
-            task->callback(task);
+
+            if (task->canceled == 1) {
+                delete task;
+                continue;
+            }
+
+            task->coroutine->resume();
 
             if (!is_empty_waiting_tasks()) {
                 waiting_task = waiting_tasks.front();
                 waiting_tasks.pop();
-                if (waiting_task->opcode == AsyncIouring::SW_IORING_OP_OPENAT) {
+                if (waiting_task->opcode == SW_IORING_OP_OPENAT) {
                     open(waiting_task);
-                } else if (waiting_task->opcode == AsyncIouring::SW_IORING_OP_CLOSE) {
+                } else if (waiting_task->opcode == SW_IORING_OP_CLOSE) {
                     close(waiting_task);
-                } else if (waiting_task->opcode == AsyncIouring::SW_IORING_OP_FSTAT ||
-                           waiting_task->opcode == AsyncIouring::SW_IORING_OP_LSTAT) {
+                } else if (waiting_task->opcode == SW_IORING_OP_FSTAT || waiting_task->opcode == SW_IORING_OP_LSTAT) {
                     statx(waiting_task);
-                } else if (waiting_task->opcode == AsyncIouring::SW_IORING_OP_READ ||
-                           waiting_task->opcode == AsyncIouring::SW_IORING_OP_WRITE) {
+                } else if (waiting_task->opcode == SW_IORING_OP_READ || waiting_task->opcode == SW_IORING_OP_WRITE) {
                     wr(waiting_task);
-                } else if (waiting_task->opcode == AsyncIouring::SW_IORING_OP_RENAMEAT) {
+                } else if (waiting_task->opcode == SW_IORING_OP_RENAMEAT) {
                     rename(waiting_task);
-                } else if (waiting_task->opcode == AsyncIouring::SW_IORING_OP_UNLINK_FILE ||
-                           waiting_task->opcode == AsyncIouring::SW_IORING_OP_UNLINK_DIR) {
+                } else if (waiting_task->opcode == SW_IORING_OP_UNLINK_FILE ||
+                           waiting_task->opcode == SW_IORING_OP_UNLINK_DIR) {
                     unlink(waiting_task);
-                } else if (waiting_task->opcode == AsyncIouring::SW_IORING_OP_MKDIRAT) {
+                } else if (waiting_task->opcode == SW_IORING_OP_MKDIRAT) {
                     mkdir(waiting_task);
-                } else if (waiting_task->opcode == AsyncIouring::SW_IORING_OP_FSYNC ||
-                           waiting_task->opcode == AsyncIouring::SW_IORING_OP_FDATASYNC) {
+                } else if (waiting_task->opcode == SW_IORING_OP_FSYNC ||
+                           waiting_task->opcode == SW_IORING_OP_FDATASYNC) {
                     fsync(waiting_task);
                 }
             }
@@ -177,7 +173,7 @@ bool AsyncIouring::wakeup() {
     return true;
 }
 
-bool AsyncIouring::open(AsyncEvent *event) {
+bool Iouring::open(IouringEvent *event) {
     struct io_uring_sqe *sqe = get_iouring_sqe();
     if (!sqe) {
         waiting_tasks.push(event);
@@ -194,7 +190,7 @@ bool AsyncIouring::open(AsyncEvent *event) {
     return submit_iouring_sqe(event);
 }
 
-bool AsyncIouring::close(AsyncEvent *event) {
+bool Iouring::close(IouringEvent *event) {
     struct io_uring_sqe *sqe = get_iouring_sqe();
     if (!sqe) {
         waiting_tasks.push(event);
@@ -208,7 +204,7 @@ bool AsyncIouring::close(AsyncEvent *event) {
     return submit_iouring_sqe(event);
 }
 
-bool AsyncIouring::wr(AsyncEvent *event) {
+bool Iouring::wr(IouringEvent *event) {
     struct io_uring_sqe *sqe = get_iouring_sqe();
     if (!sqe) {
         waiting_tasks.push(event);
@@ -225,7 +221,7 @@ bool AsyncIouring::wr(AsyncEvent *event) {
     return submit_iouring_sqe(event);
 }
 
-bool AsyncIouring::statx(AsyncEvent *event) {
+bool Iouring::statx(IouringEvent *event) {
     struct io_uring_sqe *sqe = get_iouring_sqe();
     if (!sqe) {
         waiting_tasks.push(event);
@@ -249,7 +245,7 @@ bool AsyncIouring::statx(AsyncEvent *event) {
     return submit_iouring_sqe(event);
 }
 
-bool AsyncIouring::mkdir(AsyncEvent *event) {
+bool Iouring::mkdir(IouringEvent *event) {
     struct io_uring_sqe *sqe = get_iouring_sqe();
     if (!sqe) {
         waiting_tasks.push(event);
@@ -265,7 +261,7 @@ bool AsyncIouring::mkdir(AsyncEvent *event) {
     return submit_iouring_sqe(event);
 }
 
-bool AsyncIouring::unlink(AsyncEvent *event) {
+bool Iouring::unlink(IouringEvent *event) {
     struct io_uring_sqe *sqe = get_iouring_sqe();
     if (!sqe) {
         waiting_tasks.push(event);
@@ -284,7 +280,7 @@ bool AsyncIouring::unlink(AsyncEvent *event) {
     return submit_iouring_sqe(event);
 }
 
-bool AsyncIouring::rename(AsyncEvent *event) {
+bool Iouring::rename(IouringEvent *event) {
     struct io_uring_sqe *sqe = get_iouring_sqe();
     if (!sqe) {
         waiting_tasks.push(event);
@@ -302,7 +298,7 @@ bool AsyncIouring::rename(AsyncEvent *event) {
     return submit_iouring_sqe(event);
 }
 
-bool AsyncIouring::fsync(AsyncEvent *event) {
+bool Iouring::fsync(IouringEvent *event) {
     struct io_uring_sqe *sqe = get_iouring_sqe();
     if (!sqe) {
         waiting_tasks.push(event);
@@ -324,8 +320,87 @@ bool AsyncIouring::fsync(AsyncEvent *event) {
     return submit_iouring_sqe(event);
 }
 
-int AsyncIouring::callback(Reactor *reactor, Event *event) {
-    AsyncIouring *iouring = SwooleTG.async_iouring;
+int Iouring::dispatch(IouringEvent *event) {
+    bool result = false;
+    if (event->opcode == SW_IORING_OP_READ || event->opcode == SW_IORING_OP_WRITE) {
+        result = wr(event);
+    } else if (event->opcode == SW_IORING_OP_CLOSE) {
+        result = close(event);
+    } else if (event->opcode == SW_IORING_OP_FSTAT) {
+        result = statx(event);
+    } else if (event->opcode == SW_IORING_OP_FSYNC || event->opcode == SW_IORING_OP_FDATASYNC) {
+        result = fsync(event);
+    } else if (event->opcode == SW_IORING_OP_OPENAT) {
+        result = open(event);
+    } else if (event->opcode == SW_IORING_OP_MKDIRAT) {
+        result = mkdir(event);
+    } else if (event->opcode == SW_IORING_OP_UNLINK_FILE || event->opcode == SW_IORING_OP_UNLINK_DIR) {
+        result = unlink(event);
+    } else if (event->opcode == SW_IORING_OP_RENAMEAT) {
+        result = rename(event);
+    } else if (event->opcode == SW_IORING_OP_LSTAT) {
+        result = statx(event);
+    }
+
+    if (!result) {
+        delete event;
+        return 0;
+    }
+
+    if (!event->coroutine->yield_ex()) {
+        if (swoole_get_last_error() == SW_ERROR_CO_CANCELED) {
+            event->canceled = 1;
+        } else {
+            delete event;
+        }
+        return 0;
+    }
+
+    ssize_t retval = event->result;
+    delete event;
+    return retval;
+}
+
+Iouring *Iouring::create_iouring() {
+    if (SwooleTG.iouring == nullptr) {
+        SwooleTG.iouring = new Iouring(SwooleTG.reactor);
+        SwooleTG.iouring->add_event();
+    }
+
+    return SwooleTG.iouring;
+}
+
+int Iouring::async(Opcodes type, int fd, uint64_t count, void *rbuf, const void *wbuf, struct statx *statxbuf) {
+    IouringEvent *event = new IouringEvent();
+    event->fd = fd;
+    event->rbuf = rbuf;
+    event->wbuf = wbuf;
+    event->count = count;
+    event->opcode = type;
+    event->statxbuf = statxbuf;
+    event->coroutine = Coroutine::get_current_safe();
+
+    Iouring *iouring = create_iouring();
+    return iouring->dispatch(event);
+}
+
+int Iouring::async(
+    Opcodes type, const char *pathname, const char *pathname2, struct statx *statxbuf, int flags, mode_t mode) {
+    IouringEvent *event = new IouringEvent();
+    event->mode = mode;
+    event->flags = flags;
+    event->opcode = type;
+    event->pathname = pathname;
+    event->pathname2 = pathname2;
+    event->statxbuf = statxbuf;
+    event->coroutine = Coroutine::get_current_safe();
+
+    Iouring *iouring = create_iouring();
+    return iouring->dispatch(event);
+}
+
+int Iouring::callback(Reactor *reactor, Event *event) {
+    Iouring *iouring = SwooleTG.iouring;
     return iouring->wakeup() ? 1 : 0;
 }
 }  // namespace swoole
