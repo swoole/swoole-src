@@ -432,7 +432,7 @@ int Iouring::open(const char *pathname, int flags, int mode) {
 int Iouring::close(int fd) {
     IouringEvent event {};
     event.coroutine = Coroutine::get_current_safe();
-    event.opcode = IORING_OP_CLOSE;
+    event.opcode = SW_IORING_OP_CLOSE;
     event.fd = fd;
 
     return dispatch(&event);
@@ -489,7 +489,7 @@ int Iouring::unlink(const char *pathname) {
     return dispatch(&event);
 }
 
-static int Iouring::rmdir(const char *pathname) {
+int Iouring::rmdir(const char *pathname) {
     IouringEvent event {};
     event.coroutine = Coroutine::get_current_safe();
     event.opcode = SW_IORING_OP_UNLINK_DIR;
@@ -498,7 +498,7 @@ static int Iouring::rmdir(const char *pathname) {
     return dispatch(&event);
 }
 
-static int Iouring::fsync(int fd) {
+int Iouring::fsync(int fd) {
     IouringEvent event {};
     event.coroutine = Coroutine::get_current_safe();
     event.opcode = SW_IORING_OP_FSYNC;
@@ -507,7 +507,7 @@ static int Iouring::fsync(int fd) {
     return dispatch(&event);
 }
 
-static int Iouring::fsync(int fd) {
+int Iouring::fdatasync(int fd) {
     IouringEvent event {};
     event.coroutine = Coroutine::get_current_safe();
     event.opcode = SW_IORING_OP_FDATASYNC;
@@ -541,21 +541,6 @@ int Iouring::fstat(int fd, struct stat *statbuf) {
     event.coroutine = Coroutine::get_current_safe();
     event.opcode = SW_IORING_OP_FSTAT;
     event.fd = fd;
-    event.statxbuf = &_statxbuf;
-
-    auto retval = dispatch(&event);
-    if (retval == 0) {
-        swoole_statx_to_stat(&_statxbuf, statbuf);
-    }
-    return retval;
-}
-
-int Iouring::stat(const char *path, struct stat *statbuf) {
-    IouringEvent event {};
-    struct statx _statxbuf;
-    event.coroutine = Coroutine::get_current_safe();
-    event.opcode = SW_IORING_OP_LSTAT;
-    event.pathname = path;
     event.statxbuf = &_statxbuf;
 
     auto retval = dispatch(&event);
