@@ -724,8 +724,8 @@ PHP_MINIT_FUNCTION(swoole) {
      * iouring
      */
 #ifdef SW_USE_IOURING
-     SW_REGISTER_LONG_CONSTANT("SWOOLE_IOURING_DEFAULT", Iouring::SW_IOURING_DEFAULT);
-     SW_REGISTER_LONG_CONSTANT("SWOOLE_IOURING_SQPOLL", Iouring::SW_IOURING_SQPOLL);
+     SW_REGISTER_LONG_CONSTANT("SWOOLE_IOURING_DEFAULT", SW_IOURING_DEFAULT);
+     SW_REGISTER_LONG_CONSTANT("SWOOLE_IOURING_SQPOLL", SW_IOURING_SQPOLL);
 #endif
 
     // clang-format on
@@ -1069,7 +1069,7 @@ PHP_RINIT_FUNCTION(swoole) {
          * This would cause php_swoole_load_library function not to execute correctly, so it must be replaced
          * with the execute_ex function.
          */
-        void (*old_zend_execute_ex)(zend_execute_data *execute_data) = nullptr;
+        void (*old_zend_execute_ex)(zend_execute_data * execute_data) = nullptr;
         if (UNEXPECTED(zend_execute_ex != execute_ex)) {
             old_zend_execute_ex = zend_execute_ex;
             zend_execute_ex = execute_ex;

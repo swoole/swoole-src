@@ -24,65 +24,39 @@
 
 using swoole::Coroutine;
 
-enum Opcodes {
-    SW_IORING_OP_OPENAT = IORING_OP_OPENAT,
-    SW_IORING_OP_CLOSE = IORING_OP_CLOSE,
-    SW_IORING_OP_STATX = IORING_OP_STATX,
-    SW_IORING_OP_READ = IORING_OP_READ,
-    SW_IORING_OP_WRITE = IORING_OP_WRITE,
-    SW_IORING_OP_RENAMEAT = IORING_OP_RENAMEAT,
-    SW_IORING_OP_UNLINKAT = IORING_OP_UNLINKAT,
-    SW_IORING_OP_MKDIRAT = IORING_OP_MKDIRAT,
-
-    SW_IORING_OP_FSTAT = 1000,
-    SW_IORING_OP_LSTAT = 1001,
-    SW_IORING_OP_UNLINK_FILE = 1002,
-    SW_IORING_OP_UNLINK_DIR = 1003,
-    SW_IORING_OP_FSYNC = 1004,
-    SW_IORING_OP_FDATASYNC = 1005,
+enum swIouringFlag {
+    SW_IOURING_DEFAULT = 0,
+    SW_IOURING_SQPOLL = IORING_SETUP_SQPOLL,
 };
 
 namespace swoole {
-struct IouringEvent {
-    int fd;
-    int flags;
-    int opcode;
-    mode_t mode;
-    uint64_t count;  // share with offset
-    ssize_t result;
-    void *rbuf;
-    Coroutine *coroutine;
-    const void *wbuf;
-    const char *pathname;
-    const char *pathname2;
-    struct statx *statxbuf;
-    uint8_t canceled = 0;
-};
+
+struct IouringEvent;
 
 class Iouring {
   private:
-    int ring_fd;
     uint64_t task_num = 0;
     uint64_t entries = 8192;
     struct io_uring ring;
     std::queue<IouringEvent *> waiting_tasks;
-    network::Socket *iou_socket = nullptr;
+    network::Socket *ring_socket = nullptr;
     Reactor *reactor = nullptr;
 
-    void add_event();
-    void delete_event();
+    Iouring(Reactor *reactor_);
+    bool ready();
+    bool submit(IouringEvent *event);
     bool wakeup();
-    bool open(IouringEvent *event);
-    bool close(IouringEvent *event);
-    bool wr(IouringEvent *event);
-    bool statx(IouringEvent *event);
-    bool mkdir(IouringEvent *event);
-    bool unlink(IouringEvent *event);
-    bool rename(IouringEvent *event);
-    bool fsync(IouringEvent *event);
-    int dispatch(IouringEvent *event);
 
-    inline struct io_uring_sqe *get_iouring_sqe() {
+    bool submit_event_open(IouringEvent *event);
+    bool submit_event_close(IouringEvent *event);
+    bool submit_event_wr(IouringEvent *event);
+    bool submit_event_statx(IouringEvent *event);
+    bool submit_event_mkdir(IouringEvent *event);
+    bool submit_event_unlink(IouringEvent *event);
+    bool submit_event_rename(IouringEvent *event);
+    bool submit_event_fsync(IouringEvent *event);
+
+    struct io_uring_sqe *get_iouring_sqe() {
         struct io_uring_sqe *sqe = io_uring_get_sqe(&ring);
         // We need to reset the values of each sqe structure so that they can be used in a loop.
         if (sqe) {
@@ -91,53 +65,33 @@ class Iouring {
         return sqe;
     }
 
-    inline bool submit_iouring_sqe(IouringEvent *event) {
-        int ret = io_uring_submit(&ring);
-
-        if (ret < 0) {
-            errno = -ret;
-            if (ret == -EAGAIN) {
-                waiting_tasks.push(event);
-                return true;
-            }
-            return false;
-        }
-
-        task_num++;
-        return true;
-    }
-
-    static Iouring *create_iouring();
+    static Iouring *create();
+    static int dispatch(IouringEvent *event);
 
   public:
-    Iouring(Reactor *reactor_);
     ~Iouring();
 
-    enum flags {
-        SW_IOURING_DEFAULT = 0,
-        SW_IOURING_SQPOLL = IORING_SETUP_SQPOLL,
-    };
-
-    inline bool is_empty_waiting_tasks() {
+    bool is_empty_waiting_tasks() {
         return waiting_tasks.size() == 0;
     }
 
-    inline uint64_t get_task_num() {
+    uint64_t get_task_num() {
         return task_num;
     }
 
-    static int async(Opcodes type,
-                     int fd = 0,
-                     uint64_t count = 0,
-                     void *rbuf = nullptr,
-                     const void *wbuf = nullptr,
-                     struct statx *statxbuf = nullptr);
-    static int async(Opcodes type,
-                     const char *pathname = nullptr,
-                     const char *pathname2 = nullptr,
-                     struct statx *statxbuf = nullptr,
-                     int flags = 0,
-                     mode_t mode = 0);
+    static int open(const char *pathname, int flags, int mode);
+    static int close(int fd);
+    static ssize_t read(int fd, void *buf, size_t size);
+    static ssize_t write(int fd, const void *buf, size_t size);
+    static ssize_t rename(const char *oldpath, const char *newpath);
+    static int mkdir(const char *pathname, mode_t mode);
+    static int unlink(const char *pathname);
+    static int fstat(int fd, struct stat *statbuf);
+    static int stat(const char *path, struct stat *statbuf);
+    static int rmdir(const char *pathname);
+    static int fsync(int fd);
+    static int fdatasync(int fd);
+
     static int callback(Reactor *reactor, Event *event);
 };
 };  // namespace swoole
