@@ -45,16 +45,8 @@ class Iouring {
     Iouring(Reactor *reactor_);
     bool ready();
     bool submit(IouringEvent *event);
+    bool dispatch(IouringEvent *event);
     bool wakeup();
-
-    bool submit_event_open(IouringEvent *event);
-    bool submit_event_close(IouringEvent *event);
-    bool submit_event_wr(IouringEvent *event);
-    bool submit_event_statx(IouringEvent *event);
-    bool submit_event_mkdir(IouringEvent *event);
-    bool submit_event_unlink(IouringEvent *event);
-    bool submit_event_rename(IouringEvent *event);
-    bool submit_event_fsync(IouringEvent *event);
 
     struct io_uring_sqe *get_iouring_sqe() {
         struct io_uring_sqe *sqe = io_uring_get_sqe(&ring);
@@ -65,8 +57,7 @@ class Iouring {
         return sqe;
     }
 
-    static Iouring *create();
-    static int dispatch(IouringEvent *event);
+    static ssize_t execute(IouringEvent *event);
 
   public:
     ~Iouring();

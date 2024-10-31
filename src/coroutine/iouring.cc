@@ -47,7 +47,7 @@ struct IouringEvent {
     int fd;
     int flags;
     mode_t mode;
-    size_t size;  // share with offset
+    size_t size;
     ssize_t result;
     void *rbuf;
     const void *wbuf;
@@ -57,6 +57,11 @@ struct IouringEvent {
 };
 
 Iouring::Iouring(Reactor *_reactor) {
+    if (!SwooleTG.reactor) {
+        swoole_warning("no event loop, cannot initialized");
+        throw swoole::Exception(SW_ERROR_WRONG_OPERATION);
+    }
+
     reactor = _reactor;
     if (SwooleG.iouring_entries > 0) {
         uint32_t i = 6;
@@ -145,7 +150,7 @@ bool Iouring::wakeup() {
         for (unsigned i = 0; i < count; i++) {
             cqe = cqes[i];
             data = io_uring_cqe_get_data(cqe);
-            event = reinterpret_cast<IouringEvent *>(data);
+            event = static_cast<IouringEvent *>(data);
             task_num--;
             if (cqe->res < 0) {
                 errno = -(cqe->res);
@@ -169,24 +174,8 @@ bool Iouring::wakeup() {
             if (!is_empty_waiting_tasks()) {
                 waiting_task = waiting_tasks.front();
                 waiting_tasks.pop();
-                if (waiting_task->opcode == SW_IORING_OP_OPENAT) {
-                    submit_event_open(waiting_task);
-                } else if (waiting_task->opcode == SW_IORING_OP_CLOSE) {
-                    submit_event_close(waiting_task);
-                } else if (waiting_task->opcode == SW_IORING_OP_FSTAT || waiting_task->opcode == SW_IORING_OP_LSTAT) {
-                    submit_event_statx(waiting_task);
-                } else if (waiting_task->opcode == SW_IORING_OP_READ || waiting_task->opcode == SW_IORING_OP_WRITE) {
-                    submit_event_wr(waiting_task);
-                } else if (waiting_task->opcode == SW_IORING_OP_RENAMEAT) {
-                    submit_event_rename(waiting_task);
-                } else if (waiting_task->opcode == SW_IORING_OP_UNLINK_FILE ||
-                           waiting_task->opcode == SW_IORING_OP_UNLINK_DIR) {
-                    submit_event_unlink(waiting_task);
-                } else if (waiting_task->opcode == SW_IORING_OP_MKDIRAT) {
-                    submit_event_mkdir(waiting_task);
-                } else if (waiting_task->opcode == SW_IORING_OP_FSYNC ||
-                           waiting_task->opcode == SW_IORING_OP_FDATASYNC) {
-                    submit_event_fsync(waiting_task);
+                if (!dispatch(waiting_task)) {
+                    waiting_task->coroutine->resume();
                 }
             }
         }
@@ -195,164 +184,16 @@ bool Iouring::wakeup() {
     return true;
 }
 
-bool Iouring::submit_event_open(IouringEvent *event) {
-    struct io_uring_sqe *sqe = get_iouring_sqe();
-    if (!sqe) {
-        waiting_tasks.push(event);
-        return true;
-    }
-
-    io_uring_sqe_set_data(sqe, (void *) event);
-    sqe->addr = (uintptr_t) event->pathname;
-    sqe->fd = AT_FDCWD;
-    sqe->len = event->mode;
-    sqe->opcode = SW_IORING_OP_OPENAT;
-    sqe->open_flags = event->flags | O_CLOEXEC;
-
-    return submit(event);
-}
-
-bool Iouring::submit_event_close(IouringEvent *event) {
-    struct io_uring_sqe *sqe = get_iouring_sqe();
-    if (!sqe) {
-        waiting_tasks.push(event);
-        return true;
-    }
-
-    io_uring_sqe_set_data(sqe, (void *) event);
-    sqe->fd = event->fd;
-    sqe->opcode = SW_IORING_OP_CLOSE;
-
-    return submit(event);
-}
-
-bool Iouring::submit_event_wr(IouringEvent *event) {
-    struct io_uring_sqe *sqe = get_iouring_sqe();
-    if (!sqe) {
-        waiting_tasks.push(event);
-        return true;
-    }
-
-    io_uring_sqe_set_data(sqe, (void *) event);
-    sqe->fd = event->fd;
-    sqe->addr = event->opcode == SW_IORING_OP_READ ? (uintptr_t) event->rbuf : (uintptr_t) event->wbuf;
-    sqe->len = event->size;
-    sqe->off = -1;
-    sqe->opcode = event->opcode;
-
-    return submit(event);
-}
-
-bool Iouring::submit_event_statx(IouringEvent *event) {
-    struct io_uring_sqe *sqe = get_iouring_sqe();
-    if (!sqe) {
-        waiting_tasks.push(event);
-        return true;
-    }
-
-    io_uring_sqe_set_data(sqe, (void *) event);
-    if (event->opcode == SW_IORING_OP_FSTAT) {
-        sqe->addr = (uintptr_t) "";
-        sqe->fd = event->fd;
-        sqe->statx_flags |= AT_EMPTY_PATH;
-    } else {
-        sqe->addr = (uintptr_t) event->pathname;
-        sqe->fd = AT_FDCWD;
-        sqe->statx_flags |= AT_SYMLINK_NOFOLLOW;
-    }
-    //    sqe->len = 0xFFF;
-    sqe->opcode = SW_IORING_OP_STATX;
-    sqe->off = (uintptr_t) event->statxbuf;
-
-    return submit(event);
-}
-
-bool Iouring::submit_event_mkdir(IouringEvent *event) {
-    struct io_uring_sqe *sqe = get_iouring_sqe();
-    if (!sqe) {
-        waiting_tasks.push(event);
-        return true;
-    }
-
-    io_uring_sqe_set_data(sqe, (void *) event);
-
-    sqe->addr = (uintptr_t) event->pathname;
-    sqe->fd = AT_FDCWD;
-    sqe->len = event->mode;
-    sqe->opcode = SW_IORING_OP_MKDIRAT;
-
-    return submit(event);
-}
-
-bool Iouring::submit_event_unlink(IouringEvent *event) {
-    struct io_uring_sqe *sqe = get_iouring_sqe();
-    if (!sqe) {
-        waiting_tasks.push(event);
-        return true;
-    }
-
-    io_uring_sqe_set_data(sqe, (void *) event);
-
-    sqe->addr = (uintptr_t) event->pathname;
-    sqe->fd = AT_FDCWD;
-    sqe->opcode = IORING_OP_UNLINKAT;
-    if (event->opcode == SW_IORING_OP_UNLINK_DIR) {
-        sqe->unlink_flags |= AT_REMOVEDIR;
-    }
-
-    return submit(event);
-}
-
-bool Iouring::submit_event_rename(IouringEvent *event) {
-    struct io_uring_sqe *sqe = get_iouring_sqe();
-    if (!sqe) {
-        waiting_tasks.push(event);
-        return true;
-    }
-
-    io_uring_sqe_set_data(sqe, (void *) event);
-
-    sqe->addr = (uintptr_t) event->pathname;
-    sqe->addr2 = (uintptr_t) event->pathname2;
-    sqe->fd = AT_FDCWD;
-    sqe->len = AT_FDCWD;
-    sqe->opcode = SW_IORING_OP_RENAMEAT;
-
-    return submit(event);
-}
-
-bool Iouring::submit_event_fsync(IouringEvent *event) {
-    struct io_uring_sqe *sqe = get_iouring_sqe();
-    if (!sqe) {
-        waiting_tasks.push(event);
-        return true;
-    }
-
-    io_uring_sqe_set_data(sqe, (void *) event);
-    sqe->fd = event->fd;
-    sqe->addr = (unsigned long) nullptr;
-    sqe->opcode = IORING_OP_FSYNC;
-    sqe->len = 0;
-    sqe->off = 0;
-    sqe->fsync_flags = 0;
-
-    if (event->opcode == SW_IORING_OP_FDATASYNC) {
-        sqe->fsync_flags = IORING_FSYNC_DATASYNC;
-    }
-
-    return submit(event);
-}
-
 bool Iouring::submit(IouringEvent *event) {
     int ret = io_uring_submit(&ring);
 
     if (ret < 0) {
-        errno = -ret;
-        swoole_set_last_error(errno);
-        if (ret == -EAGAIN) {
+        if (-ret == EAGAIN) {
             waiting_tasks.push(event);
             return true;
         }
+        swoole_set_last_error(-ret);
+        event->result = -1;
         return false;
     }
 
@@ -360,160 +201,210 @@ bool Iouring::submit(IouringEvent *event) {
     return true;
 }
 
-int Iouring::dispatch(IouringEvent *event) {
-    auto self = create();
-    if (!self) {
+ssize_t Iouring::execute(IouringEvent *event) {
+    if (sw_unlikely(!SwooleTG.iouring)) {
+        auto iouring = new Iouring(SwooleTG.reactor);
+        if (!iouring->ready()) {
+            delete iouring;
+            return SW_ERR;
+        }
+        SwooleTG.iouring = iouring;
+    }
+
+    if (!SwooleTG.iouring->dispatch(event)) {
         return SW_ERR;
     }
 
-    bool result = false;
-    if (event->opcode == SW_IORING_OP_READ || event->opcode == SW_IORING_OP_WRITE) {
-        result = self->submit_event_wr(event);
-    } else if (event->opcode == SW_IORING_OP_CLOSE) {
-        result = self->submit_event_close(event);
-    } else if (event->opcode == SW_IORING_OP_FSTAT) {
-        result = self->submit_event_statx(event);
-    } else if (event->opcode == SW_IORING_OP_FSYNC || event->opcode == SW_IORING_OP_FDATASYNC) {
-        result = self->submit_event_fsync(event);
-    } else if (event->opcode == SW_IORING_OP_OPENAT) {
-        result = self->submit_event_open(event);
-    } else if (event->opcode == SW_IORING_OP_MKDIRAT) {
-        result = self->submit_event_mkdir(event);
-    } else if (event->opcode == SW_IORING_OP_UNLINK_FILE || event->opcode == SW_IORING_OP_UNLINK_DIR) {
-        result = self->submit_event_unlink(event);
-    } else if (event->opcode == SW_IORING_OP_RENAMEAT) {
-        result = self->submit_event_rename(event);
-    } else if (event->opcode == SW_IORING_OP_LSTAT) {
-        result = self->submit_event_statx(event);
-    }
-
-    if (!result) {
-        return SW_ERR;
-    }
-
-    // File system operations cannot be canceled; they must be allowed to complete.
+    // File system operations cannot be canceled, must wait to be completed.
     event->coroutine->yield();
 
     return event->result;
 }
 
-Iouring *Iouring::create() {
-    if (SwooleTG.iouring) {
-        return SwooleTG.iouring;
+bool Iouring::dispatch(IouringEvent *event) {
+    struct io_uring_sqe *sqe = get_iouring_sqe();
+    if (!sqe) {
+        waiting_tasks.push(event);
+        return true;
     }
 
-    if (!SwooleTG.reactor) {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_WRONG_OPERATION, "no event loop, cannot initialized");
-        return nullptr;
+    io_uring_sqe_set_data(sqe, (void *) event);
+
+    switch (event->opcode) {
+    case SW_IORING_OP_OPENAT:
+        sqe->addr = (uintptr_t) event->pathname;
+        sqe->fd = AT_FDCWD;
+        sqe->len = event->mode;
+        sqe->opcode = SW_IORING_OP_OPENAT;
+        sqe->open_flags = event->flags | O_CLOEXEC;
+        break;
+    case SW_IORING_OP_READ:
+    case SW_IORING_OP_WRITE:
+        sqe->fd = event->fd;
+        sqe->addr = (uintptr_t) (event->opcode == SW_IORING_OP_READ ? event->rbuf : event->wbuf);
+        sqe->len = event->size;
+        sqe->off = -1;
+        sqe->opcode = event->opcode;
+        break;
+    case SW_IORING_OP_CLOSE:
+        sqe->fd = event->fd;
+        sqe->opcode = SW_IORING_OP_CLOSE;
+        break;
+    case SW_IORING_OP_FSTAT:
+    case SW_IORING_OP_LSTAT:
+        io_uring_sqe_set_data(sqe, (void *) event);
+        if (event->opcode == SW_IORING_OP_FSTAT) {
+            sqe->addr = (uintptr_t) "";
+            sqe->fd = event->fd;
+            sqe->statx_flags |= AT_EMPTY_PATH;
+        } else {
+            sqe->addr = (uintptr_t) event->pathname;
+            sqe->fd = AT_FDCWD;
+            sqe->statx_flags |= AT_SYMLINK_NOFOLLOW;
+        }
+        // sqe->len = 0xFFF;
+        sqe->opcode = SW_IORING_OP_STATX;
+        sqe->off = (uintptr_t) event->statxbuf;
+        break;
+    case SW_IORING_OP_MKDIRAT:
+        sqe->addr = (uintptr_t) event->pathname;
+        sqe->fd = AT_FDCWD;
+        sqe->len = event->mode;
+        sqe->opcode = SW_IORING_OP_MKDIRAT;
+        break;
+
+    case SW_IORING_OP_UNLINK_FILE:
+    case SW_IORING_OP_UNLINK_DIR:
+        sqe->addr = (uintptr_t) event->pathname;
+        sqe->fd = AT_FDCWD;
+        sqe->opcode = IORING_OP_UNLINKAT;
+        if (event->opcode == SW_IORING_OP_UNLINK_DIR) {
+            sqe->unlink_flags |= AT_REMOVEDIR;
+        }
+        break;
+    case SW_IORING_OP_RENAMEAT:
+        sqe->addr = (uintptr_t) event->pathname;
+        sqe->addr2 = (uintptr_t) event->pathname2;
+        sqe->fd = AT_FDCWD;
+        sqe->len = AT_FDCWD;
+        sqe->opcode = SW_IORING_OP_RENAMEAT;
+        break;
+    case SW_IORING_OP_FSYNC:
+    case SW_IORING_OP_FDATASYNC:
+        sqe->fd = event->fd;
+        sqe->addr = (unsigned long) nullptr;
+        sqe->opcode = IORING_OP_FSYNC;
+        sqe->len = 0;
+        sqe->off = 0;
+        sqe->fsync_flags = 0;
+        if (event->opcode == SW_IORING_OP_FDATASYNC) {
+            sqe->fsync_flags = IORING_FSYNC_DATASYNC;
+        }
+        break;
+    default:
+        abort();
+        return false;
     }
 
-    auto iouring = new Iouring(SwooleTG.reactor);
-    if (iouring->ready()) {
-        delete iouring;
-        return nullptr;
-    }
-
-    SwooleTG.iouring = iouring;
-
-    return iouring;
+    return submit(event);
 }
 
 int Iouring::open(const char *pathname, int flags, int mode) {
-    IouringEvent event {};
+    IouringEvent event{};
     event.coroutine = Coroutine::get_current_safe();
     event.opcode = SW_IORING_OP_OPENAT;
     event.mode = mode;
     event.flags = flags;
     event.pathname = pathname;
 
-    return dispatch(&event);
+    return execute(&event);
 }
 
 int Iouring::close(int fd) {
-    IouringEvent event {};
+    IouringEvent event{};
     event.coroutine = Coroutine::get_current_safe();
     event.opcode = SW_IORING_OP_CLOSE;
     event.fd = fd;
 
-    return dispatch(&event);
+    return execute(&event);
 }
 
 ssize_t Iouring::read(int fd, void *buf, size_t size) {
-    IouringEvent event {};
+    IouringEvent event{};
     event.coroutine = Coroutine::get_current_safe();
     event.opcode = SW_IORING_OP_READ;
     event.fd = fd;
     event.rbuf = buf;
     event.size = size;
 
-    return dispatch(&event);
+    return execute(&event);
 }
 
 ssize_t Iouring::write(int fd, const void *buf, size_t size) {
-    IouringEvent event {};
+    IouringEvent event{};
     event.coroutine = Coroutine::get_current_safe();
     event.opcode = SW_IORING_OP_WRITE;
     event.fd = fd;
     event.wbuf = buf;
     event.size = size;
 
-    return dispatch(&event);
+    return execute(&event);
 }
 
 ssize_t Iouring::rename(const char *oldpath, const char *newpath) {
-    IouringEvent event {};
+    IouringEvent event{};
     event.coroutine = Coroutine::get_current_safe();
     event.opcode = SW_IORING_OP_RENAMEAT;
     event.pathname = oldpath;
     event.pathname2 = newpath;
 
-    return dispatch(&event);
+    return execute(&event);
 }
 
 int Iouring::mkdir(const char *pathname, mode_t mode) {
-    IouringEvent event {};
+    IouringEvent event{};
     event.coroutine = Coroutine::get_current_safe();
     event.opcode = SW_IORING_OP_MKDIRAT;
     event.pathname = pathname;
     event.mode = mode;
 
-    return dispatch(&event);
+    return execute(&event);
 }
 
 int Iouring::unlink(const char *pathname) {
-    IouringEvent event {};
+    IouringEvent event{};
     event.coroutine = Coroutine::get_current_safe();
     event.opcode = SW_IORING_OP_UNLINK_FILE;
     event.pathname = pathname;
 
-    return dispatch(&event);
+    return execute(&event);
 }
 
 int Iouring::rmdir(const char *pathname) {
-    IouringEvent event {};
+    IouringEvent event{};
     event.coroutine = Coroutine::get_current_safe();
     event.opcode = SW_IORING_OP_UNLINK_DIR;
     event.pathname = pathname;
 
-    return dispatch(&event);
+    return execute(&event);
 }
 
 int Iouring::fsync(int fd) {
-    IouringEvent event {};
+    IouringEvent event{};
     event.coroutine = Coroutine::get_current_safe();
     event.opcode = SW_IORING_OP_FSYNC;
     event.fd = fd;
 
-    return dispatch(&event);
+    return execute(&event);
 }
 
 int Iouring::fdatasync(int fd) {
-    IouringEvent event {};
+    IouringEvent event{};
     event.coroutine = Coroutine::get_current_safe();
     event.opcode = SW_IORING_OP_FDATASYNC;
     event.fd = fd;
 
-    return dispatch(&event);
+    return execute(&event);
 }
 
 static void swoole_statx_to_stat(const struct statx *statxbuf, struct stat *statbuf) {
@@ -536,14 +427,14 @@ static void swoole_statx_to_stat(const struct statx *statxbuf, struct stat *stat
 }
 
 int Iouring::fstat(int fd, struct stat *statbuf) {
-    IouringEvent event {};
+    IouringEvent event{};
     struct statx _statxbuf;
     event.coroutine = Coroutine::get_current_safe();
     event.opcode = SW_IORING_OP_FSTAT;
     event.fd = fd;
     event.statxbuf = &_statxbuf;
 
-    auto retval = dispatch(&event);
+    auto retval = execute(&event);
     if (retval == 0) {
         swoole_statx_to_stat(&_statxbuf, statbuf);
     }
@@ -551,14 +442,14 @@ int Iouring::fstat(int fd, struct stat *statbuf) {
 }
 
 int Iouring::stat(const char *path, struct stat *statbuf) {
-    IouringEvent event {};
+    IouringEvent event{};
     struct statx _statxbuf;
     event.coroutine = Coroutine::get_current_safe();
     event.opcode = SW_IORING_OP_LSTAT;
     event.pathname = path;
     event.statxbuf = &_statxbuf;
 
-    auto retval = dispatch(&event);
+    auto retval = execute(&event);
     if (retval == 0) {
         swoole_statx_to_stat(&_statxbuf, statbuf);
     }

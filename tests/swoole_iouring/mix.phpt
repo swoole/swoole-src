@@ -2,14 +2,14 @@
 swoole_runtime/file_hook: support io_uring
 --SKIPIF--
 <?php
-require __DIR__ . '/../../include/skipif.inc';
+require __DIR__ . '/../include/skipif.inc';
 ?>
 --FILE--
 <?php
 use Swoole\Runtime;
 use function Swoole\Coroutine\run;
 use Swoole\Coroutine\WaitGroup;
-require __DIR__ . '/../../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 Runtime::enableCoroutine(SWOOLE_HOOK_ALL);
 

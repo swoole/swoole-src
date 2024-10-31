@@ -35,8 +35,8 @@ using swoole::coroutine::async;
 using swoole::coroutine::PollSocket;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
-using swoole::coroutine::translate_events_to_poll;
 using swoole::coroutine::translate_events_from_poll;
+using swoole::coroutine::translate_events_to_poll;
 
 #ifdef SW_USE_IOURING
 using swoole::Iouring;
@@ -627,18 +627,18 @@ int swoole_coroutine_iouring_close_file(int fd) {
     return Iouring::close(fd);
 }
 
-ssize_t swoole_coroutine_iouring_read(int sockfd, void *buf, size_t count) {
+ssize_t swoole_coroutine_iouring_read(int sockfd, void *buf, size_t size) {
     if (sw_unlikely(is_no_coro())) {
-        return read(sockfd, buf, count);
+        return read(sockfd, buf, size);
     }
-    return Iouring::read(sockfd, buf, count);
+    return Iouring::read(sockfd, buf, size);
 }
 
-ssize_t swoole_coroutine_iouring_write(int sockfd, const void *buf, size_t count) {
+ssize_t swoole_coroutine_iouring_write(int sockfd, const void *buf, size_t size) {
     if (sw_unlikely(is_no_coro())) {
-        return write(sockfd, buf, count);
+        return write(sockfd, buf, size);
     }
-    return Iouring::write(sockfd, buf, count);
+    return Iouring::write(sockfd, buf, size);
 }
 
 int swoole_coroutine_iouring_rename(const char *oldpath, const char *newpath) {
