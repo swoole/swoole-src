@@ -193,7 +193,7 @@ int Client::socks5_handshake(const char *recv_data, size_t length) {
 
             ctx->state = SW_SOCKS5_STATE_AUTH;
 
-            return send(this, ctx->buf, ctx->username.length() + ctx->password.length() + 3, 0);
+            return send(this, ctx->buf, ctx->username.length() + ctx->password.length() + 3, 0) > 0 ? SW_OK : SW_ERR;
         }
         // send connect request
         else {
@@ -211,14 +211,14 @@ int Client::socks5_handshake(const char *recv_data, size_t length) {
                 memcpy(buf, ctx->target_host.c_str(), ctx->target_host.length());
                 buf += ctx->target_host.length();
                 *(uint16_t *) buf = htons(ctx->target_port);
-                return send(this, ctx->buf, ctx->target_host.length() + 7, 0);
+                return send(this, ctx->buf, ctx->target_host.length() + 7, 0) > 0 ? SW_OK : SW_ERR;
             } else {
                 buf[3] = 0x01;
                 buf += 4;
                 *(uint32_t *) buf = htons(ctx->target_host.length());
                 buf += 4;
                 *(uint16_t *) buf = htons(ctx->target_port);
-                return send(this, ctx->buf, ctx->target_host.length() + 7, 0);
+                return send(this, ctx->buf, ctx->target_host.length() + 7, 0) > 0 ? SW_OK : SW_ERR;
             }
         }
     } else if (ctx->state == SW_SOCKS5_STATE_AUTH) {
@@ -249,13 +249,14 @@ int Client::socks5_handshake(const char *recv_data, size_t length) {
 #endif
         if (result == 0) {
             ctx->state = SW_SOCKS5_STATE_READY;
+            return SW_OK;
         } else {
             swoole_error_log(SW_LOG_NOTICE,
                              SW_ERROR_SOCKS5_SERVER_ERROR,
                              "Socks5 server error, reason :%s",
                              Socks5Proxy::strerror(result));
+            return SW_ERR;
         }
-        return result;
     }
     return SW_OK;
 }
@@ -940,9 +941,13 @@ static int Client_onStreamRead(Reactor *reactor, Event *event) {
             goto _connect_fail;
         }
         cli->buffer->length += n;
-        if (cli->socks5_handshake(buf, buf_size) < 0 || cli->socks5_proxy->state != SW_SOCKS5_STATE_READY) {
+        if (cli->socks5_handshake(buf, buf_size) < 0) {
             goto _connect_fail;
         }
+        if (cli->socks5_proxy->state != SW_SOCKS5_STATE_READY) {
+            return SW_OK;
+        }
+        cli->buffer->clear();
         if (!do_ssl_handshake) {
             execute_onConnect(cli);
             return SW_OK;
@@ -1119,7 +1124,7 @@ static int Client_onWrite(Reactor *reactor, Event *event) {
         // socks5 proxy
         if (cli->socks5_proxy && cli->socks5_proxy->state == SW_SOCKS5_STATE_WAIT) {
             char buf[3];
-            Socks5Proxy::pack(buf, cli->socks5_proxy->username.empty() ? 0x00 : 0x02);
+            Socks5Proxy::pack(buf, cli->socks5_proxy->username.empty() ? 0 : SW_SOCKS5_METHOD_AUTH);
             cli->socks5_proxy->state = SW_SOCKS5_STATE_HANDSHAKE;
             return cli->send(cli, buf, sizeof(buf), 0);
         }
