@@ -301,22 +301,6 @@ class Coroutine {
 namespace coroutine {
 bool async(async::Handler handler, AsyncEvent &event, double timeout = -1);
 bool async(const std::function<void(void)> &fn, double timeout = -1);
-#ifdef SW_USE_IOURING
-int async(AsyncIouring::opcodes opcode,
-          const char *pathname,
-          const char *pathname2 = nullptr,
-          mode_t mode = 0,
-          int flags = 0,
-          struct statx *statxbuf = nullptr,
-          double timeout = -1);
-int async(AsyncIouring::opcodes opcode,
-          int fd,
-          void *rbuf = nullptr,
-          const void *wbuf = nullptr,
-          struct statx *statxbuf = nullptr,
-          size_t count = 0,
-          double timeout = -1);
-#endif
 bool run(const CoroutineFunc &fn, void *arg = nullptr);
 }  // namespace coroutine
 //-------------------------------------------------------------------------------

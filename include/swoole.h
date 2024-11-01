@@ -62,10 +62,6 @@
 #include <functional>
 #include <mutex>
 
-#ifdef SW_USE_IOURING
-#include <liburing.h>
-#endif
-
 typedef unsigned long ulong_t;
 
 #ifndef PRId64
@@ -221,7 +217,7 @@ struct Address;
 }  // namespace network
 class AsyncThreads;
 #ifdef SW_USE_IOURING
-class AsyncIouring;
+class Iouring;
 #endif
 namespace async {
 class ThreadPool;
@@ -701,7 +697,7 @@ struct ThreadGlobal {
     MessageBus *message_bus;
     AsyncThreads *async_threads;
 #ifdef SW_USE_IOURING
-    AsyncIouring *async_iouring;
+    Iouring *iouring;
 #endif
     uint32_t signal_listener_num;
     uint32_t co_signal_listener_num;

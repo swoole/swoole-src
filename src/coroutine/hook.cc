@@ -26,6 +26,7 @@
 
 #include "swoole_coroutine_socket.h"
 #include "swoole_coroutine_system.h"
+#include "swoole_iouring.h"
 
 using swoole::AsyncEvent;
 using swoole::Coroutine;
@@ -34,8 +35,12 @@ using swoole::coroutine::async;
 using swoole::coroutine::PollSocket;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
-using swoole::coroutine::translate_events_to_poll;
 using swoole::coroutine::translate_events_from_poll;
+using swoole::coroutine::translate_events_to_poll;
+
+#ifdef SW_USE_IOURING
+using swoole::Iouring;
+#endif
 
 static std::unordered_map<int, std::shared_ptr<Socket>> socket_map;
 static std::mutex socket_map_lock;
@@ -606,4 +611,99 @@ int swoole_coroutine_fdatasync(int fd) {
 #endif
     return retval;
 }
+
+#ifdef SW_USE_IOURING
+int swoole_coroutine_iouring_open(const char *pathname, int flags, mode_t mode) {
+    if (sw_unlikely(is_no_coro())) {
+        return open(pathname, flags, mode);
+    }
+    return Iouring::open(pathname, flags, mode);
+}
+
+int swoole_coroutine_iouring_close_file(int fd) {
+    if (sw_unlikely(is_no_coro())) {
+        return close(fd);
+    }
+    return Iouring::close(fd);
+}
+
+ssize_t swoole_coroutine_iouring_read(int sockfd, void *buf, size_t size) {
+    if (sw_unlikely(is_no_coro())) {
+        return read(sockfd, buf, size);
+    }
+    return Iouring::read(sockfd, buf, size);
+}
+
+ssize_t swoole_coroutine_iouring_write(int sockfd, const void *buf, size_t size) {
+    if (sw_unlikely(is_no_coro())) {
+        return write(sockfd, buf, size);
+    }
+    return Iouring::write(sockfd, buf, size);
+}
+
+int swoole_coroutine_iouring_rename(const char *oldpath, const char *newpath) {
+    if (sw_unlikely(is_no_coro())) {
+        return rename(oldpath, newpath);
+    }
+    return Iouring::rename(oldpath, newpath);
+}
+
+int swoole_coroutine_iouring_mkdir(const char *pathname, mode_t mode) {
+    if (sw_unlikely(is_no_coro())) {
+        return mkdir(pathname, mode);
+    }
+    return Iouring::mkdir(pathname, mode);
+}
+
+int swoole_coroutine_iouring_unlink(const char *pathname) {
+    if (sw_unlikely(is_no_coro())) {
+        return unlink(pathname);
+    }
+    return Iouring::unlink(pathname);
+}
+
+int swoole_coroutine_iouring_fstat(int fd, struct stat *statbuf) {
+    if (sw_unlikely(is_no_coro())) {
+        return fstat(fd, statbuf);
+    }
+    return Iouring::fstat(fd, statbuf);
+}
+
+int swoole_coroutine_iouring_stat(const char *path, struct stat *statbuf) {
+    if (sw_unlikely(is_no_coro())) {
+        return stat(path, statbuf);
+    }
+    return Iouring::stat(path, statbuf);
+}
+
+int swoole_coroutine_iouring_lstat(const char *path, struct stat *statbuf) {
+    if (sw_unlikely(is_no_coro())) {
+        return lstat(path, statbuf);
+    }
+    // Iouring cannot distinguish between lstat and stat; these two operations are the same
+    return Iouring::stat(path, statbuf);
+}
+
+int swoole_coroutine_iouring_rmdir(const char *pathname) {
+    if (sw_unlikely(is_no_coro())) {
+        return rmdir(pathname);
+    }
+    return Iouring::rmdir(pathname);
+}
+
+int swoole_coroutine_iouring_fsync(int fd) {
+    if (sw_unlikely(is_no_coro())) {
+        return fsync(fd);
+    }
+    return Iouring::fsync(fd);
+}
+
+int swoole_coroutine_iouring_fdatasync(int fd) {
+    if (sw_unlikely(is_no_coro())) {
+        return fdatasync(fd);
+    }
+    return Iouring::fdatasync(fd);
+}
+#endif
+
 SW_EXTERN_C_END

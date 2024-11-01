@@ -17,6 +17,7 @@
 #include "php_swoole_library.h"
 #include "php_swoole_process.h"
 #include "php_swoole_thread.h"
+#include "swoole_iouring.h"
 
 BEGIN_EXTERN_C()
 #include "zend_exceptions.h"
@@ -61,7 +62,7 @@ END_EXTERN_C()
 using swoole::Server;
 using swoole::network::Socket;
 #ifdef SW_USE_IOURING
-using swoole::AsyncIouring;
+using swoole::Iouring;
 #endif
 
 ZEND_DECLARE_MODULE_GLOBALS(swoole)
@@ -723,8 +724,8 @@ PHP_MINIT_FUNCTION(swoole) {
      * iouring
      */
 #ifdef SW_USE_IOURING
-     SW_REGISTER_LONG_CONSTANT("SWOOLE_IOURING_DEFAULT", AsyncIouring::SW_IOURING_DEFAULT);
-     SW_REGISTER_LONG_CONSTANT("SWOOLE_IOURING_SQPOLL", AsyncIouring::SW_IOURING_SQPOLL);
+     SW_REGISTER_LONG_CONSTANT("SWOOLE_IOURING_DEFAULT", SW_IOURING_DEFAULT);
+     SW_REGISTER_LONG_CONSTANT("SWOOLE_IOURING_SQPOLL", SW_IOURING_SQPOLL);
 #endif
 
     // clang-format on
