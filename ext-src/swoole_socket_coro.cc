@@ -1569,7 +1569,7 @@ static void socket_coro_write_vector(INTERNAL_FUNCTION_PARAMETERS, const bool al
     iovcnt = zend_array_count(vht);
 
     if (iovcnt > IOV_MAX) {
-        sw_tg_buffer()->length = sw_snprintf(sw_tg_buffer()->str, sw_tg_buffer()->size, IOV_MAX_ERROR_MSG, IOV_MAX);
+        sw_tg_buffer()->length = sw_snprintf(sw_tg_buffer()->str, sw_tg_buffer()->size, SW_IOV_MAX_ERROR_MSG, IOV_MAX);
         sock->socket->set_err(EINVAL, sw_tg_buffer()->to_std_string());
         RETURN_FALSE;
     }
@@ -1639,7 +1639,7 @@ static void socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETERS, const bool all
     iovcnt = zend_array_count(vht);
 
     if (iovcnt > IOV_MAX) {
-        sw_tg_buffer()->length = sw_snprintf(sw_tg_buffer()->str, sw_tg_buffer()->size, IOV_MAX_ERROR_MSG, IOV_MAX);
+        sw_tg_buffer()->length = sw_snprintf(sw_tg_buffer()->str, sw_tg_buffer()->size, SW_IOV_MAX_ERROR_MSG, IOV_MAX);
         sock->socket->set_err(EINVAL, sw_tg_buffer()->to_std_string());
         RETURN_FALSE;
     }

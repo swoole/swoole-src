@@ -161,7 +161,9 @@
 #define IOV_MAX 16
 #endif
 
-#define IOV_MAX_ERROR_MSG "The maximum of iov count is %d"
+#define SW_IOV_MAX_ERROR_MSG "The maximum of iov count is %d"
+
+#define SW_IOURING_CQES_SIZE 8192
 
 /**
  * HTTP Protocol

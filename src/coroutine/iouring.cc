@@ -80,7 +80,7 @@ Iouring::Iouring(Reactor *_reactor) {
     }
 
     if (SwooleG.iouring_workers > 0) {
-        unsigned int workers[2] = {SwooleG.iouring_workers, SwooleG.iouring_workers};
+        uint32_t workers[2] = {SwooleG.iouring_workers, SwooleG.iouring_workers};
         ret = io_uring_register_iowq_max_workers(&ring, workers);
 
         if (ret < 0) {
@@ -93,6 +93,7 @@ Iouring::Iouring(Reactor *_reactor) {
     }
 
     ring_socket = make_socket(ring.ring_fd, SW_FD_IOURING);
+    ring_socket->object = this;
 
     reactor->set_exit_condition(Reactor::EXIT_CONDITION_IOURING, [](Reactor *reactor, size_t &event_num) -> bool {
         if (SwooleTG.iouring && SwooleTG.iouring->get_task_num() == 0 && SwooleTG.iouring->is_empty_waiting_tasks()) {
@@ -113,14 +114,16 @@ Iouring::Iouring(Reactor *_reactor) {
 }
 
 Iouring::~Iouring() {
-    if (ring_socket) {
-        if (!ring_socket->removed) {
-            reactor->del(ring_socket);
-        }
-        ring_socket->move_fd();
-        ring_socket->free();
-        ring_socket = nullptr;
+    if (!ring_socket) {
+        return;
     }
+
+    if (!ring_socket->removed) {
+        reactor->del(ring_socket);
+    }
+    ring_socket->move_fd();
+    ring_socket->free();
+    ring_socket = nullptr;
 
     io_uring_queue_exit(&ring);
 }
@@ -130,24 +133,18 @@ bool Iouring::ready() {
 }
 
 bool Iouring::wakeup() {
-    unsigned count = 0;
-    unsigned num = 8192;
-    void *data = nullptr;
-    IouringEvent *event = nullptr;
     IouringEvent *waiting_task = nullptr;
-    struct io_uring_cqe *cqe = nullptr;
-    struct io_uring_cqe *cqes[num];
+    struct io_uring_cqe *cqes[SW_IOURING_CQES_SIZE];
 
     while (true) {
-        count = io_uring_peek_batch_cqe(&ring, cqes, num);
+        auto count = io_uring_peek_batch_cqe(&ring, cqes, SW_IOURING_CQES_SIZE);
         if (count == 0) {
             return true;
         }
 
-        for (unsigned i = 0; i < count; i++) {
-            cqe = cqes[i];
-            data = io_uring_cqe_get_data(cqe);
-            event = static_cast<IouringEvent *>(data);
+        for (decltype(count) i = 0; i < count; i++) {
+            struct io_uring_cqe *cqe = cqes[i];
+            IouringEvent *task = static_cast<IouringEvent *>(io_uring_cqe_get_data(cqe));
             task_num--;
             if (cqe->res < 0) {
                 errno = -(cqe->res);
@@ -158,15 +155,15 @@ bool Iouring::wakeup() {
                  */
                 if (cqe->res == -EAGAIN) {
                     io_uring_cq_advance(&ring, 1);
-                    waiting_tasks.push(event);
+                    waiting_tasks.push(task);
                     continue;
                 }
             }
 
-            event->result = (cqe->res >= 0 ? cqe->res : -1);
+            task->result = (cqe->res >= 0 ? cqe->res : -1);
             io_uring_cq_advance(&ring, 1);
 
-            event->coroutine->resume();
+            task->coroutine->resume();
 
             if (!is_empty_waiting_tasks()) {
                 waiting_task = waiting_tasks.front();
@@ -181,7 +178,42 @@ bool Iouring::wakeup() {
     return true;
 }
 
+static const char *get_opcode_name(IouringOpcode opcode) {
+    switch (opcode) {
+    case SW_IORING_OP_OPENAT:
+        return "OPENAT";
+    case SW_IORING_OP_CLOSE:
+        return "CLOSE";
+    case SW_IORING_OP_STATX:
+        return "STATX";
+    case SW_IORING_OP_READ:
+        return "READ";
+    case SW_IORING_OP_WRITE:
+        return "WRITE";
+    case SW_IORING_OP_RENAMEAT:
+        return "RENAMEAT";
+    case SW_IORING_OP_MKDIRAT:
+        return "MKDIRAT";
+    case SW_IORING_OP_FSTAT:
+        return "FSTAT";
+    case SW_IORING_OP_LSTAT:
+        return "LSTAT";
+    case SW_IORING_OP_UNLINK_FILE:
+        return "UNLINK_FILE";
+    case SW_IORING_OP_UNLINK_DIR:
+        return "UNLINK_DIR";
+    case SW_IORING_OP_FSYNC:
+        return "FSYNC";
+    case SW_IORING_OP_FDATASYNC:
+        return "FDATASYNC";
+    default:
+        return "unknown";
+    }
+}
+
 bool Iouring::submit(IouringEvent *event) {
+    swoole_trace("opcode=%s, fd=%d, path=%s", get_opcode_name(event->opcode), event->fd, event->pathname);
+
     int ret = io_uring_submit(&ring);
 
     if (ret < 0) {
@@ -434,8 +466,8 @@ int Iouring::stat(const char *path, struct stat *statbuf) {
 }
 
 int Iouring::callback(Reactor *reactor, Event *event) {
-    Iouring *iouring = SwooleTG.iouring;
-    return iouring->wakeup() ? 1 : 0;
+    Iouring *iouring = static_cast<Iouring *>(event->socket->object);
+    return iouring->wakeup() ? SW_OK : SW_ERR;
 }
 }  // namespace swoole
 #endif

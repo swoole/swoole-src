@@ -23,6 +23,7 @@
 #include <sys/resource.h>
 
 #include <unordered_map>
+#include <atomic>
 
 #include "swoole_thread.h"
 

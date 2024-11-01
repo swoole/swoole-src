@@ -103,12 +103,12 @@ class Client {
     std::shared_ptr<SSLContext> ssl_context = nullptr;
 #endif
 
-    std::function<void (Client *cli)> onConnect = nullptr;
-    std::function<void (Client *cli)> onError = nullptr;
-    std::function<void (Client *cli, const char *, size_t)> onReceive = nullptr;
-    std::function<void (Client *cli)> onClose = nullptr;
-    std::function<void (Client *cli)> onBufferFull = nullptr;
-    std::function<void (Client *cli)> onBufferEmpty = nullptr;
+    std::function<void(Client *cli)> onConnect = nullptr;
+    std::function<void(Client *cli)> onError = nullptr;
+    std::function<void(Client *cli, const char *, size_t)> onReceive = nullptr;
+    std::function<void(Client *cli)> onClose = nullptr;
+    std::function<void(Client *cli)> onBufferFull = nullptr;
+    std::function<void(Client *cli)> onBufferEmpty = nullptr;
 
     int (*connect)(Client *cli, const char *host, int port, double _timeout, int sock_flag) = nullptr;
     ssize_t (*send)(Client *cli, const char *data, size_t length, int flags) = nullptr;
@@ -131,6 +131,15 @@ class Client {
 
     SocketType get_socket_type() {
         return socket->socket_type;
+    }
+
+    const std::string *get_http_proxy_host_name() {
+#ifdef SW_USE_OPENSSL
+        if (ssl_context && !ssl_context->tls_host_name.empty()) {
+            return &ssl_context->tls_host_name;
+        }
+#endif
+        return &http_proxy->target_host;
     }
 
     int sleep();

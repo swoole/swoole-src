@@ -557,7 +557,6 @@ static int Client_tcp_connect_sync(Client *cli, const char *host, int port, doub
     if (ret >= 0) {
         cli->active = 1;
 
-        // socks5 proxy
         if (cli->socks5_proxy) {
             char buf[1024];
             Socks5Proxy::pack(buf, cli->socks5_proxy->username.empty() ? 0x00 : 0x02);
@@ -581,12 +580,7 @@ static int Client_tcp_connect_sync(Client *cli, const char *host, int port, doub
             }
         } else if (cli->http_proxy) {
             auto proxy_buf = sw_tg_buffer();
-            const std::string *host_name = &cli->http_proxy->target_host;
-#ifdef SW_USE_OPENSSL
-            if (cli->ssl_context && !cli->ssl_context->tls_host_name.empty()) {
-                host_name = &cli->ssl_context->tls_host_name;
-            }
-#endif
+            const std::string *host_name = cli->get_http_proxy_host_name();
             size_t n_write = cli->http_proxy->pack(proxy_buf, host_name);
             if (cli->send(cli, proxy_buf->str, n_write, 0) < 0) {
                 return SW_ERR;
@@ -919,7 +913,7 @@ static int Client_onStreamRead(Reactor *reactor, Event *event) {
     if (cli->http_proxy && cli->http_proxy->state != SW_HTTP_PROXY_STATE_READY) {
         n = event->socket->recv(buf, buf_size, 0);
         if (n <= 0) {
-            _connect_fail:
+        _connect_fail:
             cli->active = 0;
             cli->close();
             if (cli->onError) {
@@ -929,8 +923,7 @@ static int Client_onStreamRead(Reactor *reactor, Event *event) {
         }
         cli->buffer->length += n;
         if (!cli->http_proxy->handshake(cli->buffer)) {
-            swoole_error_log(
-                SW_LOG_NOTICE, SW_ERROR_HTTP_PROXY_HANDSHAKE_ERROR, "failed to handshake with http proxy");
+            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_HTTP_PROXY_HANDSHAKE_ERROR, "failed to handshake with http proxy");
             goto _connect_fail;
         }
         cli->http_proxy->state = SW_HTTP_PROXY_STATE_READY;
@@ -957,7 +950,7 @@ static int Client_onStreamRead(Reactor *reactor, Event *event) {
     }
 
 #ifdef SW_USE_OPENSSL
-    if (cli->open_ssl && cli->socket->ssl_state == SW_SSL_STATE_WAIT_STREAM) {
+    if (cli->open_ssl && cli->socket->ssl_state != SW_SSL_STATE_READY) {
         if (cli->ssl_handshake() < 0) {
             goto _connect_fail;
         }
@@ -1132,22 +1125,11 @@ static int Client_onWrite(Reactor *reactor, Event *event) {
         }
         // http proxy
         if (cli->http_proxy && cli->http_proxy->state == SW_HTTP_PROXY_STATE_WAIT) {
-#ifdef SW_USE_OPENSSL
-            if (cli->open_ssl) {
-                cli->http_proxy->state = SW_HTTP_PROXY_STATE_HANDSHAKE;
-                auto proxy_buf = sw_tg_buffer();
-                const std::string *host_name = &cli->http_proxy->target_host;
-#ifdef SW_USE_OPENSSL
-                if (cli->ssl_context && !cli->ssl_context->tls_host_name.empty()) {
-                    host_name = &cli->ssl_context->tls_host_name;
-                }
-#endif
-                size_t n = cli->http_proxy->pack(proxy_buf, host_name);
-                swoole_trace_log(SW_TRACE_HTTP_CLIENT, "proxy request: <<EOF\n%.*sEOF", (int) n, proxy_buf->str);
-
-                return cli->send(cli, proxy_buf->str, n, 0);
-            }
-#endif
+            auto proxy_buf = sw_tg_buffer();
+            const std::string *host_name = cli->get_http_proxy_host_name();
+            size_t n = cli->http_proxy->pack(proxy_buf, host_name);
+            swoole_trace_log(SW_TRACE_HTTP_CLIENT, "proxy request: <<EOF\n%.*sEOF", (int) n, proxy_buf->str);
+            return cli->send(cli, proxy_buf->str, n, 0);
         }
 #ifdef SW_USE_OPENSSL
         if (cli->open_ssl) {
