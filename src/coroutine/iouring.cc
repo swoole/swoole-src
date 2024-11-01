@@ -252,7 +252,6 @@ bool Iouring::dispatch(IouringEvent *event) {
         break;
     case SW_IORING_OP_FSTAT:
     case SW_IORING_OP_LSTAT:
-        io_uring_sqe_set_data(sqe, (void *) event);
         if (event->opcode == SW_IORING_OP_FSTAT) {
             sqe->addr = (uintptr_t) "";
             sqe->fd = event->fd;
@@ -309,10 +308,13 @@ bool Iouring::dispatch(IouringEvent *event) {
     return submit(event);
 }
 
+#define INIT_EVENT(op)                                                                                                 \
+    IouringEvent event{};                                                                                              \
+    event.coroutine = Coroutine::get_current_safe();                                                                   \
+    event.opcode = op;
+
 int Iouring::open(const char *pathname, int flags, int mode) {
-    IouringEvent event{};
-    event.coroutine = Coroutine::get_current_safe();
-    event.opcode = SW_IORING_OP_OPENAT;
+    INIT_EVENT(SW_IORING_OP_OPENAT);
     event.mode = mode;
     event.flags = flags;
     event.pathname = pathname;
@@ -321,18 +323,14 @@ int Iouring::open(const char *pathname, int flags, int mode) {
 }
 
 int Iouring::close(int fd) {
-    IouringEvent event{};
-    event.coroutine = Coroutine::get_current_safe();
-    event.opcode = SW_IORING_OP_CLOSE;
+    INIT_EVENT(SW_IORING_OP_CLOSE);
     event.fd = fd;
 
     return execute(&event);
 }
 
 ssize_t Iouring::read(int fd, void *buf, size_t size) {
-    IouringEvent event{};
-    event.coroutine = Coroutine::get_current_safe();
-    event.opcode = SW_IORING_OP_READ;
+    INIT_EVENT(SW_IORING_OP_READ);
     event.fd = fd;
     event.rbuf = buf;
     event.size = size;
@@ -341,9 +339,7 @@ ssize_t Iouring::read(int fd, void *buf, size_t size) {
 }
 
 ssize_t Iouring::write(int fd, const void *buf, size_t size) {
-    IouringEvent event{};
-    event.coroutine = Coroutine::get_current_safe();
-    event.opcode = SW_IORING_OP_WRITE;
+    INIT_EVENT(SW_IORING_OP_WRITE);
     event.fd = fd;
     event.wbuf = buf;
     event.size = size;
@@ -352,9 +348,7 @@ ssize_t Iouring::write(int fd, const void *buf, size_t size) {
 }
 
 ssize_t Iouring::rename(const char *oldpath, const char *newpath) {
-    IouringEvent event{};
-    event.coroutine = Coroutine::get_current_safe();
-    event.opcode = SW_IORING_OP_RENAMEAT;
+    INIT_EVENT(SW_IORING_OP_RENAMEAT);
     event.pathname = oldpath;
     event.pathname2 = newpath;
 
@@ -362,9 +356,7 @@ ssize_t Iouring::rename(const char *oldpath, const char *newpath) {
 }
 
 int Iouring::mkdir(const char *pathname, mode_t mode) {
-    IouringEvent event{};
-    event.coroutine = Coroutine::get_current_safe();
-    event.opcode = SW_IORING_OP_MKDIRAT;
+    INIT_EVENT(SW_IORING_OP_MKDIRAT);
     event.pathname = pathname;
     event.mode = mode;
 
@@ -372,36 +364,28 @@ int Iouring::mkdir(const char *pathname, mode_t mode) {
 }
 
 int Iouring::unlink(const char *pathname) {
-    IouringEvent event{};
-    event.coroutine = Coroutine::get_current_safe();
-    event.opcode = SW_IORING_OP_UNLINK_FILE;
+    INIT_EVENT(SW_IORING_OP_UNLINK_FILE);
     event.pathname = pathname;
 
     return execute(&event);
 }
 
 int Iouring::rmdir(const char *pathname) {
-    IouringEvent event{};
-    event.coroutine = Coroutine::get_current_safe();
-    event.opcode = SW_IORING_OP_UNLINK_DIR;
+    INIT_EVENT(SW_IORING_OP_UNLINK_DIR);
     event.pathname = pathname;
 
     return execute(&event);
 }
 
 int Iouring::fsync(int fd) {
-    IouringEvent event{};
-    event.coroutine = Coroutine::get_current_safe();
-    event.opcode = SW_IORING_OP_FSYNC;
+    INIT_EVENT(SW_IORING_OP_FSYNC);
     event.fd = fd;
 
     return execute(&event);
 }
 
 int Iouring::fdatasync(int fd) {
-    IouringEvent event{};
-    event.coroutine = Coroutine::get_current_safe();
-    event.opcode = SW_IORING_OP_FDATASYNC;
+    INIT_EVENT(SW_IORING_OP_FDATASYNC);
     event.fd = fd;
 
     return execute(&event);
@@ -427,10 +411,8 @@ static void swoole_statx_to_stat(const struct statx *statxbuf, struct stat *stat
 }
 
 int Iouring::fstat(int fd, struct stat *statbuf) {
-    IouringEvent event{};
     struct statx _statxbuf;
-    event.coroutine = Coroutine::get_current_safe();
-    event.opcode = SW_IORING_OP_FSTAT;
+    INIT_EVENT(SW_IORING_OP_FSTAT);
     event.fd = fd;
     event.statxbuf = &_statxbuf;
 
@@ -442,10 +424,8 @@ int Iouring::fstat(int fd, struct stat *statbuf) {
 }
 
 int Iouring::stat(const char *path, struct stat *statbuf) {
-    IouringEvent event{};
     struct statx _statxbuf;
-    event.coroutine = Coroutine::get_current_safe();
-    event.opcode = SW_IORING_OP_LSTAT;
+    INIT_EVENT(SW_IORING_OP_LSTAT);
     event.pathname = path;
     event.statxbuf = &_statxbuf;
 
