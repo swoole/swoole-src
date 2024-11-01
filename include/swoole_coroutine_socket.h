@@ -377,9 +377,8 @@ class Socket {
     }
 
     int move_fd() {
-        int sockfd = socket->fd;
-        sock_fd = socket->fd = SW_BAD_SOCKET;
-        return sockfd;
+        sock_fd = SW_BAD_SOCKET;
+        return socket->move_fd();
     }
 
     network::Socket *move_socket() {

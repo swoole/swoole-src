@@ -274,6 +274,12 @@ struct Socket {
         return fd;
     }
 
+    int move_fd() {
+        int sock_fd = fd;
+        fd = SW_BAD_SOCKET;
+        return sock_fd;
+    }
+
     int get_name(Address *sa) {
         sa->len = sizeof(sa->addr);
         return getsockname(fd, &sa->addr.ss, &sa->len);
@@ -641,7 +647,19 @@ int gethostbyname(int type, const char *name, char *addr);
 int getaddrinfo(GetaddrinfoRequest *req);
 
 }  // namespace network
+
+/**
+ * This function will never return NULL; if memory allocation fails, a C++ exception will be thrown.
+ * Must use the `socket->free()` function to release the object pointer instead of the `delete` operator.
+ * When the socket is released, it will close the file descriptor (fd).
+ * If you do not want the fd to be closed, use `socket->move_fd()` to relinquish ownership of the fd.
+ */
 network::Socket *make_socket(int fd, FdType fd_type);
+/**
+ * The following three functions will return a null pointer if the socket creation fails.
+ * It is essential to check the return value;
+ * if it is nullptr, you should inspect errno to determine the cause of the error.
+ */
 network::Socket *make_socket(SocketType socket_type, FdType fd_type, int flags);
 network::Socket *make_socket(
     SocketType type, FdType fd_type, int sock_domain, int sock_type, int socket_protocol, int flags);
@@ -650,5 +668,10 @@ network::Socket *make_server_socket(SocketType socket_type,
                                     const char *address,
                                     int port = 0,
                                     int backlog = SW_BACKLOG);
+/**
+ * Verify if the input string is an IP address,
+ * where AF_INET indicates an IPv4 address, such as 192.168.1.100,
+ * and AF_INET6 indicates an IPv6 address, for example, 2001:0000:130F:0000:0000:09C0:876A:130B.
+ */
 bool verify_ip(int __af, const std::string &str);
 }  // namespace swoole

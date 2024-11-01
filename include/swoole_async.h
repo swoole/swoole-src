@@ -20,9 +20,6 @@
 
 #include <vector>
 #include <string>
-#include <mutex>
-#include <atomic>
-#include <queue>
 
 #ifndef O_DIRECT
 #define O_DIRECT 040000

@@ -663,14 +663,11 @@ static void async_lambda_handler(AsyncEvent *event) {
 }
 
 static void async_lambda_callback(AsyncEvent *event) {
-    if (event->canceled) {
-        return;
-    }
     AsyncLambdaTask *task = reinterpret_cast<AsyncLambdaTask *>(event->object);
     task->co->resume();
 }
 
-bool async(const std::function<void(void)> &fn, double timeout) {
+bool async(const std::function<void(void)> &fn) {
     AsyncEvent event{};
     AsyncLambdaTask task{Coroutine::get_current_safe(), fn};
 
@@ -683,14 +680,9 @@ bool async(const std::function<void(void)> &fn, double timeout) {
         return false;
     }
 
-    if (!task.co->yield_ex(timeout)) {
-        _ev->canceled = true;
-        errno = swoole_get_last_error();
-        return false;
-    } else {
-        errno = _ev->error;
-        return true;
-    }
+    task.co->yield();
+    errno = _ev->error;
+    return true;
 }
 
 AsyncLock::AsyncLock(void *resource) {

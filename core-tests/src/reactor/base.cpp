@@ -195,7 +195,7 @@ TEST(reactor, bad_fd) {
     ASSERT_EQ(n, SW_ERR);
     ASSERT_EQ(swoole_get_last_error(), EBADF);
     swoole_event_free();
-    sock->fd = -1;
+    sock->move_fd();
     sock->free();
 }
 

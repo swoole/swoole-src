@@ -93,10 +93,6 @@ Iouring::Iouring(Reactor *_reactor) {
     }
 
     ring_socket = make_socket(ring.ring_fd, SW_FD_IOURING);
-    if (!ring_socket) {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "create io_uring socket failed");
-        return;
-    }
 
     reactor->set_exit_condition(Reactor::EXIT_CONDITION_IOURING, [](Reactor *reactor, size_t &event_num) -> bool {
         if (SwooleTG.iouring && SwooleTG.iouring->get_task_num() == 0 && SwooleTG.iouring->is_empty_waiting_tasks()) {
@@ -117,19 +113,20 @@ Iouring::Iouring(Reactor *_reactor) {
 }
 
 Iouring::~Iouring() {
-    if (!ring_socket->removed) {
-        reactor->del(ring_socket);
-    }
-
     if (ring_socket) {
-        delete ring_socket;
+        if (!ring_socket->removed) {
+            reactor->del(ring_socket);
+        }
+        ring_socket->move_fd();
+        ring_socket->free();
+        ring_socket = nullptr;
     }
 
     io_uring_queue_exit(&ring);
 }
 
 bool Iouring::ready() {
-    return reactor->exists(ring_socket);
+    return ring_socket && reactor->exists(ring_socket);
 }
 
 bool Iouring::wakeup() {

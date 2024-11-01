@@ -299,8 +299,23 @@ class Coroutine {
 };
 //-------------------------------------------------------------------------------
 namespace coroutine {
+/**
+ * Support for timeouts and cancellations requires the caller to store the memory pointers of
+ * the input and output parameter objects in the `data` pointer of the `AsyncEvent` object.
+ * This field is a `shared_ptr`, which increments the reference count when dispatched to the AIO thread,
+ * collectively managing the `data` pointer.
+ * When the async task is completed, the caller receives the results or cancels or timeouts,
+ * the reference count will reach zero, and the memory will be released.
+ */
 bool async(async::Handler handler, AsyncEvent &event, double timeout = -1);
-bool async(const std::function<void(void)> &fn, double timeout = -1);
+/**
+ * This function should be used for asynchronous operations that do not support cancellation and timeouts.
+ * For example, in write/read operations,
+ * asynchronous tasks cannot transfer the memory ownership of wbuf/rbuf to the AIO thread.
+ * In the event of a timeout or cancellation, the memory of wbuf/rbuf will be released by the caller,
+ * which may lead the AIO thread to read from an erroneous memory pointer and consequently crash.
+ */
+bool async(const std::function<void(void)> &fn);
 bool run(const CoroutineFunc &fn, void *arg = nullptr);
 }  // namespace coroutine
 //-------------------------------------------------------------------------------
