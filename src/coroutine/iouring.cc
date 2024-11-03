@@ -32,6 +32,10 @@ enum IouringOpcode {
     SW_IORING_OP_WRITE = IORING_OP_WRITE,
     SW_IORING_OP_RENAMEAT = IORING_OP_RENAMEAT,
     SW_IORING_OP_MKDIRAT = IORING_OP_MKDIRAT,
+#ifdef HAVE_IOURING_FUTEX
+    SW_IORING_OP_FUTEX_WAIT = IORING_OP_FUTEX_WAIT,
+    SW_IORING_OP_FUTEX_WAKE = IORING_OP_FUTEX_WAKE,
+#endif
 
     SW_IORING_OP_FSTAT = 1000,
     SW_IORING_OP_LSTAT = 1001,
@@ -54,6 +58,9 @@ struct IouringEvent {
     const char *pathname;
     const char *pathname2;
     struct statx *statxbuf;
+#ifdef HAVE_IOURING_FUTEX
+    uint32_t *futex;
+#endif
 };
 
 Iouring::Iouring(Reactor *_reactor) {
@@ -206,6 +213,11 @@ static const char *get_opcode_name(IouringOpcode opcode) {
         return "FSYNC";
     case SW_IORING_OP_FDATASYNC:
         return "FDATASYNC";
+#ifdef HAVE_IOURING_FUTEX
+    case SW_IORING_OP_FUTEX_WAIT:
+    case SW_IORING_OP_FUTEX_WAKE:
+        return "FUTEX";
+#endif
     default:
         return "unknown";
     }
@@ -329,6 +341,26 @@ bool Iouring::dispatch(IouringEvent *event) {
             sqe->fsync_flags = IORING_FSYNC_DATASYNC;
         }
         break;
+#ifdef HAVE_IOURING_FUTEX
+    case SW_IORING_OP_FUTEX_WAIT:
+        sqe->opcode = SW_IORING_OP_FUTEX_WAIT;
+        sqe->fd = FUTEX2_SIZE_U32;
+        sqe->off = 1;
+        sqe->addr = (unsigned long) event->futex;
+        sqe->len = 0;
+        sqe->futex_flags = 0;
+        sqe->addr3 = FUTEX_BITSET_MATCH_ANY;
+        break;
+    case SW_IORING_OP_FUTEX_WAKE:
+        sqe->opcode = SW_IORING_OP_FUTEX_WAKE;
+        sqe->fd = FUTEX2_SIZE_U32;
+        sqe->off = 1;
+        sqe->addr = (unsigned long) event->futex;
+        sqe->len = 0;
+        sqe->futex_flags = 0;
+        sqe->addr3 = FUTEX_BITSET_MATCH_ANY;
+        break;
+#endif
     default:
         abort();
         return false;
@@ -464,6 +496,22 @@ int Iouring::stat(const char *path, struct stat *statbuf) {
     }
     return retval;
 }
+
+#ifdef HAVE_IOURING_FUTEX
+int Iouring::wait_futex(uint32_t *futex) {
+    INIT_EVENT(SW_IORING_OP_FUTEX_WAIT);
+    event.futex = futex;
+
+    return execute(&event);
+}
+
+int Iouring::wakeup_futex(uint32_t *futex) {
+    INIT_EVENT(SW_IORING_OP_FUTEX_WAKE);
+    event.futex = futex;
+
+    return execute(&event);
+}
+#endif
 
 int Iouring::callback(Reactor *reactor, Event *event) {
     Iouring *iouring = static_cast<Iouring *>(event->socket->object);

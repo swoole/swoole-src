@@ -930,13 +930,6 @@ EOF
         AC_DEFINE(HAVE_CARES, 1, [have c-ares])
     fi
 
-   if test "$PHP_IOURING" = "yes"; then
-       PKG_CHECK_MODULES([URING], [liburing])
-       PHP_EVAL_LIBLINE($URING_LIBS, SWOOLE_SHARED_LIBADD)
-       PHP_EVAL_INCLINE($URING_CFLAGS)
-       AC_DEFINE(SW_USE_IOURING, 1, [have io_uring])
-   fi
-
     AC_SWOOLE_CPU_AFFINITY
     AC_SWOOLE_HAVE_REUSEPORT
     AC_SWOOLE_HAVE_FUTEX
@@ -958,6 +951,27 @@ EOF
     LDFLAGS="$LDFLAGS -lpthread"
 
     dnl Check should we link to librt
+
+    if test "$PHP_IOURING" = "yes" && test "$SW_OS" = "LINUX"; then
+        PKG_CHECK_MODULES([URING], [liburing])
+        PHP_EVAL_LIBLINE($URING_LIBS, SWOOLE_SHARED_LIBADD)
+        PHP_EVAL_INCLINE($URING_CFLAGS)
+        AC_DEFINE(SW_USE_IOURING, 1, [have io_uring])
+
+        LINUX_VERSION=`uname -r | cut -d '-' -f 1`
+        LINUX_MAJOR_VERSION=`echo $LINUX_VERSION | cut -d '.' -f 1`
+        LINUX_MINIO_VERSION=`echo $LINUX_VERSION | cut -d '.' -f 2`
+
+        _PKG_CONFIG(URING_VERSION, [modversion], [liburing])
+        IOURING_MAJOR_VERSION=`echo $pkg_cv_URING_VERSION | cut -d '.' -f 1`
+        IOURING_MINOR_VERSION=`echo $pkg_cv_URING_VERSION | cut -d '.' -f 2`
+
+        if test $IOURING_MAJOR_VERSION > 2 || (test $IOURING_MAJOR_VERSION = 2 && test $IOURING_MINOR_VERSION >= 6); then
+            if test $LINUX_MAJOR_VERSION > 6 || (test $LINUX_MAJOR_VERSION = 6 && test $LINUX_MAJOR_VERSION >= 7); then
+                AC_DEFINE(HAVE_IOURING_FUTEX, 1, [have io_uring futex feature])
+            fi
+        fi
+    fi
 
     if test "$SW_OS" = "LINUX"; then
         GLIBC_VERSION=$(getconf GNU_LIBC_VERSION | awk '{print $2}')
