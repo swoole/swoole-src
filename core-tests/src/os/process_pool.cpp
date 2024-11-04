@@ -65,8 +65,9 @@ static void test_func_stream_protocol(ProcessPool &pool) {
 
 TEST(process_pool, tcp) {
     ProcessPool pool{};
+    int svr_port = swoole::test::get_random_port();
     ASSERT_EQ(pool.create(1, 0, SW_IPC_SOCKET), SW_OK);
-    ASSERT_EQ(pool.listen(TEST_HOST, TEST_PORT, 128), SW_OK);
+    ASSERT_EQ(pool.listen(TEST_HOST, svr_port, 128), SW_OK);
 
     test_func_task_protocol(pool);
 }
@@ -82,8 +83,9 @@ TEST(process_pool, unix_sock) {
 TEST(process_pool, tcp_raw) {
     ProcessPool pool{};
     constexpr int size = 2 * 1024 * 1024;
+    int svr_port = swoole::test::get_random_port();
     ASSERT_EQ(pool.create(1, 0, SW_IPC_SOCKET), SW_OK);
-    ASSERT_EQ(pool.listen(TEST_HOST, TEST_PORT, 128), SW_OK);
+    ASSERT_EQ(pool.listen(TEST_HOST, svr_port, 128), SW_OK);
     pool.set_max_packet_size(size);
     pool.set_protocol(SW_PROTOCOL_STREAM);
 

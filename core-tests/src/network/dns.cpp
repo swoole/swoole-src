@@ -90,17 +90,18 @@ TEST(dns, load_resolv_conf) {
     // reset
     SwooleG.dns_server_host = "";
     SwooleG.dns_server_port = 0;
+    int port = swoole::test::get_random_port();
 
     auto dns_server = swoole_get_dns_server();
     ASSERT_TRUE(dns_server.first.empty());
     ASSERT_EQ(dns_server.second, 0);
 
     // with port
-    std::string test_server = "127.0.0.1:" + std::to_string(TEST_PORT);  // fake dns server
+    std::string test_server = "127.0.0.1:" + std::to_string(port);  // fake dns server
     swoole_set_dns_server(test_server);
     dns_server = swoole_get_dns_server();
     ASSERT_STREQ(dns_server.first.c_str(), "127.0.0.1");
-    ASSERT_EQ(dns_server.second, TEST_PORT);
+    ASSERT_EQ(dns_server.second, port);
 
     // invalid port
     test_server = "127.0.0.1:808088";

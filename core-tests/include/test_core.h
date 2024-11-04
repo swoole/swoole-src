@@ -55,6 +55,8 @@ const std::string &get_root_path();
 std::string get_jpg_file();
 bool is_github_ci();
 
+int get_random_port();
+
 Socks5Proxy *create_socks5_proxy();
 HttpProxy *create_http_proxy();
 

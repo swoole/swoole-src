@@ -13,8 +13,6 @@ int main(int argc, char **argv) {
     swoole_init();
     init_root_path(argv[0]);
 
-    printf("GITHUB_ACTIONS=%s, GITHUB_ACTION=%s\n", getenv("GITHUB_ACTIONS"), getenv("GITHUB_ACTION"));
-
     if (getenv("DISPLAY_BACKTRACE") != nullptr) {
         sw_logger()->display_backtrace();
     }
@@ -82,6 +80,10 @@ HttpProxy *create_http_proxy() {
         http_proxy->password = std::string(TEST_HTTP_PROXY_PASSWORD);
     }
     return http_proxy;
+}
+
+int get_random_port() {
+    return TEST_PORT + swoole_system_random(1, 10000);
 }
 
 }  // namespace test

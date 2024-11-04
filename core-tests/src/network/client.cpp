@@ -21,13 +21,14 @@ TEST(client, tcp) {
     char buf[128];
 
     pid_t pid;
+    int port = swoole::test::get_random_port();
 
-    Process proc([](Process *proc) {
+    Process proc([port](Process *proc) {
         on_receive_lambda_type receive_fn = [](ON_RECEIVE_PARAMS) {
             SERVER_THIS->send(req->info.fd, req->data, req->info.len);
         };
 
-        Server serv(TEST_HOST, TEST_PORT, swoole::Server::MODE_BASE, SW_SOCK_TCP);
+        Server serv(TEST_HOST, port, swoole::Server::MODE_BASE, SW_SOCK_TCP);
         serv.on("onReceive", (void *) receive_fn);
         serv.start();
     });
@@ -38,7 +39,7 @@ TEST(client, tcp) {
 
     Client cli(SW_SOCK_TCP, false);
     ASSERT_NE(cli.socket, nullptr);
-    ret = cli.connect(&cli, TEST_HOST, TEST_PORT, -1, 0);
+    ret = cli.connect(&cli, TEST_HOST, port, -1, 0);
     ASSERT_EQ(ret, 0);
     ret = cli.send(&cli, SW_STRS(GREETER), 0);
     ASSERT_GT(ret, 0);
@@ -54,16 +55,16 @@ TEST(client, tcp) {
 TEST(client, udp) {
     int ret;
     char buf[128];
-
+    int port = swoole::test::get_random_port();
     pid_t pid;
 
-    Process proc([](Process *proc) {
+    Process proc([port](Process *proc) {
         on_packet_lambda_type packet_fn = [](ON_PACKET_PARAMS) {
             swoole::DgramPacket *packet = (swoole::DgramPacket *) req->data;
             SERVER_THIS->sendto(packet->socket_addr, packet->data, packet->length, req->info.server_fd);
         };
 
-        Server serv(TEST_HOST, TEST_PORT, swoole::Server::MODE_BASE, SW_SOCK_UDP);
+        Server serv(TEST_HOST, port, swoole::Server::MODE_BASE, SW_SOCK_UDP);
         serv.on("onPacket", (void *) packet_fn);
         serv.start();
     });
@@ -74,7 +75,7 @@ TEST(client, udp) {
 
     Client cli(SW_SOCK_UDP, false);
     ASSERT_NE(cli.socket, nullptr);
-    ret = cli.connect(&cli, TEST_HOST, TEST_PORT, -1, 0);
+    ret = cli.connect(&cli, TEST_HOST, port, -1, 0);
     ASSERT_EQ(ret, 0);
     ret = cli.send(&cli, SW_STRS(GREETER), 0);
     ASSERT_GT(ret, 0);
@@ -93,12 +94,12 @@ static void test_async_client_tcp(const char *host, int port) {
     Pipe p(true);
     ASSERT_TRUE(p.ready());
 
-    Process proc([&p](Process *proc) {
+    Process proc([&p, port](Process *proc) {
         on_receive_lambda_type receive_fn = [](ON_RECEIVE_PARAMS) {
             SERVER_THIS->send(req->info.fd, req->data, req->info.len);
         };
 
-        Server serv(TEST_HOST, TEST_PORT, swoole::Server::MODE_BASE, SW_SOCK_TCP);
+        Server serv(TEST_HOST, port, swoole::Server::MODE_BASE, SW_SOCK_TCP);
 
         serv.set_private_data("pipe", &p);
 
@@ -150,17 +151,17 @@ static void test_async_client_tcp(const char *host, int port) {
 }
 
 TEST(client, async_tcp) {
-    test_async_client_tcp(TEST_HOST, TEST_PORT);
+    test_async_client_tcp(TEST_HOST, swoole::test::get_random_port());
 }
 
 TEST(client, async_tcp_dns) {
-    test_async_client_tcp("localhost", TEST_PORT);
+    test_async_client_tcp("localhost", swoole::test::get_random_port());
 }
 
 TEST(client, connect_refuse) {
     int ret;
     Client cli(SW_SOCK_TCP, false);
-    ret = cli.connect(&cli, TEST_HOST, TEST_PORT + 10001, -1, 0);
+    ret = cli.connect(&cli, TEST_HOST, swoole::test::get_random_port(), -1, 0);
     ASSERT_EQ(ret, -1);
     ASSERT_EQ(swoole_get_last_error(), ECONNREFUSED);
 }
@@ -168,7 +169,7 @@ TEST(client, connect_refuse) {
 TEST(client, connect_timeout) {
     int ret;
     Client cli(SW_SOCK_TCP, false);
-    ret = cli.connect(&cli, "19.168.0.99", TEST_PORT + 10001, 0.2, 0);
+    ret = cli.connect(&cli, "19.168.0.99", swoole::test::get_random_port(), 0.2, 0);
     ASSERT_EQ(ret, -1);
     ASSERT_EQ(swoole_get_last_error(), ETIMEDOUT);
 }

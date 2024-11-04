@@ -68,7 +68,7 @@ TEST(coroutine_socket, connect_with_dns) {
 
 TEST(coroutine_socket, recv_success) {
     pid_t pid;
-    int port = TEST_PORT + __LINE__;
+    int port = swoole::test::get_random_port();
 
     Process proc([port](Process *proc) {
         on_receive_lambda_type receive_fn = [](ON_RECEIVE_PARAMS) {
@@ -103,7 +103,7 @@ TEST(coroutine_socket, recv_success) {
 
 TEST(coroutine_socket, recv_fail) {
     pid_t pid;
-    int port = TEST_PORT + __LINE__;
+    int port = swoole::test::get_random_port();
 
     Process proc([port](Process *proc) {
         on_receive_lambda_type receive_fn = [](ON_RECEIVE_PARAMS) { SERVER_THIS->close(req->info.fd, 0); };
@@ -923,24 +923,26 @@ void test_sendto_recvfrom(enum swSocketType sock_type) {
 
         const char *ip = sock_type == SW_SOCK_UDP ? "127.0.0.1" : "::1";
 
+        int port = swoole::test::get_random_port();
+
         Socket sock_server(sock_type);
         Socket sock_client(sock_type);
-        sock_server.bind(ip, TEST_PORT);
-        sock_client.bind(ip, TEST_PORT + 1);
+        sock_server.bind(ip, port);
+        sock_client.bind(ip, port + 1);
 
         ON_SCOPE_EXIT {
             sock_server.close();
             sock_client.close();
         };
 
-        sock_server.sendto(ip, TEST_PORT + 1, (const void *) server_text.c_str(), server_length);
+        sock_server.sendto(ip, port + 1, (const void *) server_text.c_str(), server_length);
 
         char data_from_server[128] = {};
         struct sockaddr_in serveraddr;
         bzero(&serveraddr, sizeof(serveraddr));
         serveraddr.sin_family = AF_INET;
         serveraddr.sin_addr.s_addr = inet_addr(ip);
-        serveraddr.sin_port = htons(TEST_PORT);
+        serveraddr.sin_port = htons(port);
         socklen_t addr_length = sizeof(serveraddr);
 
         // receive data from server
@@ -952,7 +954,7 @@ void test_sendto_recvfrom(enum swSocketType sock_type) {
 
         // receive data from client
         char data_from_client[128] = {};
-        sock_client.sendto(ip, TEST_PORT, (const void *) client_text.c_str(), client_length);
+        sock_client.sendto(ip, port, (const void *) client_text.c_str(), client_length);
         result = sock_server.recvfrom(data_from_client, client_length);
         data_from_client[client_length] = '\0';
         ASSERT_EQ(result, client_length);

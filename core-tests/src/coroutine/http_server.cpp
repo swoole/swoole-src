@@ -27,11 +27,12 @@ using namespace std;
 TEST(coroutine_http_server, get) {
     Server svr;
     mutex lock;
+    int port = swoole::test::get_random_port();
     lock.lock();
 
-    thread t1([&lock]() {
+    thread t1([&lock, port]() {
         lock.lock();
-        Client cli(TEST_HOST, TEST_PORT);
+        Client cli(TEST_HOST, port);
         auto resp1 = cli.Get("/hi");
         EXPECT_EQ(resp1->status, 200);
         EXPECT_EQ(resp1->body, string("Hello World!"));
@@ -41,7 +42,7 @@ TEST(coroutine_http_server, get) {
         EXPECT_EQ(resp2->body, string("Stop Server!"));
     });
 
-    coroutine::run([&lock, &svr](void *arg) {
+    coroutine::run([&lock, &svr, port](void *arg) {
         svr.Get("/hi", [](const Request &req, Response &res) { res.set_content("Hello World!", "text/plain"); });
 
         svr.Get("/stop", [&svr](const Request &req, Response &res) {
@@ -53,7 +54,7 @@ TEST(coroutine_http_server, get) {
 
         svr.BeforeListen([&lock]() { lock.unlock(); });
 
-        ASSERT_TRUE(svr.listen(TEST_HOST, TEST_PORT));
+        ASSERT_TRUE(svr.listen(TEST_HOST, port));
     });
 
     t1.join();
@@ -62,12 +63,13 @@ TEST(coroutine_http_server, get) {
 TEST(coroutine_http_server, post) {
     Server svr;
     mutex lock;
+    int port = swoole::test::get_random_port();
     lock.lock();
 
-    std::thread t1([&lock]() {
+    std::thread t1([&lock, port]() {
         lock.lock();
 
-        Client cli(TEST_HOST, TEST_PORT);
+        Client cli(TEST_HOST, port);
 
         httplib::Params params;
         params.emplace("name", "john");
@@ -82,7 +84,7 @@ TEST(coroutine_http_server, post) {
         EXPECT_EQ(resp2->body, string("Stop Server!"));
     });
 
-    coroutine::run([&lock, &svr](void *arg) {
+    coroutine::run([&lock, &svr, port](void *arg) {
         svr.Get("/stop", [&svr](const Request &req, Response &res) {
             res.set_content("Stop Server!", "text/plain");
             svr.stop();
@@ -92,7 +94,7 @@ TEST(coroutine_http_server, post) {
 
         svr.BeforeListen([&lock]() { lock.unlock(); });
 
-        svr.listen(TEST_HOST, TEST_PORT);
+        svr.listen(TEST_HOST, port);
     });
 
     t1.join();
