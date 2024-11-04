@@ -65,9 +65,6 @@ Socks5Proxy *create_socks5_proxy() {
     socks5_proxy->host = std::string(TEST_SOCKS5_PROXY_HOST);
     socks5_proxy->port = TEST_SOCKS5_PROXY_PORT;
     socks5_proxy->dns_tunnel = 1;
-
-    printf("GITHUB_ACTIONS=%s, GITHUB_ACTION=%s\n", getenv("GITHUB_ACTIONS"), getenv("GITHUB_ACTION"));
-
     if (is_github_ci()) {
         socks5_proxy->method = SW_SOCKS5_METHOD_AUTH;
         socks5_proxy->username = std::string(TEST_SOCKS5_PROXY_USER);

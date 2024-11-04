@@ -68,13 +68,14 @@ TEST(coroutine_socket, connect_with_dns) {
 
 TEST(coroutine_socket, recv_success) {
     pid_t pid;
+    int port = TEST_PORT + __LINE__;
 
-    Process proc([](Process *proc) {
+    Process proc([port](Process *proc) {
         on_receive_lambda_type receive_fn = [](ON_RECEIVE_PARAMS) {
             SERVER_THIS->send(req->info.fd, req->data, req->info.len);
         };
 
-        Server serv(TEST_HOST, TEST_PORT, swoole::Server::MODE_BASE, SW_SOCK_TCP);
+        Server serv(TEST_HOST, port, swoole::Server::MODE_BASE, SW_SOCK_TCP);
         serv.on("onReceive", (void *) receive_fn);
         serv.start();
     });
@@ -83,9 +84,9 @@ TEST(coroutine_socket, recv_success) {
 
     sleep(1);  // wait for the test server to start
 
-    coroutine::run([](void *arg) {
+    coroutine::run([port](void *arg) {
         Socket sock(SW_SOCK_TCP);
-        bool retval = sock.connect(TEST_HOST, TEST_PORT, -1);
+        bool retval = sock.connect(TEST_HOST, port, -1);
         ASSERT_EQ(retval, true);
         ASSERT_EQ(sock.errCode, 0);
         sock.send(SW_STRS("hello world\n"));
@@ -102,11 +103,12 @@ TEST(coroutine_socket, recv_success) {
 
 TEST(coroutine_socket, recv_fail) {
     pid_t pid;
+    int port = TEST_PORT + __LINE__;
 
-    Process proc([](Process *proc) {
+    Process proc([port](Process *proc) {
         on_receive_lambda_type receive_fn = [](ON_RECEIVE_PARAMS) { SERVER_THIS->close(req->info.fd, 0); };
 
-        Server serv(TEST_HOST, TEST_PORT, swoole::Server::MODE_BASE, SW_SOCK_TCP);
+        Server serv(TEST_HOST, port, swoole::Server::MODE_BASE, SW_SOCK_TCP);
         serv.on("onReceive", (void *) receive_fn);
         serv.start();
     });
@@ -115,9 +117,9 @@ TEST(coroutine_socket, recv_fail) {
 
     sleep(1);  // wait for the test server to start
 
-    coroutine::run([](void *arg) {
+    coroutine::run([port](void *arg) {
         Socket sock(SW_SOCK_TCP);
-        bool retval = sock.connect(TEST_HOST, TEST_PORT, -1);
+        bool retval = sock.connect(TEST_HOST, port, -1);
         ASSERT_EQ(retval, true);
         ASSERT_EQ(sock.errCode, 0);
         sock.send("close", 6);

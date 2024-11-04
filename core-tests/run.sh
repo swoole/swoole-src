@@ -20,12 +20,12 @@ for task in $tasks; do
         execute_command="./bin/core_tests"
     fi
 
-    echo "GITHUB_ACTIONS: ${GITHUB_ACTIONS}"
+    whoami
 
     if [ $task = "log." ]; then
         $execute_command --gtest_filter=$task*
     else
-        sudo $execute_command --gtest_filter=$task*
+        sudo -E $execute_command --gtest_filter=$task*
     fi
 
     if [ $? -ne 0 ] && [ "${GITHUB_ACTIONS}" = true ]; then
