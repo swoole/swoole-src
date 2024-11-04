@@ -118,8 +118,7 @@ TEST(log, rotation) {
 }
 
 TEST(log, redirect) {
-    char *p = getenv("GITHUB_ACTIONS");
-    if (p) {
+    if (test::is_github_ci()) {
         return;
     }
     sw_logger()->reset();
