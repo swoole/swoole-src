@@ -13,6 +13,8 @@ int main(int argc, char **argv) {
     swoole_init();
     init_root_path(argv[0]);
 
+    printf("GITHUB_ACTIONS=%s, GITHUB_ACTION=%s\n", getenv("GITHUB_ACTIONS"), getenv("GITHUB_ACTION"));
+
     if (getenv("DISPLAY_BACKTRACE") != nullptr) {
         sw_logger()->display_backtrace();
     }
