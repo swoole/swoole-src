@@ -1024,7 +1024,7 @@ TEST(server, system) {
     struct sockaddr_in serv_addr;
     bzero(&serv_addr, sizeof(serv_addr));
     serv_addr.sin_addr.s_addr = inet_addr(TEST_HOST);
-    serv_addr.sin_port = htons(8080);
+    serv_addr.sin_port = htons(TEST_PORT);
     serv_addr.sin_family = AF_INET;
     bind(fd, (struct sockaddr *) &serv_addr, sizeof(struct sockaddr));
     listen(fd, 1024);
@@ -1041,7 +1041,7 @@ TEST(server, system) {
         lock.lock();
 
         network::SyncClient c(SW_SOCK_TCP);
-        c.connect(TEST_HOST, 8080);
+        c.connect(TEST_HOST, TEST_PORT);
         c.send(packet, strlen(packet));
         char buf[1024];
         c.recv(buf, sizeof(buf));

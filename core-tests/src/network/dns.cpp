@@ -96,11 +96,11 @@ TEST(dns, load_resolv_conf) {
     ASSERT_EQ(dns_server.second, 0);
 
     // with port
-    std::string test_server = "127.0.0.1:8080";  // fake dns server
+    std::string test_server = "127.0.0.1:" + std::to_string(TEST_PORT);  // fake dns server
     swoole_set_dns_server(test_server);
     dns_server = swoole_get_dns_server();
     ASSERT_STREQ(dns_server.first.c_str(), "127.0.0.1");
-    ASSERT_EQ(dns_server.second, 8080);
+    ASSERT_EQ(dns_server.second, TEST_PORT);
 
     // invalid port
     test_server = "127.0.0.1:808088";

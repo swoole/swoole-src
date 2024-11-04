@@ -8,8 +8,11 @@
 using swoole::HttpProxy;
 using swoole::Pipe;
 using swoole::Socks5Proxy;
+using swoole::String;
 using swoole::network::AsyncClient;
 using swoole::network::Client;
+using swoole::test::create_http_proxy;
+using swoole::test::create_socks5_proxy;
 using swoole::test::Process;
 using swoole::test::Server;
 
@@ -218,21 +221,10 @@ TEST(client, shutdown_all) {
 
 #ifdef SW_USE_OPENSSL
 
-static const char *request_baidu = "GET / HTTP/1.1\r\n"
-        "Host: www.baidu.com\r\n"
-        "Connection: close\r\n"
-        "User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/51.0.2704.106 Safari/537.36"
-        "\r\n\r\n";
-
-static const char *domain_baidu = "www.baidu.com";
-
-#define SOCKS5_WITH_AUTH  1
-
 TEST(client, ssl_1) {
     bool connected = false;
     bool closed = false;
-    swoole::String buf(65536);
+    String buf(65536);
 
     swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
 
@@ -240,14 +232,14 @@ TEST(client, ssl_1) {
     client.enable_ssl_encrypt();
     client.onConnect = [&connected](Client *cli) {
         connected = true;
-        cli->send(cli, request_baidu, strlen(request_baidu), 0);
+        cli->send(cli, SW_STRL(TEST_REQUEST_BAIDU), 0);
     };
 
     client.onError = [](Client *cli) {};
     client.onClose = [&closed](Client *cli) { closed = true; };
     client.onReceive = [&buf](Client *cli, const char *data, size_t length) { buf.append(data, length); };
 
-    ASSERT_EQ(client.connect(&client, domain_baidu, 443, -1, 0), 0);
+    ASSERT_EQ(client.connect(&client, TEST_DOMAIN_BAIDU, 443, -1, 0), 0);
 
     swoole_event_wait();
 
@@ -257,13 +249,11 @@ TEST(client, ssl_1) {
 }
 
 static void proxy_async_test(Client &client, bool https) {
-    int ret;
-
     swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
 
     bool connected = false;
     bool closed = false;
-    swoole::String buf(65536);
+    String buf(65536);
 
     if (https) {
         client.enable_ssl_encrypt();
@@ -271,14 +261,14 @@ static void proxy_async_test(Client &client, bool https) {
 
     client.onConnect = [&connected](Client *cli) {
         connected = true;
-        cli->send(cli, request_baidu, strlen(request_baidu), 0);
+        cli->send(cli, SW_STRL(TEST_REQUEST_BAIDU), 0);
     };
 
     client.onError = [](Client *cli) {};
     client.onClose = [&closed](Client *cli) { closed = true; };
     client.onReceive = [&buf](Client *cli, const char *data, size_t length) { buf.append(data, length); };
 
-    ASSERT_EQ(client.connect(&client, domain_baidu, https ? 443 : 80, -1, 0), 0);
+    ASSERT_EQ(client.connect(&client, TEST_DOMAIN_BAIDU, https ? 443 : 80, -1, 0), 0);
 
     swoole_event_wait();
 
@@ -288,15 +278,15 @@ static void proxy_async_test(Client &client, bool https) {
 }
 
 static void proxy_sync_test(Client &client, bool https) {
-    swoole::String buf(65536);
+    String buf(65536);
     if (https) {
         client.enable_ssl_encrypt();
     }
 
-    ASSERT_EQ(client.connect(&client, domain_baidu, https ? 443 : 80, -1, 0), 0);
-    ASSERT_GT(client.send(&client, request_baidu, strlen(request_baidu), 0), 0);
+    ASSERT_EQ(client.connect(&client, TEST_DOMAIN_BAIDU, https ? 443 : 80, -1, 0), 0);
+    ASSERT_GT(client.send(&client, SW_STRL(TEST_REQUEST_BAIDU), 0), 0);
 
-    while(true) {
+    while (true) {
         char rbuf[4096];
         auto nr = client.recv(&client, rbuf, sizeof(rbuf), 0);
         if (nr <= 0) {
@@ -309,21 +299,11 @@ static void proxy_sync_test(Client &client, bool https) {
 }
 
 static void proxy_set_socks5_proxy(Client &client) {
-    client.socks5_proxy = new Socks5Proxy();
-    client.socks5_proxy->host = std::string("127.0.0.1");
-    client.socks5_proxy->port = 1080;
-    client.socks5_proxy->dns_tunnel = 1;
-#if SOCKS5_WITH_AUTH
-    client.socks5_proxy->method = SW_SOCKS5_METHOD_AUTH;
-    client.socks5_proxy->username = std::string("user");
-    client.socks5_proxy->password = std::string("password");
-#endif
+    client.socks5_proxy = create_socks5_proxy();
 }
 
 static void proxy_set_http_proxy(Client &client) {
-    client.http_proxy = new HttpProxy();
-    client.http_proxy->proxy_host = std::string(TEST_HTTP_PROXY_HOST);
-    client.http_proxy->proxy_port = TEST_HTTP_PROXY_PORT;
+    client.http_proxy = create_http_proxy();
 }
 
 TEST(client, https_get_async_with_http_proxy) {

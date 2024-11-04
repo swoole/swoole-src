@@ -31,7 +31,7 @@ TEST(coroutine_http_server, get) {
 
     thread t1([&lock]() {
         lock.lock();
-        Client cli(TEST_HOST, 8080);
+        Client cli(TEST_HOST, TEST_PORT);
         auto resp1 = cli.Get("/hi");
         EXPECT_EQ(resp1->status, 200);
         EXPECT_EQ(resp1->body, string("Hello World!"));
@@ -53,7 +53,7 @@ TEST(coroutine_http_server, get) {
 
         svr.BeforeListen([&lock]() { lock.unlock(); });
 
-        ASSERT_TRUE(svr.listen(TEST_HOST, 8080));
+        ASSERT_TRUE(svr.listen(TEST_HOST, TEST_PORT));
     });
 
     t1.join();
@@ -67,7 +67,7 @@ TEST(coroutine_http_server, post) {
     std::thread t1([&lock]() {
         lock.lock();
 
-        Client cli(TEST_HOST, 8080);
+        Client cli(TEST_HOST, TEST_PORT);
 
         httplib::Params params;
         params.emplace("name", "john");
@@ -92,7 +92,7 @@ TEST(coroutine_http_server, post) {
 
         svr.BeforeListen([&lock]() { lock.unlock(); });
 
-        svr.listen(TEST_HOST, 8080);
+        svr.listen(TEST_HOST, TEST_PORT);
     });
 
     t1.join();

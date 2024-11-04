@@ -17,7 +17,7 @@ jobs:
       socks5:
         image: "xkuma/socks5"
         ports:
-          - 1080:1080
+          - 8080:1080
         env:
           PROXY_USER: user
           PROXY_PASSWORD: password
