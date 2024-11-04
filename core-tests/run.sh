@@ -2,7 +2,8 @@
 __DIR__=$(cd "$(dirname "$0")";pwd)
 __SWOOLE_DIR__=$(cd "$(dirname "${__DIR__}")";pwd)
 
-echo ${GITHUB_ACTIONS}
+export GITHUB_ACTIONS
+export DISPLAY_BACKTRACE
 
 if [ "${SWOOLE_ENABLE_ASAN}" = 1 ]; then
     cmake . -D swoole_dir="${__SWOOLE_DIR__}" -D enable_thread=1 -D enable_asan=1
