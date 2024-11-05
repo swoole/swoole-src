@@ -148,7 +148,6 @@ class Socket {
         return ssl_context.get();
     }
 
-    bool ssl_listen();
     bool ssl_handshake();
     bool ssl_verify(bool allow_self_signed);
     std::string ssl_get_peer_cert();
@@ -443,6 +442,7 @@ class Socket {
     std::string ssl_host_name;
     bool ssl_context_create();
     bool ssl_create(SSLContext *ssl_context);
+    bool ssl_listen();
 #endif
 
     bool connected = false;

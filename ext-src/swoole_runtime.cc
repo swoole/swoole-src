@@ -781,19 +781,15 @@ static int socket_enable_crypto(php_stream *stream, Socket *sock, php_stream_xpo
         if (!sock->ssl_handshake()) {
             return -1;
         }
-        zval *val = php_stream_context_get_option(context, "ssl", "capture_peer_cert");
-        if (val && zend_is_true(val) && !php_openssl_capture_peer_certs(stream, sock)) {
-            return -1;
-        }
-        /**
-         * returns 1: The TLS/SSL handshake was successfully completed, a TLS/SSL connection has been established.
-         */
-        return 1;
     } else if (!cparam->inputs.activate && sock->ssl_is_available()) {
         sock->ssl_shutdown();
         return -1;
     }
 
+    zval *val = php_stream_context_get_option(context, "ssl", "capture_peer_cert");
+    if (val && zend_is_true(val) && !php_openssl_capture_peer_certs(stream, sock)) {
+        return -1;
+    }
     return 1;
 }
 #endif

@@ -2,13 +2,13 @@
 swoole_runtime: ssl client
 --SKIPIF--
 <?php
-require __DIR__ . '/../include/skipif.inc';
+require __DIR__ . '/../../include/skipif.inc';
 skip_if_no_ssl();
 skip_if_offline();
 ?>
 --FILE--
 <?php
-require __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../../include/bootstrap.php';
 
 Swoole\Runtime::enableCoroutine();
 

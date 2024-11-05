@@ -1,14 +1,14 @@
 --TEST--
-swoole_runtime: ssl capture_peer_cert
+swoole_runtime/ssl: capture_peer_cert
 --SKIPIF--
 <?php
-require __DIR__ . '/../include/skipif.inc';
+require __DIR__ . '/../../include/skipif.inc';
 skip_if_no_ssl();
 skip_if_offline();
 ?>
 --FILE--
 <?php
-require __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../../include/bootstrap.php';
 
 function capture_peer_cert($domain)
 {
@@ -32,7 +32,7 @@ function capture_peer_cert($domain)
 
 Swoole\Runtime::setHookFlags(SWOOLE_HOOK_ALL);
 
-Co\run(function ()  {
+Co\run(function () {
     $result = capture_peer_cert('www.baidu.com');
     $info1 = openssl_x509_parse($result["options"]["ssl"]["peer_certificate"]);
     Assert::isArray($info1);
