@@ -1137,10 +1137,7 @@ bool Socket::listen(int backlog) {
         return false;
     }
 #ifdef SW_USE_OPENSSL
-    if (ssl_is_enable() && !ssl_listen()) {
-        set_err(SW_ERROR_SSL_CREATE_CONTEXT_FAILED);
-        return false;
-    }
+    ssl_is_server = true;
 #endif
     return true;
 }
@@ -1149,6 +1146,11 @@ Socket *Socket::accept(double timeout) {
     if (sw_unlikely(!is_available(SW_EVENT_READ))) {
         return nullptr;
     }
+#ifdef SW_USE_OPENSSL
+    if (ssl_is_enable() && sw_unlikely(ssl_context->context == nullptr) && !ssl_context_create()) {
+        return nullptr;
+    }
+#endif
     network::Socket *conn = socket->accept();
     if (conn == nullptr && errno == EAGAIN) {
         TimerController timer(&read_timer, timeout == 0 ? read_timeout : timeout, this, timer_callback);
@@ -1210,14 +1212,6 @@ bool Socket::ssl_create(SSLContext *ssl_context) {
         SSL_set_tlsext_host_name(socket->ssl, ssl_host_name.c_str());
     }
 #endif
-    return true;
-}
-
-bool Socket::ssl_listen() {
-    ssl_is_server = true;
-    if (ssl_context->context == nullptr && !ssl_context_create()) {
-        return false;
-    }
     return true;
 }
 

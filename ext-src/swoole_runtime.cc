@@ -786,10 +786,13 @@ static int socket_enable_crypto(php_stream *stream, Socket *sock, php_stream_xpo
         return -1;
     }
 
-    zval *val = php_stream_context_get_option(context, "ssl", "capture_peer_cert");
-    if (val && zend_is_true(val) && !php_openssl_capture_peer_certs(stream, sock)) {
-        return -1;
+    if (context && sock->ssl_is_available()) {
+        zval *val = php_stream_context_get_option(context, "ssl", "capture_peer_cert");
+        if (val && zend_is_true(val) && !php_openssl_capture_peer_certs(stream, sock)) {
+            return -1;
+        }
     }
+
     return 1;
 }
 #endif
