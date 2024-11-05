@@ -148,7 +148,7 @@ class Socket {
         return ssl_context.get();
     }
 
-    bool ssl_check_context();
+    bool ssl_listen();
     bool ssl_handshake();
     bool ssl_verify(bool allow_self_signed);
     std::string ssl_get_peer_cert();
@@ -441,6 +441,7 @@ class Socket {
     bool ssl_handshaked = false;
     std::shared_ptr<SSLContext> ssl_context = nullptr;
     std::string ssl_host_name;
+    bool ssl_context_create();
     bool ssl_create(SSLContext *ssl_context);
 #endif
 
