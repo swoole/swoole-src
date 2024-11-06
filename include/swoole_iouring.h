@@ -89,8 +89,8 @@ class Iouring {
     static int fsync(int fd);
     static int fdatasync(int fd);
 #ifdef HAVE_IOURING_FUTEX
-    static int wait_futex(uint32_t *futex);
-    static int wakeup_futex(uint32_t *futex);
+    static int futex_wait(uint32_t *futex);
+    static int futex_wakeup(uint32_t *futex);
 #endif
 
     static int callback(Reactor *reactor, Event *event);

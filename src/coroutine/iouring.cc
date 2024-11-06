@@ -498,14 +498,14 @@ int Iouring::stat(const char *path, struct stat *statbuf) {
 }
 
 #ifdef HAVE_IOURING_FUTEX
-int Iouring::wait_futex(uint32_t *futex) {
+int Iouring::futex_wait(uint32_t *futex) {
     INIT_EVENT(SW_IORING_OP_FUTEX_WAIT);
     event.futex = futex;
 
     return execute(&event);
 }
 
-int Iouring::wakeup_futex(uint32_t *futex) {
+int Iouring::futex_wakeup(uint32_t *futex) {
     INIT_EVENT(SW_IORING_OP_FUTEX_WAKE);
     event.futex = futex;
 

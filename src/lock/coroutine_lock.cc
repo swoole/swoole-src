@@ -68,7 +68,7 @@ int CoroutineLock::unlock() {
     cid = 0;
     coroutine = nullptr;
 #ifdef HAVE_IOURING_FUTEX
-    return Iouring::wakeup_futex((uint32_t *) value) >= 0 ? 0 : 1;
+    return Iouring::futex_wakeup((uint32_t *) value) >= 0 ? 0 : 1;
 #else
     return 0;
 #endif
@@ -92,7 +92,7 @@ int CoroutineLock::lock_impl(bool blocking) {
             return 1;
         }
 
-        result = Iouring::wait_futex((uint32_t *) value);
+        result = Iouring::futex_wait((uint32_t *) value);
         *value = 1;
     }
 #else
