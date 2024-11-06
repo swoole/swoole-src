@@ -129,8 +129,7 @@ class Socket {
      * Operation sequence:
      * 1. enable_ssl_encrypt()
      * 2. Set SSL parameters, such as certificate file, key file
-     * 3. ssl_check_context()
-     * 4. ssl_accept()/ssl_connect()/ssl_handshake()
+     * 3. ssl_handshake(), to be executed after connect or accept
      */
     bool enable_ssl_encrypt() {
         if (ssl_context.get()) {
@@ -148,7 +147,6 @@ class Socket {
         return ssl_context.get();
     }
 
-    bool ssl_check_context();
     bool ssl_handshake();
     bool ssl_verify(bool allow_self_signed);
     std::string ssl_get_peer_cert();
@@ -441,6 +439,7 @@ class Socket {
     bool ssl_handshaked = false;
     std::shared_ptr<SSLContext> ssl_context = nullptr;
     std::string ssl_host_name;
+    bool ssl_context_create();
     bool ssl_create(SSLContext *ssl_context);
 #endif
 

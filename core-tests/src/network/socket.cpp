@@ -89,9 +89,10 @@ TEST(socket, sendto_ipv6) {
 TEST(socket, recv) {
     mutex m;
     m.lock();
+    int port = swoole::test::get_random_port();
 
-    thread t1([&m]() {
-        auto svr = make_server_socket(SW_SOCK_TCP, TEST_HOST, TEST_PORT);
+    thread t1([&m, port]() {
+        auto svr = make_server_socket(SW_SOCK_TCP, TEST_HOST, port);
         char buf[1024] = {};
         svr->set_block();
         m.unlock();
@@ -103,10 +104,10 @@ TEST(socket, recv) {
         svr->free();
     });
 
-    thread t2([&m]() {
+    thread t2([&m, port]() {
         m.lock();
         auto cli = make_socket(SW_SOCK_TCP, SW_FD_STREAM_CLIENT, 0);
-        ASSERT_EQ(cli->connect(TEST_HOST, TEST_PORT), SW_OK);
+        ASSERT_EQ(cli->connect(TEST_HOST, port), SW_OK);
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
         cli->send(test_data, sizeof(test_data), 0);
         cli->free();
@@ -119,9 +120,10 @@ TEST(socket, recv) {
 TEST(socket, recvfrom_blocking) {
     mutex m;
     m.lock();
+    int port = swoole::test::get_random_port();
 
-    thread t1([&m]() {
-        auto svr = make_server_socket(SW_SOCK_UDP, TEST_HOST, TEST_PORT);
+    thread t1([&m, port]() {
+        auto svr = make_server_socket(SW_SOCK_UDP, TEST_HOST, port);
         network::Address addr;
         char buf[1024] = {};
         svr->set_nonblock();
@@ -131,11 +133,11 @@ TEST(socket, recvfrom_blocking) {
         svr->free();
     });
 
-    thread t2([&m]() {
+    thread t2([&m, port]() {
         m.lock();
         auto cli = make_socket(SW_SOCK_UDP, SW_FD_STREAM_CLIENT, 0);
         network::Address addr;
-        addr.assign(SW_SOCK_TCP, TEST_HOST, TEST_PORT);
+        addr.assign(SW_SOCK_TCP, TEST_HOST, port);
         ASSERT_EQ(cli->connect(addr), SW_OK);
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
         cli->send(test_data, sizeof(test_data), 0);
@@ -149,12 +151,13 @@ TEST(socket, recvfrom_blocking) {
 TEST(socket, sendfile_blocking) {
     string file = test::get_root_path() + "/examples/test.jpg";
     mutex m;
+    int port = swoole::test::get_random_port();
     m.lock();
 
     auto str = file_get_contents(file);
 
-    thread t1([&m, &str]() {
-        auto svr = make_server_socket(SW_SOCK_TCP, TEST_HOST, TEST_PORT);
+    thread t1([&m, &str, port]() {
+        auto svr = make_server_socket(SW_SOCK_TCP, TEST_HOST, port);
         m.unlock();
         auto cli = svr->accept();
         int len;
@@ -169,11 +172,11 @@ TEST(socket, sendfile_blocking) {
         svr->free();
     });
 
-    thread t2([&m, &file, &str]() {
+    thread t2([&m, &file, &str, port]() {
         m.lock();
         auto cli = make_socket(SW_SOCK_TCP, SW_FD_STREAM_CLIENT, 0);
         network::Address addr;
-        addr.assign(SW_SOCK_TCP, TEST_HOST, TEST_PORT);
+        addr.assign(SW_SOCK_TCP, TEST_HOST, port);
         ASSERT_EQ(cli->connect(addr), SW_OK);
         int len = htonl(str->get_length());
         cli->send(&len, sizeof(len), 0);
@@ -291,10 +294,11 @@ TEST(socket, clean) {
 
 TEST(socket, check_liveness) {
     mutex m;
+    int svr_port = swoole::test::get_random_port();
     m.lock();
 
-    thread t1([&m]() {
-        auto svr = make_server_socket(SW_SOCK_TCP, TEST_HOST, TEST_PORT);
+    thread t1([&m, svr_port]() {
+        auto svr = make_server_socket(SW_SOCK_TCP, TEST_HOST, svr_port);
         m.unlock();
 
         auto cli = svr->accept();
@@ -313,11 +317,11 @@ TEST(socket, check_liveness) {
         svr->free();
     });
 
-    thread t2([&m]() {
+    thread t2([&m, svr_port]() {
         m.lock();
 
         auto cli = make_socket(SW_SOCK_TCP, SW_FD_STREAM_CLIENT, 0);
-        ASSERT_EQ(cli->connect(TEST_HOST, TEST_PORT), SW_OK);
+        ASSERT_EQ(cli->connect(TEST_HOST, svr_port), SW_OK);
 
         cli->send(test_data, sizeof(test_data), 0);
         std::this_thread::sleep_for(std::chrono::milliseconds(1));

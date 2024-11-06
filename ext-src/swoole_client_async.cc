@@ -180,7 +180,9 @@ static void client_onConnect(Client *cli) {
     zval *zobject = (zval *) cli->object;
 #ifdef SW_USE_OPENSSL
     if (cli->ssl_wait_handshake) {
+        cli->ssl_wait_handshake = 0;
         client_execute_callback(zobject, SW_CLIENT_CB_onSSLReady);
+        return;
     }
 #endif
     client_execute_callback(zobject, SW_CLIENT_CB_onConnect);
@@ -509,19 +511,24 @@ static PHP_METHOD(swoole_client_async, enableSSL) {
     if (!php_swoole_client_enable_ssl_encryption(cli, ZEND_THIS)) {
         RETURN_FALSE;
     }
+
     zval *zcallback;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &zcallback) == FAILURE) {
         RETURN_FALSE;
     }
 
-    auto cb = sw_callable_create(zcallback);
-    if (!cb) {
-        return;
-    }
-
     auto client_obj = php_swoole_client_fetch_object(ZEND_THIS);
     if (swoole_event_set(cli->socket, SW_EVENT_WRITE) < 0) {
         RETURN_FALSE;
+    }
+
+    if (client_obj->async->onSSLReady) {
+        sw_callable_free(client_obj->async->onSSLReady);
+    }
+
+    auto cb = sw_callable_create(zcallback);
+    if (!cb) {
+        return;
     }
     zend_update_property(swoole_client_async_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("onSSLReady"), zcallback);
     client_obj->async->onSSLReady = cb;

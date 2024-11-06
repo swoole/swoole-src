@@ -105,11 +105,19 @@ class HttpServer {
         delete socket;
     }
 
-    void set_handler(std::string pattern, zend::Callable *cb) {
+    bool set_handler(std::string pattern, zval *zfn) {
+        auto cb = sw_callable_create(zfn);
+        if (!cb) {
+            return false;
+        }
+        if (handlers.find(pattern) != handlers.end()) {
+            sw_callable_free(handlers[pattern]);
+        }
         handlers[pattern] = cb;
         if (pattern == "/") {
             default_handler = cb;
         }
+        return true;
     }
 
     zend::Callable *get_handler(HttpContext *ctx) {
@@ -388,13 +396,8 @@ static PHP_METHOD(swoole_http_server_coro, handle) {
     Z_PARAM_ZVAL(zfn)
     ZEND_PARSE_PARAMETERS_END();
 
-    auto cb = sw_callable_create(zfn);
-    if (!cb) {
-        RETURN_FALSE;
-    }
-
     std::string key(pattern, pattern_len);
-    hs->set_handler(key, cb);
+    RETURN_BOOL(hs->set_handler(key, zfn));
 }
 
 static PHP_METHOD(swoole_http_server_coro, set) {
@@ -421,10 +424,9 @@ static PHP_METHOD(swoole_http_server_coro, start) {
     /* get callback fci cache */
     char *func_name = nullptr;
     zend_fcall_info_cache fci_cache;
-    zval zcallback;
-    ZVAL_STRING(&zcallback, "onAccept");
+    zend::Variable zcallback("onAccept");
     if (!sw_zend_is_callable_at_frame(
-            &zcallback, ZEND_THIS, execute_data, 0, &func_name, nullptr, &fci_cache, nullptr)) {
+            zcallback.ptr(), ZEND_THIS, execute_data, 0, &func_name, nullptr, &fci_cache, nullptr)) {
         php_swoole_fatal_error(E_CORE_ERROR, "function '%s' is not callable", func_name);
         return;
     }
@@ -510,7 +512,7 @@ static PHP_METHOD(swoole_http_server_coro, start) {
         if (conn) {
             zval zsocket;
             php_swoole_init_socket_object(&zsocket, conn);
-            long cid = PHPCoroutine::create(&fci_cache, 1, &zsocket, &zcallback);
+            long cid = PHPCoroutine::create(&fci_cache, 1, &zsocket, zcallback.ptr());
             zval_dtor(&zsocket);
             if (cid < 0) {
                 goto _wait_1s;
@@ -534,8 +536,6 @@ static PHP_METHOD(swoole_http_server_coro, start) {
             }
         }
     }
-
-    zval_dtor(&zcallback);
 
     RETURN_TRUE;
 }

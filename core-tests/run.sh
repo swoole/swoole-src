@@ -23,7 +23,7 @@ for task in $tasks; do
     if [ $task = "log." ]; then
         $execute_command --gtest_filter=$task*
     else
-        sudo $execute_command --gtest_filter=$task*
+        sudo -E $execute_command --gtest_filter=$task*
     fi
 
     if [ $? -ne 0 ] && [ "${GITHUB_ACTIONS}" = true ]; then
