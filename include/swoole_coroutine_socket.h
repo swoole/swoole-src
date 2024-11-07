@@ -509,8 +509,8 @@ class Socket {
 
     class TimerController {
       public:
-        TimerController(TimerNode **timer_pp, double timeout, Socket *sock, TimerCallback callback)
-            : timer_pp(timer_pp), timeout(timeout), socket_(sock), callback(callback) {}
+        TimerController(TimerNode **_timer_pp, double _timeout, Socket *_socket, TimerCallback _callback)
+            : timer_pp(_timer_pp), timeout(_timeout), socket_(_socket), callback(std::move(_callback)) {}
         bool start() {
             if (timeout != 0 && !*timer_pp) {
                 enabled = true;
@@ -542,16 +542,16 @@ class Socket {
   public:
     class TimeoutSetter {
       public:
-        TimeoutSetter(Socket *socket, double timeout, const enum TimeoutType type)
-            : socket_(socket), timeout(timeout), type(type) {
-            if (timeout == 0) {
+        TimeoutSetter(Socket *socket, double _timeout, const enum TimeoutType _type)
+            : socket_(socket), timeout(_timeout), type(_type) {
+            if (_timeout == 0) {
                 return;
             }
             for (uint8_t i = 0; i < SW_ARRAY_SIZE(timeout_type_list); i++) {
-                if (type & timeout_type_list[i]) {
+                if (_type & timeout_type_list[i]) {
                     original_timeout[i] = socket->get_timeout(timeout_type_list[i]);
-                    if (timeout != original_timeout[i]) {
-                        socket->set_timeout(timeout, timeout_type_list[i]);
+                    if (_timeout != original_timeout[i]) {
+                        socket->set_timeout(_timeout, timeout_type_list[i]);
                     }
                 }
             }
@@ -576,12 +576,13 @@ class Socket {
         double original_timeout[sizeof(timeout_type_list)] = {};
     };
 
-    class timeout_controller : public TimeoutSetter {
+    class TimeoutController : public TimeoutSetter {
       public:
-        timeout_controller(Socket *socket, double timeout, const enum TimeoutType type)
-            : TimeoutSetter(socket, timeout, type) {}
-        bool has_timedout(const enum TimeoutType type) {
-            SW_ASSERT_1BYTE(type);
+        TimeoutController(Socket *_socket, double _timeout, const enum TimeoutType _type)
+            : TimeoutSetter(_socket, _timeout, _type) {}
+
+        bool has_timedout(const enum TimeoutType _type) {
+            SW_ASSERT_1BYTE(_type);
             if (timeout > 0) {
                 if (sw_unlikely(startup_time == 0)) {
                     startup_time = microtime();
@@ -591,7 +592,7 @@ class Socket {
                         socket_->set_err(ETIMEDOUT);
                         return true;
                     }
-                    socket_->set_timeout(timeout - used_time, type);
+                    socket_->set_timeout(timeout - used_time, _type);
                 }
             }
             return false;

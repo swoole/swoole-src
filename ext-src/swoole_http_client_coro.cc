@@ -93,7 +93,8 @@ class Client {
 #ifdef SW_USE_OPENSSL
     uint8_t ssl;
 #endif
-    double connect_timeout = network::Socket::default_connect_timeout;
+    double connect_timeout = 0;
+    double response_timeout = 0;
     bool defer = false;
     bool lowercase_header = true;
     bool use_default_port;
@@ -706,9 +707,11 @@ void Client::apply_setting(zval *zset, const bool check_all) {
         zval *ztmp;
         HashTable *vht = Z_ARRVAL_P(zset);
 
-        if (php_swoole_array_get_value(vht, "connect_timeout", ztmp) ||
-            php_swoole_array_get_value(vht, "timeout", ztmp) /* backward compatibility */) {
+        if (php_swoole_array_get_value(vht, "connect_timeout", ztmp)) {
             connect_timeout = zval_get_double(ztmp);
+        }
+        if (php_swoole_array_get_value(vht, "timeout", ztmp)) {
+            response_timeout = zval_get_double(ztmp);
         }
         if (php_swoole_array_get_value(vht, "max_retries", ztmp)) {
             max_retries = (uint8_t) SW_MIN(zval_get_long(ztmp), UINT8_MAX);
@@ -863,11 +866,11 @@ bool Client::connect() {
     accept_websocket_compression = false;
 #endif
 
-    // socket->set_buffer_allocator(&SWOOLE_G(zend_string_allocator));
-    // connect
-    socket->set_timeout(connect_timeout, Socket::TIMEOUT_CONNECT);
+    double _timeout = connect_timeout == 0 ? network::Socket::default_connect_timeout : connect_timeout;
+    socket->set_timeout(_timeout, Socket::TIMEOUT_CONNECT);
     socket->set_resolve_context(&resolve_context_);
     socket->set_dtor([this](Socket *_socket) { socket_dtor(); });
+    // socket->set_buffer_allocator(&SWOOLE_G(zend_string_allocator));
 
     if (!socket->connect(host, port)) {
         set_error(socket->errCode, socket->errMsg, ESTATUS_CONNECT_FAILED);
@@ -1425,9 +1428,9 @@ bool Client::recv_response(double timeout) {
     parser.data = this;
 
     if (timeout == 0) {
-        timeout = socket->get_timeout(Socket::TIMEOUT_READ);
+        timeout = response_timeout == 0 ? network::Socket::default_read_timeout : response_timeout;
     }
-    Socket::timeout_controller tc(socket, timeout, Socket::TIMEOUT_READ);
+    Socket::TimeoutController tc(socket, timeout, Socket::TIMEOUT_READ);
     bool success = false;
     while (true) {
         if (sw_unlikely(tc.has_timedout(Socket::TIMEOUT_READ))) {
