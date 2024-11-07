@@ -22,6 +22,12 @@
 #ifdef SW_USE_IOURING
 #include <liburing.h>
 
+#ifdef HAVE_IOURING_FUTEX
+#ifndef FUTEX2_SIZE_U32
+#define FUTEX2_SIZE_U32 0x02
+#endif
+#endif
+
 using swoole::Coroutine;
 
 enum swIouringFlag {
@@ -82,6 +88,10 @@ class Iouring {
     static int rmdir(const char *pathname);
     static int fsync(int fd);
     static int fdatasync(int fd);
+#ifdef HAVE_IOURING_FUTEX
+    static int futex_wait(uint32_t *futex);
+    static int futex_wakeup(uint32_t *futex);
+#endif
 
     static int callback(Reactor *reactor, Event *event);
 };

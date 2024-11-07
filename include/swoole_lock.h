@@ -31,7 +31,7 @@ class Lock {
         RW_LOCK = 1,
         MUTEX = 3,
         SPIN_LOCK = 5,
-        ATOMIC_LOCK = 6,
+        COROUTINE_LOCK = 6,
     };
     Type get_type() {
         return type_;
@@ -105,6 +105,24 @@ class SpinLock : public Lock {
     int trylock() override;
 };
 #endif
+
+class CoroutineLock : public Lock {
+  private:
+    long cid = 0;
+    sw_atomic_t *value = nullptr;
+    void *coroutine = nullptr;
+
+    int lock_impl(bool blocking = true);
+
+  public:
+    CoroutineLock();
+    ~CoroutineLock();
+    int lock_rd() override;
+    int lock() override;
+    int unlock() override;
+    int trylock_rd() override;
+    int trylock() override;
+};
 
 #if defined(HAVE_PTHREAD_BARRIER) && !(defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__))
 #define SW_USE_PTHREAD_BARRIER
