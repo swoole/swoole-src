@@ -56,6 +56,7 @@ int CoroutineLock::trylock_rd() {
 int CoroutineLock::unlock() {
     Coroutine *current_coroutine = Coroutine::get_current();
     if (current_coroutine == nullptr) {
+        swoole_set_last_error(SW_ERROR_CO_NOT_EXISTS);
         swoole_warning("The coroutine lock can only be used in a coroutine environment");
         return 1;
     }
@@ -77,6 +78,7 @@ int CoroutineLock::unlock() {
 int CoroutineLock::lock_impl(bool blocking) {
     Coroutine *current_coroutine = Coroutine::get_current();
     if (current_coroutine == nullptr) {
+        swoole_set_last_error(SW_ERROR_CO_NOT_EXISTS);
         swoole_warning("The coroutine lock can only be used in a coroutine environment");
         return 1;
     }
@@ -86,16 +88,6 @@ int CoroutineLock::lock_impl(bool blocking) {
     }
 
     int result = 0;
-#ifdef HAVE_IOURING_FUTEX
-    if (!sw_atomic_cmp_set(value, 0, 1)) {
-        if (!blocking) {
-            return 1;
-        }
-
-        result = Iouring::futex_wait((uint32_t *) value);
-        *value = 1;
-    }
-#else
     while (true) {
         if (sw_atomic_cmp_set(value, 0, 1)) {
             break;
@@ -105,11 +97,17 @@ int CoroutineLock::lock_impl(bool blocking) {
             return 1;
         }
 
+#ifdef HAVE_IOURING_FUTEX
+        result = Iouring::futex_wait((uint32_t *) value);
+        if (result != 0) {
+            return 1;
+        }
+#else
         if (System::sleep((double) 0.1) != SW_OK) {
             return 1;
         }
-    }
 #endif
+    }
 
     cid = current_coroutine->get_cid();
     coroutine = (void *) current_coroutine;

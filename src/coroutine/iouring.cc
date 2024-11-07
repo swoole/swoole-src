@@ -48,19 +48,15 @@ enum IouringOpcode {
 struct IouringEvent {
     IouringOpcode opcode;
     Coroutine *coroutine;
-    int fd;
-    int flags;
-    mode_t mode;
-    size_t size;
+    __u32 len;
+    __u32 open_flags;
+    __u64 addr;
+    union {
+        __u64 off;
+        __u64 addr2;
+    };
     ssize_t result;
-    void *rbuf;
-    const void *wbuf;
-    const char *pathname;
-    const char *pathname2;
-    struct statx *statxbuf;
-#ifdef HAVE_IOURING_FUTEX
-    uint32_t *futex;
-#endif
+    __s32 fd;
 };
 
 Iouring::Iouring(Reactor *_reactor) {
@@ -215,8 +211,9 @@ static const char *get_opcode_name(IouringOpcode opcode) {
         return "FDATASYNC";
 #ifdef HAVE_IOURING_FUTEX
     case SW_IORING_OP_FUTEX_WAIT:
+        return "FUTEX_WAIT";
     case SW_IORING_OP_FUTEX_WAKE:
-        return "FUTEX";
+        return "FUTEX_WAKE";
 #endif
     default:
         return "unknown";
@@ -224,7 +221,7 @@ static const char *get_opcode_name(IouringOpcode opcode) {
 }
 
 bool Iouring::submit(IouringEvent *event) {
-    swoole_trace("opcode=%s, fd=%d, path=%s", get_opcode_name(event->opcode), event->fd, event->pathname);
+    swoole_trace("opcode=%s, fd=%d, path=%s", get_opcode_name(event->opcode), event->fd, (const char *) event->addr);
 
     int ret = io_uring_submit(&ring);
 
@@ -273,17 +270,17 @@ bool Iouring::dispatch(IouringEvent *event) {
 
     switch (event->opcode) {
     case SW_IORING_OP_OPENAT:
-        sqe->addr = (uintptr_t) event->pathname;
+        sqe->addr = event->addr;
         sqe->fd = AT_FDCWD;
-        sqe->len = event->mode;
+        sqe->len = event->len;
         sqe->opcode = SW_IORING_OP_OPENAT;
-        sqe->open_flags = event->flags | O_CLOEXEC;
+        sqe->open_flags = event->open_flags | O_CLOEXEC;
         break;
     case SW_IORING_OP_READ:
     case SW_IORING_OP_WRITE:
         sqe->fd = event->fd;
-        sqe->addr = (uintptr_t) (event->opcode == SW_IORING_OP_READ ? event->rbuf : event->wbuf);
-        sqe->len = event->size;
+        sqe->addr = event->addr;
+        sqe->len = event->len;
         sqe->off = -1;
         sqe->opcode = event->opcode;
         break;
@@ -298,24 +295,23 @@ bool Iouring::dispatch(IouringEvent *event) {
             sqe->fd = event->fd;
             sqe->statx_flags |= AT_EMPTY_PATH;
         } else {
-            sqe->addr = (uintptr_t) event->pathname;
+            sqe->addr = event->addr;
             sqe->fd = AT_FDCWD;
             sqe->statx_flags |= AT_SYMLINK_NOFOLLOW;
         }
-        // sqe->len = 0xFFF;
         sqe->opcode = SW_IORING_OP_STATX;
-        sqe->off = (uintptr_t) event->statxbuf;
+        sqe->off = event->off;
         break;
     case SW_IORING_OP_MKDIRAT:
-        sqe->addr = (uintptr_t) event->pathname;
+        sqe->addr = event->addr;
         sqe->fd = AT_FDCWD;
-        sqe->len = event->mode;
+        sqe->len = event->len;
         sqe->opcode = SW_IORING_OP_MKDIRAT;
         break;
 
     case SW_IORING_OP_UNLINK_FILE:
     case SW_IORING_OP_UNLINK_DIR:
-        sqe->addr = (uintptr_t) event->pathname;
+        sqe->addr = event->addr;
         sqe->fd = AT_FDCWD;
         sqe->opcode = IORING_OP_UNLINKAT;
         if (event->opcode == SW_IORING_OP_UNLINK_DIR) {
@@ -323,8 +319,8 @@ bool Iouring::dispatch(IouringEvent *event) {
         }
         break;
     case SW_IORING_OP_RENAMEAT:
-        sqe->addr = (uintptr_t) event->pathname;
-        sqe->addr2 = (uintptr_t) event->pathname2;
+        sqe->addr = event->addr;
+        sqe->addr2 = event->addr2;
         sqe->fd = AT_FDCWD;
         sqe->len = AT_FDCWD;
         sqe->opcode = SW_IORING_OP_RENAMEAT;
@@ -332,7 +328,7 @@ bool Iouring::dispatch(IouringEvent *event) {
     case SW_IORING_OP_FSYNC:
     case SW_IORING_OP_FDATASYNC:
         sqe->fd = event->fd;
-        sqe->addr = (unsigned long) nullptr;
+        sqe->addr = (uintptr_t) nullptr;
         sqe->opcode = IORING_OP_FSYNC;
         sqe->len = 0;
         sqe->off = 0;
@@ -346,7 +342,7 @@ bool Iouring::dispatch(IouringEvent *event) {
         sqe->opcode = SW_IORING_OP_FUTEX_WAIT;
         sqe->fd = FUTEX2_SIZE_U32;
         sqe->off = 1;
-        sqe->addr = (unsigned long) event->futex;
+        sqe->addr = event->addr;
         sqe->len = 0;
         sqe->futex_flags = 0;
         sqe->addr3 = FUTEX_BITSET_MATCH_ANY;
@@ -355,7 +351,7 @@ bool Iouring::dispatch(IouringEvent *event) {
         sqe->opcode = SW_IORING_OP_FUTEX_WAKE;
         sqe->fd = FUTEX2_SIZE_U32;
         sqe->off = 1;
-        sqe->addr = (unsigned long) event->futex;
+        sqe->addr = event->addr;
         sqe->len = 0;
         sqe->futex_flags = 0;
         sqe->addr3 = FUTEX_BITSET_MATCH_ANY;
@@ -376,9 +372,9 @@ bool Iouring::dispatch(IouringEvent *event) {
 
 int Iouring::open(const char *pathname, int flags, int mode) {
     INIT_EVENT(SW_IORING_OP_OPENAT);
-    event.mode = mode;
-    event.flags = flags;
-    event.pathname = pathname;
+    event.len = mode;
+    event.open_flags = flags;
+    event.addr = (uintptr_t) pathname;
 
     return execute(&event);
 }
@@ -393,8 +389,8 @@ int Iouring::close(int fd) {
 ssize_t Iouring::read(int fd, void *buf, size_t size) {
     INIT_EVENT(SW_IORING_OP_READ);
     event.fd = fd;
-    event.rbuf = buf;
-    event.size = size;
+    event.addr = (uintptr_t) buf;
+    event.len = size;
 
     return execute(&event);
 }
@@ -402,38 +398,38 @@ ssize_t Iouring::read(int fd, void *buf, size_t size) {
 ssize_t Iouring::write(int fd, const void *buf, size_t size) {
     INIT_EVENT(SW_IORING_OP_WRITE);
     event.fd = fd;
-    event.wbuf = buf;
-    event.size = size;
+    event.addr = (uintptr_t) buf;
+    event.len = size;
 
     return execute(&event);
 }
 
 ssize_t Iouring::rename(const char *oldpath, const char *newpath) {
     INIT_EVENT(SW_IORING_OP_RENAMEAT);
-    event.pathname = oldpath;
-    event.pathname2 = newpath;
+    event.addr = (uintptr_t) oldpath;
+    event.addr2 = (uintptr_t) newpath;
 
     return execute(&event);
 }
 
 int Iouring::mkdir(const char *pathname, mode_t mode) {
     INIT_EVENT(SW_IORING_OP_MKDIRAT);
-    event.pathname = pathname;
-    event.mode = mode;
+    event.addr = (uintptr_t) pathname;
+    event.len = mode;
 
     return execute(&event);
 }
 
 int Iouring::unlink(const char *pathname) {
     INIT_EVENT(SW_IORING_OP_UNLINK_FILE);
-    event.pathname = pathname;
+    event.addr = (uintptr_t) pathname;
 
     return execute(&event);
 }
 
 int Iouring::rmdir(const char *pathname) {
     INIT_EVENT(SW_IORING_OP_UNLINK_DIR);
-    event.pathname = pathname;
+    event.addr = (uintptr_t) pathname;
 
     return execute(&event);
 }
@@ -475,7 +471,7 @@ int Iouring::fstat(int fd, struct stat *statbuf) {
     struct statx _statxbuf;
     INIT_EVENT(SW_IORING_OP_FSTAT);
     event.fd = fd;
-    event.statxbuf = &_statxbuf;
+    event.off = (uintptr_t) &_statxbuf;
 
     auto retval = execute(&event);
     if (retval == 0) {
@@ -487,8 +483,8 @@ int Iouring::fstat(int fd, struct stat *statbuf) {
 int Iouring::stat(const char *path, struct stat *statbuf) {
     struct statx _statxbuf;
     INIT_EVENT(SW_IORING_OP_LSTAT);
-    event.pathname = path;
-    event.statxbuf = &_statxbuf;
+    event.addr = (uintptr_t) path;
+    event.off = (uintptr_t) &_statxbuf;
 
     auto retval = execute(&event);
     if (retval == 0) {
@@ -500,14 +496,14 @@ int Iouring::stat(const char *path, struct stat *statbuf) {
 #ifdef HAVE_IOURING_FUTEX
 int Iouring::futex_wait(uint32_t *futex) {
     INIT_EVENT(SW_IORING_OP_FUTEX_WAIT);
-    event.futex = futex;
+    event.addr = (uintptr_t) futex;
 
     return execute(&event);
 }
 
 int Iouring::futex_wakeup(uint32_t *futex) {
     INIT_EVENT(SW_IORING_OP_FUTEX_WAKE);
-    event.futex = futex;
+    event.addr = (uintptr_t) futex;
 
     return execute(&event);
 }

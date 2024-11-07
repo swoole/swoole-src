@@ -17,7 +17,7 @@
   +----------------------------------------------------------------------+
 */
 
-#include "test_core.h"
+#include "test_coroutine.h"
 #include "swoole_lock.h"
 #include "swoole_util.h"
 
@@ -30,6 +30,10 @@ using swoole::RWLock;
 using swoole::SpinLock;
 #endif
 using swoole::Mutex;
+using swoole::CoroutineLock;
+using swoole::Coroutine;
+using swoole::test::coroutine;
+using swoole::coroutine::System;
 
 static void test_func(swLock &lock) {
     int count = 0;
@@ -133,6 +137,32 @@ TEST(lock, shared) {
 TEST(lock, try_rd) {
     Mutex lock(0);
     test_lock_rd_func(lock);
+}
+
+TEST(lock, coroutine_lock) {
+    coroutine::run([](void *arg) {
+        CoroutineLock *lock = new CoroutineLock();
+        ON_SCOPE_EXIT {
+            delete lock;
+        };
+        Coroutine::create([lock](void *) {
+            ASSERT_EQ(lock->lock(), 0);
+            System::sleep(1);
+            ASSERT_EQ(lock->unlock(), 0);
+        });
+
+        Coroutine::create([lock](void *) {
+            ASSERT_EQ(lock->lock(), 0);
+            System::sleep(1);
+            ASSERT_EQ(lock->unlock(), 0);
+        });
+
+        Coroutine::create([lock](void *) {
+            ASSERT_EQ(lock->trylock(), 1);
+        });
+
+
+    });
 }
 
 #ifdef HAVE_RWLOCK

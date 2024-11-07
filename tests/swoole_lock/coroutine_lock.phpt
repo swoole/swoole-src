@@ -53,7 +53,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
 };
 
 $pm->childFunc = function () use ($pm) {
-	$lock = new Lock(SWOOLE_COROUTINELOCK);
+	$lock = new Lock(SWOOLE_COROLOCK);
 	var_dump($lock->lock());
 	var_dump($lock->unlock());
     $serv = new Server('127.0.0.1', $pm->getFreePort());

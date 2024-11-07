@@ -128,7 +128,7 @@ void php_swoole_lock_minit(int module_number) {
 #ifdef HAVE_SPINLOCK
     SW_REGISTER_LONG_CONSTANT("SWOOLE_SPINLOCK", Lock::SPIN_LOCK);
 #endif
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_COROUTINELOCK", Lock::COROUTINE_LOCK);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_COROLOCK", Lock::COROUTINE_LOCK);
 }
 
 static PHP_METHOD(swoole_lock, __construct) {

@@ -15,7 +15,7 @@ if (defined('SWOOLE_IOURING_SQPOLL')) {
 	]);
 }
 
-$lock = new Lock(SWOOLE_COROUTINELOCK);
+$lock = new Lock(SWOOLE_COROLOCK);
 
 run(function () use ($argv, $lock) {
     $waitGroup = new WaitGroup();
