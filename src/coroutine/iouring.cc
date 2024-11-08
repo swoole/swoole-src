@@ -32,6 +32,10 @@ enum IouringOpcode {
     SW_IORING_OP_WRITE = IORING_OP_WRITE,
     SW_IORING_OP_RENAMEAT = IORING_OP_RENAMEAT,
     SW_IORING_OP_MKDIRAT = IORING_OP_MKDIRAT,
+#ifdef HAVE_IOURING_FUTEX
+    SW_IORING_OP_FUTEX_WAIT = IORING_OP_FUTEX_WAIT,
+    SW_IORING_OP_FUTEX_WAKE = IORING_OP_FUTEX_WAKE,
+#endif
 
     SW_IORING_OP_FSTAT = 1000,
     SW_IORING_OP_LSTAT = 1001,
@@ -46,14 +50,21 @@ struct IouringEvent {
     Coroutine *coroutine;
     int fd;
     int flags;
-    mode_t mode;
-    size_t size;
+    union {
+        mode_t mode;
+        size_t size;
+    };
     ssize_t result;
-    void *rbuf;
-    const void *wbuf;
     const char *pathname;
-    const char *pathname2;
-    struct statx *statxbuf;
+    union {
+        void *rbuf;
+        const void *wbuf;
+        struct statx *statxbuf;
+        const char *pathname2;
+#ifdef HAVE_IOURING_FUTEX
+        uint32_t *futex;
+#endif
+    };
 };
 
 Iouring::Iouring(Reactor *_reactor) {
@@ -206,6 +217,12 @@ static const char *get_opcode_name(IouringOpcode opcode) {
         return "FSYNC";
     case SW_IORING_OP_FDATASYNC:
         return "FDATASYNC";
+#ifdef HAVE_IOURING_FUTEX
+    case SW_IORING_OP_FUTEX_WAIT:
+        return "FUTEX_WAIT";
+    case SW_IORING_OP_FUTEX_WAKE:
+        return "FUTEX_WAKE";
+#endif
     default:
         return "unknown";
     }
@@ -290,7 +307,6 @@ bool Iouring::dispatch(IouringEvent *event) {
             sqe->fd = AT_FDCWD;
             sqe->statx_flags |= AT_SYMLINK_NOFOLLOW;
         }
-        // sqe->len = 0xFFF;
         sqe->opcode = SW_IORING_OP_STATX;
         sqe->off = (uintptr_t) event->statxbuf;
         break;
@@ -320,7 +336,7 @@ bool Iouring::dispatch(IouringEvent *event) {
     case SW_IORING_OP_FSYNC:
     case SW_IORING_OP_FDATASYNC:
         sqe->fd = event->fd;
-        sqe->addr = (unsigned long) nullptr;
+        sqe->addr = (uintptr_t) nullptr;
         sqe->opcode = IORING_OP_FSYNC;
         sqe->len = 0;
         sqe->off = 0;
@@ -329,6 +345,26 @@ bool Iouring::dispatch(IouringEvent *event) {
             sqe->fsync_flags = IORING_FSYNC_DATASYNC;
         }
         break;
+#ifdef HAVE_IOURING_FUTEX
+    case SW_IORING_OP_FUTEX_WAIT:
+        sqe->opcode = SW_IORING_OP_FUTEX_WAIT;
+        sqe->fd = FUTEX2_SIZE_U32;
+        sqe->off = 1;
+        sqe->addr = (uintptr_t) event->futex;
+        sqe->len = 0;
+        sqe->futex_flags = 0;
+        sqe->addr3 = FUTEX_BITSET_MATCH_ANY;
+        break;
+    case SW_IORING_OP_FUTEX_WAKE:
+        sqe->opcode = SW_IORING_OP_FUTEX_WAKE;
+        sqe->fd = FUTEX2_SIZE_U32;
+        sqe->off = 1;
+        sqe->addr = (uintptr_t) event->futex;
+        sqe->len = 0;
+        sqe->futex_flags = 0;
+        sqe->addr3 = FUTEX_BITSET_MATCH_ANY;
+        break;
+#endif
     default:
         abort();
         return false;
@@ -464,6 +500,22 @@ int Iouring::stat(const char *path, struct stat *statbuf) {
     }
     return retval;
 }
+
+#ifdef HAVE_IOURING_FUTEX
+int Iouring::futex_wait(uint32_t *futex) {
+    INIT_EVENT(SW_IORING_OP_FUTEX_WAIT);
+    event.futex = futex;
+
+    return execute(&event);
+}
+
+int Iouring::futex_wakeup(uint32_t *futex) {
+    INIT_EVENT(SW_IORING_OP_FUTEX_WAKE);
+    event.futex = futex;
+
+    return execute(&event);
+}
+#endif
 
 int Iouring::callback(Reactor *reactor, Event *event) {
     Iouring *iouring = static_cast<Iouring *>(event->socket->object);

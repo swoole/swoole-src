@@ -30,6 +30,7 @@ using swoole::SpinLock;
 #ifdef HAVE_RWLOCK
 using swoole::RWLock;
 #endif
+using swoole::CoroutineLock;
 
 static zend_class_entry *swoole_lock_ce;
 static zend_object_handlers swoole_lock_handlers;
@@ -127,6 +128,7 @@ void php_swoole_lock_minit(int module_number) {
 #ifdef HAVE_SPINLOCK
     SW_REGISTER_LONG_CONSTANT("SWOOLE_SPINLOCK", Lock::SPIN_LOCK);
 #endif
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_COROLOCK", Lock::COROUTINE_LOCK);
 }
 
 static PHP_METHOD(swoole_lock, __construct) {
@@ -157,6 +159,9 @@ static PHP_METHOD(swoole_lock, __construct) {
 #endif
     case Lock::MUTEX:
         lock = new Mutex(Mutex::PROCESS_SHARED);
+        break;
+    case Lock::COROUTINE_LOCK:
+        lock = new CoroutineLock();
         break;
     default:
         zend_throw_exception(swoole_exception_ce, "lock type[%d] is not support", type);
