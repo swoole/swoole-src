@@ -3865,13 +3865,15 @@ static PHP_METHOD(swoole_server, stop) {
     }
 
     zend_bool wait_reactor = 0;
-    zend_long worker_id = sw_worker()->id;
+    zend_long worker_id = -1;
 
     ZEND_PARSE_PARAMETERS_START(0, 2)
     Z_PARAM_OPTIONAL
     Z_PARAM_LONG(worker_id)
     Z_PARAM_BOOL(wait_reactor)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    worker_id = worker_id < 0 ? sw_worker()->id : worker_id;
 
     RETURN_BOOL(serv->kill_worker(worker_id, wait_reactor));
 }
