@@ -1475,7 +1475,6 @@ class Server {
     void worker_stop_callback(Worker *worker);
     void worker_accept_event(DataHead *info);
     void worker_signal_init(void);
-    bool worker_is_running();
 
     std::function<void(const WorkerFn &fn)> worker_thread_start;
     std::function<void(pthread_t ptid)> worker_thread_join;

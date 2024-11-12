@@ -92,17 +92,18 @@ static int php_swoole_server_dispatch_func(Server *serv, Connection *conn, SendD
 static zval *php_swoole_server_add_port(ServerObject *server_object, ListenPort *port);
 
 void php_swoole_server_rshutdown() {
-    if (!sw_server()) {
+    if (!sw_server() || !sw_worker()) {
         return;
     }
 
     Server *serv = sw_server();
+    Worker *worker = sw_worker();
     serv->drain_worker_pipe();
 
-    if (serv->is_started() && serv->worker_is_running() && !serv->is_user_worker()) {
-        sw_worker()->shutdown();
+    if (serv->is_started() && worker->is_running() && !serv->is_user_worker()) {
+        worker->shutdown();
         if (serv->is_event_worker()) {
-            serv->clean_worker_connections(sw_worker());
+            serv->clean_worker_connections(worker);
         }
         if (php_swoole_is_fatal_error()) {
             swoole_error_log(SW_LOG_ERROR,
@@ -3794,7 +3795,7 @@ static PHP_METHOD(swoole_server, getWorkerId) {
     if (!serv->is_worker() && !serv->is_task_worker()) {
         RETURN_FALSE;
     } else {
-        RETURN_LONG(sw_worker()->id);
+        RETURN_LONG(swoole_get_process_id());
     }
 }
 
@@ -3812,13 +3813,8 @@ static PHP_METHOD(swoole_server, getWorkerStatus) {
     Z_PARAM_LONG(worker_id)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    Worker *worker;
-    if (worker_id == -1) {
-        worker = sw_worker();
-    } else {
-        worker = serv->get_worker(worker_id);
-    }
-
+    worker_id = worker_id < 0 ? swoole_get_process_id() : worker_id;
+    Worker *worker = serv->get_worker(worker_id);
     if (!worker) {
         RETURN_FALSE;
     } else {
@@ -3835,7 +3831,8 @@ static PHP_METHOD(swoole_server, getWorkerPid) {
     Z_PARAM_LONG(worker_id)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    Worker *worker = worker_id < 0 ? sw_worker() : serv->get_worker(worker_id);
+    worker_id = worker_id < 0 ? swoole_get_process_id() : worker_id;
+    Worker *worker = serv->get_worker(worker_id);
     if (!worker) {
         RETURN_FALSE;
     }
@@ -3873,7 +3870,7 @@ static PHP_METHOD(swoole_server, stop) {
     Z_PARAM_BOOL(wait_reactor)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    worker_id = worker_id < 0 ? sw_worker()->id : worker_id;
+    worker_id = worker_id < 0 ? swoole_get_process_id() : worker_id;
 
     RETURN_BOOL(serv->kill_worker(worker_id, wait_reactor));
 }

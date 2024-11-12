@@ -349,10 +349,6 @@ void Server::call_worker_error_callback(Worker *worker, const ExitStatus &status
     }
 }
 
-bool Server::worker_is_running() {
-    return SwooleWG.running;
-}
-
 bool Server::kill_worker(WorkerId worker_id, bool wait_reactor) {
     if (is_thread_mode()) {
         DataHead event = {};
