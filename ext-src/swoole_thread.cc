@@ -1046,7 +1046,7 @@ void ZendArray::to_array(zval *return_value) {
         ArrayItem *item = (ArrayItem *) tmp;
         item->fetch(&value);
         if (key) {
-            zend_hash_add(Z_ARR_P(return_value), key, &value);
+            zend_hash_str_add(Z_ARR_P(return_value), ZSTR_VAL(key), ZSTR_LEN(key), &value);
         } else {
             zend_hash_index_add(Z_ARR_P(return_value), index, &value);
         }
