@@ -25,6 +25,8 @@
 #define SW_STRINGS(s) s->str, s->size
 #define SW_STRINGCVL(s) s->str + s->offset, s->length - s->offset
 
+#define SW_STRING_FORMAT(s, format, ...) s->length = sw_snprintf(SW_STRINGS(s), format, ##__VA_ARGS__)
+
 namespace swoole {
 
 typedef std::function<bool(const char *, size_t)> StringExplodeHandler;
@@ -198,6 +200,11 @@ class String {
     }
 
     bool reserve(size_t new_size);
+    /**
+     * Transfer ownership of the string content pointer to the caller, who will capture this memory.
+     * The caller must manage and free this memory; it will not free when the string is destructed.
+     */
+    char *release();
     bool repeat(const char *data, size_t len, size_t n);
     int append(const char *append_str, size_t length);
 

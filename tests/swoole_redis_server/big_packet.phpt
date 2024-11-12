@@ -5,13 +5,13 @@ swoole_redis_server: test big packet
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
+
 use Swoole\Redis\Server;
 
-define('VALUE_LEN',  8192 * 128);
+define('VALUE_LEN', 8192 * 128);
 
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid) use ($pm)
-{
+$pm->parentFunc = function ($pid) use ($pm) {
     $redis = new redis;
     $redis->connect('127.0.0.1', $pm->getFreePort());
     $redis->set('big_value', str_repeat('A', VALUE_LEN));
@@ -20,30 +20,24 @@ $pm->parentFunc = function ($pid) use ($pm)
     Swoole\Process::kill($pid);
 };
 
-$pm->childFunc = function () use ($pm)
-{
+$pm->childFunc = function () use ($pm) {
     $server = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $server->data = array();
 
     $server->setHandler('GET', function ($fd, $data) use ($server) {
-        if (count($data) == 0)
-        {
+        if (count($data) == 0) {
             return Server::format(Server::ERROR, "ERR wrong number of arguments for 'GET' command");
         }
         $key = $data[0];
-        if (empty($server->data[$key]))
-        {
+        if (empty($server->data[$key])) {
             $server->send($fd, Server::format(Server::NIL));
-        }
-        else
-        {
+        } else {
             $server->send($fd, Server::format(Server::STRING, $server->data[$key]));
         }
     });
 
     $server->setHandler('SET', function ($fd, $data) use ($server) {
-        if (count($data) < 2)
-        {
+        if (count($data) < 2) {
             return Server::format(Server::ERROR, "ERR wrong number of arguments for 'SET' command");
         }
         $key = $data[0];

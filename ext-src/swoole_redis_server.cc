@@ -29,6 +29,7 @@ using swoole::Connection;
 using swoole::ListenPort;
 using swoole::RecvData;
 using swoole::Server;
+using swoole::String;
 
 namespace Redis = swoole::redis;
 
@@ -266,35 +267,30 @@ static PHP_METHOD(swoole_redis_server, format) {
     Z_PARAM_ZVAL(value)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    char message[256];
-    int length;
-
-    swoole::String *format_buffer = sw_tg_buffer();
+    char small_buf[1024];
+    size_t length;
+    auto buf = std::shared_ptr<String>(swoole::make_string(1024, sw_zend_string_allocator()));
 
     if (type == Redis::REPLY_NIL) {
         RETURN_STRINGL(SW_REDIS_RETURN_NIL, sizeof(SW_REDIS_RETURN_NIL) - 1);
-    } else if (type == Redis::REPLY_STATUS) {
+    } else if (type == Redis::REPLY_ERROR || type == Redis::REPLY_STATUS) {
+        char flag = type == Redis::REPLY_ERROR ? '-' : '+';
+        const char *default_message = type == Redis::REPLY_ERROR ? "ERR" : "OK";
         if (value) {
             zend::String str_value(value);
-            length = sw_snprintf(message, sizeof(message), "+%.*s\r\n", (int) str_value.len(), str_value.val());
+            if (str_value.len() > sizeof(small_buf) - 8) {
+                php_swoole_fatal_error(E_WARNING, "value is too long, max size is %lu", sizeof(small_buf) - 8);
+                RETURN_FALSE;
+            }
+            SW_STRING_FORMAT(buf, "%c%.*s\r\n", flag, (int) str_value.len(), str_value.val());
         } else {
-            length = sw_snprintf(message, sizeof(message), "+%s\r\n", "OK");
+            SW_STRING_FORMAT(buf, "%c%s\r\n", flag, default_message);
         }
-        RETURN_STRINGL(message, length);
-    } else if (type == Redis::REPLY_ERROR) {
-        if (value) {
-            zend::String str_value(value);
-            length = sw_snprintf(message, sizeof(message), "-%.*s\r\n", (int) str_value.len(), str_value.val());
-        } else {
-            length = sw_snprintf(message, sizeof(message), "-%s\r\n", "ERR");
-        }
-        RETURN_STRINGL(message, length);
     } else if (type == Redis::REPLY_INT) {
         if (!value) {
             goto _no_value;
         }
-        length = sw_snprintf(message, sizeof(message), ":" ZEND_LONG_FMT "\r\n", zval_get_long(value));
-        RETURN_STRINGL(message, length);
+        SW_STRING_FORMAT(buf, ":" ZEND_LONG_FMT "\r\n", zval_get_long(value));
     } else if (type == Redis::REPLY_STRING) {
         if (!value) {
         _no_value:
@@ -306,12 +302,9 @@ static PHP_METHOD(swoole_redis_server, format) {
             php_swoole_fatal_error(E_WARNING, "invalid string size");
             RETURN_FALSE;
         }
-        format_buffer->clear();
-        length = sw_snprintf(message, sizeof(message), "$%zu\r\n", str_value.len());
-        format_buffer->append(message, length);
-        format_buffer->append(str_value.val(), str_value.len());
-        format_buffer->append(SW_CRLF, SW_CRLF_LEN);
-        RETURN_STRINGL(format_buffer->str, format_buffer->length);
+        SW_STRING_FORMAT(buf, "$%zu\r\n", str_value.len());
+        buf->append(str_value.val(), str_value.len());
+        buf->append(SW_CRLF, SW_CRLF_LEN);
     } else if (type == Redis::REPLY_SET) {
         if (!value) {
             goto _no_value;
@@ -319,20 +312,16 @@ static PHP_METHOD(swoole_redis_server, format) {
         if (!ZVAL_IS_ARRAY(value)) {
             php_swoole_fatal_error(E_WARNING, "the second parameter should be an array");
         }
-        format_buffer->clear();
-        length = sw_snprintf(message, sizeof(message), "*%d\r\n", zend_hash_num_elements(Z_ARRVAL_P(value)));
-        format_buffer->append(message, length);
+        SW_STRING_FORMAT(buf, "*%d\r\n", zend_hash_num_elements(Z_ARRVAL_P(value)));
 
         zval *item;
         SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(value), item)
         zend::String str_value(item);
-        length = sw_snprintf(message, sizeof(message), "$%zu\r\n", str_value.len());
-        format_buffer->append(message, length);
-        format_buffer->append(str_value.val(), str_value.len());
-        format_buffer->append(SW_CRLF, SW_CRLF_LEN);
+        length = sw_snprintf(small_buf, sizeof(small_buf), "$%zu\r\n", str_value.len());
+        buf->append(small_buf, length);
+        buf->append(str_value.val(), str_value.len());
+        buf->append(SW_CRLF, SW_CRLF_LEN);
         SW_HASHTABLE_FOREACH_END();
-
-        RETURN_STRINGL(format_buffer->str, format_buffer->length);
     } else if (type == Redis::REPLY_MAP) {
         if (!value) {
             goto _no_value;
@@ -340,9 +329,7 @@ static PHP_METHOD(swoole_redis_server, format) {
         if (!ZVAL_IS_ARRAY(value)) {
             php_swoole_fatal_error(E_WARNING, "the second parameter should be an array");
         }
-        format_buffer->clear();
-        length = sw_snprintf(message, sizeof(message), "*%d\r\n", 2 * zend_hash_num_elements(Z_ARRVAL_P(value)));
-        format_buffer->append(message, length);
+        SW_STRING_FORMAT(buf, "*%d\r\n", 2 * zend_hash_num_elements(Z_ARRVAL_P(value)));
 
         char *key;
         uint32_t keylen;
@@ -353,17 +340,27 @@ static PHP_METHOD(swoole_redis_server, format) {
         if (key == nullptr || keylen == 0) {
             continue;
         }
+
         zend::String str_value(item);
-        length = sw_snprintf(message, sizeof(message), "$%d\r\n%s\r\n$%zu\r\n", keylen, key, str_value.len());
-        format_buffer->append(message, length);
-        format_buffer->append(str_value.val(), str_value.len());
-        format_buffer->append(SW_CRLF, SW_CRLF_LEN);
+        if (str_value.len() > sizeof(small_buf) - 16) {
+            php_swoole_fatal_error(E_WARNING, "value is too long, max size is %lu", sizeof(small_buf) - 16);
+            RETURN_FALSE;
+        }
+
+        length = sw_snprintf(small_buf, sizeof(small_buf), "$%d\r\n%s\r\n$%zu\r\n", keylen, key, str_value.len());
+        buf->append(small_buf, length);
+        buf->append(str_value.val(), str_value.len());
+        buf->append(SW_CRLF, SW_CRLF_LEN);
         (void) keytype;
         SW_HASHTABLE_FOREACH_END();
-
-        RETURN_STRINGL(format_buffer->str, format_buffer->length);
     } else {
         php_swoole_error(E_WARNING, "Unknown type[" ZEND_LONG_FMT "]", type);
         RETURN_FALSE;
     }
+
+    auto str = zend::fetch_zend_string_by_val(buf->str);
+    buf->set_null_terminated();
+    str->len = buf->length;
+    buf->release();
+    RETURN_STR(str);
 }

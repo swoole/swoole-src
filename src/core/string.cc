@@ -145,6 +145,15 @@ bool String::reserve(size_t new_size) {
     return true;
 }
 
+char *String::release() {
+    char *tmp = str;
+    str = nullptr;
+    size = 0;
+    length = 0;
+    offset = 0;
+    return tmp;
+}
+
 bool String::repeat(const char *data, size_t len, size_t n) {
     if (n <= 0) {
         return false;

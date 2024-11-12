@@ -1539,6 +1539,8 @@ static PHP_FUNCTION(swoole_implicit_fn) {
         sw_php_exit(zargs ? zval_get_long(zargs) : 95);
     } else if (SW_STRCASEEQ(fn, l_fn, "abort")) {
         abort();
+    } else if (SW_STRCASEEQ(fn, l_fn, "refcount")) {
+        RETURN_LONG(zval_refcount_p(zargs));
     } else {
         zend_throw_exception_ex(swoole_exception_ce, SW_ERROR_INVALID_PARAMS, "unknown fn '%s'", fn);
     }

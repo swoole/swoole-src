@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 218af3f0a0165fc9bf9919be127b95e82c50536a */
+ * Stub hash: 307a0b7aeb56b4678af07d88a7e0d3e83f05f987 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_version, 0, 0, IS_STRING, 0)
 ZEND_END_ARG_INFO()
@@ -130,7 +130,7 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_internal_call_user_shutdown_begin, 0, 0, _IS_BOOL, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_implicit_fn, 0, 1, IS_VOID, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_implicit_fn, 0, 1, IS_MIXED, 0)
 	ZEND_ARG_TYPE_INFO(0, fn, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, args, IS_MIXED, 0, "null")
 ZEND_END_ARG_INFO()
