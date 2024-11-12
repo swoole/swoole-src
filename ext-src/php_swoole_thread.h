@@ -149,7 +149,7 @@ struct ArrayItem {
 };
 
 class ZendArray : public ThreadResource {
- protected:
+  protected:
     swoole::RWLock lock_;
     zend_array ht;
 
@@ -158,7 +158,7 @@ class ZendArray : public ThreadResource {
         delete item;
     }
 
- public:
+  public:
     ZendArray() : ThreadResource(), lock_(0) {
         zend_hash_init(&ht, 0, NULL, item_dtor, 1);
     }
@@ -238,16 +238,16 @@ class ZendArray : public ThreadResource {
     }
 
     void strkey_incr(zval *zkey, zval *zvalue, zval *return_value);
-    void intkey_incr(zval *zkey, zval *zvalue, zval *return_value);
+    void intkey_incr(zend_long index, zval *zvalue, zval *return_value);
     void strkey_decr(zval *zkey, zval *zvalue, zval *return_value);
-    void intkey_decr(zval *zkey, zval *zvalue, zval *return_value);
+    void intkey_decr(zend_long index, zval *zvalue, zval *return_value);
     bool index_incr(zval *zkey, zval *zvalue, zval *return_value);
     bool index_decr(zval *zkey, zval *zvalue, zval *return_value);
 
     void strkey_add(zval *zkey, zval *zvalue, zval *return_value);
-    void intkey_add(zval *zkey, zval *zvalue, zval *return_value);
+    void intkey_add(zend_long index, zval *zvalue, zval *return_value);
     void strkey_update(zval *zkey, zval *zvalue, zval *return_value);
-    void intkey_update(zval *zkey, zval *zvalue, zval *return_value);
+    void intkey_update(zend_long index, zval *zvalue, zval *return_value);
 
     void count(zval *return_value) {
         lock_.lock_rd();
@@ -269,26 +269,19 @@ class ZendArray : public ThreadResource {
         lock_.unlock();
     }
 
-    void intkey_offsetGet(zval *zkey, zval *return_value) {
-        intkey_offsetGet(zval_get_long(zkey), return_value);
-    }
-
-    void intkey_offsetExists(zval *zkey, zval *return_value) {
-        zend_long index = zval_get_long(zkey);
+    void intkey_offsetExists(zend_long index, zval *return_value) {
         lock_.lock_rd();
         RETVAL_BOOL(intkey_exists(index));
         lock_.unlock();
     }
 
-    void intkey_offsetUnset(zval *zkey) {
-        zend_long index = zval_get_long(zkey);
+    void intkey_offsetUnset(zend_long index) {
         lock_.lock();
         zend_hash_index_del(&ht, index);
         lock_.unlock();
     }
 
-    void intkey_offsetSet(zval *zkey, zval *zvalue) {
-        zend_long index = zval_get_long(zkey);
+    void intkey_offsetSet(zend_long index, zval *zvalue) {
         auto item = new ArrayItem(zvalue);
         lock_.lock();
         zend_hash_index_update_ptr(&ht, index, item);

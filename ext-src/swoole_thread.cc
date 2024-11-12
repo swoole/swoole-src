@@ -824,9 +824,8 @@ void ZendArray::strkey_incr(zval *zkey, zval *zvalue, zval *return_value) {
     lock_.unlock();
 }
 
-void ZendArray::intkey_incr(zval *zkey, zval *zvalue, zval *return_value) {
+void ZendArray::intkey_incr(zend_long index, zval *zvalue, zval *return_value) {
     ArrayItem *item;
-    zend_long index = zval_get_long(zkey);
     lock_.lock();
     item = (ArrayItem *) (ArrayItem *) zend_hash_index_find_ptr(&ht, index);
     if (item) {
@@ -844,9 +843,9 @@ void ZendArray::strkey_decr(zval *zkey, zval *zvalue, zval *return_value) {
     strkey_incr(zkey, &rvalue, return_value);
 }
 
-void ZendArray::intkey_decr(zval *zkey, zval *zvalue, zval *return_value) {
+void ZendArray::intkey_decr(zend_long index, zval *zvalue, zval *return_value) {
     INIT_DECR_VALUE(zvalue);
-    intkey_incr(zkey, &rvalue, return_value);
+    intkey_incr(index, &rvalue, return_value);
 }
 
 void ZendArray::strkey_add(zval *zkey, zval *zvalue, zval *return_value) {
@@ -861,8 +860,7 @@ void ZendArray::strkey_add(zval *zkey, zval *zvalue, zval *return_value) {
     lock_.unlock();
 }
 
-void ZendArray::intkey_add(zval *zkey, zval *zvalue, zval *return_value) {
-    zend_long index = zval_get_long(zkey);
+void ZendArray::intkey_add(zend_long index, zval *zvalue, zval *return_value) {
     lock_.lock();
     if (intkey_exists(index)) {
         RETVAL_FALSE;
@@ -887,8 +885,7 @@ void ZendArray::strkey_update(zval *zkey, zval *zvalue, zval *return_value) {
     lock_.unlock();
 }
 
-void ZendArray::intkey_update(zval *zkey, zval *zvalue, zval *return_value) {
-    zend_long index = zval_get_long(zkey);
+void ZendArray::intkey_update(zend_long index, zval *zvalue, zval *return_value) {
     lock_.lock();
     if (!intkey_exists(index)) {
         RETVAL_FALSE;
