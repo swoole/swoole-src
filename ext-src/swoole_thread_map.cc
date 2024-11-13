@@ -150,7 +150,7 @@ static int handle_array_key(zval *key, zend_ulong *idx) {
     case IS_NULL:
         return IS_NULL;
     case IS_DOUBLE:
-        *idx = Z_DVAL_P(key);
+        *idx = zend_dval_to_lval_safe(Z_DVAL_P(key));
         return IS_LONG;
     case IS_FALSE:
         *idx = 0;

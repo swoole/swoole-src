@@ -23,9 +23,16 @@
 
 #define SW_STRINGL(s) s->str, s->length
 #define SW_STRINGS(s) s->str, s->size
+// copy value
 #define SW_STRINGCVL(s) s->str + s->offset, s->length - s->offset
-
-#define SW_STRING_FORMAT(s, format, ...) s->length = sw_snprintf(SW_STRINGS(s), format, ##__VA_ARGS__)
+// append value
+#define SW_STRINGAVL(s) s->str + s->length, s->size - s->length
+/**
+ * This function does not automatically expand memory;
+ * ensure that the value to be written is less than the actual remaining capacity (size-length).
+ * If the size of the value cannot be determined, should use the String::format() function.
+ */
+#define SW_STRING_FORMAT(s, format, ...) s->length += sw_snprintf(SW_STRINGAVL(s), format, ##__VA_ARGS__)
 
 namespace swoole {
 
