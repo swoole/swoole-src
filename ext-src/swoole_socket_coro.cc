@@ -1954,6 +1954,7 @@ static PHP_METHOD(swoole_socket_coro, getOption) {
         add_assoc_long(return_value, "usec", (timeout - (double) sec) * 1000000);
         break;
     }
+#ifdef TCP_INFO
     case TCP_INFO: {
         tcp_info info;
         socklen_t len = sizeof(info);
@@ -1968,6 +1969,7 @@ static PHP_METHOD(swoole_socket_coro, getOption) {
         }
         break;
     }
+#endif
     default: {
         optlen = sizeof(other_val);
 
