@@ -148,16 +148,14 @@ class HttpServer {
         ctx->websocket_compression = websocket_compression;
 #endif
         ctx->upload_tmp_dir = upload_tmp_dir;
-
         ctx->bind(conn);
 
-        swoole_http_parser *parser = &ctx->parser;
-        parser->data = ctx;
+        llhttp_t *parser = &ctx->parser;
         swoole_http_parser_init(parser, PHP_HTTP_REQUEST);
+        parser->data = (void *) ctx;
 
         zend_update_property_ex(
             swoole_http_response_ce, SW_Z8_OBJ_P(ctx->response.zobject), SW_ZSTR_KNOWN(SW_ZEND_STR_SOCKET), zconn);
-
         return ctx;
     }
 
@@ -567,7 +565,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
     zend::Variable remote_addr = zend::Variable(sock->get_ip());
 
     while (true) {
-    _recv_request : {
+    _recv_request: {
         sock->get_socket()->recv_wait = 1;
         ssize_t retval = sock->recv(buffer->str + buffer->length, buffer->size - buffer->length);
         if (sw_unlikely(retval <= 0)) {
@@ -605,6 +603,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
                 ctx->response.status = SW_HTTP_BAD_REQUEST;
                 break;
             }
+
             buffer->offset += header_length;
             total_length = header_length + ctx->get_content_length();
             if (ctx->get_content_length() > 0 && total_length > sock->protocol.package_max_length) {
@@ -637,13 +636,13 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
                              (intmax_t) buffer->offset,
                              ctx->completed);
 
-            if (ctx->parser.state == s_dead) {
+            if (ctx->parser.error != PHP_HTTP_OK && ctx->parser.error != PHP_HTTP_PAUSED_H2_UPGRADE) {
                 ctx->response.status = SW_HTTP_BAD_REQUEST;
                 break;
             }
         }
 
-        if (ctx->parser.method == PHP_HTTP_NOT_IMPLEMENTED && buffer->length >= (sizeof(SW_HTTP2_PRI_STRING) - 1) &&
+        if (ctx->parser.error == PHP_HTTP_PAUSED_H2_UPGRADE && buffer->length >= (sizeof(SW_HTTP2_PRI_STRING) - 1) &&
             memcmp(buffer->str, SW_HTTP2_PRI_STRING, sizeof(SW_HTTP2_PRI_STRING) - 1) == 0) {
             buffer->offset = (sizeof(SW_HTTP2_PRI_STRING) - 1);
             hs->recv_http2_frame(ctx);
@@ -664,7 +663,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
 
         zend::Callable *cb = hs->get_handler(ctx);
         zval args[2] = {*ctx->request.zobject, *ctx->response.zobject};
-        bool keep_alive = swoole_http_should_keep_alive(&ctx->parser) && !ctx->websocket;
+        bool keep_alive = !!llhttp_should_keep_alive(&ctx->parser) && !ctx->websocket;
         sock->get_socket()->recv_wait = 0;
 
         if (cb) {

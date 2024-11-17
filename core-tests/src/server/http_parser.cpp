@@ -17,31 +17,43 @@
   +----------------------------------------------------------------------+
  */
 #include "test_core.h"
-#include "swoole_http_parser.h"
+#include "llhttp.h"
 
 using namespace std;
 
-static int http_request_on_path(swoole_http_parser *parser, const char *at, size_t length);
-static int http_request_on_query_string(swoole_http_parser *parser, const char *at, size_t length);
-static int http_request_on_body(swoole_http_parser *parser, const char *at, size_t length);
-static int http_request_on_header_field(swoole_http_parser *parser, const char *at, size_t length);
-static int http_request_on_header_value(swoole_http_parser *parser, const char *at, size_t length);
-static int http_request_on_headers_complete(swoole_http_parser *parser);
-static int http_request_message_complete(swoole_http_parser *parser);
+static int http_request_on_query_string(llhttp_t *parser, const char *at, size_t length);
+static int http_request_on_body(llhttp_t *parser, const char *at, size_t length);
+static int http_request_on_header_field(llhttp_t *parser, const char *at, size_t length);
+static int http_request_on_header_value(llhttp_t *parser, const char *at, size_t length);
+static int http_request_on_headers_complete(llhttp_t *parser);
+static int http_request_message_complete(llhttp_t *parser);
 
 // clang-format off
-static const swoole_http_parser_settings http_parser_settings =
+static const llhttp_settings_t http_parser_settings =
 {
-    nullptr,
-    http_request_on_path,
-    http_request_on_query_string,
-    nullptr,
-    nullptr,
-    http_request_on_header_field,
-    http_request_on_header_value,
-    http_request_on_headers_complete,
-    http_request_on_body,
-    http_request_message_complete
+    nullptr, // on_message_begin
+    http_request_on_query_string, // on_url
+    nullptr, // on_status
+    nullptr, // on_method
+    nullptr, // on_version
+    http_request_on_header_field, // on_header_field
+    http_request_on_header_value, // on_header_value
+    nullptr, // on_chunk_extension_name
+    nullptr, // on_chunk_extension_value
+    http_request_on_headers_complete, // on_headers_complete
+    http_request_on_body, // on_body
+    http_request_message_complete, // on_message_complete
+    nullptr,  // on_url_complete
+    nullptr, // on_status_complete
+    nullptr, // on_method_complete
+    nullptr, // on_version_complete
+    nullptr, // on_header_field_complete
+    nullptr, // on_header_value_complete
+    nullptr, // on_chunk_extension_name_complete
+    nullptr, // on_chunk_extension_value_complete
+    nullptr, // on_chunk_header
+    nullptr, // on_chunk_complete
+    nullptr, // on_reset
 };
 // clang-format on
 
@@ -65,7 +77,7 @@ typedef struct {
     uchar co_socket : 1;
     uchar http2 : 1;
 
-    swoole_http_parser parser;
+    llhttp_t parser;
 
     uint16_t input_var_num;
     char *current_header_name;
@@ -80,21 +92,21 @@ typedef struct {
     string query_string;
 } HttpContext;
 
-static swoole_http_parser *swoole_http_parser_create(swoole_http_parser_type type = PHP_HTTP_REQUEST) {
+static llhttp_t *swoole_http_parser_create(swoole_http_parser_t type = PHP_HTTP_REQUEST) {
     HttpContext *ctx = new HttpContext();
-    swoole_http_parser *parser = &ctx->parser;
+    llhttp_t *parser = &ctx->parser;
     swoole_http_parser_init(parser, type);
     parser->data = ctx;
     return parser;
 }
 
-static void swoole_http_destroy_context(swoole_http_parser *parser) {
+static void swoole_http_destroy_context(llhttp_t *parser) {
     delete (HttpContext *) parser->data;
     return;
 }
 
 static int swoole_http_parser_method(string protocol) {
-    swoole_http_parser *parser = swoole_http_parser_create();
+    llhttp_t *parser = swoole_http_parser_create();
     swoole_http_parser_execute(parser, &http_parser_settings, protocol.c_str(), protocol.length());
 
     int ret = parser->method;
@@ -102,37 +114,48 @@ static int swoole_http_parser_method(string protocol) {
     return ret;
 }
 
-static int http_request_on_path(swoole_http_parser *parser, const char *at, size_t length) {
-    return 0;
+static const char *swoole_get_method_name(swoole_http_method_t method) {
+    return llhttp_method_name((llhttp_method_t) method);
 }
 
-static int http_request_on_query_string(swoole_http_parser *parser, const char *at, size_t length) {
+static int http_request_on_query_string(llhttp_t *parser, const char *at, size_t length) {
     HttpContext *ctx = (HttpContext *) parser->data;
-    ctx->query_string = string(at, length);
+    uint32_t q = length;
+    for (size_t i = 0; i < length; i++) {
+        if (at[i] == '?') {
+            q = i;
+            break;
+        }
+    }
+
+    if (length - q > 1) {
+        ctx->query_string = std::string(at + q + 1, length - q - 1);
+    }
+
     return 0;
 }
 
-static int http_request_on_header_field(swoole_http_parser *parser, const char *at, size_t length) {
+static int http_request_on_header_field(llhttp_t *parser, const char *at, size_t length) {
     HttpContext *ctx = (HttpContext *) parser->data;
     ctx->header_fields.push_back(string(at, length));
     return 0;
 }
 
-static int http_request_on_header_value(swoole_http_parser *parser, const char *at, size_t length) {
+static int http_request_on_header_value(llhttp_t *parser, const char *at, size_t length) {
     HttpContext *ctx = (HttpContext *) parser->data;
     ctx->header_values.push_back(string(at, length));
     return 0;
 }
 
-static int http_request_on_headers_complete(swoole_http_parser *parser) {
+static int http_request_on_headers_complete(llhttp_t *parser) {
     return 0;
 }
 
-static int http_request_on_body(swoole_http_parser *parser, const char *at, size_t length) {
+static int http_request_on_body(llhttp_t *parser, const char *at, size_t length) {
     return 0;
 }
 
-static int http_request_message_complete(swoole_http_parser *parser) {
+static int http_request_message_complete(llhttp_t *parser) {
     return 0;
 }
 
@@ -150,7 +173,7 @@ static const string request_get_http2 = "GET /get HTTP/2\r\n"
                                         "Connection: keep-alive\r\n"
                                         "\r\n";
 
-static const string request_get_http09 = "GET /index.html\r\n";
+static const string request_get_http09 = "GET /index.html\r\n\r\n";
 
 static const string request_head = "HEAD /get HTTP/1.1\r\n"
                                    "Host: www.maria.com\r\n"
@@ -173,9 +196,9 @@ static const string request_get_with_query_string2 = "GET /get? HTTP/1.1\r\n"
                                                      "Connection: keep-alive\r\n"
                                                      "\r\n";
 
-static const string request_get_with_query_string3 = "GET /index.html?a=123\r";
+static const string request_get_with_query_string3 = "GET /index.html?a=123\r\n\r\n\r\n";
 
-static const string request_get_with_query_string4 = "GET /index.html?a=123\n";
+static const string request_get_with_query_string4 = "GET /index.html?a=123\r\n\r\n\r\n";
 
 static const string request_get_with_query_string5 = "GET /get#frag=123 HTTP/1.1\r\n"
                                                      "Host: www.maria.com\r\n"
@@ -212,12 +235,13 @@ static const string request_get_http10 = "GET /get HTTP/1.0\r\n"
                                          "Accept: */*\r\n"
                                          "\r\n";
 
-static const string request_get_http10_with_keep_alive = "GET /get HTTP/1.0\r\n"
+static const string request_get_http10_with_keep_alive = "GET /get HTTP/1.1\r\n"
                                                          "Host: www.maria.com\r\n"
                                                          "User-Agent: curl/7.64.1\r\n"
                                                          "Accept: */*\r\n"
                                                          "Connection: keep-alive\r\n"
-                                                         "\r\n";
+                                                         "\r\n"
+                                                         "foo=bar\r\n\r\n";
 
 static const string request_post = "POST /api/build/v1/foo HTTP/1.1\r\n"
                                    "Host: www.maria.com\r\n"
@@ -283,38 +307,40 @@ static const string response_chunk = "HTTP/1.1 200 OK\r\n"
                                      "\r\n";
 
 TEST(http_parser, method_name) {
-    ASSERT_STREQ(swoole_http_method_str(PHP_HTTP_DELETE), "DELETE");
-    ASSERT_STREQ(swoole_http_method_str(PHP_HTTP_GET), "GET");
-    ASSERT_STREQ(swoole_http_method_str(PHP_HTTP_HEAD), "HEAD");
-    ASSERT_STREQ(swoole_http_method_str(PHP_HTTP_POST), "POST");
-    ASSERT_STREQ(swoole_http_method_str(PHP_HTTP_PUT), "PUT");
-    ASSERT_STREQ(swoole_http_method_str(PHP_HTTP_PATCH), "PATCH");
-    ASSERT_STREQ(swoole_http_method_str(PHP_HTTP_CONNECT), "CONNECT");
-    ASSERT_STREQ(swoole_http_method_str(PHP_HTTP_OPTIONS), "OPTIONS");
-    ASSERT_STREQ(swoole_http_method_str(PHP_HTTP_TRACE), "TRACE");
-    ASSERT_STREQ(swoole_http_method_str(PHP_HTTP_COPY), "COPY");
-    ASSERT_STREQ(swoole_http_method_str(PHP_HTTP_LOCK), "LOCK");
-    ASSERT_STREQ(swoole_http_method_str(PHP_HTTP_MKCOL), "MKCOL");
-    ASSERT_STREQ(swoole_http_method_str(PHP_HTTP_MOVE), "MOVE");
-    ASSERT_STREQ(swoole_http_method_str(PHP_HTTP_MKCALENDAR), "MKCALENDAR");
-    ASSERT_STREQ(swoole_http_method_str(PHP_HTTP_PROPFIND), "PROPFIND");
-    ASSERT_STREQ(swoole_http_method_str(PHP_HTTP_PROPPATCH), "PROPPATCH");
-    ASSERT_STREQ(swoole_http_method_str(PHP_HTTP_SEARCH), "SEARCH");
-    ASSERT_STREQ(swoole_http_method_str(PHP_HTTP_UNLOCK), "UNLOCK");
-    ASSERT_STREQ(swoole_http_method_str(PHP_HTTP_REPORT), "REPORT");
-    ASSERT_STREQ(swoole_http_method_str(PHP_HTTP_MKACTIVITY), "MKACTIVITY");
-    ASSERT_STREQ(swoole_http_method_str(PHP_HTTP_CHECKOUT), "CHECKOUT");
-    ASSERT_STREQ(swoole_http_method_str(PHP_HTTP_MERGE), "MERGE");
-    ASSERT_STREQ(swoole_http_method_str(PHP_HTTP_MSEARCH), "M-SEARCH");
-    ASSERT_STREQ(swoole_http_method_str(PHP_HTTP_NOTIFY), "NOTIFY");
-    ASSERT_STREQ(swoole_http_method_str(PHP_HTTP_SUBSCRIBE), "SUBSCRIBE");
-    ASSERT_STREQ(swoole_http_method_str(PHP_HTTP_UNSUBSCRIBE), "UNSUBSCRIBE");
-    ASSERT_STREQ(swoole_http_method_str(PHP_HTTP_PURGE), "PURGE");
-    ASSERT_STREQ(swoole_http_method_str(PHP_HTTP_NOT_IMPLEMENTED), "NOTIMPLEMENTED");
+    ASSERT_STREQ(swoole_get_method_name(PHP_HTTP_DELETE), "DELETE");
+    ASSERT_STREQ(swoole_get_method_name(PHP_HTTP_GET), "GET");
+    ASSERT_STREQ(swoole_get_method_name(PHP_HTTP_HEAD), "HEAD");
+    ASSERT_STREQ(swoole_get_method_name(PHP_HTTP_POST), "POST");
+    ASSERT_STREQ(swoole_get_method_name(PHP_HTTP_PUT), "PUT");
+    ASSERT_STREQ(swoole_get_method_name(PHP_HTTP_PATCH), "PATCH");
+    ASSERT_STREQ(swoole_get_method_name(PHP_HTTP_CONNECT), "CONNECT");
+    ASSERT_STREQ(swoole_get_method_name(PHP_HTTP_OPTIONS), "OPTIONS");
+    ASSERT_STREQ(swoole_get_method_name(PHP_HTTP_TRACE), "TRACE");
+    ASSERT_STREQ(swoole_get_method_name(PHP_HTTP_COPY), "COPY");
+    ASSERT_STREQ(swoole_get_method_name(PHP_HTTP_LOCK), "LOCK");
+    ASSERT_STREQ(swoole_get_method_name(PHP_HTTP_MKCOL), "MKCOL");
+    ASSERT_STREQ(swoole_get_method_name(PHP_HTTP_MOVE), "MOVE");
+    ASSERT_STREQ(swoole_get_method_name(PHP_HTTP_MKCALENDAR), "MKCALENDAR");
+    ASSERT_STREQ(swoole_get_method_name(PHP_HTTP_PROPFIND), "PROPFIND");
+    ASSERT_STREQ(swoole_get_method_name(PHP_HTTP_PROPPATCH), "PROPPATCH");
+    ASSERT_STREQ(swoole_get_method_name(PHP_HTTP_SEARCH), "SEARCH");
+    ASSERT_STREQ(swoole_get_method_name(PHP_HTTP_UNLOCK), "UNLOCK");
+    ASSERT_STREQ(swoole_get_method_name(PHP_HTTP_REPORT), "REPORT");
+    ASSERT_STREQ(swoole_get_method_name(PHP_HTTP_MKACTIVITY), "MKACTIVITY");
+    ASSERT_STREQ(swoole_get_method_name(PHP_HTTP_CHECKOUT), "CHECKOUT");
+    ASSERT_STREQ(swoole_get_method_name(PHP_HTTP_MERGE), "MERGE");
+    ASSERT_STREQ(swoole_get_method_name(PHP_HTTP_MSEARCH), "M - SEARCH");
+    ASSERT_STREQ(swoole_get_method_name(PHP_HTTP_NOTIFY), "NOTIFY");
+    ASSERT_STREQ(swoole_get_method_name(PHP_HTTP_SUBSCRIBE), "SUBSCRIBE");
+    ASSERT_STREQ(swoole_get_method_name(PHP_HTTP_UNSUBSCRIBE), "UNSUBSCRIBE");
+    ASSERT_STREQ(swoole_get_method_name(PHP_HTTP_PURGE), "PURGE");
+    ASSERT_STREQ(swoole_get_method_name(PHP_HTTP_PRI), "PRI");
+    ASSERT_STREQ(swoole_get_method_name(PHP_HTTP_GET_PARAMETER), "GET_PARAMETER");
+    ASSERT_STREQ(swoole_get_method_name(PHP_HTTP_SET_PARAMETER), "SET_PARAMETER");
 }
 
 TEST(http_parser, http_version) {
-    swoole_http_parser *parser = swoole_http_parser_create();
+    llhttp_t *parser = swoole_http_parser_create();
     swoole_http_parser_execute(parser, &http_parser_settings, request_get.c_str(), request_get.length());
     ASSERT_TRUE(parser->http_major == 1);
     ASSERT_TRUE(parser->http_minor == 1);
@@ -339,7 +365,7 @@ TEST(http_parser, http_version) {
     swoole_http_destroy_context(parser);
 
     parser = swoole_http_parser_create();
-    parser->state = s_start_req_or_res;
+    parser->type = PHP_HTTP_BOTH;
     swoole_http_parser_execute(parser, &http_parser_settings, request_get.c_str(), request_get.length());
     ASSERT_TRUE(parser->http_major == 1);
     ASSERT_TRUE(parser->http_minor == 1);
@@ -347,9 +373,9 @@ TEST(http_parser, http_version) {
 }
 
 TEST(http_parser, should_keep_alive) {
-    swoole_http_parser *parser = swoole_http_parser_create();
+    llhttp_t *parser = swoole_http_parser_create();
     swoole_http_parser_execute(parser, &http_parser_settings, request_get.c_str(), request_get.length());
-    ASSERT_TRUE(swoole_http_should_keep_alive(parser));
+    ASSERT_TRUE(!!llhttp_should_keep_alive(parser));
     swoole_http_destroy_context(parser);
 
     parser = swoole_http_parser_create();
@@ -357,12 +383,12 @@ TEST(http_parser, should_keep_alive) {
                                &http_parser_settings,
                                request_get_with_connection_close.c_str(),
                                request_get_with_connection_close.length());
-    ASSERT_FALSE(swoole_http_should_keep_alive(parser));
+    ASSERT_FALSE(llhttp_should_keep_alive(parser) == 0);
     swoole_http_destroy_context(parser);
 
     parser = swoole_http_parser_create();
     swoole_http_parser_execute(parser, &http_parser_settings, request_get_http10.c_str(), request_get_http10.length());
-    ASSERT_FALSE(swoole_http_should_keep_alive(parser));
+    ASSERT_FALSE(!!llhttp_should_keep_alive(parser));
     swoole_http_destroy_context(parser);
 
     parser = swoole_http_parser_create();
@@ -370,77 +396,99 @@ TEST(http_parser, should_keep_alive) {
                                &http_parser_settings,
                                request_get_http10_with_keep_alive.c_str(),
                                request_get_http10_with_keep_alive.length());
-    ASSERT_TRUE(swoole_http_should_keep_alive(parser));
+    ASSERT_TRUE(llhttp_should_keep_alive(parser) == 1);
     swoole_http_destroy_context(parser);
 
     parser = swoole_http_parser_create();
     swoole_http_parser_execute(parser, &http_parser_settings, request_get_http10.c_str(), request_get_http10.length());
-    ASSERT_FALSE(swoole_http_should_keep_alive(parser));
+    ASSERT_FALSE(!!llhttp_should_keep_alive(parser));
     swoole_http_destroy_context(parser);
 
     parser = swoole_http_parser_create();
     swoole_http_parser_execute(
         parser, &http_parser_settings, request_get_with_schema.c_str(), request_get_with_schema.length());
-    ASSERT_TRUE(swoole_http_should_keep_alive(parser));
+    ASSERT_TRUE(!!llhttp_should_keep_alive(parser));
     swoole_http_destroy_context(parser);
 
     parser = swoole_http_parser_create();
-    parser->state = s_start_req_or_res;
+    parser->type = PHP_HTTP_BOTH;
     swoole_http_parser_execute(parser, &http_parser_settings, request_head.c_str(), request_head.length());
-    ASSERT_TRUE(swoole_http_should_keep_alive(parser));
+    ASSERT_TRUE(!!llhttp_should_keep_alive(parser));
     swoole_http_destroy_context(parser);
 }
 
 TEST(http_parser, upgrade) {
-    swoole_http_parser *parser = swoole_http_parser_create();
+    llhttp_t *parser = swoole_http_parser_create();
     swoole_http_parser_execute(parser, &http_parser_settings, request_upgrade.c_str(), request_upgrade.length());
     ASSERT_TRUE(parser->upgrade == 1);
     swoole_http_destroy_context(parser);
 }
 
 TEST(http_parser, dead) {
-    swoole_http_parser *parser = swoole_http_parser_create();
+    llhttp_t *parser = swoole_http_parser_create();
     swoole_http_parser_execute(parser, &http_parser_settings, request_dead.c_str(), request_dead.length());
-    ASSERT_TRUE(parser->state == s_dead);
+    ASSERT_TRUE(parser->error != PHP_HTTP_OK);
     swoole_http_destroy_context(parser);
 }
 
 TEST(http_parser, zero) {
-    swoole_http_parser *parser = swoole_http_parser_create();
+    llhttp_t *parser = swoole_http_parser_create();
     int ret = swoole_http_parser_execute(parser, &http_parser_settings, "", 0);
     ASSERT_TRUE(ret == 0);
     swoole_http_destroy_context(parser);
 }
 
 TEST(http_parser, methods) {
-    ASSERT_EQ(swoole_http_parser_method("COPY /get HTTP/1.1\r\n\r\n"), PHP_HTTP_COPY);
-    ASSERT_EQ(swoole_http_parser_method("CHECKOUT /get HTTP/1.1\r\n\r\n"), PHP_HTTP_CHECKOUT);
+    ASSERT_EQ(swoole_http_parser_method("DELETE /get HTTP/1.1\r\n\r\n"), PHP_HTTP_DELETE);
+    ASSERT_EQ(swoole_http_parser_method("GET /get HTTP/1.1\r\n\r\n"), PHP_HTTP_GET);
     ASSERT_EQ(swoole_http_parser_method("HEAD /get HTTP/1.1\r\n\r\n"), PHP_HTTP_HEAD);
-    ASSERT_EQ(swoole_http_parser_method("LOCK /get HTTP/1.1\r\n\r\n"), PHP_HTTP_LOCK);
-    ASSERT_EQ(swoole_http_parser_method("MOVE /get HTTP/1.1\r\n\r\n"), PHP_HTTP_MOVE);
-    ASSERT_EQ(swoole_http_parser_method("MKCALENDAR /get HTTP/1.1\r\n\r\n"), PHP_HTTP_MKCALENDAR);
-    ASSERT_EQ(swoole_http_parser_method("MKACTIVITY /get HTTP/1.1\r\n\r\n"), PHP_HTTP_MKACTIVITY);
-    ASSERT_EQ(swoole_http_parser_method("MERGE /get HTTP/1.1\r\n\r\n"), PHP_HTTP_MERGE);
-    ASSERT_EQ(swoole_http_parser_method("M-SEARCH /get HTTP/1.1\r\n\r\n"), PHP_HTTP_MSEARCH);
-    ASSERT_EQ(swoole_http_parser_method("NOTIFY /get HTTP/1.1\r\n\r\n"), PHP_HTTP_NOTIFY);
-    ASSERT_EQ(swoole_http_parser_method("OPTIONS /get HTTP/1.1\r\n\r\n"), PHP_HTTP_OPTIONS);
-    ASSERT_EQ(swoole_http_parser_method("REPORT /get HTTP/1.1\r\n\r\n"), PHP_HTTP_REPORT);
-    ASSERT_EQ(swoole_http_parser_method("SEARCH /get HTTP/1.1\r\n\r\n"), PHP_HTTP_SEARCH);
-    ASSERT_EQ(swoole_http_parser_method("SUBSCRIBE /get HTTP/1.1\r\n\r\n"), PHP_HTTP_SUBSCRIBE);
-    ASSERT_EQ(swoole_http_parser_method("UNSUBSCRIBE /get HTTP/1.1\r\n\r\n"), PHP_HTTP_UNSUBSCRIBE);
-    ASSERT_EQ(swoole_http_parser_method("TRACE /get HTTP/1.1\r\n\r\n"), PHP_HTTP_TRACE);
-    ASSERT_EQ(swoole_http_parser_method("UNLOCK /get HTTP/1.1\r\n\r\n"), PHP_HTTP_UNLOCK);
-    ASSERT_EQ(swoole_http_parser_method("PURGE /get HTTP/1.1\r\n\r\n"), PHP_HTTP_PURGE);
     ASSERT_EQ(swoole_http_parser_method("POST /get HTTP/1.1\r\n\r\n"), PHP_HTTP_POST);
+    ASSERT_EQ(swoole_http_parser_method("PUT /get HTTP/1.1\r\n\r\n"), PHP_HTTP_PUT);
+    ASSERT_EQ(swoole_http_parser_method("CONNECT /get HTTP/1.1\r\n\r\n"), PHP_HTTP_CONNECT);
+    ASSERT_EQ(swoole_http_parser_method("OPTIONS /get HTTP/1.1\r\n\r\n"), PHP_HTTP_OPTIONS);
+    ASSERT_EQ(swoole_http_parser_method("TRACE /get HTTP/1.1\r\n\r\n"), PHP_HTTP_TRACE);
+    ASSERT_EQ(swoole_http_parser_method("COPY /get HTTP/1.1\r\n\r\n"), PHP_HTTP_COPY);
+    ASSERT_EQ(swoole_http_parser_method("LOCK /get HTTP/1.1\r\n\r\n"), PHP_HTTP_LOCK);
+    ASSERT_EQ(swoole_http_parser_method("MKCOL /get HTTP/1.1\r\n\r\n"), PHP_HTTP_MKCOL);
+    ASSERT_EQ(swoole_http_parser_method("MOVE /get HTTP/1.1\r\n\r\n"), PHP_HTTP_MOVE);
     ASSERT_EQ(swoole_http_parser_method("PROPFIND /get HTTP/1.1\r\n\r\n"), PHP_HTTP_PROPFIND);
     ASSERT_EQ(swoole_http_parser_method("PROPPATCH /get HTTP/1.1\r\n\r\n"), PHP_HTTP_PROPPATCH);
-    ASSERT_EQ(swoole_http_parser_method("PUT /get HTTP/1.1\r\n\r\n"), PHP_HTTP_PUT);
+    ASSERT_EQ(swoole_http_parser_method("SEARCH /get HTTP/1.1\r\n\r\n"), PHP_HTTP_SEARCH);
+    ASSERT_EQ(swoole_http_parser_method("UNLOCK /get HTTP/1.1\r\n\r\n"), PHP_HTTP_UNLOCK);
+    ASSERT_EQ(swoole_http_parser_method("BIND /get HTTP/1.1\r\n\r\n"), PHP_HTTP_BIND);
+    ASSERT_EQ(swoole_http_parser_method("REBIND /get HTTP/1.1\r\n\r\n"), PHP_HTTP_REBIND);
+    ASSERT_EQ(swoole_http_parser_method("UNBIND /get HTTP/1.1\r\n\r\n"), PHP_HTTP_UNBIND);
+    ASSERT_EQ(swoole_http_parser_method("ACL /get HTTP/1.1\r\n\r\n"), PHP_HTTP_ACL);
+    ASSERT_EQ(swoole_http_parser_method("REPORT /get HTTP/1.1\r\n\r\n"), PHP_HTTP_REPORT);
+    ASSERT_EQ(swoole_http_parser_method("MKACTIVITY /get HTTP/1.1\r\n\r\n"), PHP_HTTP_MKACTIVITY);
+    ASSERT_EQ(swoole_http_parser_method("CHECKOUT /get HTTP/1.1\r\n\r\n"), PHP_HTTP_CHECKOUT);
+    ASSERT_EQ(swoole_http_parser_method("M-SEARCH /get HTTP/1.1\r\n\r\n"), PHP_HTTP_MSEARCH);
+    ASSERT_EQ(swoole_http_parser_method("NOTIFY /get HTTP/1.1\r\n\r\n"), PHP_HTTP_NOTIFY);
+    ASSERT_EQ(swoole_http_parser_method("SUBSCRIBE /get HTTP/1.1\r\n\r\n"), PHP_HTTP_SUBSCRIBE);
+    ASSERT_EQ(swoole_http_parser_method("UNSUBSCRIBE /get HTTP/1.1\r\n\r\n"), PHP_HTTP_UNSUBSCRIBE);
     ASSERT_EQ(swoole_http_parser_method("PATCH /get HTTP/1.1\r\n\r\n"), PHP_HTTP_PATCH);
-    ASSERT_EQ(swoole_http_parser_method("UNKNOWN /get HTTP/1.1\r\n\r\n"), PHP_HTTP_NOT_IMPLEMENTED);
+    ASSERT_EQ(swoole_http_parser_method("PURGE /get HTTP/1.1\r\n\r\n"), PHP_HTTP_PURGE);
+    ASSERT_EQ(swoole_http_parser_method("MKCALENDAR /get HTTP/1.1\r\n\r\n"), PHP_HTTP_MKCALENDAR);
+    ASSERT_EQ(swoole_http_parser_method("LINK /get HTTP/1.1\r\n\r\n"), PHP_HTTP_LINK);
+    ASSERT_EQ(swoole_http_parser_method("UNLINK /get HTTP/1.1\r\n\r\n"), PHP_HTTP_UNLINK);
+    ASSERT_EQ(swoole_http_parser_method("SOURCE /get HTTP/1.1\r\n\r\n"), PHP_HTTP_SOURCE);
+    ASSERT_EQ(swoole_http_parser_method("PRI /get HTTP/1.1\r\n\r\n"), PHP_HTTP_PRI);
+    ASSERT_EQ(swoole_http_parser_method("DESCRIBE /get HTTP/1.1\r\n\r\n"), PHP_HTTP_DESCRIBE);
+    ASSERT_EQ(swoole_http_parser_method("ANNOUNCE /get HTTP/1.1\r\n\r\n"), PHP_HTTP_ANNOUNCE);
+    ASSERT_EQ(swoole_http_parser_method("SETUP /get HTTP/1.1\r\n\r\n"), PHP_HTTP_SETUP);
+    ASSERT_EQ(swoole_http_parser_method("PLAY /get HTTP/1.1\r\n\r\n"), PHP_HTTP_PLAY);
+    ASSERT_EQ(swoole_http_parser_method("PAUSE /get HTTP/1.1\r\n\r\n"), PHP_HTTP_PAUSE);
+    ASSERT_EQ(swoole_http_parser_method("TEARDOWN /get HTTP/1.1\r\n\r\n"), PHP_HTTP_TEARDOWN);
+    ASSERT_EQ(swoole_http_parser_method("GET_PARAMETER /get HTTP/1.1\r\n\r\n"), PHP_HTTP_GET_PARAMETER);
+    ASSERT_EQ(swoole_http_parser_method("SET_PARAMETER /get HTTP/1.1\r\n\r\n"), PHP_HTTP_SET_PARAMETER);
+    ASSERT_EQ(swoole_http_parser_method("REDIRECT /get HTTP/1.1\r\n\r\n"), PHP_HTTP_REDIRECT);
+    ASSERT_EQ(swoole_http_parser_method("RECORD /get HTTP/1.1\r\n\r\n"), PHP_HTTP_RECORD);
+    ASSERT_EQ(swoole_http_parser_method("FLUSH /get HTTP/1.1\r\n\r\n"), PHP_HTTP_FLUSH);
+    ASSERT_EQ(swoole_http_parser_method("QUERY /get HTTP/1.1\r\n\r\n"), PHP_HTTP_QUERY);
 }
 
 TEST(http_parser, proxy_connection) {
-    swoole_http_parser *parser = swoole_http_parser_create();
+    llhttp_t *parser = swoole_http_parser_create();
     swoole_http_parser_execute(parser,
                                &http_parser_settings,
                                request_get_with_proxy_connection.c_str(),
@@ -452,28 +500,40 @@ TEST(http_parser, proxy_connection) {
 }
 
 TEST(http_parser, header_field_and_value) {
-    string header = "User-Agent: curl/7.64.1\r\n"
-                    "\r\n";
+    string header = "GET /get HTTP/1.1\r\n"
+                    "Host: www.maria.com\r\n"
+                    "User-Agent: curl/7.64.1\r\n"
+                    "Accept: */*\r\n"
+                    "Connection: keep-alive\r\n"
+                    "\r\n"
+                    "\r\n\r\n";
 
-    swoole_http_parser *parser = swoole_http_parser_create();
-    parser->state = s_header_field;
+    llhttp_t *parser = swoole_http_parser_create();
     swoole_http_parser_execute(parser, &http_parser_settings, header.c_str(), header.length());
 
     HttpContext *ctx = (HttpContext *) parser->data;
-    ASSERT_STREQ(ctx->header_fields[0].c_str(), "User-Agent");
+    ASSERT_STREQ(ctx->header_fields[1].c_str(), "User-Agent");
+    ASSERT_STREQ(ctx->header_values[1].c_str(), "curl/7.64.1");
     swoole_http_destroy_context(parser);
+}
 
-    header = "curl/7.64.1\r\n"
-             "\r\n";
-    parser = swoole_http_parser_create();
-    parser->state = s_header_value;
+TEST(http_parser, invalid_token) {
+    string header = "GET /get HTTP/1.1\r\n"
+                    "Host: www.maria.com\r\n"
+                    "curl/7.64.1\r\n"
+                    "Accept: */*\r\n"
+                    "Connection: keep-alive\r\n"
+                    "\r\n"
+                    "\r\n\r\n";
+    llhttp_t *parser = swoole_http_parser_create();
     swoole_http_parser_execute(parser, &http_parser_settings, header.c_str(), header.length());
-    ASSERT_STREQ(ctx->header_values[0].c_str(), "curl/7.64.1");
+    ASSERT_TRUE(parser->error != PHP_HTTP_OK);
+    ASSERT_STREQ(llhttp_get_error_reason(parser), "Invalid header token");
     swoole_http_destroy_context(parser);
 }
 
 TEST(http_parser, response) {
-    swoole_http_parser *parser = swoole_http_parser_create(PHP_HTTP_RESPONSE);
+    llhttp_t *parser = swoole_http_parser_create(PHP_HTTP_RESPONSE);
     swoole_http_parser_execute(parser, &http_parser_settings, response_200.c_str(), response_200.length());
 
     ASSERT_EQ(parser->status_code, 200);
@@ -482,7 +542,7 @@ TEST(http_parser, response) {
     swoole_http_destroy_context(parser);
 
     parser = swoole_http_parser_create(PHP_HTTP_RESPONSE);
-    parser->state = s_start_req_or_res;
+    parser->type = PHP_HTTP_BOTH;
     swoole_http_parser_execute(parser, &http_parser_settings, response_200.c_str(), response_200.length());
 
     ASSERT_EQ(parser->status_code, 200);
@@ -491,7 +551,7 @@ TEST(http_parser, response) {
     swoole_http_destroy_context(parser);
 
     parser = swoole_http_parser_create(PHP_HTTP_RESPONSE);
-    parser->state = s_start_req_or_res;
+    parser->type = PHP_HTTP_BOTH;
     swoole_http_parser_execute(
         parser, &http_parser_settings, response_200_without_ok.c_str(), response_200_without_ok.length());
 
@@ -499,7 +559,7 @@ TEST(http_parser, response) {
     swoole_http_destroy_context(parser);
 
     parser = swoole_http_parser_create(PHP_HTTP_RESPONSE);
-    parser->state = s_start_req_or_res;
+    parser->type = PHP_HTTP_BOTH;
     swoole_http_parser_execute(parser, &http_parser_settings, response_chunk.c_str(), response_chunk.length());
 
     ASSERT_EQ(parser->status_code, 200);
@@ -507,19 +567,19 @@ TEST(http_parser, response) {
 }
 
 TEST(http_parser, query_string) {
-    swoole_http_parser *parser = swoole_http_parser_create();
+    llhttp_t *parser = swoole_http_parser_create();
     swoole_http_parser_execute(
         parser, &http_parser_settings, request_get_with_query_string.c_str(), request_get_with_query_string.length());
 
     HttpContext *ctx = (HttpContext *) parser->data;
-    ASSERT_STREQ(ctx->query_string.c_str(), "a=foo&b=bar&c=456%26789");
+    ASSERT_STREQ(ctx->query_string.c_str(), "a=foo&b=bar&c=456%26789#frag=123");
     swoole_http_destroy_context(parser);
 
     parser = swoole_http_parser_create();
     swoole_http_parser_execute(
         parser, &http_parser_settings, request_get_with_query_string2.c_str(), request_get_with_query_string2.length());
 
-    ASSERT_TRUE(swoole_http_should_keep_alive(parser));
+    ASSERT_TRUE(!!llhttp_should_keep_alive(parser));
     swoole_http_destroy_context(parser);
 
     parser = swoole_http_parser_create();
@@ -546,13 +606,13 @@ TEST(http_parser, query_string) {
     swoole_http_parser_execute(
         parser, &http_parser_settings, request_get_with_query_string5.c_str(), request_get_with_query_string5.length());
 
-    ASSERT_TRUE(swoole_http_should_keep_alive(parser));
+    ASSERT_TRUE(!!llhttp_should_keep_alive(parser));
     swoole_http_destroy_context(parser);
 }
 
 TEST(http_parser, http09) {
-    string request_get_with_query_string_http09 = "GET /index.html\r";
-    swoole_http_parser *parser = swoole_http_parser_create();
+    string request_get_with_query_string_http09 = "GET /index.html\r\n\r\n\r\n";
+    llhttp_t *parser = swoole_http_parser_create();
     swoole_http_parser_execute(parser,
                                &http_parser_settings,
                                request_get_with_query_string_http09.c_str(),
@@ -562,7 +622,7 @@ TEST(http_parser, http09) {
     ASSERT_TRUE(parser->http_minor == 9);
     swoole_http_destroy_context(parser);
 
-    request_get_with_query_string_http09 = "GET /index.html\n";
+    request_get_with_query_string_http09 = "GET /index.html\r\n\r\n\r\n";
     parser = swoole_http_parser_create();
     swoole_http_parser_execute(parser,
                                &http_parser_settings,

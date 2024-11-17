@@ -6,11 +6,11 @@ project(core_tests)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -g")
 
-file(GLOB_RECURSE SOURCE_FILES FOLLOW_SYMLINKS src/*.cpp deps/llhttp/src/*.c)
+file(GLOB_RECURSE SOURCE_FILES FOLLOW_SYMLINKS src/*.cpp ../thirdparty/llhttp/*.c)
 
 add_definitions(-DHAVE_CONFIG_H)
 
-set(core_tests_includes ./include/ ../thirdparty ../thirdparty/hiredis ./deps/llhttp/include /usr/local/include)
+set(core_tests_includes ./include/ ../thirdparty ../thirdparty/hiredis ../thirdparty/llhttp /usr/local/include)
 set(core_tests_libraries)
 set(core_tests_link_directories /usr/local/lib)
 

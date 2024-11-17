@@ -140,11 +140,7 @@ static void test_base_server(function<void(Server *)> fn) {
         if (conn->websocket_status == websocket::STATUS_ACTIVE) {
             sw_tg_buffer()->clear();
             std::string resp = "Swoole: " + string(req->data, req->info.len);
-            websocket::encode(sw_tg_buffer(),
-                                      resp.c_str(),
-                                      resp.length(),
-                                      websocket::OPCODE_TEXT,
-                                      websocket::FLAG_FIN);
+            websocket::encode(sw_tg_buffer(), resp.c_str(), resp.length(), websocket::OPCODE_TEXT, websocket::FLAG_FIN);
             serv->send(session_id, sw_tg_buffer()->str, sw_tg_buffer()->length);
             return SW_OK;
         }
@@ -490,7 +486,7 @@ TEST(http_server, static_files) {
 
         // must be document_root
         resp = cli.Get("//tests/../");
-        EXPECT_EQ(resp->status, 200);
+        EXPECT_EQ(resp->status, 404);
 
         resp = cli.Get("/tests/../README.md");
         EXPECT_EQ(resp->status, 200);
@@ -584,8 +580,7 @@ TEST(http_server, proxy_response) {
         auto port = server->get_primary_port();
         httplib::Client cli(TEST_HOST, port->port);
         auto resp = cli.Get("/");
-        ASSERT_EQ(resp, nullptr);
-        //        ASSERT_EQ(resp->body, string("hello world"));
+        ASSERT_EQ(resp->body, string("hello world"));
     }
 }
 
@@ -1205,7 +1200,6 @@ TEST(http_server, http_range2) {
         ASSERT_TRUE(request_with_diff_range(to_string(server->get_primary_port()->port), "-16"));
         ASSERT_TRUE(request_with_diff_range(to_string(server->get_primary_port()->port), "128-"));
         ASSERT_TRUE(request_with_diff_range(to_string(server->get_primary_port()->port), "0-0,-1"));
-
     }
 }
 

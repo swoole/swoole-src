@@ -31,7 +31,7 @@
 
 SW_EXTERN_C_BEGIN
 
-#include "thirdparty/swoole_http_parser.h"
+#include "thirdparty/llhttp/llhttp.h"
 
 #include "ext/standard/base64.h"
 
@@ -54,25 +54,41 @@ using swoole::network::Address;
 
 namespace WebSocket = swoole::websocket;
 
-static int http_parser_on_header_field(swoole_http_parser *parser, const char *at, size_t length);
-static int http_parser_on_header_value(swoole_http_parser *parser, const char *at, size_t length);
-static int http_parser_on_headers_complete(swoole_http_parser *parser);
-static int http_parser_on_body(swoole_http_parser *parser, const char *at, size_t length);
-static int http_parser_on_message_complete(swoole_http_parser *parser);
+static int http_parser_on_header_field(llhttp_t *parser, const char *at, size_t length);
+static int http_parser_on_header_value(llhttp_t *parser, const char *at, size_t length);
+static int http_parser_on_headers_complete(llhttp_t *parser);
+static int http_parser_on_body(llhttp_t *parser, const char *at, size_t length);
+static int http_parser_on_message_complete(llhttp_t *parser);
 
 // clang-format off
-static const swoole_http_parser_settings http_parser_settings = {
-    nullptr,
-    nullptr,
-    nullptr,
-    nullptr,
-    nullptr,
-    http_parser_on_header_field,
-    http_parser_on_header_value,
-    http_parser_on_headers_complete,
-    http_parser_on_body,
-    http_parser_on_message_complete
+
+static const llhttp_settings_t http_parser_settings =
+{
+    nullptr, // on_message_begin
+    nullptr, // on_url
+    nullptr, // on_status
+    nullptr, // on_method
+    nullptr, // on_version
+    http_parser_on_header_field, // on_header_field
+    http_parser_on_header_value, // on_header_value
+    nullptr, // on_chunk_extension_name
+    nullptr, // on_chunk_extension_value
+    http_parser_on_headers_complete, // on_headers_complete
+    http_parser_on_body, // on_body
+    http_parser_on_message_complete, // on_message_complete
+    nullptr,  // on_url_complete
+    nullptr, // on_status_complete
+    nullptr, // on_method_complete
+    nullptr, // on_version_complete
+    nullptr, // on_header_field_complete
+    nullptr, // on_header_value_complete
+    nullptr, // on_chunk_extension_name_complete
+    nullptr, // on_chunk_extension_value_complete
+    nullptr, // on_chunk_header
+    nullptr, // on_chunk_complete
+    nullptr, // on_reset
 };
+
 // clang-format on
 
 namespace swoole {
@@ -126,6 +142,10 @@ class Client {
 #endif
     bool in_callback = false;
     bool has_upload_files = false;
+    bool completed = false;
+    bool event_stream = false;
+    bool connection_close = false;
+    bool response_content_length = false;
 
     File *download_file = nullptr;    // save http response to file
     zend::String download_file_name;  // unlink the file on error
@@ -137,7 +157,6 @@ class Client {
     zval zsocket;
     zend::Callable *write_func = nullptr;
     String *tmp_write_buffer = nullptr;
-    bool connection_close = false;
 
     Client(zval *zobject, std::string host, zend_long port = 80, zend_bool ssl = false);
 
@@ -271,7 +290,7 @@ class Client {
     Socket *socket = nullptr;
     NameResolver::Context resolve_context_ = {};
     SocketType socket_type = SW_SOCK_TCP;
-    swoole_http_parser parser = {};
+    llhttp_t parser = {};
     bool wait_response = false;
 };
 
@@ -398,14 +417,14 @@ void php_swoole_http_parse_set_cookies(const char *at, size_t length, zval *zcoo
     add_next_index_stringl(zset_cookie_headers, (char *) at, length);
 }
 
-static int http_parser_on_header_field(swoole_http_parser *parser, const char *at, size_t length) {
+static int http_parser_on_header_field(llhttp_t *parser, const char *at, size_t length) {
     Client *http = (Client *) parser->data;
     http->tmp_header_field_name = (char *) at;
     http->tmp_header_field_name_len = length;
     return 0;
 }
 
-static int http_parser_on_header_value(swoole_http_parser *parser, const char *at, size_t length) {
+static int http_parser_on_header_value(llhttp_t *parser, const char *at, size_t length) {
     Client *http = (Client *) parser->data;
     zval *zobject = (zval *) http->zobject;
 
@@ -463,12 +482,16 @@ static int http_parser_on_header_value(swoole_http_parser *parser, const char *a
         http->chunked = true;
     } else if (SW_STREQ(header_name, header_len, "connection")) {
         http->connection_close = SW_STR_ISTARTS_WITH(at, length, "close");
+    } else if (SW_STREQ(header_name, header_len, "content-type")) {
+        http->event_stream = SW_STR_ISTARTS_WITH(at, length, "text/event-stream");
+    } else if (SW_STREQ(header_name, header_len, "content-length")) {
+        http->response_content_length = true;
     }
 
     return 0;
 }
 
-static int http_parser_on_headers_complete(swoole_http_parser *parser) {
+static int http_parser_on_headers_complete(llhttp_t *parser) {
     Client *http = (Client *) parser->data;
     if (http->method == SW_HTTP_HEAD || parser->status_code == SW_HTTP_NO_CONTENT) {
         return 1;
@@ -476,7 +499,7 @@ static int http_parser_on_headers_complete(swoole_http_parser *parser) {
     return 0;
 }
 
-static int http_parser_on_body(swoole_http_parser *parser, const char *at, size_t length) {
+static int http_parser_on_body(llhttp_t *parser, const char *at, size_t length) {
     Client *http = (Client *) parser->data;
     if (http->write_func) {
         zval zargv[2];
@@ -534,8 +557,9 @@ static int http_parser_on_body(swoole_http_parser *parser, const char *at, size_
     return 0;
 }
 
-static int http_parser_on_message_complete(swoole_http_parser *parser) {
+static int http_parser_on_message_complete(llhttp_t *parser) {
     Client *http = (Client *) parser->data;
+    http->completed = true;
     zval *zobject = (zval *) http->zobject;
 
     if (parser->upgrade && !http->websocket) {
@@ -553,12 +577,7 @@ static int http_parser_on_message_complete(swoole_http_parser *parser) {
         http->download_file_name.release();
     }
 
-    if (parser->upgrade) {
-        // return 1 will finish the parser and means yes we support it.
-        return 1;
-    } else {
-        return 0;
-    }
+    return PHP_HTTP_PAUSED;
 }
 
 Client::Client(zval *zobject, std::string host, zend_long port, zend_bool ssl) {
@@ -1425,7 +1444,7 @@ bool Client::recv_response(double timeout) {
 
     // re-init http response parser
     swoole_http_parser_init(&parser, PHP_HTTP_RESPONSE);
-    parser.data = this;
+    parser.data = (void *) this;
 
     if (timeout == 0) {
         timeout = response_timeout == 0 ? network::Socket::default_read_timeout : response_timeout;
@@ -1440,7 +1459,7 @@ bool Client::recv_response(double timeout) {
         if (sw_unlikely(retval <= 0)) {
             if (retval == 0) {
                 socket->set_err(ECONNRESET);
-                if (total_bytes > 0 && !swoole_http_should_keep_alive(&parser)) {
+                if (total_bytes > 0 && !llhttp_should_keep_alive(&parser)) {
                     http_parser_on_message_complete(&parser);
                     success = true;
                     break;
@@ -1475,22 +1494,33 @@ bool Client::recv_response(double timeout) {
                          parsed_n,
                          retval,
                          total_bytes,
-                         parser.state == s_start_res);
+                         parser.error == PHP_HTTP_OK);
         if (socket->get_socket()->close_wait) {
             success = false;
             break;
         }
-        if (parser.state == s_start_res) {
+
+        if (sw_likely(parser.error == PHP_HTTP_OK)) {
             // handle redundant data (websocket packet)
             if (parser.upgrade && (size_t) retval > parsed_n + SW_WEBSOCKET_HEADER_LEN) {
                 buffer->length = retval;
                 buffer->offset = parsed_n;
                 buffer->reduce(parsed_n);
+                completed = true;
             }
+
+            // content-type: text/event-stream, connection: keep-alive
+            if (event_stream && !connection_close && !response_content_length) {
+                completed = true;
+            }
+
+            if (!completed) {
+                continue;
+            }
+
             success = true;
             break;
-        }
-        if (sw_unlikely(parser.state == s_dead)) {
+        } else {
             socket->set_err(SW_ERROR_HTTP_INVALID_PROTOCOL);
             break;
         }
@@ -1612,6 +1642,9 @@ bool Client::push(zval *zdata, zend_long opcode, uint8_t flags) {
 
 void Client::reset() {
     wait_response = false;
+    completed = false;
+    event_stream = false;
+    response_content_length = false;
 #ifdef SW_HAVE_COMPRESSION
     compress_method = HTTP_COMPRESS_NONE;
     compression_error = false;
