@@ -25,7 +25,8 @@
     "symfony/http-client": "^5.3",
     "nyholm/psr7": "^1.4",
     "friendsofphp/php-cs-fixer": "^3.3",
-    "php-http/message-factory": "^1.1"
+    "php-http/message-factory": "^1.1",
+    "predis/predis": "^2.2"
   },
   "config": {
     "allow-plugins": {
