@@ -320,9 +320,10 @@ static bool redis_response_format(String *buf, zend_long type, zval *value) {
         SW_STRING_FORMAT(buf, "*%d\r\n", zend_hash_num_elements(Z_ARRVAL_P(value)));
 
         zval *item;
-        SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(value), item)
-        redis_response_format_array_item(buf, item);
-        SW_HASHTABLE_FOREACH_END();
+        ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(value), item) {
+            redis_response_format_array_item(buf, item);
+        }
+        ZEND_HASH_FOREACH_END();
     } else if (type == Redis::REPLY_MAP) {
         if (!value) {
             goto _no_value;
@@ -332,19 +333,19 @@ static bool redis_response_format(String *buf, zend_long type, zval *value) {
         }
         SW_STRING_FORMAT(buf, "*%d\r\n", 2 * zend_hash_num_elements(Z_ARRVAL_P(value)));
 
-        char *key;
-        uint32_t keylen;
-        int keytype;
+        zend_string *key;
+        zend_ulong num_key;
         zval *item;
-
-        SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(value), key, keylen, keytype, item)
-        if (key == nullptr || keylen == 0) {
-            continue;
+        ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(value), num_key, key, item) {
+            if (key) {
+                SW_STRING_FORMAT(buf, "$%zu\r\n%.*s\r\n", ZSTR_LEN(key), (int) ZSTR_LEN(key), ZSTR_VAL(key));
+            } else {
+                std::string _key = std::to_string(num_key);
+                SW_STRING_FORMAT(buf, "$%zu\r\n%.*s\r\n", _key.length(), (int) _key.length(), _key.c_str());
+            }
+            redis_response_format_array_item(buf, item);
         }
-        SW_STRING_FORMAT(buf, "$%d\r\n%.*s\r\n", keylen, keylen, key);
-        redis_response_format_array_item(buf, item);
-        (void) keytype;
-        SW_HASHTABLE_FOREACH_END();
+        ZEND_HASH_FOREACH_END();
     } else {
         php_swoole_error(E_WARNING, "Unknown type[%d]", (int) type);
         return false;
