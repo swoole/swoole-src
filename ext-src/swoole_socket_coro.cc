@@ -1133,7 +1133,6 @@ SW_API bool php_swoole_socket_set(Socket *cli, zval *zset) {
 SW_API bool php_swoole_socket_set_ssl(Socket *sock, zval *zset) {
     HashTable *vht = Z_ARRVAL_P(zset);
     zval *ztmp;
-    bool ret = true;
 
     if (php_swoole_array_get_value(vht, "ssl_protocols", ztmp)) {
         zend_long v = zval_get_long(ztmp);
@@ -1150,7 +1149,7 @@ SW_API bool php_swoole_socket_set_ssl(Socket *sock, zval *zset) {
             sock->get_ssl_context()->cert_file = str_v.to_std_string();
         } else {
             php_swoole_fatal_error(E_WARNING, "ssl cert file[%s] not found", str_v.val());
-            ret = false;
+            return false;
         }
     }
     if (php_swoole_array_get_value(vht, "ssl_key_file", ztmp)) {
@@ -1159,7 +1158,7 @@ SW_API bool php_swoole_socket_set_ssl(Socket *sock, zval *zset) {
             sock->get_ssl_context()->key_file = str_v.to_std_string();
         } else {
             php_swoole_fatal_error(E_WARNING, "ssl key file[%s] not found", str_v.val());
-            ret = false;
+            return false;
         }
     }
     if (!sock->get_ssl_context()->cert_file.empty() && sock->get_ssl_context()->key_file.empty()) {
@@ -1206,11 +1205,7 @@ SW_API bool php_swoole_socket_set_ssl(Socket *sock, zval *zset) {
         sock->get_ssl_context()->grease = SW_MAX(0, SW_MIN(v, UINT8_MAX));
     }
 #endif
-
-    if (!sock->ssl_check_context()) {
-        ret = false;
-    }
-    return ret;
+    return true;
 }
 #endif
 

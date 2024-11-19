@@ -275,6 +275,12 @@ void swoole_clean(void) {
         delete SwooleTG.buffer_stack;
         SwooleTG.buffer_stack = nullptr;
     }
+    SW_LOOP_N(SW_MAX_HOOK_TYPE) {
+        if (SwooleG.hooks[i]) {
+            auto hooks = static_cast<std::list<swoole::Callback> *>(SwooleG.hooks[i]);
+            delete hooks;
+        }
+    }
     swoole_signal_clear();
     SwooleG = {};
 }
