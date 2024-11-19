@@ -55,13 +55,6 @@ Table *Table::make(uint32_t rows_size, float conflict_proportion) {
     return table;
 }
 
-void Table::free() {
-    delete mutex;
-    delete iterator;
-    delete column_map;
-    delete column_list;
-}
-
 bool Table::add_column(const std::string &_name, enum TableColumn::Type _type, size_t _size) {
     if (_type < TableColumn::TYPE_INT || _type > TableColumn::TYPE_STRING) {
         swoole_warning("unknown column type");

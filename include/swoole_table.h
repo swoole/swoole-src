@@ -198,8 +198,6 @@ class Table {
     TableRow *get(const char *key, uint16_t keylen, TableRow **rowlock);
     bool del(const char *key, uint16_t keylen);
     void forward();
-    // only release local memory of the current process
-    void free();
     // release shared memory
     void destroy();
 
