@@ -3809,7 +3809,7 @@ static PHP_METHOD(swoole_server, stop) {
     }
 
     zend_bool wait_reactor = 0;
-    zend_long worker_id = SwooleG.process_id;
+    zend_long worker_id = -1;
 
     ZEND_PARSE_PARAMETERS_START(0, 2)
     Z_PARAM_OPTIONAL
@@ -3817,6 +3817,7 @@ static PHP_METHOD(swoole_server, stop) {
     Z_PARAM_BOOL(wait_reactor)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
+    worker_id = worker_id < 0 ? SwooleG.process_id : worker_id;
     if (worker_id == SwooleG.process_id && wait_reactor == 0) {
         if (SwooleTG.reactor != nullptr) {
             SwooleTG.reactor->defer(
