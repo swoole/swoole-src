@@ -746,6 +746,7 @@ bool HttpContext::send_file(const char *file, uint32_t l_file, off_t offset, siz
 void HttpContext::end(zval *zdata, zval *return_value) {
     char *data = nullptr;
     size_t length = zdata ? php_swoole_get_send_data(zdata, &data) : 0;
+    String *http_buffer = nullptr;
 
     if (send_chunked) {
         if (send_trailer_) {
@@ -760,7 +761,7 @@ void HttpContext::end(zval *zdata, zval *return_value) {
             }
         }
         send_chunked = 0;
-        return;
+        goto _skip_copy;
     }
 
 #ifdef SW_HAVE_ZLIB
@@ -790,7 +791,7 @@ void HttpContext::end(zval *zdata, zval *return_value) {
     }
 #endif
 
-    String *http_buffer = get_write_buffer();
+    http_buffer = get_write_buffer();
     http_buffer->clear();
     build_header(http_buffer, data, length);
 
