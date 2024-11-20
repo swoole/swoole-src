@@ -34,9 +34,9 @@ $pm->childFunc = function () use ($pm) {
     $http->on("request", function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         $data = str_split(file_get_contents(TEST_IMAGE), 8192);
         foreach ($data as $chunk) {
-            $response->write($chunk);
+            Assert::true($response->write($chunk));
         }
-        $response->end();
+        Assert::true($response->end());
     });
 
     $http->start();
