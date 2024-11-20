@@ -258,7 +258,7 @@ bool System::wait_signal(const std::vector<int> &signals, double timeout) {
         listeners[signo] = co;
 
 #ifdef SW_USE_THREAD_CONTEXT
-        swoole_event_defer([signo](void *) { swoole_signal_set(signo, callback_fn, nullptr) });
+        swoole_event_defer([signo, &callback_fn](void *) { swoole_signal_set(signo, callback_fn); }, nullptr);
 #else
         swoole_signal_set(signo, callback_fn);
 #endif
