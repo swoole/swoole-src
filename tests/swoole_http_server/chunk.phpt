@@ -36,7 +36,6 @@ $pm->childFunc = function () use ($pm) {
         foreach ($data as $chunk) {
             Assert::true($response->write($chunk));
         }
-
         Assert::true($response->end());
     });
 
