@@ -754,28 +754,25 @@ static int socket_enable_crypto(php_stream *stream, Socket *sock, php_stream_xpo
     php_stream_context *context = PHP_STREAM_CONTEXT(stream);
     if (cparam->inputs.activate && !sock->ssl_is_available()) {
         sock->enable_ssl_encrypt();
-        if (!sock->ssl_check_context()) {
-            return -1;
-        }
         if (!socket_ssl_set_options(sock, context)) {
             return -1;
         }
         if (!sock->ssl_handshake()) {
             return -1;
         }
-        return 0;
     } else if (!cparam->inputs.activate && sock->ssl_is_available()) {
-        return sock->ssl_shutdown() ? 0 : -1;
+        sock->ssl_shutdown();
+        return -1;
     }
 
-    if (context) {
+    if (context && sock->ssl_is_available()) {
         zval *val = php_stream_context_get_option(context, "ssl", "capture_peer_cert");
         if (val && zend_is_true(val) && !php_openssl_capture_peer_certs(stream, sock)) {
             return -1;
         }
     }
 
-    return 0;
+    return 1;
 }
 #endif
 
@@ -1030,11 +1027,9 @@ static bool socket_ssl_set_options(Socket *sock, php_stream_context *context) {
             add_alias("verify_depth", "ssl_verify_depth");
             add_alias("disable_compression", "ssl_disable_compression");
 
-            php_swoole_socket_set_ssl(sock, &zalias);
-            if (!sock->ssl_check_context()) {
-                return false;
-            }
+            bool ret = php_swoole_socket_set_ssl(sock, &zalias);
             zval_dtor(&zalias);
+            return ret;
         }
 #endif
     }
