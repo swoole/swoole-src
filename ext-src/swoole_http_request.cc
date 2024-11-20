@@ -845,10 +845,6 @@ const char *HttpContext::get_content_encoding() {
 }
 #endif
 
-static void swoole_request_read_fd_property(zend_object *object, HttpContext *ctx) {
-    zend_update_property_long(swoole_http_request_ce, object, ZEND_STRL("fd"), ctx->fd);
-}
-
 static PHP_METHOD(swoole_http_request, getContent) {
     HttpContext *ctx = php_swoole_http_request_get_and_check_context(ZEND_THIS);
     if (UNEXPECTED(!ctx)) {
