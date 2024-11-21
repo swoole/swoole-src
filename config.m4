@@ -953,21 +953,17 @@ EOF
     dnl Check should we link to librt
 
     if test "$PHP_IOURING" = "yes" && test "$SW_OS" = "LINUX"; then
-        PKG_CHECK_MODULES([URING], [liburing])
+        PKG_CHECK_MODULES([URING], [liburing >= 2.5])
         PHP_EVAL_LIBLINE($URING_LIBS, SWOOLE_SHARED_LIBADD)
         PHP_EVAL_INCLINE($URING_CFLAGS)
         AC_DEFINE(SW_USE_IOURING, 1, [have io_uring])
 
         LINUX_VERSION=`uname -r | cut -d '-' -f 1`
-        LINUX_MAJOR_VERSION=`echo $LINUX_VERSION | cut -d '.' -f 1`
-        LINUX_MINIO_VERSION=`echo $LINUX_VERSION | cut -d '.' -f 2`
-
+        LINUX_VERSION=$(echo "$LINUX_VERSION" | cut -d '.' -f 1,2)
         _PKG_CONFIG(URING_VERSION, [modversion], [liburing])
-        IOURING_MAJOR_VERSION=`echo $pkg_cv_URING_VERSION | cut -d '.' -f 1`
-        IOURING_MINOR_VERSION=`echo $pkg_cv_URING_VERSION | cut -d '.' -f 2`
 
-        if test $IOURING_MAJOR_VERSION > 2 || (test $IOURING_MAJOR_VERSION = 2 && test $IOURING_MINOR_VERSION >= 6); then
-            if test $LINUX_MAJOR_VERSION > 6 || (test $LINUX_MAJOR_VERSION = 6 && test $LINUX_MAJOR_VERSION >= 7); then
+        if [[ $(echo "$pkg_cv_URING_VERSION >= 2.6" | bc -l) -eq 1 ]]; then
+            if [[ $(echo "$LINUX_VERSION >= 6.7" | bc -l) -eq 1 ]]; then
                 AC_DEFINE(HAVE_IOURING_FUTEX, 1, [have io_uring futex feature])
             fi
         fi
