@@ -960,16 +960,22 @@ EOF
 
         LINUX_VERSION=`uname -r | cut -d '-' -f 1`
         LINUX_MAJOR_VERSION=`echo $LINUX_VERSION | cut -d '.' -f 1`
-        LINUX_MINIO_VERSION=`echo $LINUX_VERSION | cut -d '.' -f 2`
+        LINUX_MINOR_VERSION=`echo $LINUX_VERSION | cut -d '.' -f 2`
 
         _PKG_CONFIG(URING_VERSION, [modversion], [liburing])
         IOURING_MAJOR_VERSION=`echo $pkg_cv_URING_VERSION | cut -d '.' -f 1`
         IOURING_MINOR_VERSION=`echo $pkg_cv_URING_VERSION | cut -d '.' -f 2`
 
-        if test $IOURING_MAJOR_VERSION > 2 || (test $IOURING_MAJOR_VERSION = 2 && test $IOURING_MINOR_VERSION >= 6); then
-            if test $LINUX_MAJOR_VERSION > 6 || (test $LINUX_MAJOR_VERSION = 6 && test $LINUX_MAJOR_VERSION >= 7); then
+        AC_MSG_CHECKING([checking for io_uring futex feature])
+        if test $IOURING_MAJOR_VERSION -gt 2 || (test $IOURING_MAJOR_VERSION -eq 2 && test $IOURING_MINOR_VERSION -ge 6); then
+            if test $LINUX_MAJOR_VERSION -gt 6 || (test $LINUX_MAJOR_VERSION -eq 6 && test $LINUX_MINOR_VERSION -ge 7); then
+                AC_MSG_RESULT(yes)
                 AC_DEFINE(HAVE_IOURING_FUTEX, 1, [have io_uring futex feature])
+            else
+                AC_MSG_RESULT([no, Linux $LINUX_VERSION is too old])
             fi
+        else
+            AC_MSG_RESULT([no, liburing $IOURING_MAJOR_VERSION.$IOURING_MINOR_VERSION is too old])
         fi
     fi
 
