@@ -217,12 +217,11 @@ TEST(client, shutdown_all) {
 }
 
 #ifdef SW_USE_OPENSSL
+
 TEST(client, ssl_1) {
-    int ret;
-
     bool connected = false;
     bool closed = false;
-    swoole::String buf(65536);
+    String buf(65536);
 
     swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
 
@@ -230,21 +229,14 @@ TEST(client, ssl_1) {
     client.enable_ssl_encrypt();
     client.onConnect = [&connected](Client *cli) {
         connected = true;
-        cli->send(cli,
-                  SW_STRL("GET / HTTP/1.1\r\n"
-                          "Host: www.baidu.com\r\n"
-                          "Connection: close\r\n"
-                          "User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) "
-                          "Chrome/51.0.2704.106 Safari/537.36"
-                          "\r\n\r\n"),
-                  0);
+        cli->send(cli, SW_STRL(TEST_REQUEST_BAIDU), 0);
     };
 
     client.onError = [](Client *cli) {};
     client.onClose = [&closed](Client *cli) { closed = true; };
     client.onReceive = [&buf](Client *cli, const char *data, size_t length) { buf.append(data, length); };
-    ret = client.connect(&client, "www.baidu.com", 443, -1, 0);
-    ASSERT_EQ(ret, 0);
+
+    ASSERT_EQ(client.connect(&client, TEST_DOMAIN_BAIDU, 443, -1, 0), 0);
 
     swoole_event_wait();
 
@@ -253,89 +245,109 @@ TEST(client, ssl_1) {
     ASSERT_TRUE(buf.contains("Baidu"));
 }
 
-
-TEST(client, http_proxy) {
-    int ret;
+static void proxy_async_test(Client &client, bool https) {
+    swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
 
     bool connected = false;
     bool closed = false;
-    swoole::String buf(65536);
+    String buf(65536);
 
-    swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
-
-    Client client(SW_SOCK_TCP, true);
-    client.enable_ssl_encrypt();
-    client.http_proxy = new HttpProxy();
-    client.http_proxy->proxy_host = std::string(TEST_HTTP_PROXY_HOST);
-    client.http_proxy->proxy_port = TEST_HTTP_PROXY_PORT;
+    if (https) {
+        client.enable_ssl_encrypt();
+    }
 
     client.onConnect = [&connected](Client *cli) {
         connected = true;
-        cli->send(cli,
-                  SW_STRL("GET / HTTP/1.1\r\n"
-                          "Host: www.baidu.com\r\n"
-                          "Connection: close\r\n"
-                          "User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) "
-                          "Chrome/51.0.2704.106 Safari/537.36"
-                          "\r\n\r\n"),
-                  0);
+        cli->send(cli, SW_STRL(TEST_REQUEST_BAIDU), 0);
     };
 
     client.onError = [](Client *cli) {};
     client.onClose = [&closed](Client *cli) { closed = true; };
     client.onReceive = [&buf](Client *cli, const char *data, size_t length) { buf.append(data, length); };
-    ret = client.connect(&client, "www.baidu.com", 443, -1, 0);
-    ASSERT_EQ(ret, 0);
+
+    ASSERT_EQ(client.connect(&client, TEST_DOMAIN_BAIDU, https ? 443 : 80, -1, 0), 0);
 
     swoole_event_wait();
 
     ASSERT_TRUE(connected);
     ASSERT_TRUE(closed);
-    ASSERT_TRUE(buf.contains("Baidu"));
+    ASSERT_TRUE(buf.contains("www.baidu.com"));
 }
 
-TEST(client, socks5_proxy) {
-    int ret;
+static void proxy_sync_test(Client &client, bool https) {
+    String buf(65536);
+    if (https) {
+        client.enable_ssl_encrypt();
+    }
 
-    bool connected = false;
-    bool closed = false;
-    swoole::String buf(65536);
+    ASSERT_EQ(client.connect(&client, TEST_DOMAIN_BAIDU, https ? 443 : 80, -1, 0), 0);
+    ASSERT_GT(client.send(&client, SW_STRL(TEST_REQUEST_BAIDU), 0), 0);
 
-    swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
+    while (true) {
+        char rbuf[4096];
+        auto nr = client.recv(&client, rbuf, sizeof(rbuf), 0);
+        if (nr <= 0) {
+            break;
+        }
+        buf.append(rbuf, nr);
+    }
 
+    ASSERT_TRUE(buf.contains("www.baidu.com"));
+}
+
+static void proxy_set_socks5_proxy(Client &client) {
+    client.socks5_proxy = create_socks5_proxy();
+}
+
+static void proxy_set_http_proxy(Client &client) {
+    client.http_proxy = create_http_proxy();
+}
+
+TEST(client, https_get_async_with_http_proxy) {
     Client client(SW_SOCK_TCP, true);
-    client.enable_ssl_encrypt();
+    proxy_set_http_proxy(client);
+    proxy_async_test(client, true);
+}
 
-    client.socks5_proxy = new Socks5Proxy();
-    client.socks5_proxy->host = std::string("127.0.0.1");
-    client.socks5_proxy->port = 1080;
-    client.socks5_proxy->dns_tunnel = 1;
-    client.socks5_proxy->method = 0x02;
-    client.socks5_proxy->username = std::string("user");
-    client.socks5_proxy->password = std::string("password");
+TEST(client, https_get_async_with_socks5_proxy) {
+    Client client(SW_SOCK_TCP, true);
+    proxy_set_socks5_proxy(client);
+    proxy_async_test(client, true);
+}
 
-    client.onConnect = [&connected](Client *cli) {
-        connected = true;
-        cli->send(cli,
-                  SW_STRL("GET / HTTP/1.1\r\n"
-                          "Host: www.baidu.com\r\n"
-                          "Connection: close\r\n"
-                          "User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) "
-                          "Chrome/51.0.2704.106 Safari/537.36"
-                          "\r\n\r\n"),
-                  0);
-    };
+TEST(client, https_get_sync_with_http_proxy) {
+    Client client(SW_SOCK_TCP, false);
+    proxy_set_http_proxy(client);
+    proxy_sync_test(client, true);
+}
 
-    client.onError = [](Client *cli) {};
-    client.onClose = [&closed](Client *cli) { closed = true; };
-    client.onReceive = [&buf](Client *cli, const char *data, size_t length) { buf.append(data, length); };
-    ret = client.connect(&client, "www.baidu.com", 443, -1, 0);
-    ASSERT_EQ(ret, 0);
+TEST(client, https_get_sync_with_socks5_proxy) {
+    Client client(SW_SOCK_TCP, false);
+    proxy_set_socks5_proxy(client);
+    proxy_sync_test(client, true);
+}
 
-    swoole_event_wait();
+TEST(client, http_get_async_with_http_proxy) {
+    Client client(SW_SOCK_TCP, true);
+    proxy_set_http_proxy(client);
+    proxy_async_test(client, false);
+}
 
-    ASSERT_TRUE(connected);
-    ASSERT_TRUE(closed);
-    ASSERT_TRUE(buf.contains("Baidu"));
+TEST(client, http_get_async_with_socks5_proxy) {
+    Client client(SW_SOCK_TCP, true);
+    proxy_set_socks5_proxy(client);
+    proxy_async_test(client, false);
+}
+
+TEST(client, http_get_sync_with_http_proxy) {
+    Client client(SW_SOCK_TCP, false);
+    proxy_set_http_proxy(client);
+    proxy_sync_test(client, false);
+}
+
+TEST(client, http_get_sync_with_socks5_proxy) {
+    Client client(SW_SOCK_TCP, false);
+    proxy_set_socks5_proxy(client);
+    proxy_sync_test(client, false);
 }
 #endif

@@ -20,6 +20,14 @@
 #include <cstdint>
 
 #define SW_SOCKS5_VERSION_CODE 0x05
+#define SW_HTTP_PROXY_CHECK_MESSAGE 0
+#define SW_HTTP_PROXY_HANDSHAKE_RESPONSE "HTTP/1.1 200 Connection established\r\n"
+
+#define SW_HTTP_PROXY_FMT                                                                                              \
+    "CONNECT %.*s:%d HTTP/1.1\r\n"                                                                                     \
+    "Host: %.*s:%d\r\n"                                                                                                \
+    "User-Agent: Swoole/" SWOOLE_VERSION "\r\n"                                                                        \
+    "Proxy-Connection: Keep-Alive\r\n"
 
 enum swHttpProxyState {
     SW_HTTP_PROXY_STATE_WAIT = 0,
@@ -40,6 +48,8 @@ enum swSocks5Method {
 };
 
 namespace swoole {
+class String;
+
 struct HttpProxy {
     uint8_t state;
     uint8_t dont_handshake;
@@ -49,9 +59,10 @@ struct HttpProxy {
     std::string password;
     std::string target_host;
     int target_port;
-    char buf[512];
 
     std::string get_auth_str();
+    size_t pack(String *send_buffer, const std::string *host_name);
+    bool handshake(String *recv_buffer);
 };
 
 struct Socks5Proxy {
