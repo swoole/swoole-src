@@ -137,8 +137,8 @@ ssize_t System::write_file(const char *file, char *buf, size_t length, bool lock
 
 std::string gethostbyname_impl_with_async(const std::string &hostname, int domain, double timeout) {
     AsyncEvent ev{};
-    GethostbynameRequest dns_request(hostname.c_str(), domain);
-    ev.data = &dns_request;
+    auto req = new GethostbynameRequest(hostname, domain);
+    ev.data = std::shared_ptr<AsyncRequest>(req);
     ev.retval = 1;
 
     coroutine::async(async::handler_gethostbyname, ev, timeout);
@@ -150,7 +150,7 @@ std::string gethostbyname_impl_with_async(const std::string &hostname, int domai
         swoole_set_last_error(ev.error);
         return "";
     } else {
-        std::string addr(dns_request.addr);
+        std::string addr(req->addr);
         return addr;
     }
 }
@@ -199,30 +199,20 @@ std::vector<std::string> System::getaddrinfo(
     assert(family == AF_INET || family == AF_INET6);
 
     AsyncEvent ev{};
-    network::GetaddrinfoRequest req{};
-
-    ev.data = &req;
-
-    struct sockaddr_in6 result_buffer[SW_DNS_HOST_BUFFER_SIZE];
-
-    req.hostname = hostname.c_str();
-    req.family = family;
-    req.socktype = socktype;
-    req.protocol = protocol;
-    req.service = service.empty() ? nullptr : service.c_str();
-    req.result = result_buffer;
+    auto req = new GetaddrinfoRequest(hostname, family, socktype, protocol, service);
+    ev.data = std::shared_ptr<AsyncRequest>(req);
 
     coroutine::async(async::handler_getaddrinfo, ev, timeout);
 
     std::vector<std::string> retval;
 
-    if (ev.retval == -1 || req.error != 0) {
+    if (ev.retval == -1 || req->error != 0) {
         if (ev.error == SW_ERROR_AIO_TIMEOUT) {
             ev.error = SW_ERROR_DNSLOOKUP_RESOLVE_TIMEOUT;
         }
         swoole_set_last_error(ev.error);
     } else {
-        req.parse_result(retval);
+        req->parse_result(retval);
     }
 
     return retval;

@@ -852,3 +852,11 @@ function build_ftp_url(string $path = ''): string
 {
     return 'ftp://' . FTP_USER . ':' . FTP_PASS . '@' . FTP_HOST . ':' .  FTP_PORT . '/' . $path;
 }
+
+function mkdir_if_not_exists(string $string): void
+{
+    if (!is_dir($string)) {
+        mkdir($string, 0777, true);
+    }
+}
+
