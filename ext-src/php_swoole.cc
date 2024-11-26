@@ -17,13 +17,13 @@
 #include "php_swoole_library.h"
 #include "php_swoole_process.h"
 
-#if (HAVE_PCRE || HAVE_BUNDLED_PCRE) && !defined(COMPILE_DL_PCRE)
-#include "ext/pcre/php_pcre.h"
-#endif
+BEGIN_EXTERN_C()
 #include "zend_exceptions.h"
 #include "zend_extensions.h"
 
-BEGIN_EXTERN_C()
+#if (HAVE_PCRE || HAVE_BUNDLED_PCRE) && !defined(COMPILE_DL_PCRE)
+#include "ext/pcre/php_pcre.h"
+#endif
 #include "ext/json/php_json.h"
 
 #include "stubs/php_swoole_arginfo.h"
@@ -990,6 +990,12 @@ const swoole::Allocator *sw_zend_string_allocator() {
     return &zend_string_allocator;
 }
 
+static void sw_after_fork(void *args) {
+#ifdef ZEND_MAX_EXECUTION_TIMERS
+    zend_max_execution_timer_init();
+#endif
+}
+
 PHP_RINIT_FUNCTION(swoole) {
     if (!SWOOLE_G(cli)) {
         return SUCCESS;
@@ -1030,6 +1036,7 @@ PHP_RINIT_FUNCTION(swoole) {
     /* Disable warning even in ZEND_DEBUG because we may register our own signal handlers  */
     SIGG(check) = 0;
 #endif
+    swoole_add_hook(SW_GLOBAL_HOOK_AFTER_FORK, sw_after_fork, 0);
 
     php_swoole_http_server_rinit();
     php_swoole_coroutine_rinit();

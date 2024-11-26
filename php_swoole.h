@@ -17,6 +17,10 @@
 #ifndef PHP_SWOOLE_H
 #define PHP_SWOOLE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "php.h"
 #include "php_ini.h"
 #include "php_globals.h"
@@ -35,6 +39,10 @@
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 extern zend_module_entry swoole_module_entry;

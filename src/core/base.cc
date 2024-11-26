@@ -423,6 +423,10 @@ pid_t swoole_fork(int flags) {
          * reset signal handler
          */
         swoole_signal_clear();
+
+        if (swoole_isset_hook(SW_GLOBAL_HOOK_AFTER_FORK)) {
+            swoole_call_hook(SW_GLOBAL_HOOK_AFTER_FORK, nullptr);
+        }
     }
 
     return pid;
