@@ -65,7 +65,7 @@ class MysqlClient {
     Socket *socket = nullptr;
     zval zsocket;
     zval zobject;
-    Socket::timeout_controller *tc = nullptr;
+    Socket::TimeoutController *tc = nullptr;
 
     enum sw_mysql_state state = SW_MYSQL_STATE_CLOSED;
     bool quit = false;
@@ -174,7 +174,7 @@ class MysqlClient {
         // Notice: `timeout > 0` is wrong, maybe -1
         if (timeout != 0) {
             SW_ASSERT(!tc);
-            tc = new Socket::timeout_controller(socket, timeout, type);
+            tc = new Socket::TimeoutController(socket, timeout, type);
         }
     }
 
