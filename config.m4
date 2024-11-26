@@ -953,7 +953,7 @@ EOF
     dnl Check should we link to librt
 
     if test "$PHP_IOURING" = "yes" && test "$SW_OS" = "LINUX"; then
-        PKG_CHECK_MODULES([URING], [liburing])
+        PKG_CHECK_MODULES([URING], [liburing >= 2.5])
         PHP_EVAL_LIBLINE($URING_LIBS, SWOOLE_SHARED_LIBADD)
         PHP_EVAL_INCLINE($URING_CFLAGS)
         AC_DEFINE(SW_USE_IOURING, 1, [have io_uring])
