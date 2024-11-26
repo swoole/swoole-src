@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_server: 在使用hyperf3的时候遇到Context::parse_multipart_data()的提示
+swoole_http_server: GitHub issue #5186
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

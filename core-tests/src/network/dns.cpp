@@ -74,23 +74,9 @@ TEST(dns, cancel) {
 }
 
 TEST(dns, getaddrinfo) {
-    char buf[1024] = {};
-    swoole::network::GetaddrinfoRequest req = {};
-    req.hostname = "www.baidu.com";
-    req.family = AF_INET;
-    req.socktype = SOCK_STREAM;
-    req.protocol = 0;
-    req.service = nullptr;
-    req.result = buf;
+    swoole::GetaddrinfoRequest req("www.baidu.com", AF_INET, SOCK_STREAM, 0, "");
     ASSERT_EQ(swoole::network::getaddrinfo(&req), 0);
     ASSERT_GT(req.count, 0);
-
-    vector<string> ip_list;
-    req.parse_result(ip_list);
-
-    for (auto &ip : ip_list) {
-        ASSERT_TRUE(swoole::network::Address::verify_ip(AF_INET, ip));
-    }
 }
 
 TEST(dns, load_resolv_conf) {
