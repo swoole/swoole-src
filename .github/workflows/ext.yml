@@ -45,7 +45,7 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: install dependencies
-        run: brew reinstall php
+        run: brew reinstall php@8.3 && brew link php@8.3 --force
       - uses: actions/checkout@v4
       - name: phpize
         run: phpize
