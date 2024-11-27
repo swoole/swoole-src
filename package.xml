@@ -51,10 +51,10 @@
         <email>doubaokun@php.net</email>
         <active>yes</active>
     </developer>
-    <date>2024-10-22</date>
-    <time>10:00:00</time>
+    <date>2024-11-27</date>
+    <time>23:31:00</time>
     <version>
-        <release>5.1.5</release>
+        <release>5.1.6</release>
         <api>5.0</api>
     </version>
     <stability>
@@ -63,15 +63,13 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        - Fix the need to use `zend_ini_parse_quantity` to parse string numbers for PHP versions greater than 8.2. @matyhtf
-        - Fix an occasional resource unavailability issue when coroutineizing `pdo_pgsql`. @NathanFreeman
-        - Fix header file reference issues when coroutineizing `pdo_pgsql`. @NathanFreeman
-        - Fix incorrect relative path checks to avoid bypassing path validation. @matyhtf
-        - Fix incorrect concurrency count caused by process restarts in high-concurrency environments. @matyhtf
-        - Sync some related code for `php8.3 curl`. @NathanFreeman
-        - Fix core test errors in the `process` module. @NathanFreeman
-        - In `SWOOLE_BASE` mode, all connections should be closed during the `PHP RSHUTDOWN` phase. @matyhtf
-        - Optimize kernel code. @matyhtf
+        - Fixed the issue where `Swoole\Http\Response::end()` returns `null`. @NathanFreeman
+        - Fixed the problem where the mutex lock of `Swoole\Table` could not be used before the process exits. @matyhtf
+        - Fixed the failure of `Swoole\Server::stop()` caused by using named parameters. @matyhtf
+        - Fixed the issue where the `runtime tcp` module did not support dynamically enabling SSL encryption. @matyhtf
+        - Fixed the `Fatal error` issue caused by the timeout feature of `PHP` in `ZTS` mode. @matyhtf
+        - Fixed the problem where `Swoole\Coroutine::getaddrinfo()` method could lead to SIGSEGV. @matyhtf
+        - Fixed the issue where the HTTP client running for a long time resulted in incorrect timeout settings. @matyhtf
     </notes>
     <contents>
         <dir name="/">
@@ -1135,6 +1133,7 @@
             <file role="test" name="tests/swoole_coroutine_system/fread.phpt" />
             <file role="test" name="tests/swoole_coroutine_system/fwrite.phpt" />
             <file role="test" name="tests/swoole_coroutine_system/getaddrinfo.phpt" />
+            <file role="test" name="tests/swoole_coroutine_system/getaddrinfo_timeout.phpt" />
             <file role="test" name="tests/swoole_coroutine_system/gethostbyname.phpt" />
             <file role="test" name="tests/swoole_coroutine_system/gethostbyname_ipv6.phpt" />
             <file role="test" name="tests/swoole_coroutine_system/gethostbyname_timeout.phpt" />
@@ -1892,7 +1891,6 @@
             <file role="test" name="tests/swoole_runtime/block.phpt" />
             <file role="test" name="tests/swoole_runtime/bug_4657.phpt" />
             <file role="test" name="tests/swoole_runtime/bug_5104.phpt" />
-            <file role="test" name="tests/swoole_runtime/capture_peer_cert.phpt" />
             <file role="test" name="tests/swoole_runtime/destruct.phpt" />
             <file role="test" name="tests/swoole_runtime/enable_crypto.phpt" />
             <file role="test" name="tests/swoole_runtime/file_hook/a.inc" />
@@ -1993,10 +1991,12 @@
             <file role="test" name="tests/swoole_runtime/sockets/tcp_server.phpt" />
             <file role="test" name="tests/swoole_runtime/sockets/timeout.phpt" />
             <file role="test" name="tests/swoole_runtime/sockets/udp.phpt" />
+            <file role="test" name="tests/swoole_runtime/ssl/capture_peer_cert.phpt" />
+            <file role="test" name="tests/swoole_runtime/ssl/client.phpt" />
+            <file role="test" name="tests/swoole_runtime/ssl/enable_crypto.phpt" />
             <file role="test" name="tests/swoole_runtime/ssl/local_cert.phpt" />
+            <file role="test" name="tests/swoole_runtime/ssl/server.phpt" />
             <file role="test" name="tests/swoole_runtime/ssl/without_key.phpt" />
-            <file role="test" name="tests/swoole_runtime/ssl_client.phpt" />
-            <file role="test" name="tests/swoole_runtime/ssl_server.phpt" />
             <file role="test" name="tests/swoole_runtime/stdin.phpt" />
             <file role="test" name="tests/swoole_runtime/stream_context.phpt" />
             <file role="test" name="tests/swoole_runtime/stream_context_pass_null.phpt" />
@@ -2128,6 +2128,7 @@
             <file role="test" name="tests/swoole_server/mqtt/length_offset.phpt" />
             <file role="test" name="tests/swoole_server/mqtt/recv_fail.phpt" />
             <file role="test" name="tests/swoole_server/mqtt/send_big_pack.phpt" />
+            <file role="test" name="tests/swoole_server/named_parameters.phpt" />
             <file role="test" name="tests/swoole_server/new_twice.phpt" />
             <file role="test" name="tests/swoole_server/object/event.phpt" />
             <file role="test" name="tests/swoole_server/object/getManagerPid.phpt" />
