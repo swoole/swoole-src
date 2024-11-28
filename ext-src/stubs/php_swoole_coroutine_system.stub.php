@@ -11,7 +11,7 @@ namespace Swoole\Coroutine {
         public static function writeFile(string $filename, string $fileContent, int $flags = 0): false|int {}
         public static function wait(float $timeout = -1): array|false {}
         public static function waitPid(int $pid, float $timeout = -1): array|false {}
-        public static function waitSignal(int $signo, float $timeout = -1): bool {}
+        public static function waitSignal(int|array $signals, float $timeout = -1): bool {}
         public static function waitEvent(mixed $socket, int $events = SWOOLE_EVENT_READ, float $timeout = -1): int|false {}
     }
 }

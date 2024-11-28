@@ -750,17 +750,6 @@ void HttpContext::write(zval *zdata, zval *return_value) {
 }
 
 void HttpContext::end(zval *zdata, zval *return_value) {
-    struct {
-        char *str;
-        size_t length;
-    } http_body;
-    if (zdata) {
-        http_body.length = php_swoole_get_send_data(zdata, &http_body.str);
-    } else {
-        http_body.length = 0;
-        http_body.str = nullptr;
-    }
-
     if (send_chunked) {
         if (zdata && Z_STRLEN_P(zdata) > 0) {
             zval retval;
@@ -782,6 +771,9 @@ void HttpContext::end(zval *zdata, zval *return_value) {
         }
         send_chunked = 0;
     } else {
+        char *data = nullptr;
+        size_t length = zdata ? php_swoole_get_send_data(zdata, &data) : 0;
+
         String *http_buffer = get_write_buffer();
         http_buffer->clear();
 
@@ -812,39 +804,32 @@ void HttpContext::end(zval *zdata, zval *return_value) {
         }
 #endif
 
-        build_header(http_buffer, http_body.str, http_body.length);
+        build_header(http_buffer, data, length);
 
-        char *send_body_str;
-        size_t send_body_len;
-
-        if (http_body.length > 0) {
+        if (length > 0) {
 #ifdef SW_HAVE_COMPRESSION
             if (content_compressed) {
-                send_body_str = zlib_buffer->str;
-                send_body_len = zlib_buffer->length;
-            } else
-#endif
-            {
-                send_body_str = http_body.str;
-                send_body_len = http_body.length;
+                data = zlib_buffer->str;
+                length = zlib_buffer->length;
             }
+#endif
             // send twice to reduce memory copy
-            if (send_body_len < swoole_pagesize()) {
-                if (http_buffer->append(send_body_str, send_body_len) < 0) {
-                    send_header_ = 0;
-                    RETURN_FALSE;
-                }
-            } else {
+            if (length > SW_HTTP_MAX_APPEND_DATA) {
                 if (!send(this, http_buffer->str, http_buffer->length)) {
                     send_header_ = 0;
                     RETURN_FALSE;
                 }
-                if (!send(this, send_body_str, send_body_len)) {
+                if (!send(this, data, length)) {
                     end_ = 1;
                     close(this);
                     RETURN_FALSE;
                 }
                 goto _skip_copy;
+            } else {
+                if (http_buffer->append(data, length) < 0) {
+                    send_header_ = 0;
+                    RETURN_FALSE;
+                }
             }
         }
 

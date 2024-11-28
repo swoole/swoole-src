@@ -335,20 +335,32 @@ PHP_METHOD(swoole_coroutine_system, waitPid) {
 
 PHP_METHOD(swoole_coroutine_system, waitSignal) {
     SW_MUST_BE_MAIN_THREAD();
-    zend_long signo;
+    zval *zsignals;
     double timeout = -1;
 
     ZEND_PARSE_PARAMETERS_START(1, 2)
-    Z_PARAM_LONG(signo)
+    Z_PARAM_ZVAL(zsignals)
     Z_PARAM_OPTIONAL
     Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if (!System::wait_signal(signo, timeout)) {
+    std::vector<int> signals;
+
+    if (ZVAL_IS_ARRAY(zsignals)) {
+        zval *item;
+        ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(zsignals), item) {
+            signals.push_back(zval_get_long(item));
+        }
+        ZEND_HASH_FOREACH_END();
+    } else {
+        signals.push_back(zval_get_long(zsignals));
+    }
+
+    if (!System::wait_signal(signals, timeout)) {
         if (swoole_get_last_error() == EBUSY) {
             php_swoole_fatal_error(E_WARNING, "Unable to wait signal, async signal listener has been registered");
         } else if (swoole_get_last_error() == EINVAL) {
-            php_swoole_fatal_error(E_WARNING, "Invalid signal [" ZEND_LONG_FMT "]", signo);
+            php_swoole_fatal_error(E_WARNING, "Invalid signal in the given list");
         }
         errno = swoole_get_last_error();
         RETURN_FALSE;

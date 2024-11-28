@@ -223,10 +223,15 @@ std::vector<std::string> System::getaddrinfo(
     return retval;
 }
 
+bool System::wait_signal(int signal, double timeout) {
+    std::vector<int> signals = {signal};
+    return wait_signal(signals, timeout);
+}
+
 /**
  * @error: swoole_get_last_error()
  */
-bool System::wait_signal(int signo, double timeout) {
+bool System::wait_signal(const std::vector<int> &signals, double timeout) {
     static Coroutine *listeners[SW_SIGNO_MAX];
     Coroutine *co = Coroutine::get_current_safe();
 
@@ -234,13 +239,31 @@ bool System::wait_signal(int signo, double timeout) {
         swoole_set_last_error(EBUSY);
         return false;
     }
-    if (signo < 0 || signo >= SW_SIGNO_MAX || signo == SIGCHLD) {
-        swoole_set_last_error(EINVAL);
-        return false;
+
+    auto callback_fn = [](int signo) {
+        Coroutine *co = listeners[signo];
+        if (co) {
+            listeners[signo] = nullptr;
+            co->resume();
+        }
+    };
+
+    for (auto &signo : signals) {
+        if (signo < 0 || signo >= SW_SIGNO_MAX || signo == SIGCHLD) {
+            swoole_set_last_error(EINVAL);
+            return false;
+        }
+
+        /* resgiter signal */
+        listeners[signo] = co;
+
+#ifdef SW_USE_THREAD_CONTEXT
+        swoole_event_defer([signo, &callback_fn](void *) { swoole_signal_set(signo, callback_fn); }, nullptr);
+#else
+        swoole_signal_set(signo, callback_fn);
+#endif
     }
 
-    /* resgiter signal */
-    listeners[signo] = co;
     // exit condition
     if (!sw_reactor()->isset_exit_condition(Reactor::EXIT_CONDITION_CO_SIGNAL_LISTENER)) {
         sw_reactor()->set_exit_condition(
@@ -248,69 +271,22 @@ bool System::wait_signal(int signo, double timeout) {
             [](Reactor *reactor, size_t &event_num) -> bool { return SwooleTG.co_signal_listener_num == 0; });
     }
 
-#ifdef SW_USE_THREAD_CONTEXT
-    swoole_event_defer(
-        [signo](void *) {
-            swoole_signal_set(signo, [](int signo) {
-                Coroutine *co = listeners[signo];
-                if (co) {
-                    listeners[signo] = nullptr;
-                    co->resume();
-                }
-            });
-        },
-        nullptr);
-#else
-    swoole_signal_set(signo, [](int signo) {
-        Coroutine *co = listeners[signo];
-        if (co) {
-            listeners[signo] = nullptr;
-            co->resume();
-        }
-    });
-#endif
-
     SwooleTG.co_signal_listener_num++;
 
-    TimerNode *timer = nullptr;
-    if (timeout > 0) {
-        timer = swoole_timer_add(
-            timeout,
-            0,
-            [](Timer *timer, TimerNode *tnode) {
-                Coroutine *co = (Coroutine *) tnode->data;
-                co->resume();
-            },
-            co);
+    bool retval = co->yield_ex(timeout);
+
+    for (auto &signo : signals) {
+#ifdef SW_USE_THREAD_CONTEXT
+        swoole_event_defer([signo](void *) { swoole_signal_set(signo, nullptr); }, nullptr);
+#else
+        swoole_signal_set(signo, nullptr);
+#endif
+        listeners[signo] = nullptr;
     }
 
-    Coroutine::CancelFunc cancel_fn = [timer](Coroutine *co) {
-        if (timer) {
-            swoole_timer_del(timer);
-        }
-        co->resume();
-        return true;
-    };
-    co->yield(&cancel_fn);
-
-#ifdef SW_USE_THREAD_CONTEXT
-    swoole_event_defer([signo](void *) { swoole_signal_set(signo, nullptr); }, nullptr);
-#else
-    swoole_signal_set(signo, nullptr);
-#endif
     SwooleTG.co_signal_listener_num--;
 
-    if (listeners[signo] != nullptr) {
-        listeners[signo] = nullptr;
-        swoole_set_last_error(co->is_canceled() ? SW_ERROR_CO_CANCELED : ETIMEDOUT);
-        return false;
-    }
-
-    if (timer) {
-        swoole_timer_del(timer);
-    }
-
-    return !co->is_canceled();
+    return retval;
 }
 
 struct CoroPollTask {
