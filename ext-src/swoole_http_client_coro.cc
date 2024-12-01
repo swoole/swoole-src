@@ -32,21 +32,11 @@
 SW_EXTERN_C_BEGIN
 
 #include "thirdparty/swoole_http_parser.h"
+#include "stubs/php_swoole_http_client_coro_arginfo.h"
 
 #include "ext/standard/base64.h"
 
-#ifdef SW_HAVE_ZLIB
-#include <zlib.h>
-#endif
-
-#include "stubs/php_swoole_http_client_coro_arginfo.h"
-
 SW_EXTERN_C_END
-
-#ifdef SW_HAVE_BROTLI
-#include <brotli/decode.h>
-#endif
-
 using swoole::File;
 using swoole::String;
 using swoole::coroutine::Socket;
@@ -156,6 +146,9 @@ class Client {
 #endif
 #ifdef SW_HAVE_BROTLI
     BrotliDecoderState *brotli_decoder_state = nullptr;
+#endif
+#ifdef SW_HAVE_ZSTD
+    ZSTD_DStream *zstd_stream = nullptr;
 #endif
     bool bind(std::string address, int port = 0);
     bool connect();
@@ -457,6 +450,11 @@ static int http_parser_on_header_value(swoole_http_parser *parser, const char *a
             http->compress_method = HTTP_COMPRESS_DEFLATE;
         }
 #endif
+#ifdef SW_HAVE_ZSTD
+        else if (SW_STR_ISTARTS_WITH(at, length, "zstd")) {
+            http->compress_method = HTTP_COMPRESS_ZSTD;
+        }
+#endif
     }
 #endif
     else if (SW_STREQ(header_name, header_len, "transfer-encoding") && SW_STR_ISTARTS_WITH(at, length, "chunked")) {
@@ -688,6 +686,48 @@ bool Client::decompress_response(const char *in, size_t in_len) {
 
         body->length = reserved_body_length;
         return false;
+    }
+#endif
+#ifdef SW_HAVE_ZSTD
+    case HTTP_COMPRESS_ZSTD: {
+        size_t zstd_result = 0;
+        if (zstd_stream == nullptr) {
+            zstd_stream = ZSTD_createDStream();
+            if (!zstd_stream) {
+                swoole_warning("ZSTD_createDStream() failed, can not create ZSTD stream");
+                return false;
+            }
+
+            zstd_result = ZSTD_initDStream(zstd_stream);
+            if (ZSTD_isError(zstd_result)) {
+                swoole_warning("ZSTD_initDStream() failed, Error: [%s]", ZSTD_getErrorName(zstd_result));
+                return false;
+            }
+        }
+
+        size_t recommended_size = ZSTD_DStreamOutSize();
+        ZSTD_inBuffer in_buffer = {in, in_len, 0};
+        ZSTD_outBuffer out_buffer = {body->str + body->length, body->size - body->length, 0};
+        while (in_buffer.pos < in_buffer.size) {
+            if (sw_unlikely(out_buffer.pos == out_buffer.size)) {
+                if (!body->extend(recommended_size + body->size)) {
+                    swoole_warning("ZSTD_decompressStream() failed, no memory is available");
+                    return false;
+                }
+
+                body->length += out_buffer.pos;
+                out_buffer = {body->str + body->length, body->size - body->length, 0};
+            }
+
+            zstd_result = ZSTD_decompressStream(zstd_stream, &out_buffer, &in_buffer);
+            if (ZSTD_isError(zstd_result)) {
+                swoole_warning("ZSTD_decompressStream() failed, Error: [%s]", ZSTD_getErrorName(zstd_result));
+                return false;
+            }
+        }
+
+        body->length += out_buffer.pos;
+        return true;
     }
 #endif
     default:
@@ -1112,6 +1152,10 @@ bool Client::send_request() {
 #else
 #ifdef SW_HAVE_BROTLI
                     ZEND_STRL("br")
+#else
+#ifdef SW_HAVE_ZSTD
+                    ZEND_STRL("zstd")
+#endif
 #endif
 #endif
 #endif
@@ -1626,6 +1670,12 @@ void Client::reset() {
     if (brotli_decoder_state) {
         BrotliDecoderDestroyInstance(brotli_decoder_state);
         brotli_decoder_state = nullptr;
+    }
+#endif
+#ifdef SW_HAVE_ZSTD
+    if (zstd_stream) {
+        ZSTD_freeDStream(zstd_stream);
+        zstd_stream = nullptr;
     }
 #endif
     if (has_upload_files) {
