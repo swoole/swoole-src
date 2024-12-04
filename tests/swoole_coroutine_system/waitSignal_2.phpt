@@ -33,13 +33,13 @@ Coroutine\run(function () use ($atomic) {
     $atomic->wakeup();
     echo "1\n";
     $list = [SIGUSR1, SIGUSR2, SIGIO];
-    Assert::true(System::waitSignal($list));
+    Assert::eq(System::waitSignal($list), SIGUSR1);
     echo "3\n";
     Assert::false(System::waitSignal($list, 0.01));
     echo "4\n";
     $atomic->wakeup();
     echo "5\n";
-    Assert::true(System::waitSignal($list));
+    Assert::eq(System::waitSignal($list), SIGUSR2);
     echo "7\n";
     System::wait();
     echo "9\n";

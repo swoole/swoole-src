@@ -356,7 +356,8 @@ PHP_METHOD(swoole_coroutine_system, waitSignal) {
         signals.push_back(zval_get_long(zsignals));
     }
 
-    if (!System::wait_signal(signals, timeout)) {
+    int signo = System::wait_signal(signals, timeout);
+    if (signo == -1) {
         if (swoole_get_last_error() == EBUSY) {
             php_swoole_fatal_error(E_WARNING, "Unable to wait signal, async signal listener has been registered");
         } else if (swoole_get_last_error() == EINVAL) {
@@ -366,7 +367,7 @@ PHP_METHOD(swoole_coroutine_system, waitSignal) {
         RETURN_FALSE;
     }
 
-    RETURN_TRUE;
+    RETURN_LONG(signo);
 }
 
 PHP_METHOD(swoole_coroutine_system, waitEvent) {
