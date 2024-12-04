@@ -123,7 +123,6 @@ static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_cli
     }
 }
 
-
 // clang-format off
 static const zend_function_entry swoole_client_async_methods[] = {
     PHP_ME(swoole_client_async, __construct, arginfo_class_Swoole_Async_Client___construct, ZEND_ACC_PUBLIC)
@@ -144,7 +143,8 @@ static const zend_function_entry swoole_client_async_methods[] = {
 // clang-format on
 
 void php_swoole_client_async_minit(int module_number) {
-    SW_INIT_CLASS_ENTRY_EX(swoole_client_async, "Swoole\\Async\\Client", nullptr, swoole_client_async_methods, swoole_client);
+    SW_INIT_CLASS_ENTRY_EX(
+        swoole_client_async, "Swoole\\Async\\Client", nullptr, swoole_client_async_methods, swoole_client);
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_client_async);
     SW_SET_CLASS_CLONEABLE(swoole_client_async, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_client_async, sw_zend_class_unset_property_deny);
@@ -504,16 +504,23 @@ static PHP_METHOD(swoole_client_async, wakeup) {
 
 #ifdef SW_USE_OPENSSL
 static PHP_METHOD(swoole_client_async, enableSSL) {
+    zval *zcallback = nullptr;
+
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_ZVAL(zcallback)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    if (zcallback == nullptr) {
+        zend_throw_exception(swoole_exception_ce, "require `onSslReady` callback", SW_ERROR_INVALID_PARAMS);
+        RETURN_FALSE;
+    }
+
     Client *cli = php_swoole_client_get_cli_safe(ZEND_THIS);
     if (!cli) {
         RETURN_FALSE;
     }
     if (!php_swoole_client_enable_ssl_encryption(cli, ZEND_THIS)) {
-        RETURN_FALSE;
-    }
-
-    zval *zcallback;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &zcallback) == FAILURE) {
         RETURN_FALSE;
     }
 
@@ -528,7 +535,7 @@ static PHP_METHOD(swoole_client_async, enableSSL) {
 
     auto cb = sw_callable_create(zcallback);
     if (!cb) {
-        return;
+        RETURN_FALSE;
     }
     zend_update_property(swoole_client_async_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("onSSLReady"), zcallback);
     client_obj->async->onSSLReady = cb;
