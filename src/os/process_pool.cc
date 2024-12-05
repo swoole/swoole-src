@@ -265,11 +265,17 @@ int ProcessPool::start() {
     if (start_check() < 0) {
         return SW_ERR;
     }
+
+    if (onStart) {
+        onStart(this);
+    }
+
     SW_LOOP_N(worker_num) {
         if (spawn(&(workers[i])) < 0) {
             return SW_ERR;
         }
     }
+
     return SW_OK;
 }
 
@@ -417,8 +423,24 @@ bool ProcessPool::reload() {
 }
 
 void ProcessPool::stop(Worker *worker) {
-    if (async && worker->pipe_worker) {
+    worker->shutdown();
+
+    if (!swoole_event_is_available()) {
+        return;
+    }
+
+    auto reactor = sw_reactor();
+    if (worker->pipe_worker) {
         swoole_event_del(worker->pipe_worker);
+    }
+
+    if (onWorkerExit) {
+        reactor->set_end_callback(Reactor::PRIORITY_TRY_EXIT, [&](Reactor *reactor) {
+            onWorkerExit(this, worker);
+            if (reactor->if_exit()) {
+                reactor->running = false;
+            }
+        });
     }
 }
 
@@ -427,6 +449,10 @@ void ProcessPool::shutdown() {
     int status;
     Worker *worker;
     running = 0;
+
+    if (onShutdown) {
+        onShutdown(this);
+    }
 
     // concurrent kill
     for (i = 0; i < worker_num; i++) {

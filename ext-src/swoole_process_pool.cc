@@ -34,8 +34,10 @@ static Worker *current_worker = nullptr;
 struct ProcessPoolObject {
     ProcessPool *pool;
     zend::Callable *onStart;
+    zend::Callable *onShutdown;
     zend::Callable *onWorkerStart;
     zend::Callable *onWorkerStop;
+    zend::Callable *onWorkerExit;
     zend::Callable *onMessage;
     zend_bool enable_coroutine;
     zend_bool enable_message_bus;
@@ -85,6 +87,12 @@ static void process_pool_free_object(zend_object *object) {
     }
     if (pp->onStart) {
         sw_callable_free(pp->onStart);
+    }
+    if (pp->onWorkerExit) {
+        sw_callable_free(pp->onWorkerExit);
+    }
+    if (pp->onShutdown) {
+        sw_callable_free(pp->onShutdown);
     }
 
     zend_object_std_dtor(object);
@@ -140,8 +148,14 @@ void php_swoole_process_pool_minit(int module_number) {
     SW_SET_CLASS_CUSTOM_OBJECT(
         swoole_process_pool, process_pool_create_object, process_pool_free_object, ProcessPoolObject, std);
 
-    zend_declare_property_long(swoole_process_pool_ce, ZEND_STRL("master_pid"), -1, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(
+        swoole_process_pool_ce, ZEND_STRL("master_pid"), -1, ZEND_ACC_PUBLIC | ZEND_ACC_DEPRECATED);
+    zend_declare_property_long(swoole_process_pool_ce, ZEND_STRL("masterPid"), -1, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_process_pool_ce, ZEND_STRL("workerPid"), -1, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_process_pool_ce, ZEND_STRL("workerId"), -1, ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_process_pool_ce, ZEND_STRL("workers"), ZEND_ACC_PUBLIC);
+    zend_declare_property_bool(swoole_process_pool_ce, ZEND_STRL("workerRunning"), -1, ZEND_ACC_PUBLIC);
+    zend_declare_property_bool(swoole_process_pool_ce, ZEND_STRL("running"), -1, ZEND_ACC_PUBLIC);
 }
 
 static void process_pool_onWorkerStart(ProcessPool *pool, Worker *worker) {
@@ -152,7 +166,12 @@ static void process_pool_onWorkerStart(ProcessPool *pool, Worker *worker) {
     current_pool = pool;
     current_worker = worker;
 
-    if (pp->onMessage) {
+    zend_update_property_bool(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("running"), true);
+    zend_update_property_bool(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("workerRunning"), true);
+    zend_update_property_long(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("workerPid"), getpid());
+    zend_update_property_long(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("workerId"), worker->id);
+
+    if (pp->onMessage || pp->enable_coroutine) {
         swoole_signal_set(SIGTERM, process_pool_signal_handler);
     }
 
@@ -201,6 +220,9 @@ static void process_pool_onWorkerStop(ProcessPool *pool, Worker *worker) {
     ProcessPoolObject *pp = process_pool_fetch_object(zobject);
     zval args[2];
 
+    zend_update_property_bool(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("running"), false);
+    zend_update_property_bool(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("workerRunning"), false);
+
     if (pp->onWorkerStop == nullptr) {
         return;
     }
@@ -210,6 +232,64 @@ static void process_pool_onWorkerStop(ProcessPool *pool, Worker *worker) {
 
     if (UNEXPECTED(!zend::function::call(pp->onWorkerStop->ptr(), 2, args, nullptr, false))) {
         php_swoole_error(E_WARNING, "%s->onWorkerStop handler error", SW_Z_OBJCE_NAME_VAL_P(zobject));
+    }
+}
+
+static void process_pool_onWorkerExit(ProcessPool *pool, Worker *worker) {
+    zval *zobject = (zval *) pool->ptr;
+    ProcessPoolObject *pp = process_pool_fetch_object(zobject);
+    zval args[2];
+
+    zend_update_property_bool(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("running"), false);
+    zend_update_property_bool(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("workerRunning"), false);
+
+    if (pp->onWorkerExit == nullptr) {
+        return;
+    }
+
+    args[0] = *zobject;
+    ZVAL_LONG(&args[1], worker->id);
+
+    if (UNEXPECTED(!zend::function::call(pp->onWorkerExit->ptr(), 2, args, nullptr, false))) {
+        php_swoole_error(E_WARNING, "%s->onWorkerExit handler error", SW_Z_OBJCE_NAME_VAL_P(zobject));
+    }
+}
+
+static void process_pool_onStart(ProcessPool *pool) {
+    zval *zobject = (zval *) pool->ptr;
+    ProcessPoolObject *pp = process_pool_fetch_object(zobject);
+    zval args[1];
+
+    zend_update_property_long(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("master_pid"), getpid());
+    zend_update_property_long(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("masterPid"), getpid());
+    zend_update_property_bool(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("running"), true);
+
+    if (pp->onStart == nullptr) {
+        return;
+    }
+
+    args[0] = *zobject;
+    if (UNEXPECTED(!zend::function::call(pp->onStart->ptr(), 1, args, nullptr, false))) {
+        php_swoole_error(E_WARNING, "%s->onStart handler error", SW_Z_OBJCE_NAME_VAL_P(zobject));
+    }
+}
+
+static void process_pool_onShutdown(ProcessPool *pool) {
+    zval *zobject = (zval *) pool->ptr;
+    ProcessPoolObject *pp = process_pool_fetch_object(zobject);
+    zval args[1];
+
+    zend_update_property_bool(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("running"), false);
+    zend_update_property_bool(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("workerRunning"), false);
+
+    if (pp->onShutdown == nullptr) {
+        return;
+    }
+
+    args[0] = *zobject;
+
+    if (UNEXPECTED(!zend::function::call(pp->onShutdown->ptr(), 1, args, nullptr, false))) {
+        php_swoole_error(E_WARNING, "%s->onShutdown handler error", SW_Z_OBJCE_NAME_VAL_P(zobject));
     }
 }
 
@@ -343,7 +423,8 @@ static PHP_METHOD(swoole_process_pool, on) {
         pp->onWorkerStart = sw_callable_create(zfn);
     } else if (SW_STRCASEEQ(name, l_name, "Message")) {
         if (pool->ipc_mode == SW_IPC_NONE) {
-            php_swoole_fatal_error(E_WARNING, "cannot set onMessage event with ipc_type=0");
+            zend_throw_exception(
+                swoole_exception_ce, "cannot set `onMessage` event with ipc_type=0", SW_ERROR_INVALID_PARAMS);
             RETURN_FALSE;
         }
         if (pp->onMessage) {
@@ -355,11 +436,21 @@ static PHP_METHOD(swoole_process_pool, on) {
             sw_callable_free(pp->onWorkerStop);
         }
         pp->onWorkerStop = sw_callable_create(zfn);
+    } else if (SW_STRCASEEQ(name, l_name, "WorkerExit")) {
+        if (pp->onWorkerExit) {
+            sw_callable_free(pp->onWorkerExit);
+        }
+        pp->onWorkerExit = sw_callable_create(zfn);
     } else if (SW_STRCASEEQ(name, l_name, "Start")) {
         if (pp->onStart) {
             sw_callable_free(pp->onStart);
         }
         pp->onStart = sw_callable_create(zfn);
+    } else if (SW_STRCASEEQ(name, l_name, "Shutdown")) {
+        if (pp->onShutdown) {
+            sw_callable_free(pp->onShutdown);
+        }
+        pp->onShutdown = sw_callable_create(zfn);
     } else {
         php_swoole_error(E_WARNING, "unknown event type[%s]", name);
         RETURN_FALSE;
@@ -489,29 +580,31 @@ static PHP_METHOD(swoole_process_pool, start) {
         }
     }
 
+    if (pp->onWorkerExit && !pp->enable_coroutine) {
+        zend_throw_exception(
+            swoole_exception_ce, "cannot set `onWorkerExit` without enable_coroutine", SW_ERROR_INVALID_PARAMS);
+        RETURN_FALSE;
+    }
+
     if (pp->onMessage) {
         pool->onMessage = process_pool_onMessage;
     } else {
         pool->main_loop = nullptr;
     }
 
+    current_pool = pool;
+
+    pool->onStart = process_pool_onStart;
+    pool->onShutdown = process_pool_onShutdown;
     pool->onWorkerStart = process_pool_onWorkerStart;
     pool->onWorkerStop = process_pool_onWorkerStop;
 
-    zend_update_property_long(swoole_process_pool_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("master_pid"), getpid());
+    if (pp->enable_coroutine && pp->onWorkerExit) {
+        pool->onWorkerExit = process_pool_onWorkerExit;
+    }
 
     if (pool->start() < 0) {
         RETURN_FALSE;
-    }
-
-    current_pool = pool;
-
-    if (pp->onStart) {
-        zval args[1];
-        args[0] = *ZEND_THIS;
-        if (UNEXPECTED(!zend::function::call(pp->onStart->ptr(), 1, args, nullptr, 0))) {
-            php_swoole_error(E_WARNING, "%s->onStart handler error", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
-        }
     }
 
     pool->wait();
@@ -618,10 +711,13 @@ static PHP_METHOD(swoole_process_pool, stop) {
 }
 
 static PHP_METHOD(swoole_process_pool, shutdown) {
-    zval *retval =
-        sw_zend_read_property_ex(swoole_process_pool_ce, ZEND_THIS, SW_ZSTR_KNOWN(SW_ZEND_STR_MASTER_PID), 0);
-    long pid = zval_get_long(retval);
-    RETURN_BOOL(swoole_kill(pid, SIGTERM) == 0);
+    long pid = zend::object_get_long(ZEND_THIS, SW_ZSTR_KNOWN(SW_ZEND_PROP_MASTER_PID));
+    if (pid > 0) {
+        RETURN_BOOL(swoole_kill(pid, SIGTERM) == 0);
+    } else {
+        zend_throw_exception(swoole_exception_ce, "invalid master pid", SW_ERROR_INVALID_PARAMS);
+        RETURN_FALSE;
+    }
 }
 
 static PHP_METHOD(swoole_process_pool, __destruct) {}

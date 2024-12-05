@@ -263,9 +263,12 @@ struct ProcessPool {
     uint8_t scheduler_warning;
     time_t warning_time;
 
+    void (*onStart)(ProcessPool *pool);
+    void (*onShutdown)(ProcessPool *pool);
     int (*onTask)(ProcessPool *pool, Worker *worker, EventData *task);
     void (*onWorkerStart)(ProcessPool *pool, Worker *worker);
     void (*onMessage)(ProcessPool *pool, RecvData *msg);
+    void (*onWorkerExit)(ProcessPool *pool, Worker *worker);
     void (*onWorkerStop)(ProcessPool *pool, Worker *worker);
     void (*onWorkerError)(ProcessPool *pool, Worker *worker, const ExitStatus &exit_status);
     void (*onWorkerMessage)(ProcessPool *pool, EventData *msg);
@@ -277,7 +280,6 @@ struct ProcessPool {
     Worker *workers;
     std::vector<std::shared_ptr<UnixSocket>> *pipes;
     std::unordered_map<pid_t, Worker *> *map_;
-    Reactor *reactor;
     MsgQueue *queue;
     StreamInfo *stream_info_;
     Channel *message_box = nullptr;

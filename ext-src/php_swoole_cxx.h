@@ -63,6 +63,7 @@
     _(SW_ZEND_STR_USE_PIPELINE_READ,        "usePipelineRead") \
     _(SW_ZEND_STR_TRAILER,                  "trailer") \
     _(SW_ZEND_STR_MASTER_PID,               "master_pid") \
+    _(SW_ZEND_PROP_MASTER_PID,              "masterPid") \
     _(SW_ZEND_STR_CALLBACK,                 "callback") \
     _(SW_ZEND_STR_OPCODE,                   "opcode") \
     _(SW_ZEND_STR_CODE,                     "code") \
@@ -735,6 +736,12 @@ static inline zval *array_get(zval *arg, const char *key, size_t l_key) {
 
 static inline void array_unset(zval *arg, const char *key, size_t l_key) {
     zend_hash_str_del(Z_ARRVAL_P(arg), key, l_key);
+}
+
+static inline zend_long object_get_long(zval *obj, zend_string *key) {
+    static zval rv;
+    zval *property = zend_read_property_ex(Z_OBJCE_P(obj), Z_OBJ_P(obj), key, 1, &rv);
+    return property ? zval_get_long(property) : 0;
 }
 
 static inline zend_long object_get_long(zval *obj, const char *key, size_t l_key) {
