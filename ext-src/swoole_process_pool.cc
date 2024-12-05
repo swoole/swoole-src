@@ -169,19 +169,17 @@ static void process_pool_onWorkerStart(ProcessPool *pool, Worker *worker) {
     zend_update_property_long(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("workerPid"), getpid());
     zend_update_property_long(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("workerId"), worker->id);
 
-    if (pp->onMessage || pp->enable_coroutine) {
+    if (pp->onWorkerStart) {
+        zval args[2];
+        args[0] = *zobject;
+        ZVAL_LONG(&args[1], worker->id);
+        if (UNEXPECTED(!zend::function::call(pp->onWorkerStart->ptr(), 2, args, nullptr, pp->enable_coroutine))) {
+            php_swoole_error(E_WARNING, "%s->onWorkerStart handler error", SW_Z_OBJCE_NAME_VAL_P(zobject));
+        }
+    }
+
+    if (!swoole_signal_isset(SIGTERM) && (pp->onMessage || pp->enable_coroutine)) {
         swoole_signal_set(SIGTERM, process_pool_signal_handler);
-    }
-
-    if (!pp->onWorkerStart) {
-        return;
-    }
-
-    zval args[2];
-    args[0] = *zobject;
-    ZVAL_LONG(&args[1], worker->id);
-    if (UNEXPECTED(!zend::function::call(pp->onWorkerStart->ptr(), 2, args, nullptr, pp->enable_coroutine))) {
-        php_swoole_error(E_WARNING, "%s->onWorkerStart handler error", SW_Z_OBJCE_NAME_VAL_P(zobject));
     }
 }
 

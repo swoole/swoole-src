@@ -122,6 +122,10 @@ SignalHandler swoole_signal_set(int signo, SignalHandler func, int restart, int 
     return oact.sa_handler;
 }
 
+SW_API bool swoole_signal_isset(int signo) {
+    return signals[signo].handler && signals[signo].activated;
+}
+
 /**
  * set new signal handler and return origin signal handler
  */
