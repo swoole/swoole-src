@@ -148,9 +148,7 @@ void php_swoole_process_pool_minit(int module_number) {
     SW_SET_CLASS_CUSTOM_OBJECT(
         swoole_process_pool, process_pool_create_object, process_pool_free_object, ProcessPoolObject, std);
 
-    zend_declare_property_long(
-        swoole_process_pool_ce, ZEND_STRL("master_pid"), -1, ZEND_ACC_PUBLIC | ZEND_ACC_DEPRECATED);
-    zend_declare_property_long(swoole_process_pool_ce, ZEND_STRL("masterPid"), -1, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_process_pool_ce, ZEND_STRL("master_pid"), -1, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_process_pool_ce, ZEND_STRL("workerPid"), -1, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_process_pool_ce, ZEND_STRL("workerId"), -1, ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_process_pool_ce, ZEND_STRL("workers"), ZEND_ACC_PUBLIC);
@@ -261,7 +259,6 @@ static void process_pool_onStart(ProcessPool *pool) {
     zval args[1];
 
     zend_update_property_long(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("master_pid"), getpid());
-    zend_update_property_long(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("masterPid"), getpid());
     zend_update_property_bool(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("running"), true);
 
     if (pp->onStart == nullptr) {
@@ -711,7 +708,7 @@ static PHP_METHOD(swoole_process_pool, stop) {
 }
 
 static PHP_METHOD(swoole_process_pool, shutdown) {
-    long pid = zend::object_get_long(ZEND_THIS, SW_ZSTR_KNOWN(SW_ZEND_PROP_MASTER_PID));
+    long pid = zend::object_get_long(ZEND_THIS, SW_ZSTR_KNOWN(SW_ZEND_STR_MASTER_PID));
     if (pid > 0) {
         RETURN_BOOL(swoole_kill(pid, SIGTERM) == 0);
     } else {

@@ -63,7 +63,6 @@
     _(SW_ZEND_STR_USE_PIPELINE_READ,        "usePipelineRead") \
     _(SW_ZEND_STR_TRAILER,                  "trailer") \
     _(SW_ZEND_STR_MASTER_PID,               "master_pid") \
-    _(SW_ZEND_PROP_MASTER_PID,              "masterPid") \
     _(SW_ZEND_STR_CALLBACK,                 "callback") \
     _(SW_ZEND_STR_OPCODE,                   "opcode") \
     _(SW_ZEND_STR_CODE,                     "code") \
