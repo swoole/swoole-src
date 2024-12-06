@@ -737,6 +737,12 @@ static inline void array_unset(zval *arg, const char *key, size_t l_key) {
     zend_hash_str_del(Z_ARRVAL_P(arg), key, l_key);
 }
 
+static inline zend_long object_get_long(zval *obj, zend_string *key) {
+    static zval rv;
+    zval *property = zend_read_property_ex(Z_OBJCE_P(obj), Z_OBJ_P(obj), key, 1, &rv);
+    return property ? zval_get_long(property) : 0;
+}
+
 static inline zend_long object_get_long(zval *obj, const char *key, size_t l_key) {
     static zval rv;
     zval *property = zend_read_property(Z_OBJCE_P(obj), Z_OBJ_P(obj), key, l_key, 1, &rv);
