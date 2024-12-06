@@ -19,13 +19,13 @@ $pool->on('workerStart', function (Swoole\Process\Pool $pool, int $workerId) {
     echo "worker start\n";
     Assert::eq($pool->workerId, $workerId);
 
-    Timer::after(100, function () use ($pool, $workerId) {
-        $pool->shutdown();
-    });
-
+    $count = 0;
     while ($GLOBALS['running']) {
         Co::sleep(0.03);
         echo "sleep\n";
+        if (++$count === 3) {
+            $pool->shutdown();
+        }
     }
 });
 
