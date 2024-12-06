@@ -435,7 +435,7 @@ void ProcessPool::stop(Worker *worker) {
     }
 
     if (onWorkerExit) {
-        reactor->set_end_callback(Reactor::PRIORITY_TRY_EXIT, [&](Reactor *reactor) {
+        reactor->set_end_callback(Reactor::PRIORITY_TRY_EXIT, [this, worker](Reactor *reactor) {
             onWorkerExit(this, worker);
             if (reactor->if_exit()) {
                 reactor->running = false;
