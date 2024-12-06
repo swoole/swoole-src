@@ -15,16 +15,7 @@
 */
 
 #include "php_swoole_http_server.h"
-
 #include "swoole_util.h"
-
-#ifdef SW_HAVE_ZLIB
-#include <zlib.h>
-#endif
-
-#ifdef SW_HAVE_BROTLI
-#include <brotli/encode.h>
-#endif
 
 BEGIN_EXTERN_C()
 #include "stubs/php_swoole_http_response_arginfo.h"
@@ -564,6 +555,30 @@ bool HttpContext::compress(const char *data, size_t length) {
             content_compressed = 1;
             return true;
         }
+    }
+#endif
+#ifdef SW_HAVE_ZSTD
+    else if (compression_method == HTTP_COMPRESS_ZSTD) {
+        int zstd_compress_level = compression_level;
+        int zstd_max_level = ZSTD_maxCLevel();
+        int zstd_min_level = ZSTD_minCLevel();
+        zstd_compress_level = (zstd_compress_level > zstd_max_level)
+                                      ? zstd_max_level
+                                      : (zstd_compress_level < zstd_min_level ? zstd_min_level : zstd_compress_level);
+
+        size_t compress_size = ZSTD_compressBound(length);
+        zlib_buffer = std::make_shared<String>(compress_size);;
+        size_t zstd_compress_result =
+            ZSTD_compress((void *) zlib_buffer->str, compress_size, (void *) data, length, zstd_compress_level);
+
+        if (ZSTD_isError(zstd_compress_result)) {
+            swoole_warning("ZSTD_compress() failed, Error: [%s]", ZSTD_getErrorName(zstd_compress_result));
+            return false;
+        }
+
+        zlib_buffer->length = zstd_compress_result;
+        content_compressed = 1;
+        return true;
     }
 #endif
     else {
