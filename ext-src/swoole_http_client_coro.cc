@@ -523,12 +523,19 @@ static int http_parser_on_body(swoole_http_parser *parser, const char *at, size_
             }
             http->download_file = fp.release();
         }
-        if (swoole_coroutine_write(http->download_file->get_fd(), SW_STRINGL(http->body)) !=
-            (ssize_t) http->body->length) {
+
+        if (
+#ifdef SW_USE_IOURING
+            swoole_coroutine_iouring_write
+#else
+            swoole_coroutine_write
+#endif
+            (http->download_file->get_fd(), SW_STRINGL(http->body)) != (ssize_t) http->body->length) {
             return -1;
         }
         http->body->clear();
     }
+
     return 0;
 }
 
