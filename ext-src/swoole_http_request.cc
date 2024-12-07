@@ -333,7 +333,6 @@ bool swoole_http_token_list_contains_value(const char *at, size_t length, const 
 
 static int http_request_on_header_value(swoole_http_parser *parser, const char *at, size_t length) {
     HttpContext *ctx = (HttpContext *) parser->data;
-    zval *zheader = ctx->request.zheader;
     const char *header_name = ctx->current_header_name;
     size_t header_len = ctx->current_header_name_len;
 
@@ -342,53 +341,43 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
             swoole_http_request_ce, ctx->request.zobject, &ctx->request.zcookie, SW_ZSTR_KNOWN(SW_ZEND_STR_COOKIE));
         swoole_http_parse_cookie(zcookie, at, length);
         return 0;
-    } else if (SW_STRCASEEQ(header_name, header_len, "upgrade") &&
-               swoole_http_token_list_contains_value(at, length, "websocket")) {
+    }
+
+    zval tmp;
+    ZVAL_STRINGL(&tmp, (char *) at, length);
+    zval *zheader = ctx->request.zheader;
+
+    if (SW_STRCASEEQ(header_name, header_len, "transfer-encoding")) {
+        if (SW_STR_ISTARTS_WITH(at, length, "chunked")) {
+            ctx->recv_chunked = 1;
+        }
+
+        goto _add_header;
+    }
+
+    if (SW_STRCASEEQ(header_name, header_len, "upgrade") &&
+        swoole_http_token_list_contains_value(at, length, "websocket")) {
         ctx->websocket = 1;
-        if (ctx->co_socket) {
-            goto _add_header;
-        }
         Server *serv = (Server *) ctx->private_data;
-        if (!serv) {
+
+        if (ctx->co_socket || !serv) {
             goto _add_header;
         }
+
         Connection *conn = serv->get_connection_by_session_id(ctx->fd);
         if (!conn) {
             swoole_error_log(SW_LOG_TRACE, SW_ERROR_SESSION_CLOSED, "session[%ld] is closed", ctx->fd);
+            zval_ptr_dtor(&tmp);
             return -1;
         }
+
         ListenPort *port = serv->get_port_by_server_fd(conn->server_fd);
         if (port->open_websocket_protocol) {
             conn->websocket_status = swoole::websocket::STATUS_CONNECTION;
         }
-    } else if ((parser->method == PHP_HTTP_POST || parser->method == PHP_HTTP_PUT ||
-                parser->method == PHP_HTTP_DELETE || parser->method == PHP_HTTP_PATCH) &&
-               SW_STRCASEEQ(header_name, header_len, "content-type")) {
-        if (SW_STR_ISTARTS_WITH(at, length, "application/x-www-form-urlencoded")) {
-            ctx->request.post_form_urlencoded = 1;
-        } else if (SW_STR_ISTARTS_WITH(at, length, "multipart/form-data")) {
-            size_t offset = sizeof("multipart/form-data") - 1;
-            char *boundary_str;
-            int boundary_len;
-            if (!ctx->get_multipart_boundary(at, length, offset, &boundary_str, &boundary_len)) {
-                return -1;
-            }
-            swoole_trace_log(SW_TRACE_HTTP, "form_data, boundary_str=%s", boundary_str);
-            ctx->init_multipart_parser(boundary_str, boundary_len);
-        }
-    }
-#ifdef SW_HAVE_COMPRESSION
-    else if (ctx->enable_compression && SW_STRCASEEQ(header_name, header_len, "accept-encoding")) {
-        ctx->set_compression_method(at, length);
-    }
-#endif
-    else if (SW_STRCASEEQ(header_name, header_len, "transfer-encoding") && SW_STR_ISTARTS_WITH(at, length, "chunked")) {
-        ctx->recv_chunked = 1;
-    }
 
-_add_header:
-    zval tmp;
-    ZVAL_STRINGL(&tmp, (char *) at, length);
+        goto _add_header;
+    }
 
     /**
      * some common request header key
@@ -400,6 +389,22 @@ _add_header:
     } else if (SW_STRCASEEQ(header_name, header_len, "accept")) {
         zend_hash_update(Z_ARR_P(zheader), SW_ZSTR_KNOWN(SW_ZEND_STR_ACCEPT), &tmp);
     } else if (SW_STRCASEEQ(header_name, header_len, "content-type")) {
+        if (parser->method == PHP_HTTP_POST || parser->method == PHP_HTTP_PUT || parser->method == PHP_HTTP_DELETE ||
+            parser->method == PHP_HTTP_PATCH) {
+            if (SW_STR_ISTARTS_WITH(at, length, "application/x-www-form-urlencoded")) {
+                ctx->request.post_form_urlencoded = 1;
+            } else if (SW_STR_ISTARTS_WITH(at, length, "multipart/form-data")) {
+                size_t offset = sizeof("multipart/form-data") - 1;
+                char *boundary_str;
+                int boundary_len;
+                if (!ctx->get_multipart_boundary(at, length, offset, &boundary_str, &boundary_len)) {
+                    zval_ptr_dtor(&tmp);
+                    return -1;
+                }
+                swoole_trace_log(SW_TRACE_HTTP, "form_data, boundary_str=%s", boundary_str);
+                ctx->init_multipart_parser(boundary_str, boundary_len);
+            }
+        }
         zend_hash_update(Z_ARR_P(zheader), SW_ZSTR_KNOWN(SW_ZEND_STR_CONTENT_TYPE), &tmp);
     } else if (SW_STRCASEEQ(header_name, header_len, "content-length")) {
         zend_hash_update(Z_ARR_P(zheader), SW_ZSTR_KNOWN(SW_ZEND_STR_CONTENT_LENGTH), &tmp);
@@ -408,8 +413,14 @@ _add_header:
     } else if (SW_STRCASEEQ(header_name, header_len, "connection")) {
         zend_hash_update(Z_ARR_P(zheader), SW_ZSTR_KNOWN(SW_ZEND_STR_CONNECTION), &tmp);
     } else if (SW_STRCASEEQ(header_name, header_len, "accept-encoding")) {
+#ifdef SW_HAVE_COMPRESSION
+        if (ctx->enable_compression) {
+            ctx->set_compression_method(at, length);
+        }
+#endif
         zend_hash_update(Z_ARR_P(zheader), SW_ZSTR_KNOWN(SW_ZEND_STR_ACCEPT_ENCODING), &tmp);
     } else {
+    _add_header:
         char *new_header_name = estrndup(header_name, header_len);
         zend_str_tolower_copy(new_header_name, header_name, header_len);
         zend_hash_str_update(Z_ARR_P(zheader), new_header_name, header_len, &tmp);
