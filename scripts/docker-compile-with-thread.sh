@@ -13,6 +13,8 @@ cd "${__DIR__}" && cd ..
 ./scripts/clear.sh
 phpize
 ./configure \
+--enable-brotli \
+--enable-zstd \
 --enable-openssl \
 --enable-sockets \
 --enable-mysqlnd \

@@ -34,6 +34,15 @@
 #define SW_ZLIB_ENCODING_ANY 0x2f
 #endif
 
+#ifdef SW_HAVE_BROTLI
+#include <brotli/encode.h>
+#include <brotli/decode.h>
+#endif
+
+#ifdef SW_HAVE_ZSTD
+#include <zstd.h>
+#endif
+
 #include <nghttp2/nghttp2.h>
 
 enum swHttpHeaderFlag {
@@ -52,6 +61,7 @@ enum swHttpCompressMethod {
     HTTP_COMPRESS_GZIP,
     HTTP_COMPRESS_DEFLATE,
     HTTP_COMPRESS_BR,
+    HTTP_COMPRESS_ZSTD,
 };
 
 namespace swoole {

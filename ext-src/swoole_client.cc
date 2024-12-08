@@ -75,7 +75,6 @@ static zend_object *client_create_object(zend_class_entry *ce) {
     return &client->std;
 }
 
-
 SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_client, __construct);
 static PHP_METHOD(swoole_client, __destruct);
@@ -166,8 +165,7 @@ void php_swoole_client_minit(int module_number) {
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_client);
     SW_SET_CLASS_CLONEABLE(swoole_client, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_client, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CUSTOM_OBJECT(
-        swoole_client, client_create_object, client_free_object, ClientObject, std);
+    SW_SET_CLASS_CUSTOM_OBJECT(swoole_client, client_create_object, client_free_object, ClientObject, std);
 
     SW_INIT_CLASS_ENTRY_EX(swoole_client_exception, "Swoole\\Client\\Exception", nullptr, nullptr, swoole_exception);
 
@@ -720,11 +718,11 @@ static PHP_METHOD(swoole_client, connect) {
             RETURN_TRUE;
         }
         php_swoole_core_error(E_WARNING,
-                         "connect to server[%s:%d] failed. Error: %s[%d]",
-                         host,
-                         (int) port,
-                         swoole_strerror(swoole_get_last_error()),
-                         swoole_get_last_error());
+                              "connect to server[%s:%d] failed. Error: %s[%d]",
+                              host,
+                              (int) port,
+                              swoole_strerror(swoole_get_last_error()),
+                              swoole_get_last_error());
         php_swoole_client_free(ZEND_THIS, cli);
         RETURN_FALSE;
     }
@@ -1234,6 +1232,19 @@ bool php_swoole_client_enable_ssl_encryption(Client *cli, zval *zobject) {
 }
 
 static PHP_METHOD(swoole_client, enableSSL) {
+    zval *zcallback = nullptr;
+
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_ZVAL(zcallback)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    if (zcallback) {
+        zend_throw_exception(
+            swoole_exception_ce, "sync client does not support `onSslReady` callback", SW_ERROR_INVALID_PARAMS);
+        RETURN_FALSE;
+    }
+
     Client *cli = php_swoole_client_get_cli_safe(ZEND_THIS);
     if (!cli) {
         RETURN_FALSE;
@@ -1296,11 +1307,11 @@ PHP_FUNCTION(swoole_client_select) {
     double timeout = SW_CLIENT_CONNECT_TIMEOUT;
 
     ZEND_PARSE_PARAMETERS_START(3, 4)
-        Z_PARAM_ARRAY_EX2(r_array, 1, 1, 0)
-        Z_PARAM_ARRAY_EX2(w_array, 1, 1, 0)
-        Z_PARAM_ARRAY_EX2(e_array, 1, 1, 0)
-        Z_PARAM_OPTIONAL
-        Z_PARAM_DOUBLE(timeout)
+    Z_PARAM_ARRAY_EX2(r_array, 1, 1, 0)
+    Z_PARAM_ARRAY_EX2(w_array, 1, 1, 0)
+    Z_PARAM_ARRAY_EX2(e_array, 1, 1, 0)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END();
 
     int maxevents = SW_MAX(SW_MAX(php_swoole_array_length_safe(r_array), php_swoole_array_length_safe(w_array)),

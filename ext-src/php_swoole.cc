@@ -54,6 +54,9 @@ END_EXTERN_C()
 #include <brotli/encode.h>
 #include <brotli/decode.h>
 #endif
+#ifdef SW_HAVE_ZSTD
+#include <zstd.h>
+#endif
 
 #ifdef SW_USE_CARES
 #include <ares.h>
@@ -927,6 +930,13 @@ PHP_MINFO_FUNCTION(swoole) {
 #ifdef SW_HAVE_BROTLI
     snprintf(buf, sizeof(buf), "E%u/D%u", BrotliEncoderVersion(), BrotliDecoderVersion());
     php_info_print_table_row(2, "brotli", buf);
+#endif
+#ifdef SW_HAVE_ZSTD
+#ifdef ZSTD_VERSION_NUMBER
+    php_info_print_table_row(2, "zstd", ZSTD_VERSION_STRING);
+#else
+    php_info_print_table_row(2, "zstd", "enabled");
+#endif
 #endif
 #ifdef HAVE_MUTEX_TIMEDLOCK
     php_info_print_table_row(2, "mutex_timedlock", "enabled");

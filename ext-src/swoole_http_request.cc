@@ -22,14 +22,6 @@ SW_EXTERN_C_BEGIN
 #include "thirdparty/php/main/SAPI.h"
 SW_EXTERN_C_END
 
-#ifdef SW_HAVE_ZLIB
-#include <zlib.h>
-#endif
-
-#ifdef SW_HAVE_BROTLI
-#include <brotli/encode.h>
-#endif
-
 enum http_upload_errno {
     HTTP_UPLOAD_ERR_OK = 0,
     HTTP_UPLOAD_ERR_INI_SIZE,
@@ -854,6 +846,11 @@ void HttpContext::set_compression_method(const char *accept_encoding, size_t len
     } else if (swoole_strnpos(accept_encoding, length, ZEND_STRL("deflate")) >= 0) {
         accept_compression = 1;
         compression_method = HTTP_COMPRESS_DEFLATE;
+#ifdef SW_HAVE_ZSTD
+    } else if (swoole_strnpos(accept_encoding, length, ZEND_STRL("zstd")) >= 0) {
+        accept_compression = 1;
+        compression_method = HTTP_COMPRESS_ZSTD;
+#endif
     } else {
         accept_compression = 0;
     }
@@ -868,6 +865,11 @@ const char *HttpContext::get_content_encoding() {
 #ifdef SW_HAVE_BROTLI
     else if (compression_method == HTTP_COMPRESS_BR) {
         return "br";
+    }
+#endif
+#ifdef SW_HAVE_ZSTD
+    else if (compression_method == HTTP_COMPRESS_ZSTD) {
+        return "zstd";
     }
 #endif
     else {

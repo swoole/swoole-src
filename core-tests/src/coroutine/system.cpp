@@ -121,8 +121,8 @@ TEST(coroutine_system, wait_signal) {
             System::sleep(0.002);
             kill(getpid(), SIGUSR1);
         });
-        ASSERT_TRUE(System::wait_signal(SIGUSR1, 1.0));
-        ASSERT_FALSE(System::wait_signal(SIGUSR2, 0.1));
+        ASSERT_EQ(System::wait_signal(SIGUSR1, 1.0), SIGUSR1);
+        ASSERT_EQ(System::wait_signal(SIGUSR2, 0.1), -1);
     });
 }
 

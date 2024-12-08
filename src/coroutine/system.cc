@@ -223,7 +223,18 @@ std::vector<std::string> System::getaddrinfo(
     return retval;
 }
 
-bool System::wait_signal(int signal, double timeout) {
+struct SignalListener {
+    Coroutine *co;
+    int signo;
+};
+
+/**
+ * Only the main thread should listen for signals,
+ * without modifying it to a thread-local variable.
+ */
+static SignalListener *listeners[SW_SIGNO_MAX];
+
+int System::wait_signal(int signal, double timeout) {
     std::vector<int> signals = {signal};
     return wait_signal(signals, timeout);
 }
@@ -231,31 +242,34 @@ bool System::wait_signal(int signal, double timeout) {
 /**
  * @error: swoole_get_last_error()
  */
-bool System::wait_signal(const std::vector<int> &signals, double timeout) {
-    static Coroutine *listeners[SW_SIGNO_MAX];
-    Coroutine *co = Coroutine::get_current_safe();
+int System::wait_signal(const std::vector<int> &signals, double timeout) {
+    SignalListener listener = {
+            Coroutine::get_current_safe(),
+            -1,
+    };
 
     if (SwooleTG.signal_listener_num > 0) {
         swoole_set_last_error(EBUSY);
-        return false;
+        return -1;
     }
 
     auto callback_fn = [](int signo) {
-        Coroutine *co = listeners[signo];
-        if (co) {
+        auto listener = listeners[signo];
+        if (listener) {
             listeners[signo] = nullptr;
-            co->resume();
+            listener->signo = signo;
+            listener->co->resume();
         }
     };
 
     for (auto &signo : signals) {
         if (signo < 0 || signo >= SW_SIGNO_MAX || signo == SIGCHLD) {
             swoole_set_last_error(EINVAL);
-            return false;
+            return -1;
         }
 
         /* resgiter signal */
-        listeners[signo] = co;
+        listeners[signo] = &listener;
 
 #ifdef SW_USE_THREAD_CONTEXT
         swoole_event_defer([signo, &callback_fn](void *) { swoole_signal_set(signo, callback_fn); }, nullptr);
@@ -273,7 +287,7 @@ bool System::wait_signal(const std::vector<int> &signals, double timeout) {
 
     SwooleTG.co_signal_listener_num++;
 
-    bool retval = co->yield_ex(timeout);
+    bool retval = listener.co->yield_ex(timeout);
 
     for (auto &signo : signals) {
 #ifdef SW_USE_THREAD_CONTEXT
@@ -286,7 +300,7 @@ bool System::wait_signal(const std::vector<int> &signals, double timeout) {
 
     SwooleTG.co_signal_listener_num--;
 
-    return retval;
+    return retval ? listener.signo : -1;
 }
 
 struct CoroPollTask {

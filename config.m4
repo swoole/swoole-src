@@ -71,6 +71,11 @@ PHP_ARG_WITH([brotli_dir],
   [AS_HELP_STRING([[--with-brotli-dir[=DIR]]],
     [Include Brotli support])], [no], [no])
 
+PHP_ARG_ENABLE([zstd],
+  [enable zstd support],
+  [AS_HELP_STRING([[--enable-zstd]],
+    [Use zstd])], [no], [no])
+
 PHP_ARG_WITH([nghttp2_dir],
   [dir of nghttp2],
   [AS_HELP_STRING([[--with-nghttp2-dir[=DIR]]],
@@ -871,6 +876,13 @@ EOF
             PHP_EVAL_LIBLINE($BROTLIDEC_LIBS, SWOOLE_SHARED_LIBADD)
             PHP_EVAL_INCLINE($BROTLIDEC_CFLAGS)
         fi
+    fi
+
+    if test "$PHP_ZSTD" = "yes"; then
+        PKG_CHECK_MODULES([ZSTD], [libzstd >= 1.4.0])
+        AC_DEFINE(SW_HAVE_ZSTD, 1, [have zstd])
+        PHP_EVAL_LIBLINE($ZSTD_LIBS, SWOOLE_SHARED_LIBADD)
+        PHP_EVAL_INCLINE($ZSTD_CFLAGS)
     fi
 
     PHP_ADD_LIBRARY(pthread)
