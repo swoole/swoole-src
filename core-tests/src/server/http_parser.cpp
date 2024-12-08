@@ -27,33 +27,35 @@ static int http_request_on_header_field(llhttp_t *parser, const char *at, size_t
 static int http_request_on_header_value(llhttp_t *parser, const char *at, size_t length);
 static int http_request_on_headers_complete(llhttp_t *parser);
 static int http_request_message_complete(llhttp_t *parser);
+static int http_request_llhttp_data_cb(llhttp_t *parser, const char *at, size_t length);
+static int http_request_llhttp_cb(llhttp_t *parser);
 
 // clang-format off
 static const llhttp_settings_t http_parser_settings =
 {
-    nullptr, // on_message_begin
+    http_request_llhttp_cb, // on_message_begin
     http_request_on_query_string, // on_url
-    nullptr, // on_status
-    nullptr, // on_method
-    nullptr, // on_version
+    http_request_llhttp_data_cb, // on_status
+    http_request_llhttp_data_cb, // on_method
+    http_request_llhttp_data_cb, // on_version
     http_request_on_header_field, // on_header_field
     http_request_on_header_value, // on_header_value
-    nullptr, // on_chunk_extension_name
-    nullptr, // on_chunk_extension_value
+    http_request_llhttp_data_cb, // on_chunk_extension_name
+    http_request_llhttp_data_cb, // on_chunk_extension_value
     http_request_on_headers_complete, // on_headers_complete
     http_request_on_body, // on_body
     http_request_message_complete, // on_message_complete
-    nullptr,  // on_url_complete
-    nullptr, // on_status_complete
-    nullptr, // on_method_complete
-    nullptr, // on_version_complete
-    nullptr, // on_header_field_complete
-    nullptr, // on_header_value_complete
-    nullptr, // on_chunk_extension_name_complete
-    nullptr, // on_chunk_extension_value_complete
-    nullptr, // on_chunk_header
-    nullptr, // on_chunk_complete
-    nullptr, // on_reset
+    http_request_llhttp_cb,  // on_url_complete
+    http_request_llhttp_cb, // on_status_complete
+    http_request_llhttp_cb, // on_method_complete
+    http_request_llhttp_cb, // on_version_complete
+    http_request_llhttp_cb, // on_header_field_complete
+    http_request_llhttp_cb, // on_header_value_complete
+    http_request_llhttp_cb, // on_chunk_extension_name_complete
+    http_request_llhttp_cb, // on_chunk_extension_value_complete
+    http_request_llhttp_cb, // on_chunk_header
+    http_request_llhttp_cb, // on_chunk_complete
+    http_request_llhttp_cb, // on_reset
 };
 // clang-format on
 
@@ -156,6 +158,14 @@ static int http_request_on_body(llhttp_t *parser, const char *at, size_t length)
 }
 
 static int http_request_message_complete(llhttp_t *parser) {
+    return 0;
+}
+
+static int http_request_llhttp_data_cb(llhttp_t *parser, const char *at, size_t length) {
+    return 0;
+}
+
+static int http_request_llhttp_cb(llhttp_t *parser) {
     return 0;
 }
 
@@ -342,8 +352,8 @@ TEST(http_parser, method_name) {
 TEST(http_parser, http_version) {
     llhttp_t *parser = swoole_http_parser_create();
     swoole_http_parser_execute(parser, &http_parser_settings, request_get.c_str(), request_get.length());
-    ASSERT_TRUE(parser->http_major == 1);
-    ASSERT_TRUE(parser->http_minor == 1);
+    ASSERT_TRUE(llhttp_get_http_major(parser) == 1);
+    ASSERT_TRUE(llhttp_get_http_minor(parser) == 1);
     swoole_http_destroy_context(parser);
 
     parser = swoole_http_parser_create();
@@ -420,7 +430,7 @@ TEST(http_parser, should_keep_alive) {
 TEST(http_parser, upgrade) {
     llhttp_t *parser = swoole_http_parser_create();
     swoole_http_parser_execute(parser, &http_parser_settings, request_upgrade.c_str(), request_upgrade.length());
-    ASSERT_TRUE(parser->upgrade == 1);
+    ASSERT_TRUE(llhttp_get_upgrade(parser) == 1);
     swoole_http_destroy_context(parser);
 }
 
@@ -536,7 +546,7 @@ TEST(http_parser, response) {
     llhttp_t *parser = swoole_http_parser_create(PHP_HTTP_RESPONSE);
     swoole_http_parser_execute(parser, &http_parser_settings, response_200.c_str(), response_200.length());
 
-    ASSERT_EQ(parser->status_code, 200);
+    ASSERT_EQ(llhttp_get_status_code(parser), 200);
     ASSERT_TRUE(parser->http_major == 1);
     ASSERT_TRUE(parser->http_minor == 1);
     swoole_http_destroy_context(parser);
@@ -632,4 +642,76 @@ TEST(http_parser, http09) {
     ASSERT_TRUE(parser->http_major == 0);
     ASSERT_TRUE(parser->http_minor == 9);
     swoole_http_destroy_context(parser);
+}
+
+/**
+ * Just for coverage purposes, in practice, we do not allow these lenient settings for parsing HTTP
+ */
+TEST(http_parser, lenient) {
+    llhttp_t parser = {};
+    llhttp_t *_parser = &parser;
+
+    uint16_t lenient_flags = _parser->lenient_flags;
+    llhttp_set_lenient_headers(_parser, true);
+    llhttp_set_lenient_headers(_parser, false);
+
+    llhttp_set_lenient_chunked_length(_parser, true);
+    llhttp_set_lenient_chunked_length(_parser, false);
+
+    llhttp_set_lenient_keep_alive(_parser, true);
+    llhttp_set_lenient_keep_alive(_parser, false);
+
+    llhttp_set_lenient_data_after_close(_parser, true);
+    llhttp_set_lenient_data_after_close(_parser, false);
+
+    llhttp_set_lenient_optional_lf_after_cr(_parser, true);
+    llhttp_set_lenient_optional_lf_after_cr(_parser, false);
+
+    llhttp_set_lenient_optional_crlf_after_chunk(_parser, true);
+    llhttp_set_lenient_optional_crlf_after_chunk(_parser, false);
+
+    llhttp_set_lenient_optional_cr_before_lf(_parser, true);
+    llhttp_set_lenient_optional_cr_before_lf(_parser, false);
+
+    llhttp_set_lenient_spaces_after_chunk_size(_parser, true);
+    llhttp_set_lenient_spaces_after_chunk_size(_parser, false);
+
+    ASSERT_TRUE(_parser->lenient_flags == lenient_flags);
+}
+
+TEST(http_parser, reset) {
+    string error_protocol = "ET / HTTP/1.1\r\n\r\n\r\n";
+
+    llhttp_t *parser = swoole_http_parser_create();
+    parser->error = 0;
+    parser->reason = nullptr;
+    parser->error_pos = 0;
+
+    swoole_http_parser_execute(parser, &http_parser_settings, error_protocol.c_str(), error_protocol.length());
+    llhttp_errno_t error = llhttp_get_errno(parser);
+    ASSERT_TRUE(error != 0);
+    ASSERT_TRUE(llhttp_get_error_reason(parser) != nullptr);
+    ASSERT_TRUE(llhttp_get_error_pos(parser) != 0);
+    ASSERT_STREQ(llhttp_errno_name(error), "HPE_INVALID_METHOD");
+
+    llhttp_reset(parser);
+    parser->type = PHP_HTTP_RESPONSE;
+    swoole_http_parser_execute(parser, &http_parser_settings, response_200.c_str(), response_200.length());
+    ASSERT_EQ(llhttp_get_status_code(parser), 200);
+    swoole_http_destroy_context(parser);
+}
+
+TEST(http_parser, type) {
+    llhttp_t *parser = swoole_http_parser_create();
+    uint8_t type = llhttp_get_type(parser);
+    ASSERT_TRUE(type == PHP_HTTP_REQUEST);
+
+    parser = swoole_http_parser_create(PHP_HTTP_RESPONSE);
+    type = llhttp_get_type(parser);
+    ASSERT_TRUE(type == PHP_HTTP_RESPONSE);
+    swoole_http_destroy_context(parser);
+}
+
+TEST(http_parser, status_name) {
+    ASSERT_STREQ(llhttp_status_name(HTTP_STATUS_OK), "OK");
 }
