@@ -24,7 +24,7 @@ go(function () {
     }
 
     $baidu = createDeferCli('www.baidu.com', true);
-    $qq = createDeferCli('www.qq.com', true);
+    $qq = createDeferCli('news.qq.com', true);
 
     //first
     $baidu->get('/');
@@ -38,7 +38,7 @@ go(function () {
 
     //reuse
     $baidu->get('/duty/');
-    $qq->get('/contract.shtml');
+    $qq->get('/ch/tech/');
     $baidu->recv(10);
     $qq->recv(10);
     Assert::same($baidu->statusCode, 200);
