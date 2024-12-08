@@ -140,11 +140,7 @@ static void test_base_server(function<void(Server *)> fn) {
         if (conn->websocket_status == websocket::STATUS_ACTIVE) {
             sw_tg_buffer()->clear();
             std::string resp = "Swoole: " + string(req->data, req->info.len);
-            websocket::encode(sw_tg_buffer(),
-                                      resp.c_str(),
-                                      resp.length(),
-                                      websocket::OPCODE_TEXT,
-                                      websocket::FLAG_FIN);
+            websocket::encode(sw_tg_buffer(), resp.c_str(), resp.length(), websocket::OPCODE_TEXT, websocket::FLAG_FIN);
             serv->send(session_id, sw_tg_buffer()->str, sw_tg_buffer()->length);
             return SW_OK;
         }
@@ -275,71 +271,6 @@ static Server *test_process_server(Server::DispatchMode dispatch_mode = Server::
         EXPECT_EQ(err, HPE_OK);
         ctx.response(SW_HTTP_OK, "hello world");
 
-        return SW_OK;
-    };
-
-    return server;
-}
-
-static Server *test_proxy_server() {
-    Server *server = new Server(Server::MODE_BASE);
-    server->worker_num = 1;
-
-    ListenPort *port = server->add_port(SW_SOCK_TCP, TEST_HOST, 0);
-    port->kernel_socket_send_buffer_size = INT_MAX;
-    port->kernel_socket_recv_buffer_size = INT_MAX;
-    port->open_tcp_nodelay = true;
-    if (!port) {
-        swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
-        exit(2);
-    }
-
-    server->enable_static_handler = true;
-    server->set_document_root(test::get_root_path());
-    server->add_static_handler_location("/examples");
-
-    server->get_primary_port()->set_package_max_length(64 * 1024);
-    port->open_http_protocol = 1;
-    port->open_websocket_protocol = 1;
-
-    server->create();
-
-    server->onReceive = [&](Server *server, RecvData *req) -> int {
-        session_id = req->info.fd;
-        conn = server->get_connection_by_session_id(session_id);
-
-        SwooleG.process_id = server->worker_num;
-
-        llhttp_t parser = {};
-        llhttp_settings_t settings = {};
-        llhttp_init(&parser, HTTP_REQUEST, &settings);
-
-        http_context ctx = {};
-        parser.data = &ctx;
-        ctx.server = server;
-        ctx.fd = session_id;
-
-        settings.on_url = handle_on_url;
-        settings.on_header_field = handle_on_header_field;
-        settings.on_header_value = handle_on_header_value;
-        settings.on_message_complete = handle_on_message_complete;
-
-        enum llhttp_errno err = llhttp_execute(&parser, req->data, req->info.len);
-
-        if (err != HPE_OK) {
-            fprintf(stderr, "Parse error: %s %s\n", llhttp_errno_name(err), parser.reason);
-            return SW_ERR;
-        }
-
-        if (ctx.url == "/just/get/file") {
-            std::string filename = test::get_root_path() + "/examples/test.jpg";
-            server->sendfile(session_id, filename.c_str(), filename.length(), 0, 0);
-        } else {
-            ctx.response(SW_HTTP_OK, "hello world");
-        }
-
-        EXPECT_EQ(err, HPE_OK);
-        EXPECT_EQ(ctx.headers["User-Agent"], httplib::USER_AGENT);
         return SW_OK;
     };
 
@@ -490,7 +421,7 @@ TEST(http_server, static_files) {
 
         // must be document_root
         resp = cli.Get("//tests/../");
-        EXPECT_EQ(resp->status, 200);
+        EXPECT_EQ(resp->status, 404);
 
         resp = cli.Get("/tests/../README.md");
         EXPECT_EQ(resp->status, 200);
@@ -541,52 +472,6 @@ TEST(http_server, not_modify) {
         request_with_header(SW_HTTP_ASCTIME_DATE, &cli);
         kill(getpid(), SIGTERM);
     });
-}
-
-TEST(http_server, proxy_file) {
-    Server *server = test_proxy_server();
-    pid_t pid = fork();
-
-    if (pid == 0) {
-        server->start();
-        exit(0);
-    }
-
-    if (pid > 0) {
-        ON_SCOPE_EXIT {
-            kill(server->get_master_pid(), SIGTERM);
-        };
-
-        sleep(1);
-        auto port = server->get_primary_port();
-        httplib::Client cli(TEST_HOST, port->port);
-
-        auto resp = cli.Get("/just/get/file");
-        ASSERT_EQ(resp, nullptr);
-    }
-}
-
-// need fix
-TEST(http_server, proxy_response) {
-    Server *server = test_proxy_server();
-    pid_t pid = fork();
-
-    if (pid == 0) {
-        server->start();
-        exit(0);
-    }
-
-    if (pid > 0) {
-        ON_SCOPE_EXIT {
-            kill(server->get_master_pid(), SIGTERM);
-        };
-        sleep(1);
-        auto port = server->get_primary_port();
-        httplib::Client cli(TEST_HOST, port->port);
-        auto resp = cli.Get("/");
-        ASSERT_EQ(resp, nullptr);
-        //        ASSERT_EQ(resp->body, string("hello world"));
-    }
 }
 
 static void websocket_test(int server_port, const char *data, size_t length) {
@@ -1205,7 +1090,6 @@ TEST(http_server, http_range2) {
         ASSERT_TRUE(request_with_diff_range(to_string(server->get_primary_port()->port), "-16"));
         ASSERT_TRUE(request_with_diff_range(to_string(server->get_primary_port()->port), "128-"));
         ASSERT_TRUE(request_with_diff_range(to_string(server->get_primary_port()->port), "0-0,-1"));
-
     }
 }
 

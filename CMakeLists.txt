@@ -50,7 +50,9 @@ file(GLOB_RECURSE SRC_LIST FOLLOW_SYMLINKS src/*.c src/*.cc
             thirdparty/hiredis/net.c
             thirdparty/hiredis/read.c
             thirdparty/hiredis/sds.c
-            thirdparty/swoole_http_parser.c
+            thirdparty/llhttp/api.c
+            thirdparty/llhttp/http.c
+            thirdparty/llhttp/llhttp.c
         	thirdparty/multipart_parser.c
 )
 file(GLOB_RECURSE HEAD_FILES FOLLOW_SYMLINKS include/*.h)
@@ -66,7 +68,7 @@ add_definitions(-DHAVE_CONFIG_H)
 # test
 #add_definitions(-DSW_USE_THREAD_CONTEXT)
 
-include_directories(BEFORE ./include ./include/wrapper ext-src/ thirdparty/ ./)
+include_directories(BEFORE ./include ./include/wrapper ext-src/ thirdparty/ thirdparty/llhttp ./)
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 
 # find OpenSSL

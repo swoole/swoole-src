@@ -20,7 +20,7 @@
 
 #include "swoole_http.h"
 #include "swoole_http2.h"
-#include "thirdparty/swoole_http_parser.h"
+#include "thirdparty/llhttp/llhttp.h"
 #include "thirdparty/multipart_parser.h"
 
 #include <unordered_map>
@@ -108,7 +108,7 @@ struct Request {
 };
 
 struct Response {
-    enum swoole_http_method method;
+    enum llhttp_method method;
     int version;
     int status;
     char *reason;
@@ -164,7 +164,7 @@ struct Context {
     Request request;
     Response response;
 
-    swoole_http_parser parser;
+    llhttp_t parser;
     multipart_parser *mt_parser;
 
     uint16_t input_var_num;

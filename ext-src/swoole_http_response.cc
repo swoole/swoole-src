@@ -1322,8 +1322,8 @@ static PHP_METHOD(swoole_http_response, create) {
             ctx->init(serv);
         } else if (sock) {
             ctx->init(sock);
-            ctx->parser.data = ctx;
             swoole_http_parser_init(&ctx->parser, PHP_HTTP_REQUEST);
+            ctx->parser.data = ctx;
         } else {
             delete ctx;
             assert(0);
