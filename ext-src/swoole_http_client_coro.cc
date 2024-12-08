@@ -32,6 +32,7 @@
 SW_EXTERN_C_BEGIN
 
 #include "thirdparty/llhttp/llhttp.h"
+#include "stubs/php_swoole_http_client_coro_arginfo.h"
 
 #include "ext/standard/base64.h"
 
