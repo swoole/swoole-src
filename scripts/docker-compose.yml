@@ -39,7 +39,7 @@ services:
       POSTGRES_DB: test
       POSTGRES_PASSWORD: root
   oracle:
-    image: gvenzl/oracle-xe:slim
+    image: gvenzl/oracle-free:slim
     container_name: "oracle"
     environment:
       ORACLE_PASSWORD: oracle

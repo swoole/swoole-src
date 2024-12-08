@@ -30,7 +30,7 @@ array(3) {
   [1]=>
   int(942)
   [2]=>
-  string(%d) "OCIStmtExecute: ORA-00942: table or view does not exist
+  string(%d) "OCIStmtExecute: ORA-00942: table or view "SYSTEM"."A_TABLE_THAT_DOES_NOT_EXIST" does not exist
 Help: %s
  (%s:%d)"
 }
