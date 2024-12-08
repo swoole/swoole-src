@@ -77,7 +77,7 @@ define('PGSQL_CONNECTION_STRING', getenv('PGSQL_CONNECTION_STRING') ?:
 
 /** ============== Oracle ============== */
 define('ORACLE_PORT', '1521');
-define('ORACLE_SERVICE_NAME', 'xe');
+define('ORACLE_SERVICE_NAME', 'freepdb1');
 define('ORACLE_USER', 'system');
 define('ORACLE_PASSWORD', 'oracle');
 if (IS_IN_CI) {
