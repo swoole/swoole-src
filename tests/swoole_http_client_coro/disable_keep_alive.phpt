@@ -8,7 +8,7 @@ skip_if_offline();
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 Co\run(function () {
-    $host = 'www.qq.com';
+    $host = 'news.qq.com';
     $cli = new Swoole\Coroutine\Http\Client($host, 443, true);
     $cli->set([
         'timeout' => 10,
@@ -18,14 +18,14 @@ Co\run(function () {
     $cli->get('/');
     Assert::same($cli->statusCode, 200);
 
-    Assert::true($cli->get('/contract.shtml'));
+    Assert::true($cli->get('/ch/tech/'));
     Assert::same($cli->statusCode, 200);
 
     // failed clear
     $cli->set([
         'timeout' => 0.001
     ]);
-    Assert::false($cli->get('/contract.shtml'));
+    Assert::false($cli->get('/ch/tech/'));
     Assert::assert(empty($cli->headers));
     Assert::assert(empty($cli->body));
 });
