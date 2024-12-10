@@ -54,7 +54,7 @@ PHP_ARG_ENABLE([cares],
 PHP_ARG_ENABLE([iouring],
   [enable io-uring support],
   [AS_HELP_STRING([--enable-iouring],
-    [Enable io-uring (Experimental)])], [no], [no])
+    [Enable io-uring])], [no], [no])
 
 PHP_ARG_WITH([openssl_dir],
   [dir of openssl],
@@ -994,10 +994,14 @@ EOF
     if test "$SW_OS" = "LINUX"; then
         GLIBC_VERSION=$(getconf GNU_LIBC_VERSION | awk '{print $2}')
         AC_MSG_NOTICE([glibc version: $GLIBC_VERSION])
-        if [[ $(echo "$GLIBC_VERSION < 2.17" | bc -l) -eq 1 ]]; then
+
+        GLIBC_MAJOR_VERSION=$(getconf GNU_LIBC_VERSION | awk '{print $2}' | cut -d '.' -f 1)
+        GLIBC_MINOR_VERSION=$(getconf GNU_LIBC_VERSION | awk '{print $2}' | cut -d '.' -f 2)
+
+        if test $GLIBC_MAJOR_VERSION -lt 2 || (test $GLIBC_MAJOR_VERSION -eq 2 && test $GLIBC_MINOR_VERSION -lt 17); then
             OS_SHOULD_HAVE_LIBRT=1
         else
-            AC_MSG_NOTICE([link with -lrt (only for glibc versions before 2.17)])
+            AC_MSG_NOTICE([link with -lrt (only for glibc version before 2.17)])
             OS_SHOULD_HAVE_LIBRT=0
         fi
     elif test "$SW_OS" = "MAC"; then
