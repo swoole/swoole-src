@@ -28,6 +28,6 @@ run(function() {
 });
 ?>
 --EXPECTF--
-SQLSTATE[HY000]: General error: 942 OCIStmtExecute: ORA-00942: table or view does not exist
+SQLSTATE[HY000]: General error: 942 OCIStmtExecute: ORA-00942: table or view "SYSTEM"."NO_TABLE" does not exist
 Help: %s
  (%s:%d)
