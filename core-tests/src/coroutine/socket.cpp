@@ -69,7 +69,12 @@ TEST(coroutine_socket, connect_with_dns) {
 TEST(coroutine_socket, tcp6) {
     coroutine::run([](void *arg) {
         Socket sock(SW_SOCK_TCP6);
-        bool retval = sock.connect("::1", 80);
+        bool retval;
+        if (is_github_ci()) {
+            sock.connect("www.google.com", 443);
+        } else {
+            sock.connect("::1", 80);
+        }
         ASSERT_EQ(retval, true);
         ASSERT_EQ(sock.errCode, 0);
     });
