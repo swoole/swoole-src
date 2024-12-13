@@ -1401,7 +1401,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
      * These resources are global variables that can only be modified once within the main thread,
      * and such modifications are not thread-safe.
      */
-    if (tsrm_is_main_thread()) {
+    if (sw_is_main_thread()) {
         hook_stream_factory(flags);
         hook_pdo_driver(flags);
         hook_stream_ops(flags);
