@@ -53,7 +53,7 @@ extern int openpty(int *, int *, char *, struct termios *, struct winsize *);
 static int le_proc_open;
 static const char *le_proc_name = "process/coroutine";
 
-static pid_t _co_waitpid(__pid_t __pid, int *__stat_loc, int __options) {
+static pid_t _co_waitpid(pid_t __pid, int *__stat_loc, int __options) {
 #ifdef SW_THREAD
     return System::waitpid_safe(__pid, __stat_loc, __options);
 #else
