@@ -76,6 +76,7 @@ class System {
     static int wait_signal(const std::vector<int> &signals, double timeout = -1);
     /* event */
     static int wait_event(int fd, int events, double timeout);
+    static bool exec(const char *command, bool get_error_stream, std::shared_ptr<String> buffer, int *status);
 };
 std::string gethostbyname_impl_with_async(const std::string &hostname, int domain, double timeout = -1);
 //-------------------------------------------------------------------------------

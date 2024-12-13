@@ -269,3 +269,12 @@ TEST(coroutine_system, timeout_is_zero) {
         ASSERT_TRUE(result);
     });
 }
+
+TEST(coroutine_system, exec) {
+    test::coroutine::run([](void *arg) {
+        int status;
+        auto buffer = std::shared_ptr<String>(swoole::make_string(1024));
+        ASSERT_TRUE(System::exec("ls /", true, buffer, &status));
+        ASSERT_TRUE(buffer->contains(SW_STRL("tmp")));
+    });
+}

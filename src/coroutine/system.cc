@@ -589,6 +589,35 @@ int System::wait_event(int fd, int events, double timeout) {
     return revents;
 }
 
+bool System::exec(const char *command, bool get_error_stream, std::shared_ptr<String> buffer, int *status) {
+    Coroutine::get_current_safe();
+
+    pid_t pid;
+    int fd = swoole_shell_exec(command, &pid, get_error_stream);
+    if (fd < 0) {
+        swoole_sys_warning("Unable to execute '%s'", command);
+        return false;
+    }
+
+    Socket socket(fd, SW_SOCK_UNIX_STREAM);
+    while (1) {
+        ssize_t retval = socket.read(buffer->str + buffer->length, buffer->size - buffer->length);
+        if (retval > 0) {
+            buffer->length += retval;
+            if (buffer->length == buffer->size) {
+                if (!buffer->extend()) {
+                    break;
+                }
+            }
+        } else {
+            break;
+        }
+    }
+    socket.close();
+
+    return System::waitpid_safe(pid, status, 0) == pid;
+}
+
 void System::init_reactor(Reactor *reactor) {
     reactor->set_handler(SW_FD_CO_POLL | SW_EVENT_READ, socket_poll_read_callback);
     reactor->set_handler(SW_FD_CO_POLL | SW_EVENT_WRITE, socket_poll_write_callback);
