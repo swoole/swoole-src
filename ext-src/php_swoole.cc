@@ -1553,7 +1553,7 @@ static PHP_FUNCTION(swoole_implicit_fn) {
         RETURN_LONG(zval_refcount_p(zargs));
     } else if (SW_STRCASEEQ(fn, l_fn, "func_handler")) {
         auto fn = zval_get_string(zargs);
-        zend_function *zf = (zend_function *) zend_hash_find(EG(function_table), fn);
+        zend_function *zf = (zend_function *) zend_hash_find_ptr(EG(function_table), fn);
         zend_string_release(fn);
         if (zf == nullptr) {
             RETURN_FALSE;
