@@ -1621,11 +1621,6 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
         hook_stream_factory(flags);
         hook_pdo_driver(flags);
         hook_stream_ops(flags);
-    } else if (!runtime_hook_init) {
-        zend_throw_exception(swoole_exception_ce,
-                             "The runtime hook must be initialized in the main thread first.",
-                             SW_ERROR_WRONG_OPERATION);
-        return false;
     }
 
     hook_all_func(flags);
@@ -2113,13 +2108,21 @@ php_stream_ops *php_swoole_get_ori_php_stream_stdio_ops() {
 zif_handler php_swoole_get_original_handler(const char *name, size_t len) {
     if (sw_is_main_thread()) {
         real_func *rf = (real_func *) zend_hash_str_find_ptr(tmp_function_table, name, len);
-        if (!rf) {
-            return nullptr;
+        if (rf) {
+            return rf->ori_handler;
         }
-        return rf->ori_handler;
     } else {
-        return ori_func_handlers.get(std::string(name, len));
+        zif_handler *handler = ori_func_handlers.get(std::string(name, len));
+        if (handler) {
+            return handler;
+        }
+        zend_function *zf = (zend_function *) zend_hash_str_find_ptr(EG(function_table), name, len);
+        if (zf && zf->type == ZEND_INTERNAL_FUNCTION && zf->internal_function.handler) {
+            return zf->internal_function.handler;
+        }
     }
+
+    return nullptr;
 }
 
 static PHP_FUNCTION(swoole_stream_socket_pair) {
