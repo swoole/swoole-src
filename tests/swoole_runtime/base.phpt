@@ -42,7 +42,7 @@ go(function () use ($server) {
     $server->shutdown();
 });
 echo '5' . PHP_EOL;
-Swoole\Runtime::enableCoroutine(true); // all
+Swoole\Runtime::enableCoroutine(SWOOLE_HOOK_ALL); // all
 go(function () {
     usleep(5 * 1000);
     echo 'sleep1' . PHP_EOL;
@@ -57,7 +57,7 @@ go(function () use ($server) {
 });
 echo '7' . PHP_EOL;
 Swoole\Event::wait();
-Swoole\Runtime::enableCoroutine(false); // disable all
+Swoole\Runtime::enableCoroutine(0); // disable all
 ?>
 --EXPECT--
 1
