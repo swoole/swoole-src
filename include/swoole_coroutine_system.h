@@ -66,6 +66,11 @@ class System {
     /* wait */
     static pid_t wait(int *__stat_loc, double timeout = -1);
     static pid_t waitpid(pid_t __pid, int *__stat_loc, int __options, double timeout = -1);
+    /**
+     * waitpid_safe() does not deps on the signal
+     * and can be safely used in a multi-threaded environment.
+     */
+    static pid_t waitpid_safe(pid_t __pid, int *__stat_loc, int __options);
     /* signal */
     static int wait_signal(int signal, double timeout = -1);
     static int wait_signal(const std::vector<int> &signals, double timeout = -1);

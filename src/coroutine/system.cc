@@ -244,8 +244,8 @@ int System::wait_signal(int signal, double timeout) {
  */
 int System::wait_signal(const std::vector<int> &signals, double timeout) {
     SignalListener listener = {
-            Coroutine::get_current_safe(),
-            -1,
+        Coroutine::get_current_safe(),
+        -1,
     };
 
     if (SwooleTG.signal_listener_num > 0) {
@@ -696,6 +696,20 @@ std::shared_ptr<AsyncLock> async_lock(void *resource) {
         return nullptr;
     }
     return std::make_shared<AsyncLock>(resource);
+}
+
+bool wait_for(const std::function<bool(void)> &fn) {
+    double second = 0.001;
+    while (true) {
+        if (fn()) {
+            break;
+        }
+        if (System::sleep(second) != SW_OK) {
+            return false;
+        }
+        second *= 2;
+    }
+    return true;
 }
 
 }  // namespace coroutine
