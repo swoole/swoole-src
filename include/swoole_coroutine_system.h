@@ -66,11 +66,17 @@ class System {
     /* wait */
     static pid_t wait(int *__stat_loc, double timeout = -1);
     static pid_t waitpid(pid_t __pid, int *__stat_loc, int __options, double timeout = -1);
+    /**
+     * waitpid_safe() does not deps on the signal
+     * and can be safely used in a multi-threaded environment.
+     */
+    static pid_t waitpid_safe(pid_t __pid, int *__stat_loc, int __options);
     /* signal */
     static int wait_signal(int signal, double timeout = -1);
     static int wait_signal(const std::vector<int> &signals, double timeout = -1);
     /* event */
     static int wait_event(int fd, int events, double timeout);
+    static bool exec(const char *command, bool get_error_stream, std::shared_ptr<String> buffer, int *status);
 };
 std::string gethostbyname_impl_with_async(const std::string &hostname, int domain, double timeout = -1);
 //-------------------------------------------------------------------------------

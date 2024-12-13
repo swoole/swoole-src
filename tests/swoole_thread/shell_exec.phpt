@@ -14,12 +14,10 @@ use Swoole\Thread\Lock;
 use Swoole\Runtime;
 use SwooleTest\ThreadManager;
 
-const CODE = 234;
-
 $tm = new ThreadManager();
 
 $tm->parentFunc = function () {
-    Runtime::enableCoroutine(SWOOLE_HOOK_ALL);
+    Assert::true(Runtime::enableCoroutine(SWOOLE_HOOK_ALL));
     $lock = new Lock;
     $lock->lock();
     $thread = new Thread(__FILE__, $lock);
@@ -32,9 +30,11 @@ $tm->parentFunc = function () {
 $tm->childFunc = function ($lock) {
     $lock->lock();
     usleep(100_000);
-//    shell_exec('ls /tmp');
-    Co\run(function (){
+    Co\run(function () {
+        Assert::true(Runtime::enableCoroutine(SWOOLE_HOOK_ALL));
         shell_exec('ls /tmp');
+        sleep(1);
+        gethostbyname('www.baidu.com');
     });
     exit(0);
 };

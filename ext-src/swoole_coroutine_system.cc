@@ -236,56 +236,24 @@ PHP_METHOD(swoole_coroutine_system, exec) {
     Z_PARAM_BOOL(get_error_stream)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if (php_swoole_signal_isset_handler(SIGCHLD)) {
-        php_swoole_error(E_WARNING, "The signal [SIGCHLD] is registered, cannot execute swoole_coroutine_exec");
+    int status;
+    auto buffer = std::shared_ptr<String>(swoole::make_string(1024, sw_zend_string_allocator()));
+    if (!System::exec(command, get_error_stream, buffer, &status)) {
         RETURN_FALSE;
     }
 
-    Coroutine::get_current_safe();
-
-    pid_t pid;
-    int fd = swoole_shell_exec(command, &pid, get_error_stream);
-    if (fd < 0) {
-        php_swoole_error(E_WARNING, "Unable to execute '%s'", command);
-        RETURN_FALSE;
-    }
-
-    String *buffer = new String(1024);
-    Socket socket(fd, SW_SOCK_UNIX_STREAM);
-    while (1) {
-        ssize_t retval = socket.read(buffer->str + buffer->length, buffer->size - buffer->length);
-        if (retval > 0) {
-            buffer->length += retval;
-            if (buffer->length == buffer->size) {
-                if (!buffer->extend()) {
-                    break;
-                }
-            }
-        } else {
-            break;
-        }
-    }
-    socket.close();
+    auto str = zend::fetch_zend_string_by_val(buffer->str);
+    buffer->set_null_terminated();
+    str->len = buffer->length;
+    buffer->release();
 
     zval zdata;
-    if (buffer->length == 0) {
-        ZVAL_EMPTY_STRING(&zdata);
-    } else {
-        ZVAL_STRINGL(&zdata, buffer->str, buffer->length);
-    }
-    delete buffer;
+    ZVAL_STR(&zdata, str);
 
-    int status;
-    pid_t _pid = swoole_coroutine_waitpid(pid, &status, 0);
-    if (_pid > 0) {
-        array_init(return_value);
-        add_assoc_long(return_value, "code", WEXITSTATUS(status));
-        add_assoc_long(return_value, "signal", WTERMSIG(status));
-        add_assoc_zval(return_value, "output", &zdata);
-    } else {
-        zval_ptr_dtor(&zdata);
-        RETVAL_FALSE;
-    }
+    array_init(return_value);
+    add_assoc_long(return_value, "code", WEXITSTATUS(status));
+    add_assoc_long(return_value, "signal", WTERMSIG(status));
+    add_assoc_zval(return_value, "output", &zdata);
 }
 
 static void swoole_coroutine_system_wait(INTERNAL_FUNCTION_PARAMETERS, pid_t pid, double timeout) {
@@ -310,6 +278,7 @@ static void swoole_coroutine_system_wait(INTERNAL_FUNCTION_PARAMETERS, pid_t pid
 }
 
 PHP_METHOD(swoole_coroutine_system, wait) {
+    SW_MUST_BE_MAIN_THREAD();
     double timeout = -1;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
@@ -321,6 +290,7 @@ PHP_METHOD(swoole_coroutine_system, wait) {
 }
 
 PHP_METHOD(swoole_coroutine_system, waitPid) {
+    SW_MUST_BE_MAIN_THREAD();
     zend_long pid;
     double timeout = -1;
 

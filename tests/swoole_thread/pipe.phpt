@@ -25,8 +25,6 @@ if (empty($args)) {
 } else {
     $socket = $args[0];
     $rdata = $args[1];
-    // Child threads are not allowed to modify hook flags
-    Assert::false(Swoole\Runtime::enableCoroutine(SWOOLE_HOOK_ALL));
     Co\run(function () use ($socket, $rdata, $argv) {
         usleep(100);
         shell_exec('sleep 0.01');

@@ -638,40 +638,61 @@ class Callable {
     }
 };
 
-template<typename KeyT, typename ValueT>
+#define _CONCURRENCY_HASHMAP_LOCK_(code)                                                                               \
+    if (locked_) {                                                                                                     \
+        code;                                                                                                          \
+    } else {                                                                                                           \
+        lock_.lock();                                                                                                  \
+        code;                                                                                                          \
+        lock_.unlock();                                                                                                \
+    }
+
+template <typename KeyT, typename ValueT>
 class ConcurrencyHashMap {
- private:
+  private:
     std::unordered_map<KeyT, ValueT> map_;
     std::mutex lock_;
+    bool locked_;
     ValueT default_value_;
 
- public:
-    ConcurrencyHashMap(ValueT _default_value): map_(), lock_() {
+  public:
+    ConcurrencyHashMap(ValueT _default_value) : map_(), lock_() {
         default_value_ = _default_value;
+        locked_ = false;
     }
 
     void set(const KeyT &key, const ValueT &value) {
-        std::unique_lock<std::mutex> _lock(lock_);
-        map_[key] = value;
+        _CONCURRENCY_HASHMAP_LOCK_(map_[key] = value);
     }
 
     ValueT get(const KeyT &key) {
-        std::unique_lock<std::mutex> _lock(lock_);
-        auto iter = map_.find(key);
-        if (iter == map_.end()) {
-            return default_value_;
-        }
-        return iter->second;
+        ValueT value;
+        auto fn = [&]() -> ValueT {
+            auto iter = map_.find(key);
+            if (iter == map_.end()) {
+                return default_value_;
+            }
+            return iter->second;
+        };
+        _CONCURRENCY_HASHMAP_LOCK_(value = fn());
+        return value;
     }
 
     void del(const KeyT &key) {
-        std::unique_lock<std::mutex> _lock(lock_);
-        map_.erase(key);
+        _CONCURRENCY_HASHMAP_LOCK_(map_.erase(key));
     }
 
     void clear() {
+        _CONCURRENCY_HASHMAP_LOCK_(map_.clear());
+    }
+
+    void each(const std::function<void(KeyT key, ValueT value)> &cb) {
         std::unique_lock<std::mutex> _lock(lock_);
-        map_.clear();
+        locked_ = true;
+        for (auto &iter : map_) {
+            cb(iter.first, iter.second);
+        }
+        locked_ = false;
     }
 };
 

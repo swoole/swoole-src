@@ -1551,6 +1551,14 @@ static PHP_FUNCTION(swoole_implicit_fn) {
         abort();
     } else if (SW_STRCASEEQ(fn, l_fn, "refcount")) {
         RETURN_LONG(zval_refcount_p(zargs));
+    } else if (SW_STRCASEEQ(fn, l_fn, "func_handler")) {
+        auto fn = zval_get_string(zargs);
+        zend_function *zf = (zend_function *) zend_hash_find_ptr(EG(function_table), fn);
+        zend_string_release(fn);
+        if (zf == nullptr) {
+            RETURN_FALSE;
+        }
+        printf("zif_handler=%p\n", zf->internal_function.handler);
     } else {
         zend_throw_exception_ex(swoole_exception_ce, SW_ERROR_INVALID_PARAMS, "unknown fn '%s'", fn);
     }

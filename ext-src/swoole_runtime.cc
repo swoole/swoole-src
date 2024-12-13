@@ -165,6 +165,39 @@ static zend_internal_arg_info *get_arginfo(const char *name, size_t l_name) {
     return zf->internal_function.arg_info;
 }
 
+static zend_internal_arg_info *copy_arginfo(zend_function *zf, zend_internal_arg_info *_arg_info) {
+    uint32_t num_args = zf->internal_function.num_args + 1;
+    zend_internal_arg_info *arg_info = _arg_info - 1;
+
+    auto new_arg_info = (zend_internal_arg_info *) pemalloc(sizeof(zend_internal_arg_info) * num_args, 1);
+    memcpy(new_arg_info, arg_info, sizeof(zend_internal_arg_info) * num_args);
+
+    if (zf->internal_function.fn_flags & ZEND_ACC_VARIADIC) {
+        num_args++;
+    }
+
+    for (uint32_t i = 0; i < num_args; i++) {
+        if (ZEND_TYPE_HAS_LIST(arg_info[i].type)) {
+            zend_type_list *old_list = ZEND_TYPE_LIST(arg_info[i].type);
+            zend_type_list *new_list = (zend_type_list *) pemalloc(ZEND_TYPE_LIST_SIZE(old_list->num_types), 1);
+            memcpy(new_list, old_list, ZEND_TYPE_LIST_SIZE(old_list->num_types));
+            ZEND_TYPE_SET_PTR(new_arg_info[i].type, new_list);
+
+            zend_type *list_type;
+            ZEND_TYPE_LIST_FOREACH(new_list, list_type) {
+                zend_string *name = zend_string_dup(ZEND_TYPE_NAME(*list_type), 1);
+                ZEND_TYPE_SET_PTR(*list_type, name);
+            }
+            ZEND_TYPE_LIST_FOREACH_END();
+        } else if (ZEND_TYPE_HAS_NAME(arg_info[i].type)) {
+            zend_string *name = zend_string_dup(ZEND_TYPE_NAME(arg_info[i].type), 1);
+            ZEND_TYPE_SET_PTR(new_arg_info[i].type, name);
+        }
+    }
+
+    return new_arg_info + 1;
+}
+
 #define SW_HOOK_FUNC(f) hook_func(ZEND_STRL(#f), PHP_FN(swoole_##f))
 #define SW_UNHOOK_FUNC(f) unhook_func(ZEND_STRL(#f))
 #define SW_HOOK_WITH_NATIVE_FUNC(f)                                                                                    \
@@ -175,7 +208,7 @@ static zend_internal_arg_info *get_arginfo(const char *name, size_t l_name) {
     ZEND_RAW_FENTRY("swoole_hook_" #name, PHP_FN(swoole_user_func_handler), arg_info, 0)
 
 static bool runtime_hook_init = false;
-static int runtime_hook_flags = 0;
+static SW_THREAD_LOCAL int runtime_hook_flags = 0;
 static SW_THREAD_LOCAL zend_array *tmp_function_table = nullptr;
 static SW_THREAD_LOCAL std::unordered_map<std::string, zend_class_entry *> child_class_entries;
 static zend::ConcurrencyHashMap<std::string, zif_handler> ori_func_handlers(nullptr);
@@ -1194,29 +1227,17 @@ void PHPCoroutine::enable_unsafe_function() {
     }
 }
 
-bool PHPCoroutine::enable_hook(uint32_t flags) {
-    SW_MUST_BE_MAIN_THREAD_EX(return false);
-    if (swoole_isset_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_BEFORE_ENABLE_HOOK)) {
-        swoole_call_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_BEFORE_ENABLE_HOOK, &flags);
-    }
-
+static void hook_stream_factory(int flags) {
+    HashTable *xport_hash = php_stream_xport_get_hash();
     if (!runtime_hook_init) {
-        HashTable *xport_hash = php_stream_xport_get_hash();
-        // php_stream
         ori_factory.tcp = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("tcp"));
         ori_factory.udp = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("udp"));
         ori_factory._unix = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("unix"));
         ori_factory.udg = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("udg"));
         ori_factory.ssl = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("ssl"));
         ori_factory.tls = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("tls"));
-
-        // file
-        memcpy((void *) &ori_php_plain_files_wrapper, &php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
-        memcpy((void *) &ori_php_stream_stdio_ops, &php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
-
-        runtime_hook_init = true;
     }
-    // php_stream
+
     if (flags & PHPCoroutine::HOOK_TCP) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_TCP)) {
             if (php_stream_xport_register("tcp", socket_create) != SUCCESS) {
@@ -1291,6 +1312,36 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
             }
         }
     }
+}
+
+static void hook_stream_ops(int flags) {
+    if (!runtime_hook_init) {
+        memcpy((void *) &ori_php_plain_files_wrapper, &php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
+        memcpy((void *) &ori_php_stream_stdio_ops, &php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
+    }
+    // file
+    if (flags & PHPCoroutine::HOOK_FILE) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_FILE)) {
+            memcpy((void *) &php_plain_files_wrapper, &sw_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
+        }
+    } else {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_FILE) {
+            memcpy((void *) &php_plain_files_wrapper, &ori_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
+        }
+    }
+    // stdio
+    if (flags & PHPCoroutine::HOOK_STDIO) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_STDIO)) {
+            memcpy((void *) &php_stream_stdio_ops, &sw_php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
+        }
+    } else {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_STDIO) {
+            memcpy((void *) &php_stream_stdio_ops, &ori_php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
+        }
+    }
+}
+
+static void hook_pdo_driver(int flags) {
 #ifdef SW_USE_PGSQL
     if (flags & PHPCoroutine::HOOK_PDO_PGSQL) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_PDO_PGSQL)) {
@@ -1335,6 +1386,10 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
         }
     }
 #endif
+}
+
+static void hook_all_func(int flags) {
+    // stream func
     if (flags & PHPCoroutine::HOOK_STREAM_FUNCTION) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_STREAM_FUNCTION)) {
             SW_HOOK_FUNC(stream_select);
@@ -1344,26 +1399,6 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
         if (runtime_hook_flags & PHPCoroutine::HOOK_STREAM_FUNCTION) {
             SW_UNHOOK_FUNC(stream_select);
             SW_UNHOOK_FUNC(stream_socket_pair);
-        }
-    }
-    // file
-    if (flags & PHPCoroutine::HOOK_FILE) {
-        if (!(runtime_hook_flags & PHPCoroutine::HOOK_FILE)) {
-            memcpy((void *) &php_plain_files_wrapper, &sw_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
-        }
-    } else {
-        if (runtime_hook_flags & PHPCoroutine::HOOK_FILE) {
-            memcpy((void *) &php_plain_files_wrapper, &ori_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
-        }
-    }
-    // stdio
-    if (flags & PHPCoroutine::HOOK_STDIO) {
-        if (!(runtime_hook_flags & PHPCoroutine::HOOK_STDIO)) {
-            memcpy((void *) &php_stream_stdio_ops, &sw_php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
-        }
-    } else {
-        if (runtime_hook_flags & PHPCoroutine::HOOK_STDIO) {
-            memcpy((void *) &php_stream_stdio_ops, &ori_php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
         }
     }
     // sleep
@@ -1402,8 +1437,8 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
     if (flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION)) {
             hook_func(ZEND_STRL("gethostbyname"), PHP_FN(swoole_coroutine_gethostbyname));
-            hook_func(ZEND_STRL("exec"));
-            hook_func(ZEND_STRL("shell_exec"));
+            SW_HOOK_WITH_PHP_FUNC(exec);
+            SW_HOOK_WITH_PHP_FUNC(shell_exec);
         }
     } else {
         if (runtime_hook_flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION) {
@@ -1412,6 +1447,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
             SW_UNHOOK_FUNC(shell_exec);
         }
     }
+    // ext-sockets
     if (flags & PHPCoroutine::HOOK_SOCKETS) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_SOCKETS)) {
             SW_HOOK_WITH_PHP_FUNC(socket_create);
@@ -1477,6 +1513,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
     }
 
 #ifdef SW_USE_CURL
+    // curl native
     if (flags & PHPCoroutine::HOOK_NATIVE_CURL) {
         if (flags & PHPCoroutine::HOOK_CURL) {
             php_swoole_fatal_error(E_WARNING, "cannot enable both hooks HOOK_NATIVE_CURL and HOOK_CURL at same time");
@@ -1537,7 +1574,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
         }
     }
 #endif
-
+    // curl
     if (flags & PHPCoroutine::HOOK_CURL) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_CURL)) {
             SW_HOOK_WITH_PHP_FUNC(curl_init);
@@ -1569,12 +1606,32 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
             detach_parent_class("Swoole\\Curl\\Handler");
         }
     }
+}
+
+bool PHPCoroutine::enable_hook(uint32_t flags) {
+    if (swoole_isset_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_BEFORE_ENABLE_HOOK)) {
+        swoole_call_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_BEFORE_ENABLE_HOOK, &flags);
+    }
+
+    /**
+     * These resources are global variables that can only be modified once within the main thread,
+     * and such modifications are not thread-safe.
+     */
+    if (sw_is_main_thread()) {
+        hook_stream_factory(flags);
+        hook_pdo_driver(flags);
+        hook_stream_ops(flags);
+    }
+
+    hook_all_func(flags);
 
     if (swoole_isset_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_ENABLE_HOOK)) {
         swoole_call_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_ENABLE_HOOK, &flags);
     }
 
+    runtime_hook_init = true;
     runtime_hook_flags = flags;
+
     return true;
 }
 
@@ -1587,33 +1644,12 @@ static PHP_METHOD(swoole_runtime, enableCoroutine) {
         php_swoole_fatal_error(E_ERROR, "must be used in PHP CLI mode");
         RETURN_FALSE;
     }
-    zval *zflags = nullptr;
     zend_long flags = PHPCoroutine::HOOK_ALL;
 
-    ZEND_PARSE_PARAMETERS_START(0, 2)
+    ZEND_PARSE_PARAMETERS_START(0, 1)
     Z_PARAM_OPTIONAL
-    Z_PARAM_ZVAL(zflags)  // or zenable
     Z_PARAM_LONG(flags)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
-
-    if (zflags) {
-        if (Z_TYPE_P(zflags) == IS_LONG) {
-            flags = SW_MAX(0, Z_LVAL_P(zflags));
-        } else if (ZVAL_IS_BOOL(zflags)) {
-            if (!Z_BVAL_P(zflags)) {
-                flags = 0;
-            }
-        } else {
-            const char *space, *class_name = get_active_class_name(&space);
-            zend_type_error("%s%s%s() expects parameter %d to be %s, %s given",
-                            class_name,
-                            space,
-                            get_active_function_name(),
-                            1,
-                            "bool or long",
-                            zend_zval_type_name(zflags));
-        }
-    }
 
 #ifdef SW_THREAD
     if (runtime_hook_init && flags == 0) {
@@ -1996,25 +2032,17 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
 
     auto fn_name = std::string(fn_str->val, fn_str->len);
 
+    rf->ori_handler = zf->internal_function.handler;
+    rf->ori_arg_info = zf->internal_function.arg_info;
+
     if (sw_is_main_thread()) {
-        rf->ori_handler = zf->internal_function.handler;
-        rf->ori_arg_info = zf->internal_function.arg_info;
-        /**
-         * The internal functions differ from user-defined functions in that they are shared among multiple threads.
-         * When the function handle is replaced in the main thread,
-         * the child threads will call the hook handle instead of the original handle.
-         * User-defined functions need to be reconstructed in the child threads.
-         */
         ori_func_handlers.set(fn_name, rf->ori_handler);
         ori_func_arg_infos.set(fn_name, rf->ori_arg_info);
+    }
 
-        zf->internal_function.handler = handler;
-        if (arg_info) {
-            zf->internal_function.arg_info = arg_info;
-        }
-    } else {
-        rf->ori_handler = ori_func_handlers.get(fn_name);
-        rf->ori_arg_info = ori_func_arg_infos.get(fn_name);
+    zf->internal_function.handler = handler;
+    if (arg_info) {
+        zf->internal_function.arg_info = copy_arginfo(zf, arg_info);
     }
 
     if (use_php_func) {
@@ -2080,13 +2108,21 @@ php_stream_ops *php_swoole_get_ori_php_stream_stdio_ops() {
 zif_handler php_swoole_get_original_handler(const char *name, size_t len) {
     if (sw_is_main_thread()) {
         real_func *rf = (real_func *) zend_hash_str_find_ptr(tmp_function_table, name, len);
-        if (!rf) {
-            return nullptr;
+        if (rf) {
+            return rf->ori_handler;
         }
-        return rf->ori_handler;
     } else {
-        return ori_func_handlers.get(std::string(name, len));
+        zif_handler handler = ori_func_handlers.get(std::string(name, len));
+        if (handler) {
+            return handler;
+        }
+        zend_function *zf = (zend_function *) zend_hash_str_find_ptr(EG(function_table), name, len);
+        if (zf && zf->type == ZEND_INTERNAL_FUNCTION && zf->internal_function.handler) {
+            return zf->internal_function.handler;
+        }
     }
+
+    return nullptr;
 }
 
 static PHP_FUNCTION(swoole_stream_socket_pair) {
@@ -2131,17 +2167,8 @@ static PHP_FUNCTION(swoole_user_func_handler) {
 
     real_func *rf = (real_func *) zend_hash_find_ptr(tmp_function_table, fn_str);
     if (!rf) {
-#ifdef SW_THREAD
-        /**
-         * The Callable object with ZTS needs to be reconstructed for each thread,
-         * ensuring that each thread is isolated from the others.
-         */
-        hook_func(fn_str->val, fn_str->len);
-        rf = (real_func *) zend_hash_find_ptr(tmp_function_table, fn_str);
-#else
         zend_throw_exception_ex(swoole_exception_ce, SW_ERROR_UNDEFINED_BEHAVIOR, "%s func not exists", fn_str->val);
         return;
-#endif
     }
 
     zend_fcall_info fci;

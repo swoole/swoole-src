@@ -15,12 +15,12 @@
  */
 
 #include "thirdparty/php/standard/proc_open.h"
-#include "swoole_coroutine_c_api.h"
 
 using namespace std;
 using swoole::Coroutine;
 using swoole::PHPCoroutine;
 using swoole::coroutine::Socket;
+using swoole::coroutine::System;
 
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
@@ -52,6 +52,14 @@ extern int openpty(int *, int *, char *, struct termios *, struct winsize *);
 
 static int le_proc_open;
 static const char *le_proc_name = "process/coroutine";
+
+static pid_t _co_waitpid(pid_t __pid, int *__stat_loc, int __options) {
+#ifdef SW_THREAD
+    return System::waitpid_safe(__pid, __stat_loc, __options);
+#else
+    return System::waitpid(__pid, __stat_loc, __options);
+#endif
+}
 
 /* {{{ _php_array_to_envp
  * Process the `environment` argument to `proc_open`
@@ -170,9 +178,7 @@ static void proc_co_rsrc_dtor(zend_resource *rsrc) {
     }
 
     if (proc->running) {
-        if (::waitpid(proc->child, &wstatus, WNOHANG) == 0) {
-            swoole_coroutine_waitpid(proc->child, &wstatus, 0);
-        }
+        _co_waitpid(proc->child, &wstatus, 0);
     }
     if (proc->wstatus) {
         *proc->wstatus = wstatus;
@@ -257,7 +263,7 @@ PHP_FUNCTION(swoole_proc_get_status) {
     add_assoc_long(return_value, "pid", (zend_long) proc->child);
 
     errno = 0;
-    wait_pid = swoole_coroutine_waitpid(proc->child, &wstatus, WNOHANG | WUNTRACED);
+    wait_pid = _co_waitpid(proc->child, &wstatus, WNOHANG | WUNTRACED);
 
     if (wait_pid == proc->child) {
         if (WIFEXITED(wstatus)) {
@@ -1272,4 +1278,3 @@ PHP_FUNCTION(swoole_proc_open) {
     }
 }
 /* }}} */
-
