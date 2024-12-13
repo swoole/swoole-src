@@ -2112,7 +2112,7 @@ zif_handler php_swoole_get_original_handler(const char *name, size_t len) {
             return rf->ori_handler;
         }
     } else {
-        zif_handler *handler = ori_func_handlers.get(std::string(name, len));
+        zif_handler handler = ori_func_handlers.get(std::string(name, len));
         if (handler) {
             return handler;
         }
