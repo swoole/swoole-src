@@ -207,7 +207,7 @@ static zend_internal_arg_info *copy_arginfo(zend_function *zf, zend_internal_arg
 #define SW_HOOK_LIBRARY_FE(name, arg_info)                                                                             \
     ZEND_RAW_FENTRY("swoole_hook_" #name, PHP_FN(swoole_user_func_handler), arg_info, 0)
 
-static SW_THREAD_LOCAL bool runtime_hook_init = false;
+static bool runtime_hook_init = false;
 static SW_THREAD_LOCAL int runtime_hook_flags = 0;
 static SW_THREAD_LOCAL zend_array *tmp_function_table = nullptr;
 static SW_THREAD_LOCAL std::unordered_map<std::string, zend_class_entry *> child_class_entries;
@@ -1229,19 +1229,15 @@ void PHPCoroutine::enable_unsafe_function() {
 
 static void hook_stream_factory(int flags) {
     HashTable *xport_hash = php_stream_xport_get_hash();
-    // php_stream
-    ori_factory.tcp = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("tcp"));
-    ori_factory.udp = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("udp"));
-    ori_factory._unix = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("unix"));
-    ori_factory.udg = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("udg"));
-    ori_factory.ssl = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("ssl"));
-    ori_factory.tls = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("tls"));
+    if (!runtime_hook_init) {
+        ori_factory.tcp = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("tcp"));
+        ori_factory.udp = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("udp"));
+        ori_factory._unix = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("unix"));
+        ori_factory.udg = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("udg"));
+        ori_factory.ssl = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("ssl"));
+        ori_factory.tls = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("tls"));
+    }
 
-    // file
-    memcpy((void *) &ori_php_plain_files_wrapper, &php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
-    memcpy((void *) &ori_php_stream_stdio_ops, &php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
-
-    // php_stream
     if (flags & PHPCoroutine::HOOK_TCP) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_TCP)) {
             if (php_stream_xport_register("tcp", socket_create) != SUCCESS) {
@@ -1319,6 +1315,10 @@ static void hook_stream_factory(int flags) {
 }
 
 static void hook_stream_ops(int flags) {
+    if (!runtime_hook_init) {
+        memcpy((void *) &ori_php_plain_files_wrapper, &php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
+        memcpy((void *) &ori_php_stream_stdio_ops, &php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
+    }
     // file
     if (flags & PHPCoroutine::HOOK_FILE) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_FILE)) {
@@ -1388,25 +1388,7 @@ static void hook_pdo_driver(int flags) {
 #endif
 }
 
-bool PHPCoroutine::enable_hook(uint32_t flags) {
-    if (swoole_isset_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_BEFORE_ENABLE_HOOK)) {
-        swoole_call_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_BEFORE_ENABLE_HOOK, &flags);
-    }
-
-    if (!runtime_hook_init) {
-        runtime_hook_init = true;
-    }
-
-    /**
-     * These resources are global variables that can only be modified once within the main thread,
-     * and such modifications are not thread-safe.
-     */
-    if (sw_is_main_thread()) {
-        hook_stream_factory(flags);
-        hook_pdo_driver(flags);
-        hook_stream_ops(flags);
-    }
-
+static void hook_all_func(int flags) {
     // stream func
     if (flags & PHPCoroutine::HOOK_STREAM_FUNCTION) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_STREAM_FUNCTION)) {
@@ -1624,12 +1606,37 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
             detach_parent_class("Swoole\\Curl\\Handler");
         }
     }
+}
+
+bool PHPCoroutine::enable_hook(uint32_t flags) {
+    if (swoole_isset_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_BEFORE_ENABLE_HOOK)) {
+        swoole_call_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_BEFORE_ENABLE_HOOK, &flags);
+    }
+
+    /**
+     * These resources are global variables that can only be modified once within the main thread,
+     * and such modifications are not thread-safe.
+     */
+    if (sw_is_main_thread()) {
+        hook_stream_factory(flags);
+        hook_pdo_driver(flags);
+        hook_stream_ops(flags);
+    } else if (!runtime_hook_init) {
+        zend_throw_exception(swoole_exception_ce,
+                             "The runtime hook must be initialized in the main thread first.",
+                             SW_ERROR_WRONG_OPERATION);
+        return false;
+    }
+
+    hook_all_func(flags);
 
     if (swoole_isset_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_ENABLE_HOOK)) {
         swoole_call_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_ENABLE_HOOK, &flags);
     }
 
+    runtime_hook_init = true;
     runtime_hook_flags = flags;
+
     return true;
 }
 
