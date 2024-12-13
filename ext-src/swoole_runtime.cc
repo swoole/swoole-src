@@ -2033,8 +2033,10 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
     rf->ori_handler = zf->internal_function.handler;
     rf->ori_arg_info = zf->internal_function.arg_info;
 
-    ori_func_handlers.set(fn_name, rf->ori_handler);
-    ori_func_arg_infos.set(fn_name, rf->ori_arg_info);
+    if (sw_is_main_thread()) {
+        ori_func_handlers.set(fn_name, rf->ori_handler);
+        ori_func_arg_infos.set(fn_name, rf->ori_arg_info);
+    }
 
     zf->internal_function.handler = handler;
     if (arg_info) {
