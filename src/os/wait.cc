@@ -136,7 +136,7 @@ pid_t System::waitpid(pid_t __pid, int *__stat_loc, int __options, double timeou
     WaitTask task;
     signal_init();
     task.pid = ::waitpid(__pid, __stat_loc, __options | WNOHANG);
-    if (task.pid > 0) {
+    if (task.pid != 0) {
         return task.pid;
     }
 

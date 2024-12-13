@@ -7,7 +7,7 @@ swoole_runtime: base
 require __DIR__ . '/../include/bootstrap.php';
 $server = SwooleTest\CoServer::createTcpGreeting();
 $server->run();
-Swoole\Runtime::enableCoroutine(true, SWOOLE_HOOK_ALL ^ SWOOLE_HOOK_SLEEP);
+Swoole\Runtime::enableCoroutine(SWOOLE_HOOK_ALL ^ SWOOLE_HOOK_SLEEP);
 go(function () {
     usleep(1000);
     echo '1' . PHP_EOL;
