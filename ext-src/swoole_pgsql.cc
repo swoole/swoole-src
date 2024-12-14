@@ -28,7 +28,7 @@ using swoole::Coroutine;
 using swoole::coroutine::Socket;
 using swoole::coroutine::translate_events_to_poll;
 
-static bool swoole_pgsql_blocking = true;
+static SW_THREAD_LOCAL bool swoole_pgsql_blocking = true;
 
 static int swoole_pgsql_socket_poll(PGconn *conn, swEventType event, double timeout = -1) {
     if (swoole_pgsql_blocking) {

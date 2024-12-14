@@ -22,7 +22,7 @@
 
 #ifdef SW_USE_ORACLE
 
-static bool swoole_oracle_blocking = true;
+static SW_THREAD_LOCAL bool swoole_oracle_blocking = true;
 void swoole_oracle_set_blocking(bool blocking) {
     swoole_oracle_blocking = blocking;
 }
