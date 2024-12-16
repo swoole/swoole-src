@@ -1475,11 +1475,14 @@ static PHP_FUNCTION(swoole_substr_unserialize) {
     }
     if (offset < 0) {
         offset = buf_len + offset;
+        if (offset < 0) {
+            RETURN_FALSE;
+        }
     }
     if ((zend_long) buf_len <= offset) {
         RETURN_FALSE;
     }
-    if (length <= 0) {
+    if (length <= 0 || length > (zend_long)(buf_len - offset)) {
         length = buf_len - offset;
     }
     zend::unserialize(return_value, buf + offset, length, options ? Z_ARRVAL_P(options) : NULL);
@@ -1505,15 +1508,21 @@ static PHP_FUNCTION(swoole_substr_json_decode) {
     ZEND_PARSE_PARAMETERS_END();
 
     if (str_len == 0) {
-        RETURN_FALSE;
+        php_error_docref(nullptr, E_WARNING, "Non-empty string required");
+        RETURN_NULL();
     }
     if (offset < 0) {
         offset = str_len + offset;
+        if (offset < 0) {
+            php_error_docref(nullptr, E_WARNING, "Offset must be not less than the negative length of the string");
+            RETURN_NULL();
+        }
     }
     if ((zend_long) str_len <= offset) {
-        RETURN_FALSE;
+        php_error_docref(nullptr, E_WARNING, "Offset must be less than the length of the string");
+        RETURN_NULL();
     }
-    if (length <= 0) {
+    if (length <= 0 || length > (zend_long)(str_len - offset)) {
         length = str_len - offset;
     }
     /* For BC reasons, the bool $assoc overrides the long $options bit for PHP_JSON_OBJECT_AS_ARRAY */
