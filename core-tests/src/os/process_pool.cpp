@@ -7,6 +7,8 @@
 #define sysv_signal signal
 #endif
 
+#include "swoole_signal.h"
+
 using namespace swoole;
 
 static void test_func(ProcessPool &pool) {
@@ -190,7 +192,7 @@ TEST(process_pool, async) {
         *shm_value = magic_number;
         current_worker = worker;
 
-        sysv_signal(SIGTERM, [](int sig) {
+        swoole_signal_set(SIGTERM, [](int sig) {
             int *shm_value = (int *) current_pool->ptr;
             (*shm_value)++;
             current_pool->stop(current_worker);
