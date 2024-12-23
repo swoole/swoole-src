@@ -188,7 +188,6 @@ TEST(process_pool, async) {
     pool.onWorkerStart = [](ProcessPool *pool, Worker *worker) {
         int *shm_value = (int *) pool->ptr;
         *shm_value = magic_number;
-        usleep(1);
         current_worker = worker;
 
         sysv_signal(SIGTERM, [](int sig) {
@@ -196,6 +195,8 @@ TEST(process_pool, async) {
             (*shm_value)++;
             current_pool->stop(current_worker);
         });
+
+        usleep(10);
     };
 
     pool.onMessage = [](ProcessPool *pool, RecvData *msg) {
