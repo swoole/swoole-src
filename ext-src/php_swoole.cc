@@ -23,9 +23,7 @@ BEGIN_EXTERN_C()
 #include "zend_exceptions.h"
 #include "zend_extensions.h"
 
-#if (HAVE_PCRE || HAVE_BUNDLED_PCRE) && !defined(COMPILE_DL_PCRE)
 #include "ext/pcre/php_pcre.h"
-#endif
 #include "ext/json/php_json.h"
 
 #include "stubs/php_swoole_arginfo.h"
@@ -913,9 +911,6 @@ PHP_MINFO_FUNCTION(swoole) {
     php_info_print_table_row(2, "json", "enabled");
 #ifdef SW_USE_CURL
     php_info_print_table_row(2, "curl-native", "enabled");
-#endif
-#ifdef HAVE_PCRE
-    php_info_print_table_row(2, "pcre", "enabled");
 #endif
 #ifdef SW_USE_CARES
     php_info_print_table_row(2, "c-ares", ares_version(nullptr));
