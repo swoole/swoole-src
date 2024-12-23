@@ -32,9 +32,9 @@ using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 using swoole::network::Address;
 using swoole::network::IOVector;
-using swoole::test::Server;
 using swoole::test::create_http_proxy;
 using swoole::test::create_socks5_proxy;
+using swoole::test::Server;
 
 const std::string host = "www.baidu.com";
 
@@ -63,6 +63,24 @@ TEST(coroutine_socket, connect_with_dns) {
         bool retval = sock.connect(host, 80);
         ASSERT_EQ(retval, true);
         ASSERT_EQ(sock.errCode, 0);
+    });
+}
+
+TEST(coroutine_socket, tcp6) {
+    coroutine::run([](void *arg) {
+        Socket sock(SW_SOCK_TCP6);
+        bool retval = sock.connect("::1", 80);
+        ASSERT_EQ(retval, true);
+        ASSERT_EQ(sock.errCode, 0);
+    });
+}
+
+TEST(coroutine_socket, unixsock_fail) {
+    coroutine::run([](void *arg) {
+        Socket sock(SW_SOCK_UNIX_STREAM);
+        bool retval = sock.connect("/tmp/unix.sock");
+        ASSERT_EQ(retval, false);
+        ASSERT_EQ(sock.errCode, ENOENT);
     });
 }
 
@@ -1027,7 +1045,6 @@ TEST(coroutine_socket, https_get_with_http_proxy) {
         proxy_test(sock, true);
     });
 }
-
 
 #ifdef SW_USE_OPENSSL
 TEST(coroutine_socket, ssl) {

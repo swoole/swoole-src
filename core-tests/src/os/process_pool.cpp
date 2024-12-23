@@ -7,6 +7,8 @@
 #define sysv_signal signal
 #endif
 
+#include "swoole_signal.h"
+
 using namespace swoole;
 
 static void test_func(ProcessPool &pool) {
@@ -129,6 +131,7 @@ TEST(process_pool, stream_protocol) {
 
 constexpr int magic_number = 99900011;
 static ProcessPool *current_pool = nullptr;
+static Worker *current_worker = nullptr;
 
 TEST(process_pool, shutdown) {
     ProcessPool pool{};
@@ -171,4 +174,57 @@ TEST(process_pool, shutdown) {
     pool.destroy();
 
     ASSERT_EQ(*shm_value, magic_number);
+}
+
+TEST(process_pool, async) {
+    ProcessPool pool{};
+    ASSERT_EQ(pool.create(1, 0, SW_IPC_UNIXSOCK), SW_OK);
+
+    // init
+    pool.set_max_packet_size(8192);
+    pool.set_protocol(SW_PROTOCOL_TASK);
+    int *shm_value = (int *) sw_mem_pool()->alloc(sizeof(int));
+    pool.ptr = shm_value;
+    pool.async = true;
+
+    pool.onWorkerStart = [](ProcessPool *pool, Worker *worker) {
+        int *shm_value = (int *) pool->ptr;
+        *shm_value = magic_number;
+        current_worker = worker;
+
+        swoole_signal_set(SIGTERM, [](int sig) {
+            int *shm_value = (int *) current_pool->ptr;
+            (*shm_value)++;
+            current_pool->stop(current_worker);
+        });
+
+        usleep(10);
+    };
+
+    pool.onMessage = [](ProcessPool *pool, RecvData *msg) {
+        int *shm_value = (int *) pool->ptr;
+        (*shm_value)++;
+        kill(pool->master_pid, SIGTERM);
+    };
+
+    current_pool = &pool;
+    sysv_signal(SIGTERM, [](int sig) { current_pool->running = false; });
+
+    // start
+    ASSERT_EQ(pool.start(), SW_OK);
+
+    EventData msg{};
+    msg.info.len = 128;
+    swoole_random_string(msg.data, msg.info.len);
+    int worker_id = -1;
+    pool.dispatch_blocking(&msg, &worker_id);
+
+    // wait
+    ASSERT_EQ(pool.wait(), SW_OK);
+
+    // shutdown
+    pool.shutdown();
+    pool.destroy();
+
+    ASSERT_EQ(*shm_value, magic_number + 2);
 }
