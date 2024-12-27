@@ -163,6 +163,39 @@ static zend_internal_arg_info *get_arginfo(const char *name, size_t l_name) {
     return zf->internal_function.arg_info;
 }
 
+static zend_internal_arg_info *copy_arginfo(zend_function *zf, zend_internal_arg_info *_arg_info) {
+    uint32_t num_args = zf->internal_function.num_args + 1;
+    zend_internal_arg_info *arg_info = _arg_info - 1;
+
+    auto new_arg_info = (zend_internal_arg_info *) pemalloc(sizeof(zend_internal_arg_info) * num_args, 1);
+    memcpy(new_arg_info, arg_info, sizeof(zend_internal_arg_info) * num_args);
+
+    if (zf->internal_function.fn_flags & ZEND_ACC_VARIADIC) {
+        num_args++;
+    }
+
+    for (uint32_t i = 0; i < num_args; i++) {
+        if (ZEND_TYPE_HAS_LIST(arg_info[i].type)) {
+            zend_type_list *old_list = ZEND_TYPE_LIST(arg_info[i].type);
+            zend_type_list *new_list = (zend_type_list *) pemalloc(ZEND_TYPE_LIST_SIZE(old_list->num_types), 1);
+            memcpy(new_list, old_list, ZEND_TYPE_LIST_SIZE(old_list->num_types));
+            ZEND_TYPE_SET_PTR(new_arg_info[i].type, new_list);
+
+            zend_type *list_type;
+            ZEND_TYPE_LIST_FOREACH(new_list, list_type) {
+                zend_string *name = zend_string_dup(ZEND_TYPE_NAME(*list_type), 1);
+                ZEND_TYPE_SET_PTR(*list_type, name);
+            }
+            ZEND_TYPE_LIST_FOREACH_END();
+        } else if (ZEND_TYPE_HAS_NAME(arg_info[i].type)) {
+            zend_string *name = zend_string_dup(ZEND_TYPE_NAME(arg_info[i].type), 1);
+            ZEND_TYPE_SET_PTR(new_arg_info[i].type, name);
+        }
+    }
+
+    return new_arg_info + 1;
+}
+
 #define SW_HOOK_FUNC(f) hook_func(ZEND_STRL(#f), PHP_FN(swoole_##f))
 #define SW_UNHOOK_FUNC(f) unhook_func(ZEND_STRL(#f))
 #define SW_HOOK_WITH_NATIVE_FUNC(f)                                                                                    \
@@ -1163,6 +1196,11 @@ void PHPCoroutine::enable_unsafe_function() {
     }
 }
 
+static void hook_stream_throw_exception(const char *type) {
+    swoole_error_log(
+        SW_LOG_WARNING, SW_ERROR_PHP_FATAL_ERROR, "failed to register `%s` stream transport factory", type);
+}
+
 bool PHPCoroutine::enable_hook(uint32_t flags) {
     if (swoole_isset_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_BEFORE_ENABLE_HOOK)) {
         swoole_call_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_BEFORE_ENABLE_HOOK, &flags);
@@ -1189,6 +1227,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_TCP)) {
             if (php_stream_xport_register("tcp", socket_create) != SUCCESS) {
                 flags ^= PHPCoroutine::HOOK_TCP;
+                hook_stream_throw_exception("tcp");
             }
         }
     } else {
@@ -1200,6 +1239,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_UDP)) {
             if (php_stream_xport_register("udp", socket_create) != SUCCESS) {
                 flags ^= PHPCoroutine::HOOK_UDP;
+                hook_stream_throw_exception("udp");
             }
         }
     } else {
@@ -1211,6 +1251,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_UNIX)) {
             if (php_stream_xport_register("unix", socket_create) != SUCCESS) {
                 flags ^= PHPCoroutine::HOOK_UNIX;
+                hook_stream_throw_exception("unix");
             }
         }
     } else {
@@ -1222,6 +1263,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_UDG)) {
             if (php_stream_xport_register("udg", socket_create) != SUCCESS) {
                 flags ^= PHPCoroutine::HOOK_UDG;
+                hook_stream_throw_exception("udg");
             }
         }
     } else {
@@ -1233,6 +1275,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_SSL)) {
             if (php_stream_xport_register("ssl", socket_create) != SUCCESS) {
                 flags ^= PHPCoroutine::HOOK_SSL;
+                hook_stream_throw_exception("ssl");
             }
         }
     } else {
@@ -1248,6 +1291,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_TLS)) {
             if (php_stream_xport_register("tls", socket_create) != SUCCESS) {
                 flags ^= PHPCoroutine::HOOK_TLS;
+                hook_stream_throw_exception("tls");
             }
         }
     } else {
@@ -1370,8 +1414,8 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
     if (flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION)) {
             hook_func(ZEND_STRL("gethostbyname"), PHP_FN(swoole_coroutine_gethostbyname));
-            hook_func(ZEND_STRL("exec"));
-            hook_func(ZEND_STRL("shell_exec"));
+            SW_HOOK_WITH_PHP_FUNC(exec);
+            SW_HOOK_WITH_PHP_FUNC(shell_exec);
         }
     } else {
         if (runtime_hook_flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION) {
@@ -1380,6 +1424,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
             SW_UNHOOK_FUNC(shell_exec);
         }
     }
+    // ext-sockets
     if (flags & PHPCoroutine::HOOK_SOCKETS) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_SOCKETS)) {
             SW_HOOK_WITH_PHP_FUNC(socket_create);
@@ -1445,6 +1490,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
     }
 
 #ifdef SW_USE_CURL
+    // curl native
     if (flags & PHPCoroutine::HOOK_NATIVE_CURL) {
         if (flags & PHPCoroutine::HOOK_CURL) {
             php_swoole_fatal_error(E_WARNING, "cannot enable both hooks HOOK_NATIVE_CURL and HOOK_CURL at same time");
@@ -1505,7 +1551,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
         }
     }
 #endif
-
+    // curl
     if (flags & PHPCoroutine::HOOK_CURL) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_CURL)) {
             SW_HOOK_WITH_PHP_FUNC(curl_init);
@@ -1948,7 +1994,7 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
     rf->ori_arg_info = zf->internal_function.arg_info;
     zf->internal_function.handler = handler;
     if (arg_info) {
-        zf->internal_function.arg_info = arg_info;
+        zf->internal_function.arg_info = copy_arginfo(zf, arg_info);
     }
 
     if (use_php_func) {
