@@ -4,7 +4,7 @@ swoole_lock: coroutine lock
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-use Swoole\Lock;
+use Swoole\Coroutine\Lock;
 use Swoole\Runtime;
 use Swoole\Http\Server;
 use function Swoole\Coroutine\run;
@@ -53,9 +53,13 @@ $pm->parentFunc = function ($pid) use ($pm) {
 };
 
 $pm->childFunc = function () use ($pm) {
-	$lock = new Lock(SWOOLE_COROLOCK);
-	var_dump($lock->lock());
-	var_dump($lock->unlock());
+    swoole_async_set([
+        'log_file' => '/dev/null',
+    ]);
+	$lock = new Lock(true);
+	Assert::false($lock->lock());
+    Assert::false($lock->unlock());
+    Assert::eq(swoole_last_error(), SWOOLE_ERROR_OPERATION_NOT_SUPPORT);
     $serv = new Server('127.0.0.1', $pm->getFreePort());
     $serv->set([
         'log_file' => '/dev/null',
@@ -87,10 +91,6 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-%s
-bool(false)
-%s
-bool(false)
 array(1) {
   ["result"]=>
   string(7) "value 3"

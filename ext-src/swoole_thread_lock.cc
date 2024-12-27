@@ -33,7 +33,6 @@ using swoole::SpinLock;
 #ifdef HAVE_RWLOCK
 using swoole::RWLock;
 #endif
-using swoole::CoroutineLock;
 
 zend_class_entry *swoole_thread_lock_ce;
 static zend_object_handlers swoole_thread_lock_handlers;
@@ -52,9 +51,6 @@ struct LockResource : public ThreadResource {
             lock_ = new RWLock(0);
             break;
 #endif
-        case Lock::COROUTINE_LOCK:
-            lock_ = new CoroutineLock();
-            break;
         case Lock::MUTEX:
         default:
             lock_ = new Mutex(0);
@@ -124,7 +120,6 @@ static PHP_METHOD(swoole_thread_lock, trylock);
 static PHP_METHOD(swoole_thread_lock, lock_read);
 static PHP_METHOD(swoole_thread_lock, trylock_read);
 static PHP_METHOD(swoole_thread_lock, unlock);
-static PHP_METHOD(swoole_thread_lock, destroy);
 SW_EXTERN_C_END
 
 // clang-format off

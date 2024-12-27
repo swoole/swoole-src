@@ -115,7 +115,7 @@ class CoroutineLock : public Lock {
     int lock_impl(bool blocking = true);
 
   public:
-    CoroutineLock();
+    CoroutineLock(bool shared);
     ~CoroutineLock();
     int lock_rd() override;
     int lock() override;
