@@ -198,6 +198,24 @@ static zend_internal_arg_info *copy_arginfo(zend_function *zf, zend_internal_arg
     return new_arg_info + 1;
 }
 
+static void free_arg_info(zend_internal_function *function) {
+    if ((function->fn_flags & (ZEND_ACC_HAS_RETURN_TYPE|ZEND_ACC_HAS_TYPE_HINTS)) &&
+        function->arg_info) {
+
+        uint32_t i;
+        uint32_t num_args = function->num_args + 1;
+        zend_internal_arg_info *arg_info = function->arg_info - 1;
+
+        if (function->fn_flags & ZEND_ACC_VARIADIC) {
+            num_args++;
+        }
+        for (i = 0 ; i < num_args; i++) {
+            zend_type_release(arg_info[i].type, /* persistent */ 1);
+        }
+        free(arg_info);
+    }
+}
+
 #define SW_HOOK_FUNC(f) hook_func(ZEND_STRL(#f), PHP_FN(swoole_##f))
 #define SW_UNHOOK_FUNC(f) unhook_func(ZEND_STRL(#f))
 #define SW_HOOK_WITH_NATIVE_FUNC(f)                                                                                    \
@@ -262,6 +280,7 @@ struct real_func {
     zend_function *function;
     zif_handler ori_handler;
     zend_internal_arg_info *ori_arg_info;
+    zend_internal_arg_info *arg_info_copy;
     uint32_t ori_fn_flags;
     uint32_t ori_num_args;
     zend::Callable *fci_cache;
@@ -2051,6 +2070,7 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
     zf->internal_function.handler = handler;
     if (arg_info) {
         zf->internal_function.arg_info = copy_arginfo(zf, arg_info);
+        rf->arg_info_copy = zf->internal_function.arg_info;
     }
 
     if (use_php_func) {
@@ -2074,10 +2094,12 @@ static void unhook_func(const char *name, size_t l_name) {
     if (rf == nullptr) {
         return;
     }
-    if (sw_is_main_thread()) {
-        rf->function->internal_function.handler = rf->ori_handler;
-        rf->function->internal_function.arg_info = rf->ori_arg_info;
+    if (rf->arg_info_copy) {
+        free_arg_info(&rf->function->internal_function);
+        rf->arg_info_copy = nullptr;
     }
+    rf->function->internal_function.handler = rf->ori_handler;
+    rf->function->internal_function.arg_info = rf->ori_arg_info;
 }
 
 php_stream *php_swoole_create_stream_from_socket(php_socket_t _fd, int domain, int type, int protocol STREAMS_DC) {
