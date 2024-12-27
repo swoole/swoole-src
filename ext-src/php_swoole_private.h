@@ -512,6 +512,7 @@ static inline bool sw_is_main_thread() {
 #endif
 }
 
+size_t sw_get_active_thread_count(void);
 void sw_php_exit(int status);
 
 //----------------------------------Constant API------------------------------------
