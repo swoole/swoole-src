@@ -23,14 +23,14 @@
 
 #ifdef SW_USE_PGSQL
 
-using swoole::Reactor;
 using swoole::Coroutine;
+using swoole::Reactor;
 using swoole::coroutine::Socket;
 using swoole::coroutine::translate_events_to_poll;
 
 static SW_THREAD_LOCAL bool swoole_pgsql_blocking = true;
 
-static int swoole_pgsql_socket_poll(PGconn *conn, swEventType event, double timeout = -1) {
+static int swoole_pgsql_socket_poll(PGconn *conn, swEventType event, double timeout = -1, bool check_nonblock = false) {
     if (swoole_pgsql_blocking) {
         struct pollfd fds[1];
         fds[0].fd = PQsocket(conn);
@@ -38,7 +38,7 @@ static int swoole_pgsql_socket_poll(PGconn *conn, swEventType event, double time
 
         int result = 0;
         do {
-             result = poll(fds, 1, timeout);
+            result = poll(fds, 1, timeout);
         } while (result < 0 && errno == EINTR);
 
         return result > 0 ? 1 : errno == ETIMEDOUT ? 0 : -1;
@@ -46,7 +46,19 @@ static int swoole_pgsql_socket_poll(PGconn *conn, swEventType event, double time
 
     Socket sock(PQsocket(conn), SW_SOCK_RAW);
     sock.get_socket()->nonblock = 1;
+
     bool retval = sock.poll(event, timeout);
+    while (check_nonblock && event == SW_EVENT_READ) {
+        if (PQconsumeInput(conn) == 0) {
+            retval = false;
+            break;
+        }
+        if (PQisBusy(conn) == 0) {
+            break;
+        }
+        retval = sock.poll(event, timeout);
+    }
+
     sock.move_fd();
     return retval ? 1 : sock.errCode == ETIMEDOUT ? 0 : -1;
 }
@@ -68,7 +80,8 @@ static int swoole_pgsql_flush(PGconn *conn) {
 
 static PGresult *swoole_pgsql_get_result(PGconn *conn) {
     PGresult *result, *last_result = nullptr;
-    int poll_ret = swoole_pgsql_socket_poll(conn, SW_EVENT_READ);
+    // PQgetResult will block the process; it is necessary to forcibly check if the data is ready.
+    int poll_ret = swoole_pgsql_socket_poll(conn, SW_EVENT_READ, -1, true);
     if (sw_unlikely(poll_ret == SW_ERR)) {
         return nullptr;
     }
