@@ -1645,7 +1645,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
      * the main thread can only make changes when there are no active worker threads.
      */
     if (sw_is_main_thread()) {
-        if (sw_get_active_thread_count() > 1) {
+        if (sw_active_thread_count() > 1) {
             zend_throw_exception(swoole_exception_ce,
                                  "The stream runtime hook must be enabled or disabled only when "
                                  "there are no active threads.",

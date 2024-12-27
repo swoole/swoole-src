@@ -380,9 +380,9 @@ void php_swoole_thread_rshutdown() {
     if (!tsrm_is_main_thread()) {
         return;
     }
-    if (sw_get_active_thread_count() > 1) {
+    if (sw_active_thread_count() > 1) {
         swoole_warning("Fatal Error: %zu active threads are running, cannot exit safely.",
-                       sw_get_active_thread_count());
+                       sw_active_thread_count());
         exit(200);
     }
     if (request_info.path_translated) {
@@ -507,7 +507,7 @@ int php_swoole_thread_get_exit_status(pthread_t ptid) {
     return thread_exit_status.get(ptid);
 }
 
-size_t sw_get_active_thread_count(void) {
+size_t sw_active_thread_count(void) {
     return thread_num.load();
 }
 

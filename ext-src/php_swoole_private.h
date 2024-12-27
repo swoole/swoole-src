@@ -512,7 +512,13 @@ static inline bool sw_is_main_thread() {
 #endif
 }
 
-size_t sw_get_active_thread_count(void);
+#ifdef SW_THREAD
+size_t sw_active_thread_count(void);
+#else
+static inline size_t sw_active_thread_count(void) {
+    return 1;
+}
+#endif
 void sw_php_exit(int status);
 
 //----------------------------------Constant API------------------------------------
