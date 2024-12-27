@@ -1,5 +1,5 @@
 --TEST--
-swoole_lock: coroutine lock
+swoole_coroutine_lock: lock
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
