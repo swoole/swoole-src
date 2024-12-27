@@ -257,6 +257,7 @@ struct real_func {
     zend_function *function;
     zif_handler ori_handler;
     zend_internal_arg_info *ori_arg_info;
+    zend_internal_arg_info *arg_info_copy;
     uint32_t ori_fn_flags;
     uint32_t ori_num_args;
     zend_fcall_info_cache *fci_cache;
@@ -1995,6 +1996,7 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
     zf->internal_function.handler = handler;
     if (arg_info) {
         zf->internal_function.arg_info = copy_arginfo(zf, arg_info);
+        rf->arg_info_copy = zf->internal_function.arg_info;
     }
 
     if (use_php_func) {
@@ -2021,6 +2023,10 @@ static void unhook_func(const char *name, size_t l_name) {
     real_func *rf = (real_func *) zend_hash_str_find_ptr(tmp_function_table, name, l_name);
     if (rf == nullptr) {
         return;
+    }
+    if (rf->arg_info_copy) {
+        zend_free_internal_arg_info(&rf->function->internal_function);
+        rf->arg_info_copy = nullptr;
     }
     rf->function->internal_function.handler = rf->ori_handler;
     rf->function->internal_function.arg_info = rf->ori_arg_info;
