@@ -762,6 +762,7 @@ PHP_MINIT_FUNCTION(swoole) {
     php_swoole_coroutine_minit(module_number);
     php_swoole_coroutine_system_minit(module_number);
     php_swoole_coroutine_scheduler_minit(module_number);
+    php_swoole_coroutine_lock_minit(module_number);
     php_swoole_channel_coro_minit(module_number);
     php_swoole_runtime_minit(module_number);
     // client

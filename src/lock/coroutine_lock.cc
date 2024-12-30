@@ -26,14 +26,23 @@ using swoole::coroutine::System;
 #include "swoole_lock.h"
 
 namespace swoole {
-CoroutineLock::CoroutineLock() : Lock() {
+CoroutineLock::CoroutineLock(bool shared) : Lock() {
     type_ = COROUTINE_LOCK;
-    value = (sw_atomic_t *) sw_mem_pool()->alloc(sizeof(sw_atomic_t));
+    shared_ = shared;
+    if (shared) {
+        value = (sw_atomic_t *) sw_mem_pool()->alloc(sizeof(sw_atomic_t));
+    } else {
+        value = new sw_atomic_t;
+    }
     *value = 0;
 }
 
 CoroutineLock::~CoroutineLock() {
-    sw_mem_pool()->free((void *) value);
+    if (shared_) {
+        sw_mem_pool()->free((void *) value);
+    } else {
+        delete value;
+    }
     value = nullptr;
 }
 
