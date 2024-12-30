@@ -199,9 +199,7 @@ static zend_internal_arg_info *copy_arginfo(zend_function *zf, zend_internal_arg
 }
 
 static void free_arg_info(zend_internal_function *function) {
-    if ((function->fn_flags & (ZEND_ACC_HAS_RETURN_TYPE|ZEND_ACC_HAS_TYPE_HINTS)) &&
-        function->arg_info) {
-
+    if ((function->fn_flags & (ZEND_ACC_HAS_RETURN_TYPE | ZEND_ACC_HAS_TYPE_HINTS)) && function->arg_info) {
         uint32_t i;
         uint32_t num_args = function->num_args + 1;
         zend_internal_arg_info *arg_info = function->arg_info - 1;
@@ -209,7 +207,7 @@ static void free_arg_info(zend_internal_function *function) {
         if (function->fn_flags & ZEND_ACC_VARIADIC) {
             num_args++;
         }
-        for (i = 0 ; i < num_args; i++) {
+        for (i = 0; i < num_args; i++) {
             zend_type_release(arg_info[i].type, /* persistent */ 1);
         }
         free(arg_info);
@@ -1263,8 +1261,40 @@ static void hook_stream_throw_exception(const char *type) {
         swoole_exception_ce, SW_ERROR_PHP_FATAL_ERROR, "failed to register `%s` stream transport factory", type);
 }
 
+static void hook_remove_stream_flags(uint32_t *flags_ptr) {
+    uint32_t flags = *flags_ptr;
+    // stream factory
+    if (flags & PHPCoroutine::HOOK_TCP) {
+        flags ^= PHPCoroutine::HOOK_TCP;
+    }
+    if (flags & PHPCoroutine::HOOK_UDP) {
+        flags ^= PHPCoroutine::HOOK_UDP;
+    }
+    if (flags & PHPCoroutine::HOOK_UNIX) {
+        flags ^= PHPCoroutine::HOOK_UNIX;
+    }
+    if (flags & PHPCoroutine::HOOK_UDG) {
+        flags ^= PHPCoroutine::HOOK_UDG;
+    }
+    if (flags & PHPCoroutine::HOOK_SSL) {
+        flags ^= PHPCoroutine::HOOK_SSL;
+    }
+    if (flags & PHPCoroutine::HOOK_TLS) {
+        flags ^= PHPCoroutine::HOOK_TLS;
+    }
+    // stream ops
+    if (flags & PHPCoroutine::HOOK_FILE) {
+        flags ^= PHPCoroutine::HOOK_FILE;
+    }
+    if (flags & PHPCoroutine::HOOK_STDIO) {
+        flags ^= PHPCoroutine::HOOK_STDIO;
+    }
+    *flags_ptr = flags;
+}
+
 static void hook_stream_factory(uint32_t *flags_ptr) {
     uint32_t flags = *flags_ptr;
+
     if (flags & PHPCoroutine::HOOK_TCP) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_TCP)) {
             if (php_stream_xport_register("tcp", socket_create) != SUCCESS) {
@@ -1646,22 +1676,12 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
      */
     if (sw_is_main_thread()) {
         if (sw_active_thread_count() > 1) {
-            zend_throw_exception(swoole_exception_ce,
-                                 "The stream runtime hook must be enabled or disabled only when "
-                                 "there are no active threads.",
-                                 SW_ERROR_UNDEFINED_BEHAVIOR);
+            swoole_warning(
+                "The stream runtime hook must be enabled or disabled only when there are no active threads.");
+            hook_remove_stream_flags(&flags);
         }
     } else {
-        // stream factory
-        flags ^= PHPCoroutine::HOOK_TCP;
-        flags ^= PHPCoroutine::HOOK_UDP;
-        flags ^= PHPCoroutine::HOOK_UNIX;
-        flags ^= PHPCoroutine::HOOK_UDG;
-        flags ^= PHPCoroutine::HOOK_SSL;
-        flags ^= PHPCoroutine::HOOK_TLS;
-        // stream ops
-        flags ^= PHPCoroutine::HOOK_FILE;
-        flags ^= PHPCoroutine::HOOK_STDIO;
+        hook_remove_stream_flags(&flags);
     }
 
     if (swoole_isset_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_BEFORE_ENABLE_HOOK)) {

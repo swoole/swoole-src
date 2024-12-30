@@ -1399,18 +1399,7 @@ static PHP_METHOD(swoole_coroutine, getBackTrace) {
     }
 }
 
-static PHP_METHOD(swoole_coroutine, printBackTrace) {
-    zend_long cid = 0;
-    zend_long options = 0;
-    zend_long limit = 0;
-
-    ZEND_PARSE_PARAMETERS_START(0, 3)
-    Z_PARAM_OPTIONAL
-    Z_PARAM_LONG(cid)
-    Z_PARAM_LONG(options)
-    Z_PARAM_LONG(limit)
-    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
-
+void sw_php_print_backtrace(zend_long cid, zend_long options, zend_long limit, zval *return_value) {
     zval argv[2];
     ZVAL_LONG(&argv[0], options);
     ZVAL_LONG(&argv[1], limit);
@@ -1421,13 +1410,31 @@ static PHP_METHOD(swoole_coroutine, printBackTrace) {
         PHPContext *ctx = (PHPContext *) PHPCoroutine::get_context_by_cid(cid);
         if (UNEXPECTED(!ctx)) {
             swoole_set_last_error(SW_ERROR_CO_NOT_EXISTS);
-            RETURN_FALSE;
+            if (return_value) {
+                RETVAL_FALSE;
+            }
+            return;
         }
         zend_execute_data *ex_backup = EG(current_execute_data);
         EG(current_execute_data) = ctx->execute_data;
         zend::function::call("debug_print_backtrace", 2, argv);
         EG(current_execute_data) = ex_backup;
     }
+}
+
+static PHP_METHOD(swoole_coroutine, printBackTrace) {
+    zend_long cid;
+    zend_long options = 0;
+    zend_long limit = 0;
+
+    ZEND_PARSE_PARAMETERS_START(0, 3)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_LONG(cid)
+    Z_PARAM_LONG(options)
+    Z_PARAM_LONG(limit)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    sw_php_print_backtrace(cid, options, limit, return_value);
 }
 
 static PHP_METHOD(swoole_coroutine, list) {
