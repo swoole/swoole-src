@@ -96,6 +96,7 @@ void php_swoole_coroutine_lock_minit(int module_number) {
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_coroutine_lock, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CUSTOM_OBJECT(
         swoole_coroutine_lock, co_lock_create_object, co_lock_free_object, CoLockObject, std);
+    zend_declare_property_long(swoole_coroutine_lock_ce, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
 }
 
 static PHP_METHOD(swoole_coroutine_lock, __construct) {
