@@ -59,7 +59,7 @@ $pm->childFunc = function () use ($pm) {
 	$lock = new Lock(true);
 	Assert::false($lock->lock());
     Assert::false($lock->unlock());
-    Assert::eq(swoole_last_error(), SWOOLE_ERROR_OPERATION_NOT_SUPPORT);
+    Assert::eq($lock->errCode, SWOOLE_ERROR_CO_OUT_OF_COROUTINE);
     $serv = new Server('127.0.0.1', $pm->getFreePort());
     $serv->set([
         'log_file' => '/dev/null',
