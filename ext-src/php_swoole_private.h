@@ -267,6 +267,7 @@ void php_swoole_timer_minit(int module_number);
 void php_swoole_coroutine_minit(int module_number);
 void php_swoole_coroutine_system_minit(int module_number);
 void php_swoole_coroutine_scheduler_minit(int module_number);
+void php_swoole_coroutine_lock_minit(int module_number);
 void php_swoole_channel_coro_minit(int module_number);
 void php_swoole_runtime_minit(int module_number);
 // client
