@@ -134,14 +134,3 @@ static PHP_METHOD(swoole_coroutine_lock, trylock) {
     CoroutineLock *lock = co_lock_get_and_check_ptr(ZEND_THIS);
     SW_LOCK_CHECK_RETURN(lock->trylock());
 }
-
-static PHP_METHOD(swoole_coroutine_lock, trylock_read) {
-    CoroutineLock *lock = co_lock_get_and_check_ptr(ZEND_THIS);
-    SW_LOCK_CHECK_RETURN(lock->trylock_rd());
-}
-
-static PHP_METHOD(swoole_coroutine_lock, lock_read) {
-    CoroutineLock *lock = co_lock_get_and_check_ptr(ZEND_THIS);
-    SW_LOCK_CHECK_RETURN(lock->lock_rd());
-}
-

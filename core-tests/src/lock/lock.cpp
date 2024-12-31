@@ -140,7 +140,7 @@ TEST(lock, try_rd) {
 }
 
 TEST(lock, coroutine_lock) {
-    CoroutineLock *lock = new CoroutineLock();
+    CoroutineLock *lock = new CoroutineLock(false);
     ASSERT_EQ(lock->lock(), SW_ERROR_CO_OUT_OF_COROUTINE);
     auto callback = [lock]() {
         coroutine::run([lock](void *arg) {
