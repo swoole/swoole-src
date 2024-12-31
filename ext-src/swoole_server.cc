@@ -2669,6 +2669,15 @@ static PHP_METHOD(swoole_server, start) {
         };
 
         serv->worker_thread_join = [](pthread_t ptid) { php_swoole_thread_join(ptid); };
+
+        /**
+         *The hook must be enabled before creating child threads.
+         *The stream factory and ops are global variables, not thread-local resources.
+         *These runtime hooks must be modified in a single-threaded environment.
+         */
+        if (PHPCoroutine::get_hook_flags() > 0) {
+            PHPCoroutine::enable_hook(PHPCoroutine::get_hook_flags());
+        }
     }
 #endif
 

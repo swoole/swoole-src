@@ -1120,6 +1120,39 @@ static bool socket_ssl_set_options(Socket *sock, php_stream_context *context) {
     return true;
 }
 
+static php_stream *socket_create_original(const char *proto,
+                                          size_t protolen,
+                                          const char *resourcename,
+                                          size_t resourcenamelen,
+                                          const char *persistent_id,
+                                          int options,
+                                          int flags,
+                                          struct timeval *timeout,
+                                          php_stream_context *context STREAMS_DC) {
+    php_stream_transport_factory factory = nullptr;
+    if (SW_STREQ(proto, protolen, "tcp")) {
+        factory = ori_factory.tcp;
+    } else if (SW_STREQ(proto, protolen, "ssl")) {
+        factory = ori_factory.ssl;
+    } else if (SW_STREQ(proto, protolen, "tls")) {
+        factory = ori_factory.tls;
+    } else if (SW_STREQ(proto, protolen, "unix")) {
+        factory = ori_factory._unix;
+    } else if (SW_STREQ(proto, protolen, "udp")) {
+        factory = ori_factory.udp;
+    } else if (SW_STREQ(proto, protolen, "udg")) {
+        factory = ori_factory.udg;
+    }
+
+    if (factory) {
+        return factory(
+            proto, protolen, resourcename, resourcenamelen, persistent_id, options, flags, timeout, context STREAMS_CC);
+    } else {
+        php_swoole_error(E_WARNING, "unknown protocol '%s'", proto);
+        return nullptr;
+    }
+}
+
 static php_stream *socket_create(const char *proto,
                                  size_t protolen,
                                  const char *resourcename,
@@ -1132,7 +1165,11 @@ static php_stream *socket_create(const char *proto,
     php_stream *stream = nullptr;
     Socket *sock = nullptr;
 
-    Coroutine::get_current_safe();
+    auto co = Coroutine::get_current();
+    if (sw_unlikely(co == nullptr)) {
+        return socket_create_original(
+            proto, protolen, resourcename, resourcenamelen, persistent_id, options, flags, timeout, context STREAMS_CC);
+    }
 
     if (SW_STREQ(proto, protolen, "tcp")) {
     _tcp:
