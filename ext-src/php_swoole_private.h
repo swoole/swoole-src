@@ -513,7 +513,19 @@ static inline bool sw_is_main_thread() {
 #endif
 }
 
+#ifdef SW_THREAD
+size_t sw_active_thread_count(void);
+#else
+static inline size_t sw_active_thread_count(void) {
+    return 1;
+}
+#endif
+
 void sw_php_exit(int status);
+void sw_php_print_backtrace(zend_long cid = 0,
+                            zend_long options = 0,
+                            zend_long limit = 0,
+                            zval *return_value = nullptr);
 
 //----------------------------------Constant API------------------------------------
 
