@@ -1148,7 +1148,7 @@ static php_stream *socket_create_original(const char *proto,
         return factory(
             proto, protolen, resourcename, resourcenamelen, persistent_id, options, flags, timeout, context STREAMS_CC);
     } else {
-        php_swoole_error(E_WARNING, "unknown protocol '%s'", proto);
+        php_swoole_fatal_error(E_WARNING, "unknown protocol '%s'", proto);
         return nullptr;
     }
 }
@@ -1190,8 +1190,8 @@ static php_stream *socket_create(const char *proto,
     } else if (SW_STREQ(proto, protolen, "udg")) {
         sock = new Socket(SW_SOCK_UNIX_DGRAM);
     } else {
-        /* abort? */
-        goto _tcp;
+        php_swoole_fatal_error(E_WARNING, "unknown protocol '%s'", proto);
+        return nullptr;
     }
 
     if (UNEXPECTED(sock->get_fd() < 0)) {
