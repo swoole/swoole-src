@@ -1103,50 +1103,50 @@ EOF
             thirdparty/nghttp2/nghttp2_hd_huffman_data.c"
     fi
 
-    if test -z "$PHP_VERSION"; then
-        if test -z "$PHP_CONFIG"; then
-            AC_MSG_ERROR([php-config not found])
-        fi
-        PHP_VERSION=`$PHP_CONFIG --version`
+    if test -z "$PHP_CONFIG"; then
+        AC_MSG_ERROR([php-config not found])
     fi
 
-    PHP_VERSION_ID=`echo "${PHP_VERSION}" | $AWK 'BEGIN { FS = "."; } { printf "%d", ([$]1 * 10 + [$]2); }'`
+    SW_PHP_VERSION=`$PHP_CONFIG --version`
+    SW_PHP_VERSION_ID=`echo "${SW_PHP_VERSION}" | $AWK 'BEGIN { FS = "."; } { printf "%d", ([$]1 * 10 + [$]2); }'`
 
-    if test "$PHP_VERSION_ID" = "82"; then
-        PHP_THIRDPARTY_DIR="thirdparty/php81"
+    if test "$SW_PHP_VERSION_ID" = "82"; then
+        SW_PHP_THIRDPARTY_DIR="thirdparty/php81"
     else
-        PHP_THIRDPARTY_DIR="thirdparty/php${PHP_VERSION_ID}"
+        SW_PHP_THIRDPARTY_DIR="thirdparty/php${SW_PHP_VERSION_ID}"
     fi
+
+    AC_MSG_NOTICE([php version: $SW_PHP_VERSION, version_id: $SW_PHP_VERSION_ID, thirdparty_dir: $SW_PHP_THIRDPARTY_DIR])
 
     if test "$PHP_SWOOLE_PGSQL" != "no"; then
         swoole_source_file="$swoole_source_file \
-            ${PHP_THIRDPARTY_DIR}/pdo_pgsql/pgsql_driver.c \
-            ${PHP_THIRDPARTY_DIR}/pdo_pgsql/pgsql_statement.c"
-        if test "$PHP_VERSION_ID" -ge "84"; then
+            ${SW_PHP_THIRDPARTY_DIR}/pdo_pgsql/pgsql_driver.c \
+            ${SW_PHP_THIRDPARTY_DIR}/pdo_pgsql/pgsql_statement.c"
+        if test "$SW_PHP_VERSION_ID" -ge "84"; then
             swoole_source_file="$swoole_source_file \
-                ${PHP_THIRDPARTY_DIR}/pdo_pgsql/pgsql_sql_parser.c"
+                ${SW_PHP_THIRDPARTY_DIR}/pdo_pgsql/pgsql_sql_parser.c"
         fi
     fi
 
     if test "$PHP_SWOOLE_ORACLE" != "no"; then
         swoole_source_file="$swoole_source_file \
-            ${PHP_THIRDPARTY_DIR}/pdo_oci/oci_driver.c \
-            ${PHP_THIRDPARTY_DIR}/pdo_oci/oci_statement.c"
+            ${SW_PHP_THIRDPARTY_DIR}/pdo_oci/oci_driver.c \
+            ${SW_PHP_THIRDPARTY_DIR}/pdo_oci/oci_statement.c"
     fi
 
     if test "$PHP_SWOOLE_ODBC" != "no"; then
         swoole_source_file="$swoole_source_file \
-            ${PHP_THIRDPARTY_DIR}/pdo_odbc/odbc_driver.c \
-            ${PHP_THIRDPARTY_DIR}/pdo_odbc/odbc_stmt.c"
+            ${SW_PHP_THIRDPARTY_DIR}/pdo_odbc/odbc_driver.c \
+            ${SW_PHP_THIRDPARTY_DIR}/pdo_odbc/odbc_stmt.c"
     fi
 
     if test "$PHP_SWOOLE_SQLITE" != "no"; then
         swoole_source_file="$swoole_source_file \
-            ${PHP_THIRDPARTY_DIR}/pdo_sqlite/sqlite_driver.c \
-            ${PHP_THIRDPARTY_DIR}/pdo_sqlite/sqlite_statement.c"
-        if test "$PHP_VERSION_ID" -ge "84"; then
+            ${SW_PHP_THIRDPARTY_DIR}/pdo_sqlite/sqlite_driver.c \
+            ${SW_PHP_THIRDPARTY_DIR}/pdo_sqlite/sqlite_statement.c"
+        if test "$SW_PHP_VERSION_ID" -ge "84"; then
             swoole_source_file="$swoole_source_file \
-                ${PHP_THIRDPARTY_DIR}/pdo_sqlite/sqlite_sql_parser.c"
+                ${SW_PHP_THIRDPARTY_DIR}/pdo_sqlite/sqlite_sql_parser.c"
         fi
     fi
 
