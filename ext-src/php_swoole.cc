@@ -1048,6 +1048,34 @@ void sw_php_exit(int status) {
 #endif
 }
 
+bool sw_zval_is_serializable(zval *struc) {
+again:
+    switch (Z_TYPE_P(struc)) {
+    case IS_OBJECT: {
+        if (Z_OBJCE_P(struc)->ce_flags & ZEND_ACC_NOT_SERIALIZABLE) {
+            return false;
+        }
+        break;
+    }
+    case IS_ARRAY: {
+        zval *elem;
+        ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(struc), elem) {
+            if (!sw_zval_is_serializable(elem)) {
+                return false;
+            }
+        }
+        ZEND_HASH_FOREACH_END();
+        break;
+    }
+    case IS_REFERENCE:
+        struc = Z_REFVAL_P(struc);
+        goto again;
+    default:
+        break;
+    }
+    return true;
+}
+
 static void sw_after_fork(void *args) {
 #ifdef ZEND_MAX_EXECUTION_TIMERS
     zend_max_execution_timer_init();
@@ -1478,7 +1506,7 @@ static PHP_FUNCTION(swoole_substr_unserialize) {
     if ((zend_long) buf_len <= offset) {
         RETURN_FALSE;
     }
-    if (length <= 0 || length > (zend_long)(buf_len - offset)) {
+    if (length <= 0 || length > (zend_long) (buf_len - offset)) {
         length = buf_len - offset;
     }
     zend::unserialize(return_value, buf + offset, length, options ? Z_ARRVAL_P(options) : NULL);
@@ -1518,7 +1546,7 @@ static PHP_FUNCTION(swoole_substr_json_decode) {
         php_error_docref(nullptr, E_WARNING, "Offset must be less than the length of the string");
         RETURN_NULL();
     }
-    if (length <= 0 || length > (zend_long)(str_len - offset)) {
+    if (length <= 0 || length > (zend_long) (str_len - offset)) {
         length = str_len - offset;
     }
     /* For BC reasons, the bool $assoc overrides the long $options bit for PHP_JSON_OBJECT_AS_ARRAY */

@@ -235,6 +235,11 @@ static void server_free_object(zend_object *object) {
 
     zend_object_std_dtor(object);
     if (serv && serv->is_master()) {
+#ifdef SW_THREAD
+        if (serv->is_thread_mode()) {
+            zend_string_release((zend_string *) serv->private_data_4);
+        }
+#endif
         delete serv;
     }
 }
@@ -808,6 +813,17 @@ static zval *php_swoole_server_add_port(ServerObject *server_object, ListenPort 
     return zport;
 }
 
+void ServerObject::copy_setting(zval *zsetting) {
+    zend_array *new_array = zend_array_dup(Z_ARRVAL_P(zsetting));
+    zend_hash_apply(new_array, [](zval *el) -> int {
+        return sw_zval_is_serializable(el) ? ZEND_HASH_APPLY_KEEP : ZEND_HASH_APPLY_REMOVE;
+    });
+    zval znew_array;
+    ZVAL_ARR(&znew_array, new_array);
+    serv->private_data_4 = php_swoole_serialize(&znew_array);
+    zval_ptr_dtor(&znew_array);
+}
+
 void ServerObject::on_before_start() {
     /**
      * create swoole server
@@ -994,6 +1010,12 @@ void ServerObject::on_before_start() {
             serv->onClose = php_swoole_http_server_onClose;
         }
     }
+
+#ifdef SW_THREAD
+    if (serv->is_thread_mode()) {
+        copy_setting(zsetting);
+    }
+#endif
 
     if (SWOOLE_G(enable_library)) {
         zend::function::call("\\Swoole\\Server\\Helper::onBeforeStart", 1, zobject);
@@ -2470,6 +2492,11 @@ static PHP_METHOD(swoole_server, getCallback) {
 
 static PHP_METHOD(swoole_server, listen) {
     Server *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
+    if (serv->is_worker_thread()) {
+        swoole_set_last_error(SW_ERROR_SERVER_UNRELATED_THREAD);
+        RETURN_FALSE;
+    }
+
     if (serv->is_started()) {
         php_swoole_fatal_error(E_WARNING, "server is running, can't add listener");
         RETURN_FALSE;
@@ -2614,6 +2641,8 @@ static PHP_METHOD(swoole_server, start) {
 
 #ifdef SW_THREAD
     if (serv->is_worker_thread()) {
+        zval *zsetting = sw_zend_read_and_convert_property_array(Z_OBJCE_P(ZEND_THIS), zserv, ZEND_STRL("setting"), 0);
+        php_swoole_unserialize((zend_string *) serv->private_data_4, zsetting);
         worker_thread_fn();
         RETURN_TRUE;
     }

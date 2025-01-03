@@ -1,5 +1,5 @@
 --TEST--
-swoole_thread/server: base
+swoole_thread/server: listen
 --SKIPIF--
 <?php
 require __DIR__ . '/../../include/skipif.inc';
@@ -12,10 +12,10 @@ require __DIR__ . '/functions.inc';
 
 use Swoole\Thread;
 
-const SIZE = 2 * 1024 * 1024;
 $port = get_constant_port(__FILE__);
 
-$serv = new Swoole\Server('127.0.0.1', $port, SWOOLE_THREAD);
+$serv = new Swoole\Server('127.0.0.1', $port + 1, SWOOLE_THREAD);
+$port2 = $serv->listen('127.0.0.1', $port, SWOOLE_SOCK_TCP);
 $serv->set(array(
     'worker_num' => 2,
     'log_level' => SWOOLE_LOG_ERROR,
@@ -50,7 +50,14 @@ $serv->addProcess(new Swoole\Process(function ($process) use ($serv) {
     global $port;
     echo $queue->pop(-1);
     Co\run(function () use ($port) {
-        thread_server_test_eof_client($port);
+        Co::join([
+            Co\go(function () use ($port) {
+                thread_server_test_eof_client($port);
+            }),
+            Co\go(function () use ($port) {
+                thread_server_test_eof_client($port + 1);
+            })
+        ]);
     });
     $atomic->set(0);
     echo "done\n";
