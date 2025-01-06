@@ -566,10 +566,11 @@ pecl install swoole
 
 ### 2. Install from source (recommended)
 
-Please download the source packages from [Releases](https://github.com/swoole/swoole-src/releases) or:
+Please download the source packages from [Releases](https://github.com/swoole/swoole-src/releases) or clone a specific version. Don't use `master` branch as it may be in development.
 
+To clone the source code from git specify a tag:
 ```shell
-git clone https://github.com/swoole/swoole-src.git && \
+git clone --branch v6.0.0 --single-branch https://github.com/swoole/swoole-src.git && \
 cd swoole-src
 ```
 
