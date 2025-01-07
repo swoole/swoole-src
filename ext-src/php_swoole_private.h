@@ -116,7 +116,7 @@ extern PHPAPI int php_array_merge(zend_array *dest, zend_array *src);
 #endif
 #endif
 
-#if defined(SW_HAVE_ZLIB) || defined(SW_HAVE_BROTLI)
+#if defined(SW_HAVE_ZLIB) || defined(SW_HAVE_BROTLI) || defined(SW_HAVE_ZSTD)
 #define SW_HAVE_COMPRESSION
 #endif
 
