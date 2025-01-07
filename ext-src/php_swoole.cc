@@ -1048,6 +1048,7 @@ void sw_php_exit(int status) {
 #endif
 }
 
+#ifdef SW_THREAD
 bool sw_zval_is_serializable(zval *struc) {
 again:
     switch (Z_TYPE_P(struc)) {
@@ -1075,6 +1076,7 @@ again:
     }
     return true;
 }
+#endif
 
 static void sw_after_fork(void *args) {
 #ifdef ZEND_MAX_EXECUTION_TIMERS

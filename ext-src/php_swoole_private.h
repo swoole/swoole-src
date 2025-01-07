@@ -505,7 +505,9 @@ static inline bool sw_zval_is_process(zval *val) {
     return instanceof_function(Z_OBJCE_P(val), swoole_process_ce);
 }
 
-bool sw_zval_is_serializable(zval *struc);
+#ifdef SW_THREAD
+bool sw_zval_is_serializable(zval *zsetting);
+#endif
 
 static inline bool sw_is_main_thread() {
 #ifdef SW_THREAD

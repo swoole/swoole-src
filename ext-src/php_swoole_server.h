@@ -126,7 +126,9 @@ struct ServerObject {
 
     void register_callback();
     void on_before_start();
+#ifdef SW_THREAD
     void copy_setting(zval *zsetting);
+#endif
 };
 
 struct TaskCo {

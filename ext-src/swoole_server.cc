@@ -813,6 +813,7 @@ static zval *php_swoole_server_add_port(ServerObject *server_object, ListenPort 
     return zport;
 }
 
+#ifdef SW_THREAD
 void ServerObject::copy_setting(zval *zsetting) {
     zend_array *new_array = zend_array_dup(Z_ARRVAL_P(zsetting));
     zend_hash_apply(new_array, [](zval *el) -> int {
@@ -823,6 +824,7 @@ void ServerObject::copy_setting(zval *zsetting) {
     serv->private_data_4 = php_swoole_serialize(&znew_array);
     zval_ptr_dtor(&znew_array);
 }
+#endif
 
 void ServerObject::on_before_start() {
     /**

@@ -766,7 +766,9 @@ class Server {
     void *private_data_1 = nullptr;
     void *private_data_2 = nullptr;
     void *private_data_3 = nullptr;
+#ifdef SW_THREAD
     void *private_data_4 = nullptr;
+#endif
 
     Factory *factory = nullptr;
     Manager *manager = nullptr;
