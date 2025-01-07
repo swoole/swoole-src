@@ -83,8 +83,10 @@ class Iouring {
     static ssize_t rename(const char *oldpath, const char *newpath);
     static int mkdir(const char *pathname, mode_t mode);
     static int unlink(const char *pathname);
+#ifdef HAVE_IOURING_STATX
     static int fstat(int fd, struct stat *statbuf);
     static int stat(const char *path, struct stat *statbuf);
+#endif
     static int rmdir(const char *pathname);
     static int fsync(int fd);
     static int fdatasync(int fd);

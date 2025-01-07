@@ -76,9 +76,11 @@ ssize_t swoole_coroutine_iouring_write(int sockfd, const void *buf, size_t count
 int swoole_coroutine_iouring_rename(const char *oldpath, const char *newpath);
 int swoole_coroutine_iouring_mkdir(const char *pathname, mode_t mode);
 int swoole_coroutine_iouring_unlink(const char *pathname);
+#ifdef HAVE_IOURING_STATX
 int swoole_coroutine_iouring_fstat(int fd, struct stat *statbuf);
 int swoole_coroutine_iouring_stat(const char *path, struct stat *statbuf);
 int swoole_coroutine_iouring_lstat(const char *path, struct stat *statbuf);
+#endif
 int swoole_coroutine_iouring_rmdir(const char *pathname);
 int swoole_coroutine_iouring_fsync(int fd);
 int swoole_coroutine_iouring_fdatasync(int fd);

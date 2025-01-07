@@ -456,6 +456,7 @@ int Iouring::fdatasync(int fd) {
     return execute(&event);
 }
 
+#ifdef HAVE_IOURING_STATX
 static void swoole_statx_to_stat(const struct statx *statxbuf, struct stat *statbuf) {
     statbuf->st_dev = (((unsigned int) statxbuf->stx_dev_major) << 8) | (unsigned int) statxbuf->stx_dev_minor;
     statbuf->st_mode = statxbuf->stx_mode;
@@ -500,6 +501,7 @@ int Iouring::stat(const char *path, struct stat *statbuf) {
     }
     return retval;
 }
+#endif
 
 #ifdef HAVE_IOURING_FUTEX
 int Iouring::futex_wait(uint32_t *futex) {

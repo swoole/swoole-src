@@ -285,6 +285,42 @@ AC_DEFUN([AC_SWOOLE_HAVE_BOOST_STACKTRACE],
     AC_LANG_POP([C++])
 ])
 
+AC_DEFUN([AC_SWOOLE_HAVE_IOURING_FUTEX],
+[
+    AC_MSG_CHECKING([for io_uring futex])
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+        #define _GNU_SOURCE
+        #include <liburing.h>
+    ]], [[
+        int op = IORING_OP_FUTEX_WAIT;
+    ]])],[
+        AC_DEFINE([HAVE_IOURING_FUTEX], 1, [have io_uring futex?])
+        AC_MSG_RESULT([yes])
+    ],[
+        AC_MSG_RESULT([no])
+    ])
+])
+
+AC_DEFUN([AC_SWOOLE_HAVE_IOURING_STATX],
+[
+    AC_MSG_CHECKING([for io_uring statx])
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+        #define _GNU_SOURCE
+        #include <sys/stat.h>
+        #include <string.h>
+        #include <liburing.h>
+    ]], [[
+        struct statx _statxbuf;
+        memset(&_statxbuf, 0, sizeof(_statxbuf));
+        int op = IORING_OP_STATX;
+    ]])],[
+        AC_DEFINE([HAVE_IOURING_STATX], 1, [have io_uring statx?])
+        AC_MSG_RESULT([yes])
+    ],[
+        AC_MSG_RESULT([no])
+    ])
+])
+
 AC_DEFUN([AC_SWOOLE_CHECK_SOCKETS], [
     AC_CHECK_FUNCS([hstrerror socketpair if_nametoindex if_indextoname])
     AC_CHECK_HEADERS([netdb.h netinet/tcp.h sys/un.h sys/sockio.h])
@@ -615,6 +651,7 @@ EOF
     dnl odbc end
 
     dnl SWOOLE_ORACLE start
+
     if test -z "$SED"; then
         SWOOLE_PDO_OCI_SED="sed";
     else
@@ -674,9 +711,9 @@ EOF
     PHP_ARG_WITH([swoole-oracle],
         [whether to enable oracle build flags],
         [AS_HELP_STRING([[--with-swoole-oracle[=DIR]]],
-            [PDO: Oracle OCI support. DIR defaults to $ORACLE_HOME. Use
+            ["PDO: Oracle OCI support. DIR defaults to ${ORACLE_HOME}. Use
             --with-swoole-oracle=instantclient,/path/to/instant/client/lib for an Oracle
-            Instant Client installation.])], [no], [no])
+            Instant Client installation."])], [no], [no])
 
     if test "$PHP_SWOOLE_ORACLE" != "no"; then
         if test "$PHP_PDO" = "no" && test "$ext_shared" = "no"; then
@@ -814,7 +851,7 @@ EOF
 
     dnl sqlite start
     PHP_ARG_ENABLE([swoole-sqlite],
-        [for sqlite 3 support for PDO],
+        ["for sqlite 3 support for PDO"],
         [AS_HELP_STRING([--enable-swoole-sqlite],
             [PDO: sqlite 3 support.])], [no], [no])
 
@@ -962,34 +999,18 @@ EOF
     CFLAGS="-Wall -pthread $CFLAGS"
     LDFLAGS="$LDFLAGS -lpthread"
 
-    dnl Check should we link to librt
-
     if test "$PHP_IOURING" = "yes" && test "$SW_OS" = "LINUX"; then
-        PKG_CHECK_MODULES([URING], [liburing >= 2.5])
+        PKG_CHECK_MODULES([URING], [liburing >= 2.0])
+
+        AC_SWOOLE_HAVE_IOURING_STATX
+        AC_SWOOLE_HAVE_IOURING_FUTEX
+
         PHP_EVAL_LIBLINE($URING_LIBS, SWOOLE_SHARED_LIBADD)
         PHP_EVAL_INCLINE($URING_CFLAGS)
         AC_DEFINE(SW_USE_IOURING, 1, [have io_uring])
-
-        LINUX_VERSION=`uname -r | cut -d '-' -f 1`
-        LINUX_MAJOR_VERSION=`echo $LINUX_VERSION | cut -d '.' -f 1`
-        LINUX_MINOR_VERSION=`echo $LINUX_VERSION | cut -d '.' -f 2`
-
-        _PKG_CONFIG(URING_VERSION, [modversion], [liburing])
-        IOURING_MAJOR_VERSION=`echo $pkg_cv_URING_VERSION | cut -d '.' -f 1`
-        IOURING_MINOR_VERSION=`echo $pkg_cv_URING_VERSION | cut -d '.' -f 2`
-
-        AC_MSG_CHECKING([checking for io_uring futex feature])
-        if test $IOURING_MAJOR_VERSION -gt 2 || (test $IOURING_MAJOR_VERSION -eq 2 && test $IOURING_MINOR_VERSION -ge 6); then
-            if test $LINUX_MAJOR_VERSION -gt 6 || (test $LINUX_MAJOR_VERSION -eq 6 && test $LINUX_MINOR_VERSION -ge 7); then
-                AC_MSG_RESULT(yes)
-                AC_DEFINE(HAVE_IOURING_FUTEX, 1, [have io_uring futex feature])
-            else
-                AC_MSG_RESULT([no, Linux $LINUX_VERSION is too old])
-            fi
-        else
-            AC_MSG_RESULT([no, liburing $IOURING_MAJOR_VERSION.$IOURING_MINOR_VERSION is too old])
-        fi
     fi
+
+    dnl Check should we link to librt
 
     if test "$SW_OS" = "LINUX"; then
         GLIBC_VERSION=$(getconf GNU_LIBC_VERSION | awk '{print $2}')
