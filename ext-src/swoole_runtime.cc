@@ -1172,7 +1172,6 @@ static php_stream *socket_create(const char *proto,
     }
 
     if (SW_STREQ(proto, protolen, "tcp")) {
-    _tcp:
         sock = new Socket(resourcename[0] == '[' ? SW_SOCK_TCP6 : SW_SOCK_TCP);
     } else if (SW_STREQ(proto, protolen, "ssl") || SW_STREQ(proto, protolen, "tls")) {
 #ifdef SW_USE_OPENSSL
