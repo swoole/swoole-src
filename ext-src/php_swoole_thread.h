@@ -136,6 +136,8 @@ struct ArrayItem {
     void release();
     bool equals(zval *zvalue);
 
+    static int compare(Bucket *a, Bucket *b);
+
     ~ArrayItem() {
         if (value.str) {
             release();
@@ -257,6 +259,7 @@ class ZendArray : public ThreadResource {
     void values(zval *return_value);
     void to_array(zval *return_value);
     void find(zval *search, zval *return_value);
+    void sort(bool renumber);
 
     void intkey_offsetGet(zend_long index, zval *return_value) {
         lock_.lock_rd();

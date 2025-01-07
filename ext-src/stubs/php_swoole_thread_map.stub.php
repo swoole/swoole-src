@@ -16,5 +16,6 @@ namespace Swoole\Thread {
         public function update(mixed $key, mixed $value): bool {}
         public function clean(): void {}
         public function toArray(): array {}
+        public function sort(): void {}
     }
 }
