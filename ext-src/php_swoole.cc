@@ -372,6 +372,38 @@ SW_API zend_long php_swoole_parse_to_size(zval *zv) {
     }
 }
 
+SW_API zend_string *php_swoole_serialize(zval *zdata) {
+    php_serialize_data_t var_hash;
+    smart_str serialized_data = {0};
+
+    PHP_VAR_SERIALIZE_INIT(var_hash);
+    php_var_serialize(&serialized_data, zdata, &var_hash);
+    PHP_VAR_SERIALIZE_DESTROY(var_hash);
+
+    zend_string *result = nullptr;
+    if (!EG(exception)) {
+        result = zend_string_init(serialized_data.s->val, serialized_data.s->len, 1);
+    }
+    smart_str_free(&serialized_data);
+    return result;
+}
+
+SW_API bool php_swoole_unserialize(zend_string *data, zval *zv) {
+    php_unserialize_data_t var_hash;
+    const char *p = ZSTR_VAL(data);
+    size_t l = ZSTR_LEN(data);
+
+    PHP_VAR_UNSERIALIZE_INIT(var_hash);
+    zend_bool unserialized = php_var_unserialize(zv, (const uchar **) &p, (const uchar *) (p + l), &var_hash);
+    PHP_VAR_UNSERIALIZE_DESTROY(var_hash);
+    if (!unserialized) {
+        swoole_warning("unserialize() failed, Error at offset " ZEND_LONG_FMT " of %zd bytes",
+                       (zend_long) ((char *) p - ZSTR_VAL(data)),
+                       l);
+    }
+    return unserialized;
+}
+
 static void fatal_error(int code, const char *format, ...) {
     va_list args;
     va_start(args, format);
