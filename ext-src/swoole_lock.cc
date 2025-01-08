@@ -60,7 +60,6 @@ void php_swoole_lock_set_ptr(zval *zobject, Lock *ptr) {
 }
 
 static void php_swoole_lock_free_object(zend_object *object) {
-    LockObject *o = php_swoole_lock_fetch_object(object);
     zend_object_std_dtor(object);
 }
 
