@@ -438,8 +438,8 @@ void Server::stop_async_worker(Worker *worker) {
         }
     } else if (is_thread_mode()) {
         foreach_connection([this, reactor](Connection *conn) {
-            if (conn->reactor_id == reactor->id) {
-                close(conn->session_id, true);
+            if (conn->reactor_id == reactor->id && !conn->peer_closed && !conn->socket->removed) {
+                reactor->remove_read_event(conn->socket);
             }
         });
     } else {

@@ -2492,13 +2492,8 @@ static PHP_METHOD(swoole_server, getCallback) {
 
 static PHP_METHOD(swoole_server, listen) {
     Server *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
-    if (serv->is_worker_thread()) {
-        swoole_set_last_error(SW_ERROR_SERVER_UNRELATED_THREAD);
-        RETURN_FALSE;
-    }
-
-    if (serv->is_started()) {
-        php_swoole_fatal_error(E_WARNING, "server is running, can't add listener");
+    if (!serv->is_worker_thread() && serv->is_started()) {
+        php_swoole_fatal_error(E_WARNING, "server is running, cannot add listener");
         RETURN_FALSE;
     }
 
@@ -2513,7 +2508,12 @@ static PHP_METHOD(swoole_server, listen) {
     Z_PARAM_LONG(sock_type)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    ListenPort *ls = serv->add_port((enum swSocketType) sock_type, host, (int) port);
+    ListenPort *ls;
+    if (serv->is_worker_thread()) {
+        ls = serv->get_port((enum swSocketType) sock_type, host, (int) port);
+    } else {
+        ls = serv->add_port((enum swSocketType) sock_type, host, (int) port);
+    }
     if (!ls) {
         RETURN_FALSE;
     }
@@ -2528,7 +2528,7 @@ extern Worker *php_swoole_process_get_and_check_worker(zval *zobject);
 static PHP_METHOD(swoole_server, addProcess) {
     Server *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (!serv->is_worker_thread() && serv->is_started()) {
-        php_swoole_fatal_error(E_WARNING, "server is running, can't add process");
+        php_swoole_fatal_error(E_WARNING, "server is running, cannot add process");
         RETURN_FALSE;
     }
 

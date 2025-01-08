@@ -1,5 +1,10 @@
 --TEST--
 swoole_thread: sort
+--SKIPIF--
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_nts();
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
