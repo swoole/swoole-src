@@ -78,6 +78,9 @@ static PHP_FUNCTION(swoole_time_sleep_until);
 static PHP_FUNCTION(swoole_stream_select);
 static PHP_FUNCTION(swoole_stream_socket_pair);
 static PHP_FUNCTION(swoole_user_func_handler);
+#if defined(HAVE_PUTENV) && defined(SW_THREAD)
+static PHP_FUNCTION(swoole_putenv);
+#endif
 #if PHP_VERSION_ID >= 80400
 extern PHP_FUNCTION(swoole_exit);
 #endif
@@ -139,6 +142,10 @@ static std::vector<std::string> unsafe_functions {
     "pcntl_sigtimedwait",
     "pcntl_sigwaitinfo",
 };
+
+#if defined(HAVE_PUTENV) && defined(SW_THREAD)
+static std::unordered_map<std::string, std::string> swoole_runtime_environ;
+#endif
 
 static const zend_function_entry swoole_runtime_methods[] = {
     PHP_ME(swoole_runtime, enableCoroutine, arginfo_class_Swoole_Runtime_enableCoroutine, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -288,6 +295,14 @@ struct real_func {
 void php_swoole_runtime_rinit() {
     tmp_function_table = (zend_array *) emalloc(sizeof(zend_array));
     zend_hash_init(tmp_function_table, 8, nullptr, nullptr, 0);
+
+#if defined(HAVE_PUTENV) && defined(SW_THREAD)
+    /**
+     * There are issues with the implementation of putenv in PHP,
+     * which can lead to memory invalid read in multi-thread environment.
+     */
+    SW_HOOK_FUNC(putenv);
+#endif
 
     if (!sw_is_main_thread()) {
         return;
@@ -2324,3 +2339,56 @@ static void clear_class_entries() {
     }
     child_class_entries.clear();
 }
+
+#if defined(HAVE_PUTENV) && defined(SW_THREAD)
+/* {{{ Set the value of an environment variable */
+static PHP_FUNCTION(swoole_putenv) {
+    char *setting;
+    size_t setting_len;
+    char *p;
+    bool result;
+    std::string key;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_STRING(setting, setting_len)
+    ZEND_PARSE_PARAMETERS_END();
+
+    if (setting_len == 0 || setting[0] == '=') {
+        zend_argument_value_error(1, "must have a valid syntax");
+        RETURN_THROWS();
+    }
+
+    if ((p = strchr(setting, '='))) {
+        key = std::string(setting, p - setting);
+    } else {
+        key = std::string(setting, setting_len);
+    }
+
+    tsrm_env_lock();
+    swoole_runtime_environ[key] = std::string(setting, setting_len);
+    auto iter = swoole_runtime_environ.find(key);
+
+#ifdef HAVE_UNSETENV
+    if (!p) { /* no '=' means we want to unset it */
+        unsetenv(iter->second.c_str());
+    }
+    if (!p || putenv((char *) iter->second.c_str()) == 0) { /* success */
+#else
+    if (putenv((char *) iter->second.c_str()) == 0) { /* success */
+#endif
+
+#ifdef HAVE_TZSET
+        if (zend_binary_strcasecmp(key.c_str(), key.length(), ZEND_STRL("TZ")) == 0) {
+            tzset();
+        }
+#endif
+        result = true;
+    } else {
+        result = false;
+    }
+
+    tsrm_env_unlock();
+    RETURN_BOOL(result);
+}
+/* }}} */
+#endif
