@@ -593,18 +593,12 @@ class Callable {
     Callable() {}
 
   public:
-    Callable(zval *_zfn) {
-        ZVAL_UNDEF(&zfn);
-        if (!zval_is_true(_zfn)) {
-            php_swoole_fatal_error(E_WARNING, "illegal callback function");
-            return;
-        }
-        if (!sw_zend_is_callable_ex(_zfn, nullptr, 0, &fn_name, nullptr, &fcc, nullptr)) {
-            php_swoole_fatal_error(E_WARNING, "function '%s' is not callable", fn_name);
-            return;
-        }
-        zfn = *_zfn;
-        zval_add_ref(&zfn);
+    Callable(zval *_zfn);
+    ~Callable();
+    uint32_t refcount();
+
+    zend_refcounted *refcount_ptr() {
+        return sw_get_refcount_ptr(&zfn);
     }
 
     zend_fcall_info_cache *ptr() {
@@ -628,15 +622,6 @@ class Callable {
 
     bool call(uint32_t argc, zval *argv, zval *retval) {
         return sw_zend_call_function_ex(&zfn, &fcc, argc, argv, retval) == SUCCESS;
-    }
-
-    ~Callable() {
-        if (!ZVAL_IS_UNDEF(&zfn)) {
-            zval_ptr_dtor(&zfn);
-        }
-        if (fn_name) {
-            efree(fn_name);
-        }
     }
 };
 

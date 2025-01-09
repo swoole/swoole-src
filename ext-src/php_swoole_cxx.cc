@@ -10,6 +10,12 @@ static const char *sw_known_strings[] = {
 
 SW_API zend_string **sw_zend_known_strings = nullptr;
 
+SW_API zend_refcounted *sw_refcount_ptr;
+
+zend_refcounted *sw_get_refcount_ptr(zval *value) {
+    return (sw_refcount_ptr = value->value.counted);
+}
+
 //----------------------------------known string------------------------------------
 namespace zend {
 void known_strings_init(void) {
@@ -66,4 +72,31 @@ Variable call(const std::string &func_name, int argc, zval *argv) {
 }
 
 }  // namespace function
+
+Callable::Callable(zval *_zfn) {
+    ZVAL_UNDEF(&zfn);
+    if (!zval_is_true(_zfn)) {
+        php_swoole_fatal_error(E_WARNING, "illegal callback function");
+        return;
+    }
+    if (!sw_zend_is_callable_ex(_zfn, nullptr, 0, &fn_name, nullptr, &fcc, nullptr)) {
+        php_swoole_fatal_error(E_WARNING, "function '%s' is not callable", fn_name);
+        return;
+    }
+    zfn = *_zfn;
+    zval_add_ref(&zfn);
+}
+
+Callable::~Callable() {
+    if (!ZVAL_IS_UNDEF(&zfn)) {
+        zval_ptr_dtor(&zfn);
+    }
+    if (fn_name) {
+        efree(fn_name);
+    }
+}
+
+uint32_t Callable::refcount() {
+    return zval_refcount_p(&zfn);
+}
 }  // namespace zend

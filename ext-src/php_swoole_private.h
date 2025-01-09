@@ -523,6 +523,8 @@ static inline size_t sw_active_thread_count(void) {
 }
 #endif
 
+zend_refcounted *sw_get_refcount_ptr(zval *value);
+
 void sw_php_exit(int status);
 void sw_php_print_backtrace(zend_long cid = 0,
                             zend_long options = 0,

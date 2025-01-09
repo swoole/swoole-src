@@ -327,6 +327,14 @@ struct ProcessPool {
         max_packet_size_ = _max_packet_size;
     }
 
+    bool is_master() {
+        return swoole_get_process_type() == SW_PROCESS_MASTER;
+    }
+
+    bool is_worker() {
+        return swoole_get_process_type() == SW_PROCESS_WORKER;
+    }
+
     void set_protocol(enum ProtocolType _protocol_type);
 
     void set_max_request(uint32_t _max_request, uint32_t _max_request_grace);
@@ -339,6 +347,7 @@ struct ProcessPool {
     bool reload();
     pid_t spawn(Worker *worker);
     void stop(Worker *worker);
+    void kill_all_workers(int signo = SIGKILL);
     swResultCode dispatch(EventData *data, int *worker_id);
     int response(const char *data, int length);
     swResultCode dispatch_blocking(EventData *data, int *dst_worker_id);

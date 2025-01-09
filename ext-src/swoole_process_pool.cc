@@ -169,6 +169,9 @@ static void process_pool_onWorkerStart(ProcessPool *pool, Worker *worker) {
     zend_update_property_long(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("workerPid"), getpid());
     zend_update_property_long(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("workerId"), worker->id);
 
+    swoole_set_process_type(SW_PROCESS_WORKER);
+    SwooleG.enable_coroutine = pp->enable_coroutine;
+
     if (pp->onWorkerStart) {
         zval args[2];
         args[0] = *zobject;
@@ -259,6 +262,9 @@ static void process_pool_onStart(ProcessPool *pool) {
     zend_update_property_long(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("master_pid"), getpid());
     zend_update_property_bool(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("running"), true);
 
+    swoole_set_process_type(SW_PROCESS_MASTER);
+    SwooleG.enable_coroutine = false;
+
     if (pp->onStart == nullptr) {
         return;
     }
@@ -312,6 +318,10 @@ static void process_pool_signal_handler(int sig) {
     }
 }
 
+ProcessPool *sw_process_pool() {
+    return current_pool;
+}
+
 static PHP_METHOD(swoole_process_pool, __construct) {
     zval *zobject = ZEND_THIS;
     zend_long worker_num;
@@ -321,14 +331,30 @@ static PHP_METHOD(swoole_process_pool, __construct) {
 
     // only cli env
     if (!SWOOLE_G(cli)) {
+        swoole_set_last_error(SW_ERROR_OPERATION_NOT_SUPPORT);
         zend_throw_error(NULL, "%s can only be used in PHP CLI mode", SW_Z_OBJCE_NAME_VAL_P(zobject));
         RETURN_FALSE;
     }
 
     if (sw_server()) {
-        zend_throw_error(NULL, "%s cannot use in server process", SW_Z_OBJCE_NAME_VAL_P(zobject));
+        swoole_set_last_error(SW_ERROR_OPERATION_NOT_SUPPORT);
+        zend_throw_error(NULL, "cannot create server and process pool instances simultaneously");
         RETURN_FALSE;
     }
+
+    if (sw_process_pool()) {
+        swoole_set_last_error(SW_ERROR_OPERATION_NOT_SUPPORT);
+        zend_throw_error(NULL, "A process pool instance has already been created and cannot be created again");
+        RETURN_FALSE;
+    }
+
+#ifdef SW_THREAD
+    if (!tsrm_is_main_thread()) {
+        swoole_set_last_error(SW_ERROR_OPERATION_NOT_SUPPORT);
+        zend_throw_exception_ex(swoole_exception_ce, -1, "This operation is only allowed in the main thread");
+        RETURN_FALSE;
+    }
+#endif
 
     if (zend_parse_parameters_throw(ZEND_NUM_ARGS(), "l|llb", &worker_num, &ipc_type, &msgq_key, &enable_coroutine) ==
         FAILURE) {
@@ -389,6 +415,10 @@ static PHP_METHOD(swoole_process_pool, set) {
     }
     if (php_swoole_array_get_value(vht, "max_package_size", ztmp)) {
         pool->set_max_packet_size(php_swoole_parse_to_size(ztmp));
+    }
+    if (php_swoole_array_get_value(vht, "max_wait_time", ztmp)) {
+        zend_long v = zval_get_long(ztmp);
+        pool->max_wait_time = SW_MAX(0, SW_MIN(v, UINT32_MAX));
     }
 }
 
