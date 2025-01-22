@@ -25,6 +25,8 @@
 #include "nghttp2_mem.h"
 
 static void *default_malloc(size_t size, void *mem_user_data) {
+  (void)mem_user_data;
+
   return malloc(size);
 }
 
