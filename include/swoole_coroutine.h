@@ -32,6 +32,9 @@
 #include <functional>
 #include <string>
 #include <unordered_map>
+#ifdef SW_USE_THREAD_CONTEXT
+#include <system_error>
+#endif
 
 typedef std::chrono::microseconds seconds_type;
 
@@ -153,7 +156,7 @@ class Coroutine {
 #ifdef SW_USE_THREAD_CONTEXT
         try {
             return (new Coroutine(fn, args))->run();
-        } catch (const std::system_error &e) {
+        } catch (const std::system_error& e) {
             swoole_set_last_error(e.code().value());
             swoole_warning("failed to create coroutine, Error: %s[%d]", e.what(), swoole_get_last_error());
             return -1;
