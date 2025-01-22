@@ -12,7 +12,7 @@ use Swoole\Thread\Map;
 
 require __DIR__ . '/../include/bootstrap.php';
 
-$LURDATE = new Map;
+$LURDATE = new Map();
 $time = 'abc';
 $LURDATE[$time] = new Map(["saaa" => 1111]);
 $ls = $LURDATE[$time]->toArray();

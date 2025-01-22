@@ -31,6 +31,7 @@
 #include <mutex>
 #include <queue>
 #include <sstream>
+#include <system_error>
 
 static std::mutex async_thread_lock;
 static std::shared_ptr<swoole::async::ThreadPool> async_thread_pool;
@@ -319,7 +320,7 @@ void ThreadPool::create_thread(const bool is_core_worker) {
     try {
         std::thread *_thread = new std::thread([this, is_core_worker]() { main_func(is_core_worker); });
         threads[_thread->get_id()] = _thread;
-    } catch (const std::system_error &e) {
+    } catch (const std::system_error& e) {
         swoole_sys_notice("create aio thread failed, please check your system configuration or adjust aio_worker_num");
         return;
     }
