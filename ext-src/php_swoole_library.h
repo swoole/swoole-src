@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
  */
 
-/* $Id: f0118343cf7d61224924b4899d173b2877f14c91 */
+/* $Id: 55873a764b83b7993498004cb1d9d151ae446141 */
 
 #ifndef SWOOLE_LIBRARY_H
 #define SWOOLE_LIBRARY_H
@@ -536,8 +536,14 @@ static const char* swoole_library_source_core_constant =
     "\n"
     "    public const OPTION_MESSAGE_QUEUE_KEY = 'message_queue_key';\n"
     "\n"
+    "    /**\n"
+    "     * @since 6.0.0-beta\n"
+    "     */\n"
     "    public const OPTION_BOOTSTRAP = 'bootstrap';\n"
     "\n"
+    "    /**\n"
+    "     * @since 6.0.0-beta\n"
+    "     */\n"
     "    public const OPTION_INIT_ARGUMENTS = 'init_arguments';\n"
     "\n"
     "    public const OPTION_BACKLOG = 'backlog';\n"
@@ -8577,6 +8583,9 @@ static const char* swoole_library_source_core_server_helper =
     "        'dns_lookup_random'      => true,\n"
     "        'use_async_resolver'     => true,\n"
     "        'enable_coroutine'       => true,\n"
+    "        'iouring_entries'        => true,\n"
+    "        'iouring_workers'        => true,\n"
+    "        'iouring_flag'           => true,\n"
     "    ];\n"
     "\n"
     "    public const COROUTINE_OPTIONS = [\n"
@@ -10024,7 +10033,7 @@ static const char* swoole_library_source_functions =
     "        $cpu_max  = file_get_contents($cpu_max);\n"
     "        $fields   = explode($cpu_max, ' ');\n"
     "        $quota_us = $fields[0];\n"
-    "        if ($quota_us == 'max') {\n"
+    "        if ($quota_us === 'max') { // @phpstan-ignore identical.alwaysFalse\n"
     "            return swoole_cpu_num();\n"
     "        }\n"
     "        $period_us = $fields[1] ?? 100000;\n"
