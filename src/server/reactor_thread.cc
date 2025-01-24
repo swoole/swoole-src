@@ -317,31 +317,25 @@ void ReactorThread::shutdown(Reactor *reactor) {
         }
     }
 
+#ifdef SW_THREAD
     if (serv->is_thread_mode()) {
-        Socket *socket = message_bus.get_pipe_socket(serv->get_worker_pipe_worker(reactor->id));
-        reactor->del(socket);
+        serv->stop_async_worker(serv->get_worker(reactor->id));
+        return;
     }
+#endif
 
     SW_LOOP_N(serv->worker_num) {
-        if (i % serv->reactor_num != reactor->id) {
-            continue;
+        if (i % serv->reactor_num == reactor->id) {
+            Socket *socket = message_bus.get_pipe_socket(serv->get_worker_pipe_master(i));
+            reactor->del(socket);
         }
-        Socket *socket = message_bus.get_pipe_socket(serv->get_worker_pipe_master(i));
-        reactor->del(socket);
     }
 
     serv->foreach_connection([serv, reactor](Connection *conn) {
-        if (conn->fd % serv->reactor_num != reactor->id) {
-            return;
-        }
-        if (!conn->peer_closed && !conn->socket->removed) {
+        if (conn->fd % serv->reactor_num == reactor->id && !conn->peer_closed && !conn->socket->removed) {
             reactor->remove_read_event(conn->socket);
         }
     });
-
-    if (serv->is_thread_mode()) {
-        serv->stop_async_worker(serv->get_worker(reactor->id));
-    }
 
     reactor->set_wait_exit(true);
 }
@@ -755,12 +749,14 @@ int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
     serv->init_reactor(reactor);
     serv->init_pipe_sockets(&message_bus);
 
+#ifdef SW_THREAD
     if (serv->is_thread_mode()) {
         Worker *worker = serv->get_worker(reactor_id);
         serv->init_event_worker(worker);
         auto pipe_worker = message_bus.get_pipe_socket(worker->pipe_worker);
         reactor->add(pipe_worker, SW_EVENT_READ);
     }
+#endif
 
     if (serv->pipe_command) {
         auto pipe_socket = serv->pipe_command->get_socket(false);
@@ -812,9 +808,11 @@ void Server::reactor_thread_main_loop(Server *serv, int reactor_id) {
         return;
     }
 
+#ifdef SW_THREAD
     if (serv->is_thread_mode()) {
         serv->call_worker_start_callback(serv->get_worker(reactor_id));
     }
+#endif
 
     Reactor *reactor = sw_reactor();
     if (thread->init(serv, reactor, reactor_id) < 0) {
@@ -827,9 +825,11 @@ void Server::reactor_thread_main_loop(Server *serv, int reactor_id) {
     }
     // main loop
     swoole_event_wait();
+#ifdef SW_THREAD
     if (serv->is_thread_mode()) {
         serv->call_worker_stop_callback(serv->get_worker(reactor_id));
     }
+#endif
     thread->clean();
 }
 
