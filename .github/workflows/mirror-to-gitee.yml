@@ -16,15 +16,15 @@ jobs:
           MIRROR_TO_GITEE_SECRET_KEY: ${{ secrets.MIRROR_TO_GITEE_SECRET_KEY }}
         run: |
           mkdir -p ~/.ssh/
-          printf "%s\n" "$PUSH_TO_GITEE_SECRET_KEY" > ~/.ssh/github-push-to-gitee-key
-          chmod 0400 ~/.ssh/github-push-to-gitee-key
+          printf "%s\n" "$MIRROR_TO_GITEE_SECRET_KEY" > ~/.ssh/push-to-gitee-key
+          chmod 0400 ~/.ssh/push-to-gitee-key
           cat > ~/.ssh/config <<'EOF'
           Host gitee.com
             Hostname gitee.com
             Port 22
             PreferredAuthentications publickey
             StrictHostKeyChecking no
-            IdentityFile ~/.ssh/github-push-to-gitee-key
+            IdentityFile ~/.ssh/push-to-gitee-key
           EOF
           ls -lh ~/.ssh/
 
