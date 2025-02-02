@@ -4,7 +4,7 @@ on: [ push, pull_request ]
 
 jobs:
   mirror-to-gitee:
-    # if: ${{ (github.repository_owner == 'swoole') && (github.repository == 'swoole/swoole-src') }}
+    if: ${{ (github.repository_owner == 'swoole') && (github.repository == 'swoole/swoole-src') }}
     runs-on: ubuntu-latest
     steps:
       - name: install deps
