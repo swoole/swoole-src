@@ -1,0 +1,46 @@
+name: mirror-to-gitee
+
+on: [ push, pull_request ]
+
+jobs:
+  mirror-to-gitee:
+    # if: ${{ (github.repository_owner == 'swoole') && (github.repository == 'swoole/swoole-src') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: install deps
+        run: |
+          sudo apt install openssh-client git
+
+      - name: Prepare Secret Key
+        env:
+          MIRROR_TO_GITEE_SECRET_KEY: ${{ secrets.MIRROR_TO_GITEE_SECRET_KEY }}
+        run: |
+          mkdir -p ~/.ssh/
+          printf "%s\n" "$PUSH_TO_GITEE_SECRET_KEY" > ~/.ssh/github-push-to-gitee-key
+          chmod 0400 ~/.ssh/github-push-to-gitee-key
+          cat > ~/.ssh/config <<'EOF'
+          Host gitee.com
+            Hostname gitee.com
+            Port 22
+            PreferredAuthentications publickey
+            StrictHostKeyChecking no
+            IdentityFile ~/.ssh/github-push-to-gitee-key
+          EOF
+          ls -lh ~/.ssh/
+
+      - name: mirror to gitee with git mirror
+        run: |
+          set -x
+
+          git clone --mirror https://github.com/swoole/swoole-src.git swoole-src
+          cd swoole-src
+          git remote -v
+
+          git remote set-url --push origin git@gitee.com:swoole/swoole.git
+          git remote -v
+
+          git fetch -p origin
+          git for-each-ref --format 'delete %(refname)' refs/pull | git update-ref --stdin
+
+          git push --mirror
+
