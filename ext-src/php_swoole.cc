@@ -40,7 +40,6 @@ END_EXTERN_C()
 #include <net/if.h>
 #include <ifaddrs.h>
 #include <sys/ioctl.h>
-#include <nghttp2/nghttp2ver.h>
 
 #if defined(__MACH__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
 #include <net/if_dl.h>
@@ -941,7 +940,7 @@ PHP_MINFO_FUNCTION(swoole) {
     php_info_print_table_row(2, "dtls", "enabled");
 #endif
 #endif
-    php_info_print_table_row(2, "http2/nghttp2", "enabled/" NGHTTP2_VERSION);
+    php_info_print_table_row(2, "http2", "enabled");
     php_info_print_table_row(2, "json", "enabled");
 #ifdef SW_USE_CURL
     php_info_print_table_row(2, "curl-native", "enabled");
