@@ -1124,11 +1124,20 @@ EOF
             thirdparty/nghttp2/nghttp2_hd_huffman_data.c"
     fi
 
+    dnl During static compilation, there is no php-config variable,
+    dnl but the php-version variable is always present and is not affected by the shell environment variables.
+    dnl During dynamic compilation, the php-config variable is always available, whereas the php-version variable is absent.
+
     if test -z "$PHP_CONFIG"; then
-        AC_MSG_ERROR([php-config not found])
+        if test -z "$PHP_VERSION"; then
+            AC_MSG_ERROR([the PHP_VERSION variable must be defined])
+        else
+            SW_PHP_VERSION=$PHP_VERSION
+        fi
+    else
+        SW_PHP_VERSION=`$PHP_CONFIG --version`
     fi
 
-    SW_PHP_VERSION=`$PHP_CONFIG --version`
     SW_PHP_VERSION_ID=`echo "${SW_PHP_VERSION}" | $AWK 'BEGIN { FS = "."; } { printf "%d", ([$]1 * 10 + [$]2); }'`
 
     if test "$SW_PHP_VERSION_ID" = "82"; then
