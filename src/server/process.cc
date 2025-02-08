@@ -268,7 +268,7 @@ bool ProcessFactory::dispatch(SendData *task) {
     network::Socket *sock;
     MessageBus *mb;
 
-    if (server_->is_reactor_thread()) {
+    if (server_->is_reactor_thread() || server_->single_thread) {
         mb = &server_->get_thread(swoole_get_thread_id())->message_bus;
         sock = mb->get_pipe_socket(worker->pipe_master);
     } else {
