@@ -31,6 +31,7 @@
 #include <mutex>
 #include <queue>
 #include <sstream>
+#include <system_error>
 
 static std::mutex async_thread_lock;
 static std::shared_ptr<swoole::async::ThreadPool> async_thread_pool;
