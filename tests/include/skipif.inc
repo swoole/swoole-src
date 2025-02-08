@@ -297,3 +297,7 @@ function skip_if_not_root()
 {
     skip('not root user', posix_geteuid() !== 0);
 }
+
+function skip_if_no_iouring() {
+    skip('no io-uring supports', !defined('SWOOLE_IOURING_DEFAULT'));
+}
