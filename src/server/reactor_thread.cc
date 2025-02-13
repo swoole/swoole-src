@@ -318,8 +318,8 @@ void ReactorThread::shutdown(Reactor *reactor) {
     }
 
     if (serv->is_thread_mode()) {
-        Socket *socket = message_bus.get_pipe_socket(serv->get_worker_pipe_worker(reactor->id));
-        reactor->del(socket);
+        serv->stop_async_worker(serv->get_worker(reactor->id));
+        return;
     }
 
     SW_LOOP_N(serv->worker_num) {
@@ -327,7 +327,7 @@ void ReactorThread::shutdown(Reactor *reactor) {
             continue;
         }
         Socket *socket = message_bus.get_pipe_socket(serv->get_worker_pipe_master(i));
-        reactor->del(socket);
+        reactor->remove_read_event(socket);
     }
 
     serv->foreach_connection([serv, reactor](Connection *conn) {
@@ -338,10 +338,6 @@ void ReactorThread::shutdown(Reactor *reactor) {
             reactor->remove_read_event(conn->socket);
         }
     });
-
-    if (serv->is_thread_mode()) {
-        serv->stop_async_worker(serv->get_worker(reactor->id));
-    }
 
     reactor->set_wait_exit(true);
 }
