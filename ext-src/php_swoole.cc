@@ -40,6 +40,9 @@ END_EXTERN_C()
 #include <net/if.h>
 #include <ifaddrs.h>
 #include <sys/ioctl.h>
+#ifdef SW_USE_CURL
+#include <curl/curl.h>
+#endif
 
 #if defined(__MACH__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
 #include <net/if_dl.h>
@@ -944,6 +947,8 @@ PHP_MINFO_FUNCTION(swoole) {
     php_info_print_table_row(2, "json", "enabled");
 #ifdef SW_USE_CURL
     php_info_print_table_row(2, "curl-native", "enabled");
+    curl_version_info_data *d = curl_version_info(CURLVERSION_NOW);
+    php_info_print_table_row(2, "curl-version", d->version);
 #endif
 #ifdef SW_USE_CARES
     php_info_print_table_row(2, "c-ares", ares_version(nullptr));
