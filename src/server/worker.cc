@@ -520,8 +520,6 @@ void Server::clean_worker_connections(Worker *worker) {
             }
         });
     }
-
-    return;
 }
 
 /**
