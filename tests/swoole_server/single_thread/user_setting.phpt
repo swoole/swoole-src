@@ -1,5 +1,5 @@
 --TEST--
-swoole_server/single_thread: large packet
+swoole_server/single_thread: package_length_func
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc';
 ?>
@@ -41,8 +41,10 @@ $pm->childFunc = function () use ($pm) {
     $http->set([
         'single_thread' => true,
         'worker_num' => 1,
-        'dispatch_mode' => 10,
-        'package_max_length' => '128m',
+        'user'  => 'www-data',
+        'group' => 'www-data',
+        'heartbeat_idle_time'      => 600,
+        'heartbeat_check_interval' => 30,
     ]);
     $http->on('WorkerStart', function (Swoole\Http\Server $serv) use ($pm) {
         $pm->wakeup();

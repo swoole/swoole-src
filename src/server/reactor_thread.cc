@@ -33,6 +33,7 @@ static int ReactorThread_onWrite(Reactor *reactor, Event *ev);
 static int ReactorThread_onPacketReceived(Reactor *reactor, Event *event);
 static int ReactorThread_onClose(Reactor *reactor, Event *event);
 static void ReactorThread_resume_data_receiving(Timer *timer, TimerNode *tnode);
+static void ReactorThread_heartbeat_check(Timer *timer, TimerNode *tnode);
 
 #ifdef SW_USE_OPENSSL
 static inline ReturnCode ReactorThread_verify_ssl_state(Reactor *reactor, ListenPort *port, Socket *_socket) {
@@ -652,6 +653,27 @@ static int ReactorThread_onWrite(Reactor *reactor, Event *ev) {
     return SW_OK;
 }
 
+static void ReactorThread_heartbeat_check(Timer *timer, TimerNode *tnode) {
+    double now = microtime();
+    Reactor *reactor = (Reactor *) tnode->data;
+    Server *serv = (Server *) reactor->ptr;
+    ReactorThread *thread = serv->get_thread(reactor->id);
+
+    serv->foreach_connection([=](Connection *conn) {
+        SessionId session_id = conn->session_id;
+        if (session_id <= 0) {
+            return;
+        }
+        if (conn->reactor_id != reactor->id) {
+            return;
+        }
+        if (serv->is_healthy_connection(now, conn)) {
+            return;
+        }
+        thread->close_connection(reactor, session_id);
+    });
+}
+
 /**
  * [master]
  */
@@ -705,7 +727,12 @@ _init_master_thread:
      * heartbeat thread
      */
     if (heartbeat_check_interval >= 1) {
-        start_heartbeat_thread();
+        if (single_thread) {
+            heartbeat_timer = swoole_timer_add(
+                (long) (heartbeat_check_interval * 1000), true, ReactorThread_heartbeat_check, reactor);
+        } else {
+            start_heartbeat_thread();
+        }
     }
 
     return start_master_thread(reactor);
