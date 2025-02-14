@@ -376,16 +376,13 @@ bool Server::kill_worker(WorkerId worker_id, bool wait_reactor) {
 }
 
 void Server::stop_async_worker(Worker *worker) {
-    Reactor *reactor = SwooleTG.reactor;
-
     worker->shutdown();
     if (worker->type == SW_PROCESS_EVENTWORKER) {
         reset_worker_counter(worker);
     }
 
-    /**
-     * force to end.
-     */
+    // forced termination
+    Reactor *reactor = sw_reactor();
     if (reload_async == 0) {
         reactor->running = false;
         return;
@@ -400,9 +397,12 @@ void Server::stop_async_worker(Worker *worker) {
     SwooleWG.worker_copy = new Worker{};
     *SwooleWG.worker_copy = *worker;
     SwooleWG.worker = worker;
-
-    if (worker->pipe_worker && !worker->pipe_worker->removed) {
-        reactor->remove_read_event(worker->pipe_worker);
+    auto pipe_worker = worker->pipe_worker;
+    if (is_thread_mode()) {
+        pipe_worker = get_worker_message_bus()->get_pipe_socket(worker->pipe_worker);
+    }
+    if (pipe_worker && !pipe_worker->removed) {
+        reactor->remove_read_event(pipe_worker);
     }
 
     if (is_base_mode()) {
@@ -415,11 +415,11 @@ void Server::stop_async_worker(Worker *worker) {
                     onBeforeShutdown(this);
                 }
             }
-            for (auto ls : ports) {
-                reactor->del(ls->socket);
-            }
             if (worker->pipe_master && !worker->pipe_master->removed) {
                 reactor->remove_read_event(worker->pipe_master);
+            }
+            for (auto ls : ports) {
+                reactor->del(ls->socket);
             }
             foreach_connection([reactor](Connection *conn) {
                 if (!conn->peer_closed && !conn->socket->removed) {
@@ -437,6 +437,13 @@ void Server::stop_async_worker(Worker *worker) {
             swoole_sys_warning("failed to push WORKER_STOP message");
         }
     } else if (is_thread_mode()) {
+        SW_LOOP_N(worker_num) {
+            if (i % reactor_num == reactor->id) {
+                auto pipe_master = get_worker_message_bus()->get_pipe_socket(get_worker_pipe_master(i));
+                reactor->remove_read_event(pipe_master);
+            }
+        }
+
         foreach_connection([this, reactor](Connection *conn) {
             if (conn->reactor_id == reactor->id && !conn->peer_closed && !conn->socket->removed) {
                 reactor->remove_read_event(conn->socket);
@@ -455,21 +462,21 @@ void Server::stop_async_worker(Worker *worker) {
 
 static void Worker_reactor_try_to_exit(Reactor *reactor) {
     Server *serv;
-    if (swoole_get_process_type() == SW_PROCESS_TASKWORKER) {
+    if (sw_likely(swoole_get_process_type() != SW_PROCESS_TASKWORKER)) {
+        serv = (Server *) reactor->ptr;
+    } else {
         ProcessPool *pool = (ProcessPool *) reactor->ptr;
         serv = (Server *) pool->ptr;
-    } else {
-        serv = (Server *) reactor->ptr;
     }
-    uint8_t call_worker_exit_func = 0;
 
+    bool has_call_worker_exit_func = false;
     while (1) {
         if (reactor->if_exit()) {
             reactor->running = false;
         } else {
-            if (serv->onWorkerExit && call_worker_exit_func == 0) {
+            if (serv->onWorkerExit && !has_call_worker_exit_func) {
+                has_call_worker_exit_func = true;
                 serv->onWorkerExit(serv, sw_worker());
-                call_worker_exit_func = 1;
                 continue;
             }
             int remaining_time = serv->max_wait_time - (::time(nullptr) - SwooleWG.exit_time);
@@ -504,17 +511,14 @@ void Server::drain_worker_pipe() {
 
 void Server::clean_worker_connections(Worker *worker) {
     sw_reactor()->destroyed = true;
-
-    if (is_thread_mode()) {
+    if (sw_likely(is_base_mode())) {
+        foreach_connection([this](Connection *conn) { close(conn->session_id, true); });
+    } else if (is_thread_mode()) {
         foreach_connection([this, worker](Connection *conn) {
             if (conn->reactor_id == worker->id) {
                 close(conn->session_id, true);
             }
         });
-    } else if (is_base_mode()) {
-        foreach_connection([this](Connection *conn) { close(conn->session_id, true); });
-    } else {
-        return;
     }
 }
 
