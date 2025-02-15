@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: install-deps
-        run: sudo apt update -y && sudo apt install -y libcurl4-openssl-dev php-curl libc-ares-dev
+        run: sudo apt update -y && sudo apt install -y libcurl4-openssl-dev php-curl libc-ares-dev libbrotli-dev
       - name: phpize
         run: phpize
       - name: build1

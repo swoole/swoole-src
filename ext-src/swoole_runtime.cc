@@ -196,6 +196,22 @@ static zend_internal_arg_info *copy_arginfo(zend_function *zf, zend_internal_arg
     return new_arg_info + 1;
 }
 
+static void free_arg_info(zend_internal_function *function) {
+    if ((function->fn_flags & (ZEND_ACC_HAS_RETURN_TYPE | ZEND_ACC_HAS_TYPE_HINTS)) && function->arg_info) {
+        uint32_t i;
+        uint32_t num_args = function->num_args + 1;
+        zend_internal_arg_info *arg_info = function->arg_info - 1;
+
+        if (function->fn_flags & ZEND_ACC_VARIADIC) {
+            num_args++;
+        }
+        for (i = 0; i < num_args; i++) {
+            zend_type_release(arg_info[i].type, /* persistent */ 1);
+        }
+        free(arg_info);
+    }
+}
+
 #define SW_HOOK_FUNC(f) hook_func(ZEND_STRL(#f), PHP_FN(swoole_##f))
 #define SW_UNHOOK_FUNC(f) unhook_func(ZEND_STRL(#f))
 #define SW_HOOK_WITH_NATIVE_FUNC(f)                                                                                    \
@@ -2025,7 +2041,7 @@ static void unhook_func(const char *name, size_t l_name) {
         return;
     }
     if (rf->arg_info_copy) {
-        zend_free_internal_arg_info(&rf->function->internal_function);
+        free_arg_info(&rf->function->internal_function);
         rf->arg_info_copy = nullptr;
     }
     rf->function->internal_function.handler = rf->ori_handler;
