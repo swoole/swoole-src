@@ -31,6 +31,7 @@
 #include <mutex>
 #include <queue>
 #include <sstream>
+#include <system_error>
 
 namespace swoole {
 namespace async {
