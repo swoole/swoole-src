@@ -32,6 +32,9 @@
 #include <functional>
 #include <string>
 #include <unordered_map>
+#ifdef SW_USE_THREAD_CONTEXT
+#include <system_error>
+#endif
 
 typedef std::chrono::microseconds seconds_type;
 
