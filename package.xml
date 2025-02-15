@@ -51,10 +51,10 @@
         <email>doubaokun@php.net</email>
         <active>yes</active>
     </developer>
-    <date>2024-11-27</date>
-    <time>23:31:00</time>
+    <date>2025-02-15</date>
+    <time>11:00:00</time>
     <version>
-        <release>5.1.6</release>
+        <release>5.1.7</release>
         <api>5.0</api>
     </version>
     <stability>
@@ -63,13 +63,9 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        - Fixed the issue where `Swoole\Http\Response::end()` returns `null`. @NathanFreeman
-        - Fixed the problem where the mutex lock of `Swoole\Table` could not be used before the process exits. @matyhtf
-        - Fixed the failure of `Swoole\Server::stop()` caused by using named parameters. @matyhtf
-        - Fixed the issue where the `runtime tcp` module did not support dynamically enabling SSL encryption. @matyhtf
-        - Fixed the `Fatal error` issue caused by the timeout feature of `PHP` in `ZTS` mode. @matyhtf
-        - Fixed the problem where `Swoole\Coroutine::getaddrinfo()` method could lead to SIGSEGV. @matyhtf
-        - Fixed the issue where the HTTP client running for a long time resulted in incorrect timeout settings. @matyhtf
+        - Fixed an issue where PostgreSQL would revert to synchronous mode under coroutine when receiving large amounts of data. @NathanFreeman
+        - Fixed an issue where dynamically creating properties in `Swoole\Http2\Request` would throw an exception. @xuanyanwow @guandeng
+        - Fixed a memory error caused by fatal errors occurring in one-click coroutine. @matyhtf
     </notes>
     <contents>
         <dir name="/">
@@ -1696,6 +1692,7 @@
             <file role="test" name="tests/swoole_pdo_oracle/transcation2.phpt" />
             <file role="test" name="tests/swoole_pdo_pgsql/base.phpt" />
             <file role="test" name="tests/swoole_pdo_pgsql/blocking.phpt" />
+            <file role="test" name="tests/swoole_pdo_pgsql/bug_5635.phpt" />
             <file role="test" name="tests/swoole_pdo_pgsql/pdo_pgsql.inc" />
             <file role="test" name="tests/swoole_pdo_pgsql/query.phpt" />
             <file role="test" name="tests/swoole_pdo_pgsql/race.phpt" />
