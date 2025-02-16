@@ -3,6 +3,7 @@ swoole_runtime/file_hook: support io_uring
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
+skip_if_no_iouring();
 ?>
 --FILE--
 <?php

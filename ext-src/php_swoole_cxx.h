@@ -162,6 +162,8 @@ static inline bool php_swoole_is_fatal_error() {
 
 ssize_t php_swoole_length_func(const swoole::Protocol *, swoole::network::Socket *, swoole::PacketLength *);
 SW_API zend_long php_swoole_parse_to_size(zval *zv);
+SW_API zend_string *php_swoole_serialize(zval *zdata);
+SW_API bool php_swoole_unserialize(zend_string *data, zval *zv);
 
 #ifdef SW_HAVE_ZLIB
 #define php_swoole_websocket_frame_pack php_swoole_websocket_frame_pack_ex
@@ -591,18 +593,12 @@ class Callable {
     Callable() {}
 
   public:
-    Callable(zval *_zfn) {
-        ZVAL_UNDEF(&zfn);
-        if (!zval_is_true(_zfn)) {
-            php_swoole_fatal_error(E_WARNING, "illegal callback function");
-            return;
-        }
-        if (!sw_zend_is_callable_ex(_zfn, nullptr, 0, &fn_name, nullptr, &fcc, nullptr)) {
-            php_swoole_fatal_error(E_WARNING, "function '%s' is not callable", fn_name);
-            return;
-        }
-        zfn = *_zfn;
-        zval_add_ref(&zfn);
+    Callable(zval *_zfn);
+    ~Callable();
+    uint32_t refcount();
+
+    zend_refcounted *refcount_ptr() {
+        return sw_get_refcount_ptr(&zfn);
     }
 
     zend_fcall_info_cache *ptr() {
@@ -627,51 +623,63 @@ class Callable {
     bool call(uint32_t argc, zval *argv, zval *retval) {
         return sw_zend_call_function_ex(&zfn, &fcc, argc, argv, retval) == SUCCESS;
     }
-
-    ~Callable() {
-        if (!ZVAL_IS_UNDEF(&zfn)) {
-            zval_ptr_dtor(&zfn);
-        }
-        if (fn_name) {
-            efree(fn_name);
-        }
-    }
 };
 
-template<typename KeyT, typename ValueT>
+#define _CONCURRENCY_HASHMAP_LOCK_(code)                                                                               \
+    if (locked_) {                                                                                                     \
+        code;                                                                                                          \
+    } else {                                                                                                           \
+        lock_.lock();                                                                                                  \
+        code;                                                                                                          \
+        lock_.unlock();                                                                                                \
+    }
+
+template <typename KeyT, typename ValueT>
 class ConcurrencyHashMap {
- private:
+  private:
     std::unordered_map<KeyT, ValueT> map_;
     std::mutex lock_;
+    bool locked_;
     ValueT default_value_;
 
- public:
-    ConcurrencyHashMap(ValueT _default_value): map_(), lock_() {
+  public:
+    ConcurrencyHashMap(ValueT _default_value) : map_(), lock_() {
         default_value_ = _default_value;
+        locked_ = false;
     }
 
     void set(const KeyT &key, const ValueT &value) {
-        std::unique_lock<std::mutex> _lock(lock_);
-        map_[key] = value;
+        _CONCURRENCY_HASHMAP_LOCK_(map_[key] = value);
     }
 
     ValueT get(const KeyT &key) {
-        std::unique_lock<std::mutex> _lock(lock_);
-        auto iter = map_.find(key);
-        if (iter == map_.end()) {
-            return default_value_;
-        }
-        return iter->second;
+        ValueT value;
+        auto fn = [&]() -> ValueT {
+            auto iter = map_.find(key);
+            if (iter == map_.end()) {
+                return default_value_;
+            }
+            return iter->second;
+        };
+        _CONCURRENCY_HASHMAP_LOCK_(value = fn());
+        return value;
     }
 
     void del(const KeyT &key) {
-        std::unique_lock<std::mutex> _lock(lock_);
-        map_.erase(key);
+        _CONCURRENCY_HASHMAP_LOCK_(map_.erase(key));
     }
 
     void clear() {
+        _CONCURRENCY_HASHMAP_LOCK_(map_.clear());
+    }
+
+    void each(const std::function<void(KeyT key, ValueT value)> &cb) {
         std::unique_lock<std::mutex> _lock(lock_);
-        map_.clear();
+        locked_ = true;
+        for (auto &iter : map_) {
+            cb(iter.first, iter.second);
+        }
+        locked_ = false;
     }
 };
 

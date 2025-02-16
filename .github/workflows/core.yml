@@ -9,11 +9,18 @@ jobs:
   build:
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[core]')"
+    timeout-minutes: 10
     services:
       tinyproxy:
         image: "vimagick/tinyproxy"
         ports:
           - 8888:8888
+      nginx:
+        image: "nginx"
+        ports:
+          - "80:80"
+        env:
+          NGINX_PORT: "[::]:80"
       socks5:
         image: "xkuma/socks5"
         ports:

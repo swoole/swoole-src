@@ -418,7 +418,17 @@ bool swoole_http_server_onBeforeRequest(HttpContext *ctx) {
 void swoole_http_server_onAfterResponse(HttpContext *ctx) {
     ctx->onAfterResponse = nullptr;
     Server *serv = (Server *) ctx->private_data;
-    if (!sw_server() || !sw_worker() || sw_worker()->is_shutdown()) {
+    if (sw_unlikely(!sw_server() || !sw_worker())) {
+        return;
+    }
+
+    if (sw_unlikely(sw_worker()->is_shutdown())) {
+        while (!queued_http_contexts.empty()) {
+            HttpContext *ctx = queued_http_contexts.front();
+            queued_http_contexts.pop();
+            ctx->send(ctx, SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET));
+            ctx->close(ctx);
+        }
         return;
     }
 

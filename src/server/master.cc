@@ -910,7 +910,7 @@ void Server::stop_master_thread() {
     Reactor *reactor = SwooleTG.reactor;
     reactor->set_wait_exit(true);
     for (auto port : ports) {
-        if (port->is_dgram() and is_process_mode()) {
+        if (port->is_dgram() && !is_base_mode()) {
             continue;
         }
         if (!port->socket->removed) {

@@ -32,9 +32,13 @@ struct WaitTask {
     int status;
 };
 
+/**
+ * Wait, waitpid, and signal cannot be used in a multi-threaded environment;
+ * they are only applicable to the main thread. There is no need to treat them as thread-local variables.
+ */
 static std::list<WaitTask *> wait_list;
-static std::unordered_map<int, WaitTask *> waitpid_map;
-static std::unordered_map<int, int> child_processes;
+static std::unordered_map<pid_t, WaitTask *> waitpid_map;
+static std::unordered_map<pid_t, int> child_processes;
 
 bool signal_ready = false;
 
@@ -88,6 +92,20 @@ pid_t System::wait(int *__stat_loc, double timeout) {
     return System::waitpid(-1, __stat_loc, 0, timeout);
 }
 
+pid_t System::waitpid_safe(pid_t __pid, int *__stat_loc, int __options) {
+    if (sw_unlikely(SwooleTG.reactor == nullptr || !Coroutine::get_current() || (__options & WNOHANG))) {
+        return ::waitpid(__pid, __stat_loc, __options);
+    }
+
+    pid_t retval;
+    auto success = wait_for([__pid, &retval, __stat_loc]() -> bool {
+        retval = ::waitpid(__pid, __stat_loc, WNOHANG);
+        return retval != 0;
+    });
+
+    return success ? retval : -1;
+}
+
 /**
  * @error: errno & swoole_get_last_error()
  */
@@ -118,7 +136,7 @@ pid_t System::waitpid(pid_t __pid, int *__stat_loc, int __options, double timeou
     WaitTask task;
     signal_init();
     task.pid = ::waitpid(__pid, __stat_loc, __options | WNOHANG);
-    if (task.pid > 0) {
+    if (task.pid != 0) {
         return task.pid;
     }
 

@@ -329,38 +329,6 @@ static PHP_METHOD(swoole_thread, getNativeId) {
     RETURN_LONG((zend_long) swoole_thread_get_native_id());
 }
 
-zend_string *php_swoole_serialize(zval *zdata) {
-    php_serialize_data_t var_hash;
-    smart_str serialized_data = {0};
-
-    PHP_VAR_SERIALIZE_INIT(var_hash);
-    php_var_serialize(&serialized_data, zdata, &var_hash);
-    PHP_VAR_SERIALIZE_DESTROY(var_hash);
-
-    zend_string *result = nullptr;
-    if (!EG(exception)) {
-        result = zend_string_init(serialized_data.s->val, serialized_data.s->len, 1);
-    }
-    smart_str_free(&serialized_data);
-    return result;
-}
-
-bool php_swoole_unserialize(zend_string *data, zval *zv) {
-    php_unserialize_data_t var_hash;
-    const char *p = ZSTR_VAL(data);
-    size_t l = ZSTR_LEN(data);
-
-    PHP_VAR_UNSERIALIZE_INIT(var_hash);
-    zend_bool unserialized = php_var_unserialize(zv, (const uchar **) &p, (const uchar *) (p + l), &var_hash);
-    PHP_VAR_UNSERIALIZE_DESTROY(var_hash);
-    if (!unserialized) {
-        swoole_warning("unserialize() failed, Error at offset " ZEND_LONG_FMT " of %zd bytes",
-                       (zend_long) ((char *) p - ZSTR_VAL(data)),
-                       l);
-    }
-    return unserialized;
-}
-
 void php_swoole_thread_rinit() {
     if (tsrm_is_main_thread()) {
         if (SG(request_info).path_translated) {
@@ -380,8 +348,8 @@ void php_swoole_thread_rshutdown() {
     if (!tsrm_is_main_thread()) {
         return;
     }
-    if (thread_num.load() > 1) {
-        swoole_warning("Fatal Error: %zu active threads are running, cannot exit safely.", thread_num.load());
+    if (sw_active_thread_count() > 1) {
+        swoole_warning("Fatal Error: %zu active threads are running, cannot exit safely.", sw_active_thread_count());
         exit(200);
     }
     if (request_info.path_translated) {
@@ -504,6 +472,10 @@ void php_swoole_thread_join(pthread_t ptid) {
 
 int php_swoole_thread_get_exit_status(pthread_t ptid) {
     return thread_exit_status.get(ptid);
+}
+
+size_t sw_active_thread_count(void) {
+    return thread_num.load();
 }
 
 void php_swoole_thread_bailout(void) {
@@ -696,6 +668,135 @@ bool ArrayItem::equals(zval *zvalue) {
         return zend_string_equals(value.str, Z_STR_P(zvalue));
     default:
         return false;
+    }
+}
+
+#define TYPE_PAIR(t1, t2) (((t1) << 4) | (t2))
+#define ITEM_TYPE(item) (item->type)
+#define ITEM_LVAL(item) (item->value.lval)
+#define ITEM_DVAL(item) (item->value.dval)
+#define ITEM_STR(item) (item->value.str)
+
+static int compare_long_to_string(zend_long lval, zend_string *str) /* {{{ */
+{
+    zend_long str_lval;
+    double str_dval;
+    zend_uchar type = is_numeric_string(ZSTR_VAL(str), ZSTR_LEN(str), &str_lval, &str_dval, 0);
+
+    if (type == IS_LONG) {
+        return lval > str_lval ? 1 : lval < str_lval ? -1 : 0;
+    }
+
+    if (type == IS_DOUBLE) {
+        double diff = (double) lval - str_dval;
+        return ZEND_NORMALIZE_BOOL(diff);
+    }
+
+    zend_string *lval_as_str = zend_long_to_str(lval);
+    int cmp_result = zend_binary_strcmp(ZSTR_VAL(lval_as_str), ZSTR_LEN(lval_as_str), ZSTR_VAL(str), ZSTR_LEN(str));
+    zend_string_release(lval_as_str);
+    return ZEND_NORMALIZE_BOOL(cmp_result);
+}
+/* }}} */
+
+static int compare_double_to_string(double dval, zend_string *str) /* {{{ */
+{
+    zend_long str_lval;
+    double str_dval;
+    zend_uchar type = is_numeric_string(ZSTR_VAL(str), ZSTR_LEN(str), &str_lval, &str_dval, 0);
+
+    if (type == IS_LONG) {
+        double diff = dval - (double) str_lval;
+        return ZEND_NORMALIZE_BOOL(diff);
+    }
+
+    if (type == IS_DOUBLE) {
+        if (dval == str_dval) {
+            return 0;
+        }
+        return ZEND_NORMALIZE_BOOL(dval - str_dval);
+    }
+
+    zend_string *dval_as_str = zend_double_to_str(dval);
+    int cmp_result = zend_binary_strcmp(ZSTR_VAL(dval_as_str), ZSTR_LEN(dval_as_str), ZSTR_VAL(str), ZSTR_LEN(str));
+    zend_string_release(dval_as_str);
+    return ZEND_NORMALIZE_BOOL(cmp_result);
+}
+/* }}} */
+
+int ArrayItem::compare(Bucket *a, Bucket *b) {
+    ArrayItem *op1 = static_cast<ArrayItem *>(Z_PTR(a->val));
+    ArrayItem *op2 = static_cast<ArrayItem *>(Z_PTR(b->val));
+
+    switch (TYPE_PAIR(ITEM_TYPE(op1), ITEM_TYPE(op2))) {
+    case TYPE_PAIR(IS_LONG, IS_LONG):
+        return ITEM_LVAL(op1) > ITEM_LVAL(op2) ? 1 : (ITEM_LVAL(op1) < ITEM_LVAL(op2) ? -1 : 0);
+
+    case TYPE_PAIR(IS_DOUBLE, IS_LONG):
+        return ZEND_NORMALIZE_BOOL(ITEM_DVAL(op1) - (double) ITEM_LVAL(op2));
+
+    case TYPE_PAIR(IS_LONG, IS_DOUBLE):
+        return ZEND_NORMALIZE_BOOL((double) ITEM_LVAL(op1) - ITEM_DVAL(op2));
+
+    case TYPE_PAIR(IS_DOUBLE, IS_DOUBLE):
+        if (ITEM_DVAL(op1) == ITEM_DVAL(op2)) {
+            return 0;
+        } else {
+            return ZEND_NORMALIZE_BOOL(ITEM_DVAL(op1) - ITEM_DVAL(op2));
+        }
+
+    case TYPE_PAIR(IS_NULL, IS_NULL):
+    case TYPE_PAIR(IS_NULL, IS_FALSE):
+    case TYPE_PAIR(IS_FALSE, IS_NULL):
+    case TYPE_PAIR(IS_FALSE, IS_FALSE):
+    case TYPE_PAIR(IS_TRUE, IS_TRUE):
+        return 0;
+
+    case TYPE_PAIR(IS_NULL, IS_TRUE):
+        return -1;
+
+    case TYPE_PAIR(IS_TRUE, IS_NULL):
+        return 1;
+
+    case TYPE_PAIR(IS_STRING, IS_STRING):
+        if (ITEM_STR(op1) == ITEM_STR(op2)) {
+            return 0;
+        }
+        return zendi_smart_strcmp(ITEM_STR(op1), ITEM_STR(op2));
+
+    case TYPE_PAIR(IS_NULL, IS_STRING):
+        return Z_STRLEN_P(op2) == 0 ? 0 : -1;
+
+    case TYPE_PAIR(IS_STRING, IS_NULL):
+        return Z_STRLEN_P(op1) == 0 ? 0 : 1;
+
+    case TYPE_PAIR(IS_LONG, IS_STRING):
+        return compare_long_to_string(ITEM_LVAL(op1), ITEM_STR(op2));
+
+    case TYPE_PAIR(IS_STRING, IS_LONG):
+        return -compare_long_to_string(ITEM_LVAL(op2), ITEM_STR(op1));
+
+    case TYPE_PAIR(IS_DOUBLE, IS_STRING):
+        if (zend_isnan(ITEM_DVAL(op1))) {
+            return 1;
+        }
+        return compare_double_to_string(ITEM_DVAL(op1), ITEM_STR(op2));
+
+    case TYPE_PAIR(IS_STRING, IS_DOUBLE):
+        if (zend_isnan(ITEM_DVAL(op2))) {
+            return 1;
+        }
+        return -compare_double_to_string(ITEM_DVAL(op2), ITEM_STR(op1));
+
+    case TYPE_PAIR(IS_OBJECT, IS_NULL):
+        return 1;
+
+    case TYPE_PAIR(IS_NULL, IS_OBJECT):
+        return -1;
+
+    default:
+        zend_throw_error(NULL, "Unsupported operand types");
+        return 1;
     }
 }
 
@@ -1069,6 +1170,12 @@ void ZendArray::find(zval *search, zval *return_value) {
         }
     }
     ZEND_HASH_FOREACH_END();
+    lock_.unlock();
+}
+
+void ZendArray::sort(bool renumber) {
+    lock_.lock();
+    zend_hash_sort(&ht, ArrayItem::compare, renumber);
     lock_.unlock();
 }
 

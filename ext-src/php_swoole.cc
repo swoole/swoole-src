@@ -23,9 +23,7 @@ BEGIN_EXTERN_C()
 #include "zend_exceptions.h"
 #include "zend_extensions.h"
 
-#if (HAVE_PCRE || HAVE_BUNDLED_PCRE) && !defined(COMPILE_DL_PCRE)
 #include "ext/pcre/php_pcre.h"
-#endif
 #include "ext/json/php_json.h"
 
 #include "stubs/php_swoole_arginfo.h"
@@ -42,6 +40,9 @@ END_EXTERN_C()
 #include <net/if.h>
 #include <ifaddrs.h>
 #include <sys/ioctl.h>
+#ifdef SW_USE_CURL
+#include <curl/curl.h>
+#endif
 
 #if defined(__MACH__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
 #include <net/if_dl.h>
@@ -372,6 +373,38 @@ SW_API zend_long php_swoole_parse_to_size(zval *zv) {
     } else {
         return zval_get_long(zv);
     }
+}
+
+SW_API zend_string *php_swoole_serialize(zval *zdata) {
+    php_serialize_data_t var_hash;
+    smart_str serialized_data = {0};
+
+    PHP_VAR_SERIALIZE_INIT(var_hash);
+    php_var_serialize(&serialized_data, zdata, &var_hash);
+    PHP_VAR_SERIALIZE_DESTROY(var_hash);
+
+    zend_string *result = nullptr;
+    if (!EG(exception)) {
+        result = zend_string_init(serialized_data.s->val, serialized_data.s->len, 1);
+    }
+    smart_str_free(&serialized_data);
+    return result;
+}
+
+SW_API bool php_swoole_unserialize(zend_string *data, zval *zv) {
+    php_unserialize_data_t var_hash;
+    const char *p = ZSTR_VAL(data);
+    size_t l = ZSTR_LEN(data);
+
+    PHP_VAR_UNSERIALIZE_INIT(var_hash);
+    zend_bool unserialized = php_var_unserialize(zv, (const uchar **) &p, (const uchar *) (p + l), &var_hash);
+    PHP_VAR_UNSERIALIZE_DESTROY(var_hash);
+    if (!unserialized) {
+        swoole_warning("unserialize() failed, Error at offset " ZEND_LONG_FMT " of %zd bytes",
+                       (zend_long) ((char *) p - ZSTR_VAL(data)),
+                       l);
+    }
+    return unserialized;
 }
 
 static void fatal_error(int code, const char *format, ...) {
@@ -764,6 +797,7 @@ PHP_MINIT_FUNCTION(swoole) {
     php_swoole_coroutine_minit(module_number);
     php_swoole_coroutine_system_minit(module_number);
     php_swoole_coroutine_scheduler_minit(module_number);
+    php_swoole_coroutine_lock_minit(module_number);
     php_swoole_channel_coro_minit(module_number);
     php_swoole_runtime_minit(module_number);
     // client
@@ -913,9 +947,8 @@ PHP_MINFO_FUNCTION(swoole) {
     php_info_print_table_row(2, "json", "enabled");
 #ifdef SW_USE_CURL
     php_info_print_table_row(2, "curl-native", "enabled");
-#endif
-#ifdef HAVE_PCRE
-    php_info_print_table_row(2, "pcre", "enabled");
+    curl_version_info_data *d = curl_version_info(CURLVERSION_NOW);
+    php_info_print_table_row(2, "curl-version", d->version);
 #endif
 #ifdef SW_USE_CARES
     php_info_print_table_row(2, "c-ares", ares_version(nullptr));
@@ -1050,6 +1083,34 @@ void sw_php_exit(int status) {
 #else
     zend_bailout();
 #endif
+}
+
+bool sw_zval_is_serializable(zval *struc) {
+again:
+    switch (Z_TYPE_P(struc)) {
+    case IS_OBJECT: {
+        if (Z_OBJCE_P(struc)->ce_flags & ZEND_ACC_NOT_SERIALIZABLE) {
+            return false;
+        }
+        break;
+    }
+    case IS_ARRAY: {
+        zval *elem;
+        ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(struc), elem) {
+            if (!sw_zval_is_serializable(elem)) {
+                return false;
+            }
+        }
+        ZEND_HASH_FOREACH_END();
+        break;
+    }
+    case IS_REFERENCE:
+        struc = Z_REFVAL_P(struc);
+        goto again;
+    default:
+        break;
+    }
+    return true;
 }
 
 static void sw_after_fork(void *args) {
@@ -1475,11 +1536,14 @@ static PHP_FUNCTION(swoole_substr_unserialize) {
     }
     if (offset < 0) {
         offset = buf_len + offset;
+        if (offset < 0) {
+            RETURN_FALSE;
+        }
     }
     if ((zend_long) buf_len <= offset) {
         RETURN_FALSE;
     }
-    if (length <= 0) {
+    if (length <= 0 || length > (zend_long) (buf_len - offset)) {
         length = buf_len - offset;
     }
     zend::unserialize(return_value, buf + offset, length, options ? Z_ARRVAL_P(options) : NULL);
@@ -1505,15 +1569,21 @@ static PHP_FUNCTION(swoole_substr_json_decode) {
     ZEND_PARSE_PARAMETERS_END();
 
     if (str_len == 0) {
-        RETURN_FALSE;
+        php_error_docref(nullptr, E_WARNING, "Non-empty string required");
+        RETURN_NULL();
     }
     if (offset < 0) {
         offset = str_len + offset;
+        if (offset < 0) {
+            php_error_docref(nullptr, E_WARNING, "Offset must be not less than the negative length of the string");
+            RETURN_NULL();
+        }
     }
     if ((zend_long) str_len <= offset) {
-        RETURN_FALSE;
+        php_error_docref(nullptr, E_WARNING, "Offset must be less than the length of the string");
+        RETURN_NULL();
     }
-    if (length <= 0) {
+    if (length <= 0 || length > (zend_long) (str_len - offset)) {
         length = str_len - offset;
     }
     /* For BC reasons, the bool $assoc overrides the long $options bit for PHP_JSON_OBJECT_AS_ARRAY */
@@ -1551,6 +1621,14 @@ static PHP_FUNCTION(swoole_implicit_fn) {
         abort();
     } else if (SW_STRCASEEQ(fn, l_fn, "refcount")) {
         RETURN_LONG(zval_refcount_p(zargs));
+    } else if (SW_STRCASEEQ(fn, l_fn, "func_handler")) {
+        auto fn = zval_get_string(zargs);
+        zend_function *zf = (zend_function *) zend_hash_find_ptr(EG(function_table), fn);
+        zend_string_release(fn);
+        if (zf == nullptr) {
+            RETURN_FALSE;
+        }
+        printf("zif_handler=%p\n", zf->internal_function.handler);
     } else {
         zend_throw_exception_ex(swoole_exception_ce, SW_ERROR_INVALID_PARAMS, "unknown fn '%s'", fn);
     }

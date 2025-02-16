@@ -69,9 +69,7 @@ bool Timer::init() {
 }
 
 bool Timer::init_with_user_scheduler(const TimerScheduler &scheduler) {
-    set = [&scheduler](Timer *timer, long exec_msec) -> int {
-        return scheduler(timer, exec_msec);
-    };
+    set = [&scheduler](Timer *timer, long exec_msec) -> int { return scheduler(timer, exec_msec); };
     close = [&scheduler](Timer *timer) { scheduler(timer, -1); };
     return true;
 }
@@ -236,6 +234,7 @@ int Timer::select() {
         heap.pop();
         map.erase(tnode->id);
         delete tnode;
+        tnode = nullptr;
     }
 
     if (!tnode || !tmp) {

@@ -17,6 +17,7 @@
  */
 
 #include "php_swoole_cxx.h"
+#include "php_swoole_process.h"
 
 #include "swoole_server.h"
 
@@ -148,6 +149,18 @@ static void timer_callback(Timer *timer, TimerNode *tnode) {
     }
 }
 
+static bool timer_if_use_reactor() {
+    auto server = sw_server();
+    if (server) {
+        return server->is_user_worker() || (server->is_task_worker() && server->task_enable_coroutine);
+    }
+    auto process_pool = sw_process_pool();
+    if (process_pool) {
+        return !process_pool->is_master();
+    }
+    return true;
+}
+
 static void timer_add(INTERNAL_FUNCTION_PARAMETERS, bool persistent) {
     zend_long ms;
     Function *fci = (Function *) ecalloc(1, sizeof(Function));
@@ -166,9 +179,7 @@ static void timer_add(INTERNAL_FUNCTION_PARAMETERS, bool persistent) {
         RETURN_FALSE;
     }
 
-    // no server || user worker || task process with async mode
-    if (!sw_server() || sw_server()->is_user_worker() ||
-        (sw_server()->is_task_worker() && sw_server()->task_enable_coroutine)) {
+    if (UNEXPECTED(!sw_reactor() && timer_if_use_reactor())) {
         php_swoole_check_reactor();
     }
 

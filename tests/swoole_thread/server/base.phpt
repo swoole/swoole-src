@@ -8,6 +8,7 @@ skip_if_nts();
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
+require __DIR__ . '/functions.inc';
 
 use Swoole\Thread;
 
@@ -49,14 +50,7 @@ $serv->addProcess(new Swoole\Process(function ($process) use ($serv) {
     global $port;
     echo $queue->pop(-1);
     Co\run(function () use ($port) {
-        $cli = new Co\Client(SWOOLE_SOCK_TCP);
-        $cli->set([
-            'open_eof_check' => true,
-            'package_eof' => "\r\n",
-        ]);
-        Assert::assert($cli->connect('127.0.0.1', $port, 2));
-        $cli->send(json_encode(['type' => 'eof']) . "\r\n");
-        Assert::eq($cli->recv(), "EOF\r\n");
+        thread_server_test_eof_client($port);
     });
     $atomic->set(0);
     echo "done\n";

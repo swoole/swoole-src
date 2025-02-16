@@ -122,6 +122,7 @@ int ProcessPool::create(uint32_t _worker_num, key_t _msgqueue_key, swIPCMode _ip
     main_loop = run_with_task_protocol;
     protocol_type_ = SW_PROTOCOL_TASK;
     max_packet_size_ = SW_INPUT_BUFFER_SIZE;
+    max_wait_time = SW_WORKER_MAX_WAIT_TIME;
 
     SW_LOOP_N(_worker_num) {
         workers[i].pool = this;
@@ -444,6 +445,12 @@ void ProcessPool::stop(Worker *worker) {
     }
 }
 
+void ProcessPool::kill_all_workers(int signo) {
+    SW_LOOP_N(worker_num) {
+        swoole_kill(workers[i].pid, signo);
+    }
+}
+
 void ProcessPool::shutdown() {
     uint32_t i;
     int status;
@@ -462,10 +469,20 @@ void ProcessPool::shutdown() {
             continue;
         }
     }
+    if (max_wait_time) {
+        swoole_timer_add((long) max_wait_time * 1000, false, [this](Timer *, TimerNode *) { kill_all_workers(); });
+    }
     for (i = 0; i < worker_num; i++) {
         worker = &workers[i];
-        if (swoole_waitpid(worker->pid, &status, 0) < 0) {
-            swoole_sys_warning("waitpid(%d) failed", worker->pid);
+        SW_LOOP {
+            if (waitpid(worker->pid, &status, 0) < 0) {
+                if (errno == EINTR) {
+                    sw_timer()->select();
+                    continue;
+                }
+                swoole_sys_warning("waitpid(%d) failed", worker->pid);
+            }
+            break;
         }
     }
     started = false;
@@ -853,7 +870,6 @@ bool ProcessPool::detach() {
 
 int ProcessPool::wait() {
     pid_t new_pid, reload_worker_pid = 0;
-    int ret;
 
     while (running) {
         ExitStatus exit_status = wait_process();
@@ -892,7 +908,7 @@ int ProcessPool::wait() {
             }
             if (!reloading) {
                 if (errno > 0 && errno != EINTR) {
-                    swoole_sys_warning("[Manager] wait failed");
+                    swoole_sys_warning("wait() failed");
                 }
                 continue;
             } else {
@@ -913,7 +929,7 @@ int ProcessPool::wait() {
                 if (onWorkerNotFound) {
                     onWorkerNotFound(this, exit_status);
                 } else {
-                    swoole_warning("[Manager]unknown worker[pid=%d]", exit_status.get_pid());
+                    swoole_warning("unknown worker[pid=%d]", exit_status.get_pid());
                 }
                 continue;
             }
@@ -944,13 +960,12 @@ int ProcessPool::wait() {
                 continue;
             }
             reload_worker_pid = reload_workers[reload_worker_i].pid;
-            ret = swoole_kill(reload_worker_pid, SIGTERM);
-            if (ret < 0) {
+            if (swoole_kill(reload_worker_pid, SIGTERM) < 0) {
                 if (errno == ECHILD) {
                     reload_worker_i++;
                     goto _kill_worker;
                 }
-                swoole_sys_warning("[Manager]swKill(%d) failed", reload_workers[reload_worker_i].pid);
+                swoole_sys_warning("kill(%d) failed", reload_workers[reload_worker_i].pid);
                 continue;
             }
         }

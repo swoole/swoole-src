@@ -54,7 +54,7 @@ PHP_ARG_ENABLE([cares],
 PHP_ARG_ENABLE([iouring],
   [enable io-uring support],
   [AS_HELP_STRING([--enable-iouring],
-    [Enable io-uring (Experimental)])], [no], [no])
+    [Enable io-uring])], [no], [no])
 
 PHP_ARG_WITH([openssl_dir],
   [dir of openssl],
@@ -183,6 +183,7 @@ AC_DEFUN([AC_SWOOLE_CPU_AFFINITY],
         #include <sys/cpuset.h>
         typedef cpuset_t cpu_set_t;
         #else
+        #define _GNU_SOURCE 1
         #include <sched.h>
         #endif
     ]], [[
@@ -284,6 +285,42 @@ AC_DEFUN([AC_SWOOLE_HAVE_BOOST_STACKTRACE],
     AC_LANG_POP([C++])
 ])
 
+AC_DEFUN([AC_SWOOLE_HAVE_IOURING_FUTEX],
+[
+    AC_MSG_CHECKING([for io_uring futex])
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+        #define _GNU_SOURCE
+        #include <liburing.h>
+    ]], [[
+        int op = IORING_OP_FUTEX_WAIT;
+    ]])],[
+        AC_DEFINE([HAVE_IOURING_FUTEX], 1, [have io_uring futex?])
+        AC_MSG_RESULT([yes])
+    ],[
+        AC_MSG_RESULT([no])
+    ])
+])
+
+AC_DEFUN([AC_SWOOLE_HAVE_IOURING_STATX],
+[
+    AC_MSG_CHECKING([for io_uring statx])
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+        #define _GNU_SOURCE
+        #include <sys/stat.h>
+        #include <string.h>
+        #include <liburing.h>
+    ]], [[
+        struct statx _statxbuf;
+        memset(&_statxbuf, 0, sizeof(_statxbuf));
+        int op = IORING_OP_STATX;
+    ]])],[
+        AC_DEFINE([HAVE_IOURING_STATX], 1, [have io_uring statx?])
+        AC_MSG_RESULT([yes])
+    ],[
+        AC_MSG_RESULT([no])
+    ])
+])
+
 AC_DEFUN([AC_SWOOLE_CHECK_SOCKETS], [
     AC_CHECK_FUNCS([hstrerror socketpair if_nametoindex if_indextoname])
     AC_CHECK_HEADERS([netdb.h netinet/tcp.h sys/un.h sys/sockio.h])
@@ -372,7 +409,6 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(pthread, pthread_mutexattr_setpshared, AC_DEFINE(HAVE_PTHREAD_MUTEXATTR_SETPSHARED, 1, [have pthread_mutexattr_setpshared]))
     AC_CHECK_LIB(pthread, pthread_mutexattr_setrobust, AC_DEFINE(HAVE_PTHREAD_MUTEXATTR_SETROBUST, 1, [have pthread_mutexattr_setrobust]))
     AC_CHECK_LIB(pthread, pthread_mutex_consistent, AC_DEFINE(HAVE_PTHREAD_MUTEX_CONSISTENT, 1, [have pthread_mutex_consistent]))
-    AC_CHECK_LIB(pcre, pcre_compile, AC_DEFINE(HAVE_PCRE, 1, [have pcre]))
 
     if test "$PHP_SWOOLE_DEV" = "yes"; then
         AX_CHECK_COMPILE_FLAG(-Wbool-conversion,                _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wbool-conversion")
@@ -615,6 +651,7 @@ EOF
     dnl odbc end
 
     dnl SWOOLE_ORACLE start
+
     if test -z "$SED"; then
         SWOOLE_PDO_OCI_SED="sed";
     else
@@ -674,9 +711,9 @@ EOF
     PHP_ARG_WITH([swoole-oracle],
         [whether to enable oracle build flags],
         [AS_HELP_STRING([[--with-swoole-oracle[=DIR]]],
-            [PDO: Oracle OCI support. DIR defaults to $ORACLE_HOME. Use
+            ["PDO: Oracle OCI support. DIR defaults to ${ORACLE_HOME}. Use
             --with-swoole-oracle=instantclient,/path/to/instant/client/lib for an Oracle
-            Instant Client installation.])], [no], [no])
+            Instant Client installation."])], [no], [no])
 
     if test "$PHP_SWOOLE_ORACLE" != "no"; then
         if test "$PHP_PDO" = "no" && test "$ext_shared" = "no"; then
@@ -814,7 +851,7 @@ EOF
 
     dnl sqlite start
     PHP_ARG_ENABLE([swoole-sqlite],
-        [for sqlite 3 support for PDO],
+        ["for sqlite 3 support for PDO"],
         [AS_HELP_STRING([--enable-swoole-sqlite],
             [PDO: sqlite 3 support.])], [no], [no])
 
@@ -962,42 +999,30 @@ EOF
     CFLAGS="-Wall -pthread $CFLAGS"
     LDFLAGS="$LDFLAGS -lpthread"
 
-    dnl Check should we link to librt
-
     if test "$PHP_IOURING" = "yes" && test "$SW_OS" = "LINUX"; then
-        PKG_CHECK_MODULES([URING], [liburing >= 2.5])
+        PKG_CHECK_MODULES([URING], [liburing >= 2.0])
+
+        AC_SWOOLE_HAVE_IOURING_STATX
+        AC_SWOOLE_HAVE_IOURING_FUTEX
+
         PHP_EVAL_LIBLINE($URING_LIBS, SWOOLE_SHARED_LIBADD)
         PHP_EVAL_INCLINE($URING_CFLAGS)
         AC_DEFINE(SW_USE_IOURING, 1, [have io_uring])
-
-        LINUX_VERSION=`uname -r | cut -d '-' -f 1`
-        LINUX_MAJOR_VERSION=`echo $LINUX_VERSION | cut -d '.' -f 1`
-        LINUX_MINOR_VERSION=`echo $LINUX_VERSION | cut -d '.' -f 2`
-
-        _PKG_CONFIG(URING_VERSION, [modversion], [liburing])
-        IOURING_MAJOR_VERSION=`echo $pkg_cv_URING_VERSION | cut -d '.' -f 1`
-        IOURING_MINOR_VERSION=`echo $pkg_cv_URING_VERSION | cut -d '.' -f 2`
-
-        AC_MSG_CHECKING([checking for io_uring futex feature])
-        if test $IOURING_MAJOR_VERSION -gt 2 || (test $IOURING_MAJOR_VERSION -eq 2 && test $IOURING_MINOR_VERSION -ge 6); then
-            if test $LINUX_MAJOR_VERSION -gt 6 || (test $LINUX_MAJOR_VERSION -eq 6 && test $LINUX_MINOR_VERSION -ge 7); then
-                AC_MSG_RESULT(yes)
-                AC_DEFINE(HAVE_IOURING_FUTEX, 1, [have io_uring futex feature])
-            else
-                AC_MSG_RESULT([no, Linux $LINUX_VERSION is too old])
-            fi
-        else
-            AC_MSG_RESULT([no, liburing $IOURING_MAJOR_VERSION.$IOURING_MINOR_VERSION is too old])
-        fi
     fi
+
+    dnl Check should we link to librt
 
     if test "$SW_OS" = "LINUX"; then
         GLIBC_VERSION=$(getconf GNU_LIBC_VERSION | awk '{print $2}')
         AC_MSG_NOTICE([glibc version: $GLIBC_VERSION])
-        if [[ $(echo "$GLIBC_VERSION < 2.17" | bc -l) -eq 1 ]]; then
+
+        GLIBC_MAJOR_VERSION=$(getconf GNU_LIBC_VERSION | awk '{print $2}' | cut -d '.' -f 1)
+        GLIBC_MINOR_VERSION=$(getconf GNU_LIBC_VERSION | awk '{print $2}' | cut -d '.' -f 2)
+
+        if test $GLIBC_MAJOR_VERSION -lt 2 || (test $GLIBC_MAJOR_VERSION -eq 2 && test $GLIBC_MINOR_VERSION -lt 17); then
             OS_SHOULD_HAVE_LIBRT=1
         else
-            AC_MSG_NOTICE([link with -lrt (only for glibc versions before 2.17)])
+            AC_MSG_NOTICE([link with -lrt (only for glibc version before 2.17)])
             OS_SHOULD_HAVE_LIBRT=0
         fi
     elif test "$SW_OS" = "MAC"; then
@@ -1101,50 +1126,59 @@ EOF
             thirdparty/nghttp2/nghttp2_hd_huffman_data.c"
     fi
 
-    if test -z "$PHP_VERSION"; then
-        if test -z "$PHP_CONFIG"; then
-            AC_MSG_ERROR([php-config not found])
+    dnl During static compilation, there is no php-config variable,
+    dnl but the php-version variable is always present and is not affected by the shell environment variables.
+    dnl During dynamic compilation, the php-config variable is always available, whereas the php-version variable is absent.
+
+    if test -z "$PHP_CONFIG"; then
+        if test -z "$PHP_VERSION"; then
+            AC_MSG_ERROR([the PHP_VERSION variable must be defined])
+        else
+            SW_PHP_VERSION=$PHP_VERSION
         fi
-        PHP_VERSION=`$PHP_CONFIG --version`
-    fi
-
-    PHP_VERSION_ID=`echo "${PHP_VERSION}" | $AWK 'BEGIN { FS = "."; } { printf "%d", ([$]1 * 10 + [$]2); }'`
-
-    if test "$PHP_VERSION_ID" = "82"; then
-        PHP_THIRDPARTY_DIR="thirdparty/php81"
     else
-        PHP_THIRDPARTY_DIR="thirdparty/php${PHP_VERSION_ID}"
+        SW_PHP_VERSION=`$PHP_CONFIG --version`
     fi
+
+    SW_PHP_VERSION_ID=`echo "${SW_PHP_VERSION}" | $AWK 'BEGIN { FS = "."; } { printf "%d", ([$]1 * 10 + [$]2); }'`
+
+    if test "$SW_PHP_VERSION_ID" = "82"; then
+        SW_PHP_THIRDPARTY_DIR="thirdparty/php81"
+    else
+        SW_PHP_THIRDPARTY_DIR="thirdparty/php${SW_PHP_VERSION_ID}"
+    fi
+
+    AC_MSG_NOTICE([php version: $SW_PHP_VERSION, version_id: $SW_PHP_VERSION_ID, thirdparty_dir: $SW_PHP_THIRDPARTY_DIR])
 
     if test "$PHP_SWOOLE_PGSQL" != "no"; then
         swoole_source_file="$swoole_source_file \
-            ${PHP_THIRDPARTY_DIR}/pdo_pgsql/pgsql_driver.c \
-            ${PHP_THIRDPARTY_DIR}/pdo_pgsql/pgsql_statement.c"
-        if test "$PHP_VERSION_ID" -ge "84"; then
+            ${SW_PHP_THIRDPARTY_DIR}/pdo_pgsql/pgsql_driver.c \
+            ${SW_PHP_THIRDPARTY_DIR}/pdo_pgsql/pgsql_statement.c"
+        if test "$SW_PHP_VERSION_ID" -ge "84"; then
             swoole_source_file="$swoole_source_file \
-                ${PHP_THIRDPARTY_DIR}/pdo_pgsql/pgsql_sql_parser.c"
+                ${SW_PHP_THIRDPARTY_DIR}/pdo_pgsql/pgsql_sql_parser.c"
         fi
     fi
 
     if test "$PHP_SWOOLE_ORACLE" != "no"; then
         swoole_source_file="$swoole_source_file \
-            ${PHP_THIRDPARTY_DIR}/pdo_oci/oci_driver.c \
-            ${PHP_THIRDPARTY_DIR}/pdo_oci/oci_statement.c"
+            ${SW_PHP_THIRDPARTY_DIR}/pdo_oci/oci_driver.c \
+            ${SW_PHP_THIRDPARTY_DIR}/pdo_oci/oci_statement.c"
     fi
 
     if test "$PHP_SWOOLE_ODBC" != "no"; then
         swoole_source_file="$swoole_source_file \
-            ${PHP_THIRDPARTY_DIR}/pdo_odbc/odbc_driver.c \
-            ${PHP_THIRDPARTY_DIR}/pdo_odbc/odbc_stmt.c"
+            ${SW_PHP_THIRDPARTY_DIR}/pdo_odbc/odbc_driver.c \
+            ${SW_PHP_THIRDPARTY_DIR}/pdo_odbc/odbc_stmt.c"
     fi
 
     if test "$PHP_SWOOLE_SQLITE" != "no"; then
         swoole_source_file="$swoole_source_file \
-            ${PHP_THIRDPARTY_DIR}/pdo_sqlite/sqlite_driver.c \
-            ${PHP_THIRDPARTY_DIR}/pdo_sqlite/sqlite_statement.c"
-        if test "$PHP_VERSION_ID" -ge "84"; then
+            ${SW_PHP_THIRDPARTY_DIR}/pdo_sqlite/sqlite_driver.c \
+            ${SW_PHP_THIRDPARTY_DIR}/pdo_sqlite/sqlite_statement.c"
+        if test "$SW_PHP_VERSION_ID" -ge "84"; then
             swoole_source_file="$swoole_source_file \
-                ${PHP_THIRDPARTY_DIR}/pdo_sqlite/sqlite_sql_parser.c"
+                ${SW_PHP_THIRDPARTY_DIR}/pdo_sqlite/sqlite_sql_parser.c"
         fi
     fi
 

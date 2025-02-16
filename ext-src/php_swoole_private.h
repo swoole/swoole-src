@@ -116,7 +116,7 @@ extern PHPAPI int php_array_merge(zend_array *dest, zend_array *src);
 #endif
 #endif
 
-#if defined(SW_HAVE_ZLIB) || defined(SW_HAVE_BROTLI)
+#if defined(SW_HAVE_ZLIB) || defined(SW_HAVE_BROTLI) || defined(SW_HAVE_ZSTD)
 #define SW_HAVE_COMPRESSION
 #endif
 
@@ -267,6 +267,7 @@ void php_swoole_timer_minit(int module_number);
 void php_swoole_coroutine_minit(int module_number);
 void php_swoole_coroutine_system_minit(int module_number);
 void php_swoole_coroutine_scheduler_minit(int module_number);
+void php_swoole_coroutine_lock_minit(int module_number);
 void php_swoole_channel_coro_minit(int module_number);
 void php_swoole_runtime_minit(int module_number);
 // client
@@ -504,6 +505,8 @@ static inline bool sw_zval_is_process(zval *val) {
     return instanceof_function(Z_OBJCE_P(val), swoole_process_ce);
 }
 
+bool sw_zval_is_serializable(zval *struc);
+
 static inline bool sw_is_main_thread() {
 #ifdef SW_THREAD
     return tsrm_is_main_thread();
@@ -512,7 +515,21 @@ static inline bool sw_is_main_thread() {
 #endif
 }
 
+#ifdef SW_THREAD
+size_t sw_active_thread_count(void);
+#else
+static inline size_t sw_active_thread_count(void) {
+    return 1;
+}
+#endif
+
+zend_refcounted *sw_get_refcount_ptr(zval *value);
+
 void sw_php_exit(int status);
+void sw_php_print_backtrace(zend_long cid = 0,
+                            zend_long options = 0,
+                            zend_long limit = 0,
+                            zval *return_value = nullptr);
 
 //----------------------------------Constant API------------------------------------
 

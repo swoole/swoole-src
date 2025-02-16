@@ -24,3 +24,5 @@ void php_swoole_process_clean();
 int php_swoole_process_start(swoole::Worker *process, zval *zobject);
 swoole::Worker *php_swoole_process_get_worker(zval *zobject);
 void php_swoole_process_set_worker(zval *zobject, swoole::Worker *worker);
+
+swoole::ProcessPool *sw_process_pool();

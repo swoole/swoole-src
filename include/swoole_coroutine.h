@@ -32,6 +32,9 @@
 #include <functional>
 #include <string>
 #include <unordered_map>
+#ifdef SW_USE_THREAD_CONTEXT
+#include <system_error>
+#endif
 
 typedef std::chrono::microseconds seconds_type;
 
@@ -317,6 +320,7 @@ bool async(async::Handler handler, AsyncEvent &event, double timeout = -1);
  */
 bool async(const std::function<void(void)> &fn);
 bool run(const CoroutineFunc &fn, void *arg = nullptr);
+bool wait_for(const std::function<bool(void)> &fn);
 }  // namespace coroutine
 //-------------------------------------------------------------------------------
 }  // namespace swoole

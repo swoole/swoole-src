@@ -662,6 +662,7 @@ int swoole_coroutine_iouring_unlink(const char *pathname) {
     return Iouring::unlink(pathname);
 }
 
+#ifdef HAVE_IOURING_STATX
 int swoole_coroutine_iouring_fstat(int fd, struct stat *statbuf) {
     if (sw_unlikely(is_no_coro())) {
         return fstat(fd, statbuf);
@@ -683,6 +684,7 @@ int swoole_coroutine_iouring_lstat(const char *path, struct stat *statbuf) {
     // Iouring cannot distinguish between lstat and stat; these two operations are the same
     return Iouring::stat(path, statbuf);
 }
+#endif
 
 int swoole_coroutine_iouring_rmdir(const char *pathname) {
     if (sw_unlikely(is_no_coro())) {

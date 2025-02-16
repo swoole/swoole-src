@@ -12,5 +12,6 @@ namespace Swoole\Thread {
         public function decr(mixed $key, mixed $value = 1): mixed {}
         public function clean(): void {}
         public function toArray(): array {}
+        public function sort(): void {}
     }
 }

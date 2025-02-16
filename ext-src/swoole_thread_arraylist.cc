@@ -43,6 +43,7 @@ static PHP_METHOD(swoole_thread_arraylist, incr);
 static PHP_METHOD(swoole_thread_arraylist, decr);
 static PHP_METHOD(swoole_thread_arraylist, clean);
 static PHP_METHOD(swoole_thread_arraylist, toArray);
+static PHP_METHOD(swoole_thread_arraylist, sort);
 SW_EXTERN_C_END
 
 static sw_inline ThreadArrayListObject *arraylist_fetch_object(zend_object *obj) {
@@ -98,6 +99,7 @@ static const zend_function_entry swoole_thread_arraylist_methods[] = {
     PHP_ME(swoole_thread_arraylist, clean,        arginfo_class_Swoole_Thread_ArrayList_clean,         ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread_arraylist, count,        arginfo_class_Swoole_Thread_ArrayList_count,         ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread_arraylist, toArray,      arginfo_class_Swoole_Thread_ArrayList_toArray,       ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_thread_arraylist, sort,         arginfo_class_Swoole_Thread_ArrayList_sort,          ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 // clang-format on
@@ -229,5 +231,10 @@ static PHP_METHOD(swoole_thread_arraylist, clean) {
 static PHP_METHOD(swoole_thread_arraylist, toArray) {
     auto ao = arraylist_fetch_object_check(ZEND_THIS);
     ao->list->to_array(return_value);
+}
+
+static PHP_METHOD(swoole_thread_arraylist, sort) {
+    auto ao = arraylist_fetch_object_check(ZEND_THIS);
+    ao->list->sort(true);
 }
 #endif

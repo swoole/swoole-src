@@ -40,8 +40,6 @@ extern zend_class_entry *swoole_thread_queue_ce;
 void php_swoole_thread_start(zend_string *file, ZendArray *argv);
 void php_swoole_thread_join(pthread_t ptid);
 int php_swoole_thread_get_exit_status(pthread_t ptid);
-zend_string *php_swoole_serialize(zval *zdata);
-bool php_swoole_unserialize(zend_string *data, zval *zv);
 void php_swoole_thread_bailout(void);
 
 ThreadResource *php_swoole_thread_arraylist_cast(zval *zobject);
@@ -137,6 +135,8 @@ struct ArrayItem {
     void fetch(zval *return_value);
     void release();
     bool equals(zval *zvalue);
+
+    static int compare(Bucket *a, Bucket *b);
 
     ~ArrayItem() {
         if (value.str) {
@@ -259,6 +259,7 @@ class ZendArray : public ThreadResource {
     void values(zval *return_value);
     void to_array(zval *return_value);
     void find(zval *search, zval *return_value);
+    void sort(bool renumber);
 
     void intkey_offsetGet(zend_long index, zval *return_value) {
         lock_.lock_rd();

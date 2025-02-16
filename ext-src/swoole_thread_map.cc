@@ -87,6 +87,7 @@ static PHP_METHOD(swoole_thread_map, add);
 static PHP_METHOD(swoole_thread_map, update);
 static PHP_METHOD(swoole_thread_map, clean);
 static PHP_METHOD(swoole_thread_map, toArray);
+static PHP_METHOD(swoole_thread_map, sort);
 SW_EXTERN_C_END
 
 // clang-format off
@@ -106,6 +107,7 @@ static const zend_function_entry swoole_thread_map_methods[] = {
     PHP_ME(swoole_thread_map, keys,            arginfo_class_Swoole_Thread_Map_keys,          ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread_map, values,          arginfo_class_Swoole_Thread_Map_values,        ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread_map, toArray,         arginfo_class_Swoole_Thread_Map_toArray,       ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_thread_map, sort,            arginfo_class_Swoole_Thread_Map_sort,          ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 // clang-format on
@@ -303,4 +305,8 @@ static PHP_METHOD(swoole_thread_map, clean) {
     mo->map->clean();
 }
 
+static PHP_METHOD(swoole_thread_map, sort) {
+    auto mo = map_fetch_object_check(ZEND_THIS);
+    mo->map->sort(false);
+}
 #endif

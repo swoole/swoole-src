@@ -766,6 +766,7 @@ class Server {
     void *private_data_1 = nullptr;
     void *private_data_2 = nullptr;
     void *private_data_3 = nullptr;
+    void *private_data_4 = nullptr;
 
     Factory *factory = nullptr;
     Manager *manager = nullptr;
@@ -781,7 +782,10 @@ class Server {
         return mode_;
     };
 
-    const ListenPort *get_port(int _port) const {
+    /**
+     * This method can only be used for INET ports and cannot obtain Unix socket ports.
+     */
+    ListenPort *get_port(int _port) const {
         for (auto port : ports) {
             if (port->port == _port || _port == 0) {
                 return port;
@@ -790,15 +794,24 @@ class Server {
         return nullptr;
     }
 
-    ListenPort *get_port_by_server_fd(int server_fd) {
+    ListenPort *get_port(SocketType type, const char *host, int _port) const {
+        for (auto port : ports) {
+            if (port->port == _port && port->type == type && strcmp(host, port->host.c_str()) == 0) {
+                return port;
+            }
+        }
+        return nullptr;
+    }
+
+    ListenPort *get_port_by_server_fd(int server_fd) const {
         return (ListenPort *) connection_list[server_fd].object;
     }
 
-    ListenPort *get_port_by_fd(int fd) {
+    ListenPort *get_port_by_fd(int fd) const {
         return get_port_by_server_fd(connection_list[fd].server_fd);
     }
 
-    ListenPort *get_port_by_session_id(SessionId session_id) {
+    ListenPort *get_port_by_session_id(SessionId session_id) const {
         Connection *conn = get_connection_by_session_id(session_id);
         if (!conn) {
             return nullptr;
@@ -806,7 +819,7 @@ class Server {
         return get_port_by_fd(conn->fd);
     }
 
-    network::Socket *get_server_socket(int fd) {
+    network::Socket *get_server_socket(int fd) const {
         return connection_list[fd].socket;
     }
 
@@ -1285,7 +1298,7 @@ class Server {
         }
     }
 
-    int get_connection_fd(SessionId session_id) {
+    int get_connection_fd(SessionId session_id) const {
         return session_list[session_id % SW_SESSION_LIST_SIZE].fd;
     }
 
@@ -1312,7 +1325,7 @@ class Server {
         return conn;
     }
 
-    Connection *get_connection(int fd) {
+    Connection *get_connection(int fd) const {
         if ((uint32_t) fd > max_connection) {
             return nullptr;
         }
@@ -1332,7 +1345,7 @@ class Server {
         return nullptr;
     }
 
-    Connection *get_connection_by_session_id(SessionId session_id) {
+    Connection *get_connection_by_session_id(SessionId session_id) const {
         return get_connection(get_connection_fd(session_id));
     }
 
