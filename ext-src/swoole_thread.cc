@@ -79,7 +79,7 @@ static void thread_join(zend_object *object) {
     ThreadObject *to = thread_fetch_object(object);
     if (to->thread && to->thread->joinable()) {
         to->thread->join();
-        php_swoole_thread_join(to->thread_id);
+        php_swoole_thread_join(to->thread->native_handle());
         delete to->thread;
         to->thread = nullptr;
     }
@@ -110,6 +110,8 @@ static PHP_METHOD(swoole_thread, detach);
 static PHP_METHOD(swoole_thread, getArguments);
 static PHP_METHOD(swoole_thread, getId);
 static PHP_METHOD(swoole_thread, getInfo);
+static PHP_METHOD(swoole_thread, activeCount);
+static PHP_METHOD(swoole_thread, yield);
 static PHP_METHOD(swoole_thread, setName);
 #ifdef HAVE_CPU_AFFINITY
 static PHP_METHOD(swoole_thread, setAffinity);
@@ -131,6 +133,8 @@ static const zend_function_entry swoole_thread_methods[] = {
     PHP_ME(swoole_thread, getArguments,  arginfo_class_Swoole_Thread_getArguments,  ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_thread, getId,         arginfo_class_Swoole_Thread_getId,         ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_thread, getInfo,       arginfo_class_Swoole_Thread_getInfo,       ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_thread, activeCount,   arginfo_class_Swoole_Thread_activeCount,   ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_thread, yield,         arginfo_class_Swoole_Thread_yield,         ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_thread, setName,       arginfo_class_Swoole_Thread_setName,       ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 #ifdef HAVE_CPU_AFFINITY
     PHP_ME(swoole_thread, setAffinity,   arginfo_class_Swoole_Thread_setAffinity,   ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -578,6 +582,14 @@ static PHP_METHOD(swoole_thread, getInfo) {
     add_assoc_bool(return_value, "is_main_thread", tsrm_is_main_thread());
     add_assoc_bool(return_value, "is_shutdown", tsrm_is_shutdown());
     add_assoc_long(return_value, "thread_num", thread_num.load());
+}
+
+static PHP_METHOD(swoole_thread, activeCount) {
+    RETURN_LONG(thread_num.load());
+}
+
+static PHP_METHOD(swoole_thread, yield) {
+    std::this_thread::yield();
 }
 
 #define CAST_OBJ_TO_RESOURCE(_name, _type)                                                                             \
