@@ -7,6 +7,7 @@ namespace Swoole {
         public function join(): bool {}
         public function joinable(): bool {}
         public function getExitStatus(): int {}
+        public function isAlive(): bool {}
         public function detach(): bool {}
 
         public static function getArguments(): ?array {}
