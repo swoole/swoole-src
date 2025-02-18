@@ -49,6 +49,7 @@ typedef std::thread Thread;
 
 struct ThreadObject {
     Thread *thread;
+    pthread_t thread_id;
     zend_object std;
 };
 
@@ -58,6 +59,7 @@ static thread_local zval thread_argv = {};
 static thread_local JMP_BUF *thread_bailout = nullptr;
 static std::atomic<size_t> thread_num(1);
 static zend::ConcurrencyHashMap<pthread_t, int> thread_exit_status(-1);
+static zend::ConcurrencyHashMap<pthread_t, bool> thread_living(false);
 
 static sw_inline ThreadObject *thread_fetch_object(zend_object *obj) {
     return (ThreadObject *) ((char *) obj - swoole_thread_handlers.offset);
@@ -84,7 +86,9 @@ static void thread_join(zend_object *object) {
 }
 
 static void thread_free_object(zend_object *object) {
+    ThreadObject *to = thread_fetch_object(object);
     thread_join(object);
+    thread_living.del(to->thread_id);
     zend_object_std_dtor(object);
 }
 
@@ -98,6 +102,7 @@ static zend_object *thread_create_object(zend_class_entry *ce) {
 
 SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_thread, __construct);
+static PHP_METHOD(swoole_thread, isAlive);
 static PHP_METHOD(swoole_thread, join);
 static PHP_METHOD(swoole_thread, joinable);
 static PHP_METHOD(swoole_thread, getExitStatus);
@@ -105,6 +110,8 @@ static PHP_METHOD(swoole_thread, detach);
 static PHP_METHOD(swoole_thread, getArguments);
 static PHP_METHOD(swoole_thread, getId);
 static PHP_METHOD(swoole_thread, getInfo);
+static PHP_METHOD(swoole_thread, activeCount);
+static PHP_METHOD(swoole_thread, yield);
 static PHP_METHOD(swoole_thread, setName);
 #ifdef HAVE_CPU_AFFINITY
 static PHP_METHOD(swoole_thread, setAffinity);
@@ -118,6 +125,7 @@ SW_EXTERN_C_END
 // clang-format off
 static const zend_function_entry swoole_thread_methods[] = {
     PHP_ME(swoole_thread, __construct,   arginfo_class_Swoole_Thread___construct,   ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_thread, isAlive,       arginfo_class_Swoole_Thread_isAlive,       ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread, join,          arginfo_class_Swoole_Thread_join,          ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread, joinable,      arginfo_class_Swoole_Thread_joinable,      ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread, getExitStatus, arginfo_class_Swoole_Thread_getExitStatus, ZEND_ACC_PUBLIC)
@@ -125,6 +133,8 @@ static const zend_function_entry swoole_thread_methods[] = {
     PHP_ME(swoole_thread, getArguments,  arginfo_class_Swoole_Thread_getArguments,  ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_thread, getId,         arginfo_class_Swoole_Thread_getId,         ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_thread, getInfo,       arginfo_class_Swoole_Thread_getInfo,       ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_thread, activeCount,   arginfo_class_Swoole_Thread_activeCount,   ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_thread, yield,         arginfo_class_Swoole_Thread_yield,         ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_thread, setName,       arginfo_class_Swoole_Thread_setName,       ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 #ifdef HAVE_CPU_AFFINITY
     PHP_ME(swoole_thread, setAffinity,   arginfo_class_Swoole_Thread_setAffinity,   ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -202,8 +212,14 @@ static PHP_METHOD(swoole_thread, __construct) {
         zend_throw_exception(swoole_exception_ce, e.what(), SW_ERROR_SYSTEM_CALL_FAIL);
         return;
     }
-    zend_update_property_long(
-        swoole_thread_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("id"), (zend_long) to->thread->native_handle());
+
+    to->thread_id = to->thread->native_handle();
+    zend::object_set(ZEND_THIS, ZEND_STRL("id"), (zend_long) to->thread_id);
+}
+
+static PHP_METHOD(swoole_thread, isAlive) {
+    ThreadObject *to = thread_fetch_object(Z_OBJ_P(ZEND_THIS));
+    RETURN_BOOL(thread_living.get(to->thread_id));
 }
 
 static PHP_METHOD(swoole_thread, join) {
@@ -403,6 +419,7 @@ static void thread_register_stdio_file_handles(bool no_close) {
 
 void php_swoole_thread_start(zend_string *file, ZendArray *argv) {
     thread_num.fetch_add(1);
+    thread_living.set(pthread_self(), true);
     ts_resource(0);
 #if defined(COMPILE_DL_SWOOLE) && defined(ZTS)
     ZEND_TSRMLS_CACHE_UPDATE();
@@ -463,6 +480,7 @@ _startup_error:
     zend_string_release(file);
     ts_free_thread();
     swoole_thread_clean();
+    thread_living.set(pthread_self(), false);
     thread_num.fetch_sub(1);
 }
 
@@ -564,6 +582,14 @@ static PHP_METHOD(swoole_thread, getInfo) {
     add_assoc_bool(return_value, "is_main_thread", tsrm_is_main_thread());
     add_assoc_bool(return_value, "is_shutdown", tsrm_is_shutdown());
     add_assoc_long(return_value, "thread_num", thread_num.load());
+}
+
+static PHP_METHOD(swoole_thread, activeCount) {
+    RETURN_LONG(thread_num.load());
+}
+
+static PHP_METHOD(swoole_thread, yield) {
+    std::this_thread::yield();
 }
 
 #define CAST_OBJ_TO_RESOURCE(_name, _type)                                                                             \
