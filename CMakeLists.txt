@@ -21,6 +21,15 @@ else()
     list(APPEND SWOOLE_LINK_LIBRARIES rt crypt)
 endif()
 
+if (UNIX AND NOT APPLE)
+    find_library(URING_LIBRARIES uring)
+    if (URING_LIBRARIES)
+        list(APPEND SWOOLE_LINK_LIBRARIES ${URING_LIBRARIES})
+    else()
+        message(WARNING "liburing not found.")
+    endif()
+endif()
+
 SET(CMAKE_BUILD_TYPE Debug)
 
 # Code Coverage Configuration
