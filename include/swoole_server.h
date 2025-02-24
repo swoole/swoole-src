@@ -28,11 +28,6 @@
 #include "swoole_channel.h"
 #include "swoole_message_bus.h"
 
-#ifdef SW_THREAD
-#include "swoole_lock.h"
-#include "swoole_thread.h"
-#endif
-
 #ifdef SW_USE_OPENSSL
 #include "swoole_dtls.h"
 #endif
@@ -59,6 +54,7 @@ struct Request;
 
 class Server;
 struct Manager;
+class Thread;
 
 typedef std::function<void(void)> WorkerFn;
 
@@ -1488,9 +1484,7 @@ class Server {
     void worker_accept_event(DataHead *info);
     void worker_signal_init(void);
 
-#ifdef SW_THREAD
     std::function<void(std::shared_ptr<Thread>, const WorkerFn &fn)> worker_thread_start;
-#endif
 
     /**
      * [Master]

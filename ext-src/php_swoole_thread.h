@@ -20,9 +20,7 @@
 #include "php_swoole_cxx.h"
 
 #ifdef SW_THREAD
-
 #include "swoole_thread.h"
-#include "swoole_lock.h"
 
 typedef uint32_t ThreadResourceId;
 class ThreadResource;

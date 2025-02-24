@@ -174,10 +174,10 @@ void ThreadFactory::spawn_manager_thread(WorkerId i) {
         manager.id = i;
         manager.type = SW_PROCESS_MANAGER;
 
-        SwooleTG.timer_scheduler = [this](Timer *timer, long exec_msec) -> int {
+        swoole_timer_set_scheduler([this](Timer *timer, long exec_msec) -> int {
             cv_timeout_ms_ = exec_msec;
             return SW_OK;
-        };
+        });
 
         server_->worker_thread_start(threads_[i], [=]() {
             if (server_->onManagerStart) {
@@ -193,7 +193,7 @@ void ThreadFactory::spawn_manager_thread(WorkerId i) {
             swoole_warning("Fatal Error: manager thread exits abnormally");
         }
 
-        SwooleTG.timer_scheduler = nullptr;
+        swoole_timer_set_scheduler(nullptr);
     });
 }
 
