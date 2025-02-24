@@ -718,7 +718,10 @@ Server::Server(enum Mode _mode) {
 
     msg_id_generator = [this]() { return sw_atomic_fetch_add(&gs->pipe_packet_msg_id, 1); };
     message_bus.set_id_generator(msg_id_generator);
-    worker_thread_start = [](const WorkerFn &fn) { fn(); };
+
+#ifdef SW_THREAD
+    worker_thread_start = [](std::shared_ptr<Thread>, const WorkerFn &fn) { fn(); };
+#endif
 
     g_server_instance = this;
 }

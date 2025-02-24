@@ -27,9 +27,6 @@
 #include "swoole_pipe.h"
 #include "swoole_channel.h"
 #include "swoole_message_bus.h"
-#ifdef SW_THREAD
-#include "swoole_lock.h"
-#endif
 
 #ifdef SW_USE_OPENSSL
 #include "swoole_dtls.h"
@@ -57,6 +54,7 @@ struct Request;
 
 class Server;
 struct Manager;
+class Thread;
 
 typedef std::function<void(void)> WorkerFn;
 
@@ -450,7 +448,7 @@ class ProcessFactory : public Factory {
 
 class ThreadFactory : public BaseFactory {
   private:
-    std::vector<std::thread> threads_;
+    std::vector<std::shared_ptr<Thread>> threads_;
     std::mutex lock_;
     std::condition_variable cv_;
     std::queue<Worker *> queue_;
@@ -458,9 +456,6 @@ class ThreadFactory : public BaseFactory {
     bool reload_all_workers;
     bool reloading;
     Worker manager;
-    template <typename _Callable>
-    void create_thread(int i, _Callable fn);
-    void join_thread(std::thread &thread);
     void at_thread_exit(Worker *worker);
     void create_message_bus();
     void destroy_message_bus();
@@ -1489,9 +1484,7 @@ class Server {
     void worker_accept_event(DataHead *info);
     void worker_signal_init(void);
 
-    std::function<void(const WorkerFn &fn)> worker_thread_start;
-    std::function<void(pthread_t ptid)> worker_thread_join;
-    std::function<int(pthread_t ptid)> worker_thread_get_exit_status;
+    std::function<void(std::shared_ptr<Thread>, const WorkerFn &fn)> worker_thread_start;
 
     /**
      * [Master]

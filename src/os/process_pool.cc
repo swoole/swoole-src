@@ -564,10 +564,10 @@ int ProcessPool::run_with_task_protocol(ProcessPool *pool, Worker *worker) {
 
     int read_timeout_ms = -1;
     if (pool->ipc_mode == SW_IPC_UNIXSOCK) {
-        SwooleTG.timer_scheduler = [&read_timeout_ms](Timer *timer, long exec_msec) -> int {
+        swoole_timer_set_scheduler([&read_timeout_ms](Timer *timer, long exec_msec) -> int {
             read_timeout_ms = exec_msec;
             return SW_OK;
-        };
+        });
     }
 
     while (pool->is_worker_running(worker)) {
@@ -631,7 +631,7 @@ int ProcessPool::run_with_task_protocol(ProcessPool *pool, Worker *worker) {
         }
     }
 
-    SwooleTG.timer_scheduler = nullptr;
+    swoole_timer_set_scheduler(nullptr);
 
     return SW_OK;
 }
@@ -697,10 +697,10 @@ int ProcessPool::run_with_stream_protocol(ProcessPool *pool, Worker *worker) {
 
     int read_timeout_ms = -1;
     if (pool->ipc_mode == SW_IPC_UNIXSOCK) {
-        SwooleTG.timer_scheduler = [&read_timeout_ms](Timer *timer, long exec_msec) -> int {
+        swoole_timer_set_scheduler([&read_timeout_ms](Timer *timer, long exec_msec) -> int {
             read_timeout_ms = exec_msec;
             return SW_OK;
-        };
+        });
     }
 
     while (pool->is_worker_running(worker)) {
@@ -784,7 +784,7 @@ int ProcessPool::run_with_stream_protocol(ProcessPool *pool, Worker *worker) {
         }
     }
 
-    SwooleTG.timer_scheduler = nullptr;
+    swoole_timer_set_scheduler(nullptr);
 
     return SW_OK;
 }
@@ -797,10 +797,10 @@ int ProcessPool::run_with_message_protocol(ProcessPool *pool, Worker *worker) {
     }
 
     int read_timeout_ms = -1;
-    SwooleTG.timer_scheduler = [&read_timeout_ms](Timer *timer, long exec_msec) -> int {
+    swoole_timer_set_scheduler([&read_timeout_ms](Timer *timer, long exec_msec) -> int {
         read_timeout_ms = exec_msec;
         return SW_OK;
-    };
+    });
 
     auto fn = [&]() -> int {
         if (worker->pipe_worker->wait_event(read_timeout_ms, SW_EVENT_READ) < 0) {
@@ -842,7 +842,7 @@ int ProcessPool::run_with_message_protocol(ProcessPool *pool, Worker *worker) {
         }
     }
 
-    SwooleTG.timer_scheduler = nullptr;
+    swoole_timer_set_scheduler(nullptr);
 
     return SW_OK;
 }
