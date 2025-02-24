@@ -25,8 +25,6 @@
 #include <unordered_map>
 #include <atomic>
 
-#include "swoole_thread.h"
-
 BEGIN_EXTERN_C()
 #include "stubs/php_swoole_thread_arginfo.h"
 END_EXTERN_C()
@@ -45,11 +43,22 @@ static struct {
 
 TSRMLS_CACHE_EXTERN();
 
-typedef std::thread Thread;
+using swoole::Thread;
+
+struct PhpThread {
+    std::shared_ptr<Thread> thread;
+
+    bool join() {
+        if (!thread->joinable()) {
+            return false;
+        }
+        thread->join();
+        return true;
+    }
+};
 
 struct ThreadObject {
-    Thread *thread;
-    pthread_t thread_id;
+    PhpThread *pt;
     zend_object std;
 };
 
@@ -58,37 +67,27 @@ static void thread_register_stdio_file_handles(bool no_close);
 static thread_local zval thread_argv = {};
 static thread_local JMP_BUF *thread_bailout = nullptr;
 static std::atomic<size_t> thread_num(1);
-static zend::ConcurrencyHashMap<pthread_t, int> thread_exit_status(-1);
-static zend::ConcurrencyHashMap<pthread_t, bool> thread_living(false);
 
 static sw_inline ThreadObject *thread_fetch_object(zend_object *obj) {
     return (ThreadObject *) ((char *) obj - swoole_thread_handlers.offset);
 }
 
-static pthread_t thread_get_id(zend_object *object) {
-    zval *res, rv;
-    res = zend_read_property(swoole_thread_ce, object, ZEND_STRL("id"), 1, &rv);
-    return (pthread_t) zval_get_long(res);
+static sw_inline ThreadObject *thread_fetch_object(zval *zobj) {
+    return thread_fetch_object(Z_OBJ_P(zobj));
 }
 
-static pthread_t thread_get_id(zval *zobj) {
-    return thread_get_id(Z_OBJ_P(zobj));
+static sw_inline PhpThread *thread_get_php_thread(zend_object *obj) {
+    return thread_fetch_object(obj)->pt;
 }
 
-static void thread_join(zend_object *object) {
-    ThreadObject *to = thread_fetch_object(object);
-    if (to->thread && to->thread->joinable()) {
-        to->thread->join();
-        php_swoole_thread_join(to->thread->native_handle());
-        delete to->thread;
-        to->thread = nullptr;
-    }
+static sw_inline PhpThread *thread_get_php_thread(zval *zobj) {
+    return thread_fetch_object(zobj)->pt;
 }
 
 static void thread_free_object(zend_object *object) {
-    ThreadObject *to = thread_fetch_object(object);
-    thread_join(object);
-    thread_living.del(to->thread_id);
+    auto pt = thread_get_php_thread(object);
+    pt->join();
+    delete pt;
     zend_object_std_dtor(object);
 }
 
@@ -96,6 +95,7 @@ static zend_object *thread_create_object(zend_class_entry *ce) {
     ThreadObject *to = (ThreadObject *) zend_object_alloc(sizeof(ThreadObject), ce);
     zend_object_std_init(&to->std, ce);
     object_properties_init(&to->std, ce);
+    to->pt = new PhpThread();
     to->std.handlers = &swoole_thread_handlers;
     return &to->std;
 }
@@ -196,7 +196,7 @@ static PHP_METHOD(swoole_thread, __construct) {
         return;
     }
 
-    ThreadObject *to = thread_fetch_object(Z_OBJ_P(ZEND_THIS));
+    auto pt = thread_get_php_thread(ZEND_THIS);
     zend_string *file = zend_string_init(script_file, l_script_file, 1);
 
     if (argc > 0) {
@@ -206,47 +206,41 @@ static PHP_METHOD(swoole_thread, __construct) {
         }
     }
 
+    auto thread = std::make_shared<Thread>();
+    pt->thread = thread;
+
     try {
-        to->thread = new std::thread([file, argv]() { php_swoole_thread_start(file, argv); });
+        pt->thread->start([file, argv, thread]() { php_swoole_thread_start(thread, file, argv); });
     } catch (const std::exception &e) {
         zend_throw_exception(swoole_exception_ce, e.what(), SW_ERROR_SYSTEM_CALL_FAIL);
         return;
     }
 
-    to->thread_id = to->thread->native_handle();
-    zend::object_set(ZEND_THIS, ZEND_STRL("id"), (zend_long) to->thread_id);
+    pt->thread = thread;
+    zend::object_set(ZEND_THIS, ZEND_STRL("id"), (zend_long) pt->thread->get_id());
 }
 
 static PHP_METHOD(swoole_thread, isAlive) {
-    ThreadObject *to = thread_fetch_object(Z_OBJ_P(ZEND_THIS));
-    RETURN_BOOL(thread_living.get(to->thread_id));
+    auto pt = thread_get_php_thread(ZEND_THIS);
+    RETURN_BOOL(pt->thread->is_alive());
 }
 
 static PHP_METHOD(swoole_thread, join) {
-    ThreadObject *to = thread_fetch_object(Z_OBJ_P(ZEND_THIS));
-    if (!to || !to->thread || !to->thread->joinable()) {
-        RETURN_FALSE;
-    }
-    thread_join(Z_OBJ_P(ZEND_THIS));
-    RETURN_TRUE;
+    auto pt = thread_get_php_thread(ZEND_THIS);
+    RETURN_BOOL(pt->join());
 }
 
 static PHP_METHOD(swoole_thread, joinable) {
-    ThreadObject *to = thread_fetch_object(Z_OBJ_P(ZEND_THIS));
-    if (to == nullptr || !to->thread) {
-        RETURN_FALSE;
-    }
-    RETURN_BOOL(to->thread->joinable());
+    auto pt = thread_get_php_thread(ZEND_THIS);
+    RETURN_BOOL(pt->thread->joinable());
 }
 
 static PHP_METHOD(swoole_thread, detach) {
-    ThreadObject *to = thread_fetch_object(Z_OBJ_P(ZEND_THIS));
-    if (to == nullptr || !to->thread) {
+    auto pt = thread_get_php_thread(ZEND_THIS);
+    if (!pt->thread->joinable()) {
         RETURN_FALSE;
     }
-    to->thread->detach();
-    delete to->thread;
-    to->thread = nullptr;
+    pt->thread->detach();
     RETURN_TRUE;
 }
 
@@ -261,7 +255,8 @@ static PHP_METHOD(swoole_thread, getId) {
 }
 
 static PHP_METHOD(swoole_thread, getExitStatus) {
-    RETURN_LONG(php_swoole_thread_get_exit_status(thread_get_id(ZEND_THIS)));
+    auto pt = thread_get_php_thread(ZEND_THIS);
+    RETURN_LONG(pt->thread->get_exit_code());
 }
 
 static PHP_METHOD(swoole_thread, setName) {
@@ -417,9 +412,8 @@ static void thread_register_stdio_file_handles(bool no_close) {
     zend_register_constant(&ec);
 }
 
-void php_swoole_thread_start(zend_string *file, ZendArray *argv) {
+void php_swoole_thread_start(std::shared_ptr<Thread> thread, zend_string *file, ZendArray *argv) {
     thread_num.fetch_add(1);
-    thread_living.set(pthread_self(), true);
     ts_resource(0);
 #if defined(COMPILE_DL_SWOOLE) && defined(ZTS)
     ZEND_TSRMLS_CACHE_UPDATE();
@@ -475,21 +469,11 @@ void php_swoole_thread_start(zend_string *file, ZendArray *argv) {
     file_handle.filename = NULL;
 
 _startup_error:
-    thread_exit_status.set(pthread_self(), EG(exit_status));
-
     zend_string_release(file);
     ts_free_thread();
     swoole_thread_clean();
-    thread_living.set(pthread_self(), false);
+    thread->exit(EG(exit_status));
     thread_num.fetch_sub(1);
-}
-
-void php_swoole_thread_join(pthread_t ptid) {
-    thread_exit_status.del(ptid);
-}
-
-int php_swoole_thread_get_exit_status(pthread_t ptid) {
-    return thread_exit_status.get(ptid);
 }
 
 size_t sw_active_thread_count(void) {

@@ -2684,20 +2684,14 @@ static PHP_METHOD(swoole_server, start) {
             zval_ptr_dtor(&_thread_argv);
         }
 
-        serv->worker_thread_start = [bootstrap, thread_argv](const WorkerFn &fn) {
+        serv->worker_thread_start = [bootstrap, thread_argv](std::shared_ptr<Thread> thread, const WorkerFn &fn) {
             worker_thread_fn = fn;
             zend_string *bootstrap_copy = zend_string_dup(bootstrap, 1);
             if (thread_argv) {
                 thread_argv->add_ref();
             }
-            php_swoole_thread_start(bootstrap_copy, thread_argv);
+            php_swoole_thread_start(thread, bootstrap_copy, thread_argv);
         };
-
-        serv->worker_thread_get_exit_status = [](pthread_t ptid) -> int {
-            return php_swoole_thread_get_exit_status(ptid);
-        };
-
-        serv->worker_thread_join = [](pthread_t ptid) { php_swoole_thread_join(ptid); };
 
         /**
          *The hook must be enabled before creating child threads.

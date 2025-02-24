@@ -21,6 +21,7 @@
 
 #ifdef SW_THREAD
 
+#include "swoole_thread.h"
 #include "swoole_lock.h"
 
 typedef uint32_t ThreadResourceId;
@@ -37,9 +38,7 @@ extern zend_class_entry *swoole_thread_lock_ce;
 extern zend_class_entry *swoole_thread_map_ce;
 extern zend_class_entry *swoole_thread_queue_ce;
 
-void php_swoole_thread_start(zend_string *file, ZendArray *argv);
-void php_swoole_thread_join(pthread_t ptid);
-int php_swoole_thread_get_exit_status(pthread_t ptid);
+void php_swoole_thread_start(std::shared_ptr<swoole::Thread> thread, zend_string *file, ZendArray *argv);
 void php_swoole_thread_bailout(void);
 
 ThreadResource *php_swoole_thread_arraylist_cast(zval *zobject);

@@ -62,3 +62,52 @@ static bool swoole_thread_set_name(const char *name) {
     return pthread_setname_np(pthread_self(), name) == 0;
 #endif
 }
+
+namespace swoole {
+    class Thread {
+     private:
+        int exit_code;
+        bool living;
+        std::thread thread;
+     public:
+        Thread() {
+            exit_code = 0;
+            living = false;
+        }
+
+        bool is_alive() {
+            return living;
+        }
+
+        bool joinable() {
+            return thread.joinable();
+        }
+
+        void join() {
+            thread.join();
+        }
+
+        void detach() {
+            thread.detach();
+        }
+
+        int get_exit_code() {
+            return exit_code;
+        }
+
+        pthread_t get_id() {
+            return thread.native_handle();
+        }
+
+        template <typename _Callable>
+        void start(_Callable fn) {
+            thread = std::thread(fn);
+            living = true;
+        }
+
+        void exit(int code) {
+            exit_code = code;
+            living = false;
+        }
+    };
+}

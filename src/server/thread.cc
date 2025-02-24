@@ -67,8 +67,8 @@ bool ThreadFactory::start() {
 
 bool ThreadFactory::shutdown() {
     for (auto &thread : threads_) {
-        if (thread.joinable()) {
-            join_thread(thread);
+        if (thread->joinable()) {
+            thread->join();
         }
     }
     if (server_->heartbeat_check_interval > 0) {
@@ -103,20 +103,9 @@ void ThreadFactory::destroy_message_bus() {
     SwooleTG.message_bus = nullptr;
 }
 
-template <typename _Callable>
-void ThreadFactory::create_thread(int i, _Callable fn) {
-    threads_[i] = std::thread(fn);
-}
-
-void ThreadFactory::join_thread(std::thread &thread) {
-    thread.join();
-    if (server_->worker_thread_join) {
-        server_->worker_thread_join(thread.native_handle());
-    }
-}
-
 void ThreadFactory::spawn_event_worker(WorkerId i) {
-    create_thread(i, [=]() {
+    auto thread = threads_[i];
+    thread->start([=]() {
         swoole_set_process_type(SW_PROCESS_EVENTWORKER);
         swoole_set_thread_type(Server::THREAD_WORKER);
         swoole_set_process_id(i);
@@ -125,13 +114,14 @@ void ThreadFactory::spawn_event_worker(WorkerId i) {
         worker->type = SW_PROCESS_EVENTWORKER;
         worker->pid = swoole_thread_get_native_id();
         SwooleWG.worker = worker;
-        server_->worker_thread_start([=]() { Server::reactor_thread_main_loop(server_, i); });
+        server_->worker_thread_start(thread, [=]() { Server::reactor_thread_main_loop(server_, i); });
         at_thread_exit(worker);
     });
 }
 
 void ThreadFactory::spawn_task_worker(WorkerId i) {
-    create_thread(i, [=]() {
+    auto thread = threads_[i];
+    thread->start([=]() {
         swoole_set_process_type(SW_PROCESS_TASKWORKER);
         swoole_set_thread_type(Server::THREAD_WORKER);
         swoole_set_process_id(i);
@@ -143,7 +133,7 @@ void ThreadFactory::spawn_task_worker(WorkerId i) {
         worker->set_status_to_idle();
         SwooleWG.worker = worker;
         auto pool = &server_->gs->task_workers;
-        server_->worker_thread_start([=]() {
+        server_->worker_thread_start(thread, [=]() {
             if (pool->onWorkerStart != nullptr) {
                 pool->onWorkerStart(pool, worker);
             }
@@ -158,7 +148,8 @@ void ThreadFactory::spawn_task_worker(WorkerId i) {
 }
 
 void ThreadFactory::spawn_user_worker(WorkerId i) {
-    create_thread(i, [=]() {
+    auto thread = threads_[i];
+    thread->start([=]() {
         Worker *worker = server_->get_worker(i);
         swoole_set_process_type(SW_PROCESS_USERWORKER);
         swoole_set_thread_type(Server::THREAD_WORKER);
@@ -168,14 +159,15 @@ void ThreadFactory::spawn_user_worker(WorkerId i) {
         worker->type = SW_PROCESS_USERWORKER;
         worker->pid = swoole_thread_get_native_id();
         SwooleWG.worker = worker;
-        server_->worker_thread_start([=]() { server_->onUserWorkerStart(server_, worker); });
+        server_->worker_thread_start(thread, [=]() { server_->onUserWorkerStart(server_, worker); });
         destroy_message_bus();
         at_thread_exit(worker);
     });
 }
 
 void ThreadFactory::spawn_manager_thread(WorkerId i) {
-    create_thread(i, [=]() {
+    auto thread = threads_[i];
+    thread->start([=]() {
         swoole_set_process_type(SW_PROCESS_MANAGER);
         swoole_set_thread_type(Server::THREAD_WORKER);
         swoole_set_process_id(i);
@@ -188,7 +180,7 @@ void ThreadFactory::spawn_manager_thread(WorkerId i) {
             return SW_OK;
         };
 
-        server_->worker_thread_start([=]() {
+        server_->worker_thread_start(thread, [=]() {
             if (server_->onManagerStart) {
                 server_->onManagerStart(server_);
             }
@@ -213,11 +205,8 @@ void ThreadFactory::wait() {
             Worker *exited_worker = queue_.front();
             queue_.pop();
 
-            std::thread &thread = threads_[exited_worker->id];
-            int status_code = 0;
-            if (server_->worker_thread_get_exit_status) {
-                status_code = server_->worker_thread_get_exit_status(thread.native_handle());
-            }
+            auto thread = threads_[exited_worker->id];
+            int status_code = thread->get_exit_code();
             if (status_code != 0) {
                 ExitStatus exit_status(exited_worker->pid, status_code << 8);
                 server_->call_worker_error_callback(exited_worker, exit_status);
@@ -227,7 +216,7 @@ void ThreadFactory::wait() {
                                exit_status.get_code());
             }
 
-            join_thread(threads_[exited_worker->id]);
+            threads_[exited_worker->id]->join();
 
             switch (exited_worker->type) {
             case SW_PROCESS_EVENTWORKER:
@@ -286,7 +275,7 @@ bool ThreadFactory::reload(bool _reload_all_workers) {
             SW_LOOP {
                 usleep(SW_RELOAD_SLEEP_FOR);
                 // This worker thread has exited, proceeding to terminate the next one.
-                if (threads_[i].joinable()) {
+                if (threads_[i]->joinable()) {
                     break;
                 }
             }
