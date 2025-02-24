@@ -64,50 +64,51 @@ static bool swoole_thread_set_name(const char *name) {
 }
 
 namespace swoole {
-    class Thread {
-     private:
-        int exit_code;
-        bool living;
-        std::thread thread;
-     public:
-        Thread() {
-            exit_code = 0;
-            living = false;
-        }
+class Thread {
+  private:
+    int exit_code;
+    bool living;
+    std::thread thread;
 
-        bool is_alive() {
-            return living;
-        }
+  public:
+    Thread() {
+        exit_code = 0;
+        living = false;
+    }
 
-        bool joinable() {
-            return thread.joinable();
-        }
+    bool is_alive() {
+        return living;
+    }
 
-        void join() {
-            thread.join();
-        }
+    bool joinable() {
+        return thread.joinable();
+    }
 
-        void detach() {
-            thread.detach();
-        }
+    void join() {
+        thread.join();
+    }
 
-        int get_exit_code() {
-            return exit_code;
-        }
+    void detach() {
+        thread.detach();
+    }
 
-        pthread_t get_id() {
-            return thread.native_handle();
-        }
+    int get_exit_code() {
+        return exit_code;
+    }
 
-        template <typename _Callable>
-        void start(_Callable fn) {
-            thread = std::thread(fn);
-            living = true;
-        }
+    pthread_t get_id() {
+        return thread.native_handle();
+    }
 
-        void exit(int code) {
-            exit_code = code;
-            living = false;
-        }
-    };
-}
+    template <typename _Callable>
+    void start(_Callable fn) {
+        thread = std::thread(fn);
+        living = true;
+    }
+
+    void exit(int code) {
+        exit_code = code;
+        living = false;
+    }
+};
+}  // namespace swoole

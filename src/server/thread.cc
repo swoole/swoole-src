@@ -46,6 +46,9 @@ void Server::destroy_thread_factory() {
 
 ThreadFactory::ThreadFactory(Server *server) : BaseFactory(server) {
     threads_.resize(server_->get_all_worker_num() + 1);
+    SW_LOOP_N(server_->get_all_worker_num() + 1) {
+        threads_[i] = std::make_shared<Thread>();
+    }
     reloading = false;
     reload_all_workers = false;
     cv_timeout_ms_ = -1;
@@ -104,8 +107,7 @@ void ThreadFactory::destroy_message_bus() {
 }
 
 void ThreadFactory::spawn_event_worker(WorkerId i) {
-    auto thread = threads_[i];
-    thread->start([=]() {
+    threads_[i]->start([=]() {
         swoole_set_process_type(SW_PROCESS_EVENTWORKER);
         swoole_set_thread_type(Server::THREAD_WORKER);
         swoole_set_process_id(i);
@@ -114,14 +116,13 @@ void ThreadFactory::spawn_event_worker(WorkerId i) {
         worker->type = SW_PROCESS_EVENTWORKER;
         worker->pid = swoole_thread_get_native_id();
         SwooleWG.worker = worker;
-        server_->worker_thread_start(thread, [=]() { Server::reactor_thread_main_loop(server_, i); });
+        server_->worker_thread_start(threads_[i], [=]() { Server::reactor_thread_main_loop(server_, i); });
         at_thread_exit(worker);
     });
 }
 
 void ThreadFactory::spawn_task_worker(WorkerId i) {
-    auto thread = threads_[i];
-    thread->start([=]() {
+    threads_[i]->start([=]() {
         swoole_set_process_type(SW_PROCESS_TASKWORKER);
         swoole_set_thread_type(Server::THREAD_WORKER);
         swoole_set_process_id(i);
@@ -133,7 +134,7 @@ void ThreadFactory::spawn_task_worker(WorkerId i) {
         worker->set_status_to_idle();
         SwooleWG.worker = worker;
         auto pool = &server_->gs->task_workers;
-        server_->worker_thread_start(thread, [=]() {
+        server_->worker_thread_start(threads_[i], [=]() {
             if (pool->onWorkerStart != nullptr) {
                 pool->onWorkerStart(pool, worker);
             }
@@ -148,8 +149,7 @@ void ThreadFactory::spawn_task_worker(WorkerId i) {
 }
 
 void ThreadFactory::spawn_user_worker(WorkerId i) {
-    auto thread = threads_[i];
-    thread->start([=]() {
+    threads_[i]->start([=]() {
         Worker *worker = server_->get_worker(i);
         swoole_set_process_type(SW_PROCESS_USERWORKER);
         swoole_set_thread_type(Server::THREAD_WORKER);
@@ -159,15 +159,14 @@ void ThreadFactory::spawn_user_worker(WorkerId i) {
         worker->type = SW_PROCESS_USERWORKER;
         worker->pid = swoole_thread_get_native_id();
         SwooleWG.worker = worker;
-        server_->worker_thread_start(thread, [=]() { server_->onUserWorkerStart(server_, worker); });
+        server_->worker_thread_start(threads_[i], [=]() { server_->onUserWorkerStart(server_, worker); });
         destroy_message_bus();
         at_thread_exit(worker);
     });
 }
 
 void ThreadFactory::spawn_manager_thread(WorkerId i) {
-    auto thread = threads_[i];
-    thread->start([=]() {
+    threads_[i]->start([=]() {
         swoole_set_process_type(SW_PROCESS_MANAGER);
         swoole_set_thread_type(Server::THREAD_WORKER);
         swoole_set_process_id(i);
@@ -180,7 +179,7 @@ void ThreadFactory::spawn_manager_thread(WorkerId i) {
             return SW_OK;
         };
 
-        server_->worker_thread_start(thread, [=]() {
+        server_->worker_thread_start(threads_[i], [=]() {
             if (server_->onManagerStart) {
                 server_->onManagerStart(server_);
             }

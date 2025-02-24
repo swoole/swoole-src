@@ -48,6 +48,8 @@ using swoole::Thread;
 struct PhpThread {
     std::shared_ptr<Thread> thread;
 
+    PhpThread() : thread(std::make_shared<Thread>()) {}
+
     bool join() {
         if (!thread->joinable()) {
             return false;
@@ -206,17 +208,13 @@ static PHP_METHOD(swoole_thread, __construct) {
         }
     }
 
-    auto thread = std::make_shared<Thread>();
-    pt->thread = thread;
-
     try {
-        pt->thread->start([file, argv, thread]() { php_swoole_thread_start(thread, file, argv); });
+        pt->thread->start([file, argv, pt]() { php_swoole_thread_start(pt->thread, file, argv); });
     } catch (const std::exception &e) {
         zend_throw_exception(swoole_exception_ce, e.what(), SW_ERROR_SYSTEM_CALL_FAIL);
         return;
     }
 
-    pt->thread = thread;
     zend::object_set(ZEND_THIS, ZEND_STRL("id"), (zend_long) pt->thread->get_id());
 }
 
@@ -470,9 +468,9 @@ void php_swoole_thread_start(std::shared_ptr<Thread> thread, zend_string *file, 
 
 _startup_error:
     zend_string_release(file);
+    thread->exit(EG(exit_status));
     ts_free_thread();
     swoole_thread_clean();
-    thread->exit(EG(exit_status));
     thread_num.fetch_sub(1);
 }
 
