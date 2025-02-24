@@ -66,16 +66,11 @@ static bool swoole_thread_set_name(const char *name) {
 namespace swoole {
 class Thread {
   private:
-    int exit_code;
+    int exit_status;
     bool living;
     std::thread thread;
 
   public:
-    Thread() {
-        exit_code = 0;
-        living = false;
-    }
-
     bool is_alive() {
         return living;
     }
@@ -92,8 +87,8 @@ class Thread {
         thread.detach();
     }
 
-    int get_exit_code() {
-        return exit_code;
+    int get_exit_status() {
+        return exit_status;
     }
 
     pthread_t get_id() {
@@ -103,11 +98,15 @@ class Thread {
     template <typename _Callable>
     void start(_Callable fn) {
         thread = std::thread(fn);
+    }
+
+    void enter() {
+        exit_status = 0;
         living = true;
     }
 
-    void exit(int code) {
-        exit_code = code;
+    void exit(int status) {
+        exit_status = status;
         living = false;
     }
 };

@@ -254,7 +254,7 @@ static PHP_METHOD(swoole_thread, getId) {
 
 static PHP_METHOD(swoole_thread, getExitStatus) {
     auto pt = thread_get_php_thread(ZEND_THIS);
-    RETURN_LONG(pt->thread->get_exit_code());
+    RETURN_LONG(pt->thread->get_exit_status());
 }
 
 static PHP_METHOD(swoole_thread, setName) {
@@ -412,6 +412,7 @@ static void thread_register_stdio_file_handles(bool no_close) {
 
 void php_swoole_thread_start(std::shared_ptr<Thread> thread, zend_string *file, ZendArray *argv) {
     thread_num.fetch_add(1);
+    thread->enter();
     ts_resource(0);
 #if defined(COMPILE_DL_SWOOLE) && defined(ZTS)
     ZEND_TSRMLS_CACHE_UPDATE();

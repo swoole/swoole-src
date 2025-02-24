@@ -205,7 +205,7 @@ void ThreadFactory::wait() {
             queue_.pop();
 
             auto thread = threads_[exited_worker->id];
-            int status_code = thread->get_exit_code();
+            int status_code = thread->get_exit_status();
             if (status_code != 0) {
                 ExitStatus exit_status(exited_worker->pid, status_code << 8);
                 server_->call_worker_error_callback(exited_worker, exit_status);
