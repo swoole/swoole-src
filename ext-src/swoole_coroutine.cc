@@ -864,6 +864,11 @@ void PHPCoroutine::fiber_context_try_destroy(PHPContext *ctx) {
 }
 
 zend_fiber_status PHPCoroutine::get_fiber_status(PHPContext *ctx) {
+    // main_context
+    if (ctx->fiber_context == EG(main_fiber_context)) {
+        return ZEND_FIBER_STATUS_RUNNING;
+    }
+
     switch (ctx->co->get_state()) {
     case Coroutine::STATE_INIT:
         return ZEND_FIBER_STATUS_INIT;
