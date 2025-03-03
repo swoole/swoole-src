@@ -172,6 +172,7 @@ AC_DEFUN([AC_SWOOLE_CPU_AFFINITY],
         #include <sys/cpuset.h>
         typedef cpuset_t cpu_set_t;
         #else
+        #define _GNU_SOURCE 1
         #include <sched.h>
         #endif
     ]], [[
