@@ -49,10 +49,10 @@
         <email>doubaokun@php.net</email>
         <active>yes</active>
     </developer>
-    <date>2025-02-14</date>
-    <time>14:00:00</time>
+    <date>2025-03-22</date>
+    <time>13:00:00</time>
     <version>
-        <release>6.0.1</release>
+        <release>6.0.2</release>
         <api>6.0</api>
     </version>
     <stability>
@@ -61,18 +61,11 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        - Fixed an issue in `SWOOLE_THREAD` mode where the process could not exit properly due to not removing the listening event. @NathanFreeman
-        - Fixed an issue where large file uploads failed when the `single_thread` configuration was enabled. @matyhtf
-        - Fixed an issue where compilation could not find the specific file path if the same variable was already defined in `config.m4`. @matyhtf
-        - Fixed an issue in `Swoole\Process\Pool` where processes could not exit properly upon timeout. @matyhtf
-        - Fixed an issue in `SWOOLE_THREAD` mode where calling `putenv` caused the program to crash. @matyhtf
-        - Fixed an issue in `SWOOLE_THREAD` mode where event callback functions could not be set for independent ports. @matyhtf
-        - Fixed an issue in `SWOOLE_THREAD` mode where runtime parameters could not be retrieved in events such as `onWorkerStart`. @matyhtf
-        - Fixed an issue where Postgresql would degrade to synchronous mode when receiving large amounts of data under coroutine. @NathanFreeman
-        - Optimized the parameter judgment logic of `swoole_substr_json_decode`/`swoole_substr_unserialize` functions. @Appla
-        - Fixed an issue with CPU affinity settings in `config.m4`. @remicollet
-        - In the Http service, if the process restarts, the underlying layer will send a 500 Internal Server to requests waiting in the queue, close the connection, and discard these requests after sending. @NathanFreeman
-        - Since the runtime configuration relied upon by the `stream factory` and `stream ops` in the PHP underlying is not thread-safe, in multi-thread mode, only the main thread is allowed to modify these runtime configurations before creating child threads.  @matyhtf
+        - Added `Swoole\Thread::yield()`, `Swoole\Thread::activeCount()`, and `Swoole\Thread::isAlive()` methods. @matyhtf
+        - Fixed an issue where using single-thread mode and setting heartbeat in `SWOOLE_THREAD` mode would cause exceptions. @matyhtf
+        - Fixed a segmentation fault issue after enabling `swoole.enable_fiber_mock`. @NathanFreeman
+        - Fixed an integer overflow issue in the Redis server. @yannaingtun
+        - The Redis server currently only supports the `RESP2` protocol. When formatting strings that do not comply with this protocol, an exception will be thrown instead of logging. @matyhtf
     </notes>
     <contents>
         <dir name="/">
@@ -853,6 +846,7 @@
             <file role="test" name="tests/include/api/swoole_server/tcp_task_server.php" />
             <file role="test" name="tests/include/api/swoole_server/testsendfile.txt" />
             <file role="test" name="tests/include/api/swoole_thread/putenv.php" />
+            <file role="test" name="tests/include/api/swoole_thread/sleep.php" />
             <file role="test" name="tests/include/api/swoole_timer/accurate_test.php" />
             <file role="test" name="tests/include/api/swoole_timer/fixRate_vs_fixDelay.php" />
             <file role="test" name="tests/include/api/swoole_timer/invalid_args.php" />
@@ -1098,6 +1092,7 @@
             <file role="test" name="tests/swoole_coroutine/before_create_server_2.phpt" />
             <file role="test" name="tests/swoole_coroutine/before_create_server_3.phpt" />
             <file role="test" name="tests/swoole_coroutine/bug_2387.phpt" />
+            <file role="test" name="tests/swoole_coroutine/bug_5699.phpt" />
             <file role="test" name="tests/swoole_coroutine/c_stack_size.phpt" />
             <file role="test" name="tests/swoole_coroutine/call_not_exists_func.phpt" />
             <file role="test" name="tests/swoole_coroutine/call_user_func_array.phpt" />
@@ -1895,6 +1890,7 @@
             <file role="test" name="tests/swoole_process_pool/start_twice.phpt" />
             <file role="test" name="tests/swoole_process_pool/worker_exit_1.phpt" />
             <file role="test" name="tests/swoole_redis_server/big_packet.phpt" />
+            <file role="test" name="tests/swoole_redis_server/empty.phpt" />
             <file role="test" name="tests/swoole_redis_server/format.phpt" />
             <file role="test" name="tests/swoole_redis_server/getHandler.phpt" />
             <file role="test" name="tests/swoole_redis_server/nested_map.phpt" />
@@ -2184,7 +2180,9 @@
             <file role="test" name="tests/swoole_server/shutdown_with_base_mode.phpt" />
             <file role="test" name="tests/swoole_server/sigint_with_base.phpt" />
             <file role="test" name="tests/swoole_server/sigint_with_process.phpt" />
+            <file role="test" name="tests/swoole_server/single_thread/heartbeat.phpt" />
             <file role="test" name="tests/swoole_server/single_thread/large_packet.phpt" />
+            <file role="test" name="tests/swoole_server/single_thread/user_setting.phpt" />
             <file role="test" name="tests/swoole_server/sleep.phpt" />
             <file role="test" name="tests/swoole_server/slow_client.phpt" />
             <file role="test" name="tests/swoole_server/slow_master.phpt" />
@@ -2397,6 +2395,8 @@
             <file role="test" name="tests/swoole_thread/stdio.phpt" />
             <file role="test" name="tests/swoole_thread/stream.phpt" />
             <file role="test" name="tests/swoole_thread/stream_arg.phpt" />
+            <file role="test" name="tests/swoole_thread/thread_status.phpt" />
+            <file role="test" name="tests/swoole_thread/yield.phpt" />
             <file role="test" name="tests/swoole_timer/after.phpt" />
             <file role="test" name="tests/swoole_timer/after_fork.phpt" />
             <file role="test" name="tests/swoole_timer/bug_2342.phpt" />
