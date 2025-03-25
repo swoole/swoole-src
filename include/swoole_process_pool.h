@@ -335,6 +335,41 @@ struct ProcessPool {
         return swoole_get_process_type() == SW_PROCESS_WORKER;
     }
 
+    /**
+     * SW_PROTOCOL_TASK
+     * ==================================================================
+     * The `EventData` structure must be sent as a single message and cannot be split into multiple transmissions.
+     * If the length of the message content exceeds the size limit of the data field in EventData,
+     * it should be written to a temporary file.
+     * In this case, set the SW_TASK_TMPFILE flag in info.ext_flags.
+     * Only the path to the temporary file will be transmitted,
+     * and the receiving end should retrieve the actual message content from this temporary file.
+     * Reference: Server::task_pack()
+     *
+     * SW_PROTOCOL_MESSAGE
+     * ==================================================================
+     * When sending the `EventData` structure, the message can be split into multiple transmissions.
+     * When sending data in multiple parts, you must set a unique info.msg_id.
+     * For the first slice, set the info.flags with the SW_EVENT_DATA_CHUNK | SW_EVENT_DATA_BEGIN flag,
+     * and for the last slice, set the info.flags with the SW_EVENT_DATA_CHUNK | SW_EVENT_DATA_END flag.
+     * The receiving end will place the data into a memory cache table, merge the data,
+     * and only execute the onMessage callback once the complete message has been received.
+     *
+     * Reference: MessageBus::write() and MessageBus::read()
+     *
+     * SW_PROTOCOL_STREAM
+     * ==================================================================
+     *  +-------------------------------+-------------------------------+
+     *  | Payload Length     ( 4 byte, network byte order)              |
+     *  | Payload Data ...   ( Payload Length byte )                    |
+     *  +-------------------------------- - - - - - - - - - - - - - - - +
+     *
+     *  The packet consists of a 4 byte length header followed by the data payload.
+     *  The receiving end should first use `socket.recv(&payload_len, 4)` to obtain the length of the data payload.
+     *  Then, execute `socket.recv(payload, payload_len)` to receive the complete data.
+     *  Please note that sufficient memory space must be allocated for the payload,
+     *  for example, `payload = malloc(payload_len)`.
+     */
     void set_protocol(enum ProtocolType _protocol_type);
 
     void set_max_request(uint32_t _max_request, uint32_t _max_request_grace);

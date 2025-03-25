@@ -174,6 +174,8 @@ TEST(process_pool, shutdown) {
     pool.destroy();
 
     ASSERT_EQ(*shm_value, magic_number);
+
+    sysv_signal(SIGTERM, SIG_DFL);
 }
 
 TEST(process_pool, async) {
@@ -227,4 +229,66 @@ TEST(process_pool, async) {
     pool.destroy();
 
     ASSERT_EQ(*shm_value, magic_number + 2);
+
+    sysv_signal(SIGTERM, SIG_DFL);
+}
+
+TEST(process_pool, listen) {
+    ProcessPool pool{};
+    ASSERT_EQ(pool.create(1, 0, SW_IPC_SOCKET), SW_OK);
+    ASSERT_EQ(pool.listen("127.0.0.1", 9509, 128), SW_OK);
+
+    pool.set_protocol(SW_PROTOCOL_STREAM);
+
+    size_t size = 2048;
+    String rmem(size);
+    rmem.append_random_bytes(size - 1);
+    rmem.append('\0');
+
+    String wmem(size);
+    wmem.append_random_bytes(size - 1);
+    wmem.append('\0');
+
+    pool.ptr = &wmem;
+
+    pool.onMessage = [](ProcessPool *pool, RecvData *msg) {
+        String *wmem = (String *) pool->ptr;
+        pool->response(wmem->str, wmem->length);
+    };
+
+    current_pool = &pool;
+    sysv_signal(SIGTERM, [](int sig) { current_pool->running = false; });
+
+    ASSERT_EQ(pool.start(), SW_OK);
+
+    std::thread t1([&]() {
+        swoole_signal_block_all();
+
+        network::SyncClient c(SW_SOCK_TCP);
+        c.connect("127.0.0.1", 9509);
+
+        uint32_t pkt_len = htonl(rmem.length);
+
+        c.send((char *) &pkt_len, sizeof(pkt_len));
+        c.send(rmem.str, rmem.length);
+        char buf[4096];
+
+        EXPECT_EQ(c.recv((char *) &pkt_len, sizeof(pkt_len)), 4);
+        c.recv(buf, ntohl(pkt_len));
+
+        EXPECT_MEMEQ(buf, wmem.str, wmem.length);
+
+        c.close();
+
+        kill(getpid(), SIGTERM);
+    });
+
+    ASSERT_EQ(pool.wait(), SW_OK);
+
+    pool.shutdown();
+    pool.destroy();
+
+    sysv_signal(SIGTERM, SIG_DFL);
+
+    t1.join();
 }

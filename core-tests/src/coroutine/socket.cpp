@@ -194,6 +194,7 @@ TEST(coroutine_socket, accept) {
 
                         Socket *conn = sock.accept();
                         ASSERT_NE(conn, nullptr);
+                        delete conn;
                     },
 
                     [](void *arg) {
@@ -985,7 +986,22 @@ TEST(coroutine_socket, sendto_recvfrom_udp) {
     test_sendto_recvfrom(SW_SOCK_UDP6);
 }
 
-void proxy_test(Socket &sock, bool https) {
+static void socket_test_request_baidu(Socket &sock) {
+    ASSERT_GT(sock.send(SW_STRL(TEST_REQUEST_BAIDU)), 0);
+
+    String buf(65536);
+    while (true) {
+        char rbuf[4096];
+        ssize_t nr = sock.recv(rbuf, sizeof(rbuf));
+        if (nr <= 0) {
+            break;
+        }
+        buf.append(rbuf, nr);
+    }
+    ASSERT_TRUE(buf.contains("www.baidu.com"));
+}
+
+static void proxy_test(Socket &sock, bool https) {
     if (https) {
         sock.enable_ssl_encrypt();
     }
@@ -1000,18 +1016,7 @@ void proxy_test(Socket &sock, bool https) {
         ASSERT_NE(sock.ssl_get_peer_cert(), "");
     }
 
-    ASSERT_GT(sock.send(SW_STRL(TEST_REQUEST_BAIDU)), 0);
-
-    String buf(65536);
-    while (true) {
-        char rbuf[4096];
-        ssize_t nr = sock.recv(rbuf, sizeof(rbuf));
-        if (nr <= 0) {
-            break;
-        }
-        buf.append(rbuf, nr);
-    }
-    ASSERT_TRUE(buf.contains("www.baidu.com"));
+    socket_test_request_baidu(sock);
 }
 
 TEST(coroutine_socket, http_get_with_socks5_proxy) {
@@ -1058,8 +1063,53 @@ TEST(coroutine_socket, ssl) {
         sock.get_ssl_context()->allow_self_signed = true;
         sock.get_ssl_context()->cafile = swoole::test::get_root_path() + "/tests/include/ssl_certs/ca.crt";
 
-        proxy_test(sock, 443);
+        proxy_test(sock, true);
     });
+}
+
+TEST(coroutine_socket, ssl_accept) {
+    auto svr = [](void *arg) {
+        Socket sock(SW_SOCK_TCP);
+        bool retval = sock.bind("127.0.0.1", 9909);
+        ASSERT_EQ(retval, true);
+
+        sock.enable_ssl_encrypt();
+        sock.get_ssl_context()->cert_file = swoole::test::get_root_path() + "/tests/include/ssl_certs/server.crt";
+        sock.get_ssl_context()->key_file = swoole::test::get_root_path() + "/tests/include/ssl_certs/server.key";
+        sock.get_ssl_context()->dhparam = swoole::test::get_root_path() + "/tests/include/ssl_certs/dhparams.pem";
+        sock.get_ssl_context()->ecdh_curve = "secp256r1";
+        ASSERT_EQ(sock.listen(128), true);
+
+        Socket *conn = sock.accept();
+        ASSERT_NE(conn, nullptr);
+        ASSERT_TRUE(conn->ssl_handshake());
+        conn->send(EOF_PACKET);
+        char rbuf[1024];
+        auto n = conn->recv(rbuf, sizeof(rbuf));
+        rbuf[n] = 0;
+
+        ASSERT_STREQ(rbuf, EOF_PACKET_2);
+        conn->close();
+        delete conn;
+    };
+
+    auto cli = [](void *arg) {
+        Socket sock(SW_SOCK_TCP);
+        sock.enable_ssl_encrypt();
+        bool retval = sock.connect("127.0.0.1", 9909, -1);
+        ASSERT_EQ(retval, true);
+        ASSERT_EQ(sock.errCode, 0);
+
+        char rbuf[1024];
+        auto n = sock.recv(rbuf, sizeof(rbuf));
+        rbuf[n] = 0;
+        ASSERT_STREQ(rbuf, EOF_PACKET);
+        sock.send(EOF_PACKET_2);
+
+        sock.close();
+    };
+
+    coroutine::run({svr, cli});
 }
 #endif
 

@@ -180,7 +180,13 @@ typedef std::function<bool(char *key, size_t key_len, char *value, size_t value_
 int get_method(const char *method_str, size_t method_len);
 const char *get_method_string(int method);
 const char *get_status_message(int code);
+/**
+ * This function will directly modify the data in the input buffer.
+ */
 size_t url_decode(char *str, size_t len);
+/**
+ * Returns a new memory address, and the pointer at this address needs to be manually released in the calling layer.
+ */
 char *url_encode(char const *str, size_t len);
 int dispatch_request(Server *serv, const Protocol *proto, network::Socket *socket, const RecvData *rdata);
 bool parse_multipart_boundary(

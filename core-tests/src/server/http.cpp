@@ -1240,3 +1240,61 @@ TEST(http_server, abort_connection) {
     serv.onReceive = [&](Server *server, RecvData *req) -> int { return SW_OK; };
     serv.start();
 }
+
+TEST(http_server, EncodeDecodeBasic) {
+    const char *input = "Hello World!";
+    size_t len = strlen(input);
+
+    char *encoded = swoole::http_server::url_encode(input, len);
+    EXPECT_STREQ(encoded, "Hello%20World%21");
+
+    size_t decoded_len = swoole::http_server::url_decode(encoded, strlen(encoded));
+
+    EXPECT_EQ(decoded_len, strlen(input));
+    EXPECT_STREQ(encoded, input);
+
+    sw_free(encoded);
+}
+
+TEST(http_server, EncodeDecodeWithSpecialChars) {
+    const char *input = "C++ Programming & C#";
+    size_t len = strlen(input);
+
+    char *encoded = swoole::http_server::url_encode(input, len);
+    EXPECT_STREQ(encoded, "C%2B%2B%20Programming%20%26%20C%23");
+
+    size_t decoded_len = swoole::http_server::url_decode(encoded, strlen(encoded));
+
+    EXPECT_EQ(decoded_len, strlen(input));
+    EXPECT_STREQ(encoded, "C++ Programming & C#");
+
+    sw_free(encoded);
+}
+
+TEST(http_server, EncodeDecodeEmptyString) {
+    const char *input = "";
+    size_t len = strlen(input);
+
+    char *encoded = swoole::http_server::url_encode(input, len);
+    EXPECT_STREQ(encoded, input);
+
+    char decoded[256];
+    size_t decoded_len = swoole::http_server::url_decode(encoded, strlen(encoded));
+    EXPECT_EQ(decoded_len, 0);
+
+    EXPECT_STREQ(decoded, "");
+
+    sw_free(encoded);
+}
+
+TEST(http_server, get_method) {
+    ASSERT_EQ(swoole::http_server::get_method(SW_STRL("POST")), SW_HTTP_POST);
+    ASSERT_EQ(swoole::http_server::get_method(SW_STRL("post")), SW_HTTP_POST);
+    ASSERT_EQ(swoole::http_server::get_method(SW_STRL("OPTIONS")), SW_HTTP_OPTIONS);
+}
+
+TEST(http_server, get_method_str) {
+    ASSERT_STREQ(swoole::http_server::get_method_string(SW_HTTP_POST), "POST");
+    ASSERT_STREQ(swoole::http_server::get_method_string(SW_HTTP_GET), "GET");
+    ASSERT_STREQ(swoole::http_server::get_method_string(SW_HTTP_OPTIONS), "OPTIONS");
+}

@@ -65,6 +65,11 @@ class Socket {
     Socket(SocketType type = SW_SOCK_TCP);
     Socket(int _fd, SocketType _type);
     ~Socket();
+    /**
+     * If SSL is enabled, an SSL handshake will automatically take place during the connect() method.
+     * When connect() returns true, it indicates that the TCP connection has been successfully
+     * established and the SSL handshake has also succeeded.
+     */
     bool connect(std::string host, int port = 0, int flags = 0);
     bool connect(const struct sockaddr *addr, socklen_t addrlen);
     bool shutdown(int how = SHUT_RDWR);
@@ -115,6 +120,16 @@ class Socket {
     }
 
     bool poll(EventType type, double timeout = 0);
+    /**
+     * If the server has SSL enabled, you must explicitly call `ssl_handshake()`,
+     * as it will not be automatically executed within the `accept()` function.
+     * This behavior is inconsistent with `connect()`, which internally executes `ssl_handshake()` automatically,
+     * thus not requiring an explicit call at the application level.
+     * The reason for this design is that `ssl_handshake()` can typically be performed concurrently within a separate
+     * client coroutine. If `ssl_handshake()` were to be automatically executed inside the `accept()` function,
+     * it would block the server's listening coroutine,
+     * causing the `ssl_handshake()` processes to execute sequentially rather than in parallel.
+     */
     Socket *accept(double timeout = 0);
     bool bind(std::string address, int port = 0);
     bool bind(const struct sockaddr *sa, socklen_t len);
