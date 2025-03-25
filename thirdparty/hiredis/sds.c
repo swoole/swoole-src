@@ -68,6 +68,20 @@ static inline char sdsReqType(size_t string_size) {
     return SDS_TYPE_64;
 }
 
+static inline size_t sdsTypeMaxSize(char type) {
+    if (type == SDS_TYPE_5)
+        return (1<<5) - 1;
+    if (type == SDS_TYPE_8)
+        return (1<<8) - 1;
+    if (type == SDS_TYPE_16)
+        return (1<<16) - 1;
+#if (LONG_MAX == LLONG_MAX)
+    if (type == SDS_TYPE_32)
+        return (1ll<<32) - 1;
+#endif
+    return -1; /* this is equivalent to the max SDS_TYPE_64 or SDS_TYPE_32 */
+}
+
 /* Create a new sds string with the content specified by the 'init' pointer
  * and 'initlen'.
  * If NULL is used for 'init' the string is initialized with zero bytes.
