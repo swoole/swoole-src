@@ -276,7 +276,7 @@ int Client::enable_ssl_encrypt() {
     if (ssl_context) {
         return SW_ERR;
     }
-    ssl_context.reset(new swoole::SSLContext());
+    ssl_context = std::make_shared<SSLContext>();
     open_ssl = true;
 #ifdef SW_SUPPORT_DTLS
     if (socket->is_dgram()) {

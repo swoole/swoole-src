@@ -49,13 +49,13 @@ static inline ReturnCode ReactorThread_verify_ssl_state(Reactor *reactor, Listen
 
     Connection *conn = (Connection *) _socket->object;
     conn->ssl_ready = 1;
-    if (!port->ssl_context->client_cert_file.empty()) {
+    if (!port->get_ssl_client_cert_file().empty()) {
         if (!_socket->ssl_get_peer_certificate(sw_tg_buffer())) {
-            if (port->ssl_context->verify_peer) {
+            if (port->get_ssl_verify_peer()) {
                 return SW_ERROR;
             }
         } else {
-            if (!port->ssl_context->verify_peer || _socket->ssl_verify(port->ssl_context->allow_self_signed)) {
+            if (!port->get_ssl_verify_peer() || _socket->ssl_verify(port->get_ssl_allow_self_signed())) {
                 SendData task;
                 task.info.fd = _socket->fd;
                 task.info.type = SW_SERVER_EVENT_CONNECT;

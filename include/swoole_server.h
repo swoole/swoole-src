@@ -274,14 +274,30 @@ struct ListenPort {
     int kernel_socket_send_buffer_size = 0;
 
 #ifdef SW_USE_OPENSSL
-    SSLContext *ssl_context = nullptr;
+    std::shared_ptr<SSLContext> ssl_context = nullptr;
     std::unordered_map<std::string, std::shared_ptr<SSLContext>> sni_contexts;
 #ifdef SW_SUPPORT_DTLS
     std::unordered_map<int, dtls::Session *> *dtls_sessions = nullptr;
     bool is_dtls() {
         return ssl_context && (ssl_context->protocols & SW_SSL_DTLS);
     }
+
+    dtls::Session *create_dtls_session(network::Socket *sock);
 #endif
+
+    bool ssl_is_enable() {
+        return get_ssl_context() != nullptr;
+    }
+
+    SSLContext *get_ssl_context() {
+        return ssl_context.get();
+    }
+
+    std::shared_ptr<SSLContext> dup_ssl_context() {
+        auto new_ctx = std::make_shared<SSLContext>();
+        *new_ctx.get() = *ssl_context;
+        return new_ctx;
+    }
 #endif
 
     ServerPortGS *gs = nullptr;
@@ -327,18 +343,122 @@ struct ListenPort {
     int create_socket(Server *server);
     void close_socket();
 
+    static int readable_callback_raw(Reactor *reactor, ListenPort *lp, Event *event);
+    static int readable_callback_length(Reactor *reactor, ListenPort *lp, Event *event);
+    static int readable_callback_eof(Reactor *reactor, ListenPort *lp, Event *event);
+    static int readable_callback_http(Reactor *reactor, ListenPort *lp, Event *event);
+    static int readable_callback_redis(Reactor *reactor, ListenPort *lp, Event *event);
+
 #ifdef SW_USE_OPENSSL
-    bool ssl_create_context(SSLContext *context);
+    bool ssl_context_init();
+    bool ssl_context_create(SSLContext *context);
     bool ssl_create(Connection *conn, network::Socket *sock);
-    bool ssl_add_sni_cert(const std::string &name, SSLContext *context);
+    bool ssl_add_sni_cert(const std::string &name, std::shared_ptr<SSLContext> ctx);
     bool ssl_init();
 
-    void ssl_set_key_file(const std::string &file) {
-        ssl_context->key_file = file;
+    bool set_ssl_key_file(const std::string &file) {
+        return ssl_context->set_key_file(file);
     }
-    void ssl_set_cert_file(const std::string &file) {
-        ssl_context->cert_file = file;
+
+    bool set_ssl_cert_file(const std::string &file) {
+        return ssl_context->set_cert_file(file);
     }
+
+    void set_ssl_cafile(const std::string &file) {
+        ssl_context->cafile = file;
+    }
+
+    bool set_ssl_client_cert_file(const std::string &file) {
+        return ssl_context->set_client_cert_file(file);
+    }
+
+    void set_ssl_capath(const std::string &path) {
+        ssl_context->capath = path;
+    }
+
+    void set_ssl_passphrase(const std::string &str) {
+        ssl_context->passphrase = str;
+    }
+
+#ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
+    void set_tls_host_name(const std::string &str) {
+        ssl_context->tls_host_name = str;
+        // if user set empty ssl_host_name, disable it, otherwise the underlying may set it automatically
+        ssl_context->disable_tls_host_name = ssl_context->tls_host_name.empty();
+    }
+#endif
+
+    void set_ssl_dhparam(const std::string &file) {
+        ssl_context->dhparam = file;
+    }
+
+    void set_ssl_ecdh_curve(const std::string &str) {
+        ssl_context->ecdh_curve = str;
+    }
+
+    void set_ssl_protocols(long protocols) {
+        ssl_context->protocols = protocols;
+    }
+
+    void set_ssl_disable_compress(bool value) {
+        ssl_context->disable_compress = value;
+    }
+
+    void set_ssl_verify_peer(bool value) {
+        ssl_context->verify_peer = value;
+    }
+
+    void set_ssl_allow_self_signed(bool value) {
+        ssl_context->allow_self_signed = value;
+    }
+
+    void set_ssl_verify_depth(uint8_t value) {
+        ssl_context->verify_depth = value;
+    }
+
+    void set_ssl_ciphers(const std::string &str) {
+        ssl_context->ciphers = str;
+    }
+
+    void set_ssl_prefer_server_ciphers(bool value) {
+        ssl_context->prefer_server_ciphers = value;
+    }
+
+#ifdef OPENSSL_IS_BORINGSSL
+    void set_ssl_grease(uint8_t value) {
+        ssl_context->grease = value;
+    }
+#endif
+
+    const std::string &get_ssl_cert_file() {
+        return ssl_context->cert_file;
+    }
+
+    const std::string &get_ssl_key_file() {
+        return ssl_context->key_file;
+    }
+
+    const std::string &get_ssl_client_cert_file() {
+        return ssl_context->client_cert_file;
+    }
+
+    bool get_ssl_verify_peer() {
+        return ssl_context->verify_peer;
+    }
+
+    bool get_ssl_allow_self_signed() {
+        return ssl_context->allow_self_signed;
+    }
+
+    uint32_t get_ssl_protocols() {
+        return ssl_context->protocols;
+    }
+
+    bool has_sni_contexts() {
+        return !sni_contexts.empty();
+    }
+
+    static int ssl_server_sni_callback(SSL *ssl, int *al, void *arg);
 #endif
     void clear_protocol();
     network::Socket *get_socket() {

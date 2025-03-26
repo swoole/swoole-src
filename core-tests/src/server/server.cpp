@@ -39,7 +39,7 @@ TEST(server, schedule) {
     ASSERT_EQ(SW_OK, ret);
 
     for (uint32_t i = 0; i < serv.worker_num; i++) {
-        serv.workers[i].set_status_to_busy();
+        serv.get_worker(i)->set_status_to_busy();
     }
 
     std::set<int> _worker_id_set;
@@ -68,7 +68,7 @@ TEST(server, base) {
     Server serv(Server::MODE_BASE);
     serv.worker_num = 1;
 
-    sw_logger()->set_level(SW_LOG_WARNING);
+    swoole_set_log_level(SW_LOG_WARNING);
 
     ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     ASSERT_TRUE(port);
@@ -111,10 +111,7 @@ TEST(server, base) {
 TEST(server, process) {
     Server serv(Server::MODE_PROCESS);
     serv.worker_num = 1;
-
-    SwooleG.running = 1;
-
-    sw_logger()->set_level(SW_LOG_WARNING);
+    swoole_set_log_level(SW_LOG_WARNING);
 
     Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
     lock->lock();
@@ -168,7 +165,7 @@ TEST(server, thread) {
     Server serv(Server::MODE_THREAD);
     serv.worker_num = 2;
 
-    sw_logger()->set_level(SW_LOG_WARNING);
+    swoole_set_log_level(SW_LOG_WARNING);
 
     ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     ASSERT_TRUE(port);
@@ -215,8 +212,8 @@ TEST(server, reload_all_workers) {
     serv.task_worker_num = 2;
     serv.max_wait_time = 1;
     serv.task_enable_coroutine = 1;
-    SwooleG.running = 1;
-    sw_logger()->set_level(SW_LOG_WARNING);
+
+    swoole_set_log_level(SW_LOG_WARNING);
 
     serv.onTask = [](Server *serv, swEventData *task) -> int { return 0; };
 
@@ -259,8 +256,7 @@ TEST(server, reload_all_workers2) {
     serv.worker_num = 2;
     serv.task_worker_num = 2;
     serv.max_wait_time = 1;
-    SwooleG.running = 1;
-    sw_logger()->set_level(SW_LOG_WARNING);
+    swoole_set_log_level(SW_LOG_WARNING);
 
     serv.onTask = [](Server *serv, swEventData *task) -> int { return 0; };
 
@@ -303,8 +299,7 @@ TEST(server, kill_user_workers) {
     serv.worker_num = 1;
     serv.task_worker_num = 2;
     serv.max_wait_time = 1;
-    SwooleG.running = 1;
-    sw_logger()->set_level(SW_LOG_WARNING);
+    swoole_set_log_level(SW_LOG_WARNING);
 
     Worker *worker1 = new Worker();
     Worker *worker2 = new Worker();
@@ -335,8 +330,7 @@ TEST(server, kill_user_workers1) {
     serv.worker_num = 1;
     serv.task_worker_num = 2;
     serv.max_wait_time = 1;
-    SwooleG.running = 1;
-    sw_logger()->set_level(SW_LOG_WARNING);
+    swoole_set_log_level(SW_LOG_WARNING);
 
     Worker *worker1 = new Worker();
     Worker *worker2 = new Worker();
@@ -366,10 +360,7 @@ TEST(server, kill_user_workers1) {
 TEST(server, ssl) {
     Server serv(Server::MODE_PROCESS);
     serv.worker_num = 1;
-
-    SwooleG.running = 1;
-
-    sw_logger()->set_level(SW_LOG_WARNING);
+    swoole_set_log_level(SW_LOG_WARNING);
 
     Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
     lock->lock();
@@ -380,8 +371,8 @@ TEST(server, ssl) {
         exit(2);
     }
 
-    port->ssl_set_cert_file(test::get_root_path() + "/tests/include/ssl_certs/server.crt");
-    port->ssl_set_key_file(test::get_root_path() + "/tests/include/ssl_certs/server.key");
+    port->set_ssl_cert_file(test::get_ssl_dir() + "/server.crt");
+    port->set_ssl_key_file(test::get_ssl_dir() + "/server.key");
     port->ssl_init();
 
     ASSERT_EQ(serv.create(), SW_OK);
@@ -429,10 +420,7 @@ TEST(server, ssl) {
 TEST(server, dtls) {
     Server serv(Server::MODE_BASE);
     serv.worker_num = 1;
-
-    SwooleG.running = 1;
-
-    sw_logger()->set_level(SW_LOG_WARNING);
+    swoole_set_log_level(SW_LOG_WARNING);
 
     Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
     lock->lock();
@@ -443,8 +431,8 @@ TEST(server, dtls) {
         exit(2);
     }
 
-    port->ssl_set_cert_file(test::get_root_path() + "/tests/include/ssl_certs/server.crt");
-    port->ssl_set_key_file(test::get_root_path() + "/tests/include/ssl_certs/server.key");
+    port->set_ssl_cert_file(test::get_ssl_dir() + "/server.crt");
+    port->set_ssl_key_file(test::get_ssl_dir() + "/server.key");
     port->ssl_init();
 
     ASSERT_EQ(serv.create(), SW_OK);
@@ -494,8 +482,8 @@ TEST(server, dtls2) {
     server->single_thread = false;
     ListenPort *port = server->add_port((enum swSocketType)(SW_SOCK_UDP | SW_SOCK_SSL), TEST_HOST, 0);
 
-    port->ssl_set_cert_file(test::get_root_path() + "/tests/include/ssl_certs/server.crt");
-    port->ssl_set_key_file(test::get_root_path() + "/tests/include/ssl_certs/server.key");
+    port->set_ssl_cert_file(test::get_ssl_dir() + "/server.crt");
+    port->set_ssl_key_file(test::get_ssl_dir() + "/server.key");
     port->ssl_init();
 
     server->create();
@@ -900,10 +888,7 @@ void test_command(enum Server::Mode _mode) {
     serv.worker_num = 4;
     serv.task_worker_num = 4;
     serv.reactor_num = 2;
-
-    SwooleG.running = 1;
-
-    sw_logger()->set_level(SW_LOG_WARNING);
+    swoole_set_log_level(SW_LOG_WARNING);
 
     ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     if (!port) {
@@ -971,8 +956,7 @@ TEST(server, command_2) {
 TEST(server, sendwait) {
     Server serv(Server::MODE_BASE);
     serv.worker_num = 1;
-
-    sw_logger()->set_level(SW_LOG_WARNING);
+    swoole_set_log_level(SW_LOG_WARNING);
 
     ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     ASSERT_TRUE(port);
@@ -1015,7 +999,7 @@ TEST(server, sendwait) {
 TEST(server, system) {
     Server serv(Server::MODE_BASE);
     serv.worker_num = 1;
-    sw_logger()->set_level(SW_LOG_WARNING);
+    swoole_set_log_level(SW_LOG_WARNING);
 
     mutex lock;
     lock.lock();
@@ -1069,10 +1053,9 @@ TEST(server, system) {
 TEST(server, reopen_log) {
     Server serv(Server::MODE_PROCESS);
     serv.worker_num = 2;
-    SwooleG.running = 1;
-    sw_logger()->set_level(SW_LOG_WARNING);
+    swoole_set_log_level(SW_LOG_WARNING);
     string filename = "/tmp/swoole.log";
-    sw_logger()->open(filename.c_str());
+    swoole_set_log_file(filename.c_str());
 
     ASSERT_EQ(serv.create(), SW_OK);
 
@@ -1140,7 +1123,7 @@ TEST(server, udp_packet) {
 TEST(server, protocols) {
     Server serv(Server::MODE_BASE);
     serv.worker_num = 1;
-    sw_logger()->set_level(SW_LOG_WARNING);
+    swoole_set_log_level(SW_LOG_WARNING);
     ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
 
     port->open_eof_check = true;

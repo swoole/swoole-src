@@ -27,12 +27,6 @@ using swoole::network::Socket;
 
 namespace swoole {
 
-static int Port_onRead_raw(Reactor *reactor, ListenPort *lp, Event *event);
-static int Port_onRead_check_length(Reactor *reactor, ListenPort *lp, Event *event);
-static int Port_onRead_check_eof(Reactor *reactor, ListenPort *lp, Event *event);
-static int Port_onRead_http(Reactor *reactor, ListenPort *lp, Event *event);
-static int Port_onRead_redis(Reactor *reactor, ListenPort *lp, Event *event);
-
 ListenPort::ListenPort() {
     protocol.package_length_type = 'N';
     protocol.package_length_size = 4;
@@ -45,11 +39,11 @@ ListenPort::ListenPort() {
 
 #ifdef SW_USE_OPENSSL
 
-bool ListenPort::ssl_add_sni_cert(const std::string &name, SSLContext *ctx) {
-    if (!ssl_create_context(ctx)) {
+bool ListenPort::ssl_add_sni_cert(const std::string &name, std::shared_ptr<SSLContext> ctx) {
+    if (!ssl_context_create(ctx.get())) {
         return false;
     }
-    sni_contexts.emplace(name, std::shared_ptr<SSLContext>(ctx));
+    sni_contexts.emplace(name, ctx);
     return true;
 }
 
@@ -86,7 +80,7 @@ static bool ssl_matches_wildcard_name(const char *subjectname, const char *certn
     return 0;
 }
 
-static int ssl_server_sni_callback(SSL *ssl, int *al, void *arg) {
+int ListenPort::ssl_server_sni_callback(SSL *ssl, int *al, void *arg) {
     const char *server_name = SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name);
     if (!server_name) {
         return SSL_TLSEXT_ERR_NOACK;
@@ -108,8 +102,41 @@ static int ssl_server_sni_callback(SSL *ssl, int *al, void *arg) {
     return SSL_TLSEXT_ERR_NOACK;
 }
 
+#ifdef SW_SUPPORT_DTLS
+dtls::Session *ListenPort::create_dtls_session(Socket *sock) {
+    dtls::Session *session = new dtls::Session(sock, ssl_context);
+    if (!session->init()) {
+        delete session;
+        return nullptr;
+    }
+    dtls_sessions->emplace(sock->get_fd(), session);
+    return session;
+}
+#endif
+
+bool ListenPort::ssl_context_init() {
+    ssl_context = std::make_shared<SSLContext>();
+    ssl_context->prefer_server_ciphers = 1;
+    ssl_context->session_tickets = 0;
+    ssl_context->stapling = 1;
+    ssl_context->stapling_verify = 1;
+    ssl_context->ciphers = SW_SSL_CIPHER_LIST;
+    ssl_context->ecdh_curve = SW_SSL_ECDH_CURVE;
+
+    if (is_dgram()) {
+#ifdef SW_SUPPORT_DTLS
+        ssl_context->protocols = SW_SSL_DTLS;
+        dtls_sessions = new std::unordered_map<int, dtls::Session *>;
+#else
+        swoole_warning("DTLS support require openssl-1.1 or later");
+        return false;
+#endif
+    }
+    return true;
+}
+
 bool ListenPort::ssl_init() {
-    if (!ssl_create_context(ssl_context)) {
+    if (!ssl_context_create(ssl_context.get())) {
         return false;
     }
     if (sni_contexts.size() > 0) {
@@ -119,7 +146,7 @@ bool ListenPort::ssl_init() {
 }
 
 bool ListenPort::ssl_create(Connection *conn, Socket *sock) {
-    if (sock->ssl_create(ssl_context, SW_SSL_SERVER) < 0) {
+    if (sock->ssl_create(ssl_context.get(), SW_SSL_SERVER) < 0) {
         return false;
     }
     conn->ssl = 1;
@@ -130,7 +157,7 @@ bool ListenPort::ssl_create(Connection *conn, Socket *sock) {
     return true;
 }
 
-bool ListenPort::ssl_create_context(SSLContext *context) {
+bool ListenPort::ssl_context_create(SSLContext *context) {
     if (context->cert_file.empty() || context->key_file.empty()) {
         swoole_warning("SSL error, require ssl_cert_file and ssl_key_file");
         return false;
@@ -223,13 +250,13 @@ void Server::init_port_protocol(ListenPort *ls) {
             ls->protocol.package_eof_len = SW_DATA_EOF_MAXLEN;
         }
         ls->protocol.onPackage = Server::dispatch_task;
-        ls->onRead = Port_onRead_check_eof;
+        ls->onRead = ListenPort::readable_callback_eof;
     } else if (ls->open_length_check) {
         if (ls->protocol.package_length_type != '\0') {
             ls->protocol.get_package_length = Protocol::default_length_func;
         }
         ls->protocol.onPackage = Server::dispatch_task;
-        ls->onRead = Port_onRead_check_length;
+        ls->onRead = ListenPort::readable_callback_length;
     } else if (ls->open_http_protocol) {
         if (ls->open_http2_protocol && ls->open_websocket_protocol) {
             ls->protocol.get_package_length = http_server::get_package_length;
@@ -246,16 +273,16 @@ void Server::init_port_protocol(ListenPort *ls) {
         }
         ls->protocol.package_length_offset = 0;
         ls->protocol.package_body_offset = 0;
-        ls->onRead = Port_onRead_http;
+        ls->onRead = ListenPort::readable_callback_http;
     } else if (ls->open_mqtt_protocol) {
         mqtt::set_protocol(&ls->protocol);
         ls->protocol.onPackage = Server::dispatch_task;
-        ls->onRead = Port_onRead_check_length;
+        ls->onRead = ListenPort::readable_callback_length;
     } else if (ls->open_redis_protocol) {
         ls->protocol.onPackage = Server::dispatch_task;
-        ls->onRead = Port_onRead_redis;
+        ls->onRead = ListenPort::readable_callback_redis;
     } else {
-        ls->onRead = Port_onRead_raw;
+        ls->onRead = ListenPort::readable_callback_raw;
     }
 }
 
@@ -300,7 +327,7 @@ void ListenPort::clear_protocol() {
     open_redis_protocol = 0;
 }
 
-static int Port_onRead_raw(Reactor *reactor, ListenPort *port, Event *event) {
+int ListenPort::readable_callback_raw(Reactor *reactor, ListenPort *port, Event *event) {
     ssize_t n;
     Socket *_socket = event->socket;
     Connection *conn = (Connection *) _socket->object;
@@ -336,7 +363,7 @@ static int Port_onRead_raw(Reactor *reactor, ListenPort *port, Event *event) {
     }
 }
 
-static int Port_onRead_check_length(Reactor *reactor, ListenPort *port, Event *event) {
+int ListenPort::readable_callback_length(Reactor *reactor, ListenPort *port, Event *event) {
     Socket *_socket = event->socket;
     Connection *conn = (Connection *) _socket->object;
     Protocol *protocol = &port->protocol;
@@ -372,7 +399,7 @@ static int Port_onRead_check_length(Reactor *reactor, ListenPort *port, Event *e
 /**
  * For Http Protocol
  */
-static int Port_onRead_http(Reactor *reactor, ListenPort *port, Event *event) {
+int ListenPort::readable_callback_http(Reactor *reactor, ListenPort *port, Event *event) {
     Socket *_socket = event->socket;
     Connection *conn = (Connection *) _socket->object;
     Server *serv = (Server *) reactor->ptr;
@@ -384,11 +411,11 @@ static int Port_onRead_http(Reactor *reactor, ListenPort *port, Event *event) {
             conn->websocket_status = websocket::STATUS_ACTIVE;
             conn->http_upgrade = 1;
         }
-        return Port_onRead_check_length(reactor, port, event);
+        return readable_callback_length(reactor, port, event);
     }
 
     if (conn->http2_stream) {
-        return Port_onRead_check_length(reactor, port, event);
+        return readable_callback_length(reactor, port, event);
     }
 
     Request *request = nullptr;
@@ -483,7 +510,7 @@ _parse:
         buffer->reduce(buffer->offset);
         serv->destroy_http_request(conn);
         conn->socket->skip_recv = 1;
-        return Port_onRead_check_length(reactor, port, event);
+        return readable_callback_length(reactor, port, event);
     }
 
     // http header is not the end
@@ -681,7 +708,7 @@ _parse:
     return SW_OK;
 }
 
-static int Port_onRead_redis(Reactor *reactor, ListenPort *port, Event *event) {
+int ListenPort::readable_callback_redis(Reactor *reactor, ListenPort *port, Event *event) {
     Socket *_socket = event->socket;
     Connection *conn = (Connection *) _socket->object;
     Protocol *protocol = &port->protocol;
@@ -701,7 +728,7 @@ static int Port_onRead_redis(Reactor *reactor, ListenPort *port, Event *event) {
     return SW_OK;
 }
 
-static int Port_onRead_check_eof(Reactor *reactor, ListenPort *port, Event *event) {
+int ListenPort::readable_callback_eof(Reactor *reactor, ListenPort *port, Event *event) {
     Socket *_socket = event->socket;
     Connection *conn = (Connection *) _socket->object;
     Protocol *protocol = &port->protocol;
@@ -732,7 +759,7 @@ void ListenPort::close() {
 #ifdef SW_USE_OPENSSL
     if (ssl) {
         if (ssl_context) {
-            delete ssl_context;
+            ssl_context.reset();
         }
 #ifdef SW_SUPPORT_DTLS
         if (dtls_sessions) {
@@ -804,8 +831,8 @@ int ListenPort::create_socket(Server *server) {
         }
     }
 
-    socket = make_socket(
-        type, is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER, SW_SOCK_CLOEXEC | SW_SOCK_NONBLOCK);
+    socket =
+        make_socket(type, is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER, SW_SOCK_CLOEXEC | SW_SOCK_NONBLOCK);
     if (socket == nullptr) {
         swoole_set_last_error(errno);
         return SW_ERR;

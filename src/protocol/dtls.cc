@@ -176,7 +176,7 @@ bool Session::init() {
     if (socket->ssl) {
         return false;
     }
-    if (socket->ssl_create(ctx, SW_SSL_SERVER) < 0) {
+    if (socket->ssl_create(ctx.get(), SW_SSL_SERVER) < 0) {
         return false;
     }
     socket->dtls = 1;
