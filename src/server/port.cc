@@ -273,7 +273,7 @@ void Server::init_port_protocol(ListenPort *ls) {
         }
         ls->protocol.package_length_offset = 0;
         ls->protocol.package_body_offset = 0;
-        ls->onRead = ListenPort::readable_callback_length;
+        ls->onRead = ListenPort::readable_callback_http;
     } else if (ls->open_mqtt_protocol) {
         mqtt::set_protocol(&ls->protocol);
         ls->protocol.onPackage = Server::dispatch_task;
