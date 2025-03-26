@@ -150,7 +150,7 @@ class Socket {
         if (ssl_context.get()) {
             return false;
         }
-        ssl_context.reset(new SSLContext());
+        ssl_context = std::make_shared<SSLContext>();
         return true;
     }
 
@@ -167,7 +167,7 @@ class Socket {
     std::string ssl_get_peer_cert();
 
     bool set_ssl_key_file(const std::string &file) {
-        ssl_context->set_key_file(file);
+        return ssl_context->set_key_file(file);
     }
 
     bool set_ssl_cert_file(const std::string &file) {

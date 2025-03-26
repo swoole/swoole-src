@@ -256,7 +256,6 @@ dtls::Session *Server::accept_dtls_connection(ListenPort *port, Address *sa) {
         return nullptr;
     }
 
-    int fd = sock->fd;
     sock->set_reuse_addr();
 #ifdef HAVE_KQUEUE
     sock->set_reuse_port();
@@ -291,21 +290,14 @@ dtls::Session *Server::accept_dtls_connection(ListenPort *port, Address *sa) {
         goto _cleanup;
     }
 
-    session = new dtls::Session(sock, port->ssl_context);
-    port->dtls_sessions->emplace(fd, session);
-
-    if (!session->init()) {
-        goto _cleanup;
+    session = port->create_dtls_session(sock);
+    if (session) {
+        return session;
     }
-
-    return session;
 
 _cleanup:
     if (conn) {
         *conn = {};
-    }
-    if (session) {
-        delete session;
     }
     sock->free();
     return nullptr;
@@ -1806,23 +1798,7 @@ ListenPort *Server::add_port(SocketType type, const char *host, int port) {
         type = (SocketType) (type & (~SW_SOCK_SSL));
         ls->type = type;
         ls->ssl = 1;
-        ls->ssl_context = new SSLContext();
-        ls->ssl_context->prefer_server_ciphers = 1;
-        ls->ssl_context->session_tickets = 0;
-        ls->ssl_context->stapling = 1;
-        ls->ssl_context->stapling_verify = 1;
-        ls->ssl_context->ciphers = sw_strdup(SW_SSL_CIPHER_LIST);
-        ls->ssl_context->ecdh_curve = sw_strdup(SW_SSL_ECDH_CURVE);
-
-        if (ls->is_dgram()) {
-#ifdef SW_SUPPORT_DTLS
-            ls->ssl_context->protocols = SW_SSL_DTLS;
-            ls->dtls_sessions = new std::unordered_map<int, dtls::Session *>;
-#else
-            swoole_warning("DTLS support require openssl-1.1 or later");
-            return nullptr;
-#endif
-        }
+        ls->ssl_context_init();
     }
 #endif
 

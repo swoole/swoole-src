@@ -380,8 +380,8 @@ TEST(server, ssl) {
         exit(2);
     }
 
-    port->ssl_set_cert_file(test::get_root_path() + "/tests/include/ssl_certs/server.crt");
-    port->ssl_set_key_file(test::get_root_path() + "/tests/include/ssl_certs/server.key");
+    port->set_ssl_cert_file(test::get_ssl_dir() + "/server.crt");
+    port->set_ssl_key_file(test::get_ssl_dir() + "/server.key");
     port->ssl_init();
 
     ASSERT_EQ(serv.create(), SW_OK);
@@ -443,8 +443,8 @@ TEST(server, dtls) {
         exit(2);
     }
 
-    port->ssl_set_cert_file(test::get_root_path() + "/tests/include/ssl_certs/server.crt");
-    port->ssl_set_key_file(test::get_root_path() + "/tests/include/ssl_certs/server.key");
+    port->set_ssl_cert_file(test::get_ssl_dir() + "/server.crt");
+    port->set_ssl_key_file(test::get_ssl_dir() + "/server.key");
     port->ssl_init();
 
     ASSERT_EQ(serv.create(), SW_OK);
@@ -494,8 +494,8 @@ TEST(server, dtls2) {
     server->single_thread = false;
     ListenPort *port = server->add_port((enum swSocketType)(SW_SOCK_UDP | SW_SOCK_SSL), TEST_HOST, 0);
 
-    port->ssl_set_cert_file(test::get_root_path() + "/tests/include/ssl_certs/server.crt");
-    port->ssl_set_key_file(test::get_root_path() + "/tests/include/ssl_certs/server.key");
+    port->set_ssl_cert_file(test::get_ssl_dir() + "/server.crt");
+    port->set_ssl_key_file(test::get_ssl_dir() + "/server.key");
     port->ssl_init();
 
     server->create();

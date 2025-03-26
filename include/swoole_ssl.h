@@ -167,6 +167,15 @@ struct SSLContext {
         return true;
     }
 
+    bool set_client_cert_file(const std::string &file) {
+        if (access(file.c_str(), R_OK) < 0) {
+            swoole_warning("ssl client cert file[%s] not found", file.c_str());
+            return false;
+        }
+        client_cert_file = file;
+        return true;
+    }
+
     bool create();
     bool set_capath();
     bool set_ciphers();

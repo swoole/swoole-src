@@ -865,14 +865,13 @@ TEST(http_server, pause) {
 TEST(http_server, sni) {
     Server *server = test_process_server(Server::DISPATCH_FDMOD, true);
     ListenPort *port = server->get_primary_port();
-    port->ssl_set_cert_file(test::get_root_path() + "/tests/include/ssl_certs/server.crt");
-    port->ssl_set_key_file(test::get_root_path() + "/tests/include/ssl_certs/server.key");
-    SSLContext *context = new SSLContext();
-    *context = *port->ssl_context;
-    context->cert_file = test::get_root_path() + "/tests/include/ssl_certs/sni_server_cs_cert.pem";
-    context->key_file = test::get_root_path() + "/tests/include/ssl_certs/sni_server_cs_key.pem";
-    port->ssl_add_sni_cert("localhost", context);
-    port->ssl_context->protocols = 0;
+    port->set_ssl_cert_file(test::get_ssl_dir() + "/server.crt");
+    port->set_ssl_key_file(test::get_ssl_dir() + "/server.key");
+    auto sni_ssl_ctx = port->dup_ssl_context();
+    sni_ssl_ctx->set_cert_file(test::get_ssl_dir() + "/sni_server_cs_cert.pem");
+    sni_ssl_ctx->set_key_file(test::get_ssl_dir() + "/sni_server_cs_key.pem");
+    port->ssl_add_sni_cert("localhost", sni_ssl_ctx);
+    port->set_ssl_protocols(0);
     port->ssl_init();
 
     pid_t pid = fork();
@@ -887,7 +886,7 @@ TEST(http_server, sni) {
             kill(server->get_master_pid(), SIGTERM);
         };
 
-        string port_num = to_string(server->get_primary_port()->port);
+        string port_num = to_string(server->get_primary_port()->get_port());
 
         sleep(1);
         pid_t pid2;
@@ -1056,11 +1055,11 @@ TEST(http_server, dispatch_func_return_error_worker_id) {
 TEST(http_server, client_ca) {
     Server *server = test_process_server(Server::DISPATCH_FDMOD, true);
     ListenPort *port = server->get_primary_port();
-    port->ssl_set_cert_file(test::get_root_path() + "/tests/include/api/ssl-ca/server-cert.pem");
-    port->ssl_set_key_file(test::get_root_path() + "/tests/include/api/ssl-ca/server-key.pem");
-    port->ssl_context->verify_peer = true;
-    port->ssl_context->allow_self_signed = true;
-    port->ssl_context->client_cert_file = test::get_root_path() + "/tests/include/api/ssl-ca/ca-cert.pem";
+    port->set_ssl_cert_file(test::get_ssl_dir() + "/server-cert.pem");
+    port->set_ssl_key_file(test::get_ssl_dir() + "/server-key.pem");
+    port->set_ssl_verify_peer(true);
+    port->set_ssl_allow_self_signed(true);
+    port->set_ssl_client_cert_file(test::get_ssl_dir() + "/ca-cert.pem");
     port->ssl_init();
 
     pid_t pid = fork();
@@ -1079,8 +1078,8 @@ TEST(http_server, client_ca) {
 
         sleep(1);
         pid_t pid2;
-        string client_cert = " --cert " + test::get_root_path() + "/tests/include/api/ssl-ca/client-cert.pem ";
-        string client_key = "--key " + test::get_root_path() + "/tests/include/api/ssl-ca/client-key.pem";
+        string client_cert = " --cert " + test::get_ssl_dir() + "/client-cert.pem ";
+        string client_key = "--key " + test::get_ssl_dir() + "/client-key.pem";
         string command = "curl https://127.0.0.1:" + port_num + " " + client_cert + client_key +
                          " -k -vvv --stderr /tmp/client_ca.txt";
         swoole_shell_exec(command.c_str(), &pid2, 0);
