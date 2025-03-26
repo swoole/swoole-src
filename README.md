@@ -3,17 +3,19 @@
     Swoole is an event-driven, asynchronous, coroutine-based concurrency library with high performance for PHP.
 </h2>
 
-[![lib-swoole](https://github.com/swoole/swoole-src/workflows/lib-swoole/badge.svg)](https://github.com/swoole/swoole-src/actions?query=workflow%3Alib-swoole)
-[![ext-swoole](https://github.com/swoole/swoole-src/workflows/ext-swoole/badge.svg)](https://github.com/swoole/swoole-src/actions?query=workflow%3Aext-swoole)
-[![test-linux](https://github.com/swoole/swoole-src/workflows/test-linux/badge.svg)](https://github.com/swoole/swoole-src/actions?query=workflow%3Atest-linux)
+[![Compiler Tests](https://github.com/swoole/swoole-src/actions/workflows/ext.yml/badge.svg)](https://github.com/swoole/swoole-src/actions/workflows/ext.yml)
+[![Core Test](https://github.com/swoole/swoole-src/actions/workflows/core.yml/badge.svg)](https://github.com/swoole/swoole-src/actions/workflows/core.yml)
+[![Unit Tests](https://github.com/swoole/swoole-src/actions/workflows/unit.yml/badge.svg)](https://github.com/swoole/swoole-src/actions/workflows/unit.yml)
+[![Thread Support Tests](https://github.com/swoole/swoole-src/actions/workflows/thread.yml/badge.svg)](https://github.com/swoole/swoole-src/actions/workflows/thread.yml)
+[![Linux io_uring Tests](https://github.com/swoole/swoole-src/actions/workflows/iouring.yml/badge.svg)](https://github.com/swoole/swoole-src/actions/workflows/iouring.yml)
 [![Frameworks Tests](https://github.com/swoole/swoole-src/actions/workflows/framework.yml/badge.svg)](https://github.com/swoole/swoole-src/actions/workflows/framework.yml)
-[![codecov](https://codecov.io/gh/swoole/swoole-src/branch/master/graph/badge.svg)](https://codecov.io/gh/swoole/swoole-src)
 
 [![Twitter](https://badgen.net/badge/icon/twitter?icon=twitter&label)](https://twitter.com/phpswoole)
 [![Discord](https://badgen.net/badge/icon/discord?icon=discord&label)](https://discord.swoole.dev)
 [![Latest Release](https://img.shields.io/github/release/swoole/swoole-src.svg)](https://github.com/swoole/swoole-src/releases/)
 [![License](https://badgen.net/github/license/swoole/swoole-src)](https://github.com/swoole/swoole-src/blob/master/LICENSE)
 [![Coverity Scan Build Status](https://scan.coverity.com/projects/11654/badge.svg)](https://scan.coverity.com/projects/swoole-swoole-src)
+[![Codecov](https://codecov.io/gh/swoole/swoole-src/branch/master/graph/badge.svg)](https://codecov.io/gh/swoole/swoole-src)
 
 ## ⚙️ Quick Start
 
