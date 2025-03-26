@@ -806,6 +806,43 @@ TEST(server, task_worker5) {
     ASSERT_EQ(serv.start(), 0);
 }
 
+TEST(server, task_sync) {
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = 2;
+    serv.task_worker_num = 2;
+
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    if (!port) {
+        swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
+        exit(2);
+    }
+
+    serv.onReceive = [](Server *server, RecvData *req) -> int { return SW_OK; };
+
+    serv.onTask = [](Server *serv, swEventData *task) -> int {
+        EXPECT_EQ(string(task->data, task->info.len), string(packet));
+        EXPECT_TRUE(serv->finish(task->data, task->info.len, 0, task));
+        return 0;
+    };
+
+    ASSERT_EQ(serv.create(), SW_OK);
+    ASSERT_EQ(serv.create_task_workers(), SW_OK);
+
+    serv.onWorkerStart = [&](Server *serv, Worker *worker) {
+        if (worker->id == 1) {
+            int _dst_worker_id = -1;
+            EventData buf{};
+            Server::task_pack(&buf, packet, strlen(packet));
+            EXPECT_TRUE(serv->task_sync(&buf, &_dst_worker_id, 0.5));
+            auto task_result = serv->get_task_result();
+            EXPECT_EQ(string(task_result->data, task_result->info.len), string(packet));
+            kill(serv->gs->master_pid, SIGTERM);
+        }
+    };
+
+    ASSERT_EQ(serv.start(), 0);
+}
+
 TEST(server, max_connection) {
     Server serv;
 
