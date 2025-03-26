@@ -39,7 +39,7 @@ TEST(server, schedule) {
     ASSERT_EQ(SW_OK, ret);
 
     for (uint32_t i = 0; i < serv.worker_num; i++) {
-        serv.get_worker(i)->set_status_to_busy();
+        serv.workers[i].set_status_to_busy();
     }
 
     std::set<int> _worker_id_set;
