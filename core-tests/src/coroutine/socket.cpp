@@ -21,8 +21,6 @@
 #include "test_coroutine.h"
 #include "test_server.h"
 
-using namespace swoole::test;
-
 using swoole::Coroutine;
 using swoole::HttpProxy;
 using swoole::Protocol;
@@ -35,6 +33,8 @@ using swoole::network::IOVector;
 using swoole::test::create_http_proxy;
 using swoole::test::create_socks5_proxy;
 using swoole::test::Server;
+using swoole::test::coroutine;
+using swoole::test::Process;
 
 const std::string host = "www.baidu.com";
 
@@ -917,7 +917,7 @@ TEST(coroutine_socket, sendfile) {
         int pairs[2];
         socketpair(AF_UNIX, SOCK_STREAM, 0, pairs);
         Coroutine::create([&](void *) {
-            std::string file = get_jpg_file();
+            std::string file = swoole::test::get_jpg_file();
             Socket sock(pairs[0], SW_SOCK_UNIX_STREAM);
             bool result = sock.sendfile(file.c_str(), 0, 0);
             sock.close();
@@ -1057,11 +1057,11 @@ TEST(coroutine_socket, ssl) {
         Socket sock(SW_SOCK_TCP);
 
         sock.enable_ssl_encrypt();
-        sock.get_ssl_context()->cert_file = swoole::test::get_root_path() + "/tests/include/ssl_certs/client.crt";
-        sock.get_ssl_context()->key_file = swoole::test::get_root_path() + "/tests/include/ssl_certs/client.key";
-        sock.get_ssl_context()->verify_peer = false;
-        sock.get_ssl_context()->allow_self_signed = true;
-        sock.get_ssl_context()->cafile = swoole::test::get_root_path() + "/tests/include/ssl_certs/ca.crt";
+        sock.set_ssl_cert_file(swoole::test::get_ssl_dir() + "/client.crt");
+        sock.set_ssl_key_file(swoole::test::get_ssl_dir() + "/client.key");
+        sock.set_ssl_verify_peer(false);
+        sock.set_ssl_allow_self_signed(true);
+        sock.set_ssl_cafile(swoole::test::get_ssl_dir() + "/ca.crt");
 
         proxy_test(sock, true);
     });
@@ -1074,10 +1074,11 @@ TEST(coroutine_socket, ssl_accept) {
         ASSERT_EQ(retval, true);
 
         sock.enable_ssl_encrypt();
-        sock.get_ssl_context()->cert_file = swoole::test::get_root_path() + "/tests/include/ssl_certs/server.crt";
-        sock.get_ssl_context()->key_file = swoole::test::get_root_path() + "/tests/include/ssl_certs/server.key";
-        sock.get_ssl_context()->dhparam = swoole::test::get_root_path() + "/tests/include/ssl_certs/dhparams.pem";
-        sock.get_ssl_context()->ecdh_curve = "secp256r1";
+        sock.set_ssl_cert_file(swoole::test::get_ssl_dir() + "/server.crt");
+        sock.set_ssl_key_file(swoole::test::get_ssl_dir() + "/server.key");
+        sock.set_ssl_dhparam(swoole::test::get_ssl_dir() + "/dhparams.pem");
+        sock.set_ssl_ecdh_curve("secp256r1");
+
         ASSERT_EQ(sock.listen(128), true);
 
         Socket *conn = sock.accept();

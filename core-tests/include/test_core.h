@@ -52,6 +52,7 @@ struct Socks5Proxy;
 namespace test {
 
 const std::string &get_root_path();
+std::string get_ssl_dir();
 std::string get_jpg_file();
 bool is_github_ci();
 

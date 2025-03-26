@@ -50,6 +50,10 @@ const string &get_root_path() {
     return root_path;
 }
 
+string get_ssl_dir() {
+    return get_root_path() + "/tests/include/ssl_certs";
+}
+
 string get_jpg_file() {
     return root_path + TEST_JPG_FILE;
 }

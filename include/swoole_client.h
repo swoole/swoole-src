@@ -155,6 +155,80 @@ class Client {
 #endif
     int ssl_handshake();
     int ssl_verify(int allow_self_signed);
+
+    bool set_ssl_key_file(const std::string &file) {
+        return ssl_context->set_key_file(file);
+    }
+
+    bool set_ssl_cert_file(const std::string &file) {
+        return ssl_context->set_cert_file(file);
+    }
+
+    void set_ssl_cafile(const std::string &file) {
+        ssl_context->cafile = file;
+    }
+
+    void set_ssl_capath(const std::string &path) {
+        ssl_context->capath = path;
+    }
+
+    void set_ssl_passphrase(const std::string &str) {
+        ssl_context->passphrase = str;
+    }
+
+#ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
+    void set_tls_host_name(const std::string &str) {
+        ssl_context->tls_host_name = str;
+        // if user set empty ssl_host_name, disable it, otherwise the underlying may set it automatically
+        ssl_context->disable_tls_host_name = ssl_context->tls_host_name.empty();
+    }
+#endif
+
+    void set_ssl_dhparam(const std::string &file) {
+        ssl_context->dhparam = file;
+    }
+
+    void set_ssl_ecdh_curve(const std::string &str) {
+        ssl_context->ecdh_curve = str;
+    }
+
+    void set_ssl_protocols(long protocols) {
+        ssl_context->protocols = protocols;
+    }
+
+    void set_ssl_disable_compress(bool value) {
+        ssl_context->disable_compress = value;
+    }
+
+    void set_ssl_verify_peer(bool value) {
+        ssl_context->verify_peer = value;
+    }
+
+    void set_ssl_allow_self_signed(bool value) {
+        ssl_context->allow_self_signed = value;
+    }
+
+    void set_ssl_verify_depth(uint8_t value) {
+        ssl_context->verify_depth = value;
+    }
+
+    void set_ssl_ciphers(const std::string &str) {
+        ssl_context->ciphers = str;
+    }
+
+#ifdef OPENSSL_IS_BORINGSSL
+    void set_ssl_grease(uint8_t value) {
+        ssl_context->grease = value;
+    }
+#endif
+
+    const std::string &get_ssl_cert_file() {
+        return ssl_context->cert_file;
+    }
+
+    const std::string &get_ssl_key_file() {
+        return ssl_context->key_file;
+    }
 #endif
 };
 

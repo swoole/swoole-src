@@ -193,59 +193,63 @@ void php_swoole_client_check_ssl_setting(Client *cli, zval *zset) {
     zval *ztmp;
 
     if (php_swoole_array_get_value(vht, "ssl_protocols", ztmp)) {
-        cli->ssl_context->set_protocols(zval_get_long(ztmp));
+        cli->set_ssl_protocols(zval_get_long(ztmp));
     }
     if (php_swoole_array_get_value(vht, "ssl_compress", ztmp)) {
-        cli->ssl_context->disable_compress = !zval_is_true(ztmp);
+        cli->set_ssl_disable_compress(!zval_is_true(ztmp));
     }
     if (php_swoole_array_get_value(vht, "ssl_cert_file", ztmp)) {
         zend::String str_v(ztmp);
-        if (!cli->ssl_context->set_cert_file(str_v.to_std_string())) {
+        if (!cli->set_ssl_cert_file(str_v.to_std_string())) {
             php_swoole_fatal_error(E_ERROR, "ssl cert file[%s] not found", str_v.val());
             return;
         }
     }
     if (php_swoole_array_get_value(vht, "ssl_key_file", ztmp)) {
         zend::String str_v(ztmp);
-        if (!cli->ssl_context->set_key_file(str_v.to_std_string())) {
+        if (!cli->set_ssl_key_file(str_v.to_std_string())) {
             php_swoole_fatal_error(E_ERROR, "ssl key file[%s] not found", str_v.val());
             return;
         }
     }
     if (php_swoole_array_get_value(vht, "ssl_passphrase", ztmp)) {
         zend::String str_v(ztmp);
-        cli->ssl_context->passphrase = str_v.to_std_string();
+        cli->set_ssl_passphrase(str_v.to_std_string());
     }
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
     if (php_swoole_array_get_value(vht, "ssl_host_name", ztmp)) {
         zend::String str_v(ztmp);
-        cli->ssl_context->tls_host_name = str_v.to_std_string();
+        cli->set_tls_host_name(str_v.to_std_string());
     }
 #endif
     if (php_swoole_array_get_value(vht, "ssl_verify_peer", ztmp)) {
-        cli->ssl_context->verify_peer = zval_is_true(ztmp);
+        cli->set_ssl_verify_peer(zval_is_true(ztmp));
     }
     if (php_swoole_array_get_value(vht, "ssl_allow_self_signed", ztmp)) {
-        cli->ssl_context->allow_self_signed = zval_is_true(ztmp);
+        cli->set_ssl_allow_self_signed(zval_is_true(ztmp));
     }
     if (php_swoole_array_get_value(vht, "ssl_cafile", ztmp)) {
         zend::String str_v(ztmp);
-        cli->ssl_context->cafile = str_v.to_std_string();
+        cli->set_ssl_cafile(str_v.to_std_string());
     }
     if (php_swoole_array_get_value(vht, "ssl_capath", ztmp)) {
         zend::String str_v(ztmp);
-        cli->ssl_context->capath = str_v.to_std_string();
+        cli->set_ssl_capath(str_v.to_std_string());
     }
     if (php_swoole_array_get_value(vht, "ssl_verify_depth", ztmp)) {
         zend_long v = zval_get_long(ztmp);
-        cli->ssl_context->verify_depth = SW_MAX(0, SW_MIN(v, UINT8_MAX));
+        cli->set_ssl_verify_depth(SW_MAX(0, SW_MIN(v, UINT8_MAX)));
     }
     if (php_swoole_array_get_value(vht, "ssl_ciphers", ztmp)) {
         zend::String str_v(ztmp);
-        cli->ssl_context->ciphers = str_v.to_std_string();
+        cli->set_ssl_ciphers(str_v.to_std_string());
     }
-    if (!cli->ssl_context->cert_file.empty() && cli->ssl_context->key_file.empty()) {
+    if (!cli->get_ssl_cert_file().empty() && cli->get_ssl_key_file().empty()) {
         php_swoole_fatal_error(E_ERROR, "ssl require key file");
+        return;
+    }
+    if (!cli->get_ssl_key_file().empty() && cli->get_ssl_cert_file().empty()) {
+        php_swoole_fatal_error(E_ERROR, "ssl require cert file");
         return;
     }
 }
