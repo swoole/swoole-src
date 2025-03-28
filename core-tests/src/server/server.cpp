@@ -1247,3 +1247,53 @@ TEST(server, pipe_message) {
 
     server->start();
 }
+
+TEST(server, forward_message) {
+    Server serv(Server::MODE_BASE);
+    serv.worker_num = 2;
+
+    swoole_set_log_level(SW_LOG_WARNING);
+
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_TRUE(port);
+
+    swoole::Mutex lock(swoole::Mutex::PROCESS_SHARED);
+    lock.lock();
+
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    std::thread t1([&]() {
+        swoole_signal_block_all();
+
+        lock.lock();
+
+        network::SyncClient c(SW_SOCK_TCP);
+        c.connect(TEST_HOST, port->port);
+        c.send(packet, strlen(packet));
+        char buf[1024];
+        c.recv(buf, sizeof(buf));
+        c.close();
+
+        kill(getpid(), SIGTERM);
+    });
+
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock.unlock(); };
+
+    serv.onPipeMessage = [](Server *serv, EventData *req) -> void {
+        SessionId client_fd;
+        memcpy(&client_fd, req->data, sizeof(client_fd));
+        string resp = string("Server: ") + string(packet);
+        serv->send(client_fd, resp.c_str(), resp.length());
+    };
+
+    serv.onReceive = [](Server *serv, RecvData *req) -> int {
+        EventData msg;
+        SessionId client_fd = req->info.fd;
+        Server::task_pack(&msg, &client_fd, sizeof(client_fd));
+        EXPECT_TRUE(serv->send_pipe_message(1 - swoole_get_process_id(), &msg));
+        return SW_OK;
+    };
+
+    serv.start();
+    t1.join();
+}
