@@ -102,6 +102,7 @@ TEST(server, base) {
         serv->send(req->info.fd, resp.c_str(), resp.length());
 
         EXPECT_EQ(serv->get_connection_num(), 1);
+        EXPECT_EQ(serv->get_primary_port()->get_connection_num(), 1);
 
         return SW_OK;
     };
@@ -155,6 +156,7 @@ TEST(server, process) {
         serv->send(req->info.fd, resp.c_str(), resp.length());
 
         EXPECT_EQ(serv->get_connection_num(), 1);
+        EXPECT_EQ(serv->get_primary_port()->get_connection_num(), 1);
 
         return SW_OK;
     };
@@ -203,6 +205,7 @@ TEST(server, thread) {
         serv->send(req->info.fd, resp.c_str(), resp.length());
 
         EXPECT_EQ(serv->get_connection_num(), 1);
+        EXPECT_EQ(serv->get_primary_port()->get_connection_num(), 1);
 
         return SW_OK;
     };
