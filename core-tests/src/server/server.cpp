@@ -101,6 +101,8 @@ TEST(server, base) {
         string resp = string("Server: ") + string(packet);
         serv->send(req->info.fd, resp.c_str(), resp.length());
 
+        EXPECT_EQ(serv->get_connection_num(), 1);
+
         return SW_OK;
     };
 
@@ -152,6 +154,8 @@ TEST(server, process) {
         string resp = string("Server: ") + string(packet);
         serv->send(req->info.fd, resp.c_str(), resp.length());
 
+        EXPECT_EQ(serv->get_connection_num(), 1);
+
         return SW_OK;
     };
 
@@ -197,6 +201,8 @@ TEST(server, thread) {
 
         string resp = string("Server: ") + string(packet);
         serv->send(req->info.fd, resp.c_str(), resp.length());
+
+        EXPECT_EQ(serv->get_connection_num(), 1);
 
         return SW_OK;
     };
