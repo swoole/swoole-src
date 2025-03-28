@@ -325,10 +325,10 @@ struct Socket {
         return !(retval == 0 || (retval < 0 && catch_read_error(errno) == SW_CLOSE));
     }
 
-    /**
-     * socket io operation
-     */
-    int sendfile(const char *filename, off_t offset, size_t length);
+    int sendfile_async(const char *filename, off_t offset, size_t length);
+    int sendfile_blocking(const char *filename, off_t offset, size_t length, double timeout);
+    ssize_t sendfile(const File &fp, off_t *offset, size_t length);
+
     ssize_t recv(void *__buf, size_t __n, int __flags);
     ssize_t send(const void *__buf, size_t __n, int __flags);
     ssize_t peek(void *__buf, size_t __n, int __flags);
@@ -355,7 +355,6 @@ struct Socket {
     ssize_t send_blocking(const void *__data, size_t __len);
     ssize_t send_async(const void *__data, size_t __len);
     ssize_t recv_blocking(void *__data, size_t __len, int flags);
-    int sendfile_blocking(const char *filename, off_t offset, size_t length, double timeout);
     ssize_t writev_blocking(const struct iovec *iov, size_t iovcnt);
 
     int connect(const Address &sa) {

@@ -1325,14 +1325,7 @@ bool Socket::sendfile(const char *filename, off_t offset, size_t length) {
     ssize_t n, sent_bytes;
     while ((size_t) offset < length) {
         sent_bytes = (length - offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : length - offset;
-#ifdef SW_USE_OPENSSL
-        if (socket->ssl) {
-            n = socket->ssl_sendfile(file, &offset, sent_bytes);
-        } else
-#endif
-        {
-            n = ::swoole_sendfile(sock_fd, file.get_fd(), &offset, sent_bytes);
-        }
+        n = socket->sendfile(file, &offset, sent_bytes);
         if (n > 0) {
             continue;
         } else if (n == 0) {

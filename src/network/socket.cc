@@ -105,12 +105,12 @@ int Socket::sendfile_blocking(const char *filename, off_t offset, size_t length,
 
     ssize_t n, sent_bytes;
     while (offset < (off_t) length) {
-        if (wait_event(timeout_ms, SW_EVENT_WRITE) < 0) {
-            return SW_ERR;
-        }
         sent_bytes = (length - offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : length - offset;
-        n = ::swoole_sendfile(fd, file.get_fd(), &offset, sent_bytes);
+        n = sendfile(file, &offset, sent_bytes);
         if (n <= 0) {
+            if (errno == EAGAIN && wait_event(timeout_ms, ssl_want_read ? SW_EVENT_READ : SW_EVENT_WRITE) < 0) {
+                return SW_ERR;
+            }
             swoole_sys_warning("sendfile(%d, %s) failed", fd, filename);
             return SW_ERR;
         }
@@ -649,7 +649,18 @@ static void Socket_sendfile_destructor(BufferChunk *chunk) {
     delete task;
 }
 
-int Socket::sendfile(const char *filename, off_t offset, size_t length) {
+ssize_t Socket::sendfile(const File &fp, off_t *offset, size_t length) {
+#ifdef SW_USE_OPENSSL
+    if (ssl) {
+        return ssl_sendfile(fp, offset, length);
+    } else
+#endif
+    {
+        return ::swoole_sendfile(fd, fp.get_fd(), offset, length);
+    }
+}
+
+int Socket::sendfile_async(const char *filename, off_t offset, size_t length) {
     std::unique_ptr<SendfileRequest> task(new SendfileRequest(filename, offset, length));
     if (!task->file.ready()) {
         swoole_sys_warning("open(%s) failed", filename);

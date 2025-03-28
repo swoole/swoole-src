@@ -309,6 +309,10 @@ class SyncClient {
         return client.send(&client, buf, len, 0);
     }
 
+    bool sendfile(const char *filename, off_t offset = 0, size_t length = 0) {
+        return client.sendfile(&client, filename, offset, length) == SW_OK;
+    }
+
     ssize_t recv(char *buf, size_t len) {
         return client.recv(&client, buf, len, 0);
     }

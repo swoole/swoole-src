@@ -162,11 +162,11 @@ class File {
         fd_ = -1;
     }
 
-    int get_fd() {
+    int get_fd() const {
         return fd_;
     }
 
-    const std::string &get_path() {
+    const std::string &get_path() const {
         return path_;
     }
 

@@ -728,7 +728,7 @@ static int Client_tcp_sendfile_sync(Client *cli, const char *filename, off_t off
 }
 
 static int Client_tcp_sendfile_async(Client *cli, const char *filename, off_t offset, size_t length) {
-    if (cli->socket->sendfile(filename, offset, length) < 0) {
+    if (cli->socket->sendfile_async(filename, offset, length) < 0) {
         swoole_set_last_error(errno);
         return SW_ERR;
     }

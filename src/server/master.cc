@@ -1441,7 +1441,7 @@ int Server::send_to_connection(SendData *_send) {
     // sendfile to client
     else if (_send->info.type == SW_SERVER_EVENT_SEND_FILE) {
         SendfileTask *task = (SendfileTask *) _send_data;
-        if (conn->socket->sendfile(task->filename, task->offset, task->length) < 0) {
+        if (conn->socket->sendfile_async(task->filename, task->offset, task->length) < 0) {
             return false;
         }
     }

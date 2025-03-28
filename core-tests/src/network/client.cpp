@@ -10,6 +10,7 @@ using swoole::Pipe;
 using swoole::Socks5Proxy;
 using swoole::String;
 using swoole::network::AsyncClient;
+using swoole::network::SyncClient;
 using swoole::network::Client;
 using swoole::test::create_http_proxy;
 using swoole::test::create_socks5_proxy;
@@ -247,6 +248,58 @@ TEST(client, ssl_1) {
     ASSERT_TRUE(connected);
     ASSERT_TRUE(closed);
     ASSERT_TRUE(buf.contains("Baidu"));
+}
+
+TEST(client, ssl_sendfile) {
+    bool connected = false;
+    bool closed = false;
+    String buf(65536);
+
+    swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
+
+    auto file = swoole::make_tmpfile();
+    file.write(SW_STRL(TEST_REQUEST_BAIDU));
+
+    Client client(SW_SOCK_TCP, true);
+    client.enable_ssl_encrypt();
+    client.onConnect = [&connected, &file](Client *cli) {
+        connected = true;
+        cli->sendfile(cli, file.get_path().c_str(), 0, file.get_size());
+    };
+
+    client.onError = [](Client *cli) {};
+    client.onClose = [&closed](Client *cli) { closed = true; };
+    client.onReceive = [&buf](Client *cli, const char *data, size_t length) { buf.append(data, length); };
+
+    ASSERT_EQ(client.connect(&client, TEST_DOMAIN_BAIDU, 443, -1, 0), 0);
+
+    swoole_event_wait();
+
+    ASSERT_TRUE(connected);
+    ASSERT_TRUE(closed);
+    ASSERT_TRUE(buf.contains("Baidu"));
+}
+
+TEST(client, sync_ssl_sendfile) {
+    auto file = swoole::make_tmpfile();
+    file.write(SW_STRL(TEST_REQUEST_BAIDU));
+
+    SyncClient client(SW_SOCK_TCP);
+    ASSERT_TRUE(client.connect(TEST_DOMAIN_BAIDU, 443, -1));
+    ASSERT_TRUE(client.enable_ssl_encrypt());
+    ASSERT_TRUE(client.sendfile(file.get_path().c_str()));
+
+    String buf(65536);
+    while (true) {
+        ssize_t nr = client.recv(buf.str, buf.size - buf.length);
+        if (nr <= 0) {
+            break;
+        }
+        buf.grow(nr);
+    }
+    client.close();
+    ASSERT_TRUE(buf.contains("baidu.com"));
+    unlink(file.get_path().c_str());
 }
 
 static void proxy_async_test(Client &client, bool https) {
