@@ -22,8 +22,9 @@
 
 #include <mutex>
 
-using namespace swoole;
-
+using swoole::Callback;
+using swoole::Reactor;
+using swoole::ReactorHandler;
 using swoole::network::Socket;
 
 static std::mutex init_lock;
@@ -49,9 +50,9 @@ int swoole_event_init(int flags) {
         reactor->wait_exit = 1;
     }
 
-    coroutine::Socket::init_reactor(reactor);
-    coroutine::System::init_reactor(reactor);
-    network::Client::init_reactor(reactor);
+    swoole::coroutine::Socket::init_reactor(reactor);
+    swoole::coroutine::System::init_reactor(reactor);
+    swoole::network::Client::init_reactor(reactor);
 
     SwooleTG.reactor = reactor;
 
@@ -62,7 +63,7 @@ int swoole_event_add(Socket *socket, int events) {
     return SwooleTG.reactor->add(socket, events);
 }
 
-int swoole_event_add_or_update(swoole::network::Socket *_socket, int event) {
+int swoole_event_add_or_update(Socket *_socket, int event) {
     if (event == SW_EVENT_READ) {
         return SwooleTG.reactor->add_read_event(_socket);
     } else if (event == SW_EVENT_WRITE) {
@@ -108,7 +109,7 @@ ssize_t swoole_event_write(Socket *socket, const void *data, size_t len) {
     return SwooleTG.reactor->write(SwooleTG.reactor, socket, data, len);
 }
 
-ssize_t swoole_event_writev(swoole::network::Socket *socket, const iovec *iov, size_t iovcnt) {
+ssize_t swoole_event_writev(Socket *socket, const iovec *iov, size_t iovcnt) {
     return SwooleTG.reactor->writev(SwooleTG.reactor, socket, iov, iovcnt);
 }
 

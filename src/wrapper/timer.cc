@@ -17,7 +17,9 @@
 #include "swoole_api.h"
 #include "swoole_timer.h"
 
-using namespace swoole;
+using swoole::Timer;
+using swoole::TimerCallback;
+using swoole::TimerNode;
 
 #ifdef __MACH__
 Timer *sw_timer() {

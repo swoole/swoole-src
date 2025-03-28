@@ -108,7 +108,12 @@ int Socket::sendfile_blocking(const char *filename, off_t offset, size_t length,
         sent_bytes = (length - offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : length - offset;
         n = sendfile(file, &offset, sent_bytes);
         if (n <= 0) {
-            if (errno == EAGAIN && wait_event(timeout_ms, ssl_want_read ? SW_EVENT_READ : SW_EVENT_WRITE) < 0) {
+#ifdef SW_USE_OPENSSL
+            int event = ssl_want_read ? SW_EVENT_READ : SW_EVENT_WRITE;
+#else
+            int event = SW_EVENT_WRITE;
+#endif
+            if (errno == EAGAIN && wait_event(timeout_ms, event) < 0) {
                 return SW_ERR;
             }
             swoole_sys_warning("sendfile(%d, %s) failed", fd, filename);
