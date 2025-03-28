@@ -60,7 +60,7 @@ int main(int argc, char **argv) {
     serv.add_port(SW_SOCK_TCP6, "::", 9503);
     serv.add_port(SW_SOCK_UDP6, "::", 9504);
 
-    swListenPort *port = serv.add_port(SW_SOCK_TCP, "127.0.0.1", 9501);
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, "127.0.0.1", 9501);
     if (!port) {
         swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
         exit(2);
