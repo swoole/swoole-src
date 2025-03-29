@@ -339,6 +339,7 @@ void php_swoole_http2_client_coro_minit(int module_number) {
     zend_declare_property_null(swoole_http2_client_coro_ce, ZEND_STRL("host"), ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_http2_client_coro_ce, ZEND_STRL("port"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_bool(swoole_http2_client_coro_ce, ZEND_STRL("ssl"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_http2_client_coro_ce, ZEND_STRL("serverLastStreamId"), 0, ZEND_ACC_PUBLIC);
 
     zend_declare_property_string(swoole_http2_request_ce, ZEND_STRL("path"), "/", ZEND_ACC_PUBLIC);
     zend_declare_property_string(swoole_http2_request_ce, ZEND_STRL("method"), "GET", ZEND_ACC_PUBLIC);
@@ -349,7 +350,6 @@ void php_swoole_http2_client_coro_minit(int module_number) {
     zend_declare_property_bool(swoole_http2_request_ce, ZEND_STRL("usePipelineRead"), 0, ZEND_ACC_PUBLIC);
 
     zend_declare_property_long(swoole_http2_response_ce, ZEND_STRL("streamId"), 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_long(swoole_http2_response_ce, ZEND_STRL("serverLastStreamId"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_http2_response_ce, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_http2_response_ce, ZEND_STRL("statusCode"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_bool(swoole_http2_response_ce, ZEND_STRL("pipeline"), 0, ZEND_ACC_PUBLIC);
