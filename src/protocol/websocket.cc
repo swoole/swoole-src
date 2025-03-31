@@ -101,9 +101,9 @@ ssize_t get_package_length(const Protocol *protocol, Socket *conn, PacketLength 
     return get_package_length_impl(pl);
 }
 
-static sw_inline void mask(char *data, size_t len, const char *mask_key) {
+void mask(char *data, size_t len, const char *mask_key) {
     size_t n = len / 8;
-    uint64_t mask_key64 = ((uint64_t)(*((uint32_t *) mask_key)) << 32) | *((uint32_t *) mask_key);
+    uint64_t mask_key64 = ((uint64_t) (*((uint32_t *) mask_key)) << 32) | *((uint32_t *) mask_key);
     size_t i;
 
     for (i = 0; i < n; i++) {
@@ -168,8 +168,8 @@ bool decode(Frame *frame, char *data, size_t length) {
     frame->header.OPCODE = data[0] & 0xf;
     frame->header.RSV1 = (data[0] >> 6) & 0x1;
     frame->header.RSV2 = (data[0] >> 5) & 0x1;
-    frame->header.RSV3 =(data[0] >> 4) & 0x1;
-    frame->header.FIN =  (data[0] >> 7) & 0x1;
+    frame->header.RSV3 = (data[0] >> 4) & 0x1;
+    frame->header.FIN = (data[0] >> 7) & 0x1;
     frame->header.MASK = (data[1] >> 7) & 0x1;
     frame->header.LENGTH = data[1] & 0x7f;
 

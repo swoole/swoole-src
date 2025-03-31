@@ -148,6 +148,7 @@ static inline uchar set_flags(uchar fin, uchar mask, uchar rsv1, uchar rsv2, uch
 
 bool encode(String *buffer, const char *data, size_t length, char opcode, uint8_t flags);
 bool decode(Frame *frame, char *data, size_t length);
+void mask(char *data, size_t len, const char *mask_key);
 int pack_close_frame(String *buffer, int code, char *reason, size_t length, uint8_t flags);
 void print_frame(Frame *frame);
 

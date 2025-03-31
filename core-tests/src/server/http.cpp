@@ -140,11 +140,7 @@ static void test_base_server(function<void(Server *)> fn) {
         if (conn->websocket_status == websocket::STATUS_ACTIVE) {
             sw_tg_buffer()->clear();
             std::string resp = "Swoole: " + string(req->data, req->info.len);
-            websocket::encode(sw_tg_buffer(),
-                                      resp.c_str(),
-                                      resp.length(),
-                                      websocket::OPCODE_TEXT,
-                                      websocket::FLAG_FIN);
+            websocket::encode(sw_tg_buffer(), resp.c_str(), resp.length(), websocket::OPCODE_TEXT, websocket::FLAG_FIN);
             serv->send(session_id, sw_tg_buffer()->str, sw_tg_buffer()->length);
             return SW_OK;
         }
@@ -589,14 +585,19 @@ TEST(http_server, proxy_response) {
     }
 }
 
-static void websocket_test(int server_port, const char *data, size_t length) {
+static void websocket_test(int server_port, const char *data, size_t length, bool mask = false) {
     httplib::Client cli(TEST_HOST, server_port);
+
+    if (mask) {
+        cli.set_websocket_mask(true);
+    }
 
     httplib::Headers headers;
     EXPECT_TRUE(cli.Upgrade("/websocket", headers));
     EXPECT_TRUE(cli.Push(data, length));
 
     auto msg = cli.Recv();
+    ASSERT_NE(msg.get(), nullptr);
     EXPECT_EQ(string(msg->payload, msg->payload_length), string("Swoole: ") + string(data, length));
 }
 
@@ -627,6 +628,20 @@ TEST(http_server, websocket_big) {
         String str(128 * 1024);
         str.repeat("A", 1, str.capacity() - 1);
         websocket_test(serv->get_primary_port()->get_port(), str.value(), str.get_length());
+
+        kill(getpid(), SIGTERM);
+    });
+}
+
+TEST(http_server, websocket_mask) {
+    test_base_server([](Server *serv) {
+        swoole_signal_block_all();
+
+        String str(1 * 128);
+        str.repeat("A", 1, str.capacity() - 1);
+        //        str.append_random_bytes(32 * 1024, true);
+
+        websocket_test(serv->get_primary_port()->get_port(), str.value(), str.get_length(), true);
 
         kill(getpid(), SIGTERM);
     });
@@ -1204,7 +1219,6 @@ TEST(http_server, http_range2) {
         ASSERT_TRUE(request_with_diff_range(to_string(server->get_primary_port()->port), "-16"));
         ASSERT_TRUE(request_with_diff_range(to_string(server->get_primary_port()->port), "128-"));
         ASSERT_TRUE(request_with_diff_range(to_string(server->get_primary_port()->port), "0-0,-1"));
-
     }
 }
 

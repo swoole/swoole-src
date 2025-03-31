@@ -611,6 +611,8 @@ class Client {
 
     void set_interface(const char *intf);
 
+    void set_websocket_mask(bool on);
+
     void set_proxy(const char *host, int port);
     void set_proxy_basic_auth(const char *username, const char *password);
 #ifdef CPPHTTPLIB_OPENSSL_SUPPORT
@@ -678,6 +680,8 @@ class Client {
     std::string proxy_host_;
     int proxy_port_ = 80;
 
+    bool websocket_mask_ = false;
+
     std::string proxy_basic_auth_username_;
     std::string proxy_basic_auth_password_;
 #ifdef CPPHTTPLIB_OPENSSL_SUPPORT
@@ -716,6 +720,7 @@ class Client {
         proxy_digest_auth_username_ = rhs.proxy_digest_auth_username_;
         proxy_digest_auth_password_ = rhs.proxy_digest_auth_password_;
 #endif
+        websocket_mask_ = rhs.websocket_mask_;
         logger_ = rhs.logger_;
     }
 

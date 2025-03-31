@@ -4,6 +4,8 @@
 
 namespace websocket = swoole::websocket;
 
+using swoole::String;
+
 namespace httplib {
 
 bool Client::Upgrade(const char *_path, Headers &_headers) {
@@ -31,10 +33,24 @@ bool Client::Push(const char *data, size_t length, int opcode) {
         buffer.size = sizeof(buf);
         buffer.str = buf;
 
-        websocket::encode(&buffer, data, length, opcode, websocket::FLAG_FIN | websocket::FLAG_ENCODE_HEADER_ONLY);
-        strm.write(buffer.str, buffer.length);
-        strm.write(data, length);
-        return true;
+        auto flags = websocket::FLAG_FIN | websocket::FLAG_ENCODE_HEADER_ONLY;
+        if (websocket_mask_) {
+            flags |= websocket::FLAG_MASK;
+        }
+
+        websocket::encode(&buffer, data, length, opcode, flags);
+        if (strm.write(buffer.str, buffer.length) != (ssize_t) buffer.length) {
+            return false;
+        }
+
+        if (websocket_mask_) {
+            std::unique_ptr<char[]> marked = std::make_unique<char[]>(length + 1);
+            memcpy(marked.get(), data, length);
+            websocket::mask(marked.get(), length, buffer.str + buffer.length - SW_WEBSOCKET_MASK_LEN);
+            return strm.write(marked.get(), length) == (ssize_t) length;
+        } else {
+            return strm.write(data, length) == (ssize_t) length;
+        }
     });
 }
 
@@ -52,7 +68,7 @@ std::shared_ptr<WebSocketFrame> Client::Recv() {
         if (strm.read(buf, SW_WEBSOCKET_HEADER_LEN) <= 0) {
             return false;
         }
-        swoole::PacketLength pl {
+        swoole::PacketLength pl{
             buf,
             SW_WEBSOCKET_HEADER_LEN,
         };
@@ -905,6 +921,10 @@ void Client::set_proxy(const char *host, int port) {
 void Client::set_proxy_basic_auth(const char *username, const char *password) {
     proxy_basic_auth_username_ = username;
     proxy_basic_auth_password_ = password;
+}
+
+void Client::set_websocket_mask(bool on) {
+    websocket_mask_ = on;
 }
 
 #ifdef CPPHTTPLIB_OPENSSL_SUPPORT
