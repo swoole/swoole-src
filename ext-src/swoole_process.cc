@@ -771,7 +771,7 @@ static PHP_METHOD(swoole_process, write) {
         }
     } else {
     _blocking_read:
-        ret = process->pipe_current->send_blocking(data, data_len);
+        ret = process->pipe_current->send_sync(data, data_len);
     }
 
     if (ret < 0) {

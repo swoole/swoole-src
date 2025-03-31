@@ -326,7 +326,7 @@ struct Socket {
     }
 
     int sendfile_async(const char *filename, off_t offset, size_t length);
-    int sendfile_blocking(const char *filename, off_t offset, size_t length, double timeout);
+    int sendfile_sync(const char *filename, off_t offset, size_t length, double timeout);
     ssize_t sendfile(const File &fp, off_t *offset, size_t length);
 
     ssize_t recv(void *__buf, size_t __n, int __flags);
@@ -352,10 +352,10 @@ struct Socket {
     }
 
     void clean();
-    ssize_t send_blocking(const void *__data, size_t __len);
+    ssize_t send_sync(const void *__data, size_t __len);
     ssize_t send_async(const void *__data, size_t __len);
-    ssize_t recv_blocking(void *__data, size_t __len, int flags);
-    ssize_t writev_blocking(const struct iovec *iov, size_t iovcnt);
+    ssize_t recv_sync(void *__data, size_t __len, int flags);
+    ssize_t writev_sync(const struct iovec *iov, size_t iovcnt);
 
     int connect(const Address &sa) {
         return ::connect(fd, &sa.addr.ss, sa.len);
@@ -505,8 +505,8 @@ struct Socket {
         return ::shutdown(fd, __how);
     }
 
-    ssize_t sendto_blocking(const Address &dst_addr, const void *__buf, size_t __n, int flags = 0);
-    ssize_t recvfrom_blocking(char *__buf, size_t __len, int flags, Address *sa);
+    ssize_t sendto_sync(const Address &dst_addr, const void *__buf, size_t __n, int flags = 0);
+    ssize_t recvfrom_sync(char *__buf, size_t __len, int flags, Address *sa);
 
     ssize_t sendto(const char *dst_host, int dst_port, const void *data, size_t len, int flags = 0) const {
         Address addr = {};

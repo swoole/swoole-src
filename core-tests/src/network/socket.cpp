@@ -117,7 +117,7 @@ TEST(socket, recv) {
     t2.join();
 }
 
-TEST(socket, recvfrom_blocking) {
+TEST(socket, recvfrom_sync) {
     mutex m;
     m.lock();
     int port = swoole::test::get_random_port();
@@ -128,7 +128,7 @@ TEST(socket, recvfrom_blocking) {
         char buf[1024] = {};
         svr->set_nonblock();
         m.unlock();
-        svr->recvfrom_blocking(buf, sizeof(buf), 0, &addr);
+        svr->recvfrom_sync(buf, sizeof(buf), 0, &addr);
         ASSERT_STREQ(test_data, buf);
         svr->free();
     });
@@ -148,7 +148,7 @@ TEST(socket, recvfrom_blocking) {
     t2.join();
 }
 
-TEST(socket, sendfile_blocking) {
+TEST(socket, sendfile_sync) {
     string file = test::get_root_path() + "/examples/test.jpg";
     mutex m;
     int port = swoole::test::get_random_port();
@@ -161,12 +161,12 @@ TEST(socket, sendfile_blocking) {
         m.unlock();
         auto cli = svr->accept();
         int len;
-        cli->recv_blocking(&len, sizeof(len), MSG_WAITALL);
+        cli->recv_sync(&len, sizeof(len), MSG_WAITALL);
         int _len = ntohl(len);
         ASSERT_EQ(_len, str->get_length());
         ASSERT_LT(_len, 1024 * 1024);
         std::unique_ptr<char[]> data(new char[_len]);
-        cli->recv_blocking(data.get(), _len, MSG_WAITALL);
+        cli->recv_sync(data.get(), _len, MSG_WAITALL);
         ASSERT_STREQ(data.get(), str->value());
         cli->free();
         svr->free();
@@ -180,7 +180,7 @@ TEST(socket, sendfile_blocking) {
         ASSERT_EQ(cli->connect(addr), SW_OK);
         int len = htonl(str->get_length());
         cli->send(&len, sizeof(len), 0);
-        ASSERT_EQ(cli->sendfile_blocking(file.c_str(), 0, 0, -1), SW_OK);
+        ASSERT_EQ(cli->sendfile_sync(file.c_str(), 0, 0, -1), SW_OK);
         cli->free();
     });
 
@@ -217,7 +217,7 @@ TEST(socket, peek) {
     unlink(sock2_path);
 }
 
-TEST(socket, sendto_blocking) {
+TEST(socket, sendto_sync) {
     char sock1_path[] = "/tmp/udp_unix1.sock";
     unlink(sock1_path);
     auto sock1 = make_socket(SW_SOCK_UNIX_DGRAM, SW_FD_DGRAM_SERVER, 0);
@@ -249,9 +249,9 @@ TEST(socket, sendto_blocking) {
     });
 
     for (int i = 0; i < 10; i++) {
-        ASSERT_GT(sock1->sendto_blocking(sock2->info, sendbuf, strlen(sendbuf)), 0);
+        ASSERT_GT(sock1->sendto_sync(sock2->info, sendbuf, strlen(sendbuf)), 0);
     }
-    ASSERT_GT(sock1->sendto_blocking(sock2->info, "end", 3), 0);
+    ASSERT_GT(sock1->sendto_sync(sock2->info, "end", 3), 0);
 
     t1.join();
 
@@ -278,7 +278,7 @@ TEST(socket, clean) {
     swoole_random_string(sendbuf, sizeof(sendbuf) - 1);
 
     for (int i = 0; i < 3; i++) {
-        ASSERT_GT(sock1->sendto_blocking(sock2->info, sendbuf, strlen(sendbuf)), 0);
+        ASSERT_GT(sock1->sendto_sync(sock2->info, sendbuf, strlen(sendbuf)), 0);
     }
 
     sock2->clean();

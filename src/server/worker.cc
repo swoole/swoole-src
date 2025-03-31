@@ -587,7 +587,7 @@ ssize_t Server::send_to_reactor_thread(const EventData *ev_data, size_t sendn, S
     if (swoole_event_is_available()) {
         return swoole_event_write(pipe_sock, ev_data, sendn);
     } else {
-        return pipe_sock->send_blocking(ev_data, sendn);
+        return pipe_sock->send_sync(ev_data, sendn);
     }
 }
 

@@ -1576,7 +1576,7 @@ bool Server::sendwait(SessionId session_id, const void *data, uint32_t length) {
                          session_id);
         return false;
     }
-    return conn->socket->send_blocking(data, length) == length;
+    return conn->socket->send_sync(data, length) == length;
 }
 
 void Server::call_hook(HookType type, void *arg) {

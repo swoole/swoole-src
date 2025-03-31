@@ -950,7 +950,7 @@ void Server::join_reactor_thread() {
         if (thread->notify_pipe) {
             DataHead ev = {};
             ev.type = SW_SERVER_EVENT_SHUTDOWN;
-            if (thread->notify_pipe->send_blocking((void *) &ev, sizeof(ev)) < 0) {
+            if (thread->notify_pipe->send_sync((void *) &ev, sizeof(ev)) < 0) {
                 goto _cancel;
             }
         } else {
@@ -984,7 +984,7 @@ void Server::start_heartbeat_thread() {
                 ev.type = SW_SERVER_EVENT_CLOSE_FORCE;
                 // convert fd to session_id, in order to verify the connection before the force close connection
                 ev.fd = session_id;
-                get_reactor_pipe_socket(session_id, conn->reactor_id)->send_blocking(&ev, sizeof(ev));
+                get_reactor_pipe_socket(session_id, conn->reactor_id)->send_sync(&ev, sizeof(ev));
             });
             sleep(heartbeat_check_interval);
         }

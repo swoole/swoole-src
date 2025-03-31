@@ -145,7 +145,7 @@ bool Server::task(EventData *_task, int *dst_worker_id, bool blocking) {
 
     swResultCode retval;
     if (blocking) {
-        retval = gs->task_workers.dispatch_blocking(_task, dst_worker_id);
+        retval = gs->task_workers.dispatch_sync(_task, dst_worker_id);
     } else {
         retval = gs->task_workers.dispatch(_task, dst_worker_id);
     }
@@ -362,9 +362,9 @@ bool Server::finish(const char *data, size_t data_len, int flags, EventData *cur
 
         if (worker->pool->use_socket && worker->pool->stream_info_->last_connection) {
             uint32_t _len = htonl(data_len);
-            retval = worker->pool->stream_info_->last_connection->send_blocking((void *) &_len, sizeof(_len));
+            retval = worker->pool->stream_info_->last_connection->send_sync((void *) &_len, sizeof(_len));
             if (retval > 0) {
-                retval = worker->pool->stream_info_->last_connection->send_blocking(data, data_len);
+                retval = worker->pool->stream_info_->last_connection->send_sync(data, data_len);
             }
         } else {
             retval = send_to_worker_from_worker(worker, &buf, buf.size(), SW_PIPE_MASTER);

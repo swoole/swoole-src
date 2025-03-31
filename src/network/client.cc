@@ -720,7 +720,7 @@ static ssize_t Client_tcp_send_sync(Client *cli, const char *data, size_t length
 }
 
 static int Client_tcp_sendfile_sync(Client *cli, const char *filename, off_t offset, size_t length) {
-    if (cli->socket->sendfile_blocking(filename, offset, length, cli->timeout) < 0) {
+    if (cli->socket->sendfile_sync(filename, offset, length, cli->timeout) < 0) {
         swoole_set_last_error(errno);
         return SW_ERR;
     }

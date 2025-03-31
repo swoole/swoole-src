@@ -22,7 +22,7 @@ static void test_func(ProcessPool &pool) {
     memcpy(data.data, rmem.value(), size);
 
     int worker_id = -1;
-    ASSERT_EQ(pool.dispatch_blocking(&data, &worker_id), SW_OK);
+    ASSERT_EQ(pool.dispatch_sync(&data, &worker_id), SW_OK);
 
     pool.running = true;
     pool.ptr = &rmem;
@@ -95,7 +95,7 @@ TEST(process_pool, tcp_raw) {
     data.append_random_bytes(size - 1);
     data.append("\0");
 
-    ASSERT_EQ(pool.dispatch_blocking(data.str, data.length), SW_OK);
+    ASSERT_EQ(pool.dispatch_sync(data.str, data.length), SW_OK);
 
     pool.running = true;
     pool.ptr = &data;
@@ -164,7 +164,7 @@ TEST(process_pool, shutdown) {
     msg.info.len = 128;
     swoole_random_string(msg.data, msg.info.len);
     int worker_id = -1;
-    pool.dispatch_blocking(&msg, &worker_id);
+    pool.dispatch_sync(&msg, &worker_id);
 
     // wait
     ASSERT_EQ(pool.wait(), SW_OK);
@@ -219,7 +219,7 @@ TEST(process_pool, async) {
     msg.info.len = 128;
     swoole_random_string(msg.data, msg.info.len);
     int worker_id = -1;
-    pool.dispatch_blocking(&msg, &worker_id);
+    pool.dispatch_sync(&msg, &worker_id);
 
     // wait
     ASSERT_EQ(pool.wait(), SW_OK);

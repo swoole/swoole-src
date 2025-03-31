@@ -84,7 +84,7 @@ void IOVector::update_iterator(ssize_t __n) {
     abort();
 }
 
-int Socket::sendfile_blocking(const char *filename, off_t offset, size_t length, double timeout) {
+int Socket::sendfile_sync(const char *filename, off_t offset, size_t length, double timeout) {
     int timeout_ms = timeout < 0 ? -1 : timeout * 1000;
 
     File file(filename, O_RDONLY);
@@ -123,7 +123,7 @@ int Socket::sendfile_blocking(const char *filename, off_t offset, size_t length,
     return SW_OK;
 }
 
-ssize_t Socket::writev_blocking(const struct iovec *iov, size_t iovcnt) {
+ssize_t Socket::writev_sync(const struct iovec *iov, size_t iovcnt) {
     while (1) {
         ssize_t n = writev(iov, iovcnt);
         if (n < 0) {
@@ -190,7 +190,7 @@ int Socket::wait_event(int timeout_ms, int events) {
     return SW_OK;
 }
 
-ssize_t Socket::send_blocking(const void *__data, size_t __len) {
+ssize_t Socket::send_sync(const void *__data, size_t __len) {
     ssize_t n = 0;
     ssize_t written = 0;
 
@@ -220,7 +220,7 @@ ssize_t Socket::send_blocking(const void *__data, size_t __len) {
     return written;
 }
 
-ssize_t Socket::recv_blocking(void *__data, size_t __len, int flags) {
+ssize_t Socket::recv_sync(void *__data, size_t __len, int flags) {
     ssize_t ret;
     size_t read_bytes = 0;
 
@@ -273,7 +273,7 @@ Socket *Socket::accept() {
     return socket;
 }
 
-ssize_t Socket::sendto_blocking(const Address &sa, const void *__buf, size_t __n, int flags) {
+ssize_t Socket::sendto_sync(const Address &sa, const void *__buf, size_t __n, int flags) {
     ssize_t n = 0;
 
     for (int i = 0; i < SW_SOCKET_RETRY_COUNT; i++) {
@@ -293,7 +293,7 @@ ssize_t Socket::sendto_blocking(const Address &sa, const void *__buf, size_t __n
     return n;
 }
 
-ssize_t Socket::recvfrom_blocking(char *__buf, size_t __len, int flags, Address *sa) {
+ssize_t Socket::recvfrom_sync(char *__buf, size_t __len, int flags, Address *sa) {
     ssize_t n = 0;
 
     for (int i = 0; i < SW_SOCKET_RETRY_COUNT; i++) {
@@ -780,7 +780,7 @@ ssize_t Socket::send(const void *__buf, size_t __n, int __flags) {
 
 ssize_t Socket::send_async(const void *__buf, size_t __n) {
     if (!swoole_event_is_available()) {
-        return send_blocking(__buf, __n);
+        return send_sync(__buf, __n);
     } else {
         return swoole_event_write(this, __buf, __n);
     }

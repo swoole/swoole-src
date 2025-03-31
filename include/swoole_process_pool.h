@@ -385,8 +385,8 @@ struct ProcessPool {
     void kill_all_workers(int signo = SIGKILL);
     swResultCode dispatch(EventData *data, int *worker_id);
     int response(const char *data, int length);
-    swResultCode dispatch_blocking(EventData *data, int *dst_worker_id);
-    swResultCode dispatch_blocking(const char *data, uint32_t len);
+    swResultCode dispatch_sync(EventData *data, int *dst_worker_id);
+    swResultCode dispatch_sync(const char *data, uint32_t len);
     void add_worker(Worker *worker);
     int del_worker(Worker *worker);
     void destroy();

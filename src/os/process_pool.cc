@@ -373,7 +373,7 @@ swResultCode ProcessPool::dispatch(EventData *data, int *dst_worker_id) {
     return SW_OK;
 }
 
-swResultCode ProcessPool::dispatch_blocking(const char *data, uint32_t len) {
+swResultCode ProcessPool::dispatch_sync(const char *data, uint32_t len) {
     assert(use_socket);
 
     network::Client _socket(stream_info_->socket->socket_type, false);
@@ -394,9 +394,9 @@ swResultCode ProcessPool::dispatch_blocking(const char *data, uint32_t len) {
     return SW_OK;
 }
 
-swResultCode ProcessPool::dispatch_blocking(EventData *data, int *dst_worker_id) {
+swResultCode ProcessPool::dispatch_sync(EventData *data, int *dst_worker_id) {
     if (use_socket) {
-        return dispatch_blocking((char *) data, data->size());
+        return dispatch_sync((char *) data, data->size());
     }
 
     if (*dst_worker_id < 0) {
@@ -591,7 +591,7 @@ int ProcessPool::run_with_task_protocol(ProcessPool *pool, Worker *worker) {
                     goto _end;
                 }
             }
-            n = Stream::recv_blocking(conn, (void *) &out.buf, sizeof(out.buf));
+            n = Stream::recv_sync(conn, (void *) &out.buf, sizeof(out.buf));
             if (n <= 0) {
                 conn->free();
                 goto _end;
@@ -620,7 +620,7 @@ int ProcessPool::run_with_task_protocol(ProcessPool *pool, Worker *worker) {
         }
         if (pool->use_socket && pool->stream_info_->last_connection) {
             int _end = 0;
-            pool->stream_info_->last_connection->send_blocking((void *) &_end, sizeof(_end));
+            pool->stream_info_->last_connection->send_sync((void *) &_end, sizeof(_end));
             pool->stream_info_->last_connection->free();
             pool->stream_info_->last_connection = nullptr;
         }
@@ -730,7 +730,7 @@ int ProcessPool::run_with_stream_protocol(ProcessPool *pool, Worker *worker) {
                 }
             }
             uint32_t packet_len = 0;
-            if (conn->recv_blocking(&packet_len, sizeof(packet_len), MSG_WAITALL) <= 0) {
+            if (conn->recv_sync(&packet_len, sizeof(packet_len), MSG_WAITALL) <= 0) {
                 goto _close;
             }
             n = ntohl(packet_len);
@@ -743,7 +743,7 @@ int ProcessPool::run_with_stream_protocol(ProcessPool *pool, Worker *worker) {
             } else if (n > pool->max_packet_size_) {
                 goto _close;
             }
-            if (conn->recv_blocking(pool->packet_buffer, n, MSG_WAITALL) <= 0) {
+            if (conn->recv_sync(pool->packet_buffer, n, MSG_WAITALL) <= 0) {
             _close:
                 conn->free();
                 goto _end;
@@ -770,8 +770,8 @@ int ProcessPool::run_with_stream_protocol(ProcessPool *pool, Worker *worker) {
             String *resp_buf = pool->stream_info_->response_buffer;
             if (resp_buf && resp_buf->length > 0) {
                 int _l = htonl(resp_buf->length);
-                pool->stream_info_->last_connection->send_blocking(&_l, sizeof(_l));
-                pool->stream_info_->last_connection->send_blocking(resp_buf->str, resp_buf->length);
+                pool->stream_info_->last_connection->send_sync(&_l, sizeof(_l));
+                pool->stream_info_->last_connection->send_sync(resp_buf->str, resp_buf->length);
                 resp_buf->clear();
             }
             pool->stream_info_->last_connection->free();
@@ -1085,7 +1085,7 @@ ssize_t Worker::send_pipe_message(const void *buf, size_t n, int flags) {
     if ((flags & SW_PIPE_NONBLOCK) && swoole_event_is_available()) {
         return swoole_event_write(pipe_sock, buf, n);
     } else {
-        return pipe_sock->send_blocking(buf, n);
+        return pipe_sock->send_sync(buf, n);
     }
 }
 

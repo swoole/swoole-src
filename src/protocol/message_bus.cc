@@ -209,7 +209,7 @@ bool MessageBus::write(Socket *sock, SendData *resp) {
         if (swoole_event_is_available()) {
             return swoole_event_writev(sock, iov, iovcnt);
         } else {
-            return sock->writev_blocking(iov, iovcnt);
+            return sock->writev_sync(iov, iovcnt);
         }
     };
 
