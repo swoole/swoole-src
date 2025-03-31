@@ -35,7 +35,7 @@
 #include <windows.h> /* GetCurrentThreadId() */
 #endif
 
-static long swoole_thread_get_native_id(void) {
+static inline long swoole_thread_get_native_id(void) {
 #ifdef __APPLE__
     uint64_t native_id;
     (void) pthread_threadid_np(NULL, &native_id);
@@ -55,7 +55,7 @@ static long swoole_thread_get_native_id(void) {
     return native_id;
 }
 
-static bool swoole_thread_set_name(const char *name) {
+static inline bool swoole_thread_set_name(const char *name) {
 #if defined(__APPLE__)
     return pthread_setname_np(name) == 0;
 #else
