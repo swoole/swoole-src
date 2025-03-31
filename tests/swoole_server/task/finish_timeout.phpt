@@ -64,5 +64,5 @@ $pm->run();
 unlink(TMP_LOG_FILE);
 ?>
 --EXPECTF--
-[%s]	WARNING	Socket::send_blocking(): send %d bytes failed, Error: Resource temporarily unavailable[11]
+[%s]	WARNING	Socket::send_sync(): send %d bytes failed, Error: Resource temporarily unavailable[11]
 [%s]	WARNING	Server::finish() (ERRNO %d): send result to worker timed out
