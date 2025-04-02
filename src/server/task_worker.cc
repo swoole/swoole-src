@@ -91,6 +91,9 @@ static int TaskWorker_onTask(ProcessPool *pool, Worker *worker, EventData *task)
         serv->onPipeMessage(serv, task);
     } else if (task->info.type == SW_SERVER_EVENT_SHUTDOWN) {
         worker->shutdown();
+        if (swoole_event_is_available()) {
+            serv->stop_async_worker(worker);
+        }
         return SW_OK;
     } else if (task->info.type == SW_SERVER_EVENT_COMMAND_REQUEST) {
         ret = TaskWorker_call_command_handler(pool, worker, task);
@@ -296,7 +299,7 @@ static int TaskWorker_onPipeReceive(Reactor *reactor, Event *event) {
  */
 static int TaskWorker_loop_async(ProcessPool *pool, Worker *worker) {
     Server *serv = (Server *) pool->ptr;
-    Socket *socket = worker->pipe_worker;
+    Socket *socket = serv->get_worker_pipe_worker_in_message_bus(worker);
     worker->set_status_to_idle();
 
     socket->set_nonblock();
@@ -306,8 +309,8 @@ static int TaskWorker_loop_async(ProcessPool *pool, Worker *worker) {
 
     for (uint i = 0; i < serv->worker_num + serv->task_worker_num; i++) {
         worker = serv->get_worker(i);
-        worker->pipe_master->buffer_size = UINT_MAX;
-        worker->pipe_worker->buffer_size = UINT_MAX;
+        serv->get_worker_pipe_worker_in_message_bus(worker)->buffer_size = UINT_MAX;
+        serv->get_worker_pipe_master_in_message_bus(worker)->buffer_size = UINT_MAX;
     }
 
     return swoole_event_wait();

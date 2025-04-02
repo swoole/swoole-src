@@ -397,16 +397,14 @@ void Server::stop_async_worker(Worker *worker) {
     SwooleWG.worker_copy = new Worker{};
     *SwooleWG.worker_copy = *worker;
     SwooleWG.worker = worker;
-    auto pipe_worker = worker->pipe_worker;
-    if (is_thread_mode()) {
-        pipe_worker = get_worker_message_bus()->get_pipe_socket(worker->pipe_worker);
-    }
+    auto pipe_worker = get_worker_pipe_worker_in_message_bus(worker);
+
     if (pipe_worker && !pipe_worker->removed) {
         reactor->remove_read_event(pipe_worker);
     }
 
     if (is_base_mode()) {
-        if (is_worker()) {
+        if (is_event_worker()) {
             if (worker->id == 0 && gs->event_workers.running == 0) {
                 if (swoole_isset_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN)) {
                     swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN, this);
@@ -437,18 +435,22 @@ void Server::stop_async_worker(Worker *worker) {
             swoole_sys_warning("failed to push WORKER_STOP message");
         }
     } else if (is_thread_mode()) {
-        SW_LOOP_N(worker_num) {
-            if (i % reactor_num == reactor->id) {
-                auto pipe_master = get_worker_message_bus()->get_pipe_socket(get_worker_pipe_master(i));
-                reactor->remove_read_event(pipe_master);
+        if (is_event_worker()) {
+            SW_LOOP_N(worker_num) {
+                if (i % reactor_num == reactor->id) {
+                    auto pipe_master = get_worker_message_bus()->get_pipe_socket(get_worker_pipe_master(i));
+                    if (!pipe_master->removed) {
+                        reactor->remove_read_event(pipe_master);
+                    }
+                }
             }
-        }
 
-        foreach_connection([this, reactor](Connection *conn) {
-            if (conn->reactor_id == reactor->id && !conn->peer_closed && !conn->socket->removed) {
-                reactor->remove_read_event(conn->socket);
-            }
-        });
+            foreach_connection([this, reactor](Connection *conn) {
+                if (conn->reactor_id == reactor->id && !conn->peer_closed && !conn->socket->removed) {
+                    reactor->remove_read_event(conn->socket);
+                }
+            });
+        }
     } else {
         assert(0);
     }
@@ -524,6 +526,7 @@ void Server::clean_worker_connections(Worker *worker) {
 
 /**
  * main loop [Worker]
+ * Only used in SWOOLE_PROCESS mode
  */
 int Server::start_event_worker(Worker *worker) {
     swoole_set_process_id(worker->id);

@@ -950,6 +950,30 @@ class Server {
         return get_worker(id)->pipe_worker;
     }
 
+    network::Socket *get_pipe_socket_in_message_bus(network::Socket *_socket) {
+        if (is_thread_mode()) {
+            return get_worker_message_bus()->get_pipe_socket(_socket);
+        } else {
+            return _socket;
+        }
+    }
+
+    network::Socket *get_worker_pipe_master_in_message_bus(Worker *worker) {
+        return get_pipe_socket_in_message_bus(worker->pipe_master);
+    }
+
+    network::Socket *get_worker_pipe_worker_in_message_bus(Worker *worker) {
+        return get_pipe_socket_in_message_bus(worker->pipe_worker);
+    }
+
+    network::Socket *get_worker_pipe_master_in_message_bus(WorkerId id) {
+        return get_worker_pipe_master_in_message_bus(get_worker(id));
+    }
+
+    network::Socket *get_worker_pipe_worker_in_message_bus(WorkerId id) {
+        return get_worker_pipe_worker_in_message_bus(get_worker(id));
+    }
+
     /**
      * [Worker|Master]
      */
