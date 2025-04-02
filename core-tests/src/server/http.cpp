@@ -637,9 +637,8 @@ TEST(http_server, websocket_mask) {
     test_base_server([](Server *serv) {
         swoole_signal_block_all();
 
-        String str(1 * 128);
-        str.repeat("A", 1, str.capacity() - 1);
-        //        str.append_random_bytes(32 * 1024, true);
+        String str(64 * 128);
+        str.append_random_bytes(str.capacity(), true);
 
         websocket_test(serv->get_primary_port()->get_port(), str.value(), str.get_length(), true);
 
