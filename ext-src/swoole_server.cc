@@ -2643,6 +2643,18 @@ static PHP_METHOD(swoole_server, start) {
     if (serv->is_worker_thread()) {
         zval *zsetting = sw_zend_read_and_convert_property_array(Z_OBJCE_P(ZEND_THIS), zserv, ZEND_STRL("setting"), 0);
         php_swoole_unserialize((zend_string *) serv->private_data_4, zsetting);
+
+        auto ht = Z_ARRVAL_P(zsetting);
+        /**
+         * The coroutine configurations are thread-local variables,
+         * and each worker thread must reset them once.
+         */
+        php_swoole_set_coroutine_option(ht);
+
+        if (PHPCoroutine::get_hook_flags() > 0) {
+            PHPCoroutine::enable_hook(PHPCoroutine::get_hook_flags());
+        }
+
         worker_thread_fn();
         RETURN_TRUE;
     }

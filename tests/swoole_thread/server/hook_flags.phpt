@@ -9,6 +9,7 @@ skip_if_nts();
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
 
+use Swoole\Runtime;
 use Swoole\Thread;
 use Swoole\Thread\Queue;
 use Swoole\Thread\Atomic;
@@ -29,6 +30,7 @@ $serv->set(array(
 ));
 $serv->on('WorkerStart', function (Swoole\Server $serv, $workerId) use ($port) {
     [$queue, $atomic] = Thread::getArguments();
+    Assert::eq(Runtime::getHookFlags(), SWOOLE_HOOK_ALL);
     $output = file_get_contents("http://127.0.0.1:$port/");
     $queue->push($output, Queue::NOTIFY_ALL);
 });
