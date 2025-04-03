@@ -18,6 +18,7 @@
 */
 
 #include "test_core.h"
+#include "swoole_signal.h"
 #include "swoole_util.h"
 #include "swoole_timer.h"
 
@@ -48,6 +49,7 @@ TEST(timer, sys) {
 
     while (1) {
         sleep(10);
+        swoole_signal_dispatch();
         if (SwooleG.signal_alarm) {
             swoole_timer_select();
             if (!timer_running) {

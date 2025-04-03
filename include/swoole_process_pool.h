@@ -412,16 +412,16 @@ struct ProcessPool {
 };
 };  // namespace swoole
 
-static sw_inline int swoole_waitpid(pid_t __pid, int *__stat_loc, int __options) {
-    int ret;
+static sw_inline pid_t swoole_waitpid(pid_t __pid, int *__stat_loc, int __options) {
+    pid_t retval;
     SW_LOOP {
-        ret = waitpid(__pid, __stat_loc, __options);
-        if (ret < 0 && errno == EINTR) {
-            swoole_signal_dispatch();
+        retval = waitpid(__pid, __stat_loc, __options);
+        if (!(retval < 0 && errno == EINTR)) {
+            break;
         }
-        break;
+        swoole_signal_dispatch();
     }
-    return ret;
+    return retval;
 }
 
 static sw_inline int swoole_kill(pid_t __pid, int __sig) {
