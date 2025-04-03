@@ -115,7 +115,6 @@ int Server::start_manager_process() {
     }
 
     auto fn = [this](void) {
-        swoole_set_process_type(SW_PROCESS_MANAGER);
         gs->manager_pid = SwooleG.pid = getpid();
 
         if (task_worker_num > 0) {
@@ -124,6 +123,13 @@ int Server::start_manager_process() {
                 return;
             }
         }
+
+        /*
+         * Must be set after ProcessPool:start(),
+         * the default ProcessPool will set type of the main process as SW_PROCESS_MASTER,
+         * while in server mode it should be SW_PROCESS_MANAGER
+         */
+        swoole_set_process_type(SW_PROCESS_MANAGER);
 
         SW_LOOP_N(worker_num) {
             Worker *worker = get_worker(i);
