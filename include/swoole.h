@@ -578,6 +578,7 @@ void swoole_clean(void);
 void swoole_exit(int __status);
 pid_t swoole_fork(int flags);
 pid_t swoole_fork_exec(const std::function<void(void)> &child_fn);
+pid_t swoole_waitpid(pid_t __pid, int *__stat_loc, int __options);
 void swoole_thread_init(void);
 void swoole_thread_clean(void);
 void swoole_redirect_stdout(int new_fd);

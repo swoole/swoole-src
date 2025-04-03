@@ -379,7 +379,7 @@ struct ProcessPool {
     int wait();
     int start_check();
     int start();
-    void shutdown();
+    bool shutdown();
     bool reload();
     pid_t spawn(Worker *worker);
     void stop(Worker *worker);
@@ -411,18 +411,6 @@ struct ProcessPool {
     static int run_async(ProcessPool *pool, Worker *worker);
 };
 };  // namespace swoole
-
-static sw_inline pid_t swoole_waitpid(pid_t __pid, int *__stat_loc, int __options) {
-    pid_t retval;
-    SW_LOOP {
-        retval = waitpid(__pid, __stat_loc, __options);
-        if (!(retval < 0 && errno == EINTR)) {
-            break;
-        }
-        swoole_signal_dispatch();
-    }
-    return retval;
-}
 
 static sw_inline int swoole_kill(pid_t __pid, int __sig) {
     return kill(__pid, __sig);
