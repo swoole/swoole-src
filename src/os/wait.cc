@@ -221,6 +221,9 @@ pid_t swoole_waitpid(pid_t __pid, int *__stat_loc, int __options) {
             break;
         }
         swoole_signal_dispatch();
+        if (sw_timer()) {
+            sw_timer()->select();
+        }
     }
     return retval;
 }

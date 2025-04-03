@@ -47,7 +47,7 @@ jobs:
         run: |
           git clone https://github.com/laravel/octane.git --depth=1
           cd octane/
-          composer update --prefer-dist --no-interaction --no-progress --with="laravel/framework:10"
+          composer update --prefer-dist --no-interaction --no-progress --with="laravel/framework:10.10.1"
           vendor/bin/testbench package:sync-skeleton
           vendor/bin/phpunit --display-deprecations --fail-on-deprecation
 
