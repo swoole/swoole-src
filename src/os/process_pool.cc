@@ -626,6 +626,7 @@ int ProcessPool::run_with_task_protocol(ProcessPool *pool, Worker *worker) {
         }
 
     _end:
+        swoole_signal_dispatch();
         if (sw_timer()) {
             sw_timer()->select();
         }
@@ -779,6 +780,7 @@ int ProcessPool::run_with_stream_protocol(ProcessPool *pool, Worker *worker) {
         }
 
     _end:
+        swoole_signal_dispatch();
         if (sw_timer()) {
             sw_timer()->select();
         }
@@ -829,6 +831,7 @@ int ProcessPool::run_with_message_protocol(ProcessPool *pool, Worker *worker) {
     while (pool->is_worker_running(worker)) {
         switch (fn()) {
         case 0:
+            swoole_signal_dispatch();
             if (sw_timer()) {
                 sw_timer()->select();
             }
@@ -873,7 +876,7 @@ int ProcessPool::wait() {
 
     while (running) {
         ExitStatus exit_status = wait_process();
-
+        swoole_signal_dispatch();
         if (sw_timer()) {
             sw_timer()->select();
         }

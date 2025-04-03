@@ -65,7 +65,7 @@ static inline bool swoole_signalfd_is_available() {
 }
 #endif
 static Signal signals[SW_SIGNO_MAX];
-static int _lock = 0;
+static bool triggered_signals[SW_SIGNO_MAX];
 
 char *swoole_signal_to_str(int sig) {
     static char buf[64];
@@ -157,14 +157,22 @@ static void swoole_signal_async_handler(int signo) {
     if (sw_reactor()) {
         sw_reactor()->singal_no = signo;
     } else {
-        // discard signal
-        if (_lock || !SwooleG.init) {
-            return;
-        }
-        _lock = 1;
-        swoole_signal_callback(signo);
-        _lock = 0;
+        triggered_signals[signo] = true;
+        SwooleG.signal_dispatch = true;
     }
+}
+
+void swoole_signal_dispatch(void) {
+    if (!SwooleG.signal_dispatch) {
+        return;
+    }
+    SW_LOOP_N(SW_SIGNO_MAX) {
+        if (triggered_signals[i]) {
+            swoole_signal_callback(i);
+            triggered_signals[i] = false;
+        }
+    }
+    SwooleG.signal_dispatch = false;
 }
 
 void swoole_signal_callback(int signo) {
@@ -210,13 +218,13 @@ void swoole_signal_clear(void) {
             }
         }
     }
-    sw_memset_zero(&signals, sizeof(signals));
+    sw_memset_zero(signals, sizeof(signals));
 }
 
 #ifdef HAVE_SIGNALFD
 void swoole_signalfd_init() {
     sigemptyset(&signalfd_mask);
-    sw_memset_zero(&signals, sizeof(signals));
+    sw_memset_zero(signals, sizeof(signals));
 }
 
 /**
@@ -310,7 +318,7 @@ static void swoole_signalfd_clear() {
             signal_socket->free();
             signal_socket = nullptr;
         }
-        sw_memset_zero(&signals, sizeof(signals));
+        sw_memset_zero(signals, sizeof(signals));
         sw_memset_zero(&signalfd_mask, sizeof(signalfd_mask));
     }
     SwooleG.signal_fd = 0;

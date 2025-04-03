@@ -45,3 +45,13 @@ SW_API void swoole_signal_clear(void);
 SW_API void swoole_signal_block_all(void);
 SW_API char *swoole_signal_to_str(int sig);
 SW_API void swoole_signal_callback(int signo);
+/**
+ * Only for synchronously blocked processes.
+ * Due to the unreliability of signals,
+ * executing complex logic directly within the signal handler function may pose security risks.
+ * Therefore, the lower layer only marks memory in the signal handler
+ * without directly invoking the application's set signal callback function.
+ * Executing `swoole_signal_dispatch` in a safe context will actually call the signal callback function,
+ * allowing for the execution of complex code within the callback.
+ */
+SW_API void swoole_signal_dispatch(void);

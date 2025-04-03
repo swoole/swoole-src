@@ -755,6 +755,7 @@ struct Global {
 
     int signal_fd;
     bool signal_alarm;
+    bool signal_dispatch;
 
     long trace_flags;
 
