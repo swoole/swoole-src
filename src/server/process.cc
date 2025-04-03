@@ -99,7 +99,7 @@ void Factory::kill_task_workers() {
     if (server_->task_worker_num == 0) {
         return;
     }
-    server_->gs->task_workers.shutdown();
+    server_->gs->task_workers.kill_all_workers(SIGTERM);
 }
 
 pid_t Factory::spawn_event_worker(Worker *worker) {

@@ -13,6 +13,7 @@ use Swoole\Process;
 const N = 70000;
 
 $pool = new Pool(2, SWOOLE_IPC_UNIXSOCK);
+$pool->set(['max_wait_time' => 2]);
 
 $pool->on('workerStart', function (Pool $pool, int $workerId) {
     if ($workerId == 0) {

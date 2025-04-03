@@ -633,7 +633,6 @@ static PHP_METHOD(swoole_process_pool, start) {
     }
 
     pool->wait();
-    pool->shutdown();
 
     current_pool = nullptr;
 
@@ -736,11 +735,10 @@ static PHP_METHOD(swoole_process_pool, stop) {
 }
 
 static PHP_METHOD(swoole_process_pool, shutdown) {
-    long pid = zend::object_get_long(ZEND_THIS, SW_ZSTR_KNOWN(SW_ZEND_STR_MASTER_PID));
-    if (pid > 0) {
-        RETURN_BOOL(swoole_kill(pid, SIGTERM) == 0);
+    if (current_pool) {
+        RETURN_BOOL(current_pool->shutdown());
     } else {
-        zend_throw_exception(swoole_exception_ce, "invalid master pid", SW_ERROR_INVALID_PARAMS);
+        zend_throw_exception(swoole_exception_ce, "The process pool is not started", SW_ERROR_INVALID_PARAMS);
         RETURN_FALSE;
     }
 }

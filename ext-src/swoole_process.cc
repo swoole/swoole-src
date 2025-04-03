@@ -510,9 +510,9 @@ static PHP_METHOD(swoole_process, signal) {
         }
         signal_fci_caches[signo] = fci_cache;
 #ifdef SW_USE_THREAD_CONTEXT
-        swoole_event_defer([signo, handler](void *) { swoole_signal_set(signo, handler); }, nullptr);
+        swoole_event_defer([signo, handler](void *) { swoole_signal_set(signo, handler, true); }, nullptr);
 #else
-        swoole_signal_set(signo, handler);
+        swoole_signal_set(signo, handler, true);
 #endif
         RETURN_TRUE;
     }
@@ -534,9 +534,9 @@ static PHP_METHOD(swoole_process, signal) {
     signal_fci_caches[signo] = fci_cache;
 
 #ifdef SW_USE_THREAD_CONTEXT
-    swoole_event_defer([signo, handler](void *) { swoole_signal_set(signo, handler); }, nullptr);
+    swoole_event_defer([signo, handler](void *) { swoole_signal_set(signo, handler, true); }, nullptr);
 #else
-    swoole_signal_set(signo, handler);
+    swoole_signal_set(signo, handler, true);
 #endif
 
     RETURN_TRUE;

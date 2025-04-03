@@ -1,5 +1,5 @@
 PROJECT(libswoole)
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.5)
 
 ENABLE_LANGUAGE(ASM)
 set(SWOOLE_VERSION 6.0.2)
