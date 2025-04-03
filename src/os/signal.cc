@@ -53,7 +53,8 @@ static void swoole_signalfd_clear();
 static SignalHandler swoole_signal_kqueue_set(int signo, SignalHandler handler);
 #endif
 
-static void swoole_signal_async_handler(int signo);
+static void signal_handler_safety(int signo);
+static void signal_handler_simple(int signo);
 
 #ifdef HAVE_SIGNALFD
 static sigset_t signalfd_mask;
@@ -129,36 +130,44 @@ SW_API bool swoole_signal_isset(int signo) {
 /**
  * set new signal handler and return origin signal handler
  */
-SignalHandler swoole_signal_set(int signo, SignalHandler handler) {
+SignalHandler swoole_signal_set(int signo, SignalHandler handler, bool safety) {
 #ifdef HAVE_SIGNALFD
     if (SwooleG.enable_signalfd && swoole_event_is_available()) {
         return swoole_signalfd_set(signo, handler);
-    } else
-#endif
-    {
-#ifdef HAVE_KQUEUE
-        // SIGCHLD can not be monitored by kqueue, if blocked by SIG_IGN
-        // see https://www.freebsd.org/cgi/man.cgi?kqueue
-        // if there's no main reactor, signals cannot be monitored either
-        if (signo != SIGCHLD && sw_reactor()) {
-            return swoole_signal_kqueue_set(signo, handler);
-        } else
-#endif
-        {
-            signals[signo].handler = handler;
-            signals[signo].activated = true;
-            signals[signo].signo = signo;
-            return swoole_signal_set(signo, swoole_signal_async_handler, 1, 0);
-        }
     }
+#endif
+#ifdef HAVE_KQUEUE
+    // SIGCHLD can not be monitored by kqueue, if blocked by SIG_IGN
+    // see https://www.freebsd.org/cgi/man.cgi?kqueue
+    // if there's no main reactor, signals cannot be monitored either
+    if (signo != SIGCHLD && sw_reactor()) {
+        return swoole_signal_kqueue_set(signo, handler);
+    }
+#endif
+
+    signals[signo].handler = handler;
+    signals[signo].activated = true;
+    signals[signo].signo = signo;
+    return swoole_signal_set(signo, safety ? signal_handler_safety : signal_handler_simple, 1, 0);
 }
 
-static void swoole_signal_async_handler(int signo) {
+static void signal_handler_safety(int signo) {
+    triggered_signals[signo] = true;
+    SwooleG.signal_dispatch = true;
+}
+
+static void signal_handler_simple(int signo) {
+    static int _lock = 0;
     if (sw_reactor()) {
         sw_reactor()->singal_no = signo;
     } else {
-        triggered_signals[signo] = true;
-        SwooleG.signal_dispatch = true;
+        // discard signal
+        if (_lock) {
+            return;
+        }
+        _lock = 1;
+        swoole_signal_callback(signo);
+        _lock = 0;
     }
 }
 
@@ -306,6 +315,7 @@ bool swoole_signalfd_setup(Reactor *reactor) {
     if (!(signal_socket->events & SW_EVENT_READ) && swoole_event_add(signal_socket, SW_EVENT_READ) < 0) {
         return false;
     }
+    reactor->erase_end_callback(Reactor::PRIORITY_SIGNAL_CALLBACK);
     return true;
 }
 

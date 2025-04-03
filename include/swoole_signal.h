@@ -36,7 +36,7 @@ typedef swoole::SignalHandler swSignalHandler;
 void swoole_signalfd_init();
 #endif
 
-SW_API swSignalHandler swoole_signal_set(int signo, swSignalHandler func);
+SW_API swSignalHandler swoole_signal_set(int signo, swSignalHandler func, bool safety = false);
 SW_API bool swoole_signal_isset(int signo);
 SW_API swSignalHandler swoole_signal_set(int signo, swSignalHandler func, int restart, int mask);
 SW_API swSignalHandler swoole_signal_get_handler(int signo);

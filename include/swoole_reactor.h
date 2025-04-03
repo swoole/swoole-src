@@ -188,6 +188,7 @@ class Reactor {
     bool if_exit();
     void defer(Callback cb, void *data = nullptr);
     void set_end_callback(enum EndCallback id, const std::function<void(Reactor *)> &fn);
+    void erase_end_callback(enum EndCallback id);
     void set_exit_condition(enum ExitCondition id, const std::function<bool(Reactor *, size_t &)> &fn);
     bool set_handler(int _fdtype, ReactorHandler handler);
     void add_destroy_callback(Callback cb, void *data = nullptr);

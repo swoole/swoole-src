@@ -137,6 +137,7 @@ Reactor::Reactor(int max_event, Type _type) {
             swoole_signal_callback(reactor->singal_no);
             reactor->singal_no = 0;
         }
+        swoole_signal_dispatch();
     });
 
     set_end_callback(PRIORITY_TRY_EXIT, [](Reactor *reactor) {
@@ -381,6 +382,10 @@ void Reactor::add_destroy_callback(Callback cb, void *data) {
 
 void Reactor::set_end_callback(enum EndCallback id, const std::function<void(Reactor *)> &fn) {
     end_callbacks[id] = fn;
+}
+
+void Reactor::erase_end_callback(enum EndCallback id) {
+    end_callbacks.erase(id);
 }
 
 /**
