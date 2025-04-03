@@ -36,6 +36,16 @@ typedef swoole::SignalHandler swSignalHandler;
 void swoole_signalfd_init();
 #endif
 
+/**
+ * The synchronous blocking IO mode is unsafe for executing PHP code within signal callback functions,
+ * such as in the Server's Task worker process or the Manager process.
+ * If a new signal is triggered during the execution of a signal function,
+ * the recursive execution of the signal function can lead to a crash of the ZendVM.
+ * When using `Swoole\Process::signal()` to register a PHP function as a signal handler,
+ * it is crucial to set the third parameter to true;
+ * this way, the underlying layer will not execute directly but will call
+ * `swoole_signal_dispatch()` in a safe manner to execute the PHP signal callback function.
+ */
 SW_API swSignalHandler swoole_signal_set(int signo, swSignalHandler func, bool safety = false);
 SW_API bool swoole_signal_isset(int signo);
 SW_API swSignalHandler swoole_signal_set(int signo, swSignalHandler func, int restart, int mask);

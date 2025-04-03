@@ -27,7 +27,6 @@ use Swoole\Timer;
 
     $pool->on('start', function () use ($pool): void {
         Timer::after(500, function () use ($pool): void {
-            echo "shutdown\n";
             $pool->shutdown();
         });
         echo 'start' . PHP_EOL;
