@@ -1,5 +1,5 @@
 --TEST--
-swoole_process: signal in manager with task worker
+swoole_process: signal in manager with task worker - 2
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -21,9 +21,9 @@ $pm->parentFunc = function ($pid) use ($pm) {
 };
 
 $pm->childFunc = function () use ($pm) {
-    $serv = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
+    $serv = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $serv->set([
-        'worker_num' => 1,
+        'worker_num' => 2,
         'task_worker_num' => 1,
         'log_file' => '/dev/null',
     ]);
@@ -50,5 +50,6 @@ unlink(PID_FILE);
 ?>
 --EXPECT--
 SIGINT triggered
+worker exit
 worker exit
 worker exit

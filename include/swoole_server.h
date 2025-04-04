@@ -1633,11 +1633,11 @@ class Server {
     /**
      * [Master]
      */
-    bool signal_handler_shutdown();
-    bool signal_handler_child_exit();
-    bool signal_handler_reload(bool reload_all_workers);
-    bool signal_handler_read_message();
-    bool signal_handler_reopen_logger();
+    void signal_handler_shutdown();
+    void signal_handler_child_exit();
+    void signal_handler_reload(bool reload_all_workers);
+    void signal_handler_read_message();
+    void signal_handler_reopen_logger();
 
     static void worker_signal_handler(int signo);
     static int reactor_process_main_loop(ProcessPool *pool, Worker *worker);
