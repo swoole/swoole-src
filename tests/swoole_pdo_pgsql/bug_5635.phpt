@@ -19,7 +19,7 @@ $pdo->exec('create table bug_5635 (id int, data varchar(1024));');
 $pdo->exec(<<<EOL
 DO $$
 BEGIN
-FOR i IN 1..5000000 LOOP
+FOR i IN 1..10000000 LOOP
 INSERT INTO bug_5635(id, data) VALUES (i, 'data' || i);
 END LOOP;
 END $$;
@@ -36,7 +36,7 @@ run(function() {
         $pdo = pdo_pgsql_test_inc::create();
         $stmt = $pdo->query("select * from bug_5635;");
         $data = $stmt->fetchAll();
-        Assert::true(count($data) == 5000000);
+        Assert::true(count($data) == 10000000);
         $channel->push($data ?? [], 10);
         $waitGroup->done();
         echo 'DONE' . PHP_EOL;

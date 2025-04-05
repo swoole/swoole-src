@@ -985,13 +985,6 @@ void Server::destroy() {
         swoole_call_hook(SW_GLOBAL_HOOK_AFTER_SERVER_SHUTDOWN, this);
     }
 
-    factory->shutdown();
-
-    SW_LOOP_N(worker_num) {
-        Worker *worker = &workers[i];
-        destroy_worker(worker);
-    }
-
     if (is_base_mode()) {
         swoole_trace_log(SW_TRACE_SERVER, "terminate task workers");
         if (task_worker_num > 0) {
@@ -1003,6 +996,19 @@ void Server::destroy() {
          * Wait until all the end of the thread
          */
         join_reactor_thread();
+    }
+
+	/**
+ 	 * The position of the following code cannot be modified.
+	 * We need to ensure that in SWOOLE_PROCESS mode, all SW_WRITE_EVENT events in the reactor thread are fully completed.
+	 * Therefore, the worker process must wait for the reactor thread to exit first; otherwise, the main thread will
+	 * keep waiting for the reactor thread to exit.
+	 */
+    factory->shutdown();
+
+    SW_LOOP_N(worker_num) {
+        Worker *worker = &workers[i];
+        destroy_worker(worker);
     }
 
     release_pipe_buffers();

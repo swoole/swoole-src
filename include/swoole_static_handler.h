@@ -110,7 +110,8 @@ class StaticHandler {
 
     const char *get_content_type() {
         if (tasks.size() > 1) {
-            content_type = std::string("multipart/byteranges; boundary=") + get_boundary();
+            content_type = "multipart/byteranges; boundary=";
+            content_type += get_boundary();
             return content_type.c_str();
         } else {
             return get_mimetype();
