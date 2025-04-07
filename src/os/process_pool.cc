@@ -451,41 +451,13 @@ void ProcessPool::kill_all_workers(int signo) {
     }
 }
 
-void ProcessPool::shutdown() {
-    uint32_t i;
-    int status;
-    Worker *worker;
-    running = 0;
-
-    if (onShutdown) {
-        onShutdown(this);
+bool ProcessPool::shutdown() {
+    if (is_master()) {
+        running = false;
+        return true;
+    } else {
+        return swoole_kill(master_pid, SIGTERM) == 0;
     }
-
-    // concurrent kill
-    for (i = 0; i < worker_num; i++) {
-        worker = &workers[i];
-        if (swoole_kill(worker->pid, SIGTERM) < 0) {
-            swoole_sys_warning("kill(%d, SIGTERM) failed", worker->pid);
-            continue;
-        }
-    }
-    if (max_wait_time) {
-        swoole_timer_add((long) max_wait_time * 1000, false, [this](Timer *, TimerNode *) { kill_all_workers(); });
-    }
-    for (i = 0; i < worker_num; i++) {
-        worker = &workers[i];
-        SW_LOOP {
-            if (waitpid(worker->pid, &status, 0) < 0) {
-                if (errno == EINTR) {
-                    sw_timer()->select();
-                    continue;
-                }
-                swoole_sys_warning("waitpid(%d) failed", worker->pid);
-            }
-            break;
-        }
-    }
-    started = false;
 }
 
 pid_t ProcessPool::spawn(Worker *worker) {
@@ -626,6 +598,7 @@ int ProcessPool::run_with_task_protocol(ProcessPool *pool, Worker *worker) {
         }
 
     _end:
+        swoole_signal_dispatch();
         if (sw_timer()) {
             sw_timer()->select();
         }
@@ -779,6 +752,7 @@ int ProcessPool::run_with_stream_protocol(ProcessPool *pool, Worker *worker) {
         }
 
     _end:
+        swoole_signal_dispatch();
         if (sw_timer()) {
             sw_timer()->select();
         }
@@ -829,6 +803,7 @@ int ProcessPool::run_with_message_protocol(ProcessPool *pool, Worker *worker) {
     while (pool->is_worker_running(worker)) {
         switch (fn()) {
         case 0:
+            swoole_signal_dispatch();
             if (sw_timer()) {
                 sw_timer()->select();
             }
@@ -873,7 +848,8 @@ int ProcessPool::wait() {
 
     while (running) {
         ExitStatus exit_status = wait_process();
-
+        const auto wait_error = errno;
+        swoole_signal_dispatch();
         if (sw_timer()) {
             sw_timer()->select();
         }
@@ -907,7 +883,7 @@ int ProcessPool::wait() {
                 break;
             }
             if (!reloading) {
-                if (errno > 0 && errno != EINTR) {
+                if (wait_error > 0 && wait_error != EINTR) {
                     swoole_sys_warning("wait() failed");
                 }
                 continue;
@@ -970,6 +946,36 @@ int ProcessPool::wait() {
             }
         }
     }
+
+    uint32_t i;
+    int status;
+    Worker *worker;
+    running = 0;
+
+    if (onShutdown) {
+        onShutdown(this);
+    }
+
+    // concurrent kill
+    for (i = 0; i < worker_num; i++) {
+        worker = &workers[i];
+        if (swoole_kill(worker->pid, SIGTERM) < 0) {
+            swoole_sys_warning("kill(%d, SIGTERM) failed", worker->pid);
+            continue;
+        }
+    }
+    if (max_wait_time) {
+        swoole_timer_add((long) max_wait_time * 1000, false, [this](Timer *, TimerNode *) { kill_all_workers(); });
+    }
+    for (i = 0; i < worker_num; i++) {
+        worker = &workers[i];
+        if (swoole_waitpid(worker->pid, &status, 0) < 0) {
+            swoole_sys_warning("waitpid(%d) failed", worker->pid);
+        }
+        break;
+    }
+    started = false;
+
     return SW_OK;
 }
 

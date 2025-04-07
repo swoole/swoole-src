@@ -216,7 +216,10 @@ void Manager::wait(Server *_server) {
 
     while (_server->running) {
         ExitStatus exit_status = wait_process();
-        const auto errnoAfterWait = errno;
+        const auto wait_error = errno;
+
+        swoole_signal_dispatch();
+
         if (pool->read_message) {
             EventData msg;
             while (pool->pop_message(&msg, sizeof(msg)) > 0) {
@@ -239,14 +242,14 @@ void Manager::wait(Server *_server) {
             pool->read_message = false;
         }
 
-        if (SwooleTG.timer) {
-            SwooleTG.timer->select();
+        if (sw_timer()) {
+            sw_timer()->select();
         }
 
         if (exit_status.get_pid() < 0) {
             if (!pool->reloading) {
             _error:
-                if (errnoAfterWait > 0 && errnoAfterWait != EINTR) {
+                if (wait_error > 0 && wait_error != EINTR) {
                     swoole_sys_warning("wait() failed");
                 }
                 continue;
