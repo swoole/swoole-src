@@ -396,8 +396,8 @@ void StaticHandler::parse_range(const char *range, const char *if_range) {
                                               "Content-Type: %s\r\n"
                                               "Content-Range: bytes %zu-%zu/%zu\r\n\r\n",
                                               tasks.empty() ? "" : "\r\n",
-                                              get_boundary(),
-                                              get_mimetype(),
+                                              get_boundary().c_str(),
+                                              get_mimetype().c_str(),
                                               _task.offset,
                                               end - 1,
                                               get_filesize()) +
