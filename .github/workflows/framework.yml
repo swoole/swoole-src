@@ -43,11 +43,11 @@ jobs:
           php --ri swoole
 
       - name: Laravel Octane Tests
-        if: matrix.framework == 'Laravel Octane'
+        if: matrix.framework == 'Laravel Octane' && matrix.php-version != '8.1'
         run: |
           git clone https://github.com/laravel/octane.git --depth=1
           cd octane/
-          composer update --prefer-dist --no-interaction --no-progress --with="laravel/framework:10.10.1"
+          composer update --prefer-dist --no-interaction --no-progress
           vendor/bin/testbench package:sync-skeleton
           vendor/bin/phpunit --display-deprecations --fail-on-deprecation
 
