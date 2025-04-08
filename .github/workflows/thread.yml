@@ -3,7 +3,7 @@ name: Thread Support Tests
 on: [push, pull_request]
 
 jobs:
-  unit-testing:
+  test-linux:
     if: "!contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[thread]')"
     timeout-minutes: 15
     strategy:

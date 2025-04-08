@@ -24,7 +24,7 @@ unzip instantclient-sdk-linux${arch}.zip && rm instantclient-sdk-linux${arch}.zi
 mv instantclient_*_* ./instantclient
 rm ./instantclient/sdk/include/ldap.h
 # fix debug build warning: zend_signal: handler was replaced for signal (2) after startup
-echo DISABLE_INTERRUPT=on >./instantclient/network/admin/sqlnet.ora
+echo DISABLE_INTERRUPT=on > ./instantclient/network/admin/sqlnet.ora
 mv ./instantclient /usr/local/
 echo '/usr/local/instantclient' > /etc/ld.so.conf.d/oracle-instantclient.conf
 ldconfig
