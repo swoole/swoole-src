@@ -20,6 +20,8 @@ for task in $tasks; do
         execute_command="./bin/core_tests"
     fi
 
+    echo "run tests for $task"
+
     if [ $task = "log." ]; then
         $execute_command --gtest_filter=$task*
     else
