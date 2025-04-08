@@ -1,6 +1,6 @@
 name: Linux io_uring Tests
 
-on: [ push, pull_request ]
+on: [push, pull_request]
 
 jobs:
   test-linux:
