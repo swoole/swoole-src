@@ -442,6 +442,14 @@ struct ListenPort {
         return ssl_context->client_cert_file;
     }
 
+    const std::string &get_ssl_capath() {
+        return ssl_context->capath;
+    }
+
+    const std::string &get_ssl_cafile() {
+        return ssl_context->cafile;
+    }
+
     bool get_ssl_verify_peer() {
         return ssl_context->verify_peer;
     }
