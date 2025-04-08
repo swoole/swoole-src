@@ -13,11 +13,10 @@ $pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm) {
     $client = new Swoole\Client(SWOOLE_SOCK_TCP | SWOOLE_SSL, SWOOLE_SOCK_SYNC);
     $client->set([
-        'ssl_cert_file' => SSL_FILE_DIR . '/client.crt',
-        'ssl_key_file' => SSL_FILE_DIR . '/client.key',
+        'ssl_cert_file' => SSL_FILE_DIR . '/client-expired.crt',
+        'ssl_key_file' => SSL_FILE_DIR . '/client-expired.key',
     ]);
-    if (!$client->connect('127.0.0.1', $pm->getFreePort()))
-    {
+    if (!$client->connect('127.0.0.1', $pm->getFreePort())) {
         exit("connect failed\n");
     }
     $client->send("hello world");

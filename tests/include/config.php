@@ -30,7 +30,6 @@ define('TEST_IMAGE2', __DIR__ . '/../../docs/swoole-logo.svg');
 define('TEST_LOG_FILE', '/tmp/swoole.log');
 define('TEST_PID_FILE', '/tmp/swoole.pid');
 define('SSL_FILE_DIR', __DIR__ . '/ssl_certs/');
-define('SSL_FILE_DIR2', __DIR__ . '/../include/api/ssl-ca');
 define('DOCUMENT_ROOT', __DIR__ . '/../../examples/www');
 
 /** ============ Servers ============ */
