@@ -783,6 +783,11 @@ int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
         serv->init_event_worker(worker);
         auto pipe_worker = message_bus.get_pipe_socket(worker->pipe_worker);
         reactor->add(pipe_worker, SW_EVENT_READ);
+
+        if (serv->heartbeat_check_interval > 0) {
+            heartbeat_timer = swoole_timer_add(
+                (long) (serv->heartbeat_check_interval * 1000), true, ReactorThread_heartbeat_check, reactor);
+        }
     }
 
     if (serv->pipe_command) {
@@ -822,6 +827,15 @@ int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
 void ReactorThread::clean() {
     message_bus.free_buffer();
 }
+
+#ifdef SW_THREAD
+void ReactorThread::clear_timer() {
+    if (heartbeat_timer) {
+        swoole_timer_del(heartbeat_timer);
+        heartbeat_timer = nullptr;
+    }
+}
+#endif
 
 void Server::reactor_thread_main_loop(Server *serv, int reactor_id) {
     SwooleTG.id = reactor_id;

@@ -450,6 +450,8 @@ void Server::stop_async_worker(Worker *worker) {
                     reactor->remove_read_event(conn->socket);
                 }
             });
+
+            get_thread(reactor->id)->clear_timer();
         }
     } else {
         assert(0);
@@ -494,6 +496,14 @@ static void Worker_reactor_try_to_exit(Reactor *reactor) {
             }
         }
         break;
+    }
+
+    if (serv->is_thread_mode() && serv->is_event_worker()) {
+        serv->foreach_connection([reactor](Connection *conn) {
+            if (conn->reactor_id == reactor->id && !conn->peer_closed) {
+                reactor->close(reactor, conn->socket);
+            }
+        });
     }
 }
 

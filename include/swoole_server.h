@@ -152,12 +152,18 @@ struct ReactorThread {
     network::Socket *notify_pipe = nullptr;
     uint64_t dispatch_count = 0;
     network::Socket *pipe_command = nullptr;
+#ifdef SW_THREAD
+    TimerNode *heartbeat_timer = nullptr;
+#endif
     MessageBus message_bus;
 
     int init(Server *serv, Reactor *reactor, uint16_t reactor_id);
     void shutdown(Reactor *reactor);
     int close_connection(Reactor *reactor, SessionId session_id);
     void clean();
+#ifdef SW_THREAD
+    void clear_timer();
+#endif
 };
 
 struct ServerPortGS {
