@@ -169,8 +169,6 @@ TEST(process_pool, shutdown) {
     // wait
     ASSERT_EQ(pool.wait(), SW_OK);
 
-    // shutdown
-    pool.shutdown();
     pool.destroy();
 
     ASSERT_EQ(*shm_value, magic_number);
@@ -224,8 +222,6 @@ TEST(process_pool, async) {
     // wait
     ASSERT_EQ(pool.wait(), SW_OK);
 
-    // shutdown
-    pool.shutdown();
     pool.destroy();
 
     ASSERT_EQ(*shm_value, magic_number + 2);
@@ -284,8 +280,6 @@ TEST(process_pool, listen) {
     });
 
     ASSERT_EQ(pool.wait(), SW_OK);
-
-    pool.shutdown();
     pool.destroy();
 
     sysv_signal(SIGTERM, SIG_DFL);
@@ -347,7 +341,6 @@ TEST(process_pool, listen_unixsock) {
 
     ASSERT_EQ(pool.wait(), SW_OK);
 
-    pool.shutdown();
     pool.destroy();
 
     sysv_signal(SIGTERM, SIG_DFL);

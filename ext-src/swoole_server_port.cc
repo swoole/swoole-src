@@ -495,6 +495,14 @@ static PHP_METHOD(swoole_server_port, set) {
                 return;
             }
         }
+        if (php_swoole_array_get_value(vht, "ssl_cafile", ztmp)) {
+            zend::String str_v(ztmp);
+            port->set_ssl_cafile(str_v.to_std_string());
+        }
+        if (php_swoole_array_get_value(vht, "ssl_capath", ztmp)) {
+            zend::String str_v(ztmp);
+            port->set_ssl_capath(str_v.to_std_string());
+        }
         if (php_swoole_array_get_value(vht, "ssl_verify_depth", ztmp)) {
             zend_long v = zval_get_long(ztmp);
             port->set_ssl_verify_depth(SW_MAX(0, SW_MIN(v, UINT8_MAX)));

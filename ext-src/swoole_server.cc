@@ -960,8 +960,11 @@ void ServerObject::on_before_start() {
         }
 
 #ifdef SW_USE_OPENSSL
-        if (port->ssl_is_enable() && port->get_ssl_verify_peer() && port->get_ssl_client_cert_file().empty()) {
-            php_swoole_fatal_error(E_ERROR, "server open verify peer require `client_cert_file` config");
+        if (port->ssl_is_enable() && port->get_ssl_verify_peer() && port->get_ssl_client_cert_file().empty() &&
+            port->get_ssl_cafile().empty() && port->get_ssl_capath().empty()) {
+            php_swoole_fatal_error(
+                E_ERROR,
+                "server open verify peer require `ssl_client_cert_file` or `ssl_capath` or `ssl_cafile` config");
             return;
         }
 #endif

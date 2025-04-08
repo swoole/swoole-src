@@ -359,10 +359,7 @@ bool swoole_websocket_handshake(HttpContext *ctx) {
         conn->websocket_status = WebSocket::STATUS_ACTIVE;
         ListenPort *port = serv->get_port_by_server_fd(conn->server_fd);
         if (port && !port->websocket_subprotocol.empty()) {
-            ctx->set_header(ZEND_STRL("Sec-WebSocket-Protocol"),
-                            port->websocket_subprotocol.c_str(),
-                            port->websocket_subprotocol.length(),
-                            false);
+            ctx->set_header(ZEND_STRL("Sec-WebSocket-Protocol"), port->websocket_subprotocol, false);
         }
         swoole_websocket_onBeforeHandshakeResponse(serv, conn->server_fd, ctx);
     } else {
@@ -696,9 +693,7 @@ void php_swoole_websocket_server_rshutdown() {
     }
 }
 
-void php_swoole_websocket_server_mshutdown() {
-
-}
+void php_swoole_websocket_server_mshutdown() {}
 
 static sw_inline bool swoole_websocket_server_push(Server *serv, SessionId fd, String *buffer) {
     if (sw_unlikely(fd <= 0)) {

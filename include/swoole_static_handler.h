@@ -100,26 +100,25 @@ class StaticHandler {
         return filename;
     }
 
-    const char *get_boundary() {
+    const std::string &get_boundary() {
         if (boundary.empty()) {
             boundary = std::string(SW_HTTP_SERVER_BOUNDARY_PREKEY);
             swoole_random_string(boundary, SW_HTTP_SERVER_BOUNDARY_TOTAL_SIZE - sizeof(SW_HTTP_SERVER_BOUNDARY_PREKEY));
         }
-        return boundary.c_str();
+        return boundary;
     }
 
-    const char *get_content_type() {
+    const std::string &get_content_type() {
         if (tasks.size() > 1) {
-            content_type = "multipart/byteranges; boundary=";
-            content_type += get_boundary();
-            return content_type.c_str();
+            content_type = std::string("multipart/byteranges; boundary=") + get_boundary();
+            return content_type;
         } else {
             return get_mimetype();
         }
     }
 
-    const char *get_mimetype() {
-        return swoole::mime_type::get(get_filename()).c_str();
+    const std::string &get_mimetype() {
+        return swoole::mime_type::get(get_filename());
     }
 
     std::string get_filename_std_string() {
@@ -164,8 +163,8 @@ class StaticHandler {
         return content_length;
     }
 
-    const char *get_end_part() {
-        return end_part.c_str();
+    const std::string &get_end_part() {
+        return end_part;
     }
 
     void parse_range(const char *range, const char *if_range);

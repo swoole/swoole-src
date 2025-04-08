@@ -43,12 +43,13 @@ jobs:
           php --ri swoole
 
       - name: Laravel Octane Tests
-        if: matrix.framework == 'Laravel Octane' && matrix.php-version != '8.3'
+        if: matrix.framework == 'Laravel Octane' && matrix.php-version != '8.1'
         run: |
           git clone https://github.com/laravel/octane.git --depth=1
           cd octane/
           composer update --prefer-dist --no-interaction --no-progress
-          vendor/bin/phpunit
+          vendor/bin/testbench package:sync-skeleton
+          vendor/bin/phpunit --display-deprecations --fail-on-deprecation
 
       - name: Hyperf Tests
         if: matrix.framework == 'Hyperf' && matrix.php-version != '8.3'

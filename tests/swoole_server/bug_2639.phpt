@@ -15,8 +15,8 @@ $pm->parentFunc = function ($pid) use ($pm) {
     go(function () use ($pm) {
         $client = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP | SWOOLE_SSL);
         $client->set([
-            'ssl_cert_file' => dirname(__DIR__) . '/include/api/ssl-ca/client-cert.pem',
-            'ssl_key_file' => dirname(__DIR__) . '/include/api/ssl-ca/client-key.pem',
+            'ssl_cert_file' => SSL_FILE_DIR . '/client-cert.pem',
+            'ssl_key_file' => SSL_FILE_DIR . '/client-key.pem',
         ]);
         if (!$client->connect('127.0.0.1', $pm->getFreePort())) {
             exit("connect failed\n");
@@ -37,12 +37,12 @@ $pm->childFunc = function () use ($pm) {
     $serv = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS, SWOOLE_SOCK_TCP | SWOOLE_SSL);
     $serv->set([
         'log_file' => '/dev/null',
-        'ssl_cert_file' => dirname(__DIR__) . '/include/api/ssl-ca/server-cert.pem',
-        'ssl_key_file' => dirname(__DIR__) . '/include/api/ssl-ca/server-key.pem',
+        'ssl_cert_file' => SSL_FILE_DIR . '/server-cert.pem',
+        'ssl_key_file' => SSL_FILE_DIR . '/server-key.pem',
         'ssl_verify_peer' => true,
         'ssl_allow_self_signed' => true,
         'task_worker_num' => 1,
-        'ssl_client_cert_file' => dirname(__DIR__) . '/include/api/ssl-ca/ca-cert.pem',
+        'ssl_client_cert_file' => SSL_FILE_DIR . '/ca-cert.pem',
     ]);
     $serv->on("workerStart", function ($serv) use ($pm) {
         $pm->wakeup();

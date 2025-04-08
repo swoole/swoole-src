@@ -492,6 +492,10 @@ class Variable {
         ZVAL_STRING(&value, str);
     }
 
+    Variable(const std::string &str) {
+        ZVAL_STRINGL(&value, str.c_str(), str.length());
+    }
+
     Variable(const Variable &&src) {
         value = src.value;
         add_ref();

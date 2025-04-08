@@ -53,7 +53,8 @@ static void swoole_signalfd_clear();
 static SignalHandler swoole_signal_kqueue_set(int signo, SignalHandler handler);
 #endif
 
-static void swoole_signal_async_handler(int signo);
+static void signal_handler_safety(int signo);
+static void signal_handler_simple(int signo);
 
 #ifdef HAVE_SIGNALFD
 static sigset_t signalfd_mask;
@@ -65,7 +66,7 @@ static inline bool swoole_signalfd_is_available() {
 }
 #endif
 static Signal signals[SW_SIGNO_MAX];
-static int _lock = 0;
+static bool triggered_signals[SW_SIGNO_MAX];
 
 char *swoole_signal_to_str(int sig) {
     static char buf[64];
@@ -129,42 +130,58 @@ SW_API bool swoole_signal_isset(int signo) {
 /**
  * set new signal handler and return origin signal handler
  */
-SignalHandler swoole_signal_set(int signo, SignalHandler handler) {
+SignalHandler swoole_signal_set(int signo, SignalHandler handler, bool safety) {
 #ifdef HAVE_SIGNALFD
     if (SwooleG.enable_signalfd && swoole_event_is_available()) {
         return swoole_signalfd_set(signo, handler);
-    } else
-#endif
-    {
-#ifdef HAVE_KQUEUE
-        // SIGCHLD can not be monitored by kqueue, if blocked by SIG_IGN
-        // see https://www.freebsd.org/cgi/man.cgi?kqueue
-        // if there's no main reactor, signals cannot be monitored either
-        if (signo != SIGCHLD && sw_reactor()) {
-            return swoole_signal_kqueue_set(signo, handler);
-        } else
-#endif
-        {
-            signals[signo].handler = handler;
-            signals[signo].activated = true;
-            signals[signo].signo = signo;
-            return swoole_signal_set(signo, swoole_signal_async_handler, 1, 0);
-        }
     }
+#endif
+#ifdef HAVE_KQUEUE
+    // SIGCHLD can not be monitored by kqueue, if blocked by SIG_IGN
+    // see https://www.freebsd.org/cgi/man.cgi?kqueue
+    // if there's no main reactor, signals cannot be monitored either
+    if (signo != SIGCHLD && sw_reactor()) {
+        return swoole_signal_kqueue_set(signo, handler);
+    }
+#endif
+
+    signals[signo].handler = handler;
+    signals[signo].activated = true;
+    signals[signo].signo = signo;
+    return swoole_signal_set(signo, safety ? signal_handler_safety : signal_handler_simple, 1, 0);
 }
 
-static void swoole_signal_async_handler(int signo) {
+static void signal_handler_safety(int signo) {
+    triggered_signals[signo] = true;
+    SwooleG.signal_dispatch = true;
+}
+
+static void signal_handler_simple(int signo) {
+    static int _lock = 0;
     if (sw_reactor()) {
         sw_reactor()->singal_no = signo;
     } else {
         // discard signal
-        if (_lock || !SwooleG.init) {
+        if (_lock) {
             return;
         }
         _lock = 1;
         swoole_signal_callback(signo);
         _lock = 0;
     }
+}
+
+void swoole_signal_dispatch(void) {
+    if (!SwooleG.signal_dispatch) {
+        return;
+    }
+    SW_LOOP_N(SW_SIGNO_MAX) {
+        if (triggered_signals[i]) {
+            swoole_signal_callback(i);
+            triggered_signals[i] = false;
+        }
+    }
+    SwooleG.signal_dispatch = false;
 }
 
 void swoole_signal_callback(int signo) {
@@ -210,13 +227,13 @@ void swoole_signal_clear(void) {
             }
         }
     }
-    sw_memset_zero(&signals, sizeof(signals));
+    sw_memset_zero(signals, sizeof(signals));
 }
 
 #ifdef HAVE_SIGNALFD
 void swoole_signalfd_init() {
     sigemptyset(&signalfd_mask);
-    sw_memset_zero(&signals, sizeof(signals));
+    sw_memset_zero(signals, sizeof(signals));
 }
 
 /**
@@ -298,6 +315,7 @@ bool swoole_signalfd_setup(Reactor *reactor) {
     if (!(signal_socket->events & SW_EVENT_READ) && swoole_event_add(signal_socket, SW_EVENT_READ) < 0) {
         return false;
     }
+    reactor->erase_end_callback(Reactor::PRIORITY_SIGNAL_CALLBACK);
     return true;
 }
 
@@ -310,7 +328,7 @@ static void swoole_signalfd_clear() {
             signal_socket->free();
             signal_socket = nullptr;
         }
-        sw_memset_zero(&signals, sizeof(signals));
+        sw_memset_zero(signals, sizeof(signals));
         sw_memset_zero(&signalfd_mask, sizeof(signalfd_mask));
     }
     SwooleG.signal_fd = 0;

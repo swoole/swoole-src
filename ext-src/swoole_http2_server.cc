@@ -195,7 +195,7 @@ static bool http2_server_is_static_file(Server *serv, HttpContext *ctx) {
         auto date_str_last_modified = handler.get_date_last_modified();
 
         zval *zheader = ctx->request.zheader;
-        ctx->set_header(ZEND_STRL("Last-Modified"), date_str_last_modified.c_str(), date_str_last_modified.length(), 0);
+        ctx->set_header(ZEND_STRL("Last-Modified"), date_str_last_modified, false);
 
         zval *zdate_if_modified_since = zend_hash_str_find(Z_ARR_P(zheader), ZEND_STRL("if-modified-since"));
         if (zdate_if_modified_since) {
@@ -217,9 +217,9 @@ static bool http2_server_is_static_file(Server *serv, HttpContext *ctx) {
                 content_range << "bytes " << tasks[0].offset << "-" << (tasks[0].length + tasks[0].offset - 1) << "/"
                               << handler.get_filesize() << "\r\n";
                 auto content_range_str = content_range.str();
-                ctx->set_header(ZEND_STRL("Content-Range"), content_range_str.c_str(), content_range_str.length(), 0);
+                ctx->set_header(ZEND_STRL("Content-Range"), content_range_str, false);
             } else {
-                ctx->set_header(ZEND_STRL("Accept-Ranges"), SW_STRL("bytes"), 0);
+                ctx->set_header(ZEND_STRL("Accept-Ranges"), SW_STRL("bytes"), false);
             }
         }
 
@@ -743,7 +743,7 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
     zval *zheader =
         sw_zend_read_and_convert_property_array(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("header"), 0);
     if (!zend_hash_str_exists(Z_ARRVAL_P(zheader), ZEND_STRL("content-type"))) {
-        ctx->set_header(ZEND_STRL("content-type"), handler->get_content_type(), strlen(handler->get_content_type()), 0);
+        ctx->set_header(ZEND_STRL("content-type"), handler->get_content_type(), false);
     }
 
     bool end_stream = (ztrailer == nullptr);
@@ -794,7 +794,7 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
             }
 
             if (!error) {
-                body.reset(new String(handler->get_end_part(), strlen(handler->get_end_part())));
+                body.reset(new String(handler->get_end_part()));
                 if (!ctx->stream->send_body(
                         body.get(), end_stream, client->local_settings.max_frame_size, 0, body->length)) {
                     error = true;
@@ -883,8 +883,7 @@ bool HttpContext::http2_send_file(const char *file, uint32_t l_file, off_t offse
     zval *zheader =
         sw_zend_read_and_convert_property_array(swoole_http_response_ce, response.zobject, ZEND_STRL("header"), 0);
     if (!zend_hash_str_exists(Z_ARRVAL_P(zheader), ZEND_STRL("content-type"))) {
-        const char *mimetype = swoole::mime_type::get(file).c_str();
-        set_header(ZEND_STRL("content-type"), mimetype, strlen(mimetype), 0);
+        set_header(ZEND_STRL("content-type"), swoole::mime_type::get(file), false);
     }
 
     bool end_stream = (ztrailer == nullptr);

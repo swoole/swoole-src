@@ -22,6 +22,7 @@
 #include <signal.h>
 #include <unordered_map>
 
+#include "swoole_signal.h"
 #include "swoole_lock.h"
 #include "swoole_pipe.h"
 #include "swoole_channel.h"
@@ -378,7 +379,7 @@ struct ProcessPool {
     int wait();
     int start_check();
     int start();
-    void shutdown();
+    bool shutdown();
     bool reload();
     pid_t spawn(Worker *worker);
     void stop(Worker *worker);
@@ -410,14 +411,6 @@ struct ProcessPool {
     static int run_async(ProcessPool *pool, Worker *worker);
 };
 };  // namespace swoole
-
-static sw_inline int swoole_waitpid(pid_t __pid, int *__stat_loc, int __options) {
-    int ret;
-    do {
-        ret = waitpid(__pid, __stat_loc, __options);
-    } while (ret < 0 && errno == EINTR);
-    return ret;
-}
 
 static sw_inline int swoole_kill(pid_t __pid, int __sig) {
     return kill(__pid, __sig);

@@ -200,7 +200,6 @@ pid_t System::waitpid(pid_t __pid, int *__stat_loc, int __options, double timeou
 }
 
 extern "C" {
-
 size_t swoole_coroutine_wait_count() {
     return wait_list.size() + waitpid_map.size();
 }
@@ -212,4 +211,19 @@ pid_t swoole_coroutine_wait(int *__stat_loc) {
 pid_t swoole_coroutine_waitpid(pid_t __pid, int *__stat_loc, int __options) {
     return System::waitpid(__pid, __stat_loc, __options);
 }
+}
+
+pid_t swoole_waitpid(pid_t __pid, int *__stat_loc, int __options) {
+    pid_t retval;
+    SW_LOOP {
+        retval = waitpid(__pid, __stat_loc, __options);
+        if (!(retval < 0 && errno == EINTR)) {
+            break;
+        }
+        swoole_signal_dispatch();
+        if (sw_timer()) {
+            sw_timer()->select();
+        }
+    }
+    return retval;
 }

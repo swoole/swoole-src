@@ -31,8 +31,8 @@ $pm->childFunc = function () use ($pm) {
         'heartbeat_check_interval' => 1,
         'log_file' => '/dev/null',
         'heartbeat_idle_time' => 1,
-        'ssl_cert_file' => __DIR__ . '/../../include/api/ssl-ca/server-cert.pem',
-        'ssl_key_file' => __DIR__ . '/../../include/api/ssl-ca/server-key.pem',
+        'ssl_cert_file' => SSL_FILE_DIR . '/server-cert.pem',
+        'ssl_key_file' => SSL_FILE_DIR . '/server-key.pem',
     ));
     $serv->on("workerStart", function ($serv) use ($pm) {
         $pm->wakeup();
