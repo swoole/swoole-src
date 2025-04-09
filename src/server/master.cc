@@ -852,17 +852,22 @@ bool Server::shutdown() {
     }
 
     pid_t pid;
-    if (is_base_mode()) {
+    if (sw_likely(is_base_mode())) {
         pid = get_manager_pid() == 0 ? get_master_pid() : get_manager_pid();
-    } else if (is_thread_mode()) {
+    } else if (is_process_mode()) {
+        pid = get_master_pid();
+    } else {
         if (is_master_thread()) {
             stop_master_thread();
         } else {
             running = false;
         }
         return true;
-    } else {
-        pid = get_master_pid();
+    }
+
+    if (pid == getpid()) {
+        signal_handler_shutdown();
+        return true;
     }
 
     if (swoole_kill(pid, SIGTERM) < 0) {
@@ -874,19 +879,17 @@ bool Server::shutdown() {
     return true;
 }
 
-bool Server::signal_handler_reload(bool reload_all_workers) {
+void Server::signal_handler_reload(bool reload_all_workers) {
     reload(reload_all_workers);
     sw_logger()->reopen();
-    return true;
 }
 
-bool Server::signal_handler_read_message() {
+void Server::signal_handler_read_message() {
     gs->event_workers.read_message = true;
-    return true;
 }
 
 #ifdef SIGRTMIN
-bool Server::signal_handler_reopen_logger() {
+void Server::signal_handler_reopen_logger() {
     uint32_t i;
     Worker *worker;
     for (i = 0; i < worker_num + task_worker_num + get_user_worker_num(); i++) {
@@ -897,7 +900,7 @@ bool Server::signal_handler_reopen_logger() {
         swoole_kill(gs->manager_pid, SIGRTMIN);
     }
     sw_logger()->reopen();
-    return true;
+    return;
 }
 #endif
 
@@ -938,7 +941,7 @@ void Server::stop_master_thread() {
     }
 }
 
-bool Server::signal_handler_shutdown() {
+void Server::signal_handler_shutdown() {
     swoole_trace_log(SW_TRACE_SERVER, "shutdown begin");
     if (is_base_mode()) {
         if (gs->manager_pid > 0) {
@@ -948,7 +951,7 @@ bool Server::signal_handler_shutdown() {
             gs->event_workers.running = 0;
             stop_async_worker(sw_worker());
         }
-        return true;
+        return;
     }
     if (swoole_isset_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN)) {
         swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN, this);
@@ -959,16 +962,13 @@ bool Server::signal_handler_shutdown() {
     running = false;
     stop_master_thread();
     swoole_trace_log(SW_TRACE_SERVER, "shutdown end");
-    return true;
 }
 
-bool Server::signal_handler_child_exit() {
-    if (!running) {
-        return false;
+void Server::signal_handler_child_exit() {
+    if (!running || is_base_mode()) {
+        return;
     }
-    if (is_base_mode()) {
-        return false;
-    }
+
     int status;
     pid_t pid = waitpid(-1, &status, WNOHANG);
     if (pid > 0 && pid == gs->manager_pid) {
@@ -976,7 +976,6 @@ bool Server::signal_handler_child_exit() {
                        WEXITSTATUS(status),
                        swoole_signal_to_str(WTERMSIG(status)));
     }
-    return true;
 }
 
 void Server::destroy() {
