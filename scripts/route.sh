@@ -2,7 +2,7 @@
 __CURRENT__=`pwd`
 __DIR__=$(cd "$(dirname "$0")";pwd)
 
-export DOCKER_COMPOSE_VERSION="1.21.0"
+export DOCKER_COMPOSE_VERSION="v2.33.1"
 if [ "${SWOOLE_BRANCH}" = "alpine" ]; then
     export PHP_VERSION="${PHP_VERSION}-alpine"
 fi
@@ -33,6 +33,22 @@ check_docker_dependency(){
             docker -v &&  docker-compose -v
         fi
     fi
+}
+
+create_docker_images(){
+  arch=`uname -m`
+  if [ "$arch" = "aarch64" ]; then
+      echo "\n 📢 create golang-h2demo aarch64 docker image"
+      git clone https://github.com/swoole/golang-h2demo.git
+      apt install -y golang
+      cd ./golang-h2demo && GOOS=linux GOARCH=arm64 go build -o h2demo . && docker build . -t phpswoole/golang-h2demo && cd -
+
+      echo "\n 📢 create ${PHP_VERSION} aarch64 docker image"
+      git clone https://github.com/swoole/php-docker.git
+      cd php-docker
+      cd ${PHP_VERSION} && sed -i '/odbc-mariadb \\/d' Dockerfile && docker build . -t phpswoole/php:${PHP_VERSION} && cd -
+      cd ../
+  fi
 }
 
 prepare_data_files(){
@@ -74,32 +90,12 @@ remove_docker_containers(){
 
 run_tests_in_docker(){
     docker exec swoole touch /.cienv && \
-    docker exec swoole /swoole-src/scripts/docker-route.sh
+    docker exec swoole /swoole-src/scripts/docker-route.sh $SWOOLE_CI_TYPE
     code=$?
     if [ $code -ne 0 ]; then
         echo "\n❌ Run tests failed! ExitCode: $code"
         exit 1
     fi
-}
-
-run_thread_tests_in_docker(){
-    docker exec swoole touch /.cienv && \
-    docker exec swoole /swoole-src/scripts/docker-thread-route.sh
-    code=$?
-    if [ $code -ne 0 ]; then
-        echo "\n❌ Run thread tests failed! ExitCode: $code"
-        exit 1
-    fi
-}
-
-run_iouring_tests_in_docker(){
-      docker exec swoole touch /.cienv && \
-      docker exec swoole /swoole-src/scripts/docker-iouring-route.sh
-      code=$?
-      if [ $code -ne 0 ]; then
-          echo "\n❌ Run iouring tests failed! ExitCode: $code"
-          exit 1
-      fi
 }
 
 remove_tests_resources(){
@@ -108,7 +104,7 @@ remove_tests_resources(){
 }
 
 check_docker_dependency
-
+create_docker_images
 echo "\n📖 Prepare for files...\n"
 prepare_data_files
 
@@ -116,13 +112,5 @@ echo "📦 Start docker containers...\n"
 start_docker_containers # && trap "remove_tests_resources"
 
 echo "\n⏳ Run tests in docker...\n"
-
-if [ "$SWOOLE_THREAD" = 1 ]; then
-    run_thread_tests_in_docker
-elif [ "$SWOOLE_USE_IOURING" = 1 ]; then
-    run_iouring_tests_in_docker
-else
-    run_tests_in_docker
-fi
-
+run_tests_in_docker
 echo "\n🚀🚀🚀Completed successfully🚀🚀🚀\n"
