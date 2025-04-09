@@ -34,6 +34,10 @@ jobs:
       run: |
         sudo ${{runner.workspace}}/swoole-src/scripts/pecl-install.sh
     - name: Run unit tests
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_REGION: ${{ secrets.AWS_REGION }}
       run: |
         export SWOOLE_BRANCH=${GITHUB_REF##*/}
         export SWOOLE_BUILD_DIR=$(realpath .)
