@@ -8,7 +8,8 @@ if [ ! -f "/.dockerenv" ]; then
 fi
 
 sh library.sh
-cd "${__DIR__}/.." && ./scripts/clear.sh
+cd "${__DIR__}/.."
+./scripts/clear.sh
 phpize
 
 option="--enable-brotli \

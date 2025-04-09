@@ -998,12 +998,12 @@ void Server::destroy() {
         join_reactor_thread();
     }
 
-	/**
- 	 * The position of the following code cannot be modified.
-	 * We need to ensure that in SWOOLE_PROCESS mode, all SW_WRITE_EVENT events in the reactor thread are fully completed.
-	 * Therefore, the worker process must wait for the reactor thread to exit first; otherwise, the main thread will
-	 * keep waiting for the reactor thread to exit.
-	 */
+    /**
+     * The position of the following code cannot be modified.
+     * We need to ensure that in SWOOLE_PROCESS mode, all SW_WRITE_EVENT events in the reactor thread are fully
+     * completed. Therefore, the worker process must wait for the reactor thread to exit first; otherwise, the main
+     * thread will keep waiting for the reactor thread to exit.
+     */
     factory->shutdown();
 
     SW_LOOP_N(worker_num) {

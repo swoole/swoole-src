@@ -3,7 +3,7 @@ name: Linux io_uring Tests
 on: [push, pull_request]
 
 jobs:
-  test-linux:
+  linux:
     if: "!contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[iouring]')"
     strategy:
       fail-fast: false
@@ -21,7 +21,14 @@ jobs:
           coverage: none
       - name: Show machine information
         run: |
+          date
+          env
+          uname -a
+          ulimit -a
           php -v
+          php --ini
+          ls -al
+          pwd
           echo "`git log -20 --pretty --oneline`"
           echo "`git log -10 --stat --pretty --oneline`"
       - name: Run Swoole test
