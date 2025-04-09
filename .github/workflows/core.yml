@@ -44,24 +44,14 @@ jobs:
           cmake . -D CODE_COVERAGE=ON -D enable_thread=1
           make VERBOSE=1 -j $(nproc) lib-swoole
 
-      - name: check if valgrind is enabled
-        if: "contains(github.event.head_commit.message, '--valgrind')"
-        run: |
-          sudo apt install -y valgrind
-          export SWOOLE_VALGRIND=1
-
-      - name: check if asan is enabled
-        if: "contains(github.event.head_commit.message, '--asan')"
-        run:
-          export SWOOLE_ENABLE_ASAN=1
-
-      - name: check if strace is enabled
-        if: "contains(github.event.head_commit.message, '--strace')"
-        run:
-          export SWOOLE_ENABLE_STRACE=1
-
       - name: make test
         run:
+          export SWOOLE_VALGRIND=${{ contains(github.event.head_commit.message, '--valgrind')}}
+          export SWOOLE_ENABLE_ASAN=${{ contains(github.event.head_commit.message, '--asan')}}
+          export SWOOLE_ENABLE_STRACE=${{ contains(github.event.head_commit.message, '--strace')}}
+          echo "SWOOLE_VALGRIND=${SWOOLE_VALGRIND}"
+          echo "SWOOLE_ENABLE_ASAN=${SWOOLE_ENABLE_ASAN}"
+          echo "SWOOLE_ENABLE_STRACE=${SWOOLE_ENABLE_STRACE}"
           cd core-tests && ./run.sh
 
       - name: run coverage
