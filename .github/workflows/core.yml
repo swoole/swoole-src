@@ -45,10 +45,17 @@ jobs:
           make VERBOSE=1 -j $(nproc) lib-swoole
 
       - name: make test
-        run:
-          export SWOOLE_VALGRIND=${{ contains(github.event.head_commit.message, '--valgrind')}}
-          export SWOOLE_ENABLE_ASAN=${{ contains(github.event.head_commit.message, '--asan')}}
-          export SWOOLE_ENABLE_STRACE=${{ contains(github.event.head_commit.message, '--strace')}}
+        run: |
+          export GITHUB_COMMIT_MESSAGE="${{ github.event.head_commit.message }}"
+          if [[ "$GITHUB_COMMIT_MESSAGE" == *"--valgrind"* ]]; then
+            export SWOOLE_VALGRIND=1
+          fi
+          if [[ "$GITHUB_COMMIT_MESSAGE" == *"--asan"* ]]; then
+              export SWOOLE_ENABLE_ASAN=1
+          fi
+          if [[ "$GITHUB_COMMIT_MESSAGE" == *"--strace"* ]]; then
+              export SWOOLE_ENABLE_STRACE=1
+          fi
           echo "SWOOLE_VALGRIND=${SWOOLE_VALGRIND}"
           echo "SWOOLE_ENABLE_ASAN=${SWOOLE_ENABLE_ASAN}"
           echo "SWOOLE_ENABLE_STRACE=${SWOOLE_ENABLE_STRACE}"
