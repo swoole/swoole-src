@@ -212,7 +212,12 @@ void Server::worker_accept_event(DataHead *info) {
 
     // maximum number of requests, process will exit.
     if (worker->has_exceeded_max_request()) {
-        stop_async_worker(worker);
+        if ((is_base_mode() && is_event_worker()) || is_process_mode()) {
+            stop_async_worker(worker);
+        } else {
+            Reactor *reactor = sw_reactor();
+            get_thread(reactor->id)->shutdown(reactor);
+        }
     }
 }
 
@@ -434,25 +439,6 @@ void Server::stop_async_worker(Worker *worker) {
         if (gs->event_workers.push_message(SW_WORKER_MESSAGE_STOP, &msg, sizeof(msg)) < 0) {
             swoole_sys_warning("failed to push WORKER_STOP message");
         }
-    } else if (is_thread_mode()) {
-        if (is_event_worker()) {
-            SW_LOOP_N(worker_num) {
-                if (i % reactor_num == reactor->id) {
-                    auto pipe_master = get_worker_message_bus()->get_pipe_socket(get_worker_pipe_master(i));
-                    if (!pipe_master->removed) {
-                        reactor->remove_read_event(pipe_master);
-                    }
-                }
-            }
-
-            foreach_connection([this, reactor](Connection *conn) {
-                if (conn->reactor_id == reactor->id && !conn->peer_closed && !conn->socket->removed) {
-                    reactor->remove_read_event(conn->socket);
-                }
-            });
-        }
-    } else {
-        assert(0);
     }
 
     reactor->set_wait_exit(true);
