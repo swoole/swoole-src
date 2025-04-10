@@ -318,6 +318,20 @@ void ReactorThread::shutdown(Reactor *reactor) {
         }
     }
 
+    if (heartbeat_timer) {
+        swoole_timer_del(heartbeat_timer);
+        heartbeat_timer = nullptr;
+    }
+
+    reactor->set_exit_condition(Reactor::EXIT_CONDITION_CLOSE_CONNECTION, [serv](Reactor *reactor, size_t &event_num) -> bool {
+        serv->foreach_connection([reactor](Connection *conn) {
+            if (conn->reactor_id == reactor->id) {
+                Server::close_connection(reactor, conn->socket);
+            }
+        });
+        return true;
+    });
+
     if (serv->is_thread_mode()) {
         serv->stop_async_worker(serv->get_worker(reactor->id));
         return;
@@ -327,8 +341,11 @@ void ReactorThread::shutdown(Reactor *reactor) {
         if (i % serv->reactor_num != reactor->id) {
             continue;
         }
-        Socket *socket = message_bus.get_pipe_socket(serv->get_worker_pipe_master(i));
-        reactor->remove_read_event(socket);
+
+        Socket *socket = serv->get_worker_pipe_master_in_message_bus(i);
+        if (!socket->removed) {
+        	reactor->remove_read_event(socket);
+        }
     }
 
     serv->foreach_connection([serv, reactor](Connection *conn) {
@@ -783,6 +800,11 @@ int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
         serv->init_event_worker(worker);
         auto pipe_worker = message_bus.get_pipe_socket(worker->pipe_worker);
         reactor->add(pipe_worker, SW_EVENT_READ);
+
+        if (serv->heartbeat_check_interval > 0) {
+            heartbeat_timer = swoole_timer_add(
+                (long) (serv->heartbeat_check_interval * 1000), true, ReactorThread_heartbeat_check, reactor);
+        }
     }
 
     if (serv->pipe_command) {

@@ -212,7 +212,12 @@ void Server::worker_accept_event(DataHead *info) {
 
     // maximum number of requests, process will exit.
     if (worker->has_exceeded_max_request()) {
-        stop_async_worker(worker);
+        if (is_thread_mode()) {
+            Reactor *reactor = sw_reactor();
+            get_thread(reactor->id)->shutdown(reactor);
+        } else {
+            stop_async_worker(worker);
+        }
     }
 }
 
@@ -438,7 +443,7 @@ void Server::stop_async_worker(Worker *worker) {
         if (is_event_worker()) {
             SW_LOOP_N(worker_num) {
                 if (i % reactor_num == reactor->id) {
-                    auto pipe_master = get_worker_message_bus()->get_pipe_socket(get_worker_pipe_master(i));
+                    auto pipe_master = get_worker_pipe_master_in_message_bus(i);
                     if (!pipe_master->removed) {
                         reactor->remove_read_event(pipe_master);
                     }
