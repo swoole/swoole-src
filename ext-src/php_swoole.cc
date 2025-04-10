@@ -40,6 +40,7 @@ END_EXTERN_C()
 #include <net/if.h>
 #include <ifaddrs.h>
 #include <sys/ioctl.h>
+
 #ifdef SW_USE_CURL
 #include <curl/curl.h>
 #endif
@@ -51,10 +52,12 @@ END_EXTERN_C()
 #ifdef SW_HAVE_ZLIB
 #include <zlib.h>
 #endif
+
 #ifdef SW_HAVE_BROTLI
 #include <brotli/encode.h>
 #include <brotli/decode.h>
 #endif
+
 #ifdef SW_HAVE_ZSTD
 #include <zstd.h>
 #endif
