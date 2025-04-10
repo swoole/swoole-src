@@ -318,17 +318,15 @@ void ReactorThread::shutdown(Reactor *reactor) {
         }
     }
 
-    if (serv->is_thread_mode()) {
-        serv->stop_async_worker(serv->get_worker(reactor->id));
-        return;
-    }
-
     SW_LOOP_N(serv->worker_num) {
         if (i % serv->reactor_num != reactor->id) {
             continue;
         }
-        Socket *socket = message_bus.get_pipe_socket(serv->get_worker_pipe_master(i));
-        reactor->remove_read_event(socket);
+
+        Socket *socket = serv->get_worker_message_bus()->get_pipe_socket(serv->get_worker_pipe_master(i));
+        if (!socket->removed) {
+        	reactor->remove_read_event(socket);
+        }
     }
 
     serv->foreach_connection([serv, reactor](Connection *conn) {
@@ -339,6 +337,23 @@ void ReactorThread::shutdown(Reactor *reactor) {
             reactor->remove_read_event(conn->socket);
         }
     });
+
+    if (serv->is_thread_mode()) {
+        bool is_event_worker = serv->is_event_worker();
+        if (is_event_worker && serv->heartbeat_check_interval > 0) {
+            swoole_timer_del(heartbeat_timer);
+            heartbeat_timer = nullptr;
+        }
+
+        serv->stop_async_worker(serv->get_worker(reactor->id));
+        if (is_event_worker) {
+            serv->foreach_connection([reactor](Connection *conn) {
+            	if (conn->reactor_id == reactor->id) {
+                	Server::close_connection(reactor, conn->socket);
+            	}
+        	});
+        }
+    }
 
     reactor->set_wait_exit(true);
 }
@@ -783,6 +798,11 @@ int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
         serv->init_event_worker(worker);
         auto pipe_worker = message_bus.get_pipe_socket(worker->pipe_worker);
         reactor->add(pipe_worker, SW_EVENT_READ);
+
+        if (serv->heartbeat_check_interval > 0) {
+            heartbeat_timer = swoole_timer_add(
+                (long) (serv->heartbeat_check_interval * 1000), true, ReactorThread_heartbeat_check, reactor);
+        }
     }
 
     if (serv->pipe_command) {

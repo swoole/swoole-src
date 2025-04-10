@@ -285,7 +285,11 @@ static int TaskWorker_onPipeReceive(Reactor *reactor, Event *event) {
         int retval = pool->onTask(pool, worker, &task);
         // maximum number of requests, process will exit.
         if (worker->has_exceeded_max_request()) {
-            serv->stop_async_worker(worker);
+            if ((serv->is_base_mode() && serv->is_event_worker()) || serv->is_process_mode()) {
+                serv->stop_async_worker(worker);
+            } else {
+                serv->get_thread(reactor->id)->shutdown(reactor);
+            }
         }
         return retval;
     } else {

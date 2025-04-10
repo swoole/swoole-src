@@ -74,9 +74,7 @@ bool ThreadFactory::shutdown() {
             thread->join();
         }
     }
-    if (server_->heartbeat_check_interval > 0) {
-        server_->join_heartbeat_thread();
-    }
+
     return true;
 }
 
@@ -291,10 +289,6 @@ bool ThreadFactory::reload(bool _reload_all_workers) {
 
 int Server::start_worker_threads() {
     ThreadFactory *_factory = dynamic_cast<ThreadFactory *>(factory);
-
-    if (heartbeat_check_interval > 0) {
-        start_heartbeat_thread();
-    }
 
     if (task_worker_num > 0) {
         SW_LOOP_N(task_worker_num) {
