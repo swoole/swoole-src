@@ -212,7 +212,12 @@ void Server::worker_accept_event(DataHead *info) {
 
     // maximum number of requests, process will exit.
     if (worker->has_exceeded_max_request()) {
-        stop_async_worker(worker);
+        if (is_thread_mode()) {
+            Reactor *reactor = sw_reactor();
+            get_thread(reactor->id)->shutdown(reactor);
+        } else {
+            stop_async_worker(worker);
+        }
     }
 }
 

@@ -152,6 +152,7 @@ struct ReactorThread {
     network::Socket *notify_pipe = nullptr;
     uint64_t dispatch_count = 0;
     network::Socket *pipe_command = nullptr;
+    TimerNode *heartbeat_timer = nullptr;
     MessageBus message_bus;
 
     int init(Server *serv, Reactor *reactor, uint16_t reactor_id);
