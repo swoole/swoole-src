@@ -33,7 +33,6 @@ static int ReactorThread_onWrite(Reactor *reactor, Event *ev);
 static int ReactorThread_onPacketReceived(Reactor *reactor, Event *event);
 static int ReactorThread_onClose(Reactor *reactor, Event *event);
 static void ReactorThread_resume_data_receiving(Timer *timer, TimerNode *tnode);
-static void ReactorThread_heartbeat_check(Timer *timer, TimerNode *tnode);
 
 #ifdef SW_USE_OPENSSL
 static inline ReturnCode ReactorThread_verify_ssl_state(Reactor *reactor, ListenPort *port, Socket *_socket) {
@@ -323,13 +322,12 @@ void ReactorThread::shutdown(Reactor *reactor) {
         heartbeat_timer = nullptr;
     }
 
-    reactor->set_exit_condition(Reactor::EXIT_CONDITION_CLOSE_CONNECTION, [serv](Reactor *reactor, size_t &event_num) -> bool {
+    reactor->add_destroy_callback([serv, reactor](void *) {
         serv->foreach_connection([reactor](Connection *conn) {
             if (conn->reactor_id == reactor->id) {
                 Server::close_connection(reactor, conn->socket);
             }
         });
-        return true;
     });
 
     if (serv->is_thread_mode()) {
@@ -667,7 +665,7 @@ static int ReactorThread_onWrite(Reactor *reactor, Event *ev) {
     return SW_OK;
 }
 
-static void ReactorThread_heartbeat_check(Timer *timer, TimerNode *tnode) {
+void Server::heartbeat_check(Timer *timer, TimerNode *tnode) {
     double now = microtime();
     Reactor *reactor = (Reactor *) tnode->data;
     Server *serv = (Server *) reactor->ptr;
@@ -742,8 +740,7 @@ _init_master_thread:
      */
     if (heartbeat_check_interval >= 1) {
         if (single_thread) {
-            heartbeat_timer = swoole_timer_add(
-                (long) (heartbeat_check_interval * 1000), true, ReactorThread_heartbeat_check, reactor);
+            heartbeat_timer = swoole_timer_add(sec2msec(heartbeat_check_interval), true, heartbeat_check, reactor);
         } else {
             start_heartbeat_thread();
         }
@@ -799,8 +796,8 @@ int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
         reactor->add(pipe_worker, SW_EVENT_READ);
 
         if (serv->heartbeat_check_interval > 0) {
-            heartbeat_timer = swoole_timer_add(
-                (long) (serv->heartbeat_check_interval * 1000), true, ReactorThread_heartbeat_check, reactor);
+            heartbeat_timer =
+                swoole_timer_add(sec2msec(serv->heartbeat_check_interval), true, Server::heartbeat_check, reactor);
         }
     }
 

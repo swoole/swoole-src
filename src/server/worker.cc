@@ -441,15 +441,24 @@ void Server::stop_async_worker(Worker *worker) {
         }
     } else if (is_thread_mode()) {
         if (is_event_worker()) {
+            /**
+             * The thread mode will use the master pipe to forward messages,
+             * and it may listen for writable events on this pipe,
+             * which need to be removed before the worker thread exits.
+             */
             SW_LOOP_N(worker_num) {
                 if (i % reactor_num == reactor->id) {
-                    auto pipe_master = get_worker_message_bus()->get_pipe_socket(get_worker_pipe_master(i));
+                    auto pipe_master = get_worker_pipe_master_in_message_bus(i);
                     if (!pipe_master->removed) {
                         reactor->remove_read_event(pipe_master);
                     }
                 }
             }
-
+            /**
+             * Only the readable events are removed;
+             * at this point, there may still be ongoing events for sending data.
+             * The connection will be completely closed only when the reactor is destroyed.
+             */
             foreach_connection([this, reactor](Connection *conn) {
                 if (conn->reactor_id == reactor->id && !conn->peer_closed && !conn->socket->removed) {
                     reactor->remove_read_event(conn->socket);

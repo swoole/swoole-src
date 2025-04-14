@@ -1654,6 +1654,7 @@ class Server {
     static bool task_pack(EventData *task, const void *data, size_t data_len);
     static bool task_unpack(EventData *task, String *buffer, PacketPtr *packet);
     static void master_signal_handler(int signo);
+    static void heartbeat_check(Timer *timer, TimerNode *tnode);
 
     int start_master_thread(Reactor *reactor);
     int start_event_worker(Worker *worker);
