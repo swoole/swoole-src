@@ -569,6 +569,7 @@ int swoole_system_random(int min, int max);
 
 int swoole_version_compare(const char *version1, const char *version2);
 void swoole_print_backtrace(void);
+void swoole_print_backtrace_on_error(void);
 char *swoole_string_format(size_t n, const char *format, ...);
 bool swoole_get_env(const char *name, int *value);
 int swoole_get_systemd_listen_fds();
@@ -748,6 +749,7 @@ struct Global {
     uchar use_async_resolver : 1;
     uchar use_name_resolver : 1;
     uchar enable_coroutine : 1;
+    uchar print_backtrace_on_error: 1;
 
     uint8_t process_type;
     uint32_t process_id;
@@ -882,6 +884,7 @@ SW_API bool swoole_is_ignored_error(int code);
 SW_API void swoole_set_log_level(int level);
 SW_API void swoole_set_log_file(const char *file);
 SW_API void swoole_set_trace_flags(long flags);
+SW_API void swoole_set_print_backtrace_on_error(bool enable = true);
 SW_API void swoole_set_dns_server(const std::string &server);
 SW_API void swoole_set_hosts_path(const std::string &hosts_file);
 SW_API std::pair<std::string, int> swoole_get_dns_server();

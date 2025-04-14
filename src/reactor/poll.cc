@@ -63,12 +63,14 @@ int ReactorPoll::add(Socket *socket, int events) {
     int fd = socket->fd;
     if (exists(fd)) {
         swoole_warning("fd#%d is already exists", fd);
+        swoole_print_backtrace_on_error();
         return SW_ERR;
     }
 
     int cur = reactor_->get_event_num();
     if (reactor_->get_event_num() == max_fd_num) {
         swoole_warning("too many connection, more than %d", max_fd_num);
+        swoole_print_backtrace_on_error();
         return SW_ERR;
     }
 
@@ -120,9 +122,10 @@ int ReactorPoll::set(Socket *socket, int events) {
 int ReactorPoll::del(Socket *socket) {
     if (socket->removed) {
         swoole_error_log(SW_LOG_WARNING,
-                         SW_ERROR_EVENT_SOCKET_REMOVED,
+                         SW_ERROR_EVENT_REMOVE_FAILED,
                          "failed to delete event[%d], it has already been removed",
                          socket->fd);
+        swoole_print_backtrace_on_error();
         return SW_ERR;
     }
 
@@ -195,6 +198,7 @@ int ReactorPoll::wait(struct timeval *timeo) {
                     ret = handler(reactor_, &event);
                     if (ret < 0) {
                         swoole_sys_warning("poll[POLLIN] handler failed. fd=%d", event.fd);
+                        swoole_print_backtrace_on_error();
                     }
                 }
                 // out
@@ -203,6 +207,7 @@ int ReactorPoll::wait(struct timeval *timeo) {
                     ret = handler(reactor_, &event);
                     if (ret < 0) {
                         swoole_sys_warning("poll[POLLOUT] handler failed. fd=%d", event.fd);
+                        swoole_print_backtrace_on_error();
                     }
                 }
                 // error
@@ -215,6 +220,7 @@ int ReactorPoll::wait(struct timeval *timeo) {
                     ret = handler(reactor_, &event);
                     if (ret < 0) {
                         swoole_sys_warning("poll[POLLERR] handler failed. fd=%d", event.fd);
+                        swoole_print_backtrace_on_error();
                     }
                 }
                 if (!event.socket->removed && (event.socket->events & SW_EVENT_ONCE)) {

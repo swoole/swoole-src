@@ -82,8 +82,12 @@ const char *swoole_strerror(int code) {
         return "Unregistered signal";
     case SW_ERROR_BAD_HOST_ADDR:
         return "Bad host addr";
-    case SW_ERROR_EVENT_SOCKET_REMOVED:
-        return "Event socket removed";
+    case SW_ERROR_EVENT_REMOVE_FAILED:
+        return "Event remove failed";
+    case SW_ERROR_EVENT_ADD_FAILED:
+        return "Event add failed";
+    case SW_ERROR_EVENT_UPDATE_FAILED:
+        return "Event update failed";
     case SW_ERROR_SESSION_CLOSED_BY_SERVER:
         return "Session closed by server";
     case SW_ERROR_SESSION_CLOSED_BY_CLIENT:
@@ -120,6 +124,8 @@ const char *swoole_strerror(int code) {
         return "SSL reset";
     case SW_ERROR_SSL_HANDSHAKE_FAILED:
         return "SSL handshake failed";
+    case SW_ERROR_SSL_CREATE_CONTEXT_FAILED:
+        return "SSL create context failed";
     case SW_ERROR_PACKAGE_LENGTH_TOO_LARGE:
         return "Package length too large";
     case SW_ERROR_PACKAGE_LENGTH_NOT_FOUND:

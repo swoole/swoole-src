@@ -50,11 +50,14 @@ ReactorImpl *make_reactor_select(Reactor *_reactor);
 
 void ReactorImpl::after_removal_failure(Socket *_socket) {
     if (!_socket->silent_remove) {
-        swoole_sys_warning("failed to delete events[fd=%d#%d, type=%d, events=%d]",
-                           _socket->fd,
-                           reactor_->id,
-                           _socket->fd_type,
-                           _socket->events);
+        swoole_error_log(SW_LOG_WARNING,
+                         SW_ERROR_EVENT_REMOVE_FAILED,
+                         "failed to delete events[fd=%d#%d, type=%d, events=%d]",
+                         _socket->fd,
+                         reactor_->id,
+                         _socket->fd_type,
+                         _socket->events);
+        swoole_print_backtrace_on_error();
     }
 }
 

@@ -369,7 +369,27 @@ static void error_event(Reactor::Type type) {
     reactor->wait(nullptr);
     delete reactor;
 }
+
 TEST(reactor, error_ev) {
     error_event(Reactor::TYPE_EPOLL);
     error_event(Reactor::TYPE_POLL);
+}
+
+TEST(reactor, error) {
+    UnixSocket p(true, SOCK_DGRAM);
+
+    swoole_set_print_backtrace_on_error(true);
+
+    Reactor *reactor = new Reactor(1024, Reactor::TYPE_EPOLL);
+    ASSERT_EQ(reactor->add(p.get_socket(false), SW_EVENT_READ), SW_OK);
+    ASSERT_EQ(reactor->add(p.get_socket(false), SW_EVENT_WRITE), SW_ERR);
+    ASSERT_EQ(swoole_get_last_error(), SW_ERROR_EVENT_ADD_FAILED);
+    delete reactor;
+
+    reactor = new Reactor(1024, Reactor::TYPE_POLL);
+    ASSERT_EQ(reactor->add(p.get_socket(false), SW_EVENT_READ), SW_OK);
+    ASSERT_EQ(reactor->del(p.get_socket(false)), SW_OK);
+    ASSERT_EQ(reactor->del(p.get_socket(false)), SW_ERR);
+    ASSERT_EQ(swoole_get_last_error(), SW_ERROR_EVENT_REMOVE_FAILED);
+    delete reactor;
 }

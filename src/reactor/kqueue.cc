@@ -115,8 +115,13 @@ int ReactorKqueue::add(Socket *socket, int events) {
         EV_SET(&e, fd, EVFILT_READ, EV_ADD, fflags, 0, sobj);
         ret = ::kevent(epfd_, &e, 1, nullptr, 0, nullptr);
         if (ret < 0) {
-            swoole_sys_warning(
-                "add events_[fd=%d, reactor_id=%d, type=%d, events=read] failed", fd, reactor_->id, socket->fd_type);
+            swoole_error_log(SW_LOG_WARNING,
+                             SW_ERROR_EVENT_ADD_FAILED,
+                             "add events[fd=%d, reactor_id=%d, type=%d, events=read] failed",
+                             fd,
+                             reactor_->id,
+                             socket->fd_type);
+            swoole_print_backtrace_on_error();
             return SW_ERR;
         }
     }
@@ -125,8 +130,13 @@ int ReactorKqueue::add(Socket *socket, int events) {
         EV_SET(&e, fd, EVFILT_WRITE, EV_ADD, 0, 0, sobj);
         ret = ::kevent(epfd_, &e, 1, nullptr, 0, nullptr);
         if (ret < 0) {
-            swoole_sys_warning(
-                "add events_[fd=%d, reactor_id=%d, type=%d, events=write] failed", fd, reactor_->id, socket->fd_type);
+            swoole_error_log(SW_LOG_WARNING,
+                             SW_ERROR_EVENT_ADD_FAILED,
+                             "add events[fd=%d, reactor_id=%d, type=%d, events=write] failed",
+                             fd,
+                             reactor_->id,
+                             socket->fd_type);
+            swoole_print_backtrace_on_error();
             return SW_ERR;
         }
     }
@@ -157,14 +167,16 @@ int ReactorKqueue::set(Socket *socket, int events) {
         EV_SET(&e, fd, EVFILT_READ, EV_ADD, fflags, 0, sobj);
         ret = ::kevent(epfd_, &e, 1, nullptr, 0, nullptr);
         if (ret < 0) {
-            swoole_sys_warning("kqueue->set(%d, SW_EVENT_READ) failed", fd);
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_EVENT_UPDATE_FAILED, "kqueue->set(%d, SW_EVENT_READ) failed", fd);
+            swoole_print_backtrace_on_error();
             return SW_ERR;
         }
     } else {
         EV_SET(&e, fd, EVFILT_READ, EV_DELETE, 0, 0, sobj);
         ret = ::kevent(epfd_, &e, 1, nullptr, 0, nullptr);
         if (ret < 0) {
-            swoole_sys_warning("kqueue->del(%d, SW_EVENT_READ) failed", fd);
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_EVENT_REMOVE_FAILED, "kqueue->del(%d, SW_EVENT_READ) failed", fd);
+            swoole_print_backtrace_on_error();
             return SW_ERR;
         }
     }
@@ -173,14 +185,18 @@ int ReactorKqueue::set(Socket *socket, int events) {
         EV_SET(&e, fd, EVFILT_WRITE, EV_ADD, 0, 0, sobj);
         ret = ::kevent(epfd_, &e, 1, nullptr, 0, nullptr);
         if (ret < 0) {
-            swoole_sys_warning("kqueue->set(%d, SW_EVENT_WRITE) failed", fd);
+            swoole_error_log(
+                SW_LOG_WARNING, SW_ERROR_EVENT_UPDATE_FAILED, "kqueue->set(%d, SW_EVENT_WRITE) failed", fd);
+            swoole_print_backtrace_on_error();
             return SW_ERR;
         }
     } else {
         EV_SET(&e, fd, EVFILT_WRITE, EV_DELETE, 0, 0, sobj);
         ret = ::kevent(epfd_, &e, 1, nullptr, 0, nullptr);
         if (ret < 0) {
-            swoole_sys_warning("kqueue->del(%d, SW_EVENT_WRITE) failed", fd);
+            swoole_error_log(
+                SW_LOG_WARNING, SW_ERROR_EVENT_REMOVE_FAILED, "kqueue->del(%d, SW_EVENT_WRITE) failed", fd);
+            swoole_print_backtrace_on_error();
             return SW_ERR;
         }
     }
@@ -204,7 +220,8 @@ int ReactorKqueue::del(Socket *socket) {
 
     if (socket->removed) {
         swoole_error_log(
-            SW_LOG_WARNING, SW_ERROR_EVENT_SOCKET_REMOVED, "failed to delete event[%d], has been removed", socket->fd);
+            SW_LOG_WARNING, SW_ERROR_EVENT_REMOVE_FAILED, "failed to delete event[%d], has been removed", socket->fd);
+        swoole_print_backtrace_on_error();
         return SW_ERR;
     }
 
@@ -212,7 +229,7 @@ int ReactorKqueue::del(Socket *socket) {
         EV_SET(&e, fd, EVFILT_READ, EV_DELETE, 0, 0, sobj);
         ret = ::kevent(epfd_, &e, 1, nullptr, 0, nullptr);
         if (ret < 0) {
-            swoole_sys_warning("kqueue->del(%d, SW_EVENT_READ) failed", fd);
+            after_removal_failure(socket);
             if (errno != EBADF && errno != ENOENT) {
                 return SW_ERR;
             }
@@ -299,8 +316,9 @@ int ReactorKqueue::wait(struct timeval *timeo) {
                                                     event.type);
                     if (sw_unlikely(handler(reactor_, &event) < 0)) {
                         swoole_sys_warning("kqueue event %s socket#%d handler failed",
-                                  kevent->filter == EVFILT_READ ? "read" : "write",
-                                  event.fd);
+                                           kevent->filter == EVFILT_READ ? "read" : "write",
+                                           event.fd);
+                        swoole_print_backtrace_on_error();
                     }
                     del_once_socket(event.socket);
                 }
