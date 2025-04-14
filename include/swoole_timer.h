@@ -144,4 +144,8 @@ class Timer {
         return map;
     }
 };
+
+static long inline sec2msec(long sec) {
+    return sec * 1000;
+}
 }  // namespace swoole

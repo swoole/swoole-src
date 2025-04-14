@@ -1,4 +1,3 @@
-
 --TEST--
 swoole_thread: thread status
 --SKIPIF--
