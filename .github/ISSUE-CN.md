@@ -44,13 +44,27 @@ Please answer these questions before submitting your issue. Thanks!
 
 ## 内存分析 (强烈推荐)
 
-更多时候, Valgrind比gdb更能发现内存问题, 通过以下指令运行你的程序, 直到触发BUG
+更多时候, `Valgrind`比`gdb`更能发现内存问题, 通过以下指令运行你的程序, 直到触发BUG
 
 ```shell
 USE_ZEND_ALLOC=0 valgrind --log-file=/tmp/valgrind.log php your_file.php
 ```
 
 * 当程序发生错误时, 可以通过键入 `ctrl+c` 退出, 然后上传 `/tmp/valgrind.log` 文件以便于开发组定位BUG.
+
+## Address Sanitizer
+某些情况下崩溃问题只发生在复杂的生产环境，不是稳定重现的，只有很小的概率发生，而使用`Valgrind`对性能影响较大，使用`Address Sanitizer`可以在不影响性能的情况下进行内存检测。
+我们制作了一个`debug`版本的`Swoole`，可以在编译时添加了`--enable-debug`参数和`--enable-address-sanitizer`来开启`Address Sanitizer`，使用方法如下：
+
+```shell
+docker pull phpswoole/swoole:dev-debug
+docker run -it --rm phpswoole/swoole:dev-debug /bin/bash
+php your_file.php
+```
+
+此镜像可直接在生产环境中使用，`Address Sanitizer`会在发生内存错误时打印出错误信息和调用栈信息。
+这些信息可以帮助开发者快速定位问题。
+
 
 ## 关于段错误(核心转储)
 
@@ -60,7 +74,7 @@ USE_ZEND_ALLOC=0 valgrind --log-file=/tmp/valgrind.log php your_file.php
 WARNING	swManager_check_exit_status: worker#1 abnormal exit, status=0, signal=11
 ```
 
-当如上提示出现在Swoole日志中(signal11), 说明程序发生了`核心转储`, 你需要使用跟踪调试工具来确定其发生位置
+当如上提示出现在`Swoole`日志中(`signal 11`), 说明程序发生了`核心转储`, 你需要使用跟踪调试工具来确定其发生位置
 
 > 使用`gdb`来跟踪`swoole`前, 需要在编译时添加`--enable-debug`参数以保留更多信息
 
