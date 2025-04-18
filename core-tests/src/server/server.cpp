@@ -1254,6 +1254,7 @@ TEST(server, reopen_log) {
         EXPECT_TRUE(access(filename.c_str(), R_OK) != -1);
         unlink(filename.c_str());
         EXPECT_TRUE(access(filename.c_str(), R_OK) == -1);
+        usleep(10000);
         kill(serv->gs->master_pid, SIGRTMIN);
         sleep(2);
         EXPECT_TRUE(access(filename.c_str(), R_OK) != -1);
