@@ -6,7 +6,7 @@ env:
   CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
 jobs:
-  build:
+  ubuntu:
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[core]')"
     timeout-minutes: 10

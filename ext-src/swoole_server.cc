@@ -2568,7 +2568,7 @@ static PHP_METHOD(swoole_server, addProcess) {
         worker_id = swoole_get_process_id();
         worker = serv->get_worker(worker_id);
         worker->redirect_stdin = worker->redirect_stdout = worker->redirect_stderr = 0;
-        worker_id -= (serv->worker_num + serv->task_worker_num);
+        worker_id -= serv->get_core_worker_num();
     } else {
         worker = php_swoole_process_get_and_check_worker(process);
         worker_id = serv->add_worker(worker);
@@ -3489,7 +3489,7 @@ static PHP_METHOD(swoole_server, sendMessage) {
         php_swoole_fatal_error(E_WARNING, "can't send messages to self");
         RETURN_FALSE;
     }
-    if (worker_id < 0 || worker_id >= serv->worker_num + serv->task_worker_num) {
+    if (worker_id < 0 || worker_id >= serv->get_core_worker_num()) {
         php_swoole_fatal_error(E_WARNING, "worker_id[%d] is invalid", (int) worker_id);
         RETURN_FALSE;
     }
@@ -3635,64 +3635,55 @@ static PHP_METHOD(swoole_server, getClientInfo) {
     }
 
     zend_long fd;
-    zend_long reactor_id = -1;
-    zend_bool dont_check_connection = 0;
 
     ZEND_PARSE_PARAMETERS_START(1, 3)
     Z_PARAM_LONG(fd)
-    Z_PARAM_OPTIONAL
-    Z_PARAM_LONG(reactor_id)
-    Z_PARAM_BOOL(dont_check_connection)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     Connection *conn = serv->get_connection_verify(fd);
     if (!conn) {
         RETURN_FALSE;
     }
-    // connection is closed
-    if (conn->active == 0 && !dont_check_connection) {
-        RETURN_FALSE;
-    } else {
-        array_init(return_value);
 
-        if (conn->uid > 0 || serv->dispatch_mode == Server::DISPATCH_UIDMOD) {
-            add_assoc_long(return_value, "uid", conn->uid);
-        }
-        if (conn->worker_id > 0 || serv->dispatch_mode == Server::DISPATCH_CO_CONN_LB) {
-            add_assoc_long(return_value, "worker_id", conn->worker_id);
-        }
+    array_init(return_value);
 
-        ListenPort *port = serv->get_port_by_fd(conn->fd);
-        if (port && port->open_websocket_protocol) {
-            add_assoc_long(return_value, "websocket_status", conn->websocket_status);
-        }
+    if (conn->uid > 0 || serv->dispatch_mode == Server::DISPATCH_UIDMOD) {
+        add_assoc_long(return_value, "uid", conn->uid);
+    }
+    if (conn->worker_id > 0 || serv->dispatch_mode == Server::DISPATCH_CO_CONN_LB) {
+        add_assoc_long(return_value, "worker_id", conn->worker_id);
+    }
+
+    ListenPort *port = serv->get_port_by_fd(conn->fd);
+    if (port && port->open_websocket_protocol) {
+        add_assoc_long(return_value, "websocket_status", conn->websocket_status);
+    }
 
 #ifdef SW_USE_OPENSSL
-        if (conn->ssl_client_cert && conn->ssl_client_cert_pid == SwooleG.pid) {
-            add_assoc_stringl(
-                return_value, "ssl_client_cert", conn->ssl_client_cert->str, conn->ssl_client_cert->length);
-        }
-#endif
-        // server socket
-        Connection *server_socket = serv->get_connection(conn->server_fd);
-        if (server_socket) {
-            add_assoc_long(return_value, "server_port", server_socket->info.get_port());
-        }
-        add_assoc_long(return_value, "server_fd", conn->server_fd);
-        add_assoc_long(return_value, "socket_fd", conn->fd);
-        add_assoc_long(return_value, "socket_type", conn->socket_type);
-        add_assoc_long(return_value, "remote_port", conn->info.get_port());
-        add_assoc_string(return_value, "remote_ip", (char *) conn->info.get_ip());
-        add_assoc_long(return_value, "reactor_id", conn->reactor_id);
-        add_assoc_long(return_value, "connect_time", conn->connect_time);
-        add_assoc_long(return_value, "last_time", (int) conn->last_recv_time);
-        add_assoc_double(return_value, "last_recv_time", conn->last_recv_time);
-        add_assoc_double(return_value, "last_send_time", conn->last_send_time);
-        add_assoc_double(return_value, "last_dispatch_time", conn->last_dispatch_time);
-        add_assoc_long(return_value, "close_errno", conn->close_errno);
-        add_assoc_long(return_value, "recv_queued_bytes", conn->recv_queued_bytes);
-        add_assoc_long(return_value, "send_queued_bytes", conn->send_queued_bytes);
+    if (conn->ssl_client_cert && conn->ssl_client_cert_pid == SwooleG.pid) {
+        add_assoc_stringl(
+            return_value, "ssl_client_cert", conn->ssl_client_cert->str, conn->ssl_client_cert->length);
     }
+#endif
+    // server socket
+    Connection *server_socket = serv->get_connection(conn->server_fd);
+    if (server_socket) {
+        add_assoc_long(return_value, "server_port", server_socket->info.get_port());
+    }
+    add_assoc_long(return_value, "server_fd", conn->server_fd);
+    add_assoc_long(return_value, "socket_fd", conn->fd);
+    add_assoc_long(return_value, "socket_type", conn->socket_type);
+    add_assoc_long(return_value, "remote_port", conn->info.get_port());
+    add_assoc_string(return_value, "remote_ip", (char *) conn->info.get_ip());
+    add_assoc_long(return_value, "reactor_id", conn->reactor_id);
+    add_assoc_long(return_value, "connect_time", conn->connect_time);
+    add_assoc_long(return_value, "last_time", (int) conn->last_recv_time);
+    add_assoc_double(return_value, "last_recv_time", conn->last_recv_time);
+    add_assoc_double(return_value, "last_send_time", conn->last_send_time);
+    add_assoc_double(return_value, "last_dispatch_time", conn->last_dispatch_time);
+    add_assoc_long(return_value, "close_errno", conn->close_errno);
+    add_assoc_long(return_value, "recv_queued_bytes", conn->recv_queued_bytes);
+    add_assoc_long(return_value, "send_queued_bytes", conn->send_queued_bytes);
 }
 
 static PHP_METHOD(swoole_server, getClientList) {
