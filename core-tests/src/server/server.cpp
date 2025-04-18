@@ -35,6 +35,7 @@ TEST(server, schedule) {
     Server serv(Server::MODE_PROCESS);
     serv.worker_num = 6;
     serv.dispatch_mode = Server::DISPATCH_IDLE_WORKER;
+    serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     ret = serv.create();
     ASSERT_EQ(SW_OK, ret);
 
@@ -1363,11 +1364,7 @@ TEST(server, pipe_message) {
 
             memset(&buf.info, 0, sizeof(buf.info));
             ASSERT_TRUE(Server::task_pack(&buf, data.c_str(), data.length()));
-            buf.info.type = SW_SERVER_EVENT_PIPE_MESSAGE;
-
-            Worker *to_worker = server->get_worker(worker->id - 1);
-            server->send_to_worker_from_worker(
-                to_worker, &buf, sizeof(buf.info) + buf.info.len, SW_PIPE_MASTER | SW_PIPE_NONBLOCK);
+            ASSERT_TRUE(server->send_pipe_message(worker->id - 1, &buf));
             sleep(1);
 
             kill(server->get_master_pid(), SIGTERM);
