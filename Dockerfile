@@ -3,24 +3,15 @@
 FROM ubuntu:22.04
 ARG PHP_VERSION=8.2.28
 RUN apt update
-RUN apt install -y g++ cmake automake wget
-RUN apt install -y libssl-dev libcurl4-openssl-dev libxml2-dev libzip-dev libsqlite3-dev libreadline-dev libonig-dev
+RUN apt install -y g++ cmake automake wget pkg-config git xz-utils
+RUN apt install -y libssl-dev libcurl4-openssl-dev libxml2-dev libzip-dev libsqlite3-dev libreadline-dev libonig-dev \
+    libbz2-dev libffi-dev libxslt-dev unixodbc-dev libpq-dev libbrotli-dev libc-ares-dev
+
 RUN mkdir /work
 WORKDIR /work
-RUN wget https://www.php.net/distributions/php-8.2.28.tar.xz
 
-RUN apt install -y xz-utils
+RUN wget https://www.php.net/distributions/php-${PHP_VERSION}.tar.xz
 RUN tar -xvf php-${PHP_VERSION}.tar.xz
-
-RUN apt install -y pkg-config
-RUN apt install -y git
-RUN apt install -y libbz2-dev
-RUN apt install -y libffi-dev
-RUN apt install -y libxslt-dev
-RUN apt install -y unixodbc-dev
-RUN apt install -y libpq-dev
-RUN apt install -y libbrotli-dev
-RUN apt install -y libc-ares-dev
 
 COPY . /work/php-${PHP_VERSION}/ext/swoole
 

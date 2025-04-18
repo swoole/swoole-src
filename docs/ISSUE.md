@@ -48,7 +48,13 @@ docker run -it --rm phpswoole/swoole:dev-debug /bin/bash
 php your_file.php
 ```
 
-This image can be used directly in a production environment, and `Address Sanitizer` will print error messages and call stack information when memory errors occur. This information can assist developers in quickly pinpointing issues.
+> To use `ASAN`, be sure to disable Address Space Layout Randomization (`ASLR`):
+
+```shell
+echo 0 > /proc/sys/kernel/randomize_va_space
+```
+
+This docker image can be used directly in a production environment, and `Address Sanitizer` will print error messages and call stack information when memory errors occur. This information can assist developers in quickly pinpointing issues.
 
 ## CoreDump
 

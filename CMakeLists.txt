@@ -2,7 +2,7 @@ PROJECT(libswoole)
 cmake_minimum_required(VERSION 3.5)
 
 ENABLE_LANGUAGE(ASM)
-set(SWOOLE_VERSION 6.0.2)
+set(SWOOLE_VERSION 6.0.3-dev)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -g")
