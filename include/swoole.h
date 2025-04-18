@@ -842,6 +842,10 @@ static inline swoole::WorkerId swoole_get_process_id(void) {
 #endif
 }
 
+static inline pid_t swoole_get_process_pid(void) {
+    return SwooleG.pid;
+}
+
 static inline void swoole_set_process_id(swoole::WorkerId id) {
 #ifdef SW_THREAD
     SwooleTG.process_id = id;
