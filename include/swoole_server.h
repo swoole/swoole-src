@@ -152,6 +152,7 @@ struct ReactorThread {
     network::Socket *notify_pipe = nullptr;
     uint64_t dispatch_count = 0;
     network::Socket *pipe_command = nullptr;
+    TimerNode *heartbeat_timer = nullptr;
     MessageBus message_bus;
 
     int init(Server *serv, Reactor *reactor, uint16_t reactor_id);
@@ -440,6 +441,14 @@ struct ListenPort {
 
     const std::string &get_ssl_client_cert_file() {
         return ssl_context->client_cert_file;
+    }
+
+    const std::string &get_ssl_capath() {
+        return ssl_context->capath;
+    }
+
+    const std::string &get_ssl_cafile() {
+        return ssl_context->cafile;
     }
 
     bool get_ssl_verify_peer() {
@@ -1645,6 +1654,7 @@ class Server {
     static bool task_pack(EventData *task, const void *data, size_t data_len);
     static bool task_unpack(EventData *task, String *buffer, PacketPtr *packet);
     static void master_signal_handler(int signo);
+    static void heartbeat_check(Timer *timer, TimerNode *tnode);
 
     int start_master_thread(Reactor *reactor);
     int start_event_worker(Worker *worker);

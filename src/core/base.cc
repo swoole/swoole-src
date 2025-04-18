@@ -289,6 +289,10 @@ SW_API void swoole_set_trace_flags(long flags) {
     SwooleG.trace_flags = flags;
 }
 
+SW_API void swoole_set_print_backtrace_on_error(bool enable) {
+    SwooleG.print_backtrace_on_error = enable;
+}
+
 SW_API void swoole_set_dns_server(const std::string &server) {
     char *_port;
     int dns_server_port = SW_DNS_SERVER_PORT;
@@ -884,6 +888,12 @@ void swoole_print_backtrace(void) {
 #else
 void swoole_print_backtrace(void) {}
 #endif
+
+void swoole_print_backtrace_on_error(void) {
+    if (SwooleG.print_backtrace_on_error) {
+        swoole_print_backtrace();
+    }
+}
 
 static void swoole_fatal_error_impl(int code, const char *format, ...) {
     size_t retval = 0;

@@ -37,6 +37,25 @@ USE_ZEND_ALLOC=0 valgrind --log-file=/tmp/valgrind.log php your_file.php
 
 * After the program is executed to the wrong location, `ctrl+c` is interrupted, and upload the `/tmp/valgrind.log` file.
 
+## Address Sanitizer
+In certain cases, crash issues only occur in complex production environments, not consistently reproducible, and with a very low probability of occurrence. The use of `Valgrind` significantly impacts performance, whereas `Address Sanitizer` allows for memory detection without affecting performance.
+
+We have created a `debug` version of `Swoole`, which can be compiled with the `--enable-debug` and `--enable-address-sanitizer` parameters to enable `Address Sanitizer`. The usage is as follows:
+
+```shell
+docker pull phpswoole/swoole:dev-debug
+docker run -it --rm phpswoole/swoole:dev-debug /bin/bash
+php your_file.php
+```
+
+> To use `ASAN`, be sure to disable Address Space Layout Randomization (`ASLR`):
+
+```shell
+echo 0 > /proc/sys/kernel/randomize_va_space
+```
+
+This docker image can be used directly in a production environment, and `Address Sanitizer` will print error messages and call stack information when memory errors occur. This information can assist developers in quickly pinpointing issues.
+
 ## CoreDump
 
 Besides, In a special case, you can use debugging tools to help developers locate problems

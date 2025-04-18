@@ -3,14 +3,16 @@ name: Unit Tests
 on: [push, pull_request]
 
 jobs:
-  test-linux:
-    runs-on: ubuntu-latest
+  linux:
     if: "!contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[unit]')"
-    timeout-minutes: 15
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         php: ['8.1', '8.2', '8.3', '8.4']
+        os: [ ubuntu-24.04, ubuntu-24.04-arm ]
+    name: ${{ matrix.php }}-${{ matrix.os }}-test
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v4
     - name: Setup PHP
@@ -30,15 +32,13 @@ jobs:
         pwd
         echo "`git log -20 --pretty --oneline`"
         echo "`git log -10 --stat --pretty --oneline`"
-    - name: Run pecl-install.sh
-      run: |
-        sudo ${{runner.workspace}}/swoole-src/scripts/pecl-install.sh
     - name: Run unit tests
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         AWS_REGION: ${{ secrets.AWS_REGION }}
       run: |
+        export SWOOLE_CI_TYPE=NORMAL
         export SWOOLE_BRANCH=${GITHUB_REF##*/}
         export SWOOLE_BUILD_DIR=$(realpath .)
         export PHP_VERSION=${{ matrix.php }}

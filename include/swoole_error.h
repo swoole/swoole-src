@@ -57,7 +57,9 @@ enum swErrorCode {
 	SW_ERROR_BAD_HOST_ADDR,
 
     // EventLoop
-    SW_ERROR_EVENT_SOCKET_REMOVED = 800,
+    SW_ERROR_EVENT_REMOVE_FAILED = 800,
+    SW_ERROR_EVENT_ADD_FAILED,
+    SW_ERROR_EVENT_UPDATE_FAILED,
 
     /**
      * connection error

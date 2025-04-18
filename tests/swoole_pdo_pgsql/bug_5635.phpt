@@ -44,7 +44,7 @@ run(function() {
 
     Coroutine::create(function() use ($waitGroup, $channel) {
         $waitGroup->add();
-        $result = $channel->pop(1.5);
+        $result = $channel->pop(0.5);
         if (!$result) {
             echo 'channel pop timeout' . PHP_EOL;
         }
@@ -52,7 +52,7 @@ run(function() {
     });
 
     var_dump(1);
-    Coroutine::sleep(1);
+    Coroutine::sleep(0.2);
     var_dump(2);
     $waitGroup->wait();
 });

@@ -2,15 +2,19 @@
 __CURRENT__=$(pwd)
 __DIR__=$(cd "$(dirname "$0")";pwd)
 
+# show system info and php info
+date && echo ""
+uname -a && echo ""
+php -v && echo ""
+
 # enter the dir
 cd "${__DIR__}"
 
-# show system info
-date && echo ""
-uname -a && echo ""
-
-# show php info
-php -v && echo ""
+if [ "$1" = "THREAD" ]; then
+  export SWOOLE_THREAD=1
+elif [ "$1" = "IOURING" ]; then
+  export SWOOLE_IOURING=1
+fi
 
 # compile in docker
 echo "" && echo "📦 Compile test in docker..." && echo ""

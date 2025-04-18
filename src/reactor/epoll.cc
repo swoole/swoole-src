@@ -98,8 +98,14 @@ int ReactorEpoll::add(Socket *socket, int events) {
     e.data.ptr = socket;
 
     if (epoll_ctl(epfd_, EPOLL_CTL_ADD, socket->fd, &e) < 0) {
-        swoole_sys_warning(
-            "failed to add events[fd=%d#%d, type=%d, events=%d]", socket->fd, reactor_->id, socket->fd_type, events);
+        swoole_error_log(SW_LOG_WARNING,
+                         SW_ERROR_EVENT_ADD_FAILED,
+                         "failed to add events[fd=%d#%d, type=%d, events=%d]",
+                         socket->fd,
+                         reactor_->id,
+                         socket->fd_type,
+                         events);
+        swoole_print_backtrace_on_error();
         return SW_ERR;
     }
 
@@ -113,9 +119,11 @@ int ReactorEpoll::add(Socket *socket, int events) {
 int ReactorEpoll::del(Socket *_socket) {
     if (_socket->removed) {
         swoole_error_log(SW_LOG_WARNING,
-                         SW_ERROR_EVENT_SOCKET_REMOVED,
+                         SW_ERROR_EVENT_REMOVE_FAILED,
                          "failed to delete events[fd=%d, fd_type=%d], it has already been removed",
-                         _socket->fd, _socket->fd_type);
+                         _socket->fd,
+                         _socket->fd_type);
+        swoole_print_backtrace_on_error();
         return SW_ERR;
     }
     if (epoll_ctl(epfd_, EPOLL_CTL_DEL, _socket->fd, nullptr) < 0) {
@@ -139,8 +147,14 @@ int ReactorEpoll::set(Socket *socket, int events) {
 
     int ret = epoll_ctl(epfd_, EPOLL_CTL_MOD, socket->fd, &e);
     if (ret < 0) {
-        swoole_sys_warning(
-            "failed to set events[fd=%d#%d, type=%d, events=%d]", socket->fd, reactor_->id, socket->fd_type, events);
+        swoole_error_log(SW_LOG_WARNING,
+                         SW_ERROR_EVENT_UPDATE_FAILED,
+                         "failed to set events[fd=%d#%d, type=%d, events=%d]",
+                         socket->fd,
+                         reactor_->id,
+                         socket->fd_type,
+                         events);
+        swoole_print_backtrace_on_error();
         return SW_ERR;
     }
 
@@ -199,6 +213,7 @@ int ReactorEpoll::wait(struct timeval *timeo) {
                 ret = handler(reactor_, &event);
                 if (ret < 0) {
                     swoole_sys_warning("EPOLLIN handle failed. fd=%d", event.fd);
+                    swoole_print_backtrace_on_error();
                 }
             }
             // write
@@ -207,6 +222,7 @@ int ReactorEpoll::wait(struct timeval *timeo) {
                 ret = handler(reactor_, &event);
                 if (ret < 0) {
                     swoole_sys_warning("EPOLLOUT handle failed. fd=%d", event.fd);
+                    swoole_print_backtrace_on_error();
                 }
             }
             // error
@@ -219,6 +235,7 @@ int ReactorEpoll::wait(struct timeval *timeo) {
                 ret = handler(reactor_, &event);
                 if (ret < 0) {
                     swoole_sys_warning("EPOLLERR handle failed. fd=%d", event.fd);
+                    swoole_print_backtrace_on_error();
                 }
             }
             if (!event.socket->removed && (event.socket->events & SW_EVENT_ONCE)) {

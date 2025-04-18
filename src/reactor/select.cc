@@ -67,7 +67,8 @@ ReactorSelect::ReactorSelect(Reactor *reactor) : ReactorImpl(reactor) {
 int ReactorSelect::add(Socket *socket, int events) {
     int fd = socket->fd;
     if (fd > FD_SETSIZE) {
-        swoole_warning("max fd value is FD_SETSIZE(%d).\n", FD_SETSIZE);
+        swoole_warning("max fd value is FD_SETSIZE(%d)", FD_SETSIZE);
+        swoole_print_backtrace_on_error();
         return SW_ERR;
     }
 
@@ -83,14 +84,16 @@ int ReactorSelect::add(Socket *socket, int events) {
 int ReactorSelect::del(Socket *socket) {
     if (socket->removed) {
         swoole_error_log(SW_LOG_WARNING,
-                         SW_ERROR_EVENT_SOCKET_REMOVED,
+                         SW_ERROR_EVENT_REMOVE_FAILED,
                          "failed to delete event[%d], it has already been removed",
                          socket->fd);
+        swoole_print_backtrace_on_error();
         return SW_ERR;
     }
     int fd = socket->fd;
     if (fds.erase(fd) == 0) {
-        swoole_warning("swReactorSelect: fd[%d] not found", fd);
+        swoole_warning("fd[%d] not found", fd);
+        swoole_print_backtrace_on_error();
         return SW_ERR;
     }
     SW_FD_CLR(fd, &rfds);
@@ -103,7 +106,7 @@ int ReactorSelect::del(Socket *socket) {
 int ReactorSelect::set(Socket *socket, int events) {
     auto i = fds.find(socket->fd);
     if (i == fds.end()) {
-        swoole_warning("swReactorSelect: sock[%d] not found", socket->fd);
+        swoole_warning("socket[%d] not found", socket->fd);
         return SW_ERR;
     }
     reactor_->_set(socket, events);
@@ -187,7 +190,9 @@ int ReactorSelect::wait(struct timeval *timeo) {
                     handler = reactor_->get_handler(SW_EVENT_READ, event.type);
                     ret = handler(reactor_, &event);
                     if (ret < 0) {
-                        swoole_sys_warning("[Reactor#%d] select event[type=READ, fd=%d] handler fail", reactor_->id, event.fd);
+                        swoole_sys_warning(
+                            "[Reactor#%d] select event[type=READ, fd=%d] handler fail", reactor_->id, event.fd);
+                        swoole_print_backtrace_on_error();
                     }
                 }
                 // write
@@ -195,7 +200,9 @@ int ReactorSelect::wait(struct timeval *timeo) {
                     handler = reactor_->get_handler(SW_EVENT_WRITE, event.type);
                     ret = handler(reactor_, &event);
                     if (ret < 0) {
-                        swoole_sys_warning("[Reactor#%d] select event[type=WRITE, fd=%d] handler fail", reactor_->id, event.fd);
+                        swoole_sys_warning(
+                            "[Reactor#%d] select event[type=WRITE, fd=%d] handler fail", reactor_->id, event.fd);
+                        swoole_print_backtrace_on_error();
                     }
                 }
                 // error
@@ -203,7 +210,9 @@ int ReactorSelect::wait(struct timeval *timeo) {
                     handler = reactor_->get_handler(SW_EVENT_ERROR, event.type);
                     ret = handler(reactor_, &event);
                     if (ret < 0) {
-                        swoole_sys_warning("[Reactor#%d] select event[type=ERROR, fd=%d] handler fail", reactor_->id, event.fd);
+                        swoole_sys_warning(
+                            "[Reactor#%d] select event[type=ERROR, fd=%d] handler fail", reactor_->id, event.fd);
+                        swoole_print_backtrace_on_error();
                     }
                 }
                 if (!event.socket->removed && (event.socket->events & SW_EVENT_ONCE)) {
