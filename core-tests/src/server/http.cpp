@@ -222,6 +222,10 @@ static Server *test_process_server(Server::DispatchMode dispatch_mode = Server::
 
     server->create();
 
+    server->onStart = [](Server *serv) {
+        // printf("onStart\n");
+    };
+
     server->onClose = [](Server *serv, DataHead *info) -> void {
         if (conn) {
             if (conn->close_actively) {
@@ -230,7 +234,13 @@ static Server *test_process_server(Server::DispatchMode dispatch_mode = Server::
                 ASSERT_GE(info->reactor_id, 0);
             }
         }
+        // printf("onClose\n");
     };
+
+    server->onConnect =  [](Server *serv, DataHead *info) -> void {
+        // printf("onConnect\n");
+    };
+
 
     server->onReceive = [&](Server *serv, RecvData *req) -> int {
         session_id = req->info.fd;
@@ -486,7 +496,7 @@ TEST(http_server, static_files) {
 
         // must be document_root
         resp = cli.Get("//tests/../");
-        EXPECT_EQ(resp->status, 200);
+        EXPECT_EQ(resp->status, 404);
 
         resp = cli.Get("/tests/../README.md");
         EXPECT_EQ(resp->status, 200);
@@ -1069,11 +1079,11 @@ TEST(http_server, dispatch_func_return_error_worker_id) {
 TEST(http_server, client_ca) {
     Server *server = test_process_server(Server::DISPATCH_FDMOD, true);
     ListenPort *port = server->get_primary_port();
-    port->set_ssl_cert_file(test::get_ssl_dir() + "/server-cert.pem");
-    port->set_ssl_key_file(test::get_ssl_dir() + "/server-key.pem");
+    port->set_ssl_cert_file(test::get_ssl_dir() + "/server.crt");
+    port->set_ssl_key_file(test::get_ssl_dir() + "/server.key");
     port->set_ssl_verify_peer(true);
     port->set_ssl_allow_self_signed(true);
-    port->set_ssl_client_cert_file(test::get_ssl_dir() + "/ca-cert.pem");
+    port->set_ssl_cafile(test::get_ssl_dir() + "/ca.crt");
     port->ssl_init();
 
     pid_t pid = fork();
@@ -1084,16 +1094,12 @@ TEST(http_server, client_ca) {
     }
 
     if (pid > 0) {
-        ON_SCOPE_EXIT {
-            kill(server->get_master_pid(), SIGTERM);
-        };
-
         string port_num = to_string(server->get_primary_port()->port);
 
         sleep(1);
         pid_t pid2;
-        string client_cert = " --cert " + test::get_ssl_dir() + "/client-cert.pem ";
-        string client_key = "--key " + test::get_ssl_dir() + "/client-key.pem";
+        string client_cert = " --cert " + test::get_ssl_dir() + "/client.crt";
+        string client_key = " --key " + test::get_ssl_dir() + "/client.key";
         string command = "curl https://127.0.0.1:" + port_num + " " + client_cert + client_key +
                          " -k -vvv --stderr /tmp/client_ca.txt";
         swoole_shell_exec(command.c_str(), &pid2, 0);
@@ -1107,6 +1113,8 @@ TEST(http_server, client_ca) {
         client_ca.close();
         string response(buffer.str());
         ASSERT_TRUE(response.find("200 OK") != response.npos);
+
+        kill(server->get_master_pid(), SIGTERM);
     }
 }
 

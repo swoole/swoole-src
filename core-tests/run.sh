@@ -16,9 +16,13 @@ for task in $tasks; do
     if [ "${SWOOLE_VALGRIND}" = 1 ]; then
         # --leak-check=full --show-leak-kinds=all --track-origins=yes
         execute_command="valgrind ./bin/core_tests"
+    elif [ "${SWOOLE_ENABLE_STRACE}" = 1 ]; then
+        execute_command="strace -f ./bin/core_tests"
     else
         execute_command="./bin/core_tests"
     fi
+
+    echo "run tests for $task"
 
     if [ $task = "log." ]; then
         $execute_command --gtest_filter=$task*

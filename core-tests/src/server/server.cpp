@@ -35,6 +35,7 @@ TEST(server, schedule) {
     Server serv(Server::MODE_PROCESS);
     serv.worker_num = 6;
     serv.dispatch_mode = Server::DISPATCH_IDLE_WORKER;
+    serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     ret = serv.create();
     ASSERT_EQ(SW_OK, ret);
 
@@ -344,7 +345,9 @@ TEST(server, reload_all_workers) {
 
     swoole_set_log_level(SW_LOG_WARNING);
 
+    serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     serv.onTask = [](Server *serv, EventData *task) -> int { return 0; };
+    serv.onReceive = [](Server *serv, RecvData *data) -> int { return 0; };
 
     ASSERT_EQ(serv.create(), SW_OK);
 
@@ -387,7 +390,9 @@ TEST(server, reload_all_workers2) {
     serv.max_wait_time = 1;
     swoole_set_log_level(SW_LOG_WARNING);
 
+    serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     serv.onTask = [](Server *serv, EventData *task) -> int { return 0; };
+    serv.onReceive = [](Server *serv, RecvData *data) -> int { return 0; };
 
     ASSERT_EQ(serv.create(), SW_OK);
 
@@ -434,6 +439,7 @@ TEST(server, kill_user_workers) {
     Worker *worker2 = new Worker();
     ASSERT_EQ(serv.add_worker(worker1), worker1->id);
     ASSERT_EQ(serv.add_worker(worker2), worker2->id);
+    ASSERT_TRUE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0));
 
     ASSERT_EQ(serv.create(), SW_OK);
 
@@ -451,6 +457,8 @@ TEST(server, kill_user_workers) {
         }
     };
 
+    serv.onReceive = [](Server *serv, RecvData *data) -> int { return 0; };
+
     ASSERT_EQ(serv.start(), 0);
 }
 
@@ -465,6 +473,8 @@ TEST(server, kill_user_workers1) {
     Worker *worker2 = new Worker();
     ASSERT_EQ(serv.add_worker(worker1), worker1->id);
     ASSERT_EQ(serv.add_worker(worker2), worker2->id);
+
+    ASSERT_TRUE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0));
 
     ASSERT_EQ(serv.create(), SW_OK);
 
@@ -481,6 +491,8 @@ TEST(server, kill_user_workers1) {
             kill(serv->gs->master_pid, SIGTERM);
         }
     };
+
+    serv.onReceive = [](Server *serv, RecvData *data) -> int { return 0; };
 
     ASSERT_EQ(serv.start(), 0);
 }
@@ -625,18 +637,13 @@ TEST(server, dtls2) {
         return SW_OK;
     };
 
-    pid_t pid = fork();
+    pid_t pid = swoole_fork(0);
 
     if (pid > 0) {
         server->start();
     }
 
     if (pid == 0) {
-        ON_SCOPE_EXIT {
-            kill(server->get_master_pid(), SIGTERM);
-            exit(0);
-        };
-
         sleep(1);
         auto port = server->get_primary_port();
 
@@ -647,6 +654,9 @@ TEST(server, dtls2) {
         char buf[1024];
         c.recv(buf, sizeof(buf));
         c.close();
+
+        kill(server->get_master_pid(), SIGTERM);
+        exit(0);
     }
 }
 #endif
@@ -986,6 +996,8 @@ TEST(server, max_connection) {
 
     uint32_t last_value = serv.get_max_connection();
 
+    ASSERT_TRUE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0));
+
     serv.create();
 
     serv.set_max_connection(100);
@@ -1010,6 +1022,9 @@ TEST(server, worker_num) {
 
     serv.worker_num = SW_CPU_NUM * SW_MAX_WORKER_NCPU + 99;
     serv.task_worker_num = SW_CPU_NUM * SW_MAX_WORKER_NCPU + 99;
+
+    ASSERT_TRUE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0));
+
     serv.create();
 
     ASSERT_EQ(serv.worker_num, SW_CPU_NUM * SW_MAX_WORKER_NCPU);
@@ -1019,6 +1034,7 @@ TEST(server, worker_num) {
 TEST(server, reactor_num_base) {
     Server serv(Server::MODE_BASE);
     serv.reactor_num = SW_CPU_NUM * SW_MAX_THREAD_NCPU + 99;
+    ASSERT_TRUE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0));
     serv.create();
 
     ASSERT_EQ(serv.reactor_num, serv.worker_num);
@@ -1028,6 +1044,7 @@ TEST(server, reactor_num_large) {
     Server serv(Server::MODE_PROCESS);
     serv.worker_num = SW_CPU_NUM * SW_MAX_WORKER_NCPU;
     serv.reactor_num = SW_CPU_NUM * SW_MAX_THREAD_NCPU + 99;
+    ASSERT_TRUE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0));
     serv.create();
 
     ASSERT_EQ(serv.reactor_num, SW_CPU_NUM * SW_MAX_THREAD_NCPU);
@@ -1036,6 +1053,7 @@ TEST(server, reactor_num_large) {
 TEST(server, reactor_num_large2) {
     Server serv(Server::MODE_PROCESS);
     serv.reactor_num = SW_CPU_NUM * SW_MAX_THREAD_NCPU + 99;
+    ASSERT_TRUE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0));
     serv.create();
 
     ASSERT_EQ(serv.reactor_num, serv.worker_num);
@@ -1044,6 +1062,7 @@ TEST(server, reactor_num_large2) {
 TEST(server, reactor_num_zero) {
     Server serv;
     serv.reactor_num = 0;
+    ASSERT_TRUE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0));
     serv.create();
 
     ASSERT_EQ(serv.reactor_num, SW_CPU_NUM);
@@ -1223,6 +1242,7 @@ TEST(server, reopen_log) {
     string filename = "/tmp/swoole.log";
     swoole_set_log_file(filename.c_str());
 
+    ASSERT_TRUE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0));
     ASSERT_EQ(serv.create(), SW_OK);
 
     serv.onWorkerStart = [&filename](Server *serv, Worker *worker) {
@@ -1230,6 +1250,7 @@ TEST(server, reopen_log) {
             return;
         }
         EXPECT_TRUE(access(filename.c_str(), R_OK) != -1);
+        usleep(10000);
         unlink(filename.c_str());
         EXPECT_TRUE(access(filename.c_str(), R_OK) == -1);
         kill(serv->gs->master_pid, SIGRTMIN);
@@ -1237,6 +1258,8 @@ TEST(server, reopen_log) {
         EXPECT_TRUE(access(filename.c_str(), R_OK) != -1);
         kill(serv->gs->master_pid, SIGTERM);
     };
+
+    serv.onReceive = [](Server *server, RecvData *req) -> int { return SW_OK; };
 
     ASSERT_EQ(serv.start(), 0);
 }
@@ -1258,17 +1281,13 @@ TEST(server, udp_packet) {
 
     server->onReceive = [](Server *server, RecvData *req) -> int { return SW_OK; };
 
-    pid_t pid = fork();
+    pid_t pid = swoole_fork(0);
 
     if (pid > 0) {
         server->start();
     }
 
     if (pid == 0) {
-        ON_SCOPE_EXIT {
-            kill(server->get_master_pid(), SIGTERM);
-            exit(0);
-        };
         sleep(1);
         auto port = server->get_primary_port();
 
@@ -1283,6 +1302,9 @@ TEST(server, udp_packet) {
         cli.recv(&cli, buf, 128, 0);
         ASSERT_STREQ(buf, packet);
         cli.close();
+
+        kill(server->get_master_pid(), SIGTERM);
+        exit(0);
     }
 }
 
@@ -1363,11 +1385,7 @@ TEST(server, pipe_message) {
 
             memset(&buf.info, 0, sizeof(buf.info));
             ASSERT_TRUE(Server::task_pack(&buf, data.c_str(), data.length()));
-            buf.info.type = SW_SERVER_EVENT_PIPE_MESSAGE;
-
-            Worker *to_worker = server->get_worker(worker->id - 1);
-            server->send_to_worker_from_worker(
-                to_worker, &buf, sizeof(buf.info) + buf.info.len, SW_PIPE_MASTER | SW_PIPE_NONBLOCK);
+            ASSERT_TRUE(server->send_pipe_message(worker->id - 1, &buf));
             sleep(1);
 
             kill(server->get_master_pid(), SIGTERM);

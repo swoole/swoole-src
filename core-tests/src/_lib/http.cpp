@@ -5,6 +5,7 @@
 namespace websocket = swoole::websocket;
 
 using swoole::String;
+using swoole::Protocol;
 
 namespace httplib {
 
@@ -28,7 +29,7 @@ bool Client::Push(const char *data, size_t length, int opcode) {
         return false;
     }
     return process_socket(socket_, [&](Stream &strm) {
-        swString buffer = {};
+        String buffer = {};
         char buf[32];
         buffer.size = sizeof(buf);
         buffer.str = buf;
@@ -57,7 +58,7 @@ bool Client::Push(const char *data, size_t length, int opcode) {
 std::shared_ptr<WebSocketFrame> Client::Recv() {
     auto msg = std::make_shared<WebSocketFrame>();
     auto retval = process_socket(socket_, [&](Stream &strm) {
-        swProtocol proto = {};
+        Protocol proto = {};
         proto.package_length_size = SW_WEBSOCKET_HEADER_LEN;
         proto.get_package_length = websocket::get_package_length;
         proto.package_max_length = SW_INPUT_BUFFER_SIZE;

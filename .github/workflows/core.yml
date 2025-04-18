@@ -6,7 +6,7 @@ env:
   CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
 jobs:
-  build:
+  ubuntu:
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[core]')"
     timeout-minutes: 10
@@ -44,19 +44,21 @@ jobs:
           cmake . -D CODE_COVERAGE=ON -D enable_thread=1
           make VERBOSE=1 -j $(nproc) lib-swoole
 
-      - name: make test with valgrind
-        if: "contains(github.event.head_commit.message, '--valgrind')"
-        run: |
-          sudo apt install -y valgrind
-          cd core-tests && SWOOLE_VALGRIND=1 ./run.sh
-
-      - name: make test with asan
-        if: "contains(github.event.head_commit.message, '--asan')"
-        run: |
-          cd core-tests && SWOOLE_ENABLE_ASAN=1 ./run.sh
-
       - name: make test
-        run:
+        run: |
+          export GITHUB_COMMIT_MESSAGE="${{ github.event.head_commit.message }}"
+          if [[ "$GITHUB_COMMIT_MESSAGE" == *"--valgrind"* ]]; then
+            export SWOOLE_VALGRIND=1
+          fi
+          if [[ "$GITHUB_COMMIT_MESSAGE" == *"--asan"* ]]; then
+              export SWOOLE_ENABLE_ASAN=1
+          fi
+          if [[ "$GITHUB_COMMIT_MESSAGE" == *"--strace"* ]]; then
+              export SWOOLE_ENABLE_STRACE=1
+          fi
+          echo "SWOOLE_VALGRIND=${SWOOLE_VALGRIND}"
+          echo "SWOOLE_ENABLE_ASAN=${SWOOLE_ENABLE_ASAN}"
+          echo "SWOOLE_ENABLE_STRACE=${SWOOLE_ENABLE_STRACE}"
           cd core-tests && ./run.sh
 
       - name: run coverage

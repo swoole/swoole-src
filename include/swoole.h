@@ -231,14 +231,7 @@ typedef std::function<void(Timer *, TimerNode *)> TimerCallback;
 typedef std::function<int(Timer *, long)> TimerScheduler;
 }  // namespace swoole
 
-typedef swoole::Reactor swReactor;
-typedef swoole::String swString;
-typedef swoole::Timer swTimer;
-typedef swoole::network::Socket swSocket;
-typedef swoole::Protocol swProtocol;
-typedef swoole::EventData swEventData;
 typedef swoole::DataHead swDataHead;
-typedef swoole::Event swEvent;
 
 /*----------------------------------String-------------------------------------*/
 
@@ -847,6 +840,10 @@ static inline swoole::WorkerId swoole_get_process_id(void) {
 #else
     return SwooleG.process_id;
 #endif
+}
+
+static inline pid_t swoole_get_process_pid(void) {
+    return SwooleG.pid;
 }
 
 static inline void swoole_set_process_id(swoole::WorkerId id) {

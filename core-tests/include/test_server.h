@@ -11,7 +11,7 @@
 
 typedef void (*_onStart)(swServer *serv);
 typedef void (*_onShutdown)(swServer *serv);
-typedef void (*_onPipeMessage)(swServer *, swEventData *data);
+typedef void (*_onPipeMessage)(swServer *, swoole::EventData *data);
 typedef void (*_onWorkerStart)(swServer *serv, swoole::Worker *worker);
 typedef void (*_onWorkerStop)(swServer *serv, swoole::Worker *worker);
 typedef int (*_onReceive)(swServer *, swRecvData *);

@@ -371,7 +371,7 @@ TEST(coroutine_socket, eof_5) {
                         ssize_t l = conn->recv(buf, sizeof(buf));
                         EXPECT_EQ(string(buf, l), string("start\r\n"));
 
-                        swString *s = swoole::make_string(128 * 1024);
+                        String *s = swoole::make_string(128 * 1024);
                         s->repeat("A", 1, 128 * 1024 - 16);
                         s->append(SW_STRL(CRLF));
 
@@ -404,7 +404,7 @@ TEST(coroutine_socket, eof_6) {
                         ssize_t l = conn->recv(buf, sizeof(buf));
                         EXPECT_EQ(string(buf, l), string("start\r\n"));
 
-                        swString s(128 * 1024);
+                        String s(128 * 1024);
                         s.repeat("A", 1, 128 * 1024 - 16);
                         s.append(SW_STRL(CRLF));
 
