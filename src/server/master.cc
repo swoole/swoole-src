@@ -335,6 +335,7 @@ const char *Server::get_startup_error_message() {
 }
 
 int Server::start_check() {
+    assert(is_created());
     // disable notice when use SW_DISPATCH_ROUND and SW_DISPATCH_QUEUE
     if (is_process_mode()) {
         if (!is_support_unsafe_events()) {
@@ -732,6 +733,8 @@ int Server::create() {
     if (is_created()) {
         return SW_ERR;
     }
+
+    assert(!ports.empty());
 
     if (swoole_isset_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_CREATE)) {
         swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_CREATE, this);

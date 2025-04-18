@@ -179,10 +179,10 @@ bool swoole_ssl_is_thread_safety() {
 
 static void swoole_ssl_info_callback(const SSL *ssl, int where, int ret) {
     BIO *rbio, *wbio;
-    swSocket *sock;
+    Socket *sock;
 
     if (where & SSL_CB_HANDSHAKE_START) {
-        sock = (swSocket *) SSL_get_ex_data(ssl, ssl_connection_index);
+        sock = (Socket *) SSL_get_ex_data(ssl, ssl_connection_index);
 
         if (sock->ssl_state == SW_SSL_STATE_READY) {
             sock->ssl_renegotiation = 1;
@@ -191,7 +191,7 @@ static void swoole_ssl_info_callback(const SSL *ssl, int where, int ret) {
     }
 
     if ((where & SSL_CB_ACCEPT_LOOP) == SSL_CB_ACCEPT_LOOP) {
-        sock = (swSocket *) SSL_get_ex_data(ssl, ssl_connection_index);
+        sock = (Socket *) SSL_get_ex_data(ssl, ssl_connection_index);
 
         if (!sock->ssl_handshake_buffer_set) {
             /*

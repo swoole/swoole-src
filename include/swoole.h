@@ -231,14 +231,7 @@ typedef std::function<void(Timer *, TimerNode *)> TimerCallback;
 typedef std::function<int(Timer *, long)> TimerScheduler;
 }  // namespace swoole
 
-typedef swoole::Reactor swReactor;
-typedef swoole::String swString;
-typedef swoole::Timer swTimer;
-typedef swoole::network::Socket swSocket;
-typedef swoole::Protocol swProtocol;
-typedef swoole::EventData swEventData;
 typedef swoole::DataHead swDataHead;
-typedef swoole::Event swEvent;
 
 /*----------------------------------String-------------------------------------*/
 
