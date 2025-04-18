@@ -637,18 +637,13 @@ TEST(server, dtls2) {
         return SW_OK;
     };
 
-    pid_t pid = fork();
+    pid_t pid = swoole_fork(0);
 
     if (pid > 0) {
         server->start();
     }
 
     if (pid == 0) {
-        ON_SCOPE_EXIT {
-            kill(server->get_master_pid(), SIGTERM);
-            exit(0);
-        };
-
         sleep(1);
         auto port = server->get_primary_port();
 
@@ -659,6 +654,9 @@ TEST(server, dtls2) {
         char buf[1024];
         c.recv(buf, sizeof(buf));
         c.close();
+
+        kill(server->get_master_pid(), SIGTERM);
+        exit(0);
     }
 }
 #endif
@@ -1252,9 +1250,9 @@ TEST(server, reopen_log) {
             return;
         }
         EXPECT_TRUE(access(filename.c_str(), R_OK) != -1);
+        usleep(10000);
         unlink(filename.c_str());
         EXPECT_TRUE(access(filename.c_str(), R_OK) == -1);
-        usleep(10000);
         kill(serv->gs->master_pid, SIGRTMIN);
         sleep(2);
         EXPECT_TRUE(access(filename.c_str(), R_OK) != -1);
@@ -1283,17 +1281,13 @@ TEST(server, udp_packet) {
 
     server->onReceive = [](Server *server, RecvData *req) -> int { return SW_OK; };
 
-    pid_t pid = fork();
+    pid_t pid = swoole_fork(0);
 
     if (pid > 0) {
         server->start();
     }
 
     if (pid == 0) {
-        ON_SCOPE_EXIT {
-            kill(server->get_master_pid(), SIGTERM);
-            exit(0);
-        };
         sleep(1);
         auto port = server->get_primary_port();
 
@@ -1308,6 +1302,9 @@ TEST(server, udp_packet) {
         cli.recv(&cli, buf, 128, 0);
         ASSERT_STREQ(buf, packet);
         cli.close();
+
+        kill(server->get_master_pid(), SIGTERM);
+        exit(0);
     }
 }
 
