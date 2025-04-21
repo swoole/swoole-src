@@ -3489,7 +3489,7 @@ static PHP_METHOD(swoole_server, sendMessage) {
         php_swoole_fatal_error(E_WARNING, "can't send messages to self");
         RETURN_FALSE;
     }
-    if (worker_id < 0 || worker_id >= serv->get_core_worker_num()) {
+    if (worker_id < 0 || worker_id >= (long) serv->get_core_worker_num()) {
         php_swoole_fatal_error(E_WARNING, "worker_id[%d] is invalid", (int) worker_id);
         RETURN_FALSE;
     }
@@ -3635,9 +3635,14 @@ static PHP_METHOD(swoole_server, getClientInfo) {
     }
 
     zend_long fd;
+    zend_long reactor_id = -1;
+    zend_bool dont_check_connection = 0;
 
     ZEND_PARSE_PARAMETERS_START(1, 3)
     Z_PARAM_LONG(fd)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_LONG(reactor_id)
+    Z_PARAM_BOOL(dont_check_connection)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     Connection *conn = serv->get_connection_verify(fd);
