@@ -299,7 +299,14 @@ void php_swoole_set_global_option(HashTable *vht) {
         SWOOLE_G(display_errors) = zval_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "print_backtrace_on_error", ztmp)) {
+#if !defined(HAVE_BOOST_STACKTRACE) && !defined(HAVE_EXECINFO)
+        zend_throw_exception(
+            swoole_error_ce,
+            "The `print_backtrace_on_error` option requires `boost stacktrace` or `execinfo.h` to be installed",
+            SW_ERROR_OPERATION_NOT_SUPPORT);
+#else
         SwooleG.print_backtrace_on_error = zval_is_true(ztmp);
+#endif
     }
     // [DNS]
     // ======================================================================
@@ -1020,6 +1027,11 @@ PHP_MINFO_FUNCTION(swoole) {
 #endif
 #ifdef SW_USE_IOURING
     php_info_print_table_row(2, "io_uring", "enabled");
+#endif
+#ifdef HAVE_BOOST_STACKTRACE
+    php_info_print_table_row(2, "boost stacktrace", "enabled");
+#elif defined(HAVE_EXECINFO)
+    php_info_print_table_row(2, "execinfo", "enabled");
 #endif
     php_info_print_table_end();
 
