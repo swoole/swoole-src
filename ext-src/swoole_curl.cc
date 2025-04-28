@@ -255,7 +255,14 @@ CURLcode Multi::exec(Handle *handle) {
         }
 
         for (auto handle : selector.active_handles) {
-            for (auto it : handle->sockets) {
+            /**
+             * In `curl_multi_socket_action`, `Handle::destroy_socket()` may be invoked,
+             * which will remove entries from the `unordered_map`.
+             * In C++, removing elements during iteration can render the iterator invalid; hence,
+             * it's necessary to copy `handle->sockets` into a new `unordered_map`.
+             */
+            auto sockets = handle->sockets;
+            for (auto it : sockets) {
                 HandleSocket *handle_socket = it.second;
                 curl_multi_socket_action(
                     multi_handle_, handle_socket->event_fd, handle_socket->event_bitmask, &running_handles_);
@@ -414,7 +421,8 @@ long Multi::select(php_curlm *mh, double timeout) {
     }
 
     for (auto handle : selector.active_handles) {
-        for (auto it : handle->sockets) {
+        auto sockets = handle->sockets;
+        for (auto it : sockets) {
             HandleSocket *handle_socket = it.second;
             curl_multi_socket_action(
                 multi_handle_, handle_socket->event_fd, handle_socket->event_bitmask, &running_handles_);
