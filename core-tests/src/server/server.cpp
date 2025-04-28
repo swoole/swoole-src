@@ -1444,3 +1444,47 @@ TEST(server, forward_message) {
     serv.start();
     t1.join();
 }
+
+TEST(server, abnormal_pipeline_data) {
+    Server *server = new Server(Server::MODE_PROCESS);
+    server->worker_num = 2;
+    server->add_port(SW_SOCK_TCP, TEST_HOST, 0);
+
+    uint64_t msg_id = swoole_rand(1, INT_MAX);
+    string filename = "/tmp/swoole.log";
+    swoole_set_log_file(filename.c_str());
+
+    server->create();
+
+    server->onReceive = [](Server *server, RecvData *req) -> int { return SW_OK; };
+
+    server->onWorkerStart = [&](Server *server, Worker *worker) {
+        if (worker->id == 1) {
+            auto send_fn = [server](int flags, uint64_t msg_id) {
+                auto sock = server->get_worker_pipe_master(0);
+                size_t len =  swoole_rand(1000, 8000);
+                EventData ev;
+                ev.info.msg_id = msg_id;
+                ev.info.flags = flags;
+                ev.info.len = len;
+                swoole_random_bytes(ev.data, len);
+
+                sock->send_sync(&ev, sizeof(ev.info) + len);
+            };
+
+            send_fn(SW_EVENT_DATA_CHUNK | SW_EVENT_DATA_BEGIN, msg_id);
+            send_fn(SW_EVENT_DATA_CHUNK, msg_id + 9999);
+
+            usleep(100000);
+            server->shutdown();
+        }
+    };
+
+    server->start();
+
+    File fp(filename, File::READ);
+    auto cont = fp.read_content();
+    ASSERT_TRUE(cont->contains(std::string("abnormal pipeline data, msg_id=") + std::to_string(msg_id + 9999)));
+
+    unlink(filename.c_str());
+}

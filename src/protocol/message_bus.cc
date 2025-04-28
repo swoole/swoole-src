@@ -108,6 +108,8 @@ _read_from_pipe:
                          info->msg_id,
                          sock->get_fd(),
                          info->reactor_id);
+        // Read data from the socket buffer and discard it.
+        recv(sock->get_fd(), info, sizeof(buffer_->info), 0);
         return SW_OK;
     }
 
