@@ -196,10 +196,6 @@ void Multi::set_event(CURL *cp, void *socket_ptr, curl_socket_t sockfd, int acti
 }
 
 CURLMcode Multi::add_handle(Handle *handle) {
-    if (handle == nullptr) {
-        php_swoole_fatal_error(E_WARNING, "The given handle is not initialized in coroutine");
-        return CURLM_INTERNAL_ERROR;
-    }
     auto retval = curl_multi_add_handle(multi_handle_, handle->cp);
     if (retval == CURLM_OK) {
         handle->multi = this;
@@ -247,29 +243,7 @@ CURLcode Multi::exec(Handle *handle) {
             break;
         }
 
-        del_timer();
-        if (selector.timer_callback) {
-            selector.timer_callback = false;
-            curl_multi_socket_action(multi_handle_, CURL_SOCKET_TIMEOUT, 0, &running_handles_);
-            swoole_trace_log(SW_TRACE_CO_CURL, "socket_action[timer], running_handles=%d", running_handles_);
-        }
-
-        for (auto handle : selector.active_handles) {
-            /**
-             * In `curl_multi_socket_action`, `Handle::destroy_socket()` may be invoked,
-             * which will remove entries from the `unordered_map`.
-             * In C++, removing elements during iteration can render the iterator invalid; hence,
-             * it's necessary to copy `handle->sockets` into a new `unordered_map`.
-             */
-            auto sockets = handle->sockets;
-            for (auto it : sockets) {
-                HandleSocket *handle_socket = it.second;
-                curl_multi_socket_action(
-                    multi_handle_, handle_socket->event_fd, handle_socket->event_bitmask, &running_handles_);
-                swoole_trace_log(SW_TRACE_CO_CURL, "socket_action[socket], running_handles=%d", running_handles_);
-            }
-        }
-        selector.active_handles.clear();
+        selector_finish();
 
         swoole_trace_log(SW_TRACE_CO_CURL,
                          "curl_multi_socket_action: handle=%p, sockfd=%d, bitmask=%d, running_handles_=%d",
@@ -338,6 +312,33 @@ int Multi::handle_timeout(CURLM *mh, long timeout_ms, void *userp) {
         multi->add_timer(timeout_ms);
     }
     return 0;
+}
+
+void Multi::selector_finish() {
+    del_timer();
+
+    if (selector.timer_callback) {
+        selector.timer_callback = false;
+        curl_multi_socket_action(multi_handle_, CURL_SOCKET_TIMEOUT, 0, &running_handles_);
+        swoole_trace_log(SW_TRACE_CO_CURL, "socket_action[timer], running_handles=%d", running_handles_);
+    }
+
+    for (auto handle : selector.active_handles) {
+        /**
+         * In `curl_multi_socket_action`, `Handle::destroy_socket()` may be invoked,
+         * which will remove entries from the `unordered_map`.
+         * In C++, removing elements during iteration can render the iterator invalid; hence,
+         * it's necessary to copy `handle->sockets` into a new `unordered_map`.
+         */
+        auto sockets = handle->sockets;
+        for (auto it : sockets) {
+            HandleSocket *handle_socket = it.second;
+            curl_multi_socket_action(
+                multi_handle_, handle_socket->event_fd, handle_socket->event_bitmask, &running_handles_);
+            swoole_trace_log(SW_TRACE_CO_CURL, "socket_action[socket], running_handles=%d", running_handles_);
+        }
+    }
+    selector.active_handles.clear();
 }
 
 long Multi::select(php_curlm *mh, double timeout) {
@@ -412,25 +413,8 @@ long Multi::select(php_curlm *mh, double timeout) {
             }
         }
     }
-    del_timer();
 
-    if (selector.timer_callback) {
-        selector.timer_callback = false;
-        curl_multi_socket_action(multi_handle_, CURL_SOCKET_TIMEOUT, 0, &running_handles_);
-        swoole_trace_log(SW_TRACE_CO_CURL, "socket_action[timer], running_handles=%d", running_handles_);
-    }
-
-    for (auto handle : selector.active_handles) {
-        auto sockets = handle->sockets;
-        for (auto it : sockets) {
-            HandleSocket *handle_socket = it.second;
-            curl_multi_socket_action(
-                multi_handle_, handle_socket->event_fd, handle_socket->event_bitmask, &running_handles_);
-            swoole_trace_log(SW_TRACE_CO_CURL, "socket_action[socket], running_handles=%d", running_handles_);
-        }
-    }
-
-    selector.active_handles.clear();
+    selector_finish();
 
     return count;
 }
@@ -488,6 +472,7 @@ php_curl *swoole_curl_get_handle(zval *zid, bool exclusive, bool required) {
     if (exclusive && swoole_coroutine_is_in()) {
         auto handle = swoole::curl::get_handle(ch->cp);
         if (required && !handle) {
+            php_swoole_fatal_error(E_WARNING, "The given handle is not initialized in coroutine");
             return nullptr;
         }
         if (handle && handle->multi && handle->multi->check_bound_co() == nullptr) {

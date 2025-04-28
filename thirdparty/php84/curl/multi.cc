@@ -89,7 +89,7 @@ PHP_FUNCTION(swoole_native_curl_multi_add_handle) {
     ZEND_PARSE_PARAMETERS_END();
 
     mh = Z_CURL_MULTI_P(z_mh);
-    ch = Z_CURL_P(z_ch);
+    ch = swoole_curl_get_handle(z_ch);
 
     if (!(swoole_curl_multi_is_in_coroutine(mh))) {
         swoole_fatal_error(SW_ERROR_WRONG_OPERATION,

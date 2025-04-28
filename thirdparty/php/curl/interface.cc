@@ -541,9 +541,8 @@ static size_t fn_progress(void *clientp, double dltotal, double dlnow, double ul
 /* }}} */
 
 #if LIBCURL_VERSION_NUM >= 0x075400 && PHP_VERSION_ID >= 80300
-static int fn_ssh_hostkeyfunction(void *clientp, int keytype, const char *key, size_t keylen)
-{
-    php_curl *ch = (php_curl *)clientp;
+static int fn_ssh_hostkeyfunction(void *clientp, int keytype, const char *key, size_t keylen) {
+    php_curl *ch = (php_curl *) clientp;
     php_curl_sshhostkey *t = ch->handlers.sshhostkey;
     int rval = CURLKHMATCH_MISMATCH; /* cancel connection in case of an exception */
 
@@ -583,10 +582,14 @@ static int fn_ssh_hostkeyfunction(void *clientp, int keytype, const char *key, s
             if (retval_long == CURLKHMATCH_OK || retval_long == CURLKHMATCH_MISMATCH) {
                 rval = retval_long;
             } else {
-                zend_throw_error(NULL, "The CURLOPT_SSH_HOSTKEYFUNCTION callback must return either CURLKHMATCH_OK or CURLKHMATCH_MISMATCH");
+                zend_throw_error(NULL,
+                                 "The CURLOPT_SSH_HOSTKEYFUNCTION callback must return either CURLKHMATCH_OK or "
+                                 "CURLKHMATCH_MISMATCH");
             }
         } else {
-            zend_throw_error(NULL, "The CURLOPT_SSH_HOSTKEYFUNCTION callback must return either CURLKHMATCH_OK or CURLKHMATCH_MISMATCH");
+            zend_throw_error(
+                NULL,
+                "The CURLOPT_SSH_HOSTKEYFUNCTION callback must return either CURLKHMATCH_OK or CURLKHMATCH_MISMATCH");
         }
     }
     zval_ptr_dtor(&argv[0]);
@@ -872,7 +875,7 @@ void swoole_curl_init_handle(php_curl *ch) {
     zend_llist_init(&ch->to_free->stream, sizeof(struct mime_data_cb_arg *), (llist_dtor_func_t) curl_free_cb_arg, 0);
 
 #if LIBCURL_VERSION_NUM < 0x073800 && PHP_VERSION_ID >= 80100
-    zend_llist_init(&ch->to_free->buffers, sizeof(zend_string *), (llist_dtor_func_t)curl_free_buffers, 0);
+    zend_llist_init(&ch->to_free->buffers, sizeof(zend_string *), (llist_dtor_func_t) curl_free_buffers, 0);
 #endif
 
     ch->to_free->slist = (HashTable *) emalloc(sizeof(HashTable));
@@ -1167,8 +1170,7 @@ static inline int build_mime_structure_from_hash(php_curl *ch, zval *zpostfields
                     return 1;
                 }
 
-                prop =
-                    zend_read_property(curl_CURLFile_class, Z_OBJ_P(current), "mime", sizeof("mime") - 1, 0, &rv);
+                prop = zend_read_property(curl_CURLFile_class, Z_OBJ_P(current), "mime", sizeof("mime") - 1, 0, &rv);
                 if (Z_TYPE_P(prop) == IS_STRING && Z_STRLEN_P(prop) > 0) {
                     type = Z_STRVAL_P(prop);
                 }

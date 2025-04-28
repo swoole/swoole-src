@@ -93,6 +93,7 @@ class Multi {
 
     void set_event(CURL *cp, void *socket_ptr, curl_socket_t sockfd, int action);
     void del_event(CURL *cp, void *socket_ptr, curl_socket_t sockfd);
+    void selector_finish();
 
     void add_timer(long timeout_ms) {
         if (timer && swoole_timer_is_available()) {
