@@ -487,6 +487,9 @@ php_curl *swoole_curl_get_handle(zval *zid, bool exclusive, bool required) {
     }
     if (exclusive && swoole_coroutine_is_in()) {
         auto handle = swoole::curl::get_handle(ch->cp);
+        if (required && !handle) {
+            return nullptr;
+        }
         if (handle && handle->multi && handle->multi->check_bound_co() == nullptr) {
             return nullptr;
         }

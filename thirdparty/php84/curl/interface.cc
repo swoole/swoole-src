@@ -2612,7 +2612,7 @@ PHP_FUNCTION(swoole_native_curl_close) {
     ZEND_PARSE_PARAMETERS_END();
 
     if ((ch = swoole_curl_get_handle(zid)) == NULL) {
-        RETURN_FALSE;
+        return;
     }
 
     if (ch->in_callback) {
