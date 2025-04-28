@@ -53,11 +53,15 @@ struct HandleSocket {
 struct Handle {
     CURL *cp;
     Multi *multi;
+    // This is only for the swoole_curl_easy_perform function, and it has a one-to-one relationship with the curl
+    // handle. It must be destroyed when the curl handle is released.
+    Multi *easy_multi;
     std::unordered_map<int, HandleSocket *> sockets;
 
     Handle(CURL *_cp) {
         cp = _cp;
         multi = nullptr;
+        easy_multi = nullptr;
     }
 
     HandleSocket *create_socket(curl_socket_t sockfd);
@@ -79,10 +83,9 @@ class Multi {
     long timeout_ms_ = 0;
     Coroutine *co = nullptr;
     int running_handles_ = 0;
-    int last_sockfd;
     int event_count_ = 0;
     bool defer_callback = false;
-    std::unique_ptr<Selector> selector;
+    Selector selector;
 
     CURLcode read_info();
 
@@ -137,10 +140,6 @@ class Multi {
 
     int get_running_handles() {
         return running_handles_;
-    }
-
-    void set_selector(Selector *_selector) {
-        selector.reset(_selector);
     }
 
     CURLMcode add_handle(Handle *handle);

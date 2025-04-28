@@ -69,7 +69,6 @@ PHP_FUNCTION(swoole_native_curl_multi_init) {
     object_init_ex(return_value, swoole_coroutine_curl_multi_handle_ce);
     mh = Z_CURL_MULTI_P(return_value);
     mh->multi = new Multi();
-    mh->multi->set_selector(new Selector());
 
     swoole_curl_multi_set_in_coroutine(mh, true);
     zend_llist_init(&mh->easyh, sizeof(zval), swoole_curl_multi_cleanup_list, 0);
