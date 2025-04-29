@@ -1346,8 +1346,7 @@ static inline zend_result build_mime_structure_from_hash(php_curl *ch, zval *zpo
 
             filename = Z_STRVAL_P(prop);
 
-            prop =
-                zend_read_property(curl_CURLStringFile_class, Z_OBJ_P(current), "mime", sizeof("mime") - 1, 0, &rv);
+            prop = zend_read_property(curl_CURLStringFile_class, Z_OBJ_P(current), "mime", sizeof("mime") - 1, 0, &rv);
             if (EG(exception)) {
                 zend_string_release_ex(string_key, 0);
                 return FAILURE;
@@ -1357,8 +1356,7 @@ static inline zend_result build_mime_structure_from_hash(php_curl *ch, zval *zpo
 
             type = Z_STRVAL_P(prop);
 
-            prop =
-                zend_read_property(curl_CURLStringFile_class, Z_OBJ_P(current), "data", sizeof("data") - 1, 0, &rv);
+            prop = zend_read_property(curl_CURLStringFile_class, Z_OBJ_P(current), "data", sizeof("data") - 1, 0, &rv);
             if (EG(exception)) {
                 zend_string_release_ex(string_key, 0);
                 return FAILURE;
@@ -2612,7 +2610,7 @@ PHP_FUNCTION(swoole_native_curl_close) {
     ZEND_PARSE_PARAMETERS_END();
 
     if ((ch = swoole_curl_get_handle(zid)) == NULL) {
-        RETURN_FALSE;
+        return;
     }
 
     if (ch->in_callback) {
