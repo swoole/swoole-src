@@ -1731,10 +1731,7 @@ static PHP_METHOD(swoole_socket_coro, sendFile) {
 
     swoole_get_socket_coro(sock, ZEND_THIS);
     if (!sock->socket->sendfile(file, offset, length)) {
-        zend_update_property_long(
-            swoole_socket_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), sock->socket->errCode);
-        zend_update_property_string(
-            swoole_socket_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errMsg"), sock->socket->errMsg);
+        socket_coro_sync_properties(ZEND_THIS, sock);
         RETVAL_FALSE;
     } else {
         RETVAL_TRUE;
