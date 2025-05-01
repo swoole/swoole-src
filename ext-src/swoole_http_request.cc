@@ -412,7 +412,7 @@ _add_header:
     } else {
         char *new_header_name = estrndup(header_name, header_len);
         zend_str_tolower_copy(new_header_name, header_name, header_len);
-        zend_hash_str_update(Z_ARR_P(zheader), new_header_name, header_len, &tmp);
+        zend::array_add_or_merge(zheader, new_header_name, header_len, &tmp);
         efree(new_header_name);
     }
 
