@@ -36,6 +36,55 @@ void known_strings_dtor(void) {
     sw_zend_known_strings = nullptr;
 }
 
+static zend_always_inline zval *sw_zend_symtable_str_add(
+    HashTable *ht, const char *str, size_t len, zend_ulong idx, bool numeric_key, zval *pData) {
+    if (numeric_key) {
+        return zend_hash_index_add(ht, idx, pData);
+    } else {
+        return zend_hash_str_add(ht, str, len, pData);
+    }
+}
+
+static zend_always_inline zval *sw_zend_symtable_str_find(
+    HashTable *ht, const char *str, size_t len, zend_ulong idx, bool numeric_key) {
+    if (numeric_key) {
+        return zend_hash_index_find(ht, idx);
+    } else {
+        return zend_hash_str_find(ht, str, len);
+    }
+}
+
+static zend_always_inline zval *sw_zend_symtable_str_update(
+    HashTable *ht, const char *str, size_t len, zend_ulong idx, bool numeric_key, zval *pData) {
+    if (numeric_key) {
+        return zend_hash_index_update(ht, idx, pData);
+    } else {
+        return zend_hash_str_update(ht, str, len, pData);
+    }
+}
+
+void array_add_or_merge(zval *zarray, const char *key, size_t key_len, zval *new_element) {
+    zend_ulong idx;
+    bool numeric_key = ZEND_HANDLE_NUMERIC_STR(key, key_len, idx);
+
+    zend_array *array = Z_ARRVAL_P(zarray);
+    zval *zresult = sw_zend_symtable_str_add(array, key, key_len, idx, numeric_key, new_element);
+    // Adding element failed, indicating that this key already exists and must be converted to an array
+    if (!zresult) {
+        zval *current_header = sw_zend_symtable_str_find(array, key, key_len, idx, numeric_key);
+        if (ZVAL_IS_ARRAY(current_header)) {
+            add_next_index_zval(current_header, new_element);
+        } else {
+            zval zvalue_array;
+            array_init_size(&zvalue_array, 2);
+            Z_ADDREF_P(current_header);
+            add_next_index_zval(&zvalue_array, current_header);
+            add_next_index_zval(&zvalue_array, new_element);
+            sw_zend_symtable_str_update(array, key, key_len, idx, numeric_key, &zvalue_array);
+        }
+    }
+}
+
 namespace function {
 
 bool call(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv, zval *retval, const bool enable_coroutine) {
