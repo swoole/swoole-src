@@ -49,6 +49,7 @@ TEST(redis, server) {
     port->open_redis_protocol = true;
 
     serv.create();
+    std::unordered_map<std::string, std::string> redis_data;
 
     serv.onWorkerStart = [&](Server *serv, Worker *worker) {
         if (worker->id != 0) {
@@ -61,12 +62,24 @@ TEST(redis, server) {
                 ASSERT_TRUE(redis.Connect("127.0.0.1", serv->get_primary_port()->port));
                 ASSERT_TRUE(redis.Set(REDIS_TEST_KEY, REDIS_TEST_VALUE));
                 ASSERT_EQ(redis.Get(REDIS_TEST_KEY), REDIS_TEST_VALUE);
+
+                ASSERT_EQ(redis.Get(REDIS_TEST_KEY + "-not-exists"), "");
+
+                String rdata;
+                rdata.append_random_bytes(128 * 1024, true);
+                auto data = rdata.to_std_string();
+
+                ASSERT_TRUE(redis.Set(REDIS_TEST_KEY + "-big-key", data));
+                ASSERT_EQ(redis.Get(REDIS_TEST_KEY + "-big-key"), data);
+
+                ASSERT_EQ(redis.Ttl(REDIS_TEST_KEY), -1);
+
                 kill(serv->gs->master_pid, SIGTERM);
             },
             serv);
     };
 
-    serv.onReceive = [](Server *serv, RecvData *req) -> int {
+    serv.onReceive = [&redis_data](Server *serv, RecvData *req) -> int {
         int session_id = req->info.fd;
         auto list = redis::parse(req->data, req->info.len);
 
@@ -74,10 +87,23 @@ TEST(redis, server) {
         buffer->clear();
 
         if (strcasecmp(list[0].c_str(), "GET") == 0) {
-            redis::format(buffer, redis::REPLY_STRING, REDIS_TEST_VALUE);
-            serv->send(session_id, buffer->str, buffer->length);
+            auto result = redis_data.find(list[1]);
+            if (result == redis_data.end()) {
+                redis::format_nil(buffer);
+                serv->send(session_id, buffer->str, buffer->length);
+            } else {
+                char buf[64];
+                auto n = snprintf(buf, sizeof(buf), "$%zu\r\n", result->second.length());
+                serv->send(session_id, buf, n);
+                serv->send(session_id, result->second.c_str(), result->second.length());
+                serv->send(session_id, SW_CRLF, SW_CRLF_LEN);
+            }
         } else if (strcasecmp(list[0].c_str(), "SET") == 0) {
             redis::format(buffer, redis::REPLY_STATUS, "OK");
+            redis_data[list[1]] = list[2];
+            serv->send(session_id, buffer->str, buffer->length);
+        }  else if (strcasecmp(list[0].c_str(), "TTL") == 0) {
+            redis::format(buffer, redis::REPLY_INT, -1);
             serv->send(session_id, buffer->str, buffer->length);
         }
 

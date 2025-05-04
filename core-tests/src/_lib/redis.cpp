@@ -35,6 +35,18 @@ string RedisClient::Get(const string &key) {
     }
 }
 
+long RedisClient::Ttl(const std::string &key) {
+    const char *argv[] = {"TTL", key.c_str()};
+    size_t argvlen[] = {strlen(argv[0]), key.length()};
+
+    auto reply = Request(SW_ARRAY_SIZE(argv), argv, argvlen);
+    if (!reply.empty() && reply->integer) {
+        return reply->integer;
+    } else {
+        return 0;
+    }
+}
+
 bool RedisClient::Set(const string &key, const string &value) {
     const char *argv[] = {"SET", key.c_str(), value.c_str()};
     size_t argvlen[] = {strlen(argv[0]), key.length(), value.length()};

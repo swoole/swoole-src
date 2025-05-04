@@ -173,7 +173,7 @@ _failed:
     return SW_ERR;
 }
 
-bool format(String *buf) {
+bool format_nil(String *buf) {
     return buf->append(SW_STRL(SW_REDIS_RETURN_NIL)) == SW_OK;
 }
 

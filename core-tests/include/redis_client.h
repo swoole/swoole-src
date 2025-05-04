@@ -62,6 +62,7 @@ class RedisClient {
     bool Connect(const std::string &host = "127.0.0.1", int port = 6379, struct timeval timeout = {});
     std::string Get(const std::string &key);
     bool Set(const std::string &key, const std::string &value);
+    long Ttl(const std::string &key);
 };
 
 }  // namespace swoole
