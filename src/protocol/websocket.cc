@@ -292,7 +292,7 @@ int dispatch_frame(const Protocol *proto, Socket *_socket, const RecvData *rdata
     case OPCODE_TEXT:
     case OPCODE_BINARY: {
         offset = length - ws.payload_length;
-        int ext_flags = get_ext_flags(ws.header.OPCODE, get_flags(&ws));
+        uint16_t ext_flags = get_ext_flags(ws.header.OPCODE, get_flags(&ws));
         if (!ws.header.FIN) {
             if (conn->websocket_buffer) {
                 swoole_warning("merging incomplete frame, bad request. remote_addr=%s:%d",
@@ -300,7 +300,7 @@ int dispatch_frame(const Protocol *proto, Socket *_socket, const RecvData *rdata
                                conn->info.get_port());
                 return SW_ERR;
             }
-            conn->websocket_buffer = new swoole::String(data + offset, length - offset);
+            conn->websocket_buffer = new String(data + offset, length - offset);
             conn->websocket_buffer->offset = ext_flags;
         } else {
             dispatch_data.info.ext_flags = ext_flags;

@@ -26,6 +26,11 @@
 #include "swoole_http.h"
 #include "swoole_util.h"
 
+#include <openssl/sha.h>
+#include <openssl/bio.h>
+#include <openssl/evp.h>
+#include <openssl/buffer.h>
+
 using namespace swoole;
 using namespace std;
 using http_server::Context;
@@ -67,6 +72,43 @@ struct http_context {
         buf->append(SW_STRL("\r\n"));
         server->send(fd, buf->str, buf->length);
         delete buf;
+    }
+
+    void dump_headers() {
+        for(auto kv: headers) {
+            std::cout << kv.first << ": " << kv.second << "\n";
+        }
+    }
+
+    static std::string base64Encode(const unsigned char* input, int length) {
+        BIO *bmem = nullptr;
+        BIO *b64 = nullptr;
+        BUF_MEM *bptr = nullptr;
+
+        b64 = BIO_new(BIO_f_base64());
+        BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
+        bmem = BIO_new(BIO_s_mem());
+        b64 = BIO_push(b64, bmem);
+
+        BIO_write(b64, input, length);
+        BIO_flush(b64);
+        BIO_get_mem_ptr(b64, &bptr);
+
+        std::string encoded(bptr->data, bptr->length);
+        BIO_free_all(b64);
+
+        return encoded;
+    }
+
+    std::string createWebSocketAccept() {
+        std::string keyWithMagic = headers["Sec-WebSocket-Key"] + SW_WEBSOCKET_GUID;
+
+        unsigned char sha1Result[SHA_DIGEST_LENGTH];
+        SHA1(reinterpret_cast<const unsigned char*>(keyWithMagic.c_str()),
+             keyWithMagic.length(),
+             sha1Result);
+
+        return base64Encode(sha1Result, SHA_DIGEST_LENGTH);
     }
 };
 
@@ -139,9 +181,21 @@ static void test_base_server(function<void(Server *)> fn) {
 
         if (conn->websocket_status == websocket::STATUS_ACTIVE) {
             sw_tg_buffer()->clear();
-            std::string resp = "Swoole: " + string(req->data, req->info.len);
-            websocket::encode(sw_tg_buffer(), resp.c_str(), resp.length(), websocket::OPCODE_TEXT, websocket::FLAG_FIN);
-            serv->send(session_id, sw_tg_buffer()->str, sw_tg_buffer()->length);
+            uchar flags = 0;
+            uchar opcode = 0;
+            websocket::parse_ext_flags(req->info.ext_flags, &opcode, &flags);
+
+            if (opcode == websocket::OPCODE_PING) {
+                websocket::encode(sw_tg_buffer(), req->data, req->info.len, websocket::OPCODE_PONG, websocket::FLAG_FIN);
+                serv->send(session_id, sw_tg_buffer()->str, sw_tg_buffer()->length);
+            } else if (opcode == websocket::OPCODE_CLOSE) {
+                // pass
+            } else {
+                std::string resp = "Swoole: " + string(req->data, req->info.len);
+                websocket::encode(sw_tg_buffer(), resp.c_str(), resp.length(), websocket::OPCODE_TEXT, websocket::FLAG_FIN);
+                serv->send(session_id, sw_tg_buffer()->str, sw_tg_buffer()->length);
+            }
+
             return SW_OK;
         }
 
@@ -163,7 +217,7 @@ static void test_base_server(function<void(Server *)> fn) {
 
         if (err == HPE_PAUSED_UPGRADE) {
             ctx.setHeader("Connection", "Upgrade");
-            ctx.setHeader("Sec-WebSocket-Accept", "IIRiohCjop4iJrmvySrFcwcXpHo=");
+            ctx.setHeader("Sec-WebSocket-Accept", ctx.createWebSocketAccept());
             ctx.setHeader("Sec-WebSocket-Version", "13");
             ctx.setHeader("Upgrade", "websocket");
             ctx.setHeader("Content-Length", "0");
@@ -237,10 +291,9 @@ static Server *test_process_server(Server::DispatchMode dispatch_mode = Server::
         // printf("onClose\n");
     };
 
-    server->onConnect =  [](Server *serv, DataHead *info) -> void {
+    server->onConnect = [](Server *serv, DataHead *info) -> void {
         // printf("onConnect\n");
     };
-
 
     server->onReceive = [&](Server *serv, RecvData *req) -> int {
         session_id = req->info.fd;
@@ -654,6 +707,26 @@ TEST(http_server, websocket_mask) {
 
         kill(getpid(), SIGTERM);
     });
+}
+
+TEST(http_server, node_websocket_client) {
+    test_base_server([](Server *serv) {
+        swoole_signal_block_all();
+
+        std::string command = "bash -c 'node " + test::get_root_path() + "/core-tests/js/" + "ws.js " +
+                              std::to_string(serv->get_primary_port()->get_port()) + "'";
+
+        EXPECT_EQ(std::system(command.c_str()), 0);
+
+        kill(serv->get_master_pid(), SIGTERM);
+    });
+
+    File fp("/tmp/swoole.log", O_RDONLY);
+    EXPECT_TRUE(fp.ready());
+    auto str = fp.read_content();
+    ASSERT_TRUE(str->contains("received: Swoole: hello world"));
+    ASSERT_TRUE(str->contains("the node websocket client is closed"));
+    unlink("/tmp/swoole.log");
 }
 
 TEST(http_server, parser1) {
