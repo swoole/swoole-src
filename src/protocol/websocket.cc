@@ -206,7 +206,7 @@ bool decode(Frame *frame, char *data, size_t length) {
     return true;
 }
 
-int pack_close_frame(String *buffer, int code, char *reason, size_t length, uint8_t flags) {
+int pack_close_frame(String *buffer, int code, const char *reason, size_t length, uint8_t flags) {
     if (sw_unlikely(length > SW_WEBSOCKET_CLOSE_REASON_MAX_LEN)) {
         swoole_warning("the max length of close reason is %d", SW_WEBSOCKET_CLOSE_REASON_MAX_LEN);
         return SW_ERR;
@@ -292,7 +292,7 @@ int dispatch_frame(const Protocol *proto, Socket *_socket, const RecvData *rdata
     case OPCODE_TEXT:
     case OPCODE_BINARY: {
         offset = length - ws.payload_length;
-        int ext_flags = get_ext_flags(ws.header.OPCODE, get_flags(&ws));
+        uint16_t ext_flags = get_ext_flags(ws.header.OPCODE, get_flags(&ws));
         if (!ws.header.FIN) {
             if (conn->websocket_buffer) {
                 swoole_warning("merging incomplete frame, bad request. remote_addr=%s:%d",
@@ -300,7 +300,7 @@ int dispatch_frame(const Protocol *proto, Socket *_socket, const RecvData *rdata
                                conn->info.get_port());
                 return SW_ERR;
             }
-            conn->websocket_buffer = new swoole::String(data + offset, length - offset);
+            conn->websocket_buffer = new String(data + offset, length - offset);
             conn->websocket_buffer->offset = ext_flags;
         } else {
             dispatch_data.info.ext_flags = ext_flags;

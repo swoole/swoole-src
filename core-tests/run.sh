@@ -10,6 +10,10 @@ fi
 make -j8
 ipcs -q
 
+cd ${__DIR__}/js
+npm install
+cd ${__DIR__}
+
 tasks=$(./bin/core_tests --gtest_list_tests | awk '/\./')
 for task in $tasks; do
 

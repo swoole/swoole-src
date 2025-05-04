@@ -62,6 +62,11 @@ bool is_github_ci() {
     return getenv("GITHUB_ACTIONS") != nullptr;
 }
 
+int exec_js_script(const std::string &file, const std::string &args) {
+    std::string command = "bash -c 'node " + test::get_root_path() + "/core-tests/js/" + file + " " + args + "'";
+    return std::system(command.c_str());
+}
+
 Socks5Proxy *create_socks5_proxy() {
     auto socks5_proxy = new Socks5Proxy();
     socks5_proxy->host = std::string(TEST_SOCKS5_PROXY_HOST);
