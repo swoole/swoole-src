@@ -819,61 +819,14 @@ void Client::set_basic_auth(const std::string &username, const std::string &pass
     }
 }
 
-static zend_always_inline zval *sw_zend_symtable_str_add(
-    HashTable *ht, const char *str, size_t len, zend_ulong idx, bool numeric_key, zval *pData) {
-    if (numeric_key) {
-        return zend_hash_index_add(ht, idx, pData);
-    } else {
-        return zend_hash_str_add(ht, str, len, pData);
-    }
-}
-
-static zend_always_inline zval *sw_zend_symtable_str_find(
-    HashTable *ht, const char *str, size_t len, zend_ulong idx, bool numeric_key) {
-    if (numeric_key) {
-        return zend_hash_index_find(ht, idx);
-    } else {
-        return zend_hash_str_find(ht, str, len);
-    }
-}
-
-static zend_always_inline zval *sw_zend_symtable_str_update(
-    HashTable *ht, const char *str, size_t len, zend_ulong idx, bool numeric_key, zval *pData) {
-    if (numeric_key) {
-        return zend_hash_index_update(ht, idx, pData);
-    } else {
-        return zend_hash_str_update(ht, str, len, pData);
-    }
-}
-
 void Client::add_header(const char *key, size_t key_len, const char *str, size_t length) {
     zval *zheaders =
         sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, zobject, ZEND_STRL("headers"), 0);
-    zend_array *array = Z_ARRVAL_P(zheaders);
 
-    zval zvalue_new;
-    ZVAL_STRINGL(&zvalue_new, str, length);
+    zval zheader_new;
+    ZVAL_STRINGL(&zheader_new, str, length);
 
-    zend_ulong idx;
-    bool numeric_key = ZEND_HANDLE_NUMERIC_STR(key, key_len, idx);
-
-    zval *zresult = sw_zend_symtable_str_add(array, key, key_len, idx, numeric_key, &zvalue_new);
-    /**
-     * Adding failed, indicating that this header already exists and must be converted to an array
-     */
-    if (!zresult) {
-        zval *zvalue_found = sw_zend_symtable_str_find(array, key, key_len, idx, numeric_key);
-        if (ZVAL_IS_ARRAY(zvalue_found)) {
-            add_next_index_zval(zvalue_found, &zvalue_new);
-        } else {
-            zval zvalue_array;
-            array_init_size(&zvalue_array, 2);
-            Z_ADDREF_P(zvalue_found);
-            add_next_index_zval(&zvalue_array, zvalue_found);
-            add_next_index_zval(&zvalue_array, &zvalue_new);
-            sw_zend_symtable_str_update(array, key, key_len, idx, numeric_key, &zvalue_array);
-        }
-    }
+    zend::array_add_or_merge(zheaders, key, key_len, &zheader_new);
 }
 
 bool Client::connect() {

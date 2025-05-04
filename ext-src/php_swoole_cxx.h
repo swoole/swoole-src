@@ -749,6 +749,13 @@ static inline void array_unset(zval *arg, const char *key, size_t l_key) {
     zend_hash_str_del(Z_ARRVAL_P(arg), key, l_key);
 }
 
+/**
+ * Add new element to the associative array or merge with existing elements.
+ * If the key does not exist, add it to the array.
+ * If the key already exists, merge all into a two-dimensional array.
+ */
+void array_add_or_merge(zval *zarray, const char *key, size_t key_len, zval *new_element);
+
 static inline zend_long object_get_long(zval *obj, zend_string *key) {
     static zval rv;
     zval *property = zend_read_property_ex(Z_OBJCE_P(obj), Z_OBJ_P(obj), key, 1, &rv);
