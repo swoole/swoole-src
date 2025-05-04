@@ -206,7 +206,7 @@ bool decode(Frame *frame, char *data, size_t length) {
     return true;
 }
 
-int pack_close_frame(String *buffer, int code, char *reason, size_t length, uint8_t flags) {
+int pack_close_frame(String *buffer, int code, const char *reason, size_t length, uint8_t flags) {
     if (sw_unlikely(length > SW_WEBSOCKET_CLOSE_REASON_MAX_LEN)) {
         swoole_warning("the max length of close reason is %d", SW_WEBSOCKET_CLOSE_REASON_MAX_LEN);
         return SW_ERR;

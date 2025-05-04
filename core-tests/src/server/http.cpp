@@ -75,12 +75,12 @@ struct http_context {
     }
 
     void dump_headers() {
-        for(auto kv: headers) {
+        for (auto kv : headers) {
             std::cout << kv.first << ": " << kv.second << "\n";
         }
     }
 
-    static std::string base64Encode(const unsigned char* input, int length) {
+    static std::string base64Encode(const unsigned char *input, int length) {
         BIO *bmem = nullptr;
         BIO *b64 = nullptr;
         BUF_MEM *bptr = nullptr;
@@ -104,9 +104,7 @@ struct http_context {
         std::string keyWithMagic = headers["Sec-WebSocket-Key"] + SW_WEBSOCKET_GUID;
 
         unsigned char sha1Result[SHA_DIGEST_LENGTH];
-        SHA1(reinterpret_cast<const unsigned char*>(keyWithMagic.c_str()),
-             keyWithMagic.length(),
-             sha1Result);
+        SHA1(reinterpret_cast<const unsigned char *>(keyWithMagic.c_str()), keyWithMagic.length(), sha1Result);
 
         return base64Encode(sha1Result, SHA_DIGEST_LENGTH);
     }
@@ -186,13 +184,15 @@ static void test_base_server(function<void(Server *)> fn) {
             websocket::parse_ext_flags(req->info.ext_flags, &opcode, &flags);
 
             if (opcode == websocket::OPCODE_PING) {
-                websocket::encode(sw_tg_buffer(), req->data, req->info.len, websocket::OPCODE_PONG, websocket::FLAG_FIN);
+                websocket::encode(
+                    sw_tg_buffer(), req->data, req->info.len, websocket::OPCODE_PONG, websocket::FLAG_FIN);
                 serv->send(session_id, sw_tg_buffer()->str, sw_tg_buffer()->length);
             } else if (opcode == websocket::OPCODE_CLOSE) {
                 // pass
             } else {
                 std::string resp = "Swoole: " + string(req->data, req->info.len);
-                websocket::encode(sw_tg_buffer(), resp.c_str(), resp.length(), websocket::OPCODE_TEXT, websocket::FLAG_FIN);
+                websocket::encode(
+                    sw_tg_buffer(), resp.c_str(), resp.length(), websocket::OPCODE_TEXT, websocket::FLAG_FIN);
                 serv->send(session_id, sw_tg_buffer()->str, sw_tg_buffer()->length);
             }
 
@@ -225,6 +225,15 @@ static void test_base_server(function<void(Server *)> fn) {
             ctx.response(SW_HTTP_SWITCHING_PROTOCOLS);
 
             conn->websocket_status = websocket::STATUS_ACTIVE;
+
+            if (ctx.url == "/ws/close") {
+                swoole_timer_after(200, [serv](Timer *, TimerNode *) {
+                    sw_tg_buffer()->clear();
+                    websocket::pack_close_frame(
+                        sw_tg_buffer(), websocket::CLOSE_POLICY_ERROR, SW_STRL("swoole close"), 0);
+                    serv->send(session_id, sw_tg_buffer()->str, sw_tg_buffer()->length);
+                });
+            }
 
             return SW_OK;
         }
@@ -709,14 +718,11 @@ TEST(http_server, websocket_mask) {
     });
 }
 
-TEST(http_server, node_websocket_client) {
+TEST(http_server, node_websocket_client_1) {
     test_base_server([](Server *serv) {
         swoole_signal_block_all();
 
-        std::string command = "bash -c 'node " + test::get_root_path() + "/core-tests/js/" + "ws.js " +
-                              std::to_string(serv->get_primary_port()->get_port()) + "'";
-
-        EXPECT_EQ(std::system(command.c_str()), 0);
+        EXPECT_EQ(test::exec_js_script("ws_1.js", std::to_string(serv->get_primary_port()->get_port())), 0);
 
         kill(serv->get_master_pid(), SIGTERM);
     });
@@ -726,6 +732,22 @@ TEST(http_server, node_websocket_client) {
     auto str = fp.read_content();
     ASSERT_TRUE(str->contains("received: Swoole: hello world"));
     ASSERT_TRUE(str->contains("the node websocket client is closed"));
+    unlink("/tmp/swoole.log");
+}
+
+TEST(http_server, node_websocket_client_2) {
+    test_base_server([](Server *serv) {
+        swoole_signal_block_all();
+
+        EXPECT_EQ(test::exec_js_script("ws_2.js", std::to_string(serv->get_primary_port()->get_port())), 0);
+
+        kill(serv->get_master_pid(), SIGTERM);
+    });
+
+    File fp("/tmp/swoole.log", O_RDONLY);
+    EXPECT_TRUE(fp.ready());
+    auto str = fp.read_content();
+    ASSERT_TRUE(str->contains("the node websocket client is closed, code: 1008, reason: swoole close"));
     unlink("/tmp/swoole.log");
 }
 
