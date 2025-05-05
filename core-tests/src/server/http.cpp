@@ -719,14 +719,16 @@ TEST(http_server, websocket_mask) {
     });
 }
 
+static auto packet = "hello world\n";
+
 TEST(http_server, websocket_encode) {
     auto buffer = sw_tg_buffer();
     buffer->clear();
 
-    auto packet = "hello world\n";
     auto log_file = "/tmp/swoole.log";
 
-    ASSERT_TRUE(websocket::encode(buffer, packet, strlen(packet), websocket::OPCODE_TEXT, websocket::FLAG_FIN));
+    ASSERT_TRUE(websocket::encode(
+        buffer, packet, strlen(packet), websocket::OPCODE_TEXT, websocket::FLAG_FIN | websocket::FLAG_MASK));
     websocket::Frame ws;
 
     ASSERT_TRUE(websocket::decode(&ws, buffer->str, buffer->length));

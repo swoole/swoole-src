@@ -229,14 +229,15 @@ void print_frame(Frame *frame, FILE *fp) {
     if (fp == nullptr) {
         fp = stdout;
     }
-    fprintf(fp, "FIN: %x, RSV1: %d, RSV2: %d, RSV3: %d, opcode: %d, MASK: %d, length: %ld\n",
-           frame->header.FIN,
-           frame->header.RSV1,
-           frame->header.RSV2,
-           frame->header.RSV3,
-           frame->header.OPCODE,
-           frame->header.MASK,
-           frame->payload_length);
+    fprintf(fp,
+            "FIN: %x, RSV1: %d, RSV2: %d, RSV3: %d, opcode: %d, MASK: %d, length: %ld\n",
+            frame->header.FIN,
+            frame->header.RSV1,
+            frame->header.RSV2,
+            frame->header.RSV3,
+            frame->header.OPCODE,
+            frame->header.MASK,
+            frame->payload_length);
 
     if (frame->payload_length) {
         fprintf(fp, "payload: %.*s\n", (int) frame->payload_length, frame->payload);

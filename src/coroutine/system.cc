@@ -30,7 +30,6 @@ namespace coroutine {
 static size_t dns_cache_capacity = 1000;
 static time_t dns_cache_expire = 60;
 static LRUCache *dns_cache = nullptr;
-static std::unordered_map<void *, long> async_resource_map;
 
 void System::set_dns_cache_expire(time_t expire) {
     dns_cache_expire = expire;
@@ -702,29 +701,6 @@ bool async(const std::function<void(void)> &fn) {
     task.co->yield();
     errno = _ev->error;
     return true;
-}
-
-AsyncLock::AsyncLock(void *resource) {
-    resource_ = resource;
-    async_resource_map.emplace(resource, Coroutine::get_current_cid());
-}
-
-AsyncLock::~AsyncLock() {
-    async_resource_map.erase(resource_);
-}
-
-std::shared_ptr<AsyncLock> async_lock(void *resource) {
-    auto iter = async_resource_map.find(resource);
-    if (iter != async_resource_map.end()) {
-        swoole_fatal_error(SW_ERROR_CO_HAS_BEEN_BOUND,
-                           "resource(%p) has already been bound to another coroutine#%ld, "
-                           "%s of the same resource in coroutine#%ld at the same time is not allowed",
-                           resource,
-                           *iter,
-                           Coroutine::get_current_cid());
-        return nullptr;
-    }
-    return std::make_shared<AsyncLock>(resource);
 }
 
 bool wait_for(const std::function<bool(void)> &fn) {

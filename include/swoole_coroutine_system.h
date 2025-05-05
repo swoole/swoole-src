@@ -80,16 +80,5 @@ class System {
 };
 std::string gethostbyname_impl_with_async(const std::string &hostname, int domain, double timeout = -1);
 //-------------------------------------------------------------------------------
-struct AsyncLock {
-  private:
-    void *resource_;
-
-  public:
-    AsyncLock(void *resource);
-    ~AsyncLock();
-};
-
-std::shared_ptr<AsyncLock> async_lock(void *);
-//-------------------------------------------------------------------------------
 }  // namespace coroutine
 }  // namespace swoole

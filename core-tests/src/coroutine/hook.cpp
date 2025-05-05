@@ -25,6 +25,7 @@ using namespace swoole::test;
 
 using swoole::Coroutine;
 using swoole::String;
+using swoole::File;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 using swoole::test::coroutine;
@@ -41,6 +42,10 @@ TEST(coroutine_hook, file) {
 
         int fd = swoole_coroutine_open(test_file, O_WRONLY | O_TRUNC | O_CREAT, 0666);
         ASSERT_EQ(swoole_coroutine_write(fd, buf, n_buf), n_buf);
+
+        ASSERT_EQ(swoole_coroutine_fsync(fd), 0);
+        ASSERT_EQ(swoole_coroutine_fdatasync(fd), 0);
+
         swoole_coroutine_close(fd);
 
         fd = swoole_coroutine_open(test_file, O_RDONLY, 0);
@@ -48,6 +53,39 @@ TEST(coroutine_hook, file) {
         ASSERT_EQ(swoole_coroutine_read(fd, data, n_buf), n_buf);
         ASSERT_EQ(std::string(buf, n_buf), std::string(data, n_buf));
         swoole_coroutine_close(fd);
+
+        struct stat statbuf;
+        swoole_coroutine_stat(test_file, &statbuf);
+
+        File f1(test_file, File::RW);
+        ASSERT_EQ(statbuf.st_size, f1.get_size());
+
+        struct stat statbuf2;
+        swoole_coroutine_lstat(test_file, &statbuf2);
+        ASSERT_EQ(statbuf2.st_size, f1.get_size());
+        f1.close();
+
+        ASSERT_EQ(swoole_coroutine_unlink(test_file), 0);
+
+        File f2(test_file, File::RW | File::CREATE);
+        auto fp2 = swoole_coroutine_fdopen(f2.get_fd(), "w");
+        ASSERT_NE(fp2, nullptr);
+
+        swoole_coroutine_lseek(f2.get_fd(), 0, SEEK_SET);
+        swoole_coroutine_fputs("hello\n", fp2);
+        swoole_coroutine_fputs("world\n", fp2);
+
+        auto fp3 = swoole_coroutine_fdopen(f2.get_fd(), "r");
+        ASSERT_NE(fp3, nullptr);
+
+        char rbuf[2048];
+        swoole_coroutine_lseek(f2.get_fd(), 0, SEEK_SET);
+        swoole_coroutine_fgets(rbuf, sizeof(rbuf), fp3);
+        std::cout << rbuf ;
+
+        f2.close();
+        swoole_coroutine_fclose(fp2);
+        swoole_coroutine_fclose(fp3);
 
         ASSERT_EQ(swoole_coroutine_unlink(test_file), 0);
     });
