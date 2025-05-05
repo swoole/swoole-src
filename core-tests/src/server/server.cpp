@@ -1630,3 +1630,88 @@ TEST(server, abnormal_pipeline_data) {
 
     unlink(filename.c_str());
 }
+
+TEST(server, startup_error) {
+    Server *server = new Server(Server::MODE_PROCESS);
+    server->task_worker_num = 2;
+
+    server->add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_EQ(server->create(), 0);
+
+    server->onReceive = [](Server *server, RecvData *req) -> int { return SW_OK; };
+    server->onWorkerStart = [&](Server *server, Worker *worker) {};
+
+    ASSERT_EQ(server->start(), -1);
+    auto startup_error = String(server->get_startup_error_message());
+    ASSERT_TRUE(startup_error.contains("require 'onTask' callback"));
+    ASSERT_EQ(swoole_get_last_error(), SW_ERROR_SERVER_INVALID_CALLBACK);
+}
+
+TEST(server, reactor_thread_pipe_writable) {
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = 1;
+
+    String rdata(4 * 1024 * 1024);
+    rdata.append_random_bytes(rdata.capacity());
+
+    swoole_set_log_level(SW_LOG_WARNING);
+
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_TRUE(port);
+    port->open_length_check = true;
+    port->protocol.package_max_length = 8 * 1024 * 1024;
+    network::Stream::set_protocol(&port->protocol);
+
+    swoole::Mutex lock(swoole::Mutex::PROCESS_SHARED);
+    lock.lock();
+
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    std::thread t1([&]() {
+        swoole_signal_block_all();
+
+        lock.lock();
+
+        network::SyncClient c(SW_SOCK_TCP);
+        c.connect(TEST_HOST, port->port);
+        c.set_stream_protocol();
+        c.set_package_max_length(8 * 1024 * 1024);
+
+        uint32_t len = htonl(rdata.length);
+        c.send((char *) &len, sizeof(len));
+        c.send(rdata.str, rdata.length);
+
+        auto rbuf = new String(rdata.size + 1024);
+
+        uint32_t pkt_len;
+        ssize_t rn;
+
+        rn = c.recv((char *)&pkt_len, sizeof(pkt_len));
+        EXPECT_EQ(rn, sizeof(pkt_len));
+
+        rn = c.recv(rbuf->str, ntohl(pkt_len), MSG_WAITALL);
+        EXPECT_EQ(rn, rdata.length);
+
+        c.close();
+
+        EXPECT_MEMEQ(rbuf->str, rdata.str, rdata.length);
+        delete rbuf;
+
+        serv.shutdown();
+    });
+
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) {
+        lock.unlock();
+        usleep(300000);
+    };
+
+    serv.onReceive = [&](Server *serv, RecvData *req) -> int {
+        uint32_t len = htonl(rdata.length);
+        serv->send(req->info.fd, &len, sizeof(len));
+        serv->send(req->info.fd, rdata.str, rdata.length);
+        return SW_OK;
+    };
+
+    serv.start();
+    t1.join();
+}
