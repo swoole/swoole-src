@@ -27,7 +27,7 @@ using swoole::network::Socket;
 
 namespace swoole {
 
-ListenPort::ListenPort() {
+ListenPort::ListenPort(Server *server) {
     protocol.package_length_type = 'N';
     protocol.package_length_size = 4;
     protocol.package_body_offset = 4;
@@ -35,6 +35,8 @@ ListenPort::ListenPort() {
 
     protocol.package_eof_len = sizeof(SW_DATA_EOF) - 1;
     memcpy(protocol.package_eof, SW_DATA_EOF, protocol.package_eof_len);
+
+    protocol.private_data_2 = server;
 }
 
 #ifdef SW_USE_OPENSSL
@@ -242,7 +244,6 @@ int ListenPort::listen() {
 }
 
 void ListenPort::init_protocol() {
-    protocol.private_data_2 = this;
     // Thread mode must copy the data.
     // will free after onFinish
     if (open_eof_check) {
@@ -819,7 +820,8 @@ size_t ListenPort::get_connection_num() const {
     }
 }
 
-int ListenPort::create_socket(Server *server) {
+int ListenPort::create_socket() {
+    Server *server = (Server *) protocol.private_data_2;
     if (socket) {
 #if defined(__linux__) && defined(HAVE_REUSEPORT)
         if (server->enable_reuse_port) {

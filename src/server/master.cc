@@ -1752,7 +1752,7 @@ int Server::add_systemd_socket() {
     }
 
     for (sock = start_fd; sock < start_fd + n; sock++) {
-        std::unique_ptr<ListenPort> ptr(new ListenPort());
+        std::unique_ptr<ListenPort> ptr(new ListenPort(this));
         ListenPort *ls = ptr.get();
 
         if (!ls->import(sock)) {
@@ -1796,7 +1796,7 @@ ListenPort *Server::add_port(SocketType type, const char *host, int port) {
         return nullptr;
     }
 
-    std::unique_ptr<ListenPort> ptr(new ListenPort);
+    std::unique_ptr<ListenPort> ptr(new ListenPort(this));
     ListenPort *ls = ptr.get();
 
     ls->type = type;
@@ -1812,7 +1812,7 @@ ListenPort *Server::add_port(SocketType type, const char *host, int port) {
     }
 #endif
 
-    if (ls->create_socket(this) < 0) {
+    if (ls->create_socket() < 0) {
         swoole_set_last_error(errno);
         return nullptr;
     }

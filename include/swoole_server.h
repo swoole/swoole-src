@@ -335,14 +335,14 @@ struct ListenPort {
         protocol.package_max_length = max_length;
     }
 
-    ListenPort();
+    ListenPort(Server *server);
     ~ListenPort() = default;
     int listen();
     void close();
     bool import(int sock);
     void init_protocol();
     const char *get_protocols();
-    int create_socket(Server *server);
+    int create_socket();
     void close_socket();
     void destroy_http_request(Connection *conn);
 
