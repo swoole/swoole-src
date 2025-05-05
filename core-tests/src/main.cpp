@@ -58,6 +58,18 @@ string get_jpg_file() {
     return root_path + TEST_JPG_FILE;
 }
 
+string http_get_request(const string &domain, const string &path) {
+    return "GET " + path +
+           " HTTP/1.1\r\n"
+           "Host: " +
+           domain +
+           "\r\n"
+           "Connection: close\r\n"
+           "User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) "
+           "Chrome/51.0.2704.106 Safari/537.36"
+           "\r\n\r\n";
+}
+
 bool is_github_ci() {
     return getenv("GITHUB_ACTIONS") != nullptr;
 }
@@ -93,6 +105,17 @@ HttpProxy *create_http_proxy() {
 
 int get_random_port() {
     return TEST_PORT + swoole_system_random(1, 10000);
+}
+
+pid_t child_proc(const std::function<void(void)> &fn) {
+    pid_t child_pid = fork();
+    if (child_pid == -1) {
+        throw std::system_error();
+    } else if (child_pid == 0) {
+        fn();
+        exit(0);
+    }
+    return child_pid;
 }
 
 }  // namespace test

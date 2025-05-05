@@ -512,7 +512,6 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
         last_stream_id = stream_id;
     }
 
-    uint16_t id = 0;
     uint32_t value = 0;
 
     switch (type) {
@@ -522,9 +521,7 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
             return SW_CONTINUE;
         }
 
-        while (length > 0) {
-            id = ntohs(*(uint16_t *) (buf));
-            value = ntohl(*(uint32_t *) (buf + sizeof(uint16_t)));
+        auto rc = Http2::unpack_setting_data(buf, length, [this](uint16_t id, uint32_t value) -> ReturnCode {
             swoole_http2_frame_trace_log("id=%d, value=%d", id, value);
             switch (id) {
             case SW_HTTP2_SETTING_HEADER_TABLE_SIZE:
@@ -568,8 +565,11 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
                 // swoole_warning("unknown option[%d]: %d", id, value);
                 break;
             }
-            buf += sizeof(id) + sizeof(value);
-            length -= sizeof(id) + sizeof(value);
+            return SW_SUCCESS;
+        });
+
+        if (rc != SW_SUCCESS) {
+            return rc;
         }
 
         Http2::set_frame_header(frame, SW_HTTP2_TYPE_SETTINGS, 0, SW_HTTP2_FLAG_ACK, stream_id);

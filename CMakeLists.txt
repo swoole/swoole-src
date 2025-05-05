@@ -42,6 +42,7 @@ if(CODE_COVERAGE)
     target_compile_options(coverage_config INTERFACE
         -O0
         -g
+        -fprofile-update=atomic
         --coverage
     )
     if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.13)

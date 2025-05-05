@@ -354,11 +354,16 @@ class Reactor {
     static ssize_t _writev(Reactor *reactor, network::Socket *socket, const iovec *iov, size_t iovcnt);
     static int _close(Reactor *reactor, network::Socket *socket);
     static int _writable_callback(Reactor *reactor, Event *ev);
+    static ssize_t write_func(Reactor *reactor,
+                              network::Socket *socket,
+                              const size_t __len,
+                              const std::function<ssize_t(void)> &send_fn,
+                              const std::function<void(Buffer *buffer)> &append_fn);
 
     void activate_future_task();
 
     static FdType get_fd_type(int flags) {
-        return (FdType)(flags & (~SW_EVENT_READ) & (~SW_EVENT_WRITE) & (~SW_EVENT_ERROR) & (~SW_EVENT_ONCE));
+        return (FdType) (flags & (~SW_EVENT_READ) & (~SW_EVENT_WRITE) & (~SW_EVENT_ERROR) & (~SW_EVENT_ONCE));
     }
 
     static bool isset_read_event(int events) {

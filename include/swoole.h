@@ -148,6 +148,14 @@ typedef unsigned long ulong_t;
 #define SW_LOOP_N(n) for (decltype(n) i = 0; i < n; i++)
 #define SW_LOOP for (;;)
 
+#ifndef MAYBE_UNUSED
+#ifdef __GNUC__
+#define MAYBE_UNUSED __attribute__((used))
+#else
+#define MAYBE_UNUSED
+#endif
+#endif
+
 #ifndef MAX
 #define MAX(A, B) SW_MAX(A, B)
 #endif

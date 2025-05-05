@@ -88,8 +88,6 @@ int swoole_get_cpu_affinity(cpu_set_t *set) {
 }
 #endif
 
-
-
 #if defined(__linux__)
 #include <sys/syscall.h> /* syscall(SYS_gettid) */
 #elif defined(__FreeBSD__)
@@ -124,11 +122,28 @@ long swoole_thread_get_native_id(void) {
     return native_id;
 }
 
+static bool check_pthread_return_code(int rc) {
+    if (rc == 0) {
+        return true;
+    } else {
+        swoole_set_last_error(rc);
+        return false;
+    }
+}
+
 bool swoole_thread_set_name(const char *name) {
 #if defined(__APPLE__)
-    return pthread_setname_np(name) == 0;
+    return check_pthread_return_code(pthread_setname_np(name);
 #else
-    return pthread_setname_np(pthread_self(), name) == 0;
+    return check_pthread_return_code(pthread_setname_np(pthread_self(), name));
+#endif
+}
+
+bool swoole_thread_get_name(char *buf, size_t len) {
+#if defined(__APPLE__)
+    return check_pthread_return_code(pthread_getname_np(buf, len));
+#else
+    return check_pthread_return_code(pthread_getname_np(pthread_self(), buf, len));
 #endif
 }
 
