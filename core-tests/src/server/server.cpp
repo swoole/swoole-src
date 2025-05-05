@@ -1686,7 +1686,7 @@ TEST(server, reactor_thread_pipe_writable) {
         uint32_t pkt_len;
         ssize_t rn;
 
-        rn = c.recv((char *)&pkt_len, sizeof(pkt_len));
+        rn = c.recv((char *) &pkt_len, sizeof(pkt_len));
         EXPECT_EQ(rn, sizeof(pkt_len));
 
         rn = c.recv(rbuf->str, ntohl(pkt_len), MSG_WAITALL);
