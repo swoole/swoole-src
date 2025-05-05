@@ -277,12 +277,9 @@ struct ListenPort {
 #ifdef SW_USE_OPENSSL
     std::shared_ptr<SSLContext> ssl_context = nullptr;
     std::unordered_map<std::string, std::shared_ptr<SSLContext>> sni_contexts;
+
 #ifdef SW_SUPPORT_DTLS
     std::unordered_map<int, dtls::Session *> *dtls_sessions = nullptr;
-    bool is_dtls() {
-        return ssl_context && (ssl_context->protocols & SW_SSL_DTLS);
-    }
-
     dtls::Session *create_dtls_session(network::Socket *sock);
 #endif
 
@@ -310,6 +307,14 @@ struct ListenPort {
 
     bool is_dgram() {
         return network::Socket::is_dgram(type);
+    }
+
+    bool is_dtls() {
+#ifdef SW_SUPPORT_DTLS
+        return ssl_context && (ssl_context->protocols & SW_SSL_DTLS);
+#else
+        return false;
+#endif
     }
 
     bool is_stream() {
@@ -400,6 +405,15 @@ struct ListenPort {
     }
 
     void set_ssl_protocols(long protocols) {
+        if (protocols & SW_SSL_DTLS) {
+#ifndef SW_SUPPORT_DTLS
+            protocols ^= SW_SSL_DTLS;
+#else
+            if (is_dgram()) {
+                protocols ^= SW_SSL_DTLS;
+            }
+#endif
+        }
         ssl_context->protocols = protocols;
     }
 

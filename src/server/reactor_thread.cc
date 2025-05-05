@@ -502,13 +502,6 @@ void Server::init_reactor(Reactor *reactor) {
 
     // listen the all tcp port
     for (auto port : ports) {
-        if (port->is_dgram()
-#ifdef SW_SUPPORT_DTLS
-            && !(port->is_dtls())
-#endif
-        ) {
-            continue;
-        }
         port->init_protocol();
     }
 }

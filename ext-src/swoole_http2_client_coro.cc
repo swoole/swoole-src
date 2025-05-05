@@ -502,6 +502,7 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
     char *buf = socket_->get_read_buffer()->str;
     uint8_t type = buf[3];
     uint8_t flags = buf[4];
+    uint32_t stream_error = 0;
     uint32_t stream_id = ntohl((*(int *) (buf + 5))) & 0x7fffffff;
     ssize_t length = Http2::get_length(buf);
     buf += SW_HTTP2_FRAME_HEADER_SIZE;
@@ -512,8 +513,6 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
         last_stream_id = stream_id;
     }
 
-    uint32_t value = 0;
-
     switch (type) {
     case SW_HTTP2_TYPE_SETTINGS: {
         if (flags & SW_HTTP2_FLAG_ACK) {
@@ -521,7 +520,7 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
             return SW_CONTINUE;
         }
 
-        auto rc = Http2::unpack_setting_data(buf, length, [this](uint16_t id, uint32_t value) -> ReturnCode {
+        auto rc = Http2::unpack_setting_data(buf, length, [&](uint16_t id, uint32_t value) -> ReturnCode {
             swoole_http2_frame_trace_log("id=%d, value=%d", id, value);
             switch (id) {
             case SW_HTTP2_SETTING_HEADER_TABLE_SIZE:
@@ -579,7 +578,7 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
         return SW_CONTINUE;
     }
     case SW_HTTP2_TYPE_WINDOW_UPDATE: {
-        value = ntohl(*(uint32_t *) buf);
+        uint32_t value = ntohl(*(uint32_t *) buf);
         swoole_trace_log(
             SW_TRACE_HTTP2, "[" SW_ECHO_YELLOW "] stream_id=%d, size=%d", "WINDOW_UPDATE", stream_id, value);
         if (stream_id == 0) {
@@ -608,7 +607,7 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
     case SW_HTTP2_TYPE_GOAWAY: {
         uint32_t server_last_stream_id = ntohl(*(uint32_t *) (buf));
         buf += 4;
-        value = ntohl(*(uint32_t *) (buf));
+        uint32_t value = ntohl(*(uint32_t *) (buf));
         buf += 4;
         swoole_http2_frame_trace_log("last_stream_id=%d, error_code=%d, opaque_data=[%.*s]",
                                      server_last_stream_id,
@@ -626,8 +625,8 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
         return SW_CLOSE;
     }
     case SW_HTTP2_TYPE_RST_STREAM: {
-        value = ntohl(*(uint32_t *) (buf));
-        swoole_http2_frame_trace_log("error_code=%d", value);
+        stream_error = ntohl(*(uint32_t *) (buf));
+        swoole_http2_frame_trace_log("error_code=%d", stream_error);
 
         // delete and free quietly
         delete_stream(stream_id);
@@ -706,11 +705,8 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
     if (end || pipeline_read) {
         zval *zresponse = &stream->zresponse;
         if (type == SW_HTTP2_TYPE_RST_STREAM) {
-            zend_update_property_long(swoole_http2_response_ce,
-                                      SW_Z8_OBJ_P(zresponse),
-                                      ZEND_STRL("statusCode"),
-                                      -3 /* HTTP_CLIENT_ESTATUS_SERVER_RESET */);
-            zend_update_property_long(swoole_http2_response_ce, SW_Z8_OBJ_P(zresponse), ZEND_STRL("errCode"), value);
+            zend::object_set(zresponse, ZEND_STRL("statusCode"), HTTP_ESTATUS_SERVER_RESET);
+            zend::object_set(zresponse, ZEND_STRL("errCode"), stream_error);
         }
         if (stream->buffer && stream->buffer->length > 0) {
             zend_update_property_stringl(swoole_http2_response_ce,
@@ -928,10 +924,7 @@ int Client::parse_header(Stream *stream, int flags, char *in, size_t inlen) {
         if (inflate_flags & NGHTTP2_HD_INFLATE_EMIT) {
             if (nv.name[0] == ':') {
                 if (SW_STRCASEEQ((char *) nv.name + 1, nv.namelen - 1, "status")) {
-                    zend_update_property_long(swoole_http2_response_ce,
-                                              SW_Z8_OBJ_P(zresponse),
-                                              ZEND_STRL("statusCode"),
-                                              atoi((char *) nv.value));
+                    zend::object_set(zresponse, ZEND_STRL("statusCode"), atoi((char *) nv.value));
                 }
             } else {
 #ifdef SW_HAVE_ZLIB

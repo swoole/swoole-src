@@ -244,20 +244,22 @@ int ListenPort::listen() {
 }
 
 void ListenPort::init_protocol() {
-    // Thread mode must copy the data.
-    // will free after onFinish
+    if (is_dgram() && !is_dtls()) {
+        return;
+    }
+
     if (open_eof_check) {
         if (protocol.package_eof_len > SW_DATA_EOF_MAXLEN) {
             protocol.package_eof_len = SW_DATA_EOF_MAXLEN;
         }
         protocol.onPackage = Server::dispatch_task;
-        onRead = ListenPort::readable_callback_eof;
+        onRead = readable_callback_eof;
     } else if (open_length_check) {
         if (protocol.package_length_type != '\0') {
             protocol.get_package_length = Protocol::default_length_func;
         }
         protocol.onPackage = Server::dispatch_task;
-        onRead = ListenPort::readable_callback_length;
+        onRead = readable_callback_length;
     } else if (open_http_protocol) {
         if (open_http2_protocol && open_websocket_protocol) {
             protocol.get_package_length = http_server::get_package_length;
@@ -274,16 +276,16 @@ void ListenPort::init_protocol() {
         }
         protocol.package_length_offset = 0;
         protocol.package_body_offset = 0;
-        onRead = ListenPort::readable_callback_http;
+        onRead = readable_callback_http;
     } else if (open_mqtt_protocol) {
         mqtt::set_protocol(&protocol);
         protocol.onPackage = Server::dispatch_task;
-        onRead = ListenPort::readable_callback_length;
+        onRead = readable_callback_length;
     } else if (open_redis_protocol) {
         protocol.onPackage = Server::dispatch_task;
-        onRead = ListenPort::readable_callback_redis;
+        onRead = readable_callback_redis;
     } else {
-        onRead = ListenPort::readable_callback_raw;
+        onRead = readable_callback_raw;
     }
 }
 
