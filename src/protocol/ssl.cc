@@ -49,12 +49,6 @@ static int swoole_ssl_generate_cookie(SSL *ssl, uchar *cookie, uint *cookie_len)
 static int swoole_ssl_verify_cookie(SSL *ssl, const uchar *cookie, uint cookie_len);
 #endif
 
-#ifdef __GNUC__
-#define MAYBE_UNUSED __attribute__((used))
-#else
-#define MAYBE_UNUSED
-#endif
-
 std::string swoole_ssl_get_version_message() {
     return swoole::std_string::format("OPENSSL_VERSION: %s\n", OPENSSL_VERSION_TEXT);
 }
