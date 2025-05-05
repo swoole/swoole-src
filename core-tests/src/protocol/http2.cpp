@@ -61,3 +61,43 @@ TEST(http2, default_settings) {
     ASSERT_EQ(http2::get_default_setting(SW_HTTP2_SETTINGS_MAX_FRAME_SIZE), _settings.max_frame_size);
     ASSERT_EQ(http2::get_default_setting(SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE), _settings.max_header_list_size);
 }
+
+TEST(http2, pack_setting_frame) {
+    char frame[SW_HTTP2_SETTING_FRAME_SIZE];
+    http2::Settings settings_1{};
+    http2::init_settings(&settings_1);
+    size_t n = http2::pack_setting_frame(frame, settings_1, false);
+
+    ASSERT_GT(n, 16);
+
+    http2::Settings settings_2{};
+    http2::unpack_setting_data(
+        frame + SW_HTTP2_FRAME_HEADER_SIZE, n, [&settings_2](uint16_t id, uint32_t value) -> ReturnCode {
+            swoole_http2_frame_trace_log("id=%d, value=%d", id, value);
+            switch (id) {
+            case SW_HTTP2_SETTING_HEADER_TABLE_SIZE:
+                settings_2.header_table_size = value;
+                break;
+            case SW_HTTP2_SETTINGS_ENABLE_PUSH:
+                settings_2.enable_push = value;
+                break;
+            case SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS:
+                settings_2.max_concurrent_streams = value;
+                break;
+            case SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE:
+                settings_2.init_window_size = value;
+                break;
+            case SW_HTTP2_SETTINGS_MAX_FRAME_SIZE:
+                settings_2.max_frame_size = value;
+                break;
+            case SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE:
+                settings_2.max_header_list_size = value;
+                break;
+            default:
+                return SW_ERROR;
+            }
+            return SW_SUCCESS;
+        });
+
+    ASSERT_MEMEQ(&settings_1, &settings_2, sizeof(settings_2));
+}

@@ -356,6 +356,7 @@ TEST(socket, sync) {
 			CRLF CRLF;
 	ssize_t n = strlen(req);
 	ASSERT_EQ(sock->write_sync(req, n), n);
+	ASSERT_TRUE(sock->check_liveness());
 
 	string resp;
 	SW_LOOP {
@@ -369,6 +370,10 @@ TEST(socket, sync) {
 	}
 
 	ASSERT_GT(resp.length(), 4096);
+
+    usleep(50000);
+    ASSERT_FALSE(sock->check_liveness());
+
 	sock->free();
 }
 
