@@ -24,8 +24,8 @@
 using namespace swoole::test;
 
 using swoole::Coroutine;
-using swoole::String;
 using swoole::File;
+using swoole::String;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 using swoole::test::coroutine;
@@ -68,20 +68,22 @@ TEST(coroutine_hook, file) {
         ASSERT_EQ(swoole_coroutine_unlink(test_file), 0);
 
         File f2(test_file, File::RW | File::CREATE);
-        auto fp2 = swoole_coroutine_fdopen(f2.get_fd(), "w");
+        swoole_coroutine_lseek(f2.get_fd(), 0, SEEK_SET);
+
+        auto fp2 = swoole_coroutine_fdopen(f2.get_fd(), "w+");
         ASSERT_NE(fp2, nullptr);
 
-        swoole_coroutine_lseek(f2.get_fd(), 0, SEEK_SET);
         swoole_coroutine_fputs("hello\n", fp2);
         swoole_coroutine_fputs("world\n", fp2);
+        ASSERT_EQ(swoole_coroutine_fflush(fp2), 0);
 
-        auto fp3 = swoole_coroutine_fdopen(f2.get_fd(), "r");
+        swoole_coroutine_lseek(f2.get_fd(), 0, SEEK_SET);
+        auto fp3 = swoole_coroutine_fdopen(f2.get_fd(), "r+");
         ASSERT_NE(fp3, nullptr);
 
-        char rbuf[2048];
-        swoole_coroutine_lseek(f2.get_fd(), 0, SEEK_SET);
-        swoole_coroutine_fgets(rbuf, sizeof(rbuf), fp3);
-        std::cout << rbuf ;
+        char rbuf[2048] = {};
+        ASSERT_EQ(swoole_coroutine_fread(rbuf, sizeof(rbuf), 1, fp3), 0);
+        ASSERT_STREQ(rbuf, "hello\nworld\n");
 
         f2.close();
         swoole_coroutine_fclose(fp2);
@@ -537,8 +539,8 @@ TEST(coroutine_hook, poll) {
         Coroutine::create([&](void *) {
             ssize_t result;
             result = swoole_coroutine_write(_fd0, buffer->value(), buffer->get_length());
-            ASSERT_GT(result, 0);            
-            System::sleep(0.01);            
+            ASSERT_GT(result, 0);
+            System::sleep(0.01);
             result = swoole_coroutine_write(_fd1, buffer->value(), 16 * 1024);
             ASSERT_GT(result, 0);
         });
@@ -558,7 +560,7 @@ TEST(coroutine_hook, poll) {
         ssize_t result = swoole_coroutine_read(_fd1, buf, sizeof(buf));
         ASSERT_GT(result, 1024);
 
-        System::sleep(0.02);  
+        System::sleep(0.02);
 
         bzero(fds, sizeof(pollfd));
         fds[0].fd = _fd0;
@@ -574,7 +576,7 @@ TEST(coroutine_hook, poll) {
         result = swoole_coroutine_read(_fd1, buf, sizeof(buf));
         ASSERT_GT(result, 1024);
 
-        System::sleep(0.02);  
+        System::sleep(0.02);
 
         bzero(fds, sizeof(pollfd));
         fds[0].fd = _fd0;
@@ -585,7 +587,7 @@ TEST(coroutine_hook, poll) {
         ASSERT_EQ(swoole_coroutine_poll(fds, 2, 1000), 2);
         ASSERT_TRUE(fds[0].revents & POLLIN);
         ASSERT_TRUE(fds[1].revents & POLLIN);
-        ASSERT_FALSE(fds[0].revents & POLLOUT); // not writable
+        ASSERT_FALSE(fds[0].revents & POLLOUT);  // not writable
         ASSERT_TRUE(fds[1].revents & POLLOUT);
         result = swoole_coroutine_read(_fd0, buf, sizeof(buf));
         ASSERT_GT(result, 1024);
