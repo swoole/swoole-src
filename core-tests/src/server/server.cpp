@@ -334,6 +334,73 @@ TEST(server, reload_thread) {
     serv.start();
     t1.join();
 }
+
+TEST(server, reload_thread_2) {
+    Server serv(Server::MODE_THREAD);
+    serv.worker_num = 2;
+    serv.task_worker_num = 2;
+
+    std::unordered_map<std::string, bool> flags;
+    swoole_set_log_level(SW_LOG_WARNING);
+
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_TRUE(port);
+
+    Worker user_worker{};
+
+    serv.add_worker(&user_worker);
+
+    mutex lock;
+    lock.lock();
+
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    std::atomic<int> count(0);
+
+    serv.onUserWorkerStart = [&lock, &count](Server *serv, Worker *worker) {
+        while (serv->running) {
+            usleep(100000);
+        }
+    };
+
+    serv.onWorkerStart = [&lock, &count](Server *serv, Worker *worker) {
+        count++;
+        if (count.load() == 4) {
+            lock.unlock();
+        }
+    };
+
+    serv.onTask = [](Server *serv, EventData *task) -> int { return 0; };
+
+    serv.onReceive = [](Server *serv, RecvData *req) -> int { return SW_OK; };
+
+    serv.onBeforeReload = [&flags](Server *serv) { flags["onBeforeReload"] = true; };
+
+    serv.onAfterReload = [&flags](Server *serv) {
+        flags["onAfterReload"] = true;
+        swoole_timer_after(500, [serv, &flags](auto r1, auto r2) {
+            flags["shutdown"] = true;
+            serv->shutdown();
+        });
+    };
+
+    serv.onManagerStart = [&flags](Server *serv) {
+        swoole_timer_after(500, [serv, &flags](auto r1, auto r2) {
+            flags["reload"] = true;
+            serv->reload(true);
+        });
+    };
+
+    serv.onManagerStop = [&flags](Server *serv) { flags["onManagerStop"] = true; };
+
+    serv.start();
+
+    ASSERT_TRUE(flags["onBeforeReload"]);
+    ASSERT_TRUE(flags["onAfterReload"]);
+    ASSERT_TRUE(flags["onManagerStop"]);
+    ASSERT_TRUE(flags["reload"]);
+    ASSERT_TRUE(flags["shutdown"]);
+}
 #endif
 
 TEST(server, reload_all_workers) {
@@ -1462,7 +1529,7 @@ TEST(server, abnormal_pipeline_data) {
         if (worker->id == 1) {
             auto send_fn = [server](int flags, uint64_t msg_id) {
                 auto sock = server->get_worker_pipe_master(0);
-                size_t len =  swoole_rand(1000, 8000);
+                size_t len = swoole_rand(1000, 8000);
                 EventData ev;
                 ev.info.msg_id = msg_id;
                 ev.info.flags = flags;
