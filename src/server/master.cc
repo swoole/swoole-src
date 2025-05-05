@@ -661,10 +661,6 @@ int Server::start() {
         }
     }
 
-    if (task_worker_num > 0 && create_task_workers() < 0) {
-        return SW_ERR;
-    }
-
     running = true;
     // factory start
     if (!factory->start()) {
@@ -830,6 +826,10 @@ int Server::create() {
         factory = create_process_factory();
     }
     if (!factory) {
+        return SW_ERR;
+    }
+
+    if (task_worker_num > 0 && create_task_workers() < 0) {
         return SW_ERR;
     }
 

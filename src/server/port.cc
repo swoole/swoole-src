@@ -241,48 +241,48 @@ int ListenPort::listen() {
     return SW_OK;
 }
 
-void Server::init_port_protocol(ListenPort *ls) {
-    ls->protocol.private_data_2 = this;
+void ListenPort::init_protocol() {
+    protocol.private_data_2 = this;
     // Thread mode must copy the data.
     // will free after onFinish
-    if (ls->open_eof_check) {
-        if (ls->protocol.package_eof_len > SW_DATA_EOF_MAXLEN) {
-            ls->protocol.package_eof_len = SW_DATA_EOF_MAXLEN;
+    if (open_eof_check) {
+        if (protocol.package_eof_len > SW_DATA_EOF_MAXLEN) {
+            protocol.package_eof_len = SW_DATA_EOF_MAXLEN;
         }
-        ls->protocol.onPackage = Server::dispatch_task;
-        ls->onRead = ListenPort::readable_callback_eof;
-    } else if (ls->open_length_check) {
-        if (ls->protocol.package_length_type != '\0') {
-            ls->protocol.get_package_length = Protocol::default_length_func;
+        protocol.onPackage = Server::dispatch_task;
+        onRead = ListenPort::readable_callback_eof;
+    } else if (open_length_check) {
+        if (protocol.package_length_type != '\0') {
+            protocol.get_package_length = Protocol::default_length_func;
         }
-        ls->protocol.onPackage = Server::dispatch_task;
-        ls->onRead = ListenPort::readable_callback_length;
-    } else if (ls->open_http_protocol) {
-        if (ls->open_http2_protocol && ls->open_websocket_protocol) {
-            ls->protocol.get_package_length = http_server::get_package_length;
-            ls->protocol.get_package_length_size = http_server::get_package_length_size;
-            ls->protocol.onPackage = http_server::dispatch_frame;
-        } else if (ls->open_http2_protocol) {
-            ls->protocol.package_length_size = SW_HTTP2_FRAME_HEADER_SIZE;
-            ls->protocol.get_package_length = http2::get_frame_length;
-            ls->protocol.onPackage = Server::dispatch_task;
-        } else if (ls->open_websocket_protocol) {
-            ls->protocol.package_length_size = SW_WEBSOCKET_MESSAGE_HEADER_SIZE;
-            ls->protocol.get_package_length = websocket::get_package_length;
-            ls->protocol.onPackage = websocket::dispatch_frame;
+        protocol.onPackage = Server::dispatch_task;
+        onRead = ListenPort::readable_callback_length;
+    } else if (open_http_protocol) {
+        if (open_http2_protocol && open_websocket_protocol) {
+            protocol.get_package_length = http_server::get_package_length;
+            protocol.get_package_length_size = http_server::get_package_length_size;
+            protocol.onPackage = http_server::dispatch_frame;
+        } else if (open_http2_protocol) {
+            protocol.package_length_size = SW_HTTP2_FRAME_HEADER_SIZE;
+            protocol.get_package_length = http2::get_frame_length;
+            protocol.onPackage = Server::dispatch_task;
+        } else if (open_websocket_protocol) {
+            protocol.package_length_size = SW_WEBSOCKET_MESSAGE_HEADER_SIZE;
+            protocol.get_package_length = websocket::get_package_length;
+            protocol.onPackage = websocket::dispatch_frame;
         }
-        ls->protocol.package_length_offset = 0;
-        ls->protocol.package_body_offset = 0;
-        ls->onRead = ListenPort::readable_callback_http;
-    } else if (ls->open_mqtt_protocol) {
-        mqtt::set_protocol(&ls->protocol);
-        ls->protocol.onPackage = Server::dispatch_task;
-        ls->onRead = ListenPort::readable_callback_length;
-    } else if (ls->open_redis_protocol) {
-        ls->protocol.onPackage = Server::dispatch_task;
-        ls->onRead = ListenPort::readable_callback_redis;
+        protocol.package_length_offset = 0;
+        protocol.package_body_offset = 0;
+        onRead = ListenPort::readable_callback_http;
+    } else if (open_mqtt_protocol) {
+        mqtt::set_protocol(&protocol);
+        protocol.onPackage = Server::dispatch_task;
+        onRead = ListenPort::readable_callback_length;
+    } else if (open_redis_protocol) {
+        protocol.onPackage = Server::dispatch_task;
+        onRead = ListenPort::readable_callback_redis;
     } else {
-        ls->onRead = ListenPort::readable_callback_raw;
+        onRead = ListenPort::readable_callback_raw;
     }
 }
 
@@ -407,7 +407,7 @@ int ListenPort::readable_callback_http(Reactor *reactor, ListenPort *port, Event
 
     if (conn->websocket_status >= websocket::STATUS_HANDSHAKE) {
         if (conn->http_upgrade == 0) {
-            serv->destroy_http_request(conn);
+            port->destroy_http_request(conn);
             conn->websocket_status = websocket::STATUS_ACTIVE;
             conn->http_upgrade = 1;
         }
@@ -467,7 +467,7 @@ _recv_data:
             _socket->send(SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET), 0);
         }
     _close_fd:
-        serv->destroy_http_request(conn);
+        port->destroy_http_request(conn);
         reactor->trigger_close_event(event);
         return SW_OK;
     }
@@ -503,12 +503,12 @@ _parse:
         conn->http2_stream = 1;
         http2::send_setting_frame(protocol, _socket);
         if (buffer->length == sizeof(SW_HTTP2_PRI_STRING) - 1) {
-            serv->destroy_http_request(conn);
+            port->destroy_http_request(conn);
             buffer->clear();
             return SW_OK;
         }
         buffer->reduce(buffer->offset);
-        serv->destroy_http_request(conn);
+        port->destroy_http_request(conn);
         conn->socket->skip_recv = 1;
         return readable_callback_length(reactor, port, event);
     }
@@ -600,7 +600,7 @@ _parse:
                 request->clean();
                 goto _parse;
             } else {
-                serv->destroy_http_request(conn);
+                port->destroy_http_request(conn);
                 buffer->clear();
                 return SW_OK;
             }
@@ -696,7 +696,7 @@ _parse:
     }
 
     if (conn->active && !_socket->removed) {
-        serv->destroy_http_request(conn);
+        port->destroy_http_request(conn);
         if (_socket->recv_buffer && _socket->recv_buffer->size > SW_BUFFER_SIZE_BIG * 2) {
             delete _socket->recv_buffer;
             _socket->recv_buffer = nullptr;

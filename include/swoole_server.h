@@ -340,9 +340,11 @@ struct ListenPort {
     int listen();
     void close();
     bool import(int sock);
+    void init_protocol();
     const char *get_protocols();
     int create_socket(Server *server);
     void close_socket();
+    void destroy_http_request(Connection *conn);
 
     static int readable_callback_raw(Reactor *reactor, ListenPort *lp, Event *event);
     static int readable_callback_length(Reactor *reactor, ListenPort *lp, Event *event);
@@ -1135,13 +1137,7 @@ class Server {
     void add_http_compression_type(const std::string &type);
 
     int create();
-    Factory *create_base_factory();
-    Factory *create_thread_factory();
-    Factory *create_process_factory();
     bool create_worker_pipes();
-    void destroy_base_factory();
-    void destroy_thread_factory();
-    void destroy_process_factory();
 
     int start();
     bool reload(bool reload_all_workers);
@@ -1201,9 +1197,6 @@ class Server {
     pid_t get_manager_pid() {
         return gs->manager_pid;
     }
-
-    void store_listen_socket();
-    void store_pipe_fd(UnixSocket *p);
 
     const std::string &get_document_root() {
         return document_root;
@@ -1320,8 +1313,6 @@ class Server {
 
     bool kill_worker(WorkerId worker_id, bool wait_reactor);
     void stop_async_worker(Worker *worker);
-    void stop_master_thread();
-    void join_heartbeat_thread();
 
     Pipe *get_pipe_object(int pipe_fd) {
         return (Pipe *) connection_list[pipe_fd].object;
@@ -1504,7 +1495,6 @@ class Server {
     void clear_timer();
     static void timer_callback(Timer *timer, TimerNode *tnode);
 
-    int create_task_workers();
     int create_user_workers();
     int start_manager_process();
 
@@ -1554,7 +1544,6 @@ class Server {
     void init_reactor(Reactor *reactor);
     void init_event_worker(Worker *worker);
     void init_task_workers();
-    void init_port_protocol(ListenPort *port);
     void init_signal_handler();
     void init_ipc_max_size();
     void init_pipe_sockets(MessageBus *mb);
@@ -1602,14 +1591,7 @@ class Server {
         gs->session_round = value;
     }
 
-    int create_pipe_buffers();
-    void release_pipe_buffers();
-    void create_worker(Worker *worker);
-    void destroy_worker(Worker *worker);
-    void destroy_task_workers();
     void disable_accept();
-    void destroy_http_request(Connection *conn);
-
     int schedule_worker(int fd, SendData *data);
 
     size_t get_connection_num() const {
@@ -1657,9 +1639,8 @@ class Server {
     static void master_signal_handler(int signo);
     static void heartbeat_check(Timer *timer, TimerNode *tnode);
 
-    int start_master_thread(Reactor *reactor);
     int start_event_worker(Worker *worker);
-    void start_heartbeat_thread();
+
     const char *get_startup_error_message();
 
   private:
@@ -1685,15 +1666,33 @@ class Server {
      */
     std::vector<Worker *> user_worker_list;
 
+    int create_task_workers();
+    int create_pipe_buffers();
+    void release_pipe_buffers();
+    void create_worker(Worker *worker);
+    Factory *create_base_factory();
+    Factory *create_thread_factory();
+    Factory *create_process_factory();
     int start_check();
     void check_port_type(ListenPort *ls);
+    void store_listen_socket();
+    void store_pipe_fd(UnixSocket *p);
     void destroy();
+    void destroy_base_factory();
+    void destroy_thread_factory();
+    void destroy_process_factory();
+    void destroy_worker(Worker *worker);
+    void destroy_task_workers();
     int start_reactor_threads();
     int start_reactor_processes();
     int start_worker_threads();
+    int start_master_thread(Reactor *reactor);
+    void start_heartbeat_thread();
     void stop_worker_threads();
     bool reload_worker_threads(bool reload_all_workers);
     void join_reactor_thread();
+    void stop_master_thread();
+    void join_heartbeat_thread();
     TimerCallback get_timeout_callback(ListenPort *port, Reactor *reactor, Connection *conn);
 
     int get_lowest_load_worker_id() {
