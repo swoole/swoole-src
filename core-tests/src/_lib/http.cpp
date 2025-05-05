@@ -4,8 +4,8 @@
 
 namespace websocket = swoole::websocket;
 
-using swoole::String;
 using swoole::Protocol;
+using swoole::String;
 
 namespace httplib {
 
@@ -173,7 +173,7 @@ void Client::close_socket(Socket &socket, bool /*process_socket_ret*/) {
 }
 
 bool Client::read_response_line(Stream &strm, Response &res) {
-    std::array<char, 2048> buf;
+    std::array<char, 2048> buf{};
 
     detail::stream_line_reader line_reader(strm, buf.data(), buf.size());
 
