@@ -62,5 +62,7 @@ int get_random_port();
 Socks5Proxy *create_socks5_proxy();
 HttpProxy *create_http_proxy();
 
+pid_t child_proc(const std::function<void(void)> &fn);
+
 }  // namespace test
 };  // namespace swoole

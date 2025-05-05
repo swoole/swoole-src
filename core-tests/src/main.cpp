@@ -107,5 +107,16 @@ int get_random_port() {
     return TEST_PORT + swoole_system_random(1, 10000);
 }
 
+pid_t child_proc(const std::function<void(void)> &fn) {
+    pid_t child_pid = fork();
+    if (child_pid == -1) {
+        throw std::system_error();
+    } else if (child_pid == 0) {
+        fn();
+        exit(0);
+    }
+    return child_pid;
+}
+
 }  // namespace test
 }  // namespace swoole
