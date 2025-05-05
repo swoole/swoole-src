@@ -10,8 +10,8 @@ using swoole::Pipe;
 using swoole::Socks5Proxy;
 using swoole::String;
 using swoole::network::AsyncClient;
-using swoole::network::SyncClient;
 using swoole::network::Client;
+using swoole::network::SyncClient;
 using swoole::test::create_http_proxy;
 using swoole::test::create_socks5_proxy;
 using swoole::test::Process;
@@ -164,11 +164,14 @@ TEST(client, sleep) {
 
     String buf(65536);
 
+    auto domain = "httpbin.org";
+
     Client client(SW_SOCK_TCP, true);
-    client.onConnect = [](Client *cli) {
+    client.onConnect = [&domain](Client *cli) {
         cli->sleep();
-        swoole_timer_after(200, [cli](auto _1, auto _2) {
-            cli->send(cli, SW_STRL(TEST_REQUEST_BAIDU), 0);
+        swoole_timer_after(200, [cli, &domain](auto _1, auto _2) {
+            auto req = swoole::test::http_get_request(domain, "/");
+            cli->send(cli, req.c_str(), req.length(), 0);
             cli->wakeup();
         });
     };
@@ -177,11 +180,11 @@ TEST(client, sleep) {
     client.onClose = [](Client *cli) {};
     client.onReceive = [&buf](Client *cli, const char *data, size_t length) { buf.append(data, length); };
 
-    ASSERT_EQ(client.connect(&client, TEST_DOMAIN_BAIDU, 80, -1, 0), 0);
+    ASSERT_EQ(client.connect(&client, domain, 80, -1, 0), 0);
 
     swoole_event_wait();
 
-    ASSERT_TRUE(buf.contains("HTTP/1.1 302 Found"));
+    ASSERT_TRUE(buf.contains("HTTP/1.1 200 OK"));
 }
 
 TEST(client, connect_refuse) {

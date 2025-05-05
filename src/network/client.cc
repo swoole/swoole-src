@@ -398,19 +398,6 @@ static int Client_inet_addr(Client *cli, const char *host, int port) {
     return SW_OK;
 }
 
-void Client::destroy() {
-    if (destroyed) {
-        return;
-    }
-    destroyed = true;
-    swoole_event_defer(
-        [](void *data) {
-            Client *object = (Client *) data;
-            delete object;
-        },
-        this);
-}
-
 Client::~Client() {
     if (!socket) {
         return;

@@ -56,6 +56,7 @@ std::string get_ssl_dir();
 std::string get_jpg_file();
 bool is_github_ci();
 int exec_js_script(const std::string &file, const std::string &args);
+std::string http_get_request(const std::string &domain, const std::string &path);
 int get_random_port();
 
 Socks5Proxy *create_socks5_proxy();

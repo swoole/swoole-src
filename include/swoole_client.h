@@ -37,7 +37,6 @@ class Client {
     bool active = false;
     bool async = false;
     bool keep = false;
-    bool destroyed = false;
     bool http2 = false;
     bool sleep_ = false;
     bool wait_dns = false;

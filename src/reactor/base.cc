@@ -211,11 +211,11 @@ int Reactor::_close(Reactor *reactor, Socket *socket) {
     return SW_OK;
 }
 
-using SendFunc = std::function<ssize_t(void)>;
-using AppendFunc = std::function<void(Buffer *buffer)>;
-
-static ssize_t write_func(
-    Reactor *reactor, Socket *socket, const size_t __len, const SendFunc &send_fn, const AppendFunc &append_fn) {
+ssize_t Reactor::write_func(Reactor *reactor,
+                            network::Socket *socket,
+                            const size_t __len,
+                            const std::function<ssize_t(void)> &send_fn,
+                            const std::function<void(Buffer *buffer)> &append_fn) {
     ssize_t retval;
     Buffer *buffer = socket->out_buffer;
     int fd = socket->fd;
