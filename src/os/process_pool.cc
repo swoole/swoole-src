@@ -975,6 +975,8 @@ int ProcessPool::wait() {
         break;
     }
     started = false;
+    delete[] reload_workers;
+    reload_workers = nullptr;
 
     return SW_OK;
 }
@@ -1024,11 +1026,6 @@ void ProcessPool::destroy() {
     if (message_bus) {
         delete message_bus;
         message_bus = nullptr;
-    }
-
-    if (reload_workers) {
-        delete[] reload_workers;
-        reload_workers = nullptr;
     }
 
     sw_mem_pool()->free(workers);

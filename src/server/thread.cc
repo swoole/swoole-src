@@ -58,8 +58,7 @@ bool ThreadFactory::start() {
     if (!server_->create_worker_pipes()) {
         return false;
     }
-    if (server_->task_worker_num > 0 &&
-        (server_->create_task_workers() < 0 || server_->gs->task_workers.start_check() < 0)) {
+    if (server_->task_worker_num > 0 && server_->gs->task_workers.start_check() < 0) {
         return false;
     }
     if (server_->get_user_worker_num() > 0 && server_->create_user_workers() < 0) {

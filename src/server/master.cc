@@ -544,6 +544,14 @@ int Server::create_task_workers() {
     return SW_OK;
 }
 
+void Server::destroy_task_workers() {
+    if (task_results) {
+        sw_shm_free(task_results);
+    }
+    ProcessPool *pool = &gs->task_workers;
+    pool->destroy();
+}
+
 /**
  * @description:
  *  only the memory of the Worker structure is allocated, no process is fork.
@@ -651,6 +659,10 @@ int Server::start() {
             worker->id = worker_num + task_worker_num + i;
             i++;
         }
+    }
+
+    if (task_worker_num > 0 && create_task_workers() < 0) {
+        return SW_ERR;
     }
 
     running = true;
@@ -821,11 +833,6 @@ int Server::create() {
         return SW_ERR;
     }
 
-    if (is_process_mode()) {
-        reactor_thread_barrier.init(false, reactor_num + 1);
-        gs->manager_barrier.init(true, 2);
-    }
-
     if (swoole_isset_hook(SW_GLOBAL_HOOK_AFTER_SERVER_CREATE)) {
         swoole_call_hook(SW_GLOBAL_HOOK_AFTER_SERVER_CREATE, this);
     }
@@ -988,12 +995,7 @@ void Server::destroy() {
         swoole_call_hook(SW_GLOBAL_HOOK_AFTER_SERVER_SHUTDOWN, this);
     }
 
-    if (is_base_mode()) {
-        swoole_trace_log(SW_TRACE_SERVER, "terminate task workers");
-        if (task_worker_num > 0) {
-            gs->task_workers.destroy();
-        }
-    } else if (is_process_mode()) {
+    if (is_process_mode()) {
         swoole_trace_log(SW_TRACE_SERVER, "terminate reactor threads");
         /**
          * Wait until all the end of the thread
@@ -1029,17 +1031,14 @@ void Server::destroy() {
         null_fd = -1;
     }
     swoole_signal_clear();
-    /**
-     * shutdown status
-     */
+
     gs->start = 0;
     gs->shutdown = 1;
-    /**
-     * callback
-     */
+
     if (onShutdown) {
         onShutdown(this);
     }
+
     SW_LOOP_N(SW_MAX_HOOK_TYPE) {
         if (hooks[i]) {
             std::list<Callback> *l = reinterpret_cast<std::list<Callback> *>(hooks[i]);
@@ -1047,16 +1046,18 @@ void Server::destroy() {
             delete l;
         }
     }
-    if (is_process_mode()) {
-        reactor_thread_barrier.destroy();
-        gs->manager_barrier.destroy();
-    }
+
     if (is_base_mode()) {
         destroy_base_factory();
     } else if (is_thread_mode()) {
         destroy_thread_factory();
     } else {
         destroy_process_factory();
+    }
+
+    if (task_worker_num > 0) {
+        swoole_trace_log(SW_TRACE_SERVER, "terminate task workers");
+        destroy_task_workers();
     }
 
     sw_shm_free(session_list);

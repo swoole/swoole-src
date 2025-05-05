@@ -1606,6 +1606,7 @@ class Server {
     void release_pipe_buffers();
     void create_worker(Worker *worker);
     void destroy_worker(Worker *worker);
+    void destroy_task_workers();
     void disable_accept();
     void destroy_http_request(Connection *conn);
 

@@ -34,12 +34,19 @@ Factory *Server::create_process_factory() {
         return nullptr;
     }
     reactor_pipe_num = worker_num / reactor_num;
+
+    reactor_thread_barrier.init(false, reactor_num + 1);
+    gs->manager_barrier.init(true, 2);
+
     return new ProcessFactory(this);
 }
 
 void Server::destroy_process_factory() {
     sw_shm_free(connection_list);
     delete[] reactor_threads;
+
+    reactor_thread_barrier.destroy();
+    gs->manager_barrier.destroy();
 
     if (gs->event_workers.message_box) {
         gs->event_workers.message_box->destroy();

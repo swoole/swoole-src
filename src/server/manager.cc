@@ -106,10 +106,6 @@ int Server::start_manager_process() {
         return SW_ERR;
     }
 
-    if (task_worker_num > 0 && create_task_workers() < 0) {
-        return SW_ERR;
-    }
-
     if (get_user_worker_num() > 0 && create_user_workers() < 0) {
         return SW_ERR;
     }

@@ -749,7 +749,6 @@ TEST(server, task_worker) {
     };
 
     ASSERT_EQ(serv.create(), SW_OK);
-    ASSERT_EQ(serv.create_task_workers(), SW_OK);
 
     thread t1([&serv]() {
         serv.gs->task_workers.running = 1;
@@ -807,7 +806,6 @@ TEST(server, task_worker2) {
     };
 
     ASSERT_EQ(serv.create(), SW_OK);
-    ASSERT_EQ(serv.create_task_workers(), SW_OK);
 
     serv.onWorkerStart = [&](Server *serv, Worker *worker) {
         if (worker->id == 1) {
@@ -855,7 +853,6 @@ TEST(server, task_worker3) {
     };
 
     ASSERT_EQ(serv.create(), SW_OK);
-    ASSERT_EQ(serv.create_task_workers(), SW_OK);
 
     serv.onWorkerStart = [&](Server *serv, Worker *worker) {
         if (worker->id == 1) {
@@ -903,7 +900,6 @@ TEST(server, task_worker4) {
     };
 
     ASSERT_EQ(serv.create(), SW_OK);
-    ASSERT_EQ(serv.create_task_workers(), SW_OK);
 
     serv.onWorkerStart = [&](Server *serv, Worker *worker) {
         if (worker->id == 1) {
@@ -966,7 +962,6 @@ TEST(server, task_worker5) {
     };
 
     ASSERT_EQ(serv.create(), SW_OK);
-    ASSERT_EQ(serv.create_task_workers(), SW_OK);
 
     serv.onWorkerStart = [&data](Server *serv, Worker *worker) {
         if (worker->id == 1) {
@@ -1032,7 +1027,6 @@ TEST(server, task_sync) {
     };
 
     ASSERT_EQ(serv.create(), SW_OK);
-    ASSERT_EQ(serv.create_task_workers(), SW_OK);
 
     serv.onWorkerStart = [&](Server *serv, Worker *worker) {
         if (worker->id == 1) {
@@ -1047,6 +1041,87 @@ TEST(server, task_sync) {
     };
 
     ASSERT_EQ(serv.start(), 0);
+}
+
+static void test_task_ipc(Server &serv) {
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    if (!port) {
+        swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
+        exit(2);
+    }
+
+    serv.onReceive = [](Server *server, RecvData *req) -> int { return SW_OK; };
+
+    serv.onTask = [](Server *serv, EventData *task) -> int {
+        EXPECT_EQ(string(task->data, task->info.len), string(packet));
+        EXPECT_TRUE(serv->finish(task->data, task->info.len, 0, task));
+        return 0;
+    };
+
+    serv.onFinish = [](Server *serv, EventData *task) -> int {
+        EXPECT_EQ(string(task->data, task->info.len), string(packet));
+        serv->shutdown();
+        return 0;
+    };
+
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    serv.onWorkerStart = [](Server *serv, Worker *worker) {
+        if (worker->id == 1) {
+            int _dst_worker_id = -1;
+            EventData buf{};
+            Server::task_pack(&buf, packet, strlen(packet));
+            buf.info.ext_flags |= (SW_TASK_NONBLOCK | SW_TASK_CALLBACK);
+            EXPECT_TRUE(serv->task(&buf, &_dst_worker_id));
+        }
+    };
+
+    ASSERT_EQ(serv.start(), 0);
+}
+
+TEST(server, task_ipc_queue_1) {
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = 2;
+    serv.task_worker_num = 2;
+    serv.task_ipc_mode = Server::TASK_IPC_MSGQUEUE;
+
+    test_task_ipc(serv);
+}
+
+TEST(server, task_ipc_queue_2) {
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = 2;
+    serv.task_worker_num = 2;
+    serv.task_ipc_mode = Server::TASK_IPC_PREEMPTIVE;
+
+    test_task_ipc(serv);
+}
+
+TEST(server, task_ipc_queue_3) {
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = 2;
+    serv.task_worker_num = 2;
+    serv.task_ipc_mode = Server::TASK_IPC_STREAM;
+
+    test_task_ipc(serv);
+}
+
+TEST(server, task_ipc_queue_4) {
+    Server serv(Server::MODE_BASE);
+    serv.worker_num = 2;
+    serv.task_worker_num = 2;
+    serv.task_ipc_mode = Server::TASK_IPC_MSGQUEUE;
+
+    test_task_ipc(serv);
+}
+
+TEST(server, task_ipc_queue_5) {
+    Server serv(Server::MODE_THREAD);
+    serv.worker_num = 2;
+    serv.task_worker_num = 2;
+    serv.task_ipc_mode = Server::TASK_IPC_MSGQUEUE;
+
+    test_task_ipc(serv);
 }
 
 TEST(server, max_connection) {
