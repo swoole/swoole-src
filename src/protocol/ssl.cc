@@ -37,9 +37,6 @@ static int ssl_port_index = 0;
 static pthread_mutex_t *lock_array;
 
 static int swoole_ssl_verify_callback(int ok, X509_STORE_CTX *x509_store);
-#ifndef OPENSSL_NO_RSA
-static RSA *swoole_ssl_rsa_key_callback(SSL *ssl, int is_export, int key_length);
-#endif
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 static int swoole_ssl_set_default_dhparam(SSL_CTX *ssl_context);
 #endif
@@ -556,10 +553,6 @@ bool SSLContext::set_ciphers() {
         }
     }
 
-#ifndef OPENSSL_NO_RSA
-    SSL_CTX_set_tmp_rsa_callback(context, swoole_ssl_rsa_key_callback);
-#endif
-
     if (!dhparam.empty() && !set_dhparam()) {
         return false;
     }
@@ -664,7 +657,6 @@ bool SSLContext::set_ecdh_curve() {
 }
 
 bool SSLContext::set_dhparam() {
-    DH *dh;
     BIO *bio;
 
     const char *file = dhparam.c_str();
@@ -675,7 +667,24 @@ bool SSLContext::set_dhparam() {
         return false;
     }
 
-    dh = PEM_read_bio_DHparams(bio, nullptr, nullptr, nullptr);
+#if OPENSSL_VERSION_MAJOR >= 3
+    EVP_PKEY *pkey = PEM_read_bio_Parameters(bio, nullptr);
+    if (pkey  == nullptr) {
+        swoole_warning("PEM_read_bio_Parameters('%s') failed", file);
+        BIO_free(bio);
+        return false;
+    }
+
+    if (SSL_CTX_set0_tmp_dh_pkey(context, pkey) != 1) {
+        swoole_warning("SSL_CTX_set0_tmp_dh_pkey('%s') failed", file);
+        EVP_PKEY_free(pkey);
+        BIO_free(bio);
+        return false;
+    }
+
+    EVP_PKEY_free(pkey);
+#else
+    DH *dh = PEM_read_bio_DHparams(bio, nullptr, nullptr, nullptr);
     if (dh == nullptr) {
         swoole_warning("PEM_read_bio_DHparams(%s) failed", file);
         BIO_free(bio);
@@ -685,6 +694,8 @@ bool SSLContext::set_dhparam() {
     SSL_CTX_set_tmp_dh(context, dh);
 
     DH_free(dh);
+#endif
+
     BIO_free(bio);
 
     return true;
@@ -803,31 +814,6 @@ static int swoole_ssl_verify_cookie(SSL *ssl, const uchar *cookie, uint cookie_l
     swoole_ssl_generate_cookie(ssl, result, &result_len);
 
     return cookie_len == result_len && memcmp(result, cookie, result_len) == 0;
-}
-#endif
-
-#ifndef OPENSSL_NO_RSA
-static RSA *swoole_ssl_rsa_key_callback(SSL *ssl, int is_export, int key_length) {
-    static RSA *rsa_tmp = nullptr;
-    if (rsa_tmp) {
-        return rsa_tmp;
-    }
-
-    BIGNUM *bn = BN_new();
-    if (bn == nullptr) {
-        swoole_warning("allocation error generating RSA key");
-        return nullptr;
-    }
-
-    if (!BN_set_word(bn, RSA_F4) || ((rsa_tmp = RSA_new()) == nullptr) ||
-        !RSA_generate_key_ex(rsa_tmp, key_length, bn, nullptr)) {
-        if (rsa_tmp) {
-            RSA_free(rsa_tmp);
-        }
-        rsa_tmp = nullptr;
-    }
-    BN_free(bn);
-    return rsa_tmp;
 }
 #endif
 
