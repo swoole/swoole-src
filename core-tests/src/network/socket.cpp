@@ -340,24 +340,21 @@ TEST(socket, check_liveness) {
 
 #define CRLF "\r\n"
 
-TEST(socket, sync) {
-    auto sock = make_socket(SW_SOCK_TCP, SW_FD_STREAM, 0);
+static void test_socket_sync(network::Socket *sock, bool connect = true) {
+    if (connect) {
+        network::Address addr;
+        ASSERT_TRUE(addr.assign("tcp://httpbin.org:80"));
+        ASSERT_EQ(sock->connect(addr), 0);
+    }
 
-    swoole::network::Address addr;
-    ASSERT_TRUE(addr.assign("tcp://httpbin.org:80"));
-
-    ASSERT_EQ(sock->connect(addr), 0);
-
-    const char *req = "GET / HTTP/1.1" CRLF "Host: httpbin.org" CRLF "User-Agent: curl/7.81.0" CRLF "Accept: */*" CRLF
-                      "Connection: close" CRLF CRLF CRLF;
-    ssize_t n = strlen(req);
-    ASSERT_EQ(sock->write_sync(req, n), n);
+    auto req = test::http_get_request("httpbin.org", "/get");
+    ASSERT_EQ(sock->write_sync(req.c_str(), req.length()), req.length());
     ASSERT_TRUE(sock->check_liveness());
 
     string resp;
     SW_LOOP {
         char buf[1024];
-        n = sock->read_sync(buf, sizeof(buf));
+        auto n = sock->read_sync(buf, sizeof(buf));
         if (n == 0) {
             break;
         }
@@ -365,12 +362,29 @@ TEST(socket, sync) {
         resp.append(buf, n);
     }
 
-    ASSERT_GT(resp.length(), 4096);
+    ASSERT_TRUE(resp.find("HTTP/1.1 200 OK") != resp.npos);
 
     usleep(50000);
     ASSERT_FALSE(sock->check_liveness());
 
     sock->free();
+}
+
+TEST(socket, sync) {
+    auto sock = make_socket(SW_SOCK_TCP, SW_FD_STREAM, 0);
+    test_socket_sync(sock);
+}
+
+TEST(socket, dup) {
+    auto sock = make_socket(SW_SOCK_TCP, SW_FD_STREAM, 0);
+    network::Address addr;
+    ASSERT_TRUE(addr.assign("tcp://httpbin.org:80"));
+    ASSERT_EQ(sock->connect(addr), 0);
+
+    auto sock_2 = sock->dup();
+    sock->free();
+
+    test_socket_sync(sock_2, false);
 }
 
 TEST(socket, ipv6_addr) {

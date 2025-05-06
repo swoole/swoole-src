@@ -334,6 +334,73 @@ TEST(server, reload_thread) {
     serv.start();
     t1.join();
 }
+
+TEST(server, reload_thread_2) {
+    Server serv(Server::MODE_THREAD);
+    serv.worker_num = 2;
+    serv.task_worker_num = 2;
+
+    std::unordered_map<std::string, bool> flags;
+    swoole_set_log_level(SW_LOG_WARNING);
+
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_TRUE(port);
+
+    Worker user_worker{};
+
+    serv.add_worker(&user_worker);
+
+    mutex lock;
+    lock.lock();
+
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    std::atomic<int> count(0);
+
+    serv.onUserWorkerStart = [&lock, &count](Server *serv, Worker *worker) {
+        while (serv->running) {
+            usleep(100000);
+        }
+    };
+
+    serv.onWorkerStart = [&lock, &count](Server *serv, Worker *worker) {
+        count++;
+        if (count.load() == 4) {
+            lock.unlock();
+        }
+    };
+
+    serv.onTask = [](Server *serv, EventData *task) -> int { return 0; };
+
+    serv.onReceive = [](Server *serv, RecvData *req) -> int { return SW_OK; };
+
+    serv.onBeforeReload = [&flags](Server *serv) { flags["onBeforeReload"] = true; };
+
+    serv.onAfterReload = [&flags](Server *serv) {
+        flags["onAfterReload"] = true;
+        swoole_timer_after(500, [serv, &flags](auto r1, auto r2) {
+            flags["shutdown"] = true;
+            serv->shutdown();
+        });
+    };
+
+    serv.onManagerStart = [&flags](Server *serv) {
+        swoole_timer_after(500, [serv, &flags](auto r1, auto r2) {
+            flags["reload"] = true;
+            serv->reload(true);
+        });
+    };
+
+    serv.onManagerStop = [&flags](Server *serv) { flags["onManagerStop"] = true; };
+
+    serv.start();
+
+    ASSERT_TRUE(flags["onBeforeReload"]);
+    ASSERT_TRUE(flags["onAfterReload"]);
+    ASSERT_TRUE(flags["onManagerStop"]);
+    ASSERT_TRUE(flags["reload"]);
+    ASSERT_TRUE(flags["shutdown"]);
+}
 #endif
 
 TEST(server, reload_all_workers) {
@@ -682,7 +749,6 @@ TEST(server, task_worker) {
     };
 
     ASSERT_EQ(serv.create(), SW_OK);
-    ASSERT_EQ(serv.create_task_workers(), SW_OK);
 
     thread t1([&serv]() {
         serv.gs->task_workers.running = 1;
@@ -740,7 +806,6 @@ TEST(server, task_worker2) {
     };
 
     ASSERT_EQ(serv.create(), SW_OK);
-    ASSERT_EQ(serv.create_task_workers(), SW_OK);
 
     serv.onWorkerStart = [&](Server *serv, Worker *worker) {
         if (worker->id == 1) {
@@ -788,7 +853,6 @@ TEST(server, task_worker3) {
     };
 
     ASSERT_EQ(serv.create(), SW_OK);
-    ASSERT_EQ(serv.create_task_workers(), SW_OK);
 
     serv.onWorkerStart = [&](Server *serv, Worker *worker) {
         if (worker->id == 1) {
@@ -836,7 +900,6 @@ TEST(server, task_worker4) {
     };
 
     ASSERT_EQ(serv.create(), SW_OK);
-    ASSERT_EQ(serv.create_task_workers(), SW_OK);
 
     serv.onWorkerStart = [&](Server *serv, Worker *worker) {
         if (worker->id == 1) {
@@ -899,7 +962,6 @@ TEST(server, task_worker5) {
     };
 
     ASSERT_EQ(serv.create(), SW_OK);
-    ASSERT_EQ(serv.create_task_workers(), SW_OK);
 
     serv.onWorkerStart = [&data](Server *serv, Worker *worker) {
         if (worker->id == 1) {
@@ -965,7 +1027,6 @@ TEST(server, task_sync) {
     };
 
     ASSERT_EQ(serv.create(), SW_OK);
-    ASSERT_EQ(serv.create_task_workers(), SW_OK);
 
     serv.onWorkerStart = [&](Server *serv, Worker *worker) {
         if (worker->id == 1) {
@@ -980,6 +1041,87 @@ TEST(server, task_sync) {
     };
 
     ASSERT_EQ(serv.start(), 0);
+}
+
+static void test_task_ipc(Server &serv) {
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    if (!port) {
+        swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
+        exit(2);
+    }
+
+    serv.onReceive = [](Server *server, RecvData *req) -> int { return SW_OK; };
+
+    serv.onTask = [](Server *serv, EventData *task) -> int {
+        EXPECT_EQ(string(task->data, task->info.len), string(packet));
+        EXPECT_TRUE(serv->finish(task->data, task->info.len, 0, task));
+        return 0;
+    };
+
+    serv.onFinish = [](Server *serv, EventData *task) -> int {
+        EXPECT_EQ(string(task->data, task->info.len), string(packet));
+        serv->shutdown();
+        return 0;
+    };
+
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    serv.onWorkerStart = [](Server *serv, Worker *worker) {
+        if (worker->id == 1) {
+            int _dst_worker_id = -1;
+            EventData buf{};
+            Server::task_pack(&buf, packet, strlen(packet));
+            buf.info.ext_flags |= (SW_TASK_NONBLOCK | SW_TASK_CALLBACK);
+            EXPECT_TRUE(serv->task(&buf, &_dst_worker_id));
+        }
+    };
+
+    ASSERT_EQ(serv.start(), 0);
+}
+
+TEST(server, task_ipc_queue_1) {
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = 2;
+    serv.task_worker_num = 2;
+    serv.task_ipc_mode = Server::TASK_IPC_MSGQUEUE;
+
+    test_task_ipc(serv);
+}
+
+TEST(server, task_ipc_queue_2) {
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = 2;
+    serv.task_worker_num = 2;
+    serv.task_ipc_mode = Server::TASK_IPC_PREEMPTIVE;
+
+    test_task_ipc(serv);
+}
+
+TEST(server, task_ipc_queue_3) {
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = 2;
+    serv.task_worker_num = 2;
+    serv.task_ipc_mode = Server::TASK_IPC_STREAM;
+
+    test_task_ipc(serv);
+}
+
+TEST(server, task_ipc_queue_4) {
+    Server serv(Server::MODE_BASE);
+    serv.worker_num = 2;
+    serv.task_worker_num = 2;
+    serv.task_ipc_mode = Server::TASK_IPC_MSGQUEUE;
+
+    test_task_ipc(serv);
+}
+
+TEST(server, task_ipc_queue_5) {
+    Server serv(Server::MODE_THREAD);
+    serv.worker_num = 2;
+    serv.task_worker_num = 2;
+    serv.task_ipc_mode = Server::TASK_IPC_MSGQUEUE;
+
+    test_task_ipc(serv);
 }
 
 TEST(server, max_connection) {
@@ -1462,7 +1604,7 @@ TEST(server, abnormal_pipeline_data) {
         if (worker->id == 1) {
             auto send_fn = [server](int flags, uint64_t msg_id) {
                 auto sock = server->get_worker_pipe_master(0);
-                size_t len =  swoole_rand(1000, 8000);
+                size_t len = swoole_rand(1000, 8000);
                 EventData ev;
                 ev.info.msg_id = msg_id;
                 ev.info.flags = flags;
@@ -1487,4 +1629,89 @@ TEST(server, abnormal_pipeline_data) {
     ASSERT_TRUE(cont->contains(std::string("abnormal pipeline data, msg_id=") + std::to_string(msg_id + 9999)));
 
     unlink(filename.c_str());
+}
+
+TEST(server, startup_error) {
+    Server *server = new Server(Server::MODE_PROCESS);
+    server->task_worker_num = 2;
+
+    server->add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_EQ(server->create(), 0);
+
+    server->onReceive = [](Server *server, RecvData *req) -> int { return SW_OK; };
+    server->onWorkerStart = [&](Server *server, Worker *worker) {};
+
+    ASSERT_EQ(server->start(), -1);
+    auto startup_error = String(server->get_startup_error_message());
+    ASSERT_TRUE(startup_error.contains("require 'onTask' callback"));
+    ASSERT_EQ(swoole_get_last_error(), SW_ERROR_SERVER_INVALID_CALLBACK);
+}
+
+TEST(server, reactor_thread_pipe_writable) {
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = 1;
+
+    String rdata(4 * 1024 * 1024);
+    rdata.append_random_bytes(rdata.capacity());
+
+    swoole_set_log_level(SW_LOG_WARNING);
+
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_TRUE(port);
+    port->open_length_check = true;
+    port->protocol.package_max_length = 8 * 1024 * 1024;
+    network::Stream::set_protocol(&port->protocol);
+
+    swoole::Mutex lock(swoole::Mutex::PROCESS_SHARED);
+    lock.lock();
+
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    std::thread t1([&]() {
+        swoole_signal_block_all();
+
+        lock.lock();
+
+        network::SyncClient c(SW_SOCK_TCP);
+        c.connect(TEST_HOST, port->port);
+        c.set_stream_protocol();
+        c.set_package_max_length(8 * 1024 * 1024);
+
+        uint32_t len = htonl(rdata.length);
+        c.send((char *) &len, sizeof(len));
+        c.send(rdata.str, rdata.length);
+
+        auto rbuf = new String(rdata.size + 1024);
+
+        uint32_t pkt_len;
+        ssize_t rn;
+
+        rn = c.recv((char *) &pkt_len, sizeof(pkt_len));
+        EXPECT_EQ(rn, sizeof(pkt_len));
+
+        rn = c.recv(rbuf->str, ntohl(pkt_len), MSG_WAITALL);
+        EXPECT_EQ(rn, rdata.length);
+
+        c.close();
+
+        EXPECT_MEMEQ(rbuf->str, rdata.str, rdata.length);
+        delete rbuf;
+
+        serv.shutdown();
+    });
+
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) {
+        lock.unlock();
+        usleep(300000);
+    };
+
+    serv.onReceive = [&](Server *serv, RecvData *req) -> int {
+        uint32_t len = htonl(rdata.length);
+        serv->send(req->info.fd, &len, sizeof(len));
+        serv->send(req->info.fd, rdata.str, rdata.length);
+        return SW_OK;
+    };
+
+    serv.start();
+    t1.join();
 }

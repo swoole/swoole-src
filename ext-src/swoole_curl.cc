@@ -245,12 +245,6 @@ CURLcode Multi::exec(Handle *handle) {
 
         selector_finish();
 
-        swoole_trace_log(SW_TRACE_CO_CURL,
-                         "curl_multi_socket_action: handle=%p, sockfd=%d, bitmask=%d, running_handles_=%d",
-                         handle,
-                         sockfd,
-                         bitmask,
-                         running_handles_);
         if (running_handles_ == 0) {
             break;
         }
@@ -332,10 +326,14 @@ void Multi::selector_finish() {
          */
         auto sockets = handle->sockets;
         for (auto it : sockets) {
-            HandleSocket *handle_socket = it.second;
-            curl_multi_socket_action(
-                multi_handle_, handle_socket->event_fd, handle_socket->event_bitmask, &running_handles_);
-            swoole_trace_log(SW_TRACE_CO_CURL, "socket_action[socket], running_handles=%d", running_handles_);
+            HandleSocket *sock = it.second;
+            curl_multi_socket_action(multi_handle_, sock->event_fd, sock->event_bitmask, &running_handles_);
+            swoole_trace_log(SW_TRACE_CO_CURL,
+                             "curl_multi_socket_action: handle=%p, sockfd=%d, bitmask=%d, running_handles_=%d",
+                             handle,
+                             sock->event_fd,
+                             sock->event_bitmask,
+                             running_handles_);
         }
     }
     selector.active_handles.clear();

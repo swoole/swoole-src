@@ -68,13 +68,6 @@ static const swoole_http_parser_settings http_parser_settings = {
 namespace swoole {
 namespace coroutine {
 namespace http {
-enum StatusCode {
-    ESTATUS_CONNECT_FAILED = -1,
-    ESTATUS_REQUEST_TIMEOUT = -2,
-    ESTATUS_SERVER_RESET = -3,
-    ESTATUS_SEND_FAILED = -4,
-};
-
 class Client {
   public:
     /* request info */
@@ -836,7 +829,7 @@ bool Client::connect() {
     if (!body) {
         body = new String(SW_HTTP_RESPONSE_INIT_SIZE);
         if (!body) {
-            set_error(ENOMEM, swoole_strerror(ENOMEM), ESTATUS_CONNECT_FAILED);
+            set_error(ENOMEM, swoole_strerror(ENOMEM), HTTP_ESTATUS_CONNECT_FAILED);
             return false;
         }
     }
@@ -844,7 +837,7 @@ bool Client::connect() {
     php_swoole_check_reactor();
     auto object = php_swoole_create_socket(socket_type);
     if (UNEXPECTED(!object)) {
-        set_error(errno, swoole_strerror(errno), ESTATUS_CONNECT_FAILED);
+        set_error(errno, swoole_strerror(errno), HTTP_ESTATUS_CONNECT_FAILED);
         return false;
     }
     ZVAL_OBJ(&zsocket, object);
@@ -852,7 +845,7 @@ bool Client::connect() {
 
 #ifdef SW_USE_OPENSSL
     if (ssl && !socket->enable_ssl_encrypt()) {
-        set_error(socket->errCode, socket->errMsg, ESTATUS_CONNECT_FAILED);
+        set_error(socket->errCode, socket->errMsg, HTTP_ESTATUS_CONNECT_FAILED);
         close();
         return false;
     }
@@ -874,7 +867,7 @@ bool Client::connect() {
     // socket->set_buffer_allocator(&SWOOLE_G(zend_string_allocator));
 
     if (!socket->connect(host, port)) {
-        set_error(socket->errCode, socket->errMsg, ESTATUS_CONNECT_FAILED);
+        set_error(socket->errCode, socket->errMsg, HTTP_ESTATUS_CONNECT_FAILED);
         close();
         return false;
     }
@@ -897,7 +890,7 @@ bool Client::keep_liveness() {
         if (socket) {
             /* in progress */
             socket->check_bound_co(SW_EVENT_RDWR);
-            set_error(socket->errCode, socket->errMsg, ESTATUS_SERVER_RESET);
+            set_error(socket->errCode, socket->errMsg, HTTP_ESTATUS_SERVER_RESET);
             close(false);
         }
         SW_LOOP_N(max_retries + 1) {
@@ -1383,7 +1376,7 @@ bool Client::send_request() {
 
     if (socket->send_all(buffer->str, buffer->length) != (ssize_t) buffer->length) {
     _send_fail:
-        set_error(socket->errCode, socket->errMsg, ESTATUS_SEND_FAILED);
+        set_error(socket->errCode, socket->errMsg, HTTP_ESTATUS_SEND_FAILED);
         close();
         return false;
     }
@@ -1502,10 +1495,9 @@ bool Client::recv_response(double timeout) {
     }
     if (!success) {
         php_swoole_socket_set_error_properties(zobject, socket);
-        zend_update_property_long(swoole_http_client_coro_ce,
-                                  SW_Z8_OBJ_P(zobject),
-                                  ZEND_STRL("statusCode"),
-                                  socket->errCode == ETIMEDOUT ? ESTATUS_REQUEST_TIMEOUT : ESTATUS_SERVER_RESET);
+        zend::object_set(zobject,
+                         ZEND_STRL("statusCode"),
+                         socket->errCode == ETIMEDOUT ? HTTP_ESTATUS_REQUEST_TIMEOUT : HTTP_ESTATUS_SERVER_RESET);
         close();
         return false;
     }
@@ -1536,8 +1528,7 @@ bool Client::recv_websocket_frame(zval *zframe, double timeout) {
     ssize_t retval = socket->recv_packet(timeout);
     if (retval <= 0) {
         php_swoole_socket_set_error_properties(zobject, socket);
-        zend_update_property_long(
-            swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("statusCode"), ESTATUS_SERVER_RESET);
+        zend::object_set(zobject, ZEND_STRL("statusCode"), HTTP_ESTATUS_SERVER_RESET);
         if (socket->errCode != ETIMEDOUT) {
             close();
         }
@@ -1587,8 +1578,7 @@ bool Client::push(zval *zdata, zend_long opcode, uint8_t flags) {
                                     SW_Z8_OBJ_P(zobject),
                                     ZEND_STRL("errMsg"),
                                     "websocket handshake failed, cannot push data");
-        zend_update_property_long(
-            swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("statusCode"), ESTATUS_CONNECT_FAILED);
+        zend::object_set(zobject, ZEND_STRL("statusCode"), HTTP_ESTATUS_CONNECT_FAILED);
         return false;
     }
     String *buffer = socket->get_write_buffer();
@@ -1606,8 +1596,7 @@ bool Client::push(zval *zdata, zend_long opcode, uint8_t flags) {
 
     if (socket->send_all(buffer->str, buffer->length) != (ssize_t) buffer->length) {
         php_swoole_socket_set_error_properties(zobject, socket);
-        zend_update_property_long(
-            swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("statusCode"), ESTATUS_SERVER_RESET);
+        zend::object_set(zobject, ZEND_STRL("statusCode"), HTTP_ESTATUS_SERVER_RESET);
         close();
         return false;
     } else {
@@ -1783,12 +1772,10 @@ void php_swoole_http_client_coro_minit(int module_number) {
                            nullptr,
                            swoole_exception);
 
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_HTTP_CLIENT_ESTATUS_CONNECT_FAILED",
-                              swoole::coroutine::http::ESTATUS_CONNECT_FAILED);
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT",
-                              swoole::coroutine::http::ESTATUS_REQUEST_TIMEOUT);
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_HTTP_CLIENT_ESTATUS_SERVER_RESET", swoole::coroutine::http::ESTATUS_SERVER_RESET);
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_HTTP_CLIENT_ESTATUS_SEND_FAILED", swoole::coroutine::http::ESTATUS_SEND_FAILED);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_HTTP_CLIENT_ESTATUS_CONNECT_FAILED", HTTP_ESTATUS_CONNECT_FAILED);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT", HTTP_ESTATUS_REQUEST_TIMEOUT);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_HTTP_CLIENT_ESTATUS_SERVER_RESET", HTTP_ESTATUS_SERVER_RESET);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_HTTP_CLIENT_ESTATUS_SEND_FAILED", HTTP_ESTATUS_SEND_FAILED);
 }
 
 static PHP_METHOD(swoole_http_client_coro, __construct) {

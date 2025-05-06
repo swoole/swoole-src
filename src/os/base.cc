@@ -133,18 +133,14 @@ static bool check_pthread_return_code(int rc) {
 
 bool swoole_thread_set_name(const char *name) {
 #if defined(__APPLE__)
-    return check_pthread_return_code(pthread_setname_np(name);
+    return check_pthread_return_code(pthread_setname_np(name));
 #else
     return check_pthread_return_code(pthread_setname_np(pthread_self(), name));
 #endif
 }
 
 bool swoole_thread_get_name(char *buf, size_t len) {
-#if defined(__APPLE__)
-    return check_pthread_return_code(pthread_getname_np(buf, len));
-#else
     return check_pthread_return_code(pthread_getname_np(pthread_self(), buf, len));
-#endif
 }
 
 namespace swoole {

@@ -290,6 +290,15 @@ class SyncClient {
         return true;
     }
 
+    void set_stream_protocol() {
+        client.open_length_check = true;
+        Stream::set_protocol(&client.protocol);
+    }
+
+    void set_package_max_length(uint32_t max_length) {
+        client.protocol.package_max_length = max_length;
+    }
+
 #ifdef SW_USE_OPENSSL
     bool enable_ssl_encrypt() {
         if (client.enable_ssl_encrypt() < 0 || client.ssl_handshake() < 0) {
@@ -312,8 +321,8 @@ class SyncClient {
         return client.sendfile(&client, filename, offset, length) == SW_OK;
     }
 
-    ssize_t recv(char *buf, size_t len) {
-        return client.recv(&client, buf, len, 0);
+    ssize_t recv(char *buf, size_t len, int flags = 0) {
+        return client.recv(&client, buf, len, flags);
     }
 
     bool close() {

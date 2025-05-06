@@ -386,7 +386,7 @@ bool Socket::http_proxy_handshake() {
         return false;
     }
 
-    swoole_trace_log(SW_TRACE_HTTP_CLIENT, "proxy response: <<EOF\n%.*sEOF", n, recv_buffer->str);
+    swoole_trace_log(SW_TRACE_HTTP_CLIENT, "proxy response: <<EOF\n%.*sEOF", (int) n, recv_buffer->str);
 
     if (!http_proxy->handshake(recv_buffer)) {
         set_err(SW_ERROR_HTTP_PROXY_BAD_RESPONSE,

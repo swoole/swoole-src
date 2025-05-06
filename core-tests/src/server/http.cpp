@@ -145,6 +145,7 @@ static void test_base_server(function<void(Server *)> fn) {
     serv.enable_static_handler = true;
     serv.set_document_root(test::get_root_path());
     serv.add_static_handler_location("/examples");
+    serv.add_http_compression_type("text/html");
 
     sw_logger()->set_level(SW_LOG_WARNING);
 
@@ -716,6 +717,35 @@ TEST(http_server, websocket_mask) {
 
         kill(getpid(), SIGTERM);
     });
+}
+
+static auto packet = "hello world\n";
+
+TEST(http_server, websocket_encode) {
+    auto buffer = sw_tg_buffer();
+    buffer->clear();
+
+    auto log_file = "/tmp/swoole.log";
+
+    ASSERT_TRUE(websocket::encode(
+        buffer, packet, strlen(packet), websocket::OPCODE_TEXT, websocket::FLAG_FIN | websocket::FLAG_MASK));
+    websocket::Frame ws;
+
+    ASSERT_TRUE(websocket::decode(&ws, buffer->str, buffer->length));
+
+    FILE *fp = fopen(log_file, "a+");
+    websocket::print_frame(&ws, fp);
+    fclose(fp);
+
+    File f(log_file, File::READ);
+    auto rs = f.read_content();
+
+    ASSERT_TRUE(rs->contains("FIN: 1,"));
+    ASSERT_TRUE(rs->contains("RSV1: 0,"));
+    ASSERT_TRUE(rs->contains("opcode: 1,"));
+    ASSERT_TRUE(rs->contains("payload: hello world\n"));
+
+    unlink(log_file);
 }
 
 TEST(http_server, node_websocket_client_1) {
@@ -1412,4 +1442,25 @@ TEST(http_server, get_method_str) {
     ASSERT_STREQ(swoole::http_server::get_method_string(SW_HTTP_POST), "POST");
     ASSERT_STREQ(swoole::http_server::get_method_string(SW_HTTP_GET), "GET");
     ASSERT_STREQ(swoole::http_server::get_method_string(SW_HTTP_OPTIONS), "OPTIONS");
+}
+
+TEST(http_server, has_expect_header) {
+    swoole::http_server::Request req{};
+    req.buffer_ = sw_tg_buffer();
+
+    req.buffer_->append("HTTP/1.1 200 OK\r\n"
+                        "Cache-Control: no-cache\r\n"
+                        "Connection: close\r\n"
+                        "Content-Length: 0\r\n"
+                        "Content-Type: text/html\r\n"
+                        "Pragma: no-cache\r\n\r\n");
+    ASSERT_FALSE(req.has_expect_header());
+
+    req.buffer_->clear();
+    req.buffer_->append("POST /submit HTTP/1.1\r\n"
+                        "Host: www.example.com\r\n"
+                        "Content-Type: application/json\r\n"
+                        "Content-Length: 1000000\r\n"
+                        "Expect: 100-continue\r\n\r\n");
+    ASSERT_TRUE(req.has_expect_header());
 }

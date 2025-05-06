@@ -61,6 +61,7 @@ class System {
     static void set_dns_cache_expire(time_t expire);
     static void set_dns_cache_capacity(size_t capacity);
     static void clear_dns_cache();
+    static float get_dns_cache_hit_ratio();
     /* multiplexing */
     static bool socket_poll(std::unordered_map<int, PollSocket> &fds, double timeout);
     /* wait */
@@ -79,17 +80,6 @@ class System {
     static bool exec(const char *command, bool get_error_stream, std::shared_ptr<String> buffer, int *status);
 };
 std::string gethostbyname_impl_with_async(const std::string &hostname, int domain, double timeout = -1);
-//-------------------------------------------------------------------------------
-struct AsyncLock {
-  private:
-    void *resource_;
-
-  public:
-    AsyncLock(void *resource);
-    ~AsyncLock();
-};
-
-std::shared_ptr<AsyncLock> async_lock(void *);
 //-------------------------------------------------------------------------------
 }  // namespace coroutine
 }  // namespace swoole

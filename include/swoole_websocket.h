@@ -150,7 +150,7 @@ bool encode(String *buffer, const char *data, size_t length, char opcode, uint8_
 bool decode(Frame *frame, char *data, size_t length);
 void mask(char *data, size_t len, const char *mask_key);
 int pack_close_frame(String *buffer, int code, const char *reason, size_t length, uint8_t flags);
-void print_frame(Frame *frame);
+void print_frame(Frame *frame, FILE *fp = nullptr);
 
 static inline bool decode(Frame *frame, String *str) {
     return decode(frame, str->str, str->length);

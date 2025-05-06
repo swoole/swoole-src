@@ -218,7 +218,7 @@ int Server::close_connection(Reactor *reactor, Socket *socket) {
     }
 
     if (port->open_http_protocol && conn->object) {
-        serv->destroy_http_request(conn);
+        port->destroy_http_request(conn);
     }
     if (port->open_redis_protocol && conn->object) {
         sw_free(conn->object);
@@ -502,14 +502,7 @@ void Server::init_reactor(Reactor *reactor) {
 
     // listen the all tcp port
     for (auto port : ports) {
-        if (port->is_dgram()
-#ifdef SW_SUPPORT_DTLS
-            && !(port->is_dtls())
-#endif
-        ) {
-            continue;
-        }
-        init_port_protocol(port);
+        port->init_protocol();
     }
 }
 

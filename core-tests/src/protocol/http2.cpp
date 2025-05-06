@@ -73,7 +73,6 @@ TEST(http2, pack_setting_frame) {
     http2::Settings settings_2{};
     http2::unpack_setting_data(
         frame + SW_HTTP2_FRAME_HEADER_SIZE, n, [&settings_2](uint16_t id, uint32_t value) -> ReturnCode {
-            swoole_http2_frame_trace_log("id=%d, value=%d", id, value);
             switch (id) {
             case SW_HTTP2_SETTING_HEADER_TABLE_SIZE:
                 settings_2.header_table_size = value;

@@ -117,27 +117,52 @@ TEST(log, rotation) {
     }
 }
 
-TEST(log, redirect) {
-    if (test::is_github_ci()) {
-        return;
-    }
-    sw_logger()->reset();
-    ASSERT_FALSE(sw_logger()->redirect_stdout_and_stderr(1));  // no log file opened
-    ASSERT_FALSE(sw_logger()->redirect_stdout_and_stderr(0));  // no redirected
+TEST(log, redirect_1) {
+    auto status = test::spawn_exec_and_wait([]() {
+        sw_logger()->reset();
+        ASSERT_FALSE(sw_logger()->redirect_stdout_and_stderr(1));  // no log file opened
+        ASSERT_FALSE(sw_logger()->redirect_stdout_and_stderr(0));  // no redirected
 
-    ASSERT_TRUE(sw_logger()->open(file));
-    ASSERT_TRUE(sw_logger()->redirect_stdout_and_stderr(1));
-    ASSERT_FALSE(sw_logger()->redirect_stdout_and_stderr(1));  // has been redirected
+        ASSERT_TRUE(sw_logger()->open(file));
+        ASSERT_TRUE(sw_logger()->redirect_stdout_and_stderr(1));
+        ASSERT_FALSE(sw_logger()->redirect_stdout_and_stderr(1));  // has been redirected
 
-    printf("hello world\n");
-    auto content = file_get_contents(file);
-    ASSERT_NE(content.get(), nullptr);
+        printf("hello world\n");
+        auto content = file_get_contents(file);
+        ASSERT_NE(content.get(), nullptr);
 
-    sw_logger()->close();
-    ASSERT_TRUE(sw_logger()->redirect_stdout_and_stderr(0));
-    unlink(sw_logger()->get_real_file());
+        sw_logger()->close();
+        ASSERT_TRUE(sw_logger()->redirect_stdout_and_stderr(0));
+        unlink(sw_logger()->get_real_file());
 
-    ASSERT_TRUE(content->contains(SW_STRL("hello world\n")));
+        ASSERT_TRUE(content->contains(SW_STRL("hello world\n")));
+    });
+
+    ASSERT_EQ(status, 0);
+}
+
+TEST(log, redirect_2) {
+    auto status = test::spawn_exec_and_wait([]() {
+        auto file = "/tmp/swoole.log";
+        auto str = "hello world, hello swoole\n";
+
+        sw_logger()->reset();
+        sw_logger()->open(file);
+        sw_logger()->redirect_stdout_and_stderr(true);
+
+        printf(str);
+
+        File f(file, File::READ);
+        auto rs = f.read_content();
+
+        ASSERT_TRUE(rs->contains(str));
+        sw_logger()->redirect_stdout_and_stderr(false);
+        printf(str);
+        sw_logger()->close();
+        unlink(sw_logger()->get_real_file());
+    });
+
+    ASSERT_EQ(status, 0);
 }
 
 namespace TestA {
@@ -212,4 +237,22 @@ TEST(log, ignore_error) {
 
     ASSERT_FALSE(content->contains(SW_STRL("error 1")));
     ASSERT_TRUE(content->contains(SW_STRL("error 2")));
+}
+
+TEST(log, open_fail) {
+    sw_logger()->reset();
+    sw_logger()->set_level(SW_LOG_NOTICE);
+    sw_logger()->open("/tmp/not-exists/swoole.log");
+    sw_logger()->put(SW_LOG_ERROR, SW_STRL("hello world\n"));
+}
+
+TEST(log, set_stream) {
+    sw_logger()->reset();
+    char *buffer = NULL;
+    size_t size = 0;
+    FILE *stream = open_memstream(&buffer, &size);
+    sw_logger()->set_stream(stream);
+    sw_logger()->put(SW_LOG_ERROR, SW_STRL("hello world\n"));
+
+    ASSERT_NE(strstr(buffer, "ERROR\thello world"), nullptr);
 }

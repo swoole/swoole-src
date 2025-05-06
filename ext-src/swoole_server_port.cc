@@ -474,13 +474,7 @@ static PHP_METHOD(swoole_server_port, set) {
             port->set_ssl_disable_compress(!zval_is_true(ztmp));
         }
         if (php_swoole_array_get_value(vht, "ssl_protocols", ztmp)) {
-            zend_long v = zval_get_long(ztmp);
-            port->set_ssl_protocols(v);
-#ifdef SW_SUPPORT_DTLS
-            if (port->is_dtls() && !port->is_dgram()) {
-                port->set_ssl_protocols(port->get_ssl_protocols() ^ SW_SSL_DTLS);
-            }
-#endif
+            port->set_ssl_protocols(zval_get_long(ztmp));
         }
         if (php_swoole_array_get_value(vht, "ssl_verify_peer", ztmp)) {
             port->set_ssl_verify_peer(zval_is_true(ztmp));

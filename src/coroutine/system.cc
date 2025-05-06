@@ -27,25 +27,45 @@ using swoole::Iouring;
 namespace swoole {
 namespace coroutine {
 
-static size_t dns_cache_capacity = 1000;
-static time_t dns_cache_expire = 60;
-static LRUCache *dns_cache = nullptr;
-static std::unordered_map<void *, long> async_resource_map;
+static struct {
+    size_t capacity;
+    time_t expire;
+    LRUCache *data;
+    size_t miss_count;
+    size_t hit_count;
+} dns_cache = {
+    1000,
+    60,
+    nullptr,
+    0,
+    0,
+};
 
 void System::set_dns_cache_expire(time_t expire) {
-    dns_cache_expire = expire;
+    dns_cache.expire = expire;
 }
 
 void System::set_dns_cache_capacity(size_t capacity) {
-    dns_cache_capacity = capacity;
-    delete dns_cache;
-    dns_cache = nullptr;
+    dns_cache.capacity = capacity;
+    clear_dns_cache();
+    delete dns_cache.data;
+    dns_cache.data = nullptr;
 }
 
 void System::clear_dns_cache() {
-    if (dns_cache) {
-        dns_cache->clear();
+    if (dns_cache.data) {
+        dns_cache.data->clear();
     }
+    dns_cache.miss_count = 0;
+    dns_cache.hit_count = 0;
+}
+
+float System::get_dns_cache_hit_ratio() {
+    auto total = dns_cache.hit_count + dns_cache.miss_count;
+    if (total == 0) {
+        return 0;
+    }
+    return (float) dns_cache.hit_count / (float) total;
 }
 
 static void sleep_callback(Coroutine *co, bool *canceled) {
@@ -161,20 +181,27 @@ std::string gethostbyname_impl_with_async(const std::string &hostname, int domai
 }
 
 std::string System::gethostbyname(const std::string &hostname, int domain, double timeout) {
-    if (dns_cache == nullptr && dns_cache_capacity != 0) {
-        dns_cache = new LRUCache(dns_cache_capacity);
+    if (dns_cache.data == nullptr && dns_cache.capacity != 0) {
+        dns_cache.data = new LRUCache(dns_cache.capacity);
     }
 
     std::string cache_key;
     std::string result;
 
-    if (dns_cache) {
-        cache_key.append(domain == AF_INET ? "4_" : "6_");
+    if (dns_cache.data) {
+        /**
+         * The cache key must end with a prefix that uses a dot.
+         * The domain name cannot contain the `.` symbol, and other characters are considered unsafe.
+         */
+        cache_key.append(domain == AF_INET ? "IPv4." : "IPv6.");
         cache_key.append(hostname);
-        auto cache = dns_cache->get(cache_key);
+        auto cache = dns_cache.data->get(cache_key);
 
         if (cache) {
+            dns_cache.hit_count++;
             return *(std::string *) cache.get();
+        } else {
+            dns_cache.miss_count++;
         }
     }
 
@@ -191,8 +218,8 @@ std::string System::gethostbyname(const std::string &hostname, int domain, doubl
     result = gethostbyname_impl_with_async(hostname, domain, timeout);
 #endif
 
-    if (dns_cache && !result.empty()) {
-        dns_cache->set(cache_key, std::make_shared<std::string>(result), dns_cache_expire);
+    if (dns_cache.data && !result.empty()) {
+        dns_cache.data->set(cache_key, std::make_shared<std::string>(result), dns_cache.expire);
     }
 
     return result;
@@ -702,29 +729,6 @@ bool async(const std::function<void(void)> &fn) {
     task.co->yield();
     errno = _ev->error;
     return true;
-}
-
-AsyncLock::AsyncLock(void *resource) {
-    resource_ = resource;
-    async_resource_map.emplace(resource, Coroutine::get_current_cid());
-}
-
-AsyncLock::~AsyncLock() {
-    async_resource_map.erase(resource_);
-}
-
-std::shared_ptr<AsyncLock> async_lock(void *resource) {
-    auto iter = async_resource_map.find(resource);
-    if (iter != async_resource_map.end()) {
-        swoole_fatal_error(SW_ERROR_CO_HAS_BEEN_BOUND,
-                           "resource(%p) has already been bound to another coroutine#%ld, "
-                           "%s of the same resource in coroutine#%ld at the same time is not allowed",
-                           resource,
-                           *iter,
-                           Coroutine::get_current_cid());
-        return nullptr;
-    }
-    return std::make_shared<AsyncLock>(resource);
 }
 
 bool wait_for(const std::function<bool(void)> &fn) {

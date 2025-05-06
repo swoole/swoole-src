@@ -463,6 +463,16 @@ int swoole_coroutine_feof(FILE *stream) {
     return retval;
 }
 
+int swoole_coroutine_fflush(FILE *stream) {
+    if (sw_unlikely(is_no_coro())) {
+        return fflush(stream);
+    }
+
+    int retval = -1;
+    async([&]() { retval = fflush(stream); });
+    return retval;
+}
+
 int swoole_coroutine_fclose(FILE *stream) {
     if (sw_unlikely(is_no_coro())) {
         return fclose(stream);

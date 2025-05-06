@@ -320,7 +320,7 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
     return true;
 }
 
-void Server::destroy_http_request(Connection *conn) {
+void ListenPort::destroy_http_request(Connection *conn) {
     auto request = reinterpret_cast<swoole::http_server::Request *>(conn->object);
     if (!request) {
         return;

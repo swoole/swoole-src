@@ -219,10 +219,6 @@ TEST(base, version) {
     ASSERT_EQ(swoole_api_version_id(), SWOOLE_API_VERSION_ID);
 }
 
-static std::string test_func(std::string test_data_2) {
-    return test_data + test_data_2;
-}
-
 TEST(base, hook) {
     int count = 0;
     swoole_add_hook(

@@ -179,7 +179,7 @@ int Server::reactor_process_main_loop(ProcessPool *pool, Worker *worker) {
     for (auto ls : serv->ports) {
 #if defined(__linux__) and defined(HAVE_REUSEPORT)
         if (ls->is_stream() && serv->enable_reuse_port) {
-            if (ls->create_socket(serv) < 0) {
+            if (ls->create_socket() < 0) {
                 swoole_event_free();
                 return SW_ERR;
             }

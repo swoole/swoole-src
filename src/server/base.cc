@@ -225,7 +225,7 @@ bool BaseFactory::finish(SendData *data) {
 bool BaseFactory::forward_message(Session *session, SendData *data) {
     Worker *worker = server_->gs->event_workers.get_worker(session->reactor_id);
     swoole_trace_log(SW_TRACE_SERVER,
-                     "fd=%d, worker_id=%d, type=%d, len=%ld",
+                     "fd=%d, worker_id=%d, type=%d, len=%u",
                      worker->pipe_master->get_fd(),
                      session->reactor_id,
                      data->info.type,
