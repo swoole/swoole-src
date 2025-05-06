@@ -233,20 +233,26 @@ TEST(log, set_stream) {
 }
 
 TEST(log, redirect_stdout_and_stderr) {
-    auto file = "/tmp/swoole.log";
-    auto str = "hello world, hello swoole\n";
+    auto pid = test::child_proc([]() {
+        auto file = "/tmp/swoole.log";
+        auto str = "hello world, hello swoole\n";
 
-    sw_logger()->reset();
-    sw_logger()->open(file);
-    sw_logger()->redirect_stdout_and_stderr(true);
+        sw_logger()->reset();
+        sw_logger()->open(file);
+        sw_logger()->redirect_stdout_and_stderr(true);
 
-    printf(str);
+        printf(str);
 
-    File f(file, File::READ);
-    auto rs = f.read_content();
+        File f(file, File::READ);
+        auto rs = f.read_content();
 
-    ASSERT_TRUE(rs->contains(str));
-    sw_logger()->redirect_stdout_and_stderr(false);
-    printf(str);
-    sw_logger()->close();
+        ASSERT_TRUE(rs->contains(str));
+        sw_logger()->redirect_stdout_and_stderr(false);
+        printf(str);
+        sw_logger()->close();
+    });
+
+    int status;
+    swoole_waitpid(pid, &status, 0);
+    ASSERT_EQ(status, 0);
 }
