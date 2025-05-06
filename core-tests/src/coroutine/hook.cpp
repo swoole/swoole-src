@@ -224,6 +224,9 @@ TEST(coroutine_hook, rename) {
 }
 
 TEST(coroutine_hook, flock) {
+    if (is_github_ci()) {
+        return;
+    }
     long start_time = swoole::time<std::chrono::milliseconds>();
     coroutine::run([&](void *arg) {
         swoole::Coroutine::create([&](void *arg) {

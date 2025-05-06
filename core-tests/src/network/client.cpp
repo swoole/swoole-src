@@ -307,9 +307,7 @@ static void test_async_client_dgram(const char *host, int port, enum swSocketTyp
         ac->send(SW_STRS(GREETER));
     });
 
-    ac.on_close([&](AsyncClient *ac) {
-        flags["onClose"] = true;
-    });
+    ac.on_close([&](AsyncClient *ac) { flags["onClose"] = true; });
 
     ac.on_error([&](AsyncClient *ac) {
         flags["onError"] = true;
