@@ -71,14 +71,14 @@ void array_add_or_merge(zval *zarray, const char *key, size_t key_len, zval *new
     zval *zresult = sw_zend_symtable_str_add(array, key, key_len, idx, numeric_key, new_element);
     // Adding element failed, indicating that this key already exists and must be converted to an array
     if (!zresult) {
-        zval *current_header = sw_zend_symtable_str_find(array, key, key_len, idx, numeric_key);
-        if (ZVAL_IS_ARRAY(current_header)) {
-            add_next_index_zval(current_header, new_element);
+        zval *current_elements = sw_zend_symtable_str_find(array, key, key_len, idx, numeric_key);
+        if (ZVAL_IS_ARRAY(current_elements)) {
+            add_next_index_zval(current_elements, new_element);
         } else {
             zval zvalue_array;
             array_init_size(&zvalue_array, 2);
-            Z_ADDREF_P(current_header);
-            add_next_index_zval(&zvalue_array, current_header);
+            Z_ADDREF_P(current_elements);
+            add_next_index_zval(&zvalue_array, current_elements);
             add_next_index_zval(&zvalue_array, new_element);
             sw_zend_symtable_str_update(array, key, key_len, idx, numeric_key, &zvalue_array);
         }

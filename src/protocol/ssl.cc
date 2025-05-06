@@ -64,6 +64,8 @@ void swoole_ssl_init(void) {
     SSL_library_init();
     SSL_load_error_strings();
     OpenSSL_add_all_algorithms();
+    OpenSSL_add_all_ciphers();
+    OpenSSL_add_all_digests();
 #endif
 
     ssl_connection_index = SSL_get_ex_new_index(0, nullptr, nullptr, nullptr, nullptr);
@@ -496,7 +498,6 @@ bool SSLContext::create() {
 
         SSL_CTX_set_session_id_context(context, (const unsigned char *) "HTTP", sizeof("HTTP") - 1);
         SSL_CTX_set_session_cache_mode(context, SSL_SESS_CACHE_SERVER);
-        SSL_CTX_sess_set_cache_size(context, 1);
     }
 #endif
 
@@ -669,7 +670,7 @@ bool SSLContext::set_dhparam() {
 
 #if OPENSSL_VERSION_MAJOR >= 3
     EVP_PKEY *pkey = PEM_read_bio_Parameters(bio, nullptr);
-    if (pkey  == nullptr) {
+    if (pkey == nullptr) {
         swoole_warning("PEM_read_bio_Parameters('%s') failed", file);
         BIO_free(bio);
         return false;
@@ -681,8 +682,6 @@ bool SSLContext::set_dhparam() {
         BIO_free(bio);
         return false;
     }
-
-    EVP_PKEY_free(pkey);
 #else
     DH *dh = PEM_read_bio_DHparams(bio, nullptr, nullptr, nullptr);
     if (dh == nullptr) {

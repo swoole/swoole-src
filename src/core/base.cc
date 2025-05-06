@@ -617,7 +617,7 @@ void swoole_redirect_stdout(int new_fd) {
 }
 
 void swoole_redirect_stdout(const char *file) {
-    auto fd = open(file, O_WRONLY | O_APPEND | O_CREAT);
+    auto fd = open(file, O_WRONLY | O_APPEND | O_CREAT, 0644);
     if (fd >= 0) {
         swoole_redirect_stdout(fd);
         close(fd);
