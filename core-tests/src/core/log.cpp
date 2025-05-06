@@ -120,19 +120,19 @@ TEST(log, rotation) {
 TEST(log, redirect_1) {
     auto status = test::spawn_exec_and_wait([]() {
         sw_logger()->reset();
-        ASSERT_FALSE(sw_logger()->redirect_stdout_and_stderr(1));  // no log file opened
-        ASSERT_FALSE(sw_logger()->redirect_stdout_and_stderr(0));  // no redirected
+        ASSERT_FALSE(sw_logger()->redirect_stdout_and_stderr(true));   // no log file opened
+        ASSERT_FALSE(sw_logger()->redirect_stdout_and_stderr(false));  // no redirected
 
         ASSERT_TRUE(sw_logger()->open(file));
-        ASSERT_TRUE(sw_logger()->redirect_stdout_and_stderr(1));
-        ASSERT_FALSE(sw_logger()->redirect_stdout_and_stderr(1));  // has been redirected
+        ASSERT_TRUE(sw_logger()->redirect_stdout_and_stderr(true));
+        ASSERT_FALSE(sw_logger()->redirect_stdout_and_stderr(true));  // has been redirected
 
         printf("hello world\n");
         auto content = file_get_contents(file);
         ASSERT_NE(content.get(), nullptr);
 
         sw_logger()->close();
-        ASSERT_TRUE(sw_logger()->redirect_stdout_and_stderr(0));
+        ASSERT_TRUE(sw_logger()->redirect_stdout_and_stderr(false));
         unlink(sw_logger()->get_real_file());
 
         ASSERT_TRUE(content->contains(SW_STRL("hello world\n")));

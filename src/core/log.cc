@@ -125,7 +125,7 @@ void Logger::set_rotation(int _rotation) {
     log_rotation = _rotation;
 }
 
-bool Logger::redirect_stdout_and_stderr(int enable) {
+bool Logger::redirect_stdout_and_stderr(bool enable) {
     if (enable) {
         if (!opened) {
             swoole_warning("no log file opened");

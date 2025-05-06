@@ -614,22 +614,13 @@ int Server::start() {
     }
     // run as daemon
     if (daemonize > 0) {
-        /**
-         * redirect STDOUT to log file
-         */
+        // redirect stdout/stderr to log file
         if (sw_logger()->is_opened()) {
-            sw_logger()->redirect_stdout_and_stderr(1);
+            sw_logger()->redirect_stdout_and_stderr(true);
         }
-        /**
-         * redirect STDOUT_FILENO/STDERR_FILENO to /dev/null
-         */
+        // redirect stdout/stderr to /dev/null
         else {
-            null_fd = open("/dev/null", O_WRONLY);
-            if (null_fd > 0) {
-                swoole_redirect_stdout(null_fd);
-            } else {
-                swoole_sys_warning("open(/dev/null) failed");
-            }
+            swoole_redirect_stdout("/dev/null");
         }
 
         if (swoole_daemon(0, 1) < 0) {
@@ -1026,10 +1017,7 @@ void Server::destroy() {
         sw_shm_free(user_workers);
         user_workers = nullptr;
     }
-    if (null_fd > 0) {
-        ::close(null_fd);
-        null_fd = -1;
-    }
+
     swoole_signal_clear();
 
     gs->start = 0;

@@ -74,7 +74,7 @@ class Logger {
     const char *get_real_file();
     const char *get_file();
     bool is_opened();
-    bool redirect_stdout_and_stderr(int enable);
+    bool redirect_stdout_and_stderr(bool enable);
     void set_date_with_microseconds(bool enable);
     std::string gen_real_file(const std::string &file);
     static std::string get_pretty_name(const std::string &prettyFunction, bool strip = true);
