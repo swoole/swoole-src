@@ -52,7 +52,7 @@ class Logger {
     bool display_backtrace_ = false;
     int stdout_fd = -1;
     int stderr_fd = -1;
-    int log_fd = STDOUT_FILENO;
+    FILE *log_fp = stdout;
     int log_level = SW_LOG_INFO;
     bool date_with_microseconds = false;
     std::string date_format = SW_LOG_DEFAULT_DATE_FORMAT;
@@ -62,6 +62,7 @@ class Logger {
 
   public:
     bool open(const char *logfile);
+    void set_stream(FILE *stream);
     void put(int level, const char *content, size_t length);
     void reopen();
     void close(void);

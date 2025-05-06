@@ -213,3 +213,40 @@ TEST(log, ignore_error) {
     ASSERT_FALSE(content->contains(SW_STRL("error 1")));
     ASSERT_TRUE(content->contains(SW_STRL("error 2")));
 }
+
+TEST(log, open_fail) {
+    sw_logger()->reset();
+    sw_logger()->set_level(SW_LOG_NOTICE);
+    sw_logger()->open("/tmp/not-exists/swoole.log");
+    sw_logger()->put(SW_LOG_ERROR, SW_STRL("hello world\n"));
+}
+
+TEST(log, set_stream) {
+    sw_logger()->reset();
+    char *buffer = NULL;
+    size_t size = 0;
+    FILE *stream = open_memstream(&buffer, &size);
+    sw_logger()->set_stream(stream);
+    sw_logger()->put(SW_LOG_ERROR, SW_STRL("hello world\n"));
+
+    ASSERT_NE(strstr(buffer, "ERROR\thello world"), nullptr);
+}
+
+TEST(log, redirect_stdout_and_stderr) {
+    auto file = "/tmp/swoole.log";
+    auto str = "hello world, hello swoole\n";
+
+    sw_logger()->reset();
+    sw_logger()->open(file);
+    sw_logger()->redirect_stdout_and_stderr(true);
+
+    printf(str);
+
+    File f(file, File::READ);
+    auto rs = f.read_content();
+
+    ASSERT_TRUE(rs->contains(str));
+    sw_logger()->redirect_stdout_and_stderr(false);
+    printf(str);
+    sw_logger()->close();
+}

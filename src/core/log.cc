@@ -70,10 +70,14 @@ bool Logger::open(const char *_log_file) {
         log_real_file = log_file;
     }
 
-    log_fd = ::open(log_real_file.c_str(), O_APPEND | O_RDWR | O_CREAT, 0666);
+    auto log_fd = ::open(log_real_file.c_str(), O_APPEND | O_RDWR | O_CREAT, 0666);
     if (log_fd < 0) {
-        printf("open(%s) failed. Error: %s[%d]\n", log_real_file.c_str(), strerror(errno), errno);
-        log_fd = STDOUT_FILENO;
+        swoole_error_log(SW_LOG_WARNING,
+                         SW_ERROR_SYSTEM_CALL_FAIL,
+                         "open('%s') failed. Error: %s[%d]",
+                         log_real_file.c_str(),
+                         strerror(errno),
+                         errno);
         opened = false;
         log_file = "";
         log_real_file = "";
@@ -81,15 +85,23 @@ bool Logger::open(const char *_log_file) {
         return false;
     } else {
         opened = true;
+        log_fp = fdopen(log_fd, "a");
 
         return true;
     }
 }
 
+void Logger::set_stream(FILE *stream) {
+    if (opened) {
+        close();
+    }
+    log_fp = stream;
+}
+
 void Logger::close(void) {
     if (opened) {
-        ::close(log_fd);
-        log_fd = STDOUT_FILENO;
+        fclose(log_fp);
+        log_fp = stdout;
         log_file = "";
         opened = false;
     }
@@ -131,7 +143,7 @@ bool Logger::redirect_stdout_and_stderr(int enable) {
             swoole_sys_warning("dup(STDERR_FILENO) failed");
             return false;
         }
-        swoole_redirect_stdout(log_fd);
+        swoole_redirect_stdout(fileno(log_fp));
         redirected = true;
     } else {
         if (!redirected) {
@@ -200,7 +212,7 @@ void Logger::reopen() {
      * redirect STDOUT & STDERR to log file
      */
     if (redirected) {
-        swoole_redirect_stdout(log_fd);
+        swoole_redirect_stdout(fileno(log_fp));
     }
 }
 
@@ -327,12 +339,13 @@ void Logger::put(int level, const char *content, size_t length) {
                     static_cast<int>(length),
                     content);
 
-    if (opened && flock(log_fd, LOCK_EX) == -1) {
-        return;
+    if (opened) {
+        flockfile(log_fp);
     }
-    write(log_fd, log_str, n);
-    if (opened && flock(log_fd, LOCK_UN) == -1) {
-        return;
+    fwrite(log_str, n, 1, log_fp);
+    fflush(log_fp);
+    if (opened) {
+        funlockfile(log_fp);
     }
     if (display_backtrace_) {
         swoole_print_backtrace();
