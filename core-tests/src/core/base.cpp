@@ -313,9 +313,11 @@ TEST(base, redirect_stdout) {
     auto status = test::spawn_exec_and_wait([&]() {
         swoole_redirect_stdout(file);
         printf(out_1);
+        fflush(stdout);
 
         swoole_redirect_stdout("/dev/null");
         printf(out_2);
+        fflush(stdout);
     });
     ASSERT_EQ(status, 0);
 

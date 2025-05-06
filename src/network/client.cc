@@ -593,6 +593,21 @@ static int Client_tcp_connect_sync(Client *cli, const char *host, int port, doub
     return ret;
 }
 
+static int Client_dns_lookup(Client *cli) {
+    AsyncEvent ev{};
+    auto req = new GethostbynameRequest(cli->server_host, cli->_sock_domain);
+    ev.data = std::shared_ptr<AsyncRequest>(req);
+    ev.object = cli;
+    ev.handler = async::handler_gethostbyname;
+    ev.callback = Client_onResolveCompleted;
+
+    if (swoole::async::dispatch(&ev) == nullptr) {
+        return SW_ERR;
+    } else {
+        return SW_OK;
+    }
+}
+
 static int Client_tcp_connect_async(Client *cli, const char *host, int port, double timeout, int nonblock) {
     int ret;
 
@@ -616,18 +631,7 @@ static int Client_tcp_connect_async(Client *cli, const char *host, int port, dou
     }
 
     if (cli->wait_dns) {
-        AsyncEvent ev{};
-        auto req = new GethostbynameRequest(cli->server_host, cli->_sock_domain);
-        ev.data = std::shared_ptr<AsyncRequest>(req);
-        ev.object = cli;
-        ev.handler = async::handler_gethostbyname;
-        ev.callback = Client_onResolveCompleted;
-
-        if (swoole::async::dispatch(&ev) == nullptr) {
-            return SW_ERR;
-        } else {
-            return SW_OK;
-        }
+        return Client_dns_lookup(cli);
     }
 
     while (1) {
@@ -781,6 +785,10 @@ static int Client_udp_connect(Client *cli, const char *host, int port, double ti
     if (cli->async && !cli->onReceive) {
         swoole_warning("onReceive callback have not set");
         return SW_ERR;
+    }
+
+    if (cli->wait_dns) {
+        return Client_dns_lookup(cli);
     }
 
     cli->active = 1;
@@ -1053,7 +1061,7 @@ static void Client_onResolveCompleted(AsyncEvent *event) {
     cli->wait_dns = 0;
 
     if (event->error == 0) {
-        Client_tcp_connect_async(cli, req->addr, cli->server_port, cli->timeout, 1);
+        cli->connect(cli, req->addr, cli->server_port, cli->timeout, 1);
     } else {
         swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
         cli->socket->removed = 1;
