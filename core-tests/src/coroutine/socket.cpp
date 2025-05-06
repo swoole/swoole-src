@@ -360,7 +360,8 @@ TEST(coroutine_socket, eof_4) {
 }
 
 TEST(coroutine_socket, eof_5) {
-    coroutine::run({[](void *arg) {
+    size_t pkt_len = 512 * 1024;
+    coroutine::run({[pkt_len](void *arg) {
                         Socket sock(SW_SOCK_TCP);
                         bool retval = sock.bind("127.0.0.1", 9909);
                         ASSERT_EQ(retval, true);
@@ -371,14 +372,15 @@ TEST(coroutine_socket, eof_5) {
                         ssize_t l = conn->recv(buf, sizeof(buf));
                         EXPECT_EQ(string(buf, l), string("start\r\n"));
 
-                        String *s = swoole::make_string(128 * 1024);
-                        s->repeat("A", 1, 128 * 1024 - 16);
+                        String *s = swoole::make_string(pkt_len);
+                        s->repeat("A", 1, pkt_len - 16);
                         s->append(SW_STRL(CRLF));
 
+                        conn->get_socket()->set_send_buffer_size(65536);
                         conn->send_all(s->str, s->length);
                     },
 
-                    [](void *arg) {
+                    [pkt_len](void *arg) {
                         Socket sock(SW_SOCK_TCP);
                         bool retval = sock.connect("127.0.0.1", 9909, -1);
                         ASSERT_EQ(retval, true);
@@ -387,8 +389,9 @@ TEST(coroutine_socket, eof_5) {
 
                         socket_set_eof_protocol(sock);
 
+                        sock.get_socket()->set_recv_buffer_size(65536);
                         ssize_t l = sock.recv_packet(RECV_TIMEOUT);
-                        ASSERT_EQ(l, 128 * 1024 - 14);
+                        ASSERT_EQ(l, pkt_len - 14);
                     }});
 }
 
@@ -954,6 +957,7 @@ void test_sendto_recvfrom(enum swSocketType sock_type) {
         size_t client_length = client_text.length();
 
         const char *ip = sock_type == SW_SOCK_UDP ? "127.0.0.1" : "::1";
+        const char *local = "localhost";
 
         int port = swoole::test::get_random_port();
 
@@ -986,7 +990,7 @@ void test_sendto_recvfrom(enum swSocketType sock_type) {
 
         // receive data from client
         char data_from_client[128] = {};
-        sock_client.sendto(ip, port, (const void *) client_text.c_str(), client_length);
+        sock_client.sendto(local, port, (const void *) client_text.c_str(), client_length);
         result = sock_server.recvfrom(data_from_client, client_length);
         data_from_client[client_length] = '\0';
         ASSERT_EQ(result, client_length);
