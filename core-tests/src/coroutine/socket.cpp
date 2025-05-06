@@ -24,6 +24,7 @@
 using swoole::Coroutine;
 using swoole::HttpProxy;
 using swoole::Protocol;
+using swoole::RecvData;
 using swoole::Socks5Proxy;
 using swoole::String;
 using swoole::coroutine::Socket;
@@ -89,12 +90,11 @@ TEST(coroutine_socket, recv_success) {
     int port = swoole::test::get_random_port();
 
     Process proc([port](Process *proc) {
-        on_receive_lambda_type receive_fn = [](ON_RECEIVE_PARAMS) {
-            SERVER_THIS->send(req->info.fd, req->data, req->info.len);
-        };
-
         Server serv(TEST_HOST, port, swoole::Server::MODE_BASE, SW_SOCK_TCP);
-        serv.on("onReceive", (void *) receive_fn);
+        serv.on("Receive", [](ON_RECEIVE_PARAMS) {
+            SERVER_THIS->send(req->info.fd, req->data, req->info.len);
+            return 0;
+        });
         serv.start();
     });
 
@@ -124,10 +124,11 @@ TEST(coroutine_socket, recv_fail) {
     int port = swoole::test::get_random_port();
 
     Process proc([port](Process *proc) {
-        on_receive_lambda_type receive_fn = [](ON_RECEIVE_PARAMS) { SERVER_THIS->close(req->info.fd, 0); };
-
         Server serv(TEST_HOST, port, swoole::Server::MODE_BASE, SW_SOCK_TCP);
-        serv.on("onReceive", (void *) receive_fn);
+        serv.on("Receive", [](ON_PACKET_PARAMS) -> int {
+            serv->close(req->info.fd, 0);
+            return 0;
+        });
         serv.start();
     });
 
