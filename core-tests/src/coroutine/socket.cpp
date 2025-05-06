@@ -30,11 +30,11 @@ using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 using swoole::network::Address;
 using swoole::network::IOVector;
+using swoole::test::coroutine;
 using swoole::test::create_http_proxy;
 using swoole::test::create_socks5_proxy;
-using swoole::test::Server;
-using swoole::test::coroutine;
 using swoole::test::Process;
+using swoole::test::Server;
 
 const std::string host = "www.baidu.com";
 
@@ -872,42 +872,55 @@ TEST(coroutine_socket, writev_and_readv) {
 
 TEST(coroutine_socket, writevall_and_readvall) {
     coroutine::run([&](void *arg) {
-        int iovcnt = 3;
+        int write_iovcnt = 4;
         int pairs[2];
-        std::string text = "Hello World";
+
+        char buf[65536];
+        swoole_random_bytes(buf, sizeof(buf));
+
+        std::string text(buf, sizeof(buf));
         size_t length = text.length();
         socketpair(AF_UNIX, SOCK_STREAM, 0, pairs);
 
         Coroutine::create([&](void *) {
-            std::unique_ptr<iovec[]> iov(new iovec[iovcnt]);
-            for (int i = 0; i < iovcnt; i++) {
+            std::unique_ptr<iovec[]> iov(new iovec[write_iovcnt]);
+            for (int i = 0; i < write_iovcnt; i++) {
                 iov[i].iov_base = (void *) text.c_str();
                 iov[i].iov_len = length;
             }
-            IOVector io_vector((struct iovec *) iov.get(), iovcnt);
 
             Socket sock(pairs[0], SW_SOCK_UNIX_STREAM);
-            ssize_t result = sock.writev_all(&io_vector);
+            sock.get_socket()->set_send_buffer_size(sizeof(buf));
+
+            IOVector io_vector1((struct iovec *) iov.get(), write_iovcnt);
+            ASSERT_EQ(sock.writev_all(&io_vector1), write_iovcnt * sizeof(buf));
+
+            System::sleep(0.01);
+
+            IOVector io_vector2((struct iovec *) iov.get(), write_iovcnt);
+            ASSERT_EQ(sock.writev_all(&io_vector2), write_iovcnt * sizeof(buf));
+
             sock.close();
-            ASSERT_EQ(result, length * 3);
         });
 
-        std::vector<std::string> results(iovcnt);
-        std::unique_ptr<iovec[]> iov(new iovec[iovcnt]);
-        for (int i = 0; i < iovcnt; i++) {
-            iov[i].iov_base = (void *) results[i].c_str();
+        int read_iovcnt = 8;
+        std::unique_ptr<iovec[]> iov(new iovec[read_iovcnt]);
+        for (int i = 0; i < read_iovcnt; i++) {
+            iov[i].iov_base = sw_malloc(length);
             iov[i].iov_len = length;
         }
-        IOVector io_vector((struct iovec *) iov.get(), iovcnt);
+        IOVector io_vector((struct iovec *) iov.get(), read_iovcnt);
 
         Socket sock(pairs[1], SW_SOCK_UNIX_STREAM);
+        sock.get_socket()->set_recv_buffer_size(sizeof(buf));
+
         ssize_t result = sock.readv_all(&io_vector);
         sock.close();
-        ASSERT_EQ(result, length * 3);
+        ASSERT_EQ(result, length * read_iovcnt);
 
-        for (auto iter = results.begin(); iter != results.end(); iter++) {
-            (*iter)[length] = '\0';
-            ASSERT_STREQ(text.c_str(), (*iter).c_str());
+        for (int i = 0; i < read_iovcnt; i++) {
+            ASSERT_MEMEQ(iov[i].iov_base, buf, sizeof(buf));
+            sw_free(iov[i].iov_base);
         }
     });
 }

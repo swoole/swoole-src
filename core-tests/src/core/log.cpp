@@ -159,6 +159,7 @@ TEST(log, redirect_2) {
         sw_logger()->redirect_stdout_and_stderr(false);
         printf(str);
         sw_logger()->close();
+        unlink(sw_logger()->get_real_file());
     });
 
     ASSERT_EQ(status, 0);
