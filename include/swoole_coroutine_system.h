@@ -61,6 +61,7 @@ class System {
     static void set_dns_cache_expire(time_t expire);
     static void set_dns_cache_capacity(size_t capacity);
     static void clear_dns_cache();
+    static float get_dns_cache_hit_ratio();
     /* multiplexing */
     static bool socket_poll(std::unordered_map<int, PollSocket> &fds, double timeout);
     /* wait */
