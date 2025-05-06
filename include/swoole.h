@@ -584,6 +584,7 @@ pid_t swoole_waitpid(pid_t __pid, int *__stat_loc, int __options);
 void swoole_thread_init(void);
 void swoole_thread_clean(void);
 void swoole_redirect_stdout(int new_fd);
+void swoole_redirect_stdout(const char *file);
 int swoole_shell_exec(const char *command, pid_t *pid, bool get_error_stream);
 int swoole_daemon(int nochdir, int noclose);
 bool swoole_set_task_tmpdir(const std::string &dir);

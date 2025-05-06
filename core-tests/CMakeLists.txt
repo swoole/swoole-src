@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.5)
 project(core_tests)
 
 #set(CMAKE_BUILD_TYPE Released)
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -g")
 
 file(GLOB_RECURSE SOURCE_FILES FOLLOW_SYMLINKS src/*.cpp deps/llhttp/src/*.c)

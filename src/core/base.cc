@@ -616,6 +616,16 @@ void swoole_redirect_stdout(int new_fd) {
     }
 }
 
+void swoole_redirect_stdout(const char *file) {
+    auto fd = open(file, O_WRONLY | O_APPEND | O_CREAT);
+    if (fd >= 0) {
+        swoole_redirect_stdout(fd);
+        close(fd);
+    } else {
+        swoole_sys_warning("open('%s') failed", file);
+    }
+}
+
 int swoole_version_compare(const char *version1, const char *version2) {
     int result = 0;
 

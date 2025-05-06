@@ -63,7 +63,7 @@ ssize_t file_get_size(int fd) {
 std::shared_ptr<String> file_get_contents(const std::string &filename) {
     File fp(filename, O_RDONLY);
     if (!fp.ready()) {
-        swoole_sys_warning("open(%s) failed", filename.c_str());
+        swoole_sys_warning("open('%s') failed", filename.c_str());
         return nullptr;
     }
 

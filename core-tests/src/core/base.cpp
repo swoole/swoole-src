@@ -305,3 +305,25 @@ TEST(base, only_dump) {
     swoole_dump_hex(data.c_str(), data.length());
     ASSERT_TRUE(true);
 }
+
+TEST(base, redirect_stdout) {
+    auto file = "/tmp/swoole.log";
+    auto out_1 = "hello world, hello swoole!\n";
+    auto out_2 = "write to /dev/null\n";
+    auto status = test::spawn_exec_and_wait([&]() {
+        swoole_redirect_stdout(file);
+        printf(out_1);
+        fflush(stdout);
+
+        swoole_redirect_stdout("/dev/null");
+        printf(out_2);
+        fflush(stdout);
+    });
+    ASSERT_EQ(status, 0);
+
+    auto rs = swoole::file_get_contents(file);
+    ASSERT_NE(rs, nullptr);
+    ASSERT_TRUE(rs->contains(out_1));
+    ASSERT_FALSE(rs->contains(out_2));
+    unlink(file);
+}

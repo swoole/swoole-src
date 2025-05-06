@@ -6,6 +6,7 @@
 #define GREETER_SIZE sizeof(GREETER)
 
 using swoole::HttpProxy;
+using swoole::Mutex;
 using swoole::Pipe;
 using swoole::Socks5Proxy;
 using swoole::String;
@@ -25,12 +26,11 @@ TEST(client, tcp) {
     int port = swoole::test::get_random_port();
 
     Process proc([port](Process *proc) {
-        on_receive_lambda_type receive_fn = [](ON_RECEIVE_PARAMS) {
-            SERVER_THIS->send(req->info.fd, req->data, req->info.len);
-        };
-
         Server serv(TEST_HOST, port, swoole::Server::MODE_BASE, SW_SOCK_TCP);
-        serv.on("onReceive", (void *) receive_fn);
+        serv.on("Receive", [](ON_RECEIVE_PARAMS) {
+            SERVER_THIS->send(req->info.fd, req->data, req->info.len);
+            return 0;
+        });
         serv.start();
     });
 
@@ -53,30 +53,32 @@ TEST(client, tcp) {
     wait(&status);
 }
 
-TEST(client, udp) {
+static void test_sync_client_dgram(const char *host, int port, enum swSocketType type) {
     int ret;
     char buf[128];
-    int port = swoole::test::get_random_port();
     pid_t pid;
 
-    Process proc([port](Process *proc) {
-        on_packet_lambda_type packet_fn = [](ON_PACKET_PARAMS) {
+    Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
+    lock->lock();
+
+    Process proc([&](Process *proc) {
+        Server serv(host, port, swoole::Server::MODE_BASE, type);
+        serv.on("Packet", [](ON_PACKET_PARAMS) -> int {
             swoole::DgramPacket *packet = (swoole::DgramPacket *) req->data;
             SERVER_THIS->sendto(packet->socket_addr, packet->data, packet->length, req->info.server_fd);
-        };
-
-        Server serv(TEST_HOST, port, swoole::Server::MODE_BASE, SW_SOCK_UDP);
-        serv.on("onPacket", (void *) packet_fn);
+            return 0;
+        });
+        serv.on("Start", [lock](ON_START_PARAMS) { lock->unlock(); });
         serv.start();
     });
 
     pid = proc.start();
 
-    sleep(1);  // wait for the test server to start
+    lock->lock();
 
-    Client cli(SW_SOCK_UDP, false);
+    Client cli(type, false);
     ASSERT_NE(cli.socket, nullptr);
-    ret = cli.connect(&cli, TEST_HOST, port, -1, 0);
+    ret = cli.connect(&cli, host, port, -1, 0);
     ASSERT_EQ(ret, 0);
     ret = cli.send(&cli, SW_STRS(GREETER), 0);
     ASSERT_GT(ret, 0);
@@ -89,30 +91,40 @@ TEST(client, udp) {
     wait(&status);
 }
 
-static void test_async_client_tcp(const char *host, int port) {
-    pid_t pid;
+TEST(client, udp) {
+    int port = swoole::test::get_random_port();
+    test_sync_client_dgram("127.0.0.1", port, SW_SOCK_UDP);
+}
 
+TEST(client, udp6) {
+    int port = swoole::test::get_random_port();
+    test_sync_client_dgram("::1", port, SW_SOCK_UDP6);
+}
+
+TEST(client, udg) {
+    test_sync_client_dgram("/tmp/swoole_core_tests.sock", 0, SW_SOCK_UNIX_DGRAM);
+}
+
+static void test_async_client_tcp(const char *host, int port, enum swSocketType type) {
+    pid_t pid;
     Pipe p(true);
     ASSERT_TRUE(p.ready());
 
-    Process proc([&p, port](Process *proc) {
-        on_receive_lambda_type receive_fn = [](ON_RECEIVE_PARAMS) {
-            SERVER_THIS->send(req->info.fd, req->data, req->info.len);
-        };
-
-        Server serv(TEST_HOST, port, swoole::Server::MODE_BASE, SW_SOCK_TCP);
+    Process proc([&](Process *proc) {
+        Server serv(TEST_HOST, port, swoole::Server::MODE_BASE, type);
 
         serv.set_private_data("pipe", &p);
 
-        serv.on("onReceive", (void *) receive_fn);
+        serv.on("Receive", [](ON_RECEIVE_PARAMS) {
+            SERVER_THIS->send(req->info.fd, req->data, req->info.len);
+            return 0;
+        });
 
-        on_workerstart_lambda_type worker_start_fn = [](ON_WORKERSTART_PARAMS) {
+        serv.on("WorkerStart", [](ON_WORKER_START_PARAMS) {
             Pipe *p = (Pipe *) SERVER_THIS->get_private_data("pipe");
             int64_t value = 1;
             p->write(&value, sizeof(value));
-        };
-
-        serv.on("onWorkerStart", (void *) worker_start_fn);
+        });
 
         serv.start();
     });
@@ -124,7 +136,7 @@ static void test_async_client_tcp(const char *host, int port) {
 
     swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
 
-    AsyncClient ac(SW_SOCK_TCP);
+    AsyncClient ac(type);
 
     ac.on_connect([](AsyncClient *ac) { ac->send(SW_STRS(GREETER)); });
 
@@ -152,11 +164,19 @@ static void test_async_client_tcp(const char *host, int port) {
 }
 
 TEST(client, async_tcp) {
-    test_async_client_tcp(TEST_HOST, swoole::test::get_random_port());
+    test_async_client_tcp(TEST_HOST, swoole::test::get_random_port(), SW_SOCK_TCP);
 }
 
 TEST(client, async_tcp_dns) {
-    test_async_client_tcp("localhost", swoole::test::get_random_port());
+    test_async_client_tcp("localhost", swoole::test::get_random_port(), SW_SOCK_TCP);
+}
+
+TEST(client, async_tcp6) {
+    test_async_client_tcp("::1", swoole::test::get_random_port(), SW_SOCK_TCP6);
+}
+
+TEST(client, async_tcp6_dns) {
+    test_async_client_tcp("localhost", swoole::test::get_random_port(), SW_SOCK_TCP6);
 }
 
 TEST(client, sleep) {
@@ -193,6 +213,137 @@ TEST(client, connect_refuse) {
     ret = cli.connect(&cli, TEST_HOST, swoole::test::get_random_port(), -1, 0);
     ASSERT_EQ(ret, -1);
     ASSERT_EQ(swoole_get_last_error(), ECONNREFUSED);
+}
+
+TEST(client, async_unix_connect_refuse) {
+    swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
+
+    std::unordered_map<std::string, bool> flags;
+
+    AsyncClient ac(SW_SOCK_UNIX_DGRAM);
+
+    ac.on_connect([](AsyncClient *ac) { ac->send(SW_STRS(GREETER)); });
+
+    ac.on_close([](AsyncClient *ac) {
+
+    });
+
+    ac.on_error([&](AsyncClient *ac) { flags["onError"] = true; });
+
+    ac.on_receive([](AsyncClient *ac, const char *data, size_t len) {
+        ASSERT_EQ(len, GREETER_SIZE);
+        ASSERT_STREQ(GREETER, data);
+        ac->close();
+    });
+
+    bool retval = ac.connect("/tmp/swoole-not-exists.sock", 0);
+
+    ASSERT_EQ(retval, false);
+    ASSERT_TRUE(flags["onError"]);
+    ASSERT_EQ(errno, ENOENT);
+
+    swoole_event_wait();
+}
+
+TEST(client, async_connect_timeout) {
+    swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
+
+    std::unordered_map<std::string, bool> flags;
+
+    AsyncClient ac(SW_SOCK_TCP);
+
+    ac.on_connect([](AsyncClient *ac) { ac->send(SW_STRS(GREETER)); });
+
+    ac.on_close([](AsyncClient *ac) {
+
+    });
+
+    ac.on_error([&](AsyncClient *ac) {
+        flags["onError"] = true;
+        ASSERT_EQ(swoole_get_last_error(), ETIMEDOUT);
+    });
+
+    ac.on_receive([](AsyncClient *ac, const char *data, size_t len) {
+        ASSERT_EQ(len, GREETER_SIZE);
+        ASSERT_STREQ(GREETER, data);
+        ac->close();
+    });
+
+    ASSERT_TRUE(ac.connect("192.168.1.199", 19999, 0.2));
+    swoole_event_wait();
+
+    ASSERT_TRUE(flags["onError"]);
+}
+
+static void test_async_client_dgram(const char *host, int port, enum swSocketType type) {
+    pid_t pid;
+
+    Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
+    lock->lock();
+
+    Process proc([&](Process *proc) {
+        Server serv(host, port, swoole::Server::MODE_BASE, type);
+        serv.on("Packet", [](ON_PACKET_PARAMS) -> int {
+            swoole::DgramPacket *packet = (swoole::DgramPacket *) req->data;
+            SERVER_THIS->sendto(packet->socket_addr, packet->data, packet->length, req->info.server_fd);
+            return 0;
+        });
+        serv.on("Start", [lock](ON_START_PARAMS) { lock->unlock(); });
+        serv.start();
+    });
+
+    pid = proc.start();
+
+    lock->lock();
+
+    swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
+
+    std::unordered_map<std::string, bool> flags;
+
+    AsyncClient ac(type);
+
+    ac.on_connect([&](AsyncClient *ac) {
+        flags["onConnect"] = true;
+        ac->send(SW_STRS(GREETER));
+    });
+
+    ac.on_close([&](AsyncClient *ac) { flags["onClose"] = true; });
+
+    ac.on_error([&](AsyncClient *ac) {
+        flags["onError"] = true;
+        ASSERT_EQ(swoole_get_last_error(), ETIMEDOUT);
+    });
+
+    ac.on_receive([&](AsyncClient *ac, const char *data, size_t len) {
+        flags["onReceive"] = true;
+        ASSERT_EQ(len, GREETER_SIZE);
+        ASSERT_STREQ(GREETER, data);
+        ac->close();
+    });
+
+    ASSERT_TRUE(ac.connect(host, port, 0.2));
+    swoole_event_wait();
+
+    kill(pid, SIGTERM);
+    int status;
+    wait(&status);
+
+    ASSERT_TRUE(flags["onConnect"]);
+    ASSERT_TRUE(flags["onReceive"]);
+    ASSERT_TRUE(flags["onClose"]);
+    ASSERT_FALSE(flags["onError"]);
+}
+
+TEST(client, async_udp) {
+    test_async_client_dgram(TEST_HOST, swoole::test::get_random_port(), SW_SOCK_UDP);
+}
+
+TEST(client, async_udp_dns) {
+    test_async_client_dgram("localhost", swoole::test::get_random_port(), SW_SOCK_UDP);
+}
+
+TEST(client, async_udp6) {
+    test_async_client_dgram("::1", swoole::test::get_random_port(), SW_SOCK_UDP6);
 }
 
 TEST(client, connect_timeout) {
