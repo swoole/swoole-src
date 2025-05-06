@@ -107,7 +107,7 @@ int get_random_port() {
     return TEST_PORT + swoole_system_random(1, 10000);
 }
 
-pid_t child_proc(const std::function<void(void)> &fn) {
+pid_t spawn_exec(const std::function<void(void)> &fn) {
     pid_t child_pid = fork();
     if (child_pid == -1) {
         throw std::system_error();
@@ -116,6 +116,16 @@ pid_t child_proc(const std::function<void(void)> &fn) {
         exit(0);
     }
     return child_pid;
+}
+
+int spawn_exec_and_wait(const std::function<void(void)> &fn) {
+    int status;
+    pid_t pid = spawn_exec(fn);
+    if (swoole_waitpid(pid, &status, 0) == pid) {
+        return status;
+    } else {
+        return -1;
+    }
 }
 
 }  // namespace test

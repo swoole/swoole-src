@@ -27,15 +27,17 @@ using namespace swoole;
 TEST(os, daemon) {
     auto sid = getsid(getpid());
     int status;
-    swoole_waitpid(test::child_proc([sid](){
-        ASSERT_EQ(sid, getsid(getpid()));
-        ASSERT_TRUE(isatty(STDIN_FILENO));
+    swoole_waitpid(test::spawn_exec([sid]() {
+                       ASSERT_EQ(sid, getsid(getpid()));
+                       ASSERT_TRUE(isatty(STDIN_FILENO));
 
-        ASSERT_EQ(swoole_daemon(0, 0), 0);
-        ASSERT_NE(sid, getsid(getpid()));
+                       ASSERT_EQ(swoole_daemon(0, 0), 0);
+                       ASSERT_NE(sid, getsid(getpid()));
 
-        ASSERT_FALSE(isatty(STDIN_FILENO));
-    }), &status, 0);
+                       ASSERT_FALSE(isatty(STDIN_FILENO));
+                   }),
+                   &status,
+                   0);
 }
 
 TEST(os, cpu_affinity) {
@@ -62,7 +64,7 @@ TEST(os, cpu_affinity) {
 }
 
 TEST(os, thread_name) {
-    std::thread t([](){
+    std::thread t([]() {
         char new_name[512];
         auto thread_name = "sw-core-tests";
         ASSERT_TRUE(swoole_thread_set_name(thread_name));
