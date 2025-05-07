@@ -601,6 +601,7 @@ class ThreadFactory : public BaseFactory {
     bool reload_all_workers;
     bool reloading;
     Worker manager;
+    void at_thread_enter(int id, int process_type, int thread_type);
     void at_thread_exit(Worker *worker);
     void create_message_bus();
     void destroy_message_bus();

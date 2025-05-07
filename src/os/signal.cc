@@ -67,6 +67,7 @@ static inline bool swoole_signalfd_is_available() {
 #endif
 static Signal signals[SW_SIGNO_MAX];
 static bool triggered_signals[SW_SIGNO_MAX];
+static thread_local bool blocking_all = false;
 
 char *swoole_signal_to_str(int sig) {
     static char buf[64];
@@ -79,20 +80,30 @@ char *swoole_signal_to_str(int sig) {
 }
 
 void swoole_signal_block_all(void) {
+    if (blocking_all) {
+        return;
+    }
     sigset_t mask;
     sigfillset(&mask);
     int ret = pthread_sigmask(SIG_BLOCK, &mask, nullptr);
     if (ret < 0) {
         swoole_sys_warning("pthread_sigmask(SIG_BLOCK) failed");
+    } else {
+        blocking_all = true;
     }
 }
 
 void swoole_signal_unblock_all(void) {
+    if (!blocking_all) {
+        return;
+    }
     sigset_t mask;
     sigfillset(&mask);
     int ret = pthread_sigmask(SIG_UNBLOCK, &mask, nullptr);
     if (ret < 0) {
         swoole_sys_warning("pthread_sigmask(SIG_UNBLOCK) failed");
+    } else {
+        blocking_all = false;
     }
 }
 

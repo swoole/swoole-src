@@ -79,10 +79,22 @@ bool ThreadFactory::shutdown() {
 
 ThreadFactory::~ThreadFactory() {}
 
+void ThreadFactory::at_thread_enter(int id, int process_type, int thread_type) {
+    swoole_thread_init(false);
+
+    swoole_set_process_type(process_type);
+    swoole_set_thread_type(thread_type);
+    swoole_set_process_id(id);
+    swoole_set_thread_id(id);
+}
+
 void ThreadFactory::at_thread_exit(Worker *worker) {
-    std::unique_lock<std::mutex> _lock(lock_);
-    queue_.push(worker);
-    cv_.notify_one();
+    if (worker) {
+        std::unique_lock<std::mutex> _lock(lock_);
+        queue_.push(worker);
+        cv_.notify_one();
+    }
+    swoole_thread_clean(false);
 }
 
 void ThreadFactory::create_message_bus() {
@@ -105,25 +117,22 @@ void ThreadFactory::destroy_message_bus() {
 
 void ThreadFactory::spawn_event_worker(WorkerId i) {
     threads_[i]->start([=]() {
-        swoole_set_process_type(SW_PROCESS_EVENTWORKER);
-        swoole_set_thread_type(Server::THREAD_WORKER);
-        swoole_set_process_id(i);
-        swoole_set_thread_id(i);
+        at_thread_enter(i, SW_PROCESS_EVENTWORKER, Server::THREAD_WORKER);
+
         Worker *worker = server_->get_worker(i);
         worker->type = SW_PROCESS_EVENTWORKER;
         worker->pid = swoole_thread_get_native_id();
         SwooleWG.worker = worker;
         server_->worker_thread_start(threads_[i], [=]() { Server::reactor_thread_main_loop(server_, i); });
+
         at_thread_exit(worker);
     });
 }
 
 void ThreadFactory::spawn_task_worker(WorkerId i) {
     threads_[i]->start([=]() {
-        swoole_set_process_type(SW_PROCESS_TASKWORKER);
-        swoole_set_thread_type(Server::THREAD_WORKER);
-        swoole_set_process_id(i);
-        swoole_set_thread_id(i);
+        at_thread_enter(i, SW_PROCESS_TASKWORKER, Server::THREAD_WORKER);
+
         create_message_bus();
         Worker *worker = server_->get_worker(i);
         worker->type = SW_PROCESS_TASKWORKER;
@@ -141,33 +150,31 @@ void ThreadFactory::spawn_task_worker(WorkerId i) {
             }
         });
         destroy_message_bus();
+
         at_thread_exit(worker);
     });
 }
 
 void ThreadFactory::spawn_user_worker(WorkerId i) {
     threads_[i]->start([=]() {
-        Worker *worker = server_->get_worker(i);
-        swoole_set_process_type(SW_PROCESS_USERWORKER);
-        swoole_set_thread_type(Server::THREAD_WORKER);
-        swoole_set_process_id(i);
-        swoole_set_thread_id(i);
+        at_thread_enter(i, SW_PROCESS_USERWORKER, Server::THREAD_WORKER);
+
         create_message_bus();
+        Worker *worker = server_->get_worker(i);
         worker->type = SW_PROCESS_USERWORKER;
         worker->pid = swoole_thread_get_native_id();
         SwooleWG.worker = worker;
         server_->worker_thread_start(threads_[i], [=]() { server_->onUserWorkerStart(server_, worker); });
         destroy_message_bus();
+
         at_thread_exit(worker);
     });
 }
 
 void ThreadFactory::spawn_manager_thread(WorkerId i) {
     threads_[i]->start([=]() {
-        swoole_set_process_type(SW_PROCESS_MANAGER);
-        swoole_set_thread_type(Server::THREAD_WORKER);
-        swoole_set_process_id(i);
-        swoole_set_thread_id(i);
+        at_thread_enter(i, SW_PROCESS_MANAGER, Server::THREAD_WORKER);
+
         manager.id = i;
         manager.type = SW_PROCESS_MANAGER;
 
@@ -191,6 +198,8 @@ void ThreadFactory::spawn_manager_thread(WorkerId i) {
         }
 
         swoole_timer_set_scheduler(nullptr);
+
+        at_thread_exit(nullptr);
     });
 }
 
