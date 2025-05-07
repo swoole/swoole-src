@@ -228,7 +228,7 @@ class ThreadPool {
 
 void ThreadPool::main_func(bool is_core_worker) {
     bool exit_flag = false;
-    swoole_thread_init();
+    swoole_thread_init(false);
 
     while (running) {
         event_mutex.lock();
@@ -313,7 +313,7 @@ void ThreadPool::main_func(bool is_core_worker) {
             --n_waiting;
         }
     }
-    swoole_thread_clean();
+    swoole_thread_clean(false);
 }
 
 void ThreadPool::create_thread(const bool is_core_worker) {

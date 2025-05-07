@@ -277,6 +277,7 @@ TEST(process_pool, listen) {
         c.close();
 
         kill(getpid(), SIGTERM);
+        swoole_signal_unblock_all();
     });
 
     ASSERT_EQ(pool.wait(), SW_OK);

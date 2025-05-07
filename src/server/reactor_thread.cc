@@ -720,9 +720,9 @@ int Server::start_reactor_threads() {
 
     SW_LOOP_N(reactor_num) {
         get_thread(i)->thread = std::thread([=]() {
-            swoole_thread_init();
+            swoole_thread_init(false);
             reactor_thread_main_loop(this, i);
-            swoole_thread_clean();
+            swoole_thread_clean(false);
         });
     }
 

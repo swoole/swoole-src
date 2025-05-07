@@ -581,8 +581,8 @@ void swoole_exit(int __status);
 pid_t swoole_fork(int flags);
 pid_t swoole_fork_exec(const std::function<void(void)> &child_fn);
 pid_t swoole_waitpid(pid_t __pid, int *__stat_loc, int __options);
-void swoole_thread_init(void);
-void swoole_thread_clean(void);
+void swoole_thread_init(bool main_thread);
+void swoole_thread_clean(bool main_thread);
 void swoole_redirect_stdout(int new_fd);
 void swoole_redirect_stdout(const char *file);
 int swoole_shell_exec(const char *command, pid_t *pid, bool get_error_stream);
@@ -696,6 +696,7 @@ struct ThreadGlobal {
 #endif
     String *buffer_stack;
     Reactor *reactor;
+    Logger *logger;
     Timer *timer;
     TimerScheduler timer_scheduler;
     MessageBus *message_bus;

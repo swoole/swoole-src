@@ -54,6 +54,7 @@
 #endif
 #endif
 
+using swoole::Logger;
 using swoole::NameResolver;
 using swoole::String;
 using swoole::coroutine::System;
@@ -101,12 +102,10 @@ thread_local swoole::ThreadGlobal SwooleTG = {};
 thread_local char sw_error[SW_ERROR_MSG_SIZE];
 std::mutex sw_thread_lock;
 
-static swoole::Logger *g_logger_instance = nullptr;
-
 static void swoole_fatal_error_impl(int code, const char *format, ...);
 
 swoole::Logger *sw_logger() {
-    return g_logger_instance;
+    return SwooleTG.logger;
 }
 
 void *sw_malloc(size_t size) {
@@ -170,7 +169,7 @@ void swoole_init(void) {
 
     SwooleG.pid = getpid();
 
-    g_logger_instance = new swoole::Logger;
+    swoole_thread_init(true);
 
 #ifdef SW_DEBUG
     sw_logger()->set_level(0);
@@ -189,8 +188,6 @@ void swoole_init(void) {
         SwooleG.max_sockets = SW_MAX((uint32_t) rlmt.rlim_cur, SW_MAX_SOCKETS_DEFAULT);
         SwooleG.max_sockets = SW_MIN((uint32_t) rlmt.rlim_cur, SW_SESSION_LIST_SIZE);
     }
-
-    SwooleTG.buffer_stack = new swoole::String(SW_STACK_BUFFER_SIZE);
 
     if (!swoole_set_task_tmpdir(SW_TASK_TMP_DIR)) {
         exit(4);
@@ -238,22 +235,9 @@ SW_API int swoole_api_version_id(void) {
 SW_EXTERN_C_END
 
 void swoole_clean(void) {
-    if (SwooleTG.timer) {
-        swoole_timer_free();
-    }
-    if (SwooleTG.reactor) {
-        swoole_event_free();
-    }
+    swoole_thread_clean(true);
     if (SwooleG.memory_pool != nullptr) {
         delete SwooleG.memory_pool;
-    }
-    if (g_logger_instance) {
-        delete g_logger_instance;
-        g_logger_instance = nullptr;
-    }
-    if (SwooleTG.buffer_stack) {
-        delete SwooleTG.buffer_stack;
-        SwooleTG.buffer_stack = nullptr;
     }
     SW_LOOP_N(SW_MAX_HOOK_TYPE) {
         if (SwooleG.hooks[i]) {
@@ -398,14 +382,9 @@ pid_t swoole_fork(int flags) {
                 swoole_trace_log(SW_TRACE_REACTOR, "reactor has been destroyed");
             }
         } else {
-            /**
-             * close log fd
-             */
             sw_logger()->close();
         }
-        /**
-         * reset signal handler
-         */
+        // reset signal handler
         swoole_signal_clear();
 
         if (swoole_isset_hook(SW_GLOBAL_HOOK_AFTER_FORK)) {
@@ -416,17 +395,33 @@ pid_t swoole_fork(int flags) {
     return pid;
 }
 
-void swoole_thread_init(void) {
+void swoole_thread_init(bool main_thread) {
     if (!SwooleTG.buffer_stack) {
         SwooleTG.buffer_stack = new String(SW_STACK_BUFFER_SIZE);
     }
-    swoole_signal_block_all();
+    if (!SwooleTG.logger) {
+        SwooleTG.logger = new Logger();
+    }
+    if (!main_thread) {
+        swoole_signal_block_all();
+    }
 }
 
-void swoole_thread_clean(void) {
+void swoole_thread_clean(bool main_thread) {
+    if (SwooleTG.timer) {
+        swoole_timer_free();
+    }
+    if (SwooleTG.reactor) {
+        swoole_event_free();
+    }
     if (SwooleTG.buffer_stack) {
         delete SwooleTG.buffer_stack;
         SwooleTG.buffer_stack = nullptr;
+    }
+    if (SwooleTG.logger) {
+        SwooleTG.logger->close();
+        delete SwooleTG.logger;
+        SwooleTG.logger = nullptr;
     }
 }
 

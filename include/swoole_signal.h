@@ -53,6 +53,7 @@ SW_API swSignalHandler swoole_signal_get_handler(int signo);
 
 SW_API void swoole_signal_clear(void);
 SW_API void swoole_signal_block_all(void);
+SW_API void swoole_signal_unblock_all(void);
 SW_API char *swoole_signal_to_str(int sig);
 SW_API void swoole_signal_callback(int signo);
 /**

@@ -78,15 +78,21 @@ char *swoole_signal_to_str(int sig) {
     return buf;
 }
 
-/**
- * block all singal
- */
 void swoole_signal_block_all(void) {
     sigset_t mask;
     sigfillset(&mask);
     int ret = pthread_sigmask(SIG_BLOCK, &mask, nullptr);
     if (ret < 0) {
-        swoole_sys_warning("pthread_sigmask() failed");
+        swoole_sys_warning("pthread_sigmask(SIG_BLOCK) failed");
+    }
+}
+
+void swoole_signal_unblock_all(void) {
+    sigset_t mask;
+    sigfillset(&mask);
+    int ret = pthread_sigmask(SIG_UNBLOCK, &mask, nullptr);
+    if (ret < 0) {
+        swoole_sys_warning("pthread_sigmask(SIG_UNBLOCK) failed");
     }
 }
 
