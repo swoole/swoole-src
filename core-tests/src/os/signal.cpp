@@ -37,26 +37,23 @@ TEST(os_signal, signalfd) {
 #endif
 
 TEST(os_signal, block) {
-    ASSERT_EQ(swoole::test::spawn_exec_and_wait([](){
-        sysv_signal(SIGIO, [](int signo){
-            exit(255);
-        });
+    ASSERT_EQ(swoole::test::spawn_exec_and_wait([]() {
+                  sysv_signal(SIGIO, [](int signo) { exit(255); });
 
-        std::thread t([]{
-            swoole_signal_block_all();
-            pthread_kill(pthread_self(), SIGIO);
-        });
-        t.join();
-    }), 0);
+                  std::thread t([] {
+                      swoole_signal_block_all();
+                      pthread_kill(pthread_self(), SIGIO);
+                  });
+                  t.join();
+              }),
+              0);
 }
 
 TEST(os_signal, unblock) {
-    auto status = swoole::test::spawn_exec_and_wait([](){
-        sysv_signal(SIGIO, [](int signo){
-            exit(255);
-        });
+    auto status = swoole::test::spawn_exec_and_wait([]() {
+        sysv_signal(SIGIO, [](int signo) { exit(255); });
 
-        std::thread t([]{
+        std::thread t([] {
             swoole_signal_block_all();
             pthread_kill(pthread_self(), SIGIO);
             swoole_signal_unblock_all();

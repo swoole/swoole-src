@@ -197,6 +197,11 @@ void ThreadFactory::spawn_manager_thread(WorkerId i) {
             swoole_warning("Fatal Error: manager thread exits abnormally");
         }
 
+        /*
+         * In the function that closes the timer, the scheduler is called again;
+         * therefore, it is essential to set the scheduler to null after the timer has been consumed.
+         */
+        swoole_timer_free();
         swoole_timer_set_scheduler(nullptr);
 
         at_thread_exit(nullptr);
