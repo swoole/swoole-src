@@ -183,7 +183,11 @@ static void timer_add(INTERNAL_FUNCTION_PARAMETERS, bool persistent) {
         php_swoole_check_reactor();
     }
 
-    tnode = swoole_timer_add(ms, persistent, timer_callback, fci);
+    /**
+     * In certain systems, such as macOS, zend_long is the long long type,
+     * and it must be explicitly converted to long.
+     */
+    tnode = swoole_timer_add((long) ms, persistent, timer_callback, fci);
     if (UNEXPECTED(!tnode)) {
         php_swoole_fatal_error(E_WARNING, "add timer failed");
         goto _failed;
