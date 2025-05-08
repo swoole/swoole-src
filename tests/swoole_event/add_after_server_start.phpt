@@ -26,8 +26,8 @@ $pm->childFunc = function () use ($pm) {
         'log_file' => '/dev/null',
     ));
     $serv->on("start", function (Server $serv) use ($pm) {
-        $fp = stream_socket_client("tcp://" . TEST_DOMAIN_2 . ":80", $errno, $errstr, 30);
-        fwrite($fp, "GET / HTTP/1.1\r\nHost: " . TEST_DOMAIN_2 . "\r\n\r\n");
+        $fp = stream_socket_client("tcp://" . TEST_DOMAIN_3 . ":80", $errno, $errstr, 30);
+        fwrite($fp, "GET / HTTP/1.1\r\nHost: " . TEST_DOMAIN_3 . "\r\n\r\n");
 
         Swoole\Event::add($fp, function ($fp) use ($pm) {
             $resp = fread($fp, 8192);

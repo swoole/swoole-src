@@ -154,6 +154,8 @@ if (IS_IN_CI) {
     define('TEST_DOMAIN_2', 'www.qq.com');
 }
 
+define('TEST_DOMAIN_3', 'www.gov.cn');
+
 /** =============== IP ================ */
 define('IP_REGEX', '/^(?:[\d]{1,3}\.){3}[\d]{1,3}$/');
 
