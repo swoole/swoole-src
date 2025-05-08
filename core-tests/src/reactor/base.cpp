@@ -140,6 +140,67 @@ TEST(reactor, write) {
     ASSERT_EQ(SwooleTG.reactor, nullptr);
 }
 
+TEST(reactor, wait_timeout) {
+    ASSERT_EQ(swoole_event_init(SW_EVENTLOOP_WAIT_EXIT), SW_OK);
+    ASSERT_NE(SwooleTG.reactor, nullptr);
+
+    struct timeval tmo;
+    tmo.tv_sec = 0;
+    tmo.tv_usec = 30000;
+
+    auto started_at = swoole::microtime();
+    ASSERT_EQ(sw_reactor()->wait(&tmo), SW_OK);
+
+    auto dr = swoole::microtime() - started_at;
+    ASSERT_GE(dr, 0.03);
+    ASSERT_LT(dr, 0.05);
+
+    swoole_event_free();
+}
+
+TEST(reactor, wait_error) {
+    ASSERT_EQ(swoole_event_init(SW_EVENTLOOP_WAIT_EXIT), SW_OK);
+    ASSERT_NE(SwooleTG.reactor, nullptr);
+
+    // ERROR: EINVAL epfd is not an epoll file descriptor, or maxevents is less than or equal to zero.
+    sw_reactor()->max_event_num = 0;
+    ASSERT_EQ(sw_reactor()->wait(nullptr), SW_ERR);
+    ASSERT_EQ(errno, EINVAL);
+
+    swoole_event_free();
+}
+
+TEST(reactor, writev) {
+    network::Socket fake_sock{};
+
+    UnixSocket p(true, SOCK_DGRAM);
+    ASSERT_TRUE(p.ready());
+
+    fake_sock.fd = p.get_socket(true)->get_fd();
+
+    swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
+
+    struct iovec iov[2];
+
+    iov[0].iov_base = (void *) "hello ";
+    iov[0].iov_len = 6;
+
+    iov[1].iov_base = (void *) "world\n";
+    iov[1].iov_len = 6;
+
+    ASSERT_EQ(swoole_event_writev(&fake_sock, iov, 2), 12);
+
+    char buf[32];
+    ASSERT_EQ(p.get_socket(false)->read(buf, sizeof(buf)), 12);
+    ASSERT_MEMEQ("hello world\n", buf, 12);
+
+    fake_sock.ssl = (SSL *) -1;
+    ASSERT_EQ(swoole_event_writev(&fake_sock, iov, 2), -1);
+    ASSERT_EQ(swoole_get_last_error(), SW_ERROR_OPERATION_NOT_SUPPORT);
+
+    swoole_event_wait();
+}
+
 constexpr int DATA_SIZE = 2 * SW_NUM_MILLION;
 
 TEST(reactor, write_2m) {
@@ -389,8 +450,16 @@ TEST(reactor, error) {
     bad_sock.removed = 1;
     bad_sock.fd_type = SW_FD_PIPE;
     bad_sock.fd = dup(p.get_socket(false)->get_fd());
+    ASSERT_EQ(reactor->del(&bad_sock), SW_ERR);
+    ASSERT_EQ(swoole_get_last_error(), SW_ERROR_EVENT_REMOVE_FAILED);
+
     ASSERT_EQ(reactor->add(&bad_sock, SW_EVENT_READ), SW_OK);
     close(bad_sock.fd);
+
+    ASSERT_EQ(reactor->set(&bad_sock, SW_EVENT_READ | SW_EVENT_READ), SW_ERR);
+    ASSERT_EQ(errno, EBADF);
+    ASSERT_EQ(swoole_get_last_error(), SW_ERROR_EVENT_UPDATE_FAILED);
+
     ASSERT_EQ(reactor->del(&bad_sock), SW_OK);
 
     delete reactor;
@@ -448,4 +517,43 @@ TEST(reactor, drain_write_buffer) {
     ASSERT_EQ(ret, SW_OK);
     ASSERT_FALSE(swoole_event_is_available());
     t.join();
+}
+
+TEST(reactor, handle_fail) {
+    int ret;
+    UnixSocket p(true, SOCK_DGRAM);
+    ASSERT_TRUE(p.ready());
+
+    ASSERT_EQ(swoole_event_init(SW_EVENTLOOP_WAIT_EXIT), SW_OK);
+    ASSERT_NE(SwooleTG.reactor, nullptr);
+
+    swoole_event_set_handler(SW_FD_PIPE | SW_EVENT_READ, [](Reactor *reactor, Event *ev) -> int {
+        char buffer[16];
+
+        ssize_t n = ev->socket->read(buffer, sizeof(buffer));
+        EXPECT_EQ(strlen(pkt), n);
+        EXPECT_MEMEQ(pkt, buffer, n);
+        EXPECT_EQ(reactor->del(ev->socket), 0);
+
+        EXPECT_EQ(reactor->get_event_num(), 0);
+
+        return SW_ERR;
+    });
+
+    swoole_event_set_handler(SW_FD_PIPE | SW_EVENT_WRITE, [](Reactor *reactor, Event *ev) -> int {
+        EXPECT_EQ(reactor->set(ev->socket, SW_EVENT_READ), 0);
+        UnixSocket *p = (UnixSocket *) ev->socket->object;
+        swoole_timer_after(10, [p](auto r1, auto r2) { p->get_socket(true)->write(pkt, strlen(pkt)); });
+        return SW_ERR;
+    });
+
+    auto sock = p.get_socket(false);
+    sock->object = &p;
+
+    ret = swoole_event_add(sock, SW_EVENT_READ | SW_EVENT_WRITE);
+    ASSERT_EQ(ret, SW_OK);
+
+    ret = swoole_event_wait();
+    ASSERT_EQ(ret, SW_OK);
+    ASSERT_EQ(SwooleTG.reactor, nullptr);
 }

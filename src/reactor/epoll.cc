@@ -154,11 +154,12 @@ int ReactorEpoll::set(Socket *socket, int events) {
     if (ret < 0) {
         swoole_error_log(SW_LOG_WARNING,
                          SW_ERROR_EVENT_UPDATE_FAILED,
-                         "failed to set events[fd=%d#%d, type=%d, events=%d]",
+                         "failed to set events[fd=%d#%d, type=%d, events=%d, error=%d]",
                          socket->fd,
                          reactor_->id,
                          socket->fd_type,
-                         events);
+                         events,
+                         errno);
         swoole_print_backtrace_on_error();
         return SW_ERR;
     }
@@ -194,7 +195,11 @@ int ReactorEpoll::wait(struct timeval *timeo) {
         n = epoll_wait(epfd_, events_, max_event_num, reactor_->get_timeout_msec());
         if (n < 0) {
             if (!reactor_->catch_error()) {
-                swoole_sys_warning("[Reactor#%d] epoll_wait failed", reactor_id);
+                swoole_sys_warning("[Reactor#%d] epoll_wait(epfd=%d, max_events=%d, timeout=%d) failed",
+                                   reactor_id,
+                                   epfd_,
+                                   max_event_num,
+                                   reactor_->get_timeout_msec());
                 return SW_ERR;
             } else {
                 goto _continue;
