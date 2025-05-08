@@ -74,7 +74,7 @@ ReactorImpl *make_reactor_kqueue(Reactor *_reactor, int max_events) {
 ReactorKqueue::ReactorKqueue(Reactor *reactor, int max_events) : ReactorImpl(reactor) {
     epfd_ = kqueue();
     if (epfd_ < 0) {
-        swoole_warning("[swReactorKqueueCreate] kqueue_create[0] fail");
+        swoole_sys_warning("kqueue() failed");
         return;
     }
 
@@ -290,7 +290,7 @@ int ReactorKqueue::wait(struct timeval *timeo) {
         n = ::kevent(epfd_, nullptr, 0, events_, event_max_, t_ptr);
         if (n < 0) {
             if (!reactor_->catch_error()) {
-                swoole_warning("kqueue[#%d], epfd=%d", reactor_->id, epfd_);
+                swoole_sys_warning("kevent(epfd=%d) failed ", epfd_);
                 return SW_ERR;
             } else {
                 goto _continue;
@@ -339,7 +339,8 @@ int ReactorKqueue::wait(struct timeval *timeo) {
                 break;
             }
             default:
-                swoole_warning("unknown event filter[%d]", kevent->filter);
+                swoole_error_log(
+                    SW_LOG_WARNING, SW_ERROR_EVENT_UNKNOWN_DATA, "unknown event filter[%d]", kevent->filter);
                 break;
             }
         }

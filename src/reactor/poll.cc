@@ -62,14 +62,14 @@ ReactorPoll::~ReactorPoll() {
 int ReactorPoll::add(Socket *socket, int events) {
     int fd = socket->fd;
     if (exists(fd)) {
-        swoole_warning("fd#%d is already exists", fd);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_EVENT_ADD_FAILED, "socket#%d is already exists", fd);
         swoole_print_backtrace_on_error();
         return SW_ERR;
     }
 
     int cur = reactor_->get_event_num();
     if (reactor_->get_event_num() == max_fd_num) {
-        swoole_warning("too many connection, more than %d", max_fd_num);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_EVENT_ADD_FAILED, "too many connection, more than %d", max_fd_num);
         swoole_print_backtrace_on_error();
         return SW_ERR;
     }
@@ -146,6 +146,7 @@ int ReactorPoll::del(Socket *socket) {
         }
     }
 
+    swoole_error_log(SW_LOG_WARNING, SW_ERROR_SOCKET_NOT_EXISTS, "socket#%d not found", socket->fd);
     return SW_ERR;
 }
 

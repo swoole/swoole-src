@@ -384,6 +384,15 @@ TEST(reactor, error) {
     ASSERT_EQ(reactor->add(p.get_socket(false), SW_EVENT_READ), SW_OK);
     ASSERT_EQ(reactor->add(p.get_socket(false), SW_EVENT_WRITE), SW_ERR);
     ASSERT_EQ(swoole_get_last_error(), SW_ERROR_EVENT_ADD_FAILED);
+
+    network::Socket bad_sock;
+    bad_sock.removed = 1;
+    bad_sock.fd_type = SW_FD_PIPE;
+    bad_sock.fd = dup(p.get_socket(false)->get_fd());
+    ASSERT_EQ(reactor->add(&bad_sock, SW_EVENT_READ), SW_OK);
+    close(bad_sock.fd);
+    ASSERT_EQ(reactor->del(&bad_sock), SW_OK);
+
     delete reactor;
 
     reactor = new Reactor(1024, Reactor::TYPE_POLL);
@@ -392,4 +401,51 @@ TEST(reactor, error) {
     ASSERT_EQ(reactor->del(p.get_socket(false)), SW_ERR);
     ASSERT_EQ(swoole_get_last_error(), SW_ERROR_EVENT_REMOVE_FAILED);
     delete reactor;
+}
+
+TEST(reactor, drain_write_buffer) {
+    int ret;
+    UnixSocket p(true, SOCK_STREAM);
+    ASSERT_TRUE(p.ready());
+
+    ASSERT_EQ(swoole_event_init(SW_EVENTLOOP_WAIT_EXIT), SW_OK);
+
+    p.set_blocking(false);
+    p.set_buffer_size(65536);
+
+    String str(DATA_SIZE);
+    str.append_random_bytes(str.size - 1, false);
+    str.append('\0');
+
+    auto wsock = p.get_socket(true);
+
+    auto n = swoole_event_write(wsock, str.value(), str.get_length());
+    ASSERT_EQ(n, str.get_length());
+    ASSERT_GT(wsock->out_buffer->length(), 1024);
+
+    std::thread t([&]() {
+        usleep(10000);
+        auto rsock = p.get_socket(false);
+
+        String rbuf(DATA_SIZE);
+        while (true) {
+            rsock->wait_event(1000, SW_EVENT_READ);
+            auto n = rsock->read(rbuf.str + rbuf.length, rbuf.size - rbuf.length);
+            if (n > 0) {
+                rbuf.length += n;
+                if (rbuf.length == rbuf.size) {
+                    break;
+                }
+            }
+        }
+
+        ASSERT_MEMEQ(rbuf.str, str.str, DATA_SIZE);
+    });
+
+    sw_reactor()->drain_write_buffer(wsock);
+
+    ret = swoole_event_wait();
+    ASSERT_EQ(ret, SW_OK);
+    ASSERT_FALSE(swoole_event_is_available());
+    t.join();
 }

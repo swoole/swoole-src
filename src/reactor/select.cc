@@ -67,7 +67,7 @@ ReactorSelect::ReactorSelect(Reactor *reactor) : ReactorImpl(reactor) {
 int ReactorSelect::add(Socket *socket, int events) {
     int fd = socket->fd;
     if (fd > FD_SETSIZE) {
-        swoole_warning("max fd value is FD_SETSIZE(%d)", FD_SETSIZE);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_EVENT_ADD_FAILED, "max fd value is FD_SETSIZE(%d)", FD_SETSIZE);
         swoole_print_backtrace_on_error();
         return SW_ERR;
     }
@@ -92,7 +92,7 @@ int ReactorSelect::del(Socket *socket) {
     }
     int fd = socket->fd;
     if (fds.erase(fd) == 0) {
-        swoole_warning("fd[%d] not found", fd);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SOCKET_NOT_EXISTS, "socket#%d not found", fd);
         swoole_print_backtrace_on_error();
         return SW_ERR;
     }
@@ -106,7 +106,7 @@ int ReactorSelect::del(Socket *socket) {
 int ReactorSelect::set(Socket *socket, int events) {
     auto i = fds.find(socket->fd);
     if (i == fds.end()) {
-        swoole_warning("socket[%d] not found", socket->fd);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SOCKET_NOT_EXISTS, "socket#%d not found", socket->fd);
         return SW_ERR;
     }
     reactor_->_set(socket, events);

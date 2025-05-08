@@ -71,7 +71,7 @@ ReactorImpl *make_reactor_epoll(Reactor *_reactor, int max_events) {
 ReactorEpoll::ReactorEpoll(Reactor *_reactor, int max_events) : ReactorImpl(_reactor) {
     epfd_ = epoll_create(512);
     if (!ready()) {
-        swoole_sys_warning("epoll_create failed");
+        swoole_sys_warning("epoll_create() failed");
         return;
     }
 
@@ -126,8 +126,13 @@ int ReactorEpoll::del(Socket *_socket) {
         swoole_print_backtrace_on_error();
         return SW_ERR;
     }
+
     if (epoll_ctl(epfd_, EPOLL_CTL_DEL, _socket->fd, nullptr) < 0) {
         after_removal_failure(_socket);
+        /**
+         * Before removing it from the epoll event loop, the close operation has be executed,
+         * must cleanup related resources with this socket.
+         */
         if (errno != EBADF && errno != ENOENT) {
             return SW_ERR;
         }

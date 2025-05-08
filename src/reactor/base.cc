@@ -52,11 +52,12 @@ void ReactorImpl::after_removal_failure(Socket *_socket) {
     if (!_socket->silent_remove) {
         swoole_error_log(SW_LOG_WARNING,
                          SW_ERROR_EVENT_REMOVE_FAILED,
-                         "failed to delete events[fd=%d#%d, type=%d, events=%d]",
+                         "failed to delete events[fd=%d#%d, type=%d, events=%d, errno=%d]",
                          _socket->fd,
                          reactor_->id,
                          _socket->fd_type,
-                         _socket->events);
+                         _socket->events,
+                         errno);
         swoole_print_backtrace_on_error();
     }
 }
@@ -165,11 +166,7 @@ Reactor::Reactor(int max_event, Type _type) {
 
 bool Reactor::set_handler(int _fdtype, ReactorHandler handler) {
     int fdtype = get_fd_type(_fdtype);
-
-    if (fdtype >= SW_MAX_FDTYPE) {
-        swoole_warning("fdtype > SW_MAX_FDTYPE[%d]", SW_MAX_FDTYPE);
-        return false;
-    }
+    assert(fdtype < SW_MAX_FDTYPE);
 
     if (isset_read_event(_fdtype)) {
         read_handler[fdtype] = handler;
@@ -178,7 +175,7 @@ bool Reactor::set_handler(int _fdtype, ReactorHandler handler) {
     } else if (isset_error_event(_fdtype)) {
         error_handler[fdtype] = handler;
     } else {
-        swoole_warning("unknown fdtype");
+        assert(0);
         return false;
     }
 
