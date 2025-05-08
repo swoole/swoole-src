@@ -58,6 +58,7 @@ std::string Logger::get_pretty_name(const std::string &pretty_function, bool str
 }
 
 bool Logger::open(const char *_log_file) {
+    std::unique_lock<std::mutex> _(lock);
     if (opened) {
         close();
     }
@@ -92,6 +93,7 @@ bool Logger::open(const char *_log_file) {
 }
 
 void Logger::set_stream(FILE *stream) {
+    std::unique_lock<std::mutex> _(lock);
     if (opened) {
         close();
     }
@@ -197,20 +199,11 @@ void Logger::set_date_with_microseconds(bool enable) {
     date_with_microseconds = enable;
 }
 
-/**
- * reopen log file
- */
 void Logger::reopen() {
+    std::unique_lock<std::mutex> _(lock);
     if (!opened) {
         return;
     }
-
-    /**
-     * The logger object is a global resource upon entry,
-     * and when concurrently executing reopen in a multithreaded environment,
-     * it is essential to implement locking to prevent race conditions.
-     */
-    std::unique_lock(lock);
 
     std::string new_log_file(log_file);
     close();
