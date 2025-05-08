@@ -245,12 +245,14 @@ void swoole_clean(void) {
             delete hooks;
         }
     }
+
     swoole_signal_clear();
+    swoole_thread_clean(true);
+
     if (SwooleG.logger) {
         SwooleG.logger->close();
         delete SwooleG.logger;
     }
-    swoole_thread_clean(true);
     if (SwooleG.memory_pool != nullptr) {
         delete SwooleG.memory_pool;
     }

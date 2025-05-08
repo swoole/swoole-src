@@ -486,7 +486,7 @@ static PHP_METHOD(swoole_process, signal) {
 #endif
             signal_fci_caches[signo] = nullptr;
             swoole_event_defer(sw_callable_free, fci_cache);
-            SwooleTG.signal_listener_num--;
+            SwooleG.signal_listener_num--;
             RETURN_TRUE;
         } else {
             php_swoole_error(E_WARNING, "unable to find the callback of signal [" ZEND_LONG_FMT "]", signo);
@@ -506,7 +506,7 @@ static PHP_METHOD(swoole_process, signal) {
         if (signal_fci_caches[signo]) {
             sw_callable_free(signal_fci_caches[signo]);
         } else {
-            SwooleTG.signal_listener_num++;
+            SwooleG.signal_listener_num++;
         }
         signal_fci_caches[signo] = fci_cache;
 #ifdef SW_USE_THREAD_CONTEXT
@@ -521,7 +521,7 @@ static PHP_METHOD(swoole_process, signal) {
     if (!SwooleTG.reactor->isset_exit_condition(Reactor::EXIT_CONDITION_SIGNAL_LISTENER)) {
         SwooleTG.reactor->set_exit_condition(Reactor::EXIT_CONDITION_SIGNAL_LISTENER,
                                              [](Reactor *reactor, size_t &event_num) -> bool {
-                                                 return SwooleTG.signal_listener_num == 0 or !SwooleG.wait_signal;
+                                                 return SwooleG.signal_listener_num == 0 or !SwooleG.wait_signal;
                                              });
     }
 
@@ -529,7 +529,7 @@ static PHP_METHOD(swoole_process, signal) {
         // free the old fci_cache
         swoole_event_defer(sw_callable_free, signal_fci_caches[signo]);
     } else {
-        SwooleTG.signal_listener_num++;
+        SwooleG.signal_listener_num++;
     }
     signal_fci_caches[signo] = fci_cache;
 

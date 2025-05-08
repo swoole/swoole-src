@@ -691,6 +691,7 @@ struct RecvData {
 struct ThreadGlobal {
     uint16_t id;
     uint8_t type;
+    int32_t error;
 #ifdef SW_THREAD
     uint8_t process_type;
     uint32_t process_id;
@@ -704,9 +705,7 @@ struct ThreadGlobal {
 #ifdef SW_USE_IOURING
     Iouring *iouring;
 #endif
-    uint32_t signal_listener_num;
-    uint32_t co_signal_listener_num;
-    int error;
+    bool signal_blocking_all;
 };
 
 struct Allocator {
@@ -762,6 +761,8 @@ struct Global {
     int signal_fd;
     bool signal_alarm;
     bool signal_dispatch;
+    uint32_t signal_listener_num;
+    uint32_t signal_async_listener_num;
 
     long trace_flags;
 
