@@ -83,8 +83,6 @@ TEST(stream, send) {
         swoole_event_wait();
 
         kill(getpid(), SIGTERM);
-
-        swoole_signal_unblock_all();
     });
 
     serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock.unlock(); };

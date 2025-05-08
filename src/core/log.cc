@@ -197,10 +197,7 @@ void Logger::set_date_with_microseconds(bool enable) {
     date_with_microseconds = enable;
 }
 
-/**
- * reopen log file
- */
-void Logger::reopen() {
+void Logger::reopen_without_lock() {
     if (!opened) {
         return;
     }
@@ -208,12 +205,14 @@ void Logger::reopen() {
     std::string new_log_file(log_file);
     close();
     open(new_log_file.c_str());
-    /**
-     * redirect STDOUT & STDERR to log file
-     */
     if (redirected) {
         swoole_redirect_stdout(fileno(log_fp));
     }
+}
+
+void Logger::reopen() {
+    std::unique_lock<std::mutex> _lock(lock);
+    reopen_without_lock();
 }
 
 const char *Logger::get_real_file() {
@@ -259,7 +258,6 @@ void Logger::put(int level, const char *content, size_t length) {
     const char *level_str;
     char date_str[SW_LOG_DATE_STRLEN];
     char log_str[SW_LOG_BUFFER_SIZE];
-    int n;
 
     if (level < log_level) {
         return;
@@ -293,8 +291,12 @@ void Logger::put(int level, const char *content, size_t length) {
 
     if (log_rotation) {
         std::string tmp = gen_real_file(log_file);
-        if (tmp != log_real_file) {
-            reopen();
+        /**
+         * If the current thread fails to acquire the lock, it will forgo executing the log rotation.
+         */
+        if (tmp != log_real_file && lock.try_lock()) {
+            reopen_without_lock();
+            lock.unlock();
         }
     }
 
@@ -327,18 +329,19 @@ void Logger::put(int level, const char *content, size_t length) {
         break;
     }
 
-    n = sw_snprintf(log_str,
-                    SW_LOG_BUFFER_SIZE,
-                    "[%.*s %c%d.%d]\t%s\t%.*s\n",
-                    static_cast<int>(l_data_str),
-                    date_str,
-                    process_flag,
-                    SwooleG.pid,
-                    process_id,
-                    level_str,
-                    static_cast<int>(length),
-                    content);
+    size_t n = sw_snprintf(log_str,
+                           SW_LOG_BUFFER_SIZE,
+                           "[%.*s %c%d.%d]\t%s\t%.*s\n",
+                           static_cast<int>(l_data_str),
+                           date_str,
+                           process_flag,
+                           SwooleG.pid,
+                           process_id,
+                           level_str,
+                           static_cast<int>(length),
+                           content);
 
+    lock.lock();
     if (opened) {
         flockfile(log_fp);
     }
@@ -347,6 +350,8 @@ void Logger::put(int level, const char *content, size_t length) {
     if (opened) {
         funlockfile(log_fp);
     }
+    lock.unlock();
+
     if (display_backtrace_) {
         swoole_print_backtrace();
     }

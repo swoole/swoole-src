@@ -85,7 +85,7 @@ int System::sleep(double sec) {
         swoole_event_defer([co, canceled](void *data) { sleep_callback(co, canceled); }, nullptr);
     } else {
         auto fn = [canceled](Timer *timer, TimerNode *tnode) { sleep_callback((Coroutine *) tnode->data, canceled); };
-        tnode = swoole_timer_add((long) (sec * 1000), false, fn, co);
+        tnode = swoole_timer_add(sec, false, fn, co);
         if (tnode == nullptr) {
             delete canceled;
             return -1;
@@ -275,7 +275,7 @@ int System::wait_signal(const std::vector<int> &signals, double timeout) {
         -1,
     };
 
-    if (SwooleTG.signal_listener_num > 0) {
+    if (SwooleG.signal_listener_num > 0) {
         swoole_set_last_error(EBUSY);
         return -1;
     }
@@ -309,10 +309,10 @@ int System::wait_signal(const std::vector<int> &signals, double timeout) {
     if (!sw_reactor()->isset_exit_condition(Reactor::EXIT_CONDITION_CO_SIGNAL_LISTENER)) {
         sw_reactor()->set_exit_condition(
             Reactor::EXIT_CONDITION_CO_SIGNAL_LISTENER,
-            [](Reactor *reactor, size_t &event_num) -> bool { return SwooleTG.co_signal_listener_num == 0; });
+            [](Reactor *reactor, size_t &event_num) -> bool { return SwooleG.signal_async_listener_num == 0; });
     }
 
-    SwooleTG.co_signal_listener_num++;
+    SwooleG.signal_async_listener_num++;
 
     bool retval = listener.co->yield_ex(timeout);
 
@@ -325,7 +325,7 @@ int System::wait_signal(const std::vector<int> &signals, double timeout) {
         listeners[signo] = nullptr;
     }
 
-    SwooleTG.co_signal_listener_num--;
+    SwooleG.signal_async_listener_num--;
 
     return retval ? listener.signo : -1;
 }

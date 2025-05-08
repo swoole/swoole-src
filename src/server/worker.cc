@@ -277,10 +277,6 @@ void Server::worker_start_callback(Worker *worker) {
         }
     }
 
-    if (sw_logger()->is_opened()) {
-        sw_logger()->reopen();
-    }
-
     worker->set_status_to_idle();
 
     if (is_process_mode()) {

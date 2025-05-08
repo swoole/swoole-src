@@ -136,3 +136,5 @@ void handler_getaddrinfo(AsyncEvent *event);
 
 }  // namespace async
 };  // namespace swoole
+
+swoole::AsyncThreads *sw_async_threads();

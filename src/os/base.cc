@@ -122,7 +122,7 @@ long swoole_thread_get_native_id(void) {
     return native_id;
 }
 
-static bool check_pthread_return_code(int rc) {
+static bool check_pthread_return_value(int rc) {
     if (rc == 0) {
         return true;
     } else {
@@ -133,14 +133,14 @@ static bool check_pthread_return_code(int rc) {
 
 bool swoole_thread_set_name(const char *name) {
 #if defined(__APPLE__)
-    return check_pthread_return_code(pthread_setname_np(name));
+    return check_pthread_return_value(pthread_setname_np(name));
 #else
-    return check_pthread_return_code(pthread_setname_np(pthread_self(), name));
+    return check_pthread_return_value(pthread_setname_np(pthread_self(), name));
 #endif
 }
 
 bool swoole_thread_get_name(char *buf, size_t len) {
-    return check_pthread_return_code(pthread_getname_np(pthread_self(), buf, len));
+    return check_pthread_return_value(pthread_getname_np(pthread_self(), buf, len));
 }
 
 namespace swoole {

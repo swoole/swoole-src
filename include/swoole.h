@@ -219,6 +219,7 @@ struct TimerNode;
 struct Event;
 class Pipe;
 class MessageBus;
+class Server;
 namespace network {
 struct Socket;
 struct Address;
@@ -690,13 +691,13 @@ struct RecvData {
 struct ThreadGlobal {
     uint16_t id;
     uint8_t type;
+    int32_t error;
 #ifdef SW_THREAD
     uint8_t process_type;
     uint32_t process_id;
 #endif
     String *buffer_stack;
     Reactor *reactor;
-    Logger *logger;
     Timer *timer;
     TimerScheduler timer_scheduler;
     MessageBus *message_bus;
@@ -704,9 +705,7 @@ struct ThreadGlobal {
 #ifdef SW_USE_IOURING
     Iouring *iouring;
 #endif
-    uint32_t signal_listener_num;
-    uint32_t co_signal_listener_num;
-    int error;
+    bool signal_blocking_all;
 };
 
 struct Allocator {
@@ -762,6 +761,8 @@ struct Global {
     int signal_fd;
     bool signal_alarm;
     bool signal_dispatch;
+    uint32_t signal_listener_num;
+    uint32_t signal_async_listener_num;
 
     long trace_flags;
 
@@ -776,7 +777,10 @@ struct Global {
     MemoryPool *memory_pool;
     Allocator std_allocator;
     std::string task_tmpfile;
-    //-----------------------[DNS]--------------------------
+    //------------------[Single Instance]----------------------
+    Logger *logger;
+    Server *server;
+    //-----------------------[DNS]-----------------------------
     std::string dns_server_host;
     int dns_server_port;
     double dns_cache_refresh_time;
@@ -784,7 +788,7 @@ struct Global {
     std::string dns_resolvconf_path;
     std::string dns_hosts_path;
     std::list<NameResolver> name_resolvers;
-    //-----------------------[AIO]--------------------------
+    //-----------------------[AIO]----------------------------
     uint32_t aio_core_worker_num;
     uint32_t aio_worker_num;
 #ifdef SW_USE_IOURING

@@ -79,20 +79,30 @@ char *swoole_signal_to_str(int sig) {
 }
 
 void swoole_signal_block_all(void) {
+    if (SwooleTG.signal_blocking_all) {
+        return;
+    }
     sigset_t mask;
     sigfillset(&mask);
     int ret = pthread_sigmask(SIG_BLOCK, &mask, nullptr);
     if (ret < 0) {
         swoole_sys_warning("pthread_sigmask(SIG_BLOCK) failed");
+    } else {
+        SwooleTG.signal_blocking_all = true;
     }
 }
 
 void swoole_signal_unblock_all(void) {
+    if (!SwooleTG.signal_blocking_all) {
+        return;
+    }
     sigset_t mask;
     sigfillset(&mask);
     int ret = pthread_sigmask(SIG_UNBLOCK, &mask, nullptr);
     if (ret < 0) {
         swoole_sys_warning("pthread_sigmask(SIG_UNBLOCK) failed");
+    } else {
+        SwooleTG.signal_blocking_all = false;
     }
 }
 
@@ -211,6 +221,10 @@ SignalHandler swoole_signal_get_handler(int signo) {
     } else {
         return signals[signo].handler;
     }
+}
+
+uint32_t swoole_signal_get_listener_num(void) {
+    return SwooleG.signal_listener_num + SwooleG.signal_async_listener_num;
 }
 
 void swoole_signal_clear(void) {

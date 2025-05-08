@@ -892,7 +892,7 @@ int ProcessPool::wait() {
                     reload_init = true;
                     memcpy(reload_workers, workers, sizeof(Worker) * worker_num);
                     if (max_wait_time) {
-                        swoole_timer_add((long) (max_wait_time * 1000), false, kill_timeout_worker, this);
+                        swoole_timer_add(sec2msec((long) max_wait_time), false, kill_timeout_worker, this);
                     }
                 }
                 goto _kill_worker;

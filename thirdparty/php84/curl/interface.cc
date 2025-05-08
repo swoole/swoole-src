@@ -2177,7 +2177,7 @@ PHP_FUNCTION(swoole_native_curl_setopt) {
     Z_PARAM_ZVAL(zvalue)
     ZEND_PARSE_PARAMETERS_END();
 
-    if ((ch = swoole_curl_get_handle(zid)) == NULL) {
+    if ((ch = swoole_curl_get_handle(zid, false)) == NULL) {
         RETURN_FALSE;
     }
 
@@ -2201,7 +2201,7 @@ PHP_FUNCTION(swoole_native_curl_setopt_array) {
     Z_PARAM_ARRAY(arr)
     ZEND_PARSE_PARAMETERS_END();
 
-    if ((ch = swoole_curl_get_handle(zid)) == NULL) {
+    if ((ch = swoole_curl_get_handle(zid, false)) == NULL) {
         RETURN_FALSE;
     }
 

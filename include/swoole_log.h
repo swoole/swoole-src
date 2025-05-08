@@ -58,13 +58,20 @@ class Logger {
     std::string date_format = SW_LOG_DEFAULT_DATE_FORMAT;
     std::string log_file = "";
     std::string log_real_file;
+    std::mutex lock;
     int log_rotation = SW_LOG_ROTATION_SINGLE;
+
+    void reopen_without_lock();
 
   public:
     bool open(const char *logfile);
-    void set_stream(FILE *stream);
-    void put(int level, const char *content, size_t length);
     void reopen();
+    void set_stream(FILE *stream);
+    /**
+     * Only the `put` and `reopen` functions are thread-safe,
+     * other functions must be used in a single-threaded environment.
+     */
+    void put(int level, const char *content, size_t length);
     void close(void);
     void reset();
     void set_level(int lv);
