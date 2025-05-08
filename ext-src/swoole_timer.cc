@@ -183,7 +183,7 @@ static void timer_add(INTERNAL_FUNCTION_PARAMETERS, bool persistent) {
         php_swoole_check_reactor();
     }
 
-    tnode = swoole_timer_add((long) ms, persistent, timer_callback, fci);
+    tnode = swoole_timer_add(ms, persistent, timer_callback, fci);
     if (UNEXPECTED(!tnode)) {
         php_swoole_fatal_error(E_WARNING, "add timer failed");
         goto _failed;

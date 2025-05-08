@@ -201,7 +201,9 @@ void ThreadFactory::spawn_manager_thread(WorkerId i) {
          * In the function that closes the timer, the scheduler is called again;
          * therefore, it is essential to set the scheduler to null after the timer has been consumed.
          */
-        swoole_timer_free();
+        if (swoole_timer_is_available()) {
+            swoole_timer_free();
+        }
         swoole_timer_set_scheduler(nullptr);
 
         at_thread_exit(nullptr);

@@ -85,7 +85,7 @@ int System::sleep(double sec) {
         swoole_event_defer([co, canceled](void *data) { sleep_callback(co, canceled); }, nullptr);
     } else {
         auto fn = [canceled](Timer *timer, TimerNode *tnode) { sleep_callback((Coroutine *) tnode->data, canceled); };
-        tnode = swoole_timer_add((long) (sec * 1000), false, fn, co);
+        tnode = swoole_timer_add(sec, false, fn, co);
         if (tnode == nullptr) {
             delete canceled;
             return -1;

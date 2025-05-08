@@ -207,7 +207,7 @@ void Manager::wait(Server *_server) {
     }
 
     if (_server->manager_alarm > 0) {
-        swoole_timer_add((long) (_server->manager_alarm * 1000), true, timer_callback, _server);
+        swoole_timer_add(sec2msec(_server->manager_alarm), true, timer_callback, _server);
     }
 
     while (_server->running) {
@@ -374,7 +374,7 @@ void Manager::wait(Server *_server) {
         }
     }
 
-    if (SwooleTG.timer) {
+    if (swoole_timer_is_available()) {
         swoole_timer_free();
     }
     // wait child process

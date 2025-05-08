@@ -148,4 +148,12 @@ class Timer {
 static long inline sec2msec(long sec) {
     return sec * 1000;
 }
+
+static long inline sec2msec(int sec) {
+    return (long) (sec * 1000);
+}
+
+static long inline sec2msec(double sec) {
+    return (long) sec * 1000;
+}
 }  // namespace swoole
