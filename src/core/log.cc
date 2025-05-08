@@ -205,6 +205,13 @@ void Logger::reopen() {
         return;
     }
 
+    /**
+     * The logger object is a global resource upon entry,
+     * and when concurrently executing reopen in a multithreaded environment,
+     * it is essential to implement locking to prevent race conditions.
+     */
+    std::unique_lock(lock);
+
     std::string new_log_file(log_file);
     close();
     open(new_log_file.c_str());

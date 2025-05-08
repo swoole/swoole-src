@@ -58,6 +58,7 @@ class Logger {
     std::string date_format = SW_LOG_DEFAULT_DATE_FORMAT;
     std::string log_file = "";
     std::string log_real_file;
+    std::mutex lock;
     int log_rotation = SW_LOG_ROTATION_SINGLE;
 
   public:

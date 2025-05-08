@@ -154,6 +154,6 @@ static long inline sec2msec(int sec) {
 }
 
 static long inline sec2msec(double sec) {
-    return (long) sec * 1000;
+    return (long) (sec * 1000);
 }
 }  // namespace swoole
