@@ -343,11 +343,11 @@ TEST(socket, check_liveness) {
 static void test_socket_sync(network::Socket *sock, bool connect = true) {
     if (connect) {
         network::Address addr;
-        ASSERT_TRUE(addr.assign("tcp://httpbin.org:80"));
+        ASSERT_TRUE(addr.assign("tcp://" TEST_HTTP_DOMAIN ":80"));
         ASSERT_EQ(sock->connect(addr), 0);
     }
 
-    auto req = test::http_get_request("httpbin.org", "/get");
+    auto req = test::http_get_request(TEST_HTTP_DOMAIN, "/get");
     ASSERT_EQ(sock->write_sync(req.c_str(), req.length()), req.length());
     ASSERT_TRUE(sock->check_liveness());
 
@@ -362,7 +362,7 @@ static void test_socket_sync(network::Socket *sock, bool connect = true) {
         resp.append(buf, n);
     }
 
-    ASSERT_TRUE(resp.find("HTTP/1.1 200 OK") != resp.npos);
+    ASSERT_TRUE(resp.find(TEST_HTTP_EXPECT) != resp.npos);
 
     usleep(50000);
     ASSERT_FALSE(sock->check_liveness());
@@ -378,7 +378,7 @@ TEST(socket, sync) {
 TEST(socket, dup) {
     auto sock = make_socket(SW_SOCK_TCP, SW_FD_STREAM, 0);
     network::Address addr;
-    ASSERT_TRUE(addr.assign("tcp://httpbin.org:80"));
+    ASSERT_TRUE(addr.assign("tcp://" TEST_HTTP_DOMAIN ":80"));
     ASSERT_EQ(sock->connect(addr), 0);
 
     auto sock_2 = sock->dup();

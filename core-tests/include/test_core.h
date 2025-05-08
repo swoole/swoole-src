@@ -35,6 +35,9 @@
 
 #define TEST_DOMAIN_BAIDU "www.baidu.com"
 
+#define TEST_HTTP_DOMAIN "www.gov.cn"
+#define TEST_HTTP_EXPECT "Location: https://www.gov.cn/"
+
 #define TEST_REQUEST_BAIDU                                                                                             \
     "GET / HTTP/1.1\r\n"                                                                                               \
     "Host: www.baidu.com\r\n"                                                                                          \
