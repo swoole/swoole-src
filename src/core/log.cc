@@ -197,7 +197,7 @@ void Logger::set_date_with_microseconds(bool enable) {
     date_with_microseconds = enable;
 }
 
-void Logger::reopen() {
+void Logger::reopen_without_lock() {
     if (!opened) {
         return;
     }
@@ -208,6 +208,11 @@ void Logger::reopen() {
     if (redirected) {
         swoole_redirect_stdout(fileno(log_fp));
     }
+}
+
+void Logger::reopen() {
+    std::unique_lock<std::mutex> _lock(lock);
+    reopen_without_lock();
 }
 
 const char *Logger::get_real_file() {
@@ -290,7 +295,7 @@ void Logger::put(int level, const char *content, size_t length) {
          * If the current thread fails to acquire the lock, it will forgo executing the log rotation.
          */
         if (tmp != log_real_file && lock.try_lock()) {
-            reopen();
+            reopen_without_lock();
             lock.unlock();
         }
     }

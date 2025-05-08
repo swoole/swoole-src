@@ -61,12 +61,14 @@ class Logger {
     std::mutex lock;
     int log_rotation = SW_LOG_ROTATION_SINGLE;
 
+    void reopen_without_lock();
+
   public:
     bool open(const char *logfile);
     void reopen();
     void set_stream(FILE *stream);
     /**
-     * Only the `put` function is thread-safe,
+     * Only the `put` and `reopen` functions are thread-safe,
      * other functions must be used in a single-threaded environment.
      */
     void put(int level, const char *content, size_t length);
