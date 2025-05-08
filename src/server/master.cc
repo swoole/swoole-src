@@ -25,8 +25,6 @@ using swoole::network::Address;
 using swoole::network::SendfileTask;
 using swoole::network::Socket;
 
-swoole::Server *g_server_instance = nullptr;
-
 namespace swoole {
 
 TimerCallback Server::get_timeout_callback(ListenPort *port, Reactor *reactor, Connection *conn) {
@@ -715,7 +713,7 @@ Server::Server(enum Mode _mode) {
     worker_thread_start = [](std::shared_ptr<Thread>, const WorkerFn &fn) { fn(); };
 #endif
 
-    g_server_instance = this;
+    SwooleG.server = this;
 }
 
 Server::~Server() {
@@ -1059,7 +1057,7 @@ void Server::destroy() {
     delete factory;
     factory = nullptr;
 
-    g_server_instance = nullptr;
+    SwooleG.server = nullptr;
 }
 
 /**

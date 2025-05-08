@@ -105,7 +105,7 @@ std::mutex sw_thread_lock;
 static void swoole_fatal_error_impl(int code, const char *format, ...);
 
 swoole::Logger *sw_logger() {
-    return SwooleTG.logger;
+    return SwooleG.logger;
 }
 
 void *sw_malloc(size_t size) {
@@ -168,6 +168,10 @@ void swoole_init(void) {
     srandom(time(nullptr));
 
     SwooleG.pid = getpid();
+
+    if (!SwooleG.logger) {
+        SwooleG.logger = new Logger();
+    }
 
     swoole_thread_init(true);
 
@@ -235,10 +239,6 @@ SW_API int swoole_api_version_id(void) {
 SW_EXTERN_C_END
 
 void swoole_clean(void) {
-    swoole_thread_clean(true);
-    if (SwooleG.memory_pool != nullptr) {
-        delete SwooleG.memory_pool;
-    }
     SW_LOOP_N(SW_MAX_HOOK_TYPE) {
         if (SwooleG.hooks[i]) {
             auto hooks = static_cast<std::list<swoole::Callback> *>(SwooleG.hooks[i]);
@@ -246,6 +246,14 @@ void swoole_clean(void) {
         }
     }
     swoole_signal_clear();
+    if (SwooleG.logger) {
+        SwooleG.logger->close();
+        delete SwooleG.logger;
+    }
+    swoole_thread_clean(true);
+    if (SwooleG.memory_pool != nullptr) {
+        delete SwooleG.memory_pool;
+    }
     SwooleG = {};
 }
 
@@ -368,11 +376,11 @@ pid_t swoole_fork(int flags) {
         if (swoole_timer_is_available()) {
             swoole_timer_free();
         }
-        if (SwooleG.memory_pool) {
-            delete SwooleG.memory_pool;
-        }
         if (!(flags & SW_FORK_EXEC)) {
-            // reset SwooleG.memory_pool
+            /**
+             * Do not release the allocated memory pages.
+             * The global memory will be returned to the OS upon process termination.
+             */
             SwooleG.memory_pool = new swoole::GlobalMemory(SW_GLOBAL_MEMORY_PAGESIZE, true);
             // reopen log file
             sw_logger()->reopen();
@@ -399,9 +407,6 @@ void swoole_thread_init(bool main_thread) {
     if (!SwooleTG.buffer_stack) {
         SwooleTG.buffer_stack = new String(SW_STACK_BUFFER_SIZE);
     }
-    if (!SwooleTG.logger) {
-        SwooleTG.logger = new Logger();
-    }
     if (!main_thread) {
         swoole_signal_block_all();
     }
@@ -417,11 +422,6 @@ void swoole_thread_clean(bool main_thread) {
     if (SwooleTG.buffer_stack) {
         delete SwooleTG.buffer_stack;
         SwooleTG.buffer_stack = nullptr;
-    }
-    if (SwooleTG.logger) {
-        SwooleTG.logger->close();
-        delete SwooleTG.logger;
-        SwooleTG.logger = nullptr;
     }
 }
 

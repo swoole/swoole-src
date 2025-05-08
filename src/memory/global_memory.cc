@@ -34,6 +34,7 @@ struct GlobalMemoryImpl {
 
   public:
     GlobalMemoryImpl(uint32_t _pagesize, bool _shared);
+    ~GlobalMemoryImpl();
     char *new_page();
 };
 
@@ -59,6 +60,12 @@ GlobalMemoryImpl::GlobalMemoryImpl(uint32_t _pagesize, bool _shared) {
 
     if (new_page() == nullptr) {
         throw std::bad_alloc();
+    }
+}
+
+GlobalMemoryImpl::~GlobalMemoryImpl() {
+    for (auto page : pages) {
+        shared ? ::sw_shm_free(page) : ::sw_free(page);
     }
 }
 
@@ -113,12 +120,6 @@ void *GlobalMemory::alloc(uint32_t size) {
 }
 
 void GlobalMemory::free(void *ptr) {}
-
-void GlobalMemory::destroy() {
-    for (auto page : impl->pages) {
-        impl->shared ? ::sw_shm_free(page) : ::sw_free(page);
-    }
-}
 
 size_t GlobalMemory::capacity() {
     return impl->pagesize - impl->alloc_offset;

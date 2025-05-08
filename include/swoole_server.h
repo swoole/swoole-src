@@ -1767,8 +1767,6 @@ typedef swoole::Server swServer;
 typedef swoole::ListenPort swListenPort;
 typedef swoole::RecvData swRecvData;
 
-extern swoole::Server *g_server_instance;
-
 static inline swoole::Server *sw_server() {
-    return g_server_instance;
+    return SwooleG.server;
 }

@@ -219,6 +219,7 @@ struct TimerNode;
 struct Event;
 class Pipe;
 class MessageBus;
+class Server;
 namespace network {
 struct Socket;
 struct Address;
@@ -696,7 +697,6 @@ struct ThreadGlobal {
 #endif
     String *buffer_stack;
     Reactor *reactor;
-    Logger *logger;
     Timer *timer;
     TimerScheduler timer_scheduler;
     MessageBus *message_bus;
@@ -776,7 +776,10 @@ struct Global {
     MemoryPool *memory_pool;
     Allocator std_allocator;
     std::string task_tmpfile;
-    //-----------------------[DNS]--------------------------
+    //------------------[Single Instance]----------------------
+    Logger *logger;
+    Server *server;
+    //-----------------------[DNS]-----------------------------
     std::string dns_server_host;
     int dns_server_port;
     double dns_cache_refresh_time;
@@ -784,7 +787,7 @@ struct Global {
     std::string dns_resolvconf_path;
     std::string dns_hosts_path;
     std::list<NameResolver> name_resolvers;
-    //-----------------------[AIO]--------------------------
+    //-----------------------[AIO]----------------------------
     uint32_t aio_core_worker_num;
     uint32_t aio_worker_num;
 #ifdef SW_USE_IOURING
