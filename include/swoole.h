@@ -670,11 +670,11 @@ struct EventData {
     char data[SW_IPC_BUFFER_SIZE];
 
     uint32_t size() {
-    	return sizeof(info) + len();
+        return sizeof(info) + len();
     }
 
     uint32_t len() {
-    	return info.len;
+        return info.len;
     }
 };
 
@@ -746,12 +746,11 @@ struct Global {
     uchar running : 1;
     uchar wait_signal : 1;
     uchar enable_signalfd : 1;
-    uchar socket_dontwait : 1;
     uchar dns_lookup_random : 1;
     uchar use_async_resolver : 1;
     uchar use_name_resolver : 1;
     uchar enable_coroutine : 1;
-    uchar print_backtrace_on_error: 1;
+    uchar print_backtrace_on_error : 1;
 
     uint8_t process_type;
     uint32_t process_id;
@@ -812,7 +811,7 @@ void hook_call(void **hooks, int type, void *arg);
 double microtime(void);
 }  // namespace swoole
 
-extern swoole::Global SwooleG;                  // Local Global Variable
+extern swoole::Global SwooleG;                      // Local Global Variable
 extern thread_local swoole::ThreadGlobal SwooleTG;  // Thread Global Variable
 
 #define SW_CPU_NUM (SwooleG.cpu_num)

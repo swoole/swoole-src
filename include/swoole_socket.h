@@ -190,7 +190,6 @@ struct Socket {
     uchar dtls : 1;
 #endif
 #endif
-    uchar dontwait : 1;
     uchar close_wait : 1;
     uchar send_wait : 1;
     uchar tcp_nopush : 1;

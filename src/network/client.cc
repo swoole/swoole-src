@@ -86,7 +86,6 @@ Client::Client(SocketType _type, bool _async) : async(_async) {
             connect = Client_tcp_connect_async;
             send = Client_tcp_send_async;
             sendfile = Client_tcp_sendfile_async;
-            socket->dontwait = SwooleG.socket_dontwait;
         } else {
             connect = Client_tcp_connect_sync;
             send = Client_tcp_send_sync;

@@ -218,7 +218,6 @@ ssize_t Reactor::write_func(Reactor *reactor,
                             const std::function<void(Buffer *buffer)> &append_fn) {
     ssize_t retval;
     Buffer *buffer = socket->out_buffer;
-    int fd = socket->fd;
 
     if (socket->buffer_size == 0) {
         socket->set_memory_buffer_size(Socket::default_buffer_size);
@@ -263,6 +262,11 @@ ssize_t Reactor::write_func(Reactor *reactor,
             if (!socket->isset_writable_event()) {
                 reactor->add_write_event(socket);
             }
+            /**
+             * Part of the data has been successfully written to the kernel's socket buffer,
+             * and at this point, writing to the memory queue is permitted under any circumstances.
+             * Ensure that the async write operation either succeeds completely or fails entirely.
+             */
             goto _append_buffer;
         } else if (errno == EINTR) {
             goto _do_send;
@@ -271,18 +275,11 @@ ssize_t Reactor::write_func(Reactor *reactor,
             return SW_ERR;
         }
     } else {
-    _append_buffer:
         if (buffer->length() > socket->buffer_size) {
-            if (socket->dontwait) {
-                swoole_set_last_error(SW_ERROR_OUTPUT_BUFFER_OVERFLOW);
-                return SW_ERR;
-            } else {
-                swoole_error_log(
-                    SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "socket#%d output buffer overflow", fd);
-                sw_yield();
-                socket->wait_event(SW_SOCKET_OVERFLOW_WAIT, SW_EVENT_WRITE);
-            }
+            swoole_set_last_error(SW_ERROR_OUTPUT_BUFFER_OVERFLOW);
+            return SW_ERR;
         }
+    _append_buffer:
         append_fn(buffer);
     }
     return __len;
