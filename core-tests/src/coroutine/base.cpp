@@ -276,14 +276,12 @@ TEST(coroutine_base, gdb) {
 TEST(coroutine_base, bailout) {
     int status;
 
-    status = test::spawn_exec_and_wait([](){
+    status = test::spawn_exec_and_wait([]() {
         std::unordered_map<std::string, bool> flags;
         coroutine::run([&flags](void *arg) {
             Coroutine::create([&flags](void *_arg) {
                 Coroutine *current = Coroutine::get_current();
-                current->bailout([&flags](){
-                    flags["exit"] = true;
-                });
+                current->bailout([&flags]() { flags["exit"] = true; });
                 flags["end"] = true;
             });
         });
@@ -293,7 +291,7 @@ TEST(coroutine_base, bailout) {
     });
     ASSERT_EQ(status, 0);
 
-    status = test::spawn_exec_and_wait([](){
+    status = test::spawn_exec_and_wait([]() {
         std::unordered_map<std::string, bool> flags;
         coroutine::run([&flags](void *arg) {
             Coroutine *current = Coroutine::get_current();
@@ -306,15 +304,17 @@ TEST(coroutine_base, bailout) {
     });
     ASSERT_EQ(WEXITSTATUS(status), 1);
 
-    status = test::spawn_exec_and_wait([](){
+    status = test::spawn_exec_and_wait([]() {
         std::unordered_map<std::string, bool> flags;
         coroutine::run([&flags](void *arg) {
             Coroutine *current = Coroutine::get_current();
-            swoole_event_defer([current, &flags](void *args){
-                flags["bailout"] = true;
-                current->bailout(nullptr);
-                flags["end"] = true;
-            }, nullptr);
+            swoole_event_defer(
+                [current, &flags](void *args) {
+                    flags["bailout"] = true;
+                    current->bailout(nullptr);
+                    flags["end"] = true;
+                },
+                nullptr);
             flags["exit"] = true;
         });
 
