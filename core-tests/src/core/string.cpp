@@ -45,6 +45,82 @@ TEST(string, rtrim) {
     ASSERT_EQ(strcmp("", buf), 0);
 }
 
+TEST(string, move_and_copy) {
+    String s1(TEST_STR);
+    ASSERT_MEMEQ(s1.str, TEST_STR, s1.length);
+
+    String s2(s1);
+    ASSERT_MEMEQ(s2.str, TEST_STR, s2.length);
+    ASSERT_NE(s1.str, nullptr);
+
+    String s3(std::move(s1));
+    ASSERT_MEMEQ(s3.str, TEST_STR, s3.length);
+    ASSERT_EQ(s1.str, nullptr);
+
+    String s4;
+    s4 = s3;
+    ASSERT_MEMEQ(s4.str, TEST_STR, s4.length);
+    ASSERT_NE(s3.str, nullptr);
+
+    String s5;
+    s5 = std::move(s3);
+    ASSERT_MEMEQ(s5.str, TEST_STR, s5.length);
+    ASSERT_EQ(s3.str, nullptr);
+}
+
+TEST(string, append) {
+    String s1(TEST_STR);
+    s1.append(12345678);
+
+    String s2(TEST_STR2);
+    s1.append(s2);
+
+    ASSERT_MEMEQ(s1.str, TEST_STR "12345678" TEST_STR2, s1.length);
+}
+
+TEST(string, write) {
+    String s1;
+    s1.reserve(32);
+
+    String s2(TEST_STR);
+    s1.repeat(" ", 1, 30);
+    s1.write(30, s2);
+
+    auto s3 = s1.substr(30, s2.length);
+    ASSERT_MEMEQ(s3.str, TEST_STR, s3.length);
+}
+
+TEST(string, repeat) {
+    auto end_str = "[end]";
+    String s1;
+    s1.repeat(SW_STRL("hello\r\n"), 5);
+    s1.append(end_str);
+
+    int count = 0;
+    auto offset = s1.split(SW_STRL("\r\n"), [&](const char *data, size_t length) -> bool {
+        count++;
+        EXPECT_MEMEQ(data, "hello\r\n", 7);
+        return true;
+    });
+
+    ASSERT_EQ(offset, s1.length - strlen(end_str));
+    ASSERT_MEMEQ(s1.str + offset, end_str, strlen(end_str));
+
+    ASSERT_EQ(count, 5);
+}
+
+TEST(string, release) {
+    String s1(TEST_STR);
+    ASSERT_MEMEQ(s1.str, TEST_STR, s1.length);
+
+    auto s2 = s1.release();
+    ASSERT_EQ(s1.str, nullptr);
+    ASSERT_EQ(s1.length, 0);
+
+    ASSERT_MEMEQ(s2, TEST_STR, strlen(TEST_STR));
+    sw_free(s2);
+}
+
 TEST(string, strnpos) {
     {
         string haystack = "hello world";

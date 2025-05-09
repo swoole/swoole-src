@@ -51,18 +51,22 @@ void String::move(String &&src) {
     src.offset = 0;
 }
 
-String &String::operator=(String &src) {
+String &String::operator=(const String &src) {
     if (&src == this) {
         return *this;
     }
     if (allocator && str) {
         allocator->free(str);
     }
+    copy(src);
+    return *this;
+}
+
+void String::copy(const String &src) {
     alloc(src.size, src.allocator);
-    memcpy(src.str, str, src.length);
+    memcpy(str, src.str, src.length);
     length = src.length;
     offset = src.offset;
-    return *this;
 }
 
 String &String::operator=(String &&src) {
@@ -89,16 +93,8 @@ int String::append(const String &append_str) {
     return SW_OK;
 }
 
-void String::write(off_t _offset, String *write_str) {
-    size_t new_length = _offset + write_str->length;
-    if (new_length > size) {
-        reserve(swoole_size_align(new_length * 2, swoole_pagesize()));
-    }
-
-    memcpy(str + _offset, write_str->str, write_str->length);
-    if (new_length > length) {
-        length = new_length;
-    }
+void String::write(off_t _offset, const String &write_str) {
+    write(_offset, write_str.str, write_str.length);
 }
 
 void String::write(off_t _offset, const char *write_str, size_t _length) {
@@ -122,12 +118,12 @@ bool String::grow(size_t incr_value) {
     }
 }
 
-String *String::substr(size_t offset, size_t len) {
+String String::substr(size_t offset, size_t len) {
     if (offset + len > length) {
-        return nullptr;
+        return String();
     }
-    auto _substr = new String(len);
-    _substr->append(str + offset, len);
+    String _substr(len);
+    _substr.append(str + offset, len);
     return _substr;
 }
 

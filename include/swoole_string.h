@@ -42,6 +42,7 @@ class String {
   private:
     void alloc(size_t _size, const Allocator *_allocator);
     void move(String &&src);
+    void copy(const String &src);
 
   public:
     size_t length;
@@ -69,18 +70,15 @@ class String {
 
     String(const std::string &_str) : String(_str.c_str(), _str.length()) {}
 
-    String(String &_str) {
-        alloc(_str.size, _str.allocator);
-        memcpy(_str.str, str, _str.length);
-        length = _str.length;
-        offset = _str.offset;
+    String(const String &src) {
+        copy(src);
     }
 
     String(String &&src) {
         move(std::move(src));
     }
 
-    String &operator=(String &src);
+    String &operator=(const String &src);
     String &operator=(String &&src);
 
     ~String() {
@@ -114,7 +112,7 @@ class String {
     }
 
     bool grow(size_t incr_value);
-    String *substr(size_t offset, size_t len);
+    String substr(size_t offset, size_t len);
 
     bool empty() {
         return str == nullptr || length == 0;
@@ -163,7 +161,7 @@ class String {
     int append(const String &append_str);
     int append_random_bytes(size_t length, bool base64 = false);
 
-    void write(off_t _offset, String *write_str);
+    void write(off_t _offset, const String &write_str);
     void write(off_t _offset, const char *write_str, size_t _length);
 
     void set_null_terminated() {
