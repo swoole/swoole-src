@@ -76,7 +76,15 @@ void ReactorPoll::set_events(int index, int events) {
 int ReactorPoll::add(Socket *socket, int events) {
     int fd = socket->fd;
     if (exists(fd)) {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_EVENT_ADD_FAILED, "socket#%d is already exists", fd);
+        swoole_error_log(
+            SW_LOG_WARNING,
+            SW_ERROR_EVENT_ADD_FAILED,
+            "[Reactor#%d] failed to add events[fd=%d, fd_type=%d, events=%d], the socket#%d is already exists",
+            reactor_->id,
+            socket->fd,
+            socket->fd_type,
+            events,
+            socket->fd);
         swoole_print_backtrace_on_error();
         return SW_ERR;
     }
@@ -111,15 +119,27 @@ int ReactorPoll::set(Socket *socket, int events) {
         }
     }
 
+    swoole_error_log(SW_LOG_WARNING,
+                     SW_ERROR_SOCKET_NOT_EXISTS,
+                     "[Reactor#%d] failed to set events[fd=%d, fd_type=%d, events=%d], the socket#%d is not exists",
+                     reactor_->id,
+                     socket->fd,
+                     socket->fd_type,
+                     events,
+                     socket->fd);
     return SW_ERR;
 }
 
 int ReactorPoll::del(Socket *socket) {
     if (socket->removed) {
-        swoole_error_log(SW_LOG_WARNING,
-                         SW_ERROR_EVENT_REMOVE_FAILED,
-                         "failed to delete event[%d], it has already been removed",
-                         socket->fd);
+        swoole_error_log(
+            SW_LOG_WARNING,
+            SW_ERROR_SOCKET_NOT_EXISTS,
+            "[Reactor#%d] failed to delete events[fd=%d, fd_type=%d], the socket#%d has already been removed",
+            reactor_->id,
+            socket->fd,
+            socket->fd_type,
+            socket->fd);
         swoole_print_backtrace_on_error();
         return SW_ERR;
     }
@@ -141,7 +161,15 @@ int ReactorPoll::del(Socket *socket) {
         }
     }
 
-    swoole_error_log(SW_LOG_WARNING, SW_ERROR_SOCKET_NOT_EXISTS, "socket#%d not found", socket->fd);
+    swoole_error_log(SW_LOG_WARNING,
+                     SW_ERROR_SOCKET_NOT_EXISTS,
+                     "[Reactor#%d] failed to delete events[fd=%d, fd_type=%d], the socket#%d is not exists",
+                     reactor_->id,
+                     socket->fd,
+                     socket->fd_type,
+                     socket->fd);
+    swoole_print_backtrace_on_error();
+
     return SW_ERR;
 }
 

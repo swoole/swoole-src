@@ -98,13 +98,12 @@ int ReactorEpoll::add(Socket *socket, int events) {
     e.data.ptr = socket;
 
     if (epoll_ctl(epfd_, EPOLL_CTL_ADD, socket->fd, &e) < 0) {
-        swoole_error_log(SW_LOG_WARNING,
-                         SW_ERROR_EVENT_ADD_FAILED,
-                         "failed to add events[fd=%d#%d, type=%d, events=%d]",
-                         socket->fd,
-                         reactor_->id,
-                         socket->fd_type,
-                         events);
+        swoole_sys_warning("[Reactor#%d] epoll_ctl(epfd=%d, EPOLL_CTL_ADD, fd=%d, fd_type=%d, events=%d) failed",
+                           reactor_->id,
+                           epfd_,
+                           socket->fd,
+                           socket->fd_type,
+                           events);
         swoole_print_backtrace_on_error();
         return SW_ERR;
     }
@@ -118,11 +117,13 @@ int ReactorEpoll::add(Socket *socket, int events) {
 
 int ReactorEpoll::del(Socket *_socket) {
     if (_socket->removed) {
-        swoole_error_log(SW_LOG_WARNING,
-                         SW_ERROR_EVENT_REMOVE_FAILED,
-                         "failed to delete events[fd=%d, fd_type=%d], it has already been removed",
-                         _socket->fd,
-                         _socket->fd_type);
+        swoole_error_log(
+            SW_LOG_WARNING,
+            SW_ERROR_EVENT_REMOVE_FAILED,
+            "[Reactor#%d] failed to delete events[fd=%d, fd_type=%d], this socket has already been removed",
+            reactor_->id,
+            _socket->fd,
+            _socket->fd_type);
         swoole_print_backtrace_on_error();
         return SW_ERR;
     }
@@ -134,6 +135,12 @@ int ReactorEpoll::del(Socket *_socket) {
          * must cleanup related resources with this socket.
          */
         if (errno != EBADF && errno != ENOENT) {
+            swoole_sys_warning("[Reactor#%d] epoll_ctl(epfd=%d, EPOLL_CTL_DEL, fd=%d, fd_type=%d) failed",
+                               reactor_->id,
+                               epfd_,
+                               _socket->fd,
+                               _socket->fd_type);
+            swoole_print_backtrace_on_error();
             return SW_ERR;
         }
     }
@@ -152,14 +159,12 @@ int ReactorEpoll::set(Socket *socket, int events) {
 
     int ret = epoll_ctl(epfd_, EPOLL_CTL_MOD, socket->fd, &e);
     if (ret < 0) {
-        swoole_error_log(SW_LOG_WARNING,
-                         SW_ERROR_EVENT_UPDATE_FAILED,
-                         "failed to set events[fd=%d#%d, type=%d, events=%d, error=%d]",
-                         socket->fd,
-                         reactor_->id,
-                         socket->fd_type,
-                         events,
-                         errno);
+        swoole_sys_warning("[Reactor#%d] epoll_ctl(epfd=%d, EPOLL_CTL_MOD, fd=%d, fd_type=%d, events=%d) failed",
+                           reactor_->id,
+                           epfd_,
+                           socket->fd,
+                           socket->fd_type,
+                           events);
         swoole_print_backtrace_on_error();
         return SW_ERR;
     }

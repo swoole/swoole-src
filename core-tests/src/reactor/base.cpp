@@ -301,7 +301,7 @@ static void reactor_test_func(Reactor *reactor) {
     ASSERT_TRUE(unsock.ready());
 
     int write_count = 0;
-    auto sock2 =  unsock.get_socket(false);
+    auto sock2 = unsock.get_socket(false);
     sock2->object = &write_count;
     sock2->fd_type = SW_FD_STREAM;
 
@@ -334,10 +334,10 @@ TEST(reactor, poll) {
 TEST(reactor, poll_extra) {
     Reactor reactor(32, Reactor::TYPE_POLL);
 
-    network::Socket fake_sock1;
+    network::Socket fake_sock1{};
     fake_sock1.fd = 12345;
 
-    network::Socket fake_sock2;
+    network::Socket fake_sock2{};
     fake_sock2.fd = 99999;
 
     ASSERT_EQ(reactor.add(&fake_sock1, SW_EVENT_READ), SW_OK);
@@ -351,6 +351,15 @@ TEST(reactor, poll_extra) {
 
     ASSERT_EQ(reactor.del(&fake_sock2), SW_OK);
     ASSERT_EQ(reactor.get_event_num(), 1);
+
+    network::Socket fake_sock3{};
+    fake_sock3.fd = 88888;
+
+    ASSERT_EQ(reactor.set(&fake_sock3, SW_EVENT_READ | SW_EVENT_WRITE), SW_ERR);
+    ASSERT_EQ(swoole_get_last_error(), SW_ERROR_SOCKET_NOT_EXISTS);
+
+    ASSERT_EQ(reactor.del(&fake_sock3), SW_ERR);
+    ASSERT_EQ(swoole_get_last_error(), SW_ERROR_SOCKET_NOT_EXISTS);
 
     network::Socket fake_socks[32];
     SW_LOOP_N(32) {
@@ -517,7 +526,7 @@ TEST(reactor, error) {
     Reactor *reactor = new Reactor(1024, Reactor::TYPE_EPOLL);
     ASSERT_EQ(reactor->add(p.get_socket(false), SW_EVENT_READ), SW_OK);
     ASSERT_EQ(reactor->add(p.get_socket(false), SW_EVENT_WRITE), SW_ERR);
-    ASSERT_EQ(swoole_get_last_error(), SW_ERROR_EVENT_ADD_FAILED);
+    ASSERT_EQ(errno, EEXIST);
 
     network::Socket bad_sock;
     bad_sock.removed = 1;
@@ -531,7 +540,6 @@ TEST(reactor, error) {
 
     ASSERT_EQ(reactor->set(&bad_sock, SW_EVENT_READ | SW_EVENT_READ), SW_ERR);
     ASSERT_EQ(errno, EBADF);
-    ASSERT_EQ(swoole_get_last_error(), SW_ERROR_EVENT_UPDATE_FAILED);
 
     ASSERT_EQ(reactor->del(&bad_sock), SW_OK);
 
@@ -541,7 +549,7 @@ TEST(reactor, error) {
     ASSERT_EQ(reactor->add(p.get_socket(false), SW_EVENT_READ), SW_OK);
     ASSERT_EQ(reactor->del(p.get_socket(false)), SW_OK);
     ASSERT_EQ(reactor->del(p.get_socket(false)), SW_ERR);
-    ASSERT_EQ(swoole_get_last_error(), SW_ERROR_EVENT_REMOVE_FAILED);
+    ASSERT_EQ(swoole_get_last_error(), SW_ERROR_SOCKET_NOT_EXISTS);
     delete reactor;
 }
 
