@@ -25,6 +25,8 @@
 #include "swoole_lock.h"
 #include "swoole_util.h"
 
+#include <numeric>
+
 using namespace std;
 using namespace swoole;
 
@@ -62,6 +64,87 @@ TEST(server, schedule) {
         _worker_id_set.insert(worker_id);
     }
     ASSERT_EQ(_worker_id_set.size(), serv.worker_num - 2);
+}
+
+TEST(server, schedule_1) {
+    int ret;
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = 8;
+    serv.dispatch_mode = Server::DISPATCH_ROUND;
+    serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+
+    ret = serv.create();
+    ASSERT_EQ(SW_OK, ret);
+
+    std::vector<size_t> counter;
+    size_t schedule_count = 1024;
+
+    counter.resize(serv.worker_num);
+    SW_LOOP_N(schedule_count) {
+        auto worker_id = serv.schedule_worker(i * 13, nullptr);
+        counter[worker_id]++;
+    }
+
+    SW_LOOP_N(serv.worker_num) {
+        ASSERT_EQ(counter[i], schedule_count / serv.worker_num);
+    }
+}
+
+double average_combined(const std::vector<size_t> &v1, const std::vector<size_t> &v2) {
+    size_t total_size = v1.size() + v2.size();
+    if (total_size == 0) return 0.0;
+    size_t sum1 = std::accumulate(v1.begin(), v1.end(), size_t{0});
+    size_t sum2 = std::accumulate(v2.begin(), v2.end(), size_t{0});
+    return static_cast<double>(sum1 + sum2) / total_size;
+}
+
+template <typename T, typename M, M T::*member>
+static void test_worker_schedule(int dispatch_mode) {
+    int ret;
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = 8;
+    serv.dispatch_mode = dispatch_mode;
+    auto port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+
+    ret = serv.create();
+    ASSERT_EQ(SW_OK, ret);
+
+    std::vector<size_t> counter;
+    counter.resize(serv.worker_num);
+
+    size_t schedule_count = 256 * serv.worker_num;
+
+    std::vector<size_t> init_counter;
+    init_counter.resize(serv.worker_num);
+
+    SW_LOOP_N(serv.worker_num) {
+        T &worker = serv.workers[i];
+        init_counter[i] = worker.*member = swoole_rand(32, 512);
+    }
+
+    network::Socket fake_sock{};
+    fake_sock.fd = 199;
+    serv.add_connection(port, &fake_sock, port->get_fd());
+
+    SW_LOOP_N(schedule_count) {
+        auto worker_id = serv.schedule_worker(fake_sock.fd, nullptr);
+        counter[worker_id]++;
+        T &worker = serv.workers[worker_id];
+        (worker.*member)++;
+    }
+
+    auto avg_elem = average_combined(init_counter, counter);
+    SW_LOOP_N(serv.worker_num) {
+        ASSERT_GE(counter[i] + init_counter[i], (int) avg_elem * 2 - 5);
+    }
+}
+
+TEST(server, schedule_9) {
+    test_worker_schedule<Worker, size_t, &Worker::coroutine_num>(Server::DISPATCH_CO_REQ_LB);
+}
+
+TEST(server, schedule_10) {
+    test_worker_schedule<Worker, uint32_t, &Worker::concurrency>(Server::DISPATCH_CONCURRENT_LB);
 }
 
 static const char *packet = "hello world\n";
