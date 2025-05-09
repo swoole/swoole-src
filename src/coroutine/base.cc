@@ -51,7 +51,7 @@ void Coroutine::deactivate() {
     coroutine::thread_context_clean();
 #endif
     activated = false;
-    on_bailout = [](){
+    on_bailout = []() {
         // The coroutine scheduler has been destroyed,
         // Can not resume any coroutine
         // Expect that never here
@@ -173,7 +173,7 @@ void Coroutine::print_list() {
             abort();
             return;
         }
-        printf("Coroutine\t%ld\t%s\n", i->first, state);
+        sw_printf("Coroutine\t%ld\t%s\n", i->first, state);
     }
 }
 
@@ -201,7 +201,7 @@ void Coroutine::bailout(BailoutCallback func) {
         return;
     }
     if (!func) {
-       swoole_error("bailout without callback function");
+        swoole_error("bailout without callback function");
     }
     on_bailout = func;
     // find the coroutine which is closest to the main

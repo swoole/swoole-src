@@ -264,6 +264,7 @@ typedef swoole::DataHead swDataHead;
 /** always return less than size, zero termination  */
 size_t sw_snprintf(char *buf, size_t size, const char *format, ...) __attribute__((format(printf, 3, 4)));
 size_t sw_vsnprintf(char *buf, size_t size, const char *format, va_list args);
+int sw_printf(const char *format, ...);
 
 #define sw_memset_zero(s, n) memset(s, '\0', n)
 
@@ -779,6 +780,7 @@ struct Global {
     //------------------[Single Instance]----------------------
     Logger *logger;
     Server *server;
+    FILE *stdout_;
     //-----------------------[DNS]-----------------------------
     std::string dns_server_host;
     int dns_server_port;
@@ -895,6 +897,7 @@ SW_API void swoole_set_log_level(int level);
 SW_API void swoole_set_log_file(const char *file);
 SW_API void swoole_set_trace_flags(long flags);
 SW_API void swoole_set_print_backtrace_on_error(bool enable = true);
+SW_API void swoole_set_stdout_stream(FILE *fp);
 SW_API void swoole_set_dns_server(const std::string &server);
 SW_API void swoole_set_hosts_path(const std::string &hosts_file);
 SW_API std::pair<std::string, int> swoole_get_dns_server();
@@ -904,6 +907,7 @@ SW_API void swoole_name_resolver_each(
     const std::function<enum swTraverseOperation(const std::list<swoole::NameResolver>::iterator &iter)> &fn);
 SW_API std::string swoole_name_resolver_lookup(const std::string &host_name, swoole::NameResolver::Context *ctx);
 SW_API int swoole_get_log_level();
+SW_API FILE *swoole_get_stdout_stream();
 
 //-----------------------------------------------
 static sw_inline void sw_spinlock(sw_atomic_t *lock) {

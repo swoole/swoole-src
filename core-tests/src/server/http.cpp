@@ -734,8 +734,11 @@ TEST(http_server, websocket_encode) {
     ASSERT_TRUE(websocket::decode(&ws, buffer->str, buffer->length));
 
     FILE *fp = fopen(log_file, "a+");
-    websocket::print_frame(&ws, fp);
+    auto ori_fp = swoole_get_stdout_stream();
+    swoole_set_stdout_stream(fp);
+    websocket::print_frame(&ws);
     fclose(fp);
+    swoole_set_stdout_stream(ori_fp);
 
     File f(log_file, File::READ);
     auto rs = f.read_content();
