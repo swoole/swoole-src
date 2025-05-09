@@ -82,7 +82,6 @@ class Reactor {
         TYPE_EPOLL,
         TYPE_KQUEUE,
         TYPE_POLL,
-        TYPE_SELECT,
     };
 
     enum EndCallback {

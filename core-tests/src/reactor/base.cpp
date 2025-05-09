@@ -85,7 +85,7 @@ TEST(reactor, wait) {
     swoole_event_set_handler(SW_FD_PIPE | SW_EVENT_READ, [](Reactor *reactor, Event *ev) -> int {
         char buffer[16];
 
-        ssize_t n = read(ev->fd, buffer, sizeof(buffer));
+        ssize_t n = ev->socket->read(buffer, sizeof(buffer));
         EXPECT_EQ(sizeof("hello world"), n);
         EXPECT_STREQ("hello world", buffer);
         reactor->del(ev->socket);
@@ -119,7 +119,7 @@ TEST(reactor, write) {
     swoole_event_set_handler(SW_FD_PIPE | SW_EVENT_READ, [](Reactor *reactor, Event *ev) -> int {
         char buffer[16];
 
-        ssize_t n = read(ev->fd, buffer, sizeof(buffer));
+        ssize_t n = ev->socket->read(buffer, sizeof(buffer));
         EXPECT_EQ(sizeof("hello world"), n);
         EXPECT_STREQ("hello world", buffer);
         reactor->del(ev->socket);
@@ -214,7 +214,7 @@ TEST(reactor, write_2m) {
 
     swoole_event_set_handler(SW_FD_PIPE | SW_EVENT_READ, [](Reactor *reactor, Event *ev) -> int {
         auto tg_buf = sw_tg_buffer();
-        ssize_t n = read(ev->fd, tg_buf->str + tg_buf->length, tg_buf->size - tg_buf->length);
+        ssize_t n = ev->socket->read(tg_buf->str + tg_buf->length, tg_buf->size - tg_buf->length);
         if (n <= 0) {
             return SW_ERR;
         }
@@ -269,7 +269,7 @@ static void reactor_test_func(Reactor *reactor) {
     reactor->set_handler(SW_FD_PIPE | SW_EVENT_READ, [](Reactor *reactor, Event *event) -> int {
         char buf[1024];
         size_t l = strlen(pkt);
-        size_t n = read(event->fd, buf, sizeof(buf));
+        size_t n = event->socket->read(buf, sizeof(buf));
         EXPECT_EQ(n, l);
         buf[n] = 0;
         EXPECT_EQ(std::string(buf, n), std::string(pkt));
@@ -279,24 +279,24 @@ static void reactor_test_func(Reactor *reactor) {
     });
     reactor->set_handler(SW_FD_PIPE | SW_EVENT_WRITE, [](Reactor *reactor, Event *event) -> int {
         size_t l = strlen(pkt);
-        EXPECT_EQ(write(event->fd, pkt, l), l);
+        EXPECT_EQ(event->socket->write(pkt, l), l);
         reactor->del(event->socket);
 
         return SW_OK;
     });
     reactor->add(p.get_socket(false), SW_EVENT_READ);
     reactor->add(p.get_socket(true), SW_EVENT_WRITE);
+
+    int count = 0;
+    reactor->onBegin = [&count](Reactor *) { count++; };
+
     reactor->wait(nullptr);
+
+    ASSERT_GT(count, 0);
 }
 
 TEST(reactor, poll) {
     Reactor reactor(1024, Reactor::TYPE_POLL);
-    reactor.wait_exit = true;
-    reactor_test_func(&reactor);
-}
-
-TEST(reactor, select) {
-    Reactor reactor(1024, Reactor::TYPE_SELECT);
     reactor.wait_exit = true;
     reactor_test_func(&reactor);
 }
@@ -339,7 +339,7 @@ static void event_end_callback(void *data) {
 }
 
 TEST(reactor, cycle) {
-    Reactor reactor(1024, Reactor::TYPE_SELECT);
+    Reactor reactor(1024, Reactor::TYPE_POLL);
     reactor.wait_exit = true;
     reactor.activate_future_task();
 
@@ -354,7 +354,7 @@ static void event_idle_callback(void *data) {
 }
 
 TEST(reactor, priority_idle_task) {
-    Reactor reactor(1024, Reactor::TYPE_SELECT);
+    Reactor reactor(1024, Reactor::TYPE_POLL);
     reactor.wait_exit = true;
     reactor.activate_future_task();
 
@@ -365,14 +365,14 @@ TEST(reactor, priority_idle_task) {
 }
 
 TEST(reactor, hook) {
-    Reactor *reactor = new Reactor(1024, Reactor::TYPE_SELECT);
+    Reactor *reactor = new Reactor(1024, Reactor::TYPE_POLL);
     reactor->wait_exit = true;
 
     swoole_add_hook(
         SW_GLOBAL_HOOK_ON_REACTOR_CREATE,
         [](void *data) -> void {
             Reactor *reactor = (Reactor *) data;
-            ASSERT_EQ(Reactor::TYPE_SELECT, reactor->type_);
+            ASSERT_EQ(Reactor::TYPE_POLL, reactor->type_);
         },
         1);
 
@@ -380,7 +380,7 @@ TEST(reactor, hook) {
         SW_GLOBAL_HOOK_ON_REACTOR_DESTROY,
         [](void *data) -> void {
             Reactor *reactor = (Reactor *) data;
-            ASSERT_EQ(Reactor::TYPE_SELECT, reactor->type_);
+            ASSERT_EQ(Reactor::TYPE_POLL, reactor->type_);
         },
         1);
 
@@ -404,36 +404,36 @@ TEST(reactor, set_fd) {
     ASSERT_EQ(reactor->add(p.get_socket(false), SW_EVENT_READ), SW_OK);
     ASSERT_EQ(reactor->set(p.get_socket(false), SW_EVENT_WRITE), SW_OK);
     delete reactor;
-
-    reactor = new Reactor(1024, Reactor::TYPE_SELECT);
-    ASSERT_EQ(reactor->add(p.get_socket(false), SW_EVENT_READ), SW_OK);
-    ASSERT_EQ(reactor->set(p.get_socket(false), SW_EVENT_WRITE), SW_OK);
-    delete reactor;
 }
 
-static void error_event(Reactor::Type type) {
+static void test_error_event(Reactor::Type type, int retval) {
     Pipe p(true);
     ASSERT_TRUE(p.ready());
 
     Reactor *reactor = new Reactor(1024, type);
 
+    reactor->ptr = &retval;
+
     reactor->set_handler(SW_FD_PIPE | SW_EVENT_ERROR, [](Reactor *reactor, Event *event) -> int {
         EXPECT_EQ(reactor->del(event->socket), SW_OK);
         reactor->running = false;
-        return SW_OK;
+        return *(int *) reactor->ptr;
     });
 
     reactor->add(p.get_socket(true), SW_EVENT_ERROR);
     reactor->add(p.get_socket(false), SW_EVENT_ERROR);
 
     p.close(SW_PIPE_CLOSE_WORKER);
-    reactor->wait(nullptr);
+    ASSERT_EQ(reactor->wait(nullptr), SW_OK);
     delete reactor;
 }
 
-TEST(reactor, error_ev) {
-    error_event(Reactor::TYPE_EPOLL);
-    error_event(Reactor::TYPE_POLL);
+TEST(reactor, error_event) {
+    test_error_event(Reactor::TYPE_EPOLL, SW_OK);
+    test_error_event(Reactor::TYPE_POLL, SW_OK);
+
+    test_error_event(Reactor::TYPE_EPOLL, SW_ERR);
+    test_error_event(Reactor::TYPE_POLL, SW_ERR);
 }
 
 TEST(reactor, error) {

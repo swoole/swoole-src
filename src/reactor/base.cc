@@ -46,8 +46,6 @@ ReactorImpl *make_reactor_poll(Reactor *_reactor, int max_events);
 ReactorImpl *make_reactor_kqueue(Reactor *_reactor, int max_events);
 #endif
 
-ReactorImpl *make_reactor_select(Reactor *_reactor);
-
 void ReactorImpl::after_removal_failure(Socket *_socket) {
     if (!_socket->silent_remove) {
         swoole_error_log(SW_LOG_WARNING,
@@ -71,7 +69,7 @@ Reactor::Reactor(int max_event, Type _type) {
 #elif defined(HAVE_POLL)
         type_ = TYPE_POLL;
 #else
-        type_ = TYPE_SELECT;
+#error "The OS must support one of the IO event loop mechanisms: epoll, kqueue, or poll."
 #endif
     } else {
         type_ = _type;
@@ -93,9 +91,8 @@ Reactor::Reactor(int max_event, Type _type) {
         impl = make_reactor_poll(this, max_event);
         break;
 #endif
-    case TYPE_SELECT:
     default:
-        impl = make_reactor_select(this);
+        assert(0);
         break;
     }
 

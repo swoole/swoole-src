@@ -262,6 +262,7 @@ TEST(coroutine_base, gdb) {
         long cid = current->get_cid();
         ASSERT_EQ(swoole_coroutine_count(), 1);
         ASSERT_EQ(swoole_coroutine_get(cid), current);
+        ASSERT_EQ(swoole_coroutine_get(999999), nullptr);
 
         swoole_coroutine_iterator_reset();
         ASSERT_EQ(swoole_coroutine_iterator_each(), current);

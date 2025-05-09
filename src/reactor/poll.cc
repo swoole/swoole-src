@@ -173,7 +173,10 @@ int ReactorPoll::wait(struct timeval *timeo) {
         ret = poll(events_, reactor_->get_event_num(), reactor_->get_timeout_msec());
         if (ret < 0) {
             if (!reactor_->catch_error()) {
-                swoole_sys_warning("poll error");
+                swoole_sys_warning("[Reactor#%d] poll(nfds=%zu, timeout=%d) failed",
+                                   reactor_->id,
+                                   reactor_->get_event_num(),
+                                   reactor_->get_timeout_msec());
                 break;
             } else {
                 goto _continue;
@@ -198,7 +201,7 @@ int ReactorPoll::wait(struct timeval *timeo) {
                     handler = reactor_->get_handler(SW_EVENT_READ, event.type);
                     ret = handler(reactor_, &event);
                     if (ret < 0) {
-                        swoole_sys_warning("poll[POLLIN] handler failed. fd=%d", event.fd);
+                        swoole_sys_warning("POLLIN handle failed. fd=%d", event.fd);
                         swoole_print_backtrace_on_error();
                     }
                 }
@@ -207,7 +210,7 @@ int ReactorPoll::wait(struct timeval *timeo) {
                     handler = reactor_->get_handler(SW_EVENT_WRITE, event.type);
                     ret = handler(reactor_, &event);
                     if (ret < 0) {
-                        swoole_sys_warning("poll[POLLOUT] handler failed. fd=%d", event.fd);
+                        swoole_sys_warning("POLLOUT handle failed. fd=%d", event.fd);
                         swoole_print_backtrace_on_error();
                     }
                 }
@@ -220,7 +223,7 @@ int ReactorPoll::wait(struct timeval *timeo) {
                     handler = reactor_->get_error_handler(event.type);
                     ret = handler(reactor_, &event);
                     if (ret < 0) {
-                        swoole_sys_warning("poll[POLLERR] handler failed. fd=%d", event.fd);
+                        swoole_sys_warning("POLLERR handle failed. fd=%d", event.fd);
                         swoole_print_backtrace_on_error();
                     }
                 }
