@@ -235,9 +235,20 @@ TEST(reactor, write_2m) {
 
     sw_tg_buffer()->clear();
 
-    auto n = swoole_event_write(p.get_socket(true), str.value(), str.get_length());
+    auto sock = p.get_socket(true);
+    sock->buffer_size = 2 * 1024 * 1024;
+
+    auto n = swoole_event_write(sock, str.value(), str.get_length());
     ASSERT_EQ(n, str.get_length());
-    ASSERT_GT(p.get_socket(true)->out_buffer->length(), 1024);
+    ASSERT_GT(sock->out_buffer->length(), 1024);
+
+    std::cout << sock->out_buffer->length() << "\n";
+
+    ASSERT_EQ(swoole_event_write(sock, str.value(), 256 * 1024), SW_ERR);
+    ASSERT_EQ(swoole_get_last_error(), SW_ERROR_OUTPUT_BUFFER_OVERFLOW);
+
+    ASSERT_EQ(swoole_event_write(sock, str.value(), sock->buffer_size + 8192), SW_ERR);
+    ASSERT_EQ(swoole_get_last_error(), SW_ERROR_PACKAGE_LENGTH_TOO_LARGE);
 
     ret = swoole_event_wait();
     ASSERT_EQ(ret, SW_OK);
@@ -260,7 +271,7 @@ TEST(reactor, bad_fd) {
 static const char *pkt = "hello world\r\n";
 
 static void reactor_test_func(Reactor *reactor) {
-    Pipe p(true);
+    Pipe p(false);
     ASSERT_TRUE(p.ready());
 
     reactor->set_handler(SW_FD_PIPE | SW_EVENT_READ, [](Reactor *reactor, Event *event) -> int {
@@ -274,6 +285,7 @@ static void reactor_test_func(Reactor *reactor) {
 
         return SW_OK;
     });
+
     reactor->set_handler(SW_FD_PIPE | SW_EVENT_WRITE, [](Reactor *reactor, Event *event) -> int {
         size_t l = strlen(pkt);
         EXPECT_EQ(event->socket->write(pkt, l), l);
@@ -281,10 +293,30 @@ static void reactor_test_func(Reactor *reactor) {
 
         return SW_OK;
     });
-    reactor->add(p.get_socket(false), SW_EVENT_READ);
-    reactor->add(p.get_socket(true), SW_EVENT_WRITE);
+
+    ASSERT_EQ(reactor->add(p.get_socket(false), SW_EVENT_READ), SW_OK);
+    ASSERT_EQ(reactor->add(p.get_socket(true), SW_EVENT_WRITE), SW_OK);
+
+    UnixSocket unsock(false, SOCK_STREAM);
+    ASSERT_TRUE(unsock.ready());
+
+    int write_count = 0;
+    auto sock2 =  unsock.get_socket(false);
+    sock2->object = &write_count;
+    sock2->fd_type = SW_FD_STREAM;
+
+    reactor->set_handler(SW_FD_STREAM | SW_EVENT_WRITE, [](Reactor *reactor, Event *event) -> int {
+        int *count = (int *) event->socket->object;
+        (*count)++;
+        return SW_OK;
+    });
+    ASSERT_EQ(reactor->add(sock2, SW_FD_STREAM | SW_EVENT_WRITE | SW_EVENT_ONCE), SW_OK);
+
+    ASSERT_EQ(write_count, 0);
 
     ASSERT_EQ(reactor->wait(), SW_OK);
+
+    ASSERT_EQ(write_count, 1);
 }
 
 TEST(reactor, epoll) {
@@ -372,8 +404,6 @@ TEST(reactor, defer_task) {
     ASSERT_EQ(count, 1);
     swoole_event_free();
 }
-
-
 
 TEST(reactor, cycle) {
     Reactor reactor(1024, Reactor::TYPE_POLL);

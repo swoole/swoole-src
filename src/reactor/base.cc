@@ -32,8 +32,6 @@ using network::Socket;
 #endif
 #endif
 
-static void reactor_begin(Reactor *reactor);
-
 #ifdef HAVE_EPOLL
 ReactorImpl *make_reactor_epoll(Reactor *_reactor, int max_events);
 #endif
@@ -215,7 +213,7 @@ ssize_t Reactor::write_func(Reactor *reactor,
     if ((uint32_t) __len > socket->buffer_size) {
         swoole_error_log(SW_LOG_WARNING,
                          SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
-                         "data packet is too large, cannot exceed the buffer size");
+                         "data packet is too large, cannot exceed the socket buffer size");
         return SW_ERR;
     }
 
@@ -260,8 +258,13 @@ ssize_t Reactor::write_func(Reactor *reactor,
             return SW_ERR;
         }
     } else {
-        if (buffer->length() > socket->buffer_size) {
-            swoole_set_last_error(SW_ERROR_OUTPUT_BUFFER_OVERFLOW);
+        if (buffer->length() + __len > socket->buffer_size) {
+            swoole_error_log(SW_LOG_WARNING,
+                             SW_ERROR_OUTPUT_BUFFER_OVERFLOW,
+                             "socket#%d output buffer overflow: (%u/%u)",
+                             socket->get_fd(),
+                             buffer->length(),
+                             socket->buffer_size);
             return SW_ERR;
         }
     _append_buffer:
