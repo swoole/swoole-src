@@ -66,6 +66,9 @@ TEST(string, move_and_copy) {
     s5 = std::move(s3);
     ASSERT_MEMEQ(s5.str, TEST_STR, s5.length);
     ASSERT_EQ(s3.str, nullptr);
+
+    String s6(SW_STRL(TEST_STR));
+    ASSERT_MEMEQ(s6.str, TEST_STR, s6.length);
 }
 
 TEST(string, append) {
@@ -119,6 +122,19 @@ TEST(string, release) {
 
     ASSERT_MEMEQ(s2, TEST_STR, strlen(TEST_STR));
     sw_free(s2);
+}
+
+TEST(string, ub) {
+    String s1(TEST_STR);
+    String s2(TEST_STR2);
+
+    s1 = s2;
+    s1 = s1;
+
+    auto rs = s1.substr(s1.length, 10);
+    ASSERT_EQ(rs.str, nullptr);
+
+    ASSERT_FALSE(s1.repeat("\r\n", 2, 0));
 }
 
 TEST(string, strnpos) {

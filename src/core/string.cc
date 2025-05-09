@@ -261,7 +261,7 @@ char *String::release() {
 }
 
 bool String::repeat(const char *data, size_t len, size_t n) {
-    if (n <= 0) {
+    if (n <= 0 || len == 0) {
         return false;
     }
     if (len == 1) {

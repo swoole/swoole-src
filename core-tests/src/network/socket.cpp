@@ -389,9 +389,27 @@ TEST(socket, dup) {
 
 TEST(socket, ipv6_addr) {
     auto sock = make_socket(SW_SOCK_TCP6, SW_FD_STREAM, 0);
-    swoole::network::Address addr;
+    network::Address addr;
     ASSERT_TRUE(addr.assign("tcp://[::1]:12345"));
     ASSERT_EQ(sock->connect(addr), SW_ERR);
     ASSERT_EQ(errno, ECONNREFUSED);
     sock->free();
+}
+
+TEST(socket, loopback_addr) {
+    network::Address addr1;
+    addr1.assign(SW_SOCK_TCP, "127.0.0.1", 0);
+    ASSERT_TRUE(addr1.is_loopback_addr());
+
+    network::Address addr2;
+    addr2.assign(SW_SOCK_TCP6, "::1", 0);
+    ASSERT_TRUE(addr1.is_loopback_addr());
+
+    network::Address addr3;
+    addr3.assign(SW_SOCK_TCP, "192.168.1.2", 0);
+    ASSERT_FALSE(addr3.is_loopback_addr());
+
+    network::Address addr4;
+    addr4.assign(SW_SOCK_TCP6, "192::66::88", 0);
+    ASSERT_FALSE(addr4.is_loopback_addr());
 }
