@@ -577,7 +577,7 @@ int Server::start_event_worker(Worker *worker) {
     worker_start_callback(worker);
 
     // main loop
-    reactor->wait(nullptr);
+    reactor->wait();
     // drain pipe buffer
     drain_worker_pipe();
     // reactor free

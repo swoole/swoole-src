@@ -260,7 +260,7 @@ int Server::reactor_process_main_loop(ProcessPool *pool, Worker *worker) {
         }
     }
 
-    int retval = reactor->wait(nullptr);
+    int retval = reactor->wait();
 
     /**
      * Close all connections

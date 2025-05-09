@@ -184,7 +184,7 @@ TEST(client, sleep) {
 
     String buf(65536);
 
-    auto domain = "httpbin.org";
+    auto domain = TEST_HTTP_DOMAIN;
 
     Client client(SW_SOCK_TCP, true);
     client.onConnect = [&domain](Client *cli) {
@@ -204,7 +204,7 @@ TEST(client, sleep) {
 
     swoole_event_wait();
 
-    ASSERT_TRUE(buf.contains("HTTP/1.1 200 OK"));
+    ASSERT_TRUE(buf.contains(TEST_HTTP_EXPECT));
 }
 
 TEST(client, connect_refuse) {

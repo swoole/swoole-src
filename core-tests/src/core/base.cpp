@@ -307,7 +307,7 @@ TEST(base, only_dump) {
 }
 
 TEST(base, redirect_stdout) {
-    auto file = "/tmp/swoole.log";
+    auto file = TEST_LOG_FILE;
     auto out_1 = "hello world, hello swoole!\n";
     auto out_2 = "write to /dev/null\n";
     auto status = test::spawn_exec_and_wait([&]() {

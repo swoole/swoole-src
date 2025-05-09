@@ -143,7 +143,7 @@ TEST(log, redirect_1) {
 
 TEST(log, redirect_2) {
     auto status = test::spawn_exec_and_wait([]() {
-        auto file = "/tmp/swoole.log";
+        auto file = TEST_LOG_FILE;
         auto str = "hello world, hello swoole\n";
 
         sw_logger()->reset();

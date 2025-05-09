@@ -1397,7 +1397,7 @@ TEST(server, reopen_log) {
     Server serv(Server::MODE_PROCESS);
     serv.worker_num = 2;
     swoole_set_log_level(SW_LOG_WARNING);
-    string filename = "/tmp/swoole.log";
+    string filename = TEST_LOG_FILE;
     swoole_set_log_file(filename.c_str());
 
     ASSERT_TRUE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0));
@@ -1420,6 +1420,7 @@ TEST(server, reopen_log) {
     serv.onReceive = [](Server *server, RecvData *req) -> int { return SW_OK; };
 
     ASSERT_EQ(serv.start(), 0);
+    remove(filename.c_str());
 }
 
 TEST(server, udp_packet) {
@@ -1609,7 +1610,7 @@ TEST(server, abnormal_pipeline_data) {
     server->add_port(SW_SOCK_TCP, TEST_HOST, 0);
 
     uint64_t msg_id = swoole_rand(1, INT_MAX);
-    string filename = "/tmp/swoole.log";
+    string filename = TEST_LOG_FILE;
     swoole_set_log_file(filename.c_str());
 
     server->create();

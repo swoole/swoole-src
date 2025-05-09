@@ -725,7 +725,7 @@ TEST(http_server, websocket_encode) {
     auto buffer = sw_tg_buffer();
     buffer->clear();
 
-    auto log_file = "/tmp/swoole.log";
+    auto log_file = TEST_LOG_FILE;
 
     ASSERT_TRUE(websocket::encode(
         buffer, packet, strlen(packet), websocket::OPCODE_TEXT, websocket::FLAG_FIN | websocket::FLAG_MASK));
@@ -734,8 +734,11 @@ TEST(http_server, websocket_encode) {
     ASSERT_TRUE(websocket::decode(&ws, buffer->str, buffer->length));
 
     FILE *fp = fopen(log_file, "a+");
-    websocket::print_frame(&ws, fp);
+    auto ori_fp = swoole_get_stdout_stream();
+    swoole_set_stdout_stream(fp);
+    websocket::print_frame(&ws);
     fclose(fp);
+    swoole_set_stdout_stream(ori_fp);
 
     File f(log_file, File::READ);
     auto rs = f.read_content();
@@ -757,12 +760,12 @@ TEST(http_server, node_websocket_client_1) {
         kill(serv->get_master_pid(), SIGTERM);
     });
 
-    File fp("/tmp/swoole.log", O_RDONLY);
+    File fp(TEST_LOG_FILE, O_RDONLY);
     EXPECT_TRUE(fp.ready());
     auto str = fp.read_content();
     ASSERT_TRUE(str->contains("received: Swoole: hello world"));
     ASSERT_TRUE(str->contains("the node websocket client is closed"));
-    unlink("/tmp/swoole.log");
+    unlink(TEST_LOG_FILE);
 }
 
 TEST(http_server, node_websocket_client_2) {
@@ -774,11 +777,11 @@ TEST(http_server, node_websocket_client_2) {
         kill(serv->get_master_pid(), SIGTERM);
     });
 
-    File fp("/tmp/swoole.log", O_RDONLY);
+    File fp(TEST_LOG_FILE, O_RDONLY);
     EXPECT_TRUE(fp.ready());
     auto str = fp.read_content();
     ASSERT_TRUE(str->contains("the node websocket client is closed, code: 1008, reason: swoole close"));
-    unlink("/tmp/swoole.log");
+    unlink(TEST_LOG_FILE);
 }
 
 TEST(http_server, parser1) {

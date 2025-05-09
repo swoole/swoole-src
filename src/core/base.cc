@@ -154,6 +154,7 @@ void swoole_init(void) {
     SwooleG.init = 1;
     SwooleG.enable_coroutine = 1;
     SwooleG.std_allocator = {malloc, calloc, realloc, free};
+    SwooleG.stdout_ = stdout;
     SwooleG.fatal_error = swoole_fatal_error_impl;
     SwooleG.cpu_num = SW_MAX(1, sysconf(_SC_NPROCESSORS_ONLN));
     SwooleG.pagesize = getpagesize();
@@ -263,6 +264,14 @@ SW_API void swoole_set_log_level(int level) {
     if (sw_logger()) {
         sw_logger()->set_level(level);
     }
+}
+
+SW_API void swoole_set_stdout_stream(FILE *fp) {
+    SwooleG.stdout_ = fp;
+}
+
+SW_API FILE *swoole_get_stdout_stream() {
+    return SwooleG.stdout_;
 }
 
 SW_API int swoole_get_log_level() {
@@ -719,6 +728,14 @@ size_t sw_vsnprintf(char *buf, size_t size, const char *format, va_list args) {
         retval = size - 1;
         buf[retval] = '\0';
     }
+    return retval;
+}
+
+int sw_printf(const char *format, ...) {
+    va_list args;
+    va_start(args, format);
+    int retval = vfprintf(SwooleG.stdout_, format, args);
+    va_end(args);
     return retval;
 }
 
