@@ -144,12 +144,9 @@ TEST(reactor, wait_timeout) {
     ASSERT_EQ(swoole_event_init(SW_EVENTLOOP_WAIT_EXIT), SW_OK);
     ASSERT_NE(SwooleTG.reactor, nullptr);
 
-    struct timeval tmo;
-    tmo.tv_sec = 0;
-    tmo.tv_usec = 30000;
-
+    sw_reactor()->set_timeout_msec(30);
     auto started_at = swoole::microtime();
-    ASSERT_EQ(sw_reactor()->wait(&tmo), SW_OK);
+    ASSERT_EQ(sw_reactor()->wait(), SW_OK);
 
     auto dr = swoole::microtime() - started_at;
     ASSERT_GE(dr, 0.03);
@@ -164,7 +161,7 @@ TEST(reactor, wait_error) {
 
     // ERROR: EINVAL epfd is not an epoll file descriptor, or maxevents is less than or equal to zero.
     sw_reactor()->max_event_num = 0;
-    ASSERT_EQ(sw_reactor()->wait(nullptr), SW_ERR);
+    ASSERT_EQ(sw_reactor()->wait(), SW_ERR);
     ASSERT_EQ(errno, EINVAL);
 
     swoole_event_free();
@@ -287,18 +284,60 @@ static void reactor_test_func(Reactor *reactor) {
     reactor->add(p.get_socket(false), SW_EVENT_READ);
     reactor->add(p.get_socket(true), SW_EVENT_WRITE);
 
-    int count = 0;
-    reactor->onBegin = [&count](Reactor *) { count++; };
+    ASSERT_EQ(reactor->wait(), SW_OK);
+}
 
-    reactor->wait(nullptr);
-
-    ASSERT_GT(count, 0);
+TEST(reactor, epoll) {
+    Reactor reactor(1024, Reactor::TYPE_EPOLL);
+    reactor.wait_exit = true;
+    reactor_test_func(&reactor);
 }
 
 TEST(reactor, poll) {
     Reactor reactor(1024, Reactor::TYPE_POLL);
     reactor.wait_exit = true;
     reactor_test_func(&reactor);
+}
+
+TEST(reactor, poll_extra) {
+    Reactor reactor(32, Reactor::TYPE_POLL);
+
+    network::Socket fake_sock1;
+    fake_sock1.fd = 12345;
+
+    network::Socket fake_sock2;
+    fake_sock2.fd = 99999;
+
+    ASSERT_EQ(reactor.add(&fake_sock1, SW_EVENT_READ), SW_OK);
+    ASSERT_EQ(reactor.add(&fake_sock2, SW_EVENT_READ), SW_OK);
+
+    ASSERT_EQ(reactor.add(&fake_sock1, SW_EVENT_READ), SW_ERR);
+
+    ASSERT_EQ(reactor.get_event_num(), 2);
+
+    ASSERT_EQ(reactor.set(&fake_sock2, SW_EVENT_READ | SW_EVENT_WRITE | SW_EVENT_ERROR), SW_OK);
+
+    ASSERT_EQ(reactor.del(&fake_sock2), SW_OK);
+    ASSERT_EQ(reactor.get_event_num(), 1);
+
+    network::Socket fake_socks[32];
+    SW_LOOP_N(32) {
+        fake_socks[i].fd = i + 1024;
+        if (i <= 30) {
+            ASSERT_EQ(reactor.add(&fake_socks[i], SW_EVENT_READ), SW_OK);
+        } else {
+            ASSERT_EQ(reactor.add(&fake_socks[i], SW_EVENT_READ), SW_ERR);
+        }
+    }
+
+    for (auto i = 31; i <= 0; i--) {
+        fake_socks[i].fd = i + 1024;
+        if (i <= 30) {
+            ASSERT_EQ(reactor.del(&fake_socks[i]), SW_OK);
+        } else {
+            ASSERT_EQ(reactor.del(&fake_socks[i]), SW_ERR);
+        }
+    }
 }
 
 TEST(reactor, add_or_update) {
@@ -334,19 +373,24 @@ TEST(reactor, defer_task) {
     swoole_event_free();
 }
 
-static void event_end_callback(void *data) {
-    ASSERT_STREQ((char *) data, "hello world");
-}
+
 
 TEST(reactor, cycle) {
     Reactor reactor(1024, Reactor::TYPE_POLL);
     reactor.wait_exit = true;
-    reactor.activate_future_task();
 
+    int event_loop_count = 0;
     const char *test = "hello world";
-    reactor.future_task.callback = event_end_callback;
+
+    reactor.future_task.callback = [&event_loop_count](void *data) {
+        ASSERT_STREQ((char *) data, "hello world");
+        event_loop_count++;
+    };
     reactor.future_task.data = (void *) test;
+
     reactor_test_func(&reactor);
+
+    ASSERT_GT(event_loop_count, 0);
 }
 
 static void event_idle_callback(void *data) {
@@ -356,7 +400,6 @@ static void event_idle_callback(void *data) {
 TEST(reactor, priority_idle_task) {
     Reactor reactor(1024, Reactor::TYPE_POLL);
     reactor.wait_exit = true;
-    reactor.activate_future_task();
 
     const char *test = "hello world";
     reactor.idle_task.callback = event_idle_callback;
@@ -424,7 +467,7 @@ static void test_error_event(Reactor::Type type, int retval) {
     reactor->add(p.get_socket(false), SW_EVENT_ERROR);
 
     p.close(SW_PIPE_CLOSE_WORKER);
-    ASSERT_EQ(reactor->wait(nullptr), SW_OK);
+    ASSERT_EQ(reactor->wait(), SW_OK);
     delete reactor;
 }
 

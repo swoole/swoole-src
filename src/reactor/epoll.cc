@@ -44,7 +44,7 @@ class ReactorEpoll : public ReactorImpl {
     int add(Socket *socket, int events) override;
     int set(Socket *socket, int events) override;
     int del(Socket *socket) override;
-    int wait(struct timeval *) override;
+    int wait() override;
 
     static inline int get_events(int fdtype) {
         int events = 0;
@@ -170,35 +170,23 @@ int ReactorEpoll::set(Socket *socket, int events) {
     return SW_OK;
 }
 
-int ReactorEpoll::wait(struct timeval *timeo) {
+int ReactorEpoll::wait() {
     Event event;
     ReactorHandler handler;
     int i, n, ret;
 
-    int reactor_id = reactor_->id;
-    int max_event_num = reactor_->max_event_num;
-
-    if (reactor_->timeout_msec == 0) {
-        if (timeo == nullptr) {
-            reactor_->timeout_msec = -1;
-        } else {
-            reactor_->timeout_msec = timeo->tv_sec * 1000 + timeo->tv_usec / 1000;
-        }
-    }
-
     reactor_->before_wait();
 
     while (reactor_->running) {
-        if (reactor_->onBegin != nullptr) {
-            reactor_->onBegin(reactor_);
-        }
-        n = epoll_wait(epfd_, events_, max_event_num, reactor_->get_timeout_msec());
+        reactor_->execute_begin_callback();
+
+        n = epoll_wait(epfd_, events_, reactor_->max_event_num, reactor_->get_timeout_msec());
         if (n < 0) {
             if (!reactor_->catch_error()) {
                 swoole_sys_warning("[Reactor#%d] epoll_wait(epfd=%d, max_events=%d, timeout=%d) failed",
-                                   reactor_id,
+                                   reactor_->id,
                                    epfd_,
-                                   max_event_num,
+                                   reactor_->max_event_num,
                                    reactor_->get_timeout_msec());
                 return SW_ERR;
             } else {
@@ -209,7 +197,7 @@ int ReactorEpoll::wait(struct timeval *timeo) {
             SW_REACTOR_CONTINUE;
         }
         for (i = 0; i < n; i++) {
-            event.reactor_id = reactor_id;
+            event.reactor_id = reactor_->id;
             event.socket = (Socket *) events_[i].data.ptr;
             event.type = event.socket->fd_type;
             event.fd = event.socket->fd;

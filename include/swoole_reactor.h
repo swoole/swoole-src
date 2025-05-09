@@ -47,7 +47,7 @@ class ReactorImpl {
     virtual int add(network::Socket *socket, int events) = 0;
     virtual int set(network::Socket *socket, int events) = 0;
     virtual int del(network::Socket *socket) = 0;
-    virtual int wait(struct timeval *) = 0;
+    virtual int wait() = 0;
 };
 
 class CallbackManager {
@@ -159,8 +159,8 @@ class Reactor {
         return impl->del(socket);
     }
 
-    int wait(struct timeval *timeout) {
-        return impl->wait(timeout);
+    int wait() {
+        return impl->wait();
     }
 
     CallbackManager *defer_tasks = nullptr;
@@ -168,8 +168,6 @@ class Reactor {
 
     DeferCallback idle_task;
     DeferCallback future_task;
-
-    std::function<void(Reactor *)> onBegin;
 
     ssize_t (*write)(Reactor *reactor, network::Socket *socket, const void *buf, size_t n) = nullptr;
     ssize_t (*writev)(Reactor *reactor, network::Socket *socket, const iovec *iov, size_t iovcnt) = nullptr;
@@ -191,6 +189,7 @@ class Reactor {
     void set_exit_condition(enum ExitCondition id, const std::function<bool(Reactor *, size_t &)> &fn);
     bool set_handler(int _fdtype, ReactorHandler handler);
     void add_destroy_callback(Callback cb, void *data = nullptr);
+    void execute_begin_callback();
     void execute_end_callbacks(bool timedout = false);
     void drain_write_buffer(network::Socket *socket);
 
@@ -268,6 +267,10 @@ class Reactor {
         return defer_tasks == nullptr ? timeout_msec : 0;
     }
 
+    void set_timeout_msec(int mesc) {
+        timeout_msec = mesc;
+    }
+
     size_t get_event_num() {
         return sockets_.size();
     }
@@ -315,6 +318,9 @@ class Reactor {
 
     void before_wait() {
         start = running = true;
+        if (timeout_msec == 0) {
+            timeout_msec = -1;
+        }
     }
 
     int trigger_close_event(Event *event) {
@@ -358,8 +364,6 @@ class Reactor {
                               const size_t __len,
                               const std::function<ssize_t(void)> &send_fn,
                               const std::function<void(Buffer *buffer)> &append_fn);
-
-    void activate_future_task();
 
     static FdType get_fd_type(int flags) {
         return (FdType) (flags & (~SW_EVENT_READ) & (~SW_EVENT_WRITE) & (~SW_EVENT_ERROR) & (~SW_EVENT_ONCE));

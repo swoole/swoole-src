@@ -64,7 +64,7 @@ class ReactorKqueue : public ReactorImpl {
     int add(Socket *socket, int events) override;
     int set(Socket *socket, int events) override;
     int del(Socket *socket) override;
-    int wait(struct timeval *) override;
+    int wait() override;
 };
 
 ReactorImpl *make_reactor_kqueue(Reactor *_reactor, int max_events) {
@@ -253,7 +253,7 @@ int ReactorKqueue::del(Socket *socket) {
     return SW_OK;
 }
 
-int ReactorKqueue::wait(struct timeval *timeo) {
+int ReactorKqueue::wait() {
     Event event;
     ReactorHandler handler;
 
@@ -261,20 +261,11 @@ int ReactorKqueue::wait(struct timeval *timeo) {
     struct timespec t = {};
     struct timespec *t_ptr;
 
-    if (reactor_->timeout_msec == 0) {
-        if (timeo == nullptr) {
-            reactor_->timeout_msec = -1;
-        } else {
-            reactor_->timeout_msec = timeo->tv_sec * 1000 + timeo->tv_usec / 1000;
-        }
-    }
-
     reactor_->before_wait();
 
     while (reactor_->running) {
-        if (reactor_->onBegin != nullptr) {
-            reactor_->onBegin(reactor_);
-        }
+        reactor_->execute_begin_callback();
+
         if (reactor_->timeout_msec > 0) {
             t.tv_sec = reactor_->timeout_msec / 1000;
             t.tv_nsec = (reactor_->timeout_msec - t.tv_sec * 1000) * 1000 * 1000;

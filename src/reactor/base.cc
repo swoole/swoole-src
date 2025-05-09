@@ -102,6 +102,7 @@ Reactor::Reactor(int max_event, Type _type) {
     }
 
     running = true;
+    timeout_msec = -1;
     idle_task = {};
     future_task = {};
 
@@ -187,16 +188,6 @@ bool Reactor::if_exit() {
         }
     }
     return true;
-}
-
-void Reactor::activate_future_task() {
-    onBegin = reactor_begin;
-}
-
-static void reactor_begin(Reactor *reactor) {
-    if (reactor->future_task.callback) {
-        reactor->future_task.callback(reactor->future_task.data);
-    }
 }
 
 int Reactor::_close(Reactor *reactor, Socket *socket) {
@@ -400,6 +391,12 @@ void Reactor::defer(Callback cb, void *data) {
 void Reactor::execute_end_callbacks(bool timedout) {
     for (auto &kv : end_callbacks) {
         kv.second(this);
+    }
+}
+
+void Reactor::execute_begin_callback() {
+    if (future_task.callback) {
+        future_task.callback(future_task.data);
     }
 }
 

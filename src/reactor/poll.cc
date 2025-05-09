@@ -29,6 +29,7 @@ class ReactorPoll : public ReactorImpl {
     Socket **fds_;
     struct pollfd *events_;
     bool exists(int fd);
+    void set_events(int index, int events);
 
   public:
     ReactorPoll(Reactor *_reactor, int max_events);
@@ -39,7 +40,7 @@ class ReactorPoll : public ReactorImpl {
     int add(Socket *socket, int events) override;
     int set(Socket *socket, int events) override;
     int del(Socket *socket) override;
-    int wait(struct timeval *) override;
+    int wait() override;
 };
 
 ReactorImpl *make_reactor_poll(Reactor *_reactor, int max_events) {
@@ -59,6 +60,19 @@ ReactorPoll::~ReactorPoll() {
     delete[] events_;
 }
 
+void ReactorPoll::set_events(int index, int events) {
+    events_[index].events = 0;
+    if (Reactor::isset_read_event(events)) {
+        events_[index].events |= POLLIN;
+    }
+    if (Reactor::isset_write_event(events)) {
+        events_[index].events |= POLLOUT;
+    }
+    if (Reactor::isset_error_event(events)) {
+        events_[index].events |= POLLHUP;
+    }
+}
+
 int ReactorPoll::add(Socket *socket, int events) {
     int fd = socket->fd;
     if (exists(fd)) {
@@ -69,7 +83,8 @@ int ReactorPoll::add(Socket *socket, int events) {
 
     int cur = reactor_->get_event_num();
     if (reactor_->get_event_num() == max_fd_num) {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_EVENT_ADD_FAILED, "too many connection, more than %d", max_fd_num);
+        swoole_error_log(
+            SW_LOG_WARNING, SW_ERROR_EVENT_ADD_FAILED, "too many sockets, the max events is %d", max_fd_num);
         swoole_print_backtrace_on_error();
         return SW_ERR;
     }
@@ -80,37 +95,17 @@ int ReactorPoll::add(Socket *socket, int events) {
 
     fds_[cur] = socket;
     events_[cur].fd = fd;
-    events_[cur].events = 0;
-
-    if (Reactor::isset_read_event(events)) {
-        events_[cur].events |= POLLIN;
-    }
-    if (Reactor::isset_write_event(events)) {
-        events_[cur].events |= POLLOUT;
-    }
-    if (Reactor::isset_error_event(events)) {
-        events_[cur].events |= POLLHUP;
-    }
+    set_events(cur, events);
 
     return SW_OK;
 }
 
 int ReactorPoll::set(Socket *socket, int events) {
-    uint32_t i;
-
     swoole_trace("fd=%d, events=%d", socket->fd, events);
 
-    for (i = 0; i < reactor_->get_event_num(); i++) {
-        // found
+    SW_LOOP_N(reactor_->get_event_num()) {
         if (events_[i].fd == socket->fd) {
-            events_[i].events = 0;
-            if (Reactor::isset_read_event(events)) {
-                events_[i].events |= POLLIN;
-            }
-            if (Reactor::isset_write_event(events)) {
-                events_[i].events |= POLLOUT;
-            }
-            // execute parent method
+            set_events(i, events);
             reactor_->_set(socket, events);
             return SW_OK;
         }
@@ -132,7 +127,7 @@ int ReactorPoll::del(Socket *socket) {
     for (uint32_t i = 0; i < reactor_->get_event_num(); i++) {
         if (events_[i].fd == socket->fd) {
             for (; i < reactor_->get_event_num(); i++) {
-                if (i == reactor_->get_event_num()) {
+                if (i == reactor_->get_event_num() - 1) {
                     fds_[i] = nullptr;
                     events_[i].fd = 0;
                     events_[i].events = 0;
@@ -150,26 +145,16 @@ int ReactorPoll::del(Socket *socket) {
     return SW_ERR;
 }
 
-int ReactorPoll::wait(struct timeval *timeo) {
+int ReactorPoll::wait() {
     Event event;
     ReactorHandler handler;
 
     int ret;
-
-    if (reactor_->timeout_msec == 0) {
-        if (timeo == nullptr) {
-            reactor_->timeout_msec = -1;
-        } else {
-            reactor_->timeout_msec = timeo->tv_sec * 1000 + timeo->tv_usec / 1000;
-        }
-    }
-
     reactor_->before_wait();
 
     while (reactor_->running) {
-        if (reactor_->onBegin != nullptr) {
-            reactor_->onBegin(reactor_);
-        }
+        reactor_->execute_begin_callback();
+
         ret = poll(events_, reactor_->get_event_num(), reactor_->get_timeout_msec());
         if (ret < 0) {
             if (!reactor_->catch_error()) {
