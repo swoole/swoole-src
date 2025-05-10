@@ -118,12 +118,9 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
         }
         http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_PORT), (zend_long) conn->info.get_port());
 
-        if (conn->info.type == SW_SOCK_TCP && IN_IS_ADDR_LOOPBACK(&conn->info.addr.inet_v4.sin_addr)) {
-            http_server_add_server_array(
-                ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), SW_ZSTR_KNOWN(SW_ZEND_STR_ADDR_LOOPBACK_V4));
-        } else if (conn->info.type == SW_SOCK_TCP6 && IN6_IS_ADDR_LOOPBACK(&conn->info.addr.inet_v6.sin6_addr)) {
-            http_server_add_server_array(
-                ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), SW_ZSTR_KNOWN(SW_ZEND_STR_ADDR_LOOPBACK_V6));
+        if (conn->info.is_loopback_addr()) {
+            auto key = conn->info.type == SW_SOCK_TCP6 ? SW_ZEND_STR_ADDR_LOOPBACK_V6 : SW_ZEND_STR_ADDR_LOOPBACK_V4;
+            http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), SW_ZSTR_KNOWN(key));
         } else {
             if (serv->is_base_mode() && ctx->keepalive) {
                 auto iter = client_ips.find(session_id);

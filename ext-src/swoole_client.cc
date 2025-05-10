@@ -393,10 +393,8 @@ bool php_swoole_client_check_setting(Client *cli, zval *zset) {
         }
     } else {
     _open_tcp_nodelay:
-        if (cli->socket->socket_type == SW_SOCK_TCP || cli->socket->socket_type == SW_SOCK_TCP6) {
-            if (cli->socket->set_tcp_nodelay() < 0) {
-                swoole_sys_warning("setsockopt(%d, TCP_NODELAY) failed", cli->socket->fd);
-            }
+        if (cli->socket->is_tcp() && !cli->socket->set_tcp_nodelay()) {
+            swoole_sys_warning("setsockopt(%d, TCP_NODELAY) failed", cli->socket->fd);
         }
     }
     /**

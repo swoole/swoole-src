@@ -1129,22 +1129,7 @@ class Server {
     Server(enum Mode _mode = MODE_BASE);
     ~Server();
 
-    bool set_document_root(const std::string &path) {
-        if (path.length() > PATH_MAX) {
-            swoole_warning("The length of document_root must be less than %d", PATH_MAX);
-            return false;
-        }
-
-        char _realpath[PATH_MAX];
-        if (!realpath(path.c_str(), _realpath)) {
-            swoole_warning("document_root[%s] does not exist", path.c_str());
-            return false;
-        }
-
-        document_root = std::string(_realpath);
-        return true;
-    }
-
+    bool set_document_root(const std::string &path);
     void add_static_handler_location(const std::string &);
     void add_static_handler_index_files(const std::string &);
     bool select_static_handler(http_server::Request *request, Connection *conn);

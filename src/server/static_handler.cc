@@ -20,6 +20,7 @@
 #include <string>
 #include <dirent.h>
 #include <algorithm>
+#include <sstream>
 
 namespace swoole {
 
@@ -454,4 +455,185 @@ void Server::add_static_handler_index_files(const std::string &file) {
         http_index_files->emplace_back(file);
     }
 }
+
+bool Server::select_static_handler(http_server::Request *request, Connection *conn) {
+    const char *url = request->buffer_->str + request->url_offset_;
+    size_t url_length = request->url_length_;
+
+    swoole::http_server::StaticHandler handler(this, url, url_length);
+    if (!handler.hit()) {
+        return false;
+    }
+
+    char header_buffer[1024];
+    SendData response;
+    response.info.fd = conn->session_id;
+    response.info.type = SW_SERVER_EVENT_SEND_DATA;
+
+    if (handler.status_code == SW_HTTP_NOT_FOUND) {
+        response.info.len = sw_snprintf(header_buffer,
+                                        sizeof(header_buffer),
+                                        "HTTP/1.1 %s\r\n"
+                                        "Server: " SW_HTTP_SERVER_SOFTWARE "\r\n"
+                                        "Content-Length: %zu\r\n"
+                                        "\r\n%s",
+                                        http_server::get_status_message(SW_HTTP_NOT_FOUND),
+                                        sizeof(SW_HTTP_PAGE_404) - 1,
+                                        SW_HTTP_PAGE_404);
+        response.data = header_buffer;
+        send_to_connection(&response);
+
+        return true;
+    }
+
+    auto date_str = handler.get_date();
+    auto date_str_last_modified = handler.get_date_last_modified();
+
+    std::string date_if_modified_since = request->get_header("If-Modified-Since");
+    if (!date_if_modified_since.empty() && handler.is_modified(date_if_modified_since)) {
+        response.info.len = sw_snprintf(header_buffer,
+                                        sizeof(header_buffer),
+                                        "HTTP/1.1 304 Not Modified\r\n"
+                                        "Connection: %s\r\n"
+                                        "Date: %s\r\n"
+                                        "Last-Modified: %s\r\n"
+                                        "Server: %s\r\n\r\n",
+                                        request->keep_alive ? "keep-alive" : "close",
+                                        date_str.c_str(),
+                                        date_str_last_modified.c_str(),
+                                        SW_HTTP_SERVER_SOFTWARE);
+        response.data = header_buffer;
+        send_to_connection(&response);
+
+        return true;
+    }
+
+    /**
+     * if http_index_files is enabled, need to search the index file first.
+     * if the index file is found, set filename to index filename.
+     */
+    if (!handler.hit_index_file()) {
+        return false;
+    }
+
+    /**
+     * the index file was not found in the current directory,
+     * if http_autoindex is enabled, should show the list of files in the current directory.
+     */
+    if (!handler.has_index_file() && handler.is_enabled_auto_index() && handler.is_dir()) {
+        sw_tg_buffer()->clear();
+        size_t body_length = handler.make_index_page(sw_tg_buffer());
+
+        response.info.len = sw_snprintf(header_buffer,
+                                        sizeof(header_buffer),
+                                        "HTTP/1.1 200 OK\r\n"
+                                        "Connection: %s\r\n"
+                                        "Content-Length: %ld\r\n"
+                                        "Content-Type: text/html\r\n"
+                                        "Date: %s\r\n"
+                                        "Last-Modified: %s\r\n"
+                                        "Server: %s\r\n\r\n",
+                                        request->keep_alive ? "keep-alive" : "close",
+                                        (long) body_length,
+                                        date_str.c_str(),
+                                        date_str_last_modified.c_str(),
+                                        SW_HTTP_SERVER_SOFTWARE);
+        response.data = header_buffer;
+        send_to_connection(&response);
+
+        response.info.len = body_length;
+        response.data = sw_tg_buffer()->str;
+        send_to_connection(&response);
+        return true;
+    }
+
+    handler.parse_range(request->get_header("Range").c_str(), request->get_header("If-Range").c_str());
+    auto tasks = handler.get_tasks();
+
+    std::stringstream header_stream;
+    if (1 == tasks.size()) {
+        if (SW_HTTP_PARTIAL_CONTENT == handler.status_code) {
+            header_stream << "Content-Range: bytes " << tasks[0].offset << "-"
+                          << (tasks[0].length + tasks[0].offset - 1) << "/" << handler.get_filesize() << "\r\n";
+        } else {
+            header_stream << "Accept-Ranges: bytes\r\n";
+        }
+    }
+
+    response.info.len = sw_snprintf(
+        header_buffer,
+        sizeof(header_buffer),
+        "HTTP/1.1 %s\r\n"
+        "Connection: %s\r\n"
+        "Content-Length: %ld\r\n"
+        "Content-Type: %s\r\n"
+        "%s"
+        "Date: %s\r\n"
+        "Last-Modified: %s\r\n"
+        "Server: %s\r\n\r\n",
+        http_server::get_status_message(handler.status_code),
+        request->keep_alive ? "keep-alive" : "close",
+        SW_HTTP_HEAD == request->method ? 0 : handler.get_content_length(),
+        SW_HTTP_HEAD == request->method ? handler.get_mimetype().c_str() : handler.get_content_type().c_str(),
+        header_stream.str().c_str(),
+        date_str.c_str(),
+        date_str_last_modified.c_str(),
+        SW_HTTP_SERVER_SOFTWARE);
+
+    response.data = header_buffer;
+
+    // Use tcp_nopush to improve sending efficiency
+    conn->socket->cork();
+
+    // Send HTTP header
+    send_to_connection(&response);
+
+    // Send HTTP body
+    if (SW_HTTP_HEAD != request->method) {
+        if (!tasks.empty()) {
+            size_t task_size = sizeof(network::SendfileTask) + strlen(handler.get_filename()) + 1;
+            network::SendfileTask *task = (network::SendfileTask *) sw_malloc(task_size);
+            strcpy(task->filename, handler.get_filename());
+            if (tasks.size() > 1) {
+                for (auto i = tasks.begin(); i != tasks.end(); i++) {
+                    response.info.type = SW_SERVER_EVENT_SEND_DATA;
+                    response.info.len = strlen(i->part_header);
+                    response.data = i->part_header;
+                    send_to_connection(&response);
+
+                    task->offset = i->offset;
+                    task->length = i->length;
+                    response.info.type = SW_SERVER_EVENT_SEND_FILE;
+                    response.info.len = task_size;
+                    response.data = (char *) task;
+                    send_to_connection(&response);
+                }
+
+                response.info.type = SW_SERVER_EVENT_SEND_DATA;
+                response.info.len = handler.get_end_part().length();
+                response.data = handler.get_end_part().c_str();
+                send_to_connection(&response);
+            } else if (tasks[0].length > 0) {
+                task->offset = tasks[0].offset;
+                task->length = tasks[0].length;
+                response.info.type = SW_SERVER_EVENT_SEND_FILE;
+                response.info.len = task_size;
+                response.data = (char *) task;
+                send_to_connection(&response);
+            }
+            sw_free(task);
+        }
+    }
+
+    // Close the connection if keepalive is not used
+    if (!request->keep_alive) {
+        response.info.type = SW_SERVER_EVENT_CLOSE;
+        response.info.len = 0;
+        response.data = nullptr;
+        send_to_connection(&response);
+    }
+
+    return true;
+}
+
 }  // namespace swoole

@@ -875,4 +875,13 @@ void ListenPort::close_socket() {
     socket = nullptr;
 }
 
+void ListenPort::destroy_http_request(Connection *conn) {
+    auto request = reinterpret_cast<swoole::http_server::Request *>(conn->object);
+    if (!request) {
+        return;
+    }
+    delete request;
+    conn->object = nullptr;
+}
+
 }  // namespace swoole

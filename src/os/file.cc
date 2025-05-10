@@ -117,6 +117,36 @@ bool file_exists(const std::string &filename) {
     return access(filename.c_str(), F_OK) == 0;
 }
 
+File::File(const std::string &path, int oflags) {
+    fd_ = -1;
+    open(path, oflags);
+}
+
+File::File(const std::string &path, int oflags, int mode) {
+    fd_ = -1;
+    open(path, oflags, mode);
+}
+
+bool File::open(const std::string &path, int oflags, int mode) {
+    if (fd_ != -1) {
+        ::close(fd_);
+    }
+    if (oflags & CREATE) {
+        fd_ = ::open(path.c_str(), oflags, mode == 0 ? 0644 : mode);
+    } else {
+        fd_ = ::open(path.c_str(), oflags);
+    }
+    path_ = path;
+    flags_ = oflags;
+    return ready();
+}
+
+File::~File() {
+    if (fd_ >= 0) {
+        ::close(fd_);
+    }
+}
+
 size_t File::write_all(const void *data, size_t len) {
     size_t written_bytes = 0;
     while (written_bytes < len) {

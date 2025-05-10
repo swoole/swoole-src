@@ -188,6 +188,48 @@ TEST(socket, sendfile_sync) {
     t2.join();
 }
 
+TEST(socket, sendfile) {
+    string file = "/tmp/swoole-file-not-exists";
+    auto cli = make_socket(SW_SOCK_TCP, SW_FD_STREAM_CLIENT, 0);
+    network::Address addr;
+    addr.assign(SW_SOCK_TCP, TEST_HTTP_DOMAIN, 80);
+    ASSERT_EQ(cli->connect(addr), SW_OK);
+
+    ASSERT_EQ(cli->sendfile_sync(file.c_str(), 0, 0, -1), SW_ERR);
+    ASSERT_EQ(errno, ENOENT);
+
+    File fp(file, File::WRITE | File::CREATE);
+    ASSERT_TRUE(fp.ready());
+
+    ASSERT_EQ(cli->sendfile_sync(file.c_str(), 0, 0, -1), SW_ERR);
+    ASSERT_EQ(swoole_get_last_error(), SW_ERROR_FILE_EMPTY);
+
+    fp.write(SW_STRL(TEST_STR));
+    fp.close();
+
+    ASSERT_EQ(cli->sendfile_sync(file.c_str(), 10, 100, -1), SW_ERR);
+    ASSERT_EQ(swoole_get_last_error(), SW_ERROR_INVALID_PARAMS);
+
+    ASSERT_TRUE(fp.open(file, File::WRITE | File::APPEND));
+    auto req = test::http_get_request(TEST_HTTP_DOMAIN, "/");
+    fp.write(req);
+    fp.close();
+
+    ASSERT_EQ(cli->sendfile_sync(file.c_str(), strlen(TEST_STR), 0, -1), SW_OK);
+
+    char rbuf[4096];
+    auto n = cli->recv_sync(rbuf, sizeof(rbuf), 0);
+    ASSERT_GT(n, 0);
+
+    String resp(rbuf, n);
+
+    ASSERT_TRUE(resp.contains(SW_STRL(TEST_HTTP_EXPECT)));
+
+    cli->free();
+
+    ASSERT_TRUE(File::remove(file));
+}
+
 TEST(socket, peek) {
     char sock1_path[] = "/tmp/udp_unix1.sock";
     char sock2_path[] = "/tmp/udp_unix2.sock";
@@ -387,13 +429,55 @@ TEST(socket, dup) {
     test_socket_sync(sock_2, false);
 }
 
+TEST(socket, ipv4_addr) {
+    auto sock = make_socket(SW_SOCK_TCP, SW_FD_STREAM, 0);
+    network::Address addr;
+
+    ASSERT_TRUE(addr.assign("tcp://127.0.0.1:12345"));
+    ASSERT_EQ(sock->connect(addr), SW_ERR);
+    ASSERT_EQ(errno, ECONNREFUSED);
+
+    ASSERT_TRUE(addr.assign("tcp://localhost:12345"));
+    ASSERT_EQ(sock->connect(addr), SW_ERR);
+    ASSERT_EQ(errno, ECONNREFUSED);
+
+    sock->free();
+}
+
 TEST(socket, ipv6_addr) {
     auto sock = make_socket(SW_SOCK_TCP6, SW_FD_STREAM, 0);
     network::Address addr;
+
     ASSERT_TRUE(addr.assign("tcp://[::1]:12345"));
     ASSERT_EQ(sock->connect(addr), SW_ERR);
     ASSERT_EQ(errno, ECONNREFUSED);
+
+    ASSERT_TRUE(addr.assign("tcp://[ip6-localhost]:12345"));
+    ASSERT_EQ(sock->connect(addr), SW_ERR);
+    ASSERT_EQ(errno, ECONNREFUSED);
+
     sock->free();
+}
+
+TEST(socket, unix_addr) {
+    auto sock = make_socket(SW_SOCK_UNIX_STREAM, SW_FD_STREAM, 0);
+    network::Address addr;
+    ASSERT_TRUE(addr.assign("unix:///tmp/swoole-not-exists.sock"));
+    ASSERT_EQ(sock->connect(addr), SW_ERR);
+    ASSERT_EQ(errno, ENOENT);
+    sock->free();
+}
+
+TEST(socket, bad_addr) {
+    network::Address addr;
+    ASSERT_FALSE(addr.assign("test://[::1]:12345"));
+    ASSERT_EQ(swoole_get_last_error(), SW_ERROR_BAD_HOST_ADDR);
+}
+
+TEST(socket, bad_port) {
+    network::Address addr;
+    ASSERT_FALSE(addr.assign("tcp://[::1]:92345"));
+    ASSERT_EQ(swoole_get_last_error(), SW_ERROR_BAD_PORT);
 }
 
 TEST(socket, loopback_addr) {
