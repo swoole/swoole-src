@@ -84,28 +84,56 @@ void IOVector::update_iterator(ssize_t __n) {
     abort();
 }
 
-int Socket::sendfile_sync(const char *filename, off_t offset, size_t length, double timeout) {
-    int timeout_ms = timeout < 0 ? -1 : timeout * 1000;
+static bool check_sendfile_parameters(File *file, off_t begin, size_t length, off_t *end) {
+    auto filename = file->get_path().c_str();
+    if (!file->ready()) {
+        swoole_sys_warning("open('%s') failed", filename);
+        return false;
+    }
 
-    File file(filename, O_RDONLY);
-    if (!file.ready()) {
-        swoole_sys_warning("open(%s) failed", filename);
-        return SW_ERR;
+    FileStatus file_stat;
+    if (!file->stat(&file_stat)) {
+        swoole_sys_warning("fstat('%s') failed", filename);
+        return false;
+    }
+
+    if (file_stat.st_size == 0) {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_FILE_EMPTY, "cannot send empty file '%s'", filename);
+        return false;
     }
 
     if (length == 0) {
-        FileStatus file_stat;
-        if (!file.stat(&file_stat)) {
-            return SW_ERR;
-        }
-        length = file_stat.st_size;
+        *end = file_stat.st_size;
     } else {
-        length = offset + length;
+        *end = begin + length;
+    }
+
+    if (begin < 0 || *end > (off_t) file_stat.st_size) {
+        swoole_error_log(
+            SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "length[%ld] or offset[%ld] is invalid", length, begin);
+        return false;
+    }
+
+    return true;
+}
+
+static size_t get_sendfile_chunk_size(off_t begin, off_t end) {
+    size_t real_length = end - begin;
+    return real_length > SW_SENDFILE_CHUNK_SIZE ? SW_SENDFILE_CHUNK_SIZE : real_length;
+}
+
+int Socket::sendfile_sync(const char *filename, off_t offset, size_t length, double timeout) {
+    int timeout_ms = timeout < 0 ? -1 : timeout * 1000;
+    off_t end;
+    File file(filename, O_RDONLY);
+
+    if (!check_sendfile_parameters(&file, offset, length, &end)) {
+        return SW_ERR;
     }
 
     ssize_t n, sent_bytes;
-    while (offset < (off_t) length) {
-        sent_bytes = (length - offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : length - offset;
+    while (offset < end) {
+        sent_bytes = get_sendfile_chunk_size(offset, end);
         n = sendfile(file, &offset, sent_bytes);
         if (n <= 0) {
 #ifdef SW_USE_OPENSSL
@@ -120,6 +148,7 @@ int Socket::sendfile_sync(const char *filename, off_t offset, size_t length, dou
             return SW_ERR;
         }
     }
+
     return SW_OK;
 }
 
@@ -602,34 +631,34 @@ bool Socket::set_send_timeout(double timeout) {
 }
 
 int Socket::handle_sendfile() {
-    int ret;
+    ssize_t ret;
     Buffer *buffer = out_buffer;
     BufferChunk *chunk = buffer->front();
     SendfileRequest *task = (SendfileRequest *) chunk->value.ptr;
 
-    if (task->offset == 0) {
+    if (task->begin == 0) {
         cork();
     }
 
-    size_t sendn =
-        (task->length - task->offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : task->length - task->offset;
+    size_t sendn = get_sendfile_chunk_size(task->begin, task->end);
 
 #ifdef SW_USE_OPENSSL
     if (ssl) {
-        ret = ssl_sendfile(task->file, &task->offset, sendn);
+        ret = ssl_sendfile(task->file, &task->begin, sendn);
     } else
 #endif
     {
-        ret = ::swoole_sendfile(fd, task->file.get_fd(), &task->offset, sendn);
+        ret = ::swoole_sendfile(fd, task->file.get_fd(), &task->begin, sendn);
     }
 
-    swoole_trace("ret=%d|task->offset=%ld|sendn=%lu|filesize=%lu", ret, (long) task->offset, sendn, task->length);
+    swoole_trace(
+        "ret=%d|task->offset=%ld|sendn=%lu|filesize=%lu", ret, (long) task->begin_offset, sendn, task->end_length);
 
     if (ret <= 0) {
         switch (catch_write_error(errno)) {
         case SW_ERROR:
             swoole_sys_warning(
-                "sendfile(%s, %ld, %zu) failed", task->file.get_path().c_str(), (long) task->offset, sendn);
+                "sendfile(%s, %ld, %zu) failed", task->file.get_path().c_str(), (long) task->begin, sendn);
             buffer->pop();
             return SW_OK;
         case SW_CLOSE:
@@ -648,7 +677,7 @@ int Socket::handle_sendfile() {
     }
 
     // sendfile completed
-    if ((size_t) task->offset >= task->length) {
+    if (task->begin == task->end) {
         buffer->pop();
         uncork();
     }
@@ -717,20 +746,9 @@ ssize_t Socket::sendfile(const File &fp, off_t *offset, size_t length) {
 }
 
 int Socket::sendfile_async(const char *filename, off_t offset, size_t length) {
-    std::unique_ptr<SendfileRequest> task(new SendfileRequest(filename, offset, length));
-    if (!task->file.ready()) {
-        swoole_sys_warning("open(%s) failed", filename);
-        return SW_OK;
-    }
+    std::unique_ptr<SendfileRequest> task(new SendfileRequest(filename, offset));
 
-    FileStatus file_stat;
-    if (!task->file.stat(&file_stat)) {
-        swoole_sys_warning("fstat(%s) failed", filename);
-        return SW_ERR;
-    }
-
-    if (file_stat.st_size == 0) {
-        swoole_warning("empty file[%s]", filename);
+    if (!check_sendfile_parameters(&task->file, offset, length, &task->end)) {
         return SW_ERR;
     }
 
@@ -739,16 +757,6 @@ int Socket::sendfile_async(const char *filename, off_t offset, size_t length) {
         if (out_buffer == nullptr) {
             return SW_ERR;
         }
-    }
-
-    if (offset < 0 || (length + offset > (size_t) file_stat.st_size)) {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "length or offset is invalid");
-        return SW_OK;
-    }
-    if (length == 0) {
-        task->length = file_stat.st_size;
-    } else {
-        task->length = length + offset;
     }
 
     BufferChunk *chunk = out_buffer->alloc(BufferChunk::TYPE_SENDFILE, 0);

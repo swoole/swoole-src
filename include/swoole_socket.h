@@ -72,13 +72,13 @@ struct SendfileTask {
 
 struct SendfileRequest {
     File file;
-    size_t length;
-    off_t offset;
+    off_t begin;
+    off_t end;
 
   public:
-    SendfileRequest(const char *filename, off_t _offset, size_t _length) : file(filename, O_RDONLY) {
-        offset = _offset;
-        length = _length;
+    SendfileRequest(const char *filename, off_t _offset) : file(filename, O_RDONLY) {
+        begin = _offset;
+        end = 0;
     }
 };
 
