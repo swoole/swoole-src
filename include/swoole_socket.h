@@ -105,7 +105,7 @@ struct Address {
         return get_addr();
     }
 
-    int get_port();
+    int get_port() const;
     const char *get_addr();
     bool is_loopback_addr();
 

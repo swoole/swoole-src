@@ -495,7 +495,7 @@ bool swoole_mkdir_recursive(const std::string &dir) {
             if (access(tmp, R_OK) != 0) {
                 if (mkdir(tmp, 0755) == -1) {
                     swoole_sys_warning("mkdir(%s) failed", tmp);
-                    return -1;
+                    return false;
                 }
             }
             tmp[i] = '/';
@@ -590,8 +590,6 @@ int swoole_rand(int min, int max) {
 
 int swoole_system_random(int min, int max) {
     static int dev_random_fd = -1;
-    char *next_random_byte;
-    int bytes_to_read;
     unsigned random_value;
 
     assert(max > min);
@@ -603,8 +601,8 @@ int swoole_system_random(int min, int max) {
         }
     }
 
-    next_random_byte = (char *) &random_value;
-    bytes_to_read = sizeof(random_value);
+    auto next_random_byte = (char *) &random_value;
+    constexpr int bytes_to_read = sizeof(random_value);
 
     if (read(dev_random_fd, next_random_byte, bytes_to_read) < bytes_to_read) {
         swoole_sys_warning("read() from /dev/urandom failed");

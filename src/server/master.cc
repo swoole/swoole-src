@@ -53,9 +53,9 @@ void Server::disable_accept() {
     enable_accept_timer = swoole_timer_add(
         SW_ACCEPT_RETRY_TIME,
         false,
-        [](Timer *timer, TimerNode *tnode) {
-            Server *serv = (Server *) tnode->data;
-            for (auto port : serv->ports) {
+        [](Timer *timer, const TimerNode *tnode) {
+            auto *serv = static_cast<Server *>(tnode->data);
+            for (const auto port : serv->ports) {
                 if (port->is_dgram()) {
                     continue;
                 }
@@ -69,7 +69,7 @@ void Server::disable_accept() {
         return;
     }
 
-    for (auto port : ports) {
+    for (const auto port : ports) {
         if (port->is_dgram()) {
             continue;
         }
@@ -77,8 +77,8 @@ void Server::disable_accept() {
     }
 }
 
-void Server::call_command_callback(int64_t request_id, const std::string &result) {
-    auto iter = command_callbacks.find(request_id);
+void Server::call_command_callback(const int64_t request_id, const std::string &result) {
+    const auto iter = command_callbacks.find(request_id);
     if (iter == command_callbacks.end()) {
         swoole_error_log(SW_LOG_ERROR,
                          SW_ERROR_SERVER_INVALID_COMMAND,
@@ -91,17 +91,17 @@ void Server::call_command_callback(int64_t request_id, const std::string &result
 }
 
 void Server::call_command_handler(MessageBus &mb, uint16_t worker_id, Socket *sock) {
-    PipeBuffer *buffer = mb.get_buffer();
-    int command_id = buffer->info.server_fd;
-    auto iter = command_handlers.find(command_id);
+    const PipeBuffer *buffer = mb.get_buffer();
+    const int command_id = buffer->info.server_fd;
+    const auto iter = command_handlers.find(command_id);
     if (iter == command_handlers.end()) {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_INVALID_COMMAND, "Unknown command[command_id=%d]", command_id);
         return;
     }
 
-    Server::Command::Handler handler = iter->second;
-    auto packet = mb.get_packet();
-    auto result = handler(this, std::string(packet.data, packet.length));
+    const Command::Handler handler = iter->second;
+    const auto packet = mb.get_packet();
+    const auto result = handler(this, std::string(packet.data, packet.length));
 
     SendData task{};
     task.info.fd = buffer->info.fd;
@@ -126,7 +126,7 @@ std::string Server::call_command_handler_in_master(int command_id, const std::st
 }
 
 int Server::accept_command_result(Reactor *reactor, Event *event) {
-    Server *serv = (Server *) reactor->ptr;
+    auto *serv = static_cast<Server *>(reactor->ptr);
 
     if (serv->message_bus.read(event->socket) <= 0) {
         return SW_OK;
@@ -388,10 +388,10 @@ int Server::start_check() {
                                  dispatch_mode);
                 onBufferEmpty = nullptr;
             }
-            disable_notify = 1;
+            disable_notify = true;
         }
         if (!is_support_send_yield()) {
-            send_yield = 0;
+            send_yield = false;
         }
     } else {
         max_queued_bytes = 0;
@@ -802,13 +802,13 @@ int Server::create() {
         locations = std::make_shared<std::unordered_set<std::string>>();
     }
 
-    if (http_compression_types && http_compression_types->size() > 0) {
-        http_compression = 1;
+    if (http_compression_types && !http_compression_types->empty()) {
+        http_compression = true;
     }
 
     // Max Connections
     uint32_t minimum_connection = (worker_num + task_worker_num) * 2 + 32;
-    if (ports.size() > 0) {
+    if (!ports.empty()) {
         minimum_connection += ports.back()->get_fd();
     }
     if (max_connection < minimum_connection) {
@@ -930,10 +930,8 @@ bool Server::signal_handler_read_message() {
 
 #ifdef SIGRTMIN
 bool Server::signal_handler_reopen_logger() {
-    uint32_t i;
-    Worker *worker;
-    for (i = 0; i < worker_num + task_worker_num + get_user_worker_num(); i++) {
-        worker = get_worker(i);
+    for (uint32_t i = 0; i < worker_num + task_worker_num + get_user_worker_num(); i++) {
+        Worker *worker = get_worker(i);
         swoole_kill(worker->pid, SIGRTMIN);
     }
     if (is_process_mode()) {
@@ -988,7 +986,7 @@ bool Server::signal_handler_shutdown() {
             running = false;
         } else {
             // single process worker, exit directly
-            gs->event_workers.running = 0;
+            gs->event_workers.running = false;
             stop_async_worker(sw_worker());
         }
         return true;
@@ -1480,7 +1478,7 @@ int Server::send_to_connection(SendData *_send) {
     }
     // sendfile to client
     else if (_send->info.type == SW_SERVER_EVENT_SEND_FILE) {
-        SendfileTask *task = (SendfileTask *) _send_data;
+        auto *task = (SendfileTask *) _send_data;
         if (conn->socket->sendfile_async(task->filename, task->offset, task->length) < 0) {
             return false;
         }
@@ -1558,7 +1556,7 @@ bool Server::sendfile(SessionId session_id, const char *file, uint32_t l_file, o
     }
 
     char _buffer[SW_IPC_BUFFER_SIZE];
-    SendfileTask *req = reinterpret_cast<SendfileTask *>(_buffer);
+    auto *req = reinterpret_cast<SendfileTask *>(_buffer);
 
     // file name size
     if (sw_unlikely(l_file > sizeof(_buffer) - sizeof(*req) - 1)) {
@@ -1660,7 +1658,7 @@ void Server::init_signal_handler() {
 }
 
 void Server::timer_callback(Timer *timer, TimerNode *tnode) {
-    Server *serv = (Server *) tnode->data;
+    auto *serv = static_cast<Server *>(tnode->data);
     time_t now = ::time(nullptr);
     if (serv->scheduler_warning && serv->warning_time < now) {
         serv->scheduler_warning = false;
@@ -1724,7 +1722,7 @@ void Server::check_port_type(ListenPort *ls) {
     if (ls->is_dgram()) {
         // dgram socket, setting socket buffer size
         ls->socket->set_buffer_size(ls->socket_buffer_size);
-        have_dgram_sock = 1;
+        have_dgram_sock = true;
         dgram_port_num++;
         if (ls->type == SW_SOCK_UDP) {
             udp_socket_ipv4 = ls->socket;
@@ -1734,7 +1732,7 @@ void Server::check_port_type(ListenPort *ls) {
             dgram_socket = ls->socket;
         }
     } else {
-        have_stream_sock = 1;
+        have_stream_sock = true;
     }
 }
 
@@ -2073,11 +2071,10 @@ void Server::release_pipe_buffers() {
     message_bus.free_buffer();
 }
 
-int Server::get_idle_worker_num() {
-    uint32_t i;
+uint32_t Server::get_idle_worker_num() {
     uint32_t idle_worker_num = 0;
 
-    for (i = 0; i < worker_num; i++) {
+    for (uint32_t i = 0; i < worker_num; i++) {
         Worker *worker = get_worker(i);
         if (worker->is_idle()) {
             idle_worker_num++;

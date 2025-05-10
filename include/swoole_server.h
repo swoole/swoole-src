@@ -361,7 +361,7 @@ struct ListenPort {
     bool ssl_context_init();
     bool ssl_context_create(SSLContext *context);
     bool ssl_create(Connection *conn, network::Socket *sock);
-    bool ssl_add_sni_cert(const std::string &name, std::shared_ptr<SSLContext> ctx);
+    bool ssl_add_sni_cert(const std::string &name, const std::shared_ptr<SSLContext> &ctx);
     bool ssl_init();
 
     bool set_ssl_key_file(const std::string &file) {
@@ -1153,7 +1153,7 @@ class Server {
     void reset_worker_counter(Worker *worker);
     int connection_incoming(Reactor *reactor, Connection *conn);
 
-    int get_idle_worker_num();
+    uint32_t get_idle_worker_num();
     int get_idle_task_worker_num();
     int get_tasking_num();
 

@@ -203,9 +203,9 @@ void Coroutine::close() {
 }
 
 void Coroutine::print_list() {
-    for (auto i = coroutines.begin(); i != coroutines.end(); i++) {
+    for (auto & coroutine : coroutines) {
         const char *state;
-        switch (i->second->state) {
+        switch (coroutine.second->state) {
         case STATE_INIT:
             state = "[INIT]";
             break;
@@ -222,23 +222,23 @@ void Coroutine::print_list() {
             abort();
             return;
         }
-        sw_printf("Coroutine\t%ld\t%s\n", i->first, state);
+        sw_printf("Coroutine\t%ld\t%s\n", coroutine.first, state);
     }
 }
 
-void Coroutine::set_on_yield(SwapCallback func) {
+void Coroutine::set_on_yield(const SwapCallback func) {
     on_yield = func;
 }
 
-void Coroutine::set_on_resume(SwapCallback func) {
+void Coroutine::set_on_resume(const SwapCallback func) {
     on_resume = func;
 }
 
-void Coroutine::set_on_close(SwapCallback func) {
+void Coroutine::set_on_close(const SwapCallback func) {
     on_close = func;
 }
 
-void Coroutine::bailout(BailoutCallback func) {
+void Coroutine::bailout(const BailoutCallback& func) {
     Coroutine *co = current;
     if (!co) {
         // marks that it can no longer resume any coroutine
@@ -301,18 +301,17 @@ size_t swoole_coroutine_count() {
 /**
  * for gdb
  */
-static std::unordered_map<long, swoole::Coroutine *>::iterator _gdb_iterator;
+static std::unordered_map<long, swoole::Coroutine *>::iterator gdb_iterator_;
 
 void swoole_coroutine_iterator_reset() {
-    _gdb_iterator = swoole::Coroutine::coroutines.begin();
+    gdb_iterator_ = swoole::Coroutine::coroutines.begin();
 }
 
 swoole::Coroutine *swoole_coroutine_iterator_each() {
-    if (_gdb_iterator == swoole::Coroutine::coroutines.end()) {
+    if (gdb_iterator_ == swoole::Coroutine::coroutines.end()) {
         return nullptr;
-    } else {
-        swoole::Coroutine *co = _gdb_iterator->second;
-        _gdb_iterator++;
-        return co;
     }
+    swoole::Coroutine *co = gdb_iterator_->second;
+    ++gdb_iterator_;
+    return co;
 }
