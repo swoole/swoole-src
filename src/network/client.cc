@@ -358,42 +358,14 @@ static int Client_inet_addr(Client *cli, const char *host, int port) {
     cli->server_host = host;
     cli->server_port = port;
 
-    void *addr = nullptr;
-    if (cli->socket->is_inet4()) {
-        cli->server_addr.addr.inet_v4.sin_family = AF_INET;
-        cli->server_addr.addr.inet_v4.sin_port = htons(port);
-        cli->server_addr.len = sizeof(cli->server_addr.addr.inet_v4);
-        addr = &cli->server_addr.addr.inet_v4.sin_addr.s_addr;
-
-        if (inet_pton(AF_INET, host, addr)) {
-            return SW_OK;
-        }
-    } else if (cli->socket->is_inet6()) {
-        cli->server_addr.addr.inet_v6.sin6_family = AF_INET6;
-        cli->server_addr.addr.inet_v6.sin6_port = htons(port);
-        cli->server_addr.len = sizeof(cli->server_addr.addr.inet_v6);
-        addr = cli->server_addr.addr.inet_v6.sin6_addr.s6_addr;
-
-        if (inet_pton(AF_INET6, host, addr)) {
-            return SW_OK;
-        }
-    } else if (cli->socket->is_local()) {
-        cli->server_addr.addr.un.sun_family = AF_UNIX;
-        swoole_strlcpy(cli->server_addr.addr.un.sun_path, host, sizeof(cli->server_addr.addr.un.sun_path));
-        cli->server_addr.addr.un.sun_path[sizeof(cli->server_addr.addr.un.sun_path) - 1] = 0;
-        cli->server_addr.len = sizeof(cli->server_addr.addr.un.sun_path);
-        return SW_OK;
-    } else {
-        return SW_ERR;
-    }
-    if (!cli->async) {
-        if (swoole::network::gethostbyname(cli->_sock_domain, host, (char *) addr) < 0) {
-            swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
+    if (!cli->server_addr.assign(cli->socket->socket_type, host, port, !cli->async)) {
+        if (swoole_get_last_error() == SW_ERROR_BAD_HOST_ADDR) {
+            cli->wait_dns = 1;
+        } else {
             return SW_ERR;
         }
-    } else {
-        cli->wait_dns = 1;
     }
+
     return SW_OK;
 }
 

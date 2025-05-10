@@ -52,7 +52,7 @@ int Address::get_port() {
     }
 }
 
-bool Address::assign(SocketType _type, const std::string &_host, int _port) {
+bool Address::assign(SocketType _type, const std::string &_host, int _port, bool resolve) {
     type = _type;
     const char *host = _host.c_str();
 
@@ -66,6 +66,10 @@ bool Address::assign(SocketType _type, const std::string &_host, int _port) {
         addr.inet_v4.sin_port = htons(_port);
         len = sizeof(addr.inet_v4);
         if (inet_pton(AF_INET, host, &addr.inet_v4.sin_addr.s_addr) != 1) {
+            if (!resolve) {
+                swoole_set_last_error(SW_ERROR_BAD_HOST_ADDR);
+                return false;
+            }
             if (gethostbyname(AF_INET, host, (char *) &addr.inet_v4.sin_addr) < 0) {
                 swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
                 return false;
@@ -76,6 +80,10 @@ bool Address::assign(SocketType _type, const std::string &_host, int _port) {
         addr.inet_v6.sin6_port = htons(_port);
         len = sizeof(addr.inet_v6);
         if (inet_pton(AF_INET6, host, addr.inet_v6.sin6_addr.s6_addr) != 1) {
+            if (!resolve) {
+                swoole_set_last_error(SW_ERROR_BAD_HOST_ADDR);
+                return false;
+            }
             if (gethostbyname(AF_INET6, host, (char *) &addr.inet_v6.sin6_addr) < 0) {
                 swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
                 return false;

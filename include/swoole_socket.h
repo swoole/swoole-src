@@ -98,7 +98,7 @@ struct Address {
     socklen_t len;
     SocketType type;
 
-    bool assign(SocketType _type, const std::string &_host, int _port);
+    bool assign(SocketType _type, const std::string &_host, int _port, bool resolve = true);
     bool assign(const std::string &url);
 
     const char *get_ip() {
