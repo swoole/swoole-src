@@ -308,7 +308,6 @@ static void process_pool_signal_handler(int sig) {
     case SIGUSR1:
     case SIGUSR2:
         current_pool->reload();
-        current_pool->reload_init = false;
         break;
     case SIGIO:
         current_pool->read_message = true;

@@ -313,15 +313,7 @@ class Socket {
         return co ? co->get_cid() : 0;
     }
 
-    const char *get_event_str(const EventType event) {
-        if (event == SW_EVENT_READ) {
-            return "reading";
-        } else if (event == SW_EVENT_WRITE) {
-            return "writing";
-        } else {
-            return read_co && write_co ? "reading or writing" : (read_co ? "reading" : "writing");
-        }
-    }
+    const char *get_event_str(const EventType event);
 
     void check_bound_co(const EventType event) {
         long cid = get_bound_cid(event);
@@ -356,71 +348,19 @@ class Socket {
     }
 
     /* set connect read write timeout */
-    void set_timeout(double timeout, int type = TIMEOUT_ALL) {
-        if (timeout == 0) {
-            return;
-        }
-        if (type & TIMEOUT_DNS) {
-            dns_timeout = timeout;
-        }
-        if (type & TIMEOUT_CONNECT) {
-            connect_timeout = timeout;
-        }
-        if (type & TIMEOUT_READ) {
-            read_timeout = timeout;
-        }
-        if (type & TIMEOUT_WRITE) {
-            write_timeout = timeout;
-        }
-    }
+    void set_timeout(double timeout, int type = TIMEOUT_ALL);
 
     void set_timeout(struct timeval *timeout, int type = TIMEOUT_ALL) {
         set_timeout((double) timeout->tv_sec + ((double) timeout->tv_usec / 1000 / 1000), type);
     }
 
-    double get_timeout(enum TimeoutType type = TIMEOUT_ALL) {
-        SW_ASSERT_1BYTE(type);
-        if (type == TIMEOUT_DNS) {
-            return dns_timeout;
-        } else if (type == TIMEOUT_CONNECT) {
-            return connect_timeout;
-        } else if (type == TIMEOUT_READ) {
-            return read_timeout;
-        } else if (type == TIMEOUT_WRITE) {
-            return write_timeout;
-        } else {
-            assert(0);
-            return -1;
-        }
-    }
+    double get_timeout(enum TimeoutType type = TIMEOUT_ALL);
 
-    bool set_option(int level, int optname, int optval) {
-        if (socket->set_option(level, optname, optval) < 0) {
-            swoole_sys_warning("setsockopt(%d, %d, %d, %d) failed", sock_fd, level, optname, optval);
-            return false;
-        }
-        return true;
-    }
-
-    String *get_read_buffer() {
-        if (sw_unlikely(!read_buffer)) {
-            read_buffer = make_string(SW_BUFFER_SIZE_BIG, buffer_allocator);
-            if (!read_buffer) {
-                throw std::bad_alloc();
-            }
-        }
-        return read_buffer;
-    }
-
-    String *get_write_buffer() {
-        if (sw_unlikely(!write_buffer)) {
-            write_buffer = make_string(SW_BUFFER_SIZE_BIG, buffer_allocator);
-            if (!write_buffer) {
-                throw std::bad_alloc();
-            }
-        }
-        return write_buffer;
-    }
+    bool set_option(int level, int optname, int optval);
+    String *get_read_buffer();
+    String *get_write_buffer();
+    String *pop_read_buffer();
+    String *pop_write_buffer();
 
     void set_resolve_context(NameResolver::Context *ctx) {
         resolve_context_ = ctx;
@@ -428,24 +368,6 @@ class Socket {
 
     void set_dtor(const std::function<void(Socket *)> &dtor) {
         dtor_ = dtor;
-    }
-
-    String *pop_read_buffer() {
-        if (sw_unlikely(!read_buffer)) {
-            return nullptr;
-        }
-        auto tmp = read_buffer;
-        read_buffer = nullptr;
-        return tmp;
-    }
-
-    String *pop_write_buffer() {
-        if (sw_unlikely(!write_buffer)) {
-            return nullptr;
-        }
-        auto tmp = write_buffer;
-        write_buffer = nullptr;
-        return tmp;
     }
 
     void set_zero_copy(bool enable) {
@@ -600,25 +522,8 @@ class Socket {
       public:
         TimerController(TimerNode **_timer_pp, double _timeout, Socket *_socket, TimerCallback _callback)
             : timer_pp(_timer_pp), timeout(_timeout), socket_(_socket), callback(std::move(_callback)) {}
-        bool start() {
-            if (timeout != 0 && !*timer_pp) {
-                enabled = true;
-                if (timeout > 0) {
-                    *timer_pp = swoole_timer_add(timeout, false, callback, socket_);
-                    return *timer_pp != nullptr;
-                }
-                *timer_pp = (TimerNode *) -1;
-            }
-            return true;
-        }
-        ~TimerController() {
-            if (enabled && *timer_pp) {
-                if (*timer_pp != (TimerNode *) -1) {
-                    swoole_timer_del(*timer_pp);
-                }
-                *timer_pp = nullptr;
-            }
-        }
+        bool start();
+        ~TimerController();
 
       private:
         bool enabled = false;
@@ -631,32 +536,8 @@ class Socket {
   public:
     class TimeoutSetter {
       public:
-        TimeoutSetter(Socket *socket, double _timeout, const enum TimeoutType _type)
-            : socket_(socket), timeout(_timeout), type(_type) {
-            if (_timeout == 0) {
-                return;
-            }
-            for (uint8_t i = 0; i < SW_ARRAY_SIZE(timeout_type_list); i++) {
-                if (_type & timeout_type_list[i]) {
-                    original_timeout[i] = socket->get_timeout(timeout_type_list[i]);
-                    if (_timeout != original_timeout[i]) {
-                        socket->set_timeout(_timeout, timeout_type_list[i]);
-                    }
-                }
-            }
-        }
-        ~TimeoutSetter() {
-            if (timeout == 0) {
-                return;
-            }
-            for (uint8_t i = 0; i < SW_ARRAY_SIZE(timeout_type_list); i++) {
-                if (type & timeout_type_list[i]) {
-                    if (timeout != original_timeout[i]) {
-                        socket_->set_timeout(original_timeout[i], timeout_type_list[i]);
-                    }
-                }
-            }
-        }
+        TimeoutSetter(Socket *socket, double _timeout, const enum TimeoutType _type);
+        ~TimeoutSetter();
 
       protected:
         Socket *socket_;
@@ -669,23 +550,7 @@ class Socket {
       public:
         TimeoutController(Socket *_socket, double _timeout, const enum TimeoutType _type)
             : TimeoutSetter(_socket, _timeout, _type) {}
-
-        bool has_timedout(const enum TimeoutType _type) {
-            SW_ASSERT_1BYTE(_type);
-            if (timeout > 0) {
-                if (sw_unlikely(startup_time == 0)) {
-                    startup_time = microtime();
-                } else {
-                    double used_time = microtime() - startup_time;
-                    if (sw_unlikely(timeout - used_time < SW_TIMER_MIN_SEC)) {
-                        socket_->set_err(ETIMEDOUT);
-                        return true;
-                    }
-                    socket_->set_timeout(timeout - used_time, _type);
-                }
-            }
-            return false;
-        }
+        bool has_timedout(const enum TimeoutType _type);
 
       protected:
         double startup_time = 0;

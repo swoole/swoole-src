@@ -64,8 +64,8 @@ jobs:
       - name: run coverage
         shell: bash
         run: sudo apt-get install lcov &&
-          sudo lcov --directory . --capture --output-file coverage.info &&
-          sudo lcov --remove coverage.info "${{runner.workspace}}/swoole-src/include/*" '/usr/*' --output-file coverage.info &&
+          sudo lcov --directory . --capture --branch-coverage --rc geninfo_unexecuted_blocks=1 --ignore-errors mismatch --output-file coverage.info &&
+          sudo lcov --remove coverage.info '/usr/*' --output-file coverage.info &&
           sudo lcov --list coverage.info
 
       - name: Upload coverage to Codecov

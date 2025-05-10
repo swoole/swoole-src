@@ -54,6 +54,8 @@
 #define ASSERT_MEMEQ(x, y, n) ASSERT_EQ(memcmp((x), (y), n), 0)
 #define EXPECT_MEMEQ(x, y, n) EXPECT_EQ(memcmp((x), (y), n), 0)
 
+#define TIMER_PARAMS Timer *timer, TimerNode *tnode
+
 namespace swoole {
 struct HttpProxy;
 struct Socks5Proxy;

@@ -749,6 +749,27 @@ Server::~Server() {
     sw_shm_free(gs);
 }
 
+Worker *Server::get_worker(uint16_t worker_id) {
+    // Event Worker
+    if (worker_id < worker_num) {
+        return &(gs->event_workers.workers[worker_id]);
+    }
+
+    // Task Worker
+    uint32_t task_worker_max = task_worker_num + worker_num;
+    if (worker_id < task_worker_max) {
+        return &(gs->task_workers.workers[worker_id - worker_num]);
+    }
+
+    // User Worker
+    uint32_t user_worker_max = task_worker_max + user_worker_list.size();
+    if (worker_id < user_worker_max) {
+        return &(user_workers[worker_id - task_worker_max]);
+    }
+
+    return nullptr;
+}
+
 int Server::create() {
     if (is_created()) {
         return SW_ERR;
