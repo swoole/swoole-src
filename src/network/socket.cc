@@ -131,6 +131,11 @@ int Socket::sendfile_sync(const char *filename, off_t offset, size_t length, dou
         return SW_ERR;
     }
 
+    auto corked = false;
+    if (end - offset > SW_SOCKET_CORK_MIN_SIZE) {
+        corked = cork();
+    }
+
     ssize_t n, sent_bytes;
     while (offset < end) {
         sent_bytes = get_sendfile_chunk_size(offset, end);
@@ -147,6 +152,10 @@ int Socket::sendfile_sync(const char *filename, off_t offset, size_t length, dou
             swoole_sys_warning("sendfile(%d, %s) failed", fd, filename);
             return SW_ERR;
         }
+    }
+
+    if (corked) {
+        uncork();
     }
 
     return SW_OK;
@@ -636,8 +645,12 @@ int Socket::handle_sendfile() {
     BufferChunk *chunk = buffer->front();
     SendfileRequest *task = (SendfileRequest *) chunk->value.ptr;
 
-    if (task->begin == 0) {
-        cork();
+    if (task->corked == 0) {
+        if (task->end - task->begin > SW_SOCKET_CORK_MIN_SIZE) {
+            task->corked = cork() ? 1 : -1;
+        } else {
+            task->corked = -1;
+        }
     }
 
     size_t sendn = get_sendfile_chunk_size(task->begin, task->end);
@@ -679,7 +692,10 @@ int Socket::handle_sendfile() {
     // sendfile completed
     if (task->begin == task->end) {
         buffer->pop();
-        uncork();
+        if (task->corked == 1) {
+            uncork();
+            task->corked = 0;
+        }
     }
 
     return SW_OK;

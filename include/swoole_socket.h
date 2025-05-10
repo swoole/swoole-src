@@ -72,6 +72,7 @@ struct SendfileTask {
 
 struct SendfileRequest {
     File file;
+    int8_t corked;
     off_t begin;
     off_t end;
 
@@ -79,6 +80,7 @@ struct SendfileRequest {
     SendfileRequest(const char *filename, off_t _offset) : file(filename, O_RDONLY) {
         begin = _offset;
         end = 0;
+        corked = 0;
     }
 };
 
