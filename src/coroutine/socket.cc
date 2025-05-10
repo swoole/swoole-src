@@ -518,6 +518,96 @@ bool Socket::getpeername(network::Address *sa) {
     return true;
 }
 
+double Socket::get_timeout(enum TimeoutType type) {
+    SW_ASSERT_1BYTE(type);
+    if (type == TIMEOUT_DNS) {
+        return dns_timeout;
+    } else if (type == TIMEOUT_CONNECT) {
+        return connect_timeout;
+    } else if (type == TIMEOUT_READ) {
+        return read_timeout;
+    } else if (type == TIMEOUT_WRITE) {
+        return write_timeout;
+    } else {
+        assert(0);
+        return -1;
+    }
+}
+
+String *Socket::get_read_buffer() {
+    if (sw_unlikely(!read_buffer)) {
+        read_buffer = make_string(SW_BUFFER_SIZE_BIG, buffer_allocator);
+        if (!read_buffer) {
+            throw std::bad_alloc();
+        }
+    }
+    return read_buffer;
+}
+
+String *Socket::get_write_buffer() {
+    if (sw_unlikely(!write_buffer)) {
+        write_buffer = make_string(SW_BUFFER_SIZE_BIG, buffer_allocator);
+        if (!write_buffer) {
+            throw std::bad_alloc();
+        }
+    }
+    return write_buffer;
+}
+
+String *Socket::pop_read_buffer() {
+    if (sw_unlikely(!read_buffer)) {
+        return nullptr;
+    }
+    auto tmp = read_buffer;
+    read_buffer = nullptr;
+    return tmp;
+}
+
+String *Socket::pop_write_buffer() {
+    if (sw_unlikely(!write_buffer)) {
+        return nullptr;
+    }
+    auto tmp = write_buffer;
+    write_buffer = nullptr;
+    return tmp;
+}
+
+void Socket::set_timeout(double timeout, int type) {
+    if (timeout == 0) {
+        return;
+    }
+    if (type & TIMEOUT_DNS) {
+        dns_timeout = timeout;
+    }
+    if (type & TIMEOUT_CONNECT) {
+        connect_timeout = timeout;
+    }
+    if (type & TIMEOUT_READ) {
+        read_timeout = timeout;
+    }
+    if (type & TIMEOUT_WRITE) {
+        write_timeout = timeout;
+    }
+}
+
+const char *Socket::get_event_str(const EventType event) {
+    if (event == SW_EVENT_READ) {
+        return "reading";
+    } else if (event == SW_EVENT_WRITE) {
+        return "writing";
+    } else {
+        return read_co && write_co ? "reading or writing" : (read_co ? "reading" : "writing");
+    }
+}
+
+bool Socket::set_option(int level, int optname, int optval) {
+    if (socket->set_option(level, optname, optval) < 0) {
+        swoole_sys_warning("setsockopt(%d, %d, %d, %d) failed", sock_fd, level, optname, optval);
+        return false;
+    }
+    return true;
+}
+
 bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen) {
     if (sw_unlikely(!is_available(SW_EVENT_RDWR))) {
         return false;
@@ -1755,6 +1845,72 @@ Socket::~Socket() {
         dtor_(this);
     }
     socket->free();
+}
+
+bool Socket::TimerController::start() {
+    if (timeout != 0 && !*timer_pp) {
+        enabled = true;
+        if (timeout > 0) {
+            *timer_pp = swoole_timer_add(timeout, false, callback, socket_);
+            return *timer_pp != nullptr;
+        }
+        *timer_pp = (TimerNode *) -1;
+    }
+    return true;
+}
+
+Socket::TimerController::~TimerController() {
+    if (enabled && *timer_pp) {
+        if (*timer_pp != (TimerNode *) -1) {
+            swoole_timer_del(*timer_pp);
+        }
+        *timer_pp = nullptr;
+    }
+}
+
+Socket::TimeoutSetter::TimeoutSetter(Socket *socket, double _timeout, const enum TimeoutType _type)
+    : socket_(socket), timeout(_timeout), type(_type) {
+    if (_timeout == 0) {
+        return;
+    }
+    for (uint8_t i = 0; i < SW_ARRAY_SIZE(timeout_type_list); i++) {
+        if (_type & timeout_type_list[i]) {
+            original_timeout[i] = socket->get_timeout(timeout_type_list[i]);
+            if (_timeout != original_timeout[i]) {
+                socket->set_timeout(_timeout, timeout_type_list[i]);
+            }
+        }
+    }
+}
+
+Socket::TimeoutSetter::~TimeoutSetter() {
+    if (timeout == 0) {
+        return;
+    }
+    for (uint8_t i = 0; i < SW_ARRAY_SIZE(timeout_type_list); i++) {
+        if (type & timeout_type_list[i]) {
+            if (timeout != original_timeout[i]) {
+                socket_->set_timeout(original_timeout[i], timeout_type_list[i]);
+            }
+        }
+    }
+}
+
+bool Socket::TimeoutController::has_timedout(const enum TimeoutType _type) {
+    SW_ASSERT_1BYTE(_type);
+    if (timeout > 0) {
+        if (sw_unlikely(startup_time == 0)) {
+            startup_time = microtime();
+        } else {
+            double used_time = microtime() - startup_time;
+            if (sw_unlikely(timeout - used_time < SW_TIMER_MIN_SEC)) {
+                socket_->set_err(ETIMEDOUT);
+                return true;
+            }
+            socket_->set_timeout(timeout - used_time, _type);
+        }
+    }
+    return false;
 }
 
 }  // namespace coroutine

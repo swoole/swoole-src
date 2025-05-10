@@ -640,7 +640,6 @@ bool Socket::set_send_timeout(double timeout) {
 }
 
 int Socket::handle_sendfile() {
-    ssize_t ret;
     Buffer *buffer = out_buffer;
     BufferChunk *chunk = buffer->front();
     SendfileRequest *task = (SendfileRequest *) chunk->value.ptr;
@@ -654,24 +653,14 @@ int Socket::handle_sendfile() {
     }
 
     size_t sendn = get_sendfile_chunk_size(task->begin, task->end);
+    ssize_t rv = sendfile(task->file, &task->begin, sendn);
 
-#ifdef SW_USE_OPENSSL
-    if (ssl) {
-        ret = ssl_sendfile(task->file, &task->begin, sendn);
-    } else
-#endif
-    {
-        ret = ::swoole_sendfile(fd, task->file.get_fd(), &task->begin, sendn);
-    }
+    swoole_trace("rv=%ld|begin=%ld|sendn=%lu|end=%lu", rv, (long) task->begin, sendn, task->end);
 
-    swoole_trace(
-        "ret=%d|task->offset=%ld|sendn=%lu|filesize=%lu", ret, (long) task->begin_offset, sendn, task->end_length);
-
-    if (ret <= 0) {
+    if (rv <= 0) {
         switch (catch_write_error(errno)) {
         case SW_ERROR:
-            swoole_sys_warning(
-                "sendfile(%s, %ld, %zu) failed", task->file.get_path().c_str(), (long) task->begin, sendn);
+            swoole_sys_warning("sendfile(%s, %ld, %zu) failed", task->get_filename(), task->begin, sendn);
             buffer->pop();
             return SW_OK;
         case SW_CLOSE:

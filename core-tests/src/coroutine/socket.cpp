@@ -51,7 +51,19 @@ TEST(coroutine_socket, connect_refused) {
 TEST(coroutine_socket, connect_timeout) {
     coroutine::run([](void *arg) {
         Socket sock(SW_SOCK_TCP);
+
         sock.set_timeout(0.5);
+        ASSERT_EQ(sock.get_timeout(Socket::TIMEOUT_DNS), 0.5);
+        ASSERT_EQ(sock.get_timeout(Socket::TIMEOUT_CONNECT), 0.5);
+        ASSERT_EQ(sock.get_timeout(Socket::TIMEOUT_READ), 0.5);
+        ASSERT_EQ(sock.get_timeout(Socket::TIMEOUT_WRITE), 0.5);
+
+        sock.set_timeout(1.5, Socket::TIMEOUT_RDWR);
+        ASSERT_EQ(sock.get_timeout(Socket::TIMEOUT_DNS), 0.5);
+        ASSERT_EQ(sock.get_timeout(Socket::TIMEOUT_CONNECT), 0.5);
+        ASSERT_EQ(sock.get_timeout(Socket::TIMEOUT_READ), 1.5);
+        ASSERT_EQ(sock.get_timeout(Socket::TIMEOUT_WRITE), 1.5);
+
         bool retval = sock.connect("192.0.0.1", 9801);
         ASSERT_EQ(retval, false);
         ASSERT_EQ(sock.errCode, ETIMEDOUT);
@@ -769,6 +781,27 @@ TEST(coroutine_socket, getsockname) {
     });
 }
 
+TEST(coroutine_socket, buffer) {
+    Socket sock(SW_SOCK_TCP);
+    auto rbuf = sock.get_read_buffer();
+    auto wbuf = sock.get_write_buffer();
+
+    auto rbuf_pop = sock.pop_read_buffer();
+    auto wbuf_pop = sock.pop_write_buffer();
+
+    ASSERT_EQ(rbuf, rbuf_pop);
+    ASSERT_EQ(wbuf, wbuf_pop);
+
+    auto rbuf2 = sock.get_read_buffer();
+    auto wbuf2 = sock.get_write_buffer();
+
+    ASSERT_NE(rbuf2, rbuf);
+    ASSERT_NE(wbuf2, wbuf);
+
+    delete rbuf_pop;
+    delete wbuf_pop;
+}
+
 TEST(coroutine_socket, check_liveness) {
     coroutine::run([](void *arg) {
         Socket sock(SW_SOCK_TCP);
@@ -1297,4 +1330,10 @@ TEST(coroutine_socket, cancel) {
         pair.first->cancel(SW_EVENT_READ);
         ASSERT_TRUE(results["read"]);
     });
+}
+
+TEST(coroutine_socket, get_event_str) {
+    Socket sock;
+    ASSERT_STREQ(sock.get_event_str(SW_EVENT_READ), "reading");
+    ASSERT_STREQ(sock.get_event_str(SW_EVENT_WRITE), "writing");
 }

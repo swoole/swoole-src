@@ -82,6 +82,10 @@ struct SendfileRequest {
         end = 0;
         corked = 0;
     }
+
+    const char *get_filename() {
+        return file.get_path().c_str();
+    }
 };
 
 struct Address {
