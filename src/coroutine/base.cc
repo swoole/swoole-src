@@ -59,6 +59,55 @@ void Coroutine::deactivate() {
     };
 }
 
+bool Coroutine::run(const CoroutineFunc &fn, void *args) {
+    swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
+    long cid = create(fn, args);
+    swoole_event_wait();
+    return cid > 0;
+}
+
+void Coroutine::calc_execute_usec(Coroutine *yield_coroutine, Coroutine *resume_coroutine) {
+    long current_usec = time<seconds_type>(true);
+    if (yield_coroutine) {
+        yield_coroutine->execute_usec += current_usec - yield_coroutine->switch_usec;
+    }
+
+    if (resume_coroutine) {
+        resume_coroutine->switch_usec = current_usec;
+    }
+}
+
+Coroutine::Coroutine(const CoroutineFunc &fn, void *private_data) : ctx(stack_size, fn, private_data) {
+    cid = ++last_cid;
+    coroutines[cid] = this;
+    if (sw_unlikely(count() > peak_num)) {
+        peak_num = count();
+    }
+    if (!activated) {
+        activate();
+    }
+}
+
+void Coroutine::check_end() {
+    if (ctx.is_end()) {
+        close();
+    } else if (sw_unlikely(on_bailout)) {
+        SW_ASSERT(current == nullptr);
+        on_bailout();
+    }
+}
+
+long Coroutine::run() {
+    long cid = this->cid;
+    origin = current;
+    current = this;
+    CALC_EXECUTE_USEC(origin, nullptr);
+    state = STATE_RUNNING;
+    ctx.swap_in();
+    check_end();
+    return cid;
+}
+
 void Coroutine::yield() {
     SW_ASSERT(current == this || on_bailout != nullptr);
     state = STATE_WAITING;

@@ -176,6 +176,47 @@ TEST(process_pool, shutdown) {
     sysv_signal(SIGTERM, SIG_DFL);
 }
 
+TEST(process_pool, reload) {
+    ProcessPool pool{};
+    int *shm_value = (int *) sw_mem_pool()->alloc(sizeof(int));
+    ASSERT_EQ(pool.create(2), SW_OK);
+
+    // init
+    pool.set_max_packet_size(8192);
+    pool.ptr = shm_value;
+    pool.max_wait_time = 1;
+
+    pool.onWorkerStart = [](ProcessPool *pool, Worker *worker) {
+        int *shm_value = (int *) pool->ptr;
+        (*shm_value)++;
+
+        sysv_signal(SIGTERM, SIG_IGN);
+
+        while (true) {
+            sleep(10000);
+        }
+    };
+
+    pool.onStart = [](ProcessPool *pool) { swoole_timer_after(100, [pool](TIMER_PARAMS) { pool->reload(); }); };
+
+    pool.onBeforeReload = [](ProcessPool *pool) { printf("onBeforeReload\n"); };
+
+    pool.onAfterReload = [](ProcessPool *pool) {
+        printf("onAfterReload\n");
+        swoole_timer_after(100, [pool](TIMER_PARAMS) { pool->shutdown(); });
+    };
+
+    current_pool = &pool;
+    sysv_signal(SIGTERM, [](int sig) { current_pool->running = false; });
+
+    ASSERT_EQ(pool.start(), SW_OK);
+    ASSERT_EQ(pool.wait(), SW_OK);
+
+    pool.destroy();
+
+    ASSERT_EQ(*shm_value, 4);
+}
+
 TEST(process_pool, async) {
     ProcessPool pool{};
     ASSERT_EQ(pool.create(1, 0, SW_IPC_UNIXSOCK), SW_OK);

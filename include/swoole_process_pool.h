@@ -21,6 +21,7 @@
 
 #include <signal.h>
 #include <unordered_map>
+#include <queue>
 
 #include "swoole_signal.h"
 #include "swoole_lock.h"
@@ -205,11 +206,32 @@ struct StreamInfo {
     String *response_buffer;
 };
 
+struct ReloadTask {
+    std::unordered_map<pid_t, Worker *> workers;
+    std::queue<pid_t> kill_queue;
+    TimerNode *timer;
+
+    size_t count() {
+        return workers.size();
+    }
+
+    bool is_completed() {
+        return workers.empty();
+    }
+
+    bool exists(pid_t pid) {
+        return workers.find(pid) != workers.end();
+    }
+
+    ~ReloadTask();
+    void kill_one(int signal_number = SIGTERM);
+    void kill_all(int signal_number = SIGKILL);
+    void add_workers(Worker *list, size_t n);
+    void add_timeout_killer(int timeout);
+    bool remove(pid_t pid);
+};
+
 struct ProcessPool {
-    /**
-     * reloading
-     */
-    bool reloading;
     bool running;
     bool reload_init;
     bool read_message;
@@ -220,11 +242,9 @@ struct ProcessPool {
     uint8_t ipc_mode;
     enum ProtocolType protocol_type_;
     pid_t master_pid;
-    uint32_t reload_worker_i;
     uint32_t max_wait_time;
     uint64_t reload_count;
     time_t reload_last_time;
-    Worker *reload_workers;
 
     /**
      * process type
@@ -266,6 +286,8 @@ struct ProcessPool {
 
     void (*onStart)(ProcessPool *pool);
     void (*onShutdown)(ProcessPool *pool);
+    void (*onBeforeReload)(ProcessPool *pool);
+    void (*onAfterReload)(ProcessPool *pool);
     int (*onTask)(ProcessPool *pool, Worker *worker, EventData *task);
     void (*onWorkerStart)(ProcessPool *pool, Worker *worker);
     void (*onMessage)(ProcessPool *pool, RecvData *msg);
@@ -285,6 +307,7 @@ struct ProcessPool {
     StreamInfo *stream_info_;
     Channel *message_box = nullptr;
     MessageBus *message_bus = nullptr;
+    ReloadTask *reload_task = nullptr;
 
     void *ptr;
 
