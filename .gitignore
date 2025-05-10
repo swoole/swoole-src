@@ -118,3 +118,5 @@ cmake-build-debug/
 /tests/include/lib/vendor/
 /tests/include/lib/composer.lock
 /scripts/data
+/.cmake/
+/Testing/
