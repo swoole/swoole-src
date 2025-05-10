@@ -270,6 +270,79 @@ TEST(process_pool, async) {
     sysv_signal(SIGTERM, SIG_DFL);
 }
 
+static void test_add_shm_value(ProcessPool *pool) {
+    int *shm_value = (int *) pool->ptr;
+    (*shm_value)++;
+}
+static int test_get_shm_value(ProcessPool *pool) {
+    int *shm_value = (int *) pool->ptr;
+    return *shm_value;
+}
+
+TEST(process_pool, async_mb) {
+    ProcessPool pool{};
+    ASSERT_EQ(pool.create(1, 0, SW_IPC_UNIXSOCK), SW_OK);
+    ASSERT_EQ(pool.create_message_bus(), SW_OK);
+
+    // init
+    pool.set_max_packet_size(8192);
+    pool.set_protocol(SW_PROTOCOL_TASK);
+    int *shm_value = (int *) sw_mem_pool()->alloc(sizeof(int));
+    pool.ptr = shm_value;
+    pool.async = true;
+
+    pool.onWorkerStart = [](ProcessPool *pool, Worker *worker) {
+        test_add_shm_value(pool);
+        current_worker = worker;
+
+        if (test_get_shm_value(pool) == 3) {
+            pool->shutdown();
+        }
+
+        swoole_signal_set(SIGTERM, [](int sig) {
+            test_add_shm_value(current_pool);
+            current_pool->stop(current_worker);
+        });
+
+        usleep(10);
+    };
+
+    pool.onWorkerExit = [](ProcessPool *pool, Worker *worker) {
+        test_add_shm_value(current_pool);
+    };
+
+    pool.onShutdown = [](ProcessPool *pool) {
+        test_add_shm_value(current_pool);
+    };
+
+    pool.onMessage = [](ProcessPool *pool, RecvData *msg) {
+        test_add_shm_value(current_pool);
+        pool->detach();
+    };
+
+    current_pool = &pool;
+    sysv_signal(SIGTERM, [](int sig) { current_pool->running = false; });
+    sysv_signal(SIGIO, [](int sig) { current_pool->read_message = true; });
+
+    // start
+    ASSERT_EQ(pool.start(), SW_OK);
+
+    EventData msg{};
+    msg.info.len = 128;
+    swoole_random_string(msg.data, msg.info.len);
+    int worker_id = -1;
+    pool.dispatch_sync(&msg, &worker_id);
+
+    // wait
+    ASSERT_EQ(pool.wait(), SW_OK);
+
+    pool.destroy();
+
+    ASSERT_EQ(*shm_value, 6);
+
+    sysv_signal(SIGTERM, SIG_DFL);
+}
+
 TEST(process_pool, listen) {
     ProcessPool pool{};
     ASSERT_EQ(pool.create(1, 0, SW_IPC_SOCKET), SW_OK);
