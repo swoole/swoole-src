@@ -443,6 +443,57 @@ bool Socket::set_timeout(double timeout) {
     return set_recv_timeout(timeout) and set_send_timeout(timeout);
 }
 
+bool Socket::check_liveness() {
+    char buf;
+    errno = 0;
+    ssize_t retval = peek(&buf, sizeof(buf), MSG_DONTWAIT);
+    return !(retval == 0 || (retval < 0 && catch_read_error(errno) == SW_CLOSE));
+}
+
+bool Socket::set_tcp_nodelay(int nodelay) {
+    if (set_option(IPPROTO_TCP, TCP_NODELAY, nodelay) == SW_ERR) {
+        return false;
+    } else {
+        tcp_nodelay = nodelay;
+        return true;
+    }
+}
+
+bool Socket::cork() {
+    if (tcp_nopush) {
+        return false;
+    }
+#ifdef TCP_CORK
+    if (set_tcp_nopush(1) < 0) {
+        swoole_sys_warning("set_tcp_nopush(fd=%d, ON) failed", fd);
+        return false;
+    }
+#endif
+    // Need to turn off tcp nodelay when using nopush
+    if (tcp_nodelay && !set_tcp_nodelay(0)) {
+        swoole_sys_warning("set_tcp_nodelay(fd=%d, OFF) failed", fd);
+    }
+    return true;
+}
+
+bool Socket::uncork() {
+    if (!tcp_nopush) {
+        return false;
+    }
+#ifdef TCP_CORK
+    if (set_tcp_nopush(0) < 0) {
+        swoole_sys_warning("set_tcp_nopush(fd=%d, OFF) failed", fd);
+        return false;
+    }
+#endif
+    // Restore tcp_nodelay setting
+    if (enable_tcp_nodelay && tcp_nodelay == 0 && !set_tcp_nodelay(1)) {
+        swoole_sys_warning("set_tcp_nodelay(fd=%d, ON) failed", fd);
+        return false;
+    }
+    return true;
+}
+
 Socket *Socket::dup() {
     Socket *_socket = new Socket();
     *_socket = *this;
@@ -861,6 +912,104 @@ ssize_t Socket::peek(void *__buf, size_t __n, int __flags) {
     swoole_trace_log(SW_TRACE_SOCKET, "peek %ld/%ld bytes, errno=%d", retval, __n, errno);
 
     return retval;
+}
+
+int Socket::catch_error(int err) const {
+    switch (err) {
+    case EFAULT:
+        abort();
+        return SW_ERROR;
+    case EBADF:
+    case ENOENT:
+        return SW_INVALID;
+    case ECONNRESET:
+    case ECONNABORTED:
+    case EPIPE:
+    case ENOTCONN:
+    case ETIMEDOUT:
+    case ECONNREFUSED:
+    case ENETDOWN:
+    case ENETUNREACH:
+    case EHOSTDOWN:
+    case EHOSTUNREACH:
+    case SW_ERROR_SSL_BAD_CLIENT:
+    case SW_ERROR_SSL_RESET:
+        return SW_CLOSE;
+    case EAGAIN:
+#if EAGAIN != EWOULDBLOCK
+    case EWOULDBLOCK:
+#endif
+#ifdef HAVE_KQUEUE
+    case ENOBUFS:
+#endif
+    case 0:
+        return SW_WAIT;
+    default:
+        return SW_ERROR;
+    }
+}
+
+SocketType Socket::convert_to_type(int domain, int type) {
+    if (domain == AF_INET && type == SOCK_STREAM) {
+        return SW_SOCK_TCP;
+    } else if (domain == AF_INET6 && type == SOCK_STREAM) {
+        return SW_SOCK_TCP6;
+    } else if (domain == AF_UNIX && type == SOCK_STREAM) {
+        return SW_SOCK_UNIX_STREAM;
+    } else if (domain == AF_INET && type == SOCK_DGRAM) {
+        return SW_SOCK_UDP;
+    } else if (domain == AF_INET6 && type == SOCK_DGRAM) {
+        return SW_SOCK_UDP6;
+    } else if (domain == AF_UNIX && type == SOCK_DGRAM) {
+        return SW_SOCK_UNIX_DGRAM;
+    } else {
+        return SW_SOCK_RAW;
+    }
+}
+
+SocketType Socket::convert_to_type(std::string &host) {
+    if (host.compare(0, 6, "unix:/", 0, 6) == 0) {
+        host = host.substr(sizeof("unix:") - 1);
+        host.erase(0, host.find_first_not_of('/') - 1);
+        return SW_SOCK_UNIX_STREAM;
+    } else if (host.find(':') != std::string::npos) {
+        return SW_SOCK_TCP6;
+    } else {
+        return SW_SOCK_TCP;
+    }
+}
+
+int Socket::get_domain_and_type(SocketType type, int *sock_domain, int *sock_type) {
+    switch (type) {
+    case SW_SOCK_TCP6:
+        *sock_domain = AF_INET6;
+        *sock_type = SOCK_STREAM;
+        break;
+    case SW_SOCK_UNIX_STREAM:
+        *sock_domain = AF_UNIX;
+        *sock_type = SOCK_STREAM;
+        break;
+    case SW_SOCK_UDP:
+        *sock_domain = AF_INET;
+        *sock_type = SOCK_DGRAM;
+        break;
+    case SW_SOCK_UDP6:
+        *sock_domain = AF_INET6;
+        *sock_type = SOCK_DGRAM;
+        break;
+    case SW_SOCK_UNIX_DGRAM:
+        *sock_domain = AF_UNIX;
+        *sock_type = SOCK_DGRAM;
+        break;
+    case SW_SOCK_TCP:
+        *sock_domain = AF_INET;
+        *sock_type = SOCK_STREAM;
+        break;
+    default:
+        return SW_ERR;
+    }
+
+    return SW_OK;
 }
 
 #ifdef SW_USE_OPENSSL

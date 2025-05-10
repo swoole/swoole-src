@@ -18,6 +18,10 @@
 
 #include <regex>
 
+static bool IN_IS_ADDR_LOOPBACK(struct in_addr *a) {
+    return a->s_addr == htonl(INADDR_LOOPBACK);
+}
+
 namespace swoole {
 namespace network {
 
@@ -85,30 +89,39 @@ bool Address::assign(const std::string &url) {
         auto port = std::stoi(match[3]);
 
         if (host[0] == '[') {
-        	type = SW_SOCK_TCP6;
-        	addr.inet_v6.sin6_family = AF_INET6;
+            type = SW_SOCK_TCP6;
+            addr.inet_v6.sin6_family = AF_INET6;
             addr.inet_v6.sin6_port = htons(port);
             len = sizeof(addr.inet_v6);
             if (inet_pton(AF_INET6, host.substr(1, host.size() - 2).c_str(), addr.inet_v6.sin6_addr.s6_addr)) {
                 return true;
             }
         } else {
-        	type = SW_SOCK_TCP;
-        	addr.inet_v4.sin_family = AF_INET;
+            type = SW_SOCK_TCP;
+            addr.inet_v4.sin_family = AF_INET;
             addr.inet_v4.sin_port = htons(port);
-    		len = sizeof(addr.inet_v4);
-			if (!inet_pton(AF_INET, host.c_str(), &addr.inet_v4.sin_addr.s_addr)) {
-		        if (gethostbyname(AF_INET, host.c_str(), (char *) &addr.inet_v4.sin_addr.s_addr) < 0) {
-		            swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
-		            return false;
-		        }
-			}
-			return true;
+            len = sizeof(addr.inet_v4);
+            if (!inet_pton(AF_INET, host.c_str(), &addr.inet_v4.sin_addr.s_addr)) {
+                if (gethostbyname(AF_INET, host.c_str(), (char *) &addr.inet_v4.sin_addr.s_addr) < 0) {
+                    swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
+                    return false;
+                }
+            }
+            return true;
         }
     }
 
-	swoole_error_log(SW_LOG_NOTICE, SW_ERROR_BAD_HOST_ADDR, "Invalid address['%s']", url.c_str());
-	return false;
+    swoole_error_log(SW_LOG_NOTICE, SW_ERROR_BAD_HOST_ADDR, "Invalid address['%s']", url.c_str());
+    return false;
+}
+
+bool Address::is_loopback_addr() {
+    if (type == SW_SOCK_TCP || type == SW_SOCK_UDP) {
+        return IN_IS_ADDR_LOOPBACK(&addr.inet_v4.sin_addr);
+    } else if (type == SW_SOCK_TCP6 || type == SW_SOCK_UDP6) {
+        return IN6_IS_ADDR_LOOPBACK(&addr.inet_v6.sin6_addr);
+    }
+    return false;
 }
 
 }  // namespace network

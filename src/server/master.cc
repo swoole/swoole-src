@@ -320,6 +320,29 @@ void Server::set_max_connection(uint32_t _max_connection) {
     }
 }
 
+bool Server::set_document_root(const std::string &path) {
+    if (path.length() > PATH_MAX) {
+        swoole_warning("The length of document_root must be less than %d", PATH_MAX);
+        return false;
+    }
+
+    char _realpath[PATH_MAX];
+    if (!realpath(path.c_str(), _realpath)) {
+        swoole_warning("document_root[%s] does not exist", path.c_str());
+        return false;
+    }
+
+    document_root = std::string(_realpath);
+    return true;
+}
+
+void Server::add_http_compression_type(const std::string &type) {
+    if (http_compression_types == nullptr) {
+        http_compression_types = std::make_shared<std::unordered_set<std::string>>();
+    }
+    http_compression_types->emplace(type);
+}
+
 const char *Server::get_startup_error_message() {
     auto error_msg = swoole_get_last_error_msg();
     if (strlen(error_msg) == 0 && swoole_get_last_error() > 0) {
@@ -1929,8 +1952,8 @@ _find_available_slot:
     _socket->send_timeout_ = _socket->recv_timeout_ = 0;
 
     // TCP Nodelay
-    if (ls->open_tcp_nodelay && (ls->type == SW_SOCK_TCP || ls->type == SW_SOCK_TCP6)) {
-        if (_socket->set_tcp_nodelay() != 0) {
+    if (ls->open_tcp_nodelay && ls->socket->is_tcp()) {
+        if (!_socket->set_tcp_nodelay()) {
             swoole_sys_warning("setsockopt(TCP_NODELAY) failed");
         }
         _socket->enable_tcp_nodelay = true;
