@@ -255,7 +255,7 @@ TEST(process_pool, async) {
         sysv_signal(SIGTERM, [](int sig) { current_pool->running = false; });
 
         swoole_signal_set(SIGTERM, [](int sig) {
-            test_incr_shm_value(current_pool);
+            DEBUG() << "value: " << test_incr_shm_value(current_pool) << "; " << "SIGTERM, stop worker\n";
             current_pool->stop(current_worker);
         });
 
@@ -263,10 +263,9 @@ TEST(process_pool, async) {
     };
 
     pool.onMessage = [](ProcessPool *pool, RecvData *msg) {
-        test_incr_shm_value(pool);
+        DEBUG() << "value: " << test_incr_shm_value(current_pool) << "; " << "onMessage, kill\n";
         kill(pool->master_pid, SIGTERM);
     };
-
 
     // start
     ASSERT_EQ(pool.start(), SW_OK);
@@ -284,6 +283,7 @@ TEST(process_pool, async) {
 
     ASSERT_EQ(*shm_value, magic_number + 2);
 
+    swoole_signal_clear();
     sysv_signal(SIGTERM, SIG_DFL);
 }
 
@@ -331,6 +331,7 @@ TEST(process_pool, async_mb) {
     pool.onStart = [](ProcessPool *pool) {
         current_pool = pool;
         sysv_signal(SIGTERM, [](int sig) { current_pool->running = false; });
+        sysv_signal(SIGIO, [](int sig) { current_pool->read_message = true; });
 
         DEBUG() << "value: " << test_incr_shm_value(pool) << "; " << "onStart\n";
     };
@@ -343,10 +344,6 @@ TEST(process_pool, async_mb) {
         DEBUG() << "value: " << test_incr_shm_value(pool) << "; " << "onMessage, detach()\n";
         ASSERT_TRUE(pool->detach());
     };
-
-    current_pool = &pool;
-    sysv_signal(SIGTERM, [](int sig) { current_pool->running = false; });
-    sysv_signal(SIGIO, [](int sig) { current_pool->read_message = true; });
 
     // start
     ASSERT_EQ(pool.start(), SW_OK);
@@ -362,7 +359,9 @@ TEST(process_pool, async_mb) {
 
     ASSERT_EQ(*shm_value, 8);
 
+    swoole_signal_clear();
     sysv_signal(SIGTERM, SIG_DFL);
+    sysv_signal(SIGIO, SIG_DFL);
 }
 
 TEST(process_pool, listen) {

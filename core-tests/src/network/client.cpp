@@ -693,13 +693,13 @@ TEST(client, ssl) {
     ASSERT_TRUE(sock->ssl_verify(false));
 
     auto req = swoole::test::http_get_request(TEST_HTTP_DOMAIN, "/");
+
+    constexpr off_t offset1 = 87;
     iovec wr_iov[2];
-
     wr_iov[0].iov_base = (void *) req.c_str();
-    wr_iov[0].iov_len = 32;
-
-    wr_iov[1].iov_base = (void *) req.c_str() + 32;
-    wr_iov[1].iov_len = req.length() - 32;
+    wr_iov[0].iov_len = offset1;
+    wr_iov[1].iov_base = (void *) req.c_str() + offset1;
+    wr_iov[1].iov_len = req.length() - offset1;
 
     swoole::network::IOVector wr_vec(wr_iov, 2);
     ASSERT_EQ(sock->ssl_writev(&wr_vec), req.length());
@@ -707,11 +707,12 @@ TEST(client, ssl) {
     sw_tg_buffer()->clear();
     sw_tg_buffer()->extend(1024 * 1024);
 
+    constexpr off_t offset2 = 1949;
     iovec rd_iov[2];
     rd_iov[0].iov_base = sw_tg_buffer()->str;
-    rd_iov[0].iov_len = 512;
-    rd_iov[1].iov_base = sw_tg_buffer()->str + 512;
-    rd_iov[1].iov_len = sw_tg_buffer()->size - 512;
+    rd_iov[0].iov_len = offset2;
+    rd_iov[1].iov_base = sw_tg_buffer()->str + offset2;
+    rd_iov[1].iov_len = sw_tg_buffer()->size - offset2;
 
     swoole::network::IOVector rd_vec(rd_iov, 2);
     auto rv = sock->ssl_readv(&rd_vec);
