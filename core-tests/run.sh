@@ -11,15 +11,15 @@ if [ "${SWOOLE_ENABLE_VERBOSE}" = 1 ]; then
     CMAKE_ARGS="${CMAKE_ARGS} -D verbose=1"
 fi
 
-cmake . "${CMAKE_ARGS}"
-make -j8
+cmake . ${CMAKE_ARGS} || exit 1
+make VERBOSE=1 -j8  || exit 1
 ipcs -q
 
 cd "${__DIR__}"/js || exit 1
 npm install
 cd "${__DIR__}" || exit 1
 
-tasks=$(./bin/core_tests --gtest_list_tests | awk '/\./')
+tasks=$(./bin/core_tests --gtest_list_tests | awk '/\./') || exit 255
 for task in $tasks; do
 
     if [ "${SWOOLE_VALGRIND}" = 1 ]; then
