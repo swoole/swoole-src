@@ -601,8 +601,25 @@ const char *Socket::get_event_str(const EventType event) {
 }
 
 bool Socket::set_option(int level, int optname, int optval) {
-    if (socket->set_option(level, optname, optval) < 0) {
-        swoole_sys_warning("setsockopt(%d, %d, %d, %d) failed", sock_fd, level, optname, optval);
+    return set_option(level, optname, &optval, sizeof(optval));
+}
+
+bool Socket::get_option(int level, int optname, int *optval) {
+    socklen_t optval_size = sizeof(*optval);
+    return get_option(level, optname, optval, &optval_size);
+}
+
+bool Socket::set_option(int level, int optname, const void *optval, socklen_t optlen) {
+    if (socket->set_option(level, optname, optval, optlen) < 0) {
+        swoole_sys_warning("setsockopt(%d, %d, %d, %u) failed", sock_fd, level, optname, optlen);
+        return false;
+    }
+    return true;
+}
+
+bool Socket::get_option(int level, int optname, void *optval, socklen_t *optlen) {
+    if (socket->get_option(level, optname, optval, optlen) < 0) {
+        swoole_sys_warning("getsockopt(%d, %d, %d) failed", sock_fd, level, optname);
         return false;
     }
     return true;

@@ -1337,3 +1337,14 @@ TEST(coroutine_socket, get_event_str) {
     ASSERT_STREQ(sock.get_event_str(SW_EVENT_READ), "reading");
     ASSERT_STREQ(sock.get_event_str(SW_EVENT_WRITE), "writing");
 }
+
+TEST(coroutine_socket, option) {
+    Socket sock(SW_SOCK_TCP);
+    int optval;
+
+    ASSERT_TRUE(sock.get_option(SOL_SOCKET, SO_RCVBUF, &optval));
+    ASSERT_GT(optval, 65536);
+
+    optval *= 2;
+    ASSERT_TRUE(sock.set_option(SOL_SOCKET, SO_RCVBUF, optval));
+}

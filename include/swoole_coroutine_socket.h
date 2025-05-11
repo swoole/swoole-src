@@ -355,7 +355,9 @@ class Socket {
     }
 
     double get_timeout(enum TimeoutType type = TIMEOUT_ALL);
-
+    bool get_option(int level, int optname, void *optval, socklen_t *optlen);
+    bool get_option(int level, int optname, int *optval);
+    bool set_option(int level, int optname, const void *optval, socklen_t optlen);
     bool set_option(int level, int optname, int optval);
     String *get_read_buffer();
     String *get_write_buffer();

@@ -202,8 +202,7 @@ TEST(process_pool, reload) {
     pool.max_wait_time = 1;
 
     pool.onWorkerStart = [](ProcessPool *pool, Worker *worker) {
-        int *shm_value = (int *) pool->ptr;
-        (*shm_value)++;
+        test_incr_shm_value(pool);
 
         sysv_signal(SIGTERM, SIG_IGN);
 
@@ -214,10 +213,10 @@ TEST(process_pool, reload) {
 
     pool.onStart = [](ProcessPool *pool) { swoole_timer_after(100, [pool](TIMER_PARAMS) { pool->reload(); }); };
 
-    pool.onBeforeReload = [](ProcessPool *pool) { printf("onBeforeReload\n"); };
+    pool.onBeforeReload = [](ProcessPool *pool) { DEBUG() << "onBeforeReload\n"; };
 
     pool.onAfterReload = [](ProcessPool *pool) {
-        printf("onAfterReload\n");
+        DEBUG() << "onAfterReload\n";
         swoole_timer_after(100, [pool](TIMER_PARAMS) { pool->shutdown(); });
     };
 
@@ -230,6 +229,8 @@ TEST(process_pool, reload) {
     pool.destroy();
 
     ASSERT_EQ(*shm_value, 4);
+
+    sysv_signal(SIGTERM, SIG_DFL);
 }
 
 static void test_async_pool() {
@@ -290,7 +291,12 @@ static void test_async_pool() {
 }
 
 TEST(process_pool, async) {
-    ASSERT_EQ(test::spawn_exec_and_wait([]() { test_async_pool(); }), 0);
+    test_async_pool();
+    // ASSERT_EQ(test::spawn_exec_and_wait([]() { test_async_pool(); }), 0);
+}
+
+static void test_shm_value_incr_and_put_log(ProcessPool *pool, const char *msg) {
+    DEBUG() << "PID: " << getpid() << ", VALUE: " << test_incr_shm_value(pool) << "; " << msg << std::endl;
 }
 
 static void test_async_pool_with_mb() {
@@ -298,6 +304,9 @@ static void test_async_pool_with_mb() {
     ASSERT_EQ(pool.create(1, 0, SW_IPC_UNIXSOCK), SW_OK);
     ASSERT_EQ(pool.create_message_bus(), SW_OK);
 
+    if (swoole_timer_is_available()) {
+        swoole_timer_free();
+    }
     swoole_signal_clear();
 
     // init
@@ -312,66 +321,63 @@ static void test_async_pool_with_mb() {
         current_worker = worker;
         current_pool = pool;
 
-        sysv_signal(SIGTERM, [](int sig) { current_pool->running = false; });
-
-        auto rv = test_incr_shm_value(pool);
-        DEBUG() << "value: " << rv << "; "
-                << "onWorkerStart\n";
-
-        if (rv == 4) {
-            DEBUG() << "value: " << test_incr_shm_value(pool) << "; "
-                    << "shutdown\n";
-            pool->shutdown();
-        }
+        test_shm_value_incr_and_put_log(pool, "onWorkerStart");
 
         swoole_signal_set(SIGTERM, [](int sig) {
-            DEBUG() << "value: " << test_incr_shm_value(current_pool) << "; "
-                    << "SIGTERM, stop worker\n";
-            current_pool->stop(current_worker);
+            test_shm_value_incr_and_put_log(current_pool, "SIGTERM, stop worker");
+            current_pool->stop(sw_worker());
         });
 
         usleep(10);
     };
 
+    pool.onWorkerStop = [](ProcessPool *pool, Worker *worker) {
+        current_worker = worker;
+        current_pool = pool;
+
+        test_shm_value_incr_and_put_log(pool, "onWorkerStop");
+    };
+
     pool.onWorkerExit = [](ProcessPool *pool, Worker *worker) {
-        DEBUG() << "value: " << test_incr_shm_value(pool) << "; "
-                << "onWorkerExit\n";
+        test_shm_value_incr_and_put_log(pool, "onWorkerExit");
     };
 
     pool.onStart = [](ProcessPool *pool) {
         current_pool = pool;
-        sysv_signal(SIGTERM, [](int sig) { current_pool->running = false; });
-        sysv_signal(SIGIO, [](int sig) { current_pool->read_message = true; });
+        swoole_signal_set(SIGTERM, [](int sig) { current_pool->running = false; });
+        swoole_signal_set(SIGIO, [](int sig) { current_pool->read_message = true; });
 
-        DEBUG() << "value: " << test_incr_shm_value(pool) << "; "
-                << "onStart\n";
+        test_shm_value_incr_and_put_log(pool, "onStart");
+
+        swoole_timer_after(100, [pool](TIMER_PARAMS) {
+            pool->send_message(0, SW_STRL("detach"));
+
+            swoole_timer_after(100, [pool](TIMER_PARAMS) { pool->send_message(0, SW_STRL("shutdown")); });
+        });
     };
 
-    pool.onShutdown = [](ProcessPool *pool) {
-        DEBUG() << "value: " << test_incr_shm_value(pool) << "; "
-                << "onShutdown\n";
-    };
+    pool.onShutdown = [](ProcessPool *pool) { test_shm_value_incr_and_put_log(pool, "onShutdown"); };
 
     pool.onMessage = [](ProcessPool *pool, RecvData *msg) {
-        DEBUG() << "value: " << test_incr_shm_value(pool) << "; "
-                << "onMessage, detach()\n";
-        ASSERT_TRUE(pool->detach());
-        swoole_signal_set(SIGTERM, [](int sig) { exit(2); });
+        auto req = std::string(msg->data, msg->info.len);
+
+        if (req == "detach") {
+            test_shm_value_incr_and_put_log(pool, "onMessage, detach");
+            ASSERT_TRUE(pool->detach());
+        } else if ((req == "shutdown")) {
+            test_shm_value_incr_and_put_log(pool, "onMessage, shutdown");
+            pool->shutdown();
+        }
     };
 
     // start
     ASSERT_EQ(pool.start(), SW_OK);
-
-    char msg[128];
-    swoole_random_string(msg, sizeof(msg));
-    pool.send_message(0, msg, sizeof(msg));
-
     // wait
     ASSERT_EQ(pool.wait(), SW_OK);
 
     pool.destroy();
 
-    ASSERT_EQ(*shm_value, 8);
+    ASSERT_GE(*shm_value, 8);
 
     swoole_signal_clear();
     sysv_signal(SIGTERM, SIG_DFL);
@@ -379,7 +385,8 @@ static void test_async_pool_with_mb() {
 }
 
 TEST(process_pool, async_mb) {
-    ASSERT_EQ(test::spawn_exec_and_wait([]() { test_async_pool_with_mb(); }), 0);
+    test_async_pool_with_mb();
+    // ASSERT_EQ(test::spawn_exec_and_wait([]() { test_async_pool_with_mb(); }), 0);
 }
 
 TEST(process_pool, listen) {

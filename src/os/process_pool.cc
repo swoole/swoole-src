@@ -423,7 +423,7 @@ void ProcessPool::stop(Worker *worker) {
     }
 
     auto reactor = sw_reactor();
-    if (worker->pipe_worker) {
+    if (worker->pipe_worker && !worker->pipe_worker->removed) {
         swoole_event_del(worker->pipe_worker);
     }
 
@@ -819,23 +819,42 @@ void ProcessPool::add_worker(Worker *worker) {
     map_->emplace(std::make_pair(worker->pid, worker));
 }
 
+bool ProcessPool::wait_detached_worker(std::unordered_set<pid_t> &detached_workers, pid_t pid) {
+    auto iter = detached_workers.find(pid);
+    if (iter == detached_workers.end()) {
+        swoole_warning("received an exit signal from an unknown child process[pid=%d]", pid);
+        return false;
+    }
+    detached_workers.erase(iter);
+    return true;
+}
+
 bool ProcessPool::detach() {
     if (!running || !message_box) {
         return false;
     }
 
+    auto worker = SwooleWG.worker;
+    worker->shutdown();
+    if (async) {
+        swoole_event_del(worker->pipe_worker);
+    }
+
     WorkerStopMessage msg;
-    msg.pid = getpid();
-    msg.worker_id = swoole_get_process_id();
+    msg.pid = worker->pid;
+    msg.worker_id = worker->id;
     if (push_message(SW_WORKER_MESSAGE_STOP, &msg, sizeof(msg)) < 0) {
         return false;
     }
+
     running = false;
 
     return true;
 }
 
 int ProcessPool::wait() {
+    std::unordered_set<pid_t> detached_workers;
+
     while (running) {
         ExitStatus exit_status = wait_process();
         const auto wait_error = errno;
@@ -867,6 +886,7 @@ int ProcessPool::wait() {
                     swoole_sys_warning("fork worker process failed");
                     return SW_ERR;
                 }
+                detached_workers.insert(worker_stop_msg.pid);
                 map_->erase(worker_stop_msg.pid);
             }
             read_message = false;
@@ -898,7 +918,7 @@ int ProcessPool::wait() {
                 if (onWorkerNotFound) {
                     onWorkerNotFound(this, exit_status);
                 } else {
-                    swoole_warning("unknown worker[pid=%d]", exit_status.get_pid());
+                    wait_detached_worker(detached_workers, exit_status.get_pid());
                 }
                 continue;
             }
@@ -1128,7 +1148,7 @@ void ReloadTask::kill_all(int signal_number) {
             }
             swoole_sys_warning("kill(%d, SIGTERM) [%d] failed", kv.first, kv.second->id);
         } else {
-           swoole_warning("force kill worker process(pid=%d, id=%d)", kv.first, kv.second->id);
+            swoole_warning("force kill worker process(pid=%d, id=%d)", kv.first, kv.second->id);
         }
     }
 
