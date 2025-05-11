@@ -890,10 +890,10 @@ bool Server::shutdown() {
     if (is_base_mode()) {
         pid = get_manager_pid() == 0 ? get_master_pid() : get_manager_pid();
     } else if (is_thread_mode()) {
+        // TODO optimize, Exit in order, one by one.
+        running = false;
         if (is_master_thread()) {
             stop_master_thread();
-        } else {
-            running = false;
         }
         return true;
     } else {

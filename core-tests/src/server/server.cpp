@@ -1935,3 +1935,7 @@ TEST(server, heartbeat_check_1) {
 TEST(server, heartbeat_check_2) {
     test_heartbeat_check(Server::MODE_PROCESS);
 }
+
+TEST(server, heartbeat_check_3) {
+    test_heartbeat_check(Server::MODE_THREAD);
+}

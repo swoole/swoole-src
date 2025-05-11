@@ -68,8 +68,22 @@ bool ThreadFactory::start() {
 }
 
 bool ThreadFactory::shutdown() {
+    /**
+     * When terminating the service, the management thread may still be joining other worker threads,
+     * so it is essential to first reclaim the management thread to ensure it has exited.
+     * During the shutdown, the running flag has already been set to false,
+     * which means the management thread might not have reclaimed all worker threads and may have exited prematurely.
+     * At this point, it is necessary to loop through and reclaim the remaining worker threads.
+     */
     int manager_thread_id = server_->get_all_worker_num();
     threads_[manager_thread_id]->join();
+
+    for (auto &thread : threads_) {
+        if (thread->joinable()) {
+            thread->join();
+        }
+    }
+
     return true;
 }
 
@@ -224,9 +238,7 @@ void ThreadFactory::wait() {
                                exit_status.get_code());
             }
 
-            if (threads_[exited_worker->id]->joinable()) {
-                threads_[exited_worker->id]->join();
-            }
+            thread->join();
 
             if (!server_->running) {
                 break;
