@@ -68,12 +68,8 @@ bool ThreadFactory::start() {
 }
 
 bool ThreadFactory::shutdown() {
-    for (auto &thread : threads_) {
-        if (thread->joinable()) {
-            thread->join();
-        }
-    }
-
+    int manager_thread_id = server_->get_all_worker_num();
+    threads_[manager_thread_id]->join();
     return true;
 }
 
@@ -228,7 +224,13 @@ void ThreadFactory::wait() {
                                exit_status.get_code());
             }
 
-            threads_[exited_worker->id]->join();
+            if (threads_[exited_worker->id]->joinable()) {
+                threads_[exited_worker->id]->join();
+            }
+
+            if (!server_->running) {
+                break;
+            }
 
             switch (exited_worker->type) {
             case SW_PROCESS_EVENTWORKER:

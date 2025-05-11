@@ -29,6 +29,7 @@
 
 using namespace std;
 using namespace swoole;
+using swoole::network::AsyncClient;
 
 int beforeReloadPid = 0;
 
@@ -693,7 +694,6 @@ TEST(server, ssl) {
             ListenPort *port = serv->get_primary_port();
 
             EXPECT_EQ(port->ssl, 1);
-            EXPECT_EQ(swoole_ssl_is_thread_safety(), true);
 
             network::SyncClient c(SW_SOCK_TCP);
             c.connect(TEST_HOST, port->port);
@@ -1883,4 +1883,55 @@ TEST(server, reactor_thread_pipe_writable) {
 
     serv.start();
     t1.join();
+}
+
+static void test_heartbeat_check(Server::Mode mode) {
+    Server serv(mode);
+    serv.worker_num = 1;
+    serv.heartbeat_check_interval = 1;
+
+    swoole_set_print_backtrace_on_error(true);
+
+    std::unordered_map<std::string, bool> flags;
+    AsyncClient ac(SW_SOCK_TCP);
+
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_TRUE(port);
+
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    serv.onReceive = [](Server *serv, RecvData *req) -> int { return SW_OK; };
+
+    serv.onStart = [port, &ac, &flags](Server *_serv) {
+        ac.on_connect([&](AsyncClient *ac) { flags["on_connect"] = true; });
+
+        ac.on_close([_serv, &flags](AsyncClient *ac) {
+            flags["on_close"] = true;
+            _serv->shutdown();
+        });
+
+        ac.on_error([&](AsyncClient *ac) { flags["on_error"] = true; });
+
+        ac.on_receive([&](AsyncClient *ac, const char *data, size_t len) { flags["on_receive"] = true; });
+
+        bool retval = ac.connect(TEST_HOST, port->get_port());
+        EXPECT_TRUE(retval);
+        flags["connected"] = true;
+    };
+
+    serv.start();
+
+    ASSERT_TRUE(flags["connected"]);
+    ASSERT_TRUE(flags["on_connect"]);
+    ASSERT_FALSE(flags["on_error"]);
+    ASSERT_FALSE(flags["on_receive"]);
+    ASSERT_TRUE(flags["on_close"]);
+}
+
+TEST(server, heartbeat_check_1) {
+    test_heartbeat_check(Server::MODE_BASE);
+}
+
+TEST(server, heartbeat_check_2) {
+    test_heartbeat_check(Server::MODE_PROCESS);
 }

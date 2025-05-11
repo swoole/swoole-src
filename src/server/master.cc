@@ -431,14 +431,6 @@ int Server::start_check() {
             }
         }
     }
-#ifdef SW_USE_OPENSSL
-    /**
-     * OpenSSL thread-safe
-     */
-    if ((is_process_mode() && !single_thread) || is_thread_mode()) {
-        swoole_ssl_init_thread_safety();
-    }
-#endif
 
     return SW_OK;
 }

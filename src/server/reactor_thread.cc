@@ -400,7 +400,7 @@ static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev) {
         PipeBuffer *resp = thread->message_bus.get_buffer();
         ssize_t n = thread->message_bus.read_with_buffer(ev->socket);
         if (n <= 0) {
-            return SW_ERR;
+            return SW_OK;
         }
         if (resp->info.type == SW_SERVER_EVENT_INCOMING) {
             Connection *conn = serv->get_connection_verify_no_ssl(resp->info.fd);

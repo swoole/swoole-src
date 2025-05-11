@@ -31,7 +31,6 @@ using swoole::network::Socket;
 #endif
 
 static bool openssl_init = false;
-static bool openssl_thread_safety_init = false;
 static int ssl_connection_index = 0;
 static int ssl_port_index = 0;
 static pthread_mutex_t *lock_array;
@@ -80,6 +79,19 @@ void swoole_ssl_init(void) {
         return;
     }
 
+    lock_array = (pthread_mutex_t *) OPENSSL_malloc(CRYPTO_num_locks() * sizeof(pthread_mutex_t));
+    SW_LOOP_N(CRYPTO_num_locks()) {
+        pthread_mutex_init(&(lock_array[i]), nullptr);
+    }
+
+#if OPENSSL_VERSION_NUMBER >= OPENSSL_VERSION_1_0_0
+    (void) CRYPTO_THREADID_set_callback(swoole_ssl_id_callback);
+#else
+    CRYPTO_set_id_callback(swoole_ssl_id_callback);
+#endif
+
+    CRYPTO_set_locking_callback(swoole_ssl_lock_callback);
+
     openssl_init = true;
 }
 
@@ -109,7 +121,6 @@ void swoole_ssl_destroy() {
 #endif
     CRYPTO_set_locking_callback(nullptr);
     openssl_init = false;
-    openssl_thread_safety_init = false;
 }
 
 static void MAYBE_UNUSED swoole_ssl_lock_callback(int mode, int type, const char *file, int line) {
@@ -141,34 +152,6 @@ static ulong_t swoole_ssl_id_callback(void) {
     return (ulong_t) pthread_self();
 }
 #endif
-
-void swoole_ssl_init_thread_safety() {
-    if (!openssl_init) {
-        return;
-    }
-
-    if (openssl_thread_safety_init) {
-        return;
-    }
-
-    lock_array = (pthread_mutex_t *) OPENSSL_malloc(CRYPTO_num_locks() * sizeof(pthread_mutex_t));
-    SW_LOOP_N(CRYPTO_num_locks()) {
-        pthread_mutex_init(&(lock_array[i]), nullptr);
-    }
-
-#if OPENSSL_VERSION_NUMBER >= OPENSSL_VERSION_1_0_0
-    (void) CRYPTO_THREADID_set_callback(swoole_ssl_id_callback);
-#else
-    CRYPTO_set_id_callback(swoole_ssl_id_callback);
-#endif
-
-    CRYPTO_set_locking_callback(swoole_ssl_lock_callback);
-    openssl_thread_safety_init = true;
-}
-
-bool swoole_ssl_is_thread_safety() {
-    return openssl_thread_safety_init;
-}
 
 static void swoole_ssl_info_callback(const SSL *ssl, int where, int ret) {
     BIO *rbio, *wbio;

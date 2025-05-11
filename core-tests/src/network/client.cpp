@@ -36,7 +36,7 @@ TEST(client, tcp) {
 
     pid = proc.start();
 
-    sleep(1); // wait for the test server to start
+    sleep(1);  // wait for the test server to start
 
     Client cli(SW_SOCK_TCP, false);
     ASSERT_NE(cli.socket, nullptr);
@@ -140,10 +140,8 @@ static void test_async_client_tcp(const char *host, int port, enum swSocketType 
 
     ac.on_connect([](AsyncClient *ac) { ac->send(SW_STRS(GREETER)); });
 
-    ac.on_close([](AsyncClient *ac) {
-    });
-    ac.on_error([](AsyncClient *ac) {
-    });
+    ac.on_close([](AsyncClient *ac) {});
+    ac.on_error([](AsyncClient *ac) {});
 
     ac.on_receive([](AsyncClient *ac, const char *data, size_t len) {
         ASSERT_EQ(len, GREETER_SIZE);
@@ -194,10 +192,8 @@ TEST(client, sleep) {
         });
     };
 
-    client.onError = [](Client *cli) {
-    };
-    client.onClose = [](Client *cli) {
-    };
+    client.onError = [](Client *cli) {};
+    client.onClose = [](Client *cli) {};
     client.onReceive = [&buf](Client *cli, const char *data, size_t length) { buf.append(data, length); };
 
     ASSERT_EQ(client.connect(&client, domain, 80, -1, 0), 0);
@@ -224,8 +220,7 @@ TEST(client, async_unix_connect_refuse) {
 
     ac.on_connect([](AsyncClient *ac) { ac->send(SW_STRS(GREETER)); });
 
-    ac.on_close([](AsyncClient *ac) {
-    });
+    ac.on_close([](AsyncClient *ac) {});
 
     ac.on_error([&](AsyncClient *ac) { flags["onError"] = true; });
 
@@ -253,8 +248,7 @@ TEST(client, async_connect_timeout) {
 
     ac.on_connect([](AsyncClient *ac) { ac->send(SW_STRS(GREETER)); });
 
-    ac.on_close([](AsyncClient *ac) {
-    });
+    ac.on_close([](AsyncClient *ac) {});
 
     ac.on_error([&](AsyncClient *ac) {
         flags["onError"] = true;
@@ -400,7 +394,7 @@ TEST(client, shutdown_all) {
 
 #ifdef SW_USE_OPENSSL
 
-TEST(client, ssl_1) {
+static void test_ssl_get_baidu() {
     bool connected = false;
     bool closed = false;
     String buf(65536);
@@ -414,8 +408,7 @@ TEST(client, ssl_1) {
         cli->send(cli, SW_STRL(TEST_REQUEST_BAIDU), 0);
     };
 
-    client.onError = [](Client *cli) {
-    };
+    client.onError = [](Client *cli) {};
     client.onClose = [&closed](Client *cli) { closed = true; };
     client.onReceive = [&buf](Client *cli, const char *data, size_t length) { buf.append(data, length); };
 
@@ -426,6 +419,10 @@ TEST(client, ssl_1) {
     ASSERT_TRUE(connected);
     ASSERT_TRUE(closed);
     ASSERT_TRUE(buf.contains("Baidu"));
+}
+
+TEST(client, ssl_1) {
+    test_ssl_get_baidu();
 }
 
 TEST(client, ssl_sendfile) {
@@ -445,8 +442,7 @@ TEST(client, ssl_sendfile) {
         cli->sendfile(cli, file.get_path().c_str(), 0, file.get_size());
     };
 
-    client.onError = [](Client *cli) {
-    };
+    client.onError = [](Client *cli) {};
     client.onClose = [&closed](Client *cli) { closed = true; };
     client.onReceive = [&buf](Client *cli, const char *data, size_t length) { buf.append(data, length); };
 
@@ -497,8 +493,7 @@ static void proxy_async_test(Client &client, bool https) {
         cli->send(cli, SW_STRL(TEST_REQUEST_BAIDU), 0);
     };
 
-    client.onError = [](Client *cli) {
-    };
+    client.onError = [](Client *cli) {};
     client.onClose = [&closed](Client *cli) { closed = true; };
     client.onReceive = [&buf](Client *cli, const char *data, size_t length) { buf.append(data, length); };
 
@@ -588,27 +583,25 @@ TEST(client, http_get_sync_with_socks5_proxy) {
     proxy_sync_test(client, false);
 }
 
-
-
-void printAllSubjectEntries(X509_NAME* name) {
+void printAllSubjectEntries(X509_NAME *name) {
     if (!name) return;
 
     int entry_count = X509_NAME_entry_count(name);
 
     for (int i = 0; i < entry_count; ++i) {
-        X509_NAME_ENTRY* entry = X509_NAME_get_entry(name, i);
-        ASN1_OBJECT* obj = X509_NAME_ENTRY_get_object(entry);
-        ASN1_STRING* data = X509_NAME_ENTRY_get_data(entry);
+        X509_NAME_ENTRY *entry = X509_NAME_get_entry(name, i);
+        ASN1_OBJECT *obj = X509_NAME_ENTRY_get_object(entry);
+        ASN1_STRING *data = X509_NAME_ENTRY_get_data(entry);
 
         // 获取字段的短名称（如 CN、O、ST 等）
         char obj_txt[80] = {0};
         OBJ_obj2txt(obj_txt, sizeof(obj_txt), obj, 0);
 
         // 获取字段的值
-        unsigned char* utf8 = nullptr;
+        unsigned char *utf8 = nullptr;
         int length = ASN1_STRING_to_UTF8(&utf8, data);
         if (length >= 0 && utf8) {
-            std::cout << obj_txt << ": " << std::string((char*)utf8, length) << std::endl;
+            std::cout << obj_txt << ": " << std::string((char *) utf8, length) << std::endl;
             OPENSSL_free(utf8);
         }
     }
@@ -721,5 +714,11 @@ TEST(client, ssl) {
     sw_tg_buffer()->set_null_terminated();
 
     ASSERT_TRUE(sw_tg_buffer()->contains("中华人民共和国"));
+}
+
+TEST(client, ssl_reinit) {
+    swoole_ssl_destroy();
+    swoole_ssl_init();
+    test_ssl_get_baidu();
 }
 #endif
