@@ -287,6 +287,8 @@ TEST(process_pool, async_mb) {
     ASSERT_EQ(pool.create(1, 0, SW_IPC_UNIXSOCK), SW_OK);
     ASSERT_EQ(pool.create_message_bus(), SW_OK);
 
+    swoole_signal_clear();
+
     // init
     pool.set_max_packet_size(8192);
     pool.set_protocol(SW_PROTOCOL_TASK);
@@ -299,16 +301,16 @@ TEST(process_pool, async_mb) {
         test_incr_shm_value(pool);
         current_worker = worker;
 
-        DEBUG() << "onWorkerStart\n";
+        DEBUG() << "value: " << test_get_shm_value(pool) << "; " << "onWorkerStart\n";
 
         if (test_get_shm_value(pool) == 3) {
-            DEBUG() << "shutdown\n";
+            DEBUG() << "value: " << test_get_shm_value(pool) << "; " << "shutdown\n";
             pool->shutdown();
         }
 
         swoole_signal_set(SIGTERM, [](int sig) {
             test_incr_shm_value(current_pool);
-            DEBUG() << "stop worker\n";
+            DEBUG() << "value: " << test_get_shm_value(current_pool) << "; " << "stop worker\n";
             current_pool->stop(current_worker);
         });
 
@@ -316,18 +318,18 @@ TEST(process_pool, async_mb) {
     };
 
     pool.onWorkerExit = [](ProcessPool *pool, Worker *worker) {
-        DEBUG() << "onWorkerExit\n";
+        DEBUG() << "value: " << test_get_shm_value(pool) << "; " << "onWorkerExit\n";
         test_incr_shm_value(current_pool);
     };
 
     pool.onShutdown = [](ProcessPool *pool) {
-        DEBUG() << "onShutdown\n";
+        DEBUG() << "value: " << test_get_shm_value(pool) << "; " << "onShutdown\n";
         test_incr_shm_value(current_pool);
     };
 
     pool.onMessage = [](ProcessPool *pool, RecvData *msg) {
         test_incr_shm_value(current_pool);
-        DEBUG() << "pool->detach()\n";
+        DEBUG() << "value: " << test_get_shm_value(pool) << "; " << "pool->detach()\n";
         ASSERT_TRUE(pool->detach());
     };
 

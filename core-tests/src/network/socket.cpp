@@ -542,6 +542,13 @@ TEST(socket, loopback_addr) {
 }
 
 TEST(socket, convert_to_type) {
+    ASSERT_EQ(network::Socket::convert_to_type(AF_INET, SOCK_STREAM), SW_SOCK_TCP);
+    ASSERT_EQ(network::Socket::convert_to_type(AF_INET6, SOCK_STREAM), SW_SOCK_TCP6);
+    ASSERT_EQ(network::Socket::convert_to_type(AF_INET, SOCK_DGRAM), SW_SOCK_UDP);
+    ASSERT_EQ(network::Socket::convert_to_type(AF_INET6, SOCK_DGRAM), SW_SOCK_UDP6);
+    ASSERT_EQ(network::Socket::convert_to_type(AF_LOCAL, SOCK_STREAM), SW_SOCK_UNIX_STREAM);
+    ASSERT_EQ(network::Socket::convert_to_type(AF_LOCAL, SOCK_DGRAM), SW_SOCK_UNIX_DGRAM);
+
     std::string s1("unix:///tmp/swoole.sock");
     ASSERT_EQ(network::Socket::convert_to_type(s1), SW_SOCK_UNIX_STREAM);
     ASSERT_EQ(s1, "/tmp/swoole.sock");

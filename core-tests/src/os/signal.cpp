@@ -89,6 +89,9 @@ TEST(os_signal, dispatch) {
     swoole_kill(getpid(), SIGIO);
     ASSERT_EQ(trigger_signal, 0);
 
+    ASSERT_EQ(swoole_signal_get_handler(SIGTERM), nullptr);
+    ASSERT_NE(swoole_signal_get_handler(SIGIO), nullptr);
+
     swoole_signal_dispatch();
     ASSERT_EQ(trigger_signal, SIGIO);
 

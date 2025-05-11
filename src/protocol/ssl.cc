@@ -468,8 +468,11 @@ bool SSLContext::create() {
     }
 #endif
 
-    if (verify_peer && !set_capath()) {
-        return false;
+    auto rs = set_capath();
+    if (verify_peer) {
+        if (!rs) {
+            return false;
+        }
     } else {
         SSL_CTX_set_verify(context, SSL_VERIFY_NONE, nullptr);
     }
