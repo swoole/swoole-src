@@ -336,8 +336,9 @@ TEST(base, fatal_error) {
     });
     ASSERT_EQ(WEXITSTATUS(status), 1);
 
-    auto rs = swoole::file_get_contents(TEST_LOG_FILE);
+    auto rs = file_get_contents(TEST_LOG_FILE);
     ASSERT_NE(rs, nullptr);
     ASSERT_TRUE(rs->contains(msg));
     ASSERT_TRUE(rs->contains("(ERROR 9999)"));
+    File::remove(TEST_LOG_FILE);
 }
