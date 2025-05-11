@@ -976,11 +976,11 @@ SocketType Socket::convert_to_type(std::string &host) {
         host = host.substr(sizeof("unix:") - 1);
         host.erase(0, host.find_first_not_of('/') - 1);
         return SW_SOCK_UNIX_STREAM;
-    } else if (host.find(':') != std::string::npos) {
-        return SW_SOCK_TCP6;
-    } else {
-        return SW_SOCK_TCP;
     }
+    if (host.find(':') != std::string::npos) {
+        return SW_SOCK_TCP6;
+    }
+    return SW_SOCK_TCP;
 }
 
 int Socket::get_domain_and_type(SocketType type, int *sock_domain, int *sock_type) {
@@ -1672,7 +1672,7 @@ Socket *make_socket(SocketType type, FdType fd_type, int sock_domain, int sock_t
         return nullptr;
     }
 
-    auto _socket = swoole::make_socket(sockfd, fd_type);
+    auto _socket = make_socket(sockfd, fd_type);
     _socket->nonblock = !!(flags & SW_SOCK_NONBLOCK);
     _socket->cloexec = !!(flags & SW_SOCK_CLOEXEC);
     _socket->socket_type = type;

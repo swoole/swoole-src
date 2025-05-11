@@ -290,7 +290,7 @@ TEST(process_pool, async_mb) {
     // init
     pool.set_max_packet_size(8192);
     pool.set_protocol(SW_PROTOCOL_TASK);
-    int *shm_value = (int *) sw_mem_pool()->alloc(sizeof(int));
+    auto shm_value = (int *) sw_mem_pool()->alloc(sizeof(int));
     *shm_value = 0;
     pool.ptr = shm_value;
     pool.async = true;
@@ -302,11 +302,13 @@ TEST(process_pool, async_mb) {
         DEBUG() << "onWorkerStart\n";
 
         if (test_get_shm_value(pool) == 3) {
+            DEBUG() << "shutdown\n";
             pool->shutdown();
         }
 
         swoole_signal_set(SIGTERM, [](int sig) {
             test_incr_shm_value(current_pool);
+            DEBUG() << "stop worker\n";
             current_pool->stop(current_worker);
         });
 
