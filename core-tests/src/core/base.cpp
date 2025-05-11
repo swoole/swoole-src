@@ -327,3 +327,17 @@ TEST(base, redirect_stdout) {
     ASSERT_FALSE(rs->contains(out_2));
     unlink(file);
 }
+
+TEST(base, fatal_error) {
+    const char *msg = "core tests fatal error";
+    auto status = test::spawn_exec_and_wait([msg]() {
+        swoole_set_log_file(TEST_LOG_FILE);
+        swoole_fatal_error(9999, msg);
+    });
+    ASSERT_EQ(WEXITSTATUS(status), 1);
+
+    auto rs = swoole::file_get_contents(TEST_LOG_FILE);
+    ASSERT_NE(rs, nullptr);
+    ASSERT_TRUE(rs->contains(msg));
+    ASSERT_TRUE(rs->contains("(ERROR 9999)"));
+}

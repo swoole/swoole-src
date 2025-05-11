@@ -29,24 +29,25 @@ using namespace swoole;
 static int callback_count;
 
 TEST(async, dispatch) {
+    int count = 1000;
     callback_count = 0;
     std::atomic<int> handle_count(0);
     AsyncEvent event = {};
     event.object = &handle_count;
     event.callback = [](AsyncEvent *event) { callback_count++; };
-    event.handler = [](AsyncEvent *event) { (*(std::atomic<int> *) event->object)++; };
+    event.handler = [](AsyncEvent *event) { ++(*static_cast<std::atomic<int> *>(event->object)); };
 
     swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
 
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < count; ++i) {
         auto ret = swoole::async::dispatch(&event);
         EXPECT_EQ(ret->object, event.object);
     }
 
     swoole_event_wait();
 
-    ASSERT_EQ(handle_count, 1000);
-    ASSERT_EQ(callback_count, 1000);
+    ASSERT_EQ(handle_count, count);
+    ASSERT_EQ(callback_count, count);
 }
 
 TEST(async, schedule) {
@@ -62,7 +63,7 @@ TEST(async, schedule) {
     event.callback = [](AsyncEvent *event) { callback_count++; };
     event.handler = [](AsyncEvent *event) {
         usleep(swoole_rand(50000, 100000));
-        (*(std::atomic<int> *) event->object)++;
+        ++(*static_cast<std::atomic<int> *>(event->object));
     };
 
     SwooleG.aio_core_worker_num = 4;
@@ -78,18 +79,26 @@ TEST(async, schedule) {
             count--;
             if (count == 0) {
                 swoole_timer_del(timer);
-                ASSERT_GT(SwooleTG.async_threads->get_worker_num(), 16);
-                ASSERT_GT(SwooleTG.async_threads->get_queue_size(), 100);
-                ASSERT_GT(SwooleTG.async_threads->get_task_num(), 100);
+                ASSERT_GT(sw_async_threads()->get_worker_num(), 16);
+                ASSERT_GT(sw_async_threads()->get_queue_size(), 100);
+                ASSERT_GT(sw_async_threads()->get_task_num(), 100);
                 break;
             } else if (count == N - 1) {
-                ASSERT_EQ(SwooleTG.async_threads->get_worker_num(), 4);
-                ASSERT_LE(SwooleTG.async_threads->get_queue_size(), 1);
-                ASSERT_EQ(SwooleTG.async_threads->get_task_num(), 1);
+                ASSERT_EQ(sw_async_threads()->get_worker_num(), 4);
+                ASSERT_LE(sw_async_threads()->get_queue_size(), 1);
+                ASSERT_EQ(sw_async_threads()->get_task_num(), 1);
             } else if (count < N / 2) {
-                ASSERT_GT(SwooleTG.async_threads->get_worker_num(), 4);
+                ASSERT_GT(sw_async_threads()->get_worker_num(), 4);
             }
         }
+
+        if (count % 50==0) {
+            DEBUG() << "async worker thread num=" << sw_async_threads()->get_worker_num() << "\n";
+        }
+    });
+
+    swoole_timer_after(2000, [](TIMER_PARAMS) {
+        DEBUG() << "async worker thread num=" << sw_async_threads()->get_worker_num() << "\n";
     });
 
     swoole_event_wait();

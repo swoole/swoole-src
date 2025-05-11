@@ -1,7 +1,7 @@
 #include "test_core.h"
 #include "swoole_process_pool.h"
 
-#include <signal.h>
+#include <csignal>
 
 #ifdef __MACH__
 #define sysv_signal signal
@@ -34,7 +34,7 @@ static void test_func_task_protocol(ProcessPool &pool) {
     pool.set_protocol(SW_PROTOCOL_TASK);
     pool.onTask = [](ProcessPool *pool, Worker *worker, EventData *task) -> int {
         pool->running = false;
-        String *_data = (String *) pool->ptr;
+        auto *_data = (String *) pool->ptr;
         usleep(10000);
         EXPECT_MEMEQ(_data->str, task->data, task->len());
         return 0;
@@ -63,6 +63,21 @@ static void test_func_stream_protocol(ProcessPool &pool) {
         EXPECT_MEMEQ(_data->str, msg->data, msg->len());
     };
     test_func(pool);
+}
+
+static void test_incr_shm_value(ProcessPool *pool) {
+    auto shm_value = static_cast<int *>(pool->ptr);
+    (*shm_value)++;
+}
+
+static int test_get_shm_value(ProcessPool *pool) {
+    auto shm_value = static_cast<int *>(pool->ptr);
+    return *shm_value;
+}
+
+static void test_set_shm_value(ProcessPool *pool, int value) {
+    auto shm_value = static_cast<int *>(pool->ptr);
+    *shm_value = value;
 }
 
 TEST(process_pool, tcp) {
@@ -229,13 +244,11 @@ TEST(process_pool, async) {
     pool.async = true;
 
     pool.onWorkerStart = [](ProcessPool *pool, Worker *worker) {
-        int *shm_value = (int *) pool->ptr;
-        *shm_value = magic_number;
+        test_set_shm_value(pool, magic_number);
         current_worker = worker;
 
         swoole_signal_set(SIGTERM, [](int sig) {
-            int *shm_value = (int *) current_pool->ptr;
-            (*shm_value)++;
+            test_incr_shm_value(current_pool);
             current_pool->stop(current_worker);
         });
 
@@ -243,8 +256,7 @@ TEST(process_pool, async) {
     };
 
     pool.onMessage = [](ProcessPool *pool, RecvData *msg) {
-        int *shm_value = (int *) pool->ptr;
-        (*shm_value)++;
+        test_incr_shm_value(pool);
         kill(pool->master_pid, SIGTERM);
     };
 
@@ -270,15 +282,6 @@ TEST(process_pool, async) {
     sysv_signal(SIGTERM, SIG_DFL);
 }
 
-static void test_add_shm_value(ProcessPool *pool) {
-    int *shm_value = (int *) pool->ptr;
-    (*shm_value)++;
-}
-static int test_get_shm_value(ProcessPool *pool) {
-    int *shm_value = (int *) pool->ptr;
-    return *shm_value;
-}
-
 TEST(process_pool, async_mb) {
     ProcessPool pool{};
     ASSERT_EQ(pool.create(1, 0, SW_IPC_UNIXSOCK), SW_OK);
@@ -292,7 +295,7 @@ TEST(process_pool, async_mb) {
     pool.async = true;
 
     pool.onWorkerStart = [](ProcessPool *pool, Worker *worker) {
-        test_add_shm_value(pool);
+        test_incr_shm_value(pool);
         current_worker = worker;
 
         DEBUG() << "onWorkerStart\n";
@@ -302,7 +305,7 @@ TEST(process_pool, async_mb) {
         }
 
         swoole_signal_set(SIGTERM, [](int sig) {
-            test_add_shm_value(current_pool);
+            test_incr_shm_value(current_pool);
             current_pool->stop(current_worker);
         });
 
@@ -311,16 +314,16 @@ TEST(process_pool, async_mb) {
 
     pool.onWorkerExit = [](ProcessPool *pool, Worker *worker) {
         DEBUG() << "onWorkerExit\n";
-        test_add_shm_value(current_pool);
+        test_incr_shm_value(current_pool);
     };
 
     pool.onShutdown = [](ProcessPool *pool) {
         DEBUG() << "onShutdown\n";
-        test_add_shm_value(current_pool);
+        test_incr_shm_value(current_pool);
     };
 
     pool.onMessage = [](ProcessPool *pool, RecvData *msg) {
-        test_add_shm_value(current_pool);
+        test_incr_shm_value(current_pool);
         DEBUG() << "pool->detach()\n";
         ASSERT_TRUE(pool->detach());
     };

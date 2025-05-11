@@ -1,6 +1,6 @@
 #!/bin/bash
-__DIR__=$(cd "$(dirname "$0")";pwd)
-__SWOOLE_DIR__=$(cd "$(dirname "${__DIR__}")";pwd)
+__DIR__=$(cd "$(dirname "$0")" || exit;pwd)
+__SWOOLE_DIR__=$(cd "$(dirname "${__DIR__}")" || exit;pwd)
 CMAKE_ARGS="-D swoole_dir=${__SWOOLE_DIR__} -D enable_thread=1"
 
 if [ "${SWOOLE_ENABLE_ASAN}" = 1 ]; then
@@ -8,16 +8,16 @@ if [ "${SWOOLE_ENABLE_ASAN}" = 1 ]; then
 fi
 
 if [ "${SWOOLE_ENABLE_VERBOSE}" = 1 ]; then
-    CMAKE_ARGS="${CMAKE_ARGS} -D enable_verbose=1"
+    CMAKE_ARGS="${CMAKE_ARGS} -D verbose=1"
 fi
 
-cmake . ${CMAKE_ARGS}
+cmake . "${CMAKE_ARGS}"
 make -j8
 ipcs -q
 
-cd ${__DIR__}/js
+cd "${__DIR__}"/js || exit 1
 npm install
-cd ${__DIR__}
+cd "${__DIR__}" || exit 1
 
 tasks=$(./bin/core_tests --gtest_list_tests | awk '/\./')
 for task in $tasks; do
@@ -33,10 +33,10 @@ for task in $tasks; do
 
     echo "run tests for $task"
 
-    if [ $task = "log." ]; then
-        $execute_command --gtest_filter=$task*
+    if [ "$task" = "log." ]; then
+        $execute_command --gtest_filter="$task"*
     else
-        sudo -E $execute_command --gtest_filter=$task*
+        sudo -E "$execute_command" --gtest_filter="$task"*
     fi
 
     if [ $? -ne 0 ] && [ "${GITHUB_ACTIONS}" = true ]; then
