@@ -65,12 +65,12 @@ static void test_func_stream_protocol(ProcessPool &pool) {
     test_func(pool);
 }
 
-static void test_incr_shm_value(ProcessPool *pool) {
+static int test_incr_shm_value(ProcessPool *pool) {
     auto shm_value = static_cast<int *>(pool->ptr);
-    (*shm_value)++;
+    return sw_atomic_add_fetch(shm_value, 1);
 }
 
-static int test_get_shm_value(ProcessPool *pool) {
+static MAYBE_UNUSED int test_get_shm_value(ProcessPool *pool) {
     auto shm_value = static_cast<int *>(pool->ptr);
     return *shm_value;
 }
@@ -243,9 +243,16 @@ TEST(process_pool, async) {
     pool.ptr = shm_value;
     pool.async = true;
 
+    pool.onStart = [](ProcessPool *pool) {
+        current_pool = pool;
+        sysv_signal(SIGTERM, [](int sig) { current_pool->running = false; });
+    };
+
     pool.onWorkerStart = [](ProcessPool *pool, Worker *worker) {
         test_set_shm_value(pool, magic_number);
         current_worker = worker;
+        current_pool = pool;
+        sysv_signal(SIGTERM, [](int sig) { current_pool->running = false; });
 
         swoole_signal_set(SIGTERM, [](int sig) {
             test_incr_shm_value(current_pool);
@@ -260,8 +267,6 @@ TEST(process_pool, async) {
         kill(pool->master_pid, SIGTERM);
     };
 
-    current_pool = &pool;
-    sysv_signal(SIGTERM, [](int sig) { current_pool->running = false; });
 
     // start
     ASSERT_EQ(pool.start(), SW_OK);
@@ -298,19 +303,21 @@ TEST(process_pool, async_mb) {
     pool.async = true;
 
     pool.onWorkerStart = [](ProcessPool *pool, Worker *worker) {
-        test_incr_shm_value(pool);
         current_worker = worker;
+        current_pool = pool;
 
-        DEBUG() << "value: " << test_get_shm_value(pool) << "; " << "onWorkerStart\n";
+        sysv_signal(SIGTERM, [](int sig) { current_pool->running = false; });
 
-        if (test_get_shm_value(pool) == 3) {
-            DEBUG() << "value: " << test_get_shm_value(pool) << "; " << "shutdown\n";
+        auto rv = test_incr_shm_value(pool);
+        DEBUG() << "value: " << rv << "; " << "onWorkerStart\n";
+
+        if (rv == 4) {
+            DEBUG() << "value: " << test_incr_shm_value(pool) << "; " << "shutdown\n";
             pool->shutdown();
         }
 
         swoole_signal_set(SIGTERM, [](int sig) {
-            test_incr_shm_value(current_pool);
-            DEBUG() << "value: " << test_get_shm_value(current_pool) << "; " << "stop worker\n";
+            DEBUG() << "value: " << test_incr_shm_value(current_pool) << "; " << "SIGTERM, stop worker\n";
             current_pool->stop(current_worker);
         });
 
@@ -318,18 +325,22 @@ TEST(process_pool, async_mb) {
     };
 
     pool.onWorkerExit = [](ProcessPool *pool, Worker *worker) {
-        DEBUG() << "value: " << test_get_shm_value(pool) << "; " << "onWorkerExit\n";
-        test_incr_shm_value(current_pool);
+        DEBUG() << "value: " << test_incr_shm_value(pool) << "; " << "onWorkerExit\n";
+    };
+
+    pool.onStart = [](ProcessPool *pool) {
+        current_pool = pool;
+        sysv_signal(SIGTERM, [](int sig) { current_pool->running = false; });
+
+        DEBUG() << "value: " << test_incr_shm_value(pool) << "; " << "onStart\n";
     };
 
     pool.onShutdown = [](ProcessPool *pool) {
-        DEBUG() << "value: " << test_get_shm_value(pool) << "; " << "onShutdown\n";
-        test_incr_shm_value(current_pool);
+        DEBUG() << "value: " << test_incr_shm_value(pool) << "; " << "onShutdown\n";
     };
 
     pool.onMessage = [](ProcessPool *pool, RecvData *msg) {
-        test_incr_shm_value(current_pool);
-        DEBUG() << "value: " << test_get_shm_value(pool) << "; " << "pool->detach()\n";
+        DEBUG() << "value: " << test_incr_shm_value(pool) << "; " << "onMessage, detach()\n";
         ASSERT_TRUE(pool->detach());
     };
 
@@ -349,7 +360,7 @@ TEST(process_pool, async_mb) {
 
     pool.destroy();
 
-    ASSERT_EQ(*shm_value, 6);
+    ASSERT_EQ(*shm_value, 8);
 
     sysv_signal(SIGTERM, SIG_DFL);
 }

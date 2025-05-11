@@ -679,7 +679,7 @@ int dump_cert_info(const char *data, size_t len) {
     return 0;
 }
 
-TEST(client, ssl_verify) {
+TEST(client, ssl) {
     Client client(SW_SOCK_TCP, false);
     client.enable_ssl_encrypt();
     client.set_tls_host_name(TEST_HTTP_DOMAIN);
@@ -687,7 +687,38 @@ TEST(client, ssl_verify) {
 
     auto sock = client.socket;
     ASSERT_TRUE(sock->ssl_get_peer_certificate(sw_tg_buffer()));
+    auto ls = sock->ssl_get_peer_cert_chain(10);
+    ASSERT_FALSE(ls.empty());
     dump_cert_info(sw_tg_buffer()->str, sw_tg_buffer()->length);
     ASSERT_TRUE(sock->ssl_verify(false));
+
+    auto req = swoole::test::http_get_request(TEST_HTTP_DOMAIN, "/");
+    iovec wr_iov[2];
+
+    wr_iov[0].iov_base = (void *) req.c_str();
+    wr_iov[0].iov_len = 32;
+
+    wr_iov[1].iov_base = (void *) req.c_str() + 32;
+    wr_iov[1].iov_len = req.length() - 32;
+
+    swoole::network::IOVector wr_vec(wr_iov, 2);
+    ASSERT_EQ(sock->ssl_writev(&wr_vec), req.length());
+
+    sw_tg_buffer()->clear();
+    sw_tg_buffer()->extend(1024 * 1024);
+
+    iovec rd_iov[2];
+    rd_iov[0].iov_base = sw_tg_buffer()->str;
+    rd_iov[0].iov_len = 512;
+    rd_iov[1].iov_base = sw_tg_buffer()->str + 512;
+    rd_iov[1].iov_len = sw_tg_buffer()->size - 512;
+
+    swoole::network::IOVector rd_vec(rd_iov, 2);
+    auto rv = sock->ssl_readv(&rd_vec);
+    ASSERT_GT(rv, 1024);
+    sw_tg_buffer()->length = rv;
+    sw_tg_buffer()->set_null_terminated();
+
+    ASSERT_TRUE(sw_tg_buffer()->contains("中华人民共和国"));
 }
 #endif

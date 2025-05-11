@@ -621,7 +621,6 @@ int ProcessPool::recv_message(Reactor *reactor, Event *event) {
     if (pool->message_bus->read(event->socket) <= 0) {
         return SW_OK;
     }
-    printf("recv message\n");
     auto pipe_buffer = pool->message_bus->get_buffer();
     auto packet = pool->message_bus->get_packet();
     RecvData msg;
@@ -828,7 +827,6 @@ bool ProcessPool::detach() {
     WorkerStopMessage msg;
     msg.pid = getpid();
     msg.worker_id = swoole_get_process_id();
-    printf("detach\n");
     if (push_message(SW_WORKER_MESSAGE_STOP, &msg, sizeof(msg)) < 0) {
         return false;
     }
