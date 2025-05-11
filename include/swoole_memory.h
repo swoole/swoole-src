@@ -78,8 +78,8 @@ class GlobalMemory : public MemoryPool {
     ~GlobalMemory();
     void *alloc(uint32_t size);
     void free(void *ptr);
-    size_t capacity();
-    size_t get_memory_size();
+    size_t capacity() const;
+    size_t get_memory_size() const;
 };
 }  // namespace swoole
 

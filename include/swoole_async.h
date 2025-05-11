@@ -85,7 +85,7 @@ struct GetaddrinfoRequest : public AsyncRequest {
     int socktype;
     int protocol;
     int error;
-    std::vector<struct sockaddr_in6> results;
+    std::vector<sockaddr_in6> results;
     int count;
 
     void parse_result(std::vector<std::string> &retval);
