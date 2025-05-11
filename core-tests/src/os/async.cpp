@@ -92,13 +92,16 @@ TEST(async, schedule) {
             }
         }
 
-        if (count % 50==0) {
+        if (count % 50 == 0) {
             DEBUG() << "async worker thread num=" << sw_async_threads()->get_worker_num() << "\n";
         }
     });
 
-    swoole_timer_after(2000, [](TIMER_PARAMS) {
+    swoole_timer_tick(2000, [](TIMER_PARAMS) {
         DEBUG() << "async worker thread num=" << sw_async_threads()->get_worker_num() << "\n";
+        if (sw_async_threads()->get_worker_num() < 16) {
+            swoole_timer_del(tnode);
+        }
     });
 
     swoole_event_wait();

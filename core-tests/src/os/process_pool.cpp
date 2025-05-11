@@ -291,6 +291,7 @@ TEST(process_pool, async_mb) {
     pool.set_max_packet_size(8192);
     pool.set_protocol(SW_PROTOCOL_TASK);
     int *shm_value = (int *) sw_mem_pool()->alloc(sizeof(int));
+    *shm_value = 0;
     pool.ptr = shm_value;
     pool.async = true;
 
