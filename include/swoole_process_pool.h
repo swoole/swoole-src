@@ -427,9 +427,9 @@ struct ProcessPool {
     int schedule();
     bool is_worker_running(Worker *worker);
 
-    static void kill_timeout_worker(Timer *timer, TimerNode *tnode);
-
   private:
+    static int recv_packet(Reactor *reactor, Event *event);
+    static int recv_message(Reactor *reactor, Event *event);
     static int run_with_task_protocol(ProcessPool *pool, Worker *worker);
     static int run_with_stream_protocol(ProcessPool *pool, Worker *worker);
     static int run_with_message_protocol(ProcessPool *pool, Worker *worker);

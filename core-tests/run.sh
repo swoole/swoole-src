@@ -1,12 +1,17 @@
 #!/bin/bash
 __DIR__=$(cd "$(dirname "$0")";pwd)
 __SWOOLE_DIR__=$(cd "$(dirname "${__DIR__}")";pwd)
+CMAKE_ARGS="-D swoole_dir=${__SWOOLE_DIR__} -D enable_thread=1"
 
 if [ "${SWOOLE_ENABLE_ASAN}" = 1 ]; then
-    cmake . -D swoole_dir="${__SWOOLE_DIR__}" -D enable_thread=1 -D enable_asan=1
-else
-    cmake . -D swoole_dir="${__SWOOLE_DIR__}" -D enable_thread=1
+    CMAKE_ARGS="${CMAKE_ARGS} -D enable_asan=1"
 fi
+
+if [ "${SWOOLE_ENABLE_VERBOSE}" = 1 ]; then
+    CMAKE_ARGS="${CMAKE_ARGS} -D enable_verbose=1"
+fi
+
+cmake . ${CMAKE_ARGS}
 make -j8
 ipcs -q
 
