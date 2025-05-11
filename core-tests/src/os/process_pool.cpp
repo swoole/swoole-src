@@ -232,7 +232,7 @@ TEST(process_pool, reload) {
     ASSERT_EQ(*shm_value, 4);
 }
 
-TEST(process_pool, async) {
+static void test_async_pool() {
     ProcessPool pool{};
     ASSERT_EQ(pool.create(1, 0, SW_IPC_UNIXSOCK), SW_OK);
 
@@ -255,7 +255,8 @@ TEST(process_pool, async) {
         sysv_signal(SIGTERM, [](int sig) { current_pool->running = false; });
 
         swoole_signal_set(SIGTERM, [](int sig) {
-            DEBUG() << "value: " << test_incr_shm_value(current_pool) << "; " << "SIGTERM, stop worker\n";
+            DEBUG() << "value: " << test_incr_shm_value(current_pool) << "; "
+                    << "SIGTERM, stop worker\n";
             current_pool->stop(current_worker);
         });
 
@@ -263,7 +264,8 @@ TEST(process_pool, async) {
     };
 
     pool.onMessage = [](ProcessPool *pool, RecvData *msg) {
-        DEBUG() << "value: " << test_incr_shm_value(current_pool) << "; " << "onMessage, kill\n";
+        DEBUG() << "value: " << test_incr_shm_value(current_pool) << "; "
+                << "onMessage, kill\n";
         kill(pool->master_pid, SIGTERM);
     };
 
@@ -287,7 +289,11 @@ TEST(process_pool, async) {
     sysv_signal(SIGTERM, SIG_DFL);
 }
 
-TEST(process_pool, async_mb) {
+TEST(process_pool, async) {
+    ASSERT_EQ(test::spawn_exec_and_wait([]() { test_async_pool(); }), 0);
+}
+
+static void test_async_pool_with_mb() {
     ProcessPool pool{};
     ASSERT_EQ(pool.create(1, 0, SW_IPC_UNIXSOCK), SW_OK);
     ASSERT_EQ(pool.create_message_bus(), SW_OK);
@@ -309,15 +315,18 @@ TEST(process_pool, async_mb) {
         sysv_signal(SIGTERM, [](int sig) { current_pool->running = false; });
 
         auto rv = test_incr_shm_value(pool);
-        DEBUG() << "value: " << rv << "; " << "onWorkerStart\n";
+        DEBUG() << "value: " << rv << "; "
+                << "onWorkerStart\n";
 
         if (rv == 4) {
-            DEBUG() << "value: " << test_incr_shm_value(pool) << "; " << "shutdown\n";
+            DEBUG() << "value: " << test_incr_shm_value(pool) << "; "
+                    << "shutdown\n";
             pool->shutdown();
         }
 
         swoole_signal_set(SIGTERM, [](int sig) {
-            DEBUG() << "value: " << test_incr_shm_value(current_pool) << "; " << "SIGTERM, stop worker\n";
+            DEBUG() << "value: " << test_incr_shm_value(current_pool) << "; "
+                    << "SIGTERM, stop worker\n";
             current_pool->stop(current_worker);
         });
 
@@ -325,7 +334,8 @@ TEST(process_pool, async_mb) {
     };
 
     pool.onWorkerExit = [](ProcessPool *pool, Worker *worker) {
-        DEBUG() << "value: " << test_incr_shm_value(pool) << "; " << "onWorkerExit\n";
+        DEBUG() << "value: " << test_incr_shm_value(pool) << "; "
+                << "onWorkerExit\n";
     };
 
     pool.onStart = [](ProcessPool *pool) {
@@ -333,19 +343,20 @@ TEST(process_pool, async_mb) {
         sysv_signal(SIGTERM, [](int sig) { current_pool->running = false; });
         sysv_signal(SIGIO, [](int sig) { current_pool->read_message = true; });
 
-        DEBUG() << "value: " << test_incr_shm_value(pool) << "; " << "onStart\n";
+        DEBUG() << "value: " << test_incr_shm_value(pool) << "; "
+                << "onStart\n";
     };
 
     pool.onShutdown = [](ProcessPool *pool) {
-        DEBUG() << "value: " << test_incr_shm_value(pool) << "; " << "onShutdown\n";
+        DEBUG() << "value: " << test_incr_shm_value(pool) << "; "
+                << "onShutdown\n";
     };
 
     pool.onMessage = [](ProcessPool *pool, RecvData *msg) {
-        DEBUG() << "value: " << test_incr_shm_value(pool) << "; " << "onMessage, detach()\n";
+        DEBUG() << "value: " << test_incr_shm_value(pool) << "; "
+                << "onMessage, detach()\n";
         ASSERT_TRUE(pool->detach());
-        swoole_signal_set(SIGTERM, [](int sig) {
-            exit(2);
-        });
+        swoole_signal_set(SIGTERM, [](int sig) { exit(2); });
     };
 
     // start
@@ -365,6 +376,10 @@ TEST(process_pool, async_mb) {
     swoole_signal_clear();
     sysv_signal(SIGTERM, SIG_DFL);
     sysv_signal(SIGIO, SIG_DFL);
+}
+
+TEST(process_pool, async_mb) {
+    ASSERT_EQ(test::spawn_exec_and_wait([]() { test_async_pool_with_mb(); }), 0);
 }
 
 TEST(process_pool, listen) {
