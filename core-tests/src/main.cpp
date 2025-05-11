@@ -45,6 +45,7 @@ static void init_root_path(const char *_exec_file) {
 
 namespace swoole {
 namespace test {
+NullStream null_stream;
 
 const string &get_root_path() {
     return root_path;

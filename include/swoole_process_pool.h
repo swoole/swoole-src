@@ -105,6 +105,7 @@ struct ProcessPool;
 struct Worker;
 
 struct WorkerGlobal {
+    WorkerId id;
     bool shutdown;
     bool running;
     uint32_t max_request;
@@ -419,6 +420,7 @@ struct ProcessPool {
     int create_message_bus();
     int push_message(uint8_t type, const void *data, size_t length);
     int push_message(EventData *msg);
+    bool send_message(WorkerId worker_id, const char *message, size_t l_message);
     int pop_message(void *data, size_t size);
     int listen(const char *socket_file, int blacklog);
     int listen(const char *host, int port, int blacklog);
@@ -446,3 +448,6 @@ extern SW_THREAD_LOCAL swoole::WorkerGlobal SwooleWG;
 static inline swoole::Worker *sw_worker() {
     return SwooleWG.worker;
 }
+
+SW_API swoole::WorkerId swoole_get_worker_id();
+SW_API void swoole_set_worker_id(swoole::WorkerId worker_id);

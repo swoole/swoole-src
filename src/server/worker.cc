@@ -227,6 +227,7 @@ void Server::worker_start_callback(Worker *worker) {
     } else {
         swoole_set_process_type(SW_PROCESS_WORKER);
     }
+    swoole_set_worker_id(worker->id);
 
     int is_root = !geteuid();
     struct passwd *_passwd = nullptr;

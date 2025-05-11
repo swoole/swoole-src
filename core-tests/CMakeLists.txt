@@ -65,6 +65,10 @@ if (DEFINED enable_thread)
     add_definitions(-DSW_THREAD)
 endif()
 
+if (DEFINED verbose)
+    add_definitions(-DSW_VERBOSE)
+endif()
+
 # should execute before the add_executable command
 link_directories(${core_tests_link_directories})
 

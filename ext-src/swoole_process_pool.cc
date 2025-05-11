@@ -555,16 +555,7 @@ static PHP_METHOD(swoole_process_pool, sendMessage) {
     Z_PARAM_LONG(worker_id)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    Worker *worker = pool->get_worker(worker_id);
-    if (pool->message_bus) {
-        SendData _task{};
-        _task.info.reactor_id = current_worker ? current_worker->pid : -1;
-        _task.info.len = l_message;
-        _task.data = message;
-        RETURN_BOOL(pool->message_bus->write(worker->pipe_master, &_task));
-    } else {
-        RETURN_BOOL(worker->pipe_master->send_async(message, l_message));
-    }
+    RETURN_BOOL(pool->send_message(worker_id, message, l_message));
 }
 
 static PHP_METHOD(swoole_process_pool, start) {

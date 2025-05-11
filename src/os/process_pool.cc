@@ -285,6 +285,19 @@ int ProcessPool::response(const char *data, int length) {
     return stream_info_->response_buffer->append(data, length);
 }
 
+bool ProcessPool::send_message(WorkerId worker_id, const char *message, size_t l_message) {
+    Worker *worker = get_worker(worker_id);
+    if (message_bus) {
+        SendData _task{};
+        _task.info.reactor_id = swoole_get_worker_id();
+        _task.info.len = l_message;
+        _task.data = message;
+        return message_bus->write(worker->pipe_master, &_task);
+    } else {
+        return worker->pipe_master->send_async(message, l_message);
+    }
+}
+
 int ProcessPool::push_message(EventData *msg) {
     if (message_box->push(msg, msg->size()) < 0) {
         return SW_ERR;
@@ -452,6 +465,7 @@ pid_t ProcessPool::spawn(Worker *worker) {
         worker->pid = SwooleG.pid;
         swoole_set_process_type(SW_PROCESS_WORKER);
         swoole_set_process_id(worker->id);
+        swoole_set_worker_id(worker->id);
         SwooleWG.worker = worker;
         if (async) {
             if (swoole_event_init(SW_EVENTLOOP_WAIT_EXIT) < 0) {
@@ -1144,5 +1158,12 @@ void ReloadTask::kill_one(int signal_number) {
         break;
     }
 }
-
 }  // namespace swoole
+
+swoole::WorkerId swoole_get_worker_id() {
+    return SwooleWG.id;
+}
+
+void swoole_set_worker_id(swoole::WorkerId worker_id) {
+    SwooleWG.id = worker_id;
+}

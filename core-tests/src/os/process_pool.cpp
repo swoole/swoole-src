@@ -295,6 +295,8 @@ TEST(process_pool, async_mb) {
         test_add_shm_value(pool);
         current_worker = worker;
 
+        DEBUG() << "onWorkerStart\n";
+
         if (test_get_shm_value(pool) == 3) {
             pool->shutdown();
         }
@@ -308,16 +310,19 @@ TEST(process_pool, async_mb) {
     };
 
     pool.onWorkerExit = [](ProcessPool *pool, Worker *worker) {
+        DEBUG() << "onWorkerExit\n";
         test_add_shm_value(current_pool);
     };
 
     pool.onShutdown = [](ProcessPool *pool) {
+        DEBUG() << "onShutdown\n";
         test_add_shm_value(current_pool);
     };
 
     pool.onMessage = [](ProcessPool *pool, RecvData *msg) {
         test_add_shm_value(current_pool);
-        pool->detach();
+        DEBUG() << "pool->detach()\n";
+        ASSERT_TRUE(pool->detach());
     };
 
     current_pool = &pool;
@@ -327,11 +332,9 @@ TEST(process_pool, async_mb) {
     // start
     ASSERT_EQ(pool.start(), SW_OK);
 
-    EventData msg{};
-    msg.info.len = 128;
-    swoole_random_string(msg.data, msg.info.len);
-    int worker_id = -1;
-    pool.dispatch_sync(&msg, &worker_id);
+    char msg[128];
+    swoole_random_string(msg, sizeof(msg));
+    pool.send_message(0, msg, sizeof(msg));
 
     // wait
     ASSERT_EQ(pool.wait(), SW_OK);
