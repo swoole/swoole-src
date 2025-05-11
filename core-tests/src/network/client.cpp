@@ -690,7 +690,7 @@ TEST(client, ssl) {
     auto ls = sock->ssl_get_peer_cert_chain(10);
     ASSERT_FALSE(ls.empty());
     dump_cert_info(sw_tg_buffer()->str, sw_tg_buffer()->length);
-    ASSERT_TRUE(sock->ssl_verify(false));
+    ASSERT_EQ(client.ssl_verify(false), SW_OK);
 
     auto req = swoole::test::http_get_request(TEST_HTTP_DOMAIN, "/");
 

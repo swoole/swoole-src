@@ -343,6 +343,9 @@ TEST(process_pool, async_mb) {
     pool.onMessage = [](ProcessPool *pool, RecvData *msg) {
         DEBUG() << "value: " << test_incr_shm_value(pool) << "; " << "onMessage, detach()\n";
         ASSERT_TRUE(pool->detach());
+        swoole_signal_set(SIGTERM, [](int sig) {
+            exit(2);
+        });
     };
 
     // start
