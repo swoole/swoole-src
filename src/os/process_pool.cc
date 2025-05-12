@@ -206,7 +206,7 @@ void ProcessPool::set_protocol(enum ProtocolType _protocol_type) {
 
 int ProcessPool::start_check() {
     if (ipc_mode == SW_IPC_SOCKET && (stream_info_ == nullptr || stream_info_->socket == nullptr)) {
-        swoole_warning("must first listen to an tcp port");
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_WRONG_OPERATION, "must first listen to an tcp port");
         return SW_ERR;
     }
 
@@ -276,8 +276,8 @@ int ProcessPool::schedule() {
     return target_worker_id;
 }
 
-int ProcessPool::response(const char *data, int length) {
-    if (stream_info_ == nullptr || stream_info_->last_connection == nullptr ||
+int ProcessPool::response(const char *data, uint32_t length) {
+    if (data == nullptr || length == 0 || stream_info_ == nullptr || stream_info_->last_connection == nullptr ||
         stream_info_->response_buffer == nullptr) {
         swoole_set_last_error(SW_ERROR_INVALID_PARAMS);
         return SW_ERR;

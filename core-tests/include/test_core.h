@@ -53,6 +53,8 @@
 
 #define ASSERT_MEMEQ(x, y, n) ASSERT_EQ(memcmp((x), (y), n), 0)
 #define EXPECT_MEMEQ(x, y, n) EXPECT_EQ(memcmp((x), (y), n), 0)
+#define ASSERT_ERREQ(x) ASSERT_EQ(swoole_get_last_error(), x)
+#define EXPECT_ERREQ(x) EXPECT_EQ(swoole_get_last_error(), x)
 
 #define TIMER_PARAMS Timer *timer, TimerNode *tnode
 
@@ -67,13 +69,13 @@ struct HttpProxy;
 struct Socks5Proxy;
 namespace test {
 class NullStream {
-public:
-    template<typename T>
-    NullStream& operator<<(const T&) {
+  public:
+    template <typename T>
+    NullStream &operator<<(const T &) {
         return *this;
     }
 
-    NullStream& operator<<(std::ostream& (*)(std::ostream&)) {
+    NullStream &operator<<(std::ostream &(*) (std::ostream &) ) {
         return *this;
     }
 };

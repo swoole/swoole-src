@@ -410,7 +410,7 @@ struct ProcessPool {
     void stop(Worker *worker);
     void kill_all_workers(int signo = SIGKILL);
     swResultCode dispatch(EventData *data, int *worker_id);
-    int response(const char *data, int length);
+    int response(const char *data, uint32_t length);
     swResultCode dispatch_sync(EventData *data, int *dst_worker_id);
     swResultCode dispatch_sync(const char *data, uint32_t len);
     void add_worker(Worker *worker);

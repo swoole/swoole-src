@@ -85,3 +85,15 @@ TEST(protocol, eof) {
 
     t1.join();
 }
+
+TEST(protocol, socks5_strerror) {
+    SW_LOOP_N(16) {
+        auto error = Socks5Proxy::strerror(i);
+        if (i > 0x08) {
+            ASSERT_STREQ("Unknown error", error);
+        } else {
+            ASSERT_GT(strlen(error), 5);
+        }
+    }
+
+}

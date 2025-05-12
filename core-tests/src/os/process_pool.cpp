@@ -386,7 +386,34 @@ static void test_async_pool_with_mb() {
 
 TEST(process_pool, async_mb) {
     test_async_pool_with_mb();
-    // ASSERT_EQ(test::spawn_exec_and_wait([]() { test_async_pool_with_mb(); }), 0);
+}
+
+TEST(process_pool, mb1) {
+    ProcessPool pool{};
+    ASSERT_EQ(pool.create(1, 0, SW_IPC_NONE), SW_OK);
+    ASSERT_EQ(pool.create_message_bus(), SW_ERR);
+    ASSERT_ERREQ(SW_ERROR_OPERATION_NOT_SUPPORT);
+
+    pool.destroy();
+}
+
+TEST(process_pool, mb2) {
+    ProcessPool pool{};
+    ASSERT_EQ(pool.create(1, 0, SW_IPC_UNIXSOCK), SW_OK);
+    ASSERT_EQ(pool.create_message_bus(), SW_OK);
+    ASSERT_EQ(pool.create_message_bus(), SW_ERR);
+    ASSERT_ERREQ(SW_ERROR_WRONG_OPERATION);
+
+    pool.destroy();
+}
+
+TEST(process_pool, socket) {
+    ProcessPool pool{};
+    ASSERT_EQ(pool.create(1, 0, SW_IPC_SOCKET), SW_OK);
+    ASSERT_EQ(pool.start(), SW_ERR);
+    ASSERT_ERREQ(SW_ERROR_WRONG_OPERATION);
+
+    pool.destroy();
 }
 
 TEST(process_pool, listen) {
@@ -409,7 +436,11 @@ TEST(process_pool, listen) {
 
     pool.onMessage = [](ProcessPool *pool, RecvData *msg) {
         String *wmem = (String *) pool->ptr;
-        pool->response(wmem->str, wmem->length);
+        ASSERT_EQ(pool->response(wmem->str, wmem->length), SW_OK);
+        ASSERT_EQ(pool->response(nullptr, 999), SW_ERR);
+        ASSERT_ERREQ(SW_ERROR_INVALID_PARAMS);
+        ASSERT_EQ(pool->response(wmem->str, 0), SW_ERR);
+        ASSERT_ERREQ(SW_ERROR_INVALID_PARAMS);
     };
 
     current_pool = &pool;
@@ -433,6 +464,9 @@ TEST(process_pool, listen) {
         c.recv(buf, ntohl(pkt_len));
 
         EXPECT_MEMEQ(buf, wmem.str, wmem.length);
+
+        ASSERT_EQ(pool.response(wmem.str, wmem.length), SW_ERR);
+        ASSERT_ERREQ(SW_ERROR_INVALID_PARAMS);
 
         c.close();
 
