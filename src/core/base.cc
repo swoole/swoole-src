@@ -452,7 +452,7 @@ void swoole_dump_bin(const char *data, char type, size_t size) {
     int n = size / type_size;
 
     for (i = 0; i < n; i++) {
-        printf("%d,", swoole_unpack(type, data + type_size * i));
+        printf("%ld,", swoole_unpack(type, data + type_size * i));
     }
     printf("\n");
 }
@@ -520,6 +520,11 @@ int swoole_type_size(char type) {
     case 'N':
     case 'V':
         return 4;
+    case 'q':
+    case 'Q':
+    case 'J':
+    case 'P':
+        return 8;
     default:
         return 0;
     }
