@@ -90,7 +90,6 @@ uint64_t swoole_hash_php(const char *key, size_t len) {
     return hash;
 }
 
-
 #define HASH_JEN_MIX(a, b, c)                                                                                          \
     do {                                                                                                               \
         a -= b;                                                                                                        \
@@ -185,8 +184,8 @@ uint64_t swoole_hash_jenkins(const char *key, size_t keylen) {
 /**
  * MurmurHash2(Austin Appleby)
  */
-uint64_t swoole_hash_austin(const char *key, unsigned int keylen) {
-    unsigned int h, k;
+uint64_t swoole_hash_austin(const char *key, size_t keylen) {
+    uint64_t h, k;
     h = 0 ^ keylen;
 
     while (keylen >= 4) {
@@ -224,4 +223,3 @@ uint64_t swoole_hash_austin(const char *key, unsigned int keylen) {
 
     return h;
 }
-

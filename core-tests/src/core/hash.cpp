@@ -26,14 +26,23 @@ TEST(hash, crc32) {
     ASSERT_EQ(swoole_crc32(data, strlen(data)), 2962796788);
 }
 
+static void test_hash_func(uint64_t (*hash_fn)(const char *key, size_t len), int n) {
+    SW_LOOP_N(n) {
+        size_t len = swoole_rand(8, 256);
+        char buf[256];
+        ASSERT_EQ(swoole_random_bytes(buf, len), len);
+        ASSERT_GT(hash_fn(buf, len), 0);
+    }
+}
+
 TEST(hash, php) {
-    ASSERT_GT(swoole_hash_php(data, strlen(data)), 0);
+    test_hash_func(swoole_hash_jenkins, 100);
 }
 
 TEST(hash, jenkins) {
-    ASSERT_GT(swoole_hash_jenkins(data, strlen(data)), 0);
+    test_hash_func(swoole_hash_jenkins, 100);
 }
 
 TEST(hash, austin) {
-    ASSERT_GT(swoole_hash_austin(data, strlen(data)), 0);
+    test_hash_func(swoole_hash_austin, 100);
 }
