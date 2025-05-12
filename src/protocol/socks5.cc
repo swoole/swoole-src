@@ -19,6 +19,7 @@
 #include "swoole_proxy.h"
 
 namespace swoole {
+#pragma GCC diagnostic push
 const char *Socks5Proxy::strerror(int code) {
     switch (code) {
     case 0x01:
@@ -41,4 +42,5 @@ const char *Socks5Proxy::strerror(int code) {
         return "Unknown error";
     }
 }
+#pragma GCC diagnostic pop
 }  // namespace swoole

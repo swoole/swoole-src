@@ -25,6 +25,32 @@ using namespace swoole;
 
 const char test_data[] = "hello swoole, hello world, php is best";
 
+TEST(socket, connect_sync) {
+    network::Address sa;
+    network::Socket *sock;
+
+    sock = make_socket(SW_SOCK_UNIX_STREAM, SW_FD_STREAM, 0);
+    ASSERT_NE(sock, nullptr);
+    sa.assign(SW_SOCK_UNIX_STREAM, "/tmp/swole-not-exists.sock");
+    ASSERT_EQ(sock->connect_sync(sa, 0.3), SW_ERR);
+    ASSERT_EQ(swoole_get_last_error(), ENOENT);
+    sock->free();
+
+    sock = make_socket(SW_SOCK_TCP, SW_FD_STREAM, 0);
+    ASSERT_NE(sock, nullptr);
+    sa.assign(SW_SOCK_TCP, "192.168.199.199", 80);
+    ASSERT_EQ(sock->connect_sync(sa, 0.3), SW_ERR);
+    ASSERT_EQ(swoole_get_last_error(), ETIMEDOUT);
+    sock->free();
+
+    sock = make_socket(SW_SOCK_TCP, SW_FD_STREAM, 0);
+    ASSERT_NE(sock, nullptr);
+    sa.assign(SW_SOCK_TCP, "127.0.0.1", 59999);
+    ASSERT_EQ(sock->connect_sync(sa, 0.3), SW_ERR);
+    ASSERT_EQ(swoole_get_last_error(), ECONNREFUSED);
+    sock->free();
+}
+
 TEST(socket, sendto) {
     char sock1_path[] = "/tmp/udp_unix1.sock";
     char sock2_path[] = "/tmp/udp_unix2.sock";

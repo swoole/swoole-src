@@ -98,7 +98,7 @@ struct Address {
     socklen_t len;
     SocketType type;
 
-    bool assign(SocketType _type, const std::string &_host, int _port, bool resolve = true);
+    bool assign(SocketType _type, const std::string &_host, int _port = 0, bool resolve = true);
     bool assign(const std::string &url);
 
     const char *get_ip() {
@@ -350,6 +350,8 @@ struct Socket {
         addr.assign(socket_type, host, port);
         return connect(addr);
     }
+
+    int connect_sync(const Address &sa, double timeout);
 
 #ifdef SW_USE_OPENSSL
     void ssl_clear_error() {

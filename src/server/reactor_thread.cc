@@ -246,7 +246,7 @@ int Server::close_connection(Reactor *reactor, Socket *socket) {
     serv->lock();
     if (fd == serv->get_maxfd()) {
         int find_max_fd = fd - 1;
-        swoole_trace("set_maxfd=%d|close_fd=%d\n", find_max_fd, fd);
+        swoole_trace_log(SW_TRACE_SERVER, "set_maxfd=%d|close_fd=%d", find_max_fd, fd);
         // find the new max_fd
         for (; !serv->is_valid_connection(serv->get_connection(find_max_fd)) && find_max_fd > serv->get_minfd();
              find_max_fd--) {

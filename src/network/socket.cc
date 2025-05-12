@@ -179,6 +179,35 @@ ssize_t Socket::writev_sync(const struct iovec *iov, size_t iovcnt) {
     return -1;
 }
 
+int Socket::connect_sync(const Address &sa, double timeout) {
+    set_nonblock();
+    auto ret = connect(sa);
+    if (ret != -1) {
+        return SW_OK;
+    }
+    if (errno != EINPROGRESS) {
+        swoole_set_last_error(errno);
+        return SW_ERR;
+    }
+    if (wait_event(timeout > 0 ? (int) (timeout * 1000) : timeout, SW_EVENT_WRITE) < 0) {
+        swoole_set_last_error(ETIMEDOUT);
+        return SW_ERR;
+    }
+    int err;
+    socklen_t len = sizeof(len);
+    ret = get_option(SOL_SOCKET, SO_ERROR, &err, &len);
+    if (ret < 0) {
+        swoole_set_last_error(errno);
+        return SW_ERR;
+    }
+    if (err != 0) {
+        swoole_set_last_error(err);
+        return SW_ERR;
+    }
+    set_block();
+    return SW_OK;
+}
+
 /**
  * clear socket buffer.
  */

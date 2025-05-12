@@ -145,7 +145,8 @@ int ReactorEpoll::del(Socket *_socket) {
         }
     }
 
-    swoole_trace_log(SW_TRACE_REACTOR, "remove event[reactor_id=%d|fd=%d]", reactor_->id, _socket->fd);
+    swoole_trace_log(
+        SW_TRACE_REACTOR, "remove event[reactor_id=%d|fd=%d|type=%d]", reactor_->id, _socket->fd, _socket->fd_type);
     reactor_->_del(_socket);
 
     return SW_OK;

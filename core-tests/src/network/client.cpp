@@ -48,6 +48,9 @@ TEST(client, tcp) {
     ASSERT_EQ(ret, GREETER_SIZE);
     ASSERT_STREQ(GREETER, buf);
 
+    ASSERT_EQ(cli.close(), SW_OK);
+    ASSERT_EQ(cli.close(), SW_ERR);
+
     kill(pid, SIGTERM);
     int status;
     wait(&status);
@@ -149,7 +152,7 @@ static void test_async_client_tcp(const char *host, int port, enum swSocketType 
         ac->close();
     });
 
-    bool retval = ac.connect(host, port);
+    bool retval = ac.connect(host, port, 1.0);
     EXPECT_TRUE(retval);
 
     swoole_event_wait();
