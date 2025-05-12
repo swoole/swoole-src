@@ -22,8 +22,6 @@
 #include "redis_client.h"
 #include "swoole_redis.h"
 
-
-
 using namespace swoole;
 using namespace std;
 

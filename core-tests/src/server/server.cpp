@@ -1896,10 +1896,11 @@ TEST(server, reactor_thread_pipe_writable) {
     t1.join();
 }
 
-static void test_heartbeat_check(Server::Mode mode) {
+static void test_heartbeat_check(Server::Mode mode, bool single_thread = false) {
     Server serv(mode);
     serv.worker_num = 1;
     serv.heartbeat_check_interval = 1;
+    serv.single_thread = single_thread;
 
     swoole_set_print_backtrace_on_error(true);
 
@@ -1949,4 +1950,111 @@ TEST(server, heartbeat_check_2) {
 
 TEST(server, heartbeat_check_3) {
     test_heartbeat_check(Server::MODE_THREAD);
+}
+
+TEST(server, heartbeat_check_4) {
+    test_heartbeat_check(Server::MODE_PROCESS);
+}
+
+static void test_close(Server::Mode mode, bool close_in_client, bool single_thread = false) {
+    Server serv(mode);
+    serv.worker_num = 1;
+    serv.single_thread = single_thread;
+
+    std::unordered_map<std::string, bool> flags;
+    AsyncClient ac(SW_SOCK_TCP);
+
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_TRUE(port);
+
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    serv.onConnect = [&flags, close_in_client](Server *serv, DataHead *ev) { flags["server_on_connect"] = true; };
+
+    serv.onReceive = [&flags, close_in_client](Server *serv, RecvData *req) {
+        serv->send(req->session_id(), req->data, req->length());
+        if (!close_in_client) {
+            serv->close(req->session_id());
+        }
+        flags["server_on_receive"] = true;
+        return SW_OK;
+    };
+
+    serv.onClose = [&flags, close_in_client](Server *serv, DataHead *ev) {
+        if (!close_in_client) {
+            ASSERT_LT(ev->reactor_id, 0);
+        }
+        flags["server_on_close"] = true;
+    };
+
+    serv.onWorkerStop = [&flags](Server *serv, Worker *worker) {
+        ASSERT_TRUE(flags["server_on_connect"]);
+        ASSERT_TRUE(flags["server_on_receive"]);
+        ASSERT_TRUE(flags["server_on_close"]);
+    };
+
+    serv.onStart = [port, &ac, &flags, close_in_client](Server *_serv) {
+        ac.on_connect([&](AsyncClient *ac) {
+            flags["client_on_connect"] = true;
+            ac->send(SW_STRL(TEST_STR));
+        });
+
+        ac.on_close([_serv, &flags](AsyncClient *ac) {
+            flags["client_on_close"] = true;
+            swoole_timer_after(50, [_serv](TIMER_PARAMS) { _serv->shutdown(); });
+        });
+
+        ac.on_error([&](AsyncClient *ac) { flags["client_on_error"] = true; });
+
+        ac.on_receive([&](AsyncClient *ac, const char *data, size_t len) {
+            flags["client_on_receive"] = true;
+            if (close_in_client) {
+                ac->close();
+            }
+        });
+
+        bool retval = ac.connect(TEST_HOST, port->get_port());
+        EXPECT_TRUE(retval);
+        flags["client_connected"] = true;
+    };
+
+    ASSERT_EQ(serv.start(), SW_OK);
+
+    ASSERT_TRUE(flags["client_connected"]);
+    ASSERT_TRUE(flags["client_on_connect"]);
+    ASSERT_FALSE(flags["client_on_error"]);
+    ASSERT_TRUE(flags["client_on_receive"]);
+    ASSERT_TRUE(flags["client_on_close"]);
+}
+
+TEST(server, close_1) {
+    test_close(Server::MODE_PROCESS, false);
+}
+
+TEST(server, close_2) {
+    test_close(Server::MODE_BASE, false);
+}
+
+TEST(server, close_3) {
+    test_close(Server::MODE_THREAD, false);
+}
+
+TEST(server, close_4) {
+    test_close(Server::MODE_PROCESS, false, true);
+}
+
+TEST(server, close_5) {
+    test_close(Server::MODE_PROCESS, true);
+}
+
+TEST(server, close_6) {
+    test_close(Server::MODE_BASE, true);
+}
+
+TEST(server, close_7) {
+    test_close(Server::MODE_THREAD, true);
+}
+
+TEST(server, close_8) {
+    test_close(Server::MODE_PROCESS, true, true);
 }

@@ -1508,7 +1508,7 @@ class Server {
     bool send(SessionId session_id, const void *data, uint32_t length);
     bool sendfile(SessionId session_id, const char *file, uint32_t l_file, off_t offset, size_t length);
     bool sendwait(SessionId session_id, const void *data, uint32_t length);
-    bool close(SessionId session_id, bool reset);
+    bool close(SessionId session_id, bool reset = false);
 
     bool notify(Connection *conn, enum ServerEventType event);
     bool feedback(Connection *conn, enum ServerEventType event);

@@ -25,6 +25,23 @@
 #include <netdb.h>
 
 namespace swoole {
+struct SendData {
+    DataHead info;
+    const char *data;
+};
+
+struct RecvData {
+    DataHead info;
+    const char *data;
+
+    SessionId session_id() {
+        return info.fd;
+    }
+
+    uint32_t length() {
+        return info.len;
+    }
+};
 
 struct PacketLength {
     const char *buf;

@@ -855,7 +855,7 @@ void swoole_random_string(std::string &str, size_t size) {
 uint64_t swoole_random_int() {
     static std::random_device rd;
     static std::mt19937_64 gen(rd());
-    static std::uniform_int_distribution<uint64_t> dis;
+    static std::uniform_int_distribution<uint64_t> dis(0, UINT64_MAX);
     return dis(gen);
 }
 

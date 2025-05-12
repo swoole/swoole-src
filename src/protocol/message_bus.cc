@@ -24,6 +24,40 @@ PacketPtr MessageBus::get_packet() const {
     return pkt;
 }
 
+bool MessageBus::alloc_buffer() {
+    void *_ptr = allocator_->malloc(sizeof(*buffer_) + buffer_size_);
+    if (_ptr) {
+        buffer_ = (PipeBuffer *) _ptr;
+        sw_memset_zero(&buffer_->info, sizeof(buffer_->info));
+        return true;
+    } else {
+        return false;
+    }
+}
+
+void MessageBus::pass(SendData *task) {
+    memcpy(&buffer_->info, &task->info, sizeof(buffer_->info));
+    if (task->info.len > 0) {
+        buffer_->info.flags = SW_EVENT_DATA_PTR;
+        PacketPtr pkt{task->info.len, (char *) task->data};
+        buffer_->info.len = sizeof(pkt);
+        memcpy(buffer_->data, &pkt, sizeof(pkt));
+    }
+}
+
+char *MessageBus::move_packet() {
+    uint64_t msg_id = buffer_->info.msg_id;
+    auto iter = packet_pool_.find(msg_id);
+    if (iter != packet_pool_.end()) {
+        auto str = iter->second.get();
+        char *val = str->str;
+        str->str = nullptr;
+        return val;
+    } else {
+        return nullptr;
+    }
+}
+
 String *MessageBus::get_packet_buffer() {
     String *packet_buffer = nullptr;
 
