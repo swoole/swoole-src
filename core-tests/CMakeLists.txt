@@ -56,6 +56,10 @@ if (DEFINED enable_asan)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer")
 endif()
 
+if (DEFINED enable_thread)
+    add_definitions(-DSW_THREAD)
+endif()
+
 if (DEFINED verbose)
     add_definitions(-DSW_VERBOSE)
 endif()

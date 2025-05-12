@@ -267,6 +267,7 @@ TEST(server, process) {
     delete lock;
 }
 
+#ifdef SW_THREAD
 TEST(server, thread) {
     Server serv(Server::MODE_THREAD);
     serv.worker_num = 2;
@@ -506,6 +507,7 @@ TEST(server, reload_thread_2) {
     ASSERT_TRUE(flags["reload"]);
     ASSERT_TRUE(flags["shutdown"]);
 }
+#endif
 
 TEST(server, reload_all_workers) {
     Server serv(Server::MODE_PROCESS);
