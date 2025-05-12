@@ -17,6 +17,11 @@ int main(int argc, char **argv) {
         sw_logger()->display_backtrace();
     }
 
+#ifdef SW_VERBOSE
+    swoole_set_log_level(SW_LOG_TRACE);
+    swoole_set_trace_flags(SW_TRACE_ALL);
+#endif
+
     ::testing::InitGoogleTest(&argc, argv);
     int retval = RUN_ALL_TESTS();
 

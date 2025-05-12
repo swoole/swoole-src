@@ -24,7 +24,9 @@ using network::Socket;
 
 Factory *Server::create_thread_factory() {
 #ifndef SW_THREAD
-    swoole_error("Thread support is not enabled, cannot create server with MODE_THREAD");
+    swoole_error_log(SW_LOG_ERROR,
+                     SW_ERROR_OPERATION_NOT_SUPPORT,
+                     "Thread support is not enabled, cannot create server with MODE_THREAD");
     return nullptr;
 #endif
     reactor_num = worker_num;
@@ -316,6 +318,7 @@ WorkerId ThreadFactory::get_master_thread_id() {
 
 void ThreadFactory::terminate_manager_thread() {
     do {
+        swoole_trace_log(SW_TRACE_THREAD, "notify manager thread to exit");
         std::unique_lock<std::mutex> _lock(lock_);
         queue_.push(&manager);
         cv_.notify_one();
@@ -330,6 +333,8 @@ void ThreadFactory::terminate_manager_thread() {
      */
     int manager_thread_id = get_manager_thread_id();
     threads_[manager_thread_id]->join();
+
+    swoole_trace_log(SW_TRACE_THREAD, "manager thread is exited");
 }
 
 int Server::start_worker_threads() {

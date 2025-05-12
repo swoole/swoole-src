@@ -802,7 +802,7 @@ ssize_t Socket::recv(void *_buf, size_t _n, int _flags) {
         total_bytes = 0;
     }
 
-    swoole_trace_log(SW_TRACE_SOCKET, "recv %ld/%ld bytes, errno=%d", total_bytes, __n, errno);
+    swoole_trace_log(SW_TRACE_SOCKET, "recv %ld/%ld bytes, errno=%d", total_bytes, _n, errno);
 
     return total_bytes;
 }
@@ -828,7 +828,7 @@ ssize_t Socket::send(const void *_buf, size_t _n, int _flags) {
         }
     }
 
-    swoole_trace_log(SW_TRACE_SOCKET, "send %ld/%ld bytes, errno=%d", retval, __n, errno);
+    swoole_trace_log(SW_TRACE_SOCKET, "send %ld/%ld bytes, errno=%d", retval, _n, errno);
 
     return retval;
 }
@@ -913,7 +913,7 @@ ssize_t Socket::peek(void *_buf, size_t _n, int _flags) {
         }
     } while (retval < 0 && errno == EINTR);
 
-    swoole_trace_log(SW_TRACE_SOCKET, "peek %ld/%ld bytes, errno=%d", retval, __n, errno);
+    swoole_trace_log(SW_TRACE_SOCKET, "peek %ld/%ld bytes, errno=%d", retval, _n, errno);
 
     return retval;
 }

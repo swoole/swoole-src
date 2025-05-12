@@ -267,7 +267,6 @@ TEST(server, process) {
     delete lock;
 }
 
-#ifdef SW_THREAD
 TEST(server, thread) {
     Server serv(Server::MODE_THREAD);
     serv.worker_num = 2;
@@ -294,6 +293,10 @@ TEST(server, thread) {
         c.recv(buf, sizeof(buf));
         c.close();
 
+        usleep(10);
+
+        DEBUG() << "shutdown\n";
+
         serv.shutdown();
     });
 
@@ -304,6 +307,8 @@ TEST(server, thread) {
 
         string resp = string("Server: ") + string(packet);
         serv->send(req->info.fd, resp.c_str(), resp.length());
+
+        DEBUG() << "send\n";
 
         EXPECT_EQ(serv->get_connection_num(), 1);
         EXPECT_EQ(serv->get_primary_port()->get_connection_num(), 1);
@@ -501,7 +506,6 @@ TEST(server, reload_thread_2) {
     ASSERT_TRUE(flags["reload"]);
     ASSERT_TRUE(flags["shutdown"]);
 }
-#endif
 
 TEST(server, reload_all_workers) {
     Server serv(Server::MODE_PROCESS);
