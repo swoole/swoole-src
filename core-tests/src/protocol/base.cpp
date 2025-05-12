@@ -95,5 +95,4 @@ TEST(protocol, socks5_strerror) {
             ASSERT_GT(strlen(error), 5);
         }
     }
-
 }
