@@ -313,7 +313,6 @@ struct Socket {
     ssize_t send(const void *__buf, size_t __n, int __flags);
     ssize_t peek(void *__buf, size_t __n, int __flags);
     Socket *accept();
-    int bind(const std::string &_host, int *port);
     Socket *dup();
 
     ssize_t readv(IOVector *io_vector);
@@ -323,8 +322,14 @@ struct Socket {
         return ::writev(fd, iov, iovcnt);
     }
 
-    int bind(const Address &sa) {
-        return ::bind(fd, &sa.addr.ss, sizeof(sa.addr.ss));
+    int bind(const std::string &_host, int *port);
+
+    int bind(const struct sockaddr *sa, socklen_t len) {
+        return ::bind(fd, sa, len);
+    }
+
+    int bind(const Address &addr) {
+        return ::bind(fd, &addr.addr.ss, addr.len);
     }
 
     int listen(int backlog = 0) {

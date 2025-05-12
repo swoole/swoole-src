@@ -131,7 +131,7 @@ class Socket {
      * causing the `ssl_handshake()` processes to execute sequentially rather than in parallel.
      */
     Socket *accept(double timeout = 0);
-    bool bind(std::string address, int port = 0);
+    bool bind(const std::string &address, int port = 0);
     bool bind(const struct sockaddr *sa, socklen_t len);
     bool listen(int backlog = 0);
     bool sendfile(const char *filename, off_t offset, size_t length);

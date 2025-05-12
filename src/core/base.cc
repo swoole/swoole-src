@@ -31,6 +31,7 @@
 #include <list>
 #include <set>
 #include <unordered_map>
+#include <random>
 
 #include "swoole_api.h"
 #include "swoole_string.h"
@@ -849,6 +850,13 @@ void swoole_random_string(std::string &str, size_t size) {
     for (; i < size; i++) {
         str.append(1, characters[swoole_rand(0, sizeof(characters) - 1)]);
     }
+}
+
+uint64_t swoole_random_int() {
+    static std::random_device rd;
+    static std::mt19937_64 gen(rd());
+    static std::uniform_int_distribution<uint64_t> dis;
+    return dis(gen);
 }
 
 size_t swoole_random_bytes(char *buf, size_t size) {

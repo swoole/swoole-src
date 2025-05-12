@@ -28,7 +28,7 @@ TEST(hash, crc32) {
 
 static void test_hash_func(uint64_t (*hash_fn)(const char *key, size_t len), int n) {
     SW_LOOP_N(n) {
-        size_t len = swoole_rand(8, 256);
+        size_t len = 1 + swoole_random_int() % 256;
         char buf[256];
         ASSERT_EQ(swoole_random_bytes(buf, len), len);
         ASSERT_GT(hash_fn(buf, len), 0);

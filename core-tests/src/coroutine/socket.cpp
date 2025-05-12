@@ -171,7 +171,7 @@ TEST(coroutine_socket, bind_success) {
         ASSERT_EQ(retval, true);
 
         Socket sock_1(SW_SOCK_UNIX_DGRAM);
-        retval = sock_1.bind("127.0.0.1", 9909);
+        retval = sock_1.bind("/tmp/swoole-core-tests.sock", 9909);
         ASSERT_EQ(retval, true);
     });
 }

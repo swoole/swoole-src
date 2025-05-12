@@ -22,7 +22,7 @@
 #include "redis_client.h"
 #include "swoole_redis.h"
 
-#include <random>
+
 
 using namespace swoole;
 using namespace std;
@@ -445,12 +445,8 @@ TEST(protocol, hton64) {
     }
 
     {
-        std::random_device rd;
-        std::mt19937_64 gen(rd());
-        std::uniform_int_distribution<uint64_t> dis;
-
         for (int i = 0; i < 100; i++) {
-            uint64_t random_val = dis(gen);
+            uint64_t random_val = swoole_random_int();
             uint64_t converted = swoole_hton64(random_val);
             uint64_t reversed = swoole_ntoh64(converted);
 
@@ -475,12 +471,8 @@ TEST(protocol, hton64) {
     }
 
     {
-        std::random_device rd;
-        std::mt19937_64 gen(rd());
-        std::uniform_int_distribution<uint64_t> dis;
-
         for (int i = 0; i < 100; i++) {
-            uint64_t val = dis(gen);
+            uint64_t val = swoole_random_int();
             EXPECT_EQ(swoole_ntoh64(swoole_hton64(val)), val) << "hton64->ntoh64 failed for 0x" << std::hex << val;
             EXPECT_EQ(swoole_hton64(swoole_ntoh64(val)), val) << "ntoh64->hton64 failed for 0x" << std::hex << val;
         }
