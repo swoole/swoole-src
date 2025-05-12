@@ -886,16 +886,18 @@ bool Server::shutdown() {
         return false;
     }
 
+    /**
+     * In thread mode, the worker thread masks all signals, and only a specific signal is processed.
+     * Sending a signal to its own process can inform the main thread to prepare for exit.
+     */
+    if (is_thread_mode() && is_master_thread()) {
+        stop_master_thread();
+        return true;
+    }
+
     pid_t pid;
     if (is_base_mode()) {
         pid = get_manager_pid() == 0 ? get_master_pid() : get_manager_pid();
-    } else if (is_thread_mode()) {
-        // TODO optimize, Exit in order, one by one.
-        running = false;
-        if (is_master_thread()) {
-            stop_master_thread();
-        }
-        return true;
     } else {
         pid = get_master_pid();
     }

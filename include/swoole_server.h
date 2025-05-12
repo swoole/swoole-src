@@ -592,7 +592,6 @@ class ProcessFactory : public Factory {
 };
 
 class ThreadFactory : public BaseFactory {
-  private:
     std::vector<std::shared_ptr<Thread>> threads_;
     std::mutex lock_;
     std::condition_variable cv_;
@@ -600,19 +599,22 @@ class ThreadFactory : public BaseFactory {
     long cv_timeout_ms_;
     bool reload_all_workers;
     bool reloading;
-    Worker manager;
-    void at_thread_enter(int id, int process_type, int thread_type);
+    Worker manager{};
+    void at_thread_enter(WorkerId id, int process_type);
     void at_thread_exit(Worker *worker);
     void create_message_bus();
     void destroy_message_bus();
 
   public:
-    ThreadFactory(Server *server);
-    ~ThreadFactory();
+    explicit ThreadFactory(Server *server);
+    ~ThreadFactory() override;
+    WorkerId get_manager_thread_id();
+    WorkerId get_master_thread_id();
     void spawn_event_worker(WorkerId i);
     void spawn_task_worker(WorkerId i);
     void spawn_user_worker(WorkerId i);
     void spawn_manager_thread(WorkerId i);
+    void terminate_manager_thread();
     void wait();
     bool reload(bool reload_all_workers);
     bool start() override;
