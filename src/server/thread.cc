@@ -176,6 +176,7 @@ void ThreadFactory::spawn_manager_thread(WorkerId i) {
         at_thread_enter(i, SW_PROCESS_MANAGER);
 
         manager.id = i;
+        manager.pid = swoole_thread_get_native_id();
         manager.type = SW_PROCESS_MANAGER;
 
         swoole_timer_set_scheduler([this](Timer *timer, long exec_msec) -> int {
@@ -216,6 +217,12 @@ void ThreadFactory::wait() {
         if (!queue_.empty()) {
             Worker *exited_worker = queue_.front();
             queue_.pop();
+
+            swoole_trace_log(SW_TRACE_THREAD,
+                             "worker(tid=%d, id=%d) exit, status=%d",
+                             exited_worker->pid,
+                             exited_worker->id,
+                             exited_worker->status);
 
             if (exited_worker == &manager) {
                 server_->running = false;

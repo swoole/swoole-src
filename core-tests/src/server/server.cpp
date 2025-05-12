@@ -272,7 +272,8 @@ TEST(server, thread) {
     Server serv(Server::MODE_THREAD);
     serv.worker_num = 2;
 
-    swoole_set_log_level(SW_LOG_WARNING);
+    swoole_set_trace_flags(SW_TRACE_THREAD);
+    swoole_set_log_level(SW_LOG_TRACE);
 
     ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     ASSERT_TRUE(port);
@@ -288,10 +289,12 @@ TEST(server, thread) {
         lock.lock();
 
         network::SyncClient c(SW_SOCK_TCP);
-        c.connect(TEST_HOST, port->port);
-        c.send(packet, strlen(packet));
+        ASSERT_TRUE(c.connect(TEST_HOST, port->port));
+        ASSERT_EQ(c.send(packet, strlen(packet)), strlen(packet));
         char buf[1024];
-        c.recv(buf, sizeof(buf));
+        ASSERT_EQ(c.recv(buf, sizeof(buf)), strlen(packet) + 8);
+        string resp = string("Server: ") + string(packet);
+        ASSERT_MEMEQ(buf, resp.c_str(), resp.length());
         c.close();
 
         usleep(10);
