@@ -288,6 +288,8 @@ TEST(server, thread) {
 
         lock.lock();
 
+        usleep(1000);
+
         network::SyncClient c(SW_SOCK_TCP);
         ASSERT_TRUE(c.connect(TEST_HOST, port->port));
         ASSERT_EQ(c.send(packet, strlen(packet)), strlen(packet));
