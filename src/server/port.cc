@@ -860,6 +860,10 @@ int ListenPort::create_socket() {
         goto __cleanup;
     }
 
+    if (socket->set_reuse_addr() < 0) {
+        swoole_sys_warning("setsockopt(%d, SO_REUSEADDR) failed", socket->get_fd());
+    }
+
     if (socket->bind(addr) < 0) {
         goto __cleanup;
     }

@@ -293,8 +293,11 @@ class SyncClient {
 
 #ifdef SW_USE_OPENSSL
     bool enable_ssl_encrypt() {
-        if (client.enable_ssl_encrypt() < 0 || client.ssl_handshake() < 0) {
+        if (client.enable_ssl_encrypt() < 0) {
             return false;
+        }
+        if (connected) {
+            return client.ssl_handshake() == SW_OK;
         } else {
             return true;
         }
@@ -324,6 +327,10 @@ class SyncClient {
         client.close();
         created = false;
         return true;
+    }
+
+    Client *get_client() {
+        return &client;
     }
 
     virtual ~SyncClient() {

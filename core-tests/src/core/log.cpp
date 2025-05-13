@@ -251,8 +251,14 @@ TEST(log, set_stream) {
     char *buffer = NULL;
     size_t size = 0;
     FILE *stream = open_memstream(&buffer, &size);
+
     sw_logger()->set_stream(stream);
-    sw_logger()->put(SW_LOG_ERROR, SW_STRL("hello world\n"));
+    sw_logger()->put(SW_LOG_ERROR, SW_STRL("hello world"));
+
+    sw_logger()->set_stream(stdout);
+    sw_logger()->put(SW_LOG_ERROR, SW_STRL("hello world"));
 
     ASSERT_NE(strstr(buffer, "ERROR\thello world"), nullptr);
+    fclose(stream);
+    free(buffer);
 }

@@ -268,7 +268,7 @@ dtls::Session *Server::accept_dtls_connection(ListenPort *port, Address *sa) {
         break;
     }
 
-    if (sock->bind(port->host.c_str(), port->port) < 0) {
+    if (sock->bind(port->host, port->port) < 0) {
         swoole_sys_warning("bind() failed");
         goto _cleanup;
     }

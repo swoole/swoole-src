@@ -1164,6 +1164,10 @@ bool Socket::bind(const std::string &address, const int port) {
         return false;
     }
 
+    if (socket->set_reuse_addr() < 0) {
+        swoole_sys_warning("setsockopt(%d, SO_REUSEADDR) failed", get_fd());
+    }
+
     if (socket->bind(address, port) < 0) {
         set_err(errno);
         return false;

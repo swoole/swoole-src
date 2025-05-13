@@ -836,6 +836,100 @@ TEST(server, dtls2) {
         exit(0);
     }
 }
+
+static void test_ssl_client_ssl(Server::Mode mode) {
+    Server serv(mode);
+    serv.worker_num = 1;
+    swoole_set_log_level(SW_LOG_INFO);
+
+    Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
+    lock->lock();
+
+    ListenPort *port = serv.add_port((enum swSocketType)(SW_SOCK_TCP | SW_SOCK_SSL), TEST_HOST, 0);
+    if (!port) {
+        swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
+        exit(2);
+    }
+
+    port->set_ssl_cert_file(test::get_ssl_dir() + "/server.crt");
+    port->set_ssl_key_file(test::get_ssl_dir() + "/server.key");
+    port->set_ssl_verify_peer(true);
+    port->set_ssl_allow_self_signed(true);
+    port->set_ssl_client_cert_file(test::get_ssl_dir() + "/ca-cert.pem");
+    port->ssl_init();
+
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    serv.onStart = [&lock](Server *serv) {
+        thread t1([=]() {
+            swoole_signal_block_all();
+
+            lock->lock();
+
+            ListenPort *port = serv->get_primary_port();
+
+            EXPECT_EQ(port->ssl, 1);
+
+            network::SyncClient c(SW_SOCK_TCP);
+            c.enable_ssl_encrypt();
+            c.get_client()->set_ssl_cert_file(test::get_ssl_dir() + "/client-cert.pem");
+            c.get_client()->set_ssl_key_file(test::get_ssl_dir() + "/client-key.pem");
+            c.connect(TEST_HOST, port->port);
+            EXPECT_EQ(c.send(packet, strlen(packet)), strlen(packet));
+
+            char buf[1024];
+            EXPECT_GT(c.recv(buf, sizeof(buf)), 0);
+            c.close();
+
+            kill(serv->gs->master_pid, SIGTERM);
+        });
+        t1.detach();
+    };
+
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock->unlock(); };
+
+    serv.onReceive = [](Server *serv, RecvData *req) -> int {
+        EXPECT_EQ(string(req->data, req->info.len), string(packet));
+
+        string resp = string("Server: ") + string(packet);
+        serv->send(req->info.fd, resp.c_str(), resp.length());
+
+        auto conn = serv->get_connection_by_session_id(req->session_id());
+        EXPECT_NE(conn->ssl_client_cert, nullptr);
+        EXPECT_GT(conn->ssl_client_cert->length, 16);
+
+        char *buffer = NULL;
+        size_t size = 0;
+        FILE *stream = open_memstream(&buffer, &size);
+        swoole_set_stdout_stream(stream);
+        swoole::test::dump_cert_info(conn->ssl_client_cert->str, conn->ssl_client_cert->length);
+        fflush(stream);
+        swoole_set_stdout_stream(stdout);
+
+        EXPECT_NE(strstr(buffer, "organizationName: swoole"), nullptr);
+
+        fclose(stream);
+        free(buffer);
+
+        return SW_OK;
+    };
+
+    ASSERT_EQ(serv.start(), 0);
+
+    delete lock;
+}
+
+TEST(server, ssl_client_cert_1) {
+    test_ssl_client_ssl(Server::MODE_BASE);
+}
+
+TEST(server, ssl_client_cert_2) {
+    test_ssl_client_ssl(Server::MODE_PROCESS);
+}
+
+TEST(server, ssl_client_cert_3) {
+    test_ssl_client_ssl(Server::MODE_THREAD);
+}
 #endif
 
 TEST(server, task_worker) {

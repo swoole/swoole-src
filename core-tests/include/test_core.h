@@ -95,5 +95,11 @@ HttpProxy *create_http_proxy();
 pid_t spawn_exec(const std::function<void(void)> &fn);
 int spawn_exec_and_wait(const std::function<void(void)> &fn);
 
+int dump_cert_info(const char *data, size_t len);
+
+static inline int dump_cert_info(const String *str) {
+    return dump_cert_info(str->str, str->length);
+}
+
 }  // namespace test
 };  // namespace swoole

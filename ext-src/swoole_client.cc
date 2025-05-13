@@ -380,10 +380,15 @@ bool php_swoole_client_check_setting(Client *cli, zval *zset) {
     if (php_swoole_array_get_value(vht, "bind_address", ztmp)) {
         bind_address = zend::String(ztmp).to_std_string();
     }
-    if (bind_address.length() > 0 && cli->socket->bind(bind_address, bind_port) < 0) {
-        php_swoole_error(E_WARNING, "bind address or port error in set method");
-        swoole_set_last_error(errno);
-        return false;
+    if (bind_address.length() > 0 ) {
+        if (cli->socket->set_reuse_addr() < 0) {
+            swoole_sys_warning("setsockopt(%d, SO_REUSEADDR) failed", cli->socket->get_fd());
+        }
+        if (cli->socket->bind(bind_address, bind_port) < 0) {
+            php_swoole_error(E_WARNING, "bind address or port error in set method");
+            swoole_set_last_error(errno);
+            return false;
+        }
     }
     /**
      * client: tcp_nodelay
