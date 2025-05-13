@@ -203,7 +203,7 @@ void Coroutine::close() {
 }
 
 void Coroutine::print_list() {
-    for (auto & coroutine : coroutines) {
+    for (auto &coroutine : coroutines) {
         const char *state;
         switch (coroutine.second->state) {
         case STATE_INIT:
@@ -238,7 +238,7 @@ void Coroutine::set_on_close(const SwapCallback func) {
     on_close = func;
 }
 
-void Coroutine::bailout(const BailoutCallback& func) {
+void Coroutine::bailout(const BailoutCallback &func) {
     Coroutine *co = current;
     if (!co) {
         // marks that it can no longer resume any coroutine

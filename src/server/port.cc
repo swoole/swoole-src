@@ -41,7 +41,7 @@ ListenPort::ListenPort(Server *server) {
 
 #ifdef SW_USE_OPENSSL
 
-bool ListenPort::ssl_add_sni_cert(const std::string &name, const std::shared_ptr<SSLContext>& ctx) {
+bool ListenPort::ssl_add_sni_cert(const std::string &name, const std::shared_ptr<SSLContext> &ctx) {
     if (!ssl_context_create(ctx.get())) {
         return false;
     }
@@ -92,7 +92,7 @@ int ListenPort::ssl_server_sni_callback(SSL *ssl, int *al, void *arg) {
         return SSL_TLSEXT_ERR_NOACK;
     }
 
-    for (auto & sni_context : port->sni_contexts) {
+    for (auto &sni_context : port->sni_contexts) {
         if (ssl_matches_wildcard_name(server_name, sni_context.first.c_str())) {
             SSL_set_SSL_CTX(ssl, sni_context.second->get_context());
             return SSL_TLSEXT_ERR_OK;

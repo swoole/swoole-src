@@ -171,4 +171,4 @@ RingBuffer::~RingBuffer() {
     }
 }
 
-}
+}  // namespace swoole

@@ -85,7 +85,8 @@ static int trigger_signal = 0;
 
 TEST(os_signal, dispatch) {
     trigger_signal = 0;
-    swoole_signal_set(SIGIO, [](int signo) { trigger_signal = signo; }, true);
+    swoole_signal_set(
+        SIGIO, [](int signo) { trigger_signal = signo; }, true);
     swoole_kill(getpid(), SIGIO);
     ASSERT_EQ(trigger_signal, 0);
 
