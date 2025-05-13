@@ -110,7 +110,7 @@ static bool check_sendfile_parameters(File *file, off_t begin, size_t length, of
 
     if (begin < 0 || *end > file_stat.st_size) {
         swoole_error_log(
-            SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "length[%ld] or offset[%ld] is invalid", length, begin);
+            SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "length[%ld] or offset[%ld] is invalid", length, (long) begin);
         return false;
     }
 

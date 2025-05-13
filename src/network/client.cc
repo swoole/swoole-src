@@ -470,7 +470,7 @@ static int Client_tcp_connect_sync(Client *cli, const char *host, int port, doub
             // special case on MacOS
             ret = cli->socket->connect(cli->server_addr);
         } else {
-            ret = cli->socket->connect_sync(&cli->server_addr, cli->timeout);
+            ret = cli->socket->connect_sync(cli->server_addr, cli->timeout);
         }
 #else
         ret = cli->socket->connect(cli->server_addr);
