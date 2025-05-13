@@ -340,7 +340,7 @@ Socket *Socket::accept() {
 ssize_t Socket::sendto_sync(const Address &sa, const void *_buf, size_t _n, int flags) {
     ssize_t n = 0;
 
-    for (int i = 0; i < SW_SOCKET_RETRY_COUNT; i++) {
+    SW_LOOP_N(SW_SOCKET_RETRY_COUNT) {
         n = sendto(sa, _buf, _n, flags);
         if (n >= 0) {
             break;
@@ -360,7 +360,7 @@ ssize_t Socket::sendto_sync(const Address &sa, const void *_buf, size_t _n, int 
 ssize_t Socket::recvfrom(char *buf, size_t len, int flags, sockaddr *addr, socklen_t *addr_len) {
     ssize_t n = 0;
     SW_LOOP_N(SW_SOCKET_RETRY_COUNT) {
-        auto n = ::recvfrom(fd, buf, len, flags, addr, addr_len);
+        n = ::recvfrom(fd, buf, len, flags, addr, addr_len);
         if (n < 0 && errno == EINTR) {
             continue;
         }
@@ -433,7 +433,7 @@ int Socket::get_name() {
 int Socket::get_peer_name(Address *sa) {
     sa->len = sizeof(sa->addr);
     sa->type = socket_type;
-    if (::getpeername(fd, (struct sockaddr *) &sa->addr, &sa->len) != 0) {
+    if (::getpeername(fd, &sa->addr.ss, &sa->len) != 0) {
         return SW_ERR;
     }
     return SW_OK;
@@ -454,7 +454,7 @@ int Socket::set_tcp_nopush(int nopush) {
 
 int Socket::bind(const std::string &_host, int port) {
     Address addr;
-    if (!addr.assign(socket_type, _host.c_str(), port, false)) {
+    if (!addr.assign(socket_type, _host, port, false)) {
         return SW_ERR;
     }
     return bind(addr);

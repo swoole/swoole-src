@@ -18,6 +18,7 @@
 */
 
 #include "test_core.h"
+#include "swoole_reactor.h"
 #include "swoole_pipe.h"
 #include "swoole_util.h"
 

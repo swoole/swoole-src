@@ -108,7 +108,7 @@ class Client {
     ssize_t (*recv)(Client *cli, char *data, size_t length, int flags) = nullptr;
 
     static void init_reactor(Reactor *reactor);
-    Client(SocketType type, bool async);
+    Client(SocketType _type, bool async);
     ~Client();
 
     void set_http_proxy(const std::string &host, int port) {
@@ -121,11 +121,11 @@ class Client {
         return socket;
     }
 
-    SocketType get_socket_type() {
+    SocketType get_socket_type() const {
         return socket->socket_type;
     }
 
-    const std::string *get_http_proxy_host_name() {
+    const std::string *get_http_proxy_host_name() const {
 #ifdef SW_USE_OPENSSL
         if (ssl_context && !ssl_context->tls_host_name.empty()) {
             return &ssl_context->tls_host_name;
@@ -136,9 +136,8 @@ class Client {
 
     int sleep();
     int wakeup();
-    int shutdown(int __how);
+    int shutdown(int _how);
     int close();
-    void destroy();
     int socks5_handshake(const char *recv_data, size_t length);
 #ifdef SW_USE_OPENSSL
     int enable_ssl_encrypt();
@@ -242,7 +241,7 @@ class Stream {
     void set_max_length(uint32_t max_length);
 
     static inline Stream *create(const char *dst_host, int dst_port, SocketType type) {
-        Stream *stream = new Stream(dst_host, dst_port, type);
+        auto *stream = new Stream(dst_host, dst_port, type);
         if (!stream->connected) {
             delete stream;
             return nullptr;
@@ -251,7 +250,7 @@ class Stream {
         }
     }
     ~Stream();
-    static ssize_t recv_sync(Socket *sock, void *__buf, size_t __len);
+    static ssize_t recv_sync(Socket *sock, void *_buf, size_t _len);
     static void set_protocol(Protocol *protocol);
 
   private:
@@ -268,11 +267,11 @@ class SyncClient {
     SocketType type;
 
   public:
-    SyncClient(SocketType _type, bool _async = false) : client(_type, _async), async(_async), type(_type) {
+    explicit SyncClient(SocketType _type, bool _async = false) : client(_type, _async), async(_async), type(_type) {
         created = client.socket != nullptr;
     }
 
-    bool connect(const char *host, int port, double timeout = -1) {
+    virtual bool connect(const char *host, int port, double timeout = -1) {
         if (connected || !created) {
             return false;
         }
@@ -342,42 +341,42 @@ class AsyncClient : public SyncClient {
     std::function<void(AsyncClient *, const char *data, size_t length)> _onReceive = nullptr;
 
   public:
-    AsyncClient(SocketType _type) : SyncClient(_type, true) {}
+    explicit AsyncClient(SocketType _type) : SyncClient(_type, true) {}
 
-    bool connect(const char *host, int port, double timeout = -1) {
+    bool connect(const char *host, int port, double timeout = -1) override {
         client.object = this;
         client.onConnect = [](Client *cli) {
-            AsyncClient *ac = (AsyncClient *) cli->object;
+            auto *ac = (AsyncClient *) cli->object;
             ac->_onConnect(ac);
         };
         client.onError = [](Client *cli) {
-            AsyncClient *ac = (AsyncClient *) cli->object;
+            auto *ac = (AsyncClient *) cli->object;
             ac->_onError(ac);
         };
         client.onClose = [](Client *cli) {
-            AsyncClient *ac = (AsyncClient *) cli->object;
+            auto *ac = (AsyncClient *) cli->object;
             ac->_onClose(ac);
         };
         client.onReceive = [](Client *cli, const char *data, size_t length) {
-            AsyncClient *ac = (AsyncClient *) cli->object;
+            auto *ac = (AsyncClient *) cli->object;
             ac->_onReceive(ac, data, length);
         };
         return SyncClient::connect(host, port, timeout);
     }
 
-    void on_connect(std::function<void(AsyncClient *)> fn) {
+    void on_connect(const std::function<void(AsyncClient *)> &fn) {
         _onConnect = fn;
     }
 
-    void on_error(std::function<void(AsyncClient *)> fn) {
+    void on_error(const std::function<void(AsyncClient *)> &fn) {
         _onError = fn;
     }
 
-    void on_close(std::function<void(AsyncClient *)> fn) {
+    void on_close(const std::function<void(AsyncClient *)> &fn) {
         _onClose = fn;
     }
 
-    void on_receive(std::function<void(AsyncClient *, const char *data, size_t length)> fn) {
+    void on_receive(const std::function<void(AsyncClient *, const char *data, size_t length)> &fn) {
         _onReceive = fn;
     }
 };

@@ -85,7 +85,7 @@ Stream::Stream(const char *dst_host, int dst_port, SocketType type) : client(typ
     client.onClose = Stream_onClose;
     client.object = this;
 
-    client.open_length_check = 1;
+    client.open_length_check = true;
     set_protocol(&client.protocol);
 
     if (client.connect(&client, dst_host, dst_port, -1, 0) < 0) {
@@ -129,17 +129,17 @@ int Stream::send(const char *data, size_t length) {
     return SW_OK;
 }
 
-ssize_t Stream::recv_sync(Socket *sock, void *__buf, size_t __len) {
+ssize_t Stream::recv_sync(Socket *sock, void *_buf, size_t _len) {
     int tmp = 0;
     ssize_t ret = sock->recv_sync(&tmp, sizeof(tmp), MSG_WAITALL);
     if (ret <= 0) {
         return SW_ERR;
     }
     int length = (int) ntohl(tmp);
-    if (length <= 0 || length > (int) __len) {
+    if (length <= 0 || length > (int) _len) {
         return SW_ERR;
     }
-    return sock->recv_sync(__buf, length, MSG_WAITALL);
+    return sock->recv_sync(_buf, length, MSG_WAITALL);
 }
 
 }  // namespace network

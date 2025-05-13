@@ -865,9 +865,7 @@ int ListenPort::create_socket() {
         return SW_ERR;
     }
 
-    if (port == 0) {
-        port = socket->get_port();
-    }
+    port = socket->get_port();
 
     return SW_OK;
 }

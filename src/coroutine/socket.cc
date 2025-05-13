@@ -742,6 +742,7 @@ bool Socket::connect(const std::string &_host, int _port, int flags) {
                 set_err(swoole_get_last_error(), swoole_strerror(swoole_get_last_error()));
                 return false;
             }
+            continue;
         }
         break;
     }
