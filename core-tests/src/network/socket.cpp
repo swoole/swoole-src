@@ -83,10 +83,12 @@ static void test_sendto(enum swSocketType sock_type) {
     const char *ip = sock_type == SW_SOCK_UDP ? "127.0.0.1" : "::1";
 
     auto sock1 = make_socket(sock_type, SW_FD_DGRAM_SERVER, 0);
-    sock1->bind(ip, 0);
+    ASSERT_EQ(sock1->bind(ip, 0), SW_OK);
+    ASSERT_EQ(sock1->get_name(), SW_OK);
 
     auto sock2 = make_socket(sock_type, SW_FD_DGRAM_SERVER, 0);
-    sock2->bind(ip, 0);
+    ASSERT_EQ(sock2->bind(ip, 0), SW_OK);
+    ASSERT_EQ(sock2->get_name(), SW_OK);
 
     ASSERT_GT(sock1->sendto(ip, sock2->get_port(), test_data, strlen(test_data)), 0);
 
