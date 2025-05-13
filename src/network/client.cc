@@ -623,8 +623,8 @@ static ssize_t Client_tcp_send_async(Client *cli, const char *data, size_t lengt
             return SW_ERR;
         }
     }
-    if (cli->onBufferFull && cli->socket->out_buffer && cli->high_watermark == 0 &&
-        cli->socket->out_buffer->length() >= cli->buffer_high_watermark) {
+    if (cli->onBufferFull && cli->high_watermark == 0 &&
+        cli->socket->get_out_buffer_length() >= cli->buffer_high_watermark) {
         cli->high_watermark = 1;
         cli->onBufferFull(cli);
     }
@@ -818,23 +818,11 @@ static ssize_t Client_udp_send(Client *cli, const char *data, size_t len, int fl
 }
 
 static ssize_t Client_udp_recv(Client *cli, char *data, size_t length, int flags) {
-#ifdef HAVE_KQUEUE
-    if (!cli->async) {
-        int timeout_ms = (int) (cli->timeout * 1000);
-        if (cli->socket->wait_event(timeout_ms, SW_EVENT_READ) < 0) {
-            return -1;
-        }
+    if (cli->async) {
+        return cli->socket->recvfrom_sync(data, length, flags, nullptr, nullptr);
+    } else {
+        return cli->socket->recvfrom(data, length, flags, nullptr, nullptr);
     }
-#endif
-    ssize_t ret = cli->socket->recvfrom(data, length, flags, &cli->remote_addr);
-    if (ret < 0) {
-        if (errno == EINTR) {
-            ret = cli->socket->recvfrom(data, length, flags, &cli->remote_addr);
-        } else {
-            return SW_ERR;
-        }
-    }
-    return ret;
 }
 
 static int Client_onPackage(const Protocol *proto, Socket *conn, const RecvData *rdata) {
@@ -1044,7 +1032,8 @@ static int Client_onWrite(Reactor *reactor, Event *event) {
         if (Reactor::_writable_callback(reactor, event) < 0) {
             return SW_ERR;
         }
-        if (cli->onBufferEmpty && cli->high_watermark && _socket->out_buffer->length() <= cli->buffer_low_watermark) {
+        if (cli->onBufferEmpty && cli->high_watermark &&
+            _socket->get_out_buffer_length() <= cli->buffer_low_watermark) {
             cli->high_watermark = 0;
             cli->onBufferEmpty(cli);
         }

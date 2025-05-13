@@ -498,14 +498,8 @@ Socket::Socket(network::Socket *sock, Socket *server_sock) {
 #endif
 }
 
-bool Socket::getsockname(network::Address *sa) {
-    sa->len = sizeof(sa->addr);
-    if (::getsockname(sock_fd, (struct sockaddr *) &sa->addr, &sa->len) != 0) {
-        set_err(errno);
-        return false;
-    }
-    sa->type = type;
-    return true;
+bool Socket::getsockname() {
+    return socket->get_name() == SW_OK;
 }
 
 bool Socket::getpeername(network::Address *sa) {
@@ -736,13 +730,15 @@ bool Socket::connect(const std::string &_host, int _port, int flags) {
         return true;
     };
 
+    network::Address server_addr;
+
     for (int i = 0; i < 2; i++) {
-        if (!socket->info.assign(type, connect_host, connect_port, false)) {
+        if (!server_addr.assign(type, connect_host, connect_port, false)) {
             if (swoole_get_last_error() != SW_ERROR_BAD_HOST_ADDR) {
                 set_err(swoole_get_last_error(), swoole_strerror(swoole_get_last_error()));
                 return false;
             }
-            if (!name_resolve_fn(AF_INET)) {
+            if (!name_resolve_fn(sock_domain)) {
                 set_err(swoole_get_last_error(), swoole_strerror(swoole_get_last_error()));
                 return false;
             }
@@ -750,7 +746,7 @@ bool Socket::connect(const std::string &_host, int _port, int flags) {
         break;
     }
 
-    if (connect(&socket->info.addr.ss, socket->info.len) == false) {
+    if (connect(&server_addr.addr.ss, server_addr.len) == false) {
         return false;
     }
 
@@ -1167,20 +1163,14 @@ bool Socket::bind(const std::string &address, const int port) {
         return false;
     }
 
-    if (!bind_address.assign(type, address.c_str(), port, false)) {
-        set_err(EINVAL, std_string::format("Invalid bind address [%s:%d]", address.c_str(), port));
-        return false;
-    }
-
-    int bind_port = port;
-    if (socket->bind(bind_address, &bind_port) != 0) {
+    if (socket->bind(address, port) < 0) {
         set_err(errno);
-        bind_address = {};
         return false;
     }
 
-    if (port == 0) {
-        bind_address.set_port(bind_port);
+    if (socket->get_name() < 0) {
+        set_err(errno);
+        return false;
     }
 
     return true;
@@ -1192,10 +1182,6 @@ bool Socket::listen(int backlog) {
     }
     this->backlog = backlog <= 0 ? SW_BACKLOG : backlog;
     if (socket->listen(this->backlog) < 0) {
-        set_err(errno);
-        return false;
-    }
-    if (socket->info.empty() && socket->get_name() < 0) {
         set_err(errno);
         return false;
     }
@@ -1544,8 +1530,8 @@ _get_length:
         swoole_error_log(SW_LOG_WARNING,
                          SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
                          "packet length is too big, remote_addr=%s:%d, length=%zu",
-                         socket->info.get_ip(),
-                         socket->info.get_port(),
+                         socket->get_addr(),
+                         socket->get_port(),
                          packet_len);
         set_err(SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, sw_error);
         return -1;
@@ -1807,9 +1793,6 @@ Socket::~Socket() {
 #ifdef SW_USE_OPENSSL
     ssl_shutdown();
 #endif
-    if (sock_domain == AF_UNIX && !bind_address.empty()) {
-        ::unlink(bind_address.get_addr());
-    }
     if (dtor_ != nullptr) {
         dtor_(this);
     }

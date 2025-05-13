@@ -787,13 +787,9 @@ TEST(coroutine_socket, recv_line) {
 TEST(coroutine_socket, getsockname) {
     coroutine::run([](void *arg) {
         Socket sock(SW_SOCK_TCP);
-        bool retval = sock.connect(host, 80);
-        ASSERT_EQ(retval, true);
-
-        Address sa;
-        bool result = sock.getsockname(&sa);
+        ASSERT_TRUE(sock.connect(host, 80));
+        ASSERT_TRUE(sock.getsockname());
         sock.close();
-        ASSERT_EQ(result, true);
     });
 }
 

@@ -49,8 +49,8 @@ ssize_t Protocol::default_length_func(const Protocol *protocol, network::Socket 
         swoole_warning("invalid package (size=%d) from socket#%u<%s:%d>",
                        pl->buf_size,
                        socket->fd,
-                       socket->info.get_ip(),
-                       socket->info.get_port());
+                       socket->get_addr(),
+                       socket->get_port());
         return SW_ERR;
     }
     swoole_debug("length=%d", protocol->package_body_offset + body_length);
@@ -188,8 +188,8 @@ _do_recv:
                                  SW_ERROR_PACKAGE_MALFORMED_DATA,
                                  "received %zu bytes of malformed data from the client[%s:%d]",
                                  buffer->length,
-                                 socket->info.get_ip(),
-                                 socket->info.get_port());
+                                 socket->get_addr(),
+                                 socket->get_port());
                 return SW_ERR;
             }
             // no length
@@ -207,8 +207,8 @@ _do_recv:
                 swoole_error_log(SW_LOG_WARNING,
                                  SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
                                  "package is too big, remote_addr=%s:%d, length=%zu",
-                                 socket->info.get_ip(),
-                                 socket->info.get_port(),
+                                 socket->get_addr(),
+                                 socket->get_port(),
                                  package_length);
                 return SW_ERR;
             }

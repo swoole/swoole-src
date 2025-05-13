@@ -849,19 +849,26 @@ int ListenPort::create_socket() {
 #if defined(__linux__) && defined(HAVE_REUSEPORT)
     if (server->enable_reuse_port) {
         if (socket->set_reuse_port() < 0) {
-            socket->free();
-            return SW_ERR;
+            goto __cleanup;
         }
     }
 #endif
 
-    if (socket->bind(host, &port) < 0) {
+    if (socket->bind(host, port) < 0) {
+        goto __cleanup;
+    }
+
+    if (socket->get_name() < 0) {
+    __cleanup:
         swoole_set_last_error(errno);
         socket->free();
         return SW_ERR;
     }
 
-    socket->info.assign(type, host, port);
+    if (port == 0) {
+        port = socket->get_port();
+    }
+
     return SW_OK;
 }
 

@@ -3678,7 +3678,7 @@ static PHP_METHOD(swoole_server, getClientInfo) {
     add_assoc_long(return_value, "socket_fd", conn->fd);
     add_assoc_long(return_value, "socket_type", conn->socket_type);
     add_assoc_long(return_value, "remote_port", conn->info.get_port());
-    add_assoc_string(return_value, "remote_ip", (char *) conn->info.get_ip());
+    add_assoc_string(return_value, "remote_ip", (char *) conn->info.get_addr());
     add_assoc_long(return_value, "reactor_id", conn->reactor_id);
     add_assoc_long(return_value, "connect_time", conn->connect_time);
     add_assoc_long(return_value, "last_time", (int) conn->last_recv_time);

@@ -1767,7 +1767,7 @@ static PHP_METHOD(swoole_socket_coro, recvfrom) {
     } else {
         zval_dtor(peername);
         array_init(peername);
-        add_assoc_string(peername, "address", (char *) sock->socket->get_ip());
+        add_assoc_string(peername, "address", (char *) sock->socket->get_addr());
         add_assoc_long(peername, "port", sock->socket->get_port());
 
         ZSTR_LEN(buf) = bytes;
@@ -1848,15 +1848,14 @@ static PHP_METHOD(swoole_socket_coro, close) {
 static PHP_METHOD(swoole_socket_coro, getsockname) {
     swoole_get_socket_coro(sock, ZEND_THIS);
 
-    Address sa;
-    if (!sock->socket->getsockname(&sa)) {
+    if (!sock->socket->getsockname()) {
         socket_coro_sync_properties(ZEND_THIS, sock);
         RETURN_FALSE;
     }
 
     array_init(return_value);
-    add_assoc_string(return_value, "address", (char *) sa.get_ip());
-    add_assoc_long(return_value, "port", sa.get_port());
+    add_assoc_string(return_value, "address", sock->socket->get_addr());
+    add_assoc_long(return_value, "port", sock->socket->get_port());
 }
 
 static PHP_METHOD(swoole_socket_coro, getpeername) {
@@ -1869,7 +1868,7 @@ static PHP_METHOD(swoole_socket_coro, getpeername) {
     }
 
     array_init(return_value);
-    add_assoc_string(return_value, "address", (char *) sa.get_ip());
+    add_assoc_string(return_value, "address", sa.get_addr());
     add_assoc_long(return_value, "port", sa.get_port());
 }
 

@@ -69,21 +69,14 @@ class Client {
     uint8_t server_strlen = 0;
     double timeout = 0;
     TimerNode *timer = nullptr;
-
     /**
      * signal interruption
      */
     double interrupt_time = 0;
-
     /**
-     * sendto, read only.
+     * for connect()
      */
     Address server_addr = {};
-
-    /**
-     * recvfrom
-     */
-    Address remote_addr = {};
 
     Socket *socket;
 

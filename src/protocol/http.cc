@@ -1011,7 +1011,7 @@ static void protocol_status_error(Socket *socket, Connection *conn) {
                      SW_ERROR_PROTOCOL_ERROR,
                      "unexpected protocol status of session#%ld<%s:%d>",
                      conn->session_id,
-                     conn->info.get_ip(),
+                     conn->info.get_addr(),
                      conn->info.get_port());
 }
 

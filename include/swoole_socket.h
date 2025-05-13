@@ -102,10 +102,6 @@ struct Address {
     bool assign(SocketType _type, const std::string &_host, int _port = 0, bool _resolve_name = true);
     bool assign(const std::string &url);
 
-    const char *get_ip() {
-        return get_addr();
-    }
-
     int get_port() const;
     void set_port(int _port);
     const char *get_addr();
@@ -175,6 +171,8 @@ struct Socket {
     uchar nonblock : 1;
     uchar cloexec : 1;
     uchar direct_send : 1;
+    uchar bound : 1;
+    uchar listened : 1;
 #ifdef SW_USE_OPENSSL
     uchar ssl_send_ : 1;
     uchar ssl_want_read : 1;
@@ -208,7 +206,7 @@ struct Socket {
 #endif
 
     /**
-     * Only used for getsockname
+     * Only used for getsockname, written by the OS, not user. This is the exact actual address.
      */
     Address info;
     double recv_timeout_ = default_read_timeout;
@@ -273,18 +271,26 @@ struct Socket {
         return fd;
     }
 
+    const char *get_addr() {
+        return info.get_addr();
+    }
+
+    int get_port() {
+        return info.get_port();
+    }
+
+    uint32_t get_out_buffer_length() {
+        return out_buffer ? out_buffer->length() : 0;
+    }
+
     int move_fd() {
         int sock_fd = fd;
         fd = SW_BAD_SOCKET;
         return sock_fd;
     }
 
-    int get_name(Address *sa) {
-        sa->len = sizeof(sa->addr);
-        return getsockname(fd, &sa->addr.ss, &sa->len);
-    }
-
     int get_name();
+    int get_peer_name(Address *sa);
     int set_tcp_nopush(int nopush);
 
     int set_reuse_addr(int enable = 1) {
@@ -319,23 +325,16 @@ struct Socket {
     }
 
     /**
-     * If the port is 0, the system will automatically allocate an available port,
-     * and the port will be set to the assigned port number.
+     * If the port is 0, the system will automatically allocate an available port.
      */
-    int bind(const std::string &_host, int *port);
-    int bind(const Address &addr, int *port);
-
-    int bind(const struct sockaddr *sa, socklen_t len) {
-        return ::bind(fd, sa, len);
-    }
+    int bind(const std::string &_host, int port = 0);
 
     int bind(const Address &addr) {
-        return ::bind(fd, &addr.addr.ss, addr.len);
+        return bind(&addr.addr.ss, addr.len);
     }
 
-    int listen(int backlog = 0) {
-        return ::listen(fd, backlog <= 0 ? SW_BACKLOG : backlog);
-    }
+    int bind(const struct sockaddr *sa, socklen_t len);
+    int listen(int backlog = 0);
 
     void clean();
     ssize_t send_sync(const void *__data, size_t __len);
@@ -388,8 +387,12 @@ struct Socket {
 
     ssize_t recvfrom(char *__buf, size_t __len, int flags, Address *sa) {
         sa->len = sizeof(sa->addr);
-        return ::recvfrom(fd, __buf, __len, flags, &sa->addr.ss, &sa->len);
+        return recvfrom(__buf, __len, flags, &sa->addr.ss, &sa->len);
     }
+
+    ssize_t recvfrom(char *buf, size_t len, int flags, sockaddr *addr, socklen_t *addr_len);
+    ssize_t recvfrom_sync(char *__buf, size_t __len, int flags, Address *sa);
+    ssize_t recvfrom_sync(char *__buf, size_t __len, int flags, sockaddr *addr, socklen_t *addr_len);
 
     bool cork();
     bool uncork();
@@ -470,7 +473,6 @@ struct Socket {
     }
 
     ssize_t sendto_sync(const Address &dst_addr, const void *__buf, size_t __n, int flags = 0);
-    ssize_t recvfrom_sync(char *__buf, size_t __len, int flags, Address *sa);
 
     ssize_t sendto(const char *dst_host, int dst_port, const void *data, size_t len, int flags = 0) const {
         Address addr = {};

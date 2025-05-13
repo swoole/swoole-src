@@ -634,13 +634,13 @@ static int ReactorThread_onWrite(Reactor *reactor, Event *ev) {
         }
     }
 
-    if (conn->overflow && socket->out_buffer->length() < socket->buffer_size) {
+    if (conn->overflow && socket->get_out_buffer_length() < socket->buffer_size) {
         conn->overflow = 0;
     }
 
     if (serv->onBufferEmpty && conn->high_watermark) {
         ListenPort *port = serv->get_port_by_fd(fd);
-        if (socket->out_buffer->length() <= port->buffer_low_watermark) {
+        if (socket->get_out_buffer_length() <= port->buffer_low_watermark) {
             conn->high_watermark = 0;
             serv->notify(conn, SW_SERVER_EVENT_BUFFER_EMPTY);
         }
@@ -763,11 +763,6 @@ int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
                 continue;
             }
             Connection *serv_sock = serv->get_connection(server_fd);
-            if (ls->type == SW_SOCK_UDP) {
-                serv_sock->info.addr.inet_v4.sin_port = htons(ls->port);
-            } else if (ls->type == SW_SOCK_UDP6) {
-                serv_sock->info.addr.inet_v6.sin6_port = htons(ls->port);
-            }
             serv_sock->fd = server_fd;
             serv_sock->socket_type = ls->type;
             serv_sock->object = ls;

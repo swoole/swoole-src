@@ -209,17 +209,16 @@ class Client {
     }
 
     void getsockname(zval *return_value) {
-        Address sa;
         if (!is_available()) {
             RETURN_FALSE;
         }
-        if (!socket->getsockname(&sa)) {
+        if (!socket->getsockname()) {
             php_swoole_socket_set_error_properties(zobject, socket);
             RETURN_FALSE;
         }
         array_init(return_value);
-        add_assoc_string(return_value, "address", (char *) sa.get_ip());
-        add_assoc_long(return_value, "port", sa.get_port());
+        add_assoc_string(return_value, "address", socket->get_addr());
+        add_assoc_long(return_value, "port", socket->get_port());
     }
 
     void getpeername(zval *return_value) {
@@ -232,7 +231,7 @@ class Client {
             RETURN_FALSE;
         }
         array_init(return_value);
-        add_assoc_string(return_value, "address", (char *) sa.get_ip());
+        add_assoc_string(return_value, "address", sa.get_addr());
         add_assoc_long(return_value, "port", sa.get_port());
     }
 

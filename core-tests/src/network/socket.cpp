@@ -59,10 +59,10 @@ TEST(socket, sendto) {
     unlink(sock2_path);
 
     auto sock1 = make_socket(SW_SOCK_UNIX_DGRAM, SW_FD_DGRAM_SERVER, 0);
-    sock1->bind(sock1_path, nullptr);
+    sock1->bind(sock1_path);
 
     auto sock2 = make_socket(SW_SOCK_UNIX_DGRAM, SW_FD_DGRAM_SERVER, 0);
-    sock2->bind(sock2_path, nullptr);
+    sock2->bind(sock2_path);
 
     ASSERT_GT(sock1->sendto(sock2_path, 0, test_data, strlen(test_data)), 0);
 
@@ -71,7 +71,7 @@ TEST(socket, sendto) {
     sa.type = SW_SOCK_UNIX_DGRAM;
     ASSERT_GT(sock2->recvfrom(buf, sizeof(buf), 0, &sa), 0);
     ASSERT_STREQ(test_data, buf);
-    ASSERT_STREQ(sa.get_ip(), sock1_path);
+    ASSERT_STREQ(sa.get_addr(), sock1_path);
 
     sock1->free();
     sock2->free();
@@ -80,16 +80,15 @@ TEST(socket, sendto) {
 }
 
 static void test_sendto(enum swSocketType sock_type) {
-    int port1 = 0, port2 = 0;
     const char *ip = sock_type == SW_SOCK_UDP ? "127.0.0.1" : "::1";
 
     auto sock1 = make_socket(sock_type, SW_FD_DGRAM_SERVER, 0);
-    sock1->bind(ip, &port1);
+    sock1->bind(ip, 0);
 
     auto sock2 = make_socket(sock_type, SW_FD_DGRAM_SERVER, 0);
-    sock2->bind(ip, &port2);
+    sock2->bind(ip, 0);
 
-    ASSERT_GT(sock1->sendto(ip, port2, test_data, strlen(test_data)), 0);
+    ASSERT_GT(sock1->sendto(ip, sock2->get_port(), test_data, strlen(test_data)), 0);
 
     char buf[1024] = {};
     network::Address sa;
@@ -97,8 +96,8 @@ static void test_sendto(enum swSocketType sock_type) {
     ASSERT_GT(sock2->recvfrom(buf, sizeof(buf), 0, &sa), 0);
 
     ASSERT_STREQ(test_data, buf);
-    ASSERT_EQ(sa.get_port(), port1);
-    ASSERT_STREQ(sa.get_ip(), ip);
+    ASSERT_EQ(sa.get_port(), sock1->get_port());
+    ASSERT_STREQ(sa.get_addr(), ip);
 
     sock1->free();
     sock2->free();
@@ -307,10 +306,10 @@ TEST(socket, peek) {
     unlink(sock2_path);
 
     auto sock1 = make_socket(SW_SOCK_UNIX_DGRAM, SW_FD_DGRAM_SERVER, 0);
-    sock1->bind(sock1_path, nullptr);
+    sock1->bind(sock1_path);
 
     auto sock2 = make_socket(SW_SOCK_UNIX_DGRAM, SW_FD_DGRAM_SERVER, 0);
-    sock2->bind(sock2_path, nullptr);
+    sock2->bind(sock2_path);
 
     ASSERT_GT(sock1->sendto(sock2_path, 0, test_data, strlen(test_data)), 0);
 
@@ -332,14 +331,12 @@ TEST(socket, sendto_sync) {
     char sock1_path[] = "/tmp/udp_unix1.sock";
     unlink(sock1_path);
     auto sock1 = make_socket(SW_SOCK_UNIX_DGRAM, SW_FD_DGRAM_SERVER, 0);
-    sock1->bind(sock1_path, nullptr);
-    sock1->info.assign(SW_SOCK_UNIX_DGRAM, sock1_path, 0);
+    sock1->bind(sock1_path);
 
     char sock2_path[] = "/tmp/udp_unix2.sock";
     unlink(sock2_path);
     auto sock2 = make_socket(SW_SOCK_UNIX_DGRAM, SW_FD_DGRAM_SERVER, 0);
-    sock2->bind(sock2_path, nullptr);
-    sock2->info.assign(SW_SOCK_UNIX_DGRAM, sock2_path, 0);
+    sock2->bind(sock2_path);
 
     char sendbuf[65536] = {};
     swoole_random_string(sendbuf, sizeof(sendbuf) - 1);
@@ -359,10 +356,13 @@ TEST(socket, sendto_sync) {
         }
     });
 
+    network::Address sock2_addr;
+    ASSERT_TRUE(sock2_addr.assign(SW_SOCK_UNIX_DGRAM, sock2_path));
+
     for (int i = 0; i < 10; i++) {
-        ASSERT_GT(sock1->sendto_sync(sock2->info, sendbuf, strlen(sendbuf)), 0);
+        ASSERT_GT(sock1->sendto_sync(sock2_addr, sendbuf, strlen(sendbuf)), 0);
     }
-    ASSERT_GT(sock1->sendto_sync(sock2->info, "end", 3), 0);
+    ASSERT_GT(sock1->sendto_sync(sock2_addr, "end", 3), 0);
 
     t1.join();
 
@@ -376,20 +376,21 @@ TEST(socket, clean) {
     char sock1_path[] = "/tmp/udp_unix1.sock";
     unlink(sock1_path);
     auto sock1 = make_socket(SW_SOCK_UNIX_DGRAM, SW_FD_DGRAM_SERVER, 0);
-    sock1->bind(sock1_path, nullptr);
-    sock1->info.assign(SW_SOCK_UNIX_DGRAM, sock1_path, 0);
+    sock1->bind(sock1_path);
 
     char sock2_path[] = "/tmp/udp_unix2.sock";
     unlink(sock2_path);
     auto sock2 = make_socket(SW_SOCK_UNIX_DGRAM, SW_FD_DGRAM_SERVER, 0);
-    sock2->bind(sock2_path, nullptr);
-    sock2->info.assign(SW_SOCK_UNIX_DGRAM, sock2_path, 0);
+    sock2->bind(sock2_path);
 
     char sendbuf[65536] = {};
     swoole_random_string(sendbuf, sizeof(sendbuf) - 1);
 
+    network::Address sock2_addr;
+    ASSERT_TRUE(sock2_addr.assign(SW_SOCK_UNIX_DGRAM, sock2_path));
+
     for (int i = 0; i < 3; i++) {
-        ASSERT_GT(sock1->sendto_sync(sock2->info, sendbuf, strlen(sendbuf)), 0);
+        ASSERT_GT(sock1->sendto_sync(sock2_addr, sendbuf, strlen(sendbuf)), 0);
     }
 
     sock2->clean();

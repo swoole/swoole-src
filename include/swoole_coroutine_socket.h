@@ -271,27 +271,19 @@ class Socket {
         return sock_fd;
     }
 
-    int get_bind_port() {
-        return bind_address.get_port();
-    }
-
-    const char *get_bind_addr() {
-        return bind_address.get_addr();
-    }
-
     network::Socket *get_socket() {
         return socket;
     }
 
-    bool getsockname(network::Address *sa);
+    bool getsockname();
     bool getpeername(network::Address *sa);
 
-    const char *get_ip() {
-        return socket->info.get_ip();
+    const char *get_addr() {
+        return socket->get_addr();
     }
 
     int get_port() {
-        return socket->info.get_port();
+        return socket->get_port();
     }
 
     bool has_bound(const EventType event = SW_EVENT_RDWR) {
@@ -431,7 +423,6 @@ class Socket {
     std::string connect_host;
     int connect_port = 0;
 
-    network::Address bind_address;
     int backlog = 0;
 
     double dns_timeout = network::Socket::default_dns_timeout;

@@ -380,8 +380,7 @@ static PHP_METHOD(swoole_http_server_coro, __construct) {
     }
 
     zend_update_property_long(swoole_http_server_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("fd"), sock->get_fd());
-    zend_update_property_long(
-        swoole_http_server_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("port"), sock->get_bind_port());
+    zend_update_property_long(swoole_http_server_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("port"), sock->get_port());
 }
 
 static PHP_METHOD(swoole_http_server_coro, handle) {
@@ -564,7 +563,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
 #endif
     Z_TRY_ADDREF_P(zconn);
     zend_hash_index_add(Z_ARRVAL_P(&hs->zclients), co->get_cid(), zconn);
-    zend::Variable remote_addr = zend::Variable(sock->get_ip());
+    zend::Variable remote_addr = zend::Variable(sock->get_addr());
 
     while (true) {
     _recv_request : {
@@ -656,7 +655,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
 
         zval *zserver = ctx->request.zserver;
         http_server_add_server_array(
-            Z_ARRVAL_P(zserver), SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER_PORT), (zend_long) hs->socket->get_bind_port());
+            Z_ARRVAL_P(zserver), SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER_PORT), (zend_long) hs->socket->get_port());
         http_server_add_server_array(
             Z_ARRVAL_P(zserver), SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_PORT), (zend_long) sock->get_port());
         http_server_add_server_array(Z_ARRVAL_P(zserver), SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), remote_addr.ptr());
@@ -723,9 +722,9 @@ static void http2_server_onRequest(Http2Session *session, Http2Stream *stream) {
 
     add_assoc_long(zserver, "request_time", time(nullptr));
     add_assoc_double(zserver, "request_time_float", microtime());
-    add_assoc_long(zserver, "server_port", hs->socket->get_bind_port());
+    add_assoc_long(zserver, "server_port", hs->socket->get_port());
     add_assoc_long(zserver, "remote_port", sock->get_port());
-    add_assoc_string(zserver, "remote_addr", (char *) sock->get_ip());
+    add_assoc_string(zserver, "remote_addr", (char *) sock->get_addr());
     add_assoc_string(zserver, "server_protocol", (char *) "HTTP/2");
 
     zend::Callable *cb = hs->get_handler(ctx);

@@ -357,28 +357,45 @@ ssize_t Socket::sendto_sync(const Address &sa, const void *_buf, size_t _n, int 
     return n;
 }
 
-ssize_t Socket::recvfrom_sync(char *_buf, size_t _len, int flags, Address *sa) {
+ssize_t Socket::recvfrom(char *buf, size_t len, int flags, sockaddr *addr, socklen_t *addr_len) {
     ssize_t n = 0;
-
-    for (int i = 0; i < SW_SOCKET_RETRY_COUNT; i++) {
-        n = recvfrom(_buf, _len, flags, sa);
-        if (n >= 0) {
-            break;
-        }
-        if (errno == EINTR) {
-            continue;
-        }
-        if (catch_read_error(errno) == SW_WAIT && wait_event((int) (recv_timeout_ * 1000), SW_EVENT_READ) == SW_OK) {
+    SW_LOOP_N(SW_SOCKET_RETRY_COUNT) {
+        auto n = ::recvfrom(fd, buf, len, flags, addr, addr_len);
+        if (n < 0 && errno == EINTR) {
             continue;
         }
         break;
     }
+    return n;
+}
 
+ssize_t Socket::recvfrom_sync(char *buf, size_t len, int flags, Address *sa) {
+    return recvfrom_sync(buf, len, flags, &sa->addr.ss, &sa->len);
+}
+
+ssize_t Socket::recvfrom_sync(char *buf, size_t len, int flags, sockaddr *addr, socklen_t *addr_len) {
+    ssize_t n = 0;
+    SW_LOOP_N(SW_SOCKET_RETRY_COUNT) {
+        n = recvfrom(buf, len, flags, addr, addr_len);
+        if (n < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            if (catch_read_error(errno) == SW_WAIT &&
+                wait_event((int) (recv_timeout_ * 1000), SW_EVENT_READ) == SW_OK) {
+                continue;
+            }
+        }
+        break;
+    }
     return n;
 }
 
 static void socket_free_defer(void *ptr) {
     auto *sock = static_cast<Socket *>(ptr);
+    if (sock->is_local() && sock->bound) {
+        ::unlink(sock->get_addr());
+    }
     if (sock->fd != -1 && close(sock->fd) != 0) {
         swoole_sys_warning("close(%d) failed", sock->fd);
     }
@@ -413,6 +430,15 @@ int Socket::get_name() {
     return 0;
 }
 
+int Socket::get_peer_name(Address *sa) {
+    sa->len = sizeof(sa->addr);
+    sa->type = socket_type;
+    if (::getpeername(fd, (struct sockaddr *) &sa->addr, &sa->len) != 0) {
+        return SW_ERR;
+    }
+    return SW_OK;
+}
+
 int Socket::set_tcp_nopush(int nopush) {
 #ifdef TCP_CORK
     if (set_option(IPPROTO_TCP, TCP_CORK, nopush) == SW_ERR) {
@@ -426,31 +452,28 @@ int Socket::set_tcp_nopush(int nopush) {
 #endif
 }
 
-int Socket::bind(const Address &addr, int *port) {
-    if (set_reuse_addr() < 0) {
-        swoole_sys_warning("setsockopt(%d, SO_REUSEADDR) failed", fd);
-    }
-
-    if (::bind(fd, &addr.addr.ss, addr.len) < 0) {
+int Socket::bind(const std::string &_host, int port) {
+    Address addr;
+    if (!addr.assign(socket_type, _host.c_str(), port, false)) {
         return SW_ERR;
     }
+    return bind(addr);
+}
 
-    if (*port == 0) {
-        if (get_name() < 0) {
-            return SW_ERR;
-        }
-        *port = info.get_port();
+int Socket::bind(const struct sockaddr *sa, socklen_t len) {
+    if (::bind(fd, sa, len) < 0) {
+        return SW_ERR;
     }
-
+    bound = 1;
     return SW_OK;
 }
 
-int Socket::bind(const std::string &_host, int *port) {
-    Address addr;
-    if (!addr.assign(socket_type, _host.c_str(), *port, false)) {
+int Socket::listen(int backlog) {
+    if (::listen(fd, backlog <= 0 ? SW_BACKLOG : backlog) < 0) {
         return SW_ERR;
     }
-    return bind(addr, port);
+    listened = 1;
+    return SW_OK;
 }
 
 bool Socket::set_buffer_size(uint32_t _buffer_size) {
@@ -1307,8 +1330,11 @@ ReturnCode Socket::ssl_accept() {
     } else if (err == SSL_ERROR_SSL) {
         int reason;
         const char *error_string = ssl_get_error_reason(&reason);
-        swoole_warning(
-            "bad SSL client[%s:%d], reason=%d, error_string=%s", info.get_ip(), info.get_port(), reason, error_string);
+        swoole_warning("bad SSL client[%s:%d], reason=%d, error_string=%s",
+                       info.get_addr(),
+                       info.get_port(),
+                       reason,
+                       error_string);
         return SW_ERROR;
     } else if (err == SSL_ERROR_SYSCALL) {
 #ifdef SW_SUPPORT_DTLS
@@ -1364,7 +1390,7 @@ int Socket::ssl_connect() {
     char *msg = ERR_error_string(err_code, sw_tg_buffer()->str);
     swoole_notice("Socket::ssl_connect(fd=%d) to server[%s:%d] failed. Error: %s[%ld|%d]",
                   fd,
-                  info.get_ip(),
+                  info.get_addr(),
                   info.get_port(),
                   msg,
                   err,
@@ -1521,7 +1547,7 @@ void Socket::ssl_catch_error() {
                      SW_ERROR_SSL_BAD_PROTOCOL,
                      "SSL connection#%d[%s:%d] protocol error[%d]",
                      fd,
-                     info.get_ip(),
+                     info.get_addr(),
                      info.get_port(),
                      reason);
 }
@@ -1723,12 +1749,17 @@ Socket *make_server_socket(SocketType type, const char *address, int port, int b
         swoole_sys_warning("socket() failed");
         return nullptr;
     }
-    if (sock->bind(address, &port) < 0) {
-        sock->free();
-        return nullptr;
+    if (sock->bind(address, port) < 0) {
+        swoole_sys_warning("bind(%d, %s:%d, %d) failed", sock->get_fd(), address, port, backlog);
+        goto __cleanup;
     }
     if (sock->is_stream() && sock->listen(backlog) < 0) {
-        swoole_sys_warning("listen(%s:%d, %d) failed", address, port, backlog);
+        swoole_sys_warning("listen(%d, %s:%d, %d) failed", sock->get_fd(), address, port, backlog);
+        goto __cleanup;
+    }
+    if (sock->get_name() < 0) {
+        swoole_sys_warning("getsockname(%d) failed", sock->get_fd());
+    __cleanup:
         sock->free();
         return nullptr;
     }
