@@ -99,7 +99,7 @@ struct Address {
     socklen_t len;
     SocketType type;
 
-    bool assign(SocketType _type, const std::string &_host, int _port = 0, bool resolve = true);
+    bool assign(SocketType _type, const std::string &_host, int _port = 0, bool _resolve_name = true);
     bool assign(const std::string &url);
 
     const char *get_ip() {
@@ -107,8 +107,10 @@ struct Address {
     }
 
     int get_port() const;
+    void set_port(int _port);
     const char *get_addr();
     bool is_loopback_addr();
+    bool empty();
 
     static bool verify_ip(int __af, const std::string &str) {
         char tmp_address[INET6_ADDRSTRLEN];
@@ -205,6 +207,9 @@ struct Socket {
     uint32_t ssl_state;
 #endif
 
+    /**
+     * Only used for getsockname
+     */
     Address info;
     double recv_timeout_ = default_read_timeout;
     double send_timeout_ = default_write_timeout;
@@ -279,18 +284,8 @@ struct Socket {
         return getsockname(fd, &sa->addr.ss, &sa->len);
     }
 
-    int set_tcp_nopush(int nopush) {
-#ifdef TCP_CORK
-        if (set_option(IPPROTO_TCP, TCP_CORK, nopush) == SW_ERR) {
-            return -1;
-        } else {
-            tcp_nopush = nopush;
-            return 0;
-        }
-#else
-        return -1;
-#endif
-    }
+    int get_name();
+    int set_tcp_nopush(int nopush);
 
     int set_reuse_addr(int enable = 1) {
         return set_option(SOL_SOCKET, SO_REUSEADDR, enable);
@@ -323,7 +318,12 @@ struct Socket {
         return ::writev(fd, iov, iovcnt);
     }
 
+    /**
+     * If the port is 0, the system will automatically allocate an available port,
+     * and the port will be set to the assigned port number.
+     */
     int bind(const std::string &_host, int *port);
+    int bind(const Address &addr, int *port);
 
     int bind(const struct sockaddr *sa, socklen_t len) {
         return ::bind(fd, sa, len);

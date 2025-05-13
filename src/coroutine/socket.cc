@@ -625,7 +625,7 @@ bool Socket::get_option(int level, int optname, void *optval, socklen_t *optlen)
     return true;
 }
 
-bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen) {
+bool Socket::connect(const sockaddr *addr, socklen_t addrlen) {
     if (sw_unlikely(!is_available(SW_EVENT_RDWR))) {
         return false;
     }
@@ -657,7 +657,7 @@ bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen) {
     return true;
 }
 
-bool Socket::connect(std::string _host, int _port, int flags) {
+bool Socket::connect(const std::string &_host, int _port, int flags) {
     if (sw_unlikely(!is_available(SW_EVENT_RDWR))) {
         return false;
     }
@@ -682,30 +682,19 @@ bool Socket::connect(std::string _host, int _port, int flags) {
         socks5_proxy->target_host = _host;
         socks5_proxy->target_port = _port;
 
-        _host = socks5_proxy->host;
-        _port = socks5_proxy->port;
+        connect_host = socks5_proxy->host;
+        connect_port = socks5_proxy->port;
     } else if (http_proxy) {
         http_proxy->target_host = _host;
         http_proxy->target_port = _port;
 
-        _host = http_proxy->proxy_host;
-        _port = http_proxy->proxy_port;
+        connect_host = http_proxy->proxy_host;
+        connect_port = http_proxy->proxy_port;
+    } else {
+        connect_host = _host;
+        connect_port = _port;
     }
 
-    if (is_port_required()) {
-        if (_port == -1) {
-            set_err(EINVAL, "Socket of type AF_INET/AF_INET6 requires port argument");
-            return false;
-        } else if (_port == 0 || _port >= 65536) {
-            set_err(EINVAL, std_string::format("Invalid port [%d]", _port));
-            return false;
-        }
-    }
-
-    connect_host = _host;
-    connect_port = _port;
-
-    struct sockaddr *_target_addr = nullptr;
     NameResolver::Context *ctx = resolve_context_;
 
     NameResolver::Context _ctx{};
@@ -748,56 +737,20 @@ bool Socket::connect(std::string _host, int _port, int flags) {
     };
 
     for (int i = 0; i < 2; i++) {
-        if (sock_domain == AF_INET) {
-            socket->info.addr.inet_v4.sin_family = AF_INET;
-            socket->info.addr.inet_v4.sin_port = htons(connect_port);
-
-            if (!inet_pton(AF_INET, connect_host.c_str(), &socket->info.addr.inet_v4.sin_addr)) {
-                if (!name_resolve_fn(AF_INET)) {
-                    set_err(swoole_get_last_error(), swoole_strerror(swoole_get_last_error()));
-                    return false;
-                }
-                continue;
-            } else {
-                socket->info.len = sizeof(socket->info.addr.inet_v4);
-                _target_addr = (struct sockaddr *) &socket->info.addr.inet_v4;
-                break;
-            }
-        } else if (sock_domain == AF_INET6) {
-            socket->info.addr.inet_v6.sin6_family = AF_INET6;
-            socket->info.addr.inet_v6.sin6_port = htons(connect_port);
-
-            if (!inet_pton(AF_INET6, connect_host.c_str(), &socket->info.addr.inet_v6.sin6_addr)) {
-                if (!name_resolve_fn(AF_INET6)) {
-                    set_err(swoole_get_last_error());
-                    return false;
-                }
-                continue;
-            } else {
-                socket->info.len = sizeof(socket->info.addr.inet_v6);
-                _target_addr = (struct sockaddr *) &socket->info.addr.inet_v6;
-                break;
-            }
-        } else if (sock_domain == AF_UNIX) {
-            if (connect_host.size() >= sizeof(socket->info.addr.un.sun_path)) {
-                set_err(EINVAL, "unix socket file is too large");
+        if (!socket->info.assign(type, connect_host, connect_port, false)) {
+            if (swoole_get_last_error() != SW_ERROR_BAD_HOST_ADDR) {
+                set_err(swoole_get_last_error(), swoole_strerror(swoole_get_last_error()));
                 return false;
             }
-            socket->info.addr.un.sun_family = AF_UNIX;
-            memcpy(&socket->info.addr.un.sun_path, connect_host.c_str(), connect_host.size());
-            socket->info.len = (socklen_t) (offsetof(struct sockaddr_un, sun_path) + connect_host.size());
-            _target_addr = (struct sockaddr *) &socket->info.addr.un;
-            break;
-        } else {
-            set_err(EINVAL, "unknown protocol[%d]");
-            return false;
+            if (!name_resolve_fn(AF_INET)) {
+                set_err(swoole_get_last_error(), swoole_strerror(swoole_get_last_error()));
+                return false;
+            }
         }
+        break;
     }
-    if (_target_addr == nullptr) {
-        set_err(EINVAL, "bad target host");
-        return false;
-    }
-    if (connect(_target_addr, socket->info.len) == false) {
+
+    if (connect(&socket->info.addr.ss, socket->info.len) == false) {
         return false;
     }
 
@@ -1209,23 +1162,26 @@ bool Socket::bind(const struct sockaddr *sa, socklen_t len) {
     return socket->bind(sa, len) == 0;
 }
 
-bool Socket::bind(const std::string &address, int port) {
+bool Socket::bind(const std::string &address, const int port) {
     if (sw_unlikely(!is_available(SW_EVENT_NULL))) {
         return false;
     }
-    if ((sock_domain == AF_INET || sock_domain == AF_INET6) && (port < 0 || port > 65535)) {
-        set_err(EINVAL, std_string::format("Invalid port [%d]", port));
+
+    if (!bind_address.assign(type, address.c_str(), port, false)) {
+        set_err(EINVAL, std_string::format("Invalid bind address [%s:%d]", address.c_str(), port));
         return false;
     }
 
-    bind_address_info.assign(type, address, port, false);
-    if (socket->bind(bind_address_info) != 0) {
+    int bind_port = port;
+    if (socket->bind(bind_address, &bind_port) != 0) {
         set_err(errno);
+        bind_address = {};
         return false;
     }
 
-    bind_address = address;
-    bind_port = port;
+    if (port == 0) {
+        bind_address.set_port(bind_port);
+    }
 
     return true;
 }
@@ -1239,7 +1195,7 @@ bool Socket::listen(int backlog) {
         set_err(errno);
         return false;
     }
-    if (socket->get_name(&socket->info) < 0) {
+    if (socket->info.empty() && socket->get_name() < 0) {
         set_err(errno);
         return false;
     }
@@ -1852,8 +1808,7 @@ Socket::~Socket() {
     ssl_shutdown();
 #endif
     if (sock_domain == AF_UNIX && !bind_address.empty()) {
-        ::unlink(bind_address.c_str());
-        bind_address_info = {};
+        ::unlink(bind_address.get_addr());
     }
     if (dtor_ != nullptr) {
         dtor_(this);

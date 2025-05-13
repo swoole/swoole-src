@@ -301,7 +301,8 @@ bool ListenPort::import(int sock) {
         swoole_sys_warning("getsockopt(%d, SOL_SOCKET, SO_TYPE) failed", sock);
         return false;
     }
-    if (socket->get_name(&socket->info) < 0) {
+
+    if (socket->get_name() < 0) {
         swoole_sys_warning("getsockname(%d) failed", sock);
         return false;
     }

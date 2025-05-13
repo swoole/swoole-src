@@ -404,75 +404,53 @@ void Socket::free() {
     }
 }
 
-int Socket::bind(const std::string &_host, int *port) {
-    int ret;
-    Address address = {};
-    size_t l_host = _host.length();
-    const char *host = _host.c_str();
+int Socket::get_name() {
+    info.len = sizeof(info.addr);
+    if (getsockname(fd, &info.addr.ss, &info.len) < 0) {
+        return -1;
+    }
+    info.type = socket_type;
+    return 0;
+}
 
+int Socket::set_tcp_nopush(int nopush) {
+#ifdef TCP_CORK
+    if (set_option(IPPROTO_TCP, TCP_CORK, nopush) == SW_ERR) {
+        return -1;
+    } else {
+        tcp_nopush = nopush;
+        return 0;
+    }
+#else
+    return -1;
+#endif
+}
+
+int Socket::bind(const Address &addr, int *port) {
     if (set_reuse_addr() < 0) {
         swoole_sys_warning("setsockopt(%d, SO_REUSEADDR) failed", fd);
     }
-    // UnixSocket
-    if (socket_type == SW_SOCK_UNIX_DGRAM || socket_type == SW_SOCK_UNIX_STREAM) {
-        if (l_host == 0 || l_host > sizeof(address.addr.un) - 1) {
-            swoole_warning("bad unix socket file");
-            errno = EINVAL;
-            return SW_ERR;
-        }
-        unlink(host);
-        address.addr.un.sun_family = AF_UNIX;
-        swoole_strlcpy(address.addr.un.sun_path, host, sizeof(address.addr.un.sun_path));
-        ret = ::bind(fd, (struct sockaddr *) &address.addr.un, sizeof(address.addr.un));
-    }
-    // IPv6
-    else if (socket_type == SW_SOCK_TCP6 || socket_type == SW_SOCK_UDP6) {
-        if (l_host == 0) {
-            host = "::";
-        }
-        if (inet_pton(AF_INET6, host, &address.addr.inet_v6.sin6_addr) < 0) {
-            swoole_sys_warning("inet_pton(AF_INET6, %s) failed", host);
-            return SW_ERR;
-        }
-        address.addr.inet_v6.sin6_port = htons(*port);
-        address.addr.inet_v6.sin6_family = AF_INET6;
-        ret = ::bind(fd, (struct sockaddr *) &address.addr.inet_v6, sizeof(address.addr.inet_v6));
-        if (ret == 0 && *port == 0) {
-            address.len = sizeof(address.addr.inet_v6);
-            if (getsockname(fd, (struct sockaddr *) &address.addr.inet_v6, &address.len) != -1) {
-                *port = ntohs(address.addr.inet_v6.sin6_port);
-            }
-        }
-    }
-    // IPv4
-    else if (socket_type == SW_SOCK_UDP || socket_type == SW_SOCK_TCP) {
-        if (l_host == 0) {
-            host = "0.0.0.0";
-        }
-        if (inet_pton(AF_INET, host, &address.addr.inet_v4.sin_addr) < 0) {
-            swoole_sys_warning("inet_pton(AF_INET, %s) failed", host);
-            return SW_ERR;
-        }
-        address.addr.inet_v4.sin_port = htons(*port);
-        address.addr.inet_v4.sin_family = AF_INET;
-        ret = ::bind(fd, (struct sockaddr *) &address.addr.inet_v4, sizeof(address.addr.inet_v4));
-        if (ret == 0 && *port == 0) {
-            address.len = sizeof(address.addr.inet_v4);
-            if (getsockname(fd, (struct sockaddr *) &address.addr.inet_v4, &address.len) != -1) {
-                *port = ntohs(address.addr.inet_v4.sin_port);
-            }
-        }
-    } else {
-        errno = EINVAL;
-        return -1;
-    }
 
-    // bind failed
-    if (ret < 0) {
+    if (::bind(fd, &addr.addr.ss, addr.len) < 0) {
         return SW_ERR;
     }
 
-    return ret;
+    if (*port == 0) {
+        if (get_name() < 0) {
+            return SW_ERR;
+        }
+        *port = info.get_port();
+    }
+
+    return SW_OK;
+}
+
+int Socket::bind(const std::string &_host, int *port) {
+    Address addr;
+    if (!addr.assign(socket_type, _host.c_str(), *port, false)) {
+        return SW_ERR;
+    }
+    return bind(addr, port);
 }
 
 bool Socket::set_buffer_size(uint32_t _buffer_size) {

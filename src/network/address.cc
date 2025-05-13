@@ -42,6 +42,10 @@ const char *Address::get_addr() {
     return "unknown";
 }
 
+bool Address::empty() {
+    return type == 0;
+}
+
 int Address::get_port() const {
     if (type == SW_SOCK_TCP || type == SW_SOCK_UDP) {
         return ntohs(addr.inet_v4.sin_port);
@@ -52,7 +56,15 @@ int Address::get_port() const {
     }
 }
 
-bool Address::assign(SocketType _type, const std::string &_host, int _port, bool resolve) {
+void Address::set_port(int _port) {
+    if (type == SW_SOCK_TCP || type == SW_SOCK_UDP) {
+        addr.inet_v4.sin_port = htons(_port);
+    } else if (type == SW_SOCK_TCP6 || type == SW_SOCK_UDP6) {
+        addr.inet_v6.sin6_port = htons(_port);
+    }
+}
+
+bool Address::assign(SocketType _type, const std::string &_host, int _port, bool _resolve_name) {
     type = _type;
     const char *host = _host.c_str();
 
@@ -65,8 +77,9 @@ bool Address::assign(SocketType _type, const std::string &_host, int _port, bool
         addr.inet_v4.sin_family = AF_INET;
         addr.inet_v4.sin_port = htons(_port);
         len = sizeof(addr.inet_v4);
+
         if (inet_pton(AF_INET, host, &addr.inet_v4.sin_addr.s_addr) != 1) {
-            if (!resolve) {
+            if (!_resolve_name) {
                 swoole_set_last_error(SW_ERROR_BAD_HOST_ADDR);
                 return false;
             }
@@ -80,7 +93,7 @@ bool Address::assign(SocketType _type, const std::string &_host, int _port, bool
         addr.inet_v6.sin6_port = htons(_port);
         len = sizeof(addr.inet_v6);
         if (inet_pton(AF_INET6, host, addr.inet_v6.sin6_addr.s6_addr) != 1) {
-            if (!resolve) {
+            if (!_resolve_name) {
                 swoole_set_last_error(SW_ERROR_BAD_HOST_ADDR);
                 return false;
             }
@@ -99,7 +112,7 @@ bool Address::assign(SocketType _type, const std::string &_host, int _port, bool
         addr.un.sun_path[sizeof(addr.un.sun_path) - 1] = 0;
         len = sizeof(addr.un.sun_path);
     } else {
-        assert(0);
+        swoole_set_last_error(SW_ERROR_BAD_SOCKET_TYPE);
         return false;
     }
 

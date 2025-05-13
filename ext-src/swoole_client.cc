@@ -1089,7 +1089,7 @@ static PHP_METHOD(swoole_client, getsockname) {
         RETURN_FALSE;
     }
 
-    if (cli->socket->get_name(&cli->socket->info) < 0) {
+    if (cli->socket->get_name() < 0) {
         php_swoole_sys_error(E_WARNING, "getsockname() failed");
         RETURN_FALSE;
     }

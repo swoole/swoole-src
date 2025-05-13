@@ -70,21 +70,21 @@ class Socket {
      * When connect() returns true, it indicates that the TCP connection has been successfully
      * established and the SSL handshake has also succeeded.
      */
-    bool connect(std::string host, int port = 0, int flags = 0);
-    bool connect(const struct sockaddr *addr, socklen_t addrlen);
+    bool connect(const std::string &host, int port = 0, int flags = 0);
+    bool connect(const sockaddr *addr, socklen_t addrlen);
     bool shutdown(int how = SHUT_RDWR);
-    bool cancel(const EventType event);
+    bool cancel(EventType event);
     bool close();
 
-    bool is_connected() {
+    bool is_connected() const {
         return connected && !is_closed();
     }
 
-    bool is_closed() {
+    bool is_closed() const {
         return sock_fd == SW_BAD_SOCKET;
     }
 
-    bool is_port_required() {
+    bool is_port_required() const {
         return type <= SW_SOCK_UDP6;
     }
 
@@ -272,7 +272,11 @@ class Socket {
     }
 
     int get_bind_port() {
-        return bind_port;
+        return bind_address.get_port();
+    }
+
+    const char *get_bind_addr() {
+        return bind_address.get_addr();
     }
 
     network::Socket *get_socket() {
@@ -427,8 +431,7 @@ class Socket {
     std::string connect_host;
     int connect_port = 0;
 
-    std::string bind_address;
-    int bind_port = 0;
+    network::Address bind_address;
     int backlog = 0;
 
     double dns_timeout = network::Socket::default_dns_timeout;
@@ -442,7 +445,6 @@ class Socket {
     size_t buffer_init_size = SW_BUFFER_SIZE_BIG;
     String *read_buffer = nullptr;
     String *write_buffer = nullptr;
-    network::Address bind_address_info = {};
 
     EventBarrier *recv_barrier = nullptr;
     EventBarrier *send_barrier = nullptr;
