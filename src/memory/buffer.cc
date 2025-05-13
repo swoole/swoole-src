@@ -57,16 +57,15 @@ Buffer::~Buffer() {
     }
 }
 
-void Buffer::append(const void *data, uint32_t size) {
+void Buffer::append(const char *data, uint32_t size) {
     uint32_t _length = size;
-    char *_pos = (char *) data;
-    uint32_t _n;
+    auto _pos = data;
 
     assert(size > 0);
 
     // buffer enQueue
     while (_length > 0) {
-        _n = _length >= chunk_size ? chunk_size : _length;
+        uint32_t _n = _length >= chunk_size ? chunk_size : _length;
 
         BufferChunk *chunk = alloc(BufferChunk::TYPE_DATA, _n);
 
@@ -82,7 +81,7 @@ void Buffer::append(const void *data, uint32_t size) {
     }
 }
 
-void Buffer::append(const struct iovec *iov, size_t iovcnt, off_t offset) {
+void Buffer::append(const iovec *iov, size_t iovcnt, off_t offset) {
     size_t _length = 0;
 
     SW_LOOP_N(iovcnt) {
@@ -91,7 +90,7 @@ void Buffer::append(const struct iovec *iov, size_t iovcnt, off_t offset) {
         _length += iov[i].iov_len;
     }
 
-    char *pos = (char *) iov[0].iov_base;
+    auto pos = static_cast<char *>(iov[0].iov_base);
     BufferChunk *chunk = nullptr;
     size_t iov_remain_len = iov[0].iov_len, chunk_remain_len;
     size_t i = 0;
@@ -111,7 +110,7 @@ void Buffer::append(const struct iovec *iov, size_t iovcnt, off_t offset) {
                     i++;
                     continue;
                 } else {
-                    pos = (char *) iov[i].iov_base + offset;
+                    pos = static_cast<char *>(iov[i].iov_base) + offset;
                     iov_remain_len = iov[i].iov_len - offset;
                     offset = 0;
                 }

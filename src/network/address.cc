@@ -42,7 +42,7 @@ const char *Address::get_addr() {
     return "unknown";
 }
 
-int Address::get_port() {
+int Address::get_port() const {
     if (type == SW_SOCK_TCP || type == SW_SOCK_UDP) {
         return ntohs(addr.inet_v4.sin_port);
     } else if (type == SW_SOCK_TCP6 || type == SW_SOCK_UDP6) {

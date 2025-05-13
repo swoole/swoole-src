@@ -60,6 +60,7 @@ enum {
 };
 
 namespace swoole {
+struct GethostbynameRequest;
 struct GetaddrinfoRequest;
 
 namespace network {
@@ -98,20 +99,20 @@ struct Address {
     socklen_t len;
     SocketType type;
 
-    bool assign(SocketType _type, const std::string &_host, int _port, bool resolve = true);
+    bool assign(SocketType _type, const std::string &_host, int _port = 0, bool resolve = true);
     bool assign(const std::string &url);
 
     const char *get_ip() {
         return get_addr();
     }
 
-    int get_port();
+    int get_port() const;
     const char *get_addr();
     bool is_loopback_addr();
 
     static bool verify_ip(int __af, const std::string &str) {
         char tmp_address[INET6_ADDRSTRLEN];
-        return inet_pton(__af, str.c_str(), tmp_address) != -1;
+        return inet_pton(__af, str.c_str(), tmp_address) == 1;
     }
 };
 
@@ -313,7 +314,6 @@ struct Socket {
     ssize_t send(const void *__buf, size_t __n, int __flags);
     ssize_t peek(void *__buf, size_t __n, int __flags);
     Socket *accept();
-    int bind(const std::string &_host, int *port);
     Socket *dup();
 
     ssize_t readv(IOVector *io_vector);
@@ -323,8 +323,14 @@ struct Socket {
         return ::writev(fd, iov, iovcnt);
     }
 
-    int bind(const Address &sa) {
-        return ::bind(fd, &sa.addr.ss, sizeof(sa.addr.ss));
+    int bind(const std::string &_host, int *port);
+
+    int bind(const struct sockaddr *sa, socklen_t len) {
+        return ::bind(fd, sa, len);
+    }
+
+    int bind(const Address &addr) {
+        return ::bind(fd, &addr.addr.ss, addr.len);
     }
 
     int listen(int backlog = 0) {
@@ -350,6 +356,8 @@ struct Socket {
         addr.assign(socket_type, host, port);
         return connect(addr);
     }
+
+    int connect_sync(const Address &sa, double timeout);
 
 #ifdef SW_USE_OPENSSL
     void ssl_clear_error() {
@@ -507,6 +515,7 @@ struct Socket {
 };
 
 int gethostbyname(int type, const char *name, char *addr);
+int gethostbyname(GethostbynameRequest *req);
 int getaddrinfo(GetaddrinfoRequest *req);
 
 }  // namespace network

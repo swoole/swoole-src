@@ -914,6 +914,13 @@ PHP_MINFO_FUNCTION(swoole) {
     php_info_print_table_row(2, "Version", SWOOLE_VERSION);
     snprintf(buf, sizeof(buf), "%s %s", __DATE__, __TIME__);
     php_info_print_table_row(2, "Built", buf);
+
+#if SW_BYTE_ORDER == SW_LITTLE_ENDIAN
+    php_info_print_table_row(2, "host byte order", "little endian");
+#else
+    php_info_print_table_row(2, "host byte order", "big endian");
+#endif
+
 #if defined(SW_USE_THREAD_CONTEXT)
     php_info_print_table_row(2, "coroutine", "enabled with thread context");
 #elif defined(SW_USE_ASM_CONTEXT)

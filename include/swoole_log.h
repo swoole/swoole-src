@@ -254,6 +254,10 @@ enum swTraceWhat : long {
     SW_TRACE_CO_ODBC = 1ul << 33,
     SW_TRACE_CO_ORACLE = 1ul << 34,
     SW_TRACE_CO_SQLITE = 1ul << 35,
+    /**
+     * Thread
+     */
+    SW_TRACE_THREAD = 1ul << 36,
 
     SW_TRACE_ALL = 0x7fffffffffffffff
 };

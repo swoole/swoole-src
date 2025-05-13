@@ -470,30 +470,7 @@ static int Client_tcp_connect_sync(Client *cli, const char *host, int port, doub
             // special case on MacOS
             ret = cli->socket->connect(cli->server_addr);
         } else {
-            cli->socket->set_nonblock();
-            ret = cli->socket->connect(cli->server_addr);
-            if (ret < 0) {
-                if (errno != EINPROGRESS) {
-                    return SW_ERR;
-                }
-                if (cli->socket->wait_event(timeout > 0 ? (int) (timeout * 1000) : timeout, SW_EVENT_WRITE) < 0) {
-                    swoole_set_last_error(ETIMEDOUT);
-                    return SW_ERR;
-                }
-                int err;
-                socklen_t len = sizeof(len);
-                ret = cli->socket->get_option(SOL_SOCKET, SO_ERROR, &err, &len);
-                if (ret < 0) {
-                    swoole_set_last_error(errno);
-                    return SW_ERR;
-                }
-                if (err != 0) {
-                    swoole_set_last_error(err);
-                    return SW_ERR;
-                }
-                cli->socket->set_block();
-                ret = 0;
-            }
+            ret = cli->socket->connect_sync(cli->server_addr, cli->timeout);
         }
 #else
         ret = cli->socket->connect(cli->server_addr);

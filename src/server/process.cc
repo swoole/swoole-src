@@ -55,7 +55,7 @@ void Server::destroy_process_factory() {
 
 ProcessFactory::ProcessFactory(Server *server) : Factory(server) {}
 
-ProcessFactory::~ProcessFactory() {}
+ProcessFactory::~ProcessFactory() = default;
 
 /**
  * kill and wait all user process
@@ -70,8 +70,8 @@ void Factory::kill_user_workers() {
     }
 
     for (auto &kv : server_->user_worker_map) {
-        int __stat_loc;
-        if (swoole_waitpid(kv.second->pid, &__stat_loc, 0) < 0) {
+        int _stat_loc;
+        if (swoole_waitpid(kv.second->pid, &_stat_loc, 0) < 0) {
             swoole_sys_warning("waitpid(%d) failed", kv.second->pid);
         }
     }
@@ -117,6 +117,7 @@ pid_t Factory::spawn_event_worker(Worker *worker) {
         return SW_ERR;
     } else if (pid == 0) {
         worker->pid = SwooleG.pid;
+        swoole_set_worker_id(worker->id);
         SwooleWG.worker = worker;
     } else {
         worker->pid = pid;
@@ -146,6 +147,7 @@ pid_t Factory::spawn_user_worker(Worker *worker) {
     else if (pid == 0) {
         swoole_set_process_type(SW_PROCESS_USERWORKER);
         swoole_set_process_id(worker->id);
+        swoole_set_worker_id(worker->id);
         worker->pid = SwooleG.pid;
         SwooleWG.worker = worker;
         server_->onUserWorkerStart(server_, worker);
@@ -158,7 +160,7 @@ pid_t Factory::spawn_user_worker(Worker *worker) {
          * user_workers: shared memory
          */
         server_->get_worker(worker->id)->pid = worker->pid = pid;
-        server_->user_worker_map.emplace(std::make_pair(pid, worker));
+        server_->user_worker_map.emplace(pid, worker);
         return pid;
     }
 }
@@ -230,7 +232,8 @@ bool ProcessFactory::notify(DataHead *ev) {
  * [ReactorThread] dispatch request to worker
  */
 bool ProcessFactory::dispatch(SendData *task) {
-    int fd = task->info.fd;
+    // the task->info.fd is real fd, not session_id, it will be converted to session after dispatch
+    int fd = static_cast<int>(task->info.fd);
 
     int target_worker_id = server_->schedule_worker(fd, task);
     if (target_worker_id < 0) {
@@ -254,7 +257,7 @@ bool ProcessFactory::dispatch(SendData *task) {
         }
         // server active close, discard data.
         if (conn->closed) {
-            // Connection has been clsoed by server
+            // Connection has been closed by server
             if (!(task->info.type == SW_SERVER_EVENT_CLOSE && conn->close_force)) {
                 return true;
             }
@@ -272,7 +275,7 @@ bool ProcessFactory::dispatch(SendData *task) {
 
     SendData _task;
     memcpy(&_task, task, sizeof(SendData));
-    network::Socket *sock;
+    Socket *sock;
     MessageBus *mb;
 
     if (server_->is_reactor_thread() || server_->single_thread) {

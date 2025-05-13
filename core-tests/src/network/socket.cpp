@@ -25,6 +25,32 @@ using namespace swoole;
 
 const char test_data[] = "hello swoole, hello world, php is best";
 
+TEST(socket, connect_sync) {
+    network::Address sa;
+    network::Socket *sock;
+
+    sock = make_socket(SW_SOCK_UNIX_STREAM, SW_FD_STREAM, 0);
+    ASSERT_NE(sock, nullptr);
+    sa.assign(SW_SOCK_UNIX_STREAM, "/tmp/swole-not-exists.sock");
+    ASSERT_EQ(sock->connect_sync(sa, 0.3), SW_ERR);
+    ASSERT_EQ(swoole_get_last_error(), ENOENT);
+    sock->free();
+
+    sock = make_socket(SW_SOCK_TCP, SW_FD_STREAM, 0);
+    ASSERT_NE(sock, nullptr);
+    sa.assign(SW_SOCK_TCP, "192.168.199.199", 80);
+    ASSERT_EQ(sock->connect_sync(sa, 0.3), SW_ERR);
+    ASSERT_EQ(swoole_get_last_error(), ETIMEDOUT);
+    sock->free();
+
+    sock = make_socket(SW_SOCK_TCP, SW_FD_STREAM, 0);
+    ASSERT_NE(sock, nullptr);
+    sa.assign(SW_SOCK_TCP, "127.0.0.1", 59999);
+    ASSERT_EQ(sock->connect_sync(sa, 0.3), SW_ERR);
+    ASSERT_EQ(swoole_get_last_error(), ECONNREFUSED);
+    sock->free();
+}
+
 TEST(socket, sendto) {
     char sock1_path[] = "/tmp/udp_unix1.sock";
     char sock2_path[] = "/tmp/udp_unix2.sock";
@@ -146,6 +172,49 @@ TEST(socket, recvfrom_sync) {
 
     t1.join();
     t2.join();
+}
+
+TEST(socket, send_async_1) {
+    auto sock = make_socket(SW_SOCK_TCP, SW_FD_STREAM_CLIENT, 0);
+    ASSERT_TRUE(sock->set_block());
+    ASSERT_EQ(sock->connect(TEST_HTTP_DOMAIN, 80), SW_OK);
+
+    auto req = test::http_get_request(TEST_HTTP_DOMAIN, "/");
+    ASSERT_EQ(sock->send_async(req.c_str(), req.length()), req.length());
+
+    auto buf = sw_tg_buffer();
+    auto n = sock->recv_sync(buf->str, buf->size, 0);
+    ASSERT_GT(n, 0);
+    buf->length = n;
+    ASSERT_TRUE(buf->contains(SW_STRL(TEST_HTTP_EXPECT)));
+
+    sock->free();
+}
+
+TEST(socket, send_async_2) {
+    auto sock = make_socket(SW_SOCK_TCP, SW_FD_STREAM_CLIENT, 0);
+    ASSERT_TRUE(sock->set_block());
+    ASSERT_EQ(sock->connect(TEST_HTTP_DOMAIN, 80), SW_OK);
+
+    swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
+
+    auto req = test::http_get_request(TEST_HTTP_DOMAIN, "/");
+    ASSERT_EQ(sock->send_async(req.c_str(), req.length()), req.length());
+
+    swoole_event_set_handler(SW_FD_STREAM_CLIENT | SW_EVENT_READ, [](Reactor *reactor, Event *event) {
+        auto buf = sw_tg_buffer();
+        auto n = event->socket->recv_sync(buf->str, buf->size, 0);
+        EXPECT_GT(n, 0);
+        buf->length = n;
+        EXPECT_TRUE(buf->contains(SW_STRL(TEST_HTTP_EXPECT)));
+
+        return 0;
+    });
+
+    swoole_event_add(sock, SW_EVENT_READ | SW_EVENT_ONCE);
+    swoole_event_wait();
+
+    sock->free();
 }
 
 TEST(socket, sendfile_sync) {
@@ -496,4 +565,79 @@ TEST(socket, loopback_addr) {
     network::Address addr4;
     addr4.assign(SW_SOCK_TCP6, "192::66::88", 0);
     ASSERT_FALSE(addr4.is_loopback_addr());
+}
+
+TEST(socket, convert_to_type) {
+    ASSERT_EQ(network::Socket::convert_to_type(AF_INET, SOCK_STREAM), SW_SOCK_TCP);
+    ASSERT_EQ(network::Socket::convert_to_type(AF_INET6, SOCK_STREAM), SW_SOCK_TCP6);
+    ASSERT_EQ(network::Socket::convert_to_type(AF_INET, SOCK_DGRAM), SW_SOCK_UDP);
+    ASSERT_EQ(network::Socket::convert_to_type(AF_INET6, SOCK_DGRAM), SW_SOCK_UDP6);
+    ASSERT_EQ(network::Socket::convert_to_type(AF_LOCAL, SOCK_STREAM), SW_SOCK_UNIX_STREAM);
+    ASSERT_EQ(network::Socket::convert_to_type(AF_LOCAL, SOCK_DGRAM), SW_SOCK_UNIX_DGRAM);
+
+    std::string s1("unix:///tmp/swoole.sock");
+    ASSERT_EQ(network::Socket::convert_to_type(s1), SW_SOCK_UNIX_STREAM);
+    ASSERT_EQ(s1, "/tmp/swoole.sock");
+
+    std::string s2("127.0.0.1");
+    ASSERT_EQ(network::Socket::convert_to_type(s2), SW_SOCK_TCP);
+
+    std::string s3("::1");
+    ASSERT_EQ(network::Socket::convert_to_type(s3), SW_SOCK_TCP6);
+
+    std::string s4("unix:/tmp/swoole.sock");
+    ASSERT_EQ(network::Socket::convert_to_type(s4), SW_SOCK_UNIX_STREAM);
+    ASSERT_EQ(s4, "/tmp/swoole.sock");
+}
+
+static void test_sock_type(SocketType type, int expect_sock_domain, int expect_sock_type) {
+    int sock_domain, sock_type;
+    ASSERT_EQ(network::Socket::get_domain_and_type(type, &sock_domain, &sock_type), SW_OK);
+    ASSERT_EQ(sock_domain, expect_sock_domain);
+    ASSERT_EQ(sock_type, expect_sock_type);
+}
+
+TEST(socket, get_domain_and_type) {
+    test_sock_type(SW_SOCK_TCP, AF_INET, SOCK_STREAM);
+    test_sock_type(SW_SOCK_TCP6, AF_INET6, SOCK_STREAM);
+    test_sock_type(SW_SOCK_UDP, AF_INET, SOCK_DGRAM);
+    test_sock_type(SW_SOCK_UDP6, AF_INET6, SOCK_DGRAM);
+    test_sock_type(SW_SOCK_UNIX_STREAM, AF_LOCAL, SOCK_STREAM);
+    test_sock_type(SW_SOCK_UNIX_DGRAM, AF_LOCAL, SOCK_DGRAM);
+
+    int sock_domain, sock_type;
+    ASSERT_EQ(network::Socket::get_domain_and_type(SW_SOCK_RAW, &sock_domain, &sock_type), SW_ERR);
+}
+
+TEST(socket, make_socket) {
+    network::Socket *sock;
+
+    sock = make_socket(SW_SOCK_RAW, SW_FD_STREAM, 0);
+    ASSERT_EQ(sock, nullptr);
+    ASSERT_EQ(errno, ESOCKTNOSUPPORT);
+    ASSERT_EQ(swoole_get_last_error(), ESOCKTNOSUPPORT);
+
+    sock = make_socket(SW_SOCK_TCP, SW_FD_STREAM, AF_INET6, SOCK_RDM, 999, 0);
+    ASSERT_EQ(sock, nullptr);
+    ASSERT_EQ(errno, EINVAL);
+    ASSERT_EQ(swoole_get_last_error(), EINVAL);
+}
+
+TEST(socket, make_server_socket) {
+    network::Socket *sock;
+
+    auto bad_addr = "199.199.0.0";
+
+    sock = make_server_socket(SW_SOCK_RAW, bad_addr);
+    ASSERT_EQ(sock, nullptr);
+    ASSERT_EQ(errno, ESOCKTNOSUPPORT);
+    ASSERT_EQ(swoole_get_last_error(), ESOCKTNOSUPPORT);
+
+    sock = make_server_socket(SW_SOCK_TCP, bad_addr);
+    ASSERT_EQ(sock, nullptr);
+    ASSERT_EQ(errno, EADDRNOTAVAIL);
+
+    sock = make_server_socket(SW_SOCK_TCP, TEST_HOST, 0, -1);
+    ASSERT_NE(sock, nullptr);
+    sock->free();
 }

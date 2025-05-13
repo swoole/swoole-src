@@ -17,6 +17,11 @@ int main(int argc, char **argv) {
         sw_logger()->display_backtrace();
     }
 
+#ifdef SW_VERBOSE
+    swoole_set_log_level(SW_LOG_TRACE);
+    swoole_set_trace_flags(SW_TRACE_ALL);
+#endif
+
     ::testing::InitGoogleTest(&argc, argv);
     int retval = RUN_ALL_TESTS();
 
@@ -45,6 +50,7 @@ static void init_root_path(const char *_exec_file) {
 
 namespace swoole {
 namespace test {
+NullStream null_stream;
 
 const string &get_root_path() {
     return root_path;

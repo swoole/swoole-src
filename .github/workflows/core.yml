@@ -56,9 +56,13 @@ jobs:
           if [[ "$GITHUB_COMMIT_MESSAGE" == *"--strace"* ]]; then
               export SWOOLE_ENABLE_STRACE=1
           fi
+          if [[ "$GITHUB_COMMIT_MESSAGE" == *"--verbose"* ]]; then
+              export SWOOLE_ENABLE_VERBOSE=1
+          fi
           echo "SWOOLE_VALGRIND=${SWOOLE_VALGRIND}"
           echo "SWOOLE_ENABLE_ASAN=${SWOOLE_ENABLE_ASAN}"
           echo "SWOOLE_ENABLE_STRACE=${SWOOLE_ENABLE_STRACE}"
+          echo "SWOOLE_ENABLE_VERBOSE=${SWOOLE_ENABLE_VERBOSE}"
           cd core-tests && ./run.sh
 
       - name: run coverage

@@ -455,7 +455,7 @@ void Server::stop_async_worker(Worker *worker) {
              * at this point, there may still be ongoing events for sending data.
              * The connection will be completely closed only when the reactor is destroyed.
              */
-            foreach_connection([this, reactor](Connection *conn) {
+            foreach_connection([reactor](Connection *conn) {
                 if (conn->reactor_id == reactor->id && !conn->peer_closed && !conn->socket->removed) {
                     reactor->remove_read_event(conn->socket);
                 }

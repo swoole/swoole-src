@@ -165,13 +165,14 @@ TEST(coroutine_socket, recv_fail) {
 }
 
 TEST(coroutine_socket, bind_success) {
-    coroutine::run([](void *arg) {
+    const int port = __LINE__ + TEST_PORT;
+    coroutine::run([port](void *arg) {
         Socket sock(SW_SOCK_TCP);
-        bool retval = sock.bind("127.0.0.1", 9909);
+        bool retval = sock.bind("127.0.0.1", port);
         ASSERT_EQ(retval, true);
 
         Socket sock_1(SW_SOCK_UNIX_DGRAM);
-        retval = sock_1.bind("127.0.0.1", 9909);
+        retval = sock_1.bind("/tmp/swoole-core-tests.sock");
         ASSERT_EQ(retval, true);
     });
 }
@@ -190,18 +191,20 @@ TEST(coroutine_socket, bind_fail) {
 }
 
 TEST(coroutine_socket, listen) {
-    coroutine::run([](void *arg) {
+    const int port = __LINE__ + TEST_PORT;
+    coroutine::run([port](void *arg) {
         Socket sock(SW_SOCK_TCP);
-        bool retval = sock.bind("127.0.0.1", 9909);
+        bool retval = sock.bind("127.0.0.1", port);
         ASSERT_EQ(retval, true);
         ASSERT_EQ(sock.listen(128), true);
     });
 }
 
 TEST(coroutine_socket, accept) {
-    coroutine::run({[](void *arg) {
+    const int port = __LINE__ + TEST_PORT;
+    coroutine::run({[port](void *arg) {
                         Socket sock(SW_SOCK_TCP);
-                        bool retval = sock.bind("127.0.0.1", 9909);
+                        bool retval = sock.bind("127.0.0.1", port);
                         ASSERT_EQ(retval, true);
                         ASSERT_EQ(sock.listen(128), true);
 
@@ -210,9 +213,9 @@ TEST(coroutine_socket, accept) {
                         delete conn;
                     },
 
-                    [](void *arg) {
+                    [port](void *arg) {
                         Socket sock(SW_SOCK_TCP);
-                        bool retval = sock.connect("127.0.0.1", 9909, -1);
+                        bool retval = sock.connect("127.0.0.1", port, -1);
                         ASSERT_EQ(retval, true);
                         ASSERT_EQ(sock.errCode, 0);
                         sock.close();
@@ -231,9 +234,10 @@ static void socket_set_eof_protocol(Socket &sock) {
 }
 
 TEST(coroutine_socket, eof_1) {
-    coroutine::run({[](void *arg) {
+    const int port = __LINE__ + TEST_PORT;
+    coroutine::run({[port](void *arg) {
                         Socket sock(SW_SOCK_TCP);
-                        bool retval = sock.bind("127.0.0.1", 9909);
+                        bool retval = sock.bind("127.0.0.1", port);
                         ASSERT_EQ(retval, true);
                         ASSERT_EQ(sock.listen(128), true);
 
@@ -244,9 +248,9 @@ TEST(coroutine_socket, eof_1) {
                         conn->send(EOF_PACKET);
                     },
 
-                    [](void *arg) {
+                    [port](void *arg) {
                         Socket sock(SW_SOCK_TCP);
-                        bool retval = sock.connect("127.0.0.1", 9909, -1);
+                        bool retval = sock.connect("127.0.0.1", port, -1);
                         ASSERT_EQ(retval, true);
                         ASSERT_EQ(sock.errCode, 0);
                         sock.send("start\r\n");
@@ -265,11 +269,11 @@ TEST(coroutine_socket, eof_1) {
 }
 
 TEST(coroutine_socket, eof_2) {
-    coroutine::run({[](void *arg) {
+    const int port = __LINE__ + TEST_PORT;
+    coroutine::run({[port](void *arg) {
                         Socket sock(SW_SOCK_TCP);
-                        bool retval = sock.bind("127.0.0.1", 9909);
-                        ASSERT_EQ(retval, true);
-                        ASSERT_EQ(sock.listen(128), true);
+                        ASSERT_TRUE(sock.bind("127.0.0.1", port));
+                        ASSERT_TRUE(sock.listen(128));
 
                         Socket *conn = sock.accept();
                         char buf[1024];
@@ -278,9 +282,9 @@ TEST(coroutine_socket, eof_2) {
                         conn->send(EOF_PACKET EOF_PACKET_2);
                     },
 
-                    [](void *arg) {
+                    [port](void *arg) {
                         Socket sock(SW_SOCK_TCP);
-                        bool retval = sock.connect("127.0.0.1", 9909, -1);
+                        bool retval = sock.connect("127.0.0.1", port, -1);
                         ASSERT_EQ(retval, true);
                         ASSERT_EQ(sock.errCode, 0);
                         sock.send("start\r\n");
@@ -313,9 +317,10 @@ TEST(coroutine_socket, eof_2) {
 }
 
 TEST(coroutine_socket, eof_3) {
-    coroutine::run({[](void *arg) {
+    const int port = __LINE__ + TEST_PORT;
+    coroutine::run({[port](void *arg) {
                         Socket sock(SW_SOCK_TCP);
-                        bool retval = sock.bind("127.0.0.1", 9909);
+                        bool retval = sock.bind("127.0.0.1", port);
                         ASSERT_EQ(retval, true);
                         ASSERT_EQ(sock.listen(128), true);
 
@@ -326,9 +331,9 @@ TEST(coroutine_socket, eof_3) {
                         conn->shutdown();
                     },
 
-                    [](void *arg) {
+                    [port](void *arg) {
                         Socket sock(SW_SOCK_TCP);
-                        bool retval = sock.connect("127.0.0.1", 9909, -1);
+                        bool retval = sock.connect("127.0.0.1", port, -1);
                         ASSERT_EQ(retval, true);
                         ASSERT_EQ(sock.errCode, 0);
                         sock.send("start\r\n");
@@ -341,9 +346,10 @@ TEST(coroutine_socket, eof_3) {
 }
 
 TEST(coroutine_socket, eof_4) {
-    coroutine::run({[](void *arg) {
+    const int port = __LINE__ + TEST_PORT;
+    coroutine::run({[port](void *arg) {
                         Socket sock(SW_SOCK_TCP);
-                        bool retval = sock.bind("127.0.0.1", 9909);
+                        bool retval = sock.bind("127.0.0.1", port);
                         ASSERT_EQ(retval, true);
                         ASSERT_EQ(sock.listen(128), true);
 
@@ -355,9 +361,9 @@ TEST(coroutine_socket, eof_4) {
                         conn->shutdown();
                     },
 
-                    [](void *arg) {
+                    [port](void *arg) {
                         Socket sock(SW_SOCK_TCP);
-                        bool retval = sock.connect("127.0.0.1", 9909, -1);
+                        bool retval = sock.connect("127.0.0.1", port, -1);
                         ASSERT_EQ(retval, true);
                         ASSERT_EQ(sock.errCode, 0);
                         sock.send("start\r\n");
@@ -373,10 +379,11 @@ TEST(coroutine_socket, eof_4) {
 }
 
 TEST(coroutine_socket, eof_5) {
+    const int port = __LINE__ + TEST_PORT;
     size_t pkt_len = 512 * 1024;
-    coroutine::run({[pkt_len](void *arg) {
+    coroutine::run({[pkt_len, port](void *arg) {
                         Socket sock(SW_SOCK_TCP);
-                        bool retval = sock.bind("127.0.0.1", 9909);
+                        bool retval = sock.bind("127.0.0.1", port);
                         ASSERT_EQ(retval, true);
                         ASSERT_EQ(sock.listen(128), true);
 
@@ -393,9 +400,9 @@ TEST(coroutine_socket, eof_5) {
                         conn->send_all(s->str, s->length);
                     },
 
-                    [pkt_len](void *arg) {
+                    [pkt_len, port](void *arg) {
                         Socket sock(SW_SOCK_TCP);
-                        bool retval = sock.connect("127.0.0.1", 9909, -1);
+                        bool retval = sock.connect("127.0.0.1", port, -1);
                         ASSERT_EQ(retval, true);
                         ASSERT_EQ(sock.errCode, 0);
                         sock.send("start\r\n");
@@ -409,9 +416,10 @@ TEST(coroutine_socket, eof_5) {
 }
 
 TEST(coroutine_socket, eof_6) {
-    coroutine::run({[](void *arg) {
+    const int port = __LINE__ + TEST_PORT;
+    coroutine::run({[port](void *arg) {
                         Socket sock(SW_SOCK_TCP);
-                        bool retval = sock.bind("127.0.0.1", 9909);
+                        bool retval = sock.bind("127.0.0.1", port);
                         ASSERT_EQ(retval, true);
                         ASSERT_EQ(sock.listen(128), true);
 
@@ -427,9 +435,9 @@ TEST(coroutine_socket, eof_6) {
                         conn->send_all(s.value(), s.get_length());
                     },
 
-                    [](void *arg) {
+                    [port](void *arg) {
                         Socket sock(SW_SOCK_TCP);
-                        bool retval = sock.connect("127.0.0.1", 9909, -1);
+                        bool retval = sock.connect("127.0.0.1", port, -1);
                         ASSERT_EQ(retval, true);
                         ASSERT_EQ(sock.errCode, 0);
                         sock.send("start\r\n");
@@ -468,9 +476,10 @@ static void socket_set_length_protocol_2(Socket &sock) {
 }
 
 TEST(coroutine_socket, length_1) {
-    coroutine::run({[](void *arg) {
+    const int port = __LINE__ + TEST_PORT;
+    coroutine::run({[port](void *arg) {
                         Socket sock(SW_SOCK_TCP);
-                        bool retval = sock.bind("127.0.0.1", 9502);
+                        bool retval = sock.bind("127.0.0.1", port);
                         ASSERT_EQ(retval, true);
                         ASSERT_EQ(sock.listen(128), true);
 
@@ -482,9 +491,9 @@ TEST(coroutine_socket, length_1) {
                         conn->send(buf, l + 2);
                     },
 
-                    [](void *arg) {
+                    [port](void *arg) {
                         Socket sock(SW_SOCK_TCP);
-                        bool retval = sock.connect("127.0.0.1", 9502, -1);
+                        bool retval = sock.connect("127.0.0.1", port, -1);
                         ASSERT_EQ(retval, true);
                         ASSERT_EQ(sock.errCode, 0);
 
@@ -500,9 +509,10 @@ TEST(coroutine_socket, length_1) {
 }
 
 TEST(coroutine_socket, length_2) {
-    coroutine::run({[](void *arg) {
+    const int port = __LINE__ + TEST_PORT;
+    coroutine::run({[port](void *arg) {
                         Socket sock(SW_SOCK_TCP);
-                        bool retval = sock.bind("127.0.0.1", 9502);
+                        bool retval = sock.bind("127.0.0.1", port);
                         ASSERT_EQ(retval, true);
                         ASSERT_EQ(sock.listen(128), true);
 
@@ -513,9 +523,9 @@ TEST(coroutine_socket, length_2) {
                         conn->send(buf, 2);
                     },
 
-                    [](void *arg) {
+                    [port](void *arg) {
                         Socket sock(SW_SOCK_TCP);
-                        bool retval = sock.connect("127.0.0.1", 9502, -1);
+                        bool retval = sock.connect("127.0.0.1", port, -1);
                         ASSERT_EQ(retval, true);
                         ASSERT_EQ(sock.errCode, 0);
 
@@ -531,9 +541,10 @@ TEST(coroutine_socket, length_2) {
 }
 
 TEST(coroutine_socket, length_3) {
+    const int port = __LINE__ + TEST_PORT;
     coroutine::run({[](void *arg) {
                         Socket sock(SW_SOCK_TCP);
-                        bool retval = sock.bind("127.0.0.1", 9502);
+                        bool retval = sock.bind("127.0.0.1", port);
                         ASSERT_EQ(retval, true);
                         ASSERT_EQ(sock.listen(128), true);
 
@@ -547,7 +558,7 @@ TEST(coroutine_socket, length_3) {
 
                     [](void *arg) {
                         Socket sock(SW_SOCK_TCP);
-                        bool retval = sock.connect("127.0.0.1", 9502, -1);
+                        bool retval = sock.connect("127.0.0.1", port, -1);
                         ASSERT_EQ(retval, true);
                         ASSERT_EQ(sock.errCode, 0);
 
@@ -563,9 +574,9 @@ TEST(coroutine_socket, length_3) {
 static string pkt_1;
 static string pkt_2;
 
-static void length_protocol_server_func(void *arg) {
+static void length_protocol_server_func(void *arg, int port) {
     Socket sock(SW_SOCK_TCP);
-    bool retval = sock.bind("127.0.0.1", 9502);
+    bool retval = sock.bind("127.0.0.1", port);
     ASSERT_EQ(retval, true);
     ASSERT_EQ(sock.listen(128), true);
 
@@ -592,11 +603,12 @@ static void length_protocol_server_func(void *arg) {
 }
 
 TEST(coroutine_socket, length_4) {
-    coroutine::run({length_protocol_server_func,
+    const int port = __LINE__ + TEST_PORT;
+    coroutine::run({[port](void *arg) { length_protocol_server_func(arg, port); },
 
-                    [](void *arg) {
+                    [port](void *arg) {
                         Socket sock(SW_SOCK_TCP);
-                        bool retval = sock.connect("127.0.0.1", 9502, -1);
+                        bool retval = sock.connect("127.0.0.1", port, -1);
                         ASSERT_EQ(retval, true);
                         ASSERT_EQ(sock.errCode, 0);
 
@@ -624,11 +636,12 @@ TEST(coroutine_socket, length_4) {
 }
 
 TEST(coroutine_socket, length_5) {
-    coroutine::run({length_protocol_server_func,
+    const int port = __LINE__ + TEST_PORT;
+    coroutine::run({[port](void *arg) { length_protocol_server_func(arg, port); },
 
-                    [](void *arg) {
+                    [port](void *arg) {
                         Socket sock(SW_SOCK_TCP);
-                        bool retval = sock.connect("127.0.0.1", 9502, -1);
+                        bool retval = sock.connect("127.0.0.1", port, -1);
                         ASSERT_EQ(retval, true);
                         ASSERT_EQ(sock.errCode, 0);
 
@@ -653,9 +666,10 @@ TEST(coroutine_socket, length_5) {
 }
 
 TEST(coroutine_socket, length_7) {
-    coroutine::run({[](void *arg) {
+    const int port = __LINE__ + TEST_PORT;
+    coroutine::run({[port](void *arg) {
                         Socket sock(SW_SOCK_TCP);
-                        bool retval = sock.bind("127.0.0.1", 9502);
+                        bool retval = sock.bind("127.0.0.1", port);
                         ASSERT_EQ(retval, true);
                         ASSERT_EQ(sock.listen(128), true);
 
@@ -668,9 +682,9 @@ TEST(coroutine_socket, length_7) {
                         conn->send(buf + 2, 2);
                     },
 
-                    [](void *arg) {
+                    [port](void *arg) {
                         Socket sock(SW_SOCK_TCP);
-                        bool retval = sock.connect("127.0.0.1", 9502, -1);
+                        bool retval = sock.connect("127.0.0.1", port, -1);
                         ASSERT_EQ(retval, true);
                         ASSERT_EQ(sock.errCode, 0);
 
@@ -686,9 +700,10 @@ TEST(coroutine_socket, length_7) {
 }
 
 TEST(coroutine_socket, event_hup) {
-    coroutine::run({[](void *arg) {
+    const int port = __LINE__ + TEST_PORT;
+    coroutine::run({[port](void *arg) {
                         Socket sock(SW_SOCK_TCP);
-                        bool retval = sock.bind("127.0.0.1", 9502);
+                        bool retval = sock.bind("127.0.0.1", port);
                         ASSERT_EQ(retval, true);
                         ASSERT_EQ(sock.listen(128), true);
 
@@ -700,9 +715,9 @@ TEST(coroutine_socket, event_hup) {
                         delete conn;
                     },
 
-                    [](void *arg) {
+                    [port](void *arg) {
                         Socket sock(SW_SOCK_TCP);
-                        bool retval = sock.connect("127.0.0.1", 9502, -1);
+                        bool retval = sock.connect("127.0.0.1", port, -1);
                         ASSERT_EQ(retval, true);
                         ASSERT_EQ(sock.errCode, 0);
 
@@ -718,9 +733,10 @@ TEST(coroutine_socket, event_hup) {
 }
 
 TEST(coroutine_socket, recv_line) {
-    coroutine::run({[](void *arg) {
+    const int port = __LINE__ + TEST_PORT;
+    coroutine::run({[port](void *arg) {
                         Socket sock(SW_SOCK_TCP);
-                        bool retval = sock.bind("127.0.0.1", 9909);
+                        bool retval = sock.bind("127.0.0.1", port);
                         ASSERT_EQ(retval, true);
                         ASSERT_EQ(sock.listen(128), true);
 
@@ -734,9 +750,9 @@ TEST(coroutine_socket, recv_line) {
                         delete conn;
                     },
 
-                    [](void *arg) {
+                    [port](void *arg) {
                         Socket sock(SW_SOCK_TCP);
-                        bool retval = sock.connect("127.0.0.1", 9909, -1);
+                        bool retval = sock.connect("127.0.0.1", port, -1);
                         ASSERT_EQ(retval, true);
                         ASSERT_EQ(sock.errCode, 0);
 
@@ -1119,9 +1135,10 @@ TEST(coroutine_socket, ssl) {
 }
 
 TEST(coroutine_socket, ssl_accept) {
-    auto svr = [](void *arg) {
+    const int port = __LINE__ + TEST_PORT;
+    auto svr = [port](void *arg) {
         Socket sock(SW_SOCK_TCP);
-        bool retval = sock.bind("127.0.0.1", 9909);
+        bool retval = sock.bind("127.0.0.1", port);
         ASSERT_EQ(retval, true);
 
         sock.enable_ssl_encrypt();
@@ -1145,10 +1162,10 @@ TEST(coroutine_socket, ssl_accept) {
         delete conn;
     };
 
-    auto cli = [](void *arg) {
+    auto cli = [port](void *arg) {
         Socket sock(SW_SOCK_TCP);
         sock.enable_ssl_encrypt();
-        bool retval = sock.connect("127.0.0.1", 9909, -1);
+        bool retval = sock.connect("127.0.0.1", port, -1);
         ASSERT_EQ(retval, true);
         ASSERT_EQ(sock.errCode, 0);
 
@@ -1336,4 +1353,15 @@ TEST(coroutine_socket, get_event_str) {
     Socket sock;
     ASSERT_STREQ(sock.get_event_str(SW_EVENT_READ), "reading");
     ASSERT_STREQ(sock.get_event_str(SW_EVENT_WRITE), "writing");
+}
+
+TEST(coroutine_socket, option) {
+    Socket sock(SW_SOCK_TCP);
+    int optval;
+
+    ASSERT_TRUE(sock.get_option(SOL_SOCKET, SO_RCVBUF, &optval));
+    ASSERT_GT(optval, 65536);
+
+    optval *= 2;
+    ASSERT_TRUE(sock.set_option(SOL_SOCKET, SO_RCVBUF, optval));
 }

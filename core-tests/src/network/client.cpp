@@ -48,6 +48,9 @@ TEST(client, tcp) {
     ASSERT_EQ(ret, GREETER_SIZE);
     ASSERT_STREQ(GREETER, buf);
 
+    ASSERT_EQ(cli.close(), SW_OK);
+    ASSERT_EQ(cli.close(), SW_ERR);
+
     kill(pid, SIGTERM);
     int status;
     wait(&status);
@@ -140,12 +143,8 @@ static void test_async_client_tcp(const char *host, int port, enum swSocketType 
 
     ac.on_connect([](AsyncClient *ac) { ac->send(SW_STRS(GREETER)); });
 
-    ac.on_close([](AsyncClient *ac) {
-
-    });
-    ac.on_error([](AsyncClient *ac) {
-
-    });
+    ac.on_close([](AsyncClient *ac) {});
+    ac.on_error([](AsyncClient *ac) {});
 
     ac.on_receive([](AsyncClient *ac, const char *data, size_t len) {
         ASSERT_EQ(len, GREETER_SIZE);
@@ -153,7 +152,7 @@ static void test_async_client_tcp(const char *host, int port, enum swSocketType 
         ac->close();
     });
 
-    bool retval = ac.connect(host, port);
+    bool retval = ac.connect(host, port, 1.0);
     EXPECT_TRUE(retval);
 
     swoole_event_wait();
@@ -224,9 +223,7 @@ TEST(client, async_unix_connect_refuse) {
 
     ac.on_connect([](AsyncClient *ac) { ac->send(SW_STRS(GREETER)); });
 
-    ac.on_close([](AsyncClient *ac) {
-
-    });
+    ac.on_close([](AsyncClient *ac) {});
 
     ac.on_error([&](AsyncClient *ac) { flags["onError"] = true; });
 
@@ -254,9 +251,7 @@ TEST(client, async_connect_timeout) {
 
     ac.on_connect([](AsyncClient *ac) { ac->send(SW_STRS(GREETER)); });
 
-    ac.on_close([](AsyncClient *ac) {
-
-    });
+    ac.on_close([](AsyncClient *ac) {});
 
     ac.on_error([&](AsyncClient *ac) {
         flags["onError"] = true;
@@ -402,7 +397,7 @@ TEST(client, shutdown_all) {
 
 #ifdef SW_USE_OPENSSL
 
-TEST(client, ssl_1) {
+static void test_ssl_get_baidu() {
     bool connected = false;
     bool closed = false;
     String buf(65536);
@@ -427,6 +422,10 @@ TEST(client, ssl_1) {
     ASSERT_TRUE(connected);
     ASSERT_TRUE(closed);
     ASSERT_TRUE(buf.contains("Baidu"));
+}
+
+TEST(client, ssl_1) {
+    test_ssl_get_baidu();
 }
 
 TEST(client, ssl_sendfile) {
@@ -585,5 +584,144 @@ TEST(client, http_get_sync_with_socks5_proxy) {
     Client client(SW_SOCK_TCP, false);
     proxy_set_socks5_proxy(client);
     proxy_sync_test(client, false);
+}
+
+void printAllSubjectEntries(X509_NAME *name) {
+    if (!name) return;
+
+    int entry_count = X509_NAME_entry_count(name);
+
+    for (int i = 0; i < entry_count; ++i) {
+        X509_NAME_ENTRY *entry = X509_NAME_get_entry(name, i);
+        ASN1_OBJECT *obj = X509_NAME_ENTRY_get_object(entry);
+        ASN1_STRING *data = X509_NAME_ENTRY_get_data(entry);
+
+        // 获取字段的短名称（如 CN、O、ST 等）
+        char obj_txt[80] = {0};
+        OBJ_obj2txt(obj_txt, sizeof(obj_txt), obj, 0);
+
+        // 获取字段的值
+        unsigned char *utf8 = nullptr;
+        int length = ASN1_STRING_to_UTF8(&utf8, data);
+        if (length >= 0 && utf8) {
+            std::cout << obj_txt << ": " << std::string((char *) utf8, length) << std::endl;
+            OPENSSL_free(utf8);
+        }
+    }
+}
+
+void printX509Info(X509 *cert) {
+    X509_NAME *subject_name = X509_get_subject_name(cert);
+    printAllSubjectEntries(subject_name);
+
+    char *subject = X509_NAME_oneline(subject_name, 0, 0);
+    if (subject) {
+        printf("Peer certificate subject: %s\n", subject);
+        OPENSSL_free(subject);
+    }
+
+    X509_NAME *issuer_name = X509_get_issuer_name(cert);
+    printAllSubjectEntries(issuer_name);
+
+    // 获取证书有效期
+    ASN1_TIME *not_before = X509_get_notBefore(cert);
+    ASN1_TIME *not_after = X509_get_notAfter(cert);
+
+    BIO *bio = BIO_new(BIO_s_mem());
+    ASN1_TIME_print(bio, not_before);
+    char buf[256] = {0};
+    int len = BIO_read(bio, buf, sizeof(buf) - 1);
+    buf[len] = 0;
+    std::cout << "Validity Not Before: " << buf << std::endl;
+
+    ASN1_TIME_print(bio, not_after);
+    len = BIO_read(bio, buf, sizeof(buf) - 1);
+    buf[len] = 0;
+    std::cout << "Validity Not After: " << buf << std::endl;
+
+    BIO_free(bio);
+
+    // 获取公钥
+    EVP_PKEY *pubkey = X509_get_pubkey(cert);
+    if (pubkey) {
+        std::cout << "Public key type: " << EVP_PKEY_id(pubkey) << std::endl;
+        EVP_PKEY_free(pubkey);
+    }
+}
+
+int dump_cert_info(const char *data, size_t len) {
+    BIO *bio = BIO_new_mem_buf(data, (int) len);
+    if (!bio) {
+        std::cerr << "Failed to create BIO" << std::endl;
+        return 1;
+    }
+
+    // 从 BIO 中读取证书
+    X509 *cert = PEM_read_bio_X509(bio, nullptr, nullptr, nullptr);
+    if (!cert) {
+        std::cerr << "Failed to parse X509 certificate" << std::endl;
+        BIO_free(bio);
+        return 1;
+    }
+
+    // 打印证书信息
+    printX509Info(cert);
+
+    // 释放资源
+    X509_free(cert);
+    BIO_free(bio);
+    EVP_cleanup();
+
+    return 0;
+}
+
+TEST(client, ssl) {
+    Client client(SW_SOCK_TCP, false);
+    client.enable_ssl_encrypt();
+    client.set_tls_host_name(TEST_HTTP_DOMAIN);
+    ASSERT_EQ(client.connect(&client, TEST_HTTP_DOMAIN, 443, -1, 0), SW_OK);
+
+    auto sock = client.socket;
+    ASSERT_TRUE(sock->ssl_get_peer_certificate(sw_tg_buffer()));
+    auto ls = sock->ssl_get_peer_cert_chain(10);
+    ASSERT_FALSE(ls.empty());
+    dump_cert_info(sw_tg_buffer()->str, sw_tg_buffer()->length);
+    ASSERT_EQ(client.ssl_verify(false), SW_OK);
+
+    auto req = swoole::test::http_get_request(TEST_HTTP_DOMAIN, "/");
+
+    constexpr off_t offset1 = 87;
+    iovec wr_iov[2];
+    wr_iov[0].iov_base = (void *) req.c_str();
+    wr_iov[0].iov_len = offset1;
+    wr_iov[1].iov_base = (void *) req.c_str() + offset1;
+    wr_iov[1].iov_len = req.length() - offset1;
+
+    swoole::network::IOVector wr_vec(wr_iov, 2);
+    ASSERT_EQ(sock->ssl_writev(&wr_vec), req.length());
+
+    sw_tg_buffer()->clear();
+    sw_tg_buffer()->extend(1024 * 1024);
+
+    constexpr off_t offset2 = 1949;
+    iovec rd_iov[2];
+    rd_iov[0].iov_base = sw_tg_buffer()->str;
+    rd_iov[0].iov_len = offset2;
+    rd_iov[1].iov_base = sw_tg_buffer()->str + offset2;
+    rd_iov[1].iov_len = sw_tg_buffer()->size - offset2;
+
+    swoole::network::IOVector rd_vec(rd_iov, 2);
+    auto rv = sock->ssl_readv(&rd_vec);
+    ASSERT_GT(rv, 1024);
+    sw_tg_buffer()->length = rv;
+    sw_tg_buffer()->set_null_terminated();
+
+    ASSERT_TRUE(sw_tg_buffer()->contains("中华人民共和国"));
+}
+
+TEST(client, ssl_reinit) {
+    swoole_ssl_destroy();
+    swoole_ssl_init();
+    test_ssl_get_baidu();
 }
 #endif

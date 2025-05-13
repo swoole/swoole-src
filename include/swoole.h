@@ -499,6 +499,7 @@ typedef unsigned char uchar;
 
 void swoole_random_string(char *buf, size_t size);
 void swoole_random_string(std::string &str, size_t size);
+uint64_t swoole_random_int();
 size_t swoole_random_bytes(char *buf, size_t size);
 
 static sw_inline char *swoole_strlchr(char *p, char *last, char c) {
@@ -677,16 +678,6 @@ struct EventData {
     uint32_t len() {
         return info.len;
     }
-};
-
-struct SendData {
-    DataHead info;
-    const char *data;
-};
-
-struct RecvData {
-    DataHead info;
-    const char *data;
 };
 
 struct ThreadGlobal {

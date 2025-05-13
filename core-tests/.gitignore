@@ -1,0 +1,4 @@
+.idea/
+.cmake/
+Testing/
+build.ninja

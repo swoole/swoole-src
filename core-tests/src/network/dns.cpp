@@ -73,16 +73,26 @@ TEST(dns, cancel) {
     });
 }
 
+TEST(dns, gethostbyname) {
+    GethostbynameRequest req1(TEST_HTTP_DOMAIN, AF_INET);
+    ASSERT_EQ(network::gethostbyname(&req1), 0);
+    ASSERT_TRUE(network::Address::verify_ip(AF_INET, req1.addr));
+
+    GethostbynameRequest req2(TEST_HTTP_DOMAIN, AF_INET6);
+    ASSERT_EQ(network::gethostbyname(&req2), 0);
+    ASSERT_TRUE(network::Address::verify_ip(AF_INET6, req2.addr));
+}
+
 TEST(dns, getaddrinfo) {
-    swoole::GetaddrinfoRequest req("www.baidu.com", AF_INET, SOCK_STREAM, 0, "");
-    ASSERT_EQ(swoole::network::getaddrinfo(&req), 0);
+    GetaddrinfoRequest req("www.baidu.com", AF_INET, SOCK_STREAM, 0, "");
+    ASSERT_EQ(network::getaddrinfo(&req), 0);
     ASSERT_GT(req.count, 0);
 
     vector<string> ip_list;
     req.parse_result(ip_list);
 
     for (auto &ip : ip_list) {
-        ASSERT_TRUE(swoole::network::Address::verify_ip(AF_INET, ip));
+        ASSERT_TRUE(network::Address::verify_ip(AF_INET, ip));
     }
 }
 

@@ -31,6 +31,7 @@
 #include <list>
 #include <set>
 #include <unordered_map>
+#include <random>
 
 #include "swoole_api.h"
 #include "swoole_string.h"
@@ -452,7 +453,7 @@ void swoole_dump_bin(const char *data, char type, size_t size) {
     int n = size / type_size;
 
     for (i = 0; i < n; i++) {
-        printf("%d,", swoole_unpack(type, data + type_size * i));
+        printf("%ld,", (long) swoole_unpack(type, data + type_size * i));
     }
     printf("\n");
 }
@@ -495,7 +496,7 @@ bool swoole_mkdir_recursive(const std::string &dir) {
             if (access(tmp, R_OK) != 0) {
                 if (mkdir(tmp, 0755) == -1) {
                     swoole_sys_warning("mkdir(%s) failed", tmp);
-                    return -1;
+                    return false;
                 }
             }
             tmp[i] = '/';
@@ -520,6 +521,11 @@ int swoole_type_size(char type) {
     case 'N':
     case 'V':
         return 4;
+    case 'q':
+    case 'Q':
+    case 'J':
+    case 'P':
+        return 8;
     default:
         return 0;
     }
@@ -590,8 +596,6 @@ int swoole_rand(int min, int max) {
 
 int swoole_system_random(int min, int max) {
     static int dev_random_fd = -1;
-    char *next_random_byte;
-    int bytes_to_read;
     unsigned random_value;
 
     assert(max > min);
@@ -603,8 +607,8 @@ int swoole_system_random(int min, int max) {
         }
     }
 
-    next_random_byte = (char *) &random_value;
-    bytes_to_read = sizeof(random_value);
+    auto next_random_byte = (char *) &random_value;
+    constexpr int bytes_to_read = sizeof(random_value);
 
     if (read(dev_random_fd, next_random_byte, bytes_to_read) < bytes_to_read) {
         swoole_sys_warning("read() from /dev/urandom failed");
@@ -846,6 +850,13 @@ void swoole_random_string(std::string &str, size_t size) {
     for (; i < size; i++) {
         str.append(1, characters[swoole_rand(0, sizeof(characters) - 1)]);
     }
+}
+
+uint64_t swoole_random_int() {
+    static std::random_device rd;
+    static std::mt19937_64 gen(rd());
+    static std::uniform_int_distribution<uint64_t> dis(0, UINT64_MAX);
+    return dis(gen);
 }
 
 size_t swoole_random_bytes(char *buf, size_t size) {

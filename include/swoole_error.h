@@ -211,11 +211,11 @@ enum swErrorCode {
 };
 
 namespace swoole {
-class Exception {
+class Exception final : std::exception {
   public:
     int code;
     const char *msg;
 
-    Exception(int code) throw();
+    explicit Exception(int code) noexcept;
 };
 }  // namespace swoole

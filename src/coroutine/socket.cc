@@ -601,8 +601,25 @@ const char *Socket::get_event_str(const EventType event) {
 }
 
 bool Socket::set_option(int level, int optname, int optval) {
-    if (socket->set_option(level, optname, optval) < 0) {
-        swoole_sys_warning("setsockopt(%d, %d, %d, %d) failed", sock_fd, level, optname, optval);
+    return set_option(level, optname, &optval, sizeof(optval));
+}
+
+bool Socket::get_option(int level, int optname, int *optval) {
+    socklen_t optval_size = sizeof(*optval);
+    return get_option(level, optname, optval, &optval_size);
+}
+
+bool Socket::set_option(int level, int optname, const void *optval, socklen_t optlen) {
+    if (socket->set_option(level, optname, optval, optlen) < 0) {
+        swoole_sys_warning("setsockopt(%d, %d, %d, %u) failed", sock_fd, level, optname, optlen);
+        return false;
+    }
+    return true;
+}
+
+bool Socket::get_option(int level, int optname, void *optval, socklen_t *optlen) {
+    if (socket->get_option(level, optname, optval, optlen) < 0) {
+        swoole_sys_warning("getsockopt(%d, %d, %d) failed", sock_fd, level, optname);
         return false;
     }
     return true;
@@ -1189,10 +1206,10 @@ ssize_t Socket::sendmsg(const struct msghdr *msg, int flags) {
 }
 
 bool Socket::bind(const struct sockaddr *sa, socklen_t len) {
-    return ::bind(sock_fd, (struct sockaddr *) sa, len) == 0;
+    return socket->bind(sa, len) == 0;
 }
 
-bool Socket::bind(std::string address, int port) {
+bool Socket::bind(const std::string &address, int port) {
     if (sw_unlikely(!is_available(SW_EVENT_NULL))) {
         return false;
     }
@@ -1201,14 +1218,14 @@ bool Socket::bind(std::string address, int port) {
         return false;
     }
 
-    bind_address = address;
-    bind_port = port;
-    bind_address_info.type = type;
-
-    if (socket->bind(address, &bind_port) != 0) {
+    bind_address_info.assign(type, address, port, false);
+    if (socket->bind(bind_address_info) != 0) {
         set_err(errno);
         return false;
     }
+
+    bind_address = address;
+    bind_port = port;
 
     return true;
 }
@@ -1835,11 +1852,8 @@ Socket::~Socket() {
     ssl_shutdown();
 #endif
     if (sock_domain == AF_UNIX && !bind_address.empty()) {
-        ::unlink(bind_address_info.addr.un.sun_path);
+        ::unlink(bind_address.c_str());
         bind_address_info = {};
-    }
-    if (socket->socket_type == SW_SOCK_UNIX_DGRAM) {
-        ::unlink(socket->info.addr.un.sun_path);
     }
     if (dtor_ != nullptr) {
         dtor_(this);
