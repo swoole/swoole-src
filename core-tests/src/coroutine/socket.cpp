@@ -32,8 +32,6 @@ using swoole::coroutine::System;
 using swoole::network::Address;
 using swoole::network::IOVector;
 using swoole::test::coroutine;
-using swoole::test::create_http_proxy;
-using swoole::test::create_socks5_proxy;
 using swoole::test::Process;
 using swoole::test::Server;
 
@@ -1082,10 +1080,28 @@ static void proxy_test(Socket &sock, bool https) {
     socket_test_request_baidu(sock);
 }
 
+static void proxy_set_socks5_proxy(Socket &socket) {
+    std::string username, password;
+    if (swoole::test::is_github_ci()) {
+        username = std::string(TEST_SOCKS5_PROXY_USER);
+        password = std::string(TEST_SOCKS5_PROXY_PASSWORD);
+    }
+    socket.set_socks5_proxy(TEST_SOCKS5_PROXY_HOST, TEST_SOCKS5_PROXY_PORT, username, password);
+}
+
+static void proxy_set_http_proxy(Socket &socket) {
+    std::string username, password;
+    if (swoole::test::is_github_ci()) {
+        username = std::string(TEST_HTTP_PROXY_USER);
+        password = std::string(TEST_HTTP_PROXY_PASSWORD);
+    }
+    socket.set_http_proxy(TEST_HTTP_PROXY_HOST, TEST_HTTP_PROXY_PORT, username, password);
+}
+
 TEST(coroutine_socket, http_get_with_socks5_proxy) {
     coroutine::run([](void *arg) {
         Socket sock(SW_SOCK_TCP);
-        sock.socks5_proxy = create_socks5_proxy();
+        proxy_set_socks5_proxy(sock);
         proxy_test(sock, false);
     });
 }
@@ -1093,7 +1109,7 @@ TEST(coroutine_socket, http_get_with_socks5_proxy) {
 TEST(coroutine_socket, http_get_with_http_proxy) {
     coroutine::run([&](void *arg) {
         Socket sock(SW_SOCK_TCP);
-        sock.http_proxy = create_http_proxy();
+        proxy_set_http_proxy(sock);
         proxy_test(sock, false);
     });
 }
@@ -1101,7 +1117,7 @@ TEST(coroutine_socket, http_get_with_http_proxy) {
 TEST(coroutine_socket, https_get_with_socks5_proxy) {
     coroutine::run([](void *arg) {
         Socket sock(SW_SOCK_TCP);
-        sock.socks5_proxy = create_socks5_proxy();
+        proxy_set_socks5_proxy(sock);
         proxy_test(sock, true);
     });
 }
@@ -1109,7 +1125,7 @@ TEST(coroutine_socket, https_get_with_socks5_proxy) {
 TEST(coroutine_socket, https_get_with_http_proxy) {
     coroutine::run([&](void *arg) {
         Socket sock(SW_SOCK_TCP);
-        sock.http_proxy = create_http_proxy();
+        proxy_set_http_proxy(sock);
         proxy_test(sock, true);
     });
 }

@@ -39,6 +39,16 @@ static const char *method_strings[] = {
 // clang-format on
 
 namespace swoole {
+HttpProxy *HttpProxy::create(const std::string &host, int port, const std::string &user, const std::string &pwd) {
+    auto http_proxy = new HttpProxy();
+    http_proxy->proxy_host = host;
+    http_proxy->proxy_port = port;
+    if (!user.empty() && !pwd.empty()) {
+        http_proxy->username = user;
+        http_proxy->password = pwd;
+    }
+    return http_proxy;
+}
 
 std::string HttpProxy::get_auth_str() {
     char auth_buf[256];

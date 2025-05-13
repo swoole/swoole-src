@@ -55,8 +55,8 @@ class Client {
     bool open_eof_check = false;
 
     Protocol protocol = {};
-    Socks5Proxy *socks5_proxy = nullptr;
-    HttpProxy *http_proxy = nullptr;
+    std::unique_ptr<Socks5Proxy> socks5_proxy = nullptr;
+    std::unique_ptr<HttpProxy> http_proxy = nullptr;
 
     uint32_t reuse_count = 0;
 
@@ -110,12 +110,6 @@ class Client {
     static void init_reactor(Reactor *reactor);
     Client(SocketType _type, bool async);
     ~Client();
-
-    void set_http_proxy(const std::string &host, int port) {
-        http_proxy = new swoole::HttpProxy;
-        http_proxy->proxy_host = host;
-        http_proxy->proxy_port = port;
-    }
 
     Socket *get_socket() {
         return socket;

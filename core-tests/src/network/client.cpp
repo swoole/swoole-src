@@ -13,8 +13,6 @@ using swoole::String;
 using swoole::network::AsyncClient;
 using swoole::network::Client;
 using swoole::network::SyncClient;
-using swoole::test::create_http_proxy;
-using swoole::test::create_socks5_proxy;
 using swoole::test::Process;
 using swoole::test::Server;
 
@@ -531,11 +529,21 @@ static void proxy_sync_test(Client &client, bool https) {
 }
 
 static void proxy_set_socks5_proxy(Client &client) {
-    client.socks5_proxy = create_socks5_proxy();
+    std::string username, password;
+    if (swoole::test::is_github_ci()) {
+        username = std::string(TEST_SOCKS5_PROXY_USER);
+        password = std::string(TEST_SOCKS5_PROXY_PASSWORD);
+    }
+    client.set_socks5_proxy(TEST_SOCKS5_PROXY_HOST, TEST_SOCKS5_PROXY_PORT, username, password);
 }
 
 static void proxy_set_http_proxy(Client &client) {
-    client.http_proxy = create_http_proxy();
+    std::string username, password;
+    if (swoole::test::is_github_ci()) {
+        username = std::string(TEST_HTTP_PROXY_USER);
+        password = std::string(TEST_HTTP_PROXY_PASSWORD);
+    }
+    client.set_http_proxy(TEST_HTTP_PROXY_HOST, TEST_HTTP_PROXY_PORT, username, password);
 }
 
 TEST(client, https_get_async_with_http_proxy) {

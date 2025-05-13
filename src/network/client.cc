@@ -117,29 +117,11 @@ int Client::bind(const std::string &addr, int port) {
 }
 
 void Client::set_socks5_proxy(const std::string &host, int port, const std::string &user, const std::string &pwd) {
-    if (socks5_proxy == nullptr) {
-        socks5_proxy = new Socks5Proxy();
-    }
-    socks5_proxy->host = host;
-    socks5_proxy->port = port;
-    socks5_proxy->dns_tunnel = 1;
-    if (!user.empty() && !pwd.empty()) {
-        socks5_proxy->method = 0x02;
-        socks5_proxy->username = user;
-        socks5_proxy->password = pwd;
-    }
+    socks5_proxy.reset(Socks5Proxy::create(host, port, user, pwd));
 }
 
 void Client::set_http_proxy(const std::string &host, int port, const std::string &user, const std::string &pwd) {
-    if (http_proxy == nullptr) {
-        http_proxy = new HttpProxy();
-    }
-    http_proxy->proxy_host = host;
-    http_proxy->proxy_port = port;
-    if (!user.empty() && !pwd.empty()) {
-        http_proxy->username = user;
-        http_proxy->password = pwd;
-    }
+    http_proxy.reset(HttpProxy::create(host, port, user, pwd));
 }
 
 int Client::sleep() {
@@ -199,7 +181,7 @@ int Client::shutdown(int _how) {
 }
 
 int Client::socks5_handshake(const char *recv_data, size_t length) {
-    Socks5Proxy *ctx = socks5_proxy;
+    Socks5Proxy *ctx = socks5_proxy.get();
     char *buf = ctx->buf;
     uchar version, status, result, method;
 
@@ -421,12 +403,6 @@ Client::~Client() {
     }
     if (server_str) {
         ::sw_free((void *) server_str);
-    }
-    if (socks5_proxy) {
-        delete socks5_proxy;
-    }
-    if (http_proxy) {
-        delete http_proxy;
     }
     if (async) {
         socket->free();

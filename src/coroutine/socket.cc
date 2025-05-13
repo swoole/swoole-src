@@ -226,7 +226,7 @@ _failed:
 }
 
 bool Socket::socks5_handshake() {
-    Socks5Proxy *ctx = socks5_proxy;
+    Socks5Proxy *ctx = socks5_proxy.get();
     char *p;
     ssize_t n;
     uchar version, method, result;
@@ -617,6 +617,14 @@ bool Socket::get_option(int level, int optname, void *optval, socklen_t *optlen)
         return false;
     }
     return true;
+}
+
+void Socket::set_socks5_proxy(const std::string &host, int port, const std::string &user, const std::string &pwd) {
+    socks5_proxy.reset(Socks5Proxy::create(host, port, user, pwd));
+}
+
+void Socket::set_http_proxy(const std::string &host, int port, const std::string &user, const std::string &pwd) {
+    http_proxy.reset(HttpProxy::create(host, port, user, pwd));
 }
 
 bool Socket::connect(const sockaddr *addr, socklen_t addrlen) {
@@ -1779,18 +1787,8 @@ Socket::~Socket() {
         SW_ASSERT(!has_bound() && socket->removed);
     }
 #endif
-    if (read_buffer) {
-        delete read_buffer;
-    }
-    if (write_buffer) {
-        delete write_buffer;
-    }
-    if (socks5_proxy) {
-        delete socks5_proxy;
-    }
-    if (http_proxy) {
-        delete http_proxy;
-    }
+    delete read_buffer;
+    delete write_buffer;
     if (socket == nullptr) {
         return;
     }

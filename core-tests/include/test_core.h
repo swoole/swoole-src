@@ -89,9 +89,6 @@ int exec_js_script(const std::string &file, const std::string &args);
 std::string http_get_request(const std::string &domain, const std::string &path);
 int get_random_port();
 
-Socks5Proxy *create_socks5_proxy();
-HttpProxy *create_http_proxy();
-
 pid_t spawn_exec(const std::function<void(void)> &fn);
 int spawn_exec_and_wait(const std::function<void(void)> &fn);
 
