@@ -134,6 +134,7 @@ class Client {
         return &http_proxy->target_host;
     }
 
+    int bind(const std::string &addr, int port);
     int sleep();
     int wakeup();
     int shutdown(int _how);
@@ -150,6 +151,9 @@ class Client {
     bool set_ssl_key_file(const std::string &file) {
         return ssl_context->set_key_file(file);
     }
+
+    void set_socks5_proxy(const std::string &host, int port, const std::string &user = "", const std::string &pwd = "");
+    void set_http_proxy(const std::string &host, int port, const std::string &user = "", const std::string &pwd = "");
 
     bool set_ssl_cert_file(const std::string &file) {
         return ssl_context->set_cert_file(file);

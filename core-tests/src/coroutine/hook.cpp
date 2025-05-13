@@ -357,17 +357,15 @@ TEST(coroutine_hook, stdio_2) {
 
 TEST(coroutine_hook, sleep) {
     coroutine::run([&](void *arg) {
-        const int sec = 1;
         long sec_1 = swoole::time<std::chrono::seconds>();
-        swoole_coroutine_sleep(sec);
+        swoole_coroutine_sleep(2);
         long sec_2 = swoole::time<std::chrono::seconds>();
-        ASSERT_LE(sec_2 - sec_1, sec);
+        ASSERT_LE(sec_2 - sec_1, 1);
 
-        const int us = 2000;
         long us_1 = swoole::time<std::chrono::milliseconds>();
-        swoole_coroutine_usleep(us);
+        swoole_coroutine_usleep(1000);
         long us_2 = swoole::time<std::chrono::milliseconds>();
-        ASSERT_LE(us_2 - us_1, us / 1000);
+        ASSERT_LE(us_2 - us_1, 1000);
     });
 }
 

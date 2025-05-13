@@ -105,6 +105,43 @@ Client::Client(SocketType _type, bool _async) : async(_async) {
     protocol.onPackage = Client_onPackage;
 }
 
+int Client::bind(const std::string &addr, int port) {
+    if (socket->set_reuse_addr() < 0) {
+        swoole_sys_warning("setsockopt(%d, SO_REUSEADDR) failed", socket->get_fd());
+    }
+    if (socket->bind(addr, port) < 0) {
+        swoole_set_last_error(errno);
+        return SW_ERR;
+    }
+    return SW_OK;
+}
+
+void Client::set_socks5_proxy(const std::string &host, int port, const std::string &user, const std::string &pwd) {
+    if (socks5_proxy == nullptr) {
+        socks5_proxy = new Socks5Proxy();
+    }
+    socks5_proxy->host = host;
+    socks5_proxy->port = port;
+    socks5_proxy->dns_tunnel = 1;
+    if (!user.empty() && !pwd.empty()) {
+        socks5_proxy->method = 0x02;
+        socks5_proxy->username = user;
+        socks5_proxy->password = pwd;
+    }
+}
+
+void Client::set_http_proxy(const std::string &host, int port, const std::string &user, const std::string &pwd) {
+    if (http_proxy == nullptr) {
+        http_proxy = new HttpProxy();
+    }
+    http_proxy->proxy_host = host;
+    http_proxy->proxy_port = port;
+    if (!user.empty() && !pwd.empty()) {
+        http_proxy->username = user;
+        http_proxy->password = pwd;
+    }
+}
+
 int Client::sleep() {
     int ret;
     if (socket->events & SW_EVENT_WRITE) {

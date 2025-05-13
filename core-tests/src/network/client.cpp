@@ -586,7 +586,6 @@ TEST(client, http_get_sync_with_socks5_proxy) {
     proxy_sync_test(client, false);
 }
 
-
 TEST(client, ssl) {
     Client client(SW_SOCK_TCP, false);
     client.enable_ssl_encrypt();
