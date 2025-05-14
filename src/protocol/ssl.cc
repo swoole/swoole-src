@@ -49,8 +49,6 @@ std::string swoole_ssl_get_version_message() {
     return swoole::std_string::format("OPENSSL_VERSION: %s\n", OPENSSL_VERSION_TEXT);
 }
 
-static void MAYBE_UNUSED swoole_ssl_lock_callback(int mode, int type, const char *file, int line);
-
 void swoole_ssl_init(void) {
     if (openssl_init) {
         return;
@@ -123,7 +121,7 @@ void swoole_ssl_destroy() {
     openssl_init = false;
 }
 
-static void MAYBE_UNUSED swoole_ssl_lock_callback(int mode, int type, const char *file, int line) {
+void swoole_ssl_lock_callback(int mode, int type, const char *file, int line) {
     if (mode & CRYPTO_LOCK) {
         pthread_mutex_lock(&(lock_array[type]));
     } else {
@@ -148,7 +146,7 @@ static void MAYBE_UNUSED swoole_ssl_id_callback(CRYPTO_THREADID *id) {
     CRYPTO_THREADID_set_numeric(id, (ulong_t) pthread_self());
 }
 #else
-static ulong_t swoole_ssl_id_callback(void) {
+static ulong_t MAYBE_UNUSED swoole_ssl_id_callback(void) {
     return (ulong_t) pthread_self();
 }
 #endif

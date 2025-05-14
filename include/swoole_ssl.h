@@ -187,6 +187,7 @@ struct SSLContext {
 
 void swoole_ssl_init(void);
 void swoole_ssl_destroy(void);
+void swoole_ssl_lock_callback(int mode, int type, const char *file, int line);
 void swoole_ssl_server_http_advise(swoole::SSLContext &);
 const char *swoole_ssl_get_error();
 int swoole_ssl_get_ex_connection_index();
