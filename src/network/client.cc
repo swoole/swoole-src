@@ -97,6 +97,7 @@ Client::Client(SocketType _type, bool _async) : async(_async) {
     }
 
     Socket::get_domain_and_type(_type, &_sock_domain, &_sock_type);
+    remote_addr.type = _type;
 
     protocol.package_length_type = 'N';
     protocol.package_length_size = 4;
@@ -148,6 +149,39 @@ int Client::wakeup() {
         sleep_ = false;
     }
     return ret;
+}
+
+int Client::sendto(const std::string &host, int port, const char *data, size_t len) {
+    if (socket->is_dgram()) {
+        swoole_set_last_error(SW_ERROR_OPERATION_NOT_SUPPORT);
+        swoole_warning("only supports SWOOLE_SOCK_(UDP/UDP6/UNIX_DGRAM)");
+        return SW_ERR;
+    }
+
+    Address remote_addr;
+    if (!remote_addr.assign(socket->socket_type, host, port, true)) {
+        return SW_ERR;
+    }
+
+    double ori_timeout = Socket::default_write_timeout;
+    Socket::default_write_timeout = timeout;
+
+    if (socket->sendto(remote_addr, data, len, 0) < 0) {
+        swoole_set_last_error(errno);
+        return SW_ERR;
+    }
+
+    Socket::default_write_timeout = ori_timeout;
+    return SW_OK;
+}
+
+int Client::get_peer_name(Address *addr) {
+    if (socket->is_dgram()) {
+        *addr = remote_addr;
+        return SW_OK;
+    } else {
+        return socket->get_peer_name(addr);
+    }
 }
 
 int Client::shutdown(int _how) {
@@ -830,9 +864,9 @@ static ssize_t Client_udp_send(Client *cli, const char *data, size_t len, int fl
 
 static ssize_t Client_udp_recv(Client *cli, char *data, size_t length, int flags) {
     if (cli->async) {
-        return cli->socket->recvfrom_sync(data, length, flags, nullptr, nullptr);
+        return cli->socket->recvfrom_sync(data, length, flags, &cli->remote_addr);
     } else {
-        return cli->socket->recvfrom(data, length, flags, nullptr, nullptr);
+        return cli->socket->recvfrom(data, length, flags, &cli->remote_addr);
     }
 }
 

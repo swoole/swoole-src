@@ -74,9 +74,13 @@ class Client {
      */
     double interrupt_time = 0;
     /**
-     * for connect()
+     * for connect()/sendto()
      */
     Address server_addr = {};
+    /**
+     * for recvfrom()
+     */
+    Address remote_addr = {};
 
     Socket *socket;
 
@@ -131,9 +135,14 @@ class Client {
     int bind(const std::string &addr, int port);
     int sleep();
     int wakeup();
+    int sendto(const std::string &host, int port, const char *data, size_t len);
+    int get_peer_name(Address *addr);
     int shutdown(int _how);
     int close();
     int socks5_handshake(const char *recv_data, size_t length);
+    void set_socks5_proxy(const std::string &host, int port, const std::string &user = "", const std::string &pwd = "");
+    void set_http_proxy(const std::string &host, int port, const std::string &user = "", const std::string &pwd = "");
+
 #ifdef SW_USE_OPENSSL
     int enable_ssl_encrypt();
 #ifdef SW_SUPPORT_DTLS
@@ -145,9 +154,6 @@ class Client {
     bool set_ssl_key_file(const std::string &file) {
         return ssl_context->set_key_file(file);
     }
-
-    void set_socks5_proxy(const std::string &host, int port, const std::string &user = "", const std::string &pwd = "");
-    void set_http_proxy(const std::string &host, int port, const std::string &user = "", const std::string &pwd = "");
 
     bool set_ssl_cert_file(const std::string &file) {
         return ssl_context->set_cert_file(file);

@@ -524,10 +524,13 @@ bool parse_multipart_boundary(
             offset++;
             continue;
         }
-        if (SW_STR_ISTARTS_WITH(at + offset, length - offset, "boundary=")) {
+
+        if (offset + sizeof("boundary=") - 1 <= length &&
+            SW_STR_ISTARTS_WITH(at + offset, length - offset, "boundary=")) {
             offset += sizeof("boundary=") - 1;
             break;
         }
+
         void *delimiter = memchr((void *) (at + offset), ';', length - offset);
         if (delimiter == nullptr) {
             return false;
@@ -536,23 +539,30 @@ bool parse_multipart_boundary(
         }
     }
 
+    if (offset >= length) {
+        return false;
+    }
+
     int boundary_len = length - offset;
     char *boundary_str = (char *) at + offset;
     // find eof of boundary
     if (boundary_len > 0) {
         // find ';'
-        char *tmp = (char *) memchr(boundary_str, ';', boundary_len);
-        if (tmp) {
-            boundary_len = tmp - boundary_str;
+        char *semicolon = (char *) memchr(boundary_str, ';', boundary_len);
+        if (semicolon) {
+            boundary_len = semicolon - boundary_str;
         }
     }
     if (boundary_len <= 0) {
         return false;
     }
     // trim '"'
-    if (boundary_len >= 2 && boundary_str[0] == '"' && *(boundary_str + boundary_len - 1) == '"') {
+    if (boundary_len >= 2 && boundary_str[0] == '"' && boundary_str[boundary_len - 1] == '"') {
         boundary_str++;
         boundary_len -= 2;
+        if (boundary_len <= 0) {
+            return false;
+        }
     }
     *out_boundary_str = boundary_str;
     *out_boundary_len = boundary_len;

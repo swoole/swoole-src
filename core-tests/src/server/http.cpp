@@ -37,6 +37,7 @@ using namespace std;
 using http_server::Context;
 using network::Client;
 using network::SyncClient;
+using swoole::http_server::parse_multipart_boundary;
 
 SessionId session_id = 0;
 Connection *conn = nullptr;
@@ -1601,7 +1602,7 @@ TEST(http_server, get_protocol) {
     }
 }
 
-TEST(http_server, all_methods) {
+TEST(http_server, all_method) {
     static auto request = &req;
     SW_LOOP_N(SW_HTTP_PRI + 4) {
         auto str = http_server::get_method_string(i);
@@ -1609,8 +1610,122 @@ TEST(http_server, all_methods) {
             ASSERT_EQ(str, nullptr);
         } else {
             SetRequestContent(str + std::string(" / HTTP/1.1\r\nHost: example.com\r\n\r\n"));
-            ASSERT_EQ(request->get_protocol(), SW_OK);
-            EXPECT_EQ(request->method, i - 1);
+            if (i == SW_HTTP_PRI) {
+                ASSERT_EQ(request->get_protocol(), SW_ERR);
+                EXPECT_EQ(request->excepted, true);
+            } else {
+                ASSERT_EQ(request->get_protocol(), SW_OK);
+                EXPECT_EQ(request->method, i - 1);
+            }
         }
+    }
+}
+
+TEST(http_server, parse_multipart_boundary) {
+    char *boundary_str;
+    int boundary_len;
+    {
+        const char *input = "Content-Type: multipart/form-data; boundary=----WebKitFormBoundaryX";
+        size_t length = strlen(input);
+        size_t offset = 30;  // 从 "boundary=" 之前开始
+
+        ASSERT_TRUE(parse_multipart_boundary(input, length, offset, &boundary_str, &boundary_len));
+        EXPECT_EQ(std::string(boundary_str, boundary_len), "----WebKitFormBoundaryX");
+    }
+
+    // 测试带引号的 boundary
+    {
+        const char *input = "Content-Type: multipart/form-data; boundary=\"----WebKitFormBoundaryX\"";
+        size_t length = strlen(input);
+        size_t offset = 30;
+
+        ASSERT_TRUE(parse_multipart_boundary(input, length, offset, &boundary_str, &boundary_len));
+        EXPECT_EQ(std::string(boundary_str, boundary_len), "----WebKitFormBoundaryX");
+    }
+
+    // 测试带空格的格式
+    {
+        const char *input = "Content-Type: multipart/form-data; boundary = ----WebKitFormBoundaryX";
+        size_t length = strlen(input);
+        size_t offset = 30;
+
+        ASSERT_FALSE(parse_multipart_boundary(input, length, offset, &boundary_str, &boundary_len));
+        EXPECT_EQ(std::string(boundary_str, boundary_len), "----WebKitFormBoundaryX");
+    }
+
+    // 测试 boundary 后有其他参数
+    {
+        const char *input = "Content-Type: multipart/form-data; boundary=----WebKitFormBoundaryX; charset=UTF-8";
+        size_t length = strlen(input);
+        size_t offset = 30;
+
+        ASSERT_TRUE(parse_multipart_boundary(input, length, offset, &boundary_str, &boundary_len));
+        EXPECT_EQ(std::string(boundary_str, boundary_len), "----WebKitFormBoundaryX");
+    }
+
+    // 测试 boundary 前有其他参数
+    {
+        const char *input = "Content-Type: multipart/form-data; charset=UTF-8; boundary=----WebKitFormBoundaryX";
+        size_t length = strlen(input);
+        size_t offset = 30;
+
+        ASSERT_TRUE(parse_multipart_boundary(input, length, offset, &boundary_str, &boundary_len));
+        EXPECT_EQ(std::string(boundary_str, boundary_len), "----WebKitFormBoundaryX");
+    }
+
+    // 测试空 boundary
+    {
+        const char *input = "Content-Type: multipart/form-data; boundary=";
+        size_t length = strlen(input);
+        size_t offset = 30;
+
+        ASSERT_FALSE(parse_multipart_boundary(input, length, offset, &boundary_str, &boundary_len));
+    }
+
+    // 测试空引号 boundary
+    {
+        const char *input = "Content-Type: multipart/form-data; boundary=\"\"";
+        size_t length = strlen(input);
+        size_t offset = 30;
+
+        ASSERT_FALSE(parse_multipart_boundary(input, length, offset, &boundary_str, &boundary_len));
+    }
+
+    // 测试没有 boundary 参数
+    {
+        const char *input = "Content-Type: multipart/form-data; charset=UTF-8";
+        size_t length = strlen(input);
+        size_t offset = 30;
+
+        ASSERT_FALSE(parse_multipart_boundary(input, length, offset, &boundary_str, &boundary_len));
+    }
+
+    // 测试大小写不敏感
+    {
+        const char *input = "Content-Type: multipart/form-data; BOUNDARY=----WebKitFormBoundaryX";
+        size_t length = strlen(input);
+        size_t offset = 30;
+
+        ASSERT_TRUE(parse_multipart_boundary(input, length, offset, &boundary_str, &boundary_len));
+        EXPECT_EQ(std::string(boundary_str, boundary_len), "----WebKitFormBoundaryX");
+    }
+
+    // 测试 offset 为 0 的情况
+    {
+        const char *input = "boundary=----WebKitFormBoundaryX";
+        size_t length = strlen(input);
+        size_t offset = 0;
+
+        ASSERT_TRUE(parse_multipart_boundary(input, length, offset, &boundary_str, &boundary_len));
+        EXPECT_EQ(std::string(boundary_str, boundary_len), "----WebKitFormBoundaryX");
+    }
+
+    // 测试超出范围的 offset
+    {
+        const char *input = "Content-Type: multipart/form-data; boundary=----WebKitFormBoundaryX";
+        size_t length = strlen(input);
+        size_t offset = length + 1;
+
+        ASSERT_FALSE(parse_multipart_boundary(input, length, offset, &boundary_str, &boundary_len));
     }
 }

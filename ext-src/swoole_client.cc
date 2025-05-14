@@ -769,25 +769,11 @@ static PHP_METHOD(swoole_client, sendto) {
         php_swoole_client_set_cli(ZEND_THIS, cli);
     }
 
-    Address addr;
-
-    if (!addr.assign(cli->socket->socket_type, host, port, true)) {
-        zend_update_property_long(
-            swoole_client_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), swoole_get_last_error());
-        RETURN_FALSE;
+    auto rv = cli->sendto(std::string(host, host_len), port, data, len);
+    if (rv < 0) {
+        zend::object_set(ZEND_THIS, ZEND_STRL("errCode"), swoole_get_last_error());
     }
-
-    double ori_timeout = Socket::default_write_timeout;
-    Socket::default_write_timeout = cli->timeout;
-
-    ssize_t ret = -1;
-    if (cli->socket->is_dgram()) {
-        ret = cli->socket->sendto(addr, data, len, 0);
-    } else {
-        php_swoole_fatal_error(E_WARNING, "only supports SWOOLE_SOCK_(UDP/UDP6/UNIX_DGRAM)");
-    }
-    Socket::default_write_timeout = ori_timeout;
-    SW_CHECK_RETURN(ret);
+    SW_CHECK_RETURN(rv);
 }
 
 static PHP_METHOD(swoole_client, sendfile) {
@@ -1086,7 +1072,7 @@ static PHP_METHOD(swoole_client, getpeername) {
     }
 
     Address addr;
-    if (cli->socket->get_peer_name(&addr) < 0) {
+    if (cli->get_peer_name(&addr) < 0) {
         php_swoole_sys_error(E_WARNING, "getpeername() failed");
         zend::object_set(ZEND_THIS, ZEND_STRL("errCode"), errno);
         RETURN_FALSE;
