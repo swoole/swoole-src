@@ -119,6 +119,7 @@ bool HttpProxy::handshake(String *recv_buffer) {
                     state = 2;
                     p += sizeof("200") - 1;
                 } else {
+                    swoole_set_last_error(SW_ERROR_HTTP_PROXY_HANDSHAKE_FAILED);
                     break;
                 }
             }

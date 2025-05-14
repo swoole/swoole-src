@@ -381,7 +381,6 @@ bool php_swoole_client_check_setting(Client *cli, zval *zset) {
         bind_address = zend::String(ztmp).to_std_string();
     }
     if (!bind_address.empty() && cli->bind(bind_address, bind_port) < 0) {
-        php_swoole_fatal_error(E_ERROR, "bind address or port error in set method");
         return false;
     }
     /**
@@ -393,8 +392,10 @@ bool php_swoole_client_check_setting(Client *cli, zval *zset) {
         }
     } else {
     _open_tcp_nodelay:
+        // The failure to set tcp_nodelay does not affect the normal operation of the client;
+        // therefore, only an error log is printed without returning false.
         if (cli->socket->is_tcp() && !cli->socket->set_tcp_nodelay()) {
-            swoole_sys_warning("setsockopt(%d, TCP_NODELAY) failed", cli->socket->fd);
+            php_swoole_sys_error(E_WARNING, "setsockopt(%d, TCP_NODELAY) failed", cli->socket->fd);
         }
     }
     /**
@@ -403,6 +404,7 @@ bool php_swoole_client_check_setting(Client *cli, zval *zset) {
     if (php_swoole_array_get_value(vht, "socks5_host", ztmp)) {
         zend::String host(ztmp);
         if (php_swoole_array_get_value(vht, "socks5_port", ztmp)) {
+            auto socks5_port = zval_get_long(ztmp);
             std::string username, password;
             if (php_swoole_array_get_value(vht, "socks5_username", ztmp)) {
                 zend::String _value(ztmp);
@@ -412,9 +414,9 @@ bool php_swoole_client_check_setting(Client *cli, zval *zset) {
                 zend::String _value(ztmp);
                 password = _value.to_std_string();
             }
-            cli->set_socks5_proxy(host.to_std_string(), zval_get_long(ztmp), username, password);
+            cli->set_socks5_proxy(host.to_std_string(), socks5_port, username, password);
         } else {
-            php_swoole_fatal_error(E_ERROR, "socks5_port should not be null");
+            php_swoole_fatal_error(E_WARNING, "socks5_port should not be null");
             return false;
         }
     }
@@ -425,6 +427,7 @@ bool php_swoole_client_check_setting(Client *cli, zval *zset) {
         zend::String host(ztmp);
         if (php_swoole_array_get_value(vht, "http_proxy_port", ztmp)) {
             std::string username, password;
+            auto http_proxy_port = zval_get_long(ztmp);
             if (php_swoole_array_get_value(vht, "http_proxy_username", ztmp) ||
                 php_swoole_array_get_value(vht, "http_proxy_user", ztmp)) {
                 zend::String _value(ztmp);
@@ -434,9 +437,9 @@ bool php_swoole_client_check_setting(Client *cli, zval *zset) {
                 zend::String _value(ztmp);
                 password = _value.to_std_string();
             }
-            cli->set_http_proxy(host.to_std_string(), zval_get_long(ztmp), username, password);
+            cli->set_http_proxy(host.to_std_string(), http_proxy_port, username, password);
         } else {
-            php_swoole_fatal_error(E_ERROR, "http_proxy_port should not be null");
+            php_swoole_fatal_error(E_WARNING, "http_proxy_port should not be null");
             return false;
         }
     }
