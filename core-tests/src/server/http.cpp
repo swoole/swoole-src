@@ -1494,6 +1494,11 @@ static void SetRequestContent(const std::string &str) {
     req.buffer_ = new String(str);
 };
 
+static void SetRequestContent(String *str) {
+    delete req.buffer_;
+    req.buffer_ = str;
+};
+
 TEST(http_server, get_protocol) {
     static auto request = &req;
     // 测试有效的 GET 请求
@@ -1505,6 +1510,24 @@ TEST(http_server, get_protocol) {
 
         std::string url(request->buffer_->str + request->url_offset_, request->url_length_);
         EXPECT_EQ(url, "/index.html");
+    }
+
+    // 超长 URL
+    {
+        auto s = new String();
+        s->append("GET /home/explore/?a=");
+        s->append_random_bytes(swoole_rand(1024, 2048), 1);
+        s->append(" HTTP/1.1\r\n");
+        s->append("Host: 127.0.0.1\r\n");
+        s->append("Connection: keep-alive\r\n");
+        s->append("Cache-Control: max-age=0\r\n\r\n");
+        SetRequestContent(s);
+        ASSERT_EQ(request->get_protocol(), SW_OK);
+        EXPECT_EQ(request->method, SW_HTTP_GET);
+        EXPECT_EQ(request->version, SW_HTTP_VERSION_11);
+
+        std::string url(request->buffer_->str + request->url_offset_, request->url_length_);
+        EXPECT_EQ(url.substr(0, url.find('?')), "/home/explore/");
     }
 
     // 测试有效的 POST 请求

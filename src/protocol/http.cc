@@ -649,7 +649,7 @@ int Request::get_protocol() {
     char state = 0;
 
     if (buffer_->length < (sizeof("GET / HTTP/1.x\r\n") - 1)) {
-        goto _excepted;
+        return SW_ERR;
     }
 
     // HTTP Method
@@ -657,7 +657,7 @@ int Request::get_protocol() {
         auto method_str = method_strings[i];
         auto n = strlen(method_str);
         if (memcmp(p, method_str, n) == 0) {
-            method = i;
+            method = i + 1;
             p += n;
             goto _found_method;
         }
@@ -672,15 +672,13 @@ int Request::get_protocol() {
             goto _excepted;
         }
     } else {
-        goto _excepted;
-    }
-
-_found_method:
-    if (p >= pe || !isspace(*p)) {
-        goto _excepted;
+    _excepted:
+        excepted = 1;
+        return SW_ERR;
     }
 
     // HTTP Version
+_found_method:
     for (; p < pe; p++) {
         switch (state) {
         case 0:
@@ -694,9 +692,6 @@ _found_method:
             if (isspace(*p)) {
                 state = 2;
                 url_length_ = p - buffer_->str - url_offset_;
-                if (url_length_ == 0) {
-                    goto _excepted;
-                }
                 continue;
             }
             break;
@@ -705,7 +700,7 @@ _found_method:
                 continue;
             }
             if ((size_t) (pe - p) < (sizeof("HTTP/1.x") - 1)) {
-                goto _excepted;
+                return SW_ERR;
             }
             if (memcmp(p, SW_STRL("HTTP/1.1")) == 0) {
                 version = SW_HTTP_VERSION_11;
@@ -716,24 +711,14 @@ _found_method:
             } else {
                 goto _excepted;
             }
+        default:
+            break;
         }
     }
-
-    goto _excepted;
-
 _end:
     p += sizeof("HTTP/1.x") - 1;
     request_line_length_ = buffer_->offset = p - buffer_->str;
     return SW_OK;
-
-_excepted:
-    excepted = 1;
-    method = 0;
-    version = 0;
-    url_offset_ = 0;
-    url_length_ = 0;
-    request_line_length_ = 0;
-    return SW_ERR;
 }
 
 /**
