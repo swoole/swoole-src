@@ -461,6 +461,7 @@ enum swSocketType {
     SW_SOCK_UNIX_STREAM = 5,  // unix sock stream
     SW_SOCK_UNIX_DGRAM = 6,   // unix sock dgram
     SW_SOCK_RAW = 7,
+    SW_SOCK_RAW6 = 8,
 };
 
 enum swEventType {

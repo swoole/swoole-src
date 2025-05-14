@@ -577,6 +577,8 @@ TEST(socket, convert_to_type) {
     ASSERT_EQ(network::Socket::convert_to_type(AF_INET6, SOCK_DGRAM), SW_SOCK_UDP6);
     ASSERT_EQ(network::Socket::convert_to_type(AF_LOCAL, SOCK_STREAM), SW_SOCK_UNIX_STREAM);
     ASSERT_EQ(network::Socket::convert_to_type(AF_LOCAL, SOCK_DGRAM), SW_SOCK_UNIX_DGRAM);
+    ASSERT_EQ(network::Socket::convert_to_type(AF_INET, SOCK_RAW), SW_SOCK_RAW);
+    ASSERT_EQ(network::Socket::convert_to_type(AF_INET6, SOCK_RAW), SW_SOCK_RAW6);
 
     std::string s1("unix:///tmp/swoole.sock");
     ASSERT_EQ(network::Socket::convert_to_type(s1), SW_SOCK_UNIX_STREAM);

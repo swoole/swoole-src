@@ -996,6 +996,10 @@ SocketType Socket::convert_to_type(int domain, int type) {
         return SW_SOCK_UDP6;
     } else if (domain == AF_UNIX && type == SOCK_DGRAM) {
         return SW_SOCK_UNIX_DGRAM;
+    } else if (domain == AF_INET && type == SOCK_RAW) {
+        return SW_SOCK_RAW;
+    } else if (domain == AF_INET6 && type == SOCK_RAW) {
+        return SW_SOCK_RAW6;
     } else {
         return SW_SOCK_RAW;
     }

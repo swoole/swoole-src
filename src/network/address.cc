@@ -73,7 +73,7 @@ bool Address::assign(SocketType _type, const std::string &_host, int _port, bool
         return false;
     }
 
-    if (_type == SW_SOCK_TCP || _type == SW_SOCK_UDP) {
+    if (Socket::is_inet4(_type)) {
         addr.inet_v4.sin_family = AF_INET;
         addr.inet_v4.sin_port = htons(_port);
         len = sizeof(addr.inet_v4);
@@ -88,7 +88,7 @@ bool Address::assign(SocketType _type, const std::string &_host, int _port, bool
                 return false;
             }
         }
-    } else if (_type == SW_SOCK_TCP6 || _type == SW_SOCK_UDP6) {
+    } else if (Socket::is_inet6(_type)) {
         addr.inet_v6.sin6_family = AF_INET6;
         addr.inet_v6.sin6_port = htons(_port);
         len = sizeof(addr.inet_v6);
@@ -102,7 +102,7 @@ bool Address::assign(SocketType _type, const std::string &_host, int _port, bool
                 return false;
             }
         }
-    } else if (_type == SW_SOCK_UNIX_STREAM || _type == SW_SOCK_UNIX_DGRAM) {
+    } else if (Socket::is_local(_type)) {
         if (_host.length() >= sizeof(addr.un.sun_path) - 1) {
             swoole_set_last_error(SW_ERROR_NAME_TOO_LONG);
             return false;

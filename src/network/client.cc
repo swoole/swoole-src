@@ -152,7 +152,7 @@ int Client::wakeup() {
 }
 
 int Client::sendto(const std::string &host, int port, const char *data, size_t len) {
-    if (socket->is_dgram()) {
+    if (!socket->is_dgram()) {
         swoole_set_last_error(SW_ERROR_OPERATION_NOT_SUPPORT);
         swoole_warning("only supports SWOOLE_SOCK_(UDP/UDP6/UNIX_DGRAM)");
         return SW_ERR;

@@ -408,36 +408,60 @@ struct Socket {
     int wait_event(int timeout_ms, int events);
     void free();
 
-    static inline int is_dgram(SocketType type) {
-        return (type == SW_SOCK_UDP || type == SW_SOCK_UDP6 || type == SW_SOCK_UNIX_DGRAM);
+    static inline bool is_dgram(SocketType type) {
+        return type == SW_SOCK_UDP || type == SW_SOCK_UDP6 || type == SW_SOCK_UNIX_DGRAM;
     }
 
-    static inline int is_stream(SocketType type) {
-        return (type == SW_SOCK_TCP || type == SW_SOCK_TCP6 || type == SW_SOCK_UNIX_STREAM);
+    static inline bool is_stream(SocketType type) {
+        return type == SW_SOCK_TCP || type == SW_SOCK_TCP6 || type == SW_SOCK_UNIX_STREAM;
+    }
+
+    static inline bool is_inet4(SocketType type) {
+        return type == SW_SOCK_TCP || type == SW_SOCK_UDP || type == SW_SOCK_RAW;
+    }
+
+    static inline bool is_inet6(SocketType type) {
+        return type == SW_SOCK_TCP6 || type == SW_SOCK_UDP6 || type == SW_SOCK_RAW6;
+    }
+
+    static inline bool is_tcp(SocketType type) {
+        return type == SW_SOCK_TCP || type == SW_SOCK_TCP6;
+    }
+
+    static inline bool is_udp(SocketType type) {
+        return type == SW_SOCK_UDP || type == SW_SOCK_UDP6;
+    }
+
+    static inline bool is_local(SocketType type) {
+        return type == SW_SOCK_UNIX_STREAM || type == SW_SOCK_UNIX_DGRAM;
+    }
+
+    static inline bool is_raw(SocketType type) {
+        return type == SW_SOCK_RAW || type == SW_SOCK_RAW6;
     }
 
     bool is_stream() {
-        return socket_type == SW_SOCK_TCP || socket_type == SW_SOCK_TCP6 || socket_type == SW_SOCK_UNIX_STREAM;
+        return is_stream(socket_type);
     }
 
     bool is_tcp() {
-        return socket_type == SW_SOCK_TCP || socket_type == SW_SOCK_TCP6;
+        return is_tcp(socket_type);
     }
 
     bool is_udp() {
-        return socket_type == SW_SOCK_UDP || socket_type == SW_SOCK_UDP6;
+        return is_udp(socket_type);
     }
 
     bool is_dgram() {
-        return socket_type == SW_SOCK_UDP || socket_type == SW_SOCK_UDP6 || socket_type == SW_SOCK_UNIX_DGRAM;
+        return is_dgram(socket_type);
     }
 
     bool is_inet4() {
-        return socket_type == SW_SOCK_TCP || socket_type == SW_SOCK_UDP;
+        return is_inet4(socket_type);
     }
 
     bool is_inet6() {
-        return socket_type == SW_SOCK_TCP6 || socket_type == SW_SOCK_UDP6;
+        return is_inet6(socket_type);
     }
 
     bool is_inet() {
@@ -445,7 +469,11 @@ struct Socket {
     }
 
     bool is_local() {
-        return socket_type == SW_SOCK_UNIX_STREAM || socket_type == SW_SOCK_UNIX_DGRAM;
+        return is_local(socket_type);
+    }
+
+    bool is_raw() {
+        return is_raw(socket_type);
     }
 
     ssize_t write(const void *__buf, size_t __len) {
