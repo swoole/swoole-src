@@ -86,6 +86,17 @@ TEST(protocol, eof) {
     t1.join();
 }
 
+TEST(protocol, socks5_strerror) {
+    SW_LOOP_N(16) {
+        auto error = Socks5Proxy::strerror(i);
+        if (i > 0x08) {
+            ASSERT_STREQ("Unknown error", error);
+        } else {
+            ASSERT_GT(strlen(error), 5);
+        }
+    }
+}
+
 TEST(protocol, swap_byte_order) {
     {
         EXPECT_EQ(swoole_swap_endian16(0x1234), 0x3412);

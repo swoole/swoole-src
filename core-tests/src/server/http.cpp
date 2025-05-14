@@ -1467,3 +1467,16 @@ TEST(http_server, has_expect_header) {
                         "Expect: 100-continue\r\n\r\n");
     ASSERT_TRUE(req.has_expect_header());
 }
+
+TEST(http_server, get_status_message) {
+    size_t n = swoole::http_server::status_code_list.size();
+    SW_LOOP_N(n) {
+        auto error = swoole::http_server::get_status_message(i);
+        auto str = String(error);
+        ASSERT_TRUE(str.starts_with(std::to_string(i) + " "));
+    }
+
+    auto error = swoole::http_server::get_status_message(999);
+    auto str = String(error);
+    ASSERT_TRUE(str.equals(std::to_string(999) + " Unknown Status"));
+}

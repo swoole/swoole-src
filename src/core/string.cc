@@ -51,7 +51,7 @@ void String::move(String &&src) {
     src.offset = 0;
 }
 
-String &String::operator=(const String &src) {
+String &String::operator=(const String &src) noexcept {
     if (&src == this) {
         return *this;
     }
@@ -69,7 +69,7 @@ void String::copy(const String &src) {
     offset = src.offset;
 }
 
-String &String::operator=(String &&src) {
+String &String::operator=(String &&src) noexcept {
     if (&src == this) {
         return *this;
     }

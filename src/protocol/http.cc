@@ -327,12 +327,32 @@ static const multipart_parser_settings mt_parser_settings = {
     multipart_on_body_end,
 };
 
+static thread_local char http_status_message[128];
+
+// clang-format off
+std::initializer_list<int> status_code_list = {
+    100, 101, 102, 103,
+    200, 201, 202, 203, 204, 205, 206, 207, 208, 226,
+    300, 301, 302, 303, 304, 305, 306, 307, 308,
+    400, 401, 402, 403, 404, 405, 406, 407, 408, 409,
+    410, 411, 412, 413, 414, 415, 416, 417, 418, 421,
+    422, 423, 424, 425, 426, 428, 429, 431, 451,
+    500, 501, 502, 503, 504, 505, 506, 507, 508, 510, 511,
+};
+// clang-format on
+
 const char *get_status_message(int code) {
     switch (code) {
     case 100:
         return "100 Continue";
     case 101:
         return "101 Switching Protocols";
+    case 102:
+        return "102 Processing";
+    case 103:
+        return "103 Early Hints";
+    case 200:
+        return "200 OK";
     case 201:
         return "201 Created";
     case 202:
@@ -363,8 +383,12 @@ const char *get_status_message(int code) {
         return "304 Not Modified";
     case 305:
         return "305 Use Proxy";
+    case 306:
+        return "306 (Unused)";
     case 307:
         return "307 Temporary Redirect";
+    case 308:
+        return "308 Permanent Redirect";
     case 400:
         return "400 Bad Request";
     case 401:
@@ -392,13 +416,13 @@ const char *get_status_message(int code) {
     case 412:
         return "412 Precondition Failed";
     case 413:
-        return "413 Request Entity Too Large";
+        return "413 Payload Too Large";
     case 414:
-        return "414 Request URI Too Long";
+        return "414 URI Too Long";
     case 415:
         return "415 Unsupported Media Type";
     case 416:
-        return "416 Requested Range Not Satisfiable";
+        return "416 Range Not Satisfiable";
     case 417:
         return "417 Expectation Failed";
     case 418:
@@ -411,6 +435,8 @@ const char *get_status_message(int code) {
         return "423 Locked";
     case 424:
         return "424 Failed Dependency";
+    case 425:
+        return "425 Too Early";
     case 426:
         return "426 Upgrade Required";
     case 428:
@@ -424,7 +450,7 @@ const char *get_status_message(int code) {
     case 500:
         return "500 Internal Server Error";
     case 501:
-        return "501 Method Not Implemented";
+        return "501 Not Implemented";
     case 502:
         return "502 Bad Gateway";
     case 503:
@@ -443,9 +469,9 @@ const char *get_status_message(int code) {
         return "510 Not Extended";
     case 511:
         return "511 Network Authentication Required";
-    case 200:
     default:
-        return "200 OK";
+        sw_snprintf(http_status_message, sizeof(http_status_message), "%d Unknown Status", code);
+        return http_status_message;
     }
 }
 
