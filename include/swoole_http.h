@@ -180,7 +180,7 @@ typedef std::function<bool(char *key, size_t key_len, char *value, size_t value_
 int get_method(const char *method_str, size_t method_len);
 const char *get_method_string(int method);
 const char *get_status_message(int code);
-extern std::initializer_list<int> status_code_list;
+extern int list_of_status_code[128];
 /**
  * This function will directly modify the data in the input buffer.
  */

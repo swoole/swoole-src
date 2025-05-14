@@ -330,7 +330,7 @@ static const multipart_parser_settings mt_parser_settings = {
 static thread_local char http_status_message[128];
 
 // clang-format off
-std::initializer_list<int> status_code_list = {
+int list_of_status_code[128] = {
     100, 101, 102, 103,
     200, 201, 202, 203, 204, 205, 206, 207, 208, 226,
     300, 301, 302, 303, 304, 305, 306, 307, 308,
@@ -338,6 +338,7 @@ std::initializer_list<int> status_code_list = {
     410, 411, 412, 413, 414, 415, 416, 417, 418, 421,
     422, 423, 424, 425, 426, 428, 429, 431, 451,
     500, 501, 502, 503, 504, 505, 506, 507, 508, 510, 511,
+    -1,
 };
 // clang-format on
 
@@ -630,69 +631,27 @@ char *url_encode(char const *str, size_t len) {
     return ret;
 }
 
-/**
- * only GET/POST
- */
 int Request::get_protocol() {
     char *p = buffer_->str;
     char *pe = p + buffer_->length;
+    char state = 0;
 
     if (buffer_->length < (sizeof("GET / HTTP/1.x\r\n") - 1)) {
-        return SW_ERR;
+        goto _excepted;
     }
 
-    // http method
-    if (memcmp(p, SW_STRL("GET")) == 0) {
-        method = SW_HTTP_GET;
-        p += 3;
-    } else if (memcmp(p, SW_STRL("POST")) == 0) {
-        method = SW_HTTP_POST;
-        p += 4;
-    } else if (memcmp(p, SW_STRL("PUT")) == 0) {
-        method = SW_HTTP_PUT;
-        p += 3;
-    } else if (memcmp(p, SW_STRL("PATCH")) == 0) {
-        method = SW_HTTP_PATCH;
-        p += 5;
-    } else if (memcmp(p, SW_STRL("DELETE")) == 0) {
-        method = SW_HTTP_DELETE;
-        p += 6;
-    } else if (memcmp(p, SW_STRL("HEAD")) == 0) {
-        method = SW_HTTP_HEAD;
-        p += 4;
-    } else if (memcmp(p, SW_STRL("OPTIONS")) == 0) {
-        method = SW_HTTP_OPTIONS;
-        p += 7;
-    } else if (memcmp(p, SW_STRL("COPY")) == 0) {
-        method = SW_HTTP_COPY;
-        p += 4;
-    } else if (memcmp(p, SW_STRL("LOCK")) == 0) {
-        method = SW_HTTP_LOCK;
-        p += 4;
-    } else if (memcmp(p, SW_STRL("MKCOL")) == 0) {
-        method = SW_HTTP_MKCOL;
-        p += 5;
-    } else if (memcmp(p, SW_STRL("MOVE")) == 0) {
-        method = SW_HTTP_MOVE;
-        p += 4;
-    } else if (memcmp(p, SW_STRL("PROPFIND")) == 0) {
-        method = SW_HTTP_PROPFIND;
-        p += 8;
-    } else if (memcmp(p, SW_STRL("PROPPATCH")) == 0) {
-        method = SW_HTTP_PROPPATCH;
-        p += 9;
-    } else if (memcmp(p, SW_STRL("UNLOCK")) == 0) {
-        method = SW_HTTP_UNLOCK;
-        p += 6;
-    } else if (memcmp(p, SW_STRL("REPORT")) == 0) {
-        method = SW_HTTP_REPORT;
-        p += 6;
-    } else if (memcmp(p, SW_STRL("PURGE")) == 0) {
-        method = SW_HTTP_PURGE;
-        p += 5;
+    // HTTP Method
+    SW_LOOP_N(sizeof(method_strings) / sizeof(char *)) {
+        auto method_str = method_strings[i];
+        auto n = strlen(method_str);
+        if (memcmp(p, method_str, n) == 0) {
+            method = i;
+            p += n;
+            goto _found_method;
+        }
     }
     // HTTP2 Connection Preface
-    else if (memcmp(p, SW_STRL("PRI")) == 0) {
+    if (memcmp(p, SW_STRL("PRI")) == 0) {
         method = SW_HTTP_PRI;
         if (buffer_->length >= (sizeof(SW_HTTP2_PRI_STRING) - 1) && memcmp(p, SW_STRL(SW_HTTP2_PRI_STRING)) == 0) {
             buffer_->offset = sizeof(SW_HTTP2_PRI_STRING) - 1;
@@ -701,13 +660,15 @@ int Request::get_protocol() {
             goto _excepted;
         }
     } else {
-    _excepted:
-        excepted = 1;
-        return SW_ERR;
+        goto _excepted;
     }
 
-    // http version
-    char state = 0;
+_found_method:
+    if (p >= pe || !isspace(*p)) {
+        goto _excepted;
+    }
+
+    // HTTP Version
     for (; p < pe; p++) {
         switch (state) {
         case 0:
@@ -721,6 +682,9 @@ int Request::get_protocol() {
             if (isspace(*p)) {
                 state = 2;
                 url_length_ = p - buffer_->str - url_offset_;
+                if (url_length_ == 0) {
+                    goto _excepted;
+                }
                 continue;
             }
             break;
@@ -729,7 +693,7 @@ int Request::get_protocol() {
                 continue;
             }
             if ((size_t) (pe - p) < (sizeof("HTTP/1.x") - 1)) {
-                return SW_ERR;
+                goto _excepted;
             }
             if (memcmp(p, SW_STRL("HTTP/1.1")) == 0) {
                 version = SW_HTTP_VERSION_11;
@@ -740,14 +704,24 @@ int Request::get_protocol() {
             } else {
                 goto _excepted;
             }
-        default:
-            break;
         }
     }
+
+    goto _excepted;
+
 _end:
     p += sizeof("HTTP/1.x") - 1;
     request_line_length_ = buffer_->offset = p - buffer_->str;
     return SW_OK;
+
+_excepted:
+    excepted = 1;
+    method = 0;
+    version = 0;
+    url_offset_ = 0;
+    url_length_ = 0;
+    request_line_length_ = 0;
+    return SW_ERR;
 }
 
 /**

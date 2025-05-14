@@ -24,6 +24,7 @@
 #include "swoole_server.h"
 #include "swoole_file.h"
 #include "swoole_http.h"
+#include "swoole_http2.h"
 #include "swoole_util.h"
 
 #include <openssl/sha.h>
@@ -1469,14 +1470,147 @@ TEST(http_server, has_expect_header) {
 }
 
 TEST(http_server, get_status_message) {
-    size_t n = swoole::http_server::status_code_list.size();
+    size_t n = sizeof(http_server::list_of_status_code) / sizeof(int);
     SW_LOOP_N(n) {
-        auto error = swoole::http_server::get_status_message(i);
+        auto code = http_server::list_of_status_code[i];
+        if (code == -1) {
+            break;
+        }
+        auto error = http_server::get_status_message(code);
         auto str = String(error);
-        ASSERT_TRUE(str.starts_with(std::to_string(i) + " "));
+        ASSERT_TRUE(str.starts_with(std::to_string(code) + " "));
     }
 
     auto error = swoole::http_server::get_status_message(999);
     auto str = String(error);
     ASSERT_TRUE(str.equals(std::to_string(999) + " Unknown Status"));
+}
+
+static swoole::http_server::Request req;
+
+static void SetRequestContent(const std::string &str) {
+    delete req.buffer_;
+    req.buffer_ = new String(str);
+};
+
+TEST(http_server, get_protocol) {
+    static auto request = &req;
+    // 测试有效的 GET 请求
+    {
+        SetRequestContent("GET /index.html HTTP/1.1\r\nHost: example.com\r\n\r\n");
+        ASSERT_EQ(request->get_protocol(), SW_OK);
+        EXPECT_EQ(request->method, SW_HTTP_GET);
+        EXPECT_EQ(request->version, SW_HTTP_VERSION_11);
+
+        std::string url(request->buffer_->str + request->url_offset_, request->url_length_);
+        EXPECT_EQ(url, "/index.html");
+    }
+
+    // 测试有效的 POST 请求
+    {
+        SetRequestContent("POST /submit HTTP/1.0\r\nContent-Type: application/json\r\n\r\n{\"key\":\"value\"}");
+
+        ASSERT_EQ(request->get_protocol(), SW_OK);
+        EXPECT_EQ(request->method, SW_HTTP_POST);
+        EXPECT_EQ(request->version, SW_HTTP_VERSION_10);
+
+        std::string url(request->buffer_->str + request->url_offset_, request->url_length_);
+        EXPECT_EQ(url, "/submit");
+    }
+    // 测试 PUT 方法
+    {
+        SetRequestContent("PUT /resource HTTP/1.1\r\nContent-Type: text/plain\r\n\r\nNew content");
+
+        ASSERT_EQ(request->get_protocol(), SW_OK);
+        EXPECT_EQ(request->method, SW_HTTP_PUT);
+        EXPECT_EQ(request->version, SW_HTTP_VERSION_11);
+
+        std::string url(request->buffer_->str + request->url_offset_, request->url_length_);
+        EXPECT_EQ(url, "/resource");
+    }
+
+    // 测试 HTTP2 前言
+    {
+        SetRequestContent(SW_HTTP2_PRI_STRING);
+
+        ASSERT_EQ(request->get_protocol(), SW_OK);
+        EXPECT_EQ(request->method, SW_HTTP_PRI);
+    }
+
+    // 测试无效的请求 - 太短
+    {
+        SetRequestContent("GET /");
+
+        ASSERT_EQ(request->get_protocol(), SW_ERR);
+        EXPECT_EQ(request->excepted, 1);
+    }
+
+    // 测试无效的请求 - 未知方法
+    {
+        SetRequestContent("UNKNOWN /path HTTP/1.1\r\n");
+
+        ASSERT_EQ(request->get_protocol(), SW_ERR);
+        EXPECT_EQ(request->excepted, 1);
+    }
+
+    // 测试无效的请求 - 缺少 URL
+    {
+        SetRequestContent("GET  HTTP/1.1\r\n");
+
+        ASSERT_EQ(request->get_protocol(), SW_ERR);
+        EXPECT_EQ(request->excepted, 1);
+    }
+
+    // 测试无效的请求 - 无效的 HTTP 版本
+    {
+        SetRequestContent("GET /index.html HTTP/2.0\r\n");
+
+        ASSERT_EQ(request->get_protocol(), SW_ERR);
+        EXPECT_EQ(request->excepted, 1);
+    }
+
+    // 测试无效的请求 - 缺少 HTTP 版本
+    {
+        SetRequestContent("GET /index.html\r\n");
+
+        ASSERT_EQ(request->get_protocol(), SW_ERR);
+        EXPECT_EQ(request->excepted, 1);
+    }
+
+    // 测试复杂 URL
+    {
+        SetRequestContent("GET /search?q=test&page=1#results HTTP/1.1\r\n");
+
+        ASSERT_EQ(request->get_protocol(), SW_OK);
+        EXPECT_EQ(request->method, SW_HTTP_GET);
+
+        std::string url(request->buffer_->str + request->url_offset_, request->url_length_);
+        EXPECT_EQ(url, "/search?q=test&page=1#results");
+    }
+
+    // 测试多余空格
+    {
+        SetRequestContent("GET    /index.html    HTTP/1.1\r\n");
+
+        ASSERT_EQ(request->get_protocol(), SW_OK);
+        EXPECT_EQ(request->method, SW_HTTP_GET);
+        EXPECT_EQ(request->version, SW_HTTP_VERSION_11);
+
+        std::string url(request->buffer_->str + request->url_offset_, request->url_length_);
+        EXPECT_EQ(url, "/index.html");
+    }
+}
+
+TEST(http_server, all_methods) {
+    static auto request = &req;
+    SW_LOOP_N(SW_HTTP_PRI + 4) {
+        auto str = http_server::get_method_string(i);
+        if (i == 0 || i > SW_HTTP_PRI) {
+            ASSERT_EQ(str, nullptr);
+        } else {
+            SetRequestContent(str + std::string(" / HTTP/1.1\r\nHost: example.com\r\n\r\n"));
+            ASSERT_EQ(request->get_protocol(), SW_OK);
+            EXPECT_EQ(request->method, i - 1);
+        }
+    }
 }
