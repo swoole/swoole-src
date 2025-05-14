@@ -2152,3 +2152,69 @@ TEST(server, close_7) {
 TEST(server, close_8) {
     test_close(Server::MODE_PROCESS, true, true);
 }
+
+TEST(server, eof_check) {
+    Server serv(Server::MODE_BASE);
+    serv.worker_num = 1;
+
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_TRUE(port);
+    port->set_eof_protocol("\r\n", true);
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    std::unordered_map<std::string, bool> flags;
+    AsyncClient ac(SW_SOCK_TCP);
+
+    int count = 0;
+
+    serv.onWorkerStart = [&count, &flags, port, &ac](Server *serv, Worker *worker) {
+        ac.on_connect([&](AsyncClient *ac) { flags["on_connect"] = true; });
+
+        ac.on_close([serv, &flags](AsyncClient *ac) {
+            flags["on_close"] = true;
+            serv->shutdown();
+        });
+
+        ac.on_error([&](AsyncClient *ac) { flags["on_error"] = true; });
+
+        ac.on_receive([&](AsyncClient *ac, const char *data, size_t len) {
+            flags["on_receive"] = true;
+            ASSERT_MEMEQ(data, "OK", len);
+            count++;
+
+            if (count == 1) {
+                ac->send("hello world\r\n");
+            } else if (count == 2) {
+                ac->send("hello world\r\nhello world\r\n");
+            } else if (count == 3) {
+                ac->send("hello world\r\nhello world\r\nhello world\r\n");
+            } else if (count == 4) {
+                ac->close();
+            }
+        });
+
+        bool retval = ac.connect(TEST_HOST, port->get_port());
+        EXPECT_TRUE(retval);
+        flags["connected"] = true;
+    };
+
+    int recv_count = 0;
+
+    serv.onReceive = [&](Server *serv, RecvData *req) -> int {
+        serv->send(req->info.fd, "OK", 2);
+        recv_count++;
+        return SW_OK;
+    };
+
+    serv.onConnect = [&](Server *serv, DataHead *ev) { serv->send(ev->fd, "OK", 2); };
+
+    serv.start();
+
+    ASSERT_TRUE(flags["connected"]);
+    ASSERT_TRUE(flags["on_connect"]);
+    ASSERT_FALSE(flags["on_error"]);
+    ASSERT_TRUE(flags["on_receive"]);
+    ASSERT_TRUE(flags["on_close"]);
+    ASSERT_TRUE(flags["on_close"]);
+    ASSERT_EQ(recv_count, 3);
+}

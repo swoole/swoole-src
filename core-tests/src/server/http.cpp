@@ -1752,3 +1752,60 @@ TEST(http_server, parse_multipart_boundary) {
         ASSERT_FALSE(parse_multipart_boundary(input, length, offset, &boundary_str, &boundary_len));
     }
 }
+
+TEST(http_server, get_package_length) {
+    network::Socket fake_sock;
+    PacketLength pl;
+    Connection conn;
+
+    Server serv(Server::MODE_BASE);
+    serv.worker_num = 1;
+
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_NE(port, nullptr);
+    port->open_http_protocol = true;
+    port->open_http2_protocol = true;
+    port->open_websocket_protocol = true;
+    port->init_protocol();
+
+    fake_sock.fd = port->get_fd();
+    fake_sock.object = &conn;
+    fake_sock.socket_type = port->type;
+    fake_sock.get_name();
+
+    conn.info = fake_sock.info;
+    conn.session_id = 2025;
+
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    // websocket
+    sw_tg_buffer()->clear();
+    conn.websocket_status = websocket::STATUS_HANDSHAKE;
+    ASSERT_TRUE(websocket::encode(sw_tg_buffer(), SW_STRL(TEST_STR), websocket::OPCODE_TEXT, websocket::FLAG_FIN));
+    pl.buf = sw_tg_buffer()->str;
+    pl.buf_size = sw_tg_buffer()->length;
+    ASSERT_EQ(http_server::get_package_length(&port->protocol, &fake_sock, &pl),
+              SW_WEBSOCKET_HEADER_LEN + strlen(TEST_STR));
+
+    // http2
+    sw_tg_buffer()->clear();
+    conn.http2_stream = 1;
+    conn.websocket_status = 0;
+    http2::Settings settings_1{};
+    http2::init_settings(&settings_1);
+    sw_tg_buffer()->length = http2::pack_setting_frame(sw_tg_buffer()->str, settings_1, false);
+    pl.buf = sw_tg_buffer()->str;
+    pl.buf_size = sw_tg_buffer()->length;
+
+    ASSERT_GT(sw_tg_buffer()->length, 16);
+    ASSERT_EQ(http_server::get_package_length(&port->protocol, &fake_sock, &pl), sw_tg_buffer()->length);
+
+    // http1.1
+    conn.websocket_status = 0;
+    conn.http2_stream = 0;
+    ASSERT_EQ(http_server::get_package_length(&port->protocol, &fake_sock, &pl), SW_ERR);
+
+    String str(swoole_get_last_error_msg());
+    ASSERT_EQ(swoole_get_last_error(), SW_ERROR_PROTOCOL_ERROR);
+    ASSERT_TRUE(str.contains("unexpected protocol status of session"));
+}
