@@ -642,7 +642,7 @@ int Request::get_protocol() {
     }
 
     // HTTP Method
-    SW_LOOP_N(sizeof(method_strings) / sizeof(char *)) {
+    SW_LOOP_N(sizeof(method_strings) / sizeof(char *) - 1) {
         auto method_str = method_strings[i];
         auto n = strlen(method_str);
         if (memcmp(p, method_str, n) == 0) {

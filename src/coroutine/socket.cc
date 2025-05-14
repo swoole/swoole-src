@@ -655,6 +655,7 @@ bool Socket::connect(const sockaddr *addr, socklen_t addrlen) {
         }
     }
     connected = true;
+    socket->get_name();
     set_err(0);
     return true;
 }

@@ -704,11 +704,11 @@ int Socket::handle_sendfile() {
 
     // sendfile completed
     if (task->begin == task->end) {
-        buffer->pop();
         if (task->corked == 1) {
             uncork();
             task->corked = 0;
         }
+        buffer->pop();
     }
 
     return SW_OK;
