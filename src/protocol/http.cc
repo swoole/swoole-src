@@ -352,8 +352,6 @@ const char *get_status_message(int code) {
         return "102 Processing";
     case 103:
         return "103 Early Hints";
-    case 200:
-        return "200 OK";
     case 201:
         return "201 Created";
     case 202:
@@ -470,6 +468,9 @@ const char *get_status_message(int code) {
         return "510 Not Extended";
     case 511:
         return "511 Network Authentication Required";
+    case 200:
+    case 0:
+        return "200 OK";
     default:
         sw_snprintf(http_status_message, sizeof(http_status_message), "%d Unknown Status", code);
         return http_status_message;
