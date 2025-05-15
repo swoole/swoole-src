@@ -151,27 +151,7 @@ pid_t System::waitpid(pid_t __pid, int *__stat_loc, int __options, double timeou
         waitpid_map[__pid] = &task;
     }
 
-    /* timeout controller */
-    TimerNode *timer = nullptr;
-    if (timeout > 0) {
-        timer = swoole_timer_add(
-            timeout,
-            false,
-            [](Timer *timer, TimerNode *tnode) {
-                Coroutine *co = (Coroutine *) tnode->data;
-                co->resume();
-            },
-            task.co);
-    }
-
-    Coroutine::CancelFunc cancel_fn = [timer](Coroutine *co) {
-        if (timer) {
-            swoole_timer_del(timer);
-        }
-        co->resume();
-        return true;
-    };
-    task.co->yield(&cancel_fn);
+    task.co->yield_ex(timeout);
 
     /* dequeue */
     if (__pid < 0) {
@@ -187,13 +167,7 @@ pid_t System::waitpid(pid_t __pid, int *__stat_loc, int __options, double timeou
 
     /* clear and assign result */
     if (task.pid > 0) {
-        if (timer) {
-            swoole_timer_del(timer);
-        }
         *__stat_loc = task.status;
-    } else {
-        swoole_set_last_error(task.co->is_canceled() ? SW_ERROR_CO_CANCELED : ETIMEDOUT);
-        errno = swoole_get_last_error();
     }
 
     return task.pid;

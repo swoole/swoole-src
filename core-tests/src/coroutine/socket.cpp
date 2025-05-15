@@ -917,6 +917,37 @@ TEST(coroutine_socket, writev_and_readv) {
     });
 }
 
+TEST(coroutine_socket, send_and_recv_all) {
+    coroutine::run([&](void *arg) {
+        int pairs[2];
+
+        String wbuf;
+        wbuf.append_random_bytes(4 * 1024 * 1024, false);
+        socketpair(AF_UNIX, SOCK_STREAM, 0, pairs);
+
+        Coroutine::create([&](void *) {
+            Socket sock(pairs[0], SW_SOCK_UNIX_STREAM);
+            sock.get_socket()->set_send_buffer_size(65536);
+
+            ASSERT_EQ(sock.send_all(wbuf.str, wbuf.length), wbuf.length);
+
+            System::sleep(0.1);
+
+            sock.close();
+        });
+
+        Socket sock(pairs[1], SW_SOCK_UNIX_STREAM);
+        sock.get_socket()->set_recv_buffer_size(65536);
+
+        String rbuf(wbuf.length);
+        ssize_t result = sock.recv_all(rbuf.str, wbuf.length);
+        ASSERT_EQ(result, wbuf.length);
+        ASSERT_MEMEQ(wbuf.str, rbuf.str, wbuf.length);
+        System::sleep(0.1);
+        sock.close();
+    });
+}
+
 TEST(coroutine_socket, writevall_and_readvall) {
     coroutine::run([&](void *arg) {
         int write_iovcnt = 4;

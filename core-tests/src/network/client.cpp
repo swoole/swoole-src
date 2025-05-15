@@ -334,8 +334,7 @@ TEST(client, sendto) {
     auto dns_server = swoole_get_dns_server();
     Client dsock(SW_SOCK_UDP, false);
     auto dnsQuery = buildDNSQuery("www.baidu.com");
-    ASSERT_EQ(dsock.sendto(dns_server.host, dns_server.port, (const char *) dnsQuery.data(), dnsQuery.size()),
-              SW_OK);
+    ASSERT_EQ(dsock.sendto(dns_server.host, dns_server.port, (const char *) dnsQuery.data(), dnsQuery.size()), SW_OK);
     ASSERT_GT(dsock.recv(sw_tg_buffer()->str, sw_tg_buffer()->size), 0);
 
     Address ra;
