@@ -564,8 +564,10 @@ int swoole_coroutine_socket_set_connect_timeout(int sockfd, double timeout) {
 int swoole_coroutine_socket_wait_event(int sockfd, int event, double timeout) {
     auto socket = get_socket_ex(sockfd);
     if (sw_unlikely(socket == nullptr)) {
-        errno = EINVAL;
-        return -1;
+        struct pollfd poll_ev;
+        poll_ev.fd = sockfd;
+        poll_ev.events = translate_events_to_poll(event);
+        return poll(&poll_ev, 1, (int) (timeout * 1000)) == 1 ? SW_OK : SW_ERR;
     }
     double ori_timeout = socket->get_timeout(event == SW_EVENT_READ ? Socket::TIMEOUT_READ : Socket::TIMEOUT_WRITE);
     socket->set_timeout(timeout);

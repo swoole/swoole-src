@@ -175,9 +175,7 @@ static void test_hook_dir() {
 }
 
 TEST(coroutine_hook, dir) {
-    coroutine::run([](void *arg) {
-        test_hook_dir();
-    });
+    coroutine::run([](void *arg) { test_hook_dir(); });
 
     test_hook_dir();
 }
@@ -213,9 +211,7 @@ static void test_hook_socket() {
 }
 
 TEST(coroutine_hook, socket) {
-    coroutine::run([](void *arg) {
-        test_hook_socket();
-    });
+    coroutine::run([](void *arg) { test_hook_socket(); });
 
     test_hook_socket();
 }
