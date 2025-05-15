@@ -334,14 +334,14 @@ TEST(client, sendto) {
     auto dns_server = swoole_get_dns_server();
     Client dsock(SW_SOCK_UDP, false);
     auto dnsQuery = buildDNSQuery("www.baidu.com");
-    ASSERT_EQ(dsock.sendto(dns_server.first, dns_server.second, (const char *) dnsQuery.data(), dnsQuery.size()),
+    ASSERT_EQ(dsock.sendto(dns_server.host, dns_server.port, (const char *) dnsQuery.data(), dnsQuery.size()),
               SW_OK);
     ASSERT_GT(dsock.recv(sw_tg_buffer()->str, sw_tg_buffer()->size), 0);
 
     Address ra;
     ASSERT_EQ(dsock.get_peer_name(&ra), SW_OK);
-    ASSERT_STREQ(ra.get_addr(), dns_server.first.c_str());
-    ASSERT_EQ(ra.get_port(), dns_server.second);
+    ASSERT_STREQ(ra.get_addr(), dns_server.host.c_str());
+    ASSERT_EQ(ra.get_port(), dns_server.port);
 }
 
 TEST(client, async_unix_connect_refuse) {

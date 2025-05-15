@@ -73,23 +73,15 @@ SW_API void swoole_set_dns_server(const std::string &server) {
         }
         dns_server_host[_port - server.c_str()] = '\0';
     }
-    SwooleG.dns_server_host = dns_server_host;
-    SwooleG.dns_server_port = dns_server_port;
+    SwooleG.dns_server.host = dns_server_host;
+    SwooleG.dns_server.port = dns_server_port;
 }
 
-SW_API std::pair<std::string, int> swoole_get_dns_server() {
-    if (SwooleG.dns_server_host.empty()) {
+SW_API swoole::DnsServer swoole_get_dns_server() {
+    if (SwooleG.dns_server.host.empty()) {
         swoole_load_resolv_conf();
     }
-    std::pair<std::string, int> result;
-    if (SwooleG.dns_server_host.empty()) {
-        result.first = "";
-        result.second = 0;
-    } else {
-        result.first = SwooleG.dns_server_host;
-        result.second = SwooleG.dns_server_port;
-    }
-    return result;
+    return SwooleG.dns_server;
 }
 
 SW_API void swoole_set_hosts_path(const std::string &hosts_file) {
@@ -281,7 +273,7 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
     int steps = 0;
     std::vector<std::string> result;
 
-    if (SwooleG.dns_server_host.empty() && !swoole_load_resolv_conf()) {
+    if (SwooleG.dns_server.host.empty() && !swoole_load_resolv_conf()) {
         swoole_set_last_error(SW_ERROR_DNSLOOKUP_NO_SERVER);
         return result;
     }
@@ -323,7 +315,7 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
     if (timeout > 0) {
         _sock.set_timeout(timeout);
     }
-    if (!_sock.sendto(SwooleG.dns_server_host, SwooleG.dns_server_port, (char *) packet, steps)) {
+    if (!_sock.sendto(SwooleG.dns_server.host, SwooleG.dns_server.port, (char *) packet, steps)) {
         swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
         return result;
     }
@@ -572,14 +564,14 @@ std::vector<std::string> dns_lookup_impl_with_cares(const char *domain, int fami
         goto _return;
     }
 
-    if (!SwooleG.dns_server_host.empty()) {
+    if (!SwooleG.dns_server.host.empty()) {
 #if (ARES_VERSION >= 0x010b00)
         struct ares_addr_port_node servers;
         servers.family = AF_INET;
         servers.next = nullptr;
-        inet_pton(AF_INET, SwooleG.dns_server_host.c_str(), &servers.addr.addr4);
+        inet_pton(AF_INET, SwooleG.dns_server.host.c_str(), &servers.addr.addr4);
         servers.tcp_port = 0;
-        servers.udp_port = SwooleG.dns_server_port;
+        servers.udp_port = SwooleG.dns_server.port;
         ares_set_servers_ports(ctx.channel, &servers);
 #elif (ARES_VERSION >= 0x010701)
         struct ares_addr_node servers;

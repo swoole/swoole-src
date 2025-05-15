@@ -734,6 +734,11 @@ struct NameResolver {
     enum Type type;
 };
 
+struct DnsServer {
+    std::string host;
+    int port;
+};
+
 struct Global {
     uchar init : 1;
     uchar running : 1;
@@ -774,8 +779,7 @@ struct Global {
     Server *server;
     FILE *stdout_;
     //-----------------------[DNS]-----------------------------
-    std::string dns_server_host;
-    int dns_server_port;
+    DnsServer dns_server;
     double dns_cache_refresh_time;
     int dns_tries;
     std::string dns_resolvconf_path;
@@ -892,7 +896,7 @@ SW_API void swoole_set_print_backtrace_on_error(bool enable = true);
 SW_API void swoole_set_stdout_stream(FILE *fp);
 SW_API void swoole_set_dns_server(const std::string &server);
 SW_API void swoole_set_hosts_path(const std::string &hosts_file);
-SW_API std::pair<std::string, int> swoole_get_dns_server();
+SW_API swoole::DnsServer swoole_get_dns_server();
 SW_API bool swoole_load_resolv_conf();
 SW_API void swoole_name_resolver_add(const swoole::NameResolver &resolver, bool append = true);
 SW_API void swoole_name_resolver_each(
