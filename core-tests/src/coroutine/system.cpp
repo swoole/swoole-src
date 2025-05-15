@@ -285,7 +285,7 @@ TEST(coroutine_system, waitpid) {
     test::coroutine::run([pid](void *arg) {
         int status;
         ASSERT_EQ(System::waitpid(pid, &status, 0, 0.1), -1);
-        ASSERT_ERREQ(SW_ERROR_CO_TIMEDOUT);
+        ASSERT_ERREQ(ETIMEDOUT);
 
         kill(pid, SIGKILL);
     });
