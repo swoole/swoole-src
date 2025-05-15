@@ -693,7 +693,7 @@ static PHP_METHOD(swoole_client, connect) {
         }
     }
 
-    if (cli->connect(cli, host, port, timeout, sock_flag) < 0) {
+    if (cli->connect(host, port, timeout, sock_flag) < 0) {
         zend_update_property_long(
             swoole_client_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), swoole_get_last_error());
         // async connect
@@ -735,7 +735,7 @@ static PHP_METHOD(swoole_client, send) {
 
     // clear errno
     swoole_set_last_error(0);
-    ssize_t ret = cli->send(cli, data, data_len, flags);
+    ssize_t ret = cli->send(data, data_len, flags);
     if (ret < 0) {
         php_swoole_sys_error(E_WARNING, "failed to send(%d) %zu bytes", cli->socket->fd, data_len);
         zend_update_property_long(
@@ -804,7 +804,7 @@ static PHP_METHOD(swoole_client, sendfile) {
     }
     // clear errno
     swoole_set_last_error(0);
-    int ret = cli->sendfile(cli, file, offset, length);
+    int ret = cli->sendfile(file, offset, length);
     if (ret < 0) {
         swoole_set_last_error(errno);
         php_swoole_fatal_error(E_WARNING,
@@ -864,7 +864,7 @@ static PHP_METHOD(swoole_client, recv) {
                 buf_len = SW_BUFFER_SIZE_BIG;
             }
 
-            ret = cli->recv(cli, buf, buf_len, 0);
+            ret = cli->recv(buf, buf_len, 0);
             if (ret < 0) {
                 php_swoole_sys_error(E_WARNING, "recv() failed");
                 zend_update_property_long(
@@ -933,7 +933,7 @@ static PHP_METHOD(swoole_client, recv) {
         uint32_t header_len = protocol->package_length_offset + protocol->package_length_size;
 
         while (1) {
-            int retval = cli->recv(cli, buffer->str + buffer->length, header_len - buffer->length, 0);
+            int retval = cli->recv(buffer->str + buffer->length, header_len - buffer->length, 0);
             if (retval <= 0) {
                 break;
             }
@@ -977,7 +977,7 @@ static PHP_METHOD(swoole_client, recv) {
         strbuf = zend_string_alloc(buf_len, 0);
         memcpy(strbuf->val, buffer->str, buffer->length);
         swoole_set_last_error(0);
-        ret = cli->recv(cli, strbuf->val + header_len, buf_len - buffer->length, MSG_WAITALL);
+        ret = cli->recv(strbuf->val + header_len, buf_len - buffer->length, MSG_WAITALL);
         if (ret > 0) {
             ret += header_len;
             if (ret != buf_len) {
@@ -990,7 +990,7 @@ static PHP_METHOD(swoole_client, recv) {
         }
         strbuf = zend_string_alloc(buf_len, 0);
         swoole_set_last_error(0);
-        ret = cli->recv(cli, strbuf->val, buf_len, flags);
+        ret = cli->recv(strbuf->val, buf_len, flags);
     }
 
     if (ret < 0) {

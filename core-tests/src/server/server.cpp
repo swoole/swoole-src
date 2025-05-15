@@ -1639,14 +1639,14 @@ TEST(server, udp_packet) {
         auto port = server->get_primary_port();
 
         network::Client cli(SW_SOCK_UDP, false);
-        int ret = cli.connect(&cli, TEST_HOST, port->port, -1, 0);
+        int ret = cli.connect(TEST_HOST, port->port, -1, 0);
         EXPECT_EQ(ret, 0);
-        ret = cli.send(&cli, packet, strlen(packet), 0);
+        ret = cli.send(packet, strlen(packet), 0);
         EXPECT_GT(ret, 0);
 
         char buf[1024];
         sleep(1);
-        cli.recv(&cli, buf, 128, 0);
+        cli.recv(buf, 128, 0);
         ASSERT_STREQ(buf, packet);
         cli.close();
 

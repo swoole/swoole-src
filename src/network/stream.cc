@@ -30,7 +30,7 @@ static void Stream_onConnect(Client *cli) {
         cli->close();
     }
     *((uint32_t *) stream->buffer->str) = ntohl(stream->buffer->length - 4);
-    if (cli->send(cli, stream->buffer->str, stream->buffer->length, 0) < 0) {
+    if (cli->send(stream->buffer->str, stream->buffer->length, 0) < 0) {
         cli->close();
     } else {
         delete stream->buffer;
@@ -88,7 +88,7 @@ Stream::Stream(const char *dst_host, int dst_port, SocketType type) : client(typ
     client.open_length_check = true;
     set_protocol(&client.protocol);
 
-    if (client.connect(&client, dst_host, dst_port, -1, 0) < 0) {
+    if (client.connect(dst_host, dst_port, -1, 0) < 0) {
         swoole_sys_warning("failed to connect to [%s:%d]", dst_host, dst_port);
         return;
     }

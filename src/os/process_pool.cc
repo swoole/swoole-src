@@ -361,21 +361,21 @@ swResultCode ProcessPool::dispatch(EventData *data, int *dst_worker_id) {
 swResultCode ProcessPool::dispatch_sync(const char *data, uint32_t len) {
     assert(use_socket);
 
-    network::Client _socket(stream_info_->socket->socket_type, false);
-    if (!_socket.socket) {
+    network::Client client(stream_info_->socket->socket_type, false);
+    if (!client.ready()) {
         return SW_ERR;
     }
-    if (_socket.connect(&_socket, stream_info_->socket_file, stream_info_->socket_port, -1, 0) < 0) {
+    if (client.connect(stream_info_->socket_file, stream_info_->socket_port, -1, 0) < 0) {
         return SW_ERR;
     }
     uint32_t packed_len = htonl(len);
-    if (_socket.send(&_socket, (char *) &packed_len, 4, 0) < 0) {
+    if (client.send((char *) &packed_len, 4, 0) < 0) {
         return SW_ERR;
     }
-    if (_socket.send(&_socket, data, len, 0) < 0) {
+    if (client.send(data, len, 0) < 0) {
         return SW_ERR;
     }
-    _socket.close();
+    client.close();
     return SW_OK;
 }
 

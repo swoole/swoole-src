@@ -61,6 +61,37 @@ SW_API bool swoole_load_resolv_conf() {
     return true;
 }
 
+SW_API void swoole_set_dns_server(const std::string &server) {
+    char *_port;
+    int dns_server_port = SW_DNS_SERVER_PORT;
+    char dns_server_host[32];
+    strcpy(dns_server_host, server.c_str());
+    if ((_port = strchr((char *) server.c_str(), ':'))) {
+        dns_server_port = atoi(_port + 1);
+        if (dns_server_port <= 0 || dns_server_port > 65535) {
+            dns_server_port = SW_DNS_SERVER_PORT;
+        }
+        dns_server_host[_port - server.c_str()] = '\0';
+    }
+    SwooleG.dns_server_host = dns_server_host;
+    SwooleG.dns_server_port = dns_server_port;
+}
+
+SW_API std::pair<std::string, int> swoole_get_dns_server() {
+    if (SwooleG.dns_server_host.empty()) {
+        swoole_load_resolv_conf();
+    }
+    std::pair<std::string, int> result;
+    if (SwooleG.dns_server_host.empty()) {
+        result.first = "";
+        result.second = 0;
+    } else {
+        result.first = SwooleG.dns_server_host;
+        result.second = SwooleG.dns_server_port;
+    }
+    return result;
+}
+
 SW_API void swoole_set_hosts_path(const std::string &hosts_file) {
     SwooleG.dns_hosts_path = hosts_file;
 }

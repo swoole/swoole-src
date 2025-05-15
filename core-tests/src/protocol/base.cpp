@@ -54,10 +54,10 @@ TEST(protocol, eof) {
         lock.lock();
 
         network::Client cli(SW_SOCK_TCP, false);
-        EXPECT_EQ(cli.connect(&cli, TEST_HOST, port->port, 1, 0), 0);
+        EXPECT_EQ(cli.connect(TEST_HOST, port->port, 1, 0), 0);
 
         for (int i = 0; i < PKG_N; i++) {
-            EXPECT_EQ(cli.send(&cli, pkgs[i].str, pkgs[i].length, 0), pkgs[i].length);
+            EXPECT_EQ(cli.send(pkgs[i].str, pkgs[i].length, 0), pkgs[i].length);
         }
     });
 

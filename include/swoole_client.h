@@ -27,6 +27,11 @@ namespace swoole {
 namespace network {
 
 class Client {
+    int (*connect_)(Client *cli, const char *host, int port, double _timeout, int sock_flag) = nullptr;
+    ssize_t (*send_)(Client *cli, const char *data, size_t length, int flags) = nullptr;
+    int (*sendfile_)(Client *cli, const char *filename, off_t offset, size_t length) = nullptr;
+    ssize_t (*recv_)(Client *cli, char *data, size_t length, int flags) = nullptr;
+
   public:
     int id = 0;
     long timeout_id = 0;  // timeout node id
@@ -106,17 +111,16 @@ class Client {
     std::function<void(Client *cli)> onBufferFull = nullptr;
     std::function<void(Client *cli)> onBufferEmpty = nullptr;
 
-    int (*connect)(Client *cli, const char *host, int port, double _timeout, int sock_flag) = nullptr;
-    ssize_t (*send)(Client *cli, const char *data, size_t length, int flags) = nullptr;
-    int (*sendfile)(Client *cli, const char *filename, off_t offset, size_t length) = nullptr;
-    ssize_t (*recv)(Client *cli, char *data, size_t length, int flags) = nullptr;
-
     static void init_reactor(Reactor *reactor);
     Client(SocketType _type, bool async);
     ~Client();
 
     Socket *get_socket() {
         return socket;
+    }
+
+    bool ready() {
+        return socket != nullptr;
     }
 
     SocketType get_socket_type() const {
@@ -130,6 +134,22 @@ class Client {
         }
 #endif
         return &http_proxy->target_host;
+    }
+
+    int connect(const char *_host, int _port, double _timeout, int _sock_flag = 0) {
+        return connect_(this, _host, _port, _timeout, _sock_flag);
+    }
+
+    ssize_t send(const char *_data, size_t _length, int _flags = 0) {
+        return send_(this, _data, _length, _flags);
+    }
+
+    int sendfile(const char *_filename, off_t _offset = 0, size_t _length = 0) {
+        return sendfile_(this, _filename, _offset, _length);
+    }
+
+    ssize_t recv(char *_data, size_t _length, int _flags = 0) {
+        return recv_(this, _data, _length, _flags);
     }
 
     int bind(const std::string &addr, int port);
@@ -279,7 +299,7 @@ class SyncClient {
         if (connected || !created) {
             return false;
         }
-        if (client.connect(&client, host, port, timeout, client.socket->is_dgram()) < 0) {
+        if (client.connect(host, port, timeout, client.socket->is_dgram()) < 0) {
             return false;
         }
         connected = true;
@@ -309,19 +329,19 @@ class SyncClient {
 #endif
 
     ssize_t send(const std::string &data) {
-        return client.send(&client, data.c_str(), data.length(), 0);
+        return client.send(data.c_str(), data.length(), 0);
     }
 
     ssize_t send(const char *buf, size_t len) {
-        return client.send(&client, buf, len, 0);
+        return client.send(buf, len, 0);
     }
 
     bool sendfile(const char *filename, off_t offset = 0, size_t length = 0) {
-        return client.sendfile(&client, filename, offset, length) == SW_OK;
+        return client.sendfile(filename, offset, length) == SW_OK;
     }
 
     ssize_t recv(char *buf, size_t len, int flags = 0) {
-        return client.recv(&client, buf, len, flags);
+        return client.recv(buf, len, flags);
     }
 
     bool close() {
