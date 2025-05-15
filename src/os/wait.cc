@@ -168,6 +168,9 @@ pid_t System::waitpid(pid_t __pid, int *__stat_loc, int __options, double timeou
     /* clear and assign result */
     if (task.pid > 0) {
         *__stat_loc = task.status;
+    } else if (task.co->is_timedout()) {
+        errno = ETIMEDOUT;
+        swoole_set_last_error(ETIMEDOUT);
     }
 
     return task.pid;
