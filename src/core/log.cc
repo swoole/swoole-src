@@ -15,6 +15,7 @@
 */
 
 #include "swoole.h"
+#include "swoole_process_pool.h"
 
 #include <string.h>
 #include <fcntl.h>
@@ -306,37 +307,18 @@ void Logger::put(int level, const char *content, size_t length) {
             date_str + l_data_str, SW_LOG_DATE_STRLEN - l_data_str, "<.%lld>", (long long) now_us - now_sec * 1000000);
     }
 
-    char process_flag = '@';
-    int process_id = 0;
-
-    switch (swoole_get_process_type()) {
-    case SW_PROCESS_MASTER:
-        process_flag = '#';
-        process_id = swoole_get_thread_id();
-        break;
-    case SW_PROCESS_MANAGER:
-        process_flag = '$';
-        break;
-    case SW_PROCESS_WORKER:
-        process_flag = '*';
-        process_id = swoole_get_process_id();
-        break;
-    case SW_PROCESS_TASKWORKER:
-        process_flag = '^';
-        process_id = swoole_get_process_id();
-        break;
-    default:
-        break;
-    }
+    int worker_id = swoole_get_worker_id();
+    pid_t worker_pid = swoole_get_worker_pid();
+    char worker_symbol = swoole_get_worker_symbol();
 
     size_t n = sw_snprintf(log_str,
                            SW_LOG_BUFFER_SIZE,
                            "[%.*s %c%d.%d]\t%s\t%.*s\n",
                            static_cast<int>(l_data_str),
                            date_str,
-                           process_flag,
-                           SwooleG.pid,
-                           process_id,
+                           worker_symbol,
+                           worker_pid,
+                           worker_id,
                            level_str,
                            static_cast<int>(length),
                            content);

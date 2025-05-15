@@ -126,7 +126,7 @@ bool BaseFactory::end(SessionId session_id, int flags) {
     _send.info.fd = session_id;
     _send.info.len = 0;
     _send.info.type = SW_SERVER_EVENT_CLOSE;
-    _send.info.reactor_id = swoole_get_process_id();
+    _send.info.reactor_id = swoole_get_worker_id();
 
     Session *session = server_->get_session(session_id);
     if (!session->fd) {

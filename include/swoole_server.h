@@ -709,6 +709,7 @@ class Server {
         DISPATCH_RESULT_USERFUNC_FALLBACK = -3,
     };
 
+    // deprecated, will be removed in the next minor version
     enum HookType {
         HOOK_MASTER_START,
         HOOK_MASTER_TIMER,
@@ -1168,7 +1169,7 @@ class Server {
     }
 
     EventData *get_task_result() {
-        return &(task_results[swoole_get_process_id()]);
+        return &(task_results[swoole_get_worker_id()]);
     }
 
     WorkerId get_task_src_worker_id(EventData *task) {
@@ -1288,7 +1289,7 @@ class Server {
     }
 
     bool if_forward_message(Session *session) {
-        return session->reactor_id != swoole_get_process_id();
+        return session->reactor_id != swoole_get_worker_id();
     }
 
     Worker *get_worker(uint16_t worker_id);
@@ -1328,11 +1329,11 @@ class Server {
     }
 
     bool is_master() {
-        return swoole_get_process_type() == SW_PROCESS_MASTER;
+        return swoole_get_worker_type() == SW_MASTER;
     }
 
     bool is_worker() {
-        return swoole_get_process_type() == SW_PROCESS_EVENTWORKER;
+        return swoole_get_worker_type() == SW_EVENT_WORKER;
     }
 
     bool is_event_worker() {
@@ -1340,15 +1341,15 @@ class Server {
     }
 
     bool is_task_worker() {
-        return swoole_get_process_type() == SW_PROCESS_TASKWORKER;
+        return swoole_get_worker_type() == SW_TASK_WORKER;
     }
 
     bool is_manager() {
-        return swoole_get_process_type() == SW_PROCESS_MANAGER;
+        return swoole_get_worker_type() == SW_MANAGER;
     }
 
     bool is_user_worker() {
-        return swoole_get_process_type() == SW_PROCESS_USERWORKER;
+        return swoole_get_worker_type() == SW_USER_WORKER;
     }
 
     bool is_worker_thread() {

@@ -63,7 +63,7 @@ int Server::start_manager_process() {
     }
 
     auto fn = [this]() {
-        gs->manager_pid = SwooleG.pid = getpid();
+        gs->manager_pid = getpid();
 
         if (task_worker_num > 0) {
             if (gs->task_workers.start() == SW_ERR) {
@@ -74,10 +74,10 @@ int Server::start_manager_process() {
 
         /*
          * Must be set after ProcessPool:start(),
-         * the default ProcessPool will set type of the main process as SW_PROCESS_MASTER,
-         * while in server mode it should be SW_PROCESS_MANAGER
+         * the default ProcessPool will set type of the main process as SW_MASTER,
+         * while in server mode it should be SW_MANAGER
          */
-        swoole_set_process_type(SW_PROCESS_MANAGER);
+        swoole_set_worker_type(SW_MANAGER);
 
         SW_LOOP_N(worker_num) {
             Worker *worker = get_worker(i);
@@ -329,7 +329,7 @@ void Manager::wait(Server *_server) {
 void Manager::terminate_all_worker() {
     // clear the timer
     alarm(0);
-    for (int & kill_worker : kill_workers) {
+    for (int &kill_worker : kill_workers) {
         swoole_kill(kill_worker, SIGKILL);
     }
 }
@@ -381,7 +381,7 @@ int Server::wait_other_worker(ProcessPool *pool, const ExitStatus &exit_status) 
         if (serv->gs->task_workers.map_) {
             auto iter = serv->gs->task_workers.map_->find(exit_status.get_pid());
             if (iter != serv->gs->task_workers.map_->end()) {
-                worker_type = SW_PROCESS_TASKWORKER;
+                worker_type = SW_TASK_WORKER;
                 exit_worker = iter->second;
                 break;
             }
@@ -389,7 +389,7 @@ int Server::wait_other_worker(ProcessPool *pool, const ExitStatus &exit_status) 
         if (!serv->user_worker_map.empty()) {
             auto iter = serv->user_worker_map.find(exit_status.get_pid());
             if (iter != serv->user_worker_map.end()) {
-                worker_type = SW_PROCESS_USERWORKER;
+                worker_type = SW_USER_WORKER;
                 exit_worker = iter->second;
                 break;
             }
@@ -402,10 +402,10 @@ int Server::wait_other_worker(ProcessPool *pool, const ExitStatus &exit_status) 
     pid_t new_process_pid = -1;
 
     switch (worker_type) {
-    case SW_PROCESS_TASKWORKER:
+    case SW_TASK_WORKER:
         new_process_pid = serv->factory->spawn_task_worker(exit_worker);
         break;
-    case SW_PROCESS_USERWORKER:
+    case SW_USER_WORKER:
         new_process_pid = serv->factory->spawn_user_worker(exit_worker);
         break;
     default:

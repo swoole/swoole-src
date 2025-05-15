@@ -17,6 +17,7 @@
 #include "swoole_server.h"
 #include "swoole_memory.h"
 #include "swoole_lock.h"
+#include "swoole_thread.h"
 #include "swoole_util.h"
 
 #include <cassert>
@@ -445,8 +446,13 @@ int Server::start_master_thread(Reactor *reactor) {
 
     init_signal_handler();
 
-    SwooleG.pid = getpid();
-    swoole_set_process_type(SW_PROCESS_MASTER);
+    swoole_set_worker_type(SW_MASTER);
+
+    if (is_thread_mode()) {
+        swoole_set_worker_pid(swoole_thread_get_native_id());
+    } else if (is_process_mode()) {
+        swoole_set_worker_pid(getpid());
+    }
 
     reactor->ptr = this;
     reactor->set_handler(SW_FD_STREAM_SERVER, Server::accept_connection);
@@ -524,7 +530,7 @@ int Server::create_task_workers() {
 
     pool->set_max_request(task_max_request, task_max_request_grace);
     pool->set_start_id(worker_num);
-    pool->set_type(SW_PROCESS_TASKWORKER);
+    pool->set_type(SW_TASK_WORKER);
 
     if (ipc_mode == SW_IPC_SOCKET) {
         char sockfile[sizeof(struct sockaddr_un)];
@@ -654,7 +660,7 @@ int Server::start() {
     SW_LOOP_N(worker_num) {
         gs->event_workers.workers[i].pool = &gs->event_workers;
         gs->event_workers.workers[i].id = i;
-        gs->event_workers.workers[i].type = SW_PROCESS_WORKER;
+        gs->event_workers.workers[i].type = SW_WORKER;
     }
 
     if (!user_worker_list.empty()) {
@@ -1934,7 +1940,7 @@ Connection *Server::add_connection(ListenPort *ls, Socket *_socket, int server_f
     int fd = _socket->fd;
 
     Connection *connection = &(connection_list[fd]);
-    ReactorId reactor_id = is_base_mode() ? swoole_get_process_id() : fd % reactor_num;
+    ReactorId reactor_id = is_base_mode() ? swoole_get_worker_id() : fd % reactor_num;
     *connection = {};
 
     sw_spinlock(&gs->spinlock);

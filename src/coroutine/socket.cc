@@ -1406,7 +1406,6 @@ ssize_t Socket::sendto(std::string host, int port, const void *__buf, size_t __n
     }
 
     ssize_t retval = 0;
-    size_t addr_size = 0;
     network::Address addr;
 
     if (!socket->is_dgram()) {

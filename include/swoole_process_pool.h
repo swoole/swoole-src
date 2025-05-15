@@ -37,6 +37,15 @@ enum swWorkerStatus {
     SW_WORKER_EXIT = 3,
 };
 
+enum swWorkerType {
+    SW_MASTER = 1,
+    SW_WORKER = 2,
+    SW_MANAGER = 3,
+    SW_EVENT_WORKER = 2,
+    SW_TASK_WORKER = 4,
+    SW_USER_WORKER = 5,
+};
+
 enum swIPCMode {
     SW_IPC_NONE = 0,
     SW_IPC_UNIXSOCK = 1,
@@ -44,8 +53,15 @@ enum swIPCMode {
     SW_IPC_SOCKET = 3,
 };
 
-namespace swoole {
+SW_API swoole::WorkerId swoole_get_worker_id();
+SW_API pid_t swoole_get_worker_pid();
+SW_API int swoole_get_worker_type();
+SW_API void swoole_set_worker_pid(pid_t pid);
+SW_API void swoole_set_worker_id(swoole::WorkerId worker_id);
+SW_API void swoole_set_worker_type(int type);
+SW_API char swoole_get_worker_symbol();
 
+namespace swoole {
 enum WorkerMessageType {
     SW_WORKER_MESSAGE_STOP = 1,
 };
@@ -62,7 +78,6 @@ struct WorkerStopMessage {
 };
 
 class ExitStatus {
-  private:
     pid_t pid_;
     int status_;
 
@@ -107,6 +122,8 @@ struct Worker;
 
 struct WorkerGlobal {
     WorkerId id;
+    uint8_t type;
+    pid_t pid;
     bool shutdown;
     bool running;
     uint32_t max_request;
@@ -354,11 +371,11 @@ struct ProcessPool {
     }
 
     bool is_master() {
-        return swoole_get_process_type() == SW_PROCESS_MASTER;
+        return swoole_get_worker_type() == SW_MASTER;
     }
 
     bool is_worker() {
-        return swoole_get_process_type() == SW_PROCESS_WORKER;
+        return swoole_get_worker_type() == SW_WORKER;
     }
 
     /**
@@ -451,6 +468,3 @@ extern SW_THREAD_LOCAL swoole::WorkerGlobal SwooleWG;
 static inline swoole::Worker *sw_worker() {
     return SwooleWG.worker;
 }
-
-SW_API swoole::WorkerId swoole_get_worker_id();
-SW_API void swoole_set_worker_id(swoole::WorkerId worker_id);

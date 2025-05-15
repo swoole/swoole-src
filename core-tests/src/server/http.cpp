@@ -379,7 +379,7 @@ static Server *test_proxy_server() {
         session_id = req->info.fd;
         conn = server->get_connection_by_session_id(session_id);
 
-        SwooleG.process_id = server->worker_num;
+        swoole_set_worker_id(server->worker_num);
 
         llhttp_t parser = {};
         llhttp_settings_t settings = {};

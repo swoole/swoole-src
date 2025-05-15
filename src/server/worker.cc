@@ -148,7 +148,7 @@ void Server::worker_accept_event(DataHead *info) {
     case SW_SERVER_EVENT_CLOSE: {
 #ifdef SW_USE_OPENSSL
         Connection *conn = get_connection_verify_no_ssl(info->fd);
-        if (conn && conn->ssl_client_cert && conn->ssl_client_cert_pid == SwooleG.pid) {
+        if (conn && conn->ssl_client_cert && conn->ssl_client_cert_pid == swoole_get_worker_pid()) {
             delete conn->ssl_client_cert;
             conn->ssl_client_cert = nullptr;
         }
@@ -164,7 +164,7 @@ void Server::worker_accept_event(DataHead *info) {
             if (conn) {
                 auto packet = get_worker_message_bus()->get_packet();
                 conn->ssl_client_cert = new String(packet.data, packet.length);
-                conn->ssl_client_cert_pid = SwooleG.pid;
+                conn->ssl_client_cert_pid = swoole_get_worker_pid();
             }
         }
 #endif
@@ -221,15 +221,7 @@ void Server::worker_accept_event(DataHead *info) {
 }
 
 void Server::worker_start_callback(Worker *worker) {
-    if (swoole_get_process_id() >= worker_num) {
-        swoole_set_process_type(SW_PROCESS_TASKWORKER);
-    } else {
-        swoole_set_process_type(SW_PROCESS_WORKER);
-    }
-
-    int is_root = !geteuid();
-
-    if (is_root) {
+    if (geteuid() == 0) {
         group *_group = nullptr;
         passwd *_passwd = nullptr;
         // get group info
@@ -344,7 +336,7 @@ void Server::call_worker_error_callback(Worker *worker, const ExitStatus &status
      * This must be done between the termination of the old process and the initiation of the new one;
      * otherwise, data contention may occur.
      */
-    if (worker->type == SW_PROCESS_EVENTWORKER) {
+    if (worker->type == SW_EVENT_WORKER) {
         abort_worker(worker);
     }
 }
@@ -377,7 +369,7 @@ bool Server::kill_worker(WorkerId worker_id, bool wait_reactor) {
 
 void Server::stop_async_worker(Worker *worker) {
     worker->shutdown();
-    if (worker->type == SW_PROCESS_EVENTWORKER) {
+    if (worker->type == SW_EVENT_WORKER) {
         reset_worker_counter(worker);
     }
 
@@ -428,7 +420,7 @@ void Server::stop_async_worker(Worker *worker) {
         }
     } else if (is_process_mode()) {
         WorkerStopMessage msg;
-        msg.pid = SwooleG.pid;
+        msg.pid = getpid();
         msg.worker_id = worker->id;
 
         if (gs->event_workers.push_message(SW_WORKER_MESSAGE_STOP, &msg, sizeof(msg)) < 0) {
@@ -473,7 +465,7 @@ void Server::stop_async_worker(Worker *worker) {
 
 static void Worker_reactor_try_to_exit(Reactor *reactor) {
     Server *serv;
-    if (sw_likely(swoole_get_process_type() != SW_PROCESS_TASKWORKER)) {
+    if (sw_likely(swoole_get_worker_type() != SW_TASK_WORKER)) {
         serv = static_cast<Server *>(reactor->ptr);
     } else {
         auto pool = static_cast<ProcessPool *>(reactor->ptr);
@@ -538,8 +530,8 @@ void Server::clean_worker_connections(Worker *worker) {
  * Only used in SWOOLE_PROCESS mode
  */
 int Server::start_event_worker(Worker *worker) {
-    swoole_set_process_id(worker->id);
-    swoole_set_process_type(SW_PROCESS_EVENTWORKER);
+    swoole_set_worker_id(worker->id);
+    swoole_set_worker_type(SW_EVENT_WORKER);
 
     init_event_worker(worker);
 

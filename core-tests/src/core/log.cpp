@@ -1,5 +1,6 @@
 #include "test_core.h"
 #include "swoole_file.h"
+#include "swoole_process_pool.h"
 #include <regex>
 #include <vector>
 
@@ -8,11 +9,11 @@ using namespace swoole;
 const char *file = "/tmp/swoole_log_test.log";
 
 TEST(log, level) {
-    std::vector<int> processTypes = {SW_PROCESS_MASTER, SW_PROCESS_MANAGER, SW_PROCESS_WORKER, SW_PROCESS_TASKWORKER};
+    std::vector<int> processTypes = {SW_MASTER, SW_MANAGER, SW_WORKER, SW_TASK_WORKER};
 
-    int originType = swoole_get_process_type();
+    int originType = swoole_get_worker_type();
     for (auto iter = processTypes.begin(); iter != processTypes.end(); iter++) {
-        SwooleG.process_type = *iter;
+        swoole_set_worker_type(*iter);
         sw_logger()->reset();
         sw_logger()->set_level(SW_LOG_NOTICE);
         sw_logger()->open(file);
@@ -30,7 +31,7 @@ TEST(log, level) {
         ASSERT_TRUE(content->contains(SW_STRL("hello notice")));
         ASSERT_TRUE(content->contains(SW_STRL("hello warning")));
 
-        SwooleG.process_type = originType;
+        swoole_set_worker_type(originType);
     }
 }
 
@@ -89,7 +90,7 @@ TEST(log, date_with_microseconds) {
     sw_logger()->close();
     unlink(file);
 
-    std::regex e("\\[\\S+\\s\\d{2}:\\d{2}:\\d{2}\\<\\.(\\d+)\\>\\s@\\d+\\.\\d+\\]\tWARNING\thello world");
+    std::regex e("\\[\\S+\\s\\d{2}:\\d{2}:\\d{2}\\<\\.(\\d+)\\>\\s%\\d+\\.\\d+\\]\tWARNING\thello world");
     ASSERT_TRUE(std::regex_search(content->value(), e));
 }
 

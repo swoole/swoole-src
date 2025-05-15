@@ -545,15 +545,6 @@ enum swDNSLookupFlag {
 
 extern thread_local char sw_error[SW_ERROR_MSG_SIZE];
 
-enum swProcessType {
-    SW_PROCESS_MASTER = 1,
-    SW_PROCESS_WORKER = 2,
-    SW_PROCESS_MANAGER = 3,
-    SW_PROCESS_EVENTWORKER = 2,
-    SW_PROCESS_TASKWORKER = 4,
-    SW_PROCESS_USERWORKER = 5,
-};
-
 enum swPipeType {
     SW_PIPE_WORKER = 0,
     SW_PIPE_MASTER = 1,
@@ -685,10 +676,6 @@ struct ThreadGlobal {
     uint16_t id;
     uint8_t type;
     int32_t error;
-#ifdef SW_THREAD
-    uint8_t process_type;
-    uint32_t process_id;
-#endif
     String *buffer_stack;
     Reactor *reactor;
     Timer *timer;
@@ -750,10 +737,7 @@ struct Global {
     uchar enable_coroutine : 1;
     uchar print_backtrace_on_error : 1;
 
-    uint8_t process_type;
-    uint32_t process_id;
     TaskId current_task_id;
-    pid_t pid;
 
     int signal_fd;
     bool signal_alarm;
@@ -843,42 +827,6 @@ static inline void swoole_set_thread_id(uint16_t id) {
 
 static inline void swoole_set_thread_type(uint8_t type) {
     SwooleTG.type = type;
-}
-
-static inline swoole::WorkerId swoole_get_process_id(void) {
-#ifdef SW_THREAD
-    return SwooleTG.process_id;
-#else
-    return SwooleG.process_id;
-#endif
-}
-
-static inline pid_t swoole_get_process_pid(void) {
-    return SwooleG.pid;
-}
-
-static inline void swoole_set_process_id(swoole::WorkerId id) {
-#ifdef SW_THREAD
-    SwooleTG.process_id = id;
-#else
-    SwooleG.process_id = id;
-#endif
-}
-
-static inline void swoole_set_process_type(int type) {
-#ifdef SW_THREAD
-    SwooleTG.process_type = type;
-#else
-    SwooleG.process_type = type;
-#endif
-}
-
-static inline int swoole_get_process_type(void) {
-#ifdef SW_THREAD
-    return SwooleTG.process_type;
-#else
-    return SwooleG.process_type;
-#endif
 }
 
 static inline uint32_t swoole_pagesize() {

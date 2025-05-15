@@ -169,8 +169,6 @@ void swoole_init(void) {
     // random seed
     srandom(time(nullptr));
 
-    SwooleG.pid = getpid();
-
     if (!SwooleG.logger) {
         SwooleG.logger = new Logger();
     }
@@ -350,7 +348,6 @@ pid_t swoole_fork(int flags) {
 
     pid_t pid = fork();
     if (pid == 0) {
-        SwooleG.pid = getpid();
         if (flags & SW_FORK_DAEMON) {
             return pid;
         }

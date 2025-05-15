@@ -67,7 +67,7 @@ int Server::start_reactor_processes() {
     SW_LOOP_N(worker_num) {
         gs->event_workers.workers[i].pool = &gs->event_workers;
         gs->event_workers.workers[i].id = i;
-        gs->event_workers.workers[i].type = SW_PROCESS_WORKER;
+        gs->event_workers.workers[i].type = SW_WORKER;
     }
 
     init_ipc_max_size();
@@ -152,10 +152,9 @@ static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
 
 int Server::reactor_process_main_loop(ProcessPool *pool, Worker *worker) {
     auto *serv = (Server *) pool->ptr;
-    SwooleG.pid = getpid();
-    SwooleTG.id = 0;
-    swoole_set_process_type(SW_PROCESS_WORKER);
-    swoole_set_process_id(worker->id);
+    swoole_set_worker_type(SW_EVENT_WORKER);
+    swoole_set_worker_id(worker->id);
+    swoole_set_worker_pid(getpid());
 
     serv->init_event_worker(worker);
 
