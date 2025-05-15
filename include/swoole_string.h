@@ -68,18 +68,18 @@ class String {
         length = _length;
     }
 
-    String(const std::string &_str) : String(_str.c_str(), _str.length()) {}
+    explicit String(const std::string &_str) : String(_str.c_str(), _str.length()) {}
 
     String(const String &src) {
         copy(src);
     }
 
-    String(String &&src) {
+    String(String &&src) noexcept {
         move(std::move(src));
     }
 
-    String &operator=(const String &src);
-    String &operator=(String &&src);
+    String &operator=(const String &src) noexcept;
+    String &operator=(String &&src) noexcept;
 
     ~String() {
         if (allocator && str) {
@@ -91,11 +91,11 @@ class String {
         return str;
     }
 
-    size_t get_length() {
+    size_t get_length() const {
         return length;
     }
 
-    size_t capacity() {
+    size_t capacity() const {
         return size;
     }
 
@@ -103,7 +103,7 @@ class String {
         return std::string(str, length);
     }
 
-    bool contains(const char *needle, size_t l_needle) {
+    bool contains(const char *needle, size_t l_needle) const {
         return swoole_strnstr(str, length, needle, l_needle) != nullptr;
     }
 
@@ -111,10 +111,46 @@ class String {
         return contains(needle.c_str(), needle.size());
     }
 
+    bool starts_with(const char *needle, size_t l_needle) const {
+        if (length < l_needle) {
+            return false;
+        }
+        return memcmp(str, needle, l_needle) == 0;
+    }
+
+    bool starts_with(const std::string &needle) const {
+        return starts_with(needle.c_str(), needle.length());
+    }
+
+    bool ends_with(const char *needle, size_t l_needle) const {
+        if (length < l_needle) {
+            return false;
+        }
+        return memcmp(str + length - l_needle, needle, l_needle) == 0;
+    }
+
+    bool ends_with(const std::string &needle) const {
+        return ends_with(needle.c_str(), needle.length());
+    }
+
+    bool equals(const char *data, size_t len) const {
+        if (length != len) {
+            return false;
+        }
+        return memcmp(str, data, len) == 0;
+    }
+
+    bool equals(const std::string &data) const {
+        if (length != data.size()) {
+            return false;
+        }
+        return memcmp(str, data.c_str(), length) == 0;
+    }
+
     bool grow(size_t incr_value);
     String substr(size_t offset, size_t len);
 
-    bool empty() {
+    bool empty() const {
         return str == nullptr || length == 0;
     }
 

@@ -21,6 +21,7 @@
 
 #include <signal.h>
 #include <unordered_map>
+#include <unordered_set>
 #include <queue>
 
 #include "swoole_signal.h"
@@ -105,6 +106,7 @@ struct ProcessPool;
 struct Worker;
 
 struct WorkerGlobal {
+    WorkerId id;
     bool shutdown;
     bool running;
     uint32_t max_request;
@@ -408,7 +410,7 @@ struct ProcessPool {
     void stop(Worker *worker);
     void kill_all_workers(int signo = SIGKILL);
     swResultCode dispatch(EventData *data, int *worker_id);
-    int response(const char *data, int length);
+    int response(const char *data, uint32_t length);
     swResultCode dispatch_sync(EventData *data, int *dst_worker_id);
     swResultCode dispatch_sync(const char *data, uint32_t len);
     void add_worker(Worker *worker);
@@ -419,19 +421,22 @@ struct ProcessPool {
     int create_message_bus();
     int push_message(uint8_t type, const void *data, size_t length);
     int push_message(EventData *msg);
+    bool send_message(WorkerId worker_id, const char *message, size_t l_message);
     int pop_message(void *data, size_t size);
     int listen(const char *socket_file, int blacklog);
     int listen(const char *host, int port, int blacklog);
     int schedule();
     bool is_worker_running(Worker *worker);
 
-    static void kill_timeout_worker(Timer *timer, TimerNode *tnode);
-
   private:
+    static int recv_packet(Reactor *reactor, Event *event);
+    static int recv_message(Reactor *reactor, Event *event);
     static int run_with_task_protocol(ProcessPool *pool, Worker *worker);
     static int run_with_stream_protocol(ProcessPool *pool, Worker *worker);
     static int run_with_message_protocol(ProcessPool *pool, Worker *worker);
     static int run_async(ProcessPool *pool, Worker *worker);
+
+    bool wait_detached_worker(std::unordered_set<pid_t> &detached_workers, pid_t pid);
 };
 };  // namespace swoole
 
@@ -446,3 +451,6 @@ extern SW_THREAD_LOCAL swoole::WorkerGlobal SwooleWG;
 static inline swoole::Worker *sw_worker() {
     return SwooleWG.worker;
 }
+
+SW_API swoole::WorkerId swoole_get_worker_id();
+SW_API void swoole_set_worker_id(swoole::WorkerId worker_id);

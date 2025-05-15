@@ -24,6 +24,7 @@
 #include "swoole_server.h"
 #include "swoole_file.h"
 #include "swoole_http.h"
+#include "swoole_http2.h"
 #include "swoole_util.h"
 
 #include <openssl/sha.h>
@@ -36,6 +37,7 @@ using namespace std;
 using http_server::Context;
 using network::Client;
 using network::SyncClient;
+using swoole::http_server::parse_multipart_boundary;
 
 SessionId session_id = 0;
 Connection *conn = nullptr;
@@ -1466,4 +1468,344 @@ TEST(http_server, has_expect_header) {
                         "Content-Length: 1000000\r\n"
                         "Expect: 100-continue\r\n\r\n");
     ASSERT_TRUE(req.has_expect_header());
+}
+
+TEST(http_server, get_status_message) {
+    size_t n = sizeof(http_server::list_of_status_code) / sizeof(int);
+    SW_LOOP_N(n) {
+        auto code = http_server::list_of_status_code[i];
+        if (code == -1) {
+            break;
+        }
+        auto error = http_server::get_status_message(code);
+        auto str = String(error);
+        ASSERT_TRUE(str.starts_with(std::to_string(code) + " "));
+    }
+
+    auto error = swoole::http_server::get_status_message(999);
+    auto str = String(error);
+    ASSERT_TRUE(str.equals(std::to_string(999) + " Unknown Status"));
+}
+
+static swoole::http_server::Request req;
+
+static void SetRequestContent(const std::string &str) {
+    delete req.buffer_;
+    req.buffer_ = new String(str);
+};
+
+static void SetRequestContent(String *str) {
+    delete req.buffer_;
+    req.buffer_ = str;
+};
+
+TEST(http_server, get_protocol) {
+    static auto request = &req;
+    // 测试有效的 GET 请求
+    {
+        SetRequestContent("GET /index.html HTTP/1.1\r\nHost: example.com\r\n\r\n");
+        ASSERT_EQ(request->get_protocol(), SW_OK);
+        EXPECT_EQ(request->method, SW_HTTP_GET);
+        EXPECT_EQ(request->version, SW_HTTP_VERSION_11);
+
+        std::string url(request->buffer_->str + request->url_offset_, request->url_length_);
+        EXPECT_EQ(url, "/index.html");
+    }
+
+    // 超长 URL
+    {
+        auto s = new String();
+        s->append("GET /home/explore/?a=");
+        s->append_random_bytes(swoole_rand(1024, 2048), 1);
+        s->append(" HTTP/1.1\r\n");
+        s->append("Host: 127.0.0.1\r\n");
+        s->append("Connection: keep-alive\r\n");
+        s->append("Cache-Control: max-age=0\r\n\r\n");
+        SetRequestContent(s);
+        ASSERT_EQ(request->get_protocol(), SW_OK);
+        EXPECT_EQ(request->method, SW_HTTP_GET);
+        EXPECT_EQ(request->version, SW_HTTP_VERSION_11);
+
+        std::string url(request->buffer_->str + request->url_offset_, request->url_length_);
+        EXPECT_EQ(url.substr(0, url.find('?')), "/home/explore/");
+    }
+
+    // 测试有效的 POST 请求
+    {
+        SetRequestContent("POST /submit HTTP/1.0\r\nContent-Type: application/json\r\n\r\n{\"key\":\"value\"}");
+
+        ASSERT_EQ(request->get_protocol(), SW_OK);
+        EXPECT_EQ(request->method, SW_HTTP_POST);
+        EXPECT_EQ(request->version, SW_HTTP_VERSION_10);
+
+        std::string url(request->buffer_->str + request->url_offset_, request->url_length_);
+        EXPECT_EQ(url, "/submit");
+    }
+    // 测试 PUT 方法
+    {
+        SetRequestContent("PUT /resource HTTP/1.1\r\nContent-Type: text/plain\r\n\r\nNew content");
+
+        ASSERT_EQ(request->get_protocol(), SW_OK);
+        EXPECT_EQ(request->method, SW_HTTP_PUT);
+        EXPECT_EQ(request->version, SW_HTTP_VERSION_11);
+
+        std::string url(request->buffer_->str + request->url_offset_, request->url_length_);
+        EXPECT_EQ(url, "/resource");
+    }
+
+    // 测试 HTTP2 前言
+    {
+        SetRequestContent(SW_HTTP2_PRI_STRING);
+
+        ASSERT_EQ(request->get_protocol(), SW_OK);
+        EXPECT_EQ(request->method, SW_HTTP_PRI);
+    }
+
+    // 测试无效的请求 - 太短
+    {
+        SetRequestContent("GET /");
+
+        ASSERT_EQ(request->get_protocol(), SW_ERR);
+        EXPECT_EQ(request->excepted, 1);
+    }
+
+    // 测试无效的请求 - 未知方法
+    {
+        SetRequestContent("UNKNOWN /path HTTP/1.1\r\n");
+
+        ASSERT_EQ(request->get_protocol(), SW_ERR);
+        EXPECT_EQ(request->excepted, 1);
+    }
+
+    // 测试无效的请求 - 缺少 URL
+    {
+        SetRequestContent("GET  HTTP/1.1\r\n");
+
+        ASSERT_EQ(request->get_protocol(), SW_ERR);
+        EXPECT_EQ(request->excepted, 1);
+    }
+
+    // 测试无效的请求 - 无效的 HTTP 版本
+    {
+        SetRequestContent("GET /index.html HTTP/2.0\r\n");
+
+        ASSERT_EQ(request->get_protocol(), SW_ERR);
+        EXPECT_EQ(request->excepted, 1);
+    }
+
+    // 测试无效的请求 - 缺少 HTTP 版本
+    {
+        SetRequestContent("GET /index.html\r\n");
+
+        ASSERT_EQ(request->get_protocol(), SW_ERR);
+        EXPECT_EQ(request->excepted, 1);
+    }
+
+    // 测试复杂 URL
+    {
+        SetRequestContent("GET /search?q=test&page=1#results HTTP/1.1\r\n");
+
+        ASSERT_EQ(request->get_protocol(), SW_OK);
+        EXPECT_EQ(request->method, SW_HTTP_GET);
+
+        std::string url(request->buffer_->str + request->url_offset_, request->url_length_);
+        EXPECT_EQ(url, "/search?q=test&page=1#results");
+    }
+
+    // 测试多余空格
+    {
+        SetRequestContent("GET    /index.html    HTTP/1.1\r\n");
+
+        ASSERT_EQ(request->get_protocol(), SW_OK);
+        EXPECT_EQ(request->method, SW_HTTP_GET);
+        EXPECT_EQ(request->version, SW_HTTP_VERSION_11);
+
+        std::string url(request->buffer_->str + request->url_offset_, request->url_length_);
+        EXPECT_EQ(url, "/index.html");
+    }
+}
+
+TEST(http_server, all_method) {
+    static auto request = &req;
+    SW_LOOP_N(SW_HTTP_PRI + 4) {
+        auto str = http_server::get_method_string(i);
+        if (i == 0 || i > SW_HTTP_PRI) {
+            ASSERT_EQ(str, nullptr);
+        } else {
+            SetRequestContent(str + std::string(" / HTTP/1.1\r\nHost: example.com\r\n\r\n"));
+            if (i == SW_HTTP_PRI) {
+                ASSERT_EQ(request->get_protocol(), SW_ERR);
+                EXPECT_EQ(request->excepted, true);
+            } else {
+                ASSERT_EQ(request->get_protocol(), SW_OK);
+                EXPECT_EQ(request->method, i - 1);
+            }
+        }
+    }
+}
+
+TEST(http_server, parse_multipart_boundary) {
+    char *boundary_str;
+    int boundary_len;
+    {
+        const char *input = "Content-Type: multipart/form-data; boundary=----WebKitFormBoundaryX";
+        size_t length = strlen(input);
+        size_t offset = 30;  // 从 "boundary=" 之前开始
+
+        ASSERT_TRUE(parse_multipart_boundary(input, length, offset, &boundary_str, &boundary_len));
+        EXPECT_EQ(std::string(boundary_str, boundary_len), "----WebKitFormBoundaryX");
+    }
+
+    // 测试带引号的 boundary
+    {
+        const char *input = "Content-Type: multipart/form-data; boundary=\"----WebKitFormBoundaryX\"";
+        size_t length = strlen(input);
+        size_t offset = 30;
+
+        ASSERT_TRUE(parse_multipart_boundary(input, length, offset, &boundary_str, &boundary_len));
+        EXPECT_EQ(std::string(boundary_str, boundary_len), "----WebKitFormBoundaryX");
+    }
+
+    // 测试带空格的格式
+    {
+        const char *input = "Content-Type: multipart/form-data; boundary = ----WebKitFormBoundaryX";
+        size_t length = strlen(input);
+        size_t offset = 30;
+
+        ASSERT_FALSE(parse_multipart_boundary(input, length, offset, &boundary_str, &boundary_len));
+        EXPECT_EQ(std::string(boundary_str, boundary_len), "----WebKitFormBoundaryX");
+    }
+
+    // 测试 boundary 后有其他参数
+    {
+        const char *input = "Content-Type: multipart/form-data; boundary=----WebKitFormBoundaryX; charset=UTF-8";
+        size_t length = strlen(input);
+        size_t offset = 30;
+
+        ASSERT_TRUE(parse_multipart_boundary(input, length, offset, &boundary_str, &boundary_len));
+        EXPECT_EQ(std::string(boundary_str, boundary_len), "----WebKitFormBoundaryX");
+    }
+
+    // 测试 boundary 前有其他参数
+    {
+        const char *input = "Content-Type: multipart/form-data; charset=UTF-8; boundary=----WebKitFormBoundaryX";
+        size_t length = strlen(input);
+        size_t offset = 30;
+
+        ASSERT_TRUE(parse_multipart_boundary(input, length, offset, &boundary_str, &boundary_len));
+        EXPECT_EQ(std::string(boundary_str, boundary_len), "----WebKitFormBoundaryX");
+    }
+
+    // 测试空 boundary
+    {
+        const char *input = "Content-Type: multipart/form-data; boundary=";
+        size_t length = strlen(input);
+        size_t offset = 30;
+
+        ASSERT_FALSE(parse_multipart_boundary(input, length, offset, &boundary_str, &boundary_len));
+    }
+
+    // 测试空引号 boundary
+    {
+        const char *input = "Content-Type: multipart/form-data; boundary=\"\"";
+        size_t length = strlen(input);
+        size_t offset = 30;
+
+        ASSERT_FALSE(parse_multipart_boundary(input, length, offset, &boundary_str, &boundary_len));
+    }
+
+    // 测试没有 boundary 参数
+    {
+        const char *input = "Content-Type: multipart/form-data; charset=UTF-8";
+        size_t length = strlen(input);
+        size_t offset = 30;
+
+        ASSERT_FALSE(parse_multipart_boundary(input, length, offset, &boundary_str, &boundary_len));
+    }
+
+    // 测试大小写不敏感
+    {
+        const char *input = "Content-Type: multipart/form-data; BOUNDARY=----WebKitFormBoundaryX";
+        size_t length = strlen(input);
+        size_t offset = 30;
+
+        ASSERT_TRUE(parse_multipart_boundary(input, length, offset, &boundary_str, &boundary_len));
+        EXPECT_EQ(std::string(boundary_str, boundary_len), "----WebKitFormBoundaryX");
+    }
+
+    // 测试 offset 为 0 的情况
+    {
+        const char *input = "boundary=----WebKitFormBoundaryX";
+        size_t length = strlen(input);
+        size_t offset = 0;
+
+        ASSERT_TRUE(parse_multipart_boundary(input, length, offset, &boundary_str, &boundary_len));
+        EXPECT_EQ(std::string(boundary_str, boundary_len), "----WebKitFormBoundaryX");
+    }
+
+    // 测试超出范围的 offset
+    {
+        const char *input = "Content-Type: multipart/form-data; boundary=----WebKitFormBoundaryX";
+        size_t length = strlen(input);
+        size_t offset = length + 1;
+
+        ASSERT_FALSE(parse_multipart_boundary(input, length, offset, &boundary_str, &boundary_len));
+    }
+}
+
+TEST(http_server, get_package_length) {
+    network::Socket fake_sock;
+    PacketLength pl;
+    Connection conn;
+
+    Server serv(Server::MODE_BASE);
+    serv.worker_num = 1;
+
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_NE(port, nullptr);
+    port->open_http_protocol = true;
+    port->open_http2_protocol = true;
+    port->open_websocket_protocol = true;
+    port->init_protocol();
+
+    fake_sock.fd = port->get_fd();
+    fake_sock.object = &conn;
+    fake_sock.socket_type = port->type;
+    fake_sock.get_name();
+
+    conn.info = fake_sock.info;
+    conn.session_id = 2025;
+
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    // websocket
+    sw_tg_buffer()->clear();
+    conn.websocket_status = websocket::STATUS_HANDSHAKE;
+    ASSERT_TRUE(websocket::encode(sw_tg_buffer(), SW_STRL(TEST_STR), websocket::OPCODE_TEXT, websocket::FLAG_FIN));
+    pl.buf = sw_tg_buffer()->str;
+    pl.buf_size = sw_tg_buffer()->length;
+    ASSERT_EQ(http_server::get_package_length(&port->protocol, &fake_sock, &pl),
+              SW_WEBSOCKET_HEADER_LEN + strlen(TEST_STR));
+
+    // http2
+    sw_tg_buffer()->clear();
+    conn.http2_stream = 1;
+    conn.websocket_status = 0;
+    http2::Settings settings_1{};
+    http2::init_settings(&settings_1);
+    sw_tg_buffer()->length = http2::pack_setting_frame(sw_tg_buffer()->str, settings_1, false);
+    pl.buf = sw_tg_buffer()->str;
+    pl.buf_size = sw_tg_buffer()->length;
+
+    ASSERT_GT(sw_tg_buffer()->length, 16);
+    ASSERT_EQ(http_server::get_package_length(&port->protocol, &fake_sock, &pl), sw_tg_buffer()->length);
+
+    // http1.1
+    conn.websocket_status = 0;
+    conn.http2_stream = 0;
+    ASSERT_EQ(http_server::get_package_length(&port->protocol, &fake_sock, &pl), SW_ERR);
+
+    String str(swoole_get_last_error_msg());
+    ASSERT_EQ(swoole_get_last_error(), SW_ERROR_PROTOCOL_ERROR);
+    ASSERT_TRUE(str.contains("unexpected protocol status of session"));
 }

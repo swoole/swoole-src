@@ -91,7 +91,7 @@ int Server::start_reactor_processes() {
 
 static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
     SendData _send;
-    Server *serv = (Server *) reactor->ptr;
+    auto *serv = (Server *) reactor->ptr;
     Factory *factory = serv->factory;
     PipeBuffer *pipe_buffer = serv->message_bus.get_buffer();
 
@@ -152,7 +152,7 @@ static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
 }
 
 int Server::reactor_process_main_loop(ProcessPool *pool, Worker *worker) {
-    Server *serv = (Server *) pool->ptr;
+    auto *serv = (Server *) pool->ptr;
     SwooleG.pid = getpid();
     SwooleTG.id = 0;
     swoole_set_process_type(SW_PROCESS_WORKER);
@@ -236,7 +236,7 @@ int Server::reactor_process_main_loop(ProcessPool *pool, Worker *worker) {
     if (worker->id == 0) {
         serv->gs->master_pid = getpid();
         if (serv->onStart && !serv->gs->called_onStart) {
-            serv->gs->called_onStart = 1;
+            serv->gs->called_onStart = true;
             serv->onStart(serv);
         }
     }
@@ -285,7 +285,7 @@ int Server::reactor_process_main_loop(ProcessPool *pool, Worker *worker) {
 
 static int ReactorProcess_onClose(Reactor *reactor, Event *event) {
     int fd = event->fd;
-    Server *serv = (Server *) reactor->ptr;
+    auto *serv = (Server *) reactor->ptr;
     Connection *conn = serv->get_connection(fd);
     if (conn == nullptr || conn->active == 0) {
         return SW_ERR;
@@ -310,8 +310,8 @@ static int ReactorProcess_onClose(Reactor *reactor, Event *event) {
 }
 
 static void ReactorProcess_onTimeout(Timer *timer, TimerNode *tnode) {
-    Reactor *reactor = (Reactor *) tnode->data;
-    Server *serv = (Server *) reactor->ptr;
+    auto *reactor = (Reactor *) tnode->data;
+    auto *serv = (Server *) reactor->ptr;
     Event notify_ev{};
     double now = microtime();
 

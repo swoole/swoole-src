@@ -17,6 +17,11 @@ int main(int argc, char **argv) {
         sw_logger()->display_backtrace();
     }
 
+#ifdef SW_VERBOSE
+    swoole_set_log_level(SW_LOG_TRACE);
+    swoole_set_trace_flags(SW_TRACE_ALL);
+#endif
+
     ::testing::InitGoogleTest(&argc, argv);
     int retval = RUN_ALL_TESTS();
 
@@ -45,6 +50,7 @@ static void init_root_path(const char *_exec_file) {
 
 namespace swoole {
 namespace test {
+NullStream null_stream;
 
 const string &get_root_path() {
     return root_path;
@@ -77,30 +83,6 @@ bool is_github_ci() {
 int exec_js_script(const std::string &file, const std::string &args) {
     std::string command = "bash -c 'node " + test::get_root_path() + "/core-tests/js/" + file + " " + args + "'";
     return std::system(command.c_str());
-}
-
-Socks5Proxy *create_socks5_proxy() {
-    auto socks5_proxy = new Socks5Proxy();
-    socks5_proxy->host = std::string(TEST_SOCKS5_PROXY_HOST);
-    socks5_proxy->port = TEST_SOCKS5_PROXY_PORT;
-    socks5_proxy->dns_tunnel = 1;
-    if (is_github_ci()) {
-        socks5_proxy->method = SW_SOCKS5_METHOD_AUTH;
-        socks5_proxy->username = std::string(TEST_SOCKS5_PROXY_USER);
-        socks5_proxy->password = std::string(TEST_SOCKS5_PROXY_PASSWORD);
-    }
-    return socks5_proxy;
-}
-
-HttpProxy *create_http_proxy() {
-    auto http_proxy = new HttpProxy();
-    http_proxy->proxy_host = std::string(TEST_HTTP_PROXY_HOST);
-    http_proxy->proxy_port = TEST_HTTP_PROXY_PORT;
-    if (is_github_ci()) {
-        http_proxy->username = std::string(TEST_HTTP_PROXY_USER);
-        http_proxy->password = std::string(TEST_HTTP_PROXY_PASSWORD);
-    }
-    return http_proxy;
 }
 
 int get_random_port() {

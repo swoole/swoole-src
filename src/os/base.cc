@@ -144,26 +144,25 @@ bool swoole_thread_get_name(char *buf, size_t len) {
 }
 
 namespace swoole {
+GetaddrinfoRequest::GetaddrinfoRequest(
+    std::string _hostname, int _family, int _socktype, int _protocol, std::string _service)
+    : hostname(std::move(_hostname)), service(std::move(_service)) {
+    family = _family;
+    socktype = _socktype;
+    protocol = _protocol;
+    count = 0;
+    error = 0;
+}
+
 namespace async {
-
 void handler_gethostbyname(AsyncEvent *event) {
-    char addr[INET6_ADDRSTRLEN];
     auto req = dynamic_cast<GethostbynameRequest *>(event->data.get());
-    int ret = network::gethostbyname(req->family, req->name.c_str(), addr);
-    sw_memset_zero(req->addr, req->addr_len);
-
-    if (ret < 0) {
-        event->error = SW_ERROR_DNSLOOKUP_RESOLVE_FAILED;
+    event->retval = network::gethostbyname(req);
+    if (event->retval < 0) {
+        event->error = swoole_get_last_error();
     } else {
-        if (inet_ntop(req->family, addr, req->addr, req->addr_len) == nullptr) {
-            ret = -1;
-            event->error = SW_ERROR_BAD_IPV6_ADDRESS;
-        } else {
-            event->error = 0;
-            ret = 0;
-        }
+        event->error = 0;
     }
-    event->retval = ret;
 }
 
 void handler_getaddrinfo(AsyncEvent *event) {
@@ -171,6 +170,5 @@ void handler_getaddrinfo(AsyncEvent *event) {
     event->retval = network::getaddrinfo(req);
     event->error = req->error;
 }
-
 }  // namespace async
 }  // namespace swoole

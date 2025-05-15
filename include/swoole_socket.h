@@ -60,6 +60,7 @@ enum {
 };
 
 namespace swoole {
+struct GethostbynameRequest;
 struct GetaddrinfoRequest;
 
 namespace network {
@@ -98,20 +99,18 @@ struct Address {
     socklen_t len;
     SocketType type;
 
-    bool assign(SocketType _type, const std::string &_host, int _port, bool resolve = true);
+    bool assign(SocketType _type, const std::string &_host, int _port = 0, bool _resolve_name = true);
     bool assign(const std::string &url);
 
-    const char *get_ip() {
-        return get_addr();
-    }
-
-    int get_port();
+    int get_port() const;
+    void set_port(int _port);
     const char *get_addr();
     bool is_loopback_addr();
+    bool empty();
 
     static bool verify_ip(int __af, const std::string &str) {
         char tmp_address[INET6_ADDRSTRLEN];
-        return inet_pton(__af, str.c_str(), tmp_address) != -1;
+        return inet_pton(__af, str.c_str(), tmp_address) == 1;
     }
 };
 
@@ -172,6 +171,8 @@ struct Socket {
     uchar nonblock : 1;
     uchar cloexec : 1;
     uchar direct_send : 1;
+    uchar bound : 1;
+    uchar listened : 1;
 #ifdef SW_USE_OPENSSL
     uchar ssl_send_ : 1;
     uchar ssl_want_read : 1;
@@ -204,6 +205,9 @@ struct Socket {
     uint32_t ssl_state;
 #endif
 
+    /**
+     * Only used for getsockname, written by the OS, not user. This is the exact actual address.
+     */
     Address info;
     double recv_timeout_ = default_read_timeout;
     double send_timeout_ = default_write_timeout;
@@ -267,29 +271,27 @@ struct Socket {
         return fd;
     }
 
+    const char *get_addr() {
+        return info.get_addr();
+    }
+
+    int get_port() {
+        return info.get_port();
+    }
+
+    uint32_t get_out_buffer_length() {
+        return out_buffer ? out_buffer->length() : 0;
+    }
+
     int move_fd() {
         int sock_fd = fd;
         fd = SW_BAD_SOCKET;
         return sock_fd;
     }
 
-    int get_name(Address *sa) {
-        sa->len = sizeof(sa->addr);
-        return getsockname(fd, &sa->addr.ss, &sa->len);
-    }
-
-    int set_tcp_nopush(int nopush) {
-#ifdef TCP_CORK
-        if (set_option(IPPROTO_TCP, TCP_CORK, nopush) == SW_ERR) {
-            return -1;
-        } else {
-            tcp_nopush = nopush;
-            return 0;
-        }
-#else
-        return -1;
-#endif
-    }
+    int get_name();
+    int get_peer_name(Address *sa);
+    int set_tcp_nopush(int nopush);
 
     int set_reuse_addr(int enable = 1) {
         return set_option(SOL_SOCKET, SO_REUSEADDR, enable);
@@ -313,7 +315,6 @@ struct Socket {
     ssize_t send(const void *__buf, size_t __n, int __flags);
     ssize_t peek(void *__buf, size_t __n, int __flags);
     Socket *accept();
-    int bind(const std::string &_host, int *port);
     Socket *dup();
 
     ssize_t readv(IOVector *io_vector);
@@ -323,13 +324,17 @@ struct Socket {
         return ::writev(fd, iov, iovcnt);
     }
 
-    int bind(const Address &sa) {
-        return ::bind(fd, &sa.addr.ss, sizeof(sa.addr.ss));
+    /**
+     * If the port is 0, the system will automatically allocate an available port.
+     */
+    int bind(const std::string &_host, int port = 0);
+
+    int bind(const Address &addr) {
+        return bind(&addr.addr.ss, addr.len);
     }
 
-    int listen(int backlog = 0) {
-        return ::listen(fd, backlog <= 0 ? SW_BACKLOG : backlog);
-    }
+    int bind(const struct sockaddr *sa, socklen_t len);
+    int listen(int backlog = 0);
 
     void clean();
     ssize_t send_sync(const void *__data, size_t __len);
@@ -350,6 +355,8 @@ struct Socket {
         addr.assign(socket_type, host, port);
         return connect(addr);
     }
+
+    int connect_sync(const Address &sa, double timeout);
 
 #ifdef SW_USE_OPENSSL
     void ssl_clear_error() {
@@ -380,8 +387,12 @@ struct Socket {
 
     ssize_t recvfrom(char *__buf, size_t __len, int flags, Address *sa) {
         sa->len = sizeof(sa->addr);
-        return ::recvfrom(fd, __buf, __len, flags, &sa->addr.ss, &sa->len);
+        return recvfrom(__buf, __len, flags, &sa->addr.ss, &sa->len);
     }
+
+    ssize_t recvfrom(char *buf, size_t len, int flags, sockaddr *addr, socklen_t *addr_len);
+    ssize_t recvfrom_sync(char *__buf, size_t __len, int flags, Address *sa);
+    ssize_t recvfrom_sync(char *__buf, size_t __len, int flags, sockaddr *addr, socklen_t *addr_len);
 
     bool cork();
     bool uncork();
@@ -397,36 +408,60 @@ struct Socket {
     int wait_event(int timeout_ms, int events);
     void free();
 
-    static inline int is_dgram(SocketType type) {
-        return (type == SW_SOCK_UDP || type == SW_SOCK_UDP6 || type == SW_SOCK_UNIX_DGRAM);
+    static inline bool is_dgram(SocketType type) {
+        return type == SW_SOCK_UDP || type == SW_SOCK_UDP6 || type == SW_SOCK_UNIX_DGRAM;
     }
 
-    static inline int is_stream(SocketType type) {
-        return (type == SW_SOCK_TCP || type == SW_SOCK_TCP6 || type == SW_SOCK_UNIX_STREAM);
+    static inline bool is_stream(SocketType type) {
+        return type == SW_SOCK_TCP || type == SW_SOCK_TCP6 || type == SW_SOCK_UNIX_STREAM;
+    }
+
+    static inline bool is_inet4(SocketType type) {
+        return type == SW_SOCK_TCP || type == SW_SOCK_UDP || type == SW_SOCK_RAW;
+    }
+
+    static inline bool is_inet6(SocketType type) {
+        return type == SW_SOCK_TCP6 || type == SW_SOCK_UDP6 || type == SW_SOCK_RAW6;
+    }
+
+    static inline bool is_tcp(SocketType type) {
+        return type == SW_SOCK_TCP || type == SW_SOCK_TCP6;
+    }
+
+    static inline bool is_udp(SocketType type) {
+        return type == SW_SOCK_UDP || type == SW_SOCK_UDP6;
+    }
+
+    static inline bool is_local(SocketType type) {
+        return type == SW_SOCK_UNIX_STREAM || type == SW_SOCK_UNIX_DGRAM;
+    }
+
+    static inline bool is_raw(SocketType type) {
+        return type == SW_SOCK_RAW || type == SW_SOCK_RAW6;
     }
 
     bool is_stream() {
-        return socket_type == SW_SOCK_TCP || socket_type == SW_SOCK_TCP6 || socket_type == SW_SOCK_UNIX_STREAM;
+        return is_stream(socket_type);
     }
 
     bool is_tcp() {
-        return socket_type == SW_SOCK_TCP || socket_type == SW_SOCK_TCP6;
+        return is_tcp(socket_type);
     }
 
     bool is_udp() {
-        return socket_type == SW_SOCK_UDP || socket_type == SW_SOCK_UDP6;
+        return is_udp(socket_type);
     }
 
     bool is_dgram() {
-        return socket_type == SW_SOCK_UDP || socket_type == SW_SOCK_UDP6 || socket_type == SW_SOCK_UNIX_DGRAM;
+        return is_dgram(socket_type);
     }
 
     bool is_inet4() {
-        return socket_type == SW_SOCK_TCP || socket_type == SW_SOCK_UDP;
+        return is_inet4(socket_type);
     }
 
     bool is_inet6() {
-        return socket_type == SW_SOCK_TCP6 || socket_type == SW_SOCK_UDP6;
+        return is_inet6(socket_type);
     }
 
     bool is_inet() {
@@ -434,7 +469,11 @@ struct Socket {
     }
 
     bool is_local() {
-        return socket_type == SW_SOCK_UNIX_STREAM || socket_type == SW_SOCK_UNIX_DGRAM;
+        return is_local(socket_type);
+    }
+
+    bool is_raw() {
+        return is_raw(socket_type);
     }
 
     ssize_t write(const void *__buf, size_t __len) {
@@ -462,7 +501,6 @@ struct Socket {
     }
 
     ssize_t sendto_sync(const Address &dst_addr, const void *__buf, size_t __n, int flags = 0);
-    ssize_t recvfrom_sync(char *__buf, size_t __len, int flags, Address *sa);
 
     ssize_t sendto(const char *dst_host, int dst_port, const void *data, size_t len, int flags = 0) const {
         Address addr = {};
@@ -507,6 +545,7 @@ struct Socket {
 };
 
 int gethostbyname(int type, const char *name, char *addr);
+int gethostbyname(GethostbynameRequest *req);
 int getaddrinfo(GetaddrinfoRequest *req);
 
 }  // namespace network

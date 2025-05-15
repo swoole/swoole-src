@@ -71,8 +71,9 @@ TEST(redis, server) {
 
                 ASSERT_TRUE(redis.Set(REDIS_TEST_KEY + "-big-key", data));
                 ASSERT_EQ(redis.Get(REDIS_TEST_KEY + "-big-key"), data);
-
                 ASSERT_EQ(redis.Ttl(REDIS_TEST_KEY), -1);
+                ASSERT_FALSE(redis.Select(1));
+                ASSERT_EQ(redis.Role(), "master");
 
                 kill(serv->gs->master_pid, SIGTERM);
             },
@@ -90,23 +91,26 @@ TEST(redis, server) {
             auto result = redis_data.find(list[1]);
             if (result == redis_data.end()) {
                 redis::format_nil(buffer);
-                serv->send(session_id, buffer->str, buffer->length);
             } else {
                 char buf[64];
                 auto n = snprintf(buf, sizeof(buf), "$%zu\r\n", result->second.length());
                 serv->send(session_id, buf, n);
                 serv->send(session_id, result->second.c_str(), result->second.length());
                 serv->send(session_id, SW_CRLF, SW_CRLF_LEN);
+                return SW_OK;
             }
         } else if (strcasecmp(list[0].c_str(), "SET") == 0) {
             redis::format(buffer, redis::REPLY_STATUS, "OK");
             redis_data[list[1]] = list[2];
-            serv->send(session_id, buffer->str, buffer->length);
-        }  else if (strcasecmp(list[0].c_str(), "TTL") == 0) {
+        } else if (strcasecmp(list[0].c_str(), "TTL") == 0) {
             redis::format(buffer, redis::REPLY_INT, -1);
-            serv->send(session_id, buffer->str, buffer->length);
+        } else if (strcasecmp(list[0].c_str(), "ROLE") == 0) {
+            redis::format(buffer, redis::REPLY_STRING, "master");
+        } else {
+            redis::format(buffer, redis::REPLY_ERROR, "Not Suppport");
         }
 
+        serv->send(session_id, buffer->str, buffer->length);
         return SW_OK;
     };
 

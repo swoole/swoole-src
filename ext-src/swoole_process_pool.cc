@@ -555,16 +555,7 @@ static PHP_METHOD(swoole_process_pool, sendMessage) {
     Z_PARAM_LONG(worker_id)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    Worker *worker = pool->get_worker(worker_id);
-    if (pool->message_bus) {
-        SendData _task{};
-        _task.info.reactor_id = current_worker ? current_worker->pid : -1;
-        _task.info.len = l_message;
-        _task.data = message;
-        RETURN_BOOL(pool->message_bus->write(worker->pipe_master, &_task));
-    } else {
-        RETURN_BOOL(worker->pipe_master->send_async(message, l_message));
-    }
+    RETURN_BOOL(pool->send_message(worker_id, message, l_message));
 }
 
 static PHP_METHOD(swoole_process_pool, start) {
@@ -662,7 +653,7 @@ static PHP_METHOD(swoole_process_pool, getProcess) {
         php_swoole_error(E_WARNING, "invalid worker_id[%ld]", worker_id);
         RETURN_FALSE;
     } else if (worker_id < 0) {
-        worker_id = swoole_get_process_id();
+        worker_id = swoole_get_worker_id();
     }
 
     zval *zworkers =
@@ -679,11 +670,11 @@ static PHP_METHOD(swoole_process_pool, getProcess) {
         *worker = current_pool->workers[worker_id];
 
         object_init_ex(zprocess, swoole_process_ce);
-        zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(zprocess), ZEND_STRL("id"), swoole_get_process_id());
+        zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(zprocess), ZEND_STRL("id"), swoole_get_worker_id());
         zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(zprocess), ZEND_STRL("pid"), worker->pid);
         if (current_pool->ipc_mode == SW_IPC_UNIXSOCK) {
             // current process
-            if (worker->id == swoole_get_process_id()) {
+            if (worker->id == swoole_get_worker_id()) {
                 worker->pipe_current = worker->pipe_worker;
             } else {
                 worker->pipe_current = worker->pipe_master;

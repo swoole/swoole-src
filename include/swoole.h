@@ -461,6 +461,7 @@ enum swSocketType {
     SW_SOCK_UNIX_STREAM = 5,  // unix sock stream
     SW_SOCK_UNIX_DGRAM = 6,   // unix sock dgram
     SW_SOCK_RAW = 7,
+    SW_SOCK_RAW6 = 8,
 };
 
 enum swEventType {
@@ -499,6 +500,7 @@ typedef unsigned char uchar;
 
 void swoole_random_string(char *buf, size_t size);
 void swoole_random_string(std::string &str, size_t size);
+uint64_t swoole_random_int();
 size_t swoole_random_bytes(char *buf, size_t size);
 
 static sw_inline char *swoole_strlchr(char *p, char *last, char c) {
@@ -679,16 +681,6 @@ struct EventData {
     }
 };
 
-struct SendData {
-    DataHead info;
-    const char *data;
-};
-
-struct RecvData {
-    DataHead info;
-    const char *data;
-};
-
 struct ThreadGlobal {
     uint16_t id;
     uint8_t type;
@@ -742,6 +734,11 @@ struct NameResolver {
     enum Type type;
 };
 
+struct DnsServer {
+    std::string host;
+    int port;
+};
+
 struct Global {
     uchar init : 1;
     uchar running : 1;
@@ -782,8 +779,7 @@ struct Global {
     Server *server;
     FILE *stdout_;
     //-----------------------[DNS]-----------------------------
-    std::string dns_server_host;
-    int dns_server_port;
+    DnsServer dns_server;
     double dns_cache_refresh_time;
     int dns_tries;
     std::string dns_resolvconf_path;
@@ -900,7 +896,7 @@ SW_API void swoole_set_print_backtrace_on_error(bool enable = true);
 SW_API void swoole_set_stdout_stream(FILE *fp);
 SW_API void swoole_set_dns_server(const std::string &server);
 SW_API void swoole_set_hosts_path(const std::string &hosts_file);
-SW_API std::pair<std::string, int> swoole_get_dns_server();
+SW_API swoole::DnsServer swoole_get_dns_server();
 SW_API bool swoole_load_resolv_conf();
 SW_API void swoole_name_resolver_add(const swoole::NameResolver &resolver, bool append = true);
 SW_API void swoole_name_resolver_each(

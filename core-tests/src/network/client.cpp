@@ -1,6 +1,11 @@
 #include "test_core.h"
 #include "test_server.h"
 #include "test_process.h"
+#include "core-tests/include/test_core.h"
+
+#include <random>
+#include <iomanip>
+#include <sstream>
 
 #define GREETER "Hello Swoole"
 #define GREETER_SIZE sizeof(GREETER)
@@ -10,11 +15,10 @@ using swoole::Mutex;
 using swoole::Pipe;
 using swoole::Socks5Proxy;
 using swoole::String;
+using swoole::network::Address;
 using swoole::network::AsyncClient;
 using swoole::network::Client;
 using swoole::network::SyncClient;
-using swoole::test::create_http_proxy;
-using swoole::test::create_socks5_proxy;
 using swoole::test::Process;
 using swoole::test::Server;
 
@@ -40,13 +44,16 @@ TEST(client, tcp) {
 
     Client cli(SW_SOCK_TCP, false);
     ASSERT_NE(cli.socket, nullptr);
-    ret = cli.connect(&cli, TEST_HOST, port, -1, 0);
+    ret = cli.connect(TEST_HOST, port, -1, 0);
     ASSERT_EQ(ret, 0);
-    ret = cli.send(&cli, SW_STRS(GREETER), 0);
+    ret = cli.send(SW_STRS(GREETER), 0);
     ASSERT_GT(ret, 0);
-    ret = cli.recv(&cli, buf, 128, 0);
+    ret = cli.recv(buf, 128, 0);
     ASSERT_EQ(ret, GREETER_SIZE);
     ASSERT_STREQ(GREETER, buf);
+
+    ASSERT_EQ(cli.close(), SW_OK);
+    ASSERT_EQ(cli.close(), SW_ERR);
 
     kill(pid, SIGTERM);
     int status;
@@ -78,11 +85,11 @@ static void test_sync_client_dgram(const char *host, int port, enum swSocketType
 
     Client cli(type, false);
     ASSERT_NE(cli.socket, nullptr);
-    ret = cli.connect(&cli, host, port, -1, 0);
+    ret = cli.connect(host, port, -1, 0);
     ASSERT_EQ(ret, 0);
-    ret = cli.send(&cli, SW_STRS(GREETER), 0);
+    ret = cli.send(SW_STRS(GREETER), 0);
     ASSERT_GT(ret, 0);
-    ret = cli.recv(&cli, buf, 128, 0);
+    ret = cli.recv(buf, 128, 0);
     ASSERT_EQ(ret, GREETER_SIZE);
     ASSERT_STREQ(GREETER, buf);
 
@@ -140,12 +147,8 @@ static void test_async_client_tcp(const char *host, int port, enum swSocketType 
 
     ac.on_connect([](AsyncClient *ac) { ac->send(SW_STRS(GREETER)); });
 
-    ac.on_close([](AsyncClient *ac) {
-
-    });
-    ac.on_error([](AsyncClient *ac) {
-
-    });
+    ac.on_close([](AsyncClient *ac) {});
+    ac.on_error([](AsyncClient *ac) {});
 
     ac.on_receive([](AsyncClient *ac, const char *data, size_t len) {
         ASSERT_EQ(len, GREETER_SIZE);
@@ -153,7 +156,7 @@ static void test_async_client_tcp(const char *host, int port, enum swSocketType 
         ac->close();
     });
 
-    bool retval = ac.connect(host, port);
+    bool retval = ac.connect(host, port, 1.0);
     EXPECT_TRUE(retval);
 
     swoole_event_wait();
@@ -191,7 +194,7 @@ TEST(client, sleep) {
         cli->sleep();
         swoole_timer_after(200, [cli, &domain](auto _1, auto _2) {
             auto req = swoole::test::http_get_request(domain, "/");
-            cli->send(cli, req.c_str(), req.length(), 0);
+            cli->send(req.c_str(), req.length(), 0);
             cli->wakeup();
         });
     };
@@ -200,7 +203,7 @@ TEST(client, sleep) {
     client.onClose = [](Client *cli) {};
     client.onReceive = [&buf](Client *cli, const char *data, size_t length) { buf.append(data, length); };
 
-    ASSERT_EQ(client.connect(&client, domain, 80, -1, 0), 0);
+    ASSERT_EQ(client.connect(domain, 80, -1, 0), 0);
 
     swoole_event_wait();
 
@@ -210,9 +213,134 @@ TEST(client, sleep) {
 TEST(client, connect_refuse) {
     int ret;
     Client cli(SW_SOCK_TCP, false);
-    ret = cli.connect(&cli, TEST_HOST, swoole::test::get_random_port(), -1, 0);
+    ret = cli.connect(TEST_HOST, swoole::test::get_random_port(), -1, 0);
     ASSERT_EQ(ret, -1);
     ASSERT_EQ(swoole_get_last_error(), ECONNREFUSED);
+}
+
+TEST(client, bind) {
+    Client cli(SW_SOCK_TCP, false);
+    ASSERT_EQ(cli.bind("127.0.0.1", 9999), SW_OK);
+    ASSERT_EQ(cli.bind("192.0.0.1", 9999), SW_ERR);
+    ASSERT_ERREQ(EADDRNOTAVAIL);
+    ASSERT_EQ(cli.bind("127.0.0.1", 80), SW_ERR);
+    if (swoole::test::is_github_ci()) {
+        ASSERT_ERREQ(EINVAL);
+    } else {
+        ASSERT_ERREQ(EACCES);
+    }
+}
+
+// DNS 报文头部结构
+struct DNSHeader {
+    uint16_t id;       // 标识符
+    uint16_t flags;    // 各种标志
+    uint16_t qdcount;  // 问题数量
+    uint16_t ancount;  // 回答数量
+    uint16_t nscount;  // 授权记录数量
+    uint16_t arcount;  // 附加记录数量
+};
+
+// 将域名转换为 DNS 格式
+std::vector<uint8_t> encodeDomainName(const std::string &domain) {
+    std::vector<uint8_t> result;
+    std::string label;
+
+    for (char c : domain) {
+        if (c == '.') {
+            result.push_back(static_cast<uint8_t>(label.length()));
+            for (char lc : label) {
+                result.push_back(static_cast<uint8_t>(lc));
+            }
+            label.clear();
+        } else {
+            label += c;
+        }
+    }
+
+    // 处理最后一个标签
+    if (!label.empty()) {
+        result.push_back(static_cast<uint8_t>(label.length()));
+        for (char lc : label) {
+            result.push_back(static_cast<uint8_t>(lc));
+        }
+    }
+
+    // 添加结束符
+    result.push_back(0);
+
+    return result;
+}
+
+// 构建 DNS 查询报文
+std::vector<uint8_t> buildDNSQuery(const std::string &domain, uint16_t recordType = 1) {
+    std::vector<uint8_t> query;
+
+    // 生成随机 ID
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<uint16_t> dist(0, 65535);
+    uint16_t transactionId = dist(gen);
+
+    // 构建 DNS 头部
+    DNSHeader header;
+    header.id = htons(transactionId);  // 网络字节序
+    header.flags = htons(0x0100);      // RD=1, 其余为0
+    header.qdcount = htons(1);         // 1个问题
+    header.ancount = htons(0);         // 0个回答
+    header.nscount = htons(0);         // 0个授权记录
+    header.arcount = htons(0);         // 0个附加记录
+
+    // 将头部添加到查询报文
+    uint8_t *headerPtr = reinterpret_cast<uint8_t *>(&header);
+    query.insert(query.end(), headerPtr, headerPtr + sizeof(DNSHeader));
+
+    // 添加问题部分 - 域名
+    std::vector<uint8_t> qname = encodeDomainName(domain);
+    query.insert(query.end(), qname.begin(), qname.end());
+
+    // 添加问题部分 - 查询类型和查询类
+    uint16_t qtype = htons(recordType);  // 查询类型（如A记录=1）
+    uint16_t qclass = htons(1);          // 查询类（IN=1）
+
+    uint8_t *qtypePtr = reinterpret_cast<uint8_t *>(&qtype);
+    uint8_t *qclassPtr = reinterpret_cast<uint8_t *>(&qclass);
+
+    query.insert(query.end(), qtypePtr, qtypePtr + sizeof(uint16_t));
+    query.insert(query.end(), qclassPtr, qclassPtr + sizeof(uint16_t));
+
+    return query;
+}
+
+// 将二进制数据转换为十六进制字符串
+std::string bytesToHexString(const std::vector<uint8_t> &data) {
+    std::stringstream ss;
+
+    for (size_t i = 0; i < data.size(); ++i) {
+        ss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(data[i]);
+        if (i < data.size() - 1) {
+            ss << " ";
+        }
+    }
+
+    return ss.str();
+}
+
+TEST(client, sendto) {
+    Client cli(SW_SOCK_TCP, false);
+    ASSERT_EQ(cli.sendto("127.0.0.1", 9999, SW_STRL(TEST_STR)), SW_ERR);
+    ASSERT_ERREQ(SW_ERROR_OPERATION_NOT_SUPPORT);
+
+    auto dns_server = swoole_get_dns_server();
+    Client dsock(SW_SOCK_UDP, false);
+    auto dnsQuery = buildDNSQuery("www.baidu.com");
+    ASSERT_EQ(dsock.sendto(dns_server.host, dns_server.port, (const char *) dnsQuery.data(), dnsQuery.size()), SW_OK);
+    ASSERT_GT(dsock.recv(sw_tg_buffer()->str, sw_tg_buffer()->size), 0);
+
+    Address ra;
+    ASSERT_EQ(dsock.get_peer_name(&ra), SW_OK);
+    ASSERT_STREQ(ra.get_addr(), dns_server.host.c_str());
+    ASSERT_EQ(ra.get_port(), dns_server.port);
 }
 
 TEST(client, async_unix_connect_refuse) {
@@ -224,9 +352,7 @@ TEST(client, async_unix_connect_refuse) {
 
     ac.on_connect([](AsyncClient *ac) { ac->send(SW_STRS(GREETER)); });
 
-    ac.on_close([](AsyncClient *ac) {
-
-    });
+    ac.on_close([](AsyncClient *ac) {});
 
     ac.on_error([&](AsyncClient *ac) { flags["onError"] = true; });
 
@@ -254,9 +380,7 @@ TEST(client, async_connect_timeout) {
 
     ac.on_connect([](AsyncClient *ac) { ac->send(SW_STRS(GREETER)); });
 
-    ac.on_close([](AsyncClient *ac) {
-
-    });
+    ac.on_close([](AsyncClient *ac) {});
 
     ac.on_error([&](AsyncClient *ac) {
         flags["onError"] = true;
@@ -349,7 +473,7 @@ TEST(client, async_udp6) {
 TEST(client, connect_timeout) {
     int ret;
     Client cli(SW_SOCK_TCP, false);
-    ret = cli.connect(&cli, "19.168.0.99", swoole::test::get_random_port(), 0.2, 0);
+    ret = cli.connect("19.168.0.99", swoole::test::get_random_port(), 0.2, 0);
     ASSERT_EQ(ret, -1);
     ASSERT_EQ(swoole_get_last_error(), ETIMEDOUT);
 }
@@ -358,10 +482,10 @@ TEST(client, shutdown_write) {
     signal(SIGPIPE, SIG_IGN);
     int ret;
     Client cli(SW_SOCK_TCP, false);
-    ret = cli.connect(&cli, "www.baidu.com", 80, -1, 0);
+    ret = cli.connect("www.baidu.com", 80, -1, 0);
     ASSERT_EQ(ret, 0);
     cli.shutdown(SHUT_WR);
-    ssize_t retval = cli.send(&cli, SW_STRL("hello world"), 0);
+    ssize_t retval = cli.send(SW_STRL("hello world"), 0);
     ASSERT_EQ(retval, -1);
     ASSERT_EQ(swoole_get_last_error(), EPIPE);
 }
@@ -370,15 +494,15 @@ TEST(client, shutdown_read) {
     signal(SIGPIPE, SIG_IGN);
     int ret;
     Client cli(SW_SOCK_TCP, false);
-    ret = cli.connect(&cli, "www.baidu.com", 80, -1, 0);
+    ret = cli.connect("www.baidu.com", 80, -1, 0);
     ASSERT_EQ(ret, 0);
 
     cli.shutdown(SHUT_RD);
-    ssize_t retval = cli.send(&cli, SW_STRL("hello world\r\n\r\n"), 0);
+    ssize_t retval = cli.send(SW_STRL("hello world\r\n\r\n"), 0);
     ASSERT_GT(retval, 0);
 
     char buf[1024];
-    retval = cli.recv(&cli, buf, sizeof(buf), 0);
+    retval = cli.recv(buf, sizeof(buf), 0);
     ASSERT_EQ(retval, 0);
 }
 
@@ -386,23 +510,23 @@ TEST(client, shutdown_all) {
     signal(SIGPIPE, SIG_IGN);
     int ret;
     Client cli(SW_SOCK_TCP, false);
-    ret = cli.connect(&cli, "www.baidu.com", 80, -1, 0);
+    ret = cli.connect("www.baidu.com", 80, -1, 0);
     ASSERT_EQ(ret, 0);
 
     cli.shutdown(SHUT_RDWR);
 
-    ssize_t retval = cli.send(&cli, SW_STRL("hello world\r\n\r\n"), 0);
+    ssize_t retval = cli.send(SW_STRL("hello world\r\n\r\n"), 0);
     ASSERT_EQ(retval, -1);
     ASSERT_EQ(swoole_get_last_error(), EPIPE);
 
     char buf[1024];
-    retval = cli.recv(&cli, buf, sizeof(buf), 0);
+    retval = cli.recv(buf, sizeof(buf), 0);
     ASSERT_EQ(retval, 0);
 }
 
 #ifdef SW_USE_OPENSSL
 
-TEST(client, ssl_1) {
+static void test_ssl_get_baidu() {
     bool connected = false;
     bool closed = false;
     String buf(65536);
@@ -413,20 +537,24 @@ TEST(client, ssl_1) {
     client.enable_ssl_encrypt();
     client.onConnect = [&connected](Client *cli) {
         connected = true;
-        cli->send(cli, SW_STRL(TEST_REQUEST_BAIDU), 0);
+        cli->send(SW_STRL(TEST_REQUEST_BAIDU), 0);
     };
 
     client.onError = [](Client *cli) {};
     client.onClose = [&closed](Client *cli) { closed = true; };
     client.onReceive = [&buf](Client *cli, const char *data, size_t length) { buf.append(data, length); };
 
-    ASSERT_EQ(client.connect(&client, TEST_DOMAIN_BAIDU, 443, -1, 0), 0);
+    ASSERT_EQ(client.connect(TEST_DOMAIN_BAIDU, 443, -1, 0), 0);
 
     swoole_event_wait();
 
     ASSERT_TRUE(connected);
     ASSERT_TRUE(closed);
     ASSERT_TRUE(buf.contains("Baidu"));
+}
+
+TEST(client, ssl_1) {
+    test_ssl_get_baidu();
 }
 
 TEST(client, ssl_sendfile) {
@@ -443,14 +571,14 @@ TEST(client, ssl_sendfile) {
     client.enable_ssl_encrypt();
     client.onConnect = [&connected, &file](Client *cli) {
         connected = true;
-        cli->sendfile(cli, file.get_path().c_str(), 0, file.get_size());
+        cli->sendfile(file.get_path().c_str(), 0, file.get_size());
     };
 
     client.onError = [](Client *cli) {};
     client.onClose = [&closed](Client *cli) { closed = true; };
     client.onReceive = [&buf](Client *cli, const char *data, size_t length) { buf.append(data, length); };
 
-    ASSERT_EQ(client.connect(&client, TEST_DOMAIN_BAIDU, 443, -1, 0), 0);
+    ASSERT_EQ(client.connect(TEST_DOMAIN_BAIDU, 443, -1, 0), 0);
 
     swoole_event_wait();
 
@@ -494,14 +622,14 @@ static void proxy_async_test(Client &client, bool https) {
 
     client.onConnect = [&connected](Client *cli) {
         connected = true;
-        cli->send(cli, SW_STRL(TEST_REQUEST_BAIDU), 0);
+        cli->send(SW_STRL(TEST_REQUEST_BAIDU), 0);
     };
 
     client.onError = [](Client *cli) {};
     client.onClose = [&closed](Client *cli) { closed = true; };
     client.onReceive = [&buf](Client *cli, const char *data, size_t length) { buf.append(data, length); };
 
-    ASSERT_EQ(client.connect(&client, TEST_DOMAIN_BAIDU, https ? 443 : 80, -1, 0), 0);
+    ASSERT_EQ(client.connect(TEST_DOMAIN_BAIDU, https ? 443 : 80, -1, 0), 0);
 
     swoole_event_wait();
 
@@ -516,12 +644,12 @@ static void proxy_sync_test(Client &client, bool https) {
         client.enable_ssl_encrypt();
     }
 
-    ASSERT_EQ(client.connect(&client, TEST_DOMAIN_BAIDU, https ? 443 : 80, -1, 0), 0);
-    ASSERT_GT(client.send(&client, SW_STRL(TEST_REQUEST_BAIDU), 0), 0);
+    ASSERT_EQ(client.connect(TEST_DOMAIN_BAIDU, https ? 443 : 80, -1, 0), 0);
+    ASSERT_GT(client.send(SW_STRL(TEST_REQUEST_BAIDU), 0), 0);
 
     while (true) {
         char rbuf[4096];
-        auto nr = client.recv(&client, rbuf, sizeof(rbuf), 0);
+        auto nr = client.recv(rbuf, sizeof(rbuf), 0);
         if (nr <= 0) {
             break;
         }
@@ -532,11 +660,21 @@ static void proxy_sync_test(Client &client, bool https) {
 }
 
 static void proxy_set_socks5_proxy(Client &client) {
-    client.socks5_proxy = create_socks5_proxy();
+    std::string username, password;
+    if (swoole::test::is_github_ci()) {
+        username = std::string(TEST_SOCKS5_PROXY_USER);
+        password = std::string(TEST_SOCKS5_PROXY_PASSWORD);
+    }
+    client.set_socks5_proxy(TEST_SOCKS5_PROXY_HOST, TEST_SOCKS5_PROXY_PORT, username, password);
 }
 
 static void proxy_set_http_proxy(Client &client) {
-    client.http_proxy = create_http_proxy();
+    std::string username, password;
+    if (swoole::test::is_github_ci()) {
+        username = std::string(TEST_HTTP_PROXY_USER);
+        password = std::string(TEST_HTTP_PROXY_PASSWORD);
+    }
+    client.set_http_proxy(TEST_HTTP_PROXY_HOST, TEST_HTTP_PROXY_PORT, username, password);
 }
 
 TEST(client, https_get_async_with_http_proxy) {
@@ -585,5 +723,55 @@ TEST(client, http_get_sync_with_socks5_proxy) {
     Client client(SW_SOCK_TCP, false);
     proxy_set_socks5_proxy(client);
     proxy_sync_test(client, false);
+}
+
+TEST(client, ssl) {
+    Client client(SW_SOCK_TCP, false);
+    client.enable_ssl_encrypt();
+    client.set_tls_host_name(TEST_HTTP_DOMAIN);
+    ASSERT_EQ(client.connect(TEST_HTTP_DOMAIN, 443, -1, 0), SW_OK);
+
+    auto sock = client.socket;
+    ASSERT_TRUE(sock->ssl_get_peer_certificate(sw_tg_buffer()));
+    auto ls = sock->ssl_get_peer_cert_chain(10);
+    ASSERT_FALSE(ls.empty());
+    swoole::test::dump_cert_info(sw_tg_buffer()->str, sw_tg_buffer()->length);
+    ASSERT_EQ(client.ssl_verify(false), SW_OK);
+
+    auto req = swoole::test::http_get_request(TEST_HTTP_DOMAIN, "/");
+
+    constexpr off_t offset1 = 87;
+    iovec wr_iov[2];
+    wr_iov[0].iov_base = (void *) req.c_str();
+    wr_iov[0].iov_len = offset1;
+    wr_iov[1].iov_base = (void *) req.c_str() + offset1;
+    wr_iov[1].iov_len = req.length() - offset1;
+
+    swoole::network::IOVector wr_vec(wr_iov, 2);
+    ASSERT_EQ(sock->ssl_writev(&wr_vec), req.length());
+
+    sw_tg_buffer()->clear();
+    sw_tg_buffer()->extend(1024 * 1024);
+
+    constexpr off_t offset2 = 1949;
+    iovec rd_iov[2];
+    rd_iov[0].iov_base = sw_tg_buffer()->str;
+    rd_iov[0].iov_len = offset2;
+    rd_iov[1].iov_base = sw_tg_buffer()->str + offset2;
+    rd_iov[1].iov_len = sw_tg_buffer()->size - offset2;
+
+    swoole::network::IOVector rd_vec(rd_iov, 2);
+    auto rv = sock->ssl_readv(&rd_vec);
+    ASSERT_GT(rv, 1024);
+    sw_tg_buffer()->length = rv;
+    sw_tg_buffer()->set_null_terminated();
+
+    ASSERT_TRUE(sw_tg_buffer()->contains("中华人民共和国"));
+}
+
+TEST(client, ssl_reinit) {
+    swoole_ssl_destroy();
+    swoole_ssl_init();
+    test_ssl_get_baidu();
 }
 #endif

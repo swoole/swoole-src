@@ -53,14 +53,34 @@
 
 #define ASSERT_MEMEQ(x, y, n) ASSERT_EQ(memcmp((x), (y), n), 0)
 #define EXPECT_MEMEQ(x, y, n) EXPECT_EQ(memcmp((x), (y), n), 0)
+#define ASSERT_ERREQ(x) ASSERT_EQ(swoole_get_last_error(), x)
+#define EXPECT_ERREQ(x) EXPECT_EQ(swoole_get_last_error(), x)
 
 #define TIMER_PARAMS Timer *timer, TimerNode *tnode
+
+#ifdef SW_VERBOSE
+#define DEBUG() std::cout
+#else
+#define DEBUG() swoole::test::null_stream
+#endif
 
 namespace swoole {
 struct HttpProxy;
 struct Socks5Proxy;
 namespace test {
+class NullStream {
+  public:
+    template <typename T>
+    NullStream &operator<<(const T &) {
+        return *this;
+    }
 
+    NullStream &operator<<(std::ostream &(*) (std::ostream &) ) {
+        return *this;
+    }
+};
+
+extern NullStream null_stream;
 const std::string &get_root_path();
 std::string get_ssl_dir();
 std::string get_jpg_file();
@@ -69,11 +89,14 @@ int exec_js_script(const std::string &file, const std::string &args);
 std::string http_get_request(const std::string &domain, const std::string &path);
 int get_random_port();
 
-Socks5Proxy *create_socks5_proxy();
-HttpProxy *create_http_proxy();
-
 pid_t spawn_exec(const std::function<void(void)> &fn);
 int spawn_exec_and_wait(const std::function<void(void)> &fn);
+
+int dump_cert_info(const char *data, size_t len);
+
+static inline int dump_cert_info(const String *str) {
+    return dump_cert_info(str->str, str->length);
+}
 
 }  // namespace test
 };  // namespace swoole

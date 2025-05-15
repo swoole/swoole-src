@@ -18,6 +18,7 @@
 */
 
 #include "test_core.h"
+#include "swoole_reactor.h"
 #include "swoole_pipe.h"
 #include "swoole_util.h"
 
@@ -240,9 +241,9 @@ TEST(reactor, write_2m) {
 
     auto n = swoole_event_write(sock, str.value(), str.get_length());
     ASSERT_EQ(n, str.get_length());
-    ASSERT_GT(sock->out_buffer->length(), 1024);
+    ASSERT_GT(sock->get_out_buffer_length(), 1024);
 
-    std::cout << sock->out_buffer->length() << "\n";
+    std::cout << sock->get_out_buffer_length() << "\n";
 
     ASSERT_EQ(swoole_event_write(sock, str.value(), 256 * 1024), SW_ERR);
     ASSERT_EQ(swoole_get_last_error(), SW_ERROR_OUTPUT_BUFFER_OVERFLOW);
@@ -571,7 +572,7 @@ TEST(reactor, drain_write_buffer) {
 
     auto n = swoole_event_write(wsock, str.value(), str.get_length());
     ASSERT_EQ(n, str.get_length());
-    ASSERT_GT(wsock->out_buffer->length(), 1024);
+    ASSERT_GT(wsock->get_out_buffer_length(), 1024);
 
     std::thread t([&]() {
         usleep(10000);

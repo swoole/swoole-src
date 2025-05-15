@@ -1,5 +1,6 @@
 #include "test_coroutine.h"
 
+using swoole::Coroutine;
 using swoole::coroutine::Channel;
 
 using namespace std;
@@ -124,4 +125,25 @@ TEST(coroutine_channel, close) {
         &chan2);
 
     ASSERT_TRUE(chan2.close());
+}
+
+TEST(coroutine_channel, cancel) {
+    Channel chan(1);
+
+    coroutine::run(
+        [](void *arg) {
+            auto chan = (Channel *) arg;
+            auto cid = Coroutine::create([chan](void *args) {
+                ASSERT_EQ(chan->pop(), nullptr);
+                ASSERT_EQ(chan->get_error(), Channel::ERROR_CANCELED);
+            });
+
+            auto co = Coroutine::get_by_cid(cid);
+            ASSERT_TRUE(co->cancel());
+            ASSERT_TRUE(chan->close());
+
+            ASSERT_EQ(chan->pop(), nullptr);
+            ASSERT_EQ(chan->get_error(), Channel::ERROR_CLOSED);
+        },
+        &chan);
 }

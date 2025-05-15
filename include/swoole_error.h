@@ -56,6 +56,7 @@ enum swErrorCode {
     SW_ERROR_UNREGISTERED_SIGNAL,
     SW_ERROR_BAD_HOST_ADDR,
     SW_ERROR_BAD_PORT,
+    SW_ERROR_BAD_SOCKET_TYPE,
 
     // EventLoop
     SW_ERROR_EVENT_REMOVE_FAILED = 800,
@@ -211,11 +212,11 @@ enum swErrorCode {
 };
 
 namespace swoole {
-class Exception {
+class Exception final : std::exception {
   public:
     int code;
     const char *msg;
 
-    Exception(int code) throw();
+    explicit Exception(int code) noexcept;
 };
 }  // namespace swoole

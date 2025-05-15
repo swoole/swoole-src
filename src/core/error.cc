@@ -21,7 +21,7 @@
 static std::unordered_set<int> ignored_errors;
 
 namespace swoole {
-Exception::Exception(int code) throw() : code(code) {
+Exception::Exception(const int code) noexcept : code(code) {
     msg = swoole_strerror(code);
 }
 }  // namespace swoole
@@ -296,14 +296,14 @@ void swoole_ignore_error(int code) {
     ignored_errors.insert(code);
 }
 
-bool swoole_is_ignored_error(int code) {
+bool swoole_is_ignored_error(const int code) {
     return ignored_errors.find(code) != ignored_errors.end();
 }
 
-void swoole_clear_last_error_msg(void) {
+void swoole_clear_last_error_msg() {
     sw_error[0] = '\0';
 }
 
-const char *swoole_get_last_error_msg(void) {
+const char *swoole_get_last_error_msg() {
     return sw_error;
 }

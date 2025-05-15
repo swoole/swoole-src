@@ -143,7 +143,7 @@ class Coroutine {
     static void set_on_yield(SwapCallback func);
     static void set_on_resume(SwapCallback func);
     static void set_on_close(SwapCallback func);
-    static void bailout(BailoutCallback func);
+    static void bailout(const BailoutCallback &func);
     static bool run(const CoroutineFunc &fn, void *args = nullptr);
 
     static inline long create(const CoroutineFunc &fn, void *args = nullptr) {

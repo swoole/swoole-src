@@ -39,6 +39,16 @@ static const char *method_strings[] = {
 // clang-format on
 
 namespace swoole {
+HttpProxy *HttpProxy::create(const std::string &host, int port, const std::string &user, const std::string &pwd) {
+    auto http_proxy = new HttpProxy();
+    http_proxy->proxy_host = host;
+    http_proxy->proxy_port = port;
+    if (!user.empty() && !pwd.empty()) {
+        http_proxy->username = user;
+        http_proxy->password = pwd;
+    }
+    return http_proxy;
+}
 
 std::string HttpProxy::get_auth_str() {
     char auth_buf[256];
@@ -109,6 +119,7 @@ bool HttpProxy::handshake(String *recv_buffer) {
                     state = 2;
                     p += sizeof("200") - 1;
                 } else {
+                    swoole_set_last_error(SW_ERROR_HTTP_PROXY_HANDSHAKE_FAILED);
                     break;
                 }
             }
@@ -317,12 +328,31 @@ static const multipart_parser_settings mt_parser_settings = {
     multipart_on_body_end,
 };
 
+static thread_local char http_status_message[128];
+
+// clang-format off
+int list_of_status_code[128] = {
+    100, 101, 102, 103,
+    200, 201, 202, 203, 204, 205, 206, 207, 208, 226,
+    300, 301, 302, 303, 304, 305, 306, 307, 308,
+    400, 401, 402, 403, 404, 405, 406, 407, 408, 409,
+    410, 411, 412, 413, 414, 415, 416, 417, 418, 421,
+    422, 423, 424, 425, 426, 428, 429, 431, 451,
+    500, 501, 502, 503, 504, 505, 506, 507, 508, 510, 511,
+    -1,
+};
+// clang-format on
+
 const char *get_status_message(int code) {
     switch (code) {
     case 100:
         return "100 Continue";
     case 101:
         return "101 Switching Protocols";
+    case 102:
+        return "102 Processing";
+    case 103:
+        return "103 Early Hints";
     case 201:
         return "201 Created";
     case 202:
@@ -353,8 +383,12 @@ const char *get_status_message(int code) {
         return "304 Not Modified";
     case 305:
         return "305 Use Proxy";
+    case 306:
+        return "306 (Unused)";
     case 307:
         return "307 Temporary Redirect";
+    case 308:
+        return "308 Permanent Redirect";
     case 400:
         return "400 Bad Request";
     case 401:
@@ -382,13 +416,13 @@ const char *get_status_message(int code) {
     case 412:
         return "412 Precondition Failed";
     case 413:
-        return "413 Request Entity Too Large";
+        return "413 Payload Too Large";
     case 414:
-        return "414 Request URI Too Long";
+        return "414 URI Too Long";
     case 415:
         return "415 Unsupported Media Type";
     case 416:
-        return "416 Requested Range Not Satisfiable";
+        return "416 Range Not Satisfiable";
     case 417:
         return "417 Expectation Failed";
     case 418:
@@ -401,6 +435,8 @@ const char *get_status_message(int code) {
         return "423 Locked";
     case 424:
         return "424 Failed Dependency";
+    case 425:
+        return "425 Too Early";
     case 426:
         return "426 Upgrade Required";
     case 428:
@@ -414,7 +450,7 @@ const char *get_status_message(int code) {
     case 500:
         return "500 Internal Server Error";
     case 501:
-        return "501 Method Not Implemented";
+        return "501 Not Implemented";
     case 502:
         return "502 Bad Gateway";
     case 503:
@@ -434,8 +470,11 @@ const char *get_status_message(int code) {
     case 511:
         return "511 Network Authentication Required";
     case 200:
-    default:
+    case 0:
         return "200 OK";
+    default:
+        sw_snprintf(http_status_message, sizeof(http_status_message), "%d Unknown Status", code);
+        return http_status_message;
     }
 }
 
@@ -486,10 +525,13 @@ bool parse_multipart_boundary(
             offset++;
             continue;
         }
-        if (SW_STR_ISTARTS_WITH(at + offset, length - offset, "boundary=")) {
+
+        if (offset + sizeof("boundary=") - 1 <= length &&
+            SW_STR_ISTARTS_WITH(at + offset, length - offset, "boundary=")) {
             offset += sizeof("boundary=") - 1;
             break;
         }
+
         void *delimiter = memchr((void *) (at + offset), ';', length - offset);
         if (delimiter == nullptr) {
             return false;
@@ -498,23 +540,30 @@ bool parse_multipart_boundary(
         }
     }
 
+    if (offset >= length) {
+        return false;
+    }
+
     int boundary_len = length - offset;
     char *boundary_str = (char *) at + offset;
     // find eof of boundary
     if (boundary_len > 0) {
         // find ';'
-        char *tmp = (char *) memchr(boundary_str, ';', boundary_len);
-        if (tmp) {
-            boundary_len = tmp - boundary_str;
+        char *semicolon = (char *) memchr(boundary_str, ';', boundary_len);
+        if (semicolon) {
+            boundary_len = semicolon - boundary_str;
         }
     }
     if (boundary_len <= 0) {
         return false;
     }
     // trim '"'
-    if (boundary_len >= 2 && boundary_str[0] == '"' && *(boundary_str + boundary_len - 1) == '"') {
+    if (boundary_len >= 2 && boundary_str[0] == '"' && boundary_str[boundary_len - 1] == '"') {
         boundary_str++;
         boundary_len -= 2;
+        if (boundary_len <= 0) {
+            return false;
+        }
     }
     *out_boundary_str = boundary_str;
     *out_boundary_len = boundary_len;
@@ -594,69 +643,27 @@ char *url_encode(char const *str, size_t len) {
     return ret;
 }
 
-/**
- * only GET/POST
- */
 int Request::get_protocol() {
     char *p = buffer_->str;
     char *pe = p + buffer_->length;
+    char state = 0;
 
     if (buffer_->length < (sizeof("GET / HTTP/1.x\r\n") - 1)) {
         return SW_ERR;
     }
 
-    // http method
-    if (memcmp(p, SW_STRL("GET")) == 0) {
-        method = SW_HTTP_GET;
-        p += 3;
-    } else if (memcmp(p, SW_STRL("POST")) == 0) {
-        method = SW_HTTP_POST;
-        p += 4;
-    } else if (memcmp(p, SW_STRL("PUT")) == 0) {
-        method = SW_HTTP_PUT;
-        p += 3;
-    } else if (memcmp(p, SW_STRL("PATCH")) == 0) {
-        method = SW_HTTP_PATCH;
-        p += 5;
-    } else if (memcmp(p, SW_STRL("DELETE")) == 0) {
-        method = SW_HTTP_DELETE;
-        p += 6;
-    } else if (memcmp(p, SW_STRL("HEAD")) == 0) {
-        method = SW_HTTP_HEAD;
-        p += 4;
-    } else if (memcmp(p, SW_STRL("OPTIONS")) == 0) {
-        method = SW_HTTP_OPTIONS;
-        p += 7;
-    } else if (memcmp(p, SW_STRL("COPY")) == 0) {
-        method = SW_HTTP_COPY;
-        p += 4;
-    } else if (memcmp(p, SW_STRL("LOCK")) == 0) {
-        method = SW_HTTP_LOCK;
-        p += 4;
-    } else if (memcmp(p, SW_STRL("MKCOL")) == 0) {
-        method = SW_HTTP_MKCOL;
-        p += 5;
-    } else if (memcmp(p, SW_STRL("MOVE")) == 0) {
-        method = SW_HTTP_MOVE;
-        p += 4;
-    } else if (memcmp(p, SW_STRL("PROPFIND")) == 0) {
-        method = SW_HTTP_PROPFIND;
-        p += 8;
-    } else if (memcmp(p, SW_STRL("PROPPATCH")) == 0) {
-        method = SW_HTTP_PROPPATCH;
-        p += 9;
-    } else if (memcmp(p, SW_STRL("UNLOCK")) == 0) {
-        method = SW_HTTP_UNLOCK;
-        p += 6;
-    } else if (memcmp(p, SW_STRL("REPORT")) == 0) {
-        method = SW_HTTP_REPORT;
-        p += 6;
-    } else if (memcmp(p, SW_STRL("PURGE")) == 0) {
-        method = SW_HTTP_PURGE;
-        p += 5;
+    // HTTP Method
+    SW_LOOP_N(sizeof(method_strings) / sizeof(char *) - 1) {
+        auto method_str = method_strings[i];
+        auto n = strlen(method_str);
+        if (memcmp(p, method_str, n) == 0) {
+            method = i + 1;
+            p += n;
+            goto _found_method;
+        }
     }
     // HTTP2 Connection Preface
-    else if (memcmp(p, SW_STRL("PRI")) == 0) {
+    if (memcmp(p, SW_STRL("PRI")) == 0) {
         method = SW_HTTP_PRI;
         if (buffer_->length >= (sizeof(SW_HTTP2_PRI_STRING) - 1) && memcmp(p, SW_STRL(SW_HTTP2_PRI_STRING)) == 0) {
             buffer_->offset = sizeof(SW_HTTP2_PRI_STRING) - 1;
@@ -670,8 +677,8 @@ int Request::get_protocol() {
         return SW_ERR;
     }
 
-    // http version
-    char state = 0;
+    // HTTP Version
+_found_method:
     for (; p < pe; p++) {
         switch (state) {
         case 0:
@@ -1011,7 +1018,7 @@ static void protocol_status_error(Socket *socket, Connection *conn) {
                      SW_ERROR_PROTOCOL_ERROR,
                      "unexpected protocol status of session#%ld<%s:%d>",
                      conn->session_id,
-                     conn->info.get_ip(),
+                     conn->info.get_addr(),
                      conn->info.get_port());
 }
 

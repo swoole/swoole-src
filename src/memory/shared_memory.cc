@@ -15,7 +15,6 @@
 */
 
 #include "swoole.h"
-#include "swoole_file.h"
 #include "swoole_memory.h"
 
 #include <sys/mman.h>
@@ -33,7 +32,7 @@ struct SharedMemory {
     static void free(void *ptr);
 
     static SharedMemory *fetch_object(void *ptr) {
-        return (SharedMemory *) ((char *) ptr - sizeof(SharedMemory));
+        return reinterpret_cast<SharedMemory *>(static_cast<char *>(ptr) - sizeof(SharedMemory));
     }
 };
 
@@ -67,7 +66,7 @@ void *SharedMemory::alloc(size_t size) {
     } else {
         object.size_ = size;
         memcpy(mem, &object, sizeof(object));
-        return (char *) mem + sizeof(object);
+        return static_cast<char *>(mem) + sizeof(object);
     }
 }
 

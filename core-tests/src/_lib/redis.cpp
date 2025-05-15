@@ -47,6 +47,31 @@ long RedisClient::Ttl(const std::string &key) {
     }
 }
 
+bool RedisClient::Select(int db) {
+    auto _db = std::to_string(db);
+    const char *argv[] = {"SELECT", _db.c_str()};
+    size_t argvlen[] = {strlen(argv[0]), _db.length()};
+
+    auto reply = Request(SW_ARRAY_SIZE(argv), argv, argvlen);
+    if (!reply.empty() && reply->type == REDIS_REPLY_STATUS && strncmp(reply->str, "OK", 2) == 0) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+std::string RedisClient::Role() {
+    const char *argv[] = {"ROLE"};
+    size_t argvlen[] = {strlen(argv[0])};
+
+    auto reply = Request(SW_ARRAY_SIZE(argv), argv, argvlen);
+    if (!reply.empty() && reply->str) {
+        return string(reply->str, reply->len);
+    } else {
+        return "";
+    }
+}
+
 bool RedisClient::Set(const string &key, const string &value) {
     const char *argv[] = {"SET", key.c_str(), value.c_str()};
     size_t argvlen[] = {strlen(argv[0]), key.length(), value.length()};

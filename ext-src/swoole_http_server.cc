@@ -125,13 +125,13 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
             if (serv->is_base_mode() && ctx->keepalive) {
                 auto iter = client_ips.find(session_id);
                 if (iter == client_ips.end()) {
-                    auto rs = client_ips.emplace(session_id, conn->info.get_ip());
+                    auto rs = client_ips.emplace(session_id, conn->info.get_addr());
                     iter = rs.first;
                 }
                 iter->second.add_ref();
                 http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), iter->second.ptr());
             } else {
-                http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), conn->info.get_ip());
+                http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), conn->info.get_addr());
             }
         }
 

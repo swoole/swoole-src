@@ -361,7 +361,7 @@ struct ListenPort {
     bool ssl_context_init();
     bool ssl_context_create(SSLContext *context);
     bool ssl_create(Connection *conn, network::Socket *sock);
-    bool ssl_add_sni_cert(const std::string &name, std::shared_ptr<SSLContext> ctx);
+    bool ssl_add_sni_cert(const std::string &name, const std::shared_ptr<SSLContext> &ctx);
     bool ssl_init();
 
     bool set_ssl_key_file(const std::string &file) {
@@ -592,7 +592,6 @@ class ProcessFactory : public Factory {
 };
 
 class ThreadFactory : public BaseFactory {
-  private:
     std::vector<std::shared_ptr<Thread>> threads_;
     std::mutex lock_;
     std::condition_variable cv_;
@@ -600,19 +599,22 @@ class ThreadFactory : public BaseFactory {
     long cv_timeout_ms_;
     bool reload_all_workers;
     bool reloading;
-    Worker manager;
-    void at_thread_enter(int id, int process_type, int thread_type);
+    Worker manager{};
+    void at_thread_enter(WorkerId id, int process_type);
     void at_thread_exit(Worker *worker);
     void create_message_bus();
     void destroy_message_bus();
 
   public:
-    ThreadFactory(Server *server);
-    ~ThreadFactory();
+    explicit ThreadFactory(Server *server);
+    ~ThreadFactory() override;
+    WorkerId get_manager_thread_id();
+    WorkerId get_master_thread_id();
     void spawn_event_worker(WorkerId i);
     void spawn_task_worker(WorkerId i);
     void spawn_user_worker(WorkerId i);
     void spawn_manager_thread(WorkerId i);
+    void terminate_manager_thread();
     void wait();
     bool reload(bool reload_all_workers);
     bool start() override;
@@ -1153,7 +1155,7 @@ class Server {
     void reset_worker_counter(Worker *worker);
     int connection_incoming(Reactor *reactor, Connection *conn);
 
-    int get_idle_worker_num();
+    uint32_t get_idle_worker_num();
     int get_idle_task_worker_num();
     int get_tasking_num();
 
@@ -1506,7 +1508,7 @@ class Server {
     bool send(SessionId session_id, const void *data, uint32_t length);
     bool sendfile(SessionId session_id, const char *file, uint32_t l_file, off_t offset, size_t length);
     bool sendwait(SessionId session_id, const void *data, uint32_t length);
-    bool close(SessionId session_id, bool reset);
+    bool close(SessionId session_id, bool reset = false);
 
     bool notify(Connection *conn, enum ServerEventType event);
     bool feedback(Connection *conn, enum ServerEventType event);

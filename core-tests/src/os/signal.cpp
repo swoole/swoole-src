@@ -65,3 +65,43 @@ TEST(os_signal, unblock) {
 
     ASSERT_EQ(exit_status.get_code(), 255);
 }
+
+TEST(os_signal, signal_to_str) {
+    ASSERT_STREQ(swoole_signal_to_str(SIGTERM), "Terminated: 15");
+    ASSERT_STREQ(swoole_signal_to_str(SIGIO), "I/O possible: 29");
+    ASSERT_STREQ(swoole_signal_to_str(SIGRTMIN), "Real-time signal 0: 34");
+    ASSERT_STREQ(swoole_signal_to_str(99999), "Unknown signal 99999: 99999");
+}
+
+TEST(os_signal, set) {
+    swoole_signal_set(SIGIO, [](int signo) { exit(255); });
+    ASSERT_TRUE(swoole_signal_isset(SIGIO));
+    ASSERT_FALSE(swoole_signal_isset(SIGTERM));
+    swoole_signal_set(SIGIO, nullptr);
+    ASSERT_FALSE(swoole_signal_isset(SIGIO));
+}
+
+static int trigger_signal = 0;
+
+TEST(os_signal, dispatch) {
+    trigger_signal = 0;
+    swoole_signal_set(
+        SIGIO, [](int signo) { trigger_signal = signo; }, true);
+    swoole_kill(getpid(), SIGIO);
+    ASSERT_EQ(trigger_signal, 0);
+
+    ASSERT_EQ(swoole_signal_get_handler(SIGTERM), nullptr);
+    ASSERT_NE(swoole_signal_get_handler(SIGIO), nullptr);
+
+    swoole_signal_dispatch();
+    ASSERT_EQ(trigger_signal, SIGIO);
+
+    trigger_signal = 0;
+
+    swoole_signal_dispatch();
+    ASSERT_EQ(trigger_signal, 0);
+
+    ASSERT_EQ(swoole_signal_get_listener_num(), 0);
+
+    swoole_signal_clear();
+}

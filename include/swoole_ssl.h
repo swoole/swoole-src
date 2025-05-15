@@ -47,9 +47,8 @@
 #define BIO_CTRL_DGRAM_SET_CONNECTED 32
 #define BIO_CTRL_DGRAM_SET_PEER 44
 #define BIO_CTRL_DGRAM_SET_NEXT_TIMEOUT 45
-#define BIO_dgram_get_peer(b,peer) \
-         (int)BIO_ctrl(b, BIO_CTRL_DGRAM_GET_PEER, 0, (char *)(peer))
-#define OPENSSL_assert(x)       assert(x)
+#define BIO_dgram_get_peer(b, peer) (int) BIO_ctrl(b, BIO_CTRL_DGRAM_GET_PEER, 0, (char *) (peer))
+#define OPENSSL_assert(x) assert(x)
 #endif
 
 enum swSSLCreateFlag {
@@ -184,11 +183,11 @@ struct SSLContext {
     bool set_dhparam();
     ~SSLContext();
 };
-}
+}  // namespace swoole
 
 void swoole_ssl_init(void);
-void swoole_ssl_init_thread_safety();
-bool swoole_ssl_is_thread_safety();
+void swoole_ssl_destroy(void);
+void swoole_ssl_lock_callback(int mode, int type, const char *file, int line);
 void swoole_ssl_server_http_advise(swoole::SSLContext &);
 const char *swoole_ssl_get_error();
 int swoole_ssl_get_ex_connection_index();

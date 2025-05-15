@@ -52,17 +52,16 @@ else()
     endif()
 endif()
 
-if (DEFINED brotli_dir)
-    list(APPEND core_tests_includes ${brotli_dir}/include)
-    list(APPEND core_tests_link_directories ${brotli_dir}/lib)
-endif()
-
 if (DEFINED enable_asan)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer")
 endif()
 
 if (DEFINED enable_thread)
     add_definitions(-DSW_THREAD)
+endif()
+
+if (DEFINED verbose)
+    add_definitions(-DSW_VERBOSE)
 endif()
 
 # should execute before the add_executable command

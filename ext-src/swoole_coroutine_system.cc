@@ -272,7 +272,6 @@ static void swoole_coroutine_system_wait(INTERNAL_FUNCTION_PARAMETERS, pid_t pid
         add_assoc_long(return_value, "code", WEXITSTATUS(status));
         add_assoc_long(return_value, "signal", WTERMSIG(status));
     } else {
-        swoole_set_last_error(errno);
         RETURN_FALSE;
     }
 }

@@ -1066,26 +1066,18 @@ SW_API bool php_swoole_socket_set(Socket *cli, zval *zset) {
     if (php_swoole_array_get_value(vht, "socks5_host", ztmp)) {
         zend::String host(ztmp);
         if (php_swoole_array_get_value(vht, "socks5_port", ztmp)) {
-            if (cli->socks5_proxy == nullptr) {
-                cli->socks5_proxy = new Socks5Proxy();
-            }
-            cli->socks5_proxy->host = host.to_std_string();
-            cli->socks5_proxy->port = zval_get_long(ztmp);
-            cli->socks5_proxy->dns_tunnel = 1;
+            std::string user, pwd;
+            auto socks5_port = zval_get_long(ztmp);
             if (php_swoole_array_get_value(vht, "socks5_username", ztmp)) {
-                zend::String username(ztmp);
-                if (username.len() > 0 && php_swoole_array_get_value(vht, "socks5_password", ztmp)) {
-                    zend::String password(ztmp);
-                    if (password.len() > 0) {
-                        cli->socks5_proxy->method = 0x02;
-                        cli->socks5_proxy->username = username.to_std_string();
-                        cli->socks5_proxy->password = password.to_std_string();
-                    }
+                user = zend::String(ztmp).to_std_string();
+                if (!user.empty() && php_swoole_array_get_value(vht, "socks5_password", ztmp)) {
+                    pwd = zend::String(ztmp).to_std_string();
                 } else {
                     php_swoole_fatal_error(E_WARNING, "socks5_password should not be null");
                     ret = false;
                 }
             }
+            cli->set_socks5_proxy(host.to_std_string(), socks5_port, user, pwd);
         } else {
             php_swoole_fatal_error(E_WARNING, "socks5_port should not be null");
             ret = false;
@@ -1097,25 +1089,19 @@ SW_API bool php_swoole_socket_set(Socket *cli, zval *zset) {
     else if (php_swoole_array_get_value(vht, "http_proxy_host", ztmp)) {
         zend::String host(ztmp);
         if (php_swoole_array_get_value(vht, "http_proxy_port", ztmp)) {
-            if (cli->http_proxy == nullptr) {
-                cli->http_proxy = new HttpProxy();
-            }
-            cli->http_proxy->proxy_host = host.to_std_string();
-            cli->http_proxy->proxy_port = zval_get_long(ztmp);
+            std::string user, pwd;
+            auto http_proxy_port = zval_get_long(ztmp);
             if (php_swoole_array_get_value(vht, "http_proxy_username", ztmp) ||
                 php_swoole_array_get_value(vht, "http_proxy_user", ztmp)) {
-                zend::String username(ztmp);
-                if (username.len() > 0 && php_swoole_array_get_value(vht, "http_proxy_password", ztmp)) {
-                    zend::String password(ztmp);
-                    if (password.len() > 0) {
-                        cli->http_proxy->username = username.to_std_string();
-                        cli->http_proxy->password = password.to_std_string();
-                    }
+                user = zend::String(ztmp).to_std_string();
+                if (!user.empty() && php_swoole_array_get_value(vht, "http_proxy_password", ztmp)) {
+                    pwd = zend::String(ztmp).to_std_string();
                 } else {
-                    php_swoole_fatal_error(E_WARNING, "http_proxy_password should not be null");
+                    php_swoole_fatal_error(E_WARNING, "socks5_password should not be null");
                     ret = false;
                 }
             }
+            cli->set_http_proxy(host.to_std_string(), http_proxy_port, user, pwd);
         } else {
             php_swoole_fatal_error(E_WARNING, "http_proxy_port should not be null");
             ret = false;
@@ -1767,7 +1753,7 @@ static PHP_METHOD(swoole_socket_coro, recvfrom) {
     } else {
         zval_dtor(peername);
         array_init(peername);
-        add_assoc_string(peername, "address", (char *) sock->socket->get_ip());
+        add_assoc_string(peername, "address", (char *) sock->socket->get_addr());
         add_assoc_long(peername, "port", sock->socket->get_port());
 
         ZSTR_LEN(buf) = bytes;
@@ -1848,15 +1834,14 @@ static PHP_METHOD(swoole_socket_coro, close) {
 static PHP_METHOD(swoole_socket_coro, getsockname) {
     swoole_get_socket_coro(sock, ZEND_THIS);
 
-    Address sa;
-    if (!sock->socket->getsockname(&sa)) {
+    if (!sock->socket->getsockname()) {
         socket_coro_sync_properties(ZEND_THIS, sock);
         RETURN_FALSE;
     }
 
     array_init(return_value);
-    add_assoc_string(return_value, "address", (char *) sa.get_ip());
-    add_assoc_long(return_value, "port", sa.get_port());
+    add_assoc_string(return_value, "address", sock->socket->get_addr());
+    add_assoc_long(return_value, "port", sock->socket->get_port());
 }
 
 static PHP_METHOD(swoole_socket_coro, getpeername) {
@@ -1869,7 +1854,7 @@ static PHP_METHOD(swoole_socket_coro, getpeername) {
     }
 
     array_init(return_value);
-    add_assoc_string(return_value, "address", (char *) sa.get_ip());
+    add_assoc_string(return_value, "address", sa.get_addr());
     add_assoc_long(return_value, "port", sa.get_port());
 }
 

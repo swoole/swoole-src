@@ -100,3 +100,24 @@ TEST(http2, pack_setting_frame) {
 
     ASSERT_MEMEQ(&settings_1, &settings_2, sizeof(settings_2));
 }
+
+#define HTTP2_GET_TYPE_TEST(t) ASSERT_STREQ(http2::get_type(SW_HTTP2_TYPE_##t), #t)
+
+TEST(http2, get_type) {
+    HTTP2_GET_TYPE_TEST(DATA);
+    HTTP2_GET_TYPE_TEST(HEADERS);
+    HTTP2_GET_TYPE_TEST(PRIORITY);
+    HTTP2_GET_TYPE_TEST(RST_STREAM);
+    HTTP2_GET_TYPE_TEST(SETTINGS);
+    HTTP2_GET_TYPE_TEST(PUSH_PROMISE);
+    HTTP2_GET_TYPE_TEST(PING);
+    HTTP2_GET_TYPE_TEST(GOAWAY);
+    HTTP2_GET_TYPE_TEST(WINDOW_UPDATE);
+    HTTP2_GET_TYPE_TEST(CONTINUATION);
+}
+
+TEST(http2, get_type_color) {
+    SW_LOOP_N(SW_HTTP2_TYPE_GOAWAY + 2) {
+        ASSERT_GE(http2::get_type_color(i), 0);
+    }
+}

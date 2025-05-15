@@ -31,6 +31,7 @@ using swoole::PacketLength;
 using swoole::Protocol;
 using swoole::Socks5Proxy;
 using swoole::String;
+using swoole::network::Address;
 using swoole::network::Client;
 using swoole::network::Socket;
 
@@ -379,9 +380,7 @@ bool php_swoole_client_check_setting(Client *cli, zval *zset) {
     if (php_swoole_array_get_value(vht, "bind_address", ztmp)) {
         bind_address = zend::String(ztmp).to_std_string();
     }
-    if (bind_address.length() > 0 && cli->socket->bind(bind_address, &bind_port) < 0) {
-        php_swoole_error(E_WARNING, "bind address or port error in set method");
-        swoole_set_last_error(errno);
+    if (!bind_address.empty() && cli->bind(bind_address, bind_port) < 0) {
         return false;
     }
     /**
@@ -393,8 +392,10 @@ bool php_swoole_client_check_setting(Client *cli, zval *zset) {
         }
     } else {
     _open_tcp_nodelay:
+        // The failure to set tcp_nodelay does not affect the normal operation of the client;
+        // therefore, only an error log is printed without returning false.
         if (cli->socket->is_tcp() && !cli->socket->set_tcp_nodelay()) {
-            swoole_sys_warning("setsockopt(%d, TCP_NODELAY) failed", cli->socket->fd);
+            php_swoole_sys_error(E_WARNING, "setsockopt(%d, TCP_NODELAY) failed", cli->socket->fd);
         }
     }
     /**
@@ -403,31 +404,20 @@ bool php_swoole_client_check_setting(Client *cli, zval *zset) {
     if (php_swoole_array_get_value(vht, "socks5_host", ztmp)) {
         zend::String host(ztmp);
         if (php_swoole_array_get_value(vht, "socks5_port", ztmp)) {
-            if (cli->socks5_proxy == nullptr) {
-                cli->socks5_proxy = new Socks5Proxy();
-            }
-            cli->socks5_proxy->host = host.to_std_string();
-            cli->socks5_proxy->port = zval_get_long(ztmp);
-            cli->socks5_proxy->dns_tunnel = 1;
+            auto socks5_port = zval_get_long(ztmp);
+            std::string username, password;
             if (php_swoole_array_get_value(vht, "socks5_username", ztmp)) {
-                zend::String username(ztmp);
-                if (username.len() > 0 && php_swoole_array_get_value(vht, "socks5_password", ztmp)) {
-                    zend::String password(ztmp);
-                    if (password.len() > 0) {
-                        cli->socks5_proxy->method = 0x02;
-                        cli->socks5_proxy->username = username.to_std_string();
-                        cli->socks5_proxy->password = password.to_std_string();
-                    }
-                } else {
-                    php_swoole_fatal_error(E_WARNING, "socks5_password should not be null");
-                    // because we do not set last errcode, return true
-                    return true;
-                }
+                zend::String _value(ztmp);
+                username = _value.to_std_string();
             }
+            if (php_swoole_array_get_value(vht, "socks5_password", ztmp)) {
+                zend::String _value(ztmp);
+                password = _value.to_std_string();
+            }
+            cli->set_socks5_proxy(host.to_std_string(), socks5_port, username, password);
         } else {
             php_swoole_fatal_error(E_WARNING, "socks5_port should not be null");
-            // because we do not set last errcode, return true
-            return true;
+            return false;
         }
     }
     /**
@@ -436,30 +426,21 @@ bool php_swoole_client_check_setting(Client *cli, zval *zset) {
     else if (php_swoole_array_get_value(vht, "http_proxy_host", ztmp)) {
         zend::String host(ztmp);
         if (php_swoole_array_get_value(vht, "http_proxy_port", ztmp)) {
-            if (cli->http_proxy == nullptr) {
-                cli->http_proxy = new HttpProxy();
-            }
-            cli->http_proxy->proxy_host = host.to_std_string();
-            cli->http_proxy->proxy_port = zval_get_long(ztmp);
+            std::string username, password;
+            auto http_proxy_port = zval_get_long(ztmp);
             if (php_swoole_array_get_value(vht, "http_proxy_username", ztmp) ||
                 php_swoole_array_get_value(vht, "http_proxy_user", ztmp)) {
-                zend::String username(ztmp);
-                if (username.len() > 0 && php_swoole_array_get_value(vht, "http_proxy_password", ztmp)) {
-                    zend::String password(ztmp);
-                    if (password.len() > 0) {
-                        cli->http_proxy->username = username.to_std_string();
-                        cli->http_proxy->password = password.to_std_string();
-                    }
-                } else {
-                    php_swoole_fatal_error(E_WARNING, "http_proxy_password should not be null");
-                    // because we do not set last errcode, return true
-                    return true;
-                }
+                zend::String _value(ztmp);
+                username = _value.to_std_string();
             }
+            if (php_swoole_array_get_value(vht, "http_proxy_password", ztmp)) {
+                zend::String _value(ztmp);
+                password = _value.to_std_string();
+            }
+            cli->set_http_proxy(host.to_std_string(), http_proxy_port, username, password);
         } else {
             php_swoole_fatal_error(E_WARNING, "http_proxy_port should not be null");
-            // because we do not set last errcode, return true
-            return true;
+            return false;
         }
     }
     /**
@@ -535,8 +516,8 @@ static Client *php_swoole_client_new(zval *zobject, char *host, int host_len, in
     }
 
     long type = Z_LVAL_P(ztype);
-    int client_type = php_swoole_get_socket_type(type);
-    if ((client_type == SW_SOCK_TCP || client_type == SW_SOCK_TCP6) && (port <= 0 || port > SW_CLIENT_MAX_PORT)) {
+    int socket_type = php_swoole_get_socket_type(type);
+    if (Socket::is_tcp(static_cast<swSocketType>(socket_type)) && (port <= 0 || port > SW_CLIENT_MAX_PORT)) {
         php_swoole_fatal_error(E_WARNING, "The port is invalid");
         swoole_set_last_error(SW_ERROR_INVALID_PARAMS);
         return nullptr;
@@ -590,7 +571,7 @@ static Client *php_swoole_client_new(zval *zobject, char *host, int host_len, in
     zend_update_property_long(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("sock"), cli->socket->fd);
 
     if (type & SW_FLAG_KEEP) {
-        cli->keep = 1;
+        cli->keep = true;
     }
 
 #ifdef SW_USE_OPENSSL
@@ -604,7 +585,7 @@ static Client *php_swoole_client_new(zval *zobject, char *host, int host_len, in
 
 static PHP_METHOD(swoole_client, __construct) {
     zend_long type = 0;
-    zend_bool async = 0;
+    zend_bool async = false;
     char *id = nullptr;
     size_t len = 0;
 
@@ -712,7 +693,7 @@ static PHP_METHOD(swoole_client, connect) {
         }
     }
 
-    if (cli->connect(cli, host, port, timeout, sock_flag) < 0) {
+    if (cli->connect(host, port, timeout, sock_flag) < 0) {
         zend_update_property_long(
             swoole_client_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), swoole_get_last_error());
         // async connect
@@ -754,7 +735,7 @@ static PHP_METHOD(swoole_client, send) {
 
     // clear errno
     swoole_set_last_error(0);
-    ssize_t ret = cli->send(cli, data, data_len, flags);
+    ssize_t ret = cli->send(data, data_len, flags);
     if (ret < 0) {
         php_swoole_sys_error(E_WARNING, "failed to send(%d) %zu bytes", cli->socket->fd, data_len);
         zend_update_property_long(
@@ -791,44 +772,11 @@ static PHP_METHOD(swoole_client, sendto) {
         php_swoole_client_set_cli(ZEND_THIS, cli);
     }
 
-    char addr[INET6_ADDRSTRLEN];
-    char ip[INET6_ADDRSTRLEN];
-
-    /**
-     * udg doesn't need to use ip and port, so we don't need to deal with SW_SOCK_UNIX_DGRAM
-     */
-    if (cli->socket->socket_type != SW_SOCK_UNIX_DGRAM) {
-        if (swoole::network::gethostbyname(cli->_sock_domain, host, addr) < 0) {
-            swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
-            php_swoole_error(E_WARNING,
-                             "sendto to server[%s:%d] failed. Error: %s[%d]",
-                             host,
-                             (int) port,
-                             swoole_strerror(swoole_get_last_error()),
-                             swoole_get_last_error());
-            zend_update_property_long(
-                swoole_client_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), swoole_get_last_error());
-            RETURN_FALSE;
-        }
-
-        if (!inet_ntop(cli->_sock_domain, addr, ip, sizeof(ip))) {
-            php_swoole_error(E_WARNING, "ip[%s] is invalid", ip);
-            zend_update_property_long(swoole_client_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), errno);
-            RETURN_FALSE;
-        }
+    auto rv = cli->sendto(std::string(host, host_len), port, data, len);
+    if (rv < 0) {
+        zend::object_set(ZEND_THIS, ZEND_STRL("errCode"), swoole_get_last_error());
     }
-
-    double ori_timeout = Socket::default_write_timeout;
-    Socket::default_write_timeout = cli->timeout;
-
-    ssize_t ret = -1;
-    if (cli->socket->is_dgram()) {
-        ret = cli->socket->sendto(ip, port, data, len);
-    } else {
-        php_swoole_fatal_error(E_WARNING, "only supports SWOOLE_SOCK_(UDP/UDP6/UNIX_DGRAM)");
-    }
-    Socket::default_write_timeout = ori_timeout;
-    SW_CHECK_RETURN(ret);
+    SW_CHECK_RETURN(rv);
 }
 
 static PHP_METHOD(swoole_client, sendfile) {
@@ -856,7 +804,7 @@ static PHP_METHOD(swoole_client, sendfile) {
     }
     // clear errno
     swoole_set_last_error(0);
-    int ret = cli->sendfile(cli, file, offset, length);
+    int ret = cli->sendfile(file, offset, length);
     if (ret < 0) {
         swoole_set_last_error(errno);
         php_swoole_fatal_error(E_WARNING,
@@ -916,7 +864,7 @@ static PHP_METHOD(swoole_client, recv) {
                 buf_len = SW_BUFFER_SIZE_BIG;
             }
 
-            ret = cli->recv(cli, buf, buf_len, 0);
+            ret = cli->recv(buf, buf_len, 0);
             if (ret < 0) {
                 php_swoole_sys_error(E_WARNING, "recv() failed");
                 zend_update_property_long(
@@ -985,7 +933,7 @@ static PHP_METHOD(swoole_client, recv) {
         uint32_t header_len = protocol->package_length_offset + protocol->package_length_size;
 
         while (1) {
-            int retval = cli->recv(cli, buffer->str + buffer->length, header_len - buffer->length, 0);
+            int retval = cli->recv(buffer->str + buffer->length, header_len - buffer->length, 0);
             if (retval <= 0) {
                 break;
             }
@@ -1029,7 +977,7 @@ static PHP_METHOD(swoole_client, recv) {
         strbuf = zend_string_alloc(buf_len, 0);
         memcpy(strbuf->val, buffer->str, buffer->length);
         swoole_set_last_error(0);
-        ret = cli->recv(cli, strbuf->val + header_len, buf_len - buffer->length, MSG_WAITALL);
+        ret = cli->recv(strbuf->val + header_len, buf_len - buffer->length, MSG_WAITALL);
         if (ret > 0) {
             ret += header_len;
             if (ret != buf_len) {
@@ -1042,7 +990,7 @@ static PHP_METHOD(swoole_client, recv) {
         }
         strbuf = zend_string_alloc(buf_len, 0);
         swoole_set_last_error(0);
-        ret = cli->recv(cli, strbuf->val, buf_len, flags);
+        ret = cli->recv(strbuf->val, buf_len, flags);
     }
 
     if (ret < 0) {
@@ -1084,34 +1032,15 @@ static PHP_METHOD(swoole_client, getsockname) {
         RETURN_FALSE;
     }
 
-    if (cli->socket->is_local()) {
-        php_swoole_fatal_error(E_WARNING, "getsockname() only support AF_INET family socket");
-        RETURN_FALSE;
-    }
-
-    if (cli->socket->get_name(&cli->socket->info) < 0) {
+    if (cli->socket->get_name() < 0) {
         php_swoole_sys_error(E_WARNING, "getsockname() failed");
+        zend::object_set(ZEND_THIS, ZEND_STRL("errCode"), errno);
         RETURN_FALSE;
     }
 
     array_init(return_value);
-    if (cli->socket->is_inet6()) {
-        add_assoc_long(return_value, "port", ntohs(cli->socket->info.addr.inet_v6.sin6_port));
-        char tmp[INET6_ADDRSTRLEN];
-        if (inet_ntop(AF_INET6, &cli->socket->info.addr.inet_v6.sin6_addr, tmp, sizeof(tmp))) {
-            add_assoc_string(return_value, "host", tmp);
-        } else {
-            php_swoole_fatal_error(E_WARNING, "inet_ntop() failed");
-        }
-    } else {
-        add_assoc_long(return_value, "port", ntohs(cli->socket->info.addr.inet_v4.sin_port));
-        char tmp[INET_ADDRSTRLEN];
-        if (inet_ntop(AF_INET, &cli->socket->info.addr.inet_v4.sin_addr, tmp, sizeof(tmp))) {
-            add_assoc_string(return_value, "host", tmp);
-        } else {
-            php_swoole_fatal_error(E_WARNING, "inet_ntop() failed");
-        }
-    }
+    add_assoc_long(return_value, "port", cli->socket->get_port());
+    add_assoc_string(return_value, "host", cli->socket->get_addr());
 }
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
@@ -1145,32 +1074,16 @@ static PHP_METHOD(swoole_client, getpeername) {
         RETURN_FALSE;
     }
 
-    if (cli->socket->socket_type == SW_SOCK_UDP) {
-        array_init(return_value);
-        add_assoc_long(return_value, "port", ntohs(cli->remote_addr.addr.inet_v4.sin_port));
-        char tmp[INET_ADDRSTRLEN];
-
-        if (inet_ntop(AF_INET, &cli->remote_addr.addr.inet_v4.sin_addr, tmp, sizeof(tmp))) {
-            add_assoc_string(return_value, "host", tmp);
-        } else {
-            php_swoole_fatal_error(E_WARNING, "inet_ntop() failed");
-        }
-    } else if (cli->socket->socket_type == SW_SOCK_UDP6) {
-        array_init(return_value);
-        add_assoc_long(return_value, "port", ntohs(cli->remote_addr.addr.inet_v6.sin6_port));
-        char tmp[INET6_ADDRSTRLEN];
-
-        if (inet_ntop(AF_INET6, &cli->remote_addr.addr.inet_v6.sin6_addr, tmp, sizeof(tmp))) {
-            add_assoc_string(return_value, "host", tmp);
-        } else {
-            php_swoole_fatal_error(E_WARNING, "inet_ntop() failed");
-        }
-    } else if (cli->socket->socket_type == SW_SOCK_UNIX_DGRAM) {
-        add_assoc_string(return_value, "host", cli->remote_addr.addr.un.sun_path);
-    } else {
-        php_swoole_fatal_error(E_WARNING, "only supports SWOOLE_SOCK_(UDP/UDP6/UNIX_DGRAM)");
+    Address addr;
+    if (cli->get_peer_name(&addr) < 0) {
+        php_swoole_sys_error(E_WARNING, "getpeername() failed");
+        zend::object_set(ZEND_THIS, ZEND_STRL("errCode"), errno);
         RETURN_FALSE;
     }
+
+    array_init(return_value);
+    add_assoc_long(return_value, "port", addr.get_port());
+    add_assoc_string(return_value, "host", addr.get_addr());
 }
 
 static PHP_METHOD(swoole_client, close) {

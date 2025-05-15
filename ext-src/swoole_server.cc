@@ -2565,7 +2565,7 @@ static PHP_METHOD(swoole_server, addProcess) {
             swoole_set_last_error(SW_ERROR_SERVER_UNRELATED_THREAD);
             RETURN_FALSE;
         }
-        worker_id = swoole_get_process_id();
+        worker_id = swoole_get_worker_id();
         worker = serv->get_worker(worker_id);
         worker->redirect_stdin = worker->redirect_stdout = worker->redirect_stderr = 0;
         worker_id -= serv->get_core_worker_num();
@@ -3171,8 +3171,8 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
     uint64_t notify;
     EventData *task_result = serv->get_task_result();
     sw_memset_zero(task_result, sizeof(*task_result));
-    Pipe *pipe = serv->task_notify_pipes.at(swoole_get_process_id()).get();
-    Worker *worker = serv->get_worker(swoole_get_process_id());
+    Pipe *pipe = serv->task_notify_pipes.at(swoole_get_worker_id()).get();
+    Worker *worker = serv->get_worker(swoole_get_worker_id());
 
     File fp = swoole::make_tmpfile();
     if (!fp.ready()) {
@@ -3485,7 +3485,7 @@ static PHP_METHOD(swoole_server, sendMessage) {
     Z_PARAM_LONG(worker_id)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if ((serv->is_worker() || serv->is_task_worker()) && worker_id == swoole_get_process_id()) {
+    if ((serv->is_worker() || serv->is_task_worker()) && worker_id == swoole_get_worker_id()) {
         php_swoole_fatal_error(E_WARNING, "can't send messages to self");
         RETURN_FALSE;
     }
@@ -3678,7 +3678,7 @@ static PHP_METHOD(swoole_server, getClientInfo) {
     add_assoc_long(return_value, "socket_fd", conn->fd);
     add_assoc_long(return_value, "socket_type", conn->socket_type);
     add_assoc_long(return_value, "remote_port", conn->info.get_port());
-    add_assoc_string(return_value, "remote_ip", (char *) conn->info.get_ip());
+    add_assoc_string(return_value, "remote_ip", (char *) conn->info.get_addr());
     add_assoc_long(return_value, "reactor_id", conn->reactor_id);
     add_assoc_long(return_value, "connect_time", conn->connect_time);
     add_assoc_long(return_value, "last_time", (int) conn->last_recv_time);
@@ -3837,7 +3837,7 @@ static PHP_METHOD(swoole_server, getWorkerId) {
     if (!serv->is_worker() && !serv->is_task_worker()) {
         RETURN_FALSE;
     } else {
-        RETURN_LONG(swoole_get_process_id());
+        RETURN_LONG(swoole_get_worker_id());
     }
 }
 
@@ -3855,7 +3855,7 @@ static PHP_METHOD(swoole_server, getWorkerStatus) {
     Z_PARAM_LONG(worker_id)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    worker_id = worker_id < 0 ? swoole_get_process_id() : worker_id;
+    worker_id = worker_id < 0 ? swoole_get_worker_id() : worker_id;
     Worker *worker = serv->get_worker(worker_id);
     if (!worker) {
         RETURN_FALSE;
@@ -3873,7 +3873,7 @@ static PHP_METHOD(swoole_server, getWorkerPid) {
     Z_PARAM_LONG(worker_id)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    worker_id = worker_id < 0 ? swoole_get_process_id() : worker_id;
+    worker_id = worker_id < 0 ? swoole_get_worker_id() : worker_id;
     Worker *worker = serv->get_worker(worker_id);
     if (!worker) {
         RETURN_FALSE;
@@ -3912,7 +3912,7 @@ static PHP_METHOD(swoole_server, stop) {
     Z_PARAM_BOOL(wait_reactor)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    worker_id = worker_id < 0 ? swoole_get_process_id() : worker_id;
+    worker_id = worker_id < 0 ? swoole_get_worker_id() : worker_id;
 
     RETURN_BOOL(serv->kill_worker(worker_id, wait_reactor));
 }

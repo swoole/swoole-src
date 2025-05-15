@@ -46,8 +46,8 @@ class Socket {
     bool http2 = false;
 
     Protocol protocol = {};
-    Socks5Proxy *socks5_proxy = nullptr;
-    HttpProxy *http_proxy = nullptr;
+    std::unique_ptr<Socks5Proxy> socks5_proxy = nullptr;
+    std::unique_ptr<HttpProxy> http_proxy = nullptr;
 
     enum TimeoutType {
         TIMEOUT_DNS = 1 << 0,
@@ -70,21 +70,21 @@ class Socket {
      * When connect() returns true, it indicates that the TCP connection has been successfully
      * established and the SSL handshake has also succeeded.
      */
-    bool connect(std::string host, int port = 0, int flags = 0);
-    bool connect(const struct sockaddr *addr, socklen_t addrlen);
+    bool connect(const std::string &host, int port = 0, int flags = 0);
+    bool connect(const sockaddr *addr, socklen_t addrlen);
     bool shutdown(int how = SHUT_RDWR);
-    bool cancel(const EventType event);
+    bool cancel(EventType event);
     bool close();
 
-    bool is_connected() {
+    bool is_connected() const {
         return connected && !is_closed();
     }
 
-    bool is_closed() {
+    bool is_closed() const {
         return sock_fd == SW_BAD_SOCKET;
     }
 
-    bool is_port_required() {
+    bool is_port_required() const {
         return type <= SW_SOCK_UDP6;
     }
 
@@ -131,11 +131,11 @@ class Socket {
      * causing the `ssl_handshake()` processes to execute sequentially rather than in parallel.
      */
     Socket *accept(double timeout = 0);
-    bool bind(std::string address, int port = 0);
+    bool bind(const std::string &address, int port = 0);
     bool bind(const struct sockaddr *sa, socklen_t len);
     bool listen(int backlog = 0);
     bool sendfile(const char *filename, off_t offset, size_t length);
-    ssize_t sendto(const std::string &host, int port, const void *__buf, size_t __n);
+    ssize_t sendto(std::string host, int port, const void *__buf, size_t __n);
     ssize_t recvfrom(void *__buf, size_t __n);
     ssize_t recvfrom(void *__buf, size_t __n, struct sockaddr *_addr, socklen_t *_socklen);
 
@@ -271,23 +271,19 @@ class Socket {
         return sock_fd;
     }
 
-    int get_bind_port() {
-        return bind_port;
-    }
-
     network::Socket *get_socket() {
         return socket;
     }
 
-    bool getsockname(network::Address *sa);
+    bool getsockname();
     bool getpeername(network::Address *sa);
 
-    const char *get_ip() {
-        return socket->info.get_ip();
+    const char *get_addr() {
+        return socket->get_addr();
     }
 
     int get_port() {
-        return socket->info.get_port();
+        return socket->get_port();
     }
 
     bool has_bound(const EventType event = SW_EVENT_RDWR) {
@@ -334,6 +330,11 @@ class Socket {
         errMsg = e ? swoole_strerror(e) : "";
     }
 
+    void set_err() {
+        errCode = swoole_get_last_error();
+        errMsg = swoole_strerror(errCode);
+    }
+
     void set_err(int e, const char *s) {
         errCode = errno = e;
         swoole_set_last_error(errCode);
@@ -355,8 +356,12 @@ class Socket {
     }
 
     double get_timeout(enum TimeoutType type = TIMEOUT_ALL);
-
+    bool get_option(int level, int optname, void *optval, socklen_t *optlen);
+    bool get_option(int level, int optname, int *optval);
+    bool set_option(int level, int optname, const void *optval, socklen_t optlen);
     bool set_option(int level, int optname, int optval);
+    void set_socks5_proxy(const std::string &host, int port, const std::string &user = "", const std::string &pwd = "");
+    void set_http_proxy(const std::string &host, int port, const std::string &user = "", const std::string &pwd = "");
     String *get_read_buffer();
     String *get_write_buffer();
     String *pop_read_buffer();
@@ -425,8 +430,6 @@ class Socket {
     std::string connect_host;
     int connect_port = 0;
 
-    std::string bind_address;
-    int bind_port = 0;
     int backlog = 0;
 
     double dns_timeout = network::Socket::default_dns_timeout;
@@ -440,7 +443,6 @@ class Socket {
     size_t buffer_init_size = SW_BUFFER_SIZE_BIG;
     String *read_buffer = nullptr;
     String *write_buffer = nullptr;
-    network::Address bind_address_info = {};
 
     EventBarrier *recv_barrier = nullptr;
     EventBarrier *send_barrier = nullptr;

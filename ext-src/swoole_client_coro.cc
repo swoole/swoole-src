@@ -404,7 +404,7 @@ static PHP_METHOD(swoole_client_coro, recvfrom) {
         RETURN_FALSE;
     } else {
         zval_ptr_dtor(address);
-        ZVAL_STRING(address, socket->get_ip());
+        ZVAL_STRING(address, socket->get_addr());
         if (port) {
             zval_ptr_dtor(port);
             ZVAL_LONG(port, socket->get_port());
@@ -504,7 +504,7 @@ static PHP_METHOD(swoole_client_coro, peek) {
 
     CLIENT_CORO_GET_SOCKET_SAFE(cli);
 
-    buf = (char *) emalloc((size_t)buf_len + 1);
+    buf = (char *) emalloc((size_t) buf_len + 1);
     ret = cli->peek(buf, buf_len);
     if (ret < 0) {
         php_swoole_socket_set_error_properties(ZEND_THIS, cli);
@@ -529,18 +529,17 @@ static PHP_METHOD(swoole_client_coro, isConnected) {
 static PHP_METHOD(swoole_client_coro, getsockname) {
     CLIENT_CORO_GET_SOCKET_SAFE(cli);
 
-    Address sa;
-    if (!cli->getsockname(&sa)) {
+    if (!cli->getsockname()) {
         php_swoole_socket_set_error_properties(ZEND_THIS, cli);
         RETURN_FALSE;
     }
 
     array_init(return_value);
     zval zaddress;
-    ZVAL_STRING(&zaddress, sa.get_ip());
+    ZVAL_STRING(&zaddress, cli->get_addr());
     add_assoc_zval(return_value, "host", &zaddress); /* backward compatibility */
     zend::array_set(return_value, SW_STRL("address"), &zaddress);
-    add_assoc_long(return_value, "port", sa.get_port());
+    add_assoc_long(return_value, "port", cli->get_port());
 }
 
 /**
@@ -562,7 +561,7 @@ static PHP_METHOD(swoole_client_coro, getpeername) {
 
     array_init(return_value);
     zval zaddress;
-    ZVAL_STRING(&zaddress, sa.get_ip());
+    ZVAL_STRING(&zaddress, sa.get_addr());
     add_assoc_zval(return_value, "host", &zaddress); /* backward compatibility */
     Z_ADDREF(zaddress);
     add_assoc_zval(return_value, "address", &zaddress);

@@ -289,6 +289,17 @@ static SignalHandler swoole_signalfd_set(int signo, SignalHandler handler) {
     return origin_handler;
 }
 
+static void swoole_signalfd_close() {
+    if (!swoole_signalfd_is_available()) {
+        return;
+    }
+    signal_socket->fd = -1;
+    signal_socket->free();
+    close(signal_fd);
+    signal_socket = nullptr;
+    signal_fd = -1;
+}
+
 static bool swoole_signalfd_create() {
     if (swoole_signalfd_is_available()) {
         return false;
@@ -302,11 +313,7 @@ static bool swoole_signalfd_create() {
     signal_socket = swoole::make_socket(signal_fd, SW_FD_SIGNAL);
     if (sigprocmask(SIG_BLOCK, &signalfd_mask, nullptr) == -1) {
         swoole_sys_warning("sigprocmask() failed");
-        signal_socket->fd = -1;
-        signal_socket->free();
-        close(signal_fd);
-        signal_socket = nullptr;
-        signal_fd = -1;
+        swoole_signalfd_close();
         return false;
     }
     signalfd_create_pid = getpid();
@@ -340,19 +347,17 @@ bool swoole_signalfd_setup(Reactor *reactor) {
 }
 
 static void swoole_signalfd_clear() {
-    if (swoole_signalfd_is_available()) {
-        if (sigprocmask(SIG_UNBLOCK, &signalfd_mask, nullptr) < 0) {
-            swoole_sys_warning("sigprocmask(SIG_UNBLOCK) failed");
-        }
-        if (signal_socket) {
-            signal_socket->free();
-            signal_socket = nullptr;
-        }
-        sw_memset_zero(signals, sizeof(signals));
-        sw_memset_zero(&signalfd_mask, sizeof(signalfd_mask));
+    if (!swoole_signalfd_is_available()) {
+        return;
     }
-    SwooleG.signal_fd = 0;
-    signal_fd = -1;
+
+    if (sigprocmask(SIG_UNBLOCK, &signalfd_mask, nullptr) < 0) {
+        swoole_sys_warning("sigprocmask(SIG_UNBLOCK) failed");
+    }
+    sw_memset_zero(signals, sizeof(signals));
+    sw_memset_zero(&signalfd_mask, sizeof(signalfd_mask));
+
+    swoole_signalfd_close();
 }
 
 static int swoole_signalfd_event_callback(Reactor *reactor, Event *event) {

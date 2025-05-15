@@ -285,7 +285,7 @@ static PHP_METHOD(swoole_process, __construct) {
     if (server && server->is_worker_thread()) {
         Worker *shared_worker;
         if (server->is_user_worker()) {
-            shared_worker = server->get_worker(swoole_get_process_id());
+            shared_worker = server->get_worker(swoole_get_worker_id());
         } else {
             shared_worker = server->get_worker((server_user_worker_id++) + server->get_core_worker_num());
         }

@@ -278,3 +278,15 @@ TEST(coroutine_system, exec) {
         ASSERT_TRUE(buffer->contains(SW_STRL("tmp")));
     });
 }
+
+TEST(coroutine_system, waitpid) {
+    auto pid = test::spawn_exec([]() { sleep(2000); });
+
+    test::coroutine::run([pid](void *arg) {
+        int status;
+        ASSERT_EQ(System::waitpid(pid, &status, 0, 0.1), -1);
+        ASSERT_ERREQ(ETIMEDOUT);
+
+        kill(pid, SIGKILL);
+    });
+}
