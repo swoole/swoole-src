@@ -34,63 +34,67 @@ const char *host_1 = "www.baidu.com";
 const char *host_2 = "www.xxxxxxxxxxxxxxxxxxxxx00000xxxxxxxxx----not_found.com";
 static const char *test_file = "/tmp/swoole-core-test";
 
+void static test_file_hook() {
+    char buf[8192];
+    size_t n_buf = sizeof(buf);
+    ASSERT_EQ(swoole_random_bytes(buf, n_buf), n_buf);
+
+    int fd = swoole_coroutine_open(test_file, O_WRONLY | O_TRUNC | O_CREAT, 0666);
+    ASSERT_EQ(swoole_coroutine_write(fd, buf, n_buf), n_buf);
+
+    ASSERT_EQ(swoole_coroutine_fsync(fd), 0);
+    ASSERT_EQ(swoole_coroutine_fdatasync(fd), 0);
+
+    swoole_coroutine_close_file(fd);
+
+    fd = swoole_coroutine_open(test_file, O_RDONLY, 0);
+    char data[8192];
+    ASSERT_EQ(swoole_coroutine_read(fd, data, n_buf), n_buf);
+    ASSERT_EQ(std::string(buf, n_buf), std::string(data, n_buf));
+    swoole_coroutine_close_file(fd);
+
+    struct stat statbuf;
+    swoole_coroutine_stat(test_file, &statbuf);
+
+    File f1(test_file, File::RW);
+    ASSERT_EQ(statbuf.st_size, f1.get_size());
+
+    struct stat statbuf2;
+    swoole_coroutine_lstat(test_file, &statbuf2);
+    ASSERT_EQ(statbuf2.st_size, f1.get_size());
+    f1.close();
+
+    ASSERT_EQ(swoole_coroutine_unlink(test_file), 0);
+
+    File f2(test_file, File::RW | File::CREATE);
+    swoole_coroutine_lseek(f2.get_fd(), 0, SEEK_SET);
+
+    auto fp2 = swoole_coroutine_fdopen(f2.get_fd(), "w+");
+    ASSERT_NE(fp2, nullptr);
+
+    swoole_coroutine_fputs("hello\n", fp2);
+    swoole_coroutine_fputs("world\n", fp2);
+    ASSERT_EQ(swoole_coroutine_fflush(fp2), 0);
+
+    swoole_coroutine_lseek(f2.get_fd(), 0, SEEK_SET);
+    auto fp3 = swoole_coroutine_fdopen(f2.get_fd(), "r+");
+    ASSERT_NE(fp3, nullptr);
+
+    char rbuf[2048] = {};
+    ASSERT_EQ(swoole_coroutine_fread(rbuf, sizeof(rbuf), 1, fp3), 0);
+    ASSERT_STREQ(rbuf, "hello\nworld\n");
+
+    f2.close();
+    swoole_coroutine_fclose(fp2);
+    swoole_coroutine_fclose(fp3);
+
+    ASSERT_EQ(swoole_coroutine_unlink(test_file), 0);
+}
+
 TEST(coroutine_hook, file) {
-    coroutine::run([](void *arg) {
-        char buf[8192];
-        size_t n_buf = sizeof(buf);
-        ASSERT_EQ(swoole_random_bytes(buf, n_buf), n_buf);
+    coroutine::run([](void *arg) { test_file_hook(); });
 
-        int fd = swoole_coroutine_open(test_file, O_WRONLY | O_TRUNC | O_CREAT, 0666);
-        ASSERT_EQ(swoole_coroutine_write(fd, buf, n_buf), n_buf);
-
-        ASSERT_EQ(swoole_coroutine_fsync(fd), 0);
-        ASSERT_EQ(swoole_coroutine_fdatasync(fd), 0);
-
-        swoole_coroutine_close(fd);
-
-        fd = swoole_coroutine_open(test_file, O_RDONLY, 0);
-        char data[8192];
-        ASSERT_EQ(swoole_coroutine_read(fd, data, n_buf), n_buf);
-        ASSERT_EQ(std::string(buf, n_buf), std::string(data, n_buf));
-        swoole_coroutine_close(fd);
-
-        struct stat statbuf;
-        swoole_coroutine_stat(test_file, &statbuf);
-
-        File f1(test_file, File::RW);
-        ASSERT_EQ(statbuf.st_size, f1.get_size());
-
-        struct stat statbuf2;
-        swoole_coroutine_lstat(test_file, &statbuf2);
-        ASSERT_EQ(statbuf2.st_size, f1.get_size());
-        f1.close();
-
-        ASSERT_EQ(swoole_coroutine_unlink(test_file), 0);
-
-        File f2(test_file, File::RW | File::CREATE);
-        swoole_coroutine_lseek(f2.get_fd(), 0, SEEK_SET);
-
-        auto fp2 = swoole_coroutine_fdopen(f2.get_fd(), "w+");
-        ASSERT_NE(fp2, nullptr);
-
-        swoole_coroutine_fputs("hello\n", fp2);
-        swoole_coroutine_fputs("world\n", fp2);
-        ASSERT_EQ(swoole_coroutine_fflush(fp2), 0);
-
-        swoole_coroutine_lseek(f2.get_fd(), 0, SEEK_SET);
-        auto fp3 = swoole_coroutine_fdopen(f2.get_fd(), "r+");
-        ASSERT_NE(fp3, nullptr);
-
-        char rbuf[2048] = {};
-        ASSERT_EQ(swoole_coroutine_fread(rbuf, sizeof(rbuf), 1, fp3), 0);
-        ASSERT_STREQ(rbuf, "hello\nworld\n");
-
-        f2.close();
-        swoole_coroutine_fclose(fp2);
-        swoole_coroutine_fclose(fp3);
-
-        ASSERT_EQ(swoole_coroutine_unlink(test_file), 0);
-    });
+    test_file_hook();
 }
 
 TEST(coroutine_hook, gethostbyname) {
@@ -163,45 +167,57 @@ TEST(coroutine_hook, statvfs) {
     });
 }
 
+static void test_hook_dir() {
+    ASSERT_EQ(swoole_coroutine_mkdir(TEST_TMP_DIR, 0666), 0);
+    ASSERT_EQ(swoole_coroutine_access(TEST_TMP_DIR, R_OK), 0);
+    ASSERT_EQ(swoole_coroutine_rmdir(TEST_TMP_DIR), 0);
+    ASSERT_EQ(access(TEST_TMP_DIR, R_OK), -1);
+}
+
 TEST(coroutine_hook, dir) {
     coroutine::run([](void *arg) {
-        ASSERT_EQ(swoole_coroutine_mkdir(TEST_TMP_DIR, 0666), 0);
-        ASSERT_EQ(swoole_coroutine_access(TEST_TMP_DIR, R_OK), 0);
-        ASSERT_EQ(swoole_coroutine_rmdir(TEST_TMP_DIR), 0);
-        ASSERT_EQ(access(TEST_TMP_DIR, R_OK), -1);
+        test_hook_dir();
     });
+
+    test_hook_dir();
+}
+
+static void test_hook_socket() {
+    int sock = swoole_coroutine_socket(AF_INET, SOCK_STREAM, 0);
+    ASSERT_GT(sock, 0);
+    swoole::network::Address sa;
+    std::string ip = System::gethostbyname("www.baidu.com", AF_INET, 10);
+    sa.assign(SW_SOCK_TCP, ip, 80);
+    ASSERT_EQ(swoole_coroutine_connect(sock, &sa.addr.ss, sa.len), 0);
+    ASSERT_EQ(swoole_coroutine_socket_wait_event(sock, SW_EVENT_WRITE, 5), SW_OK);
+
+    const char req[] = "GET / HTTP/1.1\r\nHost: www.baidu.com\r\nConnection: close\r\nKeepAlive: off\r\n\r\n";
+    ASSERT_EQ(swoole_coroutine_send(sock, req, strlen(req), 0), strlen(req));
+
+    swoole::String resp(1024);
+
+    while (1) {
+        ssize_t n = swoole_coroutine_recv(sock, resp.value() + resp.length, resp.size - resp.length, 0);
+        if (n <= 0) {
+            break;
+        }
+        resp.length += n;
+        if (resp.length == resp.size) {
+            resp.reserve(resp.size * 2);
+        }
+    }
+
+    ASSERT_GT(resp.length, 100);
+    ASSERT_TRUE(resp.contains("baidu.com"));
+    swoole_coroutine_close(sock);
 }
 
 TEST(coroutine_hook, socket) {
     coroutine::run([](void *arg) {
-        int sock = swoole_coroutine_socket(AF_INET, SOCK_STREAM, 0);
-        ASSERT_GT(sock, 0);
-        swoole::network::Address sa;
-        std::string ip = System::gethostbyname("www.baidu.com", AF_INET, 10);
-        sa.assign(SW_SOCK_TCP, ip, 80);
-        ASSERT_EQ(swoole_coroutine_connect(sock, &sa.addr.ss, sa.len), 0);
-        ASSERT_EQ(swoole_coroutine_socket_wait_event(sock, SW_EVENT_WRITE, 5), SW_OK);
-
-        const char req[] = "GET / HTTP/1.1\r\nHost: www.baidu.com\r\nConnection: close\r\nKeepAlive: off\r\n\r\n";
-        ASSERT_EQ(swoole_coroutine_send(sock, req, strlen(req), 0), strlen(req));
-
-        swoole::String resp(1024);
-
-        while (1) {
-            ssize_t n = swoole_coroutine_recv(sock, resp.value() + resp.length, resp.size - resp.length, 0);
-            if (n <= 0) {
-                break;
-            }
-            resp.length += n;
-            if (resp.length == resp.size) {
-                resp.reserve(resp.size * 2);
-            }
-        }
-
-        ASSERT_GT(resp.length, 100);
-        ASSERT_TRUE(resp.contains("baidu.com"));
-        swoole_coroutine_close(sock);
+        test_hook_socket();
     });
+
+    test_hook_socket();
 }
 
 TEST(coroutine_hook, rename) {

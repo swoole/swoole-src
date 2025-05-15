@@ -541,3 +541,11 @@ TEST(process_pool, listen_unixsock) {
 
     t1.join();
 }
+
+TEST(process_pool, max_request_grace) {
+    Worker worker{};
+    worker.set_max_request(1000, 200);
+
+    ASSERT_GT(SwooleWG.max_request, 1000);
+    ASSERT_LE(SwooleWG.max_request, 1200);
+}
