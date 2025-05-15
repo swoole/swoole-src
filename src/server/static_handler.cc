@@ -106,7 +106,7 @@ bool StaticHandler::hit() {
      * discard the url parameter
      * [/test.jpg?version=1#position] -> [/test.jpg]
      */
-    char *params = (char *) memchr(url, '?', url_length);
+    auto params = (char *) memchr(url, '?', url_length);
     if (params == nullptr) {
         params = (char *) memchr(url, '#', url_length);
     }
@@ -119,8 +119,8 @@ bool StaticHandler::hit() {
     p += l_document_root;
 
     if (serv->locations->size() > 0) {
-        for (auto i = serv->locations->begin(); i != serv->locations->end(); i++) {
-            if (swoole_str_istarts_with(url, url_length, i->c_str(), i->size())) {
+        for (const auto & i : *serv->locations) {
+            if (swoole_str_istarts_with(url, url_length, i.c_str(), i.size())) {
                 last = true;
             }
         }
@@ -220,15 +220,15 @@ size_t StaticHandler::make_index_page(String *buffer) {
                         dir_path.c_str(),
                         dir_path.c_str());
 
-    for (auto iter = dir_files.begin(); iter != dir_files.end(); iter++) {
-        if (*iter == "." || (dir_path == "/" && *iter == "..")) {
+    for (const auto & dir_file : dir_files) {
+        if (dir_file == "." || (dir_path == "/" && dir_file == "..")) {
             continue;
         }
         buffer->format_impl(String::FORMAT_APPEND | String::FORMAT_GROW,
                             "\t\t<li><a href=%s%s>%s</a></li>\n",
                             dir_path.c_str(),
-                            (*iter).c_str(),
-                            (*iter).c_str());
+                            dir_file.c_str(),
+                            dir_file.c_str());
     }
 
     buffer->append(SW_STRL("\t</ul>\n" SW_HTTP_POWER_BY "</body>\n</html>\n"));
@@ -592,20 +592,20 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
     if (SW_HTTP_HEAD != request->method) {
         if (!tasks.empty()) {
             size_t task_size = sizeof(network::SendfileTask) + strlen(handler.get_filename()) + 1;
-            network::SendfileTask *task = (network::SendfileTask *) sw_malloc(task_size);
+            auto task = static_cast<network::SendfileTask *>(sw_malloc(task_size));
             strcpy(task->filename, handler.get_filename());
             if (tasks.size() > 1) {
-                for (auto i = tasks.begin(); i != tasks.end(); i++) {
+                for (const auto & i : tasks) {
                     response.info.type = SW_SERVER_EVENT_SEND_DATA;
-                    response.info.len = strlen(i->part_header);
-                    response.data = i->part_header;
+                    response.info.len = strlen(i.part_header);
+                    response.data = i.part_header;
                     send_to_connection(&response);
 
-                    task->offset = i->offset;
-                    task->length = i->length;
+                    task->offset = i.offset;
+                    task->length = i.length;
                     response.info.type = SW_SERVER_EVENT_SEND_FILE;
                     response.info.len = task_size;
-                    response.data = (char *) task;
+                    response.data = reinterpret_cast<char *>(task);
                     send_to_connection(&response);
                 }
 
@@ -618,7 +618,7 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
                 task->length = tasks[0].length;
                 response.info.type = SW_SERVER_EVENT_SEND_FILE;
                 response.info.len = task_size;
-                response.data = (char *) task;
+                response.data = reinterpret_cast<char *>(task);
                 send_to_connection(&response);
             }
             sw_free(task);

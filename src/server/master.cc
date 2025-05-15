@@ -19,7 +19,7 @@
 #include "swoole_lock.h"
 #include "swoole_util.h"
 
-#include <assert.h>
+#include <cassert>
 
 using swoole::network::Address;
 using swoole::network::SendfileTask;
@@ -143,8 +143,8 @@ int Server::accept_command_result(Reactor *reactor, Event *event) {
 }
 
 int Server::accept_connection(Reactor *reactor, Event *event) {
-    Server *serv = (Server *) reactor->ptr;
-    ListenPort *listen_host = (ListenPort *) event->socket->object;
+    auto serv = static_cast<Server *>(reactor->ptr);
+    auto listen_host = static_cast<ListenPort *>(event->socket->object);
 
     for (int i = 0; i < SW_ACCEPT_MAX_COUNT; i++) {
         Socket *sock = event->socket->accept();
@@ -708,7 +708,7 @@ Server::Server(enum Mode _mode) {
     mode_ = _mode;
 
     // http server
-    http_compression = 1;
+    http_compression = true;
     http_compression_level = SW_Z_BEST_SPEED;
     compression_min_length = SW_COMPRESSION_MIN_LENGTH_DEFAULT;
 
@@ -1063,7 +1063,7 @@ void Server::destroy() {
 
     SW_LOOP_N(SW_MAX_HOOK_TYPE) {
         if (hooks[i]) {
-            std::list<Callback> *l = reinterpret_cast<std::list<Callback> *>(hooks[i]);
+            auto l = static_cast<std::list<Callback> *>(hooks[i]);
             hooks[i] = nullptr;
             delete l;
         }
@@ -1106,7 +1106,8 @@ bool Server::feedback(Connection *conn, enum ServerEventType event) {
     _send.info.reactor_id = conn->reactor_id;
 
     if (is_process_mode()) {
-        return send_to_reactor_thread((EventData *) &_send.info, sizeof(_send.info), conn->session_id) > 0;
+        return send_to_reactor_thread(
+                   reinterpret_cast<EventData *>(&_send.info), sizeof(_send.info), conn->session_id) > 0;
     } else {
         return send_to_connection(&_send) == SW_OK;
     }
@@ -1501,7 +1502,6 @@ int Server::send_to_connection(SendData *_send) {
         _socket->out_buffer->append(_send_data, _send_length);
         conn->send_queued_bytes = _socket->out_buffer->length();
 
-        ListenPort *port = get_port_by_fd(fd);
         if (onBufferFull && conn->high_watermark == 0 && _socket->out_buffer->length() >= port->buffer_high_watermark) {
             notify(conn, SW_SERVER_EVENT_BUFFER_FULL);
             conn->high_watermark = 1;
@@ -1988,7 +1988,7 @@ _find_available_slot:
 
     connection->fd = fd;
     connection->reactor_id = reactor_id;
-    connection->server_fd = (sw_atomic_t) server_fd;
+    connection->server_fd = server_fd;
     connection->last_recv_time = connection->connect_time = microtime();
     connection->active = 1;
     connection->worker_id = -1;
@@ -2044,7 +2044,7 @@ void Server::init_pipe_sockets(MessageBus *mb) {
     size_t n = get_core_worker_num();
 
     SW_LOOP_N(n) {
-        Worker *worker = get_worker(i);
+        const auto worker = get_worker(i);
         if (i >= worker_num && task_ipc_mode != TASK_IPC_UNIXSOCK) {
             continue;
         }
@@ -2091,7 +2091,7 @@ int Server::get_idle_task_worker_num() {
     return idle_worker_num;
 }
 
-int Server::get_tasking_num() {
+int Server::get_tasking_num() const {
     // TODO Why need to reset ?
     int tasking_num = gs->tasking_num;
     if (tasking_num < 0) {

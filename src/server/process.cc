@@ -28,7 +28,7 @@ Factory *Server::create_process_factory() {
     /**
      * alloc the memory for connection_list
      */
-    connection_list = (Connection *) sw_shm_calloc(max_connection, sizeof(Connection));
+    connection_list = static_cast<Connection *>(sw_shm_calloc(max_connection, sizeof(Connection)));
     if (connection_list == nullptr) {
         swoole_error("calloc[1] failed");
         return nullptr;
@@ -381,7 +381,6 @@ bool ProcessFactory::end(SessionId session_id, int flags) {
 
     swoole_trace_log(SW_TRACE_CLOSE, "session_id=%ld, fd=%d", session_id, conn->fd);
 
-    Worker *worker;
     DataHead ev = {};
 
     /**
@@ -390,6 +389,7 @@ bool ProcessFactory::end(SessionId session_id, int flags) {
      * MUST forward to the correct worker process
      */
     if (conn->close_actively) {
+        Worker *worker;
         bool hash = server_->is_hash_dispatch_mode();
         int worker_id = hash ? server_->schedule_worker(conn->fd, nullptr) : conn->fd % server_->worker_num;
         if (server_->is_worker() && (!hash || worker_id == (int) swoole_get_process_id())) {

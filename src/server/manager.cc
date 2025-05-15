@@ -36,7 +36,6 @@ struct Manager {
     std::vector<pid_t> kill_workers;
 
     void wait(Server *_server);
-    void add_timeout_killer(Worker *workers, int n);
     void terminate_all_worker();
 
     static void signal_handler(int sig);
@@ -44,7 +43,7 @@ struct Manager {
 };
 
 void Manager::timer_callback(Timer *timer, TimerNode *tnode) {
-    Server *serv = (Server *) tnode->data;
+    auto *serv = (Server *) tnode->data;
     if (serv->isset_hook(Server::HOOK_MANAGER_TIMER)) {
         serv->call_hook(Server::HOOK_MANAGER_TIMER, serv);
     }
@@ -63,7 +62,7 @@ int Server::start_manager_process() {
         return SW_ERR;
     }
 
-    auto fn = [this](void) {
+    auto fn = [this]() {
         gs->manager_pid = SwooleG.pid = getpid();
 
         if (task_worker_num > 0) {
@@ -251,7 +250,7 @@ void Manager::wait(Server *_server) {
                         SW_START_SLEEP;
                         continue;
                     }
-                } while (0);
+                } while (false);
             }
 
             // task worker
@@ -330,8 +329,8 @@ void Manager::wait(Server *_server) {
 void Manager::terminate_all_worker() {
     // clear the timer
     alarm(0);
-    for (auto i = kill_workers.begin(); i != kill_workers.end(); i++) {
-        swoole_kill(*i, SIGKILL);
+    for (int & kill_worker : kill_workers) {
+        swoole_kill(kill_worker, SIGKILL);
     }
 }
 
@@ -374,7 +373,7 @@ void Manager::signal_handler(int signo) {
  * @return: success returns pid, failure returns SW_ERR.
  */
 int Server::wait_other_worker(ProcessPool *pool, const ExitStatus &exit_status) {
-    Server *serv = (Server *) pool->ptr;
+    auto serv = (Server *) pool->ptr;
     Worker *exit_worker = nullptr;
     int worker_type;
 
@@ -396,7 +395,7 @@ int Server::wait_other_worker(ProcessPool *pool, const ExitStatus &exit_status) 
             }
         }
         return SW_ERR;
-    } while (0);
+    } while (false);
 
     serv->factory->check_worker_exit_status(exit_worker, exit_status);
 
@@ -426,7 +425,7 @@ void Server::read_worker_message(ProcessPool *pool, EventData *msg) {
         return;
     }
 
-    Server *serv = (Server *) pool->ptr;
+    auto serv = (Server *) pool->ptr;
     int command_id = msg->info.server_fd;
     auto iter = serv->command_handlers.find(command_id);
     if (iter == serv->command_handlers.end()) {
@@ -434,7 +433,7 @@ void Server::read_worker_message(ProcessPool *pool, EventData *msg) {
         return;
     }
 
-    Server::Command::Handler handler = iter->second;
+    Command::Handler handler = iter->second;
     auto result = handler(serv, std::string(msg->data, msg->info.len));
 
     SendData task{};

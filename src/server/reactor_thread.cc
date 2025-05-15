@@ -15,7 +15,6 @@
  */
 
 #include "swoole_server.h"
-#include "swoole_memory.h"
 #include "swoole_hash.h"
 #include "swoole_util.h"
 
@@ -36,7 +35,7 @@ static void ReactorThread_resume_data_receiving(Timer *timer, TimerNode *tnode);
 
 #ifdef SW_USE_OPENSSL
 static inline ReturnCode ReactorThread_verify_ssl_state(Reactor *reactor, ListenPort *port, Socket *_socket) {
-    auto *serv = (Server *) reactor->ptr;
+    auto serv = static_cast<Server *>(reactor->ptr);
     if (!_socket->ssl || _socket->ssl_state == SW_SSL_STATE_READY) {
         return SW_CONTINUE;
     }
@@ -46,7 +45,7 @@ static inline ReturnCode ReactorThread_verify_ssl_state(Reactor *reactor, Listen
         return code;
     }
 
-    auto *conn = (Connection *) _socket->object;
+    auto conn = static_cast<Connection *>(_socket->object);
     conn->ssl_ready = 1;
     if (!port->get_ssl_client_cert_file().empty()) {
         if (!_socket->ssl_get_peer_certificate(sw_tg_buffer())) {
@@ -70,7 +69,7 @@ static inline ReturnCode ReactorThread_verify_ssl_state(Reactor *reactor, Listen
     }
 
     if (serv->onConnect) {
-        serv->notify((Connection *) _socket->object, SW_SERVER_EVENT_CONNECT);
+        serv->notify(static_cast<Connection *>(_socket->object), SW_SERVER_EVENT_CONNECT);
     }
 _delay_receive:
     if (serv->enable_delay_receive) {
@@ -88,13 +87,12 @@ _delay_receive:
  */
 static int ReactorThread_onPacketReceived(Reactor *reactor, Event *event) {
     int fd = event->fd;
-    ssize_t ret;
 
-    auto *serv = (Server *) reactor->ptr;
+    auto serv = static_cast<Server *>(reactor->ptr);
     Connection *server_sock = serv->get_connection(fd);
-    network::Socket *sock = server_sock->socket;
+    Socket *sock = server_sock->socket;
     SendData task = {};
-    auto *pkt = (DgramPacket *) sw_tg_buffer()->str;
+    auto pkt = reinterpret_cast<DgramPacket *>(sw_tg_buffer()->str);
 
     task.info.server_fd = fd;
     task.info.reactor_id = SwooleTG.id;
@@ -105,7 +103,7 @@ static int ReactorThread_onPacketReceived(Reactor *reactor, Event *event) {
 
 _do_recvfrom:
 
-    ret = sock->recvfrom(pkt->data, sw_tg_buffer()->size - sizeof(*pkt), 0, &pkt->socket_addr);
+    ssize_t ret = sock->recvfrom(pkt->data, sw_tg_buffer()->size - sizeof(*pkt), 0, &pkt->socket_addr);
     if (ret <= 0) {
         if (errno == EAGAIN) {
             return SW_OK;
@@ -116,7 +114,7 @@ _do_recvfrom:
     }
 
 #ifdef SW_SUPPORT_DTLS
-    auto *port = (ListenPort *) server_sock->object;
+    auto port = static_cast<ListenPort *>(server_sock->object);
 
     if (port->is_dtls()) {
         dtls::Session *session = serv->accept_dtls_connection(port, &pkt->socket_addr);
@@ -130,7 +128,7 @@ _do_recvfrom:
             return Server::close_connection(reactor, session->socket);
         }
 
-        auto *conn = (Connection *) session->socket->object;
+        auto conn = static_cast<Connection *>(session->socket->object);
         if (serv->single_thread) {
             if (serv->connection_incoming(reactor, conn) < 0) {
                 reactor->close(reactor, session->socket);
@@ -141,7 +139,7 @@ _do_recvfrom:
             ev.type = SW_SERVER_EVENT_INCOMING;
             ev.fd = conn->session_id;
             ev.reactor_id = conn->reactor_id;
-            if (serv->send_to_reactor_thread((EventData *) &ev, sizeof(ev), conn->session_id) < 0) {
+            if (serv->send_to_reactor_thread(reinterpret_cast<EventData *>(&ev), sizeof(ev), conn->session_id) < 0) {
                 reactor->close(reactor, session->socket);
                 return SW_OK;
             }
@@ -152,14 +150,14 @@ _do_recvfrom:
 #endif
 
     if (pkt->socket_type == SW_SOCK_UDP) {
-        task.info.fd = *(int *) &pkt->socket_addr.addr.inet_v4.sin_addr;
+        task.info.fd = *reinterpret_cast<int *>(&pkt->socket_addr.addr.inet_v4.sin_addr);
     } else {
         task.info.fd = swoole_crc32(pkt->socket_addr.get_addr(), pkt->socket_addr.len);
     }
 
     pkt->length = ret;
     task.info.len = sizeof(*pkt) + ret;
-    task.data = (char *) pkt;
+    task.data = reinterpret_cast<char *>(pkt);
 
     if (!serv->factory->dispatch(&task)) {
         return SW_ERR;
@@ -172,8 +170,8 @@ _do_recvfrom:
  * close connection
  */
 int Server::close_connection(Reactor *reactor, Socket *socket) {
-    auto *serv = (Server *) reactor->ptr;
-    auto *conn = (Connection *) socket->object;
+    auto serv = static_cast<Server *>(reactor->ptr);
+    auto conn = static_cast<Connection *>(socket->object);
     ListenPort *port = serv->get_port_by_fd(socket->fd);
 
     if (conn->timer) {
@@ -211,7 +209,7 @@ int Server::close_connection(Reactor *reactor, Socket *socket) {
 #endif
 #endif
 
-    // free the receive memory buffer
+    // free the reception memory buffer
     if (socket->recv_buffer) {
         delete socket->recv_buffer;
         socket->recv_buffer = nullptr;
@@ -520,7 +518,7 @@ static int ReactorThread_onRead(Reactor *reactor, Event *event) {
 #ifdef SW_USE_OPENSSL
 #ifdef SW_SUPPORT_DTLS
     if (port->is_dtls()) {
-        dtls::Buffer *buffer = (dtls::Buffer *) sw_malloc(sizeof(*buffer) + SW_BUFFER_SIZE_UDP);
+        dtls::Buffer *buffer = static_cast<dtls::Buffer *>(sw_malloc(sizeof(*buffer) + SW_BUFFER_SIZE_UDP));
         buffer->length = event->socket->read(buffer->data, SW_BUFFER_SIZE_UDP);
         dtls::Session *session = port->dtls_sessions->find(event->fd)->second;
         session->append(buffer);
@@ -577,7 +575,7 @@ static int ReactorThread_onRead(Reactor *reactor, Event *event) {
 
 static int ReactorThread_onWrite(Reactor *reactor, Event *ev) {
     int ret;
-    auto *serv = (Server *) reactor->ptr;
+    auto serv = static_cast<Server *>(reactor->ptr);
     Socket *socket = ev->socket;
     int fd = ev->fd;
 
@@ -660,8 +658,8 @@ static int ReactorThread_onWrite(Reactor *reactor, Event *ev) {
 
 void Server::heartbeat_check(Timer *timer, TimerNode *tnode) {
     double now = microtime();
-    auto *reactor = (Reactor *) tnode->data;
-    auto *serv = (Server *) reactor->ptr;
+    auto reactor = static_cast<Reactor *>(tnode->data);
+    auto serv = static_cast<Server *>(reactor->ptr);
     ReactorThread *thread = serv->get_thread(reactor->id);
 
     serv->foreach_connection([=](Connection *conn) {

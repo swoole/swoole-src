@@ -21,7 +21,6 @@
 
 #include "swoole_server.h"
 #include "swoole_memory.h"
-#include "swoole_msg_queue.h"
 #include "swoole_coroutine.h"
 
 namespace swoole {
@@ -30,7 +29,7 @@ using namespace network;
 static int Worker_onPipeReceive(Reactor *reactor, Event *event);
 static void Worker_reactor_try_to_exit(Reactor *reactor);
 
-void Server::worker_signal_init(void) {
+void Server::worker_signal_init() {
     if (is_thread_mode()) {
         return;
     }
@@ -188,11 +187,11 @@ void Server::worker_accept_event(DataHead *info) {
         break;
     }
     case SW_SERVER_EVENT_FINISH: {
-        onFinish(this, (EventData *) get_worker_message_bus()->get_buffer());
+        onFinish(this, reinterpret_cast<EventData *>(get_worker_message_bus()->get_buffer()));
         break;
     }
     case SW_SERVER_EVENT_PIPE_MESSAGE: {
-        onPipeMessage(this, (EventData *) get_worker_message_bus()->get_buffer());
+        onPipeMessage(this, reinterpret_cast<EventData *>(get_worker_message_bus()->get_buffer()));
         break;
     }
     case SW_SERVER_EVENT_COMMAND_REQUEST: {
@@ -229,10 +228,10 @@ void Server::worker_start_callback(Worker *worker) {
     }
 
     int is_root = !geteuid();
-    struct passwd *_passwd = nullptr;
-    struct group *_group = nullptr;
 
     if (is_root) {
+        group *_group = nullptr;
+        passwd *_passwd = nullptr;
         // get group info
         if (!group_.empty()) {
             _group = getgrnam(group_.c_str());
@@ -475,14 +474,14 @@ void Server::stop_async_worker(Worker *worker) {
 static void Worker_reactor_try_to_exit(Reactor *reactor) {
     Server *serv;
     if (sw_likely(swoole_get_process_type() != SW_PROCESS_TASKWORKER)) {
-        serv = (Server *) reactor->ptr;
+        serv = static_cast<Server *>(reactor->ptr);
     } else {
-        ProcessPool *pool = (ProcessPool *) reactor->ptr;
-        serv = (Server *) pool->ptr;
+        auto pool = static_cast<ProcessPool *>(reactor->ptr);
+        serv = static_cast<Server *>(pool->ptr);
     }
 
     bool has_call_worker_exit_func = false;
-    while (1) {
+    while (true) {
         if (reactor->if_exit()) {
             reactor->running = false;
         } else {
@@ -585,9 +584,7 @@ int Server::start_event_worker(Worker *worker) {
     // worker shutdown
     worker_stop_callback(worker);
 
-    if (buffer_pool) {
-        delete buffer_pool;
-    }
+    delete buffer_pool;
 
     return SW_OK;
 }
@@ -615,8 +612,8 @@ ssize_t Server::send_to_worker_from_worker(Worker *dst_worker, const void *buf, 
  * receive data from reactor
  */
 static int Worker_onPipeReceive(Reactor *reactor, Event *event) {
-    Server *serv = (Server *) reactor->ptr;
-    PipeBuffer *pipe_buffer = serv->get_worker_message_bus()->get_buffer();
+    auto *serv = static_cast<Server *>(reactor->ptr);
+    auto *pipe_buffer = serv->get_worker_message_bus()->get_buffer();
 
     if (serv->get_worker_message_bus()->read(event->socket) <= 0) {
         return SW_OK;

@@ -15,7 +15,6 @@
  */
 
 #include "swoole_server.h"
-#include "swoole_memory.h"
 
 namespace swoole {
 using network::Socket;

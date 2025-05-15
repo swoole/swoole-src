@@ -1157,7 +1157,7 @@ class Server {
 
     uint32_t get_idle_worker_num();
     int get_idle_task_worker_num();
-    int get_tasking_num();
+    int get_tasking_num() const;
 
     TaskId get_task_id(EventData *task) {
         return gs->task_workers.get_task_id(task);
@@ -1600,7 +1600,7 @@ class Server {
     void worker_start_callback(Worker *worker);
     void worker_stop_callback(Worker *worker);
     void worker_accept_event(DataHead *info);
-    void worker_signal_init(void);
+    void worker_signal_init();
 
     std::function<void(std::shared_ptr<Thread>, const WorkerFn &fn)> worker_thread_start;
 

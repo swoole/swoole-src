@@ -20,19 +20,19 @@ namespace swoole {
 
 Factory *Server::create_base_factory() {
     reactor_num = worker_num;
-    connection_list = (Connection *) sw_calloc(max_connection, sizeof(Connection));
+    connection_list = static_cast<Connection *>(sw_calloc(max_connection, sizeof(Connection)));
     if (connection_list == nullptr) {
         swoole_sys_warning("calloc[2](%d) failed", (int) (max_connection * sizeof(Connection)));
         return nullptr;
     }
-    gs->connection_nums = (sw_atomic_t *) sw_shm_calloc(worker_num, sizeof(sw_atomic_t));
+    gs->connection_nums = static_cast<sw_atomic_t *>(sw_shm_calloc(worker_num, sizeof(sw_atomic_t)));
     if (gs->connection_nums == nullptr) {
         swoole_error("sw_shm_calloc(%ld) for gs->connection_nums failed", worker_num * sizeof(sw_atomic_t));
         return nullptr;
     }
 
     for (auto port : ports) {
-        port->gs->connection_nums = (sw_atomic_t *) sw_shm_calloc(worker_num, sizeof(sw_atomic_t));
+        port->gs->connection_nums = static_cast<sw_atomic_t *>(sw_shm_calloc(worker_num, sizeof(sw_atomic_t)));
         if (port->gs->connection_nums == nullptr) {
             swoole_error("sw_shm_calloc(%ld) for port->connection_nums failed", worker_num * sizeof(sw_atomic_t));
             return nullptr;
@@ -53,7 +53,7 @@ void Server::destroy_base_factory() {
 
 BaseFactory::BaseFactory(Server *server) : Factory(server) {}
 
-BaseFactory::~BaseFactory() {}
+BaseFactory::~BaseFactory() = default;
 
 bool BaseFactory::start() {
     return true;
@@ -101,7 +101,7 @@ bool BaseFactory::dispatch(SendData *task) {
  * only stream fd
  */
 bool BaseFactory::notify(DataHead *info) {
-    Connection *conn = server_->get_connection(info->fd);
+    auto conn = server_->get_connection(info->fd);
     if (conn == nullptr || conn->active == 0) {
         swoole_warning("dispatch[type=%d] failed, socket#%ld is not active", info->type, info->fd);
         return false;

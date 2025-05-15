@@ -455,15 +455,15 @@ _recv_data:
     }
 
     if (n == 0) {
-        if (0) {
+        if (false) {
         _bad_request:
             _socket->send(SW_STRL(SW_HTTP_BAD_REQUEST_PACKET), 0);
         }
-        if (0) {
+        if (false) {
         _too_large:
             _socket->send(SW_STRL(SW_HTTP_REQUEST_ENTITY_TOO_LARGE_PACKET), 0);
         }
-        if (0) {
+        if (false) {
         _unavailable:
             _socket->send(SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET), 0);
         }
