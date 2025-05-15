@@ -212,7 +212,7 @@ int ProcessPool::start_check() {
 
     running = started = true;
     master_pid = getpid();
-    swoole_set_process_type(SW_PROCESS_MASTER);
+    swoole_set_worker_type(SW_MASTER);
 
     if (async) {
         main_loop = run_async;
@@ -461,8 +461,8 @@ pid_t ProcessPool::spawn(Worker *worker) {
     case 0:
         worker->init();
         worker->pid = SwooleG.pid;
-        swoole_set_process_type(SW_PROCESS_WORKER);
-        swoole_set_process_id(worker->id);
+        swoole_set_worker_type(SW_WORKER);
+        swoole_set_worker_id(worker->id);
         swoole_set_worker_id(worker->id);
         SwooleWG.worker = worker;
         if (async) {
@@ -1181,6 +1181,39 @@ swoole::WorkerId swoole_get_worker_id() {
     return SwooleWG.id;
 }
 
+pid_t swoole_get_worker_pid() {
+    return SwooleWG.pid;
+}
+
+int swoole_get_worker_type() {
+    return SwooleWG.type;
+}
+
 void swoole_set_worker_id(swoole::WorkerId worker_id) {
     SwooleWG.id = worker_id;
+}
+
+void swoole_set_worker_pid(pid_t pid) {
+    SwooleWG.pid = pid;
+}
+
+void swoole_set_worker_type(int type) {
+    SwooleWG.type = type;
+}
+
+char swoole_get_worker_symbol() {
+    switch (swoole_get_worker_type()) {
+    case SW_MASTER:
+        return '#';
+    case SW_MANAGER:
+        return '$';
+    case SW_WORKER:
+        return '*';
+    case SW_TASK_WORKER:
+        return '^';
+    case SW_USER_WORKER:
+        return '@';
+    default:
+        return '%';
+    }
 }

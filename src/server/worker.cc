@@ -221,10 +221,10 @@ void Server::worker_accept_event(DataHead *info) {
 }
 
 void Server::worker_start_callback(Worker *worker) {
-    if (swoole_get_process_id() >= worker_num) {
-        swoole_set_process_type(SW_PROCESS_TASKWORKER);
+    if (swoole_get_worker_id() >= worker_num) {
+        swoole_set_worker_type(SW_TASK_WORKER);
     } else {
-        swoole_set_process_type(SW_PROCESS_WORKER);
+        swoole_set_worker_type(SW_WORKER);
     }
 
     int is_root = !geteuid();
@@ -344,7 +344,7 @@ void Server::call_worker_error_callback(Worker *worker, const ExitStatus &status
      * This must be done between the termination of the old process and the initiation of the new one;
      * otherwise, data contention may occur.
      */
-    if (worker->type == SW_PROCESS_EVENTWORKER) {
+    if (worker->type == SW_EVENT_WORKER) {
         abort_worker(worker);
     }
 }
@@ -377,7 +377,7 @@ bool Server::kill_worker(WorkerId worker_id, bool wait_reactor) {
 
 void Server::stop_async_worker(Worker *worker) {
     worker->shutdown();
-    if (worker->type == SW_PROCESS_EVENTWORKER) {
+    if (worker->type == SW_EVENT_WORKER) {
         reset_worker_counter(worker);
     }
 
@@ -473,7 +473,7 @@ void Server::stop_async_worker(Worker *worker) {
 
 static void Worker_reactor_try_to_exit(Reactor *reactor) {
     Server *serv;
-    if (sw_likely(swoole_get_process_type() != SW_PROCESS_TASKWORKER)) {
+    if (sw_likely(swoole_get_worker_type() != SW_TASK_WORKER)) {
         serv = static_cast<Server *>(reactor->ptr);
     } else {
         auto pool = static_cast<ProcessPool *>(reactor->ptr);
@@ -538,8 +538,8 @@ void Server::clean_worker_connections(Worker *worker) {
  * Only used in SWOOLE_PROCESS mode
  */
 int Server::start_event_worker(Worker *worker) {
-    swoole_set_process_id(worker->id);
-    swoole_set_process_type(SW_PROCESS_EVENTWORKER);
+    swoole_set_worker_id(worker->id);
+    swoole_set_worker_type(SW_EVENT_WORKER);
 
     init_event_worker(worker);
 

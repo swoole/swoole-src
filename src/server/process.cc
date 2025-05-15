@@ -145,8 +145,8 @@ pid_t Factory::spawn_user_worker(Worker *worker) {
     }
     // child
     else if (pid == 0) {
-        swoole_set_process_type(SW_PROCESS_USERWORKER);
-        swoole_set_process_id(worker->id);
+        swoole_set_worker_type(SW_USER_WORKER);
+        swoole_set_worker_id(worker->id);
         swoole_set_worker_id(worker->id);
         worker->pid = SwooleG.pid;
         SwooleWG.worker = worker;
@@ -293,7 +293,7 @@ static bool inline process_is_supported_send_yield(Server *serv, Connection *con
     if (!serv->is_hash_dispatch_mode()) {
         return false;
     } else {
-        return serv->schedule_worker(conn->fd, nullptr) == (int) swoole_get_process_id();
+        return serv->schedule_worker(conn->fd, nullptr) == (int) swoole_get_worker_id();
     }
 }
 
@@ -350,7 +350,7 @@ bool ProcessFactory::finish(SendData *resp) {
     memcpy(&task, resp, sizeof(SendData));
     task.info.fd = session_id;
     task.info.reactor_id = conn->reactor_id;
-    task.info.server_fd = swoole_get_process_id();
+    task.info.server_fd = swoole_get_worker_id();
 
     swoole_trace("worker_id=%d, type=%d", SwooleG.process_id, task.info.type);
 
@@ -392,7 +392,7 @@ bool ProcessFactory::end(SessionId session_id, int flags) {
         Worker *worker;
         bool hash = server_->is_hash_dispatch_mode();
         int worker_id = hash ? server_->schedule_worker(conn->fd, nullptr) : conn->fd % server_->worker_num;
-        if (server_->is_worker() && (!hash || worker_id == (int) swoole_get_process_id())) {
+        if (server_->is_worker() && (!hash || worker_id == (int) swoole_get_worker_id())) {
             goto _close;
         }
         worker = server_->get_worker(worker_id);

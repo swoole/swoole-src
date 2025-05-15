@@ -1784,7 +1784,7 @@ TEST(server, forward_message) {
         EventData msg;
         SessionId client_fd = req->info.fd;
         Server::task_pack(&msg, &client_fd, sizeof(client_fd));
-        EXPECT_TRUE(serv->send_pipe_message(1 - swoole_get_process_id(), &msg));
+        EXPECT_TRUE(serv->send_pipe_message(1 - swoole_get_worker_id(), &msg));
         return SW_OK;
     };
 

@@ -3665,7 +3665,7 @@ static PHP_METHOD(swoole_server, getClientInfo) {
     }
 
 #ifdef SW_USE_OPENSSL
-    if (conn->ssl_client_cert && conn->ssl_client_cert_pid == swoole_get_process_pid()) {
+    if (conn->ssl_client_cert && conn->ssl_client_cert_pid == swoole_get_worker_pid()) {
         add_assoc_stringl(return_value, "ssl_client_cert", conn->ssl_client_cert->str, conn->ssl_client_cert->length);
     }
 #endif

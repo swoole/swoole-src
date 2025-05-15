@@ -169,7 +169,7 @@ static void process_pool_onWorkerStart(ProcessPool *pool, Worker *worker) {
     zend_update_property_long(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("workerPid"), getpid());
     zend_update_property_long(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("workerId"), worker->id);
 
-    swoole_set_process_type(SW_PROCESS_WORKER);
+    swoole_set_worker_type(SW_WORKER);
     SwooleG.enable_coroutine = pp->enable_coroutine;
 
     if (pp->onWorkerStart) {
@@ -262,7 +262,7 @@ static void process_pool_onStart(ProcessPool *pool) {
     zend_update_property_long(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("master_pid"), getpid());
     zend_update_property_bool(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("running"), true);
 
-    swoole_set_process_type(SW_PROCESS_MASTER);
+    swoole_set_worker_type(SW_MASTER);
     SwooleG.enable_coroutine = false;
 
     if (pp->onStart == nullptr) {

@@ -825,9 +825,6 @@ void ReactorThread::clean() {
 }
 
 void Server::reactor_thread_main_loop(Server *serv, int reactor_id) {
-    SwooleTG.id = reactor_id;
-    SwooleTG.type = Server::THREAD_REACTOR;
-
     ReactorThread *thread = serv->get_thread(reactor_id);
     thread->id = reactor_id;
     SwooleTG.message_bus = &thread->message_bus;
@@ -838,6 +835,9 @@ void Server::reactor_thread_main_loop(Server *serv, int reactor_id) {
 
     if (serv->is_thread_mode()) {
         serv->call_worker_start_callback(serv->get_worker(reactor_id));
+    } else {
+        swoole_set_thread_id(reactor_id);
+        swoole_set_thread_type(Server::THREAD_REACTOR);
     }
 
     Reactor *reactor = sw_reactor();
@@ -967,9 +967,8 @@ void Server::join_reactor_thread() {
 void Server::start_heartbeat_thread() {
     heartbeat_thread = std::thread([this]() {
         swoole_signal_block_all();
-
-        SwooleTG.type = THREAD_HEARTBEAT;
-        SwooleTG.id = reactor_num + 1;
+        swoole_set_thread_type(THREAD_HEARTBEAT);
+        swoole_set_thread_type(reactor_num + 1);
 
         while (running) {
             double now = microtime();
