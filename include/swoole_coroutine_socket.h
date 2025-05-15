@@ -135,7 +135,7 @@ class Socket {
     bool bind(const struct sockaddr *sa, socklen_t len);
     bool listen(int backlog = 0);
     bool sendfile(const char *filename, off_t offset, size_t length);
-    ssize_t sendto(const std::string &host, int port, const void *__buf, size_t __n);
+    ssize_t sendto(std::string host, int port, const void *__buf, size_t __n);
     ssize_t recvfrom(void *__buf, size_t __n);
     ssize_t recvfrom(void *__buf, size_t __n, struct sockaddr *_addr, socklen_t *_socklen);
 
@@ -328,6 +328,11 @@ class Socket {
         errCode = errno = e;
         swoole_set_last_error(errCode);
         errMsg = e ? swoole_strerror(e) : "";
+    }
+
+    void set_err() {
+        errCode = swoole_get_last_error();
+        errMsg = swoole_strerror(errCode);
     }
 
     void set_err(int e, const char *s) {

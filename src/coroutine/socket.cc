@@ -671,12 +671,7 @@ bool Socket::connect(const std::string &_host, int _port, int flags) {
          * so we have to handle the host first,
          * if the host is not a ip, assign it to ssl_host_name
          */
-        union {
-            struct in_addr sin;
-            struct in6_addr sin6;
-        } addr;
-        if ((sock_domain == AF_INET && !inet_pton(AF_INET, _host.c_str(), &addr.sin)) ||
-            (sock_domain == AF_INET6 && !inet_pton(AF_INET6, _host.c_str(), &addr.sin6))) {
+        if (!network::Address::verify_ip(sock_domain, _host)) {
             ssl_host_name = _host;
         }
     }
@@ -1405,75 +1400,41 @@ bool Socket::sendfile(const char *filename, off_t offset, size_t length) {
     return true;
 }
 
-ssize_t Socket::sendto(const std::string &host, int port, const void *__buf, size_t __n) {
+ssize_t Socket::sendto(std::string host, int port, const void *__buf, size_t __n) {
     if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
         return -1;
     }
 
     ssize_t retval = 0;
-    union {
-        struct sockaddr_in in;
-        struct sockaddr_in6 in6;
-        struct sockaddr_un un;
-    } addr = {};
     size_t addr_size = 0;
+    network::Address addr;
 
-    std::string ip = host;
+    if (!socket->is_dgram()) {
+        set_err(EPROTONOSUPPORT);
+        return -1;
+    }
 
-    for (size_t i = 0; i < 2; i++) {
-        if (type == SW_SOCK_UDP) {
-            if (::inet_pton(AF_INET, ip.c_str(), &addr.in.sin_addr) == 0) {
-                read_co = write_co = Coroutine::get_current_safe();
-                ip = System::gethostbyname(host, sock_domain, dns_timeout);
-                read_co = write_co = nullptr;
-                if (ip.empty()) {
-                    set_err(swoole_get_last_error(), swoole_strerror(swoole_get_last_error()));
-                    return -1;
+    SW_LOOP_N(2) {
+        if (!addr.assign(type, host, port, false)) {
+            if (swoole_get_last_error() == SW_ERROR_BAD_HOST_ADDR) {
+                host = System::gethostbyname(host, sock_domain, dns_timeout);
+                if (!host.empty()) {
+                    continue;
                 }
-                continue;
-            } else {
-                addr.in.sin_family = AF_INET;
-                addr.in.sin_port = htons(port);
-                addr_size = sizeof(addr.in);
-                break;
             }
-        } else if (type == SW_SOCK_UDP6) {
-            if (::inet_pton(AF_INET6, ip.c_str(), &addr.in6.sin6_addr) == 0) {
-                read_co = write_co = Coroutine::get_current_safe();
-                ip = System::gethostbyname(host, sock_domain, dns_timeout);
-                read_co = write_co = nullptr;
-                if (ip.empty()) {
-                    set_err(swoole_get_last_error(), swoole_strerror(swoole_get_last_error()));
-                    return -1;
-                }
-                continue;
-            } else {
-                addr.in6.sin6_port = (uint16_t) htons(port);
-                addr.in6.sin6_family = AF_INET6;
-                addr_size = sizeof(addr.in6);
-                break;
-            }
-        } else if (type == SW_SOCK_UNIX_DGRAM) {
-            addr.un.sun_family = AF_UNIX;
-            swoole_strlcpy(addr.un.sun_path, host.c_str(), sizeof(addr.un.sun_path));
-            addr_size = sizeof(addr.un);
-            break;
-        } else {
-            set_err(EPROTONOSUPPORT);
-            retval = -1;
-            break;
+            set_err();
+            return -1;
         }
+        break;
     }
 
-    if (addr_size > 0) {
-        TimerController timer(&write_timer, write_timeout, this, timer_callback);
-        do {
-            retval = ::sendto(sock_fd, __buf, __n, 0, (struct sockaddr *) &addr, addr_size);
-            swoole_trace_log(SW_TRACE_SOCKET, "sendto %ld/%ld bytes, errno=%d", retval, __n, errno);
-        } while (retval < 0 && (errno == EINTR || (socket->catch_write_error(errno) == SW_WAIT && timer.start() &&
-                                                   wait_event(SW_EVENT_WRITE, &__buf, __n))));
-        check_return_value(retval);
-    }
+    TimerController timer(&write_timer, write_timeout, this, timer_callback);
+    do {
+        retval = socket->sendto(addr, __buf, __n, 0);
+        swoole_trace_log(SW_TRACE_SOCKET, "sendto %ld/%ld bytes, errno=%d", retval, __n, errno);
+    } while (retval < 0 && (errno == EINTR || (socket->catch_write_error(errno) == SW_WAIT && timer.start() &&
+                                               wait_event(SW_EVENT_WRITE, &__buf, __n))));
+    check_return_value(retval);
 
     return retval;
 }
