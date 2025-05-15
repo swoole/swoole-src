@@ -221,15 +221,7 @@ void Server::worker_accept_event(DataHead *info) {
 }
 
 void Server::worker_start_callback(Worker *worker) {
-    if (swoole_get_worker_id() >= worker_num) {
-        swoole_set_worker_type(SW_TASK_WORKER);
-    } else {
-        swoole_set_worker_type(SW_WORKER);
-    }
-
-    int is_root = !geteuid();
-
-    if (is_root) {
+    if (geteuid() == 0) {
         group *_group = nullptr;
         passwd *_passwd = nullptr;
         // get group info

@@ -84,6 +84,8 @@ void ThreadFactory::at_thread_enter(WorkerId id, int worker_type) {
 
     swoole_set_worker_type(worker_type);
     swoole_set_worker_id(id);
+    swoole_set_worker_pid(swoole_thread_get_native_id());
+
     swoole_set_thread_id(id);
     swoole_set_thread_type(Server::THREAD_WORKER);
 }
@@ -121,8 +123,7 @@ void ThreadFactory::spawn_event_worker(WorkerId i) {
 
         Worker *worker = server_->get_worker(i);
         worker->type = SW_EVENT_WORKER;
-        worker->pid = swoole_thread_get_native_id();
-        swoole_set_worker_pid(worker->pid);
+        worker->pid = swoole_get_worker_pid();
         SwooleWG.worker = worker;
         server_->worker_thread_start(threads_[i], [=]() { Server::reactor_thread_main_loop(server_, i); });
 
@@ -137,8 +138,7 @@ void ThreadFactory::spawn_task_worker(WorkerId i) {
         create_message_bus();
         Worker *worker = server_->get_worker(i);
         worker->type = SW_TASK_WORKER;
-        worker->pid = swoole_thread_get_native_id();
-        swoole_set_worker_pid(worker->pid);
+        worker->pid = swoole_get_worker_pid();
         worker->set_status_to_idle();
         SwooleWG.worker = worker;
         auto pool = &server_->gs->task_workers;
@@ -164,8 +164,7 @@ void ThreadFactory::spawn_user_worker(WorkerId i) {
         create_message_bus();
         Worker *worker = server_->get_worker(i);
         worker->type = SW_USER_WORKER;
-        worker->pid = swoole_thread_get_native_id();
-        swoole_set_worker_pid(worker->pid);
+        worker->pid = swoole_get_worker_pid();
         SwooleWG.worker = worker;
         server_->worker_thread_start(threads_[i], [=]() { server_->onUserWorkerStart(server_, worker); });
         destroy_message_bus();
@@ -179,9 +178,8 @@ void ThreadFactory::spawn_manager_thread(WorkerId i) {
         at_thread_enter(i, SW_MANAGER);
 
         manager.id = i;
-        manager.pid = swoole_thread_get_native_id();
+        manager.pid = swoole_get_worker_pid();
         manager.type = SW_MANAGER;
-        swoole_set_worker_pid(manager.pid);
 
         swoole_timer_set_scheduler([this](Timer *timer, long exec_msec) -> int {
             cv_timeout_ms_ = exec_msec;

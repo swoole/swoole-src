@@ -118,6 +118,8 @@ pid_t Factory::spawn_event_worker(Worker *worker) {
     } else if (pid == 0) {
         worker->pid = getpid();
         swoole_set_worker_id(worker->id);
+        swoole_set_worker_pid(worker->pid);
+        swoole_set_worker_type(SW_EVENT_WORKER);
         SwooleWG.worker = worker;
     } else {
         worker->pid = pid;
@@ -145,10 +147,10 @@ pid_t Factory::spawn_user_worker(Worker *worker) {
     }
     // child
     else if (pid == 0) {
+        worker->pid = getpid();
         swoole_set_worker_type(SW_USER_WORKER);
         swoole_set_worker_id(worker->id);
-        swoole_set_worker_id(worker->id);
-        worker->pid = getpid();
+        swoole_set_worker_pid(worker->pid);
         SwooleWG.worker = worker;
         server_->onUserWorkerStart(server_, worker);
         exit(0);
@@ -352,7 +354,7 @@ bool ProcessFactory::finish(SendData *resp) {
     task.info.reactor_id = conn->reactor_id;
     task.info.server_fd = swoole_get_worker_id();
 
-    swoole_trace("worker_id=%d, type=%d", SwooleG.process_id, task.info.type);
+    swoole_trace("worker_id=%d, type=%d", task.info.server_fd, task.info.type);
 
     return server_->message_bus.write(server_->get_reactor_pipe_socket(session_id, task.info.reactor_id), &task);
 }

@@ -1,4 +1,5 @@
 #include "swoole_message_bus.h"
+#include "swoole_process_pool.h"
 
 #include <assert.h>
 
@@ -87,8 +88,8 @@ ReturnCode MessageBus::prepare_packet(uint16_t &recv_chunk_count, String *packet
          */
         if (recv_chunk_count >= SW_WORKER_MAX_RECV_CHUNK_COUNT) {
             swoole_trace_log(SW_TRACE_WORKER,
-                             "worker process[%u] receives the chunk data to the maximum[%d], return to event loop",
-                             SwooleG.process_id,
+                             "worker#%d receives the chunk data to the maximum[%d], return to event loop",
+                             swoole_get_worker_id(),
                              recv_chunk_count);
             return SW_WAIT;
         }

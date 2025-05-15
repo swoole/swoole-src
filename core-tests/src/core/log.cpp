@@ -90,7 +90,7 @@ TEST(log, date_with_microseconds) {
     sw_logger()->close();
     unlink(file);
 
-    std::regex e("\\[\\S+\\s\\d{2}:\\d{2}:\\d{2}\\<\\.(\\d+)\\>\\s@\\d+\\.\\d+\\]\tWARNING\thello world");
+    std::regex e("\\[\\S+\\s\\d{2}:\\d{2}:\\d{2}\\<\\.(\\d+)\\>\\s%\\d+\\.\\d+\\]\tWARNING\thello world");
     ASSERT_TRUE(std::regex_search(content->value(), e));
 }
 

@@ -463,7 +463,7 @@ pid_t ProcessPool::spawn(Worker *worker) {
         worker->pid = getpid();
         swoole_set_worker_type(SW_WORKER);
         swoole_set_worker_id(worker->id);
-        swoole_set_worker_id(worker->id);
+        swoole_set_worker_pid(worker->pid);
         SwooleWG.worker = worker;
         if (async) {
             if (swoole_event_init(SW_EVENTLOOP_WAIT_EXIT) < 0) {

@@ -243,8 +243,9 @@ static void TaskWorker_signal_init(ProcessPool *pool) {
 
 static void TaskWorker_onStart(ProcessPool *pool, Worker *worker) {
     auto serv = static_cast<Server *>(pool->ptr);
-    swoole_set_worker_id(worker->id);
 
+    swoole_set_worker_id(worker->id);
+    swoole_set_worker_type(SW_TASK_WORKER);
     /**
      * Make the task worker support asynchronous
      */
