@@ -183,7 +183,7 @@ void TableRow::lock() {
     while (true) {
         if (*lock == 0 && sw_atomic_cmp_set(lock, 0, 1)) {
         _success:
-            lock_pid = SwooleG.pid;
+            lock_pid = getpid();
             return;
         }
         if (SW_CPU_NUM > 1) {

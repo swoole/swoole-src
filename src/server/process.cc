@@ -116,7 +116,7 @@ pid_t Factory::spawn_event_worker(Worker *worker) {
         swoole_sys_warning("failed to fork event worker");
         return SW_ERR;
     } else if (pid == 0) {
-        worker->pid = SwooleG.pid;
+        worker->pid = getpid();
         swoole_set_worker_id(worker->id);
         SwooleWG.worker = worker;
     } else {
@@ -148,7 +148,7 @@ pid_t Factory::spawn_user_worker(Worker *worker) {
         swoole_set_worker_type(SW_USER_WORKER);
         swoole_set_worker_id(worker->id);
         swoole_set_worker_id(worker->id);
-        worker->pid = SwooleG.pid;
+        worker->pid = getpid();
         SwooleWG.worker = worker;
         server_->onUserWorkerStart(server_, worker);
         exit(0);

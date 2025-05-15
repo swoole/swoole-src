@@ -152,8 +152,6 @@ static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
 
 int Server::reactor_process_main_loop(ProcessPool *pool, Worker *worker) {
     auto *serv = (Server *) pool->ptr;
-    SwooleG.pid = getpid();
-    SwooleTG.id = 0;
     swoole_set_worker_type(SW_WORKER);
     swoole_set_worker_id(worker->id);
 

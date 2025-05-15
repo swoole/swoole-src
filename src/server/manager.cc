@@ -63,7 +63,7 @@ int Server::start_manager_process() {
     }
 
     auto fn = [this]() {
-        gs->manager_pid = SwooleG.pid = getpid();
+        gs->manager_pid = getpid();
 
         if (task_worker_num > 0) {
             if (gs->task_workers.start() == SW_ERR) {

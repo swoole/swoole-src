@@ -148,7 +148,7 @@ void Server::worker_accept_event(DataHead *info) {
     case SW_SERVER_EVENT_CLOSE: {
 #ifdef SW_USE_OPENSSL
         Connection *conn = get_connection_verify_no_ssl(info->fd);
-        if (conn && conn->ssl_client_cert && conn->ssl_client_cert_pid == SwooleG.pid) {
+        if (conn && conn->ssl_client_cert && conn->ssl_client_cert_pid == swoole_get_worker_pid()) {
             delete conn->ssl_client_cert;
             conn->ssl_client_cert = nullptr;
         }
@@ -164,7 +164,7 @@ void Server::worker_accept_event(DataHead *info) {
             if (conn) {
                 auto packet = get_worker_message_bus()->get_packet();
                 conn->ssl_client_cert = new String(packet.data, packet.length);
-                conn->ssl_client_cert_pid = SwooleG.pid;
+                conn->ssl_client_cert_pid = swoole_get_worker_pid();
             }
         }
 #endif
@@ -428,7 +428,7 @@ void Server::stop_async_worker(Worker *worker) {
         }
     } else if (is_process_mode()) {
         WorkerStopMessage msg;
-        msg.pid = SwooleG.pid;
+        msg.pid = getpid();
         msg.worker_id = worker->id;
 
         if (gs->event_workers.push_message(SW_WORKER_MESSAGE_STOP, &msg, sizeof(msg)) < 0) {

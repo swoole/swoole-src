@@ -446,13 +446,12 @@ int Server::start_master_thread(Reactor *reactor) {
 
     init_signal_handler();
 
-    SwooleG.pid = getpid();
     swoole_set_worker_type(SW_MASTER);
 
     if (is_thread_mode()) {
         swoole_set_worker_pid(swoole_thread_get_native_id());
     } else if (is_process_mode()) {
-        swoole_set_worker_pid(SwooleG.pid);
+        swoole_set_worker_pid(getpid());
     }
 
     reactor->ptr = this;

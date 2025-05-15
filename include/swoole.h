@@ -738,7 +738,6 @@ struct Global {
     uchar print_backtrace_on_error : 1;
 
     TaskId current_task_id;
-    pid_t pid;
 
     int signal_fd;
     bool signal_alarm;
