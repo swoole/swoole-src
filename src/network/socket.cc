@@ -1043,6 +1043,14 @@ int Socket::get_domain_and_type(SocketType type, int *sock_domain, int *sock_typ
         *sock_domain = AF_INET;
         *sock_type = SOCK_STREAM;
         break;
+    case SW_SOCK_RAW:
+        *sock_domain = AF_INET;
+        *sock_type = SOCK_RAW;
+        break;
+    case SW_SOCK_RAW6:
+        *sock_domain = AF_INET6;
+        *sock_type = SOCK_RAW;
+        break;
     default:
         return SW_ERR;
     }

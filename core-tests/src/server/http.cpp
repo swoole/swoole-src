@@ -1568,7 +1568,7 @@ TEST(http_server, get_protocol) {
         SetRequestContent("GET /");
 
         ASSERT_EQ(request->get_protocol(), SW_ERR);
-        EXPECT_EQ(request->excepted, 0); // wait more data
+        EXPECT_EQ(request->excepted, 0);  // wait more data
     }
 
     // 测试无效的请求 - 未知方法
