@@ -476,9 +476,9 @@ static void test_ssl_http2(Server::Mode mode) {
     port->ssl_init();
 
     ASSERT_EQ(serv.create(), SW_OK);
-
-    serv.onStart = [&lock](Server *serv) {
-        thread t1([=]() {
+    thread t1;
+    serv.onStart = [&lock, &t1](Server *serv) {
+        t1 = thread([=]() {
             swoole_signal_block_all();
             lock->lock();
 
@@ -502,7 +502,6 @@ static void test_ssl_http2(Server::Mode mode) {
 
             serv->shutdown();
         });
-        t1.detach();
     };
 
     serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock->unlock(); };
@@ -555,6 +554,7 @@ static void test_ssl_http2(Server::Mode mode) {
 
     ASSERT_EQ(serv.start(), 0);
 
+    t1.join();
     delete lock;
 }
 

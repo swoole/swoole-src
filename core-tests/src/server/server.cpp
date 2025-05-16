@@ -228,8 +228,9 @@ TEST(server, process) {
 
     ASSERT_EQ(serv.create(), SW_OK);
 
-    serv.onStart = [&lock](Server *serv) {
-        thread t1([=]() {
+    thread t1;
+    serv.onStart = [&lock, &t1](Server *serv) {
+        t1 = thread([=]() {
             swoole_signal_block_all();
 
             lock->lock();
@@ -245,7 +246,6 @@ TEST(server, process) {
 
             kill(serv->gs->master_pid, SIGTERM);
         });
-        t1.detach();
     };
 
     serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock->unlock(); };
@@ -264,6 +264,7 @@ TEST(server, process) {
 
     ASSERT_EQ(serv.start(), 0);
 
+    t1.join();
     delete lock;
 }
 
@@ -696,8 +697,10 @@ TEST(server, ssl) {
 
     ASSERT_EQ(serv.create(), SW_OK);
 
-    serv.onStart = [&lock](Server *serv) {
-        thread t1([=]() {
+    thread t1;
+
+    serv.onStart = [&lock, &t1](Server *serv) {
+        t1 = thread([=]() {
             swoole_signal_block_all();
 
             lock->lock();
@@ -716,7 +719,6 @@ TEST(server, ssl) {
 
             kill(serv->gs->master_pid, SIGTERM);
         });
-        t1.detach();
     };
 
     serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock->unlock(); };
@@ -732,6 +734,7 @@ TEST(server, ssl) {
 
     ASSERT_EQ(serv.start(), 0);
 
+    t1.join();
     delete lock;
 }
 
@@ -755,8 +758,9 @@ TEST(server, dtls) {
 
     ASSERT_EQ(serv.create(), SW_OK);
 
-    serv.onStart = [&lock](Server *serv) {
-        thread t1([=]() {
+    thread t1;
+    serv.onStart = [&lock, &t1](Server *serv) {
+        t1 = thread([=]() {
             swoole_signal_block_all();
 
             lock->lock();
@@ -775,7 +779,6 @@ TEST(server, dtls) {
 
             kill(serv->gs->master_pid, SIGTERM);
         });
-        t1.detach();
     };
 
     serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock->unlock(); };
@@ -791,6 +794,7 @@ TEST(server, dtls) {
 
     ASSERT_EQ(serv.start(), 0);
 
+    t1.join();
     delete lock;
 }
 
@@ -860,8 +864,9 @@ static void test_ssl_client_cert(Server::Mode mode) {
 
     ASSERT_EQ(serv.create(), SW_OK);
 
-    serv.onStart = [&lock](Server *serv) {
-        thread t1([=]() {
+    thread t1;
+    serv.onStart = [&lock, &t1](Server *serv) {
+        t1 = thread([=]() {
             swoole_signal_block_all();
 
             lock->lock();
@@ -883,7 +888,6 @@ static void test_ssl_client_cert(Server::Mode mode) {
 
             kill(serv->gs->master_pid, SIGTERM);
         });
-        t1.detach();
     };
 
     serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock->unlock(); };
@@ -916,6 +920,7 @@ static void test_ssl_client_cert(Server::Mode mode) {
 
     ASSERT_EQ(serv.start(), 0);
 
+    t1.join();
     delete lock;
 }
 

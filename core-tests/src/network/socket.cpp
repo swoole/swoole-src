@@ -638,14 +638,13 @@ TEST(socket, make_server_socket) {
 
     sock = make_server_socket(SW_SOCK_RAW, bad_addr);
     ASSERT_EQ(sock, nullptr);
-    if (geteuid() == 0) { // root
+    if (geteuid() == 0) {  // root
         ASSERT_EQ(errno, EPROTONOSUPPORT);
         ASSERT_EQ(swoole_get_last_error(), EPROTONOSUPPORT);
     } else {
         ASSERT_EQ(errno, ESOCKTNOSUPPORT);
         ASSERT_EQ(swoole_get_last_error(), ESOCKTNOSUPPORT);
     }
-
 
     sock = make_server_socket(SW_SOCK_TCP, bad_addr);
     ASSERT_EQ(sock, nullptr);
