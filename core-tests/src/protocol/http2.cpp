@@ -395,6 +395,26 @@ static void handle_request(nghttp2_session *session, int32_t stream_id, Http2Ses
     nghttp2_session_send(session);
 }
 
+static void http2_send_settings(Http2Session *session_data) {
+    // 设置 HTTP/2 服务器连接设置
+    nghttp2_settings_entry settings[] = {
+        {NGHTTP2_SETTINGS_MAX_CONCURRENT_STREAMS, 100},
+        {NGHTTP2_SETTINGS_INITIAL_WINDOW_SIZE, 1048576},  // 1MB 初始窗口大小
+        {NGHTTP2_SETTINGS_MAX_FRAME_SIZE, 16384}          // 16KB 最大帧大小
+    };
+
+    auto rv = nghttp2_submit_settings(
+        session_data->session, NGHTTP2_FLAG_NONE, settings, sizeof(settings) / sizeof(settings[0]));
+    if (rv != 0) {
+        swoole_error_log(
+            SW_LOG_ERROR, SW_ERROR_HTTP2_INTERNAL_ERROR, "Failed to submit settings: %s", nghttp2_strerror(rv));
+        return;
+    }
+
+    // 发送初始 SETTINGS 帧
+    nghttp2_session_send(session_data->session);
+}
+
 static std::shared_ptr<Http2Session> create_http2_session(Server *serv, SessionId fd) {
     auto session_data = std::make_shared<Http2Session>(fd, serv);
 
@@ -433,21 +453,6 @@ static std::shared_ptr<Http2Session> create_http2_session(Server *serv, SessionI
 
     // 存储服务器对象以便在回调中使用
     nghttp2_session_set_user_data(session_data->session, session_data.get());
-
-    // 设置 HTTP/2 服务器连接设置
-    nghttp2_settings_entry settings[] = {
-        {NGHTTP2_SETTINGS_MAX_CONCURRENT_STREAMS, 100},
-        {NGHTTP2_SETTINGS_INITIAL_WINDOW_SIZE, 1048576},  // 1MB 初始窗口大小
-        {NGHTTP2_SETTINGS_MAX_FRAME_SIZE, 16384}          // 16KB 最大帧大小
-    };
-
-    rv = nghttp2_submit_settings(
-        session_data->session, NGHTTP2_FLAG_NONE, settings, sizeof(settings) / sizeof(settings[0]));
-    if (rv != 0) {
-        swoole_error_log(
-            SW_LOG_ERROR, SW_ERROR_HTTP2_INTERNAL_ERROR, "Failed to submit settings: %s", nghttp2_strerror(rv));
-        return nullptr;
-    }
 
     return session_data;
 }
@@ -517,8 +522,6 @@ static void test_ssl_http2(Server::Mode mode) {
             session = create_http2_session(serv, fd);
             if (session) {
                 sessions[fd] = session;
-                // 发送初始 SETTINGS 帧
-                nghttp2_session_send(session->session);
                 ssize_t consumed = nghttp2_session_mem_recv(
                     session->session, (uint8_t *) SW_HTTP2_PRI_STRING, sizeof(SW_HTTP2_PRI_STRING) - 1);
                 if (consumed < 0) {
