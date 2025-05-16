@@ -266,7 +266,7 @@ static int on_frame_not_send_callback(nghttp2_session *session,
 static int on_frame_send_callback(nghttp2_session *session, const nghttp2_frame *frame, void *user_data) {
     if (frame->hd.type == NGHTTP2_WINDOW_UPDATE) {
         DEBUG() << "Window update sent: stream=" << frame->hd.stream_id
-                  << ", increment=" << frame->window_update.window_size_increment << std::endl;
+                << ", increment=" << frame->window_update.window_size_increment << std::endl;
     }
     return 0;
 }
@@ -460,8 +460,7 @@ static void test_ssl_http2(Server::Mode mode) {
     Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
     lock->lock();
 
-    //    const int server_port = __LINE__ + TEST_PORT;
-    const int server_port = 9501;
+    const int server_port = __LINE__ + TEST_PORT;
     ListenPort *port = serv.add_port((enum swSocketType)(SW_SOCK_TCP | SW_SOCK_SSL), TEST_HOST, server_port);
     if (!port) {
         swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
@@ -479,31 +478,31 @@ static void test_ssl_http2(Server::Mode mode) {
     ASSERT_EQ(serv.create(), SW_OK);
 
     serv.onStart = [&lock](Server *serv) {
-            thread t1([=]() {
-                swoole_signal_block_all();
-                lock->lock();
+        thread t1([=]() {
+            swoole_signal_block_all();
+            lock->lock();
 
-                auto cmd = "nghttp -v -y https://127.0.0.1:" + std::to_string(server_port) + "/";
-                pid_t pid;
-                auto _pipe = swoole_shell_exec(cmd.c_str(), &pid, 1);
-                String buf(1024);
-                while (1) {
-                    auto n = read(_pipe, buf.str + buf.length, buf.size - buf.length);
-                    if (n > 0) {
-                        buf.grow(n);
-                        continue;
-                    }
-                    break;
+            auto cmd = "nghttp -v -y https://127.0.0.1:" + std::to_string(server_port) + "/";
+            pid_t pid;
+            auto _pipe = swoole_shell_exec(cmd.c_str(), &pid, 1);
+            String buf(1024);
+            while (1) {
+                auto n = read(_pipe, buf.str + buf.length, buf.size - buf.length);
+                if (n > 0) {
+                    buf.grow(n);
+                    continue;
                 }
+                break;
+            }
 
-                close(_pipe);
-                usleep(10000);
+            close(_pipe);
+            usleep(10000);
 
-                ASSERT_TRUE(buf.contains("Welcome to HTTP/2 Server"));
+            ASSERT_TRUE(buf.contains("Welcome to HTTP/2 Server"));
 
-                serv->shutdown();
-            });
-            t1.detach();
+            serv->shutdown();
+        });
+        t1.detach();
     };
 
     serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock->unlock(); };

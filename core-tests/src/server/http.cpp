@@ -1816,3 +1816,75 @@ TEST(http_server, get_package_length) {
     ASSERT_EQ(swoole_get_last_error(), SW_ERROR_PROTOCOL_ERROR);
     ASSERT_TRUE(str.contains("unexpected protocol status of session"));
 }
+
+
+static void test_ssl_http(Server::Mode mode) {
+    Server serv(mode);
+    serv.worker_num = 1;
+    swoole_set_log_level(SW_LOG_INFO);
+
+    Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
+    lock->lock();
+
+    const int server_port = __LINE__ + TEST_PORT;
+    ListenPort *port = serv.add_port((enum swSocketType)(SW_SOCK_TCP | SW_SOCK_SSL), TEST_HOST, server_port);
+    if (!port) {
+        swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
+        exit(2);
+    }
+
+    port->open_http_protocol = 1;
+    port->set_ssl_cert_file(test::get_ssl_dir() + "/server.crt");
+    port->set_ssl_key_file(test::get_ssl_dir() + "/server.key");
+    port->ssl_context->http = 1;
+    port->ssl_init();
+
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    serv.onStart = [&lock](Server *serv) {
+        thread t1([=]() {
+            swoole_signal_block_all();
+            lock->lock();
+
+            auto cmd = "curl -k https://127.0.0.1:" + std::to_string(server_port) + "/";
+            pid_t pid;
+            auto _pipe = swoole_shell_exec(cmd.c_str(), &pid, 1);
+            String buf(1024);
+            while (1) {
+                auto n = read(_pipe, buf.str + buf.length, buf.size - buf.length);
+                if (n > 0) {
+                    buf.grow(n);
+                    continue;
+                }
+                break;
+            }
+
+            close(_pipe);
+            usleep(10000);
+
+            ASSERT_TRUE(buf.contains(TEST_STR));
+
+            serv->shutdown();
+        });
+        t1.detach();
+    };
+
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock->unlock(); };
+
+    serv.onReceive = [](Server *serv, RecvData *req) -> int {
+        SessionId fd = req->info.fd;
+        auto resp = "HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: "
+                + std::to_string(strlen(TEST_STR)) +"\r\n\r\n" TEST_STR;
+        serv->send(fd, resp.c_str(), resp.length());
+        serv->close(fd);
+        return SW_OK;
+    };
+
+    ASSERT_EQ(serv.start(), 0);
+
+    delete lock;
+}
+
+TEST(http, ssl) {
+    test_ssl_http(Server::MODE_BASE);
+}
