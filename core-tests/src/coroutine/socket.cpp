@@ -68,6 +68,76 @@ TEST(coroutine_socket, connect_timeout) {
     });
 }
 
+TEST(coroutine_socket, timeout_controller) {
+    coroutine::run([](void *arg) {
+        const int port = __LINE__ + TEST_PORT;
+        Coroutine::create([](void *arg) {
+            Socket sock(SW_SOCK_TCP);
+            bool retval = sock.bind("127.0.0.1", port);
+            ASSERT_EQ(retval, true);
+            ASSERT_EQ(sock.listen(128), true);
+
+            Socket *conn = sock.accept();
+            conn->send(TEST_STR);
+            System::sleep(1);
+            delete conn;
+        });
+
+        Socket sock(SW_SOCK_TCP);
+        Socket::TimeoutController tc(&sock, 0.5, Socket::TIMEOUT_ALL);
+        ASSERT_TRUE(sock.connect("127.0.0.1", port));
+
+        char buf[128];
+        off_t offset = 0;
+        sock.errCode = 0;
+        while (true) {
+            if (sw_unlikely(tc.has_timedout(Socket::TIMEOUT_READ))) {
+                break;
+            }
+            auto rv = sock.recv(buf + offset, sizeof(buf) - offset);
+            if (rv <= 0) {
+                break;
+            }
+            offset += rv;
+        }
+        ASSERT_TRUE(tc.has_timedout(Socket::TIMEOUT_READ));
+        ASSERT_EQ(sock.errCode, ETIMEDOUT);
+    });
+}
+
+TEST(coroutine_socket, timeout_setter) {
+    coroutine::run([](void *arg) {
+        const int port = __LINE__ + TEST_PORT;
+        Coroutine::create([](void *arg) {
+            Socket sock(SW_SOCK_TCP);
+            bool retval = sock.bind("127.0.0.1", port);
+            ASSERT_EQ(retval, true);
+            ASSERT_EQ(sock.listen(128), true);
+
+            Socket *conn = sock.accept();
+            conn->send(TEST_STR);
+            System::sleep(1);
+            delete conn;
+        });
+
+        Socket sock(SW_SOCK_TCP);
+        Socket::TimeoutSetter ts(&sock, 0.5, Socket::TIMEOUT_ALL);
+        ASSERT_TRUE(sock.connect("127.0.0.1", port));
+
+        char buf[128];
+        off_t offset = 0;
+        sock.errCode = 0;
+        while (true) {
+            auto rv = sock.recv(buf + offset, sizeof(buf) - offset);
+            if (rv <= 0) {
+                break;
+            }
+            offset += rv;
+        }
+        ASSERT_EQ(sock.errCode, ETIMEDOUT);
+    });
+}
+
 TEST(coroutine_socket, connect_with_dns) {
     coroutine::run([](void *arg) {
         Socket sock(SW_SOCK_TCP);
