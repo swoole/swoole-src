@@ -682,21 +682,23 @@ _found_method:
     for (; p < pe; p++) {
         switch (state) {
         case 0:
-            if (isspace(*p)) {
+            if (*p == ' ') {
                 continue;
             }
             state = 1;
             url_offset_ = p - buffer_->str;
             break;
         case 1:
-            if (isspace(*p)) {
+            if (*p == ' ') {
                 state = 2;
                 url_length_ = p - buffer_->str - url_offset_;
                 continue;
+            } else if (*p == '\r' || *p == '\n') {
+                goto _excepted;
             }
             break;
         case 2:
-            if (isspace(*p)) {
+            if (*p == ' ') {
                 continue;
             }
             if ((size_t) (pe - p) < (sizeof("HTTP/1.x") - 1)) {
@@ -998,7 +1000,7 @@ int get_method(const char *method_str, size_t method_len) {
 }
 
 const char *get_method_string(int method) {
-    if (method < 0 || method > SW_HTTP_PRI) {
+    if (method <= 0 || method > SW_HTTP_PRI) {
         return nullptr;
     }
     return method_strings[method - 1];

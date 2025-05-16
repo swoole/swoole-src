@@ -736,6 +736,7 @@ TEST(http_server, websocket_encode) {
     ASSERT_TRUE(websocket::decode(&ws, buffer->str, buffer->length));
 
     FILE *fp = fopen(log_file, "a+");
+    ASSERT_NE(fp, nullptr);
     auto ori_fp = swoole_get_stdout_stream();
     swoole_set_stdout_stream(fp);
     websocket::print_frame(&ws);
@@ -1491,6 +1492,7 @@ static swoole::http_server::Request req;
 
 static void SetRequestContent(const std::string &str) {
     delete req.buffer_;
+    req = {};
     req.buffer_ = new String(str);
 };
 
@@ -1566,7 +1568,7 @@ TEST(http_server, get_protocol) {
         SetRequestContent("GET /");
 
         ASSERT_EQ(request->get_protocol(), SW_ERR);
-        EXPECT_EQ(request->excepted, 1);
+        EXPECT_EQ(request->excepted, 0); // wait more data
     }
 
     // 测试无效的请求 - 未知方法
@@ -1579,7 +1581,7 @@ TEST(http_server, get_protocol) {
 
     // 测试无效的请求 - 缺少 URL
     {
-        SetRequestContent("GET  HTTP/1.1\r\n");
+        SetRequestContent("UPDATE  HTTP/1.1\r\n");
 
         ASSERT_EQ(request->get_protocol(), SW_ERR);
         EXPECT_EQ(request->excepted, 1);
@@ -1595,7 +1597,7 @@ TEST(http_server, get_protocol) {
 
     // 测试无效的请求 - 缺少 HTTP 版本
     {
-        SetRequestContent("GET /index.html\r\n");
+        SetRequestContent("UNSUBSCRIBE /index.html\r\n");
 
         ASSERT_EQ(request->get_protocol(), SW_ERR);
         EXPECT_EQ(request->excepted, 1);
@@ -1638,7 +1640,7 @@ TEST(http_server, all_method) {
                 EXPECT_EQ(request->excepted, true);
             } else {
                 ASSERT_EQ(request->get_protocol(), SW_OK);
-                EXPECT_EQ(request->method, i - 1);
+                EXPECT_EQ(request->method, i);
             }
         }
     }
@@ -1817,7 +1819,6 @@ TEST(http_server, get_package_length) {
     ASSERT_TRUE(str.contains("unexpected protocol status of session"));
 }
 
-
 static void test_ssl_http(Server::Mode mode) {
     Server serv(mode);
     serv.worker_num = 1;
@@ -1873,8 +1874,8 @@ static void test_ssl_http(Server::Mode mode) {
 
     serv.onReceive = [](Server *serv, RecvData *req) -> int {
         SessionId fd = req->info.fd;
-        auto resp = "HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: "
-                + std::to_string(strlen(TEST_STR)) +"\r\n\r\n" TEST_STR;
+        auto resp = "HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: " + std::to_string(strlen(TEST_STR)) +
+                    "\r\n\r\n" TEST_STR;
         serv->send(fd, resp.c_str(), resp.length());
         serv->close(fd);
         return SW_OK;
@@ -1885,6 +1886,6 @@ static void test_ssl_http(Server::Mode mode) {
     delete lock;
 }
 
-TEST(http, ssl) {
+TEST(http_server, ssl) {
     test_ssl_http(Server::MODE_BASE);
 }
