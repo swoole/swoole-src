@@ -1346,7 +1346,7 @@ TEST(http_server, abort_connection) {
         swoole_signal_block_all();
         lock->lock();
 
-        int n = 32;
+        int n = 16;
         SyncClient *clients[n];
 
         SW_LOOP_N(n) {

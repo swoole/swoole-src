@@ -498,7 +498,9 @@ static void test_ssl_http2(Server::Mode mode) {
             close(_pipe);
             usleep(10000);
 
-            ASSERT_TRUE(buf.contains("Welcome to HTTP/2 Server"));
+            DEBUG() << buf.to_std_string();
+
+            EXPECT_TRUE(buf.contains("Welcome to HTTP/2 Server"));
 
             serv->shutdown();
         });
