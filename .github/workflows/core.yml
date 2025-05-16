@@ -34,7 +34,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: install dependencies
-        run: sudo apt update -y && sudo apt install -y googletest libgtest-dev redis-server libboost-stacktrace-dev libbrotli-dev nodejs npm
+        run: sudo apt update -y && sudo apt install -y googletest libgtest-dev libnghttp2-dev libboost-stacktrace-dev libbrotli-dev redis-server nodejs npm nghttp2-client
 
       - name: configure
         run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-openssl

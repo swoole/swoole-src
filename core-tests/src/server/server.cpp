@@ -837,7 +837,7 @@ TEST(server, dtls2) {
     }
 }
 
-static void test_ssl_client_ssl(Server::Mode mode) {
+static void test_ssl_client_cert(Server::Mode mode) {
     Server serv(mode);
     serv.worker_num = 1;
     swoole_set_log_level(SW_LOG_INFO);
@@ -920,15 +920,15 @@ static void test_ssl_client_ssl(Server::Mode mode) {
 }
 
 TEST(server, ssl_client_cert_1) {
-    test_ssl_client_ssl(Server::MODE_BASE);
+    test_ssl_client_cert(Server::MODE_BASE);
 }
 
 TEST(server, ssl_client_cert_2) {
-    test_ssl_client_ssl(Server::MODE_PROCESS);
+    test_ssl_client_cert(Server::MODE_PROCESS);
 }
 
 TEST(server, ssl_client_cert_3) {
-    test_ssl_client_ssl(Server::MODE_THREAD);
+    test_ssl_client_cert(Server::MODE_THREAD);
 }
 #endif
 

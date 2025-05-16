@@ -16,12 +16,23 @@ set(core_tests_link_directories /usr/local/lib)
 
 list(APPEND core_tests_libraries pthread gtest gtest_main)
 
+find_package(PkgConfig REQUIRED)
+
 # find GTest
 find_package(GTest REQUIRED)
 if (!${GTEST_FOUND})
     message(FATAL_ERROR "Not found GTest")
 endif()
 message(STATUS "Found GTest")
+
+pkg_check_modules(NGHTTP2 REQUIRED libnghttp2)
+if (${NGHTTP2_FOUND})
+    message(STATUS "Found nghttp2")
+    list(APPEND core_tests_includes ${NGHTTP2_INCLUDE_DIR})
+    list(APPEND core_tests_libraries ${NGHTTP2_LIBRARIES})
+else()
+    message(STATUS "Not found nghttp2")
+endif()
 
 list(APPEND core_tests_libraries ${GTEST_BOTH_LIBRARIES})
 list(APPEND core_tests_includes ${GTEST_INCLUDE_DIRS})

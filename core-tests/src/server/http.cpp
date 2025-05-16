@@ -1765,8 +1765,12 @@ TEST(http_server, get_package_length) {
     ASSERT_NE(port, nullptr);
     port->open_http_protocol = true;
     port->open_http2_protocol = true;
+    port->init_protocol();
+    ASSERT_EQ(port->protocol.package_length_size, SW_HTTP2_FRAME_HEADER_SIZE);
+
     port->open_websocket_protocol = true;
     port->init_protocol();
+    ASSERT_EQ(port->protocol.get_package_length_size, http_server::get_package_length_size);
 
     fake_sock.fd = port->get_fd();
     fake_sock.object = &conn;
@@ -1781,6 +1785,7 @@ TEST(http_server, get_package_length) {
     // websocket
     sw_tg_buffer()->clear();
     conn.websocket_status = websocket::STATUS_HANDSHAKE;
+    ASSERT_EQ(http_server::get_package_length_size(&fake_sock), SW_WEBSOCKET_MESSAGE_HEADER_SIZE);
     ASSERT_TRUE(websocket::encode(sw_tg_buffer(), SW_STRL(TEST_STR), websocket::OPCODE_TEXT, websocket::FLAG_FIN));
     pl.buf = sw_tg_buffer()->str;
     pl.buf_size = sw_tg_buffer()->length;
@@ -1791,6 +1796,7 @@ TEST(http_server, get_package_length) {
     sw_tg_buffer()->clear();
     conn.http2_stream = 1;
     conn.websocket_status = 0;
+    ASSERT_EQ(http_server::get_package_length_size(&fake_sock), SW_HTTP2_FRAME_HEADER_SIZE);
     http2::Settings settings_1{};
     http2::init_settings(&settings_1);
     sw_tg_buffer()->length = http2::pack_setting_frame(sw_tg_buffer()->str, settings_1, false);
@@ -1803,6 +1809,7 @@ TEST(http_server, get_package_length) {
     // http1.1
     conn.websocket_status = 0;
     conn.http2_stream = 0;
+    ASSERT_EQ(http_server::get_package_length_size(&fake_sock), 0);
     ASSERT_EQ(http_server::get_package_length(&port->protocol, &fake_sock, &pl), SW_ERR);
 
     String str(swoole_get_last_error_msg());

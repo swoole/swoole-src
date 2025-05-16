@@ -40,7 +40,7 @@ TEST(client, tcp) {
 
     pid = proc.start();
 
-    sleep(1);  // wait for the test server to start
+    usleep(300000);  // wait for the test server to start
 
     Client cli(SW_SOCK_TCP, false);
     ASSERT_NE(cli.socket, nullptr);
@@ -51,6 +51,11 @@ TEST(client, tcp) {
     ret = cli.recv(buf, 128, 0);
     ASSERT_EQ(ret, GREETER_SIZE);
     ASSERT_STREQ(GREETER, buf);
+
+    Address peer_name;
+    ASSERT_EQ(cli.get_peer_name(&peer_name), 0);
+    ASSERT_STREQ(peer_name.get_addr(), "127.0.0.1");
+    ASSERT_EQ(peer_name.get_port(), port);
 
     ASSERT_EQ(cli.close(), SW_OK);
     ASSERT_EQ(cli.close(), SW_ERR);
