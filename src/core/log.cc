@@ -309,6 +309,9 @@ void Logger::put(int level, const char *content, size_t length) {
 
     int worker_id = swoole_get_worker_id();
     pid_t worker_pid = swoole_get_worker_pid();
+    if (worker_pid == 0) {
+        worker_pid = getpid();
+    }
     char worker_symbol = swoole_get_worker_symbol();
 
     size_t n = sw_snprintf(log_str,

@@ -341,14 +341,25 @@ void Server::call_worker_error_callback(Worker *worker, const ExitStatus &status
     }
 }
 
-bool Server::kill_worker(WorkerId worker_id, bool wait_reactor) {
+bool Server::kill_worker(int worker_id, bool wait_reactor) {
+    auto current_worker = sw_worker();
+    if (!current_worker && worker_id < 0) {
+        swoole_error_log(
+            SW_LOG_WARNING, SW_ERROR_WRONG_OPERATION, "kill worker in non worker process requires specifying an id");
+        return false;
+    }
+
+    worker_id = worker_id < 0 ? swoole_get_worker_id() : worker_id;
+
+    swoole_trace_log(SW_TRACE_SERVER, "kill worker#%d", worker_id);
+
     if (is_thread_mode()) {
         DataHead event = {};
         event.type = SW_SERVER_EVENT_SHUTDOWN;
         return send_to_worker_from_worker(get_worker(worker_id), &event, sizeof(event), SW_PIPE_MASTER) != -1;
     }
 
-    if (worker_id == sw_worker()->id && !wait_reactor) {
+    if (current_worker && worker_id == current_worker->id && !wait_reactor) {
         if (swoole_event_is_available()) {
             swoole_event_defer([](void *data) { sw_reactor()->running = false; }, nullptr);
         }
@@ -513,6 +524,7 @@ void Server::drain_worker_pipe() {
 }
 
 void Server::clean_worker_connections(Worker *worker) {
+    swoole_trace_log(SW_TRACE_WORKER, "clean connections");
     sw_reactor()->destroyed = true;
     if (sw_likely(is_base_mode())) {
         foreach_connection([this](Connection *conn) { close(conn->session_id, true); });

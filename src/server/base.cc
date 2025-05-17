@@ -143,6 +143,7 @@ bool BaseFactory::end(SessionId session_id, int flags) {
                          session_id,
                          session->fd,
                          session->reactor_id);
+        _send.info.type = SW_SERVER_EVENT_CLOSE_FORWARD;
         return forward_message(session, &_send);
     }
 

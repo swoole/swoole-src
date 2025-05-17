@@ -418,6 +418,8 @@ static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev) {
             serv->onPipeMessage(serv, (EventData *) resp);
         } else if (resp->info.type == SW_SERVER_EVENT_CLOSE_FORCE) {
             thread->close_connection(reactor, resp->info.fd);
+        } else if (resp->info.type == SW_SERVER_EVENT_CLOSE_FORWARD) {
+            serv->factory->end(resp->info.fd, Server::CLOSE_ACTIVELY);
         } else {
             PacketPtr packet = thread->message_bus.get_packet();
             _send.info = resp->info;
