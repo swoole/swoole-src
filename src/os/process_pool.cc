@@ -171,7 +171,7 @@ int ProcessPool::listen(const char *socket_file, int blacklog) {
 
 int ProcessPool::listen(const char *host, int port, int blacklog) {
     if (ipc_mode != SW_IPC_SOCKET) {
-        swoole_warning("ipc_mode is not SW_IPC_SOCKET");
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_OPERATION_NOT_SUPPORT, "not support, ipc_mode must be SW_IPC_SOCKET");
         return SW_ERR;
     }
     stream_info_->socket_file = sw_strdup(host);
@@ -682,6 +682,8 @@ int ProcessPool::run_with_stream_protocol(ProcessPool *pool, Worker *worker) {
                 swoole_sys_warning("[Worker#%d] msgrcv(%d) failed", worker->id, pool->queue->get_id());
                 break;
             }
+            swoole_trace_log(SW_TRACE_WORKER, "pop from MsgQ#%d %lu bytes", pool->queue->get_id(), (ulong_t) n);
+            msg.info.len = n - sizeof(msg.info);
             msg.data = outbuf->mdata;
             outbuf->mtype = 0;
         } else if (pool->use_socket) {
@@ -1091,6 +1093,8 @@ ssize_t Worker::send_pipe_message(const void *buf, size_t n, int flags) {
 
         msg.mtype = id + 1;
         memcpy(&msg.buf, buf, n);
+
+        swoole_trace_log(SW_TRACE_WORKER, "push to MsgQ#%d %lu bytes", pool->queue->get_id(), (ulong_t) n);
 
         return pool->queue->push((QueueNode *) &msg, n) ? n : -1;
     }

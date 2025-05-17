@@ -110,9 +110,7 @@ TEST(async, schedule) {
     ASSERT_EQ(callback_count, N);
 }
 
-
 TEST(async, misc) {
-    int count = 1000;
     callback_count = 0;
     std::atomic<int> handle_count(0);
     AsyncEvent event = {};
@@ -128,7 +126,7 @@ TEST(async, misc) {
 
     sw_async_threads()->notify_one();
 
-    AsyncEvent event2 = { };
+    AsyncEvent event2 = {};
     event2.callback = [](AsyncEvent *event) {
         ASSERT_EQ(event->retval, -1);
         ASSERT_EQ(event->error, SW_ERROR_AIO_BAD_REQUEST);

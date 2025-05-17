@@ -21,6 +21,8 @@ static void test_func(ProcessPool &pool) {
     data.info.len = size;
     memcpy(data.data, rmem.value(), size);
 
+    DEBUG() << "dispatch: " << size << " bytes\n";
+
     int worker_id = -1;
     ASSERT_EQ(pool.dispatch_sync(&data, &worker_id), SW_OK);
 
@@ -48,6 +50,8 @@ static void test_func_message_protocol(ProcessPool &pool) {
         pool->running = false;
         String *_data = (String *) pool->ptr;
         usleep(10000);
+
+        DEBUG() << "received: " << rdata->info.len << " bytes\n";
         EXPECT_MEMEQ(_data->str, rdata->data, rdata->info.len);
     };
     test_func(pool);
@@ -60,6 +64,8 @@ static void test_func_stream_protocol(ProcessPool &pool) {
         String *_data = (String *) pool->ptr;
         EventData *msg = (EventData *) rdata->data;
         usleep(10000);
+
+        DEBUG() << "received: " << rdata->info.len << " bytes\n";
         EXPECT_MEMEQ(_data->str, msg->data, msg->len());
     };
     test_func(pool);
@@ -93,6 +99,10 @@ TEST(process_pool, unix_sock) {
     ProcessPool pool{};
     signal(SIGPIPE, SIG_IGN);
     ASSERT_EQ(pool.create(1, 0, SW_IPC_UNIXSOCK), SW_OK);
+    ASSERT_EQ(pool.listen(TEST_HOST, TEST_PORT, 128), SW_ERR);
+    ASSERT_ERREQ(SW_ERROR_OPERATION_NOT_SUPPORT);
+    ASSERT_EQ(pool.listen(TEST_SOCK_FILE, 128), SW_ERR);
+    ASSERT_ERREQ(SW_ERROR_OPERATION_NOT_SUPPORT);
 
     test_func_task_protocol(pool);
 }
@@ -140,6 +150,13 @@ TEST(process_pool, message_protocol) {
 TEST(process_pool, stream_protocol) {
     ProcessPool pool{};
     ASSERT_EQ(pool.create(1, 0, SW_IPC_UNIXSOCK), SW_OK);
+
+    test_func_stream_protocol(pool);
+}
+
+TEST(process_pool, stream_protocol_with_msgq) {
+    ProcessPool pool{};
+    ASSERT_EQ(pool.create(1, 0x9501, SW_IPC_MSGQUEUE), SW_OK);
 
     test_func_stream_protocol(pool);
 }
