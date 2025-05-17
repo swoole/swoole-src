@@ -188,6 +188,7 @@ int Client::shutdown(int _how) {
     if (!socket || closed) {
         return SW_ERR;
     }
+    swoole_trace_log(SW_TRACE_CLIENT, "how=%d, fd=%d", _how, socket->fd);
     if (_how == SHUT_RD) {
         if (shutdown_read || shutdow_rw || ::shutdown(socket->fd, SHUT_RD)) {
             return SW_ERR;
@@ -487,6 +488,7 @@ int Client::close() {
      * fd marked -1, prevent double close
      */
     socket->fd = -1;
+    swoole_trace_log(SW_TRACE_CLIENT, "fd=%d", fd);
 
     return ::close(fd);
 }

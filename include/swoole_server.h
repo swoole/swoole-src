@@ -632,6 +632,7 @@ enum ServerEventType {
     SW_SERVER_EVENT_CLOSE,
     SW_SERVER_EVENT_CONNECT,
     SW_SERVER_EVENT_CLOSE_FORCE,
+    SW_SERVER_EVENT_CLOSE_FORWARD,
     // task
     SW_SERVER_EVENT_TASK,
     SW_SERVER_EVENT_FINISH,
@@ -1293,7 +1294,7 @@ class Server {
     }
 
     Worker *get_worker(uint16_t worker_id);
-    bool kill_worker(WorkerId worker_id, bool wait_reactor);
+    bool kill_worker(int worker_id, bool wait_reactor);
     void stop_async_worker(Worker *worker);
 
     Pipe *get_pipe_object(int pipe_fd) {

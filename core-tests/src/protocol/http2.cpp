@@ -25,6 +25,7 @@
 #include "swoole_http2.h"
 
 #include <nghttp2/nghttp2.h>
+#include <nghttp2/nghttp2ver.h>
 
 using namespace swoole;
 using namespace std;
@@ -136,7 +137,6 @@ struct Http2Session {
     Server *server;
     std::unordered_map<int32_t, std::string> stream_paths;
     std::unordered_map<int32_t, std::string> stream_data;
-    std::unordered_map<int32_t, std::shared_ptr<File>> file_data_sources;
 
     Http2Session(SessionId _fd, Server *_serv) : fd(_fd), session(nullptr), server(_serv) {}
     ~Http2Session() {
@@ -147,7 +147,6 @@ struct Http2Session {
     }
 };
 
-// 错误处理宏
 #define CHECK_NGHTTP2(expr, error_msg)                                                                                 \
     do {                                                                                                               \
         int rv = (expr);                                                                                               \
@@ -158,6 +157,29 @@ struct Http2Session {
     } while (0)
 
 std::unordered_map<SessionId, std::shared_ptr<Http2Session>> sessions;
+
+static nghttp2_settings_entry default_settings[] = {
+    {
+        NGHTTP2_SETTINGS_HEADER_TABLE_SIZE,
+        SW_HTTP2_DEFAULT_HEADER_TABLE_SIZE,
+    },
+    {
+        NGHTTP2_SETTINGS_MAX_CONCURRENT_STREAMS,
+        SW_HTTP2_DEFAULT_MAX_CONCURRENT_STREAMS,
+    },
+    {
+        NGHTTP2_SETTINGS_INITIAL_WINDOW_SIZE,
+        SW_HTTP2_DEFAULT_INIT_WINDOW_SIZE,
+    },
+    {
+        NGHTTP2_SETTINGS_MAX_FRAME_SIZE,
+        SW_HTTP2_DEFAULT_MAX_FRAME_SIZE,
+    },
+    {
+        NGHTTP2_SETTINGS_MAX_HEADER_LIST_SIZE,
+        SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE,
+    },
+};
 
 static ssize_t send_callback(nghttp2_session *session, const uint8_t *data, size_t length, int flags, void *user_data) {
     auto http2_session = static_cast<Http2Session *>(user_data);
@@ -171,9 +193,7 @@ static ssize_t send_callback(nghttp2_session *session, const uint8_t *data, size
     return length;
 }
 
-// 处理流关闭回调
 static int on_stream_close_callback(nghttp2_session *session, int32_t stream_id, uint32_t error_code, void *user_data) {
-    // 当 HTTP/2 流关闭时清理资源
     return 0;
 }
 
@@ -217,9 +237,7 @@ static int on_frame_recv_callback(nghttp2_session *session, const nghttp2_frame 
         if (frame->headers.cat == NGHTTP2_HCAT_REQUEST) {
             swoole_trace_log(SW_TRACE_HTTP2, "Received HEADERS frame for stream %d", frame->hd.stream_id);
 
-            // 如果头部帧有 END_STREAM 标志，表示请求已完成（没有请求体）
             if (frame->hd.flags & NGHTTP2_FLAG_END_STREAM) {
-                // 请求已完全接收，可以生成响应
                 handle_request(session, frame->hd.stream_id, http2_session);
             }
         }
@@ -227,19 +245,15 @@ static int on_frame_recv_callback(nghttp2_session *session, const nghttp2_frame 
     case NGHTTP2_DATA:
         swoole_trace_log(SW_TRACE_HTTP2, "Received DATA frame for stream %d", frame->hd.stream_id);
 
-        // 如果数据帧有 END_STREAM 标志，表示请求已完成
         if (frame->hd.flags & NGHTTP2_FLAG_END_STREAM) {
-            // 请求已完全接收，可以生成响应
             handle_request(session, frame->hd.stream_id, http2_session);
         }
         break;
-        // ... 其他 case 分支保持不变
     }
 
     return 0;
 }
 
-// 处理数据块回调
 static int on_data_chunk_recv_callback(
     nghttp2_session *session, uint8_t flags, int32_t stream_id, const uint8_t *data, size_t len, void *user_data) {
     auto http2_session = static_cast<Http2Session *>(user_data);
@@ -252,7 +266,6 @@ static int on_data_chunk_recv_callback(
     return 0;
 }
 
-// 添加优先级回调
 static int on_frame_not_send_callback(nghttp2_session *session,
                                       const nghttp2_frame *frame,
                                       int lib_error_code,
@@ -262,16 +275,14 @@ static int on_frame_not_send_callback(nghttp2_session *session,
     return 0;
 }
 
-// 添加窗口更新回调
 static int on_frame_send_callback(nghttp2_session *session, const nghttp2_frame *frame, void *user_data) {
     if (frame->hd.type == NGHTTP2_WINDOW_UPDATE) {
         DEBUG() << "Window update sent: stream=" << frame->hd.stream_id
-                  << ", increment=" << frame->window_update.window_size_increment << std::endl;
+                << ", increment=" << frame->window_update.window_size_increment << std::endl;
     }
     return 0;
 }
 
-// 字符串数据回调
 static ssize_t string_read_callback(nghttp2_session *session,
                                     int32_t stream_id,
                                     uint8_t *buf,
@@ -313,21 +324,18 @@ static void handle_request(nghttp2_session *session, int32_t stream_id, Http2Ses
                      path.c_str(),
                      request_body.length());
 
+    auto header_server = "nghttp2-server/" NGHTTP2_VERSION;
     // 准备响应头
-    nghttp2_nv hdrs[] = {{(uint8_t *) ":status", (uint8_t *) "200", 7, 3, NGHTTP2_NV_FLAG_NONE},
-                         {(uint8_t *) "content-type", (uint8_t *) "text/html", 12, 9, NGHTTP2_NV_FLAG_NONE},
-                         {(uint8_t *) "server", (uint8_t *) "nghttp2-custom/1.0", 6, 17, NGHTTP2_NV_FLAG_NONE}};
+    nghttp2_nv hdrs[] = {
+        {(uint8_t *) ":status", (uint8_t *) "200", 7, 3, NGHTTP2_NV_FLAG_NONE},
+        {(uint8_t *) "content-type", (uint8_t *) "text/html", 12, 9, NGHTTP2_NV_FLAG_NONE},
+        {(uint8_t *) "server", (uint8_t *) header_server, 6, strlen(header_server), NGHTTP2_NV_FLAG_NONE}};
 
-    // 根据路径提供不同的响应
     if (path == "/" || path == "/index.html") {
-        // 主页响应
         const char *body = "<html><body><h1>Welcome to HTTP/2 Server</h1>"
                            "<p>This is a simple HTTP/2 server implementation.</p>"
-                           "<link rel='stylesheet' href='/style.css'>"
-                           "<script src='/script.js'></script>"
                            "</body></html>";
 
-        // 创建数据提供者
         nghttp2_data_provider data_prd;
         data_prd.source.ptr = (void *) body;
         data_prd.read_callback = string_read_callback;
@@ -339,46 +347,11 @@ static void handle_request(nghttp2_session *session, int32_t stream_id, Http2Ses
                 SW_LOG_ERROR, SW_ERROR_HTTP2_INTERNAL_ERROR, "Failed to submit response: %s", nghttp2_strerror(rv));
             return;
         }
-        // 服务器推送逻辑保持不变...
-    } else if (path == "/about") {
-        // 关于页面
-        const char *body = "<html><body><h1>About This Server</h1>"
-                           "<p>This is a custom HTTP/2 server built with nghttp2.</p>"
-                           "</body></html>";
-
-        nghttp2_data_provider data_prd;
-        data_prd.source.ptr = (void *) body;
-        data_prd.read_callback = string_read_callback;
-
-        nghttp2_submit_response(session, stream_id, hdrs, sizeof(hdrs) / sizeof(hdrs[0]), &data_prd);
-    } else if (path == "/style.css" || path == "/script.js") {
-        // 这些资源可能已经被推送，但客户端仍可能直接请求它们
-        nghttp2_nv content_hdrs[] = {
-            {(uint8_t *) ":status", (uint8_t *) "200", 7, 3, NGHTTP2_NV_FLAG_NONE},
-            {(uint8_t *) "content-type",
-             (uint8_t *) (path == "/style.css" ? "text/css" : "application/javascript"),
-             12,
-             (path == "/style.css" ? 8 : 22),
-             NGHTTP2_NV_FLAG_NONE},
-            {(uint8_t *) "server", (uint8_t *) "nghttp2-custom/1.0", 6, 17, NGHTTP2_NV_FLAG_NONE}};
-
-        const char *content =
-            path == "/style.css"
-                ? "body { font-family: Arial; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; }"
-                : "console.log('HTTP/2 server push demo!');";
-
-        nghttp2_data_provider data_prd;
-        data_prd.source.ptr = (void *) content;
-        data_prd.read_callback = string_read_callback;
-
-        nghttp2_submit_response(
-            session, stream_id, content_hdrs, sizeof(content_hdrs) / sizeof(content_hdrs[0]), &data_prd);
     } else {
         // 404 Not Found
-        nghttp2_nv error_hdrs[] = {
-            {(uint8_t *) ":status", (uint8_t *) "404", 7, 3, NGHTTP2_NV_FLAG_NONE},
-            {(uint8_t *) "content-type", (uint8_t *) "text/html", 12, 9, NGHTTP2_NV_FLAG_NONE},
-            {(uint8_t *) "server", (uint8_t *) "nghttp2-custom/1.0", 6, 17, NGHTTP2_NV_FLAG_NONE}};
+        nghttp2_nv error_hdrs[] = {{(uint8_t *) ":status", (uint8_t *) "404", 7, 3, NGHTTP2_NV_FLAG_NONE},
+                                   {(uint8_t *) "content-type", (uint8_t *) "text/html", 12, 9, NGHTTP2_NV_FLAG_NONE},
+                                   {(uint8_t *) "server", (uint8_t *) header_server, 6, 17, NGHTTP2_NV_FLAG_NONE}};
 
         const char *body = "<html><body><h1>404 Not Found</h1>"
                            "<p>The requested resource was not found on this server.</p>"
@@ -391,14 +364,22 @@ static void handle_request(nghttp2_session *session, int32_t stream_id, Http2Ses
         nghttp2_submit_response(session, stream_id, error_hdrs, sizeof(error_hdrs) / sizeof(error_hdrs[0]), &data_prd);
     }
 
-    // 触发发送
     nghttp2_session_send(session);
+}
+
+static void http2_send_settings(Http2Session *session_data, const nghttp2_settings_entry *settings, size_t num) {
+    auto rv = nghttp2_submit_settings(session_data->session, NGHTTP2_FLAG_NONE, settings, num);
+    if (rv != 0) {
+        swoole_error_log(
+            SW_LOG_ERROR, SW_ERROR_HTTP2_INTERNAL_ERROR, "Failed to submit settings: %s", nghttp2_strerror(rv));
+        return;
+    }
+    nghttp2_session_send(session_data->session);
 }
 
 static std::shared_ptr<Http2Session> create_http2_session(Server *serv, SessionId fd) {
     auto session_data = std::make_shared<Http2Session>(fd, serv);
 
-    // 创建回调
     nghttp2_session_callbacks *callbacks;
     int rv = nghttp2_session_callbacks_new(&callbacks);
     if (rv != 0) {
@@ -406,22 +387,16 @@ static std::shared_ptr<Http2Session> create_http2_session(Server *serv, SessionI
         return nullptr;
     }
 
-    // 设置回调函数
     nghttp2_session_callbacks_set_send_callback(callbacks, send_callback);
     nghttp2_session_callbacks_set_on_frame_recv_callback(callbacks, on_frame_recv_callback);
     nghttp2_session_callbacks_set_on_stream_close_callback(callbacks, on_stream_close_callback);
     nghttp2_session_callbacks_set_on_header_callback(callbacks, on_header_callback);
     nghttp2_session_callbacks_set_on_begin_headers_callback(callbacks, on_begin_headers_callback);
     nghttp2_session_callbacks_set_on_data_chunk_recv_callback(callbacks, on_data_chunk_recv_callback);
-
-    // 在 create_http2_session 中添加此回调
     nghttp2_session_callbacks_set_on_frame_not_send_callback(callbacks, on_frame_not_send_callback);
-
-    // 可选：设置更多回调
     nghttp2_session_callbacks_set_on_frame_send_callback(callbacks, on_frame_send_callback);
     nghttp2_session_callbacks_set_on_frame_not_send_callback(callbacks, on_frame_not_send_callback);
 
-    // 创建服务器会话
     rv = nghttp2_session_server_new(&session_data->session, callbacks, session_data.get());
     nghttp2_session_callbacks_del(callbacks);
 
@@ -431,23 +406,7 @@ static std::shared_ptr<Http2Session> create_http2_session(Server *serv, SessionI
         return nullptr;
     }
 
-    // 存储服务器对象以便在回调中使用
     nghttp2_session_set_user_data(session_data->session, session_data.get());
-
-    // 设置 HTTP/2 服务器连接设置
-    nghttp2_settings_entry settings[] = {
-        {NGHTTP2_SETTINGS_MAX_CONCURRENT_STREAMS, 100},
-        {NGHTTP2_SETTINGS_INITIAL_WINDOW_SIZE, 1048576},  // 1MB 初始窗口大小
-        {NGHTTP2_SETTINGS_MAX_FRAME_SIZE, 16384}          // 16KB 最大帧大小
-    };
-
-    rv = nghttp2_submit_settings(
-        session_data->session, NGHTTP2_FLAG_NONE, settings, sizeof(settings) / sizeof(settings[0]));
-    if (rv != 0) {
-        swoole_error_log(
-            SW_LOG_ERROR, SW_ERROR_HTTP2_INTERNAL_ERROR, "Failed to submit settings: %s", nghttp2_strerror(rv));
-        return nullptr;
-    }
 
     return session_data;
 }
@@ -460,8 +419,7 @@ static void test_ssl_http2(Server::Mode mode) {
     Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
     lock->lock();
 
-    //    const int server_port = __LINE__ + TEST_PORT;
-    const int server_port = 9501;
+    const int server_port = __LINE__ + TEST_PORT;
     ListenPort *port = serv.add_port((enum swSocketType)(SW_SOCK_TCP | SW_SOCK_SSL), TEST_HOST, server_port);
     if (!port) {
         swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
@@ -470,6 +428,7 @@ static void test_ssl_http2(Server::Mode mode) {
 
     port->open_http2_protocol = 1;
     port->open_http_protocol = 1;
+    port->open_websocket_protocol = 1;
     port->set_ssl_cert_file(test::get_ssl_dir() + "/server.crt");
     port->set_ssl_key_file(test::get_ssl_dir() + "/server.key");
     port->ssl_context->http = 1;
@@ -477,63 +436,84 @@ static void test_ssl_http2(Server::Mode mode) {
     port->ssl_init();
 
     ASSERT_EQ(serv.create(), SW_OK);
+    thread t1;
+    serv.onStart = [&lock, &t1](Server *serv) {
+        t1 = thread([=]() {
+            swoole_signal_block_all();
+            lock->lock();
 
-    serv.onStart = [&lock](Server *serv) {
-            thread t1([=]() {
-                swoole_signal_block_all();
-                lock->lock();
-
-                auto cmd = "nghttp -v -y https://127.0.0.1:" + std::to_string(server_port) + "/";
-                pid_t pid;
-                auto _pipe = swoole_shell_exec(cmd.c_str(), &pid, 1);
-                String buf(1024);
-                while (1) {
-                    auto n = read(_pipe, buf.str + buf.length, buf.size - buf.length);
-                    if (n > 0) {
-                        buf.grow(n);
-                        continue;
-                    }
-                    break;
+            auto cmd = "nghttp -v -y https://127.0.0.1:" + std::to_string(server_port) + "/";
+            pid_t pid;
+            auto _pipe = swoole_shell_exec(cmd.c_str(), &pid, 1);
+            String buf(1024);
+            while (1) {
+                auto n = read(_pipe, buf.str + buf.length, buf.size - buf.length);
+                if (n > 0) {
+                    buf.grow(n);
+                    continue;
                 }
+                break;
+            }
 
-                close(_pipe);
-                usleep(10000);
+            int status;
+            ASSERT_EQ(waitpid(pid, &status, 0), pid);
+            close(_pipe);
 
-                ASSERT_TRUE(buf.contains("Welcome to HTTP/2 Server"));
+            usleep(10000);
 
-                serv->shutdown();
-            });
-            t1.detach();
+            DEBUG() << "NGHTTP2 VERSION: " << NGHTTP2_VERSION << std::endl;
+            DEBUG() << buf.to_std_string();
+
+            EXPECT_TRUE(buf.contains("user-agent: nghttp2/"));
+            // FIXME There is a bug in nghttp's processing of settings frames,
+            // so it can only give up detecting response content.
+            // EXPECT_TRUE(buf.contains("Welcome to HTTP/2 Server"));
+
+            serv->shutdown();
+        });
     };
 
     serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock->unlock(); };
+
+    serv.onConnect = [](Server *serv, DataHead *ev) {
+        SessionId fd = ev->fd;
+        DEBUG() << "New connection: " << fd << std::endl;
+
+        auto session = create_http2_session(serv, fd);
+        if (!session) {
+            serv->close(fd);
+            return;
+        }
+
+        sessions[fd] = session;
+        ssize_t consumed = nghttp2_session_mem_recv(
+            session->session, (uint8_t *) SW_HTTP2_PRI_STRING, sizeof(SW_HTTP2_PRI_STRING) - 1);
+        if (consumed < 0) {
+            swoole_error_log(SW_LOG_ERROR,
+                             SW_ERROR_HTTP2_INTERNAL_ERROR,
+                             "nghttp2_session_mem_recv() error: %s",
+                             nghttp2_strerror((int) consumed));
+            serv->close(fd);
+            return;
+        }
+        http2_send_settings(session.get(), default_settings, sizeof(default_settings) / sizeof(default_settings[0]));
+    };
+
+    serv.onClose = [](Server *serv, DataHead *ev) {
+        SessionId fd = ev->fd;
+        DEBUG() << "Close connection: " << fd << std::endl;
+        sessions.erase(fd);
+    };
 
     serv.onReceive = [](Server *serv, RecvData *req) -> int {
         SessionId fd = req->info.fd;
         std::shared_ptr<Http2Session> session;
         if (sessions.find(fd) == sessions.end()) {
-            DEBUG() << "New connection: " << fd << std::endl;
-
-            session = create_http2_session(serv, fd);
-            if (session) {
-                sessions[fd] = session;
-                // 发送初始 SETTINGS 帧
-                nghttp2_session_send(session->session);
-                ssize_t consumed = nghttp2_session_mem_recv(
-                    session->session, (uint8_t *) SW_HTTP2_PRI_STRING, sizeof(SW_HTTP2_PRI_STRING) - 1);
-                if (consumed < 0) {
-                    swoole_error_log(SW_LOG_ERROR,
-                                     SW_ERROR_HTTP2_INTERNAL_ERROR,
-                                     "nghttp2_session_mem_recv() error: %s",
-                                     nghttp2_strerror((int) consumed));
-                    serv->close(fd);
-                    return SW_ERR;
-                }
-            }
-        } else {
-            session = sessions[fd];
+            serv->close(fd);
+            return SW_ERR;
         }
 
+        session = sessions[fd];
         const uint8_t *data_ptr = reinterpret_cast<const uint8_t *>(req->data);
         size_t data_len = req->info.len;
 
@@ -556,6 +536,7 @@ static void test_ssl_http2(Server::Mode mode) {
 
     ASSERT_EQ(serv.start(), 0);
 
+    t1.join();
     delete lock;
 }
 

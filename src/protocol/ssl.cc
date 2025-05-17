@@ -26,14 +26,13 @@ using swoole::SSLContext;
 using swoole::network::Address;
 using swoole::network::Socket;
 
-#if OPENSSL_VERSION_NUMBER < 0x10000000L
-#error "require openssl version 1.0 or later"
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#error "OpenSSL 1.1.0 or later is required"
 #endif
 
 static bool openssl_init = false;
 static int ssl_connection_index = 0;
 static int ssl_port_index = 0;
-static pthread_mutex_t *lock_array;
 
 static int swoole_ssl_verify_callback(int ok, X509_STORE_CTX *x509_store);
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
@@ -53,17 +52,12 @@ void swoole_ssl_init(void) {
     if (openssl_init) {
         return;
     }
-#if OPENSSL_VERSION_NUMBER >= 0x10100003L && !defined(LIBRESSL_VERSION_NUMBER)
-    OPENSSL_init_ssl(OPENSSL_INIT_LOAD_CONFIG | OPENSSL_INIT_LOAD_SSL_STRINGS | OPENSSL_INIT_LOAD_CRYPTO_STRINGS,
-                     nullptr);
-#else
-    OPENSSL_config(nullptr);
-    SSL_library_init();
-    SSL_load_error_strings();
-    OpenSSL_add_all_algorithms();
-    OpenSSL_add_all_ciphers();
-    OpenSSL_add_all_digests();
-#endif
+
+    if (!OPENSSL_init_ssl(OPENSSL_INIT_LOAD_CONFIG | OPENSSL_INIT_LOAD_SSL_STRINGS | OPENSSL_INIT_LOAD_CRYPTO_STRINGS,
+                          nullptr)) {
+        swoole_error("OPENSSL_init_ssl() failed");
+        return;
+    }
 
     ssl_connection_index = SSL_get_ex_new_index(0, nullptr, nullptr, nullptr, nullptr);
     if (ssl_connection_index < 0) {
@@ -76,19 +70,6 @@ void swoole_ssl_init(void) {
         swoole_error("SSL_get_ex_new_index() failed");
         return;
     }
-
-    lock_array = (pthread_mutex_t *) OPENSSL_malloc(CRYPTO_num_locks() * sizeof(pthread_mutex_t));
-    SW_LOOP_N(CRYPTO_num_locks()) {
-        pthread_mutex_init(&(lock_array[i]), nullptr);
-    }
-
-#if OPENSSL_VERSION_NUMBER >= OPENSSL_VERSION_1_0_0
-    (void) CRYPTO_THREADID_set_callback(swoole_ssl_id_callback);
-#else
-    CRYPTO_set_id_callback(swoole_ssl_id_callback);
-#endif
-
-    CRYPTO_set_locking_callback(swoole_ssl_lock_callback);
 
     openssl_init = true;
 }
@@ -105,28 +86,7 @@ void swoole_ssl_destroy() {
     if (!openssl_init) {
         return;
     }
-
-    SW_LOOP_N(CRYPTO_num_locks()) {
-        pthread_mutex_destroy(&(lock_array[i]));
-    }
-
-    OPENSSL_free(lock_array);
-
-#if OPENSSL_VERSION_NUMBER >= OPENSSL_VERSION_1_0_0
-    (void) CRYPTO_THREADID_set_callback(nullptr);
-#else
-    CRYPTO_set_id_callback(nullptr);
-#endif
-    CRYPTO_set_locking_callback(nullptr);
     openssl_init = false;
-}
-
-void swoole_ssl_lock_callback(int mode, int type, const char *file, int line) {
-    if (mode & CRYPTO_LOCK) {
-        pthread_mutex_lock(&(lock_array[type]));
-    } else {
-        pthread_mutex_unlock(&(lock_array[type]));
-    }
 }
 
 static int ssl_error_cb(const char *str, size_t len, void *buf) {
@@ -140,16 +100,6 @@ const char *swoole_ssl_get_error() {
 
     return sw_tg_buffer()->str;
 }
-
-#if OPENSSL_VERSION_NUMBER >= OPENSSL_VERSION_1_0_0
-static void MAYBE_UNUSED swoole_ssl_id_callback(CRYPTO_THREADID *id) {
-    CRYPTO_THREADID_set_numeric(id, (ulong_t) pthread_self());
-}
-#else
-static ulong_t MAYBE_UNUSED swoole_ssl_id_callback(void) {
-    return (ulong_t) pthread_self();
-}
-#endif
 
 static void swoole_ssl_info_callback(const SSL *ssl, int where, int ret) {
     BIO *rbio, *wbio;
@@ -192,29 +142,10 @@ static void swoole_ssl_info_callback(const SSL *ssl, int where, int ret) {
 
 namespace swoole {
 
-#ifndef OPENSSL_NO_NEXTPROTONEG
-
 #define HTTP2_H2_ALPN "\x02h2"
 #define HTTP2_H2_16_ALPN "\x05h2-16"
 #define HTTP2_H2_14_ALPN "\x05h2-14"
 #define HTTP1_NPN "\x08http/1.1"
-
-static bool ssl_select_proto(const uchar **out, uchar *outlen, const uchar *in, uint inlen, const std::string &key) {
-    for (auto p = in, end = in + inlen; p + key.size() <= end; p += *p + 1) {
-        if (std::equal(std::begin(key), std::end(key), p)) {
-            *out = p + 1;
-            *outlen = *p;
-            return true;
-        }
-    }
-    return false;
-}
-
-static bool ssl_select_h2(const uchar **out, uchar *outlen, const uchar *in, uint inlen) {
-    return ssl_select_proto(out, outlen, in, inlen, HTTP2_H2_ALPN) ||
-           ssl_select_proto(out, outlen, in, inlen, HTTP2_H2_16_ALPN) ||
-           ssl_select_proto(out, outlen, in, inlen, HTTP2_H2_14_ALPN);
-}
 
 #ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
 static int ssl_alpn_advertised(SSL *ssl, const uchar **out, uchar *outlen, const uchar *in, uint32_t inlen, void *arg) {
@@ -233,26 +164,6 @@ static int ssl_alpn_advertised(SSL *ssl, const uchar **out, uchar *outlen, const
     if (SSL_select_next_proto((unsigned char **) out, outlen, (const uchar *) protos, protos_len, in, inlen) !=
         OPENSSL_NPN_NEGOTIATED) {
         return SSL_TLSEXT_ERR_NOACK;
-    }
-    return SSL_TLSEXT_ERR_OK;
-}
-#endif
-
-static int ssl_select_next_proto_cb(SSL *ssl, uchar **out, uchar *outlen, const uchar *in, uint inlen, void *arg) {
-#ifdef SW_LOG_TRACE_OPEN
-    std::string info("[NPN] server offers:\n");
-    for (unsigned int i = 0; i < inlen; i += in[i] + 1) {
-        info += "        * " + std::string(reinterpret_cast<const char *>(&in[i + 1]), in[i]);
-    }
-    swoole_trace_log(SW_TRACE_HTTP2, "[NPN] server offers: %s", info.c_str());
-#endif
-    SSLContext *ctx = (SSLContext *) arg;
-    if (ctx->http_v2 && !ssl_select_h2(const_cast<const unsigned char **>(out), outlen, in, inlen)) {
-        swoole_warning("HTTP/2 protocol was not selected, expects [h2]");
-        return SSL_TLSEXT_ERR_NOACK;
-    } else if (ctx->http) {
-        *out = (uchar *) HTTP1_NPN;
-        *outlen = sizeof(HTTP1_NPN) - 1;
     }
     return SSL_TLSEXT_ERR_OK;
 }
@@ -458,32 +369,13 @@ bool SSLContext::create() {
         SSL_CTX_set_verify(context, SSL_VERIFY_NONE, nullptr);
     }
 
-#if OPENSSL_VERSION_NUMBER >= 0x10002000L
     if (http || http_v2) {
-        unsigned int protos_len;
-        const char *protos;
-        if (http_v2) {
-            protos = HTTP2_H2_ALPN HTTP1_NPN;
-            protos_len = sizeof(HTTP2_H2_ALPN HTTP1_NPN) - 1;
-        } else {
-            protos = HTTP1_NPN;
-            protos_len = sizeof(HTTP2_H2_ALPN HTTP1_NPN) - 1;
-        }
-#ifndef OPENSSL_NO_NEXTPROTONEG
-        SSL_CTX_set_next_proto_select_cb(context, ssl_select_next_proto_cb, nullptr);
-#endif
-        if (SSL_CTX_set_alpn_protos(context, (const uchar *) protos, protos_len) < 0) {
-            return false;
-        }
-
 #ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
         SSL_CTX_set_alpn_select_cb(context, ssl_alpn_advertised, (void *) this);
 #endif
-
         SSL_CTX_set_session_id_context(context, (const unsigned char *) "HTTP", sizeof("HTTP") - 1);
         SSL_CTX_set_session_cache_mode(context, SSL_SESS_CACHE_SERVER);
     }
-#endif
 
 #ifdef OPENSSL_IS_BORINGSSL
     SSL_CTX_set_grease_enabled(context, grease);

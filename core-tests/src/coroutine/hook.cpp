@@ -140,31 +140,37 @@ TEST(coroutine_hook, getaddrinfo) {
     });
 }
 
+static void test_fstat() {
+    int fd = swoole_coroutine_open(TEST_TMP_FILE, O_RDONLY, 0);
+    struct stat statbuf_1;
+    swoole_coroutine_fstat(fd, &statbuf_1);
+
+    struct stat statbuf_2;
+    fstat(fd, &statbuf_2);
+
+    ASSERT_EQ(memcmp(&statbuf_1, &statbuf_2, sizeof(statbuf_2)), 0);
+
+    swoole_coroutine_close(fd);
+}
+
 TEST(coroutine_hook, fstat) {
-    coroutine::run([](void *arg) {
-        int fd = swoole_coroutine_open(TEST_TMP_FILE, O_RDONLY, 0);
-        struct stat statbuf_1;
-        swoole_coroutine_fstat(fd, &statbuf_1);
+    coroutine::run([](void *arg) { test_fstat(); });
+    test_fstat();
+}
 
-        struct stat statbuf_2;
-        fstat(fd, &statbuf_2);
+static void test_statvfs() {
+    struct statvfs statbuf_1;
+    swoole_coroutine_statvfs("/tmp", &statbuf_1);
 
-        ASSERT_EQ(memcmp(&statbuf_1, &statbuf_2, sizeof(statbuf_2)), 0);
+    struct statvfs statbuf_2;
+    statvfs("/tmp", &statbuf_2);
 
-        swoole_coroutine_close(fd);
-    });
+    ASSERT_EQ(memcmp(&statbuf_1, &statbuf_2, sizeof(statbuf_2)), 0);
 }
 
 TEST(coroutine_hook, statvfs) {
-    coroutine::run([](void *arg) {
-        struct statvfs statbuf_1;
-        swoole_coroutine_statvfs("/tmp", &statbuf_1);
-
-        struct statvfs statbuf_2;
-        statvfs("/tmp", &statbuf_2);
-
-        ASSERT_EQ(memcmp(&statbuf_1, &statbuf_2, sizeof(statbuf_2)), 0);
-    });
+    coroutine::run([](void *arg) { test_statvfs(); });
+    test_statvfs();
 }
 
 static void test_hook_dir() {
@@ -403,7 +409,13 @@ TEST(coroutine_hook, timeout) {
         size_t length = text.length();
 
         // unregister fd
+        errno = 0;
         ASSERT_EQ(swoole_coroutine_socket_set_timeout(pairs[0], SO_SNDTIMEO, 0.05), -1);
+        ASSERT_EQ(errno, EINVAL);
+
+        errno = 0;
+        ASSERT_EQ(swoole_coroutine_socket_set_connect_timeout(pairs[0], 0.05), -1);
+        ASSERT_EQ(errno, EINVAL);
 
         swoole::Coroutine::create([&](void *) {
             ASSERT_EQ(swoole_coroutine_socket_create(pairs[0]), 0);
@@ -664,4 +676,61 @@ TEST(coroutine_hook, poll_fake) {
         ASSERT_TRUE(fds[0].revents & POLLIN);
         ASSERT_TRUE(fds[0].revents & POLLOUT);
     });
+}
+
+TEST(coroutine_hook, unwrap) {
+    auto pair = create_socket_pair();
+    auto _sock0 = pair.first;
+    auto _sock1 = pair.second;
+
+    ASSERT_EQ(swoole_coroutine_socket_unwrap(_sock0->get_fd()), -1);
+
+    coroutine::run([&](void *arg) {
+        ASSERT_EQ(swoole_coroutine_socket_unwrap(999999), -1);
+        ASSERT_EQ(swoole_coroutine_socket_create(_sock0->get_fd()), 0);
+        ASSERT_GT(swoole_coroutine_write(_sock0->get_fd(), SW_STRL(TEST_STR)), 0);
+
+        // blocking, wrap-socket not exists
+        char buf[128];
+        ASSERT_EQ(swoole_coroutine_read(_sock1->get_fd(), buf, sizeof(buf)), strlen(TEST_STR));
+        ASSERT_EQ(swoole_coroutine_socket_unwrap(_sock1->get_fd()), -1);
+        // unwrap
+        ASSERT_EQ(swoole_coroutine_socket_unwrap(_sock0->get_fd()), 0);
+        // fail to unwrap
+        ASSERT_EQ(swoole_coroutine_socket_unwrap(_sock0->get_fd()), -1);
+    });
+}
+
+static void test_freopen() {
+    auto output_file = "/tmp/output.txt";
+    unlink(output_file);
+    unlink(TEST_LOG_FILE);
+
+    auto fp = swoole_coroutine_fopen(TEST_LOG_FILE, "w");
+    if (fp == NULL) {
+        fprintf(stderr, "Failed to open '%s': %s (errno=%d)\n", TEST_LOG_FILE, strerror(errno), errno);
+    }
+    ASSERT_NE(fp, nullptr);
+    swoole_coroutine_fputs("hello\n", fp);
+
+    ASSERT_NE(swoole_coroutine_freopen(output_file, "w", fp), nullptr);
+    swoole_coroutine_fputs("world\n", fp);
+
+    swoole_coroutine_fclose(fp);
+
+    auto rs1 = swoole::file_get_contents(output_file);
+    ASSERT_FALSE(rs1->contains("hello\n"));
+    ASSERT_TRUE(rs1->contains("world\n"));
+
+    auto rs2 = swoole::file_get_contents(TEST_LOG_FILE);
+    ASSERT_TRUE(rs2->contains("hello\n"));
+    ASSERT_FALSE(rs2->contains("world\n"));
+
+    unlink(TEST_LOG_FILE);
+    unlink(output_file);
+}
+
+TEST(coroutine_hook, freopen) {
+    coroutine::run([&](void *arg) { test_freopen(); });
+    test_freopen();
 }

@@ -21,6 +21,8 @@ static void test_func(ProcessPool &pool) {
     data.info.len = size;
     memcpy(data.data, rmem.value(), size);
 
+    DEBUG() << "dispatch: " << size << " bytes\n";
+
     int worker_id = -1;
     ASSERT_EQ(pool.dispatch_sync(&data, &worker_id), SW_OK);
 
@@ -48,6 +50,8 @@ static void test_func_message_protocol(ProcessPool &pool) {
         pool->running = false;
         String *_data = (String *) pool->ptr;
         usleep(10000);
+
+        DEBUG() << "received: " << rdata->info.len << " bytes\n";
         EXPECT_MEMEQ(_data->str, rdata->data, rdata->info.len);
     };
     test_func(pool);
@@ -60,6 +64,8 @@ static void test_func_stream_protocol(ProcessPool &pool) {
         String *_data = (String *) pool->ptr;
         EventData *msg = (EventData *) rdata->data;
         usleep(10000);
+
+        DEBUG() << "received: " << rdata->info.len << " bytes\n";
         EXPECT_MEMEQ(_data->str, msg->data, msg->len());
     };
     test_func(pool);
@@ -93,6 +99,10 @@ TEST(process_pool, unix_sock) {
     ProcessPool pool{};
     signal(SIGPIPE, SIG_IGN);
     ASSERT_EQ(pool.create(1, 0, SW_IPC_UNIXSOCK), SW_OK);
+    ASSERT_EQ(pool.listen(TEST_HOST, TEST_PORT, 128), SW_ERR);
+    ASSERT_ERREQ(SW_ERROR_OPERATION_NOT_SUPPORT);
+    ASSERT_EQ(pool.listen(TEST_SOCK_FILE, 128), SW_ERR);
+    ASSERT_ERREQ(SW_ERROR_OPERATION_NOT_SUPPORT);
 
     test_func_task_protocol(pool);
 }
@@ -140,6 +150,13 @@ TEST(process_pool, message_protocol) {
 TEST(process_pool, stream_protocol) {
     ProcessPool pool{};
     ASSERT_EQ(pool.create(1, 0, SW_IPC_UNIXSOCK), SW_OK);
+
+    test_func_stream_protocol(pool);
+}
+
+TEST(process_pool, stream_protocol_with_msgq) {
+    ProcessPool pool{};
+    ASSERT_EQ(pool.create(1, 0x9501, SW_IPC_MSGQUEUE), SW_OK);
 
     test_func_stream_protocol(pool);
 }
@@ -542,10 +559,57 @@ TEST(process_pool, listen_unixsock) {
     t1.join();
 }
 
-TEST(process_pool, max_request_grace) {
+TEST(process_pool, worker) {
     Worker worker{};
+    worker.init();
+
+    ASSERT_TRUE(worker.is_running());
+    ASSERT_GT(worker.start_time, 0);
     worker.set_max_request(1000, 200);
 
     ASSERT_GT(SwooleWG.max_request, 1000);
     ASSERT_LE(SwooleWG.max_request, 1200);
+
+    worker.shutdown();
+    ASSERT_TRUE(worker.is_shutdown());
+
+    swoole_set_worker_type(SW_USER_WORKER);
+    ASSERT_EQ(swoole_get_worker_symbol(), '@');
+
+    swoole_set_worker_type(SW_TASK_WORKER);
+    ASSERT_EQ(swoole_get_worker_symbol(), '^');
+
+    swoole_set_worker_type(SW_WORKER);
+    ASSERT_EQ(swoole_get_worker_symbol(), '*');
+
+    swoole_set_worker_type(SW_MASTER);
+    ASSERT_EQ(swoole_get_worker_symbol(), '#');
+
+    swoole_set_worker_type(SW_MANAGER);
+    ASSERT_EQ(swoole_get_worker_symbol(), '$');
+
+    worker.set_status_to_idle();
+    ASSERT_TRUE(worker.is_idle());
+    ASSERT_FALSE(worker.is_busy());
+
+    worker.set_status_to_busy();
+    ASSERT_FALSE(worker.is_idle());
+    ASSERT_TRUE(worker.is_busy());
+
+    worker.set_status(SW_WORKER_EXIT);
+    ASSERT_FALSE(worker.is_idle());
+    ASSERT_FALSE(worker.is_busy());
+}
+
+TEST(process_pool, add_worker) {
+    Worker worker{};
+    worker.pid = getpid();
+
+    ProcessPool pool{};
+    ASSERT_EQ(pool.create(1, 0, SW_IPC_UNIXSOCK), SW_OK);
+
+    pool.add_worker(&worker);
+
+    auto *worker2 = pool.get_worker_by_pid(getpid());
+    ASSERT_EQ(&worker, worker2);
 }

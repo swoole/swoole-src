@@ -810,9 +810,10 @@ int Server::create() {
         minimum_connection += ports.back()->get_fd();
     }
     if (max_connection < minimum_connection) {
-        max_connection = SwooleG.max_sockets;
+        auto real_max_connection = SW_MAX(minimum_connection + 1, SwooleG.max_sockets);
         swoole_warning(
-            "max_connection must be bigger than %u, it's reset to %u", minimum_connection, SwooleG.max_sockets);
+            "max_connection must be bigger than %u, it's reset to %u", minimum_connection, real_max_connection);
+        max_connection = real_max_connection;
     }
     // Reactor Thread Num
     if (reactor_num > SW_CPU_NUM * SW_MAX_THREAD_NCPU) {

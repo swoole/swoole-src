@@ -20,10 +20,12 @@
 #include "swoole_lock.h"
 
 #include <thread>
+#include <string>
 
 long swoole_thread_get_native_id(void);
 bool swoole_thread_set_name(const char *name);
 bool swoole_thread_get_name(char *buf, size_t len);
+std::string swoole_thread_id_to_str(std::thread::id id);
 
 namespace swoole {
 class Thread {

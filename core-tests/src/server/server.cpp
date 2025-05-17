@@ -228,8 +228,9 @@ TEST(server, process) {
 
     ASSERT_EQ(serv.create(), SW_OK);
 
-    serv.onStart = [&lock](Server *serv) {
-        thread t1([=]() {
+    thread t1;
+    serv.onStart = [&lock, &t1](Server *serv) {
+        t1 = thread([=]() {
             swoole_signal_block_all();
 
             lock->lock();
@@ -245,7 +246,6 @@ TEST(server, process) {
 
             kill(serv->gs->master_pid, SIGTERM);
         });
-        t1.detach();
     };
 
     serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock->unlock(); };
@@ -264,6 +264,7 @@ TEST(server, process) {
 
     ASSERT_EQ(serv.start(), 0);
 
+    t1.join();
     delete lock;
 }
 
@@ -696,8 +697,10 @@ TEST(server, ssl) {
 
     ASSERT_EQ(serv.create(), SW_OK);
 
-    serv.onStart = [&lock](Server *serv) {
-        thread t1([=]() {
+    thread t1;
+
+    serv.onStart = [&lock, &t1](Server *serv) {
+        t1 = thread([=]() {
             swoole_signal_block_all();
 
             lock->lock();
@@ -716,7 +719,6 @@ TEST(server, ssl) {
 
             kill(serv->gs->master_pid, SIGTERM);
         });
-        t1.detach();
     };
 
     serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock->unlock(); };
@@ -732,6 +734,7 @@ TEST(server, ssl) {
 
     ASSERT_EQ(serv.start(), 0);
 
+    t1.join();
     delete lock;
 }
 
@@ -755,8 +758,9 @@ TEST(server, dtls) {
 
     ASSERT_EQ(serv.create(), SW_OK);
 
-    serv.onStart = [&lock](Server *serv) {
-        thread t1([=]() {
+    thread t1;
+    serv.onStart = [&lock, &t1](Server *serv) {
+        t1 = thread([=]() {
             swoole_signal_block_all();
 
             lock->lock();
@@ -775,7 +779,6 @@ TEST(server, dtls) {
 
             kill(serv->gs->master_pid, SIGTERM);
         });
-        t1.detach();
     };
 
     serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock->unlock(); };
@@ -791,6 +794,7 @@ TEST(server, dtls) {
 
     ASSERT_EQ(serv.start(), 0);
 
+    t1.join();
     delete lock;
 }
 
@@ -860,8 +864,9 @@ static void test_ssl_client_cert(Server::Mode mode) {
 
     ASSERT_EQ(serv.create(), SW_OK);
 
-    serv.onStart = [&lock](Server *serv) {
-        thread t1([=]() {
+    thread t1;
+    serv.onStart = [&lock, &t1](Server *serv) {
+        t1 = thread([=]() {
             swoole_signal_block_all();
 
             lock->lock();
@@ -883,7 +888,6 @@ static void test_ssl_client_cert(Server::Mode mode) {
 
             kill(serv->gs->master_pid, SIGTERM);
         });
-        t1.detach();
     };
 
     serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock->unlock(); };
@@ -916,6 +920,7 @@ static void test_ssl_client_cert(Server::Mode mode) {
 
     ASSERT_EQ(serv.start(), 0);
 
+    t1.join();
     delete lock;
 }
 
@@ -2095,7 +2100,7 @@ static void test_close(Server::Mode mode, bool close_in_client, bool single_thre
 
         ac.on_close([_serv, &flags](AsyncClient *ac) {
             flags["client_on_close"] = true;
-            swoole_timer_after(50, [_serv](TIMER_PARAMS) { _serv->shutdown(); });
+            swoole_timer_after(50, [_serv, ac](TIMER_PARAMS) { _serv->shutdown(); });
         });
 
         ac.on_error([&](AsyncClient *ac) { flags["client_on_error"] = true; });
@@ -2103,6 +2108,12 @@ static void test_close(Server::Mode mode, bool close_in_client, bool single_thre
         ac.on_receive([&](AsyncClient *ac, const char *data, size_t len) {
             flags["client_on_receive"] = true;
             if (close_in_client) {
+                /**
+                 * When a client initiates a connection to its own port in the current process,
+                 * the epoll does not trigger a readable event upon executing close;
+                 * it is necessary to perform a shutdown first to trigger the event.
+                 */
+                ac->get_client()->shutdown(SHUT_RDWR);
                 ac->close();
             }
         });
@@ -2217,4 +2228,254 @@ TEST(server, eof_check) {
     ASSERT_TRUE(flags["on_close"]);
     ASSERT_TRUE(flags["on_close"]);
     ASSERT_EQ(recv_count, 3);
+}
+
+static void test_clean_worker(Server::Mode mode) {
+    Server serv(mode);
+    serv.worker_num = 2;
+
+    int *counter = (int *) sw_mem_pool()->alloc(sizeof(int) * 4);
+
+    AsyncClient ac(SW_SOCK_TCP);
+
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_TRUE(port);
+
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    serv.onConnect = [](Server *serv, DataHead *ev) {
+        swoole_event_defer(
+            [serv](void *) {
+                serv->clean_worker_connections(sw_worker());
+                sw_reactor()->running = false;
+            },
+            nullptr);
+    };
+
+    serv.onReceive = [counter](Server *serv, RecvData *req) {
+        serv->send(req->info.fd, "OK", 2);
+        sw_atomic_fetch_add(&counter[0], 1);
+        return SW_OK;
+    };
+
+    serv.onClose = [counter](Server *serv, DataHead *ev) { sw_atomic_fetch_add(&counter[2], 1); };
+
+    serv.onWorkerStart = [counter](Server *serv, Worker *worker) {
+        ASSERT_EQ(serv->get_connection_num(), 0);
+        sw_atomic_fetch_add(&counter[1], 1);
+    };
+
+    serv.onStart = [port, &ac, counter](Server *_serv) {
+        swoole_timer_after(50, [port, _serv, &ac, counter](TIMER_PARAMS) {
+            ac.on_connect([&](AsyncClient *ac) { ac->send(SW_STRL(TEST_STR)); });
+
+            ac.on_close(
+                [_serv](AsyncClient *ac) { swoole_timer_after(50, [_serv](TIMER_PARAMS) { _serv->shutdown(); }); });
+
+            ac.on_error([](AsyncClient *ac) {});
+
+            ac.on_receive(
+                [counter](AsyncClient *ac, const char *data, size_t len) { sw_atomic_fetch_add(&counter[3], 1); });
+
+            bool retval = ac.connect(TEST_HOST, port->get_port());
+            EXPECT_TRUE(retval);
+        });
+    };
+
+    ASSERT_EQ(serv.start(), SW_OK);
+    ASSERT_EQ(counter[0], 0);  // Server on_receive
+    ASSERT_EQ(counter[1], 3);  // worker start
+    ASSERT_EQ(counter[2], 1);  // Server on_close
+    ASSERT_EQ(counter[3], 0);  // Client on_receive
+}
+
+TEST(server, clean_worker_1) {
+    test_clean_worker(Server::MODE_BASE);
+}
+
+TEST(server, clean_worker_2) {
+    test_clean_worker(Server::MODE_THREAD);
+}
+
+static void test_kill_worker(Server::Mode mode, bool wait_reactor = true) {
+    Server serv(mode);
+    serv.worker_num = 2;
+
+    int *counter = (int *) sw_mem_pool()->alloc(sizeof(int) * 6);
+
+    swoole::Mutex lock(swoole::Mutex::PROCESS_SHARED);
+    lock.lock();
+
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_TRUE(port);
+
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    serv.onConnect = [counter](Server *serv, DataHead *ev) {
+        counter[4] = ev->fd;
+        counter[5] = sw_worker()->id;
+    };
+
+    serv.onReceive = [counter](Server *serv, RecvData *req) {
+        serv->send(req->info.fd, "OK", 2);
+        sw_atomic_fetch_add(&counter[0], 1);
+
+        return SW_OK;
+    };
+
+    serv.onWorkerStop = [counter](Server *_serv, Worker *worker) {
+        _serv->close(counter[4]);
+        _serv->drain_worker_pipe();
+    };
+
+    serv.onClose = [counter](Server *serv, DataHead *ev) { sw_atomic_fetch_add(&counter[2], 1); };
+
+    serv.onWorkerStart = [counter](Server *_serv, Worker *worker) { sw_atomic_fetch_add(&counter[1], 1); };
+
+    serv.onStart = [&lock](Server *_serv) {
+        if (!sw_worker()) {
+            ASSERT_FALSE(_serv->kill_worker(-1, true));
+        }
+        lock.unlock();
+    };
+
+    std::thread t([&]() {
+        swoole_signal_block_all();
+
+        lock.lock();
+
+        usleep(50000);
+
+        network::SyncClient c(SW_SOCK_TCP);
+        EXPECT_TRUE(c.connect(TEST_HOST, port->port));
+
+        EXPECT_EQ(c.send(SW_STRL(TEST_STR)), strlen(TEST_STR));
+
+        String rbuf(1024);
+        auto rn = c.recv(rbuf.str, rbuf.size);
+        EXPECT_EQ(rn, 2);
+
+        serv.kill_worker(1 - counter[5], wait_reactor);
+
+        rn = c.recv(rbuf.str, rbuf.size);
+        EXPECT_EQ(rn, 0);
+
+        sw_atomic_fetch_add(&counter[3], 1);
+
+        usleep(50000);
+
+        serv.shutdown();
+    });
+
+    ASSERT_EQ(serv.start(), SW_OK);
+    t.join();
+
+    ASSERT_EQ(counter[0], 1);  // Client receive
+    ASSERT_EQ(counter[1], 3);  // Server onWorkeStart
+    ASSERT_EQ(counter[2], 1);  // Server onClose
+    ASSERT_EQ(counter[3], 1);  // Client close
+}
+
+TEST(server, kill_worker_1) {
+    test_kill_worker(Server::MODE_BASE);
+}
+
+TEST(server, kill_worker_2) {
+    test_kill_worker(Server::MODE_PROCESS);
+}
+
+TEST(server, kill_worker_3) {
+    test_kill_worker(Server::MODE_THREAD);
+}
+
+TEST(server, kill_worker_4) {
+    test_kill_worker(Server::MODE_BASE, false);
+}
+
+TEST(server, kill_worker_5) {
+    test_kill_worker(Server::MODE_PROCESS, false);
+}
+
+TEST(server, kill_worker_6) {
+    test_kill_worker(Server::MODE_THREAD, false);
+}
+
+static void test_kill_self(Server::Mode mode) {
+    Server serv(mode);
+    serv.worker_num = 2;
+
+    int *counter = (int *) sw_mem_pool()->alloc(sizeof(int) * 6);
+
+    swoole::Mutex lock(swoole::Mutex::PROCESS_SHARED);
+    lock.lock();
+
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_TRUE(port);
+
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    serv.onConnect = [counter](Server *serv, DataHead *ev) {
+        counter[4] = ev->fd;
+        counter[5] = sw_worker()->id;
+    };
+
+    serv.onReceive = [counter](Server *serv, RecvData *req) {
+        serv->send(req->info.fd, "OK", 2);
+        sw_atomic_fetch_add(&counter[0], 1);
+
+        return SW_OK;
+    };
+
+    serv.onWorkerStop = [counter](Server *_serv, Worker *worker) { _serv->close(counter[4]); };
+
+    serv.onClose = [counter](Server *serv, DataHead *ev) { sw_atomic_fetch_add(&counter[2], 1); };
+
+    serv.onWorkerStart = [counter](Server *_serv, Worker *worker) { sw_atomic_fetch_add(&counter[1], 1); };
+
+    serv.onStart = [&lock](Server *_serv) {
+        if (!sw_worker()) {
+            ASSERT_FALSE(_serv->kill_worker(-1, true));
+        }
+        lock.unlock();
+    };
+
+    std::thread t([&]() {
+        swoole_signal_block_all();
+
+        lock.lock();
+
+        usleep(50000);
+
+        network::SyncClient c(SW_SOCK_TCP);
+        EXPECT_TRUE(c.connect(TEST_HOST, port->port));
+
+        EXPECT_EQ(c.send(SW_STRL(TEST_STR)), strlen(TEST_STR));
+
+        String rbuf(1024);
+        auto rn = c.recv(rbuf.str, rbuf.size);
+        EXPECT_EQ(rn, 2);
+
+        serv.kill_worker(counter[5], false);
+
+        rn = c.recv(rbuf.str, rbuf.size);
+        EXPECT_EQ(rn, 0);
+
+        sw_atomic_fetch_add(&counter[3], 1);
+
+        usleep(50000);
+
+        serv.shutdown();
+    });
+
+    ASSERT_EQ(serv.start(), SW_OK);
+    t.join();
+
+    ASSERT_EQ(counter[0], 1);  // Client receive
+    ASSERT_EQ(counter[1], 3);  // Server onWorkeStart
+    ASSERT_EQ(counter[2], 1);  // Server onClose
+    ASSERT_EQ(counter[3], 1);  // Client close
+}
+
+TEST(server, kill_self) {
+    test_kill_self(Server::MODE_BASE);
 }

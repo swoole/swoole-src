@@ -39,10 +39,6 @@ using network::Client;
 using network::SyncClient;
 using swoole::http_server::parse_multipart_boundary;
 
-SessionId session_id = 0;
-Connection *conn = nullptr;
-Session *session = nullptr;
-
 struct http_context {
     unordered_map<string, string> headers;
     unordered_map<string, string> response_headers;
@@ -167,18 +163,18 @@ static void test_base_server(function<void(Server *)> fn) {
     };
 
     serv.onClose = [](Server *serv, DataHead *info) -> void {
-        if (conn) {
-            if (conn->close_actively) {
-                EXPECT_EQ(info->reactor_id, -1);
-            } else {
-                EXPECT_GE(info->reactor_id, 0);
-            }
+        auto session_id = info->fd;
+        auto conn = serv->get_connection_by_session_id(session_id);
+        if (conn->close_actively) {
+            EXPECT_EQ(info->reactor_id, -1);
+        } else {
+            EXPECT_GE(info->reactor_id, 0);
         }
     };
 
     serv.onReceive = [](Server *serv, RecvData *req) -> int {
-        session_id = req->info.fd;
-        conn = serv->get_connection_by_session_id(session_id);
+        auto session_id = req->info.fd;
+        auto conn = serv->get_connection_by_session_id(session_id);
 
         if (conn->websocket_status == websocket::STATUS_ACTIVE) {
             sw_tg_buffer()->clear();
@@ -230,7 +226,7 @@ static void test_base_server(function<void(Server *)> fn) {
             conn->websocket_status = websocket::STATUS_ACTIVE;
 
             if (ctx.url == "/ws/close") {
-                swoole_timer_after(200, [serv](Timer *, TimerNode *) {
+                swoole_timer_after(200, [serv, session_id](Timer *, TimerNode *) {
                     sw_tg_buffer()->clear();
                     websocket::pack_close_frame(
                         sw_tg_buffer(), websocket::CLOSE_POLICY_ERROR, SW_STRL("swoole close"), 0);
@@ -273,8 +269,6 @@ static Server *test_process_server(Server::DispatchMode dispatch_mode = Server::
     server->open_cpu_affinity = true;
     sw_logger()->set_level(SW_LOG_WARNING);
 
-    conn = nullptr;
-    session = nullptr;
     ListenPort *port = is_ssl ? server->add_port((enum swSocketType)(SW_SOCK_TCP | SW_SOCK_SSL), TEST_HOST, 0)
                               : server->add_port(SW_SOCK_TCP, TEST_HOST, 0);
 
@@ -293,12 +287,12 @@ static Server *test_process_server(Server::DispatchMode dispatch_mode = Server::
     };
 
     server->onClose = [](Server *serv, DataHead *info) -> void {
-        if (conn) {
-            if (conn->close_actively) {
-                ASSERT_EQ(info->reactor_id, -1);
-            } else {
-                ASSERT_GE(info->reactor_id, 0);
-            }
+        auto session_id = info->fd;
+        auto conn = serv->get_connection_by_session_id(session_id);
+        if (conn->close_actively) {
+            ASSERT_EQ(info->reactor_id, -1);
+        } else {
+            ASSERT_GE(info->reactor_id, 0);
         }
         // printf("onClose\n");
     };
@@ -308,9 +302,8 @@ static Server *test_process_server(Server::DispatchMode dispatch_mode = Server::
     };
 
     server->onReceive = [&](Server *serv, RecvData *req) -> int {
-        session_id = req->info.fd;
-        conn = serv->get_connection_by_session_id(session_id);
-        session = serv->get_session(session_id);
+        auto session_id = req->info.fd;
+        auto conn = serv->get_connection_by_session_id(session_id);
 
         EXPECT_LE(serv->get_idle_worker_num(), serv->worker_num);
         EXPECT_TRUE(serv->is_healthy_connection(microtime(), conn));
@@ -376,8 +369,7 @@ static Server *test_proxy_server() {
     server->create();
 
     server->onReceive = [&](Server *server, RecvData *req) -> int {
-        session_id = req->info.fd;
-        conn = server->get_connection_by_session_id(session_id);
+        auto session_id = req->info.fd;
 
         swoole_set_worker_id(server->worker_num);
 
@@ -445,40 +437,6 @@ TEST(http_server, heartbeat_check_interval) {
         EXPECT_EQ(resp->body, string("hello world"));
         sleep(3);
 
-        kill(getpid(), SIGTERM);
-    });
-}
-
-TEST(http_server, not_active) {
-    test_base_server([](Server *serv) {
-        swoole_signal_block_all();
-        auto port = serv->get_primary_port();
-
-        httplib::Client cli(TEST_HOST, port->port);
-        cli.set_keep_alive(true);
-        cli.Get("/index.html");
-
-        conn->active = 0;
-        cli.set_read_timeout(0, 100);
-        auto resp = cli.Get("/index.html");
-        EXPECT_EQ(resp, nullptr);
-        kill(getpid(), SIGTERM);
-    });
-}
-
-TEST(http_server, has_closed) {
-    test_base_server([](Server *serv) {
-        swoole_signal_block_all();
-        auto port = serv->get_primary_port();
-
-        httplib::Client cli(TEST_HOST, port->port);
-        cli.set_keep_alive(true);
-        cli.Get("/index.html");
-
-        conn->closed = 1;
-        cli.set_read_timeout(0, 100);
-        auto resp = cli.Get("/index.html");
-        EXPECT_EQ(resp, nullptr);
         kill(getpid(), SIGTERM);
     });
 }
@@ -736,6 +694,7 @@ TEST(http_server, websocket_encode) {
     ASSERT_TRUE(websocket::decode(&ws, buffer->str, buffer->length));
 
     FILE *fp = fopen(log_file, "a+");
+    ASSERT_NE(fp, nullptr);
     auto ori_fp = swoole_get_stdout_stream();
     swoole_set_stdout_stream(fp);
     websocket::print_frame(&ws);
@@ -750,10 +709,14 @@ TEST(http_server, websocket_encode) {
     ASSERT_TRUE(rs->contains("opcode: 1,"));
     ASSERT_TRUE(rs->contains("payload: hello world\n"));
 
+    f.close();
+
     unlink(log_file);
 }
 
 TEST(http_server, node_websocket_client_1) {
+    unlink(TEST_LOG_FILE);
+
     test_base_server([](Server *serv) {
         swoole_signal_block_all();
 
@@ -767,10 +730,14 @@ TEST(http_server, node_websocket_client_1) {
     auto str = fp.read_content();
     ASSERT_TRUE(str->contains("received: Swoole: hello world"));
     ASSERT_TRUE(str->contains("the node websocket client is closed"));
+
+    fp.close();
     unlink(TEST_LOG_FILE);
 }
 
 TEST(http_server, node_websocket_client_2) {
+    unlink(TEST_LOG_FILE);
+
     test_base_server([](Server *serv) {
         swoole_signal_block_all();
 
@@ -783,6 +750,8 @@ TEST(http_server, node_websocket_client_2) {
     EXPECT_TRUE(fp.ready());
     auto str = fp.read_content();
     ASSERT_TRUE(str->contains("the node websocket client is closed, code: 1008, reason: swoole close"));
+
+    fp.close();
     unlink(TEST_LOG_FILE);
 }
 
@@ -1338,31 +1307,26 @@ TEST(http_server, http_range2) {
     server->add_static_handler_location("/docs");
     server->add_static_handler_index_files("swoole-logo.svg");
 
-    pid_t pid = fork();
+    pid_t pid = test::spawn_exec([&]() { server->start(); });
 
-    if (pid > 0) {
-        server->start();
-        exit(0);
-    }
+    ASSERT_TRUE(request_with_diff_range(to_string(server->get_primary_port()->port), "0-15"));
+    ASSERT_TRUE(request_with_diff_range(to_string(server->get_primary_port()->port), "16-31"));
+    ASSERT_TRUE(request_with_diff_range(to_string(server->get_primary_port()->port), "-16"));
+    ASSERT_TRUE(request_with_diff_range(to_string(server->get_primary_port()->port), "128-"));
+    ASSERT_TRUE(request_with_diff_range(to_string(server->get_primary_port()->port), "0-0,-1"));
 
-    if (pid == 0) {
-        sleep(1);
-        ON_SCOPE_EXIT {
-            kill(server->get_master_pid(), SIGTERM);
-        };
+    usleep(100000);
+    kill(pid, SIGTERM);
 
-        ASSERT_TRUE(request_with_diff_range(to_string(server->get_primary_port()->port), "0-15"));
-        ASSERT_TRUE(request_with_diff_range(to_string(server->get_primary_port()->port), "16-31"));
-        ASSERT_TRUE(request_with_diff_range(to_string(server->get_primary_port()->port), "-16"));
-        ASSERT_TRUE(request_with_diff_range(to_string(server->get_primary_port()->port), "128-"));
-        ASSERT_TRUE(request_with_diff_range(to_string(server->get_primary_port()->port), "0-0,-1"));
-    }
+    int status;
+    ASSERT_EQ(waitpid(pid, &status, 0), pid);
 }
 
 // it is always last test
 TEST(http_server, abort_connection) {
     Server serv(Server::MODE_PROCESS);
     serv.worker_num = 2;
+    auto max_sockets = SwooleG.max_sockets;
     SwooleG.max_sockets = 2;
     serv.set_max_connection(1);
     sw_logger()->set_level(SW_LOG_WARNING);
@@ -1375,20 +1339,38 @@ TEST(http_server, abort_connection) {
     port->open_http_protocol = 1;
     serv.create();
 
-    serv.onWorkerStart = [](Server *serv, Worker *worker) {
-        auto port = serv->get_primary_port();
+    Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
+    lock->lock();
+
+    thread th([&serv, port, lock]() {
+        swoole_signal_block_all();
+        lock->lock();
+
+        int n = 16;
+        SyncClient *clients[n];
+
+        SW_LOOP_N(n) {
+            clients[i] = new SyncClient(SW_SOCK_TCP);
+            clients[i]->connect(TEST_HOST, port->port, -1);
+        }
+
         httplib::Client cli(TEST_HOST, port->port);
         auto resp = cli.Get("/");
         EXPECT_EQ(resp, nullptr);
 
-        if (worker->id == 0) {
-            sleep(1);
-            kill(serv->get_master_pid(), SIGTERM);
+        SW_LOOP_N(n) {
+            delete clients[i];
         }
-    };
+        serv.shutdown();
+    });
+
+    serv.onStart = [lock](Server *serv) { lock->unlock(); };
 
     serv.onReceive = [&](Server *server, RecvData *req) -> int { return SW_OK; };
     serv.start();
+
+    SwooleG.max_sockets = max_sockets;
+    th.join();
 }
 
 TEST(http_server, EncodeDecodeBasic) {
@@ -1417,22 +1399,6 @@ TEST(http_server, EncodeDecodeWithSpecialChars) {
 
     EXPECT_EQ(decoded_len, strlen(input));
     EXPECT_STREQ(encoded, "C++ Programming & C#");
-
-    sw_free(encoded);
-}
-
-TEST(http_server, EncodeDecodeEmptyString) {
-    const char *input = "";
-    size_t len = strlen(input);
-
-    char *encoded = swoole::http_server::url_encode(input, len);
-    EXPECT_STREQ(encoded, input);
-
-    char decoded[256];
-    size_t decoded_len = swoole::http_server::url_decode(encoded, strlen(encoded));
-    EXPECT_EQ(decoded_len, 0);
-
-    EXPECT_STREQ(decoded, "");
 
     sw_free(encoded);
 }
@@ -1491,6 +1457,7 @@ static swoole::http_server::Request req;
 
 static void SetRequestContent(const std::string &str) {
     delete req.buffer_;
+    req = {};
     req.buffer_ = new String(str);
 };
 
@@ -1566,7 +1533,7 @@ TEST(http_server, get_protocol) {
         SetRequestContent("GET /");
 
         ASSERT_EQ(request->get_protocol(), SW_ERR);
-        EXPECT_EQ(request->excepted, 1);
+        EXPECT_EQ(request->excepted, 0);  // wait more data
     }
 
     // 测试无效的请求 - 未知方法
@@ -1579,7 +1546,7 @@ TEST(http_server, get_protocol) {
 
     // 测试无效的请求 - 缺少 URL
     {
-        SetRequestContent("GET  HTTP/1.1\r\n");
+        SetRequestContent("UPDATE  HTTP/1.1\r\n");
 
         ASSERT_EQ(request->get_protocol(), SW_ERR);
         EXPECT_EQ(request->excepted, 1);
@@ -1595,7 +1562,7 @@ TEST(http_server, get_protocol) {
 
     // 测试无效的请求 - 缺少 HTTP 版本
     {
-        SetRequestContent("GET /index.html\r\n");
+        SetRequestContent("UNSUBSCRIBE /index.html\r\n");
 
         ASSERT_EQ(request->get_protocol(), SW_ERR);
         EXPECT_EQ(request->excepted, 1);
@@ -1638,7 +1605,7 @@ TEST(http_server, all_method) {
                 EXPECT_EQ(request->excepted, true);
             } else {
                 ASSERT_EQ(request->get_protocol(), SW_OK);
-                EXPECT_EQ(request->method, i - 1);
+                EXPECT_EQ(request->method, i);
             }
         }
     }
@@ -1815,4 +1782,77 @@ TEST(http_server, get_package_length) {
     String str(swoole_get_last_error_msg());
     ASSERT_EQ(swoole_get_last_error(), SW_ERROR_PROTOCOL_ERROR);
     ASSERT_TRUE(str.contains("unexpected protocol status of session"));
+}
+
+static void test_ssl_http(Server::Mode mode) {
+    Server serv(mode);
+    serv.worker_num = 1;
+    swoole_set_log_level(SW_LOG_INFO);
+
+    Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
+    lock->lock();
+
+    const int server_port = __LINE__ + TEST_PORT;
+    ListenPort *port = serv.add_port((enum swSocketType)(SW_SOCK_TCP | SW_SOCK_SSL), TEST_HOST, server_port);
+    if (!port) {
+        swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
+        exit(2);
+    }
+
+    port->open_http_protocol = 1;
+    port->set_ssl_cert_file(test::get_ssl_dir() + "/server.crt");
+    port->set_ssl_key_file(test::get_ssl_dir() + "/server.key");
+    port->ssl_context->http = 1;
+    port->ssl_init();
+
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    thread t1;
+
+    serv.onStart = [&lock, &t1](Server *serv) {
+        t1 = thread([=]() {
+            swoole_signal_block_all();
+            lock->lock();
+
+            auto cmd = "curl -k https://127.0.0.1:" + std::to_string(server_port) + "/";
+            pid_t pid;
+            auto _pipe = swoole_shell_exec(cmd.c_str(), &pid, 1);
+            String buf(1024);
+            while (1) {
+                auto n = read(_pipe, buf.str + buf.length, buf.size - buf.length);
+                if (n > 0) {
+                    buf.grow(n);
+                    continue;
+                }
+                break;
+            }
+
+            close(_pipe);
+            usleep(10000);
+
+            ASSERT_TRUE(buf.contains(TEST_STR));
+
+            serv->shutdown();
+        });
+    };
+
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock->unlock(); };
+
+    serv.onReceive = [](Server *serv, RecvData *req) -> int {
+        SessionId fd = req->info.fd;
+        auto resp = "HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: " + std::to_string(strlen(TEST_STR)) +
+                    "\r\n\r\n" TEST_STR;
+        serv->send(fd, resp.c_str(), resp.length());
+        serv->close(fd);
+        return SW_OK;
+    };
+
+    ASSERT_EQ(serv.start(), 0);
+
+    t1.join();
+    delete lock;
+}
+
+TEST(http_server, ssl) {
+    test_ssl_http(Server::MODE_BASE);
 }

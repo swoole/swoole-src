@@ -42,6 +42,7 @@
 #define TEST_STR2 "I am Rango\n"
 
 #define TEST_LOG_FILE "/tmp/swoole.log"
+#define TEST_SOCK_FILE "/tmp/swoole-core-tests.sock"
 
 #define TEST_REQUEST_BAIDU                                                                                             \
     "GET / HTTP/1.1\r\n"                                                                                               \

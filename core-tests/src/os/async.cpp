@@ -109,3 +109,34 @@ TEST(async, schedule) {
     ASSERT_EQ(handle_count, N);
     ASSERT_EQ(callback_count, N);
 }
+
+TEST(async, misc) {
+    callback_count = 0;
+    std::atomic<int> handle_count(0);
+    AsyncEvent event = {};
+    AsyncEvent *rv;
+    event.object = &handle_count;
+    event.callback = [](AsyncEvent *event) { callback_count++; };
+    event.handler = [](AsyncEvent *event) { ++(*static_cast<std::atomic<int> *>(event->object)); };
+
+    swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
+
+    auto ret = swoole::async::dispatch(&event);
+    EXPECT_EQ(ret->object, event.object);
+
+    sw_async_threads()->notify_one();
+
+    AsyncEvent event2 = {};
+    event2.callback = [](AsyncEvent *event) {
+        ASSERT_EQ(event->retval, -1);
+        ASSERT_EQ(event->error, SW_ERROR_AIO_BAD_REQUEST);
+        callback_count++;
+    };
+    rv = swoole::async::dispatch(&event2);
+    EXPECT_NE(rv, nullptr);
+
+    swoole_event_wait();
+
+    ASSERT_EQ(handle_count, 1);
+    ASSERT_EQ(callback_count, 2);
+}

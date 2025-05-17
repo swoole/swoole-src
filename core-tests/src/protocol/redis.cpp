@@ -116,3 +116,23 @@ TEST(redis, server) {
 
     serv.start();
 }
+
+TEST(redis, format) {
+    auto buf = sw_tg_buffer();
+
+    buf->clear();
+    redis::format(buf, redis::REPLY_STATUS, "");
+    ASSERT_MEMEQ(buf->str, "+OK\r\n", buf->length);
+
+    buf->clear();
+    redis::format(buf, redis::REPLY_ERROR, "");
+    ASSERT_MEMEQ(buf->str, "-ERR\r\n", buf->length);
+}
+
+TEST(redis, parse) {
+    auto buf = sw_tg_buffer();
+
+    buf->clear();
+    auto rs = redis::parse(SW_STRL(":3\r\n"));
+    ASSERT_EQ(rs[0], "3");
+}

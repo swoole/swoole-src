@@ -127,7 +127,8 @@ static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
         factory->finish(&_send);
         break;
     }
-    case SW_SERVER_EVENT_CLOSE: {
+    case SW_SERVER_EVENT_CLOSE:
+    case SW_SERVER_EVENT_CLOSE_FORWARD: {
         factory->end(pipe_buffer->info.fd, Server::CLOSE_ACTIVELY);
         break;
     }

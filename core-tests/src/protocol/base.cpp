@@ -322,11 +322,6 @@ TEST(protocol, unpack) {
     {
         char buffer[8];
 
-        // Create a test value that will be different when byte-swapped
-        uint16_t test16 = 0x1234;
-        uint32_t test32 = 0x12345678;
-        uint64_t test64 = 0x123456789ABCDEF0ULL;
-
         // Test that 'n' and 'v' formats handle endianness correctly
         buffer[0] = 0x12;
         buffer[1] = 0x34;

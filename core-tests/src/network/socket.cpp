@@ -609,9 +609,12 @@ TEST(socket, get_domain_and_type) {
     test_sock_type(SW_SOCK_UDP6, AF_INET6, SOCK_DGRAM);
     test_sock_type(SW_SOCK_UNIX_STREAM, AF_LOCAL, SOCK_STREAM);
     test_sock_type(SW_SOCK_UNIX_DGRAM, AF_LOCAL, SOCK_DGRAM);
+    test_sock_type(SW_SOCK_RAW, AF_INET, SOCK_RAW);
+    test_sock_type(SW_SOCK_RAW6, AF_INET6, SOCK_RAW);
 
     int sock_domain, sock_type;
-    ASSERT_EQ(network::Socket::get_domain_and_type(SW_SOCK_RAW, &sock_domain, &sock_type), SW_ERR);
+    ASSERT_EQ(network::Socket::get_domain_and_type((swSocketType) (SW_SOCK_RAW6 + 1), &sock_domain, &sock_type),
+              SW_ERR);
 }
 
 TEST(socket, make_socket) {
@@ -619,8 +622,8 @@ TEST(socket, make_socket) {
 
     sock = make_socket(SW_SOCK_RAW, SW_FD_STREAM, 0);
     ASSERT_EQ(sock, nullptr);
-    ASSERT_EQ(errno, ESOCKTNOSUPPORT);
-    ASSERT_EQ(swoole_get_last_error(), ESOCKTNOSUPPORT);
+    ASSERT_EQ(errno, EPROTONOSUPPORT);
+    ASSERT_EQ(swoole_get_last_error(), EPROTONOSUPPORT);
 
     sock = make_socket(SW_SOCK_TCP, SW_FD_STREAM, AF_INET6, SOCK_RDM, 999, 0);
     ASSERT_EQ(sock, nullptr);
@@ -635,8 +638,13 @@ TEST(socket, make_server_socket) {
 
     sock = make_server_socket(SW_SOCK_RAW, bad_addr);
     ASSERT_EQ(sock, nullptr);
-    ASSERT_EQ(errno, ESOCKTNOSUPPORT);
-    ASSERT_EQ(swoole_get_last_error(), ESOCKTNOSUPPORT);
+    if (geteuid() == 0) {  // root
+        ASSERT_EQ(errno, EPROTONOSUPPORT);
+        ASSERT_EQ(swoole_get_last_error(), EPROTONOSUPPORT);
+    } else {
+        ASSERT_EQ(errno, ESOCKTNOSUPPORT);
+        ASSERT_EQ(swoole_get_last_error(), ESOCKTNOSUPPORT);
+    }
 
     sock = make_server_socket(SW_SOCK_TCP, bad_addr);
     ASSERT_EQ(sock, nullptr);
