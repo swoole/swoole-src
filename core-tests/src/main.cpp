@@ -22,6 +22,10 @@ int main(int argc, char **argv) {
     swoole_set_trace_flags(SW_TRACE_ALL);
 #endif
 
+    if (getenv("VERBOSE") != nullptr && std::string(getenv("VERBOSE")) == "0") {
+        swoole_set_log_level(SW_LOG_INFO);
+    }
+
     ::testing::InitGoogleTest(&argc, argv);
     int retval = RUN_ALL_TESTS();
 

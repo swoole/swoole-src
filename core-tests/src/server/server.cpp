@@ -2266,11 +2266,14 @@ static void test_clean_worker(Server::Mode mode) {
     };
 
     serv.onStart = [port, &ac, counter](Server *_serv) {
-        swoole_timer_after(50, [port, _serv, &ac, counter](TIMER_PARAMS) {
+        swoole_timer_after(100, [port, _serv, &ac, counter](TIMER_PARAMS) {
             ac.on_connect([&](AsyncClient *ac) { ac->send(SW_STRL(TEST_STR)); });
 
-            ac.on_close(
-                [_serv](AsyncClient *ac) { swoole_timer_after(50, [_serv](TIMER_PARAMS) { _serv->shutdown(); }); });
+            ac.on_close([_serv](AsyncClient *ac) {
+                swoole_timer_after(100, [_serv, ac](TIMER_PARAMS) {
+                    _serv->shutdown();
+                });
+            });
 
             ac.on_error([](AsyncClient *ac) {});
 
