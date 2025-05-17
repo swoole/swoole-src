@@ -303,9 +303,10 @@ static void handle_request(nghttp2_session *session, int32_t stream_id, Http2Ses
 
     auto header_server = "nghttp2-server/" NGHTTP2_VERSION;
     // 准备响应头
-    nghttp2_nv hdrs[] = {{(uint8_t *) ":status", (uint8_t *) "200", 7, 3, NGHTTP2_NV_FLAG_NONE},
-                         {(uint8_t *) "content-type", (uint8_t *) "text/html", 12, 9, NGHTTP2_NV_FLAG_NONE},
-                         {(uint8_t *) "server", (uint8_t *) header_server, 6, strlen(header_server), NGHTTP2_NV_FLAG_NONE}};
+    nghttp2_nv hdrs[] = {
+        {(uint8_t *) ":status", (uint8_t *) "200", 7, 3, NGHTTP2_NV_FLAG_NONE},
+        {(uint8_t *) "content-type", (uint8_t *) "text/html", 12, 9, NGHTTP2_NV_FLAG_NONE},
+        {(uint8_t *) "server", (uint8_t *) header_server, 6, strlen(header_server), NGHTTP2_NV_FLAG_NONE}};
 
     if (path == "/" || path == "/index.html") {
         const char *body = "<html><body><h1>Welcome to HTTP/2 Server</h1>"
@@ -325,10 +326,9 @@ static void handle_request(nghttp2_session *session, int32_t stream_id, Http2Ses
         }
     } else {
         // 404 Not Found
-        nghttp2_nv error_hdrs[] = {
-            {(uint8_t *) ":status", (uint8_t *) "404", 7, 3, NGHTTP2_NV_FLAG_NONE},
-            {(uint8_t *) "content-type", (uint8_t *) "text/html", 12, 9, NGHTTP2_NV_FLAG_NONE},
-            {(uint8_t *) "server", (uint8_t *) header_server, 6, 17, NGHTTP2_NV_FLAG_NONE}};
+        nghttp2_nv error_hdrs[] = {{(uint8_t *) ":status", (uint8_t *) "404", 7, 3, NGHTTP2_NV_FLAG_NONE},
+                                   {(uint8_t *) "content-type", (uint8_t *) "text/html", 12, 9, NGHTTP2_NV_FLAG_NONE},
+                                   {(uint8_t *) "server", (uint8_t *) header_server, 6, 17, NGHTTP2_NV_FLAG_NONE}};
 
         const char *body = "<html><body><h1>404 Not Found</h1>"
                            "<p>The requested resource was not found on this server.</p>"
@@ -345,11 +345,9 @@ static void handle_request(nghttp2_session *session, int32_t stream_id, Http2Ses
 }
 
 static void http2_send_settings(Http2Session *session_data) {
-    nghttp2_settings_entry settings[] = {
-        {NGHTTP2_SETTINGS_MAX_CONCURRENT_STREAMS, 100},
-        {NGHTTP2_SETTINGS_INITIAL_WINDOW_SIZE, 1048576},
-        {NGHTTP2_SETTINGS_MAX_FRAME_SIZE, 16384}
-    };
+    nghttp2_settings_entry settings[] = {{NGHTTP2_SETTINGS_MAX_CONCURRENT_STREAMS, 100},
+                                         {NGHTTP2_SETTINGS_INITIAL_WINDOW_SIZE, 1048576},
+                                         {NGHTTP2_SETTINGS_MAX_FRAME_SIZE, 16384}};
 
     auto rv = nghttp2_submit_settings(
         session_data->session, NGHTTP2_FLAG_NONE, settings, sizeof(settings) / sizeof(settings[0]));
@@ -415,6 +413,7 @@ static void test_ssl_http2(Server::Mode mode) {
 
     port->open_http2_protocol = 1;
     port->open_http_protocol = 1;
+    port->open_websocket_protocol = 1;
     port->set_ssl_cert_file(test::get_ssl_dir() + "/server.crt");
     port->set_ssl_key_file(test::get_ssl_dir() + "/server.key");
     port->ssl_context->http = 1;
