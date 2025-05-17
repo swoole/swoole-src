@@ -773,10 +773,4 @@ TEST(client, ssl) {
 
     ASSERT_TRUE(sw_tg_buffer()->contains("中华人民共和国"));
 }
-
-TEST(client, ssl_reinit) {
-    swoole_ssl_destroy();
-    swoole_ssl_init();
-    test_ssl_get_baidu();
-}
 #endif

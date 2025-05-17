@@ -26,14 +26,13 @@ using swoole::SSLContext;
 using swoole::network::Address;
 using swoole::network::Socket;
 
-#if OPENSSL_VERSION_NUMBER < 0x10000000L
-#error "require openssl version 1.0 or later"
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#error "OpenSSL 1.1.0 or later is required"
 #endif
 
 static bool openssl_init = false;
 static int ssl_connection_index = 0;
 static int ssl_port_index = 0;
-static pthread_mutex_t *lock_array;
 
 static int swoole_ssl_verify_callback(int ok, X509_STORE_CTX *x509_store);
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
@@ -53,17 +52,9 @@ void swoole_ssl_init(void) {
     if (openssl_init) {
         return;
     }
-#if OPENSSL_VERSION_NUMBER >= 0x10100003L && !defined(LIBRESSL_VERSION_NUMBER)
+
     OPENSSL_init_ssl(OPENSSL_INIT_LOAD_CONFIG | OPENSSL_INIT_LOAD_SSL_STRINGS | OPENSSL_INIT_LOAD_CRYPTO_STRINGS,
-                     nullptr);
-#else
-    OPENSSL_config(nullptr);
-    SSL_library_init();
-    SSL_load_error_strings();
-    OpenSSL_add_all_algorithms();
-    OpenSSL_add_all_ciphers();
-    OpenSSL_add_all_digests();
-#endif
+                       nullptr);
 
     ssl_connection_index = SSL_get_ex_new_index(0, nullptr, nullptr, nullptr, nullptr);
     if (ssl_connection_index < 0) {
@@ -76,19 +67,6 @@ void swoole_ssl_init(void) {
         swoole_error("SSL_get_ex_new_index() failed");
         return;
     }
-
-    lock_array = (pthread_mutex_t *) OPENSSL_malloc(CRYPTO_num_locks() * sizeof(pthread_mutex_t));
-    SW_LOOP_N(CRYPTO_num_locks()) {
-        pthread_mutex_init(&(lock_array[i]), nullptr);
-    }
-
-#if OPENSSL_VERSION_NUMBER >= OPENSSL_VERSION_1_0_0
-    (void) CRYPTO_THREADID_set_callback(swoole_ssl_id_callback);
-#else
-    CRYPTO_set_id_callback(swoole_ssl_id_callback);
-#endif
-
-    CRYPTO_set_locking_callback(swoole_ssl_lock_callback);
 
     openssl_init = true;
 }
@@ -105,28 +83,7 @@ void swoole_ssl_destroy() {
     if (!openssl_init) {
         return;
     }
-
-    SW_LOOP_N(CRYPTO_num_locks()) {
-        pthread_mutex_destroy(&(lock_array[i]));
-    }
-
-    OPENSSL_free(lock_array);
-
-#if OPENSSL_VERSION_NUMBER >= OPENSSL_VERSION_1_0_0
-    (void) CRYPTO_THREADID_set_callback(nullptr);
-#else
-    CRYPTO_set_id_callback(nullptr);
-#endif
-    CRYPTO_set_locking_callback(nullptr);
     openssl_init = false;
-}
-
-void swoole_ssl_lock_callback(int mode, int type, const char *file, int line) {
-    if (mode & CRYPTO_LOCK) {
-        pthread_mutex_lock(&(lock_array[type]));
-    } else {
-        pthread_mutex_unlock(&(lock_array[type]));
-    }
 }
 
 static int ssl_error_cb(const char *str, size_t len, void *buf) {
@@ -141,15 +98,6 @@ const char *swoole_ssl_get_error() {
     return sw_tg_buffer()->str;
 }
 
-#if OPENSSL_VERSION_NUMBER >= OPENSSL_VERSION_1_0_0
-static void MAYBE_UNUSED swoole_ssl_id_callback(CRYPTO_THREADID *id) {
-    CRYPTO_THREADID_set_numeric(id, (ulong_t) pthread_self());
-}
-#else
-static ulong_t MAYBE_UNUSED swoole_ssl_id_callback(void) {
-    return (ulong_t) pthread_self();
-}
-#endif
 
 static void swoole_ssl_info_callback(const SSL *ssl, int where, int ret) {
     BIO *rbio, *wbio;
