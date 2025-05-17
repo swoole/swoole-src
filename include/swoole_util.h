@@ -26,6 +26,7 @@
 #include <set>
 #include <vector>
 #include <stack>
+#include <thread>
 #include <type_traits>
 
 #define __SCOPEGUARD_CONCATENATE_IMPL(s1, s2) s1##s2
@@ -243,5 +244,4 @@ static inline bool ends_with(const char *haystack, size_t l_haystack, const char
     }
     return memcmp(haystack + l_haystack - l_needle, needle, l_needle) == 0;
 }
-
 }  // namespace swoole

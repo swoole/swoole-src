@@ -77,3 +77,9 @@ TEST(os, thread_name) {
     });
     t.join();
 }
+
+TEST(os, thread_id) {
+    auto tid = swoole_thread_id_to_str(std::this_thread::get_id());
+    DEBUG() << "current thread id: " << tid << "\n";
+    ASSERT_FALSE(tid.empty());
+}

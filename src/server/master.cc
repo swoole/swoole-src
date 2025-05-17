@@ -810,7 +810,7 @@ int Server::create() {
         minimum_connection += ports.back()->get_fd();
     }
     if (max_connection < minimum_connection) {
-        auto real_max_connection = SW_MAX(minimum_connection + 1, (int) SwooleG.max_sockets);
+        auto real_max_connection = SW_MAX(minimum_connection + 1, SwooleG.max_sockets);
         swoole_warning(
             "max_connection must be bigger than %u, it's reset to %u", minimum_connection, real_max_connection);
         max_connection = real_max_connection;

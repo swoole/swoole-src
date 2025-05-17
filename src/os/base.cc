@@ -20,6 +20,9 @@
 #include "swoole_socket.h"
 #include "swoole_async.h"
 
+#include <thread>
+#include <sstream>
+
 #include <arpa/inet.h>
 
 #if __APPLE__
@@ -141,6 +144,12 @@ bool swoole_thread_set_name(const char *name) {
 
 bool swoole_thread_get_name(char *buf, size_t len) {
     return check_pthread_return_value(pthread_getname_np(pthread_self(), buf, len));
+}
+
+std::string swoole_thread_id_to_str(std::thread::id id) {
+    std::stringstream ss;
+    ss << id;
+    return ss.str();
 }
 
 namespace swoole {
