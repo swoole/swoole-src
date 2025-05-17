@@ -54,7 +54,7 @@ void swoole_ssl_init(void) {
     }
 
     OPENSSL_init_ssl(OPENSSL_INIT_LOAD_CONFIG | OPENSSL_INIT_LOAD_SSL_STRINGS | OPENSSL_INIT_LOAD_CRYPTO_STRINGS,
-                       nullptr);
+                     nullptr);
 
     ssl_connection_index = SSL_get_ex_new_index(0, nullptr, nullptr, nullptr, nullptr);
     if (ssl_connection_index < 0) {
@@ -97,7 +97,6 @@ const char *swoole_ssl_get_error() {
 
     return sw_tg_buffer()->str;
 }
-
 
 static void swoole_ssl_info_callback(const SSL *ssl, int where, int ret) {
     BIO *rbio, *wbio;

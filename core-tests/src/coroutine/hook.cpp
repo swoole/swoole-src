@@ -409,7 +409,13 @@ TEST(coroutine_hook, timeout) {
         size_t length = text.length();
 
         // unregister fd
+        errno = 0;
         ASSERT_EQ(swoole_coroutine_socket_set_timeout(pairs[0], SO_SNDTIMEO, 0.05), -1);
+        ASSERT_EQ(errno, EINVAL);
+
+        errno = 0;
+        ASSERT_EQ(swoole_coroutine_socket_set_connect_timeout(pairs[0], 0.05), -1);
+        ASSERT_EQ(errno, EINVAL);
 
         swoole::Coroutine::create([&](void *) {
             ASSERT_EQ(swoole_coroutine_socket_create(pairs[0]), 0);
@@ -693,4 +699,32 @@ TEST(coroutine_hook, unwrap) {
         // fail to unwrap
         ASSERT_EQ(swoole_coroutine_socket_unwrap(_sock0->get_fd()), -1);
     });
+}
+
+static void test_freopen() {
+    auto output_file = "/tmp/output.txt";
+    auto fp = swoole_coroutine_fopen(TEST_LOG_FILE, "w");
+    ASSERT_NE(fp, nullptr);
+    swoole_coroutine_fputs("hello\n", fp);
+
+    ASSERT_NE(swoole_coroutine_freopen(output_file, "w", fp), nullptr);
+    swoole_coroutine_fputs("world\n", fp);
+
+    swoole_coroutine_fclose(fp);
+
+    auto rs1 = swoole::file_get_contents(output_file);
+    ASSERT_FALSE(rs1->contains("hello\n"));
+    ASSERT_TRUE(rs1->contains("world\n"));
+
+    auto rs2 = swoole::file_get_contents(TEST_LOG_FILE);
+    ASSERT_TRUE(rs2->contains("hello\n"));
+    ASSERT_FALSE(rs2->contains("world\n"));
+
+    unlink(TEST_LOG_FILE);
+    unlink(output_file);
+}
+
+TEST(coroutine_hook, freopen) {
+    coroutine::run([&](void *arg) { test_freopen(); });
+    test_freopen();
 }
