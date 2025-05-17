@@ -703,7 +703,13 @@ TEST(coroutine_hook, unwrap) {
 
 static void test_freopen() {
     auto output_file = "/tmp/output.txt";
+    unlink(output_file);
+    unlink(TEST_LOG_FILE);
+
     auto fp = swoole_coroutine_fopen(TEST_LOG_FILE, "w");
+    if (fp == NULL) {
+        fprintf(stderr, "Failed to open '%s': %s (errno=%d)\n", TEST_LOG_FILE, strerror(errno), errno);
+    }
     ASSERT_NE(fp, nullptr);
     swoole_coroutine_fputs("hello\n", fp);
 

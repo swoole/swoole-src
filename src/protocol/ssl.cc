@@ -53,8 +53,11 @@ void swoole_ssl_init(void) {
         return;
     }
 
-    OPENSSL_init_ssl(OPENSSL_INIT_LOAD_CONFIG | OPENSSL_INIT_LOAD_SSL_STRINGS | OPENSSL_INIT_LOAD_CRYPTO_STRINGS,
-                     nullptr);
+    if (!OPENSSL_init_ssl(OPENSSL_INIT_LOAD_CONFIG | OPENSSL_INIT_LOAD_SSL_STRINGS | OPENSSL_INIT_LOAD_CRYPTO_STRINGS,
+                          nullptr)) {
+        swoole_error("OPENSSL_init_ssl() failed");
+        return;
+    }
 
     ssl_connection_index = SSL_get_ex_new_index(0, nullptr, nullptr, nullptr, nullptr);
     if (ssl_connection_index < 0) {
