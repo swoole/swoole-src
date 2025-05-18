@@ -157,7 +157,7 @@ class Client {
     int wakeup();
     int sendto(const std::string &host, int port, const char *data, size_t len);
     int get_peer_name(Address *addr);
-    int shutdown(int _how);
+    int shutdown(int _how = SHUT_RDWR);
     int close();
     int socks5_handshake(const char *recv_data, size_t length);
     void set_socks5_proxy(const std::string &host, int port, const std::string &user = "", const std::string &pwd = "");
