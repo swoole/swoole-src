@@ -1990,7 +1990,15 @@ TEST(server, reactor_thread_pipe_writable) {
         EXPECT_TRUE(serv->send(req->info.fd, &len, sizeof(len)));
         EXPECT_TRUE(serv->send(req->info.fd, rdata.str, rdata.length));
         EXPECT_MEMEQ(req->data + 4, rdata.str, rdata.length);
-        EXPECT_NE(serv->get_worker_message_bus()->move_packet(), nullptr);
+
+        /**
+         * After using MessageBus::move_packet(), the data pointer will be out of the control of message_bus,
+         * and this part of the memory must be manually released; otherwise, a memory leak will occur.
+         */
+        char *data = serv->get_worker_message_bus()->move_packet();
+        EXPECT_NE(data, nullptr);
+        sw_free(data);
+
         return SW_OK;
     };
 
@@ -2285,9 +2293,7 @@ static void test_clean_worker(Server::Mode mode) {
         swoole_timer_after(100, [port, _serv, &ac](TIMER_PARAMS) {
             ac.on_connect([&](AsyncClient *ac) { ac->send(SW_STRL(TEST_STR)); });
 
-            ac.on_close([_serv](AsyncClient *ac) {
-                DEBUG() << "client onClose\n";
-            });
+            ac.on_close([_serv](AsyncClient *ac) { DEBUG() << "client onClose\n"; });
 
             ac.on_error([](AsyncClient *ac) { swoole_warning("connect failed, error=%d", swoole_get_last_error()); });
 
@@ -2303,10 +2309,10 @@ static void test_clean_worker(Server::Mode mode) {
     };
 
     ASSERT_EQ(serv.start(), SW_OK);
-    ASSERT_EQ(test::counter_get(0), 0); // Server on_receive
-    ASSERT_EQ(test::counter_get(1), 3); // worker start
-    ASSERT_EQ(test::counter_get(2), 1); // Server on_close
-    ASSERT_EQ(test::counter_get(3), 0); // Client on_receive
+    ASSERT_EQ(test::counter_get(0), 0);  // Server on_receive
+    ASSERT_EQ(test::counter_get(1), 3);  // worker start
+    ASSERT_EQ(test::counter_get(2), 1);  // Server on_close
+    ASSERT_EQ(test::counter_get(3), 0);  // Client on_receive
 }
 
 TEST(server, clean_worker_1) {
