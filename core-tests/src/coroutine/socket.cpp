@@ -1540,3 +1540,11 @@ TEST(coroutine_socket, recv_packet) {
         ASSERT_TRUE(buf->contains(TEST_HTTP_EXPECT));
     });
 }
+
+TEST(coroutine_socket, set_error) {
+    Socket sock(SW_SOCK_TCP);
+    sock.set_err(1000, std::string(TEST_STR));
+
+    ASSERT_EQ(sock.errCode, 1000);
+    ASSERT_STREQ(sock.errMsg, TEST_STR);
+}

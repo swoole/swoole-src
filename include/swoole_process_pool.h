@@ -330,32 +330,8 @@ struct ProcessPool {
 
     void *ptr;
 
-    void set_type(int _type) {
-        uint32_t i;
-        type = _type;
-        for (i = 0; i < worker_num; i++) {
-            workers[i].type = type;
-        }
-    }
-
-    void set_start_id(int _start_id) {
-        uint32_t i;
-        start_id = _start_id;
-        for (i = 0; i < worker_num; i++) {
-            workers[i].id = start_id + i;
-        }
-    }
-
     Worker *get_worker(int worker_id) {
         return &(workers[worker_id - start_id]);
-    }
-
-    Worker *get_worker_by_pid(pid_t pid) {
-        auto iter = map_->find(pid);
-        if (iter == map_->end()) {
-            return nullptr;
-        }
-        return iter->second;
     }
 
     TaskId get_task_id(EventData *task) {
@@ -414,7 +390,8 @@ struct ProcessPool {
      *  for example, `payload = malloc(payload_len)`.
      */
     void set_protocol(enum ProtocolType _protocol_type);
-
+    void set_type(int _type);
+    void set_start_id(int _start_id);
     void set_max_request(uint32_t _max_request, uint32_t _max_request_grace);
     int get_max_request();
     bool detach();
@@ -431,6 +408,7 @@ struct ProcessPool {
     swResultCode dispatch_sync(EventData *data, int *dst_worker_id);
     swResultCode dispatch_sync(const char *data, uint32_t len);
     void add_worker(Worker *worker);
+    Worker *get_worker_by_pid(pid_t pid);
     int del_worker(Worker *worker);
     void destroy();
     int create(uint32_t worker_num, key_t msgqueue_key = 0, swIPCMode ipc_mode = SW_IPC_NONE);

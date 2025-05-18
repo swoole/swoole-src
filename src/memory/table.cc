@@ -70,6 +70,45 @@ bool Table::add_column(const std::string &_name, enum TableColumn::Type _type, s
     return true;
 }
 
+TableColumn *Table::get_column(const std::string &key) {
+    auto i = column_map->find(key);
+    if (i == column_map->end()) {
+        return nullptr;
+    } else {
+        return i->second;
+    }
+}
+
+bool Table::exists(const char *key, uint16_t keylen) {
+    TableRow *_rowlock = nullptr;
+    const TableRow *row = get(key, keylen, &_rowlock);
+    _rowlock->unlock();
+    return row != nullptr;
+}
+
+TableIterator::TableIterator(size_t row_size) {
+    current_ = (TableRow *) sw_malloc(row_size);
+    if (!current_) {
+        throw std::bad_alloc();
+    }
+    mutex_ = new Mutex(Mutex::PROCESS_SHARED);
+    row_memory_size_ = row_size;
+    reset();
+}
+
+void TableIterator::reset() {
+    absolute_index = 0;
+    collision_index = 0;
+    sw_memset_zero(current_, row_memory_size_);
+}
+
+TableIterator::~TableIterator() {
+    if (current_) {
+        sw_free(current_);
+    }
+    delete mutex_;
+}
+
 size_t Table::calc_memory_size() const {
     /**
      * table size + conflict size
@@ -392,6 +431,26 @@ bool Table::del(const char *key, uint16_t keylen) {
     row->unlock();
 
     return true;
+}
+
+TableColumn::TableColumn(const std::string &_name, enum Type _type, size_t _size) {
+    index = 0;
+    name = _name;
+    type = _type;
+    switch (_type) {
+    case TYPE_INT:
+        size = sizeof(long);
+        break;
+    case TYPE_FLOAT:
+        size = sizeof(double);
+        break;
+    case TYPE_STRING:
+        size = _size + sizeof(TableStringLength);
+        break;
+    default:
+        abort();
+        break;
+    }
 }
 
 void TableColumn::clear(TableRow *row) {

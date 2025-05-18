@@ -79,15 +79,10 @@ struct TableIterator {
     TableRow *current_;
     Mutex *mutex_;
 
-    explicit TableIterator(size_t row_size) {
-        current_ = (TableRow *) sw_malloc(row_size);
-        if (!current_) {
-            throw std::bad_alloc();
-        }
-        mutex_ = new Mutex(Mutex::PROCESS_SHARED);
-        row_memory_size_ = row_size;
-        reset();
-    }
+    explicit TableIterator(size_t row_size);
+    ~TableIterator();
+
+    void reset();
 
     void lock() {
         mutex_->lock();
@@ -95,19 +90,6 @@ struct TableIterator {
 
     void unlock() {
         mutex_->unlock();
-    }
-
-    void reset() {
-        absolute_index = 0;
-        collision_index = 0;
-        sw_memset_zero(current_, row_memory_size_);
-    }
-
-    ~TableIterator() {
-        if (current_) {
-            sw_free(current_);
-        }
-        delete mutex_;
     }
 };
 
@@ -128,25 +110,7 @@ struct TableColumn {
     std::string name;
     size_t index;
 
-    TableColumn(const std::string &_name, enum Type _type, size_t _size) {
-        index = 0;
-        name = _name;
-        type = _type;
-        switch (_type) {
-        case TYPE_INT:
-            size = sizeof(long);
-            break;
-        case TYPE_FLOAT:
-            size = sizeof(double);
-            break;
-        case TYPE_STRING:
-            size = _size + sizeof(TableStringLength);
-            break;
-        default:
-            abort();
-            break;
-        }
-    }
+    TableColumn(const std::string &_name, enum Type _type, size_t _size);
 
     void clear(TableRow *row);
 };
@@ -194,8 +158,10 @@ class Table {
     uint32_t get_total_slice_num();
     bool create();
     bool add_column(const std::string &name, enum TableColumn::Type type, size_t size);
+    TableColumn *get_column(const std::string &key);
     TableRow *set(const char *key, uint16_t keylen, TableRow **rowlock, int *out_flags);
     TableRow *get(const char *key, uint16_t keylen, TableRow **rowlock);
+    bool exists(const char *key, uint16_t keylen);
     bool del(const char *key, uint16_t keylen);
     void forward();
     // release shared memory
@@ -222,24 +188,8 @@ class Table {
         return row->active ? row : nullptr;
     }
 
-    TableColumn *get_column(const std::string &key) {
-        auto i = column_map->find(key);
-        if (i == column_map->end()) {
-            return nullptr;
-        } else {
-            return i->second;
-        }
-    }
-
     size_t count() const {
         return row_num;
-    }
-
-    bool exists(const char *key, uint16_t keylen) {
-        TableRow *_rowlock = nullptr;
-        const TableRow *row = get(key, keylen, &_rowlock);
-        _rowlock->unlock();
-        return row != nullptr;
     }
 
     bool exists(const std::string &key) {
