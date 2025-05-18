@@ -323,13 +323,14 @@ void Server::set_max_connection(uint32_t _max_connection) {
 
 bool Server::set_document_root(const std::string &path) {
     if (path.length() > PATH_MAX) {
-        swoole_warning("The length of document_root must be less than %d", PATH_MAX);
+        swoole_error_log(
+            SW_LOG_WARNING, SW_ERROR_NAME_TOO_LONG, "The length of document_root must be less than %d", PATH_MAX);
         return false;
     }
 
     char _realpath[PATH_MAX];
     if (!realpath(path.c_str(), _realpath)) {
-        swoole_warning("document_root[%s] does not exist", path.c_str());
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_DIR_NOT_EXIST, "document_root[%s] does not exist", path.c_str());
         return false;
     }
 

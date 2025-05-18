@@ -201,6 +201,8 @@ TEST(server, base) {
         EXPECT_EQ(serv->get_connection_num(), 1);
         EXPECT_EQ(serv->get_primary_port()->get_connection_num(), 1);
 
+        EXPECT_EQ(serv->get_worker_message_bus()->move_packet(), nullptr);
+
         return SW_OK;
     };
 
@@ -300,7 +302,12 @@ TEST(server, thread) {
         ASSERT_MEMEQ(buf, resp.c_str(), resp.length());
         c.close();
 
-        usleep(10);
+        usleep(1000);
+
+        ASSERT_FALSE(serv.gs->event_workers.read_message);
+        kill(serv.get_master_pid(), SIGIO);
+        usleep(1000);
+        ASSERT_TRUE(serv.gs->event_workers.read_message);
 
         DEBUG() << "shutdown\n";
 
@@ -1336,6 +1343,8 @@ TEST(server, task_ipc_queue_5) {
 TEST(server, max_connection) {
     Server serv;
 
+    auto ori_max_sockets = SwooleG.max_sockets;
+
     serv.set_max_connection(0);
     ASSERT_EQ(serv.get_max_connection(), SW_MIN(SW_MAX_CONNECTION, SwooleG.max_sockets));
 
@@ -1344,6 +1353,11 @@ TEST(server, max_connection) {
 
     serv.set_max_connection(SwooleG.max_sockets - 13);
     ASSERT_EQ(serv.get_max_connection(), SwooleG.max_sockets - 13);
+
+    SwooleG.max_sockets = SW_SESSION_LIST_SIZE + 1024;
+    serv.set_max_connection(SW_SESSION_LIST_SIZE + 999);
+    ASSERT_EQ(serv.get_max_connection(), SW_SESSION_LIST_SIZE);
+    SwooleG.max_sockets = ori_max_sockets;
 
     uint32_t last_value = serv.get_max_connection();
 
@@ -1845,16 +1859,34 @@ TEST(server, startup_error) {
     Server *server = new Server(Server::MODE_PROCESS);
     server->task_worker_num = 2;
 
-    server->add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_NE(server->add_port(SW_SOCK_TCP, TEST_HOST, 0), nullptr);
+    ASSERT_NE(server->add_port(SW_SOCK_UDP, TEST_HOST, 0), nullptr);
     ASSERT_EQ(server->create(), 0);
-
-    server->onReceive = [](Server *server, RecvData *req) -> int { return SW_OK; };
-    server->onWorkerStart = [&](Server *server, Worker *worker) {};
 
     ASSERT_EQ(server->start(), -1);
     auto startup_error = String(server->get_startup_error_message());
     ASSERT_TRUE(startup_error.contains("require 'onTask' callback"));
     ASSERT_EQ(swoole_get_last_error(), SW_ERROR_SERVER_INVALID_CALLBACK);
+
+    server->onTask = [](Server *server, EventData *req) -> int { return SW_OK; };
+
+    ASSERT_EQ(server->start(), -1);
+    ASSERT_NE(strstr(server->get_startup_error_message(), "require 'onReceive' callback"), nullptr);
+
+    auto ori_log_level = swoole_get_log_level();
+    swoole_set_log_level(SW_LOG_NONE);
+
+    ASSERT_EQ(server->start(), -1);
+    auto startup_error2 = std::string(server->get_startup_error_message());
+    ASSERT_EQ(startup_error2, std::to_string(SW_ERROR_SERVER_INVALID_CALLBACK));
+    ASSERT_EQ(swoole_get_last_error(), SW_ERROR_SERVER_INVALID_CALLBACK);
+
+    swoole_set_log_level(ori_log_level);
+
+    server->onReceive = [](Server *server, RecvData *req) -> int { return SW_OK; };
+
+    ASSERT_EQ(server->start(), -1);
+    ASSERT_NE(strstr(server->get_startup_error_message(), "require 'onPacket' callback"), nullptr);
 }
 
 TEST(server, abort_worker) {
