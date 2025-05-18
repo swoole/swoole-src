@@ -44,6 +44,8 @@
 #define TEST_LOG_FILE "/tmp/swoole.log"
 #define TEST_SOCK_FILE "/tmp/swoole-core-tests.sock"
 
+#define TEST_COUNTER_NUM 32
+
 #define TEST_REQUEST_BAIDU                                                                                             \
     "GET / HTTP/1.1\r\n"                                                                                               \
     "Host: www.baidu.com\r\n"                                                                                          \
@@ -92,6 +94,13 @@ int get_random_port();
 
 pid_t spawn_exec(const std::function<void(void)> &fn);
 int spawn_exec_and_wait(const std::function<void(void)> &fn);
+
+void counter_init();
+int *counter_ptr();
+int counter_incr(int index, int add = 1);
+int counter_get(int index);
+void counter_set(int index, int value);
+void counter_incr_and_put_log(int index, const char *msg);
 
 int dump_cert_info(const char *data, size_t len);
 

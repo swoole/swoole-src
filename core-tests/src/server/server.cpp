@@ -2234,59 +2234,76 @@ static void test_clean_worker(Server::Mode mode) {
     Server serv(mode);
     serv.worker_num = 2;
 
-    int *counter = (int *) sw_mem_pool()->alloc(sizeof(int) * 4);
+    test::counter_init();
 
     AsyncClient ac(SW_SOCK_TCP);
 
     ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     ASSERT_TRUE(port);
-
     ASSERT_EQ(serv.create(), SW_OK);
 
-    serv.onConnect = [](Server *serv, DataHead *ev) {
+    serv.onConnect = [&ac](Server *serv, DataHead *ev) {
+        DEBUG() << "server onConnect\n";
         swoole_event_defer(
-            [serv](void *) {
+            [serv, &ac](void *) {
+                DEBUG() << "clean_worker_connections\n";
                 serv->clean_worker_connections(sw_worker());
-                sw_reactor()->running = false;
+                DEBUG() << "client shutdown\n";
+                ac.get_client()->shutdown();
+                serv->stop_async_worker(sw_worker());
             },
             nullptr);
     };
 
-    serv.onReceive = [counter](Server *serv, RecvData *req) {
+    serv.onReceive = [](Server *serv, RecvData *req) {
         serv->send(req->info.fd, "OK", 2);
-        sw_atomic_fetch_add(&counter[0], 1);
+        test::counter_incr(0, 1);
+        DEBUG() << "server onReceive\n";
         return SW_OK;
     };
 
-    serv.onClose = [counter](Server *serv, DataHead *ev) { sw_atomic_fetch_add(&counter[2], 1); };
+    serv.onClose = [](Server *serv, DataHead *ev) { test::counter_incr(2, 1); };
 
-    serv.onWorkerStart = [counter](Server *serv, Worker *worker) {
+    serv.onWorkerStart = [](Server *serv, Worker *worker) {
         ASSERT_EQ(serv->get_connection_num(), 0);
-        sw_atomic_fetch_add(&counter[1], 1);
+        DEBUG() << "worker#" << worker->id << " start\n";
+        if (test::counter_incr(1, 1) == 3) {
+            swoole_timer_after(100, [serv](TIMER_PARAMS) {
+                DEBUG() << "server shutdown\n";
+                serv->shutdown();
+            });
+        }
     };
 
-    serv.onStart = [port, &ac, counter](Server *_serv) {
-        swoole_timer_after(50, [port, _serv, &ac, counter](TIMER_PARAMS) {
+    serv.onWorkerStop = [](Server *serv, Worker *worker) { DEBUG() << "worker#" << worker->id << " stop\n"; };
+
+    serv.onStart = [port, &ac](Server *_serv) {
+        DEBUG() << "server is started\n";
+        swoole_timer_after(100, [port, _serv, &ac](TIMER_PARAMS) {
             ac.on_connect([&](AsyncClient *ac) { ac->send(SW_STRL(TEST_STR)); });
 
-            ac.on_close(
-                [_serv](AsyncClient *ac) { swoole_timer_after(50, [_serv](TIMER_PARAMS) { _serv->shutdown(); }); });
+            ac.on_close([_serv](AsyncClient *ac) {
+                DEBUG() << "client onClose\n";
+            });
 
-            ac.on_error([](AsyncClient *ac) {});
+            ac.on_error([](AsyncClient *ac) { swoole_warning("connect failed, error=%d", swoole_get_last_error()); });
 
-            ac.on_receive(
-                [counter](AsyncClient *ac, const char *data, size_t len) { sw_atomic_fetch_add(&counter[3], 1); });
+            ac.on_receive([](AsyncClient *ac, const char *data, size_t len) {
+                DEBUG() << "received\n";
+                test::counter_incr(3, 1);
+            });
 
             bool retval = ac.connect(TEST_HOST, port->get_port());
             EXPECT_TRUE(retval);
+            DEBUG() << "client is connected\n";
         });
     };
 
     ASSERT_EQ(serv.start(), SW_OK);
-    ASSERT_EQ(counter[0], 0);  // Server on_receive
-    ASSERT_EQ(counter[1], 3);  // worker start
-    ASSERT_EQ(counter[2], 1);  // Server on_close
-    ASSERT_EQ(counter[3], 0);  // Client on_receive
+    ASSERT_EQ(test::counter_get(0), 0); // Server on_receive
+    ASSERT_EQ(test::counter_get(1), 3); // worker start
+    ASSERT_EQ(test::counter_get(2), 1); // Server on_close
+    ASSERT_EQ(test::counter_get(3), 0); // Client on_receive
 }
 
 TEST(server, clean_worker_1) {
@@ -2301,7 +2318,8 @@ static void test_kill_worker(Server::Mode mode, bool wait_reactor = true) {
     Server serv(mode);
     serv.worker_num = 2;
 
-    int *counter = (int *) sw_mem_pool()->alloc(sizeof(int) * 6);
+    test::counter_init();
+    int *counter = test::counter_ptr();
 
     swoole::Mutex lock(swoole::Mutex::PROCESS_SHARED);
     lock.lock();

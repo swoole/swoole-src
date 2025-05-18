@@ -359,7 +359,7 @@ bool Server::kill_worker(int worker_id, bool wait_reactor) {
         return send_to_worker_from_worker(get_worker(worker_id), &event, sizeof(event), SW_PIPE_MASTER) != -1;
     }
 
-    if (current_worker && worker_id == current_worker->id && !wait_reactor) {
+    if (current_worker && (WorkerId) worker_id == current_worker->id && !wait_reactor) {
         if (swoole_event_is_available()) {
             swoole_event_defer([](void *data) { sw_reactor()->running = false; }, nullptr);
         }

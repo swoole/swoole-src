@@ -25,9 +25,200 @@
 using namespace swoole;
 using namespace std;
 
-constexpr int PKG_N = 32;
-constexpr int MAX_SIZE = 128000;
+constexpr int PKG_N = 128;
+constexpr int MAX_SIZE = 1 * 1024 * 1024 + 65536;
 constexpr int MIN_SIZE = 512;
+
+static void test_protocol(Server &serv, ListenPort *port, String *pkgs) {
+    mutex lock;
+    lock.lock();
+    serv.create();
+
+    String wbuf;
+
+    for (int i = 0; i < PKG_N; i++) {
+        wbuf.append(pkgs[i]);
+    }
+
+    DEBUG() << "data total length: " << wbuf.length << "\n";
+
+    thread t1([&]() {
+        swoole_signal_block_all();
+        lock.lock();
+
+        network::Client cli(SW_SOCK_TCP, false);
+        EXPECT_EQ(cli.connect(TEST_HOST, port->port, 1, 0), 0);
+
+        off_t offset = 0;
+        while (offset < (off_t) wbuf.length) {
+            auto n = wbuf.length - offset > 65536 ? swoole_random_int() % 65536 + 1 : wbuf.length - offset;
+            ASSERT_EQ(cli.send(wbuf.str + offset, n), n);
+            offset += n;
+        }
+
+        usleep(100000);
+    });
+
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock.unlock(); };
+
+    int recv_count = 0;
+
+    serv.onReceive = [&](Server *serv, RecvData *req) -> int {
+        EXPECT_EQ(memcmp(req->data, pkgs[recv_count].str, req->info.len), 0);
+        recv_count++;
+        if (recv_count == PKG_N) {
+            usleep(100000);
+            serv->shutdown();
+        }
+        return SW_OK;
+    };
+
+    serv.start();
+
+    t1.join();
+}
+
+TEST(protocol, length) {
+    Server serv(Server::MODE_BASE);
+    serv.worker_num = 1;
+
+    String pkgs[PKG_N];
+
+    for (int i = 0; i < PKG_N; i++) {
+        auto pkt_len = swoole_rand(MIN_SIZE, MAX_SIZE);
+        auto pkt_len_net = htonl(pkt_len);
+        pkgs[i].append((char *) &pkt_len_net, sizeof(pkt_len_net));
+        pkgs[i].append_random_bytes(pkt_len, false);
+    }
+
+    sw_logger()->set_level(SW_LOG_WARNING);
+
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_TRUE(port);
+    port->set_stream_protocol();
+
+    test_protocol(serv, port, pkgs);
+}
+
+TEST(protocol, length_2) {
+    Server serv(Server::MODE_BASE);
+    serv.worker_num = 1;
+
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_TRUE(port);
+    port->set_stream_protocol();
+
+    mutex lock;
+    lock.lock();
+    serv.create();
+
+    thread t1([&]() {
+        swoole_signal_block_all();
+        lock.lock();
+        char rbuf[32];
+        usleep(50000);
+
+        //  测试分多次发送长度
+        {
+            network::Client cli(SW_SOCK_TCP, false);
+            EXPECT_EQ(cli.connect(TEST_HOST, port->port, 1, 0), 0);
+
+            String wbuf;
+
+            auto pkt_len = swoole_rand(MIN_SIZE, MAX_SIZE);
+            auto pkt_len_net = htonl(pkt_len);
+            wbuf.append((char *) &pkt_len_net, sizeof(pkt_len_net));
+            wbuf.append_random_bytes(pkt_len, false);
+
+            ASSERT_EQ(cli.send(wbuf.str, 2), 2);
+            usleep(10);
+            ASSERT_EQ(cli.send(wbuf.str + 2, 4), 4);
+            usleep(10);
+            ASSERT_EQ(cli.send(wbuf.str + 2, wbuf.length - 6), wbuf.length - 6);
+
+            ASSERT_EQ(cli.recv(rbuf, sizeof(rbuf), 0), 3);
+            ASSERT_STREQ(rbuf, "OK");
+        }
+
+        //  发送 0 长度的包
+        {
+            network::Client cli(SW_SOCK_TCP, false);
+            EXPECT_EQ(cli.connect(TEST_HOST, port->port, 1, 0), 0);
+
+            auto pkt_len = 0;
+            auto pkt_len_net = htonl(pkt_len);
+
+            ASSERT_EQ(cli.send((char *) &pkt_len_net, sizeof(pkt_len)), sizeof(pkt_len));
+            ASSERT_EQ(cli.recv(rbuf, sizeof(rbuf), 0), 3);
+            ASSERT_STREQ(rbuf, "OK");
+        }
+
+        //  发送 INT_MAX 长度的包
+        {
+            network::Client cli(SW_SOCK_TCP, false);
+            EXPECT_EQ(cli.connect(TEST_HOST, port->port, 1, 0), 0);
+
+            auto pkt_len = INT_MAX;
+            auto pkt_len_net = htonl(pkt_len);
+
+            ASSERT_EQ(cli.send((char *) &pkt_len_net, sizeof(pkt_len)), sizeof(pkt_len));
+            ASSERT_EQ(cli.recv(rbuf, sizeof(rbuf), 0), 0);
+        }
+        usleep(50000);
+        serv.shutdown();
+    });
+
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock.unlock(); };
+
+    serv.onReceive = [&](Server *serv, RecvData *req) -> int {
+        serv->send(req->session_id(), SW_STRL("OK\0"));
+        return SW_OK;
+    };
+
+    serv.start();
+    t1.join();
+}
+
+TEST(protocol, length_3) {
+    Server serv(Server::MODE_BASE);
+    serv.worker_num = 1;
+
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_TRUE(port);
+    port->set_length_protocol(0, 'l', 4);
+
+    mutex lock;
+    lock.lock();
+    serv.create();
+
+    thread t1([&]() {
+        swoole_signal_block_all();
+        lock.lock();
+        char rbuf[32];
+        usleep(50000);
+
+        network::Client cli(SW_SOCK_TCP, false);
+        EXPECT_EQ(cli.connect(TEST_HOST, port->port, 1, 0), 0);
+
+        auto pkt_len = -1;
+
+        ASSERT_EQ(cli.send((char *) &pkt_len, sizeof(pkt_len)), sizeof(pkt_len));
+        ASSERT_EQ(cli.recv(rbuf, sizeof(rbuf), 0), 0);
+
+        usleep(50000);
+        serv.shutdown();
+    });
+
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock.unlock(); };
+
+    serv.onReceive = [&](Server *serv, RecvData *req) -> int {
+        serv->send(req->session_id(), SW_STRL("OK\0"));
+        return SW_OK;
+    };
+
+    serv.start();
+    t1.join();
+}
 
 TEST(protocol, eof) {
     Server serv(Server::MODE_BASE);
@@ -46,44 +237,7 @@ TEST(protocol, eof) {
     ASSERT_TRUE(port);
     port->set_eof_protocol("\r\n", false);
 
-    mutex lock;
-    lock.lock();
-    serv.create();
-
-    thread t1([&]() {
-        lock.lock();
-
-        network::Client cli(SW_SOCK_TCP, false);
-        EXPECT_EQ(cli.connect(TEST_HOST, port->port, 1, 0), 0);
-
-        for (int i = 0; i < PKG_N; i++) {
-            EXPECT_EQ(cli.send(pkgs[i].str, pkgs[i].length, 0), pkgs[i].length);
-        }
-    });
-
-    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock.unlock(); };
-
-    int recv_count = 0;
-
-    serv.onReceive = [&](Server *serv, RecvData *req) -> int {
-        //        printf("[1]LEN=%d, count=%d\n%s\n---------------------------------\n", req->info.len,  recv_count,
-        //        req->data); printf("[2]LEN=%d\n%s\n---------------------------------\n", pkgs[recv_count].length,
-        //        pkgs[recv_count].str);
-
-        EXPECT_EQ(memcmp(req->data, pkgs[recv_count].str, req->info.len), 0);
-
-        recv_count++;
-
-        if (recv_count == PKG_N) {
-            kill(serv->get_master_pid(), SIGTERM);
-        }
-
-        return SW_OK;
-    };
-
-    serv.start();
-
-    t1.join();
+    test_protocol(serv, port, pkgs);
 }
 
 TEST(protocol, socks5_strerror) {
