@@ -60,7 +60,7 @@
 #define ASSERT_ERREQ(x) ASSERT_EQ(swoole_get_last_error(), x)
 #define EXPECT_ERREQ(x) EXPECT_EQ(swoole_get_last_error(), x)
 
-#define TIMER_PARAMS Timer *timer, TimerNode *tnode
+#define TIMER_PARAMS swoole::Timer *timer, swoole::TimerNode *tnode
 
 #ifdef SW_VERBOSE
 #define DEBUG() std::cout

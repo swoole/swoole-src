@@ -59,3 +59,39 @@ TEST(coroutine_async, error) {
         ASSERT_EQ(errno, ENOENT);
     });
 }
+
+TEST(coroutine_async, cancel) {
+    coroutine::run([](void *arg) {
+        AsyncEvent ev = {};
+        auto co = swoole::Coroutine::get_current();
+        swoole_timer_after(50, [co](TIMER_PARAMS) { co->cancel(); });
+
+        bool retval = swoole::coroutine::async(
+            [](AsyncEvent *event) {
+                usleep(200000);
+                event->retval = magic_code;
+            },
+            ev);
+
+        ASSERT_EQ(retval, false);
+        ASSERT_EQ(ev.error, SW_ERROR_CO_CANCELED);
+        DEBUG() << "done\n";
+    });
+}
+
+TEST(coroutine_async, timeout) {
+    coroutine::run([](void *arg) {
+        AsyncEvent ev = {};
+
+        bool retval = swoole::coroutine::async(
+            [](AsyncEvent *event) {
+                usleep(200000);
+                event->retval = magic_code;
+            },
+            ev, 0.1);
+
+        ASSERT_EQ(retval, false);
+        ASSERT_EQ(ev.error, SW_ERROR_CO_TIMEDOUT);
+        DEBUG() << "done\n";
+    });
+}
