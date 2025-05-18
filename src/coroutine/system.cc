@@ -30,7 +30,7 @@ namespace coroutine {
 static struct {
     size_t capacity;
     time_t expire;
-    LRUCache *data;
+    LRUCache<std::string> *data;
     size_t miss_count;
     size_t hit_count;
 } dns_cache = {
@@ -182,7 +182,7 @@ std::string gethostbyname_impl_with_async(const std::string &hostname, int domai
 
 std::string System::gethostbyname(const std::string &hostname, int domain, double timeout) {
     if (dns_cache.data == nullptr && dns_cache.capacity != 0) {
-        dns_cache.data = new LRUCache(dns_cache.capacity);
+        dns_cache.data = new LRUCache<std::string>(dns_cache.capacity);
     }
 
     std::string cache_key;
