@@ -1,11 +1,12 @@
 #include "test_core.h"
-
+#include "swoole_memory.h"
 #include "swoole_proxy.h"
 
 using namespace swoole;
 using namespace std;
 
 static string root_path;
+static int *test_counter;
 
 static void init_root_path(const char *);
 
@@ -25,6 +26,8 @@ int main(int argc, char **argv) {
     if (getenv("VERBOSE") != nullptr && std::string(getenv("VERBOSE")) == "0") {
         swoole_set_log_level(SW_LOG_INFO);
     }
+
+    test_counter = (int *) sw_mem_pool()->alloc(sizeof(int) * TEST_COUNTER_NUM);
 
     ::testing::InitGoogleTest(&argc, argv);
     int retval = RUN_ALL_TESTS();
@@ -55,6 +58,29 @@ static void init_root_path(const char *_exec_file) {
 namespace swoole {
 namespace test {
 NullStream null_stream;
+void counter_init() {
+    sw_memset_zero(test_counter, sizeof(int) * TEST_COUNTER_NUM);
+}
+
+int *counter_ptr() {
+    return test_counter;
+}
+
+int counter_incr(int index, int add) {
+    return sw_atomic_add_fetch(&test_counter[index], add);
+}
+
+int counter_get(int index) {
+    return test_counter[index];
+}
+
+void counter_set(int index, int value) {
+    test_counter[index] = value;
+}
+
+void counter_incr_and_put_log(int index, const char *msg) {
+    DEBUG() << "PID: " << getpid() << ", VALUE: " << counter_incr(index) << "; " << msg << std::endl;
+}
 
 const string &get_root_path() {
     return root_path;

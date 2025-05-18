@@ -1301,7 +1301,9 @@ int Socket::ssl_get_peer_certificate(char *buffer, size_t length) {
 
 const char *Socket::ssl_get_error_reason(int *reason) {
     ulong_t error = ERR_get_error();
-    *reason = ERR_GET_REASON(error);
+    if (reason) {
+        *reason = ERR_GET_REASON(error);
+    }
     return ERR_reason_error_string(error);
 }
 

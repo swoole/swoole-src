@@ -2244,8 +2244,10 @@ static void test_clean_worker(Server::Mode mode) {
     ASSERT_EQ(serv.create(), SW_OK);
 
     serv.onConnect = [](Server *serv, DataHead *ev) {
+        DEBUG() << "server onConnect\n";
         swoole_event_defer(
             [serv](void *) {
+                DEBUG() << "clean_worker_connections\n";
                 serv->clean_worker_connections(sw_worker());
                 sw_reactor()->running = false;
             },
@@ -2266,20 +2268,25 @@ static void test_clean_worker(Server::Mode mode) {
     };
 
     serv.onStart = [port, &ac, counter](Server *_serv) {
+        DEBUG() << "server is started\n";
         swoole_timer_after(100, [port, _serv, &ac, counter](TIMER_PARAMS) {
             ac.on_connect([&](AsyncClient *ac) { ac->send(SW_STRL(TEST_STR)); });
 
             ac.on_close([_serv](AsyncClient *ac) {
+                DEBUG() << "client onClose\n";
                 swoole_timer_after(100, [_serv, ac](TIMER_PARAMS) { _serv->shutdown(); });
             });
 
-            ac.on_error([](AsyncClient *ac) {});
+            ac.on_error([](AsyncClient *ac) { swoole_warning("connect failed, error=%d", swoole_get_last_error()); });
 
-            ac.on_receive(
-                [counter](AsyncClient *ac, const char *data, size_t len) { sw_atomic_fetch_add(&counter[3], 1); });
+            ac.on_receive([counter](AsyncClient *ac, const char *data, size_t len) {
+                DEBUG() << "received\n";
+                sw_atomic_fetch_add(&counter[3], 1);
+            });
 
             bool retval = ac.connect(TEST_HOST, port->get_port());
             EXPECT_TRUE(retval);
+            DEBUG() << "client is connected\n";
         });
     };
 
@@ -2302,7 +2309,8 @@ static void test_kill_worker(Server::Mode mode, bool wait_reactor = true) {
     Server serv(mode);
     serv.worker_num = 2;
 
-    int *counter = (int *) sw_mem_pool()->alloc(sizeof(int) * 6);
+    test::counter_init();
+    int *counter = test::counter_ptr();
 
     swoole::Mutex lock(swoole::Mutex::PROCESS_SHARED);
     lock.lock();

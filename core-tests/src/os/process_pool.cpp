@@ -71,21 +71,6 @@ static void test_func_stream_protocol(ProcessPool &pool) {
     test_func(pool);
 }
 
-static int test_incr_shm_value(ProcessPool *pool) {
-    auto shm_value = static_cast<int *>(pool->ptr);
-    return sw_atomic_add_fetch(shm_value, 1);
-}
-
-static MAYBE_UNUSED int test_get_shm_value(ProcessPool *pool) {
-    auto shm_value = static_cast<int *>(pool->ptr);
-    return *shm_value;
-}
-
-static void test_set_shm_value(ProcessPool *pool, int value) {
-    auto shm_value = static_cast<int *>(pool->ptr);
-    *shm_value = value;
-}
-
 TEST(process_pool, tcp) {
     ProcessPool pool{};
     int svr_port = swoole::test::get_random_port();
@@ -210,16 +195,15 @@ TEST(process_pool, shutdown) {
 
 TEST(process_pool, reload) {
     ProcessPool pool{};
-    int *shm_value = (int *) sw_mem_pool()->alloc(sizeof(int));
+    test::counter_init();
     ASSERT_EQ(pool.create(2), SW_OK);
 
     // init
     pool.set_max_packet_size(8192);
-    pool.ptr = shm_value;
     pool.max_wait_time = 1;
 
     pool.onWorkerStart = [](ProcessPool *pool, Worker *worker) {
-        test_incr_shm_value(pool);
+        test::counter_incr(0);
 
         sysv_signal(SIGTERM, SIG_IGN);
 
@@ -245,7 +229,7 @@ TEST(process_pool, reload) {
 
     pool.destroy();
 
-    ASSERT_EQ(*shm_value, 4);
+    ASSERT_EQ(test::counter_get(0), 4);
 
     sysv_signal(SIGTERM, SIG_DFL);
 }
@@ -257,9 +241,8 @@ static void test_async_pool() {
     // init
     pool.set_max_packet_size(8192);
     pool.set_protocol(SW_PROTOCOL_TASK);
-    int *shm_value = (int *) sw_mem_pool()->alloc(sizeof(int));
-    pool.ptr = shm_value;
     pool.async = true;
+    test::counter_init();
 
     pool.onStart = [](ProcessPool *pool) {
         current_pool = pool;
@@ -267,13 +250,13 @@ static void test_async_pool() {
     };
 
     pool.onWorkerStart = [](ProcessPool *pool, Worker *worker) {
-        test_set_shm_value(pool, magic_number);
+        test::counter_set(0, magic_number);
         current_worker = worker;
         current_pool = pool;
         sysv_signal(SIGTERM, [](int sig) { current_pool->running = false; });
 
         swoole_signal_set(SIGTERM, [](int sig) {
-            DEBUG() << "value: " << test_incr_shm_value(current_pool) << "; "
+            DEBUG() << "value: " << test::counter_incr(0) << "; "
                     << "SIGTERM, stop worker\n";
             current_pool->stop(current_worker);
         });
@@ -282,7 +265,7 @@ static void test_async_pool() {
     };
 
     pool.onMessage = [](ProcessPool *pool, RecvData *msg) {
-        DEBUG() << "value: " << test_incr_shm_value(current_pool) << "; "
+        DEBUG() << "value: " << test::counter_incr(0) << "; "
                 << "onMessage, kill\n";
         kill(pool->master_pid, SIGTERM);
     };
@@ -301,7 +284,7 @@ static void test_async_pool() {
 
     pool.destroy();
 
-    ASSERT_EQ(*shm_value, magic_number + 2);
+    ASSERT_EQ(test::counter_get(0), magic_number + 2);
 
     swoole_signal_clear();
     sysv_signal(SIGTERM, SIG_DFL);
@@ -310,10 +293,6 @@ static void test_async_pool() {
 TEST(process_pool, async) {
     test_async_pool();
     // ASSERT_EQ(test::spawn_exec_and_wait([]() { test_async_pool(); }), 0);
-}
-
-static void test_shm_value_incr_and_put_log(ProcessPool *pool, const char *msg) {
-    DEBUG() << "PID: " << getpid() << ", VALUE: " << test_incr_shm_value(pool) << "; " << msg << std::endl;
 }
 
 static void test_async_pool_with_mb() {
@@ -329,19 +308,17 @@ static void test_async_pool_with_mb() {
     // init
     pool.set_max_packet_size(8192);
     pool.set_protocol(SW_PROTOCOL_TASK);
-    auto shm_value = (int *) sw_mem_pool()->alloc(sizeof(int));
-    *shm_value = 0;
-    pool.ptr = shm_value;
+    test::counter_init();
     pool.async = true;
 
     pool.onWorkerStart = [](ProcessPool *pool, Worker *worker) {
         current_worker = worker;
         current_pool = pool;
 
-        test_shm_value_incr_and_put_log(pool, "onWorkerStart");
+        test::counter_incr_and_put_log(0, "onWorkerStart");
 
         swoole_signal_set(SIGTERM, [](int sig) {
-            test_shm_value_incr_and_put_log(current_pool, "SIGTERM, stop worker");
+            test::counter_incr_and_put_log(0, "SIGTERM, stop worker");
             current_pool->stop(sw_worker());
         });
 
@@ -352,19 +329,17 @@ static void test_async_pool_with_mb() {
         current_worker = worker;
         current_pool = pool;
 
-        test_shm_value_incr_and_put_log(pool, "onWorkerStop");
+        test::counter_incr_and_put_log(0, "onWorkerStop");
     };
 
-    pool.onWorkerExit = [](ProcessPool *pool, Worker *worker) {
-        test_shm_value_incr_and_put_log(pool, "onWorkerExit");
-    };
+    pool.onWorkerExit = [](ProcessPool *pool, Worker *worker) { test::counter_incr_and_put_log(0, "onWorkerExit"); };
 
     pool.onStart = [](ProcessPool *pool) {
         current_pool = pool;
         swoole_signal_set(SIGTERM, [](int sig) { current_pool->running = false; });
         swoole_signal_set(SIGIO, [](int sig) { current_pool->read_message = true; });
 
-        test_shm_value_incr_and_put_log(pool, "onStart");
+        test::counter_incr_and_put_log(0, "onStart");
 
         swoole_timer_after(100, [pool](TIMER_PARAMS) {
             pool->send_message(0, SW_STRL("detach"));
@@ -373,16 +348,16 @@ static void test_async_pool_with_mb() {
         });
     };
 
-    pool.onShutdown = [](ProcessPool *pool) { test_shm_value_incr_and_put_log(pool, "onShutdown"); };
+    pool.onShutdown = [](ProcessPool *pool) { test::counter_incr_and_put_log(0, "onShutdown"); };
 
     pool.onMessage = [](ProcessPool *pool, RecvData *msg) {
         auto req = std::string(msg->data, msg->info.len);
 
         if (req == "detach") {
-            test_shm_value_incr_and_put_log(pool, "onMessage, detach");
+            test::counter_incr_and_put_log(0, "onMessage, detach");
             ASSERT_TRUE(pool->detach());
         } else if ((req == "shutdown")) {
-            test_shm_value_incr_and_put_log(pool, "onMessage, shutdown");
+            test::counter_incr_and_put_log(0, "onMessage, shutdown");
             pool->shutdown();
         }
     };
@@ -394,7 +369,7 @@ static void test_async_pool_with_mb() {
 
     pool.destroy();
 
-    ASSERT_GE(*shm_value, 8);
+    ASSERT_GE(test::counter_get(0), 8);
 
     swoole_signal_clear();
     sysv_signal(SIGTERM, SIG_DFL);
