@@ -222,7 +222,9 @@ class Coroutine {
         return sw_likely(co) ? co->get_execute_usec() : -1;
     }
 
+#ifdef SW_CORO_TIME
     static void calc_execute_usec(Coroutine *yield_coroutine, Coroutine *resume_coroutine);
+#endif
     static void print_list();
 
   protected:

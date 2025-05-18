@@ -59,13 +59,7 @@ void Coroutine::deactivate() {
     };
 }
 
-bool Coroutine::run(const CoroutineFunc &fn, void *args) {
-    swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
-    long cid = create(fn, args);
-    swoole_event_wait();
-    return cid > 0;
-}
-
+#ifdef SW_CORO_TIME
 void Coroutine::calc_execute_usec(Coroutine *yield_coroutine, Coroutine *resume_coroutine) {
     long current_usec = time<seconds_type>(true);
     if (yield_coroutine) {
@@ -76,6 +70,7 @@ void Coroutine::calc_execute_usec(Coroutine *yield_coroutine, Coroutine *resume_
         resume_coroutine->switch_usec = current_usec;
     }
 }
+#endif
 
 Coroutine::Coroutine(const CoroutineFunc &fn, void *private_data) : ctx(stack_size, fn, private_data) {
     cid = ++last_cid;

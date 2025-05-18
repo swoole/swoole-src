@@ -88,7 +88,8 @@ TEST(coroutine_async, timeout) {
                 usleep(200000);
                 event->retval = magic_code;
             },
-            ev, 0.1);
+            ev,
+            0.1);
 
         ASSERT_EQ(retval, false);
         ASSERT_EQ(ev.error, SW_ERROR_CO_TIMEDOUT);

@@ -352,7 +352,7 @@ TEST(base, spinlock) {
         SW_LOOP_N(n) {
             sw_spinlock((sw_atomic_t *) &counter[0]);
             counter[1]++;
-            if (swoole_random_int() % 100 == 0) {
+            if (i % 100 == 0) {
                 usleep(5);
             }
             sw_spinlock_release((sw_atomic_t *) &counter[0]);

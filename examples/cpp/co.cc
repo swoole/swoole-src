@@ -19,7 +19,7 @@ size_t qs;
 int main(int argc, char **argv) {
     signal(SIGPIPE, SIG_IGN);
 
-    Coroutine::run([](void *arg) {
+    swoole::coroutine::run([](void *arg) {
         Coroutine::create([](void *arg) {
             System::sleep(2.0);
             cout << "CO-1, sleep 2\n";
