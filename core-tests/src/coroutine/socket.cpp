@@ -1526,3 +1526,17 @@ TEST(coroutine_socket, shutdown) {
         ASSERT_ERREQ(ENOTCONN);
     });
 }
+
+TEST(coroutine_socket, recv_packet) {
+    coroutine::run([](void *arg) {
+        Socket sock(SW_SOCK_TCP);
+        ASSERT_TRUE(sock.connect(TEST_HTTP_DOMAIN, 80));
+        auto req = swoole::test::http_get_request(TEST_HTTP_DOMAIN, "/");
+        ASSERT_EQ(sock.send(req.c_str(), req.length()), req.length());
+        ASSERT_TRUE(sock.check_liveness());
+        auto n = sock.recv_packet();
+        ASSERT_GT(n, 0);
+        auto buf = sock.get_read_buffer();
+        ASSERT_TRUE(buf->contains(TEST_HTTP_EXPECT));
+    });
+}

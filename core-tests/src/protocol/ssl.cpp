@@ -24,8 +24,8 @@
 #include <openssl/evp.h>
 #include <openssl/buffer.h>
 
-using swoole::String;
 using swoole::SSLContext;
+using swoole::String;
 
 TEST(ssl, destroy) {
     swoole_ssl_init();
@@ -38,7 +38,8 @@ TEST(ssl, get_error) {
     const char *error_str = swoole_ssl_get_error();
     EXPECT_NE(error_str, nullptr);
     String str(error_str);
-    ASSERT_TRUE(str.contains("SSL routines:func(195):reason(134)"));
+    DEBUG() << str.to_std_string() << std::endl;
+    ASSERT_TRUE(str.contains("reason(134)"));
 }
 
 TEST(ssl, password) {

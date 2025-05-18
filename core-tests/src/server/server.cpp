@@ -1941,7 +1941,7 @@ TEST(server, reactor_thread_pipe_writable) {
     port->protocol.package_max_length = 8 * 1024 * 1024;
     network::Stream::set_protocol(&port->protocol);
 
-    swoole::Mutex lock(swoole::Mutex::PROCESS_SHARED);
+    Mutex lock(Mutex::PROCESS_SHARED);
     lock.lock();
 
     ASSERT_EQ(serv.create(), SW_OK);
@@ -1986,8 +1986,11 @@ TEST(server, reactor_thread_pipe_writable) {
 
     serv.onReceive = [&](Server *serv, RecvData *req) -> int {
         uint32_t len = htonl(rdata.length);
-        serv->send(req->info.fd, &len, sizeof(len));
-        serv->send(req->info.fd, rdata.str, rdata.length);
+        EXPECT_TRUE(req->info.flags & SW_EVENT_DATA_OBJ_PTR);
+        EXPECT_TRUE(serv->send(req->info.fd, &len, sizeof(len)));
+        EXPECT_TRUE(serv->send(req->info.fd, rdata.str, rdata.length));
+        EXPECT_MEMEQ(req->data + 4, rdata.str, rdata.length);
+        EXPECT_NE(serv->get_worker_message_bus()->move_packet(), nullptr);
         return SW_OK;
     };
 
