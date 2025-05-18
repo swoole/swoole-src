@@ -22,6 +22,14 @@
 #include "swoole_protocol.h"
 
 namespace swoole {
+#define proto_error(_sock, _error, _fmt, ...)                                                                          \
+    network::Address _remote_addr;                                                                                     \
+    if (_sock->get_peer_name(&_remote_addr) < 0) {                                                                     \
+        _remote_addr = _sock->info;                                                                                    \
+    }                                                                                                                  \
+    swoole_error_log(                                                                                                  \
+        SW_LOG_WARNING, _error, _fmt "<%s:%d>", ##__VA_ARGS__, _remote_addr.get_addr(), _remote_addr.get_port())
+
 /**
  * return the package total length
  */
@@ -46,11 +54,6 @@ ssize_t Protocol::default_length_func(const Protocol *protocol, network::Socket 
     // Length error
     // Protocol length is not legitimate, out of bounds or exceed the allocated length
     if (body_length < 0) {
-        swoole_warning("invalid package (size=%d) from socket#%u<%s:%d>",
-                       pl->buf_size,
-                       socket->fd,
-                       socket->get_addr(),
-                       socket->get_port());
         return SW_ERR;
     }
     swoole_debug("length=%d", protocol->package_body_offset + body_length);
@@ -184,12 +187,10 @@ _do_recv:
             package_length = get_package_length(this, socket, &pl);
             // invalid package, close connection.
             if (package_length < 0) {
-                swoole_error_log(SW_LOG_WARNING,
-                                 SW_ERROR_PACKAGE_MALFORMED_DATA,
-                                 "received %zu bytes of malformed data from the client[%s:%d]",
-                                 buffer->length,
-                                 socket->get_addr(),
-                                 socket->get_port());
+                proto_error(socket,
+                            SW_ERROR_PACKAGE_MALFORMED_DATA,
+                            "received %zu bytes of malformed data, remote_addr=",
+                            buffer->length);
                 return SW_ERR;
             }
             // no length
@@ -197,19 +198,17 @@ _do_recv:
                 if (buffer->length == recv_size) {
                     swoole_error_log(SW_LOG_WARNING,
                                      SW_ERROR_PACKAGE_LENGTH_NOT_FOUND,
-                                     "bad request, no length found in %zu bytes",
+                                     "bad request, no length found in %zu bytes, remote_addr=",
                                      buffer->length);
                     return SW_ERR;
                 } else {
                     return SW_OK;
                 }
             } else if (package_length > package_max_length) {
-                swoole_error_log(SW_LOG_WARNING,
-                                 SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
-                                 "package is too big, remote_addr=%s:%d, length=%zu",
-                                 socket->get_addr(),
-                                 socket->get_port(),
-                                 package_length);
+                proto_error(socket,
+                            SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
+                            "the received packet length %ld is too large, remote_addr=",
+                            package_length);
                 return SW_ERR;
             }
             // get length success
@@ -300,7 +299,10 @@ _recv_data:
 
         // over max length, will discard
         if (buffer->length == package_max_length) {
-            swoole_warning("Package is too big. package_length=%d", (int) buffer->length);
+            proto_error(socket,
+                        SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
+                        "The received data packet is too large, length=%lu",
+                        (ulong_t) buffer->length);
             return SW_ERR;
         }
 

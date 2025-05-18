@@ -321,20 +321,9 @@ struct ListenPort {
         return network::Socket::is_stream(type);
     }
 
-    void set_eof_protocol(const std::string &eof, bool find_from_right = false) {
-        open_eof_check = true;
-        protocol.split_by_eof = !find_from_right;
-        protocol.package_eof_len = std::min(eof.length(), sizeof(protocol.package_eof));
-        memcpy(protocol.package_eof, eof.c_str(), protocol.package_eof_len);
-    }
-
-    void set_length_protocol(uint32_t length_offset, char length_type, uint32_t body_offset) {
-        open_length_check = true;
-        protocol.package_length_type = length_type;
-        protocol.package_length_size = swoole_type_size(length_type);
-        protocol.package_length_offset = length_offset;
-        protocol.package_body_offset = body_offset;
-    }
+    void set_eof_protocol(const std::string &eof, bool find_from_right = false);
+    void set_length_protocol(uint32_t length_offset, char length_type, uint32_t body_offset);
+    void set_stream_protocol();
 
     void set_package_max_length(uint32_t max_length) {
         protocol.package_max_length = max_length;

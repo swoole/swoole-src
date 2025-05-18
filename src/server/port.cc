@@ -18,6 +18,7 @@
 #include "swoole_http.h"
 #include "swoole_http2.h"
 #include "swoole_websocket.h"
+#include "swoole_client.h"
 #include "swoole_mqtt.h"
 #include "swoole_redis.h"
 
@@ -285,6 +286,26 @@ void ListenPort::init_protocol() {
     } else {
         onRead = readable_callback_raw;
     }
+}
+
+void ListenPort::set_eof_protocol(const std::string &eof, bool find_from_right) {
+    open_eof_check = true;
+    protocol.split_by_eof = !find_from_right;
+    protocol.package_eof_len = std::min(eof.length(), sizeof(protocol.package_eof));
+    memcpy(protocol.package_eof, eof.c_str(), protocol.package_eof_len);
+}
+
+void ListenPort::set_length_protocol(uint32_t length_offset, char length_type, uint32_t body_offset) {
+    open_length_check = true;
+    protocol.package_length_type = length_type;
+    protocol.package_length_size = swoole_type_size(length_type);
+    protocol.package_length_offset = length_offset;
+    protocol.package_body_offset = body_offset;
+}
+
+void ListenPort::set_stream_protocol() {
+    open_length_check = true;
+    network::Stream::set_protocol(&protocol);
 }
 
 /**

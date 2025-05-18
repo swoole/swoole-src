@@ -147,9 +147,9 @@ namespace swoole {
 #define HTTP2_H2_14_ALPN "\x05h2-14"
 #define HTTP1_NPN "\x08http/1.1"
 
-#define ssl_error(str, ...)                                                                                            \
+#define ssl_error(_fmt, ...)                                                                                           \
     long _ssl_error = ERR_get_error();                                                                                 \
-    swoole_warning(str ", Error: %s[%ld]", ##__VA_ARGS__, ERR_reason_error_string(_ssl_error), _ssl_error);
+    swoole_warning(_fmt ", Error: %s[%ld]", ##__VA_ARGS__, ERR_reason_error_string(_ssl_error), _ssl_error);
 
 #ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
 static int ssl_alpn_advertised(SSL *ssl, const uchar **out, uchar *outlen, const uchar *in, uint32_t inlen, void *arg) {
