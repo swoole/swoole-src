@@ -771,6 +771,6 @@ TEST(client, ssl) {
     sw_tg_buffer()->length = rv;
     sw_tg_buffer()->set_null_terminated();
 
-    ASSERT_TRUE(sw_tg_buffer()->contains("中华人民共和国"));
+    ASSERT_TRUE(sw_tg_buffer()->contains(TEST_HTTPS_EXPECT));
 }
 #endif

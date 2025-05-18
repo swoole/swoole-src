@@ -1371,7 +1371,7 @@ TEST(coroutine_socket, sendmsg_and_recvmsg) {
     });
 }
 
-std::pair<std::shared_ptr<Socket>, std::shared_ptr<Socket>> create_socket_pair() {
+std::pair<std::shared_ptr<Socket>, std::shared_ptr<Socket> > create_socket_pair() {
     int pairs[2];
     socketpair(AF_UNIX, SOCK_STREAM, 0, pairs);
 
@@ -1381,7 +1381,7 @@ std::pair<std::shared_ptr<Socket>, std::shared_ptr<Socket>> create_socket_pair()
     sock0->get_socket()->set_buffer_size(65536);
     sock1->get_socket()->set_buffer_size(65536);
 
-    std::pair<std::shared_ptr<Socket>, std::shared_ptr<Socket>> result(sock0, sock1);
+    std::pair<std::shared_ptr<Socket>, std::shared_ptr<Socket> > result(sock0, sock1);
     return result;
 }
 
@@ -1477,4 +1477,52 @@ TEST(coroutine_socket, option) {
 
     optval *= 2;
     ASSERT_TRUE(sock.set_option(SOL_SOCKET, SO_RCVBUF, optval));
+}
+
+static void test_ssl_verify() {
+    Socket sock(SW_SOCK_TCP);
+    sock.enable_ssl_encrypt();
+    sock.set_tls_host_name(TEST_HTTP_DOMAIN);
+    sock.set_ssl_verify_peer(true);
+    ASSERT_TRUE(sock.connect(TEST_HTTP_DOMAIN, 443));
+    ASSERT_TRUE(sock.ssl_verify(false));
+
+    auto req = swoole::test::http_get_request(TEST_HTTP_DOMAIN, "/");
+    ASSERT_EQ(sock.send(req.c_str(), req.length()), req.length());
+    ASSERT_TRUE(sock.check_liveness());
+
+    String buf(65536);
+    SW_LOOP {
+        auto n = sock.recv(buf.str + buf.length, buf.size - buf.length);
+        if (n <= 0) {
+            break;
+        }
+        buf.grow(n);
+    }
+
+    ASSERT_TRUE(buf.contains(TEST_HTTPS_EXPECT));
+
+    usleep(50000);
+    ASSERT_FALSE(sock.check_liveness());
+}
+
+TEST(coroutine_socket, ssl_verify) {
+    coroutine::run([](void *arg) { test_ssl_verify(); });
+}
+
+TEST(coroutine_socket, shutdown) {
+    coroutine::run([](void *arg) {
+        Socket sock(SW_SOCK_TCP);
+        ASSERT_TRUE(sock.connect(TEST_HTTP_DOMAIN, 80));
+        ASSERT_TRUE(sock.shutdown(SHUT_RD));
+        ASSERT_FALSE(sock.shutdown(SHUT_RD));
+        ASSERT_ERREQ(ENOTCONN);
+
+        ASSERT_TRUE(sock.shutdown(SHUT_WR));
+        ASSERT_FALSE(sock.shutdown(SHUT_WR));
+        ASSERT_ERREQ(ENOTCONN);
+
+        ASSERT_FALSE(sock.shutdown());
+        ASSERT_ERREQ(ENOTCONN);
+    });
 }
