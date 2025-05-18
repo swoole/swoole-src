@@ -153,6 +153,11 @@ std::string swoole_thread_id_to_str(std::thread::id id) {
 }
 
 namespace swoole {
+GethostbynameRequest::GethostbynameRequest(std::string _name, int _family) : name(std::move(_name)), family(_family) {
+    addr_len = _family == AF_INET6 ? INET6_ADDRSTRLEN : INET_ADDRSTRLEN;
+    addr = std::unique_ptr<char[]>(new char[addr_len]);
+}
+
 GetaddrinfoRequest::GetaddrinfoRequest(
     std::string _hostname, int _family, int _socktype, int _protocol, std::string _service)
     : hostname(std::move(_hostname)), service(std::move(_service)) {

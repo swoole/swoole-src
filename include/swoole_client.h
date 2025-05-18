@@ -263,17 +263,9 @@ class Stream {
 
     int send(const char *data, size_t length);
     void set_max_length(uint32_t max_length);
-
-    static inline Stream *create(const char *dst_host, int dst_port, SocketType type) {
-        auto *stream = new Stream(dst_host, dst_port, type);
-        if (!stream->connected) {
-            delete stream;
-            return nullptr;
-        } else {
-            return stream;
-        }
-    }
     ~Stream();
+
+    static Stream *create(const char *dst_host, int dst_port, SocketType type);
     static ssize_t recv_sync(Socket *sock, void *_buf, size_t _len);
     static void set_protocol(Protocol *protocol);
 

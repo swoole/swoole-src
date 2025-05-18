@@ -829,8 +829,8 @@ int gethostbyname(GethostbynameRequest *req) {
         swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
         return SW_ERR;
     }
-    sw_memset_zero(req->addr, req->addr_len);
-    if (inet_ntop(req->family, addr, req->addr, req->addr_len) == nullptr) {
+    sw_memset_zero(req->addr.get(), req->addr_len);
+    if (inet_ntop(req->family, addr, req->addr.get(), req->addr_len) == nullptr) {
         swoole_set_last_error(SW_ERROR_BAD_HOST_ADDR);
         return SW_ERR;
     } else {

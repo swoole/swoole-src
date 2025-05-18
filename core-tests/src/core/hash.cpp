@@ -36,13 +36,13 @@ static void test_hash_func(uint64_t (*hash_fn)(const char *key, size_t len), int
 }
 
 TEST(hash, php) {
-    test_hash_func(swoole_hash_jenkins, 100);
+    test_hash_func(swoole_hash_jenkins, 2048);
 }
 
 TEST(hash, jenkins) {
-    test_hash_func(swoole_hash_jenkins, 100);
+    test_hash_func(swoole_hash_jenkins, 2048);
 }
 
 TEST(hash, austin) {
-    test_hash_func(swoole_hash_austin, 100);
+    test_hash_func(swoole_hash_austin, 2048);
 }

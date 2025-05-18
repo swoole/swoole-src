@@ -65,17 +65,11 @@ struct AsyncEvent {
 struct GethostbynameRequest : public AsyncRequest {
     std::string name;
     int family;
-    char *addr;
+    std::unique_ptr<char[]> addr;
     size_t addr_len;
 
-    GethostbynameRequest(std::string _name, int _family) : name(std::move(_name)), family(_family) {
-        addr_len = _family == AF_INET6 ? INET6_ADDRSTRLEN : INET_ADDRSTRLEN;
-        addr = new char[addr_len];
-    }
-
-    ~GethostbynameRequest() override {
-        delete[] addr;
-    }
+    GethostbynameRequest(std::string _name, int _family);
+    ~GethostbynameRequest() override = default;
 };
 
 struct GetaddrinfoRequest : public AsyncRequest {

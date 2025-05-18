@@ -1044,7 +1044,7 @@ static void Client_onResolveCompleted(AsyncEvent *event) {
     cli->wait_dns = false;
 
     if (event->error == 0) {
-        cli->connect(req->addr, cli->server_port, cli->timeout, 1);
+        cli->connect(req->addr.get(), cli->server_port, cli->timeout, 1);
     } else {
         swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
         cli->socket->removed = 1;

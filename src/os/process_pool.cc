@@ -829,7 +829,6 @@ Worker *ProcessPool::get_worker_by_pid(pid_t pid) {
     return iter->second;
 }
 
-
 void ProcessPool::set_type(int _type) {
     uint32_t i;
     type = _type;

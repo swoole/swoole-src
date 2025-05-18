@@ -207,13 +207,12 @@ class Table {
     }
 
     void clear_row(TableRow *row) {
-        for (auto & i : *column_list) {
+        for (auto &i : *column_list) {
             i->clear(row);
         }
     }
 
   private:
-
     TableRow *hash(const char *key, int keylen) {
         uint64_t hashv = hash_func(key, keylen);
         uint64_t index = hashv & mask;
