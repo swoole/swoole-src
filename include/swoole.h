@@ -853,28 +853,6 @@ SW_API std::string swoole_name_resolver_lookup(const std::string &host_name, swo
 SW_API int swoole_get_log_level();
 SW_API FILE *swoole_get_stdout_stream();
 
-//-----------------------------------------------
-static sw_inline void sw_spinlock(sw_atomic_t *lock) {
-    uint32_t i, n;
-    while (1) {
-        if (*lock == 0 && sw_atomic_cmp_set(lock, 0, 1)) {
-            return;
-        }
-        if (SW_CPU_NUM > 1) {
-            for (n = 1; n < SW_SPINLOCK_LOOP_N; n <<= 1) {
-                for (i = 0; i < n; i++) {
-                    sw_atomic_cpu_pause();
-                }
-
-                if (*lock == 0 && sw_atomic_cmp_set(lock, 0, 1)) {
-                    return;
-                }
-            }
-        }
-        sw_yield();
-    }
-}
-
 static sw_inline swoole::String *sw_tg_buffer() {
     return SwooleTG.buffer_stack;
 }
