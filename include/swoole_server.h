@@ -505,7 +505,7 @@ struct ServerGS {
     int max_fd;
     int min_fd;
 
-    bool called_onStart;
+    bool onstart_called;
     time_t start_time;
     sw_atomic_t connection_num;
     sw_atomic_t *connection_nums = nullptr;

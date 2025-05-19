@@ -234,8 +234,8 @@ int Server::reactor_process_main_loop(ProcessPool *pool, Worker *worker) {
 
     if (worker->id == 0) {
         serv->gs->master_pid = getpid();
-        if (serv->onStart && !serv->gs->called_onStart) {
-            serv->gs->called_onStart = true;
+        if (serv->onStart && !serv->gs->onstart_called) {
+            serv->gs->onstart_called = true;
             serv->onStart(serv);
         }
     }

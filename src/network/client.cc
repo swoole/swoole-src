@@ -632,32 +632,38 @@ static int Client_tcp_connect_async(Client *cli, const char *host, int port, dou
         return Client_dns_lookup(cli);
     }
 
-    while (1) {
+    do {
         ret = cli->socket->connect(cli->server_addr);
-        if (ret < 0) {
-            if (errno == EINTR) {
-                continue;
+        if (ret < 0 && errno == EINTR) {
+            continue;
+        }
+        if ((ret < 0 && errno == EINPROGRESS) || ret == 0) {
+            /**
+             * A return value of 0 indicates that the connection has been successfully established,
+             * and there is no need to add a timer to check for connection timeouts.
+             */
+            if (ret < 0 && timeout > 0) {
+                cli->timer = swoole_timer_add(timeout, false, Client_onTimeout, cli);
+                if (!cli->timer) {
+                    return SW_ERR;
+                }
             }
-            swoole_set_last_error(errno);
+            /**
+             * Regardless of whether the connection has been successfully established or is still in progress,
+             *  listen for writable events to handle the proxy and SSL handshake within those events.
+             */
+            if (swoole_event_add(cli->socket, SW_EVENT_WRITE) < 0) {
+                return SW_ERR;
+            }
         }
-        break;
-    }
+    } while (false);
 
-    if ((ret < 0 && errno == EINPROGRESS) || ret == 0) {
-        if (swoole_event_add(cli->socket, SW_EVENT_WRITE) < 0) {
-            return SW_ERR;
-        }
-        if (timeout > 0) {
-            cli->timer = swoole_timer_add(timeout, false, Client_onTimeout, cli);
-        }
-        return SW_OK;
-    } else {
-        cli->active = false;
-        cli->socket->removed = 1;
-        cli->close();
-        if (cli->onError) {
-            cli->onError(cli);
-        }
+    cli->active = false;
+    cli->socket->removed = 1;
+    cli->close();
+    if (cli->onError) {
+        cli->onerror_called = true;
+        cli->onError(cli);
     }
 
     return ret;
@@ -787,6 +793,7 @@ static int Client_udp_connect(Client *cli, const char *host, int port, double ti
         cli->socket->removed = 1;
         cli->close();
         if (cli->async && cli->onError) {
+            cli->onerror_called = true;
             cli->onError(cli);
         }
         return SW_ERR;
@@ -987,12 +994,21 @@ static void Client_onResolveCompleted(AsyncEvent *event) {
     cli->dns_completed = true;
 
     if (event->error == 0) {
-        cli->connect(req->addr.get(), cli->server_port, cli->timeout, cli->sock_flags_);
+        /**
+         * In the callback function, the application layer cannot obtain the return value of the connect function,
+         *  so it must call `onError` to notify the caller.
+         */
+        if (cli->connect(req->addr.get(), cli->server_port, cli->timeout, cli->sock_flags_) == SW_ERR &&
+            !cli->onerror_called) {
+            goto _error;
+        }
     } else {
         swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
+    _error:
         cli->socket->removed = 1;
         cli->close();
         if (cli->onError) {
+            cli->onerror_called = true;
             cli->onError(cli);
         }
     }
