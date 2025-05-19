@@ -41,8 +41,8 @@ static const char *method_strings[] = {
 namespace swoole {
 HttpProxy *HttpProxy::create(const std::string &host, int port, const std::string &user, const std::string &pwd) {
     auto http_proxy = new HttpProxy();
-    http_proxy->proxy_host = host;
-    http_proxy->proxy_port = port;
+    http_proxy->host = host;
+    http_proxy->port = port;
     if (!user.empty() && !pwd.empty()) {
         http_proxy->username = user;
         http_proxy->password = pwd;

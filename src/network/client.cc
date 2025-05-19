@@ -30,6 +30,7 @@ namespace swoole {
 namespace network {
 
 static int Client_inet_addr(Client *cli, const char *host, int port);
+static int Client_do_connect(Client *cli);
 static int Client_tcp_connect_sync(Client *cli, const char *host, int port, double _timeout, int nonblock);
 static int Client_tcp_connect_async(Client *cli, const char *host, int port, double timeout, int nonblock);
 static int Client_udp_connect(Client *cli, const char *host, int port, double _timeout, int udp_connect);
@@ -405,8 +406,8 @@ static int Client_inet_addr(Client *cli, const char *host, int port) {
         cli->http_proxy->target_host = host;
         cli->http_proxy->target_port = port;
 
-        host = cli->http_proxy->proxy_host.c_str();
-        port = cli->http_proxy->proxy_port;
+        host = cli->http_proxy->host.c_str();
+        port = cli->http_proxy->port;
     }
 
     cli->server_host = host;
@@ -603,8 +604,6 @@ static int Client_dns_lookup(Client *cli) {
 }
 
 static int Client_tcp_connect_async(Client *cli, const char *host, int port, double timeout, int nonblock) {
-    int ret;
-
     cli->timeout = timeout;
 
     if (!cli->buffer) {
@@ -628,6 +627,11 @@ static int Client_tcp_connect_async(Client *cli, const char *host, int port, dou
         return Client_dns_lookup(cli);
     }
 
+    return Client_do_connect(cli);
+}
+
+static int Client_do_connect(Client *cli) {
+    int ret;
     while (1) {
         ret = cli->socket->connect(cli->server_addr);
         if (ret < 0) {
@@ -643,8 +647,8 @@ static int Client_tcp_connect_async(Client *cli, const char *host, int port, dou
         if (swoole_event_add(cli->socket, SW_EVENT_WRITE) < 0) {
             return SW_ERR;
         }
-        if (timeout > 0) {
-            cli->timer = swoole_timer_add(timeout, false, Client_onTimeout, cli);
+        if (cli->timeout > 0) {
+            cli->timer = swoole_timer_add(cli->timeout, false, Client_onTimeout, cli);
         }
         return SW_OK;
     } else {
@@ -824,6 +828,7 @@ static int Client_onStreamRead(Reactor *reactor, Event *event) {
     if (cli->http_proxy && cli->http_proxy->state != SW_HTTP_PROXY_STATE_READY) {
         n = event->socket->recv(buf, buf_size, 0);
         if (n <= 0) {
+            swoole_set_last_error(SW_ERROR_HTTP_PROXY_HANDSHAKE_ERROR);
         _connect_fail:
             cli->active = false;
             cli->close();
@@ -834,7 +839,7 @@ static int Client_onStreamRead(Reactor *reactor, Event *event) {
         }
         cli->buffer->length += n;
         if (!cli->http_proxy->handshake(cli->buffer)) {
-            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_HTTP_PROXY_HANDSHAKE_ERROR, "failed to handshake with http proxy");
+            swoole_set_last_error(SW_ERROR_HTTP_PROXY_HANDSHAKE_ERROR);
             goto _connect_fail;
         }
         cli->http_proxy->state = SW_HTTP_PROXY_STATE_READY;
@@ -848,10 +853,12 @@ static int Client_onStreamRead(Reactor *reactor, Event *event) {
     if (cli->socks5_proxy && cli->socks5_proxy->state != SW_SOCKS5_STATE_READY) {
         n = event->socket->recv(buf, buf_size, 0);
         if (n <= 0) {
+            swoole_set_last_error(SW_ERROR_SOCKS5_HANDSHAKE_FAILED);
             goto _connect_fail;
         }
         cli->buffer->length += n;
         if (cli->socks5_handshake(buf, buf_size) < 0) {
+            swoole_set_last_error(SW_ERROR_SOCKS5_HANDSHAKE_FAILED);
             goto _connect_fail;
         }
         if (cli->socks5_proxy->state != SW_SOCKS5_STATE_READY) {
@@ -867,6 +874,7 @@ static int Client_onStreamRead(Reactor *reactor, Event *event) {
 #ifdef SW_USE_OPENSSL
     if (cli->open_ssl && cli->socket->ssl_state != SW_SSL_STATE_READY) {
         if (cli->ssl_handshake() < 0) {
+            swoole_set_last_error(SW_ERROR_SSL_HANDSHAKE_FAILED);
             goto _connect_fail;
         }
         if (cli->socket->ssl_state != SW_SSL_STATE_READY) {
@@ -976,14 +984,18 @@ static void Client_onResolveCompleted(AsyncEvent *event) {
     cli->wait_dns = false;
 
     if (event->error == 0) {
-        cli->connect(req->addr.get(), cli->server_port, cli->timeout, 1);
+        if (cli->server_addr.assign(cli->socket->socket_type, req->addr.get(), cli->server_port, false) &&
+            Client_do_connect(cli) == SW_OK) {
+            return;
+        }
     } else {
         swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
-        cli->socket->removed = 1;
-        cli->close();
-        if (cli->onError) {
-            cli->onError(cli);
-        }
+    }
+
+    cli->socket->removed = 1;
+    cli->close();
+    if (cli->onError) {
+        cli->onError(cli);
     }
 }
 
@@ -997,6 +1009,7 @@ static int Client_onWrite(Reactor *reactor, Event *event) {
 #ifdef SW_USE_OPENSSL
         if (cli->open_ssl && _socket->ssl_state == SW_SSL_STATE_WAIT_STREAM) {
             if (cli->ssl_handshake() < 0) {
+                swoole_set_last_error(SW_ERROR_SSL_HANDSHAKE_FAILED);
                 goto _connect_fail;
             } else if (_socket->ssl_state == SW_SSL_STATE_READY) {
                 goto _connect_success;
@@ -1050,6 +1063,7 @@ static int Client_onWrite(Reactor *reactor, Event *event) {
 #ifdef SW_USE_OPENSSL
         if (cli->open_ssl) {
             if (cli->ssl_handshake() < 0) {
+                swoole_set_last_error(SW_ERROR_SSL_HANDSHAKE_FAILED);
                 goto _connect_fail;
             } else {
                 _socket->ssl_state = SW_SSL_STATE_WAIT_STREAM;

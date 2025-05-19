@@ -686,8 +686,8 @@ bool Socket::connect(const std::string &_host, int _port, int flags) {
         http_proxy->target_host = _host;
         http_proxy->target_port = _port;
 
-        connect_host = http_proxy->proxy_host;
-        connect_port = http_proxy->proxy_port;
+        connect_host = http_proxy->host;
+        connect_port = http_proxy->port;
     } else {
         connect_host = _host;
         connect_port = _port;
