@@ -125,7 +125,7 @@ static size_t get_sendfile_chunk_size(off_t begin, off_t end) {
 
 int Socket::what_event_want(int default_event) {
 #ifdef SW_USE_OPENSSL
-    if (ssl) {
+    if (ssl && (ssl_want_write || ssl_want_read)) {
         return ssl_want_write ? SW_EVENT_WRITE : SW_EVENT_READ;
     }
 #endif
