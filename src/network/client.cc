@@ -709,7 +709,16 @@ static int Client_tcp_sendfile_async(Client *cli, const char *filename, off_t of
 }
 
 static ssize_t Client_tcp_recv_sync(Client *cli, char *data, size_t len, int flags) {
-    return cli->socket->recv_sync(data, len, flags);
+    auto rv = cli->socket->recv_sync(data, len, flags);
+    /**
+     * To maintain forward compatibility, the recv system call returns EAGAIN after a timeout,
+     * while the poll() function returns 0 on timeout without setting errno,
+     * which should be set to either EAGAIN or ETIMEDOUT.
+     */
+    if (rv == -1 && swoole_get_last_error() == SW_ERROR_SOCKET_POLL_TIMEOUT) {
+        errno = EAGAIN;
+    }
+    return rv;
 }
 
 static int Client_udp_connect(Client *cli, const char *host, int port, double timeout, int udp_connect) {

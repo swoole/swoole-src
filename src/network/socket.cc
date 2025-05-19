@@ -285,6 +285,7 @@ int Socket::wait_event(int timeout_ms, int events) {
     }
     while (true) {
         int ret = poll(&event, 1, timeout_ms);
+        swoole_trace_log(SW_TRACE_SOCKET, "poll(1, %d) return value=%d", timeout_ms, ret);
         if (ret == 0) {
             swoole_set_last_error(SW_ERROR_SOCKET_POLL_TIMEOUT);
             return SW_ERR;
@@ -295,6 +296,7 @@ int Socket::wait_event(int timeout_ms, int events) {
                 return SW_ERR;
             }
             if (dont_restart) {
+                swoole_set_last_error(errno);
                 return SW_ERR;
             }
             continue;
