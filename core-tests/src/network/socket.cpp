@@ -392,7 +392,7 @@ TEST(socket, clean) {
     ASSERT_TRUE(sock2_addr.assign(SW_SOCK_UNIX_DGRAM, sock2_path));
 
     for (int i = 0; i < 3; i++) {
-        ASSERT_GT(sock1->sendto_sync(sock2_addr, sendbuf, strlen(sendbuf)), 0);
+        ASSERT_GT(sock1->sendto(sock2_addr, sendbuf, strlen(sendbuf)), 0);
     }
 
     sock2->clean();

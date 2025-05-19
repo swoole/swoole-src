@@ -512,7 +512,7 @@ struct Socket {
         return sendto(addr, data, len, flags);
     }
 
-    ssize_t sendto(const Address &dst_addr, const void *data, size_t len, int flags) const {
+    ssize_t sendto(const Address &dst_addr, const void *data, size_t len, int flags = 0) const {
         return ::sendto(fd, data, len, flags, &dst_addr.addr.ss, dst_addr.len);
     }
 
