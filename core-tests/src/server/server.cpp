@@ -2538,3 +2538,134 @@ static void test_kill_self(Server::Mode mode) {
 TEST(server, kill_self) {
     test_kill_self(Server::MODE_BASE);
 }
+
+TEST(server, no_idle_worker) {
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = 4;
+    serv.dispatch_mode = 3;
+
+    swoole_set_log_file(TEST_LOG_FILE);
+    swoole_set_log_level(SW_LOG_WARNING);
+
+    Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
+    lock->lock();
+
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    if (!port) {
+        swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
+        exit(2);
+    }
+
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    thread t1;
+    serv.onStart = [&lock, &t1](Server *serv) {
+        t1 = thread([=]() {
+            swoole_signal_block_all();
+
+            lock->lock();
+
+            ListenPort *port = serv->get_primary_port();
+
+            network::SyncClient c(SW_SOCK_TCP);
+            c.connect(TEST_HOST, port->port);
+
+            SW_LOOP_N(1024) {
+                c.send(packet, strlen(packet));
+            }
+
+            sleep(3);
+
+            c.close();
+
+            kill(serv->gs->master_pid, SIGTERM);
+        });
+    };
+
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock->unlock(); };
+
+    serv.onReceive = [](Server *serv, RecvData *req) -> int {
+        usleep(10000);
+        return SW_OK;
+    };
+
+    ASSERT_EQ(serv.start(), 0);
+
+    t1.join();
+    delete lock;
+
+    auto log = swoole::file_get_contents(TEST_LOG_FILE);
+    ASSERT_TRUE(log->contains("No idle worker is available"));
+
+    remove(TEST_LOG_FILE);
+}
+
+TEST(server, no_idle_task_worker) {
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = 1;
+    serv.task_worker_num = 4;
+    serv.dispatch_mode = 3;
+
+    swoole_set_log_file(TEST_LOG_FILE);
+    swoole_set_log_level(SW_LOG_WARNING);
+
+    Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
+    lock->lock();
+
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    if (!port) {
+        swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
+        exit(2);
+    }
+
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    thread t1;
+    serv.onStart = [&lock, &t1](Server *serv) {
+        t1 = thread([=]() {
+            swoole_signal_block_all();
+
+            lock->lock();
+
+            ListenPort *port = serv->get_primary_port();
+
+            network::SyncClient c(SW_SOCK_TCP);
+            c.connect(TEST_HOST, port->port);
+            c.send(packet, strlen(packet));
+
+            sleep(3);
+            c.close();
+
+            kill(serv->gs->master_pid, SIGTERM);
+        });
+    };
+
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock->unlock(); };
+
+    serv.onReceive = [](Server *serv, RecvData *req) -> int {
+        SW_LOOP_N(1024) {
+            int _dst_worker_id = -1;
+            EventData buf{};
+            Server::task_pack(&buf, packet, strlen(packet));
+            buf.info.ext_flags |= (SW_TASK_NONBLOCK | SW_TASK_CALLBACK);
+            EXPECT_TRUE(serv->task(&buf, &_dst_worker_id));
+        }
+        return SW_OK;
+    };
+
+    serv.onTask = [](Server *serv, EventData *task) -> int {
+        EXPECT_EQ(string(task->data, task->info.len), string(packet));
+        usleep(10000);
+        return 0;
+    };
+
+    ASSERT_EQ(serv.start(), 0);
+
+    t1.join();
+    delete lock;
+
+    auto log = swoole::file_get_contents(TEST_LOG_FILE);
+    ASSERT_TRUE(log->contains("No idle task worker is available"));
+
+    remove(TEST_LOG_FILE);
+}

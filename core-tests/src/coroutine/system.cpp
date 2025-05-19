@@ -138,13 +138,30 @@ TEST(coroutine_system, wait_event_readable) {
             ASSERT_GT(p.write(GREETING, strlen(GREETING)), 0);
         });
 
+        // bad fd
+        EXPECT_EQ(System::wait_event(9999, SW_EVENT_READ, 1), -1);
+        EXPECT_EQ(errno, EBADF);
+        EXPECT_ERREQ(EBADF);
+
+        // trigger event
         char buffer[128];
         auto pipe_sock = p.get_socket(false);
-        System::wait_event(pipe_sock->get_fd(), SW_EVENT_READ, 1);
+        // readable
+        EXPECT_EQ(System::wait_event(pipe_sock->get_fd(), SW_EVENT_READ, 1), SW_EVENT_READ);
+        // readable + writable
+        EXPECT_EQ(System::wait_event(pipe_sock->get_fd(), SW_EVENT_READ | SW_EVENT_WRITE, 1),
+                  SW_EVENT_READ | SW_EVENT_WRITE);
+
         ssize_t n = pipe_sock->read(buffer, sizeof(buffer));
         buffer[n] = 0;
         EXPECT_EQ(strlen(GREETING), n);
         EXPECT_STREQ(GREETING, buffer);
+
+        // timeout
+        auto pipe_sock_2 = p.get_socket(true);
+        EXPECT_EQ(System::wait_event(pipe_sock_2->get_fd(), SW_EVENT_READ, 0.1), -1);
+        EXPECT_EQ(errno, SW_ERROR_CO_TIMEDOUT);
+        EXPECT_ERREQ(SW_ERROR_CO_TIMEDOUT);
     });
 }
 

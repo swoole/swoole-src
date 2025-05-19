@@ -76,6 +76,11 @@ class System {
     static int wait_signal(int signal, double timeout = -1);
     static int wait_signal(const std::vector<int> &signals, double timeout = -1);
     /* event */
+
+    /**
+     * On failure, it returns -1, and you can use swoole_get_last_error() or errno to determine the cause of the
+     * failure. If successful, it returns the event set, such as SW_EVENT_READ | SW_EVENT_WRITE.
+     */
     static int wait_event(int fd, int events, double timeout);
     static bool exec(const char *command, bool get_error_stream, std::shared_ptr<String> buffer, int *status);
 };
