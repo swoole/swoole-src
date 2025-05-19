@@ -51,7 +51,7 @@ static void test_hash_func(uint64_t (*hash_fn)(const char *key, size_t len), int
 }
 
 TEST(hash, php) {
-    test_hash_func(swoole_hash_jenkins, hash_count);
+    test_hash_func(swoole_hash_php, hash_count);
 }
 
 TEST(hash, jenkins) {

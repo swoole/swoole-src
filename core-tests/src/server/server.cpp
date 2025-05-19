@@ -219,6 +219,9 @@ TEST(server, process) {
     serv.worker_num = 1;
     swoole_set_log_level(SW_LOG_WARNING);
 
+    test::counter_init();
+    auto counter = test::counter_ptr();
+
     Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
     lock->lock();
 
@@ -246,6 +249,8 @@ TEST(server, process) {
             c.recv(buf, sizeof(buf));
             c.close();
 
+            sleep(2);
+
             kill(serv->gs->master_pid, SIGTERM);
         });
     };
@@ -264,10 +269,32 @@ TEST(server, process) {
         return SW_OK;
     };
 
+    serv.manager_alarm = 1;
+
+    serv.add_hook(
+        Server::HOOK_MANAGER_TIMER,
+        [](void *args) {
+            test::counter_incr(2);
+            DEBUG() << "manager timer callback\n";
+        },
+        true);
+
+    serv.onManagerStart = [](Server *serv) {
+        DEBUG() << "onManagerStart\n";
+        test::counter_incr(1);
+    };
+
+    serv.onManagerStop = [](Server *serv) {
+        DEBUG() << "onManagerStop\n";
+        test::counter_incr(1);
+    };
+
     ASSERT_EQ(serv.start(), 0);
 
     t1.join();
     delete lock;
+    ASSERT_EQ(counter[1], 2);
+    ASSERT_GE(counter[2], 2);
 }
 
 #ifdef SW_THREAD
