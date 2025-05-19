@@ -47,10 +47,6 @@
 #define s6_addr32 _S6_un._S6_u32
 #endif
 
-static bool IN_IS_ADDR_LOOPBACK(struct in_addr *a) {
-    return a->s_addr == htonl(INADDR_LOOPBACK);
-}
-
 // OS Feature
 #if defined(HAVE_KQUEUE) || !defined(HAVE_SENDFILE)
 ssize_t swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size);
@@ -64,6 +60,7 @@ enum {
 };
 
 namespace swoole {
+struct GethostbynameRequest;
 struct GetaddrinfoRequest;
 
 namespace network {
@@ -76,13 +73,19 @@ struct SendfileTask {
 
 struct SendfileRequest {
     File file;
-    size_t length;
-    off_t offset;
+    int8_t corked;
+    off_t begin;
+    off_t end;
 
   public:
-    SendfileRequest(const char *filename, off_t _offset, size_t _length) : file(filename, O_RDONLY) {
-        offset = _offset;
-        length = _length;
+    SendfileRequest(const char *filename, off_t _offset) : file(filename, O_RDONLY) {
+        begin = _offset;
+        end = 0;
+        corked = 0;
+    }
+
+    const char *get_filename() {
+        return file.get_path().c_str();
     }
 };
 
@@ -96,28 +99,18 @@ struct Address {
     socklen_t len;
     SocketType type;
 
-    bool assign(SocketType _type, const std::string &_host, int _port);
+    bool assign(SocketType _type, const std::string &_host, int _port = 0, bool _resolve_name = true);
     bool assign(const std::string &url);
 
-    const char *get_ip() {
-        return get_addr();
-    }
-
-    int get_port();
+    int get_port() const;
+    void set_port(int _port);
     const char *get_addr();
-
-    bool is_loopback_addr() {
-        if (type == SW_SOCK_TCP || type == SW_SOCK_UDP) {
-            return IN_IS_ADDR_LOOPBACK(&addr.inet_v4.sin_addr);
-        } else if (type == SW_SOCK_TCP6 || type == SW_SOCK_UDP6) {
-            return IN6_IS_ADDR_LOOPBACK(&addr.inet_v6.sin6_addr);
-        }
-        return false;
-    }
+    bool is_loopback_addr();
+    bool empty();
 
     static bool verify_ip(int __af, const std::string &str) {
         char tmp_address[INET6_ADDRSTRLEN];
-        return inet_pton(__af, str.c_str(), tmp_address) != -1;
+        return inet_pton(__af, str.c_str(), tmp_address) == 1;
     }
 };
 
@@ -178,6 +171,8 @@ struct Socket {
     uchar nonblock : 1;
     uchar cloexec : 1;
     uchar direct_send : 1;
+    uchar bound : 1;
+    uchar listened : 1;
 #ifdef SW_USE_OPENSSL
     uchar ssl_send_ : 1;
     uchar ssl_want_read : 1;
@@ -190,7 +185,6 @@ struct Socket {
     uchar dtls : 1;
 #endif
 #endif
-    uchar dontwait : 1;
     uchar close_wait : 1;
     uchar send_wait : 1;
     uchar tcp_nopush : 1;
@@ -211,6 +205,9 @@ struct Socket {
     uint32_t ssl_state;
 #endif
 
+    /**
+     * Only used for getsockname, written by the OS, not user. This is the exact actual address.
+     */
     Address info;
     double recv_timeout_ = default_read_timeout;
     double send_timeout_ = default_write_timeout;
@@ -274,29 +271,27 @@ struct Socket {
         return fd;
     }
 
+    const char *get_addr() {
+        return info.get_addr();
+    }
+
+    int get_port() {
+        return info.get_port();
+    }
+
+    uint32_t get_out_buffer_length() {
+        return out_buffer ? out_buffer->length() : 0;
+    }
+
     int move_fd() {
         int sock_fd = fd;
         fd = SW_BAD_SOCKET;
         return sock_fd;
     }
 
-    int get_name(Address *sa) {
-        sa->len = sizeof(sa->addr);
-        return getsockname(fd, &sa->addr.ss, &sa->len);
-    }
-
-    int set_tcp_nopush(int nopush) {
-#ifdef TCP_CORK
-        if (set_option(IPPROTO_TCP, TCP_CORK, nopush) == SW_ERR) {
-            return -1;
-        } else {
-            tcp_nopush = nopush;
-            return 0;
-        }
-#else
-        return -1;
-#endif
-    }
+    int get_name();
+    int get_peer_name(Address *sa);
+    int set_tcp_nopush(int nopush);
 
     int set_reuse_addr(int enable = 1) {
         return set_option(SOL_SOCKET, SO_REUSEADDR, enable);
@@ -309,21 +304,8 @@ struct Socket {
         return -1;
     }
 
-    int set_tcp_nodelay(int nodelay = 1) {
-        if (set_option(IPPROTO_TCP, TCP_NODELAY, nodelay) == SW_ERR) {
-            return -1;
-        } else {
-            tcp_nodelay = nodelay;
-            return 0;
-        }
-    }
-
-    bool check_liveness() {
-        char buf;
-        errno = 0;
-        ssize_t retval = peek(&buf, sizeof(buf), MSG_DONTWAIT);
-        return !(retval == 0 || (retval < 0 && catch_read_error(errno) == SW_CLOSE));
-    }
+    bool set_tcp_nodelay(int nodelay = 1);
+    bool check_liveness();
 
     int sendfile_async(const char *filename, off_t offset, size_t length);
     int sendfile_sync(const char *filename, off_t offset, size_t length, double timeout);
@@ -333,7 +315,6 @@ struct Socket {
     ssize_t send(const void *__buf, size_t __n, int __flags);
     ssize_t peek(void *__buf, size_t __n, int __flags);
     Socket *accept();
-    int bind(const std::string &_host, int *port);
     Socket *dup();
 
     ssize_t readv(IOVector *io_vector);
@@ -343,13 +324,17 @@ struct Socket {
         return ::writev(fd, iov, iovcnt);
     }
 
-    int bind(const Address &sa) {
-        return ::bind(fd, &sa.addr.ss, sizeof(sa.addr.ss));
+    /**
+     * If the port is 0, the system will automatically allocate an available port.
+     */
+    int bind(const std::string &_host, int port = 0);
+
+    int bind(const Address &addr) {
+        return bind(&addr.addr.ss, addr.len);
     }
 
-    int listen(int backlog = 0) {
-        return ::listen(fd, backlog <= 0 ? SW_BACKLOG : backlog);
-    }
+    int bind(const struct sockaddr *sa, socklen_t len);
+    int listen(int backlog = 0);
 
     void clean();
     ssize_t send_sync(const void *__data, size_t __len);
@@ -370,6 +355,8 @@ struct Socket {
         addr.assign(socket_type, host, port);
         return connect(addr);
     }
+
+    int connect_sync(const Address &sa, double timeout);
 
 #ifdef SW_USE_OPENSSL
     void ssl_clear_error() {
@@ -395,48 +382,20 @@ struct Socket {
     void ssl_catch_error();
     bool ssl_shutdown();
     void ssl_close();
-    const char *ssl_get_error_reason(int *reason);
+    static const char *ssl_get_error_reason(int *reason);
 #endif
 
     ssize_t recvfrom(char *__buf, size_t __len, int flags, Address *sa) {
         sa->len = sizeof(sa->addr);
-        return ::recvfrom(fd, __buf, __len, flags, &sa->addr.ss, &sa->len);
+        return recvfrom(__buf, __len, flags, &sa->addr.ss, &sa->len);
     }
 
-    bool cork() {
-        if (tcp_nopush) {
-            return false;
-        }
-#ifdef TCP_CORK
-        if (set_tcp_nopush(1) < 0) {
-            swoole_sys_warning("set_tcp_nopush(fd=%d, ON) failed", fd);
-            return false;
-        }
-#endif
-        // Need to turn off tcp nodelay when using nopush
-        if (tcp_nodelay && set_tcp_nodelay(0) != 0) {
-            swoole_sys_warning("set_tcp_nodelay(fd=%d, OFF) failed", fd);
-        }
-        return true;
-    }
+    ssize_t recvfrom(char *buf, size_t len, int flags, sockaddr *addr, socklen_t *addr_len);
+    ssize_t recvfrom_sync(char *__buf, size_t __len, int flags, Address *sa);
+    ssize_t recvfrom_sync(char *__buf, size_t __len, int flags, sockaddr *addr, socklen_t *addr_len);
 
-    bool uncork() {
-        if (!tcp_nopush) {
-            return false;
-        }
-#ifdef TCP_CORK
-        if (set_tcp_nopush(0) < 0) {
-            swoole_sys_warning("set_tcp_nopush(fd=%d, OFF) failed", fd);
-            return false;
-        }
-#endif
-        // Restore tcp_nodelay setting
-        if (enable_tcp_nodelay && tcp_nodelay == 0 && set_tcp_nodelay(1) != 0) {
-            swoole_sys_warning("set_tcp_nodelay(fd=%d, ON) failed", fd);
-            return false;
-        }
-        return true;
-    }
+    bool cork();
+    bool uncork();
 
     bool isset_readable_event() {
         return events & SW_EVENT_READ;
@@ -449,28 +408,60 @@ struct Socket {
     int wait_event(int timeout_ms, int events);
     void free();
 
-    static inline int is_dgram(SocketType type) {
-        return (type == SW_SOCK_UDP || type == SW_SOCK_UDP6 || type == SW_SOCK_UNIX_DGRAM);
+    static inline bool is_dgram(SocketType type) {
+        return type == SW_SOCK_UDP || type == SW_SOCK_UDP6 || type == SW_SOCK_UNIX_DGRAM;
     }
 
-    static inline int is_stream(SocketType type) {
-        return (type == SW_SOCK_TCP || type == SW_SOCK_TCP6 || type == SW_SOCK_UNIX_STREAM);
+    static inline bool is_stream(SocketType type) {
+        return type == SW_SOCK_TCP || type == SW_SOCK_TCP6 || type == SW_SOCK_UNIX_STREAM;
+    }
+
+    static inline bool is_inet4(SocketType type) {
+        return type == SW_SOCK_TCP || type == SW_SOCK_UDP || type == SW_SOCK_RAW;
+    }
+
+    static inline bool is_inet6(SocketType type) {
+        return type == SW_SOCK_TCP6 || type == SW_SOCK_UDP6 || type == SW_SOCK_RAW6;
+    }
+
+    static inline bool is_tcp(SocketType type) {
+        return type == SW_SOCK_TCP || type == SW_SOCK_TCP6;
+    }
+
+    static inline bool is_udp(SocketType type) {
+        return type == SW_SOCK_UDP || type == SW_SOCK_UDP6;
+    }
+
+    static inline bool is_local(SocketType type) {
+        return type == SW_SOCK_UNIX_STREAM || type == SW_SOCK_UNIX_DGRAM;
+    }
+
+    static inline bool is_raw(SocketType type) {
+        return type == SW_SOCK_RAW || type == SW_SOCK_RAW6;
     }
 
     bool is_stream() {
-        return socket_type == SW_SOCK_TCP || socket_type == SW_SOCK_TCP6 || socket_type == SW_SOCK_UNIX_STREAM;
+        return is_stream(socket_type);
+    }
+
+    bool is_tcp() {
+        return is_tcp(socket_type);
+    }
+
+    bool is_udp() {
+        return is_udp(socket_type);
     }
 
     bool is_dgram() {
-        return socket_type == SW_SOCK_UDP || socket_type == SW_SOCK_UDP6 || socket_type == SW_SOCK_UNIX_DGRAM;
+        return is_dgram(socket_type);
     }
 
     bool is_inet4() {
-        return socket_type == SW_SOCK_TCP || socket_type == SW_SOCK_UDP;
+        return is_inet4(socket_type);
     }
 
     bool is_inet6() {
-        return socket_type == SW_SOCK_TCP6 || socket_type == SW_SOCK_UDP6;
+        return is_inet6(socket_type);
     }
 
     bool is_inet() {
@@ -478,7 +469,11 @@ struct Socket {
     }
 
     bool is_local() {
-        return socket_type == SW_SOCK_UNIX_STREAM || socket_type == SW_SOCK_UNIX_DGRAM;
+        return is_local(socket_type);
+    }
+
+    bool is_raw() {
+        return is_raw(socket_type);
     }
 
     ssize_t write(const void *__buf, size_t __len) {
@@ -506,7 +501,6 @@ struct Socket {
     }
 
     ssize_t sendto_sync(const Address &dst_addr, const void *__buf, size_t __n, int flags = 0);
-    ssize_t recvfrom_sync(char *__buf, size_t __len, int flags, Address *sa);
 
     ssize_t sendto(const char *dst_host, int dst_port, const void *data, size_t len, int flags = 0) const {
         Address addr = {};
@@ -520,40 +514,7 @@ struct Socket {
         return ::sendto(fd, data, len, flags, &dst_addr.addr.ss, dst_addr.len);
     }
 
-    int catch_error(int err) const {
-        switch (err) {
-        case EFAULT:
-            abort();
-            return SW_ERROR;
-        case EBADF:
-        case ENOENT:
-            return SW_INVALID;
-        case ECONNRESET:
-        case ECONNABORTED:
-        case EPIPE:
-        case ENOTCONN:
-        case ETIMEDOUT:
-        case ECONNREFUSED:
-        case ENETDOWN:
-        case ENETUNREACH:
-        case EHOSTDOWN:
-        case EHOSTUNREACH:
-        case SW_ERROR_SSL_BAD_CLIENT:
-        case SW_ERROR_SSL_RESET:
-            return SW_CLOSE;
-        case EAGAIN:
-#if EAGAIN != EWOULDBLOCK
-        case EWOULDBLOCK:
-#endif
-#ifdef HAVE_KQUEUE
-        case ENOBUFS:
-#endif
-        case 0:
-            return SW_WAIT;
-        default:
-            return SW_ERROR;
-        }
-    }
+    int catch_error(int err) const;
 
     int catch_write_error(int err) const {
         switch (err) {
@@ -578,71 +539,13 @@ struct Socket {
         return catch_error(err);
     }
 
-    static inline SocketType convert_to_type(int domain, int type) {
-        if (domain == AF_INET && type == SOCK_STREAM) {
-            return SW_SOCK_TCP;
-        } else if (domain == AF_INET6 && type == SOCK_STREAM) {
-            return SW_SOCK_TCP6;
-        } else if (domain == AF_UNIX && type == SOCK_STREAM) {
-            return SW_SOCK_UNIX_STREAM;
-        } else if (domain == AF_INET && type == SOCK_DGRAM) {
-            return SW_SOCK_UDP;
-        } else if (domain == AF_INET6 && type == SOCK_DGRAM) {
-            return SW_SOCK_UDP6;
-        } else if (domain == AF_UNIX && type == SOCK_DGRAM) {
-            return SW_SOCK_UNIX_DGRAM;
-        } else {
-            return SW_SOCK_RAW;
-        }
-    }
-
-    static inline SocketType convert_to_type(std::string &host) {
-        if (host.compare(0, 6, "unix:/", 0, 6) == 0) {
-            host = host.substr(sizeof("unix:") - 1);
-            host.erase(0, host.find_first_not_of('/') - 1);
-            return SW_SOCK_UNIX_STREAM;
-        } else if (host.find(':') != std::string::npos) {
-            return SW_SOCK_TCP6;
-        } else {
-            return SW_SOCK_TCP;
-        }
-    }
-
-    static inline int get_domain_and_type(SocketType type, int *sock_domain, int *sock_type) {
-        switch (type) {
-        case SW_SOCK_TCP6:
-            *sock_domain = AF_INET6;
-            *sock_type = SOCK_STREAM;
-            break;
-        case SW_SOCK_UNIX_STREAM:
-            *sock_domain = AF_UNIX;
-            *sock_type = SOCK_STREAM;
-            break;
-        case SW_SOCK_UDP:
-            *sock_domain = AF_INET;
-            *sock_type = SOCK_DGRAM;
-            break;
-        case SW_SOCK_UDP6:
-            *sock_domain = AF_INET6;
-            *sock_type = SOCK_DGRAM;
-            break;
-        case SW_SOCK_UNIX_DGRAM:
-            *sock_domain = AF_UNIX;
-            *sock_type = SOCK_DGRAM;
-            break;
-        case SW_SOCK_TCP:
-            *sock_domain = AF_INET;
-            *sock_type = SOCK_STREAM;
-            break;
-        default:
-            return SW_ERR;
-        }
-
-        return SW_OK;
-    }
+    static SocketType convert_to_type(int domain, int type);
+    static SocketType convert_to_type(std::string &host);
+    static int get_domain_and_type(SocketType type, int *sock_domain, int *sock_type);
 };
 
 int gethostbyname(int type, const char *name, char *addr);
+int gethostbyname(GethostbynameRequest *req);
 int getaddrinfo(GetaddrinfoRequest *req);
 
 }  // namespace network

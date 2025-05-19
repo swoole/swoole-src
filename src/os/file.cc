@@ -63,7 +63,7 @@ ssize_t file_get_size(int fd) {
 std::shared_ptr<String> file_get_contents(const std::string &filename) {
     File fp(filename, O_RDONLY);
     if (!fp.ready()) {
-        swoole_sys_warning("open(%s) failed", filename.c_str());
+        swoole_sys_warning("open('%s') failed", filename.c_str());
         return nullptr;
     }
 
@@ -115,6 +115,36 @@ bool file_put_contents(const std::string &filename, const char *content, size_t 
 
 bool file_exists(const std::string &filename) {
     return access(filename.c_str(), F_OK) == 0;
+}
+
+File::File(const std::string &path, int oflags) {
+    fd_ = -1;
+    open(path, oflags);
+}
+
+File::File(const std::string &path, int oflags, int mode) {
+    fd_ = -1;
+    open(path, oflags, mode);
+}
+
+bool File::open(const std::string &path, int oflags, int mode) {
+    if (fd_ != -1) {
+        ::close(fd_);
+    }
+    if (oflags & CREATE) {
+        fd_ = ::open(path.c_str(), oflags, mode == 0 ? 0644 : mode);
+    } else {
+        fd_ = ::open(path.c_str(), oflags);
+    }
+    path_ = path;
+    flags_ = oflags;
+    return ready();
+}
+
+File::~File() {
+    if (fd_ >= 0) {
+        ::close(fd_);
+    }
 }
 
 size_t File::write_all(const void *data, size_t len) {

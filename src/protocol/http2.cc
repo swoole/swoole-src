@@ -121,6 +121,26 @@ size_t pack_setting_frame(char *buf, const Settings &settings, bool server_side)
     return p - buf;
 }
 
+ReturnCode unpack_setting_data(char *buf, ssize_t length, const std::function<ReturnCode(uint16_t, uint32_t)> &cb) {
+    uint16_t id = 0;
+    uint32_t value = 0;
+
+    while (length > 0) {
+        id = ntohs(*(uint16_t *) (buf));
+        value = ntohl(*(uint32_t *) (buf + sizeof(uint16_t)));
+
+        auto rc = cb(id, value);
+        if (rc != SW_SUCCESS) {
+            return rc;
+        }
+
+        buf += sizeof(id) + sizeof(value);
+        length -= sizeof(id) + sizeof(value);
+    }
+
+    return SW_SUCCESS;
+}
+
 int send_setting_frame(Protocol *protocol, Socket *_socket) {
     char setting_frame[SW_HTTP2_SETTING_FRAME_SIZE];
     size_t n = pack_setting_frame(setting_frame, default_settings, true);

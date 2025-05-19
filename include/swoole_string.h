@@ -40,35 +40,9 @@ typedef std::function<bool(const char *, size_t)> StringExplodeHandler;
 
 class String {
   private:
-    void alloc(size_t _size, const Allocator *_allocator) {
-        if (_allocator == nullptr) {
-            _allocator = sw_std_allocator();
-        }
-
-        _size = SW_MEM_ALIGNED_SIZE(_size);
-        length = 0;
-        size = _size;
-        offset = 0;
-        str = (char *) _allocator->malloc(_size);
-        allocator = _allocator;
-
-        if (str == nullptr) {
-            throw std::bad_alloc();
-        }
-    }
-
-    void move(String &&src) {
-        str = src.str;
-        length = src.length;
-        offset = src.offset;
-        size = src.size;
-        allocator = src.allocator;
-
-        src.str = nullptr;
-        src.length = 0;
-        src.size = 0;
-        src.offset = 0;
-    }
+    void alloc(size_t _size, const Allocator *_allocator);
+    void move(String &&src);
+    void copy(const String &src);
 
   public:
     size_t length;
@@ -94,43 +68,18 @@ class String {
         length = _length;
     }
 
-    String(const std::string &_str) : String(_str.c_str(), _str.length()) {}
+    explicit String(const std::string &_str) : String(_str.c_str(), _str.length()) {}
 
-    String(String &_str) {
-        alloc(_str.size, _str.allocator);
-        memcpy(_str.str, str, _str.length);
-        length = _str.length;
-        offset = _str.offset;
+    String(const String &src) {
+        copy(src);
     }
 
-    String(String &&src) {
+    String(String &&src) noexcept {
         move(std::move(src));
     }
 
-    String &operator=(String &src) {
-        if (&src == this) {
-            return *this;
-        }
-        if (allocator && str) {
-            allocator->free(str);
-        }
-        alloc(src.size, src.allocator);
-        memcpy(src.str, str, src.length);
-        length = src.length;
-        offset = src.offset;
-        return *this;
-    }
-
-    String &operator=(String &&src) {
-        if (&src == this) {
-            return *this;
-        }
-        if (allocator && str) {
-            allocator->free(str);
-        }
-        move(std::move(src));
-        return *this;
-    }
+    String &operator=(const String &src) noexcept;
+    String &operator=(String &&src) noexcept;
 
     ~String() {
         if (allocator && str) {
@@ -142,11 +91,11 @@ class String {
         return str;
     }
 
-    size_t get_length() {
+    size_t get_length() const {
         return length;
     }
 
-    size_t capacity() {
+    size_t capacity() const {
         return size;
     }
 
@@ -154,7 +103,7 @@ class String {
         return std::string(str, length);
     }
 
-    bool contains(const char *needle, size_t l_needle) {
+    bool contains(const char *needle, size_t l_needle) const {
         return swoole_strnstr(str, length, needle, l_needle) != nullptr;
     }
 
@@ -162,25 +111,46 @@ class String {
         return contains(needle.c_str(), needle.size());
     }
 
-    bool grow(size_t incr_value) {
-        length += incr_value;
-        if (length == size && !reserve(size * 2)) {
+    bool starts_with(const char *needle, size_t l_needle) const {
+        if (length < l_needle) {
             return false;
-        } else {
-            return true;
         }
+        return memcmp(str, needle, l_needle) == 0;
     }
 
-    String *substr(size_t offset, size_t len) {
-        if (offset + len > length) {
-            return nullptr;
-        }
-        auto _substr = new String(len);
-        _substr->append(str + offset, len);
-        return _substr;
+    bool starts_with(const std::string &needle) const {
+        return starts_with(needle.c_str(), needle.length());
     }
 
-    bool empty() {
+    bool ends_with(const char *needle, size_t l_needle) const {
+        if (length < l_needle) {
+            return false;
+        }
+        return memcmp(str + length - l_needle, needle, l_needle) == 0;
+    }
+
+    bool ends_with(const std::string &needle) const {
+        return ends_with(needle.c_str(), needle.length());
+    }
+
+    bool equals(const char *data, size_t len) const {
+        if (length != len) {
+            return false;
+        }
+        return memcmp(str, data, len) == 0;
+    }
+
+    bool equals(const std::string &data) const {
+        if (length != data.size()) {
+            return false;
+        }
+        return memcmp(str, data.c_str(), length) == 0;
+    }
+
+    bool grow(size_t incr_value);
+    String substr(size_t offset, size_t len);
+
+    bool empty() const {
         return str == nullptr || length == 0;
     }
 
@@ -223,42 +193,12 @@ class String {
         return append(&c, sizeof(c));
     }
 
-    int append(const String &append_str) {
-        size_t new_size = length + append_str.length;
-        if (new_size > size) {
-            if (!reserve(new_size)) {
-                return SW_ERR;
-            }
-        }
+    int append(int value);
+    int append(const String &append_str);
+    int append_random_bytes(size_t length, bool base64 = false);
 
-        memcpy(str + length, append_str.str, append_str.length);
-        length += append_str.length;
-        return SW_OK;
-    }
-
-    void write(off_t _offset, String *write_str) {
-        size_t new_length = _offset + write_str->length;
-        if (new_length > size) {
-            reserve(swoole_size_align(new_length * 2, swoole_pagesize()));
-        }
-
-        memcpy(str + _offset, write_str->str, write_str->length);
-        if (new_length > length) {
-            length = new_length;
-        }
-    }
-
-    void write(off_t _offset, const char *write_str, size_t _length) {
-        size_t new_length = _offset + _length;
-        if (new_length > size) {
-            reserve(swoole_size_align(new_length * 2, swoole_pagesize()));
-        }
-
-        memcpy(str + _offset, write_str, _length);
-        if (new_length > length) {
-            length = new_length;
-        }
-    }
+    void write(off_t _offset, const String &write_str);
+    void write(off_t _offset, const char *write_str, size_t _length);
 
     void set_null_terminated() {
         if (length == size) {
@@ -267,10 +207,7 @@ class String {
         str[length] = '\0';
     }
 
-    int append(int value);
-
     ssize_t split(const char *delimiter, size_t delimiter_length, const StringExplodeHandler &handler);
-    int append_random_bytes(size_t length, bool base64 = false);
     void print(bool print_value = true);
 
     enum FormatFlag {

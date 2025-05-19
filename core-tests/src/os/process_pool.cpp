@@ -1,7 +1,7 @@
 #include "test_core.h"
 #include "swoole_process_pool.h"
 
-#include <signal.h>
+#include <csignal>
 
 #ifdef __MACH__
 #define sysv_signal signal
@@ -21,6 +21,8 @@ static void test_func(ProcessPool &pool) {
     data.info.len = size;
     memcpy(data.data, rmem.value(), size);
 
+    DEBUG() << "dispatch: " << size << " bytes\n";
+
     int worker_id = -1;
     ASSERT_EQ(pool.dispatch_sync(&data, &worker_id), SW_OK);
 
@@ -34,7 +36,7 @@ static void test_func_task_protocol(ProcessPool &pool) {
     pool.set_protocol(SW_PROTOCOL_TASK);
     pool.onTask = [](ProcessPool *pool, Worker *worker, EventData *task) -> int {
         pool->running = false;
-        String *_data = (String *) pool->ptr;
+        auto *_data = (String *) pool->ptr;
         usleep(10000);
         EXPECT_MEMEQ(_data->str, task->data, task->len());
         return 0;
@@ -48,6 +50,8 @@ static void test_func_message_protocol(ProcessPool &pool) {
         pool->running = false;
         String *_data = (String *) pool->ptr;
         usleep(10000);
+
+        DEBUG() << "received: " << rdata->info.len << " bytes\n";
         EXPECT_MEMEQ(_data->str, rdata->data, rdata->info.len);
     };
     test_func(pool);
@@ -60,6 +64,8 @@ static void test_func_stream_protocol(ProcessPool &pool) {
         String *_data = (String *) pool->ptr;
         EventData *msg = (EventData *) rdata->data;
         usleep(10000);
+
+        DEBUG() << "received: " << rdata->info.len << " bytes\n";
         EXPECT_MEMEQ(_data->str, msg->data, msg->len());
     };
     test_func(pool);
@@ -78,6 +84,10 @@ TEST(process_pool, unix_sock) {
     ProcessPool pool{};
     signal(SIGPIPE, SIG_IGN);
     ASSERT_EQ(pool.create(1, 0, SW_IPC_UNIXSOCK), SW_OK);
+    ASSERT_EQ(pool.listen(TEST_HOST, TEST_PORT, 128), SW_ERR);
+    ASSERT_ERREQ(SW_ERROR_OPERATION_NOT_SUPPORT);
+    ASSERT_EQ(pool.listen(TEST_SOCK_FILE, 128), SW_ERR);
+    ASSERT_ERREQ(SW_ERROR_OPERATION_NOT_SUPPORT);
 
     test_func_task_protocol(pool);
 }
@@ -129,6 +139,13 @@ TEST(process_pool, stream_protocol) {
     test_func_stream_protocol(pool);
 }
 
+TEST(process_pool, stream_protocol_with_msgq) {
+    ProcessPool pool{};
+    ASSERT_EQ(pool.create(1, 0x9501, SW_IPC_MSGQUEUE), SW_OK);
+
+    test_func_stream_protocol(pool);
+}
+
 constexpr int magic_number = 99900011;
 static ProcessPool *current_pool = nullptr;
 static Worker *current_worker = nullptr;
@@ -176,25 +193,71 @@ TEST(process_pool, shutdown) {
     sysv_signal(SIGTERM, SIG_DFL);
 }
 
-TEST(process_pool, async) {
+TEST(process_pool, reload) {
+    ProcessPool pool{};
+    test::counter_init();
+    ASSERT_EQ(pool.create(2), SW_OK);
+
+    // init
+    pool.set_max_packet_size(8192);
+    pool.max_wait_time = 1;
+
+    pool.onWorkerStart = [](ProcessPool *pool, Worker *worker) {
+        test::counter_incr(0);
+
+        sysv_signal(SIGTERM, SIG_IGN);
+
+        while (true) {
+            sleep(10000);
+        }
+    };
+
+    pool.onStart = [](ProcessPool *pool) { swoole_timer_after(100, [pool](TIMER_PARAMS) { pool->reload(); }); };
+
+    pool.onBeforeReload = [](ProcessPool *pool) { DEBUG() << "onBeforeReload\n"; };
+
+    pool.onAfterReload = [](ProcessPool *pool) {
+        DEBUG() << "onAfterReload\n";
+        swoole_timer_after(100, [pool](TIMER_PARAMS) { pool->shutdown(); });
+    };
+
+    current_pool = &pool;
+    sysv_signal(SIGTERM, [](int sig) { current_pool->running = false; });
+
+    ASSERT_EQ(pool.start(), SW_OK);
+    ASSERT_EQ(pool.wait(), SW_OK);
+
+    pool.destroy();
+
+    ASSERT_EQ(test::counter_get(0), 4);
+
+    sysv_signal(SIGTERM, SIG_DFL);
+}
+
+static void test_async_pool() {
     ProcessPool pool{};
     ASSERT_EQ(pool.create(1, 0, SW_IPC_UNIXSOCK), SW_OK);
 
     // init
     pool.set_max_packet_size(8192);
     pool.set_protocol(SW_PROTOCOL_TASK);
-    int *shm_value = (int *) sw_mem_pool()->alloc(sizeof(int));
-    pool.ptr = shm_value;
     pool.async = true;
+    test::counter_init();
+
+    pool.onStart = [](ProcessPool *pool) {
+        current_pool = pool;
+        sysv_signal(SIGTERM, [](int sig) { current_pool->running = false; });
+    };
 
     pool.onWorkerStart = [](ProcessPool *pool, Worker *worker) {
-        int *shm_value = (int *) pool->ptr;
-        *shm_value = magic_number;
+        test::counter_set(0, magic_number);
         current_worker = worker;
+        current_pool = pool;
+        sysv_signal(SIGTERM, [](int sig) { current_pool->running = false; });
 
         swoole_signal_set(SIGTERM, [](int sig) {
-            int *shm_value = (int *) current_pool->ptr;
-            (*shm_value)++;
+            DEBUG() << "value: " << test::counter_incr(0) << "; "
+                    << "SIGTERM, stop worker\n";
             current_pool->stop(current_worker);
         });
 
@@ -202,13 +265,10 @@ TEST(process_pool, async) {
     };
 
     pool.onMessage = [](ProcessPool *pool, RecvData *msg) {
-        int *shm_value = (int *) pool->ptr;
-        (*shm_value)++;
+        DEBUG() << "value: " << test::counter_incr(0) << "; "
+                << "onMessage, kill\n";
         kill(pool->master_pid, SIGTERM);
     };
-
-    current_pool = &pool;
-    sysv_signal(SIGTERM, [](int sig) { current_pool->running = false; });
 
     // start
     ASSERT_EQ(pool.start(), SW_OK);
@@ -224,9 +284,128 @@ TEST(process_pool, async) {
 
     pool.destroy();
 
-    ASSERT_EQ(*shm_value, magic_number + 2);
+    ASSERT_EQ(test::counter_get(0), magic_number + 2);
 
+    swoole_signal_clear();
     sysv_signal(SIGTERM, SIG_DFL);
+}
+
+TEST(process_pool, async) {
+    test_async_pool();
+    // ASSERT_EQ(test::spawn_exec_and_wait([]() { test_async_pool(); }), 0);
+}
+
+static void test_async_pool_with_mb() {
+    ProcessPool pool{};
+    ASSERT_EQ(pool.create(1, 0, SW_IPC_UNIXSOCK), SW_OK);
+    ASSERT_EQ(pool.create_message_bus(), SW_OK);
+
+    if (swoole_timer_is_available()) {
+        swoole_timer_free();
+    }
+    swoole_signal_clear();
+
+    // init
+    pool.set_max_packet_size(8192);
+    pool.set_protocol(SW_PROTOCOL_TASK);
+    test::counter_init();
+    pool.async = true;
+
+    pool.onWorkerStart = [](ProcessPool *pool, Worker *worker) {
+        current_worker = worker;
+        current_pool = pool;
+
+        test::counter_incr_and_put_log(0, "onWorkerStart");
+
+        swoole_signal_set(SIGTERM, [](int sig) {
+            test::counter_incr_and_put_log(0, "SIGTERM, stop worker");
+            current_pool->stop(sw_worker());
+        });
+
+        usleep(10);
+    };
+
+    pool.onWorkerStop = [](ProcessPool *pool, Worker *worker) {
+        current_worker = worker;
+        current_pool = pool;
+
+        test::counter_incr_and_put_log(0, "onWorkerStop");
+    };
+
+    pool.onWorkerExit = [](ProcessPool *pool, Worker *worker) { test::counter_incr_and_put_log(0, "onWorkerExit"); };
+
+    pool.onStart = [](ProcessPool *pool) {
+        current_pool = pool;
+        swoole_signal_set(SIGTERM, [](int sig) { current_pool->running = false; });
+        swoole_signal_set(SIGIO, [](int sig) { current_pool->read_message = true; });
+
+        test::counter_incr_and_put_log(0, "onStart");
+
+        swoole_timer_after(100, [pool](TIMER_PARAMS) {
+            pool->send_message(0, SW_STRL("detach"));
+
+            swoole_timer_after(100, [pool](TIMER_PARAMS) { pool->send_message(0, SW_STRL("shutdown")); });
+        });
+    };
+
+    pool.onShutdown = [](ProcessPool *pool) { test::counter_incr_and_put_log(0, "onShutdown"); };
+
+    pool.onMessage = [](ProcessPool *pool, RecvData *msg) {
+        auto req = std::string(msg->data, msg->info.len);
+
+        if (req == "detach") {
+            test::counter_incr_and_put_log(0, "onMessage, detach");
+            ASSERT_TRUE(pool->detach());
+        } else if ((req == "shutdown")) {
+            test::counter_incr_and_put_log(0, "onMessage, shutdown");
+            pool->shutdown();
+        }
+    };
+
+    // start
+    ASSERT_EQ(pool.start(), SW_OK);
+    // wait
+    ASSERT_EQ(pool.wait(), SW_OK);
+
+    pool.destroy();
+
+    ASSERT_GE(test::counter_get(0), 8);
+
+    swoole_signal_clear();
+    sysv_signal(SIGTERM, SIG_DFL);
+    sysv_signal(SIGIO, SIG_DFL);
+}
+
+TEST(process_pool, async_mb) {
+    test_async_pool_with_mb();
+}
+
+TEST(process_pool, mb1) {
+    ProcessPool pool{};
+    ASSERT_EQ(pool.create(1, 0, SW_IPC_NONE), SW_OK);
+    ASSERT_EQ(pool.create_message_bus(), SW_ERR);
+    ASSERT_ERREQ(SW_ERROR_OPERATION_NOT_SUPPORT);
+
+    pool.destroy();
+}
+
+TEST(process_pool, mb2) {
+    ProcessPool pool{};
+    ASSERT_EQ(pool.create(1, 0, SW_IPC_UNIXSOCK), SW_OK);
+    ASSERT_EQ(pool.create_message_bus(), SW_OK);
+    ASSERT_EQ(pool.create_message_bus(), SW_ERR);
+    ASSERT_ERREQ(SW_ERROR_WRONG_OPERATION);
+
+    pool.destroy();
+}
+
+TEST(process_pool, socket) {
+    ProcessPool pool{};
+    ASSERT_EQ(pool.create(1, 0, SW_IPC_SOCKET), SW_OK);
+    ASSERT_EQ(pool.start(), SW_ERR);
+    ASSERT_ERREQ(SW_ERROR_WRONG_OPERATION);
+
+    pool.destroy();
 }
 
 TEST(process_pool, listen) {
@@ -249,7 +428,11 @@ TEST(process_pool, listen) {
 
     pool.onMessage = [](ProcessPool *pool, RecvData *msg) {
         String *wmem = (String *) pool->ptr;
-        pool->response(wmem->str, wmem->length);
+        ASSERT_EQ(pool->response(wmem->str, wmem->length), SW_OK);
+        ASSERT_EQ(pool->response(nullptr, 999), SW_ERR);
+        ASSERT_ERREQ(SW_ERROR_INVALID_PARAMS);
+        ASSERT_EQ(pool->response(wmem->str, 0), SW_ERR);
+        ASSERT_ERREQ(SW_ERROR_INVALID_PARAMS);
     };
 
     current_pool = &pool;
@@ -273,6 +456,9 @@ TEST(process_pool, listen) {
         c.recv(buf, ntohl(pkt_len));
 
         EXPECT_MEMEQ(buf, wmem.str, wmem.length);
+
+        ASSERT_EQ(pool.response(wmem.str, wmem.length), SW_ERR);
+        ASSERT_ERREQ(SW_ERROR_INVALID_PARAMS);
 
         c.close();
 
@@ -346,4 +532,59 @@ TEST(process_pool, listen_unixsock) {
     sysv_signal(SIGTERM, SIG_DFL);
 
     t1.join();
+}
+
+TEST(process_pool, worker) {
+    Worker worker{};
+    worker.init();
+
+    ASSERT_TRUE(worker.is_running());
+    ASSERT_GT(worker.start_time, 0);
+    worker.set_max_request(1000, 200);
+
+    ASSERT_GT(SwooleWG.max_request, 1000);
+    ASSERT_LE(SwooleWG.max_request, 1200);
+
+    worker.shutdown();
+    ASSERT_TRUE(worker.is_shutdown());
+
+    swoole_set_worker_type(SW_USER_WORKER);
+    ASSERT_EQ(swoole_get_worker_symbol(), '@');
+
+    swoole_set_worker_type(SW_TASK_WORKER);
+    ASSERT_EQ(swoole_get_worker_symbol(), '^');
+
+    swoole_set_worker_type(SW_WORKER);
+    ASSERT_EQ(swoole_get_worker_symbol(), '*');
+
+    swoole_set_worker_type(SW_MASTER);
+    ASSERT_EQ(swoole_get_worker_symbol(), '#');
+
+    swoole_set_worker_type(SW_MANAGER);
+    ASSERT_EQ(swoole_get_worker_symbol(), '$');
+
+    worker.set_status_to_idle();
+    ASSERT_TRUE(worker.is_idle());
+    ASSERT_FALSE(worker.is_busy());
+
+    worker.set_status_to_busy();
+    ASSERT_FALSE(worker.is_idle());
+    ASSERT_TRUE(worker.is_busy());
+
+    worker.set_status(SW_WORKER_EXIT);
+    ASSERT_FALSE(worker.is_idle());
+    ASSERT_FALSE(worker.is_busy());
+}
+
+TEST(process_pool, add_worker) {
+    Worker worker{};
+    worker.pid = getpid();
+
+    ProcessPool pool{};
+    ASSERT_EQ(pool.create(1, 0, SW_IPC_UNIXSOCK), SW_OK);
+
+    pool.add_worker(&worker);
+
+    auto *worker2 = pool.get_worker_by_pid(getpid());
+    ASSERT_EQ(&worker, worker2);
 }

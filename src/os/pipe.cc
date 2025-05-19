@@ -48,6 +48,16 @@ Pipe::Pipe(bool _blocking) : SocketPair(_blocking) {
     }
 }
 
+void SocketPair::set_blocking(bool blocking) {
+    if (blocking) {
+        worker_socket->set_block();
+        master_socket->set_block();
+    } else {
+        worker_socket->set_nonblock();
+        master_socket->set_nonblock();
+    }
+}
+
 ssize_t SocketPair::read(void *data, size_t length) {
     if (blocking && timeout > 0) {
         if (worker_socket->wait_event(timeout * 1000, SW_EVENT_READ) < 0) {

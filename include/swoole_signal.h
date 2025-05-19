@@ -50,11 +50,14 @@ SW_API swSignalHandler swoole_signal_set(int signo, swSignalHandler func, bool s
 SW_API bool swoole_signal_isset(int signo);
 SW_API swSignalHandler swoole_signal_set(int signo, swSignalHandler func, int restart, int mask);
 SW_API swSignalHandler swoole_signal_get_handler(int signo);
+SW_API uint32_t swoole_signal_get_listener_num(void);
 
 SW_API void swoole_signal_clear(void);
 SW_API void swoole_signal_block_all(void);
+SW_API void swoole_signal_unblock_all(void);
 SW_API char *swoole_signal_to_str(int sig);
 SW_API void swoole_signal_callback(int signo);
+
 /**
  * Only for synchronously blocked processes.
  * Due to the unreliability of signals,

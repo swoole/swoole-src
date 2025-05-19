@@ -270,7 +270,7 @@ static void http2_server_onRequest(Http2Session *client, Http2Stream *stream) {
         add_assoc_long(zserver, "server_port", serv_sock->info.get_port());
     }
     add_assoc_long(zserver, "remote_port", conn->info.get_port());
-    add_assoc_string(zserver, "remote_addr", (char *) conn->info.get_ip());
+    add_assoc_string(zserver, "remote_addr", (char *) conn->info.get_addr());
     add_assoc_long(zserver, "master_time", conn->last_recv_time);
     add_assoc_string(zserver, "server_protocol", (char *) "HTTP/2");
 

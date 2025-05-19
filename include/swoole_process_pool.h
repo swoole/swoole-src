@@ -21,6 +21,8 @@
 
 #include <signal.h>
 #include <unordered_map>
+#include <unordered_set>
+#include <queue>
 
 #include "swoole_signal.h"
 #include "swoole_lock.h"
@@ -35,6 +37,15 @@ enum swWorkerStatus {
     SW_WORKER_EXIT = 3,
 };
 
+enum swWorkerType {
+    SW_MASTER = 1,
+    SW_WORKER = 2,
+    SW_MANAGER = 3,
+    SW_EVENT_WORKER = 2,
+    SW_TASK_WORKER = 4,
+    SW_USER_WORKER = 5,
+};
+
 enum swIPCMode {
     SW_IPC_NONE = 0,
     SW_IPC_UNIXSOCK = 1,
@@ -42,8 +53,15 @@ enum swIPCMode {
     SW_IPC_SOCKET = 3,
 };
 
-namespace swoole {
+SW_API swoole::WorkerId swoole_get_worker_id();
+SW_API pid_t swoole_get_worker_pid();
+SW_API int swoole_get_worker_type();
+SW_API void swoole_set_worker_pid(pid_t pid);
+SW_API void swoole_set_worker_id(swoole::WorkerId worker_id);
+SW_API void swoole_set_worker_type(int type);
+SW_API char swoole_get_worker_symbol();
 
+namespace swoole {
 enum WorkerMessageType {
     SW_WORKER_MESSAGE_STOP = 1,
 };
@@ -60,7 +78,6 @@ struct WorkerStopMessage {
 };
 
 class ExitStatus {
-  private:
     pid_t pid_;
     int status_;
 
@@ -104,6 +121,9 @@ struct ProcessPool;
 struct Worker;
 
 struct WorkerGlobal {
+    WorkerId id;
+    uint8_t type;
+    pid_t pid;
     bool shutdown;
     bool running;
     uint32_t max_request;
@@ -205,11 +225,32 @@ struct StreamInfo {
     String *response_buffer;
 };
 
+struct ReloadTask {
+    std::unordered_map<pid_t, Worker *> workers;
+    std::queue<pid_t> kill_queue;
+    TimerNode *timer;
+
+    size_t count() {
+        return workers.size();
+    }
+
+    bool is_completed() {
+        return workers.empty();
+    }
+
+    bool exists(pid_t pid) {
+        return workers.find(pid) != workers.end();
+    }
+
+    ~ReloadTask();
+    void kill_one(int signal_number = SIGTERM);
+    void kill_all(int signal_number = SIGKILL);
+    void add_workers(Worker *list, size_t n);
+    void add_timeout_killer(int timeout);
+    bool remove(pid_t pid);
+};
+
 struct ProcessPool {
-    /**
-     * reloading
-     */
-    bool reloading;
     bool running;
     bool reload_init;
     bool read_message;
@@ -220,11 +261,9 @@ struct ProcessPool {
     uint8_t ipc_mode;
     enum ProtocolType protocol_type_;
     pid_t master_pid;
-    uint32_t reload_worker_i;
     uint32_t max_wait_time;
     uint64_t reload_count;
     time_t reload_last_time;
-    Worker *reload_workers;
 
     /**
      * process type
@@ -266,6 +305,8 @@ struct ProcessPool {
 
     void (*onStart)(ProcessPool *pool);
     void (*onShutdown)(ProcessPool *pool);
+    void (*onBeforeReload)(ProcessPool *pool);
+    void (*onAfterReload)(ProcessPool *pool);
     int (*onTask)(ProcessPool *pool, Worker *worker, EventData *task);
     void (*onWorkerStart)(ProcessPool *pool, Worker *worker);
     void (*onMessage)(ProcessPool *pool, RecvData *msg);
@@ -285,6 +326,7 @@ struct ProcessPool {
     StreamInfo *stream_info_;
     Channel *message_box = nullptr;
     MessageBus *message_bus = nullptr;
+    ReloadTask *reload_task = nullptr;
 
     void *ptr;
 
@@ -329,11 +371,11 @@ struct ProcessPool {
     }
 
     bool is_master() {
-        return swoole_get_process_type() == SW_PROCESS_MASTER;
+        return swoole_get_worker_type() == SW_MASTER;
     }
 
     bool is_worker() {
-        return swoole_get_process_type() == SW_PROCESS_WORKER;
+        return swoole_get_worker_type() == SW_WORKER;
     }
 
     /**
@@ -385,7 +427,7 @@ struct ProcessPool {
     void stop(Worker *worker);
     void kill_all_workers(int signo = SIGKILL);
     swResultCode dispatch(EventData *data, int *worker_id);
-    int response(const char *data, int length);
+    int response(const char *data, uint32_t length);
     swResultCode dispatch_sync(EventData *data, int *dst_worker_id);
     swResultCode dispatch_sync(const char *data, uint32_t len);
     void add_worker(Worker *worker);
@@ -396,19 +438,22 @@ struct ProcessPool {
     int create_message_bus();
     int push_message(uint8_t type, const void *data, size_t length);
     int push_message(EventData *msg);
+    bool send_message(WorkerId worker_id, const char *message, size_t l_message);
     int pop_message(void *data, size_t size);
     int listen(const char *socket_file, int blacklog);
     int listen(const char *host, int port, int blacklog);
     int schedule();
     bool is_worker_running(Worker *worker);
 
-    static void kill_timeout_worker(Timer *timer, TimerNode *tnode);
-
   private:
+    static int recv_packet(Reactor *reactor, Event *event);
+    static int recv_message(Reactor *reactor, Event *event);
     static int run_with_task_protocol(ProcessPool *pool, Worker *worker);
     static int run_with_stream_protocol(ProcessPool *pool, Worker *worker);
     static int run_with_message_protocol(ProcessPool *pool, Worker *worker);
     static int run_async(ProcessPool *pool, Worker *worker);
+
+    bool wait_detached_worker(std::unordered_set<pid_t> &detached_workers, pid_t pid);
 };
 };  // namespace swoole
 

@@ -61,6 +61,29 @@ SW_API bool swoole_load_resolv_conf() {
     return true;
 }
 
+SW_API void swoole_set_dns_server(const std::string &server) {
+    char *_port;
+    int dns_server_port = SW_DNS_SERVER_PORT;
+    char dns_server_host[32];
+    strcpy(dns_server_host, server.c_str());
+    if ((_port = strchr((char *) server.c_str(), ':'))) {
+        dns_server_port = atoi(_port + 1);
+        if (dns_server_port <= 0 || dns_server_port > 65535) {
+            dns_server_port = SW_DNS_SERVER_PORT;
+        }
+        dns_server_host[_port - server.c_str()] = '\0';
+    }
+    SwooleG.dns_server.host = dns_server_host;
+    SwooleG.dns_server.port = dns_server_port;
+}
+
+SW_API swoole::DnsServer swoole_get_dns_server() {
+    if (SwooleG.dns_server.host.empty()) {
+        swoole_load_resolv_conf();
+    }
+    return SwooleG.dns_server;
+}
+
 SW_API void swoole_set_hosts_path(const std::string &hosts_file) {
     SwooleG.dns_hosts_path = hosts_file;
 }
@@ -94,8 +117,8 @@ SW_API std::string swoole_name_resolver_lookup(const std::string &host_name, Nam
     if (SwooleG.name_resolvers.empty()) {
         goto _dns_lookup;
     }
-    for (auto iter = SwooleG.name_resolvers.begin(); iter != SwooleG.name_resolvers.end(); iter++) {
-        std::string result = iter->resolve(host_name, ctx, iter->private_data);
+    for (auto &name_resolver : SwooleG.name_resolvers) {
+        std::string result = name_resolver.resolve(host_name, ctx, name_resolver.private_data);
         if (!result.empty() || ctx->final_) {
             return result;
         }
@@ -244,14 +267,13 @@ static std::string parse_ip_address(void *vaddr, int type) {
 }
 
 std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int family, double timeout) {
-    char *_domain_name;
     Q_FLAGS *qflags = nullptr;
     char packet[SW_BUFFER_SIZE_STD];
     RecordHeader *header = nullptr;
     int steps = 0;
     std::vector<std::string> result;
 
-    if (SwooleG.dns_server_host.empty() && !swoole_load_resolv_conf()) {
+    if (SwooleG.dns_server.host.empty() && !swoole_load_resolv_conf()) {
         swoole_set_last_error(SW_ERROR_DNSLOOKUP_NO_SERVER);
         return result;
     }
@@ -274,7 +296,7 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
 
     steps = sizeof(RecordHeader);
 
-    _domain_name = &packet[steps];
+    char *_domain_name = &packet[steps];
 
     int len = strlen(domain);
     if (domain_encode(domain, len, _domain_name) < 0) {
@@ -293,7 +315,7 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
     if (timeout > 0) {
         _sock.set_timeout(timeout);
     }
-    if (!_sock.sendto(SwooleG.dns_server_host, SwooleG.dns_server_port, (char *) packet, steps)) {
+    if (!_sock.sendto(SwooleG.dns_server.host, SwooleG.dns_server.port, (char *) packet, steps)) {
         swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
         return result;
     }
@@ -309,7 +331,6 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
     uint32_t type[10];
     sw_memset_zero(rdata, sizeof(rdata));
 
-    char *temp;
     steps = 0;
 
     char name[10][254];
@@ -322,7 +343,7 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
     }
 
     packet[ret] = 0;
-    header = (RecordHeader *) packet;
+    header = reinterpret_cast<RecordHeader *>(packet);
     steps = sizeof(RecordHeader);
 
     _domain_name = &packet[steps];
@@ -341,7 +362,7 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
     for (i = 0; i < ancount; ++i) {
         type[i] = 0;
         /* Parsing the NAME portion of the RR */
-        temp = &packet[steps];
+        char *temp = &packet[steps];
         j = 0;
         while (*temp != 0) {
             if ((uchar) (*temp) == 0xc0) {
@@ -543,14 +564,14 @@ std::vector<std::string> dns_lookup_impl_with_cares(const char *domain, int fami
         goto _return;
     }
 
-    if (!SwooleG.dns_server_host.empty()) {
+    if (!SwooleG.dns_server.host.empty()) {
 #if (ARES_VERSION >= 0x010b00)
         struct ares_addr_port_node servers;
         servers.family = AF_INET;
         servers.next = nullptr;
-        inet_pton(AF_INET, SwooleG.dns_server_host.c_str(), &servers.addr.addr4);
+        inet_pton(AF_INET, SwooleG.dns_server.host.c_str(), &servers.addr.addr4);
         servers.tcp_port = 0;
-        servers.udp_port = SwooleG.dns_server_port;
+        servers.udp_port = SwooleG.dns_server.port;
         ares_set_servers_ports(ctx.channel, &servers);
 #elif (ARES_VERSION >= 0x010701)
         struct ares_addr_node servers;
@@ -600,7 +621,7 @@ std::vector<std::string> dns_lookup_impl_with_cares(const char *domain, int fami
                         if (*_cancelled) {
                             return;
                         }
-                        Coroutine *co = reinterpret_cast<Coroutine *>(data);
+                        auto *co = static_cast<Coroutine *>(data);
                         co->resume();
                     },
                     ctx->co);
@@ -667,19 +688,19 @@ static std::mutex g_gethostbyname2_lock;
 
 #ifdef HAVE_GETHOSTBYNAME2_R
 int gethostbyname(int flags, const char *name, char *addr) {
-    int __af = flags & (~SW_DNS_LOOKUP_RANDOM);
+    int _af = flags & (~SW_DNS_LOOKUP_RANDOM);
     int index = 0;
     int rc, err;
     int buf_len = 256;
-    struct hostent hbuf;
-    struct hostent *result;
+    hostent hbuf{};
+    hostent *result;
 
-    char *buf = (char *) sw_malloc(buf_len);
+    char *buf = static_cast<char *>(sw_malloc(buf_len));
     if (!buf) {
         return SW_ERR;
     }
     memset(buf, 0, buf_len);
-    while ((rc = ::gethostbyname2_r(name, __af, &hbuf, buf, buf_len, &result, &err)) == ERANGE) {
+    while ((rc = ::gethostbyname2_r(name, _af, &hbuf, buf, buf_len, &result, &err)) == ERANGE) {
         buf_len *= 2;
         char *tmp = (char *) sw_realloc(buf, buf_len);
         if (nullptr == tmp) {
@@ -705,13 +726,13 @@ int gethostbyname(int flags, const char *name, char *addr) {
         if (hbuf.h_addr_list[i] == nullptr) {
             break;
         }
-        if (__af == AF_INET) {
+        if (_af == AF_INET) {
             memcpy(addr_list[i].v4, hbuf.h_addr_list[i], hbuf.h_length);
         } else {
             memcpy(addr_list[i].v6, hbuf.h_addr_list[i], hbuf.h_length);
         }
     }
-    if (__af == AF_INET) {
+    if (_af == AF_INET) {
         memcpy(addr, addr_list[index].v4, hbuf.h_length);
     } else {
         memcpy(addr, addr_list[index].v6, hbuf.h_length);
@@ -800,25 +821,38 @@ int getaddrinfo(GetaddrinfoRequest *req) {
 
     return SW_OK;
 }
+
+int gethostbyname(GethostbynameRequest *req) {
+    char addr[INET6_ADDRSTRLEN];
+    auto rv = gethostbyname(req->family, req->name.c_str(), addr);
+    if (rv < 0) {
+        swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
+        return SW_ERR;
+    }
+    sw_memset_zero(req->addr, req->addr_len);
+    if (inet_ntop(req->family, addr, req->addr, req->addr_len) == nullptr) {
+        swoole_set_last_error(SW_ERROR_BAD_HOST_ADDR);
+        return SW_ERR;
+    } else {
+        return SW_OK;
+    }
+}
 }  // namespace network
 
 void GetaddrinfoRequest::parse_result(std::vector<std::string> &retval) {
-    struct sockaddr_in *addr_v4;
-    struct sockaddr_in6 *addr_v6;
-
     char tmp[INET6_ADDRSTRLEN];
     const char *r;
 
     for (auto &addr : results) {
         if (family == AF_INET) {
-            addr_v4 = (struct sockaddr_in *) &addr;
-            r = inet_ntop(AF_INET, (const void *) &addr_v4->sin_addr, tmp, sizeof(tmp));
+            auto *addr_v4 = reinterpret_cast<struct sockaddr_in *>(&addr);
+            r = inet_ntop(AF_INET, &addr_v4->sin_addr, tmp, sizeof(tmp));
         } else {
-            addr_v6 = (struct sockaddr_in6 *) &addr;
-            r = inet_ntop(AF_INET6, (const void *) &addr_v6->sin6_addr, tmp, sizeof(tmp));
+            sockaddr_in6 *addr_v6 = &addr;
+            r = inet_ntop(AF_INET6, &addr_v6->sin6_addr, tmp, sizeof(tmp));
         }
         if (r) {
-            retval.push_back(tmp);
+            retval.emplace_back(tmp);
         }
     }
 }

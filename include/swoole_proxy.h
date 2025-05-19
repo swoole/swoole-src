@@ -63,6 +63,8 @@ struct HttpProxy {
     std::string get_auth_str();
     size_t pack(String *send_buffer, const std::string *host_name);
     bool handshake(String *recv_buffer);
+
+    static HttpProxy *create(const std::string &host, int port, const std::string &user, const std::string &pwd);
 };
 
 struct Socks5Proxy {
@@ -79,6 +81,7 @@ struct Socks5Proxy {
     char buf[600];
 
     static const char *strerror(int code);
+    static Socks5Proxy *create(const std::string &host, int port, const std::string &user, const std::string &pwd);
 
     static void pack(char *buf, int method) {
         buf[0] = SW_SOCKS5_VERSION_CODE;

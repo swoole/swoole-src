@@ -154,14 +154,16 @@ if (IS_IN_CI) {
     define('TEST_DOMAIN_2', 'www.qq.com');
 }
 
+define('TEST_DOMAIN_3', 'www.gov.cn');
+
 /** =============== IP ================ */
 define('IP_REGEX', '/^(?:[\d]{1,3}\.){3}[\d]{1,3}$/');
 
 /** ============= Proxy ============== */
 define('HTTP_PROXY_HOST', IS_IN_CI ? 'tinyproxy' : '127.0.0.1');
-define('HTTP_PROXY_PORT', IS_IN_CI ? 8888 : (IS_MAC_OS ? 1087 : 8888));
+define('HTTP_PROXY_PORT', IS_IN_CI ? 8888 : 1080);
 define('SOCKS5_PROXY_HOST', IS_IN_CI ? 'socks5' : '127.0.0.1');
-define('SOCKS5_PROXY_PORT', IS_MAC_OS ? 1086 : 1080);
+define('SOCKS5_PROXY_PORT', 1080);
 
 
 /** ============== Pressure ============== */

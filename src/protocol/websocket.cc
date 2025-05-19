@@ -206,7 +206,7 @@ bool decode(Frame *frame, char *data, size_t length) {
     return true;
 }
 
-int pack_close_frame(String *buffer, int code, char *reason, size_t length, uint8_t flags) {
+int pack_close_frame(String *buffer, int code, const char *reason, size_t length, uint8_t flags) {
     if (sw_unlikely(length > SW_WEBSOCKET_CLOSE_REASON_MAX_LEN)) {
         swoole_warning("the max length of close reason is %d", SW_WEBSOCKET_CLOSE_REASON_MAX_LEN);
         return SW_ERR;
@@ -226,17 +226,17 @@ int pack_close_frame(String *buffer, int code, char *reason, size_t length, uint
 }
 
 void print_frame(Frame *frame) {
-    printf("FIN: %x, RSV1: %d, RSV2: %d, RSV3: %d, opcode: %d, MASK: %d, length: %ld\n",
-           frame->header.FIN,
-           frame->header.RSV1,
-           frame->header.RSV2,
-           frame->header.RSV3,
-           frame->header.OPCODE,
-           frame->header.MASK,
-           frame->payload_length);
+    sw_printf("FIN: %x, RSV1: %d, RSV2: %d, RSV3: %d, opcode: %d, MASK: %d, length: %ld\n",
+              frame->header.FIN,
+              frame->header.RSV1,
+              frame->header.RSV2,
+              frame->header.RSV3,
+              frame->header.OPCODE,
+              frame->header.MASK,
+              frame->payload_length);
 
     if (frame->payload_length) {
-        printf("payload: %.*s\n", (int) frame->payload_length, frame->payload);
+        sw_printf("payload: %.*s\n", (int) frame->payload_length, frame->payload);
     }
 }
 
@@ -265,7 +265,7 @@ int dispatch_frame(const Protocol *proto, Socket *_socket, const RecvData *rdata
     case OPCODE_CONTINUATION:
         frame_buffer = conn->websocket_buffer;
         if (frame_buffer == nullptr) {
-            swoole_warning("bad frame[opcode=0]. remote_addr=%s:%d", conn->info.get_ip(), conn->info.get_port());
+            swoole_warning("bad frame[opcode=0]. remote_addr=%s:%d", conn->info.get_addr(), conn->info.get_port());
             return SW_ERR;
         }
         offset = length - ws.payload_length;
@@ -273,7 +273,8 @@ int dispatch_frame(const Protocol *proto, Socket *_socket, const RecvData *rdata
         port = serv->get_port_by_fd(conn->fd);
         // frame data overflow
         if (frame_buffer->length + frame_length > port->protocol.package_max_length) {
-            swoole_warning("websocket frame is too big, remote_addr=%s:%d", conn->info.get_ip(), conn->info.get_port());
+            swoole_warning(
+                "websocket frame is too big, remote_addr=%s:%d", conn->info.get_addr(), conn->info.get_port());
             return SW_ERR;
         }
         // merge incomplete data
@@ -292,15 +293,15 @@ int dispatch_frame(const Protocol *proto, Socket *_socket, const RecvData *rdata
     case OPCODE_TEXT:
     case OPCODE_BINARY: {
         offset = length - ws.payload_length;
-        int ext_flags = get_ext_flags(ws.header.OPCODE, get_flags(&ws));
+        uint16_t ext_flags = get_ext_flags(ws.header.OPCODE, get_flags(&ws));
         if (!ws.header.FIN) {
             if (conn->websocket_buffer) {
                 swoole_warning("merging incomplete frame, bad request. remote_addr=%s:%d",
-                               conn->info.get_ip(),
+                               conn->info.get_addr(),
                                conn->info.get_port());
                 return SW_ERR;
             }
-            conn->websocket_buffer = new swoole::String(data + offset, length - offset);
+            conn->websocket_buffer = new String(data + offset, length - offset);
             conn->websocket_buffer->offset = ext_flags;
         } else {
             dispatch_data.info.ext_flags = ext_flags;
@@ -315,7 +316,7 @@ int dispatch_frame(const Protocol *proto, Socket *_socket, const RecvData *rdata
         if (length >= (sizeof(buf) - SW_WEBSOCKET_HEADER_LEN)) {
             swoole_warning("%s frame application data is too big. remote_addr=%s:%d",
                            ws.header.OPCODE == OPCODE_PING ? "ping" : "pong",
-                           conn->info.get_ip(),
+                           conn->info.get_addr(),
                            conn->info.get_port());
             return SW_ERR;
         } else if (length == SW_WEBSOCKET_HEADER_LEN) {

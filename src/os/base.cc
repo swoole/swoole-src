@@ -20,6 +20,9 @@
 #include "swoole_socket.h"
 #include "swoole_async.h"
 
+#include <thread>
+#include <sstream>
+
 #include <arpa/inet.h>
 
 #if __APPLE__
@@ -88,8 +91,6 @@ int swoole_get_cpu_affinity(cpu_set_t *set) {
 }
 #endif
 
-
-
 #if defined(__linux__)
 #include <sys/syscall.h> /* syscall(SYS_gettid) */
 #elif defined(__FreeBSD__)
@@ -124,35 +125,53 @@ long swoole_thread_get_native_id(void) {
     return native_id;
 }
 
+static bool check_pthread_return_value(int rc) {
+    if (rc == 0) {
+        return true;
+    } else {
+        swoole_set_last_error(rc);
+        return false;
+    }
+}
+
 bool swoole_thread_set_name(const char *name) {
 #if defined(__APPLE__)
-    return pthread_setname_np(name) == 0;
+    return check_pthread_return_value(pthread_setname_np(name));
 #else
-    return pthread_setname_np(pthread_self(), name) == 0;
+    return check_pthread_return_value(pthread_setname_np(pthread_self(), name));
 #endif
 }
 
+bool swoole_thread_get_name(char *buf, size_t len) {
+    return check_pthread_return_value(pthread_getname_np(pthread_self(), buf, len));
+}
+
+std::string swoole_thread_id_to_str(std::thread::id id) {
+    std::stringstream ss;
+    ss << id;
+    return ss.str();
+}
+
 namespace swoole {
+GetaddrinfoRequest::GetaddrinfoRequest(
+    std::string _hostname, int _family, int _socktype, int _protocol, std::string _service)
+    : hostname(std::move(_hostname)), service(std::move(_service)) {
+    family = _family;
+    socktype = _socktype;
+    protocol = _protocol;
+    count = 0;
+    error = 0;
+}
+
 namespace async {
-
 void handler_gethostbyname(AsyncEvent *event) {
-    char addr[INET6_ADDRSTRLEN];
     auto req = dynamic_cast<GethostbynameRequest *>(event->data.get());
-    int ret = network::gethostbyname(req->family, req->name.c_str(), addr);
-    sw_memset_zero(req->addr, req->addr_len);
-
-    if (ret < 0) {
-        event->error = SW_ERROR_DNSLOOKUP_RESOLVE_FAILED;
+    event->retval = network::gethostbyname(req);
+    if (event->retval < 0) {
+        event->error = swoole_get_last_error();
     } else {
-        if (inet_ntop(req->family, addr, req->addr, req->addr_len) == nullptr) {
-            ret = -1;
-            event->error = SW_ERROR_BAD_IPV6_ADDRESS;
-        } else {
-            event->error = 0;
-            ret = 0;
-        }
+        event->error = 0;
     }
-    event->retval = ret;
 }
 
 void handler_getaddrinfo(AsyncEvent *event) {
@@ -160,6 +179,5 @@ void handler_getaddrinfo(AsyncEvent *event) {
     event->retval = network::getaddrinfo(req);
     event->error = req->error;
 }
-
 }  // namespace async
 }  // namespace swoole

@@ -73,46 +73,51 @@ TEST(dns, cancel) {
     });
 }
 
+TEST(dns, gethostbyname) {
+    GethostbynameRequest req1(TEST_HTTP_DOMAIN, AF_INET);
+    ASSERT_EQ(network::gethostbyname(&req1), 0);
+    ASSERT_TRUE(network::Address::verify_ip(AF_INET, req1.addr));
+
+    GethostbynameRequest req2(TEST_HTTP_DOMAIN, AF_INET6);
+    ASSERT_EQ(network::gethostbyname(&req2), 0);
+    ASSERT_TRUE(network::Address::verify_ip(AF_INET6, req2.addr));
+}
+
 TEST(dns, getaddrinfo) {
-    swoole::GetaddrinfoRequest req("www.baidu.com", AF_INET, SOCK_STREAM, 0, "");
-    ASSERT_EQ(swoole::network::getaddrinfo(&req), 0);
+    GetaddrinfoRequest req("www.baidu.com", AF_INET, SOCK_STREAM, 0, "");
+    ASSERT_EQ(network::getaddrinfo(&req), 0);
     ASSERT_GT(req.count, 0);
 
     vector<string> ip_list;
     req.parse_result(ip_list);
 
     for (auto &ip : ip_list) {
-        ASSERT_TRUE(swoole::network::Address::verify_ip(AF_INET, ip));
+        ASSERT_TRUE(network::Address::verify_ip(AF_INET, ip));
     }
 }
 
 TEST(dns, load_resolv_conf) {
-    // reset
-    SwooleG.dns_server_host = "";
-    SwooleG.dns_server_port = 0;
     int port = swoole::test::get_random_port();
 
-    auto dns_server = swoole_get_dns_server();
-    ASSERT_TRUE(dns_server.first.empty());
-    ASSERT_EQ(dns_server.second, 0);
+    auto ori_dns_server = swoole_get_dns_server();
 
     // with port
     std::string test_server = "127.0.0.1:" + std::to_string(port);  // fake dns server
     swoole_set_dns_server(test_server);
-    dns_server = swoole_get_dns_server();
-    ASSERT_STREQ(dns_server.first.c_str(), "127.0.0.1");
-    ASSERT_EQ(dns_server.second, port);
+    auto dns_server = swoole_get_dns_server();
+    ASSERT_STREQ(dns_server.host.c_str(), "127.0.0.1");
+    ASSERT_EQ(dns_server.port, port);
 
     // invalid port
     test_server = "127.0.0.1:808088";
     swoole_set_dns_server(test_server);
     dns_server = swoole_get_dns_server();
-    ASSERT_EQ(dns_server.second, SW_DNS_SERVER_PORT);
+    ASSERT_EQ(dns_server.port, SW_DNS_SERVER_PORT);
 
     ASSERT_TRUE(swoole_load_resolv_conf());
     dns_server = swoole_get_dns_server();
-    ASSERT_FALSE(dns_server.first.empty());
-    ASSERT_NE(dns_server.second, 0);
+    ASSERT_EQ(dns_server.host, ori_dns_server.host);
+    ASSERT_EQ(dns_server.port, ori_dns_server.port);
 }
 
 TEST(dns, gethosts) {

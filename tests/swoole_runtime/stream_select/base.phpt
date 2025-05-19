@@ -12,7 +12,7 @@ go(function () {
     if (!$fp1) {
         echo "$errstr ($errno)<br />\n";
     } else {
-        fwrite($fp1, "GET / HTTP/1.0\r\nHost: www.baidu.com\r\nUser-Agent: curl/7.58.0\r\nAccept: */*\r\n\r\n");
+        fwrite($fp1, "GET / HTTP/1.0\r\nHost: " . TEST_DOMAIN_1 . "\r\nUser-Agent: curl/7.58.0\r\nAccept: */*\r\n\r\n");
         $r_array = [$fp1, $fp2];
         $w_array = $e_array = null;
         $n = stream_select($r_array, $w_array, $e_array, 10);

@@ -277,12 +277,9 @@ struct ListenPort {
 #ifdef SW_USE_OPENSSL
     std::shared_ptr<SSLContext> ssl_context = nullptr;
     std::unordered_map<std::string, std::shared_ptr<SSLContext>> sni_contexts;
+
 #ifdef SW_SUPPORT_DTLS
     std::unordered_map<int, dtls::Session *> *dtls_sessions = nullptr;
-    bool is_dtls() {
-        return ssl_context && (ssl_context->protocols & SW_SSL_DTLS);
-    }
-
     dtls::Session *create_dtls_session(network::Socket *sock);
 #endif
 
@@ -312,37 +309,36 @@ struct ListenPort {
         return network::Socket::is_dgram(type);
     }
 
+    bool is_dtls() {
+#ifdef SW_SUPPORT_DTLS
+        return ssl_context && (ssl_context->protocols & SW_SSL_DTLS);
+#else
+        return false;
+#endif
+    }
+
     bool is_stream() {
         return network::Socket::is_stream(type);
     }
 
-    void set_eof_protocol(const std::string &eof, bool find_from_right = false) {
-        open_eof_check = true;
-        protocol.split_by_eof = !find_from_right;
-        protocol.package_eof_len = std::min(eof.length(), sizeof(protocol.package_eof));
-        memcpy(protocol.package_eof, eof.c_str(), protocol.package_eof_len);
-    }
-
-    void set_length_protocol(uint32_t length_offset, char length_type, uint32_t body_offset) {
-        open_length_check = true;
-        protocol.package_length_type = length_type;
-        protocol.package_length_size = swoole_type_size(length_type);
-        protocol.package_length_offset = length_offset;
-        protocol.package_body_offset = body_offset;
-    }
+    void set_eof_protocol(const std::string &eof, bool find_from_right = false);
+    void set_length_protocol(uint32_t length_offset, char length_type, uint32_t body_offset);
+    void set_stream_protocol();
 
     void set_package_max_length(uint32_t max_length) {
         protocol.package_max_length = max_length;
     }
 
-    ListenPort();
+    ListenPort(Server *server);
     ~ListenPort() = default;
     int listen();
     void close();
     bool import(int sock);
+    void init_protocol();
     const char *get_protocols();
-    int create_socket(Server *server);
+    int create_socket();
     void close_socket();
+    void destroy_http_request(Connection *conn);
 
     static int readable_callback_raw(Reactor *reactor, ListenPort *lp, Event *event);
     static int readable_callback_length(Reactor *reactor, ListenPort *lp, Event *event);
@@ -354,7 +350,7 @@ struct ListenPort {
     bool ssl_context_init();
     bool ssl_context_create(SSLContext *context);
     bool ssl_create(Connection *conn, network::Socket *sock);
-    bool ssl_add_sni_cert(const std::string &name, std::shared_ptr<SSLContext> ctx);
+    bool ssl_add_sni_cert(const std::string &name, const std::shared_ptr<SSLContext> &ctx);
     bool ssl_init();
 
     bool set_ssl_key_file(const std::string &file) {
@@ -398,6 +394,15 @@ struct ListenPort {
     }
 
     void set_ssl_protocols(long protocols) {
+        if (protocols & SW_SSL_DTLS) {
+#ifndef SW_SUPPORT_DTLS
+            protocols ^= SW_SSL_DTLS;
+#else
+            if (is_dgram()) {
+                protocols ^= SW_SSL_DTLS;
+            }
+#endif
+        }
         ssl_context->protocols = protocols;
     }
 
@@ -576,7 +581,6 @@ class ProcessFactory : public Factory {
 };
 
 class ThreadFactory : public BaseFactory {
-  private:
     std::vector<std::shared_ptr<Thread>> threads_;
     std::mutex lock_;
     std::condition_variable cv_;
@@ -584,18 +588,22 @@ class ThreadFactory : public BaseFactory {
     long cv_timeout_ms_;
     bool reload_all_workers;
     bool reloading;
-    Worker manager;
+    Worker manager{};
+    void at_thread_enter(WorkerId id, int process_type);
     void at_thread_exit(Worker *worker);
     void create_message_bus();
     void destroy_message_bus();
 
   public:
-    ThreadFactory(Server *server);
-    ~ThreadFactory();
+    explicit ThreadFactory(Server *server);
+    ~ThreadFactory() override;
+    WorkerId get_manager_thread_id();
+    WorkerId get_master_thread_id();
     void spawn_event_worker(WorkerId i);
     void spawn_task_worker(WorkerId i);
     void spawn_user_worker(WorkerId i);
     void spawn_manager_thread(WorkerId i);
+    void terminate_manager_thread();
     void wait();
     bool reload(bool reload_all_workers);
     bool start() override;
@@ -613,6 +621,7 @@ enum ServerEventType {
     SW_SERVER_EVENT_CLOSE,
     SW_SERVER_EVENT_CONNECT,
     SW_SERVER_EVENT_CLOSE_FORCE,
+    SW_SERVER_EVENT_CLOSE_FORWARD,
     // task
     SW_SERVER_EVENT_TASK,
     SW_SERVER_EVENT_FINISH,
@@ -690,6 +699,7 @@ class Server {
         DISPATCH_RESULT_USERFUNC_FALLBACK = -3,
     };
 
+    // deprecated, will be removed in the next minor version
     enum HookType {
         HOOK_MASTER_START,
         HOOK_MASTER_TIMER,
@@ -747,7 +757,6 @@ class Server {
     network::Socket *udp_socket_ipv4 = nullptr;
     network::Socket *udp_socket_ipv6 = nullptr;
     network::Socket *dgram_socket = nullptr;
-    int null_fd = -1;
 
     uint32_t max_wait_time = SW_WORKER_MAX_WAIT_TIME;
     uint32_t worker_max_concurrency = UINT_MAX;
@@ -1113,35 +1122,14 @@ class Server {
     Server(enum Mode _mode = MODE_BASE);
     ~Server();
 
-    bool set_document_root(const std::string &path) {
-        if (path.length() > PATH_MAX) {
-            swoole_warning("The length of document_root must be less than %d", PATH_MAX);
-            return false;
-        }
-
-        char _realpath[PATH_MAX];
-        if (!realpath(path.c_str(), _realpath)) {
-            swoole_warning("document_root[%s] does not exist", path.c_str());
-            return false;
-        }
-
-        document_root = std::string(_realpath);
-        return true;
-    }
-
+    bool set_document_root(const std::string &path);
     void add_static_handler_location(const std::string &);
     void add_static_handler_index_files(const std::string &);
     bool select_static_handler(http_server::Request *request, Connection *conn);
     void add_http_compression_type(const std::string &type);
 
     int create();
-    Factory *create_base_factory();
-    Factory *create_thread_factory();
-    Factory *create_process_factory();
     bool create_worker_pipes();
-    void destroy_base_factory();
-    void destroy_thread_factory();
-    void destroy_process_factory();
 
     int start();
     bool reload(bool reload_all_workers);
@@ -1158,9 +1146,9 @@ class Server {
     void reset_worker_counter(Worker *worker);
     int connection_incoming(Reactor *reactor, Connection *conn);
 
-    int get_idle_worker_num();
+    uint32_t get_idle_worker_num();
     int get_idle_task_worker_num();
-    int get_tasking_num();
+    int get_tasking_num() const;
 
     TaskId get_task_id(EventData *task) {
         return gs->task_workers.get_task_id(task);
@@ -1171,7 +1159,7 @@ class Server {
     }
 
     EventData *get_task_result() {
-        return &(task_results[swoole_get_process_id()]);
+        return &(task_results[swoole_get_worker_id()]);
     }
 
     WorkerId get_task_src_worker_id(EventData *task) {
@@ -1201,9 +1189,6 @@ class Server {
     pid_t get_manager_pid() {
         return gs->manager_pid;
     }
-
-    void store_listen_socket();
-    void store_pipe_fd(UnixSocket *p);
 
     const std::string &get_document_root() {
         return document_root;
@@ -1294,34 +1279,12 @@ class Server {
     }
 
     bool if_forward_message(Session *session) {
-        return session->reactor_id != swoole_get_process_id();
+        return session->reactor_id != swoole_get_worker_id();
     }
 
-    Worker *get_worker(uint16_t worker_id) {
-        // Event Worker
-        if (worker_id < worker_num) {
-            return &(gs->event_workers.workers[worker_id]);
-        }
-
-        // Task Worker
-        uint32_t task_worker_max = task_worker_num + worker_num;
-        if (worker_id < task_worker_max) {
-            return &(gs->task_workers.workers[worker_id - worker_num]);
-        }
-
-        // User Worker
-        uint32_t user_worker_max = task_worker_max + user_worker_list.size();
-        if (worker_id < user_worker_max) {
-            return &(user_workers[worker_id - task_worker_max]);
-        }
-
-        return nullptr;
-    }
-
-    bool kill_worker(WorkerId worker_id, bool wait_reactor);
+    Worker *get_worker(uint16_t worker_id);
+    bool kill_worker(int worker_id, bool wait_reactor);
     void stop_async_worker(Worker *worker);
-    void stop_master_thread();
-    void join_heartbeat_thread();
 
     Pipe *get_pipe_object(int pipe_fd) {
         return (Pipe *) connection_list[pipe_fd].object;
@@ -1356,11 +1319,11 @@ class Server {
     }
 
     bool is_master() {
-        return swoole_get_process_type() == SW_PROCESS_MASTER;
+        return swoole_get_worker_type() == SW_MASTER;
     }
 
     bool is_worker() {
-        return swoole_get_process_type() == SW_PROCESS_EVENTWORKER;
+        return swoole_get_worker_type() == SW_EVENT_WORKER;
     }
 
     bool is_event_worker() {
@@ -1368,15 +1331,15 @@ class Server {
     }
 
     bool is_task_worker() {
-        return swoole_get_process_type() == SW_PROCESS_TASKWORKER;
+        return swoole_get_worker_type() == SW_TASK_WORKER;
     }
 
     bool is_manager() {
-        return swoole_get_process_type() == SW_PROCESS_MANAGER;
+        return swoole_get_worker_type() == SW_MANAGER;
     }
 
     bool is_user_worker() {
-        return swoole_get_process_type() == SW_PROCESS_USERWORKER;
+        return swoole_get_worker_type() == SW_USER_WORKER;
     }
 
     bool is_worker_thread() {
@@ -1409,6 +1372,7 @@ class Server {
         }
         return false;
     }
+
     bool is_shutdown() {
         return gs->shutdown;
     }
@@ -1504,7 +1468,6 @@ class Server {
     void clear_timer();
     static void timer_callback(Timer *timer, TimerNode *tnode);
 
-    int create_task_workers();
     int create_user_workers();
     int start_manager_process();
 
@@ -1536,7 +1499,7 @@ class Server {
     bool send(SessionId session_id, const void *data, uint32_t length);
     bool sendfile(SessionId session_id, const char *file, uint32_t l_file, off_t offset, size_t length);
     bool sendwait(SessionId session_id, const void *data, uint32_t length);
-    bool close(SessionId session_id, bool reset);
+    bool close(SessionId session_id, bool reset = false);
 
     bool notify(Connection *conn, enum ServerEventType event);
     bool feedback(Connection *conn, enum ServerEventType event);
@@ -1554,7 +1517,6 @@ class Server {
     void init_reactor(Reactor *reactor);
     void init_event_worker(Worker *worker);
     void init_task_workers();
-    void init_port_protocol(ListenPort *port);
     void init_signal_handler();
     void init_ipc_max_size();
     void init_pipe_sockets(MessageBus *mb);
@@ -1602,13 +1564,7 @@ class Server {
         gs->session_round = value;
     }
 
-    int create_pipe_buffers();
-    void release_pipe_buffers();
-    void create_worker(Worker *worker);
-    void destroy_worker(Worker *worker);
     void disable_accept();
-    void destroy_http_request(Connection *conn);
-
     int schedule_worker(int fd, SendData *data);
 
     size_t get_connection_num() const {
@@ -1635,7 +1591,7 @@ class Server {
     void worker_start_callback(Worker *worker);
     void worker_stop_callback(Worker *worker);
     void worker_accept_event(DataHead *info);
-    void worker_signal_init(void);
+    void worker_signal_init();
 
     std::function<void(std::shared_ptr<Thread>, const WorkerFn &fn)> worker_thread_start;
 
@@ -1656,9 +1612,8 @@ class Server {
     static void master_signal_handler(int signo);
     static void heartbeat_check(Timer *timer, TimerNode *tnode);
 
-    int start_master_thread(Reactor *reactor);
     int start_event_worker(Worker *worker);
-    void start_heartbeat_thread();
+
     const char *get_startup_error_message();
 
   private:
@@ -1684,15 +1639,33 @@ class Server {
      */
     std::vector<Worker *> user_worker_list;
 
+    int create_task_workers();
+    int create_pipe_buffers();
+    void release_pipe_buffers();
+    void create_worker(Worker *worker);
+    Factory *create_base_factory();
+    Factory *create_thread_factory();
+    Factory *create_process_factory();
     int start_check();
     void check_port_type(ListenPort *ls);
+    void store_listen_socket();
+    void store_pipe_fd(UnixSocket *p);
     void destroy();
+    void destroy_base_factory();
+    void destroy_thread_factory();
+    void destroy_process_factory();
+    void destroy_worker(Worker *worker);
+    void destroy_task_workers();
     int start_reactor_threads();
     int start_reactor_processes();
     int start_worker_threads();
+    int start_master_thread(Reactor *reactor);
+    void start_heartbeat_thread();
     void stop_worker_threads();
     bool reload_worker_threads(bool reload_all_workers);
     void join_reactor_thread();
+    void stop_master_thread();
+    void join_heartbeat_thread();
     TimerCallback get_timeout_callback(ListenPort *port, Reactor *reactor, Connection *conn);
 
     int get_lowest_load_worker_id() {
@@ -1753,8 +1726,6 @@ typedef swoole::Server swServer;
 typedef swoole::ListenPort swListenPort;
 typedef swoole::RecvData swRecvData;
 
-extern swoole::Server *g_server_instance;
-
 static inline swoole::Server *sw_server() {
-    return g_server_instance;
+    return SwooleG.server;
 }

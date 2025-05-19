@@ -54,7 +54,7 @@ void Server::init_task_workers() {
 }
 
 static int TaskWorker_call_command_handler(ProcessPool *pool, Worker *worker, EventData *req) {
-    Server *serv = (Server *) pool->ptr;
+    auto *serv = static_cast<Server *>(pool->ptr);
     int command_id = serv->get_command_id(req);
     auto iter = serv->command_handlers.find(command_id);
     if (iter == serv->command_handlers.end()) {
@@ -83,7 +83,7 @@ static int TaskWorker_call_command_handler(ProcessPool *pool, Worker *worker, Ev
 
 static int TaskWorker_onTask(ProcessPool *pool, Worker *worker, EventData *task) {
     int ret = SW_OK;
-    Server *serv = (Server *) pool->ptr;
+    auto *serv = static_cast<Server *>(pool->ptr);
     serv->last_task = task;
 
     worker->set_status_to_busy();
@@ -114,7 +114,7 @@ bool Server::task_pack(EventData *task, const void *_data, size_t _length) {
     task->info = {};
     task->info.type = SW_SERVER_EVENT_TASK;
     task->info.fd = SwooleG.current_task_id++;
-    task->info.reactor_id = swoole_get_process_id();
+    task->info.reactor_id = swoole_get_worker_id();
     task->info.time = microtime();
 
     if (_length < SW_IPC_MAX_SIZE - sizeof(task->info)) {
@@ -166,7 +166,7 @@ bool Server::task_sync(EventData *_task, int *dst_worker_id, double timeout) {
     uint64_t notify;
     EventData *task_result = get_task_result();
     sw_memset_zero(task_result, sizeof(*task_result));
-    Pipe *pipe = task_notify_pipes.at(swoole_get_process_id()).get();
+    Pipe *pipe = task_notify_pipes.at(swoole_get_worker_id()).get();
     network::Socket *task_notify_socket = pipe->get_socket(false);
     TaskId task_id = get_task_id(_task);
 
@@ -227,7 +227,7 @@ bool Server::task_unpack(EventData *task, String *buffer, PacketPtr *packet) {
 }
 
 static void TaskWorker_signal_init(ProcessPool *pool) {
-    Server *serv = (Server *) pool->ptr;
+    auto *serv = static_cast<Server *>(pool->ptr);
     if (serv->is_thread_mode()) {
         return;
     }
@@ -242,9 +242,10 @@ static void TaskWorker_signal_init(ProcessPool *pool) {
 }
 
 static void TaskWorker_onStart(ProcessPool *pool, Worker *worker) {
-    Server *serv = (Server *) pool->ptr;
-    swoole_set_process_id(worker->id);
+    auto serv = static_cast<Server *>(pool->ptr);
 
+    swoole_set_worker_id(worker->id);
+    swoole_set_worker_type(SW_TASK_WORKER);
     /**
      * Make the task worker support asynchronous
      */
@@ -268,7 +269,7 @@ static void TaskWorker_onStart(ProcessPool *pool, Worker *worker) {
 
 static void TaskWorker_onStop(ProcessPool *pool, Worker *worker) {
     swoole_event_free();
-    Server *serv = (Server *) pool->ptr;
+    auto *serv = (Server *) pool->ptr;
     serv->worker_stop_callback(worker);
 }
 
@@ -277,9 +278,9 @@ static void TaskWorker_onStop(ProcessPool *pool, Worker *worker) {
  */
 static int TaskWorker_onPipeReceive(Reactor *reactor, Event *event) {
     EventData task;
-    ProcessPool *pool = (ProcessPool *) reactor->ptr;
+    auto *pool = static_cast<ProcessPool *>(reactor->ptr);
     Worker *worker = sw_worker();
-    Server *serv = (Server *) pool->ptr;
+    auto *serv = static_cast<Server *>(pool->ptr);
 
     if (event->socket->read(&task, sizeof(task)) > 0) {
         int retval = pool->onTask(pool, worker, &task);
@@ -298,7 +299,7 @@ static int TaskWorker_onPipeReceive(Reactor *reactor, Event *event) {
  * async task worker
  */
 static int TaskWorker_loop_async(ProcessPool *pool, Worker *worker) {
-    Server *serv = (Server *) pool->ptr;
+    auto *serv = (Server *) pool->ptr;
     Socket *socket = serv->get_worker_pipe_worker_in_message_bus(worker);
     worker->set_status_to_idle();
 
@@ -385,7 +386,7 @@ bool Server::finish(const char *data, size_t data_len, int flags, EventData *cur
         worker->lock->lock();
 
         if (current_task->info.ext_flags & SW_TASK_WAITALL) {
-            sw_atomic_t *finish_count = (sw_atomic_t *) result->data;
+            auto *finish_count = (sw_atomic_t *) result->data;
             char *_tmpfile = result->data + 4;
             File file(_tmpfile, O_APPEND | O_WRONLY);
             if (file.ready()) {
@@ -418,7 +419,7 @@ bool Server::finish(const char *data, size_t data_len, int flags, EventData *cur
         // unlock worker
         worker->lock->unlock();
 
-        while (1) {
+        while (true) {
             retval = pipe->write(&flag, sizeof(flag));
             auto _sock = pipe->get_socket(true);
             if (retval < 0 && _sock->catch_write_error(errno) == SW_WAIT) {

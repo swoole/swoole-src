@@ -38,6 +38,19 @@ struct Request {
     int offset;
 };
 
+const char *get_number(const char *p, int *_ret) {
+    char *endptr;
+    p++;
+    int ret = strtol(p, &endptr, 10);
+    if (strncmp(SW_CRLF, endptr, SW_CRLF_LEN) == 0) {
+        p += (endptr - p) + SW_CRLF_LEN;
+        *_ret = ret;
+        return p;
+    } else {
+        return nullptr;
+    }
+}
+
 int recv_packet(Protocol *protocol, Connection *conn, String *buffer) {
     const char *p, *pe;
     int ret;
@@ -173,7 +186,7 @@ _failed:
     return SW_ERR;
 }
 
-bool format(String *buf) {
+bool format_nil(String *buf) {
     return buf->append(SW_STRL(SW_REDIS_RETURN_NIL)) == SW_OK;
 }
 

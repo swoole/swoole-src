@@ -206,8 +206,8 @@ bool Session::listen() {
     } else if (retval < 0) {
         int reason = ERR_GET_REASON(ERR_peek_error());
         swoole_warning("DTLSv1_listen() failed, client[%s:%d], reason=%d, error_string=%s",
-                       socket->info.get_ip(),
-                       socket->info.get_port(),
+                       socket->get_addr(),
+                       socket->get_port(),
                        reason,
                        swoole_ssl_get_error());
         return false;

@@ -148,6 +148,14 @@ typedef unsigned long ulong_t;
 #define SW_LOOP_N(n) for (decltype(n) i = 0; i < n; i++)
 #define SW_LOOP for (;;)
 
+#ifndef MAYBE_UNUSED
+#ifdef __GNUC__
+#define MAYBE_UNUSED __attribute__((used))
+#else
+#define MAYBE_UNUSED
+#endif
+#endif
+
 #ifndef MAX
 #define MAX(A, B) SW_MAX(A, B)
 #endif
@@ -211,6 +219,7 @@ struct TimerNode;
 struct Event;
 class Pipe;
 class MessageBus;
+class Server;
 namespace network {
 struct Socket;
 struct Address;
@@ -255,6 +264,7 @@ typedef swoole::DataHead swDataHead;
 /** always return less than size, zero termination  */
 size_t sw_snprintf(char *buf, size_t size, const char *format, ...) __attribute__((format(printf, 3, 4)));
 size_t sw_vsnprintf(char *buf, size_t size, const char *format, va_list args);
+int sw_printf(const char *format, ...);
 
 #define sw_memset_zero(s, n) memset(s, '\0', n)
 
@@ -451,6 +461,7 @@ enum swSocketType {
     SW_SOCK_UNIX_STREAM = 5,  // unix sock stream
     SW_SOCK_UNIX_DGRAM = 6,   // unix sock dgram
     SW_SOCK_RAW = 7,
+    SW_SOCK_RAW6 = 8,
 };
 
 enum swEventType {
@@ -489,6 +500,7 @@ typedef unsigned char uchar;
 
 void swoole_random_string(char *buf, size_t size);
 void swoole_random_string(std::string &str, size_t size);
+uint64_t swoole_random_int();
 size_t swoole_random_bytes(char *buf, size_t size);
 
 static sw_inline char *swoole_strlchr(char *p, char *last, char c) {
@@ -533,15 +545,6 @@ enum swDNSLookupFlag {
 
 extern thread_local char sw_error[SW_ERROR_MSG_SIZE];
 
-enum swProcessType {
-    SW_PROCESS_MASTER = 1,
-    SW_PROCESS_WORKER = 2,
-    SW_PROCESS_MANAGER = 3,
-    SW_PROCESS_EVENTWORKER = 2,
-    SW_PROCESS_TASKWORKER = 4,
-    SW_PROCESS_USERWORKER = 5,
-};
-
 enum swPipeType {
     SW_PIPE_WORKER = 0,
     SW_PIPE_MASTER = 1,
@@ -573,9 +576,10 @@ void swoole_exit(int __status);
 pid_t swoole_fork(int flags);
 pid_t swoole_fork_exec(const std::function<void(void)> &child_fn);
 pid_t swoole_waitpid(pid_t __pid, int *__stat_loc, int __options);
-void swoole_thread_init(void);
-void swoole_thread_clean(void);
+void swoole_thread_init(bool main_thread);
+void swoole_thread_clean(bool main_thread);
 void swoole_redirect_stdout(int new_fd);
+void swoole_redirect_stdout(const char *file);
 int swoole_shell_exec(const char *command, pid_t *pid, bool get_error_stream);
 int swoole_daemon(int nochdir, int noclose);
 bool swoole_set_task_tmpdir(const std::string &dir);
@@ -660,31 +664,18 @@ struct EventData {
     char data[SW_IPC_BUFFER_SIZE];
 
     uint32_t size() {
-    	return sizeof(info) + len();
+        return sizeof(info) + len();
     }
 
     uint32_t len() {
-    	return info.len;
+        return info.len;
     }
-};
-
-struct SendData {
-    DataHead info;
-    const char *data;
-};
-
-struct RecvData {
-    DataHead info;
-    const char *data;
 };
 
 struct ThreadGlobal {
     uint16_t id;
     uint8_t type;
-#ifdef SW_THREAD
-    uint8_t process_type;
-    uint32_t process_id;
-#endif
+    int32_t error;
     String *buffer_stack;
     Reactor *reactor;
     Timer *timer;
@@ -694,9 +685,7 @@ struct ThreadGlobal {
 #ifdef SW_USE_IOURING
     Iouring *iouring;
 #endif
-    uint32_t signal_listener_num;
-    uint32_t co_signal_listener_num;
-    int error;
+    bool signal_blocking_all;
 };
 
 struct Allocator {
@@ -732,26 +721,29 @@ struct NameResolver {
     enum Type type;
 };
 
+struct DnsServer {
+    std::string host;
+    int port;
+};
+
 struct Global {
     uchar init : 1;
     uchar running : 1;
     uchar wait_signal : 1;
     uchar enable_signalfd : 1;
-    uchar socket_dontwait : 1;
     uchar dns_lookup_random : 1;
     uchar use_async_resolver : 1;
     uchar use_name_resolver : 1;
     uchar enable_coroutine : 1;
-    uchar print_backtrace_on_error: 1;
+    uchar print_backtrace_on_error : 1;
 
-    uint8_t process_type;
-    uint32_t process_id;
     TaskId current_task_id;
-    pid_t pid;
 
     int signal_fd;
     bool signal_alarm;
     bool signal_dispatch;
+    uint32_t signal_listener_num;
+    uint32_t signal_async_listener_num;
 
     long trace_flags;
 
@@ -766,15 +758,18 @@ struct Global {
     MemoryPool *memory_pool;
     Allocator std_allocator;
     std::string task_tmpfile;
-    //-----------------------[DNS]--------------------------
-    std::string dns_server_host;
-    int dns_server_port;
+    //------------------[Single Instance]----------------------
+    Logger *logger;
+    Server *server;
+    FILE *stdout_;
+    //-----------------------[DNS]-----------------------------
+    DnsServer dns_server;
     double dns_cache_refresh_time;
     int dns_tries;
     std::string dns_resolvconf_path;
     std::string dns_hosts_path;
     std::list<NameResolver> name_resolvers;
-    //-----------------------[AIO]--------------------------
+    //-----------------------[AIO]----------------------------
     uint32_t aio_core_worker_num;
     uint32_t aio_worker_num;
 #ifdef SW_USE_IOURING
@@ -798,7 +793,7 @@ void hook_call(void **hooks, int type, void *arg);
 double microtime(void);
 }  // namespace swoole
 
-extern swoole::Global SwooleG;                  // Local Global Variable
+extern swoole::Global SwooleG;                      // Local Global Variable
 extern thread_local swoole::ThreadGlobal SwooleTG;  // Thread Global Variable
 
 #define SW_CPU_NUM (SwooleG.cpu_num)
@@ -834,42 +829,6 @@ static inline void swoole_set_thread_type(uint8_t type) {
     SwooleTG.type = type;
 }
 
-static inline swoole::WorkerId swoole_get_process_id(void) {
-#ifdef SW_THREAD
-    return SwooleTG.process_id;
-#else
-    return SwooleG.process_id;
-#endif
-}
-
-static inline pid_t swoole_get_process_pid(void) {
-    return SwooleG.pid;
-}
-
-static inline void swoole_set_process_id(swoole::WorkerId id) {
-#ifdef SW_THREAD
-    SwooleTG.process_id = id;
-#else
-    SwooleG.process_id = id;
-#endif
-}
-
-static inline void swoole_set_process_type(int type) {
-#ifdef SW_THREAD
-    SwooleTG.process_type = type;
-#else
-    SwooleG.process_type = type;
-#endif
-}
-
-static inline int swoole_get_process_type(void) {
-#ifdef SW_THREAD
-    return SwooleTG.process_type;
-#else
-    return SwooleG.process_type;
-#endif
-}
-
 static inline uint32_t swoole_pagesize() {
     return SwooleG.pagesize;
 }
@@ -882,15 +841,17 @@ SW_API void swoole_set_log_level(int level);
 SW_API void swoole_set_log_file(const char *file);
 SW_API void swoole_set_trace_flags(long flags);
 SW_API void swoole_set_print_backtrace_on_error(bool enable = true);
+SW_API void swoole_set_stdout_stream(FILE *fp);
 SW_API void swoole_set_dns_server(const std::string &server);
 SW_API void swoole_set_hosts_path(const std::string &hosts_file);
-SW_API std::pair<std::string, int> swoole_get_dns_server();
+SW_API swoole::DnsServer swoole_get_dns_server();
 SW_API bool swoole_load_resolv_conf();
 SW_API void swoole_name_resolver_add(const swoole::NameResolver &resolver, bool append = true);
 SW_API void swoole_name_resolver_each(
     const std::function<enum swTraverseOperation(const std::list<swoole::NameResolver>::iterator &iter)> &fn);
 SW_API std::string swoole_name_resolver_lookup(const std::string &host_name, swoole::NameResolver::Context *ctx);
 SW_API int swoole_get_log_level();
+SW_API FILE *swoole_get_stdout_stream();
 
 //-----------------------------------------------
 static sw_inline void sw_spinlock(sw_atomic_t *lock) {

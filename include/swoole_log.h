@@ -52,18 +52,26 @@ class Logger {
     bool display_backtrace_ = false;
     int stdout_fd = -1;
     int stderr_fd = -1;
-    int log_fd = STDOUT_FILENO;
+    FILE *log_fp = stdout;
     int log_level = SW_LOG_INFO;
     bool date_with_microseconds = false;
     std::string date_format = SW_LOG_DEFAULT_DATE_FORMAT;
     std::string log_file = "";
     std::string log_real_file;
+    std::mutex lock;
     int log_rotation = SW_LOG_ROTATION_SINGLE;
+
+    void reopen_without_lock();
 
   public:
     bool open(const char *logfile);
-    void put(int level, const char *content, size_t length);
     void reopen();
+    void set_stream(FILE *stream);
+    /**
+     * Only the `put` and `reopen` functions are thread-safe,
+     * other functions must be used in a single-threaded environment.
+     */
+    void put(int level, const char *content, size_t length);
     void close(void);
     void reset();
     void set_level(int lv);
@@ -73,7 +81,7 @@ class Logger {
     const char *get_real_file();
     const char *get_file();
     bool is_opened();
-    bool redirect_stdout_and_stderr(int enable);
+    bool redirect_stdout_and_stderr(bool enable);
     void set_date_with_microseconds(bool enable);
     std::string gen_real_file(const std::string &file);
     static std::string get_pretty_name(const std::string &prettyFunction, bool strip = true);
@@ -246,6 +254,10 @@ enum swTraceWhat : long {
     SW_TRACE_CO_ODBC = 1ul << 33,
     SW_TRACE_CO_ORACLE = 1ul << 34,
     SW_TRACE_CO_SQLITE = 1ul << 35,
+    /**
+     * Thread
+     */
+    SW_TRACE_THREAD = 1ul << 36,
 
     SW_TRACE_ALL = 0x7fffffffffffffff
 };

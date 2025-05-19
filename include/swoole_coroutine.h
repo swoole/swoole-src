@@ -143,14 +143,8 @@ class Coroutine {
     static void set_on_yield(SwapCallback func);
     static void set_on_resume(SwapCallback func);
     static void set_on_close(SwapCallback func);
-    static void bailout(BailoutCallback func);
-
-    static inline bool run(const CoroutineFunc &fn, void *args = nullptr) {
-        swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
-        long cid = create(fn, args);
-        swoole_event_wait();
-        return cid > 0;
-    }
+    static void bailout(const BailoutCallback &func);
+    static bool run(const CoroutineFunc &fn, void *args = nullptr);
 
     static inline long create(const CoroutineFunc &fn, void *args = nullptr) {
 #ifdef SW_USE_THREAD_CONTEXT
@@ -228,17 +222,7 @@ class Coroutine {
         return sw_likely(co) ? co->get_execute_usec() : -1;
     }
 
-    static inline void calc_execute_usec(Coroutine *yield_coroutine, Coroutine *resume_coroutine) {
-        long current_usec = time<seconds_type>(true);
-        if (yield_coroutine) {
-            yield_coroutine->execute_usec += current_usec - yield_coroutine->switch_usec;
-        }
-
-        if (resume_coroutine) {
-            resume_coroutine->switch_usec = current_usec;
-        }
-    }
-
+    static void calc_execute_usec(Coroutine *yield_coroutine, Coroutine *resume_coroutine);
     static void print_list();
 
   protected:
@@ -263,41 +247,9 @@ class Coroutine {
     Coroutine *origin = nullptr;
     CancelFunc *cancel_fn_ = nullptr;
 
-    Coroutine(const CoroutineFunc &fn, void *private_data) : ctx(stack_size, fn, private_data) {
-        cid = ++last_cid;
-        coroutines[cid] = this;
-        if (sw_unlikely(count() > peak_num)) {
-            peak_num = count();
-        }
-        if (!activated) {
-            activate();
-        }
-    }
-
-    Coroutine(long _cid, const CoroutineFunc &fn, void *private_data) : ctx(stack_size, fn, private_data) {
-        cid = _cid;
-    }
-
-    long run() {
-        long cid = this->cid;
-        origin = current;
-        current = this;
-        CALC_EXECUTE_USEC(origin, nullptr);
-        state = STATE_RUNNING;
-        ctx.swap_in();
-        check_end();
-        return cid;
-    }
-
-    void check_end() {
-        if (ctx.is_end()) {
-            close();
-        } else if (sw_unlikely(on_bailout)) {
-            SW_ASSERT(current == nullptr);
-            on_bailout();
-        }
-    }
-
+    Coroutine(const CoroutineFunc &fn, void *private_data);
+    long run();
+    void check_end();
     void close();
 };
 //-------------------------------------------------------------------------------

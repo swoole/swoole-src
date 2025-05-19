@@ -226,7 +226,7 @@ _failed:
 }
 
 bool Socket::socks5_handshake() {
-    Socks5Proxy *ctx = socks5_proxy;
+    Socks5Proxy *ctx = socks5_proxy.get();
     char *p;
     ssize_t n;
     uchar version, method, result;
@@ -386,7 +386,7 @@ bool Socket::http_proxy_handshake() {
         return false;
     }
 
-    swoole_trace_log(SW_TRACE_HTTP_CLIENT, "proxy response: <<EOF\n%.*sEOF", n, recv_buffer->str);
+    swoole_trace_log(SW_TRACE_HTTP_CLIENT, "proxy response: <<EOF\n%.*sEOF", (int) n, recv_buffer->str);
 
     if (!http_proxy->handshake(recv_buffer)) {
         set_err(SW_ERROR_HTTP_PROXY_BAD_RESPONSE,
@@ -498,14 +498,8 @@ Socket::Socket(network::Socket *sock, Socket *server_sock) {
 #endif
 }
 
-bool Socket::getsockname(network::Address *sa) {
-    sa->len = sizeof(sa->addr);
-    if (::getsockname(sock_fd, (struct sockaddr *) &sa->addr, &sa->len) != 0) {
-        set_err(errno);
-        return false;
-    }
-    sa->type = type;
-    return true;
+bool Socket::getsockname() {
+    return socket->get_name() == SW_OK;
 }
 
 bool Socket::getpeername(network::Address *sa) {
@@ -518,7 +512,122 @@ bool Socket::getpeername(network::Address *sa) {
     return true;
 }
 
-bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen) {
+double Socket::get_timeout(enum TimeoutType type) {
+    SW_ASSERT_1BYTE(type);
+    if (type == TIMEOUT_DNS) {
+        return dns_timeout;
+    } else if (type == TIMEOUT_CONNECT) {
+        return connect_timeout;
+    } else if (type == TIMEOUT_READ) {
+        return read_timeout;
+    } else if (type == TIMEOUT_WRITE) {
+        return write_timeout;
+    } else {
+        assert(0);
+        return -1;
+    }
+}
+
+String *Socket::get_read_buffer() {
+    if (sw_unlikely(!read_buffer)) {
+        read_buffer = make_string(SW_BUFFER_SIZE_BIG, buffer_allocator);
+        if (!read_buffer) {
+            throw std::bad_alloc();
+        }
+    }
+    return read_buffer;
+}
+
+String *Socket::get_write_buffer() {
+    if (sw_unlikely(!write_buffer)) {
+        write_buffer = make_string(SW_BUFFER_SIZE_BIG, buffer_allocator);
+        if (!write_buffer) {
+            throw std::bad_alloc();
+        }
+    }
+    return write_buffer;
+}
+
+String *Socket::pop_read_buffer() {
+    if (sw_unlikely(!read_buffer)) {
+        return nullptr;
+    }
+    auto tmp = read_buffer;
+    read_buffer = nullptr;
+    return tmp;
+}
+
+String *Socket::pop_write_buffer() {
+    if (sw_unlikely(!write_buffer)) {
+        return nullptr;
+    }
+    auto tmp = write_buffer;
+    write_buffer = nullptr;
+    return tmp;
+}
+
+void Socket::set_timeout(double timeout, int type) {
+    if (timeout == 0) {
+        return;
+    }
+    if (type & TIMEOUT_DNS) {
+        dns_timeout = timeout;
+    }
+    if (type & TIMEOUT_CONNECT) {
+        connect_timeout = timeout;
+    }
+    if (type & TIMEOUT_READ) {
+        read_timeout = timeout;
+    }
+    if (type & TIMEOUT_WRITE) {
+        write_timeout = timeout;
+    }
+}
+
+const char *Socket::get_event_str(const EventType event) {
+    if (event == SW_EVENT_READ) {
+        return "reading";
+    } else if (event == SW_EVENT_WRITE) {
+        return "writing";
+    } else {
+        return read_co && write_co ? "reading or writing" : (read_co ? "reading" : "writing");
+    }
+}
+
+bool Socket::set_option(int level, int optname, int optval) {
+    return set_option(level, optname, &optval, sizeof(optval));
+}
+
+bool Socket::get_option(int level, int optname, int *optval) {
+    socklen_t optval_size = sizeof(*optval);
+    return get_option(level, optname, optval, &optval_size);
+}
+
+bool Socket::set_option(int level, int optname, const void *optval, socklen_t optlen) {
+    if (socket->set_option(level, optname, optval, optlen) < 0) {
+        swoole_sys_warning("setsockopt(%d, %d, %d, %u) failed", sock_fd, level, optname, optlen);
+        return false;
+    }
+    return true;
+}
+
+bool Socket::get_option(int level, int optname, void *optval, socklen_t *optlen) {
+    if (socket->get_option(level, optname, optval, optlen) < 0) {
+        swoole_sys_warning("getsockopt(%d, %d, %d) failed", sock_fd, level, optname);
+        return false;
+    }
+    return true;
+}
+
+void Socket::set_socks5_proxy(const std::string &host, int port, const std::string &user, const std::string &pwd) {
+    socks5_proxy.reset(Socks5Proxy::create(host, port, user, pwd));
+}
+
+void Socket::set_http_proxy(const std::string &host, int port, const std::string &user, const std::string &pwd) {
+    http_proxy.reset(HttpProxy::create(host, port, user, pwd));
+}
+
+bool Socket::connect(const sockaddr *addr, socklen_t addrlen) {
     if (sw_unlikely(!is_available(SW_EVENT_RDWR))) {
         return false;
     }
@@ -546,11 +655,12 @@ bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen) {
         }
     }
     connected = true;
+    socket->get_name();
     set_err(0);
     return true;
 }
 
-bool Socket::connect(std::string _host, int _port, int flags) {
+bool Socket::connect(const std::string &_host, int _port, int flags) {
     if (sw_unlikely(!is_available(SW_EVENT_RDWR))) {
         return false;
     }
@@ -561,12 +671,7 @@ bool Socket::connect(std::string _host, int _port, int flags) {
          * so we have to handle the host first,
          * if the host is not a ip, assign it to ssl_host_name
          */
-        union {
-            struct in_addr sin;
-            struct in6_addr sin6;
-        } addr;
-        if ((sock_domain == AF_INET && !inet_pton(AF_INET, _host.c_str(), &addr.sin)) ||
-            (sock_domain == AF_INET6 && !inet_pton(AF_INET6, _host.c_str(), &addr.sin6))) {
+        if (!network::Address::verify_ip(sock_domain, _host)) {
             ssl_host_name = _host;
         }
     }
@@ -575,30 +680,19 @@ bool Socket::connect(std::string _host, int _port, int flags) {
         socks5_proxy->target_host = _host;
         socks5_proxy->target_port = _port;
 
-        _host = socks5_proxy->host;
-        _port = socks5_proxy->port;
+        connect_host = socks5_proxy->host;
+        connect_port = socks5_proxy->port;
     } else if (http_proxy) {
         http_proxy->target_host = _host;
         http_proxy->target_port = _port;
 
-        _host = http_proxy->proxy_host;
-        _port = http_proxy->proxy_port;
+        connect_host = http_proxy->proxy_host;
+        connect_port = http_proxy->proxy_port;
+    } else {
+        connect_host = _host;
+        connect_port = _port;
     }
 
-    if (is_port_required()) {
-        if (_port == -1) {
-            set_err(EINVAL, "Socket of type AF_INET/AF_INET6 requires port argument");
-            return false;
-        } else if (_port == 0 || _port >= 65536) {
-            set_err(EINVAL, std_string::format("Invalid port [%d]", _port));
-            return false;
-        }
-    }
-
-    connect_host = _host;
-    connect_port = _port;
-
-    struct sockaddr *_target_addr = nullptr;
     NameResolver::Context *ctx = resolve_context_;
 
     NameResolver::Context _ctx{};
@@ -640,57 +734,24 @@ bool Socket::connect(std::string _host, int _port, int flags) {
         return true;
     };
 
+    network::Address server_addr;
+
     for (int i = 0; i < 2; i++) {
-        if (sock_domain == AF_INET) {
-            socket->info.addr.inet_v4.sin_family = AF_INET;
-            socket->info.addr.inet_v4.sin_port = htons(connect_port);
-
-            if (!inet_pton(AF_INET, connect_host.c_str(), &socket->info.addr.inet_v4.sin_addr)) {
-                if (!name_resolve_fn(AF_INET)) {
-                    set_err(swoole_get_last_error(), swoole_strerror(swoole_get_last_error()));
-                    return false;
-                }
-                continue;
-            } else {
-                socket->info.len = sizeof(socket->info.addr.inet_v4);
-                _target_addr = (struct sockaddr *) &socket->info.addr.inet_v4;
-                break;
-            }
-        } else if (sock_domain == AF_INET6) {
-            socket->info.addr.inet_v6.sin6_family = AF_INET6;
-            socket->info.addr.inet_v6.sin6_port = htons(connect_port);
-
-            if (!inet_pton(AF_INET6, connect_host.c_str(), &socket->info.addr.inet_v6.sin6_addr)) {
-                if (!name_resolve_fn(AF_INET6)) {
-                    set_err(swoole_get_last_error());
-                    return false;
-                }
-                continue;
-            } else {
-                socket->info.len = sizeof(socket->info.addr.inet_v6);
-                _target_addr = (struct sockaddr *) &socket->info.addr.inet_v6;
-                break;
-            }
-        } else if (sock_domain == AF_UNIX) {
-            if (connect_host.size() >= sizeof(socket->info.addr.un.sun_path)) {
-                set_err(EINVAL, "unix socket file is too large");
+        if (!server_addr.assign(type, connect_host, connect_port, false)) {
+            if (swoole_get_last_error() != SW_ERROR_BAD_HOST_ADDR) {
+                set_err(swoole_get_last_error(), swoole_strerror(swoole_get_last_error()));
                 return false;
             }
-            socket->info.addr.un.sun_family = AF_UNIX;
-            memcpy(&socket->info.addr.un.sun_path, connect_host.c_str(), connect_host.size());
-            socket->info.len = (socklen_t) (offsetof(struct sockaddr_un, sun_path) + connect_host.size());
-            _target_addr = (struct sockaddr *) &socket->info.addr.un;
-            break;
-        } else {
-            set_err(EINVAL, "unknown protocol[%d]");
-            return false;
+            if (!name_resolve_fn(sock_domain)) {
+                set_err(swoole_get_last_error(), swoole_strerror(swoole_get_last_error()));
+                return false;
+            }
+            continue;
         }
+        break;
     }
-    if (_target_addr == nullptr) {
-        set_err(EINVAL, "bad target host");
-        return false;
-    }
-    if (connect(_target_addr, socket->info.len) == false) {
+
+    if (connect(&server_addr.addr.ss, server_addr.len) == false) {
         return false;
     }
 
@@ -1099,23 +1160,24 @@ ssize_t Socket::sendmsg(const struct msghdr *msg, int flags) {
 }
 
 bool Socket::bind(const struct sockaddr *sa, socklen_t len) {
-    return ::bind(sock_fd, (struct sockaddr *) sa, len) == 0;
+    return socket->bind(sa, len) == 0;
 }
 
-bool Socket::bind(std::string address, int port) {
+bool Socket::bind(const std::string &address, const int port) {
     if (sw_unlikely(!is_available(SW_EVENT_NULL))) {
         return false;
     }
-    if ((sock_domain == AF_INET || sock_domain == AF_INET6) && (port < 0 || port > 65535)) {
-        set_err(EINVAL, std_string::format("Invalid port [%d]", port));
+
+    if (socket->set_reuse_addr() < 0) {
+        swoole_sys_warning("setsockopt(%d, SO_REUSEADDR) failed", get_fd());
+    }
+
+    if (socket->bind(address, port) < 0) {
+        set_err(errno);
         return false;
     }
 
-    bind_address = address;
-    bind_port = port;
-    bind_address_info.type = type;
-
-    if (socket->bind(address, &bind_port) != 0) {
+    if (socket->get_name() < 0) {
         set_err(errno);
         return false;
     }
@@ -1129,10 +1191,6 @@ bool Socket::listen(int backlog) {
     }
     this->backlog = backlog <= 0 ? SW_BACKLOG : backlog;
     if (socket->listen(this->backlog) < 0) {
-        set_err(errno);
-        return false;
-    }
-    if (socket->get_name(&socket->info) < 0) {
         set_err(errno);
         return false;
     }
@@ -1342,75 +1400,40 @@ bool Socket::sendfile(const char *filename, off_t offset, size_t length) {
     return true;
 }
 
-ssize_t Socket::sendto(const std::string &host, int port, const void *__buf, size_t __n) {
+ssize_t Socket::sendto(std::string host, int port, const void *__buf, size_t __n) {
     if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
         return -1;
     }
 
     ssize_t retval = 0;
-    union {
-        struct sockaddr_in in;
-        struct sockaddr_in6 in6;
-        struct sockaddr_un un;
-    } addr = {};
-    size_t addr_size = 0;
+    network::Address addr;
 
-    std::string ip = host;
+    if (!socket->is_dgram()) {
+        set_err(EPROTONOSUPPORT);
+        return -1;
+    }
 
-    for (size_t i = 0; i < 2; i++) {
-        if (type == SW_SOCK_UDP) {
-            if (::inet_pton(AF_INET, ip.c_str(), &addr.in.sin_addr) == 0) {
-                read_co = write_co = Coroutine::get_current_safe();
-                ip = System::gethostbyname(host, sock_domain, dns_timeout);
-                read_co = write_co = nullptr;
-                if (ip.empty()) {
-                    set_err(swoole_get_last_error(), swoole_strerror(swoole_get_last_error()));
-                    return -1;
+    SW_LOOP_N(2) {
+        if (!addr.assign(type, host, port, false)) {
+            if (swoole_get_last_error() == SW_ERROR_BAD_HOST_ADDR) {
+                host = System::gethostbyname(host, sock_domain, dns_timeout);
+                if (!host.empty()) {
+                    continue;
                 }
-                continue;
-            } else {
-                addr.in.sin_family = AF_INET;
-                addr.in.sin_port = htons(port);
-                addr_size = sizeof(addr.in);
-                break;
             }
-        } else if (type == SW_SOCK_UDP6) {
-            if (::inet_pton(AF_INET6, ip.c_str(), &addr.in6.sin6_addr) == 0) {
-                read_co = write_co = Coroutine::get_current_safe();
-                ip = System::gethostbyname(host, sock_domain, dns_timeout);
-                read_co = write_co = nullptr;
-                if (ip.empty()) {
-                    set_err(swoole_get_last_error(), swoole_strerror(swoole_get_last_error()));
-                    return -1;
-                }
-                continue;
-            } else {
-                addr.in6.sin6_port = (uint16_t) htons(port);
-                addr.in6.sin6_family = AF_INET6;
-                addr_size = sizeof(addr.in6);
-                break;
-            }
-        } else if (type == SW_SOCK_UNIX_DGRAM) {
-            addr.un.sun_family = AF_UNIX;
-            swoole_strlcpy(addr.un.sun_path, host.c_str(), sizeof(addr.un.sun_path));
-            addr_size = sizeof(addr.un);
-            break;
-        } else {
-            set_err(EPROTONOSUPPORT);
-            retval = -1;
-            break;
+            set_err();
+            return -1;
         }
+        break;
     }
 
-    if (addr_size > 0) {
-        TimerController timer(&write_timer, write_timeout, this, timer_callback);
-        do {
-            retval = ::sendto(sock_fd, __buf, __n, 0, (struct sockaddr *) &addr, addr_size);
-            swoole_trace_log(SW_TRACE_SOCKET, "sendto %ld/%ld bytes, errno=%d", retval, __n, errno);
-        } while (retval < 0 && (errno == EINTR || (socket->catch_write_error(errno) == SW_WAIT && timer.start() &&
-                                                   wait_event(SW_EVENT_WRITE, &__buf, __n))));
-        check_return_value(retval);
-    }
+    TimerController timer(&write_timer, write_timeout, this, timer_callback);
+    do {
+        retval = socket->sendto(addr, __buf, __n, 0);
+        swoole_trace_log(SW_TRACE_SOCKET, "sendto %ld/%ld bytes, errno=%d", retval, __n, errno);
+    } while (retval < 0 && (errno == EINTR || (socket->catch_write_error(errno) == SW_WAIT && timer.start() &&
+                                               wait_event(SW_EVENT_WRITE, &__buf, __n))));
+    check_return_value(retval);
 
     return retval;
 }
@@ -1481,8 +1504,8 @@ _get_length:
         swoole_error_log(SW_LOG_WARNING,
                          SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
                          "packet length is too big, remote_addr=%s:%d, length=%zu",
-                         socket->info.get_ip(),
-                         socket->info.get_port(),
+                         socket->get_addr(),
+                         socket->get_port(),
                          packet_len);
         set_err(SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, sw_error);
         return -1;
@@ -1725,18 +1748,8 @@ Socket::~Socket() {
         SW_ASSERT(!has_bound() && socket->removed);
     }
 #endif
-    if (read_buffer) {
-        delete read_buffer;
-    }
-    if (write_buffer) {
-        delete write_buffer;
-    }
-    if (socks5_proxy) {
-        delete socks5_proxy;
-    }
-    if (http_proxy) {
-        delete http_proxy;
-    }
+    delete read_buffer;
+    delete write_buffer;
     if (socket == nullptr) {
         return;
     }
@@ -1744,17 +1757,76 @@ Socket::~Socket() {
 #ifdef SW_USE_OPENSSL
     ssl_shutdown();
 #endif
-    if (sock_domain == AF_UNIX && !bind_address.empty()) {
-        ::unlink(bind_address_info.addr.un.sun_path);
-        bind_address_info = {};
-    }
-    if (socket->socket_type == SW_SOCK_UNIX_DGRAM) {
-        ::unlink(socket->info.addr.un.sun_path);
-    }
     if (dtor_ != nullptr) {
         dtor_(this);
     }
     socket->free();
+}
+
+bool Socket::TimerController::start() {
+    if (timeout != 0 && !*timer_pp) {
+        enabled = true;
+        if (timeout > 0) {
+            *timer_pp = swoole_timer_add(timeout, false, callback, socket_);
+            return *timer_pp != nullptr;
+        }
+        *timer_pp = (TimerNode *) -1;
+    }
+    return true;
+}
+
+Socket::TimerController::~TimerController() {
+    if (enabled && *timer_pp) {
+        if (*timer_pp != (TimerNode *) -1) {
+            swoole_timer_del(*timer_pp);
+        }
+        *timer_pp = nullptr;
+    }
+}
+
+Socket::TimeoutSetter::TimeoutSetter(Socket *socket, double _timeout, const enum TimeoutType _type)
+    : socket_(socket), timeout(_timeout), type(_type) {
+    if (_timeout == 0) {
+        return;
+    }
+    for (uint8_t i = 0; i < SW_ARRAY_SIZE(timeout_type_list); i++) {
+        if (_type & timeout_type_list[i]) {
+            original_timeout[i] = socket->get_timeout(timeout_type_list[i]);
+            if (_timeout != original_timeout[i]) {
+                socket->set_timeout(_timeout, timeout_type_list[i]);
+            }
+        }
+    }
+}
+
+Socket::TimeoutSetter::~TimeoutSetter() {
+    if (timeout == 0) {
+        return;
+    }
+    for (uint8_t i = 0; i < SW_ARRAY_SIZE(timeout_type_list); i++) {
+        if (type & timeout_type_list[i]) {
+            if (timeout != original_timeout[i]) {
+                socket_->set_timeout(original_timeout[i], timeout_type_list[i]);
+            }
+        }
+    }
+}
+
+bool Socket::TimeoutController::has_timedout(const enum TimeoutType _type) {
+    SW_ASSERT_1BYTE(_type);
+    if (timeout > 0) {
+        if (sw_unlikely(startup_time == 0)) {
+            startup_time = microtime();
+        } else {
+            double used_time = microtime() - startup_time;
+            if (sw_unlikely(timeout - used_time < SW_TIMER_MIN_SEC)) {
+                socket_->set_err(ETIMEDOUT);
+                return true;
+            }
+            socket_->set_timeout(timeout - used_time, _type);
+        }
+    }
+    return false;
 }
 
 }  // namespace coroutine

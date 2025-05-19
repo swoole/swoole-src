@@ -61,7 +61,7 @@ $pm->run();
 [%s]	INFO	Server is reloading all workers now
 %d [%d] stop
 %d [%d] start
-[%s]	WARNING	Manager::kill_timeout_process() (ERRNO 9101): worker(pid=%d, id=0) exit timeout, force kill the process
+[%s]	WARNING	ReloadTask::kill_all(): force kill worker process(pid=%d, id=%d)
 [%s]	WARNING	Worker::report_error(): worker(pid=%d, id=0) abnormal exit, status=0, signal=9
 %d [%d] start
 %d [%d] stop

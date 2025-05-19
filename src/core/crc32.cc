@@ -39,7 +39,7 @@ static void generate_table(uint32_t (&table)[CRC32_TABLE_SIZE]) {
     }
 }
 
-uint32_t swoole_crc32(const char *data, uint32_t size) {
+uint32_t swoole_crc32(const char *data, size_t size) {
     if (sw_unlikely(!generated)) {
         generate_table(crc32_table);
     }

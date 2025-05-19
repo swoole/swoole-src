@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.5)
 project(core_tests)
 
 #set(CMAKE_BUILD_TYPE Released)
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -g")
 
 file(GLOB_RECURSE SOURCE_FILES FOLLOW_SYMLINKS src/*.cpp deps/llhttp/src/*.c)
@@ -16,12 +16,23 @@ set(core_tests_link_directories /usr/local/lib)
 
 list(APPEND core_tests_libraries pthread gtest gtest_main)
 
+find_package(PkgConfig REQUIRED)
+
 # find GTest
 find_package(GTest REQUIRED)
 if (!${GTEST_FOUND})
     message(FATAL_ERROR "Not found GTest")
 endif()
 message(STATUS "Found GTest")
+
+pkg_check_modules(NGHTTP2 REQUIRED libnghttp2)
+if (${NGHTTP2_FOUND})
+    message(STATUS "Found nghttp2")
+    list(APPEND core_tests_includes ${NGHTTP2_INCLUDE_DIR})
+    list(APPEND core_tests_libraries ${NGHTTP2_LIBRARIES})
+else()
+    message(STATUS "Not found nghttp2")
+endif()
 
 list(APPEND core_tests_libraries ${GTEST_BOTH_LIBRARIES})
 list(APPEND core_tests_includes ${GTEST_INCLUDE_DIRS})
@@ -52,17 +63,16 @@ else()
     endif()
 endif()
 
-if (DEFINED brotli_dir)
-    list(APPEND core_tests_includes ${brotli_dir}/include)
-    list(APPEND core_tests_link_directories ${brotli_dir}/lib)
-endif()
-
 if (DEFINED enable_asan)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer")
 endif()
 
 if (DEFINED enable_thread)
     add_definitions(-DSW_THREAD)
+endif()
+
+if (DEFINED verbose)
+    add_definitions(-DSW_VERBOSE)
 endif()
 
 # should execute before the add_executable command

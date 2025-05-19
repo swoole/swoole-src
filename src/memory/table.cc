@@ -35,7 +35,7 @@ Table *Table::make(uint32_t rows_size, float conflict_proportion) {
         conflict_proportion = SW_TABLE_CONFLICT_PROPORTION;
     }
 
-    auto table = (Table *) sw_mem_pool()->alloc(sizeof(Table));
+    auto table = static_cast<Table *>(sw_mem_pool()->alloc(sizeof(Table)));
     if (table == nullptr) {
         return nullptr;
     }
@@ -130,16 +130,16 @@ bool Table::create() {
     }
     memory = _memory;
 
-    rows = (TableRow **) _memory;
-    _memory = (char *) _memory + size * sizeof(TableRow *);
+    rows = static_cast<TableRow **>(_memory);
+    _memory = static_cast<char *>(_memory) + size * sizeof(TableRow *);
     _memory_size -= size * sizeof(TableRow *);
 
     for (size_t i = 0; i < size; i++) {
-        rows[i] = (TableRow *) ((char *) _memory + (_row_memory_size * i));
+        rows[i] = reinterpret_cast<TableRow *>(static_cast<char *>(_memory) + (_row_memory_size * i));
         memset(rows[i], 0, sizeof(TableRow));
     }
 
-    _memory = (char *) _memory + _row_memory_size * size;
+    _memory = static_cast<char *>(_memory) + _row_memory_size * size;
     _memory_size -= _row_memory_size * size;
     pool = new FixedPool(_row_memory_size, _memory, _memory_size, true);
     iterator = new TableIterator(_row_memory_size);
@@ -180,10 +180,10 @@ void TableRow::lock() {
     uint32_t i, n;
     long t = 0;
 
-    while (1) {
+    while (true) {
         if (*lock == 0 && sw_atomic_cmp_set(lock, 0, 1)) {
         _success:
-            lock_pid = SwooleG.pid;
+            lock_pid = getpid();
             return;
         }
         if (SW_CPU_NUM > 1) {
@@ -297,13 +297,10 @@ TableRow *Table::set(const char *key, uint16_t keylen, TableRow **rowlock, int *
     row->lock();
     int _out_flags = 0;
 
-    uint32_t _conflict_level = 1;
-
     if (row->active) {
-        for (;;) {
-            if (sw_mem_equal(row->key, row->key_len, key, keylen)) {
-                break;
-            } else if (row->next == nullptr) {
+        uint32_t _conflict_level = 1;
+        while (!sw_mem_equal(row->key, row->key_len, key, keylen)) {
+            if (row->next == nullptr) {
                 conflict_count++;
                 if (_conflict_level > conflict_max_level) {
                     conflict_max_level = _conflict_level;
@@ -356,7 +353,6 @@ bool Table::del(const char *key, uint16_t keylen) {
     if (row->next == nullptr) {
         if (sw_mem_equal(row->key, row->key_len, key, keylen)) {
             row->clear();
-            goto _delete_element;
         } else {
             goto _not_exists;
         }
@@ -391,7 +387,6 @@ bool Table::del(const char *key, uint16_t keylen) {
         free_row(tmp);
     }
 
-_delete_element:
     sw_atomic_fetch_add(&(delete_count), 1);
     sw_atomic_fetch_sub(&(row_num), 1);
     row->unlock();

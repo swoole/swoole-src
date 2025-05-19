@@ -15,7 +15,6 @@
  */
 
 #include "swoole_server.h"
-#include "swoole_memory.h"
 
 namespace swoole {
 using network::Socket;
@@ -68,7 +67,7 @@ int Server::start_reactor_processes() {
     SW_LOOP_N(worker_num) {
         gs->event_workers.workers[i].pool = &gs->event_workers;
         gs->event_workers.workers[i].id = i;
-        gs->event_workers.workers[i].type = SW_PROCESS_WORKER;
+        gs->event_workers.workers[i].type = SW_WORKER;
     }
 
     init_ipc_max_size();
@@ -91,7 +90,7 @@ int Server::start_reactor_processes() {
 
 static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
     SendData _send;
-    Server *serv = (Server *) reactor->ptr;
+    auto *serv = (Server *) reactor->ptr;
     Factory *factory = serv->factory;
     PipeBuffer *pipe_buffer = serv->message_bus.get_buffer();
 
@@ -128,7 +127,8 @@ static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
         factory->finish(&_send);
         break;
     }
-    case SW_SERVER_EVENT_CLOSE: {
+    case SW_SERVER_EVENT_CLOSE:
+    case SW_SERVER_EVENT_CLOSE_FORWARD: {
         factory->end(pipe_buffer->info.fd, Server::CLOSE_ACTIVELY);
         break;
     }
@@ -152,11 +152,10 @@ static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
 }
 
 int Server::reactor_process_main_loop(ProcessPool *pool, Worker *worker) {
-    Server *serv = (Server *) pool->ptr;
-    SwooleG.pid = getpid();
-    SwooleTG.id = 0;
-    swoole_set_process_type(SW_PROCESS_WORKER);
-    swoole_set_process_id(worker->id);
+    auto *serv = (Server *) pool->ptr;
+    swoole_set_worker_type(SW_EVENT_WORKER);
+    swoole_set_worker_id(worker->id);
+    swoole_set_worker_pid(getpid());
 
     serv->init_event_worker(worker);
 
@@ -179,7 +178,7 @@ int Server::reactor_process_main_loop(ProcessPool *pool, Worker *worker) {
     for (auto ls : serv->ports) {
 #if defined(__linux__) and defined(HAVE_REUSEPORT)
         if (ls->is_stream() && serv->enable_reuse_port) {
-            if (ls->create_socket(serv) < 0) {
+            if (ls->create_socket() < 0) {
                 swoole_event_free();
                 return SW_ERR;
             }
@@ -236,7 +235,7 @@ int Server::reactor_process_main_loop(ProcessPool *pool, Worker *worker) {
     if (worker->id == 0) {
         serv->gs->master_pid = getpid();
         if (serv->onStart && !serv->gs->called_onStart) {
-            serv->gs->called_onStart = 1;
+            serv->gs->called_onStart = true;
             serv->onStart(serv);
         }
     }
@@ -260,7 +259,7 @@ int Server::reactor_process_main_loop(ProcessPool *pool, Worker *worker) {
         }
     }
 
-    int retval = reactor->wait(nullptr);
+    int retval = reactor->wait();
 
     /**
      * Close all connections
@@ -285,7 +284,7 @@ int Server::reactor_process_main_loop(ProcessPool *pool, Worker *worker) {
 
 static int ReactorProcess_onClose(Reactor *reactor, Event *event) {
     int fd = event->fd;
-    Server *serv = (Server *) reactor->ptr;
+    auto *serv = (Server *) reactor->ptr;
     Connection *conn = serv->get_connection(fd);
     if (conn == nullptr || conn->active == 0) {
         return SW_ERR;
@@ -310,8 +309,8 @@ static int ReactorProcess_onClose(Reactor *reactor, Event *event) {
 }
 
 static void ReactorProcess_onTimeout(Timer *timer, TimerNode *tnode) {
-    Reactor *reactor = (Reactor *) tnode->data;
-    Server *serv = (Server *) reactor->ptr;
+    auto *reactor = (Reactor *) tnode->data;
+    auto *serv = (Server *) reactor->ptr;
     Event notify_ev{};
     double now = microtime();
 

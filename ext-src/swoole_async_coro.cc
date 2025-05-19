@@ -116,9 +116,6 @@ PHP_FUNCTION(swoole_async_set) {
         v = SW_MAX(1, SW_MIN(v, UINT32_MAX));
         SwooleG.aio_worker_num = v;
     }
-    if (php_swoole_array_get_value(vht, "socket_dontwait", ztmp)) {
-        SwooleG.socket_dontwait = zval_is_true(ztmp);
-    }
     if (php_swoole_array_get_value(vht, "dns_lookup_random", ztmp)) {
         SwooleG.dns_lookup_random = zval_is_true(ztmp);
     }

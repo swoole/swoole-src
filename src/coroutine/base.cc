@@ -51,12 +51,61 @@ void Coroutine::deactivate() {
     coroutine::thread_context_clean();
 #endif
     activated = false;
-    on_bailout = [](){
+    on_bailout = []() {
         // The coroutine scheduler has been destroyed,
         // Can not resume any coroutine
         // Expect that never here
         swoole_error("have been bailout, can not resume any coroutine");
     };
+}
+
+bool Coroutine::run(const CoroutineFunc &fn, void *args) {
+    swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
+    long cid = create(fn, args);
+    swoole_event_wait();
+    return cid > 0;
+}
+
+void Coroutine::calc_execute_usec(Coroutine *yield_coroutine, Coroutine *resume_coroutine) {
+    long current_usec = time<seconds_type>(true);
+    if (yield_coroutine) {
+        yield_coroutine->execute_usec += current_usec - yield_coroutine->switch_usec;
+    }
+
+    if (resume_coroutine) {
+        resume_coroutine->switch_usec = current_usec;
+    }
+}
+
+Coroutine::Coroutine(const CoroutineFunc &fn, void *private_data) : ctx(stack_size, fn, private_data) {
+    cid = ++last_cid;
+    coroutines[cid] = this;
+    if (sw_unlikely(count() > peak_num)) {
+        peak_num = count();
+    }
+    if (!activated) {
+        activate();
+    }
+}
+
+void Coroutine::check_end() {
+    if (ctx.is_end()) {
+        close();
+    } else if (sw_unlikely(on_bailout)) {
+        SW_ASSERT(current == nullptr);
+        on_bailout();
+    }
+}
+
+long Coroutine::run() {
+    long cid = this->cid;
+    origin = current;
+    current = this;
+    CALC_EXECUTE_USEC(origin, nullptr);
+    state = STATE_RUNNING;
+    ctx.swap_in();
+    check_end();
+    return cid;
 }
 
 void Coroutine::yield() {
@@ -154,9 +203,9 @@ void Coroutine::close() {
 }
 
 void Coroutine::print_list() {
-    for (auto i = coroutines.begin(); i != coroutines.end(); i++) {
+    for (auto &coroutine : coroutines) {
         const char *state;
-        switch (i->second->state) {
+        switch (coroutine.second->state) {
         case STATE_INIT:
             state = "[INIT]";
             break;
@@ -173,23 +222,23 @@ void Coroutine::print_list() {
             abort();
             return;
         }
-        printf("Coroutine\t%ld\t%s\n", i->first, state);
+        sw_printf("Coroutine\t%ld\t%s\n", coroutine.first, state);
     }
 }
 
-void Coroutine::set_on_yield(SwapCallback func) {
+void Coroutine::set_on_yield(const SwapCallback func) {
     on_yield = func;
 }
 
-void Coroutine::set_on_resume(SwapCallback func) {
+void Coroutine::set_on_resume(const SwapCallback func) {
     on_resume = func;
 }
 
-void Coroutine::set_on_close(SwapCallback func) {
+void Coroutine::set_on_close(const SwapCallback func) {
     on_close = func;
 }
 
-void Coroutine::bailout(BailoutCallback func) {
+void Coroutine::bailout(const BailoutCallback &func) {
     Coroutine *co = current;
     if (!co) {
         // marks that it can no longer resume any coroutine
@@ -201,7 +250,7 @@ void Coroutine::bailout(BailoutCallback func) {
         return;
     }
     if (!func) {
-       swoole_error("bailout without callback function");
+        swoole_error("bailout without callback function");
     }
     on_bailout = func;
     // find the coroutine which is closest to the main
@@ -252,18 +301,17 @@ size_t swoole_coroutine_count() {
 /**
  * for gdb
  */
-static std::unordered_map<long, swoole::Coroutine *>::iterator _gdb_iterator;
+static std::unordered_map<long, swoole::Coroutine *>::iterator gdb_iterator_;
 
 void swoole_coroutine_iterator_reset() {
-    _gdb_iterator = swoole::Coroutine::coroutines.begin();
+    gdb_iterator_ = swoole::Coroutine::coroutines.begin();
 }
 
 swoole::Coroutine *swoole_coroutine_iterator_each() {
-    if (_gdb_iterator == swoole::Coroutine::coroutines.end()) {
+    if (gdb_iterator_ == swoole::Coroutine::coroutines.end()) {
         return nullptr;
-    } else {
-        swoole::Coroutine *co = _gdb_iterator->second;
-        _gdb_iterator++;
-        return co;
     }
+    swoole::Coroutine *co = gdb_iterator_->second;
+    ++gdb_iterator_;
+    return co;
 }

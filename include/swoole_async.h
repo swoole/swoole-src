@@ -85,21 +85,12 @@ struct GetaddrinfoRequest : public AsyncRequest {
     int socktype;
     int protocol;
     int error;
-    std::vector<struct sockaddr_in6> results;
+    std::vector<sockaddr_in6> results;
     int count;
 
     void parse_result(std::vector<std::string> &retval);
 
-    GetaddrinfoRequest(std::string _hostname, int _family, int _socktype, int _protocol, std::string _service)
-        : hostname(std::move(_hostname)),
-          service(std::move(_service)) {
-        family =_family;
-        socktype =_socktype;
-        protocol =_protocol;
-        count = 0;
-        error = 0;
-    }
-
+    GetaddrinfoRequest(std::string _hostname, int _family, int _socktype, int _protocol, std::string _service);
     ~GetaddrinfoRequest() override = default;
 };
 
@@ -136,3 +127,5 @@ void handler_getaddrinfo(AsyncEvent *event);
 
 }  // namespace async
 };  // namespace swoole
+
+swoole::AsyncThreads *sw_async_threads();

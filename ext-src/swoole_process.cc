@@ -285,7 +285,7 @@ static PHP_METHOD(swoole_process, __construct) {
     if (server && server->is_worker_thread()) {
         Worker *shared_worker;
         if (server->is_user_worker()) {
-            shared_worker = server->get_worker(swoole_get_process_id());
+            shared_worker = server->get_worker(swoole_get_worker_id());
         } else {
             shared_worker = server->get_worker((server_user_worker_id++) + server->get_core_worker_num());
         }
@@ -486,7 +486,7 @@ static PHP_METHOD(swoole_process, signal) {
 #endif
             signal_fci_caches[signo] = nullptr;
             swoole_event_defer(sw_callable_free, fci_cache);
-            SwooleTG.signal_listener_num--;
+            SwooleG.signal_listener_num--;
             RETURN_TRUE;
         } else {
             php_swoole_error(E_WARNING, "unable to find the callback of signal [" ZEND_LONG_FMT "]", signo);
@@ -506,7 +506,7 @@ static PHP_METHOD(swoole_process, signal) {
         if (signal_fci_caches[signo]) {
             sw_callable_free(signal_fci_caches[signo]);
         } else {
-            SwooleTG.signal_listener_num++;
+            SwooleG.signal_listener_num++;
         }
         signal_fci_caches[signo] = fci_cache;
 #ifdef SW_USE_THREAD_CONTEXT
@@ -521,7 +521,7 @@ static PHP_METHOD(swoole_process, signal) {
     if (!SwooleTG.reactor->isset_exit_condition(Reactor::EXIT_CONDITION_SIGNAL_LISTENER)) {
         SwooleTG.reactor->set_exit_condition(Reactor::EXIT_CONDITION_SIGNAL_LISTENER,
                                              [](Reactor *reactor, size_t &event_num) -> bool {
-                                                 return SwooleTG.signal_listener_num == 0 or !SwooleG.wait_signal;
+                                                 return SwooleG.signal_listener_num == 0 or !SwooleG.wait_signal;
                                              });
     }
 
@@ -529,7 +529,7 @@ static PHP_METHOD(swoole_process, signal) {
         // free the old fci_cache
         swoole_event_defer(sw_callable_free, signal_fci_caches[signo]);
     } else {
-        SwooleTG.signal_listener_num++;
+        SwooleG.signal_listener_num++;
     }
     signal_fci_caches[signo] = fci_cache;
 
@@ -620,8 +620,8 @@ void php_swoole_process_clean() {
         }
     }
 #ifndef SW_THREAD
-    if (swoole_get_process_type() != SW_PROCESS_USERWORKER) {
-        swoole_set_process_type(0);
+    if (swoole_get_worker_type() != SW_USER_WORKER) {
+        swoole_set_worker_type(0);
     }
 #endif
 }
@@ -661,7 +661,8 @@ int php_swoole_process_start(Worker *process, zval *zobject) {
     }
 
     php_swoole_process_clean();
-    swoole_set_process_id(process->id);
+    swoole_set_worker_id(process->id);
+    swoole_set_worker_pid(getpid());
     SwooleWG.worker = process;
 
     zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("pid"), process->pid);

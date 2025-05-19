@@ -22,6 +22,7 @@
 #include "swoole_pipe.h"
 #include "swoole_async.h"
 #include "swoole_util.h"
+#include "swoole_thread.h"
 
 #include <thread>
 #include <atomic>
@@ -30,11 +31,14 @@
 #include <condition_variable>
 #include <mutex>
 #include <queue>
-#include <sstream>
 #include <system_error>
 
 static std::mutex async_thread_lock;
 static std::shared_ptr<swoole::async::ThreadPool> async_thread_pool;
+
+swoole::AsyncThreads *sw_async_threads() {
+    return SwooleTG.async_threads;
+}
 
 namespace swoole {
 namespace async {
@@ -169,22 +173,16 @@ class ThreadPool {
         return _queue.count();
     }
 
-    static std::string get_thread_id(std::thread::id id) {
-        std::stringstream ss;
-        ss << id;
-        return ss.str();
-    }
-
     void release_thread(std::thread::id tid) {
         auto i = threads.find(tid);
         if (i == threads.end()) {
-            swoole_warning("AIO thread#%s is missing", get_thread_id(tid).c_str());
+            swoole_warning("AIO thread#%s is missing", swoole_thread_id_to_str(tid).c_str());
             return;
         } else {
             std::thread *_thread = i->second;
             swoole_trace_log(SW_TRACE_AIO,
                              "release idle thread#%s, we have %zu now",
-                             get_thread_id(tid).c_str(),
+                             swoole_thread_id_to_str(tid).c_str(),
                              threads.size() - 1);
             if (_thread->joinable()) {
                 _thread->join();
@@ -228,7 +226,7 @@ class ThreadPool {
 
 void ThreadPool::main_func(bool is_core_worker) {
     bool exit_flag = false;
-    swoole_thread_init();
+    swoole_thread_init(false);
 
     while (running) {
         event_mutex.lock();
@@ -313,7 +311,7 @@ void ThreadPool::main_func(bool is_core_worker) {
             --n_waiting;
         }
     }
-    swoole_thread_clean();
+    swoole_thread_clean(false);
 }
 
 void ThreadPool::create_thread(const bool is_core_worker) {

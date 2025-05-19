@@ -64,6 +64,13 @@ enum swHttpCompressMethod {
     HTTP_COMPRESS_ZSTD,
 };
 
+enum swHttpErrorStatusCode {
+    HTTP_ESTATUS_CONNECT_FAILED = -1,
+    HTTP_ESTATUS_REQUEST_TIMEOUT = -2,
+    HTTP_ESTATUS_SERVER_RESET = -3,
+    HTTP_ESTATUS_SEND_FAILED = -4,
+};
+
 namespace swoole {
 class Server;
 class Coroutine;

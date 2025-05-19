@@ -299,7 +299,14 @@ void php_swoole_set_global_option(HashTable *vht) {
         SWOOLE_G(display_errors) = zval_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "print_backtrace_on_error", ztmp)) {
+#if !defined(HAVE_BOOST_STACKTRACE) && !defined(HAVE_EXECINFO)
+        zend_throw_exception(
+            swoole_error_ce,
+            "The `print_backtrace_on_error` option requires `boost stacktrace` or `execinfo.h` to be installed",
+            SW_ERROR_OPERATION_NOT_SUPPORT);
+#else
         SwooleG.print_backtrace_on_error = zval_is_true(ztmp);
+#endif
     }
     // [DNS]
     // ======================================================================
@@ -483,6 +490,8 @@ PHP_MINIT_FUNCTION(swoole) {
     SW_REGISTER_LONG_CONSTANT("SWOOLE_SOCK_UDP6", SW_SOCK_UDP6);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_SOCK_UNIX_DGRAM", SW_SOCK_UNIX_DGRAM);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_SOCK_UNIX_STREAM", SW_SOCK_UNIX_STREAM);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_SOCK_RAW", SW_SOCK_RAW);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_SOCK_RAW6", SW_SOCK_RAW6);
 
     /**
      * simple socket type alias
@@ -493,6 +502,8 @@ PHP_MINIT_FUNCTION(swoole) {
     SW_REGISTER_LONG_CONSTANT("SWOOLE_UDP6", SW_SOCK_UDP6);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_UNIX_DGRAM", SW_SOCK_UNIX_DGRAM);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_UNIX_STREAM", SW_SOCK_UNIX_STREAM);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_RAW", SW_SOCK_RAW);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_RAW6", SW_SOCK_RAW6);
 
     /**
      * simple api
@@ -907,6 +918,13 @@ PHP_MINFO_FUNCTION(swoole) {
     php_info_print_table_row(2, "Version", SWOOLE_VERSION);
     snprintf(buf, sizeof(buf), "%s %s", __DATE__, __TIME__);
     php_info_print_table_row(2, "Built", buf);
+
+#if SW_BYTE_ORDER == SW_LITTLE_ENDIAN
+    php_info_print_table_row(2, "host byte order", "little endian");
+#else
+    php_info_print_table_row(2, "host byte order", "big endian");
+#endif
+
 #if defined(SW_USE_THREAD_CONTEXT)
     php_info_print_table_row(2, "coroutine", "enabled with thread context");
 #elif defined(SW_USE_ASM_CONTEXT)
@@ -1020,6 +1038,11 @@ PHP_MINFO_FUNCTION(swoole) {
 #endif
 #ifdef SW_USE_IOURING
     php_info_print_table_row(2, "io_uring", "enabled");
+#endif
+#ifdef HAVE_BOOST_STACKTRACE
+    php_info_print_table_row(2, "boost stacktrace", "enabled");
+#elif defined(HAVE_EXECINFO)
+    php_info_print_table_row(2, "execinfo", "enabled");
 #endif
     php_info_print_table_end();
 

@@ -61,23 +61,11 @@ class File {
         flags_ = 0;
     }
 
-    File(const std::string &path, int oflags) {
-        fd_ = ::open(path.c_str(), oflags);
-        path_ = path;
-        flags_ = oflags;
-    }
+    File(const std::string &path, int oflags);
+    File(const std::string &path, int oflags, int mode);
+    ~File();
 
-    File(const std::string &path, int oflags, int mode) {
-        fd_ = ::open(path.c_str(), oflags, mode);
-        path_ = path;
-        flags_ = oflags;
-    }
-
-    ~File() {
-        if (fd_ >= 0) {
-            ::close(fd_);
-        }
-    }
+    bool open(const std::string &path, int oflags, int mode = 0);
 
     bool ready() {
         return fd_ != -1;
@@ -85,6 +73,10 @@ class File {
 
     ssize_t write(const void *__buf, size_t __n) const {
         return ::write(fd_, __buf, __n);
+    }
+
+    ssize_t write(const std::string &str) const {
+        return ::write(fd_, str.c_str(), str.length());
     }
 
     ssize_t read(void *__buf, size_t __n) const {
@@ -171,7 +163,11 @@ class File {
     }
 
     static bool exists(const std::string &file) {
-        return access(file.c_str(), R_OK) == 0;
+        return ::access(file.c_str(), R_OK) == 0;
+    }
+
+    static bool remove(const std::string &file) {
+        return ::remove(file.c_str()) == 0;
     }
 };
 

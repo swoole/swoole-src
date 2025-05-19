@@ -201,7 +201,7 @@ int Timer::select() {
     TimerNode *tnode = nullptr;
     HeapNode *tmp;
 
-    swoole_trace_log(SW_TRACE_TIMER, "timer msec=%" PRId64 ", round=%" PRId64, now_msec, round);
+    swoole_trace_log(SW_TRACE_TIMER, "select begin: now_msec=%" PRId64 ", round=%" PRId64, now_msec, round);
 
     while ((tmp = heap.top())) {
         tnode = (TimerNode *) tmp->data;
@@ -212,7 +212,7 @@ int Timer::select() {
         _current_id = tnode->id;
         if (!tnode->removed) {
             swoole_trace_log(SW_TRACE_TIMER,
-                             "id=%ld, exec_msec=%" PRId64 ", round=%" PRIu64 ", exist=%lu",
+                             "execute callback [id=%ld, exec_msec=%" PRId64 ", round=%" PRIu64 ", exist=%lu]",
                              tnode->id,
                              tnode->exec_msec,
                              tnode->round,

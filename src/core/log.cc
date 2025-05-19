@@ -15,6 +15,7 @@
 */
 
 #include "swoole.h"
+#include "swoole_process_pool.h"
 
 #include <string.h>
 #include <fcntl.h>
@@ -70,10 +71,14 @@ bool Logger::open(const char *_log_file) {
         log_real_file = log_file;
     }
 
-    log_fd = ::open(log_real_file.c_str(), O_APPEND | O_RDWR | O_CREAT, 0666);
+    auto log_fd = ::open(log_real_file.c_str(), O_APPEND | O_RDWR | O_CREAT, 0666);
     if (log_fd < 0) {
-        printf("open(%s) failed. Error: %s[%d]\n", log_real_file.c_str(), strerror(errno), errno);
-        log_fd = STDOUT_FILENO;
+        swoole_error_log(SW_LOG_WARNING,
+                         SW_ERROR_SYSTEM_CALL_FAIL,
+                         "open('%s') failed. Error: %s[%d]",
+                         log_real_file.c_str(),
+                         strerror(errno),
+                         errno);
         opened = false;
         log_file = "";
         log_real_file = "";
@@ -81,15 +86,23 @@ bool Logger::open(const char *_log_file) {
         return false;
     } else {
         opened = true;
+        log_fp = fdopen(log_fd, "a");
 
         return true;
     }
 }
 
+void Logger::set_stream(FILE *stream) {
+    if (opened) {
+        close();
+    }
+    log_fp = stream;
+}
+
 void Logger::close(void) {
     if (opened) {
-        ::close(log_fd);
-        log_fd = STDOUT_FILENO;
+        fclose(log_fp);
+        log_fp = stdout;
         log_file = "";
         opened = false;
     }
@@ -113,7 +126,7 @@ void Logger::set_rotation(int _rotation) {
     log_rotation = _rotation;
 }
 
-bool Logger::redirect_stdout_and_stderr(int enable) {
+bool Logger::redirect_stdout_and_stderr(bool enable) {
     if (enable) {
         if (!opened) {
             swoole_warning("no log file opened");
@@ -131,7 +144,7 @@ bool Logger::redirect_stdout_and_stderr(int enable) {
             swoole_sys_warning("dup(STDERR_FILENO) failed");
             return false;
         }
-        swoole_redirect_stdout(log_fd);
+        swoole_redirect_stdout(fileno(log_fp));
         redirected = true;
     } else {
         if (!redirected) {
@@ -185,10 +198,7 @@ void Logger::set_date_with_microseconds(bool enable) {
     date_with_microseconds = enable;
 }
 
-/**
- * reopen log file
- */
-void Logger::reopen() {
+void Logger::reopen_without_lock() {
     if (!opened) {
         return;
     }
@@ -196,12 +206,14 @@ void Logger::reopen() {
     std::string new_log_file(log_file);
     close();
     open(new_log_file.c_str());
-    /**
-     * redirect STDOUT & STDERR to log file
-     */
     if (redirected) {
-        swoole_redirect_stdout(log_fd);
+        swoole_redirect_stdout(fileno(log_fp));
     }
+}
+
+void Logger::reopen() {
+    std::unique_lock<std::mutex> _lock(lock);
+    reopen_without_lock();
 }
 
 const char *Logger::get_real_file() {
@@ -247,7 +259,6 @@ void Logger::put(int level, const char *content, size_t length) {
     const char *level_str;
     char date_str[SW_LOG_DATE_STRLEN];
     char log_str[SW_LOG_BUFFER_SIZE];
-    int n;
 
     if (level < log_level) {
         return;
@@ -281,8 +292,12 @@ void Logger::put(int level, const char *content, size_t length) {
 
     if (log_rotation) {
         std::string tmp = gen_real_file(log_file);
-        if (tmp != log_real_file) {
-            reopen();
+        /**
+         * If the current thread fails to acquire the lock, it will forgo executing the log rotation.
+         */
+        if (tmp != log_real_file && lock.try_lock()) {
+            reopen_without_lock();
+            lock.unlock();
         }
     }
 
@@ -292,48 +307,36 @@ void Logger::put(int level, const char *content, size_t length) {
             date_str + l_data_str, SW_LOG_DATE_STRLEN - l_data_str, "<.%lld>", (long long) now_us - now_sec * 1000000);
     }
 
-    char process_flag = '@';
-    int process_id = 0;
-
-    switch (swoole_get_process_type()) {
-    case SW_PROCESS_MASTER:
-        process_flag = '#';
-        process_id = swoole_get_thread_id();
-        break;
-    case SW_PROCESS_MANAGER:
-        process_flag = '$';
-        break;
-    case SW_PROCESS_WORKER:
-        process_flag = '*';
-        process_id = swoole_get_process_id();
-        break;
-    case SW_PROCESS_TASKWORKER:
-        process_flag = '^';
-        process_id = swoole_get_process_id();
-        break;
-    default:
-        break;
+    int worker_id = swoole_get_worker_id();
+    pid_t worker_pid = swoole_get_worker_pid();
+    if (worker_pid == 0) {
+        worker_pid = getpid();
     }
+    char worker_symbol = swoole_get_worker_symbol();
 
-    n = sw_snprintf(log_str,
-                    SW_LOG_BUFFER_SIZE,
-                    "[%.*s %c%d.%d]\t%s\t%.*s\n",
-                    static_cast<int>(l_data_str),
-                    date_str,
-                    process_flag,
-                    SwooleG.pid,
-                    process_id,
-                    level_str,
-                    static_cast<int>(length),
-                    content);
+    size_t n = sw_snprintf(log_str,
+                           SW_LOG_BUFFER_SIZE,
+                           "[%.*s %c%d.%d]\t%s\t%.*s\n",
+                           static_cast<int>(l_data_str),
+                           date_str,
+                           worker_symbol,
+                           worker_pid,
+                           worker_id,
+                           level_str,
+                           static_cast<int>(length),
+                           content);
 
-    if (opened && flock(log_fd, LOCK_EX) == -1) {
-        return;
+    lock.lock();
+    if (opened) {
+        flockfile(log_fp);
     }
-    write(log_fd, log_str, n);
-    if (opened && flock(log_fd, LOCK_UN) == -1) {
-        return;
+    fwrite(log_str, n, 1, log_fp);
+    fflush(log_fp);
+    if (opened) {
+        funlockfile(log_fp);
     }
+    lock.unlock();
+
     if (display_backtrace_) {
         swoole_print_backtrace();
     }

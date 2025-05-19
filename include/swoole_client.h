@@ -27,6 +27,11 @@ namespace swoole {
 namespace network {
 
 class Client {
+    int (*connect_)(Client *cli, const char *host, int port, double _timeout, int sock_flag) = nullptr;
+    ssize_t (*send_)(Client *cli, const char *data, size_t length, int flags) = nullptr;
+    int (*sendfile_)(Client *cli, const char *filename, off_t offset, size_t length) = nullptr;
+    ssize_t (*recv_)(Client *cli, char *data, size_t length, int flags) = nullptr;
+
   public:
     int id = 0;
     long timeout_id = 0;  // timeout node id
@@ -37,7 +42,6 @@ class Client {
     bool active = false;
     bool async = false;
     bool keep = false;
-    bool destroyed = false;
     bool http2 = false;
     bool sleep_ = false;
     bool wait_dns = false;
@@ -56,8 +60,8 @@ class Client {
     bool open_eof_check = false;
 
     Protocol protocol = {};
-    Socks5Proxy *socks5_proxy = nullptr;
-    HttpProxy *http_proxy = nullptr;
+    std::unique_ptr<Socks5Proxy> socks5_proxy = nullptr;
+    std::unique_ptr<HttpProxy> http_proxy = nullptr;
 
     uint32_t reuse_count = 0;
 
@@ -70,19 +74,16 @@ class Client {
     uint8_t server_strlen = 0;
     double timeout = 0;
     TimerNode *timer = nullptr;
-
     /**
      * signal interruption
      */
     double interrupt_time = 0;
-
     /**
-     * sendto, read only.
+     * for connect()/sendto()
      */
     Address server_addr = {};
-
     /**
-     * recvfrom
+     * for recvfrom()
      */
     Address remote_addr = {};
 
@@ -110,30 +111,23 @@ class Client {
     std::function<void(Client *cli)> onBufferFull = nullptr;
     std::function<void(Client *cli)> onBufferEmpty = nullptr;
 
-    int (*connect)(Client *cli, const char *host, int port, double _timeout, int sock_flag) = nullptr;
-    ssize_t (*send)(Client *cli, const char *data, size_t length, int flags) = nullptr;
-    int (*sendfile)(Client *cli, const char *filename, off_t offset, size_t length) = nullptr;
-    ssize_t (*recv)(Client *cli, char *data, size_t length, int flags) = nullptr;
-
     static void init_reactor(Reactor *reactor);
-    Client(SocketType type, bool async);
+    Client(SocketType _type, bool async);
     ~Client();
-
-    void set_http_proxy(const std::string &host, int port) {
-        http_proxy = new swoole::HttpProxy;
-        http_proxy->proxy_host = host;
-        http_proxy->proxy_port = port;
-    }
 
     Socket *get_socket() {
         return socket;
     }
 
-    SocketType get_socket_type() {
+    bool ready() {
+        return socket != nullptr;
+    }
+
+    SocketType get_socket_type() const {
         return socket->socket_type;
     }
 
-    const std::string *get_http_proxy_host_name() {
+    const std::string *get_http_proxy_host_name() const {
 #ifdef SW_USE_OPENSSL
         if (ssl_context && !ssl_context->tls_host_name.empty()) {
             return &ssl_context->tls_host_name;
@@ -142,12 +136,33 @@ class Client {
         return &http_proxy->target_host;
     }
 
+    int connect(const char *_host, int _port, double _timeout, int _sock_flag = 0) {
+        return connect_(this, _host, _port, _timeout, _sock_flag);
+    }
+
+    ssize_t send(const char *_data, size_t _length, int _flags = 0) {
+        return send_(this, _data, _length, _flags);
+    }
+
+    int sendfile(const char *_filename, off_t _offset = 0, size_t _length = 0) {
+        return sendfile_(this, _filename, _offset, _length);
+    }
+
+    ssize_t recv(char *_data, size_t _length, int _flags = 0) {
+        return recv_(this, _data, _length, _flags);
+    }
+
+    int bind(const std::string &addr, int port);
     int sleep();
     int wakeup();
-    int shutdown(int __how);
+    int sendto(const std::string &host, int port, const char *data, size_t len);
+    int get_peer_name(Address *addr);
+    int shutdown(int _how = SHUT_RDWR);
     int close();
-    void destroy();
     int socks5_handshake(const char *recv_data, size_t length);
+    void set_socks5_proxy(const std::string &host, int port, const std::string &user = "", const std::string &pwd = "");
+    void set_http_proxy(const std::string &host, int port, const std::string &user = "", const std::string &pwd = "");
+
 #ifdef SW_USE_OPENSSL
     int enable_ssl_encrypt();
 #ifdef SW_SUPPORT_DTLS
@@ -250,7 +265,7 @@ class Stream {
     void set_max_length(uint32_t max_length);
 
     static inline Stream *create(const char *dst_host, int dst_port, SocketType type) {
-        Stream *stream = new Stream(dst_host, dst_port, type);
+        auto *stream = new Stream(dst_host, dst_port, type);
         if (!stream->connected) {
             delete stream;
             return nullptr;
@@ -259,7 +274,7 @@ class Stream {
         }
     }
     ~Stream();
-    static ssize_t recv_sync(Socket *sock, void *__buf, size_t __len);
+    static ssize_t recv_sync(Socket *sock, void *_buf, size_t _len);
     static void set_protocol(Protocol *protocol);
 
   private:
@@ -276,25 +291,37 @@ class SyncClient {
     SocketType type;
 
   public:
-    SyncClient(SocketType _type, bool _async = false) : client(_type, _async), async(_async), type(_type) {
+    explicit SyncClient(SocketType _type, bool _async = false) : client(_type, _async), async(_async), type(_type) {
         created = client.socket != nullptr;
     }
 
-    bool connect(const char *host, int port, double timeout = -1) {
+    virtual bool connect(const char *host, int port, double timeout = -1) {
         if (connected || !created) {
             return false;
         }
-        if (client.connect(&client, host, port, timeout, client.socket->is_dgram()) < 0) {
+        if (client.connect(host, port, timeout, client.socket->is_dgram()) < 0) {
             return false;
         }
         connected = true;
         return true;
     }
 
+    void set_stream_protocol() {
+        client.open_length_check = true;
+        Stream::set_protocol(&client.protocol);
+    }
+
+    void set_package_max_length(uint32_t max_length) {
+        client.protocol.package_max_length = max_length;
+    }
+
 #ifdef SW_USE_OPENSSL
     bool enable_ssl_encrypt() {
-        if (client.enable_ssl_encrypt() < 0 || client.ssl_handshake() < 0) {
+        if (client.enable_ssl_encrypt() < 0) {
             return false;
+        }
+        if (connected) {
+            return client.ssl_handshake() == SW_OK;
         } else {
             return true;
         }
@@ -302,19 +329,19 @@ class SyncClient {
 #endif
 
     ssize_t send(const std::string &data) {
-        return client.send(&client, data.c_str(), data.length(), 0);
+        return client.send(data.c_str(), data.length(), 0);
     }
 
     ssize_t send(const char *buf, size_t len) {
-        return client.send(&client, buf, len, 0);
+        return client.send(buf, len, 0);
     }
 
     bool sendfile(const char *filename, off_t offset = 0, size_t length = 0) {
-        return client.sendfile(&client, filename, offset, length) == SW_OK;
+        return client.sendfile(filename, offset, length) == SW_OK;
     }
 
-    ssize_t recv(char *buf, size_t len) {
-        return client.recv(&client, buf, len, 0);
+    ssize_t recv(char *buf, size_t len, int flags = 0) {
+        return client.recv(buf, len, flags);
     }
 
     bool close() {
@@ -324,6 +351,10 @@ class SyncClient {
         client.close();
         created = false;
         return true;
+    }
+
+    Client *get_client() {
+        return &client;
     }
 
     virtual ~SyncClient() {
@@ -341,42 +372,42 @@ class AsyncClient : public SyncClient {
     std::function<void(AsyncClient *, const char *data, size_t length)> _onReceive = nullptr;
 
   public:
-    AsyncClient(SocketType _type) : SyncClient(_type, true) {}
+    explicit AsyncClient(SocketType _type) : SyncClient(_type, true) {}
 
-    bool connect(const char *host, int port, double timeout = -1) {
+    bool connect(const char *host, int port, double timeout = -1) override {
         client.object = this;
         client.onConnect = [](Client *cli) {
-            AsyncClient *ac = (AsyncClient *) cli->object;
+            auto *ac = (AsyncClient *) cli->object;
             ac->_onConnect(ac);
         };
         client.onError = [](Client *cli) {
-            AsyncClient *ac = (AsyncClient *) cli->object;
+            auto *ac = (AsyncClient *) cli->object;
             ac->_onError(ac);
         };
         client.onClose = [](Client *cli) {
-            AsyncClient *ac = (AsyncClient *) cli->object;
+            auto *ac = (AsyncClient *) cli->object;
             ac->_onClose(ac);
         };
         client.onReceive = [](Client *cli, const char *data, size_t length) {
-            AsyncClient *ac = (AsyncClient *) cli->object;
+            auto *ac = (AsyncClient *) cli->object;
             ac->_onReceive(ac, data, length);
         };
         return SyncClient::connect(host, port, timeout);
     }
 
-    void on_connect(std::function<void(AsyncClient *)> fn) {
+    void on_connect(const std::function<void(AsyncClient *)> &fn) {
         _onConnect = fn;
     }
 
-    void on_error(std::function<void(AsyncClient *)> fn) {
+    void on_error(const std::function<void(AsyncClient *)> &fn) {
         _onError = fn;
     }
 
-    void on_close(std::function<void(AsyncClient *)> fn) {
+    void on_close(const std::function<void(AsyncClient *)> &fn) {
         _onClose = fn;
     }
 
-    void on_receive(std::function<void(AsyncClient *, const char *data, size_t length)> fn) {
+    void on_receive(const std::function<void(AsyncClient *, const char *data, size_t length)> &fn) {
         _onReceive = fn;
     }
 };

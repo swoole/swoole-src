@@ -26,6 +26,7 @@ using swoole::QueueNode;
 TEST(msg_queue, rbac) {
     MsgQueue q(0x950001);
     ASSERT_TRUE(q.ready());
+    ASSERT_GE(q.get_id(), 0);
     QueueNode in;
     in.mtype = 999;
     strcpy(in.mdata, "hello world");

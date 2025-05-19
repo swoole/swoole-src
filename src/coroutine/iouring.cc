@@ -189,7 +189,7 @@ bool Iouring::wakeup() {
     return true;
 }
 
-static const char *get_opcode_name(IouringOpcode opcode) {
+static MAYBE_UNUSED const char *get_opcode_name(IouringOpcode opcode) {
     switch (opcode) {
     case SW_IORING_OP_OPENAT:
         return "OPENAT";

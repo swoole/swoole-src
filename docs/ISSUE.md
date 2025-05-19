@@ -1,5 +1,3 @@
-English | [中文](./ISSUE-CN.md)
-
 # Bug reports
 
 ## Instruction
@@ -61,7 +59,7 @@ This docker image can be used directly in a production environment, and `Address
 Besides, In a special case, you can use debugging tools to help developers locate problems
 
 ```shell
-WARNING	swManager_check_exit_status: worker#1 abnormal exit, status=0, signal=11
+WARNING	Worker::report_error(): worker(pid=%d, id=%d) abnormal exit, status=0, signal=11
 ```
 
 When a segmentation error occurs with Swoole, You can use the `gdb` tool and use `bt` command.

@@ -68,24 +68,17 @@ class SocketPair {
         timeout = _timeout;
     }
 
-    void set_blocking(bool blocking) {
-        if (blocking) {
-            worker_socket->set_block();
-            master_socket->set_block();
-        } else {
-            worker_socket->set_nonblock();
-            master_socket->set_nonblock();
-        }
-    }
+    void set_blocking(bool blocking);
 };
 
 class Pipe : public SocketPair {
- public:
+  public:
     Pipe(bool blocking);
 };
 
 class UnixSocket : public SocketPair {
     int protocol_;
+
   public:
     UnixSocket(bool blocking, int _protocol);
     bool set_buffer_size(size_t _size);

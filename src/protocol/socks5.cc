@@ -41,4 +41,17 @@ const char *Socks5Proxy::strerror(int code) {
         return "Unknown error";
     }
 }
+
+Socks5Proxy *Socks5Proxy::create(const std::string &host, int port, const std::string &user, const std::string &pwd) {
+    auto socks5_proxy = new Socks5Proxy();
+    socks5_proxy->host = host;
+    socks5_proxy->port = port;
+    socks5_proxy->dns_tunnel = 1;
+    if (!user.empty() && !pwd.empty()) {
+        socks5_proxy->method = SW_SOCKS5_METHOD_AUTH;
+        socks5_proxy->username = user;
+        socks5_proxy->password = pwd;
+    }
+    return socks5_proxy;
+}
 }  // namespace swoole

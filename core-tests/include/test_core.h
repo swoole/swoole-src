@@ -35,6 +35,17 @@
 
 #define TEST_DOMAIN_BAIDU "www.baidu.com"
 
+#define TEST_HTTP_DOMAIN "www.gov.cn"
+#define TEST_HTTP_EXPECT "Location: https://www.gov.cn/"
+
+#define TEST_STR "hello world, hello swoole\n"
+#define TEST_STR2 "I am Rango\n"
+
+#define TEST_LOG_FILE "/tmp/swoole.log"
+#define TEST_SOCK_FILE "/tmp/swoole-core-tests.sock"
+
+#define TEST_COUNTER_NUM 32
+
 #define TEST_REQUEST_BAIDU                                                                                             \
     "GET / HTTP/1.1\r\n"                                                                                               \
     "Host: www.baidu.com\r\n"                                                                                          \
@@ -45,21 +56,57 @@
 
 #define ASSERT_MEMEQ(x, y, n) ASSERT_EQ(memcmp((x), (y), n), 0)
 #define EXPECT_MEMEQ(x, y, n) EXPECT_EQ(memcmp((x), (y), n), 0)
+#define ASSERT_ERREQ(x) ASSERT_EQ(swoole_get_last_error(), x)
+#define EXPECT_ERREQ(x) EXPECT_EQ(swoole_get_last_error(), x)
+
+#define TIMER_PARAMS Timer *timer, TimerNode *tnode
+
+#ifdef SW_VERBOSE
+#define DEBUG() std::cout
+#else
+#define DEBUG() swoole::test::null_stream
+#endif
 
 namespace swoole {
 struct HttpProxy;
 struct Socks5Proxy;
 namespace test {
+class NullStream {
+  public:
+    template <typename T>
+    NullStream &operator<<(const T &) {
+        return *this;
+    }
 
+    NullStream &operator<<(std::ostream &(*) (std::ostream &) ) {
+        return *this;
+    }
+};
+
+extern NullStream null_stream;
 const std::string &get_root_path();
 std::string get_ssl_dir();
 std::string get_jpg_file();
 bool is_github_ci();
-
+int exec_js_script(const std::string &file, const std::string &args);
+std::string http_get_request(const std::string &domain, const std::string &path);
 int get_random_port();
 
-Socks5Proxy *create_socks5_proxy();
-HttpProxy *create_http_proxy();
+pid_t spawn_exec(const std::function<void(void)> &fn);
+int spawn_exec_and_wait(const std::function<void(void)> &fn);
+
+void counter_init();
+int *counter_ptr();
+int counter_incr(int index, int add = 1);
+int counter_get(int index);
+void counter_set(int index, int value);
+void counter_incr_and_put_log(int index, const char *msg);
+
+int dump_cert_info(const char *data, size_t len);
+
+static inline int dump_cert_info(const String *str) {
+    return dump_cert_info(str->str, str->length);
+}
 
 }  // namespace test
 };  // namespace swoole

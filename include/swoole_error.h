@@ -34,7 +34,7 @@ enum swErrorCode {
     SW_ERROR_OPERATION_NOT_SUPPORT,
     SW_ERROR_PROTOCOL_ERROR,
     SW_ERROR_WRONG_OPERATION,
-    SW_ERROR_PHP_RUNTIME_NOTICE, // Non-fatal errors, just runtime warnings
+    SW_ERROR_PHP_RUNTIME_NOTICE,  // Non-fatal errors, just runtime warnings
     SW_ERROR_FOR_TEST,
 
     SW_ERROR_NO_PAYLOAD = 550,
@@ -54,12 +54,15 @@ enum swErrorCode {
 
     SW_ERROR_BAD_IPV6_ADDRESS = 720,
     SW_ERROR_UNREGISTERED_SIGNAL,
-	SW_ERROR_BAD_HOST_ADDR,
+    SW_ERROR_BAD_HOST_ADDR,
+    SW_ERROR_BAD_PORT,
+    SW_ERROR_BAD_SOCKET_TYPE,
 
     // EventLoop
     SW_ERROR_EVENT_REMOVE_FAILED = 800,
     SW_ERROR_EVENT_ADD_FAILED,
     SW_ERROR_EVENT_UPDATE_FAILED,
+    SW_ERROR_EVENT_UNKNOWN_DATA,
 
     /**
      * connection error
@@ -104,6 +107,7 @@ enum swErrorCode {
     SW_ERROR_HTTP2_STREAM_NOT_FOUND,
     SW_ERROR_HTTP2_STREAM_IGNORE,
     SW_ERROR_HTTP2_SEND_CONTROL_FRAME_FAILED,
+    SW_ERROR_HTTP2_INTERNAL_ERROR,
 
     /**
      * AIO
@@ -122,6 +126,7 @@ enum swErrorCode {
      */
     SW_ERROR_SOCKET_CLOSED = 6001,
     SW_ERROR_SOCKET_POLL_TIMEOUT,
+    SW_ERROR_SOCKET_NOT_EXISTS,
 
     /**
      * Proxy
@@ -208,11 +213,11 @@ enum swErrorCode {
 };
 
 namespace swoole {
-class Exception {
+class Exception final : std::exception {
   public:
     int code;
     const char *msg;
 
-    Exception(int code) throw();
+    explicit Exception(int code) noexcept;
 };
 }  // namespace swoole

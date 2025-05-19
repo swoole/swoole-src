@@ -1,4 +1,5 @@
 #include "swoole_message_bus.h"
+#include "swoole_process_pool.h"
 
 #include <assert.h>
 
@@ -22,6 +23,40 @@ PacketPtr MessageBus::get_packet() const {
     }
 
     return pkt;
+}
+
+bool MessageBus::alloc_buffer() {
+    void *_ptr = allocator_->malloc(sizeof(*buffer_) + buffer_size_);
+    if (_ptr) {
+        buffer_ = (PipeBuffer *) _ptr;
+        sw_memset_zero(&buffer_->info, sizeof(buffer_->info));
+        return true;
+    } else {
+        return false;
+    }
+}
+
+void MessageBus::pass(SendData *task) {
+    memcpy(&buffer_->info, &task->info, sizeof(buffer_->info));
+    if (task->info.len > 0) {
+        buffer_->info.flags = SW_EVENT_DATA_PTR;
+        PacketPtr pkt{task->info.len, (char *) task->data};
+        buffer_->info.len = sizeof(pkt);
+        memcpy(buffer_->data, &pkt, sizeof(pkt));
+    }
+}
+
+char *MessageBus::move_packet() {
+    uint64_t msg_id = buffer_->info.msg_id;
+    auto iter = packet_pool_.find(msg_id);
+    if (iter != packet_pool_.end()) {
+        auto str = iter->second.get();
+        char *val = str->str;
+        str->str = nullptr;
+        return val;
+    } else {
+        return nullptr;
+    }
 }
 
 String *MessageBus::get_packet_buffer() {
@@ -53,8 +88,8 @@ ReturnCode MessageBus::prepare_packet(uint16_t &recv_chunk_count, String *packet
          */
         if (recv_chunk_count >= SW_WORKER_MAX_RECV_CHUNK_COUNT) {
             swoole_trace_log(SW_TRACE_WORKER,
-                             "worker process[%u] receives the chunk data to the maximum[%d], return to event loop",
-                             SwooleG.process_id,
+                             "worker#%d receives the chunk data to the maximum[%d], return to event loop",
+                             swoole_get_worker_id(),
                              recv_chunk_count);
             return SW_WAIT;
         }
@@ -108,6 +143,8 @@ _read_from_pipe:
                          info->msg_id,
                          sock->get_fd(),
                          info->reactor_id);
+        // Read data from the socket buffer and discard it.
+        recv(sock->get_fd(), info, sizeof(buffer_->info), 0);
         return SW_OK;
     }
 

@@ -15,7 +15,6 @@
  */
 
 #include "swoole_server.h"
-#include "swoole_memory.h"
 #include "swoole_thread.h"
 
 #define SW_RELOAD_SLEEP_FOR 100000
@@ -25,13 +24,15 @@ using network::Socket;
 
 Factory *Server::create_thread_factory() {
 #ifndef SW_THREAD
-    swoole_error("Thread support is not enabled, cannot create server with MODE_THREAD");
+    swoole_error_log(SW_LOG_ERROR,
+                     SW_ERROR_OPERATION_NOT_SUPPORT,
+                     "Thread support is not enabled, cannot create server with MODE_THREAD");
     return nullptr;
 #endif
     reactor_num = worker_num;
-    connection_list = (Connection *) sw_calloc(max_connection, sizeof(Connection));
+    connection_list = static_cast<Connection *>(sw_calloc(max_connection, sizeof(Connection)));
     if (connection_list == nullptr) {
-        swoole_sys_warning("calloc[2](%d) failed", (int) (max_connection * sizeof(Connection)));
+        swoole_sys_warning("calloc[2](%d) failed", static_cast<int>(max_connection * sizeof(Connection)));
         return nullptr;
     }
     reactor_threads = new ReactorThread[reactor_num]();
@@ -58,8 +59,7 @@ bool ThreadFactory::start() {
     if (!server_->create_worker_pipes()) {
         return false;
     }
-    if (server_->task_worker_num > 0 &&
-        (server_->create_task_workers() < 0 || server_->gs->task_workers.start_check() < 0)) {
+    if (server_->task_worker_num > 0 && server_->gs->task_workers.start_check() < 0) {
         return false;
     }
     if (server_->get_user_worker_num() > 0 && server_->create_user_workers() < 0) {
@@ -74,16 +74,29 @@ bool ThreadFactory::shutdown() {
             thread->join();
         }
     }
-
     return true;
 }
 
-ThreadFactory::~ThreadFactory() {}
+ThreadFactory::~ThreadFactory() = default;
+
+void ThreadFactory::at_thread_enter(WorkerId id, int worker_type) {
+    swoole_thread_init(false);
+
+    swoole_set_worker_type(worker_type);
+    swoole_set_worker_id(id);
+    swoole_set_worker_pid(swoole_thread_get_native_id());
+
+    swoole_set_thread_id(id);
+    swoole_set_thread_type(Server::THREAD_WORKER);
+}
 
 void ThreadFactory::at_thread_exit(Worker *worker) {
-    std::unique_lock<std::mutex> _lock(lock_);
-    queue_.push(worker);
-    cv_.notify_one();
+    if (worker) {
+        std::unique_lock<std::mutex> _lock(lock_);
+        queue_.push(worker);
+        cv_.notify_one();
+    }
+    swoole_thread_clean(false);
 }
 
 void ThreadFactory::create_message_bus() {
@@ -106,29 +119,26 @@ void ThreadFactory::destroy_message_bus() {
 
 void ThreadFactory::spawn_event_worker(WorkerId i) {
     threads_[i]->start([=]() {
-        swoole_set_process_type(SW_PROCESS_EVENTWORKER);
-        swoole_set_thread_type(Server::THREAD_WORKER);
-        swoole_set_process_id(i);
-        swoole_set_thread_id(i);
+        at_thread_enter(i, SW_EVENT_WORKER);
+
         Worker *worker = server_->get_worker(i);
-        worker->type = SW_PROCESS_EVENTWORKER;
-        worker->pid = swoole_thread_get_native_id();
+        worker->type = SW_EVENT_WORKER;
+        worker->pid = swoole_get_worker_pid();
         SwooleWG.worker = worker;
         server_->worker_thread_start(threads_[i], [=]() { Server::reactor_thread_main_loop(server_, i); });
+
         at_thread_exit(worker);
     });
 }
 
 void ThreadFactory::spawn_task_worker(WorkerId i) {
     threads_[i]->start([=]() {
-        swoole_set_process_type(SW_PROCESS_TASKWORKER);
-        swoole_set_thread_type(Server::THREAD_WORKER);
-        swoole_set_process_id(i);
-        swoole_set_thread_id(i);
+        at_thread_enter(i, SW_TASK_WORKER);
+
         create_message_bus();
         Worker *worker = server_->get_worker(i);
-        worker->type = SW_PROCESS_TASKWORKER;
-        worker->pid = swoole_thread_get_native_id();
+        worker->type = SW_TASK_WORKER;
+        worker->pid = swoole_get_worker_pid();
         worker->set_status_to_idle();
         SwooleWG.worker = worker;
         auto pool = &server_->gs->task_workers;
@@ -142,35 +152,34 @@ void ThreadFactory::spawn_task_worker(WorkerId i) {
             }
         });
         destroy_message_bus();
+
         at_thread_exit(worker);
     });
 }
 
 void ThreadFactory::spawn_user_worker(WorkerId i) {
     threads_[i]->start([=]() {
-        Worker *worker = server_->get_worker(i);
-        swoole_set_process_type(SW_PROCESS_USERWORKER);
-        swoole_set_thread_type(Server::THREAD_WORKER);
-        swoole_set_process_id(i);
-        swoole_set_thread_id(i);
+        at_thread_enter(i, SW_USER_WORKER);
+
         create_message_bus();
-        worker->type = SW_PROCESS_USERWORKER;
-        worker->pid = swoole_thread_get_native_id();
+        Worker *worker = server_->get_worker(i);
+        worker->type = SW_USER_WORKER;
+        worker->pid = swoole_get_worker_pid();
         SwooleWG.worker = worker;
         server_->worker_thread_start(threads_[i], [=]() { server_->onUserWorkerStart(server_, worker); });
         destroy_message_bus();
+
         at_thread_exit(worker);
     });
 }
 
 void ThreadFactory::spawn_manager_thread(WorkerId i) {
     threads_[i]->start([=]() {
-        swoole_set_process_type(SW_PROCESS_MANAGER);
-        swoole_set_thread_type(Server::THREAD_WORKER);
-        swoole_set_process_id(i);
-        swoole_set_thread_id(i);
+        at_thread_enter(i, SW_MANAGER);
+
         manager.id = i;
-        manager.type = SW_PROCESS_MANAGER;
+        manager.pid = swoole_get_worker_pid();
+        manager.type = SW_MANAGER;
 
         swoole_timer_set_scheduler([this](Timer *timer, long exec_msec) -> int {
             cv_timeout_ms_ = exec_msec;
@@ -191,7 +200,16 @@ void ThreadFactory::spawn_manager_thread(WorkerId i) {
             swoole_warning("Fatal Error: manager thread exits abnormally");
         }
 
+        /*
+         * In the function that closes the timer, the scheduler is called again;
+         * therefore, it is essential to set the scheduler to null after the timer has been consumed.
+         */
+        if (swoole_timer_is_available()) {
+            swoole_timer_free();
+        }
         swoole_timer_set_scheduler(nullptr);
+
+        at_thread_exit(nullptr);
     });
 }
 
@@ -201,6 +219,18 @@ void ThreadFactory::wait() {
         if (!queue_.empty()) {
             Worker *exited_worker = queue_.front();
             queue_.pop();
+
+            swoole_trace_log(SW_TRACE_THREAD,
+                             "worker(tid=%d, id=%d) exit, status=%d",
+                             exited_worker->pid,
+                             exited_worker->id,
+                             exited_worker->status);
+
+            if (exited_worker == &manager) {
+                server_->running = false;
+                _lock.unlock();
+                break;
+            }
 
             auto thread = threads_[exited_worker->id];
             int status_code = thread->get_exit_status();
@@ -213,16 +243,16 @@ void ThreadFactory::wait() {
                                exit_status.get_code());
             }
 
-            threads_[exited_worker->id]->join();
+            thread->join();
 
             switch (exited_worker->type) {
-            case SW_PROCESS_EVENTWORKER:
+            case SW_EVENT_WORKER:
                 spawn_event_worker(exited_worker->id);
                 break;
-            case SW_PROCESS_TASKWORKER:
+            case SW_TASK_WORKER:
                 spawn_task_worker(exited_worker->id);
                 break;
-            case SW_PROCESS_USERWORKER:
+            case SW_USER_WORKER:
                 spawn_user_worker(exited_worker->id);
                 break;
             default:
@@ -287,8 +317,37 @@ bool ThreadFactory::reload(bool _reload_all_workers) {
     return true;
 }
 
+WorkerId ThreadFactory::get_manager_thread_id() {
+    return server_->get_all_worker_num();
+}
+
+WorkerId ThreadFactory::get_master_thread_id() {
+    return server_->get_all_worker_num() + 1;
+}
+
+void ThreadFactory::terminate_manager_thread() {
+    do {
+        swoole_trace_log(SW_TRACE_THREAD, "notify manager thread to exit");
+        std::unique_lock<std::mutex> _lock(lock_);
+        queue_.push(&manager);
+        cv_.notify_one();
+    } while (false);
+
+    /**
+     * When terminating the service, the management thread may still be joining other worker threads,
+     * so it is essential to first reclaim the management thread to ensure it has exited.
+     * During the shutdown, the running flag has already been set to false,
+     * which means the management thread might not have reclaimed all worker threads and may have exited prematurely.
+     * At this point, it is necessary to loop through and reclaim the remaining worker threads.
+     */
+    int manager_thread_id = get_manager_thread_id();
+    threads_[manager_thread_id]->join();
+
+    swoole_trace_log(SW_TRACE_THREAD, "manager thread is exited");
+}
+
 int Server::start_worker_threads() {
-    ThreadFactory *_factory = dynamic_cast<ThreadFactory *>(factory);
+    auto *_factory = dynamic_cast<ThreadFactory *>(factory);
 
     if (task_worker_num > 0) {
         SW_LOOP_N(task_worker_num) {
@@ -306,7 +365,7 @@ int Server::start_worker_threads() {
         }
     }
 
-    int manager_thread_id = get_all_worker_num();
+    auto manager_thread_id = _factory->get_manager_thread_id();
     _factory->spawn_manager_thread(manager_thread_id);
 
     if (swoole_event_init(0) < 0) {
@@ -314,8 +373,7 @@ int Server::start_worker_threads() {
     }
 
     Reactor *reactor = sw_reactor();
-    for (auto iter = ports.begin(); iter != ports.end(); iter++) {
-        auto port = *iter;
+    for (const auto port : ports) {
         if (port->is_dgram()) {
             continue;
         }
@@ -326,13 +384,16 @@ int Server::start_worker_threads() {
         reactor->add(port->socket, SW_EVENT_READ);
     }
 
-    SwooleTG.id = reactor->id = manager_thread_id + 1;
+    SwooleTG.id = reactor->id = _factory->get_master_thread_id();
     store_listen_socket();
 
     return start_master_thread(reactor);
 }
 
 void Server::stop_worker_threads() {
+    auto *_factory = dynamic_cast<ThreadFactory *>(factory);
+    _factory->terminate_manager_thread();
+
     DataHead event = {};
     event.type = SW_SERVER_EVENT_SHUTDOWN;
 
@@ -348,7 +409,7 @@ void Server::stop_worker_threads() {
 }
 
 bool Server::reload_worker_threads(bool reload_all_workers) {
-    ThreadFactory *_factory = dynamic_cast<ThreadFactory *>(factory);
+    auto *_factory = dynamic_cast<ThreadFactory *>(factory);
     return _factory->reload(reload_all_workers);
 }
 

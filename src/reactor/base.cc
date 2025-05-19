@@ -32,8 +32,6 @@ using network::Socket;
 #endif
 #endif
 
-static void reactor_begin(Reactor *reactor);
-
 #ifdef HAVE_EPOLL
 ReactorImpl *make_reactor_epoll(Reactor *_reactor, int max_events);
 #endif
@@ -46,17 +44,16 @@ ReactorImpl *make_reactor_poll(Reactor *_reactor, int max_events);
 ReactorImpl *make_reactor_kqueue(Reactor *_reactor, int max_events);
 #endif
 
-ReactorImpl *make_reactor_select(Reactor *_reactor);
-
 void ReactorImpl::after_removal_failure(Socket *_socket) {
     if (!_socket->silent_remove) {
         swoole_error_log(SW_LOG_WARNING,
                          SW_ERROR_EVENT_REMOVE_FAILED,
-                         "failed to delete events[fd=%d#%d, type=%d, events=%d]",
+                         "failed to delete events[fd=%d#%d, type=%d, events=%d, errno=%d]",
                          _socket->fd,
                          reactor_->id,
                          _socket->fd_type,
-                         _socket->events);
+                         _socket->events,
+                         errno);
         swoole_print_backtrace_on_error();
     }
 }
@@ -70,7 +67,7 @@ Reactor::Reactor(int max_event, Type _type) {
 #elif defined(HAVE_POLL)
         type_ = TYPE_POLL;
 #else
-        type_ = TYPE_SELECT;
+#error "The OS must support one of the IO event loop mechanisms: epoll, kqueue, or poll."
 #endif
     } else {
         type_ = _type;
@@ -92,9 +89,8 @@ Reactor::Reactor(int max_event, Type _type) {
         impl = make_reactor_poll(this, max_event);
         break;
 #endif
-    case TYPE_SELECT:
     default:
-        impl = make_reactor_select(this);
+        assert(0);
         break;
     }
 
@@ -104,6 +100,7 @@ Reactor::Reactor(int max_event, Type _type) {
     }
 
     running = true;
+    timeout_msec = -1;
     idle_task = {};
     future_task = {};
 
@@ -165,11 +162,7 @@ Reactor::Reactor(int max_event, Type _type) {
 
 bool Reactor::set_handler(int _fdtype, ReactorHandler handler) {
     int fdtype = get_fd_type(_fdtype);
-
-    if (fdtype >= SW_MAX_FDTYPE) {
-        swoole_warning("fdtype > SW_MAX_FDTYPE[%d]", SW_MAX_FDTYPE);
-        return false;
-    }
+    assert(fdtype < SW_MAX_FDTYPE);
 
     if (isset_read_event(_fdtype)) {
         read_handler[fdtype] = handler;
@@ -178,7 +171,7 @@ bool Reactor::set_handler(int _fdtype, ReactorHandler handler) {
     } else if (isset_error_event(_fdtype)) {
         error_handler[fdtype] = handler;
     } else {
-        swoole_warning("unknown fdtype");
+        assert(0);
         return false;
     }
 
@@ -195,30 +188,19 @@ bool Reactor::if_exit() {
     return true;
 }
 
-void Reactor::activate_future_task() {
-    onBegin = reactor_begin;
-}
-
-static void reactor_begin(Reactor *reactor) {
-    if (reactor->future_task.callback) {
-        reactor->future_task.callback(reactor->future_task.data);
-    }
-}
-
 int Reactor::_close(Reactor *reactor, Socket *socket) {
     swoole_trace_log(SW_TRACE_CLOSE, "fd=%d", socket->fd);
     socket->free();
     return SW_OK;
 }
 
-using SendFunc = std::function<ssize_t(void)>;
-using AppendFunc = std::function<void(Buffer *buffer)>;
-
-static ssize_t write_func(
-    Reactor *reactor, Socket *socket, const size_t __len, const SendFunc &send_fn, const AppendFunc &append_fn) {
+ssize_t Reactor::write_func(Reactor *reactor,
+                            network::Socket *socket,
+                            const size_t __len,
+                            const std::function<ssize_t(void)> &send_fn,
+                            const std::function<void(Buffer *buffer)> &append_fn) {
     ssize_t retval;
     Buffer *buffer = socket->out_buffer;
-    int fd = socket->fd;
 
     if (socket->buffer_size == 0) {
         socket->set_memory_buffer_size(Socket::default_buffer_size);
@@ -231,7 +213,7 @@ static ssize_t write_func(
     if ((uint32_t) __len > socket->buffer_size) {
         swoole_error_log(SW_LOG_WARNING,
                          SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
-                         "data packet is too large, cannot exceed the buffer size");
+                         "data packet is too large, cannot exceed the socket buffer size");
         return SW_ERR;
     }
 
@@ -263,6 +245,11 @@ static ssize_t write_func(
             if (!socket->isset_writable_event()) {
                 reactor->add_write_event(socket);
             }
+            /**
+             * Part of the data has been successfully written to the kernel's socket buffer,
+             * and at this point, writing to the memory queue is permitted under any circumstances.
+             * Ensure that the async write operation either succeeds completely or fails entirely.
+             */
             goto _append_buffer;
         } else if (errno == EINTR) {
             goto _do_send;
@@ -271,18 +258,16 @@ static ssize_t write_func(
             return SW_ERR;
         }
     } else {
-    _append_buffer:
-        if (buffer->length() > socket->buffer_size) {
-            if (socket->dontwait) {
-                swoole_set_last_error(SW_ERROR_OUTPUT_BUFFER_OVERFLOW);
-                return SW_ERR;
-            } else {
-                swoole_error_log(
-                    SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "socket#%d output buffer overflow", fd);
-                sw_yield();
-                socket->wait_event(SW_SOCKET_OVERFLOW_WAIT, SW_EVENT_WRITE);
-            }
+        if (buffer->length() + __len > socket->buffer_size) {
+            swoole_error_log(SW_LOG_WARNING,
+                             SW_ERROR_OUTPUT_BUFFER_OVERFLOW,
+                             "socket#%d output buffer overflow: (%u/%u)",
+                             socket->get_fd(),
+                             buffer->length(),
+                             socket->buffer_size);
+            return SW_ERR;
         }
+    _append_buffer:
         append_fn(buffer);
     }
     return __len;
@@ -409,6 +394,12 @@ void Reactor::defer(Callback cb, void *data) {
 void Reactor::execute_end_callbacks(bool timedout) {
     for (auto &kv : end_callbacks) {
         kv.second(this);
+    }
+}
+
+void Reactor::execute_begin_callback() {
+    if (future_task.callback) {
+        future_task.callback(future_task.data);
     }
 }
 
