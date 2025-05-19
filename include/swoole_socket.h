@@ -107,6 +107,7 @@ struct Address {
     const char *get_addr();
     bool is_loopback_addr();
     bool empty();
+    static const char *type_str(SocketType type);
 
     static bool verify_ip(int __af, const std::string &str) {
         char tmp_address[INET6_ADDRSTRLEN];

@@ -661,9 +661,10 @@ static int Client_tcp_connect_async(Client *cli, const char *host, int port, dou
                 cli->onerror_called = true;
                 cli->onError(cli);
             }
-            return SW_ERR;
         }
     } while (false);
+
+    return ret;
 }
 
 static ssize_t Client_tcp_send_async(Client *cli, const char *data, size_t length, int flags) {

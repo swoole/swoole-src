@@ -140,6 +140,55 @@ static void test_worker_schedule(int dispatch_mode) {
     }
 }
 
+TEST(server, schedule_4) {
+    int ret;
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = 4;
+    serv.dispatch_mode = Server::DISPATCH_IPMOD;
+
+    auto port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_NE(port, nullptr);
+
+    auto port6 = serv.add_port(SW_SOCK_TCP6, "::", 0);
+    ASSERT_NE(port6, nullptr);
+
+    ret = serv.create();
+    ASSERT_EQ(SW_OK, ret);
+
+    std::vector<size_t> counter;
+    counter.resize(serv.worker_num);
+
+    size_t schedule_count = 256 * serv.worker_num;
+
+    std::vector<size_t> init_counter;
+    init_counter.resize(serv.worker_num);
+
+    network::Socket fake_sock{};
+    fake_sock.fd = 100;
+    fake_sock.info.assign(SW_SOCK_TCP, "127.0.0.1", 9501, false);
+    serv.add_connection(port, &fake_sock, port->get_fd());
+
+    SW_LOOP_N(schedule_count) {
+        auto worker_id = serv.schedule_worker(fake_sock.fd, nullptr);
+        counter[worker_id]++;
+    }
+
+    network::Socket fake_sock6{};
+    fake_sock6.fd = 101;
+    fake_sock6.info.assign(SW_SOCK_TCP6, "::1", 9502, false);
+    serv.add_connection(port6, &fake_sock6, port6->get_fd());
+
+    SW_LOOP_N(schedule_count) {
+        auto worker_id = serv.schedule_worker(fake_sock6.fd, nullptr);
+        counter[worker_id]++;
+    }
+
+    ASSERT_EQ(counter[0], 0);
+    ASSERT_EQ(counter[1], 0);
+    ASSERT_EQ(counter[2], 0);
+    ASSERT_EQ(counter[3], schedule_count * 2);
+}
+
 TEST(server, schedule_9) {
     test_worker_schedule<Worker, size_t, &Worker::coroutine_num>(Server::DISPATCH_CO_REQ_LB);
 }
@@ -1662,6 +1711,31 @@ TEST(server, reopen_log) {
         EXPECT_TRUE(access(filename.c_str(), R_OK) != -1);
         kill(serv->gs->master_pid, SIGTERM);
     };
+
+    serv.onReceive = [](Server *server, RecvData *req) -> int { return SW_OK; };
+
+    ASSERT_EQ(serv.start(), 0);
+    remove(filename.c_str());
+}
+
+TEST(server, reopen_log2) {
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = 2;
+    swoole_set_log_level(SW_LOG_DEBUG);
+    string filename = TEST_LOG_FILE;
+    swoole_set_log_file(filename.c_str());
+
+    ASSERT_TRUE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0));
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    serv.onStart = [](Server *serv) {
+        swoole_timer_after(50, [serv](TIMER_PARAMS) {
+            serv->signal_handler_reopen_logger();
+            swoole_timer_after(50, [serv](TIMER_PARAMS) { serv->shutdown(); });
+        });
+    };
+
+    serv.onWorkerStart = [&filename](Server *serv, Worker *worker) { test::counter_incr(0, 1); };
 
     serv.onReceive = [](Server *server, RecvData *req) -> int { return SW_OK; };
 
