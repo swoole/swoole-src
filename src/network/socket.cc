@@ -132,6 +132,17 @@ int Socket::what_event_want(int default_event) {
     return default_event;
 }
 
+#define CHECK_RETURN_VALUE(rv, be_zero_return)                                                                         \
+    if (rv < 0) {                                                                                                      \
+        if (errno == EINTR || catch_error(errno) == SW_WAIT) {                                                         \
+            return SW_CONTINUE;                                                                                        \
+        }                                                                                                              \
+        swoole_set_last_error(errno);                                                                                  \
+        return SW_ERROR;                                                                                               \
+    } else if (rv == 0) {                                                                                              \
+        return be_zero_return;                                                                                         \
+    }
+
 bool Socket::wait_for(const std::function<swReturnCode(void)> &fn, int event, double timeout) {
     int timeout_ms = -1;
     double began_at;
@@ -187,15 +198,7 @@ int Socket::sendfile_sync(const char *filename, off_t offset, size_t length, dou
         [this, &file, &offset, filename, end]() {
             size_t sent_bytes = get_sendfile_chunk_size(offset, end);
             ssize_t n = sendfile(file, &offset, sent_bytes);
-            if (n < 0) {
-                if (errno == EINTR || catch_error(errno) == SW_WAIT) {
-                    return SW_CONTINUE;
-                }
-                swoole_sys_warning("sendfile(%d, %s) failed", get_fd(), filename);
-                return SW_ERROR;
-            } else if (n == 0) {
-                return SW_ERROR;
-            }
+            CHECK_RETURN_VALUE(n, SW_ERROR);
             return offset < end ? SW_CONTINUE : SW_READY;
         },
         SW_EVENT_WRITE,
@@ -214,13 +217,7 @@ ssize_t Socket::writev_sync(const struct iovec *iov, size_t iovcnt) {
     auto rv = wait_for(
         [this, &bytes, iov, iovcnt]() {
             ssize_t n = writev(iov, iovcnt);
-            if (n < 0) {
-                if (errno == EINTR || catch_error(errno) == SW_WAIT) {
-                    return SW_CONTINUE;
-                }
-                swoole_sys_warning("writev(%d, %p, %zu) failed", get_fd(), iov, iovcnt);
-                return SW_ERROR;
-            }
+            CHECK_RETURN_VALUE(n, SW_READY);
             bytes = n;
             return SW_READY;
         },
@@ -294,7 +291,7 @@ int Socket::wait_event(int timeout_ms, int events) {
         }
         if (ret < 0) {
             if (errno != EINTR) {
-                swoole_sys_warning("poll() failed");
+                swoole_set_last_error(errno);
                 return SW_ERR;
             }
             if (dont_restart) {
@@ -313,15 +310,7 @@ ssize_t Socket::send_sync(const void *_data, size_t _len, int flags) {
     auto rv = wait_for(
         [this, _data, _len, flags, &bytes]() {
             ssize_t n = send((char *) _data + bytes, _len - bytes, flags);
-            if (n < 0) {
-                if (errno == EINTR || catch_error(errno) == SW_WAIT) {
-                    return SW_CONTINUE;
-                }
-                swoole_sys_warning("send(%d, %zu, %d) failed", get_fd(), _len - bytes, flags);
-                return SW_ERROR;
-            } else if (n == 0) {
-                return SW_ERROR;
-            }
+            CHECK_RETURN_VALUE(n, SW_READY);
             bytes += n;
             return bytes == (ssize_t) _len ? SW_READY : SW_CONTINUE;
         },
@@ -337,15 +326,7 @@ ssize_t Socket::recv_sync(void *_data, size_t _len, int flags) {
     auto rv = wait_for(
         [this, _data, _len, flags, &bytes]() {
             ssize_t n = recv((char *) _data + bytes, _len - bytes, flags);
-            if (n < 0) {
-                if (errno == EINTR || catch_error(errno) == SW_WAIT) {
-                    return SW_CONTINUE;
-                }
-                swoole_sys_warning("recv(%d, %zu, %d) failed", get_fd(), _len - bytes, flags);
-                return SW_ERROR;
-            } else if (n == 0) {
-                return SW_READY;
-            }
+            CHECK_RETURN_VALUE(n, SW_READY);
             bytes += n;
             if (flags & MSG_WAITALL) {
                 return bytes == (ssize_t) _len ? SW_READY : SW_CONTINUE;
@@ -392,16 +373,8 @@ ssize_t Socket::sendto_sync(const Address &sa, const void *_buf, size_t _n, int 
     auto rv = wait_for(
         [this, &sa, _buf, _n, flags, &bytes]() {
             ssize_t n = sendto(sa, _buf, _n, flags);
-            if (n < 0) {
-                if (errno == EINTR || catch_error(errno) == SW_WAIT) {
-                    return SW_CONTINUE;
-                }
-                swoole_sys_warning("sendto(%d, %zu, %d) failed", get_fd(), _n, flags);
-                return SW_ERROR;
-            } else if (n == 0) {
-                return SW_ERROR;
-            }
-            bytes += n;
+            CHECK_RETURN_VALUE(n, SW_READY);
+            bytes = n;
             return SW_READY;
         },
         SW_EVENT_WRITE,
@@ -432,16 +405,8 @@ ssize_t Socket::recvfrom_sync(char *buf, size_t len, int flags, sockaddr *addr, 
     auto rv = wait_for(
         [this, buf, len, flags, addr, addr_len, &bytes]() {
             ssize_t n = recvfrom(buf, len, flags, addr, addr_len);
-            if (n < 0) {
-                if (errno == EINTR || catch_error(errno) == SW_WAIT) {
-                    return SW_CONTINUE;
-                }
-                swoole_sys_warning("recvfrom(%d, %zu, %d) failed", get_fd(), len, flags);
-                return SW_ERROR;
-            } else if (n == 0) {
-                return SW_ERROR;
-            }
-            bytes += n;
+            CHECK_RETURN_VALUE(n, SW_READY);
+            bytes = n;
             return SW_READY;
         },
         SW_EVENT_READ,

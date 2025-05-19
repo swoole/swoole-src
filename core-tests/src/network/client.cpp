@@ -779,8 +779,6 @@ TEST(client, fail) {
     Client c((swSocketType) (SW_SOCK_RAW6 + 1), false);
     ASSERT_FALSE(c.ready());
     ASSERT_ERREQ(ESOCKTNOSUPPORT);
-
-    c.server_str = sw_strdup(TEST_STR);
 }
 
 static void test_recv_timeout(Client &c) {

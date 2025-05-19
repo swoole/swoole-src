@@ -65,13 +65,12 @@ class Client {
 
     uint32_t reuse_count = 0;
 
-    const char *server_str = nullptr;
-    const char *server_host = nullptr;
+    std::string server_id;
+    std::string server_host;
     int server_port = 0;
     void *ptr = nullptr;
     void *params = nullptr;
 
-    uint8_t server_strlen = 0;
     double timeout = 0;
     TimerNode *timer = nullptr;
 

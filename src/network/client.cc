@@ -437,9 +437,6 @@ Client::~Client() {
         delete buffer;
         buffer = nullptr;
     }
-    if (server_str) {
-        ::sw_free((void *) server_str);
-    }
     if (async) {
         socket->free();
     } else {
