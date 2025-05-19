@@ -652,21 +652,18 @@ static int Client_tcp_connect_async(Client *cli, const char *host, int port, dou
              * Regardless of whether the connection has been successfully established or is still in progress,
              *  listen for writable events to handle the proxy and SSL handshake within those events.
              */
-            if (swoole_event_add(cli->socket, SW_EVENT_WRITE) < 0) {
-                return SW_ERR;
+            return swoole_event_add(cli->socket, SW_EVENT_WRITE);
+        } else {
+            cli->active = false;
+            cli->socket->removed = 1;
+            cli->close();
+            if (cli->onError) {
+                cli->onerror_called = true;
+                cli->onError(cli);
             }
+            return SW_ERR;
         }
     } while (false);
-
-    cli->active = false;
-    cli->socket->removed = 1;
-    cli->close();
-    if (cli->onError) {
-        cli->onerror_called = true;
-        cli->onError(cli);
-    }
-
-    return ret;
 }
 
 static ssize_t Client_tcp_send_async(Client *cli, const char *data, size_t length, int flags) {
