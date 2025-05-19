@@ -167,7 +167,7 @@ SignalHandler swoole_signal_set(int signo, SignalHandler handler, bool safety) {
     signals[signo].handler = handler;
     signals[signo].activated = true;
     signals[signo].signo = signo;
-    return swoole_signal_set(signo, safety ? signal_handler_safety : signal_handler_simple, 1, 0);
+    return swoole_signal_set(signo, safety ? signal_handler_safety : signal_handler_simple, 0, 0);
 }
 
 static void signal_handler_safety(int signo) {
