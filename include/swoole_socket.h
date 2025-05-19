@@ -337,9 +337,9 @@ struct Socket {
     int listen(int backlog = 0);
 
     void clean();
-    ssize_t send_sync(const void *__data, size_t __len);
+    ssize_t send_sync(const void *__data, size_t __len, int flags = 0);
     ssize_t send_async(const void *__data, size_t __len);
-    ssize_t recv_sync(void *__data, size_t __len, int flags);
+    ssize_t recv_sync(void *__data, size_t __len, int flags = 0);
     ssize_t writev_sync(const struct iovec *iov, size_t iovcnt);
 
     int connect(const Address &sa) {
@@ -406,6 +406,8 @@ struct Socket {
     }
 
     int wait_event(int timeout_ms, int events);
+    bool wait_for(const std::function<swReturnCode(void)> &fn, int event, double timeout = -1);
+    int what_event_want(int default_event);
     void free();
 
     static inline bool is_dgram(SocketType type) {

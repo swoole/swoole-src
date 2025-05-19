@@ -774,3 +774,50 @@ TEST(client, ssl) {
     ASSERT_TRUE(sw_tg_buffer()->contains(TEST_HTTPS_EXPECT));
 }
 #endif
+
+TEST(client, fail) {
+    Client c((swSocketType) (SW_SOCK_RAW6 + 1), false);
+    ASSERT_FALSE(c.ready());
+    ASSERT_ERREQ(ESOCKTNOSUPPORT);
+
+    c.server_str = sw_strdup(TEST_STR);
+}
+
+static void test_recv_timeout(Client &c) {
+    std::thread t([]() {
+        SW_LOOP_N(20) {
+            usleep(50000);
+            kill(getpid(), SIGIO);
+        }
+    });
+
+    swoole_signal_set(
+        SIGIO, [](int) { swoole::test::counter_incr(0); }, 0, 1);
+
+    auto buf = sw_tg_buffer();
+    while (true) {
+        auto rv = c.recv(buf->str, buf->size);
+        DEBUG() << "rv: " << rv << ", error=" << errno << "\n";
+        if (errno == ETIMEDOUT) {
+            break;
+        }
+    }
+
+    t.join();
+}
+
+TEST(client, recv_timeout) {
+    Client c(SW_SOCK_TCP, false);
+    ASSERT_TRUE(c.ready());
+    ASSERT_EQ(c.connect(TEST_HTTP_DOMAIN, 80, 1.0), SW_OK);
+    test_recv_timeout(c);
+}
+
+TEST(client, ssl_recv_timeout) {
+    Client c(SW_SOCK_TCP, false);
+    ASSERT_TRUE(c.ready());
+    c.enable_ssl_encrypt();
+
+    ASSERT_EQ(c.connect(TEST_HTTP_DOMAIN, 443, 1.0), SW_OK);
+    test_recv_timeout(c);
+}

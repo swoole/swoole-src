@@ -217,6 +217,7 @@ TEST(server, base) {
 TEST(server, process) {
     Server serv(Server::MODE_PROCESS);
     serv.worker_num = 1;
+    serv.task_worker_num = 3;
     swoole_set_log_level(SW_LOG_WARNING);
 
     test::counter_init();
@@ -255,7 +256,13 @@ TEST(server, process) {
         });
     };
 
-    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock->unlock(); };
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) {
+        if (worker->id == 0) {
+            lock->unlock();
+        }
+        test::counter_incr(3);
+        DEBUG() << "onWorkerStart: id=" << worker->id << "\n";
+    };
 
     serv.onReceive = [](Server *serv, RecvData *req) -> int {
         EXPECT_EQ(string(req->data, req->info.len), string(packet));
@@ -266,8 +273,12 @@ TEST(server, process) {
         EXPECT_EQ(serv->get_connection_num(), 1);
         EXPECT_EQ(serv->get_primary_port()->get_connection_num(), 1);
 
+        swoole_timer_after(100, [serv](TIMER_PARAMS) { serv->kill_worker(1 + swoole_random_int() % 3, false); });
+
         return SW_OK;
     };
+
+    serv.onTask = [](Server *serv, EventData *task) -> int { return 0; };
 
     serv.manager_alarm = 1;
 
@@ -293,8 +304,9 @@ TEST(server, process) {
 
     t1.join();
     delete lock;
-    ASSERT_EQ(counter[1], 2);
-    ASSERT_GE(counter[2], 2);
+    ASSERT_EQ(counter[1], 2);  // manager callback
+    ASSERT_GE(counter[2], 2);  // manager timer
+    ASSERT_GE(counter[3], 4);  // worker start
 }
 
 #ifdef SW_THREAD

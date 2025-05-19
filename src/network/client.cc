@@ -41,7 +41,7 @@ static ssize_t Client_udp_send(Client *cli, const char *data, size_t length, int
 static int Client_tcp_sendfile_sync(Client *cli, const char *filename, off_t offset, size_t length);
 static int Client_tcp_sendfile_async(Client *cli, const char *filename, off_t offset, size_t length);
 
-static ssize_t Client_tcp_recv_no_buffer(Client *cli, char *data, size_t len, int flags);
+static ssize_t Client_tcp_recv_sync(Client *cli, char *data, size_t len, int flags);
 static ssize_t Client_udp_recv(Client *cli, char *data, size_t len, int flags);
 
 static int Client_onDgramRead(Reactor *reactor, Event *event);
@@ -78,9 +78,10 @@ Client::Client(SocketType _type, bool _async) : async(_async) {
     socket->object = this;
     input_buffer_size = SW_CLIENT_BUFFER_SIZE;
     socket->chunk_size = SW_SEND_BUFFER_SIZE;
+    socket->dont_restart = 1;
 
     if (socket->is_stream()) {
-        recv_ = Client_tcp_recv_no_buffer;
+        recv_ = Client_tcp_recv_sync;
         if (async) {
             connect_ = Client_tcp_connect_async;
             send_ = Client_tcp_send_async;
@@ -320,7 +321,7 @@ void Client::enable_dtls() {
     socket->dtls = 1;
     socket->chunk_size = SW_SSL_BUFFER_SIZE;
     send_ = Client_tcp_send_sync;
-    recv_ = Client_tcp_recv_no_buffer;
+    recv_ = Client_tcp_recv_sync;
 }
 #endif
 
@@ -680,29 +681,7 @@ static ssize_t Client_tcp_send_async(Client *cli, const char *data, size_t lengt
 }
 
 static ssize_t Client_tcp_send_sync(Client *cli, const char *data, size_t length, int flags) {
-    size_t written = 0;
-
-    assert(length > 0);
-    assert(data != nullptr);
-
-    while (written < length) {
-        ssize_t n = cli->socket->send(data, length - written, flags);
-        if (n < 0) {
-            if (errno == EINTR) {
-                continue;
-            } else if (errno == EAGAIN) {
-                cli->socket->wait_event(1000, SW_EVENT_WRITE);
-                continue;
-            } else {
-                swoole_set_last_error(errno);
-                return SW_ERR;
-            }
-        }
-        written += n;
-        data += n;
-    }
-
-    return written;
+    return cli->socket->send_sync(data, length, flags);
 }
 
 static int Client_tcp_sendfile_sync(Client *cli, const char *filename, off_t offset, size_t length) {
@@ -724,52 +703,8 @@ static int Client_tcp_sendfile_async(Client *cli, const char *filename, off_t of
     return SW_OK;
 }
 
-/**
- * Only for synchronous client
- */
-static ssize_t Client_tcp_recv_no_buffer(Client *cli, char *data, size_t len, int flag) {
-    ssize_t ret;
-
-    while (true) {
-#ifdef HAVE_KQUEUE
-        int timeout_ms = (int) (cli->timeout * 1000);
-#ifdef SW_USE_OPENSSL
-        if (cli->socket->ssl) {
-            timeout_ms = 0;
-        }
-#endif
-        if (timeout_ms > 0 && cli->socket->wait_event(timeout_ms, SW_EVENT_READ) < 0) {
-            return -1;
-        }
-#endif
-        ret = cli->socket->recv(data, len, flag);
-        if (ret >= 0) {
-            break;
-        }
-        if (errno == EINTR) {
-            if (cli->interrupt_time <= 0) {
-                cli->interrupt_time = microtime();
-                continue;
-            } else if (microtime() > cli->interrupt_time + cli->timeout) {
-                break;
-            } else {
-                continue;
-            }
-        }
-#ifdef SW_USE_OPENSSL
-        if (cli->socket->catch_read_error(errno) == SW_WAIT && cli->socket->ssl) {
-            int timeout_ms = (int) (cli->timeout * 1000);
-            if (cli->socket->ssl_want_read && cli->socket->wait_event(timeout_ms, SW_EVENT_READ) == SW_OK) {
-                continue;
-            } else if (cli->socket->ssl_want_write && cli->socket->wait_event(timeout_ms, SW_EVENT_WRITE) == SW_OK) {
-                continue;
-            }
-        }
-#endif
-        break;
-    }
-
-    return ret;
+static ssize_t Client_tcp_recv_sync(Client *cli, char *data, size_t len, int flags) {
+    return cli->socket->recv_sync(data, len, flags);
 }
 
 static int Client_udp_connect(Client *cli, const char *host, int port, double timeout, int udp_connect) {

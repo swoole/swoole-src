@@ -133,6 +133,9 @@ SignalHandler swoole_signal_set(int signo, SignalHandler func, int restart, int 
         sigemptyset(&act.sa_mask);
     }
     act.sa_flags = 0;
+    if (restart) {
+        act.sa_flags |= SA_RESTART;
+    }
     if (sigaction(signo, &act, &oact) < 0) {
         return nullptr;
     }

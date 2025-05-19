@@ -74,10 +74,7 @@ class Client {
     uint8_t server_strlen = 0;
     double timeout = 0;
     TimerNode *timer = nullptr;
-    /**
-     * signal interruption
-     */
-    double interrupt_time = 0;
+
     /**
      * for connect()/sendto()
      */
@@ -136,7 +133,7 @@ class Client {
         return &http_proxy->target_host;
     }
 
-    int connect(const char *_host, int _port, double _timeout, int _sock_flag = 0) {
+    int connect(const char *_host, int _port, double _timeout = -1, int _sock_flag = 0) {
         return connect_(this, _host, _port, _timeout, _sock_flag);
     }
 
