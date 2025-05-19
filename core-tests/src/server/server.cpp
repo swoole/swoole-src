@@ -183,10 +183,123 @@ TEST(server, schedule_4) {
         counter[worker_id]++;
     }
 
+    SendData sdata;
+    auto pkt = reinterpret_cast<DgramPacket *>(sw_tg_buffer()->str);
+    pkt->socket_addr.assign(SW_SOCK_UDP, "192.168.1.103", 29321, false);
+    sdata.data = (char *) pkt;
+    auto worker_id = serv.schedule_worker(9999, &sdata);
+    counter[worker_id]++;
+
     ASSERT_EQ(counter[0], 0);
-    ASSERT_EQ(counter[1], 0);
+    ASSERT_EQ(counter[1], schedule_count);
     ASSERT_EQ(counter[2], 0);
-    ASSERT_EQ(counter[3], schedule_count * 2);
+    ASSERT_EQ(counter[3], schedule_count + 1);
+}
+
+TEST(server, schedule_5) {
+    int ret;
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = 4;
+    serv.dispatch_mode = Server::DISPATCH_UIDMOD;
+
+    auto port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_NE(port, nullptr);
+
+    auto port6 = serv.add_port(SW_SOCK_TCP6, "::", 0);
+    ASSERT_NE(port6, nullptr);
+
+    ret = serv.create();
+    ASSERT_EQ(SW_OK, ret);
+
+    std::vector<size_t> counter;
+    counter.resize(serv.worker_num);
+
+    size_t schedule_count = 256 * serv.worker_num;
+
+    std::vector<size_t> init_counter;
+    init_counter.resize(serv.worker_num);
+
+    network::Socket fake_sock{};
+    fake_sock.fd = 100;
+    fake_sock.info.assign(SW_SOCK_TCP, "127.0.0.1", 9501, false);
+    auto conn = serv.add_connection(port, &fake_sock, port->get_fd());
+    conn->uid = 0;
+
+    SW_LOOP_N(schedule_count) {
+        auto worker_id = serv.schedule_worker(fake_sock.fd, nullptr);
+        counter[worker_id]++;
+    }
+
+    network::Socket fake_sock6{};
+    fake_sock6.fd = 101;
+
+    fake_sock6.info.assign(SW_SOCK_TCP6, "::1", 9502, false);
+    auto conn6 = serv.add_connection(port6, &fake_sock6, port6->get_fd());
+    conn6->uid = 839922;
+
+    SW_LOOP_N(schedule_count) {
+        auto worker_id = serv.schedule_worker(fake_sock6.fd, nullptr);
+        counter[worker_id]++;
+    }
+
+    ASSERT_EQ(counter[0], schedule_count);
+    ASSERT_EQ(counter[1], 0);
+    ASSERT_EQ(counter[2], schedule_count);
+    ASSERT_EQ(counter[3], 0);
+}
+
+TEST(server, schedule_8) {
+    int ret;
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = 4;
+    serv.dispatch_mode = Server::DISPATCH_CO_CONN_LB;
+
+    auto port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_NE(port, nullptr);
+
+    auto port6 = serv.add_port(SW_SOCK_TCP6, "::", 0);
+    ASSERT_NE(port6, nullptr);
+
+    ret = serv.create();
+    ASSERT_EQ(SW_OK, ret);
+
+    std::vector<size_t> counter;
+    counter.resize(serv.worker_num);
+
+    size_t schedule_count = 256 * serv.worker_num;
+
+    std::vector<size_t> init_counter;
+    init_counter.resize(serv.worker_num);
+
+    network::Socket fake_sock{};
+    fake_sock.fd = 100;
+    fake_sock.info.assign(SW_SOCK_TCP, "127.0.0.1", 9501, false);
+    auto conn = serv.add_connection(port, &fake_sock, port->get_fd());
+    conn->worker_id = 1;
+
+    SW_LOOP_N(schedule_count) {
+        auto worker_id = serv.schedule_worker(fake_sock.fd, nullptr);
+        counter[worker_id]++;
+    }
+
+    network::Socket fake_sock6{};
+    fake_sock6.fd = 101;
+
+    fake_sock6.info.assign(SW_SOCK_TCP6, "::1", 9502, false);
+    serv.add_connection(port6, &fake_sock6, port6->get_fd());
+
+    SW_LOOP_N(schedule_count) {
+        auto worker_id = serv.schedule_worker(fake_sock6.fd, nullptr);
+        counter[worker_id]++;
+    }
+
+    auto worker_id = serv.schedule_worker(9999, nullptr);
+    counter[worker_id]++;
+
+    ASSERT_EQ(counter[0], schedule_count);
+    ASSERT_EQ(counter[1], schedule_count);
+    ASSERT_EQ(counter[2], 0);
+    ASSERT_EQ(counter[3], 1);
 }
 
 TEST(server, schedule_9) {

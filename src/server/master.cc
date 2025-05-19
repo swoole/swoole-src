@@ -933,10 +933,8 @@ bool Server::signal_handler_read_message() {
 
 #ifdef SIGRTMIN
 bool Server::signal_handler_reopen_logger() {
-    swoole_trace_log(
-        SW_TRACE_SERVER,
-        "reopen log file ['%s']",
-        sw_logger()->get_file()) for (uint32_t i = 0; i < worker_num + task_worker_num + get_user_worker_num(); i++) {
+    swoole_trace_log(SW_TRACE_SERVER, "reopen log file ['%s']", sw_logger()->get_file());
+    for (uint32_t i = 0; i < worker_num + task_worker_num + get_user_worker_num(); i++) {
         Worker *worker = get_worker(i);
         swoole_kill(worker->pid, SIGRTMIN);
     }
@@ -1313,7 +1311,7 @@ int Server::schedule_worker(int fd, SendData *data) {
             addr = &conn->info;
         }
         if (Socket::is_inet4(addr->type)) {
-            key = addr->addr.inet_v4.sin_addr.s_addr;
+            key = ntohl(addr->addr.inet_v4.sin_addr.s_addr);
         } else {
             key = swoole_hash_php((char *) &addr->addr.inet_v6, sizeof(addr->addr.inet_v6));
         }
@@ -1327,7 +1325,7 @@ int Server::schedule_worker(int fd, SendData *data) {
     } else if (dispatch_mode == DISPATCH_CO_CONN_LB) {
         Connection *conn = get_connection(fd);
         if (conn == nullptr) {
-            return key % worker_num;
+            return fd % worker_num;
         }
         if (conn->worker_id < 0) {
             conn->worker_id = get_lowest_load_worker_id();
