@@ -35,9 +35,10 @@ class Client {
   public:
     int id = 0;
     long timeout_id = 0;  // timeout node id
-    int _sock_type = 0;
-    int _sock_domain = 0;
-    int _protocol = 0;
+    int sock_type_ = 0;
+    int sock_domain_ = 0;
+    int sock_flags_ = 0;
+    int protocol_ = 0;
     FdType fd_type;
     bool active = false;
     bool async = false;
@@ -45,6 +46,8 @@ class Client {
     bool http2 = false;
     bool sleep_ = false;
     bool wait_dns = false;
+    bool dns_completed = false;
+    bool host_preseted = false;
     bool shutdow_rw = false;
     bool shutdown_read = false;
     bool shutdown_write = false;

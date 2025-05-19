@@ -288,38 +288,38 @@ TEST(client, async_tcp_http_proxy_handshake_fail) {
     swoole_event_wait();
 }
 
- TEST(client, async_tcp_socks5_proxy_handshake_fail) {
-     swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
+TEST(client, async_tcp_socks5_proxy_handshake_fail) {
+    swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
 
-     Client ac(SW_SOCK_TCP, true);
+    Client ac(SW_SOCK_TCP, true);
 
-     bool success = true;
+    bool success = true;
 
-     ac.onConnect = [&success](Client *ac) {
-         ac->send(SW_STRS(GREETER));
-         success = true;
-     };
+    ac.onConnect = [&success](Client *ac) {
+        ac->send(SW_STRS(GREETER));
+        success = true;
+    };
 
-     ac.onClose = [](Client *ac) {};
+    ac.onClose = [](Client *ac) {};
 
-     ac.onError = [&success](Client *ac) {
-         DEBUG() << "connect failed, ERROR: " << errno << "\n";
-         ASSERT_ERREQ(ETIMEDOUT);
-         success = false;
-     };
+    ac.onError = [&success](Client *ac) {
+        DEBUG() << "connect failed, ERROR: " << errno << "\n";
+        ASSERT_ERREQ(ETIMEDOUT);
+        success = false;
+    };
 
-     ac.onReceive = [](Client *ac, const char *data, size_t len) {
-         ASSERT_EQ(len, GREETER_SIZE);
-         ASSERT_STREQ(GREETER, data);
-         ac->close();
-     };
+    ac.onReceive = [](Client *ac, const char *data, size_t len) {
+        ASSERT_EQ(len, GREETER_SIZE);
+        ASSERT_STREQ(GREETER, data);
+        ac->close();
+    };
 
-     ac.set_socks5_proxy("www.baidu.com", 80);
+    ac.set_socks5_proxy("www.baidu.com", 80);
 
-     ASSERT_EQ(ac.connect("www.baidu.com", 80, 1.0), SW_OK);
+    ASSERT_EQ(ac.connect("www.baidu.com", 80, 1.0), SW_OK);
 
-     swoole_event_wait();
- }
+    swoole_event_wait();
+}
 
 TEST(client, sleep) {
     swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);

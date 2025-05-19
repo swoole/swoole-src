@@ -30,7 +30,6 @@ namespace swoole {
 namespace network {
 
 static int Client_inet_addr(Client *cli, const char *host, int port);
-static int Client_do_connect(Client *cli);
 static int Client_tcp_connect_sync(Client *cli, const char *host, int port, double _timeout, int nonblock);
 static int Client_tcp_connect_async(Client *cli, const char *host, int port, double timeout, int nonblock);
 static int Client_udp_connect(Client *cli, const char *host, int port, double _timeout, int udp_connect);
@@ -98,7 +97,7 @@ Client::Client(SocketType _type, bool _async) : async(_async) {
         send_ = Client_udp_send;
     }
 
-    Socket::get_domain_and_type(_type, &_sock_domain, &_sock_type);
+    Socket::get_domain_and_type(_type, &sock_domain_, &sock_type_);
     remote_addr.type = _type;
 
     protocol.package_length_type = 'N';
@@ -392,29 +391,33 @@ int Client::ssl_verify(int allow_self_signed) {
 #endif
 
 static int Client_inet_addr(Client *cli, const char *host, int port) {
-    // enable socks5 proxy
-    if (cli->socks5_proxy) {
-        cli->socks5_proxy->target_host = host;
-        cli->socks5_proxy->target_port = port;
+    if (!cli->host_preseted) {
+        // enable socks5 proxy
+        if (cli->socks5_proxy) {
+            cli->socks5_proxy->target_host = host;
+            cli->socks5_proxy->target_port = port;
 
-        host = cli->socks5_proxy->host.c_str();
-        port = cli->socks5_proxy->port;
+            host = cli->socks5_proxy->host.c_str();
+            port = cli->socks5_proxy->port;
+        }
+
+        // enable http proxy
+        if (cli->http_proxy) {
+            cli->http_proxy->target_host = host;
+            cli->http_proxy->target_port = port;
+
+            host = cli->http_proxy->host.c_str();
+            port = cli->http_proxy->port;
+        }
+
+        cli->server_host = host;
+        cli->server_port = port;
+
+        cli->host_preseted = true;
     }
-
-    // enable http proxy
-    if (cli->http_proxy) {
-        cli->http_proxy->target_host = host;
-        cli->http_proxy->target_port = port;
-
-        host = cli->http_proxy->host.c_str();
-        port = cli->http_proxy->port;
-    }
-
-    cli->server_host = host;
-    cli->server_port = port;
 
     if (!cli->server_addr.assign(cli->socket->socket_type, host, port, !cli->async)) {
-        if (swoole_get_last_error() == SW_ERROR_BAD_HOST_ADDR) {
+        if (!cli->dns_completed && swoole_get_last_error() == SW_ERROR_BAD_HOST_ADDR) {
             cli->wait_dns = true;
         } else {
             return SW_ERR;
@@ -590,7 +593,7 @@ static int Client_tcp_connect_sync(Client *cli, const char *host, int port, doub
 
 static int Client_dns_lookup(Client *cli) {
     AsyncEvent ev{};
-    auto req = new GethostbynameRequest(cli->server_host, cli->_sock_domain);
+    auto req = new GethostbynameRequest(cli->server_host, cli->sock_domain_);
     ev.data = std::shared_ptr<AsyncRequest>(req);
     ev.object = cli;
     ev.handler = async::handler_gethostbyname;
@@ -604,6 +607,8 @@ static int Client_dns_lookup(Client *cli) {
 }
 
 static int Client_tcp_connect_async(Client *cli, const char *host, int port, double timeout, int nonblock) {
+    int ret;
+
     cli->timeout = timeout;
 
     if (!cli->buffer) {
@@ -627,11 +632,6 @@ static int Client_tcp_connect_async(Client *cli, const char *host, int port, dou
         return Client_dns_lookup(cli);
     }
 
-    return Client_do_connect(cli);
-}
-
-static int Client_do_connect(Client *cli) {
-    int ret;
     while (1) {
         ret = cli->socket->connect(cli->server_addr);
         if (ret < 0) {
@@ -647,8 +647,8 @@ static int Client_do_connect(Client *cli) {
         if (swoole_event_add(cli->socket, SW_EVENT_WRITE) < 0) {
             return SW_ERR;
         }
-        if (cli->timeout > 0) {
-            cli->timer = swoole_timer_add(cli->timeout, false, Client_onTimeout, cli);
+        if (timeout > 0) {
+            cli->timer = swoole_timer_add(timeout, false, Client_onTimeout, cli);
         }
         return SW_OK;
     } else {
@@ -709,6 +709,9 @@ static ssize_t Client_tcp_recv_sync(Client *cli, char *data, size_t len, int fla
 }
 
 static int Client_udp_connect(Client *cli, const char *host, int port, double timeout, int udp_connect) {
+    cli->timeout = timeout;
+    cli->sock_flags_ = udp_connect;
+
     if (Client_inet_addr(cli, host, port) < 0) {
         return SW_ERR;
     }
@@ -723,7 +726,6 @@ static int Client_udp_connect(Client *cli, const char *host, int port, double ti
     }
 
     cli->active = true;
-    cli->timeout = timeout;
     int bufsize = Socket::default_buffer_size;
 
     if (timeout > 0) {
@@ -982,20 +984,17 @@ static void Client_onResolveCompleted(AsyncEvent *event) {
 
     auto *cli = (Client *) event->object;
     cli->wait_dns = false;
+    cli->dns_completed = true;
 
     if (event->error == 0) {
-        if (cli->server_addr.assign(cli->socket->socket_type, req->addr.get(), cli->server_port, false) &&
-            Client_do_connect(cli) == SW_OK) {
-            return;
-        }
+        cli->connect(req->addr.get(), cli->server_port, cli->timeout, cli->sock_flags_);
     } else {
         swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
-    }
-
-    cli->socket->removed = 1;
-    cli->close();
-    if (cli->onError) {
-        cli->onError(cli);
+        cli->socket->removed = 1;
+        cli->close();
+        if (cli->onError) {
+            cli->onError(cli);
+        }
     }
 }
 
