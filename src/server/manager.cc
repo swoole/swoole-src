@@ -27,6 +27,11 @@
 #endif
 
 namespace swoole {
+/**
+ * The functionality of the Manager class is similar to that of the ProcessPool,
+ * but due to the more complex management requirements for processes in the Server module, the ProcessPool falls short.
+ * Therefore, we ad an new class, and the Manager class should reuse the ProcessPool code as much as possible.
+ */
 struct Manager {
     bool reload_all_worker;
     bool reload_task_worker;
@@ -37,6 +42,7 @@ struct Manager {
 
     void wait(Server *_server);
     void terminate_all_worker();
+    void trigger_read_message_event();
 
     static void signal_handler(int sig);
     static void timer_callback(Timer *timer, TimerNode *tnode);
@@ -331,13 +337,23 @@ void Manager::terminate_all_worker() {
     }
 }
 
+void Manager::trigger_read_message_event() {
+    server_->gs->event_workers.read_message = true;
+
+    sw_logger()->reopen();
+
+    SW_LOOP_N(server_->get_all_worker_num()) {
+        Worker *worker = server_->get_worker(i);
+        swoole_kill(worker->pid, SIGIO);
+    }
+}
+
 void Manager::signal_handler(int signo) {
     Server *_server = sw_server();
     if (!_server || !_server->manager) {
         return;
     }
     Manager *manager = _server->manager;
-    ProcessPool *pool = &_server->gs->event_workers;
 
     switch (signo) {
     case SIGTERM:
@@ -346,10 +362,10 @@ void Manager::signal_handler(int signo) {
     case SIGUSR1:
     case SIGUSR2:
         _server->reload(signo == SIGUSR1);
-        sw_logger()->reopen();
+        manager->trigger_read_message_event();
         break;
     case SIGIO:
-        pool->read_message = true;
+        manager->trigger_read_message_event();
         break;
     case SIGALRM:
         if (manager->force_kill) {
@@ -359,7 +375,7 @@ void Manager::signal_handler(int signo) {
     default:
 #ifdef SIGRTMIN
         if (signo == SIGRTMIN) {
-            sw_logger()->reopen();
+            manager->trigger_read_message_event();
         }
 #endif
         break;

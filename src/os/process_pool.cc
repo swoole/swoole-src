@@ -326,6 +326,17 @@ int ProcessPool::push_message(uint8_t type, const void *data, size_t length) {
     return push_message(&msg);
 }
 
+void ProcessPool::trigger_read_message_event() {
+    read_message = true;
+
+    sw_logger()->reopen();
+
+    SW_LOOP_N(worker_num) {
+        Worker *worker = get_worker(i);
+        swoole_kill(worker->pid, SIGIO);
+    }
+}
+
 int ProcessPool::pop_message(void *data, size_t size) {
     if (!message_box) {
         return SW_ERR;

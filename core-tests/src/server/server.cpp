@@ -1843,7 +1843,7 @@ TEST(server, reopen_log2) {
 
     serv.onStart = [](Server *serv) {
         swoole_timer_after(50, [serv](TIMER_PARAMS) {
-            serv->signal_handler_reopen_logger();
+            serv->signal_handler_read_message();
             swoole_timer_after(50, [serv](TIMER_PARAMS) { serv->shutdown(); });
         });
     };

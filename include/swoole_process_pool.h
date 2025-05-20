@@ -417,6 +417,7 @@ struct ProcessPool {
     int push_message(uint8_t type, const void *data, size_t length);
     int push_message(EventData *msg);
     bool send_message(WorkerId worker_id, const char *message, size_t l_message);
+    void trigger_read_message_event();
     int pop_message(void *data, size_t size);
     int listen(const char *socket_file, int blacklog);
     int listen(const char *host, int port, int blacklog);

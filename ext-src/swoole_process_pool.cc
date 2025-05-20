@@ -184,6 +184,9 @@ static void process_pool_onWorkerStart(ProcessPool *pool, Worker *worker) {
     if (!swoole_signal_isset(SIGTERM) && (pp->onMessage || pp->enable_coroutine)) {
         swoole_signal_set(SIGTERM, process_pool_signal_handler);
     }
+    if (!swoole_signal_isset(SIGIO)) {
+        swoole_signal_set(SIGIO, process_pool_signal_handler);
+    }
 }
 
 static void process_pool_onMessage(ProcessPool *pool, RecvData *msg) {
@@ -310,7 +313,7 @@ static void process_pool_signal_handler(int sig) {
         current_pool->reload();
         break;
     case SIGIO:
-        current_pool->read_message = true;
+        current_pool->trigger_read_message_event();
         break;
     default:
         break;

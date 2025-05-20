@@ -234,7 +234,8 @@ static void TaskWorker_signal_init(ProcessPool *pool) {
     swoole_signal_set(SIGHUP, nullptr);
     swoole_signal_set(SIGPIPE, nullptr);
     swoole_signal_set(SIGUSR1, Server::worker_signal_handler);
-    swoole_signal_set(SIGUSR2, nullptr);
+    swoole_signal_set(SIGUSR2, Server::worker_signal_handler);
+    swoole_signal_set(SIGIO, Server::worker_signal_handler);
     swoole_signal_set(SIGTERM, Server::worker_signal_handler);
 #ifdef SIGRTMIN
     swoole_signal_set(SIGRTMIN, Server::worker_signal_handler);
