@@ -69,7 +69,7 @@ void Server::worker_signal_handler(int signo) {
         break;
     default:
 #ifdef SIGRTMIN
-        if (signo == SIGRTMIN ) {
+        if (signo == SIGRTMIN) {
             Worker_reopen_logger();
         }
 #endif

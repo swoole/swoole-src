@@ -44,7 +44,7 @@ struct ProcessPoolObject {
     zend_object std;
 };
 
-static void process_pool_signal_handler(int sig);
+static void process_pool_signal_handler(int signo);
 
 static sw_inline ProcessPoolObject *process_pool_fetch_object(zend_object *obj) {
     return (ProcessPoolObject *) ((char *) obj - swoole_process_pool_handlers.offset);
@@ -184,6 +184,14 @@ static void process_pool_onWorkerStart(ProcessPool *pool, Worker *worker) {
     if (!swoole_signal_isset(SIGTERM) && (pp->onMessage || pp->enable_coroutine)) {
         swoole_signal_set(SIGTERM, process_pool_signal_handler);
     }
+    if (!swoole_signal_isset(SIGWINCH)) {
+        swoole_signal_set(SIGWINCH, process_pool_signal_handler);
+    }
+#ifdef SIGRTMIN
+    if (!swoole_signal_isset(SIGRTMIN)) {
+        swoole_signal_set(SIGRTMIN, process_pool_signal_handler);
+    }
+#endif
 }
 
 static void process_pool_onMessage(ProcessPool *pool, RecvData *msg) {
@@ -294,11 +302,11 @@ static void process_pool_onShutdown(ProcessPool *pool) {
     }
 }
 
-static void process_pool_signal_handler(int sig) {
+static void process_pool_signal_handler(int signo) {
     if (!current_pool) {
         return;
     }
-    switch (sig) {
+    switch (signo) {
     case SIGTERM:
         current_pool->running = false;
         if (current_worker) {
@@ -316,6 +324,11 @@ static void process_pool_signal_handler(int sig) {
         current_pool->reopen_logger();
         break;
     default:
+#ifdef SIGRTMIN
+        if (signo == SIGRTMIN) {
+            current_pool->reopen_logger();
+        }
+#endif
         break;
     }
 }
@@ -577,6 +590,10 @@ static PHP_METHOD(swoole_process_pool, start) {
     ori_handlers[SIGUSR1] = swoole_signal_set(SIGUSR1, process_pool_signal_handler);
     ori_handlers[SIGUSR2] = swoole_signal_set(SIGUSR2, process_pool_signal_handler);
     ori_handlers[SIGIO] = swoole_signal_set(SIGIO, process_pool_signal_handler);
+    ori_handlers[SIGWINCH] = swoole_signal_set(SIGWINCH, process_pool_signal_handler);
+#ifdef SIGRTMIN
+    ori_handlers[SIGRTMIN] = swoole_signal_set(SIGRTMIN, process_pool_signal_handler);
+#endif
 
     if (pp->enable_message_bus) {
         if (pool->create_message_bus() != SW_OK) {
