@@ -310,7 +310,10 @@ static void process_pool_signal_handler(int sig) {
         current_pool->reload();
         break;
     case SIGIO:
-        current_pool->read_message = true;
+        current_pool->rigger_read_message_event();
+        break;
+    case SIGWINCH:
+        current_pool->reopen_logger();
         break;
     default:
         break;

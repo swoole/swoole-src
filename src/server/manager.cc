@@ -27,6 +27,11 @@
 #endif
 
 namespace swoole {
+/**
+ * The functionality of the Manager class is similar to that of the ProcessPool,
+ * but due to the more complex management requirements for processes in the Server module, the ProcessPool falls short.
+ * Therefore, we ad an new class, and the Manager class should reuse the ProcessPool code as much as possible.
+ */
 struct Manager {
     bool reload_all_worker;
     bool reload_task_worker;
@@ -37,6 +42,7 @@ struct Manager {
 
     void wait(Server *_server);
     void terminate_all_worker();
+    void reopen_logger() const;
 
     static void signal_handler(int sig);
     static void timer_callback(Timer *timer, TimerNode *tnode);
@@ -122,14 +128,14 @@ void Manager::wait(Server *_server) {
 
     swoole_event_free();
 
-    // for reload
     swoole_signal_set(SIGHUP, nullptr);
-    swoole_signal_set(SIGCHLD, signal_handler);
-    swoole_signal_set(SIGTERM, signal_handler);
-    swoole_signal_set(SIGUSR1, signal_handler);
-    swoole_signal_set(SIGUSR2, signal_handler);
-    swoole_signal_set(SIGIO, signal_handler);
-    swoole_signal_set(SIGALRM, signal_handler);
+    swoole_signal_set(SIGCHLD, signal_handler);   // child process exit
+    swoole_signal_set(SIGTERM, signal_handler);   // shutdown
+    swoole_signal_set(SIGUSR1, signal_handler);   // reload all workers
+    swoole_signal_set(SIGUSR2, signal_handler);   // reload task workers
+    swoole_signal_set(SIGIO, signal_handler);     // read message
+    swoole_signal_set(SIGALRM, signal_handler);   // timer
+    swoole_signal_set(SIGWINCH, signal_handler);  // reopen log file
 #ifdef SIGRTMIN
     swoole_signal_set(SIGRTMIN, signal_handler);
 #endif
@@ -331,6 +337,15 @@ void Manager::terminate_all_worker() {
     }
 }
 
+void Manager::reopen_logger() const {
+    sw_logger()->reopen();
+
+    SW_LOOP_N(server_->get_all_worker_num()) {
+        const auto worker = server_->get_worker(i);
+        swoole_kill(worker->pid, SIGWINCH);
+    }
+}
+
 void Manager::signal_handler(int signo) {
     Server *_server = sw_server();
     if (!_server || !_server->manager) {
@@ -346,7 +361,6 @@ void Manager::signal_handler(int signo) {
     case SIGUSR1:
     case SIGUSR2:
         _server->reload(signo == SIGUSR1);
-        sw_logger()->reopen();
         break;
     case SIGIO:
         pool->read_message = true;
@@ -356,10 +370,13 @@ void Manager::signal_handler(int signo) {
             manager->terminate_all_worker();
         }
         break;
+    case SIGWINCH:
+        manager->reopen_logger();
+        break;
     default:
 #ifdef SIGRTMIN
         if (signo == SIGRTMIN) {
-            sw_logger()->reopen();
+            manager->reopen_logger();
         }
 #endif
         break;

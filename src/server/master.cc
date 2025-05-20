@@ -931,20 +931,16 @@ bool Server::signal_handler_read_message() {
     return true;
 }
 
-#ifdef SIGRTMIN
 bool Server::signal_handler_reopen_logger() {
     swoole_trace_log(SW_TRACE_SERVER, "reopen log file ['%s']", sw_logger()->get_file());
-    for (uint32_t i = 0; i < worker_num + task_worker_num + get_user_worker_num(); i++) {
-        Worker *worker = get_worker(i);
-        swoole_kill(worker->pid, SIGRTMIN);
-    }
-    if (is_process_mode()) {
-        swoole_kill(gs->manager_pid, SIGRTMIN);
-    }
     sw_logger()->reopen();
+
+    if (is_process_mode()) {
+        swoole_kill(gs->manager_pid, SIGWINCH);
+    }
+
     return true;
 }
-#endif
 
 void Server::stop_master_thread() {
     Reactor *reactor = SwooleTG.reactor;
@@ -1644,11 +1640,10 @@ void Server::init_signal_handler() {
     swoole_signal_set(SIGUSR1, master_signal_handler);
     swoole_signal_set(SIGUSR2, master_signal_handler);
     swoole_signal_set(SIGTERM, master_signal_handler);
+    swoole_signal_set(SIGWINCH, master_signal_handler);
 #ifdef SIGRTMIN
     swoole_signal_set(SIGRTMIN, master_signal_handler);
 #endif
-    // for test
-    swoole_signal_set(SIGVTALRM, master_signal_handler);
 
     if (SwooleG.signal_fd > 0) {
         set_minfd(SwooleG.signal_fd);
@@ -1864,15 +1859,15 @@ void Server::master_signal_handler(int signo) {
     case SIGCHLD:
         serv->signal_handler_child_exit();
         break;
-    case SIGVTALRM:
-        swoole_warning("SIGVTALRM coming");
-        break;
     case SIGUSR1:
     case SIGUSR2:
         serv->signal_handler_reload(signo == SIGUSR1);
         break;
     case SIGIO:
         serv->signal_handler_read_message();
+        break;
+    case SIGWINCH:
+        serv->signal_handler_reopen_logger();
         break;
     default:
 #ifdef SIGRTMIN

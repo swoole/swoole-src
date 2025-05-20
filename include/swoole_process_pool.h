@@ -400,6 +400,12 @@ struct ProcessPool {
     int start();
     bool shutdown();
     bool reload();
+    void reopen_logger();
+
+    void rigger_read_message_event() {
+        read_message = true;
+    }
+
     pid_t spawn(Worker *worker);
     void stop(Worker *worker);
     void kill_all_workers(int signo = SIGKILL);

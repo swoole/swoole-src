@@ -442,6 +442,14 @@ void ProcessPool::stop(Worker *worker) {
     }
 }
 
+void ProcessPool::reopen_logger() {
+    sw_logger()->reopen();
+
+    if (is_master()) {
+        kill_all_workers(SIGWINCH);
+    }
+}
+
 void ProcessPool::kill_all_workers(int signo) {
     SW_LOOP_N(worker_num) {
         swoole_kill(workers[i].pid, signo);
