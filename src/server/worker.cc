@@ -29,6 +29,12 @@ using namespace network;
 static int Worker_onPipeReceive(Reactor *reactor, Event *event);
 static void Worker_reactor_try_to_exit(Reactor *reactor);
 
+static void Worker_reopen_logger() {
+    if (sw_logger()) {
+        sw_logger()->reopen();
+    }
+}
+
 void Server::worker_signal_init() {
     if (is_thread_mode()) {
         return;
@@ -37,12 +43,10 @@ void Server::worker_signal_init() {
     swoole_signal_set(SIGPIPE, SIG_IGN);
     swoole_signal_set(SIGUSR1, nullptr);
     swoole_signal_set(SIGUSR2, nullptr);
-    // swSignal_set(SIGINT, Server::worker_signal_handler);
-    swoole_signal_set(SIGTERM, Server::worker_signal_handler);
-    // for test
-    swoole_signal_set(SIGVTALRM, Server::worker_signal_handler);
+    swoole_signal_set(SIGTERM, worker_signal_handler);
+    swoole_signal_set(SIGWINCH, worker_signal_handler);
 #ifdef SIGRTMIN
-    swoole_signal_set(SIGRTMIN, Server::worker_signal_handler);
+    swoole_signal_set(SIGRTMIN, worker_signal_handler);
 #endif
 }
 
@@ -60,20 +64,13 @@ void Server::worker_signal_handler(int signo) {
             sw_worker()->shutdown();
         }
         break;
-    // for test
-    case SIGVTALRM:
-        swoole_warning("SIGVTALRM coming");
-        break;
-    case SIGUSR1:
-    case SIGUSR2:
-        if (sw_logger()) {
-            sw_logger()->reopen();
-        }
+    case SIGWINCH:
+        Worker_reopen_logger();
         break;
     default:
 #ifdef SIGRTMIN
-        if (signo == SIGRTMIN && sw_logger()) {
-            sw_logger()->reopen();
+        if (signo == SIGRTMIN) {
+            Worker_reopen_logger();
         }
 #endif
         break;
