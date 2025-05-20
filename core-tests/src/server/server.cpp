@@ -140,6 +140,168 @@ static void test_worker_schedule(int dispatch_mode) {
     }
 }
 
+TEST(server, schedule_4) {
+    int ret;
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = 4;
+    serv.dispatch_mode = Server::DISPATCH_IPMOD;
+
+    auto port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_NE(port, nullptr);
+
+    auto port6 = serv.add_port(SW_SOCK_TCP6, "::", 0);
+    ASSERT_NE(port6, nullptr);
+
+    ret = serv.create();
+    ASSERT_EQ(SW_OK, ret);
+
+    std::vector<size_t> counter;
+    counter.resize(serv.worker_num);
+
+    size_t schedule_count = 256 * serv.worker_num;
+
+    std::vector<size_t> init_counter;
+    init_counter.resize(serv.worker_num);
+
+    network::Socket fake_sock{};
+    fake_sock.fd = 100;
+    fake_sock.info.assign(SW_SOCK_TCP, "127.0.0.1", 9501, false);
+    serv.add_connection(port, &fake_sock, port->get_fd());
+
+    SW_LOOP_N(schedule_count) {
+        auto worker_id = serv.schedule_worker(fake_sock.fd, nullptr);
+        counter[worker_id]++;
+    }
+
+    network::Socket fake_sock6{};
+    fake_sock6.fd = 101;
+    fake_sock6.info.assign(SW_SOCK_TCP6, "::1", 9502, false);
+    serv.add_connection(port6, &fake_sock6, port6->get_fd());
+
+    SW_LOOP_N(schedule_count) {
+        auto worker_id = serv.schedule_worker(fake_sock6.fd, nullptr);
+        counter[worker_id]++;
+    }
+
+    SendData sdata;
+    auto pkt = reinterpret_cast<DgramPacket *>(sw_tg_buffer()->str);
+    pkt->socket_addr.assign(SW_SOCK_UDP, "192.168.1.103", 29321, false);
+    sdata.data = (char *) pkt;
+    auto worker_id = serv.schedule_worker(9999, &sdata);
+    counter[worker_id]++;
+
+    ASSERT_EQ(counter[0], 0);
+    ASSERT_EQ(counter[1], schedule_count);
+    ASSERT_EQ(counter[2], 0);
+    ASSERT_EQ(counter[3], schedule_count + 1);
+}
+
+TEST(server, schedule_5) {
+    int ret;
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = 4;
+    serv.dispatch_mode = Server::DISPATCH_UIDMOD;
+
+    auto port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_NE(port, nullptr);
+
+    auto port6 = serv.add_port(SW_SOCK_TCP6, "::", 0);
+    ASSERT_NE(port6, nullptr);
+
+    ret = serv.create();
+    ASSERT_EQ(SW_OK, ret);
+
+    std::vector<size_t> counter;
+    counter.resize(serv.worker_num);
+
+    size_t schedule_count = 256 * serv.worker_num;
+
+    std::vector<size_t> init_counter;
+    init_counter.resize(serv.worker_num);
+
+    network::Socket fake_sock{};
+    fake_sock.fd = 100;
+    fake_sock.info.assign(SW_SOCK_TCP, "127.0.0.1", 9501, false);
+    auto conn = serv.add_connection(port, &fake_sock, port->get_fd());
+    conn->uid = 0;
+
+    SW_LOOP_N(schedule_count) {
+        auto worker_id = serv.schedule_worker(fake_sock.fd, nullptr);
+        counter[worker_id]++;
+    }
+
+    network::Socket fake_sock6{};
+    fake_sock6.fd = 101;
+
+    fake_sock6.info.assign(SW_SOCK_TCP6, "::1", 9502, false);
+    auto conn6 = serv.add_connection(port6, &fake_sock6, port6->get_fd());
+    conn6->uid = 839922;
+
+    SW_LOOP_N(schedule_count) {
+        auto worker_id = serv.schedule_worker(fake_sock6.fd, nullptr);
+        counter[worker_id]++;
+    }
+
+    ASSERT_EQ(counter[0], schedule_count);
+    ASSERT_EQ(counter[1], 0);
+    ASSERT_EQ(counter[2], schedule_count);
+    ASSERT_EQ(counter[3], 0);
+}
+
+TEST(server, schedule_8) {
+    int ret;
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = 4;
+    serv.dispatch_mode = Server::DISPATCH_CO_CONN_LB;
+
+    auto port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_NE(port, nullptr);
+
+    auto port6 = serv.add_port(SW_SOCK_TCP6, "::", 0);
+    ASSERT_NE(port6, nullptr);
+
+    ret = serv.create();
+    ASSERT_EQ(SW_OK, ret);
+
+    std::vector<size_t> counter;
+    counter.resize(serv.worker_num);
+
+    size_t schedule_count = 256 * serv.worker_num;
+
+    std::vector<size_t> init_counter;
+    init_counter.resize(serv.worker_num);
+
+    network::Socket fake_sock{};
+    fake_sock.fd = 100;
+    fake_sock.info.assign(SW_SOCK_TCP, "127.0.0.1", 9501, false);
+    auto conn = serv.add_connection(port, &fake_sock, port->get_fd());
+    conn->worker_id = 1;
+
+    SW_LOOP_N(schedule_count) {
+        auto worker_id = serv.schedule_worker(fake_sock.fd, nullptr);
+        counter[worker_id]++;
+    }
+
+    network::Socket fake_sock6{};
+    fake_sock6.fd = 101;
+
+    fake_sock6.info.assign(SW_SOCK_TCP6, "::1", 9502, false);
+    serv.add_connection(port6, &fake_sock6, port6->get_fd());
+
+    SW_LOOP_N(schedule_count) {
+        auto worker_id = serv.schedule_worker(fake_sock6.fd, nullptr);
+        counter[worker_id]++;
+    }
+
+    auto worker_id = serv.schedule_worker(9999, nullptr);
+    counter[worker_id]++;
+
+    ASSERT_EQ(counter[0], schedule_count);
+    ASSERT_EQ(counter[1], schedule_count);
+    ASSERT_EQ(counter[2], 0);
+    ASSERT_EQ(counter[3], 1);
+}
+
 TEST(server, schedule_9) {
     test_worker_schedule<Worker, size_t, &Worker::coroutine_num>(Server::DISPATCH_CO_REQ_LB);
 }
@@ -201,6 +363,8 @@ TEST(server, base) {
         EXPECT_EQ(serv->get_connection_num(), 1);
         EXPECT_EQ(serv->get_primary_port()->get_connection_num(), 1);
 
+        EXPECT_EQ(serv->get_worker_message_bus()->move_packet(), nullptr);
+
         return SW_OK;
     };
 
@@ -215,7 +379,11 @@ TEST(server, base) {
 TEST(server, process) {
     Server serv(Server::MODE_PROCESS);
     serv.worker_num = 1;
+    serv.task_worker_num = 3;
     swoole_set_log_level(SW_LOG_WARNING);
+
+    test::counter_init();
+    auto counter = test::counter_ptr();
 
     Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
     lock->lock();
@@ -244,11 +412,19 @@ TEST(server, process) {
             c.recv(buf, sizeof(buf));
             c.close();
 
+            sleep(2);
+
             kill(serv->gs->master_pid, SIGTERM);
         });
     };
 
-    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock->unlock(); };
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) {
+        if (worker->id == 0) {
+            lock->unlock();
+        }
+        test::counter_incr(3);
+        DEBUG() << "onWorkerStart: id=" << worker->id << "\n";
+    };
 
     serv.onReceive = [](Server *serv, RecvData *req) -> int {
         EXPECT_EQ(string(req->data, req->info.len), string(packet));
@@ -259,13 +435,40 @@ TEST(server, process) {
         EXPECT_EQ(serv->get_connection_num(), 1);
         EXPECT_EQ(serv->get_primary_port()->get_connection_num(), 1);
 
+        swoole_timer_after(100, [serv](TIMER_PARAMS) { serv->kill_worker(1 + swoole_random_int() % 3, false); });
+
         return SW_OK;
+    };
+
+    serv.onTask = [](Server *serv, EventData *task) -> int { return 0; };
+
+    serv.manager_alarm = 1;
+
+    serv.add_hook(
+        Server::HOOK_MANAGER_TIMER,
+        [](void *args) {
+            test::counter_incr(2);
+            DEBUG() << "manager timer callback\n";
+        },
+        true);
+
+    serv.onManagerStart = [](Server *serv) {
+        DEBUG() << "onManagerStart\n";
+        test::counter_incr(1);
+    };
+
+    serv.onManagerStop = [](Server *serv) {
+        DEBUG() << "onManagerStop\n";
+        test::counter_incr(1);
     };
 
     ASSERT_EQ(serv.start(), 0);
 
     t1.join();
     delete lock;
+    ASSERT_EQ(counter[1], 2);  // manager callback
+    ASSERT_GE(counter[2], 2);  // manager timer
+    ASSERT_GE(counter[3], 4);  // worker start
 }
 
 #ifdef SW_THREAD
@@ -300,7 +503,12 @@ TEST(server, thread) {
         ASSERT_MEMEQ(buf, resp.c_str(), resp.length());
         c.close();
 
-        usleep(10);
+        usleep(1000);
+
+        ASSERT_FALSE(serv.gs->event_workers.read_message);
+        kill(serv.get_master_pid(), SIGIO);
+        usleep(1000);
+        ASSERT_TRUE(serv.gs->event_workers.read_message);
 
         DEBUG() << "shutdown\n";
 
@@ -1336,6 +1544,8 @@ TEST(server, task_ipc_queue_5) {
 TEST(server, max_connection) {
     Server serv;
 
+    auto ori_max_sockets = SwooleG.max_sockets;
+
     serv.set_max_connection(0);
     ASSERT_EQ(serv.get_max_connection(), SW_MIN(SW_MAX_CONNECTION, SwooleG.max_sockets));
 
@@ -1344,6 +1554,11 @@ TEST(server, max_connection) {
 
     serv.set_max_connection(SwooleG.max_sockets - 13);
     ASSERT_EQ(serv.get_max_connection(), SwooleG.max_sockets - 13);
+
+    SwooleG.max_sockets = SW_SESSION_LIST_SIZE + 1024;
+    serv.set_max_connection(SW_SESSION_LIST_SIZE + 999);
+    ASSERT_EQ(serv.get_max_connection(), SW_SESSION_LIST_SIZE);
+    SwooleG.max_sockets = ori_max_sockets;
 
     uint32_t last_value = serv.get_max_connection();
 
@@ -1616,6 +1831,31 @@ TEST(server, reopen_log) {
     remove(filename.c_str());
 }
 
+TEST(server, reopen_log2) {
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = 2;
+    swoole_set_log_level(SW_LOG_DEBUG);
+    string filename = TEST_LOG_FILE;
+    swoole_set_log_file(filename.c_str());
+
+    ASSERT_TRUE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0));
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    serv.onStart = [](Server *serv) {
+        swoole_timer_after(50, [serv](TIMER_PARAMS) {
+            serv->signal_handler_reopen_logger();
+            swoole_timer_after(50, [serv](TIMER_PARAMS) { serv->shutdown(); });
+        });
+    };
+
+    serv.onWorkerStart = [&filename](Server *serv, Worker *worker) { test::counter_incr(0, 1); };
+
+    serv.onReceive = [](Server *server, RecvData *req) -> int { return SW_OK; };
+
+    ASSERT_EQ(serv.start(), 0);
+    remove(filename.c_str());
+}
+
 TEST(server, udp_packet) {
     Server *server = new Server(Server::MODE_PROCESS);
     server->worker_num = 2;
@@ -1845,16 +2085,34 @@ TEST(server, startup_error) {
     Server *server = new Server(Server::MODE_PROCESS);
     server->task_worker_num = 2;
 
-    server->add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_NE(server->add_port(SW_SOCK_TCP, TEST_HOST, 0), nullptr);
+    ASSERT_NE(server->add_port(SW_SOCK_UDP, TEST_HOST, 0), nullptr);
     ASSERT_EQ(server->create(), 0);
-
-    server->onReceive = [](Server *server, RecvData *req) -> int { return SW_OK; };
-    server->onWorkerStart = [&](Server *server, Worker *worker) {};
 
     ASSERT_EQ(server->start(), -1);
     auto startup_error = String(server->get_startup_error_message());
     ASSERT_TRUE(startup_error.contains("require 'onTask' callback"));
     ASSERT_EQ(swoole_get_last_error(), SW_ERROR_SERVER_INVALID_CALLBACK);
+
+    server->onTask = [](Server *server, EventData *req) -> int { return SW_OK; };
+
+    ASSERT_EQ(server->start(), -1);
+    ASSERT_NE(strstr(server->get_startup_error_message(), "require 'onReceive' callback"), nullptr);
+
+    auto ori_log_level = swoole_get_log_level();
+    swoole_set_log_level(SW_LOG_NONE);
+
+    ASSERT_EQ(server->start(), -1);
+    auto startup_error2 = std::string(server->get_startup_error_message());
+    ASSERT_EQ(startup_error2, std::to_string(SW_ERROR_SERVER_INVALID_CALLBACK));
+    ASSERT_EQ(swoole_get_last_error(), SW_ERROR_SERVER_INVALID_CALLBACK);
+
+    swoole_set_log_level(ori_log_level);
+
+    server->onReceive = [](Server *server, RecvData *req) -> int { return SW_OK; };
+
+    ASSERT_EQ(server->start(), -1);
+    ASSERT_NE(strstr(server->get_startup_error_message(), "require 'onPacket' callback"), nullptr);
 }
 
 TEST(server, abort_worker) {
@@ -1941,7 +2199,7 @@ TEST(server, reactor_thread_pipe_writable) {
     port->protocol.package_max_length = 8 * 1024 * 1024;
     network::Stream::set_protocol(&port->protocol);
 
-    swoole::Mutex lock(swoole::Mutex::PROCESS_SHARED);
+    Mutex lock(Mutex::PROCESS_SHARED);
     lock.lock();
 
     ASSERT_EQ(serv.create(), SW_OK);
@@ -1986,8 +2244,19 @@ TEST(server, reactor_thread_pipe_writable) {
 
     serv.onReceive = [&](Server *serv, RecvData *req) -> int {
         uint32_t len = htonl(rdata.length);
-        serv->send(req->info.fd, &len, sizeof(len));
-        serv->send(req->info.fd, rdata.str, rdata.length);
+        EXPECT_TRUE(req->info.flags & SW_EVENT_DATA_OBJ_PTR);
+        EXPECT_TRUE(serv->send(req->info.fd, &len, sizeof(len)));
+        EXPECT_TRUE(serv->send(req->info.fd, rdata.str, rdata.length));
+        EXPECT_MEMEQ(req->data + 4, rdata.str, rdata.length);
+
+        /**
+         * After using MessageBus::move_packet(), the data pointer will be out of the control of message_bus,
+         * and this part of the memory must be manually released; otherwise, a memory leak will occur.
+         */
+        char *data = serv->get_worker_message_bus()->move_packet();
+        EXPECT_NE(data, nullptr);
+        sw_free(data);
+
         return SW_OK;
     };
 
@@ -2282,9 +2551,7 @@ static void test_clean_worker(Server::Mode mode) {
         swoole_timer_after(100, [port, _serv, &ac](TIMER_PARAMS) {
             ac.on_connect([&](AsyncClient *ac) { ac->send(SW_STRL(TEST_STR)); });
 
-            ac.on_close([_serv](AsyncClient *ac) {
-                DEBUG() << "client onClose\n";
-            });
+            ac.on_close([_serv](AsyncClient *ac) { DEBUG() << "client onClose\n"; });
 
             ac.on_error([](AsyncClient *ac) { swoole_warning("connect failed, error=%d", swoole_get_last_error()); });
 
@@ -2300,10 +2567,10 @@ static void test_clean_worker(Server::Mode mode) {
     };
 
     ASSERT_EQ(serv.start(), SW_OK);
-    ASSERT_EQ(test::counter_get(0), 0); // Server on_receive
-    ASSERT_EQ(test::counter_get(1), 3); // worker start
-    ASSERT_EQ(test::counter_get(2), 1); // Server on_close
-    ASSERT_EQ(test::counter_get(3), 0); // Client on_receive
+    ASSERT_EQ(test::counter_get(0), 0);  // Server on_receive
+    ASSERT_EQ(test::counter_get(1), 3);  // worker start
+    ASSERT_EQ(test::counter_get(2), 1);  // Server on_close
+    ASSERT_EQ(test::counter_get(3), 0);  // Client on_receive
 }
 
 TEST(server, clean_worker_1) {
@@ -2496,4 +2763,135 @@ static void test_kill_self(Server::Mode mode) {
 
 TEST(server, kill_self) {
     test_kill_self(Server::MODE_BASE);
+}
+
+TEST(server, no_idle_worker) {
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = 4;
+    serv.dispatch_mode = 3;
+
+    swoole_set_log_file(TEST_LOG_FILE);
+    swoole_set_log_level(SW_LOG_WARNING);
+
+    Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
+    lock->lock();
+
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    if (!port) {
+        swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
+        exit(2);
+    }
+
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    thread t1;
+    serv.onStart = [&lock, &t1](Server *serv) {
+        t1 = thread([=]() {
+            swoole_signal_block_all();
+
+            lock->lock();
+
+            ListenPort *port = serv->get_primary_port();
+
+            network::SyncClient c(SW_SOCK_TCP);
+            c.connect(TEST_HOST, port->port);
+
+            SW_LOOP_N(1024) {
+                c.send(packet, strlen(packet));
+            }
+
+            sleep(3);
+
+            c.close();
+
+            kill(serv->gs->master_pid, SIGTERM);
+        });
+    };
+
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock->unlock(); };
+
+    serv.onReceive = [](Server *serv, RecvData *req) -> int {
+        usleep(10000);
+        return SW_OK;
+    };
+
+    ASSERT_EQ(serv.start(), 0);
+
+    t1.join();
+    delete lock;
+
+    auto log = swoole::file_get_contents(TEST_LOG_FILE);
+    ASSERT_TRUE(log->contains("No idle worker is available"));
+
+    remove(TEST_LOG_FILE);
+}
+
+TEST(server, no_idle_task_worker) {
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = 1;
+    serv.task_worker_num = 4;
+    serv.dispatch_mode = 3;
+
+    swoole_set_log_file(TEST_LOG_FILE);
+    swoole_set_log_level(SW_LOG_WARNING);
+
+    Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
+    lock->lock();
+
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    if (!port) {
+        swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
+        exit(2);
+    }
+
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    thread t1;
+    serv.onStart = [&lock, &t1](Server *serv) {
+        t1 = thread([=]() {
+            swoole_signal_block_all();
+
+            lock->lock();
+
+            ListenPort *port = serv->get_primary_port();
+
+            network::SyncClient c(SW_SOCK_TCP);
+            c.connect(TEST_HOST, port->port);
+            c.send(packet, strlen(packet));
+
+            sleep(3);
+            c.close();
+
+            kill(serv->gs->master_pid, SIGTERM);
+        });
+    };
+
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock->unlock(); };
+
+    serv.onReceive = [](Server *serv, RecvData *req) -> int {
+        SW_LOOP_N(1024) {
+            int _dst_worker_id = -1;
+            EventData buf{};
+            Server::task_pack(&buf, packet, strlen(packet));
+            buf.info.ext_flags |= (SW_TASK_NONBLOCK | SW_TASK_CALLBACK);
+            EXPECT_TRUE(serv->task(&buf, &_dst_worker_id));
+        }
+        return SW_OK;
+    };
+
+    serv.onTask = [](Server *serv, EventData *task) -> int {
+        EXPECT_EQ(string(task->data, task->info.len), string(packet));
+        usleep(10000);
+        return 0;
+    };
+
+    ASSERT_EQ(serv.start(), 0);
+
+    t1.join();
+    delete lock;
+
+    auto log = swoole::file_get_contents(TEST_LOG_FILE);
+    ASSERT_TRUE(log->contains("No idle task worker is available"));
+
+    remove(TEST_LOG_FILE);
 }

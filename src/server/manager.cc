@@ -285,10 +285,7 @@ void Manager::wait(Server *_server) {
         }
     }
 
-    if (pool->reload_task) {
-        delete pool->reload_task;
-        pool->reload_task = nullptr;
-    }
+    delete pool->reload_task;
 
     if (swoole_timer_is_available()) {
         swoole_timer_free();

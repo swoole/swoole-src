@@ -43,6 +43,11 @@ static inline swReturnCode catch_system_error(int error) {
     }
 }
 
+static inline void worker_end_callback() {
+    swoole_timer_select();
+    swoole_signal_dispatch();
+}
+
 /**
  * Process manager
  */
@@ -591,10 +596,7 @@ int ProcessPool::run_with_task_protocol(ProcessPool *pool, Worker *worker) {
         }
 
     _end:
-        swoole_signal_dispatch();
-        if (sw_timer()) {
-            sw_timer()->select();
-        }
+        worker_end_callback();
     }
 
     swoole_timer_set_scheduler(nullptr);
@@ -747,10 +749,7 @@ int ProcessPool::run_with_stream_protocol(ProcessPool *pool, Worker *worker) {
         }
 
     _end:
-        swoole_signal_dispatch();
-        if (sw_timer()) {
-            sw_timer()->select();
-        }
+        worker_end_callback();
     }
 
     swoole_timer_set_scheduler(nullptr);
@@ -798,10 +797,7 @@ int ProcessPool::run_with_message_protocol(ProcessPool *pool, Worker *worker) {
     while (pool->is_worker_running(worker)) {
         switch (fn()) {
         case 0:
-            swoole_signal_dispatch();
-            if (sw_timer()) {
-                sw_timer()->select();
-            }
+            worker_end_callback();
             break;
         case 1:
             break;
@@ -819,6 +815,30 @@ int ProcessPool::run_with_message_protocol(ProcessPool *pool, Worker *worker) {
 
 void ProcessPool::add_worker(Worker *worker) {
     map_->emplace(std::make_pair(worker->pid, worker));
+}
+
+Worker *ProcessPool::get_worker_by_pid(pid_t pid) {
+    auto iter = map_->find(pid);
+    if (iter == map_->end()) {
+        return nullptr;
+    }
+    return iter->second;
+}
+
+void ProcessPool::set_type(int _type) {
+    uint32_t i;
+    type = _type;
+    for (i = 0; i < worker_num; i++) {
+        workers[i].type = type;
+    }
+}
+
+void ProcessPool::set_start_id(int _start_id) {
+    uint32_t i;
+    start_id = _start_id;
+    for (i = 0; i < worker_num; i++) {
+        workers[i].id = start_id + i;
+    }
 }
 
 bool ProcessPool::wait_detached_worker(std::unordered_set<pid_t> &detached_workers, pid_t pid) {

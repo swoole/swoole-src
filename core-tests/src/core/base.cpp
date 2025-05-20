@@ -342,3 +342,28 @@ TEST(base, fatal_error) {
     ASSERT_TRUE(rs->contains("(ERROR 9999)"));
     File::remove(TEST_LOG_FILE);
 }
+
+TEST(base, spinlock) {
+    test::counter_init();
+    auto counter = test::counter_ptr();
+    int n = 4096;
+
+    auto test_fn = [counter, n]() {
+        SW_LOOP_N(n) {
+            sw_spinlock((sw_atomic_t *) &counter[0]);
+            counter[1]++;
+            if (i % 100 == 0) {
+                usleep(5);
+            }
+            sw_spinlock_release((sw_atomic_t *) &counter[0]);
+        }
+    };
+
+    std::thread t1(test_fn);
+    std::thread t2(test_fn);
+
+    t1.join();
+    t2.join();
+
+    ASSERT_EQ(counter[1], n * 2);
+}

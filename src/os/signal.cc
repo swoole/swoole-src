@@ -133,6 +133,9 @@ SignalHandler swoole_signal_set(int signo, SignalHandler func, int restart, int 
         sigemptyset(&act.sa_mask);
     }
     act.sa_flags = 0;
+    if (restart) {
+        act.sa_flags |= SA_RESTART;
+    }
     if (sigaction(signo, &act, &oact) < 0) {
         return nullptr;
     }
@@ -164,7 +167,7 @@ SignalHandler swoole_signal_set(int signo, SignalHandler handler, bool safety) {
     signals[signo].handler = handler;
     signals[signo].activated = true;
     signals[signo].signo = signo;
-    return swoole_signal_set(signo, safety ? signal_handler_safety : signal_handler_simple, 1, 0);
+    return swoole_signal_set(signo, safety ? signal_handler_safety : signal_handler_simple, 0, 0);
 }
 
 static void signal_handler_safety(int signo) {

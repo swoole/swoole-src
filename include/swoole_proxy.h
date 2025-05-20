@@ -53,8 +53,8 @@ class String;
 struct HttpProxy {
     uint8_t state;
     uint8_t dont_handshake;
-    int proxy_port;
-    std::string proxy_host;
+    int port;
+    std::string host;
     std::string username;
     std::string password;
     std::string target_host;

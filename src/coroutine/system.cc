@@ -30,7 +30,7 @@ namespace coroutine {
 static struct {
     size_t capacity;
     time_t expire;
-    LRUCache *data;
+    LRUCache<std::string> *data;
     size_t miss_count;
     size_t hit_count;
 } dns_cache = {
@@ -175,14 +175,14 @@ std::string gethostbyname_impl_with_async(const std::string &hostname, int domai
         swoole_set_last_error(ev.error);
         return "";
     } else {
-        std::string addr(req->addr);
+        std::string addr(req->addr.get());
         return addr;
     }
 }
 
 std::string System::gethostbyname(const std::string &hostname, int domain, double timeout) {
     if (dns_cache.data == nullptr && dns_cache.capacity != 0) {
-        dns_cache.data = new LRUCache(dns_cache.capacity);
+        dns_cache.data = new LRUCache<std::string>(dns_cache.capacity);
     }
 
     std::string cache_key;
@@ -494,7 +494,6 @@ bool System::socket_poll(std::unordered_map<int, PollSocket> &fds, double timeou
 
 struct EventWaiter {
     network::Socket *socket;
-    TimerNode *timer;
     Coroutine *co;
     int revents;
     int error_;
@@ -503,44 +502,17 @@ struct EventWaiter {
         error_ = revents = 0;
         socket = swoole::make_socket(fd, SW_FD_CO_EVENT);
         socket->object = this;
-        timer = nullptr;
         co = Coroutine::get_current_safe();
 
-        Coroutine::CancelFunc cancel_fn = [this](Coroutine *) {
-            if (timer) {
-                swoole_timer_del(timer);
-            }
-            error_ = SW_ERROR_CO_CANCELED;
-            co->resume();
-            return true;
-        };
-
         if (swoole_event_add(socket, events) < 0) {
-            swoole_set_last_error(errno);
+            error_ = swoole_get_last_error();
             goto _done;
         }
 
-        if (timeout > 0) {
-            timer = swoole_timer_add(
-                timeout,
-                false,
-                [](Timer *timer, TimerNode *tnode) {
-                    EventWaiter *waiter = (EventWaiter *) tnode->data;
-                    waiter->timer = nullptr;
-                    waiter->error_ = ETIMEDOUT;
-                    waiter->co->resume();
-                },
-                this);
+        if (!co->yield_ex(timeout)) {
+            error_ = swoole_get_last_error();
         }
 
-        co->yield(&cancel_fn);
-
-        if (timer != nullptr) {
-            swoole_timer_del(timer);
-        }
-        if (error_) {
-            swoole_set_last_error(error_);
-        }
         swoole_event_del(socket);
     _done:
         socket->fd = -1; /* skip close */
@@ -598,7 +570,7 @@ int System::wait_event(int fd, int events, double timeout) {
 
     EventWaiter waiter(fd, events, timeout);
     if (waiter.error_) {
-        errno = swoole_get_last_error();
+        errno = waiter.error_;
         return SW_ERR;
     }
 

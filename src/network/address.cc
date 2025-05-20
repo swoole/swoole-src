@@ -119,6 +119,19 @@ bool Address::assign(SocketType _type, const std::string &_host, int _port, bool
     return true;
 }
 
+const char *Address::type_str(SocketType type) {
+    if (Socket::is_inet4(type)) {
+        return "IPv4";
+    }
+    if (Socket::is_inet6(type)) {
+        return "IPv6";
+    }
+    if (Socket::is_local(type)) {
+        return "UnixSocket";
+    }
+    return "Unknown";
+}
+
 bool Address::assign(const std::string &url) {
     static const std::regex unix_pattern(R"(^(unix|udg)://(/[^?#]+))");
     static const std::regex inet4_pattern(R"(^(tcp|udp)://([^:\[]+):(\d+)$)");

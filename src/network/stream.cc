@@ -95,6 +95,16 @@ Stream::Stream(const char *dst_host, int dst_port, SocketType type) : client(typ
     connected = true;
 }
 
+Stream *Stream::create(const char *dst_host, int dst_port, SocketType type) {
+    auto *stream = new Stream(dst_host, dst_port, type);
+    if (!stream->connected) {
+        delete stream;
+        return nullptr;
+    } else {
+        return stream;
+    }
+}
+
 Stream::~Stream() {
     if (buffer) {
         delete buffer;

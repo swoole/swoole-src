@@ -90,14 +90,17 @@ void swoole_ssl_destroy() {
 }
 
 static int ssl_error_cb(const char *str, size_t len, void *buf) {
-    memcpy(buf, str, len);
-
+    auto s = static_cast<swoole::String *>(buf);
+    memcpy(s->str, str, len);
+    s->length = len;
+    s->set_null_terminated();
     return 0;
 }
 
 const char *swoole_ssl_get_error() {
-    ERR_print_errors_cb(ssl_error_cb, sw_tg_buffer()->str);
-
+    sw_tg_buffer()->clear();
+    sw_tg_buffer()->set_null_terminated();
+    ERR_print_errors_cb(ssl_error_cb, sw_tg_buffer());
     return sw_tg_buffer()->str;
 }
 

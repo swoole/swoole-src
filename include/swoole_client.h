@@ -35,9 +35,10 @@ class Client {
   public:
     int id = 0;
     long timeout_id = 0;  // timeout node id
-    int _sock_type = 0;
-    int _sock_domain = 0;
-    int _protocol = 0;
+    int sock_type_ = 0;
+    int sock_domain_ = 0;
+    int sock_flags_ = 0;
+    int protocol_ = 0;
     FdType fd_type;
     bool active = false;
     bool async = false;
@@ -45,6 +46,8 @@ class Client {
     bool http2 = false;
     bool sleep_ = false;
     bool wait_dns = false;
+    bool dns_completed = false;
+    bool host_preseted = false;
     bool shutdow_rw = false;
     bool shutdown_read = false;
     bool shutdown_write = false;
@@ -52,6 +55,7 @@ class Client {
     bool closed = false;
     bool high_watermark = false;
     bool async_connect = false;
+    bool onerror_called;
 
     /**
      * one package: length check
@@ -65,19 +69,15 @@ class Client {
 
     uint32_t reuse_count = 0;
 
-    const char *server_str = nullptr;
-    const char *server_host = nullptr;
+    std::string server_id;
+    std::string server_host;
     int server_port = 0;
     void *ptr = nullptr;
     void *params = nullptr;
 
-    uint8_t server_strlen = 0;
     double timeout = 0;
     TimerNode *timer = nullptr;
-    /**
-     * signal interruption
-     */
-    double interrupt_time = 0;
+
     /**
      * for connect()/sendto()
      */
@@ -136,7 +136,7 @@ class Client {
         return &http_proxy->target_host;
     }
 
-    int connect(const char *_host, int _port, double _timeout, int _sock_flag = 0) {
+    int connect(const char *_host, int _port, double _timeout = -1, int _sock_flag = 0) {
         return connect_(this, _host, _port, _timeout, _sock_flag);
     }
 
@@ -263,17 +263,9 @@ class Stream {
 
     int send(const char *data, size_t length);
     void set_max_length(uint32_t max_length);
-
-    static inline Stream *create(const char *dst_host, int dst_port, SocketType type) {
-        auto *stream = new Stream(dst_host, dst_port, type);
-        if (!stream->connected) {
-            delete stream;
-            return nullptr;
-        } else {
-            return stream;
-        }
-    }
     ~Stream();
+
+    static Stream *create(const char *dst_host, int dst_port, SocketType type);
     static ssize_t recv_sync(Socket *sock, void *_buf, size_t _len);
     static void set_protocol(Protocol *protocol);
 

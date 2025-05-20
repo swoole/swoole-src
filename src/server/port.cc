@@ -877,7 +877,8 @@ int ListenPort::create_socket() {
 
     Address addr;
     if (!addr.assign(type, host, port, true)) {
-        swoole_warning("Invalid address '%s:%d'", host.c_str(), port);
+        auto type_str = Address::type_str(type);
+        swoole_warning("Invalid %s address '%s:%d'", type_str, host.c_str(), port);
         goto __cleanup;
     }
 

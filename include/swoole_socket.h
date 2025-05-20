@@ -107,6 +107,7 @@ struct Address {
     const char *get_addr();
     bool is_loopback_addr();
     bool empty();
+    static const char *type_str(SocketType type);
 
     static bool verify_ip(int __af, const std::string &str) {
         char tmp_address[INET6_ADDRSTRLEN];
@@ -337,9 +338,9 @@ struct Socket {
     int listen(int backlog = 0);
 
     void clean();
-    ssize_t send_sync(const void *__data, size_t __len);
+    ssize_t send_sync(const void *__data, size_t __len, int flags = 0);
     ssize_t send_async(const void *__data, size_t __len);
-    ssize_t recv_sync(void *__data, size_t __len, int flags);
+    ssize_t recv_sync(void *__data, size_t __len, int flags = 0);
     ssize_t writev_sync(const struct iovec *iov, size_t iovcnt);
 
     int connect(const Address &sa) {
@@ -406,6 +407,8 @@ struct Socket {
     }
 
     int wait_event(int timeout_ms, int events);
+    bool wait_for(const std::function<swReturnCode(void)> &fn, int event, double timeout = -1);
+    int what_event_want(int default_event);
     void free();
 
     static inline bool is_dgram(SocketType type) {
@@ -510,7 +513,7 @@ struct Socket {
         return sendto(addr, data, len, flags);
     }
 
-    ssize_t sendto(const Address &dst_addr, const void *data, size_t len, int flags) const {
+    ssize_t sendto(const Address &dst_addr, const void *data, size_t len, int flags = 0) const {
         return ::sendto(fd, data, len, flags, &dst_addr.addr.ss, dst_addr.len);
     }
 

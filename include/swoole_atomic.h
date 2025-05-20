@@ -42,6 +42,7 @@ typedef sw_atomic_uint32_t sw_atomic_t;
 #define sw_atomic_cpu_pause()
 #endif
 
+void sw_spinlock(sw_atomic_t *lock);
 #define sw_spinlock_release(lock) __sync_lock_release(lock)
 
 #ifdef HAVE_FUTEX

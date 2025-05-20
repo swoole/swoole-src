@@ -97,14 +97,18 @@ class Socket {
         return send(buf.c_str(), buf.length());
     }
 
+    /**
+     * The read()/write()/recvmsg()/sendmsg() functions currently does not support SSL
+     */
     ssize_t read(void *__buf, size_t __n);
     ssize_t write(const void *__buf, size_t __n);
+    ssize_t recvmsg(msghdr *msg, int flags);
+    ssize_t sendmsg(const msghdr *msg, int flags);
+
     ssize_t readv(network::IOVector *io_vector);
     ssize_t readv_all(network::IOVector *io_vector);
     ssize_t writev(network::IOVector *io_vector);
     ssize_t writev_all(network::IOVector *io_vector);
-    ssize_t recvmsg(struct msghdr *msg, int flags);
-    ssize_t sendmsg(const struct msghdr *msg, int flags);
     ssize_t recv_all(void *__buf, size_t __n);
     ssize_t send_all(const void *__buf, size_t __n);
     ssize_t recv_packet(double timeout = 0);

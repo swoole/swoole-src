@@ -26,12 +26,13 @@ namespace swoole {
 /**
  * This cache isn't thread safe
  */
+template <typename T>
 class LRUCache {
   private:
-    typedef std::pair<time_t, std::shared_ptr<void>> cache_node_t;
+    typedef std::pair<time_t, std::shared_ptr<T>> cache_node_t;
     typedef std::list<std::pair<std::string, cache_node_t>> cache_list_t;
 
-    std::unordered_map<std::string, cache_list_t::iterator> cache_map;
+    std::unordered_map<std::string, typename cache_list_t::iterator> cache_map;
     cache_list_t cache_list;
     size_t cache_capacity;
 
@@ -40,7 +41,7 @@ class LRUCache {
         cache_capacity = capacity;
     }
 
-    std::shared_ptr<void> get(const std::string &key) {
+    std::shared_ptr<T> get(const std::string &key) {
         auto iter = cache_map.find(key);
         if (iter == cache_map.end()) {
             return nullptr;
@@ -54,7 +55,7 @@ class LRUCache {
         return iter->second->second.second;  // iter -> list::iter -> cache_node_t -> value
     }
 
-    void set(const std::string &key, const std::shared_ptr<void> &val, time_t expire = 0) {
+    void set(const std::string &key, const std::shared_ptr<T> &val, time_t expire = 0) {
         time_t expire_time;
 
         if (expire <= 0) {

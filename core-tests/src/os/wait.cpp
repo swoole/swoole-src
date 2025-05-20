@@ -83,7 +83,7 @@ TEST(os_wait, wait_after_child_exit) {
 
 TEST(os_wait, waitpid_safe) {
     test::coroutine::run([](void *arg) {
-        pid_t pid = fork_child2();
+        pid_t pid = fork_child();
         int status = -1;
 
         pid_t pid2 = System::waitpid_safe(pid, &status, 0);

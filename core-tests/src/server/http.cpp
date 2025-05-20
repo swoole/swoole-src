@@ -141,7 +141,8 @@ static void test_base_server(function<void(Server *)> fn) {
     serv.private_data_2 = (void *) &fn;
 
     serv.enable_static_handler = true;
-    serv.set_document_root(test::get_root_path());
+    ASSERT_TRUE(serv.set_document_root(test::get_root_path()));
+
     serv.add_static_handler_location("/examples");
     serv.add_http_compression_type("text/html");
 
@@ -1855,4 +1856,18 @@ static void test_ssl_http(Server::Mode mode) {
 
 TEST(http_server, ssl) {
     test_ssl_http(Server::MODE_BASE);
+}
+
+TEST(http_server, fail) {
+    Server serv(Server::MODE_BASE);
+    serv.worker_num = 1;
+
+    std::string bad_path;
+    bad_path.resize(PATH_MAX + 4);
+    ASSERT_FALSE(serv.set_document_root(bad_path));
+    ASSERT_ERREQ(SW_ERROR_NAME_TOO_LONG);
+
+    std::string not_exists_path("/tmp/swoole-core-tests-not-exists");
+    ASSERT_FALSE(serv.set_document_root(not_exists_path));
+    ASSERT_ERREQ(SW_ERROR_DIR_NOT_EXIST);
 }

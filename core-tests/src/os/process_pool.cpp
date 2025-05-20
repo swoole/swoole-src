@@ -11,6 +11,10 @@
 
 using namespace swoole;
 
+constexpr int magic_number = 99900011;
+static ProcessPool *current_pool = nullptr;
+static Worker *current_worker = nullptr;
+
 static void test_func(ProcessPool &pool) {
     EventData data{};
     size_t size = swoole_system_random(1024, 4096);
@@ -28,6 +32,9 @@ static void test_func(ProcessPool &pool) {
 
     pool.running = true;
     pool.ptr = &rmem;
+    if (pool.onWorkerStart) {
+        pool.onWorkerStart(&pool, pool.get_worker(0));
+    }
     pool.main_loop(&pool, pool.get_worker(0));
     pool.destroy();
 }
@@ -132,6 +139,37 @@ TEST(process_pool, message_protocol) {
     test_func_message_protocol(pool);
 }
 
+TEST(process_pool, message_protocol_with_timer) {
+    ProcessPool pool{};
+    ASSERT_EQ(pool.create(1, 0, SW_IPC_UNIXSOCK), SW_OK);
+
+    pool.set_protocol(SW_PROTOCOL_MESSAGE);
+
+    swoole_signal_set(SIGTERM, [](int) {
+        DEBUG() << "received  SIGTERM signal\n";
+        current_pool->running = false;
+    });
+
+    pool.onWorkerStart = [](ProcessPool *pool, Worker *worker) {
+        DEBUG() << "onStart\n";
+        current_pool = pool;
+        swoole_timer_after(50, [pool](TIMER_PARAMS) {
+            DEBUG() << "kill master\n";
+            kill(getpid(), SIGTERM);
+        });
+    };
+
+    pool.onMessage = [](ProcessPool *pool, RecvData *rdata) {
+        String *_data = (String *) pool->ptr;
+        usleep(10000);
+
+        DEBUG() << "received: " << rdata->info.len << " bytes\n";
+        EXPECT_MEMEQ(_data->str, rdata->data, rdata->info.len);
+    };
+
+    test_func(pool);
+}
+
 TEST(process_pool, stream_protocol) {
     ProcessPool pool{};
     ASSERT_EQ(pool.create(1, 0, SW_IPC_UNIXSOCK), SW_OK);
@@ -145,10 +183,6 @@ TEST(process_pool, stream_protocol_with_msgq) {
 
     test_func_stream_protocol(pool);
 }
-
-constexpr int magic_number = 99900011;
-static ProcessPool *current_pool = nullptr;
-static Worker *current_worker = nullptr;
 
 TEST(process_pool, shutdown) {
     ProcessPool pool{};

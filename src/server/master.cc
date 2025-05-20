@@ -19,6 +19,7 @@
 #include "swoole_lock.h"
 #include "swoole_thread.h"
 #include "swoole_util.h"
+#include "swoole_hash.h"
 
 #include <cassert>
 
@@ -323,13 +324,14 @@ void Server::set_max_connection(uint32_t _max_connection) {
 
 bool Server::set_document_root(const std::string &path) {
     if (path.length() > PATH_MAX) {
-        swoole_warning("The length of document_root must be less than %d", PATH_MAX);
+        swoole_error_log(
+            SW_LOG_WARNING, SW_ERROR_NAME_TOO_LONG, "The length of document_root must be less than %d", PATH_MAX);
         return false;
     }
 
     char _realpath[PATH_MAX];
     if (!realpath(path.c_str(), _realpath)) {
-        swoole_warning("document_root[%s] does not exist", path.c_str());
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_DIR_NOT_EXIST, "document_root[%s] does not exist", path.c_str());
         return false;
     }
 
@@ -931,6 +933,7 @@ bool Server::signal_handler_read_message() {
 
 #ifdef SIGRTMIN
 bool Server::signal_handler_reopen_logger() {
+    swoole_trace_log(SW_TRACE_SERVER, "reopen log file ['%s']", sw_logger()->get_file());
     for (uint32_t i = 0; i < worker_num + task_worker_num + get_user_worker_num(); i++) {
         Worker *worker = get_worker(i);
         swoole_kill(worker->pid, SIGRTMIN);
@@ -1300,23 +1303,17 @@ int Server::schedule_worker(int fd, SendData *data) {
     // Using the IP touch access to hash
     else if (dispatch_mode == DISPATCH_IPMOD) {
         Connection *conn = get_connection(fd);
-        // UDP
+        Address *addr;
         if (conn == nullptr) {
-            key = fd;
+            DgramPacket *packet = (DgramPacket *) data->data;
+            addr = &packet->socket_addr;
+        } else {
+            addr = &conn->info;
         }
-        // IPv4
-        else if (conn->socket_type == SW_SOCK_TCP) {
-            key = conn->info.addr.inet_v4.sin_addr.s_addr;
-        }
-        // IPv6
-        else {
-#ifdef HAVE_KQUEUE
-            key = *(((uint32_t *) &conn->info.addr.inet_v6.sin6_addr) + 3);
-#elif defined(_WIN32)
-            key = conn->info.addr.inet_v6.sin6_addr.u.Word[3];
-#else
-            key = conn->info.addr.inet_v6.sin6_addr.s6_addr32[3];
-#endif
+        if (Socket::is_inet4(addr->type)) {
+            key = ntohl(addr->addr.inet_v4.sin_addr.s_addr);
+        } else {
+            key = swoole_hash_php((char *) &addr->addr.inet_v6, sizeof(addr->addr.inet_v6));
         }
     } else if (dispatch_mode == DISPATCH_UIDMOD) {
         Connection *conn = get_connection(fd);
@@ -1328,7 +1325,7 @@ int Server::schedule_worker(int fd, SendData *data) {
     } else if (dispatch_mode == DISPATCH_CO_CONN_LB) {
         Connection *conn = get_connection(fd);
         if (conn == nullptr) {
-            return key % worker_num;
+            return fd % worker_num;
         }
         if (conn->worker_id < 0) {
             conn->worker_id = get_lowest_load_worker_id();
@@ -1812,7 +1809,7 @@ ListenPort *Server::add_port(SocketType type, const char *host, int port) {
                          SW_MAX_LISTEN_PORT);
         return nullptr;
     }
-    if (!(type == SW_SOCK_UNIX_DGRAM || type == SW_SOCK_UNIX_STREAM) && (port < 0 || port > 65535)) {
+    if (!Socket::is_local(type) && (port < 0 || port > 65535)) {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_INVALID_LISTEN_PORT, "invalid port [%d]", port);
         return nullptr;
     }

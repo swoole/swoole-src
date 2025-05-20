@@ -187,6 +187,140 @@ TEST(client, async_tcp6_dns) {
     test_async_client_tcp("localhost", swoole::test::get_random_port(), SW_SOCK_TCP6);
 }
 
+TEST(client, async_tcp_dns_fail) {
+    swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
+
+    Client ac(SW_SOCK_TCP, true);
+
+    bool success = true;
+
+    ac.onConnect = [&success](Client *ac) {
+        ac->send(SW_STRS(GREETER));
+        success = true;
+    };
+
+    ac.onClose = [](Client *ac) {};
+
+    ac.onError = [&success](Client *ac) {
+        DEBUG() << "connect failed, ERROR: " << errno << "\n";
+        ASSERT_ERREQ(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
+        success = false;
+    };
+
+    ac.onReceive = [](Client *ac, const char *data, size_t len) {
+        ASSERT_EQ(len, GREETER_SIZE);
+        ASSERT_STREQ(GREETER, data);
+        ac->close();
+    };
+
+    ASSERT_EQ(ac.connect("www.baidu.com-not-found", 80, 1.0), SW_OK);
+
+    swoole_event_wait();
+
+    ASSERT_FALSE(success);
+}
+
+TEST(client, async_tcp_ssl_handshake_fail) {
+    swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
+
+    Client ac(SW_SOCK_TCP, true);
+
+    bool success = true;
+
+    ac.onConnect = [&success](Client *ac) {
+        ac->send(SW_STRS(GREETER));
+        success = true;
+    };
+
+    ac.onClose = [](Client *ac) {};
+
+    ac.onError = [&success](Client *ac) {
+        DEBUG() << "connect failed, ERROR: " << errno << "\n";
+        ASSERT_ERREQ(SW_ERROR_SSL_HANDSHAKE_FAILED);
+        success = false;
+    };
+
+    ac.onReceive = [](Client *ac, const char *data, size_t len) {
+        ASSERT_EQ(len, GREETER_SIZE);
+        ASSERT_STREQ(GREETER, data);
+        ac->close();
+    };
+
+    ac.enable_ssl_encrypt();
+
+    ASSERT_EQ(ac.connect("www.baidu.com", 80, 1.0), SW_OK);
+
+    swoole_event_wait();
+
+    ASSERT_FALSE(success);
+}
+
+TEST(client, async_tcp_http_proxy_handshake_fail) {
+    swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
+
+    Client ac(SW_SOCK_TCP, true);
+
+    bool success = true;
+
+    ac.onConnect = [&success](Client *ac) {
+        ac->send(SW_STRS(GREETER));
+        success = true;
+    };
+
+    ac.onClose = [](Client *ac) {};
+
+    ac.onError = [&success](Client *ac) {
+        DEBUG() << "connect failed, ERROR: " << errno << "\n";
+        ASSERT_ERREQ(SW_ERROR_HTTP_PROXY_HANDSHAKE_ERROR);
+        success = false;
+    };
+
+    ac.onReceive = [](Client *ac, const char *data, size_t len) {
+        ASSERT_EQ(len, GREETER_SIZE);
+        ASSERT_STREQ(GREETER, data);
+        ac->close();
+    };
+
+    ac.set_http_proxy("www.baidu.com", 80);
+
+    ASSERT_EQ(ac.connect("www.baidu.com", 80, 1.0), SW_OK);
+
+    swoole_event_wait();
+}
+
+TEST(client, async_tcp_socks5_proxy_handshake_fail) {
+    swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
+
+    Client ac(SW_SOCK_TCP, true);
+
+    bool success = true;
+
+    ac.onConnect = [&success](Client *ac) {
+        ac->send(SW_STRS(GREETER));
+        success = true;
+    };
+
+    ac.onClose = [](Client *ac) {};
+
+    ac.onError = [&success](Client *ac) {
+        DEBUG() << "connect failed, ERROR: " << errno << "\n";
+        ASSERT_ERREQ(ETIMEDOUT);
+        success = false;
+    };
+
+    ac.onReceive = [](Client *ac, const char *data, size_t len) {
+        ASSERT_EQ(len, GREETER_SIZE);
+        ASSERT_STREQ(GREETER, data);
+        ac->close();
+    };
+
+    ac.set_socks5_proxy("www.baidu.com", 80);
+
+    ASSERT_EQ(ac.connect("www.baidu.com", 80, 1.0), SW_OK);
+
+    swoole_event_wait();
+}
+
 TEST(client, sleep) {
     swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
 
@@ -771,6 +905,51 @@ TEST(client, ssl) {
     sw_tg_buffer()->length = rv;
     sw_tg_buffer()->set_null_terminated();
 
-    ASSERT_TRUE(sw_tg_buffer()->contains("中华人民共和国"));
+    ASSERT_TRUE(sw_tg_buffer()->contains(TEST_HTTPS_EXPECT));
 }
 #endif
+
+TEST(client, fail) {
+    Client c((swSocketType) (SW_SOCK_RAW6 + 1), false);
+    ASSERT_FALSE(c.ready());
+    ASSERT_ERREQ(ESOCKTNOSUPPORT);
+}
+
+static void test_recv_timeout(Client &c) {
+    std::thread t([]() {
+        SW_LOOP_N(20) {
+            usleep(50000);
+            kill(getpid(), SIGIO);
+        }
+    });
+
+    swoole_signal_set(
+        SIGIO, [](int) { swoole::test::counter_incr(0); }, 0, 1);
+
+    auto buf = sw_tg_buffer();
+    while (true) {
+        auto rv = c.recv(buf->str, buf->size);
+        DEBUG() << "rv: " << rv << ", error=" << errno << "\n";
+        if (errno == ETIMEDOUT) {
+            break;
+        }
+    }
+
+    t.join();
+}
+
+TEST(client, recv_timeout) {
+    Client c(SW_SOCK_TCP, false);
+    ASSERT_TRUE(c.ready());
+    ASSERT_EQ(c.connect(TEST_HTTP_DOMAIN, 80, 1.0), SW_OK);
+    test_recv_timeout(c);
+}
+
+TEST(client, ssl_recv_timeout) {
+    Client c(SW_SOCK_TCP, false);
+    ASSERT_TRUE(c.ready());
+    c.enable_ssl_encrypt();
+
+    ASSERT_EQ(c.connect(TEST_HTTP_DOMAIN, 443, 1.0), SW_OK);
+    test_recv_timeout(c);
+}

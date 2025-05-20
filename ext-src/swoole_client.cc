@@ -463,15 +463,14 @@ void php_swoole_client_free(zval *zobject, Client *cli) {
         sw_callable_free(cli->protocol.private_data_1);
         cli->protocol.private_data_1 = nullptr;
     }
-    // long tcp connection, delete from php_sw_long_connections
+    // long tcp connection, delete from connection pool
     if (cli->keep) {
-        std::string conn_key = std::string(cli->server_str, cli->server_strlen);
-        auto i = long_connections.find(conn_key);
+        auto i = long_connections.find(cli->server_id);
         if (i != long_connections.end()) {
             std::queue<Client *> *q = i->second;
             if (q->empty()) {
                 delete q;
-                long_connections.erase(std::string(cli->server_str, cli->server_strlen));
+                long_connections.erase(cli->server_id);
             }
         }
     }
@@ -563,9 +562,7 @@ static Client *php_swoole_client_new(zval *zobject, char *host, int host_len, in
             return nullptr;
         }
 
-        // don't forget free it
-        cli->server_str = sw_strndup(conn_key.c_str(), conn_key.length());
-        cli->server_strlen = conn_key.length();
+        cli->server_id = std::string(conn_key.c_str(), conn_key.length());
     }
 
     zend_update_property_long(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("sock"), cli->socket->fd);
@@ -1111,12 +1108,11 @@ static PHP_METHOD(swoole_client, close) {
         php_swoole_client_free(ZEND_THIS, cli);
     } else {
         if (cli->keep) {
-            std::string conn_key(cli->server_str, cli->server_strlen);
             std::queue<Client *> *q;
-            auto i = long_connections.find(conn_key);
+            auto i = long_connections.find(cli->server_id);
             if (i == long_connections.end()) {
                 q = new std::queue<Client *>;
-                long_connections[conn_key] = q;
+                long_connections[cli->server_id] = q;
             } else {
                 q = i->second;
             }
