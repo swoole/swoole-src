@@ -151,6 +151,12 @@ bool Socket::wait_for(const std::function<swReturnCode(void)> &fn, int event, do
         began_at = microtime();
     }
 
+#ifdef SW_USE_OPENSSL
+    if (ssl) {
+        ssl_clear_error();
+    }
+#endif
+
     while (true) {
         auto rv = wait_event(timeout_ms, what_event_want(event));
         if (rv == SW_ERR && errno != EINTR) {
