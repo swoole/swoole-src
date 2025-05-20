@@ -331,9 +331,11 @@ void ProcessPool::trigger_read_message_event() {
 
     sw_logger()->reopen();
 
-    SW_LOOP_N(worker_num) {
-        Worker *worker = get_worker(i);
-        swoole_kill(worker->pid, SIGIO);
+    if (is_master()) {
+        SW_LOOP_N(worker_num) {
+            Worker *worker = get_worker(i);
+            swoole_kill(worker->pid, SIGIO);
+        }
     }
 }
 
