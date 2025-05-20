@@ -101,13 +101,8 @@ static PHP_METHOD(swoole_client, getSocket);
 #endif
 SW_EXTERN_C_END
 
-#ifdef PHP_SWOOLE_CLIENT_USE_POLL
 static uint32_t client_poll_add(zval *sock_array, uint32_t index, struct pollfd *fds, int maxevents, int event);
 static int client_poll_wait(zval *sock_array, struct pollfd *fds, int maxevents, int n_event, int revent);
-#else
-static int client_select_add(zval *sock_array, fd_set *fds, int *max_fd);
-static int client_select_wait(zval *sock_array, fd_set *fds);
-#endif
 
 Client *php_swoole_client_get_cli_safe(zval *zobject) {
     Client *cli = php_swoole_client_get_cli(zobject);
@@ -1211,7 +1206,6 @@ static PHP_METHOD(swoole_client, shutdown) {
 }
 
 PHP_FUNCTION(swoole_client_select) {
-#ifdef PHP_SWOOLE_CLIENT_USE_POLL
     zval *r_array, *w_array, *e_array;
     int retval;
     uint32_t index = 0;
@@ -1265,58 +1259,8 @@ PHP_FUNCTION(swoole_client_select) {
     }
     efree(fds);
     RETURN_LONG(retval);
-#else
-    zval *r_array, *w_array, *e_array;
-    fd_set rfds, wfds, efds;
-
-    int max_fd = 0;
-    int retval, sets = 0;
-    double timeout = SW_CLIENT_CONNECT_TIMEOUT;
-    struct timeval timeo;
-
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "a!a!a!|d", &r_array, &w_array, &e_array, &timeout) == FAILURE) {
-        RETURN_FALSE;
-    }
-
-    FD_ZERO(&rfds);
-    FD_ZERO(&wfds);
-    FD_ZERO(&efds);
-
-    if (r_array != nullptr) sets += client_select_add(r_array, &rfds, &max_fd);
-    if (w_array != nullptr) sets += client_select_add(w_array, &wfds, &max_fd);
-    if (e_array != nullptr) sets += client_select_add(e_array, &efds, &max_fd);
-
-    if (!sets) {
-        php_swoole_fatal_error(E_WARNING, "no resource arrays were passed to select");
-        RETURN_FALSE;
-    }
-
-    if (max_fd >= FD_SETSIZE) {
-        php_swoole_fatal_error(E_WARNING, "select max_fd > FD_SETSIZE[%d]", FD_SETSIZE);
-        RETURN_FALSE;
-    }
-    timeo.tv_sec = (int) timeout;
-    timeo.tv_usec = (int) ((timeout - timeo.tv_sec) * 1000 * 1000);
-
-    retval = select(max_fd + 1, &rfds, &wfds, &efds, &timeo);
-    if (retval == -1) {
-        php_swoole_sys_error(E_WARNING, "unable to select");
-        RETURN_FALSE;
-    }
-    if (r_array != nullptr) {
-        client_select_wait(r_array, &rfds);
-    }
-    if (w_array != nullptr) {
-        client_select_wait(w_array, &wfds);
-    }
-    if (e_array != nullptr) {
-        client_select_wait(e_array, &efds);
-    }
-    RETURN_LONG(retval);
-#endif
 }
 
-#ifdef PHP_SWOOLE_CLIENT_USE_POLL
 static inline int client_poll_get(struct pollfd *fds, int maxevents, int fd) {
     int i;
     for (i = 0; i < maxevents; i++) {
@@ -1402,72 +1346,3 @@ static uint32_t client_poll_add(zval *sock_array, uint32_t index, struct pollfd 
 
     return index;
 }
-#else
-static int client_select_wait(zval *sock_array, fd_set *fds) {
-    zval *element = nullptr;
-    int sock;
-
-    ulong_t num = 0;
-    if (!ZVAL_IS_ARRAY(sock_array)) {
-        return 0;
-    }
-
-    zval new_array;
-    array_init(&new_array);
-    zend_ulong num_key;
-    zend_string *key;
-    zval *dest_element;
-
-    ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(sock_array), num_key, key, element) {
-        sock = php_swoole_convert_to_fd(element);
-        if (sock < 0) {
-            continue;
-        }
-        if ((sock < FD_SETSIZE) && FD_ISSET(sock, fds)) {
-            if (key) {
-                dest_element = zend_hash_add(Z_ARRVAL(new_array), key, element);
-            } else {
-                dest_element = zend_hash_index_update(Z_ARRVAL(new_array), num_key, element);
-            }
-            if (dest_element) {
-                Z_ADDREF_P(dest_element);
-            }
-        }
-        num++;
-    }
-    ZEND_HASH_FOREACH_END();
-
-    zval_ptr_dtor(sock_array);
-    ZVAL_COPY_VALUE(sock_array, &new_array);
-    return num ? 1 : 0;
-}
-
-static int client_select_add(zval *sock_array, fd_set *fds, int *max_fd) {
-    zval *element = nullptr;
-    if (!ZVAL_IS_ARRAY(sock_array)) {
-        return 0;
-    }
-
-    int sock;
-    int num = 0;
-
-    SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(sock_array), element)
-    sock = php_swoole_convert_to_fd(element);
-    if (sock < 0) {
-        continue;
-    }
-    if (sock < FD_SETSIZE) {
-        FD_SET(sock, fds);
-    } else {
-        php_swoole_fatal_error(E_WARNING, "socket[%d] > FD_SETSIZE[%d]", sock, FD_SETSIZE);
-        continue;
-    }
-    if (sock > *max_fd) {
-        *max_fd = sock;
-    }
-    num++;
-    SW_HASHTABLE_FOREACH_END();
-
-    return num ? 1 : 0;
-}
-#endif

@@ -44,7 +44,6 @@ BEGIN_EXTERN_C()
 #include <ext/standard/php_http.h>
 
 #define PHP_SWOOLE_VERSION SWOOLE_VERSION
-#define PHP_SWOOLE_CLIENT_USE_POLL
 
 extern PHPAPI int php_array_merge(zend_array *dest, zend_array *src);
 
