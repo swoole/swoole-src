@@ -3002,10 +3002,13 @@ TEST(server, send_timeout) {
 
     port->max_idle_time = 1;
 
+    String wbuf(2 * 1024 * 1024);
+    wbuf.append_random_bytes(2 * 1024 * 1024, false);
+
     ASSERT_EQ(serv.create(), SW_OK);
 
     thread t1;
-    serv.onStart = [&lock, &t1](Server *serv) {
+    serv.onStart = [&lock, &t1, &wbuf](Server *serv) {
         t1 = thread([=]() {
             swoole_signal_block_all();
 
@@ -3016,9 +3019,24 @@ TEST(server, send_timeout) {
             network::SyncClient c(SW_SOCK_TCP);
             c.connect(TEST_HOST, port->port);
             c.send(packet, strlen(packet));
-            char buf[1024];
-            EXPECT_EQ(c.recv(buf, sizeof(buf)), sizeof(buf));
-            EXPECT_EQ(c.recv(buf, sizeof(buf)), 0);
+
+            String rbuf(3 * 1024 * 1024);
+
+            auto rn = c.recv(rbuf.str, 1024);
+            EXPECT_EQ(rn, 1024);
+            rbuf.length += 1024;
+
+            sleep(2);
+
+            while (true) {
+                rn = c.recv(rbuf.str + rbuf.length, rbuf.size - rbuf.length);
+                if (rn <= 0) {
+                    break;
+                }
+                rbuf.length += rn;
+            }
+
+            EXPECT_MEMEQ(rbuf.str, wbuf.str, rbuf.length);
             c.close();
 
             kill(serv->gs->master_pid, SIGTERM);
@@ -3033,12 +3051,15 @@ TEST(server, send_timeout) {
         DEBUG() << "onWorkerStart: id=" << worker->id << "\n";
     };
 
-    serv.onReceive = [](Server *serv, RecvData *req) -> int {
+    serv.onReceive = [&wbuf](Server *serv, RecvData *req) -> int {
         auto sid = req->session_id();
-        auto buf = sw_tg_buffer();
-        buf->clear();
-        buf->append_random_bytes(1024, false);
-        EXPECT_TRUE(serv->send(sid, buf->str, buf->length));
+        auto conn = serv->get_connection_by_session_id(sid);
+
+        swoole_timer_del(conn->socket->recv_timer);
+        conn->socket->recv_timer = nullptr;
+        conn->socket->set_buffer_size(65536);
+
+        EXPECT_TRUE(serv->send(sid, wbuf.str, wbuf.length));
 
         test::counter_incr(0);
 

@@ -578,8 +578,9 @@ static int ReactorThread_onRead(Reactor *reactor, Event *event) {
 static int ReactorThread_onWrite(Reactor *reactor, Event *ev) {
     int ret;
     auto serv = static_cast<Server *>(reactor->ptr);
-    Socket *socket = ev->socket;
+    auto socket = ev->socket;
     int fd = ev->fd;
+    auto port = serv->get_port_by_fd(fd);
 
     if (serv->is_process_mode()) {
         assert(fd % serv->reactor_num == reactor->id);
@@ -639,7 +640,6 @@ static int ReactorThread_onWrite(Reactor *reactor, Event *ev) {
     }
 
     if (serv->onBufferEmpty && conn->high_watermark) {
-        ListenPort *port = serv->get_port_by_fd(fd);
         if (socket->get_out_buffer_length() <= port->buffer_low_watermark) {
             conn->high_watermark = 0;
             serv->notify(conn, SW_SERVER_EVENT_BUFFER_EMPTY);
@@ -647,8 +647,12 @@ static int ReactorThread_onWrite(Reactor *reactor, Event *ev) {
     }
 
     if (socket->send_timer) {
-        swoole_timer_del(socket->send_timer);
-        socket->send_timer = nullptr;
+        if (Buffer::empty(socket->out_buffer)) {
+            swoole_timer_del(socket->send_timer);
+            socket->send_timer = nullptr;
+        } else {
+            swoole_timer_delay(socket->send_timer, port->max_idle_time);
+        }
     }
 
     // remove EPOLLOUT event
