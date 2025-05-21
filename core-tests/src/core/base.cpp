@@ -369,14 +369,30 @@ TEST(base, spinlock) {
 }
 
 TEST(base, futex) {
-    sw_atomic_t value = 0;
+    sw_atomic_t value = 1;
 
-    std::thread t1([&value]{
-        ASSERT_EQ(sw_atomic_futex_wait(&value, 0.05), SW_ERR);
-        ASSERT_EQ(sw_atomic_futex_wait(&value, 0.5), SW_OK);
+    std::thread t1([&value] {
+        DEBUG() << "wait 1\n";
+        ASSERT_EQ(sw_atomic_futex_wait(&value, -1), SW_OK);        // no wait
+        value = 0;
+
+        DEBUG() << "wait 2\n";
+
+        ASSERT_EQ(sw_atomic_futex_wait(&value, 0.05), SW_ERR); // timed out
+        ASSERT_EQ(sw_atomic_futex_wait(&value, 0.5), SW_OK); // success
+
+        DEBUG() << "wait 3\n";
+
+        value = 0;
+        ASSERT_EQ(sw_atomic_futex_wait(&value, -1), SW_OK); // no timeout
     });
 
-    std::thread t2([&value]{
+    std::thread t2([&value] {
+        usleep(100000);
+        DEBUG() << "wakeup 1\n";
+        ASSERT_EQ(sw_atomic_futex_wakeup(&value, 1), 1);
+
+        DEBUG() << "wakeup 2\n";
         usleep(100000);
         ASSERT_EQ(sw_atomic_futex_wakeup(&value, 1), 1);
     });

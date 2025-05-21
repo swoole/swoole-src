@@ -15,18 +15,39 @@ TEST(log, level) {
     for (auto iter = processTypes.begin(); iter != processTypes.end(); iter++) {
         swoole_set_worker_type(*iter);
         sw_logger()->reset();
+
+        ASSERT_FALSE(sw_logger()->is_opened());
+
+        sw_logger()->set_level(999);
+        ASSERT_EQ(sw_logger()->get_level(), SW_LOG_NONE);
+
+        sw_logger()->set_level(SW_LOG_DEBUG - 10);
+         ASSERT_EQ(sw_logger()->get_level(), SW_LOG_DEBUG);
+
         sw_logger()->set_level(SW_LOG_NOTICE);
         sw_logger()->open(file);
 
+        ASSERT_TRUE(sw_logger()->is_opened());
+
+        sw_logger()->put(SW_LOG_DEBUG, SW_STRL("hello no debug"));
+        sw_logger()->put(SW_LOG_TRACE, SW_STRL("hello no trace"));
         sw_logger()->put(SW_LOG_INFO, SW_STRL("hello info"));
         sw_logger()->put(SW_LOG_NOTICE, SW_STRL("hello notice"));
         sw_logger()->put(SW_LOG_WARNING, SW_STRL("hello warning"));
+
+        sw_logger()->set_level(SW_LOG_DEBUG);
+        sw_logger()->put(SW_LOG_DEBUG, SW_STRL("hello debug"));
+        sw_logger()->put(SW_LOG_TRACE, SW_STRL("hello trace"));
 
         auto content = file_get_contents(file);
 
         sw_logger()->close();
         unlink(file);
 
+        ASSERT_FALSE(content->contains(SW_STRL("hello no debug")));
+        ASSERT_FALSE(content->contains(SW_STRL("hello no trace")));
+        ASSERT_TRUE(content->contains(SW_STRL("hello debug")));
+        ASSERT_TRUE(content->contains(SW_STRL("hello trace")));
         ASSERT_FALSE(content->contains(SW_STRL("hello info")));
         ASSERT_TRUE(content->contains(SW_STRL("hello notice")));
         ASSERT_TRUE(content->contains(SW_STRL("hello warning")));
