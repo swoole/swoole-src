@@ -32,7 +32,7 @@ namespace coroutine {
 enum Socket::TimeoutType Socket::timeout_type_list[4] = {TIMEOUT_DNS, TIMEOUT_CONNECT, TIMEOUT_READ, TIMEOUT_WRITE};
 
 void Socket::timer_callback(Timer *timer, TimerNode *tnode) {
-    Socket *socket = (Socket *) tnode->data;
+    auto *socket = (Socket *) tnode->data;
     socket->set_err(ETIMEDOUT);
     if (sw_likely(tnode == socket->read_timer)) {
         socket->read_timer = nullptr;
@@ -46,7 +46,7 @@ void Socket::timer_callback(Timer *timer, TimerNode *tnode) {
 }
 
 int Socket::readable_event_callback(Reactor *reactor, Event *event) {
-    Socket *socket = (Socket *) event->socket->object;
+    auto *socket = (Socket *) event->socket->object;
     socket->set_err(0);
 #ifdef SW_USE_OPENSSL
     if (sw_unlikely(socket->want_event != SW_EVENT_NULL)) {
@@ -66,7 +66,7 @@ int Socket::readable_event_callback(Reactor *reactor, Event *event) {
 }
 
 int Socket::writable_event_callback(Reactor *reactor, Event *event) {
-    Socket *socket = (Socket *) event->socket->object;
+    auto *socket = (Socket *) event->socket->object;
     socket->set_err(0);
 #ifdef SW_USE_OPENSSL
     if (sw_unlikely(socket->want_event != SW_EVENT_NULL)) {
@@ -86,7 +86,7 @@ int Socket::writable_event_callback(Reactor *reactor, Event *event) {
 }
 
 int Socket::error_event_callback(Reactor *reactor, Event *event) {
-    Socket *socket = (Socket *) event->socket->object;
+    auto *socket = (Socket *) event->socket->object;
     if (socket->write_co) {
         socket->set_err(0);
         socket->write_co->resume();
@@ -796,8 +796,8 @@ bool Socket::check_liveness() {
     return true;
 }
 
-ssize_t Socket::peek(void *__buf, size_t __n) {
-    ssize_t retval = socket->peek(__buf, __n, 0);
+ssize_t Socket::peek(void *_buf, size_t _n) {
+    ssize_t retval = socket->peek(_buf, _n, 0);
     check_return_value(retval);
     return retval;
 }
@@ -818,14 +818,14 @@ bool Socket::poll(EventType type, double timeout) {
     }
 }
 
-ssize_t Socket::recv(void *__buf, size_t __n) {
+ssize_t Socket::recv(void *_buf, size_t _n) {
     if (sw_unlikely(!is_available(SW_EVENT_READ))) {
         return -1;
     }
     ssize_t retval;
     TimerController timer(&read_timer, read_timeout, this, timer_callback);
     do {
-        retval = socket->recv(__buf, __n, 0);
+        retval = socket->recv(_buf, _n, 0);
     } while (retval < 0 && socket->catch_read_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ));
     check_return_value(retval);
     return retval;
@@ -845,23 +845,23 @@ ssize_t Socket::send(const void *__buf, size_t __n) {
     return retval;
 }
 
-ssize_t Socket::read(void *__buf, size_t __n) {
+ssize_t Socket::read(void *_buf, size_t _n) {
     if (sw_unlikely(!is_available(SW_EVENT_READ))) {
         return -1;
     }
     ssize_t retval;
     TimerController timer(&read_timer, read_timeout, this, timer_callback);
     do {
-        retval = socket->read(__buf, __n);
+        retval = socket->read(_buf, _n);
     } while (retval < 0 && socket->catch_read_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ));
     check_return_value(retval);
     return retval;
 }
 
-ssize_t Socket::recv_line(void *__buf, size_t maxlen) {
+ssize_t Socket::recv_line(void *_buf, size_t maxlen) {
     size_t n = 0;
     ssize_t m = 0;
-    char *t = (char *) __buf;
+    auto t = static_cast<char *>(_buf);
 
     *t = '\0';
     while (*t != '\n' && *t != '\r' && n < maxlen) {
@@ -1222,7 +1222,7 @@ Socket *Socket::accept(double timeout) {
         return nullptr;
     }
 
-    Socket *client_sock = new Socket(conn, this);
+    auto *client_sock = new Socket(conn, this);
     if (sw_unlikely(client_sock->get_fd() < 0)) {
         swoole_sys_warning("new Socket() failed");
         set_err(errno);

@@ -201,7 +201,7 @@ int Socket::sendfile_sync(const char *filename, off_t offset, size_t length, dou
     }
 
     auto rv = wait_for(
-        [this, &file, &offset, filename, end]() {
+        [this, &file, &offset, end]() {
             size_t sent_bytes = get_sendfile_chunk_size(offset, end);
             ssize_t n = sendfile(file, &offset, sent_bytes);
             CHECK_RETURN_VALUE(n, SW_ERROR);
@@ -589,7 +589,7 @@ bool Socket::uncork() {
     return true;
 }
 
-Socket *Socket::dup() {
+Socket *Socket::dup() const {
     auto *_socket = new Socket();
     *_socket = *this;
     _socket->fd = ::dup(fd);
@@ -597,7 +597,7 @@ Socket *Socket::dup() {
 }
 
 static bool _set_timeout(int fd, int type, double timeout) {
-    struct timeval timeo;
+    timeval timeo;
     timeo.tv_sec = (int) timeout;
     timeo.tv_usec = (int) ((timeout - timeo.tv_sec) * 1000 * 1000);
     int ret = setsockopt(fd, SOL_SOCKET, type, (void *) &timeo, sizeof(timeo));
@@ -980,7 +980,7 @@ ssize_t Socket::peek(void *_buf, size_t _n, int _flags) {
     return retval;
 }
 
-int Socket::catch_error(int err) const {
+int Socket::catch_error(const int err) {
     switch (err) {
     case EFAULT:
         abort();
@@ -1015,7 +1015,7 @@ int Socket::catch_error(int err) const {
     }
 }
 
-SocketType Socket::convert_to_type(int domain, int type) {
+SocketType Socket::convert_to_type(const int domain, const int type) {
     if (domain == AF_INET && type == SOCK_STREAM) {
         return SW_SOCK_TCP;
     } else if (domain == AF_INET6 && type == SOCK_STREAM) {

@@ -17,7 +17,7 @@
 #include "swoole.h"
 #include "swoole_process_pool.h"
 
-#include <string.h>
+#include <cstring>
 #include <fcntl.h>
 #include <sys/file.h>
 
@@ -27,13 +27,13 @@
 namespace swoole {
 
 std::string Logger::get_pretty_name(const std::string &pretty_function, bool strip) {
-    size_t brackets = pretty_function.find_first_of("(");
-    if (brackets == pretty_function.npos) {
+    const size_t brackets = pretty_function.find_first_of('(');
+    if (brackets == std::string::npos) {
         return "";
     }
 
-    size_t begin = pretty_function.substr(0, brackets).rfind(" ") + 1;
-    size_t end = brackets - begin;
+    const size_t begin = pretty_function.substr(0, brackets).rfind(' ') + 1;
+    const size_t end = brackets - begin;
     if (!strip) {
         return pretty_function.substr(begin, end);
     }
@@ -42,7 +42,7 @@ std::string Logger::get_pretty_name(const std::string &pretty_function, bool str
     size_t count = 0, index = method_name.length();
     while (true) {
         index = method_name.rfind("::", index);
-        if (index == method_name.npos) {
+        if (index == std::basic_string<char>::npos) {
             if (count == 1) {
                 return method_name.substr(method_name.rfind("::") + 2);
             }
@@ -251,7 +251,7 @@ std::string Logger::gen_real_file(const std::string &file) {
     return real_file;
 }
 
-bool Logger::is_opened() {
+bool Logger::is_opened() const {
     return opened;
 }
 

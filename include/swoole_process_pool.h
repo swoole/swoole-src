@@ -19,7 +19,7 @@
 
 #include "swoole.h"
 
-#include <signal.h>
+#include <csignal>
 #include <unordered_map>
 #include <unordered_set>
 #include <queue>
@@ -100,7 +100,7 @@ class ExitStatus {
         return WTERMSIG(status_);
     }
 
-    bool is_normal_exit() {
+    bool is_normal_exit() const {
         return WIFEXITED(status_);
     }
 };
@@ -108,13 +108,13 @@ class ExitStatus {
 static inline ExitStatus wait_process() {
     int status = 0;
     pid_t pid = ::wait(&status);
-    return ExitStatus(pid, status);
+    return {pid, status};
 }
 
 static inline ExitStatus wait_process(pid_t _pid, int options) {
     int status = 0;
     pid_t pid = ::waitpid(_pid, &status, options);
-    return ExitStatus(pid, status);
+    return {pid, status};
 }
 
 struct ProcessPool;
@@ -208,11 +208,11 @@ struct Worker {
         request_count++;
     }
 
-    bool is_busy() {
+    bool is_busy() const {
         return status == SW_WORKER_BUSY;
     }
 
-    bool is_idle() {
+    bool is_idle() const {
         return status == SW_WORKER_IDLE;
     }
 };
@@ -230,11 +230,11 @@ struct ReloadTask {
     std::queue<pid_t> kill_queue;
     TimerNode *timer;
 
-    size_t count() {
+    size_t count() const {
         return workers.size();
     }
 
-    bool is_completed() {
+    bool is_completed() const {
         return workers.empty();
     }
 
@@ -259,7 +259,7 @@ struct ProcessPool {
     bool async;
 
     uint8_t ipc_mode;
-    enum ProtocolType protocol_type_;
+    ProtocolType protocol_type_;
     pid_t master_pid;
     uint32_t max_wait_time;
     uint64_t reload_count;
@@ -330,15 +330,15 @@ struct ProcessPool {
 
     void *ptr;
 
-    Worker *get_worker(int worker_id) {
+    Worker *get_worker(int worker_id) const {
         return &(workers[worker_id - start_id]);
     }
 
-    TaskId get_task_id(EventData *task) {
+    static TaskId get_task_id(const EventData *task) {
         return task->info.fd;
     }
 
-    WorkerId get_task_src_worker_id(EventData *task) {
+    static WorkerId get_task_src_worker_id(const EventData *task) {
         return task->info.reactor_id;
     }
 
@@ -346,11 +346,11 @@ struct ProcessPool {
         max_packet_size_ = _max_packet_size;
     }
 
-    bool is_master() {
+    bool is_master() const {
         return swoole_get_worker_type() == SW_MASTER;
     }
 
-    bool is_worker() {
+    bool is_worker() const {
         return swoole_get_worker_type() == SW_WORKER;
     }
 
@@ -389,11 +389,10 @@ struct ProcessPool {
      *  Please note that sufficient memory space must be allocated for the payload,
      *  for example, `payload = malloc(payload_len)`.
      */
-    void set_protocol(enum ProtocolType _protocol_type);
+    void set_protocol(ProtocolType _protocol_type);
     void set_type(int _type);
     void set_start_id(int _start_id);
     void set_max_request(uint32_t _max_request, uint32_t _max_request_grace);
-    int get_max_request();
     bool detach();
     int wait();
     int start_check();
@@ -413,9 +412,9 @@ struct ProcessPool {
     int response(const char *data, uint32_t length);
     swResultCode dispatch_sync(EventData *data, int *dst_worker_id);
     swResultCode dispatch_sync(const char *data, uint32_t len);
-    void add_worker(Worker *worker);
+    void add_worker(Worker *worker) const;
+    int del_worker(Worker *worker) const;
     Worker *get_worker_by_pid(pid_t pid);
-    int del_worker(Worker *worker);
     void destroy();
     int create(uint32_t worker_num, key_t msgqueue_key = 0, swIPCMode ipc_mode = SW_IPC_NONE);
     int create_message_box(size_t memory_size);
@@ -441,8 +440,8 @@ struct ProcessPool {
 };
 };  // namespace swoole
 
-static sw_inline int swoole_kill(pid_t __pid, int __sig) {
-    return kill(__pid, __sig);
+static sw_inline int swoole_kill(pid_t _pid, int _sig) {
+    return kill(_pid, _sig);
 }
 
 typedef swoole::ProtocolType swProtocolType;

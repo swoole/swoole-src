@@ -61,7 +61,7 @@ std::string HttpProxy::get_auth_str() {
                            (int) password.length(),
                            password.c_str());
     base64_encode((unsigned char *) auth_buf, n, encode_buf);
-    return std::string(encode_buf);
+    return {encode_buf};
 }
 
 size_t HttpProxy::pack(String *send_buffer, const std::string *host_name) {
@@ -638,7 +638,7 @@ char *url_encode(char const *str, size_t len) {
         memcpy(tmp, ret, size);
         sw_free(ret);
         ret = tmp;
-    } while (0);
+    } while (false);
 
     return ret;
 }
@@ -905,7 +905,7 @@ int Request::get_chunked_body_length() {
     char *p = buffer_->str + buffer_->offset;
     char *pe = buffer_->str + buffer_->length;
 
-    while (1) {
+    while (true) {
         if ((size_t) (pe - p) < (1 + (sizeof("\r\n") - 1))) {
             /* need the next chunk */
             return SW_ERR;
@@ -978,7 +978,7 @@ std::string Request::get_header(const char *name) {
             break;
         case 2:
             if (SW_STR_ISTARTS_WITH(p, pe - p, "\r\n")) {
-                return std::string(buffer, p - buffer);
+                return {buffer, static_cast<size_t>(p - buffer)};
             }
             break;
         default:
@@ -986,7 +986,7 @@ std::string Request::get_header(const char *name) {
         }
     }
 
-    return std::string();
+    return {};
 }
 
 int get_method(const char *method_str, size_t method_len) {
@@ -1025,7 +1025,7 @@ static void protocol_status_error(Socket *socket, Connection *conn) {
 }
 
 ssize_t get_package_length(const Protocol *protocol, Socket *socket, PacketLength *pl) {
-    Connection *conn = (Connection *) socket->object;
+    auto *conn = (Connection *) socket->object;
     if (conn->websocket_status >= websocket::STATUS_HANDSHAKE) {
         return websocket::get_package_length(protocol, socket, pl);
     } else if (conn->http2_stream) {
@@ -1037,7 +1037,7 @@ ssize_t get_package_length(const Protocol *protocol, Socket *socket, PacketLengt
 }
 
 uint8_t get_package_length_size(Socket *socket) {
-    Connection *conn = (Connection *) socket->object;
+    auto *conn = (Connection *) socket->object;
     if (conn->websocket_status >= websocket::STATUS_HANDSHAKE) {
         return SW_WEBSOCKET_MESSAGE_HEADER_SIZE;
     } else if (conn->http2_stream) {
@@ -1049,7 +1049,7 @@ uint8_t get_package_length_size(Socket *socket) {
 }
 
 int dispatch_frame(const Protocol *proto, Socket *socket, const RecvData *rdata) {
-    Connection *conn = (Connection *) socket->object;
+    auto *conn = (Connection *) socket->object;
     if (conn->websocket_status >= websocket::STATUS_HANDSHAKE) {
         return websocket::dispatch_frame(proto, socket, rdata);
     } else if (conn->http2_stream) {

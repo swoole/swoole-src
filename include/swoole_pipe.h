@@ -56,11 +56,11 @@ class SocketPair {
     ssize_t write(const void *_buf, size_t length);
     bool close(int which = 0);
 
-    network::Socket *get_socket(bool _master) {
+    network::Socket *get_socket(bool _master) const {
         return _master ? master_socket : worker_socket;
     }
 
-    bool ready() {
+    bool ready() const {
         return master_socket != nullptr && worker_socket != nullptr;
     }
 
@@ -68,12 +68,12 @@ class SocketPair {
         timeout = _timeout;
     }
 
-    void set_blocking(bool blocking);
+    void set_blocking(bool blocking) const;
 };
 
 class Pipe : public SocketPair {
   public:
-    Pipe(bool blocking);
+    explicit Pipe(bool blocking);
 };
 
 class UnixSocket : public SocketPair {
@@ -81,7 +81,7 @@ class UnixSocket : public SocketPair {
 
   public:
     UnixSocket(bool blocking, int _protocol);
-    bool set_buffer_size(size_t _size);
+    bool set_buffer_size(size_t _size) const;
 };
 
 }  // namespace swoole

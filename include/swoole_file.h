@@ -67,7 +67,7 @@ class File {
 
     bool open(const std::string &path, int oflags, int mode = 0);
 
-    bool ready() {
+    bool ready() const {
         return fd_ != -1;
     }
 
@@ -92,7 +92,7 @@ class File {
     }
 
     size_t write_all(const void *__buf, size_t __n);
-    size_t read_all(void *__buf, size_t __n);
+    size_t read_all(void *__buf, size_t __n) const;
     /**
      * Read one line of file, reading ends when __n - 1 bytes have been read,
      * or a newline (which is included in the return value),
@@ -102,7 +102,7 @@ class File {
      */
     ssize_t read_line(void *__buf, size_t __n);
 
-    std::shared_ptr<String> read_content();
+    std::shared_ptr<String> read_content() const;
 
     bool stat(FileStatus *_stat) const {
         if (::fstat(fd_, _stat) < 0) {

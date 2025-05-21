@@ -15,6 +15,8 @@
 */
 
 #include "swoole_table.h"
+#include "swoole_hash.h"
+#include "swoole_util.h"
 
 namespace swoole {
 
@@ -433,7 +435,7 @@ bool Table::del(const char *key, uint16_t keylen) {
     return true;
 }
 
-TableColumn::TableColumn(const std::string &_name, enum Type _type, size_t _size) {
+TableColumn::TableColumn(const std::string &_name, Type _type, size_t _size) {
     index = 0;
     name = _name;
     type = _type;

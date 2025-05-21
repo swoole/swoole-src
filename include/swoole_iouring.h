@@ -76,7 +76,7 @@ class Iouring {
         return task_num;
     }
 
-    static int open(const char *pathname, int flags, int mode);
+    static int open(const char *pathname, int flags, mode_t mode);
     static int close(int fd);
     static ssize_t read(int fd, void *buf, size_t size);
     static ssize_t write(int fd, const void *buf, size_t size);

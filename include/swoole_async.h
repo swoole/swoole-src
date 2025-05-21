@@ -103,9 +103,9 @@ class AsyncThreads {
         return task_num;
     }
 
-    size_t get_queue_size();
-    size_t get_worker_num();
-    void notify_one();
+    size_t get_queue_size() const;
+    size_t get_worker_num() const;
+    void notify_one() const;
 
     static int callback(Reactor *reactor, Event *event);
 };

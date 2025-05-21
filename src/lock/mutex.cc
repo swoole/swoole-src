@@ -92,7 +92,7 @@ int Mutex::trylock_rd() {
 
 #ifdef HAVE_MUTEX_TIMEDLOCK
 int Mutex::lock_wait(int timeout_msec) {
-    struct timespec timeo = swoole_time_until(timeout_msec);
+    timespec timeo = swoole_time_until(timeout_msec);
     return pthread_mutex_timedlock(&impl->lock_, &timeo);
 }
 #else

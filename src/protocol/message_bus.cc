@@ -1,7 +1,7 @@
 #include "swoole_message_bus.h"
 #include "swoole_process_pool.h"
 
-#include <assert.h>
+#include <cassert>
 
 using swoole::network::Address;
 using swoole::network::Socket;

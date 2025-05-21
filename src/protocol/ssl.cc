@@ -159,7 +159,7 @@ static int ssl_alpn_advertised(SSL *ssl, const uchar **out, uchar *outlen, const
     unsigned int protos_len;
     const char *protos;
 
-    SSLContext *cfg = (SSLContext *) arg;
+    auto *cfg = (SSLContext *) arg;
     if (cfg->http_v2) {
         protos = HTTP2_H2_ALPN HTTP1_NPN;
         protos_len = sizeof(HTTP2_H2_ALPN HTTP1_NPN) - 1;
@@ -177,13 +177,13 @@ static int ssl_alpn_advertised(SSL *ssl, const uchar **out, uchar *outlen, const
 #endif
 
 static int ssl_passwd_callback(char *buf, int num, int verify, void *data) {
-    SSLContext *ctx = (SSLContext *) data;
+    auto *ctx = static_cast<SSLContext *>(data);
     if (!ctx->passphrase.empty()) {
         int len = ctx->passphrase.length();
         if (len < num - 1) {
             memcpy(buf, ctx->passphrase.c_str(), len);
             buf[len] = '\0';
-            return (int) len;
+            return len;
         }
     }
     return 0;

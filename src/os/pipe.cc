@@ -48,7 +48,7 @@ Pipe::Pipe(bool _blocking) : SocketPair(_blocking) {
     }
 }
 
-void SocketPair::set_blocking(bool blocking) {
+void SocketPair::set_blocking(bool blocking) const {
     if (blocking) {
         worker_socket->set_block();
         master_socket->set_block();

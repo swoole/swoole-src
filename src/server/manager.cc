@@ -256,7 +256,8 @@ void Manager::wait(Server *_server) {
                         SW_START_SLEEP;
                         continue;
                     }
-                } while (false);
+                    break;
+                } while (true);
             }
 
             // task worker

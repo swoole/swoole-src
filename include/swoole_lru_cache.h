@@ -20,7 +20,7 @@
 #include <list>
 #include <utility>
 #include <memory>
-#include <time.h>
+#include <ctime>
 
 namespace swoole {
 /**
@@ -28,7 +28,6 @@ namespace swoole {
  */
 template <typename T>
 class LRUCache {
-  private:
     typedef std::pair<time_t, std::shared_ptr<T>> cache_node_t;
     typedef std::list<std::pair<std::string, cache_node_t>> cache_list_t;
 

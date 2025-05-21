@@ -16,6 +16,88 @@
 
 #include "swoole.h"
 
+void sw_spinlock(sw_atomic_t *lock) {
+    uint32_t i, n;
+    while (true) {
+        if (*lock == 0 && sw_atomic_cmp_set(lock, 0, 1)) {
+            return;
+        }
+        if (SW_CPU_NUM > 1) {
+            for (n = 1; n < SW_SPINLOCK_LOOP_N; n <<= 1) {
+                for (i = 0; i < n; i++) {
+                    sw_atomic_cpu_pause();
+                }
+
+                if (*lock == 0 && sw_atomic_cmp_set(lock, 0, 1)) {
+                    return;
+                }
+            }
+        }
+        sw_yield();
+    }
+}
+
+#ifdef HAVE_FUTEX
+#include <linux/futex.h>
+#include <sys/syscall.h>
+
+int sw_atomic_futex_wait(sw_atomic_t *atomic, double timeout) {
+    if (sw_atomic_cmp_set(atomic, 1, 0)) {
+        return 0;
+    }
+
+    int ret;
+    timespec _timeout;
+
+    if (timeout > 0) {
+        _timeout.tv_sec = static_cast<long>(timeout);
+        _timeout.tv_nsec = (timeout - _timeout.tv_sec) * 1000 * 1000 * 1000;
+        ret = syscall(SYS_futex, atomic, FUTEX_WAIT, 0, &_timeout, NULL, 0);
+    } else {
+        ret = syscall(SYS_futex, atomic, FUTEX_WAIT, 0, NULL, NULL, 0);
+    }
+    if (ret == 0 && sw_atomic_cmp_set(atomic, 1, 0)) {
+        return 0;
+    } else {
+        return -1;
+    }
+}
+
+int sw_atomic_futex_wakeup(sw_atomic_t *atomic, int n) {
+    if (sw_atomic_cmp_set(atomic, 0, 1)) {
+        return syscall(SYS_futex, atomic, FUTEX_WAKE, n, NULL, NULL, 0);
+    } else {
+        return 0;
+    }
+}
+#else
+int sw_atomic_futex_wait(sw_atomic_t *atomic, double timeout) {
+    if (sw_atomic_cmp_set(atomic, (sw_atomic_t) 1, (sw_atomic_t) 0)) {
+        return 0;
+    }
+    timeout = timeout <= 0 ? INT_MAX : timeout;
+    int32_t i = (int32_t) sw_atomic_sub_fetch(atomic, 1);
+    while (timeout > 0) {
+        if ((int32_t) *atomic > i) {
+            return 0;
+        } else {
+            usleep(1000);
+            timeout -= 0.001;
+        }
+    }
+    sw_atomic_fetch_add(atomic, 1);
+    return -1;
+}
+
+int sw_atomic_futex_wakeup(sw_atomic_t *atomic, int n) {
+    if (1 == (int32_t) *atomic) {
+        return 0;
+    }
+    sw_atomic_fetch_add(atomic, n);
+    return 0;
+}
+#endif
+
 /* {{{ DJBX33A (Daniel J. Bernstein, Times 33 with Addition)
  *
  * This is Daniel J. Bernstein's popular `times 33' hash function as

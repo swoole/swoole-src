@@ -170,7 +170,7 @@ int swoole_coroutine_poll(struct pollfd *fds, nfds_t nfds, int timeout) {
 
     std::unordered_map<int, PollSocket> _fds;
     for (nfds_t i = 0; i < nfds; i++) {
-        _fds.emplace(std::make_pair(fds[i].fd, PollSocket(translate_events_from_poll(fds[i].events), &fds[i])));
+        _fds.emplace(fds[i].fd, PollSocket(translate_events_from_poll(fds[i].events), &fds[i]));
     }
 
     if (!System::socket_poll(_fds, (double) timeout / 1000)) {
@@ -180,7 +180,7 @@ int swoole_coroutine_poll(struct pollfd *fds, nfds_t nfds, int timeout) {
     int retval = 0;
     for (auto &i : _fds) {
         int revents = i.second.revents;
-        struct pollfd *_fd = (struct pollfd *) i.second.ptr;
+        auto *_fd = static_cast<struct pollfd *>(i.second.ptr);
         _fd->revents = translate_events_to_poll(revents);
         if (revents > 0) {
             retval++;
@@ -293,12 +293,12 @@ int swoole_coroutine_fstat(int fd, struct stat *statbuf) {
     return retval;
 }
 
-int swoole_coroutine_readlink(const char *pathname, char *buf, size_t len) {
+ssize_t swoole_coroutine_readlink(const char *pathname, char *buf, size_t len) {
     if (sw_unlikely(is_no_coro())) {
         return readlink(pathname, buf, len);
     }
 
-    int retval = -1;
+    ssize_t retval = -1;
     async([&]() { retval = readlink(pathname, buf, len); });
     return retval;
 }
@@ -564,7 +564,7 @@ int swoole_coroutine_socket_set_connect_timeout(int sockfd, double timeout) {
 int swoole_coroutine_socket_wait_event(int sockfd, int event, double timeout) {
     auto socket = get_socket_ex(sockfd);
     if (sw_unlikely(socket == nullptr)) {
-        struct pollfd poll_ev;
+        pollfd poll_ev{};
         poll_ev.fd = sockfd;
         poll_ev.events = translate_events_to_poll(event);
         return poll(&poll_ev, 1, (int) (timeout * 1000)) == 1 ? SW_OK : SW_ERR;
@@ -576,17 +576,14 @@ int swoole_coroutine_socket_wait_event(int sockfd, int event, double timeout) {
     return retval ? SW_OK : SW_ERR;
 }
 
-int swoole_coroutine_getaddrinfo(const char *name,
-                                 const char *service,
-                                 const struct addrinfo *req,
-                                 struct addrinfo **pai) {
+int swoole_coroutine_getaddrinfo(const char *name, const char *service, const addrinfo *req, addrinfo **pai) {
     int retval = -1;
     async([&]() { retval = getaddrinfo(name, service, req, pai); });
     return retval;
 }
 
-struct hostent *swoole_coroutine_gethostbyname(const char *name) {
-    struct hostent *retval = nullptr;
+hostent *swoole_coroutine_gethostbyname(const char *name) {
+    hostent *retval = nullptr;
     int _tmp_h_errno = 0;
     async([&]() {
         retval = gethostbyname(name);

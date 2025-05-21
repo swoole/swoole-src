@@ -410,8 +410,8 @@ static int socket_poll_error_callback(Reactor *reactor, Event *event) {
     return SW_OK;
 }
 
-int translate_events_to_poll(int events) {
-    int poll_events = 0;
+int16_t translate_events_to_poll(int events) {
+    int16_t poll_events = 0;
 
     if (events & SW_EVENT_READ) {
         poll_events |= POLLIN;
@@ -423,7 +423,7 @@ int translate_events_to_poll(int events) {
     return poll_events;
 }
 
-int translate_events_from_poll(int events) {
+int translate_events_from_poll(int16_t events) {
     int sw_events = 0;
 
     if (events & POLLIN) {

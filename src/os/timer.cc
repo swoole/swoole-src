@@ -17,7 +17,7 @@
 #include "swoole_timer.h"
 #include "swoole_signal.h"
 
-#include <signal.h>
+#include <csignal>
 
 namespace swoole {
 
@@ -34,8 +34,8 @@ bool Timer::init_with_system_timer() {
  * setitimer
  */
 static int SystemTimer_set(Timer *timer, long next_msec) {
-    struct itimerval timer_set;
-    struct timeval now;
+    itimerval timer_set;
+    timeval now;
     if (gettimeofday(&now, nullptr) < 0) {
         swoole_sys_warning("gettimeofday() failed");
         return SW_ERR;

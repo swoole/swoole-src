@@ -33,20 +33,19 @@ namespace swoole {
 using network::Socket;
 
 class ReactorEpoll : public ReactorImpl {
-  private:
     int epfd_;
-    struct epoll_event *events_ = nullptr;
+    epoll_event *events_ = nullptr;
 
   public:
     ReactorEpoll(Reactor *_reactor, int max_events);
-    ~ReactorEpoll();
+    ~ReactorEpoll() override;
     bool ready() override;
     int add(Socket *socket, int events) override;
     int set(Socket *socket, int events) override;
     int del(Socket *socket) override;
     int wait() override;
 
-    static inline int get_events(int fdtype) {
+    static int get_events(int fdtype) {
         int events = 0;
         if (Reactor::isset_read_event(fdtype)) {
             events |= EPOLLIN;
@@ -204,7 +203,7 @@ int ReactorEpoll::wait() {
         }
         for (i = 0; i < n; i++) {
             event.reactor_id = reactor_->id;
-            event.socket = (Socket *) events_[i].data.ptr;
+            event.socket = static_cast<Socket *>(events_[i].data.ptr);
             event.type = event.socket->fd_type;
             event.fd = event.socket->fd;
 

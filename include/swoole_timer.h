@@ -38,7 +38,7 @@ struct TimerNode {
         TYPE_PHP,
     };
     long id;
-    enum Type type;
+    Type type;
     int64_t exec_msec;
     int64_t interval;
     uint64_t exec_count;
@@ -51,7 +51,6 @@ struct TimerNode {
 };
 
 class Timer {
-  private:
     /*--------------signal timer--------------*/
     Reactor *reactor_ = nullptr;
     Heap heap;
@@ -60,7 +59,7 @@ class Timer {
     long _next_id;
     long _current_id;
     /*---------------event timer--------------*/
-    struct timeval base_time;
+    timeval base_time;
     /*----------------------------------------*/
     std::function<int(Timer *timer, long exec_msec)> set;
     std::function<void(Timer *timer)> close;
@@ -74,10 +73,10 @@ class Timer {
 
     Timer();
     ~Timer();
-    static int now(struct timeval *time);
+    static int now(timeval *time);
 
-    int64_t get_relative_msec() {
-        struct timeval _now;
+    int64_t get_relative_msec() const {
+        timeval _now;
         if (now(&_now) < 0) {
             return SW_ERR;
         }
@@ -86,8 +85,8 @@ class Timer {
         return msec1 + msec2;
     }
 
-    inline static int64_t get_absolute_msec() {
-        struct timeval now;
+    static int64_t get_absolute_msec() {
+        timeval now;
         if (Timer::now(&now) < 0) {
             return SW_ERR;
         }
@@ -96,7 +95,7 @@ class Timer {
         return msec1 + msec2;
     }
 
-    Reactor *get_reactor() {
+    Reactor *get_reactor() const {
         return reactor_;
     }
 
@@ -118,21 +117,20 @@ class Timer {
         auto it = map.find(id);
         if (it == map.end()) {
             return nullptr;
-        } else {
-            return it->second;
         }
+        return it->second;
     }
 
-    TimerNode *get(long id, const enum TimerNode::Type type) {
+    TimerNode *get(long id, const TimerNode::Type type) {
         TimerNode *tnode = get(id);
         return (tnode && tnode->type == type) ? tnode : nullptr;
     }
 
-    size_t count() {
+    size_t count() const {
         return map.size();
     }
 
-    uint64_t get_round() {
+    uint64_t get_round() const {
         return round;
     }
 
@@ -145,15 +143,15 @@ class Timer {
     }
 };
 
-static long inline sec2msec(long sec) {
+static inline long sec2msec(const long sec) {
     return sec * 1000;
 }
 
-static long inline sec2msec(int sec) {
-    return (long) (sec * 1000);
+static inline long sec2msec(const int sec) {
+    return sec * 1000;
 }
 
-static long inline sec2msec(double sec) {
-    return (long) (sec * 1000);
+static inline long sec2msec(const double sec) {
+    return static_cast<long>(sec * 1000);
 }
 }  // namespace swoole

@@ -84,7 +84,7 @@ class StaticHandler {
         return serv->http_autoindex;
     }
 
-    std::string get_date();
+    static std::string get_date();
 
     time_t get_file_mtime() {
 #ifdef __MACH__

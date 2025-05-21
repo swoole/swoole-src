@@ -16,8 +16,8 @@
 
 #include "swoole.h"
 
-#include <stdarg.h>
-#include <assert.h>
+#include <cstdarg>
+#include <cassert>
 #include <fcntl.h>
 
 #include <sys/stat.h>
@@ -27,10 +27,8 @@
 #include <sys/syslimits.h>
 #endif
 
-#include <algorithm>
 #include <list>
 #include <set>
-#include <unordered_map>
 #include <random>
 
 #include "swoole_api.h"
@@ -66,7 +64,7 @@ using swoole::coroutine::System;
 static ssize_t getrandom(void *buffer, size_t size, unsigned int __flags) {
 #if defined(HAVE_CCRANDOMGENERATEBYTES)
     /*
-     * arc4random_buf on macOs uses ccrng_generate internally from which
+     * arc4random_buf on macOS uses ccrng_generate internally from which
      * the potential error is silented to respect the portable arc4random_buf interface contract
      */
     if (CCRandomGenerateBytes(buffer, size) == kCCSuccess) {
@@ -527,7 +525,7 @@ ulong_t swoole_hex2dec(const char *hex, size_t *parsed_bytes) {
         p += 2;
     }
 
-    while (1) {
+    while (true) {
         char c = *p;
         if ((c >= '0') && (c <= '9')) {
             value = value * 16 + (c - '0');
@@ -550,14 +548,7 @@ ulong_t swoole_hex2dec(const char *hex, size_t *parsed_bytes) {
 #endif
 
 int swoole_rand(int min, int max) {
-    static time_t _seed = 0;
     assert(max > min);
-
-    if (_seed == 0) {
-        _seed = time(nullptr);
-        srand(_seed);
-    }
-
     int _rand = rand();
     _rand = min + (int) ((double) ((double) (max) - (min) + 1.0) * ((_rand) / ((RAND_MAX) + 1.0)));
     return _rand;
@@ -800,7 +791,7 @@ char *swoole_string_format(size_t n, const char *format, ...) {
     return nullptr;
 }
 
-static const char characters[] = {
+static constexpr char characters[] = {
     'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U',
     'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p',
     'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
@@ -959,7 +950,7 @@ void DataHead::print() {
 std::string dirname(const std::string &file) {
     size_t index = file.find_last_of('/');
     if (index == std::string::npos) {
-        return std::string();
+        return {};
     } else if (index == 0) {
         return "/";
     }
@@ -971,7 +962,7 @@ int hook_add(void **hooks, int type, const Callback &func, int push_back) {
         hooks[type] = new std::list<Callback>;
     }
 
-    std::list<Callback> *l = reinterpret_cast<std::list<Callback> *>(hooks[type]);
+    auto *l = static_cast<std::list<Callback> *>(hooks[type]);
     if (push_back) {
         l->push_back(func);
     } else {
@@ -985,16 +976,16 @@ void hook_call(void **hooks, int type, void *arg) {
     if (hooks[type] == nullptr) {
         return;
     }
-    std::list<Callback> *l = reinterpret_cast<std::list<Callback> *>(hooks[type]);
-    for (auto i = l->begin(); i != l->end(); i++) {
-        (*i)(arg);
+    const auto *l = static_cast<std::list<Callback> *>(hooks[type]);
+    for (auto &i : *l) {
+        i(arg);
     }
 }
 
 /**
  * return the first file of the intersection, in order of vec1
  */
-std::string intersection(std::vector<std::string> &vec1, std::set<std::string> &vec2) {
+std::string intersection(const std::vector<std::string> &vec1, std::set<std::string> &vec2) {
     for (const auto &vec1_item : vec1) {
         if (vec2.find(vec1_item) != vec2.end()) {
             return vec1_item;

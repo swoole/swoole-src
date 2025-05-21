@@ -291,11 +291,11 @@ bool ProcessFactory::dispatch(SendData *task) {
     return mb->write(sock, &_task);
 }
 
-static bool inline process_is_supported_send_yield(Server *serv, Connection *conn) {
+static bool process_is_supported_send_yield(Server *serv, const Connection *conn) {
     if (!serv->is_hash_dispatch_mode()) {
         return false;
     } else {
-        return serv->schedule_worker(conn->fd, nullptr) == (int) swoole_get_worker_id();
+        return serv->schedule_worker(conn->fd, nullptr) == static_cast<int>(swoole_get_worker_id());
     }
 }
 

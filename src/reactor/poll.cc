@@ -27,13 +27,13 @@ using network::Socket;
 class ReactorPoll : public ReactorImpl {
     uint32_t max_fd_num;
     Socket **fds_;
-    struct pollfd *events_;
-    bool exists(int fd);
-    void set_events(int index, int events);
+    pollfd *events_;
+    bool exists(int fd) const;
+    void set_events(int index, int events) const;
 
   public:
     ReactorPoll(Reactor *_reactor, int max_events);
-    ~ReactorPoll();
+    ~ReactorPoll() override;
     bool ready() override {
         return true;
     };
@@ -49,7 +49,7 @@ ReactorImpl *make_reactor_poll(Reactor *_reactor, int max_events) {
 
 ReactorPoll::ReactorPoll(Reactor *_reactor, int max_events) : ReactorImpl(_reactor) {
     fds_ = new Socket *[max_events];
-    events_ = new struct pollfd[max_events];
+    events_ = new pollfd[max_events];
 
     max_fd_num = max_events;
     reactor_->max_event_num = max_events;
@@ -60,7 +60,7 @@ ReactorPoll::~ReactorPoll() {
     delete[] events_;
 }
 
-void ReactorPoll::set_events(int index, int events) {
+void ReactorPoll::set_events(const int index, const int events) const {
     events_[index].events = 0;
     if (Reactor::isset_read_event(events)) {
         events_[index].events |= POLLIN;
@@ -73,7 +73,7 @@ void ReactorPoll::set_events(int index, int events) {
     }
 }
 
-int ReactorPoll::add(Socket *socket, int events) {
+int ReactorPoll::add(Socket *socket, const int events) {
     int fd = socket->fd;
     if (exists(fd)) {
         swoole_error_log(
@@ -89,7 +89,7 @@ int ReactorPoll::add(Socket *socket, int events) {
         return SW_ERR;
     }
 
-    int cur = reactor_->get_event_num();
+    const int cur = reactor_->get_event_num();
     if (reactor_->get_event_num() == max_fd_num) {
         swoole_error_log(
             SW_LOG_WARNING, SW_ERROR_EVENT_ADD_FAILED, "too many sockets, the max events is %d", max_fd_num);
@@ -252,7 +252,7 @@ int ReactorPoll::wait() {
     return SW_OK;
 }
 
-bool ReactorPoll::exists(int fd) {
+bool ReactorPoll::exists(int fd) const {
     for (uint32_t i = 0; i < reactor_->get_event_num(); i++) {
         if (events_[i].fd == fd) {
             return true;

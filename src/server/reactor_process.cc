@@ -90,7 +90,7 @@ int Server::start_reactor_processes() {
 
 static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
     SendData _send;
-    auto *serv = (Server *) reactor->ptr;
+    auto *serv = static_cast<Server *>(reactor->ptr);
     Factory *factory = serv->factory;
     PipeBuffer *pipe_buffer = serv->message_bus.get_buffer();
 
@@ -101,11 +101,11 @@ static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
 
     switch (pipe_buffer->info.type) {
     case SW_SERVER_EVENT_PIPE_MESSAGE: {
-        serv->onPipeMessage(serv, (EventData *) pipe_buffer);
+        serv->onPipeMessage(serv, reinterpret_cast<EventData *>(pipe_buffer));
         break;
     }
     case SW_SERVER_EVENT_FINISH: {
-        serv->onFinish(serv, (EventData *) pipe_buffer);
+        serv->onFinish(serv, reinterpret_cast<EventData *>(pipe_buffer));
         break;
     }
     case SW_SERVER_EVENT_SEND_FILE: {
@@ -152,7 +152,7 @@ static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
 }
 
 int Server::reactor_process_main_loop(ProcessPool *pool, Worker *worker) {
-    auto *serv = (Server *) pool->ptr;
+    auto *serv = static_cast<Server *>(pool->ptr);
     swoole_set_worker_type(SW_EVENT_WORKER);
     swoole_set_worker_id(worker->id);
     swoole_set_worker_pid(getpid());
@@ -253,7 +253,7 @@ int Server::reactor_process_main_loop(ProcessPool *pool, Worker *worker) {
      */
     if (serv->heartbeat_check_interval > 0) {
         serv->heartbeat_timer =
-            swoole_timer_add((long) (serv->heartbeat_check_interval * 1000), true, ReactorProcess_onTimeout, reactor);
+            swoole_timer_add(sec2msec(serv->heartbeat_check_interval), true, ReactorProcess_onTimeout, reactor);
         if (serv->heartbeat_timer == nullptr) {
             goto _fail;
         }
@@ -309,8 +309,8 @@ static int ReactorProcess_onClose(Reactor *reactor, Event *event) {
 }
 
 static void ReactorProcess_onTimeout(Timer *timer, TimerNode *tnode) {
-    auto *reactor = (Reactor *) tnode->data;
-    auto *serv = (Server *) reactor->ptr;
+    auto *reactor = static_cast<Reactor *>(tnode->data);
+    auto *serv = static_cast<Server *>(reactor->ptr);
     Event notify_ev{};
     double now = microtime();
 

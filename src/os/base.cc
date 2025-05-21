@@ -23,8 +23,6 @@
 #include <thread>
 #include <sstream>
 
-#include <arpa/inet.h>
-
 #if __APPLE__
 int swoole_daemon(int nochdir, int noclose) {
     pid_t pid;
@@ -105,7 +103,7 @@ int swoole_get_cpu_affinity(cpu_set_t *set) {
 #include <windows.h> /* GetCurrentThreadId() */
 #endif
 
-long swoole_thread_get_native_id(void) {
+long swoole_thread_get_native_id() {
 #ifdef __APPLE__
     uint64_t native_id;
     (void) pthread_threadid_np(NULL, &native_id);

@@ -167,7 +167,7 @@ bool Server::task_sync(EventData *_task, int *dst_worker_id, double timeout) {
     EventData *task_result = get_task_result();
     sw_memset_zero(task_result, sizeof(*task_result));
     Pipe *pipe = task_notify_pipes.at(swoole_get_worker_id()).get();
-    network::Socket *task_notify_socket = pipe->get_socket(false);
+    Socket *task_notify_socket = pipe->get_socket(false);
     TaskId task_id = get_task_id(_task);
 
     // clear history task
@@ -182,7 +182,7 @@ bool Server::task_sync(EventData *_task, int *dst_worker_id, double timeout) {
     }
 
     SW_LOOP {
-        if (task_notify_socket->wait_event((int) (timeout * 1000), SW_EVENT_READ) == SW_OK) {
+        if (task_notify_socket->wait_event(static_cast<int>(sec2msec(timeout)), SW_EVENT_READ) == SW_OK) {
             if (pipe->read(&notify, sizeof(notify)) > 0) {
                 if (get_task_id(task_result) != task_id) {
                     continue;
@@ -270,7 +270,7 @@ static void TaskWorker_onStart(ProcessPool *pool, Worker *worker) {
 
 static void TaskWorker_onStop(ProcessPool *pool, Worker *worker) {
     swoole_event_free();
-    auto *serv = (Server *) pool->ptr;
+    auto *serv = static_cast<Server *>(pool->ptr);
     serv->worker_stop_callback(worker);
 }
 
@@ -300,7 +300,7 @@ static int TaskWorker_onPipeReceive(Reactor *reactor, Event *event) {
  * async task worker
  */
 static int TaskWorker_loop_async(ProcessPool *pool, Worker *worker) {
-    auto *serv = (Server *) pool->ptr;
+    auto *serv = static_cast<Server *>(pool->ptr);
     Socket *socket = serv->get_worker_pipe_worker_in_message_bus(worker);
     worker->set_status_to_idle();
 
@@ -387,7 +387,7 @@ bool Server::finish(const char *data, size_t data_len, int flags, EventData *cur
         worker->lock->lock();
 
         if (current_task->info.ext_flags & SW_TASK_WAITALL) {
-            auto *finish_count = (sw_atomic_t *) result->data;
+            auto *finish_count = reinterpret_cast<sw_atomic_t *>(result->data);
             char *_tmpfile = result->data + 4;
             File file(_tmpfile, O_APPEND | O_WRONLY);
             if (file.ready()) {

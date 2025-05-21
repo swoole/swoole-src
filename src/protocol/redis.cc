@@ -61,7 +61,7 @@ int recv_packet(Protocol *protocol, Connection *conn, String *buffer) {
     network::Socket *socket = conn->socket;
 
     if (conn->object == nullptr) {
-        request = (Request *) sw_malloc(sizeof(Request));
+        request = static_cast<Request *>(sw_malloc(sizeof(Request)));
         if (!request) {
             swoole_warning("malloc(%ld) failed", sizeof(Request));
             return SW_ERR;
@@ -69,7 +69,7 @@ int recv_packet(Protocol *protocol, Connection *conn, String *buffer) {
         sw_memset_zero(request, sizeof(Request));
         conn->object = request;
     } else {
-        request = (Request *) conn->object;
+        request = static_cast<Request *>(conn->object);
     }
 
 _recv_data:
@@ -234,14 +234,14 @@ std::vector<std::string> parse(const char *data, size_t len) {
     do {
         switch (state) {
         case STATE_RECEIVE_TOTAL_LINE:
-            if (*p == '*' && (p = get_number(p, &ret))) {
+            if (*p == '*' && ((p = get_number(p, &ret)))) {
                 state = STATE_RECEIVE_LENGTH;
                 break;
             }
             /* no break */
 
         case STATE_RECEIVE_LENGTH:
-            if (*p == '$' && (p = get_number(p, &ret))) {
+            if (*p == '$' && ((p = get_number(p, &ret)))) {
                 if (ret == -1) {
                     break;
                 }
@@ -250,14 +250,14 @@ std::vector<std::string> parse(const char *data, size_t len) {
                 break;
             }
             // integer
-            else if (*p == ':' && (p = get_number(p, &ret))) {
+            else if (*p == ':' && ((p = get_number(p, &ret)))) {
                 result.push_back(std::to_string(ret));
                 break;
             }
             /* no break */
 
         case STATE_RECEIVE_STRING:
-            result.push_back(std::string(p, length));
+            result.emplace_back(p, length);
             p += length + SW_CRLF_LEN;
             state = STATE_RECEIVE_LENGTH;
             break;

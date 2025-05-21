@@ -821,8 +821,12 @@ int ProcessPool::run_with_message_protocol(ProcessPool *pool, Worker *worker) {
     return SW_OK;
 }
 
-void ProcessPool::add_worker(Worker *worker) {
-    map_->emplace(std::make_pair(worker->pid, worker));
+void ProcessPool::add_worker(Worker *worker) const {
+    map_->emplace(worker->pid, worker);
+}
+
+int ProcessPool::del_worker(Worker *worker) const {
+    return map_->erase(worker->pid) > 0;
 }
 
 Worker *ProcessPool::get_worker_by_pid(pid_t pid) {

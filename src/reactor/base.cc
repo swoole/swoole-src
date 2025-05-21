@@ -29,6 +29,8 @@ using network::Socket;
 #include <sys/malloc.h>
 #else
 #include <malloc.h>
+
+#include <utility>
 #endif
 #endif
 
@@ -195,9 +197,9 @@ int Reactor::_close(Reactor *reactor, Socket *socket) {
 }
 
 ssize_t Reactor::write_func(Reactor *reactor,
-                            network::Socket *socket,
-                            const size_t __len,
-                            const std::function<ssize_t(void)> &send_fn,
+                            Socket *socket,
+                            const size_t _len,
+                            const std::function<ssize_t()> &send_fn,
                             const std::function<void(Buffer *buffer)> &append_fn) {
     ssize_t retval;
     Buffer *buffer = socket->out_buffer;
@@ -210,7 +212,7 @@ ssize_t Reactor::write_func(Reactor *reactor,
         socket->set_fd_option(1, -1);
     }
 
-    if ((uint32_t) __len > socket->buffer_size) {
+    if ((uint32_t) _len > socket->buffer_size) {
         swoole_error_log(SW_LOG_WARNING,
                          SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
                          "data packet is too large, cannot exceed the socket buffer size");
@@ -227,7 +229,7 @@ ssize_t Reactor::write_func(Reactor *reactor,
         retval = send_fn();
 
         if (retval > 0) {
-            if ((ssize_t) __len == retval) {
+            if ((ssize_t) _len == retval) {
                 return retval;
             } else {
                 goto _alloc_buffer;
@@ -258,7 +260,7 @@ ssize_t Reactor::write_func(Reactor *reactor,
             return SW_ERR;
         }
     } else {
-        if (buffer->length() + __len > socket->buffer_size) {
+        if (buffer->length() + _len > socket->buffer_size) {
             swoole_error_log(SW_LOG_WARNING,
                              SW_ERROR_OUTPUT_BUFFER_OVERFLOW,
                              "socket#%d output buffer overflow: (%u/%u)",
@@ -270,7 +272,7 @@ ssize_t Reactor::write_func(Reactor *reactor,
     _append_buffer:
         append_fn(buffer);
     }
-    return __len;
+    return _len;
 }
 
 ssize_t Reactor::_write(Reactor *reactor, Socket *socket, const void *buf, size_t n) {
@@ -365,14 +367,14 @@ void Reactor::drain_write_buffer(Socket *socket) {
 }
 
 void Reactor::add_destroy_callback(Callback cb, void *data) {
-    destroy_callbacks.append(cb, data);
+    destroy_callbacks.append(std::move(cb), data);
 }
 
-void Reactor::set_end_callback(enum EndCallback id, const std::function<void(Reactor *)> &fn) {
+void Reactor::set_end_callback(EndCallback id, const std::function<void(Reactor *)> &fn) {
     end_callbacks[id] = fn;
 }
 
-void Reactor::erase_end_callback(enum EndCallback id) {
+void Reactor::erase_end_callback(EndCallback id) {
     end_callbacks.erase(id);
 }
 
@@ -380,11 +382,11 @@ void Reactor::erase_end_callback(enum EndCallback id) {
  * Returns false, the reactor cannot be exited, the next condition is skipped
  * Returns true, the reactor can exit and will continue to execute the next conditional function
  */
-void Reactor::set_exit_condition(enum ExitCondition id, const std::function<bool(Reactor *, size_t &)> &fn) {
+void Reactor::set_exit_condition(ExitCondition id, const std::function<bool(Reactor *, size_t &)> &fn) {
     exit_conditions[id] = fn;
 }
 
-void Reactor::defer(Callback cb, void *data) {
+void Reactor::defer(const Callback& cb, void *data) {
     if (defer_tasks == nullptr) {
         defer_tasks = new CallbackManager;
     }
@@ -397,7 +399,7 @@ void Reactor::execute_end_callbacks(bool timedout) {
     }
 }
 
-void Reactor::execute_begin_callback() {
+void Reactor::execute_begin_callback() const {
     if (future_task.callback) {
         future_task.callback(future_task.data);
     }
@@ -411,5 +413,4 @@ Reactor::~Reactor() {
         swoole_call_hook(SW_GLOBAL_HOOK_ON_REACTOR_DESTROY, this);
     }
 }
-
 }  // namespace swoole

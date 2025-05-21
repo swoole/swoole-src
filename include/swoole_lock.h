@@ -48,7 +48,7 @@ class Lock {
         type_ = NONE;
         shared_ = false;
     }
-    enum Type type_;
+    Type type_;
     bool shared_;
 };
 

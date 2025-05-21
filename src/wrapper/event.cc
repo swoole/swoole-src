@@ -21,6 +21,7 @@
 #include "swoole_coroutine_system.h"
 
 #include <mutex>
+#include <utility>
 
 using swoole::Callback;
 using swoole::Reactor;
@@ -41,13 +42,13 @@ int swoole_event_init(int flags) {
         swoole_init();
     }
 
-    Reactor *reactor = new Reactor(SW_REACTOR_MAXEVENTS);
+    auto *reactor = new Reactor(SW_REACTOR_MAXEVENTS);
     if (!reactor->ready()) {
         return SW_ERR;
     }
 
     if (flags & SW_EVENTLOOP_WAIT_EXIT) {
-        reactor->wait_exit = 1;
+        reactor->wait_exit = true;
     }
 
     swoole::coroutine::Socket::init_reactor(reactor);
@@ -102,7 +103,7 @@ int swoole_event_free() {
 }
 
 void swoole_event_defer(Callback cb, void *private_data) {
-    SwooleTG.reactor->defer(cb, private_data);
+    SwooleTG.reactor->defer(std::move(cb), private_data);
 }
 
 ssize_t swoole_event_write(Socket *socket, const void *data, size_t len) {
@@ -122,11 +123,11 @@ bool swoole_event_isset_handler(int fdtype) {
 }
 
 bool swoole_event_is_available() {
-    return SwooleTG.reactor and !SwooleTG.reactor->destroyed;
+    return SwooleTG.reactor && !SwooleTG.reactor->destroyed;
 }
 
 bool swoole_event_is_running() {
-    return SwooleTG.reactor and SwooleTG.reactor->running;
+    return SwooleTG.reactor && SwooleTG.reactor->running;
 }
 
 Socket *swoole_event_get_socket(int fd) {

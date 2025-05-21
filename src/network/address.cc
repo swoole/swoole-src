@@ -18,7 +18,7 @@
 
 #include <regex>
 
-static bool IN_IS_ADDR_LOOPBACK(struct in_addr *a) {
+static bool IN_IS_ADDR_LOOPBACK(const in_addr *a) {
     return a->s_addr == htonl(INADDR_LOOPBACK);
 }
 
@@ -27,7 +27,7 @@ namespace network {
 
 static thread_local char tmp_address[INET6_ADDRSTRLEN];
 
-const char *Address::get_addr() {
+const char *Address::get_addr() const {
     if (type == SW_SOCK_TCP || type == SW_SOCK_UDP) {
         if (inet_ntop(AF_INET, &addr.inet_v4.sin_addr, tmp_address, sizeof(tmp_address))) {
             return tmp_address;
@@ -42,7 +42,7 @@ const char *Address::get_addr() {
     return "unknown";
 }
 
-bool Address::empty() {
+bool Address::empty() const {
     return type == 0;
 }
 

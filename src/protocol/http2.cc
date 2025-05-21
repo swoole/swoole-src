@@ -121,7 +121,9 @@ size_t pack_setting_frame(char *buf, const Settings &settings, bool server_side)
     return p - buf;
 }
 
-ReturnCode unpack_setting_data(char *buf, ssize_t length, const std::function<ReturnCode(uint16_t, uint32_t)> &cb) {
+ReturnCode unpack_setting_data(const char *buf,
+                               ssize_t length,
+                               const std::function<ReturnCode(uint16_t, uint32_t)> &cb) {
     uint16_t id = 0;
     uint32_t value = 0;
 

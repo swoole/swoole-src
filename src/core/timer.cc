@@ -105,8 +105,8 @@ Timer::~Timer() {
     if (close) {
         close(this);
     }
-    for (auto iter = map.begin(); iter != map.end(); iter++) {
-        auto tnode = iter->second;
+    for (const auto &iter : map) {
+        const auto tnode = iter.second;
         delete tnode;
     }
 }
@@ -122,7 +122,7 @@ TimerNode *Timer::add(long _msec, bool persistent, void *data, const TimerCallba
         return nullptr;
     }
 
-    TimerNode *tnode = new TimerNode();
+    auto *tnode = new TimerNode();
     tnode->data = data;
     tnode->type = TimerNode::TYPE_KERNEL;
     tnode->exec_msec = now_msec + _msec;
@@ -148,7 +148,7 @@ TimerNode *Timer::add(long _msec, bool persistent, void *data, const TimerCallba
         delete tnode;
         return nullptr;
     }
-    map.emplace(std::make_pair(tnode->id, tnode));
+    map.emplace(tnode->id, tnode);
     swoole_trace_log(SW_TRACE_TIMER,
                      "id=%ld, exec_msec=%" PRId64 ", msec=%ld, round=%" PRIu64 ", exist=%lu",
                      tnode->id,

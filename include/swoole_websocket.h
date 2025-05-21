@@ -106,7 +106,7 @@ enum CloseReason {
     CLOSE_TLS = 1015,
 };
 
-static inline uchar get_flags(Frame *frame) {
+static inline uchar get_flags(const Frame *frame) {
     uchar flags = 0;
     if (frame->header.FIN) {
         flags |= FLAG_FIN;
@@ -152,7 +152,7 @@ void mask(char *data, size_t len, const char *mask_key);
 int pack_close_frame(String *buffer, int code, const char *reason, size_t length, uint8_t flags);
 void print_frame(Frame *frame);
 
-static inline bool decode(Frame *frame, String *str) {
+static inline bool decode(Frame *frame, const String *str) {
     return decode(frame, str->str, str->length);
 }
 

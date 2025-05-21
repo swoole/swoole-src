@@ -317,11 +317,11 @@ bool ThreadFactory::reload(bool _reload_all_workers) {
     return true;
 }
 
-WorkerId ThreadFactory::get_manager_thread_id() {
+WorkerId ThreadFactory::get_manager_thread_id() const {
     return server_->get_all_worker_num();
 }
 
-WorkerId ThreadFactory::get_master_thread_id() {
+WorkerId ThreadFactory::get_master_thread_id() const {
     return server_->get_all_worker_num() + 1;
 }
 
@@ -340,7 +340,7 @@ void ThreadFactory::terminate_manager_thread() {
      * which means the management thread might not have reclaimed all worker threads and may have exited prematurely.
      * At this point, it is necessary to loop through and reclaim the remaining worker threads.
      */
-    int manager_thread_id = get_manager_thread_id();
+    auto manager_thread_id = get_manager_thread_id();
     threads_[manager_thread_id]->join();
 
     swoole_trace_log(SW_TRACE_THREAD, "manager thread is exited");

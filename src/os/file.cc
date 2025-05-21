@@ -92,7 +92,7 @@ File make_tmpfile() {
     if (tmp_fd < 0) {
         return File(-1);
     } else {
-        return File(tmp_fd, std::string(tmpfile, l));
+        return {tmp_fd, std::string(tmpfile, l)};
     }
 }
 
@@ -163,7 +163,8 @@ size_t File::write_all(const void *data, size_t len) {
         } else {
             if (errno == EINTR) {
                 continue;
-            } else if (!(errno == EAGAIN || errno == EWOULDBLOCK)) {
+            }
+            if (!(errno == EAGAIN || errno == EWOULDBLOCK)) {
                 swoole_sys_warning("pwrite(%d, %p, %lu, %lu) failed", fd_, data, len - written_bytes, written_bytes);
             }
             break;
@@ -172,7 +173,7 @@ size_t File::write_all(const void *data, size_t len) {
     return written_bytes;
 }
 
-size_t File::read_all(void *buf, size_t len) {
+size_t File::read_all(void *buf, size_t len) const {
     size_t read_bytes = 0;
     while (read_bytes < len) {
         ssize_t n = pread((char *) buf + read_bytes, len - read_bytes, read_bytes);
@@ -211,17 +212,16 @@ ssize_t File::read_line(void *__buf, size_t __n) {
     return read_bytes;
 }
 
-std::shared_ptr<String> File::read_content() {
+std::shared_ptr<String> File::read_content() const {
     ssize_t n = 0;
-    std::shared_ptr<String> data = std::make_shared<String>(SW_BUFFER_SIZE_STD);
-    while (1) {
+    auto data = std::make_shared<String>(SW_BUFFER_SIZE_STD);
+    while (true) {
         n = read(data->str + data->length, data->size - data->length);
         if (n <= 0) {
-            return data;
-        } else {
-            if (!data->grow((size_t) n)) {
-                return data;
-            }
+            break;
+        }
+        if (!data->grow((size_t) n)) {
+            break;
         }
     }
     return data;

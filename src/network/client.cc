@@ -517,7 +517,7 @@ static int Client_tcp_connect_sync(Client *cli, const char *host, int port, doub
     while (true) {
 #ifdef HAVE_KQUEUE
         if (nonblock == 2) {
-            // special case on MacOS
+            // special case on macOS
             ret = cli->socket->connect(cli->server_addr);
         } else {
             ret = cli->socket->connect_sync(cli->server_addr, cli->timeout);
@@ -653,16 +653,16 @@ static int Client_tcp_connect_async(Client *cli, const char *host, int port, dou
              *  listen for writable events to handle the proxy and SSL handshake within those events.
              */
             return swoole_event_add(cli->socket, SW_EVENT_WRITE);
-        } else {
-            cli->active = false;
-            cli->socket->removed = 1;
-            cli->close();
-            if (cli->onError) {
-                cli->onerror_called = true;
-                cli->onError(cli);
-            }
         }
-    } while (false);
+        cli->active = false;
+        cli->socket->removed = 1;
+        cli->close();
+        if (cli->onError) {
+            cli->onerror_called = true;
+            cli->onError(cli);
+        }
+        break;
+    } while (true);
 
     return ret;
 }

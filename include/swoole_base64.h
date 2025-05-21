@@ -16,9 +16,9 @@
 
 #pragma once
 
-#include <stdint.h>
-#include <stdio.h>
-#include <string.h>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
 
 #define BASE64_ENCODE_OUT_SIZE(s) (((s) + 2) / 3 * 4)
 #define BASE64_DECODE_OUT_SIZE(s) (((s)) / 4 * 3)

@@ -58,11 +58,11 @@ class Socket {
         TIMEOUT_ALL = TIMEOUT_DNS | TIMEOUT_CONNECT | TIMEOUT_RDWR,
     };
 
-    static enum TimeoutType timeout_type_list[4];
+    static TimeoutType timeout_type_list[4];
 
     Socket(int domain, int type, int protocol);
     Socket(int _fd, int _domain, int _type, int _protocol);
-    Socket(SocketType type = SW_SOCK_TCP);
+    explicit Socket(SocketType type = SW_SOCK_TCP);
     Socket(int _fd, SocketType _type);
     ~Socket();
     /**
@@ -89,9 +89,9 @@ class Socket {
     }
 
     bool check_liveness();
-    ssize_t peek(void *__buf, size_t __n);
-    ssize_t recv(void *__buf, size_t __n);
-    ssize_t send(const void *__buf, size_t __n);
+    ssize_t peek(void *_buf, size_t _n);
+    ssize_t recv(void *_buf, size_t _n);
+    ssize_t send(const void *_buf, size_t _n);
 
     ssize_t send(const std::string &buf) {
         return send(buf.c_str(), buf.length());
@@ -100,7 +100,7 @@ class Socket {
     /**
      * The read()/write()/recvmsg()/sendmsg() functions currently does not support SSL
      */
-    ssize_t read(void *__buf, size_t __n);
+    ssize_t read(void *_buf, size_t _n);
     ssize_t write(const void *__buf, size_t __n);
     ssize_t recvmsg(msghdr *msg, int flags);
     ssize_t sendmsg(const msghdr *msg, int flags);
@@ -271,7 +271,7 @@ class Socket {
         return sock_protocol;
     }
 
-    int get_fd() {
+    int get_fd() const {
         return sock_fd;
     }
 

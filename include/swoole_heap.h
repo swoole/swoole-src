@@ -34,7 +34,7 @@ class Heap {
     Heap(size_t _n, Type _type);
     ~Heap();
 
-    size_t count() {
+    size_t count() const {
         return num - 1;
     }
 

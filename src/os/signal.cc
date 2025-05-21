@@ -71,14 +71,14 @@ static bool triggered_signals[SW_SIGNO_MAX];
 char *swoole_signal_to_str(int sig) {
     static char buf[64];
     snprintf(buf, sizeof(buf), "%s", strsignal(sig));
-    if (strchr(buf, ':') == 0) {
+    if (strchr(buf, ':') == nullptr) {
         size_t len = strlen(buf);
         snprintf(buf + len, sizeof(buf) - len, ": %d", sig);
     }
     return buf;
 }
 
-void swoole_signal_block_all(void) {
+void swoole_signal_block_all() {
     if (SwooleTG.signal_blocking_all) {
         return;
     }
@@ -92,7 +92,7 @@ void swoole_signal_block_all(void) {
     }
 }
 
-void swoole_signal_unblock_all(void) {
+void swoole_signal_unblock_all() {
     if (!SwooleTG.signal_blocking_all) {
         return;
     }
@@ -190,7 +190,7 @@ static void signal_handler_simple(int signo) {
     }
 }
 
-void swoole_signal_dispatch(void) {
+void swoole_signal_dispatch() {
     if (!SwooleG.signal_dispatch) {
         return;
     }
@@ -226,11 +226,11 @@ SignalHandler swoole_signal_get_handler(int signo) {
     }
 }
 
-uint32_t swoole_signal_get_listener_num(void) {
+uint32_t swoole_signal_get_listener_num() {
     return SwooleG.signal_listener_num + SwooleG.signal_async_listener_num;
 }
 
-void swoole_signal_clear(void) {
+void swoole_signal_clear() {
 #ifdef HAVE_SIGNALFD
     if (SwooleG.enable_signalfd && swoole_signalfd_is_available()) {
         swoole_signalfd_clear();
@@ -364,7 +364,7 @@ static void swoole_signalfd_clear() {
 }
 
 static int swoole_signalfd_event_callback(Reactor *reactor, Event *event) {
-    struct signalfd_siginfo siginfo;
+    signalfd_siginfo siginfo;
     ssize_t n = read(event->fd, &siginfo, sizeof(siginfo));
     if (n < 0) {
         swoole_sys_warning("read from signalfd failed");

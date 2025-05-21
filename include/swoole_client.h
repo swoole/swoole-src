@@ -55,7 +55,7 @@ class Client {
     bool closed = false;
     bool high_watermark = false;
     bool async_connect = false;
-    bool onerror_called;
+    bool onerror_called{};
 
     /**
      * one package: length check

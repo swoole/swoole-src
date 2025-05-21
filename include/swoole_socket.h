@@ -84,17 +84,17 @@ struct SendfileRequest {
         corked = 0;
     }
 
-    const char *get_filename() {
+    const char *get_filename() const {
         return file.get_path().c_str();
     }
 };
 
 struct Address {
     union {
-        struct sockaddr ss;
-        struct sockaddr_in inet_v4;
-        struct sockaddr_in6 inet_v6;
-        struct sockaddr_un un;
+        sockaddr ss;
+        sockaddr_in inet_v4;
+        sockaddr_in6 inet_v6;
+        sockaddr_un un;
     } addr;
     socklen_t len;
     SocketType type;
@@ -104,9 +104,9 @@ struct Address {
 
     int get_port() const;
     void set_port(int _port);
-    const char *get_addr();
+    const char *get_addr() const;
     bool is_loopback_addr();
-    bool empty();
+    bool empty() const;
     static const char *type_str(SocketType type);
 
     static bool verify_ip(int __af, const std::string &str) {
@@ -117,19 +117,19 @@ struct Address {
 
 struct IOVector {
     // we should modify iov_iterator instead of iov, iov is readonly
-    struct iovec *iov = nullptr;
-    struct iovec *iov_iterator = nullptr;
+    iovec *iov = nullptr;
+    iovec *iov_iterator = nullptr;
     int count = 0;
     int remain_count = 0;
     int index = 0;
     size_t offset_bytes = 0;
 
-    IOVector(struct iovec *_iov, int _iovcnt);
+    IOVector(iovec *_iov, int _iovcnt);
     ~IOVector();
 
     void update_iterator(ssize_t __n);
 
-    struct iovec *get_iterator() {
+    iovec *get_iterator() const {
         return iov_iterator;
     }
 
@@ -141,15 +141,15 @@ struct IOVector {
         return len;
     }
 
-    int get_remain_count() {
+    int get_remain_count() const {
         return remain_count;
     }
 
-    int get_index() {
+    int get_index() const {
         return index;
     }
 
-    size_t get_offset_bytes() {
+    size_t get_offset_bytes() const {
         return offset_bytes;
     }
 };
@@ -251,36 +251,36 @@ struct Socket {
 
     bool set_fd_option(int _nonblock, int _cloexec);
 
-    int set_option(int level, int optname, int optval) {
+    int set_option(int level, int optname, int optval) const {
         return setsockopt(fd, level, optname, &optval, sizeof(optval));
     }
 
-    int set_option(int level, int optname, const void *optval, socklen_t optlen) {
+    int set_option(int level, int optname, const void *optval, socklen_t optlen) const {
         return setsockopt(fd, level, optname, optval, optlen);
     }
 
-    int get_option(int level, int optname, void *optval, socklen_t *optlen) {
+    int get_option(int level, int optname, void *optval, socklen_t *optlen) const {
         return getsockopt(fd, level, optname, optval, optlen);
     }
 
-    int get_option(int level, int optname, int *optval) {
+    int get_option(int level, int optname, int *optval) const {
         socklen_t optlen = sizeof(*optval);
         return get_option(level, optname, optval, &optlen);
     }
 
-    int get_fd() {
+    int get_fd() const {
         return fd;
     }
 
-    const char *get_addr() {
+    const char *get_addr() const {
         return info.get_addr();
     }
 
-    int get_port() {
+    int get_port() const {
         return info.get_port();
     }
 
-    uint32_t get_out_buffer_length() {
+    uint32_t get_out_buffer_length() const {
         return out_buffer ? out_buffer->length() : 0;
     }
 
@@ -294,11 +294,11 @@ struct Socket {
     int get_peer_name(Address *sa);
     int set_tcp_nopush(int nopush);
 
-    int set_reuse_addr(int enable = 1) {
+    int set_reuse_addr(int enable = 1) const {
         return set_option(SOL_SOCKET, SO_REUSEADDR, enable);
     }
 
-    int set_reuse_port(int enable = 1) {
+    int set_reuse_port(int enable = 1) const {
 #ifdef SO_REUSEPORT
         return set_option(SOL_SOCKET, SO_REUSEPORT, enable);
 #endif
@@ -316,7 +316,7 @@ struct Socket {
     ssize_t send(const void *__buf, size_t __n, int __flags);
     ssize_t peek(void *__buf, size_t __n, int __flags);
     Socket *accept();
-    Socket *dup();
+    Socket *dup() const;
 
     ssize_t readv(IOVector *io_vector);
     ssize_t writev(IOVector *io_vector);
@@ -517,9 +517,9 @@ struct Socket {
         return ::sendto(fd, data, len, flags, &dst_addr.addr.ss, dst_addr.len);
     }
 
-    int catch_error(int err) const;
+    int catch_error(int err);
 
-    int catch_write_error(int err) const {
+    int catch_write_error(const int err) {
         switch (err) {
         case ENOBUFS:
             return SW_WAIT;
@@ -528,7 +528,7 @@ struct Socket {
         }
     }
 
-    int catch_write_pipe_error(int err) {
+    int catch_write_pipe_error(const int err) {
         switch (err) {
         case ENOBUFS:
         case EMSGSIZE:
@@ -538,7 +538,7 @@ struct Socket {
         }
     }
 
-    int catch_read_error(int err) const {
+    int catch_read_error(const int err) {
         return catch_error(err);
     }
 
@@ -548,7 +548,7 @@ struct Socket {
 };
 
 int gethostbyname(int type, const char *name, char *addr);
-int gethostbyname(GethostbynameRequest *req);
+int gethostbyname(const GethostbynameRequest *req);
 int getaddrinfo(GetaddrinfoRequest *req);
 
 }  // namespace network

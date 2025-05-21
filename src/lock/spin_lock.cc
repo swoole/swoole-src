@@ -15,29 +15,7 @@
 */
 
 #include "swoole.h"
-#include "swoole_atomic.h"
 #include "swoole_lock.h"
-
-void sw_spinlock(sw_atomic_t *lock) {
-    uint32_t i, n;
-    while (1) {
-        if (*lock == 0 && sw_atomic_cmp_set(lock, 0, 1)) {
-            return;
-        }
-        if (SW_CPU_NUM > 1) {
-            for (n = 1; n < SW_SPINLOCK_LOOP_N; n <<= 1) {
-                for (i = 0; i < n; i++) {
-                    sw_atomic_cpu_pause();
-                }
-
-                if (*lock == 0 && sw_atomic_cmp_set(lock, 0, 1)) {
-                    return;
-                }
-            }
-        }
-        sw_yield();
-    }
-}
 
 #ifdef HAVE_SPINLOCK
 namespace swoole {

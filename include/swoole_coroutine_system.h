@@ -26,12 +26,12 @@ namespace swoole {
 namespace coroutine {
 //-------------------------------------------------------------------------------
 struct PollSocket {
-    int16_t events;
+    int events;
     int16_t revents;
     void *ptr;
     network::Socket *socket;
 
-    PollSocket(int16_t _event, void *_ptr) {
+    PollSocket(int _event, void *_ptr) {
         events = _event;
         ptr = _ptr;
         revents = 0;
@@ -39,8 +39,8 @@ struct PollSocket {
     }
 };
 
-int translate_events_to_poll(int events);
-int translate_events_from_poll(int events);
+int16_t translate_events_to_poll(int events);
+int translate_events_from_poll(int16_t events);
 
 class System {
   public:

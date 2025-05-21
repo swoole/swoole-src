@@ -97,18 +97,13 @@ SW_API void swoole_name_resolver_add(const NameResolver &resolver, bool append) 
 }
 
 SW_API void swoole_name_resolver_each(
-    const std::function<enum swTraverseOperation(const std::list<NameResolver>::iterator &iter)> &fn) {
+    const std::function<swTraverseOperation(const std::list<NameResolver>::iterator &iter)> &fn) {
     for (auto iter = SwooleG.name_resolvers.begin(); iter != SwooleG.name_resolvers.end(); iter++) {
-        enum swTraverseOperation op = fn(iter);
-        switch (op) {
-        case SW_TRAVERSE_REMOVE:
+        const swTraverseOperation op = fn(iter);
+        if (op == SW_TRAVERSE_REMOVE) {
             SwooleG.name_resolvers.erase(iter++);
-            continue;
-        case SW_TRAVERSE_STOP:
+        } else if (op == SW_TRAVERSE_STOP) {
             break;
-        default:
-        case SW_TRAVERSE_KEEP:
-            continue;
         }
     }
 }
@@ -139,7 +134,7 @@ _dns_lookup:
             swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
             return "";
         }
-        return std::string(addr);
+        return {addr};
     }
 }
 
@@ -491,13 +486,13 @@ std::vector<std::string> dns_lookup_impl_with_cares(const char *domain, int fami
     if (!swoole_event_isset_handler(SW_FD_CARES)) {
         ares_library_init(ARES_LIB_INIT_ALL);
         swoole_event_set_handler(SW_FD_CARES | SW_EVENT_READ, [](Reactor *reactor, Event *event) -> int {
-            auto ctx = reinterpret_cast<ResolvContext *>(event->socket->object);
+            auto ctx = static_cast<ResolvContext *>(event->socket->object);
             swoole_trace_log(SW_TRACE_CARES, "[event callback] readable event, fd=%d", event->socket->fd);
             ares_process_fd(ctx->channel, event->fd, ARES_SOCKET_BAD);
             return SW_OK;
         });
         swoole_event_set_handler(SW_FD_CARES | SW_EVENT_WRITE, [](Reactor *reactor, Event *event) -> int {
-            auto ctx = reinterpret_cast<ResolvContext *>(event->socket->object);
+            auto ctx = static_cast<ResolvContext *>(event->socket->object);
             swoole_trace_log(SW_TRACE_CARES, "[event callback] writable event, fd=%d", event->socket->fd);
             ares_process_fd(ctx->channel, ARES_SOCKET_BAD, event->fd);
             return SW_OK;
@@ -517,7 +512,7 @@ std::vector<std::string> dns_lookup_impl_with_cares(const char *domain, int fami
     ctx.ares_opts.tries = SwooleG.dns_tries;
     ctx.ares_opts.sock_state_cb_data = &ctx;
     ctx.ares_opts.sock_state_cb = [](void *arg, int fd, int readable, int writable) {
-        auto ctx = reinterpret_cast<ResolvContext *>(arg);
+        auto ctx = static_cast<ResolvContext *>(arg);
         int events = 0;
         if (readable) {
             events |= SW_EVENT_READ;
@@ -592,7 +587,7 @@ std::vector<std::string> dns_lookup_impl_with_cares(const char *domain, int fami
         domain,
         family,
         [](void *data, int status, int timeouts, struct hostent *hostent) {
-            auto ctx = reinterpret_cast<ResolvContext *>(data);
+            auto ctx = static_cast<ResolvContext *>(data);
 
             swoole_trace_log(SW_TRACE_CARES, "[cares callback] status=%d, timeouts=%d", status, timeouts);
 
@@ -780,9 +775,9 @@ int gethostbyname(int flags, const char *name, char *addr) {
 #endif
 
 int getaddrinfo(GetaddrinfoRequest *req) {
-    struct addrinfo *result = nullptr;
-    struct addrinfo *ptr = nullptr;
-    struct addrinfo hints {};
+    addrinfo *result = nullptr;
+    addrinfo *ptr = nullptr;
+    addrinfo hints{};
 
     hints.ai_family = req->family;
     hints.ai_socktype = req->socktype;
@@ -822,7 +817,7 @@ int getaddrinfo(GetaddrinfoRequest *req) {
     return SW_OK;
 }
 
-int gethostbyname(GethostbynameRequest *req) {
+int gethostbyname(const GethostbynameRequest *req) {
     char addr[INET6_ADDRSTRLEN];
     auto rv = gethostbyname(req->family, req->name.c_str(), addr);
     if (rv < 0) {
