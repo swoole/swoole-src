@@ -23,13 +23,6 @@
 #include "swoole_string.h"
 #include "swoole_timer.h"
 
-#ifdef SW_USE_OPENSSL
-#include <openssl/x509.h>
-#include <openssl/x509v3.h>
-#include <openssl/rand.h>
-#include <openssl/conf.h>
-#endif
-
 namespace swoole {
 namespace network {
 

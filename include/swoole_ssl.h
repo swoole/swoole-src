@@ -27,6 +27,10 @@
 #include <openssl/bio.h>
 #include <openssl/err.h>
 #include <openssl/crypto.h>
+#include <openssl/x509.h>
+#include <openssl/x509v3.h>
+#include <openssl/rand.h>
+#include <openssl/conf.h>
 #include <openssl/opensslv.h>
 
 #if OPENSSL_VERSION_NUMBER >= 0x10100000L

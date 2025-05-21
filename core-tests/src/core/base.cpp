@@ -367,3 +367,20 @@ TEST(base, spinlock) {
 
     ASSERT_EQ(counter[1], n * 2);
 }
+
+TEST(base, futex) {
+    sw_atomic_t value = 0;
+
+    std::thread t1([&value]{
+        ASSERT_EQ(sw_atomic_futex_wait(&value, 0.05), SW_ERR);
+        ASSERT_EQ(sw_atomic_futex_wait(&value, 0.5), SW_OK);
+    });
+
+    std::thread t2([&value]{
+        usleep(100000);
+        ASSERT_EQ(sw_atomic_futex_wakeup(&value, 1), 1);
+    });
+
+    t1.join();
+    t2.join();
+}
