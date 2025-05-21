@@ -152,3 +152,34 @@ TEST(timer, error) {
     ASSERT_FALSE(swoole_timer_del(nullptr));
     SwooleTG.timer = tmp;
 }
+
+TEST(timer, reinit) {
+    int timer1_count = 0;
+    int timer2_count = 0;
+
+    swoole_timer_after(
+        20, [&](Timer *, TimerNode *) { timer1_count++; }, nullptr);
+
+    swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
+
+    sw_timer()->reinit(sw_reactor());
+
+    uint64_t ms1 = swoole::time<std::chrono::milliseconds>();
+
+    swoole_timer_tick(
+        100,
+        [&](Timer *, TimerNode *tnode) {
+            timer2_count++;
+            if (timer2_count == 5) {
+                swoole_timer_del(tnode);
+            }
+        },
+        nullptr);
+
+    swoole_event_wait();
+    uint64_t ms2 = swoole::time<std::chrono::milliseconds>();
+    ASSERT_LE(ms2 - ms1, 510);
+    ASSERT_EQ(timer1_count, 1);
+    ASSERT_EQ(timer2_count, 5);
+}
+

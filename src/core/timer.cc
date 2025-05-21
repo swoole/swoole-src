@@ -97,6 +97,7 @@ bool Timer::init_with_reactor(Reactor *reactor) {
 }
 
 void Timer::reinit(Reactor *reactor) {
+    close(this);
     init_with_reactor(reactor);
     reactor->timeout_msec = next_msec_;
 }

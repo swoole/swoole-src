@@ -22,7 +22,7 @@ TEST(log, level) {
         ASSERT_EQ(sw_logger()->get_level(), SW_LOG_NONE);
 
         sw_logger()->set_level(SW_LOG_DEBUG - 10);
-         ASSERT_EQ(sw_logger()->get_level(), SW_LOG_DEBUG);
+        ASSERT_EQ(sw_logger()->get_level(), SW_LOG_DEBUG);
 
         sw_logger()->set_level(SW_LOG_NOTICE);
         sw_logger()->open(file);

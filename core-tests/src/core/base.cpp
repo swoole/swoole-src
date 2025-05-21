@@ -373,18 +373,18 @@ TEST(base, futex) {
 
     std::thread t1([&value] {
         DEBUG() << "wait 1\n";
-        ASSERT_EQ(sw_atomic_futex_wait(&value, -1), SW_OK);        // no wait
+        ASSERT_EQ(sw_atomic_futex_wait(&value, -1), SW_OK);  // no wait
         value = 0;
 
         DEBUG() << "wait 2\n";
 
-        ASSERT_EQ(sw_atomic_futex_wait(&value, 0.05), SW_ERR); // timed out
-        ASSERT_EQ(sw_atomic_futex_wait(&value, 0.5), SW_OK); // success
+        ASSERT_EQ(sw_atomic_futex_wait(&value, 0.05), SW_ERR);  // timed out
+        ASSERT_EQ(sw_atomic_futex_wait(&value, 0.5), SW_OK);    // success
 
         DEBUG() << "wait 3\n";
 
         value = 0;
-        ASSERT_EQ(sw_atomic_futex_wait(&value, -1), SW_OK); // no timeout
+        ASSERT_EQ(sw_atomic_futex_wait(&value, -1), SW_OK);  // no timeout
     });
 
     std::thread t2([&value] {
