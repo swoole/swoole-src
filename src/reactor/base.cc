@@ -29,8 +29,6 @@ using network::Socket;
 #include <sys/malloc.h>
 #else
 #include <malloc.h>
-
-#include <utility>
 #endif
 #endif
 
