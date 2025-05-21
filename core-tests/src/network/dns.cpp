@@ -64,7 +64,7 @@ TEST(dns, cancel) {
     test::coroutine::run([](void *arg) {
         auto co = Coroutine::get_current_safe();
         Coroutine::create([co](void *) {
-            System::sleep(0.002);
+            System::sleep(0.001);
             co->cancel();
         });
         auto list1 = swoole::coroutine::dns_lookup("www.baidu-not-found-for-cancel.com", AF_INET, 2);

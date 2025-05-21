@@ -35,6 +35,10 @@ TimerCallback Server::get_timeout_callback(ListenPort *port, Reactor *reactor, C
             return;
         }
         long ms = time<std::chrono::milliseconds>(true);
+        swoole_trace_log(SW_TRACE_SERVER,
+                         "timeout_callback, last_received_time=%f, last_sent_time=%f",
+                         conn->socket->last_received_time,
+                         conn->socket->last_sent_time);
         if (ms - conn->socket->last_received_time < port->max_idle_time &&
             ms - conn->socket->last_sent_time < port->max_idle_time) {
             return;
@@ -1513,6 +1517,10 @@ int Server::send_to_connection(SendData *_send) {
         _socket->send_timeout_ = port->max_idle_time;
         _socket->last_sent_time = time<std::chrono::milliseconds>(true);
         _socket->send_timer = swoole_timer_add((long) (port->max_idle_time * 1000), true, timeout_callback);
+        swoole_trace_log(SW_TRACE_SERVER,
+                         "added send_timer[id=%ld], port->max_idle_time=%f",
+                         _socket->send_timer->id,
+                         port->max_idle_time);
     }
 
     if (!_socket->isset_writable_event()) {

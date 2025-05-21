@@ -2895,3 +2895,181 @@ TEST(server, no_idle_task_worker) {
 
     remove(TEST_LOG_FILE);
 }
+
+static void test_conn_overflow(Server::Mode mode, bool send_yield) {
+    Server serv(mode);
+    serv.worker_num = 1;
+    serv.send_yield = send_yield;
+    swoole_set_log_level(SW_LOG_WARNING);
+
+    test::counter_init();
+    auto counter = test::counter_ptr();
+
+    Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
+    lock->lock();
+
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    if (!port) {
+        swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
+        exit(2);
+    }
+
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    thread t1;
+    serv.onStart = [&lock, &t1](Server *serv) {
+        t1 = thread([=]() {
+            swoole_signal_block_all();
+
+            lock->lock();
+
+            ListenPort *port = serv->get_primary_port();
+
+            network::SyncClient c(SW_SOCK_TCP);
+            c.connect(TEST_HOST, port->port);
+            c.send(packet, strlen(packet));
+            char buf[1024];
+            c.recv(buf, sizeof(buf));
+            c.close();
+
+            kill(serv->gs->master_pid, SIGTERM);
+        });
+    };
+
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) {
+        if (worker->id == 0) {
+            lock->unlock();
+        }
+        test::counter_incr(3);
+        DEBUG() << "onWorkerStart: id=" << worker->id << "\n";
+    };
+
+    serv.onReceive = [counter, send_yield](Server *serv, RecvData *req) -> int {
+        auto sid = req->session_id();
+        auto conn = serv->get_connection_by_session_id(sid);
+        conn->overflow = 1;
+
+        EXPECT_FALSE(serv->send(sid, SW_STRL(TEST_STR)));
+        EXPECT_ERREQ(send_yield ? SW_ERROR_OUTPUT_SEND_YIELD : SW_ERROR_OUTPUT_BUFFER_OVERFLOW);
+
+        counter[0] = 1;
+
+        swoole_timer_after(100, [serv, sid](TIMER_PARAMS) { serv->close(sid); });
+
+        return SW_OK;
+    };
+
+    ASSERT_EQ(serv.start(), 0);
+
+    t1.join();
+    delete lock;
+    ASSERT_EQ(counter[0], 1);
+    ASSERT_EQ(counter[3], 1);
+}
+
+TEST(server, overflow_1) {
+    test_conn_overflow(Server::MODE_BASE, false);
+}
+
+TEST(server, overflow_2) {
+    test_conn_overflow(Server::MODE_PROCESS, false);
+}
+
+TEST(server, overflow_3) {
+    test_conn_overflow(Server::MODE_BASE, true);
+}
+
+TEST(server, overflow_4) {
+    test_conn_overflow(Server::MODE_PROCESS, true);
+}
+
+TEST(server, send_timeout) {
+    Server serv(Server::MODE_BASE);
+    serv.worker_num = 1;
+    swoole_set_log_level(SW_LOG_WARNING);
+
+    test::counter_init();
+    auto counter = test::counter_ptr();
+
+    Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
+    lock->lock();
+
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    if (!port) {
+        swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
+        exit(2);
+    }
+
+    port->max_idle_time = 1;
+
+    String wbuf(2 * 1024 * 1024);
+    wbuf.append_random_bytes(2 * 1024 * 1024, false);
+
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    thread t1;
+    serv.onStart = [&lock, &t1, &wbuf](Server *serv) {
+        t1 = thread([=]() {
+            swoole_signal_block_all();
+
+            lock->lock();
+
+            ListenPort *port = serv->get_primary_port();
+
+            network::SyncClient c(SW_SOCK_TCP);
+            c.connect(TEST_HOST, port->port);
+            c.send(packet, strlen(packet));
+
+            String rbuf(3 * 1024 * 1024);
+
+            auto rn = c.recv(rbuf.str, 1024);
+            EXPECT_EQ(rn, 1024);
+            rbuf.length += 1024;
+
+            sleep(2);
+
+            while (true) {
+                rn = c.recv(rbuf.str + rbuf.length, rbuf.size - rbuf.length);
+                if (rn <= 0) {
+                    break;
+                }
+                rbuf.length += rn;
+            }
+
+            EXPECT_MEMEQ(rbuf.str, wbuf.str, rbuf.length);
+            c.close();
+
+            kill(serv->gs->master_pid, SIGTERM);
+        });
+    };
+
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) {
+        if (worker->id == 0) {
+            lock->unlock();
+        }
+        test::counter_incr(3);
+        DEBUG() << "onWorkerStart: id=" << worker->id << "\n";
+    };
+
+    serv.onReceive = [&wbuf](Server *serv, RecvData *req) -> int {
+        auto sid = req->session_id();
+        auto conn = serv->get_connection_by_session_id(sid);
+
+        swoole_timer_del(conn->socket->recv_timer);
+        conn->socket->recv_timer = nullptr;
+        conn->socket->set_buffer_size(65536);
+
+        EXPECT_TRUE(serv->send(sid, wbuf.str, wbuf.length));
+
+        test::counter_incr(0);
+
+        return SW_OK;
+    };
+
+    ASSERT_EQ(serv.start(), 0);
+
+    t1.join();
+    delete lock;
+    ASSERT_EQ(counter[0], 1);
+    ASSERT_EQ(counter[3], 1);
+}
