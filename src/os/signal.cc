@@ -24,6 +24,8 @@
 #include <sys/signalfd.h>
 #endif
 
+#include <csignal>
+
 #ifdef HAVE_KQUEUE
 #ifdef USE_KQUEUE_IDE_HELPER
 #include "helper/kqueue.h"

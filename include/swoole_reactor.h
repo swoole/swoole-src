@@ -363,7 +363,7 @@ class Reactor {
     static int _writable_callback(Reactor *reactor, Event *ev);
     static ssize_t write_func(Reactor *reactor,
                               network::Socket *socket,
-                              size_t _len,
+                              const size_t _len,
                               const std::function<ssize_t()> &send_fn,
                               const std::function<void(Buffer *buffer)> &append_fn);
 
