@@ -180,6 +180,10 @@ class Table {
         return size;
     }
 
+    size_t get_column_size() const {
+        return column_map->size();
+    }
+
     TableRow *get_by_index(uint32_t index) const {
         TableRow *row = rows[index];
         return row->active ? row : nullptr;

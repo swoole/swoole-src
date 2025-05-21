@@ -58,9 +58,11 @@ class table_t {
             throw exception_t("alloc failed", swoole_get_last_error());
         }
 
-        table->add_column("id", TableColumn::TYPE_INT, 0);
-        table->add_column("name", TableColumn::TYPE_STRING, 32);
-        table->add_column("score", TableColumn::TYPE_FLOAT, 0);
+        EXPECT_TRUE(table->add_column("id", TableColumn::TYPE_INT, 0));
+        EXPECT_TRUE(table->add_column("name", TableColumn::TYPE_STRING, 32));
+        EXPECT_TRUE(table->add_column("score", TableColumn::TYPE_FLOAT, 0));
+
+        EXPECT_FALSE(table->add_column("bad_field", (TableColumn::Type) 8, 0));
 
         if (!table->create()) {
             throw exception_t("create failed", swoole_get_last_error());
@@ -133,6 +135,8 @@ class table_t {
 
 TEST(table, create) {
     table_t table(1024);
+
+    ASSERT_GT(table.ptr()->get_memory_size(), table.ptr()->get_size() * table.ptr()->get_column_size());
 
     table.set("php", {"php", 1, 1.245});
     table.set("java", {"java", 2, 3.1415926});
