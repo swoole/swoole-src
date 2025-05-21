@@ -238,7 +238,8 @@ class Table {
     }
 
     void init_row(TableRow *new_row, const char *key, int keylen) {
-        sw_memset_zero(reinterpret_cast<char *>(new_row) + offsetof(TableRow, active), sizeof(TableRow) - offsetof(TableRow, active));
+        sw_memset_zero(reinterpret_cast<char *>(new_row) + offsetof(TableRow, active),
+                       sizeof(TableRow) - offsetof(TableRow, active));
         memcpy(new_row->key, key, keylen);
         new_row->key[keylen] = '\0';
         new_row->key_len = keylen;

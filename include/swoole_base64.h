@@ -24,6 +24,6 @@
 #define BASE64_DECODE_OUT_SIZE(s) (((s)) / 4 * 3)
 
 namespace swoole {
-    size_t base64_encode(const unsigned char *in, size_t inlen, char *out);
-    size_t base64_decode(const char *in, size_t inlen, char *out);
-}
+size_t base64_encode(const unsigned char *in, size_t inlen, char *out);
+size_t base64_decode(const char *in, size_t inlen, char *out);
+}  // namespace swoole

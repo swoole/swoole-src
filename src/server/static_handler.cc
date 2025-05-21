@@ -54,7 +54,7 @@ bool StaticHandler::is_modified_range(const std::string &date_range) {
         return false;
     }
 
-    tm tm3 {};
+    tm tm3{};
     const char *date_format = nullptr;
 
     if (strptime(date_range.c_str(), SW_HTTP_RFC1123_DATE_GMT, &tm3) != nullptr) {
@@ -118,7 +118,7 @@ bool StaticHandler::hit() {
     p += l_document_root;
 
     if (!serv->locations->empty()) {
-        for (const auto & i : *serv->locations) {
+        for (const auto &i : *serv->locations) {
             if (swoole_str_istarts_with(url, url_length, i.c_str(), i.size())) {
                 last = true;
             }
@@ -219,7 +219,7 @@ size_t StaticHandler::make_index_page(String *buffer) {
                         dir_path.c_str(),
                         dir_path.c_str());
 
-    for (const auto & dir_file : dir_files) {
+    for (const auto &dir_file : dir_files) {
         if (dir_file == "." || (dir_path == "/" && dir_file == "..")) {
             continue;
         }
@@ -594,7 +594,7 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
             auto task = static_cast<network::SendfileTask *>(sw_malloc(task_size));
             strcpy(task->filename, handler.get_filename());
             if (tasks.size() > 1) {
-                for (const auto & i : tasks) {
+                for (const auto &i : tasks) {
                     response.info.type = SW_SERVER_EVENT_SEND_DATA;
                     response.info.len = strlen(i.part_header);
                     response.data = i.part_header;

@@ -24,7 +24,7 @@ namespace swoole {
 
 class MemoryPool {
   public:
-    virtual ~MemoryPool()= default;
+    virtual ~MemoryPool() = default;
     virtual void *alloc(uint32_t size) = 0;
     virtual void free(void *ptr) = 0;
 

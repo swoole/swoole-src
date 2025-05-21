@@ -316,7 +316,7 @@ Context::~Context() {
     }
 }
 
-std::shared_ptr<Server> listen(const std::string& addr, std::function<void(Context &ctx)> cb, int mode) {
+std::shared_ptr<Server> listen(const std::string &addr, std::function<void(Context &ctx)> cb, int mode) {
     auto server = std::make_shared<Server>(static_cast<Server::Mode>(mode));
     auto index = addr.find(':');
     if (index == std::string::npos) {

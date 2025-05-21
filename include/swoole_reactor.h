@@ -42,7 +42,7 @@ class ReactorImpl {
         reactor_ = _reactor;
     }
     void after_removal_failure(network::Socket *_socket);
-    virtual ~ReactorImpl()= default;
+    virtual ~ReactorImpl() = default;
     virtual bool ready() = 0;
     virtual int add(network::Socket *socket, int events) = 0;
     virtual int set(network::Socket *socket, int events) = 0;
@@ -53,10 +53,10 @@ class ReactorImpl {
 class CallbackManager {
   public:
     typedef std::list<std::pair<Callback, void *>> TaskList;
-    void append(const Callback& fn, void *private_data) {
+    void append(const Callback &fn, void *private_data) {
         list_.emplace_back(fn, private_data);
     }
-    void prepend(const Callback& fn, void *private_data) {
+    void prepend(const Callback &fn, void *private_data) {
         list_.emplace_front(fn, private_data);
         auto t = list_.back();
     }
@@ -183,7 +183,7 @@ class Reactor {
     explicit Reactor(int max_event = SW_REACTOR_MAXEVENTS, Type _type = TYPE_AUTO);
     ~Reactor();
     bool if_exit();
-    void defer(const Callback& cb, void *data = nullptr);
+    void defer(const Callback &cb, void *data = nullptr);
     void set_end_callback(EndCallback id, const std::function<void(Reactor *)> &fn);
     void erase_end_callback(EndCallback id);
     void set_exit_condition(ExitCondition id, const std::function<bool(Reactor *, size_t &)> &fn);
@@ -351,7 +351,7 @@ class Reactor {
         switch (errno) {
         case EINTR:
             return true;
-            default:
+        default:
             break;
         }
         return false;

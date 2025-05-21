@@ -386,7 +386,7 @@ void Reactor::set_exit_condition(ExitCondition id, const std::function<bool(Reac
     exit_conditions[id] = fn;
 }
 
-void Reactor::defer(const Callback& cb, void *data) {
+void Reactor::defer(const Callback &cb, void *data) {
     if (defer_tasks == nullptr) {
         defer_tasks = new CallbackManager;
     }
