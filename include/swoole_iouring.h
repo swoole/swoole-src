@@ -14,19 +14,12 @@
   +----------------------------------------------------------------------+
 */
 
-#ifndef SWOOLE_SRC_SWOOLE_IOURING_H
-#define SWOOLE_SRC_SWOOLE_IOURING_H
+#pragma once
 
 #include "swoole_coroutine.h"
 
 #ifdef SW_USE_IOURING
 #include <liburing.h>
-
-#ifdef HAVE_IOURING_FUTEX
-#ifndef FUTEX2_SIZE_U32
-#define FUTEX2_SIZE_U32 0x02
-#endif
-#endif
 
 using swoole::Coroutine;
 
@@ -98,5 +91,4 @@ class Iouring {
     static int callback(Reactor *reactor, Event *event);
 };
 };  // namespace swoole
-#endif
 #endif

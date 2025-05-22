@@ -19,6 +19,13 @@
 
 #include "swoole_iouring.h"
 
+#ifdef HAVE_IOURING_FUTEX
+#ifndef FUTEX2_SIZE_U32
+#define FUTEX2_SIZE_U32 0x02
+#endif
+#include <linux/futex.h>
+#endif
+
 #ifdef SW_USE_IOURING
 using swoole::Coroutine;
 
