@@ -454,9 +454,6 @@ int Client::close() {
     }
     closed = true;
 
-    int fd = socket->fd;
-    assert(fd != 0);
-
 #ifdef SW_USE_OPENSSL
     if (open_ssl && ssl_context) {
         if (socket->ssl) {
@@ -486,9 +483,14 @@ int Client::close() {
         active = false;
     }
 
+    if (socket->fd == -1) {
+        return SW_OK;
+    }
+
     /**
      * fd marked -1, prevent double close
      */
+    const int fd = socket->fd;
     socket->fd = -1;
     swoole_trace_log(SW_TRACE_CLIENT, "fd=%d", fd);
 

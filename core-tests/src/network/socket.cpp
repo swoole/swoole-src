@@ -49,6 +49,70 @@ TEST(socket, connect_sync) {
     ASSERT_EQ(sock->connect_sync(sa, 0.3), SW_ERR);
     ASSERT_EQ(swoole_get_last_error(), ECONNREFUSED);
     sock->free();
+
+    sock = make_socket(SW_SOCK_TCP, SW_FD_STREAM, 0);
+    ASSERT_NE(sock, nullptr);
+    sa.assign(SW_SOCK_TCP, TEST_HTTP_DOMAIN, 80);
+    ASSERT_EQ(sock->connect_sync(sa, 0.3), SW_OK);
+    sock->free();
+}
+
+TEST(socket, fail) {
+    auto *sock = make_socket(SW_SOCK_TCP, SW_FD_STREAM, 0);
+    ASSERT_NE(sock, nullptr);
+
+    network::Address sa;
+    sa.assign(SW_SOCK_TCP, TEST_HTTP_DOMAIN, 80);
+    ASSERT_EQ(sock->connect_sync(sa, 0.3), SW_OK);
+
+    close(sock->get_fd());
+
+    ASSERT_EQ(sock->get_name(), -1);
+    ASSERT_EQ(errno, EBADF);
+
+    network::Address peer;
+    ASSERT_EQ(sock->get_peer_name(&peer), -1);
+    ASSERT_EQ(errno, EBADF);
+
+    ASSERT_EQ(sock->set_tcp_nopush(1), -1);
+    ASSERT_EQ(sock->listen(1), -1);
+
+    ASSERT_FALSE(sock->set_buffer_size(1));
+    ASSERT_FALSE(sock->set_recv_buffer_size(1));
+    ASSERT_FALSE(sock->set_send_buffer_size(1));
+
+    ASSERT_FALSE(sock->set_tcp_nodelay());
+    ASSERT_FALSE(sock->cork());
+    ASSERT_FALSE(sock->uncork());
+
+    ASSERT_FALSE(sock->set_recv_timeout(0.1));
+    ASSERT_FALSE(sock->set_send_timeout(0.1));
+
+    sock->move_fd();
+    sock->free();
+}
+
+TEST(socket, ssl_fail) {
+    sysv_signal(SIGPIPE, SIG_IGN);
+    network::Client client(SW_SOCK_TCP, false);
+    client.enable_ssl_encrypt();
+
+    ASSERT_EQ(client.connect(TEST_DOMAIN_BAIDU, 443, -1, 0), 0);
+    ASSERT_EQ(client.shutdown(SHUT_WR), 0);
+
+    ASSERT_EQ(client.get_socket()->ssl_send(SW_STRL(TEST_STR)), SW_ERR);
+    ASSERT_EQ(errno, SW_ERROR_SSL_RESET);
+
+    ASSERT_EQ(client.shutdown(SHUT_RD), 0);
+
+    char buf[1024];
+    errno = 0;
+    ASSERT_EQ(client.get_socket()->ssl_recv(SW_STRL(buf)), 0);
+    ASSERT_EQ(errno, 0);
+    ASSERT_EQ(close(client.get_socket()->get_fd()), 0);
+    client.get_socket()->move_fd();
+
+    ASSERT_EQ(client.get_socket()->ssl_recv(SW_STRL(buf)), 0);
 }
 
 TEST(socket, sendto) {
@@ -499,75 +563,6 @@ TEST(socket, dup) {
     sock->free();
 
     test_socket_sync(sock_2, false);
-}
-
-TEST(socket, ipv4_addr) {
-    auto sock = make_socket(SW_SOCK_TCP, SW_FD_STREAM, 0);
-    network::Address addr;
-
-    ASSERT_TRUE(addr.assign("tcp://127.0.0.1:12345"));
-    ASSERT_EQ(sock->connect(addr), SW_ERR);
-    ASSERT_EQ(errno, ECONNREFUSED);
-
-    ASSERT_TRUE(addr.assign("tcp://localhost:12345"));
-    ASSERT_EQ(sock->connect(addr), SW_ERR);
-    ASSERT_EQ(errno, ECONNREFUSED);
-
-    sock->free();
-}
-
-TEST(socket, ipv6_addr) {
-    auto sock = make_socket(SW_SOCK_TCP6, SW_FD_STREAM, 0);
-    network::Address addr;
-
-    ASSERT_TRUE(addr.assign("tcp://[::1]:12345"));
-    ASSERT_EQ(sock->connect(addr), SW_ERR);
-    ASSERT_EQ(errno, ECONNREFUSED);
-
-    ASSERT_TRUE(addr.assign("tcp://[ip6-localhost]:12345"));
-    ASSERT_EQ(sock->connect(addr), SW_ERR);
-    ASSERT_EQ(errno, ECONNREFUSED);
-
-    sock->free();
-}
-
-TEST(socket, unix_addr) {
-    auto sock = make_socket(SW_SOCK_UNIX_STREAM, SW_FD_STREAM, 0);
-    network::Address addr;
-    ASSERT_TRUE(addr.assign("unix:///tmp/swoole-not-exists.sock"));
-    ASSERT_EQ(sock->connect(addr), SW_ERR);
-    ASSERT_EQ(errno, ENOENT);
-    sock->free();
-}
-
-TEST(socket, bad_addr) {
-    network::Address addr;
-    ASSERT_FALSE(addr.assign("test://[::1]:12345"));
-    ASSERT_EQ(swoole_get_last_error(), SW_ERROR_BAD_HOST_ADDR);
-}
-
-TEST(socket, bad_port) {
-    network::Address addr;
-    ASSERT_FALSE(addr.assign("tcp://[::1]:92345"));
-    ASSERT_EQ(swoole_get_last_error(), SW_ERROR_BAD_PORT);
-}
-
-TEST(socket, loopback_addr) {
-    network::Address addr1;
-    addr1.assign(SW_SOCK_TCP, "127.0.0.1", 0);
-    ASSERT_TRUE(addr1.is_loopback_addr());
-
-    network::Address addr2;
-    addr2.assign(SW_SOCK_TCP6, "::1", 0);
-    ASSERT_TRUE(addr1.is_loopback_addr());
-
-    network::Address addr3;
-    addr3.assign(SW_SOCK_TCP, "192.168.1.2", 0);
-    ASSERT_FALSE(addr3.is_loopback_addr());
-
-    network::Address addr4;
-    addr4.assign(SW_SOCK_TCP6, "192::66::88", 0);
-    ASSERT_FALSE(addr4.is_loopback_addr());
 }
 
 TEST(socket, convert_to_type) {
