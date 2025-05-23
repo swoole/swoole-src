@@ -3171,8 +3171,9 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
 
     mt.unpack = [ztasks, return_value](uint16_t i, EventData *result) {
         zval zresult;
-        php_swoole_server_task_unpack(&zresult, result);
-        add_index_zval(return_value, i, &zresult);
+        if (php_swoole_server_task_unpack(&zresult, result)) {
+            add_index_zval(return_value, i, &zresult);
+        }
     };
 
     mt.fail = [ztasks, return_value](uint16_t i) { add_index_bool(return_value, i, 0); };
