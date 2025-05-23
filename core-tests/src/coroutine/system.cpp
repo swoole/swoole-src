@@ -115,6 +115,22 @@ TEST(coroutine_system, getaddrinfo) {
     });
 }
 
+TEST(coroutine_system, getaddrinfo_fail) {
+    test::coroutine::run([](void *arg) {
+        auto ip_list = System::getaddrinfo("w11.baidu.com-not-exists", AF_INET, SOCK_STREAM, 0, "http", -1);
+        ASSERT_EQ(ip_list.size(), 0);
+        ASSERT_ERREQ(EAI_NONAME);
+    });
+}
+
+TEST(coroutine_system, getaddrinfo_timeout) {
+    test::coroutine::run([](void *arg) {
+        auto ip_list = System::getaddrinfo("w12.baidu.com-not-exists", AF_INET, SOCK_STREAM, 0, "http", 0.005);
+        ASSERT_EQ(ip_list.size(), 0);
+        ASSERT_ERREQ(SW_ERROR_CO_TIMEDOUT);
+    });
+}
+
 TEST(coroutine_system, wait_signal) {
     test::coroutine::run([](void *arg) {
         Coroutine::create([](void *) {
@@ -123,6 +139,22 @@ TEST(coroutine_system, wait_signal) {
         });
         ASSERT_EQ(System::wait_signal(SIGUSR1, 1.0), SIGUSR1);
         ASSERT_EQ(System::wait_signal(SIGUSR2, 0.1), -1);
+    });
+}
+
+TEST(coroutine_system, wait_signal_invalid_signo) {
+    test::coroutine::run([](void *arg) {
+        ASSERT_EQ(System::wait_signal(SW_SIGNO_MAX), SW_ERR);
+        ASSERT_ERREQ(EINVAL);
+    });
+}
+
+TEST(coroutine_system, wait_signal_fail) {
+    test::coroutine::run([](void *arg) {
+        SwooleG.signal_listener_num = 1;
+        ASSERT_EQ(System::wait_signal(SIGUSR1, 1.0), SW_ERR);
+        ASSERT_ERREQ(EBUSY);
+        SwooleG.signal_listener_num = 0;
     });
 }
 

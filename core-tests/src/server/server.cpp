@@ -3074,8 +3074,8 @@ TEST(server, send_timeout) {
     ASSERT_EQ(counter[3], 1);
 }
 
-TEST(server, max_request) {
-    Server serv(Server::MODE_PROCESS);
+static void test_max_request(Server::Mode mode) {
+    Server serv(mode);
     serv.worker_num = 2;
     serv.max_request = 128;
 
@@ -3092,16 +3092,26 @@ TEST(server, max_request) {
             lock->lock();
             ListenPort *port = serv->get_primary_port();
 
-            network::SyncClient c(SW_SOCK_TCP);
-            c.connect(TEST_HOST, port->port);
+            auto client_fn = [&]() {
+                network::SyncClient c(SW_SOCK_TCP);
+                c.connect(TEST_HOST, port->port);
 
-            SW_LOOP_N(1024) {
-                c.send(packet, strlen(packet));
-                usleep(1000);
+                SW_LOOP_N(128) {
+                    if (c.send(packet, strlen(packet)) < 0) {
+                        break;
+                    }
+                    usleep(1000);
+                }
+                c.close();
+            };
+
+            SW_LOOP_N(8) {
+                client_fn();
+                usleep(10000);
             }
 
             sleep(1);
-            c.close();
+
             serv->shutdown();
         });
     };
@@ -3119,6 +3129,14 @@ TEST(server, max_request) {
     delete lock;
 
     ASSERT_GE(test::counter_get(0), 8);
+}
+
+TEST(server, max_request_1) {
+    test_max_request(Server::MODE_PROCESS);
+}
+
+TEST(server, max_request_2) {
+    test_max_request(Server::MODE_THREAD);
 }
 
 TEST(server, watermark) {
