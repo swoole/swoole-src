@@ -27,6 +27,10 @@ TEST(address, basic) {
     ASSERT_TRUE(address.assign(SW_SOCK_TCP, TEST_DOMAIN_BAIDU, 80, true));
     address.set_port(443);
     ASSERT_EQ(address.get_port(), 443);
+
+    ASSERT_TRUE(address.assign(SW_SOCK_TCP6, TEST_HTTP_DOMAIN, 80, true));
+    address.set_port(9501);
+    ASSERT_EQ(address.get_port(), 9501);
 }
 
 TEST(address, dns_fail) {
@@ -45,7 +49,7 @@ TEST(address, path_to_long) {
 
 TEST(address, bad_type) {
     Address address{};
-    ASSERT_FALSE(address.assign((swSocketType)(SW_SOCK_RAW6 + 9), TEST_DOMAIN_BAIDU));
+    ASSERT_FALSE(address.assign((swSocketType) (SW_SOCK_RAW6 + 9), TEST_DOMAIN_BAIDU));
     ASSERT_ERREQ(SW_ERROR_BAD_SOCKET_TYPE);
 }
 
@@ -53,7 +57,7 @@ TEST(address, type_str) {
     ASSERT_STREQ(Address::type_str(SW_SOCK_TCP), "IPv4");
     ASSERT_STREQ(Address::type_str(SW_SOCK_UNIX_STREAM), "UnixSocket");
     ASSERT_STREQ(Address::type_str(SW_SOCK_TCP6), "IPv6");
-    ASSERT_STREQ(Address::type_str((swSocketType)(SW_SOCK_RAW6 + 9)), "Unknown");
+    ASSERT_STREQ(Address::type_str((swSocketType) (SW_SOCK_RAW6 + 9)), "Unknown");
 }
 
 TEST(address, is_loopback_addr) {

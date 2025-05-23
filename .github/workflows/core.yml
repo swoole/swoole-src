@@ -29,6 +29,12 @@ jobs:
           PROXY_USER: user
           PROXY_PASSWORD: password
           PROXY_SERVER: 0.0.0.0:1080
+      socks5-no-auth:
+        image: "xkuma/socks5"
+        ports:
+          - 8081:1080
+        env:
+          PROXY_SERVER: 0.0.0.0:1080
 
     steps:
       - uses: actions/checkout@v4

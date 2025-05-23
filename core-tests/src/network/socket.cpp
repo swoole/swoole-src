@@ -55,6 +55,12 @@ TEST(socket, connect_sync) {
     sa.assign(SW_SOCK_TCP, TEST_HTTP_DOMAIN, 80);
     ASSERT_EQ(sock->connect_sync(sa, 0.3), SW_OK);
     sock->free();
+
+    sock = make_socket(SW_SOCK_UDP, SW_FD_STREAM, 0);
+    ASSERT_NE(sock, nullptr);
+    sa.assign(SW_SOCK_UDP, "127.0.0.1", 9900);
+    ASSERT_EQ(sock->connect_sync(sa, 0.3), SW_OK);
+    sock->free();
 }
 
 TEST(socket, fail) {
