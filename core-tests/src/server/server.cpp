@@ -1405,9 +1405,7 @@ TEST(server, task_sync_multi_task) {
                 }
             };
 
-            mt.fail = [&results](uint16_t i) {
-                DEBUG() << "task failed: " << i << std::endl;
-            };
+            mt.fail = [&results](uint16_t i) { DEBUG() << "task failed: " << i << std::endl; };
 
             EXPECT_TRUE(serv->task_sync(mt, 10));
 

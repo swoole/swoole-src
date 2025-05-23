@@ -1520,7 +1520,7 @@ class Server {
                  const std::string &msg,
                  const Command::Callback &fn);
 
-    bool task(EventData *task, int *dst_worker_id, bool blocking = false);
+    bool task(EventData *_task, int *dst_worker_id, bool blocking = false);
     bool finish(const char *data, size_t data_len, int flags, EventData *current_task);
     bool task_sync(EventData *task, int *dst_worker_id, double timeout = -1);
     bool task_sync(MultiTask &mtask, double timeout = -1);

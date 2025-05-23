@@ -240,7 +240,7 @@ class Context {
     ContextImpl *impl;
 };
 
-std::shared_ptr<Server> listen(const std::string &addr, std::function<void(Context &ctx)> cb, int mode = 1);
+std::shared_ptr<Server> listen(const std::string &addr, const std::function<void(Context &ctx)> &cb, int mode = 1);
 //-----------------------------------------------------------------
 }  // namespace http_server
 }  // namespace swoole

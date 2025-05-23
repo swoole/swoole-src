@@ -758,15 +758,15 @@ TEST(http_server, node_websocket_client_2) {
 
 TEST(http_server, parser1) {
     std::thread t;
+    string file = test::get_root_path() + "/core-tests/fuzz/cases/req1.bin";
     auto server = http_server::listen(":0", [](Context &ctx) {
         EXPECT_EQ(ctx.form_data.size(), 3);
         ctx.end("DONE");
     });
     server->worker_num = 1;
-    server->onWorkerStart = [&t](Server *server, Worker *worker) {
-        t = std::thread([server]() {
+    server->onWorkerStart = [&t, &file](Server *server, Worker *worker) {
+        t = std::thread([server, &file]() {
             swoole_signal_block_all();
-            string file = test::get_root_path() + "/core-tests/fuzz/cases/req1.bin";
             File fp(file, O_RDONLY);
             EXPECT_TRUE(fp.ready());
             auto str = fp.read_content();

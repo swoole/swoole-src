@@ -116,7 +116,7 @@ void Server::task_dump(EventData *task) {
     sw_printf("%s", buf);
 
     if (task->info.ext_flags & SW_TASK_TMPFILE) {
-        PacketTask *pkg = (PacketTask *)task->data;
+        PacketTask *pkg = reinterpret_cast<PacketTask *>(task->data);
         sw_printf("Task[tmpfile]=%.*s\n", pkg->length, pkg->tmpfile);
 
         auto rs = file_get_contents(pkg->tmpfile);
@@ -228,7 +228,7 @@ bool Server::task_sync(MultiTask &mtask, double timeout) {
     Worker *worker = get_worker(worker_id);
     int dst_worker_id;
 
-    File fp = swoole::make_tmpfile();
+    File fp = make_tmpfile();
     if (!fp.ready()) {
         swoole_set_last_error(errno);
         return false;
@@ -237,7 +237,7 @@ bool Server::task_sync(MultiTask &mtask, double timeout) {
     std::string file_path = fp.get_path();
     fp.close();
 
-    int *finish_count = (int *) task_result->data;
+    auto finish_count = reinterpret_cast<int *>(task_result->data);
 
     worker->lock->lock();
     *finish_count = 0;
@@ -246,7 +246,7 @@ bool Server::task_sync(MultiTask &mtask, double timeout) {
     worker->lock->unlock();
 
     // clear history task
-    network::Socket *task_notify_socket = pipe->get_socket(false);
+    Socket *task_notify_socket = pipe->get_socket(false);
     task_notify_socket->set_nonblock();
     while (task_notify_socket->read(&notify, sizeof(notify)) > 0) {
     }
@@ -286,7 +286,7 @@ bool Server::task_sync(MultiTask &mtask, double timeout) {
 
     double stated_at = microtime();
     while (*finish_count < n_task) {
-        int ret = pipe->read(&notify, sizeof(notify));
+        const int ret = pipe->read(&notify, sizeof(notify));
         if (ret <= 0) {
             break;
         }
@@ -304,7 +304,7 @@ bool Server::task_sync(MultiTask &mtask, double timeout) {
     }
 
     do {
-        EventData *result = (EventData *) (content->str + content->offset);
+        EventData *result = reinterpret_cast<EventData *>(content->str + content->offset);
         int index = mtask.find(get_task_id(result));
         if (index != -1) {
             mtask.unpack(index, result);
