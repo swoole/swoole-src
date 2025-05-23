@@ -562,6 +562,7 @@ TEST(server, task_thread) {
         c.recv(buf, sizeof(buf));
         c.close();
 
+        usleep(100000);
         serv.shutdown();
     });
 
@@ -1488,6 +1489,7 @@ static void test_task_ipc(Server &serv) {
 
     serv.onFinish = [](Server *serv, EventData *task) -> int {
         EXPECT_EQ(string(task->data, task->info.len), string(packet));
+        usleep(100000);
         serv->shutdown();
         return 0;
     };
@@ -1888,9 +1890,9 @@ TEST(server, udp_packet) {
 
     if (pid > 0) {
         server->start();
-    }
-
-    if (pid == 0) {
+        int status;
+        waitpid(pid, &status, 0);
+    } else if (pid == 0) {
         sleep(1);
         auto port = server->get_primary_port();
 
@@ -1903,12 +1905,14 @@ TEST(server, udp_packet) {
         char buf[1024];
         sleep(1);
         cli.recv(buf, 128, 0);
-        ASSERT_STREQ(buf, packet);
+        ASSERT_MEMEQ(buf, packet, strlen(packet));
         cli.close();
 
         kill(server->get_master_pid(), SIGTERM);
         exit(0);
     }
+
+
 }
 
 TEST(server, protocols) {
