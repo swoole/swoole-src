@@ -491,8 +491,12 @@ typedef unsigned char uchar;
 #define swoole_tolower(c) (uchar)((c >= 'A' && c <= 'Z') ? (c | 0x20) : c)
 #define swoole_toupper(c) (uchar)((c >= 'a' && c <= 'z') ? (c & ~0x20) : c)
 
-void swoole_random_string(char *buf, size_t size);
-void swoole_random_string(std::string &str, size_t size);
+/**
+ * This function appends a '\0' at the end of the string,
+ * so the allocated memory buffer must be len + 1.
+ */
+void swoole_random_string(char *buf, size_t len);
+void swoole_random_string(std::string &str, size_t len);
 uint64_t swoole_random_int();
 size_t swoole_random_bytes(char *buf, size_t size);
 

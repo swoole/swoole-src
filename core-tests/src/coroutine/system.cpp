@@ -246,6 +246,24 @@ TEST(coroutine_system, wait_event_writable) {
     });
 }
 
+TEST(coroutine_system, wait_event_fail) {
+    test::coroutine::run([&](void *arg) {
+        ASSERT_EQ(System::wait_event(9999, 0, 1), SW_ERR);
+        ASSERT_ERREQ(EINVAL);
+
+        ASSERT_EQ(System::wait_event(fileno(stdin), SW_EVENT_READ, 0), SW_ERR);
+        ASSERT_ERREQ(ETIMEDOUT);
+
+        ASSERT_EQ(System::wait_event(fileno(stdout), SW_EVENT_WRITE, 0), SW_EVENT_WRITE);
+
+        ASSERT_EQ(System::wait_event(9999, SW_EVENT_WRITE, 0), -1);
+        ASSERT_ERREQ(EBADF);
+
+        ASSERT_EQ(System::wait_event(9999, SW_EVENT_WRITE, 1.0), -1);
+        ASSERT_ERREQ(EBADF);
+    });
+}
+
 TEST(coroutine_system, swoole_stream_select) {
     UnixSocket p(true, SOCK_STREAM);
     std::unordered_map<int, swoole::coroutine::PollSocket> fds;

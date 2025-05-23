@@ -546,26 +546,27 @@ static int event_waiter_error_callback(Reactor *reactor, Event *event) {
  * @errror: errno & swoole_get_last_error()
  */
 int System::wait_event(int fd, int events, double timeout) {
-    events &= SW_EVENT_READ | SW_EVENT_WRITE;
     if (events == 0) {
         swoole_set_last_error(EINVAL);
-        return 0;
+        return -1;
     }
 
     if (timeout == 0) {
-        struct pollfd pfd;
+        pollfd pfd;
         pfd.fd = fd;
         pfd.events = translate_events_to_poll(events);
         pfd.revents = 0;
 
         int retval = ::poll(&pfd, 1, 0);
         if (retval == 1) {
+            if (pfd.revents & POLLNVAL) {
+                swoole_set_last_error(EBADF);
+                return -1;
+            }
             return translate_events_from_poll(pfd.revents);
         }
-        if (retval < 0) {
-            swoole_set_last_error(errno);
-        }
-        return 0;
+        swoole_set_last_error(retval < 0 ? errno : ETIMEDOUT);
+        return -1;
     }
 
     EventWaiter waiter(fd, events, timeout);
