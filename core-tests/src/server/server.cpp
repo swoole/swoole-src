@@ -1196,12 +1196,11 @@ TEST(server, task_worker) {
     ASSERT_EQ(serv.gs->task_count, 2);
 }
 
-// PHP_METHOD(swoole_server, task)
-TEST(server, task_worker2) {
-    Server serv(Server::MODE_PROCESS);
+static void test_task(Server::Mode mode,  uint8_t task_ipc_mode = Server::TASK_IPC_UNIXSOCK) {
+    Server serv(mode);
     serv.worker_num = 2;
+    serv.task_ipc_mode = task_ipc_mode;
     serv.task_worker_num = 3;
-    serv.task_enable_coroutine = 1;
 
     ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     if (!port) {
@@ -1225,6 +1224,7 @@ TEST(server, task_worker2) {
     ASSERT_EQ(serv.create(), SW_OK);
 
     serv.onWorkerStart = [&](Server *serv, Worker *worker) {
+        DEBUG() << "onWorkerStart: id=" << worker->id << "\n";
         if (worker->id == 1) {
             int _dst_worker_id = 0;
 
@@ -1234,13 +1234,26 @@ TEST(server, task_worker2) {
             memcpy(buf.data, packet, strlen(packet));
             buf.info.reactor_id = worker->id;
             buf.info.ext_flags |= (SW_TASK_NONBLOCK | SW_TASK_CALLBACK);
-            ASSERT_EQ(serv->gs->task_workers.dispatch(&buf, &_dst_worker_id), SW_OK);
+            ASSERT_TRUE(serv->task(&buf, &_dst_worker_id));
             sleep(1);
-            kill(serv->gs->master_pid, SIGTERM);
+            serv->shutdown();
         }
     };
 
     ASSERT_EQ(serv.start(), 0);
+}
+
+// PHP_METHOD(swoole_server, task)
+TEST(server, task_base) {
+    test_task(Server::MODE_BASE);
+}
+
+TEST(server, task_process) {
+    test_task(Server::MODE_PROCESS);
+}
+
+TEST(server, task_ipc_stream) {
+    test_task(Server::MODE_PROCESS, Server::TASK_IPC_STREAM);
 }
 
 // static PHP_METHOD(swoole_server, taskCo)

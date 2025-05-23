@@ -91,7 +91,7 @@ static void swoole_http_destroy_context(swoole_http_parser *parser) {
     delete static_cast<HttpContext *>(parser->data);
 }
 
-static int swoole_http_parser_method(const string& protocol) {
+static int swoole_http_parser_method(const string &protocol) {
     swoole_http_parser *parser = swoole_http_parser_create();
     swoole_http_parser_execute(parser, &http_parser_settings, protocol.c_str(), protocol.length());
 
