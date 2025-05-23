@@ -37,10 +37,10 @@ TEST(buffer, append_iov) {
         total_len += v[i].iov_len;
     }
 
-    unique_ptr<char> s1(new char[v[0].iov_len]);
-    unique_ptr<char> s2(new char[v[1].iov_len]);
-    unique_ptr<char> s3(new char[v[2].iov_len]);
-    unique_ptr<char> s4(new char[v[3].iov_len]);
+    unique_ptr<char[]> s1(new char[v[0].iov_len]);
+    unique_ptr<char[]> s2(new char[v[1].iov_len]);
+    unique_ptr<char[]> s3(new char[v[2].iov_len]);
+    unique_ptr<char[]> s4(new char[v[3].iov_len]);
 
     v[0].iov_base = s1.get();
     v[1].iov_base = s2.get();
