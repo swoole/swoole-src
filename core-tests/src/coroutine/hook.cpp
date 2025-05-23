@@ -232,7 +232,7 @@ TEST(coroutine_hook, rename) {
         ASSERT_EQ(swoole_coroutine_write(fd, buf, n_buf), n_buf);
         swoole_coroutine_close(fd);
 
-        std::string to_file_name = std::string(test_file, ".bak");
+        std::string to_file_name = std::string(test_file) + ".bak";
         ASSERT_EQ(swoole_coroutine_rename(test_file, to_file_name.c_str()), 0);
         ASSERT_EQ(access(TEST_TMP_DIR, F_OK), -1);
         ASSERT_EQ(access(to_file_name.c_str(), F_OK), 0);
