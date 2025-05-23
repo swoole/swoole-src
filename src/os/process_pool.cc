@@ -1156,7 +1156,10 @@ void ReloadTask::add_workers(Worker *list, size_t n) {
 }
 
 void ReloadTask::add_timeout_killer(int timeout) {
-    timer = swoole_timer_add(sec2msec(timeout), false, [this](Timer *timer, TimerNode *tnode) { kill_all(); });
+    timer = swoole_timer_add(sec2msec(timeout), false, [this](Timer *, TimerNode *) {
+        kill_all();
+        timer = nullptr;
+    });
 }
 
 bool ReloadTask::remove(pid_t pid) {
