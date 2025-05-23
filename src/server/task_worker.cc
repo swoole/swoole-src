@@ -110,6 +110,20 @@ static int TaskWorker_onTask(ProcessPool *pool, Worker *worker, EventData *task)
     return ret;
 }
 
+void Server::task_dump(EventData *task) {
+    char buf[1024];
+    task->info.dump(buf, sizeof(buf));
+    sw_printf("%s", buf);
+
+    if (task->info.ext_flags & SW_TASK_TMPFILE) {
+        PacketTask *pkg = (PacketTask *)task->data;
+        sw_printf("Task[tmpfile]=%.*s\n", pkg->length, pkg->tmpfile);
+
+        auto rs = file_get_contents(pkg->tmpfile);
+        sw_printf("Task[content]=%.*s\n", rs->length, rs->str);
+    }
+}
+
 bool Server::task_pack(EventData *task, const void *_data, size_t _length) {
     task->info = {};
     task->info.type = SW_SERVER_EVENT_TASK;
@@ -194,6 +208,113 @@ bool Server::task_sync(EventData *_task, int *dst_worker_id, double timeout) {
     }
 
     return false;
+}
+
+int Server::MultiTask::find(TaskId task_id) {
+    auto iter = map.find(task_id);
+    if (iter != map.end()) {
+        return iter->second;
+    } else {
+        return -1;
+    }
+}
+
+bool Server::task_sync(MultiTask &mtask, double timeout) {
+    WorkerId worker_id = swoole_get_worker_id();
+    uint64_t notify;
+    EventData *task_result = get_task_result();
+    task_result->info = {};
+    Pipe *pipe = task_notify_pipes.at(worker_id).get();
+    Worker *worker = get_worker(worker_id);
+    int dst_worker_id;
+
+    File fp = swoole::make_tmpfile();
+    if (!fp.ready()) {
+        swoole_set_last_error(errno);
+        return false;
+    }
+
+    std::string file_path = fp.get_path();
+    fp.close();
+
+    int *finish_count = (int *) task_result->data;
+
+    worker->lock->lock();
+    *finish_count = 0;
+
+    swoole_strlcpy(task_result->data + 4, file_path.c_str(), SW_TASK_TMP_PATH_SIZE);
+    worker->lock->unlock();
+
+    // clear history task
+    network::Socket *task_notify_socket = pipe->get_socket(false);
+    task_notify_socket->set_nonblock();
+    while (task_notify_socket->read(&notify, sizeof(notify)) > 0) {
+    }
+    task_notify_socket->set_block();
+
+    auto n_task = mtask.count;
+    SW_LOOP_N(mtask.count) {
+        EventData buf;
+        TaskId task_id = mtask.pack(i, &buf);
+        if (task_id < 0) {
+            swoole_warning("task pack failed");
+            goto _fail;
+        }
+        buf.info.ext_flags |= SW_TASK_WAITALL;
+        sw_atomic_fetch_add(&gs->tasking_num, 1);
+        dst_worker_id = -1;
+        if (!task(&buf, &dst_worker_id, true)) {
+            swoole_warning("failed to dispatch task");
+            task_id = -1;
+        _fail:
+            mtask.fail(i);
+            n_task--;
+        } else {
+            sw_atomic_fetch_sub(&gs->tasking_num, 1);
+        }
+        mtask.map[task_id] = i;
+    }
+
+    if (n_task == 0) {
+        swoole_set_last_error(SW_ERROR_TASK_DISPATCH_FAIL);
+        return false;
+    }
+
+    if (timeout > 0) {
+        pipe->set_timeout(timeout);
+    }
+
+    double stated_at = microtime();
+    while (*finish_count < n_task) {
+        int ret = pipe->read(&notify, sizeof(notify));
+        if (ret <= 0) {
+            break;
+        }
+        if (timeout > 0 && microtime() - stated_at > timeout) {
+            break;
+        }
+    }
+
+    worker->lock->lock();
+    auto content = file_get_contents(file_path);
+    worker->lock->unlock();
+
+    if (!content) {
+        return false;
+    }
+
+    do {
+        EventData *result = (EventData *) (content->str + content->offset);
+        int index = mtask.find(get_task_id(result));
+        if (index != -1) {
+            mtask.unpack(index, result);
+        }
+        content->offset += result->size();
+    } while (content->offset < 0 || (size_t) content->offset < content->length);
+    // delete tmp file
+    unlink(file_path.c_str());
+
+    return true;
 }
 
 bool Server::task_unpack(EventData *task, String *buffer, PacketPtr *packet) {
@@ -400,6 +521,8 @@ bool Server::finish(const char *data, size_t data_len, int flags, EventData *cur
                 buf.info.type = SW_SERVER_EVENT_FINISH;
                 buf.info.fd = get_task_id(current_task);
                 size_t bytes = buf.size();
+                swoole_trace_log(SW_TRACE_SERVER, "write %zu bytes to tmp file '%s'", bytes, _tmpfile);
+
                 if (file.write_all(&buf, bytes) != bytes) {
                     swoole_sys_warning("write(%s, %ld) failed", _tmpfile, bytes);
                 }

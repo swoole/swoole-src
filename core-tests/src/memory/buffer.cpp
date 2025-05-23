@@ -32,7 +32,7 @@ TEST(buffer, append_iov) {
     iovec v[iovcnt];
     size_t total_len = 0;
 
-    SW_LOOP_N (iovcnt) {
+    SW_LOOP_N(iovcnt) {
         v[i].iov_len = swoole_rand(99, 4095);
         total_len += v[i].iov_len;
     }
@@ -68,7 +68,7 @@ TEST(buffer, append_iov) {
     }
 
     size_t indent = 0;
-    SW_LOOP_N (iovcnt) {
+    SW_LOOP_N(iovcnt) {
         if (offset >= v[i].iov_len) {
             offset -= v[i].iov_len;
             continue;

@@ -660,6 +660,21 @@ class Server {
         std::string name;
     };
 
+    struct MultiTask {
+        uint16_t count;
+        std::unordered_map<TaskId, uint16_t> map;
+
+        std::function<TaskId(uint16_t index, EventData *buf)> pack;
+        std::function<void(uint16_t index, EventData *result)> unpack;
+        std::function<void(uint16_t index)> fail;
+
+        MultiTask(uint16_t n) {
+            count = n;
+        }
+
+        int find(TaskId task_id);
+    };
+
     enum Mode {
         MODE_BASE = 1,
         MODE_PROCESS = 2,
@@ -1507,7 +1522,8 @@ class Server {
 
     bool task(EventData *task, int *dst_worker_id, bool blocking = false);
     bool finish(const char *data, size_t data_len, int flags, EventData *current_task);
-    bool task_sync(EventData *task, int *dst_worker_id, double timeout);
+    bool task_sync(EventData *task, int *dst_worker_id, double timeout = -1);
+    bool task_sync(MultiTask &mtask, double timeout = -1);
     bool send_pipe_message(WorkerId worker_id, EventData *msg);
 
     void init_reactor(Reactor *reactor);
@@ -1604,6 +1620,7 @@ class Server {
     static int reactor_process_main_loop(ProcessPool *pool, Worker *worker);
     static void reactor_thread_main_loop(Server *serv, int reactor_id);
     static bool task_pack(EventData *task, const void *data, size_t data_len);
+    static void task_dump(EventData *task);
     static bool task_unpack(EventData *task, String *buffer, PacketPtr *packet);
     static void master_signal_handler(int signo);
     static void heartbeat_check(Timer *timer, TimerNode *tnode);

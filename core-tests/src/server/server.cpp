@@ -1347,15 +1347,22 @@ TEST(server, task_worker4) {
     ASSERT_EQ(serv.start(), 0);
 }
 
-// static PHP_METHOD(swoole_server, taskWaitMulti)
-TEST(server, task_worker5) {
+TEST(server, task_sync_multi_task) {
     Server serv(Server::MODE_PROCESS);
     serv.worker_num = 2;
     serv.task_worker_num = 3;
-    serv.task_enable_coroutine = 1;
 
-    char data[SW_IPC_MAX_SIZE * 2] = {};
-    swoole_random_string(data, SW_IPC_MAX_SIZE * 2);
+    std::vector<std::string> tasks;
+    std::vector<std::string> results;
+    int n_task = 16;
+    size_t len_task = SW_IPC_MAX_SIZE * 2;
+    SW_LOOP_N(n_task) {
+        char data[len_task] = {};
+        swoole_random_string(data, len_task - 1);
+        tasks.push_back(string(data, len_task - 1));
+    }
+
+    results.resize(n_task);
 
     ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     if (!port) {
@@ -1365,57 +1372,48 @@ TEST(server, task_worker5) {
 
     serv.onReceive = [](Server *server, RecvData *req) -> int { return SW_OK; };
 
-    serv.onTask = [&data](Server *serv, EventData *task) -> int {
-        PacketTask *pkg = (PacketTask *) task->data;
-        ifstream ifs;
-        ifs.open(pkg->tmpfile);
-        char resp[SW_IPC_MAX_SIZE * 2] = {0};
-        ifs >> resp;
-        ifs.close();
-
-        EXPECT_EQ(string(resp), string(data));
-        EXPECT_TRUE(serv->finish(resp, SW_IPC_MAX_SIZE * 2, 0, task));
+    serv.onTask = [](Server *serv, EventData *task) -> int {
+        PacketPtr packet{};
+        String buffer(32 * 1024);
+        if (!Server::task_unpack(task, &buffer, &packet)) {
+            return -1;
+        }
+        EXPECT_TRUE(serv->finish(packet.data, packet.length, 0, task));
         return 0;
     };
 
     ASSERT_EQ(serv.create(), SW_OK);
+    SwooleG.current_task_id = 100;
 
-    serv.onWorkerStart = [&data](Server *serv, Worker *worker) {
+    serv.onWorkerStart = [&tasks, &results](Server *serv, Worker *worker) {
         if (worker->id == 1) {
-            int _dst_worker_id = 0;
+            Server::MultiTask mt(tasks.size());
+            mt.pack = [tasks](uint16_t i, EventData *buf) -> TaskId {
+                auto &task = tasks.at(i);
+                if (!Server::task_pack(buf, task.c_str(), task.length())) {
+                    return -1;
+                } else {
+                    return buf->info.fd;
+                }
+            };
 
-            EventData *task_result = &(serv->task_results[worker->id]);
-            sw_memset_zero(task_result, sizeof(*task_result));
+            mt.unpack = [&tasks, &results](uint16_t i, EventData *result) {
+                String buffer(32 * 1024);
+                PacketPtr packet;
+                if (Server::task_unpack(result, &buffer, &packet)) {
+                    results[i] = std::string(packet.data, packet.length);
+                }
+            };
 
-            File fp = make_tmpfile();
-            std::string file_path = fp.get_path();
-            fp.close();
-            int *finish_count = (int *) task_result->data;
-            *finish_count = 0;
+            mt.fail = [&results](uint16_t i) {
+                DEBUG() << "task failed: " << i << std::endl;
+            };
 
-            swoole_strlcpy(task_result->data + 4, file_path.c_str(), SW_TASK_TMP_PATH_SIZE);
+            EXPECT_TRUE(serv->task_sync(mt, 10));
 
-            EventData buf{};
-            memset(&buf.info, 0, sizeof(buf.info));
-            Server::task_pack(&buf, data, SW_IPC_MAX_SIZE * 2);
-            buf.info.ext_flags |= SW_TASK_WAITALL;
-            buf.info.reactor_id = worker->id;
-            serv->gs->task_workers.dispatch(&buf, &_dst_worker_id);
-            sleep(3);
-
-            ifstream ifs;
-            ifs.open(task_result->data + 4);
-            char recv[sizeof(EventData)] = {0};
-            ifs >> recv;
-            ifs.close();
-
-            EventData *task = (EventData *) recv;
-            PacketTask *pkg = (PacketTask *) task->data;
-            ifs.open(pkg->tmpfile);
-            char resp[SW_IPC_MAX_SIZE * 2] = {0};
-            ifs >> resp;
-            ifs.close();
-            EXPECT_EQ(string(resp), string(data));
+            SW_LOOP_N(tasks.size()) {
+                EXPECT_EQ(tasks[i], results[i]);
+            }
 
             kill(serv->gs->master_pid, SIGTERM);
         }
