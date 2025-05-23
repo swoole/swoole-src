@@ -20,126 +20,68 @@
 
 #include "swoole_coroutine.h"
 #include "swoole_coroutine_c_api.h"
+#include "swoole_coroutine_system.h"
 
 using swoole::Coroutine;
-
-class LockManager {
-  public:
-    bool lock_ex = false;
-    bool lock_sh = false;
-    std::queue<Coroutine *> queue_;
-};
-
-static std::unordered_map<std::string, LockManager *> lock_pool;
-
-static inline LockManager *get_manager(const char *filename) {
-    std::string key(filename);
-    auto i = lock_pool.find(key);
-    LockManager *lm;
-    if (i == lock_pool.end()) {
-        lm = new LockManager;
-        lock_pool[key] = lm;
-    } else {
-        lm = i->second;
-    }
-    return lm;
-}
-
-static inline int lock_ex(const char *filename, int fd) {
-    LockManager *lm = get_manager(filename);
-    if (lm->lock_ex || lm->lock_sh) {
-        Coroutine *co = Coroutine::get_current();
-        lm->queue_.push(co);
-        co->yield();
-    }
-    lm->lock_ex = true;
-    if (swoole_coroutine_flock(fd, LOCK_EX) < 0) {
-        lm->lock_ex = false;
-        return -1;
-    } else {
-        return 0;
-    }
-}
-
-static inline int lock_sh(const char *filename, int fd) {
-    LockManager *lm = get_manager(filename);
-    if (lm->lock_ex) {
-        Coroutine *co = Coroutine::get_current();
-        lm->queue_.push(co);
-        co->yield();
-    }
-    lm->lock_sh = true;
-    if (swoole_coroutine_flock(fd, LOCK_SH) < 0) {
-        lm->lock_sh = false;
-        return -1;
-    } else {
-        return 0;
-    }
-}
-
-static inline int lock_release(const char *filename, int fd) {
-    std::string key(filename);
-    auto i = lock_pool.find(key);
-    if (i == lock_pool.end()) {
-        return swoole_coroutine_flock(fd, LOCK_UN);
-    }
-    LockManager *lm = i->second;
-    if (lm->queue_.empty()) {
-        delete lm;
-        lock_pool.erase(i);
-        return swoole_coroutine_flock(fd, LOCK_UN);
-    } else {
-        Coroutine *co = lm->queue_.front();
-        lm->queue_.pop();
-        int retval = swoole_coroutine_flock(fd, LOCK_UN);
-        co->resume();
-        return retval;
-    }
-}
+using swoole::coroutine::async;
+using swoole::coroutine::wait_for;
 
 #ifdef LOCK_NB
-static inline int lock_nb(const char *filename, int fd, int operation) {
-    int retval = ::flock(fd, operation | LOCK_NB);
-    if (retval == 0) {
-        LockManager *lm = get_manager(filename);
-        if (operation == LOCK_EX) {
-            lm->lock_ex = true;
+static inline int do_lock(int fd, int operation) {
+    int retval = 0;
+    auto success = wait_for([&retval, operation, fd]() {
+        auto rv = flock(fd, operation | LOCK_NB);
+        if (rv == 0) {
+            retval = 0;
+        } else if (rv == -1 && errno == EWOULDBLOCK) {
+            return false;
         } else {
-            lm->lock_sh = true;
+            retval = -1;
         }
-    }
-    return retval;
+        return true;
+    });
+    return success ? retval : -1;
+}
+
+static inline int lock_ex(int fd) {
+    return do_lock(fd, LOCK_EX);
+}
+
+static inline int lock_sh(int fd) {
+    return do_lock(fd, LOCK_SH);
+}
+
+static inline int lock_release(int fd) {
+    return flock(fd, LOCK_UN);
 }
 #endif
 
-int swoole_coroutine_flock_ex(const char *filename, int fd, int operation) {
+int swoole_coroutine_flock(int fd, int operation) {
     Coroutine *co = Coroutine::get_current();
     if (sw_unlikely(SwooleTG.reactor == nullptr || !co)) {
         return ::flock(fd, operation);
     }
 
-    const char *real = realpath(filename, sw_tg_buffer()->str);
-    if (real == nullptr) {
-        errno = ENOENT;
-        swoole_set_last_error(ENOENT);
-        return -1;
+#ifndef LOCK_NB
+    int retval = -1;
+    async([&]() { retval = flock(fd, operation); });
+    return retval;
+#else
+    if (operation & LOCK_NB) {
+        return ::flock(fd, operation);
     }
-
     switch (operation) {
     case LOCK_EX:
-        return lock_ex(real, fd);
+        return lock_ex(fd);
     case LOCK_SH:
-        return lock_sh(real, fd);
+        return lock_sh(fd);
     case LOCK_UN:
-        return lock_release(real, fd);
+        return lock_release(fd);
     default:
-#ifdef LOCK_NB
-        if (operation & LOCK_NB) {
-            return lock_nb(real, fd, operation & (~LOCK_NB));
-        }
-#endif
-        return -1;
+        break;
     }
-
-    return 0;
+    errno = EINVAL;
+    swoole_set_last_error(EINVAL);
+    return -1;
+#endif
 }

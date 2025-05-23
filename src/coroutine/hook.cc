@@ -483,16 +483,6 @@ int swoole_coroutine_fclose(FILE *stream) {
     return retval;
 }
 
-int swoole_coroutine_flock(int fd, int operation) {
-    if (sw_unlikely(is_no_coro())) {
-        return flock(fd, operation);
-    }
-
-    int retval = -1;
-    async([&]() { retval = flock(fd, operation); });
-    return retval;
-}
-
 DIR *swoole_coroutine_opendir(const char *name) {
     if (sw_unlikely(is_no_coro())) {
         return opendir(name);

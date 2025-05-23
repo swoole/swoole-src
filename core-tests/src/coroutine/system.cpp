@@ -52,18 +52,18 @@ TEST(coroutine_system, flock) {
     test::coroutine::run([&buf](void *) {
         int fd = swoole_coroutine_open(test_file, File::WRITE | File::CREATE, 0666);
         ASSERT_TRUE(fd > 0);
-        swoole_coroutine_flock_ex(test_file, fd, LOCK_EX);
+        swoole_coroutine_flock(fd, LOCK_EX);
 
         for (int i = 0; i < 4; i++) {
             Coroutine::create([&buf](void *) {
                 int fd = swoole_coroutine_open(test_file, File::READ, 0);
                 ASSERT_TRUE(fd > 0);
-                swoole_coroutine_flock_ex(test_file, fd, LOCK_SH);
+                swoole_coroutine_flock(fd, LOCK_SH);
                 String read_buf(DATA_SIZE_2);
                 auto rn = swoole_coroutine_read(fd, read_buf.str, read_buf.size - 1);
                 ASSERT_EQ(rn, read_buf.size - 1);
                 read_buf.str[read_buf.size - 1] = 0;
-                swoole_coroutine_flock_ex(test_file, fd, LOCK_UN);
+                swoole_coroutine_flock(fd, LOCK_UN);
                 EXPECT_STREQ(read_buf.str, buf->str);
                 swoole_coroutine_close(fd);
             });
@@ -71,7 +71,7 @@ TEST(coroutine_system, flock) {
 
         auto wn = swoole_coroutine_write(fd, buf->str, buf->size - 1);
         ASSERT_EQ(wn, buf->size - 1);
-        swoole_coroutine_flock_ex(test_file, fd, LOCK_UN);
+        swoole_coroutine_flock(fd, LOCK_UN);
         swoole_coroutine_close(fd);
     });
 
@@ -80,17 +80,28 @@ TEST(coroutine_system, flock) {
 
 TEST(coroutine_system, flock_nb) {
     coroutine::run([&](void *arg) {
+        DEBUG() << "[thread-1] open" << std::endl;
         int fd = swoole_coroutine_open(test_file, File::WRITE | File::CREATE, 0666);
-        ASSERT_EQ(swoole_coroutine_flock_ex(test_file, fd, LOCK_EX | LOCK_NB), 0);
+        DEBUG() << "[thread-1] LOCK_EX | LOCK_NB" << std::endl;
+        ASSERT_EQ(swoole_coroutine_flock(fd, LOCK_EX | LOCK_NB), 0);
 
-        swoole::Coroutine::create([&](void *arg) {
-            ASSERT_EQ(swoole_coroutine_flock_ex(test_file, fd, LOCK_EX), 0);
-            ASSERT_EQ(swoole_coroutine_flock_ex(test_file, fd, LOCK_UN), 0);
+        std::thread t([]() {
+            int fd = open(test_file, File::WRITE | File::CREATE, 0666);
+            DEBUG() << "[thread-2] LOCK_EX | LOCK_NB" << std::endl;
+            ASSERT_EQ(swoole_coroutine_flock(fd, LOCK_EX), 0);
+
+            DEBUG() << "[thread-2] LOCK_UN" << std::endl;
+            ASSERT_EQ(swoole_coroutine_flock(fd, LOCK_UN), 0);
+
+            DEBUG() << "[thread-2] close" << std::endl;
             swoole_coroutine_close(fd);
             unlink(test_file);
         });
 
-        ASSERT_EQ(swoole_coroutine_flock_ex(test_file, fd, LOCK_UN), 0);
+        DEBUG() << "[thread-1] LOCK_UN" << std::endl;
+        ASSERT_EQ(swoole_coroutine_flock(fd, LOCK_UN), 0);
+
+        t.join();
     });
 }
 
