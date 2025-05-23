@@ -546,6 +546,7 @@ static int event_waiter_error_callback(Reactor *reactor, Event *event) {
  * @errror: errno & swoole_get_last_error()
  */
 int System::wait_event(int fd, int events, double timeout) {
+    events &= SW_EVENT_READ | SW_EVENT_WRITE;
     if (events == 0) {
         swoole_set_last_error(EINVAL);
         return -1;
