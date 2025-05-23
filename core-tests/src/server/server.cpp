@@ -3073,3 +3073,120 @@ TEST(server, send_timeout) {
     ASSERT_EQ(counter[0], 1);
     ASSERT_EQ(counter[3], 1);
 }
+
+TEST(server, max_request) {
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = 2;
+    serv.max_request = 128;
+
+    Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
+    lock->lock();
+
+    ASSERT_NE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0), nullptr);
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    thread t1;
+    serv.onStart = [&lock, &t1](Server *serv) {
+        t1 = thread([=]() {
+            swoole_signal_block_all();
+            lock->lock();
+            ListenPort *port = serv->get_primary_port();
+
+            network::SyncClient c(SW_SOCK_TCP);
+            c.connect(TEST_HOST, port->port);
+
+            SW_LOOP_N(1024) {
+                c.send(packet, strlen(packet));
+                usleep(1000);
+            }
+
+            sleep(1);
+            c.close();
+            serv->shutdown();
+        });
+    };
+
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) {
+        lock->unlock();
+        test::counter_incr(0);
+    };
+
+    serv.onReceive = [](Server *serv, RecvData *req) -> int { return SW_OK; };
+
+    ASSERT_EQ(serv.start(), 0);
+
+    t1.join();
+    delete lock;
+
+    ASSERT_GE(test::counter_get(0), 8);
+}
+
+TEST(server, watermark) {
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = 2;
+
+    Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
+    lock->lock();
+
+    String wbuf;
+    wbuf.append_random_bytes(2 * 1024 * 1024);
+
+    auto port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_NE(port, nullptr);
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    port->get_socket()->set_buffer_size(65536);
+    port->buffer_high_watermark = 1024 * 1024;
+    port->buffer_low_watermark = 65536;
+
+    thread t1;
+    serv.onStart = [&lock, &t1](Server *serv) {
+        t1 = thread([=]() {
+            swoole_signal_block_all();
+            lock->lock();
+            ListenPort *port = serv->get_primary_port();
+
+            network::SyncClient c(SW_SOCK_TCP);
+            c.connect(TEST_HOST, port->port);
+            c.get_client()->get_socket()->set_buffer_size(65536);
+            c.send(packet, strlen(packet));
+            usleep(1000);
+
+            String rbuf(2 * 1024 * 1024);
+            while (rbuf.length < rbuf.size) {
+                auto rn = c.recv(rbuf.str + rbuf.length, 65536);
+                usleep(10000);
+                if (rn <= 0) {
+                    break;
+                }
+                rbuf.length += rn;
+            }
+
+            sleep(1);
+            c.close();
+            serv->shutdown();
+        });
+    };
+
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) {
+        lock->unlock();
+        test::counter_incr(0);
+    };
+
+    serv.onReceive = [&wbuf](Server *serv, RecvData *req) -> int {
+        EXPECT_TRUE(serv->send(req->session_id(), wbuf.str, wbuf.length));
+        return SW_OK;
+    };
+
+    serv.onBufferEmpty = [](Server *serv, DataHead *ev) { test::counter_incr(1); };
+
+    serv.onBufferFull = [](Server *serv, DataHead *ev) { test::counter_incr(2); };
+
+    ASSERT_EQ(serv.start(), 0);
+
+    t1.join();
+    delete lock;
+
+    ASSERT_GE(test::counter_get(1), 1);
+    ASSERT_GE(test::counter_get(2), 1);
+}
