@@ -362,4 +362,6 @@ TEST(string, append_number) {
 
     str->print(true);
     str->print(false);
+
+    delete str;
 }

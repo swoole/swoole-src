@@ -4,6 +4,7 @@ __SWOOLE_DIR__=$(cd "$(dirname "${__DIR__}")" || exit;pwd)
 CMAKE_ARGS="-D swoole_dir=${__SWOOLE_DIR__} -D enable_thread=1"
 
 if [ "${SWOOLE_ENABLE_ASAN}" = 1 ]; then
+    export ASAN_OPTIONS=detect_leaks=0
     CMAKE_ARGS="${CMAKE_ARGS} -D enable_asan=1"
 fi
 
