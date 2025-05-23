@@ -819,39 +819,45 @@ void HttpContext::set_compression_method(const char *accept_encoding, size_t len
         compression_method = HTTP_COMPRESS_BR;
     } else
 #endif
+#ifdef SW_HAVE_ZLIB
         if (swoole_strnpos(accept_encoding, length, ZEND_STRL("gzip")) >= 0) {
         accept_compression = 1;
         compression_method = HTTP_COMPRESS_GZIP;
     } else if (swoole_strnpos(accept_encoding, length, ZEND_STRL("deflate")) >= 0) {
         accept_compression = 1;
         compression_method = HTTP_COMPRESS_DEFLATE;
+    } else
+#endif
 #ifdef SW_HAVE_ZSTD
-    } else if (swoole_strnpos(accept_encoding, length, ZEND_STRL("zstd")) >= 0) {
+        if (swoole_strnpos(accept_encoding, length, ZEND_STRL("zstd")) >= 0) {
         accept_compression = 1;
         compression_method = HTTP_COMPRESS_ZSTD;
+    } else
 #endif
-    } else {
+    {
         accept_compression = 0;
     }
 }
 
 const char *HttpContext::get_content_encoding() {
+#ifdef SW_HAVE_ZLIB
     if (compression_method == HTTP_COMPRESS_GZIP) {
         return "gzip";
     } else if (compression_method == HTTP_COMPRESS_DEFLATE) {
         return "deflate";
-    }
+    } else
+#endif
 #ifdef SW_HAVE_BROTLI
-    else if (compression_method == HTTP_COMPRESS_BR) {
+        if (compression_method == HTTP_COMPRESS_BR) {
         return "br";
-    }
+    } else
 #endif
 #ifdef SW_HAVE_ZSTD
-    else if (compression_method == HTTP_COMPRESS_ZSTD) {
+        if (compression_method == HTTP_COMPRESS_ZSTD) {
         return "zstd";
-    }
+    } else
 #endif
-    else {
+    {
         return nullptr;
     }
 }
