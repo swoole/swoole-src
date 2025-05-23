@@ -1378,6 +1378,7 @@ TEST(server, task_sync_multi_task) {
         if (!Server::task_unpack(task, &buffer, &packet)) {
             return -1;
         }
+        Server::task_dump(task);
         EXPECT_TRUE(serv->finish(packet.data, packet.length, 0, task));
         return 0;
     };
@@ -1435,6 +1436,7 @@ TEST(server, task_sync) {
 
     serv.onTask = [](Server *serv, EventData *task) -> int {
         EXPECT_EQ(string(task->data, task->info.len), string(packet));
+        Server::task_dump(task);
         EXPECT_TRUE(serv->finish(task->data, task->info.len, 0, task));
         return 0;
     };
