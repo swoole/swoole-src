@@ -258,14 +258,15 @@ TEST(coroutine_system, wait_event_writable) {
 }
 
 TEST(coroutine_system, wait_event_fail) {
+    UnixSocket p(true, SOCK_DGRAM);
     test::coroutine::run([&](void *arg) {
         ASSERT_EQ(System::wait_event(9999, 0, 1), SW_ERR);
         ASSERT_ERREQ(EINVAL);
 
-        ASSERT_EQ(System::wait_event(fileno(stdin), SW_EVENT_READ, 0), SW_ERR);
+        ASSERT_EQ(System::wait_event(p.get_socket(true)->get_fd(), SW_EVENT_READ, 0), SW_ERR);
         ASSERT_ERREQ(ETIMEDOUT);
 
-        ASSERT_EQ(System::wait_event(fileno(stdout), SW_EVENT_WRITE, 0), SW_EVENT_WRITE);
+        ASSERT_EQ(System::wait_event(p.get_socket(false)->get_fd(), SW_EVENT_WRITE, 0), SW_EVENT_WRITE);
 
         ASSERT_EQ(System::wait_event(9999, SW_EVENT_WRITE, 0), -1);
         ASSERT_ERREQ(EBADF);
