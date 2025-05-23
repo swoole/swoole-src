@@ -135,7 +135,7 @@ std::shared_ptr<String> System::read_file(const char *file, bool lock) {
     return result;
 }
 
-ssize_t System::write_file(const char *file, char *buf, size_t length, bool lock, int flags) {
+ssize_t System::write_file(const char *file, const char *buf, size_t length, bool lock, int flags) {
     ssize_t retval = -1;
     int file_flags = flags | O_CREAT | O_WRONLY;
     async([&]() {

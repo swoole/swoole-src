@@ -369,3 +369,17 @@ TEST(coroutine_system, waitpid) {
         kill(pid, SIGKILL);
     });
 }
+
+TEST(coroutine_system, read_file_fail) {
+    test::coroutine::run([](void *arg) {
+        ASSERT_EQ(System::read_file("/tmp/not-exists", true), nullptr);
+        ASSERT_EQ(errno, ENOENT);
+    });
+}
+
+TEST(coroutine_system, write_file_fail) {
+    test::coroutine::run([](void *arg) {
+        ASSERT_EQ(System::write_file("/tmp/not-exists/file.log", SW_STRL(TEST_STR)), -1);
+        ASSERT_EQ(errno, ENOENT);
+    });
+}

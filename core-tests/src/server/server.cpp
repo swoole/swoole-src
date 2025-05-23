@@ -1196,7 +1196,7 @@ TEST(server, task_worker) {
     ASSERT_EQ(serv.gs->task_count, 2);
 }
 
-static void test_task(Server::Mode mode,  uint8_t task_ipc_mode = Server::TASK_IPC_UNIXSOCK) {
+static void test_task(Server::Mode mode, uint8_t task_ipc_mode = Server::TASK_IPC_UNIXSOCK) {
     Server serv(mode);
     serv.worker_num = 2;
     serv.task_ipc_mode = task_ipc_mode;
