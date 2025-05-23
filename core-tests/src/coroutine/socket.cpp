@@ -1187,7 +1187,7 @@ static void proxy_set_socks5_proxy(Socket &socket, int port, bool auth) {
         username = std::string(TEST_SOCKS5_PROXY_USER);
         password = std::string(TEST_SOCKS5_PROXY_PASSWORD);
     }
-    socket.set_socks5_proxy(TEST_SOCKS5_PROXY_HOST, TEST_SOCKS5_PROXY_PORT, username, password);
+    socket.set_socks5_proxy(TEST_SOCKS5_PROXY_HOST, port, username, password);
 }
 
 TEST(coroutine_socket, https_get_with_socks5_proxy) {

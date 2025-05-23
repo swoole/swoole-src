@@ -96,8 +96,29 @@ TEST(dns, getaddrinfo) {
     }
 }
 
+TEST(dns, getaddrinfo_fail) {
+    GetaddrinfoRequest req("www.baidu.com-not-exists", AF_INET, SOCK_STREAM, 0, "");
+    ASSERT_EQ(network::getaddrinfo(&req), -1);
+    ASSERT_EQ(req.error, EAI_NONAME);
+}
+
+TEST(dns, getaddrinfo_ipv6) {
+    GetaddrinfoRequest req(TEST_HTTP_DOMAIN, AF_INET6, SOCK_STREAM, 0, "");
+    ASSERT_EQ(network::getaddrinfo(&req), 0);
+    ASSERT_GT(req.count, 0);
+
+    DEBUG() << "result count: " << req.count << std::endl;
+
+    vector<string> ip_list;
+    req.parse_result(ip_list);
+
+    for (auto &ip : ip_list) {
+        ASSERT_TRUE(network::Address::verify_ip(AF_INET6, ip));
+    }
+}
+
 TEST(dns, load_resolv_conf) {
-    int port = swoole::test::get_random_port();
+    int port = get_random_port();
 
     auto ori_dns_server = swoole_get_dns_server();
 
@@ -206,12 +227,20 @@ void name_resolver_test_fn_2() {
     ASSERT_TRUE(swoole::network::Address::verify_ip(AF_INET, ip));
 }
 
-TEST(dns, name_resolver_1) {
+TEST(dns, name_resolve_1) {
     name_resolver_test_fn_1();
     test::coroutine::run([](void *arg) { name_resolver_test_fn_1(); });
 }
 
-TEST(dns, name_resolver_2) {
+TEST(dns, name_resolve_2) {
     name_resolver_test_fn_2();
     test::coroutine::run([](void *arg) { name_resolver_test_fn_2(); });
+}
+
+TEST(dns, name_resolve_fail) {
+    NameResolver::Context ctx;
+    ctx = {AF_INET};
+    auto ip = swoole_name_resolver_lookup("www.baidu.com-not-exists", &ctx);
+    ASSERT_TRUE(ip.empty());
+    ASSERT_ERREQ(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
 }
