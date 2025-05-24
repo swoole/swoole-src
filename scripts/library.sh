@@ -1,6 +1,6 @@
 #!/bin/sh -e
 apt update
-apt install -y libaio-dev libaio1 sqlite3 libsqlite3-dev unixodbc unixodbc-dev odbc-mariadb
+apt install -y libaio-dev libaio1 sqlite3 libsqlite3-dev unixodbc unixodbc-dev odbc-mariadb zlib1g-dev
 wget -nv https://download.oracle.com/otn_software/linux/instantclient/instantclient-basiclite-linuxx64.zip
 unzip instantclient-basiclite-linuxx64.zip && rm instantclient-basiclite-linuxx64.zip
 wget -nv https://download.oracle.com/otn_software/linux/instantclient/instantclient-sdk-linuxx64.zip
