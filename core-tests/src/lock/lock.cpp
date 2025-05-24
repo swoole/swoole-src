@@ -140,57 +140,48 @@ TEST(lock, try_rd) {
 }
 
 TEST(lock, coroutine_lock) {
-    CoroutineLock *lock = new CoroutineLock(false);
+    auto *lock = new CoroutineLock(false);
     ASSERT_EQ(lock->lock(), SW_ERROR_CO_OUT_OF_COROUTINE);
-    auto callback = [lock]() {
-        coroutine::run([lock](void *arg) {
-            Coroutine::create([lock](void *) {
-                ASSERT_EQ(lock->lock(), 0);
-                ASSERT_EQ(lock->lock(), 0);
-                System::sleep(1);
-                ASSERT_EQ(lock->unlock(), 0);
-            });
+    ASSERT_EQ(lock->unlock(), SW_ERROR_CO_OUT_OF_COROUTINE);
 
-            Coroutine::create([lock](void *) {
-                ASSERT_EQ(lock->lock(), 0);
-                System::sleep(1);
-                ASSERT_EQ(lock->unlock(), 0);
-            });
-
-            Coroutine::create([lock](void *) { ASSERT_EQ(lock->trylock(), EBUSY); });
+    coroutine::run([lock](void *arg) {
+        Coroutine::create([lock](void *) {
+            ASSERT_EQ(lock->lock(), 0);
+            ASSERT_EQ(lock->lock(), 0);
+            System::sleep(1);
+            ASSERT_EQ(lock->unlock(), 0);
         });
-    };
 
-    std::thread t1(callback);
-    t1.join();
-    delete lock;
+        Coroutine::create([lock](void *) {
+            ASSERT_EQ(lock->lock(), 0);
+            System::sleep(1);
+            ASSERT_EQ(lock->unlock(), 0);
+        });
+
+        Coroutine::create([lock](void *) { ASSERT_EQ(lock->trylock(), EBUSY); });
+    });
 }
 
 TEST(lock, coroutine_lock_rd) {
-    CoroutineLock *lock = new CoroutineLock(false);
+    auto *lock = new CoroutineLock(false);
     ASSERT_EQ(lock->lock_rd(), SW_ERROR_CO_OUT_OF_COROUTINE);
-    auto callback = [lock]() {
-        coroutine::run([lock](void *arg) {
-            Coroutine::create([lock](void *) {
-                ASSERT_EQ(lock->lock_rd(), 0);
-                ASSERT_EQ(lock->lock_rd(), 0);
-                System::sleep(1);
-                ASSERT_EQ(lock->unlock(), 0);
-            });
 
-            Coroutine::create([lock](void *) {
-                ASSERT_EQ(lock->lock_rd(), 0);
-                System::sleep(1);
-                ASSERT_EQ(lock->unlock(), 0);
-            });
-
-            Coroutine::create([lock](void *) { ASSERT_EQ(lock->trylock_rd(), EBUSY); });
+    coroutine::run([lock](void *arg) {
+        Coroutine::create([lock](void *) {
+            ASSERT_EQ(lock->lock_rd(), 0);
+            ASSERT_EQ(lock->lock_rd(), 0);
+            System::sleep(1);
+            ASSERT_EQ(lock->unlock(), 0);
         });
-    };
 
-    std::thread t1(callback);
-    t1.join();
-    delete lock;
+        Coroutine::create([lock](void *) {
+            ASSERT_EQ(lock->lock_rd(), 0);
+            System::sleep(1);
+            ASSERT_EQ(lock->unlock(), 0);
+        });
+
+        Coroutine::create([lock](void *) { ASSERT_EQ(lock->trylock_rd(), EBUSY); });
+    });
 }
 
 #ifdef HAVE_RWLOCK
