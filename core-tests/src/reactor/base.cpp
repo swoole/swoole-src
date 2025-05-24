@@ -393,7 +393,8 @@ TEST(reactor, poll_extra2) {
     });
     ASSERT_EQ(reactor.wait(), SW_OK);
 
-    swoole_signal_set(SIGIO, [](int sig) { DEBUG() << "SIGIO received\n"; }, 0, 0);
+    swoole_signal_set(
+        SIGIO, [](int sig) { DEBUG() << "SIGIO received\n"; }, 0, 0);
 
     reactor.erase_end_callback(Reactor::PRIORITY_DEFER_TASK);
     reactor.set_timeout_msec(1000);

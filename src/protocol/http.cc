@@ -902,37 +902,52 @@ int Request::get_header_length() {
 }
 
 int Request::get_chunked_body_length() {
-    char *p = buffer_->str + buffer_->offset;
-    char *pe = buffer_->str + buffer_->length;
+    const char *p = buffer_->str + buffer_->offset;
+    const char *pe = buffer_->str + buffer_->length;
+
+    if (static_cast<size_t>(pe - p) < sizeof(SW_HTTP_CHUNK_EOF) - 1 ||
+        memcmp(pe - sizeof(SW_HTTP_CHUNK_EOF) + 1, SW_STRL(SW_HTTP_CHUNK_EOF)) != 0) {
+        return SW_ERR;
+    }
 
     while (true) {
-        if ((size_t) (pe - p) < (1 + (sizeof("\r\n") - 1))) {
-            /* need the next chunk */
-            return SW_ERR;
-        }
-        char *head = p;
-        size_t n_parsed;
-        size_t chunk_length = swoole_hex2dec(head, &n_parsed);
-        head += n_parsed;
-        if (*head != '\r') {
-            excepted = 1;
-            return SW_ERR;
-        }
-        p = head + (sizeof("\r\n") - 1) + chunk_length + (sizeof("\r\n") - 1);
-        /* used to check package_max_length */
-        content_length_ = p - (buffer_->str + header_length_);
-        if (p > pe) {
-            /* need recv chunk body again */
-            return SW_ERR;
-        }
-        buffer_->offset = p - buffer_->str;
-        if (chunk_length == 0) {
+        constexpr int max_chunk_len_size = 16;
+        auto crlf = swoole_strnstr(p, SW_MIN(pe - p, max_chunk_len_size), SW_STRL("\r\n"));
+        if (crlf == nullptr) {
             break;
         }
-    }
-    known_length = 1;
 
-    return SW_OK;
+        const char *chunk_len_str = p;
+        char *endptr;
+        size_t chunk_length = strtoul(chunk_len_str, &endptr, 16);
+        if (endptr == nullptr || *endptr != '\r') {
+            break;
+        }
+
+        swoole_trace_log(SW_TRACE_HTTP,
+                         "chunk_length=%zu, chunk_len_str=%.*s\n",
+                         chunk_length,
+                         (int) (endptr - chunk_len_str),
+                         chunk_len_str);
+
+        if (chunk_length == 0) {
+            if (endptr == pe - 4) {
+                known_length = 1;
+                content_length_ = pe - (buffer_->str + header_length_);
+                return SW_OK;
+            }
+        } else {
+            // length hex str + CRLF + data + CRLF
+            p = crlf + 2 + chunk_length + 2;
+            if (p < pe) {
+                continue;
+            }
+        }
+        break;
+    }
+
+    excepted = 1;
+    return SW_ERR;
 }
 
 std::string Request::get_header(const char *name) {

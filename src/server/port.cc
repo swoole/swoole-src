@@ -599,7 +599,7 @@ _parse:
             if (buffer->length < request->header_length_ + (sizeof(SW_HTTP_CHUNK_EOF) - 1)) {
                 goto _recv_data;
             }
-            request->header_length_ += (sizeof("0\r\n\r\n") - 1);
+            request->header_length_ += (sizeof(SW_HTTP_CHUNK_EOF) - 1);
         }
         request->tried_to_dispatch = 1;
         // (know content-length is equal to 0) or (no content-length field and no chunked)
@@ -641,7 +641,7 @@ _parse:
                                  CLIENT_INFO_ARGS);
                 goto _bad_request;
             }
-            request_length = request->header_length_ + request->content_length_;
+            request_length = buffer->size + SW_BUFFER_SIZE_BIG;
             if (request_length > protocol->package_max_length) {
                 swoole_error_log(SW_LOG_WARNING,
                                  SW_ERROR_HTTP_INVALID_PROTOCOL,
@@ -651,10 +651,7 @@ _parse:
                                  CLIENT_INFO_ARGS);
                 goto _too_large;
             }
-            if (buffer->length == buffer->size && !buffer->extend()) {
-                goto _unavailable;
-            }
-            if (request_length > buffer->size && !buffer->extend_align(request_length)) {
+            if (buffer->length == buffer->size && !buffer->extend(request_length)) {
                 goto _unavailable;
             }
             goto _recv_data;
