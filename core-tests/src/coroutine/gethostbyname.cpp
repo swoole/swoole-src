@@ -64,12 +64,12 @@ TEST(coroutine_gethostbyname, resolve_cache_inet4_and_inet6) {
 TEST(coroutine_gethostbyname, dns_expire) {
     coroutine::run([](void *arg) {
         System::set_dns_cache_expire(1);
-        System::gethostbyname(domain_tencent, AF_INET);
-        System::gethostbyname(domain_tencent, AF_INET);
+        System::gethostbyname(TEST_HTTP_DOMAIN, AF_INET);
+        System::gethostbyname(TEST_HTTP_DOMAIN, AF_INET);
         ASSERT_GE(System::get_dns_cache_hit_ratio(), 0.5);
 
         sleep(2);
-        System::gethostbyname(domain_tencent, AF_INET);
+        System::gethostbyname(TEST_HTTP_DOMAIN, AF_INET);
         ASSERT_LT(System::get_dns_cache_hit_ratio(), 0.35);
 
         System::clear_dns_cache();
