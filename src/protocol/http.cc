@@ -905,21 +905,19 @@ int Request::get_chunked_body_length() {
     const char *p = buffer_->str + buffer_->offset;
     const char *pe = buffer_->str + buffer_->length;
 
+    /**
+     * Ending with SW_HTTP_CHUNK_EOF indicates that the HTTP request may have been fully received,
+     * but this is not certain. It is still necessary to skip over the data sections based on
+     * the length of each chunk of the HTTP data until SW_HTTP_CHUNK_EOF (\0\r\n\r\n) is found.
+     */
     if (static_cast<size_t>(pe - p) < sizeof(SW_HTTP_CHUNK_EOF) - 1 ||
         memcmp(pe - sizeof(SW_HTTP_CHUNK_EOF) + 1, SW_STRL(SW_HTTP_CHUNK_EOF)) != 0) {
         return SW_ERR;
     }
 
     while (true) {
-        constexpr int max_chunk_len_size = 16;
-        auto crlf = swoole_strnstr(p, SW_MIN(pe - p, max_chunk_len_size), SW_STRL("\r\n"));
-        if (crlf == nullptr) {
-            break;
-        }
-
-        const char *chunk_len_str = p;
         char *endptr;
-        size_t chunk_length = strtoul(chunk_len_str, &endptr, 16);
+        size_t chunk_length = strtoul(p, &endptr, 16);
         if (endptr == nullptr || *endptr != '\r') {
             break;
         }
@@ -930,18 +928,24 @@ int Request::get_chunked_body_length() {
                          (int) (endptr - chunk_len_str),
                          chunk_len_str);
 
+        // Found the HTTP Chunk EOF
         if (chunk_length == 0) {
-            if (endptr == pe - 4) {
-                known_length = 1;
-                content_length_ = pe - (buffer_->str + header_length_);
-                return SW_OK;
-            }
+            known_length = 1;
+            content_length_ = endptr - (buffer_->str + header_length_) + 4;
+            return SW_OK;
         } else {
-            // length hex str + CRLF + data + CRLF
-            p = crlf + 2 + chunk_length + 2;
+            // chunk length [hex str] + CRLF + data + CRLF
+            p = endptr + 2 + chunk_length + 2;
+            // Continue to parse the next segment of HTTP CHUNK data.
             if (p < pe) {
                 continue;
             }
+            /**
+             * If the calculated data length exceeds the length of the currently received data,
+             * then SW_HTTP_CHUNK_EOF may be part of the data,
+             * necessitating the reception of additional data and recalculating the HTTP Chunk length.
+             */
+            return SW_ERR;
         }
         break;
     }

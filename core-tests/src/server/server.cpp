@@ -2619,14 +2619,24 @@ TEST(server, clean_worker_2) {
     test_clean_worker(Server::MODE_THREAD);
 }
 
-static void test_kill_worker(Server::Mode mode, bool wait_reactor = true) {
+struct Options {
+    bool wait_reactor = true;
+    bool reload_async = true;
+    bool worker_exit_callback = false;
+    bool test_shutdown_event = false;
+};
+
+static long test_timer;
+
+static void test_kill_worker(Server::Mode mode, const Options &options) {
     Server serv(mode);
     serv.worker_num = 2;
+    serv.reload_async = options.reload_async;
 
     test::counter_init();
     int *counter = test::counter_ptr();
 
-    swoole::Mutex lock(swoole::Mutex::PROCESS_SHARED);
+    Mutex lock(Mutex::PROCESS_SHARED);
     lock.lock();
 
     ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
@@ -2649,15 +2659,39 @@ static void test_kill_worker(Server::Mode mode, bool wait_reactor = true) {
     serv.onWorkerStop = [counter](Server *_serv, Worker *worker) {
         _serv->close(counter[4]);
         _serv->drain_worker_pipe();
+        DEBUG() << "worker#" << worker->id << " stop \n";
     };
 
     serv.onClose = [counter](Server *serv, DataHead *ev) { sw_atomic_fetch_add(&counter[2], 1); };
 
-    serv.onWorkerStart = [counter](Server *_serv, Worker *worker) { sw_atomic_fetch_add(&counter[1], 1); };
+    serv.onWorkerStart = [counter, &options](Server *serv, Worker *worker) {
+        sw_atomic_fetch_add(&counter[1], 1);
+        DEBUG() << "worker#" << worker->id << " start \n";
+        if (options.worker_exit_callback) {
+            test_timer = swoole_timer_tick(5000, [counter](TIMER_PARAMS) {});
+        }
 
-    serv.onStart = [&lock](Server *_serv) {
+        if (options.test_shutdown_event && worker->id == 0) {
+            EventData ev;
+            ev.info = {};
+            ev.info.type = SW_SERVER_EVENT_SHUTDOWN;
+            ev.info.len = 0;
+            DEBUG() << "send SW_SERVER_EVENT_SHUTDOWN packet\n";
+            ASSERT_GT(serv->send_to_worker_from_worker(1, &ev, 0), 0);
+        }
+    };
+
+    if (options.worker_exit_callback) {
+        serv.onWorkerExit = [counter](Server *_serv, Worker *worker) {
+            swoole_timer_clear(test_timer);
+            test::counter_incr(6, 1);
+            DEBUG() << "worker#" << worker->id << " exit \n";
+        };
+    }
+
+    serv.onStart = [&lock, &options](Server *_serv) {
         if (!sw_worker()) {
-            ASSERT_FALSE(_serv->kill_worker(-1, true));
+            ASSERT_FALSE(_serv->kill_worker(-1, options.wait_reactor));
         }
         lock.unlock();
     };
@@ -2678,7 +2712,7 @@ static void test_kill_worker(Server::Mode mode, bool wait_reactor = true) {
         auto rn = c.recv(rbuf.str, rbuf.size);
         EXPECT_EQ(rn, 2);
 
-        serv.kill_worker(1 - counter[5], wait_reactor);
+        serv.kill_worker(1 - counter[5], options.wait_reactor);
 
         rn = c.recv(rbuf.str, rbuf.size);
         EXPECT_EQ(rn, 0);
@@ -2694,33 +2728,77 @@ static void test_kill_worker(Server::Mode mode, bool wait_reactor = true) {
     t.join();
 
     ASSERT_EQ(counter[0], 1);  // Client receive
-    ASSERT_EQ(counter[1], 3);  // Server onWorkeStart
+    ASSERT_EQ(counter[1], 3);  // Server onWorkerStart
     ASSERT_EQ(counter[2], 1);  // Server onClose
     ASSERT_EQ(counter[3], 1);  // Client close
+    // counter[4] is the client fd
+    // counter[5] is the worker id
+    // counter[6] is the worker exit count
+
+    if (options.worker_exit_callback) {
+        ASSERT_EQ(counter[6], 3);  // Worker exit
+    }
 }
 
 TEST(server, kill_worker_1) {
-    test_kill_worker(Server::MODE_BASE);
+    Options opt;
+    opt.reload_async = true;
+    opt.wait_reactor = true;
+    test_kill_worker(Server::MODE_BASE, opt);
 }
 
 TEST(server, kill_worker_2) {
-    test_kill_worker(Server::MODE_PROCESS);
+    Options opt;
+    opt.reload_async = true;
+    opt.wait_reactor = true;
+    test_kill_worker(Server::MODE_PROCESS, opt);
 }
 
 TEST(server, kill_worker_3) {
-    test_kill_worker(Server::MODE_THREAD);
+    Options opt;
+    opt.reload_async = true;
+    opt.wait_reactor = true;
+    test_kill_worker(Server::MODE_THREAD, opt);
 }
 
 TEST(server, kill_worker_4) {
-    test_kill_worker(Server::MODE_BASE, false);
+    Options opt;
+    opt.reload_async = true;
+    opt.wait_reactor = false;
+    test_kill_worker(Server::MODE_BASE, opt);
 }
 
 TEST(server, kill_worker_5) {
-    test_kill_worker(Server::MODE_PROCESS, false);
+    Options opt;
+    opt.reload_async = true;
+    opt.wait_reactor = false;
+    test_kill_worker(Server::MODE_PROCESS, opt);
 }
 
 TEST(server, kill_worker_6) {
-    test_kill_worker(Server::MODE_THREAD, false);
+    Options opt;
+    opt.reload_async = true;
+    opt.wait_reactor = false;
+    test_kill_worker(Server::MODE_THREAD, opt);
+}
+
+TEST(server, no_reload_async) {
+    Options opt;
+    opt.reload_async = false;
+    opt.wait_reactor = true;
+    test_kill_worker(Server::MODE_PROCESS, opt);
+}
+
+TEST(server, worker_exit) {
+    Options opt;
+    opt.worker_exit_callback = true;
+    test_kill_worker(Server::MODE_PROCESS, opt);
+}
+
+TEST(server, shutdown_event) {
+    Options opt;
+    opt.test_shutdown_event = true;
+    test_kill_worker(Server::MODE_PROCESS, opt);
 }
 
 static void test_kill_self(Server::Mode mode) {
