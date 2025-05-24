@@ -374,7 +374,6 @@ TEST(server, base) {
 
     serv.onStart = [](Server *serv) {
         ASSERT_EQ(access(serv->pid_file.c_str(), R_OK), 0);
-        kill(serv->get_worker(0)->pid, SIGRTMIN);
     };
 
     serv.start();
@@ -409,6 +408,8 @@ TEST(server, process) {
             swoole_signal_block_all();
 
             lock->lock();
+
+            kill(serv->get_worker(0)->pid, SIGRTMIN);
 
             ListenPort *port = serv->get_primary_port();
 
