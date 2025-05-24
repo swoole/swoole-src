@@ -160,6 +160,8 @@ TEST(lock, coroutine_lock) {
 
         Coroutine::create([lock](void *) { ASSERT_EQ(lock->trylock(), EBUSY); });
     });
+
+    delete lock;
 }
 
 TEST(lock, coroutine_lock_rd) {
@@ -170,18 +172,20 @@ TEST(lock, coroutine_lock_rd) {
         Coroutine::create([lock](void *) {
             ASSERT_EQ(lock->lock_rd(), 0);
             ASSERT_EQ(lock->lock_rd(), 0);
-            System::sleep(1);
+            System::sleep(0.3);
             ASSERT_EQ(lock->unlock(), 0);
         });
 
         Coroutine::create([lock](void *) {
             ASSERT_EQ(lock->lock_rd(), 0);
-            System::sleep(1);
+            System::sleep(0.3);
             ASSERT_EQ(lock->unlock(), 0);
         });
 
         Coroutine::create([lock](void *) { ASSERT_EQ(lock->trylock_rd(), EBUSY); });
     });
+
+    delete lock;
 }
 
 #ifdef HAVE_RWLOCK

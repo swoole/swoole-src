@@ -146,13 +146,13 @@ Iouring::~Iouring() {
     io_uring_queue_exit(&ring);
 }
 
-bool Iouring::ready() {
+bool Iouring::ready() const {
     return ring_socket && reactor->exists(ring_socket);
 }
 
 bool Iouring::wakeup() {
     IouringEvent *waiting_task = nullptr;
-    struct io_uring_cqe *cqes[SW_IOURING_CQES_SIZE];
+    io_uring_cqe *cqes[SW_IOURING_CQES_SIZE];
 
     while (true) {
         auto count = io_uring_peek_batch_cqe(&ring, cqes, SW_IOURING_CQES_SIZE);
@@ -161,7 +161,7 @@ bool Iouring::wakeup() {
         }
 
         for (decltype(count) i = 0; i < count; i++) {
-            struct io_uring_cqe *cqe = cqes[i];
+            io_uring_cqe *cqe = cqes[i];
             IouringEvent *task = static_cast<IouringEvent *>(io_uring_cqe_get_data(cqe));
             task_num--;
             if (cqe->res < 0) {
@@ -275,7 +275,7 @@ ssize_t Iouring::execute(IouringEvent *event) {
 }
 
 bool Iouring::dispatch(IouringEvent *event) {
-    struct io_uring_sqe *sqe = get_iouring_sqe();
+    io_uring_sqe *sqe = get_iouring_sqe();
     if (!sqe) {
         waiting_tasks.push(event);
         return true;
