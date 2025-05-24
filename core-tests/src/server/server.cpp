@@ -633,9 +633,12 @@ TEST(server, reload_thread) {
 
     std::thread t1([&]() {
         swoole_signal_block_all();
+        usleep(1000);
         lock.lock();
+        DEBUG() << "reload\n";
         serv.reload(true);
         sleep(1);
+        DEBUG() << "shutdown\n";
         serv.shutdown();
     });
 
@@ -648,8 +651,7 @@ TEST(server, reload_thread) {
     };
 
     serv.onWorkerStart = [&lock, &count](Server *serv, Worker *worker) {
-        count++;
-        if (count.load() == 4) {
+        if (++count == serv->get_core_worker_num()) {
             lock.unlock();
         }
     };
@@ -691,8 +693,7 @@ TEST(server, reload_thread_2) {
     };
 
     serv.onWorkerStart = [&lock, &count](Server *serv, Worker *worker) {
-        count++;
-        if (count.load() == 4) {
+        if (++count == serv->get_core_worker_num()) {
             lock.unlock();
         }
     };
