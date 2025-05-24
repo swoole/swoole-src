@@ -36,7 +36,7 @@ class Lock {
     Type get_type() const {
         return type_;
     }
-    virtual ~Lock()= default;
+    virtual ~Lock() = default;
     virtual int lock_rd() = 0;
     virtual int lock() = 0;
     virtual int unlock() = 0;

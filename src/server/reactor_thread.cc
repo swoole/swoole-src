@@ -954,6 +954,9 @@ void Server::join_reactor_thread() {
 
     for (int i = 0; i < reactor_num; i++) {
         ReactorThread *thread = get_thread(i);
+        if (!thread->thread.joinable()) {
+            continue;
+        }
         if (thread->notify_pipe) {
             DataHead ev = {};
             ev.type = SW_SERVER_EVENT_SHUTDOWN;

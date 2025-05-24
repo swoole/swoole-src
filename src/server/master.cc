@@ -1044,7 +1044,9 @@ void Server::destroy() {
      * completed. Therefore, the worker process must wait for the reactor thread to exit first; otherwise, the main
      * thread will keep waiting for the reactor thread to exit.
      */
-    factory->shutdown();
+    if (is_started()) {
+        factory->shutdown();
+    }
 
     SW_LOOP_N(worker_num) {
         Worker *worker = &workers[i];

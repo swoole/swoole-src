@@ -65,6 +65,8 @@ TEST(server, schedule) {
         _worker_id_set.insert(worker_id);
     }
     ASSERT_EQ(_worker_id_set.size(), serv.worker_num - 2);
+
+    serv.destroy();
 }
 
 TEST(server, schedule_1) {
@@ -1036,6 +1038,7 @@ TEST(server, dtls2) {
 
     if (pid > 0) {
         server->start();
+        delete server;
     }
 
     if (pid == 0) {

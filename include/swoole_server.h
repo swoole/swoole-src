@@ -1146,6 +1146,7 @@ class Server {
     bool create_worker_pipes();
 
     int start();
+    void destroy();
     bool reload(bool reload_all_workers);
     bool shutdown();
 
@@ -1663,7 +1664,6 @@ class Server {
     void check_port_type(ListenPort *ls);
     void store_listen_socket();
     void store_pipe_fd(UnixSocket *p);
-    void destroy();
     void destroy_base_factory();
     void destroy_thread_factory();
     void destroy_process_factory();
