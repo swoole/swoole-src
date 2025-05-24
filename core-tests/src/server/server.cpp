@@ -959,18 +959,22 @@ TEST(server, dtls) {
     serv.worker_num = 1;
     swoole_set_log_level(SW_LOG_WARNING);
 
-    Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
+    auto *lock = new Mutex(Mutex::PROCESS_SHARED);
     lock->lock();
 
-    ListenPort *port = serv.add_port((enum swSocketType)(SW_SOCK_UDP | SW_SOCK_SSL), TEST_HOST, 0);
-    if (!port) {
-        swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
-        exit(2);
-    }
+    auto port = serv.add_port((enum swSocketType)(SW_SOCK_UDP | SW_SOCK_SSL), TEST_HOST, 0);
+    ASSERT_NE(port, nullptr);
+
+    auto port6 = serv.add_port((enum swSocketType)(SW_SOCK_UDP6 | SW_SOCK_SSL), TEST_HOST6, 0);
+    ASSERT_NE(port6, nullptr);
 
     port->set_ssl_cert_file(test::get_ssl_dir() + "/server.crt");
     port->set_ssl_key_file(test::get_ssl_dir() + "/server.key");
     port->ssl_init();
+
+    port6->set_ssl_cert_file(test::get_ssl_dir() + "/server.crt");
+    port6->set_ssl_key_file(test::get_ssl_dir() + "/server.key");
+    port6->ssl_init();
 
     ASSERT_EQ(serv.create(), SW_OK);
 
@@ -981,19 +985,30 @@ TEST(server, dtls) {
 
             lock->lock();
 
-            ListenPort *port = serv->get_primary_port();
-
+            auto port = serv->ports.at(0);
             EXPECT_EQ(port->ssl, 1);
+
+            auto cli_fn = [](network::SyncClient &c) {
+                c.enable_ssl_encrypt();
+                c.send(packet, strlen(packet));
+                char buf[1024];
+                c.recv(buf, sizeof(buf));
+                c.close();
+            };
 
             network::SyncClient c(SW_SOCK_UDP);
             c.connect(TEST_HOST, port->port);
-            c.enable_ssl_encrypt();
-            c.send(packet, strlen(packet));
-            char buf[1024];
-            c.recv(buf, sizeof(buf));
-            c.close();
+            cli_fn(c);
 
-            kill(serv->gs->master_pid, SIGTERM);
+            auto port6 = serv->ports.at(1);
+            EXPECT_EQ(port6->ssl, 1);
+
+            network::SyncClient c2(SW_SOCK_UDP6);
+            c2.connect(TEST_HOST6, port6->port);
+            cli_fn(c2);
+
+            usleep(10000);
+            serv->shutdown();
         });
     };
 

@@ -126,6 +126,7 @@ class Reactor {
     bool wait_exit = false;
     bool destroyed = false;
     bool bailout = false;
+    bool timed_out = false;
 
     /**
      * reactor->wait timeout (millisecond) or -1
@@ -190,7 +191,7 @@ class Reactor {
     bool set_handler(int _fdtype, ReactorHandler handler);
     void add_destroy_callback(Callback cb, void *data = nullptr);
     void execute_begin_callback() const;
-    void execute_end_callbacks(bool timedout = false);
+    void execute_end_callbacks(bool _timed_out = false);
     void drain_write_buffer(network::Socket *socket);
 
     bool ready() const {
