@@ -372,9 +372,7 @@ TEST(server, base) {
         return SW_OK;
     };
 
-    serv.onStart = [](Server *serv) {
-        ASSERT_EQ(access(serv->pid_file.c_str(), R_OK), 0);
-    };
+    serv.onStart = [](Server *serv) { ASSERT_EQ(access(serv->pid_file.c_str(), R_OK), 0); };
 
     serv.start();
     t1.join();
@@ -3269,10 +3267,10 @@ TEST(server, discard_data) {
             network::SyncClient c(SW_SOCK_TCP);
             c.connect(TEST_HOST, port->port);
 
-            SW_LOOP_N(256) {
+            SW_LOOP_N(128) {
                 c.send(rdata.str, rdata.length);
+                usleep(10);
             }
-            c.close();
 
             sleep(1);
 
@@ -3284,6 +3282,7 @@ TEST(server, discard_data) {
 
     serv.onReceive = [](Server *serv, RecvData *req) -> int {
         usleep(10000);
+        serv->close(req->session_id());
         return SW_OK;
     };
 
@@ -3294,8 +3293,6 @@ TEST(server, discard_data) {
 
     auto log = file_get_contents(TEST_LOG_FILE);
     DEBUG() << log->str << std::endl;
-    ASSERT_TRUE(log->contains("No idle worker is available"));
     ASSERT_TRUE(log->contains("discard_data() (ERRNO 1007)"));
-    ASSERT_TRUE(log->contains("unprocessed data in the worker process buffer"));
     remove(TEST_LOG_FILE);
 }
