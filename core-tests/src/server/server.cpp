@@ -360,6 +360,8 @@ TEST(server, base) {
         string resp = string("Server: ") + string(packet);
         serv->send(req->info.fd, resp.c_str(), resp.length());
 
+        EXPECT_FALSE(serv->finish(resp.c_str(), resp.length()));
+
         EXPECT_EQ(serv->get_connection_num(), 1);
         EXPECT_EQ(serv->get_primary_port()->get_connection_num(), 1);
 
@@ -368,7 +370,10 @@ TEST(server, base) {
         return SW_OK;
     };
 
-    serv.onStart = [](Server *serv) { ASSERT_EQ(access(serv->pid_file.c_str(), R_OK), 0); };
+    serv.onStart = [](Server *serv) {
+        ASSERT_EQ(access(serv->pid_file.c_str(), R_OK), 0);
+        kill(serv->get_worker(0)->pid, SIGRTMIN);
+    };
 
     serv.start();
     t1.join();
@@ -1551,6 +1556,8 @@ TEST(server, task_ipc_queue_5) {
     serv.task_worker_num = 2;
     serv.task_ipc_mode = Server::TASK_IPC_MSGQUEUE;
 
+    test::wait_all_child_processes();
+
     test_task_ipc(serv);
 }
 
@@ -1911,8 +1918,6 @@ TEST(server, udp_packet) {
         kill(server->get_master_pid(), SIGTERM);
         exit(0);
     }
-
-
 }
 
 TEST(server, protocols) {
@@ -3222,4 +3227,71 @@ TEST(server, watermark) {
 
     ASSERT_GE(test::counter_get(1), 1);
     ASSERT_GE(test::counter_get(2), 1);
+}
+
+TEST(server, discard_data) {
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = 2;
+    serv.dispatch_mode = 3;
+    serv.discard_timeout_request = true;
+    serv.disable_notify = true;
+
+    swoole_set_log_file(TEST_LOG_FILE);
+    swoole_set_log_level(SW_LOG_WARNING);
+
+    Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
+    lock->lock();
+
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    if (!port) {
+        swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
+        exit(2);
+    }
+
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    String rdata;
+    rdata.append_random_bytes(8192);
+
+    thread t1;
+    serv.onStart = [&lock, &t1, &rdata](Server *serv) {
+        t1 = thread([&lock, &rdata, serv]() {
+            swoole_signal_block_all();
+
+            lock->lock();
+
+            ListenPort *port = serv->get_primary_port();
+
+            network::SyncClient c(SW_SOCK_TCP);
+            c.connect(TEST_HOST, port->port);
+
+            SW_LOOP_N(256) {
+                c.send(rdata.str, rdata.length);
+            }
+            c.close();
+
+            sleep(1);
+
+            kill(serv->gs->master_pid, SIGTERM);
+        });
+    };
+
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock->unlock(); };
+
+    serv.onReceive = [](Server *serv, RecvData *req) -> int {
+        usleep(10000);
+        return SW_OK;
+    };
+
+    ASSERT_EQ(serv.start(), 0);
+
+    t1.join();
+    delete lock;
+
+    auto log = file_get_contents(TEST_LOG_FILE);
+    DEBUG() << log->str << std::endl;
+    ASSERT_TRUE(log->contains("No idle worker is available"));
+    ASSERT_TRUE(log->contains("discard_data() (ERRNO 1007)"));
+    ASSERT_TRUE(log->contains("unprocessed data in the worker process buffer"));
+    remove(TEST_LOG_FILE);
 }

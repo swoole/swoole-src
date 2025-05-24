@@ -1521,7 +1521,7 @@ class Server {
                  const Command::Callback &fn);
 
     bool task(EventData *_task, int *dst_worker_id, bool blocking = false);
-    bool finish(const char *data, size_t data_len, int flags, EventData *current_task);
+    bool finish(const char *data, size_t data_len, int flags = 0, const EventData *current_task = nullptr);
     bool task_sync(EventData *task, int *dst_worker_id, double timeout = -1);
     bool task_sync(MultiTask &mtask, double timeout = -1);
     bool send_pipe_message(WorkerId worker_id, EventData *msg);

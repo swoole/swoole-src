@@ -825,12 +825,12 @@ void ProcessPool::add_worker(Worker *worker) const {
     map_->emplace(worker->pid, worker);
 }
 
-int ProcessPool::del_worker(Worker *worker) const {
+bool ProcessPool::del_worker(const Worker *worker) const {
     return map_->erase(worker->pid) > 0;
 }
 
-Worker *ProcessPool::get_worker_by_pid(pid_t pid) {
-    auto iter = map_->find(pid);
+Worker *ProcessPool::get_worker_by_pid(pid_t pid) const {
+    const auto iter = map_->find(pid);
     if (iter == map_->end()) {
         return nullptr;
     }

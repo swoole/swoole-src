@@ -93,6 +93,9 @@ bool is_github_ci();
 int exec_js_script(const std::string &file, const std::string &args);
 std::string http_get_request(const std::string &domain, const std::string &path);
 int get_random_port();
+int has_threads();
+int has_child_processes();
+int wait_all_child_processes(bool verbose = false);
 
 pid_t spawn_exec(const std::function<void(void)> &fn);
 int spawn_exec_and_wait(const std::function<void(void)> &fn);

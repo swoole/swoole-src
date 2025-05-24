@@ -439,7 +439,7 @@ static int TaskWorker_loop_async(ProcessPool *pool, Worker *worker) {
 /**
  * Send the task result to worker
  */
-bool Server::finish(const char *data, size_t data_len, int flags, EventData *current_task) {
+bool Server::finish(const char *data, size_t data_len, int flags, const EventData *current_task) {
     if (task_worker_num < 1) {
         swoole_warning("cannot use Server::task()/Server::finish() method, because no set [task_worker_num]");
         return false;

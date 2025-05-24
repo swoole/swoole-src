@@ -630,4 +630,6 @@ TEST(process_pool, add_worker) {
 
     auto *worker2 = pool.get_worker_by_pid(getpid());
     ASSERT_EQ(&worker, worker2);
+
+    ASSERT_TRUE(pool.del_worker(worker2));
 }
