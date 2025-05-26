@@ -34,7 +34,7 @@ TEST(file, read_line) {
     size_t size = file.get_size();
     size_t total = 0;
 
-    while(true) {
+    while (true) {
         auto retval = file.read_line(buf1, sizeof(buf1));
         if (retval == 0) {
             break;
@@ -44,4 +44,33 @@ TEST(file, read_line) {
         ASSERT_STREQ(buf1, buf2);
     }
     ASSERT_EQ(total, size);
+}
+
+TEST(file, read_line_no_crlf) {
+    String buf(1024);
+    swoole_random_string(buf.str, buf.size - 1);
+    buf.str[buf.size - 1] = '\0';
+
+    std::string filename = "/tmp/swoole_file_read_line_no_crlf.txt";
+    ASSERT_TRUE(file_put_contents(filename, buf.str, buf.size - 1));
+
+    File file(filename, File::READ);
+    char rbuf[1024];
+    ASSERT_EQ(file.read_line(rbuf, sizeof(rbuf)), sizeof(rbuf) - 1);
+    ASSERT_EQ(rbuf[sizeof(rbuf) - 1], '\0');
+
+    remove(filename.c_str());
+}
+
+TEST(file, file_put_contents) {
+    std::string filename = "/tmp/not-exists-dir/test.txt";
+
+    ASSERT_FALSE(file_put_contents(filename, TEST_STR, 0));
+    ASSERT_ERREQ(SW_ERROR_FILE_EMPTY);
+
+    ASSERT_FALSE(file_put_contents(filename, TEST_STR, SW_MAX_FILE_CONTENT + 1));
+    ASSERT_ERREQ(SW_ERROR_FILE_TOO_LARGE);
+
+    ASSERT_FALSE(file_put_contents(filename, SW_STRL(TEST_STR)));
+    ASSERT_ERREQ(ENOENT);
 }

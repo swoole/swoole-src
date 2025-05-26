@@ -97,8 +97,8 @@ File make_tmpfile() {
 }
 
 bool file_put_contents(const std::string &filename, const char *content, size_t length) {
-    if (length <= 0) {
-        swoole_error_log(SW_LOG_TRACE, SW_ERROR_FILE_EMPTY, "content is empty");
+    if (length == 0) {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_FILE_EMPTY, "content is empty");
         return false;
     }
     if (length > SW_MAX_FILE_CONTENT) {
@@ -107,7 +107,7 @@ bool file_put_contents(const std::string &filename, const char *content, size_t 
     }
     File file(filename, O_WRONLY | O_TRUNC | O_CREAT, 0666);
     if (!file.ready()) {
-        swoole_sys_warning("open(%s) failed", filename.c_str());
+        swoole_sys_warning("open('%s') failed", filename.c_str());
         return false;
     }
     return file.write_all(content, length);
@@ -160,13 +160,10 @@ size_t File::write_all(const void *data, size_t len) {
             written_bytes += n;
         } else if (n == 0) {
             break;
+        } else if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
+            continue;
         } else {
-            if (errno == EINTR) {
-                continue;
-            }
-            if (!(errno == EAGAIN || errno == EWOULDBLOCK)) {
-                swoole_sys_warning("pwrite(%d, %p, %lu, %lu) failed", fd_, data, len - written_bytes, written_bytes);
-            }
+            swoole_sys_warning("pwrite(%d, %p, %lu, %lu) failed", fd_, data, len - written_bytes, written_bytes);
             break;
         }
     }
@@ -181,12 +178,10 @@ size_t File::read_all(void *buf, size_t len) const {
             read_bytes += n;
         } else if (n == 0) {
             break;
+        } else if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
+            continue;
         } else {
-            if (errno == EINTR) {
-                continue;
-            } else if (!(errno == EAGAIN || errno == EWOULDBLOCK)) {
-                swoole_sys_warning("pread(%d, %p, %lu, %lu) failed", fd_, buf, len - read_bytes, read_bytes);
-            }
+            swoole_sys_warning("pread(%d, %p, %lu, %lu) failed", fd_, buf, len - read_bytes, read_bytes);
             break;
         }
     }
