@@ -177,7 +177,7 @@ TEST(lock, coroutine_lock_cancel) {
                 DEBUG() << "cancel coroutine " << co->get_cid() << "\n";
                 co->cancel();
             });
-            ASSERT_EQ(lock->lock(), 0);
+            ASSERT_EQ(lock->lock(), SW_ERROR_CO_CANCELED);
         });
     });
 }
