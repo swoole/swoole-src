@@ -192,6 +192,8 @@ TEST(client, async_tcp_dns_fail) {
 
     Client ac(SW_SOCK_TCP, true);
 
+    ASSERT_EQ(ac.connect(TEST_HOST, 9999), SW_ERR);
+
     bool success = true;
 
     ac.onConnect = [&success](Client *ac) {

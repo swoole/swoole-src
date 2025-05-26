@@ -168,16 +168,16 @@ TEST(lock, coroutine_lock) {
 
 #ifndef HAVE_IOURING_FUTEX
 TEST(lock, coroutine_lock_cancel) {
-    auto *lock = new CoroutineLock(true);
-    coroutine::run([lock](void *arg) {
-        ASSERT_EQ(lock->lock(), 0);
-        Coroutine::create([lock](void *) {
+    CoroutineLock lock(true);
+    coroutine::run([&](void *arg) {
+        ASSERT_EQ(lock.lock(), 0);
+        Coroutine::create([&](void *) {
             auto co = Coroutine::get_current();
             swoole_timer_after(20, [co](TIMER_PARAMS) {
                 DEBUG() << "cancel coroutine " << co->get_cid() << "\n";
                 co->cancel();
             });
-            ASSERT_EQ(lock->lock(), SW_ERROR_CO_CANCELED);
+            ASSERT_EQ(lock.lock(), SW_ERROR_CO_CANCELED);
         });
     });
 }

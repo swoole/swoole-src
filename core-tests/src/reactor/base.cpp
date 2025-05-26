@@ -83,6 +83,7 @@ TEST(reactor, wait) {
     ret = swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
     ASSERT_EQ(ret, SW_OK);
     ASSERT_NE(SwooleTG.reactor, nullptr);
+    ASSERT_TRUE(swoole_event_is_running());
 
     swoole_event_set_handler(SW_FD_PIPE | SW_EVENT_READ, [](Reactor *reactor, Event *ev) -> int {
         char buffer[16];
