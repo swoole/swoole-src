@@ -181,13 +181,13 @@ bool Timer::remove(TimerNode *tnode) {
     if (tnode->heap_node) {
         heap.remove(tnode->heap_node);
     }
-    release_node(tnode);
     swoole_trace_log(SW_TRACE_TIMER,
                      "id=%ld, exec_msec=%" PRId64 ", round=%" PRIu64 ", exist=%lu",
                      tnode->id,
                      tnode->exec_msec,
                      tnode->round,
                      count());
+    release_node(tnode);
     return true;
 }
 

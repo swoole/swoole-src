@@ -775,7 +775,7 @@ TEST(server, reload_thread_2) {
 
     std::atomic<int> count(0);
 
-    serv.onUserWorkerStart = [&lock, &count](Server *serv, Worker *worker) {
+    serv.onUserWorkerStart = [](Server *serv, Worker *worker) {
         while (serv->running) {
             usleep(100000);
         }

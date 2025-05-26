@@ -978,6 +978,8 @@ static void Client_onTimeout(Timer *timer, TimerNode *tnode) {
     auto *cli = (Client *) tnode->data;
     swoole_set_last_error(ETIMEDOUT);
 
+    cli->timer = nullptr;
+
 #ifdef SW_USE_OPENSSL
     if (cli->open_ssl && cli->socket->ssl_state != SW_SSL_STATE_READY) {
         cli->active = false;
