@@ -74,6 +74,13 @@ bool Timer::init_with_user_scheduler(const TimerScheduler &scheduler) {
     return true;
 }
 
+void Timer::release_node(TimerNode *tnode) {
+    if (tnode->destructor) {
+        tnode->destructor(tnode);
+    }
+    delete tnode;
+}
+
 bool Timer::init_with_reactor(Reactor *reactor) {
     reactor_ = reactor;
     set = [](Timer *timer, long exec_msec) -> int {
@@ -107,8 +114,7 @@ Timer::~Timer() {
         close(this);
     }
     for (const auto &iter : map) {
-        const auto tnode = iter.second;
-        delete tnode;
+        release_node(iter.second);
     }
 }
 
@@ -124,6 +130,7 @@ TimerNode *Timer::add(long _msec, bool persistent, void *data, const TimerCallba
     }
 
     auto *tnode = new TimerNode();
+    tnode->id = _next_id++;
     tnode->data = data;
     tnode->type = TimerNode::TYPE_KERNEL;
     tnode->exec_msec = now_msec + _msec;
@@ -138,15 +145,9 @@ TimerNode *Timer::add(long _msec, bool persistent, void *data, const TimerCallba
         next_msec_ = _msec;
     }
 
-    tnode->id = _next_id++;
-    if (sw_unlikely(tnode->id < 0)) {
-        tnode->id = 1;
-        _next_id = 2;
-    }
-
     tnode->heap_node = heap.push(tnode->exec_msec, tnode);
     if (sw_unlikely(tnode->heap_node == nullptr)) {
-        delete tnode;
+        release_node(tnode);
         return nullptr;
     }
     map.emplace(tnode->id, tnode);
@@ -180,16 +181,13 @@ bool Timer::remove(TimerNode *tnode) {
     if (tnode->heap_node) {
         heap.remove(tnode->heap_node);
     }
-    if (tnode->destructor) {
-        tnode->destructor(tnode);
-    }
+    release_node(tnode);
     swoole_trace_log(SW_TRACE_TIMER,
                      "id=%ld, exec_msec=%" PRId64 ", round=%" PRIu64 ", exist=%lu",
                      tnode->id,
                      tnode->exec_msec,
                      tnode->round,
                      count());
-    delete tnode;
     return true;
 }
 
@@ -234,7 +232,7 @@ int Timer::select() {
 
         heap.pop();
         map.erase(tnode->id);
-        delete tnode;
+        release_node(tnode);
         tnode = nullptr;
     }
 

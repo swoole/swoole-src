@@ -564,7 +564,9 @@ int Server::create_task_workers() {
         task_notify_pipes.emplace_back(_pipe);
     }
 
-    init_task_workers();
+    if (!init_task_workers()) {
+        return SW_ERR;
+    }
 
     return SW_OK;
 }
@@ -728,7 +730,7 @@ Server::Server(Mode _mode) {
 
     gs = (ServerGS *) sw_shm_malloc(sizeof(ServerGS));
     if (gs == nullptr) {
-        swoole_error("[Master] Fatal Error: failed to allocate memory for Server->gs");
+        swoole_sys_warning("[Master] Fatal Error: failed to allocate memory for Server->gs");
     }
     gs->pipe_packet_msg_id = 1;
     gs->max_concurrency = UINT_MAX;
@@ -787,13 +789,13 @@ int Server::create() {
 
     session_list = (Session *) sw_shm_calloc(SW_SESSION_LIST_SIZE, sizeof(Session));
     if (session_list == nullptr) {
-        swoole_error("sw_shm_calloc(%ld) for session_list failed", SW_SESSION_LIST_SIZE * sizeof(Session));
+        swoole_sys_warning("sw_shm_calloc(%ld) for session_list failed", SW_SESSION_LIST_SIZE * sizeof(Session));
         return SW_ERR;
     }
 
     port_gs_list = (ServerPortGS *) sw_shm_calloc(ports.size(), sizeof(ServerPortGS));
     if (port_gs_list == nullptr) {
-        swoole_error("sw_shm_calloc() for port_connnection_num_array failed");
+        swoole_sys_warning("sw_shm_calloc() for port_connnection_num_array failed");
         return SW_ERR;
     }
 
@@ -895,7 +897,7 @@ void Server::clear_timer() {
 
 bool Server::shutdown() {
     if (sw_unlikely(!is_started())) {
-        swoole_set_last_error(SW_ERROR_OPERATION_NOT_SUPPORT);
+        swoole_set_last_error(SW_ERROR_WRONG_OPERATION);
         return false;
     }
 
@@ -1044,7 +1046,9 @@ void Server::destroy() {
      * completed. Therefore, the worker process must wait for the reactor thread to exit first; otherwise, the main
      * thread will keep waiting for the reactor thread to exit.
      */
-    factory->shutdown();
+    if (is_started()) {
+        factory->shutdown();
+    }
 
     SW_LOOP_N(worker_num) {
         Worker *worker = &workers[i];
@@ -1637,6 +1641,14 @@ bool Server::send_pipe_message(WorkerId worker_id, EventData *msg) {
     return send_to_worker_from_worker(get_worker(worker_id), msg, msg->size(), SW_PIPE_MASTER | SW_PIPE_NONBLOCK) > 0;
 }
 
+bool Server::send_pipe_message(WorkerId worker_id, const char *data, size_t len) {
+    EventData buf;
+    if (!task_pack(&buf, data, len)) {
+        return false;
+    }
+    return send_pipe_message(worker_id, &buf);
+}
+
 void Server::init_signal_handler() {
     swoole_signal_set(SIGPIPE, nullptr);
     swoole_signal_set(SIGHUP, nullptr);
@@ -1684,6 +1696,10 @@ void Server::timer_callback(Timer *timer, TimerNode *tnode) {
 }
 
 int Server::add_worker(Worker *worker) {
+    if (is_created()) {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_WRONG_OPERATION, "must add worker before server is created");
+        return SW_ERR;
+    }
     user_worker_list.push_back(worker);
     worker->id = user_worker_list.size() - 1;
     return worker->id;
@@ -1801,7 +1817,7 @@ int Server::add_systemd_socket() {
 }
 
 ListenPort *Server::add_port(SocketType type, const char *host, int port) {
-    if (session_list) {
+    if (is_created()) {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_WRONG_OPERATION, "must add port before server is created");
         return nullptr;
     }

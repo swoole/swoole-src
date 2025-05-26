@@ -140,56 +140,70 @@ TEST(lock, try_rd) {
 }
 
 TEST(lock, coroutine_lock) {
-    CoroutineLock *lock = new CoroutineLock(false);
+    auto *lock = new CoroutineLock(false);
     ASSERT_EQ(lock->lock(), SW_ERROR_CO_OUT_OF_COROUTINE);
-    auto callback = [lock]() {
-        coroutine::run([lock](void *arg) {
-            Coroutine::create([lock](void *) {
-                ASSERT_EQ(lock->lock(), 0);
-                ASSERT_EQ(lock->lock(), 0);
-                System::sleep(1);
-                ASSERT_EQ(lock->unlock(), 0);
-            });
+    ASSERT_EQ(lock->unlock(), SW_ERROR_CO_OUT_OF_COROUTINE);
 
-            Coroutine::create([lock](void *) {
-                ASSERT_EQ(lock->lock(), 0);
-                System::sleep(1);
-                ASSERT_EQ(lock->unlock(), 0);
-            });
-
-            Coroutine::create([lock](void *) { ASSERT_EQ(lock->trylock(), EBUSY); });
+    coroutine::run([lock](void *arg) {
+        Coroutine::create([lock](void *) {
+            ASSERT_EQ(lock->lock(), 0);
+            ASSERT_EQ(lock->lock(), 0);
+            System::sleep(1);
+            ASSERT_EQ(lock->unlock(), 0);
         });
-    };
 
-    std::thread t1(callback);
-    t1.join();
+        Coroutine::create([lock](void *) {
+            ASSERT_EQ(lock->lock(), 0);
+            System::sleep(1);
+            ASSERT_EQ(lock->unlock(), 0);
+            // unlock 2, no effect
+            ASSERT_EQ(lock->unlock(), 0);
+        });
+
+        Coroutine::create([lock](void *) { ASSERT_EQ(lock->trylock(), EBUSY); });
+    });
+
     delete lock;
 }
 
-TEST(lock, coroutine_lock_rd) {
-    CoroutineLock *lock = new CoroutineLock(false);
-    ASSERT_EQ(lock->lock_rd(), SW_ERROR_CO_OUT_OF_COROUTINE);
-    auto callback = [lock]() {
-        coroutine::run([lock](void *arg) {
-            Coroutine::create([lock](void *) {
-                ASSERT_EQ(lock->lock_rd(), 0);
-                ASSERT_EQ(lock->lock_rd(), 0);
-                System::sleep(1);
-                ASSERT_EQ(lock->unlock(), 0);
+#ifndef HAVE_IOURING_FUTEX
+TEST(lock, coroutine_lock_cancel) {
+    auto *lock = new CoroutineLock(true);
+    coroutine::run([lock](void *arg) {
+        ASSERT_EQ(lock->lock(), 0);
+        Coroutine::create([lock](void *) {
+            auto co = Coroutine::get_current();
+            swoole_timer_after(20, [co](TIMER_PARAMS) {
+                DEBUG() << "cancel coroutine " << co->get_cid() << "\n";
+                co->cancel();
             });
-
-            Coroutine::create([lock](void *) {
-                ASSERT_EQ(lock->lock_rd(), 0);
-                System::sleep(1);
-                ASSERT_EQ(lock->unlock(), 0);
-            });
-
-            Coroutine::create([lock](void *) { ASSERT_EQ(lock->trylock_rd(), EBUSY); });
+            ASSERT_EQ(lock->lock(), 0);
         });
-    };
+    });
+}
+#endif
 
-    std::thread t1(callback);
-    t1.join();
+TEST(lock, coroutine_lock_rd) {
+    auto *lock = new CoroutineLock(false);
+    ASSERT_EQ(lock->lock_rd(), SW_ERROR_CO_OUT_OF_COROUTINE);
+
+    coroutine::run([lock](void *arg) {
+        Coroutine::create([lock](void *) {
+            ASSERT_EQ(lock->lock_rd(), 0);
+            ASSERT_EQ(lock->lock_rd(), 0);
+            System::sleep(0.3);
+            ASSERT_EQ(lock->unlock(), 0);
+        });
+
+        Coroutine::create([lock](void *) {
+            ASSERT_EQ(lock->lock_rd(), 0);
+            System::sleep(0.3);
+            ASSERT_EQ(lock->unlock(), 0);
+        });
+
+        Coroutine::create([lock](void *) { ASSERT_EQ(lock->trylock_rd(), EBUSY); });
+    });
+
     delete lock;
 }
 

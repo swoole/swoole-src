@@ -29,6 +29,12 @@ jobs:
           PROXY_USER: user
           PROXY_PASSWORD: password
           PROXY_SERVER: 0.0.0.0:1080
+      socks5-no-auth:
+        image: "xkuma/socks5"
+        ports:
+          - 8081:1080
+        env:
+          PROXY_SERVER: 0.0.0.0:1080
 
     steps:
       - uses: actions/checkout@v4
@@ -41,7 +47,12 @@ jobs:
 
       - name: make
         run: |
-          cmake . -D CODE_COVERAGE=ON -D enable_thread=1
+          if [[ "$GITHUB_COMMIT_MESSAGE" == *"--asan"* ]]; then
+              cmake . -D CODE_COVERAGE=ON -D enable_thread=1 -D enable_asan=1
+          else
+              cmake . -D CODE_COVERAGE=ON -D enable_thread=1
+          fi
+
           make VERBOSE=1 -j $(nproc) lib-swoole
 
       - name: make test

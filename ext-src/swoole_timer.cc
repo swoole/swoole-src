@@ -144,9 +144,6 @@ static void timer_callback(Timer *timer, TimerNode *tnode) {
     if (UNEXPECTED(!fci->call(nullptr, php_swoole_is_enable_coroutine()))) {
         php_swoole_error(E_WARNING, "%s->onTimeout handler error", ZSTR_VAL(swoole_timer_ce->name));
     }
-    if (!tnode->interval || tnode->removed) {
-        timer_dtor(tnode);
-    }
 }
 
 static bool timer_if_use_reactor() {

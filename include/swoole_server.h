@@ -351,6 +351,7 @@ struct ListenPort {
     bool ssl_context_create(SSLContext *context);
     bool ssl_create(Connection *conn, network::Socket *sock);
     bool ssl_add_sni_cert(const std::string &name, const std::shared_ptr<SSLContext> &ctx);
+    static bool ssl_matches_wildcard_name(const char *subjectname, const char *certname);
     bool ssl_init();
 
     bool set_ssl_key_file(const std::string &file) const {
@@ -658,6 +659,21 @@ class Server {
         int id;
         int accepted_process_types;
         std::string name;
+    };
+
+    struct MultiTask {
+        uint16_t count;
+        std::unordered_map<TaskId, uint16_t> map;
+
+        std::function<TaskId(uint16_t index, EventData *buf)> pack;
+        std::function<void(uint16_t index, EventData *result)> unpack;
+        std::function<void(uint16_t index)> fail;
+
+        MultiTask(uint16_t n) {
+            count = n;
+        }
+
+        int find(TaskId task_id);
     };
 
     enum Mode {
@@ -1131,6 +1147,7 @@ class Server {
     bool create_worker_pipes();
 
     int start();
+    void destroy();
     bool reload(bool reload_all_workers);
     bool shutdown();
 
@@ -1505,14 +1522,16 @@ class Server {
                  const std::string &msg,
                  const Command::Callback &fn);
 
-    bool task(EventData *task, int *dst_worker_id, bool blocking = false);
-    bool finish(const char *data, size_t data_len, int flags, EventData *current_task);
-    bool task_sync(EventData *task, int *dst_worker_id, double timeout);
+    bool task(EventData *_task, int *dst_worker_id, bool blocking = false);
+    bool finish(const char *data, size_t data_len, int flags = 0, const EventData *current_task = nullptr);
+    bool task_sync(EventData *task, int *dst_worker_id, double timeout = -1);
+    bool task_sync(MultiTask &mtask, double timeout = -1);
     bool send_pipe_message(WorkerId worker_id, EventData *msg);
+    bool send_pipe_message(WorkerId worker_id, const char *data, size_t len);
 
     void init_reactor(Reactor *reactor);
     void init_event_worker(Worker *worker);
-    void init_task_workers();
+    bool init_task_workers();
     void init_signal_handler();
     void init_ipc_max_size();
     void init_pipe_sockets(MessageBus *mb);
@@ -1587,6 +1606,7 @@ class Server {
     void worker_start_callback(Worker *worker);
     void worker_stop_callback(Worker *worker);
     void worker_accept_event(DataHead *info);
+    static void worker_set_isolation(const std::string &group_, const std::string &user_, const std::string &chroot_);
     void worker_signal_init();
 
     std::function<void(std::shared_ptr<Thread>, const WorkerFn &fn)> worker_thread_start;
@@ -1604,6 +1624,7 @@ class Server {
     static int reactor_process_main_loop(ProcessPool *pool, Worker *worker);
     static void reactor_thread_main_loop(Server *serv, int reactor_id);
     static bool task_pack(EventData *task, const void *data, size_t data_len);
+    static void task_dump(EventData *task);
     static bool task_unpack(EventData *task, String *buffer, PacketPtr *packet);
     static void master_signal_handler(int signo);
     static void heartbeat_check(Timer *timer, TimerNode *tnode);
@@ -1646,7 +1667,6 @@ class Server {
     void check_port_type(ListenPort *ls);
     void store_listen_socket();
     void store_pipe_fd(UnixSocket *p);
-    void destroy();
     void destroy_base_factory();
     void destroy_thread_factory();
     void destroy_process_factory();

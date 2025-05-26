@@ -20,6 +20,7 @@
 #include "test_core.h"
 #include "swoole_reactor.h"
 #include "swoole_pipe.h"
+#include "swoole_signal.h"
 #include "swoole_util.h"
 
 using namespace std;
@@ -380,6 +381,34 @@ TEST(reactor, poll_extra) {
             ASSERT_EQ(reactor.del(&fake_socks[i]), SW_ERR);
         }
     }
+}
+
+TEST(reactor, poll_extra2) {
+    Reactor reactor(32, Reactor::TYPE_POLL);
+    reactor.once = true;
+    reactor.set_timeout_msec(10);
+    reactor.set_end_callback(Reactor::PRIORITY_DEFER_TASK, [](Reactor *reactor) {
+        DEBUG() << "end callback\n";
+        ASSERT_TRUE(reactor->timed_out);
+    });
+    ASSERT_EQ(reactor.wait(), SW_OK);
+
+    swoole_signal_set(
+        SIGIO, [](int sig) { DEBUG() << "SIGIO received\n"; }, 0, 0);
+
+    reactor.erase_end_callback(Reactor::PRIORITY_DEFER_TASK);
+    reactor.set_timeout_msec(1000);
+
+    std::thread t([]() {
+        swoole_signal_block_all();
+        usleep(10000);
+        kill(getpid(), SIGIO);
+    });
+    errno = 0;
+    ASSERT_EQ(reactor.wait(), SW_OK);
+    ASSERT_EQ(errno, EINTR);
+
+    t.join();
 }
 
 TEST(reactor, add_or_update) {

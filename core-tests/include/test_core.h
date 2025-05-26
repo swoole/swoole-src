@@ -17,6 +17,7 @@
 #include <fstream>
 
 #define TEST_HOST "127.0.0.1"
+#define TEST_HOST6 "::1"
 #define TEST_PORT 9501
 #define TEST_TMP_FILE "/tmp/swoole_core_test_file"
 #define TEST_TMP_DIR "/tmp/swoole_core_test_dir"
@@ -30,6 +31,7 @@
 
 #define TEST_SOCKS5_PROXY_HOST "127.0.0.1"
 #define TEST_SOCKS5_PROXY_PORT 8080
+#define TEST_SOCKS5_PROXY_NO_AUTH_PORT 8081
 #define TEST_SOCKS5_PROXY_USER "user"
 #define TEST_SOCKS5_PROXY_PASSWORD "password"
 
@@ -63,7 +65,7 @@
 #define TIMER_PARAMS swoole::Timer *timer, swoole::TimerNode *tnode
 
 #ifdef SW_VERBOSE
-#define DEBUG() std::cout
+#define DEBUG() swoole::test::debug_output.get()
 #else
 #define DEBUG() swoole::test::null_stream
 #endif
@@ -72,19 +74,13 @@ namespace swoole {
 struct HttpProxy;
 struct Socks5Proxy;
 namespace test {
-class NullStream {
+class NullStream : public std::ostream {
   public:
-    template <typename T>
-    NullStream &operator<<(const T &) {
-        return *this;
-    }
-
-    NullStream &operator<<(std::ostream &(*) (std::ostream &) ) {
-        return *this;
-    }
+    NullStream() : std::ostream(nullptr) {}
 };
 
 extern NullStream null_stream;
+extern std::reference_wrapper<std::ostream> debug_output;
 const std::string &get_root_path();
 std::string get_ssl_dir();
 std::string get_jpg_file();
@@ -92,6 +88,9 @@ bool is_github_ci();
 int exec_js_script(const std::string &file, const std::string &args);
 std::string http_get_request(const std::string &domain, const std::string &path);
 int get_random_port();
+int has_threads();
+int has_child_processes();
+int wait_all_child_processes(bool verbose = false);
 
 pid_t spawn_exec(const std::function<void(void)> &fn);
 int spawn_exec_and_wait(const std::function<void(void)> &fn);

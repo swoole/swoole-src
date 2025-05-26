@@ -1152,13 +1152,13 @@ bool Client::send_request() {
     // ============ multipart/form-data ============
     if ((has_upload_files = (php_swoole_array_length_safe(zupload_files) > 0))) {
         char header_buf[2048];
-        char boundary_str[SW_HTTP_CLIENT_BOUNDARY_TOTAL_SIZE];
+        char boundary_str[SW_HTTP_CLIENT_BOUNDARY_TOTAL_SIZE + 1];
         int n;
 
         // ============ content-type ============
         memcpy(boundary_str, SW_HTTP_CLIENT_BOUNDARY_PREKEY, sizeof(SW_HTTP_CLIENT_BOUNDARY_PREKEY) - 1);
         swoole_random_string(boundary_str + sizeof(SW_HTTP_CLIENT_BOUNDARY_PREKEY) - 1,
-                             sizeof(boundary_str) - sizeof(SW_HTTP_CLIENT_BOUNDARY_PREKEY));
+                             sizeof(boundary_str) - sizeof(SW_HTTP_CLIENT_BOUNDARY_PREKEY) - 1);
         n = sw_snprintf(header_buf,
                         sizeof(header_buf),
                         "Content-Type: multipart/form-data; boundary=%.*s\r\n",

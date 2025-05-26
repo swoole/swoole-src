@@ -300,7 +300,7 @@ bool swoole_set_task_tmpdir(const std::string &dir) {
     }
 
     if (access(dir.c_str(), R_OK) < 0 && !swoole_mkdir_recursive(dir)) {
-        swoole_warning("create task tmp dir(%s) failed", dir.c_str());
+        swoole_warning("create task tmp dir('%s') failed", dir.c_str());
         return false;
     }
 
@@ -447,7 +447,10 @@ bool swoole_mkdir_recursive(const std::string &dir) {
 
     // PATH_MAX limit includes string trailing null character
     if (len + 1 > PATH_MAX) {
-        swoole_warning("mkdir(%s) failed. Path exceeds the limit of %d characters", dir.c_str(), PATH_MAX - 1);
+        swoole_error_log(SW_LOG_WARNING,
+                         SW_ERROR_NAME_TOO_LONG,
+                         "mkdir() failed. Path exceeds the limit of %d characters",
+                         PATH_MAX - 1);
         return false;
     }
     swoole_strlcpy(tmp, dir.c_str(), PATH_MAX);
@@ -462,7 +465,7 @@ bool swoole_mkdir_recursive(const std::string &dir) {
             tmp[i] = 0;
             if (access(tmp, R_OK) != 0) {
                 if (mkdir(tmp, 0755) == -1) {
-                    swoole_sys_warning("mkdir(%s) failed", tmp);
+                    swoole_sys_warning("mkdir('%s') failed", tmp);
                     return false;
                 }
             }
@@ -797,17 +800,17 @@ static constexpr char characters[] = {
     'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
 };
 
-void swoole_random_string(char *buf, size_t size) {
+void swoole_random_string(char *buf, size_t len) {
     size_t i = 0;
-    for (; i < size; i++) {
+    for (; i < len; i++) {
         buf[i] = characters[swoole_rand(0, sizeof(characters) - 1)];
     }
     buf[i] = '\0';
 }
 
-void swoole_random_string(std::string &str, size_t size) {
+void swoole_random_string(std::string &str, size_t len) {
     size_t i = 0;
-    for (; i < size; i++) {
+    for (; i < len; i++) {
         str.append(1, characters[swoole_rand(0, sizeof(characters) - 1)]);
     }
 }

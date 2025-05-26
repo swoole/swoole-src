@@ -33,10 +33,10 @@ class Lock {
         SPIN_LOCK = 5,
         COROUTINE_LOCK = 6,
     };
-    Type get_type() {
+    Type get_type() const {
         return type_;
     }
-    virtual ~Lock(){};
+    virtual ~Lock() = default;
     virtual int lock_rd() = 0;
     virtual int lock() = 0;
     virtual int unlock() = 0;
@@ -54,7 +54,7 @@ class Lock {
 
 struct MutexImpl;
 
-class Mutex : public Lock {
+class Mutex final : public Lock {
     MutexImpl *impl;
     int flags_;
 
@@ -64,8 +64,8 @@ class Mutex : public Lock {
         ROBUST = 2,
     };
 
-    Mutex(int flags);
-    ~Mutex();
+    explicit Mutex(int flags);
+    ~Mutex() override;
     int lock_rd() override;
     int lock() override;
     int unlock() override;
@@ -77,12 +77,12 @@ class Mutex : public Lock {
 #ifdef HAVE_RWLOCK
 struct RWLockImpl;
 
-class RWLock : public Lock {
+class RWLock final : public Lock {
     RWLockImpl *impl;
 
   public:
-    RWLock(int use_in_process);
-    ~RWLock();
+    explicit RWLock(int use_in_process);
+    ~RWLock() override;
     int lock_rd() override;
     int lock() override;
     int unlock() override;
@@ -92,12 +92,12 @@ class RWLock : public Lock {
 #endif
 
 #ifdef HAVE_SPINLOCK
-class SpinLock : public Lock {
+class SpinLock final : public Lock {
     pthread_spinlock_t *impl;
 
   public:
-    SpinLock(int use_in_process);
-    ~SpinLock();
+    explicit SpinLock(int use_in_process);
+    ~SpinLock() override;
     int lock_rd() override;
     int lock() override;
     int unlock() override;
@@ -106,8 +106,7 @@ class SpinLock : public Lock {
 };
 #endif
 
-class CoroutineLock : public Lock {
-  private:
+class CoroutineLock final : public Lock {
     long cid = 0;
     sw_atomic_t *value = nullptr;
     void *coroutine = nullptr;
@@ -115,8 +114,8 @@ class CoroutineLock : public Lock {
     int lock_impl(bool blocking = true);
 
   public:
-    CoroutineLock(bool shared);
-    ~CoroutineLock();
+    explicit CoroutineLock(bool shared);
+    ~CoroutineLock() override;
     int lock_rd() override;
     int lock() override;
     int unlock() override;

@@ -67,6 +67,7 @@ class Timer {
     bool init_with_reactor(Reactor *reactor);
     bool init_with_user_scheduler(const TimerScheduler &scheduler);
     bool init_with_system_timer();
+    void release_node(TimerNode *tnode);
 
   public:
     long next_msec_;

@@ -52,18 +52,18 @@ TEST(coroutine_system, flock) {
     test::coroutine::run([&buf](void *) {
         int fd = swoole_coroutine_open(test_file, File::WRITE | File::CREATE, 0666);
         ASSERT_TRUE(fd > 0);
-        swoole_coroutine_flock_ex(test_file, fd, LOCK_EX);
+        swoole_coroutine_flock(fd, LOCK_EX);
 
         for (int i = 0; i < 4; i++) {
             Coroutine::create([&buf](void *) {
                 int fd = swoole_coroutine_open(test_file, File::READ, 0);
                 ASSERT_TRUE(fd > 0);
-                swoole_coroutine_flock_ex(test_file, fd, LOCK_SH);
+                swoole_coroutine_flock(fd, LOCK_SH);
                 String read_buf(DATA_SIZE_2);
                 auto rn = swoole_coroutine_read(fd, read_buf.str, read_buf.size - 1);
                 ASSERT_EQ(rn, read_buf.size - 1);
                 read_buf.str[read_buf.size - 1] = 0;
-                swoole_coroutine_flock_ex(test_file, fd, LOCK_UN);
+                swoole_coroutine_flock(fd, LOCK_UN);
                 EXPECT_STREQ(read_buf.str, buf->str);
                 swoole_coroutine_close(fd);
             });
@@ -71,7 +71,7 @@ TEST(coroutine_system, flock) {
 
         auto wn = swoole_coroutine_write(fd, buf->str, buf->size - 1);
         ASSERT_EQ(wn, buf->size - 1);
-        swoole_coroutine_flock_ex(test_file, fd, LOCK_UN);
+        swoole_coroutine_flock(fd, LOCK_UN);
         swoole_coroutine_close(fd);
     });
 
@@ -80,17 +80,28 @@ TEST(coroutine_system, flock) {
 
 TEST(coroutine_system, flock_nb) {
     coroutine::run([&](void *arg) {
+        DEBUG() << "[thread-1] open" << std::endl;
         int fd = swoole_coroutine_open(test_file, File::WRITE | File::CREATE, 0666);
-        ASSERT_EQ(swoole_coroutine_flock_ex(test_file, fd, LOCK_EX | LOCK_NB), 0);
+        DEBUG() << "[thread-1] LOCK_EX | LOCK_NB" << std::endl;
+        ASSERT_EQ(swoole_coroutine_flock(fd, LOCK_EX | LOCK_NB), 0);
 
-        swoole::Coroutine::create([&](void *arg) {
-            ASSERT_EQ(swoole_coroutine_flock_ex(test_file, fd, LOCK_EX), 0);
-            ASSERT_EQ(swoole_coroutine_flock_ex(test_file, fd, LOCK_UN), 0);
+        std::thread t([]() {
+            int fd = open(test_file, File::WRITE | File::CREATE, 0666);
+            DEBUG() << "[thread-2] LOCK_EX | LOCK_NB" << std::endl;
+            ASSERT_EQ(swoole_coroutine_flock(fd, LOCK_EX), 0);
+
+            DEBUG() << "[thread-2] LOCK_UN" << std::endl;
+            ASSERT_EQ(swoole_coroutine_flock(fd, LOCK_UN), 0);
+
+            DEBUG() << "[thread-2] close" << std::endl;
             swoole_coroutine_close(fd);
             unlink(test_file);
         });
 
-        ASSERT_EQ(swoole_coroutine_flock_ex(test_file, fd, LOCK_UN), 0);
+        DEBUG() << "[thread-1] LOCK_UN" << std::endl;
+        ASSERT_EQ(swoole_coroutine_flock(fd, LOCK_UN), 0);
+
+        t.join();
     });
 }
 
@@ -115,6 +126,22 @@ TEST(coroutine_system, getaddrinfo) {
     });
 }
 
+TEST(coroutine_system, getaddrinfo_fail) {
+    test::coroutine::run([](void *arg) {
+        auto ip_list = System::getaddrinfo("w11.baidu.com-not-exists", AF_INET, SOCK_STREAM, 0, "http", -1);
+        ASSERT_EQ(ip_list.size(), 0);
+        ASSERT_ERREQ(EAI_NONAME);
+    });
+}
+
+TEST(coroutine_system, getaddrinfo_timeout) {
+    test::coroutine::run([](void *arg) {
+        auto ip_list = System::getaddrinfo("w12.baidu.com-not-exists", AF_INET, SOCK_STREAM, 0, "http", 0.005);
+        ASSERT_EQ(ip_list.size(), 0);
+        ASSERT_ERREQ(SW_ERROR_CO_TIMEDOUT);
+    });
+}
+
 TEST(coroutine_system, wait_signal) {
     test::coroutine::run([](void *arg) {
         Coroutine::create([](void *) {
@@ -123,6 +150,22 @@ TEST(coroutine_system, wait_signal) {
         });
         ASSERT_EQ(System::wait_signal(SIGUSR1, 1.0), SIGUSR1);
         ASSERT_EQ(System::wait_signal(SIGUSR2, 0.1), -1);
+    });
+}
+
+TEST(coroutine_system, wait_signal_invalid_signo) {
+    test::coroutine::run([](void *arg) {
+        ASSERT_EQ(System::wait_signal(SW_SIGNO_MAX), SW_ERR);
+        ASSERT_ERREQ(EINVAL);
+    });
+}
+
+TEST(coroutine_system, wait_signal_fail) {
+    test::coroutine::run([](void *arg) {
+        SwooleG.signal_listener_num = 1;
+        ASSERT_EQ(System::wait_signal(SIGUSR1, 1.0), SW_ERR);
+        ASSERT_ERREQ(EBUSY);
+        SwooleG.signal_listener_num = 0;
     });
 }
 
@@ -211,6 +254,25 @@ TEST(coroutine_system, wait_event_writable) {
         }
         tg_buf->append('\0');
         EXPECT_STREQ(sw_tg_buffer()->value(), str.value());
+    });
+}
+
+TEST(coroutine_system, wait_event_fail) {
+    UnixSocket p(true, SOCK_DGRAM);
+    test::coroutine::run([&](void *arg) {
+        ASSERT_EQ(System::wait_event(9999, 0, 1), SW_ERR);
+        ASSERT_ERREQ(EINVAL);
+
+        ASSERT_EQ(System::wait_event(p.get_socket(true)->get_fd(), SW_EVENT_READ, 0), SW_ERR);
+        ASSERT_ERREQ(ETIMEDOUT);
+
+        ASSERT_EQ(System::wait_event(p.get_socket(false)->get_fd(), SW_EVENT_WRITE, 0), SW_EVENT_WRITE);
+
+        ASSERT_EQ(System::wait_event(9999, SW_EVENT_WRITE, 0), -1);
+        ASSERT_ERREQ(EBADF);
+
+        ASSERT_EQ(System::wait_event(9999, SW_EVENT_WRITE, 1.0), -1);
+        ASSERT_ERREQ(EBADF);
     });
 }
 
@@ -305,5 +367,19 @@ TEST(coroutine_system, waitpid) {
         ASSERT_ERREQ(ETIMEDOUT);
 
         kill(pid, SIGKILL);
+    });
+}
+
+TEST(coroutine_system, read_file_fail) {
+    test::coroutine::run([](void *arg) {
+        ASSERT_EQ(System::read_file("/tmp/not-exists", true), nullptr);
+        ASSERT_EQ(errno, ENOENT);
+    });
+}
+
+TEST(coroutine_system, write_file_fail) {
+    test::coroutine::run([](void *arg) {
+        ASSERT_EQ(System::write_file("/tmp/not-exists/file.log", SW_STRL(TEST_STR)), -1);
+        ASSERT_EQ(errno, ENOENT);
     });
 }

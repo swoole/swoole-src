@@ -3157,114 +3157,28 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
 
     array_init(return_value);
 
-    int dst_worker_id;
-    int i = 0;
     int n_task = php_swoole_array_length(ztasks);
-
     if (n_task >= SW_MAX_CONCURRENT_TASK) {
         php_swoole_fatal_error(E_WARNING, "too many concurrent tasks");
         RETURN_FALSE;
     }
 
-    TaskId list_of_id[SW_MAX_CONCURRENT_TASK] = {};
+    Server::MultiTask mt(n_task);
+    mt.pack = [ztasks](uint16_t i, EventData *buf) {
+        auto *ztask = zend::array_get(ztasks, (zend_ulong) i);
+        return php_swoole_server_task_pack(ztask, buf);
+    };
 
-    uint64_t notify;
-    EventData *task_result = serv->get_task_result();
-    sw_memset_zero(task_result, sizeof(*task_result));
-    Pipe *pipe = serv->task_notify_pipes.at(swoole_get_worker_id()).get();
-    Worker *worker = serv->get_worker(swoole_get_worker_id());
-
-    File fp = swoole::make_tmpfile();
-    if (!fp.ready()) {
-        RETURN_FALSE;
-    }
-    std::string file_path = fp.get_path();
-    fp.close();
-
-    int *finish_count = (int *) task_result->data;
-
-    worker->lock->lock();
-    *finish_count = 0;
-
-    swoole_strlcpy(task_result->data + 4, file_path.c_str(), SW_TASK_TMP_PATH_SIZE);
-    worker->lock->unlock();
-
-    // clear history task
-    network::Socket *task_notify_socket = pipe->get_socket(false);
-    task_notify_socket->set_nonblock();
-    while (task_notify_socket->read(&notify, sizeof(notify)) > 0) {
-    }
-    task_notify_socket->set_block();
-
-    zval *ztask;
-    SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(ztasks), ztask)
-
-    EventData buf;
-    TaskId task_id = php_swoole_server_task_pack(ztask, &buf);
-    if (task_id < 0) {
-        php_swoole_fatal_error(E_WARNING, "task pack failed");
-        goto _fail;
-    }
-    buf.info.ext_flags |= SW_TASK_WAITALL;
-    dst_worker_id = -1;
-    sw_atomic_fetch_add(&serv->gs->tasking_num, 1);
-    if (!serv->task(&buf, &dst_worker_id, true)) {
-        php_swoole_sys_error(E_WARNING, "failed to dispatch task");
-        task_id = -1;
-    _fail:
-        add_index_bool(return_value, i, 0);
-        n_task--;
-    } else {
-        sw_atomic_fetch_sub(&serv->gs->tasking_num, 1);
-    }
-    list_of_id[i] = task_id;
-    i++;
-    SW_HASHTABLE_FOREACH_END();
-
-    if (n_task == 0) {
-        swoole_set_last_error(SW_ERROR_TASK_DISPATCH_FAIL);
-        RETURN_FALSE;
-    }
-
-    pipe->set_timeout(timeout);
-    double _now = microtime();
-    while (n_task > 0) {
-        int ret = pipe->read(&notify, sizeof(notify));
-        if (ret > 0 && *finish_count < n_task) {
-            if (microtime() - _now < timeout) {
-                continue;
-            }
-        }
-        break;
-    }
-
-    worker->lock->lock();
-    auto content = swoole::file_get_contents(file_path);
-    worker->lock->unlock();
-
-    if (content.get() == nullptr) {
-        RETURN_FALSE;
-    }
-
-    do {
-        EventData *result = (EventData *) (content->str + content->offset);
-        TaskId task_id = serv->get_task_id(result);
+    mt.unpack = [ztasks, return_value](uint16_t i, EventData *result) {
         zval zresult;
-        if (!php_swoole_server_task_unpack(&zresult, result)) {
-            goto _next;
+        if (php_swoole_server_task_unpack(&zresult, result)) {
+            add_index_zval(return_value, i, &zresult);
         }
-        uint32_t j;
-        for (j = 0; j < php_swoole_array_length(ztasks); j++) {
-            if (list_of_id[j] == task_id) {
-                break;
-            }
-        }
-        (void) add_index_zval(return_value, j, &zresult);
-    _next:
-        content->offset += result->size();
-    } while (content->offset < 0 || (size_t) content->offset < content->length);
-    // delete tmp file
-    unlink(file_path.c_str());
+    };
+
+    mt.fail = [ztasks, return_value](uint16_t i) { add_index_bool(return_value, i, 0); };
+
+    RETURN_BOOL(serv->task_sync(mt, timeout));
 }
 
 static PHP_METHOD(swoole_server, taskCo) {

@@ -30,8 +30,7 @@ static int http_request_on_headers_complete(swoole_http_parser *parser);
 static int http_request_message_complete(swoole_http_parser *parser);
 
 // clang-format off
-static const swoole_http_parser_settings http_parser_settings =
-{
+static constexpr swoole_http_parser_settings http_parser_settings = {
     nullptr,
     http_request_on_path,
     http_request_on_query_string,
@@ -45,7 +44,7 @@ static const swoole_http_parser_settings http_parser_settings =
 };
 // clang-format on
 
-typedef struct {
+struct HttpContext {
     long fd;
     uchar completed : 1;
     uchar end_ : 1;
@@ -78,10 +77,10 @@ typedef struct {
     vector<string> header_fields;
     vector<string> header_values;
     string query_string;
-} HttpContext;
+};
 
 static swoole_http_parser *swoole_http_parser_create(swoole_http_parser_type type = PHP_HTTP_REQUEST) {
-    HttpContext *ctx = new HttpContext();
+    auto *ctx = new HttpContext();
     swoole_http_parser *parser = &ctx->parser;
     swoole_http_parser_init(parser, type);
     parser->data = ctx;
@@ -89,11 +88,10 @@ static swoole_http_parser *swoole_http_parser_create(swoole_http_parser_type typ
 }
 
 static void swoole_http_destroy_context(swoole_http_parser *parser) {
-    delete (HttpContext *) parser->data;
-    return;
+    delete static_cast<HttpContext *>(parser->data);
 }
 
-static int swoole_http_parser_method(string protocol) {
+static int swoole_http_parser_method(const string &protocol) {
     swoole_http_parser *parser = swoole_http_parser_create();
     swoole_http_parser_execute(parser, &http_parser_settings, protocol.c_str(), protocol.length());
 
@@ -107,20 +105,20 @@ static int http_request_on_path(swoole_http_parser *parser, const char *at, size
 }
 
 static int http_request_on_query_string(swoole_http_parser *parser, const char *at, size_t length) {
-    HttpContext *ctx = (HttpContext *) parser->data;
+    auto *ctx = static_cast<HttpContext *>(parser->data);
     ctx->query_string = string(at, length);
     return 0;
 }
 
 static int http_request_on_header_field(swoole_http_parser *parser, const char *at, size_t length) {
-    HttpContext *ctx = (HttpContext *) parser->data;
-    ctx->header_fields.push_back(string(at, length));
+    auto *ctx = static_cast<HttpContext *>(parser->data);
+    ctx->header_fields.emplace_back(at, length);
     return 0;
 }
 
 static int http_request_on_header_value(swoole_http_parser *parser, const char *at, size_t length) {
-    HttpContext *ctx = (HttpContext *) parser->data;
-    ctx->header_values.push_back(string(at, length));
+    auto ctx = static_cast<HttpContext *>(parser->data);
+    ctx->header_values.emplace_back(at, length);
     return 0;
 }
 
@@ -407,7 +405,7 @@ TEST(http_parser, dead) {
 
 TEST(http_parser, zero) {
     swoole_http_parser *parser = swoole_http_parser_create();
-    int ret = swoole_http_parser_execute(parser, &http_parser_settings, "", 0);
+    size_t ret = swoole_http_parser_execute(parser, &http_parser_settings, "", 0);
     ASSERT_TRUE(ret == 0);
     swoole_http_destroy_context(parser);
 }
@@ -446,28 +444,27 @@ TEST(http_parser, proxy_connection) {
                                request_get_with_proxy_connection.c_str(),
                                request_get_with_proxy_connection.length());
 
-    HttpContext *ctx = (HttpContext *) parser->data;
+    auto *ctx = static_cast<HttpContext *>(parser->data);
     ASSERT_STREQ(ctx->header_fields[4].c_str(), "Proxy-Connection");
     swoole_http_destroy_context(parser);
 }
 
 TEST(http_parser, header_field_and_value) {
-    string header = "User-Agent: curl/7.64.1\r\n"
-                    "\r\n";
+    string header = "User-Agent: curl/7.64.1\r\n\r\n";
 
     swoole_http_parser *parser = swoole_http_parser_create();
     parser->state = s_header_field;
     swoole_http_parser_execute(parser, &http_parser_settings, header.c_str(), header.length());
 
-    HttpContext *ctx = (HttpContext *) parser->data;
+    auto *ctx = static_cast<HttpContext *>(parser->data);
     ASSERT_STREQ(ctx->header_fields[0].c_str(), "User-Agent");
     swoole_http_destroy_context(parser);
 
-    header = "curl/7.64.1\r\n"
-             "\r\n";
+    header = "curl/7.64.1\r\n\r\n";
     parser = swoole_http_parser_create();
     parser->state = s_header_value;
     swoole_http_parser_execute(parser, &http_parser_settings, header.c_str(), header.length());
+    ctx = static_cast<HttpContext *>(parser->data);
     ASSERT_STREQ(ctx->header_values[0].c_str(), "curl/7.64.1");
     swoole_http_destroy_context(parser);
 }
@@ -511,7 +508,7 @@ TEST(http_parser, query_string) {
     swoole_http_parser_execute(
         parser, &http_parser_settings, request_get_with_query_string.c_str(), request_get_with_query_string.length());
 
-    HttpContext *ctx = (HttpContext *) parser->data;
+    auto *ctx = static_cast<HttpContext *>(parser->data);
     ASSERT_STREQ(ctx->query_string.c_str(), "a=foo&b=bar&c=456%26789");
     swoole_http_destroy_context(parser);
 
@@ -528,7 +525,7 @@ TEST(http_parser, query_string) {
 
     ASSERT_TRUE(parser->http_major == 0);
     ASSERT_TRUE(parser->http_minor == 9);
-    ctx = (HttpContext *) parser->data;
+    ctx = static_cast<HttpContext *>(parser->data);
     ASSERT_STREQ(ctx->query_string.c_str(), "a=123");
     swoole_http_destroy_context(parser);
 
@@ -538,7 +535,7 @@ TEST(http_parser, query_string) {
 
     ASSERT_TRUE(parser->http_major == 0);
     ASSERT_TRUE(parser->http_minor == 9);
-    ctx = (HttpContext *) parser->data;
+    ctx = static_cast<HttpContext *>(parser->data);
     ASSERT_STREQ(ctx->query_string.c_str(), "a=123");
     swoole_http_destroy_context(parser);
 
