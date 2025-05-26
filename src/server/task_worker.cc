@@ -180,28 +180,21 @@ bool Server::task_sync(EventData *_task, int *dst_worker_id, double timeout) {
     EventData *task_result = get_task_result();
     sw_memset_zero(task_result, sizeof(*task_result));
     Pipe *pipe = task_notify_pipes.at(swoole_get_worker_id()).get();
-    Socket *task_notify_socket = pipe->get_socket(false);
     TaskId task_id = get_task_id(_task);
 
     // clear history task
-    while (task_notify_socket->wait_event(0, SW_EVENT_READ) == SW_OK) {
-        if (task_notify_socket->read(&notify, sizeof(notify)) <= 0) {
-            break;
-        }
-    }
+    pipe->clean();
 
     if (!task(_task, dst_worker_id, true)) {
         return false;
     }
 
     SW_LOOP {
-        if (task_notify_socket->wait_event(static_cast<int>(sec2msec(timeout)), SW_EVENT_READ) == SW_OK) {
-            if (pipe->read(&notify, sizeof(notify)) > 0) {
-                if (get_task_id(task_result) != task_id) {
-                    continue;
-                }
-                return true;
+        if (pipe->read(&notify, sizeof(notify)) > 0) {
+            if (get_task_id(task_result) != task_id) {
+                continue;
             }
+            return true;
         }
         break;
     }
@@ -245,11 +238,7 @@ bool Server::task_sync(MultiTask &mtask, double timeout) {
     worker->lock->unlock();
 
     // clear history task
-    Socket *task_notify_socket = pipe->get_socket(false);
-    task_notify_socket->set_nonblock();
-    while (task_notify_socket->read(&notify, sizeof(notify)) > 0) {
-    }
-    task_notify_socket->set_block();
+    pipe->clean();
 
     auto n_task = mtask.count;
     SW_LOOP_N(mtask.count) {

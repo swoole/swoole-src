@@ -157,6 +157,7 @@ void swoole_init(void) {
     SwooleG.fatal_error = swoole_fatal_error_impl;
     SwooleG.cpu_num = SW_MAX(1, sysconf(_SC_NPROCESSORS_ONLN));
     SwooleG.pagesize = getpagesize();
+    SwooleG.max_file_content = SW_MAX_FILE_CONTENT;
 
     // DNS options
     SwooleG.dns_tries = 1;

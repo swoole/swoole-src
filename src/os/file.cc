@@ -73,7 +73,7 @@ std::shared_ptr<String> file_get_contents(const std::string &filename) {
     } else if (filesize == 0) {
         swoole_error_log(SW_LOG_TRACE, SW_ERROR_FILE_EMPTY, "file[%s] is empty", filename.c_str());
         return nullptr;
-    } else if (filesize > SW_MAX_FILE_CONTENT) {
+    } else if (filesize > SwooleG.max_file_content) {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_FILE_TOO_LARGE, "file[%s] is too large", filename.c_str());
         return nullptr;
     }
@@ -101,7 +101,7 @@ bool file_put_contents(const std::string &filename, const char *content, size_t 
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_FILE_EMPTY, "content is empty");
         return false;
     }
-    if (length > SW_MAX_FILE_CONTENT) {
+    if (length > SwooleG.max_file_content) {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_FILE_TOO_LARGE, "content is too large");
         return false;
     }
@@ -168,14 +168,15 @@ size_t File::write_all(const void *data, size_t len) const {
         }
         if (n > 0) {
             written_bytes += n;
+        } else {
+            const auto rc = catch_fs_error(n, errno);
+            if (rc == SW_ERROR) {
+                swoole_sys_warning("pwrite(%d, %p, %lu, %lu) failed", fd_, data, len - written_bytes, written_bytes);
+            } else if (rc == SW_CONTINUE) {
+                continue;
+            }
+            break;
         }
-        const auto rc = catch_fs_error(n, errno);
-        if (rc == SW_ERROR) {
-            swoole_sys_warning("pwrite(%d, %p, %lu, %lu) failed", fd_, data, len - written_bytes, written_bytes);
-        } else if (rc == SW_CONTINUE) {
-            continue;
-        }
-        break;
     }
     return written_bytes;
 }
@@ -186,14 +187,15 @@ size_t File::read_all(void *buf, size_t len) const {
         ssize_t n = pread((char *) buf + read_bytes, len - read_bytes, read_bytes);
         if (n > 0) {
             read_bytes += n;
+        } else {
+            const auto rc = catch_fs_error(n, errno);
+            if (rc == SW_ERROR) {
+                swoole_sys_warning("pread(%d, %p, %lu, %lu) failed", fd_, buf, len - read_bytes, read_bytes);
+            } else if (rc == SW_CONTINUE) {
+                continue;
+            }
+            break;
         }
-        const auto rc = catch_fs_error(n, errno);
-        if (rc == SW_ERROR) {
-            swoole_sys_warning("pread(%d, %p, %lu, %lu) failed", fd_, buf, len - read_bytes, read_bytes);
-        } else if (rc == SW_CONTINUE) {
-            continue;
-        }
-        break;
     }
     return read_bytes;
 }

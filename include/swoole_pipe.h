@@ -35,8 +35,8 @@ class SocketPair {
     double timeout;
 
     /**
-     * master : socks[1]
-     * worker : socks[0]
+     * master : socks[1], for write operation
+     * worker : socks[0], for read operation
      */
     int socks[2];
 
@@ -54,6 +54,7 @@ class SocketPair {
 
     ssize_t read(void *_buf, size_t length);
     ssize_t write(const void *_buf, size_t length);
+    void clean();
     bool close(int which = 0);
 
     network::Socket *get_socket(bool _master) const {
@@ -66,6 +67,10 @@ class SocketPair {
 
     void set_timeout(double _timeout) {
         timeout = _timeout;
+    }
+
+    int get_timeout_msec() {
+        return timeout > 0 ? static_cast<int>(timeout * 1000) : timeout;
     }
 
     void set_blocking(bool blocking) const;

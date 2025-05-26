@@ -68,9 +68,45 @@ TEST(file, file_put_contents) {
     ASSERT_FALSE(file_put_contents(filename, TEST_STR, 0));
     ASSERT_ERREQ(SW_ERROR_FILE_EMPTY);
 
-    ASSERT_FALSE(file_put_contents(filename, TEST_STR, SW_MAX_FILE_CONTENT + 1));
+    ASSERT_FALSE(file_put_contents(filename, TEST_STR, SwooleG.max_file_content + 1));
     ASSERT_ERREQ(SW_ERROR_FILE_TOO_LARGE);
 
     ASSERT_FALSE(file_put_contents(filename, SW_STRL(TEST_STR)));
     ASSERT_ERREQ(ENOENT);
+}
+
+TEST(file, file_get_contents) {
+    std::string filename = "/tmp/not-exists-dir/test.txt";
+
+    ASSERT_EQ(file_get_contents(filename), nullptr);
+    ASSERT_ERREQ(ENOENT);
+
+    ASSERT_EQ(file_get_contents("/tmp"), nullptr);
+    ASSERT_ERREQ(EISDIR);
+
+    auto empty_file = "/tmp/empty-file.txt";
+    int fd = open(empty_file, O_CREAT | O_RDWR, 0644);
+    close(fd);
+
+    ASSERT_EQ(file_get_contents(empty_file), nullptr);
+    ASSERT_ERREQ(SW_ERROR_FILE_EMPTY);
+    remove(empty_file);
+
+    auto large_file = test::get_root_path() + "/core-tests/bin/core_tests";
+    SwooleG.max_file_content = 1024 * 1024;
+    ASSERT_EQ(file_get_contents(large_file), nullptr);
+    ASSERT_ERREQ(SW_ERROR_FILE_TOO_LARGE);
+    SwooleG.max_file_content = SW_MAX_FILE_CONTENT;
+}
+
+TEST(file, file_get_size) {
+    ASSERT_EQ(file_get_size("/tmp/not-exists-file.txt"), -1);
+    ASSERT_ERREQ(ENOENT);
+
+    ASSERT_EQ(file_get_size(9999), -1);
+    ASSERT_ERREQ(EBADF);
+
+    int fd = open("/tmp", O_RDONLY);
+    ASSERT_EQ(file_get_size(fd), -1);
+    ASSERT_ERREQ(EISDIR);
 }
