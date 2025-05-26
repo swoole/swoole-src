@@ -704,8 +704,7 @@ TEST(server, reload_thread) {
 
     swoole_set_log_level(SW_LOG_WARNING);
 
-    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
-    ASSERT_TRUE(port);
+    ASSERT_NE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0), nullptr);
 
     Worker user_worker{};
     ASSERT_NE(serv.add_worker(&user_worker), SW_ERR);
@@ -740,7 +739,7 @@ TEST(server, reload_thread) {
         lock.unlock();
     };
 
-    serv.onWorkerStart = [&lock, &count](Server *serv, Worker *worker) {
+    serv.onWorkerStart = [&count](Server *serv, Worker *worker) {
         ++count;
         DEBUG() << "onWorkerStart: id=" << worker->id << "\n";
     };
@@ -749,7 +748,7 @@ TEST(server, reload_thread) {
 
     serv.onReceive = [](Server *serv, RecvData *req) -> int { return SW_OK; };
 
-    serv.start();
+    ASSERT_EQ(serv.start(), SW_OK);
     t1.join();
     ASSERT_EQ(count.load(), serv.get_core_worker_num() * 2);
     test::wait_all_child_processes();
@@ -763,12 +762,11 @@ TEST(server, reload_thread_2) {
     std::unordered_map<std::string, bool> flags;
     swoole_set_log_level(SW_LOG_WARNING);
 
-    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
-    ASSERT_TRUE(port);
+    ASSERT_NE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0), nullptr);
 
     Worker user_worker{};
 
-    serv.add_worker(&user_worker);
+    ASSERT_EQ(serv.add_worker(&user_worker), SW_OK);
 
     mutex lock;
     lock.lock();
@@ -812,7 +810,7 @@ TEST(server, reload_thread_2) {
 
     serv.onManagerStop = [&flags](Server *serv) { flags["onManagerStop"] = true; };
 
-    serv.start();
+    ASSERT_EQ(serv.start(), SW_OK);
 
     ASSERT_TRUE(flags["onBeforeReload"]);
     ASSERT_TRUE(flags["onAfterReload"]);
