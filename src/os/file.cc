@@ -147,7 +147,17 @@ File::~File() {
     }
 }
 
-size_t File::write_all(const void *data, size_t len) {
+static swReturnCode catch_fs_error(const ssize_t rv, const int error) {
+    if (rv == 0) {
+        return SW_CLOSE;
+    }
+    if (error == EINTR || error == EAGAIN || error == EWOULDBLOCK) {
+        return SW_CONTINUE;
+    }
+    return SW_ERROR;
+}
+
+size_t File::write_all(const void *data, size_t len) const {
     size_t written_bytes = 0;
     while (written_bytes < len) {
         ssize_t n;
@@ -158,14 +168,14 @@ size_t File::write_all(const void *data, size_t len) {
         }
         if (n > 0) {
             written_bytes += n;
-        } else if (n == 0) {
-            break;
-        } else if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
-            continue;
-        } else {
-            swoole_sys_warning("pwrite(%d, %p, %lu, %lu) failed", fd_, data, len - written_bytes, written_bytes);
-            break;
         }
+        const auto rc = catch_fs_error(n, errno);
+        if (rc == SW_ERROR) {
+            swoole_sys_warning("pwrite(%d, %p, %lu, %lu) failed", fd_, data, len - written_bytes, written_bytes);
+        } else if (rc == SW_CONTINUE) {
+            continue;
+        }
+        break;
     }
     return written_bytes;
 }
@@ -176,14 +186,14 @@ size_t File::read_all(void *buf, size_t len) const {
         ssize_t n = pread((char *) buf + read_bytes, len - read_bytes, read_bytes);
         if (n > 0) {
             read_bytes += n;
-        } else if (n == 0) {
-            break;
-        } else if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
-            continue;
-        } else {
-            swoole_sys_warning("pread(%d, %p, %lu, %lu) failed", fd_, buf, len - read_bytes, read_bytes);
-            break;
         }
+        const auto rc = catch_fs_error(n, errno);
+        if (rc == SW_ERROR) {
+            swoole_sys_warning("pread(%d, %p, %lu, %lu) failed", fd_, buf, len - read_bytes, read_bytes);
+        } else if (rc == SW_CONTINUE) {
+            continue;
+        }
+        break;
     }
     return read_bytes;
 }

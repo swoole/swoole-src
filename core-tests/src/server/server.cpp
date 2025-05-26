@@ -612,7 +612,7 @@ TEST(server, thread) {
         return SW_OK;
     };
 
-    serv.start();
+    ASSERT_EQ(serv.start(), SW_OK);
     t1.join();
 
     test::wait_all_child_processes();
@@ -688,7 +688,7 @@ TEST(server, task_thread) {
         return SW_OK;
     };
 
-    serv.start();
+    ASSERT_EQ(serv.start(), SW_OK);
     t1.join();
 
     ASSERT_EQ(count.load(), serv.get_core_worker_num());
