@@ -19,24 +19,24 @@
 #include "swoole_api.h"
 #include "swoole_string.h"
 #include "swoole_socket.h"
+#include "swoole_protocol.h"
 
 #include <unordered_map>
 
 namespace swoole {
-
 struct PipeBuffer {
     DataHead info;
     char data[0];
 
-    bool is_begin() {
+    bool is_begin() const {
         return info.flags & SW_EVENT_DATA_BEGIN;
     }
 
-    bool is_chunked() {
+    bool is_chunked() const {
         return info.flags & SW_EVENT_DATA_CHUNK;
     }
 
-    bool is_end() {
+    bool is_end() const {
         return info.flags & SW_EVENT_DATA_END;
     }
 };
@@ -79,11 +79,11 @@ class MessageBus {
 
     ~MessageBus();
 
-    bool empty() {
+    bool empty() const {
         return packet_pool_.empty();
     }
 
-    size_t count() {
+    size_t count() const {
         return packet_pool_.size();
     }
 
@@ -107,22 +107,12 @@ class MessageBus {
         always_chunked_transfer_ = true;
     }
 
-    size_t get_buffer_size() {
+    size_t get_buffer_size() const {
         return buffer_size_;
     }
 
     size_t get_memory_size();
-
-    bool alloc_buffer() {
-        void *_ptr = allocator_->malloc(sizeof(*buffer_) + buffer_size_);
-        if (_ptr) {
-            buffer_ = (PipeBuffer *) _ptr;
-            sw_memset_zero(&buffer_->info, sizeof(buffer_->info));
-            return true;
-        } else {
-            return false;
-        }
-    }
+    bool alloc_buffer();
 
     /**
      * If use the zend_string_allocator, must manually call this function to release the memory,
@@ -133,19 +123,11 @@ class MessageBus {
         buffer_ = nullptr;
     }
 
-    void pass(SendData *task) {
-        memcpy(&buffer_->info, &task->info, sizeof(buffer_->info));
-        if (task->info.len > 0) {
-            buffer_->info.flags = SW_EVENT_DATA_PTR;
-            PacketPtr pkt{task->info.len, (char *) task->data};
-            buffer_->info.len = sizeof(pkt);
-            memcpy(buffer_->data, &pkt, sizeof(pkt));
-        }
-    }
+    void pass(SendData *task);
 
     /**
      * Send data to socket. If the data sent is larger than Server::ipc_max_size, then it is sent in chunks.
-     * Otherwise send it directly.
+     * Otherwise, send it directly.
      * When sending data in multi-thread environment, must use get_pipe_socket() to separate socket memory.
      * @return: send success returns true, send failure returns false.
      */
@@ -165,24 +147,13 @@ class MessageBus {
      * The last chunk of data has been received, return address and length, start processing this packet.
      */
     PacketPtr get_packet() const;
-    PipeBuffer *get_buffer() {
+    PipeBuffer *get_buffer() const {
         return buffer_;
     }
     /**
      * Pop the data memory address to the outer layer, no longer managed by MessageBus
      */
-    char *move_packet() {
-        uint64_t msg_id = buffer_->info.msg_id;
-        auto iter = packet_pool_.find(msg_id);
-        if (iter != packet_pool_.end()) {
-            auto str = iter->second.get();
-            char *val = str->str;
-            str->str = nullptr;
-            return val;
-        } else {
-            return nullptr;
-        }
-    }
+    char *move_packet();
     /**
      * The processing of this data packet has been completed, and the relevant memory has been released
      */
@@ -195,7 +166,7 @@ class MessageBus {
      * It is possible to operate the same pipe in multiple threads.
      * Each thread must have a unique buffer and the socket memory must be separated.
      */
-    network::Socket *get_pipe_socket(network::Socket *sock) {
+    network::Socket *get_pipe_socket(const network::Socket *sock) const {
         return pipe_sockets_[sock->get_fd()];
     }
     void init_pipe_socket(network::Socket *sock);

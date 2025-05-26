@@ -37,8 +37,8 @@ $pm->parentFunc = function ($pid) use ($pm) {
 $pm->childFunc = function () use ($pm) {
     $serv = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS, SWOOLE_SOCK_TCP | SWOOLE_SSL);
     $serv->set([
-        'ssl_cert_file' => dirname(__DIR__) . '/include/api/ssl-ca/server-cert.pem',
-        'ssl_key_file' => dirname(__DIR__) . '/include/api/ssl-ca/server-key.pem',
+        'ssl_cert_file' => SSL_FILE_DIR . '/server-cert.pem',
+        'ssl_key_file' => SSL_FILE_DIR . '/server-key.pem',
         'open_length_check' => true,
         'package_max_length' => 2097152,
         'package_length_type' => 'N',

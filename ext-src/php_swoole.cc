@@ -40,6 +40,7 @@ END_EXTERN_C()
 #include <net/if.h>
 #include <ifaddrs.h>
 #include <sys/ioctl.h>
+
 #ifdef SW_USE_CURL
 #include <curl/curl.h>
 #endif
@@ -51,10 +52,12 @@ END_EXTERN_C()
 #ifdef SW_HAVE_ZLIB
 #include <zlib.h>
 #endif
+
 #ifdef SW_HAVE_BROTLI
 #include <brotli/encode.h>
 #include <brotli/decode.h>
 #endif
+
 #ifdef SW_HAVE_ZSTD
 #include <zstd.h>
 #endif
@@ -240,7 +243,15 @@ static void php_swoole_init_globals(zend_swoole_globals *swoole_globals) {
 
 void php_swoole_register_shutdown_function(const char *function) {
     php_shutdown_function_entry shutdown_function_entry;
-#if PHP_VERSION_ID >= 80100
+#if PHP_VERSION_ID >= 80500
+    zval function_name;
+    memset(&shutdown_function_entry, 0, sizeof(php_shutdown_function_entry));
+    ZVAL_STRING(&function_name, function);
+    shutdown_function_entry.params = NULL;
+    shutdown_function_entry.param_count = 0;
+    register_user_shutdown_function(Z_STRVAL(function_name), Z_STRLEN(function_name), &shutdown_function_entry);
+    zval_ptr_dtor(&function_name);
+#elif PHP_VERSION_ID >= 80100
     zval function_name;
     ZVAL_STRING(&function_name, function);
     zend_fcall_info_init(
@@ -286,6 +297,16 @@ void php_swoole_set_global_option(HashTable *vht) {
     }
     if (php_swoole_array_get_value(vht, "display_errors", ztmp)) {
         SWOOLE_G(display_errors) = zval_is_true(ztmp);
+    }
+    if (php_swoole_array_get_value(vht, "print_backtrace_on_error", ztmp)) {
+#if !defined(HAVE_BOOST_STACKTRACE) && !defined(HAVE_EXECINFO)
+        zend_throw_exception(
+            swoole_error_ce,
+            "The `print_backtrace_on_error` option requires `boost stacktrace` or `execinfo.h` to be installed",
+            SW_ERROR_OPERATION_NOT_SUPPORT);
+#else
+        SwooleG.print_backtrace_on_error = zval_is_true(ztmp);
+#endif
     }
     // [DNS]
     // ======================================================================
@@ -469,6 +490,8 @@ PHP_MINIT_FUNCTION(swoole) {
     SW_REGISTER_LONG_CONSTANT("SWOOLE_SOCK_UDP6", SW_SOCK_UDP6);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_SOCK_UNIX_DGRAM", SW_SOCK_UNIX_DGRAM);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_SOCK_UNIX_STREAM", SW_SOCK_UNIX_STREAM);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_SOCK_RAW", SW_SOCK_RAW);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_SOCK_RAW6", SW_SOCK_RAW6);
 
     /**
      * simple socket type alias
@@ -479,6 +502,8 @@ PHP_MINIT_FUNCTION(swoole) {
     SW_REGISTER_LONG_CONSTANT("SWOOLE_UDP6", SW_SOCK_UDP6);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_UNIX_DGRAM", SW_SOCK_UNIX_DGRAM);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_UNIX_STREAM", SW_SOCK_UNIX_STREAM);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_RAW", SW_SOCK_RAW);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_RAW6", SW_SOCK_RAW6);
 
     /**
      * simple api
@@ -595,7 +620,9 @@ PHP_MINIT_FUNCTION(swoole) {
     SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_BAD_IPV6_ADDRESS", SW_ERROR_BAD_IPV6_ADDRESS);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_UNREGISTERED_SIGNAL", SW_ERROR_UNREGISTERED_SIGNAL);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_BAD_HOST_ADDR", SW_ERROR_BAD_HOST_ADDR);
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_EVENT_SOCKET_REMOVED", SW_ERROR_EVENT_SOCKET_REMOVED);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_EVENT_REMOVE_FAILED", SW_ERROR_EVENT_REMOVE_FAILED);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_EVENT_ADD_FAILED", SW_ERROR_EVENT_ADD_FAILED);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_EVENT_UPDATE_FAILED", SW_ERROR_EVENT_UPDATE_FAILED);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_SESSION_CLOSED_BY_SERVER", SW_ERROR_SESSION_CLOSED_BY_SERVER);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_SESSION_CLOSED_BY_CLIENT", SW_ERROR_SESSION_CLOSED_BY_CLIENT);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_SESSION_CLOSING", SW_ERROR_SESSION_CLOSING);
@@ -614,6 +641,7 @@ PHP_MINIT_FUNCTION(swoole) {
     SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_SSL_BAD_PROTOCOL", SW_ERROR_SSL_BAD_PROTOCOL);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_SSL_RESET", SW_ERROR_SSL_RESET);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_SSL_HANDSHAKE_FAILED", SW_ERROR_SSL_HANDSHAKE_FAILED);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_SSL_CREATE_CONTEXT_FAILED", SW_ERROR_SSL_CREATE_CONTEXT_FAILED);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_PACKAGE_LENGTH_TOO_LARGE", SW_ERROR_PACKAGE_LENGTH_TOO_LARGE);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_PACKAGE_LENGTH_NOT_FOUND", SW_ERROR_PACKAGE_LENGTH_NOT_FOUND);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_DATA_LENGTH_TOO_LARGE", SW_ERROR_DATA_LENGTH_TOO_LARGE);
@@ -890,6 +918,13 @@ PHP_MINFO_FUNCTION(swoole) {
     php_info_print_table_row(2, "Version", SWOOLE_VERSION);
     snprintf(buf, sizeof(buf), "%s %s", __DATE__, __TIME__);
     php_info_print_table_row(2, "Built", buf);
+
+#if SW_BYTE_ORDER == SW_LITTLE_ENDIAN
+    php_info_print_table_row(2, "host byte order", "little endian");
+#else
+    php_info_print_table_row(2, "host byte order", "big endian");
+#endif
+
 #if defined(SW_USE_THREAD_CONTEXT)
     php_info_print_table_row(2, "coroutine", "enabled with thread context");
 #elif defined(SW_USE_ASM_CONTEXT)
@@ -1003,6 +1038,11 @@ PHP_MINFO_FUNCTION(swoole) {
 #endif
 #ifdef SW_USE_IOURING
     php_info_print_table_row(2, "io_uring", "enabled");
+#endif
+#ifdef HAVE_BOOST_STACKTRACE
+    php_info_print_table_row(2, "boost stacktrace", "enabled");
+#elif defined(HAVE_EXECINFO)
+    php_info_print_table_row(2, "execinfo", "enabled");
 #endif
     php_info_print_table_end();
 

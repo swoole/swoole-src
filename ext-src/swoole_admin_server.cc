@@ -66,7 +66,7 @@ static std::string handle_get_all_unix_sockets(Server *_server, const std::strin
             {"events", master_socket->events},
             {"total_recv_bytes", master_socket->total_recv_bytes},
             {"total_send_bytes", master_socket->total_send_bytes},
-            {"out_buffer_size", master_socket->out_buffer ? master_socket->out_buffer->length() : 0},
+            {"out_buffer_size", master_socket->get_out_buffer_length()},
         });
         sockets.push_back(master_socket_info);
 
@@ -76,7 +76,7 @@ static std::string handle_get_all_unix_sockets(Server *_server, const std::strin
             {"events", worker_socket->events},
             {"total_recv_bytes", worker_socket->total_recv_bytes},
             {"total_send_bytes", worker_socket->total_send_bytes},
-            {"out_buffer_size", worker_socket->out_buffer ? worker_socket->out_buffer->length() : 0},
+            {"out_buffer_size", worker_socket->get_out_buffer_length()},
         });
         sockets.push_back(worker_socket_info);
     }
@@ -99,7 +99,6 @@ static std::string handle_get_all_sockets(Server *, const std::string &msg) {
 
     json sockets = json::array();
     sw_reactor()->foreach_socket([&sockets](int fd, network::Socket *socket) {
-        network::Address addr{};
         if (socket->socket_type > SW_SOCK_UNIX_DGRAM || socket->socket_type < SW_SOCK_TCP) {
 #ifdef SO_DOMAIN
             struct stat fdstat;
@@ -116,25 +115,22 @@ static std::string handle_get_all_sockets(Server *, const std::string &msg) {
                 if (socket->get_option(SOL_SOCKET, SO_TYPE, &type) < 0) {
                     return;
                 }
-                addr.type = network::Socket::convert_to_type(domain, type);
-                socket->get_name(&addr);
+                socket->get_name();
             }
 #else
             return;
 #endif
-        } else {
-            addr = socket->info;
         }
         json info = json::object({
-            {"fd", socket->fd},
-            {"address", addr.get_ip()},
-            {"port", addr.get_port()},
+            {"fd", socket->get_fd()},
+            {"address", socket->get_addr()},
+            {"port", socket->get_port()},
             {"events", socket->events},
             {"socket_type", socket->socket_type},
             {"fd_type", socket->fd_type},
             {"total_recv_bytes", socket->total_recv_bytes},
             {"total_send_bytes", socket->total_send_bytes},
-            {"out_buffer_size", socket->out_buffer ? socket->out_buffer->length() : 0},
+            {"out_buffer_size", socket->get_out_buffer_length()},
         });
         sockets.push_back(info);
     });
@@ -191,8 +187,8 @@ static json get_connection_info(Server *serv, Connection *conn) {
         {"reactor_id", conn->reactor_id},
         {"fd", conn->fd},
         {"server_port",
-         std::string(server_socket->info.get_ip()) + ":" + std::to_string(server_socket->info.get_port())},
-        {"address", conn->info.get_ip()},
+         std::string(server_socket->info.get_addr()) + ":" + std::to_string(server_socket->info.get_port())},
+        {"address", conn->info.get_addr()},
         {"port", conn->info.get_port()},
         {"overflow", conn->overflow},
         {"connect_time", conn->connect_time},
@@ -272,9 +268,7 @@ static size_t get_socket_out_buffer_total_size() {
     }
     size_t size = 0;
     for (auto &s : sw_reactor()->get_sockets()) {
-        if (s.second->out_buffer) {
-            size += s.second->out_buffer->length();
-        }
+        size += s.second->get_out_buffer_length();
     }
     return size;
 }

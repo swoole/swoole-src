@@ -45,19 +45,19 @@ class MsgQueue {
     explicit MsgQueue(key_t msg_key, bool blocking = true, int perms = 0);
     ~MsgQueue();
 
-    bool ready() {
+    bool ready() const {
         return msg_id_ >= 0;
     }
 
-    int get_id() {
+    int get_id() const {
         return msg_id_;
     }
 
     void set_blocking(bool blocking);
     bool set_capacity(size_t queue_bytes);
     bool push(QueueNode *in, size_t mdata_length);
-    ssize_t pop(QueueNode *out, size_t mdata_size);
-    bool stat(size_t *queue_num, size_t *queue_bytes);
+    ssize_t pop(QueueNode *out, size_t mdata_size) const;
+    bool stat(size_t *queue_num, size_t *queue_bytes) const;
     bool destroy();
 };
 }  // namespace swoole

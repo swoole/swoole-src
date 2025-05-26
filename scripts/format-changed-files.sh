@@ -1,6 +1,6 @@
 #!/bin/bash
 
-changed_files=$(git status --porcelain | grep '^[ M].*\.cc$' | awk '{print $2}')
+changed_files=$(git status --porcelain | grep '^[ M]' | grep '\.\(cc\|cpp\|h\)$' | awk '{print $2}')
 
 if [ -z "$changed_files" ]; then
     exit 0

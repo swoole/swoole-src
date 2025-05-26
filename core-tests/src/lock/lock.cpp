@@ -29,11 +29,11 @@ using swoole::RWLock;
 #ifdef HAVE_SPINLOCK
 using swoole::SpinLock;
 #endif
-using swoole::Mutex;
-using swoole::CoroutineLock;
 using swoole::Coroutine;
-using swoole::test::coroutine;
+using swoole::CoroutineLock;
+using swoole::Mutex;
 using swoole::coroutine::System;
+using swoole::test::coroutine;
 
 static void test_func(swLock &lock) {
     int count = 0;
@@ -158,6 +158,33 @@ TEST(lock, coroutine_lock) {
             });
 
             Coroutine::create([lock](void *) { ASSERT_EQ(lock->trylock(), EBUSY); });
+        });
+    };
+
+    std::thread t1(callback);
+    t1.join();
+    delete lock;
+}
+
+TEST(lock, coroutine_lock_rd) {
+    CoroutineLock *lock = new CoroutineLock(false);
+    ASSERT_EQ(lock->lock_rd(), SW_ERROR_CO_OUT_OF_COROUTINE);
+    auto callback = [lock]() {
+        coroutine::run([lock](void *arg) {
+            Coroutine::create([lock](void *) {
+                ASSERT_EQ(lock->lock_rd(), 0);
+                ASSERT_EQ(lock->lock_rd(), 0);
+                System::sleep(1);
+                ASSERT_EQ(lock->unlock(), 0);
+            });
+
+            Coroutine::create([lock](void *) {
+                ASSERT_EQ(lock->lock_rd(), 0);
+                System::sleep(1);
+                ASSERT_EQ(lock->unlock(), 0);
+            });
+
+            Coroutine::create([lock](void *) { ASSERT_EQ(lock->trylock_rd(), EBUSY); });
         });
     };
 

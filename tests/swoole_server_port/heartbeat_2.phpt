@@ -23,23 +23,22 @@ $pm->parentFunc = function ($pid) use ($pm) {
             return $cli->recv(0.01);
         };
         go(function () use ($test_func) {
-            Assert::same($test_func(0, 1.3), '');
+            Assert::same($test_func(0, 2), '');
             echo "DONE 0\n";
         });
         go(function () use ($test_func) {
-            Assert::same($test_func(1, 2.3), '');
+            Assert::same($test_func(1, 3), '');
             echo "DONE 1\n";
         });
         go(function () use ($test_func) {
-            Assert::same($test_func(2, 3.3), false);
+            Assert::same($test_func(2, 3.5), false);
             echo "DONE 2\n";
         });
     });
     $pm->kill();
 };
 
-$pm->childFunc = function () use ($pm)
-{
+$pm->childFunc = function () use ($pm) {
     $server = new Server('127.0.0.1', $pm->getFreePort(0), SWOOLE_BASE);
     $server->set([
         'heartbeat_check_interval' => 1,

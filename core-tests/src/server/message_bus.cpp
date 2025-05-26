@@ -188,6 +188,8 @@ TEST(message_bus, read_with_buffer) {
     MB_ASSERT(2);
     MB_ASSERT(3);
 
+    ASSERT_GT(tmb.mb.get_memory_size(), 1024 * 1024 * 2);
+
     auto r4 = tmb.q.at(3);
     ASSERT_EQ(r4.fd, 4);
     ASSERT_STREQ(r4.data.c_str(), "");
@@ -196,3 +198,6 @@ TEST(message_bus, read_with_buffer) {
     ASSERT_EQ(r5.fd, 5);
     ASSERT_STREQ(r5.data.c_str(), "");
 }
+
+
+

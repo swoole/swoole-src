@@ -19,6 +19,13 @@
 
 #include "swoole_iouring.h"
 
+#ifdef HAVE_IOURING_FUTEX
+#ifndef FUTEX2_SIZE_U32
+#define FUTEX2_SIZE_U32 0x02
+#endif
+#include <linux/futex.h>
+#endif
+
 #ifdef SW_USE_IOURING
 using swoole::Coroutine;
 
@@ -70,7 +77,7 @@ struct IouringEvent {
 Iouring::Iouring(Reactor *_reactor) {
     if (!SwooleTG.reactor) {
         swoole_warning("no event loop, cannot initialized");
-        throw swoole::Exception(SW_ERROR_WRONG_OPERATION);
+        throw Exception(SW_ERROR_WRONG_OPERATION);
     }
 
     reactor = _reactor;
@@ -189,7 +196,7 @@ bool Iouring::wakeup() {
     return true;
 }
 
-static const char *get_opcode_name(IouringOpcode opcode) {
+static MAYBE_UNUSED const char *get_opcode_name(IouringOpcode opcode) {
     switch (opcode) {
     case SW_IORING_OP_OPENAT:
         return "OPENAT";
@@ -378,7 +385,7 @@ bool Iouring::dispatch(IouringEvent *event) {
     event.coroutine = Coroutine::get_current_safe();                                                                   \
     event.opcode = op;
 
-int Iouring::open(const char *pathname, int flags, int mode) {
+int Iouring::open(const char *pathname, int flags, mode_t mode) {
     INIT_EVENT(SW_IORING_OP_OPENAT);
     event.mode = mode;
     event.flags = flags;
@@ -520,7 +527,7 @@ int Iouring::futex_wakeup(uint32_t *futex) {
 #endif
 
 int Iouring::callback(Reactor *reactor, Event *event) {
-    Iouring *iouring = static_cast<Iouring *>(event->socket->object);
+    auto *iouring = static_cast<Iouring *>(event->socket->object);
     return iouring->wakeup() ? SW_OK : SW_ERR;
 }
 }  // namespace swoole

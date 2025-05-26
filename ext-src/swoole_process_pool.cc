@@ -44,7 +44,7 @@ struct ProcessPoolObject {
     zend_object std;
 };
 
-static void process_pool_signal_handler(int sig);
+static void process_pool_signal_handler(int signo);
 
 static sw_inline ProcessPoolObject *process_pool_fetch_object(zend_object *obj) {
     return (ProcessPoolObject *) ((char *) obj - swoole_process_pool_handlers.offset);
@@ -169,7 +169,7 @@ static void process_pool_onWorkerStart(ProcessPool *pool, Worker *worker) {
     zend_update_property_long(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("workerPid"), getpid());
     zend_update_property_long(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("workerId"), worker->id);
 
-    swoole_set_process_type(SW_PROCESS_WORKER);
+    swoole_set_worker_type(SW_WORKER);
     SwooleG.enable_coroutine = pp->enable_coroutine;
 
     if (pp->onWorkerStart) {
@@ -184,6 +184,14 @@ static void process_pool_onWorkerStart(ProcessPool *pool, Worker *worker) {
     if (!swoole_signal_isset(SIGTERM) && (pp->onMessage || pp->enable_coroutine)) {
         swoole_signal_set(SIGTERM, process_pool_signal_handler);
     }
+    if (!swoole_signal_isset(SIGWINCH)) {
+        swoole_signal_set(SIGWINCH, process_pool_signal_handler);
+    }
+#ifdef SIGRTMIN
+    if (!swoole_signal_isset(SIGRTMIN)) {
+        swoole_signal_set(SIGRTMIN, process_pool_signal_handler);
+    }
+#endif
 }
 
 static void process_pool_onMessage(ProcessPool *pool, RecvData *msg) {
@@ -262,7 +270,7 @@ static void process_pool_onStart(ProcessPool *pool) {
     zend_update_property_long(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("master_pid"), getpid());
     zend_update_property_bool(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("running"), true);
 
-    swoole_set_process_type(SW_PROCESS_MASTER);
+    swoole_set_worker_type(SW_MASTER);
     SwooleG.enable_coroutine = false;
 
     if (pp->onStart == nullptr) {
@@ -294,11 +302,11 @@ static void process_pool_onShutdown(ProcessPool *pool) {
     }
 }
 
-static void process_pool_signal_handler(int sig) {
+static void process_pool_signal_handler(int signo) {
     if (!current_pool) {
         return;
     }
-    switch (sig) {
+    switch (signo) {
     case SIGTERM:
         current_pool->running = false;
         if (current_worker) {
@@ -308,12 +316,19 @@ static void process_pool_signal_handler(int sig) {
     case SIGUSR1:
     case SIGUSR2:
         current_pool->reload();
-        current_pool->reload_init = false;
         break;
     case SIGIO:
-        current_pool->read_message = true;
+        current_pool->rigger_read_message_event();
+        break;
+    case SIGWINCH:
+        current_pool->reopen_logger();
         break;
     default:
+#ifdef SIGRTMIN
+        if (signo == SIGRTMIN) {
+            current_pool->reopen_logger();
+        }
+#endif
         break;
     }
 }
@@ -556,16 +571,7 @@ static PHP_METHOD(swoole_process_pool, sendMessage) {
     Z_PARAM_LONG(worker_id)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    Worker *worker = pool->get_worker(worker_id);
-    if (pool->message_bus) {
-        SendData _task{};
-        _task.info.reactor_id = current_worker ? current_worker->pid : -1;
-        _task.info.len = l_message;
-        _task.data = message;
-        RETURN_BOOL(pool->message_bus->write(worker->pipe_master, &_task));
-    } else {
-        RETURN_BOOL(worker->pipe_master->send_async(message, l_message));
-    }
+    RETURN_BOOL(pool->send_message(worker_id, message, l_message));
 }
 
 static PHP_METHOD(swoole_process_pool, start) {
@@ -584,6 +590,10 @@ static PHP_METHOD(swoole_process_pool, start) {
     ori_handlers[SIGUSR1] = swoole_signal_set(SIGUSR1, process_pool_signal_handler);
     ori_handlers[SIGUSR2] = swoole_signal_set(SIGUSR2, process_pool_signal_handler);
     ori_handlers[SIGIO] = swoole_signal_set(SIGIO, process_pool_signal_handler);
+    ori_handlers[SIGWINCH] = swoole_signal_set(SIGWINCH, process_pool_signal_handler);
+#ifdef SIGRTMIN
+    ori_handlers[SIGRTMIN] = swoole_signal_set(SIGRTMIN, process_pool_signal_handler);
+#endif
 
     if (pp->enable_message_bus) {
         if (pool->create_message_bus() != SW_OK) {
@@ -633,7 +643,6 @@ static PHP_METHOD(swoole_process_pool, start) {
     }
 
     pool->wait();
-    pool->shutdown();
 
     current_pool = nullptr;
 
@@ -664,7 +673,7 @@ static PHP_METHOD(swoole_process_pool, getProcess) {
         php_swoole_error(E_WARNING, "invalid worker_id[%ld]", worker_id);
         RETURN_FALSE;
     } else if (worker_id < 0) {
-        worker_id = swoole_get_process_id();
+        worker_id = swoole_get_worker_id();
     }
 
     zval *zworkers =
@@ -681,11 +690,11 @@ static PHP_METHOD(swoole_process_pool, getProcess) {
         *worker = current_pool->workers[worker_id];
 
         object_init_ex(zprocess, swoole_process_ce);
-        zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(zprocess), ZEND_STRL("id"), swoole_get_process_id());
+        zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(zprocess), ZEND_STRL("id"), swoole_get_worker_id());
         zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(zprocess), ZEND_STRL("pid"), worker->pid);
         if (current_pool->ipc_mode == SW_IPC_UNIXSOCK) {
             // current process
-            if (worker->id == swoole_get_process_id()) {
+            if (worker->id == swoole_get_worker_id()) {
                 worker->pipe_current = worker->pipe_worker;
             } else {
                 worker->pipe_current = worker->pipe_master;
@@ -736,11 +745,10 @@ static PHP_METHOD(swoole_process_pool, stop) {
 }
 
 static PHP_METHOD(swoole_process_pool, shutdown) {
-    long pid = zend::object_get_long(ZEND_THIS, SW_ZSTR_KNOWN(SW_ZEND_STR_MASTER_PID));
-    if (pid > 0) {
-        RETURN_BOOL(swoole_kill(pid, SIGTERM) == 0);
+    if (current_pool) {
+        RETURN_BOOL(current_pool->shutdown());
     } else {
-        zend_throw_exception(swoole_exception_ce, "invalid master pid", SW_ERROR_INVALID_PARAMS);
+        zend_throw_exception(swoole_exception_ce, "The process pool is not started", SW_ERROR_INVALID_PARAMS);
         RETURN_FALSE;
     }
 }

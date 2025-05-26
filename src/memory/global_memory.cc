@@ -29,11 +29,11 @@ struct GlobalMemoryImpl {
     uint32_t pagesize;
     std::mutex lock;
     std::vector<char *> pages;
-    uint32_t alloc_offset;
+    uint32_t alloc_offset = 0;
     pid_t create_pid;
 
-  public:
     GlobalMemoryImpl(uint32_t _pagesize, bool _shared);
+    ~GlobalMemoryImpl();
     char *new_page();
 };
 
@@ -55,15 +55,21 @@ GlobalMemory::GlobalMemory(uint32_t pagesize, bool shared) {
 GlobalMemoryImpl::GlobalMemoryImpl(uint32_t _pagesize, bool _shared) {
     shared = _shared;
     pagesize = SW_MEM_ALIGNED_SIZE_EX(_pagesize, swoole_pagesize());
-    create_pid = SwooleG.pid;
+    create_pid = getpid();
 
     if (new_page() == nullptr) {
         throw std::bad_alloc();
     }
 }
 
+GlobalMemoryImpl::~GlobalMemoryImpl() {
+    for (auto page : pages) {
+        shared ? ::sw_shm_free(page) : ::sw_free(page);
+    }
+}
+
 char *GlobalMemoryImpl::new_page() {
-    char *page = (char *) (shared ? sw_shm_malloc(pagesize) : sw_malloc(pagesize));
+    auto page = static_cast<char *>(shared ? sw_shm_malloc(pagesize) : sw_malloc(pagesize));
     if (page == nullptr) {
         return nullptr;
     }
@@ -103,7 +109,7 @@ void *GlobalMemory::alloc(uint32_t size) {
         }
     }
 
-    block = (MemoryBlock *) (impl->pages.back() + impl->alloc_offset);
+    block = reinterpret_cast<MemoryBlock *>(impl->pages.back() + impl->alloc_offset);
     impl->alloc_offset += alloc_size;
 
     block->size = size;
@@ -114,17 +120,11 @@ void *GlobalMemory::alloc(uint32_t size) {
 
 void GlobalMemory::free(void *ptr) {}
 
-void GlobalMemory::destroy() {
-    for (auto page : impl->pages) {
-        impl->shared ? ::sw_shm_free(page) : ::sw_free(page);
-    }
-}
-
-size_t GlobalMemory::capacity() {
+size_t GlobalMemory::capacity() const {
     return impl->pagesize - impl->alloc_offset;
 }
 
-size_t GlobalMemory::get_memory_size() {
+size_t GlobalMemory::get_memory_size() const {
     return impl->pagesize * impl->pages.size();
 }
 

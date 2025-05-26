@@ -68,6 +68,20 @@ static inline char sdsReqType(size_t string_size) {
     return SDS_TYPE_64;
 }
 
+static inline size_t sdsTypeMaxSize(char type) {
+    if (type == SDS_TYPE_5)
+        return (1<<5) - 1;
+    if (type == SDS_TYPE_8)
+        return (1<<8) - 1;
+    if (type == SDS_TYPE_16)
+        return (1<<16) - 1;
+#if (LONG_MAX == LLONG_MAX)
+    if (type == SDS_TYPE_32)
+        return (1ll<<32) - 1;
+#endif
+    return -1; /* this is equivalent to the max SDS_TYPE_64 or SDS_TYPE_32 */
+}
+
 /* Create a new sds string with the content specified by the 'init' pointer
  * and 'initlen'.
  * If NULL is used for 'init' the string is initialized with zero bytes.
@@ -193,7 +207,7 @@ void sdsclear(sds s) {
  *
  * Note: this does not change the *length* of the sds string as returned
  * by sdslen(), but only the free buffer space we have. */
-sds sdsMakeRoomFor(sds s, size_t addlen) {
+ sds sdsMakeRoomFor(sds s, size_t addlen) {
     void *sh, *newsh;
     size_t avail = sdsavail(s);
     size_t len, newlen;
@@ -204,8 +218,12 @@ sds sdsMakeRoomFor(sds s, size_t addlen) {
     if (avail >= addlen) return s;
 
     len = sdslen(s);
-    sh = (char*)s-sdsHdrSize(oldtype);
-    newlen = (len+addlen);
+    sh = (char*)s - sdsHdrSize(oldtype);
+
+    /* Fix: Prevent Integer Overflow */
+    if (addlen > SIZE_MAX - len) return NULL;  /* Prevent overflow */
+    newlen = len + addlen;
+    
     if (newlen < SDS_MAX_PREALLOC)
         newlen *= 2;
     else
@@ -219,24 +237,33 @@ sds sdsMakeRoomFor(sds s, size_t addlen) {
     if (type == SDS_TYPE_5) type = SDS_TYPE_8;
 
     hdrlen = sdsHdrSize(type);
-    if (oldtype==type) {
-        newsh = s_realloc(sh, hdrlen+newlen+1);
+
+    /* Fix: Ensure safe memory allocation */
+    if (hdrlen + newlen + 1 < newlen) return NULL;  /* Prevent overflow */
+
+    if (oldtype == type) {
+        newsh = s_realloc(sh, hdrlen + newlen + 1);
         if (newsh == NULL) return NULL;
-        s = (char*)newsh+hdrlen;
+        s = (char*)newsh + hdrlen;
     } else {
         /* Since the header size changes, need to move the string forward,
          * and can't use realloc */
-        newsh = s_malloc(hdrlen+newlen+1);
+        newsh = s_malloc(hdrlen + newlen + 1);
         if (newsh == NULL) return NULL;
-        memcpy((char*)newsh+hdrlen, s, len+1);
+        memcpy((char*)newsh + hdrlen, s, len + 1);
         s_free(sh);
-        s = (char*)newsh+hdrlen;
+        s = (char*)newsh + hdrlen;
         s[-1] = type;
         sdssetlen(s, len);
     }
+
+    /* Fix: Prevent setting a too-large allocation */
+    if (newlen > sdsTypeMaxSize(type)) newlen = sdsTypeMaxSize(type);
     sdssetalloc(s, newlen);
+
     return s;
 }
+
 
 /* Reallocate the sds string so that it has no free space at the end. The
  * contained string remains not altered, but next concatenation operations

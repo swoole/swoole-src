@@ -20,8 +20,6 @@
 #include "swoole.h"
 #include "swoole_coroutine.h"
 
-#include <sys/stat.h>
-
 #include <iostream>
 #include <string>
 #include <list>
@@ -56,7 +54,7 @@ class Channel {
     bool push(void *data, double timeout = -1);
     bool close();
 
-    Channel(size_t _capacity = 1) : capacity(_capacity) {}
+    explicit Channel(size_t _capacity = 1) : capacity(_capacity) {}
 
     ~Channel() {
         if (!producer_queue.empty()) {
@@ -73,32 +71,32 @@ class Channel {
         }
     }
 
-    bool is_closed() {
+    bool is_closed() const {
         return closed;
     }
 
-    bool is_empty() {
-        return data_queue.size() == 0;
+    bool is_empty() const {
+        return data_queue.empty();
     }
 
-    bool is_full() {
+    bool is_full() const {
         return data_queue.size() == capacity;
     }
 
-    size_t length() {
+    size_t length() const {
         return data_queue.size();
     }
 
-    size_t consumer_num() {
+    size_t consumer_num() const {
         return consumer_queue.size();
     }
 
-    size_t producer_num() {
+    size_t producer_num() const {
         return producer_queue.size();
     }
 
     void *pop_data() {
-        if (data_queue.size() == 0) {
+        if (data_queue.empty()) {
             return nullptr;
         }
         void *data = data_queue.front();
@@ -106,7 +104,7 @@ class Channel {
         return data;
     }
 
-    int get_error() {
+    int get_error() const {
         return error_;
     }
 
@@ -120,7 +118,7 @@ class Channel {
 
     static void timer_callback(Timer *timer, TimerNode *tnode);
 
-    void yield(enum Opcode type);
+    void yield(Opcode type);
 
     void consumer_remove(Coroutine *co) {
         consumer_queue.remove(co);
@@ -130,7 +128,7 @@ class Channel {
         producer_queue.remove(co);
     }
 
-    Coroutine *pop_coroutine(enum Opcode type) {
+    Coroutine *pop_coroutine(Opcode type) {
         Coroutine *co;
         if (type == PRODUCER) {
             co = producer_queue.front();

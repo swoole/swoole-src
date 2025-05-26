@@ -54,7 +54,7 @@ void Server::init_task_workers() {
 }
 
 static int TaskWorker_call_command_handler(ProcessPool *pool, Worker *worker, EventData *req) {
-    Server *serv = (Server *) pool->ptr;
+    auto *serv = static_cast<Server *>(pool->ptr);
     int command_id = serv->get_command_id(req);
     auto iter = serv->command_handlers.find(command_id);
     if (iter == serv->command_handlers.end()) {
@@ -83,7 +83,7 @@ static int TaskWorker_call_command_handler(ProcessPool *pool, Worker *worker, Ev
 
 static int TaskWorker_onTask(ProcessPool *pool, Worker *worker, EventData *task) {
     int ret = SW_OK;
-    Server *serv = (Server *) pool->ptr;
+    auto *serv = static_cast<Server *>(pool->ptr);
     serv->last_task = task;
 
     worker->set_status_to_busy();
@@ -91,6 +91,9 @@ static int TaskWorker_onTask(ProcessPool *pool, Worker *worker, EventData *task)
         serv->onPipeMessage(serv, task);
     } else if (task->info.type == SW_SERVER_EVENT_SHUTDOWN) {
         worker->shutdown();
+        if (swoole_event_is_available()) {
+            serv->stop_async_worker(worker);
+        }
         return SW_OK;
     } else if (task->info.type == SW_SERVER_EVENT_COMMAND_REQUEST) {
         ret = TaskWorker_call_command_handler(pool, worker, task);
@@ -111,7 +114,7 @@ bool Server::task_pack(EventData *task, const void *_data, size_t _length) {
     task->info = {};
     task->info.type = SW_SERVER_EVENT_TASK;
     task->info.fd = SwooleG.current_task_id++;
-    task->info.reactor_id = swoole_get_process_id();
+    task->info.reactor_id = swoole_get_worker_id();
     task->info.time = microtime();
 
     if (_length < SW_IPC_MAX_SIZE - sizeof(task->info)) {
@@ -145,7 +148,7 @@ bool Server::task(EventData *_task, int *dst_worker_id, bool blocking) {
 
     swResultCode retval;
     if (blocking) {
-        retval = gs->task_workers.dispatch_blocking(_task, dst_worker_id);
+        retval = gs->task_workers.dispatch_sync(_task, dst_worker_id);
     } else {
         retval = gs->task_workers.dispatch(_task, dst_worker_id);
     }
@@ -163,8 +166,8 @@ bool Server::task_sync(EventData *_task, int *dst_worker_id, double timeout) {
     uint64_t notify;
     EventData *task_result = get_task_result();
     sw_memset_zero(task_result, sizeof(*task_result));
-    Pipe *pipe = task_notify_pipes.at(swoole_get_process_id()).get();
-    network::Socket *task_notify_socket = pipe->get_socket(false);
+    Pipe *pipe = task_notify_pipes.at(swoole_get_worker_id()).get();
+    Socket *task_notify_socket = pipe->get_socket(false);
     TaskId task_id = get_task_id(_task);
 
     // clear history task
@@ -179,7 +182,7 @@ bool Server::task_sync(EventData *_task, int *dst_worker_id, double timeout) {
     }
 
     SW_LOOP {
-        if (task_notify_socket->wait_event((int) (timeout * 1000), SW_EVENT_READ) == SW_OK) {
+        if (task_notify_socket->wait_event(static_cast<int>(sec2msec(timeout)), SW_EVENT_READ) == SW_OK) {
             if (pipe->read(&notify, sizeof(notify)) > 0) {
                 if (get_task_id(task_result) != task_id) {
                     continue;
@@ -224,24 +227,26 @@ bool Server::task_unpack(EventData *task, String *buffer, PacketPtr *packet) {
 }
 
 static void TaskWorker_signal_init(ProcessPool *pool) {
-    Server *serv = (Server *) pool->ptr;
+    auto *serv = static_cast<Server *>(pool->ptr);
     if (serv->is_thread_mode()) {
         return;
     }
     swoole_signal_set(SIGHUP, nullptr);
     swoole_signal_set(SIGPIPE, nullptr);
-    swoole_signal_set(SIGUSR1, Server::worker_signal_handler);
+    swoole_signal_set(SIGUSR1, nullptr);
     swoole_signal_set(SIGUSR2, nullptr);
     swoole_signal_set(SIGTERM, Server::worker_signal_handler);
+    swoole_signal_set(SIGWINCH, Server::worker_signal_handler);
 #ifdef SIGRTMIN
     swoole_signal_set(SIGRTMIN, Server::worker_signal_handler);
 #endif
 }
 
 static void TaskWorker_onStart(ProcessPool *pool, Worker *worker) {
-    Server *serv = (Server *) pool->ptr;
-    swoole_set_process_id(worker->id);
+    auto serv = static_cast<Server *>(pool->ptr);
 
+    swoole_set_worker_id(worker->id);
+    swoole_set_worker_type(SW_TASK_WORKER);
     /**
      * Make the task worker support asynchronous
      */
@@ -265,7 +270,7 @@ static void TaskWorker_onStart(ProcessPool *pool, Worker *worker) {
 
 static void TaskWorker_onStop(ProcessPool *pool, Worker *worker) {
     swoole_event_free();
-    Server *serv = (Server *) pool->ptr;
+    auto *serv = static_cast<Server *>(pool->ptr);
     serv->worker_stop_callback(worker);
 }
 
@@ -274,9 +279,9 @@ static void TaskWorker_onStop(ProcessPool *pool, Worker *worker) {
  */
 static int TaskWorker_onPipeReceive(Reactor *reactor, Event *event) {
     EventData task;
-    ProcessPool *pool = (ProcessPool *) reactor->ptr;
+    auto *pool = static_cast<ProcessPool *>(reactor->ptr);
     Worker *worker = sw_worker();
-    Server *serv = (Server *) pool->ptr;
+    auto *serv = static_cast<Server *>(pool->ptr);
 
     if (event->socket->read(&task, sizeof(task)) > 0) {
         int retval = pool->onTask(pool, worker, &task);
@@ -295,8 +300,8 @@ static int TaskWorker_onPipeReceive(Reactor *reactor, Event *event) {
  * async task worker
  */
 static int TaskWorker_loop_async(ProcessPool *pool, Worker *worker) {
-    Server *serv = (Server *) pool->ptr;
-    Socket *socket = worker->pipe_worker;
+    auto *serv = static_cast<Server *>(pool->ptr);
+    Socket *socket = serv->get_worker_pipe_worker_in_message_bus(worker);
     worker->set_status_to_idle();
 
     socket->set_nonblock();
@@ -306,8 +311,8 @@ static int TaskWorker_loop_async(ProcessPool *pool, Worker *worker) {
 
     for (uint i = 0; i < serv->worker_num + serv->task_worker_num; i++) {
         worker = serv->get_worker(i);
-        worker->pipe_master->buffer_size = UINT_MAX;
-        worker->pipe_worker->buffer_size = UINT_MAX;
+        serv->get_worker_pipe_worker_in_message_bus(worker)->buffer_size = UINT_MAX;
+        serv->get_worker_pipe_master_in_message_bus(worker)->buffer_size = UINT_MAX;
     }
 
     return swoole_event_wait();
@@ -362,9 +367,9 @@ bool Server::finish(const char *data, size_t data_len, int flags, EventData *cur
 
         if (worker->pool->use_socket && worker->pool->stream_info_->last_connection) {
             uint32_t _len = htonl(data_len);
-            retval = worker->pool->stream_info_->last_connection->send_blocking((void *) &_len, sizeof(_len));
+            retval = worker->pool->stream_info_->last_connection->send_sync((void *) &_len, sizeof(_len));
             if (retval > 0) {
-                retval = worker->pool->stream_info_->last_connection->send_blocking(data, data_len);
+                retval = worker->pool->stream_info_->last_connection->send_sync(data, data_len);
             }
         } else {
             retval = send_to_worker_from_worker(worker, &buf, buf.size(), SW_PIPE_MASTER);
@@ -382,7 +387,7 @@ bool Server::finish(const char *data, size_t data_len, int flags, EventData *cur
         worker->lock->lock();
 
         if (current_task->info.ext_flags & SW_TASK_WAITALL) {
-            sw_atomic_t *finish_count = (sw_atomic_t *) result->data;
+            auto *finish_count = reinterpret_cast<sw_atomic_t *>(result->data);
             char *_tmpfile = result->data + 4;
             File file(_tmpfile, O_APPEND | O_WRONLY);
             if (file.ready()) {
@@ -415,7 +420,7 @@ bool Server::finish(const char *data, size_t data_len, int flags, EventData *cur
         // unlock worker
         worker->lock->unlock();
 
-        while (1) {
+        while (true) {
             retval = pipe->write(&flag, sizeof(flag));
             auto _sock = pipe->get_socket(true);
             if (retval < 0 && _sock->catch_write_error(errno) == SW_WAIT) {

@@ -219,10 +219,6 @@ TEST(base, version) {
     ASSERT_EQ(swoole_api_version_id(), SWOOLE_API_VERSION_ID);
 }
 
-static std::string test_func(std::string test_data_2) {
-    return test_data + test_data_2;
-}
-
 TEST(base, hook) {
     int count = 0;
     swoole_add_hook(
@@ -308,4 +304,99 @@ TEST(base, only_dump) {
     swoole_dump_bin(data.c_str(), 'C', data.length());
     swoole_dump_hex(data.c_str(), data.length());
     ASSERT_TRUE(true);
+}
+
+TEST(base, redirect_stdout) {
+    auto file = TEST_LOG_FILE;
+    auto out_1 = "hello world, hello swoole!\n";
+    auto out_2 = "write to /dev/null\n";
+    auto status = test::spawn_exec_and_wait([&]() {
+        swoole_redirect_stdout(file);
+        printf(out_1);
+        fflush(stdout);
+
+        swoole_redirect_stdout("/dev/null");
+        printf(out_2);
+        fflush(stdout);
+    });
+    ASSERT_EQ(status, 0);
+
+    auto rs = swoole::file_get_contents(file);
+    ASSERT_NE(rs, nullptr);
+    ASSERT_TRUE(rs->contains(out_1));
+    ASSERT_FALSE(rs->contains(out_2));
+    unlink(file);
+}
+
+TEST(base, fatal_error) {
+    const char *msg = "core tests fatal error";
+    auto status = test::spawn_exec_and_wait([msg]() {
+        swoole_set_log_file(TEST_LOG_FILE);
+        swoole_fatal_error(9999, msg);
+    });
+    ASSERT_EQ(WEXITSTATUS(status), 1);
+
+    auto rs = file_get_contents(TEST_LOG_FILE);
+    ASSERT_NE(rs, nullptr);
+    ASSERT_TRUE(rs->contains(msg));
+    ASSERT_TRUE(rs->contains("(ERROR 9999)"));
+    File::remove(TEST_LOG_FILE);
+}
+
+TEST(base, spinlock) {
+    test::counter_init();
+    auto counter = test::counter_ptr();
+    int n = 4096;
+
+    auto test_fn = [counter, n]() {
+        SW_LOOP_N(n) {
+            sw_spinlock((sw_atomic_t *) &counter[0]);
+            counter[1]++;
+            if (i % 100 == 0) {
+                usleep(5);
+            }
+            sw_spinlock_release((sw_atomic_t *) &counter[0]);
+        }
+    };
+
+    std::thread t1(test_fn);
+    std::thread t2(test_fn);
+
+    t1.join();
+    t2.join();
+
+    ASSERT_EQ(counter[1], n * 2);
+}
+
+TEST(base, futex) {
+    sw_atomic_t value = 1;
+
+    std::thread t1([&value] {
+        DEBUG() << "wait 1\n";
+        ASSERT_EQ(sw_atomic_futex_wait(&value, -1), SW_OK);  // no wait
+        value = 0;
+
+        DEBUG() << "wait 2\n";
+
+        ASSERT_EQ(sw_atomic_futex_wait(&value, 0.05), SW_ERR);  // timed out
+        ASSERT_EQ(sw_atomic_futex_wait(&value, 0.5), SW_OK);    // success
+
+        DEBUG() << "wait 3\n";
+
+        value = 0;
+        ASSERT_EQ(sw_atomic_futex_wait(&value, -1), SW_OK);  // no timeout
+    });
+
+    std::thread t2([&value] {
+        usleep(100000);
+        DEBUG() << "wakeup 1\n";
+        ASSERT_EQ(sw_atomic_futex_wakeup(&value, 1), 1);
+
+        DEBUG() << "wakeup 2\n";
+        usleep(100000);
+        ASSERT_EQ(sw_atomic_futex_wakeup(&value, 1), 1);
+    });
+
+    t1.join();
+    t2.join();
 }

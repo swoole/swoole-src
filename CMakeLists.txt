@@ -1,8 +1,8 @@
-PROJECT(libswoole)
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.10)
+project(libswoole)
 
-ENABLE_LANGUAGE(ASM)
-set(SWOOLE_VERSION 6.0.1)
+enable_language(ASM)
+set(SWOOLE_VERSION 6.1.0-dev)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -g")
@@ -21,6 +21,15 @@ else()
     list(APPEND SWOOLE_LINK_LIBRARIES rt crypt)
 endif()
 
+if (UNIX AND NOT APPLE)
+    find_library(URING_LIBRARIES uring)
+    if (URING_LIBRARIES)
+        list(APPEND SWOOLE_LINK_LIBRARIES ${URING_LIBRARIES})
+    else()
+        message(WARNING "liburing not found.")
+    endif()
+endif()
+
 SET(CMAKE_BUILD_TYPE Debug)
 
 # Code Coverage Configuration
@@ -33,6 +42,7 @@ if(CODE_COVERAGE)
     target_compile_options(coverage_config INTERFACE
         -O0
         -g
+        -fprofile-update=atomic
         --coverage
     )
     if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.13)
@@ -107,8 +117,22 @@ if (DEFINED enable_asan)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -fno-omit-frame-pointer")
 endif()
 
-execute_process(COMMAND php-config --includes OUTPUT_VARIABLE PHP_INCLUDES OUTPUT_STRIP_TRAILING_WHITESPACE)
-execute_process(COMMAND php-config --extension-dir OUTPUT_VARIABLE PHP_EXTENSION_DIR OUTPUT_STRIP_TRAILING_WHITESPACE)
+if (DEFINED php_dir)
+    set(PHP_CONFIG "${php_dir}/bin/php-config")
+else ()
+    set(PHP_CONFIG "php-config")
+endif()
+
+execute_process(COMMAND ${PHP_CONFIG} --includes OUTPUT_VARIABLE PHP_INCLUDES OUTPUT_STRIP_TRAILING_WHITESPACE  RESULT_VARIABLE PHP_CONFIG_RESULT)
+if (NOT PHP_CONFIG_RESULT EQUAL 0)
+    message(FATAL_ERROR "Failed to execute php-config: ${PHP_CONFIG_RESULT}")
+endif()
+
+execute_process(COMMAND ${PHP_CONFIG} --extension-dir OUTPUT_VARIABLE PHP_EXTENSION_DIR OUTPUT_STRIP_TRAILING_WHITESPACE RESULT_VARIABLE PHP_CONFIG_RESULT)
+if (NOT PHP_CONFIG_RESULT EQUAL 0)
+    message(FATAL_ERROR "Failed to execute php-config: ${PHP_CONFIG_RESULT}")
+endif()
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${PHP_INCLUDES}")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${PHP_INCLUDES}")
 

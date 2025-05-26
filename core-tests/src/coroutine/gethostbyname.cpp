@@ -13,22 +13,18 @@ TEST(coroutine_gethostbyname, resolve_cache) {
         System::set_dns_cache_capacity(10);
         std::string addr1 = System::gethostbyname(domain_baidu, AF_INET);
         ASSERT_NE(addr1, "");
-        int64_t with_cache = Timer::get_absolute_msec();
         for (int i = 0; i < 100; ++i) {
             std::string addr2 = System::gethostbyname(domain_baidu, AF_INET);
             ASSERT_EQ(addr1, addr2);
         }
-        with_cache = Timer::get_absolute_msec() - with_cache;
+        ASSERT_GT(System::get_dns_cache_hit_ratio(), 0.99);
 
         System::set_dns_cache_capacity(0);
-        int64_t without_cache = Timer::get_absolute_msec();
         for (int i = 0; i < 5; ++i) {
             std::string addr2 = System::gethostbyname(domain_baidu, AF_INET);
             ASSERT_NE(addr2, "");
         }
-        without_cache = Timer::get_absolute_msec() - without_cache;
-
-        ASSERT_GT(without_cache, with_cache);
+        ASSERT_LT(System::get_dns_cache_hit_ratio(), 0.01);
     });
 }
 

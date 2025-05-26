@@ -17,7 +17,10 @@
 #include "swoole_api.h"
 #include "swoole_timer.h"
 
-using namespace swoole;
+using swoole::sec2msec;
+using swoole::Timer;
+using swoole::TimerCallback;
+using swoole::TimerNode;
 
 #ifdef __MACH__
 Timer *sw_timer() {
@@ -31,10 +34,9 @@ bool swoole_timer_is_available() {
 
 TimerNode *swoole_timer_add(double timeout, bool persistent, const TimerCallback &callback, void *private_data) {
     if (timeout < SW_TIMER_MIN_SEC) {
-        return swoole_timer_add(1L, persistent, callback, private_data);
+        timeout = SW_TIMER_MIN_SEC;
     }
-
-    return swoole_timer_add((long) (timeout * 1000), persistent, callback, private_data);
+    return swoole_timer_add(sec2msec(timeout), persistent, callback, private_data);
 }
 
 TimerNode *swoole_timer_add(long ms, bool persistent, const TimerCallback &callback, void *private_data) {
@@ -118,6 +120,7 @@ TimerNode *swoole_timer_get(long timer_id) {
 
 void swoole_timer_free() {
     if (!swoole_timer_is_available()) {
+        swoole_print_backtrace();
         swoole_warning("timer is not available");
         return;
     }
@@ -130,4 +133,8 @@ int swoole_timer_select() {
         return SW_ERR;
     }
     return SwooleTG.timer->select();
+}
+
+void swoole_timer_set_scheduler(const swoole::TimerScheduler &scheduler) {
+    SwooleTG.timer_scheduler = scheduler;
 }

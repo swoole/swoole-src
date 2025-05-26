@@ -37,5 +37,4 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-Warning: Swoole\Client::connect(): bind address or port error in set method in %s
 DONE

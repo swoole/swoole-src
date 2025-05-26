@@ -21,6 +21,9 @@
 #include "test_server.h"
 #include "swoole_memory.h"
 
+#include <algorithm>
+#include <cctype>
+
 using namespace swoole::test;
 using swoole::network::Address;
 
@@ -37,37 +40,73 @@ Server::Server(std::string _host, int _port, swoole::Server::Mode _mode, int _ty
     serv.private_data_2 = this;
 
     if (!listen(host, port, (swSocketType) type)) {
-        swoole_warning("listen(%s:%d) fail[error=%d].", host.c_str(), port, errno);
+        swoole_sys_warning("listen(%s:%d) failed", host.c_str(), port);
         exit(0);
     }
 
     if (serv.create() < 0) {
-        swoole_warning("create server fail[error=%d].", errno);
+        swoole_sys_warning("create server failed");
         exit(0);
     }
 }
 
 Server::~Server() {}
 
-void Server::on(std::string event, void *fn) {
-    if (event == "Start") {
-        serv.onStart = (_onStart) fn;
-    } else if (event == "onShutdown") {
-        serv.onShutdown = (_onShutdown) fn;
-    } else if (event == "onPipeMessage") {
-        serv.onPipeMessage = (_onPipeMessage) fn;
-    } else if (event == "onWorkerStart") {
-        serv.onWorkerStart = (_onWorkerStart) fn;
-    } else if (event == "onWorkerStop") {
-        serv.onWorkerStop = (_onWorkerStop) fn;
-    } else if (event == "onReceive") {
-        serv.onReceive = (_onReceive) fn;
-    } else if (event == "onPacket") {
-        serv.onPacket = (_onPacket) fn;
-    } else if (event == "onClose") {
-        serv.onClose = (_onClose) fn;
-    } else {
-        serv.onConnect = (_onConnect) fn;
+std::string Server::tolower(const std::string &str) {
+    std::string str_copy = str;
+    std::transform(str_copy.begin(), str_copy.end(), str_copy.begin(), [](unsigned char c) { return std::tolower(c); });
+    return str_copy;
+}
+
+void Server::on(const std::string &_event, const std::function<void(swServer *, swoole::Worker *)> &fn) {
+    auto event = tolower(_event);
+    if (event == "workerstart") {
+        serv.onWorkerStart = fn;
+    } else if (event == "workerstop") {
+        serv.onWorkerStop = fn;
+    }
+}
+
+void Server::on(const std::string &_event, const std::function<void(swServer *)> &fn) {
+    auto event = tolower(_event);
+    if (event == "start") {
+        serv.onStart = fn;
+    } else if (event == "shutdown") {
+        serv.onShutdown = fn;
+    }
+}
+
+void Server::on(const std::string &_event, const std::function<void(swServer *, EventData *)> &fn) {
+    auto event = tolower(_event);
+    if (event == "pipemessage") {
+        serv.onPipeMessage = fn;
+    }
+}
+
+void Server::on(const std::string &_event, const std::function<int(swServer *, EventData *)> &fn) {
+    auto event = tolower(_event);
+    if (event == "task") {
+        serv.onTask = fn;
+    } else if (event == "finish") {
+        serv.onFinish = fn;
+    }
+}
+
+void Server::on(const std::string &_event, const std::function<int(swServer *, RecvData *)> &fn) {
+    auto event = tolower(_event);
+    if (event == "packet") {
+        serv.onPacket = fn;
+    } else if (event == "receive") {
+        serv.onReceive = fn;
+    }
+}
+
+void Server::on(const std::string &_event, const std::function<void(swServer *, DataHead *)> &fn) {
+    auto event = tolower(_event);
+    if (event == "connect") {
+        serv.onConnect = fn;
+    } else if (event == "close") {
+        serv.onClose = fn;
     }
 }
 
@@ -75,7 +114,7 @@ bool Server::start() {
     return serv.start() == 0;
 }
 
-bool Server::listen(std::string host, int port, enum swSocketType type) {
+bool Server::listen(const std::string &host, int port, enum swSocketType type) {
     ListenPort *ls = serv.add_port(type, (char *) host.c_str(), port);
     if (ls == nullptr) {
         return false;

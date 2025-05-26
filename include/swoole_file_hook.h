@@ -64,6 +64,7 @@
 #define fgets(s, size, stream)  swoole_coroutine_fgets(s, size, stream)
 #define fputs(s, stream)  swoole_coroutine_fputs(s, stream)
 #define feof(stream)  swoole_coroutine_feof(stream)
+#define fflush(stream)  swoole_coroutine_fflush(stream)
 #define fclose(stream)  swoole_coroutine_fclose(stream)
 
 #define opendir(name) swoole_coroutine_opendir(name)

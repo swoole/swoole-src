@@ -41,13 +41,13 @@ struct Buffer {
 };
 
 struct Session {
-    SSLContext *ctx;
+    std::shared_ptr<SSLContext> ctx;
     bool listened = false;
     Socket *socket;
     std::deque<Buffer *> rxqueue;
     bool peek_mode = false;
 
-    Session(Socket *_sock, SSLContext *_ctx) {
+    Session(Socket *_sock, std::shared_ptr<SSLContext> _ctx) {
         socket = _sock;
         ctx = _ctx;
     }

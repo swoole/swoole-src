@@ -22,6 +22,14 @@
 #include "swoole_protocol.h"
 
 namespace swoole {
+#define proto_error(_sock, _error, _fmt, ...)                                                                          \
+    network::Address _remote_addr;                                                                                     \
+    if (_sock->get_peer_name(&_remote_addr) < 0) {                                                                     \
+        _remote_addr = _sock->info;                                                                                    \
+    }                                                                                                                  \
+    swoole_error_log(                                                                                                  \
+        SW_LOG_WARNING, _error, _fmt "<%s:%d>", ##__VA_ARGS__, _remote_addr.get_addr(), _remote_addr.get_port())
+
 /**
  * return the package total length
  */
@@ -29,7 +37,7 @@ ssize_t Protocol::default_length_func(const Protocol *protocol, network::Socket 
     uint16_t length_offset = protocol->package_length_offset;
     uint8_t package_length_size =
         protocol->get_package_length_size ? protocol->get_package_length_size(socket) : protocol->package_length_size;
-    int32_t body_length;
+    int64_t body_length;
 
     if (package_length_size == 0) {
         // protocol error
@@ -46,11 +54,6 @@ ssize_t Protocol::default_length_func(const Protocol *protocol, network::Socket 
     // Length error
     // Protocol length is not legitimate, out of bounds or exceed the allocated length
     if (body_length < 0) {
-        swoole_warning("invalid package (size=%d) from socket#%u<%s:%d>",
-                       pl->buf_size,
-                       socket->fd,
-                       socket->info.get_ip(),
-                       socket->info.get_port());
         return SW_ERR;
     }
     swoole_debug("length=%d", protocol->package_body_offset + body_length);
@@ -184,12 +187,10 @@ _do_recv:
             package_length = get_package_length(this, socket, &pl);
             // invalid package, close connection.
             if (package_length < 0) {
-                swoole_error_log(SW_LOG_WARNING,
-                                 SW_ERROR_PACKAGE_MALFORMED_DATA,
-                                 "received %zu bytes of malformed data from the client[%s:%d]",
-                                 buffer->length,
-                                 socket->info.get_ip(),
-                                 socket->info.get_port());
+                proto_error(socket,
+                            SW_ERROR_PACKAGE_MALFORMED_DATA,
+                            "received %zu bytes of malformed data, remote_addr=",
+                            buffer->length);
                 return SW_ERR;
             }
             // no length
@@ -197,19 +198,17 @@ _do_recv:
                 if (buffer->length == recv_size) {
                     swoole_error_log(SW_LOG_WARNING,
                                      SW_ERROR_PACKAGE_LENGTH_NOT_FOUND,
-                                     "bad request, no length found in %zu bytes",
+                                     "bad request, no length found in %zu bytes, remote_addr=",
                                      buffer->length);
                     return SW_ERR;
                 } else {
                     return SW_OK;
                 }
             } else if (package_length > package_max_length) {
-                swoole_error_log(SW_LOG_WARNING,
-                                 SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
-                                 "package is too big, remote_addr=%s:%d, length=%zu",
-                                 socket->info.get_ip(),
-                                 socket->info.get_port(),
-                                 package_length);
+                proto_error(socket,
+                            SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
+                            "the received packet length %ld is too large, remote_addr=",
+                            package_length);
                 return SW_ERR;
             }
             // get length success
@@ -300,7 +299,10 @@ _recv_data:
 
         // over max length, will discard
         if (buffer->length == package_max_length) {
-            swoole_warning("Package is too big. package_length=%d", (int) buffer->length);
+            proto_error(socket,
+                        SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
+                        "The received data packet is too large, length=%lu",
+                        (ulong_t) buffer->length);
             return SW_ERR;
         }
 
@@ -326,3 +328,123 @@ _recv_data:
 }
 
 }  // namespace swoole
+
+int64_t swoole_unpack(char type, const void *data) {
+    switch (type) {
+    /*-------------------------8bit-----------------------------*/
+    case 'c':  // signed char
+        return *(const int8_t *) data;
+    case 'C':  // unsigned char
+        return *(const uint8_t *) data;
+
+    /*-------------------------16bit-----------------------------*/
+    case 's': {  // signed short (16 bit, host byte order)
+        int16_t val;
+        memcpy(&val, data, sizeof(val));
+        return val;
+    }
+    case 'S': {  // unsigned short (16 bit, host byte order)
+        uint16_t val;
+        memcpy(&val, data, sizeof(val));
+        return val;
+    }
+    case 'n': {  // unsigned short (16 bit, big endian byte order)
+        uint16_t val;
+        memcpy(&val, data, sizeof(val));
+        return ntohs(val);
+    }
+    case 'v': {  // unsigned short (16 bit, little endian byte order)
+        uint16_t val;
+        memcpy(&val, data, sizeof(val));
+#if SW_BYTE_ORDER == SW_LITTLE_ENDIAN
+        return val;
+#else
+        return swoole_swap_endian16(val);
+#endif
+    }
+
+    /*-------------------------Machine dependent size-----------------------------*/
+    case 'i': {  // signed integer (machine dependent size and byte order)
+        int val;
+        memcpy(&val, data, sizeof(val));
+        return val;
+    }
+    case 'I': {  // unsigned integer (machine dependent size and byte order)
+        unsigned int val;
+        memcpy(&val, data, sizeof(val));
+        return val;
+    }
+
+    /*-------------------------32bit-----------------------------*/
+    case 'l': {  // signed long (32 bit, host byte order)
+        int32_t val;
+        memcpy(&val, data, sizeof(val));
+        return val;
+    }
+    case 'L': {  // unsigned long (32 bit, host byte order)
+        uint32_t val;
+        memcpy(&val, data, sizeof(val));
+        return val;
+    }
+    case 'N': {  // unsigned long (32 bit, big endian byte order)
+        uint32_t val;
+        memcpy(&val, data, sizeof(val));
+        return ntohl(val);
+    }
+    case 'V': {  // unsigned long (32 bit, little endian byte order)
+        uint32_t val;
+        memcpy(&val, data, sizeof(val));
+#if SW_BYTE_ORDER == SW_LITTLE_ENDIAN
+        return val;
+#else
+        return swoole_swap_endian32(val);
+#endif
+    }
+
+    /*-------------------------64bit-----------------------------*/
+    case 'q': {  // signed long long (64 bit, host byte order)
+        int64_t val;
+        memcpy(&val, data, sizeof(val));
+        return val;
+    }
+    case 'Q': {  // unsigned long long (64 bit, host byte order)
+        uint64_t val;
+        memcpy(&val, data, sizeof(val));
+        return val;
+    }
+    case 'J': {  // unsigned long long (64 bit, big endian byte order)
+        uint64_t val;
+        memcpy(&val, data, sizeof(val));
+        return swoole_ntoh64(val);  // Network byte order (big endian) to host byte order
+    }
+    case 'P': {  // unsigned long long (64 bit, little endian byte order)
+        uint64_t val;
+        memcpy(&val, data, sizeof(val));
+#if SW_BYTE_ORDER == SW_LITTLE_ENDIAN
+        return val;
+#else
+        return swoole_swap_endian64(val);
+#endif
+    }
+    default: {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_INVALID_PARAMS, "Invalid format specifier '%c'", type);
+        return -1;
+    }
+    }
+}
+
+uint64_t swoole_hton64(uint64_t value) {
+#if SW_BYTE_ORDER == SW_LITTLE_ENDIAN
+    return swoole_swap_endian64(value);
+#else
+    return value;
+#endif
+}
+
+uint64_t swoole_ntoh64(uint64_t value) {
+#if SW_BYTE_ORDER == SW_LITTLE_ENDIAN
+    return swoole_swap_endian64(value);
+#else
+    return value;
+#endif
+}

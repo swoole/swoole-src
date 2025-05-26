@@ -106,7 +106,6 @@ $serv->addProcess(new Swoole\Process(function ($process) use ($serv, $port) {
 
         echo "DONE\n";
     });
-    $serv->shutdown();
 }));
 $serv->start();
 ?>

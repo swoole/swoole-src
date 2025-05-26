@@ -22,17 +22,15 @@
 
 #include <unordered_map>
 #include <string>
-#include <array>
 
 #include <openssl/ssl.h>
 #include <openssl/bio.h>
 #include <openssl/err.h>
-#include <openssl/conf.h>
-#include <openssl/ossl_typ.h>
 #include <openssl/crypto.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 #include <openssl/rand.h>
+#include <openssl/conf.h>
 #include <openssl/opensslv.h>
 
 #if OPENSSL_VERSION_NUMBER >= 0x10100000L
@@ -47,9 +45,8 @@
 #define BIO_CTRL_DGRAM_SET_CONNECTED 32
 #define BIO_CTRL_DGRAM_SET_PEER 44
 #define BIO_CTRL_DGRAM_SET_NEXT_TIMEOUT 45
-#define BIO_dgram_get_peer(b,peer) \
-         (int)BIO_ctrl(b, BIO_CTRL_DGRAM_GET_PEER, 0, (char *)(peer))
-#define OPENSSL_assert(x)       assert(x)
+#define BIO_dgram_get_peer(b, peer) (int) BIO_ctrl(b, BIO_CTRL_DGRAM_GET_PEER, 0, (char *) (peer))
+#define OPENSSL_assert(x) assert(x)
 #endif
 
 enum swSSLCreateFlag {
@@ -137,11 +134,11 @@ struct SSLContext {
     uint8_t create_flag;
     SSL_CTX *context;
 
-    SSL_CTX *get_context() {
+    SSL_CTX *get_context() const {
         return context;
     }
 
-    bool ready() {
+    bool ready() const {
         return context != nullptr;
     }
 
@@ -167,6 +164,15 @@ struct SSLContext {
         return true;
     }
 
+    bool set_client_cert_file(const std::string &file) {
+        if (access(file.c_str(), R_OK) < 0) {
+            swoole_warning("ssl client cert file[%s] not found", file.c_str());
+            return false;
+        }
+        client_cert_file = file;
+        return true;
+    }
+
     bool create();
     bool set_capath();
     bool set_ciphers();
@@ -175,11 +181,11 @@ struct SSLContext {
     bool set_dhparam();
     ~SSLContext();
 };
-}
+}  // namespace swoole
 
-void swoole_ssl_init(void);
-void swoole_ssl_init_thread_safety();
-bool swoole_ssl_is_thread_safety();
+void swoole_ssl_init();
+void swoole_ssl_destroy();
+void swoole_ssl_lock_callback(int mode, int type, const char *file, int line);
 void swoole_ssl_server_http_advise(swoole::SSLContext &);
 const char *swoole_ssl_get_error();
 int swoole_ssl_get_ex_connection_index();

@@ -273,6 +273,9 @@ static void redis_response_format_array_item(String *buf, zval *item) {
             redis_response_format(buf, Redis::REPLY_MAP, item);
         }
         break;
+    case IS_NULL:
+        redis_response_format(buf, Redis::REPLY_NIL, item);
+        break;
     default:
         redis_response_format(buf, Redis::REPLY_STRING, item);
         break;
@@ -299,23 +302,29 @@ static bool redis_response_format(String *buf, zend_long type, zval *value) {
     } else if (type == Redis::REPLY_STRING) {
         if (!value) {
         _no_value:
-            php_swoole_fatal_error(E_WARNING, "require more parameters");
+            zend_throw_exception(swoole_exception_ce, "require more parameters", SW_ERROR_INVALID_PARAMS);
             return false;
         }
         zend::String str_value(value);
-        if (str_value.len() > SW_REDIS_MAX_STRING_SIZE || str_value.len() < 1) {
-            php_swoole_fatal_error(E_WARNING, "invalid string size");
+        if (sw_unlikely(str_value.len() > SW_REDIS_MAX_STRING_SIZE)) {
+            zend_throw_exception(swoole_exception_ce,
+                                 "the length of given string exceeds the maximum allowed value",
+                                 SW_ERROR_INVALID_PARAMS);
             return false;
+        } else if (sw_unlikely(str_value.len() == 0)) {
+            buf->append("$0\r\n\r\n");
+        } else {
+            SW_STRING_FORMAT(buf, "$%zu\r\n", str_value.len());
+            buf->append(str_value.val(), str_value.len());
+            buf->append(SW_CRLF, SW_CRLF_LEN);
         }
-        SW_STRING_FORMAT(buf, "$%zu\r\n", str_value.len());
-        buf->append(str_value.val(), str_value.len());
-        buf->append(SW_CRLF, SW_CRLF_LEN);
     } else if (type == Redis::REPLY_SET) {
         if (!value) {
             goto _no_value;
         }
         if (!ZVAL_IS_ARRAY(value)) {
-            php_swoole_fatal_error(E_WARNING, "the second parameter should be an array");
+            zend_throw_exception(
+                swoole_exception_ce, "the second parameter should be an array", SW_ERROR_INVALID_PARAMS);
         }
         SW_STRING_FORMAT(buf, "*%d\r\n", zend_hash_num_elements(Z_ARRVAL_P(value)));
 
@@ -329,7 +338,8 @@ static bool redis_response_format(String *buf, zend_long type, zval *value) {
             goto _no_value;
         }
         if (!ZVAL_IS_ARRAY(value)) {
-            php_swoole_fatal_error(E_WARNING, "the second parameter should be an array");
+            zend_throw_exception(
+                swoole_exception_ce, "the second parameter should be an array", SW_ERROR_INVALID_PARAMS);
         }
         SW_STRING_FORMAT(buf, "*%d\r\n", 2 * zend_hash_num_elements(Z_ARRVAL_P(value)));
 
@@ -347,7 +357,7 @@ static bool redis_response_format(String *buf, zend_long type, zval *value) {
         }
         ZEND_HASH_FOREACH_END();
     } else {
-        php_swoole_error(E_WARNING, "Unknown type[%d]", (int) type);
+        zend_throw_exception_ex(swoole_exception_ce, SW_ERROR_INVALID_PARAMS, "Unknown type[%d]", (int) type);
         return false;
     }
 

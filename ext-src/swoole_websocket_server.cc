@@ -359,10 +359,7 @@ bool swoole_websocket_handshake(HttpContext *ctx) {
         conn->websocket_status = WebSocket::STATUS_ACTIVE;
         ListenPort *port = serv->get_port_by_server_fd(conn->server_fd);
         if (port && !port->websocket_subprotocol.empty()) {
-            ctx->set_header(ZEND_STRL("Sec-WebSocket-Protocol"),
-                            port->websocket_subprotocol.c_str(),
-                            port->websocket_subprotocol.length(),
-                            false);
+            ctx->set_header(ZEND_STRL("Sec-WebSocket-Protocol"), port->websocket_subprotocol, false);
         }
         swoole_websocket_onBeforeHandshakeResponse(serv, conn->server_fd, ctx);
     } else {
@@ -508,21 +505,16 @@ static bool websocket_message_compress(String *buffer, const char *data, size_t 
 int swoole_websocket_onMessage(Server *serv, RecvData *req) {
     SessionId fd = req->info.fd;
     uchar flags = 0;
-    zend_long opcode = 0;
+    uchar opcode = 0;
     auto port = serv->get_port_by_session_id(fd);
     if (!port) {
         return SW_ERR;
     }
 
     zval zdata;
-    char frame_header[2];
-    memcpy(frame_header, &req->info.ext_flags, sizeof(frame_header));
-
     php_swoole_get_recv_data(serv, &zdata, req);
 
-    // frame info has already decoded in websocket::dispatch_frame
-    flags = frame_header[0];
-    opcode = frame_header[1];
+    WebSocket::parse_ext_flags(req->info.ext_flags, &opcode, &flags);
 
     if ((opcode == WebSocket::OPCODE_CLOSE && !port->open_websocket_close_frame) ||
         (opcode == WebSocket::OPCODE_PING && !port->open_websocket_ping_frame) ||
@@ -696,9 +688,7 @@ void php_swoole_websocket_server_rshutdown() {
     }
 }
 
-void php_swoole_websocket_server_mshutdown() {
-
-}
+void php_swoole_websocket_server_mshutdown() {}
 
 static sw_inline bool swoole_websocket_server_push(Server *serv, SessionId fd, String *buffer) {
     if (sw_unlikely(fd <= 0)) {

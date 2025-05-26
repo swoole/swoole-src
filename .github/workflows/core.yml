@@ -6,7 +6,7 @@ env:
   CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
 jobs:
-  build:
+  ubuntu:
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[core]')"
     timeout-minutes: 10
@@ -34,7 +34,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: install dependencies
-        run: sudo apt update -y && sudo apt install -y googletest libgtest-dev redis-server libboost-stacktrace-dev libbrotli-dev
+        run: sudo apt update -y && sudo apt install -y googletest libgtest-dev libnghttp2-dev libboost-stacktrace-dev libbrotli-dev redis-server nodejs npm nghttp2-client
 
       - name: configure
         run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-openssl
@@ -44,26 +44,32 @@ jobs:
           cmake . -D CODE_COVERAGE=ON -D enable_thread=1
           make VERBOSE=1 -j $(nproc) lib-swoole
 
-      - name: make test with valgrind
-        if: "contains(github.event.head_commit.message, '--valgrind')"
-        run: |
-          sudo apt install -y valgrind
-          cd core-tests && SWOOLE_VALGRIND=1 ./run.sh
-
-      - name: make test with asan
-        if: "contains(github.event.head_commit.message, '--asan')"
-        run: |
-          cd core-tests && SWOOLE_ENABLE_ASAN=1 ./run.sh
-
       - name: make test
-        run:
+        run: |
+          export GITHUB_COMMIT_MESSAGE="${{ github.event.head_commit.message }}"
+          if [[ "$GITHUB_COMMIT_MESSAGE" == *"--valgrind"* ]]; then
+            export SWOOLE_VALGRIND=1
+          fi
+          if [[ "$GITHUB_COMMIT_MESSAGE" == *"--asan"* ]]; then
+              export SWOOLE_ENABLE_ASAN=1
+          fi
+          if [[ "$GITHUB_COMMIT_MESSAGE" == *"--strace"* ]]; then
+              export SWOOLE_ENABLE_STRACE=1
+          fi
+          if [[ "$GITHUB_COMMIT_MESSAGE" == *"--verbose"* ]]; then
+              export SWOOLE_ENABLE_VERBOSE=1
+          fi
+          echo "SWOOLE_VALGRIND=${SWOOLE_VALGRIND}"
+          echo "SWOOLE_ENABLE_ASAN=${SWOOLE_ENABLE_ASAN}"
+          echo "SWOOLE_ENABLE_STRACE=${SWOOLE_ENABLE_STRACE}"
+          echo "SWOOLE_ENABLE_VERBOSE=${SWOOLE_ENABLE_VERBOSE}"
           cd core-tests && ./run.sh
 
       - name: run coverage
         shell: bash
         run: sudo apt-get install lcov &&
-          sudo lcov --directory . --capture --output-file coverage.info &&
-          sudo lcov --remove coverage.info "${{runner.workspace}}/swoole-src/include/*" '/usr/*' --output-file coverage.info &&
+          sudo lcov --directory . --capture --branch-coverage --rc geninfo_unexecuted_blocks=1 --ignore-errors mismatch --output-file coverage.info &&
+          sudo lcov --remove coverage.info '/usr/*' --output-file coverage.info &&
           sudo lcov --list coverage.info
 
       - name: Upload coverage to Codecov

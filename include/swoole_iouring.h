@@ -14,19 +14,12 @@
   +----------------------------------------------------------------------+
 */
 
-#ifndef SWOOLE_SRC_SWOOLE_IOURING_H
-#define SWOOLE_SRC_SWOOLE_IOURING_H
+#pragma once
 
 #include "swoole_coroutine.h"
 
 #ifdef SW_USE_IOURING
 #include <liburing.h>
-
-#ifdef HAVE_IOURING_FUTEX
-#ifndef FUTEX2_SIZE_U32
-#define FUTEX2_SIZE_U32 0x02
-#endif
-#endif
 
 using swoole::Coroutine;
 
@@ -76,7 +69,7 @@ class Iouring {
         return task_num;
     }
 
-    static int open(const char *pathname, int flags, int mode);
+    static int open(const char *pathname, int flags, mode_t mode);
     static int close(int fd);
     static ssize_t read(int fd, void *buf, size_t size);
     static ssize_t write(int fd, const void *buf, size_t size);
@@ -98,5 +91,4 @@ class Iouring {
     static int callback(Reactor *reactor, Event *event);
 };
 };  // namespace swoole
-#endif
 #endif

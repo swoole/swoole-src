@@ -54,7 +54,7 @@ off_t swoole_coroutine_lseek(int fd, off_t offset, int whence);
 int swoole_coroutine_fstat(int fd, struct stat *statbuf);
 int swoole_coroutine_stat(const char *path, struct stat *statbuf);
 int swoole_coroutine_lstat(const char *path, struct stat *statbuf);
-int swoole_coroutine_readlink(const char *pathname, char *buf, size_t len);
+ssize_t swoole_coroutine_readlink(const char *pathname, char *buf, size_t len);
 int swoole_coroutine_unlink(const char *pathname);
 int swoole_coroutine_mkdir(const char *pathname, mode_t mode);
 int swoole_coroutine_rmdir(const char *pathname);
@@ -95,6 +95,7 @@ size_t swoole_coroutine_fread(void *ptr, size_t size, size_t nmemb, FILE *stream
 size_t swoole_coroutine_fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream);
 char *swoole_coroutine_fgets(char *s, int size, FILE *stream);
 int swoole_coroutine_fputs(const char *s, FILE *stream);
+int swoole_coroutine_fflush(FILE *stream);
 int swoole_coroutine_feof(FILE *stream);
 int swoole_coroutine_fclose(FILE *stream);
 /**

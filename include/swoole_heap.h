@@ -25,7 +25,7 @@ struct HeapNode {
 };
 
 class Heap {
- public:
+  public:
     enum Type {
         MIN_HEAP,
         MAX_HEAP,
@@ -34,7 +34,7 @@ class Heap {
     Heap(size_t _n, Type _type);
     ~Heap();
 
-    size_t count() {
+    size_t count() const {
         return num - 1;
     }
 
@@ -53,7 +53,7 @@ class Heap {
         return nodes[1];
     }
 
- private:
+  private:
     uint32_t num;
     uint32_t size;
     enum Type type;
@@ -63,5 +63,4 @@ class Heap {
     uint32_t maxchild(uint32_t i);
     void percolate_down(uint32_t i);
 };
-}
-
+}  // namespace swoole

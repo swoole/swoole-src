@@ -17,7 +17,7 @@ $ch = curl_init();
 Runtime::enableCoroutine(SWOOLE_HOOK_NATIVE_CURL);
 run(function () use ($ch) {
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-    curl_setopt($ch, CURLOPT_URL, "http://www.gov.cn/");
+    curl_setopt($ch, CURLOPT_URL, "https://www.gov.cn/");
     $curl_content = curl_exec($ch);
     Assert::false($curl_content);
 });

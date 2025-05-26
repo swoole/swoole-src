@@ -492,6 +492,10 @@ class Variable {
         ZVAL_STRING(&value, str);
     }
 
+    Variable(const std::string &str) {
+        ZVAL_STRINGL(&value, str.c_str(), str.length());
+    }
+
     Variable(const Variable &&src) {
         value = src.value;
         add_ref();
@@ -744,6 +748,13 @@ static inline zval *array_get(zval *arg, const char *key, size_t l_key) {
 static inline void array_unset(zval *arg, const char *key, size_t l_key) {
     zend_hash_str_del(Z_ARRVAL_P(arg), key, l_key);
 }
+
+/**
+ * Add new element to the associative array or merge with existing elements.
+ * If the key does not exist, add it to the array.
+ * If the key already exists, merge all into a two-dimensional array.
+ */
+void array_add_or_merge(zval *zarray, const char *key, size_t key_len, zval *new_element);
 
 static inline zend_long object_get_long(zval *obj, zend_string *key) {
     static zval rv;

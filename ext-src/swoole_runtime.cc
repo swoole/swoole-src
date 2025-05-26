@@ -597,12 +597,16 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
         if (bindto == nullptr) {
             return FAILURE;
         }
+        if (strcmp(bindto, "0") == 0 || bindto[0] == '\0') {
+            efree(bindto);
+            bindto = nullptr;
+        }
         ON_SCOPE_EXIT {
             if (bindto) {
                 efree(bindto);
             }
         };
-        if (!sock->bind(bindto, bindport)) {
+        if (!sock->bind(bindto ? bindto : "0.0.0.0", bindport)) {
             return FAILURE;
         }
     }

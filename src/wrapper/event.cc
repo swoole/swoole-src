@@ -21,9 +21,11 @@
 #include "swoole_coroutine_system.h"
 
 #include <mutex>
+#include <utility>
 
-using namespace swoole;
-
+using swoole::Callback;
+using swoole::Reactor;
+using swoole::ReactorHandler;
 using swoole::network::Socket;
 
 static std::mutex init_lock;
@@ -40,18 +42,18 @@ int swoole_event_init(int flags) {
         swoole_init();
     }
 
-    Reactor *reactor = new Reactor(SW_REACTOR_MAXEVENTS);
+    auto *reactor = new Reactor(SW_REACTOR_MAXEVENTS);
     if (!reactor->ready()) {
         return SW_ERR;
     }
 
     if (flags & SW_EVENTLOOP_WAIT_EXIT) {
-        reactor->wait_exit = 1;
+        reactor->wait_exit = true;
     }
 
-    coroutine::Socket::init_reactor(reactor);
-    coroutine::System::init_reactor(reactor);
-    network::Client::init_reactor(reactor);
+    swoole::coroutine::Socket::init_reactor(reactor);
+    swoole::coroutine::System::init_reactor(reactor);
+    swoole::network::Client::init_reactor(reactor);
 
     SwooleTG.reactor = reactor;
 
@@ -62,7 +64,7 @@ int swoole_event_add(Socket *socket, int events) {
     return SwooleTG.reactor->add(socket, events);
 }
 
-int swoole_event_add_or_update(swoole::network::Socket *_socket, int event) {
+int swoole_event_add_or_update(Socket *_socket, int event) {
     if (event == SW_EVENT_READ) {
         return SwooleTG.reactor->add_read_event(_socket);
     } else if (event == SW_EVENT_WRITE) {
@@ -85,7 +87,7 @@ int swoole_event_wait() {
     Reactor *reactor = SwooleTG.reactor;
     int retval = 0;
     if (!reactor->wait_exit or !reactor->if_exit()) {
-        retval = reactor->wait(nullptr);
+        retval = reactor->wait();
     }
     swoole_event_free();
     return retval;
@@ -101,14 +103,14 @@ int swoole_event_free() {
 }
 
 void swoole_event_defer(Callback cb, void *private_data) {
-    SwooleTG.reactor->defer(cb, private_data);
+    SwooleTG.reactor->defer(std::move(cb), private_data);
 }
 
 ssize_t swoole_event_write(Socket *socket, const void *data, size_t len) {
     return SwooleTG.reactor->write(SwooleTG.reactor, socket, data, len);
 }
 
-ssize_t swoole_event_writev(swoole::network::Socket *socket, const iovec *iov, size_t iovcnt) {
+ssize_t swoole_event_writev(Socket *socket, const iovec *iov, size_t iovcnt) {
     return SwooleTG.reactor->writev(SwooleTG.reactor, socket, iov, iovcnt);
 }
 
@@ -121,11 +123,11 @@ bool swoole_event_isset_handler(int fdtype) {
 }
 
 bool swoole_event_is_available() {
-    return SwooleTG.reactor and !SwooleTG.reactor->destroyed;
+    return SwooleTG.reactor && !SwooleTG.reactor->destroyed;
 }
 
 bool swoole_event_is_running() {
-    return SwooleTG.reactor and SwooleTG.reactor->running;
+    return SwooleTG.reactor && SwooleTG.reactor->running;
 }
 
 Socket *swoole_event_get_socket(int fd) {

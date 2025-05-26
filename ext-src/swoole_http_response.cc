@@ -563,11 +563,11 @@ bool HttpContext::compress(const char *data, size_t length) {
         int zstd_max_level = ZSTD_maxCLevel();
         int zstd_min_level = ZSTD_minCLevel();
         zstd_compress_level = (zstd_compress_level > zstd_max_level)
-                                      ? zstd_max_level
-                                      : (zstd_compress_level < zstd_min_level ? zstd_min_level : zstd_compress_level);
+                                  ? zstd_max_level
+                                  : (zstd_compress_level < zstd_min_level ? zstd_min_level : zstd_compress_level);
 
         size_t compress_size = ZSTD_compressBound(length);
-        zlib_buffer = std::make_shared<String>(compress_size);;
+        zlib_buffer = std::make_shared<String>(compress_size);
         size_t zstd_compress_result =
             ZSTD_compress((void *) zlib_buffer->str, compress_size, (void *) data, length, zstd_compress_level);
 
@@ -879,6 +879,11 @@ _skip_copy:
 
 bool HttpContext::set_header(const char *k, size_t klen, const char *v, size_t vlen, bool format) {
     zend::Variable ztmp(v, vlen);
+    return set_header(k, klen, ztmp.ptr(), format);
+}
+
+bool HttpContext::set_header(const char *k, size_t klen, const std::string &v, bool format) {
+    zend::Variable ztmp(v);
     return set_header(k, klen, ztmp.ptr(), format);
 }
 

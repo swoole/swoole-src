@@ -25,12 +25,12 @@ namespace swoole {
 namespace network {
 
 static void Stream_onConnect(Client *cli) {
-    Stream *stream = (Stream *) cli->object;
+    auto *stream = static_cast<Stream *>(cli->object);
     if (stream->cancel) {
         cli->close();
     }
-    *((uint32_t *) stream->buffer->str) = ntohl(stream->buffer->length - 4);
-    if (cli->send(cli, stream->buffer->str, stream->buffer->length, 0) < 0) {
+    *reinterpret_cast<uint32_t *>(stream->buffer->str) = ntohl(stream->buffer->length - 4);
+    if (cli->send(stream->buffer->str, stream->buffer->length, 0) < 0) {
         cli->close();
     } else {
         delete stream->buffer;
@@ -38,8 +38,8 @@ static void Stream_onConnect(Client *cli) {
     }
 }
 
-static void Stream_onError(Client *cli) {
-    Stream *stream = (Stream *) cli->object;
+static void Stream_onError(const Client *cli) {
+    auto *stream = static_cast<Stream *>(cli->object);
     stream->errCode = swoole_get_last_error();
 
     swoole_error_log(SW_LOG_WARNING,
@@ -56,8 +56,8 @@ static void Stream_onError(Client *cli) {
     delete stream;
 }
 
-static void Stream_onReceive(Client *cli, const char *data, uint32_t length) {
-    Stream *stream = (Stream *) cli->object;
+static void Stream_onReceive(const Client *cli, const char *data, uint32_t length) {
+    auto *stream = static_cast<Stream *>(cli->object);
     if (length == 4) {
         cli->socket->close_wait = 1;
     } else {
@@ -68,8 +68,8 @@ static void Stream_onReceive(Client *cli, const char *data, uint32_t length) {
 static void Stream_onClose(Client *cli) {
     swoole_event_defer(
         [](void *data) {
-            Client *cli = (Client *) data;
-            delete (Stream *) cli->object;
+            const auto *cli = static_cast<Client *>(data);
+            delete static_cast<Stream *>(cli->object);
         },
         cli);
 }
@@ -85,20 +85,28 @@ Stream::Stream(const char *dst_host, int dst_port, SocketType type) : client(typ
     client.onClose = Stream_onClose;
     client.object = this;
 
-    client.open_length_check = 1;
+    client.open_length_check = true;
     set_protocol(&client.protocol);
 
-    if (client.connect(&client, dst_host, dst_port, -1, 0) < 0) {
+    if (client.connect(dst_host, dst_port, -1, 0) < 0) {
         swoole_sys_warning("failed to connect to [%s:%d]", dst_host, dst_port);
         return;
     }
     connected = true;
 }
 
-Stream::~Stream() {
-    if (buffer) {
-        delete buffer;
+Stream *Stream::create(const char *dst_host, int dst_port, SocketType type) {
+    auto *stream = new Stream(dst_host, dst_port, type);
+    if (!stream->connected) {
+        delete stream;
+        return nullptr;
+    } else {
+        return stream;
     }
+}
+
+Stream::~Stream() {
+    delete buffer;
 }
 
 /**
@@ -129,17 +137,17 @@ int Stream::send(const char *data, size_t length) {
     return SW_OK;
 }
 
-ssize_t Stream::recv_blocking(Socket *sock, void *__buf, size_t __len) {
+ssize_t Stream::recv_sync(Socket *sock, void *_buf, size_t _len) {
     int tmp = 0;
-    ssize_t ret = sock->recv_blocking(&tmp, sizeof(tmp), MSG_WAITALL);
+    ssize_t ret = sock->recv_sync(&tmp, sizeof(tmp), MSG_WAITALL);
     if (ret <= 0) {
         return SW_ERR;
     }
-    int length = (int) ntohl(tmp);
-    if (length <= 0 || length > (int) __len) {
+    const int length = static_cast<int>(ntohl(tmp));
+    if (length <= 0 || length > static_cast<int>(_len)) {
         return SW_ERR;
     }
-    return sock->recv_blocking(__buf, length, MSG_WAITALL);
+    return sock->recv_sync(_buf, length, MSG_WAITALL);
 }
 
 }  // namespace network

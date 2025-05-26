@@ -20,7 +20,7 @@ namespace swoole {
 namespace coroutine {
 
 void Channel::timer_callback(Timer *timer, TimerNode *tnode) {
-    TimeoutMessage *msg = (TimeoutMessage *) tnode->data;
+    auto *msg = static_cast<TimeoutMessage *>(tnode->data);
     msg->error = true;
     msg->timer = nullptr;
     if (msg->type == CONSUMER) {
@@ -31,7 +31,7 @@ void Channel::timer_callback(Timer *timer, TimerNode *tnode) {
     msg->co->resume();
 }
 
-void Channel::yield(enum Opcode type) {
+void Channel::yield(Opcode type) {
     Coroutine *co = Coroutine::get_current_safe();
     if (type == PRODUCER) {
         producer_queue.push_back(co);

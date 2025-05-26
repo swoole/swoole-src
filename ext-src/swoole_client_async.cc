@@ -366,7 +366,7 @@ static PHP_METHOD(swoole_client_async, connect) {
     Z_TRY_ADDREF_P(ZEND_THIS);
 
     // nonblock async
-    if (cli->connect(cli, host, port, timeout, sock_flag) < 0) {
+    if (cli->connect(host, port, timeout, sock_flag) < 0) {
         if (errno == 0) {
             auto error = swoole_get_last_error();
             if (error == SW_ERROR_DNSLOOKUP_RESOLVE_FAILED) {

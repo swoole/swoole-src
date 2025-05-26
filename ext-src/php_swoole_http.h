@@ -64,6 +64,13 @@ enum swHttpCompressMethod {
     HTTP_COMPRESS_ZSTD,
 };
 
+enum swHttpErrorStatusCode {
+    HTTP_ESTATUS_CONNECT_FAILED = -1,
+    HTTP_ESTATUS_REQUEST_TIMEOUT = -2,
+    HTTP_ESTATUS_SERVER_RESET = -3,
+    HTTP_ESTATUS_SEND_FAILED = -4,
+};
+
 namespace swoole {
 class Server;
 class Coroutine;
@@ -201,6 +208,7 @@ struct Context {
     bool parse_multipart_data(const char *at, size_t length);
     bool set_header(const char *, size_t, zval *, bool);
     bool set_header(const char *, size_t, const char *, size_t, bool);
+    bool set_header(const char *, size_t, const std::string &, bool);
     void end(zval *zdata, zval *return_value);
     void write(zval *zdata, zval *return_value);
     bool send_file(const char *file, uint32_t l_file, off_t offset, size_t length);

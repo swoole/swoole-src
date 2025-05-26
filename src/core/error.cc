@@ -21,7 +21,7 @@
 static std::unordered_set<int> ignored_errors;
 
 namespace swoole {
-Exception::Exception(int code) throw() : code(code) {
+Exception::Exception(const int code) noexcept : code(code) {
     msg = swoole_strerror(code);
 }
 }  // namespace swoole
@@ -82,8 +82,12 @@ const char *swoole_strerror(int code) {
         return "Unregistered signal";
     case SW_ERROR_BAD_HOST_ADDR:
         return "Bad host addr";
-    case SW_ERROR_EVENT_SOCKET_REMOVED:
-        return "Event socket removed";
+    case SW_ERROR_EVENT_REMOVE_FAILED:
+        return "Event remove failed";
+    case SW_ERROR_EVENT_ADD_FAILED:
+        return "Event add failed";
+    case SW_ERROR_EVENT_UPDATE_FAILED:
+        return "Event update failed";
     case SW_ERROR_SESSION_CLOSED_BY_SERVER:
         return "Session closed by server";
     case SW_ERROR_SESSION_CLOSED_BY_CLIENT:
@@ -120,6 +124,8 @@ const char *swoole_strerror(int code) {
         return "SSL reset";
     case SW_ERROR_SSL_HANDSHAKE_FAILED:
         return "SSL handshake failed";
+    case SW_ERROR_SSL_CREATE_CONTEXT_FAILED:
+        return "SSL create context failed";
     case SW_ERROR_PACKAGE_LENGTH_TOO_LARGE:
         return "Package length too large";
     case SW_ERROR_PACKAGE_LENGTH_NOT_FOUND:
@@ -290,14 +296,14 @@ void swoole_ignore_error(int code) {
     ignored_errors.insert(code);
 }
 
-bool swoole_is_ignored_error(int code) {
+bool swoole_is_ignored_error(const int code) {
     return ignored_errors.find(code) != ignored_errors.end();
 }
 
-void swoole_clear_last_error_msg(void) {
+void swoole_clear_last_error_msg() {
     sw_error[0] = '\0';
 }
 
-const char *swoole_get_last_error_msg(void) {
+const char *swoole_get_last_error_msg() {
     return sw_error;
 }

@@ -26,12 +26,12 @@ namespace swoole {
 namespace coroutine {
 //-------------------------------------------------------------------------------
 struct PollSocket {
-    int16_t events;
+    int events;
     int16_t revents;
     void *ptr;
     network::Socket *socket;
 
-    PollSocket(int16_t _event, void *_ptr) {
+    PollSocket(int _event, void *_ptr) {
         events = _event;
         ptr = _ptr;
         revents = 0;
@@ -39,8 +39,8 @@ struct PollSocket {
     }
 };
 
-int translate_events_to_poll(int events);
-int translate_events_from_poll(int events);
+int16_t translate_events_to_poll(int events);
+int translate_events_from_poll(int16_t events);
 
 class System {
   public:
@@ -61,6 +61,7 @@ class System {
     static void set_dns_cache_expire(time_t expire);
     static void set_dns_cache_capacity(size_t capacity);
     static void clear_dns_cache();
+    static float get_dns_cache_hit_ratio();
     /* multiplexing */
     static bool socket_poll(std::unordered_map<int, PollSocket> &fds, double timeout);
     /* wait */
@@ -75,21 +76,15 @@ class System {
     static int wait_signal(int signal, double timeout = -1);
     static int wait_signal(const std::vector<int> &signals, double timeout = -1);
     /* event */
+
+    /**
+     * On failure, it returns -1, and you can use swoole_get_last_error() or errno to determine the cause of the
+     * failure. If successful, it returns the event set, such as SW_EVENT_READ | SW_EVENT_WRITE.
+     */
     static int wait_event(int fd, int events, double timeout);
     static bool exec(const char *command, bool get_error_stream, std::shared_ptr<String> buffer, int *status);
 };
 std::string gethostbyname_impl_with_async(const std::string &hostname, int domain, double timeout = -1);
-//-------------------------------------------------------------------------------
-struct AsyncLock {
-  private:
-    void *resource_;
-
-  public:
-    AsyncLock(void *resource);
-    ~AsyncLock();
-};
-
-std::shared_ptr<AsyncLock> async_lock(void *);
 //-------------------------------------------------------------------------------
 }  // namespace coroutine
 }  // namespace swoole

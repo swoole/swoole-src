@@ -61,30 +61,22 @@ class File {
         flags_ = 0;
     }
 
-    File(const std::string &path, int oflags) {
-        fd_ = ::open(path.c_str(), oflags);
-        path_ = path;
-        flags_ = oflags;
-    }
+    File(const std::string &path, int oflags);
+    File(const std::string &path, int oflags, int mode);
+    ~File();
 
-    File(const std::string &path, int oflags, int mode) {
-        fd_ = ::open(path.c_str(), oflags, mode);
-        path_ = path;
-        flags_ = oflags;
-    }
+    bool open(const std::string &path, int oflags, int mode = 0);
 
-    ~File() {
-        if (fd_ >= 0) {
-            ::close(fd_);
-        }
-    }
-
-    bool ready() {
+    bool ready() const {
         return fd_ != -1;
     }
 
     ssize_t write(const void *__buf, size_t __n) const {
         return ::write(fd_, __buf, __n);
+    }
+
+    ssize_t write(const std::string &str) const {
+        return ::write(fd_, str.c_str(), str.length());
     }
 
     ssize_t read(void *__buf, size_t __n) const {
@@ -100,7 +92,7 @@ class File {
     }
 
     size_t write_all(const void *__buf, size_t __n);
-    size_t read_all(void *__buf, size_t __n);
+    size_t read_all(void *__buf, size_t __n) const;
     /**
      * Read one line of file, reading ends when __n - 1 bytes have been read,
      * or a newline (which is included in the return value),
@@ -110,7 +102,7 @@ class File {
      */
     ssize_t read_line(void *__buf, size_t __n);
 
-    std::shared_ptr<String> read_content();
+    std::shared_ptr<String> read_content() const;
 
     bool stat(FileStatus *_stat) const {
         if (::fstat(fd_, _stat) < 0) {
@@ -162,16 +154,20 @@ class File {
         fd_ = -1;
     }
 
-    int get_fd() {
+    int get_fd() const {
         return fd_;
     }
 
-    const std::string &get_path() {
+    const std::string &get_path() const {
         return path_;
     }
 
     static bool exists(const std::string &file) {
-        return access(file.c_str(), R_OK) == 0;
+        return ::access(file.c_str(), R_OK) == 0;
+    }
+
+    static bool remove(const std::string &file) {
+        return ::remove(file.c_str()) == 0;
     }
 };
 

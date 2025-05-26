@@ -101,9 +101,9 @@ ssize_t get_package_length(const Protocol *protocol, Socket *conn, PacketLength 
     return get_package_length_impl(pl);
 }
 
-static sw_inline void mask(char *data, size_t len, const char *mask_key) {
+void mask(char *data, size_t len, const char *mask_key) {
     size_t n = len / 8;
-    uint64_t mask_key64 = ((uint64_t)(*((uint32_t *) mask_key)) << 32) | *((uint32_t *) mask_key);
+    uint64_t mask_key64 = ((uint64_t) (*((uint32_t *) mask_key)) << 32) | *((uint32_t *) mask_key);
     size_t i;
 
     for (i = 0; i < n; i++) {
@@ -118,7 +118,7 @@ static sw_inline void mask(char *data, size_t len, const char *mask_key) {
 bool encode(String *buffer, const char *data, size_t length, char opcode, uint8_t _flags) {
     int pos = 0;
     char frame_header[16];
-    Header *header = (Header *) frame_header;
+    auto *header = (Header *) frame_header;
     header->FIN = !!(_flags & FLAG_FIN);
     header->OPCODE = opcode;
     header->RSV1 = !!(_flags & FLAG_RSV1);
@@ -131,12 +131,12 @@ bool encode(String *buffer, const char *data, size_t length, char opcode, uint8_
         header->LENGTH = length;
     } else if (length <= SW_WEBSOCKET_EXT16_MAX_LEN) {
         header->LENGTH = SW_WEBSOCKET_EXT16_LENGTH;
-        uint16_t *length_ptr = (uint16_t *) (frame_header + pos);
+        auto *length_ptr = (uint16_t *) (frame_header + pos);
         *length_ptr = htons(length);
         pos += sizeof(*length_ptr);
     } else {
         header->LENGTH = SW_WEBSOCKET_EXT64_LENGTH;
-        uint64_t *length_ptr = (uint64_t *) (frame_header + pos);
+        auto *length_ptr = (uint64_t *) (frame_header + pos);
         *length_ptr = swoole_hton64(length);
         pos += sizeof(*length_ptr);
     }
@@ -168,8 +168,8 @@ bool decode(Frame *frame, char *data, size_t length) {
     frame->header.OPCODE = data[0] & 0xf;
     frame->header.RSV1 = (data[0] >> 6) & 0x1;
     frame->header.RSV2 = (data[0] >> 5) & 0x1;
-    frame->header.RSV3 =(data[0] >> 4) & 0x1;
-    frame->header.FIN =  (data[0] >> 7) & 0x1;
+    frame->header.RSV3 = (data[0] >> 4) & 0x1;
+    frame->header.FIN = (data[0] >> 7) & 0x1;
     frame->header.MASK = (data[1] >> 7) & 0x1;
     frame->header.LENGTH = data[1] & 0x7f;
 
@@ -206,7 +206,7 @@ bool decode(Frame *frame, char *data, size_t length) {
     return true;
 }
 
-int pack_close_frame(String *buffer, int code, char *reason, size_t length, uint8_t flags) {
+int pack_close_frame(String *buffer, int code, const char *reason, size_t length, uint8_t flags) {
     if (sw_unlikely(length > SW_WEBSOCKET_CLOSE_REASON_MAX_LEN)) {
         swoole_warning("the max length of close reason is %d", SW_WEBSOCKET_CLOSE_REASON_MAX_LEN);
         return SW_ERR;
@@ -226,23 +226,23 @@ int pack_close_frame(String *buffer, int code, char *reason, size_t length, uint
 }
 
 void print_frame(Frame *frame) {
-    printf("FIN: %x, RSV1: %d, RSV2: %d, RSV3: %d, opcode: %d, MASK: %d, length: %ld\n",
-           frame->header.FIN,
-           frame->header.RSV1,
-           frame->header.RSV2,
-           frame->header.RSV3,
-           frame->header.OPCODE,
-           frame->header.MASK,
-           frame->payload_length);
+    sw_printf("FIN: %x, RSV1: %d, RSV2: %d, RSV3: %d, opcode: %d, MASK: %d, length: %ld\n",
+              frame->header.FIN,
+              frame->header.RSV1,
+              frame->header.RSV2,
+              frame->header.RSV3,
+              frame->header.OPCODE,
+              frame->header.MASK,
+              frame->payload_length);
 
     if (frame->payload_length) {
-        printf("payload: %.*s\n", (int) frame->payload_length, frame->payload);
+        sw_printf("payload: %.*s\n", (int) frame->payload_length, frame->payload);
     }
 }
 
 int dispatch_frame(const Protocol *proto, Socket *_socket, const RecvData *rdata) {
-    Server *serv = (Server *) proto->private_data_2;
-    Connection *conn = (Connection *) _socket->object;
+    auto *serv = (Server *) proto->private_data_2;
+    auto *conn = (Connection *) _socket->object;
     RecvData dispatch_data{};
     String send_frame{};
     const char *data = rdata->data;
@@ -265,7 +265,7 @@ int dispatch_frame(const Protocol *proto, Socket *_socket, const RecvData *rdata
     case OPCODE_CONTINUATION:
         frame_buffer = conn->websocket_buffer;
         if (frame_buffer == nullptr) {
-            swoole_warning("bad frame[opcode=0]. remote_addr=%s:%d", conn->info.get_ip(), conn->info.get_port());
+            swoole_warning("bad frame[opcode=0]. remote_addr=%s:%d", conn->info.get_addr(), conn->info.get_port());
             return SW_ERR;
         }
         offset = length - ws.payload_length;
@@ -273,7 +273,8 @@ int dispatch_frame(const Protocol *proto, Socket *_socket, const RecvData *rdata
         port = serv->get_port_by_fd(conn->fd);
         // frame data overflow
         if (frame_buffer->length + frame_length > port->protocol.package_max_length) {
-            swoole_warning("websocket frame is too big, remote_addr=%s:%d", conn->info.get_ip(), conn->info.get_port());
+            swoole_warning(
+                "websocket frame is too big, remote_addr=%s:%d", conn->info.get_addr(), conn->info.get_port());
             return SW_ERR;
         }
         // merge incomplete data
@@ -292,15 +293,15 @@ int dispatch_frame(const Protocol *proto, Socket *_socket, const RecvData *rdata
     case OPCODE_TEXT:
     case OPCODE_BINARY: {
         offset = length - ws.payload_length;
-        int ext_flags = get_ext_flags(ws.header.OPCODE, get_flags(&ws));
+        uint16_t ext_flags = get_ext_flags(ws.header.OPCODE, get_flags(&ws));
         if (!ws.header.FIN) {
             if (conn->websocket_buffer) {
                 swoole_warning("merging incomplete frame, bad request. remote_addr=%s:%d",
-                               conn->info.get_ip(),
+                               conn->info.get_addr(),
                                conn->info.get_port());
                 return SW_ERR;
             }
-            conn->websocket_buffer = new swoole::String(data + offset, length - offset);
+            conn->websocket_buffer = new String(data + offset, length - offset);
             conn->websocket_buffer->offset = ext_flags;
         } else {
             dispatch_data.info.ext_flags = ext_flags;
@@ -315,7 +316,7 @@ int dispatch_frame(const Protocol *proto, Socket *_socket, const RecvData *rdata
         if (length >= (sizeof(buf) - SW_WEBSOCKET_HEADER_LEN)) {
             swoole_warning("%s frame application data is too big. remote_addr=%s:%d",
                            ws.header.OPCODE == OPCODE_PING ? "ping" : "pong",
-                           conn->info.get_ip(),
+                           conn->info.get_addr(),
                            conn->info.get_port());
             return SW_ERR;
         } else if (length == SW_WEBSOCKET_HEADER_LEN) {

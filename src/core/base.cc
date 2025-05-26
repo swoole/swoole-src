@@ -16,8 +16,8 @@
 
 #include "swoole.h"
 
-#include <stdarg.h>
-#include <assert.h>
+#include <cstdarg>
+#include <cassert>
 #include <fcntl.h>
 
 #include <sys/stat.h>
@@ -27,10 +27,9 @@
 #include <sys/syslimits.h>
 #endif
 
-#include <algorithm>
 #include <list>
 #include <set>
-#include <unordered_map>
+#include <random>
 
 #include "swoole_api.h"
 #include "swoole_string.h"
@@ -54,6 +53,7 @@
 #endif
 #endif
 
+using swoole::Logger;
 using swoole::NameResolver;
 using swoole::String;
 using swoole::coroutine::System;
@@ -64,7 +64,7 @@ using swoole::coroutine::System;
 static ssize_t getrandom(void *buffer, size_t size, unsigned int __flags) {
 #if defined(HAVE_CCRANDOMGENERATEBYTES)
     /*
-     * arc4random_buf on macOs uses ccrng_generate internally from which
+     * arc4random_buf on macOS uses ccrng_generate internally from which
      * the potential error is silented to respect the portable arc4random_buf interface contract
      */
     if (CCRandomGenerateBytes(buffer, size) == kCCSuccess) {
@@ -101,12 +101,10 @@ thread_local swoole::ThreadGlobal SwooleTG = {};
 thread_local char sw_error[SW_ERROR_MSG_SIZE];
 std::mutex sw_thread_lock;
 
-static swoole::Logger *g_logger_instance = nullptr;
-
 static void swoole_fatal_error_impl(int code, const char *format, ...);
 
 swoole::Logger *sw_logger() {
-    return g_logger_instance;
+    return SwooleG.logger;
 }
 
 void *sw_malloc(size_t size) {
@@ -155,6 +153,7 @@ void swoole_init(void) {
     SwooleG.init = 1;
     SwooleG.enable_coroutine = 1;
     SwooleG.std_allocator = {malloc, calloc, realloc, free};
+    SwooleG.stdout_ = stdout;
     SwooleG.fatal_error = swoole_fatal_error_impl;
     SwooleG.cpu_num = SW_MAX(1, sysconf(_SC_NPROCESSORS_ONLN));
     SwooleG.pagesize = getpagesize();
@@ -168,9 +167,11 @@ void swoole_init(void) {
     // random seed
     srandom(time(nullptr));
 
-    SwooleG.pid = getpid();
+    if (!SwooleG.logger) {
+        SwooleG.logger = new Logger();
+    }
 
-    g_logger_instance = new swoole::Logger;
+    swoole_thread_init(true);
 
 #ifdef SW_DEBUG
     sw_logger()->set_level(0);
@@ -189,8 +190,6 @@ void swoole_init(void) {
         SwooleG.max_sockets = SW_MAX((uint32_t) rlmt.rlim_cur, SW_MAX_SOCKETS_DEFAULT);
         SwooleG.max_sockets = SW_MIN((uint32_t) rlmt.rlim_cur, SW_SESSION_LIST_SIZE);
     }
-
-    SwooleTG.buffer_stack = new swoole::String(SW_STACK_BUFFER_SIZE);
 
     if (!swoole_set_task_tmpdir(SW_TASK_TMP_DIR)) {
         exit(4);
@@ -238,30 +237,23 @@ SW_API int swoole_api_version_id(void) {
 SW_EXTERN_C_END
 
 void swoole_clean(void) {
-    if (SwooleTG.timer) {
-        swoole_timer_free();
-    }
-    if (SwooleTG.reactor) {
-        swoole_event_free();
-    }
-    if (SwooleG.memory_pool != nullptr) {
-        delete SwooleG.memory_pool;
-    }
-    if (g_logger_instance) {
-        delete g_logger_instance;
-        g_logger_instance = nullptr;
-    }
-    if (SwooleTG.buffer_stack) {
-        delete SwooleTG.buffer_stack;
-        SwooleTG.buffer_stack = nullptr;
-    }
     SW_LOOP_N(SW_MAX_HOOK_TYPE) {
         if (SwooleG.hooks[i]) {
             auto hooks = static_cast<std::list<swoole::Callback> *>(SwooleG.hooks[i]);
             delete hooks;
         }
     }
+
     swoole_signal_clear();
+    swoole_thread_clean(true);
+
+    if (SwooleG.logger) {
+        SwooleG.logger->close();
+        delete SwooleG.logger;
+    }
+    if (SwooleG.memory_pool != nullptr) {
+        delete SwooleG.memory_pool;
+    }
     SwooleG = {};
 }
 
@@ -269,6 +261,14 @@ SW_API void swoole_set_log_level(int level) {
     if (sw_logger()) {
         sw_logger()->set_level(level);
     }
+}
+
+SW_API void swoole_set_stdout_stream(FILE *fp) {
+    SwooleG.stdout_ = fp;
+}
+
+SW_API FILE *swoole_get_stdout_stream() {
+    return SwooleG.stdout_;
 }
 
 SW_API int swoole_get_log_level() {
@@ -289,32 +289,8 @@ SW_API void swoole_set_trace_flags(long flags) {
     SwooleG.trace_flags = flags;
 }
 
-SW_API void swoole_set_dns_server(const std::string &server) {
-    char *_port;
-    int dns_server_port = SW_DNS_SERVER_PORT;
-    char dns_server_host[32];
-    strcpy(dns_server_host, server.c_str());
-    if ((_port = strchr((char *) server.c_str(), ':'))) {
-        dns_server_port = atoi(_port + 1);
-        if (dns_server_port <= 0 || dns_server_port > 65535) {
-            dns_server_port = SW_DNS_SERVER_PORT;
-        }
-        dns_server_host[_port - server.c_str()] = '\0';
-    }
-    SwooleG.dns_server_host = dns_server_host;
-    SwooleG.dns_server_port = dns_server_port;
-}
-
-SW_API std::pair<std::string, int> swoole_get_dns_server() {
-    std::pair<std::string, int> result;
-    if (SwooleG.dns_server_host.empty()) {
-        result.first = "";
-        result.second = 0;
-    } else {
-        result.first = SwooleG.dns_server_host;
-        result.second = SwooleG.dns_server_port;
-    }
-    return result;
+SW_API void swoole_set_print_backtrace_on_error(bool enable) {
+    SwooleG.print_backtrace_on_error = enable;
 }
 
 bool swoole_set_task_tmpdir(const std::string &dir) {
@@ -370,7 +346,6 @@ pid_t swoole_fork(int flags) {
 
     pid_t pid = fork();
     if (pid == 0) {
-        SwooleG.pid = getpid();
         if (flags & SW_FORK_DAEMON) {
             return pid;
         }
@@ -380,11 +355,11 @@ pid_t swoole_fork(int flags) {
         if (swoole_timer_is_available()) {
             swoole_timer_free();
         }
-        if (SwooleG.memory_pool) {
-            delete SwooleG.memory_pool;
-        }
         if (!(flags & SW_FORK_EXEC)) {
-            // reset SwooleG.memory_pool
+            /**
+             * Do not release the allocated memory pages.
+             * The global memory will be returned to the OS upon process termination.
+             */
             SwooleG.memory_pool = new swoole::GlobalMemory(SW_GLOBAL_MEMORY_PAGESIZE, true);
             // reopen log file
             sw_logger()->reopen();
@@ -394,14 +369,9 @@ pid_t swoole_fork(int flags) {
                 swoole_trace_log(SW_TRACE_REACTOR, "reactor has been destroyed");
             }
         } else {
-            /**
-             * close log fd
-             */
             sw_logger()->close();
         }
-        /**
-         * reset signal handler
-         */
+        // reset signal handler
         swoole_signal_clear();
 
         if (swoole_isset_hook(SW_GLOBAL_HOOK_AFTER_FORK)) {
@@ -412,14 +382,22 @@ pid_t swoole_fork(int flags) {
     return pid;
 }
 
-void swoole_thread_init(void) {
+void swoole_thread_init(bool main_thread) {
     if (!SwooleTG.buffer_stack) {
         SwooleTG.buffer_stack = new String(SW_STACK_BUFFER_SIZE);
     }
-    swoole_signal_block_all();
+    if (!main_thread) {
+        swoole_signal_block_all();
+    }
 }
 
-void swoole_thread_clean(void) {
+void swoole_thread_clean(bool main_thread) {
+    if (SwooleTG.timer) {
+        swoole_timer_free();
+    }
+    if (SwooleTG.reactor) {
+        swoole_event_free();
+    }
     if (SwooleTG.buffer_stack) {
         delete SwooleTG.buffer_stack;
         SwooleTG.buffer_stack = nullptr;
@@ -442,7 +420,7 @@ void swoole_dump_bin(const char *data, char type, size_t size) {
     int n = size / type_size;
 
     for (i = 0; i < n; i++) {
-        printf("%d,", swoole_unpack(type, data + type_size * i));
+        printf("%ld,", (long) swoole_unpack(type, data + type_size * i));
     }
     printf("\n");
 }
@@ -485,7 +463,7 @@ bool swoole_mkdir_recursive(const std::string &dir) {
             if (access(tmp, R_OK) != 0) {
                 if (mkdir(tmp, 0755) == -1) {
                     swoole_sys_warning("mkdir(%s) failed", tmp);
-                    return -1;
+                    return false;
                 }
             }
             tmp[i] = '/';
@@ -510,6 +488,11 @@ int swoole_type_size(char type) {
     case 'N':
     case 'V':
         return 4;
+    case 'q':
+    case 'Q':
+    case 'J':
+    case 'P':
+        return 8;
     default:
         return 0;
     }
@@ -542,7 +525,7 @@ ulong_t swoole_hex2dec(const char *hex, size_t *parsed_bytes) {
         p += 2;
     }
 
-    while (1) {
+    while (true) {
         char c = *p;
         if ((c >= '0') && (c <= '9')) {
             value = value * 16 + (c - '0');
@@ -565,14 +548,7 @@ ulong_t swoole_hex2dec(const char *hex, size_t *parsed_bytes) {
 #endif
 
 int swoole_rand(int min, int max) {
-    static time_t _seed = 0;
     assert(max > min);
-
-    if (_seed == 0) {
-        _seed = time(nullptr);
-        srand(_seed);
-    }
-
     int _rand = rand();
     _rand = min + (int) ((double) ((double) (max) - (min) + 1.0) * ((_rand) / ((RAND_MAX) + 1.0)));
     return _rand;
@@ -580,8 +556,6 @@ int swoole_rand(int min, int max) {
 
 int swoole_system_random(int min, int max) {
     static int dev_random_fd = -1;
-    char *next_random_byte;
-    int bytes_to_read;
     unsigned random_value;
 
     assert(max > min);
@@ -593,8 +567,8 @@ int swoole_system_random(int min, int max) {
         }
     }
 
-    next_random_byte = (char *) &random_value;
-    bytes_to_read = sizeof(random_value);
+    auto next_random_byte = (char *) &random_value;
+    constexpr int bytes_to_read = sizeof(random_value);
 
     if (read(dev_random_fd, next_random_byte, bytes_to_read) < bytes_to_read) {
         swoole_sys_warning("read() from /dev/urandom failed");
@@ -609,6 +583,16 @@ void swoole_redirect_stdout(int new_fd) {
     }
     if (dup2(new_fd, STDERR_FILENO) < 0) {
         swoole_sys_warning("dup2(STDERR_FILENO) failed");
+    }
+}
+
+void swoole_redirect_stdout(const char *file) {
+    auto fd = open(file, O_WRONLY | O_APPEND | O_CREAT, 0644);
+    if (fd >= 0) {
+        swoole_redirect_stdout(fd);
+        close(fd);
+    } else {
+        swoole_sys_warning("open('%s') failed", file);
     }
 }
 
@@ -711,6 +695,14 @@ size_t sw_vsnprintf(char *buf, size_t size, const char *format, va_list args) {
     return retval;
 }
 
+int sw_printf(const char *format, ...) {
+    va_list args;
+    va_start(args, format);
+    int retval = vfprintf(SwooleG.stdout_, format, args);
+    va_end(args);
+    return retval;
+}
+
 int swoole_itoa(char *buf, long value) {
     long i = 0, j;
     long sign_mask;
@@ -799,7 +791,7 @@ char *swoole_string_format(size_t n, const char *format, ...) {
     return nullptr;
 }
 
-static const char characters[] = {
+static constexpr char characters[] = {
     'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U',
     'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p',
     'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
@@ -818,6 +810,13 @@ void swoole_random_string(std::string &str, size_t size) {
     for (; i < size; i++) {
         str.append(1, characters[swoole_rand(0, sizeof(characters) - 1)]);
     }
+}
+
+uint64_t swoole_random_int() {
+    static std::random_device rd;
+    static std::mt19937_64 gen(rd());
+    static std::uniform_int_distribution<uint64_t> dis(0, UINT64_MAX);
+    return dis(gen);
 }
 
 size_t swoole_random_bytes(char *buf, size_t size) {
@@ -885,6 +884,12 @@ void swoole_print_backtrace(void) {
 void swoole_print_backtrace(void) {}
 #endif
 
+void swoole_print_backtrace_on_error(void) {
+    if (SwooleG.print_backtrace_on_error) {
+        swoole_print_backtrace();
+    }
+}
+
 static void swoole_fatal_error_impl(int code, const char *format, ...) {
     size_t retval = 0;
     va_list args;
@@ -945,7 +950,7 @@ void DataHead::print() {
 std::string dirname(const std::string &file) {
     size_t index = file.find_last_of('/');
     if (index == std::string::npos) {
-        return std::string();
+        return {};
     } else if (index == 0) {
         return "/";
     }
@@ -957,7 +962,7 @@ int hook_add(void **hooks, int type, const Callback &func, int push_back) {
         hooks[type] = new std::list<Callback>;
     }
 
-    std::list<Callback> *l = reinterpret_cast<std::list<Callback> *>(hooks[type]);
+    auto *l = static_cast<std::list<Callback> *>(hooks[type]);
     if (push_back) {
         l->push_back(func);
     } else {
@@ -971,16 +976,16 @@ void hook_call(void **hooks, int type, void *arg) {
     if (hooks[type] == nullptr) {
         return;
     }
-    std::list<Callback> *l = reinterpret_cast<std::list<Callback> *>(hooks[type]);
-    for (auto i = l->begin(); i != l->end(); i++) {
-        (*i)(arg);
+    const auto *l = static_cast<std::list<Callback> *>(hooks[type]);
+    for (auto &i : *l) {
+        i(arg);
     }
 }
 
 /**
  * return the first file of the intersection, in order of vec1
  */
-std::string intersection(std::vector<std::string> &vec1, std::set<std::string> &vec2) {
+std::string intersection(const std::vector<std::string> &vec1, std::set<std::string> &vec2) {
     for (const auto &vec1_item : vec1) {
         if (vec2.find(vec1_item) != vec2.end()) {
             return vec1_item;
