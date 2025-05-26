@@ -114,9 +114,7 @@ TEST(message_bus, read) {
     tmb.mb.set_id_generator([&msg_id]() { return msg_id++; });
     tmb.mb.alloc_buffer();
 
-    tmb.read_func = [&tmb](network::Socket *sock) {
-        return tmb.mb.read(sock);
-    };
+    tmb.read_func = [&tmb](network::Socket *sock) { return tmb.mb.read(sock); };
 
     sw_reactor()->ptr = &tmb;
 
@@ -163,9 +161,7 @@ TEST(message_bus, read_with_buffer) {
     tmb.mb.set_id_generator([&msg_id]() { return msg_id++; });
     tmb.mb.alloc_buffer();
 
-    tmb.read_func = [&tmb](network::Socket *sock) {
-        return tmb.mb.read_with_buffer(sock);
-    };
+    tmb.read_func = [&tmb](network::Socket *sock) { return tmb.mb.read_with_buffer(sock); };
 
     sw_reactor()->ptr = &tmb;
 
@@ -198,6 +194,3 @@ TEST(message_bus, read_with_buffer) {
     ASSERT_EQ(r5.fd, 5);
     ASSERT_STREQ(r5.data.c_str(), "");
 }
-
-
-

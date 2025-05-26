@@ -39,10 +39,11 @@ typedef zend_string zend_source_string_t;
 #define ZEND_STR_CONST const
 #endif
 
+static zend_op_array *(*old_compile_string)(zend_source_string_t *source_string,
+                                            ZEND_STR_CONST char *filename ZEND_COMPILE_POSITION_DC);
 
-static zend_op_array *(*old_compile_string)(zend_source_string_t *source_string, ZEND_STR_CONST char *filename ZEND_COMPILE_POSITION_DC);
-
-static inline zend_op_array *_compile_string(zend_source_string_t *source_string, ZEND_STR_CONST char *filename ZEND_COMPILE_POSITION_DC) {
+static inline zend_op_array *_compile_string(zend_source_string_t *source_string,
+                                             ZEND_STR_CONST char *filename ZEND_COMPILE_POSITION_DC) {
     if (UNEXPECTED(EG(exception))) {
         zend_exception_error(EG(exception), E_ERROR);
         return NULL;
@@ -66,7 +67,7 @@ static inline zend_bool _eval(const char *code, const char *filename) {
 
 #endif
 
-static const char* swoole_library_source_constants =
+static const char *swoole_library_source_constants =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -85,7 +86,7 @@ static const char* swoole_library_source_constants =
     "!defined('CURLOPT_RESOLVE') && define('CURLOPT_RESOLVE', 10203);\n"
     "!defined('CURLOPT_UNIX_SOCKET_PATH') && define('CURLOPT_UNIX_SOCKET_PATH', 10231);\n";
 
-static const char* swoole_library_source_std_exec =
+static const char *swoole_library_source_std_exec =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -131,7 +132,7 @@ static const char* swoole_library_source_std_exec =
     "    return null;\n"
     "}\n";
 
-static const char* swoole_library_source_core_constant =
+static const char *swoole_library_source_core_constant =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -675,7 +676,7 @@ static const char* swoole_library_source_core_constant =
     "    public const OPTION_HTTP_CLIENT_DRIVER = 'http_client_driver';\n"
     "}\n";
 
-static const char* swoole_library_source_core_string_object =
+static const char *swoole_library_source_core_string_object =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -879,7 +880,7 @@ static const char* swoole_library_source_core_string_object =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_multibyte_string_object =
+static const char *swoole_library_source_core_multibyte_string_object =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -943,7 +944,7 @@ static const char* swoole_library_source_core_multibyte_string_object =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_exception_array_key_not_exists =
+static const char *swoole_library_source_core_exception_array_key_not_exists =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -961,7 +962,7 @@ static const char* swoole_library_source_core_exception_array_key_not_exists =
     "{\n"
     "}\n";
 
-static const char* swoole_library_source_core_array_object =
+static const char *swoole_library_source_core_array_object =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -1348,7 +1349,8 @@ static const char* swoole_library_source_core_array_object =
     "\n"
     "    public function slice(int $offset, ?int $length = null, bool $preserve_keys = false): static\n"
     "    {\n"
-    "        return new static(array_slice($this->array, $offset, $length, $preserve_keys)); // @phpstan-ignore new.static\n"
+    "        return new static(array_slice($this->array, $offset, $length, $preserve_keys)); // @phpstan-ignore "
+    "new.static\n"
     "    }\n"
     "\n"
     "    /**\n"
@@ -1430,21 +1432,36 @@ static const char* swoole_library_source_core_array_object =
     "    }\n"
     "\n"
     "    /**\n"
-    "     * | Function name     | Sorts by | Maintains key association   | Order of sort               | Related functions |\n"
-    "     * | :---------------- | :------- | :-------------------------- | :-------------------------- | :---------------- |\n"
-    "     * | array_multisort() | value    | associative yes, numeric no | first array or sort options | array_walk()      |\n"
-    "     * | asort()           | value    | yes                         | low to high                 | arsort()          |\n"
-    "     * | arsort()          | value    | yes                         | high to low                 | asort()           |\n"
-    "     * | krsort()          | key      | yes                         | high to low                 | ksort()           |\n"
-    "     * | ksort()           | key      | yes                         | low to high                 | asort()           |\n"
-    "     * | natcasesort()     | value    | yes                         | natural, case insensitive   | natsort()         |\n"
-    "     * | natsort()         | value    | yes                         | natural                     | natcasesort()     |\n"
-    "     * | rsort()           | value    | no                          | high to low                 | sort()            |\n"
-    "     * | shuffle()         | value    | no                          | random                      | array_rand()      |\n"
-    "     * | sort()            | value    | no                          | low to high                 | rsort()           |\n"
-    "     * | uasort()          | value    | yes                         | user defined                | uksort()          |\n"
-    "     * | uksort()          | key      | yes                         | user defined                | uasort()          |\n"
-    "     * | usort()           | value    | no                          | user defined                | uasort()          |\n"
+    "     * | Function name     | Sorts by | Maintains key association   | Order of sort               | Related "
+    "functions |\n"
+    "     * | :---------------- | :------- | :-------------------------- | :-------------------------- | "
+    ":---------------- |\n"
+    "     * | array_multisort() | value    | associative yes, numeric no | first array or sort options | array_walk()  "
+    "    |\n"
+    "     * | asort()           | value    | yes                         | low to high                 | arsort()      "
+    "    |\n"
+    "     * | arsort()          | value    | yes                         | high to low                 | asort()       "
+    "    |\n"
+    "     * | krsort()          | key      | yes                         | high to low                 | ksort()       "
+    "    |\n"
+    "     * | ksort()           | key      | yes                         | low to high                 | asort()       "
+    "    |\n"
+    "     * | natcasesort()     | value    | yes                         | natural, case insensitive   | natsort()     "
+    "    |\n"
+    "     * | natsort()         | value    | yes                         | natural                     | natcasesort() "
+    "    |\n"
+    "     * | rsort()           | value    | no                          | high to low                 | sort()        "
+    "    |\n"
+    "     * | shuffle()         | value    | no                          | random                      | array_rand()  "
+    "    |\n"
+    "     * | sort()            | value    | no                          | low to high                 | rsort()       "
+    "    |\n"
+    "     * | uasort()          | value    | yes                         | user defined                | uksort()      "
+    "    |\n"
+    "     * | uksort()          | key      | yes                         | user defined                | uasort()      "
+    "    |\n"
+    "     * | usort()           | value    | no                          | user defined                | uasort()      "
+    "    |\n"
     "     */\n"
     "\n"
     "    /**\n"
@@ -1571,7 +1588,7 @@ static const char* swoole_library_source_core_array_object =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_object_proxy =
+static const char *swoole_library_source_core_object_proxy =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -1633,7 +1650,7 @@ static const char* swoole_library_source_core_object_proxy =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_coroutine_wait_group =
+static const char *swoole_library_source_core_coroutine_wait_group =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -1707,7 +1724,7 @@ static const char* swoole_library_source_core_coroutine_wait_group =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_coroutine_server =
+static const char *swoole_library_source_core_coroutine_server =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -1860,7 +1877,7 @@ static const char* swoole_library_source_core_coroutine_server =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_coroutine_server_connection =
+static const char *swoole_library_source_core_coroutine_server_connection =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -1906,7 +1923,7 @@ static const char* swoole_library_source_core_coroutine_server_connection =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_coroutine_barrier =
+static const char *swoole_library_source_core_coroutine_barrier =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -1978,7 +1995,7 @@ static const char* swoole_library_source_core_coroutine_barrier =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_coroutine_http_client_proxy =
+static const char *swoole_library_source_core_coroutine_http_client_proxy =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -2025,7 +2042,7 @@ static const char* swoole_library_source_core_coroutine_http_client_proxy =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_coroutine_http_functions =
+static const char *swoole_library_source_core_coroutine_http_functions =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -2122,7 +2139,8 @@ static const char* swoole_library_source_core_coroutine_http_functions =
     "    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);\n"
     "    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, strtoupper($method));\n"
     "    $responseHeaders = $responseCookies = [];\n"
-    "    curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($ch, $header) use (&$responseHeaders, &$responseCookies) {\n"
+    "    curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($ch, $header) use (&$responseHeaders, &$responseCookies) "
+    "{\n"
     "        $len    = strlen($header);\n"
     "        $header = explode(':', $header, 2);\n"
     "        if (count($header) < 2) {\n"
@@ -2168,7 +2186,8 @@ static const char* swoole_library_source_core_coroutine_http_functions =
     "    }\n"
     "    $body = curl_exec($ch);\n"
     "    if ($body !== false) {\n"
-    "        return new ClientProxy($body, curl_getinfo($ch, CURLINFO_RESPONSE_CODE), $responseHeaders, $responseCookies);\n"
+    "        return new ClientProxy($body, curl_getinfo($ch, CURLINFO_RESPONSE_CODE), $responseHeaders, "
+    "$responseCookies);\n"
     "    }\n"
     "    throw new Exception(curl_error($ch), curl_errno($ch));\n"
     "}\n"
@@ -2225,7 +2244,8 @@ static const char* swoole_library_source_core_coroutine_http_functions =
     "/**\n"
     " * @throws Exception\n"
     " */\n"
-    "function post(string $url, mixed $data, ?array $options = null, ?array $headers = null, ?array $cookies = null): ClientProxy\n"
+    "function post(string $url, mixed $data, ?array $options = null, ?array $headers = null, ?array $cookies = null): "
+    "ClientProxy\n"
     "{\n"
     "    return request($url, 'POST', $data, $options, $headers, $cookies);\n"
     "}\n"
@@ -2238,7 +2258,7 @@ static const char* swoole_library_source_core_coroutine_http_functions =
     "    return request($url, 'GET', null, $options, $headers, $cookies);\n"
     "}\n";
 
-static const char* swoole_library_source_core_connection_pool =
+static const char *swoole_library_source_core_connection_pool =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -2267,7 +2287,8 @@ static const char* swoole_library_source_core_connection_pool =
     "\n"
     "    protected int $num = 0;\n"
     "\n"
-    "    public function __construct(callable $constructor, int $size = self::DEFAULT_SIZE, protected ?string $proxy = null)\n"
+    "    public function __construct(callable $constructor, int $size = self::DEFAULT_SIZE, protected ?string $proxy = "
+    "null)\n"
     "    {\n"
     "        $this->pool        = new Channel($this->size = $size);\n"
     "        $this->constructor = $constructor;\n"
@@ -2284,7 +2305,8 @@ static const char* swoole_library_source_core_connection_pool =
     "     * Get a connection from the pool.\n"
     "     *\n"
     "     * @param float $timeout > 0 means waiting for the specified number of seconds. other means no waiting.\n"
-    "     * @return mixed|false Returns a connection object from the pool, or false if the pool is full and the timeout is reached.\n"
+    "     * @return mixed|false Returns a connection object from the pool, or false if the pool is full and the "
+    "timeout is reached.\n"
     "     */\n"
     "    public function get(float $timeout = -1)\n"
     "    {\n"
@@ -2336,7 +2358,7 @@ static const char* swoole_library_source_core_connection_pool =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_database_object_proxy =
+static const char *swoole_library_source_core_database_object_proxy =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -2358,7 +2380,7 @@ static const char* swoole_library_source_core_database_object_proxy =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_database_mysqli_config =
+static const char *swoole_library_source_core_database_mysqli_config =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -2479,7 +2501,7 @@ static const char* swoole_library_source_core_database_mysqli_config =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_database_mysqli_exception =
+static const char *swoole_library_source_core_database_mysqli_exception =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -2497,7 +2519,7 @@ static const char* swoole_library_source_core_database_mysqli_exception =
     "{\n"
     "}\n";
 
-static const char* swoole_library_source_core_database_mysqli_pool =
+static const char *swoole_library_source_core_database_mysqli_pool =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -2544,7 +2566,7 @@ static const char* swoole_library_source_core_database_mysqli_pool =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_database_mysqli_proxy =
+static const char *swoole_library_source_core_database_mysqli_proxy =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -2563,7 +2585,11 @@ static const char* swoole_library_source_core_database_mysqli_proxy =
     " */\n"
     "class MysqliProxy extends ObjectProxy\n"
     "{\n"
-    "    public const IO_METHOD_REGEX = '/^autocommit|begin_transaction|change_user|close|commit|kill|multi_query|ping|prepare|query|real_connect|real_query|reap_async_query|refresh|release_savepoint|rollback|savepoint|select_db|send_query|set_charset|ssl_set$/i';\n"
+    "    public const IO_METHOD_REGEX = "
+    "'/"
+    "^autocommit|begin_transaction|change_user|close|commit|kill|multi_query|ping|prepare|query|real_connect|real_"
+    "query|reap_async_query|refresh|release_savepoint|rollback|savepoint|select_db|send_query|set_charset|ssl_set$/"
+    "i';\n"
     "\n"
     "    public const IO_ERRORS = [\n"
     "        2002, // MYSQLND_CR_CONNECTION_ERROR\n"
@@ -2664,7 +2690,7 @@ static const char* swoole_library_source_core_database_mysqli_proxy =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_database_mysqli_statement_proxy =
+static const char *swoole_library_source_core_database_mysqli_statement_proxy =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -2723,7 +2749,8 @@ static const char* swoole_library_source_core_database_mysqli_statement_proxy =
     "                    $this->parent->reconnect();\n"
     "                }\n"
     "                $parent         = $this->parent->__getObject();\n"
-    "                $this->__object = $this->queryString ? @$parent->prepare($this->queryString) : @$parent->stmt_init();\n"
+    "                $this->__object = $this->queryString ? @$parent->prepare($this->queryString) : "
+    "@$parent->stmt_init();\n"
     "                if ($this->__object === false) {\n"
     "                    throw new MysqliException($parent->error, $parent->errno);\n"
     "                }\n"
@@ -2766,7 +2793,7 @@ static const char* swoole_library_source_core_database_mysqli_statement_proxy =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_database_detects_lost_connections =
+static const char *swoole_library_source_core_database_detects_lost_connections =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -2811,17 +2838,20 @@ static const char* swoole_library_source_core_database_detects_lost_connections 
     "        'Login timeout expired',\n"
     "        'SQLSTATE[HY000] [2002] Connection refused',\n"
     "        'running with the --read-only option so it cannot execute this statement',\n"
-    "        'The connection is broken and recovery is not possible. The connection is marked by the client driver as unrecoverable. No attempt was made to restore the connection.',\n"
+    "        'The connection is broken and recovery is not possible. The connection is marked by the client driver as "
+    "unrecoverable. No attempt was made to restore the connection.',\n"
     "        'SQLSTATE[HY000] [2002] php_network_getaddresses: getaddrinfo failed: Try again',\n"
     "        'SQLSTATE[HY000] [2002] php_network_getaddresses: getaddrinfo failed: Name or service not known',\n"
     "        'SQLSTATE[HY000] [2002] php_network_getaddresses: getaddrinfo for',\n"
     "        'SQLSTATE[HY000]: General error: 7 SSL SYSCALL error: EOF detected',\n"
-    "        'SQLSTATE[HY000]: General error: 1105 The last transaction was aborted due to Seamless Scaling. Please retry.',\n"
+    "        'SQLSTATE[HY000]: General error: 1105 The last transaction was aborted due to Seamless Scaling. Please "
+    "retry.',\n"
     "        'Temporary failure in name resolution',\n"
     "        'SQLSTATE[08S01]: Communication link failure',\n"
     "        'SQLSTATE[08006] [7] could not connect to server: Connection refused Is the server running on host',\n"
     "        'SQLSTATE[HY000]: General error: 7 SSL SYSCALL error: No route to host',\n"
-    "        'The client was disconnected by the server because of inactivity. See wait_timeout and interactive_timeout for configuring this behavior.',\n"
+    "        'The client was disconnected by the server because of inactivity. See wait_timeout and "
+    "interactive_timeout for configuring this behavior.',\n"
     "        'SQLSTATE[08006] [7] could not translate host name',\n"
     "        'TCP Provider: Error code 0x274C',\n"
     "        'SQLSTATE[HY000] [2002] No such file or directory',\n"
@@ -2853,7 +2883,7 @@ static const char* swoole_library_source_core_database_detects_lost_connections 
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_database_pdo_config =
+static const char *swoole_library_source_core_database_pdo_config =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -3006,7 +3036,7 @@ static const char* swoole_library_source_core_database_pdo_config =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_database_pdo_pool =
+static const char *swoole_library_source_core_database_pdo_pool =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -3036,15 +3066,18 @@ static const char* swoole_library_source_core_database_pdo_pool =
     "                return new \\PDO($this->createDSN('sqlite'));\n"
     "            }\n"
     "\n"
-    "            return new \\PDO($this->createDSN($driver), $this->config->getUsername(), $this->config->getPassword(), $this->config->getOptions());\n"
+    "            return new \\PDO($this->createDSN($driver), $this->config->getUsername(), "
+    "$this->config->getPassword(), $this->config->getOptions());\n"
     "        }, $size, PDOProxy::class);\n"
     "    }\n"
     "\n"
     "    /**\n"
-    "     * Get a PDO connection from the pool. The PDO connection (a PDO object) is wrapped in a PDOProxy object returned.\n"
+    "     * Get a PDO connection from the pool. The PDO connection (a PDO object) is wrapped in a PDOProxy object "
+    "returned.\n"
     "     *\n"
     "     * @param float $timeout > 0 means waiting for the specified number of seconds. other means no waiting.\n"
-    "     * @return PDOProxy|false Returns a PDOProxy object from the pool, or false if the pool is full and the timeout is reached.\n"
+    "     * @return PDOProxy|false Returns a PDOProxy object from the pool, or false if the pool is full and the "
+    "timeout is reached.\n"
     "     *                        {@inheritDoc}\n"
     "     */\n"
     "    public function get(float $timeout = -1)\n"
@@ -3069,27 +3102,37 @@ static const char* swoole_library_source_core_database_pdo_pool =
     "        switch ($driver) {\n"
     "            case 'mysql':\n"
     "                if ($this->config->hasUnixSocket()) {\n"
-    "                    $dsn = \"mysql:unix_socket={$this->config->getUnixSocket()};dbname={$this->config->getDbname()};charset={$this->config->getCharset()}\";\n"
+    "                    $dsn = "
+    "\"mysql:unix_socket={$this->config->getUnixSocket()};dbname={$this->config->getDbname()};charset={$this->config->"
+    "getCharset()}\";\n"
     "                } else {\n"
-    "                    $dsn = \"mysql:host={$this->config->getHost()};port={$this->config->getPort()};dbname={$this->config->getDbname()};charset={$this->config->getCharset()}\";\n"
+    "                    $dsn = "
+    "\"mysql:host={$this->config->getHost()};port={$this->config->getPort()};dbname={$this->config->getDbname()};"
+    "charset={$this->config->getCharset()}\";\n"
     "                }\n"
     "                break;\n"
     "            case 'pgsql':\n"
-    "                $dsn = 'pgsql:host=' . ($this->config->hasUnixSocket() ? $this->config->getUnixSocket() : $this->config->getHost()) . \";port={$this->config->getPort()};dbname={$this->config->getDbname()}\";\n"
+    "                $dsn = 'pgsql:host=' . ($this->config->hasUnixSocket() ? $this->config->getUnixSocket() : "
+    "$this->config->getHost()) . \";port={$this->config->getPort()};dbname={$this->config->getDbname()}\";\n"
     "                break;\n"
     "            case 'oci':\n"
-    "                $dsn = 'oci:dbname=' . ($this->config->hasUnixSocket() ? $this->config->getUnixSocket() : $this->config->getHost()) . ':' . $this->config->getPort() . '/' . $this->config->getDbname() . ';charset=' . $this->config->getCharset();\n"
+    "                $dsn = 'oci:dbname=' . ($this->config->hasUnixSocket() ? $this->config->getUnixSocket() : "
+    "$this->config->getHost()) . ':' . $this->config->getPort() . '/' . $this->config->getDbname() . ';charset=' . "
+    "$this->config->getCharset();\n"
     "                break;\n"
     "            case 'sqlite':\n"
-    "                // There are three types of SQLite databases: databases on disk, databases in memory, and temporary\n"
+    "                // There are three types of SQLite databases: databases on disk, databases in memory, and "
+    "temporary\n"
     "                // databases (which are deleted when the connections are closed). It doesn't make sense to use\n"
     "                // connection pool for the latter two types of databases, because each connection connects to a\n"
     "                //different in-memory or temporary SQLite database.\n"
     "                if ($this->config->getDbname() === '') {\n"
-    "                    throw new \\Exception('Connection pool in Swoole does not support temporary SQLite databases.');\n"
+    "                    throw new \\Exception('Connection pool in Swoole does not support temporary SQLite "
+    "databases.');\n"
     "                }\n"
     "                if ($this->config->getDbname() === ':memory:') {\n"
-    "                    throw new \\Exception('Connection pool in Swoole does not support creating SQLite databases in memory.');\n"
+    "                    throw new \\Exception('Connection pool in Swoole does not support creating SQLite databases "
+    "in memory.');\n"
     "                }\n"
     "                $dsn = 'sqlite:' . $this->config->getDbname();\n"
     "                break;\n"
@@ -3100,7 +3143,7 @@ static const char* swoole_library_source_core_database_pdo_pool =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_database_pdo_proxy =
+static const char *swoole_library_source_core_database_pdo_proxy =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -3155,7 +3198,8 @@ static const char* swoole_library_source_core_database_pdo_proxy =
     "            $this->inTransaction++;\n"
     "        }\n"
     "\n"
-    "        if ((strcasecmp($name, 'commit') === 0 || strcasecmp($name, 'rollback') === 0) && $this->inTransaction > 0) {\n"
+    "        if ((strcasecmp($name, 'commit') === 0 || strcasecmp($name, 'rollback') === 0) && $this->inTransaction > "
+    "0) {\n"
     "            $this->inTransaction--;\n"
     "        }\n"
     "\n"
@@ -3200,7 +3244,7 @@ static const char* swoole_library_source_core_database_pdo_proxy =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_database_pdo_statement_proxy =
+static const char *swoole_library_source_core_database_pdo_statement_proxy =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -3300,7 +3344,8 @@ static const char* swoole_library_source_core_database_pdo_statement_proxy =
     "        return $this->__object->setFetchMode(...$this->setFetchModeContext);\n"
     "    }\n"
     "\n"
-    "    public function bindParam($parameter, &$variable, $data_type = \\PDO::PARAM_STR, $length = 0, $driver_options = null): bool\n"
+    "    public function bindParam($parameter, &$variable, $data_type = \\PDO::PARAM_STR, $length = 0, $driver_options "
+    "= null): bool\n"
     "    {\n"
     "        $this->bindParamContext[$parameter] = [$variable, $data_type, $length, $driver_options];\n"
     "        return $this->__object->bindParam($parameter, $variable, $data_type, $length, $driver_options);\n"
@@ -3319,7 +3364,7 @@ static const char* swoole_library_source_core_database_pdo_statement_proxy =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_database_redis_config =
+static const char *swoole_library_source_core_database_redis_config =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -3475,7 +3520,7 @@ static const char* swoole_library_source_core_database_redis_config =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_database_redis_pool =
+static const char *swoole_library_source_core_database_redis_pool =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -3536,7 +3581,7 @@ static const char* swoole_library_source_core_database_redis_pool =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_http_status =
+static const char *swoole_library_source_core_http_status =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -3749,7 +3794,7 @@ static const char* swoole_library_source_core_http_status =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_curl_exception =
+static const char *swoole_library_source_core_curl_exception =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -3769,7 +3814,7 @@ static const char* swoole_library_source_core_curl_exception =
     "{\n"
     "}\n";
 
-static const char* swoole_library_source_core_curl_handler =
+static const char *swoole_library_source_core_curl_handler =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -3779,7 +3824,8 @@ static const char* swoole_library_source_core_curl_handler =
     " * @license  https://github.com/swoole/library/blob/master/LICENSE\n"
     " */\n"
     "\n"
-    "/* @noinspection PhpComposerExtensionStubsInspection, PhpDuplicateSwitchCaseBodyInspection, PhpInconsistentReturnPointsInspection */\n"
+    "/* @noinspection PhpComposerExtensionStubsInspection, PhpDuplicateSwitchCaseBodyInspection, "
+    "PhpInconsistentReturnPointsInspection */\n"
     "\n"
     "declare(strict_types=1);\n"
     "\n"
@@ -4064,7 +4110,8 @@ static const char* swoole_library_source_core_curl_handler =
     "        }\n"
     "        $scheme = $urlInfo['scheme'];\n"
     "        if ($scheme !== 'http' and $scheme !== 'https') {\n"
-    "            $this->setError(CURLE_UNSUPPORTED_PROTOCOL, \"Protocol \\\"{$scheme}\\\" not supported or disabled in libcurl\");\n"
+    "            $this->setError(CURLE_UNSUPPORTED_PROTOCOL, \"Protocol \\\"{$scheme}\\\" not supported or disabled in "
+    "libcurl\");\n"
     "            return false;\n"
     "        }\n"
     "        $host = $urlInfo['host'];\n"
@@ -4079,7 +4126,8 @@ static const char* swoole_library_source_core_curl_handler =
     "        $port = $urlInfo['port'];\n"
     "        if (isset($this->client)) {\n"
     "            $oldUrlInfo = $this->urlInfo;\n"
-    "            if (($host !== $oldUrlInfo['host']) || ($port !== $oldUrlInfo['port']) || ($scheme !== $oldUrlInfo['scheme'])) {\n"
+    "            if (($host !== $oldUrlInfo['host']) || ($port !== $oldUrlInfo['port']) || ($scheme !== "
+    "$oldUrlInfo['scheme'])) {\n"
     "                /* target changed */\n"
     "                $this->create($urlInfo);\n"
     "            }\n"
@@ -4139,7 +4187,8 @@ static const char* swoole_library_source_core_curl_handler =
     "            case CURLOPT_FILE:\n"
     "            case CURLOPT_INFILE:\n"
     "                if (!is_resource($value)) {\n"
-    "                    trigger_error('swoole_curl_setopt(): supplied argument is not a valid File-Handle resource', E_USER_WARNING);\n"
+    "                    trigger_error('swoole_curl_setopt(): supplied argument is not a valid File-Handle resource', "
+    "E_USER_WARNING);\n"
     "                    return false;\n"
     "                }\n"
     "                break;\n"
@@ -4181,7 +4230,8 @@ static const char* swoole_library_source_core_curl_handler =
     "                break;\n"
     "            case CURLOPT_PROXYTYPE:\n"
     "                if ($value !== CURLPROXY_HTTP and $value !== CURLPROXY_SOCKS5) {\n"
-    "                    throw new CurlException('swoole_curl_setopt(): Only support following CURLOPT_PROXYTYPE values: CURLPROXY_HTTP, CURLPROXY_SOCKS5');\n"
+    "                    throw new CurlException('swoole_curl_setopt(): Only support following CURLOPT_PROXYTYPE "
+    "values: CURLPROXY_HTTP, CURLPROXY_SOCKS5');\n"
     "                }\n"
     "                $this->proxyType = $value;\n"
     "                break;\n"
@@ -4238,7 +4288,8 @@ static const char* swoole_library_source_core_curl_handler =
     "                break;\n"
     "            case CURLOPT_IPRESOLVE:\n"
     "                if ($value !== CURL_IPRESOLVE_WHATEVER and $value !== CURL_IPRESOLVE_V4) {\n"
-    "                    throw new CurlException('swoole_curl_setopt(): Only support following CURLOPT_IPRESOLVE values: CURL_IPRESOLVE_WHATEVER, CURL_IPRESOLVE_V4');\n"
+    "                    throw new CurlException('swoole_curl_setopt(): Only support following CURLOPT_IPRESOLVE "
+    "values: CURL_IPRESOLVE_WHATEVER, CURL_IPRESOLVE_V4');\n"
     "                }\n"
     "                break;\n"
     "            case CURLOPT_TCP_NODELAY:\n"
@@ -4310,7 +4361,8 @@ static const char* swoole_library_source_core_curl_handler =
     "                 */\n"
     "            case CURLOPT_SAFE_UPLOAD:\n"
     "                if (!$value) {\n"
-    "                    trigger_error('swoole_curl_setopt(): Disabling safe uploads is no longer supported', E_USER_WARNING);\n"
+    "                    trigger_error('swoole_curl_setopt(): Disabling safe uploads is no longer supported', "
+    "E_USER_WARNING);\n"
     "                    return false;\n"
     "                }\n"
     "                break;\n"
@@ -4319,7 +4371,8 @@ static const char* swoole_library_source_core_curl_handler =
     "                 */\n"
     "            case CURLOPT_HTTPHEADER:\n"
     "                if (!is_array($value) and !is_iterable($value)) {\n"
-    "                    trigger_error('swoole_curl_setopt(): You must pass either an object or an array with the CURLOPT_HTTPHEADER argument', E_USER_WARNING);\n"
+    "                    trigger_error('swoole_curl_setopt(): You must pass either an object or an array with the "
+    "CURLOPT_HTTPHEADER argument', E_USER_WARNING);\n"
     "                    return false;\n"
     "                }\n"
     "                foreach ($value as $header) {\n"
@@ -4346,17 +4399,20 @@ static const char* swoole_library_source_core_curl_handler =
     "                break;\n"
     "            case CURLOPT_PROTOCOLS:\n"
     "                if (($value & ~(CURLPROTO_HTTP | CURLPROTO_HTTPS)) != 0) {\n"
-    "                    throw new CurlException(\"swoole_curl_setopt(): CURLOPT_PROTOCOLS[{$value}] is not supported\");\n"
+    "                    throw new CurlException(\"swoole_curl_setopt(): CURLOPT_PROTOCOLS[{$value}] is not "
+    "supported\");\n"
     "                }\n"
     "                break;\n"
     "            case CURLOPT_REDIR_PROTOCOLS:\n"
     "                if (($value & ~(CURLPROTO_HTTP | CURLPROTO_HTTPS)) != 0) {\n"
-    "                    throw new CurlException(\"swoole_curl_setopt(): CURLOPT_REDIR_PROTOCOLS[{$value}] is not supported\");\n"
+    "                    throw new CurlException(\"swoole_curl_setopt(): CURLOPT_REDIR_PROTOCOLS[{$value}] is not "
+    "supported\");\n"
     "                }\n"
     "                break;\n"
     "            case CURLOPT_HTTP_VERSION:\n"
     "                if ($value != CURL_HTTP_VERSION_1_1) {\n"
-    "                    trigger_error(\"swoole_curl_setopt(): CURLOPT_HTTP_VERSION[{$value}] is not supported\", E_USER_WARNING);\n"
+    "                    trigger_error(\"swoole_curl_setopt(): CURLOPT_HTTP_VERSION[{$value}] is not supported\", "
+    "E_USER_WARNING);\n"
     "                    return false;\n"
     "                }\n"
     "                break;\n"
@@ -4412,7 +4468,8 @@ static const char* swoole_library_source_core_curl_handler =
     "                break;\n"
     "            case CURLOPT_HTTPAUTH:\n"
     "                if (!($value & CURLAUTH_BASIC)) {\n"
-    "                    trigger_error(\"swoole_curl_setopt(): CURLOPT_HTTPAUTH[{$value}] is not supported\", E_USER_WARNING);\n"
+    "                    trigger_error(\"swoole_curl_setopt(): CURLOPT_HTTPAUTH[{$value}] is not supported\", "
+    "E_USER_WARNING);\n"
     "                    return false;\n"
     "                }\n"
     "                break;\n"
@@ -4552,7 +4609,8 @@ static const char* swoole_library_source_core_curl_handler =
     "                    } elseif (is_array($this->postData)) {\n"
     "                        foreach ($this->postData as $k => $v) {\n"
     "                            if ($v instanceof \\CURLFile) {\n"
-    "                                $client->addFile($v->getFilename(), $k, $v->getMimeType() ?: 'application/octet-stream', $v->getPostFilename());\n"
+    "                                $client->addFile($v->getFilename(), $k, $v->getMimeType() ?: "
+    "'application/octet-stream', $v->getPostFilename());\n"
     "                                unset($this->postData[$k]);\n"
     "                            }\n"
     "                        }\n"
@@ -4573,7 +4631,8 @@ static const char* swoole_library_source_core_curl_handler =
     "            $executeResult = $client->execute($this->getUrl());\n"
     "            if (!$executeResult) {\n"
     "                $errCode = $client->errCode;\n"
-    "                if ($errCode == SWOOLE_ERROR_DNSLOOKUP_RESOLVE_FAILED or $errCode == SWOOLE_ERROR_DNSLOOKUP_RESOLVE_TIMEOUT) {\n"
+    "                if ($errCode == SWOOLE_ERROR_DNSLOOKUP_RESOLVE_FAILED or $errCode == "
+    "SWOOLE_ERROR_DNSLOOKUP_RESOLVE_TIMEOUT) {\n"
     "                    $this->setError(CURLE_COULDNT_RESOLVE_HOST, 'Could not resolve host: ' . $client->host);\n"
     "                } else {\n"
     "                    $this->setError($errCode, $client->errMsg);\n"
@@ -4581,16 +4640,19 @@ static const char* swoole_library_source_core_curl_handler =
     "                $this->info['total_time'] = microtime(true) - $timeBegin;\n"
     "                return false;\n"
     "            }\n"
-    "            if ($client->statusCode >= 300 and $client->statusCode < 400 and isset($client->headers['location'])) {\n"
+    "            if ($client->statusCode >= 300 and $client->statusCode < 400 and isset($client->headers['location'])) "
+    "{\n"
     "                $redirectParsedUrl = $this->getRedirectUrl($client->headers['location']);\n"
     "                $redirectUrl       = self::unparseUrl($redirectParsedUrl);\n"
-    "                if ($this->followLocation and ($this->maxRedirects === null or $this->info['redirect_count'] < $this->maxRedirects)) {\n"
+    "                if ($this->followLocation and ($this->maxRedirects === null or $this->info['redirect_count'] < "
+    "$this->maxRedirects)) {\n"
     "                    if ($this->info['redirect_count'] === 0) {\n"
     "                        $this->info['starttransfer_time'] = microtime(true) - $timeBegin;\n"
     "                        $redirectBeginTime                = microtime(true);\n"
     "                    }\n"
     "                    // force GET\n"
-    "                    if (in_array($client->statusCode, [Status::MOVED_PERMANENTLY, Status::FOUND, Status::SEE_OTHER])) {\n"
+    "                    if (in_array($client->statusCode, [Status::MOVED_PERMANENTLY, Status::FOUND, "
+    "Status::SEE_OTHER])) {\n"
     "                        $this->method = 'GET';\n"
     "                    }\n"
     "                    if ($this->autoReferer) {\n"
@@ -4604,7 +4666,8 @@ static const char* swoole_library_source_core_curl_handler =
     "                    break;\n"
     "                }\n"
     "            } elseif ($this->failOnError && $client->statusCode >= 400) {\n"
-    "                $this->setError(CURLE_HTTP_RETURNED_ERROR, \"The requested URL returned error: {$client->statusCode} \" . Status::getReasonPhrase($client->statusCode));\n"
+    "                $this->setError(CURLE_HTTP_RETURNED_ERROR, \"The requested URL returned error: "
+    "{$client->statusCode} \" . Status::getReasonPhrase($client->statusCode));\n"
     "                return false;\n"
     "            } else {\n"
     "                break;\n"
@@ -4632,7 +4695,8 @@ static const char* swoole_library_source_core_curl_handler =
     "        if ($client->headers) {\n"
     "            $cb = $this->headerFunction;\n"
     "            if ($client->statusCode > 0) {\n"
-    "                $row = \"HTTP/1.1 {$client->statusCode} \" . Status::getReasonPhrase($client->statusCode) . \"\\r\\n\";\n"
+    "                $row = \"HTTP/1.1 {$client->statusCode} \" . Status::getReasonPhrase($client->statusCode) . "
+    "\"\\r\\n\";\n"
     "                if ($cb) {\n"
     "                    $cb($this, $row);\n"
     "                }\n"
@@ -4723,7 +4787,8 @@ static const char* swoole_library_source_core_curl_handler =
     "        $pass     = isset($parsedUrl['pass']) ? ':' . $parsedUrl['pass'] : '';\n"
     "        $pass     = ($user or $pass) ? \"{$pass}@\" : '';\n"
     "        $path     = $parsedUrl['path'] ?? '';\n"
-    "        $query    = (isset($parsedUrl['query']) and $parsedUrl['query'] !== '') ? '?' . $parsedUrl['query'] : '';\n"
+    "        $query    = (isset($parsedUrl['query']) and $parsedUrl['query'] !== '') ? '?' . $parsedUrl['query'] : "
+    "'';\n"
     "        $fragment = isset($parsedUrl['fragment']) ? '#' . $parsedUrl['fragment'] : '';\n"
     "        return $scheme . $user . $pass . $host . $port . $path . $query . $fragment;\n"
     "    }\n"
@@ -4763,7 +4828,7 @@ static const char* swoole_library_source_core_curl_handler =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_fast_cgi =
+static const char *swoole_library_source_core_fast_cgi =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -4859,7 +4924,7 @@ static const char* swoole_library_source_core_fast_cgi =
     "    public const UNKNOWN_ROLE = 3;\n"
     "}\n";
 
-static const char* swoole_library_source_core_fast_cgi_record =
+static const char *swoole_library_source_core_fast_cgi_record =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -4949,7 +5014,8 @@ static const char* swoole_library_source_core_fast_cgi_record =
     "        /** @var static $self */\n"
     "        $self = (new \\ReflectionClass(static::class))->newInstanceWithoutConstructor();\n"
     "\n"
-    "        /** @phpstan-var false|array{version: int, type: int, requestId: int, contentLength: int, paddingLength: int, reserved: int} */\n"
+    "        /** @phpstan-var false|array{version: int, type: int, requestId: int, contentLength: int, paddingLength: "
+    "int, reserved: int} */\n"
     "        $packet = unpack(FastCGI::HEADER_FORMAT, $binaryData);\n"
     "        if ($packet === false) {\n"
     "            throw new \\RuntimeException('Can not unpack data from the binary buffer');\n"
@@ -5061,7 +5127,8 @@ static const char* swoole_library_source_core_fast_cgi_record =
     "    protected static function unpackPayload(self $self, string $binaryData): void\n"
     "    {\n"
     "        /** @phpstan-var false|array{contentData: string, paddingData: string} */\n"
-    "        $payload = unpack(\"a{$self->contentLength}contentData/a{$self->paddingLength}paddingData\", $binaryData);\n"
+    "        $payload = unpack(\"a{$self->contentLength}contentData/a{$self->paddingLength}paddingData\", "
+    "$binaryData);\n"
     "        if ($payload === false) {\n"
     "            throw new \\RuntimeException('Can not unpack data from the binary buffer');\n"
     "        }\n"
@@ -5080,7 +5147,7 @@ static const char* swoole_library_source_core_fast_cgi_record =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_fast_cgi_record_params =
+static const char *swoole_library_source_core_fast_cgi_record_params =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -5230,7 +5297,7 @@ static const char* swoole_library_source_core_fast_cgi_record_params =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_fast_cgi_record_abort_request =
+static const char *swoole_library_source_core_fast_cgi_record_abort_request =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -5259,7 +5326,7 @@ static const char* swoole_library_source_core_fast_cgi_record_abort_request =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_fast_cgi_record_begin_request =
+static const char *swoole_library_source_core_fast_cgi_record_begin_request =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -5375,7 +5442,7 @@ static const char* swoole_library_source_core_fast_cgi_record_begin_request =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_fast_cgi_record_data =
+static const char *swoole_library_source_core_fast_cgi_record_data =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -5406,7 +5473,7 @@ static const char* swoole_library_source_core_fast_cgi_record_data =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_fast_cgi_record_end_request =
+static const char *swoole_library_source_core_fast_cgi_record_end_request =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -5440,7 +5507,8 @@ static const char* swoole_library_source_core_fast_cgi_record_end_request =
     "     * The possible protocolStatus values are:\n"
     "     *   FCGI_REQUEST_COMPLETE: normal end of request.\n"
     "     *   FCGI_CANT_MPX_CONN: rejecting a new request.\n"
-    "     *      This happens when a Web server sends concurrent requests over one connection to an application that is\n"
+    "     *      This happens when a Web server sends concurrent requests over one connection to an application that "
+    "is\n"
     "     *      designed to process one request at a time per connection.\n"
     "     *   FCGI_OVERLOADED: rejecting a new request.\n"
     "     *      This happens when the application runs out of some resource, e.g. database connections.\n"
@@ -5454,7 +5522,8 @@ static const char* swoole_library_source_core_fast_cgi_record_end_request =
     "     */\n"
     "    protected string $reserved1;\n"
     "\n"
-    "    public function __construct(int $protocolStatus = FastCGI::REQUEST_COMPLETE, int $appStatus = 0, string $reserved = '')\n"
+    "    public function __construct(int $protocolStatus = FastCGI::REQUEST_COMPLETE, int $appStatus = 0, string "
+    "$reserved = '')\n"
     "    {\n"
     "        $this->type           = FastCGI::END_REQUEST;\n"
     "        $this->protocolStatus = $protocolStatus;\n"
@@ -5479,7 +5548,8 @@ static const char* swoole_library_source_core_fast_cgi_record_end_request =
     "     * The possible protocolStatus values are:\n"
     "     *   FCGI_REQUEST_COMPLETE: normal end of request.\n"
     "     *   FCGI_CANT_MPX_CONN: rejecting a new request.\n"
-    "     *      This happens when a Web server sends concurrent requests over one connection to an application that is\n"
+    "     *      This happens when a Web server sends concurrent requests over one connection to an application that "
+    "is\n"
     "     *      designed to process one request at a time per connection.\n"
     "     *   FCGI_OVERLOADED: rejecting a new request.\n"
     "     *      This happens when the application runs out of some resource, e.g. database connections.\n"
@@ -5523,7 +5593,7 @@ static const char* swoole_library_source_core_fast_cgi_record_end_request =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_fast_cgi_record_get_values =
+static const char *swoole_library_source_core_fast_cgi_record_get_values =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -5555,7 +5625,8 @@ static const char* swoole_library_source_core_fast_cgi_record_get_values =
     " * The initial set provides information to help the server perform application and connection management:\n"
     " *   FCGI_MAX_CONNS:  The maximum number of concurrent transport connections this application will accept,\n"
     " *                    e.g. \"1\" or \"10\".\n"
-    " *   FCGI_MAX_REQS:   The maximum number of concurrent requests this application will accept, e.g. \"1\" or \"50\".\n"
+    " *   FCGI_MAX_REQS:   The maximum number of concurrent requests this application will accept, e.g. \"1\" or "
+    "\"50\".\n"
     " *   FCGI_MPXS_CONNS: \"0\" if this application does not multiplex connections (i.e. handle concurrent requests\n"
     " *                    over each connection), \"1\" otherwise.\n"
     " */\n"
@@ -5575,7 +5646,7 @@ static const char* swoole_library_source_core_fast_cgi_record_get_values =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_fast_cgi_record_get_values_result =
+static const char *swoole_library_source_core_fast_cgi_record_get_values_result =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -5607,7 +5678,8 @@ static const char* swoole_library_source_core_fast_cgi_record_get_values_result 
     " * The initial set provides information to help the server perform application and connection management:\n"
     " *   FCGI_MAX_CONNS:  The maximum number of concurrent transport connections this application will accept,\n"
     " *                    e.g. \"1\" or \"10\".\n"
-    " *   FCGI_MAX_REQS:   The maximum number of concurrent requests this application will accept, e.g. \"1\" or \"50\".\n"
+    " *   FCGI_MAX_REQS:   The maximum number of concurrent requests this application will accept, e.g. \"1\" or "
+    "\"50\".\n"
     " *   FCGI_MPXS_CONNS: \"0\" if this application does not multiplex connections (i.e. handle concurrent requests\n"
     " *                    over each connection), \"1\" otherwise.\n"
     " */\n"
@@ -5625,7 +5697,7 @@ static const char* swoole_library_source_core_fast_cgi_record_get_values_result 
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_fast_cgi_record_stdin =
+static const char *swoole_library_source_core_fast_cgi_record_stdin =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -5656,7 +5728,7 @@ static const char* swoole_library_source_core_fast_cgi_record_stdin =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_fast_cgi_record_stdout =
+static const char *swoole_library_source_core_fast_cgi_record_stdout =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -5687,7 +5759,7 @@ static const char* swoole_library_source_core_fast_cgi_record_stdout =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_fast_cgi_record_stderr =
+static const char *swoole_library_source_core_fast_cgi_record_stderr =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -5718,7 +5790,7 @@ static const char* swoole_library_source_core_fast_cgi_record_stderr =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_fast_cgi_record_unknown_type =
+static const char *swoole_library_source_core_fast_cgi_record_unknown_type =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -5740,7 +5812,8 @@ static const char* swoole_library_source_core_fast_cgi_record_unknown_type =
     " *\n"
     " * The set of management record types is likely to grow in future versions of this protocol.\n"
     " * To provide for this evolution, the protocol includes the FCGI_UNKNOWN_TYPE management record.\n"
-    " * When an application receives a management record whose type T it does not understand, the application responds\n"
+    " * When an application receives a management record whose type T it does not understand, the application "
+    "responds\n"
     " * with {FCGI_UNKNOWN_TYPE, 0, {T}}.\n"
     " */\n"
     "class UnknownType extends Record\n"
@@ -5800,7 +5873,7 @@ static const char* swoole_library_source_core_fast_cgi_record_unknown_type =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_fast_cgi_frame_parser =
+static const char *swoole_library_source_core_fast_cgi_frame_parser =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -5861,7 +5934,8 @@ static const char* swoole_library_source_core_fast_cgi_frame_parser =
     "            return false;\n"
     "        }\n"
     "\n"
-    "        /** @phpstan-var false|array{version: int, type: int, requestId: int, contentLength: int, paddingLength: int} */\n"
+    "        /** @phpstan-var false|array{version: int, type: int, requestId: int, contentLength: int, paddingLength: "
+    "int} */\n"
     "        $fastInfo = unpack(FastCGI::HEADER_FORMAT, $binaryBuffer);\n"
     "        if ($fastInfo === false) {\n"
     "            throw new \\RuntimeException('Can not unpack data from the binary buffer');\n"
@@ -5884,7 +5958,8 @@ static const char* swoole_library_source_core_fast_cgi_frame_parser =
     "        if ($bufferLength < FastCGI::HEADER_LEN) {\n"
     "            throw new \\RuntimeException('Not enough data in the buffer to parse');\n"
     "        }\n"
-    "        /** @phpstan-var false|array{version: int, type: int, requestId: int, contentLength: int, paddingLength: int} */\n"
+    "        /** @phpstan-var false|array{version: int, type: int, requestId: int, contentLength: int, paddingLength: "
+    "int} */\n"
     "        $recordHeader = unpack(FastCGI::HEADER_FORMAT, $binaryBuffer);\n"
     "        if ($recordHeader === false) {\n"
     "            throw new \\RuntimeException('Can not unpack data from the binary buffer');\n"
@@ -5905,7 +5980,7 @@ static const char* swoole_library_source_core_fast_cgi_frame_parser =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_fast_cgi_message =
+static const char *swoole_library_source_core_fast_cgi_message =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -5984,7 +6059,7 @@ static const char* swoole_library_source_core_fast_cgi_message =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_fast_cgi_request =
+static const char *swoole_library_source_core_fast_cgi_request =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -6044,7 +6119,7 @@ static const char* swoole_library_source_core_fast_cgi_request =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_fast_cgi_response =
+static const char *swoole_library_source_core_fast_cgi_response =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -6097,7 +6172,7 @@ static const char* swoole_library_source_core_fast_cgi_response =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_fast_cgi_http_request =
+static const char *swoole_library_source_core_fast_cgi_http_request =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -6522,7 +6597,7 @@ static const char* swoole_library_source_core_fast_cgi_http_request =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_fast_cgi_http_response =
+static const char *swoole_library_source_core_fast_cgi_http_response =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -6576,20 +6651,23 @@ static const char* swoole_library_source_core_fast_cgi_http_response =
     "        }\n"
     "        $array = explode(\"\\r\\n\\r\\n\", $body, 2); // An array that contains the HTTP headers and the body.\n"
     "        if (count($array) != 2) {\n"
-    "            $this->withStatusCode(Status::BAD_GATEWAY)->withReasonPhrase('Invalid FastCGI Response')->withError($body);\n"
+    "            $this->withStatusCode(Status::BAD_GATEWAY)->withReasonPhrase('Invalid FastCGI "
+    "Response')->withError($body);\n"
     "            return;\n"
     "        }\n"
     "        $headers = explode(\"\\r\\n\", $array[0]);\n"
     "        $body    = $array[1];\n"
     "        foreach ($headers as $header) {\n"
-    "            $array = explode(':', $header, 2); // An array that contains the name and the value of an HTTP header.\n"
+    "            $array = explode(':', $header, 2); // An array that contains the name and the value of an HTTP "
+    "header.\n"
     "            if (count($array) != 2) {\n"
     "                continue; // Invalid HTTP header? Ignore it!\n"
     "            }\n"
     "            $name  = trim($array[0]);\n"
     "            $value = trim($array[1]);\n"
     "            if (strcasecmp($name, 'Status') === 0) {\n"
-    "                $array        = explode(' ', $value, 2); // An array that contains the status code (and the reason phrase).\n"
+    "                $array        = explode(' ', $value, 2); // An array that contains the status code (and the "
+    "reason phrase).\n"
     "                $statusCode   = $array[0];\n"
     "                $reasonPhrase = $array[1] ?? null;\n"
     "            } elseif (strcasecmp($name, 'Set-Cookie') === 0) {\n"
@@ -6673,7 +6751,7 @@ static const char* swoole_library_source_core_fast_cgi_http_response =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_coroutine_fast_cgi_client =
+static const char *swoole_library_source_core_coroutine_fast_cgi_client =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -6773,7 +6851,8 @@ static const char* swoole_library_source_core_coroutine_fast_cgi_client =
     "            }\n"
     "        }\n"
     "\n"
-    "        // Code execution should never reach here. However, we still put an exit() statement here for safe purpose.\n"
+    "        // Code execution should never reach here. However, we still put an exit() statement here for safe "
+    "purpose.\n"
     "        exit(1); // @phpstan-ignore deadCode.unreachable\n"
     "    }\n"
     "\n"
@@ -6829,7 +6908,7 @@ static const char* swoole_library_source_core_coroutine_fast_cgi_client =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_coroutine_fast_cgi_client_exception =
+static const char *swoole_library_source_core_coroutine_fast_cgi_client_exception =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -6847,7 +6926,7 @@ static const char* swoole_library_source_core_coroutine_fast_cgi_client_exceptio
     "{\n"
     "}\n";
 
-static const char* swoole_library_source_core_coroutine_fast_cgi_proxy =
+static const char *swoole_library_source_core_coroutine_fast_cgi_proxy =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -7030,7 +7109,8 @@ static const char* swoole_library_source_core_coroutine_fast_cgi_proxy =
     "    /**\n"
     "     * Send content of a static file to the client, if the file is accessible and is not a PHP file.\n"
     "     *\n"
-    "     * @return bool True if the file doesn't have an extension of 'php', false otherwise. Note that the file may not be\n"
+    "     * @return bool True if the file doesn't have an extension of 'php', false otherwise. Note that the file may "
+    "not be\n"
     "     *              accessible even the return value is true.\n"
     "     */\n"
     "    public function staticFileFiltrate(HttpRequest $request, SwooleHttpResponse $userResponse): bool\n"
@@ -7049,7 +7129,7 @@ static const char* swoole_library_source_core_coroutine_fast_cgi_proxy =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_process_manager =
+static const char *swoole_library_source_core_process_manager =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -7147,7 +7227,7 @@ static const char* swoole_library_source_core_process_manager =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_server_admin =
+static const char *swoole_library_source_core_server_admin =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -7300,15 +7380,20 @@ static const char* swoole_library_source_core_server_admin =
     "        );\n"
     "\n"
     "        $server->addCommand('close_session', $accepted_process_types, [self::class, 'handlerCloseSession']);\n"
-    "        $server->addCommand('get_version_info', $accepted_process_types, [self::class, 'handlerGetVersionInfo']);\n"
+    "        $server->addCommand('get_version_info', $accepted_process_types, [self::class, "
+    "'handlerGetVersionInfo']);\n"
     "        $server->addCommand('get_worker_info', $accepted_process_types, [self::class, 'handlerGetWorkerInfo']);\n"
     "        $server->addCommand('get_timer_list', $accepted_process_types, [self::class, 'handlerGetTimerList']);\n"
-    "        $server->addCommand('get_coroutine_list', $accepted_process_types, [self::class, 'handlerGetCoroutineList']);\n"
+    "        $server->addCommand('get_coroutine_list', $accepted_process_types, [self::class, "
+    "'handlerGetCoroutineList']);\n"
     "        $server->addCommand('get_objects', $accepted_process_types, [self::class, 'handlerGetObjects']);\n"
     "        $server->addCommand('get_class_info', $accepted_process_types, [self::class, 'handlerGetClassInfo']);\n"
-    "        $server->addCommand('get_function_info', $accepted_process_types, [self::class, 'handlerGetFunctionInfo']);\n"
-    "        $server->addCommand('get_object_by_handle', $accepted_process_types, [self::class, 'handlerGetObjectByHandle']);\n"
-    "        $server->addCommand('get_server_cpu_usage', $accepted_process_types, [self::class, 'handlerGetServerCpuUsage']);\n"
+    "        $server->addCommand('get_function_info', $accepted_process_types, [self::class, "
+    "'handlerGetFunctionInfo']);\n"
+    "        $server->addCommand('get_object_by_handle', $accepted_process_types, [self::class, "
+    "'handlerGetObjectByHandle']);\n"
+    "        $server->addCommand('get_server_cpu_usage', $accepted_process_types, [self::class, "
+    "'handlerGetServerCpuUsage']);\n"
     "        $server->addCommand(\n"
     "            'get_server_memory_usage',\n"
     "            $accepted_process_types,\n"
@@ -7324,7 +7409,8 @@ static const char* swoole_library_source_core_server_admin =
     "            $accepted_process_types,\n"
     "            [self::class, 'handlerGetDefinedFunctions']\n"
     "        );\n"
-    "        $server->addCommand('get_declared_classes', $accepted_process_types, [self::class, 'handlerGetDeclaredClasses']);\n"
+    "        $server->addCommand('get_declared_classes', $accepted_process_types, [self::class, "
+    "'handlerGetDeclaredClasses']);\n"
     "\n"
     "        $server->addCommand(\n"
     "            'gc_status',\n"
@@ -7525,7 +7611,8 @@ static const char* swoole_library_source_core_server_admin =
     "                        if ($package['root']['name'] === '__root__' && isset($list['__root__'])) {\n"
     "                            $key_name = \"__root__{$key}\";\n"
     "                        }\n"
-    "                        $package['root']['install_path'] = !empty($package['root']['install_path']) ? realpath($package['root']['install_path']) : '';\n"
+    "                        $package['root']['install_path'] = !empty($package['root']['install_path']) ? "
+    "realpath($package['root']['install_path']) : '';\n"
     "                        $list[$key_name]                 = $package;\n"
     "                    }\n"
     "                    break;\n"
@@ -7544,7 +7631,8 @@ static const char* swoole_library_source_core_server_admin =
     "    {\n"
     "        $admin_server_uri = swoole_string($server->setting['admin_server']);\n"
     "        if ($admin_server_uri->startsWith('unix:/')) {\n"
-    "            swoole_error_log(SWOOLE_LOG_ERROR, \"admin_server[{$server->setting['admin_server']}] is not supported\");\n"
+    "            swoole_error_log(SWOOLE_LOG_ERROR, \"admin_server[{$server->setting['admin_server']}] is not "
+    "supported\");\n"
     "            return;\n"
     "        }\n"
     "\n"
@@ -8227,7 +8315,8 @@ static const char* swoole_library_source_core_server_admin =
     "        return $return_list;\n"
     "    }\n"
     "\n"
-    "    private static function handlerGetAll(Server $server, StringObject $process, $cmd, $data, bool $json_decode = true)\n"
+    "    private static function handlerGetAll(Server $server, StringObject $process, $cmd, $data, bool $json_decode = "
+    "true)\n"
     "    {\n"
     "        if ($process->equals('all')) {\n"
     "            $result = self::handlerGetMaster($cmd, $data, $server, $json_decode) +\n"
@@ -8257,7 +8346,8 @@ static const char* swoole_library_source_core_server_admin =
     "                        } else {\n"
     "                            $process_type  = self::$map[$array->get(0)->toString()];\n"
     "                            $process_id    = intval($array->get(1)->toString());\n"
-    "                            $result[$name] = $server->command($cmd, $process_id, $process_type, $data, $json_decode);\n"
+    "                            $result[$name] = $server->command($cmd, $process_id, $process_type, $data, "
+    "$json_decode);\n"
     "                        }\n"
     "                    }\n"
     "                }\n"
@@ -8292,7 +8382,8 @@ static const char* swoole_library_source_core_server_admin =
     "            $reactor_num = $server->setting['reactor_num'];\n"
     "        }\n"
     "        for ($process_id = 0; $process_id < $reactor_num; $process_id++) {\n"
-    "            $list[\"reactor-{$process_id}\"] = $server->command($cmd, $process_id, $process_type, $data, $json_decode);\n"
+    "            $list[\"reactor-{$process_id}\"] = $server->command($cmd, $process_id, $process_type, $data, "
+    "$json_decode);\n"
     "        }\n"
     "        return $list;\n"
     "    }\n"
@@ -8303,7 +8394,8 @@ static const char* swoole_library_source_core_server_admin =
     "        $worker_num   = $server->setting['worker_num'];\n"
     "        $list         = [];\n"
     "        for ($process_id = 0; $process_id < $worker_num; $process_id++) {\n"
-    "            $list[\"worker-{$process_id}\"] = $server->command($cmd, $process_id, $process_type, $data, $json_decode);\n"
+    "            $list[\"worker-{$process_id}\"] = $server->command($cmd, $process_id, $process_type, $data, "
+    "$json_decode);\n"
     "        }\n"
     "        return $list;\n"
     "    }\n"
@@ -8317,7 +8409,8 @@ static const char* swoole_library_source_core_server_admin =
     "        }\n"
     "        $task_worker_num = $server->setting['task_worker_num'];\n"
     "        for ($process_id = 0; $process_id < $task_worker_num; $process_id++) {\n"
-    "            $list[\"task_worker-{$process_id}\"] = $server->command($cmd, $process_id, $process_type, $data, $json_decode);\n"
+    "            $list[\"task_worker-{$process_id}\"] = $server->command($cmd, $process_id, $process_type, $data, "
+    "$json_decode);\n"
     "        }\n"
     "        return $list;\n"
     "    }\n"
@@ -8447,7 +8540,7 @@ static const char* swoole_library_source_core_server_admin =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_server_helper =
+static const char *swoole_library_source_core_server_helper =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -8689,7 +8782,8 @@ static const char* swoole_library_source_core_server_helper =
     "    public static function onWorkerStart(Server $server, int $workerId): void\n"
     "    {\n"
     "        if (!empty($server->setting['stats_file']) and $workerId == 0) {\n"
-    "            $interval_ms = empty($server->setting['stats_timer_interval']) ? self::STATS_TIMER_INTERVAL_TIME : intval($server->setting['stats_timer_interval']);\n"
+    "            $interval_ms = empty($server->setting['stats_timer_interval']) ? self::STATS_TIMER_INTERVAL_TIME : "
+    "intval($server->setting['stats_timer_interval']);\n"
     "\n"
     "            $server->stats_timer = Timer::tick($interval_ms, function () use ($server) {\n"
     "                $stats      = $server->stats();\n"
@@ -8756,7 +8850,7 @@ static const char* swoole_library_source_core_server_helper =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_name_resolver =
+static const char *swoole_library_source_core_name_resolver =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -8872,7 +8966,7 @@ static const char* swoole_library_source_core_name_resolver =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_name_resolver_exception =
+static const char *swoole_library_source_core_name_resolver_exception =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -8898,7 +8992,7 @@ static const char* swoole_library_source_core_name_resolver_exception =
     "{\n"
     "}\n";
 
-static const char* swoole_library_source_core_name_resolver_cluster =
+static const char *swoole_library_source_core_name_resolver_cluster =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -8955,7 +9049,7 @@ static const char* swoole_library_source_core_name_resolver_cluster =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_name_resolver_redis =
+static const char *swoole_library_source_core_name_resolver_redis =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -9040,7 +9134,7 @@ static const char* swoole_library_source_core_name_resolver_redis =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_name_resolver_nacos =
+static const char *swoole_library_source_core_name_resolver_nacos =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -9094,7 +9188,8 @@ static const char* swoole_library_source_core_name_resolver_nacos =
     "        $params['serviceName'] = $this->prefix . $name;\n"
     "\n"
     "        $url = $this->baseUrl . '/nacos/v1/ns/instance?' . http_build_query($params);\n"
-    "        $r   = Coroutine\\Http\\request($this->baseUrl . '/nacos/v1/ns/instance?' . http_build_query($params), 'DELETE');\n"
+    "        $r   = Coroutine\\Http\\request($this->baseUrl . '/nacos/v1/ns/instance?' . http_build_query($params), "
+    "'DELETE');\n"
     "        return $this->checkResponse($r);\n"
     "    }\n"
     "\n"
@@ -9122,7 +9217,7 @@ static const char* swoole_library_source_core_name_resolver_nacos =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_name_resolver_consul =
+static const char *swoole_library_source_core_name_resolver_consul =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -9215,7 +9310,7 @@ static const char* swoole_library_source_core_name_resolver_consul =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_thread_pool =
+static const char *swoole_library_source_core_thread_pool =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -9423,7 +9518,7 @@ static const char* swoole_library_source_core_thread_pool =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_thread_runnable =
+static const char *swoole_library_source_core_thread_runnable =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -9465,7 +9560,7 @@ static const char* swoole_library_source_core_thread_runnable =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_coroutine_functions =
+static const char *swoole_library_source_core_coroutine_functions =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -9532,15 +9627,19 @@ static const char* swoole_library_source_core_coroutine_functions =
     "/**\n"
     " * Applies the callback to the elements of the given list.\n"
     " *\n"
-    " * The callback function takes on two parameters. The list parameter's value being the first, and the key/index second.\n"
+    " * The callback function takes on two parameters. The list parameter's value being the first, and the key/index "
+    "second.\n"
     " * Each callback runs in a new coroutine, allowing the list to be processed in parallel.\n"
     " *\n"
     " * @param array $list A list of key/value paired input data.\n"
-    " * @param callable $fn The callback function to apply to each item on the list. The callback takes on two parameters.\n"
+    " * @param callable $fn The callback function to apply to each item on the list. The callback takes on two "
+    "parameters.\n"
     " *                     The list parameter's value being the first, and the key/index second.\n"
     " * @param float $timeout > 0 means waiting for the specified number of seconds. other means no waiting.\n"
-    " * @return array Returns an array containing the results of applying the callback function to the corresponding value\n"
-    " *               and key of the list (used as arguments for the callback). The returned array will preserve the keys of\n"
+    " * @return array Returns an array containing the results of applying the callback function to the corresponding "
+    "value\n"
+    " *               and key of the list (used as arguments for the callback). The returned array will preserve the "
+    "keys of\n"
     " *               the list.\n"
     " */\n"
     "function map(array $list, callable $fn, float $timeout = -1): array\n"
@@ -9584,7 +9683,7 @@ static const char* swoole_library_source_core_coroutine_functions =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_ext_curl =
+static const char *swoole_library_source_ext_curl =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -9672,7 +9771,7 @@ static const char* swoole_library_source_ext_curl =
     "    return $obj->getContent();\n"
     "}\n";
 
-static const char* swoole_library_source_ext_sockets =
+static const char *swoole_library_source_ext_sockets =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -9740,7 +9839,8 @@ static const char* swoole_library_source_ext_sockets =
     "    return strlen($buffer);\n"
     "}\n"
     "\n"
-    "function swoole_socket_sendto(Socket $socket, string $buffer, int $length, int $flags, string $addr, int $port = 0)\n"
+    "function swoole_socket_sendto(Socket $socket, string $buffer, int $length, int $flags, string $addr, int $port = "
+    "0)\n"
     "{\n"
     "    if ($flags != 0) {\n"
     "        throw new RuntimeException(\"\\$flags[{$flags}] is not supported\");\n"
@@ -9887,7 +9987,8 @@ static const char* swoole_library_source_ext_sockets =
     "        return false;\n"
     "    }\n"
     "    if (isset($socket->__ext_sockets_nonblock) and $socket->__ext_sockets_nonblock) {\n"
-    "        $socket->setOption(SOL_SOCKET, SO_RCVTIMEO, $socket->__ext_sockets_timeout); // @phpstan-ignore property.notFound\n"
+    "        $socket->setOption(SOL_SOCKET, SO_RCVTIMEO, $socket->__ext_sockets_timeout); // @phpstan-ignore "
+    "property.notFound\n"
     "    }\n"
     "    $socket->__ext_sockets_nonblock = false; // @phpstan-ignore property.notFound\n"
     "    return true;\n"
@@ -9902,7 +10003,8 @@ static const char* swoole_library_source_ext_sockets =
     "        return true;\n"
     "    }\n"
     "    $socket->__ext_sockets_nonblock = true; // @phpstan-ignore property.notFound\n"
-    "    $socket->__ext_sockets_timeout  = $socket->getOption(SOL_SOCKET, SO_RCVTIMEO); // @phpstan-ignore property.notFound\n"
+    "    $socket->__ext_sockets_timeout  = $socket->getOption(SOL_SOCKET, SO_RCVTIMEO); // @phpstan-ignore "
+    "property.notFound\n"
     "    $socket->setOption(SOL_SOCKET, SO_RCVTIMEO, ['sec' => 0, 'usec' => 1000]);\n"
     "    return true;\n"
     "}\n"
@@ -9929,7 +10031,7 @@ static const char* swoole_library_source_ext_sockets =
     "    return Socket::import($stream); // @phpstan-ignore staticMethod.notFound\n"
     "}\n";
 
-static const char* swoole_library_source_functions =
+static const char *swoole_library_source_functions =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -10097,7 +10199,7 @@ static const char* swoole_library_source_functions =
     "    return intval(floor($cpu_num));\n"
     "}\n";
 
-static const char* swoole_library_source_alias =
+static const char *swoole_library_source_alias =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -10114,13 +10216,14 @@ static const char* swoole_library_source_alias =
     "    class_alias(Swoole\\Coroutine\\Server::class, Co\\Server::class, true);\n"
     "    class_alias(Swoole\\Coroutine\\Server\\Connection::class, Co\\Server\\Connection::class, true);\n"
     "    class_alias(Swoole\\Coroutine\\FastCGI\\Client::class, Co\\FastCGI\\Client::class, true);\n"
-    "    class_alias(Swoole\\Coroutine\\FastCGI\\Client\\Exception::class, Co\\FastCGI\\Client\\Exception::class, true);\n"
+    "    class_alias(Swoole\\Coroutine\\FastCGI\\Client\\Exception::class, Co\\FastCGI\\Client\\Exception::class, "
+    "true);\n"
     "    class_alias(Swoole\\Coroutine\\FastCGI\\Proxy::class, Co\\FastCGI\\Proxy::class, true);\n"
     "}\n"
     "\n"
     "class_alias(Swoole\\Process\\Manager::class, Swoole\\Process\\ProcessManager::class, true);\n";
 
-static const char* swoole_library_source_alias_ns =
+static const char *swoole_library_source_alias_ns =
     "\n"
     "/**\n"
     " * This file is part of Swoole.\n"
@@ -10153,21 +10256,23 @@ static const char* swoole_library_source_alias_ns =
     "    }\n"
     "}\n";
 
-void php_swoole_load_library()
-{
+void php_swoole_load_library() {
     _eval(swoole_library_source_constants, "@swoole/library/constants.php");
     _eval(swoole_library_source_std_exec, "@swoole/library/std/exec.php");
     _eval(swoole_library_source_core_constant, "@swoole/library/core/Constant.php");
     _eval(swoole_library_source_core_string_object, "@swoole/library/core/StringObject.php");
     _eval(swoole_library_source_core_multibyte_string_object, "@swoole/library/core/MultibyteStringObject.php");
-    _eval(swoole_library_source_core_exception_array_key_not_exists, "@swoole/library/core/Exception/ArrayKeyNotExists.php");
+    _eval(swoole_library_source_core_exception_array_key_not_exists,
+          "@swoole/library/core/Exception/ArrayKeyNotExists.php");
     _eval(swoole_library_source_core_array_object, "@swoole/library/core/ArrayObject.php");
     _eval(swoole_library_source_core_object_proxy, "@swoole/library/core/ObjectProxy.php");
     _eval(swoole_library_source_core_coroutine_wait_group, "@swoole/library/core/Coroutine/WaitGroup.php");
     _eval(swoole_library_source_core_coroutine_server, "@swoole/library/core/Coroutine/Server.php");
-    _eval(swoole_library_source_core_coroutine_server_connection, "@swoole/library/core/Coroutine/Server/Connection.php");
+    _eval(swoole_library_source_core_coroutine_server_connection,
+          "@swoole/library/core/Coroutine/Server/Connection.php");
     _eval(swoole_library_source_core_coroutine_barrier, "@swoole/library/core/Coroutine/Barrier.php");
-    _eval(swoole_library_source_core_coroutine_http_client_proxy, "@swoole/library/core/Coroutine/Http/ClientProxy.php");
+    _eval(swoole_library_source_core_coroutine_http_client_proxy,
+          "@swoole/library/core/Coroutine/Http/ClientProxy.php");
     _eval(swoole_library_source_core_coroutine_http_functions, "@swoole/library/core/Coroutine/Http/functions.php");
     _eval(swoole_library_source_core_connection_pool, "@swoole/library/core/ConnectionPool.php");
     _eval(swoole_library_source_core_database_object_proxy, "@swoole/library/core/Database/ObjectProxy.php");
@@ -10175,12 +10280,15 @@ void php_swoole_load_library()
     _eval(swoole_library_source_core_database_mysqli_exception, "@swoole/library/core/Database/MysqliException.php");
     _eval(swoole_library_source_core_database_mysqli_pool, "@swoole/library/core/Database/MysqliPool.php");
     _eval(swoole_library_source_core_database_mysqli_proxy, "@swoole/library/core/Database/MysqliProxy.php");
-    _eval(swoole_library_source_core_database_mysqli_statement_proxy, "@swoole/library/core/Database/MysqliStatementProxy.php");
-    _eval(swoole_library_source_core_database_detects_lost_connections, "@swoole/library/core/Database/DetectsLostConnections.php");
+    _eval(swoole_library_source_core_database_mysqli_statement_proxy,
+          "@swoole/library/core/Database/MysqliStatementProxy.php");
+    _eval(swoole_library_source_core_database_detects_lost_connections,
+          "@swoole/library/core/Database/DetectsLostConnections.php");
     _eval(swoole_library_source_core_database_pdo_config, "@swoole/library/core/Database/PDOConfig.php");
     _eval(swoole_library_source_core_database_pdo_pool, "@swoole/library/core/Database/PDOPool.php");
     _eval(swoole_library_source_core_database_pdo_proxy, "@swoole/library/core/Database/PDOProxy.php");
-    _eval(swoole_library_source_core_database_pdo_statement_proxy, "@swoole/library/core/Database/PDOStatementProxy.php");
+    _eval(swoole_library_source_core_database_pdo_statement_proxy,
+          "@swoole/library/core/Database/PDOStatementProxy.php");
     _eval(swoole_library_source_core_database_redis_config, "@swoole/library/core/Database/RedisConfig.php");
     _eval(swoole_library_source_core_database_redis_pool, "@swoole/library/core/Database/RedisPool.php");
     _eval(swoole_library_source_core_http_status, "@swoole/library/core/Http/Status.php");
@@ -10189,16 +10297,20 @@ void php_swoole_load_library()
     _eval(swoole_library_source_core_fast_cgi, "@swoole/library/core/FastCGI.php");
     _eval(swoole_library_source_core_fast_cgi_record, "@swoole/library/core/FastCGI/Record.php");
     _eval(swoole_library_source_core_fast_cgi_record_params, "@swoole/library/core/FastCGI/Record/Params.php");
-    _eval(swoole_library_source_core_fast_cgi_record_abort_request, "@swoole/library/core/FastCGI/Record/AbortRequest.php");
-    _eval(swoole_library_source_core_fast_cgi_record_begin_request, "@swoole/library/core/FastCGI/Record/BeginRequest.php");
+    _eval(swoole_library_source_core_fast_cgi_record_abort_request,
+          "@swoole/library/core/FastCGI/Record/AbortRequest.php");
+    _eval(swoole_library_source_core_fast_cgi_record_begin_request,
+          "@swoole/library/core/FastCGI/Record/BeginRequest.php");
     _eval(swoole_library_source_core_fast_cgi_record_data, "@swoole/library/core/FastCGI/Record/Data.php");
     _eval(swoole_library_source_core_fast_cgi_record_end_request, "@swoole/library/core/FastCGI/Record/EndRequest.php");
     _eval(swoole_library_source_core_fast_cgi_record_get_values, "@swoole/library/core/FastCGI/Record/GetValues.php");
-    _eval(swoole_library_source_core_fast_cgi_record_get_values_result, "@swoole/library/core/FastCGI/Record/GetValuesResult.php");
+    _eval(swoole_library_source_core_fast_cgi_record_get_values_result,
+          "@swoole/library/core/FastCGI/Record/GetValuesResult.php");
     _eval(swoole_library_source_core_fast_cgi_record_stdin, "@swoole/library/core/FastCGI/Record/Stdin.php");
     _eval(swoole_library_source_core_fast_cgi_record_stdout, "@swoole/library/core/FastCGI/Record/Stdout.php");
     _eval(swoole_library_source_core_fast_cgi_record_stderr, "@swoole/library/core/FastCGI/Record/Stderr.php");
-    _eval(swoole_library_source_core_fast_cgi_record_unknown_type, "@swoole/library/core/FastCGI/Record/UnknownType.php");
+    _eval(swoole_library_source_core_fast_cgi_record_unknown_type,
+          "@swoole/library/core/FastCGI/Record/UnknownType.php");
     _eval(swoole_library_source_core_fast_cgi_frame_parser, "@swoole/library/core/FastCGI/FrameParser.php");
     _eval(swoole_library_source_core_fast_cgi_message, "@swoole/library/core/FastCGI/Message.php");
     _eval(swoole_library_source_core_fast_cgi_request, "@swoole/library/core/FastCGI/Request.php");
@@ -10206,7 +10318,8 @@ void php_swoole_load_library()
     _eval(swoole_library_source_core_fast_cgi_http_request, "@swoole/library/core/FastCGI/HttpRequest.php");
     _eval(swoole_library_source_core_fast_cgi_http_response, "@swoole/library/core/FastCGI/HttpResponse.php");
     _eval(swoole_library_source_core_coroutine_fast_cgi_client, "@swoole/library/core/Coroutine/FastCGI/Client.php");
-    _eval(swoole_library_source_core_coroutine_fast_cgi_client_exception, "@swoole/library/core/Coroutine/FastCGI/Client/Exception.php");
+    _eval(swoole_library_source_core_coroutine_fast_cgi_client_exception,
+          "@swoole/library/core/Coroutine/FastCGI/Client/Exception.php");
     _eval(swoole_library_source_core_coroutine_fast_cgi_proxy, "@swoole/library/core/Coroutine/FastCGI/Proxy.php");
     _eval(swoole_library_source_core_process_manager, "@swoole/library/core/Process/Manager.php");
     _eval(swoole_library_source_core_server_admin, "@swoole/library/core/Server/Admin.php");

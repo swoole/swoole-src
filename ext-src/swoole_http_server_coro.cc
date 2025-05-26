@@ -564,7 +564,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
     zend::Variable remote_addr = zend::Variable(sock->get_addr());
 
     while (true) {
-    _recv_request: {
+    _recv_request : {
         sock->get_socket()->recv_wait = 1;
         ssize_t retval = sock->recv(buffer->str + buffer->length, buffer->size - buffer->length);
         if (sw_unlikely(retval <= 0)) {
