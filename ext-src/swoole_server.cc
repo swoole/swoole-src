@@ -3178,7 +3178,10 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
 
     mt.fail = [ztasks, return_value](uint16_t i) { add_index_bool(return_value, i, 0); };
 
-    RETURN_BOOL(serv->task_sync(mt, timeout));
+    if (!serv->task_sync(mt, timeout)) {
+        zval_ptr_dtor(return_value);
+        RETURN_FALSE;
+    }
 }
 
 static PHP_METHOD(swoole_server, taskCo) {

@@ -712,6 +712,7 @@ TEST(server, reload_thread) {
     mutex lock{};
     lock.lock();
 
+    DEBUG() << "create server\n";
     ASSERT_EQ(serv.create(), SW_OK);
 
     std::thread t1([&]() {
@@ -748,6 +749,7 @@ TEST(server, reload_thread) {
 
     serv.onReceive = [](Server *serv, RecvData *req) -> int { return SW_OK; };
 
+    DEBUG() << "start server\n";
     ASSERT_EQ(serv.start(), SW_OK);
     t1.join();
     ASSERT_EQ(count.load(), serv.get_core_worker_num() * 2);
