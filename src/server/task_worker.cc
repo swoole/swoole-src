@@ -182,8 +182,8 @@ bool Server::task_sync(EventData *_task, int *dst_worker_id, double timeout) {
     Pipe *pipe = task_notify_pipes.at(swoole_get_worker_id()).get();
     TaskId task_id = get_task_id(_task);
 
-    // clear history task
     pipe->clean();
+    pipe->set_timeout(timeout);
 
     if (!task(_task, dst_worker_id, true)) {
         return false;
