@@ -63,6 +63,17 @@ else()
     endif()
 endif()
 
+# find iouring
+if (UNIX AND NOT APPLE)
+    find_library(URING_LIBRARIES uring)
+    if (URING_LIBRARIES)
+        message(STATUS "Found iouring")
+        list(APPEND SWOOLE_LINK_LIBRARIES ${URING_LIBRARIES})
+    else()
+        message(WARNING "liburing not found.")
+    endif()
+endif()
+
 if (DEFINED enable_asan)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer")
 endif()
