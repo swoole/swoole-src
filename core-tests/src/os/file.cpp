@@ -134,9 +134,11 @@ TEST(file, error) {
     ASSERT_EQ(fp.write_all(SW_STRL(TEST_STR)), 0);
     ASSERT_ERREQ(ESPIPE);
 
+    p.close();
+
     FileStatus stat;
-    ASSERT_EQ(fp.stat(&stat), 0);
-    ASSERT_ERREQ(ESPIPE);
+    ASSERT_FALSE(fp.stat(&stat));
+    ASSERT_ERREQ(EBADF);
 
     fp.release();
 }
