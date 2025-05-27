@@ -56,9 +56,17 @@ TEST(msg_queue, rbac) {
     ASSERT_FALSE(q.destroy());
     ASSERT_ERREQ(EINVAL);
 
+    q.set_blocking(false);
+
     ASSERT_EQ(q.pop(&out, sizeof(out.mdata)), -1);
     ASSERT_ERREQ(EINVAL);
 
     ASSERT_FALSE(q.push(&in, strlen(in.mdata)));
+    ASSERT_ERREQ(EINVAL);
+
+    ASSERT_FALSE(q.stat(&queue_num, &queue_bytes));
+    ASSERT_ERREQ(EINVAL);
+
+    ASSERT_FALSE(q.set_capacity(8192));
     ASSERT_ERREQ(EINVAL);
 }

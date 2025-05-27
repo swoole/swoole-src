@@ -993,10 +993,7 @@ int ProcessPool::wait() {
     Worker *worker;
     running = false;
 
-    if (reload_task) {
-        delete reload_task;
-        reload_task = nullptr;
-    }
+    delete reload_task;
 
     if (onShutdown) {
         onShutdown(this);
