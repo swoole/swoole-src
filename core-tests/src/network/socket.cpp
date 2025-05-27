@@ -613,6 +613,9 @@ TEST(socket, get_domain_and_type) {
     test_sock_type(SW_SOCK_RAW, AF_INET, SOCK_RAW);
     test_sock_type(SW_SOCK_RAW6, AF_INET6, SOCK_RAW);
 
+    ASSERT_TRUE(network::Socket::is_dgram(SW_SOCK_UDP6));
+    ASSERT_TRUE(network::Socket::is_stream(SW_SOCK_TCP));
+
     int sock_domain, sock_type;
     ASSERT_EQ(network::Socket::get_domain_and_type((swSocketType) (SW_SOCK_RAW6 + 1), &sock_domain, &sock_type),
               SW_ERR);
@@ -781,4 +784,13 @@ TEST(socket, ssl_get_error_reason) {
         EXPECT_EQ(reason2, 0);
         EXPECT_EQ(error_str2, nullptr);
     }
+}
+
+TEST(socket, catch_error) {
+    network::Socket fake_sock;
+    ASSERT_EQ(fake_sock.catch_write_pipe_error(ENOBUFS), SW_REDUCE_SIZE);
+    ASSERT_EQ(fake_sock.catch_write_pipe_error(EMSGSIZE), SW_REDUCE_SIZE);
+    ASSERT_EQ(fake_sock.catch_write_pipe_error(EAGAIN), SW_WAIT);
+
+    ASSERT_EQ(fake_sock.catch_write_error(ENOBUFS), SW_WAIT);
 }

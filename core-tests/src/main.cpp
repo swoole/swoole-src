@@ -59,6 +59,7 @@ namespace swoole {
 namespace test {
 NullStream null_stream;
 std::reference_wrapper<std::ostream> debug_output(std::cout);
+
 void counter_init() {
     sw_memset_zero(test_counter, sizeof(int) * TEST_COUNTER_NUM);
 }
@@ -237,6 +238,112 @@ int has_threads() {
     return thread_count;
 }
 
+/**
+ * 检查目录是否为空
+ * @param path 目录路径
+ * @return 如果目录为空返回1，否则返回0
+ */
+int is_directory_empty(const char *path) {
+    DIR *dir = opendir(path);
+    if (dir == NULL) {
+        perror("opendir");
+        return 0;
+    }
+
+    int is_empty = 1;
+    struct dirent *entry;
+
+    while ((entry = readdir(dir)) != NULL) {
+        // 跳过 "." 和 ".." 目录
+        if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
+            is_empty = 0;
+            break;
+        }
+    }
+
+    closedir(dir);
+    return is_empty;
+}
+
+/**
+ * 检查路径是否为目录
+ * @param path 路径
+ * @return 如果是目录返回1，否则返回0
+ */
+int is_directory(const char *path) {
+    struct stat path_stat;
+    if (stat(path, &path_stat) != 0) {
+        return 0;
+    }
+    return S_ISDIR(path_stat.st_mode);
+}
+
+/**
+ * 获取父目录路径
+ * @param path 当前路径
+ * @param parent_path 用于存储父目录路径的缓冲区
+ * @param size 缓冲区大小
+ * @return 成功返回1，失败返回0
+ */
+int get_parent_directory(const char *path, char *parent_path, size_t size) {
+    auto last_slash = strrchr(path, '/');
+    if (last_slash == NULL || last_slash == path) {
+        // 没有斜杠或者斜杠是第一个字符（根目录）
+        return 0;
+    }
+
+    size_t parent_length = last_slash - path;
+    if (parent_length >= size) {
+        return 0;
+    }
+
+    strncpy(parent_path, path, parent_length);
+    parent_path[parent_length] = '\0';
+
+    // 处理路径只有一个斜杠的情况
+    if (parent_length == 0) {
+        parent_path[0] = '/';
+        parent_path[1] = '\0';
+    }
+
+    return 1;
+}
+
+/**
+ * 递归删除空目录
+ * @param path 要删除的目录路径
+ * @return 成功删除的目录数量
+ */
+int recursive_rmdir(const char *path) {
+    // 检查路径是否存在且是目录
+    if (!is_directory(path)) {
+        return 0;
+    }
+
+    // 检查目录是否为空
+    if (!is_directory_empty(path)) {
+        return 0;
+    }
+
+    int deleted_count = 0;
+
+    // 删除当前空目录
+    if (rmdir(path) == 0) {
+        deleted_count++;
+
+        // 获取父目录
+        char parent_path[PATH_MAX];
+        if (get_parent_directory(path, parent_path, PATH_MAX)) {
+            // 如果父目录存在且不是当前目录，则尝试删除父目录
+            if (strcmp(parent_path, path) != 0) {
+                deleted_count += recursive_rmdir(parent_path);
+            }
+        }
+    }
+
+    return deleted_count;
+}
+
 pid_t spawn_exec(const std::function<void(void)> &fn) {
     pid_t child_pid = fork();
     if (child_pid == -1) {
@@ -257,6 +364,5 @@ int spawn_exec_and_wait(const std::function<void(void)> &fn) {
         return -1;
     }
 }
-
 }  // namespace test
 }  // namespace swoole

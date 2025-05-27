@@ -580,6 +580,7 @@ void swoole_redirect_stdout(const char *file);
 int swoole_shell_exec(const char *command, pid_t *pid, bool get_error_stream);
 int swoole_daemon(int nochdir, int noclose);
 bool swoole_set_task_tmpdir(const std::string &dir);
+const std::string &swoole_get_task_tmpdir();
 int swoole_tmpfile(char *filename);
 
 #ifdef HAVE_CPU_AFFINITY
