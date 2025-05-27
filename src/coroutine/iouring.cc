@@ -75,11 +75,6 @@ struct IouringEvent {
 };
 
 Iouring::Iouring(Reactor *_reactor) {
-    if (!SwooleTG.reactor) {
-        swoole_warning("no event loop, cannot initialized");
-        throw Exception(SW_ERROR_WRONG_OPERATION);
-    }
-
     reactor = _reactor;
     if (SwooleG.iouring_entries > 0) {
         uint32_t i = 6;
@@ -196,7 +191,7 @@ bool Iouring::wakeup() {
     return true;
 }
 
-static MAYBE_UNUSED const char *get_opcode_name(IouringOpcode opcode) {
+static const char *get_opcode_name(IouringOpcode opcode) {
     switch (opcode) {
     case SW_IORING_OP_OPENAT:
         return "OPENAT";
@@ -235,6 +230,18 @@ static MAYBE_UNUSED const char *get_opcode_name(IouringOpcode opcode) {
     }
 }
 
+std::unordered_map<std::string, int> Iouring::list_all_opcode() {
+    std::unordered_map<std::string, int> opcodes;
+    for (int i = SW_IORING_OP_OPENAT; i < SW_IORING_OP_FUTEX_WAKE + 1; i++) {
+        auto name = get_opcode_name((IouringOpcode) i);
+        if (strcmp(name, "unknown") == 0) {
+            continue;
+        }
+        opcodes[name] = i;
+    }
+    return opcodes;
+}
+
 bool Iouring::submit(IouringEvent *event) {
     swoole_trace("opcode=%s, fd=%d, path=%s", get_opcode_name(event->opcode), event->fd, event->pathname);
 
@@ -256,7 +263,11 @@ bool Iouring::submit(IouringEvent *event) {
 
 ssize_t Iouring::execute(IouringEvent *event) {
     if (sw_unlikely(!SwooleTG.iouring)) {
-        auto iouring = new Iouring(SwooleTG.reactor);
+        if (!swoole_event_is_available()) {
+            swoole_warning("no event loop, cannot initialized");
+            throw Exception(SW_ERROR_WRONG_OPERATION);
+        }
+        auto iouring = new Iouring(sw_reactor());
         if (!iouring->ready()) {
             delete iouring;
             return SW_ERR;

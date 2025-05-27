@@ -17,13 +17,33 @@
 #include <sys/file.h>
 #include <sys/stat.h>
 #include "test_coroutine.h"
+#include "swoole_iouring.h"
 #include "swoole_coroutine_c_api.h"
 
 #ifdef SW_USE_IOURING
+using swoole::Iouring;
 using swoole::Reactor;
 using swoole::test::coroutine;
 
-TEST(coroutine_iouring, open_and_close) {
+TEST(iouring, create) {
+    coroutine::run([](void *arg) {
+        SwooleG.iouring_entries = 4;
+        SwooleG.iouring_workers = 65536;
+        auto fd = Iouring::open(TEST_TMP_FILE, O_CREAT, 0666);
+        ASSERT_GE(fd, 0);
+        ASSERT_NE(Iouring::close(fd), -1);
+    });
+}
+
+TEST(iouring, list_all_opcode) {
+    auto list = Iouring::list_all_opcode();
+    for (auto &item: list) {
+        DEBUG() << "opcode: " << item.first << ", value: " << item.second << "\n";
+    }
+    ASSERT_TRUE(list.size() > 0);
+}
+
+TEST(iouring, open_and_close) {
     coroutine::run([](void *arg) {
         const char *test_file = "/tmp/file_1";
         int fd = swoole_coroutine_iouring_open(test_file, O_CREAT, 0666);
@@ -37,7 +57,7 @@ TEST(coroutine_iouring, open_and_close) {
     });
 }
 
-TEST(coroutine_iouring, mkdir_and_rmdir) {
+TEST(iouring, mkdir_and_rmdir) {
     coroutine::run([](void *arg) {
         const char *directory = "/tmp/aaaa";
         int result = swoole_coroutine_iouring_mkdir(directory, 0755);
@@ -48,7 +68,7 @@ TEST(coroutine_iouring, mkdir_and_rmdir) {
     });
 }
 
-TEST(coroutine_iouring, write_and_read) {
+TEST(iouring, write_and_read) {
     coroutine::run([](void *arg) {
         const char *test_file = "/tmp/file_2";
         int fd = swoole_coroutine_iouring_open(test_file, O_CREAT | O_RDWR, 0666);
@@ -77,7 +97,7 @@ TEST(coroutine_iouring, write_and_read) {
     });
 }
 
-TEST(coroutine_iouring, rename) {
+TEST(iouring, rename) {
     coroutine::run([](void *arg) {
         const char *oldpath = "/tmp/file_2";
         const char *newpath = "/tmp/file_3";
@@ -95,7 +115,7 @@ TEST(coroutine_iouring, rename) {
     });
 }
 
-TEST(coroutine_iouring, fstat_and_stat) {
+TEST(iouring, fstat_and_stat) {
     coroutine::run([](void *arg) {
         struct stat statbuf {};
         int fd = swoole_coroutine_iouring_open(TEST_TMP_FILE, O_RDWR, 0666);
@@ -114,7 +134,7 @@ TEST(coroutine_iouring, fstat_and_stat) {
     });
 }
 
-TEST(coroutine_iouring, fsync_and_fdatasync) {
+TEST(iouring, fsync_and_fdatasync) {
     coroutine::run([](void *arg) {
         const char *test_file = "/tmp/file_2";
         int fd = swoole_coroutine_iouring_open(test_file, O_CREAT | O_RDWR, 0666);

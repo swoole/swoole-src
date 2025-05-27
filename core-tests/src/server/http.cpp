@@ -279,6 +279,8 @@ static Server *test_http_server(Server::DispatchMode dispatch_mode = Server::DIS
     port->open_http_protocol = true;
     port->open_websocket_protocol = true;
     port->open_tcp_keepalive = true;
+    port->tcp_fastopen = true;
+    port->tcp_defer_accept = true;
 
     server->enable_static_handler = true;
     server->set_document_root(test::get_root_path());
