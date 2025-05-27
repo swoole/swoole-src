@@ -624,12 +624,14 @@ TEST(server, thread) {
 TEST(server, task_thread) {
     ASSERT_EQ(test::has_threads(), 1);
 
+    DEBUG() << "new server\n";
     Server serv(Server::MODE_THREAD);
     serv.worker_num = 2;
     serv.task_worker_num = 2;
 
     swoole_set_log_level(SW_LOG_INFO);
 
+    DEBUG() << "add port\n";
     ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     ASSERT_TRUE(port);
 
@@ -705,12 +707,14 @@ TEST(server, task_thread) {
 TEST(server, reload_thread) {
     ASSERT_EQ(test::has_threads(), 1);
 
+    DEBUG() << "new server\n";
     Server serv(Server::MODE_THREAD);
     serv.worker_num = 2;
     serv.task_worker_num = 2;
 
     swoole_set_log_level(SW_LOG_INFO);
 
+    DEBUG() << "add port\n";
     ASSERT_NE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0), nullptr);
 
     Worker user_worker{};
