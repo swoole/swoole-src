@@ -287,17 +287,9 @@ bool ProcessFactory::dispatch(SendData *task) {
 
     SendData _task;
     memcpy(&_task, task, sizeof(SendData));
-    Socket *sock;
-    MessageBus *mb;
 
-    if (server_->is_reactor_thread() || server_->single_thread) {
-        mb = &server_->get_thread(swoole_get_thread_id())->message_bus;
-        sock = mb->get_pipe_socket(worker->pipe_master);
-    } else {
-        mb = &server_->message_bus;
-        sock = worker->pipe_master;
-    }
-
+    MessageBus *mb = &server_->get_thread(swoole_get_thread_id())->message_bus;
+    Socket *sock = mb->get_pipe_socket(worker->pipe_master);
     return mb->write(sock, &_task);
 }
 
