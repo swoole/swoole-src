@@ -21,8 +21,8 @@
 namespace swoole {
 
 Table *Table::make(uint32_t rows_size, float conflict_proportion) {
-    if (rows_size >= 0x80000000) {
-        rows_size = 0x80000000;
+    if (rows_size >= SW_TABLE_MAX_ROW_SIZE) {
+        rows_size = SW_TABLE_MAX_ROW_SIZE;
     } else {
         uint32_t i = 6;
         while ((1U << i) < rows_size) {

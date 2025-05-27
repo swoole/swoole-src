@@ -26,38 +26,38 @@ using swoole::ListenPort;
 using swoole::Server;
 
 TEST(server_port, import) {
-  ListenPort port(nullptr);
-  ASSERT_FALSE(port.import(fileno(stdin)));
-  ASSERT_ERREQ(ENOTSOCK);
+    ListenPort port(nullptr);
+    ASSERT_FALSE(port.import(fileno(stdin)));
+    ASSERT_ERREQ(ENOTSOCK);
 
-  auto sock = swoole::make_socket(SW_SOCK_TCP, SW_FD_STREAM, 0);
-  ASSERT_FALSE(port.import(sock->fd));
-  ASSERT_ERREQ(EINVAL);
-  sock->free();
+    auto sock = swoole::make_socket(SW_SOCK_TCP, SW_FD_STREAM, 0);
+    ASSERT_FALSE(port.import(sock->fd));
+    ASSERT_ERREQ(EINVAL);
+    sock->free();
 }
 
 TEST(server_port, create) {
-  Server server(Server::MODE_BASE);
-  server.enable_reuse_port = true;
-  auto port = server.add_port(SW_SOCK_TCP, TEST_HOST, 0);
-  ASSERT_NE(nullptr, port);
-  ASSERT_EQ(SW_OK, port->create_socket());
+    Server server(Server::MODE_BASE);
+    server.enable_reuse_port = true;
+    auto port = server.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_NE(nullptr, port);
+    ASSERT_EQ(SW_OK, port->create_socket());
 
-  port->open_eof_check = true;
-  port->protocol.package_eof_len = SW_DATA_EOF_MAXLEN + 10;
-  port->init_protocol();
-  ASSERT_STREQ("eof", port->get_protocols());
-  ASSERT_EQ(port->protocol.package_eof_len, SW_DATA_EOF_MAXLEN);
+    port->open_eof_check = true;
+    port->protocol.package_eof_len = SW_DATA_EOF_MAXLEN + 10;
+    port->init_protocol();
+    ASSERT_STREQ("eof", port->get_protocols());
+    ASSERT_EQ(port->protocol.package_eof_len, SW_DATA_EOF_MAXLEN);
 
-  ASSERT_TRUE(port->ssl_context_init());
-  ASSERT_FALSE(port->ssl_context_create(port->ssl_context.get()));
-  ASSERT_ERREQ(SW_ERROR_WRONG_OPERATION);
+    ASSERT_TRUE(port->ssl_context_init());
+    ASSERT_FALSE(port->ssl_context_create(port->ssl_context.get()));
+    ASSERT_ERREQ(SW_ERROR_WRONG_OPERATION);
 }
 
 TEST(server_port, dgram) {
-  Server server(Server::MODE_BASE);
-  server.enable_reuse_port = true;
-  auto port = server.add_port(SW_SOCK_UDP, TEST_HOST, 0);
-  ASSERT_NE(nullptr, port);
-  ASSERT_STREQ("dgram", port->get_protocols());
+    Server server(Server::MODE_BASE);
+    server.enable_reuse_port = true;
+    auto port = server.add_port(SW_SOCK_UDP, TEST_HOST, 0);
+    ASSERT_NE(nullptr, port);
+    ASSERT_STREQ("dgram", port->get_protocols());
 }

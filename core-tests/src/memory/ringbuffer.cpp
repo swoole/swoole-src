@@ -26,12 +26,12 @@ typedef struct {
 } ThreadObject;
 
 static void thread_read(int i);
-static void thread_write(void);
+static void thread_write();
 static ThreadObject threads[READ_THREAD_N];
 
-TEST(ringbuffer, thread) {
+static void test_ringbuffer(bool shared) {
     int i;
-    pool = new RingBuffer(1024 * 1024 * 4, true);
+    pool = new RingBuffer(1024 * 1024 * 4, shared);
     ASSERT_NE(nullptr, pool);
 
     for (i = 0; i < READ_THREAD_N; i++) {
@@ -49,9 +49,16 @@ TEST(ringbuffer, thread) {
         delete threads[i].pipe;
         delete threads[i].thread;
     }
+
+    delete pool;
 }
 
-static void thread_write(void) {
+TEST(ringbuffer, thread) {
+    test_ringbuffer(true);
+    test_ringbuffer(false);
+}
+
+static void thread_write() {
     uint32_t size, yield_count = 0, yield_total_count = 0;
     void *ptr;
     pkg send_pkg;

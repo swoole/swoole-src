@@ -842,7 +842,8 @@ TEST(http_server, upload) {
             swoole_signal_block_all();
             string jpg_path = test::get_jpg_file();
             string str_1 = "curl -s -S -H 'Transfer-Encoding: chunked' -F \"file=@" + jpg_path + "\" http://";
-            string command = str_1 + TEST_HOST + ":" + to_string(server->get_primary_port()->port) + "/upload?test=curl";
+            string command =
+                str_1 + TEST_HOST + ":" + to_string(server->get_primary_port()->port) + "/upload?test=curl";
 
             pid_t pid2;
             int pipe = swoole_shell_exec(command.c_str(), &pid2, 0);
