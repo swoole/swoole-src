@@ -543,10 +543,13 @@ static void test_process() {
 
 TEST(server, process) {
     test_process();
+    test::wait_all_child_processes();
 }
 
 #ifdef SW_THREAD
 TEST(server, thread) {
+    ASSERT_EQ(test::has_threads(), 1);
+
     Server serv(Server::MODE_THREAD);
     serv.worker_num = 2;
 
@@ -619,6 +622,8 @@ TEST(server, thread) {
 }
 
 TEST(server, task_thread) {
+    ASSERT_EQ(test::has_threads(), 1);
+
     Server serv(Server::MODE_THREAD);
     serv.worker_num = 2;
     serv.task_worker_num = 2;
@@ -759,6 +764,7 @@ TEST(server, reload_thread) {
 }
 
 TEST(server, reload_thread_2) {
+    ASSERT_EQ(test::has_threads(), 1);
     Server serv(Server::MODE_THREAD);
     serv.worker_num = 2;
     serv.task_worker_num = 2;
@@ -831,7 +837,7 @@ TEST(server, reload_all_workers) {
     serv.worker_num = 2;
     serv.task_worker_num = 2;
     serv.max_wait_time = 1;
-    serv.task_enable_coroutine = 1;
+    serv.task_enable_coroutine = true;
 
     swoole_set_log_level(SW_LOG_WARNING);
 

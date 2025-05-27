@@ -115,11 +115,11 @@ class Client {
     Client(SocketType _type, bool async);
     ~Client();
 
-    Socket *get_socket() {
+    Socket *get_socket() const {
         return socket;
     }
 
-    bool ready() {
+    bool ready() const {
         return socket != nullptr;
     }
 
