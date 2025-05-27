@@ -135,12 +135,15 @@ class table_t {
 
 TEST(table, create) {
     table_t table(1024);
+    auto ptr = table.ptr();
 
-    ASSERT_GT(table.ptr()->get_memory_size(), table.ptr()->get_size() * table.ptr()->get_column_size());
+    ASSERT_GT(ptr->get_memory_size(), ptr->get_size() * ptr->get_column_size());
 
-    table.set("php", {"php", 1, 1.245});
-    table.set("java", {"java", 2, 3.1415926});
-    table.set("c++", {"c++", 3, 4.888});
+    ASSERT_FALSE(ptr->create());  // create again should fail
+
+    ASSERT_TRUE(table.set("php", {"php", 1, 1.245}));
+    ASSERT_TRUE(table.set("java", {"java", 2, 3.1415926}));
+    ASSERT_TRUE(table.set("c++", {"c++", 3, 4.888}));
 
     ASSERT_EQ(table.count(), 3);
 
@@ -149,9 +152,16 @@ TEST(table, create) {
     ASSERT_EQ(r1.score, 3.1415926);
     ASSERT_EQ(r1.name, std::string("java"));
 
+    ASSERT_FALSE(ptr->get_column("not-exists"));
+
     ASSERT_TRUE(table.exists("php"));
     ASSERT_TRUE(table.del("php"));
     ASSERT_FALSE(table.exists("php"));
+
+    ASSERT_FALSE(table.del("not-exists"));
+
+    // Test with a string that is longer than the column size
+    ASSERT_TRUE(table.set("golang", {"golang " TEST_JPG_MD5SUM TEST_JPG_MD5SUM, 3, 4.888}));
 }
 
 void start_iterator(Table *_ptr) {

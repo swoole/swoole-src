@@ -922,11 +922,7 @@ int Request::get_chunked_body_length() {
             break;
         }
 
-        swoole_trace_log(SW_TRACE_HTTP,
-                         "chunk_length=%zu, chunk_len_str=%.*s\n",
-                         chunk_length,
-                         (int) (endptr - chunk_len_str),
-                         chunk_len_str);
+        swoole_trace_log(SW_TRACE_HTTP, "chunk_length=%zu, chunk_len_str=%.*s\n", chunk_length, (int) (endptr - p), p);
 
         // Found the HTTP Chunk EOF
         if (chunk_length == 0) {
