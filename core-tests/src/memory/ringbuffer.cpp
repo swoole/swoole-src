@@ -35,7 +35,7 @@ static void test_ringbuffer(bool shared) {
     ASSERT_NE(nullptr, pool);
 
     for (i = 0; i < READ_THREAD_N; i++) {
-        threads[i].pipe =  new UnixSocket(true, SOCK_DGRAM);
+        threads[i].pipe = new UnixSocket(true, SOCK_DGRAM);
         ASSERT_TRUE(threads[i].pipe->ready());
         threads[i].thread = new std::thread(thread_read, i);
     }
@@ -96,8 +96,7 @@ static void thread_write() {
         //在指针末尾保存一个串号
         memcpy((char *) ptr + size - 4, &(send_pkg.serial_num), sizeof(send_pkg.serial_num));
 
-        ASSERT_FALSE(
-            threads[i % READ_THREAD_N].pipe->write(&send_pkg, sizeof(send_pkg)) < 0);
+        ASSERT_FALSE(threads[i % READ_THREAD_N].pipe->write(&send_pkg, sizeof(send_pkg)) < 0);
     }
 
     //    printf("yield_total_count=%d\n", yield_total_count);

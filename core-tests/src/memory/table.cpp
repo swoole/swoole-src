@@ -364,7 +364,7 @@ TEST(table, lock_crash) {
         TableRow *_rowlock = nullptr;
         ptr->get("java", 4, &_rowlock);
         usleep(5);
-        exit(200); // Simulate a crash in the child process, no release lock
+        exit(200);  // Simulate a crash in the child process, no release lock
     });
     ASSERT_GT(child, 0);
     test::wait_all_child_processes();

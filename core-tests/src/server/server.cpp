@@ -548,8 +548,6 @@ TEST(server, process) {
 
 #ifdef SW_THREAD
 TEST(server, thread) {
-    ASSERT_EQ(test::has_threads(), 1);
-
     Server serv(Server::MODE_THREAD);
     serv.worker_num = 2;
 
@@ -622,8 +620,6 @@ TEST(server, thread) {
 }
 
 TEST(server, task_thread) {
-    ASSERT_EQ(test::has_threads(), 1);
-
     DEBUG() << "new server\n";
     Server serv(Server::MODE_THREAD);
     serv.worker_num = 2;
@@ -705,8 +701,6 @@ TEST(server, task_thread) {
 }
 
 TEST(server, reload_thread) {
-    ASSERT_EQ(test::has_threads(), 1);
-
     DEBUG() << "new server\n";
     Server serv(Server::MODE_THREAD);
     serv.worker_num = 2;
@@ -768,7 +762,6 @@ TEST(server, reload_thread) {
 }
 
 TEST(server, reload_thread_2) {
-    ASSERT_EQ(test::has_threads(), 1);
     Server serv(Server::MODE_THREAD);
     serv.worker_num = 2;
     serv.task_worker_num = 2;

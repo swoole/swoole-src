@@ -31,9 +31,7 @@ TEST(msg_queue, rbac) {
     in.mtype = 999;
     strcpy(in.mdata, "hello world");
 
-    if (!swoole::test::is_github_ci()) {
-        ASSERT_TRUE(q.set_capacity(8192));
-    }
+    ASSERT_TRUE(q.set_capacity(8192));
 
     // input data
     ASSERT_TRUE(q.push(&in, strlen(in.mdata)));
@@ -55,4 +53,12 @@ TEST(msg_queue, rbac) {
     ASSERT_STREQ(out.mdata, in.mdata);
 
     ASSERT_TRUE(q.destroy());
+    ASSERT_FALSE(q.destroy());
+    ASSERT_ERREQ(EINVAL);
+
+    ASSERT_EQ(q.pop(&out, sizeof(out.mdata)), -1);
+    ASSERT_ERREQ(EINVAL);
+
+    ASSERT_FALSE(q.push(&in, strlen(in.mdata)));
+    ASSERT_ERREQ(EINVAL);
 }
