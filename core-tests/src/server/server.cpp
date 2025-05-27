@@ -1464,6 +1464,98 @@ TEST(server, task_worker2) {
     ASSERT_EQ(test::counter_get(7), 1);  // onPipeMessage
 }
 
+TEST(server, task_worker_3) {
+    Server serv(Server::MODE_BASE);
+    serv.worker_num = 1;
+    serv.task_worker_num = 2;
+    test::counter_init();
+
+    auto port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_NE(port, nullptr);
+
+    serv.onTask = [](Server *serv, EventData *task) -> int { return 0; };
+
+    serv.onWorkerStart = [](Server *serv, Worker *worker) {
+        if (worker->id == 0) {
+            swoole_timer_after(50, [serv](TIMER_PARAMS) {
+                kill(serv->get_worker(2)->pid, SIGTERM);
+            });
+            swoole_timer_after(60, [serv](TIMER_PARAMS) {
+                kill(serv->get_manager_pid(), SIGRTMIN);
+            });
+            swoole_timer_after(100, [serv](TIMER_PARAMS) { serv->shutdown(); });
+        }
+        test::counter_incr(1);
+        DEBUG() << "onWorkerStart: id=" << worker->id << "\n";
+    };
+
+    serv.onReceive = [](Server *serv, RecvData *req) -> int { return 0; };
+
+    ASSERT_EQ(serv.create(), SW_OK);
+    ASSERT_EQ(serv.start(), SW_OK);
+
+    ASSERT_EQ(test::counter_get(1), 4);  // onWorkerStart
+}
+
+TEST(server, reload_single_process) {
+    Server serv(Server::MODE_BASE);
+    serv.worker_num = 1;
+    test::counter_init();
+
+    auto port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_NE(port, nullptr);
+
+    serv.onTask = [](Server *serv, EventData *task) -> int { return 0; };
+
+    serv.onWorkerStart = [](Server *serv, Worker *worker) {
+        if (worker->id == 0) {
+            swoole_timer_after(50, [serv](TIMER_PARAMS) {
+                ASSERT_FALSE(serv->reload(true));
+                ASSERT_ERREQ(SW_ERROR_OPERATION_NOT_SUPPORT);
+                swoole_timer_after(80, [serv](TIMER_PARAMS) { serv->shutdown(); });
+            });
+        }
+        test::counter_incr(1);
+        DEBUG() << "onWorkerStart: id=" << worker->id << "\n";
+    };
+
+    serv.onReceive = [](Server *serv, RecvData *req) -> int { return 0; };
+
+    ASSERT_EQ(serv.create(), SW_OK);
+    ASSERT_EQ(serv.start(), SW_OK);
+
+    ASSERT_EQ(test::counter_get(1), 1);  // onWorkerStart
+}
+
+TEST(server, reload_no_task_worker) {
+    Server serv(Server::MODE_BASE);
+    serv.worker_num = 2;
+    test::counter_init();
+
+    auto port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_NE(port, nullptr);
+
+    serv.onTask = [](Server *serv, EventData *task) -> int { return 0; };
+
+    serv.onWorkerStart = [](Server *serv, Worker *worker) {
+        if (worker->id == 0) {
+            swoole_timer_after(50, [serv](TIMER_PARAMS) {
+                ASSERT_TRUE(serv->reload(false));
+                swoole_timer_after(80, [serv](TIMER_PARAMS) { serv->shutdown(); });
+            });
+        }
+        test::counter_incr(1);
+        DEBUG() << "onWorkerStart: id=" << worker->id << "\n";
+    };
+
+    serv.onReceive = [](Server *serv, RecvData *req) -> int { return 0; };
+
+    ASSERT_EQ(serv.create(), SW_OK);
+    ASSERT_EQ(serv.start(), SW_OK);
+
+    ASSERT_EQ(test::counter_get(1), 2);  // onWorkerStart
+}
+
 static void test_task(Server::Mode mode, uint8_t task_ipc_mode = Server::TASK_IPC_UNIXSOCK) {
     Server serv(mode);
     serv.worker_num = 2;
