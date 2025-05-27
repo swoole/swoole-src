@@ -745,6 +745,10 @@ static inline zval *array_get(zval *arg, const char *key, size_t l_key) {
     return zend_hash_str_find(Z_ARRVAL_P(arg), key, l_key);
 }
 
+static inline zval *array_get(zval *arg, zend_ulong index) {
+    return zend_hash_index_find(Z_ARRVAL_P(arg), index);
+}
+
 static inline void array_unset(zval *arg, const char *key, size_t l_key) {
     zend_hash_str_del(Z_ARRVAL_P(arg), key, l_key);
 }

@@ -35,8 +35,9 @@ TEST(coroutine_base, get_init_msec) {
 
 TEST(coroutine_base, yield_resume) {
     Coroutine::set_on_yield([](void *arg) {
-        long task = *(long *) Coroutine::get_current_task();
-        ASSERT_EQ(task, Coroutine::get_current_cid());
+        auto task = static_cast<long *>(Coroutine::get_current_task());
+        ASSERT_NE(task, nullptr);
+        ASSERT_EQ(*task, Coroutine::get_current_cid());
     });
 
     Coroutine::set_on_resume([](void *arg) {
@@ -45,18 +46,19 @@ TEST(coroutine_base, yield_resume) {
     });
 
     Coroutine::set_on_close([](void *arg) {
-        long task = *(long *) Coroutine::get_current_task();
-        ASSERT_EQ(task, Coroutine::get_current_cid());
+        auto task = static_cast<long *>(Coroutine::get_current_task());
+        ASSERT_NE(task, nullptr);
+        ASSERT_EQ(*task, Coroutine::get_current_cid());
     });
 
-    long _cid;
+    long _cid, _cid2;
     long cid = Coroutine::create(
-        [](void *arg) {
-            long cid = Coroutine::get_current_cid();
-            Coroutine *co = Coroutine::get_by_cid(cid);
-            co->set_task((void *) &cid);
+        [&_cid2](void *arg) {
+            _cid2 = Coroutine::get_current_cid();
+            Coroutine *co = Coroutine::get_by_cid(_cid2);
+            co->set_task(&_cid2);
             co->yield();
-            *(long *) arg = Coroutine::get_current_cid();
+            *static_cast<long *>(arg) = Coroutine::get_current_cid();
         },
         &_cid);
 

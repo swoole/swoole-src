@@ -65,6 +65,8 @@ TEST(server, schedule) {
         _worker_id_set.insert(worker_id);
     }
     ASSERT_EQ(_worker_id_set.size(), serv.worker_num - 2);
+
+    serv.destroy();
 }
 
 TEST(server, schedule_1) {
@@ -312,11 +314,12 @@ TEST(server, schedule_10) {
 
 static const char *packet = "hello world\n";
 
-TEST(server, base) {
+static void test_base() {
     Server serv(Server::MODE_BASE);
     serv.worker_num = 1;
     serv.pid_file = "/tmp/swoole-core-tests.pid";
 
+    test::counter_init();
     swoole_set_log_level(SW_LOG_WARNING);
 
     ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
@@ -336,6 +339,10 @@ TEST(server, base) {
     lock.lock();
 
     ASSERT_EQ(serv.create(), SW_OK);
+
+    swoole_clear_last_error();
+    ASSERT_FALSE(serv.shutdown());
+    ASSERT_ERREQ(SW_ERROR_WRONG_OPERATION);
 
     std::thread t1([&]() {
         swoole_signal_block_all();
@@ -360,23 +367,53 @@ TEST(server, base) {
         string resp = string("Server: ") + string(packet);
         serv->send(req->info.fd, resp.c_str(), resp.length());
 
+        EXPECT_FALSE(serv->finish(resp.c_str(), resp.length()));
+
         EXPECT_EQ(serv->get_connection_num(), 1);
         EXPECT_EQ(serv->get_primary_port()->get_connection_num(), 1);
 
         EXPECT_EQ(serv->get_worker_message_bus()->move_packet(), nullptr);
+
+        // session not exists
+        SessionId client_fd = 9999;
+        swoole_clear_last_error();
+        EXPECT_FALSE(serv->send(client_fd, resp.c_str(), resp.length()));
+        EXPECT_ERREQ(SW_ERROR_SESSION_NOT_EXIST);
+
+        swoole_clear_last_error();
+        EXPECT_FALSE(serv->close(client_fd));
+        EXPECT_ERREQ(SW_ERROR_SESSION_NOT_EXIST);
+
+        swoole_clear_last_error();
+        SendData sd{};
+        sd.info.fd = client_fd;
+        sd.info.type = SW_SERVER_EVENT_CLOSE;
+        EXPECT_EQ(serv->send_to_connection(&sd), SW_ERR);
+        EXPECT_ERREQ(SW_ERROR_SESSION_NOT_EXIST);
 
         return SW_OK;
     };
 
     serv.onStart = [](Server *serv) { ASSERT_EQ(access(serv->pid_file.c_str(), R_OK), 0); };
 
+    serv.onBeforeShutdown = [](Server *serv) {
+        beforeReloadPid = serv->gs->master_pid;
+        test::counter_incr(10);
+        DEBUG() << "onBeforeShutdown: master_pid=" << beforeReloadPid << "\n";
+    };
+
     serv.start();
     t1.join();
 
     ASSERT_EQ(access(serv.pid_file.c_str(), R_OK), -1);
+    ASSERT_EQ(test::counter_get(10), 1);  // onBeforeShutdown called
 }
 
-TEST(server, process) {
+TEST(server, base) {
+    test_base();
+}
+
+static void test_process() {
     Server serv(Server::MODE_PROCESS);
     serv.worker_num = 1;
     serv.task_worker_num = 3;
@@ -396,12 +433,23 @@ TEST(server, process) {
 
     ASSERT_EQ(serv.create(), SW_OK);
 
+    swoole_clear_last_error();
+    ASSERT_EQ(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0), nullptr);
+    ASSERT_ERREQ(SW_ERROR_WRONG_OPERATION);
+
+    swoole_clear_last_error();
+    Worker fake_worker{};
+    ASSERT_EQ(serv.add_worker(&fake_worker), SW_ERR);
+    ASSERT_ERREQ(SW_ERROR_WRONG_OPERATION);
+
     thread t1;
     serv.onStart = [&lock, &t1](Server *serv) {
         t1 = thread([=]() {
             swoole_signal_block_all();
 
             lock->lock();
+
+            kill(serv->get_worker(0)->pid, SIGRTMIN);
 
             ListenPort *port = serv->get_primary_port();
 
@@ -416,6 +464,15 @@ TEST(server, process) {
 
             kill(serv->gs->master_pid, SIGTERM);
         });
+
+        // command tests
+        swoole_clear_last_error();
+        serv->call_command_callback(9999, TEST_STR);
+        ASSERT_ERREQ(SW_ERROR_SERVER_INVALID_COMMAND);
+
+        swoole_clear_last_error();
+        serv->call_command_handler_in_master(9999, TEST_STR);
+        ASSERT_ERREQ(SW_ERROR_SERVER_INVALID_COMMAND);
     };
 
     serv.onWorkerStart = [&lock](Server *serv, Worker *worker) {
@@ -462,17 +519,37 @@ TEST(server, process) {
         test::counter_incr(1);
     };
 
+    serv.onBeforeShutdown = [](Server *serv) {
+        beforeReloadPid = serv->gs->master_pid;
+        test::counter_incr(10);
+        DEBUG() << "onBeforeShutdown: master_pid=" << beforeReloadPid << "\n";
+    };
+
+    serv.onShutdown = [](Server *serv) {
+        DEBUG() << "onShutdown\n";
+        test::counter_incr(9);
+    };
+
     ASSERT_EQ(serv.start(), 0);
 
     t1.join();
     delete lock;
-    ASSERT_EQ(counter[1], 2);  // manager callback
-    ASSERT_GE(counter[2], 2);  // manager timer
-    ASSERT_GE(counter[3], 4);  // worker start
+    ASSERT_EQ(counter[1], 2);             // manager callback
+    ASSERT_GE(counter[2], 2);             // manager timer
+    ASSERT_GE(counter[3], 4);             // worker start
+    ASSERT_EQ(test::counter_get(9), 1);   // onShutdown called
+    ASSERT_EQ(test::counter_get(10), 1);  // onBeforeShutdown called
+}
+
+TEST(server, process) {
+    test_process();
+    test::wait_all_child_processes();
 }
 
 #ifdef SW_THREAD
 TEST(server, thread) {
+    ASSERT_EQ(test::has_threads(), 1);
+
     Server serv(Server::MODE_THREAD);
     serv.worker_num = 2;
 
@@ -515,7 +592,14 @@ TEST(server, thread) {
         serv.shutdown();
     });
 
-    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock.unlock(); };
+    serv.onStart = [&lock](Server *serv) {
+        DEBUG() << "onStart\n";
+        lock.unlock();
+    };
+
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) {
+        DEBUG() << "onWorkerStart: id=" << worker->id << "\n";
+    };
 
     serv.onReceive = [](Server *serv, RecvData *req) -> int {
         EXPECT_EQ(string(req->data, req->info.len), string(packet));
@@ -531,23 +615,30 @@ TEST(server, thread) {
         return SW_OK;
     };
 
-    serv.start();
+    ASSERT_EQ(serv.start(), SW_OK);
     t1.join();
+
+    test::wait_all_child_processes();
 }
 
 TEST(server, task_thread) {
+    ASSERT_EQ(test::has_threads(), 1);
+
+    DEBUG() << "new server\n";
     Server serv(Server::MODE_THREAD);
     serv.worker_num = 2;
     serv.task_worker_num = 2;
 
-    swoole_set_log_level(SW_LOG_WARNING);
+    swoole_set_log_level(SW_LOG_INFO);
 
+    DEBUG() << "add port\n";
     ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     ASSERT_TRUE(port);
 
-    mutex lock;
+    mutex lock{};
     lock.lock();
 
+    DEBUG() << "create server\n";
     ASSERT_EQ(serv.create(), SW_OK);
 
     std::thread t1([&]() {
@@ -556,22 +647,26 @@ TEST(server, task_thread) {
         lock.lock();
 
         network::SyncClient c(SW_SOCK_TCP);
-        c.connect(TEST_HOST, port->port);
+        ASSERT_TRUE(c.connect(TEST_HOST, port->port));
         c.send(packet, strlen(packet));
         char buf[1024];
         c.recv(buf, sizeof(buf));
         c.close();
 
+        usleep(100000);
         serv.shutdown();
     });
 
     std::atomic<int> count(0);
 
+    serv.onStart = [&lock](Server *serv) {
+        DEBUG() << "onStart\n";
+        lock.unlock();
+    };
+
     serv.onWorkerStart = [&lock, &count](Server *serv, Worker *worker) {
-        count++;
-        if (count.load() == 4) {
-            lock.unlock();
-        }
+        ++count;
+        DEBUG() << "onWorkerStart: id=" << worker->id << "\n";
     };
 
     serv.onFinish = [](Server *serv, EventData *task) -> int {
@@ -601,74 +696,91 @@ TEST(server, task_thread) {
         return SW_OK;
     };
 
-    serv.start();
+    DEBUG() << "start server\n";
+    ASSERT_EQ(serv.start(), SW_OK);
     t1.join();
+
+    ASSERT_EQ(count.load(), serv.get_core_worker_num());
+    test::wait_all_child_processes();
 }
 
 TEST(server, reload_thread) {
+    ASSERT_EQ(test::has_threads(), 1);
+
+    DEBUG() << "new server\n";
     Server serv(Server::MODE_THREAD);
     serv.worker_num = 2;
     serv.task_worker_num = 2;
 
-    swoole_set_log_level(SW_LOG_WARNING);
+    swoole_set_log_level(SW_LOG_INFO);
 
-    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
-    ASSERT_TRUE(port);
+    DEBUG() << "add port\n";
+    ASSERT_NE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0), nullptr);
 
     Worker user_worker{};
+    ASSERT_NE(serv.add_worker(&user_worker), SW_ERR);
 
-    serv.add_worker(&user_worker);
-
-    mutex lock;
+    mutex lock{};
     lock.lock();
 
+    DEBUG() << "create server\n";
     ASSERT_EQ(serv.create(), SW_OK);
 
     std::thread t1([&]() {
         swoole_signal_block_all();
         lock.lock();
+        usleep(1000);
+        DEBUG() << "reload\n";
         serv.reload(true);
         sleep(1);
+        DEBUG() << "shutdown\n";
         serv.shutdown();
     });
 
     std::atomic<int> count(0);
 
     serv.onUserWorkerStart = [&lock, &count](Server *serv, Worker *worker) {
+        DEBUG() << "onUserWorkerStart: id=" << worker->id << "\n";
         while (serv->running) {
             usleep(100000);
         }
     };
 
-    serv.onWorkerStart = [&lock, &count](Server *serv, Worker *worker) {
-        count++;
-        if (count.load() == 4) {
-            lock.unlock();
-        }
+    serv.onStart = [&lock](Server *serv) {
+        DEBUG() << "onStart\n";
+        lock.unlock();
+    };
+
+    serv.onWorkerStart = [&count](Server *serv, Worker *worker) {
+        ++count;
+        DEBUG() << "onWorkerStart: id=" << worker->id << "\n";
     };
 
     serv.onTask = [](Server *serv, EventData *task) -> int { return 0; };
 
     serv.onReceive = [](Server *serv, RecvData *req) -> int { return SW_OK; };
 
-    serv.start();
+    DEBUG() << "start server\n";
+    ASSERT_EQ(serv.start(), SW_OK);
     t1.join();
+    ASSERT_EQ(count.load(), serv.get_core_worker_num() * 2);
+    test::wait_all_child_processes();
 }
 
 TEST(server, reload_thread_2) {
+    ASSERT_EQ(test::has_threads(), 1);
     Server serv(Server::MODE_THREAD);
     serv.worker_num = 2;
     serv.task_worker_num = 2;
 
     std::unordered_map<std::string, bool> flags;
-    swoole_set_log_level(SW_LOG_WARNING);
+    swoole_set_log_level(SW_LOG_INFO);
 
-    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
-    ASSERT_TRUE(port);
+    ASSERT_NE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0), nullptr);
 
     Worker user_worker{};
 
-    serv.add_worker(&user_worker);
+    ASSERT_EQ(serv.add_worker(&user_worker), SW_OK);
 
     mutex lock;
     lock.lock();
@@ -677,15 +789,14 @@ TEST(server, reload_thread_2) {
 
     std::atomic<int> count(0);
 
-    serv.onUserWorkerStart = [&lock, &count](Server *serv, Worker *worker) {
+    serv.onUserWorkerStart = [](Server *serv, Worker *worker) {
         while (serv->running) {
             usleep(100000);
         }
     };
 
     serv.onWorkerStart = [&lock, &count](Server *serv, Worker *worker) {
-        count++;
-        if (count.load() == 4) {
+        if (++count == serv->get_core_worker_num()) {
             lock.unlock();
         }
     };
@@ -713,13 +824,15 @@ TEST(server, reload_thread_2) {
 
     serv.onManagerStop = [&flags](Server *serv) { flags["onManagerStop"] = true; };
 
-    serv.start();
+    ASSERT_EQ(serv.start(), SW_OK);
 
     ASSERT_TRUE(flags["onBeforeReload"]);
     ASSERT_TRUE(flags["onAfterReload"]);
     ASSERT_TRUE(flags["onManagerStop"]);
     ASSERT_TRUE(flags["reload"]);
     ASSERT_TRUE(flags["shutdown"]);
+
+    test::wait_all_child_processes();
 }
 #endif
 
@@ -728,7 +841,7 @@ TEST(server, reload_all_workers) {
     serv.worker_num = 2;
     serv.task_worker_num = 2;
     serv.max_wait_time = 1;
-    serv.task_enable_coroutine = 1;
+    serv.task_enable_coroutine = true;
 
     swoole_set_log_level(SW_LOG_WARNING);
 
@@ -884,6 +997,19 @@ TEST(server, kill_user_workers1) {
     ASSERT_EQ(serv.start(), 0);
 }
 
+TEST(server, create_task_worker_fail) {
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = 1;
+    serv.task_worker_num = 2;
+    serv.task_enable_coroutine = true;
+    serv.task_ipc_mode = Server::TASK_IPC_MSGQUEUE;
+    swoole_set_log_level(SW_LOG_WARNING);
+
+    ASSERT_TRUE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0));
+    ASSERT_EQ(serv.create(), SW_ERR);
+    ASSERT_ERREQ(SW_ERROR_WRONG_OPERATION);
+}
+
 #ifdef SW_USE_OPENSSL
 TEST(server, ssl) {
     Server serv(Server::MODE_PROCESS);
@@ -951,18 +1077,22 @@ TEST(server, dtls) {
     serv.worker_num = 1;
     swoole_set_log_level(SW_LOG_WARNING);
 
-    Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
+    auto *lock = new Mutex(Mutex::PROCESS_SHARED);
     lock->lock();
 
-    ListenPort *port = serv.add_port((enum swSocketType)(SW_SOCK_UDP | SW_SOCK_SSL), TEST_HOST, 0);
-    if (!port) {
-        swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
-        exit(2);
-    }
+    auto port = serv.add_port((enum swSocketType)(SW_SOCK_UDP | SW_SOCK_SSL), TEST_HOST, 0);
+    ASSERT_NE(port, nullptr);
+
+    auto port6 = serv.add_port((enum swSocketType)(SW_SOCK_UDP6 | SW_SOCK_SSL), TEST_HOST6, 0);
+    ASSERT_NE(port6, nullptr);
 
     port->set_ssl_cert_file(test::get_ssl_dir() + "/server.crt");
     port->set_ssl_key_file(test::get_ssl_dir() + "/server.key");
     port->ssl_init();
+
+    port6->set_ssl_cert_file(test::get_ssl_dir() + "/server.crt");
+    port6->set_ssl_key_file(test::get_ssl_dir() + "/server.key");
+    port6->ssl_init();
 
     ASSERT_EQ(serv.create(), SW_OK);
 
@@ -973,19 +1103,30 @@ TEST(server, dtls) {
 
             lock->lock();
 
-            ListenPort *port = serv->get_primary_port();
-
+            auto port = serv->ports.at(0);
             EXPECT_EQ(port->ssl, 1);
+
+            auto cli_fn = [](network::SyncClient &c) {
+                c.enable_ssl_encrypt();
+                c.send(packet, strlen(packet));
+                char buf[1024];
+                c.recv(buf, sizeof(buf));
+                c.close();
+            };
 
             network::SyncClient c(SW_SOCK_UDP);
             c.connect(TEST_HOST, port->port);
-            c.enable_ssl_encrypt();
-            c.send(packet, strlen(packet));
-            char buf[1024];
-            c.recv(buf, sizeof(buf));
-            c.close();
+            cli_fn(c);
 
-            kill(serv->gs->master_pid, SIGTERM);
+            auto port6 = serv->ports.at(1);
+            EXPECT_EQ(port6->ssl, 1);
+
+            network::SyncClient c2(SW_SOCK_UDP6);
+            c2.connect(TEST_HOST6, port6->port);
+            cli_fn(c2);
+
+            usleep(10000);
+            serv->shutdown();
         });
     };
 
@@ -1030,6 +1171,7 @@ TEST(server, dtls2) {
 
     if (pid > 0) {
         server->start();
+        delete server;
     }
 
     if (pid == 0) {
@@ -1168,7 +1310,7 @@ TEST(server, task_worker) {
     ASSERT_EQ(serv.create(), SW_OK);
 
     thread t1([&serv]() {
-        serv.gs->task_workers.running = 1;
+        serv.gs->task_workers.running = true;
         serv.gs->task_workers.main_loop(&serv.gs->task_workers, &serv.gs->task_workers.workers[0]);
         EXPECT_EQ(serv.get_tasking_num(), 0);
         serv.gs->tasking_num--;
@@ -1196,12 +1338,65 @@ TEST(server, task_worker) {
     ASSERT_EQ(serv.gs->task_count, 2);
 }
 
-// PHP_METHOD(swoole_server, task)
 TEST(server, task_worker2) {
     Server serv(Server::MODE_PROCESS);
+    serv.worker_num = 1;
+    serv.task_worker_num = 2;
+    test::counter_init();
+
+    auto port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_NE(port, nullptr);
+
+    serv.onTask = [](Server *serv, EventData *task) -> int { return 0; };
+
+    serv.onPipeMessage = [](Server *serv, EventData *task) {
+        EXPECT_MEMEQ(task->data, TEST_STR, strlen(TEST_STR));
+        test::counter_incr(7);
+    };
+
+    serv.onWorkerStart = [](Server *serv, Worker *worker) {
+        if (worker->id == 0) {
+            swoole_timer_after(50, [serv](TIMER_PARAMS) {
+                EventData ev;
+                ev.info = {};
+                ev.info.type = SW_SERVER_EVENT_SHUTDOWN;
+                ev.info.len = 0;
+                DEBUG() << "send SW_SERVER_EVENT_SHUTDOWN packet\n";
+                ASSERT_GT(serv->send_to_worker_from_worker(1, &ev, SW_PIPE_MASTER | SW_PIPE_NONBLOCK), 0);
+            });
+
+            swoole_timer_after(60,
+                               [serv](TIMER_PARAMS) { ASSERT_TRUE(serv->send_pipe_message(2, SW_STRL(TEST_STR))); });
+
+            swoole_timer_after(70, [serv](TIMER_PARAMS) {
+                EventData ev;
+                ev.info = {};
+                ev.info.type = SW_SERVER_EVENT_SHUTDOWN + 99;
+                ev.info.len = 0;
+                DEBUG() << "send error type packet\n";
+                ASSERT_GT(serv->send_to_worker_from_worker(0, &ev, SW_PIPE_MASTER | SW_PIPE_NONBLOCK), 0);
+            });
+
+            swoole_timer_after(100, [serv](TIMER_PARAMS) { serv->shutdown(); });
+        }
+        test::counter_incr(1);
+        DEBUG() << "onWorkerStart: id=" << worker->id << "\n";
+    };
+
+    serv.onReceive = [](Server *serv, RecvData *req) -> int { return 0; };
+
+    ASSERT_EQ(serv.create(), SW_OK);
+    ASSERT_EQ(serv.start(), SW_OK);
+
+    ASSERT_EQ(test::counter_get(1), 4);  // onWorkerStart
+    ASSERT_EQ(test::counter_get(7), 1);  // onPipeMessage
+}
+
+static void test_task(Server::Mode mode, uint8_t task_ipc_mode = Server::TASK_IPC_UNIXSOCK) {
+    Server serv(mode);
     serv.worker_num = 2;
+    serv.task_ipc_mode = task_ipc_mode;
     serv.task_worker_num = 3;
-    serv.task_enable_coroutine = 1;
 
     ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     if (!port) {
@@ -1225,6 +1420,7 @@ TEST(server, task_worker2) {
     ASSERT_EQ(serv.create(), SW_OK);
 
     serv.onWorkerStart = [&](Server *serv, Worker *worker) {
+        DEBUG() << "onWorkerStart: id=" << worker->id << "\n";
         if (worker->id == 1) {
             int _dst_worker_id = 0;
 
@@ -1234,13 +1430,26 @@ TEST(server, task_worker2) {
             memcpy(buf.data, packet, strlen(packet));
             buf.info.reactor_id = worker->id;
             buf.info.ext_flags |= (SW_TASK_NONBLOCK | SW_TASK_CALLBACK);
-            ASSERT_EQ(serv->gs->task_workers.dispatch(&buf, &_dst_worker_id), SW_OK);
+            ASSERT_TRUE(serv->task(&buf, &_dst_worker_id));
             sleep(1);
-            kill(serv->gs->master_pid, SIGTERM);
+            serv->shutdown();
         }
     };
 
     ASSERT_EQ(serv.start(), 0);
+}
+
+// PHP_METHOD(swoole_server, task)
+TEST(server, task_base) {
+    test_task(Server::MODE_BASE);
+}
+
+TEST(server, task_process) {
+    test_task(Server::MODE_PROCESS);
+}
+
+TEST(server, task_ipc_stream) {
+    test_task(Server::MODE_PROCESS, Server::TASK_IPC_STREAM);
 }
 
 // static PHP_METHOD(swoole_server, taskCo)
@@ -1347,15 +1556,22 @@ TEST(server, task_worker4) {
     ASSERT_EQ(serv.start(), 0);
 }
 
-// static PHP_METHOD(swoole_server, taskWaitMulti)
-TEST(server, task_worker5) {
+TEST(server, task_sync_multi_task) {
     Server serv(Server::MODE_PROCESS);
     serv.worker_num = 2;
     serv.task_worker_num = 3;
-    serv.task_enable_coroutine = 1;
 
-    char data[SW_IPC_MAX_SIZE * 2] = {};
-    swoole_random_string(data, SW_IPC_MAX_SIZE * 2);
+    std::vector<std::string> tasks;
+    std::vector<std::string> results;
+    int n_task = 16;
+    size_t len_task = SW_IPC_MAX_SIZE * 2;
+    SW_LOOP_N(n_task) {
+        char data[len_task] = {};
+        swoole_random_string(data, len_task - 1);
+        tasks.push_back(string(data, len_task - 1));
+    }
+
+    results.resize(n_task);
 
     ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     if (!port) {
@@ -1365,57 +1581,47 @@ TEST(server, task_worker5) {
 
     serv.onReceive = [](Server *server, RecvData *req) -> int { return SW_OK; };
 
-    serv.onTask = [&data](Server *serv, EventData *task) -> int {
-        PacketTask *pkg = (PacketTask *) task->data;
-        ifstream ifs;
-        ifs.open(pkg->tmpfile);
-        char resp[SW_IPC_MAX_SIZE * 2] = {0};
-        ifs >> resp;
-        ifs.close();
-
-        EXPECT_EQ(string(resp), string(data));
-        EXPECT_TRUE(serv->finish(resp, SW_IPC_MAX_SIZE * 2, 0, task));
+    serv.onTask = [](Server *serv, EventData *task) -> int {
+        PacketPtr packet{};
+        String buffer(32 * 1024);
+        if (!Server::task_unpack(task, &buffer, &packet)) {
+            return -1;
+        }
+        Server::task_dump(task);
+        EXPECT_TRUE(serv->finish(packet.data, packet.length, 0, task));
         return 0;
     };
 
     ASSERT_EQ(serv.create(), SW_OK);
+    SwooleG.current_task_id = 100;
 
-    serv.onWorkerStart = [&data](Server *serv, Worker *worker) {
+    serv.onWorkerStart = [&tasks, &results](Server *serv, Worker *worker) {
         if (worker->id == 1) {
-            int _dst_worker_id = 0;
+            Server::MultiTask mt(tasks.size());
+            mt.pack = [tasks](uint16_t i, EventData *buf) -> TaskId {
+                auto &task = tasks.at(i);
+                if (!Server::task_pack(buf, task.c_str(), task.length())) {
+                    return -1;
+                } else {
+                    return buf->info.fd;
+                }
+            };
 
-            EventData *task_result = &(serv->task_results[worker->id]);
-            sw_memset_zero(task_result, sizeof(*task_result));
+            mt.unpack = [&tasks, &results](uint16_t i, EventData *result) {
+                String buffer(32 * 1024);
+                PacketPtr packet;
+                if (Server::task_unpack(result, &buffer, &packet)) {
+                    results[i] = std::string(packet.data, packet.length);
+                }
+            };
 
-            File fp = make_tmpfile();
-            std::string file_path = fp.get_path();
-            fp.close();
-            int *finish_count = (int *) task_result->data;
-            *finish_count = 0;
+            mt.fail = [&results](uint16_t i) { DEBUG() << "task failed: " << i << std::endl; };
 
-            swoole_strlcpy(task_result->data + 4, file_path.c_str(), SW_TASK_TMP_PATH_SIZE);
+            EXPECT_TRUE(serv->task_sync(mt, 10));
 
-            EventData buf{};
-            memset(&buf.info, 0, sizeof(buf.info));
-            Server::task_pack(&buf, data, SW_IPC_MAX_SIZE * 2);
-            buf.info.ext_flags |= SW_TASK_WAITALL;
-            buf.info.reactor_id = worker->id;
-            serv->gs->task_workers.dispatch(&buf, &_dst_worker_id);
-            sleep(3);
-
-            ifstream ifs;
-            ifs.open(task_result->data + 4);
-            char recv[sizeof(EventData)] = {0};
-            ifs >> recv;
-            ifs.close();
-
-            EventData *task = (EventData *) recv;
-            PacketTask *pkg = (PacketTask *) task->data;
-            ifs.open(pkg->tmpfile);
-            char resp[SW_IPC_MAX_SIZE * 2] = {0};
-            ifs >> resp;
-            ifs.close();
-            EXPECT_EQ(string(resp), string(data));
+            SW_LOOP_N(tasks.size()) {
+                EXPECT_EQ(tasks[i], results[i]);
+            }
 
             kill(serv->gs->master_pid, SIGTERM);
         }
@@ -1439,6 +1645,7 @@ TEST(server, task_sync) {
 
     serv.onTask = [](Server *serv, EventData *task) -> int {
         EXPECT_EQ(string(task->data, task->info.len), string(packet));
+        Server::task_dump(task);
         EXPECT_TRUE(serv->finish(task->data, task->info.len, 0, task));
         return 0;
     };
@@ -1477,6 +1684,7 @@ static void test_task_ipc(Server &serv) {
 
     serv.onFinish = [](Server *serv, EventData *task) -> int {
         EXPECT_EQ(string(task->data, task->info.len), string(packet));
+        usleep(100000);
         serv->shutdown();
         return 0;
     };
@@ -1537,6 +1745,8 @@ TEST(server, task_ipc_queue_5) {
     serv.worker_num = 2;
     serv.task_worker_num = 2;
     serv.task_ipc_mode = Server::TASK_IPC_MSGQUEUE;
+
+    test::wait_all_child_processes();
 
     test_task_ipc(serv);
 }
@@ -1877,9 +2087,9 @@ TEST(server, udp_packet) {
 
     if (pid > 0) {
         server->start();
-    }
-
-    if (pid == 0) {
+        int status;
+        waitpid(pid, &status, 0);
+    } else if (pid == 0) {
         sleep(1);
         auto port = server->get_primary_port();
 
@@ -1892,7 +2102,7 @@ TEST(server, udp_packet) {
         char buf[1024];
         sleep(1);
         cli.recv(buf, 128, 0);
-        ASSERT_STREQ(buf, packet);
+        ASSERT_MEMEQ(buf, packet, strlen(packet));
         cli.close();
 
         kill(server->get_master_pid(), SIGTERM);
@@ -2581,14 +2791,24 @@ TEST(server, clean_worker_2) {
     test_clean_worker(Server::MODE_THREAD);
 }
 
-static void test_kill_worker(Server::Mode mode, bool wait_reactor = true) {
+struct Options {
+    bool wait_reactor = true;
+    bool reload_async = true;
+    bool worker_exit_callback = false;
+    bool test_shutdown_event = false;
+};
+
+static long test_timer;
+
+static void test_kill_worker(Server::Mode mode, const Options &options) {
     Server serv(mode);
     serv.worker_num = 2;
+    serv.reload_async = options.reload_async;
 
     test::counter_init();
     int *counter = test::counter_ptr();
 
-    swoole::Mutex lock(swoole::Mutex::PROCESS_SHARED);
+    Mutex lock(Mutex::PROCESS_SHARED);
     lock.lock();
 
     ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
@@ -2611,15 +2831,39 @@ static void test_kill_worker(Server::Mode mode, bool wait_reactor = true) {
     serv.onWorkerStop = [counter](Server *_serv, Worker *worker) {
         _serv->close(counter[4]);
         _serv->drain_worker_pipe();
+        DEBUG() << "worker#" << worker->id << " stop \n";
     };
 
     serv.onClose = [counter](Server *serv, DataHead *ev) { sw_atomic_fetch_add(&counter[2], 1); };
 
-    serv.onWorkerStart = [counter](Server *_serv, Worker *worker) { sw_atomic_fetch_add(&counter[1], 1); };
+    serv.onWorkerStart = [counter, &options](Server *serv, Worker *worker) {
+        auto c = sw_atomic_fetch_add(&counter[1], 1);
+        DEBUG() << "worker#" << worker->id << " start \n";
+        if (options.worker_exit_callback) {
+            test_timer = swoole_timer_tick(5000, [counter](TIMER_PARAMS) {});
+        }
 
-    serv.onStart = [&lock](Server *_serv) {
+        if (c < 2 && options.test_shutdown_event && worker->id == 0) {
+            EventData ev;
+            ev.info = {};
+            ev.info.type = SW_SERVER_EVENT_SHUTDOWN;
+            ev.info.len = 0;
+            DEBUG() << "send SW_SERVER_EVENT_SHUTDOWN packet\n";
+            ASSERT_GT(serv->send_to_worker_from_worker(1, &ev, SW_PIPE_MASTER | SW_PIPE_NONBLOCK), 0);
+        }
+    };
+
+    if (options.worker_exit_callback) {
+        serv.onWorkerExit = [counter](Server *_serv, Worker *worker) {
+            swoole_timer_clear(test_timer);
+            test::counter_incr(6, 1);
+            DEBUG() << "worker#" << worker->id << " exit \n";
+        };
+    }
+
+    serv.onStart = [&lock, &options](Server *_serv) {
         if (!sw_worker()) {
-            ASSERT_FALSE(_serv->kill_worker(-1, true));
+            ASSERT_FALSE(_serv->kill_worker(-1, options.wait_reactor));
         }
         lock.unlock();
     };
@@ -2640,7 +2884,7 @@ static void test_kill_worker(Server::Mode mode, bool wait_reactor = true) {
         auto rn = c.recv(rbuf.str, rbuf.size);
         EXPECT_EQ(rn, 2);
 
-        serv.kill_worker(1 - counter[5], wait_reactor);
+        serv.kill_worker(1 - counter[5], options.wait_reactor);
 
         rn = c.recv(rbuf.str, rbuf.size);
         EXPECT_EQ(rn, 0);
@@ -2655,34 +2899,78 @@ static void test_kill_worker(Server::Mode mode, bool wait_reactor = true) {
     ASSERT_EQ(serv.start(), SW_OK);
     t.join();
 
-    ASSERT_EQ(counter[0], 1);  // Client receive
-    ASSERT_EQ(counter[1], 3);  // Server onWorkeStart
-    ASSERT_EQ(counter[2], 1);  // Server onClose
-    ASSERT_EQ(counter[3], 1);  // Client close
+    ASSERT_EQ(counter[0], 1);                                    // Client receive
+    ASSERT_EQ(counter[1], options.test_shutdown_event ? 4 : 3);  // Server onWorkerStart
+    ASSERT_EQ(counter[2], 1);                                    // Server onClose
+    ASSERT_EQ(counter[3], 1);                                    // Client close
+    // counter[4] is the client fd
+    // counter[5] is the worker id
+    // counter[6] is the worker exit count
+
+    if (options.worker_exit_callback) {
+        ASSERT_EQ(counter[6], 3);  // Worker exit
+    }
 }
 
 TEST(server, kill_worker_1) {
-    test_kill_worker(Server::MODE_BASE);
+    Options opt;
+    opt.reload_async = true;
+    opt.wait_reactor = true;
+    test_kill_worker(Server::MODE_BASE, opt);
 }
 
 TEST(server, kill_worker_2) {
-    test_kill_worker(Server::MODE_PROCESS);
+    Options opt;
+    opt.reload_async = true;
+    opt.wait_reactor = true;
+    test_kill_worker(Server::MODE_PROCESS, opt);
 }
 
 TEST(server, kill_worker_3) {
-    test_kill_worker(Server::MODE_THREAD);
+    Options opt;
+    opt.reload_async = true;
+    opt.wait_reactor = true;
+    test_kill_worker(Server::MODE_THREAD, opt);
 }
 
 TEST(server, kill_worker_4) {
-    test_kill_worker(Server::MODE_BASE, false);
+    Options opt;
+    opt.reload_async = true;
+    opt.wait_reactor = false;
+    test_kill_worker(Server::MODE_BASE, opt);
 }
 
 TEST(server, kill_worker_5) {
-    test_kill_worker(Server::MODE_PROCESS, false);
+    Options opt;
+    opt.reload_async = true;
+    opt.wait_reactor = false;
+    test_kill_worker(Server::MODE_PROCESS, opt);
 }
 
 TEST(server, kill_worker_6) {
-    test_kill_worker(Server::MODE_THREAD, false);
+    Options opt;
+    opt.reload_async = true;
+    opt.wait_reactor = false;
+    test_kill_worker(Server::MODE_THREAD, opt);
+}
+
+TEST(server, no_reload_async) {
+    Options opt;
+    opt.reload_async = false;
+    opt.wait_reactor = true;
+    test_kill_worker(Server::MODE_PROCESS, opt);
+}
+
+TEST(server, worker_exit) {
+    Options opt;
+    opt.worker_exit_callback = true;
+    test_kill_worker(Server::MODE_PROCESS, opt);
+}
+
+TEST(server, shutdown_event) {
+    Options opt;
+    opt.test_shutdown_event = true;
+    test_kill_worker(Server::MODE_PROCESS, opt);
 }
 
 static void test_kill_self(Server::Mode mode) {
@@ -3072,4 +3360,445 @@ TEST(server, send_timeout) {
     delete lock;
     ASSERT_EQ(counter[0], 1);
     ASSERT_EQ(counter[3], 1);
+}
+
+static void test_max_request(Server::Mode mode) {
+    Server serv(mode);
+    serv.worker_num = 2;
+    serv.max_request = 128;
+
+    Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
+    lock->lock();
+
+    ASSERT_NE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0), nullptr);
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    thread t1;
+    serv.onStart = [&lock, &t1](Server *serv) {
+        t1 = thread([=]() {
+            swoole_signal_block_all();
+            lock->lock();
+            ListenPort *port = serv->get_primary_port();
+
+            auto client_fn = [&]() {
+                network::SyncClient c(SW_SOCK_TCP);
+                c.connect(TEST_HOST, port->port);
+
+                SW_LOOP_N(128) {
+                    if (c.send(packet, strlen(packet)) < 0) {
+                        break;
+                    }
+                    usleep(1000);
+                }
+                c.close();
+            };
+
+            SW_LOOP_N(8) {
+                client_fn();
+                usleep(10000);
+            }
+
+            sleep(1);
+
+            serv->shutdown();
+        });
+    };
+
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) {
+        lock->unlock();
+        test::counter_incr(0);
+    };
+
+    serv.onReceive = [](Server *serv, RecvData *req) -> int { return SW_OK; };
+
+    ASSERT_EQ(serv.start(), 0);
+
+    t1.join();
+    delete lock;
+
+    ASSERT_GE(test::counter_get(0), 8);
+}
+
+TEST(server, max_request_1) {
+    test_max_request(Server::MODE_PROCESS);
+}
+
+TEST(server, max_request_2) {
+    test_max_request(Server::MODE_THREAD);
+}
+
+TEST(server, watermark) {
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = 2;
+
+    Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
+    lock->lock();
+
+    String wbuf;
+    wbuf.append_random_bytes(2 * 1024 * 1024);
+
+    auto port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_NE(port, nullptr);
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    port->get_socket()->set_buffer_size(65536);
+    port->buffer_high_watermark = 1024 * 1024;
+    port->buffer_low_watermark = 65536;
+
+    thread t1;
+    serv.onStart = [&lock, &t1](Server *serv) {
+        t1 = thread([=]() {
+            swoole_signal_block_all();
+            lock->lock();
+            ListenPort *port = serv->get_primary_port();
+
+            network::SyncClient c(SW_SOCK_TCP);
+            c.connect(TEST_HOST, port->port);
+            c.get_client()->get_socket()->set_buffer_size(65536);
+            c.send(packet, strlen(packet));
+            usleep(1000);
+
+            String rbuf(2 * 1024 * 1024);
+            while (rbuf.length < rbuf.size) {
+                auto rn = c.recv(rbuf.str + rbuf.length, 65536);
+                usleep(10000);
+                if (rn <= 0) {
+                    break;
+                }
+                rbuf.length += rn;
+            }
+
+            sleep(1);
+            c.close();
+            serv->shutdown();
+        });
+    };
+
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) {
+        lock->unlock();
+        test::counter_incr(0);
+    };
+
+    serv.onReceive = [&wbuf](Server *serv, RecvData *req) -> int {
+        EXPECT_TRUE(serv->send(req->session_id(), wbuf.str, wbuf.length));
+        return SW_OK;
+    };
+
+    serv.onBufferEmpty = [](Server *serv, DataHead *ev) { test::counter_incr(1); };
+
+    serv.onBufferFull = [](Server *serv, DataHead *ev) { test::counter_incr(2); };
+
+    ASSERT_EQ(serv.start(), 0);
+
+    t1.join();
+    delete lock;
+
+    ASSERT_GE(test::counter_get(1), 1);
+    ASSERT_GE(test::counter_get(2), 1);
+}
+
+TEST(server, discard_data) {
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = 2;
+    serv.dispatch_mode = 3;
+    serv.discard_timeout_request = true;
+    serv.disable_notify = true;
+
+    swoole_set_log_file(TEST_LOG_FILE);
+    swoole_set_log_level(SW_LOG_WARNING);
+
+    Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
+    lock->lock();
+
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    if (!port) {
+        swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
+        exit(2);
+    }
+
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    String rdata;
+    rdata.append_random_bytes(8192);
+
+    thread t1;
+    serv.onStart = [&lock, &t1, &rdata](Server *serv) {
+        t1 = thread([&lock, &rdata, serv]() {
+            swoole_signal_block_all();
+
+            lock->lock();
+
+            ListenPort *port = serv->get_primary_port();
+
+            network::SyncClient c(SW_SOCK_TCP);
+            c.connect(TEST_HOST, port->port);
+
+            SW_LOOP_N(128) {
+                c.send(rdata.str, rdata.length);
+                usleep(10);
+            }
+
+            sleep(1);
+
+            kill(serv->gs->master_pid, SIGTERM);
+        });
+    };
+
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock->unlock(); };
+
+    serv.onReceive = [](Server *serv, RecvData *req) -> int {
+        usleep(10000);
+        serv->close(req->session_id());
+        return SW_OK;
+    };
+
+    ASSERT_EQ(serv.start(), 0);
+
+    t1.join();
+    delete lock;
+
+    auto log = file_get_contents(TEST_LOG_FILE);
+    DEBUG() << log->str << std::endl;
+    ASSERT_TRUE(log->contains("discard_data() (ERRNO 1007)"));
+    remove(TEST_LOG_FILE);
+}
+
+TEST(server, worker_set_isolation) {
+    Server::worker_set_isolation("not-exists-group", "not-exists-user", "/tmp/not-exists-dir");
+}
+
+TEST(server, pause_and_resume) {
+    Server serv(Server::MODE_BASE);
+    serv.worker_num = 2;
+
+    swoole_set_log_level(SW_LOG_TRACE);
+
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_TRUE(port);
+
+    Mutex lock(Mutex::PROCESS_SHARED);
+    lock.lock();
+
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    std::thread t1([&]() {
+        swoole_signal_block_all();
+        lock.lock();
+
+        usleep(1000);
+
+        network::SyncClient c(SW_SOCK_TCP);
+        ASSERT_TRUE(c.connect(TEST_HOST, port->port));
+        ASSERT_EQ(c.send(packet, strlen(packet)), strlen(packet));
+        char buf[1024];
+        auto t1 = microtime();
+        ASSERT_EQ(c.recv(buf, sizeof(buf)), strlen(packet) + 8);
+        auto t2 = microtime();
+        ASSERT_GE(t2 - t1, 0.048);  // Ensure that the pause and resume took some time
+        string resp = string("Server: ") + string(packet);
+        ASSERT_MEMEQ(buf, resp.c_str(), resp.length());
+        c.close();
+
+        usleep(1000);
+        DEBUG() << "shutdown\n";
+        serv.shutdown();
+    });
+
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock.unlock(); };
+
+    serv.onConnect = [](Server *serv, DataHead *ev) {
+        auto session_id = ev->fd;
+        DEBUG() << "onConnect: fd=" << session_id << ", reactor_id=" << ev->reactor_id << std::endl;
+        ASSERT_TRUE(serv->feedback(serv->get_connection_by_session_id(session_id), SW_SERVER_EVENT_PAUSE_RECV));
+        DEBUG() << "pause recv ok, session_id=" << session_id << std::endl;
+        swoole_timer_after(50, [ev, serv, session_id](TIMER_PARAMS) {
+            ASSERT_TRUE(serv->feedback(serv->get_connection_by_session_id(session_id), SW_SERVER_EVENT_RESUME_RECV));
+            DEBUG() << "resume recv ok, session_id=" << session_id << std::endl;
+        });
+    };
+
+    serv.onReceive = [](Server *serv, RecvData *req) -> int {
+        EXPECT_EQ(string(req->data, req->info.len), string(packet));
+        string resp = string("Server: ") + string(packet);
+        serv->send(req->info.fd, resp.c_str(), resp.length());
+        return SW_OK;
+    };
+
+    serv.start();
+    t1.join();
+}
+
+TEST(server, max_queued_bytes) {
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = 2;
+    serv.max_queued_bytes = 65536;
+
+    test::counter_init();
+    swoole_set_log_level(SW_LOG_TRACE);
+
+    int buffer_size = 65536;
+    int send_count = 256;
+
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_TRUE(port);
+
+    Mutex lock(Mutex::PROCESS_SHARED);
+    lock.lock();
+
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    std::thread t1([&]() {
+        swoole_signal_block_all();
+        lock.lock();
+
+        usleep(1000);
+
+        String wbuf;
+        wbuf.append_random_bytes(buffer_size);
+
+        network::SyncClient c(SW_SOCK_TCP);
+        ASSERT_TRUE(c.connect(TEST_HOST, port->port));
+        SW_LOOP_N(send_count) {
+            ASSERT_EQ(c.send(wbuf.str, wbuf.length), wbuf.length);
+        }
+        char buf[1024];
+        ASSERT_EQ(c.recv(buf, sizeof(buf)), strlen(TEST_STR));
+        c.close();
+
+        usleep(1000);
+        DEBUG() << "shutdown\n";
+        serv.shutdown();
+    });
+
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock.unlock(); };
+
+    serv.onConnect = [](Server *serv, DataHead *ev) { usleep(100000); };
+
+    serv.onReceive = [=](Server *serv, RecvData *req) -> int {
+        if (test::counter_incr(0, req->info.len) == send_count * buffer_size) {
+            serv->send(req->session_id(), SW_STRL(TEST_STR));
+        }
+        return SW_OK;
+    };
+
+    serv.start();
+    t1.join();
+    ASSERT_EQ(send_count * buffer_size, test::counter_get(0));
+}
+
+TEST(server, ssl_matches_wildcard_name) {
+    // Test exact match
+    {
+        EXPECT_TRUE(ListenPort::ssl_matches_wildcard_name("example.com", "example.com"));
+        EXPECT_TRUE(ListenPort::ssl_matches_wildcard_name("test.example.com", "test.example.com"));
+        EXPECT_TRUE(ListenPort::ssl_matches_wildcard_name("EXAMPLE.COM", "example.com"));  // Case insensitive
+        EXPECT_TRUE(ListenPort::ssl_matches_wildcard_name("example.com", "EXAMPLE.COM"));  // Case insensitive
+    }
+
+    // Test no match
+    {
+        EXPECT_FALSE(ListenPort::ssl_matches_wildcard_name("example.com", "example.org"));
+        EXPECT_FALSE(ListenPort::ssl_matches_wildcard_name("test.example.com", "test.example.org"));
+        EXPECT_FALSE(ListenPort::ssl_matches_wildcard_name("sub.example.com", "example.com"));
+        EXPECT_FALSE(ListenPort::ssl_matches_wildcard_name("example.com", "sub.example.com"));
+    }
+
+    // Test wildcard in leftmost component
+    {
+        EXPECT_TRUE(ListenPort::ssl_matches_wildcard_name("test.example.com", "*.example.com"));
+        EXPECT_TRUE(ListenPort::ssl_matches_wildcard_name("sub.example.com", "*.example.com"));
+        EXPECT_TRUE(ListenPort::ssl_matches_wildcard_name("TEST.example.com", "*.example.com"));  // Case insensitive
+        EXPECT_TRUE(ListenPort::ssl_matches_wildcard_name("test.example.com", "*.EXAMPLE.COM"));  // Case insensitive
+    }
+
+    // Test wildcard with prefix
+    {
+        EXPECT_TRUE(ListenPort::ssl_matches_wildcard_name("subtest.example.com", "sub*.example.com"));
+        EXPECT_TRUE(ListenPort::ssl_matches_wildcard_name("subthing.example.com", "sub*.example.com"));
+        EXPECT_FALSE(ListenPort::ssl_matches_wildcard_name("wrongtest.example.com", "sub*.example.com"));
+        EXPECT_FALSE(ListenPort::ssl_matches_wildcard_name("test.example.com", "sub*.example.com"));
+    }
+
+    // Test wildcard in non-leftmost component (should fail)
+    {
+        EXPECT_FALSE(ListenPort::ssl_matches_wildcard_name("test.example.com", "test.*.com"));
+        EXPECT_FALSE(ListenPort::ssl_matches_wildcard_name("test.sub.example.com", "test.*.example.com"));
+        EXPECT_FALSE(ListenPort::ssl_matches_wildcard_name("example.com", "example.*"));
+    }
+
+    // Test wildcard with dot in prefix (should fail)
+    {
+        EXPECT_FALSE(ListenPort::ssl_matches_wildcard_name("test.example.com", "test.*.com"));
+        EXPECT_FALSE(ListenPort::ssl_matches_wildcard_name("sub.test.example.com", "sub.*.example.com"));
+    }
+
+    // Test multiple wildcards (only first one should be considered)
+    {
+        // EXPECT_TRUE(ListenPort::ssl_matches_wildcard_name("test.example.com", "*.*example.com"));
+        EXPECT_FALSE(ListenPort::ssl_matches_wildcard_name("test.sub.example.com", "*.*example.com"));
+        EXPECT_FALSE(ListenPort::ssl_matches_wildcard_name("test.example.com", "*.*"));
+    }
+
+    // Test wildcard matching with dots between prefix and suffix
+    {
+        // These should fail because there's a dot between the prefix and suffix
+        EXPECT_FALSE(ListenPort::ssl_matches_wildcard_name("test.sub.example.com", "*.example.com"));
+        EXPECT_FALSE(ListenPort::ssl_matches_wildcard_name("a.b.c.example.com", "*.example.com"));
+
+        // This should pass because there's no dot in the wildcard portion
+        EXPECT_TRUE(ListenPort::ssl_matches_wildcard_name("testexample.com", "*example.com"));
+    }
+
+    // Test suffix length conditions
+    {
+        // Suffix longer than subject (should fail)
+        EXPECT_FALSE(ListenPort::ssl_matches_wildcard_name("test.com", "*.example.com"));
+        EXPECT_FALSE(ListenPort::ssl_matches_wildcard_name("short", "*.verylongdomain.com"));
+
+        // Suffix exactly matches subject length (edge case)
+        EXPECT_FALSE(ListenPort::ssl_matches_wildcard_name("example.com", "*.example.com"));
+    }
+
+    // Test empty strings and edge cases
+    {
+        // EXPECT_FALSE(ListenPort::ssl_matches_wildcard_name("", ""));
+        EXPECT_FALSE(ListenPort::ssl_matches_wildcard_name("example.com", ""));
+        EXPECT_FALSE(ListenPort::ssl_matches_wildcard_name("", "example.com"));
+        // EXPECT_FALSE(ListenPort::ssl_matches_wildcard_name("", "*"));
+        // EXPECT_FALSE(ListenPort::ssl_matches_wildcard_name("test", "*"));
+        EXPECT_TRUE(ListenPort::ssl_matches_wildcard_name("*", "*"));  // Exact match
+        EXPECT_TRUE(ListenPort::ssl_matches_wildcard_name("test", "*est"));
+    }
+
+    // Test wildcard at beginning with no prefix
+    {
+        EXPECT_TRUE(ListenPort::ssl_matches_wildcard_name("test.example.com", "*.example.com"));
+        EXPECT_TRUE(ListenPort::ssl_matches_wildcard_name("example.com", "*example.com"));
+        // EXPECT_FALSE(ListenPort::ssl_matches_wildcard_name("test.example.com", "*test.example.com"));
+    }
+
+    // Test wildcard at end with no suffix
+    {
+        EXPECT_FALSE(ListenPort::ssl_matches_wildcard_name("example.com", "example*"));
+        EXPECT_FALSE(ListenPort::ssl_matches_wildcard_name("example.com", "example.*"));
+    }
+
+    // Test practical examples from real-world scenarios
+    {
+        // Common wildcard cert patterns
+        EXPECT_TRUE(ListenPort::ssl_matches_wildcard_name("www.example.com", "*.example.com"));
+        EXPECT_TRUE(ListenPort::ssl_matches_wildcard_name("api.example.com", "*.example.com"));
+        EXPECT_TRUE(ListenPort::ssl_matches_wildcard_name("login.example.com", "*.example.com"));
+
+        // Subdomain matching
+        EXPECT_FALSE(ListenPort::ssl_matches_wildcard_name("sub.api.example.com", "*.example.com"));
+        EXPECT_TRUE(ListenPort::ssl_matches_wildcard_name("sub.api.example.com", "*.api.example.com"));
+
+        // IP addresses (wildcards shouldn't work with IPs in practice)
+        // EXPECT_FALSE(ListenPort::ssl_matches_wildcard_name("192.168.1.1", "*.168.1.1"));
+
+        // Partial wildcard matches
+        EXPECT_TRUE(ListenPort::ssl_matches_wildcard_name("dev-server.example.com", "dev-*.example.com"));
+        EXPECT_TRUE(ListenPort::ssl_matches_wildcard_name("staging-server.example.com", "*-server.example.com"));
+    }
 }

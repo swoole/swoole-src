@@ -232,7 +232,7 @@ TEST(coroutine_hook, rename) {
         ASSERT_EQ(swoole_coroutine_write(fd, buf, n_buf), n_buf);
         swoole_coroutine_close(fd);
 
-        std::string to_file_name = std::string(test_file, ".bak");
+        std::string to_file_name = std::string(test_file) + ".bak";
         ASSERT_EQ(swoole_coroutine_rename(test_file, to_file_name.c_str()), 0);
         ASSERT_EQ(access(TEST_TMP_DIR, F_OK), -1);
         ASSERT_EQ(access(to_file_name.c_str(), F_OK), 0);
@@ -242,13 +242,14 @@ TEST(coroutine_hook, rename) {
 }
 
 TEST(coroutine_hook, flock) {
-    if (is_github_ci()) {
-        return;
-    }
     long start_time = swoole::time<std::chrono::milliseconds>();
     coroutine::run([&](void *arg) {
-        swoole::Coroutine::create([&](void *arg) {
+        Coroutine::create([&](void *arg) {
             int fd = swoole_coroutine_open(TEST_TMP_FILE, O_WRONLY, 0);
+
+            ASSERT_EQ(swoole_coroutine_flock(fd, 16), SW_ERR);
+            ASSERT_ERREQ(EINVAL);
+
             ASSERT_EQ(swoole_coroutine_flock(fd, LOCK_EX), 0);
             System::sleep(0.1);
             ASSERT_EQ(swoole_coroutine_flock(fd, LOCK_UN), 0);
@@ -258,10 +259,10 @@ TEST(coroutine_hook, flock) {
             ASSERT_LE(swoole::time<std::chrono::milliseconds>() - start_time, 1000);
             swoole_coroutine_close(fd);
         });
-        swoole::Coroutine::create([&](void *arg) {
+        Coroutine::create([&](void *arg) {
             int fd = swoole_coroutine_open(TEST_TMP_FILE, O_WRONLY, 0);
             ASSERT_EQ(swoole_coroutine_flock(fd, LOCK_SH), 0);
-            System::sleep(2);
+            System::sleep(0.5);
             ASSERT_EQ(swoole_coroutine_flock(fd, LOCK_UN), 0);
             swoole_coroutine_close(fd);
         });

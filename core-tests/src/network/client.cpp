@@ -192,6 +192,8 @@ TEST(client, async_tcp_dns_fail) {
 
     Client ac(SW_SOCK_TCP, true);
 
+    ASSERT_EQ(ac.connect(TEST_HOST, 9999), SW_ERR);
+
     bool success = true;
 
     ac.onConnect = [&success](Client *ac) {
@@ -664,8 +666,7 @@ TEST(client, shutdown_all) {
 }
 
 #ifdef SW_USE_OPENSSL
-
-static void test_ssl_get_baidu() {
+static void test_ssl_http_get() {
     bool connected = false;
     bool closed = false;
     String buf(65536);
@@ -676,24 +677,25 @@ static void test_ssl_get_baidu() {
     client.enable_ssl_encrypt();
     client.onConnect = [&connected](Client *cli) {
         connected = true;
-        cli->send(SW_STRL(TEST_REQUEST_BAIDU), 0);
+        auto req = swoole::test::http_get_request(TEST_HTTP_DOMAIN, "/");
+        cli->send(req.c_str(), req.length(), 0);
     };
 
     client.onError = [](Client *cli) {};
     client.onClose = [&closed](Client *cli) { closed = true; };
     client.onReceive = [&buf](Client *cli, const char *data, size_t length) { buf.append(data, length); };
 
-    ASSERT_EQ(client.connect(TEST_DOMAIN_BAIDU, 443, -1, 0), 0);
+    ASSERT_EQ(client.connect(TEST_HTTP_DOMAIN, 443, -1, 0), 0);
 
     swoole_event_wait();
 
     ASSERT_TRUE(connected);
     ASSERT_TRUE(closed);
-    ASSERT_TRUE(buf.contains("Baidu"));
+    ASSERT_TRUE(buf.contains(TEST_HTTPS_EXPECT));
 }
 
 TEST(client, ssl_1) {
-    test_ssl_get_baidu();
+    test_ssl_http_get();
 }
 
 TEST(client, ssl_sendfile) {

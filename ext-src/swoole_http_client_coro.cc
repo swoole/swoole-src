@@ -1152,7 +1152,7 @@ bool Client::send_request() {
     // ============ multipart/form-data ============
     if ((has_upload_files = (php_swoole_array_length_safe(zupload_files) > 0))) {
         char header_buf[2048];
-        char boundary_str[SW_HTTP_CLIENT_BOUNDARY_TOTAL_SIZE];
+        char boundary_str[SW_HTTP_CLIENT_BOUNDARY_TOTAL_SIZE + 1];
         int n;
 
         // ============ content-type ============

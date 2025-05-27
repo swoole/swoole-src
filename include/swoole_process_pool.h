@@ -413,8 +413,8 @@ struct ProcessPool {
     swResultCode dispatch_sync(EventData *data, int *dst_worker_id);
     swResultCode dispatch_sync(const char *data, uint32_t len);
     void add_worker(Worker *worker) const;
-    int del_worker(Worker *worker) const;
-    Worker *get_worker_by_pid(pid_t pid);
+    bool del_worker(const Worker *worker) const;
+    Worker *get_worker_by_pid(pid_t pid) const;
     void destroy();
     int create(uint32_t worker_num, key_t msgqueue_key = 0, swIPCMode ipc_mode = SW_IPC_NONE);
     int create_message_box(size_t memory_size);

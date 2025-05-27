@@ -1181,13 +1181,45 @@ static void proxy_test(Socket &sock, bool https) {
     socket_test_request_baidu(sock);
 }
 
-static void proxy_set_socks5_proxy(Socket &socket) {
+static void proxy_set_socks5_proxy(Socket &socket, int port, bool auth) {
     std::string username, password;
-    if (swoole::test::is_github_ci()) {
+    if (auth) {
         username = std::string(TEST_SOCKS5_PROXY_USER);
         password = std::string(TEST_SOCKS5_PROXY_PASSWORD);
     }
-    socket.set_socks5_proxy(TEST_SOCKS5_PROXY_HOST, TEST_SOCKS5_PROXY_PORT, username, password);
+    socket.set_socks5_proxy(TEST_SOCKS5_PROXY_HOST, port, username, password);
+}
+
+TEST(coroutine_socket, https_get_with_socks5_proxy) {
+    coroutine::run([](void *arg) {
+        if (swoole::test::is_github_ci()) {
+            Socket sock(SW_SOCK_TCP);
+            proxy_set_socks5_proxy(sock, TEST_SOCKS5_PROXY_PORT, true);
+            proxy_test(sock, true);
+        }
+        // no auth
+        {
+            Socket sock(SW_SOCK_TCP);
+            proxy_set_socks5_proxy(sock, TEST_SOCKS5_PROXY_NO_AUTH_PORT, false);
+            proxy_test(sock, true);
+        }
+    });
+}
+
+TEST(coroutine_socket, http_get_with_socks5_proxy) {
+    coroutine::run([](void *arg) {
+        if (swoole::test::is_github_ci()) {
+            Socket sock(SW_SOCK_TCP);
+            proxy_set_socks5_proxy(sock, TEST_SOCKS5_PROXY_PORT, true);
+            proxy_test(sock, false);
+        }
+        // no auth
+        {
+            Socket sock(SW_SOCK_TCP);
+            proxy_set_socks5_proxy(sock, TEST_SOCKS5_PROXY_NO_AUTH_PORT, false);
+            proxy_test(sock, false);
+        }
+    });
 }
 
 static void proxy_set_http_proxy(Socket &socket) {
@@ -1199,27 +1231,11 @@ static void proxy_set_http_proxy(Socket &socket) {
     socket.set_http_proxy(TEST_HTTP_PROXY_HOST, TEST_HTTP_PROXY_PORT, username, password);
 }
 
-TEST(coroutine_socket, http_get_with_socks5_proxy) {
-    coroutine::run([](void *arg) {
-        Socket sock(SW_SOCK_TCP);
-        proxy_set_socks5_proxy(sock);
-        proxy_test(sock, false);
-    });
-}
-
 TEST(coroutine_socket, http_get_with_http_proxy) {
     coroutine::run([&](void *arg) {
         Socket sock(SW_SOCK_TCP);
         proxy_set_http_proxy(sock);
         proxy_test(sock, false);
-    });
-}
-
-TEST(coroutine_socket, https_get_with_socks5_proxy) {
-    coroutine::run([](void *arg) {
-        Socket sock(SW_SOCK_TCP);
-        proxy_set_socks5_proxy(sock);
-        proxy_test(sock, true);
     });
 }
 

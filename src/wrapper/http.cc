@@ -77,8 +77,7 @@ struct ContextImpl {
     bool parse(Context &ctx, const char *at, size_t length) {
         parser.data = &ctx;
         swoole_http_parser_init(&parser, PHP_HTTP_REQUEST);
-        swoole_http_parser_execute(&parser, &http_parser_settings, at, length);
-        return true;
+        return swoole_http_parser_execute(&parser, &http_parser_settings, at, length) == length;
     }
 };
 
@@ -316,7 +315,9 @@ Context::~Context() {
     }
 }
 
-std::shared_ptr<Server> listen(const std::string &addr, std::function<void(Context &ctx)> cb, int mode) {
+static std::function<void(Context &ctx)> http_server_on_request;
+
+std::shared_ptr<Server> listen(const std::string &addr, const std::function<void(Context &ctx)> &cb, int mode) {
     auto server = std::make_shared<Server>(static_cast<Server::Mode>(mode));
     auto index = addr.find(':');
     if (index == std::string::npos) {
@@ -335,7 +336,9 @@ std::shared_ptr<Server> listen(const std::string &addr, std::function<void(Conte
         return nullptr;
     }
 
-    server->onReceive = [&cb](Server *server, RecvData *req) {
+    http_server_on_request = cb;
+
+    server->onReceive = [](Server *server, RecvData *req) {
         SessionId session_id = req->info.fd;
         Connection *conn = server->get_connection_verify_no_ssl(session_id);
         if (!conn) {
@@ -345,7 +348,9 @@ std::shared_ptr<Server> listen(const std::string &addr, std::function<void(Conte
         ContextImpl impl;
         Context ctx(server, session_id, &impl);
         if (impl.parse(ctx, req->data, req->info.len)) {
-            cb(ctx);
+            http_server_on_request(ctx);
+        } else {
+            server->send(req->session_id(), SW_STRL(SW_HTTP_BAD_REQUEST_PACKET));
         }
         return SW_OK;
     };

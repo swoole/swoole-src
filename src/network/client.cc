@@ -601,25 +601,21 @@ static int Client_dns_lookup(Client *cli) {
     ev.handler = async::handler_gethostbyname;
     ev.callback = Client_onResolveCompleted;
 
-    if (async::dispatch(&ev) == nullptr) {
-        return SW_ERR;
-    } else {
-        return SW_OK;
-    }
+    return async::dispatch(&ev) == nullptr ? SW_ERR : SW_OK;
 }
 
 static int Client_tcp_connect_async(Client *cli, const char *host, int port, double timeout, int nonblock) {
     int ret;
 
+    if (!(cli->onConnect && cli->onError && cli->onClose && cli->onReceive)) {
+        swoole_warning("onConnect/onError/onReceive/onClose callback have not set");
+        return SW_ERR;
+    }
+
     cli->timeout = timeout;
 
     if (!cli->buffer) {
         cli->buffer = new String(cli->input_buffer_size);
-    }
-
-    if (!(cli->onConnect && cli->onError && cli->onClose && cli->onReceive)) {
-        swoole_warning("onConnect/onError/onReceive/onClose callback have not set");
-        return SW_ERR;
     }
 
     if (cli->onBufferFull && cli->buffer_high_watermark == 0) {
@@ -732,11 +728,21 @@ static int Client_udp_connect(Client *cli, const char *host, int port, double ti
     }
 
     if (cli->async && !cli->onReceive) {
-        swoole_warning("onReceive callback have not set");
+        swoole_warning("`onReceive` callback have not set");
         return SW_ERR;
     }
 
-    if (cli->wait_dns) {
+    if (cli->wait_dns && cli->async) {
+        /**
+         * Domain name resolution is required, and UDP connect cannot return immediately.
+         * If an `onError` callback is not set, the caller will not receive any notification in case of a resolution
+         * failure. Therefore, it is essential to set the onError callback; otherwise, an error will be returned
+         * immediately.
+         */
+        if (!cli->onError) {
+            swoole_warning("`onError` callback have not set");
+            return SW_ERR;
+        }
         return Client_dns_lookup(cli);
     }
 
@@ -748,12 +754,12 @@ static int Client_udp_connect(Client *cli, const char *host, int port, double ti
     }
 
     if (cli->socket->socket_type == SW_SOCK_UNIX_DGRAM) {
-        struct sockaddr_un *client_addr = &cli->socket->info.addr.un;
+        sockaddr_un *client_addr = &cli->socket->info.addr.un;
         sprintf(client_addr->sun_path, "/tmp/swoole-client.%d.%d.sock", getpid(), cli->socket->fd);
         client_addr->sun_family = AF_UNIX;
         unlink(client_addr->sun_path);
 
-        if (bind(cli->socket->fd, (struct sockaddr *) client_addr, sizeof(cli->socket->info.addr.un)) < 0) {
+        if (bind(cli->socket->fd, reinterpret_cast<sockaddr *>(client_addr), sizeof(cli->socket->info.addr.un)) < 0) {
             swoole_sys_warning("bind(%s) failed", client_addr->sun_path);
             return SW_ERR;
         }
@@ -977,6 +983,8 @@ static int Client_onError(Reactor *reactor, Event *event) {
 static void Client_onTimeout(Timer *timer, TimerNode *tnode) {
     auto *cli = (Client *) tnode->data;
     swoole_set_last_error(ETIMEDOUT);
+
+    cli->timer = nullptr;
 
 #ifdef SW_USE_OPENSSL
     if (cli->open_ssl && cli->socket->ssl_state != SW_SSL_STATE_READY) {

@@ -68,43 +68,13 @@ float System::get_dns_cache_hit_ratio() {
     return (float) dns_cache.hit_count / (float) total;
 }
 
-static void sleep_callback(Coroutine *co, bool *canceled) {
-    if (*canceled == false) {
-        co->resume();
-    }
-    delete canceled;
-}
-
 int System::sleep(double sec) {
     Coroutine *co = Coroutine::get_current_safe();
-
-    bool *canceled = new bool(false);
-    TimerNode *tnode = nullptr;
-
     if (sec < SW_TIMER_MIN_SEC) {
-        swoole_event_defer([co, canceled](void *data) { sleep_callback(co, canceled); }, nullptr);
-    } else {
-        auto fn = [canceled](Timer *timer, TimerNode *tnode) { sleep_callback((Coroutine *) tnode->data, canceled); };
-        tnode = swoole_timer_add(sec, false, fn, co);
-        if (tnode == nullptr) {
-            delete canceled;
-            return -1;
-        }
+        sec = 0.001;
     }
-    Coroutine::CancelFunc cancel_fn = [canceled, tnode](Coroutine *co) {
-        *canceled = true;
-        if (tnode) {
-            swoole_timer_del(tnode);
-        }
-        co->resume();
-        return true;
-    };
-    co->yield(&cancel_fn);
-    if (co->is_canceled()) {
-        swoole_set_last_error(SW_ERROR_CO_CANCELED);
-        return SW_ERR;
-    }
-    return SW_OK;
+    co->yield_ex(sec);
+    return co->is_canceled() ? SW_ERR : SW_OK;
 }
 
 std::shared_ptr<String> System::read_file(const char *file, bool lock) {
@@ -135,7 +105,7 @@ std::shared_ptr<String> System::read_file(const char *file, bool lock) {
     return result;
 }
 
-ssize_t System::write_file(const char *file, char *buf, size_t length, bool lock, int flags) {
+ssize_t System::write_file(const char *file, const char *buf, size_t length, bool lock, int flags) {
     ssize_t retval = -1;
     int file_flags = flags | O_CREAT | O_WRONLY;
     async([&]() {
@@ -549,23 +519,25 @@ int System::wait_event(int fd, int events, double timeout) {
     events &= SW_EVENT_READ | SW_EVENT_WRITE;
     if (events == 0) {
         swoole_set_last_error(EINVAL);
-        return 0;
+        return -1;
     }
 
     if (timeout == 0) {
-        struct pollfd pfd;
+        pollfd pfd;
         pfd.fd = fd;
         pfd.events = translate_events_to_poll(events);
         pfd.revents = 0;
 
         int retval = ::poll(&pfd, 1, 0);
         if (retval == 1) {
+            if (pfd.revents & POLLNVAL) {
+                swoole_set_last_error(EBADF);
+                return -1;
+            }
             return translate_events_from_poll(pfd.revents);
         }
-        if (retval < 0) {
-            swoole_set_last_error(errno);
-        }
-        return 0;
+        swoole_set_last_error(retval < 0 ? errno : ETIMEDOUT);
+        return -1;
     }
 
     EventWaiter waiter(fd, events, timeout);

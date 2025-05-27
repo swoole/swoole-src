@@ -33,21 +33,20 @@ namespace swoole {
 struct IouringEvent;
 
 class Iouring {
-  private:
     uint64_t task_num = 0;
     uint64_t entries = 8192;
-    struct io_uring ring;
+    io_uring ring;
     std::queue<IouringEvent *> waiting_tasks;
     network::Socket *ring_socket = nullptr;
     Reactor *reactor = nullptr;
 
-    Iouring(Reactor *reactor_);
-    bool ready();
+    explicit Iouring(Reactor *reactor_);
+    bool ready() const;
     bool submit(IouringEvent *event);
     bool dispatch(IouringEvent *event);
     bool wakeup();
 
-    struct io_uring_sqe *get_iouring_sqe() {
+    io_uring_sqe *get_iouring_sqe() {
         struct io_uring_sqe *sqe = io_uring_get_sqe(&ring);
         // We need to reset the values of each sqe structure so that they can be used in a loop.
         if (sqe) {

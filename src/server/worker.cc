@@ -217,42 +217,50 @@ void Server::worker_accept_event(DataHead *info) {
     }
 }
 
+static bool is_root_user() {
+    return geteuid() == 0;
+}
+
+void Server::worker_set_isolation(const std::string &group_, const std::string &user_, const std::string &chroot_) {
+    group *_group = nullptr;
+    passwd *_passwd = nullptr;
+    // get group info
+    if (!group_.empty()) {
+        _group = getgrnam(group_.c_str());
+        if (!_group) {
+            swoole_warning("get group [%s] info failed", group_.c_str());
+        }
+    }
+    // get user info
+    if (!user_.empty()) {
+        _passwd = getpwnam(user_.c_str());
+        if (!_passwd) {
+            swoole_warning("get user [%s] info failed", user_.c_str());
+        }
+    }
+    // set process group
+    if (_group && setgid(_group->gr_gid) < 0) {
+        swoole_sys_warning("setgid to [%s] failed", group_.c_str());
+    }
+    // set process user
+    if (_passwd && setuid(_passwd->pw_uid) < 0) {
+        swoole_sys_warning("setuid to [%s] failed", user_.c_str());
+    }
+    // chroot
+    if (!chroot_.empty()) {
+        if (::chroot(chroot_.c_str()) == 0) {
+            if (chdir("/") < 0) {
+                swoole_sys_warning("chdir('/') failed");
+            }
+        } else {
+            swoole_sys_warning("chroot('%s') failed", chroot_.c_str());
+        }
+    }
+}
+
 void Server::worker_start_callback(Worker *worker) {
-    if (geteuid() == 0) {
-        group *_group = nullptr;
-        passwd *_passwd = nullptr;
-        // get group info
-        if (!group_.empty()) {
-            _group = getgrnam(group_.c_str());
-            if (!_group) {
-                swoole_warning("get group [%s] info failed", group_.c_str());
-            }
-        }
-        // get user info
-        if (!user_.empty()) {
-            _passwd = getpwnam(user_.c_str());
-            if (!_passwd) {
-                swoole_warning("get user [%s] info failed", user_.c_str());
-            }
-        }
-        // set process group
-        if (_group && setgid(_group->gr_gid) < 0) {
-            swoole_sys_warning("setgid to [%s] failed", group_.c_str());
-        }
-        // set process user
-        if (_passwd && setuid(_passwd->pw_uid) < 0) {
-            swoole_sys_warning("setuid to [%s] failed", user_.c_str());
-        }
-        // chroot
-        if (!chroot_.empty()) {
-            if (::chroot(chroot_.c_str()) == 0) {
-                if (chdir("/") < 0) {
-                    swoole_sys_warning("chdir(\"/\") failed");
-                }
-            } else {
-                swoole_sys_warning("chroot(\"%s\") failed", chroot_.c_str());
-            }
-        }
+    if (is_root_user()) {
+        worker_set_isolation(group_, user_, chroot_);
     }
 
     SW_LOOP_N(worker_num + task_worker_num) {
@@ -611,6 +619,7 @@ ssize_t Server::send_to_worker_from_worker(Worker *dst_worker, const void *buf, 
 
 /**
  * receive data from reactor
+ * This function is intended solely for process mode; in thread or base mode, `ReactorThread_onRead()` will be executed.
  */
 static int Worker_onPipeReceive(Reactor *reactor, Event *event) {
     auto *serv = static_cast<Server *>(reactor->ptr);
@@ -625,5 +634,4 @@ static int Worker_onPipeReceive(Reactor *reactor, Event *event) {
 
     return SW_OK;
 }
-
 }  // namespace swoole

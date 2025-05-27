@@ -37,11 +37,6 @@ Reactor *sw_reactor() {
 #endif
 
 int swoole_event_init(int flags) {
-    if (!SwooleG.init) {
-        std::unique_lock<std::mutex> lock(init_lock);
-        swoole_init();
-    }
-
     auto *reactor = new Reactor(SW_REACTOR_MAXEVENTS);
     if (!reactor->ready()) {
         return SW_ERR;

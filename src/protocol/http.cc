@@ -902,37 +902,52 @@ int Request::get_header_length() {
 }
 
 int Request::get_chunked_body_length() {
-    char *p = buffer_->str + buffer_->offset;
-    char *pe = buffer_->str + buffer_->length;
+    const char *p = buffer_->str + buffer_->offset;
+    const char *pe = buffer_->str + buffer_->length;
+
+    /**
+     * Ending with SW_HTTP_CHUNK_EOF indicates that the HTTP request may have been fully received,
+     * but this is not certain. It is still necessary to skip over the data sections based on
+     * the length of each chunk of the HTTP data until SW_HTTP_CHUNK_EOF (\0\r\n\r\n) is found.
+     */
+    if (static_cast<size_t>(pe - p) < sizeof(SW_HTTP_CHUNK_EOF) - 1 ||
+        memcmp(pe - sizeof(SW_HTTP_CHUNK_EOF) + 1, SW_STRL(SW_HTTP_CHUNK_EOF)) != 0) {
+        return SW_ERR;
+    }
 
     while (true) {
-        if ((size_t) (pe - p) < (1 + (sizeof("\r\n") - 1))) {
-            /* need the next chunk */
-            return SW_ERR;
-        }
-        char *head = p;
-        size_t n_parsed;
-        size_t chunk_length = swoole_hex2dec(head, &n_parsed);
-        head += n_parsed;
-        if (*head != '\r') {
-            excepted = 1;
-            return SW_ERR;
-        }
-        p = head + (sizeof("\r\n") - 1) + chunk_length + (sizeof("\r\n") - 1);
-        /* used to check package_max_length */
-        content_length_ = p - (buffer_->str + header_length_);
-        if (p > pe) {
-            /* need recv chunk body again */
-            return SW_ERR;
-        }
-        buffer_->offset = p - buffer_->str;
-        if (chunk_length == 0) {
+        char *endptr;
+        size_t chunk_length = strtoul(p, &endptr, 16);
+        if (endptr == nullptr || *endptr != '\r') {
             break;
         }
-    }
-    known_length = 1;
 
-    return SW_OK;
+        swoole_trace_log(SW_TRACE_HTTP, "chunk_length=%zu, chunk_len_str=%.*s\n", chunk_length, (int) (endptr - p), p);
+
+        // Found the HTTP Chunk EOF
+        if (chunk_length == 0) {
+            known_length = 1;
+            content_length_ = endptr - (buffer_->str + header_length_) + 4;
+            return SW_OK;
+        } else {
+            // chunk length [hex str] + CRLF + data + CRLF
+            p = endptr + 2 + chunk_length + 2;
+            // Continue to parse the next segment of HTTP CHUNK data.
+            if (p < pe) {
+                continue;
+            }
+            /**
+             * If the calculated data length exceeds the length of the currently received data,
+             * then SW_HTTP_CHUNK_EOF may be part of the data,
+             * necessitating the reception of additional data and recalculating the HTTP Chunk length.
+             */
+            return SW_ERR;
+        }
+        break;
+    }
+
+    excepted = 1;
+    return SW_ERR;
 }
 
 std::string Request::get_header(const char *name) {

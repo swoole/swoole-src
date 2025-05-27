@@ -27,14 +27,14 @@ Factory *Server::create_base_factory() {
     }
     gs->connection_nums = static_cast<sw_atomic_t *>(sw_shm_calloc(worker_num, sizeof(sw_atomic_t)));
     if (gs->connection_nums == nullptr) {
-        swoole_error("sw_shm_calloc(%ld) for gs->connection_nums failed", worker_num * sizeof(sw_atomic_t));
+        swoole_sys_warning("sw_shm_calloc(%ld) for gs->connection_nums failed", worker_num * sizeof(sw_atomic_t));
         return nullptr;
     }
 
     for (auto port : ports) {
         port->gs->connection_nums = static_cast<sw_atomic_t *>(sw_shm_calloc(worker_num, sizeof(sw_atomic_t)));
         if (port->gs->connection_nums == nullptr) {
-            swoole_error("sw_shm_calloc(%ld) for port->connection_nums failed", worker_num * sizeof(sw_atomic_t));
+            swoole_sys_warning("sw_shm_calloc(%ld) for port->connection_nums failed", worker_num * sizeof(sw_atomic_t));
             return nullptr;
         }
     }

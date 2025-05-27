@@ -26,35 +26,43 @@ using swoole::Timer;
 using swoole::TimerNode;
 
 TEST(timer, sys) {
-    int timer1_count = 0;
-    int timer2_count = 0;
-    int timer_running = true;
+    swoole::test::counter_init();
+    auto counter = swoole::test::counter_ptr();
 
     uint64_t ms1 = swoole::time<std::chrono::milliseconds>();
 
-    swoole_timer_add(
-        20L, false, [&](Timer *, TimerNode *) { timer1_count++; }, nullptr);
+    ASSERT_TRUE(swoole_timer_add(
+        20L, false, [&](TIMER_PARAMS) { counter[0]++; }, nullptr));
+
+    swoole_clear_last_error();
+    ASSERT_EQ(swoole_timer_add(-1L, false, [&](TIMER_PARAMS) {}), nullptr);
+    ASSERT_ERREQ(SW_ERROR_INVALID_PARAMS);
+
+    swoole_clear_last_error();
+    ASSERT_EQ(swoole_timer_add(0L, false, [&](TIMER_PARAMS) {}), nullptr);
+    ASSERT_ERREQ(SW_ERROR_INVALID_PARAMS);
+
+    // dtor test
+    auto timer = swoole_timer_add(20L, false, [&](TIMER_PARAMS) { counter[2]++; });
+    ASSERT_TRUE(timer);
+    timer->destructor = [&](TimerNode *tnode) { counter[3] = 9999; };
 
     swoole_timer_add(
         100L,
         true,
         [&](Timer *, TimerNode *tnode) {
-            timer2_count++;
-            if (timer2_count == 5) {
+            counter[1]++;
+            if (counter[1] == 5) {
                 swoole_timer_del(tnode);
-                timer_running = false;
             }
         },
         nullptr);
 
-    while (1) {
+    while (sw_timer()->count() > 0) {
         sleep(10);
         swoole_signal_dispatch();
         if (SwooleG.signal_alarm) {
             swoole_timer_select();
-            if (!timer_running) {
-                break;
-            }
         }
     }
 
@@ -63,8 +71,10 @@ TEST(timer, sys) {
     swoole_timer_free();
 
     ASSERT_LE(ms2 - ms1, 510);
-    ASSERT_EQ(timer1_count, 1);
-    ASSERT_EQ(timer2_count, 5);
+    ASSERT_EQ(counter[0], 1);
+    ASSERT_EQ(counter[1], 5);
+    ASSERT_EQ(counter[2], 1);
+    ASSERT_EQ(counter[3], 9999);
 }
 
 TEST(timer, async) {

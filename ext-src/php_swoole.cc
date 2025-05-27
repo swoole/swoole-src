@@ -1233,6 +1233,7 @@ PHP_RSHUTDOWN_FUNCTION(swoole) {
     php_swoole_redis_server_rshutdown();
     php_swoole_coroutine_rshutdown();
     php_swoole_coroutine_scheduler_rshutdown();
+    php_swoole_timer_rshutdown();
     php_swoole_runtime_rshutdown();
     php_swoole_process_rshutdown();
 #ifdef SW_THREAD

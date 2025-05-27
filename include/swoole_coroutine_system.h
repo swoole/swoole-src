@@ -49,7 +49,7 @@ class System {
     static int sleep(double sec);
     /* file */
     static std::shared_ptr<String> read_file(const char *file, bool lock = false);
-    static ssize_t write_file(const char *file, char *buf, size_t length, bool lock = 0, int flags = 0);
+    static ssize_t write_file(const char *file, const char *buf, size_t length, bool lock = 0, int flags = 0);
     /* dns */
     static std::string gethostbyname(const std::string &hostname, int domain, double timeout = -1);
     static std::vector<std::string> getaddrinfo(const std::string &hostname,

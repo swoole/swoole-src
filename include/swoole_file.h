@@ -91,8 +91,8 @@ class File {
         return ::pread(fd_, __buf, __n, __offset);
     }
 
-    size_t write_all(const void *__buf, size_t __n);
-    size_t read_all(void *__buf, size_t __n) const;
+    size_t write_all(const void *data, size_t len) const;
+    size_t read_all(void *buf, size_t len) const;
     /**
      * Read one line of file, reading ends when __n - 1 bytes have been read,
      * or a newline (which is included in the return value),

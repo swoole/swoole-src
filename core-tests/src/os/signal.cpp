@@ -105,3 +105,19 @@ TEST(os_signal, dispatch) {
 
     swoole_signal_clear();
 }
+
+TEST(os_signal, error) {
+    swoole_signal_set(SIGIO, nullptr, 0, 0);
+    swoole_signal_block_all();
+    swoole_signal_block_all();  // no effect
+    swoole_signal_unblock_all();
+    swoole_signal_unblock_all();  // no effect
+
+    swoole_signal_callback(SW_SIGNO_MAX);  // no effect
+
+    swoole_clear_last_error();
+    swoole_signal_callback(SIGIO);
+    ASSERT_ERREQ(SW_ERROR_UNREGISTERED_SIGNAL);
+
+    ASSERT_EQ(swoole_signal_get_handler(SW_SIGNO_MAX), nullptr);
+}

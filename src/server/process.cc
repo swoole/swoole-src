@@ -30,7 +30,7 @@ Factory *Server::create_process_factory() {
      */
     connection_list = static_cast<Connection *>(sw_shm_calloc(max_connection, sizeof(Connection)));
     if (connection_list == nullptr) {
-        swoole_error("calloc[1] failed");
+        swoole_sys_warning("sw_shm_calloc(%u, %zu) for connection_list failed", max_connection, sizeof(Connection));
         return nullptr;
     }
     reactor_pipe_num = worker_num / reactor_num;

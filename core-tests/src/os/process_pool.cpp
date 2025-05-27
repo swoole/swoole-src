@@ -80,7 +80,7 @@ static void test_func_stream_protocol(ProcessPool &pool) {
 
 TEST(process_pool, tcp) {
     ProcessPool pool{};
-    int svr_port = swoole::test::get_random_port();
+    int svr_port = test::get_random_port();
     ASSERT_EQ(pool.create(1, 0, SW_IPC_SOCKET), SW_OK);
     ASSERT_EQ(pool.listen(TEST_HOST, svr_port, 128), SW_OK);
 
@@ -238,15 +238,24 @@ TEST(process_pool, reload) {
 
     pool.onWorkerStart = [](ProcessPool *pool, Worker *worker) {
         test::counter_incr(0);
+        current_pool = pool;
+
+        DEBUG() << "onWorkerStart " << worker->id << "\n";
 
         sysv_signal(SIGTERM, SIG_IGN);
+        sysv_signal(SIGRTMIN, [](int) { current_pool->reopen_logger(); });
+        sysv_signal(SIGWINCH, [](int) { current_pool->reopen_logger(); });
 
         while (true) {
             sleep(10000);
         }
     };
 
-    pool.onStart = [](ProcessPool *pool) { swoole_timer_after(100, [pool](TIMER_PARAMS) { pool->reload(); }); };
+    pool.onStart = [](ProcessPool *pool) {
+        pool->reopen_logger();
+        swoole_timer_after(50, [pool](TIMER_PARAMS) { kill(pool->get_worker(0)->pid, SIGRTMIN); });
+        swoole_timer_after(100, [pool](TIMER_PARAMS) { pool->reload(); });
+    };
 
     pool.onBeforeReload = [](ProcessPool *pool) { DEBUG() << "onBeforeReload\n"; };
 
@@ -621,4 +630,6 @@ TEST(process_pool, add_worker) {
 
     auto *worker2 = pool.get_worker_by_pid(getpid());
     ASSERT_EQ(&worker, worker2);
+
+    ASSERT_TRUE(pool.del_worker(worker2));
 }

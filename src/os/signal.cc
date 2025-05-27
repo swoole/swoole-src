@@ -278,13 +278,6 @@ static SignalHandler swoole_signalfd_set(int signo, SignalHandler handler) {
         signals[signo].activated = true;
     }
 
-    if (!swoole_event_is_available()) {
-        swoole_error_log(SW_LOG_WARNING,
-                         SW_ERROR_OPERATION_NOT_SUPPORT,
-                         "The signalfd must only be used after event loop is initialized");
-        return nullptr;
-    }
-
     if (swoole_signalfd_is_available()) {
         sigprocmask(SIG_SETMASK, &signalfd_mask, nullptr);
         signalfd(signal_fd, &signalfd_mask, SFD_NONBLOCK | SFD_CLOEXEC);
