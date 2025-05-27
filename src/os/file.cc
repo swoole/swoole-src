@@ -24,7 +24,7 @@ int swoole_tmpfile(char *filename) {
 #endif
 
     if (tmp_fd < 0) {
-        swoole_sys_warning("mkstemp(%s) failed", filename);
+        swoole_sys_warning("mkstemp('%s') failed", filename);
         return SW_ERR;
     } else {
         return tmp_fd;
@@ -141,6 +141,23 @@ bool File::open(const std::string &path, int oflags, int mode) {
     return ready();
 }
 
+bool File::close() {
+    if (fd_ == -1) {
+        return false;
+    }
+    int tmp_fd = fd_;
+    fd_ = -1;
+    return ::close(tmp_fd) == 0;
+}
+
+bool File::stat(FileStatus *_stat) const {
+    if (::fstat(fd_, _stat) < 0) {
+        swoole_sys_warning("fstat() failed");
+        return false;
+    }
+    return true;
+}
+
 File::~File() {
     if (fd_ >= 0) {
         ::close(fd_);
@@ -200,7 +217,7 @@ size_t File::read_all(void *buf, size_t len) const {
     return read_bytes;
 }
 
-ssize_t File::read_line(void *__buf, size_t __n) {
+ssize_t File::read_line(void *__buf, size_t __n) const {
     char *buf = (char *) __buf;
     auto offset = get_offset();
     ssize_t read_bytes = read(buf, __n - 1);
