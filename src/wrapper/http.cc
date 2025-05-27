@@ -296,6 +296,7 @@ bool Context::end(const char *data, size_t length) {
         size_t n = sw_snprintf(buf, sizeof(buf), "%s: %s\r\n", iter.first.c_str(), iter.second.c_str());
         sw_tg_buffer()->append(buf, n);
     }
+    sw_tg_buffer()->append(SW_STRL("\r\n"));
     if (!server_->send(session_id_, sw_tg_buffer()->str, sw_tg_buffer()->length)) {
         swoole_warning("failed to send HTTP header");
         return false;
@@ -303,6 +304,9 @@ bool Context::end(const char *data, size_t length) {
     if (length > 0 && !server_->send(session_id_, data, length)) {
         swoole_warning("failed to send HTTP body");
         return false;
+    }
+    if (!keepalive) {
+        server_->close(session_id_, false);
     }
     return true;
 }

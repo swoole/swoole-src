@@ -37,7 +37,7 @@ TEST(iouring, create) {
 
 TEST(iouring, list_all_opcode) {
     auto list = Iouring::list_all_opcode();
-    for (auto &item: list) {
+    for (auto &item : list) {
         DEBUG() << "opcode: " << item.first << ", value: " << item.second << "\n";
     }
     ASSERT_TRUE(list.size() > 0);

@@ -44,12 +44,14 @@ enum IouringOpcode {
     SW_IORING_OP_FUTEX_WAKE = IORING_OP_FUTEX_WAKE,
 #endif
 
-    SW_IORING_OP_FSTAT = 1000,
-    SW_IORING_OP_LSTAT = 1001,
-    SW_IORING_OP_UNLINK_FILE = 1002,
-    SW_IORING_OP_UNLINK_DIR = 1003,
-    SW_IORING_OP_FSYNC = 1004,
-    SW_IORING_OP_FDATASYNC = 1005,
+    SW_IORING_OP_FSTAT = 100,
+    SW_IORING_OP_LSTAT = 101,
+    SW_IORING_OP_UNLINK_FILE = 102,
+    SW_IORING_OP_UNLINK_DIR = 103,
+    SW_IORING_OP_FSYNC = 104,
+    SW_IORING_OP_FDATASYNC = 105,
+
+    SW_IORING_OP_LAST = 128,
 };
 
 struct IouringEvent {
@@ -232,7 +234,7 @@ static const char *get_opcode_name(IouringOpcode opcode) {
 
 std::unordered_map<std::string, int> Iouring::list_all_opcode() {
     std::unordered_map<std::string, int> opcodes;
-    for (int i = SW_IORING_OP_OPENAT; i < SW_IORING_OP_FUTEX_WAKE + 1; i++) {
+    for (int i = SW_IORING_OP_OPENAT; i < SW_IORING_OP_LAST; i++) {
         auto name = get_opcode_name((IouringOpcode) i);
         if (strcmp(name, "unknown") == 0) {
             continue;
