@@ -296,6 +296,11 @@ void Manager::wait(Server *_server) {
 
     if (swoole_timer_is_available()) {
         swoole_timer_free();
+        /**
+         * The timer will override the SIGALRM signal handler,
+         * which needs to be reset to the manager's signal handler.
+         */
+        swoole_signal_set(SIGALRM, signal_handler);
     }
     // wait child process
     if (_server->max_wait_time) {
@@ -331,8 +336,10 @@ void Manager::wait(Server *_server) {
 }
 
 void Manager::terminate_all_worker() {
-    // clear the timer
     alarm(0);
+    swoole_error_log(SW_LOG_WARNING,
+                     SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT,
+                     "wait timeout, all worker processes will be forcibly terminated");
     for (int &kill_worker : kill_workers) {
         swoole_kill(kill_worker, SIGKILL);
     }

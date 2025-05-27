@@ -103,10 +103,20 @@ void Factory::kill_event_workers() {
  * [Manager] kill and wait task worker process
  */
 void Factory::kill_task_workers() {
+    int status;
     if (server_->task_worker_num == 0) {
         return;
     }
-    server_->gs->task_workers.kill_all_workers(SIGTERM);
+
+    auto pool = &server_->gs->task_workers;
+    pool->kill_all_workers(SIGTERM);
+
+    SW_LOOP_N(server_->task_worker_num) {
+        swoole_trace_log(SW_TRACE_SERVER, "wait worker#%d[pid=%d]", pool->workers[i].id, pool->workers[i].pid);
+        if (swoole_waitpid(pool->workers[i].pid, &status, 0) < 0) {
+            swoole_sys_warning("waitpid(%d) failed", pool->workers[i].pid);
+        }
+    }
 }
 
 pid_t Factory::spawn_event_worker(Worker *worker) {
