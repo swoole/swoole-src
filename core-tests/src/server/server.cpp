@@ -623,14 +623,15 @@ TEST(server, task_thread) {
     serv.worker_num = 2;
     serv.task_worker_num = 2;
 
-    swoole_set_log_level(SW_LOG_WARNING);
+    swoole_set_log_level(SW_LOG_INFO);
 
     ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     ASSERT_TRUE(port);
 
-    mutex lock;
+    mutex lock{};
     lock.lock();
 
+    DEBUG() << "create server\n";
     ASSERT_EQ(serv.create(), SW_OK);
 
     std::thread t1([&]() {
@@ -688,6 +689,7 @@ TEST(server, task_thread) {
         return SW_OK;
     };
 
+    DEBUG() << "start server\n";
     ASSERT_EQ(serv.start(), SW_OK);
     t1.join();
 
@@ -702,7 +704,7 @@ TEST(server, reload_thread) {
     serv.worker_num = 2;
     serv.task_worker_num = 2;
 
-    swoole_set_log_level(SW_LOG_WARNING);
+    swoole_set_log_level(SW_LOG_INFO);
 
     ASSERT_NE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0), nullptr);
 
@@ -762,7 +764,7 @@ TEST(server, reload_thread_2) {
     serv.task_worker_num = 2;
 
     std::unordered_map<std::string, bool> flags;
-    swoole_set_log_level(SW_LOG_WARNING);
+    swoole_set_log_level(SW_LOG_INFO);
 
     ASSERT_NE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0), nullptr);
 
