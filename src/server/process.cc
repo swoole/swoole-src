@@ -271,7 +271,7 @@ bool ProcessFactory::dispatch(SendData *task) {
         if (conn->closed) {
             // Connection has been closed by server
             if (!(task->info.type == SW_SERVER_EVENT_CLOSE && conn->close_force)) {
-                return true;
+                return false;
             }
         }
         // converted fd to session_id

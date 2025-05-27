@@ -413,9 +413,10 @@ TEST(server, base) {
     test_base();
 }
 
-static void test_process() {
+static void test_process(bool single_thread = false) {
     Server serv(Server::MODE_PROCESS);
     serv.worker_num = 1;
+    serv.single_thread = single_thread;
     serv.task_worker_num = 3;
     swoole_set_log_level(SW_LOG_WARNING);
 
@@ -545,6 +546,75 @@ TEST(server, process) {
     test_process();
     test::wait_all_child_processes();
 }
+
+TEST(server, process_single_thread) {
+    test_process(true);
+    test::wait_all_child_processes();
+}
+
+static void test_process_send_in_user_worker() {
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = 2;
+    swoole_set_log_level(SW_LOG_WARNING);
+
+    test::counter_init();
+    auto counter = test::counter_ptr();
+
+    Mutex lock(Mutex::PROCESS_SHARED);
+    lock.lock();
+
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_NE(port, nullptr);
+
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    serv.onUserWorkerStart = [&lock, port](Server *serv, Worker *worker) {
+        lock.lock();
+        DEBUG() << "onUserWorkerStart: id=" << worker->id << "\n";
+        sleep(1);
+        serv->shutdown();
+    };
+
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) {
+        if (worker->id == 0) {
+            lock.unlock();
+        }
+        test::counter_incr(3);
+        DEBUG() << "onWorkerStart: id=" << worker->id << "\n";
+    };
+
+    serv.onReceive = [](Server *serv, RecvData *req) -> int {
+        EXPECT_EQ(string(req->data, req->info.len), string(packet));
+
+        string resp = string("Server: ") + string(packet);
+        serv->send(req->info.fd, resp.c_str(), resp.length());
+
+        EXPECT_EQ(serv->get_connection_num(), 1);
+        EXPECT_EQ(serv->get_primary_port()->get_connection_num(), 1);
+
+        swoole_timer_after(100, [serv](TIMER_PARAMS) { serv->kill_worker(1 + swoole_random_int() % 3, false); });
+
+        return SW_OK;
+    };
+
+    serv.onShutdown = [](Server *serv) {
+        DEBUG() << "onShutdown\n";
+        test::counter_incr(9);
+    };
+
+    ASSERT_EQ(serv.start(), 0);
+
+    ASSERT_EQ(counter[1], 2);             // manager callback
+    ASSERT_GE(counter[2], 2);             // manager timer
+    ASSERT_GE(counter[3], 4);             // worker start
+    ASSERT_EQ(test::counter_get(9), 1);   // onShutdown called
+    ASSERT_EQ(test::counter_get(10), 1);  // onBeforeShutdown called
+}
+
+// TEST(server, process_send_in_user_worker) {
+//     test_process_send_in_user_worker();
+//     test::wait_all_child_processes();
+// }
 
 #ifdef SW_THREAD
 TEST(server, thread) {
@@ -1477,12 +1547,8 @@ TEST(server, task_worker_3) {
 
     serv.onWorkerStart = [](Server *serv, Worker *worker) {
         if (worker->id == 0) {
-            swoole_timer_after(50, [serv](TIMER_PARAMS) {
-                kill(serv->get_worker(2)->pid, SIGTERM);
-            });
-            swoole_timer_after(60, [serv](TIMER_PARAMS) {
-                kill(serv->get_manager_pid(), SIGRTMIN);
-            });
+            swoole_timer_after(50, [serv](TIMER_PARAMS) { kill(serv->get_worker(2)->pid, SIGTERM); });
+            swoole_timer_after(60, [serv](TIMER_PARAMS) { kill(serv->get_manager_pid(), SIGRTMIN); });
             swoole_timer_after(100, [serv](TIMER_PARAMS) { serv->shutdown(); });
         }
         test::counter_incr(1);
@@ -3965,4 +4031,32 @@ TEST(server, ssl_matches_wildcard_name) {
         EXPECT_TRUE(ListenPort::ssl_matches_wildcard_name("dev-server.example.com", "dev-*.example.com"));
         EXPECT_TRUE(ListenPort::ssl_matches_wildcard_name("staging-server.example.com", "*-server.example.com"));
     }
+}
+
+TEST(server, wait_other_worker) {
+    Server serv(Server::MODE_BASE);
+    serv.worker_num = 1;
+    serv.task_worker_num = 2;
+    test::counter_init();
+
+    auto port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_NE(port, nullptr);
+
+    serv.onWorkerStart = [](Server *serv, Worker *worker) {
+        test::counter_incr(1);
+        DEBUG() << "onWorkerStart: id=" << worker->id << "\n";
+    };
+
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    ExitStatus fake_exit(getpid(), 0);
+    auto pool = &serv.gs->task_workers;
+    auto worker = serv.get_worker(2);
+    worker->pid = getpid();
+    pool->add_worker(worker);
+    serv.wait_other_worker(pool, fake_exit);
+
+    test::wait_all_child_processes();
+
+    ASSERT_EQ(test::counter_get(1), 1);
 }
