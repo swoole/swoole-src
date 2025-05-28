@@ -20,21 +20,10 @@
 #include "swoole_coroutine_socket.h"
 #include "swoole_coroutine_system.h"
 
-#include <mutex>
-#include <utility>
-
 using swoole::Callback;
 using swoole::Reactor;
 using swoole::ReactorHandler;
 using swoole::network::Socket;
-
-static std::mutex init_lock;
-
-#ifdef __MACH__
-Reactor *sw_reactor() {
-    return SwooleTG.reactor;
-}
-#endif
 
 int swoole_event_init(int flags) {
     auto *reactor = new Reactor(SW_REACTOR_MAXEVENTS);
@@ -109,12 +98,12 @@ ssize_t swoole_event_writev(Socket *socket, const iovec *iov, size_t iovcnt) {
     return SwooleTG.reactor->writev(SwooleTG.reactor, socket, iov, iovcnt);
 }
 
-bool swoole_event_set_handler(int fdtype, ReactorHandler handler) {
-    return SwooleTG.reactor->set_handler(fdtype, handler);
+void swoole_event_set_handler(const int fd_type, const int event, const ReactorHandler handler) {
+    SwooleTG.reactor->set_handler(fd_type, event, handler);
 }
 
-bool swoole_event_isset_handler(int fdtype) {
-    return SwooleTG.reactor->isset_handler(fdtype);
+bool swoole_event_isset_handler(const int fd_type, const int event) {
+    return SwooleTG.reactor->isset_handler(fd_type, event);
 }
 
 bool swoole_event_is_available() {

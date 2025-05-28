@@ -61,10 +61,10 @@ static sw_inline void execute_onConnect(Client *cli) {
 }
 
 void Client::init_reactor(Reactor *reactor) {
-    reactor->set_handler(SW_FD_STREAM_CLIENT | SW_EVENT_READ, Client_onStreamRead);
-    reactor->set_handler(SW_FD_DGRAM_CLIENT | SW_EVENT_READ, Client_onDgramRead);
-    reactor->set_handler(SW_FD_STREAM_CLIENT | SW_EVENT_WRITE, Client_onWrite);
-    reactor->set_handler(SW_FD_STREAM_CLIENT | SW_EVENT_ERROR, Client_onError);
+    reactor->set_handler(SW_FD_STREAM_CLIENT, SW_EVENT_READ, Client_onStreamRead);
+    reactor->set_handler(SW_FD_DGRAM_CLIENT, SW_EVENT_READ, Client_onDgramRead);
+    reactor->set_handler(SW_FD_STREAM_CLIENT, SW_EVENT_WRITE, Client_onWrite);
+    reactor->set_handler(SW_FD_STREAM_CLIENT, SW_EVENT_ERROR, Client_onError);
 }
 
 Client::Client(SocketType _type, bool _async) : async(_async) {

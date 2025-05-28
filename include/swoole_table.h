@@ -28,9 +28,9 @@
 //#define SW_TABLE_DEBUG   0
 #define SW_TABLE_FORCE_UNLOCK_TIME 2000  // milliseconds
 #define SW_TABLE_USE_PHP_HASH
+#define SW_TABLE_MAX_ROW_SIZE 0x80000000
 
 namespace swoole {
-
 typedef uint32_t TableStringLength;
 typedef uint64_t (*HashFunc)(const char *key, size_t len);
 
@@ -178,6 +178,10 @@ class Table {
 
     size_t get_size() const {
         return size;
+    }
+
+    float get_conflict_proportion() const {
+        return conflict_proportion;
     }
 
     size_t get_column_size() const {

@@ -4,8 +4,8 @@ project(libswoole)
 enable_language(ASM)
 set(SWOOLE_VERSION 6.1.0-dev)
 
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -g")
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall -g")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
 
 file(READ ./config.h SWOOLE_CONFIG_FILE)
@@ -191,6 +191,27 @@ add_library(ext-swoole SHARED ${ext_src_list})
 set_target_properties(ext-swoole PROPERTIES PREFIX "")
 set_target_properties(ext-swoole PROPERTIES OUTPUT_NAME "swoole")
 add_dependencies(ext-swoole lib-swoole)
+
+# core-tests
+pkg_check_modules(NGHTTP2 REQUIRED libnghttp2)
+if (${NGHTTP2_FOUND})
+    message(STATUS "Found nghttp2")
+else()
+    message(STATUS "Not found nghttp2")
+endif()
+
+# find GTest
+find_package(GTest REQUIRED)
+if (!${GTEST_FOUND})
+    message(FATAL_ERROR "Not found GTest")
+endif()
+message(STATUS "Found GTest")
+
+file(GLOB_RECURSE core_test_files core-tests/src/*.cpp core-tests/deps/llhttp/src/*.c)
+add_executable(core-tests ${core_test_files})
+add_dependencies(core-tests lib-swoole)
+include_directories(BEFORE core-tests/include thirdparty thirdparty/hiredis core-tests/deps/llhttp/include ${GTEST_INCLUDE_DIRS} ${NGHTTP2_INCLUDE_DIR})
+target_link_libraries(core-tests swoole pthread ssl crypto ${GTEST_BOTH_LIBRARIES} ${NGHTTP2_LIBRARIES})
 
 if (DEFINED enable_thread)
     add_definitions(-DSW_THREAD)

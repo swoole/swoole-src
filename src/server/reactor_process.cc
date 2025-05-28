@@ -46,7 +46,7 @@ int Server::start_reactor_processes() {
         }
     }
 
-    ProcessPool *pool = &gs->event_workers;
+    ProcessPool *pool = get_event_worker_pool();
     *pool = {};
     if (pool->create(worker_num, 0, SW_IPC_UNIXSOCK) < 0) {
         return SW_ERR;
@@ -56,18 +56,18 @@ int Server::start_reactor_processes() {
     /**
      * store to ProcessPool object
      */
-    gs->event_workers.ptr = this;
-    gs->event_workers.max_wait_time = max_wait_time;
-    gs->event_workers.use_msgqueue = 0;
-    gs->event_workers.main_loop = reactor_process_main_loop;
-    gs->event_workers.onWorkerNotFound = wait_other_worker;
-    memcpy(workers, gs->event_workers.workers, sizeof(*workers) * worker_num);
-    gs->event_workers.workers = workers;
+    pool->ptr = this;
+    pool->max_wait_time = max_wait_time;
+    pool->use_msgqueue = 0;
+    pool->main_loop = reactor_process_main_loop;
+    pool->onWorkerNotFound = wait_other_worker;
+    memcpy(workers, pool->workers, sizeof(*workers) * worker_num);
+    pool->workers = workers;
 
     SW_LOOP_N(worker_num) {
-        gs->event_workers.workers[i].pool = &gs->event_workers;
-        gs->event_workers.workers[i].id = i;
-        gs->event_workers.workers[i].type = SW_WORKER;
+        pool->workers[i].pool = pool;
+        pool->workers[i].id = i;
+        pool->workers[i].type = SW_WORKER;
     }
 
     init_ipc_max_size();
@@ -76,11 +76,11 @@ int Server::start_reactor_processes() {
     }
 
     if (is_single_worker()) {
-        Worker *worker = &gs->event_workers.workers[0];
+        Worker *worker = &pool->workers[0];
         SwooleWG.worker = worker;
-        int retval = reactor_process_main_loop(&gs->event_workers, worker);
+        int retval = reactor_process_main_loop(pool, worker);
         if (retval == SW_OK) {
-            gs->event_workers.destroy();
+            pool->destroy();
         }
         return retval;
     }
@@ -202,11 +202,11 @@ int Server::reactor_process_main_loop(ProcessPool *pool, Worker *worker) {
 
     // set event handler
     // connect
-    reactor->set_handler(SW_FD_STREAM_SERVER, accept_connection);
+    reactor->set_handler(SW_FD_STREAM_SERVER, SW_EVENT_READ, accept_connection);
     // close
     reactor->default_error_handler = ReactorProcess_onClose;
     // pipe
-    reactor->set_handler(SW_FD_PIPE | SW_EVENT_READ, ReactorProcess_onPipeRead);
+    reactor->set_handler(SW_FD_PIPE, SW_EVENT_READ, ReactorProcess_onPipeRead);
 
     serv->store_listen_socket();
 
@@ -224,8 +224,8 @@ int Server::reactor_process_main_loop(ProcessPool *pool, Worker *worker) {
     // task workers
     if (serv->task_worker_num > 0) {
         if (serv->task_ipc_mode == Server::TASK_IPC_UNIXSOCK) {
-            SW_LOOP_N(serv->gs->task_workers.worker_num) {
-                serv->gs->task_workers.workers[i].pipe_master->set_nonblock();
+            SW_LOOP_N(serv->get_task_worker_pool()->worker_num) {
+                serv->get_task_worker_pool()->workers[i].pipe_master->set_nonblock();
             }
         }
     }

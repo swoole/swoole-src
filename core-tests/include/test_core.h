@@ -103,6 +103,7 @@ void counter_set(int index, int value);
 void counter_incr_and_put_log(int index, const char *msg);
 
 int dump_cert_info(const char *data, size_t len);
+int recursive_rmdir(const char *path);
 
 static inline int dump_cert_info(const String *str) {
     return dump_cert_info(str->str, str->length);

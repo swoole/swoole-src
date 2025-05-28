@@ -20,6 +20,7 @@
 #include "test_core.h"
 
 #include "swoole_file.h"
+#include "swoole_pipe.h"
 
 using namespace swoole;
 
@@ -109,4 +110,65 @@ TEST(file, file_get_size) {
     int fd = open("/tmp", O_RDONLY);
     ASSERT_EQ(file_get_size(fd), -1);
     ASSERT_ERREQ(EISDIR);
+}
+
+TEST(file, open_twice) {
+    auto fname = "/tmp/swoole_file_open_twice.txt";
+    File file1(fname, File::WRITE | File::CREATE);
+    ASSERT_TRUE(file1.ready());
+
+    file1.open(fname, File::READ);
+    ASSERT_TRUE(file1.ready());
+    ASSERT_TRUE(file1.close());
+    ASSERT_FALSE(file1.close());
+
+    remove(fname);
+}
+
+TEST(file, error) {
+    Pipe p(true);
+    auto buf = sw_tg_buffer();
+    File fp(p.get_socket(true)->get_fd());
+    ASSERT_EQ(fp.read_all(buf->str, buf->size), 0);
+    ASSERT_ERREQ(ESPIPE);
+
+    ASSERT_EQ(fp.write_all(SW_STRL(TEST_STR)), 0);
+    ASSERT_ERREQ(ESPIPE);
+
+    p.close();
+
+    FileStatus stat;
+    ASSERT_FALSE(fp.stat(&stat));
+    ASSERT_ERREQ(EBADF);
+
+    fp.release();
+}
+
+TEST(file, tmp_file) {
+    char buf[128] = "/tmp/not-exists-dir/test.XXXXXX";
+    ASSERT_EQ(swoole_tmpfile(buf), -1);
+    ASSERT_ERREQ(ENOENT);
+
+    auto ori_tmp_dir = swoole_get_task_tmpdir();
+    // 这里不能使用 swoole_set_task_tmpdir() ，它会递归创建目录
+    SwooleG.task_tmpfile = buf;
+    auto fp = make_tmpfile();
+    ASSERT_FALSE(fp.ready());
+    SwooleG.task_tmpfile = ori_tmp_dir;
+}
+
+TEST(file, empty_file) {
+    auto fname = "/tmp/swoole_empty_file.txt";
+    File fp(fname, File::WRITE | File::CREATE);
+
+    fp.open(fname, File::READ);
+    char buf[128];
+    ASSERT_EQ(fp.read_all(buf, sizeof(buf)), 0);
+    swoole_clear_last_error();
+    errno = 0;
+    ASSERT_ERREQ(0);
+    ASSERT_EQ(errno, 0);
+    fp.close();
+
+    remove(fname);
 }

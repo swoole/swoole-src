@@ -104,7 +104,7 @@ int ListenPort::ssl_server_sni_callback(SSL *ssl, int *al, void *arg) {
 }
 
 #ifdef SW_SUPPORT_DTLS
-dtls::Session *ListenPort::create_dtls_session(Socket *sock) {
+dtls::Session *ListenPort::create_dtls_session(Socket *sock) const {
     auto *session = new dtls::Session(sock, ssl_context);
     if (!session->init()) {
         delete session;
@@ -158,9 +158,9 @@ bool ListenPort::ssl_create(Connection *conn, Socket *sock) {
     return true;
 }
 
-bool ListenPort::ssl_context_create(SSLContext *context) {
+bool ListenPort::ssl_context_create(SSLContext *context) const {
     if (context->cert_file.empty() || context->key_file.empty()) {
-        swoole_warning("SSL error, require ssl_cert_file and ssl_key_file");
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_WRONG_OPERATION, "require `ssl_cert_file` and `ssl_key_file` options");
         return false;
     }
     if (open_http_protocol) {
@@ -315,20 +315,35 @@ void ListenPort::set_stream_protocol() {
 bool ListenPort::import(int sock) {
     int _type;
 
-    socket = new Socket();
-    socket->fd = sock;
+    auto tmp_sock = socket = new Socket();
+    tmp_sock->fd = sock;
 
     // get socket type
     if (socket->get_option(SOL_SOCKET, SO_TYPE, &_type) < 0) {
         swoole_sys_warning("getsockopt(%d, SOL_SOCKET, SO_TYPE) failed", sock);
+    _fail:
+        tmp_sock->move_fd();
+        delete tmp_sock;
         return false;
     }
 
-    if (socket->get_name() < 0) {
+    if (tmp_sock->get_name() < 0) {
         swoole_sys_warning("getsockname(%d) failed", sock);
-        return false;
+        goto _fail;
     }
 
+    int optval;
+    if (tmp_sock->get_option(SOL_SOCKET, SO_ACCEPTCONN, &optval) < 0) {
+        swoole_sys_warning("getsockopt(%d, SOL_SOCKET, SO_ACCEPTCONN) failed", sock);
+        goto _fail;
+    }
+
+    if (optval == 0) {
+        swoole_error_log(SW_LOG_WARNING, EINVAL, "the socket[%d] is not a listening socket", sock);
+        goto _fail;
+    }
+
+    socket = tmp_sock;
     int _family = socket->info.addr.ss.sa_family;
     socket->socket_type = socket->info.type = type = Socket::convert_to_type(_family, _type);
     host = socket->info.get_addr();

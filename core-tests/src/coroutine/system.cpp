@@ -359,14 +359,32 @@ TEST(coroutine_system, exec) {
 }
 
 TEST(coroutine_system, waitpid) {
-    auto pid = test::spawn_exec([]() { sleep(2000); });
+    auto pid = spawn_exec([]() { sleep(2000); });
 
     test::coroutine::run([pid](void *arg) {
         int status;
+        ASSERT_EQ(System::waitpid(pid, &status, WNOHANG, -1), 0);
         ASSERT_EQ(System::waitpid(pid, &status, 0, 0.1), -1);
         ASSERT_ERREQ(ETIMEDOUT);
 
         kill(pid, SIGKILL);
+        System::sleep(0.3);
+        ASSERT_EQ(System::waitpid(pid, &status, 0, 0.1), pid);
+    });
+}
+
+TEST(coroutine_system, waitpid_any) {
+    auto pid = spawn_exec([]() { sleep(2000); });
+
+    test::coroutine::run([pid](void *arg) {
+        int status;
+        ASSERT_EQ(System::waitpid(pid, &status, WNOHANG, -1), 0);
+        ASSERT_EQ(System::waitpid(pid, &status, 0, 0.1), -1);
+        ASSERT_ERREQ(ETIMEDOUT);
+
+        kill(pid, SIGKILL);
+        System::sleep(0.3);
+        ASSERT_EQ(System::waitpid(-1, &status, 0, 0.1), pid);
     });
 }
 

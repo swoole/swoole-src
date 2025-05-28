@@ -272,7 +272,7 @@ TEST(socket, send_async_2) {
     auto req = test::http_get_request(TEST_HTTP_DOMAIN, "/");
     ASSERT_EQ(sock->send_async(req.c_str(), req.length()), req.length());
 
-    swoole_event_set_handler(SW_FD_STREAM_CLIENT | SW_EVENT_READ, [](Reactor *reactor, Event *event) {
+    swoole_event_set_handler(SW_FD_STREAM_CLIENT, SW_EVENT_READ, [](Reactor *reactor, Event *event) {
         auto buf = sw_tg_buffer();
         auto n = event->socket->recv_sync(buf->str, buf->size, 0);
         EXPECT_GT(n, 0);
@@ -613,9 +613,11 @@ TEST(socket, get_domain_and_type) {
     test_sock_type(SW_SOCK_RAW, AF_INET, SOCK_RAW);
     test_sock_type(SW_SOCK_RAW6, AF_INET6, SOCK_RAW);
 
+    ASSERT_TRUE(network::Socket::is_dgram(SW_SOCK_UDP6));
+    ASSERT_TRUE(network::Socket::is_stream(SW_SOCK_TCP));
+
     int sock_domain, sock_type;
-    ASSERT_EQ(network::Socket::get_domain_and_type((swSocketType) (SW_SOCK_RAW6 + 1), &sock_domain, &sock_type),
-              SW_ERR);
+    ASSERT_EQ(network::Socket::get_domain_and_type((swSocketType)(SW_SOCK_RAW6 + 1), &sock_domain, &sock_type), SW_ERR);
 }
 
 TEST(socket, make_socket) {
@@ -781,4 +783,13 @@ TEST(socket, ssl_get_error_reason) {
         EXPECT_EQ(reason2, 0);
         EXPECT_EQ(error_str2, nullptr);
     }
+}
+
+TEST(socket, catch_error) {
+    network::Socket fake_sock;
+    ASSERT_EQ(fake_sock.catch_write_pipe_error(ENOBUFS), SW_REDUCE_SIZE);
+    ASSERT_EQ(fake_sock.catch_write_pipe_error(EMSGSIZE), SW_REDUCE_SIZE);
+    ASSERT_EQ(fake_sock.catch_write_pipe_error(EAGAIN), SW_WAIT);
+
+    ASSERT_EQ(fake_sock.catch_write_error(ENOBUFS), SW_WAIT);
 }

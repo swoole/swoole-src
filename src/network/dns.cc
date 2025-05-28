@@ -360,7 +360,7 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
         char *temp = &packet[steps];
         j = 0;
         while (*temp != 0) {
-            if ((uchar) (*temp) == 0xc0) {
+            if ((uchar)(*temp) == 0xc0) {
                 ++temp;
                 temp = &packet[(uint8_t) *temp];
             } else {
@@ -389,7 +389,7 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
             temp = &packet[steps];
             j = 0;
             while (*temp != 0) {
-                if ((uchar) (*temp) == 0xc0) {
+                if ((uchar)(*temp) == 0xc0) {
                     ++temp;
                     temp = &packet[(uint8_t) *temp];
                 } else {
@@ -483,15 +483,15 @@ struct ResolvContext {
 };
 
 std::vector<std::string> dns_lookup_impl_with_cares(const char *domain, int family, double timeout) {
-    if (!swoole_event_isset_handler(SW_FD_CARES)) {
+    if (!swoole_event_isset_handler(SW_FD_CARES, SW_EVENT_READ)) {
         ares_library_init(ARES_LIB_INIT_ALL);
-        swoole_event_set_handler(SW_FD_CARES | SW_EVENT_READ, [](Reactor *reactor, Event *event) -> int {
+        swoole_event_set_handler(SW_FD_CARES, SW_EVENT_READ, [](Reactor *reactor, Event *event) -> int {
             auto ctx = static_cast<ResolvContext *>(event->socket->object);
             swoole_trace_log(SW_TRACE_CARES, "[event callback] readable event, fd=%d", event->socket->fd);
             ares_process_fd(ctx->channel, event->fd, ARES_SOCKET_BAD);
             return SW_OK;
         });
-        swoole_event_set_handler(SW_FD_CARES | SW_EVENT_WRITE, [](Reactor *reactor, Event *event) -> int {
+        swoole_event_set_handler(SW_FD_CARES, SW_EVENT_WRITE, [](Reactor *reactor, Event *event) -> int {
             auto ctx = static_cast<ResolvContext *>(event->socket->object);
             swoole_trace_log(SW_TRACE_CARES, "[event callback] writable event, fd=%d", event->socket->fd);
             ares_process_fd(ctx->channel, ARES_SOCKET_BAD, event->fd);

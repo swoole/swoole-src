@@ -264,8 +264,34 @@ TEST(process_pool, reload) {
         swoole_timer_after(100, [pool](TIMER_PARAMS) { pool->shutdown(); });
     };
 
+    pid_t other_child_pid = test::spawn_exec([]() {
+        usleep(10000);
+        exit(123);
+    });
+    test::counter_set(20, other_child_pid);
+
+    pool.onWorkerError = [](ProcessPool *pool, Worker *worker, const ExitStatus &exit_status) {
+        DEBUG() << "onWorkerError " << exit_status.get_pid() << "\n";
+        ASSERT_EQ(exit_status.get_signal(), SIGKILL);
+    };
+
+    pool.onWorkerMessage = [](ProcessPool *pool, EventData *msg) {
+        DEBUG() << "onWorkerMessage: type " << msg->info.type << ", content=" << std::string(msg->data, msg->info.len);
+        EXPECT_EQ(msg->info.type, SW_WORKER_MESSAGE_STOP + 1);
+        EXPECT_MEMEQ(msg->data, TEST_STR, msg->info.len);
+    };
+
+    pool.onWorkerNotFound = [](ProcessPool *pool, const ExitStatus &exit_status) -> int {
+        DEBUG() << "onWorkerNotFound " << exit_status.get_pid() << "\n";
+        EXPECT_EQ(exit_status.get_pid(), test::counter_get(20));
+        EXPECT_EQ(exit_status.get_code(), 123);
+        EXPECT_EQ(pool->push_message(SW_WORKER_MESSAGE_STOP + 1, SW_STRL(TEST_STR)), SW_OK);
+        return SW_OK;
+    };
+
     current_pool = &pool;
     sysv_signal(SIGTERM, [](int sig) { current_pool->running = false; });
+    sysv_signal(SIGIO, [](int sig) { current_pool->read_message = true; });
 
     ASSERT_EQ(pool.start(), SW_OK);
     ASSERT_EQ(pool.wait(), SW_OK);

@@ -590,17 +590,17 @@ bool System::exec(const char *command, bool get_error_stream, std::shared_ptr<St
 }
 
 void System::init_reactor(Reactor *reactor) {
-    reactor->set_handler(SW_FD_CO_POLL | SW_EVENT_READ, socket_poll_read_callback);
-    reactor->set_handler(SW_FD_CO_POLL | SW_EVENT_WRITE, socket_poll_write_callback);
-    reactor->set_handler(SW_FD_CO_POLL | SW_EVENT_ERROR, socket_poll_error_callback);
+    reactor->set_handler(SW_FD_CO_POLL, SW_EVENT_READ, socket_poll_read_callback);
+    reactor->set_handler(SW_FD_CO_POLL, SW_EVENT_WRITE, socket_poll_write_callback);
+    reactor->set_handler(SW_FD_CO_POLL, SW_EVENT_ERROR, socket_poll_error_callback);
 
-    reactor->set_handler(SW_FD_CO_EVENT | SW_EVENT_READ, event_waiter_read_callback);
-    reactor->set_handler(SW_FD_CO_EVENT | SW_EVENT_WRITE, event_waiter_write_callback);
-    reactor->set_handler(SW_FD_CO_EVENT | SW_EVENT_ERROR, event_waiter_error_callback);
+    reactor->set_handler(SW_FD_CO_EVENT, SW_EVENT_READ, event_waiter_read_callback);
+    reactor->set_handler(SW_FD_CO_EVENT, SW_EVENT_WRITE, event_waiter_write_callback);
+    reactor->set_handler(SW_FD_CO_EVENT, SW_EVENT_ERROR, event_waiter_error_callback);
 
-    reactor->set_handler(SW_FD_AIO | SW_EVENT_READ, AsyncThreads::callback);
+    reactor->set_handler(SW_FD_AIO, SW_EVENT_READ, AsyncThreads::callback);
 #ifdef SW_USE_IOURING
-    reactor->set_handler(SW_FD_IOURING | SW_EVENT_READ, Iouring::callback);
+    reactor->set_handler(SW_FD_IOURING, SW_EVENT_READ, Iouring::callback);
 #endif
 }
 
@@ -608,7 +608,7 @@ static void async_task_completed(AsyncEvent *event) {
     if (event->canceled) {
         return;
     }
-    Coroutine *co = (Coroutine *) event->object;
+    auto *co = static_cast<Coroutine *>(event->object);
     co->resume();
 }
 

@@ -87,6 +87,7 @@ class Iouring {
     static int futex_wakeup(uint32_t *futex);
 #endif
 
+    static std::unordered_map<std::string, int> list_all_opcode();
     static int callback(Reactor *reactor, Event *event);
 };
 };  // namespace swoole

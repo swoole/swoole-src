@@ -580,6 +580,7 @@ void swoole_redirect_stdout(const char *file);
 int swoole_shell_exec(const char *command, pid_t *pid, bool get_error_stream);
 int swoole_daemon(int nochdir, int noclose);
 bool swoole_set_task_tmpdir(const std::string &dir);
+const std::string &swoole_get_task_tmpdir();
 int swoole_tmpfile(char *filename);
 
 #ifdef HAVE_CPU_AFFINITY
@@ -861,4 +862,12 @@ static sw_inline swoole::MemoryPool *sw_mem_pool() {
 
 static sw_inline const swoole::Allocator *sw_std_allocator() {
     return &SwooleG.std_allocator;
+}
+
+static sw_inline swoole::Reactor *sw_reactor() {
+    return SwooleTG.reactor;
+}
+
+static sw_inline swoole::Timer *sw_timer() {
+    return SwooleTG.timer;
 }

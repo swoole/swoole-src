@@ -22,12 +22,6 @@ using swoole::Timer;
 using swoole::TimerCallback;
 using swoole::TimerNode;
 
-#ifdef __MACH__
-Timer *sw_timer() {
-    return SwooleTG.timer;
-}
-#endif
-
 bool swoole_timer_is_available() {
     return SwooleTG.timer != nullptr;
 }

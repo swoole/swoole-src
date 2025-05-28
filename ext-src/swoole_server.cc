@@ -2987,10 +2987,10 @@ static PHP_METHOD(swoole_server, stats) {
         add_assoc_long_ex(return_value, ZEND_STRL("worker_concurrency"), sw_worker()->concurrency);
     }
 
-    if (serv->task_ipc_mode > Server::TASK_IPC_UNIXSOCK && serv->gs->task_workers.queue) {
+    if (serv->task_ipc_mode > Server::TASK_IPC_UNIXSOCK && serv->get_task_worker_pool()->queue) {
         size_t queue_num = -1;
         size_t queue_bytes = -1;
-        if (serv->gs->task_workers.queue->stat(&queue_num, &queue_bytes)) {
+        if (serv->get_task_worker_pool()->queue->stat(&queue_num, &queue_bytes)) {
             add_assoc_long_ex(return_value, ZEND_STRL("task_queue_num"), queue_num);
             add_assoc_long_ex(return_value, ZEND_STRL("task_queue_bytes"), queue_bytes);
         }
@@ -3820,16 +3820,14 @@ static PHP_METHOD(swoole_server, stop) {
         RETURN_FALSE;
     }
 
-    zend_bool wait_reactor = 0;
     zend_long worker_id = -1;
 
-    ZEND_PARSE_PARAMETERS_START(0, 2)
+    ZEND_PARSE_PARAMETERS_START(0, 1)
     Z_PARAM_OPTIONAL
     Z_PARAM_LONG(worker_id)
-    Z_PARAM_BOOL(wait_reactor)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    RETURN_BOOL(serv->kill_worker(worker_id, wait_reactor));
+    RETURN_BOOL(serv->kill_worker(worker_id));
 }
 
 // swoole_connection_iterator

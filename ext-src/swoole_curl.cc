@@ -126,10 +126,10 @@ int Multi::handle_socket(CURL *easy, curl_socket_t sockfd, int action, void *use
 }
 
 HandleSocket *Multi::create_socket(Handle *handle, curl_socket_t sockfd) {
-    if (!swoole_event_isset_handler(PHP_SWOOLE_FD_CO_CURL)) {
-        swoole_event_set_handler(PHP_SWOOLE_FD_CO_CURL | SW_EVENT_READ, cb_readable);
-        swoole_event_set_handler(PHP_SWOOLE_FD_CO_CURL | SW_EVENT_WRITE, cb_writable);
-        swoole_event_set_handler(PHP_SWOOLE_FD_CO_CURL | SW_EVENT_ERROR, cb_error);
+    if (!swoole_event_isset_handler(PHP_SWOOLE_FD_CO_CURL, SW_EVENT_READ)) {
+        swoole_event_set_handler(PHP_SWOOLE_FD_CO_CURL, SW_EVENT_READ, cb_readable);
+        swoole_event_set_handler(PHP_SWOOLE_FD_CO_CURL, SW_EVENT_WRITE, cb_writable);
+        swoole_event_set_handler(PHP_SWOOLE_FD_CO_CURL, SW_EVENT_ERROR, cb_error);
     }
 
     auto _socket = handle->create_socket(sockfd);

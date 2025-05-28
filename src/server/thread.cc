@@ -40,7 +40,7 @@ Factory *Server::create_thread_factory() {
     return new ThreadFactory(this);
 }
 
-void Server::destroy_thread_factory() {
+void Server::destroy_thread_factory() const {
     sw_free(connection_list);
     delete[] reactor_threads;
 }
@@ -59,7 +59,7 @@ bool ThreadFactory::start() {
     if (!server_->create_worker_pipes()) {
         return false;
     }
-    if (server_->task_worker_num > 0 && server_->gs->task_workers.start_check() < 0) {
+    if (server_->task_worker_num > 0 && server_->get_task_worker_pool()->start_check() < 0) {
         return false;
     }
     if (server_->get_user_worker_num() > 0 && server_->create_user_workers() < 0) {
@@ -99,7 +99,7 @@ void ThreadFactory::at_thread_exit(Worker *worker) {
     swoole_thread_clean(false);
 }
 
-void ThreadFactory::create_message_bus() {
+void ThreadFactory::create_message_bus() const {
     auto mb = new MessageBus();
     mb->set_id_generator(server_->msg_id_generator);
     mb->set_buffer_size(server_->ipc_max_size);
@@ -141,7 +141,7 @@ void ThreadFactory::spawn_task_worker(WorkerId i) {
         worker->pid = swoole_get_worker_pid();
         worker->set_status_to_idle();
         SwooleWG.worker = worker;
-        auto pool = &server_->gs->task_workers;
+        auto pool = server_->get_task_worker_pool();
         server_->worker_thread_start(threads_[i], [=]() {
             if (pool->onWorkerStart != nullptr) {
                 pool->onWorkerStart(pool, worker);
@@ -296,7 +296,7 @@ bool ThreadFactory::reload(bool _reload_all_workers) {
             if (i < server_->worker_num && !_reload_all_workers) {
                 continue;
             }
-            if (!server_->kill_worker(i, true)) {
+            if (!server_->kill_worker(i)) {
                 return false;
             }
             SW_LOOP {
@@ -408,7 +408,7 @@ void Server::stop_worker_threads() {
     }
 }
 
-bool Server::reload_worker_threads(bool reload_all_workers) {
+bool Server::reload_worker_threads(bool reload_all_workers) const {
     auto *_factory = dynamic_cast<ThreadFactory *>(factory);
     return _factory->reload(reload_all_workers);
 }

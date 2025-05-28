@@ -316,6 +316,10 @@ bool swoole_set_task_tmpdir(const std::string &dir) {
     return true;
 }
 
+const std::string &swoole_get_task_tmpdir() {
+    return SwooleG.task_tmpfile;
+}
+
 pid_t swoole_fork_exec(const std::function<void(void)> &fn) {
     pid_t pid = fork();
     switch (pid) {
