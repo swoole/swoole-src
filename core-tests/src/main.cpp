@@ -55,8 +55,7 @@ static void init_root_path(const char *_exec_file) {
     }
 }
 
-namespace swoole {
-namespace test {
+namespace swoole::test {
 NullStream null_stream;
 std::reference_wrapper<std::ostream> debug_output(std::cout);
 
@@ -364,5 +363,4 @@ int spawn_exec_and_wait(const std::function<void(void)> &fn) {
         return -1;
     }
 }
-}  // namespace test
-}  // namespace swoole
+}  // namespace swoole::test

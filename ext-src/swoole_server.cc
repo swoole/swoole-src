@@ -3822,7 +3822,7 @@ static PHP_METHOD(swoole_server, stop) {
 
     zend_long worker_id = -1;
 
-    ZEND_PARSE_PARAMETERS_START(0, 2)
+    ZEND_PARSE_PARAMETERS_START(0, 1)
     Z_PARAM_OPTIONAL
     Z_PARAM_LONG(worker_id)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);

@@ -863,3 +863,11 @@ static sw_inline swoole::MemoryPool *sw_mem_pool() {
 static sw_inline const swoole::Allocator *sw_std_allocator() {
     return &SwooleG.std_allocator;
 }
+
+static sw_inline swoole::Reactor *sw_reactor() {
+    return SwooleTG.reactor;
+}
+
+static sw_inline swoole::Timer *sw_timer() {
+    return SwooleTG.timer;
+}

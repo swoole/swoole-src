@@ -60,11 +60,3 @@ SW_API void swoole_event_set_handler(int fd_type, int event, swoole::ReactorHand
 SW_API bool swoole_event_isset_handler(int fd_type, int event);
 SW_API bool swoole_event_is_available();
 SW_API bool swoole_event_is_running();
-
-static inline swoole::Reactor *sw_reactor() {
-    return SwooleTG.reactor;
-}
-
-static inline swoole::Timer *sw_timer() {
-    return SwooleTG.timer;
-}
