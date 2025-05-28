@@ -287,7 +287,7 @@ class Reactor {
         }
     }
 
-    ReactorHandler get_handler(const EventType event, const FdType fd_type) const {
+    ReactorHandler get_handler(const FdType fd_type, const EventType event) const {
         switch (event) {
         case SW_EVENT_READ:
             return read_handler[fd_type];
@@ -303,12 +303,12 @@ class Reactor {
     }
 
     ReactorHandler get_error_handler(const FdType fd_type) const {
-        ReactorHandler handler = get_handler(SW_EVENT_ERROR, fd_type);
+        ReactorHandler handler = get_handler(fd_type, SW_EVENT_ERROR);
         // error callback is not set, try to use readable or writable callback
         if (handler == nullptr) {
-            handler = get_handler(SW_EVENT_READ, fd_type);
+            handler = get_handler(fd_type, SW_EVENT_READ);
             if (handler == nullptr) {
-                handler = get_handler(SW_EVENT_WRITE, fd_type);
+                handler = get_handler(fd_type, SW_EVENT_WRITE);
             }
         }
         return handler;
@@ -364,10 +364,6 @@ class Reactor {
                               size_t _len,
                               const std::function<ssize_t()> &send_fn,
                               const std::function<void(Buffer *buffer)> &append_fn);
-
-    static FdType get_fd_type(const int flags) {
-        return static_cast<FdType>(flags & (~SW_EVENT_READ) & (~SW_EVENT_WRITE) & (~SW_EVENT_ERROR) & (~SW_EVENT_ONCE));
-    }
 
     static bool isset_read_event(const int events) {
         return (events < SW_EVENT_DEAULT) || (events & SW_EVENT_READ);

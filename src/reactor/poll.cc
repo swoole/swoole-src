@@ -211,7 +211,7 @@ int ReactorPoll::wait() {
                 swoole_trace("Event: fd=%d|reactor_id=%d|type=%d", event.fd, reactor_->id, event.type);
                 // in
                 if ((events_[i].revents & POLLIN) && !event.socket->removed) {
-                    handler = reactor_->get_handler(SW_EVENT_READ, event.type);
+                    handler = reactor_->get_handler(event.type, SW_EVENT_READ);
                     ret = handler(reactor_, &event);
                     if (ret < 0) {
                         swoole_sys_warning("POLLIN handle failed. fd=%d", event.fd);
@@ -220,7 +220,7 @@ int ReactorPoll::wait() {
                 }
                 // out
                 if ((events_[i].revents & POLLOUT) && !event.socket->removed) {
-                    handler = reactor_->get_handler(SW_EVENT_WRITE, event.type);
+                    handler = reactor_->get_handler(event.type, SW_EVENT_WRITE);
                     ret = handler(reactor_, &event);
                     if (ret < 0) {
                         swoole_sys_warning("POLLOUT handle failed. fd=%d", event.fd);

@@ -212,7 +212,7 @@ int ReactorEpoll::wait() {
             }
             // read
             if ((events_[i].events & EPOLLIN) && !event.socket->removed) {
-                handler = reactor_->get_handler(SW_EVENT_READ, event.type);
+                handler = reactor_->get_handler(event.type, SW_EVENT_READ);
                 ret = handler(reactor_, &event);
                 if (ret < 0) {
                     swoole_sys_warning("EPOLLIN handle failed [fd=%d, type=%d]", event.fd, event.type);
@@ -220,7 +220,7 @@ int ReactorEpoll::wait() {
             }
             // write
             if ((events_[i].events & EPOLLOUT) && !event.socket->removed) {
-                handler = reactor_->get_handler(SW_EVENT_WRITE, event.type);
+                handler = reactor_->get_handler(event.type, SW_EVENT_WRITE);
                 ret = handler(reactor_, &event);
                 if (ret < 0) {
                     swoole_sys_warning("EPOLLOUT handle failed [fd=%d, type=%d]", event.fd, event.type);

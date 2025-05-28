@@ -272,7 +272,7 @@ TEST(socket, send_async_2) {
     auto req = test::http_get_request(TEST_HTTP_DOMAIN, "/");
     ASSERT_EQ(sock->send_async(req.c_str(), req.length()), req.length());
 
-    swoole_event_set_handler(SW_FD_STREAM_CLIENT | SW_EVENT_READ, [](Reactor *reactor, Event *event) {
+    swoole_event_set_handler(SW_FD_STREAM_CLIENT, SW_EVENT_READ, [](Reactor *reactor, Event *event) {
         auto buf = sw_tg_buffer();
         auto n = event->socket->recv_sync(buf->str, buf->size, 0);
         EXPECT_GT(n, 0);
@@ -617,8 +617,7 @@ TEST(socket, get_domain_and_type) {
     ASSERT_TRUE(network::Socket::is_stream(SW_SOCK_TCP));
 
     int sock_domain, sock_type;
-    ASSERT_EQ(network::Socket::get_domain_and_type((swSocketType) (SW_SOCK_RAW6 + 1), &sock_domain, &sock_type),
-              SW_ERR);
+    ASSERT_EQ(network::Socket::get_domain_and_type((swSocketType)(SW_SOCK_RAW6 + 1), &sock_domain, &sock_type), SW_ERR);
 }
 
 TEST(socket, make_socket) {
