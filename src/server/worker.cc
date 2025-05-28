@@ -346,7 +346,7 @@ void Server::call_worker_error_callback(Worker *worker, const ExitStatus &status
     }
 }
 
-bool Server::kill_worker(int worker_id, bool wait_reactor) {
+bool Server::kill_worker(int worker_id) {
     auto current_worker = sw_worker();
     if (!current_worker && worker_id < 0) {
         swoole_error_log(
@@ -364,11 +364,13 @@ bool Server::kill_worker(int worker_id, bool wait_reactor) {
         return send_to_worker_from_worker(get_worker(worker_id), &event, sizeof(event), SW_PIPE_MASTER) != -1;
     }
 
-    if (current_worker && (WorkerId) worker_id == current_worker->id && !wait_reactor) {
+    // kill self
+    if (current_worker && (WorkerId) worker_id == current_worker->id) {
         if (swoole_event_is_available()) {
-            swoole_event_defer([](void *data) { sw_reactor()->running = false; }, nullptr);
+            stop_async_worker(current_worker);
+        } else {
+            current_worker->shutdown();
         }
-        running = false;
     } else {
         Worker *worker = get_worker(worker_id);
         if (worker == nullptr) {

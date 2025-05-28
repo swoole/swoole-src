@@ -1308,7 +1308,7 @@ class Server {
     }
 
     Worker *get_worker(uint16_t worker_id);
-    bool kill_worker(int worker_id, bool wait_reactor);
+    bool kill_worker(int worker_id);
     void stop_async_worker(Worker *worker);
 
     Pipe *get_pipe_object(int pipe_fd) const {

@@ -493,7 +493,7 @@ static void test_process(bool single_thread = false) {
         EXPECT_EQ(serv->get_connection_num(), 1);
         EXPECT_EQ(serv->get_primary_port()->get_connection_num(), 1);
 
-        swoole_timer_after(100, [serv](TIMER_PARAMS) { serv->kill_worker(1 + swoole_random_int() % 3, false); });
+        swoole_timer_after(100, [serv](TIMER_PARAMS) { serv->kill_worker(1 + swoole_random_int() % 3); });
 
         return SW_OK;
     };
@@ -592,7 +592,7 @@ static void test_process_send_in_user_worker() {
         EXPECT_EQ(serv->get_connection_num(), 1);
         EXPECT_EQ(serv->get_primary_port()->get_connection_num(), 1);
 
-        swoole_timer_after(100, [serv](TIMER_PARAMS) { serv->kill_worker(1 + swoole_random_int() % 3, false); });
+        swoole_timer_after(100, [serv](TIMER_PARAMS) { serv->kill_worker(1 + swoole_random_int() % 3); });
 
         return SW_OK;
     };
@@ -1547,13 +1547,17 @@ TEST(server, task_worker_3) {
     serv.onTask = [](Server *serv, EventData *task) -> int { return 0; };
 
     serv.onWorkerStart = [](Server *serv, Worker *worker) {
+        test::counter_incr(1);
+        DEBUG() << "onWorkerStart: id=" << worker->id << "\n";
         if (worker->id == 0) {
             swoole_timer_after(50, [serv](TIMER_PARAMS) { kill(serv->get_worker_pid(2), SIGTERM); });
             swoole_timer_after(60, [serv](TIMER_PARAMS) { kill(serv->get_manager_pid(), SIGRTMIN); });
             swoole_timer_after(100, [serv](TIMER_PARAMS) { serv->shutdown(); });
         }
-        test::counter_incr(1);
-        DEBUG() << "onWorkerStart: id=" << worker->id << "\n";
+        if (worker->id == 1 &&  test::counter_get(30) == 0) {
+            test::counter_set(30, 1);
+            swoole_timer_after(20, [serv](TIMER_PARAMS) { serv->kill_worker(-1); });
+        }
     };
 
     serv.onReceive = [](Server *serv, RecvData *req) -> int { return 0; };
@@ -1561,7 +1565,7 @@ TEST(server, task_worker_3) {
     ASSERT_EQ(serv.create(), SW_OK);
     ASSERT_EQ(serv.start(), SW_OK);
 
-    ASSERT_EQ(test::counter_get(1), 4);  // onWorkerStart
+    ASSERT_EQ(test::counter_get(1), 5);  // onWorkerStart
 }
 
 TEST(server, reload_single_process) {
@@ -3023,7 +3027,6 @@ TEST(server, clean_worker_2) {
 }
 
 struct Options {
-    bool wait_reactor = true;
     bool reload_async = true;
     bool worker_exit_callback = false;
     bool test_shutdown_event = false;
@@ -3094,7 +3097,7 @@ static void test_kill_worker(Server::Mode mode, const Options &options) {
 
     serv.onStart = [&lock, &options](Server *_serv) {
         if (!sw_worker()) {
-            ASSERT_FALSE(_serv->kill_worker(-1, options.wait_reactor));
+            ASSERT_FALSE(_serv->kill_worker(-1));
         }
         lock.unlock();
     };
@@ -3115,7 +3118,7 @@ static void test_kill_worker(Server::Mode mode, const Options &options) {
         auto rn = c.recv(rbuf.str, rbuf.size);
         EXPECT_EQ(rn, 2);
 
-        serv.kill_worker(1 - counter[5], options.wait_reactor);
+        serv.kill_worker(1 - counter[5]);
 
         rn = c.recv(rbuf.str, rbuf.size);
         EXPECT_EQ(rn, 0);
@@ -3146,50 +3149,37 @@ static void test_kill_worker(Server::Mode mode, const Options &options) {
 TEST(server, kill_worker_1) {
     Options opt;
     opt.reload_async = true;
-    opt.wait_reactor = true;
     test_kill_worker(Server::MODE_BASE, opt);
 }
 
 TEST(server, kill_worker_2) {
     Options opt;
     opt.reload_async = true;
-    opt.wait_reactor = true;
     test_kill_worker(Server::MODE_PROCESS, opt);
 }
 
 TEST(server, kill_worker_3) {
     Options opt;
     opt.reload_async = true;
-    opt.wait_reactor = true;
     test_kill_worker(Server::MODE_THREAD, opt);
 }
 
 TEST(server, kill_worker_4) {
     Options opt;
-    opt.reload_async = true;
-    opt.wait_reactor = false;
+    opt.reload_async = false;
     test_kill_worker(Server::MODE_BASE, opt);
 }
 
 TEST(server, kill_worker_5) {
     Options opt;
-    opt.reload_async = true;
-    opt.wait_reactor = false;
+    opt.reload_async = false;
     test_kill_worker(Server::MODE_PROCESS, opt);
 }
 
 TEST(server, kill_worker_6) {
     Options opt;
-    opt.reload_async = true;
-    opt.wait_reactor = false;
-    test_kill_worker(Server::MODE_THREAD, opt);
-}
-
-TEST(server, no_reload_async) {
-    Options opt;
     opt.reload_async = false;
-    opt.wait_reactor = true;
-    test_kill_worker(Server::MODE_PROCESS, opt);
+    test_kill_worker(Server::MODE_THREAD, opt);
 }
 
 TEST(server, worker_exit) {
@@ -3238,7 +3228,7 @@ static void test_kill_self(Server::Mode mode) {
 
     serv.onStart = [&lock](Server *_serv) {
         if (!sw_worker()) {
-            ASSERT_FALSE(_serv->kill_worker(-1, true));
+            ASSERT_FALSE(_serv->kill_worker(-1));
         }
         lock.unlock();
     };
@@ -3259,7 +3249,7 @@ static void test_kill_self(Server::Mode mode) {
         auto rn = c.recv(rbuf.str, rbuf.size);
         EXPECT_EQ(rn, 2);
 
-        serv.kill_worker(counter[5], false);
+        serv.kill_worker(counter[5]);
 
         rn = c.recv(rbuf.str, rbuf.size);
         EXPECT_EQ(rn, 0);
@@ -3275,7 +3265,7 @@ static void test_kill_self(Server::Mode mode) {
     t.join();
 
     ASSERT_EQ(counter[0], 1);  // Client receive
-    ASSERT_EQ(counter[1], 3);  // Server onWorkeStart
+    ASSERT_EQ(counter[1], 3);  // Server onWorkerStart
     ASSERT_EQ(counter[2], 1);  // Server onClose
     ASSERT_EQ(counter[3], 1);  // Client close
 }

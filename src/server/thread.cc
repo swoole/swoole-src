@@ -296,7 +296,7 @@ bool ThreadFactory::reload(bool _reload_all_workers) {
             if (i < server_->worker_num && !_reload_all_workers) {
                 continue;
             }
-            if (!server_->kill_worker(i, true)) {
+            if (!server_->kill_worker(i)) {
                 return false;
             }
             SW_LOOP {

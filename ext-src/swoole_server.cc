@@ -3820,16 +3820,14 @@ static PHP_METHOD(swoole_server, stop) {
         RETURN_FALSE;
     }
 
-    zend_bool wait_reactor = 0;
     zend_long worker_id = -1;
 
     ZEND_PARSE_PARAMETERS_START(0, 2)
     Z_PARAM_OPTIONAL
     Z_PARAM_LONG(worker_id)
-    Z_PARAM_BOOL(wait_reactor)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    RETURN_BOOL(serv->kill_worker(worker_id, wait_reactor));
+    RETURN_BOOL(serv->kill_worker(worker_id));
 }
 
 // swoole_connection_iterator
