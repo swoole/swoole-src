@@ -56,15 +56,15 @@ SW_API ssize_t swoole_event_writev(swoole::network::Socket *socket, const iovec 
 SW_API swoole::network::Socket *swoole_event_get_socket(int fd);
 SW_API int swoole_event_wait();
 SW_API int swoole_event_free();
-SW_API bool swoole_event_set_handler(int fdtype, swoole::ReactorHandler handler);
-SW_API bool swoole_event_isset_handler(int fdtype);
+SW_API void swoole_event_set_handler(int fd_type, int event, swoole::ReactorHandler handler);
+SW_API bool swoole_event_isset_handler(int fd_type, int event);
 SW_API bool swoole_event_is_available();
 SW_API bool swoole_event_is_running();
 
-#ifdef __MACH__
-swoole::Reactor *sw_reactor();
-swoole::Timer *sw_timer();
-#else
-#define sw_reactor() (SwooleTG.reactor)
-#define sw_timer() (SwooleTG.timer)
-#endif
+static inline swoole::Reactor *sw_reactor() {
+    return SwooleTG.reactor;
+}
+
+static inline swoole::Timer *sw_timer() {
+    return SwooleTG.timer;
+}

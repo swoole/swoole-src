@@ -646,13 +646,13 @@ int ProcessPool::run_async(ProcessPool *pool, Worker *worker) {
     if (pool->ipc_mode == SW_IPC_UNIXSOCK && pool->onMessage) {
         swoole_event_add(worker->pipe_worker, SW_EVENT_READ);
         if (pool->message_bus) {
-            swoole_event_set_handler(SW_FD_PIPE, recv_message);
+            swoole_event_set_handler(SW_FD_PIPE, SW_EVENT_READ, recv_message);
         } else {
             pool->packet_buffer = new char[pool->max_packet_size_];
             if (pool->stream_info_) {
                 pool->stream_info_->response_buffer = new String(SW_BUFFER_SIZE_STD);
             }
-            swoole_event_set_handler(SW_FD_PIPE, recv_packet);
+            swoole_event_set_handler(SW_FD_PIPE, SW_EVENT_READ, recv_packet);
         }
     }
     return swoole_event_wait();

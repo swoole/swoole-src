@@ -35,7 +35,7 @@ static void Worker_reopen_logger() {
     }
 }
 
-void Server::worker_signal_init() {
+void Server::worker_signal_init() const {
     if (is_thread_mode()) {
         return;
     }
@@ -77,7 +77,7 @@ void Server::worker_signal_handler(int signo) {
     }
 }
 
-static sw_inline bool Worker_discard_data(Server *serv, Connection *conn, DataHead *info) {
+static sw_inline bool Worker_discard_data(const Server *serv, const Connection *conn, const DataHead *info) {
     if (conn == nullptr) {
         if (serv->disable_notify && !serv->discard_timeout_request) {
             return false;
@@ -101,7 +101,7 @@ _discard_data:
 
 typedef std::function<int(Server *, RecvData *)> TaskCallback;
 
-static sw_inline void Worker_do_task(Server *serv, Worker *worker, DataHead *info, const TaskCallback &callback) {
+static sw_inline void Worker_do_task(Server *serv, Worker *worker, const DataHead *info, const TaskCallback &callback) {
     RecvData recv_data;
     auto packet = serv->get_worker_message_bus()->get_packet();
     recv_data.info = *info;
@@ -565,7 +565,7 @@ int Server::start_event_worker(Worker *worker) {
      * set pipe buffer size
      */
     for (uint32_t i = 0; i < worker_num + task_worker_num; i++) {
-        Worker *_worker = get_worker(i);
+        const Worker *_worker = get_worker(i);
         if (_worker->pipe_master) {
             _worker->pipe_master->buffer_size = UINT_MAX;
         }
@@ -577,7 +577,7 @@ int Server::start_event_worker(Worker *worker) {
     worker->pipe_worker->set_nonblock();
     reactor->ptr = this;
     reactor->add(worker->pipe_worker, SW_EVENT_READ);
-    reactor->set_handler(SW_FD_PIPE, Worker_onPipeReceive);
+    reactor->set_handler(SW_FD_PIPE, SW_EVENT_READ, Worker_onPipeReceive);
 
     if (dispatch_mode == DISPATCH_CO_CONN_LB || dispatch_mode == DISPATCH_CO_REQ_LB) {
         reactor->set_end_callback(Reactor::PRIORITY_WORKER_CALLBACK,
@@ -587,7 +587,7 @@ int Server::start_event_worker(Worker *worker) {
     worker_start_callback(worker);
 
     // main loop
-    reactor->wait();
+    const auto rv = reactor->wait();
     // drain pipe buffer
     drain_worker_pipe();
     // reactor free
@@ -597,7 +597,7 @@ int Server::start_event_worker(Worker *worker) {
 
     delete buffer_pool;
 
-    return SW_OK;
+    return rv;
 }
 
 /**

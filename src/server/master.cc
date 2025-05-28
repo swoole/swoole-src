@@ -461,11 +461,11 @@ int Server::start_master_thread(Reactor *reactor) {
     }
 
     reactor->ptr = this;
-    reactor->set_handler(SW_FD_STREAM_SERVER, Server::accept_connection);
+    reactor->set_handler(SW_FD_STREAM_SERVER, SW_EVENT_READ, accept_connection);
 
     if (pipe_command) {
         if (!single_thread) {
-            reactor->set_handler(SW_FD_PIPE, Server::accept_command_result);
+            reactor->set_handler(SW_FD_PIPE, SW_EVENT_READ, accept_command_result);
         }
         reactor->add(pipe_command->get_socket(true), SW_EVENT_READ);
     }
@@ -571,7 +571,7 @@ int Server::create_task_workers() {
     return SW_OK;
 }
 
-void Server::destroy_task_workers() {
+void Server::destroy_task_workers() const {
     if (task_results) {
         sw_shm_free(task_results);
     }
@@ -1571,7 +1571,7 @@ bool Server::sendfile(SessionId session_id, const char *file, uint32_t l_file, o
                          "sendfile name[%.8s...] length %u is exceed the max name len %u",
                          file,
                          l_file,
-                         (uint32_t) (SW_IPC_BUFFER_SIZE - sizeof(SendfileTask) - 1));
+                         (uint32_t)(SW_IPC_BUFFER_SIZE - sizeof(SendfileTask) - 1));
         return false;
     }
     // string must be zero termination (for `state` system call)
@@ -1851,7 +1851,7 @@ ListenPort *Server::add_port(SocketType type, const char *host, int port) {
 
 #ifdef SW_USE_OPENSSL
     if (type & SW_SOCK_SSL) {
-        type = (SocketType) (type & (~SW_SOCK_SSL));
+        type = (SocketType)(type & (~SW_SOCK_SSL));
         ls->type = type;
         ls->ssl = 1;
         ls->ssl_context_init();

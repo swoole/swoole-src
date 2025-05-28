@@ -41,7 +41,7 @@ class ReactorImpl {
     explicit ReactorImpl(Reactor *_reactor) {
         reactor_ = _reactor;
     }
-    void after_removal_failure(network::Socket *_socket);
+    void after_removal_failure(const network::Socket *_socket) const;
     virtual ~ReactorImpl() = default;
     virtual bool ready() = 0;
     virtual int add(network::Socket *socket, int events) = 0;
@@ -188,8 +188,9 @@ class Reactor {
     void set_end_callback(EndCallback id, const std::function<void(Reactor *)> &fn);
     void erase_end_callback(EndCallback id);
     void set_exit_condition(ExitCondition id, const std::function<bool(Reactor *, size_t &)> &fn);
-    bool set_handler(int _fdtype, ReactorHandler handler);
-    void add_destroy_callback(Callback cb, void *data = nullptr);
+    void set_handler(int fd_type, int event, ReactorHandler handler);
+    bool isset_handler(int fd_type, int event) const;
+    void add_destroy_callback(const Callback &cb, void *data = nullptr);
     void execute_begin_callback() const;
     void execute_end_callbacks(bool _timed_out = false);
     void drain_write_buffer(network::Socket *socket);
@@ -198,16 +199,12 @@ class Reactor {
         return running;
     }
 
-    size_t remove_exit_condition(enum ExitCondition id) {
+    size_t remove_exit_condition(const ExitCondition id) {
         return exit_conditions.erase(id);
     }
 
-    bool isset_exit_condition(enum ExitCondition id) {
+    bool isset_exit_condition(const ExitCondition id) {
         return exit_conditions.find(id) != exit_conditions.end();
-    }
-
-    bool isset_handler(int fdtype) const {
-        return read_handler[fdtype] != nullptr;
     }
 
     int add_event(network::Socket *_socket, EventType event_type) const {
@@ -290,8 +287,8 @@ class Reactor {
         }
     }
 
-    ReactorHandler get_handler(const EventType event_type, const FdType fd_type) const {
-        switch (event_type) {
+    ReactorHandler get_handler(const EventType event, const FdType fd_type) const {
+        switch (event) {
         case SW_EVENT_READ:
             return read_handler[fd_type];
         case SW_EVENT_WRITE:
@@ -362,9 +359,9 @@ class Reactor {
     static ssize_t _writev(Reactor *reactor, network::Socket *socket, const iovec *iov, size_t iovcnt);
     static int _close(Reactor *reactor, network::Socket *socket);
     static int _writable_callback(Reactor *reactor, Event *ev);
-    static ssize_t write_func(Reactor *reactor,
+    static ssize_t write_func(const Reactor *reactor,
                               network::Socket *socket,
-                              const size_t _len,
+                              size_t _len,
                               const std::function<ssize_t()> &send_fn,
                               const std::function<void(Buffer *buffer)> &append_fn);
 

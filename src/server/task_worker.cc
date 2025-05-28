@@ -55,10 +55,10 @@ bool Server::init_task_workers() {
     return true;
 }
 
-static int TaskWorker_call_command_handler(ProcessPool *pool, Worker *worker, EventData *req) {
+static int TaskWorker_call_command_handler(const ProcessPool *pool, const Worker *worker, EventData *req) {
     auto *serv = static_cast<Server *>(pool->ptr);
     int command_id = serv->get_command_id(req);
-    auto iter = serv->command_handlers.find(command_id);
+    const auto iter = serv->command_handlers.find(command_id);
     if (iter == serv->command_handlers.end()) {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_INVALID_COMMAND, "Unknown command[%d]", command_id);
         return SW_OK;
@@ -292,7 +292,7 @@ bool Server::task_sync(MultiTask &mtask, double timeout) {
     }
 
     do {
-        EventData *result = reinterpret_cast<EventData *>(content->str + content->offset);
+        auto *result = reinterpret_cast<EventData *>(content->str + content->offset);
         int index = mtask.find(get_task_id(result));
         if (index != -1) {
             mtask.unpack(index, result);
@@ -416,7 +416,7 @@ static int TaskWorker_loop_async(ProcessPool *pool, Worker *worker) {
     socket->set_nonblock();
     sw_reactor()->ptr = pool;
     swoole_event_add(socket, SW_EVENT_READ);
-    swoole_event_set_handler(SW_FD_PIPE, TaskWorker_onPipeReceive);
+    swoole_event_set_handler(SW_FD_PIPE, SW_EVENT_READ, TaskWorker_onPipeReceive);
 
     for (uint i = 0; i < serv->worker_num + serv->task_worker_num; i++) {
         worker = serv->get_worker(i);

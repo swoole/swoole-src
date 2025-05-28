@@ -104,7 +104,7 @@ int ListenPort::ssl_server_sni_callback(SSL *ssl, int *al, void *arg) {
 }
 
 #ifdef SW_SUPPORT_DTLS
-dtls::Session *ListenPort::create_dtls_session(Socket *sock) {
+dtls::Session *ListenPort::create_dtls_session(Socket *sock) const {
     auto *session = new dtls::Session(sock, ssl_context);
     if (!session->init()) {
         delete session;
@@ -158,7 +158,7 @@ bool ListenPort::ssl_create(Connection *conn, Socket *sock) {
     return true;
 }
 
-bool ListenPort::ssl_context_create(SSLContext *context) {
+bool ListenPort::ssl_context_create(SSLContext *context) const {
     if (context->cert_file.empty() || context->key_file.empty()) {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_WRONG_OPERATION, "require `ssl_cert_file` and `ssl_key_file` options");
         return false;

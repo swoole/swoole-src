@@ -60,16 +60,16 @@ ProcessFactory::~ProcessFactory() = default;
 /**
  * kill and wait all user process
  */
-void Factory::kill_user_workers() {
+void Factory::kill_user_workers() const {
     if (server_->user_worker_map.empty()) {
         return;
     }
 
-    for (auto &kv : server_->user_worker_map) {
+    for (const auto &kv : server_->user_worker_map) {
         swoole_kill(kv.second->pid, SIGTERM);
     }
 
-    for (auto &kv : server_->user_worker_map) {
+    for (const auto &kv : server_->user_worker_map) {
         int _stat_loc;
         if (swoole_waitpid(kv.second->pid, &_stat_loc, 0) < 0) {
             swoole_sys_warning("waitpid(%d) failed", kv.second->pid);
@@ -80,7 +80,7 @@ void Factory::kill_user_workers() {
 /**
  * [Manager] kill and wait all event worker process
  */
-void Factory::kill_event_workers() {
+void Factory::kill_event_workers() const {
     int status;
 
     if (server_->worker_num == 0) {
@@ -102,7 +102,7 @@ void Factory::kill_event_workers() {
 /**
  * [Manager] kill and wait task worker process
  */
-void Factory::kill_task_workers() {
+void Factory::kill_task_workers() const {
     int status;
     if (server_->task_worker_num == 0) {
         return;
@@ -119,7 +119,7 @@ void Factory::kill_task_workers() {
     }
 }
 
-pid_t Factory::spawn_event_worker(Worker *worker) {
+pid_t Factory::spawn_event_worker(Worker *worker) const {
     pid_t pid = swoole_fork(0);
 
     if (pid < 0) {
@@ -146,7 +146,7 @@ pid_t Factory::spawn_event_worker(Worker *worker) {
     return 0;
 }
 
-pid_t Factory::spawn_user_worker(Worker *worker) {
+pid_t Factory::spawn_user_worker(Worker *worker) const {
     pid_t pid = swoole_fork(0);
     if (worker->pid) {
         server_->user_worker_map.erase(worker->pid);
@@ -177,11 +177,11 @@ pid_t Factory::spawn_user_worker(Worker *worker) {
     }
 }
 
-pid_t Factory::spawn_task_worker(Worker *worker) {
+pid_t Factory::spawn_task_worker(Worker *worker) const {
     return server_->get_task_worker_pool()->spawn(worker);
 }
 
-void Factory::check_worker_exit_status(Worker *worker, const ExitStatus &exit_status) {
+void Factory::check_worker_exit_status(Worker *worker, const ExitStatus &exit_status) const {
     if (exit_status.get_status() != 0) {
         worker->report_error(exit_status);
         server_->call_worker_error_callback(worker, exit_status);

@@ -49,7 +49,7 @@ struct Manager {
 };
 
 void Manager::timer_callback(Timer *timer, TimerNode *tnode) {
-    auto *serv = (Server *) tnode->data;
+    auto *serv = static_cast<Server *>(tnode->data);
     if (serv->isset_hook(Server::HOOK_MANAGER_TIMER)) {
         serv->call_hook(Server::HOOK_MANAGER_TIMER, serv);
     }
@@ -396,13 +396,13 @@ void Manager::signal_handler(int signo) {
  * @return: success returns pid, failure returns SW_ERR.
  */
 int Server::wait_other_worker(ProcessPool *pool, const ExitStatus &exit_status) {
-    auto serv = (Server *) pool->ptr;
+    auto serv = static_cast<Server *>(pool->ptr);
     Worker *exit_worker = nullptr;
     int worker_type;
 
     do {
         if (serv->get_task_worker_pool()->map_) {
-            auto iter = serv->get_task_worker_pool()->map_->find(exit_status.get_pid());
+            const auto iter = serv->get_task_worker_pool()->map_->find(exit_status.get_pid());
             if (iter != serv->get_task_worker_pool()->map_->end()) {
                 worker_type = SW_TASK_WORKER;
                 exit_worker = iter->second;
@@ -410,7 +410,7 @@ int Server::wait_other_worker(ProcessPool *pool, const ExitStatus &exit_status) 
             }
         }
         if (!serv->user_worker_map.empty()) {
-            auto iter = serv->user_worker_map.find(exit_status.get_pid());
+            const auto iter = serv->user_worker_map.find(exit_status.get_pid());
             if (iter != serv->user_worker_map.end()) {
                 worker_type = SW_USER_WORKER;
                 exit_worker = iter->second;
@@ -448,16 +448,16 @@ void Server::read_worker_message(ProcessPool *pool, EventData *msg) {
         return;
     }
 
-    auto serv = (Server *) pool->ptr;
+    const auto serv = static_cast<Server *>(pool->ptr);
     int command_id = msg->info.server_fd;
-    auto iter = serv->command_handlers.find(command_id);
+    const auto iter = serv->command_handlers.find(command_id);
     if (iter == serv->command_handlers.end()) {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_INVALID_COMMAND, "Unknown command[command_id=%d]", command_id);
         return;
     }
 
     Command::Handler handler = iter->second;
-    auto result = handler(serv, std::string(msg->data, msg->info.len));
+    const auto result = handler(serv, std::string(msg->data, msg->info.len));
 
     SendData task{};
     task.info.fd = msg->info.fd;

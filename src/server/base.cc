@@ -22,7 +22,7 @@ Factory *Server::create_base_factory() {
     reactor_num = worker_num;
     connection_list = static_cast<Connection *>(sw_calloc(max_connection, sizeof(Connection)));
     if (connection_list == nullptr) {
-        swoole_sys_warning("calloc[2](%d) failed", (int) (max_connection * sizeof(Connection)));
+        swoole_sys_warning("calloc[2](%zu) failed", max_connection * sizeof(Connection));
         return nullptr;
     }
     gs->connection_nums = static_cast<sw_atomic_t *>(sw_shm_calloc(worker_num, sizeof(sw_atomic_t)));
@@ -31,7 +31,7 @@ Factory *Server::create_base_factory() {
         return nullptr;
     }
 
-    for (auto port : ports) {
+    for (const auto port : ports) {
         port->gs->connection_nums = static_cast<sw_atomic_t *>(sw_shm_calloc(worker_num, sizeof(sw_atomic_t)));
         if (port->gs->connection_nums == nullptr) {
             swoole_sys_warning("sw_shm_calloc(%ld) for port->connection_nums failed", worker_num * sizeof(sw_atomic_t));
@@ -42,7 +42,7 @@ Factory *Server::create_base_factory() {
     return new BaseFactory(this);
 }
 
-void Server::destroy_base_factory() {
+void Server::destroy_base_factory() const {
     sw_free(connection_list);
     sw_shm_free((void *) gs->connection_nums);
     for (auto port : ports) {
@@ -101,7 +101,7 @@ bool BaseFactory::dispatch(SendData *task) {
  * only stream fd
  */
 bool BaseFactory::notify(DataHead *info) {
-    auto conn = server_->get_connection(info->fd);
+    const auto conn = server_->get_connection(info->fd);
     if (conn == nullptr || conn->active == 0) {
         swoole_warning("dispatch[type=%d] failed, socket#%ld is not active", info->type, info->fd);
         return false;
@@ -223,8 +223,8 @@ bool BaseFactory::finish(SendData *data) {
     }
 }
 
-bool BaseFactory::forward_message(Session *session, SendData *data) {
-    Worker *worker = server_->get_event_worker_pool()->get_worker(session->reactor_id);
+bool BaseFactory::forward_message(const Session *session, SendData *data) const {
+    const Worker *worker = server_->get_event_worker_pool()->get_worker(session->reactor_id);
     swoole_trace_log(SW_TRACE_SERVER,
                      "fd=%d, worker_id=%d, type=%d, len=%u",
                      worker->pipe_master->get_fd(),

@@ -338,7 +338,7 @@ struct ProcessPool {
         return task->info.fd;
     }
 
-    static WorkerId get_task_src_worker_id(const EventData *task) {
+    WorkerId get_task_src_worker_id(const EventData *task) {
         return task->info.reactor_id;
     }
 

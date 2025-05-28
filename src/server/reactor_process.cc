@@ -202,11 +202,11 @@ int Server::reactor_process_main_loop(ProcessPool *pool, Worker *worker) {
 
     // set event handler
     // connect
-    reactor->set_handler(SW_FD_STREAM_SERVER, accept_connection);
+    reactor->set_handler(SW_FD_STREAM_SERVER, SW_EVENT_READ, accept_connection);
     // close
     reactor->default_error_handler = ReactorProcess_onClose;
     // pipe
-    reactor->set_handler(SW_FD_PIPE | SW_EVENT_READ, ReactorProcess_onPipeRead);
+    reactor->set_handler(SW_FD_PIPE, SW_EVENT_READ, ReactorProcess_onPipeRead);
 
     serv->store_listen_socket();
 

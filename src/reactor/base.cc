@@ -20,6 +20,7 @@
 #include "swoole_reactor.h"
 #include "swoole_api.h"
 #include "swoole_c_api.h"
+#include "swoole_timer.h"
 
 namespace swoole {
 using network::Socket;
@@ -44,7 +45,7 @@ ReactorImpl *make_reactor_poll(Reactor *_reactor, int max_events);
 ReactorImpl *make_reactor_kqueue(Reactor *_reactor, int max_events);
 #endif
 
-void ReactorImpl::after_removal_failure(Socket *_socket) {
+void ReactorImpl::after_removal_failure(const Socket *_socket) const {
     if (!_socket->silent_remove) {
         swoole_error_log(SW_LOG_WARNING,
                          SW_ERROR_EVENT_REMOVE_FAILED,
@@ -156,26 +157,31 @@ Reactor::Reactor(int max_event, Type _type) {
     });
 #endif
 
-    set_exit_condition(EXIT_CONDITION_DEFAULT,
-                       [](Reactor *reactor, size_t &event_num) -> bool { return event_num == 0; });
+    set_exit_condition(EXIT_CONDITION_DEFAULT, [](Reactor *, size_t &event_num) -> bool { return event_num == 0; });
 }
 
-bool Reactor::set_handler(int _fdtype, ReactorHandler handler) {
-    int fdtype = get_fd_type(_fdtype);
-    assert(fdtype < SW_MAX_FDTYPE);
-
-    if (isset_read_event(_fdtype)) {
-        read_handler[fdtype] = handler;
-    } else if (isset_write_event(_fdtype)) {
-        write_handler[fdtype] = handler;
-    } else if (isset_error_event(_fdtype)) {
-        error_handler[fdtype] = handler;
+void Reactor::set_handler(const int fd_type, const int event, const ReactorHandler handler) {
+    if (isset_read_event(event)) {
+        read_handler[fd_type] = handler;
+    } else if (isset_write_event(event)) {
+        write_handler[fd_type] = handler;
+    } else if (isset_error_event(event)) {
+        error_handler[fd_type] = handler;
     } else {
         assert(0);
+    }
+}
+
+bool Reactor::isset_handler(const int fd_type, const int event) const {
+    if (isset_read_event(event)) {
+        return read_handler[fd_type] != nullptr;
+    } else if (isset_write_event(event)) {
+        return write_handler[fd_type] != nullptr;
+    } else if (isset_error_event(event)) {
+        return error_handler[fd_type] != nullptr;
+    } else {
         return false;
     }
-
-    return true;
 }
 
 bool Reactor::if_exit() {
@@ -194,12 +200,11 @@ int Reactor::_close(Reactor *reactor, Socket *socket) {
     return SW_OK;
 }
 
-ssize_t Reactor::write_func(Reactor *reactor,
+ssize_t Reactor::write_func(const Reactor *reactor,
                             Socket *socket,
                             const size_t _len,
                             const std::function<ssize_t()> &send_fn,
                             const std::function<void(Buffer *buffer)> &append_fn) {
-    ssize_t retval;
     Buffer *buffer = socket->out_buffer;
 
     if (socket->buffer_size == 0) {
@@ -218,6 +223,7 @@ ssize_t Reactor::write_func(Reactor *reactor,
     }
 
     if (Buffer::empty(buffer)) {
+        ssize_t retval;
 #ifdef SW_USE_OPENSSL
         if (socket->ssl_send_) {
             goto _alloc_buffer;
@@ -236,10 +242,6 @@ ssize_t Reactor::write_func(Reactor *reactor,
         _alloc_buffer:
             if (!socket->out_buffer) {
                 buffer = new Buffer(socket->chunk_size);
-                if (!buffer) {
-                    swoole_warning("create worker buffer failed");
-                    return SW_ERR;
-                }
                 socket->out_buffer = buffer;
             }
             if (!socket->isset_writable_event()) {
@@ -281,7 +283,7 @@ ssize_t Reactor::_write(Reactor *reactor, Socket *socket, const void *buf, size_
     };
     auto append_fn = [&send_bytes, buf, n](Buffer *buffer) {
         ssize_t offset = send_bytes > 0 ? send_bytes : 0;
-        buffer->append((const char *) buf + offset, n - offset);
+        buffer->append(static_cast<const char *>(buf) + offset, n - offset);
     };
     return write_func(reactor, socket, n, send_fn, append_fn);
 }
@@ -354,7 +356,7 @@ void Reactor::drain_write_buffer(Socket *socket) {
     event.fd = socket->fd;
 
     while (!Buffer::empty(socket->out_buffer)) {
-        if (socket->wait_event(Socket::default_write_timeout, SW_EVENT_WRITE) == SW_ERR) {
+        if (socket->wait_event(static_cast<int>(sec2msec(Socket::default_write_timeout)), SW_EVENT_WRITE) == SW_ERR) {
             break;
         }
         _writable_callback(this, &event);
@@ -364,15 +366,15 @@ void Reactor::drain_write_buffer(Socket *socket) {
     }
 }
 
-void Reactor::add_destroy_callback(Callback cb, void *data) {
-    destroy_callbacks.append(std::move(cb), data);
+void Reactor::add_destroy_callback(const Callback &cb, void *data) {
+    destroy_callbacks.append(cb, data);
 }
 
-void Reactor::set_end_callback(EndCallback id, const std::function<void(Reactor *)> &fn) {
+void Reactor::set_end_callback(const EndCallback id, const std::function<void(Reactor *)> &fn) {
     end_callbacks[id] = fn;
 }
 
-void Reactor::erase_end_callback(EndCallback id) {
+void Reactor::erase_end_callback(const EndCallback id) {
     end_callbacks.erase(id);
 }
 

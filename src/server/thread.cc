@@ -40,7 +40,7 @@ Factory *Server::create_thread_factory() {
     return new ThreadFactory(this);
 }
 
-void Server::destroy_thread_factory() {
+void Server::destroy_thread_factory() const {
     sw_free(connection_list);
     delete[] reactor_threads;
 }
@@ -99,7 +99,7 @@ void ThreadFactory::at_thread_exit(Worker *worker) {
     swoole_thread_clean(false);
 }
 
-void ThreadFactory::create_message_bus() {
+void ThreadFactory::create_message_bus() const {
     auto mb = new MessageBus();
     mb->set_id_generator(server_->msg_id_generator);
     mb->set_buffer_size(server_->ipc_max_size);
@@ -408,7 +408,7 @@ void Server::stop_worker_threads() {
     }
 }
 
-bool Server::reload_worker_threads(bool reload_all_workers) {
+bool Server::reload_worker_threads(bool reload_all_workers) const {
     auto *_factory = dynamic_cast<ThreadFactory *>(factory);
     return _factory->reload(reload_all_workers);
 }

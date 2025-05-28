@@ -24,7 +24,7 @@ namespace swoole {
 
 using network::Socket;
 
-class ReactorPoll : public ReactorImpl {
+class ReactorPoll final : public ReactorImpl {
     uint32_t max_fd_num;
     Socket **fds_;
     pollfd *events_;

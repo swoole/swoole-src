@@ -512,7 +512,7 @@ bool Socket::getpeername(network::Address *sa) {
     return true;
 }
 
-double Socket::get_timeout(enum TimeoutType type) {
+double Socket::get_timeout(const TimeoutType type) const {
     SW_ASSERT_1BYTE(type);
     if (type == TIMEOUT_DNS) {
         return dns_timeout;
@@ -584,7 +584,7 @@ void Socket::set_timeout(double timeout, int type) {
     }
 }
 
-const char *Socket::get_event_str(const EventType event) {
+const char *Socket::get_event_str(const EventType event) const {
     if (event == SW_EVENT_READ) {
         return "reading";
     } else if (event == SW_EVENT_WRITE) {

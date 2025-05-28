@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include "swoole_api.h"
 #include "swoole_string.h"
 #include "swoole_socket.h"
 #include "swoole_timer.h"
@@ -280,7 +279,7 @@ struct ListenPort {
 
 #ifdef SW_SUPPORT_DTLS
     std::unordered_map<int, dtls::Session *> *dtls_sessions = nullptr;
-    dtls::Session *create_dtls_session(network::Socket *sock);
+    dtls::Session *create_dtls_session(network::Socket *sock) const;
 #endif
 
     bool ssl_is_enable() const {
@@ -348,7 +347,7 @@ struct ListenPort {
 
 #ifdef SW_USE_OPENSSL
     bool ssl_context_init();
-    bool ssl_context_create(SSLContext *context);
+    bool ssl_context_create(SSLContext *context) const;
     bool ssl_create(Connection *conn, network::Socket *sock);
     bool ssl_add_sni_cert(const std::string &name, const std::shared_ptr<SSLContext> &ctx);
     static bool ssl_matches_wildcard_name(const char *subjectname, const char *certname);
@@ -540,13 +539,13 @@ class Factory {
     explicit Factory(Server *_server) {
         server_ = _server;
     }
-    pid_t spawn_event_worker(Worker *worker);
-    pid_t spawn_user_worker(Worker *worker);
-    pid_t spawn_task_worker(Worker *worker);
-    void kill_user_workers();
-    void kill_event_workers();
-    void kill_task_workers();
-    void check_worker_exit_status(Worker *worker, const ExitStatus &exit_status);
+    pid_t spawn_event_worker(Worker *worker) const;
+    pid_t spawn_user_worker(Worker *worker) const;
+    pid_t spawn_task_worker(Worker *worker) const;
+    void kill_user_workers() const;
+    void kill_event_workers() const;
+    void kill_task_workers() const;
+    void check_worker_exit_status(Worker *worker, const ExitStatus &exit_status) const;
     virtual ~Factory() = default;
     virtual bool start() = 0;
     virtual bool shutdown() = 0;
@@ -566,7 +565,7 @@ class BaseFactory : public Factory {
     bool finish(SendData *) override;
     bool notify(DataHead *) override;
     bool end(SessionId session_id, int flags) override;
-    bool forward_message(Session *session, SendData *data);
+    bool forward_message(const Session *session, SendData *data) const;
 };
 
 class ProcessFactory : public Factory {
@@ -592,7 +591,7 @@ class ThreadFactory : public BaseFactory {
     Worker manager{};
     void at_thread_enter(WorkerId id, int process_type);
     void at_thread_exit(Worker *worker);
-    void create_message_bus();
+    void create_message_bus() const;
     void destroy_message_bus();
 
   public:
@@ -1619,7 +1618,7 @@ class Server {
     void worker_stop_callback(Worker *worker);
     void worker_accept_event(DataHead *info);
     static void worker_set_isolation(const std::string &group_, const std::string &user_, const std::string &chroot_);
-    void worker_signal_init();
+    void worker_signal_init() const;
 
     std::function<void(std::shared_ptr<Thread>, const WorkerFn &fn)> worker_thread_start;
 
@@ -1679,18 +1678,18 @@ class Server {
     void check_port_type(ListenPort *ls);
     void store_listen_socket();
     void store_pipe_fd(UnixSocket *p);
-    void destroy_base_factory();
-    void destroy_thread_factory();
+    void destroy_base_factory() const;
+    void destroy_thread_factory() const;
     void destroy_process_factory();
     void destroy_worker(Worker *worker);
-    void destroy_task_workers();
+    void destroy_task_workers() const;
     int start_reactor_threads();
     int start_reactor_processes();
     int start_worker_threads();
     int start_master_thread(Reactor *reactor);
     void start_heartbeat_thread();
     void stop_worker_threads();
-    bool reload_worker_threads(bool reload_all_workers);
+    bool reload_worker_threads(bool reload_all_workers) const;
     void join_reactor_thread();
     void stop_master_thread();
     void join_heartbeat_thread();

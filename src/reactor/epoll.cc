@@ -32,7 +32,7 @@ namespace swoole {
 
 using network::Socket;
 
-class ReactorEpoll : public ReactorImpl {
+class ReactorEpoll final : public ReactorImpl {
     int epfd_;
     epoll_event *events_ = nullptr;
 
@@ -42,21 +42,21 @@ class ReactorEpoll : public ReactorImpl {
     bool ready() override;
     int add(Socket *socket, int events) override;
     int set(Socket *socket, int events) override;
-    int del(Socket *socket) override;
+    int del(Socket *_socket) override;
     int wait() override;
 
-    static int get_events(int fdtype) {
+    static int get_events(const int fd_type) {
         int events = 0;
-        if (Reactor::isset_read_event(fdtype)) {
+        if (Reactor::isset_read_event(fd_type)) {
             events |= EPOLLIN;
         }
-        if (Reactor::isset_write_event(fdtype)) {
+        if (Reactor::isset_write_event(fd_type)) {
             events |= EPOLLOUT;
         }
-        if (fdtype & SW_EVENT_ONCE) {
+        if (fd_type & SW_EVENT_ONCE) {
             events |= EPOLLONESHOT;
         }
-        if (Reactor::isset_error_event(fdtype)) {
+        if (Reactor::isset_error_event(fd_type)) {
             events |= (EPOLLRDHUP | EPOLLHUP | EPOLLERR);
         }
         return events;
@@ -69,12 +69,12 @@ ReactorImpl *make_reactor_epoll(Reactor *_reactor, int max_events) {
 
 ReactorEpoll::ReactorEpoll(Reactor *_reactor, int max_events) : ReactorImpl(_reactor) {
     epfd_ = epoll_create(512);
-    if (!ready()) {
+    if (!ReactorEpoll::ready()) {
         swoole_sys_warning("epoll_create() failed");
         return;
     }
 
-    events_ = new struct epoll_event[max_events];
+    events_ = new epoll_event[max_events];
     reactor_->max_event_num = max_events;
     reactor_->native_handle = epfd_;
 }
@@ -91,7 +91,7 @@ ReactorEpoll::~ReactorEpoll() {
 }
 
 int ReactorEpoll::add(Socket *socket, int events) {
-    struct epoll_event e;
+    epoll_event e;
 
     e.events = get_events(events);
     e.data.ptr = socket;
@@ -152,7 +152,7 @@ int ReactorEpoll::del(Socket *_socket) {
 }
 
 int ReactorEpoll::set(Socket *socket, int events) {
-    struct epoll_event e;
+    epoll_event e;
 
     e.events = get_events(events);
     e.data.ptr = socket;
@@ -178,7 +178,7 @@ int ReactorEpoll::set(Socket *socket, int events) {
 int ReactorEpoll::wait() {
     Event event;
     ReactorHandler handler;
-    int i, n, ret;
+    int n, ret;
 
     reactor_->before_wait();
 
@@ -201,7 +201,7 @@ int ReactorEpoll::wait() {
             reactor_->execute_end_callbacks(true);
             SW_REACTOR_CONTINUE;
         }
-        for (i = 0; i < n; i++) {
+        for (int i = 0; i < n; i++) {
             event.reactor_id = reactor_->id;
             event.socket = static_cast<Socket *>(events_[i].data.ptr);
             event.type = event.socket->fd_type;

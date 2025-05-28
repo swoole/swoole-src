@@ -246,28 +246,28 @@ class Socket {
 #endif
 
     static inline void init_reactor(Reactor *reactor) {
-        reactor->set_handler(SW_FD_CO_SOCKET | SW_EVENT_READ, readable_event_callback);
-        reactor->set_handler(SW_FD_CO_SOCKET | SW_EVENT_WRITE, writable_event_callback);
-        reactor->set_handler(SW_FD_CO_SOCKET | SW_EVENT_ERROR, error_event_callback);
+        reactor->set_handler(SW_FD_CO_SOCKET, SW_EVENT_READ, readable_event_callback);
+        reactor->set_handler(SW_FD_CO_SOCKET, SW_EVENT_WRITE, writable_event_callback);
+        reactor->set_handler(SW_FD_CO_SOCKET, SW_EVENT_ERROR, error_event_callback);
     }
 
-    SocketType get_type() {
+    SocketType get_type() const {
         return type;
     }
 
-    FdType get_fd_type() {
+    FdType get_fd_type() const {
         return socket->fd_type;
     }
 
-    int get_sock_domain() {
+    int get_sock_domain() const {
         return sock_domain;
     }
 
-    int get_sock_type() {
+    int get_sock_type() const {
         return sock_type;
     }
 
-    int get_sock_protocol() {
+    int get_sock_protocol() const {
         return sock_protocol;
     }
 
@@ -275,18 +275,18 @@ class Socket {
         return sock_fd;
     }
 
-    network::Socket *get_socket() {
+    network::Socket *get_socket() const {
         return socket;
     }
 
     bool getsockname();
     bool getpeername(network::Address *sa);
 
-    const char *get_addr() {
+    const char *get_addr() const {
         return socket->get_addr();
     }
 
-    int get_port() {
+    int get_port() const {
         return socket->get_port();
     }
 
@@ -294,7 +294,7 @@ class Socket {
         return get_bound_co(event) != nullptr;
     }
 
-    Coroutine *get_bound_co(const EventType event) {
+    Coroutine *get_bound_co(const EventType event) const {
         if (event & SW_EVENT_READ) {
             if (read_co) {
                 return read_co;
@@ -308,14 +308,14 @@ class Socket {
         return nullptr;
     }
 
-    long get_bound_cid(const EventType event = SW_EVENT_RDWR) {
+    long get_bound_cid(const EventType event = SW_EVENT_RDWR) const {
         Coroutine *co = get_bound_co(event);
         return co ? co->get_cid() : 0;
     }
 
-    const char *get_event_str(const EventType event);
+    const char *get_event_str(EventType event) const;
 
-    void check_bound_co(const EventType event) {
+    void check_bound_co(const EventType event) const {
         long cid = get_bound_cid(event);
         if (sw_unlikely(cid)) {
             swoole_fatal_error(SW_ERROR_CO_HAS_BEEN_BOUND,
@@ -328,7 +328,7 @@ class Socket {
         }
     }
 
-    void set_err(int e) {
+    void set_err(const int e) {
         errCode = errno = e;
         swoole_set_last_error(errCode);
         errMsg = e ? swoole_strerror(e) : "";
@@ -339,13 +339,13 @@ class Socket {
         errMsg = swoole_strerror(errCode);
     }
 
-    void set_err(int e, const char *s) {
+    void set_err(const int e, const char *s) {
         errCode = errno = e;
         swoole_set_last_error(errCode);
         errMsg = s;
     }
 
-    void set_err(int e, std::string s) {
+    void set_err(const int e, const std::string &s) {
         errCode = errno = e;
         swoole_set_last_error(errCode);
         errString = s;
@@ -355,11 +355,11 @@ class Socket {
     /* set connect read write timeout */
     void set_timeout(double timeout, int type = TIMEOUT_ALL);
 
-    void set_timeout(struct timeval *timeout, int type = TIMEOUT_ALL) {
+    void set_timeout(timeval *timeout, int type = TIMEOUT_ALL) {
         set_timeout((double) timeout->tv_sec + ((double) timeout->tv_usec / 1000 / 1000), type);
     }
 
-    double get_timeout(enum TimeoutType type = TIMEOUT_ALL);
+    double get_timeout(TimeoutType type = TIMEOUT_ALL) const;
     bool get_option(int level, int optname, void *optval, socklen_t *optlen);
     bool get_option(int level, int optname, int *optval);
     bool set_option(int level, int optname, const void *optval, socklen_t optlen);
