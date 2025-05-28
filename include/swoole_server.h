@@ -1167,7 +1167,7 @@ class Server {
     int get_tasking_num() const;
 
     TaskId get_task_id(const EventData *task) const {
-        return gs->task_workers.get_task_id(task);
+        return get_task_worker_pool()->get_task_id(task);
     }
 
     static uint16_t get_command_id(const EventData *cmd) {
@@ -1179,7 +1179,7 @@ class Server {
     }
 
     WorkerId get_task_src_worker_id(const EventData *task) const {
-        return gs->task_workers.get_task_src_worker_id(task);
+        return get_task_worker_pool()->get_task_src_worker_id(task);
     }
 
     int get_minfd() const {
@@ -1206,6 +1206,10 @@ class Server {
         return gs->manager_pid;
     }
 
+    pid_t get_worker_pid(WorkerId worker_id) {
+        return get_worker(worker_id)->pid;
+    }
+
     const std::string &get_document_root() {
         return document_root;
     }
@@ -1230,6 +1234,14 @@ class Server {
 
     uint32_t get_worker_buffer_num() const {
         return is_base_mode() ? 1 : reactor_num + dgram_port_num;
+    }
+
+    ProcessPool *get_task_worker_pool() const {
+        return &gs->task_workers;
+    }
+
+    ProcessPool *get_event_worker_pool() const {
+        return &gs->event_workers;
     }
 
     bool is_support_unsafe_events() const {

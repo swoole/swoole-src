@@ -413,7 +413,7 @@ void Server::stop_async_worker(Worker *worker) {
 
     if (is_base_mode()) {
         if (is_event_worker()) {
-            if (worker->id == 0 && gs->event_workers.running == 0) {
+            if (worker->id == 0 && get_event_worker_pool()->running == 0) {
                 if (swoole_isset_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN)) {
                     swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN, this);
                 }
@@ -439,7 +439,7 @@ void Server::stop_async_worker(Worker *worker) {
         msg.pid = getpid();
         msg.worker_id = worker->id;
 
-        if (gs->event_workers.push_message(SW_WORKER_MESSAGE_STOP, &msg, sizeof(msg)) < 0) {
+        if (get_event_worker_pool()->push_message(SW_WORKER_MESSAGE_STOP, &msg, sizeof(msg)) < 0) {
             swoole_sys_warning("failed to push WORKER_STOP message");
         }
     } else if (is_thread_mode()) {

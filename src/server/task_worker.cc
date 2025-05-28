@@ -30,7 +30,7 @@ static int TaskWorker_onTask(ProcessPool *pool, Worker *worker, EventData *task)
  * after pool->create, before pool->start
  */
 bool Server::init_task_workers() {
-    ProcessPool *pool = &gs->task_workers;
+    ProcessPool *pool = get_task_worker_pool();
     pool->ptr = this;
     pool->onTask = TaskWorker_onTask;
     pool->onWorkerStart = TaskWorker_onStart;
@@ -161,9 +161,9 @@ bool Server::task(EventData *_task, int *dst_worker_id, bool blocking) {
 
     swResultCode retval;
     if (blocking) {
-        retval = gs->task_workers.dispatch_sync(_task, dst_worker_id);
+        retval = get_task_worker_pool()->dispatch_sync(_task, dst_worker_id);
     } else {
-        retval = gs->task_workers.dispatch(_task, dst_worker_id);
+        retval = get_task_worker_pool()->dispatch(_task, dst_worker_id);
     }
 
     if (retval == SW_OK) {

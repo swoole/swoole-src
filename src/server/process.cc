@@ -48,8 +48,8 @@ void Server::destroy_process_factory() {
     reactor_thread_barrier.destroy();
     gs->manager_barrier.destroy();
 
-    if (gs->event_workers.message_box) {
-        gs->event_workers.message_box->destroy();
+    if (get_event_worker_pool()->message_box) {
+        get_event_worker_pool()->message_box->destroy();
     }
 }
 
@@ -108,7 +108,7 @@ void Factory::kill_task_workers() {
         return;
     }
 
-    auto pool = &server_->gs->task_workers;
+    auto pool = server_->get_task_worker_pool();
     pool->kill_all_workers(SIGTERM);
 
     SW_LOOP_N(server_->task_worker_num) {
@@ -137,7 +137,7 @@ pid_t Factory::spawn_event_worker(Worker *worker) {
     }
 
     if (server_->is_base_mode()) {
-        server_->gs->event_workers.main_loop(&server_->gs->event_workers, worker);
+        server_->get_event_worker_pool()->main_loop(server_->get_event_worker_pool(), worker);
     } else {
         server_->start_event_worker(worker);
     }
@@ -178,7 +178,7 @@ pid_t Factory::spawn_user_worker(Worker *worker) {
 }
 
 pid_t Factory::spawn_task_worker(Worker *worker) {
-    return server_->gs->task_workers.spawn(worker);
+    return server_->get_task_worker_pool()->spawn(worker);
 }
 
 void Factory::check_worker_exit_status(Worker *worker, const ExitStatus &exit_status) {

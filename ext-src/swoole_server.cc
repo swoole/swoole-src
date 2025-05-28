@@ -2987,10 +2987,10 @@ static PHP_METHOD(swoole_server, stats) {
         add_assoc_long_ex(return_value, ZEND_STRL("worker_concurrency"), sw_worker()->concurrency);
     }
 
-    if (serv->task_ipc_mode > Server::TASK_IPC_UNIXSOCK && serv->gs->task_workers.queue) {
+    if (serv->task_ipc_mode > Server::TASK_IPC_UNIXSOCK && serv->get_task_worker_pool()->queue) {
         size_t queue_num = -1;
         size_t queue_bytes = -1;
-        if (serv->gs->task_workers.queue->stat(&queue_num, &queue_bytes)) {
+        if (serv->get_task_worker_pool()->queue->stat(&queue_num, &queue_bytes)) {
             add_assoc_long_ex(return_value, ZEND_STRL("task_queue_num"), queue_num);
             add_assoc_long_ex(return_value, ZEND_STRL("task_queue_bytes"), queue_bytes);
         }

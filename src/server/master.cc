@@ -527,7 +527,7 @@ int Server::create_task_workers() {
         ipc_mode = SW_IPC_UNIXSOCK;
     }
 
-    ProcessPool *pool = &gs->task_workers;
+    ProcessPool *pool = get_task_worker_pool();
     *pool = {};
     if (pool->create(task_worker_num, key, ipc_mode) < 0) {
         swoole_warning("[Master] create task_workers failed");
@@ -541,7 +541,7 @@ int Server::create_task_workers() {
     if (ipc_mode == SW_IPC_SOCKET) {
         char sockfile[sizeof(struct sockaddr_un)];
         snprintf(sockfile, sizeof(sockfile), "/tmp/swoole.task.%d.sock", gs->master_pid);
-        if (gs->task_workers.listen(sockfile, 2048) < 0) {
+        if (get_task_worker_pool()->listen(sockfile, 2048) < 0) {
             return SW_ERR;
         }
     }
@@ -575,8 +575,7 @@ void Server::destroy_task_workers() {
     if (task_results) {
         sw_shm_free(task_results);
     }
-    ProcessPool *pool = &gs->task_workers;
-    pool->destroy();
+    get_task_worker_pool()->destroy();
 }
 
 /**
@@ -660,15 +659,16 @@ int Server::start() {
     /**
      * store to ProcessPool object
      */
-    gs->event_workers.ptr = this;
-    gs->event_workers.workers = workers;
-    gs->event_workers.worker_num = worker_num;
-    gs->event_workers.use_msgqueue = 0;
+    auto pool = get_event_worker_pool();
+    pool->ptr = this;
+    pool->workers = workers;
+    pool->worker_num = worker_num;
+    pool->use_msgqueue = 0;
 
     SW_LOOP_N(worker_num) {
-        gs->event_workers.workers[i].pool = &gs->event_workers;
-        gs->event_workers.workers[i].id = i;
-        gs->event_workers.workers[i].type = SW_WORKER;
+        pool->workers[i].pool = pool;
+        pool->workers[i].id = i;
+        pool->workers[i].type = SW_WORKER;
     }
 
     if (!user_worker_list.empty()) {
@@ -758,13 +758,13 @@ Server::~Server() {
 Worker *Server::get_worker(uint16_t worker_id) {
     // Event Worker
     if (worker_id < worker_num) {
-        return &(gs->event_workers.workers[worker_id]);
+        return &(get_event_worker_pool()->workers[worker_id]);
     }
 
     // Task Worker
     uint32_t task_worker_max = task_worker_num + worker_num;
     if (worker_id < task_worker_max) {
-        return &(gs->task_workers.workers[worker_id - worker_num]);
+        return &(get_task_worker_pool()->workers[worker_id - worker_num]);
     }
 
     // User Worker
@@ -933,7 +933,7 @@ bool Server::signal_handler_reload(bool reload_all_workers) {
 }
 
 bool Server::signal_handler_read_message() {
-    gs->event_workers.read_message = true;
+    get_event_worker_pool()->read_message = true;
     return true;
 }
 
@@ -992,7 +992,7 @@ bool Server::signal_handler_shutdown() {
             running = false;
         } else {
             // single process worker, exit directly
-            gs->event_workers.running = false;
+            get_event_worker_pool()->running = false;
             stop_async_worker(sw_worker());
         }
         return true;
@@ -1228,7 +1228,7 @@ bool Server::command(WorkerId process_id,
         buf.info.server_fd = command_id;
         buf.info.len = msg.length();
         memcpy(buf.data, msg.c_str(), msg.length());
-        if (gs->event_workers.push_message(&buf) < 0) {
+        if (get_event_worker_pool()->push_message(&buf) < 0) {
             goto _fail;
         }
         return true;
@@ -1679,9 +1679,10 @@ void Server::timer_callback(Timer *timer, TimerNode *tnode) {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_NO_IDLE_WORKER, "No idle worker is available");
     }
 
-    if (serv->gs->task_workers.scheduler_warning && serv->gs->task_workers.warning_time < now) {
-        serv->gs->task_workers.scheduler_warning = 0;
-        serv->gs->task_workers.warning_time = now;
+    auto task_pool = serv->get_task_worker_pool();
+    if (task_pool->scheduler_warning && task_pool->warning_time < now) {
+        task_pool->scheduler_warning = 0;
+        task_pool->warning_time = now;
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_NO_IDLE_WORKER, "No idle task worker is available");
     }
 

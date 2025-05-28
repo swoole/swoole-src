@@ -650,10 +650,10 @@ TEST(server, thread) {
 
         usleep(1000);
 
-        ASSERT_FALSE(serv.gs->event_workers.read_message);
+        ASSERT_FALSE(serv.get_event_worker_pool()->read_message);
         kill(serv.get_master_pid(), SIGIO);
         usleep(1000);
-        ASSERT_TRUE(serv.gs->event_workers.read_message);
+        ASSERT_TRUE(serv.get_event_worker_pool()->read_message);
 
         DEBUG() << "shutdown\n";
 
@@ -1443,7 +1443,7 @@ TEST(server, task_worker) {
     serv.onTask = [](Server *serv, EventData *task) -> int {
         EXPECT_EQ(serv->get_tasking_num(), 1);
         EXPECT_EQ(string(task->data, task->info.len), string(packet));
-        serv->gs->task_workers.running = 0;
+        serv->get_task_worker_pool()->running = 0;
         serv->gs->task_count++;
         serv->gs->tasking_num--;
         return 0;
@@ -1452,8 +1452,9 @@ TEST(server, task_worker) {
     ASSERT_EQ(serv.create(), SW_OK);
 
     thread t1([&serv]() {
-        serv.gs->task_workers.running = true;
-        serv.gs->task_workers.main_loop(&serv.gs->task_workers, &serv.gs->task_workers.workers[0]);
+        auto pool = serv.get_task_worker_pool();
+        pool->running = true;
+        pool->main_loop(pool, &pool->workers[0]);
         EXPECT_EQ(serv.get_tasking_num(), 0);
         serv.gs->tasking_num--;
         EXPECT_EQ(serv.get_tasking_num(), 0);
@@ -1475,7 +1476,7 @@ TEST(server, task_worker) {
     ASSERT_EQ(serv.gs->task_count, 1);
 
     t1.join();
-    serv.gs->task_workers.destroy();
+    serv.get_task_worker_pool()->destroy();
 
     ASSERT_EQ(serv.gs->task_count, 2);
 }
@@ -1547,7 +1548,7 @@ TEST(server, task_worker_3) {
 
     serv.onWorkerStart = [](Server *serv, Worker *worker) {
         if (worker->id == 0) {
-            swoole_timer_after(50, [serv](TIMER_PARAMS) { kill(serv->get_worker(2)->pid, SIGTERM); });
+            swoole_timer_after(50, [serv](TIMER_PARAMS) { kill(serv->get_worker_pid(2), SIGTERM); });
             swoole_timer_after(60, [serv](TIMER_PARAMS) { kill(serv->get_manager_pid(), SIGRTMIN); });
             swoole_timer_after(100, [serv](TIMER_PARAMS) { serv->shutdown(); });
         }
@@ -1720,7 +1721,7 @@ TEST(server, task_worker3) {
             memcpy(buf.data, packet, strlen(packet));
             buf.info.ext_flags |= (SW_TASK_NONBLOCK | SW_TASK_COROUTINE);
             buf.info.reactor_id = worker->id;
-            serv->gs->task_workers.dispatch(&buf, &_dst_worker_id);
+            serv->get_task_worker_pool()->dispatch(&buf, &_dst_worker_id);
             sleep(1);
             kill(serv->gs->master_pid, SIGTERM);
         }
@@ -1767,7 +1768,7 @@ TEST(server, task_worker4) {
             memcpy(buf.data, packet, strlen(packet));
             buf.info.ext_flags |= (SW_TASK_NONBLOCK | SW_TASK_COROUTINE);
             buf.info.reactor_id = worker->id;
-            serv->gs->task_workers.dispatch(&buf, &_dst_worker_id);
+            serv->get_task_worker_pool()->dispatch(&buf, &_dst_worker_id);
             sleep(1);
 
             EventData *task_result = serv->get_task_result();
@@ -1777,7 +1778,7 @@ TEST(server, task_worker4) {
             memcpy(buf.data, packet, strlen(packet));
             buf.info.reactor_id = worker->id;
             sw_atomic_fetch_add(&serv->gs->tasking_num, 1);
-            serv->gs->task_workers.dispatch(&buf, &_dst_worker_id);
+            serv->get_task_worker_pool()->dispatch(&buf, &_dst_worker_id);
             sw_atomic_fetch_add(&serv->gs->tasking_num, 0);
             kill(serv->gs->master_pid, SIGTERM);
         }
@@ -4050,7 +4051,7 @@ TEST(server, wait_other_worker) {
     ASSERT_EQ(serv.create(), SW_OK);
 
     ExitStatus fake_exit(getpid(), 0);
-    auto pool = &serv.gs->task_workers;
+    auto pool = serv.get_task_worker_pool();
     auto worker = serv.get_worker(2);
     worker->pid = getpid();
     pool->add_worker(worker);

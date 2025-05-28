@@ -59,7 +59,7 @@ bool ThreadFactory::start() {
     if (!server_->create_worker_pipes()) {
         return false;
     }
-    if (server_->task_worker_num > 0 && server_->gs->task_workers.start_check() < 0) {
+    if (server_->task_worker_num > 0 && server_->get_task_worker_pool()->start_check() < 0) {
         return false;
     }
     if (server_->get_user_worker_num() > 0 && server_->create_user_workers() < 0) {
@@ -141,7 +141,7 @@ void ThreadFactory::spawn_task_worker(WorkerId i) {
         worker->pid = swoole_get_worker_pid();
         worker->set_status_to_idle();
         SwooleWG.worker = worker;
-        auto pool = &server_->gs->task_workers;
+        auto pool = server_->get_task_worker_pool();
         server_->worker_thread_start(threads_[i], [=]() {
             if (pool->onWorkerStart != nullptr) {
                 pool->onWorkerStart(pool, worker);
