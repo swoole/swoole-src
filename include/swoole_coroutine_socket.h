@@ -115,7 +115,7 @@ class Socket {
     ssize_t recv_line(void *__buf, size_t maxlen);
     ssize_t recv_with_buffer(void *__buf, size_t __n);
 
-    char *pop_packet() {
+    char *pop_packet() const {
         if (read_buffer->offset == 0) {
             return nullptr;
         } else {
@@ -136,12 +136,12 @@ class Socket {
      */
     Socket *accept(double timeout = 0);
     bool bind(const std::string &address, int port = 0);
-    bool bind(const struct sockaddr *sa, socklen_t len);
+    bool bind(const sockaddr *sa, socklen_t len) const;
     bool listen(int backlog = 0);
     bool sendfile(const char *filename, off_t offset, size_t length);
     ssize_t sendto(std::string host, int port, const void *__buf, size_t __n);
     ssize_t recvfrom(void *__buf, size_t __n);
-    ssize_t recvfrom(void *__buf, size_t __n, struct sockaddr *_addr, socklen_t *_socklen);
+    ssize_t recvfrom(void *__buf, size_t __n, sockaddr *_addr, socklen_t *_socklen);
 
 #ifdef SW_USE_OPENSSL
     /**
@@ -158,11 +158,11 @@ class Socket {
         return true;
     }
 
-    bool ssl_is_enable() {
+    bool ssl_is_enable() const {
         return get_ssl_context() != nullptr;
     }
 
-    SSLContext *get_ssl_context() {
+    SSLContext *get_ssl_context() const {
         return ssl_context.get();
     }
 
@@ -170,63 +170,63 @@ class Socket {
     bool ssl_verify(bool allow_self_signed);
     std::string ssl_get_peer_cert();
 
-    bool set_ssl_key_file(const std::string &file) {
+    bool set_ssl_key_file(const std::string &file) const {
         return ssl_context->set_key_file(file);
     }
 
-    bool set_ssl_cert_file(const std::string &file) {
+    bool set_ssl_cert_file(const std::string &file) const {
         return ssl_context->set_cert_file(file);
     }
 
-    void set_ssl_cafile(const std::string &file) {
+    void set_ssl_cafile(const std::string &file) const {
         ssl_context->cafile = file;
     }
 
-    void set_ssl_capath(const std::string &path) {
+    void set_ssl_capath(const std::string &path) const {
         ssl_context->capath = path;
     }
 
-    void set_ssl_passphrase(const std::string &str) {
+    void set_ssl_passphrase(const std::string &str) const {
         ssl_context->passphrase = str;
     }
 
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
-    void set_tls_host_name(const std::string &str) {
+    void set_tls_host_name(const std::string &str) const {
         ssl_context->tls_host_name = str;
         // if user set empty ssl_host_name, disable it, otherwise the underlying may set it automatically
         ssl_context->disable_tls_host_name = ssl_context->tls_host_name.empty();
     }
 #endif
 
-    void set_ssl_dhparam(const std::string &file) {
+    void set_ssl_dhparam(const std::string &file) const {
         ssl_context->dhparam = file;
     }
 
-    void set_ssl_ecdh_curve(const std::string &str) {
+    void set_ssl_ecdh_curve(const std::string &str) const {
         ssl_context->ecdh_curve = str;
     }
 
-    void set_ssl_protocols(long protocols) {
+    void set_ssl_protocols(long protocols) const {
         ssl_context->protocols = protocols;
     }
 
-    void set_ssl_disable_compress(bool value) {
+    void set_ssl_disable_compress(bool value) const {
         ssl_context->disable_compress = value;
     }
 
-    void set_ssl_verify_peer(bool value) {
+    void set_ssl_verify_peer(bool value) const {
         ssl_context->verify_peer = value;
     }
 
-    void set_ssl_allow_self_signed(bool value) {
+    void set_ssl_allow_self_signed(bool value) const {
         ssl_context->allow_self_signed = value;
     }
 
-    void set_ssl_verify_depth(uint8_t value) {
+    void set_ssl_verify_depth(uint8_t value) const {
         ssl_context->verify_depth = value;
     }
 
-    void set_ssl_ciphers(const std::string &str) {
+    void set_ssl_ciphers(const std::string &str) const {
         ssl_context->ciphers = str;
     }
 
@@ -236,11 +236,11 @@ class Socket {
     }
 #endif
 
-    const std::string &get_ssl_cert_file() {
+    const std::string &get_ssl_cert_file() const {
         return ssl_context->cert_file;
     }
 
-    const std::string &get_ssl_key_file() {
+    const std::string &get_ssl_key_file() const {
         return ssl_context->key_file;
     }
 #endif
@@ -279,7 +279,7 @@ class Socket {
         return socket;
     }
 
-    bool getsockname();
+    bool getsockname() const;
     bool getpeername(network::Address *sa);
 
     const char *get_addr() const {
@@ -290,7 +290,7 @@ class Socket {
         return socket->get_port();
     }
 
-    bool has_bound(const EventType event = SW_EVENT_RDWR) {
+    bool has_bound(const EventType event = SW_EVENT_RDWR) const {
         return get_bound_co(event) != nullptr;
     }
 
@@ -360,10 +360,10 @@ class Socket {
     }
 
     double get_timeout(TimeoutType type = TIMEOUT_ALL) const;
-    bool get_option(int level, int optname, void *optval, socklen_t *optlen);
-    bool get_option(int level, int optname, int *optval);
-    bool set_option(int level, int optname, const void *optval, socklen_t optlen);
-    bool set_option(int level, int optname, int optval);
+    bool get_option(int level, int optname, void *optval, socklen_t *optlen) const;
+    bool get_option(int level, int optname, int *optval) const;
+    bool set_option(int level, int optname, const void *optval, socklen_t optlen) const;
+    bool set_option(int level, int optname, int optval) const;
     void set_socks5_proxy(const std::string &host, int port, const std::string &user = "", const std::string &pwd = "");
     void set_http_proxy(const std::string &host, int port, const std::string &user = "", const std::string &pwd = "");
     String *get_read_buffer();
@@ -406,15 +406,15 @@ class Socket {
     }
 
 #ifdef SW_USE_OPENSSL
-    bool ssl_is_available() {
+    bool ssl_is_available() const {
         return socket && ssl_handshaked;
     }
 
-    SSL *get_ssl() {
+    SSL *get_ssl() const {
         return socket->ssl;
     }
 
-    bool ssl_shutdown();
+    bool ssl_shutdown() const;
 #endif
 
   private:
@@ -456,8 +456,8 @@ class Socket {
     bool ssl_handshaked = false;
     std::shared_ptr<SSLContext> ssl_context = nullptr;
     std::string ssl_host_name;
-    bool ssl_context_create();
-    bool ssl_create(SSLContext *ssl_context);
+    bool ssl_context_create() const;
+    bool ssl_create(SSLContext *ssl_context) const;
 #endif
 
     bool connected = false;
@@ -469,7 +469,7 @@ class Socket {
     NameResolver::Context *resolve_context_ = nullptr;
     std::function<void(Socket *)> dtor_;
 
-    Socket(network::Socket *sock, Socket *socket);
+    Socket(network::Socket *sock, const Socket *server_sock);
 
     static void timer_callback(Timer *timer, TimerNode *tnode);
     static int readable_event_callback(Reactor *reactor, Event *event);
@@ -501,7 +501,6 @@ class Socket {
 
     bool add_event(const EventType event);
     bool wait_event(const EventType event, const void **__buf = nullptr, size_t __n = 0);
-    bool try_connect();
 
     ssize_t recv_packet_with_length_protocol();
     ssize_t recv_packet_with_eof_protocol();
@@ -542,21 +541,21 @@ class Socket {
   public:
     class TimeoutSetter {
       public:
-        TimeoutSetter(Socket *socket, double _timeout, const enum TimeoutType _type);
+        TimeoutSetter(Socket *socket, double _timeout, const TimeoutType _type);
         ~TimeoutSetter();
 
       protected:
         Socket *socket_;
         double timeout;
-        enum TimeoutType type;
+        TimeoutType type;
         double original_timeout[sizeof(timeout_type_list)] = {};
     };
 
     class TimeoutController : public TimeoutSetter {
       public:
-        TimeoutController(Socket *_socket, double _timeout, const enum TimeoutType _type)
+        TimeoutController(Socket *_socket, double _timeout, const TimeoutType _type)
             : TimeoutSetter(_socket, _timeout, _type) {}
-        bool has_timedout(const enum TimeoutType _type);
+        bool has_timedout(const TimeoutType _type);
 
       protected:
         double startup_time = 0;
@@ -564,14 +563,13 @@ class Socket {
 };
 
 class ProtocolSwitch {
-  private:
     bool ori_open_eof_check;
     bool ori_open_length_check;
     Protocol ori_protocol;
     Socket *socket_;
 
   public:
-    ProtocolSwitch(Socket *socket) {
+    explicit ProtocolSwitch(Socket *socket) {
         ori_open_eof_check = socket->open_eof_check;
         ori_open_length_check = socket->open_length_check;
         ori_protocol = socket->protocol;
