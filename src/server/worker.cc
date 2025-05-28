@@ -57,10 +57,8 @@ void Server::worker_signal_handler(int signo) {
     switch (signo) {
     case SIGTERM:
         if (swoole_event_is_available()) {
-            // Event Worker
             sw_server()->stop_async_worker(sw_worker());
         } else {
-            // Task Worker
             sw_worker()->shutdown();
         }
         break;
@@ -295,7 +293,7 @@ void Server::call_worker_start_callback(Worker *worker) {
         swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_WORKER_START, hook_args);
     }
     if (isset_hook(HOOK_WORKER_START)) {
-        call_hook(Server::HOOK_WORKER_START, hook_args);
+        call_hook(HOOK_WORKER_START, hook_args);
     }
 
     swoole_clear_last_error();
@@ -364,24 +362,16 @@ bool Server::kill_worker(int worker_id) {
         return send_to_worker_from_worker(get_worker(worker_id), &event, sizeof(event), SW_PIPE_MASTER) != -1;
     }
 
-    // kill self
-    if (current_worker && (WorkerId) worker_id == current_worker->id) {
-        if (swoole_event_is_available()) {
-            stop_async_worker(current_worker);
-        } else {
-            current_worker->shutdown();
-        }
-    } else {
-        Worker *worker = get_worker(worker_id);
-        if (worker == nullptr) {
-            swoole_error_log(SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "the worker_id[%d] is invalid", worker_id);
-            return false;
-        }
-        if (swoole_kill(worker->pid, SIGTERM) < 0) {
-            swoole_sys_warning("kill(%d, SIGTERM) failed", worker->pid);
-            return false;
-        }
+    const Worker *worker = get_worker(worker_id);
+    if (worker == nullptr) {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "the worker_id[%d] is invalid", worker_id);
+        return false;
     }
+    if (swoole_kill(worker->pid, SIGTERM) < 0) {
+        swoole_sys_warning("kill(%d, SIGTERM) failed", worker->pid);
+        return false;
+    }
+
     return true;
 }
 
