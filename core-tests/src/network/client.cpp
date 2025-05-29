@@ -360,6 +360,7 @@ TEST(client, sleep_2) {
             usleep(10000);
             return SW_OK;
         });
+        serv.on("workerStart", [](ON_WORKER_START_PARAMS) { DEBUG() << "Worker started, PID: " << getpid() << "\n"; });
         serv.start();
     });
 
@@ -373,22 +374,30 @@ TEST(client, sleep_2) {
 
     Client client(SW_SOCK_TCP, true);
     client.onConnect = [&wbuf, server_pid](Client *cli) {
+        DEBUG() << "Client connected, sending data...\n";
         cli->send(wbuf.str, wbuf.length);
         swoole_timer_after(15, [cli, server_pid](auto _1, auto _2) {
             cli->sleep();
+            DEBUG() << "Client is sleeping...\n";
             swoole_timer_after(15, [cli, server_pid](auto _1, auto _2) {
                 cli->wakeup();
+                DEBUG() << "Client woke up, closing connection...\n";
                 swoole_timer_after(15, [cli, server_pid](auto _1, auto _2) {
                     cli->close();
+                    DEBUG() << "Client closed, terminating server...\n";
                     kill(server_pid, SIGTERM);
                 });
             });
         });
     };
 
-    client.onError = [](Client *cli) {};
-    client.onClose = [](Client *cli) {};
-    client.onReceive = [](Client *cli, const char *data, size_t length) {};
+    client.onError = [](Client *cli) {
+        DEBUG() << "Client error occurred, ERROR: " << swoole_get_last_error() << "\n";
+    };
+    client.onClose = [](Client *cli) { DEBUG() << "Client connection closed.\n"; };
+    client.onReceive = [](Client *cli, const char *data, size_t length) {
+        DEBUG() << "Client received data, length: " << length << "\n";
+    };
 
     ASSERT_EQ(client.connect(TEST_HOST, port, -1, 0), 0);
 

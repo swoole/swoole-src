@@ -39,9 +39,9 @@ bool Address::verify_ip(int family, const std::string &str) {
 }
 
 const char *Address::get_addr() const {
-    if (type == SW_SOCK_TCP || type == SW_SOCK_UDP) {
-        return addr_str(AF_INET, (sockaddr *) &addr.inet_v4);
-    } else if (type == SW_SOCK_TCP6 || type == SW_SOCK_UDP6) {
+    if (Socket::is_inet4(type)) {
+        return addr_str(AF_INET, (sockaddr *) &addr.inet_v4.sin_addr);
+    } else if (Socket::is_inet6(type)) {
         return addr_str(AF_INET6, (sockaddr *) &addr.inet_v6.sin6_addr);
     } else if (type == SW_SOCK_UNIX_STREAM || type == SW_SOCK_UNIX_DGRAM) {
         return addr.un.sun_path;
