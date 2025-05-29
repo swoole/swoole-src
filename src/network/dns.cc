@@ -817,7 +817,7 @@ int getaddrinfo(GetaddrinfoRequest *req) {
 }
 
 int gethostbyname(GethostbynameRequest *req) {
-    auto rv = gethostbyname(req->family, req->name);
+    const auto rv = gethostbyname(req->family, req->name);
     if (rv.empty()) {
         swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
         return SW_ERR;
@@ -827,20 +827,11 @@ int gethostbyname(GethostbynameRequest *req) {
 }
 }  // namespace network
 
-void GetaddrinfoRequest::parse_result(std::vector<std::string> &retval) {
-    char tmp[INET6_ADDRSTRLEN];
-    const char *r;
-
+void GetaddrinfoRequest::parse_result(std::vector<std::string> &retval) const {
     for (auto &addr : results) {
-        if (family == AF_INET) {
-            auto *addr_v4 = reinterpret_cast<struct sockaddr_in *>(&addr);
-            r = inet_ntop(AF_INET, &addr_v4->sin_addr, tmp, sizeof(tmp));
-        } else {
-            sockaddr_in6 *addr_v6 = &addr;
-            r = inet_ntop(AF_INET6, &addr_v6->sin6_addr, tmp, sizeof(tmp));
-        }
-        if (r) {
-            retval.emplace_back(tmp);
+        auto addr_str = network::Address::addr_str(family, &addr);
+        if (addr_str) {
+            retval.emplace_back(addr_str);
         }
     }
 }

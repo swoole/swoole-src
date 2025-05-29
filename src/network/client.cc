@@ -465,13 +465,12 @@ static int Client_tcp_connect_sync(Client *cli, const char *host, int port, doub
                 const ssize_t n = cli->recv(recv_buf->str, recv_buf->size, 0);
                 if (n > 0 && cli->socks5_handshake(recv_buf->str, n)) {
                     if (cli->socks5_proxy->state == SW_SOCKS5_STATE_READY) {
-                        return SW_OK;
+                        break;
                     }
                     continue;
                 }
-                break;
+                return SW_ERR;
             }
-            return SW_ERR;
         } else if (cli->http_proxy) {
             auto target_host = cli->get_http_proxy_host_name();
             const size_t n_write = cli->http_proxy->pack(recv_buf, target_host);

@@ -649,27 +649,19 @@ bool Socket::connect(const std::string &_host, int _port, int flags) {
 
     // socks5 proxy
     if (socks5_proxy && socks5_handshake() == false) {
-        if (errCode == 0) {
-            set_err(SW_ERROR_SOCKS5_HANDSHAKE_FAILED);
-        }
+        set_err(SW_ERROR_SOCKS5_HANDSHAKE_FAILED);
         return false;
     }
     // http proxy
     if (http_proxy && !http_proxy->dont_handshake && http_proxy_handshake() == false) {
-        if (errCode == 0) {
-            set_err(SW_ERROR_HTTP_PROXY_HANDSHAKE_FAILED);
-        }
+        set_err(SW_ERROR_HTTP_PROXY_HANDSHAKE_FAILED);
         return false;
     }
 #ifdef SW_USE_OPENSSL
     ssl_is_server = false;
-    if (ssl_context) {
-        if (!ssl_handshake()) {
-            if (errCode == 0) {
-                set_err(SW_ERROR_SSL_HANDSHAKE_FAILED);
-            }
-            return false;
-        }
+    if (ssl_context && !ssl_handshake()) {
+        set_err(SW_ERROR_SSL_HANDSHAKE_FAILED);
+        return false;
     }
 #endif
     return true;
