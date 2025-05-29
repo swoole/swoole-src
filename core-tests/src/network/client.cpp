@@ -18,6 +18,7 @@ using swoole::String;
 using swoole::network::Address;
 using swoole::network::AsyncClient;
 using swoole::network::Client;
+using swoole::network::Socket;
 using swoole::network::SyncClient;
 using swoole::test::Process;
 using swoole::test::Server;
@@ -123,7 +124,7 @@ static void test_async_client_tcp(const char *host, int port, enum swSocketType 
     ASSERT_TRUE(p.ready());
 
     Process proc([&](Process *proc) {
-        Server serv(TEST_HOST, port, swoole::Server::MODE_BASE, type);
+        Server serv(Socket::is_inet6(type) ? TEST_HOST6 : TEST_HOST, port, swoole::Server::MODE_BASE, type);
 
         serv.set_private_data("pipe", &p);
 
@@ -977,7 +978,7 @@ TEST(client, ssl) {
 #endif
 
 TEST(client, fail) {
-    Client c((swSocketType)(SW_SOCK_RAW6 + 1), false);
+    Client c((swSocketType) (SW_SOCK_RAW6 + 1), false);
     ASSERT_FALSE(c.ready());
     ASSERT_ERREQ(ESOCKTNOSUPPORT);
 }
