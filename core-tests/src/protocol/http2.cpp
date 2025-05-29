@@ -72,7 +72,7 @@ TEST(http2, default_settings) {
 }
 
 TEST(http2, pack_setting_frame) {
-    char frame[SW_HTTP2_SETTING_FRAME_SIZE];
+    char frame[SW_HTTP2_SETTING_FRAME_SIZE + SW_HTTP2_FRAME_HEADER_SIZE];
     http2::Settings settings_1{};
     http2::init_settings(&settings_1);
     size_t n = http2::pack_setting_frame(frame, settings_1, false);
