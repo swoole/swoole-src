@@ -80,6 +80,8 @@ struct Socks5Proxy {
     int target_port;
     char buf[600];
 
+    ssize_t pack_connect_request(int socket_type);
+
     static const char *strerror(int code);
     static Socks5Proxy *create(const std::string &host, int port, const std::string &user, const std::string &pwd);
 

@@ -774,6 +774,14 @@ int gethostbyname(int flags, const char *name, char *addr) {
 }
 #endif
 
+std::string gethostbyname(int type, const std::string &name) {
+    char addr[128];
+    if (gethostbyname(type, name.c_str(), addr) == SW_OK) {
+        return Address::addr_str(type, reinterpret_cast<sockaddr *>(addr));
+    }
+    return {};
+}
+
 int getaddrinfo(GetaddrinfoRequest *req) {
     addrinfo *result = nullptr;
     addrinfo *ptr = nullptr;

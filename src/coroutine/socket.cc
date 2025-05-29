@@ -288,35 +288,11 @@ bool Socket::socks5_handshake() {
             return false;
         }
     }
-
     // send connect request
     ctx->state = SW_SOCKS5_STATE_CONNECT;
-    p = ctx->buf;
-    p[0] = SW_SOCKS5_VERSION_CODE;
-    p[1] = 0x01;
-    p[2] = 0x00;
-    p += 3;
-    if (ctx->dns_tunnel) {
-        p[0] = 0x03;
-        p[1] = ctx->target_host.length();
-        p += 2;
-        memcpy(p, ctx->target_host.c_str(), ctx->target_host.length());
-        p += ctx->target_host.length();
-        *(uint16_t *) p = htons(ctx->target_port);
-        p += 2;
-        if (send(ctx->buf, p - ctx->buf) != p - ctx->buf) {
-            return false;
-        }
-    } else {
-        p[0] = 0x01;
-        p += 1;
-        *(uint32_t *) p = htons(ctx->target_host.length());
-        p += 4;
-        *(uint16_t *) p = htons(ctx->target_port);
-        p += 2;
-        if (send(ctx->buf, p - ctx->buf) != p - ctx->buf) {
-            return false;
-        }
+    const auto len = ctx->pack_connect_request(type);
+    if (send(ctx->buf, len) != len) {
+        return false;
     }
     // recv response
     n = recv(ctx->buf, sizeof(ctx->buf));

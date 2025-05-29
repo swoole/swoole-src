@@ -69,7 +69,7 @@ void Client::init_reactor(Reactor *reactor) {
 
 Client::Client(SocketType _type, bool _async) : async(_async) {
     fd_type = Socket::is_stream(_type) ? SW_FD_STREAM_CLIENT : SW_FD_DGRAM_CLIENT;
-    socket = swoole::make_socket(_type, fd_type, (async ? SW_SOCK_NONBLOCK : 0) | SW_SOCK_CLOEXEC);
+    socket = make_socket(_type, fd_type, (async ? SW_SOCK_NONBLOCK : 0) | SW_SOCK_CLOEXEC);
     if (socket == nullptr) {
         swoole_sys_warning("socket() failed");
         return;
@@ -152,7 +152,7 @@ int Client::wakeup() {
     return ret;
 }
 
-int Client::sendto(const std::string &host, int port, const char *data, size_t len) {
+int Client::sendto(const std::string &host, int port, const char *data, size_t len) const {
     if (!socket->is_dgram()) {
         swoole_set_last_error(SW_ERROR_OPERATION_NOT_SUPPORT);
         swoole_warning("only supports SWOOLE_SOCK_(UDP/UDP6/UNIX_DGRAM)");
@@ -160,7 +160,7 @@ int Client::sendto(const std::string &host, int port, const char *data, size_t l
     }
 
     Address remote_addr;
-    if (!remote_addr.assign(socket->socket_type, host, port, true)) {
+    if (!remote_addr.assign(socket->socket_type, host, port, !async)) {
         return SW_ERR;
     }
 
@@ -191,27 +191,28 @@ int Client::shutdown(int _how) {
     }
     swoole_trace_log(SW_TRACE_CLIENT, "how=%d, fd=%d", _how, socket->fd);
     if (_how == SHUT_RD) {
-        if (shutdown_read || shutdow_rw || ::shutdown(socket->fd, SHUT_RD)) {
+        if (shutdown_read || shutdown_rw || ::shutdown(socket->fd, SHUT_RD)) {
             return SW_ERR;
         } else {
             shutdown_read = true;
             return SW_OK;
         }
     } else if (_how == SHUT_WR) {
-        if (shutdown_write || shutdow_rw || ::shutdown(socket->fd, SHUT_WR) < 0) {
+        if (shutdown_write || shutdown_rw || ::shutdown(socket->fd, SHUT_WR) < 0) {
             return SW_ERR;
         } else {
             shutdown_write = true;
             return SW_OK;
         }
     } else if (_how == SHUT_RDWR) {
-        if (shutdow_rw || ::shutdown(socket->fd, SHUT_RDWR) < 0) {
+        if (shutdown_rw || ::shutdown(socket->fd, SHUT_RDWR) < 0) {
             return SW_ERR;
         } else {
             shutdown_read = true;
             return SW_OK;
         }
     } else {
+        swoole_set_last_error(EINVAL);
         return SW_ERR;
     }
 }
@@ -251,28 +252,12 @@ int Client::socks5_handshake(const char *recv_data, size_t length) {
         // send connect request
         else {
         _send_connect_request:
-            buf[0] = SW_SOCKS5_VERSION_CODE;
-            buf[1] = 0x01;
-            buf[2] = 0x00;
-
             ctx->state = SW_SOCKS5_STATE_CONNECT;
-
-            if (ctx->dns_tunnel) {
-                buf[3] = 0x03;
-                buf[4] = ctx->target_host.length();
-                buf += 5;
-                memcpy(buf, ctx->target_host.c_str(), ctx->target_host.length());
-                buf += ctx->target_host.length();
-                *(uint16_t *) buf = htons(ctx->target_port);
-                return send(ctx->buf, ctx->target_host.length() + 7, 0) > 0 ? SW_OK : SW_ERR;
-            } else {
-                buf[3] = 0x01;
-                buf += 4;
-                *(uint32_t *) buf = htons(ctx->target_host.length());
-                buf += 4;
-                *(uint16_t *) buf = htons(ctx->target_port);
-                return send(ctx->buf, ctx->target_host.length() + 7, 0) > 0 ? SW_OK : SW_ERR;
+            const auto len = ctx->pack_connect_request(get_socket_type());
+            if (len < 0) {
+                return SW_ERR;
             }
+            return send(ctx->buf, len, 0) > 0 ? SW_OK : SW_ERR;
         }
     } else if (ctx->state == SW_SOCKS5_STATE_AUTH) {
         version = recv_data[0];

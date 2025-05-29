@@ -17,6 +17,7 @@
  */
 
 #include "swoole_proxy.h"
+#include "swoole_socket.h"
 
 namespace swoole {
 const char *Socks5Proxy::strerror(int code) {
@@ -53,5 +54,48 @@ Socks5Proxy *Socks5Proxy::create(const std::string &host, int port, const std::s
         socks5_proxy->password = pwd;
     }
     return socks5_proxy;
+}
+
+ssize_t Socks5Proxy::pack_connect_request(int socket_type) {
+    char *p = buf;
+    p[0] = SW_SOCKS5_VERSION_CODE;
+    p[1] = 0x01;  // CONNECT command
+    p[2] = 0x00;  // Reserved byte
+    p += 3;
+
+    if (dns_tunnel) {
+        p[0] = 0x03;
+        p[1] = target_host.length();
+        p += 2;
+        memcpy(p, target_host.c_str(), target_host.length());
+        p += target_host.length();
+    } else {
+        network::Address target_addr;
+        if (!target_addr.assign(static_cast<SocketType>(socket_type), target_host, target_port, false)) {
+            swoole_error_log(
+                SW_LOG_NOTICE,
+                SW_ERROR_SOCKS5_HANDSHAKE_FAILED,
+                "When disable SOCKS5 proxy DNS tunnel connection, the destination host must be an IP address.");
+            return SW_ERR;
+        }
+        if (network::Socket::is_inet4(static_cast<SocketType>(socket_type))) {
+            p[0] = 0x01;  // IPv4 address type
+            p += 1;
+            memcpy(p, &target_addr.addr.inet_v4.sin_addr, sizeof(target_addr.addr.inet_v4.sin_addr));
+            p += sizeof(target_addr.addr.inet_v4.sin_addr);
+        } else if (network::Socket::is_inet6(static_cast<SocketType>(socket_type))) {
+            p[0] = 0x04;  // IPv6 address type
+            p += 1;
+            memcpy(p, &target_addr.addr.inet_v6.sin6_addr, sizeof(target_addr.addr.inet_v6.sin6_addr));
+            p += sizeof(target_addr.addr.inet_v6.sin6_addr);
+        } else {
+            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_HANDSHAKE_FAILED, "Unsupported socket type for SOCKS5");
+            return SW_ERR;
+        }
+    }
+    const auto _target_port = htons(target_port);
+    memcpy(p, &_target_port, sizeof(_target_port));
+    p += 2;
+    return p - buf;
 }
 }  // namespace swoole

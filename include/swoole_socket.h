@@ -107,12 +107,10 @@ struct Address {
     const char *get_addr() const;
     bool is_loopback_addr();
     bool empty() const;
-    static const char *type_str(SocketType type);
 
-    static bool verify_ip(int __af, const std::string &str) {
-        char tmp_address[INET6_ADDRSTRLEN];
-        return inet_pton(__af, str.c_str(), tmp_address) == 1;
-    }
+    static const char *type_str(SocketType type);
+    static const char *addr_str(int family, const sockaddr *addr);
+    static bool verify_ip(int family, const std::string &str);
 };
 
 struct IOVector {
@@ -547,6 +545,7 @@ struct Socket {
     static int get_domain_and_type(SocketType type, int *sock_domain, int *sock_type);
 };
 
+std::string gethostbyname(int type, const std::string &name);
 int gethostbyname(int type, const char *name, char *addr);
 int gethostbyname(const GethostbynameRequest *req);
 int getaddrinfo(GetaddrinfoRequest *req);

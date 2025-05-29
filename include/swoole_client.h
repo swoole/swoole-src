@@ -48,7 +48,7 @@ class Client {
     bool wait_dns = false;
     bool dns_completed = false;
     bool host_preseted = false;
-    bool shutdow_rw = false;
+    bool shutdown_rw = false;
     bool shutdown_read = false;
     bool shutdown_write = false;
     bool remove_delay = false;
@@ -155,7 +155,7 @@ class Client {
     int bind(const std::string &addr, int port);
     int sleep();
     int wakeup();
-    int sendto(const std::string &host, int port, const char *data, size_t len);
+    int sendto(const std::string &host, int port, const char *data, size_t len) const;
     int get_peer_name(Address *addr);
     int shutdown(int _how = SHUT_RDWR);
     int close();

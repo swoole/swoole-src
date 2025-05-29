@@ -387,7 +387,7 @@ TEST(client, sleep_2) {
 
     client.onError = [](Client *cli) {};
     client.onClose = [](Client *cli) {};
-    client.onReceive = [](Client *cli, const char *data, size_t length) {  };
+    client.onReceive = [](Client *cli, const char *data, size_t length) {};
 
     ASSERT_EQ(client.connect(TEST_HOST, port, -1, 0), 0);
 
@@ -527,6 +527,14 @@ TEST(client, sendto) {
     ASSERT_EQ(dsock.get_peer_name(&ra), SW_OK);
     ASSERT_STREQ(ra.get_addr(), dns_server.host.c_str());
     ASSERT_EQ(ra.get_port(), dns_server.port);
+
+    Client cli2(SW_SOCK_UDP, false);
+    ASSERT_EQ(cli2.sendto("www.baidu.com-not-exists", 9999, SW_STRL(TEST_STR)), SW_ERR);
+    ASSERT_ERREQ(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
+
+    Client cli3(SW_SOCK_UNIX_DGRAM, false);
+    ASSERT_EQ(cli3.sendto("/tmp/swoole.sock", 0, SW_STRL(TEST_STR)), SW_ERR);
+    ASSERT_ERREQ(ENOENT);
 }
 
 TEST(client, async_unix_connect_refuse) {
@@ -699,7 +707,9 @@ TEST(client, shutdown_all) {
     ret = cli.connect("www.baidu.com", 80, -1, 0);
     ASSERT_EQ(ret, 0);
 
-    cli.shutdown(SHUT_RDWR);
+    ASSERT_EQ(cli.shutdown(SHUT_RDWR), SW_OK);
+    ASSERT_EQ(cli.shutdown(SHUT_RDWR + 99), SW_ERR);
+    ASSERT_ERREQ(EINVAL);
 
     ssize_t retval = cli.send(SW_STRL("hello world\r\n\r\n"), 0);
     ASSERT_EQ(retval, -1);
@@ -830,7 +840,13 @@ static void proxy_sync_test(Client &client, bool https) {
         client.enable_ssl_encrypt();
     }
 
-    ASSERT_EQ(client.connect(TEST_DOMAIN_BAIDU, https ? 443 : 80, -1, 0), 0);
+    std::string host = TEST_DOMAIN_BAIDU;
+    if (!client.socks5_proxy->dns_tunnel) {
+        host = swoole::network::gethostbyname(AF_INET, host);
+        DEBUG() << "Resolved domain " << TEST_DOMAIN_BAIDU << " to " << host << "\n";
+    }
+
+    ASSERT_EQ(client.connect(host.c_str(), https ? 443 : 80, -1, 0), 0);
     ASSERT_GT(client.send(SW_STRL(TEST_REQUEST_BAIDU), 0), 0);
 
     while (true) {
@@ -846,11 +862,8 @@ static void proxy_sync_test(Client &client, bool https) {
 }
 
 static void proxy_set_socks5_proxy(Client &client) {
-    std::string username, password;
-    if (swoole::test::is_github_ci()) {
-        username = std::string(TEST_SOCKS5_PROXY_USER);
-        password = std::string(TEST_SOCKS5_PROXY_PASSWORD);
-    }
+    std::string username = std::string(TEST_SOCKS5_PROXY_USER);
+    std::string password = std::string(TEST_SOCKS5_PROXY_PASSWORD);
     client.set_socks5_proxy(TEST_SOCKS5_PROXY_HOST, TEST_SOCKS5_PROXY_PORT, username, password);
 }
 
@@ -885,6 +898,13 @@ TEST(client, https_get_sync_with_socks5_proxy) {
     Client client(SW_SOCK_TCP, false);
     proxy_set_socks5_proxy(client);
     proxy_sync_test(client, true);
+}
+
+TEST(client, https_get_sync_with_socks5_proxy_no_dns_tunnel) {
+    Client client(SW_SOCK_TCP, false);
+    proxy_set_socks5_proxy(client);
+    client.socks5_proxy->dns_tunnel = 0;
+    proxy_sync_test(client, false);
 }
 
 TEST(client, http_get_async_with_http_proxy) {
@@ -957,7 +977,7 @@ TEST(client, ssl) {
 #endif
 
 TEST(client, fail) {
-    Client c((swSocketType) (SW_SOCK_RAW6 + 1), false);
+    Client c((swSocketType)(SW_SOCK_RAW6 + 1), false);
     ASSERT_FALSE(c.ready());
     ASSERT_ERREQ(ESOCKTNOSUPPORT);
 }

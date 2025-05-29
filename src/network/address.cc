@@ -27,15 +27,22 @@ namespace network {
 
 static thread_local char tmp_address[INET6_ADDRSTRLEN];
 
+const char *Address::addr_str(int family, const sockaddr *addr) {
+    if (inet_ntop(family, addr, tmp_address, sizeof(tmp_address))) {
+        return tmp_address;
+    }
+    return nullptr;
+}
+
+bool Address::verify_ip(int family, const std::string &str) {
+    return inet_pton(family, str.c_str(), tmp_address) == 1;
+}
+
 const char *Address::get_addr() const {
     if (type == SW_SOCK_TCP || type == SW_SOCK_UDP) {
-        if (inet_ntop(AF_INET, &addr.inet_v4.sin_addr, tmp_address, sizeof(tmp_address))) {
-            return tmp_address;
-        }
+        return addr_str(AF_INET, (sockaddr *) &addr.inet_v4);
     } else if (type == SW_SOCK_TCP6 || type == SW_SOCK_UDP6) {
-        if (inet_ntop(AF_INET6, &addr.inet_v6.sin6_addr, tmp_address, sizeof(tmp_address))) {
-            return tmp_address;
-        }
+        return addr_str(AF_INET6, (sockaddr *) &addr.inet_v6.sin6_addr);
     } else if (type == SW_SOCK_UNIX_STREAM || type == SW_SOCK_UNIX_DGRAM) {
         return addr.un.sun_path;
     }
