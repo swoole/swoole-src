@@ -351,7 +351,7 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
         char *temp = &packet[steps];
         j = 0;
         while (*temp != 0) {
-            if ((uchar)(*temp) == 0xc0) {
+            if ((uchar) (*temp) == 0xc0) {
                 ++temp;
                 temp = &packet[(uint8_t) *temp];
             } else {
@@ -380,7 +380,7 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
             temp = &packet[steps];
             j = 0;
             while (*temp != 0) {
-                if ((uchar)(*temp) == 0xc0) {
+                if ((uchar) (*temp) == 0xc0) {
                     ++temp;
                     temp = &packet[(uint8_t) *temp];
                 } else {
@@ -766,9 +766,9 @@ int gethostbyname(int flags, const char *name, char *addr) {
 #endif
 
 std::string gethostbyname(int type, const std::string &name) {
-    char addr[128];
+    char addr[sizeof(in6_addr)];
     if (gethostbyname(type, name.c_str(), addr) == SW_OK) {
-        return Address::addr_str(type, reinterpret_cast<sockaddr *>(addr));
+        return Address::addr_str(type, addr);
     }
     return {};
 }
@@ -816,20 +816,13 @@ int getaddrinfo(GetaddrinfoRequest *req) {
     return SW_OK;
 }
 
-int gethostbyname(const GethostbynameRequest *req) {
-    char addr[INET6_ADDRSTRLEN];
-    auto rv = gethostbyname(req->family, req->name.c_str(), addr);
-    if (rv < 0) {
+int gethostbyname(GethostbynameRequest *req) {
+    auto rv = gethostbyname(req->family, req->name);
+    if (rv.empty()) {
         swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
         return SW_ERR;
     }
-    sw_memset_zero(req->addr.get(), req->addr_len);
-    if (inet_ntop(req->family, addr, req->addr.get(), req->addr_len) == nullptr) {
-        swoole_set_last_error(SW_ERROR_BAD_HOST_ADDR);
-        return SW_ERR;
-    } else {
-        return SW_OK;
-    }
+    req->addr = rv;
 }
 }  // namespace network
 

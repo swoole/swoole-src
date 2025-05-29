@@ -179,5 +179,4 @@ bool Address::is_loopback_addr() const {
     return false;
 }
 
-} // namespace swoole::network
-
+}  // namespace swoole::network

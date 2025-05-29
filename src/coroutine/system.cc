@@ -145,8 +145,7 @@ std::string gethostbyname_impl_with_async(const std::string &hostname, int domai
         swoole_set_last_error(ev.error);
         return "";
     } else {
-        std::string addr(req->addr.get());
-        return addr;
+        return req->addr;
     }
 }
 

@@ -547,7 +547,7 @@ struct Socket {
 
 std::string gethostbyname(int type, const std::string &name);
 int gethostbyname(int type, const char *name, char *addr);
-int gethostbyname(const GethostbynameRequest *req);
+int gethostbyname(GethostbynameRequest *req);
 int getaddrinfo(GetaddrinfoRequest *req);
 
 }  // namespace network

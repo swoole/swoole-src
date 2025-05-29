@@ -851,7 +851,7 @@ static void proxy_sync_test(Client &client, bool https) {
     }
 
     std::string host = TEST_DOMAIN_BAIDU;
-    if (!client.socks5_proxy->dns_tunnel) {
+    if (client.socks5_proxy && !client.socks5_proxy->dns_tunnel) {
         host = swoole::network::gethostbyname(AF_INET, host);
         DEBUG() << "Resolved domain " << TEST_DOMAIN_BAIDU << " to " << host << "\n";
     }

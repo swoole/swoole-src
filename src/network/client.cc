@@ -911,7 +911,7 @@ static void Client_onTimeout(Timer *timer, TimerNode *tnode) {
 static void Client_onResolveCompleted(AsyncEvent *event) {
     auto *req = dynamic_cast<GethostbynameRequest *>(event->data.get());
 
-    auto *cli = (Client *) event->object;
+    auto *cli = static_cast<Client *>(event->object);
     cli->wait_dns = false;
     cli->dns_completed = true;
 
@@ -920,7 +920,7 @@ static void Client_onResolveCompleted(AsyncEvent *event) {
          * In the callback function, the application layer cannot obtain the return value of the connect function,
          *  so it must call `onError` to notify the caller.
          */
-        if (cli->connect(req->addr.get(), cli->server_port, cli->timeout, cli->sock_flags_) == SW_ERR &&
+        if (cli->connect(req->addr.c_str(), cli->server_port, cli->timeout, cli->sock_flags_) == SW_ERR &&
             !cli->onerror_called) {
             goto _error;
         }

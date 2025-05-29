@@ -62,11 +62,10 @@ struct AsyncEvent {
     }
 };
 
-struct GethostbynameRequest : public AsyncRequest {
+struct GethostbynameRequest : AsyncRequest {
     std::string name;
     int family;
-    std::unique_ptr<char[]> addr;
-    size_t addr_len;
+    std::string addr;
 
     GethostbynameRequest(std::string _name, int _family);
     ~GethostbynameRequest() override = default;
