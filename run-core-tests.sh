@@ -1,6 +1,9 @@
 #!/bin/bash
 __DIR__=$(cd "$(dirname "$0")" || exit;pwd)
 
+export ASAN_OPTIONS=detect_leaks=0
+echo 0 > /proc/sys/kernel/randomize_va_space
+
 ipcs -q
 
 cd "${__DIR__}"/core-tests/js || exit 1

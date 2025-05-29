@@ -341,8 +341,7 @@ pid_t swoole_fork(int flags) {
         }
         if (SwooleTG.async_threads) {
             swoole_trace("aio_task_num=%lu, reactor=%p", SwooleTG.async_threads->task_num, sw_reactor());
-            swoole_fatal_error(SW_ERROR_OPERATION_NOT_SUPPORT,
-                               "can not create server after using async file operation");
+            swoole_fatal_error(SW_ERROR_OPERATION_NOT_SUPPORT, "can not fork after using async-threads");
         }
     }
     if (flags & SW_FORK_PRECHECK) {

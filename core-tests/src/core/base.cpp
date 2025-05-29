@@ -551,4 +551,7 @@ TEST(base, fork_fail) {
 
 TEST(base, undefined_behavior) {
     swoole_init();  // no effect
+    delete SwooleG.logger;
+    SwooleG.logger = nullptr;  // avoid double free in swoole_shutdown()
+    ASSERT_EQ(swoole_get_log_level(), SW_LOG_NONE);
 }

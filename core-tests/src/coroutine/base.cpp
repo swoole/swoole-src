@@ -326,3 +326,29 @@ TEST(coroutine_base, bailout) {
     });
     ASSERT_EQ(WEXITSTATUS(status), 0);
 }
+
+TEST(coroutine_base, undefined_behavior) {
+    int status;
+    status = test::spawn_exec_and_wait([]() {
+        test::coroutine::run([](void *) {
+            swoole_fork(0);
+        });
+    });
+    ASSERT_EQ(1, WEXITSTATUS(status));
+
+    status = test::spawn_exec_and_wait([]() {
+        std::atomic<int> handle_count(0);
+        AsyncEvent event = {};
+        event.object = &handle_count;
+        event.callback = [](AsyncEvent *event) {  };
+        event.handler = [](AsyncEvent *event) { ++(*static_cast<std::atomic<int> *>(event->object)); };
+
+        swoole_event_init(0);
+        auto ret = async::dispatch(&event);
+        ASSERT_NE(ret, nullptr);
+        swoole_fork(0);
+    });
+    ASSERT_EQ(1, WEXITSTATUS(status));
+
+    ASSERT_EQ(0, swoole_fork(SW_FORK_PRECHECK));
+}
