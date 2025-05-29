@@ -348,7 +348,7 @@ ssize_t Socket::recv_sync(void *_data, size_t _len, int flags) {
     return rv ? bytes : -1;
 }
 
-Socket *Socket::accept() {
+Socket *Socket::accept() const {
     auto *socket = new Socket();
     socket->removed = 1;
     socket->socket_type = socket_type;
@@ -1433,12 +1433,13 @@ int Socket::ssl_connect() {
     }
 
     ulong_t err_code = ERR_get_error();
-    char *msg = ERR_error_string(err_code, sw_tg_buffer()->str);
+    char error_buf[256];
+    ERR_error_string_n(err_code, error_buf, sizeof(error_buf));
     swoole_notice("Socket::ssl_connect(fd=%d) to server[%s:%d] failed. Error: %s[%ld|%d]",
                   fd,
                   info.get_addr(),
                   info.get_port(),
-                  msg,
+                  error_buf,
                   err,
                   ERR_GET_REASON(err_code));
 

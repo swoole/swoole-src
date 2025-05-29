@@ -46,7 +46,7 @@ static void init_root_path(const char *_exec_file) {
         char *dir = getcwd(buf, sizeof(buf));
         file = string(dir) + "/" + _exec_file;
     }
-    string relative_root_path = file.substr(0, file.rfind('/')) + "/../../";
+    string relative_root_path = file.substr(0, file.rfind('/')) + "/../";
     char *_realpath = realpath(relative_root_path.c_str(), buf);
     if (_realpath == nullptr) {
         root_path = relative_root_path;
@@ -83,6 +83,9 @@ void counter_incr_and_put_log(int index, const char *msg) {
     DEBUG() << "PID: " << getpid() << ", VALUE: " << counter_incr(index) << "; " << msg << std::endl;
 }
 
+/**
+ * swoole-src root path
+ */
 const string &get_root_path() {
     return root_path;
 }
@@ -112,7 +115,7 @@ bool is_github_ci() {
 }
 
 int exec_js_script(const std::string &file, const std::string &args) {
-    std::string command = "bash -c 'node " + test::get_root_path() + "/core-tests/js/" + file + " " + args + "'";
+    std::string command = "bash -c 'node " + get_root_path() + "/core-tests/js/" + file + " " + args + "'";
     return std::system(command.c_str());
 }
 

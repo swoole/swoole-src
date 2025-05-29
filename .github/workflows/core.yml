@@ -45,36 +45,14 @@ jobs:
       - name: configure
         run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-openssl --enable-iouring
 
-      - name: make
+      - name: build
         run: |
-          if [[ "$GITHUB_COMMIT_MESSAGE" == *"--asan"* ]]; then
-              cmake . -D CODE_COVERAGE=ON -D enable_thread=1 -D enable_asan=1
-          else
-              cmake . -D CODE_COVERAGE=ON -D enable_thread=1
-          fi
+          cmake . -D CODE_COVERAGE=ON -D enable_thread=1 -D enable_asan=1 -D verbose=1 || exit 1
+          make VERBOSE=1 -j $(nproc) core-tests || exit 1
 
-          make VERBOSE=1 -j $(nproc) lib-swoole
-
-      - name: make test
+      - name: run tests
         run: |
-          export GITHUB_COMMIT_MESSAGE="${{ github.event.head_commit.message }}"
-          if [[ "$GITHUB_COMMIT_MESSAGE" == *"--valgrind"* ]]; then
-            export SWOOLE_VALGRIND=1
-          fi
-          if [[ "$GITHUB_COMMIT_MESSAGE" == *"--asan"* ]]; then
-              export SWOOLE_ENABLE_ASAN=1
-          fi
-          if [[ "$GITHUB_COMMIT_MESSAGE" == *"--strace"* ]]; then
-              export SWOOLE_ENABLE_STRACE=1
-          fi
-          if [[ "$GITHUB_COMMIT_MESSAGE" == *"--verbose"* ]]; then
-              export SWOOLE_ENABLE_VERBOSE=1
-          fi
-          echo "SWOOLE_VALGRIND=${SWOOLE_VALGRIND}"
-          echo "SWOOLE_ENABLE_ASAN=${SWOOLE_ENABLE_ASAN}"
-          echo "SWOOLE_ENABLE_STRACE=${SWOOLE_ENABLE_STRACE}"
-          echo "SWOOLE_ENABLE_VERBOSE=${SWOOLE_ENABLE_VERBOSE}"
-          cd core-tests && ./run.sh
+          ./run-core-tests.sh
 
       - name: run coverage
         shell: bash

@@ -184,6 +184,17 @@ int Server::accept_connection(Reactor *reactor, Event *event) {
             return SW_OK;
         }
 
+#ifdef SW_USE_OPENSSL
+        if (listen_host->ssl) {
+            if (!listen_host->ssl_create(sock)) {
+                serv->abort_connection(reactor, listen_host, sock);
+                return SW_OK;
+            }
+        } else {
+            sock->ssl = nullptr;
+        }
+#endif
+
         // add to connection_list
         Connection *conn = serv->add_connection(listen_host, sock, event->fd);
         if (conn == nullptr) {
@@ -192,16 +203,6 @@ int Server::accept_connection(Reactor *reactor, Event *event) {
         }
         sock->chunk_size = SW_SEND_BUFFER_SIZE;
 
-#ifdef SW_USE_OPENSSL
-        if (listen_host->ssl) {
-            if (!listen_host->ssl_create(conn, sock)) {
-                serv->abort_connection(reactor, listen_host, sock);
-                return SW_OK;
-            }
-        } else {
-            sock->ssl = nullptr;
-        }
-#endif
         if (serv->single_thread) {
             if (serv->connection_incoming(reactor, conn) < 0) {
                 serv->abort_connection(reactor, listen_host, sock);
@@ -796,7 +797,8 @@ int Server::create() {
 
     port_gs_list = static_cast<ServerPortGS *>(sw_shm_calloc(ports.size(), sizeof(ServerPortGS)));
     if (port_gs_list == nullptr) {
-        swoole_sys_warning("sw_shm_calloc(%zu, %zu) for port_connection_num_array failed", ports.size(), sizeof(ServerPortGS));
+        swoole_sys_warning(
+            "sw_shm_calloc(%zu, %zu) for port_connection_num_array failed", ports.size(), sizeof(ServerPortGS));
         return SW_ERR;
     }
 
@@ -1574,7 +1576,7 @@ bool Server::sendfile(SessionId session_id, const char *file, uint32_t l_file, o
                          "sendfile name[%.8s...] length %u is exceed the max name len %u",
                          file,
                          l_file,
-                         (uint32_t)(SW_IPC_BUFFER_SIZE - sizeof(SendfileTask) - 1));
+                         (uint32_t) (SW_IPC_BUFFER_SIZE - sizeof(SendfileTask) - 1));
         return false;
     }
     // string must be zero termination (for `state` system call)
@@ -2020,6 +2022,7 @@ _find_available_slot:
     connection->worker_id = -1;
     connection->socket_type = ls->type;
     connection->socket = _socket;
+    connection->ssl = _socket->ssl != nullptr;
 
     memcpy(&connection->info.addr, &_socket->info.addr, _socket->info.len);
     connection->info.len = _socket->info.len;

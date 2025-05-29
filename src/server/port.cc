@@ -146,11 +146,10 @@ bool ListenPort::ssl_init() {
     return true;
 }
 
-bool ListenPort::ssl_create(Connection *conn, Socket *sock) {
+bool ListenPort::ssl_create(Socket *sock) {
     if (sock->ssl_create(ssl_context.get(), SW_SSL_SERVER) < 0) {
         return false;
     }
-    conn->ssl = 1;
     if (SSL_set_ex_data(sock->ssl, swoole_ssl_get_ex_port_index(), this) == 0) {
         swoole_warning("SSL_set_ex_data() failed");
         return false;

@@ -347,7 +347,7 @@ struct ListenPort {
 #ifdef SW_USE_OPENSSL
     bool ssl_context_init();
     bool ssl_context_create(SSLContext *context) const;
-    bool ssl_create(Connection *conn, network::Socket *sock);
+    bool ssl_create(network::Socket *sock);
     bool ssl_add_sni_cert(const std::string &name, const std::shared_ptr<SSLContext> &ctx);
     static bool ssl_matches_wildcard_name(const char *subjectname, const char *certname);
     bool ssl_init();

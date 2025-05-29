@@ -217,6 +217,10 @@ if (DEFINED enable_thread)
     add_definitions(-DSW_THREAD)
 endif()
 
+if (DEFINED verbose)
+    add_definitions(-DSW_VERBOSE)
+endif()
+
 # find libpq
 if (DEFINED libpq_dir)
     target_include_directories(ext-swoole BEFORE ${LIBPQ_INCLUDE_DIRS})
