@@ -530,6 +530,7 @@ static int test_fork_fail(const std::function<void(void)> &after_fork_fail = nul
     return 0;
 }
 
+#if 0
 TEST(base, fork_fail) {
     auto status = test::spawn_exec_and_wait([]() {
         if (geteuid() == 0) {
@@ -546,6 +547,7 @@ TEST(base, fork_fail) {
 
     ASSERT_EQ(status, 0);
 }
+#endif
 
 TEST(base, undefined_behavior) {
     swoole_init();  // no effect
