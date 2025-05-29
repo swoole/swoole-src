@@ -794,7 +794,7 @@ TEST(server, reload_thread) {
         swoole_thread_init();
         lock.lock();
         usleep(1000);
-        DEBUG() << "reload\n";
+        DEBUG() << "is_manager()=" << serv.is_manager() << ", do reload\n";
         serv.reload(true);
         sleep(1);
         DEBUG() << "shutdown\n";
@@ -813,6 +813,10 @@ TEST(server, reload_thread) {
 
     serv.onStart = [&lock](Server *serv) {
         DEBUG() << "onStart\n";
+    };
+
+    serv.onManagerStart = [&lock](Server *serv) {
+        DEBUG() << "onManagerStart\n";
         lock.unlock();
     };
 
@@ -1555,7 +1559,7 @@ TEST(server, task_worker_3) {
             swoole_timer_after(60, [serv](TIMER_PARAMS) { kill(serv->get_manager_pid(), SIGRTMIN); });
             swoole_timer_after(100, [serv](TIMER_PARAMS) { serv->shutdown(); });
         }
-        if (worker->id == 1 &&  test::counter_get(30) == 0) {
+        if (worker->id == 1 && test::counter_get(30) == 0) {
             test::counter_set(30, 1);
             swoole_timer_after(20, [serv](TIMER_PARAMS) { serv->kill_worker(-1); });
         }

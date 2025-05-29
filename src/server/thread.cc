@@ -92,7 +92,7 @@ void ThreadFactory::at_thread_enter(WorkerId id, int worker_type) {
 
 void ThreadFactory::at_thread_exit(Worker *worker) {
     if (worker) {
-        std::unique_lock<std::mutex> _lock(lock_);
+        std::unique_lock _lock(lock_);
         queue_.push(worker);
         cv_.notify_one();
     }
@@ -215,7 +215,7 @@ void ThreadFactory::spawn_manager_thread(WorkerId i) {
 
 void ThreadFactory::wait() {
     while (server_->running) {
-        std::unique_lock<std::mutex> _lock(lock_);
+        std::unique_lock _lock(lock_);
         if (!queue_.empty()) {
             Worker *exited_worker = queue_.front();
             queue_.pop();
@@ -283,9 +283,11 @@ bool ThreadFactory::reload(bool _reload_all_workers) {
             swoole_set_last_error(SW_ERROR_OPERATION_NOT_SUPPORT);
             return false;
         }
+        swoole_info("Send a notification to the manager process to prepare for restarting %s worker processes.",
+                    _reload_all_workers ? "all" : "task");
         reloading = true;
         reload_all_workers = _reload_all_workers;
-        std::unique_lock<std::mutex> _lock(lock_);
+        std::unique_lock _lock(lock_);
         cv_.notify_one();
     } else {
         swoole_info("Server is reloading %s workers now", _reload_all_workers ? "all" : "task");
@@ -328,7 +330,7 @@ WorkerId ThreadFactory::get_master_thread_id() const {
 void ThreadFactory::terminate_manager_thread() {
     do {
         swoole_trace_log(SW_TRACE_THREAD, "notify manager thread to exit");
-        std::unique_lock<std::mutex> _lock(lock_);
+        std::unique_lock _lock(lock_);
         queue_.push(&manager);
         cv_.notify_one();
     } while (false);
