@@ -470,7 +470,7 @@ void Server::read_worker_message(ProcessPool *pool, EventData *msg) {
     serv->message_bus.write(serv->get_command_reply_socket(), &task);
 }
 
-bool Server::reload(bool reload_all_workers) {
+bool Server::reload(bool reload_all_workers) const {
     if (is_thread_mode()) {
         return reload_worker_threads(reload_all_workers);
     }

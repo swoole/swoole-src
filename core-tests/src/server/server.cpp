@@ -791,7 +791,7 @@ TEST(server, reload_thread) {
     ASSERT_EQ(serv.create(), SW_OK);
 
     std::thread t1([&]() {
-        swoole_signal_block_all();
+        swoole_thread_init();
         lock.lock();
         usleep(1000);
         DEBUG() << "reload\n";
@@ -799,6 +799,7 @@ TEST(server, reload_thread) {
         sleep(1);
         DEBUG() << "shutdown\n";
         serv.shutdown();
+        swoole_thread_clean();
     });
 
     std::atomic<int> count(0);

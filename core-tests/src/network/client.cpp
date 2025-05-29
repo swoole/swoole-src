@@ -351,6 +351,51 @@ TEST(client, sleep) {
     ASSERT_TRUE(buf.contains(TEST_HTTP_EXPECT));
 }
 
+TEST(client, sleep_2) {
+    auto port = __LINE__ + TEST_PORT;
+    auto server_pid = swoole::test::spawn_exec([port]() {
+        Server serv(TEST_HOST, port, swoole::Server::MODE_BASE, SW_SOCK_TCP);
+        serv.on("Receive", [](ON_RECEIVE_PARAMS) {
+            usleep(10000);
+            return SW_OK;
+        });
+        serv.start();
+    });
+
+    ASSERT_GT(server_pid, 0);
+
+    swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
+
+    String buf(65536);
+    String wbuf(8 * 1024 * 1024);
+    wbuf.append_random_bytes(wbuf.size);
+
+    Client client(SW_SOCK_TCP, true);
+    client.onConnect = [&wbuf, server_pid](Client *cli) {
+        cli->send(wbuf.str, wbuf.length);
+        swoole_timer_after(15, [cli, server_pid](auto _1, auto _2) {
+            cli->sleep();
+            swoole_timer_after(15, [cli, server_pid](auto _1, auto _2) {
+                cli->wakeup();
+                swoole_timer_after(15, [cli, server_pid](auto _1, auto _2) {
+                    cli->close();
+                    kill(server_pid, SIGTERM);
+                });
+            });
+        });
+    };
+
+    client.onError = [](Client *cli) {};
+    client.onClose = [](Client *cli) {};
+    client.onReceive = [](Client *cli, const char *data, size_t length) {  };
+
+    ASSERT_EQ(client.connect(TEST_HOST, port, -1, 0), 0);
+
+    swoole_event_wait();
+
+    swoole::test::wait_all_child_processes();
+}
+
 TEST(client, connect_refuse) {
     int ret;
     Client cli(SW_SOCK_TCP, false);

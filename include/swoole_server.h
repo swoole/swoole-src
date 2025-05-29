@@ -1146,7 +1146,7 @@ class Server {
 
     int start();
     void destroy();
-    bool reload(bool reload_all_workers);
+    bool reload(bool reload_all_workers) const;
     bool shutdown();
 
     int add_worker(Worker *worker);
