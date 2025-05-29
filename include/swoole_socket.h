@@ -109,7 +109,7 @@ struct Address {
     bool empty() const;
 
     static const char *type_str(SocketType type);
-    static const char *addr_str(int family, const sockaddr *addr);
+    static const char *addr_str(int family, const void *addr);
     static bool verify_ip(int family, const std::string &str);
 };
 

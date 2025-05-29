@@ -66,7 +66,7 @@ SW_API void swoole_set_dns_server(const std::string &server) {
     int dns_server_port = SW_DNS_SERVER_PORT;
     char dns_server_host[32];
     strcpy(dns_server_host, server.c_str());
-    if ((_port = strchr((char *) server.c_str(), ':'))) {
+    if ((_port = strchr(const_cast<char *>(server.c_str()), ':'))) {
         dns_server_port = atoi(_port + 1);
         if (dns_server_port <= 0 || dns_server_port > 65535) {
             dns_server_port = SW_DNS_SERVER_PORT;
@@ -125,16 +125,7 @@ _dns_lookup:
     if (swoole_coroutine_is_in()) {
         return System::gethostbyname(host_name, ctx->type, ctx->timeout);
     } else {
-        char addr[INET6_ADDRSTRLEN] = {};
-        if (swoole::network::gethostbyname(ctx->type, host_name.c_str(), sw_tg_buffer()->str) < 0) {
-            swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
-            return "";
-        }
-        if (!inet_ntop(ctx->type, sw_tg_buffer()->str, addr, sizeof(addr))) {
-            swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
-            return "";
-        }
-        return {addr};
+        return swoole::network::gethostbyname(ctx->type, host_name);
     }
 }
 
@@ -240,7 +231,7 @@ std::string get_ip_by_hosts(const std::string &search_domain) {
 }
 
 static std::string parse_ip_address(void *vaddr, int type) {
-    auto addr = reinterpret_cast<unsigned char *>(vaddr);
+    auto addr = static_cast<unsigned char *>(vaddr);
     std::string ip_addr;
     if (type == AF_INET) {
         char buff[4 * 4 + 3 + 1];
@@ -273,7 +264,7 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
         return result;
     }
 
-    header = (RecordHeader *) packet;
+    header = reinterpret_cast<RecordHeader *>(packet);
     int _request_id = dns_request_id++;
     header->id = htons(_request_id);
     header->qr = 0;
@@ -293,7 +284,7 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
 
     char *_domain_name = &packet[steps];
 
-    int len = strlen(domain);
+    const int len = strlen(domain);
     if (domain_encode(domain, len, _domain_name) < 0) {
         swoole_warning("invalid domain[%s]", domain);
         return result;
@@ -301,7 +292,7 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
 
     steps += (strlen((const char *) _domain_name) + 1);
 
-    qflags = (Q_FLAGS *) &packet[steps];
+    qflags = reinterpret_cast<Q_FLAGS *>(&packet[steps]);
     qflags->qtype = htons(family == AF_INET6 ? SW_DNS_AAAA_RECORD : SW_DNS_A_RECORD);
     qflags->qclass = htons(0x0001);
     steps += sizeof(Q_FLAGS);
@@ -345,7 +336,7 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
     domain_decode(_domain_name);
     steps = steps + (strlen(_domain_name) + 2);
 
-    qflags = (Q_FLAGS *) &packet[steps];
+    qflags = reinterpret_cast<Q_FLAGS *>(&packet[steps]);
     (void) qflags;
     steps = steps + sizeof(Q_FLAGS);
 
@@ -697,7 +688,7 @@ int gethostbyname(int flags, const char *name, char *addr) {
     memset(buf, 0, buf_len);
     while ((rc = ::gethostbyname2_r(name, _af, &hbuf, buf, buf_len, &result, &err)) == ERANGE) {
         buf_len *= 2;
-        char *tmp = (char *) sw_realloc(buf, buf_len);
+        char *tmp = static_cast<char *>(sw_realloc(buf, buf_len));
         if (nullptr == tmp) {
             sw_free(buf);
             return SW_ERR;
