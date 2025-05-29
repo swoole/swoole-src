@@ -546,3 +546,7 @@ TEST(base, fork_fail) {
 
     ASSERT_EQ(status, 0);
 }
+
+TEST(base, undefined_behavior) {
+    swoole_init();  // no effect
+}

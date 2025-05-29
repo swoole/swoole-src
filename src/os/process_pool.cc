@@ -1104,7 +1104,7 @@ bool Worker::is_running() {
     return SwooleWG.running;
 }
 
-ssize_t Worker::send_pipe_message(const void *buf, size_t n, int flags) {
+ssize_t Worker::send_pipe_message(const void *buf, size_t n, int flags) const {
     Socket *pipe_sock;
 
     if (flags & SW_PIPE_MASTER) {

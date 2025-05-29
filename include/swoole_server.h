@@ -39,7 +39,6 @@
 #include <queue>
 #include <thread>
 #include <mutex>
-#include <atomic>
 #include <unordered_map>
 #include <unordered_set>
 #include <condition_variable>
@@ -292,7 +291,7 @@ struct ListenPort {
 
     std::shared_ptr<SSLContext> dup_ssl_context() const {
         auto new_ctx = std::make_shared<SSLContext>();
-        *new_ctx.get() = *ssl_context;
+        *new_ctx = *ssl_context;
         return new_ctx;
     }
 #endif
@@ -668,7 +667,7 @@ class Server {
         std::function<void(uint16_t index, EventData *result)> unpack;
         std::function<void(uint16_t index)> fail;
 
-        MultiTask(uint16_t n) {
+        explicit MultiTask(uint16_t n) {
             count = n;
         }
 
@@ -1155,14 +1154,14 @@ class Server {
     int add_systemd_socket();
     int add_hook(enum HookType type, const Callback &func, int push_back);
     bool add_command(const std::string &command, int accepted_process_types, const Command::Handler &func);
-    Connection *add_connection(ListenPort *ls, network::Socket *_socket, int server_fd);
-    void abort_connection(Reactor *reactor, ListenPort *ls, network::Socket *_socket);
-    void abort_worker(Worker *worker);
-    void reset_worker_counter(Worker *worker);
-    int connection_incoming(Reactor *reactor, Connection *conn);
+    Connection *add_connection(const ListenPort *ls, network::Socket *_socket, int server_fd);
+    void abort_connection(Reactor *reactor, const ListenPort *ls, network::Socket *_socket) const;
+    void abort_worker(Worker *worker) const;
+    void reset_worker_counter(Worker *worker) const;
+    int connection_incoming(Reactor *reactor, Connection *conn) const;
 
-    uint32_t get_idle_worker_num();
-    int get_idle_task_worker_num();
+    uint32_t get_idle_worker_num() const;
+    int get_idle_task_worker_num() const;
     int get_tasking_num() const;
 
     TaskId get_task_id(const EventData *task) const {
@@ -1306,7 +1305,7 @@ class Server {
         return session->reactor_id != swoole_get_worker_id();
     }
 
-    Worker *get_worker(uint16_t worker_id);
+    Worker *get_worker(uint16_t worker_id) const;
     bool kill_worker(int worker_id);
     void stop_async_worker(Worker *worker);
 
@@ -1406,7 +1405,7 @@ class Server {
         return (conn && conn->socket && conn->active && conn->socket->fd_type == SW_FD_SESSION);
     }
 
-    bool is_healthy_connection(double now, Connection *conn);
+    bool is_healthy_connection(double now, const Connection *conn) const;
 
     static int is_dgram_event(uint8_t type) {
         switch (type) {
@@ -1502,17 +1501,17 @@ class Server {
     void call_command_handler(MessageBus &mb, uint16_t worker_id, network::Socket *sock);
     std::string call_command_handler_in_master(int command_id, const std::string &msg);
     void call_command_callback(int64_t request_id, const std::string &result);
-    void foreach_connection(const std::function<void(Connection *)> &callback);
+    void foreach_connection(const std::function<void(Connection *)> &callback) const;
     static int accept_connection(Reactor *reactor, Event *event);
 #ifdef SW_SUPPORT_DTLS
-    dtls::Session *accept_dtls_connection(ListenPort *ls, network::Address *sa);
+    dtls::Session *accept_dtls_connection(const ListenPort *ls, const network::Address *sa);
 #endif
     static int accept_command_result(Reactor *reactor, Event *event);
     static int close_connection(Reactor *reactor, network::Socket *_socket);
     static int dispatch_task(const Protocol *proto, network::Socket *_socket, const RecvData *rdata);
 
-    int send_to_connection(SendData *);
-    ssize_t send_to_worker_from_worker(Worker *dst_worker, const void *buf, size_t len, int flags);
+    int send_to_connection(const SendData *) const;
+    ssize_t send_to_worker_from_worker(const Worker *dst_worker, const void *buf, size_t len, int flags);
 
     ssize_t send_to_worker_from_worker(WorkerId id, const EventData *data, int flags) {
         return send_to_worker_from_worker(get_worker(id), data, data->size(), flags);
@@ -1520,13 +1519,23 @@ class Server {
 
     ssize_t send_to_reactor_thread(const EventData *ev_data, size_t sendn, SessionId session_id);
 
-    bool send(SessionId session_id, const void *data, uint32_t length);
-    bool sendfile(SessionId session_id, const char *file, uint32_t l_file, off_t offset, size_t length);
-    bool sendwait(SessionId session_id, const void *data, uint32_t length);
-    bool close(SessionId session_id, bool reset = false);
+    /**
+     * Send data to session.
+     * This function is used for sending data to the client in the server.
+     * @return true on success, false on failure.
+     */
+    bool send(SessionId session_id, const void *data, uint32_t length) const;
+    /**
+     * Send file to session.
+     * This function is used for sending files in the HTTP server.
+     * It will read the file from disk and send it to the client.
+     */
+    bool sendfile(SessionId session_id, const char *file, uint32_t l_file, off_t offset, size_t length) const;
+    bool sendwait(SessionId session_id, const void *data, uint32_t length) const;
+    bool close(SessionId session_id, bool reset = false) const;
 
-    bool notify(Connection *conn, enum ServerEventType event);
-    bool feedback(Connection *conn, enum ServerEventType event);
+    bool notify(Connection *conn, ServerEventType event) const;
+    bool feedback(Connection *conn, ServerEventType event);
     bool command(WorkerId process_id,
                  Command::ProcessType process_type,
                  const std::string &name,
@@ -1541,11 +1550,11 @@ class Server {
     bool send_pipe_message(WorkerId worker_id, const char *data, size_t len);
 
     void init_reactor(Reactor *reactor);
-    void init_event_worker(Worker *worker);
+    void init_event_worker(Worker *worker) const;
     bool init_task_workers();
-    void init_signal_handler();
+    void init_signal_handler() const;
     void init_ipc_max_size();
-    void init_pipe_sockets(MessageBus *mb);
+    void init_pipe_sockets(MessageBus *mb) const;
 
     void set_max_connection(uint32_t _max_connection);
 
@@ -1626,10 +1635,10 @@ class Server {
      * [Master]
      */
     bool signal_handler_shutdown();
-    bool signal_handler_child_exit();
+    bool signal_handler_child_exit() const;
     bool signal_handler_reload(bool reload_all_workers);
-    bool signal_handler_read_message();
-    bool signal_handler_reopen_logger();
+    bool signal_handler_read_message() const;
+    bool signal_handler_reopen_logger() const;
 
     static void worker_signal_handler(int signo);
     static int reactor_process_main_loop(ProcessPool *pool, Worker *worker);
@@ -1675,7 +1684,7 @@ class Server {
     Factory *create_thread_factory();
     Factory *create_process_factory();
     int start_check();
-    void check_port_type(ListenPort *ls);
+    void check_port_type(const ListenPort *ls);
     void store_listen_socket();
     void store_pipe_fd(UnixSocket *p);
     void destroy_base_factory() const;
@@ -1693,7 +1702,7 @@ class Server {
     void join_reactor_thread();
     void stop_master_thread();
     void join_heartbeat_thread();
-    TimerCallback get_timeout_callback(ListenPort *port, Reactor *reactor, Connection *conn);
+    TimerCallback get_timeout_callback(ListenPort *port, Reactor *reactor, Connection *conn) const;
 
     int get_lowest_load_worker_id() const {
         uint32_t lowest_load_worker_id = 0;

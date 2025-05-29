@@ -179,7 +179,7 @@ struct Worker {
     void *ptr;
     void *ptr2;
 
-    ssize_t send_pipe_message(const void *buf, size_t n, int flags);
+    ssize_t send_pipe_message(const void *buf, size_t n, int flags) const;
     bool has_exceeded_max_request();
     void set_max_request(uint32_t max_request, uint32_t max_request_grace);
     void report_error(const ExitStatus &exit_status);
@@ -190,7 +190,7 @@ struct Worker {
     void init();
     void shutdown();
     bool is_shutdown();
-    bool is_running();
+    static bool is_running();
 
     void set_status(enum swWorkerStatus _status) {
         status = _status;
