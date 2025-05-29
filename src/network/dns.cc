@@ -770,6 +770,7 @@ std::string gethostbyname(int type, const std::string &name) {
     if (gethostbyname(type, name.c_str(), addr) == SW_OK) {
         return Address::addr_str(type, addr);
     }
+    swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
     return {};
 }
 
