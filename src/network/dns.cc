@@ -823,6 +823,7 @@ int gethostbyname(GethostbynameRequest *req) {
         return SW_ERR;
     }
     req->addr = rv;
+    return SW_OK;
 }
 }  // namespace network
 

@@ -5,8 +5,9 @@ enable_language(ASM)
 set(SWOOLE_VERSION 6.1.0-dev)
 
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall -g")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -g")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -g")
 
 file(READ ./config.h SWOOLE_CONFIG_FILE)
 
@@ -21,6 +22,8 @@ else()
     list(APPEND SWOOLE_LINK_LIBRARIES rt crypt)
 endif()
 
+find_package(PkgConfig REQUIRED)
+
 if (UNIX AND NOT APPLE)
     find_library(URING_LIBRARIES uring)
     if (URING_LIBRARIES)
@@ -31,7 +34,9 @@ if (UNIX AND NOT APPLE)
     endif()
 endif()
 
-SET(CMAKE_BUILD_TYPE Debug)
+if (NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
+endif ()
 
 # Code Coverage Configuration
 add_library(coverage_config INTERFACE)
@@ -67,8 +72,8 @@ file(GLOB_RECURSE SRC_LIST FOLLOW_SYMLINKS src/*.c src/*.cc
 file(GLOB_RECURSE HEAD_FILES FOLLOW_SYMLINKS include/*.h)
 file(GLOB_RECURSE HEAD_WAPPER_FILES FOLLOW_SYMLINKS include/wrapper/*.hpp)
 
-SET(LIBRARY_OUTPUT_PATH ${CMAKE_CURRENT_SOURCE_DIR}/lib)
-SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
+set(LIBRARY_OUTPUT_PATH ${CMAKE_CURRENT_SOURCE_DIR}/lib)
+set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 
 #message(STATUS "source=${SRC_LIST}")
 #message(STATUS "header=${HEAD_FILES}")
@@ -78,7 +83,6 @@ add_definitions(-DHAVE_CONFIG_H)
 #add_definitions(-DSW_USE_THREAD_CONTEXT)
 
 include_directories(BEFORE ./include ./include/wrapper ext-src/ thirdparty/ ./)
-SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 
 # find OpenSSL
 if (DEFINED openssl_dir)
@@ -221,13 +225,10 @@ add_dependencies(core-tests lib-swoole)
 include_directories(BEFORE core-tests/include thirdparty thirdparty/hiredis core-tests/deps/llhttp/include ${GTEST_INCLUDE_DIRS} ${NGHTTP2_INCLUDE_DIR})
 target_link_libraries(core-tests swoole pthread ssl crypto ${GTEST_BOTH_LIBRARIES} ${NGHTTP2_LIBRARIES})
 
-
-
 # find libpq
 if (DEFINED libpq_dir)
     target_include_directories(ext-swoole BEFORE ${LIBPQ_INCLUDE_DIRS})
 else()
-    find_package(PkgConfig REQUIRED)
     pkg_check_modules(LIBPQ REQUIRED libpq)
     target_include_directories(ext-swoole PRIVATE ${LIBPQ_INCLUDE_DIRS})
 endif()
