@@ -116,6 +116,14 @@ if (DEFINED enable_asan)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -fno-omit-frame-pointer")
 endif()
 
+if (DEFINED enable_thread)
+    add_definitions(-DSW_THREAD)
+endif()
+
+if (DEFINED verbose)
+    add_definitions(-DSW_VERBOSE)
+endif()
+
 if (DEFINED php_dir)
     set(PHP_CONFIG "${php_dir}/bin/php-config")
 else ()
@@ -213,13 +221,7 @@ add_dependencies(core-tests lib-swoole)
 include_directories(BEFORE core-tests/include thirdparty thirdparty/hiredis core-tests/deps/llhttp/include ${GTEST_INCLUDE_DIRS} ${NGHTTP2_INCLUDE_DIR})
 target_link_libraries(core-tests swoole pthread ssl crypto ${GTEST_BOTH_LIBRARIES} ${NGHTTP2_LIBRARIES})
 
-if (DEFINED enable_thread)
-    add_definitions(-DSW_THREAD)
-endif()
 
-if (DEFINED verbose)
-    add_definitions(-DSW_VERBOSE)
-endif()
 
 # find libpq
 if (DEFINED libpq_dir)
