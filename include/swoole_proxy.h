@@ -45,6 +45,7 @@ enum swSocks5State {
 };
 
 enum swSocks5Method {
+    SW_SOCKS5_METHOD_NO_AUTH = 0x00,
     SW_SOCKS5_METHOD_AUTH = 0x02,
 };
 

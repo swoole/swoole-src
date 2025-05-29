@@ -66,15 +66,10 @@ Socks5Proxy *Socks5Proxy::create(
 ssize_t Socks5Proxy::pack_negotiate_request() {
     char *p = buf;
     p[0] = SW_SOCKS5_VERSION_CODE;  // Version
-    if (username.empty()) {
-        p[1] = 0x01;
-        p[2] = 0x00;  // No authentication required
-    } else {
-        p[1] = 0x02;
-        p[2] = SW_SOCKS5_METHOD_AUTH;  // Username/Password authentication
-    }
-    method = p[2];
-    return 2;
+    p[1] = 0x01;
+    method = username.empty() ? SW_SOCKS5_METHOD_NO_AUTH : SW_SOCKS5_METHOD_AUTH;
+    p[2] = method;
+    return 3;
 }
 
 ssize_t Socks5Proxy::pack_auth_request() {

@@ -900,7 +900,7 @@ TEST(client, https_get_sync_with_socks5_proxy) {
     proxy_sync_test(client, true);
 }
 
-TEST(client, https_get_sync_with_socks5_proxy_no_dns_tunnel) {
+TEST(client, http_get_sync_with_socks5_proxy_no_dns_tunnel) {
     Client client(SW_SOCK_TCP, false);
     proxy_set_socks5_proxy(client);
     client.socks5_proxy->dns_tunnel = 0;
