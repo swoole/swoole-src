@@ -420,7 +420,11 @@ TEST(client, bind) {
     ASSERT_EQ(cli.bind("192.0.0.1", 9999), SW_ERR);
     ASSERT_ERREQ(EADDRNOTAVAIL);
     ASSERT_EQ(cli.bind("127.0.0.1", 80), SW_ERR);
-    ASSERT_ERREQ(EACCES);
+    if (swoole::test::is_github_ci()) {
+        ASSERT_ERREQ(EINVAL);
+    } else {
+        ASSERT_ERREQ(EACCES);
+    }
 }
 
 // DNS 报文头部结构

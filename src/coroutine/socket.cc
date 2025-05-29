@@ -26,7 +26,8 @@
 #include "swoole_coroutine_socket.h"
 #include "swoole_coroutine_system.h"
 
-namespace swoole::coroutine {
+namespace swoole {
+namespace coroutine {
 Socket::TimeoutType Socket::timeout_type_list[4] = {TIMEOUT_DNS, TIMEOUT_CONNECT, TIMEOUT_READ, TIMEOUT_WRITE};
 
 void Socket::timer_callback(Timer *timer, TimerNode *tnode) {
@@ -1704,4 +1705,5 @@ bool Socket::TimeoutController::has_timedout(const enum TimeoutType _type) {
     }
     return false;
 }
-}  // namespace swoole::coroutine
+}  // namespace coroutine
+}  // namespace swoole
