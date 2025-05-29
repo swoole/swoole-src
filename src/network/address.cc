@@ -168,7 +168,7 @@ bool Address::assign(const std::string &url) {
     }
 }
 
-bool Address::is_loopback_addr() {
+bool Address::is_loopback_addr() const {
     if (type == SW_SOCK_TCP || type == SW_SOCK_UDP) {
         return IN_IS_ADDR_LOOPBACK(&addr.inet_v4.sin_addr);
     } else if (type == SW_SOCK_TCP6 || type == SW_SOCK_UDP6) {

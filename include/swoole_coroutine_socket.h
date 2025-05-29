@@ -521,6 +521,16 @@ class Socket {
     }
 
     bool socks5_handshake();
+
+    const std::string &get_http_proxy_host_name() const {
+#ifdef SW_USE_OPENSSL
+        if (ssl_context && !ssl_context->tls_host_name.empty()) {
+            return ssl_context->tls_host_name;
+        }
+#endif
+        return http_proxy->target_host;
+    }
+
     bool http_proxy_handshake();
 
     class TimerController {

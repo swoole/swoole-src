@@ -64,7 +64,7 @@ std::string HttpProxy::get_auth_str() {
     return {encode_buf};
 }
 
-size_t HttpProxy::pack(String *send_buffer, const std::string *host_name) {
+size_t HttpProxy::pack(String *send_buffer, const std::string &host_name) {
     if (!password.empty()) {
         auto auth_str = get_auth_str();
         return sw_snprintf(send_buffer->str,
@@ -73,8 +73,8 @@ size_t HttpProxy::pack(String *send_buffer, const std::string *host_name) {
                            (int) target_host.length(),
                            target_host.c_str(),
                            target_port,
-                           (int) host_name->length(),
-                           host_name->c_str(),
+                           (int) host_name.length(),
+                           host_name.c_str(),
                            target_port,
                            (int) auth_str.length(),
                            auth_str.c_str());
@@ -85,8 +85,8 @@ size_t HttpProxy::pack(String *send_buffer, const std::string *host_name) {
                            (int) target_host.length(),
                            target_host.c_str(),
                            target_port,
-                           (int) host_name->length(),
-                           host_name->c_str(),
+                           (int) host_name.length(),
+                           host_name.c_str(),
                            target_port);
     }
 }
@@ -701,7 +701,7 @@ _found_method:
             if (*p == ' ') {
                 continue;
             }
-            if ((size_t) (pe - p) < (sizeof("HTTP/1.x") - 1)) {
+            if ((size_t)(pe - p) < (sizeof("HTTP/1.x") - 1)) {
                 return SW_ERR;
             }
             if (memcmp(p, SW_STRL("HTTP/1.1")) == 0) {
@@ -868,7 +868,7 @@ bool Request::has_expect_header() {
     char *p;
 
     for (p = buf; p < pe; p++) {
-        if (*p == '\r' && (size_t) (pe - p) > sizeof("\r\nExpect")) {
+        if (*p == '\r' && (size_t)(pe - p) > sizeof("\r\nExpect")) {
             p += 2;
             if (SW_STR_ISTARTS_WITH(p, pe - p, "Expect: ")) {
                 p += sizeof("Expect: ") - 1;

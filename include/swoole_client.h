@@ -127,13 +127,13 @@ class Client {
         return socket->socket_type;
     }
 
-    const std::string *get_http_proxy_host_name() const {
+    const std::string &get_http_proxy_host_name() const {
 #ifdef SW_USE_OPENSSL
         if (ssl_context && !ssl_context->tls_host_name.empty()) {
-            return &ssl_context->tls_host_name;
+            return ssl_context->tls_host_name;
         }
 #endif
-        return &http_proxy->target_host;
+        return http_proxy->target_host;
     }
 
     int connect(const char *_host, int _port, double _timeout = -1, int _sock_flag = 0) {
@@ -159,7 +159,7 @@ class Client {
     int get_peer_name(Address *addr);
     int shutdown(int _how = SHUT_RDWR);
     int close();
-    int socks5_handshake(const char *recv_data, size_t length);
+    bool socks5_handshake(const char *recv_data, size_t length);
     void set_socks5_proxy(const std::string &host, int port, const std::string &user = "", const std::string &pwd = "");
     void set_http_proxy(const std::string &host, int port, const std::string &user = "", const std::string &pwd = "");
 

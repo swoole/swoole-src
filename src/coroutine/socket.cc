@@ -226,117 +226,36 @@ _failed:
 
 bool Socket::socks5_handshake() {
     Socks5Proxy *ctx = socks5_proxy.get();
-    char *p;
+    const auto len = ctx->pack_negotiate_request();
+    if (send(ctx->buf, len) < 0) {
+        return false;
+    }
 
-    Socks5Proxy::pack(ctx->buf, !socks5_proxy->username.empty() ? 0x02 : 0x00);
-    socks5_proxy->state = SW_SOCKS5_STATE_HANDSHAKE;
-    if (send(ctx->buf, 3) != 3) {
-        return false;
-    }
-    ssize_t n = recv(ctx->buf, sizeof(ctx->buf));
-    if (n <= 0) {
-        return false;
-    }
-    uchar version = ctx->buf[0];
-    uchar method = ctx->buf[1];
-    if (version != SW_SOCKS5_VERSION_CODE) {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_VERSION, "SOCKS version is not supported");
-        return false;
-    }
-    if (method != ctx->method) {
-        swoole_error_log(
-            SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_METHOD, "SOCKS authentication method is not supported");
-        return false;
-    }
-    // authentication
-    if (method == SW_SOCKS5_METHOD_AUTH) {
-        p = ctx->buf;
-        // username
-        p[0] = 0x01;
-        p[1] = ctx->username.length();
-        p += 2;
-        if (!ctx->username.empty()) {
-            memcpy(p, ctx->username.c_str(), ctx->username.length());
-            p += ctx->username.length();
+    auto send_fn = [this](const char *buf, size_t len) { return send(buf, len); };
+    char recv_buf[512];
+    ctx->state = SW_SOCKS5_STATE_HANDSHAKE;
+    while (true) {
+        const ssize_t n = recv(recv_buf, sizeof(recv_buf));
+        if (n > 0 && ctx->handshake(recv_buf, n, send_fn)) {
+            if (ctx->state == SW_SOCKS5_STATE_READY) {
+                return true;
+            }
+            continue;
         }
-        // password
-        p[0] = ctx->password.length();
-        p += 1;
-        if (!ctx->password.empty()) {
-            memcpy(p, ctx->password.c_str(), ctx->password.length());
-            p += ctx->password.length();
-        }
-        // auth request
-        ctx->state = SW_SOCKS5_STATE_AUTH;
-        if (send(ctx->buf, p - ctx->buf) != p - ctx->buf) {
-            return false;
-        }
-        // auth response
-        n = recv(ctx->buf, sizeof(ctx->buf));
-        if (n <= 0) {
-            return false;
-        }
-        uchar resp_version = ctx->buf[0];
-        uchar resp_status = ctx->buf[1];
-        if (resp_version != 0x01) {
-            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_VERSION, "SOCKS version is not supported");
-            return false;
-        }
-        if (resp_status != 0x00) {
-            swoole_error_log(
-                SW_LOG_NOTICE, SW_ERROR_SOCKS5_AUTH_FAILED, "SOCKS username/password authentication failed");
-            return false;
-        }
+        break;
     }
-    // send connect request
-    ctx->state = SW_SOCKS5_STATE_CONNECT;
-    const auto len = ctx->pack_connect_request(type);
-    if (send(ctx->buf, len) != len) {
-        return false;
-    }
-    // recv response
-    n = recv(ctx->buf, sizeof(ctx->buf));
-    if (n <= 0) {
-        return false;
-    }
-    version = ctx->buf[0];
-    if (version != SW_SOCKS5_VERSION_CODE) {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_VERSION, "SOCKS version is not supported");
-        return false;
-    }
-    uchar result = ctx->buf[1];
-#if 0
-    uchar reg = buf[2];
-    uchar type = buf[3];
-    uint32_t ip = *(uint32_t *) (buf + 4);
-    uint16_t port = *(uint16_t *) (buf + 8);
-#endif
-    if (result == 0) {
-        ctx->state = SW_SOCKS5_STATE_READY;
-        return true;
-    } else {
-        swoole_error_log(SW_LOG_NOTICE,
-                         SW_ERROR_SOCKS5_SERVER_ERROR,
-                         "Socks5 server error, reason: %s",
-                         Socks5Proxy::strerror(result));
-        return false;
-    }
+    return false;
 }
 
 bool Socket::http_proxy_handshake() {
-    const std::string *real_host = &http_proxy->target_host;
-#ifdef SW_USE_OPENSSL
-    if (ssl_context && !ssl_context->tls_host_name.empty()) {
-        real_host = &ssl_context->tls_host_name;
-    }
-#endif
+    auto target_host = get_http_proxy_host_name();
 
     String *send_buffer = get_write_buffer();
     ON_SCOPE_EXIT {
         send_buffer->clear();
     };
 
-    size_t n = http_proxy->pack(send_buffer, real_host);
+    size_t n = http_proxy->pack(send_buffer, target_host);
     send_buffer->length = n;
     swoole_trace_log(SW_TRACE_HTTP_CLIENT, "proxy request: <<EOF\n%.*sEOF", (int) n, send_buffer->str);
 
@@ -593,7 +512,7 @@ bool Socket::get_option(int level, int optname, void *optval, socklen_t *optlen)
 }
 
 void Socket::set_socks5_proxy(const std::string &host, int port, const std::string &user, const std::string &pwd) {
-    socks5_proxy.reset(Socks5Proxy::create(host, port, user, pwd));
+    socks5_proxy.reset(Socks5Proxy::create(type, host, port, user, pwd));
 }
 
 void Socket::set_http_proxy(const std::string &host, int port, const std::string &user, const std::string &pwd) {

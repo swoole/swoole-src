@@ -105,7 +105,7 @@ struct Address {
     int get_port() const;
     void set_port(int _port);
     const char *get_addr() const;
-    bool is_loopback_addr();
+    bool is_loopback_addr() const;
     bool empty() const;
 
     static const char *type_str(SocketType type);

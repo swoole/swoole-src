@@ -18,6 +18,7 @@
 
 #include <string>
 #include <cstdint>
+#include <functional>
 
 #define SW_SOCKS5_VERSION_CODE 0x05
 #define SW_HTTP_PROXY_CHECK_MESSAGE 0
@@ -61,7 +62,7 @@ struct HttpProxy {
     int target_port;
 
     std::string get_auth_str();
-    size_t pack(String *send_buffer, const std::string *host_name);
+    size_t pack(String *send_buffer, const std::string &host_name);
     bool handshake(String *recv_buffer);
 
     static HttpProxy *create(const std::string &host, int port, const std::string &user, const std::string &pwd);
@@ -78,17 +79,16 @@ struct Socks5Proxy {
     std::string password;
     std::string target_host;
     int target_port;
-    char buf[600];
+    int socket_type;
+    char buf[512];
 
-    ssize_t pack_connect_request(int socket_type);
+    ssize_t pack_negotiate_request();
+    ssize_t pack_auth_request();
+    ssize_t pack_connect_request();
+    bool handshake(const char *rbuf, size_t rlen, const std::function<ssize_t(const char *buf, size_t len)> &send_fn);
 
     static const char *strerror(int code);
-    static Socks5Proxy *create(const std::string &host, int port, const std::string &user, const std::string &pwd);
-
-    static void pack(char *buf, int method) {
-        buf[0] = SW_SOCKS5_VERSION_CODE;
-        buf[1] = 0x01;
-        buf[2] = method;
-    }
+    static Socks5Proxy *create(
+        int socket_type, const std::string &host, int port, const std::string &user, const std::string &pwd);
 };
 }  // namespace swoole
