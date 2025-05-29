@@ -26,8 +26,7 @@
 #include "swoole_coroutine_socket.h"
 #include "swoole_coroutine_system.h"
 
-namespace swoole {
-namespace coroutine {
+namespace swoole::coroutine {
 Socket::TimeoutType Socket::timeout_type_list[4] = {TIMEOUT_DNS, TIMEOUT_CONNECT, TIMEOUT_READ, TIMEOUT_WRITE};
 
 void Socket::timer_callback(Timer *timer, TimerNode *tnode) {
@@ -423,9 +422,6 @@ double Socket::get_timeout(const TimeoutType type) const {
 String *Socket::get_read_buffer() {
     if (sw_unlikely(!read_buffer)) {
         read_buffer = make_string(SW_BUFFER_SIZE_BIG, buffer_allocator);
-        if (!read_buffer) {
-            throw std::bad_alloc();
-        }
     }
     return read_buffer;
 }
@@ -433,9 +429,6 @@ String *Socket::get_read_buffer() {
 String *Socket::get_write_buffer() {
     if (sw_unlikely(!write_buffer)) {
         write_buffer = make_string(SW_BUFFER_SIZE_BIG, buffer_allocator);
-        if (!write_buffer) {
-            throw std::bad_alloc();
-        }
     }
     return write_buffer;
 }
@@ -643,17 +636,17 @@ bool Socket::connect(const std::string &_host, int _port, int flags) {
         break;
     }
 
-    if (connect(&server_addr.addr.ss, server_addr.len) == false) {
+    if (!connect(&server_addr.addr.ss, server_addr.len)) {
         return false;
     }
 
     // socks5 proxy
-    if (socks5_proxy && socks5_handshake() == false) {
+    if (socks5_proxy && !socks5_handshake()) {
         set_err(SW_ERROR_SOCKS5_HANDSHAKE_FAILED);
         return false;
     }
     // http proxy
-    if (http_proxy && !http_proxy->dont_handshake && http_proxy_handshake() == false) {
+    if (http_proxy && !http_proxy->dont_handshake && !http_proxy_handshake()) {
         set_err(SW_ERROR_HTTP_PROXY_HANDSHAKE_FAILED);
         return false;
     }
@@ -1711,6 +1704,4 @@ bool Socket::TimeoutController::has_timedout(const enum TimeoutType _type) {
     }
     return false;
 }
-
-}  // namespace coroutine
-}  // namespace swoole
+}  // namespace swoole::coroutine

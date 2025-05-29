@@ -12,7 +12,14 @@ cd "${__DIR__}" || exit 1
 
 tasks=$(./bin/core-tests --gtest_list_tests | awk '/\./') || exit 255
 for task in $tasks; do
-    ./bin/core-tests --gtest_filter="$task"*
+    execute_command="./bin/core-tests"
+
+    if [ "$task" = "log." ]; then
+        $execute_command --gtest_filter="$task"*
+    else
+        sudo -E "$execute_command" --gtest_filter="$task"*
+    fi
+
     if [ $? -ne 0 ]; then
         exit 255
     fi

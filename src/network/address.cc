@@ -22,7 +22,8 @@ static bool IN_IS_ADDR_LOOPBACK(const in_addr *a) {
     return a->s_addr == htonl(INADDR_LOOPBACK);
 }
 
-namespace swoole::network {
+namespace swoole {
+namespace network {
 static thread_local char tmp_address[INET6_ADDRSTRLEN];
 
 const char *Address::addr_str(int family, const void *addr) {
@@ -178,5 +179,5 @@ bool Address::is_loopback_addr() const {
     }
     return false;
 }
-
-}  // namespace swoole::network
+}  // namespace network
+}  // namespace swoole

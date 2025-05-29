@@ -28,7 +28,6 @@
 
 namespace swoole {
 namespace network {
-
 static int Client_inet_addr(Client *cli, const char *host, int port);
 static int Client_tcp_connect_sync(Client *cli, const char *host, int port, double _timeout, int nonblock);
 static int Client_tcp_connect_async(Client *cli, const char *host, int port, double timeout, int nonblock);
@@ -107,7 +106,7 @@ Client::Client(SocketType _type, bool _async) : async(_async) {
     protocol.onPackage = Client_onPackage;
 }
 
-int Client::bind(const std::string &addr, int port) {
+int Client::bind(const std::string &addr, int port) const {
     if (socket->set_reuse_addr() < 0) {
         swoole_sys_warning("setsockopt(%d, SO_REUSEADDR) failed", socket->get_fd());
     }

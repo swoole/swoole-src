@@ -152,7 +152,7 @@ class Client {
         return recv_(this, _data, _length, _flags);
     }
 
-    int bind(const std::string &addr, int port);
+    int bind(const std::string &addr, int port) const;
     int sleep();
     int wakeup();
     int sendto(const std::string &host, int port, const char *data, size_t len) const;
