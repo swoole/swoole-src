@@ -121,6 +121,10 @@ TEST(address, bad_addr) {
     Address addr;
     ASSERT_FALSE(addr.assign("test://[::1]:12345"));
     ASSERT_EQ(swoole_get_last_error(), SW_ERROR_BAD_HOST_ADDR);
+
+    uchar buf[16];
+    ASSERT_EQ(Address::addr_str(AF_INET6 + 9, buf), nullptr);
+    ASSERT_EQ(errno, EAFNOSUPPORT);
 }
 
 TEST(address, bad_port) {
