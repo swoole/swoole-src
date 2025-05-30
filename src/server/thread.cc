@@ -150,7 +150,7 @@ void ThreadFactory::spawn_task_worker(WorkerId i) {
         worker->pid = swoole_get_worker_pid();
         worker->set_status_to_idle();
         SwooleWG.worker = worker;
-        auto pool = server_->get_task_worker_pool();
+        const auto pool = server_->get_task_worker_pool();
         server_->worker_thread_start(threads_[i], [=]() {
             if (pool->onWorkerStart != nullptr) {
                 pool->onWorkerStart(pool, worker);

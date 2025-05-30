@@ -1015,7 +1015,7 @@ TEST(client, ssl) {
 #endif
 
 TEST(client, fail) {
-    Client c((swSocketType)(SW_SOCK_RAW6 + 1), false);
+    Client c(static_cast<swSocketType>(SW_SOCK_RAW6 + 1), false);
     ASSERT_FALSE(c.ready());
     ASSERT_ERREQ(ESOCKTNOSUPPORT);
 }

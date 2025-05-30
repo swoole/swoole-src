@@ -599,7 +599,7 @@ class ThreadFactory : public BaseFactory {
     std::condition_variable cv_;
     std::queue<Worker *> queue_;
     long cv_timeout_ms_;
-    bool reload_all_workers;
+    bool reload_all_workers = false;
     sw_atomic_t reloading = 0;
     std::shared_ptr<ThreadReloadTask> reload_task;
     void at_thread_enter(WorkerId id, int process_type);
