@@ -801,7 +801,7 @@ TEST(server, reload_thread) {
     std::thread t1([&]() {
         swoole_thread_init();
         lock.lock();
-        usleep(1000);
+        usleep(10000);
         EXPECT_TRUE(serv.reload(true));
         EXPECT_FALSE(serv.reload(true)); // reload again should fail
         EXPECT_ERREQ(SW_ERROR_OPERATION_NOT_SUPPORT);
