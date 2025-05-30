@@ -827,6 +827,14 @@ TEST(server, reload_thread) {
         lock.unlock();
     };
 
+    serv.onBeforeReload = [](Server *serv) {
+        DEBUG() << "onBeforeReload: master_pid=" << serv->get_manager_pid() << "\n";
+    };
+
+    serv.onAfterReload = [](Server *serv) {
+        DEBUG() << "onAfterReload: master_pid=" << serv->get_manager_pid() << "\n";
+    };
+
     serv.onWorkerStart = [&count](Server *serv, Worker *worker) {
         ++count;
         DEBUG() << "onWorkerStart: id=" << worker->id << "\n";
