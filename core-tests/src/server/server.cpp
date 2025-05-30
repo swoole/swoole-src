@@ -1165,7 +1165,7 @@ TEST(server, ssl) {
     Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
     lock->lock();
 
-    ListenPort *port = serv.add_port((enum swSocketType)(SW_SOCK_TCP | SW_SOCK_SSL), TEST_HOST, 0);
+    ListenPort *port = serv.add_port(static_cast<enum swSocketType>(SW_SOCK_TCP | SW_SOCK_SSL), TEST_HOST, 0);
     if (!port) {
         swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
         exit(2);
@@ -1216,6 +1216,63 @@ TEST(server, ssl) {
 
     t1.join();
     delete lock;
+}
+
+TEST(server, ssl_error) {
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = 1;
+    swoole_set_log_level(SW_LOG_WARNING);
+
+    Mutex lock(Mutex::PROCESS_SHARED);
+    lock.lock();
+
+    ListenPort *port = serv.add_port(static_cast<enum swSocketType>(SW_SOCK_TCP | SW_SOCK_SSL), TEST_HOST, 0);
+    ASSERT_NE(port, nullptr);
+
+    port->set_ssl_cert_file(test::get_ssl_dir() + "/server-not-exists.crt");
+    port->set_ssl_key_file(test::get_ssl_dir() + "/server-not-exists.key");
+    ASSERT_FALSE(port->ssl_init());
+    ASSERT_ERREQ(SW_ERROR_WRONG_OPERATION);
+
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    thread t1;
+
+    serv.onStart = [&lock, &t1](Server *serv) {
+        t1 = thread([&lock, serv]() {
+            swoole_signal_block_all();
+
+            lock.lock();
+
+            ListenPort *port = serv->get_primary_port();
+            EXPECT_EQ(port->ssl, 1);
+
+            network::SyncClient c(SW_SOCK_TCP);
+            c.connect(TEST_HOST, port->port);
+            c.enable_ssl_encrypt();
+            c.send(packet, strlen(packet));
+            char buf[1024];
+            ASSERT_EQ(c.recv(buf, sizeof(buf)), 0);
+            c.close();
+
+            kill(serv->gs->master_pid, SIGTERM);
+        });
+    };
+
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock.unlock(); };
+
+    serv.onReceive = [](Server *serv, RecvData *req) -> int {
+        return SW_OK;
+    };
+
+    serv.onConnect = [](Server *serv, DataHead *req) {
+        test::counter_incr(0);
+    };
+
+    ASSERT_EQ(serv.start(), 0);
+
+    t1.join();
+    ASSERT_EQ(test::counter_get(0), 0);
 }
 
 TEST(server, dtls) {

@@ -333,7 +333,7 @@ struct ListenPort {
     void close();
     bool import(int sock);
     void init_protocol();
-    const char *get_protocols();
+    const char *get_protocols() const;
     int create_socket();
     void close_socket();
     void destroy_http_request(Connection *conn);
@@ -349,8 +349,8 @@ struct ListenPort {
     bool ssl_context_create(SSLContext *context) const;
     bool ssl_create(network::Socket *sock);
     bool ssl_add_sni_cert(const std::string &name, const std::shared_ptr<SSLContext> &ctx);
-    static bool ssl_matches_wildcard_name(const char *subjectname, const char *certname);
-    bool ssl_init();
+    static bool ssl_matches_wildcard_name(const char *subject_name, const char *cert_name);
+    bool ssl_init() const;
 
     bool set_ssl_key_file(const std::string &file) const {
         return ssl_context->set_key_file(file);

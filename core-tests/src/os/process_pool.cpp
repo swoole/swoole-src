@@ -55,7 +55,7 @@ static void test_func_message_protocol(ProcessPool &pool) {
     pool.set_protocol(SW_PROTOCOL_MESSAGE);
     pool.onMessage = [](ProcessPool *pool, RecvData *rdata) {
         pool->running = false;
-        String *_data = (String *) pool->ptr;
+        String *_data = static_cast<String *>(pool->ptr);
         usleep(10000);
 
         DEBUG() << "received: " << rdata->info.len << " bytes\n";
@@ -80,7 +80,7 @@ static void test_func_stream_protocol(ProcessPool &pool) {
 
 TEST(process_pool, tcp) {
     ProcessPool pool{};
-    int svr_port = test::get_random_port();
+    int svr_port = TEST_PORT + __LINE__;
     ASSERT_EQ(pool.create(1, 0, SW_IPC_SOCKET), SW_OK);
     ASSERT_EQ(pool.listen(TEST_HOST, svr_port, 128), SW_OK);
 
@@ -102,7 +102,7 @@ TEST(process_pool, unix_sock) {
 TEST(process_pool, tcp_raw) {
     ProcessPool pool{};
     constexpr int size = 2 * 1024 * 1024;
-    int svr_port = swoole::test::get_random_port();
+    int svr_port = TEST_PORT + __LINE__;
     ASSERT_EQ(pool.create(1, 0, SW_IPC_SOCKET), SW_OK);
     ASSERT_EQ(pool.listen(TEST_HOST, svr_port, 128), SW_OK);
     pool.set_max_packet_size(size);
