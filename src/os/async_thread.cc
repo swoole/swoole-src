@@ -109,8 +109,8 @@ class ThreadPool {
 
         event_mutex.lock();
         running = false;
-        _cv.notify_all();
         event_mutex.unlock();
+        _cv.notify_all();
 
         for (auto &i : threads) {
             std::thread *_thread = i.second;
@@ -155,8 +155,8 @@ class ThreadPool {
         _event_copy->timestamp = microtime();
         _event_copy->pipe_socket = SwooleTG.async_threads->write_socket;
         _queue.push(_event_copy);
-        _cv.notify_one();
         event_mutex.unlock();
+        _cv.notify_one();
         swoole_debug("push and notify one: %f", microtime());
         return _event_copy;
     }

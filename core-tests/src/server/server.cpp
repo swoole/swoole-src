@@ -1058,7 +1058,12 @@ TEST(server, kill_user_workers) {
 
     ASSERT_EQ(serv.create(), SW_OK);
 
-    serv.onUserWorkerStart = [&](Server *serv, Worker *worker) { EXPECT_GT(worker->id, 0); };
+    serv.onUserWorkerStart = [&](Server *serv, Worker *worker) {
+        EXPECT_GT(worker->id, 0);
+        while (true) {
+            sleep(1);
+        }
+    };
 
     serv.onTask = [](Server *serv, EventData *task) -> int {
         while (true) {
