@@ -653,6 +653,7 @@ _return:
 #endif
 
 std::vector<std::string> dns_lookup(const char *domain, int family, double timeout) {
+    family = family == AF_INET6 ? AF_INET6 : AF_INET;  // only support IPv4 and IPv6
 #ifdef SW_USE_CARES
     return dns_lookup_impl_with_cares(domain, family, timeout);
 #else

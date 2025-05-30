@@ -54,7 +54,7 @@ TEST(dns, domain_not_found) {
 TEST(dns, bad_family) {
     test::coroutine::run([](void *arg) {
         auto list = swoole::coroutine::dns_lookup("www.google.com", 9999, 2);
-        ASSERT_EQ(list.size(), 0);
+        ASSERT_GE(list.size(), 1);
         ASSERT_ERREQ(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
     });
 }
