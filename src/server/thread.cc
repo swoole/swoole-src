@@ -96,8 +96,9 @@ void ThreadFactory::at_thread_enter(WorkerId id, int worker_type) {
 }
 
 void ThreadFactory::push_to_wait_queue(Worker *worker) {
-    std::unique_lock _lock(lock_);
+    lock_.lock();
     queue_.push(worker);
+    lock_.unlock();
     cv_.notify_one();
 }
 
@@ -220,11 +221,17 @@ void ThreadFactory::spawn_manager_thread(WorkerId i) {
 
 void ThreadFactory::wait() {
     while (server_->running) {
-        std::unique_lock _lock(lock_);
+        std::unique_lock lock(lock_);
+        if (cv_timeout_ms_ > 0) {
+            cv_.wait_for(lock, std::chrono::milliseconds(cv_timeout_ms_), [this] { return !queue_.empty(); });
+        } else {
+            cv_.wait(lock, [this] { return !queue_.empty(); });
+        }
+
         if (!queue_.empty()) {
             Worker *exited_worker = queue_.front();
             queue_.pop();
-            _lock.unlock();
+            lock.unlock();
 
             swoole_trace_log(SW_TRACE_THREAD,
                              "worker(tid=%d, id=%d) exit, status=%d",
@@ -267,13 +274,8 @@ void ThreadFactory::wait() {
                 abort();
                 break;
             }
-        } else {
-            if (cv_timeout_ms_ > 0) {
-                cv_.wait_for(_lock, std::chrono::milliseconds(cv_timeout_ms_));
-            } else {
-                cv_.wait(_lock);
-            }
         }
+
         if (sw_timer()) {
             sw_timer()->select();
         }
