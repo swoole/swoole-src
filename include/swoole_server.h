@@ -39,6 +39,7 @@
 #include <queue>
 #include <thread>
 #include <mutex>
+#include <atomic>
 #include <unordered_map>
 #include <unordered_set>
 #include <condition_variable>
@@ -579,6 +580,20 @@ class ProcessFactory : public Factory {
     bool end(SessionId session_id, int flags) override;
 };
 
+struct ThreadReloadTask {
+    Server *server_;
+    uint16_t worker_num;
+    uint16_t reloaded_num;
+
+    bool is_completed() const {
+        return reloaded_num == worker_num;
+    }
+
+    ThreadReloadTask(Server *_server, bool _reload_all_workers);
+    void kill_one();
+    ~ThreadReloadTask() = default;
+};
+
 class ThreadFactory : public BaseFactory {
     std::vector<std::shared_ptr<Thread>> threads_;
     std::mutex lock_;
@@ -586,12 +601,14 @@ class ThreadFactory : public BaseFactory {
     std::queue<Worker *> queue_;
     long cv_timeout_ms_;
     bool reload_all_workers;
-    bool reloading;
+    sw_atomic_t reloading = 0;
+    std::shared_ptr<ThreadReloadTask> reload_task;
     Worker manager{};
     void at_thread_enter(WorkerId id, int process_type);
     void at_thread_exit(Worker *worker);
     void create_message_bus() const;
     void destroy_message_bus();
+    void do_reload();
 
   public:
     explicit ThreadFactory(Server *server);

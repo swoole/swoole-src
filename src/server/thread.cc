@@ -50,8 +50,6 @@ ThreadFactory::ThreadFactory(Server *server) : BaseFactory(server) {
     SW_LOOP_N(server_->get_all_worker_num() + 1) {
         threads_[i] = std::make_shared<Thread>();
     }
-    reloading = false;
-    reload_all_workers = false;
     cv_timeout_ms_ = -1;
 }
 
@@ -271,42 +269,65 @@ void ThreadFactory::wait() {
             sw_timer()->select();
         }
         if (server_->running && reloading) {
-            reload(reload_all_workers);
+            do_reload();
+        }
+    }
+}
+
+ThreadReloadTask::ThreadReloadTask(Server *_server, bool _reload_all_workers) {
+    server_ = _server;
+    worker_num = server_->get_core_worker_num();
+    // If only reloading task workers, skip the event workers.
+    reloaded_num = _reload_all_workers ? 0 : server_->worker_num;
+}
+
+void ThreadReloadTask::kill_one() {
+    server_->kill_worker(reloaded_num++);
+}
+
+void ThreadFactory::do_reload() {
+    if (!reload_task) {
+        reload_task = std::make_shared<ThreadReloadTask>(server_, reload_all_workers);
+        if (server_->onBeforeReload) {
+            server_->onBeforeReload(server_);
+        }
+    }
+    reload_task->kill_one();
+    if (reload_task->is_completed()) {
+        reload_task.reset();
+        reloading = 0;
+        if (server_->onAfterReload) {
+            server_->onAfterReload(server_);
         }
     }
 }
 
 bool ThreadFactory::reload(bool _reload_all_workers) {
     auto _what = _reload_all_workers ? "all" : "task";
+
+    // Prevent duplicate submission of reload requests.
+    if (!sw_atomic_cmp_set(&reloading, 0, 1)) {
+        swoole_set_last_error(SW_ERROR_OPERATION_NOT_SUPPORT);
+        return false;
+    }
+
+    if (server_->task_worker_num == 0 && !_reload_all_workers) {
+        swoole_error_log(SW_LOG_WARNING,
+                         SW_ERROR_OPERATION_NOT_SUPPORT,
+                         "Cannot reload %s workers, task workers are not started",
+                         _what);
+        reloading = 0;
+        return false;
+    }
+
+    reload_all_workers = _reload_all_workers;
     if (!server_->is_manager()) {
-        // Prevent duplicate submission of reload requests.
-        if (reloading) {
-            swoole_set_last_error(SW_ERROR_OPERATION_NOT_SUPPORT);
-            return false;
-        }
         swoole_info("Send a notification to the manager process to prepare for restarting %s worker processes.", _what);
-        reloading = true;
-        reload_all_workers = _reload_all_workers;
         std::unique_lock _lock(lock_);
         cv_.notify_one();
     } else {
         swoole_info("Server is reloading %s workers now", _what);
-        if (server_->onBeforeReload) {
-            server_->onBeforeReload(server_);
-        }
-        SW_LOOP_N(server_->get_core_worker_num()) {
-            if (i < server_->worker_num && !_reload_all_workers) {
-                continue;
-            }
-            if (!server_->kill_worker(i)) {
-                return false;
-            }
-        }
-        reload_all_workers = false;
-        reloading = false;
-        if (server_->onAfterReload) {
-            server_->onAfterReload(server_);
-        }
+        do_reload();
     }
 
     return true;

@@ -228,7 +228,7 @@ struct StreamInfo {
 struct ReloadTask {
     std::unordered_map<pid_t, Worker *> workers;
     std::queue<pid_t> kill_queue;
-    TimerNode *timer;
+    TimerNode *timer = nullptr;
 
     size_t count() const {
         return workers.size();
@@ -242,6 +242,7 @@ struct ReloadTask {
         return workers.find(pid) != workers.end();
     }
 
+    ReloadTask() = default;
     ~ReloadTask();
     void kill_one(int signal_number = SIGTERM);
     void kill_all(int signal_number = SIGKILL);
