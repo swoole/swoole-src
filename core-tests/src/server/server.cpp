@@ -803,6 +803,8 @@ TEST(server, reload_thread) {
         lock.lock();
         usleep(1000);
         EXPECT_TRUE(serv.reload(true));
+        EXPECT_FALSE(serv.reload(true)); // reload again should fail
+        EXPECT_ERREQ(SW_ERROR_OPERATION_NOT_SUPPORT);
         sleep(1);
         DEBUG() << "shutdown\n";
         serv.shutdown();
@@ -848,6 +850,8 @@ TEST(server, reload_thread_2) {
     serv.worker_num = 2;
     serv.task_worker_num = 2;
 
+    test::counter_init();
+
     std::unordered_map<std::string, bool> flags;
     swoole_set_log_level(SW_LOG_INFO);
 
@@ -865,9 +869,9 @@ TEST(server, reload_thread_2) {
     std::atomic<size_t> count(0);
 
     serv.onUserWorkerStart = [](Server *serv, Worker *worker) {
-        while (serv->running) {
-            usleep(100000);
-        }
+        usleep(500000);
+        test::counter_incr(4, 1);
+        DEBUG() << "onUserWorkerStart: id=" << worker->id << "\n";
     };
 
     serv.onWorkerStart = [&lock, &count](Server *serv, Worker *worker) {
@@ -893,7 +897,7 @@ TEST(server, reload_thread_2) {
     serv.onManagerStart = [&flags](Server *serv) {
         swoole_timer_after(500, [serv, &flags](auto r1, auto r2) {
             flags["reload"] = true;
-            serv->reload(true);
+            EXPECT_TRUE(serv->reload(true));
         });
     };
 
@@ -906,6 +910,7 @@ TEST(server, reload_thread_2) {
     ASSERT_TRUE(flags["onManagerStop"]);
     ASSERT_TRUE(flags["reload"]);
     ASSERT_TRUE(flags["shutdown"]);
+    ASSERT_GE(test::counter_get(4), 2);
 
     test::wait_all_child_processes();
 }
