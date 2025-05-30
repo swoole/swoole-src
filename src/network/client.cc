@@ -578,7 +578,7 @@ static ssize_t Client_tcp_send_async(Client *cli, const char *data, size_t lengt
             return SW_ERR;
         }
     }
-    if (cli->onBufferFull && cli->high_watermark == 0 &&
+    if (cli->onBufferFull && !cli->high_watermark &&
         cli->socket->get_out_buffer_length() >= cli->buffer_high_watermark) {
         cli->high_watermark = true;
         cli->onBufferFull(cli);

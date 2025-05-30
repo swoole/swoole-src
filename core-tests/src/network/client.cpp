@@ -366,6 +366,7 @@ TEST(client, sleep_2) {
 
     ASSERT_GT(server_pid, 0);
 
+    swoole::test::counter_init();
     swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
 
     String buf(65536);
@@ -373,16 +374,32 @@ TEST(client, sleep_2) {
     wbuf.append_random_bytes(wbuf.size);
 
     Client client(SW_SOCK_TCP, true);
+
+    client.buffer_high_watermark = 1024 * 1024;
+    client.buffer_low_watermark = 128 * 1024;
+
+    client.onBufferFull = [](Client *cli) {
+        DEBUG() << "Buffer is full, waiting for data to be sent...\n";
+        swoole::test::counter_incr(0);
+    };
+
+    client.onBufferEmpty = [](Client *cli) {
+        DEBUG() << "Buffer is empty, ready to send more data...\n";
+        swoole::test::counter_incr(1);
+    };
+
     client.onConnect = [&wbuf, server_pid](Client *cli) {
         DEBUG() << "Client connected, sending data...\n";
-        cli->send(wbuf.str, wbuf.length);
-        swoole_timer_after(15, [cli, server_pid](auto _1, auto _2) {
+        EXPECT_EQ(cli->send(wbuf.str, wbuf.length), wbuf.length);
+        EXPECT_EQ(cli->send(wbuf.str, wbuf.length), -1);
+        ASSERT_ERREQ(SW_ERROR_OUTPUT_BUFFER_OVERFLOW);
+        swoole_timer_after(10, [cli, server_pid](auto _1, auto _2) {
             cli->sleep();
             DEBUG() << "Client is sleeping...\n";
             swoole_timer_after(15, [cli, server_pid](auto _1, auto _2) {
                 cli->wakeup();
                 DEBUG() << "Client woke up, closing connection...\n";
-                swoole_timer_after(15, [cli, server_pid](auto _1, auto _2) {
+                swoole_timer_after(200, [cli, server_pid](auto _1, auto _2) {
                     cli->close();
                     DEBUG() << "Client closed, terminating server...\n";
                     kill(server_pid, SIGTERM);
@@ -404,6 +421,9 @@ TEST(client, sleep_2) {
     swoole_event_wait();
 
     swoole::test::wait_all_child_processes();
+
+    ASSERT_GE(swoole::test::counter_get(0), 1);
+    ASSERT_GE(swoole::test::counter_get(1), 1);
 }
 
 TEST(client, connect_refuse) {
@@ -688,7 +708,10 @@ TEST(client, shutdown_write) {
     Client cli(SW_SOCK_TCP, false);
     ret = cli.connect("www.baidu.com", 80, -1, 0);
     ASSERT_EQ(ret, 0);
-    cli.shutdown(SHUT_WR);
+
+    ASSERT_EQ(cli.shutdown(SHUT_WR), 0);
+    ASSERT_EQ(cli.shutdown(SHUT_WR), SW_ERR);  // already shutdown
+
     ssize_t retval = cli.send(SW_STRL("hello world"), 0);
     ASSERT_EQ(retval, -1);
     ASSERT_EQ(swoole_get_last_error(), EPIPE);
@@ -701,7 +724,9 @@ TEST(client, shutdown_read) {
     ret = cli.connect("www.baidu.com", 80, -1, 0);
     ASSERT_EQ(ret, 0);
 
-    cli.shutdown(SHUT_RD);
+    ASSERT_EQ(cli.shutdown(SHUT_RD), SW_OK);
+    ASSERT_EQ(cli.shutdown(SHUT_RD), SW_ERR);  // already shutdown
+
     ssize_t retval = cli.send(SW_STRL("hello world\r\n\r\n"), 0);
     ASSERT_GT(retval, 0);
 
@@ -739,7 +764,10 @@ static void test_ssl_http_get() {
     swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
 
     Client client(SW_SOCK_TCP, true);
-    client.enable_ssl_encrypt();
+
+    ASSERT_EQ(client.enable_ssl_encrypt(), SW_OK);
+    ASSERT_EQ(client.enable_ssl_encrypt(), SW_ERR);  // already enabled
+
     client.onConnect = [&connected](Client *cli) {
         connected = true;
         auto req = swoole::test::http_get_request(TEST_HTTP_DOMAIN, "/");
@@ -987,7 +1015,7 @@ TEST(client, ssl) {
 #endif
 
 TEST(client, fail) {
-    Client c((swSocketType) (SW_SOCK_RAW6 + 1), false);
+    Client c((swSocketType)(SW_SOCK_RAW6 + 1), false);
     ASSERT_FALSE(c.ready());
     ASSERT_ERREQ(ESOCKTNOSUPPORT);
 }

@@ -1260,7 +1260,7 @@ STACK_OF(X509) * Socket::ssl_get_peer_cert_chain() const {
     return SSL_get_peer_cert_chain(ssl);
 }
 
-static int _ssl_read_x509_file(const X509 *cert, char *buffer, size_t length) {
+static int _ssl_read_x509_file(X509 *cert, char *buffer, size_t length) {
     BIO *bio = BIO_new(BIO_s_mem());
     ON_SCOPE_EXIT {
         BIO_free(bio);
