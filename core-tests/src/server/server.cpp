@@ -739,7 +739,7 @@ TEST(server, task_thread) {
         SessionId client_fd;
         memcpy(&client_fd, task->data, sizeof(client_fd));
         string resp = string("Server: ") + string(packet);
-        serv->send(client_fd, resp.c_str(), resp.length());
+        EXPECT_TRUE(serv->send(client_fd, resp.c_str(), resp.length()));
         return 0;
     };
 
@@ -794,8 +794,7 @@ TEST(server, reload_thread) {
         swoole_thread_init();
         lock.lock();
         usleep(1000);
-        DEBUG() << "is_manager()=" << serv.is_manager() << ", do reload\n";
-        serv.reload(true);
+        EXPECT_TRUE(serv.reload(true));
         sleep(1);
         DEBUG() << "shutdown\n";
         serv.shutdown();

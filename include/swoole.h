@@ -673,6 +673,7 @@ struct EventData {
 struct ThreadGlobal {
     uint16_t id;
     uint8_t type;
+    bool main_thread;
     int32_t error;
     String *buffer_stack;
     Reactor *reactor;
@@ -836,6 +837,7 @@ SW_API const char *swoole_strerror(int code);
 SW_API void swoole_throw_error(int code);
 SW_API void swoole_ignore_error(int code);
 SW_API bool swoole_is_ignored_error(int code);
+SW_API bool swoole_is_main_thread();
 SW_API void swoole_set_log_level(int level);
 SW_API void swoole_set_log_file(const char *file);
 SW_API void swoole_set_trace_flags(long flags);

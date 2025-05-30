@@ -386,6 +386,10 @@ pid_t swoole_fork(int flags) {
     return pid;
 }
 
+bool swoole_is_main_thread() {
+    return SwooleTG.main_thread;
+}
+
 void swoole_thread_init(bool main_thread) {
     if (!SwooleTG.buffer_stack) {
         SwooleTG.buffer_stack = new String(SW_STACK_BUFFER_SIZE);
@@ -393,6 +397,7 @@ void swoole_thread_init(bool main_thread) {
     if (!main_thread) {
         swoole_signal_block_all();
     }
+    SwooleTG.main_thread = main_thread;
 }
 
 void swoole_thread_clean(bool main_thread) {
@@ -915,7 +920,7 @@ void swoole_exit(int __status) {
      * If multiple threads call exit simultaneously, it can result in a crash.
      * Implementing locking mechanisms can prevent concurrent calls to exit.
      */
-    std::unique_lock<std::mutex> _lock(sw_thread_lock);
+    std::unique_lock _lock(sw_thread_lock);
 #endif
     exit(__status);
 }

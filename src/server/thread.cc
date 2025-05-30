@@ -277,20 +277,20 @@ void ThreadFactory::wait() {
 }
 
 bool ThreadFactory::reload(bool _reload_all_workers) {
+    auto _what = _reload_all_workers ? "all" : "task";
     if (!server_->is_manager()) {
         // Prevent duplicate submission of reload requests.
         if (reloading) {
             swoole_set_last_error(SW_ERROR_OPERATION_NOT_SUPPORT);
             return false;
         }
-        swoole_info("Send a notification to the manager process to prepare for restarting %s worker processes.",
-                    _reload_all_workers ? "all" : "task");
+        swoole_info("Send a notification to the manager process to prepare for restarting %s worker processes.", _what);
         reloading = true;
         reload_all_workers = _reload_all_workers;
         std::unique_lock _lock(lock_);
         cv_.notify_one();
     } else {
-        swoole_info("Server is reloading %s workers now", _reload_all_workers ? "all" : "task");
+        swoole_info("Server is reloading %s workers now", _what);
         if (server_->onBeforeReload) {
             server_->onBeforeReload(server_);
         }
@@ -300,13 +300,6 @@ bool ThreadFactory::reload(bool _reload_all_workers) {
             }
             if (!server_->kill_worker(i)) {
                 return false;
-            }
-            SW_LOOP {
-                usleep(SW_RELOAD_SLEEP_FOR);
-                // This worker thread has exited, proceeding to terminate the next one.
-                if (threads_[i]->joinable()) {
-                    break;
-                }
             }
         }
         reload_all_workers = false;
