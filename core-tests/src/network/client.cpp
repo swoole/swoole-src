@@ -376,16 +376,21 @@ TEST(client, sleep_2) {
     Client client(SW_SOCK_TCP, true);
 
     client.buffer_high_watermark = 1024 * 1024;
-    client.buffer_low_watermark = 128 * 1024;
+    client.buffer_low_watermark = 32 * 1024;
 
     client.onBufferFull = [](Client *cli) {
         DEBUG() << "Buffer is full, waiting for data to be sent...\n";
         swoole::test::counter_incr(0);
     };
 
-    client.onBufferEmpty = [](Client *cli) {
+    client.onBufferEmpty = [server_pid](Client *cli) {
         DEBUG() << "Buffer is empty, ready to send more data...\n";
         swoole::test::counter_incr(1);
+        swoole_timer_after(200, [cli, server_pid](auto _1, auto _2) {
+            cli->close();
+            DEBUG() << "Client closed, terminating server...\n";
+            kill(server_pid, SIGTERM);
+        });
     };
 
     client.onConnect = [&wbuf, server_pid](Client *cli) {
@@ -399,11 +404,6 @@ TEST(client, sleep_2) {
             swoole_timer_after(15, [cli, server_pid](auto _1, auto _2) {
                 cli->wakeup();
                 DEBUG() << "Client woke up, closing connection...\n";
-                swoole_timer_after(200, [cli, server_pid](auto _1, auto _2) {
-                    cli->close();
-                    DEBUG() << "Client closed, terminating server...\n";
-                    kill(server_pid, SIGTERM);
-                });
             });
         });
     };

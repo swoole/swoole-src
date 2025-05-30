@@ -668,7 +668,7 @@ TEST(server, thread) {
 
     serv.onWorkerStart = [&lock](Server *serv, Worker *worker) {
         DEBUG() << "onWorkerStart: id=" << worker->id << "\n";
-        serv->send_pipe_message(1- worker->id, SW_STRL(TEST_STR));
+        serv->send_pipe_message(1 - worker->id, SW_STRL(TEST_STR));
     };
 
     serv.onReceive = [](Server *serv, RecvData *req) -> int {
@@ -694,7 +694,7 @@ TEST(server, thread) {
     t1.join();
 
     test::wait_all_child_processes();
-    ASSERT_EQ(test::counter_get(4), 2); // onPipeMessage called
+    ASSERT_EQ(test::counter_get(4), 2);  // onPipeMessage called
 }
 
 TEST(server, task_thread) {
@@ -803,7 +803,7 @@ TEST(server, reload_thread) {
         lock.lock();
         usleep(10000);
         EXPECT_TRUE(serv.reload(true));
-        EXPECT_FALSE(serv.reload(true)); // reload again should fail
+        EXPECT_FALSE(serv.reload(true));  // reload again should fail
         EXPECT_ERREQ(SW_ERROR_OPERATION_NOT_SUPPORT);
         sleep(1);
         DEBUG() << "shutdown\n";
@@ -820,9 +820,7 @@ TEST(server, reload_thread) {
         }
     };
 
-    serv.onStart = [&lock](Server *serv) {
-        DEBUG() << "onStart\n";
-    };
+    serv.onStart = [&lock](Server *serv) { DEBUG() << "onStart\n"; };
 
     serv.onManagerStart = [&lock](Server *serv) {
         DEBUG() << "onManagerStart\n";
@@ -834,9 +832,7 @@ TEST(server, reload_thread) {
         DEBUG() << "onWorkerStart: id=" << worker->id << "\n";
     };
 
-    serv.onWorkerStop = [](Server *serv, Worker *worker) {
-        DEBUG() << "onWorkerStop: id=" << worker->id << "\n";
-    };
+    serv.onWorkerStop = [](Server *serv, Worker *worker) { DEBUG() << "onWorkerStop: id=" << worker->id << "\n"; };
 
     serv.onTask = [](Server *serv, EventData *task) -> int { return 0; };
 
@@ -1285,13 +1281,9 @@ TEST(server, ssl_error) {
 
     serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock.unlock(); };
 
-    serv.onReceive = [](Server *serv, RecvData *req) -> int {
-        return SW_OK;
-    };
+    serv.onReceive = [](Server *serv, RecvData *req) -> int { return SW_OK; };
 
-    serv.onConnect = [](Server *serv, DataHead *req) {
-        test::counter_incr(0);
-    };
+    serv.onConnect = [](Server *serv, DataHead *req) { test::counter_incr(0); };
 
     ASSERT_EQ(serv.start(), 0);
 
@@ -1342,7 +1334,7 @@ TEST(server, ssl_write) {
                 if (recv_n > 65536) {
                     recv_n = 65536;
                 }
-                auto n = c.recv(rbuf.str + rbuf.length,  rbuf.size - rbuf.length);
+                auto n = c.recv(rbuf.str + rbuf.length, rbuf.size - rbuf.length);
                 if (n <= 0) {
                     break;
                 }

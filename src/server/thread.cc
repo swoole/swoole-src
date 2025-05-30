@@ -20,9 +20,14 @@
 namespace swoole {
 using network::Socket;
 
-enum {
+enum ManagerCommand {
     CMD_RELOAD = 0x1001,
+    CMD_MANAGER_EXIT = 0x1002,
 };
+
+static inline Worker *cmd_ptr(const ManagerCommand cmd) {
+    return reinterpret_cast<Worker *>(cmd);
+}
 
 Factory *Server::create_thread_factory() {
 #ifndef SW_THREAD
@@ -181,10 +186,6 @@ void ThreadFactory::spawn_manager_thread(WorkerId i) {
     threads_[i]->start([=]() {
         at_thread_enter(i, SW_MANAGER);
 
-        manager.id = i;
-        manager.pid = swoole_get_worker_pid();
-        manager.type = SW_MANAGER;
-
         swoole_timer_set_scheduler([this](Timer *timer, long exec_msec) -> int {
             cv_timeout_ms_ = exec_msec;
             return SW_OK;
@@ -231,10 +232,10 @@ void ThreadFactory::wait() {
                              exited_worker->id,
                              exited_worker->status);
 
-            if (exited_worker == reinterpret_cast<Worker *>(CMD_RELOAD)) {
+            if (exited_worker == cmd_ptr(CMD_RELOAD)) {
                 goto _do_reload;
             }
-            if (exited_worker == &manager) {
+            if (exited_worker == cmd_ptr(CMD_MANAGER_EXIT)) {
                 server_->running = false;
                 break;
             }
@@ -328,7 +329,7 @@ bool ThreadFactory::reload(bool _reload_all_workers) {
     reload_all_workers = _reload_all_workers;
     if (!server_->is_manager()) {
         swoole_info("Send a notification to the manager process to prepare for restarting %s worker processes.", _what);
-        push_to_wait_queue(reinterpret_cast<Worker *>(CMD_RELOAD));
+        push_to_wait_queue(cmd_ptr(CMD_RELOAD));
     } else {
         swoole_info("Server is reloading %s workers now", _what);
         do_reload();
@@ -346,12 +347,8 @@ WorkerId ThreadFactory::get_master_thread_id() const {
 }
 
 void ThreadFactory::terminate_manager_thread() {
-    do {
-        swoole_trace_log(SW_TRACE_THREAD, "notify manager thread to exit");
-        std::unique_lock _lock(lock_);
-        queue_.push(&manager);
-        cv_.notify_one();
-    } while (false);
+    swoole_trace_log(SW_TRACE_THREAD, "notify manager thread to exit");
+    push_to_wait_queue(cmd_ptr(CMD_MANAGER_EXIT));
 
     /**
      * When terminating the service, the management thread may still be joining other worker threads,

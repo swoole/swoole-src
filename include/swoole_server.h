@@ -602,7 +602,6 @@ class ThreadFactory : public BaseFactory {
     bool reload_all_workers;
     sw_atomic_t reloading = 0;
     std::shared_ptr<ThreadReloadTask> reload_task;
-    Worker manager{};
     void at_thread_enter(WorkerId id, int process_type);
     void at_thread_exit(Worker *worker);
     void create_message_bus() const;
