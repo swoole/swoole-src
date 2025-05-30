@@ -970,15 +970,15 @@ class Server {
         return connection_list[fd].socket;
     }
 
-    network::Socket *get_command_reply_socket() {
+    network::Socket *get_command_reply_socket() const {
         return is_base_mode() ? get_worker(0)->pipe_master : pipe_command->get_socket(false);
     }
 
-    network::Socket *get_worker_pipe_master(WorkerId id) {
+    network::Socket *get_worker_pipe_master(WorkerId id) const {
         return get_worker(id)->pipe_master;
     }
 
-    network::Socket *get_worker_pipe_worker(WorkerId id) {
+    network::Socket *get_worker_pipe_worker(WorkerId id) const {
         return get_worker(id)->pipe_worker;
     }
 
@@ -1009,7 +1009,7 @@ class Server {
     /**
      * [Worker|Master]
      */
-    network::Socket *get_reactor_pipe_socket(const SessionId session_id, int reactor_id) {
+    network::Socket *get_reactor_pipe_socket(const SessionId session_id, int reactor_id) const {
         const int pipe_index = session_id % reactor_pipe_num;
         /**
          * pipe_worker_id: The pipe in which worker.
@@ -1204,7 +1204,7 @@ class Server {
         return gs->manager_pid;
     }
 
-    pid_t get_worker_pid(WorkerId worker_id) {
+    pid_t get_worker_pid(WorkerId worker_id) const {
         return get_worker(worker_id)->pid;
     }
 

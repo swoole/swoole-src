@@ -623,6 +623,7 @@ TEST(server, thread) {
 
     swoole_set_trace_flags(SW_TRACE_THREAD);
     swoole_set_log_level(SW_LOG_TRACE);
+    test::counter_init();
 
     ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     ASSERT_TRUE(port);
@@ -667,6 +668,7 @@ TEST(server, thread) {
 
     serv.onWorkerStart = [&lock](Server *serv, Worker *worker) {
         DEBUG() << "onWorkerStart: id=" << worker->id << "\n";
+        serv->send_pipe_message(1- worker->id, SW_STRL(TEST_STR));
     };
 
     serv.onReceive = [](Server *serv, RecvData *req) -> int {
@@ -683,10 +685,16 @@ TEST(server, thread) {
         return SW_OK;
     };
 
+    serv.onPipeMessage = [](Server *serv, EventData *req) {
+        DEBUG() << "onPipeMessage: " << string(req->data, req->info.len) << "\n";
+        test::counter_incr(4);
+    };
+
     ASSERT_EQ(serv.start(), SW_OK);
     t1.join();
 
     test::wait_all_child_processes();
+    ASSERT_EQ(test::counter_get(4), 2); // onPipeMessage called
 }
 
 TEST(server, task_thread) {
@@ -801,7 +809,7 @@ TEST(server, reload_thread) {
         swoole_thread_clean();
     });
 
-    std::atomic<int> count(0);
+    std::atomic<size_t> count(0);
 
     serv.onUserWorkerStart = [&lock, &count](Server *serv, Worker *worker) {
         DEBUG() << "onUserWorkerStart: id=" << worker->id << "\n";
@@ -854,7 +862,7 @@ TEST(server, reload_thread_2) {
 
     ASSERT_EQ(serv.create(), SW_OK);
 
-    std::atomic<int> count(0);
+    std::atomic<size_t> count(0);
 
     serv.onUserWorkerStart = [](Server *serv, Worker *worker) {
         while (serv->running) {
@@ -1197,6 +1205,13 @@ TEST(server, ssl) {
             c.recv(buf, sizeof(buf));
             c.close();
 
+            // bad SSL connection, send plain text packet to SSL server
+            network::SyncClient c2(SW_SOCK_TCP);
+            c2.connect(TEST_HOST, port->port);
+            c2.send(packet, strlen(packet));
+            ASSERT_EQ(c2.recv(buf, sizeof(buf)), 0);
+            c2.close();
+
             kill(serv->gs->master_pid, SIGTERM);
         });
     };
@@ -1273,6 +1288,78 @@ TEST(server, ssl_error) {
 
     t1.join();
     ASSERT_EQ(test::counter_get(0), 0);
+}
+
+TEST(server, ssl_write) {
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = 1;
+    swoole_set_log_level(SW_LOG_WARNING);
+
+    Mutex lock(Mutex::PROCESS_SHARED);
+    lock.lock();
+
+    ListenPort *port = serv.add_port(static_cast<enum swSocketType>(SW_SOCK_TCP | SW_SOCK_SSL), TEST_HOST, 0);
+    ASSERT_NE(port, nullptr);
+
+    port->set_ssl_cert_file(test::get_ssl_dir() + "/server.crt");
+    port->set_ssl_key_file(test::get_ssl_dir() + "/server.key");
+    ASSERT_TRUE(port->ssl_init());
+
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    String wbuf(4 * 1024 * 1024);
+    wbuf.append_random_bytes(wbuf.size);
+
+    thread t1;
+
+    serv.onStart = [&lock, &t1, &wbuf](Server *serv) {
+        t1 = thread([&lock, serv, &wbuf]() {
+            swoole_signal_block_all();
+
+            lock.lock();
+
+            ListenPort *port = serv->get_primary_port();
+            EXPECT_EQ(port->ssl, 1);
+
+            network::SyncClient c(SW_SOCK_TCP);
+            c.connect(TEST_HOST, port->port);
+            c.enable_ssl_encrypt();
+            c.send(packet, strlen(packet));
+
+            String rbuf(2 * 1024 * 1024);
+
+            while (true) {
+                size_t recv_n = rbuf.size - rbuf.length;
+                if (recv_n > 65536) {
+                    recv_n = 65536;
+                }
+                auto n = c.recv(rbuf.str + rbuf.length,  rbuf.size - rbuf.length);
+                if (n <= 0) {
+                    break;
+                }
+                rbuf.length += n;
+                usleep(5000);
+            }
+
+            ASSERT_MEMEQ(rbuf.str, wbuf.str, rbuf.length);
+            c.close();
+
+            kill(serv->gs->master_pid, SIGTERM);
+        });
+    };
+
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock.unlock(); };
+
+    serv.onReceive = [&wbuf](Server *serv, RecvData *req) -> int {
+        EXPECT_TRUE(serv->send(req->session_id(), wbuf.str, wbuf.length));
+        test::counter_incr(0);
+        return SW_OK;
+    };
+
+    ASSERT_EQ(serv.start(), 0);
+
+    t1.join();
+    ASSERT_EQ(test::counter_get(0), 1);
 }
 
 TEST(server, dtls) {
