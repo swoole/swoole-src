@@ -834,6 +834,10 @@ TEST(server, reload_thread) {
         DEBUG() << "onWorkerStart: id=" << worker->id << "\n";
     };
 
+    serv.onWorkerStop = [](Server *serv, Worker *worker) {
+        DEBUG() << "onWorkerStop: id=" << worker->id << "\n";
+    };
+
     serv.onTask = [](Server *serv, EventData *task) -> int { return 0; };
 
     serv.onReceive = [](Server *serv, RecvData *req) -> int { return SW_OK; };

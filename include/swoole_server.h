@@ -590,7 +590,6 @@ struct ThreadReloadTask {
     }
 
     ThreadReloadTask(Server *_server, bool _reload_all_workers);
-    void kill_one();
     ~ThreadReloadTask() = default;
 };
 
@@ -609,6 +608,7 @@ class ThreadFactory : public BaseFactory {
     void create_message_bus() const;
     void destroy_message_bus();
     void do_reload();
+    void push_to_wait_queue(Worker *worker);
 
   public:
     explicit ThreadFactory(Server *server);

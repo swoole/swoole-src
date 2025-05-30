@@ -17,10 +17,12 @@
 #include "swoole_server.h"
 #include "swoole_thread.h"
 
-#define SW_RELOAD_SLEEP_FOR 100000
-
 namespace swoole {
 using network::Socket;
+
+enum {
+    CMD_RELOAD = 0x1001,
+};
 
 Factory *Server::create_thread_factory() {
 #ifndef SW_THREAD
@@ -88,11 +90,15 @@ void ThreadFactory::at_thread_enter(WorkerId id, int worker_type) {
     swoole_set_thread_type(Server::THREAD_WORKER);
 }
 
+void ThreadFactory::push_to_wait_queue(Worker *worker) {
+    std::unique_lock _lock(lock_);
+    queue_.push(worker);
+    cv_.notify_one();
+}
+
 void ThreadFactory::at_thread_exit(Worker *worker) {
     if (worker) {
-        std::unique_lock _lock(lock_);
-        queue_.push(worker);
-        cv_.notify_one();
+        push_to_wait_queue(worker);
     }
     swoole_thread_clean(false);
 }
@@ -217,6 +223,7 @@ void ThreadFactory::wait() {
         if (!queue_.empty()) {
             Worker *exited_worker = queue_.front();
             queue_.pop();
+            _lock.unlock();
 
             swoole_trace_log(SW_TRACE_THREAD,
                              "worker(tid=%d, id=%d) exit, status=%d",
@@ -224,9 +231,11 @@ void ThreadFactory::wait() {
                              exited_worker->id,
                              exited_worker->status);
 
+            if (exited_worker == reinterpret_cast<Worker *>(CMD_RELOAD)) {
+                goto _do_reload;
+            }
             if (exited_worker == &manager) {
                 server_->running = false;
-                _lock.unlock();
                 break;
             }
 
@@ -257,7 +266,6 @@ void ThreadFactory::wait() {
                 abort();
                 break;
             }
-            _lock.unlock();
         } else {
             if (cv_timeout_ms_ > 0) {
                 cv_.wait_for(_lock, std::chrono::milliseconds(cv_timeout_ms_));
@@ -269,6 +277,7 @@ void ThreadFactory::wait() {
             sw_timer()->select();
         }
         if (server_->running && reloading) {
+        _do_reload:
             do_reload();
         }
     }
@@ -281,10 +290,6 @@ ThreadReloadTask::ThreadReloadTask(Server *_server, bool _reload_all_workers) {
     reloaded_num = _reload_all_workers ? 0 : server_->worker_num;
 }
 
-void ThreadReloadTask::kill_one() {
-    server_->kill_worker(reloaded_num++);
-}
-
 void ThreadFactory::do_reload() {
     if (!reload_task) {
         reload_task = std::make_shared<ThreadReloadTask>(server_, reload_all_workers);
@@ -292,7 +297,7 @@ void ThreadFactory::do_reload() {
             server_->onBeforeReload(server_);
         }
     }
-    reload_task->kill_one();
+    server_->kill_worker(reload_task->reloaded_num++);
     if (reload_task->is_completed()) {
         reload_task.reset();
         reloading = 0;
@@ -323,8 +328,7 @@ bool ThreadFactory::reload(bool _reload_all_workers) {
     reload_all_workers = _reload_all_workers;
     if (!server_->is_manager()) {
         swoole_info("Send a notification to the manager process to prepare for restarting %s worker processes.", _what);
-        std::unique_lock _lock(lock_);
-        cv_.notify_one();
+        push_to_wait_queue(reinterpret_cast<Worker *>(CMD_RELOAD));
     } else {
         swoole_info("Server is reloading %s workers now", _what);
         do_reload();
