@@ -925,6 +925,16 @@ ssize_t Socket::write_sync(const void *_buf, size_t _len, int timeout_ms) const 
     }
 }
 
+ssize_t Socket::write_sync_optimistic(const void *_buf, size_t _len, int timeout_ms) const {
+    do {
+        const auto rv = write(_buf, _len);
+        if (rv < 0 && errno == EINTR || (catch_error(errno) == SW_WAIT && wait_event(timeout_ms, SW_EVENT_WRITE))) {
+            continue;
+        }
+        return rv;
+    } while (true);
+}
+
 ssize_t Socket::readv(IOVector *io_vector) {
     ssize_t retval;
 
@@ -980,7 +990,7 @@ ssize_t Socket::peek(void *_buf, size_t _n, int _flags) const {
     return retval;
 }
 
-int Socket::catch_error(const int err) {
+int Socket::catch_error(const int err) const {
     switch (err) {
     case EFAULT:
         abort();

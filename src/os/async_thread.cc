@@ -44,36 +44,36 @@ namespace async {
 class EventQueue {
   public:
     void push(AsyncEvent *event) {
-        _queue.push(event);
+        queue_.push(event);
     }
 
     AsyncEvent *pop() {
-        if (_queue.empty()) {
+        if (queue_.empty()) {
             return nullptr;
         }
-        AsyncEvent *retval = _queue.front();
-        _queue.pop();
+        AsyncEvent *retval = queue_.front();
+        queue_.pop();
         return retval;
     }
 
-    double get_max_wait_time() {
-        if (_queue.empty()) {
+    double get_max_wait_time() const {
+        if (queue_.empty()) {
             return 0;
         }
-        const AsyncEvent *event = _queue.front();
+        const AsyncEvent *event = queue_.front();
         return microtime() - event->timestamp;
     }
 
     size_t count() const {
-        return _queue.size();
+        return queue_.size();
     }
 
     bool empty() const {
-        return _queue.empty();
+        return queue_.empty();
     }
 
   private:
-    std::queue<AsyncEvent *> _queue;
+    std::queue<AsyncEvent *> queue_;
 };
 
 class ThreadPool {
@@ -260,15 +260,9 @@ void ThreadPool::main_func(const bool is_core_worker) {
                              event->error);
 
         _send_event:
-            while (true) {
-                if (event->pipe_socket->write(&event, sizeof(event)) < 0) {
-                    if (errno == EINTR || (errno == EAGAIN && event->pipe_socket->wait_event(1000, SW_EVENT_WRITE))) {
-                        continue;
-                    }
-                    delete event;
-                    swoole_sys_warning("sendto swoole_aio_pipe_write failed");
-                }
-                break;
+            if (event->pipe_socket->write_sync_optimistic(&event, sizeof(event)) <= 0) {
+                swoole_sys_warning("sendto swoole_aio_pipe_write failed");
+                delete event;
             }
             // exit
             if (exit_flag) {

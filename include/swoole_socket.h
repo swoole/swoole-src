@@ -535,6 +535,12 @@ struct Socket {
      * and allow interruptions by signals.
      */
     ssize_t write_sync(const void *_buf, size_t _len, int timeout_ms = -1) const;
+    /**
+     * Write data to the socket synchronously with an optimistic approach,
+     * meaning it will not wait for the socket to be writable before writing.
+     * This method is useful for scenarios where immediate write attempts are preferred.
+     */
+    ssize_t write_sync_optimistic(const void *_buf, size_t _len, int timeout_ms = -1) const;
 
     int shutdown(int _how) const {
         return ::shutdown(fd, _how);
@@ -554,7 +560,7 @@ struct Socket {
         return ::sendto(fd, data, len, flags, &dst_addr.addr.ss, dst_addr.len);
     }
 
-    int catch_error(int err);
+    int catch_error(int err) const;
 
     int catch_write_error(const int err) {
         switch (err) {
