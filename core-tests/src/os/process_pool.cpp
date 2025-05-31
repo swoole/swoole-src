@@ -200,9 +200,17 @@ TEST(process_pool, shutdown) {
     };
 
     pool.onTask = [](ProcessPool *pool, Worker *worker, EventData *task) -> int {
+        usleep(1000);
         kill(pool->master_pid, SIGTERM);
-
         return 0;
+    };
+
+    pool.onStart = [](ProcessPool *pool) {
+        EventData msg{};
+        msg.info.len = 128;
+        swoole_random_string(msg.data, msg.info.len);
+        int worker_id = -1;
+        pool->dispatch_sync(&msg, &worker_id);
     };
 
     current_pool = &pool;
@@ -210,13 +218,6 @@ TEST(process_pool, shutdown) {
 
     // start
     ASSERT_EQ(pool.start(), SW_OK);
-
-    EventData msg{};
-    msg.info.len = 128;
-    swoole_random_string(msg.data, msg.info.len);
-    int worker_id = -1;
-    pool.dispatch_sync(&msg, &worker_id);
-
     // wait
     ASSERT_EQ(pool.wait(), SW_OK);
 
@@ -479,8 +480,9 @@ TEST(process_pool, socket) {
 
 TEST(process_pool, listen) {
     ProcessPool pool{};
+    auto port = TEST_PORT + __LINE__;
     ASSERT_EQ(pool.create(1, 0, SW_IPC_SOCKET), SW_OK);
-    ASSERT_EQ(pool.listen("127.0.0.1", 9509, 128), SW_OK);
+    ASSERT_EQ(pool.listen("127.0.0.1", port, 128), SW_OK);
 
     pool.set_protocol(SW_PROTOCOL_STREAM);
 
@@ -513,7 +515,7 @@ TEST(process_pool, listen) {
         swoole_signal_block_all();
 
         network::SyncClient c(SW_SOCK_TCP);
-        c.connect("127.0.0.1", 9509);
+        c.connect("127.0.0.1", port);
 
         uint32_t pkt_len = htonl(rmem.length);
 
