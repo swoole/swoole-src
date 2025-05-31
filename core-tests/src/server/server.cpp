@@ -784,7 +784,8 @@ TEST(server, reload_thread) {
     serv.worker_num = 2;
     serv.task_worker_num = 2;
 
-    swoole_set_log_level(SW_LOG_INFO);
+    swoole_set_trace_flags(SW_TRACE_ALL);
+    swoole_set_log_level(SW_LOG_TRACE);
 
     DEBUG() << "add port\n";
     ASSERT_NE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0), nullptr);

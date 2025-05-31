@@ -60,6 +60,10 @@ ThreadFactory::ThreadFactory(Server *server) : BaseFactory(server) {
     cv_timeout_ms_ = -1;
 }
 
+ThreadFactory::~ThreadFactory() {
+    ThreadFactory::shutdown();
+}
+
 bool ThreadFactory::start() {
     if (!server_->create_worker_pipes()) {
         return false;
@@ -74,15 +78,13 @@ bool ThreadFactory::start() {
 }
 
 bool ThreadFactory::shutdown() {
-    for (auto &thread : threads_) {
+    for (const auto &thread : threads_) {
         if (thread->joinable()) {
             thread->join();
         }
     }
     return true;
 }
-
-ThreadFactory::~ThreadFactory() = default;
 
 void ThreadFactory::at_thread_enter(WorkerId id, int worker_type) {
     swoole_thread_init(false);
@@ -221,7 +223,7 @@ void ThreadFactory::spawn_manager_thread(WorkerId i) {
 }
 
 void ThreadFactory::wait() {
-    while (server_->running) {
+    while (true) {
         std::unique_lock lock(lock_);
         if (cv_timeout_ms_ > 0) {
             cv_.wait_for(lock, std::chrono::milliseconds(cv_timeout_ms_), [this] { return !queue_.empty(); });
@@ -246,7 +248,6 @@ void ThreadFactory::wait() {
                 goto _do_reload;
             }
             if (exited_worker == cmd_ptr(CMD_MANAGER_EXIT)) {
-                server_->running = false;
                 break;
             }
 
@@ -416,17 +417,8 @@ void Server::stop_worker_threads() {
     auto *_factory = dynamic_cast<ThreadFactory *>(factory);
     _factory->terminate_manager_thread();
 
-    DataHead event = {};
-    event.type = SW_SERVER_EVENT_SHUTDOWN;
-
-    SW_LOOP_N(worker_num) {
-        send_to_worker_from_worker(get_worker(i), &event, sizeof(event), SW_PIPE_MASTER);
-    }
-
-    if (task_worker_num > 0) {
-        SW_LOOP_N(task_worker_num) {
-            send_to_worker_from_worker(get_worker(worker_num + i), &event, sizeof(event), SW_PIPE_MASTER);
-        }
+    SW_LOOP_N(get_core_worker_num()) {
+        kill_worker(i);
     }
 }
 
