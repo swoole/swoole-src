@@ -995,7 +995,9 @@ TEST(client, ssl) {
     ASSERT_EQ(sock->ssl_writev(&wr_vec), req.length());
 
     sw_tg_buffer()->clear();
-    sw_tg_buffer()->extend(1024 * 1024);
+    if (sw_tg_buffer()->size < 1024 * 1024) {
+        sw_tg_buffer()->extend(1024 * 1024);
+    }
 
     constexpr off_t offset2 = 1949;
     iovec rd_iov[2];

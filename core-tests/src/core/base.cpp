@@ -202,6 +202,7 @@ TEST(base, mkdir_recursive) {
 }
 
 TEST(base, set_task_tmpdir) {
+    auto ori_tmpdir = swoole_get_task_tmpdir();
     ASSERT_FALSE(swoole_set_task_tmpdir("aaa"));
 
     size_t length = SW_TASK_TMP_PATH_SIZE + 1;
@@ -239,6 +240,8 @@ TEST(base, set_task_tmpdir) {
     ASSERT_FALSE(swoole_set_task_tmpdir(dir));
 
     test::recursive_rmdir(dir.c_str());
+
+    ASSERT_TRUE(swoole_set_task_tmpdir(ori_tmpdir));
 }
 
 TEST(base, version) {
