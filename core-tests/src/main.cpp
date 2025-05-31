@@ -120,7 +120,7 @@ int exec_js_script(const std::string &file, const std::string &args) {
 }
 
 int get_random_port() {
-    return TEST_PORT + swoole_system_random(1, 10000);
+    return TEST_PORT + swoole_random_int() % 10000;
 }
 
 int wait_all_child_processes(bool verbose) {

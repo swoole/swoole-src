@@ -478,7 +478,7 @@ TEST(socket, clean) {
 
 TEST(socket, check_liveness) {
     mutex m;
-    int svr_port = swoole::test::get_random_port();
+    int svr_port = TEST_PORT + __LINE__;
     m.lock();
 
     thread t1([&m, svr_port]() {
