@@ -554,4 +554,5 @@ TEST(base, undefined_behavior) {
     delete SwooleG.logger;
     SwooleG.logger = nullptr;  // avoid double free in swoole_shutdown()
     ASSERT_EQ(swoole_get_log_level(), SW_LOG_NONE);
+    SwooleG.logger = new Logger();
 }

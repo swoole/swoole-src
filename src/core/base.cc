@@ -126,7 +126,7 @@ void *sw_realloc(void *ptr, size_t size) {
 static void bug_report_message_init() {
     SwooleG.bug_report_message += "\n" + std::string(SWOOLE_BUG_REPORT) + "\n";
 
-    struct utsname u;
+    utsname u;
     if (uname(&u) != -1) {
         SwooleG.bug_report_message +=
             swoole::std_string::format("OS: %s %s %s %s\n", u.sysname, u.release, u.version, u.machine);
@@ -141,7 +141,7 @@ static void bug_report_message_init() {
 #endif
 }
 
-void swoole_init(void) {
+void swoole_init() {
     if (SwooleG.init) {
         return;
     }
@@ -184,7 +184,7 @@ void swoole_init(void) {
     // init global shared memory
     SwooleG.memory_pool = new swoole::GlobalMemory(SW_GLOBAL_MEMORY_PAGESIZE, true);
     SwooleG.max_sockets = SW_MAX_SOCKETS_DEFAULT;
-    struct rlimit rlmt;
+    rlimit rlmt;
     if (getrlimit(RLIMIT_NOFILE, &rlmt) < 0) {
         swoole_sys_warning("getrlimit() failed");
     } else {
@@ -237,7 +237,7 @@ SW_API int swoole_api_version_id(void) {
 
 SW_EXTERN_C_END
 
-void swoole_clean(void) {
+void swoole_clean() {
     SW_LOOP_N(SW_MAX_HOOK_TYPE) {
         if (SwooleG.hooks[i]) {
             auto hooks = static_cast<std::list<swoole::Callback> *>(SwooleG.hooks[i]);
