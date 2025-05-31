@@ -100,6 +100,7 @@ void ThreadFactory::push_to_wait_queue(Worker *worker) {
     queue_.push(worker);
     lock_.unlock();
     cv_.notify_one();
+    swoole_info("push [%p] to wait queue", worker);
 }
 
 void ThreadFactory::at_thread_exit(Worker *worker) {
@@ -227,6 +228,8 @@ void ThreadFactory::wait() {
         } else {
             cv_.wait(lock, [this] { return !queue_.empty(); });
         }
+
+        swoole_info("manager thread is waiting for worker exit, queue size: %zu", queue_.size());
 
         if (!queue_.empty()) {
             Worker *exited_worker = queue_.front();

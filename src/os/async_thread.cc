@@ -231,11 +231,11 @@ void ThreadPool::main_func(const bool is_core_worker) {
         std::unique_lock lock(event_mutex);
         ++n_waiting;
         if (is_core_worker || max_idle_time <= 0) {
-            _cv.wait(lock, [this] { return !running || !queue_.empty(); });
+            _cv.wait(lock, [this] { return !queue_.empty() || !running; });
         } else {
             timeout = !_cv.wait_for(lock,
                                     std::chrono::microseconds(static_cast<long>(max_idle_time) * 1000 * 1000),
-                                    [this] { return !running || !queue_.empty(); });
+                                    [this] { return !queue_.empty() || !running; });
         }
         --n_waiting;
 
