@@ -96,7 +96,7 @@ void ThreadFactory::at_thread_enter(WorkerId id, int worker_type) {
     swoole_set_thread_id(id);
     swoole_set_thread_type(Server::THREAD_WORKER);
 
-    swoole_info("at_thread_enter=%d join", id);
+    swoole_trace_log(SW_TRACE_THREAD, "at_thread_enter=%d", id);
 }
 
 void ThreadFactory::push_to_wait_queue(Worker *worker) {
@@ -104,13 +104,16 @@ void ThreadFactory::push_to_wait_queue(Worker *worker) {
     queue_.push(worker);
     lock_.unlock();
     cv_.notify_one();
-    swoole_info("push [%p] to wait queue", worker);
+
+    swoole_trace_log(SW_TRACE_THREAD, "push [%p] to wait queue", worker);
 }
 
 void ThreadFactory::at_thread_exit(Worker *worker) {
     if (worker) {
         push_to_wait_queue(worker);
     }
+
+    swoole_trace_log(SW_TRACE_THREAD, "at_thread_exit=%d", worker->id);
     swoole_thread_clean(false);
 }
 
@@ -233,7 +236,7 @@ void ThreadFactory::wait() {
             cv_.wait(lock, [this] { return !queue_.empty(); });
         }
 
-        swoole_info("manager thread is waiting for worker exit, queue size: %zu", queue_.size());
+        swoole_trace_log(SW_TRACE_THREAD, "manager thread is waiting for worker exit, queue size: %zu", queue_.size());
 
         if (!queue_.empty()) {
             Worker *exited_worker = queue_.front();
@@ -247,7 +250,7 @@ void ThreadFactory::wait() {
                 break;
             }
 
-            swoole_info("worker(type=%d, tid=%d, id=%d) exit, status=%d",
+            swoole_trace_log(SW_TRACE_THREAD, "worker(type=%d, tid=%d, id=%d) exit, status=%d",
                         exited_worker->type,
                         exited_worker->pid,
                         exited_worker->id,
@@ -258,15 +261,14 @@ void ThreadFactory::wait() {
             if (status_code != 0) {
                 ExitStatus exit_status(exited_worker->pid, status_code << 8);
                 server_->call_worker_error_callback(exited_worker, exit_status);
-                swoole_warning("worker(tid=%d, id=%d) abnormal exit, status=%d",
+                swoole_trace_log(SW_TRACE_THREAD, "worker(tid=%d, id=%d) abnormal exit, status=%d",
                                exit_status.get_pid(),
                                exited_worker->id,
                                exit_status.get_code());
             }
 
             thread->join();
-
-            swoole_info("thread=%d join", exited_worker->id);
+            swoole_trace_log(SW_TRACE_THREAD, "thread=%d join", exited_worker->id);
 
             switch (exited_worker->type) {
             case SW_EVENT_WORKER:
