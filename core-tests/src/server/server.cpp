@@ -806,9 +806,11 @@ TEST(server, reload_thread) {
         EXPECT_TRUE(serv.reload(true));
         EXPECT_FALSE(serv.reload(true));  // reload again should fail
         EXPECT_ERREQ(SW_ERROR_OPERATION_NOT_SUPPORT);
+
+        DEBUG() << "before shutdown, sleep 1s\n";
         sleep(1);
         DEBUG() << "shutdown\n";
-        serv.shutdown();
+        EXPECT_TRUE(serv.shutdown());
         swoole_thread_clean();
     });
 

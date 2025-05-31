@@ -247,8 +247,11 @@ void ThreadFactory::wait() {
                 break;
             }
 
-            swoole_info(
-                "worker(type=%d, tid=%d, id=%d) exit, status=%d", exited_worker->type, exited_worker->pid, exited_worker->id, exited_worker->status);
+            swoole_info("worker(type=%d, tid=%d, id=%d) exit, status=%d",
+                        exited_worker->type,
+                        exited_worker->pid,
+                        exited_worker->id,
+                        exited_worker->status);
 
             auto thread = threads_[exited_worker->id];
             int status_code = thread->get_exit_status();
