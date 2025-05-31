@@ -125,6 +125,7 @@ TEST(timer, get) {
 
     TimerNode *timerNode = swoole_timer_get(timer_id);
     ASSERT_EQ(timerNode->id, timer_id);
+    swoole_timer_free();
 }
 
 TEST(timer, delay) {
@@ -138,6 +139,8 @@ TEST(timer, delay) {
     swoole_timer_delay(timerNode, 100);
     swoole_event_wait();
     ASSERT_GE(ms2 - ms1, 100);
+    swoole_timer_del(timerNode);
+    swoole_timer_free();
 }
 
 TEST(timer, error) {
