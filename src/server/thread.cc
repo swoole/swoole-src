@@ -95,6 +95,8 @@ void ThreadFactory::at_thread_enter(WorkerId id, int worker_type) {
 
     swoole_set_thread_id(id);
     swoole_set_thread_type(Server::THREAD_WORKER);
+
+    swoole_info("at_thread_enter=%d join", id);
 }
 
 void ThreadFactory::push_to_wait_queue(Worker *worker) {
@@ -238,18 +240,15 @@ void ThreadFactory::wait() {
             queue_.pop();
             lock.unlock();
 
-            swoole_trace_log(SW_TRACE_THREAD,
-                             "worker(tid=%d, id=%d) exit, status=%d",
-                             exited_worker->pid,
-                             exited_worker->id,
-                             exited_worker->status);
-
             if (exited_worker == cmd_ptr(CMD_RELOAD)) {
                 goto _do_reload;
             }
             if (exited_worker == cmd_ptr(CMD_MANAGER_EXIT)) {
                 break;
             }
+
+            swoole_info(
+                "worker(type=%d, tid=%d, id=%d) exit, status=%d", exited_worker->type, exited_worker->pid, exited_worker->id, exited_worker->status);
 
             auto thread = threads_[exited_worker->id];
             int status_code = thread->get_exit_status();
@@ -263,6 +262,8 @@ void ThreadFactory::wait() {
             }
 
             thread->join();
+
+            swoole_info("thread=%d join", exited_worker->id);
 
             switch (exited_worker->type) {
             case SW_EVENT_WORKER:
