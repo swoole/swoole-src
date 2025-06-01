@@ -1136,8 +1136,7 @@ bool Socket::ssl_context_create() {
 
 bool Socket::ssl_create(SSLContext *ssl_context) {
     if (socket->ssl) {
-        set_err(SW_ERROR_WRONG_OPERATION);
-        return false;
+        return true;
     }
     if (socket->ssl_create(ssl_context, 0) < 0) {
         set_err(SW_ERROR_SSL_CREATE_SESSION_FAILED);
