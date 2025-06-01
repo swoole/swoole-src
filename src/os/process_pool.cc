@@ -25,6 +25,9 @@
 #include "swoole_process_pool.h"
 #include "swoole_client.h"
 
+#include <pwd.h>
+#include <grp.h>
+
 SW_THREAD_LOCAL swoole::WorkerGlobal SwooleWG = {};
 
 namespace swoole {
@@ -56,7 +59,7 @@ int ProcessPool::create(uint32_t _worker_num, key_t _msgqueue_key, swIPCMode _ip
     /**
      * Shared memory is used here
      */
-    workers = (Worker *) sw_mem_pool()->alloc(_worker_num * sizeof(Worker));
+    workers = static_cast<Worker *>(sw_mem_pool()->alloc(_worker_num * sizeof(Worker)));
     if (workers == nullptr) {
         swoole_sys_warning("malloc[1] failed");
         return SW_ERR;
@@ -157,7 +160,7 @@ int ProcessPool::create_message_bus() {
     return SW_OK;
 }
 
-int ProcessPool::listen(const char *socket_file, int blacklog) {
+int ProcessPool::listen(const char *socket_file, int blacklog) const {
     if (ipc_mode != SW_IPC_SOCKET) {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_OPERATION_NOT_SUPPORT, "not support, ipc_mode must be SW_IPC_SOCKET");
         return SW_ERR;
@@ -174,7 +177,7 @@ int ProcessPool::listen(const char *socket_file, int blacklog) {
     return SW_OK;
 }
 
-int ProcessPool::listen(const char *host, int port, int blacklog) {
+int ProcessPool::listen(const char *host, int port, int blacklog) const {
     if (ipc_mode != SW_IPC_SOCKET) {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_OPERATION_NOT_SUPPORT, "not support, ipc_mode must be SW_IPC_SOCKET");
         return SW_ERR;
@@ -281,7 +284,7 @@ int ProcessPool::schedule() {
     return target_worker_id;
 }
 
-int ProcessPool::response(const char *data, uint32_t length) {
+int ProcessPool::response(const char *data, uint32_t length) const {
     if (data == nullptr || length == 0 || stream_info_ == nullptr || stream_info_->last_connection == nullptr ||
         stream_info_->response_buffer == nullptr) {
         swoole_set_last_error(SW_ERROR_INVALID_PARAMS);
@@ -290,7 +293,7 @@ int ProcessPool::response(const char *data, uint32_t length) {
     return stream_info_->response_buffer->append(data, length);
 }
 
-bool ProcessPool::send_message(WorkerId worker_id, const char *message, size_t l_message) {
+bool ProcessPool::send_message(WorkerId worker_id, const char *message, size_t l_message) const {
     Worker *worker = get_worker(worker_id);
     if (message_bus) {
         SendData _task{};
@@ -303,14 +306,14 @@ bool ProcessPool::send_message(WorkerId worker_id, const char *message, size_t l
     }
 }
 
-int ProcessPool::push_message(EventData *msg) {
+int ProcessPool::push_message(const EventData *msg) const {
     if (message_box->push(msg, msg->size()) < 0) {
         return SW_ERR;
     }
     return swoole_kill(master_pid, SIGIO);
 }
 
-int ProcessPool::push_message(uint8_t type, const void *data, size_t length) {
+int ProcessPool::push_message(uint8_t type, const void *data, size_t length) const {
     if (!message_box) {
         return SW_ERR;
     }
@@ -1087,7 +1090,45 @@ void Worker::set_max_request(uint32_t max_request, uint32_t max_request_grace) {
     SwooleWG.max_request = max_request;
 }
 
-bool Worker::has_exceeded_max_request() {
+
+void Worker::set_isolation(const std::string &group_, const std::string &user_, const std::string &chroot_) {
+    group *_group = nullptr;
+    passwd *_passwd = nullptr;
+    // get group info
+    if (!group_.empty()) {
+        _group = getgrnam(group_.c_str());
+        if (!_group) {
+            swoole_warning("get group [%s] info failed", group_.c_str());
+        }
+    }
+    // get user info
+    if (!user_.empty()) {
+        _passwd = getpwnam(user_.c_str());
+        if (!_passwd) {
+            swoole_warning("get user [%s] info failed", user_.c_str());
+        }
+    }
+    // set process group
+    if (_group && setgid(_group->gr_gid) < 0) {
+        swoole_sys_warning("setgid to [%s] failed", group_.c_str());
+    }
+    // set process user
+    if (_passwd && setuid(_passwd->pw_uid) < 0) {
+        swoole_sys_warning("setuid to [%s] failed", user_.c_str());
+    }
+    // chroot
+    if (!chroot_.empty()) {
+        if (::chroot(chroot_.c_str()) == 0) {
+            if (chdir("/") < 0) {
+                swoole_sys_warning("chdir('/') failed");
+            }
+        } else {
+            swoole_sys_warning("chroot('%s') failed", chroot_.c_str());
+        }
+    }
+}
+
+bool Worker::has_exceeded_max_request() const {
     return SwooleWG.max_request > 0 && request_count >= SwooleWG.max_request;
 }
 

@@ -925,6 +925,52 @@ TEST(server, reload_thread_2) {
 
     test::wait_all_child_processes();
 }
+
+TEST(server, reload_thread_3) {
+    Server serv(Server::MODE_THREAD);
+    serv.worker_num = 2;
+
+    std::unordered_map<std::string, bool> flags;
+    swoole_set_log_level(SW_LOG_INFO);
+
+    ASSERT_NE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0), nullptr);
+
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    std::atomic<size_t> count(0);
+
+    serv.onWorkerStart = [&count](Server *serv, Worker *worker) { ++count; };
+    serv.onReceive = [](Server *serv, RecvData *req) -> int { return SW_OK; };
+    serv.onAfterReload = [&flags](Server *serv) {
+        flags["onAfterReload"] = true;
+        EXPECT_FALSE(serv->reload(false));
+        EXPECT_ERREQ(SW_ERROR_OPERATION_NOT_SUPPORT);
+        swoole_timer_after(500, [serv, &flags](auto r1, auto r2) {
+            flags["shutdown"] = true;
+            serv->shutdown();
+        });
+    };
+
+    serv.onManagerStart = [&flags](Server *serv) {
+        swoole_timer_after(500, [serv, &flags](auto r1, auto r2) {
+            flags["reload"] = true;
+            EXPECT_TRUE(serv->reload(true));
+        });
+    };
+
+    serv.onManagerStop = [&flags](Server *serv) { flags["onManagerStop"] = true; };
+
+    ASSERT_EQ(serv.start(), SW_OK);
+
+    ASSERT_TRUE(flags["onAfterReload"]);
+    ASSERT_TRUE(flags["onManagerStop"]);
+    ASSERT_TRUE(flags["reload"]);
+    ASSERT_TRUE(flags["shutdown"]);
+
+    ASSERT_GE(count, serv.worker_num * 2);
+
+    test::wait_all_child_processes();
+}
 #endif
 
 TEST(server, reload_all_workers) {
@@ -3950,7 +3996,7 @@ TEST(server, discard_data) {
 }
 
 TEST(server, worker_set_isolation) {
-    Server::worker_set_isolation("not-exists-group", "not-exists-user", "/tmp/not-exists-dir");
+    Worker::set_isolation("not-exists-group", "not-exists-user", "/tmp/not-exists-dir");
 }
 
 TEST(server, pause_and_resume) {

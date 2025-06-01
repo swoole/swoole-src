@@ -250,21 +250,23 @@ void ThreadFactory::wait() {
                 break;
             }
 
-            swoole_trace_log(SW_TRACE_THREAD, "worker(type=%d, tid=%d, id=%d) exit, status=%d",
-                        exited_worker->type,
-                        exited_worker->pid,
-                        exited_worker->id,
-                        exited_worker->status);
+            swoole_trace_log(SW_TRACE_THREAD,
+                             "worker(type=%d, tid=%d, id=%d) exit, status=%d",
+                             exited_worker->type,
+                             exited_worker->pid,
+                             exited_worker->id,
+                             exited_worker->status);
 
             auto thread = threads_[exited_worker->id];
             int status_code = thread->get_exit_status();
             if (status_code != 0) {
                 ExitStatus exit_status(exited_worker->pid, status_code << 8);
                 server_->call_worker_error_callback(exited_worker, exit_status);
-                swoole_trace_log(SW_TRACE_THREAD, "worker(tid=%d, id=%d) abnormal exit, status=%d",
-                               exit_status.get_pid(),
-                               exited_worker->id,
-                               exit_status.get_code());
+                swoole_trace_log(SW_TRACE_THREAD,
+                                 "worker(tid=%d, id=%d) abnormal exit, status=%d",
+                                 exit_status.get_pid(),
+                                 exited_worker->id,
+                                 exit_status.get_code());
             }
 
             thread->join();
@@ -323,18 +325,17 @@ void ThreadFactory::do_reload() {
 bool ThreadFactory::reload(bool _reload_all_workers) {
     auto _what = _reload_all_workers ? "all" : "task";
 
-    // Prevent duplicate submission of reload requests.
-    if (!sw_atomic_cmp_set(&reloading, 0, 1)) {
-        swoole_set_last_error(SW_ERROR_OPERATION_NOT_SUPPORT);
-        return false;
-    }
-
     if (server_->task_worker_num == 0 && !_reload_all_workers) {
         swoole_error_log(SW_LOG_WARNING,
                          SW_ERROR_OPERATION_NOT_SUPPORT,
                          "Cannot reload %s workers, task workers are not started",
                          _what);
-        reloading = 0;
+        return false;
+    }
+
+    // Prevent duplicate submission of reload requests.
+    if (!sw_atomic_cmp_set(&reloading, 0, 1)) {
+        swoole_set_last_error(SW_ERROR_OPERATION_NOT_SUPPORT);
         return false;
     }
 

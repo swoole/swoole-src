@@ -7,8 +7,10 @@
 #define sysv_signal signal
 #endif
 
+#include "swoole_server.h"
 #include "swoole_signal.h"
-
+#include <sys/ipc.h>
+#include <sys/msg.h>
 using namespace swoole;
 
 constexpr int magic_number = 99900011;
@@ -130,6 +132,21 @@ TEST(process_pool, msgqueue) {
     ASSERT_EQ(pool.create(1, 0x9501, SW_IPC_MSGQUEUE), SW_OK);
 
     test_func_task_protocol(pool);
+}
+
+TEST(process_pool, msgqueue_2) {
+    ProcessPool pool{};
+
+    auto key = 0x9501 + __LINE__;
+
+    test::spawn_exec_and_wait([key]() {
+        Worker::set_isolation("", "nobody", "");
+        auto msg_id_ = msgget(key, IPC_CREAT);
+        ASSERT_GE(msg_id_, 0);
+    });
+
+    ASSERT_EQ(pool.create(1, key, SW_IPC_MSGQUEUE), SW_ERR);
+    ASSERT_ERREQ(EACCES);
 }
 
 TEST(process_pool, message_protocol) {

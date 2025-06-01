@@ -1642,7 +1642,6 @@ class Server {
     void worker_start_callback(Worker *worker);
     void worker_stop_callback(Worker *worker);
     void worker_accept_event(DataHead *info);
-    static void worker_set_isolation(const std::string &group_, const std::string &user_, const std::string &chroot_);
     void worker_signal_init() const;
 
     std::function<void(std::shared_ptr<Thread>, const WorkerFn &fn)> worker_thread_start;

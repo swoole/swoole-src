@@ -180,8 +180,9 @@ struct Worker {
     void *ptr2;
 
     ssize_t send_pipe_message(const void *buf, size_t n, int flags) const;
-    bool has_exceeded_max_request();
+    bool has_exceeded_max_request() const;
     void set_max_request(uint32_t max_request, uint32_t max_request_grace);
+    static void set_isolation(const std::string &group_, const std::string &user_, const std::string &chroot_);
     void report_error(const ExitStatus &exit_status);
     /**
      * Init global state for worker process.
@@ -410,7 +411,7 @@ struct ProcessPool {
     void stop(Worker *worker);
     void kill_all_workers(int signo = SIGKILL);
     swResultCode dispatch(EventData *data, int *worker_id);
-    int response(const char *data, uint32_t length);
+    int response(const char *data, uint32_t length) const;
     swResultCode dispatch_sync(EventData *data, int *dst_worker_id);
     swResultCode dispatch_sync(const char *data, uint32_t len);
     void add_worker(Worker *worker) const;
@@ -420,12 +421,12 @@ struct ProcessPool {
     int create(uint32_t worker_num, key_t msgqueue_key = 0, swIPCMode ipc_mode = SW_IPC_NONE);
     int create_message_box(size_t memory_size);
     int create_message_bus();
-    int push_message(uint8_t type, const void *data, size_t length);
-    int push_message(EventData *msg);
-    bool send_message(WorkerId worker_id, const char *message, size_t l_message);
+    int push_message(uint8_t type, const void *data, size_t length) const;
+    int push_message(const EventData *msg) const;
+    bool send_message(WorkerId worker_id, const char *message, size_t l_message) const;
     int pop_message(void *data, size_t size);
-    int listen(const char *socket_file, int blacklog);
-    int listen(const char *host, int port, int blacklog);
+    int listen(const char *socket_file, int blacklog) const;
+    int listen(const char *host, int port, int blacklog) const;
     int schedule();
     bool is_worker_running(Worker *worker);
 
