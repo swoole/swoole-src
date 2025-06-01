@@ -859,6 +859,40 @@ TEST(http_server, upload) {
     t.join();
 }
 
+TEST(http_server, max_request_size) {
+    std::thread t;
+    auto server = http_server::listen(":0", [](Context &ctx) {
+        EXPECT_EQ(ctx.files.size(), 1);
+        ctx.setStatusCode(200);
+        ctx.setHeader("Connection", "close");
+        ASSERT_EQ(ctx.request_path, "/upload");
+        ASSERT_EQ(ctx.query_string, "test=curl");
+        ctx.end(TEST_STR);
+    });
+    server->worker_num = 1;
+    server->get_primary_port()->set_package_max_length(128 * 1024);
+    server->onWorkerStart = [&t](Server *server, Worker *worker) {
+        t = std::thread([server]() {
+            swoole_signal_block_all();
+            string jpg_path = test::get_jpg_file();
+            string str_1 = "curl -i -s -S -F \"file=@" + jpg_path + "\" http://";
+            string command =
+                str_1 + TEST_HOST + ":" + to_string(server->get_primary_port()->port) + "/upload?test=curl";
+
+            pid_t pid2;
+            int pipe = swoole_shell_exec(command.c_str(), &pid2, 0);
+            usleep(200000);
+            char buf[1024] = {};
+            read(pipe, buf, sizeof(buf) - 1);
+            ASSERT_TRUE(strstr(buf, "413 Request Entity Too Large") != nullptr);
+
+            kill(server->get_master_pid(), SIGTERM);
+        });
+    };
+    server->start();
+    t.join();
+}
+
 TEST(http_server, heartbeat) {
     Server *server = test_http_server();
     server->heartbeat_check_interval = 0;
