@@ -7,7 +7,6 @@
 #define sysv_signal signal
 #endif
 
-#include "swoole_server.h"
 #include "swoole_signal.h"
 #include <sys/ipc.h>
 #include <sys/msg.h>

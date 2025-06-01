@@ -1090,7 +1090,6 @@ void Worker::set_max_request(uint32_t max_request, uint32_t max_request_grace) {
     SwooleWG.max_request = max_request;
 }
 
-
 void Worker::set_isolation(const std::string &group_, const std::string &user_, const std::string &chroot_) {
     group *_group = nullptr;
     passwd *_passwd = nullptr;
