@@ -93,7 +93,7 @@ TEST(file, file_get_contents) {
     ASSERT_ERREQ(SW_ERROR_FILE_EMPTY);
     remove(empty_file);
 
-    auto large_file = test::get_root_path() + "/core-tests/bin/core_tests";
+    auto large_file = test::get_root_path() + "/bin/core-tests";
     SwooleG.max_file_content = 1024 * 1024;
     ASSERT_EQ(file_get_contents(large_file), nullptr);
     ASSERT_ERREQ(SW_ERROR_FILE_TOO_LARGE);

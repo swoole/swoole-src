@@ -14,8 +14,6 @@
   +----------------------------------------------------------------------+
 */
 
-#include <pwd.h>
-#include <grp.h>
 #include <sys/uio.h>
 #include <sys/mman.h>
 
@@ -219,46 +217,9 @@ static bool is_root_user() {
     return geteuid() == 0;
 }
 
-void Server::worker_set_isolation(const std::string &group_, const std::string &user_, const std::string &chroot_) {
-    group *_group = nullptr;
-    passwd *_passwd = nullptr;
-    // get group info
-    if (!group_.empty()) {
-        _group = getgrnam(group_.c_str());
-        if (!_group) {
-            swoole_warning("get group [%s] info failed", group_.c_str());
-        }
-    }
-    // get user info
-    if (!user_.empty()) {
-        _passwd = getpwnam(user_.c_str());
-        if (!_passwd) {
-            swoole_warning("get user [%s] info failed", user_.c_str());
-        }
-    }
-    // set process group
-    if (_group && setgid(_group->gr_gid) < 0) {
-        swoole_sys_warning("setgid to [%s] failed", group_.c_str());
-    }
-    // set process user
-    if (_passwd && setuid(_passwd->pw_uid) < 0) {
-        swoole_sys_warning("setuid to [%s] failed", user_.c_str());
-    }
-    // chroot
-    if (!chroot_.empty()) {
-        if (::chroot(chroot_.c_str()) == 0) {
-            if (chdir("/") < 0) {
-                swoole_sys_warning("chdir('/') failed");
-            }
-        } else {
-            swoole_sys_warning("chroot('%s') failed", chroot_.c_str());
-        }
-    }
-}
-
 void Server::worker_start_callback(Worker *worker) {
     if (is_root_user()) {
-        worker_set_isolation(group_, user_, chroot_);
+        Worker::set_isolation(group_, user_, chroot_);
     }
 
     SW_LOOP_N(worker_num + task_worker_num) {
@@ -353,20 +314,20 @@ bool Server::kill_worker(int worker_id) {
     }
 
     worker_id = worker_id < 0 ? swoole_get_worker_id() : worker_id;
+    const Worker *worker = get_worker(worker_id);
+    if (worker == nullptr) {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "the worker_id[%d] is invalid", worker_id);
+        return false;
+    }
 
     swoole_trace_log(SW_TRACE_SERVER, "kill worker#%d", worker_id);
 
     if (is_thread_mode()) {
         DataHead event = {};
         event.type = SW_SERVER_EVENT_SHUTDOWN;
-        return send_to_worker_from_worker(get_worker(worker_id), &event, sizeof(event), SW_PIPE_MASTER) != -1;
+        return send_to_worker_from_worker(worker, &event, sizeof(event), SW_PIPE_MASTER) != -1;
     }
 
-    const Worker *worker = get_worker(worker_id);
-    if (worker == nullptr) {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "the worker_id[%d] is invalid", worker_id);
-        return false;
-    }
     if (swoole_kill(worker->pid, SIGTERM) < 0) {
         swoole_sys_warning("kill(%d, SIGTERM) failed", worker->pid);
         return false;
@@ -605,7 +566,7 @@ ssize_t Server::send_to_reactor_thread(const EventData *ev_data, size_t sendn, S
 /**
  * send message from worker to another worker
  */
-ssize_t Server::send_to_worker_from_worker(Worker *dst_worker, const void *buf, size_t len, int flags) {
+ssize_t Server::send_to_worker_from_worker(const Worker *dst_worker, const void *buf, size_t len, int flags) {
     return dst_worker->send_pipe_message(buf, len, flags);
 }
 

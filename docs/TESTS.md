@@ -5,28 +5,38 @@ Used to test the core code in the `src/` directory, only as a C++ library, not r
 The core tests depends on the googletest framework, and googletest needs to be installed.
 The core test cases must be written with `C++`.
 
+`GCC/G++` version `8.0` or higher is required, with full support for `C++17`.
+
+### **Build googletest**
+Since swoole core unit testing rely on googletest, we need compile googletest at first.
+
+```shell
+wget https://github.com/google/googletest/releases/download/v1.15.2/googletest-1.15.2.tar.gz
+tar zxf googletest-1.15.2.tar.gz
+cd googletest-1.15.2
+mkdir ./build && cd ./build
+cmake ..
+make -j
+sudo make install
+```
+
 ### Build libswoole.so
 
 ```shell
 cd swoole-src
 cmake .
-make -j$(nproc)
+make -j$(nproc) lib-swoole
 ```
-
-### Export source directory
-```shell
-SWOOLE_DIR=/your/path/to/swoole-src
-```
-
 ### Build core-tests
 ```shell
-cd core-tests
-cmake .
-make -j$(nproc)
+make -j$(nproc) core-tests
 ```
 
 ### Run core-tests
 ```shell
+# run all dependency services
+cd core-tests
+docker compose up -d
 # run all tests
 ./bin/core-tests
 # run some test cases

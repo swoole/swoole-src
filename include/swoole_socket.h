@@ -99,20 +99,57 @@ struct Address {
     socklen_t len;
     SocketType type;
 
+    /**
+     * Assign an address based on the socket type and host/port.
+     * For IPv4, the host can be an IP address like "192.168.1.100"
+     * or a domain name like "www.example.com".
+     * For IPv6, the host can be an IP address like "2001:0db8:85a3:0000:0000:8a2e:0370:7334"
+     * or a domain name like "ipv6.example.com".
+     * For UNIX socket, the host is the path to the socket file.
+     * If _port is 0, it will not set the port.
+     * If _resolve_name is false, it will not resolve the domain name.
+     *
+     * Returns true on success, false on failure.
+     */
     bool assign(SocketType _type, const std::string &_host, int _port = 0, bool _resolve_name = true);
+    /**
+     * Assign an address based on a URL string.
+     * The format of the URL can be:
+     * - tcp://hostname:port
+     * - udp://hostname:port
+     * - tcp://[IPv6_address]:port
+     * - udp://[IPv6_address]:port
+     * - unix:///path/to/socket
+     * - udg:///path/to/socket
+     *
+     * Returns true on success, false on failure.
+     */
     bool assign(const std::string &url);
 
     int get_port() const;
     void set_port(int _port);
     const char *get_addr() const;
-    bool is_loopback_addr();
+    bool is_loopback_addr() const;
     bool empty() const;
-    static const char *type_str(SocketType type);
 
-    static bool verify_ip(int __af, const std::string &str) {
-        char tmp_address[INET6_ADDRSTRLEN];
-        return inet_pton(__af, str.c_str(), tmp_address) == 1;
-    }
+    /**
+     * Get the string representation of the address
+     */
+    static const char *type_str(SocketType type);
+    /**
+     * Convert the address to a string representation.
+     * For IPv4, it will be in the format "192.168.1.100"
+     * For IPv6, it will be in the format "2001:0db8:85a3:0000:0000:8a2e:0370:7334"
+     * For UNIX socket, it will be the path of the socket file.
+     * The returned pointer is a static buffer, so it should not be freed.
+     */
+    static const char *addr_str(int family, const void *addr);
+    /**
+     * Verify if the input string is an IP address,
+     * where AF_INET indicates an IPv4 address, such as 192.168.1.100,
+     * and AF_INET6 indicates an IPv6 address, for example, 2001:0000:130F:0000:0000:09C0:876A:130B.
+     */
+    static bool verify_ip(int family, const std::string &str);
 };
 
 struct IOVector {
@@ -124,10 +161,10 @@ struct IOVector {
     int index = 0;
     size_t offset_bytes = 0;
 
-    IOVector(iovec *_iov, int _iovcnt);
+    IOVector(const iovec *_iov, int _iovcnt);
     ~IOVector();
 
-    void update_iterator(ssize_t __n);
+    void update_iterator(ssize_t _n);
 
     iovec *get_iterator() const {
         return iov_iterator;
@@ -234,9 +271,9 @@ struct Socket {
         buffer_size = _buffer_size;
     }
     // socket option [kernel buffer]
-    bool set_buffer_size(uint32_t _buffer_size);
-    bool set_recv_buffer_size(uint32_t _buffer_size);
-    bool set_send_buffer_size(uint32_t _buffer_size);
+    bool set_buffer_size(uint32_t _buffer_size) const;
+    bool set_recv_buffer_size(uint32_t _buffer_size) const;
+    bool set_send_buffer_size(uint32_t _buffer_size) const;
     bool set_timeout(double timeout);
     bool set_recv_timeout(double timeout);
     bool set_send_timeout(double timeout);
@@ -291,7 +328,7 @@ struct Socket {
     }
 
     int get_name();
-    int get_peer_name(Address *sa);
+    int get_peer_name(Address *sa) const;
     int set_tcp_nopush(int nopush);
 
     int set_reuse_addr(int enable = 1) const {
@@ -312,16 +349,16 @@ struct Socket {
     int sendfile_sync(const char *filename, off_t offset, size_t length, double timeout);
     ssize_t sendfile(const File &fp, off_t *offset, size_t length);
 
-    ssize_t recv(void *__buf, size_t __n, int __flags);
-    ssize_t send(const void *__buf, size_t __n, int __flags);
-    ssize_t peek(void *__buf, size_t __n, int __flags);
+    ssize_t recv(void *_buf, size_t _n, int _flags);
+    ssize_t send(const void *_buf, size_t _n, int _flags);
+    ssize_t peek(void *_buf, size_t _n, int _flags) const;
     Socket *accept();
     Socket *dup() const;
 
     ssize_t readv(IOVector *io_vector);
     ssize_t writev(IOVector *io_vector);
 
-    ssize_t writev(const struct iovec *iov, size_t iovcnt) {
+    ssize_t writev(const iovec *iov, size_t iovcnt) const {
         return ::writev(fd, iov, iovcnt);
     }
 
@@ -337,21 +374,21 @@ struct Socket {
     int bind(const struct sockaddr *sa, socklen_t len);
     int listen(int backlog = 0);
 
-    void clean();
-    ssize_t send_sync(const void *__data, size_t __len, int flags = 0);
-    ssize_t send_async(const void *__data, size_t __len);
-    ssize_t recv_sync(void *__data, size_t __len, int flags = 0);
-    ssize_t writev_sync(const struct iovec *iov, size_t iovcnt);
+    void clean() const;
+    ssize_t send_sync(const void *_data, size_t _len, int flags = 0);
+    ssize_t send_async(const void *_data, size_t _len);
+    ssize_t recv_sync(void *_data, size_t _len, int flags = 0);
+    ssize_t writev_sync(const iovec *iov, size_t iovcnt);
 
-    int connect(const Address &sa) {
+    int connect(const Address &sa) const {
         return ::connect(fd, &sa.addr.ss, sa.len);
     }
 
-    int connect(const Address *sa) {
+    int connect(const Address *sa) const {
         return ::connect(fd, &sa->addr.ss, sa->len);
     }
 
-    int connect(const std::string &host, int port) {
+    int connect(const std::string &host, int port) const {
         Address addr;
         addr.assign(socket_type, host, port);
         return connect(addr);
@@ -365,50 +402,54 @@ struct Socket {
         ssl_want_read = 0;
         ssl_want_write = 0;
     }
+    /**
+     * This function does not set the last error; to obtain internal SSL error information, you should call
+     * ERR_get_error().
+     */
     int ssl_create(SSLContext *_ssl_context, int _flags);
     int ssl_connect();
     ReturnCode ssl_accept();
-    ssize_t ssl_recv(void *__buf, size_t __n);
-    ssize_t ssl_send(const void *__buf, size_t __n);
+    ssize_t ssl_recv(void *_buf, size_t _n);
+    ssize_t ssl_send(const void *_buf, size_t _n);
     ssize_t ssl_readv(IOVector *io_vector);
     ssize_t ssl_writev(IOVector *io_vector);
     ssize_t ssl_sendfile(const File &fp, off_t *offset, size_t size);
-    STACK_OF(X509) * ssl_get_peer_cert_chain();
-    std::vector<std::string> ssl_get_peer_cert_chain(int limit);
-    X509 *ssl_get_peer_certificate();
-    int ssl_get_peer_certificate(char *buf, size_t n);
-    bool ssl_get_peer_certificate(String *buf);
-    bool ssl_verify(bool allow_self_signed);
-    bool ssl_check_host(const char *tls_host_name);
-    void ssl_catch_error();
+    STACK_OF(X509) * ssl_get_peer_cert_chain() const;
+    std::vector<std::string> ssl_get_peer_cert_chain(int limit) const;
+    X509 *ssl_get_peer_certificate() const;
+    int ssl_get_peer_certificate(char *buf, size_t n) const;
+    bool ssl_get_peer_certificate(String *buf) const;
+    bool ssl_verify(bool allow_self_signed) const;
+    bool ssl_check_host(const char *tls_host_name) const;
+    void ssl_catch_error() const;
     bool ssl_shutdown();
     void ssl_close();
     static const char *ssl_get_error_reason(int *reason);
 #endif
 
-    ssize_t recvfrom(char *__buf, size_t __len, int flags, Address *sa) {
+    ssize_t recvfrom(char *_buf, size_t _len, int flags, Address *sa) const {
         sa->len = sizeof(sa->addr);
-        return recvfrom(__buf, __len, flags, &sa->addr.ss, &sa->len);
+        return recvfrom(_buf, _len, flags, &sa->addr.ss, &sa->len);
     }
 
-    ssize_t recvfrom(char *buf, size_t len, int flags, sockaddr *addr, socklen_t *addr_len);
-    ssize_t recvfrom_sync(char *__buf, size_t __len, int flags, Address *sa);
-    ssize_t recvfrom_sync(char *__buf, size_t __len, int flags, sockaddr *addr, socklen_t *addr_len);
+    ssize_t recvfrom(char *buf, size_t len, int flags, sockaddr *addr, socklen_t *addr_len) const;
+    ssize_t recvfrom_sync(char *_buf, size_t _len, int flags, Address *sa);
+    ssize_t recvfrom_sync(char *_buf, size_t _len, int flags, sockaddr *addr, socklen_t *addr_len);
 
     bool cork();
     bool uncork();
 
-    bool isset_readable_event() {
+    bool isset_readable_event() const {
         return events & SW_EVENT_READ;
     }
 
-    bool isset_writable_event() {
+    bool isset_writable_event() const {
         return events & SW_EVENT_WRITE;
     }
 
-    int wait_event(int timeout_ms, int events);
-    bool wait_for(const std::function<swReturnCode(void)> &fn, int event, double timeout = -1);
-    int what_event_want(int default_event);
+    int wait_event(int timeout_ms, int events) const;
+    bool wait_for(const std::function<swReturnCode()> &fn, int event, double timeout = -1);
+    int what_event_want(int default_event) const;
     void free();
 
     static inline bool is_dgram(SocketType type) {
@@ -443,70 +484,76 @@ struct Socket {
         return type == SW_SOCK_RAW || type == SW_SOCK_RAW6;
     }
 
-    bool is_stream() {
+    bool is_stream() const {
         return is_stream(socket_type);
     }
 
-    bool is_tcp() {
+    bool is_tcp() const {
         return is_tcp(socket_type);
     }
 
-    bool is_udp() {
+    bool is_udp() const {
         return is_udp(socket_type);
     }
 
-    bool is_dgram() {
+    bool is_dgram() const {
         return is_dgram(socket_type);
     }
 
-    bool is_inet4() {
+    bool is_inet4() const {
         return is_inet4(socket_type);
     }
 
-    bool is_inet6() {
+    bool is_inet6() const {
         return is_inet6(socket_type);
     }
 
-    bool is_inet() {
+    bool is_inet() const {
         return is_inet4() || is_inet6();
     }
 
-    bool is_local() {
+    bool is_local() const {
         return is_local(socket_type);
     }
 
-    bool is_raw() {
+    bool is_raw() const {
         return is_raw(socket_type);
     }
 
-    ssize_t write(const void *__buf, size_t __len) {
-        return ::write(fd, __buf, __len);
+    ssize_t write(const void *_buf, size_t _len) const {
+        return ::write(fd, _buf, _len);
     }
 
-    ssize_t read(void *__buf, size_t __len) {
-        return ::read(fd, __buf, __len);
+    ssize_t read(void *_buf, size_t _len) const {
+        return ::read(fd, _buf, _len);
     }
 
     /**
      * Read data from the socket synchronously without setting non-blocking or blocking IO,
      * and allow interruptions by signals.
      */
-    ssize_t read_sync(void *__buf, size_t __len, int timeout_ms = -1);
+    ssize_t read_sync(void *_buf, size_t _len, int timeout_ms = -1) const;
 
     /**
      * Write data to the socket synchronously without setting non-blocking or blocking IO,
      * and allow interruptions by signals.
      */
-    ssize_t write_sync(const void *__buf, size_t __len, int timeout_ms = -1);
+    ssize_t write_sync(const void *_buf, size_t _len, int timeout_ms = -1) const;
+    /**
+     * Write data to the socket synchronously with an optimistic approach,
+     * meaning it will not wait for the socket to be writable before writing.
+     * This method is useful for scenarios where immediate write attempts are preferred.
+     */
+    ssize_t write_sync_optimistic(const void *_buf, size_t _len, int timeout_ms = -1) const;
 
-    int shutdown(int __how) {
-        return ::shutdown(fd, __how);
+    int shutdown(int _how) const {
+        return ::shutdown(fd, _how);
     }
 
-    ssize_t sendto_sync(const Address &dst_addr, const void *__buf, size_t __n, int flags = 0);
+    ssize_t sendto_sync(const Address &dst_addr, const void *_buf, size_t _n, int flags = 0);
 
     ssize_t sendto(const char *dst_host, int dst_port, const void *data, size_t len, int flags = 0) const {
-        Address addr = {};
+        Address addr;
         if (!addr.assign(socket_type, dst_host, dst_port)) {
             return SW_ERR;
         }
@@ -517,7 +564,7 @@ struct Socket {
         return ::sendto(fd, data, len, flags, &dst_addr.addr.ss, dst_addr.len);
     }
 
-    int catch_error(int err);
+    int catch_error(int err) const;
 
     int catch_write_error(const int err) {
         switch (err) {
@@ -547,8 +594,9 @@ struct Socket {
     static int get_domain_and_type(SocketType type, int *sock_domain, int *sock_type);
 };
 
+std::string gethostbyname(int type, const std::string &name);
 int gethostbyname(int type, const char *name, char *addr);
-int gethostbyname(const GethostbynameRequest *req);
+int gethostbyname(GethostbynameRequest *req);
 int getaddrinfo(GetaddrinfoRequest *req);
 
 }  // namespace network
@@ -573,10 +621,4 @@ network::Socket *make_server_socket(SocketType socket_type,
                                     const char *address,
                                     int port = 0,
                                     int backlog = SW_BACKLOG);
-/**
- * Verify if the input string is an IP address,
- * where AF_INET indicates an IPv4 address, such as 192.168.1.100,
- * and AF_INET6 indicates an IPv6 address, for example, 2001:0000:130F:0000:0000:09C0:876A:130B.
- */
-bool verify_ip(int __af, const std::string &str);
 }  // namespace swoole

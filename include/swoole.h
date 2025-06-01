@@ -573,8 +573,8 @@ void swoole_exit(int _status);
 pid_t swoole_fork(int flags);
 pid_t swoole_fork_exec(const std::function<void()> &child_fn);
 pid_t swoole_waitpid(pid_t _pid, int *_stat_loc, int _options);
-void swoole_thread_init(bool main_thread);
-void swoole_thread_clean(bool main_thread);
+void swoole_thread_init(bool main_thread = false);
+void swoole_thread_clean(bool main_thread = false);
 void swoole_redirect_stdout(int new_fd);
 void swoole_redirect_stdout(const char *file);
 int swoole_shell_exec(const char *command, pid_t *pid, bool get_error_stream);
@@ -673,6 +673,7 @@ struct EventData {
 struct ThreadGlobal {
     uint16_t id;
     uint8_t type;
+    bool main_thread;
     int32_t error;
     String *buffer_stack;
     Reactor *reactor;
@@ -836,6 +837,7 @@ SW_API const char *swoole_strerror(int code);
 SW_API void swoole_throw_error(int code);
 SW_API void swoole_ignore_error(int code);
 SW_API bool swoole_is_ignored_error(int code);
+SW_API bool swoole_is_main_thread();
 SW_API void swoole_set_log_level(int level);
 SW_API void swoole_set_log_file(const char *file);
 SW_API void swoole_set_trace_flags(long flags);

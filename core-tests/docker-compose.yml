@@ -6,6 +6,8 @@ services:
   tinyproxy:
     container_name: "tinyproxy"
     image: "vimagick/tinyproxy"
+    ports:
+      - 8888:8888
   socks5:
     container_name: "socks5"
     image: "xkuma/socks5"
@@ -15,4 +17,9 @@ services:
       - PROXY_USER=user
       - PROXY_PASSWORD=password
       - PROXY_SERVER=0.0.0.0:1080
-
+  socks5-no-auth:
+    image: "xkuma/socks5"
+    ports:
+      - 8081:1080
+    environment:
+      PROXY_SERVER: 0.0.0.0:1080

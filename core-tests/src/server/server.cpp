@@ -623,6 +623,7 @@ TEST(server, thread) {
 
     swoole_set_trace_flags(SW_TRACE_THREAD);
     swoole_set_log_level(SW_LOG_TRACE);
+    test::counter_init();
 
     ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     ASSERT_TRUE(port);
@@ -667,6 +668,7 @@ TEST(server, thread) {
 
     serv.onWorkerStart = [&lock](Server *serv, Worker *worker) {
         DEBUG() << "onWorkerStart: id=" << worker->id << "\n";
+        serv->send_pipe_message(1 - worker->id, SW_STRL(TEST_STR));
     };
 
     serv.onReceive = [](Server *serv, RecvData *req) -> int {
@@ -683,10 +685,16 @@ TEST(server, thread) {
         return SW_OK;
     };
 
+    serv.onPipeMessage = [](Server *serv, EventData *req) {
+        DEBUG() << "onPipeMessage: " << string(req->data, req->info.len) << "\n";
+        test::counter_incr(4);
+    };
+
     ASSERT_EQ(serv.start(), SW_OK);
     t1.join();
 
     test::wait_all_child_processes();
+    ASSERT_EQ(test::counter_get(4), 2);  // onPipeMessage called
 }
 
 TEST(server, task_thread) {
@@ -739,7 +747,7 @@ TEST(server, task_thread) {
         SessionId client_fd;
         memcpy(&client_fd, task->data, sizeof(client_fd));
         string resp = string("Server: ") + string(packet);
-        serv->send(client_fd, resp.c_str(), resp.length());
+        EXPECT_TRUE(serv->send(client_fd, resp.c_str(), resp.length()));
         return 0;
     };
 
@@ -776,7 +784,8 @@ TEST(server, reload_thread) {
     serv.worker_num = 2;
     serv.task_worker_num = 2;
 
-    swoole_set_log_level(SW_LOG_INFO);
+    swoole_set_trace_flags(SW_TRACE_ALL);
+    swoole_set_log_level(SW_LOG_TRACE);
 
     DEBUG() << "add port\n";
     ASSERT_NE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0), nullptr);
@@ -791,17 +800,21 @@ TEST(server, reload_thread) {
     ASSERT_EQ(serv.create(), SW_OK);
 
     std::thread t1([&]() {
-        swoole_signal_block_all();
+        swoole_thread_init();
         lock.lock();
-        usleep(1000);
-        DEBUG() << "reload\n";
-        serv.reload(true);
+        usleep(10000);
+        EXPECT_TRUE(serv.reload(true));
+        EXPECT_FALSE(serv.reload(true));  // reload again should fail
+        EXPECT_ERREQ(SW_ERROR_OPERATION_NOT_SUPPORT);
+
+        DEBUG() << "before shutdown, sleep 1s\n";
         sleep(1);
         DEBUG() << "shutdown\n";
-        serv.shutdown();
+        EXPECT_TRUE(serv.shutdown());
+        swoole_thread_clean();
     });
 
-    std::atomic<int> count(0);
+    std::atomic<size_t> count(0);
 
     serv.onUserWorkerStart = [&lock, &count](Server *serv, Worker *worker) {
         DEBUG() << "onUserWorkerStart: id=" << worker->id << "\n";
@@ -810,15 +823,27 @@ TEST(server, reload_thread) {
         }
     };
 
-    serv.onStart = [&lock](Server *serv) {
-        DEBUG() << "onStart\n";
+    serv.onStart = [&lock](Server *serv) { DEBUG() << "onStart\n"; };
+
+    serv.onManagerStart = [&lock](Server *serv) {
+        DEBUG() << "onManagerStart\n";
         lock.unlock();
+    };
+
+    serv.onBeforeReload = [](Server *serv) {
+        DEBUG() << "onBeforeReload: master_pid=" << serv->get_manager_pid() << "\n";
+    };
+
+    serv.onAfterReload = [](Server *serv) {
+        DEBUG() << "onAfterReload: master_pid=" << serv->get_manager_pid() << "\n";
     };
 
     serv.onWorkerStart = [&count](Server *serv, Worker *worker) {
         ++count;
         DEBUG() << "onWorkerStart: id=" << worker->id << "\n";
     };
+
+    serv.onWorkerStop = [](Server *serv, Worker *worker) { DEBUG() << "onWorkerStop: id=" << worker->id << "\n"; };
 
     serv.onTask = [](Server *serv, EventData *task) -> int { return 0; };
 
@@ -836,6 +861,8 @@ TEST(server, reload_thread_2) {
     serv.worker_num = 2;
     serv.task_worker_num = 2;
 
+    test::counter_init();
+
     std::unordered_map<std::string, bool> flags;
     swoole_set_log_level(SW_LOG_INFO);
 
@@ -850,12 +877,12 @@ TEST(server, reload_thread_2) {
 
     ASSERT_EQ(serv.create(), SW_OK);
 
-    std::atomic<int> count(0);
+    std::atomic<size_t> count(0);
 
     serv.onUserWorkerStart = [](Server *serv, Worker *worker) {
-        while (serv->running) {
-            usleep(100000);
-        }
+        usleep(500000);
+        test::counter_incr(4, 1);
+        DEBUG() << "onUserWorkerStart: id=" << worker->id << "\n";
     };
 
     serv.onWorkerStart = [&lock, &count](Server *serv, Worker *worker) {
@@ -881,7 +908,7 @@ TEST(server, reload_thread_2) {
     serv.onManagerStart = [&flags](Server *serv) {
         swoole_timer_after(500, [serv, &flags](auto r1, auto r2) {
             flags["reload"] = true;
-            serv->reload(true);
+            EXPECT_TRUE(serv->reload(true));
         });
     };
 
@@ -894,6 +921,53 @@ TEST(server, reload_thread_2) {
     ASSERT_TRUE(flags["onManagerStop"]);
     ASSERT_TRUE(flags["reload"]);
     ASSERT_TRUE(flags["shutdown"]);
+    ASSERT_GE(test::counter_get(4), 2);
+
+    test::wait_all_child_processes();
+}
+
+TEST(server, reload_thread_3) {
+    Server serv(Server::MODE_THREAD);
+    serv.worker_num = 2;
+
+    std::unordered_map<std::string, bool> flags;
+    swoole_set_log_level(SW_LOG_INFO);
+
+    ASSERT_NE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0), nullptr);
+
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    std::atomic<size_t> count(0);
+
+    serv.onWorkerStart = [&count](Server *serv, Worker *worker) { ++count; };
+    serv.onReceive = [](Server *serv, RecvData *req) -> int { return SW_OK; };
+    serv.onAfterReload = [&flags](Server *serv) {
+        flags["onAfterReload"] = true;
+        EXPECT_FALSE(serv->reload(false));
+        EXPECT_ERREQ(SW_ERROR_OPERATION_NOT_SUPPORT);
+        swoole_timer_after(500, [serv, &flags](auto r1, auto r2) {
+            flags["shutdown"] = true;
+            serv->shutdown();
+        });
+    };
+
+    serv.onManagerStart = [&flags](Server *serv) {
+        swoole_timer_after(500, [serv, &flags](auto r1, auto r2) {
+            flags["reload"] = true;
+            EXPECT_TRUE(serv->reload(true));
+        });
+    };
+
+    serv.onManagerStop = [&flags](Server *serv) { flags["onManagerStop"] = true; };
+
+    ASSERT_EQ(serv.start(), SW_OK);
+
+    ASSERT_TRUE(flags["onAfterReload"]);
+    ASSERT_TRUE(flags["onManagerStop"]);
+    ASSERT_TRUE(flags["reload"]);
+    ASSERT_TRUE(flags["shutdown"]);
+
+    ASSERT_GE(count, serv.worker_num * 2);
 
     test::wait_all_child_processes();
 }
@@ -1033,7 +1107,12 @@ TEST(server, kill_user_workers) {
 
     ASSERT_EQ(serv.create(), SW_OK);
 
-    serv.onUserWorkerStart = [&](Server *serv, Worker *worker) { EXPECT_GT(worker->id, 0); };
+    serv.onUserWorkerStart = [&](Server *serv, Worker *worker) {
+        EXPECT_GT(worker->id, 0);
+        while (true) {
+            sleep(1);
+        }
+    };
 
     serv.onTask = [](Server *serv, EventData *task) -> int {
         while (true) {
@@ -1161,7 +1240,7 @@ TEST(server, ssl) {
     Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
     lock->lock();
 
-    ListenPort *port = serv.add_port((enum swSocketType)(SW_SOCK_TCP | SW_SOCK_SSL), TEST_HOST, 0);
+    ListenPort *port = serv.add_port(static_cast<enum swSocketType>(SW_SOCK_TCP | SW_SOCK_SSL), TEST_HOST, 0);
     if (!port) {
         swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
         exit(2);
@@ -1193,6 +1272,13 @@ TEST(server, ssl) {
             c.recv(buf, sizeof(buf));
             c.close();
 
+            // bad SSL connection, send plain text packet to SSL server
+            network::SyncClient c2(SW_SOCK_TCP);
+            c2.connect(TEST_HOST, port->port);
+            c2.send(packet, strlen(packet));
+            ASSERT_EQ(c2.recv(buf, sizeof(buf)), 0);
+            c2.close();
+
             kill(serv->gs->master_pid, SIGTERM);
         });
     };
@@ -1212,6 +1298,131 @@ TEST(server, ssl) {
 
     t1.join();
     delete lock;
+}
+
+TEST(server, ssl_error) {
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = 1;
+    swoole_set_log_level(SW_LOG_WARNING);
+
+    Mutex lock(Mutex::PROCESS_SHARED);
+    lock.lock();
+
+    ListenPort *port = serv.add_port(static_cast<enum swSocketType>(SW_SOCK_TCP | SW_SOCK_SSL), TEST_HOST, 0);
+    ASSERT_NE(port, nullptr);
+
+    port->set_ssl_cert_file(test::get_ssl_dir() + "/server-not-exists.crt");
+    port->set_ssl_key_file(test::get_ssl_dir() + "/server-not-exists.key");
+    ASSERT_FALSE(port->ssl_init());
+    ASSERT_ERREQ(SW_ERROR_WRONG_OPERATION);
+
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    thread t1;
+
+    serv.onStart = [&lock, &t1](Server *serv) {
+        t1 = thread([&lock, serv]() {
+            swoole_signal_block_all();
+
+            lock.lock();
+
+            ListenPort *port = serv->get_primary_port();
+            EXPECT_EQ(port->ssl, 1);
+
+            network::SyncClient c(SW_SOCK_TCP);
+            c.connect(TEST_HOST, port->port);
+            c.enable_ssl_encrypt();
+            c.send(packet, strlen(packet));
+            char buf[1024];
+            ASSERT_EQ(c.recv(buf, sizeof(buf)), 0);
+            c.close();
+
+            kill(serv->gs->master_pid, SIGTERM);
+        });
+    };
+
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock.unlock(); };
+
+    serv.onReceive = [](Server *serv, RecvData *req) -> int { return SW_OK; };
+
+    serv.onConnect = [](Server *serv, DataHead *req) { test::counter_incr(0); };
+
+    ASSERT_EQ(serv.start(), 0);
+
+    t1.join();
+    ASSERT_EQ(test::counter_get(0), 0);
+}
+
+TEST(server, ssl_write) {
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = 1;
+    swoole_set_log_level(SW_LOG_WARNING);
+
+    Mutex lock(Mutex::PROCESS_SHARED);
+    lock.lock();
+
+    ListenPort *port = serv.add_port(static_cast<enum swSocketType>(SW_SOCK_TCP | SW_SOCK_SSL), TEST_HOST, 0);
+    ASSERT_NE(port, nullptr);
+
+    port->set_ssl_cert_file(test::get_ssl_dir() + "/server.crt");
+    port->set_ssl_key_file(test::get_ssl_dir() + "/server.key");
+    ASSERT_TRUE(port->ssl_init());
+
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    String wbuf(4 * 1024 * 1024);
+    wbuf.append_random_bytes(wbuf.size);
+
+    thread t1;
+
+    serv.onStart = [&lock, &t1, &wbuf](Server *serv) {
+        t1 = thread([&lock, serv, &wbuf]() {
+            swoole_signal_block_all();
+
+            lock.lock();
+
+            ListenPort *port = serv->get_primary_port();
+            EXPECT_EQ(port->ssl, 1);
+
+            network::SyncClient c(SW_SOCK_TCP);
+            c.connect(TEST_HOST, port->port);
+            c.enable_ssl_encrypt();
+            c.send(packet, strlen(packet));
+
+            String rbuf(2 * 1024 * 1024);
+
+            while (true) {
+                size_t recv_n = rbuf.size - rbuf.length;
+                if (recv_n > 65536) {
+                    recv_n = 65536;
+                }
+                auto n = c.recv(rbuf.str + rbuf.length, rbuf.size - rbuf.length);
+                if (n <= 0) {
+                    break;
+                }
+                rbuf.length += n;
+                usleep(5000);
+            }
+
+            ASSERT_MEMEQ(rbuf.str, wbuf.str, rbuf.length);
+            c.close();
+
+            kill(serv->gs->master_pid, SIGTERM);
+        });
+    };
+
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock.unlock(); };
+
+    serv.onReceive = [&wbuf](Server *serv, RecvData *req) -> int {
+        EXPECT_TRUE(serv->send(req->session_id(), wbuf.str, wbuf.length));
+        test::counter_incr(0);
+        return SW_OK;
+    };
+
+    ASSERT_EQ(serv.start(), 0);
+
+    t1.join();
+    ASSERT_EQ(test::counter_get(0), 1);
 }
 
 TEST(server, dtls) {
@@ -1554,7 +1765,7 @@ TEST(server, task_worker_3) {
             swoole_timer_after(60, [serv](TIMER_PARAMS) { kill(serv->get_manager_pid(), SIGRTMIN); });
             swoole_timer_after(100, [serv](TIMER_PARAMS) { serv->shutdown(); });
         }
-        if (worker->id == 1 &&  test::counter_get(30) == 0) {
+        if (worker->id == 1 && test::counter_get(30) == 0) {
             test::counter_set(30, 1);
             swoole_timer_after(20, [serv](TIMER_PARAMS) { serv->kill_worker(-1); });
         }
@@ -3785,7 +3996,7 @@ TEST(server, discard_data) {
 }
 
 TEST(server, worker_set_isolation) {
-    Server::worker_set_isolation("not-exists-group", "not-exists-user", "/tmp/not-exists-dir");
+    Worker::set_isolation("not-exists-group", "not-exists-user", "/tmp/not-exists-dir");
 }
 
 TEST(server, pause_and_resume) {

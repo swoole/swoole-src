@@ -66,12 +66,15 @@ TEST(reactor, set_handler) {
     Reactor reactor;
 
     reactor.set_handler(SW_FD_SESSION, SW_EVENT_READ, (ReactorHandler) 0x1);
+    ASSERT_TRUE(reactor.isset_handler(SW_FD_SESSION, SW_EVENT_READ));
     ASSERT_EQ(reactor.get_handler(SW_FD_SESSION, SW_EVENT_READ), (ReactorHandler) 0x1);
 
     reactor.set_handler(SW_FD_SESSION, SW_EVENT_WRITE, (ReactorHandler) 0x2);
+    ASSERT_TRUE(reactor.isset_handler(SW_FD_SESSION, SW_EVENT_WRITE));
     ASSERT_EQ(reactor.get_handler(SW_FD_SESSION, SW_EVENT_WRITE), (ReactorHandler) 0x2);
 
     reactor.set_handler(SW_FD_SESSION, SW_EVENT_ERROR, (ReactorHandler) 0x3);
+    ASSERT_TRUE(reactor.isset_handler(SW_FD_SESSION, SW_EVENT_ERROR));
     ASSERT_EQ(reactor.get_handler(SW_FD_SESSION, SW_EVENT_ERROR), (ReactorHandler) 0x3);
 }
 

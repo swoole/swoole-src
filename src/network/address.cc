@@ -24,19 +24,27 @@ static bool IN_IS_ADDR_LOOPBACK(const in_addr *a) {
 
 namespace swoole {
 namespace network {
-
 static thread_local char tmp_address[INET6_ADDRSTRLEN];
 
+const char *Address::addr_str(int family, const void *addr) {
+    if (inet_ntop(family, addr, tmp_address, sizeof(tmp_address))) {
+        return tmp_address;
+    }
+    return nullptr;
+}
+
+bool Address::verify_ip(int family, const std::string &str) {
+    return inet_pton(family, str.c_str(), tmp_address) == 1;
+}
+
 const char *Address::get_addr() const {
-    if (type == SW_SOCK_TCP || type == SW_SOCK_UDP) {
-        if (inet_ntop(AF_INET, &addr.inet_v4.sin_addr, tmp_address, sizeof(tmp_address))) {
-            return tmp_address;
-        }
-    } else if (type == SW_SOCK_TCP6 || type == SW_SOCK_UDP6) {
-        if (inet_ntop(AF_INET6, &addr.inet_v6.sin6_addr, tmp_address, sizeof(tmp_address))) {
-            return tmp_address;
-        }
-    } else if (type == SW_SOCK_UNIX_STREAM || type == SW_SOCK_UNIX_DGRAM) {
+    if (Socket::is_inet4(type)) {
+        return addr_str(AF_INET, &addr.inet_v4.sin_addr);
+    }
+    if (Socket::is_inet6(type)) {
+        return addr_str(AF_INET6, &addr.inet_v6.sin6_addr);
+    }
+    if (Socket::is_local(type)) {
         return addr.un.sun_path;
     }
     return "unknown";
@@ -47,19 +55,19 @@ bool Address::empty() const {
 }
 
 int Address::get_port() const {
-    if (type == SW_SOCK_TCP || type == SW_SOCK_UDP) {
+    if (Socket::is_inet4(type)) {
         return ntohs(addr.inet_v4.sin_port);
-    } else if (type == SW_SOCK_TCP6 || type == SW_SOCK_UDP6) {
-        return ntohs(addr.inet_v6.sin6_port);
-    } else {
-        return 0;
     }
+    if (Socket::is_inet6(type)) {
+        return ntohs(addr.inet_v6.sin6_port);
+    }
+    return 0;
 }
 
 void Address::set_port(int _port) {
-    if (type == SW_SOCK_TCP || type == SW_SOCK_UDP) {
+    if (Socket::is_inet4(type)) {
         addr.inet_v4.sin_port = htons(_port);
-    } else if (type == SW_SOCK_TCP6 || type == SW_SOCK_UDP6) {
+    } else if (Socket::is_inet6(type)) {
         addr.inet_v6.sin6_port = htons(_port);
     }
 }
@@ -83,7 +91,7 @@ bool Address::assign(SocketType _type, const std::string &_host, int _port, bool
                 swoole_set_last_error(SW_ERROR_BAD_HOST_ADDR);
                 return false;
             }
-            if (gethostbyname(AF_INET, host, (char *) &addr.inet_v4.sin_addr) < 0) {
+            if (gethostbyname(AF_INET, host, reinterpret_cast<char *>(&addr.inet_v4.sin_addr)) < 0) {
                 swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
                 return false;
             }
@@ -97,7 +105,7 @@ bool Address::assign(SocketType _type, const std::string &_host, int _port, bool
                 swoole_set_last_error(SW_ERROR_BAD_HOST_ADDR);
                 return false;
             }
-            if (gethostbyname(AF_INET6, host, (char *) &addr.inet_v6.sin6_addr) < 0) {
+            if (gethostbyname(AF_INET6, host, reinterpret_cast<char *>(&addr.inet_v6.sin6_addr)) < 0) {
                 swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
                 return false;
             }
@@ -143,32 +151,33 @@ bool Address::assign(const std::string &url) {
         std::string path = match[2];
         type = proto == "unix" ? SW_SOCK_UNIX_STREAM : SW_SOCK_UNIX_DGRAM;
         return assign(type, path, 0);
-    } else if (std::regex_match(url, match, inet4_pattern)) {
+    }
+    if (std::regex_match(url, match, inet4_pattern)) {
         std::string proto = match[1];
         std::string host = match[2];
         int port = std::stoi(match[3]);
         type = proto == "tcp" ? SW_SOCK_TCP : SW_SOCK_UDP;
         return assign(type, host, port);
-    } else if (std::regex_match(url, match, inet6_pattern)) {
+    }
+    if (std::regex_match(url, match, inet6_pattern)) {
         std::string proto = match[1];
         std::string host = match[2];
         int port = std::stoi(match[3]);
         type = proto == "tcp" ? SW_SOCK_TCP6 : SW_SOCK_UDP6;
         return assign(type, host, port);
-    } else {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_BAD_HOST_ADDR, "Invalid address '%s'", url.c_str());
-        return false;
     }
+    swoole_error_log(SW_LOG_NOTICE, SW_ERROR_BAD_HOST_ADDR, "Invalid address '%s'", url.c_str());
+    return false;
 }
 
-bool Address::is_loopback_addr() {
-    if (type == SW_SOCK_TCP || type == SW_SOCK_UDP) {
+bool Address::is_loopback_addr() const {
+    if (Socket::is_inet4(type)) {
         return IN_IS_ADDR_LOOPBACK(&addr.inet_v4.sin_addr);
-    } else if (type == SW_SOCK_TCP6 || type == SW_SOCK_UDP6) {
+    }
+    if (Socket::is_inet6(type)) {
         return IN6_IS_ADDR_LOOPBACK(&addr.inet_v6.sin6_addr);
     }
     return false;
 }
-
 }  // namespace network
 }  // namespace swoole

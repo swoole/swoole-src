@@ -16,7 +16,6 @@
 
 #include "php_swoole_private.h"
 #include "php_swoole_thread.h"
-#include "swoole_memory.h"
 #include "swoole_lock.h"
 
 #ifdef SW_THREAD
@@ -68,14 +67,14 @@ struct LockObject {
 };
 
 static sw_inline LockObject *lock_fetch_object(zend_object *obj) {
-    return (LockObject *) ((char *) obj - swoole_thread_lock_handlers.offset);
+    return reinterpret_cast<LockObject *>(reinterpret_cast<char *>(obj) - swoole_thread_lock_handlers.offset);
 }
 
-static Lock *lock_get_ptr(zval *zobject) {
+static Lock *lock_get_ptr(const zval *zobject) {
     return lock_fetch_object(Z_OBJ_P(zobject))->lock->lock_;
 }
 
-static Lock *lock_get_and_check_ptr(zval *zobject) {
+static Lock *lock_get_and_check_ptr(const zval *zobject) {
     Lock *lock = lock_get_ptr(zobject);
     if (!lock) {
         php_swoole_fatal_error(E_ERROR, "must call constructor first");
@@ -93,14 +92,14 @@ static void lock_free_object(zend_object *object) {
 }
 
 static zend_object *lock_create_object(zend_class_entry *ce) {
-    LockObject *lock = (LockObject *) zend_object_alloc(sizeof(LockObject), ce);
+    auto lock = static_cast<LockObject *>(zend_object_alloc(sizeof(LockObject), ce));
     zend_object_std_init(&lock->std, ce);
     object_properties_init(&lock->std, ce);
     lock->std.handlers = &swoole_thread_lock_handlers;
     return &lock->std;
 }
 
-ThreadResource *php_swoole_thread_lock_cast(zval *zobject) {
+ThreadResource *php_swoole_thread_lock_cast(const zval *zobject) {
     return lock_fetch_object(Z_OBJ_P(zobject))->lock;
 }
 
@@ -157,7 +156,7 @@ void php_swoole_thread_lock_minit(int module_number) {
 static PHP_METHOD(swoole_thread_lock, __construct) {
     auto o = lock_fetch_object(Z_OBJ_P(ZEND_THIS));
     if (o->lock != nullptr) {
-        zend_throw_error(NULL, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        zend_throw_error(nullptr, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
         RETURN_FALSE;
     }
 

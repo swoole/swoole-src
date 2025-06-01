@@ -126,7 +126,7 @@ void *sw_realloc(void *ptr, size_t size) {
 static void bug_report_message_init() {
     SwooleG.bug_report_message += "\n" + std::string(SWOOLE_BUG_REPORT) + "\n";
 
-    struct utsname u;
+    utsname u;
     if (uname(&u) != -1) {
         SwooleG.bug_report_message +=
             swoole::std_string::format("OS: %s %s %s %s\n", u.sysname, u.release, u.version, u.machine);
@@ -141,7 +141,7 @@ static void bug_report_message_init() {
 #endif
 }
 
-void swoole_init(void) {
+void swoole_init() {
     if (SwooleG.init) {
         return;
     }
@@ -184,7 +184,7 @@ void swoole_init(void) {
     // init global shared memory
     SwooleG.memory_pool = new swoole::GlobalMemory(SW_GLOBAL_MEMORY_PAGESIZE, true);
     SwooleG.max_sockets = SW_MAX_SOCKETS_DEFAULT;
-    struct rlimit rlmt;
+    rlimit rlmt;
     if (getrlimit(RLIMIT_NOFILE, &rlmt) < 0) {
         swoole_sys_warning("getrlimit() failed");
     } else {
@@ -237,7 +237,7 @@ SW_API int swoole_api_version_id(void) {
 
 SW_EXTERN_C_END
 
-void swoole_clean(void) {
+void swoole_clean() {
     SW_LOOP_N(SW_MAX_HOOK_TYPE) {
         if (SwooleG.hooks[i]) {
             auto hooks = static_cast<std::list<swoole::Callback> *>(SwooleG.hooks[i]);
@@ -341,8 +341,7 @@ pid_t swoole_fork(int flags) {
         }
         if (SwooleTG.async_threads) {
             swoole_trace("aio_task_num=%lu, reactor=%p", SwooleTG.async_threads->task_num, sw_reactor());
-            swoole_fatal_error(SW_ERROR_OPERATION_NOT_SUPPORT,
-                               "can not create server after using async file operation");
+            swoole_fatal_error(SW_ERROR_OPERATION_NOT_SUPPORT, "can not fork after using async-threads");
         }
     }
     if (flags & SW_FORK_PRECHECK) {
@@ -387,6 +386,10 @@ pid_t swoole_fork(int flags) {
     return pid;
 }
 
+bool swoole_is_main_thread() {
+    return SwooleTG.main_thread;
+}
+
 void swoole_thread_init(bool main_thread) {
     if (!SwooleTG.buffer_stack) {
         SwooleTG.buffer_stack = new String(SW_STACK_BUFFER_SIZE);
@@ -394,6 +397,7 @@ void swoole_thread_init(bool main_thread) {
     if (!main_thread) {
         swoole_signal_block_all();
     }
+    SwooleTG.main_thread = main_thread;
 }
 
 void swoole_thread_clean(bool main_thread) {

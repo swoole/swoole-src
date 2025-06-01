@@ -148,13 +148,15 @@ Reactor::Reactor(int max_event, Type _type) {
     });
 
 #ifdef SW_USE_MALLOC_TRIM
-    set_end_callback(PRIORITY_MALLOC_TRIM, [](Reactor *reactor) {
-        time_t now = ::time(nullptr);
-        if (reactor->last_malloc_trim_time < now - SW_MALLOC_TRIM_INTERVAL) {
-            malloc_trim(SW_MALLOC_TRIM_PAD);
-            reactor->last_malloc_trim_time = now;
-        }
-    });
+    if (swoole_is_main_thread()) {
+        set_end_callback(PRIORITY_MALLOC_TRIM, [](Reactor *reactor) {
+            time_t now = ::time(nullptr);
+            if (reactor->last_malloc_trim_time < now - SW_MALLOC_TRIM_INTERVAL) {
+                malloc_trim(SW_MALLOC_TRIM_PAD);
+                reactor->last_malloc_trim_time = now;
+            }
+        });
+    }
 #endif
 
     set_exit_condition(EXIT_CONDITION_DEFAULT, [](Reactor *, size_t &event_num) -> bool { return event_num == 0; });

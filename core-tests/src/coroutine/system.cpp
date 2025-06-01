@@ -116,13 +116,19 @@ TEST(coroutine_system, cancel_sleep) {
     });
 }
 
+static void test_getaddrinfo(
+    const char *host, int family, int type, int protocol, const char *service, double timeout) {
+    std::vector<std::string> ip_list = System::getaddrinfo(host, family, type, protocol, service, timeout);
+    ASSERT_GT(ip_list.size(), 0);
+    for (auto &ip : ip_list) {
+        ASSERT_TRUE(swoole::network::Address::verify_ip(family, ip));
+    }
+}
+
 TEST(coroutine_system, getaddrinfo) {
     test::coroutine::run([](void *arg) {
-        std::vector<std::string> ip_list = System::getaddrinfo("www.baidu.com", AF_INET, SOCK_STREAM, 0, "http", 1);
-        ASSERT_GT(ip_list.size(), 0);
-        for (auto &ip : ip_list) {
-            ASSERT_TRUE(swoole::network::Address::verify_ip(AF_INET, ip));
-        }
+        test_getaddrinfo(TEST_HTTP_DOMAIN, AF_INET, SOCK_STREAM, 0, "http", -1);
+        test_getaddrinfo(TEST_HTTP_DOMAIN, AF_INET6, SOCK_STREAM, 0, "http", -1);
     });
 }
 

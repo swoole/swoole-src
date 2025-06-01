@@ -18,7 +18,6 @@
 #pragma once
 
 #include "swoole.h"
-#include "swoole_api.h"
 #include "swoole_socket.h"
 #include "swoole_coroutine.h"
 #include "swoole_protocol.h"
@@ -456,8 +455,8 @@ class Socket {
     bool ssl_handshaked = false;
     std::shared_ptr<SSLContext> ssl_context = nullptr;
     std::string ssl_host_name;
-    bool ssl_context_create() const;
-    bool ssl_create(SSLContext *ssl_context) const;
+    bool ssl_context_create();
+    bool ssl_create(SSLContext *ssl_context);
 #endif
 
     bool connected = false;
@@ -521,6 +520,16 @@ class Socket {
     }
 
     bool socks5_handshake();
+
+    const std::string &get_http_proxy_host_name() const {
+#ifdef SW_USE_OPENSSL
+        if (ssl_context && !ssl_context->tls_host_name.empty()) {
+            return ssl_context->tls_host_name;
+        }
+#endif
+        return http_proxy->target_host;
+    }
+
     bool http_proxy_handshake();
 
     class TimerController {

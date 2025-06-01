@@ -62,11 +62,10 @@ struct AsyncEvent {
     }
 };
 
-struct GethostbynameRequest : public AsyncRequest {
+struct GethostbynameRequest : AsyncRequest {
     std::string name;
     int family;
-    std::unique_ptr<char[]> addr;
-    size_t addr_len;
+    std::string addr;
 
     GethostbynameRequest(std::string _name, int _family);
     ~GethostbynameRequest() override = default;
@@ -82,7 +81,7 @@ struct GetaddrinfoRequest : public AsyncRequest {
     std::vector<sockaddr_in6> results;
     int count;
 
-    void parse_result(std::vector<std::string> &retval);
+    void parse_result(std::vector<std::string> &retval) const;
 
     GetaddrinfoRequest(std::string _hostname, int _family, int _socktype, int _protocol, std::string _service);
     ~GetaddrinfoRequest() override = default;

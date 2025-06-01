@@ -32,7 +32,7 @@ double Socket::default_read_timeout = SW_SOCKET_DEFAULT_READ_TIMEOUT;
 double Socket::default_write_timeout = SW_SOCKET_DEFAULT_WRITE_TIMEOUT;
 uint32_t Socket::default_buffer_size = SW_SOCKET_BUFFER_SIZE;
 
-IOVector::IOVector(struct iovec *_iov, int _iovcnt) {
+IOVector::IOVector(const iovec *_iov, int _iovcnt) {
     iov = new iovec[_iovcnt + _iovcnt];
     iov_iterator = iov + _iovcnt;
     count = remain_count = _iovcnt;
@@ -81,11 +81,11 @@ void IOVector::update_iterator(ssize_t _n) {
         }
     }
 
-    // represents the length of __n greater than total_bytes
+    // represents the length of _n greater than total_bytes
     abort();
 }
 
-static bool check_sendfile_parameters(File *file, off_t begin, size_t length, off_t *end) {
+static bool check_sendfile_parameters(const File *file, off_t begin, size_t length, off_t *end) {
     auto filename = file->get_path().c_str();
     if (!file->ready()) {
         swoole_sys_warning("open('%s') failed", filename);
@@ -123,7 +123,7 @@ static size_t get_sendfile_chunk_size(off_t begin, off_t end) {
     return real_length > SW_SENDFILE_CHUNK_SIZE ? SW_SENDFILE_CHUNK_SIZE : real_length;
 }
 
-int Socket::what_event_want(int default_event) {
+int Socket::what_event_want(int default_event) const {
 #ifdef SW_USE_OPENSSL
     if (ssl && (ssl_want_write || ssl_want_read)) {
         return ssl_want_write ? SW_EVENT_WRITE : SW_EVENT_READ;
@@ -143,7 +143,7 @@ int Socket::what_event_want(int default_event) {
         return be_zero_return;                                                                                         \
     }
 
-bool Socket::wait_for(const std::function<swReturnCode(void)> &fn, int event, double timeout) {
+bool Socket::wait_for(const std::function<swReturnCode()> &fn, int event, double timeout) {
     int timeout_ms = -1;
     double began_at;
     if (timeout > 0) {
@@ -265,7 +265,7 @@ int Socket::connect_sync(const Address &sa, double timeout) {
 /**
  * clear socket buffer.
  */
-void Socket::clean() {
+void Socket::clean() const {
     char buf[2048];
     while (::recv(fd, buf, sizeof(buf), MSG_DONTWAIT) > 0) {
     };
@@ -274,7 +274,7 @@ void Socket::clean() {
 /**
  * Wait socket can read or write.
  */
-int Socket::wait_event(int timeout_ms, int events) {
+int Socket::wait_event(int timeout_ms, int events) const {
     pollfd event;
     event.fd = fd;
     event.events = 0;
@@ -391,7 +391,7 @@ ssize_t Socket::sendto_sync(const Address &sa, const void *_buf, size_t _n, int 
     return rv ? bytes : -1;
 }
 
-ssize_t Socket::recvfrom(char *buf, size_t len, int flags, sockaddr *addr, socklen_t *addr_len) {
+ssize_t Socket::recvfrom(char *buf, size_t len, int flags, sockaddr *addr, socklen_t *addr_len) const {
     ssize_t n = 0;
     SW_LOOP_N(SW_SOCKET_RETRY_COUNT) {
         n = ::recvfrom(fd, buf, len, flags, addr, addr_len);
@@ -462,7 +462,7 @@ int Socket::get_name() {
     return 0;
 }
 
-int Socket::get_peer_name(Address *sa) {
+int Socket::get_peer_name(Address *sa) const {
     sa->len = sizeof(sa->addr);
     sa->type = socket_type;
     if (::getpeername(fd, &sa->addr.ss, &sa->len) != 0) {
@@ -508,7 +508,7 @@ int Socket::listen(int backlog) {
     return SW_OK;
 }
 
-bool Socket::set_buffer_size(uint32_t _buffer_size) {
+bool Socket::set_buffer_size(uint32_t _buffer_size) const {
     if (!set_send_buffer_size(_buffer_size)) {
         return false;
     }
@@ -518,7 +518,7 @@ bool Socket::set_buffer_size(uint32_t _buffer_size) {
     return true;
 }
 
-bool Socket::set_recv_buffer_size(uint32_t _buffer_size) {
+bool Socket::set_recv_buffer_size(uint32_t _buffer_size) const {
     if (set_option(SOL_SOCKET, SO_RCVBUF, _buffer_size) != 0) {
         swoole_sys_warning("setsockopt(%d, SOL_SOCKET, SO_RCVBUF, %d) failed", fd, _buffer_size);
         return false;
@@ -526,7 +526,7 @@ bool Socket::set_recv_buffer_size(uint32_t _buffer_size) {
     return true;
 }
 
-bool Socket::set_send_buffer_size(uint32_t _buffer_size) {
+bool Socket::set_send_buffer_size(uint32_t _buffer_size) const {
     if (set_option(SOL_SOCKET, SO_SNDBUF, _buffer_size) != 0) {
         swoole_sys_warning("setsockopt(%d, SOL_SOCKET, SO_SNDBUF, %d) failed", fd, _buffer_size);
         return false;
@@ -777,7 +777,7 @@ int Socket::handle_send() {
         return SW_OK;
     }
     // chunk full send
-    else if (ret == sendn || sendn == 0) {
+    else if (ret == sendn) {
         buffer->pop();
     } else {
         chunk->offset += ret;
@@ -903,8 +903,8 @@ ssize_t Socket::send_async(const void *_buf, size_t _n) {
     }
 }
 
-ssize_t Socket::read_sync(void *_buf, size_t _len, int timeout_ms) {
-    struct pollfd event;
+ssize_t Socket::read_sync(void *_buf, size_t _len, int timeout_ms) const {
+    pollfd event;
     event.fd = fd;
     event.events = POLLIN;
     if (poll(&event, 1, timeout_ms) == 1) {
@@ -914,8 +914,8 @@ ssize_t Socket::read_sync(void *_buf, size_t _len, int timeout_ms) {
     }
 }
 
-ssize_t Socket::write_sync(const void *_buf, size_t _len, int timeout_ms) {
-    struct pollfd event;
+ssize_t Socket::write_sync(const void *_buf, size_t _len, int timeout_ms) const {
+    pollfd event;
     event.fd = fd;
     event.events = POLLOUT;
     if (poll(&event, 1, timeout_ms) == 1) {
@@ -923,6 +923,16 @@ ssize_t Socket::write_sync(const void *_buf, size_t _len, int timeout_ms) {
     } else {
         return -1;
     }
+}
+
+ssize_t Socket::write_sync_optimistic(const void *_buf, size_t _len, int timeout_ms) const {
+    do {
+        const auto rv = write(_buf, _len);
+        if (rv < 0 && (errno == EINTR || (catch_error(errno) == SW_WAIT && wait_event(timeout_ms, SW_EVENT_WRITE)))) {
+            continue;
+        }
+        return rv;
+    } while (true);
 }
 
 ssize_t Socket::readv(IOVector *io_vector) {
@@ -961,7 +971,7 @@ ssize_t Socket::writev(IOVector *io_vector) {
     return retval;
 }
 
-ssize_t Socket::peek(void *_buf, size_t _n, int _flags) {
+ssize_t Socket::peek(void *_buf, size_t _n, int _flags) const {
     ssize_t retval;
     _flags |= MSG_PEEK;
     do {
@@ -980,7 +990,7 @@ ssize_t Socket::peek(void *_buf, size_t _n, int _flags) {
     return retval;
 }
 
-int Socket::catch_error(const int err) {
+int Socket::catch_error(const int err) const {
     switch (err) {
     case EFAULT:
         abort();
@@ -1128,7 +1138,7 @@ static int ssl_check_name(const char *name, ASN1_STRING *pattern) {
 }
 #endif
 
-bool Socket::ssl_check_host(const char *tls_host_name) {
+bool Socket::ssl_check_host(const char *tls_host_name) const {
     X509 *cert = ssl_get_peer_certificate();
     if (cert == nullptr) {
         return false;
@@ -1220,7 +1230,7 @@ _found:
     return true;
 }
 
-bool Socket::ssl_verify(bool allow_self_signed) {
+bool Socket::ssl_verify(bool allow_self_signed) const {
     long err = SSL_get_verify_result(ssl);
     switch (err) {
     case X509_V_OK:
@@ -1246,14 +1256,14 @@ bool Socket::ssl_verify(bool allow_self_signed) {
     return true;
 }
 
-X509 *Socket::ssl_get_peer_certificate() {
+X509 *Socket::ssl_get_peer_certificate() const {
     if (!ssl) {
         return nullptr;
     }
     return SSL_get_peer_certificate(ssl);
 }
 
-STACK_OF(X509) * Socket::ssl_get_peer_cert_chain() {
+STACK_OF(X509) * Socket::ssl_get_peer_cert_chain() const {
     if (!ssl) {
         return nullptr;
     }
@@ -1284,7 +1294,7 @@ static int _ssl_read_x509_file(X509 *cert, char *buffer, size_t length) {
     return BIO_read(bio, buffer, len);
 }
 
-std::vector<std::string> Socket::ssl_get_peer_cert_chain(int limit) {
+std::vector<std::string> Socket::ssl_get_peer_cert_chain(int limit) const {
     std::vector<std::string> list;
     STACK_OF(X509) *chain = ssl_get_peer_cert_chain();
     if (chain == nullptr) {
@@ -1308,7 +1318,7 @@ std::vector<std::string> Socket::ssl_get_peer_cert_chain(int limit) {
     return list;
 }
 
-bool Socket::ssl_get_peer_certificate(String *buf) {
+bool Socket::ssl_get_peer_certificate(String *buf) const {
     int n = ssl_get_peer_certificate(buf->str, buf->size);
     if (n < 0) {
         return false;
@@ -1318,7 +1328,7 @@ bool Socket::ssl_get_peer_certificate(String *buf) {
     }
 }
 
-int Socket::ssl_get_peer_certificate(char *buffer, size_t length) {
+int Socket::ssl_get_peer_certificate(char *buffer, size_t length) const {
     X509 *cert = ssl_get_peer_certificate();
     if (cert == nullptr) {
         return SW_ERR;
@@ -1424,21 +1434,25 @@ int Socket::ssl_connect() {
         return SW_OK;
     } else if (err == SSL_ERROR_ZERO_RETURN) {
         swoole_debug("SSL_connect(fd=%d) closed", fd);
+        swoole_set_last_error(SW_ERROR_SSL_RESET);
         return SW_ERR;
     } else if (err == SSL_ERROR_SYSCALL) {
         if (n) {
             swoole_set_last_error(errno);
             return SW_ERR;
         }
+    } else {
+        swoole_set_last_error(SW_ERROR_SSL_HANDSHAKE_FAILED);
     }
 
     ulong_t err_code = ERR_get_error();
-    char *msg = ERR_error_string(err_code, sw_tg_buffer()->str);
-    swoole_notice("Socket::ssl_connect(fd=%d) to server[%s:%d] failed. Error: %s[%ld|%d]",
+    char error_buf[512];
+    ERR_error_string_n(err_code, error_buf, sizeof(error_buf));
+    swoole_notice("ssl_connect(fd=%d) to server[%s:%d] failed. Error: %s[%ld|%d]",
                   fd,
                   info.get_addr(),
                   info.get_port(),
-                  msg,
+                  error_buf,
                   err,
                   ERR_GET_REASON(err_code));
 
@@ -1519,7 +1533,7 @@ void Socket::ssl_close() {
     ssl = nullptr;
 }
 
-void Socket::ssl_catch_error() {
+void Socket::ssl_catch_error() const {
     int level = SW_LOG_NOTICE;
     int reason = ERR_GET_REASON(ERR_peek_error());
 
@@ -1702,7 +1716,7 @@ int Socket::ssl_create(SSLContext *ssl_context, int _flags) {
         return SW_ERR;
     }
     if (!SSL_set_fd(ssl, fd)) {
-        ulong_t err = ERR_get_error();
+        ulong_t err = ERR_peek_error();
         swoole_warning("SSL_set_fd() failed. Error: %s[%lu]", ERR_reason_error_string(err), err);
         return SW_ERR;
     }

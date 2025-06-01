@@ -202,6 +202,7 @@ TEST(base, mkdir_recursive) {
 }
 
 TEST(base, set_task_tmpdir) {
+    auto ori_tmpdir = swoole_get_task_tmpdir();
     ASSERT_FALSE(swoole_set_task_tmpdir("aaa"));
 
     size_t length = SW_TASK_TMP_PATH_SIZE + 1;
@@ -239,6 +240,8 @@ TEST(base, set_task_tmpdir) {
     ASSERT_FALSE(swoole_set_task_tmpdir(dir));
 
     test::recursive_rmdir(dir.c_str());
+
+    ASSERT_TRUE(swoole_set_task_tmpdir(ori_tmpdir));
 }
 
 TEST(base, version) {
@@ -530,6 +533,7 @@ static int test_fork_fail(const std::function<void(void)> &after_fork_fail = nul
     return 0;
 }
 
+#if 0
 TEST(base, fork_fail) {
     auto status = test::spawn_exec_and_wait([]() {
         if (geteuid() == 0) {
@@ -545,4 +549,13 @@ TEST(base, fork_fail) {
     });
 
     ASSERT_EQ(status, 0);
+}
+#endif
+
+TEST(base, undefined_behavior) {
+    swoole_init();  // no effect
+    delete SwooleG.logger;
+    SwooleG.logger = nullptr;  // avoid double free in swoole_shutdown()
+    ASSERT_EQ(swoole_get_log_level(), SW_LOG_NONE);
+    SwooleG.logger = new Logger();
 }

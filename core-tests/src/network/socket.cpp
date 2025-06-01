@@ -478,7 +478,7 @@ TEST(socket, clean) {
 
 TEST(socket, check_liveness) {
     mutex m;
-    int svr_port = swoole::test::get_random_port();
+    int svr_port = TEST_PORT + __LINE__;
     m.lock();
 
     thread t1([&m, svr_port]() {
@@ -617,7 +617,9 @@ TEST(socket, get_domain_and_type) {
     ASSERT_TRUE(network::Socket::is_stream(SW_SOCK_TCP));
 
     int sock_domain, sock_type;
-    ASSERT_EQ(network::Socket::get_domain_and_type((swSocketType)(SW_SOCK_RAW6 + 1), &sock_domain, &sock_type), SW_ERR);
+    ASSERT_EQ(
+        network::Socket::get_domain_and_type(static_cast<swSocketType>(SW_SOCK_RAW6 + 1), &sock_domain, &sock_type),
+        SW_ERR);
 }
 
 TEST(socket, make_socket) {

@@ -33,6 +33,11 @@ Heap::Heap(size_t _n, Heap::Type _type) {
 }
 
 Heap::~Heap() {
+    for (uint32_t i = 1; i < num; i++) {
+        if (nodes[i]) {
+            delete nodes[i];
+        }
+    }
     sw_free(nodes);
 }
 

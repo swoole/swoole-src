@@ -28,7 +28,6 @@
 
 namespace swoole {
 namespace network {
-
 static int Client_inet_addr(Client *cli, const char *host, int port);
 static int Client_tcp_connect_sync(Client *cli, const char *host, int port, double _timeout, int nonblock);
 static int Client_tcp_connect_async(Client *cli, const char *host, int port, double timeout, int nonblock);
@@ -69,7 +68,7 @@ void Client::init_reactor(Reactor *reactor) {
 
 Client::Client(SocketType _type, bool _async) : async(_async) {
     fd_type = Socket::is_stream(_type) ? SW_FD_STREAM_CLIENT : SW_FD_DGRAM_CLIENT;
-    socket = swoole::make_socket(_type, fd_type, (async ? SW_SOCK_NONBLOCK : 0) | SW_SOCK_CLOEXEC);
+    socket = make_socket(_type, fd_type, (async ? SW_SOCK_NONBLOCK : 0) | SW_SOCK_CLOEXEC);
     if (socket == nullptr) {
         swoole_sys_warning("socket() failed");
         return;
@@ -107,7 +106,7 @@ Client::Client(SocketType _type, bool _async) : async(_async) {
     protocol.onPackage = Client_onPackage;
 }
 
-int Client::bind(const std::string &addr, int port) {
+int Client::bind(const std::string &addr, int port) const {
     if (socket->set_reuse_addr() < 0) {
         swoole_sys_warning("setsockopt(%d, SO_REUSEADDR) failed", socket->get_fd());
     }
@@ -119,7 +118,7 @@ int Client::bind(const std::string &addr, int port) {
 }
 
 void Client::set_socks5_proxy(const std::string &host, int port, const std::string &user, const std::string &pwd) {
-    socks5_proxy.reset(Socks5Proxy::create(host, port, user, pwd));
+    socks5_proxy.reset(Socks5Proxy::create(get_socket_type(), host, port, user, pwd));
 }
 
 void Client::set_http_proxy(const std::string &host, int port, const std::string &user, const std::string &pwd) {
@@ -152,7 +151,7 @@ int Client::wakeup() {
     return ret;
 }
 
-int Client::sendto(const std::string &host, int port, const char *data, size_t len) {
+int Client::sendto(const std::string &host, int port, const char *data, size_t len) const {
     if (!socket->is_dgram()) {
         swoole_set_last_error(SW_ERROR_OPERATION_NOT_SUPPORT);
         swoole_warning("only supports SWOOLE_SOCK_(UDP/UDP6/UNIX_DGRAM)");
@@ -160,7 +159,7 @@ int Client::sendto(const std::string &host, int port, const char *data, size_t l
     }
 
     Address remote_addr;
-    if (!remote_addr.assign(socket->socket_type, host, port, true)) {
+    if (!remote_addr.assign(socket->socket_type, host, port, !async)) {
         return SW_ERR;
     }
 
@@ -191,127 +190,35 @@ int Client::shutdown(int _how) {
     }
     swoole_trace_log(SW_TRACE_CLIENT, "how=%d, fd=%d", _how, socket->fd);
     if (_how == SHUT_RD) {
-        if (shutdown_read || shutdow_rw || ::shutdown(socket->fd, SHUT_RD)) {
+        if (shutdown_read || shutdown_rw || ::shutdown(socket->fd, SHUT_RD)) {
             return SW_ERR;
         } else {
             shutdown_read = true;
             return SW_OK;
         }
     } else if (_how == SHUT_WR) {
-        if (shutdown_write || shutdow_rw || ::shutdown(socket->fd, SHUT_WR) < 0) {
+        if (shutdown_write || shutdown_rw || ::shutdown(socket->fd, SHUT_WR) < 0) {
             return SW_ERR;
         } else {
             shutdown_write = true;
             return SW_OK;
         }
     } else if (_how == SHUT_RDWR) {
-        if (shutdow_rw || ::shutdown(socket->fd, SHUT_RDWR) < 0) {
+        if (shutdown_rw || ::shutdown(socket->fd, SHUT_RDWR) < 0) {
             return SW_ERR;
         } else {
             shutdown_read = true;
             return SW_OK;
         }
     } else {
+        swoole_set_last_error(EINVAL);
         return SW_ERR;
     }
 }
 
-int Client::socks5_handshake(const char *recv_data, size_t length) {
-    Socks5Proxy *ctx = socks5_proxy.get();
-    char *buf = ctx->buf;
-    uchar version, status, result, method;
-
-    if (ctx->state == SW_SOCKS5_STATE_HANDSHAKE) {
-        version = recv_data[0];
-        method = recv_data[1];
-        if (version != SW_SOCKS5_VERSION_CODE) {
-            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_VERSION, "SOCKS version is not supported");
-            return SW_ERR;
-        }
-        if (method != ctx->method) {
-            swoole_error_log(
-                SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_METHOD, "SOCKS authentication method is not supported");
-            return SW_ERR;
-        }
-        // authenticate request
-        if (method == SW_SOCKS5_METHOD_AUTH) {
-            buf[0] = 0x01;
-            buf[1] = ctx->username.length();
-
-            buf += 2;
-            memcpy(buf, ctx->username.c_str(), ctx->username.length());
-            buf += ctx->username.length();
-            buf[0] = ctx->password.length();
-            memcpy(buf + 1, ctx->password.c_str(), ctx->password.length());
-
-            ctx->state = SW_SOCKS5_STATE_AUTH;
-
-            return send(ctx->buf, ctx->username.length() + ctx->password.length() + 3, 0) > 0 ? SW_OK : SW_ERR;
-        }
-        // send connect request
-        else {
-        _send_connect_request:
-            buf[0] = SW_SOCKS5_VERSION_CODE;
-            buf[1] = 0x01;
-            buf[2] = 0x00;
-
-            ctx->state = SW_SOCKS5_STATE_CONNECT;
-
-            if (ctx->dns_tunnel) {
-                buf[3] = 0x03;
-                buf[4] = ctx->target_host.length();
-                buf += 5;
-                memcpy(buf, ctx->target_host.c_str(), ctx->target_host.length());
-                buf += ctx->target_host.length();
-                *(uint16_t *) buf = htons(ctx->target_port);
-                return send(ctx->buf, ctx->target_host.length() + 7, 0) > 0 ? SW_OK : SW_ERR;
-            } else {
-                buf[3] = 0x01;
-                buf += 4;
-                *(uint32_t *) buf = htons(ctx->target_host.length());
-                buf += 4;
-                *(uint16_t *) buf = htons(ctx->target_port);
-                return send(ctx->buf, ctx->target_host.length() + 7, 0) > 0 ? SW_OK : SW_ERR;
-            }
-        }
-    } else if (ctx->state == SW_SOCKS5_STATE_AUTH) {
-        version = recv_data[0];
-        status = recv_data[1];
-        if (version != 0x01) {
-            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_VERSION, "SOCKS version is not supported");
-            return SW_ERR;
-        }
-        if (status != 0) {
-            swoole_error_log(
-                SW_LOG_NOTICE, SW_ERROR_SOCKS5_AUTH_FAILED, "SOCKS username/password authentication failed");
-            return SW_ERR;
-        }
-        goto _send_connect_request;
-    } else if (ctx->state == SW_SOCKS5_STATE_CONNECT) {
-        version = recv_data[0];
-        if (version != SW_SOCKS5_VERSION_CODE) {
-            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_VERSION, "SOCKS version is not supported");
-            return SW_ERR;
-        }
-        result = recv_data[1];
-#if 0
-        uchar reg = recv_data[2];
-        uchar type = recv_data[3];
-        uint32_t ip = *(uint32_t *) (recv_data + 4);
-        uint16_t port = *(uint16_t *) (recv_data + 8);
-#endif
-        if (result == 0) {
-            ctx->state = SW_SOCKS5_STATE_READY;
-            return SW_OK;
-        } else {
-            swoole_error_log(SW_LOG_NOTICE,
-                             SW_ERROR_SOCKS5_SERVER_ERROR,
-                             "Socks5 server error, reason :%s",
-                             Socks5Proxy::strerror(result));
-            return SW_ERR;
-        }
-    }
-    return SW_OK;
+bool Client::socks5_handshake(const char *recv_data, size_t length) {
+    auto send_fn = [this](const char *buf, size_t len) { return send(buf, len); };
+    return socks5_proxy->handshake(recv_data, length, send_fn);
 }
 
 #ifdef SW_USE_OPENSSL
@@ -357,6 +264,7 @@ int Client::ssl_handshake() {
     if (!socket->ssl) {
         socket->ssl_send_ = 1;
         if (socket->ssl_create(ssl_context.get(), SW_SSL_CLIENT) < 0) {
+            swoole_set_last_error(SW_ERROR_SSL_CREATE_SESSION_FAILED);
             return SW_ERR;
         }
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
@@ -544,41 +452,37 @@ static int Client_tcp_connect_sync(Client *cli, const char *host, int port, doub
 
     if (ret >= 0) {
         cli->active = true;
+        auto recv_buf = sw_tg_buffer();
 
         if (cli->socks5_proxy) {
-            char buf[1024];
-            Socks5Proxy::pack(buf, cli->socks5_proxy->username.empty() ? 0x00 : 0x02);
-            if (cli->send(buf, 3, 0) < 0) {
+            const auto ctx = cli->socks5_proxy.get();
+            const auto len = ctx->pack_negotiate_request();
+            if (cli->send(ctx->buf, len) < 0) {
                 return SW_ERR;
             }
-            cli->socks5_proxy->state = SW_SOCKS5_STATE_HANDSHAKE;
+            ctx->state = SW_SOCKS5_STATE_HANDSHAKE;
             while (true) {
-                ssize_t n = cli->recv(buf, sizeof(buf), 0);
-                if (n > 0) {
-                    if (cli->socks5_handshake(buf, n) < 0) {
-                        return SW_ERR;
-                    }
+                const ssize_t n = cli->recv(recv_buf->str, recv_buf->size, 0);
+                if (n > 0 && cli->socks5_handshake(recv_buf->str, n)) {
                     if (cli->socks5_proxy->state == SW_SOCKS5_STATE_READY) {
                         break;
-                    } else {
-                        continue;
                     }
+                    continue;
                 }
                 return SW_ERR;
             }
         } else if (cli->http_proxy) {
-            auto proxy_buf = sw_tg_buffer();
-            const std::string *host_name = cli->get_http_proxy_host_name();
-            size_t n_write = cli->http_proxy->pack(proxy_buf, host_name);
-            if (cli->send(proxy_buf->str, n_write, 0) < 0) {
+            auto target_host = cli->get_http_proxy_host_name();
+            const size_t n_write = cli->http_proxy->pack(recv_buf, target_host);
+            if (cli->send(recv_buf->str, n_write, 0) < 0) {
                 return SW_ERR;
             }
-            ssize_t n_read = cli->recv(proxy_buf->str, proxy_buf->size, 0);
+            const ssize_t n_read = cli->recv(recv_buf->str, recv_buf->size, 0);
             if (n_read <= 0) {
                 return SW_ERR;
             }
-            proxy_buf->length = n_read;
-            if (!cli->http_proxy->handshake(proxy_buf)) {
+            recv_buf->length = n_read;
+            if (!cli->http_proxy->handshake(recv_buf)) {
                 return SW_ERR;
             }
         }
@@ -675,7 +579,7 @@ static ssize_t Client_tcp_send_async(Client *cli, const char *data, size_t lengt
             return SW_ERR;
         }
     }
-    if (cli->onBufferFull && cli->high_watermark == 0 &&
+    if (cli->onBufferFull && !cli->high_watermark &&
         cli->socket->get_out_buffer_length() >= cli->buffer_high_watermark) {
         cli->high_watermark = true;
         cli->onBufferFull(cli);
@@ -833,7 +737,7 @@ static ssize_t Client_udp_recv(Client *cli, char *data, size_t length, int flags
 }
 
 static int Client_onPackage(const Protocol *proto, Socket *conn, const RecvData *rdata) {
-    auto *cli = (Client *) conn->object;
+    auto *cli = static_cast<Client *>(conn->object);
     cli->onReceive(cli, rdata->data, rdata->info.len);
     return conn->close_wait ? SW_ERR : SW_OK;
 }
@@ -881,7 +785,7 @@ static int Client_onStreamRead(Reactor *reactor, Event *event) {
             goto _connect_fail;
         }
         cli->buffer->length += n;
-        if (cli->socks5_handshake(buf, buf_size) < 0) {
+        if (!cli->socks5_handshake(buf, buf_size)) {
             swoole_set_last_error(SW_ERROR_SOCKS5_HANDSHAKE_FAILED);
             goto _connect_fail;
         }
@@ -1006,7 +910,7 @@ static void Client_onTimeout(Timer *timer, TimerNode *tnode) {
 static void Client_onResolveCompleted(AsyncEvent *event) {
     auto *req = dynamic_cast<GethostbynameRequest *>(event->data.get());
 
-    auto *cli = (Client *) event->object;
+    auto *cli = static_cast<Client *>(event->object);
     cli->wait_dns = false;
     cli->dns_completed = true;
 
@@ -1015,7 +919,7 @@ static void Client_onResolveCompleted(AsyncEvent *event) {
          * In the callback function, the application layer cannot obtain the return value of the connect function,
          *  so it must call `onError` to notify the caller.
          */
-        if (cli->connect(req->addr.get(), cli->server_port, cli->timeout, cli->sock_flags_) == SW_ERR &&
+        if (cli->connect(req->addr.c_str(), cli->server_port, cli->timeout, cli->sock_flags_) == SW_ERR &&
             !cli->onerror_called) {
             goto _error;
         }
@@ -1079,15 +983,14 @@ static int Client_onWrite(Reactor *reactor, Event *event) {
         cli->active = true;
         // socks5 proxy
         if (cli->socks5_proxy && cli->socks5_proxy->state == SW_SOCKS5_STATE_WAIT) {
-            char buf[3];
-            Socks5Proxy::pack(buf, cli->socks5_proxy->username.empty() ? 0 : SW_SOCKS5_METHOD_AUTH);
+            const auto len = cli->socks5_proxy->pack_negotiate_request();
             cli->socks5_proxy->state = SW_SOCKS5_STATE_HANDSHAKE;
-            return cli->send(buf, sizeof(buf), 0);
+            return cli->send(cli->socks5_proxy->buf, len, 0);
         }
         // http proxy
         if (cli->http_proxy && cli->http_proxy->state == SW_HTTP_PROXY_STATE_WAIT) {
             auto proxy_buf = sw_tg_buffer();
-            const std::string *host_name = cli->get_http_proxy_host_name();
+            auto host_name = cli->get_http_proxy_host_name();
             size_t n = cli->http_proxy->pack(proxy_buf, host_name);
             swoole_trace_log(SW_TRACE_HTTP_CLIENT, "proxy request: <<EOF\n%.*sEOF", (int) n, proxy_buf->str);
             return cli->send(proxy_buf->str, n, 0);

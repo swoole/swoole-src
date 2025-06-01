@@ -50,32 +50,32 @@ bool ListenPort::ssl_add_sni_cert(const std::string &name, const std::shared_ptr
     return true;
 }
 
-bool ListenPort::ssl_matches_wildcard_name(const char *subjectname, const char *certname) {
+bool ListenPort::ssl_matches_wildcard_name(const char *subject_name, const char *cert_name) {
     const char *wildcard = nullptr;
 
-    if (strcasecmp(subjectname, certname) == 0) {
+    if (strcasecmp(subject_name, cert_name) == 0) {
         return true;
     }
 
     /* wildcard, if present, must only be present in the left-most component */
-    if (!((wildcard = strchr(certname, '*'))) || memchr(certname, '.', wildcard - certname)) {
+    if (!((wildcard = strchr(cert_name, '*'))) || memchr(cert_name, '.', wildcard - cert_name)) {
         return false;
     }
 
     /* 1) prefix, if not empty, must match subject */
-    ptrdiff_t prefix_len = wildcard - certname;
-    if (prefix_len && strncasecmp(subjectname, certname, prefix_len) != 0) {
+    ptrdiff_t prefix_len = wildcard - cert_name;
+    if (prefix_len && strncasecmp(subject_name, cert_name, prefix_len) != 0) {
         return false;
     }
 
     size_t suffix_len = strlen(wildcard + 1);
-    size_t subject_len = strlen(subjectname);
+    size_t subject_len = strlen(subject_name);
     if (suffix_len <= subject_len) {
         /* 2) suffix must match
          * 3) no . between prefix and suffix
          **/
-        return strcasecmp(wildcard + 1, subjectname + subject_len - suffix_len) == 0 &&
-               memchr(subjectname + prefix_len, '.', subject_len - suffix_len - prefix_len) == nullptr;
+        return strcasecmp(wildcard + 1, subject_name + subject_len - suffix_len) == 0 &&
+               memchr(subject_name + prefix_len, '.', subject_len - suffix_len - prefix_len) == nullptr;
     }
 
     return false;
@@ -136,7 +136,7 @@ bool ListenPort::ssl_context_init() {
     return true;
 }
 
-bool ListenPort::ssl_init() {
+bool ListenPort::ssl_init() const {
     if (!ssl_context_create(ssl_context.get())) {
         return false;
     }
@@ -146,11 +146,11 @@ bool ListenPort::ssl_init() {
     return true;
 }
 
-bool ListenPort::ssl_create(Connection *conn, Socket *sock) {
+bool ListenPort::ssl_create(Socket *sock) {
     if (sock->ssl_create(ssl_context.get(), SW_SSL_SERVER) < 0) {
+        swoole_set_last_error(SW_ERROR_SSL_CREATE_SESSION_FAILED);
         return false;
     }
-    conn->ssl = 1;
     if (SSL_set_ex_data(sock->ssl, swoole_ssl_get_ex_port_index(), this) == 0) {
         swoole_warning("SSL_set_ex_data() failed");
         return false;
@@ -797,9 +797,7 @@ void ListenPort::close() {
             ssl_context.reset();
         }
 #ifdef SW_SUPPORT_DTLS
-        if (dtls_sessions) {
-            delete dtls_sessions;
-        }
+        delete dtls_sessions;
 #endif
     }
 #endif
@@ -815,7 +813,7 @@ void ListenPort::close() {
     }
 }
 
-const char *ListenPort::get_protocols() {
+const char *ListenPort::get_protocols() const {
     if (is_dgram()) {
         return "dgram";
     }

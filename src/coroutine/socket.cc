@@ -226,141 +226,36 @@ _failed:
 
 bool Socket::socks5_handshake() {
     Socks5Proxy *ctx = socks5_proxy.get();
-    char *p;
-
-    Socks5Proxy::pack(ctx->buf, !socks5_proxy->username.empty() ? 0x02 : 0x00);
-    socks5_proxy->state = SW_SOCKS5_STATE_HANDSHAKE;
-    if (send(ctx->buf, 3) != 3) {
+    const auto len = ctx->pack_negotiate_request();
+    if (send(ctx->buf, len) < 0) {
         return false;
-    }
-    ssize_t n = recv(ctx->buf, sizeof(ctx->buf));
-    if (n <= 0) {
-        return false;
-    }
-    uchar version = ctx->buf[0];
-    uchar method = ctx->buf[1];
-    if (version != SW_SOCKS5_VERSION_CODE) {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_VERSION, "SOCKS version is not supported");
-        return false;
-    }
-    if (method != ctx->method) {
-        swoole_error_log(
-            SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_METHOD, "SOCKS authentication method is not supported");
-        return false;
-    }
-    // authentication
-    if (method == SW_SOCKS5_METHOD_AUTH) {
-        p = ctx->buf;
-        // username
-        p[0] = 0x01;
-        p[1] = ctx->username.length();
-        p += 2;
-        if (!ctx->username.empty()) {
-            memcpy(p, ctx->username.c_str(), ctx->username.length());
-            p += ctx->username.length();
-        }
-        // password
-        p[0] = ctx->password.length();
-        p += 1;
-        if (!ctx->password.empty()) {
-            memcpy(p, ctx->password.c_str(), ctx->password.length());
-            p += ctx->password.length();
-        }
-        // auth request
-        ctx->state = SW_SOCKS5_STATE_AUTH;
-        if (send(ctx->buf, p - ctx->buf) != p - ctx->buf) {
-            return false;
-        }
-        // auth response
-        n = recv(ctx->buf, sizeof(ctx->buf));
-        if (n <= 0) {
-            return false;
-        }
-        uchar resp_version = ctx->buf[0];
-        uchar resp_status = ctx->buf[1];
-        if (resp_version != 0x01) {
-            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_VERSION, "SOCKS version is not supported");
-            return false;
-        }
-        if (resp_status != 0x00) {
-            swoole_error_log(
-                SW_LOG_NOTICE, SW_ERROR_SOCKS5_AUTH_FAILED, "SOCKS username/password authentication failed");
-            return false;
-        }
     }
 
-    // send connect request
-    ctx->state = SW_SOCKS5_STATE_CONNECT;
-    p = ctx->buf;
-    p[0] = SW_SOCKS5_VERSION_CODE;
-    p[1] = 0x01;
-    p[2] = 0x00;
-    p += 3;
-    if (ctx->dns_tunnel) {
-        p[0] = 0x03;
-        p[1] = ctx->target_host.length();
-        p += 2;
-        memcpy(p, ctx->target_host.c_str(), ctx->target_host.length());
-        p += ctx->target_host.length();
-        *(uint16_t *) p = htons(ctx->target_port);
-        p += 2;
-        if (send(ctx->buf, p - ctx->buf) != p - ctx->buf) {
-            return false;
+    auto send_fn = [this](const char *buf, size_t len) { return send(buf, len); };
+    char recv_buf[512];
+    ctx->state = SW_SOCKS5_STATE_HANDSHAKE;
+    while (true) {
+        const ssize_t n = recv(recv_buf, sizeof(recv_buf));
+        if (n > 0 && ctx->handshake(recv_buf, n, send_fn)) {
+            if (ctx->state == SW_SOCKS5_STATE_READY) {
+                return true;
+            }
+            continue;
         }
-    } else {
-        p[0] = 0x01;
-        p += 1;
-        *(uint32_t *) p = htons(ctx->target_host.length());
-        p += 4;
-        *(uint16_t *) p = htons(ctx->target_port);
-        p += 2;
-        if (send(ctx->buf, p - ctx->buf) != p - ctx->buf) {
-            return false;
-        }
+        break;
     }
-    // recv response
-    n = recv(ctx->buf, sizeof(ctx->buf));
-    if (n <= 0) {
-        return false;
-    }
-    version = ctx->buf[0];
-    if (version != SW_SOCKS5_VERSION_CODE) {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_VERSION, "SOCKS version is not supported");
-        return false;
-    }
-    uchar result = ctx->buf[1];
-#if 0
-    uchar reg = buf[2];
-    uchar type = buf[3];
-    uint32_t ip = *(uint32_t *) (buf + 4);
-    uint16_t port = *(uint16_t *) (buf + 8);
-#endif
-    if (result == 0) {
-        ctx->state = SW_SOCKS5_STATE_READY;
-        return true;
-    } else {
-        swoole_error_log(SW_LOG_NOTICE,
-                         SW_ERROR_SOCKS5_SERVER_ERROR,
-                         "Socks5 server error, reason: %s",
-                         Socks5Proxy::strerror(result));
-        return false;
-    }
+    return false;
 }
 
 bool Socket::http_proxy_handshake() {
-    const std::string *real_host = &http_proxy->target_host;
-#ifdef SW_USE_OPENSSL
-    if (ssl_context && !ssl_context->tls_host_name.empty()) {
-        real_host = &ssl_context->tls_host_name;
-    }
-#endif
+    auto target_host = get_http_proxy_host_name();
 
     String *send_buffer = get_write_buffer();
     ON_SCOPE_EXIT {
         send_buffer->clear();
     };
 
-    size_t n = http_proxy->pack(send_buffer, real_host);
+    size_t n = http_proxy->pack(send_buffer, target_host);
     send_buffer->length = n;
     swoole_trace_log(SW_TRACE_HTTP_CLIENT, "proxy request: <<EOF\n%.*sEOF", (int) n, send_buffer->str);
 
@@ -528,9 +423,6 @@ double Socket::get_timeout(const TimeoutType type) const {
 String *Socket::get_read_buffer() {
     if (sw_unlikely(!read_buffer)) {
         read_buffer = make_string(SW_BUFFER_SIZE_BIG, buffer_allocator);
-        if (!read_buffer) {
-            throw std::bad_alloc();
-        }
     }
     return read_buffer;
 }
@@ -538,9 +430,6 @@ String *Socket::get_read_buffer() {
 String *Socket::get_write_buffer() {
     if (sw_unlikely(!write_buffer)) {
         write_buffer = make_string(SW_BUFFER_SIZE_BIG, buffer_allocator);
-        if (!write_buffer) {
-            throw std::bad_alloc();
-        }
     }
     return write_buffer;
 }
@@ -617,7 +506,7 @@ bool Socket::get_option(int level, int optname, void *optval, socklen_t *optlen)
 }
 
 void Socket::set_socks5_proxy(const std::string &host, int port, const std::string &user, const std::string &pwd) {
-    socks5_proxy.reset(Socks5Proxy::create(host, port, user, pwd));
+    socks5_proxy.reset(Socks5Proxy::create(type, host, port, user, pwd));
 }
 
 void Socket::set_http_proxy(const std::string &host, int port, const std::string &user, const std::string &pwd) {
@@ -748,33 +637,27 @@ bool Socket::connect(const std::string &_host, int _port, int flags) {
         break;
     }
 
-    if (connect(&server_addr.addr.ss, server_addr.len) == false) {
+    if (!connect(&server_addr.addr.ss, server_addr.len)) {
         return false;
     }
 
     // socks5 proxy
-    if (socks5_proxy && socks5_handshake() == false) {
-        if (errCode == 0) {
-            set_err(SW_ERROR_SOCKS5_HANDSHAKE_FAILED);
-        }
+    if (socks5_proxy && !socks5_handshake()) {
+        set_err(SW_ERROR_SOCKS5_HANDSHAKE_FAILED);
         return false;
     }
     // http proxy
-    if (http_proxy && !http_proxy->dont_handshake && http_proxy_handshake() == false) {
-        if (errCode == 0) {
-            set_err(SW_ERROR_HTTP_PROXY_HANDSHAKE_FAILED);
-        }
+    if (http_proxy && !http_proxy->dont_handshake && !http_proxy_handshake()) {
+        set_err(SW_ERROR_HTTP_PROXY_HANDSHAKE_FAILED);
         return false;
     }
 #ifdef SW_USE_OPENSSL
     ssl_is_server = false;
-    if (ssl_context) {
-        if (!ssl_handshake()) {
-            if (errCode == 0) {
-                set_err(SW_ERROR_SSL_HANDSHAKE_FAILED);
-            }
-            return false;
+    if (ssl_context && !ssl_handshake()) {
+        if (swoole_get_last_error() == 0) {
+            set_err(SW_ERROR_SSL_HANDSHAKE_FAILED);
         }
+        return false;
     }
 #endif
     return true;
@@ -1231,7 +1114,7 @@ Socket *Socket::accept(double timeout) {
 }
 
 #ifdef SW_USE_OPENSSL
-bool Socket::ssl_context_create() const {
+bool Socket::ssl_context_create() {
     if (socket->is_dgram()) {
 #ifdef SW_SUPPORT_DTLS
         socket->dtls = 1;
@@ -1244,17 +1127,19 @@ bool Socket::ssl_context_create() const {
     }
     ssl_context->http_v2 = http2;
     if (!ssl_context->create()) {
+        set_err();
         return false;
     }
     socket->ssl_send_ = 1;
     return true;
 }
 
-bool Socket::ssl_create(SSLContext *ssl_context) const {
+bool Socket::ssl_create(SSLContext *ssl_context) {
     if (socket->ssl) {
         return true;
     }
     if (socket->ssl_create(ssl_context, 0) < 0) {
+        set_err(SW_ERROR_SSL_CREATE_SESSION_FAILED);
         return false;
     }
 #ifdef SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER
@@ -1272,6 +1157,7 @@ bool Socket::ssl_create(SSLContext *ssl_context) const {
 
 bool Socket::ssl_handshake() {
     if (ssl_handshaked) {
+        set_err(SW_ERROR_WRONG_OPERATION);
         return false;
     }
     if (sw_unlikely(!is_available(SW_EVENT_RDWR))) {
@@ -1294,7 +1180,7 @@ bool Socket::ssl_handshake() {
     if (!ssl_is_server) {
         while (true) {
             if (socket->ssl_connect() < 0) {
-                set_err(errno);
+                set_err();
                 return false;
             }
             if (socket->ssl_state == SW_SSL_STATE_WAIT_STREAM) {
@@ -1824,6 +1710,5 @@ bool Socket::TimeoutController::has_timedout(const enum TimeoutType _type) {
     }
     return false;
 }
-
 }  // namespace coroutine
 }  // namespace swoole

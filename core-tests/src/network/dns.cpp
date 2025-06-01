@@ -76,11 +76,11 @@ TEST(dns, cancel) {
 TEST(dns, gethostbyname) {
     GethostbynameRequest req1(TEST_HTTP_DOMAIN, AF_INET);
     ASSERT_EQ(network::gethostbyname(&req1), 0);
-    ASSERT_TRUE(network::Address::verify_ip(AF_INET, req1.addr.get()));
+    ASSERT_TRUE(network::Address::verify_ip(AF_INET, req1.addr));
 
     GethostbynameRequest req2(TEST_HTTP_DOMAIN, AF_INET6);
     ASSERT_EQ(network::gethostbyname(&req2), 0);
-    ASSERT_TRUE(network::Address::verify_ip(AF_INET6, req2.addr.get()));
+    ASSERT_TRUE(network::Address::verify_ip(AF_INET6, req2.addr));
 }
 
 TEST(dns, getaddrinfo) {
