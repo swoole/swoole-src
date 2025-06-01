@@ -1758,12 +1758,13 @@ TEST(server, task_worker_3) {
     serv.onTask = [](Server *serv, EventData *task) -> int { return 0; };
 
     serv.onWorkerStart = [](Server *serv, Worker *worker) {
-        test::counter_incr(1);
+        if (test::counter_incr(1) == 5) {
+            swoole_timer_after(100, [serv](TIMER_PARAMS) { serv->shutdown(); });
+        }
         DEBUG() << "onWorkerStart: id=" << worker->id << "\n";
         if (worker->id == 0) {
             swoole_timer_after(50, [serv](TIMER_PARAMS) { kill(serv->get_worker_pid(2), SIGTERM); });
             swoole_timer_after(60, [serv](TIMER_PARAMS) { kill(serv->get_manager_pid(), SIGRTMIN); });
-            swoole_timer_after(100, [serv](TIMER_PARAMS) { serv->shutdown(); });
         }
         if (worker->id == 1 && test::counter_get(30) == 0) {
             test::counter_set(30, 1);
