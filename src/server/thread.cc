@@ -229,7 +229,7 @@ void ThreadFactory::spawn_manager_thread(WorkerId i) {
 
 void ThreadFactory::wait() {
     while (true) {
-        std::unique_lock lock(lock_);
+        std::unique_lock<std::mutex> lock(lock_);
         if (cv_timeout_ms_ > 0) {
             cv_.wait_for(lock, std::chrono::milliseconds(cv_timeout_ms_), [this] { return !queue_.empty(); });
         } else {

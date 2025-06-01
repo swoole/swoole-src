@@ -920,7 +920,7 @@ void swoole_exit(int __status) {
      * If multiple threads call exit simultaneously, it can result in a crash.
      * Implementing locking mechanisms can prevent concurrent calls to exit.
      */
-    std::unique_lock _lock(sw_thread_lock);
+    std::unique_lock<std::mutex> _lock(sw_thread_lock);
 #endif
     exit(__status);
 }

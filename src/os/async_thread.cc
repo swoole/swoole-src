@@ -213,8 +213,8 @@ class ThreadPool {
 
     bool running;
 
-    std::atomic<size_t> n_waiting = 0;
-    std::atomic<size_t> n_closing = 0;
+    std::atomic<size_t> n_waiting{0};
+    std::atomic<size_t> n_closing{0};
     size_t current_task_id = 0;
     std::unordered_map<std::thread::id, std::thread *> threads;
     EventQueue queue_;
@@ -228,7 +228,7 @@ void ThreadPool::main_func(const bool is_core_worker) {
 
     while (running) {
         bool timeout = false;
-        std::unique_lock lock(event_mutex);
+        std::unique_lock<std::mutex> lock(event_mutex);
         ++n_waiting;
         if (is_core_worker || max_idle_time <= 0) {
             _cv.wait(lock, [this] { return !queue_.empty() || !running; });
