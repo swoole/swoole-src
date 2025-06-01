@@ -65,9 +65,7 @@ struct Queue : ThreadResource {
     }
 
     void push_notify(zval *zvalue, bool notify_all) {
-        auto item = new ArrayItem(zvalue);
-        std::unique_lock<std::mutex> _lock(lock_);
-        queue.push(item);
+        push(zvalue);
         if (notify_all) {
             cv_.notify_all();
         } else {
@@ -77,30 +75,26 @@ struct Queue : ThreadResource {
 
     void pop_wait(zval *return_value, double timeout) {
         ArrayItem *item = nullptr;
-        std::unique_lock<std::mutex> _lock(lock_);
-        SW_LOOP {
+        while (true) {
+            std::unique_lock<std::mutex> _lock(lock_);
+            if (timeout > 0) {
+                cv_.wait_for(_lock, std::chrono::duration<double>(timeout), [this] { return !queue.empty(); });
+            } else {
+                cv_.wait(_lock, [this] { return !queue.empty(); });
+            }
+
             if (!queue.empty()) {
                 item = queue.front();
                 queue.pop();
                 break;
             } else {
-                if (timeout > 0) {
-                    if (cv_.wait_for(_lock, std::chrono::duration<double>(timeout)) == std::cv_status::timeout) {
-                        break;
-                    }
-                } else {
-                    cv_.wait(_lock);
-                }
                 // All threads have been awakened,
                 // but the data has already been acquired by other thread, returning NULL.
-                if (queue.empty()) {
-                    RETVAL_NULL();
-                    swoole_set_last_error(SW_ERROR_NO_PAYLOAD);
-                    break;
-                }
+                RETVAL_NULL();
+                swoole_set_last_error(SW_ERROR_NO_PAYLOAD);
+                return;
             }
         }
-        _lock.unlock();
         if (item) {
             item->fetch(return_value);
             delete item;

@@ -2022,7 +2022,9 @@ _find_available_slot:
     connection->worker_id = -1;
     connection->socket_type = ls->type;
     connection->socket = _socket;
+#ifdef SW_USE_OPENSSL
     connection->ssl = _socket->ssl != nullptr;
+#endif
 
     memcpy(&connection->info.addr, &_socket->info.addr, _socket->info.len);
     connection->info.len = _socket->info.len;
