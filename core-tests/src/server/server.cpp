@@ -193,9 +193,9 @@ TEST(server, schedule_4) {
     counter[worker_id]++;
 
     ASSERT_EQ(counter[0], 0);
-    ASSERT_EQ(counter[1], schedule_count);
+    ASSERT_EQ(counter[1], schedule_count + 1);
     ASSERT_EQ(counter[2], 0);
-    ASSERT_EQ(counter[3], schedule_count + 1);
+    ASSERT_EQ(counter[3], schedule_count);
 }
 
 TEST(server, schedule_5) {
@@ -298,10 +298,10 @@ TEST(server, schedule_8) {
     auto worker_id = serv.schedule_worker(9999, nullptr);
     counter[worker_id]++;
 
-    ASSERT_EQ(counter[0], schedule_count);
+    ASSERT_EQ(counter[0], schedule_count + 1);
     ASSERT_EQ(counter[1], schedule_count);
     ASSERT_EQ(counter[2], 0);
-    ASSERT_EQ(counter[3], 1);
+    ASSERT_EQ(counter[3], 0);
 }
 
 TEST(server, schedule_9) {

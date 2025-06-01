@@ -572,7 +572,7 @@ TEST(http_parser, http09) {
 }
 
 class http_parser_error : public ::testing::Test {
-protected:
+  protected:
     swoole_http_parser parser;
     swoole_http_parser_settings settings;
 
@@ -592,6 +592,8 @@ protected:
 
     // 存储解析结果
     std::string url;
+    std::string path;
+    std::string query_string;
     std::string current_header;
     std::unordered_map<std::string, std::string> headers;
     std::string body;
@@ -607,49 +609,61 @@ protected:
         // 初始化设置并设置回调函数
         memset(&settings, 0, sizeof(settings));
 
-        settings.on_message_begin = [](swoole_http_parser* p) -> int {
-            auto* test = static_cast<http_parser_error*>(p->data);
+        settings.on_message_begin = [](swoole_http_parser *p) -> int {
+            auto *test = static_cast<http_parser_error *>(p->data);
             test->message_begin_called++;
             return 0;
         };
 
-        settings.on_url = [](swoole_http_parser* p, const char* at, size_t length) -> int {
-            auto* test = static_cast<http_parser_error*>(p->data);
+        settings.on_path = [](swoole_http_parser *p, const char *at, size_t length) -> int {
+            auto *test = static_cast<http_parser_error *>(p->data);
+            test->path = std::string(at, length);
+            return 0;
+        };
+
+        settings.on_query_string = [](swoole_http_parser *p, const char *at, size_t length) -> int {
+            auto *test = static_cast<http_parser_error *>(p->data);
+            test->query_string = std::string(at, length);
+            return 0;
+        };
+
+        settings.on_url = [](swoole_http_parser *p, const char *at, size_t length) -> int {
+            auto *test = static_cast<http_parser_error *>(p->data);
             test->url_called++;
             test->url.assign(at, length);
             return 0;
         };
 
-        settings.on_header_field = [](swoole_http_parser* p, const char* at, size_t length) -> int {
-            auto* test = static_cast<http_parser_error*>(p->data);
+        settings.on_header_field = [](swoole_http_parser *p, const char *at, size_t length) -> int {
+            auto *test = static_cast<http_parser_error *>(p->data);
             test->header_field_called++;
             test->current_header = std::string(at, length);
             return 0;
         };
 
-        settings.on_header_value = [](swoole_http_parser* p, const char* at, size_t length) -> int {
-            auto* test = static_cast<http_parser_error*>(p->data);
+        settings.on_header_value = [](swoole_http_parser *p, const char *at, size_t length) -> int {
+            auto *test = static_cast<http_parser_error *>(p->data);
             test->header_value_called++;
             test->headers[test->current_header] = std::string(at, length);
             return 0;
         };
 
-        settings.on_headers_complete = [](swoole_http_parser* p) -> int {
-            auto* test = static_cast<http_parser_error*>(p->data);
+        settings.on_headers_complete = [](swoole_http_parser *p) -> int {
+            auto *test = static_cast<http_parser_error *>(p->data);
             test->headers_complete_called++;
             test->status_code = p->status_code;
             return 0;
         };
 
-        settings.on_body = [](swoole_http_parser* p, const char* at, size_t length) -> int {
-            auto* test = static_cast<http_parser_error*>(p->data);
+        settings.on_body = [](swoole_http_parser *p, const char *at, size_t length) -> int {
+            auto *test = static_cast<http_parser_error *>(p->data);
             test->body_called++;
             test->body.append(at, length);
             return 0;
         };
 
-        settings.on_message_complete = [](swoole_http_parser* p) -> int {
-            auto* test = static_cast<http_parser_error*>(p->data);
+        settings.on_message_complete = [](swoole_http_parser *p) -> int {
+            auto *test = static_cast<http_parser_error *>(p->data);
             test->message_complete_called++;
             return 0;
         };
@@ -678,10 +692,11 @@ protected:
     }
 
     // 辅助函数：执行解析并检查结果
-    size_t parse(const std::string& data) {
+    size_t parse(const std::string &data) {
         auto rv = swoole_http_parser_execute(&parser, &settings, data.c_str(), data.length());
         error = rv != data.length();
-        // printf("rv=%zu, len=%zu, nread=%zu, error=%d, state=%d\n", rv, data.length(), parser.nread, error, parser.state);
+        // printf("rv=%zu, len=%zu, nread=%zu, error=%d, state=%d\n", rv, data.length(), parser.nread, error,
+        // parser.state);
         return rv;
     }
 
@@ -690,7 +705,6 @@ protected:
         return error;
     }
 };
-
 
 // 1. 测试无效的 HTTP 方法
 TEST_F(http_parser_error, InvalidMethod) {
@@ -1025,7 +1039,7 @@ TEST_F(http_parser_error, HeaderValueWithLeadingSpaces) {
 
     // 检查头部值是否正确处理了前导空格
     bool found = false;
-    for (const auto& header : headers) {
+    for (const auto &header : headers) {
         if (header.first == "X-Space") {
             found = true;
             // 取决于解析器实现，可能会保留或删除前导空格
@@ -1038,7 +1052,8 @@ TEST_F(http_parser_error, HeaderValueWithLeadingSpaces) {
 
 // 35. 测试分块编码中的扩展
 TEST_F(http_parser_error, ChunkedEncodingWithExtensions) {
-    std::string request = "POST / HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n5;extension=value\r\nHello\r\n0\r\n\r\n";
+    std::string request =
+        "POST / HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n5;extension=value\r\nHello\r\n0\r\n\r\n";
     size_t parsed = parse(request);
 
     // 取决于解析器实现，可能会成功或失败
@@ -1050,7 +1065,8 @@ TEST_F(http_parser_error, ChunkedEncodingWithExtensions) {
 
 // 36. 测试分块编码中的尾部头部
 TEST_F(http_parser_error, ChunkedEncodingWithTrailers) {
-    std::string request = "POST / HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nHello\r\n0\r\nTrailer: value\r\n\r\n";
+    std::string request =
+        "POST / HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nHello\r\n0\r\nTrailer: value\r\n\r\n";
     size_t parsed = parse(request);
 
     // 取决于解析器实现，可能会成功或失败
@@ -1302,7 +1318,7 @@ TEST_F(http_parser_error, MultipleColonsInHeader) {
         EXPECT_EQ(parsed, request.length());
 
         bool found = false;
-        for (const auto& header : headers) {
+        for (const auto &header : headers) {
             if (header.first == "Field") {
                 found = true;
                 EXPECT_EQ(header.second, ": value");
@@ -1392,13 +1408,13 @@ TEST_F(http_parser_error, ControlCharInBody) {
 }
 
 // 69. 测试分块编码中的块大小为0但后面有数据
-// TEST_F(http_parser_error, ZeroChunkSizeWithData) {
-//     std::string request = "POST / HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n0\r\nInvalidData\r\n\r\n";
-//     size_t parsed = parse(request);
-//
-//     EXPECT_TRUE(hasError());
-//     EXPECT_LT(parsed, request.length());
-// }
+TEST_F(http_parser_error, ZeroChunkSizeWithData) {
+    std::string request = "POST / HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n0\r\nInvalidData\r\n\r\n";
+    size_t parsed = parse(request);
+
+    EXPECT_EQ(message_complete_called, 1);
+    EXPECT_EQ(parser.content_length, 0);
+}
 
 // 70. 测试分块编码中的块大小为0但没有最终的CRLF
 TEST_F(http_parser_error, ZeroChunkSizeWithoutFinalCRLF) {
@@ -1440,7 +1456,8 @@ TEST_F(http_parser_error, ChunkSizeWithNonHexCharacters) {
 
 // 74. 测试分块编码中的块大小后有无效的扩展
 TEST_F(http_parser_error, ChunkSizeWithInvalidExtension) {
-    std::string request = "POST / HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n5;invalid extension\r\nHello\r\n0\r\n\r\n";
+    std::string request =
+        "POST / HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n5;invalid extension\r\nHello\r\n0\r\n\r\n";
     size_t parsed = parse(request);
 
     // 取决于解析器实现，可能会成功或失败
@@ -1451,22 +1468,20 @@ TEST_F(http_parser_error, ChunkSizeWithInvalidExtension) {
 }
 
 // 75. 测试分块编码中的尾部头部格式错误
-// TEST_F(http_parser_error, MalformedTrailerInChunkedEncoding) {
-//     std::string request = "POST / HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nHello\r\n0\r\nInvalid-Trailer\r\n\r\n";
-//     size_t parsed = parse(request);
-//
-//     EXPECT_TRUE(hasError());
-//     EXPECT_LT(parsed, request.length());
-// }
+TEST_F(http_parser_error, MalformedTrailerInChunkedEncoding) {
+    std::string request =
+        "POST / HTTP/1.1\r\nTransfer-Encoding:chunked\r\n\r\n5\r\nHello\r\n0\r\nInvalid-Trailer\r\n\r\n";
+    size_t parsed = parse(request);
+    EXPECT_EQ(message_complete_called, 1);
+    EXPECT_EQ(parser.content_length, 0);
+}
 
 // 76. 测试Content-Length值超过整数最大值
-// TEST_F(http_parser_error, ContentLengthOverflow) {
-//     std::string request = "POST / HTTP/1.1\r\nContent-Length: 999999999999999999999\r\n\r\nBody";
-//     size_t parsed = parse(request);
-//
-//     EXPECT_TRUE(hasError());
-//     EXPECT_LT(parsed, request.length());
-// }
+TEST_F(http_parser_error, ContentLengthOverflow) {
+    std::string request = "POST / HTTP/1.1\r\nContent-Length: 999999999999999999999\r\n\r\nBody";
+    size_t parsed = parse(request);
+    EXPECT_EQ(headers["Content-Length"], "999999999999999999999");
+}
 
 // 77. 测试Content-Length值为浮点数
 TEST_F(http_parser_error, ContentLengthAsFloat) {
@@ -1497,14 +1512,12 @@ TEST_F(http_parser_error, ContentLengthWithSpaces) {
     EXPECT_EQ(body, "Hello");
 }
 
-// // 80. 测试Content-Length值中间有空格
-// TEST_F(http_parser_error, ContentLengthWithInternalSpaces) {
-//     std::string request = "POST / HTTP/1.1\r\nContent-Length: 5 5\r\n\r\nHello";
-//     size_t parsed = parse(request);
-//
-//     EXPECT_TRUE(hasError());
-//     EXPECT_LT(parsed, request.length());
-// }
+// 80. 测试Content-Length值中间有空格
+TEST_F(http_parser_error, ContentLengthWithInternalSpaces) {
+    std::string request = "POST / HTTP/1.1\r\nContent-Length: 5 5\r\n\r\nHello";
+    size_t parsed = parse(request);
+    EXPECT_EQ(headers["Content-Length"], "5 5");
+}
 
 // 81. 测试HTTP请求中使用了保留字符
 TEST_F(http_parser_error, ReservedCharactersInRequest) {
@@ -1538,22 +1551,20 @@ TEST_F(http_parser_error, EncodedSpacesInUrl) {
 }
 
 // 84. 测试HTTP请求中使用了百分号但未完成编码
-// TEST_F(http_parser_error, IncompletePercentEncodingInUrl) {
-//     std::string request = "GET /path%2 HTTP/1.1\r\n\r\n";
-//     size_t parsed = parse(request);
-//
-//     EXPECT_TRUE(hasError());
-//     EXPECT_LT(parsed, request.length());
-// }
+TEST_F(http_parser_error, IncompletePercentEncodingInUrl) {
+    std::string request = "GET /path%2 HTTP/1.1\r\n\r\n";
+    size_t parsed = parse(request);
+
+    EXPECT_EQ(path, "/path%2");
+}
 
 // 85. 测试HTTP请求中使用了无效的百分号编码
-// TEST_F(http_parser_error, InvalidPercentEncodingInUrl) {
-//     std::string request = "GET /path%XY HTTP/1.1\r\n\r\n";
-//     size_t parsed = parse(request);
-//
-//     EXPECT_TRUE(hasError());
-//     EXPECT_LT(parsed, request.length());
-// }
+TEST_F(http_parser_error, InvalidPercentEncodingInUrl) {
+    std::string request = "GET /path%XY HTTP/1.1\r\n\r\n";
+    size_t parsed = parse(request);
+
+    EXPECT_EQ(path, "/path%XY");
+}
 
 // 86. 测试HTTP请求中使用了多个百分号
 TEST_F(http_parser_error, MultiplePercentSignsInUrl) {
