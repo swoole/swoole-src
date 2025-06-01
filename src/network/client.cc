@@ -264,6 +264,7 @@ int Client::ssl_handshake() {
     if (!socket->ssl) {
         socket->ssl_send_ = 1;
         if (socket->ssl_create(ssl_context.get(), SW_SSL_CLIENT) < 0) {
+            swoole_set_last_error(SW_ERROR_SSL_CREATE_SESSION_FAILED);
             return SW_ERR;
         }
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME

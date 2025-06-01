@@ -32,11 +32,11 @@ struct ThreadMapObject {
 };
 
 static sw_inline ThreadMapObject *map_fetch_object(zend_object *obj) {
-    return (ThreadMapObject *) ((char *) obj - swoole_thread_map_handlers.offset);
+    return reinterpret_cast<ThreadMapObject *>(reinterpret_cast<char *>(obj) - swoole_thread_map_handlers.offset);
 }
 
 static void map_free_object(zend_object *object) {
-    ThreadMapObject *mo = map_fetch_object(object);
+    auto mo = map_fetch_object(object);
     if (mo->map) {
         mo->map->del_ref();
         mo->map = nullptr;
@@ -45,14 +45,14 @@ static void map_free_object(zend_object *object) {
 }
 
 static zend_object *map_create_object(zend_class_entry *ce) {
-    ThreadMapObject *mo = (ThreadMapObject *) zend_object_alloc(sizeof(ThreadMapObject), ce);
+    auto mo = static_cast<ThreadMapObject *>(zend_object_alloc(sizeof(ThreadMapObject), ce));
     zend_object_std_init(&mo->std, ce);
     object_properties_init(&mo->std, ce);
     mo->std.handlers = &swoole_thread_map_handlers;
     return &mo->std;
 }
 
-static ThreadMapObject *map_fetch_object_check(zval *zobject) {
+static ThreadMapObject *map_fetch_object_check(const zval *zobject) {
     ThreadMapObject *map = map_fetch_object(Z_OBJ_P(zobject));
     if (!map->map) {
         php_swoole_fatal_error(E_ERROR, "must call constructor first");
@@ -60,13 +60,13 @@ static ThreadMapObject *map_fetch_object_check(zval *zobject) {
     return map;
 }
 
-ThreadResource *php_swoole_thread_map_cast(zval *zobject) {
+ThreadResource *php_swoole_thread_map_cast(const zval *zobject) {
     return map_fetch_object(Z_OBJ_P(zobject))->map;
 }
 
 void php_swoole_thread_map_create(zval *return_value, ThreadResource *resource) {
     auto obj = map_create_object(swoole_thread_map_ce);
-    auto mo = (ThreadMapObject *) map_fetch_object(obj);
+    auto mo = map_fetch_object(obj);
     mo->map = static_cast<ZendArray *>(resource);
     ZVAL_OBJ(return_value, obj);
 }
@@ -131,7 +131,7 @@ static PHP_METHOD(swoole_thread_map, __construct) {
 
     auto mo = map_fetch_object(Z_OBJ_P(ZEND_THIS));
     if (mo->map != nullptr) {
-        zend_throw_error(NULL, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        zend_throw_error(nullptr, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
         return;
     }
 
@@ -142,7 +142,7 @@ static PHP_METHOD(swoole_thread_map, __construct) {
     }
 }
 
-static int handle_array_key(zval *key, zend_ulong *idx) {
+static int handle_array_key(const zval *key, zend_ulong *idx) {
     switch (Z_TYPE_P(key)) {
     case IS_STRING:
         return _zend_handle_numeric_str(Z_STRVAL_P(key), Z_STRLEN_P(key), idx) ? IS_LONG : IS_STRING;

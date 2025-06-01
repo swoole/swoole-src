@@ -177,6 +177,7 @@ bool Session::init() {
         return false;
     }
     if (socket->ssl_create(ctx.get(), SW_SSL_SERVER) < 0) {
+        swoole_set_last_error(SW_ERROR_SSL_CREATE_SESSION_FAILED);
         return false;
     }
     socket->dtls = 1;

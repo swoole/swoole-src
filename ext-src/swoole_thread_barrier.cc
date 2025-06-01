@@ -16,7 +16,6 @@
 
 #include "php_swoole_private.h"
 #include "php_swoole_thread.h"
-#include "swoole_memory.h"
 #include "swoole_lock.h"
 
 #ifdef SW_THREAD
@@ -30,9 +29,9 @@ using swoole::Barrier;
 zend_class_entry *swoole_thread_barrier_ce;
 static zend_object_handlers swoole_thread_barrier_handlers;
 
-struct BarrierResource : public ThreadResource {
+struct BarrierResource : ThreadResource {
     Barrier barrier_;
-    BarrierResource(int count) : ThreadResource() {
+    BarrierResource(int count) {
         barrier_.init(false, count);
     }
     void wait() {
@@ -49,14 +48,14 @@ struct BarrierObject {
 };
 
 static sw_inline BarrierObject *barrier_fetch_object(zend_object *obj) {
-    return (BarrierObject *) ((char *) obj - swoole_thread_barrier_handlers.offset);
+    return reinterpret_cast<BarrierObject *>(reinterpret_cast<char *>(obj) - swoole_thread_barrier_handlers.offset);
 }
 
-static BarrierResource *barrier_get_ptr(zval *zobject) {
+static BarrierResource *barrier_get_ptr(const zval *zobject) {
     return barrier_fetch_object(Z_OBJ_P(zobject))->barrier;
 }
 
-static BarrierResource *barrier_get_and_check_ptr(zval *zobject) {
+static BarrierResource *barrier_get_and_check_ptr(const zval *zobject) {
     BarrierResource *barrier = barrier_get_ptr(zobject);
     if (UNEXPECTED(!barrier)) {
         swoole_fatal_error(SW_ERROR_WRONG_OPERATION, "must call constructor first");
@@ -65,7 +64,7 @@ static BarrierResource *barrier_get_and_check_ptr(zval *zobject) {
 }
 
 static void barrier_free_object(zend_object *object) {
-    BarrierObject *bo = barrier_fetch_object(object);
+    auto bo = barrier_fetch_object(object);
     if (bo->barrier) {
         bo->barrier->del_ref();
         bo->barrier = nullptr;
@@ -74,20 +73,20 @@ static void barrier_free_object(zend_object *object) {
 }
 
 static zend_object *barrier_create_object(zend_class_entry *ce) {
-    BarrierObject *bo = (BarrierObject *) zend_object_alloc(sizeof(BarrierObject), ce);
+    auto bo = static_cast<BarrierObject *>(zend_object_alloc(sizeof(BarrierObject), ce));
     zend_object_std_init(&bo->std, ce);
     object_properties_init(&bo->std, ce);
     bo->std.handlers = &swoole_thread_barrier_handlers;
     return &bo->std;
 }
 
-ThreadResource *php_swoole_thread_barrier_cast(zval *zobject) {
+ThreadResource *php_swoole_thread_barrier_cast(const zval *zobject) {
     return barrier_fetch_object(Z_OBJ_P(zobject))->barrier;
 }
 
 void php_swoole_thread_barrier_create(zval *return_value, ThreadResource *resource) {
     auto obj = barrier_create_object(swoole_thread_barrier_ce);
-    auto bo = (BarrierObject *) barrier_fetch_object(obj);
+    auto bo = barrier_fetch_object(obj);
     bo->barrier = static_cast<BarrierResource *>(resource);
     ZVAL_OBJ(return_value, obj);
 }
@@ -111,17 +110,13 @@ void php_swoole_thread_barrier_minit(int module_number) {
     swoole_thread_barrier_ce->ce_flags |= ZEND_ACC_FINAL | ZEND_ACC_NOT_SERIALIZABLE;
     SW_SET_CLASS_CLONEABLE(swoole_thread_barrier, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_thread_barrier, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CUSTOM_OBJECT(swoole_thread_barrier,
-                               barrier_create_object,
-                               barrier_free_object,
-                               BarrierObject,
-                               std);
+    SW_SET_CLASS_CUSTOM_OBJECT(swoole_thread_barrier, barrier_create_object, barrier_free_object, BarrierObject, std);
 }
 
 static PHP_METHOD(swoole_thread_barrier, __construct) {
     auto bo = barrier_fetch_object(Z_OBJ_P(ZEND_THIS));
     if (bo->barrier != nullptr) {
-        zend_throw_error(NULL, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        zend_throw_error(nullptr, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
         return;
     }
 

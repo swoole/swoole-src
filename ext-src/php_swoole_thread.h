@@ -37,15 +37,15 @@ extern zend_class_entry *swoole_thread_map_ce;
 extern zend_class_entry *swoole_thread_queue_ce;
 
 void php_swoole_thread_start(std::shared_ptr<swoole::Thread> thread, zend_string *file, ZendArray *argv);
-void php_swoole_thread_bailout(void);
+void php_swoole_thread_bailout();
 
-ThreadResource *php_swoole_thread_arraylist_cast(zval *zobject);
-ThreadResource *php_swoole_thread_map_cast(zval *zobject);
-ThreadResource *php_swoole_thread_queue_cast(zval *zobject);
-ThreadResource *php_swoole_thread_lock_cast(zval *zobject);
-ThreadResource *php_swoole_thread_atomic_cast(zval *zobject);
-ThreadResource *php_swoole_thread_atomic_long_cast(zval *zobject);
-ThreadResource *php_swoole_thread_barrier_cast(zval *zobject);
+ThreadResource *php_swoole_thread_arraylist_cast(const zval *zobject);
+ThreadResource *php_swoole_thread_map_cast(const zval *zobject);
+ThreadResource *php_swoole_thread_queue_cast(const zval *zobject);
+ThreadResource *php_swoole_thread_lock_cast(const zval *zobject);
+ThreadResource *php_swoole_thread_atomic_cast(const zval *zobject);
+ThreadResource *php_swoole_thread_atomic_long_cast(const zval *zobject);
+ThreadResource *php_swoole_thread_barrier_cast(const zval *zobject);
 
 void php_swoole_thread_arraylist_create(zval *return_value, ThreadResource *resource);
 void php_swoole_thread_map_create(zval *return_value, ThreadResource *resource);
@@ -121,17 +121,17 @@ struct ArrayItem {
     }
 
     void setKey(zend::String &_key) {
-        key = zend_string_init(_key.val(), _key.len(), 1);
+        key = zend_string_init(_key.val(), _key.len(), true);
     }
 
-    void setKey(zend_string *_key) {
-        key = zend_string_init(ZSTR_VAL(_key), ZSTR_LEN(_key), 1);
+    void setKey(const zend_string *_key) {
+        key = zend_string_init(ZSTR_VAL(_key), ZSTR_LEN(_key), true);
     }
 
     void store(zval *zvalue);
-    void fetch(zval *return_value);
+    void fetch(zval *return_value) const;
     void release();
-    bool equals(zval *zvalue);
+    bool equals(const zval *zvalue) const;
 
     static int compare(Bucket *a, Bucket *b);
 
@@ -151,12 +151,12 @@ class ZendArray : public ThreadResource {
     zend_array ht;
 
     static void item_dtor(zval *pDest) {
-        ArrayItem *item = (ArrayItem *) Z_PTR_P(pDest);
+        auto item = static_cast<ArrayItem *>(Z_PTR_P(pDest));
         delete item;
     }
 
   public:
-    ZendArray() : ThreadResource(), lock_(0) {
+    ZendArray() : lock_(0) {
         zend_hash_init(&ht, 0, NULL, item_dtor, 1);
     }
 
@@ -172,7 +172,7 @@ class ZendArray : public ThreadResource {
 
     void append(zval *zvalue);
 
-    void add(zend_string *skey, zval *zvalue) {
+    void add(const zend_string *skey, zval *zvalue) {
         auto item = new ArrayItem(zvalue);
         item->setKey(skey);
         zend_hash_add_ptr(&ht, item->key, item);
@@ -189,22 +189,22 @@ class ZendArray : public ThreadResource {
         zend_hash_index_add_ptr(&ht, index, item);
     }
 
-    bool index_exists(zend_long index) {
+    bool index_exists(zend_long index) const {
         return index < (zend_long) zend_hash_num_elements(&ht);
     }
 
-    bool strkey_exists(zend::String &skey) {
-        return zend_hash_find_ptr(&ht, skey.get()) != NULL;
+    bool strkey_exists(zend::String &skey) const {
+        return zend_hash_find_ptr(&ht, skey.get()) != nullptr;
     }
 
-    bool intkey_exists(zend_long index) {
-        return zend_hash_index_find_ptr(&ht, index) != NULL;
+    bool intkey_exists(zend_long index) const {
+        return zend_hash_index_find_ptr(&ht, index) != nullptr;
     }
 
     void strkey_offsetGet(zval *zkey, zval *return_value) {
         zend::String skey(zkey);
         lock_.lock_rd();
-        ArrayItem *item = (ArrayItem *) zend_hash_find_ptr(&ht, skey.get());
+        auto item = static_cast<ArrayItem *>(zend_hash_find_ptr(&ht, skey.get()));
         if (item) {
             item->fetch(return_value);
         }
@@ -255,12 +255,12 @@ class ZendArray : public ThreadResource {
     void keys(zval *return_value);
     void values(zval *return_value);
     void to_array(zval *return_value);
-    void find(zval *search, zval *return_value);
+    void find(const zval *search, zval *return_value);
     void sort(bool renumber);
 
     void intkey_offsetGet(zend_long index, zval *return_value) {
         lock_.lock_rd();
-        ArrayItem *item = (ArrayItem *) zend_hash_index_find_ptr(&ht, index);
+        auto item = static_cast<ArrayItem *>(zend_hash_index_find_ptr(&ht, index));
         if (item) {
             item->fetch(return_value);
         }

@@ -402,6 +402,10 @@ struct Socket {
         ssl_want_read = 0;
         ssl_want_write = 0;
     }
+    /**
+     * This function does not set the last error; to obtain internal SSL error information, you should call
+     * ERR_get_error().
+     */
     int ssl_create(SSLContext *_ssl_context, int _flags);
     int ssl_connect();
     ReturnCode ssl_accept();

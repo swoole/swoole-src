@@ -1434,18 +1434,21 @@ int Socket::ssl_connect() {
         return SW_OK;
     } else if (err == SSL_ERROR_ZERO_RETURN) {
         swoole_debug("SSL_connect(fd=%d) closed", fd);
+        swoole_set_last_error(SW_ERROR_SSL_RESET);
         return SW_ERR;
     } else if (err == SSL_ERROR_SYSCALL) {
         if (n) {
             swoole_set_last_error(errno);
             return SW_ERR;
         }
+    } else {
+        swoole_set_last_error(SW_ERROR_SSL_HANDSHAKE_FAILED);
     }
 
     ulong_t err_code = ERR_get_error();
-    char error_buf[256];
+    char error_buf[512];
     ERR_error_string_n(err_code, error_buf, sizeof(error_buf));
-    swoole_notice("Socket::ssl_connect(fd=%d) to server[%s:%d] failed. Error: %s[%ld|%d]",
+    swoole_notice("ssl_connect(fd=%d) to server[%s:%d] failed. Error: %s[%ld|%d]",
                   fd,
                   info.get_addr(),
                   info.get_port(),
@@ -1713,7 +1716,7 @@ int Socket::ssl_create(SSLContext *ssl_context, int _flags) {
         return SW_ERR;
     }
     if (!SSL_set_fd(ssl, fd)) {
-        ulong_t err = ERR_get_error();
+        ulong_t err = ERR_peek_error();
         swoole_warning("SSL_set_fd() failed. Error: %s[%lu]", ERR_reason_error_string(err), err);
         return SW_ERR;
     }

@@ -148,6 +148,7 @@ bool ListenPort::ssl_init() const {
 
 bool ListenPort::ssl_create(Socket *sock) {
     if (sock->ssl_create(ssl_context.get(), SW_SSL_SERVER) < 0) {
+        swoole_set_last_error(SW_ERROR_SSL_CREATE_SESSION_FAILED);
         return false;
     }
     if (SSL_set_ex_data(sock->ssl, swoole_ssl_get_ex_port_index(), this) == 0) {

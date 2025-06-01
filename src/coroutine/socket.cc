@@ -654,7 +654,9 @@ bool Socket::connect(const std::string &_host, int _port, int flags) {
 #ifdef SW_USE_OPENSSL
     ssl_is_server = false;
     if (ssl_context && !ssl_handshake()) {
-        set_err(SW_ERROR_SSL_HANDSHAKE_FAILED);
+        if (swoole_get_last_error() == 0) {
+            set_err(SW_ERROR_SSL_HANDSHAKE_FAILED);
+        }
         return false;
     }
 #endif
@@ -1112,7 +1114,7 @@ Socket *Socket::accept(double timeout) {
 }
 
 #ifdef SW_USE_OPENSSL
-bool Socket::ssl_context_create() const {
+bool Socket::ssl_context_create() {
     if (socket->is_dgram()) {
 #ifdef SW_SUPPORT_DTLS
         socket->dtls = 1;
@@ -1125,17 +1127,20 @@ bool Socket::ssl_context_create() const {
     }
     ssl_context->http_v2 = http2;
     if (!ssl_context->create()) {
+        set_err();
         return false;
     }
     socket->ssl_send_ = 1;
     return true;
 }
 
-bool Socket::ssl_create(SSLContext *ssl_context) const {
+bool Socket::ssl_create(SSLContext *ssl_context) {
     if (socket->ssl) {
-        return true;
+        set_err(SW_ERROR_WRONG_OPERATION);
+        return false;
     }
     if (socket->ssl_create(ssl_context, 0) < 0) {
+        set_err(SW_ERROR_SSL_CREATE_SESSION_FAILED);
         return false;
     }
 #ifdef SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER
@@ -1153,6 +1158,7 @@ bool Socket::ssl_create(SSLContext *ssl_context) const {
 
 bool Socket::ssl_handshake() {
     if (ssl_handshaked) {
+        set_err(SW_ERROR_WRONG_OPERATION);
         return false;
     }
     if (sw_unlikely(!is_available(SW_EVENT_RDWR))) {
@@ -1175,7 +1181,7 @@ bool Socket::ssl_handshake() {
     if (!ssl_is_server) {
         while (true) {
             if (socket->ssl_connect() < 0) {
-                set_err(errno);
+                set_err();
                 return false;
             }
             if (socket->ssl_state == SW_SSL_STATE_WAIT_STREAM) {

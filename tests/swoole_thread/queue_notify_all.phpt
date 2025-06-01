@@ -27,7 +27,9 @@ if (empty($args)) {
     }
     $barrier->wait();
     usleep(10000);
-    $queue->push($uuid, Queue::NOTIFY_ALL);
+    for ($i = 0; $i < C; $i++) {
+        $queue->push($uuid, Queue::NOTIFY_ALL);
+    }
     for ($i = 0; $i < C; $i++) {
         $threads[$i]->join();
     }
