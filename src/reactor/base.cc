@@ -77,7 +77,7 @@ Reactor::Reactor(int max_event, Type _type) {
     switch (type_) {
 #ifdef HAVE_EPOLL
     case TYPE_EPOLL:
-        impl = make_reactor_epoll(this, max_event);
+        impl = make_reactor_poll(this, max_event);
         break;
 #endif
 #ifdef HAVE_KQUEUE
