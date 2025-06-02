@@ -11,6 +11,7 @@ static void init_root_path(const char *);
 
 int main(int argc, char **argv) {
     swoole_init();
+    SwooleG.max_sockets = 20000;
     init_root_path(argv[0]);
 
     if (getenv("DISPLAY_BACKTRACE") != nullptr) {

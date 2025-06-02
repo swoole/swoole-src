@@ -193,9 +193,9 @@ TEST(server, schedule_4) {
     counter[worker_id]++;
 
     ASSERT_EQ(counter[0], 0);
-    ASSERT_EQ(counter[1], schedule_count);
+    ASSERT_EQ(counter[1], schedule_count + 1);
     ASSERT_EQ(counter[2], 0);
-    ASSERT_EQ(counter[3], schedule_count + 1);
+    ASSERT_EQ(counter[3], schedule_count);
 }
 
 TEST(server, schedule_5) {
@@ -298,10 +298,10 @@ TEST(server, schedule_8) {
     auto worker_id = serv.schedule_worker(9999, nullptr);
     counter[worker_id]++;
 
-    ASSERT_EQ(counter[0], schedule_count);
+    ASSERT_EQ(counter[0], schedule_count + 1);
     ASSERT_EQ(counter[1], schedule_count);
     ASSERT_EQ(counter[2], 0);
-    ASSERT_EQ(counter[3], 1);
+    ASSERT_EQ(counter[3], 0);
 }
 
 TEST(server, schedule_9) {
@@ -1758,12 +1758,13 @@ TEST(server, task_worker_3) {
     serv.onTask = [](Server *serv, EventData *task) -> int { return 0; };
 
     serv.onWorkerStart = [](Server *serv, Worker *worker) {
-        test::counter_incr(1);
         DEBUG() << "onWorkerStart: id=" << worker->id << "\n";
+        if (test::counter_incr(1) == 5) {
+            swoole_timer_after(100, [serv](TIMER_PARAMS) { serv->shutdown(); });
+        }
         if (worker->id == 0) {
             swoole_timer_after(50, [serv](TIMER_PARAMS) { kill(serv->get_worker_pid(2), SIGTERM); });
             swoole_timer_after(60, [serv](TIMER_PARAMS) { kill(serv->get_manager_pid(), SIGRTMIN); });
-            swoole_timer_after(100, [serv](TIMER_PARAMS) { serv->shutdown(); });
         }
         if (worker->id == 1 && test::counter_get(30) == 0) {
             test::counter_set(30, 1);

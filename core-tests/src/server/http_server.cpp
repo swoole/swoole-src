@@ -140,6 +140,8 @@ static void test_base_server(function<void(Server *)> fn) {
     serv.heartbeat_check_interval = 1;
     serv.private_data_2 = (void *) &fn;
 
+    test::counter_init();
+
     serv.enable_static_handler = true;
     ASSERT_TRUE(serv.set_document_root(test::get_root_path()));
 
@@ -176,6 +178,8 @@ static void test_base_server(function<void(Server *)> fn) {
     serv.onReceive = [](Server *serv, RecvData *req) -> int {
         auto session_id = req->info.fd;
         auto conn = serv->get_connection_by_session_id(session_id);
+
+        test::counter_incr(0);
 
         if (conn->websocket_status == websocket::STATUS_ACTIVE) {
             sw_tg_buffer()->clear();
@@ -428,6 +432,23 @@ TEST(http_server, get) {
 
         kill(getpid(), SIGTERM);
     });
+}
+
+TEST(http_server, reset_connection) {
+    test_base_server([](Server *serv) {
+        swoole_signal_block_all();
+
+        const auto port = serv->get_primary_port();
+        Client c(SW_SOCK_TCP, false);
+        EXPECT_EQ(c.connect(TEST_HOST, port->port), 0);
+        c.send(SW_STRL("GET /index.html HTTP/1.1"));
+        usleep(10000);
+        c.close();
+
+        kill(getpid(), SIGTERM);
+    });
+
+    ASSERT_EQ(test::counter_get(0), 0);
 }
 
 TEST(http_server, heartbeat_check_interval) {
