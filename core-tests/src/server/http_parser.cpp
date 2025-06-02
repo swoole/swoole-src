@@ -692,10 +692,11 @@ class http_parser_error : public ::testing::Test {
     size_t parse(const std::string &data) {
         auto rv = swoole_http_parser_execute(&parser, &settings, data.c_str(), data.length());
         error = rv != data.length();
-        debug_info("rv=%zu, len=%zu, nread=%zu, error=%d, state=%d\n", rv, data.length(), parser.nread, error, parser.state);
+        debug_info(
+            "rv=%zu, len=%zu, nread=%zu, error=%d, state=%d\n", rv, data.length(), parser.nread, error, parser.state);
         memcpy(request_.buffer_->str, data.c_str(), data.length());
         if (request_.get_protocol() < 0) {
-            _bad_request:
+        _bad_request:
             bad_request = true;
             return rv;
         }

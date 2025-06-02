@@ -367,15 +367,11 @@ void ListenPort::clear_protocol() {
 }
 
 int ListenPort::readable_callback_raw(Reactor *reactor, ListenPort *port, Event *event) {
-    Socket *_socket = event->socket;
-    auto *conn = static_cast<Connection *>(_socket->object);
-    auto *serv = static_cast<Server *>(reactor->ptr);
+    auto _socket = event->socket;
+    auto conn = static_cast<Connection *>(_socket->object);
+    auto serv = static_cast<Server *>(reactor->ptr);
+    auto buffer = serv->get_recv_buffer(_socket);
     RecvData rdata{};
-
-    String *buffer = serv->get_recv_buffer(_socket);
-    if (!buffer) {
-        return SW_ERR;
-    }
 
     ssize_t n = _socket->recv(buffer->str, buffer->size, 0);
     if (n < 0) {
@@ -402,16 +398,11 @@ int ListenPort::readable_callback_raw(Reactor *reactor, ListenPort *port, Event 
 }
 
 int ListenPort::readable_callback_length(Reactor *reactor, ListenPort *port, Event *event) {
-    Socket *_socket = event->socket;
-    auto *conn = static_cast<Connection *>(_socket->object);
-    Protocol *protocol = &port->protocol;
-    auto *serv = static_cast<Server *>(reactor->ptr);
-
-    String *buffer = serv->get_recv_buffer(_socket);
-    if (!buffer) {
-        reactor->trigger_close_event(event);
-        return SW_ERR;
-    }
+    auto _socket = event->socket;
+    auto conn = static_cast<Connection *>(_socket->object);
+    auto protocol = &port->protocol;
+    auto serv = static_cast<Server *>(reactor->ptr);
+    auto buffer = serv->get_recv_buffer(_socket);
 
     if (protocol->recv_with_length_protocol(_socket, buffer) < 0) {
         swoole_trace("Close Event.FD=%d|From=%d", event->fd, event->reactor_id);
@@ -468,10 +459,6 @@ int ListenPort::readable_callback_http(Reactor *reactor, ListenPort *port, Event
 
     if (!request->buffer_) {
         request->buffer_ = serv->get_recv_buffer(_socket);
-        if (!request->buffer_) {
-            reactor->trigger_close_event(event);
-            return SW_ERR;
-        }
     }
 
     String *buffer = request->buffer_;
@@ -744,16 +731,11 @@ _parse:
 }
 
 int ListenPort::readable_callback_redis(Reactor *reactor, ListenPort *port, Event *event) {
-    Socket *_socket = event->socket;
-    auto *conn = static_cast<Connection *>(_socket->object);
-    Protocol *protocol = &port->protocol;
-    auto *serv = static_cast<Server *>(reactor->ptr);
-
-    String *buffer = serv->get_recv_buffer(_socket);
-    if (!buffer) {
-        reactor->trigger_close_event(event);
-        return SW_ERR;
-    }
+    auto _socket = event->socket;
+    auto conn = static_cast<Connection *>(_socket->object);
+    auto protocol = &port->protocol;
+    auto serv = static_cast<Server *>(reactor->ptr);
+    auto buffer = serv->get_recv_buffer(_socket);
 
     if (redis::recv_packet(protocol, conn, buffer) < 0) {
         conn->close_errno = errno;
