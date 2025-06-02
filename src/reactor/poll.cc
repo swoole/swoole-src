@@ -141,7 +141,7 @@ int ReactorPoll::del(Socket *socket) {
         swoole_print_backtrace_on_error();
         return SW_ERR;
     }
-
+    swoole_trace("fd=%d", socket->fd);
     reactor_->_del(socket);
     return SW_OK;
 }
@@ -169,6 +169,18 @@ int ReactorPoll::wait() {
             SW_REACTOR_CONTINUE;
         } else {
             for (int i = 0; i < event_num; i++) {
+                /**
+                 * A revents value of 0 indicates that no events have occurred on this socket,
+                 * so the next file descriptor should be checked;
+                 * likewise, if the file descriptor has already been removed, it should be skipped.
+                 * It is essential to check whether this file descriptor exists in the reactor,
+                 * as the event handler may remove a file descriptor with pending but already triggered readable or
+                 * writable events that have not yet been processed.
+                 */
+                if (events_[i].revents == 0 || !reactor_->exists(events_[i].fd)) {
+                    continue;
+                }
+
                 event.socket = reactor_->get_socket(events_[i].fd);
                 event.fd = events_[i].fd;
                 event.reactor_id = reactor_->id;
@@ -244,7 +256,7 @@ int translate_events_from_poll(int16_t events) {
         sw_events |= SW_EVENT_WRITE;
     }
     // ignore ERR and HUP, because event is already processed at IN and OUT handler.
-    if ((((events & POLLERR) || (events & POLLHUP)) && !((events & POLLIN) || (events & POLLOUT)))) {
+    if ((events & POLLERR || events & POLLHUP) && !(events & POLLIN || events & POLLOUT)) {
         sw_events |= SW_EVENT_ERROR;
     }
 
