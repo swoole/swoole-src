@@ -53,25 +53,14 @@ require __DIR__ . '/../include/bootstrap.php';
 
 static $normal_chars = [
     '!',
-    '"',
     '$',
     '%',
     '&',
-    '\'',
-
-    // not allowed as a start in http parser
-    'x(',
-    'x)',
-
     '*',
     '+',
-
-    // not allowed as a start in http parser
-    'x,',
-
     '-',
     '.',
-    '/',
+    '\'',
 
     // not support numeric header name in swoole
     // '0',
@@ -87,13 +76,6 @@ static $normal_chars = [
 
     // will be split and not allowed as a start in http parser
     // ':',
-
-    // not allowed as a start in http parser
-    'x;',
-    'x<',
-    'x=',
-    'x>',
-    'x@',
 
     // case insensitive
     // 'A',
@@ -122,11 +104,6 @@ static $normal_chars = [
     // 'X',
     // 'Y',
     // 'Z',
-
-    // not allowed as a start in http parser
-    'x[',
-    'x\\',
-    'x]',
 
     '^',
     '_',
@@ -159,17 +136,32 @@ static $normal_chars = [
     'y',
     'z',
 
-    // not allowed as a start in http parser
-    'x{',
-
     '|',
-    '}',
     '~',
+
+    // not allowed as a start in http parser
+    '"',  // start at 40
+    'x(',
+    'x)',
+    'x,',
+    '/',
+    'x;',
+    'x<',
+    'x=',
+    'x>',
+    'x@',
+    'x[',
+    'x\\',
+    'x]',
+    'x{',
+    '}',
 ];
 
+$start = 40;
+
 $pm = new ProcessManager;
-$pm->initRandomData((count($normal_chars) + 1) * 2);
-$pm->parentFunc = function () use ($pm, &$normal_chars) {
+$pm->initRandomData((count($normal_chars) + 1) * 4);
+$pm->parentFunc = function () use ($pm, &$normal_chars, $start) {
     // use curl
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, "http://127.0.0.1:{$pm->getFreePort()}/");
@@ -193,16 +185,24 @@ $pm->parentFunc = function () use ($pm, &$normal_chars) {
     Assert::same($body, $pm->getRandomData());
 
     // use swoole http client
-    go(function () use ($pm, &$normal_chars) {
+    go(function () use ($pm, &$normal_chars, $start) {
         $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
         $cli->set(['timeout' => 1]);
-        Assert::assert($cli->get('/'));
+        Assert::assert($cli->get('/valid'));
         foreach ($cli->headers as $name => $value) {
             if (in_array($name, $normal_chars)) {
                 Assert::same($value, $pm->getRandomData());
             }
         }
         Assert::same($cli->body, $pm->getRandomData());
+
+        for ($i = $start; $i < sizeof($normal_chars); $i++) {
+            $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
+            $cli->set(['timeout' => 1]);
+            Assert::false($cli->get('/invalid?key=' . $i));
+            Assert::same($cli->errMsg, "Http invalid protocol");
+            $cli->close();
+        }
     });
 
     Swoole\Event::wait();
@@ -217,9 +217,19 @@ $pm->childFunc = function () use ($pm) {
     });
     $server->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($pm) {
         global $normal_chars;
-        foreach ($normal_chars as $char) {
-            $response->header($char, $pm->getRandomData());
+        global $start;
+        if ($request->server['request_uri'] == '/') {
+            foreach ($normal_chars as $char) {
+                $response->header($char, $pm->getRandomData());
+            }
+        } else if ($request->server['request_uri'] == '/valid') {
+            for ($i = 0; $i < $start; $i++) {
+                $response->header($normal_chars[$i], $pm->getRandomData());
+            }
+        } else {
+            $response->header($normal_chars[$request->get['key']], $pm->getRandomData());
         }
+
         $response->end($pm->getRandomData());
     });
     $server->start();

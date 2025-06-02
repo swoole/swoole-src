@@ -18,19 +18,18 @@
 #include "swoole_http.h"
 #include "swoole_server.h"
 
-#include "thirdparty/swoole_http_parser.h"
+#include "thirdparty/llhttp/swoole_llhttp.h"
 #include "thirdparty/multipart_parser.h"
 
 namespace swoole {
 namespace http_server {
 
-static int http_request_on_path(swoole_http_parser *parser, const char *at, size_t length);
-static int http_request_on_query_string(swoole_http_parser *parser, const char *at, size_t length);
-static int http_request_on_body(swoole_http_parser *parser, const char *at, size_t length);
-static int http_request_on_header_field(swoole_http_parser *parser, const char *at, size_t length);
-static int http_request_on_header_value(swoole_http_parser *parser, const char *at, size_t length);
-static int http_request_on_headers_complete(swoole_http_parser *parser);
-static int http_request_message_complete(swoole_http_parser *parser);
+static int http_request_on_url(llhttp_t *parser, const char *at, size_t length);
+static int http_request_on_body(llhttp_t *parser, const char *at, size_t length);
+static int http_request_on_header_field(llhttp_t *parser, const char *at, size_t length);
+static int http_request_on_header_value(llhttp_t *parser, const char *at, size_t length);
+static int http_request_on_headers_complete(llhttp_t *parser);
+static int http_request_message_complete(llhttp_t *parser);
 
 static int multipart_body_on_header_field(multipart_parser *p, const char *at, size_t length);
 static int multipart_body_on_header_value(multipart_parser *p, const char *at, size_t length);
@@ -39,17 +38,33 @@ static int multipart_body_on_header_complete(multipart_parser *p);
 static int multipart_body_on_data_end(multipart_parser *p);
 
 // clang-format off
-static  constexpr swoole_http_parser_settings http_parser_settings = {
-    nullptr,
-    http_request_on_path,
-    http_request_on_query_string,
-    nullptr,
-    nullptr,
-    http_request_on_header_field,
-    http_request_on_header_value,
-    http_request_on_headers_complete,
-    http_request_on_body,
-    http_request_message_complete
+static const llhttp_settings_t http_parser_settings =
+{
+    nullptr,                                // on_message_begin
+    nullptr,                                // on_protocol
+    http_request_on_url,                    // on_url
+    nullptr,                                // on_status
+    nullptr,                                // on_method
+    nullptr,                                // on_version
+    http_request_on_header_field,           // on_header_field
+    http_request_on_header_value,           // on_header_value
+    nullptr,                                // on_chunk_extension_name
+    nullptr,                                // on_chunk_extension_value
+    http_request_on_headers_complete,       // on_headers_complete
+    http_request_on_body,                   // on_body
+    http_request_message_complete,          // on_message_complete
+    nullptr,                                // on_protocol_complete
+    nullptr,                                // on_url_complete
+    nullptr,                                // on_status_complete
+    nullptr,                                // on_method_complete
+    nullptr,                                // on_version_complete
+    nullptr,                                // on_header_field_complete
+    nullptr,                                // on_header_value_complete
+    nullptr,                                // on_chunk_extension_name_complete
+    nullptr,                                // on_chunk_extension_value_complete
+    nullptr,                                // on_chunk_header
+    nullptr,                                // on_chunk_complete
+    nullptr,                                // on_reset
 };
 
 static  constexpr multipart_parser_settings mt_parser_settings = {
@@ -64,7 +79,7 @@ static  constexpr multipart_parser_settings mt_parser_settings = {
 // clang-format on
 
 struct ContextImpl {
-    swoole_http_parser parser;
+    llhttp_t parser;
     multipart_parser *mt_parser;
 
     std::string current_header_name;
@@ -72,34 +87,46 @@ struct ContextImpl {
     std::string current_form_data_name;
     String *form_data_buffer;
 
+    bool completed = false;
     bool is_beginning = true;
 
     bool parse(Context &ctx, const char *at, size_t length) {
-        parser.data = &ctx;
-        swoole_http_parser_init(&parser, PHP_HTTP_REQUEST);
-        return swoole_http_parser_execute(&parser, &http_parser_settings, at, length) == length;
+        swoole_llhttp_parser_init(&parser, HTTP_REQUEST, static_cast<void *>(&ctx));
+        size_t parsed_length = swoole_llhttp_parser_execute(&parser, &http_parser_settings, at, length);
+        return parser.error == HPE_OK && completed;
     }
 };
 
-static int http_request_on_path(swoole_http_parser *parser, const char *at, size_t length) {
+static int http_request_on_url(llhttp_t *parser, const char *at, size_t length) {
+    const char *query_start = (const char *) memchr(at, '?', length);
+    size_t path_len = query_start ? (size_t)(query_start - at) : length;
+
     auto *ctx = static_cast<Context *>(parser->data);
-    ctx->request_path = std::string(at, length);
+    ctx->request_path = std::string(at, path_len);
+
+    if (!query_start || (length - path_len) <= 1) {
+        return 0;
+    }
+
+    const char *query_str = query_start + 1;
+    size_t query_len = length - path_len - 1;
+    ctx->query_string = std::string(query_str, query_len);
     return 0;
 }
 
-static int http_request_on_header_field(swoole_http_parser *parser, const char *at, size_t length) {
+static int http_request_on_header_field(llhttp_t *parser, const char *at, size_t length) {
     auto *ctx = static_cast<Context *>(parser->data);
     ctx->impl->current_header_name = std::string(at, length);
     return 0;
 }
 
-static int http_request_on_header_value(swoole_http_parser *parser, const char *at, size_t length) {
+static int http_request_on_header_value(llhttp_t *parser, const char *at, size_t length) {
     auto *ctx = static_cast<Context *>(parser->data);
     ContextImpl *impl = ctx->impl;
     ctx->headers[impl->current_header_name] = std::string(at, length);
 
-    if ((parser->method == PHP_HTTP_POST || parser->method == PHP_HTTP_PUT || parser->method == PHP_HTTP_DELETE ||
-         parser->method == PHP_HTTP_PATCH) &&
+    if ((parser->method == HTTP_POST || parser->method == HTTP_PUT || parser->method == HTTP_DELETE ||
+         parser->method == HTTP_PATCH) &&
         SW_STRCASEEQ(impl->current_header_name.c_str(), impl->current_header_name.length(), "content-type")) {
         if (SW_STR_ISTARTS_WITH(at, length, "application/x-www-form-urlencoded")) {
             ctx->post_form_urlencoded = true;
@@ -119,21 +146,15 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
     return 0;
 }
 
-static int http_request_on_query_string(swoole_http_parser *parser, const char *at, size_t length) {
-    auto *ctx = static_cast<Context *>(parser->data);
-    ctx->query_string = std::string(at, length);
-    return 0;
-}
-
-static int http_request_on_headers_complete(swoole_http_parser *parser) {
+static int http_request_on_headers_complete(llhttp_t *parser) {
     auto *ctx = static_cast<Context *>(parser->data);
     ctx->version = parser->http_major * 100 + parser->http_minor;
     ctx->server_protocol = std::string(ctx->version == 101 ? "HTTP/1.1" : "HTTP/1.0");
-    ctx->keepalive = swoole_http_should_keep_alive(parser);
+    ctx->keepalive = llhttp_should_keep_alive(parser);
     return 0;
 }
 
-static int http_request_on_body(swoole_http_parser *parser, const char *at, size_t length) {
+static int http_request_on_body(llhttp_t *parser, const char *at, size_t length) {
     if (length == 0) {
         return 0;
     }
@@ -155,7 +176,10 @@ static int http_request_on_body(swoole_http_parser *parser, const char *at, size
             impl->is_beginning = false;
         }
         size_t n = multipart_parser_execute(multipart_parser, at, length);
-        if (n != length) {
+        if (sw_likely(n == length)) {
+            impl->completed = true;
+            return HPE_PAUSED;
+        } else {
             swoole_error_log(SW_LOG_WARNING,
                              SW_ERROR_SERVER_INVALID_REQUEST,
                              "parse multipart body failed, %zu/%zu bytes processed",
@@ -271,7 +295,7 @@ static int multipart_body_on_data_end(multipart_parser *p) {
     return 0;
 }
 
-static int http_request_message_complete(swoole_http_parser *p) {
+static int http_request_message_complete(llhttp_t *p) {
     const auto *ctx = static_cast<Context *>(p->data);
     auto *impl = ctx->impl;
 
@@ -280,7 +304,8 @@ static int http_request_message_complete(swoole_http_parser *p) {
         impl->form_data_buffer = nullptr;
     }
 
-    return 1;
+    impl->completed = true;
+    return HPE_PAUSED;
 }
 
 bool Context::end(const char *data, size_t length) {

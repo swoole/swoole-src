@@ -421,7 +421,7 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
         }
     }
     // Content-Length
-    else if (length > 0 || parser.method != PHP_HTTP_HEAD) {
+    else if (length > 0 || parser.method != HTTP_HEAD) {
 #ifdef SW_HAVE_COMPRESSION
         if (compress(body, length)) {
             length = zlib_buffer->length;
@@ -594,7 +594,7 @@ bool HttpContext::compress(const char *data, size_t length) {
         compression_level = Z_BEST_COMPRESSION;
     }
 
-    size_t memory_size = ((size_t) ((double) length * (double) 1.015)) + 10 + 8 + 4 + 1;
+    size_t memory_size = ((size_t)((double) length * (double) 1.015)) + 10 + 8 + 4 + 1;
     zlib_buffer = std::make_shared<String>(memory_size);
 
     z_stream zstream = {};
@@ -1327,8 +1327,7 @@ static PHP_METHOD(swoole_http_response, create) {
             ctx->init(serv);
         } else if (sock) {
             ctx->init(sock);
-            ctx->parser.data = ctx;
-            swoole_http_parser_init(&ctx->parser, PHP_HTTP_REQUEST);
+            swoole_llhttp_parser_init(&ctx->parser, HTTP_REQUEST, (void *) ctx);
         } else {
             delete ctx;
             assert(0);
