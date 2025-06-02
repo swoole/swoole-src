@@ -66,8 +66,10 @@
 
 #ifdef SW_VERBOSE
 #define DEBUG() swoole::test::debug_output.get()
+#define debug_info printf
 #else
 #define DEBUG() swoole::test::null_stream
+#define debug_info(...)
 #endif
 
 namespace swoole {

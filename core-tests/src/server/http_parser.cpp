@@ -17,6 +17,7 @@
   +----------------------------------------------------------------------+
  */
 #include "test_core.h"
+#include "swoole_http.h"
 #include "swoole_http_parser.h"
 
 using namespace std;
@@ -575,10 +576,11 @@ class http_parser_error : public ::testing::Test {
   protected:
     swoole_http_parser parser;
     swoole_http_parser_settings settings;
+    swoole::http_server::Request request_;
 
     bool error = false;
+    bool bad_request = false;
 
-    // 回调函数计数器
     int message_begin_called = 0;
     int url_called = 0;
     int header_field_called = 0;
@@ -590,7 +592,6 @@ class http_parser_error : public ::testing::Test {
     int chunk_header_called = 0;
     int chunk_complete_called = 0;
 
-    // 存储解析结果
     std::string url;
     std::string path;
     std::string query_string;
@@ -600,13 +601,9 @@ class http_parser_error : public ::testing::Test {
     int status_code = 0;
 
     void SetUp() override {
-        // 初始化解析器
         swoole_http_parser_init(&parser, PHP_HTTP_REQUEST);
-
-        // 设置用户数据指针
         parser.data = this;
-
-        // 初始化设置并设置回调函数
+        request_.buffer_ = sw_tg_buffer();
         memset(&settings, 0, sizeof(settings));
 
         settings.on_message_begin = [](swoole_http_parser *p) -> int {
@@ -670,7 +667,6 @@ class http_parser_error : public ::testing::Test {
     }
 
     void TearDown() override {
-        // 重置计数器和存储
         message_begin_called = 0;
         url_called = 0;
         header_field_called = 0;
@@ -682,26 +678,47 @@ class http_parser_error : public ::testing::Test {
         chunk_header_called = 0;
         chunk_complete_called = 0;
         error = false;
+        bad_request = false;
 
         url.clear();
         headers.clear();
         body.clear();
         status_code = 0;
 
+        request_.clean();
         parser = {};
     }
 
-    // 辅助函数：执行解析并检查结果
     size_t parse(const std::string &data) {
         auto rv = swoole_http_parser_execute(&parser, &settings, data.c_str(), data.length());
         error = rv != data.length();
-        // printf("rv=%zu, len=%zu, nread=%zu, error=%d, state=%d\n", rv, data.length(), parser.nread, error,
-        // parser.state);
+        debug_info("rv=%zu, len=%zu, nread=%zu, error=%d, state=%d\n", rv, data.length(), parser.nread, error, parser.state);
+        memcpy(request_.buffer_->str, data.c_str(), data.length());
+        if (request_.get_protocol() < 0) {
+            _bad_request:
+            bad_request = true;
+            return rv;
+        }
+        if (request_.method > SW_HTTP_PRI) {
+            goto _bad_request;
+        }
+        if (request_.get_header_length() < 0) {
+            goto _bad_request;
+        }
+        request_.parse_header_info();
+        if (request_.chunked) {
+            if (request_.get_chunked_body_length() < 0) {
+                goto _bad_request;
+            }
+        }
+        debug_info("method=%d, request_.header_length_=%u, request_.content_length_=%lu\n",
+                   request_.method,
+                   request_.header_length_,
+                   request_.content_length_);
         return rv;
     }
 
-    // 辅助函数：检查是否有错误
-    bool hasError() {
+    bool hasError() const {
         return error;
     }
 };
@@ -710,6 +727,7 @@ class http_parser_error : public ::testing::Test {
 TEST_F(http_parser_error, InvalidMethod) {
     std::string request = "INVALID / HTTP/1.1\r\n\r\n";
     size_t parsed = parse(request);
+    EXPECT_TRUE(bad_request);
     EXPECT_EQ(parser.method, PHP_HTTP_NOT_IMPLEMENTED);
 }
 
@@ -717,6 +735,7 @@ TEST_F(http_parser_error, InvalidMethod) {
 TEST_F(http_parser_error, MissingSpaceSeparator) {
     std::string request = "GET/HTTP/1.1\r\n\r\n";
     size_t parsed = parse(request);
+    EXPECT_TRUE(bad_request);
     EXPECT_EQ(parser.method, PHP_HTTP_NOT_IMPLEMENTED);
 }
 
@@ -724,6 +743,7 @@ TEST_F(http_parser_error, MissingSpaceSeparator) {
 TEST_F(http_parser_error, InvalidHttpVersion) {
     std::string request = "GET / HTTP/9.8\r\n\r\n";
     size_t parsed = parse(request);
+    EXPECT_TRUE(bad_request);
     EXPECT_EQ(parser.http_major, 9);
     EXPECT_EQ(parser.http_minor, 8);
 }
@@ -732,7 +752,7 @@ TEST_F(http_parser_error, InvalidHttpVersion) {
 TEST_F(http_parser_error, MalformedRequestLine) {
     std::string request = "GET / HTTP/1.1 ExtraStuff\r\n\r\n";
     size_t parsed = parse(request);
-
+    EXPECT_TRUE(bad_request);
     EXPECT_TRUE(hasError());
     EXPECT_LT(parsed, request.length());
 }
@@ -741,6 +761,7 @@ TEST_F(http_parser_error, MalformedRequestLine) {
 TEST_F(http_parser_error, MissingHttpVersion) {
     std::string request = "GET /\r\n\r\n";
     size_t parsed = parse(request);
+    EXPECT_TRUE(bad_request);
     EXPECT_EQ(parser.method, PHP_HTTP_GET);
     EXPECT_EQ(parser.http_major, 0);
     EXPECT_EQ(parser.http_minor, 9);
@@ -750,11 +771,7 @@ TEST_F(http_parser_error, MissingHttpVersion) {
 TEST_F(http_parser_error, MissingCRLF) {
     std::string request = "GET / HTTP/1.1\nHost: example.com\n\n";
     size_t parsed = parse(request);
-
-    // 有些解析器可能允许单个 LF 而不是 CRLF，所以这个测试可能通过或失败，取决于实现
-    if (hasError()) {
-        EXPECT_LT(parsed, request.length());
-    }
+    EXPECT_TRUE(bad_request);
 }
 
 // 7. 测试不完整的请求
@@ -824,6 +841,7 @@ TEST_F(http_parser_error, TooManyHeaders) {
 TEST_F(http_parser_error, InvalidHeaderFormat) {
     std::string request = "GET / HTTP/1.1\r\nInvalidHeader\r\n\r\n";
     size_t parsed = parse(request);
+    EXPECT_TRUE(bad_request);
 }
 
 // 13. 测试头部字段中有非法字符
@@ -958,13 +976,11 @@ TEST_F(http_parser_error, UnsupportedHttpVersion) {
 }
 
 // 27. 测试 URL 中包含非法字符
-// TEST_F(http_parser_error, IllegalCharactersInUrl) {
-//     std::string request = "GET /path\x00with\x01null HTTP/1.1\r\n\r\n";
-//     size_t parsed = parse(request);
-//
-//     EXPECT_TRUE(hasError());
-//     EXPECT_LT(parsed, request.length());
-// }
+TEST_F(http_parser_error, IllegalCharactersInUrl) {
+    std::string request = "GET /path\x00with\x01null HTTP/1.1\r\n\r\n";
+    size_t parsed = parse(request);
+    EXPECT_TRUE(bad_request);
+}
 
 // 28. 测试请求行过长
 TEST_F(http_parser_error, RequestLineTooLong) {
@@ -991,22 +1007,18 @@ TEST_F(http_parser_error, HeaderLineTooLong) {
 }
 
 // 30. 测试头部字段名包含空格
-// TEST_F(http_parser_error, HeaderFieldWithSpaces) {
-//     std::string request = "GET / HTTP/1.1\r\nInvalid Header: value\r\n\r\n";
-//     size_t parsed = parse(request);
-//
-//     EXPECT_TRUE(hasError());
-//     EXPECT_LT(parsed, request.length());
-// }
+TEST_F(http_parser_error, HeaderFieldWithSpaces) {
+    std::string request = "GET / HTTP/1.1\r\nInvalid Header: value\r\n\r\n";
+    size_t parsed = parse(request);
+    EXPECT_TRUE(bad_request);
+}
 
 // 31. 测试头部字段名包含冒号
-// TEST_F(http_parser_error, HeaderFieldWithColon) {
-//     std::string request = "GET / HTTP/1.1\r\nInvalid:Header: value\r\n\r\n";
-//     size_t parsed = parse(request);
-//
-//     EXPECT_TRUE(hasError());
-//     EXPECT_LT(parsed, request.length());
-// }
+TEST_F(http_parser_error, HeaderFieldWithColon) {
+    std::string request = "GET / HTTP/1.1\r\nInvalid:Header: value\r\n\r\n";
+    size_t parsed = parse(request);
+    EXPECT_TRUE(bad_request);
+}
 
 // 32. 测试重复的头部字段
 TEST_F(http_parser_error, DuplicateHeaders) {
