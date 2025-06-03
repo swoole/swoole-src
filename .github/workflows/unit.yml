@@ -43,3 +43,40 @@ jobs:
         export SWOOLE_BUILD_DIR=$(realpath .)
         export PHP_VERSION=${{ matrix.php }}
         ${{runner.workspace}}/swoole-src/scripts/route.sh
+  macos:
+    runs-on: macos-latest
+    if: "!contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[macos-unit]')"
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version: [ '8.1', '8.2', '8.3', '8.4' ]
+    name: ${{ matrix.php-version }} - macOS
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          extensions: dom, curl, libxml, mbstring, zip, redis, pdo, pdo_mysql, bcmath
+          tools: phpize, composer:v2
+          ini-values: extension=swoole
+          coverage: none
+
+      - name: Build Swoole
+        run: |
+          phpize
+          ./configure CPPFLAGS="${CPPFLAGS}" --enable-openssl --enable-mysqlnd --enable-swoole-curl --enable-cares
+          make -j$(sysctl -n hw.ncpu)
+          sudo make install
+          php --ri swoole
+
+      - name: Run unit tests
+        run: |
+          export SWOOLE_CI_TYPE=NORMAL
+          export SWOOLE_BRANCH=${GITHUB_REF##*/}
+          export SWOOLE_BUILD_DIR=$(realpath .)
+          export PHP_VERSION=${{ matrix.php-version }}
+          ${{runner.workspace}}/swoole-src/scripts/route.sh
