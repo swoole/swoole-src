@@ -3,6 +3,7 @@ swoole_server/task: bug Github#2585
 --SKIPIF--
 <?php
 require __DIR__ . '/../../include/skipif.inc';
+skip_if_no_database();
 ?>
 --FILE--
 <?php

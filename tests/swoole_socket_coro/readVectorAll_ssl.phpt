@@ -53,6 +53,7 @@ $pm->childFunc = function () use ($pm) {
 
         /** @var Socket */
         $conn = $socket->accept();
+        Assert::notNull($conn);
         $conn->sslHandshake();
 
         $iov = [];

@@ -14,13 +14,13 @@ const N = 5;
 
 go(function () {
     $socket = new Swoole\Coroutine\Socket(AF_UNIX, SOCK_STREAM, 0);
-    $socket->bind(__DIR__ . '/test.sock');
-    $socket->listen();
+    Assert::true($socket->bind(__DIR__ . '/test.sock'));
+    Assert::true($socket->listen());
 
     $client = $socket->accept();
+    Assert::notNull($client);
 
-    for ($i = 0; $i < N; $i++)
-    {
+    for ($i = 0; $i < N; $i++) {
         $data = $client->recv();
         $client->send("Swoole: $data");
     }
