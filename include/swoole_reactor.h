@@ -261,6 +261,10 @@ class Reactor {
         return !_socket->removed && _socket->events;
     }
 
+    bool exists(const int fd) const {
+        return sockets_.find(fd) != sockets_.end();
+    }
+
     int get_timeout_msec() const {
         return defer_tasks == nullptr ? timeout_msec : 0;
     }

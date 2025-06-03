@@ -13,7 +13,6 @@ $pm->parentFunc = function () use ($pm) {
         Assert::assert($client->connect('127.0.0.1', $pm->getFreePort()));
         Assert::assert($client->send($pm->getRandomData()) > 0);
     });
-    $pm->kill();
     $pm->wait();
 };
 $pm->childFunc = function () use ($pm) {

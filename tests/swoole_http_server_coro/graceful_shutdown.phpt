@@ -7,26 +7,36 @@ swoole_http_server_coro: graceful shutdown
 require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Event;
+use Swoole\Runtime;
 
 $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
-    Co\run(function () use ($pm) {
+    $errors = '';
+    Runtime::setHookFlags(SWOOLE_HOOK_ALL);
+    Co\run(function () use ($pm, &$errors) {
         echo httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/") . PHP_EOL;
-            
-        go(function () use ($pm) {
-            echo httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/sleep") . PHP_EOL;
+
+        go(function () use ($pm, &$errors) {
+            try {
+                echo httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/sleep") . PHP_EOL;
+            } catch (Throwable $e) {
+                $errors .= $e->getMessage() . PHP_EOL;
+            }
         });
 
-        go(function () use ($pm) {
+        go(function () use ($pm, &$errors) {
+            usleep(5000);
             echo httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/shutdown") . PHP_EOL;
             try {
                 echo httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/") . PHP_EOL;
-            } catch(Throwable $e) {
-                Assert::contains($e->getMessage(), 'Connection reset by peer');
+            } catch (Throwable $e) {
+                $errors .= $e->getMessage() . PHP_EOL;
                 echo "done\n";
             }
         });
     });
+
+    Assert::contains($errors, 'Connection reset by peer');
 };
 $pm->childFunc = function () use ($pm) {
     Co\run(function () use ($pm) {
