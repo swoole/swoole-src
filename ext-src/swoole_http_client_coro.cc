@@ -119,10 +119,14 @@ class Client {
     zval *zobject = &_zobject;
     zval zsocket;
     zend::Callable *write_func = nullptr;
+    /**
+     * Retain the send buffer object of the Socket after the Socket object is destroyed,
+     * allowing access to the sent Request data even after the connection has been closed.
+     */
     String *tmp_write_buffer = nullptr;
     bool connection_close = false;
 
-    Client(const zval *zobject, std::string host, zend_long port = 80, zend_bool ssl = false);
+    Client(const zval *zobject, const std::string &host, zend_long port = 80, zend_bool ssl = false);
 
     bool is_available() const {
         if (sw_unlikely(!socket || !socket->is_connected())) {
@@ -171,13 +175,6 @@ class Client {
         buf[length] = '\0';
     }
 
-    String *get_tmp_write_buffer() {
-        if (sw_unlikely(!tmp_write_buffer)) {
-            tmp_write_buffer = new String(SW_BUFFER_SIZE_BIG, sw_zend_string_allocator());
-        }
-        return tmp_write_buffer;
-    }
-
   public:
 #ifdef SW_HAVE_COMPRESSION
     bool decompress_response(const char *in, size_t in_len);
@@ -196,7 +193,7 @@ class Client {
     void get_header_out(zval *return_value) {
         String *buffer = nullptr;
         if (socket == nullptr) {
-            buffer = get_tmp_write_buffer();
+            buffer = tmp_write_buffer;
         } else {
             buffer = socket->get_write_buffer();
         }
@@ -562,9 +559,9 @@ static int http_parser_on_message_complete(swoole_http_parser *parser) {
     }
 }
 
-Client::Client(const zval *zobject, std::string host, zend_long port, zend_bool ssl) {
-    this->socket_type = network::Socket::convert_to_type(host);
+Client::Client(const zval *zobject, const std::string &host, zend_long port, zend_bool ssl) {
     this->host = host;
+    this->socket_type = network::Socket::convert_to_type(this->host);
     this->use_default_port = port == 0;
     if (this->use_default_port) {
         port = ssl ? 443 : 80;
@@ -864,7 +861,7 @@ bool Client::connect() {
     socket->set_timeout(_timeout, Socket::TIMEOUT_CONNECT);
     socket->set_resolve_context(&resolve_context_);
     socket->set_dtor([this](Socket *_socket) { socket_dtor(); });
-    // socket->set_buffer_allocator(&SWOOLE_G(zend_string_allocator));
+    socket->set_buffer_allocator(sw_zend_string_allocator());
 
     if (!socket->connect(host, port)) {
         set_error(socket->errCode, socket->errMsg, HTTP_ESTATUS_CONNECT_FAILED);
@@ -1641,9 +1638,11 @@ void Client::reset() {
 }
 
 void Client::socket_dtor() {
+    delete tmp_write_buffer;
+    tmp_write_buffer = socket->pop_write_buffer();
+    socket = nullptr;
     zend_update_property_bool(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("connected"), 0);
     zend_update_property_null(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("socket"));
-    socket = nullptr;
     zval_ptr_dtor(&zsocket);
     ZVAL_NULL(&zsocket);
 }
