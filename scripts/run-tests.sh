@@ -9,7 +9,13 @@ cd ${__DIR__} && cd ../tests/
 
 # initialization
 echo "" && echo "⭐️ Initialization for tests..." && echo ""
-php ./init
+
+if [ "$SWOOLE_CI_IN_MACOS" = 1 ]; then
+  echo "run in macOS, skip init database"
+else
+  php ./init
+fi
+
 cd ./include/lib
 echo "composer update"
 composer update

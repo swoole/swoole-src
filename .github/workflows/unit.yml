@@ -66,6 +66,9 @@ jobs:
           ini-values: extension=swoole
           coverage: none
 
+      - name: Install dependencies
+        run: brew install redis tinyproxy nginx
+
       - name: Build Swoole
         run: |
           phpize
