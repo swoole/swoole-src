@@ -3169,14 +3169,14 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
         return php_swoole_server_task_pack(ztask, buf);
     };
 
-    mt.unpack = [ztasks, return_value](uint16_t i, EventData *result) {
+    mt.unpack = [return_value](uint16_t i, EventData *result) {
         zval zresult;
         if (php_swoole_server_task_unpack(&zresult, result)) {
             add_index_zval(return_value, i, &zresult);
         }
     };
 
-    mt.fail = [ztasks, return_value](uint16_t i) { add_index_bool(return_value, i, 0); };
+    mt.fail = [return_value](uint16_t i) { add_index_bool(return_value, i, 0); };
 
     if (!serv->task_sync(mt, timeout)) {
         zval_ptr_dtor(return_value);
