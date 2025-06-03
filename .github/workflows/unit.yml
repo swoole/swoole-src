@@ -67,6 +67,7 @@ jobs:
 
       - name: Build Swoole
         run: |
+          brew install pcre2
           phpize
           ./configure CPPFLAGS="${CPPFLAGS}" --enable-openssl --enable-mysqlnd --enable-swoole-curl --enable-cares
           make -j$(sysctl -n hw.ncpu)
