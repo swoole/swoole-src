@@ -189,7 +189,6 @@ int ReactorPoll::wait() {
                 if (events_[i].revents & (POLLHUP | POLLERR)) {
                     event.socket->event_hup = 1;
                 }
-
                 swoole_trace("Event: fd=%d|reactor_id=%d|type=%d", event.fd, reactor_->id, event.type);
                 // in
                 if ((events_[i].revents & POLLIN) && !event.socket->removed) {
