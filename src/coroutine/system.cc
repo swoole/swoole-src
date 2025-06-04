@@ -70,6 +70,9 @@ float System::get_dns_cache_hit_ratio() {
 
 int System::sleep(double sec) {
     Coroutine *co = Coroutine::get_current_safe();
+    if (sec < SW_TIMER_MIN_SEC) {
+        sec = SW_TIMER_MIN_SEC;
+    }
     co->yield_ex(sec);
     return co->is_canceled() ? SW_ERR : SW_OK;
 }

@@ -53,7 +53,7 @@ $pm->childFunc = function () use ($pm) {
     $http = new Swoole\Http\Server("127.0.0.1", $pm->getFreePort(), SWOOLE_BASE);
 
     $http->set([
-        'worker_num' => 1,
+        'worker_num' => 2,
         'log_file' => '/dev/null',
         Constant::OPTION_ENABLE_COROUTINE => true,
         Constant::OPTION_HOOK_FLAGS => SWOOLE_HOOK_ALL,

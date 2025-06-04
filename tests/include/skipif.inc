@@ -188,7 +188,7 @@ function skip_if_in_valgrind(string $reason = 'valgrind is too slow')
 
 function skip_if_in_ci(string $reason = 'not support in CI')
 {
-    skip($reason, !!getenv('GITHUB_ACTIONS'));
+    skip($reason, !!getenv('GITHUB_ACTIONS') or file_exists('/.cienv'));
 }
 
 function skip_if_in_docker(string $reason = 'not support in docker')
