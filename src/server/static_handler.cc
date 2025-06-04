@@ -23,7 +23,6 @@
 #include <sstream>
 
 namespace swoole {
-
 namespace http_server {
 bool StaticHandler::is_modified(const std::string &date_if_modified_since) {
     char date_tmp[64];
@@ -398,7 +397,7 @@ void StaticHandler::parse_range(const char *range, const char *if_range) {
                                               tasks.empty() ? "" : "\r\n",
                                               get_boundary().c_str(),
                                               get_mimetype().c_str(),
-                                              _task.offset,
+                                              (size_t) _task.offset,
                                               end - 1,
                                               get_filesize()) +
                                   _task.length;

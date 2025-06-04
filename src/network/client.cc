@@ -406,8 +406,6 @@ int Client::close() {
 }
 
 static int Client_tcp_connect_sync(Client *cli, const char *host, int port, double timeout, int nonblock) {
-    int ret;
-
     cli->timeout = timeout;
 
     if (Client_inet_addr(cli, host, port) < 0) {
@@ -415,41 +413,17 @@ static int Client_tcp_connect_sync(Client *cli, const char *host, int port, doub
     }
 
     if (nonblock) {
-        cli->socket->set_nonblock();
-    } else {
-        if (cli->timeout > 0) {
-            cli->socket->set_timeout(timeout);
+        auto rc = cli->socket->connect_async(cli->server_addr);
+        if (rc == SW_READY) {
+            return SW_OK;
         }
-#ifndef HAVE_KQUEUE
-        cli->socket->set_block();
-#endif
-    }
-    while (true) {
-#ifdef HAVE_KQUEUE
-        if (nonblock == 2) {
-            // special case on macOS
-            ret = cli->socket->connect(cli->server_addr);
-        } else {
-            ret = cli->socket->connect_sync(cli->server_addr, cli->timeout);
+        if (rc == SW_WAIT) {
+            cli->async_connect = true;
         }
-#else
-        ret = cli->socket->connect(cli->server_addr);
-#endif
-        if (ret < 0) {
-            if (errno == EINTR) {
-                continue;
-            } else if (errno == EINPROGRESS) {
-                if (nonblock) {
-                    cli->async_connect = true;
-                } else {
-                    errno = ETIMEDOUT;
-                }
-            }
-            swoole_set_last_error(errno);
-        }
-        break;
+        return SW_ERR;
     }
 
+    int ret = cli->socket->connect_sync(cli->server_addr, timeout);
     if (ret >= 0) {
         cli->active = true;
         auto recv_buf = sw_tg_buffer();

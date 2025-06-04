@@ -395,6 +395,7 @@ struct Socket {
     }
 
     int connect_sync(const Address &sa, double timeout);
+    swReturnCode connect_async(const Address &sa);
 
 #ifdef SW_USE_OPENSSL
     void ssl_clear_error() {

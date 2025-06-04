@@ -227,7 +227,8 @@ target_link_libraries(core-tests swoole pthread ssl crypto ${GTEST_BOTH_LIBRARIE
 
 # find libpq
 if (DEFINED libpq_dir)
-    target_include_directories(ext-swoole BEFORE ${LIBPQ_INCLUDE_DIRS})
+    include_directories(BEFORE ${libpq_dir}/include)
+    link_directories(${libpq_dir}/lib)
 else()
     pkg_check_modules(LIBPQ REQUIRED libpq)
     target_include_directories(ext-swoole PRIVATE ${LIBPQ_INCLUDE_DIRS})

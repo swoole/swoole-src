@@ -233,15 +233,26 @@ ssize_t Socket::writev_sync(const struct iovec *iov, size_t iovcnt) {
     return rv ? bytes : -1;
 }
 
-int Socket::connect_sync(const Address &sa, double timeout) {
+swReturnCode Socket::connect_async(const Address &sa) {
     set_nonblock();
-    auto ret = connect(sa);
-    if (ret != -1) {
-        return SW_OK;
+    while (true) {
+        auto ret = connect(sa);
+        if (ret < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            swoole_set_last_error(errno);
+            return errno == EINPROGRESS ? SW_WAIT : SW_ERROR;
+        }
+        break;
     }
-    if (errno != EINPROGRESS) {
-        swoole_set_last_error(errno);
-        return SW_ERR;
+    return SW_READY;
+}
+
+int Socket::connect_sync(const Address &sa, double timeout) {
+    auto rc = connect_async(sa);
+    if (rc != SW_WAIT) {
+        return rc == SW_READY ? SW_OK : SW_ERR;
     }
     if (wait_event(timeout > 0 ? (int) (timeout * 1000) : timeout, SW_EVENT_WRITE) < 0) {
         swoole_set_last_error(ETIMEDOUT);
@@ -249,7 +260,7 @@ int Socket::connect_sync(const Address &sa, double timeout) {
     }
     int err;
     socklen_t len = sizeof(len);
-    ret = get_option(SOL_SOCKET, SO_ERROR, &err, &len);
+    int ret = get_option(SOL_SOCKET, SO_ERROR, &err, &len);
     if (ret < 0) {
         swoole_set_last_error(errno);
         return SW_ERR;
