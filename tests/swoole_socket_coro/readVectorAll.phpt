@@ -15,7 +15,6 @@ $totalLength = 0;
 $iovector = [];
 $packedStr = '';
 
-
 for ($i = 0; $i < 10; $i++) {
     $iovector[$i] = str_repeat(get_safe_random(1024), 128);
     $totalLength += strlen($iovector[$i]);
@@ -31,7 +30,7 @@ run(function () {
         Assert::assert($server->bind('127.0.0.1', $port));
         Assert::assert($server->listen(512));
         $conn = $server->accept();
-        Assert::assert($conn instanceof  Socket);
+        Assert::assert($conn instanceof Socket);
         Assert::assert($conn->fd > 0);
 
         global $packedStr, $iovector, $totalLength2;
@@ -60,7 +59,14 @@ run(function () {
         $ret = $conn->sendAll(substr($packedStr, 0, $totalLength2));
         Assert::eq($ret, $totalLength2);
 
-        $server->close();
+        /**
+         *The TCP three-way handshake is handled by the kernel. After connect() succeeds,
+         * the server coroutine's accept() function does not return immediately.
+         * The client coroutine continues to execute sendAll() until an IO block occurs;
+         * only when a writable event is detected does it switch to the server coroutine, at which point accept() returns and proceeds to execute readVectorAll().
+         * If $server->close() is called, it may cause the server coroutine's accept() to return false.
+         */
+        $conn->close();
     });
 });
 

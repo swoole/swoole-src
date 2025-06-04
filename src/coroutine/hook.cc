@@ -30,13 +30,13 @@
 
 using swoole::AsyncEvent;
 using swoole::Coroutine;
+using swoole::translate_events_from_poll;
+using swoole::translate_events_to_poll;
 using swoole::async::dispatch;
 using swoole::coroutine::async;
 using swoole::coroutine::PollSocket;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
-using swoole::coroutine::translate_events_from_poll;
-using swoole::coroutine::translate_events_to_poll;
 
 #ifdef SW_USE_IOURING
 using swoole::Iouring;

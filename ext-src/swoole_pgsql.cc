@@ -25,8 +25,8 @@
 
 using swoole::Coroutine;
 using swoole::Reactor;
+using swoole::translate_events_to_poll;
 using swoole::coroutine::Socket;
-using swoole::coroutine::translate_events_to_poll;
 
 static SW_THREAD_LOCAL bool swoole_pgsql_blocking = true;
 

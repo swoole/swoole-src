@@ -18,7 +18,6 @@
 #pragma once
 
 #include "swoole_coroutine.h"
-#include "swoole_file.h"
 
 #include <vector>
 
@@ -38,9 +37,6 @@ struct PollSocket {
         socket = nullptr;
     }
 };
-
-int16_t translate_events_to_poll(int events);
-int translate_events_from_poll(int16_t events);
 
 class System {
   public:

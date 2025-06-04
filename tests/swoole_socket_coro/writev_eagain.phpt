@@ -48,7 +48,7 @@ run(function () {
         Assert::assert($conn->connect('127.0.0.1', $port));
         $ret = $conn->writeVectorAll($iovector);
         Assert::eq($ret, $totalLength);
-        $server->close();
+        $conn->close();
     });
 });
 

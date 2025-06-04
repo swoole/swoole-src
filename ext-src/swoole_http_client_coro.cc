@@ -103,7 +103,7 @@ class Client {
     std::string basic_auth;
 
     /* for response parser */
-    char *tmp_header_field_name = nullptr;
+    const char *tmp_header_field_name = nullptr;
     int tmp_header_field_name_len = 0;
     String *body = nullptr;
 #ifdef SW_HAVE_COMPRESSION
@@ -135,13 +135,17 @@ class Client {
     zval *zobject = &_zobject;
     zval zsocket;
     zend::Callable *write_func = nullptr;
+    /**
+     * Retain the send buffer object of the Socket after the Socket object is destroyed,
+     * allowing access to the sent Request data even after the connection has been closed.
+     */
     String *tmp_write_buffer = nullptr;
     bool connection_close = false;
     bool completed = false;
 
-    Client(zval *zobject, std::string host, zend_long port = 80, zend_bool ssl = false);
+    Client(const zval *zobject, const std::string &host, zend_long port = 80, zend_bool ssl = false);
 
-    bool is_available() {
+    bool is_available() const {
         if (sw_unlikely(!socket || !socket->is_connected())) {
             php_swoole_socket_set_error_properties(zobject, SW_ERROR_CLIENT_NO_CONNECTION);
             return false;
@@ -160,9 +164,8 @@ class Client {
 #ifdef SW_HAVE_ZSTD
     ZSTD_DStream *zstd_stream = nullptr;
 #endif
-    bool bind(std::string address, int port = 0);
     bool connect();
-    void set_error(int error, const char *msg, int status);
+    void set_error(int error, const char *msg, int status) const;
     bool keep_liveness();
     bool send_request();
     void reset();
@@ -182,10 +185,9 @@ class Client {
 
     static void create_token(int length, char *buf) {
         char characters[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!\"§$%&/()=[]{}";
-        int i;
         assert(length < 1024);
-        for (i = 0; i < length; i++) {
-            buf[i] = characters[rand() % (sizeof(characters) - 1)];
+        for (int i = 0; i < length; i++) {
+            buf[i] = characters[swoole_random_int() % (sizeof(characters) - 1)];
         }
         buf[length] = '\0';
     }
@@ -194,23 +196,21 @@ class Client {
 #ifdef SW_HAVE_COMPRESSION
     bool decompress_response(const char *in, size_t in_len);
 #endif
-    void apply_setting(zval *zset, const bool check_all = true);
+    void apply_setting(zval *zset, bool check_all = true);
     void set_basic_auth(const std::string &username, const std::string &password);
-    bool exec(std::string _path);
+    bool exec(const std::string &_path);
     bool recv_response(double timeout = 0);
     bool recv_websocket_frame(zval *zframe, double timeout = 0);
-    void add_header(const char *key, size_t key_len, const char *str, size_t length);
-    bool upgrade(std::string path);
+    void add_header(const char *key, size_t key_len, const char *str, size_t length) const;
+    bool upgrade(const std::string &path);
     bool push(zval *zdata, zend_long opcode = websocket::OPCODE_TEXT, uint8_t flags = websocket::FLAG_FIN);
-    bool close(const bool should_be_reset = true);
+    bool close(bool should_be_reset = true);
     void socket_dtor();
 
     void get_header_out(zval *return_value) {
         String *buffer = nullptr;
         if (socket == nullptr) {
-            if (tmp_write_buffer) {
-                buffer = tmp_write_buffer;
-            }
+            buffer = tmp_write_buffer;
         } else {
             buffer = socket->get_write_buffer();
         }
@@ -401,17 +401,17 @@ void php_swoole_http_parse_set_cookies(const char *at, size_t length, zval *zcoo
 }
 
 static int http_parser_on_header_field(llhttp_t *parser, const char *at, size_t length) {
-    Client *http = static_cast<Client *>(parser->data);
-    http->tmp_header_field_name = (char *) at;
+    auto *http = static_cast<Client *>(parser->data);
+    http->tmp_header_field_name = at;
     http->tmp_header_field_name_len = length;
     return 0;
 }
 
 static int http_parser_on_header_value(llhttp_t *parser, const char *at, size_t length) {
-    Client *http = static_cast<Client *>(parser->data);
+    auto *http = static_cast<Client *>(parser->data);
     zval *zobject = static_cast<zval *>(http->zobject);
 
-    char *header_name = http->tmp_header_field_name;
+    const char *header_name = http->tmp_header_field_name;
     size_t header_len = http->tmp_header_field_name_len;
     zend::CharPtr _header_name;
 
@@ -445,7 +445,7 @@ static int http_parser_on_header_value(llhttp_t *parser, const char *at, size_t 
     }
 #ifdef SW_HAVE_COMPRESSION
     else if (SW_STREQ(header_name, header_len, "content-encoding")) {
-        if (0) {
+        if (false) {
         }
 #ifdef SW_HAVE_BROTLI
         else if (SW_STR_ISTARTS_WITH(at, length, "br")) {
@@ -476,7 +476,7 @@ static int http_parser_on_header_value(llhttp_t *parser, const char *at, size_t 
 }
 
 static int http_parser_on_headers_complete(llhttp_t *parser) {
-    Client *http = static_cast<Client *>(parser->data);
+    auto *http = static_cast<Client *>(parser->data);
     if (http->method == SW_HTTP_HEAD || parser->status_code == SW_HTTP_NO_CONTENT) {
         return 1;
     }
@@ -492,7 +492,7 @@ static inline ssize_t http_client_co_write(int sockfd, const void *buf, size_t c
 }
 
 static int http_parser_on_body(llhttp_t *parser, const char *at, size_t length) {
-    Client *http = static_cast<Client *>(parser->data);
+    auto *http = static_cast<Client *>(parser->data);
     if (http->write_func) {
         zval zargv[2];
         zargv[0] = *http->zobject;
@@ -550,7 +550,8 @@ static int http_parser_on_body(llhttp_t *parser, const char *at, size_t length) 
 }
 
 static int http_parser_on_message_complete(llhttp_t *parser) {
-    Client *http = static_cast<Client *>(parser->data);
+    auto *http = static_cast<Client *>(parser->data);
+    zval *zobject = static_cast<zval *>(http->zobject);
     http->completed = true;
     if (parser->upgrade && !http->websocket) {
         // not support, continue.
@@ -558,7 +559,6 @@ static int http_parser_on_message_complete(llhttp_t *parser) {
         return HPE_PAUSED;
     }
 
-    zval *zobject = static_cast<zval *>(http->zobject);
     zend_update_property_long(
         swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("statusCode"), parser->status_code);
     if (http->download_file == nullptr) {
@@ -571,9 +571,9 @@ static int http_parser_on_message_complete(llhttp_t *parser) {
     return HPE_PAUSED;
 }
 
-Client::Client(zval *zobject, std::string host, zend_long port, zend_bool ssl) {
-    this->socket_type = network::Socket::convert_to_type(host);
+Client::Client(const zval *zobject, const std::string &host, zend_long port, zend_bool ssl) {
     this->host = host;
+    this->socket_type = network::Socket::convert_to_type(this->host);
     this->use_default_port = port == 0;
     if (this->use_default_port) {
         port = ssl ? 443 : 80;
@@ -621,7 +621,7 @@ bool Client::decompress_response(const char *in, size_t in_len) {
         gzip_stream.avail_in = in_len;
         gzip_stream.total_in = 0;
 
-        while (1) {
+        while (true) {
             total_out = gzip_stream.total_out;
             gzip_stream.avail_out = body->size - body->length;
             gzip_stream.next_out = (Bytef *) (body->str + body->length);
@@ -669,7 +669,7 @@ bool Client::decompress_response(const char *in, size_t in_len) {
 
         const char *next_in = in;
         size_t available_in = in_len;
-        while (1) {
+        while (true) {
             size_t available_out = body->size - body->length, reserved_available_out = available_out;
             char *next_out = body->str + body->length;
             size_t total_out;
@@ -792,9 +792,7 @@ void Client::apply_setting(zval *zset, const bool check_all) {
         }
 #endif
         if (php_swoole_array_get_value(vht, "write_func", ztmp)) {
-            if (write_func) {
-                delete write_func;
-            }
+            delete write_func;
             write_func = sw_callable_create(ztmp);
         }
     }
@@ -823,7 +821,7 @@ void Client::set_basic_auth(const std::string &username, const std::string &pass
     }
 }
 
-void Client::add_header(const char *key, size_t key_len, const char *str, size_t length) {
+void Client::add_header(const char *key, size_t key_len, const char *str, size_t length) const {
     zval *zheaders =
         sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, zobject, ZEND_STRL("headers"), 0);
 
@@ -875,7 +873,7 @@ bool Client::connect() {
     socket->set_timeout(_timeout, Socket::TIMEOUT_CONNECT);
     socket->set_resolve_context(&resolve_context_);
     socket->set_dtor([this](Socket *_socket) { socket_dtor(); });
-    // socket->set_buffer_allocator(&SWOOLE_G(zend_string_allocator));
+    socket->set_buffer_allocator(sw_zend_string_allocator());
 
     if (!socket->connect(host, port)) {
         set_error(socket->errCode, socket->errMsg, HTTP_ESTATUS_CONNECT_FAILED);
@@ -888,7 +886,7 @@ bool Client::connect() {
     return true;
 }
 
-void Client::set_error(int error, const char *msg, int status) {
+void Client::set_error(int error, const char *msg, int status) const {
     auto ce = swoole_http_client_coro_ce;
     auto obj = SW_Z8_OBJ_P(zobject);
     zend_update_property_long(ce, obj, ZEND_STRL("errCode"), error);
@@ -919,7 +917,7 @@ bool Client::send_request() {
     uint32_t header_flag = 0x0;
     zval *zmethod, *zheaders, *zbody, *zupload_files, *zcookies, *z_download_file;
 
-    if (path.length() == 0) {
+    if (path.empty()) {
         php_swoole_socket_set_error_properties(zobject, SW_ERROR_INVALID_PARAMS);
         return false;
     }
@@ -1083,7 +1081,7 @@ bool Client::send_request() {
             if (SW_STRCASEEQ(key, keylen, "Connection")) {
                 header_flag |= HTTP_HEADER_CONNECTION;
                 if (SW_STRCASEEQ(str_value.val(), str_value.len(), "close")) {
-                    keep_alive = 0;
+                    keep_alive = false;
                 }
             }
         }
@@ -1208,16 +1206,16 @@ bool Client::send_request() {
             // upload files
             SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zupload_files), key, keylen, keytype, zvalue) {
                 HashTable *ht = Z_ARRVAL_P(zvalue);
-                if (!(zname = zend_hash_str_find(ht, ZEND_STRL("name")))) {
+                if (!((zname = zend_hash_str_find(ht, ZEND_STRL("name"))))) {
                     continue;
                 }
-                if (!(zfilename = zend_hash_str_find(ht, ZEND_STRL("filename")))) {
+                if (!((zfilename = zend_hash_str_find(ht, ZEND_STRL("filename"))))) {
                     continue;
                 }
-                if (!(zsize = zend_hash_str_find(ht, ZEND_STRL("size")))) {
+                if (!((zsize = zend_hash_str_find(ht, ZEND_STRL("size"))))) {
                     continue;
                 }
-                if (!(ztype = zend_hash_str_find(ht, ZEND_STRL("type")))) {
+                if (!((ztype = zend_hash_str_find(ht, ZEND_STRL("type"))))) {
                     continue;
                 }
                 // strlen("%.*s")*4 = 16
@@ -1395,7 +1393,7 @@ bool Client::send_request() {
     return true;
 }
 
-bool Client::exec(std::string _path) {
+bool Client::exec(const std::string &_path) {
     path = _path;
     // bzero when make a new reqeust
     resolve_context_ = {};
@@ -1518,7 +1516,7 @@ bool Client::recv_response(double timeout) {
      * TODO: Sec-WebSocket-Accept check
      */
     if (websocket) {
-        socket->open_length_check = 1;
+        socket->open_length_check = true;
         socket->protocol.package_length_size = SW_WEBSOCKET_HEADER_LEN;
         socket->protocol.package_length_offset = 0;
         socket->protocol.package_body_offset = 0;
@@ -1560,22 +1558,22 @@ bool Client::recv_websocket_frame(zval *zframe, double timeout) {
     }
 }
 
-bool Client::upgrade(std::string path) {
+bool Client::upgrade(const std::string &path) {
     defer = false;
     char buf[SW_WEBSOCKET_KEY_LENGTH + 1];
     zval *zheaders =
         sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, zobject, ZEND_STRL("requestHeaders"), 0);
     zend_update_property_string(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("requestMethod"), "GET");
     create_token(SW_WEBSOCKET_KEY_LENGTH, buf);
-    add_assoc_string(zheaders, "Connection", (char *) "Upgrade");
-    add_assoc_string(zheaders, "Upgrade", (char *) "websocket");
-    add_assoc_string(zheaders, "Sec-WebSocket-Version", (char *) SW_WEBSOCKET_VERSION);
+    add_assoc_string(zheaders, "Connection", "Upgrade");
+    add_assoc_string(zheaders, "Upgrade", "websocket");
+    add_assoc_string(zheaders, "Sec-WebSocket-Version", SW_WEBSOCKET_VERSION);
     add_assoc_str_ex(zheaders,
                      ZEND_STRL("Sec-WebSocket-Key"),
                      php_base64_encode((const unsigned char *) buf, SW_WEBSOCKET_KEY_LENGTH));
 #ifdef SW_HAVE_ZLIB
     if (websocket_compression) {
-        add_assoc_string(zheaders, "Sec-Websocket-Extensions", (char *) SW_WEBSOCKET_EXTENSION_DEFLATE);
+        add_assoc_string(zheaders, "Sec-Websocket-Extensions", SW_WEBSOCKET_EXTENSION_DEFLATE);
     }
 #endif
     return exec(path);
@@ -1655,13 +1653,11 @@ void Client::reset() {
 }
 
 void Client::socket_dtor() {
-    zend_update_property_bool(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("connected"), 0);
-    zend_update_property_null(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("socket"));
-    if (tmp_write_buffer) {
-        delete tmp_write_buffer;
-    }
+    delete tmp_write_buffer;
     tmp_write_buffer = socket->pop_write_buffer();
     socket = nullptr;
+    zend_update_property_bool(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("connected"), 0);
+    zend_update_property_null(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("socket"));
     zval_ptr_dtor(&zsocket);
     ZVAL_NULL(&zsocket);
 }
@@ -1693,22 +1689,17 @@ bool Client::close(const bool should_be_reset) {
 
 Client::~Client() {
     close();
-    if (body) {
-        delete body;
-    }
-    if (tmp_write_buffer) {
-        delete tmp_write_buffer;
-    }
-    if (write_func) {
-        delete write_func;
-    }
+    delete body;
+    delete tmp_write_buffer;
+    delete write_func;
 }
 
 static sw_inline HttpClientObject *http_client_coro_fetch_object(zend_object *obj) {
-    return (HttpClientObject *) ((char *) obj - swoole_http_client_coro_handlers.offset);
+    return reinterpret_cast<HttpClientObject *>(reinterpret_cast<char *>(obj) -
+                                                swoole_http_client_coro_handlers.offset);
 }
 
-static sw_inline Client *http_client_coro_get_client(zval *zobject) {
+static sw_inline Client *http_client_coro_get_client(const zval *zobject) {
     Client *phc = http_client_coro_fetch_object(Z_OBJ_P(zobject))->client;
     if (UNEXPECTED(!phc)) {
         swoole_fatal_error(SW_ERROR_WRONG_OPERATION, "must call constructor first");
@@ -1726,7 +1717,7 @@ static void http_client_coro_free_object(zend_object *object) {
 }
 
 static zend_object *http_client_coro_create_object(zend_class_entry *ce) {
-    HttpClientObject *hcc = (HttpClientObject *) zend_object_alloc(sizeof(HttpClientObject), ce);
+    auto *hcc = (HttpClientObject *) zend_object_alloc(sizeof(HttpClientObject), ce);
     zend_object_std_init(&hcc->std, ce);
     object_properties_init(&hcc->std, ce);
     hcc->std.handlers = &swoole_http_client_coro_handlers;
@@ -1797,7 +1788,7 @@ static PHP_METHOD(swoole_http_client_coro, __construct) {
     char *host;
     size_t host_len;
     zend_long port = 0;
-    zend_bool ssl = 0;
+    zend_bool ssl = false;
 
     ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 3)
     Z_PARAM_STRING(host, host_len)
@@ -1856,7 +1847,7 @@ static PHP_METHOD(swoole_http_client_coro, getDefer) {
 
 static PHP_METHOD(swoole_http_client_coro, setDefer) {
     Client *phc = http_client_coro_get_client(ZEND_THIS);
-    zend_bool defer = 1;
+    zend_bool defer = true;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
     Z_PARAM_OPTIONAL

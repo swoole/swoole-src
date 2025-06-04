@@ -261,6 +261,10 @@ class Reactor {
         return !_socket->removed && _socket->events;
     }
 
+    bool exists(const int fd) const {
+        return sockets_.find(fd) != sockets_.end();
+    }
+
     int get_timeout_msec() const {
         return defer_tasks == nullptr ? timeout_msec : 0;
     }
@@ -297,9 +301,7 @@ class Reactor {
             return error_handler[fd_type] ? error_handler[fd_type] : default_error_handler;
         default:
             abort();
-            break;
         }
-        return nullptr;
     }
 
     ReactorHandler get_error_handler(const FdType fd_type) const {
@@ -337,6 +339,10 @@ class Reactor {
 
     void _set(network::Socket *_socket, const int events) {
         _socket->events = events;
+    }
+
+    bool _exists(const network::Socket *_socket) {
+        return sockets_.find(_socket->fd) != sockets_.end();
     }
 
     void _del(network::Socket *_socket) {
@@ -377,6 +383,9 @@ class Reactor {
         return events & SW_EVENT_ERROR;
     }
 };
+
+int16_t translate_events_to_poll(int events);
+int translate_events_from_poll(int16_t events);
 }  // namespace swoole
 
 #define SW_REACTOR_CONTINUE                                                                                            \

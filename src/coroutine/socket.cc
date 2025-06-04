@@ -1630,6 +1630,9 @@ Socket::~Socket() {
         SW_ASSERT(!has_bound() && socket->removed);
     }
 #endif
+    if (dtor_ != nullptr) {
+        dtor_(this);
+    }
     delete read_buffer;
     delete write_buffer;
     if (socket == nullptr) {
@@ -1639,9 +1642,6 @@ Socket::~Socket() {
 #ifdef SW_USE_OPENSSL
     ssl_shutdown();
 #endif
-    if (dtor_ != nullptr) {
-        dtor_(this);
-    }
     socket->free();
 }
 
