@@ -591,6 +591,14 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
             ctx->tmp_content_type_len = length;
         }
     } else if (SW_STRCASEEQ(header_name, header_len, SW_HTTP_UPLOAD_FILE)) {
+        /**
+         * When the "SW_HTTP_UPLOAD_FILE" header appears in the request, it indicates that the uploaded file has been
+         * saved in a temporary file. The binary content in the message body will be replaced with the temporary
+         * filename. However, the Content-Length still reflects the original message size, causing llhttp to believe
+         * there is still data to be received. As a result, llhttp fails to trigger the message callback. Therefore, we
+         * need to set `ctx->completed = 1` to indicate that the message processing is complete.
+         */
+        ctx->completed = 1;
         zval *z_multipart_header = ctx->current_multipart_header;
         std::string tmp_file(at, length);
         add_assoc_stringl(z_multipart_header, "tmp_name", at, length);
@@ -791,12 +799,9 @@ static int http_request_on_body(llhttp_t *parser, const char *at, size_t length)
         if (!ctx->parse_multipart_data(at, length)) {
             return -1;
         }
-
-        ctx->completed = 1;
-        return HPE_PAUSED;
     }
 
-    return 0;
+    return ctx->completed ? HPE_PAUSED : 0;
 }
 
 static int http_request_message_complete(llhttp_t *parser) {

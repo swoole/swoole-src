@@ -92,7 +92,7 @@ struct ContextImpl {
 
     bool parse(Context &ctx, const char *at, size_t length) {
         swoole_llhttp_parser_init(&parser, HTTP_REQUEST, static_cast<void *>(&ctx));
-        size_t parsed_length = swoole_llhttp_parser_execute(&parser, &http_parser_settings, at, length);
+        swoole_llhttp_parser_execute(&parser, &http_parser_settings, at, length);
         return parser.error == HPE_OK && completed;
     }
 };
@@ -176,10 +176,7 @@ static int http_request_on_body(llhttp_t *parser, const char *at, size_t length)
             impl->is_beginning = false;
         }
         size_t n = multipart_parser_execute(multipart_parser, at, length);
-        if (sw_likely(n == length)) {
-            impl->completed = true;
-            return HPE_PAUSED;
-        } else {
+        if (sw_unlikely(n != length)) {
             swoole_error_log(SW_LOG_WARNING,
                              SW_ERROR_SERVER_INVALID_REQUEST,
                              "parse multipart body failed, %zu/%zu bytes processed",
@@ -190,7 +187,7 @@ static int http_request_on_body(llhttp_t *parser, const char *at, size_t length)
         ctx->body.append(at, length);
     }
 
-    return 0;
+    return impl->completed ? HPE_PAUSED : 0;
 }
 
 static int multipart_body_on_header_field(multipart_parser *p, const char *at, size_t length) {
@@ -220,6 +217,14 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
             impl->current_input_name = filename->second;
         }
     } else if (SW_STRCASEEQ(header_name, header_len, SW_HTTP_UPLOAD_FILE)) {
+        /**
+         * When the "SW_HTTP_UPLOAD_FILE" header appears in the request, it indicates that the uploaded file has been
+         * saved in a temporary file. The binary content in the message body will be replaced with the temporary
+         * filename. However, the Content-Length still reflects the original message size, causing llhttp to believe
+         * there is still data to be received. As a result, llhttp fails to trigger the message callback. Therefore, we
+         * need to set `ctx->completed = 1` to indicate that the message processing is complete.
+         */
+        impl->completed = true;
         ctx->files[impl->current_form_data_name] = std::string(at, length);
     }
 
