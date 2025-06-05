@@ -21,7 +21,7 @@ Runtime::enableCoroutine(SWOOLE_HOOK_ALL);
 run(function () {
     go(function () {
         $sock = socket_create(AF_INET, SOCK_DGRAM, 0);
-        socket_bind($sock, '127.0.0.1', $GLOBALS['port']);
+        Assert::true(socket_bind($sock, '127.0.0.1', $GLOBALS['port']));
 
         $n = N;
         while ($n--) {
@@ -36,10 +36,10 @@ run(function () {
     while ($n--) {
         go(function () {
             $sock = socket_create(AF_INET, SOCK_DGRAM, 0);
-            socket_connect($sock, '127.0.0.1', $GLOBALS['port']);
+            Assert::true(socket_connect($sock, '127.0.0.1', $GLOBALS['port']));
             socket_getsockname($sock, $addr, $port);
             $pkt = GREETINGS." from $addr:$port";
-            socket_sendto($sock, $pkt, strlen($pkt), 0, '127.0.0.1', $GLOBALS['port']);
+            Assert::eq(socket_send($sock, $pkt, strlen($pkt), 0), strlen($pkt));
             socket_recv($sock, $buf, 1024, 0);
             Assert::eq($buf, "Swoole: $pkt");
             socket_close($sock);
