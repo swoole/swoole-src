@@ -29,7 +29,7 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
     });
     $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
-        $host = swoole_async_dns_lookup_coro('www.baidu.com');
+        $host = swoole_async_dns_lookup_coro(TEST_DOMAIN_1);
         if ($host) {
             $response->end("OK\n");
         } else {

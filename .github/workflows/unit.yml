@@ -68,7 +68,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          brew install redis tinyproxy nginx zstd
+          brew install redis tinyproxy nginx
           brew services start redis
           brew services start nginx
           brew services start tinyproxy
@@ -79,7 +79,7 @@ jobs:
           export PCRE2_INCLUDE_DIR="/opt/homebrew/opt/pcre2/include"
           export CPPFLAGS="${CPPFLAGS} -I${PCRE2_INCLUDE_DIR}"
           export CFLAGS="${CFLAGS} -I${PCRE2_INCLUDE_DIR}"
-          ./configure CPPFLAGS="${CPPFLAGS}" --enable-openssl --enable-sockets --enable-mysqlnd --enable-swoole-curl --enable-cares
+          ./configure CPPFLAGS="${CPPFLAGS}" --enable-openssl --enable-sockets --enable-mysqlnd --enable-swoole-curl --enable-cares --enable-zstd
           make -j$(sysctl -n hw.ncpu)
           sudo make install
           php --ri swoole

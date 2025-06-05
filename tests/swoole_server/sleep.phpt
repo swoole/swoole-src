@@ -19,12 +19,14 @@ $pm = new SwooleTest\ProcessManager;
 const N = 8;
 
 $pm->parentFunc = function () use ($pm) {
-    $s = microtime(true);
     Co::set([Constant::OPTION_HOOK_FLAGS => SWOOLE_HOOK_ALL]);
     run(function () use ($pm) {
         $n = N;
+        $s = microtime(true);
+        $list = [];
         while($n--) {
-            go(function() use ($pm) {
+            $list[] = go(function() use ($pm) {
+                $s = microtime(true);
                 $ch = curl_init();
                 $code = uniqid('swoole_');
                 $url = "http://127.0.0.1:".$pm->getFreePort()."/?code=".urlencode($code);
@@ -44,16 +46,19 @@ $pm->parentFunc = function () use ($pm) {
                 curl_close($ch);
             });
         }
+
+        Co::join($list);
+
+        Assert::lessThan(microtime(true) - $s, 0.5);
+        echo "Done\n";
     });
-    Assert::lessThan(microtime(true) - $s, 0.5);
     $pm->kill();
-    echo "Done\n";
 };
 $pm->childFunc = function () use ($pm) {
     $http = new Swoole\Http\Server("127.0.0.1", $pm->getFreePort(), SWOOLE_BASE);
 
     $http->set([
-        'worker_num' => 2,
+        'worker_num' => 1,
         'log_file' => '/dev/null',
         Constant::OPTION_ENABLE_COROUTINE => true,
         Constant::OPTION_HOOK_FLAGS => SWOOLE_HOOK_ALL,
