@@ -426,7 +426,7 @@ struct ProcessPool {
     bool send_message(WorkerId worker_id, const char *message, size_t l_message) const;
     int pop_message(void *data, size_t size);
     int listen(const char *socket_file, int backlog) const;
-    int listen(const char *host, int port, int blacklog) const;
+    int listen(const char *host, int port, int backlog) const;
     int schedule();
     bool is_worker_running(Worker *worker);
 

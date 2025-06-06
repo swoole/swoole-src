@@ -37,13 +37,7 @@ using network::Socket;
 ReactorImpl *make_reactor_epoll(Reactor *_reactor, int max_events);
 #endif
 
-#ifdef HAVE_POLL
 ReactorImpl *make_reactor_poll(Reactor *_reactor, int max_events);
-#endif
-
-#ifdef HAVE_KQUEUE
-ReactorImpl *make_reactor_kqueue(Reactor *_reactor, int max_events);
-#endif
 
 void ReactorImpl::after_removal_failure(const Socket *_socket) const {
     if (!_socket->silent_remove) {
@@ -63,12 +57,8 @@ Reactor::Reactor(int max_event, Type _type) {
     if (_type == TYPE_AUTO) {
 #ifdef HAVE_EPOLL
         type_ = TYPE_EPOLL;
-#elif defined(HAVE_KQUEUE)
-        type_ = TYPE_KQUEUE;
-#elif defined(HAVE_POLL)
-        type_ = TYPE_POLL;
 #else
-#error "The OS must support one of the IO event loop mechanisms: epoll, kqueue, or poll."
+        type_ = TYPE_POLL;
 #endif
     } else {
         type_ = _type;
@@ -80,18 +70,8 @@ Reactor::Reactor(int max_event, Type _type) {
         impl = make_reactor_epoll(this, max_event);
         break;
 #endif
-#ifdef HAVE_KQUEUE
-    case TYPE_KQUEUE:
-        impl = make_reactor_kqueue(this, max_event);
-        break;
-#endif
-#ifdef HAVE_POLL
-    case TYPE_POLL:
-        impl = make_reactor_poll(this, max_event);
-        break;
-#endif
     default:
-        assert(0);
+        impl = make_reactor_poll(this, max_event);
         break;
     }
 
