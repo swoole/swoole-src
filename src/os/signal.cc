@@ -26,13 +26,6 @@
 
 #include <csignal>
 
-#ifdef HAVE_KQUEUE
-#ifdef USE_KQUEUE_IDE_HELPER
-#include "helper/kqueue.h"
-#else
-#include <sys/event.h>
-#endif
-#endif
 #ifdef __NetBSD__
 #include <sys/param.h>
 #endif

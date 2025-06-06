@@ -944,9 +944,6 @@ PHP_MINFO_FUNCTION(swoole) {
 #ifdef HAVE_EVENTFD
     php_info_print_table_row(2, "eventfd", "enabled");
 #endif
-#ifdef HAVE_KQUEUE
-    php_info_print_table_row(2, "kqueue", "enabled");
-#endif
 #ifdef SW_THREAD
     php_info_print_table_row(2, "thread", "enabled");
 #endif
