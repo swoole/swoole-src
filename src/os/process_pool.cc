@@ -160,7 +160,7 @@ int ProcessPool::create_message_bus() {
     return SW_OK;
 }
 
-int ProcessPool::listen(const char *socket_file, int blacklog) const {
+int ProcessPool::listen(const char *socket_file, int backlog) const {
     if (ipc_mode != SW_IPC_SOCKET) {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_OPERATION_NOT_SUPPORT, "not support, ipc_mode must be SW_IPC_SOCKET");
         return SW_ERR;
@@ -170,7 +170,7 @@ int ProcessPool::listen(const char *socket_file, int blacklog) const {
         return SW_ERR;
     }
     stream_info_->socket_port = 0;
-    stream_info_->socket = make_server_socket(SW_SOCK_UNIX_STREAM, stream_info_->socket_file, 0, blacklog);
+    stream_info_->socket = make_server_socket(SW_SOCK_UNIX_STREAM, stream_info_->socket_file, 0, backlog);
     if (!stream_info_->socket) {
         return SW_ERR;
     }
