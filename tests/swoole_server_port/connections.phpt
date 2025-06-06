@@ -13,62 +13,71 @@ $pm->initFreePorts(2);
 
 $pm->parentFunc = function ($pid) use ($pm) {
     $sch = new \Co\Scheduler();
+    $conns_1 = [];
+    $conns_2 = [];
+
     $sch->parallel(
         3,
-        function () use ($pm) {
+        function () use ($pm, &$conns_1) {
             $c = new Swoole\Coroutine\Http\Client(TCP_SERVER_HOST, $pm->getFreePort(0));
             $c->upgrade('/');
+            $conns_1[] = $c->recv()->data;
             $c->recv();
         }
     );
     $sch->parallel(
         2,
-        function () use ($pm) {
+        function () use ($pm, &$conns_2) {
             $c = new Swoole\Coroutine\Http\Client(TCP_SERVER_HOST, $pm->getFreePort(1));
             $c->upgrade('/');
+            $conns_2[] = $c->recv()->data;
             $c->recv();
         }
     );
 
     //all
     $sch->add(
-        function () use ($pm) {
+        function () use ($pm, &$conns_1, &$conns_2) {
             $c = new Swoole\Coroutine\Http\Client(TCP_SERVER_HOST, $pm->getFreePort(0));
             $c->upgrade('/');
+            $conns_1[] = $c->recv()->data;
+
             $c->push('all');
             $frame = $c->recv();
             Assert::assert($frame);
             $json = json_decode($frame->data);
             Assert::eq($json->count, 8);
-            Assert::eq($json->list, range(1, 8));
+            Assert::eq($json->list, array_merge($conns_1, $conns_2));
         }
     );
 
     //port-0
     $sch->add(
-        function () use ($pm) {
+        function () use ($pm, &$conns_1) {
             $c = new Swoole\Coroutine\Http\Client(TCP_SERVER_HOST, $pm->getFreePort(0));
             $c->upgrade('/');
+            $conns_1[] = $c->recv()->data;
             $c->push('port-0');
             $frame = $c->recv();
             Assert::assert($frame);
             $json = json_decode($frame->data);
             Assert::eq($json->count, 5);
-            Assert::eq($json->list, [1,2,3,6,7]);
+            Assert::eq($json->list, $conns_1);
         }
     );
 
     //port-1
     $sch->add(
-        function () use ($pm) {
+        function () use ($pm, &$conns_2) {
             $c = new Swoole\Coroutine\Http\Client(TCP_SERVER_HOST, $pm->getFreePort(1));
             $c->upgrade('/');
+            $conns_2[] = $c->recv()->data;
             $c->push('port-1');
             $frame = $c->recv();
             Assert::assert($frame);
             $json = json_decode($frame->data);
             Assert::eq($json->count, 3);
-            Assert::eq($json->list, [4,5,8]);
+            Assert::eq($json->list, $conns_2);
         }
     );
 
@@ -84,17 +93,13 @@ $pm->parentFunc = function ($pid) use ($pm) {
 $pm->childFunc = function () use ($pm)
 {
     $server = new Swoole\WebSocket\Server("0.0.0.0", $pm->getFreePort(0), SWOOLE_PROCESS);
-    $server->set(
-        [
-            Constant::OPTION_LOG_FILE => '/dev/null',
-            Constant::OPTION_WORKER_NUM => 1,
-        ]
-    );
-    $server->on(
-        'open',
-        function (Swoole\WebSocket\Server $server, $request) {
-        }
-    );
+    $server->set([
+        Constant::OPTION_LOG_FILE => '/dev/null',
+        Constant::OPTION_WORKER_NUM => 1,
+    ]);
+    $server->on('open', function (Swoole\WebSocket\Server $server, $request) {
+        $server->push($request->fd, $request->fd);
+    });
     $server->on(
         Constant::EVENT_WORKER_START,
         function () use ($pm) {
