@@ -47,12 +47,11 @@
 #define s6_addr32 _S6_un._S6_u32
 #endif
 
-// OS Feature
-#if defined(HAVE_KQUEUE) || !defined(HAVE_SENDFILE)
-ssize_t swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size);
-#else
+#ifdef __linux__
 #include <sys/sendfile.h>
 #define swoole_sendfile(out_fd, in_fd, offset, limit) sendfile(out_fd, in_fd, offset, limit)
+#else
+ssize_t swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size);
 #endif
 
 enum {
