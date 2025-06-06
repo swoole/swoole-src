@@ -50,6 +50,8 @@ $pm->childFunc = function () use ($pm)
         $ip = co::gethostbyname(TEST_DOMAIN_1);
         if ($ip) {
             $serv->push($request->fd, "start\n");
+        } else {
+            $serv->push($request->fd, "error: ". swoole_get_last_error(). "\n");
         }
     });
 
