@@ -78,6 +78,8 @@ Client::Client(SocketType _type, bool _async) : async(_async) {
     input_buffer_size = SW_CLIENT_BUFFER_SIZE;
     socket->chunk_size = SW_SEND_BUFFER_SIZE;
     socket->dont_restart = 1;
+    socket->recv_timeout_ = Socket::default_read_timeout;
+    socket->send_timeout_ = Socket::default_write_timeout;
 
     if (socket->is_stream()) {
         recv_ = Client_tcp_recv_sync;
