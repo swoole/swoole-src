@@ -18,7 +18,7 @@
 #include "swoole_http.h"
 #include "swoole_server.h"
 
-#include "thirdparty/llhttp/swoole_llhttp.h"
+#include "swoole_llhttp.h"
 #include "thirdparty/multipart_parser.h"
 
 namespace swoole {

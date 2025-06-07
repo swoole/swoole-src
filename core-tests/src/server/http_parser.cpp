@@ -19,7 +19,7 @@
 
 #include "test_core.h"
 #include "swoole_util.h"
-#include "thirdparty/llhttp/swoole_llhttp.h"
+#include "swoole_llhttp.h"
 
 using namespace std;
 

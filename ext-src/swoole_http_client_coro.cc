@@ -142,6 +142,7 @@ class Client {
     String *tmp_write_buffer = nullptr;
     bool connection_close = false;
     bool completed = false;
+    bool event_stream = false;
 
     Client(const zval *zobject, const std::string &host, zend_long port = 80, zend_bool ssl = false);
 
@@ -470,6 +471,8 @@ static int http_parser_on_header_value(llhttp_t *parser, const char *at, size_t 
         http->chunked = true;
     } else if (SW_STREQ(header_name, header_len, "connection")) {
         http->connection_close = SW_STR_ISTARTS_WITH(at, length, "close");
+    } else if (SW_STREQ(header_name, header_len, "content-type")) {
+        http->event_stream = SW_STR_ISTARTS_WITH(at, length, "text/event-stream");
     }
 
     return 0;
@@ -1447,7 +1450,7 @@ bool Client::recv_response(double timeout) {
             if (retval == 0) {
                 socket->set_err(ECONNRESET);
                 if (total_bytes > 0 && !llhttp_should_keep_alive(&parser)) {
-                    http_parser_on_message_complete(&parser);
+                    llhttp_finish(&parser);
                     success = true;
                     break;
                 }
@@ -1489,6 +1492,10 @@ bool Client::recv_response(double timeout) {
         }
 
         if (sw_likely(parser.error == HPE_OK)) {
+            if (sw_unlikely(event_stream && llhttp_message_needs_eof(&parser)) == 1) {
+                llhttp_finish(&parser);
+            }
+
             if (completed) {
                 if (parser.upgrade && (size_t) retval > parsed_n + SW_WEBSOCKET_HEADER_LEN) {
                     buffer->length = retval;
@@ -1618,6 +1625,7 @@ bool Client::push(zval *zdata, zend_long opcode, uint8_t flags) {
 void Client::reset() {
     wait_response = false;
     completed = false;
+    event_stream = false;
 #ifdef SW_HAVE_COMPRESSION
     compress_method = HTTP_COMPRESS_NONE;
     compression_error = false;
