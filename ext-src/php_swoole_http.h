@@ -20,7 +20,7 @@
 
 #include "swoole_http.h"
 #include "swoole_http2.h"
-#include "thirdparty/llhttp/swoole_llhttp.h"
+#include "swoole_llhttp.h"
 #include "thirdparty/multipart_parser.h"
 
 #include <unordered_map>
