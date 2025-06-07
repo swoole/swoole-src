@@ -94,16 +94,20 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
     zval *zrequest_object = ctx->request.zobject;
     zval *zresponse_object = ctx->response.zobject;
 
-    swoole_http_parser *parser = &ctx->parser;
-    parser->data = ctx;
-    swoole_http_parser_init(parser, PHP_HTTP_REQUEST);
+    llhttp_t *parser = &ctx->parser;
+    swoole_llhttp_parser_init(parser, HTTP_REQUEST, (void *) ctx);
 
     size_t parsed_n = ctx->parse(Z_STRVAL_P(zdata), Z_STRLEN_P(zdata));
-    if (ctx->parser.state == s_dead) {
+    if (sw_unlikely(ctx->parser.error != HPE_OK || !ctx->completed)) {
         ctx->send(ctx, SW_STRL(SW_HTTP_BAD_REQUEST_PACKET));
         ctx->close(ctx);
-        swoole_notice("request is illegal and it has been discarded, %ld bytes unprocessed",
-                      Z_STRLEN_P(zdata) - parsed_n);
+        if (ctx->parser.error != HPE_OK) {
+            swoole_notice("Invalid HTTP request discarded: %ld bytes unprocessed. Reason: %s",
+                          Z_STRLEN_P(zdata) - parsed_n,
+                          llhttp_get_error_reason(&ctx->parser));
+        } else {
+            swoole_notice("Incomplete HTTP request: parsed successfully but missing required components");
+        }
         goto _dtor_and_return;
     }
 

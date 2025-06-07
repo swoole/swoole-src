@@ -1,6 +1,7 @@
 ignore:
   - "src/core/error.cc"
   - "thirdparty/hiredis/*"
+  - "thirdparty/llhttp/*"
 
 coverage:
   range: 60..80

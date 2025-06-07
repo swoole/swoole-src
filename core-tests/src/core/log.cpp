@@ -172,14 +172,15 @@ TEST(log, redirect_2) {
         sw_logger()->open(file);
         sw_logger()->redirect_stdout_and_stderr(true);
 
-        printf(str);
+        printf("%s\n", str);
 
         File f(file, File::READ);
         auto rs = f.read_content();
 
         ASSERT_TRUE(rs->contains(str));
         sw_logger()->redirect_stdout_and_stderr(false);
-        printf(str);
+        printf("%s\n", str);
+
         sw_logger()->close();
         unlink(sw_logger()->get_real_file());
     });

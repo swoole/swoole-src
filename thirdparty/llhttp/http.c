@@ -39,19 +39,41 @@ int llhttp__after_headers_complete(llhttp_t* parser, const char* p,
   int hasBody;
 
   hasBody = parser->flags & F_CHUNKED || parser->content_length > 0;
-  if (parser->upgrade && (parser->method == HTTP_CONNECT ||
-                          (parser->flags & F_SKIPBODY) || !hasBody)) {
+  if (
+      (parser->upgrade && (parser->method == HTTP_CONNECT ||
+                          (parser->flags & F_SKIPBODY) || !hasBody)) ||
+      /* See RFC 2616 section 4.4 - 1xx e.g. Continue */
+      (parser->type == HTTP_RESPONSE && parser->status_code == 101)
+  ) {
     /* Exit, the rest of the message is in a different protocol. */
     return 1;
   }
 
-  if (parser->flags & F_SKIPBODY) {
+  if (parser->type == HTTP_RESPONSE && parser->status_code == 100) {
+    /* No body, restart as the message is complete */
+    return 0;
+  }
+
+  /* See RFC 2616 section 4.4 */
+  if (
+    parser->flags & F_SKIPBODY ||         /* response to a HEAD request */
+    (
+      parser->type == HTTP_RESPONSE && (
+        parser->status_code == 102 ||     /* Processing */
+        parser->status_code == 103 ||     /* Early Hints */
+        parser->status_code == 204 ||     /* No Content */
+        parser->status_code == 304        /* Not Modified */
+      )
+    )
+  ) {
     return 0;
   } else if (parser->flags & F_CHUNKED) {
     /* chunked encoding - ignore Content-Length header, prepare for a chunk */
     return 2;
   } else if (parser->flags & F_TRANSFER_ENCODING) {
-    if (parser->type == HTTP_REQUEST && (parser->flags & F_LENIENT) == 0) {
+    if (parser->type == HTTP_REQUEST &&
+        (parser->lenient_flags & LENIENT_CHUNKED_LENGTH) == 0 &&
+        (parser->lenient_flags & LENIENT_TRANSFER_ENCODING) == 0) {
       /* RFC 7230 3.3.3 */
 
       /* If a Transfer-Encoding header field
@@ -97,9 +119,7 @@ int llhttp__after_message_complete(llhttp_t* parser, const char* p,
 
   should_keep_alive = llhttp_should_keep_alive(parser);
   parser->finish = HTTP_FINISH_SAFE;
-
-  /* Keep `F_LENIENT` flag between messages, but reset every other flag */
-  parser->flags &= F_LENIENT;
+  parser->flags = 0;
 
   /* NOTE: this is ignored in loose parsing mode */
   return should_keep_alive;

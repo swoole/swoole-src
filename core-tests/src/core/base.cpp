@@ -377,11 +377,11 @@ TEST(base, redirect_stdout) {
     auto out_2 = "write to /dev/null\n";
     auto status = test::spawn_exec_and_wait([&]() {
         swoole_redirect_stdout(file);
-        printf(out_1);
+        printf("%s\n", out_1);
         fflush(stdout);
 
         swoole_redirect_stdout("/dev/null");
-        printf(out_2);
+        printf("%s\n", out_2);
         fflush(stdout);
 
         swoole_clear_last_error();

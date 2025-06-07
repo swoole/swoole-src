@@ -20,7 +20,7 @@
 
 #include "swoole_http.h"
 #include "swoole_http2.h"
-#include "thirdparty/swoole_http_parser.h"
+#include "swoole_llhttp.h"
 #include "thirdparty/multipart_parser.h"
 
 #include <unordered_map>
@@ -115,7 +115,7 @@ struct Request {
 };
 
 struct Response {
-    enum swoole_http_method method;
+    enum llhttp_method method;
     int version;
     int status;
     char *reason;
@@ -171,7 +171,7 @@ struct Context {
     Request request;
     Response response;
 
-    swoole_http_parser parser;
+    llhttp_t parser;
     multipart_parser *mt_parser;
 
     uint16_t input_var_num;
@@ -366,7 +366,7 @@ static sw_inline zval *swoole_http_init_and_read_property(
     return *zproperty_store_pp;
 }
 
-static inline bool swoole_http_has_crlf(const char *value, size_t length) {
+static sw_inline bool swoole_http_has_crlf(const char *value, size_t length) {
     /* new line/NUL character safety check */
     for (size_t i = 0; i < length; i++) {
         /* RFC 7230 ch. 3.2.4 deprecates folding support */

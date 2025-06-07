@@ -151,9 +151,8 @@ class HttpServer {
 
         ctx->bind(conn);
 
-        swoole_http_parser *parser = &ctx->parser;
-        parser->data = ctx;
-        swoole_http_parser_init(parser, PHP_HTTP_REQUEST);
+        llhttp_t *parser = &ctx->parser;
+        swoole_llhttp_parser_init(parser, HTTP_REQUEST, (void *) ctx);
 
         zend_update_property_ex(
             swoole_http_response_ce, SW_Z8_OBJ_P(ctx->response.zobject), SW_ZSTR_KNOWN(SW_ZEND_STR_SOCKET), zconn);
@@ -636,13 +635,13 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
                              (intmax_t) buffer->offset,
                              ctx->completed);
 
-            if (ctx->parser.state == s_dead) {
+            if (ctx->parser.error != HPE_OK && ctx->parser.error != HPE_PAUSED_H2_UPGRADE) {
                 ctx->response.status = SW_HTTP_BAD_REQUEST;
                 break;
             }
         }
 
-        if (ctx->parser.method == PHP_HTTP_NOT_IMPLEMENTED && buffer->length >= (sizeof(SW_HTTP2_PRI_STRING) - 1) &&
+        if (ctx->parser.error == HPE_PAUSED_H2_UPGRADE && buffer->length >= (sizeof(SW_HTTP2_PRI_STRING) - 1) &&
             memcmp(buffer->str, SW_HTTP2_PRI_STRING, sizeof(SW_HTTP2_PRI_STRING) - 1) == 0) {
             buffer->offset = (sizeof(SW_HTTP2_PRI_STRING) - 1);
             hs->recv_http2_frame(ctx);
@@ -663,7 +662,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
 
         zend::Callable *cb = hs->get_handler(ctx);
         zval args[2] = {*ctx->request.zobject, *ctx->response.zobject};
-        bool keep_alive = swoole_http_should_keep_alive(&ctx->parser) && !ctx->websocket;
+        bool keep_alive = !!llhttp_should_keep_alive(&ctx->parser) && !ctx->websocket;
         sock->get_socket()->recv_wait = 0;
 
         if (cb) {
