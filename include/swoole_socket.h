@@ -452,7 +452,7 @@ struct Socket {
     }
 
     int wait_event(int timeout_ms, int events) const;
-    bool wait_for(const std::function<swReturnCode()> &fn, int event, double timeout = -1);
+    bool wait_for(const std::function<swReturnCode()> &fn, int event, int timeout_msec = -1);
     int what_event_want(int default_event) const;
     void free();
 
@@ -536,13 +536,13 @@ struct Socket {
      * Read data from the socket synchronously without setting non-blocking or blocking IO,
      * and allow interruptions by signals.
      */
-    ssize_t read_sync(void *_buf, size_t _len, int timeout_ms = -1) const;
+    ssize_t read_sync(void *_buf, size_t _len, int timeout_ms = -1);
 
     /**
      * Write data to the socket synchronously without setting non-blocking or blocking IO,
      * and allow interruptions by signals.
      */
-    ssize_t write_sync(const void *_buf, size_t _len, int timeout_ms = -1) const;
+    ssize_t write_sync(const void *_buf, size_t _len, int timeout_ms = -1);
     /**
      * Write data to the socket synchronously with an optimistic approach,
      * meaning it will not wait for the socket to be writable before writing.
