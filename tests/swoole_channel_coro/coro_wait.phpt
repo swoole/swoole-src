@@ -21,8 +21,10 @@ $pm->parentFunc = function () use ($pm) {
         Assert::assert(!empty($data));
         $json = json_decode($data, true);
         Assert::assert(is_array($json));
-        Assert::true(isset($json['www.qq.com']) and $json['www.qq.com'] > 1024);
-        Assert::true(isset($json['www.163.com']) and $json['www.163.com'] > 1024);
+        Assert::true(isset($json['www.qq.com']));
+        Assert::greaterThan($json['www.qq.com'], 1024);
+        Assert::true(isset($json['www.163.com']));  
+        Assert::greaterThan($json['www.163.com'], 1024);
         $pm->kill();
     });
     Event::wait();
