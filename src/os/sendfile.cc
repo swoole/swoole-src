@@ -15,7 +15,6 @@
 */
 
 #include "swoole.h"
-#include "swoole_socket.h"
 
 #if defined(HAVE_SENDFILE) && defined(HAVE_KQUEUE)
 #include <sys/socket.h>
