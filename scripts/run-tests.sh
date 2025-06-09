@@ -59,7 +59,12 @@ touch tests.list
 trap "rm -f tests.list; echo ''; echo '⌛ Done on '`date "+%Y-%m-%d %H:%M:%S"`;" EXIT
 
 cpu_num="$(/usr/bin/env php -r "echo swoole_cpu_num() * 2;")"
-options="-j${cpu_num}"
+
+if [ "$SWOOLE_CI_IN_MACOS" = 1 ]; then
+    cpu_num=1
+else
+    options="-j${cpu_num}"
+fi
 
 echo "" && echo "🌵️️ Current branch is ${SWOOLE_BRANCH}" && echo ""
 if [ "${SWOOLE_BRANCH}" = "valgrind" ]; then

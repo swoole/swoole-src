@@ -158,10 +158,10 @@ static void signal_handler_safety(int signo) {
 }
 
 static void signal_handler_simple(int signo) {
-    static int _lock = 0;
     if (sw_reactor()) {
-        sw_reactor()->singal_no = signo;
+        signal_handler_safety(signo);
     } else {
+        static int _lock = 0;
         // discard signal
         if (_lock) {
             return;
@@ -178,6 +178,7 @@ void swoole_signal_dispatch() {
     }
     SW_LOOP_N(SW_SIGNO_MAX) {
         if (triggered_signals[i]) {
+
             swoole_signal_callback(i);
             triggered_signals[i] = false;
         }
