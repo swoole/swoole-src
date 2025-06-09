@@ -26,6 +26,13 @@
 
 #include <csignal>
 
+#ifdef HAVE_KQUEUE
+#ifdef USE_KQUEUE_IDE_HELPER
+#include "helper/kqueue.h"
+#else
+#include <sys/event.h>
+#endif
+#endif
 #ifdef __NetBSD__
 #include <sys/param.h>
 #endif
@@ -42,6 +49,10 @@ static bool swoole_signalfd_create();
 static bool swoole_signalfd_setup(Reactor *reactor);
 static int swoole_signalfd_event_callback(Reactor *reactor, Event *event);
 static void swoole_signalfd_clear();
+#endif
+
+#ifdef HAVE_KQUEUE
+static SignalHandler swoole_signal_kqueue_set(int signo, SignalHandler handler);
 #endif
 
 static void signal_handler_safety(int signo);
@@ -146,6 +157,15 @@ SignalHandler swoole_signal_set(int signo, SignalHandler handler, bool safety) {
         return swoole_signalfd_set(signo, handler);
     }
 #endif
+#ifdef HAVE_KQUEUE
+    // SIGCHLD can not be monitored by kqueue, if blocked by SIG_IGN
+    // see https://www.freebsd.org/cgi/man.cgi?kqueue
+    // if there's no main reactor, signals cannot be monitored either
+    if (SwooleG.enable_kqueue && swoole_event_is_available() && signo != SIGCHLD) {
+        return swoole_signal_kqueue_set(signo, handler);
+    }
+#endif
+
     signals[signo].handler = handler;
     signals[signo].activated = true;
     signals[signo].signo = signo;
@@ -216,15 +236,23 @@ void swoole_signal_clear() {
 #ifdef HAVE_SIGNALFD
     if (SwooleG.enable_signalfd && swoole_signalfd_is_available()) {
         swoole_signalfd_clear();
-    } else
+        goto _clear;
+    }
 #endif
-    {
-        SW_LOOP_N(SW_SIGNO_MAX) {
-            if (signals[i].activated) {
-                swoole_signal_set(signals[i].signo, reinterpret_cast<SignalHandler>(-1), 1, 0);
-            }
+
+#ifdef HAVE_KQUEUE
+    if (SwooleG.enable_kqueue) {
+        swoole_signal_kqueue_clear();
+        goto _clear;
+    }
+#endif
+
+    SW_LOOP_N(SW_SIGNO_MAX) {
+        if (signals[i].activated) {
+            swoole_signal_set(signals[i].signo, reinterpret_cast<SignalHandler>(-1), 1, 0);
         }
     }
+_clear:
     sw_memset_zero(signals, sizeof(signals));
 }
 
@@ -357,5 +385,54 @@ static int swoole_signalfd_event_callback(Reactor *reactor, Event *event) {
     }
 
     return SW_OK;
+}
+#endif
+
+#ifdef HAVE_KQUEUE
+/**
+ * set new signal handler and return origin signal handler
+ */
+static SignalHandler swoole_signal_kqueue_set(int signo, SignalHandler handler) {
+    struct kevent ev;
+    SignalHandler origin_handler = nullptr;
+    Reactor *reactor = sw_reactor();
+
+    // clear signal
+    if (handler == nullptr) {
+        signal(signo, SIG_DFL);
+        sw_memset_zero(&signals[signo], sizeof(Signal));
+        EV_SET(&ev, signo, EVFILT_SIGNAL, EV_DELETE, 0, 0, NULL);
+    }
+    // add/update signal
+    else {
+        signal(signo, SIG_IGN);
+        origin_handler = signals[signo].handler;
+        signals[signo].handler = handler;
+        signals[signo].signo = signo;
+        signals[signo].activated = true;
+#if !defined(__NetBSD__) || (defined(__NetBSD__) && __NetBSD_Version__ >= 1000000000)
+        auto sigptr = &signals[signo];
+#else
+        auto sigptr = reinterpret_cast<intptr_t>(&signals[signo]);
+#endif
+        // save swSignal* as udata
+        EV_SET(&ev, signo, EVFILT_SIGNAL, EV_ADD, 0, 0, sigptr);
+    }
+    int n = kevent(reactor->native_handle, &ev, 1, nullptr, 0, nullptr);
+    if (n < 0 && sw_unlikely(handler)) {
+        swoole_sys_warning("kevent set signal[%d] error", signo);
+    }
+
+    return origin_handler;
+}
+
+static void swoole_signal_kqueue_clear() {
+    SW_LOOP_N(SW_SIGNO_MAX) {
+        if (signals[i].activated) {
+            signals[i].activated = false;
+            signals[i].handler = nullptr;
+            swoole_signal_kqueue_set(signals[i].signo, nullptr);
+        }
+    }
 }
 #endif

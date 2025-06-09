@@ -275,6 +275,14 @@ void php_swoole_set_global_option(HashTable *vht) {
         swoole_set_log_level(0);
     }
 #endif
+    // [EventLoop]
+    // ======================================================================
+    if (php_swoole_array_get_value(vht, "enable_signalfd", ztmp)) {
+        SwooleG.enable_signalfd = zval_is_true(ztmp);
+    }
+    if (php_swoole_array_get_value(vht, "enable_kqueue", ztmp)) {
+        SwooleG.enable_kqueue = zval_is_true(ztmp);
+    }
     // [Logger]
     // ======================================================================
     if (php_swoole_array_get_value(vht, "trace_flags", ztmp)) {
@@ -422,7 +430,7 @@ SW_API bool php_swoole_unserialize(zend_string *data, zval *zv) {
     PHP_VAR_UNSERIALIZE_DESTROY(var_hash);
     if (!unserialized) {
         swoole_warning("unserialize() failed, Error at offset " ZEND_LONG_FMT " of %zd bytes",
-                       (zend_long) ((char *) p - ZSTR_VAL(data)),
+                       (zend_long)((char *) p - ZSTR_VAL(data)),
                        l);
     }
     return unserialized;
@@ -1581,7 +1589,7 @@ static PHP_FUNCTION(swoole_substr_unserialize) {
     if ((zend_long) buf_len <= offset) {
         RETURN_FALSE;
     }
-    if (length <= 0 || length > (zend_long) (buf_len - offset)) {
+    if (length <= 0 || length > (zend_long)(buf_len - offset)) {
         length = buf_len - offset;
     }
     zend::unserialize(return_value, buf + offset, length, options ? Z_ARRVAL_P(options) : NULL);
@@ -1621,7 +1629,7 @@ static PHP_FUNCTION(swoole_substr_json_decode) {
         php_error_docref(nullptr, E_WARNING, "Offset must be less than the length of the string");
         RETURN_NULL();
     }
-    if (length <= 0 || length > (zend_long) (str_len - offset)) {
+    if (length <= 0 || length > (zend_long)(str_len - offset)) {
         length = str_len - offset;
     }
     /* For BC reasons, the bool $assoc overrides the long $options bit for PHP_JSON_OBJECT_AS_ARRAY */

@@ -59,6 +59,15 @@ Reactor::Reactor(int max_event, Type _type) {
         type_ = TYPE_EPOLL;
 #else
         type_ = TYPE_POLL;
+#ifdef HAVE_KQUEUE
+        /**
+         * When kqueue is enabled, the Process mode of the Server module and functionalities such as Task operations,
+         * pipe messaging, and inter-process message forwarding that rely on pipe communication will be unavailable.
+         */
+        if (SwooleG.enable_kqueue) {
+            type_ = TYPE_KQUEUE;
+        }
+#endif
 #endif
     } else {
         type_ = _type;
@@ -68,6 +77,11 @@ Reactor::Reactor(int max_event, Type _type) {
 #ifdef HAVE_EPOLL
     case TYPE_EPOLL:
         impl = make_reactor_epoll(this, max_event);
+        break;
+#endif
+#ifdef HAVE_KQUEUE
+    case TYPE_KQUEUE:
+        impl = make_reactor_kqueue(this, max_event);
         break;
 #endif
     default:

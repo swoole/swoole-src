@@ -730,6 +730,14 @@ struct Global {
     uchar running : 1;
     uchar wait_signal : 1;
     uchar enable_signalfd : 1;
+    /**
+     * Under macOS or FreeBSD, kqueue does not support listening for writable events on pipes. When a large amount of
+     * data is written to a pipe in process A, and the buffer becomes full, listening for writable events will not work.
+     * In process B, even after consuming the data from the pipe, the writable event in process A cannot be triggered.
+     * As a result, the functionality of Task and Process Server cannot be supported, making all scenarios relying on
+     * pipes for inter-process communication unable to function properly.
+     */
+    uchar enable_kqueue : 1;
     uchar dns_lookup_random : 1;
     uchar use_async_resolver : 1;
     uchar use_name_resolver : 1;
