@@ -47,10 +47,6 @@
 #define s6_addr32 _S6_un._S6_u32
 #endif
 
-#if defined(__MACH__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
-#define HAVE_KQUEUE
-#endif
-
 #ifdef __linux__
 #include <sys/sendfile.h>
 #define swoole_sendfile(out_fd, in_fd, offset, limit) sendfile(out_fd, in_fd, offset, limit)

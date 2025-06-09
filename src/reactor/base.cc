@@ -37,6 +37,10 @@ using network::Socket;
 ReactorImpl *make_reactor_epoll(Reactor *_reactor, int max_events);
 #endif
 
+#ifdef HAVE_KQUEUE
+ReactorImpl *make_reactor_kqueue(Reactor *_reactor, int max_events);
+#endif
+
 ReactorImpl *make_reactor_poll(Reactor *_reactor, int max_events);
 
 void ReactorImpl::after_removal_failure(const Socket *_socket) const {

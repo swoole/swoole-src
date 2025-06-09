@@ -53,6 +53,7 @@ static void swoole_signalfd_clear();
 
 #ifdef HAVE_KQUEUE
 static SignalHandler swoole_signal_kqueue_set(int signo, SignalHandler handler);
+static void swoole_signal_kqueue_clear();
 #endif
 
 static void signal_handler_safety(int signo);
@@ -236,14 +237,14 @@ void swoole_signal_clear() {
 #ifdef HAVE_SIGNALFD
     if (SwooleG.enable_signalfd && swoole_signalfd_is_available()) {
         swoole_signalfd_clear();
-        goto _clear;
+        return;
     }
 #endif
 
 #ifdef HAVE_KQUEUE
     if (SwooleG.enable_kqueue) {
         swoole_signal_kqueue_clear();
-        goto _clear;
+        return;
     }
 #endif
 
@@ -252,7 +253,6 @@ void swoole_signal_clear() {
             swoole_signal_set(signals[i].signo, reinterpret_cast<SignalHandler>(-1), 1, 0);
         }
     }
-_clear:
     sw_memset_zero(signals, sizeof(signals));
 }
 
@@ -428,11 +428,12 @@ static SignalHandler swoole_signal_kqueue_set(int signo, SignalHandler handler) 
 
 static void swoole_signal_kqueue_clear() {
     SW_LOOP_N(SW_SIGNO_MAX) {
-        if (signals[i].activated) {
+        if (signals[i].activated && swoole_event_is_available()) {
             signals[i].activated = false;
             signals[i].handler = nullptr;
             swoole_signal_kqueue_set(signals[i].signo, nullptr);
         }
     }
+    sw_memset_zero(signals, sizeof(signals));
 }
 #endif

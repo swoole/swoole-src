@@ -161,6 +161,11 @@ function skip_if_darwin()
     skip('not support on darwin', stripos(PHP_OS, 'Darwin') !== false);
 }
 
+function skip_if_not_darwin()
+{
+    skip('only support darwin', stripos(PHP_OS, 'Darwin') === false);
+}
+
 function skip_if_nts()
 {
     skip('not support in nts', !defined('SWOOLE_THREAD'));
