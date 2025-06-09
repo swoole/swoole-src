@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_server: event stream
+swoole_http_server: event stream 2
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -12,36 +12,20 @@ $data = [];
 for ($i = N; $i--;) {
     $data[] = 'data: ' . base64_encode(random_bytes(random_int(16, 128))) . "\n\n";
 }
-$data[] = 'data: [DONE]' . "\n\n";
 
 $pm->parentFunc = function () use ($pm, $data) {
     Co\run(function () use ($pm, $data) {
         $client = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
-
-        $index = 0;
-        $buffer = '';
-        $client->set([
-            'timeout' => 60,
-            'write_func' => function($client, $chunk) use (&$buffer, &$index, $data) {
-                $buffer .= $chunk;
-                while(true) {
-                    $position = mb_strpos($buffer, "\n\n");
-                    if ($position === false) {
-                        break;
-                    }
-
-                    Assert::eq(mb_substr($buffer, 0, $position) . "\n\n", $data[$index]);
-                    $buffer = mb_substr($buffer, $position + 2);
-                    $index++;
-                }
-
-                return true;
-            }
-        ]);
         Assert::true($client->get('/'));
         Assert::isEmpty($client->getBody());
         Assert::keyNotExists($client->headers, 'content-length');
         Assert::eq($client->headers['content-type'], "text/event-stream");
+        for ($i = 0; $i < N; $i++) {
+            Co::sleep(0.01);
+            $line1 = $client->socket->recvLine();
+            $line2 = $client->socket->recvLine();
+            Assert::eq($line1 . $line2, $data[$i]);
+        }
         $pm->kill();
     });
     echo "DONE\n";
@@ -57,15 +41,14 @@ $pm->childFunc = function () use ($pm, $data) {
         $resp->header("Cache-Control", "no-cache");
         $resp->header("Connection", "keep-alive");
         $resp->header("X-Accel-Buffering", "no");
-
-        for ($i = 0; $i < N; $i++) {
-            Co::sleep(0.01);
-            $resp->write($data[$i]);
-        }
-
-        $resp->write("data: [DONE]\n\n");
+        $resp->header('Content-Encoding', '');
+        $resp->header("Content-Length", '');
         $resp->end();
         Co::sleep(0.05);
+        for ($i = 0; $i < N; $i++) {
+            Co::sleep(0.01);
+            $http->send($resp->fd, $data[$i]);
+        }
     });
     $http->start();
 };
