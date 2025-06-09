@@ -106,7 +106,13 @@ bool Timer::init_with_reactor(Reactor *reactor) {
 void Timer::reinit(Reactor *reactor) {
     close(this);
     init_with_reactor(reactor);
-    reactor->timeout_msec = next_msec_;
+    set(this, next_msec_);
+}
+
+void Timer::reinit(const TimerScheduler &scheduler) {
+    close(this);
+    init_with_user_scheduler(scheduler);
+    set(this, next_msec_);
 }
 
 Timer::~Timer() {

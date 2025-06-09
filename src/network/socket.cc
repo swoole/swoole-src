@@ -173,7 +173,7 @@ bool Socket::wait_for(const std::function<swReturnCode()> &fn, int event, int ti
 
         if (timeout_msec > 0) {
             timeout_msec -= sec2msec(microtime() - began_at);
-            swoole_trace_log(SW_TRACE_CLIENT, "timeout_ms=%d", timeout_ms);
+            swoole_trace_log(SW_TRACE_CLIENT, "timeout_ms=%d", timeout_msec);
             if (timeout_msec <= 0) {
                 swoole_set_last_error(ETIMEDOUT);
                 errno = ETIMEDOUT;

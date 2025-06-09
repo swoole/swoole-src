@@ -112,6 +112,7 @@ class Timer {
         update(tnode);
     }
     void reinit(Reactor *reactor);
+    void reinit(const TimerScheduler &scheduler);
     int select();
 
     TimerNode *get(long id) {
