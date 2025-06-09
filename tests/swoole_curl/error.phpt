@@ -30,7 +30,7 @@ run(function () {
     Assert::isEmpty($output);
     Assert::eq(curl_errno($ch), CURLE_COULDNT_CONNECT);
     if (IS_MAC_OS) {
-        Assert::contains(curl_error($ch), "Couldn't connect to server");
+        Assert::eq(preg_match("#Failed to connect to 127.0.0.1 port \d+#i", curl_error($ch)), 1);
     } else {
         Assert::contains(curl_error($ch), 'Connection refused');
     }

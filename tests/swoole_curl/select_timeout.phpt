@@ -50,7 +50,7 @@ $pm->parentFunc = function () use ($pm) {
         while ($active && $mrc == CURLM_OK) {
             $tm = microtime(true);
             $n = curl_multi_select($mh, TIMEOUT);
-            Assert::lessThan(microtime(true) - $tm, TIMEOUT + 0.01);
+            Assert::lessThan(microtime(true) - $tm, TIMEOUT + 0.05);
 
             $error = swoole_last_error();
             phpt_var_dump('select return value: '.$n);

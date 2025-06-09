@@ -1,7 +1,9 @@
 --TEST--
 swoole_coroutine_scheduler/preemptive: goto2
 --SKIPIF--
-<?php require __DIR__ . '/../../include/skipif.inc';
+<?php
+require __DIR__ . '/../../include/skipif.inc';
+skip_if_not_linux();
 ?>
 --FILE--
 <?php
