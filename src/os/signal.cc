@@ -178,10 +178,10 @@ static void signal_handler_safety(int signo) {
 }
 
 static void signal_handler_simple(int signo) {
-    static int _lock = 0;
     if (sw_reactor()) {
-        sw_reactor()->singal_no = signo;
+        signal_handler_safety(signo);
     } else {
+        static int _lock = 0;
         // discard signal
         if (_lock) {
             return;

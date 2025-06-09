@@ -128,10 +128,6 @@ Reactor::Reactor(int max_event, Type _type) {
     });
 
     set_end_callback(PRIORITY_SIGNAL_CALLBACK, [](Reactor *reactor) {
-        if (sw_unlikely(reactor->singal_no)) {
-            swoole_signal_callback(reactor->singal_no);
-            reactor->singal_no = 0;
-        }
         swoole_signal_dispatch();
     });
 

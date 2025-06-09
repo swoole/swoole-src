@@ -19,13 +19,13 @@ $cm->run(function ($host) {
     $ch = curl_init();
 
     curl_exec($ch);
-    var_dump(curl_error($ch));
-    var_dump(curl_errno($ch));
+    Assert::contains(curl_error($ch), 'No URL set');
+    Assert::eq(curl_errno($ch), CURLE_URL_MALFORMAT);
     curl_close($ch);
 
+    echo "Done\n";
 }, false);
 
 ?>
 --EXPECTF--
-%string(%d) "No URL set%s"
-int(3)
+Done

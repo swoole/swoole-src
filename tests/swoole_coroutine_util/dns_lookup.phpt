@@ -29,11 +29,11 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
     });
     $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
-        $host = swoole_async_dns_lookup_coro(TEST_DOMAIN_1);
+        $host = swoole_async_dns_lookup_coro(TEST_DOMAIN_3);
         if ($host) {
             $response->end("OK\n");
         } else {
-            $response->end("ERROR: " . swoole_get_last_error() . "\n");
+            $response->end("ERROR: " . swoole_last_error() . "\n");
         }
     });
     $http->start();

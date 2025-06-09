@@ -44,9 +44,6 @@ $pm->childFunc = function () use ($pm) {
         if ($task_id != $data['id']) {
             echo "ERROR, $task_id, {$data['id']}\n";
         }
-        if ($data['id'] % 100 == 0) {
-            echo "task {$data['id']}\n";
-        }
         if ($data['id'] == N - 1) {
             $serv->send($data['fd'], "OK");
         }

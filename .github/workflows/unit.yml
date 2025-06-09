@@ -68,7 +68,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          brew install redis tinyproxy nginx
+          brew install redis tinyproxy nginx md5sha1sum
           brew services start redis
           brew services start nginx
           brew services start tinyproxy

@@ -143,11 +143,9 @@ int Socket::what_event_want(int default_event) const {
         return be_zero_return;                                                                                         \
     }
 
-bool Socket::wait_for(const std::function<swReturnCode()> &fn, int event, double timeout) {
-    int timeout_ms = -1;
+bool Socket::wait_for(const std::function<swReturnCode()> &fn, int event, int timeout_msec) {
     double began_at;
-    if (timeout > 0) {
-        timeout_ms = sec2msec(timeout);
+    if (timeout_msec > 0) {
         began_at = microtime();
     }
 
@@ -158,7 +156,7 @@ bool Socket::wait_for(const std::function<swReturnCode()> &fn, int event, double
 #endif
 
     while (true) {
-        auto rv = wait_event(timeout_ms, what_event_want(event));
+        auto rv = wait_event(timeout_msec, what_event_want(event));
         if (rv == SW_ERR && errno != EINTR) {
             return false;
         }
@@ -173,10 +171,10 @@ bool Socket::wait_for(const std::function<swReturnCode()> &fn, int event, double
             break;
         }
 
-        if (timeout > 0) {
-            timeout_ms -= sec2msec(microtime() - began_at);
+        if (timeout_msec > 0) {
+            timeout_msec -= sec2msec(microtime() - began_at);
             swoole_trace_log(SW_TRACE_CLIENT, "timeout_ms=%d", timeout_ms);
-            if (timeout_ms <= 0) {
+            if (timeout_msec <= 0) {
                 swoole_set_last_error(ETIMEDOUT);
                 errno = ETIMEDOUT;
                 return false;
@@ -208,7 +206,7 @@ int Socket::sendfile_sync(const char *filename, off_t offset, size_t length, dou
             return offset < end ? SW_CONTINUE : SW_READY;
         },
         SW_EVENT_WRITE,
-        timeout);
+        sec2msec(timeout));
 
     if (corked) {
         uncork();
@@ -228,7 +226,7 @@ ssize_t Socket::writev_sync(const struct iovec *iov, size_t iovcnt) {
             return SW_READY;
         },
         SW_EVENT_WRITE,
-        send_timeout_);
+        sec2msec(send_timeout_));
 
     return rv ? bytes : -1;
 }
@@ -302,9 +300,9 @@ int Socket::wait_event(int timeout_ms, int events) const {
     }
     while (true) {
         int ret = poll(&event, 1, timeout_ms);
-        swoole_trace_log(SW_TRACE_SOCKET, "poll(1, %d) return value=%d", timeout_ms, ret);
         if (ret == 0) {
             swoole_set_last_error(SW_ERROR_SOCKET_POLL_TIMEOUT);
+            errno = EAGAIN;
             return SW_ERR;
         }
         if (ret < 0) {
@@ -334,7 +332,7 @@ ssize_t Socket::send_sync(const void *_data, size_t _len, int flags) {
             return bytes == (ssize_t) _len ? SW_READY : SW_CONTINUE;
         },
         SW_EVENT_WRITE,
-        send_timeout_);
+        sec2msec(send_timeout_));
 
     return rv ? bytes : -1;
 }
@@ -354,7 +352,7 @@ ssize_t Socket::recv_sync(void *_data, size_t _len, int flags) {
             }
         },
         SW_EVENT_READ,
-        recv_timeout_);
+        sec2msec(recv_timeout_));
 
     return rv ? bytes : -1;
 }
@@ -397,7 +395,7 @@ ssize_t Socket::sendto_sync(const Address &sa, const void *_buf, size_t _n, int 
             return SW_READY;
         },
         SW_EVENT_WRITE,
-        send_timeout_);
+        sec2msec(send_timeout_));
 
     return rv ? bytes : -1;
 }
@@ -429,7 +427,7 @@ ssize_t Socket::recvfrom_sync(char *buf, size_t len, int flags, sockaddr *addr, 
             return SW_READY;
         },
         SW_EVENT_READ,
-        recv_timeout_);
+        sec2msec(recv_timeout_));
 
     return rv ? bytes : -1;
 }
@@ -914,26 +912,36 @@ ssize_t Socket::send_async(const void *_buf, size_t _n) {
     }
 }
 
-ssize_t Socket::read_sync(void *_buf, size_t _len, int timeout_ms) const {
-    pollfd event;
-    event.fd = fd;
-    event.events = POLLIN;
-    if (poll(&event, 1, timeout_ms) == 1) {
-        return read(_buf, _len);
-    } else {
-        return -1;
-    }
+ssize_t Socket::read_sync(void *_buf, size_t _len, int timeout_ms) {
+    ssize_t bytes = 0;
+
+    auto rv = wait_for(
+        [this, _buf, _len, &bytes]() {
+            ssize_t n = read((char *) _buf + bytes, _len - bytes);
+            CHECK_RETURN_VALUE(n, SW_READY);
+            bytes += n;
+            return SW_READY;            
+        },
+        SW_EVENT_READ,
+        timeout_ms);
+
+    return rv ? bytes : -1;
 }
 
-ssize_t Socket::write_sync(const void *_buf, size_t _len, int timeout_ms) const {
-    pollfd event;
-    event.fd = fd;
-    event.events = POLLOUT;
-    if (poll(&event, 1, timeout_ms) == 1) {
-        return write(_buf, _len);
-    } else {
-        return -1;
-    }
+ssize_t Socket::write_sync(const void *_buf, size_t _len, int timeout_ms) {
+    ssize_t bytes = 0;
+
+    auto rv = wait_for(
+        [this, _buf, _len, &bytes]() {
+            ssize_t n = write((char *) _buf + bytes, _len - bytes);
+            CHECK_RETURN_VALUE(n, SW_READY);
+            bytes += n;
+            return SW_READY;            
+        },
+        SW_EVENT_WRITE,
+        timeout_ms);
+
+    return rv ? bytes : -1;
 }
 
 ssize_t Socket::write_sync_optimistic(const void *_buf, size_t _len, int timeout_ms) const {

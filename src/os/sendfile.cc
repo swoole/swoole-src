@@ -15,8 +15,9 @@
 */
 
 #include "swoole.h"
+#include "swoole_socket.h"
 
-#if defined(HAVE_SENDFILE) && (defined(__MACH__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__))
+#if defined(HAVE_SENDFILE) && defined(HAVE_KQUEUE)
 #include <sys/socket.h>
 #include <sys/uio.h>
 

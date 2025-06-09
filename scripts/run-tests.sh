@@ -59,7 +59,12 @@ touch tests.list
 trap "rm -f tests.list; echo ''; echo '⌛ Done on '`date "+%Y-%m-%d %H:%M:%S"`;" EXIT
 
 cpu_num="$(/usr/bin/env php -r "echo swoole_cpu_num() * 2;")"
-options="-j${cpu_num}"
+
+if [ "$SWOOLE_CI_IN_MACOS" = 1 ]; then
+    options=""
+else
+    options="-j${cpu_num}"
+fi
 
 echo "" && echo "🌵️️ Current branch is ${SWOOLE_BRANCH}" && echo ""
 if [ "${SWOOLE_BRANCH}" = "valgrind" ]; then
@@ -71,13 +76,14 @@ elif [ "$SWOOLE_IOURING" = 1 ]; then
     dir="swoole_runtime/file_hook swoole_iouring"
 elif [ "$SWOOLE_CI_IN_MACOS" = 1 ]; then
     dir="swoole_atomic swoole_coroutine swoole_coroutine_wait_group swoole_global swoole_http_server swoole_process_pool  swoole_server_port \
-     swoole_websocket_server swoole_channel_coro swoole_coroutine_lock swoole_curl swoole_http2_client_coro swoole_http_server_coro  \
-     swoole_redis_server swoole_socket_coro swoole_client_async swoole_coroutine_scheduler swoole_event swoole_http2_server \
-    swoole_runtime swoole_table swoole_client_coro swoole_coroutine_system  swoole_feature swoole_http2_server_coro swoole_library swoole_server \
-    swoole_client_sync   swoole_coroutine_util   swoole_function swoole_http_client_coro  swoole_lock swoole_process swoole_server_coro swoole_timer"
+        swoole_websocket_server swoole_channel_coro swoole_coroutine_lock swoole_curl swoole_http2_client_coro swoole_http_server_coro  \
+        swoole_redis_server swoole_socket_coro swoole_client_async swoole_coroutine_scheduler swoole_event swoole_http2_server \
+        swoole_runtime swoole_table swoole_client_coro swoole_coroutine_system  swoole_feature swoole_http2_server_coro swoole_library swoole_server \
+        swoole_client_sync swoole_coroutine_util swoole_function swoole_http_client_coro swoole_lock swoole_process swoole_server_coro swoole_timer"
 else
     dir="swoole_*"
 fi
+
 echo "${dir}"
 echo "${dir}" > tests.list
 for i in 1 2 3 4 5
@@ -95,6 +101,7 @@ do
         break
     fi
 done
+
 if [ "`should_exit_with_error`" ]; then
     exit 255
 fi
