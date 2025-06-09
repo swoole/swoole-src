@@ -33,7 +33,7 @@ $pm->childFunc = function () use ($pm) {
         if ($host) {
             $response->end("OK\n");
         } else {
-            $response->end("ERROR: " . swoole_get_last_error() . "\n");
+            $response->end("ERROR: " . swoole_last_error() . "\n");
         }
     });
     $http->start();

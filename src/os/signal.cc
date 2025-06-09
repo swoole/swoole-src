@@ -178,7 +178,6 @@ void swoole_signal_dispatch() {
     }
     SW_LOOP_N(SW_SIGNO_MAX) {
         if (triggered_signals[i]) {
-
             swoole_signal_callback(i);
             triggered_signals[i] = false;
         }

@@ -156,6 +156,8 @@ if (IS_IN_CI) {
 
 define('TEST_DOMAIN_3', 'www.gov.cn');
 
+define('TEST_MAX_CPU_EXEC_DURATION', 12); // msec
+
 /** =============== IP ================ */
 define('IP_REGEX', '/^(?:[\d]{1,3}\.){3}[\d]{1,3}$/');
 
