@@ -66,7 +66,9 @@ file(GLOB_RECURSE SRC_LIST FOLLOW_SYMLINKS src/*.c src/*.cc
             thirdparty/hiredis/net.c
             thirdparty/hiredis/read.c
             thirdparty/hiredis/sds.c
-            thirdparty/swoole_http_parser.c
+            thirdparty/llhttp/api.c
+            thirdparty/llhttp/http.c
+            thirdparty/llhttp/llhttp.c
         	thirdparty/multipart_parser.c
 )
 file(GLOB_RECURSE HEAD_FILES FOLLOW_SYMLINKS include/*.h)
@@ -82,7 +84,7 @@ add_definitions(-DHAVE_CONFIG_H)
 # test
 #add_definitions(-DSW_USE_THREAD_CONTEXT)
 
-include_directories(BEFORE ./include ./include/wrapper ext-src/ thirdparty/ ./)
+include_directories(BEFORE ./include ./include/wrapper ext-src/ thirdparty/ thirdparty/llhttp ./)
 
 # find OpenSSL
 if (DEFINED openssl_dir)
@@ -219,10 +221,10 @@ if (!${GTEST_FOUND})
 endif()
 message(STATUS "Found GTest")
 
-file(GLOB_RECURSE core_test_files core-tests/src/*.cpp core-tests/deps/llhttp/src/*.c)
+file(GLOB_RECURSE core_test_files core-tests/src/*.cpp thirdparty/llhttp/*.c)
 add_executable(core-tests ${core_test_files})
 add_dependencies(core-tests lib-swoole)
-include_directories(BEFORE core-tests/include thirdparty thirdparty/hiredis core-tests/deps/llhttp/include ${GTEST_INCLUDE_DIRS} ${NGHTTP2_INCLUDE_DIR})
+include_directories(BEFORE core-tests/include thirdparty thirdparty/hiredis thirdparty/llhttp/ ${GTEST_INCLUDE_DIRS} ${NGHTTP2_INCLUDE_DIR})
 target_link_libraries(core-tests swoole pthread ssl crypto ${GTEST_BOTH_LIBRARIES} ${NGHTTP2_LIBRARIES})
 
 # find libpq

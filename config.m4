@@ -1109,7 +1109,9 @@ EOF
         thirdparty/php/standard/proc_open.cc"
 
     swoole_source_file="$swoole_source_file \
-        thirdparty/swoole_http_parser.c \
+        thirdparty/llhttp/api.c \
+        thirdparty/llhttp/http.c \
+        thirdparty/llhttp/llhttp.c \
         thirdparty/multipart_parser.c"
 
     if test "$PHP_NGHTTP2_DIR" = "no"; then
@@ -1299,6 +1301,7 @@ EOF
         include/*.h \
         stubs/*.h \
         thirdparty/*.h \
+        thirdparty/llhttp/*.h \
         thirdparty/nghttp2/*.h])
 
     PHP_REQUIRE_CXX()
@@ -1332,6 +1335,7 @@ EOF
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/standard)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/curl)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/curl)
+    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/llhttp)
     if test "$PHP_NGHTTP2_DIR" = "no"; then
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/nghttp2)
     fi
