@@ -3,6 +3,7 @@ swoole_coroutine_util: dns lookup
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc';
 skip_if_offline();
+skip_if_no_database();
 ?>
 --FILE--
 <?php
