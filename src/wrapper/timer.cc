@@ -131,7 +131,7 @@ int swoole_timer_select() {
 
 void swoole_timer_set_scheduler(const swoole::TimerScheduler &scheduler) {
     SwooleTG.timer_scheduler = scheduler;
-    if (swoole_timer_is_available()) {
+    if (swoole_timer_is_available() && scheduler) {
         SwooleTG.timer->reinit(scheduler);
     }
 }

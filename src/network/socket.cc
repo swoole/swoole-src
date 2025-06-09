@@ -920,7 +920,7 @@ ssize_t Socket::read_sync(void *_buf, size_t _len, int timeout_ms) {
             ssize_t n = read((char *) _buf + bytes, _len - bytes);
             CHECK_RETURN_VALUE(n, SW_READY);
             bytes += n;
-            return SW_READY;            
+            return SW_READY;
         },
         SW_EVENT_READ,
         timeout_ms);
@@ -936,7 +936,7 @@ ssize_t Socket::write_sync(const void *_buf, size_t _len, int timeout_ms) {
             ssize_t n = write((char *) _buf + bytes, _len - bytes);
             CHECK_RETURN_VALUE(n, SW_READY);
             bytes += n;
-            return SW_READY;            
+            return SW_READY;
         },
         SW_EVENT_WRITE,
         timeout_ms);
