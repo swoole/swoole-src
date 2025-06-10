@@ -549,6 +549,7 @@ int ProcessPool::run_with_task_protocol(ProcessPool *pool, Worker *worker) {
             read_timeout_ms = exec_msec;
             return SW_OK;
         });
+        worker->pipe_worker->dont_restart = 1;
     }
 
     while (pool->is_worker_running(worker)) {
@@ -680,6 +681,7 @@ int ProcessPool::run_with_stream_protocol(ProcessPool *pool, Worker *worker) {
             read_timeout_ms = exec_msec;
             return SW_OK;
         });
+        worker->pipe_worker->dont_restart = 1;
     }
 
     while (pool->is_worker_running(worker)) {

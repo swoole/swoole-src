@@ -19,6 +19,7 @@
 #include <memory>
 
 #include "swoole_api.h"
+#include "swoole_signal.h"
 #include "swoole_util.h"
 #include "swoole_string.h"
 #include "swoole_timer.h"
@@ -157,7 +158,7 @@ bool Socket::wait_for(const std::function<swReturnCode()> &fn, int event, int ti
 
     while (true) {
         auto rv = wait_event(timeout_msec, what_event_want(event));
-        if (rv == SW_ERR && errno != EINTR) {
+        if (rv == SW_ERR && ((errno == EINTR && dont_restart) || errno != EINTR)) {
             return false;
         }
 
@@ -314,6 +315,7 @@ int Socket::wait_event(int timeout_ms, int events) const {
                 swoole_set_last_error(errno);
                 return SW_ERR;
             }
+            swoole_signal_dispatch();
             continue;
         }
         return SW_OK;
