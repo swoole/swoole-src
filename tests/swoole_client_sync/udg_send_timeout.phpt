@@ -2,13 +2,13 @@
 swoole_client_sync: udg send timeout
 --SKIPIF--
 <?php
-use Swoole\Client;
-
 require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 const N = 65507;
+use Swoole\Client;
+
 define('SOCKET_FILE', __DIR__ . '/server.sock');
 $socket = stream_socket_server('udg://' . SOCKET_FILE, $errno, $errstr, STREAM_SERVER_BIND);
 usleep(100000);

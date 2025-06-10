@@ -118,7 +118,6 @@ int Client::bind(const std::string &addr, int port) const {
 
 void Client::set_timeout(double timeout, TimeoutType type) const {
     socket->set_timeout(timeout, type);
-    socket->set_kernel_timeout(timeout);
 }
 
 bool Client::has_timedout() const {
@@ -411,6 +410,9 @@ int Client::close() {
 
 static int Client_tcp_connect_sync(Client *cli, const char *host, int port, double timeout, int nonblock) {
     cli->set_timeout(timeout);
+    if (timeout > 0) {
+        cli->socket->set_kernel_timeout(timeout);
+    }
 
     if (Client_inet_addr(cli, host, port) < 0) {
         return SW_ERR;
@@ -603,6 +605,9 @@ static ssize_t Client_tcp_recv_sync(Client *cli, char *data, size_t len, int fla
 
 static int Client_udp_connect(Client *cli, const char *host, int port, double timeout, int udp_connect) {
     cli->set_timeout(timeout);
+    if (!cli->async && timeout > 0) {
+        cli->socket->set_kernel_timeout(timeout);
+    }
     cli->sock_flags_ = udp_connect;
 
     if (Client_inet_addr(cli, host, port) < 0) {
