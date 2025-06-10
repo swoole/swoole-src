@@ -186,7 +186,7 @@ bool Socket::wait_for(const std::function<swReturnCode()> &fn, int event, int ti
     return false;
 }
 
-int Socket::sendfile_sync(const char *filename, off_t offset, size_t length, double timeout) {
+int Socket::sendfile_sync(const char *filename, off_t offset, size_t length) {
     off_t end;
     File file(filename, O_RDONLY);
 
@@ -207,7 +207,7 @@ int Socket::sendfile_sync(const char *filename, off_t offset, size_t length, dou
             return offset < end ? SW_CONTINUE : SW_READY;
         },
         SW_EVENT_WRITE,
-        sec2msec(timeout));
+        sec2msec(write_timeout));
 
     if (corked) {
         uncork();
@@ -227,7 +227,7 @@ ssize_t Socket::writev_sync(const struct iovec *iov, size_t iovcnt) {
             return SW_READY;
         },
         SW_EVENT_WRITE,
-        sec2msec(send_timeout_));
+        sec2msec(write_timeout));
 
     return rv ? bytes : -1;
 }
@@ -334,7 +334,7 @@ ssize_t Socket::send_sync(const void *_data, size_t _len, int flags) {
             return bytes == (ssize_t) _len ? SW_READY : SW_CONTINUE;
         },
         SW_EVENT_WRITE,
-        sec2msec(send_timeout_));
+        sec2msec(write_timeout));
 
     return rv ? bytes : -1;
 }
@@ -354,7 +354,7 @@ ssize_t Socket::recv_sync(void *_data, size_t _len, int flags) {
             }
         },
         SW_EVENT_READ,
-        sec2msec(recv_timeout_));
+        sec2msec(read_timeout));
 
     return rv ? bytes : -1;
 }
@@ -397,7 +397,7 @@ ssize_t Socket::sendto_sync(const Address &sa, const void *_buf, size_t _n, int 
             return SW_READY;
         },
         SW_EVENT_WRITE,
-        sec2msec(send_timeout_));
+        sec2msec(write_timeout));
 
     return rv ? bytes : -1;
 }
@@ -429,7 +429,7 @@ ssize_t Socket::recvfrom_sync(char *buf, size_t len, int flags, sockaddr *addr, 
             return SW_READY;
         },
         SW_EVENT_READ,
-        sec2msec(recv_timeout_));
+        sec2msec(read_timeout));
 
     return rv ? bytes : -1;
 }
@@ -543,10 +543,6 @@ bool Socket::set_send_buffer_size(uint32_t _buffer_size) const {
         return false;
     }
     return true;
-}
-
-bool Socket::set_timeout(double timeout) {
-    return set_recv_timeout(timeout) && set_send_timeout(timeout);
 }
 
 bool Socket::check_liveness() {
@@ -688,18 +684,56 @@ bool Socket::set_fd_option(int _nonblock, int _cloexec) {
     }
 }
 
-bool Socket::set_recv_timeout(double timeout) {
+void Socket::set_timeout(double timeout, int type) {
+    if (timeout == 0) {
+        return;
+    }
+    if (type & SW_TIMEOUT_DNS) {
+        dns_timeout = timeout;
+    }
+    if (type & SW_TIMEOUT_CONNECT) {
+        connect_timeout = timeout;
+    }
+    if (type & SW_TIMEOUT_READ) {
+        read_timeout = timeout;
+    }
+    if (type & SW_TIMEOUT_WRITE) {
+        write_timeout = timeout;
+    }
+}
+
+double Socket::get_timeout(TimeoutType type) const {
+    SW_ASSERT_1BYTE(type);
+    if (type == SW_TIMEOUT_DNS) {
+        return dns_timeout;
+    } else if (type == SW_TIMEOUT_CONNECT) {
+        return connect_timeout;
+    } else if (type == SW_TIMEOUT_READ) {
+        return read_timeout;
+    } else if (type == SW_TIMEOUT_WRITE) {
+        return write_timeout;
+    } else {
+        assert(0);
+        return -1;
+    }
+}
+
+bool Socket::has_timedout() const {
+    return errno == EAGAIN || errno == ETIMEDOUT || swoole_get_last_error() == SW_ERROR_SOCKET_POLL_TIMEOUT;
+}
+
+bool Socket::set_read_timeout(double timeout) {
     if (_set_timeout(fd, SO_SNDTIMEO, timeout)) {
-        send_timeout_ = timeout;
+        write_timeout = timeout;
         return true;
     } else {
         return false;
     }
 }
 
-bool Socket::set_send_timeout(double timeout) {
+bool Socket::set_write_timeout(double timeout) {
     if (_set_timeout(fd, SO_RCVTIMEO, timeout)) {
-        recv_timeout_ = timeout;
+        read_timeout = timeout;
         return true;
     } else {
         return false;

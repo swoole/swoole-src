@@ -319,7 +319,7 @@ function httpGetBody(string $uri, array $options = [])
 function content_hook_replace(string $content, array $kv_map): string
 {
     foreach ($kv_map as $key => $val) {
-        $content = str_replace("{{{$key}}}", $val, $content);
+        $content = str_replace("{{{$key}}}", (string) $val, $content);
     }
     return $content;
 }

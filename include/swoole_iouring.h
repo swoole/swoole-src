@@ -72,7 +72,7 @@ class Iouring {
     static int close(int fd);
     static ssize_t read(int fd, void *buf, size_t size);
     static ssize_t write(int fd, const void *buf, size_t size);
-    static ssize_t rename(const char *oldpath, const char *newpath);
+    static int rename(const char *oldpath, const char *newpath);
     static int mkdir(const char *pathname, mode_t mode);
     static int unlink(const char *pathname);
 #ifdef HAVE_IOURING_STATX

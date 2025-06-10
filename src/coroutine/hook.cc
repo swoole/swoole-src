@@ -530,10 +530,10 @@ int swoole_coroutine_socket_set_timeout(int sockfd, int which, double timeout) {
         return -1;
     }
     if (which == SO_RCVTIMEO) {
-        socket->set_timeout(timeout, Socket::TIMEOUT_READ);
+        socket->set_timeout(timeout, SW_TIMEOUT_READ);
         return 0;
     } else if (which == SO_SNDTIMEO) {
-        socket->set_timeout(timeout, Socket::TIMEOUT_WRITE);
+        socket->set_timeout(timeout, SW_TIMEOUT_WRITE);
         return 0;
     } else {
         errno = EINVAL;
@@ -547,7 +547,7 @@ int swoole_coroutine_socket_set_connect_timeout(int sockfd, double timeout) {
         errno = EINVAL;
         return -1;
     }
-    socket->set_timeout(timeout, Socket::TIMEOUT_DNS | Socket::TIMEOUT_CONNECT);
+    socket->set_timeout(timeout, SW_TIMEOUT_DNS | SW_TIMEOUT_CONNECT);
     return 0;
 }
 
@@ -559,7 +559,7 @@ int swoole_coroutine_socket_wait_event(int sockfd, int event, double timeout) {
         poll_ev.events = translate_events_to_poll(event);
         return poll(&poll_ev, 1, (int) (timeout * 1000)) == 1 ? SW_OK : SW_ERR;
     }
-    double ori_timeout = socket->get_timeout(event == SW_EVENT_READ ? Socket::TIMEOUT_READ : Socket::TIMEOUT_WRITE);
+    double ori_timeout = socket->get_timeout(event == SW_EVENT_READ ? SW_TIMEOUT_READ : SW_TIMEOUT_WRITE);
     socket->set_timeout(timeout);
     bool retval = socket->poll((enum swEventType) event);
     socket->set_timeout(ori_timeout);

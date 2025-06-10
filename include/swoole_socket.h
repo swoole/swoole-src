@@ -63,7 +63,6 @@ struct GethostbynameRequest;
 struct GetaddrinfoRequest;
 
 namespace network {
-
 struct SendfileTask {
     off_t offset;
     size_t length;
@@ -251,8 +250,10 @@ struct Socket {
      * Only used for getsockname, written by the OS, not user. This is the exact actual address.
      */
     Address info;
-    double recv_timeout_ = default_read_timeout;
-    double send_timeout_ = default_write_timeout;
+    double dns_timeout = default_dns_timeout;
+    double connect_timeout = default_connect_timeout;
+    double read_timeout = default_read_timeout;
+    double write_timeout = default_write_timeout;
 
     double last_received_time;
     double last_sent_time;
@@ -278,9 +279,11 @@ struct Socket {
     bool set_buffer_size(uint32_t _buffer_size) const;
     bool set_recv_buffer_size(uint32_t _buffer_size) const;
     bool set_send_buffer_size(uint32_t _buffer_size) const;
-    bool set_timeout(double timeout);
-    bool set_recv_timeout(double timeout);
-    bool set_send_timeout(double timeout);
+    void set_timeout(double timeout, int type = SW_TIMEOUT_ALL);
+    double get_timeout(TimeoutType type) const;
+    bool has_timedout() const;
+    bool set_read_timeout(double timeout);
+    bool set_write_timeout(double timeout);
 
     bool set_nonblock() {
         return set_fd_option(1, -1);
@@ -350,7 +353,7 @@ struct Socket {
     bool check_liveness();
 
     int sendfile_async(const char *filename, off_t offset, size_t length);
-    int sendfile_sync(const char *filename, off_t offset, size_t length, double timeout);
+    int sendfile_sync(const char *filename, off_t offset, size_t length);
     ssize_t sendfile(const File &fp, off_t *offset, size_t length);
 
     ssize_t recv(void *_buf, size_t _n, int _flags);

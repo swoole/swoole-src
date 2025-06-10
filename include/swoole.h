@@ -457,6 +457,15 @@ enum swSocketType {
     SW_SOCK_RAW6 = 8,
 };
 
+enum swTimeoutType {
+    SW_TIMEOUT_DNS = 1 << 0,
+    SW_TIMEOUT_CONNECT = 1 << 1,
+    SW_TIMEOUT_READ = 1 << 2,
+    SW_TIMEOUT_WRITE = 1 << 3,
+    SW_TIMEOUT_RDWR = SW_TIMEOUT_READ | SW_TIMEOUT_WRITE,
+    SW_TIMEOUT_ALL = SW_TIMEOUT_DNS | SW_TIMEOUT_CONNECT | SW_TIMEOUT_RDWR,
+};
+
 enum swEventType {
     SW_EVENT_NULL = 0,
     SW_EVENT_DEAULT = 1u << 8,
@@ -631,6 +640,7 @@ typedef uint8_t ReactorId;
 typedef uint32_t WorkerId;
 typedef swEventType EventType;
 typedef swSocketType SocketType;
+typedef swTimeoutType TimeoutType;
 typedef swFdType FdType;
 typedef swReturnCode ReturnCode;
 typedef swResultCode ResultCode;

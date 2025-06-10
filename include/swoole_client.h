@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include "swoole_api.h"
 #include "swoole_string.h"
 #include "swoole_socket.h"
 #include "swoole_reactor.h"
@@ -27,7 +26,7 @@ namespace swoole {
 namespace network {
 
 class Client {
-    int (*connect_)(Client *cli, const char *host, int port, double _timeout, int sock_flag) = nullptr;
+    int (*connect_)(Client *cli, const char *host, int port, double timeout, int sock_flag) = nullptr;
     ssize_t (*send_)(Client *cli, const char *data, size_t length, int flags) = nullptr;
     int (*sendfile_)(Client *cli, const char *filename, off_t offset, size_t length) = nullptr;
     ssize_t (*recv_)(Client *cli, char *data, size_t length, int flags) = nullptr;
@@ -75,7 +74,6 @@ class Client {
     void *ptr = nullptr;
     void *params = nullptr;
 
-    double timeout = 0;
     TimerNode *timer = nullptr;
 
     /**
@@ -160,6 +158,8 @@ class Client {
     int shutdown(int _how = SHUT_RDWR);
     int close();
     bool socks5_handshake(const char *recv_data, size_t length);
+    void set_timeout(double timeout, TimeoutType type = SW_TIMEOUT_ALL) const;
+    bool has_timedout() const;
     void set_socks5_proxy(const std::string &host, int port, const std::string &user = "", const std::string &pwd = "");
     void set_http_proxy(const std::string &host, int port, const std::string &user = "", const std::string &pwd = "");
 
@@ -171,77 +171,77 @@ class Client {
     int ssl_handshake();
     int ssl_verify(int allow_self_signed);
 
-    bool set_ssl_key_file(const std::string &file) {
+    bool set_ssl_key_file(const std::string &file) const {
         return ssl_context->set_key_file(file);
     }
 
-    bool set_ssl_cert_file(const std::string &file) {
+    bool set_ssl_cert_file(const std::string &file) const {
         return ssl_context->set_cert_file(file);
     }
 
-    void set_ssl_cafile(const std::string &file) {
+    void set_ssl_cafile(const std::string &file) const {
         ssl_context->cafile = file;
     }
 
-    void set_ssl_capath(const std::string &path) {
+    void set_ssl_capath(const std::string &path) const {
         ssl_context->capath = path;
     }
 
-    void set_ssl_passphrase(const std::string &str) {
+    void set_ssl_passphrase(const std::string &str) const {
         ssl_context->passphrase = str;
     }
 
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
-    void set_tls_host_name(const std::string &str) {
+    void set_tls_host_name(const std::string &str) const {
         ssl_context->tls_host_name = str;
         // if user set empty ssl_host_name, disable it, otherwise the underlying may set it automatically
         ssl_context->disable_tls_host_name = ssl_context->tls_host_name.empty();
     }
 #endif
 
-    void set_ssl_dhparam(const std::string &file) {
+    void set_ssl_dhparam(const std::string &file) const {
         ssl_context->dhparam = file;
     }
 
-    void set_ssl_ecdh_curve(const std::string &str) {
+    void set_ssl_ecdh_curve(const std::string &str) const {
         ssl_context->ecdh_curve = str;
     }
 
-    void set_ssl_protocols(long protocols) {
+    void set_ssl_protocols(long protocols) const {
         ssl_context->protocols = protocols;
     }
 
-    void set_ssl_disable_compress(bool value) {
+    void set_ssl_disable_compress(bool value) const {
         ssl_context->disable_compress = value;
     }
 
-    void set_ssl_verify_peer(bool value) {
+    void set_ssl_verify_peer(bool value) const {
         ssl_context->verify_peer = value;
     }
 
-    void set_ssl_allow_self_signed(bool value) {
+    void set_ssl_allow_self_signed(bool value) const {
         ssl_context->allow_self_signed = value;
     }
 
-    void set_ssl_verify_depth(uint8_t value) {
+    void set_ssl_verify_depth(uint8_t value) const {
         ssl_context->verify_depth = value;
     }
 
-    void set_ssl_ciphers(const std::string &str) {
+    void set_ssl_ciphers(const std::string &str) const {
         ssl_context->ciphers = str;
     }
 
 #ifdef OPENSSL_IS_BORINGSSL
-    void set_ssl_grease(uint8_t value) {
+    void set_ssl_grease(uint8_t value) const {
         ssl_context->grease = value;
     }
 #endif
 
-    const std::string &get_ssl_cert_file() {
+    const std::string &get_ssl_cert_file() const {
         return ssl_context->cert_file;
     }
 
-    const std::string &get_ssl_key_file() {
+    const std::string &get_ssl_key_file() const {
         return ssl_context->key_file;
     }
 #endif
