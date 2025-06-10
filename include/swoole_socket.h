@@ -365,7 +365,7 @@ struct Socket {
     ssize_t recv(void *_buf, size_t _n, int _flags);
     ssize_t send(const void *_buf, size_t _n, int _flags);
     ssize_t peek(void *_buf, size_t _n, int _flags) const;
-    Socket *accept() const;
+    Socket *accept();
     Socket *dup() const;
 
     ssize_t readv(IOVector *io_vector);

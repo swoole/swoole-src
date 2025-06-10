@@ -359,7 +359,7 @@ ssize_t Socket::recv_sync(void *_data, size_t _len, int flags) {
     return rv ? bytes : -1;
 }
 
-Socket *Socket::accept() const {
+Socket *Socket::accept() {
     auto *socket = new Socket();
     socket->removed = 1;
     socket->socket_type = socket_type;

@@ -118,6 +118,7 @@ int Client::bind(const std::string &addr, int port) const {
 
 void Client::set_timeout(double timeout, TimeoutType type) const {
     socket->set_timeout(timeout, type);
+    socket->set_kernel_timeout(timeout);
 }
 
 bool Client::has_timedout() const {
