@@ -873,7 +873,7 @@ bool Client::connect() {
 #endif
 
     double _timeout = connect_timeout == 0 ? network::Socket::default_connect_timeout : connect_timeout;
-    socket->set_timeout(_timeout, Socket::TIMEOUT_CONNECT);
+    socket->set_timeout(_timeout, SW_TIMEOUT_CONNECT);
     socket->set_resolve_context(&resolve_context_);
     socket->set_dtor([this](Socket *_socket) { socket_dtor(); });
     socket->set_buffer_allocator(sw_zend_string_allocator());
@@ -1439,10 +1439,10 @@ bool Client::recv_response(double timeout) {
     if (timeout == 0) {
         timeout = response_timeout == 0 ? network::Socket::default_read_timeout : response_timeout;
     }
-    Socket::TimeoutController tc(socket, timeout, Socket::TIMEOUT_READ);
+    Socket::TimeoutController tc(socket, timeout, SW_TIMEOUT_READ);
     bool success = false;
     while (true) {
-        if (sw_unlikely(tc.has_timedout(Socket::TIMEOUT_READ))) {
+        if (sw_unlikely(tc.has_timedout(SW_TIMEOUT_READ))) {
             break;
         }
         retval = socket->recv(buffer->str + buffer->length, buffer->size - buffer->length);

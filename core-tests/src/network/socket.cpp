@@ -91,8 +91,8 @@ TEST(socket, fail) {
     ASSERT_FALSE(sock->cork());
     ASSERT_FALSE(sock->uncork());
 
-    ASSERT_FALSE(sock->set_read_timeout(0.1));
-    ASSERT_FALSE(sock->set_write_timeout(0.1));
+    ASSERT_FALSE(sock->set_kernel_read_timeout(0.1));
+    ASSERT_FALSE(sock->set_kernel_write_timeout(0.1));
 
     sock->move_fd();
     sock->free();

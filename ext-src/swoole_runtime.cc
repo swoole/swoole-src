@@ -612,7 +612,7 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
     }
 
     if (xparam->inputs.timeout) {
-        sock->set_timeout(xparam->inputs.timeout, Socket::TIMEOUT_CONNECT);
+        sock->set_timeout(xparam->inputs.timeout, SW_TIMEOUT_CONNECT);
     }
     if (sock->connect(host, portno) == false) {
         xparam->outputs.error_code = sock->errCode;
@@ -672,7 +672,7 @@ static inline int socket_accept(php_stream *stream, Socket *sock, php_stream_xpo
     socklen_t sl = sizeof(sa);
 
     if (timeout) {
-        sock->set_timeout(timeout, Socket::TIMEOUT_READ);
+        sock->set_timeout(timeout, SW_TIMEOUT_READ);
     }
 
     std::shared_ptr<Socket> clisock(sock->accept());
@@ -1062,12 +1062,12 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
         break;
     }
     case PHP_STREAM_OPTION_READ_TIMEOUT: {
-        abstract->socket->set_timeout((struct timeval *) ptrparam, Socket::TIMEOUT_READ);
+        abstract->socket->set_timeout(static_cast<timeval *>(ptrparam), SW_TIMEOUT_READ);
         break;
     }
 #ifdef SW_USE_OPENSSL
     case PHP_STREAM_OPTION_CRYPTO_API: {
-        php_stream_xport_crypto_param *cparam = (php_stream_xport_crypto_param *) ptrparam;
+        auto *cparam = static_cast<php_stream_xport_crypto_param *>(ptrparam);
         switch (cparam->op) {
         case STREAM_XPORT_CRYPTO_OP_SETUP:
             cparam->outputs.returncode = socket_setup_crypto(stream, sock, cparam STREAMS_CC);

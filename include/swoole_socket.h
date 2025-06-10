@@ -275,15 +275,21 @@ struct Socket {
     void set_memory_buffer_size(uint32_t _buffer_size) {
         buffer_size = _buffer_size;
     }
-    // socket option [kernel buffer]
+    // socket option [kernel space]
     bool set_buffer_size(uint32_t _buffer_size) const;
     bool set_recv_buffer_size(uint32_t _buffer_size) const;
     bool set_send_buffer_size(uint32_t _buffer_size) const;
+    bool set_kernel_read_timeout(double timeout);
+    bool set_kernel_write_timeout(double timeout);
+
+    bool set_kernel_timeout(double timeout) {
+        return set_kernel_read_timeout(timeout) && set_kernel_write_timeout(timeout);
+    }
+
+    // socket option [user space]
     void set_timeout(double timeout, int type = SW_TIMEOUT_ALL);
     double get_timeout(TimeoutType type) const;
     bool has_timedout() const;
-    bool set_read_timeout(double timeout);
-    bool set_write_timeout(double timeout);
 
     bool set_nonblock() {
         return set_fd_option(1, -1);

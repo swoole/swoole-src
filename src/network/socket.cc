@@ -722,7 +722,7 @@ bool Socket::has_timedout() const {
     return errno == EAGAIN || errno == ETIMEDOUT || swoole_get_last_error() == SW_ERROR_SOCKET_POLL_TIMEOUT;
 }
 
-bool Socket::set_read_timeout(double timeout) {
+bool Socket::set_kernel_read_timeout(double timeout) {
     if (_set_timeout(fd, SO_SNDTIMEO, timeout)) {
         write_timeout = timeout;
         return true;
@@ -731,7 +731,7 @@ bool Socket::set_read_timeout(double timeout) {
     }
 }
 
-bool Socket::set_write_timeout(double timeout) {
+bool Socket::set_kernel_write_timeout(double timeout) {
     if (_set_timeout(fd, SO_RCVTIMEO, timeout)) {
         read_timeout = timeout;
         return true;

@@ -727,7 +727,7 @@ static PHP_METHOD(swoole_process, read) {
         RETURN_FALSE;
     }
 
-    zend_string *buf = zend_string_alloc(buf_size, 0);
+    zend_string *buf = zend_string_alloc(buf_size, false);
     ssize_t ret = process->pipe_current->read(buf->val, buf_size);
 
     if (ret < 0) {
@@ -1105,7 +1105,7 @@ static PHP_METHOD(swoole_process, setTimeout) {
         php_swoole_fatal_error(E_WARNING, "no pipe, cannot setTimeout the pipe");
         RETURN_FALSE;
     }
-    RETURN_BOOL(process->pipe_current->set_timeout(seconds));
+    RETURN_BOOL(process->pipe_current->set_kernel_timeout(seconds));
 }
 
 static PHP_METHOD(swoole_process, setBlocking) {
