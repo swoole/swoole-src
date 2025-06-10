@@ -1,25 +1,30 @@
 --TEST--
 swoole_server_port: connections
 --SKIPIF--
-<?php require  __DIR__ . '/../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Constant;
+use Swoole\Coroutine\Http\Client;
+use Swoole\Coroutine\Scheduler;
+use Swoole\Coroutine\System;
+use Swoole\WebSocket\Server;
+use SwooleTest\ProcessManager;
 
-$pm = new SwooleTest\ProcessManager;
+$pm = new ProcessManager();
 $pm->initFreePorts(2);
 
 $pm->parentFunc = function ($pid) use ($pm) {
-    $sch = new \Co\Scheduler();
+    $sch = new Scheduler();
     $conns_1 = [];
     $conns_2 = [];
 
     $sch->parallel(
         3,
         function () use ($pm, &$conns_1) {
-            $c = new Swoole\Coroutine\Http\Client(TCP_SERVER_HOST, $pm->getFreePort(0));
+            $c = new Client(TCP_SERVER_HOST, $pm->getFreePort(0));
             $c->upgrade('/');
             $conns_1[] = $c->recv()->data;
             $c->recv();
@@ -28,17 +33,17 @@ $pm->parentFunc = function ($pid) use ($pm) {
     $sch->parallel(
         2,
         function () use ($pm, &$conns_2) {
-            $c = new Swoole\Coroutine\Http\Client(TCP_SERVER_HOST, $pm->getFreePort(1));
+            $c = new Client(TCP_SERVER_HOST, $pm->getFreePort(1));
             $c->upgrade('/');
             $conns_2[] = $c->recv()->data;
             $c->recv();
         }
     );
 
-    //all
+    // all
     $sch->add(
         function () use ($pm, &$conns_1, &$conns_2) {
-            $c = new Swoole\Coroutine\Http\Client(TCP_SERVER_HOST, $pm->getFreePort(0));
+            $c = new Client(TCP_SERVER_HOST, $pm->getFreePort(0));
             $c->upgrade('/');
             $conns_1[] = $c->recv()->data;
 
@@ -47,14 +52,18 @@ $pm->parentFunc = function ($pid) use ($pm) {
             Assert::assert($frame);
             $json = json_decode($frame->data);
             Assert::eq($json->count, 8);
-            Assert::eq($json->list, array_merge($conns_1, $conns_2));
+
+            $list1 = array_arrange($json->list);
+            $list2 = array_arrange(array_merge($conns_1, $conns_2));
+
+            Assert::eq($list1, $list2);
         }
     );
 
-    //port-0
+    // port-0
     $sch->add(
         function () use ($pm, &$conns_1) {
-            $c = new Swoole\Coroutine\Http\Client(TCP_SERVER_HOST, $pm->getFreePort(0));
+            $c = new Client(TCP_SERVER_HOST, $pm->getFreePort(0));
             $c->upgrade('/');
             $conns_1[] = $c->recv()->data;
             $c->push('port-0');
@@ -66,10 +75,10 @@ $pm->parentFunc = function ($pid) use ($pm) {
         }
     );
 
-    //port-1
+    // port-1
     $sch->add(
         function () use ($pm, &$conns_2) {
-            $c = new Swoole\Coroutine\Http\Client(TCP_SERVER_HOST, $pm->getFreePort(1));
+            $c = new Client(TCP_SERVER_HOST, $pm->getFreePort(1));
             $c->upgrade('/');
             $conns_2[] = $c->recv()->data;
             $c->push('port-1');
@@ -83,21 +92,20 @@ $pm->parentFunc = function ($pid) use ($pm) {
 
     $sch->add(
         function () use ($pm) {
-            \Co\System::sleep(.5);
+            System::sleep(.5);
             $pm->kill();
         }
     );
     $sch->start();
 };
 
-$pm->childFunc = function () use ($pm)
-{
-    $server = new Swoole\WebSocket\Server("0.0.0.0", $pm->getFreePort(0), SWOOLE_PROCESS);
+$pm->childFunc = function () use ($pm) {
+    $server = new Server('0.0.0.0', $pm->getFreePort(0), SWOOLE_PROCESS);
     $server->set([
         Constant::OPTION_LOG_FILE => '/dev/null',
         Constant::OPTION_WORKER_NUM => 1,
     ]);
-    $server->on('open', function (Swoole\WebSocket\Server $server, $request) {
+    $server->on('open', function (Server $server, $request) {
         $server->push($request->fd, $request->fd);
     });
     $server->on(
@@ -111,7 +119,7 @@ $pm->childFunc = function () use ($pm)
 
     $server->on(
         'message',
-        function (Swoole\WebSocket\Server $server, $frame) {
+        function (Server $server, $frame) {
             if ($frame->data == 'all') {
                 $iterator = $server->connections;
             } elseif ($frame->data == 'port-0') {
@@ -128,8 +136,7 @@ $pm->childFunc = function () use ($pm)
         }
     );
 
-    $server->on('close', function ($ser, $fd) {
-    });
+    $server->on('close', function ($ser, $fd) {});
 
     $server->start();
 };

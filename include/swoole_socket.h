@@ -229,6 +229,11 @@ struct Socket {
     uchar skip_recv : 1;
     uchar recv_wait : 1;
     uchar event_hup : 1;
+    /**
+     * The default setting is false, meaning that system calls interrupted by signals will be automatically retried. If
+     * set to true, the call will not be retried but will immediately return -1, setting errno to EINTR. In this case,
+     * the caller must explicitly handle this error.
+     */
     uchar dont_restart : 1;
 
     // memory buffer size [user space]
@@ -351,7 +356,7 @@ struct Socket {
     ssize_t recv(void *_buf, size_t _n, int _flags);
     ssize_t send(const void *_buf, size_t _n, int _flags);
     ssize_t peek(void *_buf, size_t _n, int _flags) const;
-    Socket *accept();
+    Socket *accept() const;
     Socket *dup() const;
 
     ssize_t readv(IOVector *io_vector);
