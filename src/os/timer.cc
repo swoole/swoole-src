@@ -20,7 +20,6 @@
 #include <csignal>
 
 namespace swoole {
-
 static int SystemTimer_set(Timer *timer, long next_msec);
 
 void Timer::init_with_system_timer() {
@@ -60,4 +59,15 @@ static int SystemTimer_set(Timer *timer, long next_msec) {
     return SW_OK;
 }
 
+void realtime_get(timespec *time) {
+    auto now = std::chrono::system_clock::now();
+    auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch());
+    time->tv_sec = ns.count() / SW_NUM_BILLION;
+    time->tv_nsec = ns.count() % SW_NUM_BILLION;
+}
+
+void realtime_add(timespec *time, const int64_t add_msec) {
+    time->tv_sec += add_msec / 1000;
+    time->tv_nsec += add_msec % 1000 * SW_NUM_MILLION;
+}
 }  // namespace swoole

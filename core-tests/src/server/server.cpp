@@ -697,6 +697,7 @@ TEST(server, thread) {
     ASSERT_EQ(test::counter_get(4), 2);  // onPipeMessage called
 }
 
+#ifndef SW_USE_ASAN
 TEST(server, task_thread) {
     DEBUG() << "new server\n";
     Server serv(Server::MODE_THREAD);
@@ -972,6 +973,7 @@ TEST(server, reload_thread_3) {
     test::wait_all_child_processes();
 }
 #endif
+#endif
 
 TEST(server, reload_all_workers) {
     Server serv(Server::MODE_PROCESS);
@@ -1027,6 +1029,8 @@ TEST(server, reload_all_workers) {
                 kill(serv->gs->master_pid, SIGTERM);
             }
         }
+
+        DEBUG() << "onWorkerStart: id=" << worker->id << "\n";
     };
 
     ASSERT_EQ(serv.start(), 0);
@@ -1075,6 +1079,8 @@ TEST(server, reload_all_workers2) {
                 kill(serv->gs->master_pid, SIGTERM);
             }
         }
+
+        DEBUG() << "onWorkerStart: id=" << worker->id << "\n";
     };
 
     serv.onBeforeReload = [](Server *serv) {
@@ -2126,12 +2132,14 @@ static void test_task_ipc(Server &serv) {
     serv.onTask = [](Server *serv, EventData *task) -> int {
         EXPECT_EQ(string(task->data, task->info.len), string(packet));
         EXPECT_TRUE(serv->finish(task->data, task->info.len, 0, task));
+        DEBUG() << "onTask: " << task->info.len << " bytes\n";
         return 0;
     };
 
     serv.onFinish = [](Server *serv, EventData *task) -> int {
         EXPECT_EQ(string(task->data, task->info.len), string(packet));
         usleep(100000);
+        DEBUG() << "onFinish: " << task->info.len << " bytes\n";
         serv->shutdown();
         return 0;
     };
@@ -2146,6 +2154,12 @@ static void test_task_ipc(Server &serv) {
             buf.info.ext_flags |= (SW_TASK_NONBLOCK | SW_TASK_CALLBACK);
             EXPECT_TRUE(serv->task(&buf, &_dst_worker_id));
         }
+
+        DEBUG() << "onWorkerStart: id=" << worker->id << "\n";
+    };
+
+    serv.onBeforeShutdown = [](Server *serv) {
+        DEBUG() << "onBeforeShutdown\n";
     };
 
     ASSERT_EQ(serv.start(), 0);

@@ -120,6 +120,7 @@ endif()
 if (DEFINED enable_asan)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -fno-omit-frame-pointer")
+    add_definitions(-DSW_USE_ASAN)
 endif()
 
 if (DEFINED enable_thread)

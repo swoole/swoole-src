@@ -524,11 +524,22 @@ bool ProcessPool::is_worker_running(Worker *worker) {
     return running && !worker->is_shutdown() && !worker->has_exceeded_max_request();
 }
 
-void ProcessPool::create_sync_timer() {
-    if (SwooleTG.timer) {
-        SwooleTG.timer->reinit(true);
-    } else {
-        swoole_timer_create(true);
+void ProcessPool::at_worker_enter(Worker *worker) {
+    if (worker->pipe_worker) {
+        worker->pipe_worker->dont_restart = 1;
+    }
+    if (ipc_mode == SW_IPC_UNIXSOCK) {
+        if (swoole_timer_is_available()) {
+            sw_timer()->reinit(true);
+        } else {
+            swoole_timer_create(true);
+        }
+    }
+}
+
+void ProcessPool::at_worker_exit(Worker *worker) {
+    if (swoole_timer_is_available()) {
+        swoole_timer_free();
     }
 }
 
@@ -540,9 +551,6 @@ int ProcessPool::run_with_task_protocol(ProcessPool *pool, Worker *worker) {
 
     ssize_t n = 0;
 
-    /**
-     * Use from_fd save the task_worker->id
-     */
     out.buf.info.server_fd = worker->id;
 
     if (pool->schedule_by_sysvmsg) {
@@ -551,11 +559,7 @@ int ProcessPool::run_with_task_protocol(ProcessPool *pool, Worker *worker) {
         out.mtype = worker->id + 1;
     }
 
-    if (pool->ipc_mode == SW_IPC_UNIXSOCK) {
-        create_sync_timer();
-        worker->pipe_worker->dont_restart = 1;
-    }
-
+    pool->at_worker_enter(worker);
     while (pool->is_worker_running(worker)) {
         /**
          * fetch task
@@ -614,6 +618,7 @@ int ProcessPool::run_with_task_protocol(ProcessPool *pool, Worker *worker) {
     _end:
         worker_end_callback();
     }
+    pool->at_worker_exit(worker);
 
     return SW_OK;
 }
@@ -677,11 +682,7 @@ int ProcessPool::run_with_stream_protocol(ProcessPool *pool, Worker *worker) {
     auto *outbuf = reinterpret_cast<QueueNode *>(pool->packet_buffer);
     outbuf->mtype = 0;
 
-    if (pool->ipc_mode == SW_IPC_UNIXSOCK) {
-        create_sync_timer();
-        worker->pipe_worker->dont_restart = 1;
-    }
-
+    pool->at_worker_enter(worker);
     while (pool->is_worker_running(worker)) {
         /**
          * fetch task
@@ -763,6 +764,7 @@ int ProcessPool::run_with_stream_protocol(ProcessPool *pool, Worker *worker) {
     _end:
         worker_end_callback();
     }
+    pool->at_worker_exit(worker);
 
     return SW_OK;
 }
@@ -796,9 +798,7 @@ int ProcessPool::run_with_message_protocol(ProcessPool *pool, Worker *worker) {
         pool->create_message_bus();
     }
 
-    create_sync_timer();
-    worker->pipe_worker->dont_restart = 1;
-
+    pool->at_worker_enter(worker);
     while (pool->is_worker_running(worker)) {
         switch (fn()) {
         case 0:
@@ -813,6 +813,7 @@ int ProcessPool::run_with_message_protocol(ProcessPool *pool, Worker *worker) {
             break;
         }
     }
+    pool->at_worker_exit(worker);
 
     return SW_OK;
 }

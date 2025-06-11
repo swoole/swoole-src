@@ -527,6 +527,7 @@ static void test_error_event(Reactor::Type type, int retval) {
     ASSERT_TRUE(p.ready());
 
     Reactor *reactor = new Reactor(1024, type);
+    SwooleTG.reactor = reactor;
 
     reactor->ptr = &retval;
 
@@ -542,6 +543,7 @@ static void test_error_event(Reactor::Type type, int retval) {
     p.close(SW_PIPE_CLOSE_WORKER);
     ASSERT_EQ(reactor->wait(), SW_OK);
     delete reactor;
+    SwooleTG.reactor = nullptr;
 }
 
 TEST(reactor, error_event) {

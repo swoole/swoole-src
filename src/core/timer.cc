@@ -89,16 +89,11 @@ TimerNode *Timer::add(long _msec, bool persistent, void *data, const TimerCallba
         return nullptr;
     }
 
-    int64_t now_msec = get_relative_msec();
-    if (sw_unlikely(now_msec < 0)) {
-        return nullptr;
-    }
-
     auto *tnode = new TimerNode();
     tnode->id = _next_id++;
     tnode->data = data;
     tnode->type = TimerNode::TYPE_KERNEL;
-    tnode->exec_msec = now_msec + _msec;
+    tnode->exec_msec = get_relative_msec() + _msec;
     tnode->interval = persistent ? _msec : 0;
     tnode->removed = false;
     tnode->callback = callback;
@@ -156,19 +151,15 @@ bool Timer::remove(TimerNode *tnode) {
     return true;
 }
 
-int Timer::select() {
-    int64_t now_msec = get_relative_msec();
-    if (sw_unlikely(now_msec < 0)) {
-        return SW_ERR;
-    }
-
+void Timer::select() {
+    const int64_t now_msec = get_relative_msec();
     TimerNode *tnode = nullptr;
     HeapNode *tmp;
 
     swoole_trace_log(SW_TRACE_TIMER, "select begin: now_msec=%" PRId64 ", round=%" PRId64, now_msec, round);
 
     while ((tmp = heap.top())) {
-        tnode = (TimerNode *) tmp->data;
+        tnode = static_cast<TimerNode *>(tmp->data);
         if (tnode->exec_msec > now_msec || tnode->round == round) {
             break;
         }
@@ -212,7 +203,5 @@ int Timer::select() {
         set(this, next_msec_);
     }
     round++;
-
-    return SW_OK;
 }
 };  // namespace swoole

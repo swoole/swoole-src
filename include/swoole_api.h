@@ -47,7 +47,7 @@ SW_API void swoole_timer_delay(swoole::TimerNode *tnode, long delay_ms);
 SW_API swoole::TimerNode *swoole_timer_get(long timer_id);
 SW_API bool swoole_timer_clear(long timer_id);
 SW_API void swoole_timer_free();
-SW_API int swoole_timer_select();
+SW_API void swoole_timer_select();
 SW_API int64_t swoole_timer_get_next_msec();
 SW_API bool swoole_timer_is_available();
 
