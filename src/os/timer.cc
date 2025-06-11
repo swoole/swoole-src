@@ -66,15 +66,8 @@ void realtime_get(timespec *time) {
     time->tv_nsec = ns.count() % SW_NUM_BILLION;
 }
 
-void realtime_add(timespec *time, int64_t add_msec) {
-    const int64_t add_sec = add_msec / 1000;
-    const int64_t add_nsec = (add_msec % 1000) * SW_NUM_MILLION;
-
-    time->tv_sec += add_sec;
-    time->tv_nsec += add_nsec;
-
-    time->tv_sec += time->tv_nsec / SW_NUM_BILLION;
-    time->tv_nsec %= SW_NUM_BILLION;
+void realtime_add(timespec *time, const int64_t add_msec) {
+    time->tv_sec += add_msec / 1000;
+    time->tv_nsec += add_msec % 1000 * SW_NUM_MILLION;
 }
 }  // namespace swoole
-

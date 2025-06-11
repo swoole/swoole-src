@@ -1029,6 +1029,8 @@ TEST(server, reload_all_workers) {
                 kill(serv->gs->master_pid, SIGTERM);
             }
         }
+
+        DEBUG() << "onWorkerStart: id=" << worker->id << "\n";
     };
 
     ASSERT_EQ(serv.start(), 0);
@@ -1077,6 +1079,8 @@ TEST(server, reload_all_workers2) {
                 kill(serv->gs->master_pid, SIGTERM);
             }
         }
+
+        DEBUG() << "onWorkerStart: id=" << worker->id << "\n";
     };
 
     serv.onBeforeReload = [](Server *serv) {
