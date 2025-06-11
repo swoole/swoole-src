@@ -80,7 +80,7 @@ class Timer {
     ~Timer();
 
     int64_t get_relative_msec() const {
-        return time<std::chrono::milliseconds>(true) - base_time;
+        return get_absolute_msec() - base_time;
     }
 
     int64_t get_next_msec() const {
@@ -106,7 +106,7 @@ class Timer {
         update(tnode);
     }
     void reinit(bool manually_trigger = false);
-    int select();
+    void select();
 
     TimerNode *get(long id) {
         auto it = map.find(id);

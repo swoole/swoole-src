@@ -27,7 +27,7 @@ bool swoole_timer_is_available() {
 }
 
 TimerNode *swoole_timer_add(double timeout, bool persistent, const TimerCallback &callback, void *private_data) {
-    if (timeout < SW_TIMER_MIN_SEC) {
+    if (sw_unlikely(timeout < SW_TIMER_MIN_SEC)) {
         timeout = SW_TIMER_MIN_SEC;
     }
     return swoole_timer_add(sec2msec(timeout), persistent, callback, private_data);
@@ -53,7 +53,7 @@ TimerNode *swoole_timer_add(long ms, bool persistent, const TimerCallback &callb
 }
 
 bool swoole_timer_del(TimerNode *tnode) {
-    if (!swoole_timer_is_available()) {
+    if (sw_unlikely(!swoole_timer_is_available())) {
         swoole_warning("timer is not available");
         return false;
     }
@@ -61,7 +61,7 @@ bool swoole_timer_del(TimerNode *tnode) {
 }
 
 void swoole_timer_delay(TimerNode *tnode, long delay_ms) {
-    if (!swoole_timer_is_available()) {
+    if (sw_unlikely(!swoole_timer_is_available())) {
         swoole_warning("timer is not available");
         return;
     }
@@ -73,29 +73,27 @@ long swoole_timer_after(long ms, const TimerCallback &callback, void *private_da
         swoole_warning("Timer must be greater than 0");
         return SW_ERR;
     }
-    TimerNode *tnode = swoole_timer_add(ms, false, callback, private_data);
-    if (tnode == nullptr) {
+    const auto tnode = swoole_timer_add(ms, false, callback, private_data);
+    if (sw_unlikely(!tnode)) {
         return SW_ERR;
-    } else {
-        return tnode->id;
     }
+    return tnode->id;
 }
 
 long swoole_timer_tick(long ms, const TimerCallback &callback, void *private_data) {
-    if (ms <= 0) {
+    if (sw_unlikely(ms <= 0)) {
         swoole_warning("Timer must be greater than 0");
         return SW_ERR;
     }
-    TimerNode *tnode = swoole_timer_add(ms, true, callback, private_data);
-    if (tnode == nullptr) {
+    const auto tnode = swoole_timer_add(ms, true, callback, private_data);
+    if (sw_unlikely(!tnode)) {
         return SW_ERR;
-    } else {
-        return tnode->id;
     }
+    return tnode->id;
 }
 
 bool swoole_timer_exists(long timer_id) {
-    if (!swoole_timer_is_available()) {
+    if (sw_unlikely(!swoole_timer_is_available())) {
         swoole_warning("timer is not available");
         return false;
     }
@@ -104,7 +102,7 @@ bool swoole_timer_exists(long timer_id) {
 }
 
 bool swoole_timer_clear(long timer_id) {
-    if (!swoole_timer_is_available()) {
+    if (sw_unlikely(!swoole_timer_is_available())) {
         swoole_warning("timer is not available");
         return false;
     }
@@ -112,7 +110,7 @@ bool swoole_timer_clear(long timer_id) {
 }
 
 TimerNode *swoole_timer_get(long timer_id) {
-    if (!swoole_timer_is_available()) {
+    if (sw_unlikely(!swoole_timer_is_available())) {
         swoole_warning("timer is not available");
         return nullptr;
     }
@@ -129,9 +127,8 @@ void swoole_timer_free() {
     SwooleTG.timer = nullptr;
 }
 
-int swoole_timer_select() {
-    if (!swoole_timer_is_available()) {
-        return SW_ERR;
+void swoole_timer_select() {
+    if (sw_likely(swoole_timer_is_available())) {
+        SwooleTG.timer->select();
     }
-    return SwooleTG.timer->select();
 }
