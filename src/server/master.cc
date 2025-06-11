@@ -228,7 +228,7 @@ int Server::connection_incoming(Reactor *reactor, Connection *conn) const {
     ListenPort *port = get_port_by_server_fd(conn->server_fd);
     if (port->max_idle_time > 0) {
         const auto timeout_callback = get_timeout_callback(port, reactor, conn);
-        conn->socket->recv_timeout_ = port->max_idle_time;
+        conn->socket->read_timeout = port->max_idle_time;
         conn->socket->recv_timer = swoole_timer_add(sec2msec(port->max_idle_time), true, timeout_callback);
     }
 #ifdef SW_USE_OPENSSL
@@ -448,7 +448,7 @@ int Server::start_master_thread(Reactor *reactor) {
     swoole_set_thread_id(single_thread ? 0 : reactor_num);
 
     if (SwooleTG.timer && SwooleTG.timer->get_reactor() == nullptr) {
-        SwooleTG.timer->reinit(reactor);
+        SwooleTG.timer->reinit();
     }
 
     init_signal_handler();
@@ -1523,7 +1523,7 @@ int Server::send_to_connection(const SendData *_send) const {
 
     if (port->max_idle_time > 0 && _socket->send_timer == nullptr) {
         const auto timeout_callback = get_timeout_callback(port, reactor, conn);
-        _socket->send_timeout_ = port->max_idle_time;
+        _socket->read_timeout = port->max_idle_time;
         _socket->last_sent_time = time<std::chrono::milliseconds>(true);
         _socket->send_timer = swoole_timer_add(sec2msec(port->max_idle_time), true, timeout_callback);
         swoole_trace_log(SW_TRACE_SERVER,
@@ -1990,7 +1990,7 @@ _find_available_slot:
     _socket->object = connection;
     _socket->removed = 1;
     _socket->buffer_size = ls->socket_buffer_size;
-    _socket->send_timeout_ = _socket->recv_timeout_ = 0;
+    _socket->write_timeout = _socket->read_timeout = 0;
 
     // TCP Nodelay
     if (ls->open_tcp_nodelay && ls->socket->is_tcp()) {

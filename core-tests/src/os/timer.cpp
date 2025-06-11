@@ -182,7 +182,7 @@ TEST(timer, reinit) {
 
     swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
 
-    sw_timer()->reinit(sw_reactor());
+    sw_timer()->reinit();
 
     uint64_t ms1 = swoole::time<std::chrono::milliseconds>();
 

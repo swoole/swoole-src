@@ -42,6 +42,7 @@ $pm->childFunc = function () use ($pm) {
 
         /** @var Socket */
         $conn = $socket->accept();
+        Assert::notNull($conn);
         $conn->sslHandshake();
 
         Assert::eq($conn->readVector([5, 5]), ['hello', 'world']);

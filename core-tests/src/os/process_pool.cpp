@@ -174,7 +174,7 @@ TEST(process_pool, message_protocol_with_timer) {
     };
 
     pool.onMessage = [](ProcessPool *pool, RecvData *rdata) {
-        String *_data = (String *) pool->ptr;
+        auto *_data = static_cast<String *>(pool->ptr);
         usleep(10000);
 
         DEBUG() << "received: " << rdata->info.len << " bytes\n";

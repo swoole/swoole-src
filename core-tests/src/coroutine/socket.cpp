@@ -51,16 +51,16 @@ TEST(coroutine_socket, connect_timeout) {
         Socket sock(SW_SOCK_TCP);
 
         sock.set_timeout(0.5);
-        ASSERT_EQ(sock.get_timeout(Socket::TIMEOUT_DNS), 0.5);
-        ASSERT_EQ(sock.get_timeout(Socket::TIMEOUT_CONNECT), 0.5);
-        ASSERT_EQ(sock.get_timeout(Socket::TIMEOUT_READ), 0.5);
-        ASSERT_EQ(sock.get_timeout(Socket::TIMEOUT_WRITE), 0.5);
+        ASSERT_EQ(sock.get_timeout(SW_TIMEOUT_DNS), 0.5);
+        ASSERT_EQ(sock.get_timeout(SW_TIMEOUT_CONNECT), 0.5);
+        ASSERT_EQ(sock.get_timeout(SW_TIMEOUT_READ), 0.5);
+        ASSERT_EQ(sock.get_timeout(SW_TIMEOUT_WRITE), 0.5);
 
-        sock.set_timeout(1.5, Socket::TIMEOUT_RDWR);
-        ASSERT_EQ(sock.get_timeout(Socket::TIMEOUT_DNS), 0.5);
-        ASSERT_EQ(sock.get_timeout(Socket::TIMEOUT_CONNECT), 0.5);
-        ASSERT_EQ(sock.get_timeout(Socket::TIMEOUT_READ), 1.5);
-        ASSERT_EQ(sock.get_timeout(Socket::TIMEOUT_WRITE), 1.5);
+        sock.set_timeout(1.5, SW_TIMEOUT_RDWR);
+        ASSERT_EQ(sock.get_timeout(SW_TIMEOUT_DNS), 0.5);
+        ASSERT_EQ(sock.get_timeout(SW_TIMEOUT_CONNECT), 0.5);
+        ASSERT_EQ(sock.get_timeout(SW_TIMEOUT_READ), 1.5);
+        ASSERT_EQ(sock.get_timeout(SW_TIMEOUT_WRITE), 1.5);
 
         bool retval = sock.connect("192.0.0.1", 9801);
         ASSERT_EQ(retval, false);
@@ -84,14 +84,14 @@ TEST(coroutine_socket, timeout_controller) {
         });
 
         Socket sock(SW_SOCK_TCP);
-        Socket::TimeoutController tc(&sock, 0.5, Socket::TIMEOUT_ALL);
+        Socket::TimeoutController tc(&sock, 0.5, SW_TIMEOUT_ALL);
         ASSERT_TRUE(sock.connect("127.0.0.1", port));
 
         char buf[128];
         off_t offset = 0;
         sock.errCode = 0;
         while (true) {
-            if (sw_unlikely(tc.has_timedout(Socket::TIMEOUT_READ))) {
+            if (sw_unlikely(tc.has_timedout(SW_TIMEOUT_READ))) {
                 break;
             }
             auto rv = sock.recv(buf + offset, sizeof(buf) - offset);
@@ -100,7 +100,7 @@ TEST(coroutine_socket, timeout_controller) {
             }
             offset += rv;
         }
-        ASSERT_TRUE(tc.has_timedout(Socket::TIMEOUT_READ));
+        ASSERT_TRUE(tc.has_timedout(SW_TIMEOUT_READ));
         ASSERT_EQ(sock.errCode, ETIMEDOUT);
     });
 }
@@ -121,7 +121,7 @@ TEST(coroutine_socket, timeout_setter) {
         });
 
         Socket sock(SW_SOCK_TCP);
-        Socket::TimeoutSetter ts(&sock, 0.5, Socket::TIMEOUT_ALL);
+        Socket::TimeoutSetter ts(&sock, 0.5, SW_TIMEOUT_ALL);
         ASSERT_TRUE(sock.connect("127.0.0.1", port));
 
         char buf[128];

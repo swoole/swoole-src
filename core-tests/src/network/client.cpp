@@ -1037,7 +1037,7 @@ static void test_recv_timeout(Client &c) {
     while (true) {
         auto rv = c.recv(buf->str, buf->size);
         DEBUG() << "rv: " << rv << ", error=" << errno << "\n";
-        if (errno == ETIMEDOUT) {
+        if (c.has_timedout()) {
             break;
         }
     }

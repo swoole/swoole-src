@@ -11,7 +11,8 @@ use Swoole\Process;
 Co\run(function () {
     Process::signal(SIGUSR1, function ($signo) {
         Co::sleep(0.5);
-        var_dump($signo);
+        Assert::eq($signo, SIGUSR1);
+        echo "Done\n";
     });
 
     Co::sleep(0.01);
@@ -20,4 +21,4 @@ Co\run(function () {
 });
 ?>
 --EXPECT--
-int(10)
+Done

@@ -112,12 +112,6 @@ class Reactor {
     Type type_;
     void *ptr = nullptr;
     int native_handle = -1;
-
-    /**
-     * last signal number
-     */
-    int singal_no = 0;
-
     uint32_t max_event_num = 0;
 
     bool running = false;

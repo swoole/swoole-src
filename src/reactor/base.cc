@@ -37,13 +37,11 @@ using network::Socket;
 ReactorImpl *make_reactor_epoll(Reactor *_reactor, int max_events);
 #endif
 
-#ifdef HAVE_POLL
-ReactorImpl *make_reactor_poll(Reactor *_reactor, int max_events);
-#endif
-
 #ifdef HAVE_KQUEUE
 ReactorImpl *make_reactor_kqueue(Reactor *_reactor, int max_events);
 #endif
+
+ReactorImpl *make_reactor_poll(Reactor *_reactor, int max_events);
 
 void ReactorImpl::after_removal_failure(const Socket *_socket) const {
     if (!_socket->silent_remove) {
@@ -63,12 +61,17 @@ Reactor::Reactor(int max_event, Type _type) {
     if (_type == TYPE_AUTO) {
 #ifdef HAVE_EPOLL
         type_ = TYPE_EPOLL;
-#elif defined(HAVE_KQUEUE)
-        type_ = TYPE_KQUEUE;
-#elif defined(HAVE_POLL)
-        type_ = TYPE_POLL;
 #else
-#error "The OS must support one of the IO event loop mechanisms: epoll, kqueue, or poll."
+        type_ = TYPE_POLL;
+#ifdef HAVE_KQUEUE
+        /**
+         * When kqueue is enabled, the Process mode of the Server module and functionalities such as Task operations,
+         * pipe messaging, and inter-process message forwarding that rely on pipe communication will be unavailable.
+         */
+        if (SwooleG.enable_kqueue) {
+            type_ = TYPE_KQUEUE;
+        }
+#endif
 #endif
     } else {
         type_ = _type;
@@ -85,13 +88,8 @@ Reactor::Reactor(int max_event, Type _type) {
         impl = make_reactor_kqueue(this, max_event);
         break;
 #endif
-#ifdef HAVE_POLL
-    case TYPE_POLL:
-        impl = make_reactor_poll(this, max_event);
-        break;
-#endif
     default:
-        assert(0);
+        impl = make_reactor_poll(this, max_event);
         break;
     }
 
@@ -134,10 +132,6 @@ Reactor::Reactor(int max_event, Type _type) {
     });
 
     set_end_callback(PRIORITY_SIGNAL_CALLBACK, [](Reactor *reactor) {
-        if (sw_unlikely(reactor->singal_no)) {
-            swoole_signal_callback(reactor->singal_no);
-            reactor->singal_no = 0;
-        }
         swoole_signal_dispatch();
     });
 

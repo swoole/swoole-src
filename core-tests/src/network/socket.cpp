@@ -91,8 +91,8 @@ TEST(socket, fail) {
     ASSERT_FALSE(sock->cork());
     ASSERT_FALSE(sock->uncork());
 
-    ASSERT_FALSE(sock->set_recv_timeout(0.1));
-    ASSERT_FALSE(sock->set_send_timeout(0.1));
+    ASSERT_FALSE(sock->set_kernel_read_timeout(0.1));
+    ASSERT_FALSE(sock->set_kernel_write_timeout(0.1));
 
     sock->move_fd();
     sock->free();
@@ -320,7 +320,7 @@ TEST(socket, sendfile_sync) {
         ASSERT_EQ(cli->connect(addr), SW_OK);
         int len = htonl(str->get_length());
         cli->send(&len, sizeof(len), 0);
-        ASSERT_EQ(cli->sendfile_sync(file.c_str(), 0, 0, -1), SW_OK);
+        ASSERT_EQ(cli->sendfile_sync(file.c_str(), 0, 0), SW_OK);
         cli->free();
     });
 
@@ -335,19 +335,19 @@ TEST(socket, sendfile) {
     addr.assign(SW_SOCK_TCP, TEST_HTTP_DOMAIN, 80);
     ASSERT_EQ(cli->connect(addr), SW_OK);
 
-    ASSERT_EQ(cli->sendfile_sync(file.c_str(), 0, 0, -1), SW_ERR);
+    ASSERT_EQ(cli->sendfile_sync(file.c_str(), 0, 0), SW_ERR);
     ASSERT_EQ(errno, ENOENT);
 
     File fp(file, File::WRITE | File::CREATE);
     ASSERT_TRUE(fp.ready());
 
-    ASSERT_EQ(cli->sendfile_sync(file.c_str(), 0, 0, -1), SW_ERR);
+    ASSERT_EQ(cli->sendfile_sync(file.c_str(), 0, 0), SW_ERR);
     ASSERT_EQ(swoole_get_last_error(), SW_ERROR_FILE_EMPTY);
 
     fp.write(SW_STRL(TEST_STR));
     fp.close();
 
-    ASSERT_EQ(cli->sendfile_sync(file.c_str(), 10, 100, -1), SW_ERR);
+    ASSERT_EQ(cli->sendfile_sync(file.c_str(), 10, 100), SW_ERR);
     ASSERT_EQ(swoole_get_last_error(), SW_ERROR_INVALID_PARAMS);
 
     ASSERT_TRUE(fp.open(file, File::WRITE | File::APPEND));
@@ -355,7 +355,7 @@ TEST(socket, sendfile) {
     fp.write(req);
     fp.close();
 
-    ASSERT_EQ(cli->sendfile_sync(file.c_str(), strlen(TEST_STR), 0, -1), SW_OK);
+    ASSERT_EQ(cli->sendfile_sync(file.c_str(), strlen(TEST_STR), 0), SW_OK);
 
     char rbuf[4096];
     auto n = cli->recv_sync(rbuf, sizeof(rbuf), 0);

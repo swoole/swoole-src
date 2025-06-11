@@ -17,14 +17,12 @@ $pm->parentFunc = function ($pid) use ($pm) {
         $cli->setHeaders([]);
         $ret = $cli->upgrade('/');
 
-        if (!$ret)
-        {
+        if (!$ret) {
             echo "ERROR\n";
             return;
         }
         echo $cli->recv()->data;
-        for ($i = 0; $i < 5; $i++)
-        {
+        for ($i = 0; $i < 5; $i++) {
             $cli->push('hello server');
             echo ($cli->recv())->data;
             co::sleep(0.1);
@@ -49,10 +47,11 @@ $pm->childFunc = function () use ($pm)
     });
 
     $ws->on('open', function ($serv, Swoole\Http\Request $request) {
-        $ip = co::gethostbyname('www.baidu.com');
-        if ($ip)
-        {
+        $ip = co::gethostbyname(TEST_DOMAIN_1);
+        if ($ip) {
             $serv->push($request->fd, "start\n");
+        } else {
+            $serv->push($request->fd, "error: ". swoole_get_last_error(). "\n");
         }
     });
 

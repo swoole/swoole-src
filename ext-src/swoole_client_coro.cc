@@ -18,7 +18,6 @@
 #include "swoole_string.h"
 #include "swoole_socket.h"
 #include "swoole_protocol.h"
-#include "swoole_proxy.h"
 
 BEGIN_EXTERN_C()
 #include "stubs/php_swoole_client_coro_arginfo.h"
@@ -289,13 +288,13 @@ static PHP_METHOD(swoole_client_coro, connect) {
     if (!socket) {
         RETURN_FALSE;
     }
-    socket->set_timeout(timeout, Socket::TIMEOUT_CONNECT);
+    socket->set_timeout(timeout, SW_TIMEOUT_CONNECT);
     if (!socket->connect(host, port, sock_flag)) {
         php_swoole_socket_set_error_properties(ZEND_THIS, socket);
         socket->close();
         RETURN_FALSE;
     }
-    socket->set_timeout(timeout, Socket::TIMEOUT_RDWR);
+    socket->set_timeout(timeout, SW_TIMEOUT_RDWR);
     zend_update_property_bool(swoole_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("connected"), 1);
     RETURN_TRUE;
 }
@@ -318,7 +317,7 @@ static PHP_METHOD(swoole_client_coro, send) {
 
     CLIENT_CORO_GET_SOCKET_SAFE(cli);
 
-    Socket::TimeoutSetter ts(cli, timeout, Socket::TIMEOUT_WRITE);
+    Socket::TimeoutSetter ts(cli, timeout, SW_TIMEOUT_WRITE);
     ssize_t ret = cli->send_all(data, data_len);
     if (ret < 0) {
         php_swoole_socket_set_error_properties(ZEND_THIS, cli);
@@ -473,8 +472,8 @@ static PHP_METHOD(swoole_client_coro, recv) {
             }
         }
     } else {
-        result = zend_string_alloc(SW_PHP_CLIENT_BUFFER_SIZE - sizeof(zend_string), 0);
-        Socket::TimeoutSetter ts(cli, timeout, Socket::TIMEOUT_READ);
+        result = zend_string_alloc(SW_PHP_CLIENT_BUFFER_SIZE - sizeof(zend_string), false);
+        Socket::TimeoutSetter ts(cli, timeout, SW_TIMEOUT_READ);
         retval = cli->recv(ZSTR_VAL(result), SW_PHP_CLIENT_BUFFER_SIZE - sizeof(zend_string));
         if (retval <= 0) {
             zend_string_free(result);

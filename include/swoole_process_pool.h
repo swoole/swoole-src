@@ -425,8 +425,8 @@ struct ProcessPool {
     int push_message(const EventData *msg) const;
     bool send_message(WorkerId worker_id, const char *message, size_t l_message) const;
     int pop_message(void *data, size_t size);
-    int listen(const char *socket_file, int blacklog) const;
-    int listen(const char *host, int port, int blacklog) const;
+    int listen(const char *socket_file, int backlog) const;
+    int listen(const char *host, int port, int backlog) const;
     int schedule();
     bool is_worker_running(Worker *worker);
 
@@ -437,6 +437,7 @@ struct ProcessPool {
     static int run_with_stream_protocol(ProcessPool *pool, Worker *worker);
     static int run_with_message_protocol(ProcessPool *pool, Worker *worker);
     static int run_async(ProcessPool *pool, Worker *worker);
+    static void create_sync_timer();
 
     bool wait_detached_worker(std::unordered_set<pid_t> &detached_workers, pid_t pid);
 };

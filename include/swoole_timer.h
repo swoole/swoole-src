@@ -20,6 +20,7 @@
 #include "swoole.h"
 #include "swoole_heap.h"
 #include "swoole_reactor.h"
+#include "swoole_util.h"
 
 #include <unordered_map>
 
@@ -29,7 +30,6 @@
 #define SW_TIMER_MAX_SEC ((double) LONG_MAX / 1000)
 
 namespace swoole {
-
 typedef std::function<void(TimerNode *)> TimerDestructor;
 
 struct TimerNode {
@@ -59,48 +59,42 @@ class Timer {
     long _next_id;
     long _current_id;
     /*---------------event timer--------------*/
-    timeval base_time;
+    int64_t base_time;
+    /**
+     * The time when the next timer will trigger, in milliseconds.
+     * This event will serve as the timeout for the event loop's epoll/poll/kqueue,
+     * or be set as the trigger time for the system clock.
+     */
+    int64_t next_msec_;
     /*----------------------------------------*/
     std::function<int(Timer *timer, long exec_msec)> set;
     std::function<void(Timer *timer)> close;
 
-    bool init_with_reactor(Reactor *reactor);
-    bool init_with_user_scheduler(const TimerScheduler &scheduler);
-    bool init_with_system_timer();
+    void init(bool manually_trigger);
+    void init_with_reactor(Reactor *reactor);
+    void init_with_system_timer();
     void release_node(TimerNode *tnode);
 
   public:
-    long next_msec_;
-
-    Timer();
+    explicit Timer(bool manually_trigger);
     ~Timer();
-    static int now(timeval *time);
 
     int64_t get_relative_msec() const {
-        timeval _now;
-        if (now(&_now) < 0) {
-            return SW_ERR;
-        }
-        int64_t msec1 = (_now.tv_sec - base_time.tv_sec) * 1000;
-        int64_t msec2 = (_now.tv_usec - base_time.tv_usec) / 1000;
-        return msec1 + msec2;
+        return time<std::chrono::milliseconds>(true) - base_time;
+    }
+
+    int64_t get_next_msec() const {
+        return next_msec_;
     }
 
     static int64_t get_absolute_msec() {
-        timeval now;
-        if (Timer::now(&now) < 0) {
-            return SW_ERR;
-        }
-        int64_t msec1 = (now.tv_sec) * 1000;
-        int64_t msec2 = (now.tv_usec) / 1000;
-        return msec1 + msec2;
+        return time<std::chrono::milliseconds>(true);
     }
 
     Reactor *get_reactor() const {
         return reactor_;
     }
 
-    bool init();
     TimerNode *add(long _msec, bool persistent, void *data, const TimerCallback &callback);
     bool remove(TimerNode *tnode);
     void update(TimerNode *tnode) {
@@ -111,7 +105,7 @@ class Timer {
         tnode->exec_msec = (now_ms < 0 ? tnode->exec_msec : now_ms) + delay_ms;
         update(tnode);
     }
-    void reinit(Reactor *reactor);
+    void reinit(bool manually_trigger = false);
     int select();
 
     TimerNode *get(long id) {

@@ -77,7 +77,6 @@ Client::Client(SocketType _type, bool _async) : async(_async) {
     socket->object = this;
     input_buffer_size = SW_CLIENT_BUFFER_SIZE;
     socket->chunk_size = SW_SEND_BUFFER_SIZE;
-    socket->dont_restart = 1;
 
     if (socket->is_stream()) {
         recv_ = Client_tcp_recv_sync;
@@ -115,6 +114,14 @@ int Client::bind(const std::string &addr, int port) const {
         return SW_ERR;
     }
     return SW_OK;
+}
+
+void Client::set_timeout(double timeout, TimeoutType type) const {
+    socket->set_timeout(timeout, type);
+}
+
+bool Client::has_timedout() const {
+    return socket->has_timedout();
 }
 
 void Client::set_socks5_proxy(const std::string &host, int port, const std::string &user, const std::string &pwd) {
@@ -163,15 +170,11 @@ int Client::sendto(const std::string &host, int port, const char *data, size_t l
         return SW_ERR;
     }
 
-    double ori_timeout = Socket::default_write_timeout;
-    Socket::default_write_timeout = timeout;
-
     if (socket->sendto(remote_addr, data, len, 0) < 0) {
         swoole_set_last_error(errno);
         return SW_ERR;
     }
 
-    Socket::default_write_timeout = ori_timeout;
     return SW_OK;
 }
 
@@ -406,50 +409,27 @@ int Client::close() {
 }
 
 static int Client_tcp_connect_sync(Client *cli, const char *host, int port, double timeout, int nonblock) {
-    int ret;
-
-    cli->timeout = timeout;
+    cli->set_timeout(timeout);
+    if (timeout > 0) {
+        cli->socket->set_kernel_timeout(timeout);
+    }
 
     if (Client_inet_addr(cli, host, port) < 0) {
         return SW_ERR;
     }
 
     if (nonblock) {
-        cli->socket->set_nonblock();
-    } else {
-        if (cli->timeout > 0) {
-            cli->socket->set_timeout(timeout);
+        auto rc = cli->socket->connect_async(cli->server_addr);
+        if (rc == SW_READY) {
+            return SW_OK;
         }
-#ifndef HAVE_KQUEUE
-        cli->socket->set_block();
-#endif
-    }
-    while (true) {
-#ifdef HAVE_KQUEUE
-        if (nonblock == 2) {
-            // special case on macOS
-            ret = cli->socket->connect(cli->server_addr);
-        } else {
-            ret = cli->socket->connect_sync(cli->server_addr, cli->timeout);
+        if (rc == SW_WAIT) {
+            cli->async_connect = true;
         }
-#else
-        ret = cli->socket->connect(cli->server_addr);
-#endif
-        if (ret < 0) {
-            if (errno == EINTR) {
-                continue;
-            } else if (errno == EINPROGRESS) {
-                if (nonblock) {
-                    cli->async_connect = true;
-                } else {
-                    errno = ETIMEDOUT;
-                }
-            }
-            swoole_set_last_error(errno);
-        }
-        break;
+        return SW_ERR;
     }
 
+    int ret = cli->socket->connect_sync(cli->server_addr, timeout);
     if (ret >= 0) {
         cli->active = true;
         auto recv_buf = sw_tg_buffer();
@@ -516,7 +496,7 @@ static int Client_tcp_connect_async(Client *cli, const char *host, int port, dou
         return SW_ERR;
     }
 
-    cli->timeout = timeout;
+    cli->set_timeout(timeout);
 
     if (!cli->buffer) {
         cli->buffer = new String(cli->input_buffer_size);
@@ -592,7 +572,7 @@ static ssize_t Client_tcp_send_sync(Client *cli, const char *data, size_t length
 }
 
 static int Client_tcp_sendfile_sync(Client *cli, const char *filename, off_t offset, size_t length) {
-    if (cli->socket->sendfile_sync(filename, offset, length, cli->timeout) < 0) {
+    if (cli->socket->sendfile_sync(filename, offset, length) < 0) {
         swoole_set_last_error(errno);
         return SW_ERR;
     }
@@ -624,7 +604,10 @@ static ssize_t Client_tcp_recv_sync(Client *cli, char *data, size_t len, int fla
 }
 
 static int Client_udp_connect(Client *cli, const char *host, int port, double timeout, int udp_connect) {
-    cli->timeout = timeout;
+    cli->set_timeout(timeout);
+    if (!cli->async && timeout > 0) {
+        cli->socket->set_kernel_timeout(timeout);
+    }
     cli->sock_flags_ = udp_connect;
 
     if (Client_inet_addr(cli, host, port) < 0) {
@@ -919,7 +902,8 @@ static void Client_onResolveCompleted(AsyncEvent *event) {
          * In the callback function, the application layer cannot obtain the return value of the connect function,
          *  so it must call `onError` to notify the caller.
          */
-        if (cli->connect(req->addr.c_str(), cli->server_port, cli->timeout, cli->sock_flags_) == SW_ERR &&
+        double timeout = cli->socket->get_timeout(SW_TIMEOUT_CONNECT);
+        if (cli->connect(req->addr.c_str(), cli->server_port, timeout, cli->sock_flags_) == SW_ERR &&
             !cli->onerror_called) {
             goto _error;
         }

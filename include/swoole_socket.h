@@ -47,12 +47,11 @@
 #define s6_addr32 _S6_un._S6_u32
 #endif
 
-// OS Feature
-#if defined(HAVE_KQUEUE) || !defined(HAVE_SENDFILE)
-ssize_t swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size);
-#else
+#ifdef __linux__
 #include <sys/sendfile.h>
 #define swoole_sendfile(out_fd, in_fd, offset, limit) sendfile(out_fd, in_fd, offset, limit)
+#else
+ssize_t swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size);
 #endif
 
 enum {
@@ -64,7 +63,6 @@ struct GethostbynameRequest;
 struct GetaddrinfoRequest;
 
 namespace network {
-
 struct SendfileTask {
     off_t offset;
     size_t length;
@@ -230,6 +228,11 @@ struct Socket {
     uchar skip_recv : 1;
     uchar recv_wait : 1;
     uchar event_hup : 1;
+    /**
+     * The default setting is false, meaning that system calls interrupted by signals will be automatically retried. If
+     * set to true, the call will not be retried but will immediately return -1, setting errno to EINTR. In this case,
+     * the caller must explicitly handle this error.
+     */
     uchar dont_restart : 1;
 
     // memory buffer size [user space]
@@ -247,8 +250,10 @@ struct Socket {
      * Only used for getsockname, written by the OS, not user. This is the exact actual address.
      */
     Address info;
-    double recv_timeout_ = default_read_timeout;
-    double send_timeout_ = default_write_timeout;
+    double dns_timeout = default_dns_timeout;
+    double connect_timeout = default_connect_timeout;
+    double read_timeout = default_read_timeout;
+    double write_timeout = default_write_timeout;
 
     double last_received_time;
     double last_sent_time;
@@ -270,13 +275,21 @@ struct Socket {
     void set_memory_buffer_size(uint32_t _buffer_size) {
         buffer_size = _buffer_size;
     }
-    // socket option [kernel buffer]
+    // socket option [kernel space]
     bool set_buffer_size(uint32_t _buffer_size) const;
     bool set_recv_buffer_size(uint32_t _buffer_size) const;
     bool set_send_buffer_size(uint32_t _buffer_size) const;
-    bool set_timeout(double timeout);
-    bool set_recv_timeout(double timeout);
-    bool set_send_timeout(double timeout);
+    bool set_kernel_read_timeout(double timeout);
+    bool set_kernel_write_timeout(double timeout);
+
+    bool set_kernel_timeout(double timeout) {
+        return set_kernel_read_timeout(timeout) && set_kernel_write_timeout(timeout);
+    }
+
+    // socket option [user space]
+    void set_timeout(double timeout, int type = SW_TIMEOUT_ALL);
+    double get_timeout(TimeoutType type) const;
+    bool has_timedout() const;
 
     bool set_nonblock() {
         return set_fd_option(1, -1);
@@ -346,7 +359,7 @@ struct Socket {
     bool check_liveness();
 
     int sendfile_async(const char *filename, off_t offset, size_t length);
-    int sendfile_sync(const char *filename, off_t offset, size_t length, double timeout);
+    int sendfile_sync(const char *filename, off_t offset, size_t length);
     ssize_t sendfile(const File &fp, off_t *offset, size_t length);
 
     ssize_t recv(void *_buf, size_t _n, int _flags);
@@ -395,6 +408,7 @@ struct Socket {
     }
 
     int connect_sync(const Address &sa, double timeout);
+    swReturnCode connect_async(const Address &sa);
 
 #ifdef SW_USE_OPENSSL
     void ssl_clear_error() {
@@ -448,7 +462,7 @@ struct Socket {
     }
 
     int wait_event(int timeout_ms, int events) const;
-    bool wait_for(const std::function<swReturnCode()> &fn, int event, double timeout = -1);
+    bool wait_for(const std::function<swReturnCode()> &fn, int event, int timeout_msec = -1);
     int what_event_want(int default_event) const;
     void free();
 
@@ -532,13 +546,13 @@ struct Socket {
      * Read data from the socket synchronously without setting non-blocking or blocking IO,
      * and allow interruptions by signals.
      */
-    ssize_t read_sync(void *_buf, size_t _len, int timeout_ms = -1) const;
+    ssize_t read_sync(void *_buf, size_t _len, int timeout_ms = -1);
 
     /**
      * Write data to the socket synchronously without setting non-blocking or blocking IO,
      * and allow interruptions by signals.
      */
-    ssize_t write_sync(const void *_buf, size_t _len, int timeout_ms = -1) const;
+    ssize_t write_sync(const void *_buf, size_t _len, int timeout_ms = -1);
     /**
      * Write data to the socket synchronously with an optimistic approach,
      * meaning it will not wait for the socket to be writable before writing.

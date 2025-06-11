@@ -9,15 +9,15 @@ require __DIR__ . '/../../include/bootstrap.php';
 define('ERROR_FILE', __DIR__.'/ssl_error');
 
 $pm = new SwooleTest\ProcessManager;
+$rdata = "hello world";
 
-$pm->parentFunc = function ($pid) use ($pm) {
+$pm->parentFunc = function ($pid) use ($pm, $rdata) {
     $client = new Swoole\Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC); //同步阻塞
-    if (!$client->connect('127.0.0.1', $pm->getFreePort()))
-    {
+    if (!$client->connect('127.0.0.1', $pm->getFreePort())) {
         exit("connect failed\n");
     }
-    $client->send("hello world");
-    Assert::same($client->recv(), "");
+    $client->send($rdata);
+    Assert::notEq($client->recv(), "Swoole $rdata");
     $pm->kill();
 };
 

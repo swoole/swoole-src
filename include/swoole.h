@@ -236,7 +236,6 @@ struct DataHead;
 typedef int (*ReactorHandler)(Reactor *reactor, Event *event);
 typedef std::function<void(void *)> Callback;
 typedef std::function<void(Timer *, TimerNode *)> TimerCallback;
-typedef std::function<int(Timer *, long)> TimerScheduler;
 }  // namespace swoole
 
 typedef swoole::DataHead swDataHead;
@@ -457,6 +456,15 @@ enum swSocketType {
     SW_SOCK_RAW6 = 8,
 };
 
+enum swTimeoutType {
+    SW_TIMEOUT_DNS = 1 << 0,
+    SW_TIMEOUT_CONNECT = 1 << 1,
+    SW_TIMEOUT_READ = 1 << 2,
+    SW_TIMEOUT_WRITE = 1 << 3,
+    SW_TIMEOUT_RDWR = SW_TIMEOUT_READ | SW_TIMEOUT_WRITE,
+    SW_TIMEOUT_ALL = SW_TIMEOUT_DNS | SW_TIMEOUT_CONNECT | SW_TIMEOUT_RDWR,
+};
+
 enum swEventType {
     SW_EVENT_NULL = 0,
     SW_EVENT_DEAULT = 1u << 8,
@@ -594,34 +602,8 @@ int swoole_set_cpu_affinity(cpu_set_t *set);
 int swoole_get_cpu_affinity(cpu_set_t *set);
 #endif
 
-#if defined(_POSIX_TIMERS) && ((_POSIX_TIMERS > 0) || defined(__OpenBSD__)) && defined(_POSIX_MONOTONIC_CLOCK) &&      \
-    defined(CLOCK_MONOTONIC)
-#ifndef HAVE_CLOCK_GETTIME
-#define HAVE_CLOCK_GETTIME
-#endif
-#define swoole_clock_realtime(t) clock_gettime(CLOCK_REALTIME, t)
-#elif defined(__APPLE__)
-int swoole_clock_realtime(struct timespec *t);
-#endif
-
-static inline timespec swoole_time_until(time_t milliseconds) {
-    timespec t;
-    swoole_clock_realtime(&t);
-
-    const time_t sec = milliseconds / 1000;
-    const time_t msec = milliseconds - (sec * 1000);
-
-    t.tv_sec += sec;
-    t.tv_nsec += msec * 1000 * 1000;
-
-    if (t.tv_nsec > SW_NUM_BILLION) {
-        const time_t _sec = t.tv_nsec / SW_NUM_BILLION;
-        t.tv_sec += _sec;
-        t.tv_nsec -= _sec * SW_NUM_BILLION;
-    }
-
-    return t;
-}
+void swoole_clock_realtime(timespec *time);
+timespec swoole_time_until(time_t milliseconds);
 
 namespace swoole {
 
@@ -631,6 +613,7 @@ typedef uint8_t ReactorId;
 typedef uint32_t WorkerId;
 typedef swEventType EventType;
 typedef swSocketType SocketType;
+typedef swTimeoutType TimeoutType;
 typedef swFdType FdType;
 typedef swReturnCode ReturnCode;
 typedef swResultCode ResultCode;
@@ -678,7 +661,6 @@ struct ThreadGlobal {
     String *buffer_stack;
     Reactor *reactor;
     Timer *timer;
-    TimerScheduler timer_scheduler;
     MessageBus *message_bus;
     AsyncThreads *async_threads;
 #ifdef SW_USE_IOURING
@@ -730,6 +712,14 @@ struct Global {
     uchar running : 1;
     uchar wait_signal : 1;
     uchar enable_signalfd : 1;
+    /**
+     * Under macOS or FreeBSD, kqueue does not support listening for writable events on pipes. When a large amount of
+     * data is written to a pipe in process A, and the buffer becomes full, listening for writable events will not work.
+     * In process B, even after consuming the data from the pipe, the writable event in process A cannot be triggered.
+     * As a result, the functionality of Task and Process Server cannot be supported, making all scenarios relying on
+     * pipes for inter-process communication unable to function properly.
+     */
+    uchar enable_kqueue : 1;
     uchar dns_lookup_random : 1;
     uchar use_async_resolver : 1;
     uchar use_name_resolver : 1;

@@ -57,7 +57,6 @@ ThreadFactory::ThreadFactory(Server *server) : BaseFactory(server) {
     SW_LOOP_N(server_->get_all_worker_num() + 1) {
         threads_[i] = std::make_shared<Thread>();
     }
-    cv_timeout_ms_ = -1;
 }
 
 ThreadFactory::~ThreadFactory() {
@@ -195,10 +194,7 @@ void ThreadFactory::spawn_manager_thread(WorkerId i) {
     threads_[i]->start([=]() {
         at_thread_enter(i, SW_MANAGER);
 
-        swoole_timer_set_scheduler([this](Timer *timer, long exec_msec) -> int {
-            cv_timeout_ms_ = exec_msec;
-            return SW_OK;
-        });
+        swoole_timer_create(true);
 
         server_->worker_thread_start(threads_[i], [=]() {
             if (server_->onManagerStart) {
@@ -221,7 +217,6 @@ void ThreadFactory::spawn_manager_thread(WorkerId i) {
         if (swoole_timer_is_available()) {
             swoole_timer_free();
         }
-        swoole_timer_set_scheduler(nullptr);
 
         at_thread_exit(nullptr);
     });
@@ -230,6 +225,7 @@ void ThreadFactory::spawn_manager_thread(WorkerId i) {
 void ThreadFactory::wait() {
     while (true) {
         std::unique_lock<std::mutex> lock(lock_);
+        int64_t cv_timeout_ms_ = swoole_timer_get_next_msec();
         if (cv_timeout_ms_ > 0) {
             cv_.wait_for(lock, std::chrono::milliseconds(cv_timeout_ms_), [this] { return !queue_.empty(); });
         } else {

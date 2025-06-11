@@ -158,8 +158,8 @@ bool Iouring::wakeup() {
         }
 
         for (decltype(count) i = 0; i < count; i++) {
-            io_uring_cqe *cqe = cqes[i];
-            IouringEvent *task = static_cast<IouringEvent *>(io_uring_cqe_get_data(cqe));
+            auto *cqe = cqes[i];
+            auto *task = static_cast<IouringEvent *>(io_uring_cqe_get_data(cqe));
             task_num--;
             if (cqe->res < 0) {
                 errno = -(cqe->res);
@@ -404,14 +404,14 @@ int Iouring::open(const char *pathname, int flags, mode_t mode) {
     event.flags = flags;
     event.pathname = pathname;
 
-    return execute(&event);
+    return static_cast<int>(execute(&event));
 }
 
 int Iouring::close(int fd) {
     INIT_EVENT(SW_IORING_OP_CLOSE);
     event.fd = fd;
 
-    return execute(&event);
+    return static_cast<int>(execute(&event));
 }
 
 ssize_t Iouring::read(int fd, void *buf, size_t size) {
@@ -432,12 +432,12 @@ ssize_t Iouring::write(int fd, const void *buf, size_t size) {
     return execute(&event);
 }
 
-ssize_t Iouring::rename(const char *oldpath, const char *newpath) {
+int Iouring::rename(const char *oldpath, const char *newpath) {
     INIT_EVENT(SW_IORING_OP_RENAMEAT);
     event.pathname = oldpath;
     event.pathname2 = newpath;
 
-    return execute(&event);
+    return static_cast<int>(execute(&event));
 }
 
 int Iouring::mkdir(const char *pathname, mode_t mode) {
@@ -445,35 +445,35 @@ int Iouring::mkdir(const char *pathname, mode_t mode) {
     event.pathname = pathname;
     event.mode = mode;
 
-    return execute(&event);
+    return static_cast<int>(execute(&event));
 }
 
 int Iouring::unlink(const char *pathname) {
     INIT_EVENT(SW_IORING_OP_UNLINK_FILE);
     event.pathname = pathname;
 
-    return execute(&event);
+    return static_cast<int>(execute(&event));
 }
 
 int Iouring::rmdir(const char *pathname) {
     INIT_EVENT(SW_IORING_OP_UNLINK_DIR);
     event.pathname = pathname;
 
-    return execute(&event);
+    return static_cast<int>(execute(&event));
 }
 
 int Iouring::fsync(int fd) {
     INIT_EVENT(SW_IORING_OP_FSYNC);
     event.fd = fd;
 
-    return execute(&event);
+    return static_cast<int>(execute(&event));
 }
 
 int Iouring::fdatasync(int fd) {
     INIT_EVENT(SW_IORING_OP_FDATASYNC);
     event.fd = fd;
 
-    return execute(&event);
+    return static_cast<int>(execute(&event));
 }
 
 #ifdef HAVE_IOURING_STATX

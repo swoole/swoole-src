@@ -1013,13 +1013,13 @@ SW_API bool php_swoole_socket_set(Socket *cli, zval *zset) {
         cli->set_timeout(zval_get_double(ztmp));
     }
     if (php_swoole_array_get_value(vht, "connect_timeout", ztmp)) {
-        cli->set_timeout(zval_get_double(ztmp), Socket::TIMEOUT_CONNECT);
+        cli->set_timeout(zval_get_double(ztmp), SW_TIMEOUT_CONNECT);
     }
     if (php_swoole_array_get_value(vht, "read_timeout", ztmp)) {
-        cli->set_timeout(zval_get_double(ztmp), Socket::TIMEOUT_READ);
+        cli->set_timeout(zval_get_double(ztmp), SW_TIMEOUT_READ);
     }
     if (php_swoole_array_get_value(vht, "write_timeout", ztmp)) {
-        cli->set_timeout(zval_get_double(ztmp), Socket::TIMEOUT_WRITE);
+        cli->set_timeout(zval_get_double(ztmp), SW_TIMEOUT_WRITE);
     }
     std::string _bind_address;
     int _bind_port = 0;
@@ -1341,7 +1341,7 @@ static PHP_METHOD(swoole_socket_coro, connect) {
             RETURN_FALSE;
         }
     }
-    Socket::TimeoutSetter ts(sock->socket, timeout, Socket::TIMEOUT_CONNECT);
+    Socket::TimeoutSetter ts(sock->socket, timeout, SW_TIMEOUT_CONNECT);
     if (!sock->socket->connect(std::string(host, l_host), port)) {
         socket_coro_sync_properties(ZEND_THIS, sock);
         RETURN_FALSE;
@@ -1419,7 +1419,7 @@ static inline void socket_coro_recv(INTERNAL_FUNCTION_PARAMETERS, RecvMode type)
     swoole_get_socket_coro(sock, ZEND_THIS);
 
     zend_string *buf = zend_string_alloc(length, 0);
-    Socket::TimeoutSetter ts(sock->socket, timeout, Socket::TIMEOUT_READ);
+    Socket::TimeoutSetter ts(sock->socket, timeout, SW_TIMEOUT_READ);
     ssize_t bytes = -1;
     switch (type) {
     case SOCKET_RECV:
@@ -1506,7 +1506,7 @@ static sw_inline void socket_coro_send(INTERNAL_FUNCTION_PARAMETERS, const bool 
 
     swoole_get_socket_coro(sock, ZEND_THIS);
 
-    Socket::TimeoutSetter ts(sock->socket, timeout, Socket::TIMEOUT_WRITE);
+    Socket::TimeoutSetter ts(sock->socket, timeout, SW_TIMEOUT_WRITE);
     ssize_t retval = all ? sock->socket->send_all(data, length) : sock->socket->send(data, length);
     socket_coro_sync_properties(ZEND_THIS, sock);
     if (UNEXPECTED(retval < 0)) {
@@ -1572,7 +1572,7 @@ static void socket_coro_write_vector(INTERNAL_FUNCTION_PARAMETERS, const bool al
 
     swoole::network::IOVector io_vector((struct iovec *) iov.get(), iovcnt);
 
-    Socket::TimeoutSetter ts(sock->socket, timeout, Socket::TIMEOUT_WRITE);
+    Socket::TimeoutSetter ts(sock->socket, timeout, SW_TIMEOUT_WRITE);
     ssize_t retval = all ? sock->socket->writev_all(&io_vector) : sock->socket->writev(&io_vector);
     if (UNEXPECTED(retval < 0)) {
         RETURN_FALSE;
@@ -1646,7 +1646,7 @@ static void socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETERS, const bool all
 
     swoole::network::IOVector io_vector((struct iovec *) iov.get(), iovcnt);
 
-    Socket::TimeoutSetter ts(sock->socket, timeout, Socket::TIMEOUT_READ);
+    Socket::TimeoutSetter ts(sock->socket, timeout, SW_TIMEOUT_READ);
     ssize_t retval = all ? sock->socket->readv_all(&io_vector) : sock->socket->readv(&io_vector);
 
     auto free_func = [](const iovec *iov, int iovcnt, int iov_index) {
@@ -1741,7 +1741,7 @@ static PHP_METHOD(swoole_socket_coro, recvfrom) {
     swoole_get_socket_coro(sock, ZEND_THIS);
 
     zend_string *buf = zend_string_alloc(SW_BUFFER_SIZE_BIG, 0);
-    Socket::TimeoutSetter ts(sock->socket, timeout, Socket::TIMEOUT_READ);
+    Socket::TimeoutSetter ts(sock->socket, timeout, SW_TIMEOUT_READ);
     ssize_t bytes = sock->socket->recvfrom(ZSTR_VAL(buf), SW_BUFFER_SIZE_BIG);
     socket_coro_sync_properties(ZEND_THIS, sock);
     if (bytes < 0) {
@@ -1923,8 +1923,7 @@ static PHP_METHOD(swoole_socket_coro, getOption) {
     }
     case SO_RCVTIMEO:
     case SO_SNDTIMEO: {
-        double timeout =
-            sock->socket->get_timeout(optname == SO_RCVTIMEO ? Socket::TIMEOUT_READ : Socket::TIMEOUT_WRITE);
+        double timeout = sock->socket->get_timeout(optname == SO_RCVTIMEO ? SW_TIMEOUT_READ : SW_TIMEOUT_WRITE);
         array_init(return_value);
         int sec = (int) timeout;
         add_assoc_long(return_value, "sec", (int) timeout);
@@ -2060,8 +2059,8 @@ static PHP_METHOD(swoole_socket_coro, setOption) {
         convert_to_long_ex(usec);
         tv.tv_sec = Z_LVAL_P(sec);
         tv.tv_usec = Z_LVAL_P(usec);
-        sock->socket->set_timeout(
-            &tv, optname == SO_RCVTIMEO ? Socket::TIMEOUT_READ : Socket::TIMEOUT_CONNECT | Socket::TIMEOUT_WRITE);
+        sock->socket->set_timeout(&tv,
+                                  optname == SO_RCVTIMEO ? SW_TIMEOUT_READ : SW_TIMEOUT_CONNECT | SW_TIMEOUT_WRITE);
         RETURN_TRUE;
         break;
     }

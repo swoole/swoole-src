@@ -33,14 +33,21 @@ TimerNode *swoole_timer_add(double timeout, bool persistent, const TimerCallback
     return swoole_timer_add(sec2msec(timeout), persistent, callback, private_data);
 }
 
+Timer *swoole_timer_create(bool manually_trigger) {
+    SwooleTG.timer = new Timer(manually_trigger);
+    return SwooleTG.timer;
+}
+
+SW_API int64_t swoole_timer_get_next_msec() {
+    if (sw_unlikely(!swoole_timer_is_available())) {
+        return -1;
+    }
+    return SwooleTG.timer->get_next_msec();
+}
+
 TimerNode *swoole_timer_add(long ms, bool persistent, const TimerCallback &callback, void *private_data) {
     if (sw_unlikely(!swoole_timer_is_available())) {
-        SwooleTG.timer = new Timer();
-        if (sw_unlikely(!SwooleTG.timer->init())) {
-            delete SwooleTG.timer;
-            SwooleTG.timer = nullptr;
-            return nullptr;
-        }
+        swoole_timer_create(false);
     }
     return SwooleTG.timer->add(ms, persistent, private_data, callback);
 }
@@ -127,8 +134,4 @@ int swoole_timer_select() {
         return SW_ERR;
     }
     return SwooleTG.timer->select();
-}
-
-void swoole_timer_set_scheduler(const swoole::TimerScheduler &scheduler) {
-    SwooleTG.timer_scheduler = scheduler;
 }

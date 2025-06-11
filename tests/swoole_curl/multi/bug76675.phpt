@@ -1,8 +1,9 @@
 --TEST--
 swoole_curl/multi: Bug #76675 (Segfault with H2 server push write/writeheader handlers)
 --SKIPIF--
-<?php require __DIR__ . '/../../include/skipif.inc'; ?>
-<?php
+<?php 
+require __DIR__ . '/../../include/skipif.inc';
+skip_if_no_database();
 if (getenv("SKIP_ONLINE_TESTS")) {
     die("skip online test");
 }

@@ -31,7 +31,6 @@
 #endif
 
 namespace swoole {
-
 using network::Socket;
 
 class ReactorKqueue : public ReactorImpl {
@@ -319,7 +318,9 @@ int ReactorKqueue::wait() {
                 Signal *signal_data = (Signal *) udata;
                 if (signal_data->activated) {
                     if (signal_data->handler) {
-                        signal_data->handler(signal_data->signo);
+                        if (sw_likely(signal_data->handler != SIG_IGN)) {
+                            signal_data->handler(signal_data->signo);
+                        }
                     } else {
                         swoole_error_log(SW_LOG_WARNING,
                                          SW_ERROR_UNREGISTERED_SIGNAL,

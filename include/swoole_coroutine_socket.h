@@ -48,15 +48,6 @@ class Socket {
     std::unique_ptr<Socks5Proxy> socks5_proxy = nullptr;
     std::unique_ptr<HttpProxy> http_proxy = nullptr;
 
-    enum TimeoutType {
-        TIMEOUT_DNS = 1 << 0,
-        TIMEOUT_CONNECT = 1 << 1,
-        TIMEOUT_READ = 1 << 2,
-        TIMEOUT_WRITE = 1 << 3,
-        TIMEOUT_RDWR = TIMEOUT_READ | TIMEOUT_WRITE,
-        TIMEOUT_ALL = TIMEOUT_DNS | TIMEOUT_CONNECT | TIMEOUT_RDWR,
-    };
-
     static TimeoutType timeout_type_list[4];
 
     Socket(int domain, int type, int protocol);
@@ -352,13 +343,13 @@ class Socket {
     }
 
     /* set connect read write timeout */
-    void set_timeout(double timeout, int type = TIMEOUT_ALL);
+    void set_timeout(double timeout, int type = SW_TIMEOUT_ALL);
 
-    void set_timeout(timeval *timeout, int type = TIMEOUT_ALL) {
+    void set_timeout(timeval *timeout, int type = SW_TIMEOUT_ALL) {
         set_timeout((double) timeout->tv_sec + ((double) timeout->tv_usec / 1000 / 1000), type);
     }
 
-    double get_timeout(TimeoutType type = TIMEOUT_ALL) const;
+    double get_timeout(TimeoutType type) const;
     bool get_option(int level, int optname, void *optval, socklen_t *optlen) const;
     bool get_option(int level, int optname, int *optval) const;
     bool set_option(int level, int optname, const void *optval, socklen_t optlen) const;
@@ -432,13 +423,8 @@ class Socket {
 
     std::string connect_host;
     int connect_port = 0;
-
     int backlog = 0;
 
-    double dns_timeout = network::Socket::default_dns_timeout;
-    double connect_timeout = network::Socket::default_connect_timeout;
-    double read_timeout = network::Socket::default_read_timeout;
-    double write_timeout = network::Socket::default_write_timeout;
     TimerNode *read_timer = nullptr;
     TimerNode *write_timer = nullptr;
 
@@ -564,7 +550,7 @@ class Socket {
       public:
         TimeoutController(Socket *_socket, double _timeout, const TimeoutType _type)
             : TimeoutSetter(_socket, _timeout, _type) {}
-        bool has_timedout(const TimeoutType _type);
+        bool has_timedout(TimeoutType _type);
 
       protected:
         double startup_time = 0;

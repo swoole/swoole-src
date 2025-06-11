@@ -28,7 +28,7 @@
 
 namespace swoole {
 namespace coroutine {
-Socket::TimeoutType Socket::timeout_type_list[4] = {TIMEOUT_DNS, TIMEOUT_CONNECT, TIMEOUT_READ, TIMEOUT_WRITE};
+TimeoutType Socket::timeout_type_list[4] = {SW_TIMEOUT_DNS, SW_TIMEOUT_CONNECT, SW_TIMEOUT_READ, SW_TIMEOUT_WRITE};
 
 void Socket::timer_callback(Timer *timer, TimerNode *tnode) {
     auto *socket = static_cast<Socket *>(tnode->data);
@@ -372,10 +372,10 @@ Socket::Socket(network::Socket *sock, const Socket *server_sock) {
     socket->fd_type = SW_FD_CO_SOCKET;
     init_options();
     /* inherits server socket options */
-    dns_timeout = server_sock->dns_timeout;
-    connect_timeout = server_sock->connect_timeout;
-    read_timeout = server_sock->read_timeout;
-    write_timeout = server_sock->write_timeout;
+    socket->dns_timeout = server_sock->get_socket()->dns_timeout;
+    socket->connect_timeout = server_sock->get_socket()->connect_timeout;
+    socket->read_timeout = server_sock->get_socket()->read_timeout;
+    socket->write_timeout = server_sock->get_socket()->write_timeout;
     open_length_check = server_sock->open_length_check;
     open_eof_check = server_sock->open_eof_check;
     http2 = server_sock->http2;
@@ -404,20 +404,8 @@ bool Socket::getpeername(network::Address *sa) {
     return true;
 }
 
-double Socket::get_timeout(const TimeoutType type) const {
-    SW_ASSERT_1BYTE(type);
-    if (type == TIMEOUT_DNS) {
-        return dns_timeout;
-    } else if (type == TIMEOUT_CONNECT) {
-        return connect_timeout;
-    } else if (type == TIMEOUT_READ) {
-        return read_timeout;
-    } else if (type == TIMEOUT_WRITE) {
-        return write_timeout;
-    } else {
-        assert(0);
-        return -1;
-    }
+double Socket::get_timeout(TimeoutType type) const {
+    return socket->get_timeout(type);
 }
 
 String *Socket::get_read_buffer() {
@@ -453,21 +441,7 @@ String *Socket::pop_write_buffer() {
 }
 
 void Socket::set_timeout(double timeout, int type) {
-    if (timeout == 0) {
-        return;
-    }
-    if (type & TIMEOUT_DNS) {
-        dns_timeout = timeout;
-    }
-    if (type & TIMEOUT_CONNECT) {
-        connect_timeout = timeout;
-    }
-    if (type & TIMEOUT_READ) {
-        read_timeout = timeout;
-    }
-    if (type & TIMEOUT_WRITE) {
-        write_timeout = timeout;
-    }
+    socket->set_timeout(timeout, type);
 }
 
 const char *Socket::get_event_str(const EventType event) const {
@@ -526,7 +500,7 @@ bool Socket::connect(const sockaddr *addr, socklen_t addrlen) {
             set_err(errno);
             return false;
         } else {
-            TimerController timer(&write_timer, connect_timeout, this, timer_callback);
+            TimerController timer(&write_timer, socket->connect_timeout, this, timer_callback);
             if (!timer.start() || !wait_event(SW_EVENT_WRITE)) {
                 if (is_closed()) {
                     set_err(ECONNABORTED);
@@ -585,7 +559,7 @@ bool Socket::connect(const std::string &_host, int _port, int flags) {
     if (ctx == nullptr) {
         ctx = &_ctx;
     }
-    ctx->timeout = dns_timeout;
+    ctx->timeout = socket->dns_timeout;
 
     std::once_flag oc;
     auto name_resolve_fn = [ctx, &oc, this](int type) -> bool {
@@ -688,7 +662,7 @@ bool Socket::poll(EventType type, double timeout) {
     }
     TimerNode **timer_pp = type == SW_EVENT_READ ? &read_timer : &write_timer;
     if (timeout == 0) {
-        timeout = type == SW_EVENT_READ ? read_timeout : write_timeout;
+        timeout = type == SW_EVENT_READ ? socket->read_timeout : socket->write_timeout;
     }
     TimerController timer(timer_pp, timeout, this, timer_callback);
     if (timer.start() && wait_event(type)) {
@@ -703,7 +677,7 @@ ssize_t Socket::recv(void *_buf, size_t _n) {
         return -1;
     }
     ssize_t retval;
-    TimerController timer(&read_timer, read_timeout, this, timer_callback);
+    TimerController timer(&read_timer, socket->read_timeout, this, timer_callback);
     do {
         retval = socket->recv(_buf, _n, 0);
     } while (retval < 0 && socket->catch_read_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ));
@@ -716,7 +690,7 @@ ssize_t Socket::send(const void *__buf, size_t __n) {
         return -1;
     }
     ssize_t retval;
-    TimerController timer(&write_timer, write_timeout, this, timer_callback);
+    TimerController timer(&write_timer, socket->write_timeout, this, timer_callback);
     do {
         retval = socket->send(__buf, __n, 0);
     } while (retval < 0 && socket->catch_write_error(errno) == SW_WAIT && timer.start() &&
@@ -730,7 +704,7 @@ ssize_t Socket::read(void *_buf, size_t _n) {
         return -1;
     }
     ssize_t retval;
-    TimerController timer(&read_timer, read_timeout, this, timer_callback);
+    TimerController timer(&read_timer, socket->read_timeout, this, timer_callback);
     do {
         retval = socket->read(_buf, _n);
     } while (retval < 0 && socket->catch_read_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ));
@@ -805,7 +779,7 @@ ssize_t Socket::write(const void *__buf, size_t __n) {
         return -1;
     }
     ssize_t retval;
-    TimerController timer(&write_timer, write_timeout, this, timer_callback);
+    TimerController timer(&write_timer, socket->write_timeout, this, timer_callback);
     do {
         retval = socket->write((void *) __buf, __n);
     } while (retval < 0 && socket->catch_write_error(errno) == SW_WAIT && timer.start() &&
@@ -819,7 +793,7 @@ ssize_t Socket::readv(network::IOVector *io_vector) {
         return -1;
     }
     ssize_t retval;
-    TimerController timer(&read_timer, read_timeout, this, timer_callback);
+    TimerController timer(&read_timer, socket->read_timeout, this, timer_callback);
     do {
         retval = socket->readv(io_vector);
     } while (retval < 0 && socket->catch_read_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ));
@@ -833,7 +807,7 @@ ssize_t Socket::readv_all(network::IOVector *io_vector) {
         return -1;
     }
     ssize_t total_bytes = 0;
-    TimerController timer(&read_timer, read_timeout, this, timer_callback);
+    TimerController timer(&read_timer, socket->read_timeout, this, timer_callback);
 
     ssize_t retval = socket->readv(io_vector);
     swoole_trace_log(SW_TRACE_SOCKET, "readv %ld bytes, errno=%d", retval, errno);
@@ -881,7 +855,7 @@ ssize_t Socket::writev(network::IOVector *io_vector) {
         return -1;
     }
     ssize_t retval;
-    TimerController timer(&write_timer, write_timeout, this, timer_callback);
+    TimerController timer(&write_timer, socket->write_timeout, this, timer_callback);
     do {
         retval = socket->writev(io_vector);
     } while (retval < 0 && socket->catch_write_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_WRITE));
@@ -895,7 +869,7 @@ ssize_t Socket::writev_all(network::IOVector *io_vector) {
         return -1;
     }
     ssize_t total_bytes = 0;
-    TimerController timer(&write_timer, write_timeout, this, timer_callback);
+    TimerController timer(&write_timer, socket->write_timeout, this, timer_callback);
 
     ssize_t retval = socket->writev(io_vector);
     swoole_trace_log(SW_TRACE_SOCKET, "writev %ld bytes, errno=%d", retval, errno);
@@ -944,7 +918,7 @@ ssize_t Socket::recv_all(void *__buf, size_t __n) {
     }
     ssize_t retval = 0;
     size_t total_bytes = 0;
-    TimerController timer(&read_timer, read_timeout, this, timer_callback);
+    TimerController timer(&read_timer, socket->read_timeout, this, timer_callback);
 
     retval = socket->recv(__buf, __n, 0);
 
@@ -980,7 +954,7 @@ ssize_t Socket::send_all(const void *__buf, size_t __n) {
     }
     ssize_t retval = 0;
     size_t total_bytes = 0;
-    TimerController timer(&write_timer, write_timeout, this, timer_callback);
+    TimerController timer(&write_timer, socket->write_timeout, this, timer_callback);
 
     retval = socket->send(__buf, __n, 0);
 
@@ -1015,7 +989,7 @@ ssize_t Socket::recvmsg(struct msghdr *msg, int flags) {
         return -1;
     }
     ssize_t retval;
-    TimerController timer(&read_timer, read_timeout, this, timer_callback);
+    TimerController timer(&read_timer, socket->read_timeout, this, timer_callback);
     do {
         retval = ::recvmsg(sock_fd, msg, flags);
     } while (retval < 0 && socket->catch_read_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ));
@@ -1031,7 +1005,7 @@ ssize_t Socket::sendmsg(const struct msghdr *msg, int flags) {
         return -1;
     }
     ssize_t retval;
-    TimerController timer(&write_timer, write_timeout, this, timer_callback);
+    TimerController timer(&write_timer, socket->write_timeout, this, timer_callback);
     do {
         retval = ::sendmsg(sock_fd, msg, flags);
     } while (retval < 0 && socket->catch_write_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_WRITE));
@@ -1091,7 +1065,7 @@ Socket *Socket::accept(double timeout) {
 #endif
     network::Socket *conn = socket->accept();
     if (conn == nullptr && errno == EAGAIN) {
-        TimerController timer(&read_timer, timeout == 0 ? read_timeout : timeout, this, timer_callback);
+        TimerController timer(&read_timer, timeout == 0 ? socket->read_timeout : timeout, this, timer_callback);
         if (!timer.start() || !wait_event(SW_EVENT_READ)) {
             return nullptr;
         }
@@ -1184,7 +1158,7 @@ bool Socket::ssl_handshake() {
                 return false;
             }
             if (socket->ssl_state == SW_SSL_STATE_WAIT_STREAM) {
-                TimerController timer(&read_timer, read_timeout, this, timer_callback);
+                TimerController timer(&read_timer, socket->read_timeout, this, timer_callback);
                 if (!timer.start() || !wait_event(SW_EVENT_READ)) {
                     return false;
                 }
@@ -1194,7 +1168,7 @@ bool Socket::ssl_handshake() {
         }
     } else {
         ReturnCode retval;
-        TimerController timer(&read_timer, read_timeout, this, timer_callback);
+        TimerController timer(&read_timer, socket->read_timeout, this, timer_callback);
 
         do {
             retval = socket->ssl_accept();
@@ -1262,7 +1236,7 @@ bool Socket::sendfile(const char *filename, off_t offset, size_t length) {
         length = offset + length;
     }
 
-    TimerController timer(&write_timer, write_timeout, this, timer_callback);
+    TimerController timer(&write_timer, socket->write_timeout, this, timer_callback);
     while ((size_t) offset < length) {
         ssize_t sent_bytes = (length - offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : length - offset;
         ssize_t n = socket->sendfile(file, &offset, sent_bytes);
@@ -1298,7 +1272,7 @@ ssize_t Socket::sendto(std::string host, int port, const void *__buf, size_t __n
     SW_LOOP_N(2) {
         if (!addr.assign(type, host, port, false)) {
             if (swoole_get_last_error() == SW_ERROR_BAD_HOST_ADDR) {
-                host = System::gethostbyname(host, sock_domain, dns_timeout);
+                host = System::gethostbyname(host, sock_domain, socket->dns_timeout);
                 if (!host.empty()) {
                     continue;
                 }
@@ -1309,7 +1283,7 @@ ssize_t Socket::sendto(std::string host, int port, const void *__buf, size_t __n
         break;
     }
 
-    TimerController timer(&write_timer, write_timeout, this, timer_callback);
+    TimerController timer(&write_timer, socket->write_timeout, this, timer_callback);
     do {
         retval = socket->sendto(addr, __buf, __n, 0);
         swoole_trace_log(SW_TRACE_SOCKET, "sendto %ld/%ld bytes, errno=%d", retval, __n, errno);
@@ -1333,7 +1307,7 @@ ssize_t Socket::recvfrom(void *__buf, size_t __n, sockaddr *_addr, socklen_t *_s
         return -1;
     }
     ssize_t retval;
-    TimerController timer(&read_timer, read_timeout, this, timer_callback);
+    TimerController timer(&read_timer, socket->read_timeout, this, timer_callback);
     do {
         retval = ::recvfrom(sock_fd, __buf, __n, 0, _addr, _socklen);
         swoole_trace_log(SW_TRACE_SOCKET, "recvfrom %ld/%ld bytes, errno=%d", retval, __n, errno);
@@ -1492,7 +1466,7 @@ ssize_t Socket::recv_packet(double timeout) {
         return -1;
     }
 
-    TimerController timer(&read_timer, timeout == 0 ? read_timeout : timeout, this, timer_callback);
+    TimerController timer(&read_timer, timeout == 0 ? socket->read_timeout : timeout, this, timer_callback);
     if (sw_unlikely(!timer.start())) {
         return 0;
     }
@@ -1666,7 +1640,7 @@ Socket::TimerController::~TimerController() {
     }
 }
 
-Socket::TimeoutSetter::TimeoutSetter(Socket *socket, double _timeout, const enum TimeoutType _type)
+Socket::TimeoutSetter::TimeoutSetter(Socket *socket, double _timeout, TimeoutType _type)
     : socket_(socket), timeout(_timeout), type(_type) {
     if (_timeout == 0) {
         return;
@@ -1694,7 +1668,7 @@ Socket::TimeoutSetter::~TimeoutSetter() {
     }
 }
 
-bool Socket::TimeoutController::has_timedout(const enum TimeoutType _type) {
+bool Socket::TimeoutController::has_timedout(TimeoutType _type) {
     SW_ASSERT_1BYTE(_type);
     if (timeout > 0) {
         if (sw_unlikely(startup_time == 0)) {
