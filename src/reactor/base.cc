@@ -131,11 +131,9 @@ Reactor::Reactor(int max_event, Type _type) {
         }
     });
 
-    set_end_callback(PRIORITY_SIGNAL_CALLBACK, [](Reactor *reactor) {
-        if (swoole_is_main_thread()) {
-            swoole_signal_dispatch();
-        }
-    });
+    if (swoole_is_main_thread()) {
+        set_end_callback(PRIORITY_SIGNAL_CALLBACK, [](Reactor *) { swoole_signal_dispatch(); });
+    }
 
     set_end_callback(PRIORITY_TRY_EXIT, [](Reactor *reactor) {
         if (reactor->wait_exit && reactor->if_exit()) {

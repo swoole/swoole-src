@@ -2128,12 +2128,14 @@ static void test_task_ipc(Server &serv) {
     serv.onTask = [](Server *serv, EventData *task) -> int {
         EXPECT_EQ(string(task->data, task->info.len), string(packet));
         EXPECT_TRUE(serv->finish(task->data, task->info.len, 0, task));
+        DEBUG() << "onTask: " << task->info.len << " bytes\n";
         return 0;
     };
 
     serv.onFinish = [](Server *serv, EventData *task) -> int {
         EXPECT_EQ(string(task->data, task->info.len), string(packet));
         usleep(100000);
+        DEBUG() << "onFinish: " << task->info.len << " bytes\n";
         serv->shutdown();
         return 0;
     };
@@ -2148,6 +2150,12 @@ static void test_task_ipc(Server &serv) {
             buf.info.ext_flags |= (SW_TASK_NONBLOCK | SW_TASK_CALLBACK);
             EXPECT_TRUE(serv->task(&buf, &_dst_worker_id));
         }
+
+        DEBUG() << "onWorkerStart: id=" << worker->id << "\n";
+    };
+
+    serv.onBeforeShutdown = [](Server *serv) {
+        DEBUG() << "onBeforeShutdown\n";
     };
 
     ASSERT_EQ(serv.start(), 0);
