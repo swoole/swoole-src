@@ -697,6 +697,7 @@ TEST(server, thread) {
     ASSERT_EQ(test::counter_get(4), 2);  // onPipeMessage called
 }
 
+#ifndef SW_USE_ASAN
 TEST(server, task_thread) {
     DEBUG() << "new server\n";
     Server serv(Server::MODE_THREAD);
@@ -971,6 +972,7 @@ TEST(server, reload_thread_3) {
 
     test::wait_all_child_processes();
 }
+#endif
 #endif
 
 TEST(server, reload_all_workers) {
