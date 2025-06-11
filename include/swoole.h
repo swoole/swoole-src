@@ -236,7 +236,6 @@ struct DataHead;
 typedef int (*ReactorHandler)(Reactor *reactor, Event *event);
 typedef std::function<void(void *)> Callback;
 typedef std::function<void(Timer *, TimerNode *)> TimerCallback;
-typedef std::function<int(Timer *, long)> TimerScheduler;
 }  // namespace swoole
 
 typedef swoole::DataHead swDataHead;
@@ -603,34 +602,8 @@ int swoole_set_cpu_affinity(cpu_set_t *set);
 int swoole_get_cpu_affinity(cpu_set_t *set);
 #endif
 
-#if defined(_POSIX_TIMERS) && ((_POSIX_TIMERS > 0) || defined(__OpenBSD__)) && defined(_POSIX_MONOTONIC_CLOCK) &&      \
-    defined(CLOCK_MONOTONIC)
-#ifndef HAVE_CLOCK_GETTIME
-#define HAVE_CLOCK_GETTIME
-#endif
-#define swoole_clock_realtime(t) clock_gettime(CLOCK_REALTIME, t)
-#elif defined(__APPLE__)
-int swoole_clock_realtime(struct timespec *t);
-#endif
-
-static inline timespec swoole_time_until(time_t milliseconds) {
-    timespec t;
-    swoole_clock_realtime(&t);
-
-    const time_t sec = milliseconds / 1000;
-    const time_t msec = milliseconds - (sec * 1000);
-
-    t.tv_sec += sec;
-    t.tv_nsec += msec * 1000 * 1000;
-
-    if (t.tv_nsec > SW_NUM_BILLION) {
-        const time_t _sec = t.tv_nsec / SW_NUM_BILLION;
-        t.tv_sec += _sec;
-        t.tv_nsec -= _sec * SW_NUM_BILLION;
-    }
-
-    return t;
-}
+void swoole_clock_realtime(timespec *time);
+timespec swoole_time_until(time_t milliseconds);
 
 namespace swoole {
 
@@ -688,7 +661,6 @@ struct ThreadGlobal {
     String *buffer_stack;
     Reactor *reactor;
     Timer *timer;
-    TimerScheduler timer_scheduler;
     MessageBus *message_bus;
     AsyncThreads *async_threads;
 #ifdef SW_USE_IOURING

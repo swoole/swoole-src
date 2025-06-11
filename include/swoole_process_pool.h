@@ -437,6 +437,7 @@ struct ProcessPool {
     static int run_with_stream_protocol(ProcessPool *pool, Worker *worker);
     static int run_with_message_protocol(ProcessPool *pool, Worker *worker);
     static int run_async(ProcessPool *pool, Worker *worker);
+    static void create_sync_timer();
 
     bool wait_detached_worker(std::unordered_set<pid_t> &detached_workers, pid_t pid);
 };

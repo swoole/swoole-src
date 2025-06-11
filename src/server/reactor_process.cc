@@ -168,7 +168,7 @@ int Server::reactor_process_main_loop(ProcessPool *pool, Worker *worker) {
     Reactor *reactor = SwooleTG.reactor;
 
     if (SwooleTG.timer && SwooleTG.timer->get_reactor() == nullptr) {
-        SwooleTG.timer->reinit(reactor);
+        SwooleTG.timer->reinit();
     }
 
     serv->worker_signal_init();

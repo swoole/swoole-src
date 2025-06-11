@@ -448,7 +448,7 @@ int Server::start_master_thread(Reactor *reactor) {
     swoole_set_thread_id(single_thread ? 0 : reactor_num);
 
     if (SwooleTG.timer && SwooleTG.timer->get_reactor() == nullptr) {
-        SwooleTG.timer->reinit(reactor);
+        SwooleTG.timer->reinit();
     }
 
     init_signal_handler();
