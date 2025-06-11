@@ -31,7 +31,7 @@ Timer::Timer(bool manually_trigger) : heap(1024, Heap::MIN_HEAP) {
 void Timer::init(bool manually_trigger) {
     if (manually_trigger) {
         set = [](Timer *, long) -> int { return SW_OK; };
-        close = [](Timer *) { };
+        close = [](Timer *) {};
         return;
     }
     if (SwooleTG.reactor) {

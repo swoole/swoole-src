@@ -732,7 +732,8 @@ int ProcessPool::run_with_stream_protocol(ProcessPool *pool, Worker *worker) {
             msg.data = pool->packet_buffer;
             pool->stream_info_->last_connection = conn;
         } else {
-            n = worker->pipe_worker->read_sync(pool->packet_buffer, pool->max_packet_size_, swoole_timer_get_next_msec());
+            n = worker->pipe_worker->read_sync(
+                pool->packet_buffer, pool->max_packet_size_, swoole_timer_get_next_msec());
             if (n < 0 && catch_system_error(errno) == SW_ERROR) {
                 swoole_sys_warning("[Worker#%d] read(%d) failed", worker->id, worker->pipe_worker->fd);
                 break;
