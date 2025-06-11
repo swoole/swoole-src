@@ -310,26 +310,3 @@ swoole::Coroutine *swoole_coroutine_iterator_each() {
     ++gdb_iterator_;
     return co;
 }
-
-void swoole_clock_realtime(timespec *time) {
-    auto now = std::chrono::system_clock::now();
-    auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch());
-    time->tv_sec = ns.count() / SW_NUM_BILLION;
-    time->tv_nsec = ns.count() % SW_NUM_BILLION;
-}
-
-timespec swoole_time_until(time_t milliseconds) {
-    timespec t;
-    swoole_clock_realtime(&t);
-
-    const time_t sec_increment = milliseconds / 1000;
-    const time_t nsec_increment = (milliseconds % 1000) * SW_NUM_MILLION;
-
-    t.tv_sec += sec_increment;
-    t.tv_nsec += nsec_increment;
-
-    t.tv_sec += t.tv_nsec / SW_NUM_BILLION;
-    t.tv_nsec %= SW_NUM_BILLION;
-
-    return t;
-}

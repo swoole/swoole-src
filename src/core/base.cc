@@ -1007,11 +1007,9 @@ std::string intersection(const std::vector<std::string> &vec1, std::set<std::str
     return "";
 }
 
-double microtime(void) {
-    struct timeval t;
+double microtime() {
+    timeval t;
     gettimeofday(&t, nullptr);
     return (double) t.tv_sec + ((double) t.tv_usec / 1000000);
 }
-
-//-------------------------------------------------------------------------------
 };  // namespace swoole

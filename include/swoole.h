@@ -602,11 +602,7 @@ int swoole_set_cpu_affinity(cpu_set_t *set);
 int swoole_get_cpu_affinity(cpu_set_t *set);
 #endif
 
-void swoole_clock_realtime(timespec *time);
-timespec swoole_time_until(time_t milliseconds);
-
 namespace swoole {
-
 typedef long SessionId;
 typedef long TaskId;
 typedef uint8_t ReactorId;
@@ -781,6 +777,8 @@ std::string dirname(const std::string &file);
 int hook_add(void **hooks, int type, const Callback &func, int push_back);
 void hook_call(void **hooks, int type, void *arg);
 double microtime();
+void realtime_get(timespec *time);
+void realtime_add(timespec *time, int64_t add_msec);
 }  // namespace swoole
 
 extern swoole::Global SwooleG;                      // Local Global Variable
