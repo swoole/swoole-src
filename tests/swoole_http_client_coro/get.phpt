@@ -27,10 +27,11 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
     });
     $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
-        $cli = new Swoole\Coroutine\Http\Client('www.qq.com', 443, true);
+        $domain = TEST_DOMAIN_2;
+        $cli = new Swoole\Coroutine\Http\Client($domain, 443, true);
         $cli->set(['timeout' => 10]);
         $cli->setHeaders([
-            'Host' => 'www.qq.com',
+            'Host' => $domain,
             'User-Agent' => 'Chrome/49.0.2587.3',
             'Accept' => 'text/html,application/xhtml+xml,application/xml',
             'Accept-Encoding' => 'gzip',
