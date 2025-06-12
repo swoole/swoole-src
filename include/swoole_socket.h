@@ -581,17 +581,14 @@ struct Socket {
     int catch_error(int err) const;
 
     int catch_write_error(const int err) {
-        switch (err) {
-        case ENOBUFS:
-            return SW_WAIT;
-        default:
-            return catch_error(err);
-        }
+        return catch_error(err);
     }
 
     int catch_write_pipe_error(const int err) {
         switch (err) {
+#ifdef __linux__            
         case ENOBUFS:
+#endif
         case EMSGSIZE:
             return SW_REDUCE_SIZE;
         default:
