@@ -7,6 +7,8 @@ swoole_curl/upload: CURL file uploading
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
 
+Swoole\Coroutine::set(['print_backtrace_on_error' => true]);
+
 $cm = new \SwooleTest\CurlManager();
 $cm->run(function ($host) {
 
