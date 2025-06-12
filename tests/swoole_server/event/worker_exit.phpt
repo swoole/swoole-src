@@ -6,13 +6,14 @@ swoole_server/event: onWorkerExit
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
 
+use Swoole\Atomic;
 use Swoole\Constant;
 use Swoole\Process;
 use Swoole\Server;
-use Swoole\Atomic;
 use Swoole\Timer;
+use SwooleTest\ProcessManager;
 
-$pm = new SwooleTest\ProcessManager;
+$pm = new ProcessManager();
 $pm->setWaitTimeout(5);
 
 const FILE = __DIR__ . '/tmp_result.txt';
@@ -36,18 +37,18 @@ $pm->childFunc = function () use ($pm, $atomic) {
         'log_file' => '/dev/null',
     ]);
 
-    $serv->on("start", function (Server $serv) use ($atomic, $pm) {
+    $serv->on('start', function (Server $serv) use ($atomic, $pm) {
         $pm->writeLog('master start');
     });
 
     $serv->on(Constant::EVENT_MANAGER_START, function (Server $serv) use ($atomic, $pm) {
-        usleep(1000);
+        usleep(10000);
         $pm->writeLog('manager start');
     });
 
     $serv->on(Constant::EVENT_WORKER_START, function (Server $serv) use ($atomic, $pm) {
         if ($atomic->get() == 0) {
-            usleep(2000);
+            usleep(20000);
         }
         $pm->writeLog('worker start, id=' . $serv->getWorkerId() . ', status=' . $serv->getWorkerStatus());
 
@@ -57,7 +58,8 @@ $pm->childFunc = function () use ($pm, $atomic) {
         } else {
             $GLOBALS['timer'] = Timer::tick(100, function () use ($serv, $pm) {
                 $pm->writeLog(
-                    'tick, id=' . $serv->getWorkerId() . ', status=' . $serv->getWorkerStatus());
+                    'tick, id=' . $serv->getWorkerId() . ', status=' . $serv->getWorkerStatus()
+                );
                 $pm->wakeup();
             });
         }
@@ -65,7 +67,8 @@ $pm->childFunc = function () use ($pm, $atomic) {
 
     $serv->on(Constant::EVENT_WORKER_EXIT, function (Server $serv) use ($atomic, $pm) {
         $pm->writeLog(
-            'worker exit, id=' . $serv->getWorkerId() . ', status=' . $serv->getWorkerStatus());
+            'worker exit, id=' . $serv->getWorkerId() . ', status=' . $serv->getWorkerStatus()
+        );
         Timer::clear($GLOBALS['timer']);
     });
 
@@ -73,8 +76,7 @@ $pm->childFunc = function () use ($pm, $atomic) {
         $pm->writeLog('worker stop');
     });
 
-    $serv->on("Receive", function () {
-    });
+    $serv->on('Receive', function () {});
 
     $serv->start();
 };

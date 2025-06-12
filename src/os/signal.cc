@@ -127,8 +127,7 @@ SignalHandler swoole_signal_set(int signo, SignalHandler func, int restart, int 
         signals[signo].activated = false;
     }
 
-    struct sigaction act {
-    }, oact{};
+    struct sigaction act{}, oact{};
     act.sa_handler = func;
     if (mask) {
         sigfillset(&act.sa_mask);
@@ -215,6 +214,9 @@ void swoole_signal_callback(int signo) {
     if (!callback) {
         swoole_error_log(
             SW_LOG_WARNING, SW_ERROR_UNREGISTERED_SIGNAL, SW_UNREGISTERED_SIGNAL_FMT, swoole_signal_to_str(signo));
+        return;
+    }
+    if (callback == SIG_IGN || callback == SIG_DFL) {
         return;
     }
     callback(signo);

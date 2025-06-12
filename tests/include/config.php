@@ -24,11 +24,11 @@ require_once __DIR__ . '/functions.php';
 
 /* ============== Env =============== */
 define('IS_MAC_OS', stripos(PHP_OS, 'Darwin') !== false);
-define('IS_IN_CI', !!getenv('GITHUB_ACTIONS') or file_exists('/.cienv'));
+define('IS_IN_CI', (bool) getenv('GITHUB_ACTIONS') or file_exists('/.cienv'));
 define('IS_PHPTESTSING', (bool) getenv('PHPT'));
 define('USE_VALGRIND', getenv('USE_ZEND_ALLOC') === '0');
 define('HAS_SSL', defined('SWOOLE_SSL'));
-define('HAS_HTTP2', class_exists('Swoole\\Http2\\Request', false));
+define('HAS_HTTP2', class_exists('Swoole\Http2\Request', false));
 define('DEV_NULL', '/dev/null');
 
 /* ============== Files ============== */
@@ -61,9 +61,9 @@ define('UDP_SERVER_HOST', '127.0.0.1');
 define('UDP_SERVER_PORT', 9003);
 
 /* ============== MySQL ============== */
-define('MYSQL_SERVER_PATH', getenv('MYSQL_SERVER_PATH') ?:
-    (IS_IN_CI ? TRAVIS_DIR_PATH . '/data/run/mysqld/mysqld.sock' :
-        (IS_MAC_OS ? '/tmp/mysql.sock' : '/var/run/mysqld/mysqld.sock')));
+define('MYSQL_SERVER_PATH', getenv('MYSQL_SERVER_PATH')
+    ?: (IS_IN_CI ? TRAVIS_DIR_PATH . '/data/run/mysqld/mysqld.sock'
+        : (IS_MAC_OS ? '/tmp/mysql.sock' : '/var/run/mysqld/mysqld.sock')));
 define('MYSQL_SERVER_HOST', getenv('MYSQL_SERVER_HOST') ?: (IS_IN_CI ? 'mysql' : '127.0.0.1'));
 define('MYSQL_SERVER_PORT', (int) (getenv('MYSQL_SERVER_PORT') ?: 3306));
 define('MYSQL_SERVER_USER', getenv('MYSQL_SERVER_USER') ?: 'root');
@@ -84,8 +84,8 @@ if (IS_IN_CI) {
 }
 define('PGSQL_PORT', '5432');
 
-define('PGSQL_CONNECTION_STRING', getenv('PGSQL_CONNECTION_STRING') ?:
-    ('host=' . PGSQL_HOST . ' port=' . PGSQL_PORT . ' dbname=' . PGSQL_DBNAME . ' user=' . PGSQL_USER . ' password=' . PGSQL_PASSWORD));
+define('PGSQL_CONNECTION_STRING', getenv('PGSQL_CONNECTION_STRING')
+    ?: ('host=' . PGSQL_HOST . ' port=' . PGSQL_PORT . ' dbname=' . PGSQL_DBNAME . ' user=' . PGSQL_USER . ' password=' . PGSQL_PASSWORD));
 
 /* ============== Oracle ============== */
 define('ORACLE_PORT', '1521');
@@ -102,9 +102,9 @@ if (IS_IN_CI) {
 define('SQLITE_DSN', 'sqlite::memory:');
 
 /* ============== Redis ============== */
-define('REDIS_SERVER_PATH', getenv('REDIS_SERVER_PATH') ?:
-    (IS_IN_CI ? TRAVIS_DIR_PATH . '/data/run/redis/redis.sock' :
-        (IS_MAC_OS ? '/tmp/redis.sock' : '/var/run/redis/redis-server.sock')));
+define('REDIS_SERVER_PATH', getenv('REDIS_SERVER_PATH')
+    ?: (IS_IN_CI ? TRAVIS_DIR_PATH . '/data/run/redis/redis.sock'
+        : (IS_MAC_OS ? '/tmp/redis.sock' : '/var/run/redis/redis-server.sock')));
 define('REDIS_SERVER_HOST', getenv('REDIS_SERVER_HOST') ?: (IS_IN_CI && !IS_MAC_OS ? 'redis' : '127.0.0.1'));
 define('REDIS_SERVER_PORT', (int) (getenv('REDIS_SERVER_PORT') ?: 6379));
 define('REDIS_SERVER_PWD', getenv('REDIS_SERVER_PWD') ?: 'root');
@@ -128,7 +128,7 @@ if (IS_IN_CI) {
 define('SWOOLE_TEST_ECHO', empty(getenv('SWOOLE_TEST_NO_ECHO')));
 
 /* ============== HttpBin ============== */
-if (IS_IN_CI) {
+if (IS_IN_CI && !IS_MAC_OS) {
     define('HTTPBIN_SERVER_HOST', 'httpbin');
     define('HTTPBIN_SERVER_PORT', 80);
     define('HTTPBIN_LOCALLY', true);
