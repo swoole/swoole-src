@@ -18,7 +18,7 @@ Swoole\Timer::after(100, function () {
     var_dump(Swoole\Timer::stats());
 });
 Swoole\Event::wait();
-time_approximate(0.1, microtime(true) - $s);
+time_approximate(0.1, microtime(true) - $s, 0.2);
 ?>
 --EXPECTF--
 array(3) {

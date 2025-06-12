@@ -24,7 +24,7 @@ require_once __DIR__ . '/functions.php';
 
 /* ============== Env =============== */
 define('IS_MAC_OS', stripos(PHP_OS, 'Darwin') !== false);
-define('IS_IN_CI', file_exists('/.cienv'));
+define('IS_IN_CI', !!getenv('GITHUB_ACTIONS') or file_exists('/.cienv'));
 define('IS_PHPTESTSING', (bool) getenv('PHPT'));
 define('USE_VALGRIND', getenv('USE_ZEND_ALLOC') === '0');
 define('HAS_SSL', defined('SWOOLE_SSL'));
