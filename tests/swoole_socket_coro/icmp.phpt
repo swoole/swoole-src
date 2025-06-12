@@ -1,7 +1,10 @@
 --TEST--
 swoole_socket_coro: icmp
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php 
+require __DIR__ . '/../include/skipif.inc';
+skip_if_not_root();
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';

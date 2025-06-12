@@ -105,7 +105,7 @@ define('SQLITE_DSN', 'sqlite::memory:');
 define('REDIS_SERVER_PATH', getenv('REDIS_SERVER_PATH') ?:
     (IS_IN_CI ? TRAVIS_DIR_PATH . '/data/run/redis/redis.sock' :
         (IS_MAC_OS ? '/tmp/redis.sock' : '/var/run/redis/redis-server.sock')));
-define('REDIS_SERVER_HOST', getenv('REDIS_SERVER_HOST') ?: (IS_IN_CI ? 'redis' : '127.0.0.1'));
+define('REDIS_SERVER_HOST', getenv('REDIS_SERVER_HOST') ?: (IS_IN_CI && !IS_MAC_OS ? 'redis' : '127.0.0.1'));
 define('REDIS_SERVER_PORT', (int) (getenv('REDIS_SERVER_PORT') ?: 6379));
 define('REDIS_SERVER_PWD', getenv('REDIS_SERVER_PWD') ?: 'root');
 define('REDIS_SERVER_DB', (int) (getenv('REDIS_SERVER_DB') ?: 0));
