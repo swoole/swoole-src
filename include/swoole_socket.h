@@ -408,7 +408,7 @@ struct Socket {
     }
 
     int connect_sync(const Address &sa, double timeout);
-    swReturnCode connect_async(const Address &sa);
+    ReturnCode connect_async(const Address &sa);
 
 #ifdef SW_USE_OPENSSL
     void ssl_clear_error() {
@@ -462,7 +462,7 @@ struct Socket {
     }
 
     int wait_event(int timeout_ms, int events) const;
-    bool wait_for(const std::function<swReturnCode()> &fn, int event, int timeout_msec = -1);
+    bool wait_for(const std::function<ReturnCode()> &fn, int event, int timeout_msec = -1);
     int what_event_want(int default_event) const;
     void free();
 
@@ -586,7 +586,7 @@ struct Socket {
 
     int catch_write_pipe_error(const int err) {
         switch (err) {
-#ifdef __linux__            
+#ifdef __linux__
         case ENOBUFS:
 #endif
         case EMSGSIZE:

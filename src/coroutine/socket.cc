@@ -154,6 +154,19 @@ bool Socket::wait_event(const EventType event, const void **__buf, size_t __n) {
         return false;
     }
 
+    if (errno == ENOBUFS) {
+        if (sw_likely(event == SW_EVENT_READ)) {
+            read_co = co;
+            System::sleep(0.01);
+            read_co = nullptr;
+        } else {
+            write_co = co;
+            System::sleep(0.01);
+            write_co = nullptr;
+        }
+        return !is_closed();
+    }
+
     // clear the last errCode
     set_err(0);
 #ifdef SW_USE_OPENSSL

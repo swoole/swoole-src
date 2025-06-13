@@ -144,7 +144,7 @@ int Socket::what_event_want(int default_event) const {
         return be_zero_return;                                                                                         \
     }
 
-bool Socket::wait_for(const std::function<swReturnCode()> &fn, int event, int timeout_msec) {
+bool Socket::wait_for(const std::function<ReturnCode()> &fn, int event, int timeout_msec) {
     double began_at;
     if (timeout_msec > 0) {
         began_at = microtime();
@@ -168,6 +168,14 @@ bool Socket::wait_for(const std::function<swReturnCode()> &fn, int event, int ti
         case SW_READY:
             return true;
         case SW_CONTINUE:
+            /**
+             * The ENOBUFS error indicates that the operating system currently lacks sufficient available memory,
+             * requiring waiting for the kernel to reclaim memory. Event listening for writes is also ineffective—the
+             * only recourse is to sleep for 10 milliseconds while awaiting kernel memory recovery.
+             */
+            if (errno == ENOBUFS) {
+                usleep(10 * 1000);
+            }
         default:
             break;
         }
