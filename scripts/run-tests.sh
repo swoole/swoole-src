@@ -60,11 +60,13 @@ trap "rm -f tests.list; echo ''; echo '⌛ Done on '`date "+%Y-%m-%d %H:%M:%S"`;
 
 cpu_num="$(/usr/bin/env php -r "echo swoole_cpu_num() * 2;")"
 
-if [ "$SWOOLE_CI_IN_MACOS" = 1 ]; then
-    options=""
-else
-    options="-j${cpu_num}"
-fi
+#if [ "$SWOOLE_CI_IN_MACOS" = 1 ]; then
+#    options=""
+#else
+#    options="-j${cpu_num}"
+#fi
+
+options="-j${cpu_num}"
 
 echo "" && echo "🌵️️ Current branch is ${SWOOLE_BRANCH}" && echo ""
 if [ "${SWOOLE_BRANCH}" = "valgrind" ]; then

@@ -1000,7 +1000,7 @@ ssize_t Socket::write_sync_optimistic(const void *_buf, size_t _len, int timeout
         const auto rv = write(_buf, _len);
         if (rv < 0 && (errno == EINTR || (catch_error(errno) == SW_WAIT && wait_event(timeout_ms, SW_EVENT_WRITE)))) {
             if (has_kernel_nobufs()) {
-                usleep(10 * 1000); // sleep 10ms to wait for kernel memory recovery
+                usleep(10 * 1000);  // sleep 10ms to wait for kernel memory recovery
             }
             continue;
         }
