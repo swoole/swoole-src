@@ -1,14 +1,20 @@
 --TEST--
 swoole_client_sync: length protocol [sync]
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
+
+use Swoole\Client;
+use Swoole\Process;
+use Swoole\Server;
+
 $port = get_one_free_port();
-$pm = new ProcessManager;
+$pm = new ProcessManager();
 $pm->parentFunc = function ($pid) use ($port) {
-    $client = new Swoole\Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
+    $client = new Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
     $client->set([
         'open_length_check' => true,
         'package_max_length' => 1024 * 1024,
@@ -16,26 +22,26 @@ $pm->parentFunc = function ($pid) use ($port) {
         'package_length_offset' => 0,
         'package_body_offset' => 4,
     ]);
-    if (!$client->connect('127.0.0.1', $port, 0.5, 0)) {
-        echo "Over flow. errno=" . $client->errCode;
-        die("\n");
+    if (!$client->connect('127.0.0.1', $port, 5, 0)) {
+        echo 'Over flow. errno=' . $client->errCode;
+        exit("\n");
     }
 
     $client->send("recv\r\n\r\n");
 
-    //小包
+    // 小包
     for ($i = 0; $i < 1000; $i++) {
         $pkg = $client->recv();
         Assert::assert($pkg and strlen($pkg) <= 2048);
     }
     echo "SUCCESS\n";
-    //慢速发送
+    // 慢速发送
     for ($i = 0; $i < 100; $i++) {
         $pkg = $client->recv();
         Assert::assert($pkg and strlen($pkg) <= 8192);
     }
     echo "SUCCESS\n";
-    //大包
+    // 大包
     for ($i = 0; $i < 1000; $i++) {
         $pkg = $client->recv();
         Assert::assert($pkg != false);
@@ -47,27 +53,27 @@ $pm->parentFunc = function ($pid) use ($port) {
     echo "SUCCESS\n";
     $client->close();
 
-    Swoole\Process::kill($pid);
+    Process::kill($pid);
 };
 
 $pm->childFunc = function () use ($pm, $port) {
-    $serv = new Swoole\Server('127.0.0.1', $port, SWOOLE_BASE);
-    $serv->set(array(
-        'package_max_length' => 1024 * 1024 * 2, //2M
+    $serv = new Server('127.0.0.1', $port, SWOOLE_BASE);
+    $serv->set([
+        'package_max_length' => 1024 * 1024 * 2, // 2M
         'socket_buffer_size' => 256 * 1024 * 1024,
-        "worker_num" => 1,
+        'worker_num' => 1,
         'log_file' => '/tmp/swoole.log',
-    ));
-    $serv->on("WorkerStart", function (Swoole\Server $serv) use ($pm) {
+    ]);
+    $serv->on('WorkerStart', function (Server $serv) use ($pm) {
         $pm->wakeup();
     });
-    $serv->on('receive', function (Swoole\Server $serv, $fd, $rid, $data) {
-        //小包
+    $serv->on('receive', function (Server $serv, $fd, $rid, $data) {
+        // 小包
         for ($i = 0; $i < 1000; $i++) {
             $data = str_repeat('A', rand(100, 2000));
             $serv->send($fd, pack('N', strlen($data)) . $data);
         }
-        //慢速发送
+        // 慢速发送
         for ($i = 0; $i < 100; $i++) {
             $data = str_repeat('A', rand(3000, 6000));
             $n = rand(1000, 2000);
@@ -75,7 +81,7 @@ $pm->childFunc = function () use ($pm, $port) {
             usleep(rand(10000, 50000));
             $serv->send($fd, substr($data, $n));
         }
-        //大包
+        // 大包
         for ($i = 0; $i < 1000; $i++) {
             $data = serialize(['i' => $i, 'data' => str_repeat('A', rand(20000, 256 * 1024))]);
             $serv->send($fd, pack('N', strlen($data)) . $data);

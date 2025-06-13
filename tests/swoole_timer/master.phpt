@@ -2,13 +2,14 @@
 swoole_timer: timer in master
 --SKIPIF--
 <?php
-use Swoole\Server;
-use Swoole\Timer;
-
 require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
+
+use Swoole\Server;
+use Swoole\Timer;
+
 const RES_FILE = __DIR__ . '/result.txt';
 file_put_contents(RES_FILE, '');
 
