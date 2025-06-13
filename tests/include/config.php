@@ -45,6 +45,13 @@ define('TEST_PID_FILE', '/tmp/swoole.pid');
 define('SSL_FILE_DIR', __DIR__ . '/ssl_certs/');
 define('DOCUMENT_ROOT', __DIR__ . '/../../examples/www');
 
+/* ============ Socket ============ */
+if (IS_MAC_OS) {
+    define('DGRAM_MAX_SIZE', 4096);
+} else {
+    define('DGRAM_MAX_SIZE', 8192);
+}
+
 /* ============ Servers ============ */
 define('SERVER_MODE_RANDOM', array_random([SWOOLE_BASE, SWOOLE_PROCESS]));
 define('UNIXSOCK_PATH', '/tmp/unix-sock-test.sock');
@@ -127,7 +134,7 @@ if (IS_IN_CI) {
 
 define('SWOOLE_TEST_ECHO', empty(getenv('SWOOLE_TEST_NO_ECHO')));
 
-/* ============== HttpBin ============== */
+/* ============== Http ============== */
 if (IS_IN_CI && !IS_MAC_OS) {
     define('HTTPBIN_SERVER_HOST', 'httpbin');
     define('HTTPBIN_SERVER_PORT', 80);
