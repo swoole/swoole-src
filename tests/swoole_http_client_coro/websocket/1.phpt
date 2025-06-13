@@ -2,17 +2,17 @@
 swoole_http_client_coro/websocket: client & server
 --SKIPIF--
 <?php
-use Co\http\Client;
-use Swoole\Event;
-use Swoole\Http\Request;
-use Swoole\Server;
-
 require __DIR__ . '/../../include/skipif.inc';
 skip_if_offline();
 ?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
+
+use Co\http\Client;
+use Swoole\Event;
+use Swoole\Http\Request;
+use Swoole\WebSocket\Server;
 
 $pm = new ProcessManager();
 
@@ -39,7 +39,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
 };
 
 $pm->childFunc = function () use ($pm) {
-    $ws = new Swoole\WebSocket\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
+    $ws = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $ws->set([
         'log_file' => '/dev/null',
     ]);
@@ -51,7 +51,7 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
     });
 
-    $ws->on('open', function ($serv, Request $request) {
+    $ws->on('open', function (Server $serv, Request $request) {
         $ip = co::gethostbyname(TEST_DOMAIN_1);
         if ($ip) {
             $serv->push($request->fd, "start\n");

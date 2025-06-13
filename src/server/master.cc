@@ -1293,6 +1293,18 @@ bool Server::send(SessionId session_id, const void *data, uint32_t length) const
     return false;
 }
 
+bool Server::has_kernel_nobufs_error(SessionId session_id) {
+    auto conn = get_connection(session_id);
+    if (!conn || !conn->socket) {
+        return false;
+    }
+    if (is_process_mode()) {
+        return get_reactor_pipe_socket(session_id, conn->reactor_id)->kernel_nobufs;
+    } else {
+        return conn->socket->kernel_nobufs;
+    }
+}
+
 int Server::schedule_worker(int fd, SendData *data) {
     uint32_t key = 0;
 

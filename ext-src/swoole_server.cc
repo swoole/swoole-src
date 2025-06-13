@@ -20,6 +20,7 @@
 #include "php_swoole_thread.h"
 #include "php_swoole_call_stack.h"
 #include "swoole_msg_queue.h"
+#include "swoole_coroutine_system.h"
 
 #include "ext/standard/php_var.h"
 #include "zend_smart_str.h"
@@ -1785,6 +1786,12 @@ void php_swoole_server_onBufferFull(Server *serv, DataHead *info) {
     }
 }
 
+void php_swoole_server_check_kernel_nobufs(Server *serv, SessionId session_id) {
+    if (swoole_coroutine_is_in() && serv->has_kernel_nobufs_error(session_id)) {
+        swoole::coroutine::System::sleep(0.01);
+    }
+}
+
 void php_swoole_server_send_yield(Server *serv, SessionId session_id, zval *zdata, zval *return_value) {
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(php_swoole_server_zval_ptr(serv)));
     Coroutine *co = Coroutine::get_current_safe();
@@ -2788,6 +2795,7 @@ static PHP_METHOD(swoole_server, send) {
     if (!ret && swoole_get_last_error() == SW_ERROR_OUTPUT_SEND_YIELD) {
         php_swoole_server_send_yield(serv, fd, zdata, return_value);
     } else {
+        php_swoole_server_check_kernel_nobufs(serv, fd);
         RETURN_BOOL(ret);
     }
 }

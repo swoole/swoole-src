@@ -1527,6 +1527,7 @@ class Server {
 
     int send_to_connection(const SendData *) const;
     ssize_t send_to_worker_from_worker(const Worker *dst_worker, const void *buf, size_t len, int flags);
+    bool has_kernel_nobufs_error(SessionId session_id);
 
     ssize_t send_to_worker_from_worker(WorkerId id, const EventData *data, int flags) {
         return send_to_worker_from_worker(get_worker(id), data, data->size(), flags);

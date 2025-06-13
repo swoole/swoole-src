@@ -228,6 +228,7 @@ struct Socket {
     uchar skip_recv : 1;
     uchar recv_wait : 1;
     uchar event_hup : 1;
+    uchar kernel_nobufs : 1;
     /**
      * The default setting is false, meaning that system calls interrupted by signals will be automatically retried. If
      * set to true, the call will not be retried but will immediately return -1, setting errno to EINTR. In this case,
@@ -558,7 +559,7 @@ struct Socket {
      * meaning it will not wait for the socket to be writable before writing.
      * This method is useful for scenarios where immediate write attempts are preferred.
      */
-    ssize_t write_sync_optimistic(const void *_buf, size_t _len, int timeout_ms = -1) const;
+    ssize_t write_sync_optimistic(const void *_buf, size_t _len, int timeout_ms = -1);
 
     int shutdown(int _how) const {
         return ::shutdown(fd, _how);
@@ -578,7 +579,7 @@ struct Socket {
         return ::sendto(fd, data, len, flags, &dst_addr.addr.ss, dst_addr.len);
     }
 
-    int catch_error(int err) const;
+    int catch_error(int err);
 
     int catch_write_error(const int err) {
         return catch_error(err);
@@ -586,8 +587,11 @@ struct Socket {
 
     int catch_write_pipe_error(const int err) {
         switch (err) {
-#ifdef __linux__
         case ENOBUFS:
+#ifdef __linux__
+            return SW_REDUCE_SIZE;
+#else
+            return catch_error(err);
 #endif
         case EMSGSIZE:
             return SW_REDUCE_SIZE;

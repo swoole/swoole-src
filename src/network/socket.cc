@@ -173,7 +173,7 @@ bool Socket::wait_for(const std::function<ReturnCode()> &fn, int event, int time
              * requiring waiting for the kernel to reclaim memory. Event listening for writes is also ineffective—the
              * only recourse is to sleep for 10 milliseconds while awaiting kernel memory recovery.
              */
-            if (errno == ENOBUFS) {
+            if (kernel_nobufs) {
                 usleep(10 * 1000);
             }
         default:
@@ -990,7 +990,7 @@ ssize_t Socket::write_sync(const void *_buf, size_t _len, int timeout_ms) {
     return rv ? bytes : -1;
 }
 
-ssize_t Socket::write_sync_optimistic(const void *_buf, size_t _len, int timeout_ms) const {
+ssize_t Socket::write_sync_optimistic(const void *_buf, size_t _len, int timeout_ms) {
     do {
         const auto rv = write(_buf, _len);
         if (rv < 0 && (errno == EINTR || (catch_error(errno) == SW_WAIT && wait_event(timeout_ms, SW_EVENT_WRITE)))) {
@@ -1055,7 +1055,7 @@ ssize_t Socket::peek(void *_buf, size_t _n, int _flags) const {
     return retval;
 }
 
-int Socket::catch_error(const int err) const {
+int Socket::catch_error(const int err) {
     switch (err) {
     case EFAULT:
         abort();
@@ -1080,10 +1080,10 @@ int Socket::catch_error(const int err) const {
 #if EAGAIN != EWOULDBLOCK
     case EWOULDBLOCK:
 #endif
-#ifdef HAVE_KQUEUE
-    case ENOBUFS:
-#endif
     case 0:
+        return SW_WAIT;
+    case ENOBUFS:
+        kernel_nobufs = 1;
         return SW_WAIT;
     default:
         return SW_ERROR;
