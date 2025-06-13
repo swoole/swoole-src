@@ -16,6 +16,7 @@
 
 #include "swoole_socket.h"
 
+#include <utility>
 #include <memory>
 
 #include "swoole_api.h"
@@ -173,7 +174,7 @@ bool Socket::wait_for(const std::function<ReturnCode()> &fn, int event, int time
              * requiring waiting for the kernel to reclaim memory. Event listening for writes is also ineffective—the
              * only recourse is to sleep for 10 milliseconds while awaiting kernel memory recovery.
              */
-            if (kernel_nobufs) {
+            if (has_kernel_nobufs()) {
                 usleep(10 * 1000);
             }
         default:
@@ -732,6 +733,10 @@ bool Socket::has_timedout() const {
     return errno == EAGAIN || errno == ETIMEDOUT || swoole_get_last_error() == SW_ERROR_SOCKET_POLL_TIMEOUT;
 }
 
+bool Socket::has_kernel_nobufs() {
+    return std::exchange(kernel_nobufs, 0);
+}
+
 bool Socket::set_kernel_read_timeout(double timeout) {
     if (_set_timeout(fd, SO_SNDTIMEO, timeout)) {
         write_timeout = timeout;
@@ -994,6 +999,9 @@ ssize_t Socket::write_sync_optimistic(const void *_buf, size_t _len, int timeout
     do {
         const auto rv = write(_buf, _len);
         if (rv < 0 && (errno == EINTR || (catch_error(errno) == SW_WAIT && wait_event(timeout_ms, SW_EVENT_WRITE)))) {
+            if (has_kernel_nobufs()) {
+                usleep(10 * 1000); // sleep 10ms to wait for kernel memory recovery
+            }
             continue;
         }
         return rv;
@@ -1083,7 +1091,7 @@ int Socket::catch_error(const int err) {
     case 0:
         return SW_WAIT;
     case ENOBUFS:
-        kernel_nobufs = 1;
+        kernel_nobufs = true;
         return SW_WAIT;
     default:
         return SW_ERROR;

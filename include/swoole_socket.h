@@ -201,6 +201,7 @@ struct Socket {
     SocketType socket_type;
     int events;
     bool enable_tcp_nodelay;
+    bool kernel_nobufs;
 
     uchar removed : 1;
     uchar silent_remove : 1;
@@ -228,7 +229,6 @@ struct Socket {
     uchar skip_recv : 1;
     uchar recv_wait : 1;
     uchar event_hup : 1;
-    uchar kernel_nobufs : 1;
     /**
      * The default setting is false, meaning that system calls interrupted by signals will be automatically retried. If
      * set to true, the call will not be retried but will immediately return -1, setting errno to EINTR. In this case,
@@ -291,6 +291,7 @@ struct Socket {
     void set_timeout(double timeout, int type = SW_TIMEOUT_ALL);
     double get_timeout(TimeoutType type) const;
     bool has_timedout() const;
+    bool has_kernel_nobufs();
 
     bool set_nonblock() {
         return set_fd_option(1, -1);
@@ -589,6 +590,7 @@ struct Socket {
         switch (err) {
         case ENOBUFS:
 #ifdef __linux__
+            kernel_nobufs = true;
             return SW_REDUCE_SIZE;
 #else
             return catch_error(err);

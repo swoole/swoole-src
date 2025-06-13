@@ -154,7 +154,7 @@ bool Socket::wait_event(const EventType event, const void **__buf, size_t __n) {
         return false;
     }
 
-    if (errno == ENOBUFS) {
+    if (socket->has_kernel_nobufs()) {
         if (sw_likely(event == SW_EVENT_READ)) {
             read_co = co;
             System::sleep(0.01);

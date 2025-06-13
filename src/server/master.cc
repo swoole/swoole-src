@@ -1299,9 +1299,9 @@ bool Server::has_kernel_nobufs_error(SessionId session_id) {
         return false;
     }
     if (is_process_mode()) {
-        return get_reactor_pipe_socket(session_id, conn->reactor_id)->kernel_nobufs;
+        return get_reactor_pipe_socket(session_id, conn->reactor_id)->has_kernel_nobufs();
     } else {
-        return conn->socket->kernel_nobufs;
+        return conn->socket->has_kernel_nobufs();
     }
 }
 
