@@ -776,22 +776,26 @@ int ProcessPool::run_with_message_protocol(ProcessPool *pool, Worker *worker) {
         return SW_ERR;
     }
 
-    auto fn = [&]() -> int {
-        if (worker->pipe_worker->wait_event(swoole_timer_get_next_msec(), SW_EVENT_READ) < 0) {
-            return errno == EINTR ? 0 : -1;
+    auto fn = [&]() -> ReturnCode {
+        while (true) {
+            if (worker->pipe_worker->wait_event(swoole_timer_get_next_msec(), SW_EVENT_READ) < 0) {
+                return errno == EINTR ? SW_CONTINUE : SW_ERROR;
+            }
+            auto rv = pool->message_bus->read(worker->pipe_worker);
+            if (rv < 0) {
+                return errno == EINTR ? SW_CONTINUE : SW_ERROR;
+            } else if (rv > 0) {
+                auto pipe_buffer = pool->message_bus->get_buffer();
+                auto packet = pool->message_bus->get_packet();
+                RecvData msg;
+                msg.info = pipe_buffer->info;
+                msg.info.len = packet.length;
+                msg.data = packet.data;
+                pool->onMessage(pool, &msg);
+                pool->message_bus->pop();
+                return SW_READY;
+            }
         }
-        if (pool->message_bus->read(worker->pipe_worker) < 0) {
-            return errno == EINTR ? 0 : -1;
-        }
-        auto pipe_buffer = pool->message_bus->get_buffer();
-        auto packet = pool->message_bus->get_packet();
-        RecvData msg;
-        msg.info = pipe_buffer->info;
-        msg.info.len = packet.length;
-        msg.data = packet.data;
-        pool->onMessage(pool, &msg);
-        pool->message_bus->pop();
-        return 1;
     };
 
     if (pool->message_bus == nullptr) {
@@ -801,12 +805,12 @@ int ProcessPool::run_with_message_protocol(ProcessPool *pool, Worker *worker) {
     pool->at_worker_enter(worker);
     while (pool->is_worker_running(worker)) {
         switch (fn()) {
-        case 0:
+        case SW_CONTINUE:
             worker_end_callback();
             break;
-        case 1:
+        case SW_READY:
             break;
-        case -1:
+        case SW_ERROR:
         default:
             swoole_sys_warning("[Worker #%d]failed to read data from pipe", worker->id);
             worker->shutdown();
