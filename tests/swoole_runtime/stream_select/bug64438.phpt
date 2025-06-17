@@ -2,15 +2,16 @@
 swoole_runtime/stream_select: Bug #64438 proc_open hangs with stdin/out with 4097+ bytes
 --SKIPIF--
 <?php
-use Swoole\Event;
-use Swoole\Runtime;
-
 require __DIR__ . '/../../include/skipif.inc';
 skip_if_darwin_todo();
 ?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
+
+use Swoole\Event;
+use Swoole\Runtime;
+
 Runtime::enableCoroutine();
 go(function () {
     error_reporting(E_ALL);

@@ -191,10 +191,16 @@ define('SOCKS5_PROXY_PORT', 1080);
 define('PRESSURE_LOW', 1);
 define('PRESSURE_MID', 2);
 define('PRESSURE_NORMAL', 3);
-define(
-    'PRESSURE_LEVEL',
-    USE_VALGRIND ? (IS_IN_CI ? PRESSURE_LOW - 1 : PRESSURE_LOW) : ((IS_IN_CI || swoole_cpu_num() === 1) ? PRESSURE_MID : PRESSURE_NORMAL)
-);
+
+if (IS_MAC_OS) {
+    define('PRESSURE_LEVEL', 1);
+} else {
+    define(
+        'PRESSURE_LEVEL',
+        USE_VALGRIND ? (IS_IN_CI ? PRESSURE_LOW - 1 : PRESSURE_LOW) : ((IS_IN_CI || swoole_cpu_num() === 1) ? PRESSURE_MID : PRESSURE_NORMAL)
+    );
+}
+
 
 /* ============== Time ============== */
 define('SERVER_PREHEATING_TIME', 0.1);

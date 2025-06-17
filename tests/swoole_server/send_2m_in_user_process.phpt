@@ -19,7 +19,7 @@ use SwooleTest\ProcessManager;
 $pm = new ProcessManager();
 
 $pm->parentFunc = function ($pid) use ($pm) {
-    for ($i = 0; $i < 2; $i++) {
+    for ($i = 0; $i < MAX_CONCURRENCY_MID; $i++) {
         go(function () use ($pm, $i) {
             $cli = new Client(SWOOLE_SOCK_TCP);
             $cli->set([
