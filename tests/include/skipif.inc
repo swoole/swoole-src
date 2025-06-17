@@ -161,6 +161,11 @@ function skip_if_darwin()
     skip('not support on darwin', stripos(PHP_OS, 'Darwin') !== false);
 }
 
+function skip_if_darwin_todo($msg = 'Need to review')
+{
+    skip($msg, stripos(PHP_OS, 'Darwin') !== false);
+}
+
 function skip_if_not_darwin()
 {
     skip('only support darwin', stripos(PHP_OS, 'Darwin') === false);

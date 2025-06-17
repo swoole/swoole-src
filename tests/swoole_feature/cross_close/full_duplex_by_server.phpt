@@ -2,14 +2,15 @@
 swoole_feature/cross_close: full duplex and close by server
 --SKIPIF--
 <?php
-use Co\Client;
-use Co\Socket;
-use Swoole\Event;
-
 require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
+
+use Co\Client;
+use Co\Socket;
+use Swoole\Event;
+
 $pm = new ProcessManager();
 $pm->parentFunc = function () use ($pm) {
     go(function () use ($pm) {

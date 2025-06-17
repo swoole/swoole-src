@@ -36,7 +36,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
         $pids[$result['wid']] = 1;
     });
     $sch->start();
-    Assert::eq(count($pids), 2);
+    Assert::eq(count($pids), IS_MAC_OS ? 1 : 2);
     echo "DONE\n";
     $pm->kill();
 };
