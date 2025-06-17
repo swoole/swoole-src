@@ -1569,6 +1569,7 @@ class Server {
     void init_event_worker(Worker *worker) const;
     bool init_task_workers();
     void init_signal_handler() const;
+    void init_ipc_max_size();
     void init_pipe_sockets(MessageBus *mb) const;
 
     void set_max_connection(uint32_t _max_connection);

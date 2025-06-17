@@ -70,7 +70,11 @@
 #define SW_CLIENT_MAX_PORT 65535
 
 // !!!Don't modify.----------------------------------------------------------
+#ifdef __MACH__
+#define SW_IPC_MAX_SIZE 2048  // MacOS
+#else
 #define SW_IPC_MAX_SIZE 8192  // for IPC, dgram and message-queue max size
+#endif
 #define SW_IPC_BUFFER_MAX_SIZE (64 * 1024)
 #define SW_IPC_BUFFER_SIZE (SW_IPC_MAX_SIZE - sizeof(swoole::DataHead))
 // !!!End.-------------------------------------------------------------------
@@ -250,8 +254,10 @@ a { color: #0969da; } \
  */
 #define SW_DEFAULT_C_STACK_SIZE (2 * 1024 * 1024)
 #define SW_CORO_BAILOUT_EXIT_CODE 1
-// #define SW_CONTEXT_PROTECT_STACK_PAGE    1
-// #define SW_CONTEXT_DETECT_STACK_USAGE    1
+#if 0
+#define SW_CONTEXT_PROTECT_STACK_PAGE    1
+#define SW_CONTEXT_DETECT_STACK_USAGE    1
+#endif
 
 #ifdef SW_DEBUG
 #ifndef SW_LOG_TRACE_OPEN

@@ -70,6 +70,7 @@ int Server::start_reactor_processes() {
         pool->workers[i].type = SW_WORKER;
     }
 
+    init_ipc_max_size();
     if (create_pipe_buffers() < 0) {
         return SW_ERR;
     }
