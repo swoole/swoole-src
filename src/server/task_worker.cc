@@ -543,11 +543,12 @@ bool Server::finish(const char *data, size_t data_len, int flags, const EventDat
         }
     }
     if (retval < 0) {
-        if (swoole_get_last_error() == EAGAIN || swoole_get_last_error() == SW_ERROR_SOCKET_POLL_TIMEOUT) {
+        if (errno == EAGAIN || errno == ETIMEDOUT || swoole_get_last_error() == SW_ERROR_SOCKET_POLL_TIMEOUT) {
             swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_SEND_TO_WOKER_TIMEOUT, "send result to worker timed out");
         } else {
             swoole_sys_warning("send result to worker failed");
         }
+        return false;
     }
     return true;
 }

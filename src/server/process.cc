@@ -216,7 +216,6 @@ bool Server::create_worker_pipes() {
         workers[i].pipe_object = _sock;
     }
 
-    init_ipc_max_size();
     if (create_pipe_buffers() < 0) {
         return false;
     }
