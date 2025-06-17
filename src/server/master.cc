@@ -2068,18 +2068,7 @@ _find_available_slot:
 }
 
 void Server::init_ipc_max_size() {
-#ifndef __linux__
-    ipc_max_size = SW_IPC_MAX_SIZE;
-#else
-    int bufsize;
-    /**
-     * Get the maximum ipc[unix socket with dgram] transmission length
-     */
-    if (workers[0].pipe_master->get_option(SOL_SOCKET, SO_SNDBUF, &bufsize) != 0) {
-        bufsize = SW_IPC_MAX_SIZE;
-    }
-    ipc_max_size = SW_MIN(bufsize, SW_IPC_BUFFER_MAX_SIZE) - SW_DGRAM_HEADER_SIZE;
-#endif
+    ipc_max_size = SW_IPC_BUFFER_MAX_SIZE;
 }
 
 void Server::init_pipe_sockets(MessageBus *mb) const {

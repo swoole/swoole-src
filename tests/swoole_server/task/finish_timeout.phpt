@@ -45,8 +45,9 @@ $pm->childFunc = function () use ($pm) {
     });
     $server->on('task', function ($server, $task_id, $worker_id, string $fd) {
         $n = 200;
+        $size = IS_MAC_OS ? 2000 : 8000;
         while ($n--) {
-            if (!$server->finish(str_repeat('A', 8000))) {
+            if (!$server->finish(str_repeat('A', $size))) {
                 break;
             }
         }
