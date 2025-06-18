@@ -1120,7 +1120,16 @@ static PHP_METHOD(swoole_process, setBlocking) {
     }
 
     auto po = php_swoole_process_fetch_object(ZEND_THIS);
+    if (po->worker == nullptr || po->worker->pipe_current == nullptr) {
+        php_swoole_fatal_error(E_WARNING, "no pipe, cannot setBlocking the pipe");
+        RETURN_FALSE;
+    }
     po->blocking = blocking;
+    if (blocking) {
+        RETURN_BOOL(po->worker->pipe_current->set_block());
+    } else {
+        RETURN_BOOL(po->worker->pipe_current->set_nonblock());
+    }
 }
 
 #define SW_CHECK_PRIORITY_WHO()                                                                                        \
