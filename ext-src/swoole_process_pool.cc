@@ -720,9 +720,7 @@ static PHP_METHOD(swoole_process_pool, getProcess) {
             worker->queue = current_pool->queue;
             worker->msgqueue_mode = SW_MSGQUEUE_BALANCE;
         }
-        php_swoole_process_set_worker(zprocess, worker);
-        zend::Process *proc = new zend::Process(zend::PIPE_TYPE_STREAM, current_pool->async);
-        worker->ptr2 = proc;
+        php_swoole_process_set_worker(zprocess, worker, PIPE_TYPE_STREAM, current_pool->async);
         (void) add_index_zval(zworkers, worker_id, zprocess);
     } else {
         auto _worker = php_swoole_process_get_worker(zprocess);
