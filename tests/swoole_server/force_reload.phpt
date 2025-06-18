@@ -54,7 +54,9 @@ $pm->childFunc = function () use ($pm, $atomic) {
         }
     });
     $server->on('receive', function ($serv, $fd, $tid, $data) {
-        sleep(100);
+        while (true) {
+            sleep(100);
+        }
     });
     $server->start();
 };

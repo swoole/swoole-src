@@ -15,8 +15,8 @@
 */
 
 #include "swoole_server.h"
-#ifdef SW_SUPPORT_DTLS
 
+#ifdef SW_SUPPORT_DTLS
 namespace swoole {
 namespace dtls {
 //-------------------------------------------------------------------------------
@@ -222,5 +222,4 @@ bool Session::listen() {
 //-------------------------------------------------------------------------------
 }  // namespace dtls
 }  // namespace swoole
-
 #endif
