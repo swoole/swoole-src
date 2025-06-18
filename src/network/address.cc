@@ -86,7 +86,7 @@ bool Address::assign(SocketType _type, const std::string &_host, int _port, bool
     type = _type;
     const char *host = _host.c_str();
 
-    if (verify_port(_port)) {
+    if (!verify_port(_port)) {
         swoole_set_last_error(SW_ERROR_BAD_PORT);
         return false;
     }
