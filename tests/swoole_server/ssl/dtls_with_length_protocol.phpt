@@ -1,7 +1,8 @@
 --TEST--
 swoole_server/ssl: dtls with length protocol
 --SKIPIF--
-<?php require __DIR__ . '/../../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../../include/skipif.inc';
+?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
@@ -10,8 +11,7 @@ use Swoole\Client;
 use Swoole\Server;
 use SwooleTest\ProcessManager;
 
-// $size = rand(8192, 128000);
-$size = 8000;
+$size = IS_MAC_OS ? rand(4000, 8000) : rand(8192, 128000);
 $req = random_bytes($size);
 $resp = random_bytes($size);
 
@@ -24,6 +24,7 @@ $pm->parentFunc = function ($pid) use ($pm, $req, $resp) {
         'package_length_type' => 'N',
         'package_length_offset' => 0,
         'package_body_offset' => 4,
+        'socket_buffer_size' => 1024 * 1024,
     ]);
     $cli->connect(TCP_SERVER_HOST, $pm->getFreePort(), 5);
     $cli->send(pack('N', strlen($req)) . $req);
@@ -44,6 +45,7 @@ $pm->childFunc = function () use ($pm, $size, $req, $resp) {
         'package_length_type' => 'N',
         'package_length_offset' => 0,
         'package_body_offset' => 4,
+        'socket_buffer_size' => 1024 * 1024,
     ]);
     $serv->on(
         'WorkerStart',
@@ -61,7 +63,6 @@ $pm->childFunc = function () use ($pm, $size, $req, $resp) {
         'receive',
         function ($serv, $fd, $rid, $data) use ($req, $resp) {
             Assert::eq(bin2hex($req), bin2hex(substr($data, 4)));
-            var_dump(strlen($resp));
             Assert::assert($serv->send($fd, pack('N', strlen($resp)) . $resp));
         }
     );

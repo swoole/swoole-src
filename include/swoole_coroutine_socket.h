@@ -474,8 +474,11 @@ class Socket {
     }
 
     void init_options() {
-        if (type == SW_SOCK_TCP || type == SW_SOCK_TCP6) {
+        if (socket->is_tcp()) {
             set_option(IPPROTO_TCP, TCP_NODELAY, 1);
+        }
+        if (socket->is_udp()) {
+            socket->set_buffer_size(network::Socket::default_buffer_size);
         }
         protocol.package_length_type = 'N';
         protocol.package_length_size = 4;

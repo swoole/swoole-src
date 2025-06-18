@@ -151,6 +151,10 @@ bool Socket::wait_for(const std::function<ReturnCode()> &fn, int event, int time
         began_at = microtime();
     }
 
+    if (!nonblock) {
+        set_nonblock();
+    }
+
 #ifdef SW_USE_OPENSSL
     if (ssl) {
         ssl_clear_error();
@@ -158,11 +162,6 @@ bool Socket::wait_for(const std::function<ReturnCode()> &fn, int event, int time
 #endif
 
     while (true) {
-        auto rv = wait_event(timeout_msec, what_event_want(event));
-        if (rv == SW_ERR && ((errno == EINTR && dont_restart) || errno != EINTR)) {
-            return false;
-        }
-
         switch (fn()) {
         case SW_ERROR:
             return false;
@@ -176,9 +175,15 @@ bool Socket::wait_for(const std::function<ReturnCode()> &fn, int event, int time
              */
             if (has_kernel_nobufs()) {
                 usleep(10 * 1000);
+                continue;
             }
         default:
             break;
+        }
+
+        auto rv = wait_event(timeout_msec, what_event_want(event));
+        if (rv == SW_ERR && ((errno == EINTR && dont_restart) || errno != EINTR)) {
+            return false;
         }
 
         if (timeout_msec > 0) {

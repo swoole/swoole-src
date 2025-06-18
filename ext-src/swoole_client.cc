@@ -925,7 +925,7 @@ static PHP_METHOD(swoole_client, recv) {
         uint32_t header_len = protocol->package_length_offset + protocol->package_length_size;
 
         while (1) {
-            int retval = cli->recv(buffer->str + buffer->length, header_len - buffer->length, 0);
+            auto retval = cli->recv(buffer->str + buffer->length, header_len - buffer->length, 0);
             if (retval <= 0) {
                 break;
             }
