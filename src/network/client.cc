@@ -429,7 +429,7 @@ static int Client_tcp_connect_sync(Client *cli, const char *host, int port, doub
         return SW_ERR;
     }
 
-    int ret = cli->socket->connect_sync(cli->server_addr, timeout);
+    int ret = cli->socket->connect_sync(cli->server_addr);
     if (ret >= 0) {
         cli->active = true;
         auto recv_buf = sw_tg_buffer();

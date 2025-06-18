@@ -409,7 +409,7 @@ struct Socket {
         return connect(addr);
     }
 
-    int connect_sync(const Address &sa, double timeout);
+    int connect_sync(const Address &sa);
     ReturnCode connect_async(const Address &sa);
 
 #ifdef SW_USE_OPENSSL
@@ -548,19 +548,13 @@ struct Socket {
      * Read data from the socket synchronously without setting non-blocking or blocking IO,
      * and allow interruptions by signals.
      */
-    ssize_t read_sync(void *_buf, size_t _len, int timeout_ms = -1);
+    ssize_t read_sync(void *_buf, size_t _len);
 
     /**
      * Write data to the socket synchronously without setting non-blocking or blocking IO,
      * and allow interruptions by signals.
      */
-    ssize_t write_sync(const void *_buf, size_t _len, int timeout_ms = -1);
-    /**
-     * Write data to the socket synchronously with an optimistic approach,
-     * meaning it will not wait for the socket to be writable before writing.
-     * This method is useful for scenarios where immediate write attempts are preferred.
-     */
-    ssize_t write_sync_optimistic(const void *_buf, size_t _len, int timeout_ms = -1);
+    ssize_t write_sync(const void *_buf, size_t _len);
 
     int shutdown(int _how) const {
         return ::shutdown(fd, _how);

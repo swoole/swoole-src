@@ -262,11 +262,12 @@ swReturnCode Socket::connect_async(const Address &sa) {
     return SW_READY;
 }
 
-int Socket::connect_sync(const Address &sa, double timeout) {
+int Socket::connect_sync(const Address &sa) {
     auto rc = connect_async(sa);
     if (rc != SW_WAIT) {
         return rc == SW_READY ? SW_OK : SW_ERR;
     }
+    double timeout = connect_timeout;
     if (wait_event(timeout > 0 ? (int) (timeout * 1000) : timeout, SW_EVENT_WRITE) < 0) {
         swoole_set_last_error(ETIMEDOUT);
         return SW_ERR;
@@ -968,7 +969,7 @@ ssize_t Socket::send_async(const void *_buf, size_t _n) {
     }
 }
 
-ssize_t Socket::read_sync(void *_buf, size_t _len, int timeout_ms) {
+ssize_t Socket::read_sync(void *_buf, size_t _len) {
     ssize_t bytes = 0;
 
     auto rv = wait_for(
@@ -979,12 +980,12 @@ ssize_t Socket::read_sync(void *_buf, size_t _len, int timeout_ms) {
             return SW_READY;
         },
         SW_EVENT_READ,
-        timeout_ms);
+        sec2msec(read_timeout));
 
     return rv ? bytes : -1;
 }
 
-ssize_t Socket::write_sync(const void *_buf, size_t _len, int timeout_ms) {
+ssize_t Socket::write_sync(const void *_buf, size_t _len) {
     ssize_t bytes = 0;
 
     auto rv = wait_for(
@@ -995,22 +996,9 @@ ssize_t Socket::write_sync(const void *_buf, size_t _len, int timeout_ms) {
             return SW_READY;
         },
         SW_EVENT_WRITE,
-        timeout_ms);
+        sec2msec(write_timeout));
 
     return rv ? bytes : -1;
-}
-
-ssize_t Socket::write_sync_optimistic(const void *_buf, size_t _len, int timeout_ms) {
-    do {
-        const auto rv = write(_buf, _len);
-        if (rv < 0 && (errno == EINTR || (catch_error(errno) == SW_WAIT && wait_event(timeout_ms, SW_EVENT_WRITE)))) {
-            if (has_kernel_nobufs()) {
-                usleep(10 * 1000);  // sleep 10ms to wait for kernel memory recovery
-            }
-            continue;
-        }
-        return rv;
-    } while (true);
 }
 
 ssize_t Socket::readv(IOVector *io_vector) {

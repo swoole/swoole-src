@@ -32,34 +32,39 @@ TEST(socket, connect_sync) {
     sock = make_socket(SW_SOCK_UNIX_STREAM, SW_FD_STREAM, 0);
     ASSERT_NE(sock, nullptr);
     sa.assign(SW_SOCK_UNIX_STREAM, "/tmp/swole-not-exists.sock");
-    ASSERT_EQ(sock->connect_sync(sa, 0.3), SW_ERR);
+    sock->set_timeout(0.3, SW_TIMEOUT_CONNECT);
+    ASSERT_EQ(sock->connect_sync(sa), SW_ERR);
     ASSERT_EQ(swoole_get_last_error(), ENOENT);
     sock->free();
 
     sock = make_socket(SW_SOCK_TCP, SW_FD_STREAM, 0);
     ASSERT_NE(sock, nullptr);
     sa.assign(SW_SOCK_TCP, "192.168.199.199", 80);
-    ASSERT_EQ(sock->connect_sync(sa, 0.3), SW_ERR);
+    sock->set_timeout(0.3, SW_TIMEOUT_CONNECT);
+    ASSERT_EQ(sock->connect_sync(sa), SW_ERR);
     ASSERT_EQ(swoole_get_last_error(), ETIMEDOUT);
     sock->free();
 
     sock = make_socket(SW_SOCK_TCP, SW_FD_STREAM, 0);
     ASSERT_NE(sock, nullptr);
     sa.assign(SW_SOCK_TCP, "127.0.0.1", 59999);
-    ASSERT_EQ(sock->connect_sync(sa, 0.3), SW_ERR);
+    sock->set_timeout(0.3, SW_TIMEOUT_CONNECT);
+    ASSERT_EQ(sock->connect_sync(sa), SW_ERR);
     ASSERT_EQ(swoole_get_last_error(), ECONNREFUSED);
     sock->free();
 
     sock = make_socket(SW_SOCK_TCP, SW_FD_STREAM, 0);
     ASSERT_NE(sock, nullptr);
     sa.assign(SW_SOCK_TCP, TEST_HTTP_DOMAIN, 80);
-    ASSERT_EQ(sock->connect_sync(sa, 0.3), SW_OK);
+    sock->set_timeout(0.3, SW_TIMEOUT_CONNECT);
+    ASSERT_EQ(sock->connect_sync(sa), SW_OK);
     sock->free();
 
     sock = make_socket(SW_SOCK_UDP, SW_FD_STREAM, 0);
     ASSERT_NE(sock, nullptr);
     sa.assign(SW_SOCK_UDP, "127.0.0.1", 9900);
-    ASSERT_EQ(sock->connect_sync(sa, 0.3), SW_OK);
+    sock->set_timeout(0.3, SW_TIMEOUT_CONNECT);
+    ASSERT_EQ(sock->connect_sync(sa), SW_OK);
     sock->free();
 }
 
@@ -69,7 +74,8 @@ TEST(socket, fail) {
 
     network::Address sa;
     sa.assign(SW_SOCK_TCP, TEST_HTTP_DOMAIN, 80);
-    ASSERT_EQ(sock->connect_sync(sa, 0.3), SW_OK);
+    sock->set_timeout(0.3, SW_TIMEOUT_CONNECT);
+    ASSERT_EQ(sock->connect_sync(sa), SW_OK);
 
     close(sock->get_fd());
 

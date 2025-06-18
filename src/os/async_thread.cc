@@ -260,7 +260,7 @@ void ThreadPool::main_func(const bool is_core_worker) {
                              event->error);
 
         _send_event:
-            if (event->pipe_socket->write_sync_optimistic(&event, sizeof(event)) <= 0) {
+            if (event->pipe_socket->write_sync(&event, sizeof(event)) <= 0) {
                 swoole_sys_warning("sendto swoole_aio_pipe_write failed");
                 delete event;
             }

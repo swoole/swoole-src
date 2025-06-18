@@ -588,7 +588,8 @@ int ProcessPool::run_with_task_protocol(ProcessPool *pool, Worker *worker) {
             }
             pool->stream_info_->last_connection = conn;
         } else {
-            n = worker->pipe_worker->read_sync(&out.buf, sizeof(out.buf), swoole_timer_get_next_msec());
+            worker->pipe_worker->set_timeout((double) (swoole_timer_get_next_msec() * 1000), SW_TIMEOUT_READ);
+            n = worker->pipe_worker->read_sync(&out.buf, sizeof(out.buf));
             if (n < 0 && catch_system_error(errno) == SW_ERROR) {
                 swoole_sys_warning("[Worker#%d] read(%d) failed", worker->id, worker->pipe_worker->fd);
                 break;
@@ -733,8 +734,8 @@ int ProcessPool::run_with_stream_protocol(ProcessPool *pool, Worker *worker) {
             msg.data = pool->packet_buffer;
             pool->stream_info_->last_connection = conn;
         } else {
-            n = worker->pipe_worker->read_sync(
-                pool->packet_buffer, pool->max_packet_size_, swoole_timer_get_next_msec());
+            worker->pipe_worker->set_timeout((double) (swoole_timer_get_next_msec() * 1000), SW_TIMEOUT_READ);
+            n = worker->pipe_worker->read_sync(pool->packet_buffer, pool->max_packet_size_);
             if (n < 0 && catch_system_error(errno) == SW_ERROR) {
                 swoole_sys_warning("[Worker#%d] read(%d) failed", worker->id, worker->pipe_worker->fd);
                 break;

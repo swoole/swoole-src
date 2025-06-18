@@ -67,10 +67,8 @@ class SocketPair {
 
     void set_timeout(double _timeout) {
         timeout = _timeout;
-    }
-
-    int get_timeout_msec() {
-        return timeout > 0 ? static_cast<int>(timeout * 1000) : timeout;
+        master_socket->set_timeout(timeout);
+        worker_socket->set_timeout(timeout);
     }
 
     void set_blocking(bool blocking) const;
