@@ -83,9 +83,7 @@ static void php_swoole_process_free_object(zend_object *object) {
         if (_pipe && !worker->shared) {
             delete _pipe;
         }
-        if (worker->queue) {
-            delete worker->queue;
-        }
+        delete worker->queue;
         delete worker;
     }
 
@@ -620,7 +618,7 @@ zend_bool php_swoole_signal_isset_handler(int signo) {
 }
 
 void php_swoole_process_clean() {
-    for (auto & signal_fci_cache : signal_fci_caches) {
+    for (auto &signal_fci_cache : signal_fci_caches) {
         const auto fci_cache = signal_fci_cache;
         if (fci_cache) {
             sw_callable_free(fci_cache);

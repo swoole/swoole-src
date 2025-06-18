@@ -148,6 +148,7 @@ struct Address {
      * and AF_INET6 indicates an IPv6 address, for example, 2001:0000:130F:0000:0000:09C0:876A:130B.
      */
     static bool verify_ip(int family, const std::string &str);
+    static bool verify_port(int port, bool for_connect = false);
 };
 
 struct IOVector {

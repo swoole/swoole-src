@@ -47,18 +47,18 @@ struct ProcessPoolObject {
 static void process_pool_signal_handler(int signo);
 
 static sw_inline ProcessPoolObject *process_pool_fetch_object(zend_object *obj) {
-    return (ProcessPoolObject *) ((char *) obj - swoole_process_pool_handlers.offset);
+    return reinterpret_cast<ProcessPoolObject *>(reinterpret_cast<char *>(obj) - swoole_process_pool_handlers.offset);
 }
 
-static sw_inline ProcessPoolObject *process_pool_fetch_object(zval *zobject) {
+static sw_inline ProcessPoolObject *process_pool_fetch_object(const zval *zobject) {
     return process_pool_fetch_object(Z_OBJ_P(zobject));
 }
 
-static sw_inline ProcessPool *process_pool_get_pool(zval *zobject) {
+static sw_inline ProcessPool *process_pool_get_pool(const zval *zobject) {
     return process_pool_fetch_object(Z_OBJ_P(zobject))->pool;
 }
 
-static sw_inline ProcessPool *process_pool_get_and_check_pool(zval *zobject) {
+static sw_inline ProcessPool *process_pool_get_and_check_pool(const zval *zobject) {
     ProcessPool *pool = process_pool_get_pool(zobject);
     if (UNEXPECTED(!pool)) {
         swoole_fatal_error(SW_ERROR_WRONG_OPERATION, "must call constructor first");
@@ -99,7 +99,7 @@ static void process_pool_free_object(zend_object *object) {
 }
 
 static zend_object *process_pool_create_object(zend_class_entry *ce) {
-    ProcessPoolObject *pp = (ProcessPoolObject *) zend_object_alloc(sizeof(ProcessPoolObject), ce);
+    auto *pp = static_cast<ProcessPoolObject *>(zend_object_alloc(sizeof(ProcessPoolObject), ce));
     zend_object_std_init(&pp->std, ce);
     object_properties_init(&pp->std, ce);
     pp->std.handlers = &swoole_process_pool_handlers;
@@ -157,8 +157,8 @@ void php_swoole_process_pool_minit(int module_number) {
 }
 
 static void process_pool_onWorkerStart(ProcessPool *pool, Worker *worker) {
-    zval *zobject = (zval *) pool->ptr;
-    ProcessPoolObject *pp = process_pool_fetch_object(zobject);
+    auto zobject = static_cast<zval *>(pool->ptr);
+    auto pp = process_pool_fetch_object(zobject);
     php_swoole_process_clean();
 
     current_pool = pool;
@@ -195,8 +195,8 @@ static void process_pool_onWorkerStart(ProcessPool *pool, Worker *worker) {
 }
 
 static void process_pool_onMessage(ProcessPool *pool, RecvData *msg) {
-    zval *zobject = (zval *) pool->ptr;
-    ProcessPoolObject *pp = process_pool_fetch_object(zobject);
+    auto zobject = static_cast<zval *>(pool->ptr);
+    auto pp = process_pool_fetch_object(zobject);
     zval args[2];
 
     args[0] = *zobject;
@@ -223,7 +223,7 @@ static void process_pool_onMessage(ProcessPool *pool, RecvData *msg) {
 }
 
 static void process_pool_onWorkerStop(ProcessPool *pool, Worker *worker) {
-    zval *zobject = (zval *) pool->ptr;
+    auto zobject = static_cast<zval *>(pool->ptr);
     ProcessPoolObject *pp = process_pool_fetch_object(zobject);
     zval args[2];
 
@@ -342,24 +342,24 @@ static PHP_METHOD(swoole_process_pool, __construct) {
     zend_long worker_num;
     zend_long ipc_type = SW_IPC_NONE;
     zend_long msgq_key = 0;
-    zend_bool enable_coroutine = 0;
+    zend_bool enable_coroutine = false;
 
     // only cli env
     if (!SWOOLE_G(cli)) {
         swoole_set_last_error(SW_ERROR_OPERATION_NOT_SUPPORT);
-        zend_throw_error(NULL, "%s can only be used in PHP CLI mode", SW_Z_OBJCE_NAME_VAL_P(zobject));
+        zend_throw_error(nullptr, "%s can only be used in PHP CLI mode", SW_Z_OBJCE_NAME_VAL_P(zobject));
         RETURN_FALSE;
     }
 
     if (sw_server()) {
         swoole_set_last_error(SW_ERROR_OPERATION_NOT_SUPPORT);
-        zend_throw_error(NULL, "cannot create server and process pool instances simultaneously");
+        zend_throw_error(nullptr, "cannot create server and process pool instances simultaneously");
         RETURN_FALSE;
     }
 
     if (sw_process_pool()) {
         swoole_set_last_error(SW_ERROR_OPERATION_NOT_SUPPORT);
-        zend_throw_error(NULL, "A process pool instance has already been created and cannot be created again");
+        zend_throw_error(nullptr, "A process pool instance has already been created and cannot be created again");
         RETURN_FALSE;
     }
 
@@ -383,11 +383,11 @@ static PHP_METHOD(swoole_process_pool, __construct) {
 
     if (enable_coroutine && ipc_type > 0 && ipc_type != SW_IPC_UNIXSOCK) {
         ipc_type = SW_IPC_UNIXSOCK;
-        zend_throw_error(NULL, "the parameter $ipc_type must be SWOOLE_IPC_UNIXSOCK when enable coroutine");
+        zend_throw_error(nullptr, "the parameter $ipc_type must be SWOOLE_IPC_UNIXSOCK when enable coroutine");
         RETURN_FALSE;
     }
 
-    ProcessPool *pool = (ProcessPool *) emalloc(sizeof(*pool));
+    auto *pool = static_cast<ProcessPool *>(emalloc(sizeof(ProcessPool)));
     *pool = {};
     if (pool->create(worker_num, (key_t) msgq_key, (swIPCMode) ipc_type) < 0) {
         zend_throw_exception_ex(swoole_exception_ce, errno, "failed to create process pool");
@@ -398,8 +398,7 @@ static PHP_METHOD(swoole_process_pool, __construct) {
     pool->ptr = sw_zval_dup(zobject);
     pool->async = enable_coroutine;
 
-    ProcessPoolObject *pp = process_pool_fetch_object(ZEND_THIS);
-
+    auto pp = process_pool_fetch_object(ZEND_THIS);
     pp->enable_coroutine = enable_coroutine;
     pp->pool = pool;
 }
@@ -504,8 +503,7 @@ static PHP_METHOD(swoole_process_pool, listen) {
     zend_long port = 0;
     zend_long backlog = 2048;
 
-    ProcessPool *pool = process_pool_get_and_check_pool(ZEND_THIS);
-
+    auto pool = process_pool_get_and_check_pool(ZEND_THIS);
     if (pool->started) {
         php_swoole_fatal_error(E_WARNING, "process pool is started. unable to listen");
         RETURN_FALSE;
@@ -646,8 +644,8 @@ static PHP_METHOD(swoole_process_pool, start) {
 
     current_pool = nullptr;
 
-    for (auto iter = ori_handlers.begin(); iter != ori_handlers.end(); iter++) {
-        swoole_signal_set(iter->first, iter->second);
+    for (auto &ori_handler : ori_handlers) {
+        swoole_signal_set(ori_handler.first, ori_handler.second);
     }
 }
 
@@ -686,7 +684,7 @@ static PHP_METHOD(swoole_process_pool, getProcess) {
         /**
          * Separation from shared memory
          */
-        Worker *worker = (Worker *) emalloc(sizeof(Worker));
+        auto *worker = static_cast<Worker *>(emalloc(sizeof(Worker)));
         *worker = current_pool->workers[worker_id];
 
         object_init_ex(zprocess, swoole_process_ce);

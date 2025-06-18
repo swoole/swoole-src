@@ -146,7 +146,7 @@ int Socket::what_event_want(int default_event) const {
     }
 
 bool Socket::wait_for(const std::function<ReturnCode()> &fn, int event, int timeout_msec) {
-    double began_at;
+    double began_at = 0;
     if (timeout_msec > 0) {
         began_at = microtime();
     }
@@ -268,7 +268,7 @@ int Socket::connect_sync(const Address &sa) {
         return rc == SW_READY ? SW_OK : SW_ERR;
     }
     double timeout = connect_timeout;
-    if (wait_event(timeout > 0 ? (int) (timeout * 1000) : timeout, SW_EVENT_WRITE) < 0) {
+    if (wait_event(timeout > 0 ? sec2msec(timeout) : timeout, SW_EVENT_WRITE) < 0) {
         swoole_set_last_error(ETIMEDOUT);
         return SW_ERR;
     }
@@ -624,7 +624,7 @@ static bool _set_timeout(int fd, int type, double timeout) {
     timeval timeo;
     timeo.tv_sec = (int) timeout;
     timeo.tv_usec = (int) ((timeout - timeo.tv_sec) * 1000 * 1000);
-    int ret = setsockopt(fd, SOL_SOCKET, type, (void *) &timeo, sizeof(timeo));
+    int ret = setsockopt(fd, SOL_SOCKET, type, &timeo, sizeof(timeo));
     if (ret < 0) {
         swoole_sys_warning("setsockopt(SO_SNDTIMEO, %s) failed", type == SO_SNDTIMEO ? "SEND" : "RECV");
         return false;

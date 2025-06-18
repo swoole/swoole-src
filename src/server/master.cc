@@ -1588,7 +1588,7 @@ bool Server::sendfile(SessionId session_id, const char *file, uint32_t l_file, o
                          "sendfile name[%.8s...] length %u is exceed the max name len %u",
                          file,
                          l_file,
-                         (uint32_t) (SW_IPC_BUFFER_SIZE - sizeof(SendfileTask) - 1));
+                         (uint32_t)(SW_IPC_BUFFER_SIZE - sizeof(SendfileTask) - 1));
         return false;
     }
     // string must be zero termination (for `state` system call)
@@ -1845,7 +1845,7 @@ ListenPort *Server::add_port(SocketType type, const char *host, int port) {
                          SW_MAX_LISTEN_PORT);
         return nullptr;
     }
-    if (!Socket::is_local(type) && (port < 0 || port > 65535)) {
+    if (!Socket::is_local(type) && !Address::verify_port(port)) {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_INVALID_LISTEN_PORT, "invalid port [%d]", port);
         return nullptr;
     }

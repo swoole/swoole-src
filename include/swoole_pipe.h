@@ -38,7 +38,7 @@ class SocketPair {
      * master : socks[1], for write operation
      * worker : socks[0], for read operation
      */
-    int socks[2];
+    int socks[2]{};
 
     network::Socket *master_socket = nullptr;
     network::Socket *worker_socket = nullptr;
@@ -46,7 +46,7 @@ class SocketPair {
     bool init_socket(int master_fd, int worker_fd);
 
   public:
-    SocketPair(bool _blocking) {
+    explicit SocketPair(bool _blocking) {
         blocking = _blocking;
         timeout = network::Socket::default_read_timeout;
     }

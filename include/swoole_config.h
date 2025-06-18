@@ -67,7 +67,6 @@
 
 #define SW_CLIENT_BUFFER_SIZE 65536
 #define SW_CLIENT_CONNECT_TIMEOUT 0.5
-#define SW_CLIENT_MAX_PORT 65535
 
 // !!!Don't modify.----------------------------------------------------------
 #ifdef __MACH__
@@ -255,8 +254,8 @@ a { color: #0969da; } \
 #define SW_DEFAULT_C_STACK_SIZE (2 * 1024 * 1024)
 #define SW_CORO_BAILOUT_EXIT_CODE 1
 #if 0
-#define SW_CONTEXT_PROTECT_STACK_PAGE    1
-#define SW_CONTEXT_DETECT_STACK_USAGE    1
+#define SW_CONTEXT_PROTECT_STACK_PAGE 1
+#define SW_CONTEXT_DETECT_STACK_USAGE 1
 #endif
 
 #ifdef SW_DEBUG

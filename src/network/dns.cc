@@ -34,6 +34,7 @@
 
 using swoole::NameResolver;
 using swoole::coroutine::System;
+using swoole::network::Address;
 
 SW_API bool swoole_load_resolv_conf() {
     FILE *fp;
@@ -68,7 +69,7 @@ SW_API void swoole_set_dns_server(const std::string &server) {
     strcpy(dns_server_host, server.c_str());
     if ((_port = strchr(const_cast<char *>(server.c_str()), ':'))) {
         dns_server_port = atoi(_port + 1);
-        if (dns_server_port <= 0 || dns_server_port > 65535) {
+        if (Address::verify_port(dns_server_port, true)) {
             dns_server_port = SW_DNS_SERVER_PORT;
         }
         dns_server_host[_port - server.c_str()] = '\0';
@@ -351,7 +352,7 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
         char *temp = &packet[steps];
         j = 0;
         while (*temp != 0) {
-            if ((uchar) (*temp) == 0xc0) {
+            if ((uchar)(*temp) == 0xc0) {
                 ++temp;
                 temp = &packet[(uint8_t) *temp];
             } else {
@@ -380,7 +381,7 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
             temp = &packet[steps];
             j = 0;
             while (*temp != 0) {
-                if ((uchar) (*temp) == 0xc0) {
+                if ((uchar)(*temp) == 0xc0) {
                     ++temp;
                     temp = &packet[(uint8_t) *temp];
                 } else {

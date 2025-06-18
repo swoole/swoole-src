@@ -43,23 +43,23 @@ struct ClientObject {
     zend_object std;
 };
 
-static sw_inline ClientObject *php_swoole_client_fetch_object(zend_object *obj) {
-    return (ClientObject *) ((char *) obj - swoole_client_handlers.offset);
+static inline ClientObject *php_swoole_client_fetch_object(zend_object *obj) {
+    return reinterpret_cast<ClientObject *>(reinterpret_cast<char *>(obj) - swoole_client_handlers.offset);
 }
 
-static sw_inline ClientObject *php_swoole_client_fetch_object(zval *zobj) {
+static inline ClientObject *php_swoole_client_fetch_object(const zval *zobj) {
     return php_swoole_client_fetch_object(Z_OBJ_P(zobj));
 }
 
-static sw_inline swoole::network::Client *php_swoole_client_get_cli(zval *zobject) {
+static inline swoole::network::Client *php_swoole_client_get_cli(const zval *zobject) {
     return php_swoole_client_fetch_object(Z_OBJ_P(zobject))->cli;
 }
 
-swoole::network::Client *php_swoole_client_get_cli_safe(zval *zobject);
-void php_swoole_client_free(zval *zobject, swoole::network::Client *cli);
-void php_swoole_client_async_free_object(ClientObject *client_obj);
-bool php_swoole_client_check_setting(swoole::network::Client *cli, zval *zset);
+swoole::network::Client *php_swoole_client_get_cli_safe(const zval *zobject);
+void php_swoole_client_free(const zval *zobject, swoole::network::Client *cli);
+void php_swoole_client_async_free_object(const ClientObject *client_obj);
+bool php_swoole_client_check_setting(swoole::network::Client *cli, const zval *zset);
 #ifdef SW_USE_OPENSSL
-void php_swoole_client_check_ssl_setting(swoole::network::Client *cli, zval *zset);
+void php_swoole_client_check_ssl_setting(const swoole::network::Client *cli, const zval *zset);
 bool php_swoole_client_enable_ssl_encryption(swoole::network::Client *cli, zval *zobject);
 #endif
