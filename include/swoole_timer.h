@@ -149,4 +149,8 @@ static inline long sec2msec(const int sec) {
 static inline long sec2msec(const double sec) {
     return static_cast<long>(sec * 1000);
 }
+
+static inline double msec2sec(const int msec) {
+    return static_cast<double>(msec) / 1000.0;
+}
 }  // namespace swoole
