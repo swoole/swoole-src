@@ -33,6 +33,7 @@ $pm->childFunc = function () use ($pm) {
         'log_level' => SWOOLE_LOG_NOTICE,
         'task_worker_num' => 1,
         'socket_send_timeout' => 1.0,
+        'socket_buffer_size' => 128 * 1024,
         'worker_num' => 1,
         'enable_coroutine' => false,
     ]);
@@ -50,10 +51,15 @@ $pm->childFunc = function () use ($pm) {
             if (!$server->finish(str_repeat('A', $size))) {
                 break;
             }
+            if ($n % 100 == 0) {
+                var_dump('finish:' . $n);
+            }
         }
         $server->send($fd, 'hello world');
     });
-    $server->on('finish', function () {});
+    $server->on('finish', function ($server, $task_id, $data) {
+        var_dump(strlen($data));
+    });
     $server->on('close', function () {});
     $server->start();
 };
