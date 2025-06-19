@@ -37,6 +37,7 @@ using swoole::coroutine::async;
 using swoole::coroutine::PollSocket;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
+using NetSocket = swoole::network::Socket;
 
 #ifdef SW_USE_IOURING
 using swoole::Iouring;
@@ -254,7 +255,8 @@ ssize_t swoole_coroutine_read(int sockfd, void *buf, size_t count) {
     }
 
     ssize_t ret = -1;
-    async([&]() { ret = read(sockfd, buf, count); });
+    NetSocket sock{.fd = sockfd};
+    async([&]() { ret = sock.read_sync(buf, count); });
     return ret;
 }
 
@@ -269,7 +271,8 @@ ssize_t swoole_coroutine_write(int sockfd, const void *buf, size_t count) {
     }
 
     ssize_t ret = -1;
-    async([&]() { ret = write(sockfd, buf, count); });
+    NetSocket sock{.fd = sockfd};
+    async([&]() { ret = sock.write_sync(buf, count); });
     return ret;
 }
 

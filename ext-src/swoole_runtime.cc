@@ -165,18 +165,18 @@ static void hook_func(const char *name,
 static void unhook_func(const char *name, size_t l_name);
 
 static zend_internal_arg_info *get_arginfo(const char *name, size_t l_name) {
-    zend_function *zf = (zend_function *) zend_hash_str_find_ptr(EG(function_table), name, l_name);
+    auto *zf = static_cast<zend_function *>(zend_hash_str_find_ptr(EG(function_table), name, l_name));
     if (zf == nullptr) {
         return nullptr;
     }
     return zf->internal_function.arg_info;
 }
 
-static zend_internal_arg_info *copy_arginfo(zend_function *zf, zend_internal_arg_info *_arg_info) {
+static zend_internal_arg_info *copy_arginfo(const zend_function *zf, zend_internal_arg_info *_arg_info) {
     uint32_t num_args = zf->internal_function.num_args + 1;
     zend_internal_arg_info *arg_info = _arg_info - 1;
 
-    auto new_arg_info = (zend_internal_arg_info *) pemalloc(sizeof(zend_internal_arg_info) * num_args, 1);
+    auto new_arg_info = static_cast<zend_internal_arg_info *>(pemalloc(sizeof(zend_internal_arg_info) * num_args, 1));
     memcpy(new_arg_info, arg_info, sizeof(zend_internal_arg_info) * num_args);
 
     if (zf->internal_function.fn_flags & ZEND_ACC_VARIADIC) {
@@ -185,19 +185,19 @@ static zend_internal_arg_info *copy_arginfo(zend_function *zf, zend_internal_arg
 
     for (uint32_t i = 0; i < num_args; i++) {
         if (ZEND_TYPE_HAS_LIST(arg_info[i].type)) {
-            zend_type_list *old_list = ZEND_TYPE_LIST(arg_info[i].type);
-            zend_type_list *new_list = (zend_type_list *) pemalloc(ZEND_TYPE_LIST_SIZE(old_list->num_types), 1);
+            auto old_list = ZEND_TYPE_LIST(arg_info[i].type);
+            auto *new_list = static_cast<zend_type_list *>(pemalloc(ZEND_TYPE_LIST_SIZE(old_list->num_types), 1));
             memcpy(new_list, old_list, ZEND_TYPE_LIST_SIZE(old_list->num_types));
             ZEND_TYPE_SET_PTR(new_arg_info[i].type, new_list);
 
             zend_type *list_type;
             ZEND_TYPE_LIST_FOREACH(new_list, list_type) {
-                zend_string *name = zend_string_dup(ZEND_TYPE_NAME(*list_type), 1);
+                zend_string *name = zend_string_dup(ZEND_TYPE_NAME(*list_type), true);
                 ZEND_TYPE_SET_PTR(*list_type, name);
             }
             ZEND_TYPE_LIST_FOREACH_END();
         } else if (ZEND_TYPE_HAS_NAME(arg_info[i].type)) {
-            zend_string *name = zend_string_dup(ZEND_TYPE_NAME(arg_info[i].type), 1);
+            zend_string *name = zend_string_dup(ZEND_TYPE_NAME(arg_info[i].type), true);
             ZEND_TYPE_SET_PTR(new_arg_info[i].type, name);
         }
     }
@@ -205,17 +205,16 @@ static zend_internal_arg_info *copy_arginfo(zend_function *zf, zend_internal_arg
     return new_arg_info + 1;
 }
 
-static void free_arg_info(zend_internal_function *function) {
+static void free_arg_info(const zend_internal_function *function) {
     if ((function->fn_flags & (ZEND_ACC_HAS_RETURN_TYPE | ZEND_ACC_HAS_TYPE_HINTS)) && function->arg_info) {
-        uint32_t i;
         uint32_t num_args = function->num_args + 1;
         zend_internal_arg_info *arg_info = function->arg_info - 1;
 
         if (function->fn_flags & ZEND_ACC_VARIADIC) {
             num_args++;
         }
-        for (i = 0; i < num_args; i++) {
-            zend_type_release(arg_info[i].type, /* persistent */ 1);
+        for (uint32_t i = 0; i < num_args; i++) {
+            zend_type_release(arg_info[i].type, true);
         }
         free(arg_info);
     }
@@ -281,7 +280,7 @@ void php_swoole_runtime_minit(int module_number) {
     swoole_proc_open_init(module_number);
 }
 
-struct real_func {
+struct PhpFunc {
     zend_function *function;
     zif_handler ori_handler;
     zend_internal_arg_info *ori_arg_info;
@@ -293,7 +292,7 @@ struct real_func {
 };
 
 void php_swoole_runtime_rinit() {
-    tmp_function_table = (zend_array *) emalloc(sizeof(zend_array));
+    tmp_function_table = static_cast<zend_array *>(emalloc(sizeof(zend_array)));
     zend_hash_init(tmp_function_table, 8, nullptr, nullptr, 0);
 
 #if defined(HAVE_PUTENV) && defined(SW_THREAD)
@@ -320,8 +319,8 @@ void php_swoole_runtime_rinit() {
     ori_factory.ssl = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("ssl"));
     ori_factory.tls = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("tls"));
 
-    memcpy((void *) &ori_php_plain_files_wrapper, &php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
-    memcpy((void *) &ori_php_stream_stdio_ops, &php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
+    memcpy(&ori_php_plain_files_wrapper, &php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
+    memcpy(&ori_php_stream_stdio_ops, &php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
 }
 
 void php_swoole_runtime_rshutdown() {
@@ -333,7 +332,7 @@ void php_swoole_runtime_rshutdown() {
 
     void *ptr;
     ZEND_HASH_FOREACH_PTR(tmp_function_table, ptr) {
-        real_func *rf = reinterpret_cast<real_func *>(ptr);
+        auto *rf = static_cast<PhpFunc *>(ptr);
         /**
          * php library function
          */
@@ -365,11 +364,10 @@ void php_swoole_runtime_mshutdown() {
 static inline char *parse_ip_address_ex(const char *str, size_t str_len, int *portno, int get_err, zend_string **err) {
     char *colon;
     char *host = nullptr;
-    char *p;
 
     if (*(str) == '[' && str_len > 1) {
         /* IPV6 notation to specify raw address with port (i.e. [fe80::1]:80) */
-        p = (char *) memchr(str + 1, ']', str_len - 2);
+        char *p = (char *) memchr(str + 1, ']', str_len - 2);
         if (!p || *(p + 1) != ':') {
             if (get_err) {
                 *err = strpprintf(0, "Failed to parse IPv6 address \"%s\"", str);
@@ -398,11 +396,10 @@ static inline char *parse_ip_address_ex(const char *str, size_t str_len, int *po
 }
 
 static php_stream_size_t socket_write(php_stream *stream, const char *buf, size_t count) {
-    NetStream *abstract;
     ssize_t didwrite = -1;
     std::shared_ptr<Socket> sock;
 
-    abstract = (NetStream *) stream->abstract;
+    auto *abstract = static_cast<NetStream *>(stream->abstract);
     if (UNEXPECTED(!abstract || !abstract->socket)) {
         goto _exit;
     }
@@ -416,11 +413,11 @@ static php_stream_size_t socket_write(php_stream *stream, const char *buf, size_
     }
 
     if (didwrite < 0 || (size_t) didwrite != count) {
-        /* we do not expect the outer layer to continue to call the send syscall in a loop
-         * and didwrite is meaningless if it failed */
+        /* we do not expect the outer layer to continue to call the `send` syscall in a loop
+         * and `didwrite` is meaningless if it failed */
         didwrite = -1;
         abstract->stream.timeout_event = (sock->errCode == ETIMEDOUT);
-        php_error_docref(NULL,
+        php_error_docref(nullptr,
                          E_NOTICE,
                          "Send of " ZEND_LONG_FMT " bytes failed with errno=%d %s",
                          (zend_long) count,
@@ -446,10 +443,9 @@ _exit:
 
 static php_stream_size_t socket_read(php_stream *stream, char *buf, size_t count) {
     std::shared_ptr<Socket> sock;
-    NetStream *abstract;
     ssize_t nr_bytes = -1;
 
-    abstract = (NetStream *) stream->abstract;
+    auto *abstract = static_cast<NetStream *>(stream->abstract);
     if (UNEXPECTED(!abstract || !abstract->socket)) {
         goto _exit;
     }
@@ -485,7 +481,7 @@ static int socket_flush(php_stream *stream) {
 }
 
 static int socket_close(php_stream *stream, int close_handle) {
-    NetStream *abstract = (NetStream *) stream->abstract;
+    const auto *abstract = static_cast<NetStream *>(stream->abstract);
     if (UNEXPECTED(!abstract)) {
         return FAILURE;
     }
@@ -519,15 +515,15 @@ enum {
 enum { STREAM_XPORT_CRYPTO_OP_SETUP, STREAM_XPORT_CRYPTO_OP_ENABLE };
 
 static int socket_cast(php_stream *stream, int castas, void **ret) {
-    NetStream *abstract = (NetStream *) stream->abstract;
+    const auto *abstract = static_cast<NetStream *>(stream->abstract);
     if (UNEXPECTED(!abstract || !abstract->socket)) {
         return FAILURE;
     }
-    std::shared_ptr<Socket> sock = abstract->socket;
+    const std::shared_ptr<Socket> sock = abstract->socket;
     switch (castas) {
     case PHP_STREAM_AS_STDIO:
         if (ret) {
-            *(FILE **) ret = fdopen(sock->get_fd(), stream->mode);
+            *reinterpret_cast<FILE **>(ret) = fdopen(sock->get_fd(), stream->mode);
             if (*ret) {
                 return SUCCESS;
             }
@@ -537,7 +533,7 @@ static int socket_cast(php_stream *stream, int castas, void **ret) {
     case PHP_STREAM_AS_FD_FOR_SELECT:
     case PHP_STREAM_AS_FD:
     case PHP_STREAM_AS_SOCKETD:
-        if (ret) *(php_socket_t *) ret = sock->get_fd();
+        if (ret) *reinterpret_cast<php_socket_t *>(ret) = sock->get_fd();
         return SUCCESS;
     default:
         return FAILURE;
@@ -545,7 +541,7 @@ static int socket_cast(php_stream *stream, int castas, void **ret) {
 }
 
 static int socket_stat(php_stream *stream, php_stream_statbuf *ssb) {
-    NetStream *abstract = (NetStream *) stream->abstract;
+    const auto *abstract = static_cast<NetStream *>(stream->abstract);
     if (UNEXPECTED(!abstract)) {
         return FAILURE;
     }
@@ -617,7 +613,7 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
     if (sock->connect(host, portno) == false) {
         xparam->outputs.error_code = sock->errCode;
         if (sock->errMsg) {
-            xparam->outputs.error_text = zend_string_init(sock->errMsg, strlen(sock->errMsg), 0);
+            xparam->outputs.error_text = zend_string_init(sock->errMsg, strlen(sock->errMsg), false);
         }
         ret = -1;
     }
@@ -660,10 +656,10 @@ static inline int socket_accept(php_stream *stream, Socket *sock, php_stream_xpo
     }
 
     zend_string **textaddr = xparam->want_textaddr ? &xparam->outputs.textaddr : nullptr;
-    struct sockaddr **addr = xparam->want_addr ? &xparam->outputs.addr : nullptr;
+    sockaddr **addr = xparam->want_addr ? &xparam->outputs.addr : nullptr;
     socklen_t *addrlen = xparam->want_addr ? &xparam->outputs.addrlen : nullptr;
 
-    struct timeval *timeout = xparam->inputs.timeout;
+    timeval *timeout = xparam->inputs.timeout;
     zend_string **error_string = xparam->want_errortext ? &xparam->outputs.error_text : nullptr;
     int *error_code = &xparam->outputs.error_code;
 
@@ -696,7 +692,7 @@ static inline int socket_accept(php_stream *stream, Socket *sock, php_stream_xpo
         }
         return FAILURE;
     } else {
-        php_network_populate_name_from_sockaddr((struct sockaddr *) &sa, sl, textaddr, addr, addrlen);
+        php_network_populate_name_from_sockaddr((sockaddr *) &sa, sl, textaddr, addr, addrlen);
 #ifdef TCP_NODELAY
         if (tcp_nodelay) {
             clisock->get_socket()->set_tcp_nodelay(tcp_nodelay);
@@ -706,7 +702,7 @@ static inline int socket_accept(php_stream *stream, Socket *sock, php_stream_xpo
         abstract->socket = clisock;
         abstract->blocking = true;
 
-        xparam->outputs.client = php_stream_alloc_rel(stream->ops, (void *) abstract, nullptr, "r+");
+        xparam->outputs.client = php_stream_alloc_rel(stream->ops, abstract, nullptr, "r+");
         if (xparam->outputs.client) {
             xparam->outputs.client->ctx = stream->ctx;
             if (stream->ctx) {
@@ -774,15 +770,13 @@ static int socket_setup_crypto(php_stream *stream, Socket *sock, php_stream_xpor
 }
 
 static int socket_xport_crypto_setup(php_stream *stream) {
-    php_stream_xport_crypto_param param;
-    int ret;
+    php_stream_xport_crypto_param param = {};
 
-    memset(&param, 0, sizeof(param));
     param.op = (decltype(param.op)) STREAM_XPORT_CRYPTO_OP_SETUP;
     param.inputs.method = (php_stream_xport_crypt_method_t) 0;
-    param.inputs.session = NULL;
+    param.inputs.session = nullptr;
 
-    ret = php_stream_set_option(stream, PHP_STREAM_OPTION_CRYPTO_API, 0, &param);
+    int ret = php_stream_set_option(stream, PHP_STREAM_OPTION_CRYPTO_API, 0, &param);
 
     if (ret == PHP_STREAM_OPTION_RETURN_OK) {
         return param.outputs.returncode;
@@ -794,14 +788,12 @@ static int socket_xport_crypto_setup(php_stream *stream) {
 }
 
 static int socket_xport_crypto_enable(php_stream *stream, int activate) {
-    php_stream_xport_crypto_param param;
-    int ret;
+    php_stream_xport_crypto_param param = {};
 
-    memset(&param, 0, sizeof(param));
     param.op = (decltype(param.op)) STREAM_XPORT_CRYPTO_OP_ENABLE;
     param.inputs.activate = activate;
 
-    ret = php_stream_set_option(stream, PHP_STREAM_OPTION_CRYPTO_API, 0, &param);
+    int ret = php_stream_set_option(stream, PHP_STREAM_OPTION_CRYPTO_API, 0, &param);
 
     if (ret == PHP_STREAM_OPTION_RETURN_OK) {
         return param.outputs.returncode;
@@ -826,7 +818,8 @@ static bool php_openssl_capture_peer_certs(php_stream *stream, Socket *sslsock) 
     php_stream_context_set_option(PHP_STREAM_CONTEXT(stream), "ssl", "peer_certificate", &retval.value);
     zval_dtor(&argv[0]);
 
-    if (NULL != (val = php_stream_context_get_option(PHP_STREAM_CONTEXT(stream), "ssl", "capture_peer_cert_chain")) &&
+    if (nullptr !=
+            (val = php_stream_context_get_option(PHP_STREAM_CONTEXT(stream), "ssl", "capture_peer_cert_chain")) &&
         zend_is_true(val)) {
         zval arr;
         auto chain = sslsock->get_socket()->ssl_get_peer_cert_chain(INT_MAX);
@@ -834,12 +827,12 @@ static bool php_openssl_capture_peer_certs(php_stream *stream, Socket *sslsock) 
         if (!chain.empty()) {
             array_init(&arr);
             for (auto &cert : chain) {
-                zval argv[1];
-                ZVAL_STRINGL(&argv[0], cert.c_str(), cert.length());
-                auto retval = zend::function::call("openssl_x509_read", 1, argv);
-                zval_add_ref(&retval.value);
-                add_next_index_zval(&arr, &retval.value);
-                zval_dtor(&argv[0]);
+                zval _argv[1];
+                ZVAL_STRINGL(&_argv[0], cert.c_str(), cert.length());
+                auto _retval = zend::function::call("openssl_x509_read", 1, _argv);
+                zval_add_ref(&_retval.value);
+                add_next_index_zval(&arr, &_retval.value);
+                zval_dtor(&_argv[0]);
             }
         } else {
             ZVAL_NULL(&arr);
@@ -994,7 +987,7 @@ static inline int socket_xport_api(php_stream *stream, Socket *sock, php_stream_
 }
 
 static int socket_set_option(php_stream *stream, int option, int value, void *ptrparam) {
-    NetStream *abstract = (NetStream *) stream->abstract;
+    auto *abstract = static_cast<NetStream *>(stream->abstract);
     if (UNEXPECTED(!abstract || !abstract->socket)) {
         return PHP_STREAM_OPTION_RETURN_ERR;
     }
@@ -1016,7 +1009,6 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
         if (ssl) {
             zval tmp;
             const char *proto_str;
-            const SSL_CIPHER *cipher;
 
             array_init(&tmp);
             switch (SSL_version(ssl)) {
@@ -1048,17 +1040,17 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
                 break;
             }
 
-            cipher = SSL_get_current_cipher(ssl);
-            add_assoc_string(&tmp, "protocol", (char *) proto_str);
-            add_assoc_string(&tmp, "cipher_name", (char *) SSL_CIPHER_get_name(cipher));
+            const auto cipher = SSL_get_current_cipher(ssl);
+            add_assoc_string(&tmp, "protocol", proto_str);
+            add_assoc_string(&tmp, "cipher_name", SSL_CIPHER_get_name(cipher));
             add_assoc_long(&tmp, "cipher_bits", SSL_CIPHER_get_bits(cipher, nullptr));
-            add_assoc_string(&tmp, "cipher_version", (char *) SSL_CIPHER_get_version(cipher));
+            add_assoc_string(&tmp, "cipher_version", SSL_CIPHER_get_version(cipher));
             add_assoc_zval((zval *) ptrparam, "crypto", &tmp);
         }
 #endif
         add_assoc_bool((zval *) ptrparam, "timed_out", sock->errCode == ETIMEDOUT);
         add_assoc_bool((zval *) ptrparam, "eof", stream->eof);
-        add_assoc_bool((zval *) ptrparam, "blocked", 1);
+        add_assoc_bool((zval *) ptrparam, "blocked", true);
         break;
     }
     case PHP_STREAM_OPTION_READ_TIMEOUT: {
@@ -1247,18 +1239,18 @@ static ZEND_FUNCTION(swoole_display_disabled_function) {
 }
 
 static bool disable_func(const char *name, size_t l_name) {
-    real_func *rf = (real_func *) zend_hash_str_find_ptr(tmp_function_table, name, l_name);
+    auto *rf = static_cast<PhpFunc *>(zend_hash_str_find_ptr(tmp_function_table, name, l_name));
     if (rf) {
         rf->function->internal_function.handler = ZEND_FN(swoole_display_disabled_function);
         return true;
     }
 
-    zend_function *zf = (zend_function *) zend_hash_str_find_ptr(EG(function_table), name, l_name);
+    auto *zf = static_cast<zend_function *>(zend_hash_str_find_ptr(EG(function_table), name, l_name));
     if (zf == nullptr) {
         return false;
     }
 
-    rf = (real_func *) emalloc(sizeof(real_func));
+    rf = static_cast<PhpFunc *>(emalloc(sizeof(PhpFunc)));
     sw_memset_zero(rf, sizeof(*rf));
     rf->function = zf;
     rf->ori_handler = zf->internal_function.handler;
@@ -1276,7 +1268,7 @@ static bool disable_func(const char *name, size_t l_name) {
 }
 
 static bool enable_func(const char *name, size_t l_name) {
-    real_func *rf = (real_func *) zend_hash_str_find_ptr(tmp_function_table, name, l_name);
+    auto *rf = static_cast<PhpFunc *>(zend_hash_str_find_ptr(tmp_function_table, name, l_name));
     if (!rf) {
         return false;
     }
@@ -1437,21 +1429,21 @@ static void hook_stream_ops(uint32_t flags) {
     // file
     if (flags & PHPCoroutine::HOOK_FILE) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_FILE)) {
-            memcpy((void *) &php_plain_files_wrapper, &sw_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
+            memcpy(&php_plain_files_wrapper, &sw_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
         }
     } else {
         if (runtime_hook_flags & PHPCoroutine::HOOK_FILE) {
-            memcpy((void *) &php_plain_files_wrapper, &ori_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
+            memcpy(&php_plain_files_wrapper, &ori_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
         }
     }
     // stdio
     if (flags & PHPCoroutine::HOOK_STDIO) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_STDIO)) {
-            memcpy((void *) &php_stream_stdio_ops, &sw_php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
+            memcpy(&php_stream_stdio_ops, &sw_php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
         }
     } else {
         if (runtime_hook_flags & PHPCoroutine::HOOK_STDIO) {
-            memcpy((void *) &php_stream_stdio_ops, &ori_php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
+            memcpy(&php_stream_stdio_ops, &ori_php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
         }
     }
 }
@@ -1460,22 +1452,22 @@ static void hook_pdo_driver(uint32_t flags) {
 #ifdef SW_USE_PGSQL
     if (flags & PHPCoroutine::HOOK_PDO_PGSQL) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_PDO_PGSQL)) {
-            swoole_pgsql_set_blocking(0);
+            swoole_pgsql_set_blocking(false);
         }
     } else {
         if (runtime_hook_flags & PHPCoroutine::HOOK_PDO_PGSQL) {
-            swoole_pgsql_set_blocking(1);
+            swoole_pgsql_set_blocking(true);
         }
     }
 #endif
 #ifdef SW_USE_ODBC
     if (flags & PHPCoroutine::HOOK_PDO_ODBC) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_PDO_ODBC)) {
-            swoole_odbc_set_blocking(0);
+            swoole_odbc_set_blocking(false);
         }
     } else {
         if (runtime_hook_flags & PHPCoroutine::HOOK_PDO_ODBC) {
-            swoole_odbc_set_blocking(1);
+            swoole_odbc_set_blocking(true);
         }
     }
 #endif
@@ -1493,11 +1485,11 @@ static void hook_pdo_driver(uint32_t flags) {
 #ifdef SW_USE_SQLITE
     if (flags & PHPCoroutine::HOOK_PDO_SQLITE) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_PDO_SQLITE)) {
-            swoole_sqlite_set_blocking(0);
+            swoole_sqlite_set_blocking(false);
         }
     } else {
         if (runtime_hook_flags & PHPCoroutine::HOOK_PDO_SQLITE) {
-            swoole_sqlite_set_blocking(1);
+            swoole_sqlite_set_blocking(true);
         }
     }
 #endif
@@ -1739,8 +1731,8 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
         hook_remove_stream_flags(&flags);
     }
 
-    if (swoole_isset_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_BEFORE_ENABLE_HOOK)) {
-        swoole_call_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_BEFORE_ENABLE_HOOK, &flags);
+    if (swoole_isset_hook((swGlobalHookType) PHP_SWOOLE_HOOK_BEFORE_ENABLE_HOOK)) {
+        swoole_call_hook((swGlobalHookType) PHP_SWOOLE_HOOK_BEFORE_ENABLE_HOOK, &flags);
     }
 
     hook_stream_factory(&flags);
@@ -1748,8 +1740,8 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
     hook_pdo_driver(flags);
     hook_all_func(flags);
 
-    if (swoole_isset_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_ENABLE_HOOK)) {
-        swoole_call_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_ENABLE_HOOK, &flags);
+    if (swoole_isset_hook((swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_ENABLE_HOOK)) {
+        swoole_call_hook((swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_ENABLE_HOOK, &flags);
     }
 
     runtime_hook_flags = flags;
@@ -1866,19 +1858,19 @@ static PHP_FUNCTION(swoole_time_nanosleep) {
 }
 
 static PHP_FUNCTION(swoole_time_sleep_until) {
-    double d_ts, c_ts;
-    struct timeval tm;
-    struct timespec php_req, php_rem;
+    double d_ts;
+    timeval tm;
+    timespec php_req, php_rem;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "d", &d_ts) == FAILURE) {
         RETURN_FALSE;
     }
 
-    if (gettimeofday((struct timeval *) &tm, nullptr) != 0) {
+    if (gettimeofday(&tm, nullptr) != 0) {
         RETURN_FALSE;
     }
 
-    c_ts = (double) (d_ts - tm.tv_sec - tm.tv_usec / 1000000.00);
+    double c_ts = d_ts - tm.tv_sec - tm.tv_usec / 1000000.00;
     if (c_ts < 0) {
         php_error_docref(nullptr, E_WARNING, "Sleep until to time is less than current time");
         RETURN_FALSE;
@@ -1910,7 +1902,6 @@ static void stream_array_to_fd_set(zval *stream_array, std::unordered_map<int, P
     zval *elem;
     zend_ulong index;
     zend_string *key;
-    php_socket_t sock;
 
     if (!ZVAL_IS_ARRAY(stream_array)) {
         return;
@@ -1918,13 +1909,13 @@ static void stream_array_to_fd_set(zval *stream_array, std::unordered_map<int, P
 
     ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(stream_array), index, key, elem) {
         ZVAL_DEREF(elem);
-        sock = php_swoole_convert_to_fd(elem);
+        php_socket_t sock = php_swoole_convert_to_fd(elem);
         if (sock < 0) {
             continue;
         }
         auto i = fds.find(sock);
         if (i == fds.end()) {
-            fds.emplace(std::make_pair(sock, PollSocket(event, new zend::KeyValue(index, key, elem))));
+            fds.emplace(sock, PollSocket(event, new zend::KeyValue(index, key, elem)));
         } else {
             i->second.events |= event;
         }
@@ -1933,8 +1924,7 @@ static void stream_array_to_fd_set(zval *stream_array, std::unordered_map<int, P
 }
 
 static int stream_array_emulate_read_fd_set(zval *stream_array) {
-    zval *elem, *dest_elem, new_array;
-    HashTable *ht;
+    zval *elem, new_array;
     php_stream *stream;
     int ret = 0;
     zend_ulong num_ind;
@@ -1945,7 +1935,7 @@ static int stream_array_emulate_read_fd_set(zval *stream_array) {
     }
 
     array_init_size(&new_array, zend_hash_num_elements(Z_ARRVAL_P(stream_array)));
-    ht = Z_ARRVAL(new_array);
+    HashTable *ht = Z_ARRVAL(new_array);
 
     ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(stream_array), num_ind, key, elem) {
         ZVAL_DEREF(elem);
@@ -1960,7 +1950,7 @@ static int stream_array_emulate_read_fd_set(zval *stream_array) {
              * This branch of code also allows blocking streams with buffered data to
              * operate correctly in stream_select.
              * */
-            dest_elem = !key ? zend_hash_index_update(ht, num_ind, elem) : zend_hash_update(ht, key, elem);
+            zval *dest_elem = !key ? zend_hash_index_update(ht, num_ind, elem) : zend_hash_update(ht, key, elem);
             zval_add_ref(dest_elem);
             ret++;
             continue;
@@ -1986,7 +1976,7 @@ static PHP_FUNCTION(swoole_stream_select) {
     zend_long sec, usec = 0;
     zend_bool secnull;
 #if PHP_VERSION_ID >= 80100
-    bool usecnull = 1;
+    bool usecnull = true;
 #endif
     int retval = 0;
 
@@ -2045,13 +2035,13 @@ static PHP_FUNCTION(swoole_stream_select) {
 
     ON_SCOPE_EXIT {
         for (auto &i : fds) {
-            zend::KeyValue *kv = (zend::KeyValue *) i.second.ptr;
+            const auto *kv = static_cast<zend::KeyValue *>(i.second.ptr);
             delete kv;
         }
     };
 
     /* slight hack to support buffered data; if there is data sitting in the
-     * read buffer of any of the streams in the read array, let's pretend
+     * read buffer of the streams in the read array, let's pretend
      * that we selected, but return only the readable sockets */
     if (r_array != nullptr) {
         retval = stream_array_emulate_read_fd_set(r_array);
@@ -2084,7 +2074,7 @@ static PHP_FUNCTION(swoole_stream_select) {
     }
 
     for (auto &i : fds) {
-        zend::KeyValue *kv = (zend::KeyValue *) i.second.ptr;
+        auto *kv = static_cast<zend::KeyValue *>(i.second.ptr);
         int revents = i.second.revents;
         SW_ASSERT((revents & (~(SW_EVENT_READ | SW_EVENT_WRITE | SW_EVENT_ERROR))) == 0);
         if (revents > 0) {
@@ -2105,7 +2095,7 @@ static PHP_FUNCTION(swoole_stream_select) {
 }
 
 static void hook_func(const char *name, size_t l_name, zif_handler handler, zend_internal_arg_info *arg_info) {
-    real_func *rf = (real_func *) zend_hash_str_find_ptr(tmp_function_table, name, l_name);
+    auto *rf = static_cast<PhpFunc *>(zend_hash_str_find_ptr(tmp_function_table, name, l_name));
     bool use_php_func = false;
     /**
      * use php library function
@@ -2122,13 +2112,13 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
         return;
     }
 
-    zend_function *zf = (zend_function *) zend_hash_str_find_ptr(EG(function_table), name, l_name);
+    auto *zf = static_cast<zend_function *>(zend_hash_str_find_ptr(EG(function_table), name, l_name));
     if (zf == nullptr) {
         return;
     }
 
     auto fn_str = zf->common.function_name;
-    rf = (real_func *) emalloc(sizeof(real_func));
+    rf = static_cast<PhpFunc *>(emalloc(sizeof(PhpFunc)));
     sw_memset_zero(rf, sizeof(*rf));
     rf->function = zf;
 
@@ -2165,7 +2155,7 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
 }
 
 static void unhook_func(const char *name, size_t l_name) {
-    real_func *rf = (real_func *) zend_hash_str_find_ptr(tmp_function_table, name, l_name);
+    auto *rf = static_cast<PhpFunc *>(zend_hash_str_find_ptr(tmp_function_table, name, l_name));
     if (rf == nullptr) {
         return;
     }
@@ -2212,7 +2202,7 @@ php_stream_ops *php_swoole_get_ori_php_stream_stdio_ops() {
 
 zif_handler php_swoole_get_original_handler(const char *name, size_t len) {
     if (sw_is_main_thread()) {
-        real_func *rf = (real_func *) zend_hash_str_find_ptr(tmp_function_table, name, len);
+        auto *rf = static_cast<PhpFunc *>(zend_hash_str_find_ptr(tmp_function_table, name, len));
         if (rf) {
             return rf->ori_handler;
         }
@@ -2221,7 +2211,7 @@ zif_handler php_swoole_get_original_handler(const char *name, size_t len) {
         if (handler) {
             return handler;
         }
-        zend_function *zf = (zend_function *) zend_hash_str_find_ptr(EG(function_table), name, len);
+        auto *zf = static_cast<zend_function *>(zend_hash_str_find_ptr(EG(function_table), name, len));
         if (zf && zf->type == ZEND_INTERNAL_FUNCTION && zf->internal_function.handler) {
             return zf->internal_function.handler;
         }
@@ -2232,7 +2222,6 @@ zif_handler php_swoole_get_original_handler(const char *name, size_t len) {
 
 static PHP_FUNCTION(swoole_stream_socket_pair) {
     zend_long domain, type, protocol;
-    php_stream *s1, *s2;
     php_socket_t pair[2];
 
     ZEND_PARSE_PARAMETERS_START(3, 3)
@@ -2250,8 +2239,8 @@ static PHP_FUNCTION(swoole_stream_socket_pair) {
 
     php_swoole_check_reactor();
 
-    s1 = php_swoole_create_stream_from_socket(pair[0], domain, type, protocol STREAMS_CC);
-    s2 = php_swoole_create_stream_from_socket(pair[1], domain, type, protocol STREAMS_CC);
+    php_stream *s1 = php_swoole_create_stream_from_socket(pair[0], domain, type, protocol STREAMS_CC);
+    php_stream *s2 = php_swoole_create_stream_from_socket(pair[1], domain, type, protocol STREAMS_CC);
 
     /* set the __exposed flag.
      * php_stream_to_zval() does, add_next_index_resource() does not */
@@ -2270,7 +2259,7 @@ static PHP_FUNCTION(swoole_user_func_handler) {
         return;
     }
 
-    real_func *rf = (real_func *) zend_hash_find_ptr(tmp_function_table, fn_str);
+    auto *rf = static_cast<PhpFunc *>(zend_hash_find_ptr(tmp_function_table, fn_str));
     if (!rf) {
         zend_throw_exception_ex(swoole_exception_ce, SW_ERROR_UNDEFINED_BEHAVIOR, "%s func not exists", fn_str->val);
         return;
@@ -2282,13 +2271,13 @@ static PHP_FUNCTION(swoole_user_func_handler) {
     fci.retval = return_value;
     fci.param_count = ZEND_NUM_ARGS();
     fci.params = ZEND_CALL_ARG(execute_data, 1);
-    fci.named_params = NULL;
+    fci.named_params = nullptr;
     ZVAL_UNDEF(&fci.function_name);
     zend_call_function(&fci, rf->fci_cache->ptr());
 }
 
 zend_class_entry *find_class_entry(const char *name, size_t length) {
-    zend_string *search_key = zend_string_init(name, length, 0);
+    zend_string *search_key = zend_string_init(name, length, false);
     zend_class_entry *class_ce = zend_lookup_class(search_key);
     zend_string_release(search_key);
     return class_ce ? class_ce : nullptr;
@@ -2338,8 +2327,8 @@ static void detach_parent_class(const char *child_name) {
 }
 
 static void clear_class_entries() {
-    for (auto iter = child_class_entries.begin(); iter != child_class_entries.end(); iter++) {
-        start_detach_parent_class(iter->second);
+    for (const auto &child_class_entry : child_class_entries) {
+        start_detach_parent_class(child_class_entry.second);
     }
     child_class_entries.clear();
 }
