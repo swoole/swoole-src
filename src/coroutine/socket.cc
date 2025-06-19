@@ -1026,8 +1026,12 @@ ssize_t Socket::sendmsg(const struct msghdr *msg, int flags) {
     return retval;
 }
 
-bool Socket::bind(const sockaddr *sa, socklen_t len) const {
-    return socket->bind(sa, len) == 0;
+bool Socket::bind(const sockaddr *sa, socklen_t len) {
+    if (socket->bind(sa, len) < 0) {
+        set_err();
+        return false;
+    }
+    return true;
 }
 
 bool Socket::bind(const std::string &address, const int port) {
@@ -1035,17 +1039,19 @@ bool Socket::bind(const std::string &address, const int port) {
         return false;
     }
 
+    swoole_clear_last_error();
+
     if (socket->set_reuse_addr() < 0) {
         swoole_sys_warning("setsockopt(%d, SO_REUSEADDR) failed", get_fd());
     }
 
     if (socket->bind(address, port) < 0) {
-        set_err(errno);
+        set_err();
         return false;
     }
 
     if (socket->get_name() < 0) {
-        set_err(errno);
+        set_err();
         return false;
     }
 

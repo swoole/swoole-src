@@ -47,7 +47,7 @@ $pm->childFunc = function () use ($pm) {
         $ret = $cli->get('/');
         Assert::assert($cli->socket instanceof Socket);
         if (!$ret) {
-            $response->end("ERROR\n");
+            $response->end('ERROR:' . $cli->errCode . "\n");
             return;
         }
         $response->end("OK\n");

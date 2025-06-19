@@ -15,7 +15,7 @@ use Swoole\Runtime;
 Runtime::enableCoroutine();
 
 const N = 5;
-const SOCK_FILE = __DIR__ . '/test.sock';
+const SOCK_FILE = '/tmp/test.sock';
 
 if (is_file(SOCK_FILE)) {
     unlink(SOCK_FILE);
@@ -23,8 +23,8 @@ if (is_file(SOCK_FILE)) {
 
 go(function () {
     $socket = new Socket(AF_UNIX, SOCK_STREAM, 0);
-    Assert::true($socket->bind(SOCK_FILE), 'error: ' . swoole_last_error());
-    Assert::true($socket->listen(), 'error: ' . swoole_last_error());
+    Assert::true($socket->bind(SOCK_FILE), 'bind error: ' . $socket->errCode);
+    Assert::true($socket->listen(), 'listen error: ' . $socket->errCode);
 
     $client = $socket->accept();
     Assert::notNull($client);
