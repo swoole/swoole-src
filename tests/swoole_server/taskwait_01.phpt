@@ -1,7 +1,9 @@
 --TEST--
 swoole_server: taskwait [blocking]
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../include/skipif.inc';
+skip_if_darwin_todo();
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
