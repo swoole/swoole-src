@@ -44,6 +44,7 @@ define('TEST_LOG_FILE', '/tmp/swoole.log');
 define('TEST_PID_FILE', '/tmp/swoole.pid');
 define('SSL_FILE_DIR', __DIR__ . '/ssl_certs/');
 define('DOCUMENT_ROOT', __DIR__ . '/../../examples/www');
+define('TEST_USER_AGENT', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36');
 
 /* ============ Socket ============ */
 if (IS_MAC_OS) {

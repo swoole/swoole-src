@@ -32,7 +32,7 @@ $pm->childFunc = function () use ($pm) {
         $cli->set(['timeout' => 10]);
         $cli->setHeaders([
             'Host' => $domain,
-            'User-Agent' => 'Chrome/49.0.2587.3',
+            'User-Agent' => TEST_USER_AGENT,
             'Accept' => 'text/html,application/xhtml+xml,application/xml',
             'Accept-Encoding' => 'gzip',
         ]);

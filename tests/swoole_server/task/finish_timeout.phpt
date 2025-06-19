@@ -51,9 +51,6 @@ $pm->childFunc = function () use ($pm) {
             if (!$server->finish(str_repeat('A', $size))) {
                 break;
             }
-            if ($n % 100 == 0) {
-                var_dump('finish:' . $n);
-            }
         }
         $server->send($fd, 'hello world');
     });

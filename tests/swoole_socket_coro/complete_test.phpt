@@ -2,13 +2,14 @@
 swoole_socket_coro: complete test server&&client&&timeout(millisecond)
 --SKIPIF--
 <?php
-use Swoole\Coroutine\Socket;
-use Swoole\Event;
-
 require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
+
+use Swoole\Coroutine\Socket;
+use Swoole\Event;
+
 $pm = new ProcessManager();
 $port = get_one_free_port();
 $pm->parentFunc = function ($pid) use ($pm, $port) {
@@ -39,6 +40,7 @@ $pm->childFunc = function () use ($pm, $port) {
     Assert::assert($socket->bind('127.0.0.1', $port));
     Assert::assert($socket->listen(128));
     go(function () use ($socket, $pm) {
+        $pm->wakeup();
         $client = $socket->accept();
         Assert::assert($client, 'error: ' . swoole_last_error());
         Assert::isInstanceOf($client, Socket::class);
@@ -59,6 +61,7 @@ $pm->childFunc = function () use ($pm, $port) {
         $client->close();
         $socket->close();
     });
+    Event::wait();
 };
 
 $pm->childFirst();

@@ -52,7 +52,7 @@ $pm->childFunc = function () use ($pm) {
     });
 
     $ws->on('open', function (Server $serv, Request $request) {
-        $ip = co::gethostbyname(TEST_DOMAIN_1);
+        $ip = Co::gethostbyname(TEST_DOMAIN_1);
         if ($ip) {
             $serv->push($request->fd, "start\n");
         } else {

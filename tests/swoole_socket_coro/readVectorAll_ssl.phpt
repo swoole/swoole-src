@@ -50,6 +50,7 @@ $pm->childFunc = function () use ($pm) {
         Assert::assert($socket->bind('127.0.0.1', $pm->getFreePort()));
         Assert::assert($socket->listen(MAX_CONCURRENCY));
 
+        $pm->wakeup();
         /** @var Socket */
         $conn = $socket->accept();
         Assert::assert($conn, 'error: ' . swoole_last_error());
