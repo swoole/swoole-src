@@ -3,6 +3,7 @@ swoole_server: send 2M data in user process
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
+skip_if_darwin_todo();
 ?>
 --FILE--
 <?php

@@ -163,7 +163,7 @@ function skip_if_darwin()
 
 function skip_if_darwin_todo($msg = 'Need to review')
 {
-    skip($msg, stripos(PHP_OS, 'Darwin') !== false);
+    skip($msg, getenv('MACOS_DEV') === false && stripos(PHP_OS, 'Darwin') !== false);
 }
 
 function skip_if_not_darwin()
