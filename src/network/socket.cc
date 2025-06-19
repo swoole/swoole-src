@@ -302,18 +302,12 @@ void Socket::clean() const {
 int Socket::wait_event(int timeout_ms, int events) const {
     pollfd event;
     event.fd = fd;
-    event.events = 0;
+    event.events = translate_events_to_poll(events);
 
     if (timeout_ms < 0) {
         timeout_ms = -1;
     }
 
-    if (events & SW_EVENT_READ) {
-        event.events |= POLLIN;
-    }
-    if (events & SW_EVENT_WRITE) {
-        event.events |= POLLOUT;
-    }
     while (true) {
         int ret = poll(&event, 1, timeout_ms);
         if (ret == 0) {
@@ -335,6 +329,7 @@ int Socket::wait_event(int timeout_ms, int events) const {
         }
         return SW_OK;
     }
+
     return SW_OK;
 }
 
@@ -359,7 +354,12 @@ ssize_t Socket::recv_sync(void *_data, size_t _len, int flags) {
 
     auto rv = wait_for(
         [this, _data, _len, flags, &bytes]() {
-            ssize_t n = recv((char *) _data + bytes, _len - bytes, flags);
+            /**
+             * In non-blocking mode, the MSG_WAITALL flag must be cleared. Otherwise, receiving a small amount of data
+             * may cause the poll listener to return 1 for readable events, yet the recv operation returns -1 with errno
+             * set to EAGAIN, resulting in an infinite loop.
+             */
+            ssize_t n = recv((char *) _data + bytes, _len - bytes, flags & ~MSG_WAITALL);
             CHECK_RETURN_VALUE(n, SW_READY);
             bytes += n;
             if (flags & MSG_WAITALL) {

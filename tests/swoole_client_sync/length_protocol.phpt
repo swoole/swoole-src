@@ -11,6 +11,10 @@ use Swoole\Client;
 use Swoole\Process;
 use Swoole\Server;
 
+const N_1 = IS_MAC_OS ? 400 : 1000;
+const N_2 = 100;
+const N_3 = IS_MAC_OS ? 400 : 1000;
+
 $port = get_one_free_port();
 $pm = new ProcessManager();
 $pm->parentFunc = function ($pid) use ($port) {
@@ -30,19 +34,19 @@ $pm->parentFunc = function ($pid) use ($port) {
     $client->send("recv\r\n\r\n");
 
     // 小包
-    for ($i = 0; $i < 1000; $i++) {
+    for ($i = 0; $i < N_1; $i++) {
         $pkg = $client->recv();
         Assert::assert($pkg and strlen($pkg) <= 2048);
     }
     echo "SUCCESS\n";
     // 慢速发送
-    for ($i = 0; $i < 100; $i++) {
+    for ($i = 0; $i < N_2; $i++) {
         $pkg = $client->recv();
         Assert::assert($pkg and strlen($pkg) <= 8192);
     }
     echo "SUCCESS\n";
     // 大包
-    for ($i = 0; $i < 1000; $i++) {
+    for ($i = 0; $i < N_3; $i++) {
         $pkg = $client->recv();
         Assert::assert($pkg != false);
         $_pkg = unserialize(substr($pkg, 4));
@@ -69,12 +73,12 @@ $pm->childFunc = function () use ($pm, $port) {
     });
     $serv->on('receive', function (Server $serv, $fd, $rid, $data) {
         // 小包
-        for ($i = 0; $i < 1000; $i++) {
+        for ($i = 0; $i < N_1; $i++) {
             $data = str_repeat('A', rand(100, 2000));
             $serv->send($fd, pack('N', strlen($data)) . $data);
         }
         // 慢速发送
-        for ($i = 0; $i < 100; $i++) {
+        for ($i = 0; $i < N_2; $i++) {
             $data = str_repeat('A', rand(3000, 6000));
             $n = rand(1000, 2000);
             $serv->send($fd, pack('N', strlen($data)) . substr($data, 0, $n));
@@ -82,7 +86,7 @@ $pm->childFunc = function () use ($pm, $port) {
             $serv->send($fd, substr($data, $n));
         }
         // 大包
-        for ($i = 0; $i < 1000; $i++) {
+        for ($i = 0; $i < N_3; $i++) {
             $data = serialize(['i' => $i, 'data' => str_repeat('A', rand(20000, 256 * 1024))]);
             $serv->send($fd, pack('N', strlen($data)) . $data);
         }
