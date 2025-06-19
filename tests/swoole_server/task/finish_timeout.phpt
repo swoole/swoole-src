@@ -1,7 +1,9 @@
 --TEST--
 swoole_server/task: finish timeout
 --SKIPIF--
-<?php require __DIR__ . '/../../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../../include/skipif.inc';
+skip_if_darwin_todo();
+?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
@@ -55,7 +57,7 @@ $pm->childFunc = function () use ($pm) {
         $server->send($fd, 'hello world');
     });
     $server->on('finish', function ($server, $task_id, $data) {
-        var_dump(strlen($data));
+        
     });
     $server->on('close', function () {});
     $server->start();

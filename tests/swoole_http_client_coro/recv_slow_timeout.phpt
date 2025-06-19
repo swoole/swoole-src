@@ -34,6 +34,7 @@ $pm->childFunc = function () use ($pm) {
         $server = new Swoole\Coroutine\Socket(AF_INET, SOCK_STREAM, 0);
         Assert::assert($server->bind('127.0.0.1', $pm->getFreePort()));
         Assert::assert($server->listen());
+        $pm->wakeup();
         while ($client = $server->accept()) {
             go(function () use ($server, $client) {
                 Assert::assert($client instanceof Swoole\Coroutine\Socket);

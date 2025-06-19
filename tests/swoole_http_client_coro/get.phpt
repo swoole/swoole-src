@@ -2,18 +2,19 @@
 swoole_http_client_coro: http client
 --SKIPIF--
 <?php
-use Swoole\Coroutine\Http\Client;
-use Swoole\Coroutine\Socket;
-use Swoole\Http\Request;
-use Swoole\Http\Response;
-use Swoole\Server;
-
 require __DIR__ . '/../include/skipif.inc';
 skip_if_offline();
 ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
+
+use Swoole\Coroutine\Http\Client;
+use Swoole\Coroutine\Socket;
+use Swoole\Http\Request;
+use Swoole\Http\Response;
+use Swoole\Server;
+
 $pm = new ProcessManager();
 $pm->parentFunc = function ($pid) use ($pm) {
     Co\run(function () use ($pm) {

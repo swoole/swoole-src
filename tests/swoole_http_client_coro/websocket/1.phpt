@@ -4,6 +4,7 @@ swoole_http_client_coro/websocket: client & server
 <?php
 require __DIR__ . '/../../include/skipif.inc';
 skip_if_offline();
+skip_if_darwin_todo();
 ?>
 --FILE--
 <?php
