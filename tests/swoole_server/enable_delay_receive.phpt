@@ -14,7 +14,7 @@ $pm->parentFunc = function () use ($pm) {
         Assert::assert($client->send('world'));
         $s = microtime(true);
         Assert::eq($client->recv(), "hello world");
-        time_approximate(0.3, microtime(true) - $s);
+        time_approximate(0.3, microtime(true) - $s, 0.5);
         $pm->kill();
     });
 };

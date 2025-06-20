@@ -2,15 +2,15 @@
 swoole_http2_server: github issue#4365
 --SKIPIF--
 <?php
-
-use Swoole\Http\Server;
-
 require __DIR__ . '/../include/skipif.inc';
 skip_if_darwin();
 ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
+
+use Swoole\Http\Server;
+
 $pm = new ProcessManager();
 
 const N = 265537;
