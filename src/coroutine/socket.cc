@@ -349,13 +349,13 @@ Socket::Socket(SocketType _type) {
 }
 
 Socket::Socket(int _fd, SocketType _type) {
+    init_sock_type(_type);
     if (sw_unlikely(!init_reactor_socket(_fd))) {
         return;
     }
     if (_type == SW_SOCK_RAW) {
         return;
     }
-    init_sock_type(_type);
     socket->set_nonblock();
     init_options();
 }
