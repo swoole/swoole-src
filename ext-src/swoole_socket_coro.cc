@@ -781,7 +781,7 @@ SW_API bool php_swoole_export_socket(zval *zobject, Socket *_socket) {
     return true;
 }
 
-SW_API zend_object *php_swoole_dup_socket(int fd, enum swSocketType type) {
+SW_API zend_object *php_swoole_dup_socket(int fd, swSocketType type) {
     php_swoole_check_reactor();
     int new_fd = dup(fd);
     if (new_fd < 0) {
@@ -791,7 +791,7 @@ SW_API zend_object *php_swoole_dup_socket(int fd, enum swSocketType type) {
     return php_swoole_create_socket_from_fd(new_fd, type);
 }
 
-SW_API zend_object *php_swoole_create_socket(enum swSocketType type) {
+SW_API zend_object *php_swoole_create_socket(swSocketType type) {
     zval zobject;
     zend_object *object = socket_coro_create_object(swoole_socket_coro_ce);
     SocketObject *sock = (SocketObject *) socket_coro_fetch_object(object);
@@ -843,7 +843,7 @@ static zend_object *create_socket_object(Socket *socket) {
     return object;
 }
 
-SW_API zend_object *php_swoole_create_socket_from_fd(int fd, enum swSocketType type) {
+SW_API zend_object *php_swoole_create_socket_from_fd(int fd, swSocketType type) {
     return create_socket_object(new Socket(fd, type));
 }
 
@@ -2145,7 +2145,7 @@ static PHP_METHOD(swoole_socket_coro, import) {
 
     php_stream_from_zval(stream, zstream);
 
-    enum swSocketType type = SW_SOCK_TCP;
+    swSocketType type = SW_SOCK_TCP;
     int socket_fd;
 
     if (php_stream_cast(stream, PHP_STREAM_AS_SOCKETD, (void **) &socket_fd, 1)) {

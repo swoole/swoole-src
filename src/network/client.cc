@@ -429,7 +429,7 @@ static int Client_tcp_connect_sync(Client *cli, const char *host, int port, doub
         return SW_ERR;
     }
 
-    int ret = cli->socket->connect_sync(cli->server_addr, timeout);
+    int ret = cli->socket->connect_sync(cli->server_addr);
     if (ret >= 0) {
         cli->active = true;
         auto recv_buf = sw_tg_buffer();
@@ -634,7 +634,7 @@ static int Client_udp_connect(Client *cli, const char *host, int port, double ti
     }
 
     cli->active = true;
-    int bufsize = Socket::default_buffer_size;
+    cli->socket->set_buffer_size(Socket::default_buffer_size);
 
     if (timeout > 0) {
         cli->socket->set_timeout(timeout);
@@ -674,10 +674,6 @@ static int Client_udp_connect(Client *cli, const char *host, int port, double ti
     if (cli->socket->connect(cli->server_addr) == 0) {
         cli->socket->clean();
     _connect_ok:
-
-        cli->socket->set_option(SOL_SOCKET, SO_SNDBUF, bufsize);
-        cli->socket->set_option(SOL_SOCKET, SO_RCVBUF, bufsize);
-
         if (cli->async && cli->onConnect) {
             if (swoole_event_add(cli->socket, SW_EVENT_READ) < 0) {
                 return SW_ERR;

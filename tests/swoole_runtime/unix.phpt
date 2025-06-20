@@ -8,42 +8,51 @@ require __DIR__ . '/../include/skipif.inc';
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-Swoole\Runtime::enableCoroutine();
+use Swoole\Coroutine\Socket;
+use Swoole\Event;
+use Swoole\Runtime;
+
+Runtime::enableCoroutine();
 
 const N = 5;
+const SOCK_FILE = '/tmp/test.sock';
+
+if (is_file(SOCK_FILE)) {
+    unlink(SOCK_FILE);
+}
 
 go(function () {
-    $socket = new Swoole\Coroutine\Socket(AF_UNIX, SOCK_STREAM, 0);
-    Assert::true($socket->bind(__DIR__ . '/test.sock'));
-    Assert::true($socket->listen());
+    $socket = new Socket(AF_UNIX, SOCK_STREAM, 0);
+    Assert::true($socket->bind(SOCK_FILE), 'bind error: ' . $socket->errCode);
+    Assert::true($socket->listen(), 'listen error: ' . $socket->errCode);
 
     $client = $socket->accept();
     Assert::notNull($client);
 
     for ($i = 0; $i < N; $i++) {
         $data = $client->recv();
-        $client->send("Swoole: $data");
+        $client->send("Swoole: {$data}");
     }
 
     usleep(1000);
 });
 
 go(function () {
-    $fp = stream_socket_client("unix://".__DIR__."/test.sock", $errno, $errstr, 30);
+    $fp = stream_socket_client('unix://' . SOCK_FILE, $errno, $errstr, 30);
     if (!$fp) {
-        echo "$errstr ($errno)<br />\n";
+        echo "{$errstr} ({$errno})<br />\n";
     } else {
         for ($i = 0; $i < N; $i++) {
             fwrite($fp, "hello-{$i}");
             $data = fread($fp, 1024);
-            list($address) = explode(':', (stream_socket_get_name($fp, true)));
+            [$address] = explode(':', stream_socket_get_name($fp, true));
             $address = basename($address);
-            echo "[Client] recvfrom[{$address}] : $data\n";
+            echo "[Client] recvfrom[{$address}] : {$data}\n";
         }
         fclose($fp);
     }
 });
-Swoole\Event::wait();
+Event::wait();
 ?>
 --EXPECT--
 [Client] recvfrom[test.sock] : Swoole: hello-0

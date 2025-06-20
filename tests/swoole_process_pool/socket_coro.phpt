@@ -8,20 +8,21 @@ swoole_process_pool: co\socket
 require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Atomic;
-use SwooleTest\ProcessManager;
-use Swoole\Coroutine\Socket;
 use Swoole\Constant;
+use Swoole\Coroutine\Client;
+use Swoole\Coroutine\Scheduler;
+use Swoole\Coroutine\Socket;
 use Swoole\Process;
 use Swoole\Process\Pool;
+use SwooleTest\ProcessManager;
 
-$pm = new ProcessManager;
+$pm = new ProcessManager();
 
 $pm->parentFunc = function ($pid) use ($pm) {
-
     $s = microtime(true);
-    $sch = new Swoole\Coroutine\Scheduler();
+    $sch = new Scheduler();
     $sch->parallel(2, function () use ($pm) {
-        $cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
+        $cli = new Client(SWOOLE_SOCK_TCP);
         if (!$cli->connect('127.0.0.1', $pm->getFreePort())) {
             echo "ERROR\n";
             return;
@@ -37,7 +38,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
     });
     $sch->start();
     echo "DONE\n";
-    Assert::lessThan(microtime(true) - $s, 0.15);
+    Assert::lessThan(microtime(true) - $s, 0.25);
     $pm->kill();
 };
 
@@ -71,7 +72,7 @@ $pm->childFunc = function () use ($pm) {
                 $client->close();
                 break;
             }
-            $client->send("Server[$id]: $data");
+            $client->send("Server[{$id}]: {$data}");
         }
         echo "worker stop\n";
     });

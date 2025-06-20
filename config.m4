@@ -1309,9 +1309,9 @@ EOF
     CXXFLAGS="$CXXFLAGS -Wall -Wno-unused-function -Wno-deprecated -Wno-deprecated-declarations"
 
     if test "$SW_OS" = "CYGWIN" || test "$SW_OS" = "MINGW"; then
-        CXXFLAGS="$CXXFLAGS -std=gnu++11"
+        CXXFLAGS="$CXXFLAGS -std=gnu++14"
     else
-        CXXFLAGS="$CXXFLAGS -std=c++11"
+        CXXFLAGS="$CXXFLAGS -std=c++14"
     fi
 
     if test "$SW_CPU" = "arm"; then

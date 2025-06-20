@@ -89,20 +89,20 @@ function is_musl_libc(): bool
 
 function get_one_free_port(): int
 {
-    $hookFlags = Runtime::getHookFlags();
+    /**
+     * The Swoole coroutine socket delays releasing file descriptors (fd),
+     * which prevents ports from being released immediately. 
+     * Therefore, it is essential to disable runtime hooks.
+     */
+    $flags = Runtime::getHookFlags();
     Runtime::enableCoroutine(0);
-    $server = @stream_socket_server('tcp://127.0.0.1:0');
-    if (!$server) {
-        $port = -1;
-    } else {
-        $name = stream_socket_get_name($server, false);
-        if (empty($name)) {
-            $port = -1;
-        } else {
-            $port = (parse_url($name)['port'] ?? -1) ?: -1;
-        }
-    }
-    Runtime::enableCoroutine($hookFlags);
+    $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP) or exit('Unable to create socket: ' . socket_strerror(socket_last_error()) . PHP_EOL);
+    socket_set_option($socket, SOL_SOCKET, SO_REUSEADDR, 1) or exit('Unable to set socket option: ' . socket_strerror(socket_last_error()) . PHP_EOL);
+    socket_set_option($socket, SOL_SOCKET, SO_REUSEPORT, 1) or exit('Unable to set socket option: ' . socket_strerror(socket_last_error()) . PHP_EOL);
+    socket_bind($socket, '127.0.0.1', 0) or exit('Unable to bind socket: ' . socket_strerror(socket_last_error()) . PHP_EOL);
+    socket_getsockname($socket, $addr, $port);
+    socket_close($socket);
+    Runtime::enableCoroutine($flags);
     return $port;
 }
 

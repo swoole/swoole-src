@@ -16,6 +16,7 @@
 
 #include "swoole_socket.h"
 
+#include <utility>
 #include <memory>
 
 #include "swoole_api.h"
@@ -144,10 +145,14 @@ int Socket::what_event_want(int default_event) const {
         return be_zero_return;                                                                                         \
     }
 
-bool Socket::wait_for(const std::function<swReturnCode()> &fn, int event, int timeout_msec) {
-    double began_at;
+bool Socket::wait_for(const std::function<ReturnCode()> &fn, int event, int timeout_msec) {
+    double began_at = 0;
     if (timeout_msec > 0) {
         began_at = microtime();
+    }
+
+    if (!nonblock) {
+        set_nonblock();
     }
 
 #ifdef SW_USE_OPENSSL
@@ -157,19 +162,28 @@ bool Socket::wait_for(const std::function<swReturnCode()> &fn, int event, int ti
 #endif
 
     while (true) {
-        auto rv = wait_event(timeout_msec, what_event_want(event));
-        if (rv == SW_ERR && ((errno == EINTR && dont_restart) || errno != EINTR)) {
-            return false;
-        }
-
         switch (fn()) {
         case SW_ERROR:
             return false;
         case SW_READY:
             return true;
         case SW_CONTINUE:
+            /**
+             * The ENOBUFS error indicates that the operating system currently lacks sufficient available memory,
+             * requiring waiting for the kernel to reclaim memory. Event listening for writes is also ineffective—the
+             * only recourse is to sleep for 10 milliseconds while awaiting kernel memory recovery.
+             */
+            if (has_kernel_nobufs()) {
+                usleep(10 * 1000);
+                continue;
+            }
         default:
             break;
+        }
+
+        auto rv = wait_event(timeout_msec, what_event_want(event));
+        if (rv == SW_ERR && ((errno == EINTR && dont_restart) || errno != EINTR)) {
+            return false;
         }
 
         if (timeout_msec > 0) {
@@ -248,12 +262,13 @@ swReturnCode Socket::connect_async(const Address &sa) {
     return SW_READY;
 }
 
-int Socket::connect_sync(const Address &sa, double timeout) {
+int Socket::connect_sync(const Address &sa) {
     auto rc = connect_async(sa);
     if (rc != SW_WAIT) {
         return rc == SW_READY ? SW_OK : SW_ERR;
     }
-    if (wait_event(timeout > 0 ? (int) (timeout * 1000) : timeout, SW_EVENT_WRITE) < 0) {
+    double timeout = connect_timeout;
+    if (wait_event(timeout > 0 ? sec2msec(timeout) : timeout, SW_EVENT_WRITE) < 0) {
         swoole_set_last_error(ETIMEDOUT);
         return SW_ERR;
     }
@@ -287,18 +302,12 @@ void Socket::clean() const {
 int Socket::wait_event(int timeout_ms, int events) const {
     pollfd event;
     event.fd = fd;
-    event.events = 0;
+    event.events = translate_events_to_poll(events);
 
     if (timeout_ms < 0) {
         timeout_ms = -1;
     }
 
-    if (events & SW_EVENT_READ) {
-        event.events |= POLLIN;
-    }
-    if (events & SW_EVENT_WRITE) {
-        event.events |= POLLOUT;
-    }
     while (true) {
         int ret = poll(&event, 1, timeout_ms);
         if (ret == 0) {
@@ -320,6 +329,7 @@ int Socket::wait_event(int timeout_ms, int events) const {
         }
         return SW_OK;
     }
+
     return SW_OK;
 }
 
@@ -344,7 +354,12 @@ ssize_t Socket::recv_sync(void *_data, size_t _len, int flags) {
 
     auto rv = wait_for(
         [this, _data, _len, flags, &bytes]() {
-            ssize_t n = recv((char *) _data + bytes, _len - bytes, flags);
+            /**
+             * In non-blocking mode, the MSG_WAITALL flag must be cleared. Otherwise, receiving a small amount of data
+             * may cause the poll listener to return 1 for readable events, yet the recv operation returns -1 with errno
+             * set to EAGAIN, resulting in an infinite loop.
+             */
+            ssize_t n = recv((char *) _data + bytes, _len - bytes, flags & ~MSG_WAITALL);
             CHECK_RETURN_VALUE(n, SW_READY);
             bytes += n;
             if (flags & MSG_WAITALL) {
@@ -609,7 +624,7 @@ static bool _set_timeout(int fd, int type, double timeout) {
     timeval timeo;
     timeo.tv_sec = (int) timeout;
     timeo.tv_usec = (int) ((timeout - timeo.tv_sec) * 1000 * 1000);
-    int ret = setsockopt(fd, SOL_SOCKET, type, (void *) &timeo, sizeof(timeo));
+    int ret = setsockopt(fd, SOL_SOCKET, type, &timeo, sizeof(timeo));
     if (ret < 0) {
         swoole_sys_warning("setsockopt(SO_SNDTIMEO, %s) failed", type == SO_SNDTIMEO ? "SEND" : "RECV");
         return false;
@@ -722,6 +737,10 @@ double Socket::get_timeout(TimeoutType type) const {
 
 bool Socket::has_timedout() const {
     return errno == EAGAIN || errno == ETIMEDOUT || swoole_get_last_error() == SW_ERROR_SOCKET_POLL_TIMEOUT;
+}
+
+bool Socket::has_kernel_nobufs() {
+    return std::exchange(kernel_nobufs, 0);
 }
 
 bool Socket::set_kernel_read_timeout(double timeout) {
@@ -950,7 +969,7 @@ ssize_t Socket::send_async(const void *_buf, size_t _n) {
     }
 }
 
-ssize_t Socket::read_sync(void *_buf, size_t _len, int timeout_ms) {
+ssize_t Socket::read_sync(void *_buf, size_t _len) {
     ssize_t bytes = 0;
 
     auto rv = wait_for(
@@ -961,12 +980,12 @@ ssize_t Socket::read_sync(void *_buf, size_t _len, int timeout_ms) {
             return SW_READY;
         },
         SW_EVENT_READ,
-        timeout_ms);
+        sec2msec(read_timeout));
 
     return rv ? bytes : -1;
 }
 
-ssize_t Socket::write_sync(const void *_buf, size_t _len, int timeout_ms) {
+ssize_t Socket::write_sync(const void *_buf, size_t _len) {
     ssize_t bytes = 0;
 
     auto rv = wait_for(
@@ -977,19 +996,9 @@ ssize_t Socket::write_sync(const void *_buf, size_t _len, int timeout_ms) {
             return SW_READY;
         },
         SW_EVENT_WRITE,
-        timeout_ms);
+        sec2msec(write_timeout));
 
     return rv ? bytes : -1;
-}
-
-ssize_t Socket::write_sync_optimistic(const void *_buf, size_t _len, int timeout_ms) const {
-    do {
-        const auto rv = write(_buf, _len);
-        if (rv < 0 && (errno == EINTR || (catch_error(errno) == SW_WAIT && wait_event(timeout_ms, SW_EVENT_WRITE)))) {
-            continue;
-        }
-        return rv;
-    } while (true);
 }
 
 ssize_t Socket::readv(IOVector *io_vector) {
@@ -1047,7 +1056,7 @@ ssize_t Socket::peek(void *_buf, size_t _n, int _flags) const {
     return retval;
 }
 
-int Socket::catch_error(const int err) const {
+int Socket::catch_error(const int err) {
     switch (err) {
     case EFAULT:
         abort();
@@ -1072,10 +1081,10 @@ int Socket::catch_error(const int err) const {
 #if EAGAIN != EWOULDBLOCK
     case EWOULDBLOCK:
 #endif
-#ifdef HAVE_KQUEUE
-    case ENOBUFS:
-#endif
     case 0:
+        return SW_WAIT;
+    case ENOBUFS:
+        kernel_nobufs = true;
         return SW_WAIT;
     default:
         return SW_ERROR;

@@ -3,6 +3,7 @@ swoole_server: send 2M data in user process
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
+skip_if_darwin_todo();
 ?>
 --FILE--
 <?php
@@ -10,14 +11,18 @@ require __DIR__ . '/../include/bootstrap.php';
 
 const SIZE = 2 * 1024 * 1024;
 
+use Co\Client;
+use Swoole\Event;
+use Swoole\Process;
 use Swoole\Server;
+use SwooleTest\ProcessManager;
 
-$pm = new SwooleTest\ProcessManager;
+$pm = new ProcessManager();
 
 $pm->parentFunc = function ($pid) use ($pm) {
     for ($i = 0; $i < MAX_CONCURRENCY_MID; $i++) {
         go(function () use ($pm, $i) {
-            $cli = new Co\Client(SWOOLE_SOCK_TCP);
+            $cli = new Client(SWOOLE_SOCK_TCP);
             $cli->set([
                 'open_length_check' => true,
                 'package_max_length' => 4 * 1024 * 1024,
@@ -39,14 +44,14 @@ $pm->parentFunc = function ($pid) use ($pm) {
             }
         });
     }
-    Swoole\Event::wait();
+    Event::wait();
     $pm->kill();
 };
 
 $pm->childFunc = function () use ($pm) {
     $serv = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
-    $serv->set(array(
-        "worker_num" => 2,
+    $serv->set([
+        'worker_num' => 2,
         'task_worker_num' => 3,
         'log_level' => SWOOLE_LOG_ERROR,
         'open_length_check' => true,
@@ -54,9 +59,9 @@ $pm->childFunc = function () use ($pm) {
         'package_length_type' => 'N',
         'package_length_offset' => 0,
         'package_body_offset' => 4,
-    ));
+    ]);
 
-    $proc = new Swoole\Process(function ($process) use ($serv) {
+    $proc = new Process(function ($process) use ($serv) {
         while (true) {
             $pkt = $process->read();
             if (!$pkt) {
@@ -69,7 +74,7 @@ $pm->childFunc = function () use ($pm) {
     }, false, 2);
     $serv->addProcess($proc);
 
-    $serv->on("WorkerStart", function (Server $serv) use ($pm) {
+    $serv->on('WorkerStart', function (Server $serv) use ($pm) {
         $pm->wakeup();
     });
 

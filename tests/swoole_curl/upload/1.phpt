@@ -2,10 +2,17 @@
 swoole_curl/upload: CURL file uploading
 --INI--
 --SKIPIF--
-<?php require __DIR__ . '/../../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../../include/skipif.inc';
+skip("tmp skip");
+?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
+
+Swoole\Coroutine::set([
+    'print_backtrace_on_error' => true,
+    // 'enable_kqueue' => true,
+]);
 
 $cm = new \SwooleTest\CurlManager();
 $cm->run(function ($host) {

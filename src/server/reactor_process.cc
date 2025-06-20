@@ -91,8 +91,9 @@ int Server::start_reactor_processes() {
 static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
     SendData _send;
     auto *serv = static_cast<Server *>(reactor->ptr);
-    Factory *factory = serv->factory;
-    PipeBuffer *pipe_buffer = serv->message_bus.get_buffer();
+    auto *factory = serv->factory;
+    auto *pipe_buffer = serv->message_bus.get_buffer();
+    auto *worker = serv->get_worker(reactor->id);
 
     ssize_t retval = serv->message_bus.read(event->socket);
     if (retval <= 0) {
@@ -106,6 +107,10 @@ static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
     }
     case SW_SERVER_EVENT_FINISH: {
         serv->onFinish(serv, reinterpret_cast<EventData *>(pipe_buffer));
+        break;
+    }
+    case SW_SERVER_EVENT_SHUTDOWN: {
+        serv->stop_async_worker(worker);
         break;
     }
     case SW_SERVER_EVENT_SEND_FILE: {

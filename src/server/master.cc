@@ -1293,6 +1293,18 @@ bool Server::send(SessionId session_id, const void *data, uint32_t length) const
     return false;
 }
 
+bool Server::has_kernel_nobufs_error(SessionId session_id) {
+    auto conn = get_connection(session_id);
+    if (!conn || !conn->socket) {
+        return false;
+    }
+    if (is_process_mode()) {
+        return get_reactor_pipe_socket(session_id, conn->reactor_id)->has_kernel_nobufs();
+    } else {
+        return conn->socket->has_kernel_nobufs();
+    }
+}
+
 int Server::schedule_worker(int fd, SendData *data) {
     uint32_t key = 0;
 
@@ -1576,7 +1588,7 @@ bool Server::sendfile(SessionId session_id, const char *file, uint32_t l_file, o
                          "sendfile name[%.8s...] length %u is exceed the max name len %u",
                          file,
                          l_file,
-                         (uint32_t) (SW_IPC_BUFFER_SIZE - sizeof(SendfileTask) - 1));
+                         (uint32_t)(SW_IPC_BUFFER_SIZE - sizeof(SendfileTask) - 1));
         return false;
     }
     // string must be zero termination (for `state` system call)
@@ -1833,7 +1845,7 @@ ListenPort *Server::add_port(SocketType type, const char *host, int port) {
                          SW_MAX_LISTEN_PORT);
         return nullptr;
     }
-    if (!Socket::is_local(type) && (port < 0 || port > 65535)) {
+    if (!Socket::is_local(type) && !Address::verify_port(port)) {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_INVALID_LISTEN_PORT, "invalid port [%d]", port);
         return nullptr;
     }
@@ -2056,18 +2068,7 @@ _find_available_slot:
 }
 
 void Server::init_ipc_max_size() {
-#ifndef __linux__
-    ipc_max_size = SW_IPC_MAX_SIZE;
-#else
-    int bufsize;
-    /**
-     * Get the maximum ipc[unix socket with dgram] transmission length
-     */
-    if (workers[0].pipe_master->get_option(SOL_SOCKET, SO_SNDBUF, &bufsize) != 0) {
-        bufsize = SW_IPC_MAX_SIZE;
-    }
-    ipc_max_size = SW_MIN(bufsize, SW_IPC_BUFFER_MAX_SIZE) - SW_DGRAM_HEADER_SIZE;
-#endif
+    ipc_max_size = SW_IPC_BUFFER_MAX_SIZE;
 }
 
 void Server::init_pipe_sockets(MessageBus *mb) const {

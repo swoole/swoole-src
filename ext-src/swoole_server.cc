@@ -20,6 +20,7 @@
 #include "php_swoole_thread.h"
 #include "php_swoole_call_stack.h"
 #include "swoole_msg_queue.h"
+#include "swoole_coroutine_system.h"
 
 #include "ext/standard/php_var.h"
 #include "zend_smart_str.h"
@@ -752,7 +753,7 @@ static bool php_swoole_server_task_unpack(zval *zresult, EventData *task_result)
         PHP_VAR_UNSERIALIZE_DESTROY(var_hash);
         if (!unserialized) {
             swoole_warning("unserialize() failed, Error at offset " ZEND_LONG_FMT " of %zd bytes",
-                           (zend_long) ((char *) p - packet.data),
+                           (zend_long)((char *) p - packet.data),
                            l);
             return false;
         }
@@ -1785,6 +1786,12 @@ void php_swoole_server_onBufferFull(Server *serv, DataHead *info) {
     }
 }
 
+void php_swoole_server_check_kernel_nobufs(Server *serv, SessionId session_id) {
+    if (swoole_coroutine_is_in() && serv->has_kernel_nobufs_error(session_id)) {
+        swoole::coroutine::System::sleep(0.01);
+    }
+}
+
 void php_swoole_server_send_yield(Server *serv, SessionId session_id, zval *zdata, zval *return_value) {
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(php_swoole_server_zval_ptr(serv)));
     Coroutine *co = Coroutine::get_current_safe();
@@ -1828,7 +1835,7 @@ static int php_swoole_server_dispatch_func(Server *serv, Connection *conn, SendD
 
     *zserv = *(php_swoole_server_zval_ptr(serv));
     ZVAL_LONG(zfd, conn ? conn->session_id : data->info.fd);
-    ZVAL_LONG(ztype, (zend_long) (data ? data->info.type : (int) SW_SERVER_EVENT_CLOSE));
+    ZVAL_LONG(ztype, (zend_long)(data ? data->info.type : (int) SW_SERVER_EVENT_CLOSE));
     if (data && sw_zend_function_max_num_args(cb->ptr()->function_handler) > 3) {
         // TODO: reduce memory copy
         zdata = &args[3];
@@ -2526,7 +2533,7 @@ static PHP_METHOD(swoole_server, listen) {
     RETURN_ZVAL(port_object, 1, 0);
 }
 
-extern Worker *php_swoole_process_get_and_check_worker(zval *zobject);
+extern Worker *php_swoole_process_get_and_check_worker(const zval *zobject);
 
 static PHP_METHOD(swoole_server, addProcess) {
     Server *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
@@ -2788,6 +2795,7 @@ static PHP_METHOD(swoole_server, send) {
     if (!ret && swoole_get_last_error() == SW_ERROR_OUTPUT_SEND_YIELD) {
         php_swoole_server_send_yield(serv, fd, zdata, return_value);
     } else {
+        php_swoole_server_check_kernel_nobufs(serv, fd);
         RETURN_BOOL(ret);
     }
 }

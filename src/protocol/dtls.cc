@@ -15,8 +15,8 @@
 */
 
 #include "swoole_server.h"
-#ifdef SW_SUPPORT_DTLS
 
+#ifdef SW_SUPPORT_DTLS
 namespace swoole {
 namespace dtls {
 //-------------------------------------------------------------------------------
@@ -176,10 +176,13 @@ bool Session::init() {
     if (socket->ssl) {
         return false;
     }
+
     if (socket->ssl_create(ctx.get(), SW_SSL_SERVER) < 0) {
         swoole_set_last_error(SW_ERROR_SSL_CREATE_SESSION_FAILED);
         return false;
     }
+
+    socket->set_buffer_size(Socket::default_buffer_size);
     socket->dtls = 1;
 
     BIO *bio = BIO_new(BIO_get_methods());
@@ -222,5 +225,4 @@ bool Session::listen() {
 //-------------------------------------------------------------------------------
 }  // namespace dtls
 }  // namespace swoole
-
 #endif

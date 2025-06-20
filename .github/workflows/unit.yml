@@ -93,4 +93,5 @@ jobs:
           export PHP_VERSION=${{ matrix.php-version }}
           export SWOOLE_CI_IN_MACOS=1
           cd ${{runner.workspace}}/swoole-src
+          ulimit -n 100000
           ./scripts/run-tests.sh

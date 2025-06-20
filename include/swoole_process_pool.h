@@ -177,7 +177,6 @@ struct Worker {
     network::Socket *pipe_current;
 
     void *ptr;
-    void *ptr2;
 
     ssize_t send_pipe_message(const void *buf, size_t n, int flags) const;
     bool has_exceeded_max_request() const;
@@ -193,7 +192,7 @@ struct Worker {
     bool is_shutdown();
     static bool is_running();
 
-    void set_status(enum swWorkerStatus _status) {
+    void set_status(swWorkerStatus _status) {
         status = _status;
     }
 

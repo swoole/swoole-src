@@ -49,7 +49,7 @@ void SocketPair::set_blocking(bool blocking) const {
 
 ssize_t SocketPair::read(void *data, size_t length) {
     if (blocking) {
-        return worker_socket->read_sync(data, length, get_timeout_msec());
+        return worker_socket->read_sync(data, length);
     } else {
         return worker_socket->read(data, length);
     }
@@ -57,7 +57,7 @@ ssize_t SocketPair::read(void *data, size_t length) {
 
 ssize_t SocketPair::write(const void *data, size_t length) {
     if (blocking) {
-        return master_socket->write_sync(data, length, get_timeout_msec());
+        return master_socket->write_sync(data, length);
     } else {
         return master_socket->write(data, length);
     }

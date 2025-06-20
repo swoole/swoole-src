@@ -148,6 +148,7 @@ struct Address {
      * and AF_INET6 indicates an IPv6 address, for example, 2001:0000:130F:0000:0000:09C0:876A:130B.
      */
     static bool verify_ip(int family, const std::string &str);
+    static bool verify_port(int port, bool for_connect = false);
 };
 
 struct IOVector {
@@ -201,6 +202,7 @@ struct Socket {
     SocketType socket_type;
     int events;
     bool enable_tcp_nodelay;
+    bool kernel_nobufs;
 
     uchar removed : 1;
     uchar silent_remove : 1;
@@ -290,6 +292,7 @@ struct Socket {
     void set_timeout(double timeout, int type = SW_TIMEOUT_ALL);
     double get_timeout(TimeoutType type) const;
     bool has_timedout() const;
+    bool has_kernel_nobufs();
 
     bool set_nonblock() {
         return set_fd_option(1, -1);
@@ -407,8 +410,8 @@ struct Socket {
         return connect(addr);
     }
 
-    int connect_sync(const Address &sa, double timeout);
-    swReturnCode connect_async(const Address &sa);
+    int connect_sync(const Address &sa);
+    ReturnCode connect_async(const Address &sa);
 
 #ifdef SW_USE_OPENSSL
     void ssl_clear_error() {
@@ -462,7 +465,7 @@ struct Socket {
     }
 
     int wait_event(int timeout_ms, int events) const;
-    bool wait_for(const std::function<swReturnCode()> &fn, int event, int timeout_msec = -1);
+    bool wait_for(const std::function<ReturnCode()> &fn, int event, int timeout_msec = -1);
     int what_event_want(int default_event) const;
     void free();
 
@@ -546,19 +549,13 @@ struct Socket {
      * Read data from the socket synchronously without setting non-blocking or blocking IO,
      * and allow interruptions by signals.
      */
-    ssize_t read_sync(void *_buf, size_t _len, int timeout_ms = -1);
+    ssize_t read_sync(void *_buf, size_t _len);
 
     /**
      * Write data to the socket synchronously without setting non-blocking or blocking IO,
      * and allow interruptions by signals.
      */
-    ssize_t write_sync(const void *_buf, size_t _len, int timeout_ms = -1);
-    /**
-     * Write data to the socket synchronously with an optimistic approach,
-     * meaning it will not wait for the socket to be writable before writing.
-     * This method is useful for scenarios where immediate write attempts are preferred.
-     */
-    ssize_t write_sync_optimistic(const void *_buf, size_t _len, int timeout_ms = -1) const;
+    ssize_t write_sync(const void *_buf, size_t _len);
 
     int shutdown(int _how) const {
         return ::shutdown(fd, _how);
@@ -578,20 +575,21 @@ struct Socket {
         return ::sendto(fd, data, len, flags, &dst_addr.addr.ss, dst_addr.len);
     }
 
-    int catch_error(int err) const;
+    int catch_error(int err);
 
     int catch_write_error(const int err) {
-        switch (err) {
-        case ENOBUFS:
-            return SW_WAIT;
-        default:
-            return catch_error(err);
-        }
+        return catch_error(err);
     }
 
     int catch_write_pipe_error(const int err) {
         switch (err) {
         case ENOBUFS:
+#ifdef __linux__
+            kernel_nobufs = true;
+            return SW_REDUCE_SIZE;
+#else
+            return catch_error(err);
+#endif
         case EMSGSIZE:
             return SW_REDUCE_SIZE;
         default:

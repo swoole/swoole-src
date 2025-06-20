@@ -588,7 +588,8 @@ int ProcessPool::run_with_task_protocol(ProcessPool *pool, Worker *worker) {
             }
             pool->stream_info_->last_connection = conn;
         } else {
-            n = worker->pipe_worker->read_sync(&out.buf, sizeof(out.buf), swoole_timer_get_next_msec());
+            worker->pipe_worker->set_timeout(msec2sec(swoole_timer_get_next_msec()), SW_TIMEOUT_READ);
+            n = worker->pipe_worker->read_sync(&out.buf, sizeof(out.buf));
             if (n < 0 && catch_system_error(errno) == SW_ERROR) {
                 swoole_sys_warning("[Worker#%d] read(%d) failed", worker->id, worker->pipe_worker->fd);
                 break;
@@ -733,8 +734,8 @@ int ProcessPool::run_with_stream_protocol(ProcessPool *pool, Worker *worker) {
             msg.data = pool->packet_buffer;
             pool->stream_info_->last_connection = conn;
         } else {
-            n = worker->pipe_worker->read_sync(
-                pool->packet_buffer, pool->max_packet_size_, swoole_timer_get_next_msec());
+            worker->pipe_worker->set_timeout(msec2sec(swoole_timer_get_next_msec()), SW_TIMEOUT_READ);
+            n = worker->pipe_worker->read_sync(pool->packet_buffer, pool->max_packet_size_);
             if (n < 0 && catch_system_error(errno) == SW_ERROR) {
                 swoole_sys_warning("[Worker#%d] read(%d) failed", worker->id, worker->pipe_worker->fd);
                 break;
@@ -776,22 +777,26 @@ int ProcessPool::run_with_message_protocol(ProcessPool *pool, Worker *worker) {
         return SW_ERR;
     }
 
-    auto fn = [&]() -> int {
-        if (worker->pipe_worker->wait_event(swoole_timer_get_next_msec(), SW_EVENT_READ) < 0) {
-            return errno == EINTR ? 0 : -1;
+    auto fn = [&]() -> ReturnCode {
+        while (true) {
+            if (worker->pipe_worker->wait_event(swoole_timer_get_next_msec(), SW_EVENT_READ) < 0) {
+                return errno == EINTR ? SW_CONTINUE : SW_ERROR;
+            }
+            auto rv = pool->message_bus->read(worker->pipe_worker);
+            if (rv < 0) {
+                return errno == EINTR ? SW_CONTINUE : SW_ERROR;
+            } else if (rv > 0) {
+                auto pipe_buffer = pool->message_bus->get_buffer();
+                auto packet = pool->message_bus->get_packet();
+                RecvData msg;
+                msg.info = pipe_buffer->info;
+                msg.info.len = packet.length;
+                msg.data = packet.data;
+                pool->onMessage(pool, &msg);
+                pool->message_bus->pop();
+                return SW_READY;
+            }
         }
-        if (pool->message_bus->read(worker->pipe_worker) < 0) {
-            return errno == EINTR ? 0 : -1;
-        }
-        auto pipe_buffer = pool->message_bus->get_buffer();
-        auto packet = pool->message_bus->get_packet();
-        RecvData msg;
-        msg.info = pipe_buffer->info;
-        msg.info.len = packet.length;
-        msg.data = packet.data;
-        pool->onMessage(pool, &msg);
-        pool->message_bus->pop();
-        return 1;
     };
 
     if (pool->message_bus == nullptr) {
@@ -801,12 +806,12 @@ int ProcessPool::run_with_message_protocol(ProcessPool *pool, Worker *worker) {
     pool->at_worker_enter(worker);
     while (pool->is_worker_running(worker)) {
         switch (fn()) {
-        case 0:
+        case SW_CONTINUE:
             worker_end_callback();
             break;
-        case 1:
+        case SW_READY:
             break;
-        case -1:
+        case SW_ERROR:
         default:
             swoole_sys_warning("[Worker #%d]failed to read data from pipe", worker->id);
             worker->shutdown();

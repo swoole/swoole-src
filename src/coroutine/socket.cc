@@ -154,6 +154,19 @@ bool Socket::wait_event(const EventType event, const void **__buf, size_t __n) {
         return false;
     }
 
+    if (socket->has_kernel_nobufs()) {
+        if (sw_likely(event == SW_EVENT_READ)) {
+            read_co = co;
+            System::sleep(0.01);
+            read_co = nullptr;
+        } else {
+            write_co = co;
+            System::sleep(0.01);
+            write_co = nullptr;
+        }
+        return !is_closed();
+    }
+
     // clear the last errCode
     set_err(0);
 #ifdef SW_USE_OPENSSL
@@ -308,7 +321,7 @@ bool Socket::init_sock() {
 }
 
 bool Socket::init_reactor_socket(int _fd) {
-    socket = swoole::make_socket(_fd, SW_FD_CO_SOCKET);
+    socket = make_socket(_fd, SW_FD_CO_SOCKET);
     sock_fd = _fd;
     socket->object = this;
     socket->socket_type = type;
@@ -1013,8 +1026,12 @@ ssize_t Socket::sendmsg(const struct msghdr *msg, int flags) {
     return retval;
 }
 
-bool Socket::bind(const sockaddr *sa, socklen_t len) const {
-    return socket->bind(sa, len) == 0;
+bool Socket::bind(const sockaddr *sa, socklen_t len) {
+    if (socket->bind(sa, len) < 0) {
+        set_err();
+        return false;
+    }
+    return true;
 }
 
 bool Socket::bind(const std::string &address, const int port) {
@@ -1022,17 +1039,19 @@ bool Socket::bind(const std::string &address, const int port) {
         return false;
     }
 
+    swoole_clear_last_error();
+
     if (socket->set_reuse_addr() < 0) {
         swoole_sys_warning("setsockopt(%d, SO_REUSEADDR) failed", get_fd());
     }
 
     if (socket->bind(address, port) < 0) {
-        set_err(errno);
+        set_err();
         return false;
     }
 
     if (socket->get_name() < 0) {
-        set_err(errno);
+        set_err();
         return false;
     }
 

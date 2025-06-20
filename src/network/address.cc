@@ -37,6 +37,16 @@ bool Address::verify_ip(int family, const std::string &str) {
     return inet_pton(family, str.c_str(), tmp_address) == 1;
 }
 
+bool Address::verify_port(const int port, const bool for_connect) {
+    if (port < 0 || port > 65535) {
+        return false;
+    }
+    if (for_connect && port == 0) {
+        return false;
+    }
+    return true;
+}
+
 const char *Address::get_addr() const {
     if (Socket::is_inet4(type)) {
         return addr_str(AF_INET, &addr.inet_v4.sin_addr);
@@ -76,7 +86,7 @@ bool Address::assign(SocketType _type, const std::string &_host, int _port, bool
     type = _type;
     const char *host = _host.c_str();
 
-    if (_port < 0 || _port > 65535) {
+    if (!verify_port(_port)) {
         swoole_set_last_error(SW_ERROR_BAD_PORT);
         return false;
     }

@@ -126,7 +126,7 @@ class Socket {
      */
     Socket *accept(double timeout = 0);
     bool bind(const std::string &address, int port = 0);
-    bool bind(const sockaddr *sa, socklen_t len) const;
+    bool bind(const sockaddr *sa, socklen_t len);
     bool listen(int backlog = 0);
     bool sendfile(const char *filename, off_t offset, size_t length);
     ssize_t sendto(std::string host, int port, const void *__buf, size_t __n);
@@ -325,7 +325,7 @@ class Socket {
     }
 
     void set_err() {
-        errCode = swoole_get_last_error();
+        errCode = swoole_get_last_error() ? swoole_get_last_error() : errno;
         errMsg = swoole_strerror(errCode);
     }
 
@@ -474,8 +474,11 @@ class Socket {
     }
 
     void init_options() {
-        if (type == SW_SOCK_TCP || type == SW_SOCK_TCP6) {
+        if (socket->is_tcp()) {
             set_option(IPPROTO_TCP, TCP_NODELAY, 1);
+        }
+        if (socket->is_udp()) {
+            socket->set_buffer_size(network::Socket::default_buffer_size);
         }
         protocol.package_length_type = 'N';
         protocol.package_length_size = 4;

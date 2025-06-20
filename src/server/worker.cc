@@ -322,18 +322,9 @@ bool Server::kill_worker(int worker_id) {
 
     swoole_trace_log(SW_TRACE_SERVER, "kill worker#%d", worker_id);
 
-    if (is_thread_mode()) {
-        DataHead event = {};
-        event.type = SW_SERVER_EVENT_SHUTDOWN;
-        return send_to_worker_from_worker(worker, &event, sizeof(event), SW_PIPE_MASTER) != -1;
-    }
-
-    if (swoole_kill(worker->pid, SIGTERM) < 0) {
-        swoole_sys_warning("kill(%d, SIGTERM) failed", worker->pid);
-        return false;
-    }
-
-    return true;
+    DataHead event = {};
+    event.type = SW_SERVER_EVENT_SHUTDOWN;
+    return send_to_worker_from_worker(worker, &event, sizeof(event), SW_PIPE_MASTER) != -1;
 }
 
 void Server::stop_async_worker(Worker *worker) {

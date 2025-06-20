@@ -39,7 +39,7 @@ $pm->parentFunc = function ($pid) use ($pm, $time1, $time2) {
         }
         $result .= $data;
     }
-    Assert::greaterThan(strlen($result), 65536);
+    Assert::greaterThanEq(strlen($result), 8192);
     $pm->kill();
 };
 

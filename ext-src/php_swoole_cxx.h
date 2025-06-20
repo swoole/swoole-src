@@ -450,28 +450,6 @@ class Array {
     }
 };
 
-enum PipeType {
-    PIPE_TYPE_NONE = 0,
-    PIPE_TYPE_STREAM = 1,
-    PIPE_TYPE_DGRAM = 2,
-};
-
-class Process {
-  public:
-    zend_object *zsocket = nullptr;
-    enum PipeType pipe_type;
-    bool enable_coroutine;
-
-    Process(enum PipeType pipe_type, bool enable_coroutine)
-        : pipe_type(pipe_type), enable_coroutine(enable_coroutine) {}
-
-    ~Process() {
-        if (zsocket) {
-            OBJ_RELEASE(zsocket);
-        }
-    }
-};
-
 class Variable {
   public:
     zval value;

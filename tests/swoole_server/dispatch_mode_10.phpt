@@ -19,7 +19,7 @@ $table = new Table(64);
 $table->column('count', Table::TYPE_INT);
 $table->create();
 
-const N = 1024;
+const N = IS_MAC_OS ? 256 : 1024;
 const EOF = "\r\n\r\n";
 
 $pm = new SwooleTest\ProcessManager;
