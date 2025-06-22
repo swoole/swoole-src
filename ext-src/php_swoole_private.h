@@ -389,7 +389,7 @@ php_socket *php_swoole_convert_to_socket(int sock);
 
 #ifdef HAVE_CPU_AFFINITY
 bool php_swoole_array_to_cpu_set(const zval *array, cpu_set_t *cpu_set);
-void php_swoole_cpu_set_to_array(const zval *array, cpu_set_t *cpu_set);
+void php_swoole_cpu_set_to_array(zval *array, cpu_set_t *cpu_set);
 #endif
 
 zend_bool php_swoole_signal_isset_handler(int signo);
