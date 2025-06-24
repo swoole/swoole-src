@@ -389,7 +389,16 @@ php_socket *php_swoole_convert_to_socket(int sock);
 
 #ifdef HAVE_CPU_AFFINITY
 bool php_swoole_array_to_cpu_set(const zval *array, cpu_set_t *cpu_set);
-void php_swoole_cpu_set_to_array(zval *array, const cpu_set_t *cpu_set);
+/**
+ * Converts a cpu_set_t structure to a PHP array.
+ * 
+ * Note: On Cygwin platform, CPU_ISSET is a function that takes a non-const pointer as its second parameter,
+ * which is why the cpu_set parameter cannot be declared as const.
+ * 
+ * @param array The PHP array to store the CPU set information
+ * @param cpu_set The CPU set structure to convert
+ */
+void php_swoole_cpu_set_to_array(zval *array, cpu_set_t *cpu_set);
 #endif
 
 zend_bool php_swoole_signal_isset_handler(int signo);

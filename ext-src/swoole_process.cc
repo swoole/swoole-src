@@ -977,7 +977,7 @@ bool php_swoole_array_to_cpu_set(const zval *array, cpu_set_t *cpu_set) {
     return true;
 }
 
-void php_swoole_cpu_set_to_array(zval *array, const cpu_set_t *cpu_set) {
+void php_swoole_cpu_set_to_array(zval *array, cpu_set_t *cpu_set) {
     array_init(array);
 
     int cpu_n = SW_CPU_NUM;
