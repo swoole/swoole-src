@@ -126,8 +126,8 @@ class Client {
     bool in_callback = false;
     bool has_upload_files = false;
 
-    std::shared_ptr<File> download_file;  // save http response to file
-    zend::String download_file_name;      // unlink the file on error
+    int download_file = 0;            // save http response to file
+    zend::String download_file_name;  // unlink the file on error
     zend_long download_offset = 0;
 
     /* safety zval */
@@ -366,6 +366,42 @@ static const zend_function_entry swoole_http_client_coro_methods[] =
 
 // clang-format on
 
+static inline int http_client_open_file(const char *pathname, int flags, mode_t mode) {
+#ifdef SW_USE_IOURING
+    return swoole_coroutine_iouring_open(pathname, flags, mode);
+#else
+    return swoole_coroutine_open(pathname, flags, mode);
+#endif
+}
+
+static inline int http_client_close_file(int fd) {
+#ifdef SW_USE_IOURING
+    return swoole_coroutine_iouring_close_file(fd);
+#else
+    return swoole_coroutine_close_file(fd);
+#endif
+}
+
+static inline int http_client_truncate_file(int fd, off_t length) {
+    return swoole_coroutine_ftruncate(fd, length);
+}
+
+static inline int http_client_lseek_file(int fd, off_t offset) {
+#ifdef SW_USE_IOURING
+    return swoole_coroutine_iouring_lseek(fd, offset, SEEK_SET);
+#else
+    return swoole_coroutine_lseek(fd, offset, SEEK_SET);
+#endif
+}
+
+static inline ssize_t http_client_co_write(int sockfd, const void *buf, size_t count) {
+#ifdef SW_USE_IOURING
+    return swoole_coroutine_iouring_write(sockfd, buf, count);
+#else
+    return swoole_coroutine_write(sockfd, buf, count);
+#endif
+}
+
 void php_swoole_http_parse_set_cookies(const char *at, size_t length, zval *zcookies, zval *zset_cookie_headers) {
     const char *p, *eof = at + length;
     size_t key_len = 0, value_len = 0;
@@ -486,14 +522,6 @@ static int http_parser_on_headers_complete(llhttp_t *parser) {
     return 0;
 }
 
-static inline ssize_t http_client_co_write(int sockfd, const void *buf, size_t count) {
-#ifdef SW_USE_IOURING
-    return swoole_coroutine_iouring_write(sockfd, buf, count);
-#else
-    return swoole_coroutine_write(sockfd, buf, count);
-#endif
-}
-
 static int http_parser_on_body(llhttp_t *parser, const char *at, size_t length) {
     auto *http = static_cast<Client *>(parser->data);
     if (http->write_func) {
@@ -523,28 +551,28 @@ static int http_parser_on_body(llhttp_t *parser, const char *at, size_t length) 
         }
     }
     if (http->download_file_name.get() && http->body->length > 0) {
-        if (http->download_file == nullptr) {
-            char *download_file_name = http->download_file_name.val();
-            std::shared_ptr<File> fp = std::make_shared<File>(download_file_name, O_CREAT | O_WRONLY, 0664);
-            if (!fp->ready()) {
+        if (http->download_file == 0) {
+            const char *download_file_name = http->download_file_name.val();
+            int fd = http_client_open_file(download_file_name, O_CREAT | O_WRONLY, 0664);
+            if (sw_unlikely(fd == -1)) {
                 swoole_sys_warning("open(%s, O_CREAT | O_WRONLY) failed", download_file_name);
                 return -1;
             }
+
             if (http->download_offset == 0) {
-                if (!fp->truncate(0)) {
+                if (http_client_truncate_file(fd, 0) < 0) {
                     swoole_sys_warning("ftruncate(%s) failed", download_file_name);
                     return -1;
                 }
             } else {
-                if (!fp->set_offset(http->download_offset)) {
+                if (http_client_lseek_file(fd, http->download_offset) < 0) {
                     swoole_sys_warning("fseek(%s, %jd) failed", download_file_name, (intmax_t) http->download_offset);
                     return -1;
                 }
             }
-            http->download_file = fp;
+            http->download_file = fd;
         }
-        if (http_client_co_write(http->download_file->get_fd(), SW_STRINGL(http->body)) !=
-            (ssize_t) http->body->length) {
+        if (http_client_co_write(http->download_file, SW_STRINGL(http->body)) != (ssize_t) http->body->length) {
             return -1;
         }
         http->body->clear();
@@ -564,7 +592,7 @@ static int http_parser_on_message_complete(llhttp_t *parser) {
 
     zend_update_property_long(
         swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("statusCode"), parser->status_code);
-    if (http->download_file == nullptr) {
+    if (http->download_file == 0) {
         zend_update_property_stringl(
             swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("body"), SW_STRINGL(http->body));
     } else {
@@ -1651,8 +1679,9 @@ void Client::reset() {
     if (has_upload_files) {
         zend_update_property_null(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("uploadFiles"));
     }
-    if (download_file != nullptr) {
-        download_file.reset();
+    if (download_file != 0) {
+        http_client_close_file(download_file);
+        download_file = 0;
         download_file_name.release();
         download_offset = 0;
         zend_update_property_null(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("downloadFile"));

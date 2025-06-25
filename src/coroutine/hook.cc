@@ -45,6 +45,51 @@ using swoole::Iouring;
 
 static std::unordered_map<int, std::shared_ptr<Socket>> socket_map;
 static std::mutex socket_map_lock;
+static std::unordered_map<int, long> fd_to_coroutine;
+
+// clang-format off
+#define SW_COROUTINE_FD_PROTECT(fd)                                                                                    \
+    do {                                                                                                               \
+        auto coroutine = Coroutine::get_current();                                                                     \
+        fd_to_coroutine[fd] = coroutine->get_cid();                                                                    \
+    } while (0)
+
+#define SW_COROUTINE_FD_UNPROTECT(fd, close_function)                                                                  \
+    do {                                                                                                               \
+        ON_SCOPE_EXIT {                                                                                                \
+            auto iter = fd_to_coroutine.find(fd);                                                                      \
+            auto coroutine = Coroutine::get_current();                                                                 \
+            if (sw_likely(iter != fd_to_coroutine.end() && iter->second == coroutine->get_cid())) {                    \
+                fd_to_coroutine.erase(iter);                                                                           \
+            }                                                                                                          \
+        };                                                                                                             \
+        { close_function; }                                                                                            \
+    } while (0);
+
+#define SW_COROUTINE_FD_CHECK_START(fd)                                                                                \
+    do {                                                                                                               \
+        auto coroutine = Coroutine::get_current();                                                                     \
+        long cid = coroutine->get_cid();                                                                               \
+        auto iter = fd_to_coroutine.find(fd);                                                                          \
+                                                                                                                       \
+        if (sw_likely(iter != fd_to_coroutine.end())) {                                                                \
+            if (sw_unlikely(iter->second != cid)) {                                                                    \
+                swoole_fatal_error(SW_ERROR_CO_HAS_BEEN_BOUND,                                                         \
+                                   "fd#%d has already been bound to another coroutine#%ld, "                           \
+                                   "sharing the same fd across multiple coroutines is not allowed.",                   \
+                                   fd,                                                                                 \
+                                   iter->second);                                                                      \
+            }                                                                                                          \
+        } else {                                                                                                       \
+            fd_to_coroutine.emplace(fd, coroutine->get_cid());                                                         \
+        }                                                                                                              \
+                                                                                                                       \
+        do {
+
+#define SW_COROUTINE_FD_CHECK_END()                                                                                    \
+    	} while (0);                                                                                                   \
+    } while (0)
+// clang-format on
 
 static sw_inline bool is_no_coro() {
     return SwooleTG.reactor == nullptr || !Coroutine::get_current();
@@ -196,9 +241,12 @@ int swoole_coroutine_open(const char *pathname, int flags, mode_t mode) {
         return open(pathname, flags, mode);
     }
 
-    int ret = -1;
-    async([&]() { ret = open(pathname, flags, mode); });
-    return ret;
+    int fd = -1;
+    async([&]() { fd = open(pathname, flags, mode); });
+    if (sw_likely(fd > 0)) {
+        SW_COROUTINE_FD_PROTECT(fd);
+    }
+    return fd;
 }
 
 int swoole_coroutine_close_file(int fd) {
@@ -207,7 +255,9 @@ int swoole_coroutine_close_file(int fd) {
     }
 
     int ret = -1;
-    async([&]() { ret = close(fd); });
+    SW_COROUTINE_FD_CHECK_START(fd)
+    SW_COROUTINE_FD_UNPROTECT(fd, async([&]() { ret = close(fd); }))
+    SW_COROUTINE_FD_CHECK_END();
     return ret;
 }
 
@@ -260,7 +310,10 @@ ssize_t swoole_coroutine_read(int sockfd, void *buf, size_t count) {
         .nonblock = 1,
         .read_timeout = -1,
     };
+
+    SW_COROUTINE_FD_CHECK_START(sockfd)
     async([&]() { ret = sock.read_sync(buf, count); });
+    SW_COROUTINE_FD_CHECK_END();
     return ret;
 }
 
@@ -280,7 +333,10 @@ ssize_t swoole_coroutine_write(int sockfd, const void *buf, size_t count) {
         .nonblock = 1,
         .write_timeout = -1,
     };
+
+    SW_COROUTINE_FD_CHECK_START(sockfd)
     async([&]() { ret = sock.write_sync(buf, count); });
+    SW_COROUTINE_FD_CHECK_END();
     return ret;
 }
 
@@ -290,7 +346,9 @@ off_t swoole_coroutine_lseek(int fd, off_t offset, int whence) {
     }
 
     off_t retval = -1;
+    SW_COROUTINE_FD_CHECK_START(fd)
     async([&]() { retval = lseek(fd, offset, whence); });
+    SW_COROUTINE_FD_CHECK_END();
     return retval;
 }
 
@@ -300,7 +358,9 @@ int swoole_coroutine_fstat(int fd, struct stat *statbuf) {
     }
 
     int retval = -1;
+    SW_COROUTINE_FD_CHECK_START(fd)
     async([&]() { retval = fstat(fd, statbuf); });
+    SW_COROUTINE_FD_CHECK_END();
     return retval;
 }
 
@@ -401,6 +461,10 @@ FILE *swoole_coroutine_fopen(const char *pathname, const char *mode) {
 
     FILE *retval = nullptr;
     async([&]() { retval = fopen(pathname, mode); });
+    if (sw_likely(retval)) {
+        int fd = fileno(retval);
+        SW_COROUTINE_FD_PROTECT(fd);
+    }
     return retval;
 }
 
@@ -410,7 +474,9 @@ FILE *swoole_coroutine_fdopen(int fd, const char *mode) {
     }
 
     FILE *retval = nullptr;
+    SW_COROUTINE_FD_CHECK_START(fd)
     async([&]() { retval = fdopen(fd, mode); });
+    SW_COROUTINE_FD_CHECK_END();
     return retval;
 }
 
@@ -419,8 +485,15 @@ FILE *swoole_coroutine_freopen(const char *pathname, const char *mode, FILE *str
         return freopen(pathname, mode, stream);
     }
 
+    int fd = fileno(stream);
     FILE *retval = nullptr;
-    async([&]() { retval = freopen(pathname, mode, stream); });
+    SW_COROUTINE_FD_CHECK_START(fd)
+    SW_COROUTINE_FD_UNPROTECT(fd, async([&]() { retval = freopen(pathname, mode, stream); }))
+    if (sw_likely(retval)) {
+        int fd = fileno(retval);
+        SW_COROUTINE_FD_PROTECT(fd);
+    }
+    SW_COROUTINE_FD_CHECK_END();
     return retval;
 }
 
@@ -430,7 +503,10 @@ size_t swoole_coroutine_fread(void *ptr, size_t size, size_t nmemb, FILE *stream
     }
 
     size_t retval = 0;
+    int fd = fileno(stream);
+    SW_COROUTINE_FD_CHECK_START(fd)
     async([&]() { retval = fread(ptr, size, nmemb, stream); });
+    SW_COROUTINE_FD_CHECK_END();
     return retval;
 }
 
@@ -440,7 +516,10 @@ size_t swoole_coroutine_fwrite(const void *ptr, size_t size, size_t nmemb, FILE 
     }
 
     size_t retval = 0;
+    int fd = fileno(stream);
+    SW_COROUTINE_FD_CHECK_START(fd)
     async([&]() { retval = fwrite(ptr, size, nmemb, stream); });
+    SW_COROUTINE_FD_CHECK_END();
     return retval;
 }
 
@@ -450,7 +529,10 @@ char *swoole_coroutine_fgets(char *s, int size, FILE *stream) {
     }
 
     char *retval = nullptr;
+    int fd = fileno(stream);
+    SW_COROUTINE_FD_CHECK_START(fd)
     async([&]() { retval = fgets(s, size, stream); });
+    SW_COROUTINE_FD_CHECK_END();
     return retval;
 }
 
@@ -460,7 +542,10 @@ int swoole_coroutine_fputs(const char *s, FILE *stream) {
     }
 
     int retval = -1;
+    int fd = fileno(stream);
+    SW_COROUTINE_FD_CHECK_START(fd)
     async([&]() { retval = fputs(s, stream); });
+    SW_COROUTINE_FD_CHECK_END();
     return retval;
 }
 
@@ -470,7 +555,10 @@ int swoole_coroutine_feof(FILE *stream) {
     }
 
     int retval = -1;
+    int fd = fileno(stream);
+    SW_COROUTINE_FD_CHECK_START(fd)
     async([&]() { retval = feof(stream); });
+    SW_COROUTINE_FD_CHECK_END();
     return retval;
 }
 
@@ -480,7 +568,10 @@ int swoole_coroutine_fflush(FILE *stream) {
     }
 
     int retval = -1;
+    int fd = fileno(stream);
+    SW_COROUTINE_FD_CHECK_START(fd)
     async([&]() { retval = fflush(stream); });
+    SW_COROUTINE_FD_CHECK_END();
     return retval;
 }
 
@@ -490,7 +581,10 @@ int swoole_coroutine_fclose(FILE *stream) {
     }
 
     int retval = -1;
-    async([&]() { retval = fclose(stream); });
+    int fd = fileno(stream);
+    SW_COROUTINE_FD_CHECK_START(fd)
+    SW_COROUTINE_FD_UNPROTECT(fd, async([&]() { retval = fclose(stream); }))
+    SW_COROUTINE_FD_CHECK_END();
     return retval;
 }
 
@@ -501,6 +595,10 @@ DIR *swoole_coroutine_opendir(const char *name) {
 
     DIR *retval = nullptr;
     async([&]() { retval = opendir(name); });
+    if (sw_likely(retval)) {
+        int fd = dirfd(retval);
+        SW_COROUTINE_FD_PROTECT(fd);
+    }
     return retval;
 }
 
@@ -510,9 +608,10 @@ struct dirent *swoole_coroutine_readdir(DIR *dirp) {
     }
 
     struct dirent *retval;
-
+    int fd = dirfd(dirp);
+    SW_COROUTINE_FD_CHECK_START(fd)
     async([&retval, dirp]() { retval = readdir(dirp); });
-
+    SW_COROUTINE_FD_CHECK_END();
     return retval;
 }
 
@@ -522,7 +621,10 @@ int swoole_coroutine_closedir(DIR *dirp) {
     }
 
     int retval = -1;
-    async([&]() { retval = closedir(dirp); });
+    int fd = dirfd(dirp);
+    SW_COROUTINE_FD_CHECK_START(fd)
+    SW_COROUTINE_FD_UNPROTECT(fd, async([&]() { retval = closedir(dirp); }))
+    SW_COROUTINE_FD_CHECK_END();
     return retval;
 }
 
@@ -600,7 +702,9 @@ int swoole_coroutine_fsync(int fd) {
     }
 
     int retval = -1;
+    SW_COROUTINE_FD_CHECK_START(fd)
     async([&]() { retval = fsync(fd); });
+    SW_COROUTINE_FD_CHECK_END();
     return retval;
 }
 
@@ -614,11 +718,25 @@ int swoole_coroutine_fdatasync(int fd) {
     }
 
     int retval = -1;
+    SW_COROUTINE_FD_CHECK_START(fd)
 #ifndef HAVE_FDATASYNC
     async([&]() { retval = fsync(fd); });
 #else
     async([&]() { retval = fdatasync(fd); });
 #endif
+    SW_COROUTINE_FD_CHECK_END();
+    return retval;
+}
+
+int swoole_coroutine_ftruncate(int fd, off_t length) {
+    if (sw_unlikely(is_no_coro())) {
+        return ftruncate(fd, length);
+    }
+
+    int retval = -1;
+    SW_COROUTINE_FD_CHECK_START(fd)
+    async([&]() { retval = ftruncate(fd, length); });
+    SW_COROUTINE_FD_CHECK_END();
     return retval;
 }
 
@@ -627,28 +745,52 @@ int swoole_coroutine_iouring_open(const char *pathname, int flags, mode_t mode) 
     if (sw_unlikely(is_no_coro())) {
         return open(pathname, flags, mode);
     }
-    return Iouring::open(pathname, flags, mode);
+
+    int fd = Iouring::open(pathname, flags, mode);
+    if (sw_likely(fd > 0)) {
+        SW_COROUTINE_FD_PROTECT(fd);
+    }
+    return fd;
 }
 
 int swoole_coroutine_iouring_close_file(int fd) {
     if (sw_unlikely(is_no_coro())) {
         return close(fd);
     }
-    return Iouring::close(fd);
+
+    SW_COROUTINE_FD_CHECK_START(fd)
+    SW_COROUTINE_FD_UNPROTECT(fd, return Iouring::close(fd))
+    SW_COROUTINE_FD_CHECK_END();
 }
 
-ssize_t swoole_coroutine_iouring_read(int sockfd, void *buf, size_t size) {
+ssize_t swoole_coroutine_iouring_read(int fd, void *buf, size_t size) {
     if (sw_unlikely(is_no_coro())) {
-        return read(sockfd, buf, size);
+        return read(fd, buf, size);
     }
-    return Iouring::read(sockfd, buf, size);
+
+    SW_COROUTINE_FD_CHECK_START(fd)
+    return Iouring::read(fd, buf, size);
+    SW_COROUTINE_FD_CHECK_END();
 }
 
-ssize_t swoole_coroutine_iouring_write(int sockfd, const void *buf, size_t size) {
+ssize_t swoole_coroutine_iouring_write(int fd, const void *buf, size_t size) {
     if (sw_unlikely(is_no_coro())) {
-        return write(sockfd, buf, size);
+        return write(fd, buf, size);
     }
-    return Iouring::write(sockfd, buf, size);
+
+    SW_COROUTINE_FD_CHECK_START(fd)
+    return Iouring::write(fd, buf, size);
+    SW_COROUTINE_FD_CHECK_END();
+}
+
+off_t swoole_coroutine_iouring_lseek(int fd, off_t offset, int whence) {
+    if (sw_unlikely(is_no_coro())) {
+        return lseek(fd, offset, whence);
+    }
+
+    SW_COROUTINE_FD_CHECK_START(fd)
+    return lseek(fd, offset, whence);
+    SW_COROUTINE_FD_CHECK_END();
 }
 
 int swoole_coroutine_iouring_rename(const char *oldpath, const char *newpath) {
@@ -677,7 +819,10 @@ int swoole_coroutine_iouring_fstat(int fd, struct stat *statbuf) {
     if (sw_unlikely(is_no_coro())) {
         return fstat(fd, statbuf);
     }
+
+    SW_COROUTINE_FD_CHECK_START(fd)
     return Iouring::fstat(fd, statbuf);
+    SW_COROUTINE_FD_CHECK_END();
 }
 
 int swoole_coroutine_iouring_stat(const char *path, struct stat *statbuf) {
@@ -707,14 +852,20 @@ int swoole_coroutine_iouring_fsync(int fd) {
     if (sw_unlikely(is_no_coro())) {
         return fsync(fd);
     }
+
+    SW_COROUTINE_FD_CHECK_START(fd)
     return Iouring::fsync(fd);
+    SW_COROUTINE_FD_CHECK_END();
 }
 
 int swoole_coroutine_iouring_fdatasync(int fd) {
     if (sw_unlikely(is_no_coro())) {
         return fdatasync(fd);
     }
+
+    SW_COROUTINE_FD_CHECK_START(fd)
     return Iouring::fdatasync(fd);
+    SW_COROUTINE_FD_CHECK_END();
 }
 #endif
 
