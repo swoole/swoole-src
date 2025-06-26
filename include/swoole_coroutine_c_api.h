@@ -64,6 +64,7 @@ int swoole_coroutine_statvfs(const char *path, struct statvfs *buf);
 int swoole_coroutine_close_file(int fd);
 int swoole_coroutine_fsync(int fd);
 int swoole_coroutine_fdatasync(int fd);
+int swoole_coroutine_ftruncate(int fd, off_t length);
 /**
  * io_uring
  */
@@ -72,6 +73,7 @@ int swoole_coroutine_iouring_open(const char *pathname, int flags, mode_t mode);
 int swoole_coroutine_iouring_close_file(int fd);
 ssize_t swoole_coroutine_iouring_read(int sockfd, void *buf, size_t count);
 ssize_t swoole_coroutine_iouring_write(int sockfd, const void *buf, size_t count);
+off_t swoole_coroutine_iouring_lseek(int fd, off_t offset, int whence);
 int swoole_coroutine_iouring_rename(const char *oldpath, const char *newpath);
 int swoole_coroutine_iouring_mkdir(const char *pathname, mode_t mode);
 int swoole_coroutine_iouring_unlink(const char *pathname);

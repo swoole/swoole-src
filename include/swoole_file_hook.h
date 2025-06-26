@@ -24,6 +24,7 @@
 #define close_file(fd)  swoole_coroutine_iouring_close_file(fd)
 #define read(fd, buf, count) swoole_coroutine_iouring_read(fd, buf, count)
 #define write(fd, buf, count) swoole_coroutine_iouring_write(fd, buf, count)
+#define lseek(fd, offset, whence) swoole_coroutine_iouring_lseek(fd, offset, whence)
 #define rename(oldpath, newpath) swoole_coroutine_iouring_rename(oldpath, newpath)
 #define mkdir(pathname, mode) swoole_coroutine_iouring_mkdir(pathname, mode)
 #define unlink(pathname) swoole_coroutine_iouring_unlink(pathname)
@@ -36,13 +37,14 @@
 #define read(fd, buf, count) swoole_coroutine_read(fd, buf, count)
 #define write(fd, buf, count) swoole_coroutine_write(fd, buf, count)
 #define lseek(fd, offset, whence) swoole_coroutine_lseek(fd, offset, whence)
-#define readlink(fd, buf, size) swoole_coroutine_readlink(fd, buf, size)
+#define readlink(pathname, buf, size) swoole_coroutine_readlink(pathname, buf, size)
 #define unlink(pathname) swoole_coroutine_unlink(pathname)
 #define mkdir(pathname, mode) swoole_coroutine_mkdir(pathname, mode)
 #define rmdir(pathname) swoole_coroutine_rmdir(pathname)
 #define rename(oldpath, newpath) swoole_coroutine_rename(oldpath, newpath)
 #define fsync(fd) swoole_coroutine_fsync(fd)
 #define fdatasync(fd) swoole_coroutine_fdatasync(fd)
+#define ftruncate(fd, length) swoole_coroutine_ftruncate(fd, length)
 #endif
 
 #ifdef HAVE_IOURING_STATX
