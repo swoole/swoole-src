@@ -43,6 +43,9 @@ enum IouringOpcode {
     SW_IORING_OP_FUTEX_WAIT = IORING_OP_FUTEX_WAIT,
     SW_IORING_OP_FUTEX_WAKE = IORING_OP_FUTEX_WAKE,
 #endif
+#ifdef HAVE_IOURING_FTRUNCATE
+    SW_IORING_OP_FTRUNCATE = IORING_OP_FTRUNCATE,
+#endif
 
     SW_IORING_OP_FSTAT = 100,
     SW_IORING_OP_LSTAT = 101,
@@ -227,6 +230,10 @@ static const char *get_opcode_name(IouringOpcode opcode) {
     case SW_IORING_OP_FUTEX_WAKE:
         return "FUTEX_WAKE";
 #endif
+#ifdef HAVE_IOURING_FTRUNCATE
+    case SW_IORING_OP_FTRUNCATE:
+        return "FTRUNCATE";
+#endif
     default:
         return "unknown";
     }
@@ -307,7 +314,7 @@ bool Iouring::dispatch(IouringEvent *event) {
     case SW_IORING_OP_READ:
     case SW_IORING_OP_WRITE:
         sqe->fd = event->fd;
-        sqe->addr = (uintptr_t) (event->opcode == SW_IORING_OP_READ ? event->rbuf : event->wbuf);
+        sqe->addr = (uintptr_t)(event->opcode == SW_IORING_OP_READ ? event->rbuf : event->wbuf);
         sqe->len = event->size;
         sqe->off = -1;
         sqe->opcode = event->opcode;
@@ -384,6 +391,15 @@ bool Iouring::dispatch(IouringEvent *event) {
         sqe->futex_flags = 0;
         sqe->addr3 = FUTEX_BITSET_MATCH_ANY;
         break;
+#ifdef HAVE_IOURING_FTRUNCATE
+    case SW_IORING_OP_FTRUNCATE:
+        sqe->opcode = SW_IORING_OP_FTRUNCATE;
+        sqe->fd = event->fd;
+        sqe->off = event->size;
+        sqe->addr = 0;
+        sqe->len = 0;
+        break;
+#endif
 #endif
     default:
         abort();
@@ -475,6 +491,16 @@ int Iouring::fdatasync(int fd) {
 
     return static_cast<int>(execute(&event));
 }
+
+#ifdef HAVE_IOURING_FTRUNCATE
+int Iouring::ftruncate(int fd, off_t length) {
+    INIT_EVENT(SW_IORING_OP_FTRUNCATE);
+    event.fd = fd;
+    event.size = length;
+
+    return static_cast<int>(execute(&event));
+}
+#endif
 
 #ifdef HAVE_IOURING_STATX
 static void swoole_statx_to_stat(const struct statx *statxbuf, struct stat *statbuf) {

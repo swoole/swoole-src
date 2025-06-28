@@ -70,11 +70,18 @@ run(function() use ($results) {
     for ($i = 1; $i <= 10000; $i++) {
         go(function() use ($waitGroup, $i, $results){
             $waitGroup->add();
-            file_put_contents('/tmp/file'.$i, $results[$i]);
-            Assert::true($results[$i] == file_get_contents('/tmp/file'.$i));
-            file_put_contents('/tmp/file'.$i, $results[$i], FILE_APPEND);
-            file_put_contents('/tmp/file'.$i, $results[$i], FILE_APPEND);
-            Assert::true(strlen($results[$i]) * 3 == strlen(file_get_contents('/tmp/file'.$i)));
+            $filename = '/tmp/file'.$i;
+            file_put_contents($filename, $results[$i]);
+            Assert::true($results[$i] == file_get_contents($filename));
+            file_put_contents($filename, $results[$i], FILE_APPEND);
+            file_put_contents($filename, $results[$i], FILE_APPEND);
+            Assert::true(strlen($results[$i]) * 3 == strlen(file_get_contents($filename)));
+
+            $stream = fopen($filename, 'r+');
+            $size = rand(1, filesize($filename));
+            Assert::true(ftruncate($stream, $size));
+            fclose($stream);
+            Assert::true($size == strlen(file_get_contents($filename)));
             $waitGroup->done();
         });
     }
