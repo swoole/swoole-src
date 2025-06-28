@@ -321,6 +321,22 @@ AC_DEFUN([AC_SWOOLE_HAVE_IOURING_STATX],
     ])
 ])
 
+AC_DEFUN([AC_SWOOLE_HAVE_IOURING_FTRUNCATE],
+[
+    AC_MSG_CHECKING([for io_uring ftruncate])
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+        #define _GNU_SOURCE
+        #include <liburing.h>
+    ]], [[
+        int op = IORING_OP_FTRUNCATE;
+    ]])],[
+        AC_DEFINE([HAVE_IOURING_FTRUNCATE], 1, [have io_uring ftruncate?])
+        AC_MSG_RESULT([yes])
+    ],[
+        AC_MSG_RESULT([no])
+    ])
+])
+
 AC_DEFUN([AC_SWOOLE_CHECK_SOCKETS], [
     AC_CHECK_FUNCS([hstrerror socketpair if_nametoindex if_indextoname])
     AC_CHECK_HEADERS([netdb.h netinet/tcp.h sys/un.h sys/sockio.h])
@@ -1003,6 +1019,7 @@ EOF
 
         AC_SWOOLE_HAVE_IOURING_STATX
         AC_SWOOLE_HAVE_IOURING_FUTEX
+        AC_SWOOLE_HAVE_IOURING_FTRUNCATE
 
         PHP_EVAL_LIBLINE($URING_LIBS, SWOOLE_SHARED_LIBADD)
         PHP_EVAL_INCLINE($URING_CFLAGS)
