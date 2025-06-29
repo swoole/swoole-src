@@ -75,7 +75,7 @@ if [ "${SWOOLE_BRANCH}" = "valgrind" ]; then
 elif [ "$SWOOLE_THREAD" = 1 ]; then
     dir="swoole_thread"
 elif [ "$SWOOLE_IOURING" = 1 ]; then
-    dir="swoole_runtime/file_hook swoole_iouring"
+    dir="swoole_runtime/file_hook swoole_iouring swoole_http_client_coro"
 elif [ "$SWOOLE_CI_IN_MACOS" = 1 ]; then
     dir="swoole_atomic swoole_coroutine swoole_coroutine_wait_group swoole_global swoole_http_server swoole_process_pool  swoole_server_port \
         swoole_websocket_server swoole_channel_coro swoole_coroutine_lock swoole_curl swoole_http2_client_coro swoole_http_server_coro  \

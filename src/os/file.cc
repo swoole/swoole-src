@@ -15,6 +15,7 @@
  */
 
 #include "swoole_file.h"
+#include "swoole_coroutine_c_api.h"
 
 int swoole_tmpfile(char *filename) {
 #if defined(HAVE_MKOSTEMP) && defined(HAVE_EPOLL)
@@ -23,12 +24,11 @@ int swoole_tmpfile(char *filename) {
     int tmp_fd = mkstemp(filename);
 #endif
 
-    if (tmp_fd < 0) {
-        swoole_sys_warning("mkstemp('%s') failed", filename);
-        return SW_ERR;
-    } else {
+    if (sw_likely(tmp_fd > 0)) {
         return tmp_fd;
     }
+    swoole_sys_warning("mkstemp('%s') failed", filename);
+    return SW_ERR;
 }
 
 namespace swoole {
@@ -40,24 +40,20 @@ ssize_t file_get_size(FILE *fp) {
 
 ssize_t file_get_size(const std::string &filename) {
     File file(filename, File::READ);
-    if (!file.ready()) {
-        swoole_set_last_error(errno);
-        return -1;
+    if (sw_likely(file.ready())) {
+        return file.get_size();
     }
-    return file.get_size();
+    swoole_set_last_error(errno);
+    return -1;
 }
 
 ssize_t file_get_size(int fd) {
     FileStatus file_stat;
-    if (fstat(fd, &file_stat) < 0) {
-        swoole_set_last_error(errno);
-        return -1;
+    if (sw_likely(fstat(fd, &file_stat) > 0 && S_ISREG(file_stat.st_mode))) {
+        return file_stat.st_size;
     }
-    if (!S_ISREG(file_stat.st_mode)) {
-        swoole_set_last_error(EISDIR);
-        return -1;
-    }
-    return file_stat.st_size;
+    swoole_set_last_error(errno);
+    return -1;
 }
 
 std::shared_ptr<String> file_get_contents(const std::string &filename) {
@@ -85,17 +81,6 @@ std::shared_ptr<String> file_get_contents(const std::string &filename) {
     return content;
 }
 
-File make_tmpfile() {
-    char *tmpfile = sw_tg_buffer()->str;
-    size_t l = swoole_strlcpy(tmpfile, SwooleG.task_tmpfile.c_str(), SW_TASK_TMP_PATH_SIZE);
-    int tmp_fd = swoole_tmpfile(tmpfile);
-    if (tmp_fd < 0) {
-        return File(-1);
-    } else {
-        return {tmp_fd, std::string(tmpfile, l)};
-    }
-}
-
 bool file_put_contents(const std::string &filename, const char *content, size_t length) {
     if (length == 0) {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_FILE_EMPTY, "content is empty");
@@ -106,15 +91,27 @@ bool file_put_contents(const std::string &filename, const char *content, size_t 
         return false;
     }
     File file(filename, O_WRONLY | O_TRUNC | O_CREAT, 0666);
-    if (!file.ready()) {
-        swoole_sys_warning("open('%s') failed", filename.c_str());
-        return false;
+    if (sw_likely(file.ready())) {
+        return file.write_all(content, length);
     }
-    return file.write_all(content, length);
+
+    swoole_sys_warning("open('%s') failed", filename.c_str());
+    return false;
 }
 
 bool file_exists(const std::string &filename) {
     return access(filename.c_str(), F_OK) == 0;
+}
+
+File make_tmpfile() {
+    char *tmpfile = sw_tg_buffer()->str;
+    size_t l = swoole_strlcpy(tmpfile, SwooleG.task_tmpfile.c_str(), SW_TASK_TMP_PATH_SIZE);
+    int tmp_fd = swoole_tmpfile(tmpfile);
+    if (sw_likely(tmp_fd > 0)) {
+        return {tmp_fd, std::string(tmpfile, l)};
+    }
+
+    return File(-1);
 }
 
 File::File(const std::string &path, int oflags) {
@@ -249,6 +246,93 @@ std::shared_ptr<String> File::read_content() const {
         }
     }
     return data;
+}
+
+AsyncFile::AsyncFile(const std::string &path, int flags, int mode) {
+    open(path.c_str(), flags, mode);
+}
+
+AsyncFile::~AsyncFile() {
+    if (sw_likely(fd != -1)) {
+        close();
+    }
+    fd = -1;
+}
+
+bool AsyncFile::open(const std::string &path, int flags, mode_t mode) {
+#ifdef SW_USE_IOURING
+    fd = swoole_coroutine_iouring_open(path.c_str(), flags, mode);
+#else
+    fd = swoole_coroutine_open(path.c_str(), flags, mode);
+#endif
+    return fd > 0;
+}
+
+bool AsyncFile::close() {
+    if (sw_unlikely(fd == -1)) {
+        return false;
+    }
+#ifdef SW_USE_IOURING
+    return swoole_coroutine_iouring_close_file(fd) == 0;
+#else
+    return swoole_coroutine_close_file(fd) == 0;
+#endif
+}
+
+ssize_t AsyncFile::read(void *buf, size_t count) const {
+#ifdef SW_USE_IOURING
+    return swoole_coroutine_iouring_read(fd, buf, count);
+#else
+    return swoole_coroutine_read(fd, buf, count);
+#endif
+}
+
+ssize_t AsyncFile::write(void *buf, size_t count) const {
+#ifdef SW_USE_IOURING
+    return swoole_coroutine_iouring_write(fd, buf, count);
+#else
+    return swoole_coroutine_write(fd, buf, count);
+#endif
+}
+
+bool AsyncFile::sync() const {
+#ifdef SW_USE_IOURING
+    return swoole_coroutine_iouring_fsync(fd) == 0;
+#else
+    return swoole_coroutine_fsync(fd) == 0;
+#endif
+}
+
+bool AsyncFile::truncate(off_t length) const {
+#if defined(SW_USE_IOURING) && defined(HAVE_IOURING_FTRUNCATE)
+    return swoole_coroutine_iouring_ftruncate(fd, length) == 0;
+#else
+    return swoole_coroutine_ftruncate(fd, length) == 0;
+#endif
+}
+
+bool AsyncFile::stat(FileStatus *statbuf) const {
+#if defined(SW_USE_IOURING) && defined(HAVE_IOURING_STATX)
+    return swoole_coroutine_iouring_fstat(fd, statbuf) == 0;
+#else
+    return swoole_coroutine_fstat(fd, statbuf) == 0;
+#endif
+}
+
+off_t AsyncFile::get_offset() const {
+#if defined(SW_USE_IOURING)
+    return swoole_coroutine_iouring_lseek(fd, 0, SEEK_CUR);
+#else
+    return swoole_coroutine_lseek(fd, 0, SEEK_CUR);
+#endif
+}
+
+off_t AsyncFile::set_offset(off_t offset) const {
+#if defined(SW_USE_IOURING)
+    return swoole_coroutine_iouring_lseek(fd, offset, SEEK_SET);
+#else
+    return swoole_coroutine_lseek(fd, offset, SEEK_SET);
+#endif
 }
 
 }  // namespace swoole
