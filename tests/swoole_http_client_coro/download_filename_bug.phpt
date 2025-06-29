@@ -43,6 +43,7 @@ function download($pm, $fileName)
     $client->set(['timeout' => 5]);
 
     $client->download('/', $fileName);
+    Assert::true(file_get_contents(TEST_IMAGE) == file_get_contents($fileName));
 }
 
 $pm = new SwooleTest\ProcessManager;
