@@ -209,6 +209,7 @@ static PHP_METHOD(swoole_http_request, parse);
 static PHP_METHOD(swoole_http_request, isCompleted);
 static PHP_METHOD(swoole_http_request, getMethod);
 static PHP_METHOD(swoole_http_request, getContent);
+static PHP_METHOD(swoole_http_request, getBodyStream);
 SW_EXTERN_C_END
 
 // clang-format off
@@ -221,6 +222,7 @@ const zend_function_entry swoole_http_request_methods[] =
     PHP_ME(swoole_http_request, parse,                      arginfo_class_Swoole_Http_Request_parse,       ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_request, isCompleted,                arginfo_class_Swoole_Http_Request_isCompleted, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_request, getMethod,                  arginfo_class_Swoole_Http_Request_getMethod,   ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_request, getBodyStream,             arginfo_class_Swoole_Http_Request_getBodyStream, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 // clang-format on
@@ -908,6 +910,41 @@ static PHP_METHOD(swoole_http_request, getContent) {
     }
 
     RETURN_EMPTY_STRING();
+}
+
+static PHP_METHOD(swoole_http_request, getBodyStream) {
+    HttpContext *ctx = php_swoole_http_request_get_and_check_context(ZEND_THIS);
+    if (UNEXPECTED(!ctx)) {
+        RETURN_FALSE;
+    }
+
+    char tmp_file[SW_HTTP_UPLOAD_TMPDIR_SIZE];
+    sw_snprintf(tmp_file, SW_HTTP_UPLOAD_TMPDIR_SIZE, "%s/swoole.request.XXXXXX", ctx->upload_tmp_dir.c_str());
+    int fd = swoole_tmpfile(tmp_file);
+    if (fd < 0) {
+        RETURN_FALSE;
+    }
+
+    HttpRequest *req = &ctx->request;
+    if (req->body_length > 0) {
+        zval *zdata = &req->zdata;
+        write(fd, Z_STRVAL_P(zdata) + Z_STRLEN_P(zdata) - req->body_length, req->body_length);
+    } else if (req->chunked_body && req->chunked_body->length != 0) {
+        write(fd, req->chunked_body->str, req->chunked_body->length);
+    } else if (req->h2_data_buffer && req->h2_data_buffer->length != 0) {
+        write(fd, req->h2_data_buffer->str, req->h2_data_buffer->length);
+    }
+
+    lseek(fd, 0, SEEK_SET);
+    php_stream *stream = php_swoole_create_stream_from_pipe(fd, "r+", nullptr);
+    if (!stream) {
+        close(fd);
+        RETURN_FALSE;
+    }
+    zval *ztmpfiles = swoole_http_init_and_read_property(
+        swoole_http_request_ce, ctx->request.zobject, &ctx->request.ztmpfiles, SW_ZSTR_KNOWN(SW_ZEND_STR_TMPFILES));
+    add_next_index_string(ztmpfiles, tmp_file);
+    php_stream_to_zval(stream, return_value);
 }
 
 static PHP_METHOD(swoole_http_request, getData) {
