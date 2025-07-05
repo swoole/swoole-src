@@ -7,8 +7,8 @@ namespace Swoole\Http {
 		public function parse(string $data): int|false {}
 		public function isCompleted(): bool {}
 		public function getMethod(): string|false {}
-        public function getContent(): string|false {}
-        /** @return resource|false */
-        public function getBodyStream(){}
-    }
+		public function getContent(): string|false {}
+		/** @return resource|false */
+		public function getBodyStream() {}
+	}
 }
