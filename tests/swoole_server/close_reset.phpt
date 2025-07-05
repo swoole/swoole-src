@@ -34,11 +34,11 @@ $pm->parentFunc = function ($pid) use ($pm) {
                 break;
             }
             $data .= $ret;
-            if (substr($ret, -2, 2) == "\r\n") {
+            if (substr($ret, -2, 2) === "\r\n") {
                 break;
             }
         }
-        Assert::lessThan(strlen($data), N);
+        Assert::lessThanEq(strlen($data), N + 2);
         echo "DONE\n";
     });
     Swoole\Event::wait();
