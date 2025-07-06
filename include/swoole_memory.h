@@ -24,7 +24,7 @@ namespace swoole {
 
 class MemoryPool {
   public:
-    virtual ~MemoryPool(){};
+    virtual ~MemoryPool() = default;
     virtual void *alloc(uint32_t size) = 0;
     virtual void free(void *ptr) = 0;
 
@@ -34,16 +34,15 @@ class MemoryPool {
 
 struct FixedPoolImpl;
 
-class FixedPool : public MemoryPool {
-  private:
+class FixedPool final : public MemoryPool {
     FixedPoolImpl *impl;
 
   public:
     FixedPool(uint32_t slice_num, uint32_t slice_size, bool shared);
     FixedPool(uint32_t slice_size, void *memory, size_t size, bool shared);
-    ~FixedPool();
-    void *alloc(uint32_t size);
-    void free(void *ptr);
+    ~FixedPool() override;
+    void *alloc(uint32_t size) override;
+    void free(void *ptr) override;
     void debug(int max_lines = 100);
     uint32_t get_number_of_spare_slice();
     uint32_t get_number_of_total_slice();
@@ -56,14 +55,13 @@ struct RingBufferImpl;
 
 // RingBuffer, In order for malloc / free
 class RingBuffer : public MemoryPool {
-  private:
     RingBufferImpl *impl;
 
   public:
     RingBuffer(uint32_t size, bool shared);
-    ~RingBuffer();
-    void *alloc(uint32_t size);
-    void free(void *ptr);
+    ~RingBuffer() override;
+    void *alloc(uint32_t size) override;
+    void free(void *ptr) override;
 };
 
 struct GlobalMemoryImpl;
@@ -75,9 +73,9 @@ class GlobalMemory : public MemoryPool {
 
   public:
     GlobalMemory(uint32_t page_size, bool shared);
-    ~GlobalMemory();
-    void *alloc(uint32_t size);
-    void free(void *ptr);
+    ~GlobalMemory() override;
+    void *alloc(uint32_t size) override;
+    void free(void *ptr) override;
     size_t capacity() const;
     size_t get_memory_size() const;
 };

@@ -16,7 +16,7 @@ $server->on('workerStart', function (Swoole\Server $server, int $worker_id) {
     });
     Swoole\Timer::clearAll();
     if ($worker_id === 0) {
-        Swoole\Timer::after(10, function () use ($server) {
+        Swoole\Timer::after(200, function () use ($server) {
             $server->shutdown();
         });
     }

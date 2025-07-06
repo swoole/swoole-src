@@ -40,15 +40,14 @@
 #endif
 
 /*--- C standard library ---*/
-#include <assert.h>
-#include <ctype.h>
-#include <errno.h>
-#include <stdarg.h>
-#include <stddef.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <limits.h>
+#include <cassert>
+#include <cctype>
+#include <cstdarg>
+#include <cstddef>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <climits>
 #include <unistd.h>
 #include <sched.h> /* sched_yield() */
 #include <pthread.h>
@@ -237,7 +236,6 @@ struct DataHead;
 typedef int (*ReactorHandler)(Reactor *reactor, Event *event);
 typedef std::function<void(void *)> Callback;
 typedef std::function<void(Timer *, TimerNode *)> TimerCallback;
-typedef std::function<int(Timer *, long)> TimerScheduler;
 }  // namespace swoole
 
 typedef swoole::DataHead swDataHead;
@@ -268,7 +266,7 @@ int sw_printf(const char *format, ...);
 
 #define sw_memset_zero(s, n) memset(s, '\0', n)
 
-static sw_inline int sw_mem_equal(const void *v1, size_t s1, const void *v2, size_t s2) {
+static inline int sw_mem_equal(const void *v1, size_t s1, const void *v2, size_t s2) {
     return s1 == s2 && memcmp(v1, v2, s2) == 0;
 }
 
@@ -284,15 +282,15 @@ static inline size_t swoole_strlcpy(char *dest, const char *src, size_t size) {
 
 static inline char *swoole_strdup(const char *s) {
     size_t l = strlen(s) + 1;
-    char *p = (char *) sw_malloc(l);
+    char *p = static_cast<char *>(sw_malloc(l));
     if (sw_likely(p)) {
         memcpy(p, s, l);
     }
     return p;
 }
 
-static inline char *swoole_strndup(const char *s, size_t n) {
-    char *p = (char *) sw_malloc(n + 1);
+static inline char *swoole_strndup(const char *s, const size_t n) {
+    char *p = static_cast<char *>(sw_malloc(n + 1));
     if (sw_likely(p)) {
         strncpy(p, s, n)[n] = '\0';
     }
@@ -321,10 +319,9 @@ static inline const char *swoole_strnstr(const char *haystack,
                                          const char *needle,
                                          uint32_t needle_length) {
     assert(needle_length > 0);
-    uint32_t i;
 
     if (sw_likely(needle_length <= haystack_length)) {
-        for (i = 0; i < haystack_length - needle_length + 1; i++) {
+        for (uint32_t i = 0; i < haystack_length - needle_length + 1; i++) {
             if ((haystack[0] == needle[0]) && (0 == memcmp(haystack, needle, needle_length))) {
                 return haystack;
             }
@@ -332,7 +329,7 @@ static inline const char *swoole_strnstr(const char *haystack,
         }
     }
 
-    return NULL;
+    return nullptr;
 }
 
 static inline const char *swoole_strncasestr(const char *haystack,
@@ -340,10 +337,9 @@ static inline const char *swoole_strncasestr(const char *haystack,
                                              const char *needle,
                                              uint32_t needle_length) {
     assert(needle_length > 0);
-    uint32_t i;
 
     if (sw_likely(needle_length <= haystack_length)) {
-        for (i = 0; i < haystack_length - needle_length + 1; i++) {
+        for (uint32_t i = 0; i < haystack_length - needle_length + 1; i++) {
             if ((haystack[0] == needle[0]) && (0 == strncasecmp(haystack, needle, needle_length))) {
                 return haystack;
             }
@@ -351,7 +347,7 @@ static inline const char *swoole_strncasestr(const char *haystack,
         }
     }
 
-    return NULL;
+    return nullptr;
 }
 
 static inline ssize_t swoole_strnpos(const char *haystack,
@@ -359,19 +355,17 @@ static inline ssize_t swoole_strnpos(const char *haystack,
                                      const char *needle,
                                      uint32_t needle_length) {
     assert(needle_length > 0);
-    const char *pos;
 
-    pos = swoole_strnstr(haystack, haystack_length, needle, needle_length);
-    return pos == NULL ? -1 : pos - haystack;
+    const char *pos = swoole_strnstr(haystack, haystack_length, needle, needle_length);
+    return pos == nullptr ? -1 : pos - haystack;
 }
 
 static inline ssize_t swoole_strrnpos(const char *haystack, const char *needle, uint32_t length) {
     uint32_t needle_length = strlen(needle);
     assert(needle_length > 0);
-    uint32_t i;
     haystack += (length - needle_length);
 
-    for (i = length - needle_length; i > 0; i--) {
+    for (uint32_t i = length - needle_length; i > 0; i--) {
         if ((haystack[0] == needle[0]) && (0 == memcmp(haystack, needle, needle_length))) {
             return i;
         }
@@ -381,14 +375,12 @@ static inline ssize_t swoole_strrnpos(const char *haystack, const char *needle, 
     return -1;
 }
 
-static inline void swoole_strtolower(char *str, int length) {
-    char *c, *e;
-
-    c = str;
-    e = c + length;
+static inline void swoole_strtolower(char *str, const int length) {
+    char *c = str;
+    const char *e = c + length;
 
     while (c < e) {
-        *c = tolower(*c);
+        *c = static_cast<char>(tolower(*c));
         c++;
     }
 }
@@ -464,6 +456,15 @@ enum swSocketType {
     SW_SOCK_RAW6 = 8,
 };
 
+enum swTimeoutType {
+    SW_TIMEOUT_DNS = 1 << 0,
+    SW_TIMEOUT_CONNECT = 1 << 1,
+    SW_TIMEOUT_READ = 1 << 2,
+    SW_TIMEOUT_WRITE = 1 << 3,
+    SW_TIMEOUT_RDWR = SW_TIMEOUT_READ | SW_TIMEOUT_WRITE,
+    SW_TIMEOUT_ALL = SW_TIMEOUT_DNS | SW_TIMEOUT_CONNECT | SW_TIMEOUT_RDWR,
+};
+
 enum swEventType {
     SW_EVENT_NULL = 0,
     SW_EVENT_DEAULT = 1u << 8,
@@ -498,22 +499,26 @@ typedef unsigned char uchar;
 #define swoole_tolower(c) (uchar)((c >= 'A' && c <= 'Z') ? (c | 0x20) : c)
 #define swoole_toupper(c) (uchar)((c >= 'a' && c <= 'z') ? (c & ~0x20) : c)
 
-void swoole_random_string(char *buf, size_t size);
-void swoole_random_string(std::string &str, size_t size);
+/**
+ * This function appends a '\0' at the end of the string,
+ * so the allocated memory buffer must be len + 1.
+ */
+void swoole_random_string(char *buf, size_t len);
+void swoole_random_string(std::string &str, size_t len);
 uint64_t swoole_random_int();
 size_t swoole_random_bytes(char *buf, size_t size);
 
-static sw_inline char *swoole_strlchr(char *p, char *last, char c) {
+static inline char *swoole_strlchr(char *p, const char *last, char c) {
     while (p < last) {
         if (*p == c) {
             return p;
         }
         p++;
     }
-    return NULL;
+    return nullptr;
 }
 
-static sw_inline size_t swoole_size_align(size_t size, int pagesize) {
+static inline size_t swoole_size_align(size_t size, int pagesize) {
     return size + (pagesize - (size % pagesize));
 }
 
@@ -564,25 +569,26 @@ int swoole_rand(int min, int max);
 int swoole_system_random(int min, int max);
 
 int swoole_version_compare(const char *version1, const char *version2);
-void swoole_print_backtrace(void);
-void swoole_print_backtrace_on_error(void);
+void swoole_print_backtrace();
+void swoole_print_backtrace_on_error();
 char *swoole_string_format(size_t n, const char *format, ...);
 bool swoole_get_env(const char *name, int *value);
 int swoole_get_systemd_listen_fds();
 
-void swoole_init(void);
-void swoole_clean(void);
-void swoole_exit(int __status);
+void swoole_init();
+void swoole_clean();
+void swoole_exit(int _status);
 pid_t swoole_fork(int flags);
-pid_t swoole_fork_exec(const std::function<void(void)> &child_fn);
-pid_t swoole_waitpid(pid_t __pid, int *__stat_loc, int __options);
-void swoole_thread_init(bool main_thread);
-void swoole_thread_clean(bool main_thread);
+pid_t swoole_fork_exec(const std::function<void()> &child_fn);
+pid_t swoole_waitpid(pid_t _pid, int *_stat_loc, int _options);
+void swoole_thread_init(bool main_thread = false);
+void swoole_thread_clean(bool main_thread = false);
 void swoole_redirect_stdout(int new_fd);
 void swoole_redirect_stdout(const char *file);
 int swoole_shell_exec(const char *command, pid_t *pid, bool get_error_stream);
 int swoole_daemon(int nochdir, int noclose);
 bool swoole_set_task_tmpdir(const std::string &dir);
+const std::string &swoole_get_task_tmpdir();
 int swoole_tmpfile(char *filename);
 
 #ifdef HAVE_CPU_AFFINITY
@@ -596,46 +602,17 @@ int swoole_set_cpu_affinity(cpu_set_t *set);
 int swoole_get_cpu_affinity(cpu_set_t *set);
 #endif
 
-#if defined(_POSIX_TIMERS) && ((_POSIX_TIMERS > 0) || defined(__OpenBSD__)) && defined(_POSIX_MONOTONIC_CLOCK) &&      \
-    defined(CLOCK_MONOTONIC)
-#ifndef HAVE_CLOCK_GETTIME
-#define HAVE_CLOCK_GETTIME
-#endif
-#define swoole_clock_realtime(t) clock_gettime(CLOCK_REALTIME, t)
-#elif defined(__APPLE__)
-int swoole_clock_realtime(struct timespec *t);
-#endif
-
-static inline struct timespec swoole_time_until(int milliseconds) {
-    struct timespec t;
-    swoole_clock_realtime(&t);
-
-    int sec = milliseconds / 1000;
-    int msec = milliseconds - (sec * 1000);
-
-    t.tv_sec += sec;
-    t.tv_nsec += msec * 1000 * 1000;
-
-    if (t.tv_nsec > SW_NUM_BILLION) {
-        int _sec = t.tv_nsec / SW_NUM_BILLION;
-        t.tv_sec += _sec;
-        t.tv_nsec -= _sec * SW_NUM_BILLION;
-    }
-
-    return t;
-}
-
 namespace swoole {
-
 typedef long SessionId;
 typedef long TaskId;
 typedef uint8_t ReactorId;
 typedef uint32_t WorkerId;
-typedef enum swEventType EventType;
-typedef enum swSocketType SocketType;
-typedef enum swFdType FdType;
-typedef enum swReturnCode ReturnCode;
-typedef enum swResultCode ResultCode;
+typedef swEventType EventType;
+typedef swSocketType SocketType;
+typedef swTimeoutType TimeoutType;
+typedef swFdType FdType;
+typedef swReturnCode ReturnCode;
+typedef swResultCode ResultCode;
 
 struct Event {
     int fd;
@@ -663,11 +640,11 @@ struct EventData {
     DataHead info;
     char data[SW_IPC_BUFFER_SIZE];
 
-    uint32_t size() {
+    uint32_t size() const {
         return sizeof(info) + len();
     }
 
-    uint32_t len() {
+    uint32_t len() const {
         return info.len;
     }
 };
@@ -675,11 +652,11 @@ struct EventData {
 struct ThreadGlobal {
     uint16_t id;
     uint8_t type;
+    bool main_thread;
     int32_t error;
     String *buffer_stack;
     Reactor *reactor;
     Timer *timer;
-    TimerScheduler timer_scheduler;
     MessageBus *message_bus;
     AsyncThreads *async_threads;
 #ifdef SW_USE_IOURING
@@ -718,7 +695,7 @@ struct NameResolver {
     };
     std::function<std::string(const std::string &, Context *, void *)> resolve;
     void *private_data;
-    enum Type type;
+    Type type;
 };
 
 struct DnsServer {
@@ -731,6 +708,14 @@ struct Global {
     uchar running : 1;
     uchar wait_signal : 1;
     uchar enable_signalfd : 1;
+    /**
+     * Under macOS or FreeBSD, kqueue does not support listening for writable events on pipes. When a large amount of
+     * data is written to a pipe in process A, and the buffer becomes full, listening for writable events will not work.
+     * In process B, even after consuming the data from the pipe, the writable event in process A cannot be triggered.
+     * As a result, the functionality of Task and Process Server cannot be supported, making all scenarios relying on
+     * pipes for inter-process communication unable to function properly.
+     */
+    uchar enable_kqueue : 1;
     uchar dns_lookup_random : 1;
     uchar use_async_resolver : 1;
     uchar use_name_resolver : 1;
@@ -754,6 +739,7 @@ struct Global {
     uint32_t pagesize;
     struct utsname uname;
     uint32_t max_sockets;
+    uint32_t max_file_content;
     //-----------------------[Memory]--------------------------
     MemoryPool *memory_pool;
     Allocator std_allocator;
@@ -790,7 +776,9 @@ struct Global {
 std::string dirname(const std::string &file);
 int hook_add(void **hooks, int type, const Callback &func, int push_back);
 void hook_call(void **hooks, int type, void *arg);
-double microtime(void);
+double microtime();
+void realtime_get(timespec *time);
+void realtime_add(timespec *time, int64_t add_msec);
 }  // namespace swoole
 
 extern swoole::Global SwooleG;                      // Local Global Variable
@@ -802,22 +790,22 @@ static inline void swoole_set_last_error(int error) {
     SwooleTG.error = error;
 }
 
-static inline int swoole_get_last_error(void) {
+static inline int swoole_get_last_error() {
     return SwooleTG.error;
 }
 
-static inline void swoole_clear_last_error(void) {
+static inline void swoole_clear_last_error() {
     SwooleTG.error = 0;
 }
 
-void swoole_clear_last_error_msg(void);
-const char *swoole_get_last_error_msg(void);
+void swoole_clear_last_error_msg();
+const char *swoole_get_last_error_msg();
 
-static inline int swoole_get_thread_id(void) {
+static inline int swoole_get_thread_id() {
     return SwooleTG.id;
 }
 
-static inline int swoole_get_thread_type(void) {
+static inline int swoole_get_thread_type() {
     return SwooleTG.type;
 }
 
@@ -837,6 +825,7 @@ SW_API const char *swoole_strerror(int code);
 SW_API void swoole_throw_error(int code);
 SW_API void swoole_ignore_error(int code);
 SW_API bool swoole_is_ignored_error(int code);
+SW_API bool swoole_is_main_thread();
 SW_API void swoole_set_log_level(int level);
 SW_API void swoole_set_log_file(const char *file);
 SW_API void swoole_set_trace_flags(long flags);
@@ -853,28 +842,6 @@ SW_API std::string swoole_name_resolver_lookup(const std::string &host_name, swo
 SW_API int swoole_get_log_level();
 SW_API FILE *swoole_get_stdout_stream();
 
-//-----------------------------------------------
-static sw_inline void sw_spinlock(sw_atomic_t *lock) {
-    uint32_t i, n;
-    while (1) {
-        if (*lock == 0 && sw_atomic_cmp_set(lock, 0, 1)) {
-            return;
-        }
-        if (SW_CPU_NUM > 1) {
-            for (n = 1; n < SW_SPINLOCK_LOOP_N; n <<= 1) {
-                for (i = 0; i < n; i++) {
-                    sw_atomic_cpu_pause();
-                }
-
-                if (*lock == 0 && sw_atomic_cmp_set(lock, 0, 1)) {
-                    return;
-                }
-            }
-        }
-        sw_yield();
-    }
-}
-
 static sw_inline swoole::String *sw_tg_buffer() {
     return SwooleTG.buffer_stack;
 }
@@ -885,4 +852,12 @@ static sw_inline swoole::MemoryPool *sw_mem_pool() {
 
 static sw_inline const swoole::Allocator *sw_std_allocator() {
     return &SwooleG.std_allocator;
+}
+
+static sw_inline swoole::Reactor *sw_reactor() {
+    return SwooleTG.reactor;
+}
+
+static sw_inline swoole::Timer *sw_timer() {
+    return SwooleTG.timer;
 }

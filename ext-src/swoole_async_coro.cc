@@ -96,9 +96,6 @@ PHP_FUNCTION(swoole_async_set) {
     php_swoole_set_global_option(vht);
     php_swoole_set_aio_option(vht);
 
-    if (php_swoole_array_get_value(vht, "enable_signalfd", ztmp)) {
-        SwooleG.enable_signalfd = zval_is_true(ztmp);
-    }
     if (php_swoole_array_get_value(vht, "wait_signal", ztmp)) {
         SwooleG.wait_signal = zval_is_true(ztmp);
     }
@@ -186,5 +183,5 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro) {
     }
     memcpy(cache->address, Z_STRVAL_P(return_value), Z_STRLEN_P(return_value));
     cache->address[Z_STRLEN_P(return_value)] = '\0';
-    cache->update_time = Timer::get_absolute_msec() + (int64_t) (SwooleG.dns_cache_refresh_time * 1000);
+    cache->update_time = Timer::get_absolute_msec() + (int64_t)(SwooleG.dns_cache_refresh_time * 1000);
 }

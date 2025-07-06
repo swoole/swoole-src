@@ -30,13 +30,14 @@
 
 using swoole::AsyncEvent;
 using swoole::Coroutine;
+using swoole::translate_events_from_poll;
+using swoole::translate_events_to_poll;
 using swoole::async::dispatch;
 using swoole::coroutine::async;
 using swoole::coroutine::PollSocket;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
-using swoole::coroutine::translate_events_from_poll;
-using swoole::coroutine::translate_events_to_poll;
+using NetSocket = swoole::network::Socket;
 
 #ifdef SW_USE_IOURING
 using swoole::Iouring;
@@ -170,7 +171,7 @@ int swoole_coroutine_poll(struct pollfd *fds, nfds_t nfds, int timeout) {
 
     std::unordered_map<int, PollSocket> _fds;
     for (nfds_t i = 0; i < nfds; i++) {
-        _fds.emplace(std::make_pair(fds[i].fd, PollSocket(translate_events_from_poll(fds[i].events), &fds[i])));
+        _fds.emplace(fds[i].fd, PollSocket(translate_events_from_poll(fds[i].events), &fds[i]));
     }
 
     if (!System::socket_poll(_fds, (double) timeout / 1000)) {
@@ -180,7 +181,7 @@ int swoole_coroutine_poll(struct pollfd *fds, nfds_t nfds, int timeout) {
     int retval = 0;
     for (auto &i : _fds) {
         int revents = i.second.revents;
-        struct pollfd *_fd = (struct pollfd *) i.second.ptr;
+        auto *_fd = static_cast<struct pollfd *>(i.second.ptr);
         _fd->revents = translate_events_to_poll(revents);
         if (revents > 0) {
             retval++;
@@ -254,7 +255,12 @@ ssize_t swoole_coroutine_read(int sockfd, void *buf, size_t count) {
     }
 
     ssize_t ret = -1;
-    async([&]() { ret = read(sockfd, buf, count); });
+    NetSocket sock{
+        .fd = sockfd,
+        .nonblock = 1,
+        .read_timeout = -1,
+    };
+    async([&]() { ret = sock.read_sync(buf, count); });
     return ret;
 }
 
@@ -269,7 +275,12 @@ ssize_t swoole_coroutine_write(int sockfd, const void *buf, size_t count) {
     }
 
     ssize_t ret = -1;
-    async([&]() { ret = write(sockfd, buf, count); });
+    NetSocket sock{
+        .fd = sockfd,
+        .nonblock = 1,
+        .write_timeout = -1,
+    };
+    async([&]() { ret = sock.write_sync(buf, count); });
     return ret;
 }
 
@@ -293,12 +304,12 @@ int swoole_coroutine_fstat(int fd, struct stat *statbuf) {
     return retval;
 }
 
-int swoole_coroutine_readlink(const char *pathname, char *buf, size_t len) {
+ssize_t swoole_coroutine_readlink(const char *pathname, char *buf, size_t len) {
     if (sw_unlikely(is_no_coro())) {
         return readlink(pathname, buf, len);
     }
 
-    int retval = -1;
+    ssize_t retval = -1;
     async([&]() { retval = readlink(pathname, buf, len); });
     return retval;
 }
@@ -483,16 +494,6 @@ int swoole_coroutine_fclose(FILE *stream) {
     return retval;
 }
 
-int swoole_coroutine_flock(int fd, int operation) {
-    if (sw_unlikely(is_no_coro())) {
-        return flock(fd, operation);
-    }
-
-    int retval = -1;
-    async([&]() { retval = flock(fd, operation); });
-    return retval;
-}
-
 DIR *swoole_coroutine_opendir(const char *name) {
     if (sw_unlikely(is_no_coro())) {
         return opendir(name);
@@ -540,10 +541,10 @@ int swoole_coroutine_socket_set_timeout(int sockfd, int which, double timeout) {
         return -1;
     }
     if (which == SO_RCVTIMEO) {
-        socket->set_timeout(timeout, Socket::TIMEOUT_READ);
+        socket->set_timeout(timeout, SW_TIMEOUT_READ);
         return 0;
     } else if (which == SO_SNDTIMEO) {
-        socket->set_timeout(timeout, Socket::TIMEOUT_WRITE);
+        socket->set_timeout(timeout, SW_TIMEOUT_WRITE);
         return 0;
     } else {
         errno = EINVAL;
@@ -557,36 +558,33 @@ int swoole_coroutine_socket_set_connect_timeout(int sockfd, double timeout) {
         errno = EINVAL;
         return -1;
     }
-    socket->set_timeout(timeout, Socket::TIMEOUT_DNS | Socket::TIMEOUT_CONNECT);
+    socket->set_timeout(timeout, SW_TIMEOUT_DNS | SW_TIMEOUT_CONNECT);
     return 0;
 }
 
 int swoole_coroutine_socket_wait_event(int sockfd, int event, double timeout) {
     auto socket = get_socket_ex(sockfd);
     if (sw_unlikely(socket == nullptr)) {
-        struct pollfd poll_ev;
+        pollfd poll_ev{};
         poll_ev.fd = sockfd;
         poll_ev.events = translate_events_to_poll(event);
         return poll(&poll_ev, 1, (int) (timeout * 1000)) == 1 ? SW_OK : SW_ERR;
     }
-    double ori_timeout = socket->get_timeout(event == SW_EVENT_READ ? Socket::TIMEOUT_READ : Socket::TIMEOUT_WRITE);
+    double ori_timeout = socket->get_timeout(event == SW_EVENT_READ ? SW_TIMEOUT_READ : SW_TIMEOUT_WRITE);
     socket->set_timeout(timeout);
     bool retval = socket->poll((enum swEventType) event);
     socket->set_timeout(ori_timeout);
     return retval ? SW_OK : SW_ERR;
 }
 
-int swoole_coroutine_getaddrinfo(const char *name,
-                                 const char *service,
-                                 const struct addrinfo *req,
-                                 struct addrinfo **pai) {
+int swoole_coroutine_getaddrinfo(const char *name, const char *service, const addrinfo *req, addrinfo **pai) {
     int retval = -1;
     async([&]() { retval = getaddrinfo(name, service, req, pai); });
     return retval;
 }
 
-struct hostent *swoole_coroutine_gethostbyname(const char *name) {
-    struct hostent *retval = nullptr;
+hostent *swoole_coroutine_gethostbyname(const char *name) {
+    hostent *retval = nullptr;
     int _tmp_h_errno = 0;
     async([&]() {
         retval = gethostbyname(name);

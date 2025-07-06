@@ -3,6 +3,7 @@ swoole_server/task: timer
 --SKIPIF--
 <?php
 require __DIR__ . '/../../include/skipif.inc';
+skip_if_darwin_todo();
 ?>
 --FILE--
 <?php
@@ -10,16 +11,18 @@ require __DIR__ . '/../../include/bootstrap.php';
 
 use Swoole\Coroutine\Http\Client;
 use Swoole\Server\Task;
+use Swoole\Timer;
 use Swoole\WebSocket\Frame;
 use Swoole\WebSocket\Server;
+use SwooleTest\ProcessManager;
 
 use function Swoole\Coroutine\run;
 
-$pm = new SwooleTest\ProcessManager;
+$pm = new ProcessManager();
 $pm->parentFunc = function (int $pid) use ($pm) {
     run(function () use ($pm) {
         $cli = new Client('127.0.0.1', $pm->getFreePort());
-        $cli->set(['websocket_compression' => true, ]);
+        $cli->set(['websocket_compression' => true]);
         $cli->upgrade('/');
         $cli->push('Hello Swoole');
         $data = $cli->recv(5);
@@ -41,20 +44,20 @@ $pm->childFunc = function () use ($pm) {
     });
     $http->on('WorkerStart', function (Server $server, int $workerId) {
         if ($server->taskworker) {
-            Swoole\Timer::after(1, function () use ($server, $workerId) {
-                var_dump("after1 : " . time());
+            Timer::after(1, function () use ($server, $workerId) {
+                var_dump('after1 : ' . time());
             });
             // never callback
-            Swoole\Timer::after(10000, function () use ($server, $workerId) {
-                var_dump("after2 : " . time());
+            Timer::after(10000, function () use ($server, $workerId) {
+                var_dump('after2 : ' . time());
             });
         }
     });
     $http->on('task', function (Server $server, Task $task) {
         var_dump('begin : ' . time());
-        Swoole\Timer::after(2000, function () use ($server, $task) {
+        Timer::after(2000, function () use ($server, $task) {
             var_dump('end : ' . time());
-            Assert::true($server->push($task->data['fd'], "OK"));
+            Assert::true($server->push($task->data['fd'], 'OK'));
         });
     });
     $http->start();

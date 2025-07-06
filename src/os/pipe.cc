@@ -22,18 +22,7 @@ using network::Socket;
 
 bool SocketPair::init_socket(int master_fd, int worker_fd) {
     master_socket = make_socket(master_fd, SW_FD_PIPE);
-    if (master_socket == nullptr) {
-    _error:
-        ::close(master_fd);
-        ::close(worker_fd);
-        return false;
-    }
     worker_socket = make_socket(worker_fd, SW_FD_PIPE);
-    if (worker_socket == nullptr) {
-        master_socket->free();
-        ::close(worker_fd);
-        goto _error;
-    }
     set_blocking(blocking);
     return true;
 }
@@ -48,7 +37,7 @@ Pipe::Pipe(bool _blocking) : SocketPair(_blocking) {
     }
 }
 
-void SocketPair::set_blocking(bool blocking) {
+void SocketPair::set_blocking(bool blocking) const {
     if (blocking) {
         worker_socket->set_block();
         master_socket->set_block();
@@ -59,23 +48,28 @@ void SocketPair::set_blocking(bool blocking) {
 }
 
 ssize_t SocketPair::read(void *data, size_t length) {
-    if (blocking && timeout > 0) {
-        if (worker_socket->wait_event(timeout * 1000, SW_EVENT_READ) < 0) {
-            return SW_ERR;
-        }
+    if (blocking) {
+        return worker_socket->read_sync(data, length);
+    } else {
+        return worker_socket->read(data, length);
     }
-    return worker_socket->read(data, length);
 }
 
 ssize_t SocketPair::write(const void *data, size_t length) {
-    ssize_t n = master_socket->write(data, length);
-    if (blocking && n < 0 && timeout > 0 && master_socket->catch_write_error(errno) == SW_WAIT) {
-        if (master_socket->wait_event(timeout * 1000, SW_EVENT_READ) < 0) {
-            return SW_ERR;
-        }
-        n = master_socket->write(data, length);
+    if (blocking) {
+        return master_socket->write_sync(data, length);
+    } else {
+        return master_socket->write(data, length);
     }
-    return n;
+}
+
+void SocketPair::clean() {
+    char buf[1024];
+    while (worker_socket->wait_event(0, SW_EVENT_READ) == SW_OK) {
+        if (worker_socket->read(buf, sizeof(buf)) <= 0) {
+            break;
+        }
+    }
 }
 
 bool SocketPair::close(int which) {

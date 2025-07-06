@@ -13,7 +13,9 @@ $level = IPPROTO_IPV6;
 $s = socket_create(AF_INET6, SOCK_DGRAM, SOL_UDP) or die("skip Can not create socket");
 if (socket_set_option($s, $level, IPV6_MULTICAST_IF, 1) === false) {
     die("skip interface 1 either doesn't exist or has no ipv6 address");
-}?>
+}
+skip_if_not_linux();
+?>
 --FILE--
 <?php
 use Swoole\Runtime;

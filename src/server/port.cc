@@ -50,32 +50,32 @@ bool ListenPort::ssl_add_sni_cert(const std::string &name, const std::shared_ptr
     return true;
 }
 
-static bool ssl_matches_wildcard_name(const char *subjectname, const char *certname) {
+bool ListenPort::ssl_matches_wildcard_name(const char *subject_name, const char *cert_name) {
     const char *wildcard = nullptr;
 
-    if (strcasecmp(subjectname, certname) == 0) {
+    if (strcasecmp(subject_name, cert_name) == 0) {
         return true;
     }
 
     /* wildcard, if present, must only be present in the left-most component */
-    if (!((wildcard = strchr(certname, '*'))) || memchr(certname, '.', wildcard - certname)) {
+    if (!((wildcard = strchr(cert_name, '*'))) || memchr(cert_name, '.', wildcard - cert_name)) {
         return false;
     }
 
     /* 1) prefix, if not empty, must match subject */
-    ptrdiff_t prefix_len = wildcard - certname;
-    if (prefix_len && strncasecmp(subjectname, certname, prefix_len) != 0) {
+    ptrdiff_t prefix_len = wildcard - cert_name;
+    if (prefix_len && strncasecmp(subject_name, cert_name, prefix_len) != 0) {
         return false;
     }
 
     size_t suffix_len = strlen(wildcard + 1);
-    size_t subject_len = strlen(subjectname);
+    size_t subject_len = strlen(subject_name);
     if (suffix_len <= subject_len) {
         /* 2) suffix must match
          * 3) no . between prefix and suffix
          **/
-        return strcasecmp(wildcard + 1, subjectname + subject_len - suffix_len) == 0 &&
-               memchr(subjectname + prefix_len, '.', subject_len - suffix_len - prefix_len) == nullptr;
+        return strcasecmp(wildcard + 1, subject_name + subject_len - suffix_len) == 0 &&
+               memchr(subject_name + prefix_len, '.', subject_len - suffix_len - prefix_len) == nullptr;
     }
 
     return false;
@@ -104,7 +104,7 @@ int ListenPort::ssl_server_sni_callback(SSL *ssl, int *al, void *arg) {
 }
 
 #ifdef SW_SUPPORT_DTLS
-dtls::Session *ListenPort::create_dtls_session(Socket *sock) {
+dtls::Session *ListenPort::create_dtls_session(Socket *sock) const {
     auto *session = new dtls::Session(sock, ssl_context);
     if (!session->init()) {
         delete session;
@@ -136,7 +136,7 @@ bool ListenPort::ssl_context_init() {
     return true;
 }
 
-bool ListenPort::ssl_init() {
+bool ListenPort::ssl_init() const {
     if (!ssl_context_create(ssl_context.get())) {
         return false;
     }
@@ -146,11 +146,11 @@ bool ListenPort::ssl_init() {
     return true;
 }
 
-bool ListenPort::ssl_create(Connection *conn, Socket *sock) {
+bool ListenPort::ssl_create(Socket *sock) {
     if (sock->ssl_create(ssl_context.get(), SW_SSL_SERVER) < 0) {
+        swoole_set_last_error(SW_ERROR_SSL_CREATE_SESSION_FAILED);
         return false;
     }
-    conn->ssl = 1;
     if (SSL_set_ex_data(sock->ssl, swoole_ssl_get_ex_port_index(), this) == 0) {
         swoole_warning("SSL_set_ex_data() failed");
         return false;
@@ -158,9 +158,9 @@ bool ListenPort::ssl_create(Connection *conn, Socket *sock) {
     return true;
 }
 
-bool ListenPort::ssl_context_create(SSLContext *context) {
+bool ListenPort::ssl_context_create(SSLContext *context) const {
     if (context->cert_file.empty() || context->key_file.empty()) {
-        swoole_warning("SSL error, require ssl_cert_file and ssl_key_file");
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_WRONG_OPERATION, "require `ssl_cert_file` and `ssl_key_file` options");
         return false;
     }
     if (open_http_protocol) {
@@ -236,8 +236,9 @@ int ListenPort::listen() {
     }
 #endif
 
-    buffer_high_watermark = socket_buffer_size * 0.8;
-    buffer_low_watermark = 0;
+    if (buffer_high_watermark == 0) {
+        buffer_high_watermark = socket_buffer_size * 0.8;
+    }
 
     return SW_OK;
 }
@@ -314,20 +315,35 @@ void ListenPort::set_stream_protocol() {
 bool ListenPort::import(int sock) {
     int _type;
 
-    socket = new Socket();
-    socket->fd = sock;
+    auto tmp_sock = socket = new Socket();
+    tmp_sock->fd = sock;
 
     // get socket type
     if (socket->get_option(SOL_SOCKET, SO_TYPE, &_type) < 0) {
         swoole_sys_warning("getsockopt(%d, SOL_SOCKET, SO_TYPE) failed", sock);
+    _fail:
+        tmp_sock->move_fd();
+        delete tmp_sock;
         return false;
     }
 
-    if (socket->get_name() < 0) {
+    if (tmp_sock->get_name() < 0) {
         swoole_sys_warning("getsockname(%d) failed", sock);
-        return false;
+        goto _fail;
     }
 
+    int optval;
+    if (tmp_sock->get_option(SOL_SOCKET, SO_ACCEPTCONN, &optval) < 0) {
+        swoole_sys_warning("getsockopt(%d, SOL_SOCKET, SO_ACCEPTCONN) failed", sock);
+        goto _fail;
+    }
+
+    if (optval == 0) {
+        swoole_error_log(SW_LOG_WARNING, EINVAL, "the socket[%d] is not a listening socket", sock);
+        goto _fail;
+    }
+
+    socket = tmp_sock;
     int _family = socket->info.addr.ss.sa_family;
     socket->socket_type = socket->info.type = type = Socket::convert_to_type(_family, _type);
     host = socket->info.get_addr();
@@ -351,15 +367,11 @@ void ListenPort::clear_protocol() {
 }
 
 int ListenPort::readable_callback_raw(Reactor *reactor, ListenPort *port, Event *event) {
-    Socket *_socket = event->socket;
-    auto *conn = static_cast<Connection *>(_socket->object);
-    auto *serv = static_cast<Server *>(reactor->ptr);
+    auto _socket = event->socket;
+    auto conn = static_cast<Connection *>(_socket->object);
+    auto serv = static_cast<Server *>(reactor->ptr);
+    auto buffer = serv->get_recv_buffer(_socket);
     RecvData rdata{};
-
-    String *buffer = serv->get_recv_buffer(_socket);
-    if (!buffer) {
-        return SW_ERR;
-    }
 
     ssize_t n = _socket->recv(buffer->str, buffer->size, 0);
     if (n < 0) {
@@ -386,16 +398,11 @@ int ListenPort::readable_callback_raw(Reactor *reactor, ListenPort *port, Event 
 }
 
 int ListenPort::readable_callback_length(Reactor *reactor, ListenPort *port, Event *event) {
-    Socket *_socket = event->socket;
-    auto *conn = static_cast<Connection *>(_socket->object);
-    Protocol *protocol = &port->protocol;
-    auto *serv = static_cast<Server *>(reactor->ptr);
-
-    String *buffer = serv->get_recv_buffer(_socket);
-    if (!buffer) {
-        reactor->trigger_close_event(event);
-        return SW_ERR;
-    }
+    auto _socket = event->socket;
+    auto conn = static_cast<Connection *>(_socket->object);
+    auto protocol = &port->protocol;
+    auto serv = static_cast<Server *>(reactor->ptr);
+    auto buffer = serv->get_recv_buffer(_socket);
 
     if (protocol->recv_with_length_protocol(_socket, buffer) < 0) {
         swoole_trace("Close Event.FD=%d|From=%d", event->fd, event->reactor_id);
@@ -452,10 +459,6 @@ int ListenPort::readable_callback_http(Reactor *reactor, ListenPort *port, Event
 
     if (!request->buffer_) {
         request->buffer_ = serv->get_recv_buffer(_socket);
-        if (!request->buffer_) {
-            reactor->trigger_close_event(event);
-            return SW_ERR;
-        }
     }
 
     String *buffer = request->buffer_;
@@ -598,7 +601,7 @@ _parse:
             if (buffer->length < request->header_length_ + (sizeof(SW_HTTP_CHUNK_EOF) - 1)) {
                 goto _recv_data;
             }
-            request->header_length_ += (sizeof("0\r\n\r\n") - 1);
+            request->header_length_ += (sizeof(SW_HTTP_CHUNK_EOF) - 1);
         }
         request->tried_to_dispatch = 1;
         // (know content-length is equal to 0) or (no content-length field and no chunked)
@@ -640,7 +643,7 @@ _parse:
                                  CLIENT_INFO_ARGS);
                 goto _bad_request;
             }
-            request_length = request->header_length_ + request->content_length_;
+            request_length = buffer->size + SW_BUFFER_SIZE_BIG;
             if (request_length > protocol->package_max_length) {
                 swoole_error_log(SW_LOG_WARNING,
                                  SW_ERROR_HTTP_INVALID_PROTOCOL,
@@ -650,10 +653,7 @@ _parse:
                                  CLIENT_INFO_ARGS);
                 goto _too_large;
             }
-            if (buffer->length == buffer->size && !buffer->extend()) {
-                goto _unavailable;
-            }
-            if (request_length > buffer->size && !buffer->extend_align(request_length)) {
+            if (buffer->length == buffer->size && !buffer->extend(request_length)) {
                 goto _unavailable;
             }
             goto _recv_data;
@@ -731,16 +731,11 @@ _parse:
 }
 
 int ListenPort::readable_callback_redis(Reactor *reactor, ListenPort *port, Event *event) {
-    Socket *_socket = event->socket;
-    auto *conn = static_cast<Connection *>(_socket->object);
-    Protocol *protocol = &port->protocol;
-    auto *serv = static_cast<Server *>(reactor->ptr);
-
-    String *buffer = serv->get_recv_buffer(_socket);
-    if (!buffer) {
-        reactor->trigger_close_event(event);
-        return SW_ERR;
-    }
+    auto _socket = event->socket;
+    auto conn = static_cast<Connection *>(_socket->object);
+    auto protocol = &port->protocol;
+    auto serv = static_cast<Server *>(reactor->ptr);
+    auto buffer = serv->get_recv_buffer(_socket);
 
     if (redis::recv_packet(protocol, conn, buffer) < 0) {
         conn->close_errno = errno;
@@ -784,9 +779,7 @@ void ListenPort::close() {
             ssl_context.reset();
         }
 #ifdef SW_SUPPORT_DTLS
-        if (dtls_sessions) {
-            delete dtls_sessions;
-        }
+        delete dtls_sessions;
 #endif
     }
 #endif
@@ -802,7 +795,7 @@ void ListenPort::close() {
     }
 }
 
-const char *ListenPort::get_protocols() {
+const char *ListenPort::get_protocols() const {
     if (is_dgram()) {
         return "dgram";
     }
@@ -877,7 +870,8 @@ int ListenPort::create_socket() {
 
     Address addr;
     if (!addr.assign(type, host, port, true)) {
-        swoole_warning("Invalid address '%s:%d'", host.c_str(), port);
+        auto type_str = Address::type_str(type);
+        swoole_warning("Invalid %s address '%s:%d'", type_str, host.c_str(), port);
         goto __cleanup;
     }
 

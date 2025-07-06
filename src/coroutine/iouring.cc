@@ -19,6 +19,13 @@
 
 #include "swoole_iouring.h"
 
+#ifdef HAVE_IOURING_FUTEX
+#ifndef FUTEX2_SIZE_U32
+#define FUTEX2_SIZE_U32 0x02
+#endif
+#include <linux/futex.h>
+#endif
+
 #ifdef SW_USE_IOURING
 using swoole::Coroutine;
 
@@ -37,12 +44,14 @@ enum IouringOpcode {
     SW_IORING_OP_FUTEX_WAKE = IORING_OP_FUTEX_WAKE,
 #endif
 
-    SW_IORING_OP_FSTAT = 1000,
-    SW_IORING_OP_LSTAT = 1001,
-    SW_IORING_OP_UNLINK_FILE = 1002,
-    SW_IORING_OP_UNLINK_DIR = 1003,
-    SW_IORING_OP_FSYNC = 1004,
-    SW_IORING_OP_FDATASYNC = 1005,
+    SW_IORING_OP_FSTAT = 100,
+    SW_IORING_OP_LSTAT = 101,
+    SW_IORING_OP_UNLINK_FILE = 102,
+    SW_IORING_OP_UNLINK_DIR = 103,
+    SW_IORING_OP_FSYNC = 104,
+    SW_IORING_OP_FDATASYNC = 105,
+
+    SW_IORING_OP_LAST = 128,
 };
 
 struct IouringEvent {
@@ -68,11 +77,6 @@ struct IouringEvent {
 };
 
 Iouring::Iouring(Reactor *_reactor) {
-    if (!SwooleTG.reactor) {
-        swoole_warning("no event loop, cannot initialized");
-        throw swoole::Exception(SW_ERROR_WRONG_OPERATION);
-    }
-
     reactor = _reactor;
     if (SwooleG.iouring_entries > 0) {
         uint32_t i = 6;
@@ -139,13 +143,13 @@ Iouring::~Iouring() {
     io_uring_queue_exit(&ring);
 }
 
-bool Iouring::ready() {
+bool Iouring::ready() const {
     return ring_socket && reactor->exists(ring_socket);
 }
 
 bool Iouring::wakeup() {
     IouringEvent *waiting_task = nullptr;
-    struct io_uring_cqe *cqes[SW_IOURING_CQES_SIZE];
+    io_uring_cqe *cqes[SW_IOURING_CQES_SIZE];
 
     while (true) {
         auto count = io_uring_peek_batch_cqe(&ring, cqes, SW_IOURING_CQES_SIZE);
@@ -154,8 +158,8 @@ bool Iouring::wakeup() {
         }
 
         for (decltype(count) i = 0; i < count; i++) {
-            struct io_uring_cqe *cqe = cqes[i];
-            IouringEvent *task = static_cast<IouringEvent *>(io_uring_cqe_get_data(cqe));
+            auto *cqe = cqes[i];
+            auto *task = static_cast<IouringEvent *>(io_uring_cqe_get_data(cqe));
             task_num--;
             if (cqe->res < 0) {
                 errno = -(cqe->res);
@@ -189,7 +193,7 @@ bool Iouring::wakeup() {
     return true;
 }
 
-static MAYBE_UNUSED const char *get_opcode_name(IouringOpcode opcode) {
+static const char *get_opcode_name(IouringOpcode opcode) {
     switch (opcode) {
     case SW_IORING_OP_OPENAT:
         return "OPENAT";
@@ -228,6 +232,18 @@ static MAYBE_UNUSED const char *get_opcode_name(IouringOpcode opcode) {
     }
 }
 
+std::unordered_map<std::string, int> Iouring::list_all_opcode() {
+    std::unordered_map<std::string, int> opcodes;
+    for (int i = SW_IORING_OP_OPENAT; i < SW_IORING_OP_LAST; i++) {
+        auto name = get_opcode_name((IouringOpcode) i);
+        if (strcmp(name, "unknown") == 0) {
+            continue;
+        }
+        opcodes[name] = i;
+    }
+    return opcodes;
+}
+
 bool Iouring::submit(IouringEvent *event) {
     swoole_trace("opcode=%s, fd=%d, path=%s", get_opcode_name(event->opcode), event->fd, event->pathname);
 
@@ -249,7 +265,11 @@ bool Iouring::submit(IouringEvent *event) {
 
 ssize_t Iouring::execute(IouringEvent *event) {
     if (sw_unlikely(!SwooleTG.iouring)) {
-        auto iouring = new Iouring(SwooleTG.reactor);
+        if (!swoole_event_is_available()) {
+            swoole_warning("no event loop, cannot initialized");
+            throw Exception(SW_ERROR_WRONG_OPERATION);
+        }
+        auto iouring = new Iouring(sw_reactor());
         if (!iouring->ready()) {
             delete iouring;
             return SW_ERR;
@@ -268,7 +288,7 @@ ssize_t Iouring::execute(IouringEvent *event) {
 }
 
 bool Iouring::dispatch(IouringEvent *event) {
-    struct io_uring_sqe *sqe = get_iouring_sqe();
+    io_uring_sqe *sqe = get_iouring_sqe();
     if (!sqe) {
         waiting_tasks.push(event);
         return true;
@@ -378,20 +398,20 @@ bool Iouring::dispatch(IouringEvent *event) {
     event.coroutine = Coroutine::get_current_safe();                                                                   \
     event.opcode = op;
 
-int Iouring::open(const char *pathname, int flags, int mode) {
+int Iouring::open(const char *pathname, int flags, mode_t mode) {
     INIT_EVENT(SW_IORING_OP_OPENAT);
     event.mode = mode;
     event.flags = flags;
     event.pathname = pathname;
 
-    return execute(&event);
+    return static_cast<int>(execute(&event));
 }
 
 int Iouring::close(int fd) {
     INIT_EVENT(SW_IORING_OP_CLOSE);
     event.fd = fd;
 
-    return execute(&event);
+    return static_cast<int>(execute(&event));
 }
 
 ssize_t Iouring::read(int fd, void *buf, size_t size) {
@@ -412,12 +432,12 @@ ssize_t Iouring::write(int fd, const void *buf, size_t size) {
     return execute(&event);
 }
 
-ssize_t Iouring::rename(const char *oldpath, const char *newpath) {
+int Iouring::rename(const char *oldpath, const char *newpath) {
     INIT_EVENT(SW_IORING_OP_RENAMEAT);
     event.pathname = oldpath;
     event.pathname2 = newpath;
 
-    return execute(&event);
+    return static_cast<int>(execute(&event));
 }
 
 int Iouring::mkdir(const char *pathname, mode_t mode) {
@@ -425,35 +445,35 @@ int Iouring::mkdir(const char *pathname, mode_t mode) {
     event.pathname = pathname;
     event.mode = mode;
 
-    return execute(&event);
+    return static_cast<int>(execute(&event));
 }
 
 int Iouring::unlink(const char *pathname) {
     INIT_EVENT(SW_IORING_OP_UNLINK_FILE);
     event.pathname = pathname;
 
-    return execute(&event);
+    return static_cast<int>(execute(&event));
 }
 
 int Iouring::rmdir(const char *pathname) {
     INIT_EVENT(SW_IORING_OP_UNLINK_DIR);
     event.pathname = pathname;
 
-    return execute(&event);
+    return static_cast<int>(execute(&event));
 }
 
 int Iouring::fsync(int fd) {
     INIT_EVENT(SW_IORING_OP_FSYNC);
     event.fd = fd;
 
-    return execute(&event);
+    return static_cast<int>(execute(&event));
 }
 
 int Iouring::fdatasync(int fd) {
     INIT_EVENT(SW_IORING_OP_FDATASYNC);
     event.fd = fd;
 
-    return execute(&event);
+    return static_cast<int>(execute(&event));
 }
 
 #ifdef HAVE_IOURING_STATX
@@ -520,7 +540,7 @@ int Iouring::futex_wakeup(uint32_t *futex) {
 #endif
 
 int Iouring::callback(Reactor *reactor, Event *event) {
-    Iouring *iouring = static_cast<Iouring *>(event->socket->object);
+    auto *iouring = static_cast<Iouring *>(event->socket->object);
     return iouring->wakeup() ? SW_OK : SW_ERR;
 }
 }  // namespace swoole

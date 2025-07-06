@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include <stdio.h>
-#include <stdarg.h>
+#include <cstdio>
+#include <cstdarg>
 
 #include <string>
 #include <memory>
@@ -40,7 +40,7 @@ inline std::string format(const char *format, Args... args) {
     size_t size = snprintf(nullptr, 0, format, args...) + 1;  // Extra space for '\0'
     std::unique_ptr<char[]> buf(new char[size]);
     snprintf(buf.get(), size, format, args...);
-    return std::string(buf.get(), buf.get() + size - 1);  // We don't want the '\0' inside
+    return {buf.get(), buf.get() + size - 1};  // We don't want the '\0' inside
 }
 
 inline std::string vformat(const char *format, va_list args) {
@@ -50,7 +50,7 @@ inline std::string vformat(const char *format, va_list args) {
     va_end(_args);
     std::unique_ptr<char[]> buf(new char[size]);
     vsnprintf(buf.get(), size, format, args);
-    return std::string(buf.get(), buf.get() + size - 1);  // We don't want the '\0' inside
+    return {buf.get(), buf.get() + size - 1};  // We don't want the '\0' inside
 }
 }  // namespace std_string
 
@@ -98,7 +98,7 @@ class DeferTask {
 template <typename Fun>
 class ScopeGuard {
   public:
-    ScopeGuard(Fun &&f) : _fun(std::forward<Fun>(f)), _active(true) {}
+    explicit ScopeGuard(Fun &&f) : _fun(std::forward<Fun>(f)), _active(true) {}
 
     ~ScopeGuard() {
         if (_active) {
@@ -114,7 +114,7 @@ class ScopeGuard {
     ScopeGuard(const ScopeGuard &) = delete;
     ScopeGuard &operator=(const ScopeGuard &) = delete;
 
-    ScopeGuard(ScopeGuard &&rhs) : _fun(std::move(rhs._fun)), _active(rhs._active) {
+    ScopeGuard(ScopeGuard &&rhs) noexcept : _fun(std::move(rhs._fun)), _active(rhs._active) {
         rhs.dismiss();
     }
 
@@ -124,28 +124,27 @@ class ScopeGuard {
 };
 
 class BitMap {
-  private:
     uint64_t *array_;
     size_t n_bits_;
 
-    size_t get_array_size(size_t n_bits) {
+    static size_t get_array_size(size_t n_bits) {
         return (((n_bits) + 63) / 64 * 8);
     }
 
-    size_t get_offset(size_t i) {
+    size_t get_offset(size_t i) const {
         assert(i < n_bits_);
         /* (i / 64) */
         return i >> 6;
     }
 
-    uint64_t to_int(size_t i, size_t offset) {
-        return ((uint64_t) 1) << (i - (offset << 6));
+    static uint64_t to_int(const size_t i, const size_t offset) {
+        return static_cast<uint64_t>(1) << (i - (offset << 6));
     }
 
   public:
-    BitMap(size_t n_bits) {
+    explicit BitMap(const size_t n_bits) {
         assert(n_bits > 0);
-        array_ = (uint64_t *) new uint64_t[get_array_size(n_bits)];
+        array_ = new uint64_t[get_array_size(n_bits)];
         n_bits_ = n_bits;
     }
 
@@ -153,21 +152,21 @@ class BitMap {
         delete[] array_;
     }
 
-    void clear() {
+    void clear() const {
         memset(array_, 0, sizeof(uint64_t) * get_array_size(n_bits_));
     }
 
-    void set(size_t i) {
+    void set(const size_t i) const {
         const size_t off = get_offset(i);
         array_[off] |= to_int(i, off);
     }
 
-    void unset(size_t i) {
+    void unset(const size_t i) const {
         const size_t off = get_offset(i);
         array_[off] &= ~to_int(i, off);
     }
 
-    bool get(size_t i) {
+    bool get(const size_t i) const {
         const size_t off = get_offset(i);
         return array_[off] & to_int(i, off);
     }
@@ -186,7 +185,7 @@ inline ScopeGuard<Fun> operator+(ScopeGuardOnExit, Fun &&fn) {
 #define ON_SCOPE_EXIT                                                                                                  \
     auto __SCOPEGUARD_CONCATENATE(ext_exitBlock_, __LINE__) = swoole::detail::ScopeGuardOnExit() + [&]()
 
-std::string intersection(std::vector<std::string> &vec1, std::set<std::string> &vec2);
+std::string intersection(const std::vector<std::string> &vec1, std::set<std::string> &vec2);
 
 static inline size_t ltrim(char **str, size_t len) {
     size_t i;

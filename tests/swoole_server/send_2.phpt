@@ -8,13 +8,17 @@ require __DIR__ . '/../include/skipif.inc';
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-const VERBOSE = false;
+const VERBOSE = FALSE;
+const SEND_N = 32;
+const CONCURRENCY = 16;
+const PKT_MIN_SIZE = 256 * 1024;
+const PKT_MAX_SIZE = 1024 * 1024;
 
 $pm = new SwooleTest\ProcessManager;
 
 $pm->parentFunc = function ($pid) use ($pm) {
     $total = 0;
-    for ($i = 0; $i < MAX_CONCURRENCY_MID; $i++) {
+    for ($i = 0; $i < CONCURRENCY; $i++) {
         go(function () use ($pm, $i, &$total) {
             $cli = new Co\Client(SWOOLE_SOCK_TCP);
             $cli->set([
@@ -28,7 +32,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
                 echo "ERROR\n";
                 return;
             }
-            $n = MAX_REQUESTS;
+            $n = SEND_N;
             while ($n--) {
                 $data = $cli->recv();
                 Assert::assert($data);
@@ -67,9 +71,9 @@ $pm->childFunc = function () use ($pm) {
         if (VERBOSE) {
             echo "new client, fd=$fd\n";
         }
-        $n = MAX_REQUESTS;
+        $n = SEND_N;
         while ($n--) {
-            $len = rand(8192, 1024 * 1024);
+            $len = rand(PKT_MIN_SIZE, PKT_MAX_SIZE);
             $send_data = str_repeat(chr(ord('A') + $n % 10), $len);
             if (VERBOSE) {
                 echo "[Server] c=$fd, n=$n, len=" . (strlen($send_data) + 4) . "\n---------------------------------------------------------------------\n";

@@ -1,7 +1,10 @@
 --TEST--
 swoole_socket_coro/setopt: setOption IPV6_PKTINFO
 --SKIPIF--
-<?php require __DIR__ . '/../../include/skipif.inc'; ?>
+<?php 
+require __DIR__ . '/../../include/skipif.inc';
+skip_if_not_linux();
+ ?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';

@@ -29,7 +29,7 @@ UnixSocket::UnixSocket(bool blocking, int _protocol) : SocketPair(blocking), pro
     set_buffer_size(network::Socket::default_buffer_size);
 }
 
-bool UnixSocket::set_buffer_size(size_t _size) {
+bool UnixSocket::set_buffer_size(size_t _size) const {
     if (!master_socket->set_buffer_size(_size)) {
         return false;
     }

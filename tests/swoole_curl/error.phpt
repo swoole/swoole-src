@@ -29,7 +29,11 @@ run(function () {
     $output = curl_exec($ch);
     Assert::isEmpty($output);
     Assert::eq(curl_errno($ch), CURLE_COULDNT_CONNECT);
-    Assert::contains(curl_error($ch), 'Connection refused');
+    if (IS_MAC_OS) {
+        Assert::eq(preg_match("#Failed to connect to 127.0.0.1 port \d+#i", curl_error($ch)), 1);
+    } else {
+        Assert::contains(curl_error($ch), 'Connection refused');
+    }
     $info = curl_getinfo($ch);
     Assert::isArray($info);
     Assert::eq($info['http_code'], 0);

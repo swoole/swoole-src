@@ -35,7 +35,6 @@ bool file_exists(const std::string &filename);
 typedef struct stat FileStatus;
 
 class File {
-  private:
     int fd_;
     int flags_;
     std::string path_;
@@ -50,7 +49,7 @@ class File {
         APPEND = O_APPEND,
     };
 
-    explicit File(int fd) {
+    explicit File(const int fd) {
         fd_ = fd;
         flags_ = 0;
     }
@@ -66,8 +65,10 @@ class File {
     ~File();
 
     bool open(const std::string &path, int oflags, int mode = 0);
+    bool close();
+    bool stat(FileStatus *_stat) const;
 
-    bool ready() {
+    bool ready() const {
         return fd_ != -1;
     }
 
@@ -91,63 +92,45 @@ class File {
         return ::pread(fd_, __buf, __n, __offset);
     }
 
-    size_t write_all(const void *__buf, size_t __n);
-    size_t read_all(void *__buf, size_t __n);
+    size_t write_all(const void *data, size_t len) const;
+    size_t read_all(void *buf, size_t len) const;
     /**
      * Read one line of file, reading ends when __n - 1 bytes have been read,
      * or a newline (which is included in the return value),
      * or an EOF (read bytes less than __n)
-     * Returns length of line on sucess, -1 otherwise.
-     * NOTE: `buf' must be end with zero.
+     * Returns length of line on success, -1 otherwise.
+     * NOTE: `buf` must be ended with zero.
      */
-    ssize_t read_line(void *__buf, size_t __n);
+    ssize_t read_line(void *__buf, size_t __n) const;
 
-    std::shared_ptr<String> read_content();
+    std::shared_ptr<String> read_content() const;
 
-    bool stat(FileStatus *_stat) const {
-        if (::fstat(fd_, _stat) < 0) {
-            swoole_sys_warning("fstat() failed");
-            return false;
-        } else {
-            return true;
-        }
-    }
-
-    bool sync() {
+    bool sync() const {
         return ::fsync(fd_) == 0;
     }
 
-    bool truncate(size_t size) {
+    bool truncate(size_t size) const {
         return ::ftruncate(fd_, size) == 0;
     }
 
-    off_t set_offset(off_t offset) {
+    off_t set_offset(off_t offset) const {
         return lseek(fd_, offset, SEEK_SET);
     }
 
-    off_t get_offset() {
+    off_t get_offset() const {
         return lseek(fd_, 0, SEEK_CUR);
     }
 
-    bool lock(int operation) {
+    bool lock(int operation) const {
         return ::flock(fd_, operation) == 0;
     }
 
-    bool unlock() {
+    bool unlock() const {
         return ::flock(fd_, LOCK_UN) == 0;
     }
 
-    ssize_t get_size() {
+    ssize_t get_size() const {
         return file_get_size(fd_);
-    }
-
-    bool close() {
-        if (fd_ == -1) {
-            return false;
-        }
-        int tmp_fd = fd_;
-        fd_ = -1;
-        return ::close(tmp_fd) == 0;
     }
 
     void release() {

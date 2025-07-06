@@ -18,7 +18,6 @@
 #pragma once
 
 #include "swoole_coroutine.h"
-#include "swoole_file.h"
 
 #include <vector>
 
@@ -26,21 +25,18 @@ namespace swoole {
 namespace coroutine {
 //-------------------------------------------------------------------------------
 struct PollSocket {
-    int16_t events;
+    int events;
     int16_t revents;
     void *ptr;
     network::Socket *socket;
 
-    PollSocket(int16_t _event, void *_ptr) {
+    PollSocket(int _event, void *_ptr) {
         events = _event;
         ptr = _ptr;
         revents = 0;
         socket = nullptr;
     }
 };
-
-int translate_events_to_poll(int events);
-int translate_events_from_poll(int events);
 
 class System {
   public:
@@ -49,7 +45,7 @@ class System {
     static int sleep(double sec);
     /* file */
     static std::shared_ptr<String> read_file(const char *file, bool lock = false);
-    static ssize_t write_file(const char *file, char *buf, size_t length, bool lock = 0, int flags = 0);
+    static ssize_t write_file(const char *file, const char *buf, size_t length, bool lock = 0, int flags = 0);
     /* dns */
     static std::string gethostbyname(const std::string &hostname, int domain, double timeout = -1);
     static std::vector<std::string> getaddrinfo(const std::string &hostname,
@@ -76,6 +72,11 @@ class System {
     static int wait_signal(int signal, double timeout = -1);
     static int wait_signal(const std::vector<int> &signals, double timeout = -1);
     /* event */
+
+    /**
+     * On failure, it returns -1, and you can use swoole_get_last_error() or errno to determine the cause of the
+     * failure. If successful, it returns the event set, such as SW_EVENT_READ | SW_EVENT_WRITE.
+     */
     static int wait_event(int fd, int events, double timeout);
     static bool exec(const char *command, bool get_error_stream, std::shared_ptr<String> buffer, int *status);
 };

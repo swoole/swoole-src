@@ -7,12 +7,13 @@ swoole_http2_client_coro: connect twice
 require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Coroutine\Channel;
+use Swoole\Coroutine\Http2\Client;
 use Swoole\Http2\Request;
 use function Swoole\Coroutine\run;
 use function Swoole\Coroutine\go;
 
 run(function () {
-    $client = new \Swoole\Coroutine\Http2\Client('httpbin.org', 443, true);
+    $client = new Client('httpbin.org', 443, true);
     $chan = new Channel(1);
     go(function () use ($client, $chan) {
         $client->connect();
@@ -23,6 +24,7 @@ run(function () {
         $client->send($req);
         $chan->push(true);
         $resp = $client->recv();
+        Assert::notNull($resp);
         Assert::eq($resp->statusCode, 200);
         Assert::eq($resp->data, $uuid);
         $chan->pop();

@@ -20,7 +20,7 @@
 #include "swoole.h"
 #include "swoole_hash.h"
 
-static const int CRC32_TABLE_SIZE = 256;
+static constexpr int CRC32_TABLE_SIZE = 256;
 static uint32_t crc32_table[CRC32_TABLE_SIZE];
 static bool generated = false;
 

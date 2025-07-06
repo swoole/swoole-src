@@ -30,7 +30,7 @@ namespace coroutine {
 static struct {
     size_t capacity;
     time_t expire;
-    LRUCache *data;
+    LRUCache<std::string> *data;
     size_t miss_count;
     size_t hit_count;
 } dns_cache = {
@@ -68,43 +68,13 @@ float System::get_dns_cache_hit_ratio() {
     return (float) dns_cache.hit_count / (float) total;
 }
 
-static void sleep_callback(Coroutine *co, bool *canceled) {
-    if (*canceled == false) {
-        co->resume();
-    }
-    delete canceled;
-}
-
 int System::sleep(double sec) {
     Coroutine *co = Coroutine::get_current_safe();
-
-    bool *canceled = new bool(false);
-    TimerNode *tnode = nullptr;
-
     if (sec < SW_TIMER_MIN_SEC) {
-        swoole_event_defer([co, canceled](void *data) { sleep_callback(co, canceled); }, nullptr);
-    } else {
-        auto fn = [canceled](Timer *timer, TimerNode *tnode) { sleep_callback((Coroutine *) tnode->data, canceled); };
-        tnode = swoole_timer_add(sec, false, fn, co);
-        if (tnode == nullptr) {
-            delete canceled;
-            return -1;
-        }
+        sec = SW_TIMER_MIN_SEC;
     }
-    Coroutine::CancelFunc cancel_fn = [canceled, tnode](Coroutine *co) {
-        *canceled = true;
-        if (tnode) {
-            swoole_timer_del(tnode);
-        }
-        co->resume();
-        return true;
-    };
-    co->yield(&cancel_fn);
-    if (co->is_canceled()) {
-        swoole_set_last_error(SW_ERROR_CO_CANCELED);
-        return SW_ERR;
-    }
-    return SW_OK;
+    co->yield_ex(sec);
+    return co->is_canceled() ? SW_ERR : SW_OK;
 }
 
 std::shared_ptr<String> System::read_file(const char *file, bool lock) {
@@ -135,7 +105,7 @@ std::shared_ptr<String> System::read_file(const char *file, bool lock) {
     return result;
 }
 
-ssize_t System::write_file(const char *file, char *buf, size_t length, bool lock, int flags) {
+ssize_t System::write_file(const char *file, const char *buf, size_t length, bool lock, int flags) {
     ssize_t retval = -1;
     int file_flags = flags | O_CREAT | O_WRONLY;
     async([&]() {
@@ -175,14 +145,13 @@ std::string gethostbyname_impl_with_async(const std::string &hostname, int domai
         swoole_set_last_error(ev.error);
         return "";
     } else {
-        std::string addr(req->addr);
-        return addr;
+        return req->addr;
     }
 }
 
 std::string System::gethostbyname(const std::string &hostname, int domain, double timeout) {
     if (dns_cache.data == nullptr && dns_cache.capacity != 0) {
-        dns_cache.data = new LRUCache(dns_cache.capacity);
+        dns_cache.data = new LRUCache<std::string>(dns_cache.capacity);
     }
 
     std::string cache_key;
@@ -410,36 +379,6 @@ static int socket_poll_error_callback(Reactor *reactor, Event *event) {
     return SW_OK;
 }
 
-int translate_events_to_poll(int events) {
-    int poll_events = 0;
-
-    if (events & SW_EVENT_READ) {
-        poll_events |= POLLIN;
-    }
-    if (events & SW_EVENT_WRITE) {
-        poll_events |= POLLOUT;
-    }
-
-    return poll_events;
-}
-
-int translate_events_from_poll(int events) {
-    int sw_events = 0;
-
-    if (events & POLLIN) {
-        sw_events |= SW_EVENT_READ;
-    }
-    if (events & POLLOUT) {
-        sw_events |= SW_EVENT_WRITE;
-    }
-    // ignore ERR and HUP, because event is already processed at IN and OUT handler.
-    if ((((events & POLLERR) || (events & POLLHUP)) && !((events & POLLIN) || (events & POLLOUT)))) {
-        sw_events |= SW_EVENT_ERROR;
-    }
-
-    return sw_events;
-}
-
 bool System::socket_poll(std::unordered_map<int, PollSocket> &fds, double timeout) {
     if (timeout == 0) {
         struct pollfd *event_list = (struct pollfd *) sw_calloc(fds.size(), sizeof(struct pollfd));
@@ -494,7 +433,6 @@ bool System::socket_poll(std::unordered_map<int, PollSocket> &fds, double timeou
 
 struct EventWaiter {
     network::Socket *socket;
-    TimerNode *timer;
     Coroutine *co;
     int revents;
     int error_;
@@ -503,44 +441,17 @@ struct EventWaiter {
         error_ = revents = 0;
         socket = swoole::make_socket(fd, SW_FD_CO_EVENT);
         socket->object = this;
-        timer = nullptr;
         co = Coroutine::get_current_safe();
 
-        Coroutine::CancelFunc cancel_fn = [this](Coroutine *) {
-            if (timer) {
-                swoole_timer_del(timer);
-            }
-            error_ = SW_ERROR_CO_CANCELED;
-            co->resume();
-            return true;
-        };
-
         if (swoole_event_add(socket, events) < 0) {
-            swoole_set_last_error(errno);
+            error_ = swoole_get_last_error();
             goto _done;
         }
 
-        if (timeout > 0) {
-            timer = swoole_timer_add(
-                timeout,
-                false,
-                [](Timer *timer, TimerNode *tnode) {
-                    EventWaiter *waiter = (EventWaiter *) tnode->data;
-                    waiter->timer = nullptr;
-                    waiter->error_ = ETIMEDOUT;
-                    waiter->co->resume();
-                },
-                this);
+        if (!co->yield_ex(timeout)) {
+            error_ = swoole_get_last_error();
         }
 
-        co->yield(&cancel_fn);
-
-        if (timer != nullptr) {
-            swoole_timer_del(timer);
-        }
-        if (error_) {
-            swoole_set_last_error(error_);
-        }
         swoole_event_del(socket);
     _done:
         socket->fd = -1; /* skip close */
@@ -577,28 +488,30 @@ int System::wait_event(int fd, int events, double timeout) {
     events &= SW_EVENT_READ | SW_EVENT_WRITE;
     if (events == 0) {
         swoole_set_last_error(EINVAL);
-        return 0;
+        return -1;
     }
 
     if (timeout == 0) {
-        struct pollfd pfd;
+        pollfd pfd;
         pfd.fd = fd;
         pfd.events = translate_events_to_poll(events);
         pfd.revents = 0;
 
         int retval = ::poll(&pfd, 1, 0);
         if (retval == 1) {
+            if (pfd.revents & POLLNVAL) {
+                swoole_set_last_error(EBADF);
+                return -1;
+            }
             return translate_events_from_poll(pfd.revents);
         }
-        if (retval < 0) {
-            swoole_set_last_error(errno);
-        }
-        return 0;
+        swoole_set_last_error(retval < 0 ? errno : ETIMEDOUT);
+        return -1;
     }
 
     EventWaiter waiter(fd, events, timeout);
     if (waiter.error_) {
-        errno = swoole_get_last_error();
+        errno = waiter.error_;
         return SW_ERR;
     }
 
@@ -646,17 +559,17 @@ bool System::exec(const char *command, bool get_error_stream, std::shared_ptr<St
 }
 
 void System::init_reactor(Reactor *reactor) {
-    reactor->set_handler(SW_FD_CO_POLL | SW_EVENT_READ, socket_poll_read_callback);
-    reactor->set_handler(SW_FD_CO_POLL | SW_EVENT_WRITE, socket_poll_write_callback);
-    reactor->set_handler(SW_FD_CO_POLL | SW_EVENT_ERROR, socket_poll_error_callback);
+    reactor->set_handler(SW_FD_CO_POLL, SW_EVENT_READ, socket_poll_read_callback);
+    reactor->set_handler(SW_FD_CO_POLL, SW_EVENT_WRITE, socket_poll_write_callback);
+    reactor->set_handler(SW_FD_CO_POLL, SW_EVENT_ERROR, socket_poll_error_callback);
 
-    reactor->set_handler(SW_FD_CO_EVENT | SW_EVENT_READ, event_waiter_read_callback);
-    reactor->set_handler(SW_FD_CO_EVENT | SW_EVENT_WRITE, event_waiter_write_callback);
-    reactor->set_handler(SW_FD_CO_EVENT | SW_EVENT_ERROR, event_waiter_error_callback);
+    reactor->set_handler(SW_FD_CO_EVENT, SW_EVENT_READ, event_waiter_read_callback);
+    reactor->set_handler(SW_FD_CO_EVENT, SW_EVENT_WRITE, event_waiter_write_callback);
+    reactor->set_handler(SW_FD_CO_EVENT, SW_EVENT_ERROR, event_waiter_error_callback);
 
-    reactor->set_handler(SW_FD_AIO | SW_EVENT_READ, AsyncThreads::callback);
+    reactor->set_handler(SW_FD_AIO, SW_EVENT_READ, AsyncThreads::callback);
 #ifdef SW_USE_IOURING
-    reactor->set_handler(SW_FD_IOURING | SW_EVENT_READ, Iouring::callback);
+    reactor->set_handler(SW_FD_IOURING, SW_EVENT_READ, Iouring::callback);
 #endif
 }
 
@@ -664,7 +577,7 @@ static void async_task_completed(AsyncEvent *event) {
     if (event->canceled) {
         return;
     }
-    Coroutine *co = (Coroutine *) event->object;
+    auto *co = static_cast<Coroutine *>(event->object);
     co->resume();
 }
 

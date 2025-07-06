@@ -4,9 +4,6 @@ on:
   push:
   pull_request:
 
-env:
-  CPPFLAGS: "-I/opt/homebrew/opt/pcre2/include/"
-
 jobs:
   linux:
     runs-on: ubuntu-latest
@@ -52,7 +49,7 @@ jobs:
           vendor/bin/phpunit --display-deprecations --fail-on-deprecation
 
       - name: Hyperf Tests
-        if: matrix.framework == 'Hyperf' && matrix.php-version != '8.3'
+        if: matrix.framework == 'Hyperf' && matrix.php-version != '8.4'
         env:
           SW_VERSION: 'master'
           MYSQL_VERSION: '5.7'
@@ -108,7 +105,9 @@ jobs:
       - name: Build Swoole
         run: |
           phpize
-          ./configure CPPFLAGS="${CPPFLAGS}" --enable-openssl --enable-mysqlnd --enable-swoole-curl --enable-cares
+          export CPPFLAGS="${CPPFLAGS} -I/opt/homebrew/opt/pcre2/include/"
+          export CFLAGS="${CFLAGS} -I/opt/homebrew/opt/pcre2/include/"
+          ./configure --enable-openssl --enable-mysqlnd --enable-swoole-curl --enable-cares
           make -j$(sysctl -n hw.ncpu)
           sudo make install
           php --ri swoole

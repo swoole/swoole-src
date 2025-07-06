@@ -144,7 +144,6 @@ class Coroutine {
     static void set_on_resume(SwapCallback func);
     static void set_on_close(SwapCallback func);
     static void bailout(const BailoutCallback &func);
-    static bool run(const CoroutineFunc &fn, void *args = nullptr);
 
     static inline long create(const CoroutineFunc &fn, void *args = nullptr) {
 #ifdef SW_USE_THREAD_CONTEXT
@@ -222,7 +221,9 @@ class Coroutine {
         return sw_likely(co) ? co->get_execute_usec() : -1;
     }
 
+#ifdef SW_CORO_TIME
     static void calc_execute_usec(Coroutine *yield_coroutine, Coroutine *resume_coroutine);
+#endif
     static void print_list();
 
   protected:
@@ -270,9 +271,9 @@ bool async(async::Handler handler, AsyncEvent &event, double timeout = -1);
  * In the event of a timeout or cancellation, the memory of wbuf/rbuf will be released by the caller,
  * which may lead the AIO thread to read from an erroneous memory pointer and consequently crash.
  */
-bool async(const std::function<void(void)> &fn);
+bool async(const std::function<void()> &fn);
 bool run(const CoroutineFunc &fn, void *arg = nullptr);
-bool wait_for(const std::function<bool(void)> &fn);
+bool wait_for(const std::function<bool()> &fn);
 }  // namespace coroutine
 //-------------------------------------------------------------------------------
 }  // namespace swoole

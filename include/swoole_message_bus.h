@@ -28,15 +28,15 @@ struct PipeBuffer {
     DataHead info;
     char data[0];
 
-    bool is_begin() {
+    bool is_begin() const {
         return info.flags & SW_EVENT_DATA_BEGIN;
     }
 
-    bool is_chunked() {
+    bool is_chunked() const {
         return info.flags & SW_EVENT_DATA_CHUNK;
     }
 
-    bool is_end() {
+    bool is_end() const {
         return info.flags & SW_EVENT_DATA_END;
     }
 };
@@ -79,11 +79,11 @@ class MessageBus {
 
     ~MessageBus();
 
-    bool empty() {
+    bool empty() const {
         return packet_pool_.empty();
     }
 
-    size_t count() {
+    size_t count() const {
         return packet_pool_.size();
     }
 
@@ -107,7 +107,7 @@ class MessageBus {
         always_chunked_transfer_ = true;
     }
 
-    size_t get_buffer_size() {
+    size_t get_buffer_size() const {
         return buffer_size_;
     }
 
@@ -127,7 +127,7 @@ class MessageBus {
 
     /**
      * Send data to socket. If the data sent is larger than Server::ipc_max_size, then it is sent in chunks.
-     * Otherwise send it directly.
+     * Otherwise, send it directly.
      * When sending data in multi-thread environment, must use get_pipe_socket() to separate socket memory.
      * @return: send success returns true, send failure returns false.
      */
@@ -147,7 +147,7 @@ class MessageBus {
      * The last chunk of data has been received, return address and length, start processing this packet.
      */
     PacketPtr get_packet() const;
-    PipeBuffer *get_buffer() {
+    PipeBuffer *get_buffer() const {
         return buffer_;
     }
     /**
@@ -166,7 +166,7 @@ class MessageBus {
      * It is possible to operate the same pipe in multiple threads.
      * Each thread must have a unique buffer and the socket memory must be separated.
      */
-    network::Socket *get_pipe_socket(network::Socket *sock) {
+    network::Socket *get_pipe_socket(const network::Socket *sock) const {
         return pipe_sockets_[sock->get_fd()];
     }
     void init_pipe_socket(network::Socket *sock);

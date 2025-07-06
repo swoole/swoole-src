@@ -4,25 +4,27 @@ swoole_server: dispatch_mode = 3
 <?php
 require __DIR__ . '/../include/skipif.inc';
 skip_if_in_valgrind();
+skip_if_darwin_todo();
 ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 const WORKER_N = 16;
 
-use Swoole\Coroutine\Client;
-use Swoole\Timer;
-use Swoole\Event;
-use Swoole\Server;
 use Swoole\Atomic;
+use Swoole\Coroutine\Client;
+use Swoole\Event;
+use Swoole\Process;
+use Swoole\Server;
+use SwooleTest\ProcessManager;
 
 global $stats;
 $barrier = new Atomic(0);
-$stats = array();
+$stats = [];
 $count = 0;
 $port = get_one_free_port();
 
-$pm = new SwooleTest\ProcessManager;
+$pm = new ProcessManager();
 $pm->parentFunc = function ($pid) use ($port) {
     global $count, $stats;
     for ($i = 0; $i < MAX_CONCURRENCY; $i++) {
@@ -55,7 +57,7 @@ $pm->parentFunc = function ($pid) use ($port) {
         });
     }
     Event::wait();
-    Swoole\Process::kill($pid);
+    Process::kill($pid);
     phpt_var_dump($stats);
     Assert::eq(count($stats), WORKER_N);
     Assert::lessThan($stats[5], MAX_REQUESTS);
@@ -66,14 +68,14 @@ $pm->parentFunc = function ($pid) use ($port) {
 
 $pm->childFunc = function () use ($pm, $port, $barrier) {
     $serv = new Server('127.0.0.1', $port, SWOOLE_PROCESS);
-    $serv->set(array(
+    $serv->set([
         'worker_num' => WORKER_N,
         'dispatch_mode' => 3,
         'package_eof' => "\r\n\r\n",
         'enable_coroutine' => false,
         'open_eof_split' => true,
         'log_file' => '/dev/null',
-    ));
+    ]);
     $serv->on('WorkerStart', function (Server $serv) use ($pm, $barrier) {
         if ($barrier->add() == WORKER_N) {
             $pm->wakeup();

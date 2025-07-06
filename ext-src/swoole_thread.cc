@@ -22,7 +22,6 @@
 #include <sys/ipc.h>
 #include <sys/resource.h>
 
-#include <unordered_map>
 #include <atomic>
 
 BEGIN_EXTERN_C()
@@ -50,7 +49,7 @@ struct PhpThread {
 
     PhpThread() : thread(std::make_shared<Thread>()) {}
 
-    bool join() {
+    bool join() const {
         if (!thread->joinable()) {
             return false;
         }
@@ -71,10 +70,10 @@ static thread_local JMP_BUF *thread_bailout = nullptr;
 static std::atomic<size_t> thread_num(1);
 
 static sw_inline ThreadObject *thread_fetch_object(zend_object *obj) {
-    return (ThreadObject *) ((char *) obj - swoole_thread_handlers.offset);
+    return reinterpret_cast<ThreadObject *>(reinterpret_cast<char *>(obj) - swoole_thread_handlers.offset);
 }
 
-static sw_inline ThreadObject *thread_fetch_object(zval *zobj) {
+static sw_inline ThreadObject *thread_fetch_object(const zval *zobj) {
     return thread_fetch_object(Z_OBJ_P(zobj));
 }
 
@@ -82,7 +81,7 @@ static sw_inline PhpThread *thread_get_php_thread(zend_object *obj) {
     return thread_fetch_object(obj)->pt;
 }
 
-static sw_inline PhpThread *thread_get_php_thread(zval *zobj) {
+static sw_inline PhpThread *thread_get_php_thread(const zval *zobj) {
     return thread_fetch_object(zobj)->pt;
 }
 
@@ -94,7 +93,7 @@ static void thread_free_object(zend_object *object) {
 }
 
 static zend_object *thread_create_object(zend_class_entry *ce) {
-    ThreadObject *to = (ThreadObject *) zend_object_alloc(sizeof(ThreadObject), ce);
+    auto to = static_cast<ThreadObject *>(zend_object_alloc(sizeof(ThreadObject), ce));
     zend_object_std_init(&to->std, ce);
     object_properties_init(&to->std, ce);
     to->pt = new PhpThread();
@@ -199,7 +198,7 @@ static PHP_METHOD(swoole_thread, __construct) {
     }
 
     auto pt = thread_get_php_thread(ZEND_THIS);
-    zend_string *file = zend_string_init(script_file, l_script_file, 1);
+    zend_string *file = zend_string_init(script_file, l_script_file, true);
 
     if (argc > 0) {
         argv = new ZendArray();
@@ -373,14 +372,14 @@ void php_swoole_thread_rshutdown() {
 
 static void thread_register_stdio_file_handles(bool no_close) {
     php_stream *s_in, *s_out, *s_err;
-    php_stream_context *sc_in = NULL, *sc_out = NULL, *sc_err = NULL;
+    php_stream_context *sc_in = nullptr, *sc_out = nullptr, *sc_err = nullptr;
     zend_constant ic, oc, ec;
 
     s_in = php_stream_open_wrapper_ex("php://stdin", "rb", 0, NULL, sc_in);
     s_out = php_stream_open_wrapper_ex("php://stdout", "wb", 0, NULL, sc_out);
     s_err = php_stream_open_wrapper_ex("php://stderr", "wb", 0, NULL, sc_err);
 
-    if (s_in == NULL || s_out == NULL || s_err == NULL) {
+    if (s_in == nullptr || s_out == nullptr || s_err == nullptr) {
         if (s_in) php_stream_close(s_in);
         if (s_out) php_stream_close(s_out);
         if (s_err) php_stream_close(s_err);
@@ -398,15 +397,15 @@ static void thread_register_stdio_file_handles(bool no_close) {
     php_stream_to_zval(s_err, &ec.value);
 
     ZEND_CONSTANT_SET_FLAGS(&ic, CONST_CS, 0);
-    ic.name = zend_string_init_interned("STDIN", sizeof("STDIN") - 1, 0);
+    ic.name = zend_string_init_interned("STDIN", sizeof("STDIN") - 1, false);
     zend_register_constant(&ic);
 
     ZEND_CONSTANT_SET_FLAGS(&oc, CONST_CS, 0);
-    oc.name = zend_string_init_interned("STDOUT", sizeof("STDOUT") - 1, 0);
+    oc.name = zend_string_init_interned("STDOUT", sizeof("STDOUT") - 1, false);
     zend_register_constant(&oc);
 
     ZEND_CONSTANT_SET_FLAGS(&ec, CONST_CS, 0);
-    ec.name = zend_string_init_interned("STDERR", sizeof("STDERR") - 1, 0);
+    ec.name = zend_string_init_interned("STDERR", sizeof("STDERR") - 1, false);
     zend_register_constant(&ec);
 }
 
@@ -420,8 +419,8 @@ void php_swoole_thread_start(std::shared_ptr<Thread> thread, zend_string *file, 
     zend_file_handle file_handle{};
     zval global_argc, global_argv;
 
-    PG(expose_php) = 0;
-    PG(auto_globals_jit) = 1;
+    PG(expose_php) = false;
+    PG(auto_globals_jit) = true;
 #if PHP_VERSION_ID >= 80100
     PG(enable_dl) = false;
 #else
@@ -435,15 +434,15 @@ void php_swoole_thread_start(std::shared_ptr<Thread> thread, zend_string *file, 
         goto _startup_error;
     }
 
-    PG(during_request_startup) = 0;
-    SG(sapi_started) = 0;
+    PG(during_request_startup) = false;
+    SG(sapi_started) = false;
     SG(headers_sent) = 1;
-    SG(request_info).no_headers = 1;
+    SG(request_info).no_headers = true;
     SG(request_info).path_translated = request_info.path_translated;
     SG(request_info).argc = request_info.argc;
 
     zend_stream_init_filename(&file_handle, ZSTR_VAL(file));
-    file_handle.primary_script = 1;
+    file_handle.primary_script = true;
 
     zend_first_try {
         thread_bailout = EG(bailout);
@@ -464,8 +463,8 @@ void php_swoole_thread_start(std::shared_ptr<Thread> thread, zend_string *file, 
 
     zend_destroy_file_handle(&file_handle);
 
-    php_request_shutdown(NULL);
-    file_handle.filename = NULL;
+    php_request_shutdown(nullptr);
+    file_handle.filename = nullptr;
 
 _startup_error:
     zend_string_release(file);
@@ -593,7 +592,7 @@ void ArrayItem::store(zval *zvalue) {
         value.dval = zval_get_double(zvalue);
         break;
     case IS_STRING: {
-        value.str = zend_string_init(Z_STRVAL_P(zvalue), Z_STRLEN_P(zvalue), 1);
+        value.str = zend_string_init(Z_STRVAL_P(zvalue), Z_STRLEN_P(zvalue), true);
         break;
     }
     case IS_TRUE:
@@ -660,7 +659,7 @@ void ArrayItem::store(zval *zvalue) {
     }
 }
 
-bool ArrayItem::equals(zval *zvalue) {
+bool ArrayItem::equals(const zval *zvalue) const {
     if (Z_TYPE_P(zvalue) != type) {
         return false;
     }
@@ -686,11 +685,11 @@ bool ArrayItem::equals(zval *zvalue) {
 #define ITEM_DVAL(item) (item->value.dval)
 #define ITEM_STR(item) (item->value.str)
 
-static int compare_long_to_string(zend_long lval, zend_string *str) /* {{{ */
+static int compare_long_to_string(zend_long lval, const zend_string *str) /* {{{ */
 {
     zend_long str_lval;
     double str_dval;
-    zend_uchar type = is_numeric_string(ZSTR_VAL(str), ZSTR_LEN(str), &str_lval, &str_dval, 0);
+    zend_uchar type = is_numeric_string(ZSTR_VAL(str), ZSTR_LEN(str), &str_lval, &str_dval, false);
 
     if (type == IS_LONG) {
         return lval > str_lval ? 1 : lval < str_lval ? -1 : 0;
@@ -708,11 +707,11 @@ static int compare_long_to_string(zend_long lval, zend_string *str) /* {{{ */
 }
 /* }}} */
 
-static int compare_double_to_string(double dval, zend_string *str) /* {{{ */
+static int compare_double_to_string(double dval, const zend_string *str) /* {{{ */
 {
     zend_long str_lval;
     double str_dval;
-    zend_uchar type = is_numeric_string(ZSTR_VAL(str), ZSTR_LEN(str), &str_lval, &str_dval, 0);
+    zend_uchar type = is_numeric_string(ZSTR_VAL(str), ZSTR_LEN(str), &str_lval, &str_dval, false);
 
     if (type == IS_LONG) {
         double diff = dval - (double) str_lval;
@@ -734,8 +733,8 @@ static int compare_double_to_string(double dval, zend_string *str) /* {{{ */
 /* }}} */
 
 int ArrayItem::compare(Bucket *a, Bucket *b) {
-    ArrayItem *op1 = static_cast<ArrayItem *>(Z_PTR(a->val));
-    ArrayItem *op2 = static_cast<ArrayItem *>(Z_PTR(b->val));
+    const ArrayItem *op1 = static_cast<ArrayItem *>(Z_PTR(a->val));
+    const ArrayItem *op2 = static_cast<ArrayItem *>(Z_PTR(b->val));
 
     switch (TYPE_PAIR(ITEM_TYPE(op1), ITEM_TYPE(op2))) {
     case TYPE_PAIR(IS_LONG, IS_LONG):
@@ -804,12 +803,12 @@ int ArrayItem::compare(Bucket *a, Bucket *b) {
         return -1;
 
     default:
-        zend_throw_error(NULL, "Unsupported operand types");
+        zend_throw_error(nullptr, "Unsupported operand types");
         return 1;
     }
 }
 
-void ArrayItem::fetch(zval *return_value) {
+void ArrayItem::fetch(zval *return_value) const {
     switch (type) {
     case IS_LONG:
         RETVAL_LONG(value.lval);
@@ -920,10 +919,9 @@ ArrayItem *ZendArray::incr_create(zval *zvalue, zval *return_value) {
 
 void ZendArray::strkey_incr(zval *zkey, zval *zvalue, zval *return_value) {
     zend::String skey(zkey);
-    ArrayItem *item;
 
     lock_.lock();
-    item = (ArrayItem *) zend_hash_find_ptr(&ht, skey.get());
+    ArrayItem *item = static_cast<ArrayItem *>(zend_hash_find_ptr(&ht, skey.get()));
     if (item) {
         incr_update(item, zvalue, return_value);
     } else {
@@ -935,9 +933,8 @@ void ZendArray::strkey_incr(zval *zkey, zval *zvalue, zval *return_value) {
 }
 
 void ZendArray::intkey_incr(zend_long index, zval *zvalue, zval *return_value) {
-    ArrayItem *item;
     lock_.lock();
-    item = (ArrayItem *) (ArrayItem *) zend_hash_index_find_ptr(&ht, index);
+    auto item = static_cast<ArrayItem *>(zend_hash_index_find_ptr(&ht, index));
     if (item) {
         incr_update(item, zvalue, return_value);
     } else {
@@ -1012,7 +1009,7 @@ bool ZendArray::index_offsetGet(zend_long index, zval *return_value) {
     lock_.lock_rd();
     if (index_exists(index)) {
         out_of_range = false;
-        ArrayItem *item = (ArrayItem *) zend_hash_index_find_ptr(&ht, index);
+        auto item = static_cast<ArrayItem *>(zend_hash_index_find_ptr(&ht, index));
         if (item) {
             item->fetch(return_value);
         }
@@ -1052,7 +1049,7 @@ bool ZendArray::index_incr(zval *zkey, zval *zvalue, zval *return_value) {
         auto item = incr_create(zvalue, return_value);
         zend_hash_next_index_insert_ptr(&ht, item);
     } else {
-        auto item = (ArrayItem *) zend_hash_index_find_ptr(&ht, index);
+        auto item = static_cast<ArrayItem *>(zend_hash_index_find_ptr(&ht, index));
         incr_update(item, zvalue, return_value);
     }
     lock_.unlock();
@@ -1070,7 +1067,7 @@ void ZendArray::index_offsetUnset(zend_long index) {
     zend_long i = index;
     zend_long n = zend_hash_num_elements(&ht);
     HT_FLAGS(&ht) |= HASH_FLAG_PACKED | HASH_FLAG_STATIC_KEYS;
-    ArrayItem *item = (ArrayItem *) zend_hash_index_find_ptr(&ht, index);
+    auto item = static_cast<ArrayItem *>(zend_hash_index_find_ptr(&ht, index));
     delete item;
     while (i < n - 1) {
 #if PHP_VERSION_ID >= 80200
@@ -1133,7 +1130,7 @@ void ZendArray::values(zval *return_value) {
     void *tmp;
     ZEND_HASH_FOREACH_PTR(&ht, tmp) {
         zval value;
-        ArrayItem *item = (ArrayItem *) tmp;
+        auto item = static_cast<ArrayItem *>(tmp);
         item->fetch(&value);
         zend_hash_next_index_insert_new(Z_ARR_P(return_value), &value);
     }
@@ -1150,7 +1147,7 @@ void ZendArray::to_array(zval *return_value) {
     void *tmp;
     ZEND_HASH_FOREACH_KEY_PTR(&ht, index, key, tmp) {
         zval value;
-        ArrayItem *item = (ArrayItem *) tmp;
+        const auto item = static_cast<ArrayItem *>(tmp);
         item->fetch(&value);
         if (key) {
             zend_hash_str_add(Z_ARR_P(return_value), ZSTR_VAL(key), ZSTR_LEN(key), &value);
@@ -1162,13 +1159,13 @@ void ZendArray::to_array(zval *return_value) {
     lock_.unlock();
 }
 
-void ZendArray::find(zval *search, zval *return_value) {
+void ZendArray::find(const zval *search, zval *return_value) {
     lock_.lock_rd();
     zend_string *key;
     zend_ulong index;
     void *tmp;
     ZEND_HASH_FOREACH_KEY_PTR(&ht, index, key, tmp) {
-        ArrayItem *item = (ArrayItem *) tmp;
+        const auto item = static_cast<ArrayItem *>(tmp);
         if (item->equals(search)) {
             if (key) {
                 RETVAL_STRINGL(ZSTR_VAL(key), ZSTR_LEN(key));

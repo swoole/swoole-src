@@ -22,24 +22,23 @@
 #include <thread>
 #include <string>
 
-long swoole_thread_get_native_id(void);
+long swoole_thread_get_native_id();
 bool swoole_thread_set_name(const char *name);
 bool swoole_thread_get_name(char *buf, size_t len);
 std::string swoole_thread_id_to_str(std::thread::id id);
 
 namespace swoole {
 class Thread {
-  private:
-    int exit_status;
-    bool living;
+    int exit_status = 0;
+    bool living = false;
     std::thread thread;
 
   public:
-    bool is_alive() {
+    bool is_alive() const {
         return living;
     }
 
-    bool joinable() {
+    bool joinable() const {
         return thread.joinable();
     }
 
@@ -51,7 +50,7 @@ class Thread {
         thread.detach();
     }
 
-    int get_exit_status() {
+    int get_exit_status() const {
         return exit_status;
     }
 
@@ -59,8 +58,8 @@ class Thread {
         return thread.native_handle();
     }
 
-    template <typename _Callable>
-    void start(_Callable fn) {
+    template <typename Callable>
+    void start(Callable fn) {
         thread = std::thread(fn);
     }
 
@@ -69,7 +68,7 @@ class Thread {
         living = true;
     }
 
-    void exit(int status) {
+    void exit(const int status) {
         exit_status = status;
         living = false;
     }

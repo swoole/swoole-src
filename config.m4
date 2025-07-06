@@ -388,7 +388,6 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(c, signalfd, AC_DEFINE(HAVE_SIGNALFD, 1, [have signalfd]))
     AC_CHECK_LIB(c, eventfd, AC_DEFINE(HAVE_EVENTFD, 1, [have eventfd]))
     AC_CHECK_LIB(c, epoll_create, AC_DEFINE(HAVE_EPOLL, 1, [have epoll]))
-    AC_CHECK_LIB(c, poll, AC_DEFINE(HAVE_POLL, 1, [have poll]))
     AC_CHECK_LIB(c, sendfile, AC_DEFINE(HAVE_SENDFILE, 1, [have sendfile]))
     AC_CHECK_LIB(c, kqueue, AC_DEFINE(HAVE_KQUEUE, 1, [have kqueue]))
     AC_CHECK_LIB(c, backtrace, AC_DEFINE(HAVE_EXECINFO, 1, [have execinfo]))
@@ -1110,7 +1109,9 @@ EOF
         thirdparty/php/standard/proc_open.cc"
 
     swoole_source_file="$swoole_source_file \
-        thirdparty/swoole_http_parser.c \
+        thirdparty/llhttp/api.c \
+        thirdparty/llhttp/http.c \
+        thirdparty/llhttp/llhttp.c \
         thirdparty/multipart_parser.c"
 
     if test "$PHP_NGHTTP2_DIR" = "no"; then
@@ -1300,6 +1301,7 @@ EOF
         include/*.h \
         stubs/*.h \
         thirdparty/*.h \
+        thirdparty/llhttp/*.h \
         thirdparty/nghttp2/*.h])
 
     PHP_REQUIRE_CXX()
@@ -1307,9 +1309,9 @@ EOF
     CXXFLAGS="$CXXFLAGS -Wall -Wno-unused-function -Wno-deprecated -Wno-deprecated-declarations"
 
     if test "$SW_OS" = "CYGWIN" || test "$SW_OS" = "MINGW"; then
-        CXXFLAGS="$CXXFLAGS -std=gnu++11"
+        CXXFLAGS="$CXXFLAGS -std=gnu++14"
     else
-        CXXFLAGS="$CXXFLAGS -std=c++11"
+        CXXFLAGS="$CXXFLAGS -std=c++14"
     fi
 
     if test "$SW_CPU" = "arm"; then
@@ -1333,6 +1335,7 @@ EOF
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/standard)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/curl)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/curl)
+    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/llhttp)
     if test "$PHP_NGHTTP2_DIR" = "no"; then
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/nghttp2)
     fi

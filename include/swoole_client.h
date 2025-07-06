@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include "swoole_api.h"
 #include "swoole_string.h"
 #include "swoole_socket.h"
 #include "swoole_reactor.h"
@@ -27,7 +26,7 @@ namespace swoole {
 namespace network {
 
 class Client {
-    int (*connect_)(Client *cli, const char *host, int port, double _timeout, int sock_flag) = nullptr;
+    int (*connect_)(Client *cli, const char *host, int port, double timeout, int sock_flag) = nullptr;
     ssize_t (*send_)(Client *cli, const char *data, size_t length, int flags) = nullptr;
     int (*sendfile_)(Client *cli, const char *filename, off_t offset, size_t length) = nullptr;
     ssize_t (*recv_)(Client *cli, char *data, size_t length, int flags) = nullptr;
@@ -35,9 +34,10 @@ class Client {
   public:
     int id = 0;
     long timeout_id = 0;  // timeout node id
-    int _sock_type = 0;
-    int _sock_domain = 0;
-    int _protocol = 0;
+    int sock_type_ = 0;
+    int sock_domain_ = 0;
+    int sock_flags_ = 0;
+    int protocol_ = 0;
     FdType fd_type;
     bool active = false;
     bool async = false;
@@ -45,13 +45,16 @@ class Client {
     bool http2 = false;
     bool sleep_ = false;
     bool wait_dns = false;
-    bool shutdow_rw = false;
+    bool dns_completed = false;
+    bool host_preseted = false;
+    bool shutdown_rw = false;
     bool shutdown_read = false;
     bool shutdown_write = false;
     bool remove_delay = false;
     bool closed = false;
     bool high_watermark = false;
     bool async_connect = false;
+    bool onerror_called = false;
 
     /**
      * one package: length check
@@ -65,19 +68,14 @@ class Client {
 
     uint32_t reuse_count = 0;
 
-    const char *server_str = nullptr;
-    const char *server_host = nullptr;
+    std::string server_id;
+    std::string server_host;
     int server_port = 0;
     void *ptr = nullptr;
     void *params = nullptr;
 
-    uint8_t server_strlen = 0;
-    double timeout = 0;
     TimerNode *timer = nullptr;
-    /**
-     * signal interruption
-     */
-    double interrupt_time = 0;
+
     /**
      * for connect()/sendto()
      */
@@ -115,11 +113,11 @@ class Client {
     Client(SocketType _type, bool async);
     ~Client();
 
-    Socket *get_socket() {
+    Socket *get_socket() const {
         return socket;
     }
 
-    bool ready() {
+    bool ready() const {
         return socket != nullptr;
     }
 
@@ -127,16 +125,16 @@ class Client {
         return socket->socket_type;
     }
 
-    const std::string *get_http_proxy_host_name() const {
+    const std::string &get_http_proxy_host_name() const {
 #ifdef SW_USE_OPENSSL
         if (ssl_context && !ssl_context->tls_host_name.empty()) {
-            return &ssl_context->tls_host_name;
+            return ssl_context->tls_host_name;
         }
 #endif
-        return &http_proxy->target_host;
+        return http_proxy->target_host;
     }
 
-    int connect(const char *_host, int _port, double _timeout, int _sock_flag = 0) {
+    int connect(const char *_host, int _port, double _timeout = -1, int _sock_flag = 0) {
         return connect_(this, _host, _port, _timeout, _sock_flag);
     }
 
@@ -152,14 +150,16 @@ class Client {
         return recv_(this, _data, _length, _flags);
     }
 
-    int bind(const std::string &addr, int port);
+    int bind(const std::string &addr, int port) const;
     int sleep();
     int wakeup();
-    int sendto(const std::string &host, int port, const char *data, size_t len);
+    int sendto(const std::string &host, int port, const char *data, size_t len) const;
     int get_peer_name(Address *addr);
     int shutdown(int _how = SHUT_RDWR);
     int close();
-    int socks5_handshake(const char *recv_data, size_t length);
+    bool socks5_handshake(const char *recv_data, size_t length);
+    void set_timeout(double timeout, TimeoutType type = SW_TIMEOUT_ALL) const;
+    bool has_timedout() const;
     void set_socks5_proxy(const std::string &host, int port, const std::string &user = "", const std::string &pwd = "");
     void set_http_proxy(const std::string &host, int port, const std::string &user = "", const std::string &pwd = "");
 
@@ -171,77 +171,77 @@ class Client {
     int ssl_handshake();
     int ssl_verify(int allow_self_signed);
 
-    bool set_ssl_key_file(const std::string &file) {
+    bool set_ssl_key_file(const std::string &file) const {
         return ssl_context->set_key_file(file);
     }
 
-    bool set_ssl_cert_file(const std::string &file) {
+    bool set_ssl_cert_file(const std::string &file) const {
         return ssl_context->set_cert_file(file);
     }
 
-    void set_ssl_cafile(const std::string &file) {
+    void set_ssl_cafile(const std::string &file) const {
         ssl_context->cafile = file;
     }
 
-    void set_ssl_capath(const std::string &path) {
+    void set_ssl_capath(const std::string &path) const {
         ssl_context->capath = path;
     }
 
-    void set_ssl_passphrase(const std::string &str) {
+    void set_ssl_passphrase(const std::string &str) const {
         ssl_context->passphrase = str;
     }
 
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
-    void set_tls_host_name(const std::string &str) {
+    void set_tls_host_name(const std::string &str) const {
         ssl_context->tls_host_name = str;
         // if user set empty ssl_host_name, disable it, otherwise the underlying may set it automatically
         ssl_context->disable_tls_host_name = ssl_context->tls_host_name.empty();
     }
 #endif
 
-    void set_ssl_dhparam(const std::string &file) {
+    void set_ssl_dhparam(const std::string &file) const {
         ssl_context->dhparam = file;
     }
 
-    void set_ssl_ecdh_curve(const std::string &str) {
+    void set_ssl_ecdh_curve(const std::string &str) const {
         ssl_context->ecdh_curve = str;
     }
 
-    void set_ssl_protocols(long protocols) {
+    void set_ssl_protocols(long protocols) const {
         ssl_context->protocols = protocols;
     }
 
-    void set_ssl_disable_compress(bool value) {
+    void set_ssl_disable_compress(bool value) const {
         ssl_context->disable_compress = value;
     }
 
-    void set_ssl_verify_peer(bool value) {
+    void set_ssl_verify_peer(bool value) const {
         ssl_context->verify_peer = value;
     }
 
-    void set_ssl_allow_self_signed(bool value) {
+    void set_ssl_allow_self_signed(bool value) const {
         ssl_context->allow_self_signed = value;
     }
 
-    void set_ssl_verify_depth(uint8_t value) {
+    void set_ssl_verify_depth(uint8_t value) const {
         ssl_context->verify_depth = value;
     }
 
-    void set_ssl_ciphers(const std::string &str) {
+    void set_ssl_ciphers(const std::string &str) const {
         ssl_context->ciphers = str;
     }
 
 #ifdef OPENSSL_IS_BORINGSSL
-    void set_ssl_grease(uint8_t value) {
+    void set_ssl_grease(uint8_t value) const {
         ssl_context->grease = value;
     }
 #endif
 
-    const std::string &get_ssl_cert_file() {
+    const std::string &get_ssl_cert_file() const {
         return ssl_context->cert_file;
     }
 
-    const std::string &get_ssl_key_file() {
+    const std::string &get_ssl_key_file() const {
         return ssl_context->key_file;
     }
 #endif
@@ -263,17 +263,9 @@ class Stream {
 
     int send(const char *data, size_t length);
     void set_max_length(uint32_t max_length);
-
-    static inline Stream *create(const char *dst_host, int dst_port, SocketType type) {
-        auto *stream = new Stream(dst_host, dst_port, type);
-        if (!stream->connected) {
-            delete stream;
-            return nullptr;
-        } else {
-            return stream;
-        }
-    }
     ~Stream();
+
+    static Stream *create(const char *dst_host, int dst_port, SocketType type);
     static ssize_t recv_sync(Socket *sock, void *_buf, size_t _len);
     static void set_protocol(Protocol *protocol);
 

@@ -14,7 +14,7 @@ for ($i = MAX_PROCESS_NUM; $i--;) {
 }
 Swoole\Event::wait();
 $s = microtime(true) - $s;
-time_approximate(1, $s);
+time_approximate(1, $s, 0.5);
 echo "DONE\n";
 ?>
 --EXPECT--

@@ -16,8 +16,8 @@
 
 #include "swoole.h"
 
-#include <stdarg.h>
-#include <assert.h>
+#include <cstdarg>
+#include <cassert>
 #include <fcntl.h>
 
 #include <sys/stat.h>
@@ -27,10 +27,8 @@
 #include <sys/syslimits.h>
 #endif
 
-#include <algorithm>
 #include <list>
 #include <set>
-#include <unordered_map>
 #include <random>
 
 #include "swoole_api.h"
@@ -66,7 +64,7 @@ using swoole::coroutine::System;
 static ssize_t getrandom(void *buffer, size_t size, unsigned int __flags) {
 #if defined(HAVE_CCRANDOMGENERATEBYTES)
     /*
-     * arc4random_buf on macOs uses ccrng_generate internally from which
+     * arc4random_buf on macOS uses ccrng_generate internally from which
      * the potential error is silented to respect the portable arc4random_buf interface contract
      */
     if (CCRandomGenerateBytes(buffer, size) == kCCSuccess) {
@@ -128,7 +126,7 @@ void *sw_realloc(void *ptr, size_t size) {
 static void bug_report_message_init() {
     SwooleG.bug_report_message += "\n" + std::string(SWOOLE_BUG_REPORT) + "\n";
 
-    struct utsname u;
+    utsname u;
     if (uname(&u) != -1) {
         SwooleG.bug_report_message +=
             swoole::std_string::format("OS: %s %s %s %s\n", u.sysname, u.release, u.version, u.machine);
@@ -143,7 +141,7 @@ static void bug_report_message_init() {
 #endif
 }
 
-void swoole_init(void) {
+void swoole_init() {
     if (SwooleG.init) {
         return;
     }
@@ -159,6 +157,7 @@ void swoole_init(void) {
     SwooleG.fatal_error = swoole_fatal_error_impl;
     SwooleG.cpu_num = SW_MAX(1, sysconf(_SC_NPROCESSORS_ONLN));
     SwooleG.pagesize = getpagesize();
+    SwooleG.max_file_content = SW_MAX_FILE_CONTENT;
 
     // DNS options
     SwooleG.dns_tries = 1;
@@ -185,7 +184,7 @@ void swoole_init(void) {
     // init global shared memory
     SwooleG.memory_pool = new swoole::GlobalMemory(SW_GLOBAL_MEMORY_PAGESIZE, true);
     SwooleG.max_sockets = SW_MAX_SOCKETS_DEFAULT;
-    struct rlimit rlmt;
+    rlimit rlmt;
     if (getrlimit(RLIMIT_NOFILE, &rlmt) < 0) {
         swoole_sys_warning("getrlimit() failed");
     } else {
@@ -238,7 +237,7 @@ SW_API int swoole_api_version_id(void) {
 
 SW_EXTERN_C_END
 
-void swoole_clean(void) {
+void swoole_clean() {
     SW_LOOP_N(SW_MAX_HOOK_TYPE) {
         if (SwooleG.hooks[i]) {
             auto hooks = static_cast<std::list<swoole::Callback> *>(SwooleG.hooks[i]);
@@ -302,7 +301,7 @@ bool swoole_set_task_tmpdir(const std::string &dir) {
     }
 
     if (access(dir.c_str(), R_OK) < 0 && !swoole_mkdir_recursive(dir)) {
-        swoole_warning("create task tmp dir(%s) failed", dir.c_str());
+        swoole_warning("create task tmp dir('%s') failed", dir.c_str());
         return false;
     }
 
@@ -315,6 +314,10 @@ bool swoole_set_task_tmpdir(const std::string &dir) {
     }
 
     return true;
+}
+
+const std::string &swoole_get_task_tmpdir() {
+    return SwooleG.task_tmpfile;
 }
 
 pid_t swoole_fork_exec(const std::function<void(void)> &fn) {
@@ -338,8 +341,7 @@ pid_t swoole_fork(int flags) {
         }
         if (SwooleTG.async_threads) {
             swoole_trace("aio_task_num=%lu, reactor=%p", SwooleTG.async_threads->task_num, sw_reactor());
-            swoole_fatal_error(SW_ERROR_OPERATION_NOT_SUPPORT,
-                               "can not create server after using async file operation");
+            swoole_fatal_error(SW_ERROR_OPERATION_NOT_SUPPORT, "can not fork after using async-threads");
         }
     }
     if (flags & SW_FORK_PRECHECK) {
@@ -384,6 +386,10 @@ pid_t swoole_fork(int flags) {
     return pid;
 }
 
+bool swoole_is_main_thread() {
+    return SwooleTG.main_thread;
+}
+
 void swoole_thread_init(bool main_thread) {
     if (!SwooleTG.buffer_stack) {
         SwooleTG.buffer_stack = new String(SW_STACK_BUFFER_SIZE);
@@ -391,6 +397,7 @@ void swoole_thread_init(bool main_thread) {
     if (!main_thread) {
         swoole_signal_block_all();
     }
+    SwooleTG.main_thread = main_thread;
 }
 
 void swoole_thread_clean(bool main_thread) {
@@ -449,7 +456,10 @@ bool swoole_mkdir_recursive(const std::string &dir) {
 
     // PATH_MAX limit includes string trailing null character
     if (len + 1 > PATH_MAX) {
-        swoole_warning("mkdir(%s) failed. Path exceeds the limit of %d characters", dir.c_str(), PATH_MAX - 1);
+        swoole_error_log(SW_LOG_WARNING,
+                         SW_ERROR_NAME_TOO_LONG,
+                         "mkdir() failed. Path exceeds the limit of %d characters",
+                         PATH_MAX - 1);
         return false;
     }
     swoole_strlcpy(tmp, dir.c_str(), PATH_MAX);
@@ -464,7 +474,7 @@ bool swoole_mkdir_recursive(const std::string &dir) {
             tmp[i] = 0;
             if (access(tmp, R_OK) != 0) {
                 if (mkdir(tmp, 0755) == -1) {
-                    swoole_sys_warning("mkdir(%s) failed", tmp);
+                    swoole_sys_warning("mkdir('%s') failed", tmp);
                     return false;
                 }
             }
@@ -527,7 +537,7 @@ ulong_t swoole_hex2dec(const char *hex, size_t *parsed_bytes) {
         p += 2;
     }
 
-    while (1) {
+    while (true) {
         char c = *p;
         if ((c >= '0') && (c <= '9')) {
             value = value * 16 + (c - '0');
@@ -550,14 +560,7 @@ ulong_t swoole_hex2dec(const char *hex, size_t *parsed_bytes) {
 #endif
 
 int swoole_rand(int min, int max) {
-    static time_t _seed = 0;
     assert(max > min);
-
-    if (_seed == 0) {
-        _seed = time(nullptr);
-        srand(_seed);
-    }
-
     int _rand = rand();
     _rand = min + (int) ((double) ((double) (max) - (min) + 1.0) * ((_rand) / ((RAND_MAX) + 1.0)));
     return _rand;
@@ -800,23 +803,23 @@ char *swoole_string_format(size_t n, const char *format, ...) {
     return nullptr;
 }
 
-static const char characters[] = {
+static constexpr char characters[] = {
     'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U',
     'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p',
     'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
 };
 
-void swoole_random_string(char *buf, size_t size) {
+void swoole_random_string(char *buf, size_t len) {
     size_t i = 0;
-    for (; i < size; i++) {
+    for (; i < len; i++) {
         buf[i] = characters[swoole_rand(0, sizeof(characters) - 1)];
     }
     buf[i] = '\0';
 }
 
-void swoole_random_string(std::string &str, size_t size) {
+void swoole_random_string(std::string &str, size_t len) {
     size_t i = 0;
-    for (; i < size; i++) {
+    for (; i < len; i++) {
         str.append(1, characters[swoole_rand(0, sizeof(characters) - 1)]);
     }
 }
@@ -959,7 +962,7 @@ void DataHead::print() {
 std::string dirname(const std::string &file) {
     size_t index = file.find_last_of('/');
     if (index == std::string::npos) {
-        return std::string();
+        return {};
     } else if (index == 0) {
         return "/";
     }
@@ -971,7 +974,7 @@ int hook_add(void **hooks, int type, const Callback &func, int push_back) {
         hooks[type] = new std::list<Callback>;
     }
 
-    std::list<Callback> *l = reinterpret_cast<std::list<Callback> *>(hooks[type]);
+    auto *l = static_cast<std::list<Callback> *>(hooks[type]);
     if (push_back) {
         l->push_back(func);
     } else {
@@ -985,16 +988,16 @@ void hook_call(void **hooks, int type, void *arg) {
     if (hooks[type] == nullptr) {
         return;
     }
-    std::list<Callback> *l = reinterpret_cast<std::list<Callback> *>(hooks[type]);
-    for (auto i = l->begin(); i != l->end(); i++) {
-        (*i)(arg);
+    const auto *l = static_cast<std::list<Callback> *>(hooks[type]);
+    for (auto &i : *l) {
+        i(arg);
     }
 }
 
 /**
  * return the first file of the intersection, in order of vec1
  */
-std::string intersection(std::vector<std::string> &vec1, std::set<std::string> &vec2) {
+std::string intersection(const std::vector<std::string> &vec1, std::set<std::string> &vec2) {
     for (const auto &vec1_item : vec1) {
         if (vec2.find(vec1_item) != vec2.end()) {
             return vec1_item;
@@ -1004,11 +1007,9 @@ std::string intersection(std::vector<std::string> &vec1, std::set<std::string> &
     return "";
 }
 
-double microtime(void) {
-    struct timeval t;
+double microtime() {
+    timeval t;
     gettimeofday(&t, nullptr);
     return (double) t.tv_sec + ((double) t.tv_usec / 1000000);
 }
-
-//-------------------------------------------------------------------------------
 };  // namespace swoole

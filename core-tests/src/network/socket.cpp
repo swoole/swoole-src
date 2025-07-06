@@ -32,23 +32,99 @@ TEST(socket, connect_sync) {
     sock = make_socket(SW_SOCK_UNIX_STREAM, SW_FD_STREAM, 0);
     ASSERT_NE(sock, nullptr);
     sa.assign(SW_SOCK_UNIX_STREAM, "/tmp/swole-not-exists.sock");
-    ASSERT_EQ(sock->connect_sync(sa, 0.3), SW_ERR);
+    sock->set_timeout(0.3, SW_TIMEOUT_CONNECT);
+    ASSERT_EQ(sock->connect_sync(sa), SW_ERR);
     ASSERT_EQ(swoole_get_last_error(), ENOENT);
     sock->free();
 
     sock = make_socket(SW_SOCK_TCP, SW_FD_STREAM, 0);
     ASSERT_NE(sock, nullptr);
     sa.assign(SW_SOCK_TCP, "192.168.199.199", 80);
-    ASSERT_EQ(sock->connect_sync(sa, 0.3), SW_ERR);
+    sock->set_timeout(0.3, SW_TIMEOUT_CONNECT);
+    ASSERT_EQ(sock->connect_sync(sa), SW_ERR);
     ASSERT_EQ(swoole_get_last_error(), ETIMEDOUT);
     sock->free();
 
     sock = make_socket(SW_SOCK_TCP, SW_FD_STREAM, 0);
     ASSERT_NE(sock, nullptr);
     sa.assign(SW_SOCK_TCP, "127.0.0.1", 59999);
-    ASSERT_EQ(sock->connect_sync(sa, 0.3), SW_ERR);
+    sock->set_timeout(0.3, SW_TIMEOUT_CONNECT);
+    ASSERT_EQ(sock->connect_sync(sa), SW_ERR);
     ASSERT_EQ(swoole_get_last_error(), ECONNREFUSED);
     sock->free();
+
+    sock = make_socket(SW_SOCK_TCP, SW_FD_STREAM, 0);
+    ASSERT_NE(sock, nullptr);
+    sa.assign(SW_SOCK_TCP, TEST_HTTP_DOMAIN, 80);
+    sock->set_timeout(0.3, SW_TIMEOUT_CONNECT);
+    ASSERT_EQ(sock->connect_sync(sa), SW_OK);
+    sock->free();
+
+    sock = make_socket(SW_SOCK_UDP, SW_FD_STREAM, 0);
+    ASSERT_NE(sock, nullptr);
+    sa.assign(SW_SOCK_UDP, "127.0.0.1", 9900);
+    sock->set_timeout(0.3, SW_TIMEOUT_CONNECT);
+    ASSERT_EQ(sock->connect_sync(sa), SW_OK);
+    sock->free();
+}
+
+TEST(socket, fail) {
+    auto *sock = make_socket(SW_SOCK_TCP, SW_FD_STREAM, 0);
+    ASSERT_NE(sock, nullptr);
+
+    network::Address sa;
+    sa.assign(SW_SOCK_TCP, TEST_HTTP_DOMAIN, 80);
+    sock->set_timeout(0.3, SW_TIMEOUT_CONNECT);
+    ASSERT_EQ(sock->connect_sync(sa), SW_OK);
+
+    close(sock->get_fd());
+
+    ASSERT_EQ(sock->get_name(), -1);
+    ASSERT_EQ(errno, EBADF);
+
+    network::Address peer;
+    ASSERT_EQ(sock->get_peer_name(&peer), -1);
+    ASSERT_EQ(errno, EBADF);
+
+    ASSERT_EQ(sock->set_tcp_nopush(1), -1);
+    ASSERT_EQ(sock->listen(1), -1);
+
+    ASSERT_FALSE(sock->set_buffer_size(1));
+    ASSERT_FALSE(sock->set_recv_buffer_size(1));
+    ASSERT_FALSE(sock->set_send_buffer_size(1));
+
+    ASSERT_FALSE(sock->set_tcp_nodelay());
+    ASSERT_FALSE(sock->cork());
+    ASSERT_FALSE(sock->uncork());
+
+    ASSERT_FALSE(sock->set_kernel_read_timeout(0.1));
+    ASSERT_FALSE(sock->set_kernel_write_timeout(0.1));
+
+    sock->move_fd();
+    sock->free();
+}
+
+TEST(socket, ssl_fail) {
+    sysv_signal(SIGPIPE, SIG_IGN);
+    network::Client client(SW_SOCK_TCP, false);
+    client.enable_ssl_encrypt();
+
+    ASSERT_EQ(client.connect(TEST_DOMAIN_BAIDU, 443, -1, 0), 0);
+    ASSERT_EQ(client.shutdown(SHUT_WR), 0);
+
+    ASSERT_EQ(client.get_socket()->ssl_send(SW_STRL(TEST_STR)), SW_ERR);
+    ASSERT_EQ(errno, SW_ERROR_SSL_RESET);
+
+    ASSERT_EQ(client.shutdown(SHUT_RD), 0);
+
+    char buf[1024];
+    errno = 0;
+    ASSERT_EQ(client.get_socket()->ssl_recv(SW_STRL(buf)), 0);
+    ASSERT_EQ(errno, 0);
+    ASSERT_EQ(close(client.get_socket()->get_fd()), 0);
+    client.get_socket()->move_fd();
+
+    ASSERT_EQ(client.get_socket()->ssl_recv(SW_STRL(buf)), 0);
 }
 
 TEST(socket, sendto) {
@@ -202,7 +278,7 @@ TEST(socket, send_async_2) {
     auto req = test::http_get_request(TEST_HTTP_DOMAIN, "/");
     ASSERT_EQ(sock->send_async(req.c_str(), req.length()), req.length());
 
-    swoole_event_set_handler(SW_FD_STREAM_CLIENT | SW_EVENT_READ, [](Reactor *reactor, Event *event) {
+    swoole_event_set_handler(SW_FD_STREAM_CLIENT, SW_EVENT_READ, [](Reactor *reactor, Event *event) {
         auto buf = sw_tg_buffer();
         auto n = event->socket->recv_sync(buf->str, buf->size, 0);
         EXPECT_GT(n, 0);
@@ -250,7 +326,7 @@ TEST(socket, sendfile_sync) {
         ASSERT_EQ(cli->connect(addr), SW_OK);
         int len = htonl(str->get_length());
         cli->send(&len, sizeof(len), 0);
-        ASSERT_EQ(cli->sendfile_sync(file.c_str(), 0, 0, -1), SW_OK);
+        ASSERT_EQ(cli->sendfile_sync(file.c_str(), 0, 0), SW_OK);
         cli->free();
     });
 
@@ -265,19 +341,19 @@ TEST(socket, sendfile) {
     addr.assign(SW_SOCK_TCP, TEST_HTTP_DOMAIN, 80);
     ASSERT_EQ(cli->connect(addr), SW_OK);
 
-    ASSERT_EQ(cli->sendfile_sync(file.c_str(), 0, 0, -1), SW_ERR);
+    ASSERT_EQ(cli->sendfile_sync(file.c_str(), 0, 0), SW_ERR);
     ASSERT_EQ(errno, ENOENT);
 
     File fp(file, File::WRITE | File::CREATE);
     ASSERT_TRUE(fp.ready());
 
-    ASSERT_EQ(cli->sendfile_sync(file.c_str(), 0, 0, -1), SW_ERR);
+    ASSERT_EQ(cli->sendfile_sync(file.c_str(), 0, 0), SW_ERR);
     ASSERT_EQ(swoole_get_last_error(), SW_ERROR_FILE_EMPTY);
 
     fp.write(SW_STRL(TEST_STR));
     fp.close();
 
-    ASSERT_EQ(cli->sendfile_sync(file.c_str(), 10, 100, -1), SW_ERR);
+    ASSERT_EQ(cli->sendfile_sync(file.c_str(), 10, 100), SW_ERR);
     ASSERT_EQ(swoole_get_last_error(), SW_ERROR_INVALID_PARAMS);
 
     ASSERT_TRUE(fp.open(file, File::WRITE | File::APPEND));
@@ -285,7 +361,7 @@ TEST(socket, sendfile) {
     fp.write(req);
     fp.close();
 
-    ASSERT_EQ(cli->sendfile_sync(file.c_str(), strlen(TEST_STR), 0, -1), SW_OK);
+    ASSERT_EQ(cli->sendfile_sync(file.c_str(), strlen(TEST_STR), 0), SW_OK);
 
     char rbuf[4096];
     auto n = cli->recv_sync(rbuf, sizeof(rbuf), 0);
@@ -392,7 +468,7 @@ TEST(socket, clean) {
     ASSERT_TRUE(sock2_addr.assign(SW_SOCK_UNIX_DGRAM, sock2_path));
 
     for (int i = 0; i < 3; i++) {
-        ASSERT_GT(sock1->sendto_sync(sock2_addr, sendbuf, strlen(sendbuf)), 0);
+        ASSERT_GT(sock1->sendto(sock2_addr, sendbuf, strlen(sendbuf)), 0);
     }
 
     sock2->clean();
@@ -408,7 +484,7 @@ TEST(socket, clean) {
 
 TEST(socket, check_liveness) {
     mutex m;
-    int svr_port = swoole::test::get_random_port();
+    int svr_port = TEST_PORT + __LINE__;
     m.lock();
 
     thread t1([&m, svr_port]() {
@@ -501,75 +577,6 @@ TEST(socket, dup) {
     test_socket_sync(sock_2, false);
 }
 
-TEST(socket, ipv4_addr) {
-    auto sock = make_socket(SW_SOCK_TCP, SW_FD_STREAM, 0);
-    network::Address addr;
-
-    ASSERT_TRUE(addr.assign("tcp://127.0.0.1:12345"));
-    ASSERT_EQ(sock->connect(addr), SW_ERR);
-    ASSERT_EQ(errno, ECONNREFUSED);
-
-    ASSERT_TRUE(addr.assign("tcp://localhost:12345"));
-    ASSERT_EQ(sock->connect(addr), SW_ERR);
-    ASSERT_EQ(errno, ECONNREFUSED);
-
-    sock->free();
-}
-
-TEST(socket, ipv6_addr) {
-    auto sock = make_socket(SW_SOCK_TCP6, SW_FD_STREAM, 0);
-    network::Address addr;
-
-    ASSERT_TRUE(addr.assign("tcp://[::1]:12345"));
-    ASSERT_EQ(sock->connect(addr), SW_ERR);
-    ASSERT_EQ(errno, ECONNREFUSED);
-
-    ASSERT_TRUE(addr.assign("tcp://[ip6-localhost]:12345"));
-    ASSERT_EQ(sock->connect(addr), SW_ERR);
-    ASSERT_EQ(errno, ECONNREFUSED);
-
-    sock->free();
-}
-
-TEST(socket, unix_addr) {
-    auto sock = make_socket(SW_SOCK_UNIX_STREAM, SW_FD_STREAM, 0);
-    network::Address addr;
-    ASSERT_TRUE(addr.assign("unix:///tmp/swoole-not-exists.sock"));
-    ASSERT_EQ(sock->connect(addr), SW_ERR);
-    ASSERT_EQ(errno, ENOENT);
-    sock->free();
-}
-
-TEST(socket, bad_addr) {
-    network::Address addr;
-    ASSERT_FALSE(addr.assign("test://[::1]:12345"));
-    ASSERT_EQ(swoole_get_last_error(), SW_ERROR_BAD_HOST_ADDR);
-}
-
-TEST(socket, bad_port) {
-    network::Address addr;
-    ASSERT_FALSE(addr.assign("tcp://[::1]:92345"));
-    ASSERT_EQ(swoole_get_last_error(), SW_ERROR_BAD_PORT);
-}
-
-TEST(socket, loopback_addr) {
-    network::Address addr1;
-    addr1.assign(SW_SOCK_TCP, "127.0.0.1", 0);
-    ASSERT_TRUE(addr1.is_loopback_addr());
-
-    network::Address addr2;
-    addr2.assign(SW_SOCK_TCP6, "::1", 0);
-    ASSERT_TRUE(addr1.is_loopback_addr());
-
-    network::Address addr3;
-    addr3.assign(SW_SOCK_TCP, "192.168.1.2", 0);
-    ASSERT_FALSE(addr3.is_loopback_addr());
-
-    network::Address addr4;
-    addr4.assign(SW_SOCK_TCP6, "192::66::88", 0);
-    ASSERT_FALSE(addr4.is_loopback_addr());
-}
-
 TEST(socket, convert_to_type) {
     ASSERT_EQ(network::Socket::convert_to_type(AF_INET, SOCK_STREAM), SW_SOCK_TCP);
     ASSERT_EQ(network::Socket::convert_to_type(AF_INET6, SOCK_STREAM), SW_SOCK_TCP6);
@@ -612,9 +619,13 @@ TEST(socket, get_domain_and_type) {
     test_sock_type(SW_SOCK_RAW, AF_INET, SOCK_RAW);
     test_sock_type(SW_SOCK_RAW6, AF_INET6, SOCK_RAW);
 
+    ASSERT_TRUE(network::Socket::is_dgram(SW_SOCK_UDP6));
+    ASSERT_TRUE(network::Socket::is_stream(SW_SOCK_TCP));
+
     int sock_domain, sock_type;
-    ASSERT_EQ(network::Socket::get_domain_and_type((swSocketType) (SW_SOCK_RAW6 + 1), &sock_domain, &sock_type),
-              SW_ERR);
+    ASSERT_EQ(
+        network::Socket::get_domain_and_type(static_cast<swSocketType>(SW_SOCK_RAW6 + 1), &sock_domain, &sock_type),
+        SW_ERR);
 }
 
 TEST(socket, make_socket) {
@@ -780,4 +791,13 @@ TEST(socket, ssl_get_error_reason) {
         EXPECT_EQ(reason2, 0);
         EXPECT_EQ(error_str2, nullptr);
     }
+}
+
+TEST(socket, catch_error) {
+    network::Socket fake_sock;
+    ASSERT_EQ(fake_sock.catch_write_pipe_error(ENOBUFS), SW_REDUCE_SIZE);
+    ASSERT_EQ(fake_sock.catch_write_pipe_error(EMSGSIZE), SW_REDUCE_SIZE);
+    ASSERT_EQ(fake_sock.catch_write_pipe_error(EAGAIN), SW_WAIT);
+
+    ASSERT_EQ(fake_sock.catch_write_error(ENOBUFS), SW_WAIT);
 }

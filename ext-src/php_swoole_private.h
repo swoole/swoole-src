@@ -44,7 +44,6 @@ BEGIN_EXTERN_C()
 #include <ext/standard/php_http.h>
 
 #define PHP_SWOOLE_VERSION SWOOLE_VERSION
-#define PHP_SWOOLE_CLIENT_USE_POLL
 
 extern PHPAPI int php_array_merge(zend_array *dest, zend_array *src);
 
@@ -335,6 +334,7 @@ void php_swoole_coroutine_rshutdown();
 void php_swoole_process_rshutdown();
 void php_swoole_coroutine_scheduler_rshutdown();
 void php_swoole_runtime_rshutdown();
+void php_swoole_timer_rshutdown();
 void php_swoole_server_rshutdown();
 #ifdef SW_THREAD
 void php_swoole_thread_rshutdown();
@@ -388,7 +388,16 @@ php_socket *php_swoole_convert_to_socket(int sock);
 #endif
 
 #ifdef HAVE_CPU_AFFINITY
-bool php_swoole_array_to_cpu_set(zval *array, cpu_set_t *cpu_set);
+bool php_swoole_array_to_cpu_set(const zval *array, cpu_set_t *cpu_set);
+/**
+ * Converts a cpu_set_t structure to a PHP array.
+ * 
+ * Note: On Cygwin platform, CPU_ISSET is a function that takes a non-const pointer as its second parameter,
+ * which is why the cpu_set parameter cannot be declared as const.
+ * 
+ * @param array The PHP array to store the CPU set information
+ * @param cpu_set The CPU set structure to convert
+ */
 void php_swoole_cpu_set_to_array(zval *array, cpu_set_t *cpu_set);
 #endif
 

@@ -23,7 +23,6 @@
 #include <sstream>
 
 namespace swoole {
-
 namespace http_server {
 bool StaticHandler::is_modified(const std::string &date_if_modified_since) {
     char date_tmp[64];
@@ -54,8 +53,7 @@ bool StaticHandler::is_modified_range(const std::string &date_range) {
         return false;
     }
 
-    struct tm tm3 {};
-
+    tm tm3{};
     const char *date_format = nullptr;
 
     if (strptime(date_range.c_str(), SW_HTTP_RFC1123_DATE_GMT, &tm3) != nullptr) {
@@ -68,24 +66,24 @@ bool StaticHandler::is_modified_range(const std::string &date_range) {
         date_format = SW_HTTP_ASCTIME_DATE;
     }
     time_t file_mtime = get_file_mtime();
-    struct tm *tm_file_mtime = gmtime(&file_mtime);
+    tm *tm_file_mtime = gmtime(&file_mtime);
     return date_format && mktime(&tm3) != mktime(tm_file_mtime);
 }
 
 std::string StaticHandler::get_date() {
     char date_[64];
     time_t now = ::time(nullptr);
-    struct tm *tm1 = gmtime(&now);
+    tm *tm1 = gmtime(&now);
     strftime(date_, sizeof(date_), "%a, %d %b %Y %H:%M:%S %Z", tm1);
-    return std::string(date_);
+    return date_;
 }
 
 std::string StaticHandler::get_date_last_modified() {
     char date_last_modified[64];
     time_t file_mtime = get_file_mtime();
-    struct tm *tm2 = gmtime(&file_mtime);
+    tm *tm2 = gmtime(&file_mtime);
     strftime(date_last_modified, sizeof(date_last_modified), "%a, %d %b %Y %H:%M:%S %Z", tm2);
-    return std::string(date_last_modified);
+    return date_last_modified;
 }
 
 bool StaticHandler::get_absolute_path() {
@@ -118,8 +116,8 @@ bool StaticHandler::hit() {
     memcpy(p, document_root.c_str(), l_document_root);
     p += l_document_root;
 
-    if (serv->locations->size() > 0) {
-        for (const auto & i : *serv->locations) {
+    if (!serv->locations->empty()) {
+        for (const auto &i : *serv->locations) {
             if (swoole_str_istarts_with(url, url_length, i.c_str(), i.size())) {
                 last = true;
             }
@@ -136,12 +134,12 @@ bool StaticHandler::hit() {
     memcpy(p, url, n);
     p += n;
     *p = '\0';
-    if (dir_path != "") {
+    if (!dir_path.empty()) {
         dir_path.clear();
     }
     dir_path = std::string(url, n);
 
-    l_filename = http_server::url_decode(filename, p - filename);
+    l_filename = url_decode(filename, p - filename);
     filename[l_filename] = '\0';
 
     // The file does not exist
@@ -220,7 +218,7 @@ size_t StaticHandler::make_index_page(String *buffer) {
                         dir_path.c_str(),
                         dir_path.c_str());
 
-    for (const auto & dir_file : dir_files) {
+    for (const auto &dir_file : dir_files) {
         if (dir_file == "." || (dir_path == "/" && dir_file == "..")) {
             continue;
         }
@@ -399,7 +397,7 @@ void StaticHandler::parse_range(const char *range, const char *if_range) {
                                               tasks.empty() ? "" : "\r\n",
                                               get_boundary().c_str(),
                                               get_mimetype().c_str(),
-                                              _task.offset,
+                                              (size_t) _task.offset,
                                               end - 1,
                                               get_filesize()) +
                                   _task.length;
@@ -460,7 +458,7 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
     const char *url = request->buffer_->str + request->url_offset_;
     size_t url_length = request->url_length_;
 
-    swoole::http_server::StaticHandler handler(this, url, url_length);
+    http_server::StaticHandler handler(this, url, url_length);
     if (!handler.hit()) {
         return false;
     }
@@ -534,7 +532,7 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
                                         "Last-Modified: %s\r\n"
                                         "Server: %s\r\n\r\n",
                                         request->keep_alive ? "keep-alive" : "close",
-                                        (long) body_length,
+                                        static_cast<long>(body_length),
                                         date_str.c_str(),
                                         date_str_last_modified.c_str(),
                                         SW_HTTP_SERVER_SOFTWARE);
@@ -595,7 +593,7 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
             auto task = static_cast<network::SendfileTask *>(sw_malloc(task_size));
             strcpy(task->filename, handler.get_filename());
             if (tasks.size() > 1) {
-                for (const auto & i : tasks) {
+                for (const auto &i : tasks) {
                     response.info.type = SW_SERVER_EVENT_SEND_DATA;
                     response.info.len = strlen(i.part_header);
                     response.data = i.part_header;
@@ -635,5 +633,4 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
 
     return true;
 }
-
 }  // namespace swoole

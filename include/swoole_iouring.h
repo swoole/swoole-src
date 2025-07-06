@@ -14,19 +14,12 @@
   +----------------------------------------------------------------------+
 */
 
-#ifndef SWOOLE_SRC_SWOOLE_IOURING_H
-#define SWOOLE_SRC_SWOOLE_IOURING_H
+#pragma once
 
 #include "swoole_coroutine.h"
 
 #ifdef SW_USE_IOURING
 #include <liburing.h>
-
-#ifdef HAVE_IOURING_FUTEX
-#ifndef FUTEX2_SIZE_U32
-#define FUTEX2_SIZE_U32 0x02
-#endif
-#endif
 
 using swoole::Coroutine;
 
@@ -40,21 +33,20 @@ namespace swoole {
 struct IouringEvent;
 
 class Iouring {
-  private:
     uint64_t task_num = 0;
     uint64_t entries = 8192;
-    struct io_uring ring;
+    io_uring ring;
     std::queue<IouringEvent *> waiting_tasks;
     network::Socket *ring_socket = nullptr;
     Reactor *reactor = nullptr;
 
-    Iouring(Reactor *reactor_);
-    bool ready();
+    explicit Iouring(Reactor *reactor_);
+    bool ready() const;
     bool submit(IouringEvent *event);
     bool dispatch(IouringEvent *event);
     bool wakeup();
 
-    struct io_uring_sqe *get_iouring_sqe() {
+    io_uring_sqe *get_iouring_sqe() {
         struct io_uring_sqe *sqe = io_uring_get_sqe(&ring);
         // We need to reset the values of each sqe structure so that they can be used in a loop.
         if (sqe) {
@@ -76,11 +68,11 @@ class Iouring {
         return task_num;
     }
 
-    static int open(const char *pathname, int flags, int mode);
+    static int open(const char *pathname, int flags, mode_t mode);
     static int close(int fd);
     static ssize_t read(int fd, void *buf, size_t size);
     static ssize_t write(int fd, const void *buf, size_t size);
-    static ssize_t rename(const char *oldpath, const char *newpath);
+    static int rename(const char *oldpath, const char *newpath);
     static int mkdir(const char *pathname, mode_t mode);
     static int unlink(const char *pathname);
 #ifdef HAVE_IOURING_STATX
@@ -95,8 +87,8 @@ class Iouring {
     static int futex_wakeup(uint32_t *futex);
 #endif
 
+    static std::unordered_map<std::string, int> list_all_opcode();
     static int callback(Reactor *reactor, Event *event);
 };
 };  // namespace swoole
-#endif
 #endif

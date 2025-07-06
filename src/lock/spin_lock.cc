@@ -18,9 +18,7 @@
 #include "swoole_lock.h"
 
 #ifdef HAVE_SPINLOCK
-
 namespace swoole {
-
 SpinLock::SpinLock(int use_in_process) : Lock() {
     if (use_in_process) {
         impl = (pthread_spinlock_t *) sw_mem_pool()->alloc(sizeof(*impl));

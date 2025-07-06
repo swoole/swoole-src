@@ -114,15 +114,13 @@ TEST(message_bus, read) {
     tmb.mb.set_id_generator([&msg_id]() { return msg_id++; });
     tmb.mb.alloc_buffer();
 
-    tmb.read_func = [&tmb](network::Socket *sock) {
-        return tmb.mb.read(sock);
-    };
+    tmb.read_func = [&tmb](network::Socket *sock) { return tmb.mb.read(sock); };
 
     sw_reactor()->ptr = &tmb;
 
     ASSERT_EQ(swoole_event_add(p.get_socket(false), SW_EVENT_READ), SW_OK);
 
-    swoole_event_set_handler(SW_FD_PIPE | SW_EVENT_READ, [](Reactor *reactor, Event *ev) -> int {
+    swoole_event_set_handler(SW_FD_PIPE, SW_EVENT_READ, [](Reactor *reactor, Event *ev) -> int {
         TestMB *tmb = (TestMB *) reactor->ptr;
         return tmb->read(ev);
     });
@@ -163,15 +161,13 @@ TEST(message_bus, read_with_buffer) {
     tmb.mb.set_id_generator([&msg_id]() { return msg_id++; });
     tmb.mb.alloc_buffer();
 
-    tmb.read_func = [&tmb](network::Socket *sock) {
-        return tmb.mb.read_with_buffer(sock);
-    };
+    tmb.read_func = [&tmb](network::Socket *sock) { return tmb.mb.read_with_buffer(sock); };
 
     sw_reactor()->ptr = &tmb;
 
     ASSERT_EQ(swoole_event_add(p.get_socket(false), SW_EVENT_READ), SW_OK);
 
-    swoole_event_set_handler(SW_FD_PIPE | SW_EVENT_READ, [](Reactor *reactor, Event *ev) -> int {
+    swoole_event_set_handler(SW_FD_PIPE, SW_EVENT_READ, [](Reactor *reactor, Event *ev) -> int {
         TestMB *tmb = (TestMB *) reactor->ptr;
         return tmb->read(ev);
     });
@@ -198,6 +194,3 @@ TEST(message_bus, read_with_buffer) {
     ASSERT_EQ(r5.fd, 5);
     ASSERT_STREQ(r5.data.c_str(), "");
 }
-
-
-

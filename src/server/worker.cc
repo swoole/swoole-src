@@ -14,8 +14,6 @@
   +----------------------------------------------------------------------+
 */
 
-#include <pwd.h>
-#include <grp.h>
 #include <sys/uio.h>
 #include <sys/mman.h>
 
@@ -29,7 +27,13 @@ using namespace network;
 static int Worker_onPipeReceive(Reactor *reactor, Event *event);
 static void Worker_reactor_try_to_exit(Reactor *reactor);
 
-void Server::worker_signal_init() {
+static void Worker_reopen_logger() {
+    if (sw_logger()) {
+        sw_logger()->reopen();
+    }
+}
+
+void Server::worker_signal_init() const {
     if (is_thread_mode()) {
         return;
     }
@@ -37,12 +41,10 @@ void Server::worker_signal_init() {
     swoole_signal_set(SIGPIPE, SIG_IGN);
     swoole_signal_set(SIGUSR1, nullptr);
     swoole_signal_set(SIGUSR2, nullptr);
-    // swSignal_set(SIGINT, Server::worker_signal_handler);
-    swoole_signal_set(SIGTERM, Server::worker_signal_handler);
-    // for test
-    swoole_signal_set(SIGVTALRM, Server::worker_signal_handler);
+    swoole_signal_set(SIGTERM, worker_signal_handler);
+    swoole_signal_set(SIGWINCH, worker_signal_handler);
 #ifdef SIGRTMIN
-    swoole_signal_set(SIGRTMIN, Server::worker_signal_handler);
+    swoole_signal_set(SIGRTMIN, worker_signal_handler);
 #endif
 }
 
@@ -53,34 +55,25 @@ void Server::worker_signal_handler(int signo) {
     switch (signo) {
     case SIGTERM:
         if (swoole_event_is_available()) {
-            // Event Worker
             sw_server()->stop_async_worker(sw_worker());
         } else {
-            // Task Worker
             sw_worker()->shutdown();
         }
         break;
-    // for test
-    case SIGVTALRM:
-        swoole_warning("SIGVTALRM coming");
-        break;
-    case SIGUSR1:
-    case SIGUSR2:
-        if (sw_logger()) {
-            sw_logger()->reopen();
-        }
+    case SIGWINCH:
+        Worker_reopen_logger();
         break;
     default:
 #ifdef SIGRTMIN
-        if (signo == SIGRTMIN && sw_logger()) {
-            sw_logger()->reopen();
+        if (signo == SIGRTMIN) {
+            Worker_reopen_logger();
         }
 #endif
         break;
     }
 }
 
-static sw_inline bool Worker_discard_data(Server *serv, Connection *conn, DataHead *info) {
+static sw_inline bool Worker_discard_data(const Server *serv, const Connection *conn, const DataHead *info) {
     if (conn == nullptr) {
         if (serv->disable_notify && !serv->discard_timeout_request) {
             return false;
@@ -104,7 +97,7 @@ _discard_data:
 
 typedef std::function<int(Server *, RecvData *)> TaskCallback;
 
-static sw_inline void Worker_do_task(Server *serv, Worker *worker, DataHead *info, const TaskCallback &callback) {
+static sw_inline void Worker_do_task(Server *serv, Worker *worker, const DataHead *info, const TaskCallback &callback) {
     RecvData recv_data;
     auto packet = serv->get_worker_message_bus()->get_packet();
     recv_data.info = *info;
@@ -220,42 +213,13 @@ void Server::worker_accept_event(DataHead *info) {
     }
 }
 
+static bool is_root_user() {
+    return geteuid() == 0;
+}
+
 void Server::worker_start_callback(Worker *worker) {
-    if (geteuid() == 0) {
-        group *_group = nullptr;
-        passwd *_passwd = nullptr;
-        // get group info
-        if (!group_.empty()) {
-            _group = getgrnam(group_.c_str());
-            if (!_group) {
-                swoole_warning("get group [%s] info failed", group_.c_str());
-            }
-        }
-        // get user info
-        if (!user_.empty()) {
-            _passwd = getpwnam(user_.c_str());
-            if (!_passwd) {
-                swoole_warning("get user [%s] info failed", user_.c_str());
-            }
-        }
-        // set process group
-        if (_group && setgid(_group->gr_gid) < 0) {
-            swoole_sys_warning("setgid to [%s] failed", group_.c_str());
-        }
-        // set process user
-        if (_passwd && setuid(_passwd->pw_uid) < 0) {
-            swoole_sys_warning("setuid to [%s] failed", user_.c_str());
-        }
-        // chroot
-        if (!chroot_.empty()) {
-            if (::chroot(chroot_.c_str()) == 0) {
-                if (chdir("/") < 0) {
-                    swoole_sys_warning("chdir(\"/\") failed");
-                }
-            } else {
-                swoole_sys_warning("chroot(\"%s\") failed", chroot_.c_str());
-            }
-        }
+    if (is_root_user()) {
+        Worker::set_isolation(group_, user_, chroot_);
     }
 
     SW_LOOP_N(worker_num + task_worker_num) {
@@ -290,7 +254,7 @@ void Server::call_worker_start_callback(Worker *worker) {
         swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_WORKER_START, hook_args);
     }
     if (isset_hook(HOOK_WORKER_START)) {
-        call_hook(Server::HOOK_WORKER_START, hook_args);
+        call_hook(HOOK_WORKER_START, hook_args);
     }
 
     swoole_clear_last_error();
@@ -341,7 +305,7 @@ void Server::call_worker_error_callback(Worker *worker, const ExitStatus &status
     }
 }
 
-bool Server::kill_worker(int worker_id, bool wait_reactor) {
+bool Server::kill_worker(int worker_id) {
     auto current_worker = sw_worker();
     if (!current_worker && worker_id < 0) {
         swoole_error_log(
@@ -350,32 +314,17 @@ bool Server::kill_worker(int worker_id, bool wait_reactor) {
     }
 
     worker_id = worker_id < 0 ? swoole_get_worker_id() : worker_id;
+    const Worker *worker = get_worker(worker_id);
+    if (worker == nullptr) {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "the worker_id[%d] is invalid", worker_id);
+        return false;
+    }
 
     swoole_trace_log(SW_TRACE_SERVER, "kill worker#%d", worker_id);
 
-    if (is_thread_mode()) {
-        DataHead event = {};
-        event.type = SW_SERVER_EVENT_SHUTDOWN;
-        return send_to_worker_from_worker(get_worker(worker_id), &event, sizeof(event), SW_PIPE_MASTER) != -1;
-    }
-
-    if (current_worker && (WorkerId) worker_id == current_worker->id && !wait_reactor) {
-        if (swoole_event_is_available()) {
-            swoole_event_defer([](void *data) { sw_reactor()->running = false; }, nullptr);
-        }
-        running = false;
-    } else {
-        Worker *worker = get_worker(worker_id);
-        if (worker == nullptr) {
-            swoole_error_log(SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "the worker_id[%d] is invalid", worker_id);
-            return false;
-        }
-        if (swoole_kill(worker->pid, SIGTERM) < 0) {
-            swoole_sys_warning("kill(%d, SIGTERM) failed", worker->pid);
-            return false;
-        }
-    }
-    return true;
+    DataHead event = {};
+    event.type = SW_SERVER_EVENT_SHUTDOWN;
+    return send_to_worker_from_worker(worker, &event, sizeof(event), SW_PIPE_MASTER) != -1;
 }
 
 void Server::stop_async_worker(Worker *worker) {
@@ -408,7 +357,7 @@ void Server::stop_async_worker(Worker *worker) {
 
     if (is_base_mode()) {
         if (is_event_worker()) {
-            if (worker->id == 0 && gs->event_workers.running == 0) {
+            if (worker->id == 0 && get_event_worker_pool()->running == 0) {
                 if (swoole_isset_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN)) {
                     swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN, this);
                 }
@@ -434,7 +383,7 @@ void Server::stop_async_worker(Worker *worker) {
         msg.pid = getpid();
         msg.worker_id = worker->id;
 
-        if (gs->event_workers.push_message(SW_WORKER_MESSAGE_STOP, &msg, sizeof(msg)) < 0) {
+        if (get_event_worker_pool()->push_message(SW_WORKER_MESSAGE_STOP, &msg, sizeof(msg)) < 0) {
             swoole_sys_warning("failed to push WORKER_STOP message");
         }
     } else if (is_thread_mode()) {
@@ -558,7 +507,7 @@ int Server::start_event_worker(Worker *worker) {
      * set pipe buffer size
      */
     for (uint32_t i = 0; i < worker_num + task_worker_num; i++) {
-        Worker *_worker = get_worker(i);
+        const Worker *_worker = get_worker(i);
         if (_worker->pipe_master) {
             _worker->pipe_master->buffer_size = UINT_MAX;
         }
@@ -570,7 +519,7 @@ int Server::start_event_worker(Worker *worker) {
     worker->pipe_worker->set_nonblock();
     reactor->ptr = this;
     reactor->add(worker->pipe_worker, SW_EVENT_READ);
-    reactor->set_handler(SW_FD_PIPE, Worker_onPipeReceive);
+    reactor->set_handler(SW_FD_PIPE, SW_EVENT_READ, Worker_onPipeReceive);
 
     if (dispatch_mode == DISPATCH_CO_CONN_LB || dispatch_mode == DISPATCH_CO_REQ_LB) {
         reactor->set_end_callback(Reactor::PRIORITY_WORKER_CALLBACK,
@@ -580,7 +529,7 @@ int Server::start_event_worker(Worker *worker) {
     worker_start_callback(worker);
 
     // main loop
-    reactor->wait();
+    const auto rv = reactor->wait();
     // drain pipe buffer
     drain_worker_pipe();
     // reactor free
@@ -590,7 +539,7 @@ int Server::start_event_worker(Worker *worker) {
 
     delete buffer_pool;
 
-    return SW_OK;
+    return rv;
 }
 
 /**
@@ -608,12 +557,13 @@ ssize_t Server::send_to_reactor_thread(const EventData *ev_data, size_t sendn, S
 /**
  * send message from worker to another worker
  */
-ssize_t Server::send_to_worker_from_worker(Worker *dst_worker, const void *buf, size_t len, int flags) {
+ssize_t Server::send_to_worker_from_worker(const Worker *dst_worker, const void *buf, size_t len, int flags) {
     return dst_worker->send_pipe_message(buf, len, flags);
 }
 
 /**
  * receive data from reactor
+ * This function is intended solely for process mode; in thread or base mode, `ReactorThread_onRead()` will be executed.
  */
 static int Worker_onPipeReceive(Reactor *reactor, Event *event) {
     auto *serv = static_cast<Server *>(reactor->ptr);
@@ -628,5 +578,4 @@ static int Worker_onPipeReceive(Reactor *reactor, Event *event) {
 
     return SW_OK;
 }
-
 }  // namespace swoole

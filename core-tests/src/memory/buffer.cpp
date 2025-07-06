@@ -32,15 +32,15 @@ TEST(buffer, append_iov) {
     iovec v[iovcnt];
     size_t total_len = 0;
 
-    SW_LOOP_N (iovcnt) {
+    SW_LOOP_N(iovcnt) {
         v[i].iov_len = swoole_rand(99, 4095);
         total_len += v[i].iov_len;
     }
 
-    unique_ptr<char> s1(new char[v[0].iov_len]);
-    unique_ptr<char> s2(new char[v[1].iov_len]);
-    unique_ptr<char> s3(new char[v[2].iov_len]);
-    unique_ptr<char> s4(new char[v[3].iov_len]);
+    unique_ptr<char[]> s1(new char[v[0].iov_len]);
+    unique_ptr<char[]> s2(new char[v[1].iov_len]);
+    unique_ptr<char[]> s3(new char[v[2].iov_len]);
+    unique_ptr<char[]> s4(new char[v[3].iov_len]);
 
     v[0].iov_base = s1.get();
     v[1].iov_base = s2.get();
@@ -68,7 +68,7 @@ TEST(buffer, append_iov) {
     }
 
     size_t indent = 0;
-    SW_LOOP_N (iovcnt) {
+    SW_LOOP_N(iovcnt) {
         if (offset >= v[i].iov_len) {
             offset -= v[i].iov_len;
             continue;

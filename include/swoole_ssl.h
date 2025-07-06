@@ -22,17 +22,15 @@
 
 #include <unordered_map>
 #include <string>
-#include <array>
 
 #include <openssl/ssl.h>
 #include <openssl/bio.h>
 #include <openssl/err.h>
-#include <openssl/conf.h>
-#include <openssl/ossl_typ.h>
 #include <openssl/crypto.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 #include <openssl/rand.h>
+#include <openssl/conf.h>
 #include <openssl/opensslv.h>
 
 #if OPENSSL_VERSION_NUMBER >= 0x10100000L
@@ -136,11 +134,11 @@ struct SSLContext {
     uint8_t create_flag;
     SSL_CTX *context;
 
-    SSL_CTX *get_context() {
+    SSL_CTX *get_context() const {
         return context;
     }
 
-    bool ready() {
+    bool ready() const {
         return context != nullptr;
     }
 
@@ -185,8 +183,8 @@ struct SSLContext {
 };
 }  // namespace swoole
 
-void swoole_ssl_init(void);
-void swoole_ssl_destroy(void);
+void swoole_ssl_init();
+void swoole_ssl_destroy();
 void swoole_ssl_lock_callback(int mode, int type, const char *file, int line);
 void swoole_ssl_server_http_advise(swoole::SSLContext &);
 const char *swoole_ssl_get_error();

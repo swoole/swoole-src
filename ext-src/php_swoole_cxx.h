@@ -450,28 +450,6 @@ class Array {
     }
 };
 
-enum PipeType {
-    PIPE_TYPE_NONE = 0,
-    PIPE_TYPE_STREAM = 1,
-    PIPE_TYPE_DGRAM = 2,
-};
-
-class Process {
-  public:
-    zend_object *zsocket = nullptr;
-    enum PipeType pipe_type;
-    bool enable_coroutine;
-
-    Process(enum PipeType pipe_type, bool enable_coroutine)
-        : pipe_type(pipe_type), enable_coroutine(enable_coroutine) {}
-
-    ~Process() {
-        if (zsocket) {
-            OBJ_RELEASE(zsocket);
-        }
-    }
-};
-
 class Variable {
   public:
     zval value;
@@ -743,6 +721,10 @@ static inline void array_add(zval *arg, zval *zvalue) {
  */
 static inline zval *array_get(zval *arg, const char *key, size_t l_key) {
     return zend_hash_str_find(Z_ARRVAL_P(arg), key, l_key);
+}
+
+static inline zval *array_get(zval *arg, zend_ulong index) {
+    return zend_hash_index_find(Z_ARRVAL_P(arg), index);
 }
 
 static inline void array_unset(zval *arg, const char *key, size_t l_key) {

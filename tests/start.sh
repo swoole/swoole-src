@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 __CURRENT__=`pwd`
 __DIR__=$(cd "$(dirname "$0")";pwd)
 
@@ -47,8 +47,7 @@ else
         fi
     else
         glob="$@"
-        if [ $(expr substr "$glob" 1 6) = "tests/" ]; then
-            # 去掉 tests/ 前缀
+        if [ "${glob:0:6}" = "tests/" ]; then
             glob="${glob#tests/}"
         fi
     fi

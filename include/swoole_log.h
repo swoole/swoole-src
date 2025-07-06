@@ -80,7 +80,7 @@ class Logger {
     void set_rotation(int rotation);
     const char *get_real_file();
     const char *get_file();
-    bool is_opened();
+    bool is_opened() const;
     bool redirect_stdout_and_stderr(bool enable);
     void set_date_with_microseconds(bool enable);
     std::string gen_real_file(const std::string &file);

@@ -62,20 +62,13 @@ struct AsyncEvent {
     }
 };
 
-struct GethostbynameRequest : public AsyncRequest {
+struct GethostbynameRequest : AsyncRequest {
     std::string name;
     int family;
-    char *addr;
-    size_t addr_len;
+    std::string addr;
 
-    GethostbynameRequest(std::string _name, int _family) : name(std::move(_name)), family(_family) {
-        addr_len = _family == AF_INET6 ? INET6_ADDRSTRLEN : INET_ADDRSTRLEN;
-        addr = new char[addr_len];
-    }
-
-    ~GethostbynameRequest() override {
-        delete[] addr;
-    }
+    GethostbynameRequest(std::string _name, int _family);
+    ~GethostbynameRequest() override = default;
 };
 
 struct GetaddrinfoRequest : public AsyncRequest {
@@ -88,7 +81,7 @@ struct GetaddrinfoRequest : public AsyncRequest {
     std::vector<sockaddr_in6> results;
     int count;
 
-    void parse_result(std::vector<std::string> &retval);
+    void parse_result(std::vector<std::string> &retval) const;
 
     GetaddrinfoRequest(std::string _hostname, int _family, int _socktype, int _protocol, std::string _service);
     ~GetaddrinfoRequest() override = default;
@@ -109,9 +102,9 @@ class AsyncThreads {
         return task_num;
     }
 
-    size_t get_queue_size();
-    size_t get_worker_num();
-    void notify_one();
+    size_t get_queue_size() const;
+    size_t get_worker_num() const;
+    void notify_one() const;
 
     static int callback(Reactor *reactor, Event *event);
 };

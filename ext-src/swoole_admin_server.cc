@@ -50,10 +50,10 @@ static std::string handle_get_all_unix_sockets(Server *_server, const std::strin
     uint32_t worker_num;
 
     if (_type == "event") {
-        workers = _server->gs->event_workers.workers;
+        workers = _server->get_event_worker_pool()->workers;
         worker_num = _server->worker_num;
     } else {
-        workers = _server->gs->task_workers.workers;
+        workers = _server->get_task_worker_pool()->workers;
         worker_num = _server->task_worker_num;
     }
 
@@ -249,7 +249,7 @@ static std::string handle_get_thread_info(Server *serv, const std::string &msg) 
 }
 
 static std::string handle_get_manager_info(Server *serv, const std::string &msg) {
-    ProcessPool *pool = (ProcessPool *) &serv->gs->event_workers;
+    ProcessPool *pool = serv->get_event_worker_pool();
     json jinfo{
         {"pid", getpid()},
         {"reload_count", pool->reload_count},

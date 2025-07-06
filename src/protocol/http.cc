@@ -41,8 +41,8 @@ static const char *method_strings[] = {
 namespace swoole {
 HttpProxy *HttpProxy::create(const std::string &host, int port, const std::string &user, const std::string &pwd) {
     auto http_proxy = new HttpProxy();
-    http_proxy->proxy_host = host;
-    http_proxy->proxy_port = port;
+    http_proxy->host = host;
+    http_proxy->port = port;
     if (!user.empty() && !pwd.empty()) {
         http_proxy->username = user;
         http_proxy->password = pwd;
@@ -61,10 +61,10 @@ std::string HttpProxy::get_auth_str() {
                            (int) password.length(),
                            password.c_str());
     base64_encode((unsigned char *) auth_buf, n, encode_buf);
-    return std::string(encode_buf);
+    return {encode_buf};
 }
 
-size_t HttpProxy::pack(String *send_buffer, const std::string *host_name) {
+size_t HttpProxy::pack(String *send_buffer, const std::string &host_name) {
     if (!password.empty()) {
         auto auth_str = get_auth_str();
         return sw_snprintf(send_buffer->str,
@@ -73,8 +73,8 @@ size_t HttpProxy::pack(String *send_buffer, const std::string *host_name) {
                            (int) target_host.length(),
                            target_host.c_str(),
                            target_port,
-                           (int) host_name->length(),
-                           host_name->c_str(),
+                           (int) host_name.length(),
+                           host_name.c_str(),
                            target_port,
                            (int) auth_str.length(),
                            auth_str.c_str());
@@ -85,8 +85,8 @@ size_t HttpProxy::pack(String *send_buffer, const std::string *host_name) {
                            (int) target_host.length(),
                            target_host.c_str(),
                            target_port,
-                           (int) host_name->length(),
-                           host_name->c_str(),
+                           (int) host_name.length(),
+                           host_name.c_str(),
                            target_port);
     }
 }
@@ -638,7 +638,7 @@ char *url_encode(char const *str, size_t len) {
         memcpy(tmp, ret, size);
         sw_free(ret);
         ret = tmp;
-    } while (0);
+    } while (false);
 
     return ret;
 }
@@ -701,7 +701,7 @@ _found_method:
             if (*p == ' ') {
                 continue;
             }
-            if ((size_t) (pe - p) < (sizeof("HTTP/1.x") - 1)) {
+            if ((size_t)(pe - p) < (sizeof("HTTP/1.x") - 1)) {
                 return SW_ERR;
             }
             if (memcmp(p, SW_STRL("HTTP/1.1")) == 0) {
@@ -868,7 +868,7 @@ bool Request::has_expect_header() {
     char *p;
 
     for (p = buf; p < pe; p++) {
-        if (*p == '\r' && (size_t) (pe - p) > sizeof("\r\nExpect")) {
+        if (*p == '\r' && (size_t)(pe - p) > sizeof("\r\nExpect")) {
             p += 2;
             if (SW_STR_ISTARTS_WITH(p, pe - p, "Expect: ")) {
                 p += sizeof("Expect: ") - 1;
@@ -902,37 +902,52 @@ int Request::get_header_length() {
 }
 
 int Request::get_chunked_body_length() {
-    char *p = buffer_->str + buffer_->offset;
-    char *pe = buffer_->str + buffer_->length;
+    const char *p = buffer_->str + buffer_->offset;
+    const char *pe = buffer_->str + buffer_->length;
 
-    while (1) {
-        if ((size_t) (pe - p) < (1 + (sizeof("\r\n") - 1))) {
-            /* need the next chunk */
-            return SW_ERR;
-        }
-        char *head = p;
-        size_t n_parsed;
-        size_t chunk_length = swoole_hex2dec(head, &n_parsed);
-        head += n_parsed;
-        if (*head != '\r') {
-            excepted = 1;
-            return SW_ERR;
-        }
-        p = head + (sizeof("\r\n") - 1) + chunk_length + (sizeof("\r\n") - 1);
-        /* used to check package_max_length */
-        content_length_ = p - (buffer_->str + header_length_);
-        if (p > pe) {
-            /* need recv chunk body again */
-            return SW_ERR;
-        }
-        buffer_->offset = p - buffer_->str;
-        if (chunk_length == 0) {
+    /**
+     * Ending with SW_HTTP_CHUNK_EOF indicates that the HTTP request may have been fully received,
+     * but this is not certain. It is still necessary to skip over the data sections based on
+     * the length of each chunk of the HTTP data until SW_HTTP_CHUNK_EOF (\0\r\n\r\n) is found.
+     */
+    if (static_cast<size_t>(pe - p) < sizeof(SW_HTTP_CHUNK_EOF) - 1 ||
+        memcmp(pe - sizeof(SW_HTTP_CHUNK_EOF) + 1, SW_STRL(SW_HTTP_CHUNK_EOF)) != 0) {
+        return SW_ERR;
+    }
+
+    while (true) {
+        char *endptr;
+        size_t chunk_length = strtoul(p, &endptr, 16);
+        if (endptr == nullptr || *endptr != '\r') {
             break;
         }
-    }
-    known_length = 1;
 
-    return SW_OK;
+        swoole_trace_log(SW_TRACE_HTTP, "chunk_length=%zu, chunk_len_str=%.*s\n", chunk_length, (int) (endptr - p), p);
+
+        // Found the HTTP Chunk EOF
+        if (chunk_length == 0) {
+            known_length = 1;
+            content_length_ = endptr - (buffer_->str + header_length_) + 4;
+            return SW_OK;
+        } else {
+            // chunk length [hex str] + CRLF + data + CRLF
+            p = endptr + 2 + chunk_length + 2;
+            // Continue to parse the next segment of HTTP CHUNK data.
+            if (p < pe) {
+                continue;
+            }
+            /**
+             * If the calculated data length exceeds the length of the currently received data,
+             * then SW_HTTP_CHUNK_EOF may be part of the data,
+             * necessitating the reception of additional data and recalculating the HTTP Chunk length.
+             */
+            return SW_ERR;
+        }
+        break;
+    }
+
+    excepted = 1;
+    return SW_ERR;
 }
 
 std::string Request::get_header(const char *name) {
@@ -978,7 +993,7 @@ std::string Request::get_header(const char *name) {
             break;
         case 2:
             if (SW_STR_ISTARTS_WITH(p, pe - p, "\r\n")) {
-                return std::string(buffer, p - buffer);
+                return {buffer, static_cast<size_t>(p - buffer)};
             }
             break;
         default:
@@ -986,7 +1001,7 @@ std::string Request::get_header(const char *name) {
         }
     }
 
-    return std::string();
+    return {};
 }
 
 int get_method(const char *method_str, size_t method_len) {
@@ -1025,7 +1040,7 @@ static void protocol_status_error(Socket *socket, Connection *conn) {
 }
 
 ssize_t get_package_length(const Protocol *protocol, Socket *socket, PacketLength *pl) {
-    Connection *conn = (Connection *) socket->object;
+    auto *conn = (Connection *) socket->object;
     if (conn->websocket_status >= websocket::STATUS_HANDSHAKE) {
         return websocket::get_package_length(protocol, socket, pl);
     } else if (conn->http2_stream) {
@@ -1037,7 +1052,7 @@ ssize_t get_package_length(const Protocol *protocol, Socket *socket, PacketLengt
 }
 
 uint8_t get_package_length_size(Socket *socket) {
-    Connection *conn = (Connection *) socket->object;
+    auto *conn = (Connection *) socket->object;
     if (conn->websocket_status >= websocket::STATUS_HANDSHAKE) {
         return SW_WEBSOCKET_MESSAGE_HEADER_SIZE;
     } else if (conn->http2_stream) {
@@ -1049,7 +1064,7 @@ uint8_t get_package_length_size(Socket *socket) {
 }
 
 int dispatch_frame(const Protocol *proto, Socket *socket, const RecvData *rdata) {
-    Connection *conn = (Connection *) socket->object;
+    auto *conn = (Connection *) socket->object;
     if (conn->websocket_status >= websocket::STATUS_HANDSHAKE) {
         return websocket::dispatch_frame(proto, socket, rdata);
     } else if (conn->http2_stream) {

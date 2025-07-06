@@ -20,34 +20,19 @@
 #include "swoole_coroutine_socket.h"
 #include "swoole_coroutine_system.h"
 
-#include <mutex>
-
 using swoole::Callback;
 using swoole::Reactor;
 using swoole::ReactorHandler;
 using swoole::network::Socket;
 
-static std::mutex init_lock;
-
-#ifdef __MACH__
-Reactor *sw_reactor() {
-    return SwooleTG.reactor;
-}
-#endif
-
 int swoole_event_init(int flags) {
-    if (!SwooleG.init) {
-        std::unique_lock<std::mutex> lock(init_lock);
-        swoole_init();
-    }
-
-    Reactor *reactor = new Reactor(SW_REACTOR_MAXEVENTS);
+    auto *reactor = new Reactor(SW_REACTOR_MAXEVENTS);
     if (!reactor->ready()) {
         return SW_ERR;
     }
 
     if (flags & SW_EVENTLOOP_WAIT_EXIT) {
-        reactor->wait_exit = 1;
+        reactor->wait_exit = true;
     }
 
     swoole::coroutine::Socket::init_reactor(reactor);
@@ -102,7 +87,7 @@ int swoole_event_free() {
 }
 
 void swoole_event_defer(Callback cb, void *private_data) {
-    SwooleTG.reactor->defer(cb, private_data);
+    SwooleTG.reactor->defer(std::move(cb), private_data);
 }
 
 ssize_t swoole_event_write(Socket *socket, const void *data, size_t len) {
@@ -113,20 +98,20 @@ ssize_t swoole_event_writev(Socket *socket, const iovec *iov, size_t iovcnt) {
     return SwooleTG.reactor->writev(SwooleTG.reactor, socket, iov, iovcnt);
 }
 
-bool swoole_event_set_handler(int fdtype, ReactorHandler handler) {
-    return SwooleTG.reactor->set_handler(fdtype, handler);
+void swoole_event_set_handler(const int fd_type, const int event, const ReactorHandler handler) {
+    SwooleTG.reactor->set_handler(fd_type, event, handler);
 }
 
-bool swoole_event_isset_handler(int fdtype) {
-    return SwooleTG.reactor->isset_handler(fdtype);
+bool swoole_event_isset_handler(const int fd_type, const int event) {
+    return SwooleTG.reactor->isset_handler(fd_type, event);
 }
 
 bool swoole_event_is_available() {
-    return SwooleTG.reactor and !SwooleTG.reactor->destroyed;
+    return SwooleTG.reactor && !SwooleTG.reactor->destroyed;
 }
 
 bool swoole_event_is_running() {
-    return SwooleTG.reactor and SwooleTG.reactor->running;
+    return SwooleTG.reactor && SwooleTG.reactor->running;
 }
 
 Socket *swoole_event_get_socket(int fd) {

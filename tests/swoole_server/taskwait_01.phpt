@@ -1,46 +1,48 @@
 --TEST--
 swoole_server: taskwait [blocking]
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../include/skipif.inc';
+skip_if_darwin_todo();
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 $port = get_one_free_port();
 
-use Swoole\Coroutine\Client;
-use Swoole\Timer;
-use Swoole\Event;
+use Swoole\Client;
+use Swoole\Process;
 use Swoole\Server;
+use SwooleTest\ProcessManager;
 
-$pm = new SwooleTest\ProcessManager;
+$pm = new ProcessManager();
 $pm->parentFunc = function ($pid) use ($port) {
-    $cli = new Swoole\Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
-    $cli->connect('127.0.0.1', $port, 0.5) or die("ERROR");
+    $cli = new Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
+    $cli->connect('127.0.0.1', $port, 0.5) or exit('ERROR');
 
-    $cli->send("array-01") or die("ERROR");
+    $cli->send('array-01') or exit('ERROR');
     Assert::same($cli->recv(), 'OK');
-    $cli->send("array-02") or die("ERROR");
+    $cli->send('array-02') or exit('ERROR');
     Assert::same($cli->recv(), 'OK');
-    $cli->send("string-01") or die("ERROR");
+    $cli->send('string-01') or exit('ERROR');
     Assert::same($cli->recv(), 'OK');
-    $cli->send("string-02") or die("ERROR");
+    $cli->send('string-02') or exit('ERROR');
     Assert::same($cli->recv(), 'OK');
-    $cli->send("timeout") or die("ERROR");
+    $cli->send('timeout') or exit('ERROR');
     Assert::same($cli->recv(), 'OK');
 
-    Swoole\Process::kill($pid);
+    Process::kill($pid);
 };
 
 $pm->childFunc = function () use ($pm, $port) {
     ini_set('swoole.display_errors', 'Off');
     $serv = new Server('127.0.0.1', $port, SWOOLE_PROCESS);
-    $serv->set(array(
-        "worker_num" => 1,
+    $serv->set([
+        'worker_num' => 1,
         'task_worker_num' => 1,
         'enable_coroutine' => false,
         'log_file' => '/dev/null',
-    ));
-    $serv->on("WorkerStart", function (Server $serv) use ($pm) {
+    ]);
+    $serv->on('WorkerStart', function (Server $serv) use ($pm) {
         $pm->wakeup();
     });
     $serv->on('receive', function (Server $serv, $fd, $rid, $data) {
@@ -88,25 +90,23 @@ $pm->childFunc = function () use ($pm, $port) {
     $serv->on('task', function (Server $serv, $task_id, $worker_id, $data) {
         if (is_array($data)) {
             if ($data['type'] == 'array') {
-                return array('name' => 'rango', 'year' => 1987);
-            } else {
-                return "hello world\n";
+                return ['name' => 'rango', 'year' => 1987];
             }
-        } else {
-            if ($data == 'array') {
-                return array('name' => 'rango', 'year' => 1987);
-            } elseif ($data == 'string') {
-                return "hello world\n";
-            } elseif ($data == 'timeout') {
-                usleep(300000);
-                return "task timeout\n";
-            }
+            return "hello world\n";
+        }
+        if ($data == 'array') {
+            return ['name' => 'rango', 'year' => 1987];
+        }
+        if ($data == 'string') {
+            return "hello world\n";
+        }
+        if ($data == 'timeout') {
+            usleep(300000);
+            return "task timeout\n";
         }
     });
 
-    $serv->on('finish', function (Server $serv, $fd, $rid, $data) {
-
-    });
+    $serv->on('finish', function (Server $serv, $fd, $rid, $data) {});
     $serv->start();
 };
 

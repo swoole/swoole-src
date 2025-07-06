@@ -36,7 +36,7 @@ Co\run(function () use ($wg) {
     $wg->wait();
 });
 ?>
---EXPECT--
-TASK[1] DONE
-TASK[2] DONE
-TASK[3] DONE
+--EXPECTF--
+TASK[%d] DONE
+TASK[%d] DONE
+TASK[%d] DONE

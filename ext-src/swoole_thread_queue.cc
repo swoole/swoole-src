@@ -37,7 +37,7 @@ struct Queue : ThreadResource {
         NOTIFY_ALL = 2,
     };
 
-    Queue() : ThreadResource(), queue() {}
+    Queue() = default;
 
     ~Queue() override {
         clean();
@@ -65,9 +65,7 @@ struct Queue : ThreadResource {
     }
 
     void push_notify(zval *zvalue, bool notify_all) {
-        auto item = new ArrayItem(zvalue);
-        std::unique_lock<std::mutex> _lock(lock_);
-        queue.push(item);
+        push(zvalue);
         if (notify_all) {
             cv_.notify_all();
         } else {
@@ -78,29 +76,23 @@ struct Queue : ThreadResource {
     void pop_wait(zval *return_value, double timeout) {
         ArrayItem *item = nullptr;
         std::unique_lock<std::mutex> _lock(lock_);
-        SW_LOOP {
-            if (!queue.empty()) {
-                item = queue.front();
-                queue.pop();
-                break;
-            } else {
-                if (timeout > 0) {
-                    if (cv_.wait_for(_lock, std::chrono::duration<double>(timeout)) == std::cv_status::timeout) {
-                        break;
-                    }
-                } else {
-                    cv_.wait(_lock);
-                }
-                // All threads have been awakened,
-                // but the data has already been acquired by other thread, returning NULL.
-                if (queue.empty()) {
-                    RETVAL_NULL();
-                    swoole_set_last_error(SW_ERROR_NO_PAYLOAD);
-                    break;
-                }
-            }
+
+        if (timeout > 0) {
+            cv_.wait_for(_lock, std::chrono::duration<double>(timeout), [this] { return !queue.empty(); });
+        } else {
+            cv_.wait(_lock, [this] { return !queue.empty(); });
         }
-        _lock.unlock();
+
+        if (!queue.empty()) {
+            item = queue.front();
+            queue.pop();
+        } else {
+            // All threads have been awakened,
+            // but the data has already been acquired by other thread, returning NULL.
+            RETVAL_NULL();
+            swoole_set_last_error(SW_ERROR_NO_PAYLOAD);
+        }
+
         if (item) {
             item->fetch(return_value);
             delete item;
@@ -116,7 +108,7 @@ struct Queue : ThreadResource {
     void clean() {
         lock_.lock();
         while (!queue.empty()) {
-            ArrayItem *item = queue.front();
+            const ArrayItem *item = queue.front();
             delete item;
             queue.pop();
         }
@@ -130,7 +122,7 @@ struct ThreadQueueObject {
 };
 
 static sw_inline ThreadQueueObject *queue_fetch_object(zend_object *obj) {
-    return (ThreadQueueObject *) ((char *) obj - swoole_thread_queue_handlers.offset);
+    return reinterpret_cast<ThreadQueueObject *>(reinterpret_cast<char *>(obj) - swoole_thread_queue_handlers.offset);
 }
 
 static void queue_free_object(zend_object *object) {
@@ -143,14 +135,14 @@ static void queue_free_object(zend_object *object) {
 }
 
 static zend_object *queue_create_object(zend_class_entry *ce) {
-    ThreadQueueObject *qo = (ThreadQueueObject *) zend_object_alloc(sizeof(ThreadQueueObject), ce);
+    const auto qo = static_cast<ThreadQueueObject *>(zend_object_alloc(sizeof(ThreadQueueObject), ce));
     zend_object_std_init(&qo->std, ce);
     object_properties_init(&qo->std, ce);
     qo->std.handlers = &swoole_thread_queue_handlers;
     return &qo->std;
 }
 
-ThreadQueueObject *queue_fetch_object_check(zval *zobject) {
+ThreadQueueObject *queue_fetch_object_check(const zval *zobject) {
     ThreadQueueObject *qo = queue_fetch_object(Z_OBJ_P(zobject));
     if (!qo->queue) {
         php_swoole_fatal_error(E_ERROR, "must call constructor first");
@@ -158,7 +150,7 @@ ThreadQueueObject *queue_fetch_object_check(zval *zobject) {
     return qo;
 }
 
-ThreadResource *php_swoole_thread_queue_cast(zval *zobject) {
+ThreadResource *php_swoole_thread_queue_cast(const zval *zobject) {
     return queue_fetch_object(Z_OBJ_P(zobject))->queue;
 }
 
@@ -193,8 +185,7 @@ void php_swoole_thread_queue_minit(int module_number) {
     swoole_thread_queue_ce->ce_flags |= ZEND_ACC_FINAL | ZEND_ACC_NOT_SERIALIZABLE;
     SW_SET_CLASS_CLONEABLE(swoole_thread_queue, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_thread_queue, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CUSTOM_OBJECT(
-        swoole_thread_queue, queue_create_object, queue_free_object, ThreadQueueObject, std);
+    SW_SET_CLASS_CUSTOM_OBJECT(swoole_thread_queue, queue_create_object, queue_free_object, ThreadQueueObject, std);
 
     zend_class_implements(swoole_thread_queue_ce, 1, zend_ce_countable);
 
@@ -205,7 +196,7 @@ void php_swoole_thread_queue_minit(int module_number) {
 static PHP_METHOD(swoole_thread_queue, __construct) {
     auto qo = queue_fetch_object(Z_OBJ_P(ZEND_THIS));
     if (qo->queue != nullptr) {
-        zend_throw_error(NULL, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        zend_throw_error(nullptr, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
         return;
     }
     qo->queue = new Queue();

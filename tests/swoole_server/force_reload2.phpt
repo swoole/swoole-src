@@ -7,11 +7,13 @@ swoole_server: force reload in base mode
 error_reporting(0);
 require __DIR__ . '/../include/bootstrap.php';
 
+use Swoole\Atomic;
 use Swoole\Server;
 use Swoole\Timer;
+use SwooleTest\ProcessManager;
 
-$atomic = new Swoole\Atomic(1);
-$pm = new SwooleTest\ProcessManager;
+$atomic = new Atomic(1);
+$pm = new ProcessManager();
 $pm->setWaitTimeout(1000);
 $pm->parentFunc = function ($pid) use ($pm) {
     $pm->kill();
@@ -24,11 +26,13 @@ $pm->childFunc = function () use ($pm, $atomic) {
         'max_wait_time' => 1,
         'enable_coroutine' => false,
     ]);
-    $serv->on("WorkerStart", function (Server $server, $worker_id) use ($pm, $atomic) {
-        echo "$worker_id [".$server->worker_pid."] start\n";
-        if ($worker_id == 0 ) {
+    $serv->on('WorkerStart', function (Server $server, $worker_id) use ($pm, $atomic) {
+        echo "{$worker_id} [" . $server->worker_pid . "] start\n";
+        if ($worker_id == 0) {
             if ($atomic->get() == 1) {
-                sleep(10);
+                while (true) {
+                    sleep(10);
+                }
             } else {
                 $pm->wakeup();
             }
@@ -37,17 +41,15 @@ $pm->childFunc = function () use ($pm, $atomic) {
         if ($worker_id == 1 and $atomic->get() == 1) {
             Timer::after(1, function () use ($server, $worker_id, $atomic) {
                 $atomic->add(1);
-                echo "$worker_id [" . $server->worker_pid . "] reload\n";
+                echo "{$worker_id} [" . $server->worker_pid . "] reload\n";
                 $server->reload();
-
             });
         }
     });
-    $serv->on("WorkerStop", function (Server $server, $worker_id) use ($pm, $atomic) {
-        echo "$worker_id [".$server->worker_pid."] stop\n";
+    $serv->on('WorkerStop', function (Server $server, $worker_id) use ($pm, $atomic) {
+        echo "{$worker_id} [" . $server->worker_pid . "] stop\n";
     });
-    $serv->on('receive', function ($serv, $fd, $tid, $data) {
-    });
+    $serv->on('receive', function ($serv, $fd, $tid, $data) {});
     $serv->start();
 };
 

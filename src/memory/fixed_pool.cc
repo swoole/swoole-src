@@ -62,8 +62,8 @@ FixedPool::FixedPool(uint32_t slice_num, uint32_t slice_size, bool shared) {
         throw std::bad_alloc();
     }
 
-    impl = (FixedPoolImpl *) memory;
-    memory = (char *) memory + sizeof(*impl);
+    impl = static_cast<FixedPoolImpl *>(memory);
+    memory = static_cast<char *>(memory) + sizeof(*impl);
     sw_memset_zero(impl, sizeof(*impl));
 
     impl->shared = shared;
@@ -131,7 +131,7 @@ void FixedPoolImpl::init() {
             break;
         }
 
-    } while (1);
+    } while (true);
 }
 
 uint32_t FixedPool::get_number_of_spare_slice() {
@@ -171,9 +171,9 @@ void *FixedPool::alloc(uint32_t size) {
 }
 
 void FixedPool::free(void *ptr) {
-    FixedPoolSlice *slice = (FixedPoolSlice *) ((char *) ptr - sizeof(FixedPoolSlice));
+    auto *slice = reinterpret_cast<FixedPoolSlice *>(static_cast<char *>(ptr) - sizeof(FixedPoolSlice));
 
-    assert(ptr > impl->memory && (char *) ptr < (char *) impl->memory + impl->size);
+    assert(ptr > impl->memory && static_cast<char *>(ptr) < static_cast<char *>(impl->memory) + impl->size);
     assert(slice->lock == 1);
 
     impl->slice_use--;

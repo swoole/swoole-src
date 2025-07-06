@@ -161,6 +161,16 @@ function skip_if_darwin()
     skip('not support on darwin', stripos(PHP_OS, 'Darwin') !== false);
 }
 
+function skip_if_darwin_todo($msg = 'Need to review')
+{
+    skip($msg, getenv('MACOS_DEV') === false && stripos(PHP_OS, 'Darwin') !== false);
+}
+
+function skip_if_not_darwin()
+{
+    skip('only support darwin', stripos(PHP_OS, 'Darwin') === false);
+}
+
 function skip_if_nts()
 {
     skip('not support in nts', !defined('SWOOLE_THREAD'));
@@ -188,7 +198,7 @@ function skip_if_in_valgrind(string $reason = 'valgrind is too slow')
 
 function skip_if_in_ci(string $reason = 'not support in CI')
 {
-    skip($reason, file_exists('/.cienv'));
+    skip($reason, !!getenv('GITHUB_ACTIONS') or file_exists('/.cienv'));
 }
 
 function skip_if_in_docker(string $reason = 'not support in docker')
@@ -222,6 +232,7 @@ function skip_if_no_socks5_proxy()
 
 function skip_if_pdo_not_support_mysql8()
 {
+    skip_if_no_database();
     require_once __DIR__ . '/config.php';
     try {
         new PDO(
@@ -235,8 +246,14 @@ function skip_if_pdo_not_support_mysql8()
     }
 }
 
+function skip_if_no_database()
+{
+    skip("no database", !!getenv('SWOOLE_CI_IN_MACOS'));
+}
+
 function skip_if_not_mysql8()
 {
+    skip_if_no_database();
     require_once __DIR__ . '/config.php';
     $skip = true;
     Swoole\Coroutine\run(function () use (&$skip) {

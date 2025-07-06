@@ -1,7 +1,9 @@
 --TEST--
 swoole_server: slow master
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../include/skipif.inc';
+skip_if_darwin_todo();
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
@@ -62,7 +64,7 @@ $pm->childFunc = function () use ($pm, $counter_server, $counter_client, $data_c
         $pm->wakeup();
     });
 
-    $serv->on('receive', function (Server $serv, $fd, $rid, $data) use ($counter_server, $counter_client, $data_chunks) {
+    $serv->on(Constant::EVENT_RECEIVE, function (Server $serv, $fd, $rid, $data) use ($counter_server, $counter_client, $data_chunks) {
         $serv->timer = Timer::tick(50, function () use ($counter_server) {
             $counter_server->add(1);
         });

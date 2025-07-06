@@ -58,7 +58,7 @@ class Buffer {
 
     BufferChunk *alloc(BufferChunk::Type type, uint32_t size);
 
-    BufferChunk *front() {
+    BufferChunk *front() const {
         return queue_.front();
     }
 

@@ -18,8 +18,6 @@
 
 #include "swoole.h"
 
-#include <signal.h>
-
 namespace swoole {
 typedef void (*SignalHandler)(int);
 
@@ -50,11 +48,11 @@ SW_API swSignalHandler swoole_signal_set(int signo, swSignalHandler func, bool s
 SW_API bool swoole_signal_isset(int signo);
 SW_API swSignalHandler swoole_signal_set(int signo, swSignalHandler func, int restart, int mask);
 SW_API swSignalHandler swoole_signal_get_handler(int signo);
-SW_API uint32_t swoole_signal_get_listener_num(void);
+SW_API uint32_t swoole_signal_get_listener_num();
 
-SW_API void swoole_signal_clear(void);
-SW_API void swoole_signal_block_all(void);
-SW_API void swoole_signal_unblock_all(void);
+SW_API void swoole_signal_clear();
+SW_API void swoole_signal_block_all();
+SW_API void swoole_signal_unblock_all();
 SW_API char *swoole_signal_to_str(int sig);
 SW_API void swoole_signal_callback(int signo);
 
@@ -67,4 +65,4 @@ SW_API void swoole_signal_callback(int signo);
  * Executing `swoole_signal_dispatch` in a safe context will actually call the signal callback function,
  * allowing for the execution of complex code within the callback.
  */
-SW_API void swoole_signal_dispatch(void);
+SW_API void swoole_signal_dispatch();

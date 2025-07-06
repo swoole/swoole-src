@@ -47,11 +47,12 @@ static PHP_METHOD(swoole_thread_arraylist, sort);
 SW_EXTERN_C_END
 
 static sw_inline ThreadArrayListObject *arraylist_fetch_object(zend_object *obj) {
-    return (ThreadArrayListObject *) ((char *) obj - swoole_thread_arraylist_handlers.offset);
+    return reinterpret_cast<ThreadArrayListObject *>(reinterpret_cast<char *>(obj) -
+                                                     swoole_thread_arraylist_handlers.offset);
 }
 
 static void arraylist_free_object(zend_object *object) {
-    ThreadArrayListObject *ao = arraylist_fetch_object(object);
+    auto ao = arraylist_fetch_object(object);
     if (ao->list) {
         ao->list->del_ref();
         ao->list = nullptr;
@@ -60,28 +61,28 @@ static void arraylist_free_object(zend_object *object) {
 }
 
 static zend_object *arraylist_create_object(zend_class_entry *ce) {
-    ThreadArrayListObject *ao = (ThreadArrayListObject *) zend_object_alloc(sizeof(ThreadArrayListObject), ce);
+    auto ao = static_cast<ThreadArrayListObject *>(zend_object_alloc(sizeof(ThreadArrayListObject), ce));
     zend_object_std_init(&ao->std, ce);
     object_properties_init(&ao->std, ce);
     ao->std.handlers = &swoole_thread_arraylist_handlers;
     return &ao->std;
 }
 
-static ThreadArrayListObject *arraylist_fetch_object_check(zval *zobject) {
-    ThreadArrayListObject *ao = arraylist_fetch_object(Z_OBJ_P(zobject));
+static ThreadArrayListObject *arraylist_fetch_object_check(const zval *zobject) {
+    auto ao = arraylist_fetch_object(Z_OBJ_P(zobject));
     if (!ao->list) {
         swoole_fatal_error(SW_ERROR_WRONG_OPERATION, "must call constructor first");
     }
     return ao;
 }
 
-ThreadResource *php_swoole_thread_arraylist_cast(zval *zobject) {
+ThreadResource *php_swoole_thread_arraylist_cast(const zval *zobject) {
     return arraylist_fetch_object_check(zobject)->list;
 }
 
 void php_swoole_thread_arraylist_create(zval *return_value, ThreadResource *resource) {
     auto obj = arraylist_create_object(swoole_thread_arraylist_ce);
-    auto ao = (ThreadArrayListObject *) arraylist_fetch_object(obj);
+    auto ao = arraylist_fetch_object(obj);
     ao->list = static_cast<ZendArray *>(resource);
     ZVAL_OBJ(return_value, obj);
 }
@@ -125,13 +126,13 @@ static PHP_METHOD(swoole_thread_arraylist, __construct) {
 
     auto ao = arraylist_fetch_object(Z_OBJ_P(ZEND_THIS));
     if (ao->list != nullptr) {
-        zend_throw_error(NULL, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        zend_throw_error(nullptr, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
         return;
     }
 
     if (array) {
         if (!zend_array_is_list(array)) {
-            zend_throw_error(NULL, "the parameter $array must be an array of type list");
+            zend_throw_error(nullptr, "the parameter $array must be an array of type list");
             return;
         }
         ao->list = ZendArray::from(array);

@@ -6,12 +6,14 @@ swoole_process: ignore SIGPIPE
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-use Swoole\Server;
+use Co\Client;
 use Swoole\Constant;
+use Swoole\Server;
+use SwooleTest\ProcessManager;
 
 $GLOBALS['data'] = base64_encode(random_bytes(128));
 
-$pm = new SwooleTest\ProcessManager;
+$pm = new ProcessManager();
 $pm->setWaitTimeout(5);
 
 $pm->parentFunc = function ($pid) use ($pm) {
@@ -20,14 +22,14 @@ $pm->parentFunc = function ($pid) use ($pm) {
 };
 
 $pm->childFunc = function () use ($pm) {
-    $serv = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
-    $serv->set(array(
-        "worker_num" => 1,
+    $serv = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
+    $serv->set([
+        'worker_num' => 1,
         'hook_flags' => SWOOLE_HOOK_ALL,
-        'log_level' => SWOOLE_LOG_WARNING,
-    ));
-    $serv->on("WorkerStart", function (Server $serv) use ($pm) {
-        $cli = new Co\Client(SWOOLE_SOCK_TCP);
+        'log_level' => SWOOLE_LOG_ERROR,
+    ]);
+    $serv->on('WorkerStart', function (Server $serv) use ($pm) {
+        $cli = new Client(SWOOLE_SOCK_TCP);
         if ($cli->connect('127.0.0.1', $pm->getFreePort(), 1) == false) {
             echo "ERROR\n";
             return;
@@ -45,9 +47,7 @@ $pm->childFunc = function () use ($pm) {
     $serv->on(Constant::EVENT_CONNECT, function (Server $serv, $fd, $rid) {
         $serv->close($fd);
     });
-    $serv->on(Constant::EVENT_RECEIVE, function (Server $serv, $fd, $rid, $data) {
-
-    });
+    $serv->on(Constant::EVENT_RECEIVE, function (Server $serv, $fd, $rid, $data) {});
     $serv->start();
 };
 

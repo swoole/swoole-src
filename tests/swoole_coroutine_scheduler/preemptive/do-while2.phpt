@@ -3,6 +3,7 @@ swoole_coroutine_scheduler/preemptive: do-while without opcache enable
 --SKIPIF--
 <?php
 require __DIR__ . '/../../include/skipif.inc';
+skip_if_not_linux();
 ?>
 --FILE--
 <?php

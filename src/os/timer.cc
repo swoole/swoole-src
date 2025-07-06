@@ -17,25 +17,20 @@
 #include "swoole_timer.h"
 #include "swoole_signal.h"
 
-#include <signal.h>
+#include <csignal>
 
 namespace swoole {
-
 static int SystemTimer_set(Timer *timer, long next_msec);
 
-bool Timer::init_with_system_timer() {
+void Timer::init_with_system_timer() {
     set = SystemTimer_set;
     close = [](Timer *timer) { SystemTimer_set(timer, -1); };
     swoole_signal_set(SIGALRM, [](int sig) { SwooleG.signal_alarm = true; });
-    return true;
 }
 
-/**
- * setitimer
- */
 static int SystemTimer_set(Timer *timer, long next_msec) {
-    struct itimerval timer_set;
-    struct timeval now;
+    itimerval timer_set;
+    timeval now;
     if (gettimeofday(&now, nullptr) < 0) {
         swoole_sys_warning("gettimeofday() failed");
         return SW_ERR;
@@ -64,4 +59,15 @@ static int SystemTimer_set(Timer *timer, long next_msec) {
     return SW_OK;
 }
 
+void realtime_get(timespec *time) {
+    auto now = std::chrono::system_clock::now();
+    auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch());
+    time->tv_sec = ns.count() / SW_NUM_BILLION;
+    time->tv_nsec = ns.count() % SW_NUM_BILLION;
+}
+
+void realtime_add(timespec *time, const int64_t add_msec) {
+    time->tv_sec += add_msec / 1000;
+    time->tv_nsec += add_msec % 1000 * SW_NUM_MILLION;
+}
 }  // namespace swoole

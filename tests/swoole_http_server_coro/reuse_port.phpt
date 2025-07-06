@@ -7,19 +7,22 @@ swoole_http_server_coro: reuse port
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-use SwooleTest\ProcessManager;
-use Swoole\Coroutine\Socket;
+use Swoole\Atomic;
 use Swoole\Constant;
+use Swoole\Coroutine\Http\Client;
+use Swoole\Coroutine\Http\Server;
+use Swoole\Coroutine\Scheduler;
 use Swoole\Process;
-use Swoole\Coroutine\Server\Connection;
+use Swoole\Process\Pool;
+use SwooleTest\ProcessManager;
 
-$pm = new ProcessManager;
+$pm = new ProcessManager();
 
 $pm->parentFunc = function ($pid) use ($pm) {
-    $sch = new Swoole\Coroutine\Scheduler();
+    $sch = new Scheduler();
     $pids = [];
     $sch->parallel(10, function () use ($pm, &$pids) {
-        $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
+        $cli = new Client('127.0.0.1', $pm->getFreePort());
         $ret = $cli->get('/hello');
         if (!$ret) {
             echo "ERROR [3]\n";
@@ -33,18 +36,17 @@ $pm->parentFunc = function ($pid) use ($pm) {
         $pids[$result['wid']] = 1;
     });
     $sch->start();
-    Assert::eq(count($pids), 2);
+    Assert::eq(count($pids), IS_MAC_OS ? 1 : 2);
     echo "DONE\n";
     $pm->kill();
 };
 
 $pm->childFunc = function () use ($pm) {
-
-    $atomic = new \Swoole\Atomic();
-    $pool = new Swoole\Process\Pool(2);
+    $atomic = new Atomic();
+    $pool = new Pool(2);
     $pool->set(['enable_coroutine' => true]);
     $pool->on(Constant::EVENT_WORKER_START, function ($pool, $id) use ($pm, $atomic) {
-        $server = new Swoole\Coroutine\Http\Server("127.0.0.1", $pm->getFreePort(), false, true);
+        $server = new Server('127.0.0.1', $pm->getFreePort(), false, true);
         $server->handle('/', function ($request, $response) {
             $response->end(serialize(['wid' => posix_getpid()]));
         });

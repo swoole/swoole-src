@@ -49,6 +49,11 @@ return (new PhpCsFixer\Config())
             ],
             'sort_algorithm' => 'alpha',
         ],
+        'global_namespace_import' => [
+            'import_classes' => false,
+            'import_constants' => false,
+            'import_functions' => false,
+        ],
         'single_line_comment_style' => [
             'comment_types' => [
             ],
@@ -81,7 +86,7 @@ return (new PhpCsFixer\Config())
         'phpdoc_separation' => false,
         'phpdoc_summary' => false,
         'single_quote' => true,
-        'increment_style' => [],
+        'increment_style' => ['style' => 'post'],
         'standardize_increment' => false,
         'standardize_not_equals' => true,
         'multiline_comment_opening_closing' => true,

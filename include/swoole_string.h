@@ -87,7 +87,7 @@ class String {
         }
     }
 
-    char *value() {
+    char *value() const {
         return str;
     }
 
@@ -99,15 +99,15 @@ class String {
         return size;
     }
 
-    std::string to_std_string() {
-        return std::string(str, length);
+    std::string to_std_string() const {
+        return {str, length};
     }
 
     bool contains(const char *needle, size_t l_needle) const {
         return swoole_strnstr(str, length, needle, l_needle) != nullptr;
     }
 
-    bool contains(const std::string &needle) {
+    bool contains(const std::string &needle) const {
         return contains(needle.c_str(), needle.size());
     }
 
@@ -222,7 +222,7 @@ class String {
             return 0;
         }
         // store \0 terminator
-        _size++;
+        ++_size;
 
         size_t new_size = (flags & FORMAT_APPEND) ? length + _size : _size;
         if (flags & FORMAT_GROW) {

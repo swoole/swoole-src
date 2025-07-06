@@ -23,7 +23,7 @@
 namespace swoole {
 
 bool MsgQueue::destroy() {
-    if (msgctl(msg_id_, IPC_RMID, 0) < 0) {
+    if (msgctl(msg_id_, IPC_RMID, nullptr) < 0) {
         swoole_sys_warning("msgctl(%d, IPC_RMID) failed", msg_id_);
         return false;
     }
@@ -31,7 +31,7 @@ bool MsgQueue::destroy() {
     return true;
 }
 
-void MsgQueue::set_blocking(bool blocking) {
+void MsgQueue::set_blocking(const bool blocking) {
     if (blocking == 0) {
         flags_ = flags_ | IPC_NOWAIT;
     } else {
@@ -62,7 +62,7 @@ MsgQueue::~MsgQueue() {
     }
 }
 
-ssize_t MsgQueue::pop(QueueNode *data, size_t mdata_size) {
+ssize_t MsgQueue::pop(QueueNode *data, size_t mdata_size) const {
     ssize_t ret = msgrcv(msg_id_, data, mdata_size, data->mtype, flags_);
     if (ret < 0) {
         swoole_set_last_error(errno);
@@ -74,7 +74,7 @@ ssize_t MsgQueue::pop(QueueNode *data, size_t mdata_size) {
 }
 
 bool MsgQueue::push(QueueNode *in, size_t mdata_length) {
-    while (1) {
+    while (true) {
         if (msgsnd(msg_id_, in, mdata_length, flags_) == 0) {
             return true;
         }
@@ -90,28 +90,27 @@ bool MsgQueue::push(QueueNode *in, size_t mdata_length) {
     return false;
 }
 
-bool MsgQueue::stat(size_t *queue_num, size_t *queue_bytes) {
-    struct msqid_ds __stat;
-    if (msgctl(msg_id_, IPC_STAT, &__stat) == 0) {
-        *queue_num = __stat.msg_qnum;
+bool MsgQueue::stat(size_t *queue_num, size_t *queue_bytes) const {
+    msqid_ds _stat;
+    if (msgctl(msg_id_, IPC_STAT, &_stat) == 0) {
+        *queue_num = _stat.msg_qnum;
 #ifndef __NetBSD__
-        *queue_bytes = __stat.msg_cbytes;
+        *queue_bytes = _stat.msg_cbytes;
 #else
         *queue_bytes = __stat._msg_cbytes;
 #endif
         return true;
-    } else {
-        return false;
     }
+    return false;
 }
 
 bool MsgQueue::set_capacity(size_t queue_bytes) {
-    struct msqid_ds __stat;
-    if (msgctl(msg_id_, IPC_STAT, &__stat) != 0) {
+    msqid_ds _stat;
+    if (msgctl(msg_id_, IPC_STAT, &_stat) != 0) {
         return false;
     }
-    __stat.msg_qbytes = queue_bytes;
-    if (msgctl(msg_id_, IPC_SET, &__stat)) {
+    _stat.msg_qbytes = queue_bytes;
+    if (msgctl(msg_id_, IPC_SET, &_stat)) {
         swoole_sys_warning("msgctl(msqid=%d, IPC_SET, msg_qbytes=%lu) failed", msg_id_, queue_bytes);
         return false;
     }

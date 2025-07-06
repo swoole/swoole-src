@@ -178,9 +178,9 @@ static int event_writable_callback(Reactor *reactor, Event *event) {
 static int event_error_callback(Reactor *reactor, Event *event) {
     if (!(event->socket->events & SW_EVENT_ERROR)) {
         if (event->socket->events & SW_EVENT_READ) {
-            return reactor->get_handler(SW_EVENT_READ, event->socket->fd_type)(reactor, event);
+            return reactor->get_handler(event->socket->fd_type, SW_EVENT_READ)(reactor, event);
         } else {
-            return reactor->get_handler(SW_EVENT_WRITE, event->socket->fd_type)(reactor, event);
+            return reactor->get_handler(event->socket->fd_type, SW_EVENT_WRITE)(reactor, event);
         }
     }
 
@@ -381,10 +381,10 @@ php_socket *php_swoole_convert_to_socket(int sock) {
 static void event_check_reactor() {
     php_swoole_check_reactor();
 
-    if (!swoole_event_isset_handler(SW_FD_USER)) {
-        swoole_event_set_handler(SW_FD_USER | SW_EVENT_READ, event_readable_callback);
-        swoole_event_set_handler(SW_FD_USER | SW_EVENT_WRITE, event_writable_callback);
-        swoole_event_set_handler(SW_FD_USER | SW_EVENT_ERROR, event_error_callback);
+    if (!swoole_event_isset_handler(SW_FD_USER, SW_EVENT_READ)) {
+        swoole_event_set_handler(SW_FD_USER, SW_EVENT_READ, event_readable_callback);
+        swoole_event_set_handler(SW_FD_USER, SW_EVENT_WRITE, event_writable_callback);
+        swoole_event_set_handler(SW_FD_USER, SW_EVENT_ERROR, event_error_callback);
     }
 }
 

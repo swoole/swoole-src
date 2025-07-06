@@ -21,7 +21,6 @@
 #include "swoole_c_api.h"
 #include "swoole_socket.h"
 
-#include <netinet/tcp.h>
 #include <netdb.h>
 
 namespace swoole {
@@ -34,11 +33,11 @@ struct RecvData {
     DataHead info;
     const char *data;
 
-    SessionId session_id() {
+    SessionId session_id() const {
         return info.fd;
     }
 
-    uint32_t length() {
+    uint32_t length() const {
         return info.len;
     }
 };

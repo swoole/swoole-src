@@ -104,6 +104,10 @@ void php_swoole_timer_minit(int module_number) {
     SW_REGISTER_DOUBLE_CONSTANT("SWOOLE_TIMER_MAX_SEC", SW_TIMER_MAX_SEC);
 }
 
+void php_swoole_timer_rshutdown() {
+    php_swoole_timer_clear_all();
+}
+
 static void timer_dtor(TimerNode *tnode) {
     Function *fci = (Function *) tnode->data;
     sw_zend_fci_params_discard(&fci->fci);
@@ -116,13 +120,13 @@ bool php_swoole_timer_clear(TimerNode *tnode) {
 }
 
 bool php_swoole_timer_clear_all() {
-    if (UNEXPECTED(!SwooleTG.timer)) {
+    if (UNEXPECTED(!swoole_timer_is_available())) {
         return false;
     }
 
-    size_t num = SwooleTG.timer->count(), index = 0;
+    size_t num = sw_timer()->count(), index = 0;
     TimerNode **list = (TimerNode **) emalloc(num * sizeof(TimerNode *));
-    for (auto &kv : SwooleTG.timer->get_map()) {
+    for (auto &kv : sw_timer()->get_map()) {
         TimerNode *tnode = kv.second;
         if (tnode->type == TimerNode::TYPE_PHP) {
             list[index++] = tnode;
@@ -143,9 +147,6 @@ static void timer_callback(Timer *timer, TimerNode *tnode) {
 
     if (UNEXPECTED(!fci->call(nullptr, php_swoole_is_enable_coroutine()))) {
         php_swoole_error(E_WARNING, "%s->onTimeout handler error", ZSTR_VAL(swoole_timer_ce->name));
-    }
-    if (!tnode->interval || tnode->removed) {
-        timer_dtor(tnode);
     }
 }
 

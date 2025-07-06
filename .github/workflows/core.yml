@@ -9,7 +9,7 @@ jobs:
   ubuntu:
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[core]')"
-    timeout-minutes: 10
+    timeout-minutes: 12
     services:
       tinyproxy:
         image: "vimagick/tinyproxy"
@@ -29,41 +29,30 @@ jobs:
           PROXY_USER: user
           PROXY_PASSWORD: password
           PROXY_SERVER: 0.0.0.0:1080
+      socks5-no-auth:
+        image: "xkuma/socks5"
+        ports:
+          - 8081:1080
+        env:
+          PROXY_SERVER: 0.0.0.0:1080
 
     steps:
       - uses: actions/checkout@v4
 
       - name: install dependencies
-        run: sudo apt update -y && sudo apt install -y googletest libgtest-dev libnghttp2-dev libboost-stacktrace-dev libbrotli-dev redis-server nodejs npm nghttp2-client
+        run: sudo apt update -y && sudo apt install -y googletest libgtest-dev libnghttp2-dev libboost-stacktrace-dev libbrotli-dev redis-server nodejs npm nghttp2-client liburing-dev
 
       - name: configure
-        run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-openssl
+        run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-openssl --enable-iouring
 
-      - name: make
+      - name: build
         run: |
-          cmake . -D CODE_COVERAGE=ON -D enable_thread=1
-          make VERBOSE=1 -j $(nproc) lib-swoole
+          cmake . -D CODE_COVERAGE=ON -D enable_thread=1 -D verbose=1 || exit 1
+          make VERBOSE=1 -j $(nproc) core-tests || exit 1
 
-      - name: make test
+      - name: run tests
         run: |
-          export GITHUB_COMMIT_MESSAGE="${{ github.event.head_commit.message }}"
-          if [[ "$GITHUB_COMMIT_MESSAGE" == *"--valgrind"* ]]; then
-            export SWOOLE_VALGRIND=1
-          fi
-          if [[ "$GITHUB_COMMIT_MESSAGE" == *"--asan"* ]]; then
-              export SWOOLE_ENABLE_ASAN=1
-          fi
-          if [[ "$GITHUB_COMMIT_MESSAGE" == *"--strace"* ]]; then
-              export SWOOLE_ENABLE_STRACE=1
-          fi
-          if [[ "$GITHUB_COMMIT_MESSAGE" == *"--verbose"* ]]; then
-              export SWOOLE_ENABLE_VERBOSE=1
-          fi
-          echo "SWOOLE_VALGRIND=${SWOOLE_VALGRIND}"
-          echo "SWOOLE_ENABLE_ASAN=${SWOOLE_ENABLE_ASAN}"
-          echo "SWOOLE_ENABLE_STRACE=${SWOOLE_ENABLE_STRACE}"
-          echo "SWOOLE_ENABLE_VERBOSE=${SWOOLE_ENABLE_VERBOSE}"
-          cd core-tests && ./run.sh
+          ./run-core-tests.sh
 
       - name: run coverage
         shell: bash

@@ -51,16 +51,16 @@ TEST(coroutine_socket, connect_timeout) {
         Socket sock(SW_SOCK_TCP);
 
         sock.set_timeout(0.5);
-        ASSERT_EQ(sock.get_timeout(Socket::TIMEOUT_DNS), 0.5);
-        ASSERT_EQ(sock.get_timeout(Socket::TIMEOUT_CONNECT), 0.5);
-        ASSERT_EQ(sock.get_timeout(Socket::TIMEOUT_READ), 0.5);
-        ASSERT_EQ(sock.get_timeout(Socket::TIMEOUT_WRITE), 0.5);
+        ASSERT_EQ(sock.get_timeout(SW_TIMEOUT_DNS), 0.5);
+        ASSERT_EQ(sock.get_timeout(SW_TIMEOUT_CONNECT), 0.5);
+        ASSERT_EQ(sock.get_timeout(SW_TIMEOUT_READ), 0.5);
+        ASSERT_EQ(sock.get_timeout(SW_TIMEOUT_WRITE), 0.5);
 
-        sock.set_timeout(1.5, Socket::TIMEOUT_RDWR);
-        ASSERT_EQ(sock.get_timeout(Socket::TIMEOUT_DNS), 0.5);
-        ASSERT_EQ(sock.get_timeout(Socket::TIMEOUT_CONNECT), 0.5);
-        ASSERT_EQ(sock.get_timeout(Socket::TIMEOUT_READ), 1.5);
-        ASSERT_EQ(sock.get_timeout(Socket::TIMEOUT_WRITE), 1.5);
+        sock.set_timeout(1.5, SW_TIMEOUT_RDWR);
+        ASSERT_EQ(sock.get_timeout(SW_TIMEOUT_DNS), 0.5);
+        ASSERT_EQ(sock.get_timeout(SW_TIMEOUT_CONNECT), 0.5);
+        ASSERT_EQ(sock.get_timeout(SW_TIMEOUT_READ), 1.5);
+        ASSERT_EQ(sock.get_timeout(SW_TIMEOUT_WRITE), 1.5);
 
         bool retval = sock.connect("192.0.0.1", 9801);
         ASSERT_EQ(retval, false);
@@ -84,14 +84,14 @@ TEST(coroutine_socket, timeout_controller) {
         });
 
         Socket sock(SW_SOCK_TCP);
-        Socket::TimeoutController tc(&sock, 0.5, Socket::TIMEOUT_ALL);
+        Socket::TimeoutController tc(&sock, 0.5, SW_TIMEOUT_ALL);
         ASSERT_TRUE(sock.connect("127.0.0.1", port));
 
         char buf[128];
         off_t offset = 0;
         sock.errCode = 0;
         while (true) {
-            if (sw_unlikely(tc.has_timedout(Socket::TIMEOUT_READ))) {
+            if (sw_unlikely(tc.has_timedout(SW_TIMEOUT_READ))) {
                 break;
             }
             auto rv = sock.recv(buf + offset, sizeof(buf) - offset);
@@ -100,7 +100,7 @@ TEST(coroutine_socket, timeout_controller) {
             }
             offset += rv;
         }
-        ASSERT_TRUE(tc.has_timedout(Socket::TIMEOUT_READ));
+        ASSERT_TRUE(tc.has_timedout(SW_TIMEOUT_READ));
         ASSERT_EQ(sock.errCode, ETIMEDOUT);
     });
 }
@@ -121,7 +121,7 @@ TEST(coroutine_socket, timeout_setter) {
         });
 
         Socket sock(SW_SOCK_TCP);
-        Socket::TimeoutSetter ts(&sock, 0.5, Socket::TIMEOUT_ALL);
+        Socket::TimeoutSetter ts(&sock, 0.5, SW_TIMEOUT_ALL);
         ASSERT_TRUE(sock.connect("127.0.0.1", port));
 
         char buf[128];
@@ -1181,13 +1181,45 @@ static void proxy_test(Socket &sock, bool https) {
     socket_test_request_baidu(sock);
 }
 
-static void proxy_set_socks5_proxy(Socket &socket) {
+static void proxy_set_socks5_proxy(Socket &socket, int port, bool auth) {
     std::string username, password;
-    if (swoole::test::is_github_ci()) {
+    if (auth) {
         username = std::string(TEST_SOCKS5_PROXY_USER);
         password = std::string(TEST_SOCKS5_PROXY_PASSWORD);
     }
-    socket.set_socks5_proxy(TEST_SOCKS5_PROXY_HOST, TEST_SOCKS5_PROXY_PORT, username, password);
+    socket.set_socks5_proxy(TEST_SOCKS5_PROXY_HOST, port, username, password);
+}
+
+TEST(coroutine_socket, https_get_with_socks5_proxy) {
+    coroutine::run([](void *arg) {
+        if (swoole::test::is_github_ci()) {
+            Socket sock(SW_SOCK_TCP);
+            proxy_set_socks5_proxy(sock, TEST_SOCKS5_PROXY_PORT, true);
+            proxy_test(sock, true);
+        }
+        // no auth
+        {
+            Socket sock(SW_SOCK_TCP);
+            proxy_set_socks5_proxy(sock, TEST_SOCKS5_PROXY_NO_AUTH_PORT, false);
+            proxy_test(sock, true);
+        }
+    });
+}
+
+TEST(coroutine_socket, http_get_with_socks5_proxy) {
+    coroutine::run([](void *arg) {
+        if (swoole::test::is_github_ci()) {
+            Socket sock(SW_SOCK_TCP);
+            proxy_set_socks5_proxy(sock, TEST_SOCKS5_PROXY_PORT, true);
+            proxy_test(sock, false);
+        }
+        // no auth
+        {
+            Socket sock(SW_SOCK_TCP);
+            proxy_set_socks5_proxy(sock, TEST_SOCKS5_PROXY_NO_AUTH_PORT, false);
+            proxy_test(sock, false);
+        }
+    });
 }
 
 static void proxy_set_http_proxy(Socket &socket) {
@@ -1199,27 +1231,11 @@ static void proxy_set_http_proxy(Socket &socket) {
     socket.set_http_proxy(TEST_HTTP_PROXY_HOST, TEST_HTTP_PROXY_PORT, username, password);
 }
 
-TEST(coroutine_socket, http_get_with_socks5_proxy) {
-    coroutine::run([](void *arg) {
-        Socket sock(SW_SOCK_TCP);
-        proxy_set_socks5_proxy(sock);
-        proxy_test(sock, false);
-    });
-}
-
 TEST(coroutine_socket, http_get_with_http_proxy) {
     coroutine::run([&](void *arg) {
         Socket sock(SW_SOCK_TCP);
         proxy_set_http_proxy(sock);
         proxy_test(sock, false);
-    });
-}
-
-TEST(coroutine_socket, https_get_with_socks5_proxy) {
-    coroutine::run([](void *arg) {
-        Socket sock(SW_SOCK_TCP);
-        proxy_set_socks5_proxy(sock);
-        proxy_test(sock, true);
     });
 }
 
@@ -1371,7 +1387,7 @@ TEST(coroutine_socket, sendmsg_and_recvmsg) {
     });
 }
 
-std::pair<std::shared_ptr<Socket>, std::shared_ptr<Socket>> create_socket_pair() {
+std::pair<std::shared_ptr<Socket>, std::shared_ptr<Socket> > create_socket_pair() {
     int pairs[2];
     socketpair(AF_UNIX, SOCK_STREAM, 0, pairs);
 
@@ -1381,7 +1397,7 @@ std::pair<std::shared_ptr<Socket>, std::shared_ptr<Socket>> create_socket_pair()
     sock0->get_socket()->set_buffer_size(65536);
     sock1->get_socket()->set_buffer_size(65536);
 
-    std::pair<std::shared_ptr<Socket>, std::shared_ptr<Socket>> result(sock0, sock1);
+    std::pair<std::shared_ptr<Socket>, std::shared_ptr<Socket> > result(sock0, sock1);
     return result;
 }
 
@@ -1477,4 +1493,74 @@ TEST(coroutine_socket, option) {
 
     optval *= 2;
     ASSERT_TRUE(sock.set_option(SOL_SOCKET, SO_RCVBUF, optval));
+}
+
+static void test_ssl_verify() {
+    Socket sock(SW_SOCK_TCP);
+    sock.enable_ssl_encrypt();
+    sock.set_tls_host_name(TEST_HTTP_DOMAIN);
+    sock.set_ssl_verify_peer(true);
+    ASSERT_TRUE(sock.connect(TEST_HTTP_DOMAIN, 443));
+    ASSERT_TRUE(sock.ssl_verify(false));
+
+    auto req = swoole::test::http_get_request(TEST_HTTP_DOMAIN, "/");
+    ASSERT_EQ(sock.send(req.c_str(), req.length()), req.length());
+    ASSERT_TRUE(sock.check_liveness());
+
+    String buf(65536);
+    SW_LOOP {
+        auto n = sock.recv(buf.str + buf.length, buf.size - buf.length);
+        if (n <= 0) {
+            break;
+        }
+        buf.grow(n);
+    }
+
+    ASSERT_TRUE(buf.contains(TEST_HTTPS_EXPECT));
+
+    usleep(50000);
+    ASSERT_FALSE(sock.check_liveness());
+}
+
+TEST(coroutine_socket, ssl_verify) {
+    coroutine::run([](void *arg) { test_ssl_verify(); });
+}
+
+TEST(coroutine_socket, shutdown) {
+    coroutine::run([](void *arg) {
+        Socket sock(SW_SOCK_TCP);
+        ASSERT_TRUE(sock.connect(TEST_HTTP_DOMAIN, 80));
+        ASSERT_TRUE(sock.shutdown(SHUT_RD));
+        ASSERT_FALSE(sock.shutdown(SHUT_RD));
+        ASSERT_ERREQ(ENOTCONN);
+
+        ASSERT_TRUE(sock.shutdown(SHUT_WR));
+        ASSERT_FALSE(sock.shutdown(SHUT_WR));
+        ASSERT_ERREQ(ENOTCONN);
+
+        ASSERT_FALSE(sock.shutdown());
+        ASSERT_ERREQ(ENOTCONN);
+    });
+}
+
+TEST(coroutine_socket, recv_packet) {
+    coroutine::run([](void *arg) {
+        Socket sock(SW_SOCK_TCP);
+        ASSERT_TRUE(sock.connect(TEST_HTTP_DOMAIN, 80));
+        auto req = swoole::test::http_get_request(TEST_HTTP_DOMAIN, "/");
+        ASSERT_EQ(sock.send(req.c_str(), req.length()), req.length());
+        ASSERT_TRUE(sock.check_liveness());
+        auto n = sock.recv_packet();
+        ASSERT_GT(n, 0);
+        auto buf = sock.get_read_buffer();
+        ASSERT_TRUE(buf->contains(TEST_HTTP_EXPECT));
+    });
+}
+
+TEST(coroutine_socket, set_error) {
+    Socket sock(SW_SOCK_TCP);
+    sock.set_err(1000, std::string(TEST_STR));
+
+    ASSERT_EQ(sock.errCode, 1000);
+    ASSERT_STREQ(sock.errMsg, TEST_STR);
 }

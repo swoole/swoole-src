@@ -118,7 +118,7 @@ void mask(char *data, size_t len, const char *mask_key) {
 bool encode(String *buffer, const char *data, size_t length, char opcode, uint8_t _flags) {
     int pos = 0;
     char frame_header[16];
-    Header *header = (Header *) frame_header;
+    auto *header = (Header *) frame_header;
     header->FIN = !!(_flags & FLAG_FIN);
     header->OPCODE = opcode;
     header->RSV1 = !!(_flags & FLAG_RSV1);
@@ -131,12 +131,12 @@ bool encode(String *buffer, const char *data, size_t length, char opcode, uint8_
         header->LENGTH = length;
     } else if (length <= SW_WEBSOCKET_EXT16_MAX_LEN) {
         header->LENGTH = SW_WEBSOCKET_EXT16_LENGTH;
-        uint16_t *length_ptr = (uint16_t *) (frame_header + pos);
+        auto *length_ptr = (uint16_t *) (frame_header + pos);
         *length_ptr = htons(length);
         pos += sizeof(*length_ptr);
     } else {
         header->LENGTH = SW_WEBSOCKET_EXT64_LENGTH;
-        uint64_t *length_ptr = (uint64_t *) (frame_header + pos);
+        auto *length_ptr = (uint64_t *) (frame_header + pos);
         *length_ptr = swoole_hton64(length);
         pos += sizeof(*length_ptr);
     }
@@ -241,8 +241,8 @@ void print_frame(Frame *frame) {
 }
 
 int dispatch_frame(const Protocol *proto, Socket *_socket, const RecvData *rdata) {
-    Server *serv = (Server *) proto->private_data_2;
-    Connection *conn = (Connection *) _socket->object;
+    auto *serv = (Server *) proto->private_data_2;
+    auto *conn = (Connection *) _socket->object;
     RecvData dispatch_data{};
     String send_frame{};
     const char *data = rdata->data;

@@ -21,9 +21,6 @@
 extern "C" {
 #endif
 
-#include <stdint.h>
-#include <stdbool.h>
-
 #include "swoole_config.h"
 
 enum swGlobalHookType {
@@ -46,9 +43,9 @@ enum swGlobalHookType {
 
 typedef void (*swHookFunc)(void *data);
 
-int swoole_add_hook(enum swGlobalHookType type, swHookFunc cb, int push_back);
-void swoole_call_hook(enum swGlobalHookType type, void *arg);
-bool swoole_isset_hook(enum swGlobalHookType type);
+int swoole_add_hook(swGlobalHookType type, swHookFunc cb, int push_back);
+void swoole_call_hook(swGlobalHookType type, void *arg);
+bool swoole_isset_hook(swGlobalHookType type);
 
 const char *swoole_version(void);
 int swoole_version_id(void);

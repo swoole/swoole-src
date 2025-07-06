@@ -24,6 +24,8 @@
 #include <sys/signalfd.h>
 #endif
 
+#include <csignal>
+
 #ifdef HAVE_KQUEUE
 #ifdef USE_KQUEUE_IDE_HELPER
 #include "helper/kqueue.h"
@@ -51,6 +53,7 @@ static void swoole_signalfd_clear();
 
 #ifdef HAVE_KQUEUE
 static SignalHandler swoole_signal_kqueue_set(int signo, SignalHandler handler);
+static void swoole_signal_kqueue_clear();
 #endif
 
 static void signal_handler_safety(int signo);
@@ -71,14 +74,14 @@ static bool triggered_signals[SW_SIGNO_MAX];
 char *swoole_signal_to_str(int sig) {
     static char buf[64];
     snprintf(buf, sizeof(buf), "%s", strsignal(sig));
-    if (strchr(buf, ':') == 0) {
+    if (strchr(buf, ':') == nullptr) {
         size_t len = strlen(buf);
         snprintf(buf + len, sizeof(buf) - len, ": %d", sig);
     }
     return buf;
 }
 
-void swoole_signal_block_all(void) {
+void swoole_signal_block_all() {
     if (SwooleTG.signal_blocking_all) {
         return;
     }
@@ -92,7 +95,7 @@ void swoole_signal_block_all(void) {
     }
 }
 
-void swoole_signal_unblock_all(void) {
+void swoole_signal_unblock_all() {
     if (!SwooleTG.signal_blocking_all) {
         return;
     }
@@ -124,8 +127,7 @@ SignalHandler swoole_signal_set(int signo, SignalHandler func, int restart, int 
         signals[signo].activated = false;
     }
 
-    struct sigaction act {
-    }, oact{};
+    struct sigaction act{}, oact{};
     act.sa_handler = func;
     if (mask) {
         sigfillset(&act.sa_mask);
@@ -133,6 +135,9 @@ SignalHandler swoole_signal_set(int signo, SignalHandler func, int restart, int 
         sigemptyset(&act.sa_mask);
     }
     act.sa_flags = 0;
+    if (restart) {
+        act.sa_flags |= SA_RESTART;
+    }
     if (sigaction(signo, &act, &oact) < 0) {
         return nullptr;
     }
@@ -156,7 +161,7 @@ SignalHandler swoole_signal_set(int signo, SignalHandler handler, bool safety) {
     // SIGCHLD can not be monitored by kqueue, if blocked by SIG_IGN
     // see https://www.freebsd.org/cgi/man.cgi?kqueue
     // if there's no main reactor, signals cannot be monitored either
-    if (signo != SIGCHLD && sw_reactor()) {
+    if (SwooleG.enable_kqueue && swoole_event_is_available() && signo != SIGCHLD) {
         return swoole_signal_kqueue_set(signo, handler);
     }
 #endif
@@ -164,7 +169,7 @@ SignalHandler swoole_signal_set(int signo, SignalHandler handler, bool safety) {
     signals[signo].handler = handler;
     signals[signo].activated = true;
     signals[signo].signo = signo;
-    return swoole_signal_set(signo, safety ? signal_handler_safety : signal_handler_simple, 1, 0);
+    return swoole_signal_set(signo, safety ? signal_handler_safety : signal_handler_simple, 0, 0);
 }
 
 static void signal_handler_safety(int signo) {
@@ -173,10 +178,10 @@ static void signal_handler_safety(int signo) {
 }
 
 static void signal_handler_simple(int signo) {
-    static int _lock = 0;
     if (sw_reactor()) {
-        sw_reactor()->singal_no = signo;
+        signal_handler_safety(signo);
     } else {
+        static int _lock = 0;
         // discard signal
         if (_lock) {
             return;
@@ -187,7 +192,7 @@ static void signal_handler_simple(int signo) {
     }
 }
 
-void swoole_signal_dispatch(void) {
+void swoole_signal_dispatch() {
     if (!SwooleG.signal_dispatch) {
         return;
     }
@@ -211,6 +216,9 @@ void swoole_signal_callback(int signo) {
             SW_LOG_WARNING, SW_ERROR_UNREGISTERED_SIGNAL, SW_UNREGISTERED_SIGNAL_FMT, swoole_signal_to_str(signo));
         return;
     }
+    if (callback == SIG_IGN || callback == SIG_DFL) {
+        return;
+    }
     callback(signo);
 }
 
@@ -223,28 +231,28 @@ SignalHandler swoole_signal_get_handler(int signo) {
     }
 }
 
-uint32_t swoole_signal_get_listener_num(void) {
+uint32_t swoole_signal_get_listener_num() {
     return SwooleG.signal_listener_num + SwooleG.signal_async_listener_num;
 }
 
-void swoole_signal_clear(void) {
+void swoole_signal_clear() {
 #ifdef HAVE_SIGNALFD
     if (SwooleG.enable_signalfd && swoole_signalfd_is_available()) {
         swoole_signalfd_clear();
-    } else
+        return;
+    }
 #endif
-    {
-        SW_LOOP_N(SW_SIGNO_MAX) {
-            if (signals[i].activated) {
+
 #ifdef HAVE_KQUEUE
-                if (signals[i].signo != SIGCHLD && sw_reactor()) {
-                    swoole_signal_kqueue_set(signals[i].signo, nullptr);
-                } else
+    if (SwooleG.enable_kqueue) {
+        swoole_signal_kqueue_clear();
+        return;
+    }
 #endif
-                {
-                    swoole_signal_set(signals[i].signo, (SignalHandler) -1, 1, 0);
-                }
-            }
+
+    SW_LOOP_N(SW_SIGNO_MAX) {
+        if (signals[i].activated) {
+            swoole_signal_set(signals[i].signo, reinterpret_cast<SignalHandler>(-1), 1, 0);
         }
     }
     sw_memset_zero(signals, sizeof(signals));
@@ -271,13 +279,6 @@ static SignalHandler swoole_signalfd_set(int signo, SignalHandler handler) {
         signals[signo].handler = handler;
         signals[signo].signo = signo;
         signals[signo].activated = true;
-    }
-
-    if (!swoole_event_is_available()) {
-        swoole_error_log(SW_LOG_WARNING,
-                         SW_ERROR_OPERATION_NOT_SUPPORT,
-                         "The signalfd must only be used after event loop is initialized");
-        return nullptr;
     }
 
     if (swoole_signalfd_is_available()) {
@@ -326,8 +327,8 @@ bool swoole_signalfd_setup(Reactor *reactor) {
     if (!swoole_signalfd_is_available() && !swoole_signalfd_create()) {
         return false;
     }
-    if (!swoole_event_isset_handler(SW_FD_SIGNAL)) {
-        swoole_event_set_handler(SW_FD_SIGNAL, swoole_signalfd_event_callback);
+    if (!swoole_event_isset_handler(SW_FD_SIGNAL, SW_EVENT_READ)) {
+        swoole_event_set_handler(SW_FD_SIGNAL, SW_EVENT_READ, swoole_signalfd_event_callback);
         reactor->set_exit_condition(Reactor::EXIT_CONDITION_SIGNALFD, [](Reactor *reactor, size_t &event_num) -> bool {
             event_num--;
             return true;
@@ -361,7 +362,7 @@ static void swoole_signalfd_clear() {
 }
 
 static int swoole_signalfd_event_callback(Reactor *reactor, Event *event) {
-    struct signalfd_siginfo siginfo;
+    signalfd_siginfo siginfo;
     ssize_t n = read(event->fd, &siginfo, sizeof(siginfo));
     if (n < 0) {
         swoole_sys_warning("read from signalfd failed");
@@ -425,5 +426,16 @@ static SignalHandler swoole_signal_kqueue_set(int signo, SignalHandler handler) 
     }
 
     return origin_handler;
+}
+
+static void swoole_signal_kqueue_clear() {
+    SW_LOOP_N(SW_SIGNO_MAX) {
+        if (signals[i].activated && swoole_event_is_available()) {
+            signals[i].activated = false;
+            signals[i].handler = nullptr;
+            swoole_signal_kqueue_set(signals[i].signo, nullptr);
+        }
+    }
+    sw_memset_zero(signals, sizeof(signals));
 }
 #endif

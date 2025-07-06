@@ -31,7 +31,6 @@
 #endif
 
 namespace swoole {
-
 using network::Socket;
 
 class ReactorKqueue : public ReactorImpl {
@@ -303,8 +302,8 @@ int ReactorKqueue::wait() {
             case EVFILT_READ:
             case EVFILT_WRITE: {
                 if (fetch_event(&event, udata)) {
-                    handler = reactor_->get_handler(kevent->filter == EVFILT_READ ? SW_EVENT_READ : SW_EVENT_WRITE,
-                                                    event.type);
+                    handler = reactor_->get_handler(event.type,
+                                                    kevent->filter == EVFILT_READ ? SW_EVENT_READ : SW_EVENT_WRITE);
                     if (sw_unlikely(handler(reactor_, &event) < 0)) {
                         swoole_sys_warning("kqueue event %s socket#%d handler failed",
                                            kevent->filter == EVFILT_READ ? "read" : "write",
@@ -319,7 +318,9 @@ int ReactorKqueue::wait() {
                 Signal *signal_data = (Signal *) udata;
                 if (signal_data->activated) {
                     if (signal_data->handler) {
-                        signal_data->handler(signal_data->signo);
+                        if (sw_likely(signal_data->handler != SIG_IGN)) {
+                            signal_data->handler(signal_data->signo);
+                        }
                     } else {
                         swoole_error_log(SW_LOG_WARNING,
                                          SW_ERROR_UNREGISTERED_SIGNAL,

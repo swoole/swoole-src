@@ -7,11 +7,10 @@ swoole_socket_coro: readVector with ssl
 require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Coroutine\Socket;
-use Swoole\Server;
 
 use function Swoole\Coroutine\run;
 
-$pm = new ProcessManager;
+$pm = new ProcessManager();
 $pm->parentFunc = function ($pid) use ($pm) {
     run(function () use ($pm) {
         $conn = new Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
@@ -40,8 +39,10 @@ $pm->childFunc = function () use ($pm) {
         Assert::assert($socket->bind('127.0.0.1', $pm->getFreePort()));
         Assert::assert($socket->listen(MAX_CONCURRENCY));
 
+        $pm->wakeup();
         /** @var Socket */
         $conn = $socket->accept();
+        Assert::assert($conn, 'error: ' . swoole_last_error());
         $conn->sslHandshake();
 
         Assert::eq($conn->readVector([5, 5]), ['hello', 'world']);

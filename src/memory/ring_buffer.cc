@@ -30,7 +30,7 @@ struct RingBufferImpl {
     sw_atomic_t free_count;
 
     void collect();
-    RingBufferItem *get_item(uint32_t offset);
+    RingBufferItem *get_item(uint32_t offset) const;
 };
 
 struct RingBufferItem {
@@ -66,22 +66,22 @@ RingBuffer::RingBuffer(uint32_t size, bool shared) {
     mem = static_cast<char *>(mem) + sizeof(*impl);
     sw_memset_zero(impl, sizeof(*impl));
 
-    impl->size = size - sizeof(impl);
+    impl->size = size - sizeof(*impl);
     impl->shared = shared;
     impl->memory = mem;
 
     swoole_debug("memory: ptr=%p", mem);
 }
 
-RingBufferItem *RingBufferImpl::get_item(uint32_t offset) {
+RingBufferItem *RingBufferImpl::get_item(uint32_t offset) const {
     return reinterpret_cast<RingBufferItem *>(static_cast<char *>(memory) + offset);
 }
 
 void RingBufferImpl::collect() {
     for (uint32_t i = 0; i < free_count; i++) {
-        auto *item = get_item(collect_offset);
+        const auto *item = get_item(collect_offset);
         if (item->lock == 0) {
-            uint32_t n_size = item->length + sizeof(RingBufferItem);
+            const uint32_t n_size = item->length + sizeof(RingBufferItem);
             collect_offset += n_size;
             if (collect_offset + sizeof(RingBufferItem) > size || collect_offset >= size) {
                 collect_offset = 0;

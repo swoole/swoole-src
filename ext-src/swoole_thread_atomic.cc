@@ -16,7 +16,6 @@
 
 #include "php_swoole_cxx.h"
 #include "php_swoole_thread.h"
-#include "swoole_memory.h"
 
 #ifdef SW_THREAD
 
@@ -37,7 +36,7 @@ struct AtomicResource : public ThreadResource {
         value = _value;
     }
 
-    ~AtomicResource() override { }
+    ~AtomicResource() override {}
 };
 
 struct AtomicObject {
@@ -46,10 +45,10 @@ struct AtomicObject {
 };
 
 static sw_inline AtomicObject *atomic_fetch_object(zend_object *obj) {
-    return (AtomicObject *) ((char *) obj - swoole_thread_atomic_handlers.offset);
+    return reinterpret_cast<AtomicObject *>(reinterpret_cast<char *>(obj) - swoole_thread_atomic_handlers.offset);
 }
 
-static sw_atomic_t *atomic_get_ptr(zval *zobject) {
+static sw_atomic_t *atomic_get_ptr(const zval *zobject) {
     return &atomic_fetch_object(Z_OBJ_P(zobject))->atomic->value;
 }
 
@@ -63,7 +62,7 @@ static void atomic_free_object(zend_object *object) {
 }
 
 static zend_object *atomic_create_object(zend_class_entry *ce) {
-    AtomicObject *atomic = (AtomicObject *) zend_object_alloc(sizeof(AtomicObject), ce);
+    const auto atomic = static_cast<AtomicObject *>(zend_object_alloc(sizeof(AtomicObject), ce));
     zend_object_std_init(&atomic->std, ce);
     object_properties_init(&atomic->std, ce);
     atomic->std.handlers = &swoole_thread_atomic_handlers;
@@ -78,7 +77,7 @@ struct AtomicLongResource : public ThreadResource {
         value = _value;
     }
 
-    ~AtomicLongResource() override { }
+    ~AtomicLongResource() override {}
 };
 
 struct AtomicLongObject {
@@ -87,10 +86,11 @@ struct AtomicLongObject {
 };
 
 static sw_inline AtomicLongObject *atomic_long_fetch_object(zend_object *obj) {
-    return (AtomicLongObject *) ((char *) obj - swoole_thread_atomic_long_handlers.offset);
+    return reinterpret_cast<AtomicLongObject *>(reinterpret_cast<char *>(obj) -
+                                                swoole_thread_atomic_long_handlers.offset);
 }
 
-static sw_atomic_long_t *atomic_long_get_ptr(zval *zobject) {
+static sw_atomic_long_t *atomic_long_get_ptr(const zval *zobject) {
     return &atomic_long_fetch_object(Z_OBJ_P(zobject))->atomic->value;
 }
 
@@ -104,18 +104,18 @@ static void atomic_long_free_object(zend_object *object) {
 }
 
 static zend_object *atomic_long_create_object(zend_class_entry *ce) {
-    AtomicLongObject *atomic_long = (AtomicLongObject *) zend_object_alloc(sizeof(AtomicLongObject), ce);
+    auto atomic_long = static_cast<AtomicLongObject *>(zend_object_alloc(sizeof(AtomicLongObject), ce));
     zend_object_std_init(&atomic_long->std, ce);
     object_properties_init(&atomic_long->std, ce);
     atomic_long->std.handlers = &swoole_thread_atomic_long_handlers;
     return &atomic_long->std;
 }
 
-ThreadResource *php_swoole_thread_atomic_cast(zval *zobject) {
+ThreadResource *php_swoole_thread_atomic_cast(const zval *zobject) {
     return atomic_fetch_object(Z_OBJ_P(zobject))->atomic;
 }
 
-ThreadResource *php_swoole_thread_atomic_long_cast(zval *zobject) {
+ThreadResource *php_swoole_thread_atomic_long_cast(const zval *zobject) {
     return atomic_long_fetch_object(Z_OBJ_P(zobject))->atomic;
 }
 
@@ -182,22 +182,15 @@ void php_swoole_thread_atomic_minit(int module_number) {
     swoole_thread_atomic_ce->ce_flags |= ZEND_ACC_FINAL | ZEND_ACC_NOT_SERIALIZABLE;
     SW_SET_CLASS_CLONEABLE(swoole_thread_atomic, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_thread_atomic, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CUSTOM_OBJECT(swoole_thread_atomic,
-                               atomic_create_object,
-                               atomic_free_object,
-                               AtomicObject,
-                               std);
+    SW_SET_CLASS_CUSTOM_OBJECT(swoole_thread_atomic, atomic_create_object, atomic_free_object, AtomicObject, std);
 
     SW_INIT_CLASS_ENTRY(
         swoole_thread_atomic_long, "Swoole\\Thread\\Atomic\\Long", nullptr, swoole_thread_atomic_long_methods);
     swoole_thread_atomic_long_ce->ce_flags |= ZEND_ACC_FINAL | ZEND_ACC_NOT_SERIALIZABLE;
     SW_SET_CLASS_CLONEABLE(swoole_thread_atomic_long, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_thread_atomic_long, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CUSTOM_OBJECT(swoole_thread_atomic_long,
-                               atomic_long_create_object,
-                               atomic_long_free_object,
-                               AtomicLongObject,
-                               std);
+    SW_SET_CLASS_CUSTOM_OBJECT(
+        swoole_thread_atomic_long, atomic_long_create_object, atomic_long_free_object, AtomicLongObject, std);
 }
 
 PHP_METHOD(swoole_thread_atomic, __construct) {
@@ -210,7 +203,7 @@ PHP_METHOD(swoole_thread_atomic, __construct) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (o->atomic) {
-        zend_throw_error(NULL, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        zend_throw_error(nullptr, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
         return;
     }
     o->atomic = new AtomicResource(value);
@@ -302,7 +295,7 @@ PHP_METHOD(swoole_thread_atomic_long, __construct) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (o->atomic) {
-        zend_throw_error(NULL, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        zend_throw_error(nullptr, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
         RETURN_FALSE;
     }
     o->atomic = new AtomicLongResource(value);

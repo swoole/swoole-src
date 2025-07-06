@@ -140,8 +140,11 @@ static void test_base_server(function<void(Server *)> fn) {
     serv.heartbeat_check_interval = 1;
     serv.private_data_2 = (void *) &fn;
 
+    test::counter_init();
+
     serv.enable_static_handler = true;
-    serv.set_document_root(test::get_root_path());
+    ASSERT_TRUE(serv.set_document_root(test::get_root_path()));
+
     serv.add_static_handler_location("/examples");
     serv.add_http_compression_type("text/html");
 
@@ -152,8 +155,8 @@ static void test_base_server(function<void(Server *)> fn) {
         swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
         exit(2);
     }
-    port->open_http_protocol = 1;
-    port->open_websocket_protocol = 1;
+    port->open_http_protocol = true;
+    port->open_websocket_protocol = true;
 
     serv.create();
 
@@ -175,6 +178,8 @@ static void test_base_server(function<void(Server *)> fn) {
     serv.onReceive = [](Server *serv, RecvData *req) -> int {
         auto session_id = req->info.fd;
         auto conn = serv->get_connection_by_session_id(session_id);
+
+        test::counter_incr(0);
 
         if (conn->websocket_status == websocket::STATUS_ACTIVE) {
             sw_tg_buffer()->clear();
@@ -259,22 +264,27 @@ static void test_base_server(function<void(Server *)> fn) {
     child_thread.join();
 }
 
-static Server *test_process_server(Server::DispatchMode dispatch_mode = Server::DISPATCH_FDMOD, bool is_ssl = false) {
-    Server *server = new Server(Server::MODE_PROCESS);
+static Server *test_http_server(Server::DispatchMode dispatch_mode = Server::DISPATCH_FDMOD,
+                                bool ssl = false,
+                                int worker_num = 2,
+                                Server::Mode mode = Server::MODE_PROCESS) {
+    auto server = new Server(mode);
     server->user_ = std::string("root");
     server->group_ = std::string("root");
     server->chroot_ = std::string("/");
-    server->worker_num = 2;
+    server->worker_num = worker_num;
     server->dispatch_mode = dispatch_mode;
     server->open_cpu_affinity = true;
     sw_logger()->set_level(SW_LOG_WARNING);
 
-    ListenPort *port = is_ssl ? server->add_port((enum swSocketType)(SW_SOCK_TCP | SW_SOCK_SSL), TEST_HOST, 0)
-                              : server->add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ListenPort *port = ssl ? server->add_port((enum swSocketType)(SW_SOCK_TCP | SW_SOCK_SSL), TEST_HOST, 0)
+                           : server->add_port(SW_SOCK_TCP, TEST_HOST, 0);
 
-    port->open_http_protocol = 1;
-    port->open_websocket_protocol = 1;
-    port->open_tcp_keepalive = 1;
+    port->open_http_protocol = true;
+    port->open_websocket_protocol = true;
+    port->open_tcp_keepalive = true;
+    port->tcp_fastopen = true;
+    port->tcp_defer_accept = true;
 
     server->enable_static_handler = true;
     server->set_document_root(test::get_root_path());
@@ -322,7 +332,7 @@ static Server *test_process_server(Server::DispatchMode dispatch_mode = Server::
         settings.on_header_value = handle_on_header_value;
         settings.on_message_complete = handle_on_message_complete;
 
-        enum llhttp_errno err = llhttp_execute(&parser, req->data, req->info.len);
+        llhttp_errno err = llhttp_execute(&parser, req->data, req->info.len);
         if (err != HPE_OK) {
             fprintf(stderr, "Parse error: %s %s\n", llhttp_errno_name(err), parser.reason);
             return SW_ERR;
@@ -422,6 +432,23 @@ TEST(http_server, get) {
 
         kill(getpid(), SIGTERM);
     });
+}
+
+TEST(http_server, reset_connection) {
+    test_base_server([](Server *serv) {
+        swoole_signal_block_all();
+
+        const auto port = serv->get_primary_port();
+        Client c(SW_SOCK_TCP, false);
+        EXPECT_EQ(c.connect(TEST_HOST, port->port), 0);
+        c.send(SW_STRL("GET /index.html HTTP/1.1"));
+        usleep(10000);
+        c.close();
+
+        kill(getpid(), SIGTERM);
+    });
+
+    ASSERT_EQ(test::counter_get(0), 0);
 }
 
 TEST(http_server, heartbeat_check_interval) {
@@ -757,15 +784,15 @@ TEST(http_server, node_websocket_client_2) {
 
 TEST(http_server, parser1) {
     std::thread t;
+    string file = test::get_root_path() + "/core-tests/fuzz/cases/req1.bin";
     auto server = http_server::listen(":0", [](Context &ctx) {
         EXPECT_EQ(ctx.form_data.size(), 3);
         ctx.end("DONE");
     });
     server->worker_num = 1;
-    server->onWorkerStart = [&t](Server *server, Worker *worker) {
-        t = std::thread([server]() {
+    server->onWorkerStart = [&t, &file](Server *server, Worker *worker) {
+        t = std::thread([server, &file]() {
             swoole_signal_block_all();
-            string file = test::get_root_path() + "/core-tests/fuzz/cases/req1.bin";
             File fp(file, O_RDONLY);
             EXPECT_TRUE(fp.ready());
             auto str = fp.read_content();
@@ -819,8 +846,76 @@ TEST(http_server, parser2) {
     t.join();
 }
 
+TEST(http_server, upload) {
+    std::thread t;
+    auto server = http_server::listen(":0", [](Context &ctx) {
+        EXPECT_EQ(ctx.files.size(), 1);
+        ctx.setStatusCode(200);
+        ctx.setHeader("Connection", "close");
+        ASSERT_EQ(ctx.request_path, "/upload");
+        ASSERT_EQ(ctx.query_string, "test=curl");
+        ctx.end(TEST_STR);
+    });
+    server->worker_num = 1;
+    server->get_primary_port()->set_package_max_length(2 * 1024 * 1024);
+    server->onWorkerStart = [&t](Server *server, Worker *worker) {
+        t = std::thread([server]() {
+            swoole_signal_block_all();
+            string jpg_path = test::get_jpg_file();
+            string str_1 = "curl -s -S -H 'Transfer-Encoding: chunked' -F \"file=@" + jpg_path + "\" http://";
+            string command =
+                str_1 + TEST_HOST + ":" + to_string(server->get_primary_port()->port) + "/upload?test=curl";
+
+            pid_t pid2;
+            int pipe = swoole_shell_exec(command.c_str(), &pid2, 0);
+            usleep(200000);
+            char buf[1024] = {};
+            read(pipe, buf, sizeof(buf) - 1);
+            ASSERT_STREQ(buf, TEST_STR);
+
+            kill(server->get_master_pid(), SIGTERM);
+        });
+    };
+    server->start();
+    t.join();
+}
+
+TEST(http_server, max_request_size) {
+    std::thread t;
+    auto server = http_server::listen(":0", [](Context &ctx) {
+        EXPECT_EQ(ctx.files.size(), 1);
+        ctx.setStatusCode(200);
+        ctx.setHeader("Connection", "close");
+        ASSERT_EQ(ctx.request_path, "/upload");
+        ASSERT_EQ(ctx.query_string, "test=curl");
+        ctx.end(TEST_STR);
+    });
+    server->worker_num = 1;
+    server->get_primary_port()->set_package_max_length(128 * 1024);
+    server->onWorkerStart = [&t](Server *server, Worker *worker) {
+        t = std::thread([server]() {
+            swoole_signal_block_all();
+            string jpg_path = test::get_jpg_file();
+            string str_1 = "curl -i -s -S -F \"file=@" + jpg_path + "\" http://";
+            string command =
+                str_1 + TEST_HOST + ":" + to_string(server->get_primary_port()->port) + "/upload?test=curl";
+
+            pid_t pid2;
+            int pipe = swoole_shell_exec(command.c_str(), &pid2, 0);
+            usleep(200000);
+            char buf[1024] = {};
+            read(pipe, buf, sizeof(buf) - 1);
+            ASSERT_TRUE(strstr(buf, "413 Request Entity Too Large") != nullptr);
+
+            kill(server->get_master_pid(), SIGTERM);
+        });
+    };
+    server->start();
+    t.join();
+}
+
 TEST(http_server, heartbeat) {
-    Server *server = test_process_server();
+    Server *server = test_http_server();
     server->heartbeat_check_interval = 0;
     auto port = server->get_primary_port();
     port->set_package_max_length(1024);
@@ -852,7 +947,7 @@ TEST(http_server, heartbeat) {
 }
 
 TEST(http_server, overflow) {
-    Server *server = test_process_server();
+    Server *server = test_http_server();
     auto port = server->get_primary_port();
 
     pid_t pid = fork();
@@ -880,7 +975,7 @@ TEST(http_server, overflow) {
 }
 
 TEST(http_server, process) {
-    Server *server = test_process_server();
+    Server *server = test_http_server();
     pid_t pid = fork();
 
     if (pid == 0) {
@@ -908,7 +1003,7 @@ TEST(http_server, process) {
 }
 
 TEST(http_server, process1) {
-    Server *server = test_process_server();
+    Server *server = test_http_server();
     pid_t pid = fork();
 
     if (pid == 0) {
@@ -935,7 +1030,7 @@ TEST(http_server, process1) {
 }
 
 TEST(http_server, redundant_callback) {
-    Server *server = test_process_server(Server::DISPATCH_IDLE_WORKER);
+    Server *server = test_http_server(Server::DISPATCH_IDLE_WORKER);
     server->onConnect = [](Server *serv, DataHead *info) -> int { return 0; };
     server->onClose = [](Server *serv, DataHead *info) -> int { return 0; };
     server->onBufferFull = [](Server *serv, DataHead *info) -> int { return 0; };
@@ -959,7 +1054,7 @@ TEST(http_server, redundant_callback) {
 }
 
 TEST(http_server, pause) {
-    Server *server = test_process_server();
+    Server *server = test_http_server();
     pid_t pid = fork();
 
     if (pid == 0) {
@@ -977,6 +1072,7 @@ TEST(http_server, pause) {
         httplib::Client cli(TEST_HOST, port->port);
         cli.set_keep_alive(true);
         auto resp = cli.Get("/pause");
+        ASSERT_NE(resp, nullptr);
         ASSERT_EQ(resp->status, 200);
         ASSERT_EQ(resp->body, string("hello world"));
 
@@ -986,7 +1082,7 @@ TEST(http_server, pause) {
 }
 
 TEST(http_server, sni) {
-    Server *server = test_process_server(Server::DISPATCH_FDMOD, true);
+    Server *server = test_http_server(Server::DISPATCH_FDMOD, true);
     ListenPort *port = server->get_primary_port();
     port->set_ssl_cert_file(test::get_ssl_dir() + "/server.crt");
     port->set_ssl_key_file(test::get_ssl_dir() + "/server.key");
@@ -1042,7 +1138,7 @@ TEST(http_server, sni) {
 }
 
 TEST(http_server, bad_request) {
-    Server *server = test_process_server();
+    Server *server = test_http_server();
 
     pid_t pid = fork();
 
@@ -1080,40 +1176,39 @@ TEST(http_server, bad_request) {
 }
 
 TEST(http_server, chunked) {
-    Server *server = test_process_server();
+    Server *server = test_http_server(Server::DISPATCH_FDMOD, false, 1, Server::MODE_BASE);
 
-    pid_t pid = fork();
+    std::thread t;
+    server->onStart = [&](Server *_server) {
+        t = std::thread([server]() {
+            swoole_signal_block_all();
+            usleep(300000);
 
-    if (pid == 0) {
-        server->start();
-        exit(0);
-    }
+            string jpg_path = test::get_jpg_file();
+            string str_1 = "curl -s -S -H 'Transfer-Encoding: chunked' -F \"file=@" + jpg_path + "\" http://";
+            string str_2 = ":";
+            string host = TEST_HOST;
+            string port = to_string(server->get_primary_port()->port);
+            string command = str_1 + host + str_2 + port;
 
-    if (pid > 0) {
-        ON_SCOPE_EXIT {
+            pid_t pid2;
+            int pipe = swoole_shell_exec(command.c_str(), &pid2, 0);
+            sleep(1);
+
+            char buf[1024] = {};
+            read(pipe, buf, sizeof(buf) - 1);
+            ASSERT_STREQ(buf, "hello world");
             kill(server->get_master_pid(), SIGTERM);
-        };
-        sleep(1);
+        });
+    };
 
-        string jpg_path = test::get_jpg_file();
-        string str_1 = "curl -H 'Transfer-Encoding: chunked' -F \"file=@" + jpg_path + "\" http://";
-        string str_2 = ":";
-        string host = TEST_HOST;
-        string port = to_string(server->get_primary_port()->port);
-        string command = str_1 + host + str_2 + port;
-
-        pid_t pid2;
-        int pipe = swoole_shell_exec(command.c_str(), &pid2, 0);
-        sleep(1);
-
-        char buf[1024] = {};
-        read(pipe, buf, sizeof(buf) - 1);
-        ASSERT_STREQ(buf, "hello world");
-    }
+    server->start();
+    t.join();
+    delete server;
 }
 
 TEST(http_server, max_queued_bytes) {
-    Server *server = test_process_server();
+    Server *server = test_http_server();
     server->max_queued_bytes = 100;
 
     pid_t pid = fork();
@@ -1131,11 +1226,8 @@ TEST(http_server, max_queued_bytes) {
         sleep(1);
 
         string jpg_path = test::get_jpg_file();
-        string str_1 = "curl -H 'Transfer-Encoding: chunked' -F \"file=@" + jpg_path + "\" http://";
-        string str_2 = ":";
-        string host = TEST_HOST;
-        string port = to_string(server->get_primary_port()->port);
-        string command = str_1 + host + str_2 + port;
+        string str_1 = "curl -s -S -H 'Transfer-Encoding: chunked' -F \"file=@" + jpg_path + "\" http://";
+        string command = str_1 + TEST_HOST + ":" + to_string(server->get_primary_port()->port);
 
         pid_t pid2;
         int pipe = swoole_shell_exec(command.c_str(), &pid2, 0);
@@ -1145,10 +1237,12 @@ TEST(http_server, max_queued_bytes) {
         read(pipe, buf, sizeof(buf) - 1);
         ASSERT_STREQ(buf, "hello world");
     }
+
+    test::wait_all_child_processes();
 }
 
 TEST(http_server, dispatch_func_return_error_worker_id) {
-    Server *server = test_process_server();
+    Server *server = test_http_server();
     server->dispatch_func = [](Server *serv, Connection *conn, SendData *data) -> int {
         return data->info.fd % 2 == 0 ? Server::DISPATCH_RESULT_DISCARD_PACKET
                                       : Server::DISPATCH_RESULT_CLOSE_CONNECTION;
@@ -1176,7 +1270,7 @@ TEST(http_server, dispatch_func_return_error_worker_id) {
 }
 
 TEST(http_server, client_ca) {
-    Server *server = test_process_server(Server::DISPATCH_FDMOD, true);
+    Server *server = test_http_server(Server::DISPATCH_FDMOD, true);
     ListenPort *port = server->get_primary_port();
     port->set_ssl_cert_file(test::get_ssl_dir() + "/server.crt");
     port->set_ssl_key_file(test::get_ssl_dir() + "/server.key");
@@ -1252,7 +1346,7 @@ static bool request_with_if_range_header(const char *date_format, std::string po
 }
 
 TEST(http_server, http_range) {
-    Server *server = test_process_server();
+    Server *server = test_http_server();
     server->http_autoindex = true;
     server->add_static_handler_location("/docs");
 
@@ -1303,7 +1397,7 @@ static bool request_with_diff_range(std::string port, std::string range) {
 }
 
 TEST(http_server, http_range2) {
-    Server *server = test_process_server();
+    Server *server = test_http_server();
     server->add_static_handler_location("/docs");
     server->add_static_handler_index_files("swoole-logo.svg");
 
@@ -1332,19 +1426,20 @@ TEST(http_server, abort_connection) {
     sw_logger()->set_level(SW_LOG_WARNING);
 
     ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
-    if (!port) {
-        swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
-        exit(2);
-    }
-    port->open_http_protocol = 1;
+    ASSERT_NE(port, nullptr);
+    port->open_http_protocol = true;
+
+    auto port_dgram = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_NE(port_dgram, nullptr);
+
     serv.create();
 
-    Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
-    lock->lock();
+    Mutex lock(Mutex::PROCESS_SHARED);
+    lock.lock();
 
-    thread th([&serv, port, lock]() {
+    thread th([&serv, port, &lock]() {
         swoole_signal_block_all();
-        lock->lock();
+        lock.lock();
 
         int n = 16;
         SyncClient *clients[n];
@@ -1364,7 +1459,7 @@ TEST(http_server, abort_connection) {
         serv.shutdown();
     });
 
-    serv.onStart = [lock](Server *serv) { lock->unlock(); };
+    serv.onStart = [&lock](Server *serv) { lock.unlock(); };
 
     serv.onReceive = [&](Server *server, RecvData *req) -> int { return SW_OK; };
     serv.start();
@@ -1855,4 +1950,18 @@ static void test_ssl_http(Server::Mode mode) {
 
 TEST(http_server, ssl) {
     test_ssl_http(Server::MODE_BASE);
+}
+
+TEST(http_server, fail) {
+    Server serv(Server::MODE_BASE);
+    serv.worker_num = 1;
+
+    std::string bad_path;
+    bad_path.resize(PATH_MAX + 4);
+    ASSERT_FALSE(serv.set_document_root(bad_path));
+    ASSERT_ERREQ(SW_ERROR_NAME_TOO_LONG);
+
+    std::string not_exists_path("/tmp/swoole-core-tests-not-exists");
+    ASSERT_FALSE(serv.set_document_root(not_exists_path));
+    ASSERT_ERREQ(SW_ERROR_DIR_NOT_EXIST);
 }
