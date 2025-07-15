@@ -620,6 +620,16 @@ int swoole_coroutine_fdatasync(int fd) {
     return retval;
 }
 
+int swoole_coroutine_ftruncate(int fd, off_t length) {
+    if (sw_unlikely(is_no_coro())) {
+        return ftruncate(fd, length);
+    }
+
+    int retval = -1;
+    async([&]() { retval = ftruncate(fd, length); });
+    return retval;
+}
+
 #ifdef SW_USE_IOURING
 int swoole_coroutine_iouring_open(const char *pathname, int flags, mode_t mode) {
     if (sw_unlikely(is_no_coro())) {
@@ -647,6 +657,10 @@ ssize_t swoole_coroutine_iouring_write(int sockfd, const void *buf, size_t size)
         return write(sockfd, buf, size);
     }
     return Iouring::write(sockfd, buf, size);
+}
+
+off_t swoole_coroutine_iouring_lseek(int fd, off_t offset, int whence) {
+    return lseek(fd, offset, whence);
 }
 
 int swoole_coroutine_iouring_rename(const char *oldpath, const char *newpath) {
@@ -714,6 +728,15 @@ int swoole_coroutine_iouring_fdatasync(int fd) {
     }
     return Iouring::fdatasync(fd);
 }
+
+#ifdef HAVE_IOURING_FTRUNCATE
+int swoole_coroutine_iouring_ftruncate(int fd, off_t length) {
+    if (sw_unlikely(is_no_coro())) {
+        return ftruncate(fd, length);
+    }
+    return Iouring::ftruncate(fd, length);
+}
+#endif
 #endif
 
 SW_EXTERN_C_END

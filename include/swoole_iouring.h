@@ -86,6 +86,9 @@ class Iouring {
     static int futex_wait(uint32_t *futex);
     static int futex_wakeup(uint32_t *futex);
 #endif
+#ifdef HAVE_IOURING_FTRUNCATE
+    static int ftruncate(int fd, off_t length);
+#endif
 
     static std::unordered_map<std::string, int> list_all_opcode();
     static int callback(Reactor *reactor, Event *event);
