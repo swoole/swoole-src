@@ -255,11 +255,10 @@ ssize_t swoole_coroutine_read(int sockfd, void *buf, size_t count) {
     }
 
     ssize_t ret = -1;
-    NetSocket sock{
-        .fd = sockfd,
-        .nonblock = 1,
-        .read_timeout = -1,
-    };
+    NetSocket sock = {};
+    sock.fd = sockfd;
+    sock.nonblock = 1;
+    sock.read_timeout = -1;
     async([&]() { ret = sock.read_sync(buf, count); });
     return ret;
 }
@@ -275,11 +274,10 @@ ssize_t swoole_coroutine_write(int sockfd, const void *buf, size_t count) {
     }
 
     ssize_t ret = -1;
-    NetSocket sock{
-        .fd = sockfd,
-        .nonblock = 1,
-        .write_timeout = -1,
-    };
+    NetSocket sock = {};
+    sock.fd = sockfd;
+    sock.nonblock = 1;
+    sock.write_timeout = -1;
     async([&]() { ret = sock.write_sync(buf, count); });
     return ret;
 }
