@@ -156,4 +156,32 @@ class File {
 
 File make_tmpfile();
 
+class AsyncFile {
+  private:
+    int fd = -1;
+    int flags_ = 0;
+    int mode_ = 0;
+    std::string path_ = "";
+
+  public:
+    AsyncFile(const std::string &path, int flags, int mode);
+    ~AsyncFile();
+
+    bool open(const std::string &path, int flags, mode_t mode);
+    bool close();
+
+    ssize_t read(void *buf, size_t count) const;
+    ssize_t write(void *buf, size_t count) const;
+
+    bool sync() const;
+    bool truncate(off_t length) const;
+    bool stat(FileStatus *statbuf) const;
+
+    off_t get_offset() const;
+    off_t set_offset(off_t offset) const;
+
+    bool ready() const {
+        return fd != -1;
+    }
+};
 }  // namespace swoole
