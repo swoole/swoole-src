@@ -481,11 +481,7 @@ static int sw_php_stdiop_close(php_stream *stream, int close_handle) {
             if ((data->lock_flag & LOCK_EX) || (data->lock_flag & LOCK_SH)) {
                 swoole_coroutine_flock(data->fd, LOCK_UN);
             }
-            if (data->can_poll) {
-                ret = swoole_coroutine_close(data->fd);
-            } else {
-                ret = close_file(data->fd);
-            }
+            ret = close(data->fd);
             data->fd = -1;
         } else {
             return 0; /* everything should be closed already -> success */
@@ -1161,7 +1157,7 @@ static php_stream *_sw_php_stream_fopen(const char *filename,
 
             return ret;
         }
-        close_file(fd);
+        close(fd);
     }
     if (persistent_id) {
         efree(persistent_id);
@@ -1517,7 +1513,7 @@ static int php_plain_files_metadata(
                 php_error_docref1(NULL, url, E_WARNING, "Unable to create file %s because %s", url, strerror(errno));
                 return 0;
             }
-            close_file(file);
+            close(file);
         }
 
         ret = utime(url, newtime);
