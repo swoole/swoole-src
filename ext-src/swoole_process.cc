@@ -317,6 +317,7 @@ static PHP_METHOD(swoole_process, __construct) {
     zend::Process *proc = new zend::Process((enum zend::PipeType) pipe_type, enable_coroutine);
     process->ptr2 = proc;
 
+    zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("id"), process->id);
     zend_update_property(
         swoole_process_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("callback"), ZEND_CALL_ARG(execute_data, 1));
     php_swoole_process_set_worker(ZEND_THIS, process);
