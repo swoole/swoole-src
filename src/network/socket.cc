@@ -472,7 +472,7 @@ void Socket::free() {
     delete out_buffer;
 
     if (swoole_event_is_available()) {
-        if (!removed) {
+        if (fd != -1 && !removed) {
             swoole_event_del(this);
         }
         swoole_event_defer(socket_free_defer, this);
