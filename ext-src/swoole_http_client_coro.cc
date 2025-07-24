@@ -535,7 +535,7 @@ static int http_parser_on_body(llhttp_t *parser, const char *at, size_t length) 
             }
             http->download_file = fp;
         }
-        if (http->download_file->write(SW_STRINGL(http->body)) != (ssize_t) http->body->length) {
+        if (http->download_file->write(http->body) != (ssize_t) http->body->length) {
             return -1;
         }
         http->body->clear();

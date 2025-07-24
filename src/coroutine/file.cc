@@ -47,7 +47,7 @@ ssize_t AsyncFile::read(void *buf, size_t count) const {
     return swoole_coroutine_read(fd, buf, count);
 }
 
-ssize_t AsyncFile::write(void *buf, size_t count) const {
+ssize_t AsyncFile::write(const void *buf, size_t count) const {
     return swoole_coroutine_write(fd, buf, count);
 }
 
