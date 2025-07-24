@@ -45,13 +45,13 @@ void static test_file_hook() {
     ASSERT_EQ(swoole_coroutine_fsync(fd), 0);
     ASSERT_EQ(swoole_coroutine_fdatasync(fd), 0);
 
-    swoole_coroutine_close_file(fd);
+    swoole_coroutine_close(fd);
 
     fd = swoole_coroutine_open(test_file, O_RDONLY, 0);
     char data[8192];
     ASSERT_EQ(swoole_coroutine_read(fd, data, n_buf), n_buf);
     ASSERT_EQ(std::string(buf, n_buf), std::string(data, n_buf));
-    swoole_coroutine_close_file(fd);
+    swoole_coroutine_close(fd);
 
     struct stat statbuf;
     swoole_coroutine_stat(test_file, &statbuf);
@@ -734,4 +734,18 @@ static void test_freopen() {
 TEST(coroutine_hook, freopen) {
     coroutine::run([&](void *arg) { test_freopen(); });
     test_freopen();
+}
+
+TEST(coroutine_hook, ftruncate) {
+    coroutine::run([&](void *arg) {
+        int fd = swoole_coroutine_open("/tmp/123.txt", O_CREAT | O_RDWR, 0);
+        ASSERT_TRUE(fd > 0);
+
+        const char *data = "aaaaaaaaaaaaaaaaaaaaaaa";
+        size_t length = strlen(data);
+        ssize_t write_length = swoole_coroutine_write(fd, (const void *) data, length);
+        ASSERT_TRUE(write_length == static_cast<ssize_t>(length));
+        ASSERT_TRUE(swoole_coroutine_ftruncate(fd, 0) == 0);
+        swoole_coroutine_close(fd);
+    });
 }

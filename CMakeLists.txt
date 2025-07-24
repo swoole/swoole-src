@@ -127,6 +127,12 @@ if (DEFINED enable_thread)
     add_definitions(-DSW_THREAD)
 endif()
 
+if (DEFINED async_io)
+    # This macro is exclusively used for kernel unit testing to
+    # verify the asynchronous operation functionality of the file thread pool.
+    add_definitions(-DSW_USE_ASYNC)
+endif()
+
 if (DEFINED verbose)
     add_definitions(-DSW_VERBOSE)
 endif()
