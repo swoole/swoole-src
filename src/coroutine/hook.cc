@@ -461,7 +461,11 @@ ssize_t swoole_coroutine_read(int sockfd, void *buf, size_t count) {
 
 #ifdef SW_USE_ASYNC
     ssize_t ret = -1;
-    async([&]() { ret = read(sockfd, buf, count); });
+    NetSocket sock = {};
+    sock.fd = sockfd;
+    sock.nonblock = 1;
+    sock.read_timeout = -1;
+    async([&]() { ret = sock.read_sync(buf, count); });
     return ret;
 #else
     return Iouring::read(sockfd, buf, count);
@@ -480,7 +484,11 @@ ssize_t swoole_coroutine_write(int sockfd, const void *buf, size_t count) {
 
 #ifdef SW_USE_ASYNC
     ssize_t ret = -1;
-    async([&]() { ret = write(sockfd, buf, count); });
+    NetSocket sock = {};
+    sock.fd = sockfd;
+    sock.nonblock = 1;
+    sock.write_timeout = -1;
+    async([&]() { ret = sock.write_sync(buf, count); });
     return ret;
 #else
     return Iouring::write(sockfd, buf, count);
