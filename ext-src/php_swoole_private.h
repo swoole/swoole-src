@@ -308,6 +308,7 @@ void php_swoole_thread_queue_minit(int module_number);
 void php_swoole_thread_map_minit(int module_number);
 void php_swoole_thread_arraylist_minit(int module_number);
 #endif
+void php_swoole_stdext_minit(int module_number);
 
 /**
  * RINIT
@@ -391,10 +392,10 @@ php_socket *php_swoole_convert_to_socket(int sock);
 bool php_swoole_array_to_cpu_set(const zval *array, cpu_set_t *cpu_set);
 /**
  * Converts a cpu_set_t structure to a PHP array.
- * 
+ *
  * Note: On Cygwin platform, CPU_ISSET is a function that takes a non-const pointer as its second parameter,
  * which is why the cpu_set parameter cannot be declared as const.
- * 
+ *
  * @param array The PHP array to store the CPU set information
  * @param cpu_set The CPU set structure to convert
  */

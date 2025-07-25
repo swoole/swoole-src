@@ -1,0 +1,24 @@
+<?php
+function swoole_call_array_method(mixed ...$args): mixed {
+}
+
+function swoole_call_string_method(mixed ...$args): mixed {
+}
+
+function swoole_array_search(array $array, mixed $value, bool $strict = false):int|string|false {
+}
+
+function swoole_array_contains(array $array, mixed $needle, bool $strict = false):bool {
+}
+
+function swoole_array_join(array $array, string $separator):string {
+}
+
+function swoole_array_key_exists(array $array, string|int|float|bool|resource|null $key): bool {
+}
+
+function swoole_array_map(array $array, ?callable $callback, array ...$arrays): array {
+}
+
+function swoole_str_split(string $string, string $delimiter, int $limit = PHP_INT_MAX):array {
+}
