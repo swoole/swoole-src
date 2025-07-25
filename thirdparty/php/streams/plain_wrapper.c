@@ -182,8 +182,7 @@ typedef struct {
     unsigned no_forced_fstat:1;                 /* Use fstat cache even if forced */
     unsigned is_seekable:1;		        /* don't try and seek, if not set */
     unsigned can_poll:1;
-    unsigned seekable_detected:1;
-    unsigned _reserved:24;
+    unsigned _reserved:25;
 
     int lock_flag;			        /* stores the lock state */
     zend_string *temp_name;	                /* if non-null, this is the path to a temporary file that
@@ -253,7 +252,6 @@ static void _sw_detect_is_seekable(php_stdio_stream_data *self) {
         self->is_seekable = !(S_ISFIFO(self->sb.st_mode) || S_ISCHR(self->sb.st_mode));
         self->is_pipe = S_ISFIFO(self->sb.st_mode);
         self->can_poll = S_ISFIFO(self->sb.st_mode) || S_ISSOCK(self->sb.st_mode) || S_ISCHR(self->sb.st_mode);
-        self->seekable_detected = 1;
         if (self->can_poll) {
             swoole_coroutine_socket_create(self->fd);
         }
@@ -331,9 +329,6 @@ static php_stream_size_t sw_php_stdiop_write(php_stream *stream, const char *buf
         bytes_written = _write(data->fd, buf, (unsigned int)count);
 #else
         php_stdio_stream_data *self = (php_stdio_stream_data *) stream->abstract;
-        if (!self->seekable_detected) {
-            _sw_detect_is_seekable(self);
-        }
         ssize_t bytes_written = write(data->fd, buf, count);
 #endif
         if (bytes_written < 0) {
@@ -397,9 +392,6 @@ static php_stream_size_t sw_php_stdiop_read(php_stream *stream, char *buf, size_
         }
 #endif
         php_stdio_stream_data *self = (php_stdio_stream_data *) stream->abstract;
-        if (!self->seekable_detected) {
-            _sw_detect_is_seekable(self);
-        }
         ret = read(data->fd, buf, PLAIN_WRAP_BUF_SIZE(count));
 
         if (ret == (ssize_t) -1 && errno == EINTR) {
