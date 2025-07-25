@@ -46,13 +46,13 @@ TEST(iouring, list_all_opcode) {
 TEST(iouring, open_and_close) {
     coroutine::run([](void *arg) {
         const char *test_file = "/tmp/file_1";
-        int fd = swoole_coroutine_iouring_open(test_file, O_CREAT, 0666);
+        int fd = Iouring::open(test_file, O_CREAT, 0666);
         ASSERT_TRUE(fd > 0);
 
-        int result = swoole_coroutine_iouring_close_file(fd);
+        int result = Iouring::close(fd);
         ASSERT_TRUE(result == 0);
 
-        result = swoole_coroutine_iouring_unlink(test_file);
+        result = Iouring::unlink(test_file);
         ASSERT_TRUE(result == 0);
     });
 }
@@ -60,10 +60,10 @@ TEST(iouring, open_and_close) {
 TEST(iouring, mkdir_and_rmdir) {
     coroutine::run([](void *arg) {
         const char *directory = "/tmp/aaaa";
-        int result = swoole_coroutine_iouring_mkdir(directory, 0755);
+        int result = Iouring::mkdir(directory, 0755);
         ASSERT_TRUE(result == 0);
 
-        result = swoole_coroutine_iouring_rmdir(directory);
+        result = Iouring::rmdir(directory);
         ASSERT_TRUE(result == 0);
     });
 }
@@ -71,28 +71,28 @@ TEST(iouring, mkdir_and_rmdir) {
 TEST(iouring, write_and_read) {
     coroutine::run([](void *arg) {
         const char *test_file = "/tmp/file_2";
-        int fd = swoole_coroutine_iouring_open(test_file, O_CREAT | O_RDWR, 0666);
+        int fd = Iouring::open(test_file, O_CREAT | O_RDWR, 0666);
         ASSERT_TRUE(fd > 0);
 
         const char *data = "aaaaaaaaaaaaaaaaaaaaaaa";
         size_t length = strlen(data);
-        ssize_t result = swoole_coroutine_iouring_write(fd, (const void *) data, length);
+        ssize_t result = Iouring::write(fd, (const void *) data, length);
         ASSERT_TRUE(result > 0);
         ASSERT_TRUE(result == static_cast<ssize_t>(length));
 
         lseek(fd, 0, SEEK_SET);
 
         char buf[128];
-        result = swoole_coroutine_iouring_read(fd, (void *) buf, 128);
+        result = Iouring::read(fd, (void *) buf, 128);
         ASSERT_TRUE(result > 0);
         ASSERT_TRUE(result == static_cast<ssize_t>(length));
         buf[result] = '\0';
         ASSERT_STREQ(data, buf);
 
-        result = swoole_coroutine_iouring_close_file(fd);
+        result = Iouring::close(fd);
         ASSERT_TRUE(result == 0);
 
-        result = swoole_coroutine_iouring_unlink(test_file);
+        result = Iouring::unlink(test_file);
         ASSERT_TRUE(result == 0);
     });
 }
@@ -101,64 +101,85 @@ TEST(iouring, rename) {
     coroutine::run([](void *arg) {
         const char *oldpath = "/tmp/file_2";
         const char *newpath = "/tmp/file_3";
-        int fd = swoole_coroutine_iouring_open(oldpath, O_CREAT | O_RDWR, 0666);
+        int fd = Iouring::open(oldpath, O_CREAT | O_RDWR, 0666);
         ASSERT_TRUE(fd > 0);
 
-        int result = swoole_coroutine_iouring_close_file(fd);
+        int result = Iouring::close(fd);
         ASSERT_TRUE(result == 0);
 
-        result = swoole_coroutine_iouring_rename(oldpath, newpath);
+        result = Iouring::rename(oldpath, newpath);
         ASSERT_TRUE(result == 0);
 
-        result = swoole_coroutine_iouring_unlink(newpath);
+        result = Iouring::unlink(newpath);
         ASSERT_TRUE(result == 0);
     });
 }
 
+#ifdef HAVE_IOURING_STATX
 TEST(iouring, fstat_and_stat) {
     coroutine::run([](void *arg) {
         struct stat statbuf {};
-        int fd = swoole_coroutine_iouring_open(TEST_TMP_FILE, O_RDWR, 0666);
+        int fd = Iouring::open(TEST_TMP_FILE, O_RDWR, 0666);
         ASSERT_TRUE(fd > 0);
-        int result = swoole_coroutine_iouring_fstat(fd, &statbuf);
+        int result = Iouring::fstat(fd, &statbuf);
         ASSERT_TRUE(result == 0);
         ASSERT_TRUE(statbuf.st_size > 0);
 
-        result = swoole_coroutine_iouring_close_file(fd);
+        result = Iouring::close(fd);
         ASSERT_TRUE(result == 0);
 
         statbuf = {};
-        result = swoole_coroutine_iouring_stat(TEST_TMP_FILE, &statbuf);
+        result = Iouring::stat(TEST_TMP_FILE, &statbuf);
         ASSERT_TRUE(result == 0);
         ASSERT_TRUE(statbuf.st_size > 0);
     });
 }
+#endif
 
 TEST(iouring, fsync_and_fdatasync) {
     coroutine::run([](void *arg) {
         const char *test_file = "/tmp/file_2";
-        int fd = swoole_coroutine_iouring_open(test_file, O_CREAT | O_RDWR, 0666);
+        int fd = Iouring::open(test_file, O_CREAT | O_RDWR, 0666);
         ASSERT_TRUE(fd > 0);
 
         const char *data = "aaaaaaaaaaaaaaaaaaaaaaa";
         size_t length = strlen(data);
-        ssize_t write_length = swoole_coroutine_iouring_write(fd, (const void *) data, length);
+        ssize_t write_length = Iouring::write(fd, (const void *) data, length);
         ASSERT_TRUE(write_length == static_cast<ssize_t>(length));
 
-        int result = swoole_coroutine_iouring_fsync(fd);
+        int result = Iouring::fsync(fd);
         ASSERT_TRUE(result == 0);
 
-        write_length = swoole_coroutine_iouring_write(fd, (const void *) data, length);
+        write_length = Iouring::write(fd, (const void *) data, length);
         ASSERT_TRUE(write_length == static_cast<ssize_t>(length));
 
-        result = swoole_coroutine_iouring_fdatasync(fd);
+        result = Iouring::fdatasync(fd);
         ASSERT_TRUE(result == 0);
 
-        result = swoole_coroutine_iouring_close_file(fd);
+        result = Iouring::close(fd);
         ASSERT_TRUE(result == 0);
 
-        result = swoole_coroutine_iouring_unlink(test_file);
+        result = Iouring::unlink(test_file);
         ASSERT_TRUE(result == 0);
     });
 }
+
+#ifdef HAVE_IOURING_FTRUNCATE
+TEST(iouring, ftruncate) {
+    coroutine::run([&](void *arg) {
+        const char *test_file = "/tmp/file_3";
+        int fd = Iouring::open(test_file, O_CREAT | O_RDWR, 0666);
+        ASSERT_TRUE(fd > 0);
+
+        const char *data = "aaaaaaaaaaaaaaaaaaaaaaa";
+        size_t length = strlen(data);
+        ssize_t write_length = Iouring::write(fd, (const void *) data, length);
+        ASSERT_TRUE(write_length == static_cast<ssize_t>(length));
+
+        int result = Iouring::ftruncate(fd, 0);
+        ASSERT_TRUE(result == 0);
+        Iouring::close(fd);
+    });
+}
+#endif
 #endif

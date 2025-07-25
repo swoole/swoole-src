@@ -250,6 +250,7 @@ static zend::ConcurrencyHashMap<std::string, zend_internal_arg_info *> ori_func_
 SW_EXTERN_C_BEGIN
 #include "ext/standard/file.h"
 #include "thirdparty/php/streams/plain_wrapper.c"
+#undef close
 SW_EXTERN_C_END
 
 void php_swoole_runtime_minit(int module_number) {

@@ -36,7 +36,7 @@ SW_EXTERN_C_BEGIN
 #include "ext/standard/base64.h"
 
 SW_EXTERN_C_END
-using swoole::File;
+using swoole::AsyncFile;
 using swoole::String;
 using swoole::coroutine::Socket;
 using swoole::network::Address;
@@ -126,8 +126,8 @@ class Client {
     bool in_callback = false;
     bool has_upload_files = false;
 
-    std::shared_ptr<File> download_file;  // save http response to file
-    zend::String download_file_name;      // unlink the file on error
+    std::shared_ptr<AsyncFile> download_file;  // save http response to file
+    zend::String download_file_name;           // unlink the file on error
     zend_long download_offset = 0;
 
     /* safety zval */
@@ -486,14 +486,6 @@ static int http_parser_on_headers_complete(llhttp_t *parser) {
     return 0;
 }
 
-static inline ssize_t http_client_co_write(int sockfd, const void *buf, size_t count) {
-#ifdef SW_USE_IOURING
-    return swoole_coroutine_iouring_write(sockfd, buf, count);
-#else
-    return swoole_coroutine_write(sockfd, buf, count);
-#endif
-}
-
 static int http_parser_on_body(llhttp_t *parser, const char *at, size_t length) {
     auto *http = static_cast<Client *>(parser->data);
     if (http->write_func) {
@@ -525,7 +517,7 @@ static int http_parser_on_body(llhttp_t *parser, const char *at, size_t length) 
     if (http->download_file_name.get() && http->body->length > 0) {
         if (http->download_file == nullptr) {
             char *download_file_name = http->download_file_name.val();
-            std::shared_ptr<File> fp = std::make_shared<File>(download_file_name, O_CREAT | O_WRONLY, 0664);
+            auto fp = std::make_shared<AsyncFile>(download_file_name, O_CREAT | O_WRONLY, 0664);
             if (!fp->ready()) {
                 swoole_sys_warning("open(%s, O_CREAT | O_WRONLY) failed", download_file_name);
                 return -1;
@@ -543,8 +535,7 @@ static int http_parser_on_body(llhttp_t *parser, const char *at, size_t length) 
             }
             http->download_file = fp;
         }
-        if (http_client_co_write(http->download_file->get_fd(), SW_STRINGL(http->body)) !=
-            (ssize_t) http->body->length) {
+        if (http->download_file->write(http->body) != (ssize_t) http->body->length) {
             return -1;
         }
         http->body->clear();
