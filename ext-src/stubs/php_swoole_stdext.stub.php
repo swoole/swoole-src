@@ -7,7 +7,6 @@
  * @license  https://github.com/swoole/library/blob/master/LICENSE
  */
 
-declare(strict_types=1);
 function swoole_call_array_method(mixed ...$args): mixed {}
 
 function swoole_call_string_method(mixed ...$args): mixed {}
