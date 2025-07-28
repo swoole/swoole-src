@@ -15,6 +15,7 @@
  */
 
 #include "php_swoole_stdext.h"
+#include "php_variables.h"
 
 #define MAX_ARGC 8
 
@@ -37,16 +38,11 @@ static zend_function *get_function(const zend_array *function_table, const char 
     return static_cast<zend_function *>(zend_hash_str_find_ptr(function_table, name, name_len));
 }
 
-static void call_func_switch_arg_1_and_2(zend_function *fn, zend_execute_data *execute_data, zval *retval) {
-    zval argv[MAX_ARGC];
-    const zval *arg_ptr = ZEND_CALL_ARG(execute_data, 1);
-    const int arg_count = MIN(ZEND_CALL_NUM_ARGS(execute_data), MAX_ARGC);
-    argv[0] = arg_ptr[1];
-    argv[1] = arg_ptr[0];
-    for (int i = 2; i < arg_count; i++) {
-        argv[i] = arg_ptr[i];
+static void call_function(zend_function *fn, int argc, zval *argv, zval *retval) {
+    zend_call_known_function(fn, nullptr, nullptr, retval, argc, argv, nullptr);
+    if (call_info.op1_type == IS_VAR) {
+        zval_ptr_dtor(&call_info.this_);
     }
-    zend_call_known_function(fn, nullptr, nullptr, retval, arg_count, argv, nullptr);
 }
 
 static std::unordered_map<std::string, std::string> array_methods = {
@@ -84,6 +80,14 @@ static std::unordered_map<std::string, std::string> array_methods = {
     {"count", "count"},
     {"contains", "swoole_array_contains"},
     {"join", "swoole_array_join"},
+    // pass by ref
+    {"sort", "sort"},
+    {"pop", "array_pop"},
+    {"push", "array_push"},
+    {"shift", "array_shift"},
+    {"unshift", "array_unshift"},
+    {"shift", "array_splice"},
+    {"walk", "array_walk"},
 };
 
 static std::unordered_map<std::string, std::string> string_methods = {
@@ -106,7 +110,8 @@ static std::unordered_map<std::string, std::string> string_methods = {
     {"ltrim", "ltrim"},
     {"rtrim", "rtrim"},
     {"nl2br", "nl2br"},
-    {"parseUrlQuery", "parse_str"},
+    {"parseStr", "swoole_parse_str"},
+    {"parseUrl", "parse_url"},
     {"soundex", "soundex"},
     {"contains", "str_contains"},
     {"increment", "str_increment"},
@@ -131,10 +136,31 @@ static std::unordered_map<std::string, std::string> string_methods = {
     {"upperCaseWords", "ucwords"},
     {"indexOf", "strpos"},
     {"substr", "substr"},
+    {"substrCompare", "substr_compare"},
+    {"substrCount", "substr_count"},
+    {"substrReplace", "substr_replace"},
     {"md5", "md5"},
     {"sha1", "sha1"},
+    {"hash", "swoole_hash"},
     {"crc32", "crc32"},
+    {"wordWrap", "wordwrap"},
+    {"base64Decode", "base64_decode"},
+    {"base64Encode", "base64_encode"},
+    {"urlDecode", "urldecode"},
+    {"urlEncode", "urlencode"},
 };
+
+static void call_func_switch_arg_1_and_2(zend_function *fn, zend_execute_data *execute_data, zval *retval) {
+    zval argv[MAX_ARGC];
+    const zval *arg_ptr = ZEND_CALL_ARG(execute_data, 1);
+    const int arg_count = MIN(ZEND_CALL_NUM_ARGS(execute_data), MAX_ARGC);
+    argv[0] = arg_ptr[1];
+    argv[1] = arg_ptr[0];
+    for (int i = 2; i < arg_count; i++) {
+        argv[i] = arg_ptr[i];
+    }
+    call_function(fn, arg_count, argv, retval);
+}
 
 static void call_method(const std::unordered_map<std::string, std::string> &method_map,
                         zend_execute_data *execute_data,
@@ -159,10 +185,7 @@ static void call_method(const std::unordered_map<std::string, std::string> &meth
     for (int i = 0; i < arg_count; i++) {
         argv[i + 1] = arg_ptr[i];
     }
-    zend_call_known_function(fn, nullptr, nullptr, retval, arg_count + 1, argv, nullptr);
-    if (call_info.op1_type == IS_VAR) {
-        zval_ptr_dtor(&call_info.this_);
-    }
+    call_function(fn, arg_count + 1, argv, retval);
 }
 
 static void init_func_run_time_cache_i(zend_op_array *op_array) {
@@ -183,11 +206,16 @@ static int method_call_handler(zend_execute_data *execute_data) {
         object = EX_VAR(opline->op1.var);
     }
 
-    if (Z_TYPE_P(object) == IS_ARRAY || Z_TYPE_P(object) == IS_STRING) {
+    auto type = Z_TYPE_P(object);
+    if (type == IS_REFERENCE) {
+        type = Z_TYPE_P(Z_REFVAL_P(object));
+    }
+
+    if (type == IS_ARRAY || type == IS_STRING) {
         call_info.func = *RT_CONSTANT(opline, opline->op2);
         call_info.this_ = *object;
         call_info.op1_type = opline->op1_type;
-        zend_function *fbc = Z_TYPE_P(object) == IS_ARRAY ? fn_swoole_call_array_method : fn_swoole_call_string_method;
+        zend_function *fbc = type == IS_ARRAY ? fn_swoole_call_array_method : fn_swoole_call_string_method;
         zend_execute_data *call =
             zend_vm_stack_push_call_frame(ZEND_CALL_NESTED_FUNCTION, fbc, opline->extended_value, nullptr);
         if (EXPECTED(fbc->type == ZEND_USER_FUNCTION) && UNEXPECTED(!RUN_TIME_CACHE(&fbc->op_array))) {
@@ -241,6 +269,29 @@ PHP_FUNCTION(swoole_str_split) {
         fn_explode = get_function(CG(function_table), ZEND_STRL("explode"));
     }
     call_func_switch_arg_1_and_2(fn_explode, execute_data, return_value);
+    zval_add_ref(return_value);
+}
+
+PHP_FUNCTION(swoole_hash) {
+    static zend_function *fn_hash = nullptr;
+    if (!fn_hash) {
+        fn_hash = get_function(CG(function_table), ZEND_STRL("hash"));
+    }
+    call_func_switch_arg_1_and_2(fn_hash, execute_data, return_value);
+    zval_add_ref(return_value);
+}
+
+PHP_FUNCTION(swoole_parse_str) {
+    char *arg;
+    size_t arglen;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+            Z_PARAM_STRING(arg, arglen)
+    ZEND_PARSE_PARAMETERS_END();
+
+    array_init(return_value);
+    auto res = estrndup(arg, arglen);
+    sapi_module.treat_data(PARSE_STRING, res, return_value);
 }
 
 PHP_FUNCTION(swoole_array_key_exists) {

@@ -24,7 +24,9 @@ PHP_FUNCTION(swoole_call_string_method);
 PHP_FUNCTION(swoole_array_search);
 PHP_FUNCTION(swoole_array_contains);
 PHP_FUNCTION(swoole_array_join);
-PHP_FUNCTION(swoole_str_split);
 PHP_FUNCTION(swoole_array_key_exists);
 PHP_FUNCTION(swoole_array_map);
+PHP_FUNCTION(swoole_str_split);
+PHP_FUNCTION(swoole_parse_str);
+PHP_FUNCTION(swoole_hash);
 SW_EXTERN_C_END
