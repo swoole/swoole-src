@@ -286,7 +286,7 @@ PHP_FUNCTION(swoole_parse_str) {
     size_t arglen;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
-            Z_PARAM_STRING(arg, arglen)
+    Z_PARAM_STRING(arg, arglen)
     ZEND_PARSE_PARAMETERS_END();
 
     array_init(return_value);
