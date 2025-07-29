@@ -148,6 +148,11 @@ static std::unordered_map<std::string, std::string> string_methods = {
     {"base64Encode", "base64_encode"},
     {"urlDecode", "urldecode"},
     {"urlEncode", "urlencode"},
+    {"rawUrlEncode", "rawurlencode"},
+    {"rawUrlDecode", "rawurldecode"},
+    {"passwordHash", "password_hash"},
+    {"passwordVerify", "password_verify"},
+    {"sprintf", "sprintf"},
 };
 
 static void call_func_switch_arg_1_and_2(zend_function *fn, zend_execute_data *execute_data, zval *retval) {
@@ -239,47 +244,25 @@ void php_swoole_stdext_minit(int module_number) {
     fn_swoole_call_string_method = get_function(CG(function_table), ZEND_STRL("swoole_call_string_method"));
 }
 
-PHP_FUNCTION(swoole_array_search) {
-    static zend_function *fn_array_search = nullptr;
-    if (!fn_array_search) {
-        fn_array_search = get_function(CG(function_table), ZEND_STRL("array_search"));
+#define SWOOLE_CREATE_PHP_FUNCTION_WRAPPER(php_func_name, swoole_func_name, callback)                                  \
+    PHP_FUNCTION(swoole_func_name) {                                                                                   \
+        static zend_function *fn_##swoole_func_name = nullptr;                                                         \
+        if (!fn_##swoole_func_name) {                                                                                  \
+            fn_##swoole_func_name = get_function(CG(function_table), ZEND_STRL(#php_func_name));                       \
+        }                                                                                                              \
+        callback(fn_##swoole_func_name, execute_data, return_value);                                                   \
     }
-    call_func_switch_arg_1_and_2(fn_array_search, execute_data, return_value);
-}
 
-PHP_FUNCTION(swoole_array_contains) {
-    static zend_function *fn_in_array = nullptr;
-    if (!fn_in_array) {
-        fn_in_array = get_function(CG(function_table), ZEND_STRL("in_array"));
-    }
-    return call_func_switch_arg_1_and_2(fn_in_array, execute_data, return_value);
-}
+// array
+SWOOLE_CREATE_PHP_FUNCTION_WRAPPER(array_search, swoole_array_search, call_func_switch_arg_1_and_2);
+SWOOLE_CREATE_PHP_FUNCTION_WRAPPER(in_array, swoole_array_contains, call_func_switch_arg_1_and_2);
+SWOOLE_CREATE_PHP_FUNCTION_WRAPPER(implode, swoole_array_join, call_func_switch_arg_1_and_2);
+SWOOLE_CREATE_PHP_FUNCTION_WRAPPER(array_key_exists, swoole_array_key_exists, call_func_switch_arg_1_and_2);
+SWOOLE_CREATE_PHP_FUNCTION_WRAPPER(array_map, swoole_array_map, call_func_switch_arg_1_and_2);
 
-PHP_FUNCTION(swoole_array_join) {
-    static zend_function *fn_implode = nullptr;
-    if (!fn_implode) {
-        fn_implode = get_function(CG(function_table), ZEND_STRL("implode"));
-    }
-    call_func_switch_arg_1_and_2(fn_implode, execute_data, return_value);
-}
-
-PHP_FUNCTION(swoole_str_split) {
-    static zend_function *fn_explode = nullptr;
-    if (!fn_explode) {
-        fn_explode = get_function(CG(function_table), ZEND_STRL("explode"));
-    }
-    call_func_switch_arg_1_and_2(fn_explode, execute_data, return_value);
-    zval_add_ref(return_value);
-}
-
-PHP_FUNCTION(swoole_hash) {
-    static zend_function *fn_hash = nullptr;
-    if (!fn_hash) {
-        fn_hash = get_function(CG(function_table), ZEND_STRL("hash"));
-    }
-    call_func_switch_arg_1_and_2(fn_hash, execute_data, return_value);
-    zval_add_ref(return_value);
-}
+// string
+SWOOLE_CREATE_PHP_FUNCTION_WRAPPER(explode, swoole_str_split, call_func_switch_arg_1_and_2);
+SWOOLE_CREATE_PHP_FUNCTION_WRAPPER(hash, swoole_hash, call_func_switch_arg_1_and_2);
 
 PHP_FUNCTION(swoole_parse_str) {
     char *arg;
@@ -292,22 +275,6 @@ PHP_FUNCTION(swoole_parse_str) {
     array_init(return_value);
     auto res = estrndup(arg, arglen);
     sapi_module.treat_data(PARSE_STRING, res, return_value);
-}
-
-PHP_FUNCTION(swoole_array_key_exists) {
-    static zend_function *fn_array_key_exists = nullptr;
-    if (!fn_array_key_exists) {
-        fn_array_key_exists = get_function(CG(function_table), ZEND_STRL("array_key_exists"));
-    }
-    call_func_switch_arg_1_and_2(fn_array_key_exists, execute_data, return_value);
-}
-
-PHP_FUNCTION(swoole_array_map) {
-    static zend_function *fn_array_map = nullptr;
-    if (!fn_array_map) {
-        fn_array_map = get_function(CG(function_table), ZEND_STRL("array_map"));
-    }
-    call_func_switch_arg_1_and_2(fn_array_map, execute_data, return_value);
 }
 
 PHP_FUNCTION(swoole_call_array_method) {
