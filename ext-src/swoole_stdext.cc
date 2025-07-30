@@ -34,7 +34,6 @@ static struct {
 } call_info;
 
 struct ArrayTypeInfo {
-    bool strict;
     uint8_t type_of_value;
     uint8_t type_of_key;
     uint8_t element_type_of_key;
@@ -58,7 +57,7 @@ static zend_function *get_function(const zend_array *function_table, const char 
     return static_cast<zend_function *>(zend_hash_str_find_ptr(function_table, name, name_len));
 }
 
-static void call_function(zend_function *fn, int argc, zval *argv, zval *retval) {
+static void call_function(zend_function *fn, const int argc, zval *argv, zval *retval) {
     zend_call_known_function(fn, nullptr, nullptr, retval, argc, argv, nullptr);
     if (call_info.op1_type == IS_VAR) {
         zval_ptr_dtor(&call_info.this_);
@@ -557,13 +556,11 @@ static bool parse_array_type(const char *type_str,
 PHP_FUNCTION(swoole_typed_array) {
     zend_string *type_def;
     zval *init_values = nullptr;
-    bool strict = true;
 
-    ZEND_PARSE_PARAMETERS_START(1, 3)
+    ZEND_PARSE_PARAMETERS_START(1, 2)
     Z_PARAM_STR(type_def)
     Z_PARAM_OPTIONAL
     Z_PARAM_ARRAY(init_values)
-    Z_PARAM_BOOL(strict)
     ZEND_PARSE_PARAMETERS_END();
 
     zend::String tmp_type_def(zend_string_tolower(type_def), false);
@@ -598,7 +595,6 @@ PHP_FUNCTION(swoole_typed_array) {
     auto array = sw_zend_new_array(n, len_of_type_str);
     ZVAL_ARR(return_value, array);
     auto info = get_type_info(array);
-    info->strict = strict;
     info->type_of_value = type_of_value;
     info->type_of_key = type_of_key;
     info->value_ce = value_ce;
@@ -640,6 +636,7 @@ PHP_FUNCTION(swoole_typed_array) {
             } else {
                 zend_hash_index_add(array, num_key, zv);
             }
-        } ZEND_HASH_FOREACH_END();
+        }
+        ZEND_HASH_FOREACH_END();
     }
 }

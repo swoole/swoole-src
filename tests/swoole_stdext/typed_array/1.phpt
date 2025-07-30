@@ -10,7 +10,7 @@ $array = typed_array('<int>');
 $array[] = 123;
 
 try {
-    $array[] = "456";
+    $array[] = '456';
 } catch (TypeError $e) {
     Assert::true($e->getMessage()->contains('Array value type mismatch'));
 }
@@ -19,13 +19,13 @@ $array = typed_array('<bool>');
 $array[] = true;
 $array[] = false;
 try {
-    $array[] = "456";
+    $array[] = '456';
 } catch (TypeError $e) {
     Assert::true($e->getMessage()->contains('Array value type mismatch'));
 }
 
 $array = typed_array('<string>');
-$array[] = "456";
+$array[] = '456';
 try {
     $array[] = true;
 } catch (TypeError $e) {
