@@ -169,9 +169,6 @@ static std::unordered_map<std::string, std::string> string_methods = {
     {"urlEncode", "urlencode"},
     {"rawUrlEncode", "rawurlencode"},
     {"rawUrlDecode", "rawurldecode"},
-    {"passwordHash", "password_hash"},
-    {"passwordVerify", "password_verify"},
-    {"sprintf", "sprintf"},
 };
 
 static void call_func_switch_arg_1_and_2(zend_function *fn, zend_execute_data *execute_data, zval *retval) {
