@@ -569,6 +569,11 @@ PHP_FUNCTION(swoole_typed_array) {
     remove_all_spaces(&type_str, &len_of_type_str);
     type_str[len_of_type_str] = '\0';
 
+    if (type_str[0] != '<' || type_str[len_of_type_str - 1] != '>') {
+        zend_throw_error(nullptr, "The type definition of typed array must start with '<' and end with '>'");
+        return;
+    }
+
     uint8_t type_of_value, type_of_key = 0;
     uint16_t len_of_value_type_str = 0, offset_of_value_type_str = 0;
 
