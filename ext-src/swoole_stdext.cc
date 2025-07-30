@@ -447,7 +447,7 @@ static void trim_spaces(char **val, size_t *len) {
     char *start = *val;
     char *end = *val + *len - 1;
 
-    while (*len > 0 && isspace((unsigned char)*start)) {
+    while (*len > 0 && isspace((unsigned char) *start)) {
         start++;
         (*len)--;
     }
@@ -457,7 +457,7 @@ static void trim_spaces(char **val, size_t *len) {
         return;
     }
 
-    while (end >= start && isspace((unsigned char)*end)) {
+    while (end >= start && isspace((unsigned char) *end)) {
         end--;
         (*len)--;
     }
@@ -494,7 +494,7 @@ static int8_t get_type(const char *val, size_t len) {
     } else if (SW_STRCASEEQ(val, len, "string")) {
         return IS_STRING;
     } else if (SW_STRCASEEQ(val, len, "bool")) {
-        return IS_TRUE; // IS_TRUE or IS_FALSE
+        return IS_TRUE;  // IS_TRUE or IS_FALSE
     } else if (val[0] == '<' && val[len - 1] == '>') {
         return IS_ARRAY;
     } else if (SW_STRCASEEQ(val, len, "resource")) {
@@ -550,7 +550,12 @@ PHP_FUNCTION(swoole_typed_array) {
     uint8_t type_of_value, type_of_key = 0;
     uint16_t len_of_value_type_str = 0, offset_of_value_type_str = 0;
 
-    if (!parse_array_type(type_str, len_of_type_str, &type_of_key, &type_of_value, &offset_of_value_type_str, &len_of_value_type_str)) {
+    if (!parse_array_type(type_str,
+                          len_of_type_str,
+                          &type_of_key,
+                          &type_of_value,
+                          &offset_of_value_type_str,
+                          &len_of_value_type_str)) {
         return;
     }
 
@@ -577,14 +582,13 @@ PHP_FUNCTION(swoole_typed_array) {
 
     if (info->type_of_value == IS_ARRAY) {
         if (!parse_array_type(info->value_type_str,
-                         len_of_value_type_str,
-                         &info->element_type_of_key,
-                         &info->element_type_of_value,
-                         &info->element_offset_of_value_type_str,
-                         &info->element_len_of_value_type_str)) {
+                              len_of_value_type_str,
+                              &info->element_type_of_key,
+                              &info->element_type_of_value,
+                              &info->element_offset_of_value_type_str,
+                              &info->element_len_of_value_type_str)) {
             zval_ptr_dtor(return_value);
             RETURN_NULL();
         }
     }
 }
-
