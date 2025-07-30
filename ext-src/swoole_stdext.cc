@@ -375,8 +375,27 @@ static zend_string *get_array_type_def(const ArrayTypeInfo *info) {
     return result;
 }
 
-static bool type_check(zend_array *ht, zval *value) {
-    auto type_info = get_type_info(ht);
+static bool type_check(zend_array *ht, const zval *key, const zval *value) {
+    const auto type_info = get_type_info(ht);
+    if (type_info->type_of_key > 0) {
+        if (Z_TYPE_P(key) != type_info->type_of_key) {
+            zend_type_error("Array key type mismatch, expected `%s`, got `%s`",
+                            zend_get_type_by_const(type_info->type_of_key),
+                            zend_get_type_by_const(Z_TYPE_P(key)));
+            return false;
+        }
+    } else {
+        if (Z_TYPE_P(key) == IS_LONG) {
+            if (Z_LVAL_P(key) > zend_hash_num_elements(ht)) {
+                zend_throw_error(
+                    nullptr, "Incorrect array key `%ld`, out of the permitted range", (long) Z_LVAL_P(key));
+                return false;
+            }
+        } else if (!(Z_TYPE_P(key) == IS_UNDEF || Z_TYPE_P(key) == IS_NULL)) {
+            zend_throw_error(nullptr, "Incorrect array key, must be undef or int");
+            return false;
+        }
+    }
     if (type_info->type_of_value == IS_TRUE && (Z_TYPE_P(value) == IS_TRUE || Z_TYPE_P(value) == IS_FALSE)) {
         return true;
     }
@@ -407,7 +426,7 @@ static bool type_check(zend_array *ht, zval *value) {
                    type_info->value_type_str + type_info->element_offset_of_value_type_str,
                    MIN(element_array_type_info->len_of_value_type_str, type_info->element_len_of_value_type_str)) !=
                 0) {
-            auto element_type_str = get_array_type_def(element_array_type_info);
+            const auto element_type_str = get_array_type_def(element_array_type_info);
             zend_type_error("Array value type mismatch, expected `%.*s`, got `%.*s`",
                             type_info->len_of_value_type_str,
                             type_info->value_type_str,
@@ -434,7 +453,15 @@ static int opcode_handler_array_assign(zend_execute_data *execute_data) {
         return ZEND_USER_OPCODE_DISPATCH;
     }
     auto value = get_op_data_zval_ptr_r((opline + 1)->op1_type, (opline + 1)->op1);
-    if (!type_check(ht, value)) {
+    zval *key;
+    if (opline->op2_type == IS_CONST) {
+        key = RT_CONSTANT(opline, opline->op2);
+    } else if (UNEXPECTED(opline->op2_type == IS_UNUSED)) {
+        key = &EG(uninitialized_zval);
+    } else {
+        key = EX_VAR(opline->op2.var);
+    }
+    if (!type_check(ht, key, value)) {
         FREE_OP((opline + 1)->op1_type, (opline + 1)->op1.var);
         return ZEND_USER_OPCODE_CONTINUE;
     }
@@ -473,7 +500,7 @@ static void remove_all_spaces(char **val, size_t *len) {
     size_t new_len = 0;
 
     for (size_t i = 0; i < *len; i++) {
-        if (!isspace((unsigned char) *src)) {
+        if (!isspace((uchar) *src)) {
             *dst = *src;
             dst++;
             new_len++;
@@ -567,7 +594,8 @@ PHP_FUNCTION(swoole_typed_array) {
         }
     }
 
-    auto array = sw_zend_new_array(0, len_of_type_str);
+    auto n = init_values ? zend_array_count(Z_ARRVAL_P(init_values)) : 0;
+    auto array = sw_zend_new_array(n, len_of_type_str);
     ZVAL_ARR(return_value, array);
     auto info = get_type_info(array);
     info->strict = strict;
@@ -590,5 +618,28 @@ PHP_FUNCTION(swoole_typed_array) {
         }
     }
 
-
+    if (init_values) {
+        zend_string *str_key;
+        zend_ulong num_key;
+        zval *zv;
+        zval zk;
+        HashTable *ht = Z_ARRVAL_P(init_values);
+        ZEND_HASH_FOREACH_KEY_VAL(ht, num_key, str_key, zv) {
+            if (str_key) {
+                ZVAL_STR(&zk, str_key);
+            } else {
+                ZVAL_LONG(&zk, num_key);
+            }
+            if (!type_check(array, &zk, zv)) {
+                zval_ptr_dtor(return_value);
+                RETURN_NULL();
+            }
+            Z_TRY_ADDREF_P(zv);
+            if (str_key) {
+                zend_hash_add(array, str_key, zv);
+            } else {
+                zend_hash_index_add(array, num_key, zv);
+            }
+        } ZEND_HASH_FOREACH_END();
+    }
 }

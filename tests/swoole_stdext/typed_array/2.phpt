@@ -12,14 +12,18 @@ $array[999] = typed_array('<string, string>');
 try {
     $array[888] = typed_array('<int, string>');
 } catch (TypeError $e) {
-    $e->getMessage()->contains('Array value type mismatch');
+    Assert::true($e->getMessage()->contains('Array value type mismatch'));
+    echo "DONE\n";
 }
 
 try {
     $array[777] = [];
 } catch (TypeError $e) {
-    $e->getMessage()->contains('Array value type mismatch');
+    Assert::true($e->getMessage()->contains('Array value type mismatch'));
+    echo "DONE\n";
 }
 
 ?>
---EXPECTF--
+--EXPECT--
+DONE
+DONE

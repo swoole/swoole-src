@@ -24,7 +24,9 @@ $array[] = 7;
 try {
     unset($array[0]);
 } catch (Throwable $e) {
-    $e->getMessage()->contains('not support');
+    Assert::true($e->getMessage()->contains('not support'));
+    echo "DONE\n";
 }
 ?>
---EXPECTF--
+--EXPECT--
+DONE
