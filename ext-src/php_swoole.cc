@@ -163,6 +163,7 @@ const zend_function_entry swoole_functions[] = {
     ZEND_FE(swoole_str_split,            arginfo_swoole_str_split)
     ZEND_FE(swoole_parse_str,            arginfo_swoole_parse_str)
     ZEND_FE(swoole_hash,                 arginfo_swoole_hash)
+    ZEND_FE(swoole_typed_array,          arginfo_swoole_typed_array)
     PHP_FE_END /* Must be the last line in swoole_functions[] */
 };
 
@@ -822,6 +823,8 @@ PHP_MINIT_FUNCTION(swoole) {
             CG(function_table), "swoole_coroutine_create", CG(function_table), "go", arginfo_swoole_coroutine_create);
         SW_FUNCTION_ALIAS(
             CG(function_table), "swoole_coroutine_defer", CG(function_table), "defer", arginfo_swoole_coroutine_defer);
+        SW_FUNCTION_ALIAS(
+            CG(function_table), "swoole_typed_array", CG(function_table), "typed_array", arginfo_swoole_typed_array);
     }
 
     swoole_init();
