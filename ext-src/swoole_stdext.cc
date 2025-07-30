@@ -16,8 +16,10 @@
 
 #include "php_swoole_stdext.h"
 #include "php_variables.h"
+#include "thirdparty/php/zend/zend_opcode_execute.h"
 
-#define MAX_ARGC 8
+#define MAX_ARGC 16
+#define HASH_FLAG_TYPED_ARRAY (1 << 30)
 
 /**
  * This module aims to enhance the PHP standard library without modifying the php-src core code.
@@ -31,14 +33,31 @@ static struct {
     uint8_t op1_type;
 } call_info;
 
+struct ArrayTypeInfo {
+    uint8_t type_of_value;
+    uint8_t type_of_key;
+    uint8_t element_type_of_key;
+    uint8_t element_type_of_value;
+    uint16_t element_offset_of_value_type_str;
+    uint16_t element_len_of_value_type_str;
+    zend_class_entry *value_ce;
+    uint16_t len_of_value_type_str;
+    char value_type_str[0];
+};
+
 static zend_function *fn_swoole_call_array_method = nullptr;
 static zend_function *fn_swoole_call_string_method = nullptr;
+
+static int opcode_handler_array_assign(zend_execute_data *execute_data);
+static int opcode_handler_array_unset(zend_execute_data *execute_data);
+static int opcode_handler_method_call(zend_execute_data *execute_data);
+static ArrayTypeInfo *get_type_info(zend_array *array);
 
 static zend_function *get_function(const zend_array *function_table, const char *name, size_t name_len) {
     return static_cast<zend_function *>(zend_hash_str_find_ptr(function_table, name, name_len));
 }
 
-static void call_function(zend_function *fn, int argc, zval *argv, zval *retval) {
+static void call_function(zend_function *fn, const int argc, zval *argv, zval *retval) {
     zend_call_known_function(fn, nullptr, nullptr, retval, argc, argv, nullptr);
     if (call_info.op1_type == IS_VAR) {
         zval_ptr_dtor(&call_info.this_);
@@ -200,7 +219,7 @@ static void init_func_run_time_cache_i(zend_op_array *op_array) {
     ZEND_MAP_PTR_SET(op_array->run_time_cache, run_time_cache);
 }
 
-static int method_call_handler(zend_execute_data *execute_data) {
+static int opcode_handler_method_call(zend_execute_data *execute_data) {
     const zend_op *opline = EX(opline);
     zval *object;
     if (opline->op1_type == IS_CONST) {
@@ -239,7 +258,9 @@ static int method_call_handler(zend_execute_data *execute_data) {
 }
 
 void php_swoole_stdext_minit(int module_number) {
-    zend_set_user_opcode_handler(ZEND_INIT_METHOD_CALL, method_call_handler);
+    zend_set_user_opcode_handler(ZEND_INIT_METHOD_CALL, opcode_handler_method_call);
+    zend_set_user_opcode_handler(ZEND_ASSIGN_DIM, opcode_handler_array_assign);
+    zend_set_user_opcode_handler(ZEND_UNSET_DIM, opcode_handler_array_unset);
     fn_swoole_call_array_method = get_function(CG(function_table), ZEND_STRL("swoole_call_array_method"));
     fn_swoole_call_string_method = get_function(CG(function_table), ZEND_STRL("swoole_call_string_method"));
 }
@@ -283,4 +304,311 @@ PHP_FUNCTION(swoole_call_array_method) {
 
 PHP_FUNCTION(swoole_call_string_method) {
     call_method(string_methods, execute_data, return_value);
+}
+
+ZEND_API HashTable *ZEND_FASTCALL sw_zend_new_array(const uint32_t nSize, const uint32_t nTypeStr) {
+    const auto ht = static_cast<zend_array *>(emalloc(sizeof(HashTable) + sizeof(ArrayTypeInfo) + nTypeStr + 1));
+    _zend_hash_init(ht, nSize, ZVAL_PTR_DTOR, false);
+    HT_FLAGS(ht) |= HASH_FLAG_TYPED_ARRAY;
+    return ht;
+}
+
+static ArrayTypeInfo *get_type_info(zend_array *array) {
+    return reinterpret_cast<ArrayTypeInfo *>(reinterpret_cast<char *>(array) + sizeof(HashTable));
+}
+
+static zend_string *get_array_type_def(const ArrayTypeInfo *info) {
+    zend_string *result = zend_string_alloc(info->len_of_value_type_str + 16, false);
+    char *p = result->val;
+    *p = '<';
+    if (info->type_of_key == IS_STRING) {
+        p++;
+        strcpy(p, "string,");
+        p += 7;
+    } else if (info->type_of_key == IS_LONG) {
+        p++;
+        strcpy(p, "int,");
+        p += 4;
+    }
+
+    memcpy(p, info->value_type_str, info->len_of_value_type_str);
+    p += info->len_of_value_type_str;
+    *p = '>';
+    p++;
+    *p = '\0';
+    result->len = p - result->val;
+
+    return result;
+}
+
+static bool type_check(zend_array *ht, const zval *key, const zval *value) {
+    const auto type_info = get_type_info(ht);
+    if (type_info->type_of_key > 0) {
+        if (Z_TYPE_P(key) != type_info->type_of_key) {
+            zend_type_error("Array key type mismatch, expected `%s`, got `%s`",
+                            zend_get_type_by_const(type_info->type_of_key),
+                            zend_get_type_by_const(Z_TYPE_P(key)));
+            return false;
+        }
+    } else {
+        if (Z_TYPE_P(key) == IS_LONG) {
+            if (Z_LVAL_P(key) > zend_hash_num_elements(ht)) {
+                zend_throw_error(
+                    nullptr, "Incorrect array key `%ld`, out of the permitted range", (long) Z_LVAL_P(key));
+                return false;
+            }
+        } else if (!(Z_TYPE_P(key) == IS_UNDEF || Z_TYPE_P(key) == IS_NULL)) {
+            zend_throw_error(nullptr, "Incorrect array key, must be undef or int");
+            return false;
+        }
+    }
+    if (type_info->type_of_value == IS_TRUE && (Z_TYPE_P(value) == IS_TRUE || Z_TYPE_P(value) == IS_FALSE)) {
+        return true;
+    }
+    if (Z_TYPE_P(value) != type_info->type_of_value) {
+        zend_type_error("Array value type mismatch, expected `%s`, got `%s`",
+                        zend_get_type_by_const(type_info->type_of_value),
+                        zend_get_type_by_const(Z_TYPE_P(value)));
+        return false;
+    }
+    if (type_info->type_of_value == IS_OBJECT && !instanceof_function(Z_OBJCE_P(value), type_info->value_ce)) {
+        zend_type_error("Array value type mismatch, expected `%s`, got `%s`",
+                        type_info->value_ce->name->val,
+                        Z_OBJCE_P(value)->name->val);
+        return false;
+    }
+    if (type_info->type_of_value == IS_ARRAY) {
+        const auto element_array_type_info = get_type_info(Z_ARRVAL_P(value));
+        const auto element_ht = Z_ARRVAL_P(value);
+        if (!(HT_FLAGS(element_ht) & HASH_FLAG_TYPED_ARRAY)) {
+            zend_type_error("Array value type mismatch, expected `%.*s`, got `array`",
+                            type_info->len_of_value_type_str,
+                            type_info->value_type_str);
+            return false;
+        }
+        if (element_array_type_info->type_of_key != type_info->element_type_of_key ||
+            element_array_type_info->type_of_value != type_info->element_type_of_value ||
+            memcmp(element_array_type_info->value_type_str,
+                   type_info->value_type_str + type_info->element_offset_of_value_type_str,
+                   MIN(element_array_type_info->len_of_value_type_str, type_info->element_len_of_value_type_str)) !=
+                0) {
+            const auto element_type_str = get_array_type_def(element_array_type_info);
+            zend_type_error("Array value type mismatch, expected `%.*s`, got `%.*s`",
+                            type_info->len_of_value_type_str,
+                            type_info->value_type_str,
+                            (int) ZSTR_LEN(element_type_str),
+                            ZSTR_VAL(element_type_str));
+            zend_string_release(element_type_str);
+            return false;
+        }
+    }
+    return true;
+}
+
+static int opcode_handler_array_assign(zend_execute_data *execute_data) {
+    const zend_op *opline = EX(opline);
+    auto array = EX_VAR(opline->op1.var);
+    if (Z_TYPE_P(array) != IS_ARRAY && Z_TYPE_P(array) != IS_REFERENCE) {
+        return ZEND_USER_OPCODE_DISPATCH;
+    }
+    if (Z_TYPE_P(array) == IS_REFERENCE) {
+        array = Z_REFVAL_P(array);
+    }
+    zend_array *ht = Z_ARRVAL_P(array);
+    if (!(HT_FLAGS(ht) & HASH_FLAG_TYPED_ARRAY)) {
+        return ZEND_USER_OPCODE_DISPATCH;
+    }
+    auto value = get_op_data_zval_ptr_r((opline + 1)->op1_type, (opline + 1)->op1);
+    zval *key;
+    if (opline->op2_type == IS_CONST) {
+        key = RT_CONSTANT(opline, opline->op2);
+    } else if (UNEXPECTED(opline->op2_type == IS_UNUSED)) {
+        key = &EG(uninitialized_zval);
+    } else {
+        key = EX_VAR(opline->op2.var);
+    }
+    if (!type_check(ht, key, value)) {
+        FREE_OP((opline + 1)->op1_type, (opline + 1)->op1.var);
+        return ZEND_USER_OPCODE_CONTINUE;
+    }
+    return ZEND_USER_OPCODE_DISPATCH;
+}
+
+static int opcode_handler_array_unset(zend_execute_data *execute_data) {
+    const zend_op *opline = EX(opline);
+    auto array = EX_VAR(opline->op1.var);
+    if (Z_TYPE_P(array) != IS_ARRAY && Z_TYPE_P(array) != IS_REFERENCE) {
+        return ZEND_USER_OPCODE_DISPATCH;
+    }
+    if (Z_TYPE_P(array) == IS_REFERENCE) {
+        array = Z_REFVAL_P(array);
+    }
+    zend_array *ht = Z_ARRVAL_P(array);
+    if (!(HT_FLAGS(ht) & HASH_FLAG_TYPED_ARRAY)) {
+        return ZEND_USER_OPCODE_DISPATCH;
+    }
+    auto type_info = get_type_info(ht);
+    if (type_info->type_of_key == 0) {
+        zend_throw_error(nullptr, "The typed array list do not support random deletion of elements");
+        FREE_OP((opline + 1)->op1_type, (opline + 1)->op1.var);
+        return ZEND_USER_OPCODE_CONTINUE;
+    }
+    return ZEND_USER_OPCODE_DISPATCH;
+}
+
+static void remove_all_spaces(char **val, size_t *len) {
+    if (!*val || *len == 0) {
+        return;
+    }
+
+    char *src = *val;
+    char *dst = *val;
+    size_t new_len = 0;
+
+    for (size_t i = 0; i < *len; i++) {
+        if (!isspace((uchar) *src)) {
+            *dst = *src;
+            dst++;
+            new_len++;
+        }
+        src++;
+    }
+
+    *len = new_len;
+}
+
+static int8_t get_type(const char *val, size_t len) {
+    if (SW_STRCASEEQ(val, len, "int")) {
+        return IS_LONG;
+    } else if (SW_STRCASEEQ(val, len, "float")) {
+        return IS_DOUBLE;
+    } else if (SW_STRCASEEQ(val, len, "string")) {
+        return IS_STRING;
+    } else if (SW_STRCASEEQ(val, len, "bool")) {
+        return IS_TRUE;  // IS_TRUE or IS_FALSE
+    } else if (val[0] == '<' && val[len - 1] == '>') {
+        return IS_ARRAY;
+    } else if (SW_STRCASEEQ(val, len, "resource")) {
+        return IS_RESOURCE;
+    } else if (SW_STRCASEEQ(val, len, "null")) {
+        return IS_NULL;
+    } else {
+        return IS_OBJECT;
+    }
+}
+
+static bool parse_array_type(const char *type_str,
+                             size_t len_of_type_str,
+                             uint8_t *type_of_key,
+                             uint8_t *type_of_value,
+                             uint16_t *offset_of_value_type_str,
+                             uint16_t *len_of_value_type_str) {
+    auto pos = strchr(type_str, ',');
+    if (pos == nullptr) {
+        *type_of_key = 0;
+        *offset_of_value_type_str = 1;
+    } else {
+        *type_of_key = get_type(type_str + 1, pos - type_str - 1);
+        if (*type_of_key != IS_STRING && *type_of_key != IS_LONG) {
+            zend_throw_error(nullptr, "The key type of array must be string or int, but got %s", pos + 1);
+            return false;
+        }
+        *offset_of_value_type_str = pos - type_str + 1;
+    }
+    *len_of_value_type_str = len_of_type_str - *offset_of_value_type_str - 1;
+    *type_of_value = get_type(type_str + *offset_of_value_type_str, *len_of_value_type_str);
+    return true;
+}
+
+PHP_FUNCTION(swoole_typed_array) {
+    zend_string *type_def;
+    zval *init_values = nullptr;
+
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+    Z_PARAM_STR(type_def)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_ARRAY(init_values)
+    ZEND_PARSE_PARAMETERS_END();
+
+    zend::String tmp_type_def(zend_string_tolower(type_def), false);
+    char *type_str = tmp_type_def.val();
+    size_t len_of_type_str = tmp_type_def.len();
+    remove_all_spaces(&type_str, &len_of_type_str);
+    type_str[len_of_type_str] = '\0';
+
+    if (type_str[0] != '<' || type_str[len_of_type_str - 1] != '>') {
+        zend_throw_error(nullptr, "The type definition of typed array must start with '<' and end with '>'");
+        return;
+    }
+
+    uint8_t type_of_value, type_of_key = 0;
+    uint16_t len_of_value_type_str = 0, offset_of_value_type_str = 0;
+
+    if (!parse_array_type(type_str,
+                          len_of_type_str,
+                          &type_of_key,
+                          &type_of_value,
+                          &offset_of_value_type_str,
+                          &len_of_value_type_str)) {
+        return;
+    }
+
+    zend_class_entry *value_ce = nullptr;
+    if (type_of_value == IS_OBJECT) {
+        zend::String type_str_of_value(type_str + offset_of_value_type_str, len_of_value_type_str);
+        value_ce = zend_lookup_class(type_str_of_value.get());
+        if (!value_ce) {
+            zend_throw_error(nullptr, "Class '%s' not found", type_str_of_value.val());
+            return;
+        }
+    }
+
+    auto n = init_values ? zend_array_count(Z_ARRVAL_P(init_values)) : 0;
+    auto array = sw_zend_new_array(n, len_of_type_str);
+    ZVAL_ARR(return_value, array);
+    auto info = get_type_info(array);
+    info->type_of_value = type_of_value;
+    info->type_of_key = type_of_key;
+    info->value_ce = value_ce;
+    info->len_of_value_type_str = len_of_value_type_str;
+    memcpy(info->value_type_str, type_str + offset_of_value_type_str, len_of_value_type_str);
+    info->value_type_str[len_of_value_type_str] = '\0';
+
+    if (info->type_of_value == IS_ARRAY) {
+        if (!parse_array_type(info->value_type_str,
+                              len_of_value_type_str,
+                              &info->element_type_of_key,
+                              &info->element_type_of_value,
+                              &info->element_offset_of_value_type_str,
+                              &info->element_len_of_value_type_str)) {
+            zval_ptr_dtor(return_value);
+            RETURN_NULL();
+        }
+    }
+
+    if (init_values) {
+        zend_string *str_key;
+        zend_ulong num_key;
+        zval *zv;
+        zval zk;
+        HashTable *ht = Z_ARRVAL_P(init_values);
+        ZEND_HASH_FOREACH_KEY_VAL(ht, num_key, str_key, zv) {
+            if (str_key) {
+                ZVAL_STR(&zk, str_key);
+            } else {
+                ZVAL_LONG(&zk, num_key);
+            }
+            if (!type_check(array, &zk, zv)) {
+                zval_ptr_dtor(return_value);
+                RETURN_NULL();
+            }
+            Z_TRY_ADDREF_P(zv);
+            if (str_key) {
+                zend_hash_add(array, str_key, zv);
+            } else {
+                zend_hash_index_add(array, num_key, zv);
+            }
+        }
+        ZEND_HASH_FOREACH_END();
+    }
 }

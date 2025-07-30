@@ -26,3 +26,5 @@ function swoole_str_split(string $string, string $delimiter, int $limit = PHP_IN
 function swoole_parse_str(string $string): array {}
 
 function swoole_hash(string $data, string $algo, bool $binary = false, array $options = []): string {}
+
+function swoole_typed_array(string $typeDef, ?array $initArray = null): array {}
