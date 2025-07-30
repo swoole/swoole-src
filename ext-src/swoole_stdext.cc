@@ -50,6 +50,7 @@ static zend_function *fn_swoole_call_array_method = nullptr;
 static zend_function *fn_swoole_call_string_method = nullptr;
 
 static int opcode_handler_array_assign(zend_execute_data *execute_data);
+static int opcode_handler_array_unset(zend_execute_data *execute_data);
 static int opcode_handler_method_call(zend_execute_data *execute_data);
 static ArrayTypeInfo *get_type_info(zend_array *array);
 
@@ -255,6 +256,7 @@ static int opcode_handler_method_call(zend_execute_data *execute_data) {
 void php_swoole_stdext_minit(int module_number) {
     zend_set_user_opcode_handler(ZEND_INIT_METHOD_CALL, opcode_handler_method_call);
     zend_set_user_opcode_handler(ZEND_ASSIGN_DIM, opcode_handler_array_assign);
+    zend_set_user_opcode_handler(ZEND_UNSET_DIM, opcode_handler_array_unset);
     fn_swoole_call_array_method = get_function(CG(function_table), ZEND_STRL("swoole_call_array_method"));
     fn_swoole_call_string_method = get_function(CG(function_table), ZEND_STRL("swoole_call_string_method"));
 }
@@ -439,30 +441,26 @@ static int opcode_handler_array_assign(zend_execute_data *execute_data) {
     return ZEND_USER_OPCODE_DISPATCH;
 }
 
-static void trim_spaces(char **val, size_t *len) {
-    if (!*val || *len == 0) {
-        return;
+static int opcode_handler_array_unset(zend_execute_data *execute_data) {
+    const zend_op *opline = EX(opline);
+    auto array = EX_VAR(opline->op1.var);
+    if (Z_TYPE_P(array) != IS_ARRAY && Z_TYPE_P(array) != IS_REFERENCE) {
+        return ZEND_USER_OPCODE_DISPATCH;
     }
-
-    char *start = *val;
-    char *end = *val + *len - 1;
-
-    while (*len > 0 && isspace((unsigned char) *start)) {
-        start++;
-        (*len)--;
+    if (Z_TYPE_P(array) == IS_REFERENCE) {
+        array = Z_REFVAL_P(array);
     }
-
-    if (*len == 0) {
-        *val = start;
-        return;
+    zend_array *ht = Z_ARRVAL_P(array);
+    if (!(HT_FLAGS(ht) & HASH_FLAG_TYPED_ARRAY)) {
+        return ZEND_USER_OPCODE_DISPATCH;
     }
-
-    while (end >= start && isspace((unsigned char) *end)) {
-        end--;
-        (*len)--;
+    auto type_info = get_type_info(ht);
+    if (type_info->type_of_key == 0) {
+        zend_throw_error(nullptr, "The typed array list do not support random deletion of elements");
+        FREE_OP((opline + 1)->op1_type, (opline + 1)->op1.var);
+        return ZEND_USER_OPCODE_CONTINUE;
     }
-
-    *val = start;
+    return ZEND_USER_OPCODE_DISPATCH;
 }
 
 static void remove_all_spaces(char **val, size_t *len) {
@@ -591,4 +589,6 @@ PHP_FUNCTION(swoole_typed_array) {
             RETURN_NULL();
         }
     }
+
+
 }
