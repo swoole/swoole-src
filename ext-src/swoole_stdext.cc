@@ -520,6 +520,9 @@ static void array_add_or_update(const zend_op *opline, zval *container, const zv
             zend_cannot_add_element();
             goto assign_dim_op_ret_null;
         }
+        if (Z_REFCOUNTED_P(var_ptr)) {
+            Z_ADDREF_P(var_ptr);
+        }
     } else {
         zval *variable_ptr;
         if ((opline + 1)->op1_type == IS_CONST) {
@@ -529,6 +532,9 @@ static void array_add_or_update(const zend_op *opline, zval *container, const zv
         }
         if (UNEXPECTED(variable_ptr == NULL)) {
             goto assign_dim_op_ret_null;
+        }
+        if (Z_REFCOUNTED_P(value)) {
+            Z_ADDREF_P(value);
         }
         var_ptr = zend_assign_to_variable(variable_ptr, value, (opline + 1)->op1_type, EX_USES_STRICT_TYPES());
         if (UNEXPECTED(!var_ptr)) {
@@ -620,7 +626,7 @@ static int opcode_handler_array(zend_execute_data *execute_data, const ArrayFn &
     } else {
         key = EX_VAR(opline->op2.var);
     }
-    auto type_info = get_type_info(ht);
+    const auto type_info = get_type_info(ht);
     if (!type_info->check(ht, key, value)) {
         FREE_OP((opline + 1)->op1_type, (opline + 1)->op1.var);
         return ZEND_USER_OPCODE_CONTINUE;
@@ -743,12 +749,14 @@ bool ArrayTypeValue::parse(const char *type_str, const size_t len_of_type_str) {
 bool ArrayTypeInfo::parse(zend_string *type_def) {
     assert(type_def->len < 65535);
     zend_string *lc_type_def = zend_string_tolower(type_def);
-    char *tmp_type_str = lc_type_def->val;
+    memcpy(type_str, lc_type_def->val, lc_type_def->len + 1);
     len_of_type_str = lc_type_def->len;
+    zend_string_release(lc_type_def);
+
+    char *tmp_type_str = type_str;
     remove_all_spaces(&tmp_type_str, &len_of_type_str);
     tmp_type_str[len_of_type_str] = '\0';
-    memcpy(type_str, tmp_type_str, len_of_type_str + 1);
-    zend_string_release(lc_type_def);
+    memmove(type_str, tmp_type_str, len_of_type_str + 1);
 
     if (type_str[0] != '<' || type_str[len_of_type_str - 1] != '>') {
         zend_throw_error(nullptr, "The type definition of typed array must start with '<' and end with '>'");
