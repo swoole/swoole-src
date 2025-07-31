@@ -262,7 +262,7 @@ void php_swoole_stdext_minit(int module_number) {
     fn_swoole_call_string_method = get_function(CG(function_table), ZEND_STRL("swoole_call_string_method"));
 }
 
-#define SWOOLE_CREATE_PHP_FUNCTION_WRAPPER(php_func_name, swoole_func_name, callback)                                  \
+#define SW_CREATE_PHP_FUNCTION_WRAPPER(php_func_name, swoole_func_name, callback)                                  \
     PHP_FUNCTION(swoole_func_name) {                                                                                   \
         static zend_function *fn_##swoole_func_name = nullptr;                                                         \
         if (!fn_##swoole_func_name) {                                                                                  \
@@ -272,15 +272,15 @@ void php_swoole_stdext_minit(int module_number) {
     }
 
 // array
-SWOOLE_CREATE_PHP_FUNCTION_WRAPPER(array_search, swoole_array_search, call_func_switch_arg_1_and_2);
-SWOOLE_CREATE_PHP_FUNCTION_WRAPPER(in_array, swoole_array_contains, call_func_switch_arg_1_and_2);
-SWOOLE_CREATE_PHP_FUNCTION_WRAPPER(implode, swoole_array_join, call_func_switch_arg_1_and_2);
-SWOOLE_CREATE_PHP_FUNCTION_WRAPPER(array_key_exists, swoole_array_key_exists, call_func_switch_arg_1_and_2);
-SWOOLE_CREATE_PHP_FUNCTION_WRAPPER(array_map, swoole_array_map, call_func_switch_arg_1_and_2);
+SW_CREATE_PHP_FUNCTION_WRAPPER(array_search, swoole_array_search, call_func_switch_arg_1_and_2);
+SW_CREATE_PHP_FUNCTION_WRAPPER(in_array, swoole_array_contains, call_func_switch_arg_1_and_2);
+SW_CREATE_PHP_FUNCTION_WRAPPER(implode, swoole_array_join, call_func_switch_arg_1_and_2);
+SW_CREATE_PHP_FUNCTION_WRAPPER(array_key_exists, swoole_array_key_exists, call_func_switch_arg_1_and_2);
+SW_CREATE_PHP_FUNCTION_WRAPPER(array_map, swoole_array_map, call_func_switch_arg_1_and_2);
 
 // string
-SWOOLE_CREATE_PHP_FUNCTION_WRAPPER(explode, swoole_str_split, call_func_switch_arg_1_and_2);
-SWOOLE_CREATE_PHP_FUNCTION_WRAPPER(hash, swoole_hash, call_func_switch_arg_1_and_2);
+SW_CREATE_PHP_FUNCTION_WRAPPER(explode, swoole_str_split, call_func_switch_arg_1_and_2);
+SW_CREATE_PHP_FUNCTION_WRAPPER(hash, swoole_hash, call_func_switch_arg_1_and_2);
 
 PHP_FUNCTION(swoole_parse_str) {
     char *arg;
@@ -404,12 +404,12 @@ static bool type_check(zend_array *ht, const zval *key, const zval *value) {
 
 static int opcode_handler_array_assign(zend_execute_data *execute_data) {
     const zend_op *opline = EX(opline);
-    auto array = EX_VAR(opline->op1.var);
-    if (Z_TYPE_P(array) != IS_ARRAY && Z_TYPE_P(array) != IS_REFERENCE) {
-        return ZEND_USER_OPCODE_DISPATCH;
-    }
-    if (Z_TYPE_P(array) == IS_REFERENCE) {
+    auto array = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+    if (ZVAL_IS_REF(array)) {
         array = Z_REFVAL_P(array);
+    }
+    if (!ZVAL_IS_ARRAY(array)) {
+        return ZEND_USER_OPCODE_DISPATCH;
     }
     zend_array *ht = Z_ARRVAL_P(array);
     if (!(HT_FLAGS(ht) & HASH_FLAG_TYPED_ARRAY)) {

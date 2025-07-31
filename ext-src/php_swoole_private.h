@@ -476,6 +476,12 @@ static sw_inline zend_bool ZVAL_IS_ARRAY(zval *v) {
 }
 #endif
 
+#ifndef ZVAL_IS_REF
+static sw_inline zend_bool ZVAL_IS_REF(zval *v) {
+    return Z_TYPE_P(v) == IS_REFERENCE;
+}
+#endif
+
 #ifndef ZVAL_IS_OBJECT
 static sw_inline zend_bool ZVAL_IS_OBJECT(zval *v) {
     return Z_TYPE_P(v) == IS_OBJECT;
