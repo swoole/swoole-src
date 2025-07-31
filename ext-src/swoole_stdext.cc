@@ -262,7 +262,7 @@ void php_swoole_stdext_minit(int module_number) {
     fn_swoole_call_string_method = get_function(CG(function_table), ZEND_STRL("swoole_call_string_method"));
 }
 
-#define SW_CREATE_PHP_FUNCTION_WRAPPER(php_func_name, swoole_func_name, callback)                                  \
+#define SW_CREATE_PHP_FUNCTION_WRAPPER(php_func_name, swoole_func_name, callback)                                      \
     PHP_FUNCTION(swoole_func_name) {                                                                                   \
         static zend_function *fn_##swoole_func_name = nullptr;                                                         \
         if (!fn_##swoole_func_name) {                                                                                  \
