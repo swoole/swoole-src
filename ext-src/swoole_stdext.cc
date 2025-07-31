@@ -19,7 +19,7 @@
 #include "thirdparty/php/zend/zend_opcode_execute.h"
 
 #define MAX_ARGC 16
-#define HASH_FLAG_TYPED_ARRAY (1 << 30)
+#define HASH_FLAG_TYPED_ARRAY (1 << 12)
 
 /**
  * This module aims to enhance the PHP standard library without modifying the php-src core code.
@@ -33,25 +33,96 @@ static struct {
     uint8_t op1_type;
 } call_info;
 
-struct ArrayTypeInfo {
+struct ArrayTypeValue {
     uint8_t type_of_value;
     uint8_t type_of_key;
-    uint8_t element_type_of_key;
-    uint8_t element_type_of_value;
-    uint16_t element_offset_of_value_type_str;
-    uint16_t element_len_of_value_type_str;
-    zend_class_entry *value_ce;
+    uint16_t offset_of_value_type_str;
     uint16_t len_of_value_type_str;
-    char value_type_str[0];
+
+    bool parse(const char *type_str, size_t len_of_type_str);
+};
+
+struct ArrayTypeInfo {
+    ArrayTypeValue self;
+    ArrayTypeValue element;
+    zend_class_entry *value_ce;
+    uint16_t len_of_type_str;
+    char type_str[0];
+
+    bool parse(zend_string *type_def);
+    bool equals(const ArrayTypeInfo *other) const {
+        return self.type_of_key == other->self.type_of_key && self.type_of_value == other->self.type_of_value &&
+               len_of_type_str == other->len_of_type_str && memcmp(type_str, other->type_str, len_of_type_str) == 0;
+    }
+    bool element_type_equals(const ArrayTypeInfo *element_array_type_info) const {
+        return element_array_type_info->get_type_of_key() == element.type_of_key &&
+               element_array_type_info->get_type_of_value() == element.type_of_value &&
+               element_array_type_info->len_of_type_str == get_len_of_value_type_str() &&
+               memcmp(element_array_type_info->type_str, get_value_type_str(), get_len_of_value_type_str()) == 0;
+    }
+    const char *get_value_type_str() const {
+        return type_str + self.offset_of_value_type_str;
+    }
+    uint16_t get_len_of_type_str() const {
+        return len_of_type_str;
+    }
+    uint16_t get_len_of_value_type_str() const {
+        return self.len_of_value_type_str;
+    }
+    uint8_t get_type_of_key() const {
+        return self.type_of_key;
+    }
+    uint8_t get_type_of_value() const {
+        return self.type_of_value;
+    }
+    bool is_list() const {
+        return self.type_of_key == 0;
+    }
+    bool value_is_bool() const {
+        return self.type_of_value == IS_TRUE || self.type_of_value == IS_FALSE;
+    }
+    bool value_is_object() const {
+        return self.type_of_value == IS_OBJECT;
+    }
+    bool value_is_array() const {
+        return self.type_of_value == IS_ARRAY;
+    }
+    bool value_is_string() const {
+        return self.type_of_value == IS_STRING;
+    }
+    bool value_is_numeric() const {
+        return self.type_of_value == IS_LONG || self.type_of_value == IS_DOUBLE;
+    }
+    bool instance_of(const zval *value) const {
+        return instanceof_function(Z_OBJCE_P(value), value_ce);
+    }
+    bool check(const zend_array *ht, const zval *key, const zval *value) const;
+    ArrayTypeInfo *dup() const {
+        const auto copy = static_cast<ArrayTypeInfo *>(emalloc(sizeof(ArrayTypeInfo) + get_len_of_type_str() + 1));
+        memcpy(copy, this, sizeof(ArrayTypeInfo) + get_len_of_type_str() + 1);
+        return copy;
+    }
 };
 
 static zend_function *fn_swoole_call_array_method = nullptr;
 static zend_function *fn_swoole_call_string_method = nullptr;
+static zend_function *fn_array_push = nullptr;
+static zend_function *fn_array_unshift = nullptr;
+static zend_function *fn_array_splice = nullptr;
+static zif_handler ori_handler_array_push;
+static zif_handler ori_handler_array_unshift;
+static zif_handler ori_handler_array_splice;
 
 static int opcode_handler_array_assign(zend_execute_data *execute_data);
+static int opcode_handler_array_assign_op(zend_execute_data *execute_data);
 static int opcode_handler_array_unset(zend_execute_data *execute_data);
+static int opcode_handler_foreach_begin(zend_execute_data *execute_data);
 static int opcode_handler_method_call(zend_execute_data *execute_data);
 static ArrayTypeInfo *get_type_info(zend_array *array);
+
+static PHP_FUNCTION(swoole_array_push);
+static PHP_FUNCTION(swoole_array_unshift);
+static PHP_FUNCTION(swoole_array_splice);
 
 static zend_function *get_function(const zend_array *function_table, const char *name, size_t name_len) {
     return static_cast<zend_function *>(zend_hash_str_find_ptr(function_table, name, name_len));
@@ -99,6 +170,7 @@ static std::unordered_map<std::string, std::string> array_methods = {
     {"count", "count"},
     {"contains", "swoole_array_contains"},
     {"join", "swoole_array_join"},
+    {"isTyped", "swoole_array_is_typed"},
     // pass by ref
     {"sort", "sort"},
     {"pop", "array_pop"},
@@ -257,9 +329,23 @@ static int opcode_handler_method_call(zend_execute_data *execute_data) {
 void php_swoole_stdext_minit(int module_number) {
     zend_set_user_opcode_handler(ZEND_INIT_METHOD_CALL, opcode_handler_method_call);
     zend_set_user_opcode_handler(ZEND_ASSIGN_DIM, opcode_handler_array_assign);
+    zend_set_user_opcode_handler(ZEND_ASSIGN_DIM_OP, opcode_handler_array_assign_op);
     zend_set_user_opcode_handler(ZEND_UNSET_DIM, opcode_handler_array_unset);
+    zend_set_user_opcode_handler(ZEND_FE_RESET_RW, opcode_handler_foreach_begin);
+
     fn_swoole_call_array_method = get_function(CG(function_table), ZEND_STRL("swoole_call_array_method"));
     fn_swoole_call_string_method = get_function(CG(function_table), ZEND_STRL("swoole_call_string_method"));
+
+    fn_array_push = get_function(CG(function_table), ZEND_STRL("array_push"));
+    fn_array_unshift = get_function(CG(function_table), ZEND_STRL("array_unshift"));
+    fn_array_splice = get_function(CG(function_table), ZEND_STRL("array_splice"));
+
+    ori_handler_array_push = fn_array_push->internal_function.handler;
+    fn_array_push->internal_function.handler = ZEND_FN(swoole_array_push);
+    ori_handler_array_unshift = fn_array_unshift->internal_function.handler;
+    fn_array_unshift->internal_function.handler = ZEND_FN(swoole_array_unshift);
+    ori_handler_array_splice = fn_array_splice->internal_function.handler;
+    fn_array_splice->internal_function.handler = ZEND_FN(swoole_array_splice);
 }
 
 #define SW_CREATE_PHP_FUNCTION_WRAPPER(php_func_name, swoole_func_name, callback)                                      \
@@ -303,11 +389,23 @@ PHP_FUNCTION(swoole_call_string_method) {
     call_method(string_methods, execute_data, return_value);
 }
 
-ZEND_API HashTable *ZEND_FASTCALL sw_zend_new_array(const uint32_t nSize, const uint32_t nTypeStr) {
+static HashTable *make_typed_array(const uint32_t nSize, const uint32_t nTypeStr) {
     const auto ht = static_cast<zend_array *>(emalloc(sizeof(HashTable) + sizeof(ArrayTypeInfo) + nTypeStr + 1));
     _zend_hash_init(ht, nSize, ZVAL_PTR_DTOR, false);
     HT_FLAGS(ht) |= HASH_FLAG_TYPED_ARRAY;
     return ht;
+}
+
+void copy_array_type_info(zval *container, zend_array *src) {
+    auto src_type_info = get_type_info(src);
+    zend_array *ht = Z_ARRVAL_P(container);
+    auto extra_size = sizeof(ArrayTypeInfo) + src_type_info->get_len_of_type_str() + 1;
+    const auto tmp = static_cast<zend_array *>(emalloc(sizeof(HashTable) + extra_size));
+    memcpy(tmp, ht, sizeof(HashTable));
+    memcpy(reinterpret_cast<char *>(tmp) + sizeof(HashTable), src_type_info, extra_size);
+    HT_FLAGS(tmp) |= HASH_FLAG_TYPED_ARRAY;
+    Z_ARRVAL_P(container) = tmp;
+    efree(ht);
 }
 
 static ArrayTypeInfo *get_type_info(zend_array *array) {
@@ -315,21 +413,21 @@ static ArrayTypeInfo *get_type_info(zend_array *array) {
 }
 
 static zend_string *get_array_type_def(const ArrayTypeInfo *info) {
-    zend_string *result = zend_string_alloc(info->len_of_value_type_str + 16, false);
+    zend_string *result = zend_string_alloc(info->get_len_of_value_type_str() + 16, false);
     char *p = result->val;
     *p = '<';
-    if (info->type_of_key == IS_STRING) {
+    if (info->get_type_of_key() == IS_STRING) {
         p++;
         strcpy(p, "string,");
         p += 7;
-    } else if (info->type_of_key == IS_LONG) {
+    } else if (info->get_type_of_key() == IS_LONG) {
         p++;
         strcpy(p, "int,");
         p += 4;
     }
 
-    memcpy(p, info->value_type_str, info->len_of_value_type_str);
-    p += info->len_of_value_type_str;
+    memcpy(p, info->get_value_type_str(), info->get_len_of_value_type_str());
+    p += info->get_len_of_value_type_str();
     *p = '>';
     p++;
     *p = '\0';
@@ -338,12 +436,11 @@ static zend_string *get_array_type_def(const ArrayTypeInfo *info) {
     return result;
 }
 
-static bool type_check(zend_array *ht, const zval *key, const zval *value) {
-    const auto type_info = get_type_info(ht);
-    if (type_info->type_of_key > 0) {
-        if (Z_TYPE_P(key) != type_info->type_of_key) {
+bool ArrayTypeInfo::check(const zend_array *ht, const zval *key, const zval *value) const {
+    if (get_type_of_key() > 0) {
+        if (Z_TYPE_P(key) != get_type_of_key()) {
             zend_type_error("Array key type mismatch, expected `%s`, got `%s`",
-                            zend_get_type_by_const(type_info->type_of_key),
+                            zend_get_type_by_const(get_type_of_key()),
                             zend_get_type_by_const(Z_TYPE_P(key)));
             return false;
         }
@@ -359,40 +456,34 @@ static bool type_check(zend_array *ht, const zval *key, const zval *value) {
             return false;
         }
     }
-    if (type_info->type_of_value == IS_TRUE && (Z_TYPE_P(value) == IS_TRUE || Z_TYPE_P(value) == IS_FALSE)) {
+    if (value_is_bool() && ZVAL_IS_BOOL(value)) {
         return true;
     }
-    if (Z_TYPE_P(value) != type_info->type_of_value) {
+    if (Z_TYPE_P(value) != get_type_of_value()) {
         zend_type_error("Array value type mismatch, expected `%s`, got `%s`",
-                        zend_get_type_by_const(type_info->type_of_value),
+                        zend_get_type_by_const(get_type_of_value()),
                         zend_get_type_by_const(Z_TYPE_P(value)));
         return false;
     }
-    if (type_info->type_of_value == IS_OBJECT && !instanceof_function(Z_OBJCE_P(value), type_info->value_ce)) {
-        zend_type_error("Array value type mismatch, expected `%s`, got `%s`",
-                        type_info->value_ce->name->val,
-                        Z_OBJCE_P(value)->name->val);
+    if (value_is_object() && !instance_of(value)) {
+        zend_type_error(
+            "Array value type mismatch, expected `%s`, got `%s`", value_ce->name->val, Z_OBJCE_P(value)->name->val);
         return false;
     }
-    if (type_info->type_of_value == IS_ARRAY) {
+    if (value_is_array()) {
         const auto element_array_type_info = get_type_info(Z_ARRVAL_P(value));
         const auto element_ht = Z_ARRVAL_P(value);
         if (!(HT_FLAGS(element_ht) & HASH_FLAG_TYPED_ARRAY)) {
             zend_type_error("Array value type mismatch, expected `%.*s`, got `array`",
-                            type_info->len_of_value_type_str,
-                            type_info->value_type_str);
+                            get_len_of_value_type_str(),
+                            get_value_type_str());
             return false;
         }
-        if (element_array_type_info->type_of_key != type_info->element_type_of_key ||
-            element_array_type_info->type_of_value != type_info->element_type_of_value ||
-            memcmp(element_array_type_info->value_type_str,
-                   type_info->value_type_str + type_info->element_offset_of_value_type_str,
-                   MIN(element_array_type_info->len_of_value_type_str, type_info->element_len_of_value_type_str)) !=
-                0) {
+        if (!element_type_equals(element_array_type_info)) {
             const auto element_type_str = get_array_type_def(element_array_type_info);
             zend_type_error("Array value type mismatch, expected `%.*s`, got `%.*s`",
-                            type_info->len_of_value_type_str,
-                            type_info->value_type_str,
+                            get_len_of_value_type_str(),
+                            get_value_type_str(),
                             (int) ZSTR_LEN(element_type_str),
                             ZSTR_VAL(element_type_str));
             zend_string_release(element_type_str);
@@ -402,20 +493,124 @@ static bool type_check(zend_array *ht, const zval *key, const zval *value) {
     return true;
 }
 
-static int opcode_handler_array_assign(zend_execute_data *execute_data) {
-    const zend_op *opline = EX(opline);
+static zval *get_array_on_opline(const zend_op *opline EXECUTE_DATA_DC) {
     auto array = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
     if (ZVAL_IS_REF(array)) {
         array = Z_REFVAL_P(array);
     }
     if (!ZVAL_IS_ARRAY(array)) {
+        return nullptr;
+    }
+    return array;
+}
+
+static void array_add_or_update(const zend_op *opline, zval *container, const zval *key, zval *value EXECUTE_DATA_DC) {
+    zval *var_ptr;
+    HashTable *source = Z_ARRVAL_P(container);
+    SEPARATE_ARRAY(container);
+    if (source != Z_ARRVAL_P(container)) {
+        copy_array_type_info(container, source);
+    }
+    HashTable *ht = Z_ARRVAL_P(container);
+
+    if (ZVAL_IS_NULL(key)) {
+        var_ptr = zend_hash_next_index_insert(ht, value);
+        if (UNEXPECTED(!var_ptr)) {
+            zend_cannot_add_element();
+            goto assign_dim_op_ret_null;
+        }
+    } else {
+        zval *variable_ptr;
+        if ((opline + 1)->op1_type == IS_CONST) {
+            variable_ptr = zend_fetch_dimension_address_inner_W_CONST(Z_ARRVAL_P(container), key EXECUTE_DATA_CC);
+        } else {
+            variable_ptr = zend_fetch_dimension_address_inner_W(Z_ARRVAL_P(container), key EXECUTE_DATA_CC);
+        }
+        if (UNEXPECTED(variable_ptr == NULL)) {
+            goto assign_dim_op_ret_null;
+        }
+        var_ptr = zend_assign_to_variable(variable_ptr, value, (opline + 1)->op1_type, EX_USES_STRICT_TYPES());
+        if (UNEXPECTED(!var_ptr)) {
+        assign_dim_op_ret_null:
+            FREE_OP((opline + 1)->op1_type, (opline + 1)->op1.var);
+            if (UNEXPECTED(RETURN_VALUE_USED(opline))) {
+                ZVAL_NULL(EX_VAR(opline->result.var));
+            }
+            return;
+        }
+    }
+
+    if (UNEXPECTED(RETURN_VALUE_USED(opline))) {
+        ZVAL_COPY(EX_VAR(opline->result.var), var_ptr);
+    }
+    FREE_OP((opline + 1)->op1_type, (opline + 1)->op1.var);
+}
+
+static void array_op(const zend_op *opline, zval *container, const zval *key, zval *value EXECUTE_DATA_DC) {
+    HashTable *source = Z_ARRVAL_P(container);
+    SEPARATE_ARRAY(container);
+    if (source != Z_ARRVAL_P(container)) {
+        copy_array_type_info(container, source);
+    }
+    const auto type_info = get_type_info(Z_ARRVAL_P(container));
+
+    zval *variable_ptr;
+    if ((opline + 1)->op1_type == IS_CONST) {
+        variable_ptr = zend_fetch_dimension_address_inner_RW_CONST(Z_ARRVAL_P(container), key EXECUTE_DATA_CC);
+    } else {
+        variable_ptr = zend_fetch_dimension_address_inner_RW(Z_ARRVAL_P(container), key EXECUTE_DATA_CC);
+    }
+    if (UNEXPECTED(variable_ptr == NULL)) {
+    assign_dim_op_ret_null:
+        FREE_OP((opline + 1)->op1_type, (opline + 1)->op1.var);
+        if (UNEXPECTED(RETURN_VALUE_USED(opline))) {
+            ZVAL_NULL(EX_VAR(opline->result.var));
+        }
+        return;
+    }
+    do {
+        if (UNEXPECTED(Z_ISREF_P(variable_ptr))) {
+            zend_reference *ref = Z_REF_P(variable_ptr);
+            variable_ptr = Z_REFVAL_P(variable_ptr);
+            if (UNEXPECTED(ZEND_REF_HAS_TYPE_SOURCES(ref))) {
+                zend_binary_assign_op_typed_ref(ref, value OPLINE_CC EXECUTE_DATA_CC);
+                break;
+            }
+        }
+        size_t opcode = (size_t) opline->extended_value;
+        if (opcode == ZEND_CONCAT) {
+            if (!type_info->value_is_string()) {
+                zend_type_error("Only string support concat operation");
+                goto assign_dim_op_ret_null;
+            }
+        } else {
+            if (!type_info->value_is_numeric()) {
+                zend_type_error("Only int or float support arithmetic operation");
+                goto assign_dim_op_ret_null;
+            }
+        }
+        zend_binary_op(variable_ptr, variable_ptr, value OPLINE_CC);
+    } while (0);
+
+    if (UNEXPECTED(RETURN_VALUE_USED(opline))) {
+        ZVAL_COPY(EX_VAR(opline->result.var), variable_ptr);
+    }
+    FREE_OP((opline + 1)->op1_type, (opline + 1)->op1.var);
+}
+
+typedef std::function<void(const zend_op *, zval *, const zval *, zval *EXECUTE_DATA_DC)> ArrayFn;
+
+static int opcode_handler_array(zend_execute_data *execute_data, const ArrayFn &fn) {
+    const zend_op *opline = EX(opline);
+    zval *array = get_array_on_opline(opline EXECUTE_DATA_CC);
+    if (!array) {
         return ZEND_USER_OPCODE_DISPATCH;
     }
     zend_array *ht = Z_ARRVAL_P(array);
     if (!(HT_FLAGS(ht) & HASH_FLAG_TYPED_ARRAY)) {
         return ZEND_USER_OPCODE_DISPATCH;
     }
-    auto value = get_op_data_zval_ptr_r((opline + 1)->op1_type, (opline + 1)->op1);
+    const auto value = get_op_data_zval_ptr_r((opline + 1)->op1_type, (opline + 1)->op1);
     zval *key;
     if (opline->op2_type == IS_CONST) {
         key = RT_CONSTANT(opline, opline->op2);
@@ -424,8 +619,43 @@ static int opcode_handler_array_assign(zend_execute_data *execute_data) {
     } else {
         key = EX_VAR(opline->op2.var);
     }
-    if (!type_check(ht, key, value)) {
+    auto type_info = get_type_info(ht);
+    if (!type_info->check(ht, key, value)) {
         FREE_OP((opline + 1)->op1_type, (opline + 1)->op1.var);
+        return ZEND_USER_OPCODE_CONTINUE;
+    }
+    fn(opline, array, key, value EXECUTE_DATA_CC);
+    EX(opline) += 2;
+    return ZEND_USER_OPCODE_CONTINUE;
+}
+
+static int opcode_handler_array_assign(zend_execute_data *execute_data) {
+    return opcode_handler_array(execute_data, array_add_or_update);
+}
+
+static int opcode_handler_array_assign_op(zend_execute_data *execute_data) {
+    return opcode_handler_array(execute_data, array_op);
+}
+
+static int opcode_handler_foreach_begin(zend_execute_data *execute_data) {
+    const zend_op *opline = EX(opline);
+    zval *array;
+    if (opline->op1_type == IS_VAR || opline->op1_type == IS_CV) {
+        array = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+    } else if (opline->op1_type == IS_CONST) {
+        array = RT_CONSTANT(opline, opline->op1);
+    } else {
+        array = _get_zval_ptr_tmp(opline->op1.var EXECUTE_DATA_CC);
+    }
+    if (Z_ISREF_P(array)) {
+        array = Z_REFVAL_P(array);
+    }
+    if (!array) {
+        return ZEND_USER_OPCODE_DISPATCH;
+    }
+    const zend_array *ht = Z_ARRVAL_P(array);
+    if (HT_FLAGS(ht) & HASH_FLAG_TYPED_ARRAY) {
+        zend_throw_error(nullptr, "The type array do not support using references for element value during iteration");
         return ZEND_USER_OPCODE_CONTINUE;
     }
     return ZEND_USER_OPCODE_DISPATCH;
@@ -433,19 +663,16 @@ static int opcode_handler_array_assign(zend_execute_data *execute_data) {
 
 static int opcode_handler_array_unset(zend_execute_data *execute_data) {
     const zend_op *opline = EX(opline);
-    auto array = EX_VAR(opline->op1.var);
-    if (Z_TYPE_P(array) != IS_ARRAY && Z_TYPE_P(array) != IS_REFERENCE) {
+    const zval *array = get_array_on_opline(opline EXECUTE_DATA_CC);
+    if (!array) {
         return ZEND_USER_OPCODE_DISPATCH;
-    }
-    if (Z_TYPE_P(array) == IS_REFERENCE) {
-        array = Z_REFVAL_P(array);
     }
     zend_array *ht = Z_ARRVAL_P(array);
     if (!(HT_FLAGS(ht) & HASH_FLAG_TYPED_ARRAY)) {
         return ZEND_USER_OPCODE_DISPATCH;
     }
-    auto type_info = get_type_info(ht);
-    if (type_info->type_of_key == 0) {
+    const auto type_info = get_type_info(ht);
+    if (type_info->is_list()) {
         zend_throw_error(nullptr, "The typed array list do not support random deletion of elements");
         FREE_OP((opline + 1)->op1_type, (opline + 1)->op1.var);
         return ZEND_USER_OPCODE_CONTINUE;
@@ -453,7 +680,7 @@ static int opcode_handler_array_unset(zend_execute_data *execute_data) {
     return ZEND_USER_OPCODE_DISPATCH;
 }
 
-static void remove_all_spaces(char **val, size_t *len) {
+static void remove_all_spaces(char **val, uint16_t *len) {
     if (!*val || *len == 0) {
         return;
     }
@@ -494,26 +721,51 @@ static int8_t get_type(const char *val, size_t len) {
     }
 }
 
-static bool parse_array_type(const char *type_str,
-                             size_t len_of_type_str,
-                             uint8_t *type_of_key,
-                             uint8_t *type_of_value,
-                             uint16_t *offset_of_value_type_str,
-                             uint16_t *len_of_value_type_str) {
+bool ArrayTypeValue::parse(const char *type_str, const size_t len_of_type_str) {
     auto pos = strchr(type_str, ',');
     if (pos == nullptr) {
-        *type_of_key = 0;
-        *offset_of_value_type_str = 1;
+        type_of_key = 0;
+        offset_of_value_type_str = 1;
     } else {
-        *type_of_key = get_type(type_str + 1, pos - type_str - 1);
-        if (*type_of_key != IS_STRING && *type_of_key != IS_LONG) {
+        type_of_key = get_type(type_str + 1, pos - type_str - 1);
+        if (type_of_key != IS_STRING && type_of_key != IS_LONG) {
             zend_throw_error(nullptr, "The key type of array must be string or int, but got %s", pos + 1);
             return false;
         }
-        *offset_of_value_type_str = pos - type_str + 1;
+        offset_of_value_type_str = pos - type_str + 1;
     }
-    *len_of_value_type_str = len_of_type_str - *offset_of_value_type_str - 1;
-    *type_of_value = get_type(type_str + *offset_of_value_type_str, *len_of_value_type_str);
+    len_of_value_type_str = len_of_type_str - offset_of_value_type_str - 1;
+    type_of_value = get_type(type_str + offset_of_value_type_str, len_of_value_type_str);
+    return true;
+}
+
+bool ArrayTypeInfo::parse(zend_string *type_def) {
+    assert(type_def->len < 65535);
+    zend_string *lc_type_def = zend_string_tolower(type_def);
+    char *tmp_type_str = lc_type_def->val;
+    len_of_type_str = lc_type_def->len;
+    remove_all_spaces(&tmp_type_str, &len_of_type_str);
+    tmp_type_str[len_of_type_str] = '\0';
+    memcpy(type_str, tmp_type_str, len_of_type_str + 1);
+    zend_string_release(lc_type_def);
+
+    if (type_str[0] != '<' || type_str[len_of_type_str - 1] != '>') {
+        zend_throw_error(nullptr, "The type definition of typed array must start with '<' and end with '>'");
+        return false;
+    }
+    if (!self.parse(type_str, len_of_type_str)) {
+        return false;
+    }
+
+    if (self.type_of_value == IS_OBJECT) {
+        zend::String type_str_of_value(type_str + self.offset_of_value_type_str, self.len_of_value_type_str);
+        value_ce = zend_lookup_class(type_str_of_value.get());
+        if (!value_ce) {
+            zend_throw_error(nullptr, "Class '%s' not found", type_str_of_value.val());
+            return false;
+        }
+    }
+
     return true;
 }
 
@@ -527,57 +779,21 @@ PHP_FUNCTION(swoole_typed_array) {
     Z_PARAM_ARRAY(init_values)
     ZEND_PARSE_PARAMETERS_END();
 
-    zend::String tmp_type_def(zend_string_tolower(type_def), false);
-    char *type_str = tmp_type_def.val();
-    size_t len_of_type_str = tmp_type_def.len();
-    remove_all_spaces(&type_str, &len_of_type_str);
-    type_str[len_of_type_str] = '\0';
-
-    if (type_str[0] != '<' || type_str[len_of_type_str - 1] != '>') {
-        zend_throw_error(nullptr, "The type definition of typed array must start with '<' and end with '>'");
-        return;
-    }
-
-    uint8_t type_of_value, type_of_key = 0;
-    uint16_t len_of_value_type_str = 0, offset_of_value_type_str = 0;
-
-    if (!parse_array_type(type_str,
-                          len_of_type_str,
-                          &type_of_key,
-                          &type_of_value,
-                          &offset_of_value_type_str,
-                          &len_of_value_type_str)) {
-        return;
-    }
-
-    zend_class_entry *value_ce = nullptr;
-    if (type_of_value == IS_OBJECT) {
-        zend::String type_str_of_value(type_str + offset_of_value_type_str, len_of_value_type_str);
-        value_ce = zend_lookup_class(type_str_of_value.get());
-        if (!value_ce) {
-            zend_throw_error(nullptr, "Class '%s' not found", type_str_of_value.val());
-            return;
-        }
+    auto tmp_info = static_cast<ArrayTypeInfo *>(emalloc(sizeof(ArrayTypeInfo) + ZSTR_LEN(type_def)));
+    if (!tmp_info->parse(type_def)) {
+        efree(tmp_info);
+        RETURN_NULL();
     }
 
     auto n = init_values ? zend_array_count(Z_ARRVAL_P(init_values)) : 0;
-    auto array = sw_zend_new_array(n, len_of_type_str);
+    auto array = make_typed_array(n, tmp_info->len_of_type_str);
     ZVAL_ARR(return_value, array);
     auto info = get_type_info(array);
-    info->type_of_value = type_of_value;
-    info->type_of_key = type_of_key;
-    info->value_ce = value_ce;
-    info->len_of_value_type_str = len_of_value_type_str;
-    memcpy(info->value_type_str, type_str + offset_of_value_type_str, len_of_value_type_str);
-    info->value_type_str[len_of_value_type_str] = '\0';
+    memcpy(info, tmp_info, sizeof(ArrayTypeInfo) + tmp_info->len_of_type_str + 1);
+    efree(tmp_info);
 
-    if (info->type_of_value == IS_ARRAY) {
-        if (!parse_array_type(info->value_type_str,
-                              len_of_value_type_str,
-                              &info->element_type_of_key,
-                              &info->element_type_of_value,
-                              &info->element_offset_of_value_type_str,
-                              &info->element_len_of_value_type_str)) {
+    if (info->self.type_of_value == IS_ARRAY) {
+        if (!info->element.parse(info->get_value_type_str(), info->get_len_of_value_type_str())) {
             zval_ptr_dtor(return_value);
             RETURN_NULL();
         }
@@ -595,7 +811,7 @@ PHP_FUNCTION(swoole_typed_array) {
             } else {
                 ZVAL_LONG(&zk, num_key);
             }
-            if (!type_check(array, &zk, zv)) {
+            if (!info->check(array, &zk, zv)) {
                 zval_ptr_dtor(return_value);
                 RETURN_NULL();
             }
@@ -608,4 +824,97 @@ PHP_FUNCTION(swoole_typed_array) {
         }
         ZEND_HASH_FOREACH_END();
     }
+}
+
+PHP_FUNCTION(swoole_array_is_typed) {
+    zend_string *type_def = nullptr;
+    zval *array;
+
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+    Z_PARAM_ARRAY(array)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_STR(type_def)
+    ZEND_PARSE_PARAMETERS_END();
+
+    HashTable *ht = Z_ARRVAL_P(array);
+    if (!(HT_FLAGS(ht) & HASH_FLAG_TYPED_ARRAY)) {
+        RETURN_FALSE;
+    }
+    if (!type_def) {
+        RETURN_TRUE;
+    }
+
+    const auto tmp_info = static_cast<ArrayTypeInfo *>(emalloc(sizeof(ArrayTypeInfo) + ZSTR_LEN(type_def)));
+    if (!tmp_info->parse(type_def)) {
+        efree(tmp_info);
+        RETURN_FALSE;
+    }
+
+    const auto info = get_type_info(ht);
+    RETVAL_BOOL(info->equals(tmp_info));
+    efree(tmp_info);
+}
+
+static PHP_FUNCTION(swoole_array_push) {
+    zval *arg_ptr = ZEND_CALL_ARG(execute_data, 1);
+    const int arg_count = ZEND_CALL_NUM_ARGS(execute_data);
+    zval *array = &arg_ptr[0];
+    ZVAL_DEREF(array);
+
+    if (Z_TYPE_P(array) == IS_ARRAY && HT_FLAGS(Z_ARRVAL_P(array)) & HASH_FLAG_TYPED_ARRAY) {
+        auto source = Z_ARRVAL_P(array);
+        auto type_info = get_type_info(source);
+        for (int i = 1; i < arg_count; i++) {
+            if (!type_info->check(source, &EG(uninitialized_zval), &arg_ptr[i])) {
+                return;
+            }
+        }
+    }
+    ori_handler_array_push(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+}
+
+static PHP_FUNCTION(swoole_array_unshift) {
+    zval *arg_ptr = ZEND_CALL_ARG(execute_data, 1);
+    const int arg_count = ZEND_CALL_NUM_ARGS(execute_data);
+    zval *array = &arg_ptr[0];
+    ZVAL_DEREF(array);
+
+    if (Z_TYPE_P(array) == IS_ARRAY && HT_FLAGS(Z_ARRVAL_P(array)) & HASH_FLAG_TYPED_ARRAY) {
+        auto source = Z_ARRVAL_P(array);
+        auto type_info = get_type_info(source);
+        for (int i = 1; i < arg_count; i++) {
+            if (!type_info->check(source, &EG(uninitialized_zval), &arg_ptr[i])) {
+                return;
+            }
+        }
+        ori_handler_array_unshift(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+        HT_FLAGS(source) |= HASH_FLAG_TYPED_ARRAY;
+    } else {
+        ori_handler_array_unshift(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+    }
+}
+
+static PHP_FUNCTION(swoole_array_splice) {
+    zval *arg_ptr = ZEND_CALL_ARG(execute_data, 1);
+    zval *array = &arg_ptr[0];
+    ZVAL_DEREF(array);
+    if (Z_TYPE_P(array) == IS_ARRAY && HT_FLAGS(Z_ARRVAL_P(array)) & HASH_FLAG_TYPED_ARRAY) {
+        auto type_info = get_type_info(Z_ARRVAL_P(array));
+        auto values = &arg_ptr[3];
+        if (Z_TYPE_P(values) == IS_ARRAY) {
+            zval *zv;
+            HashTable *ht = Z_ARRVAL_P(values);
+            ZEND_HASH_FOREACH_VAL(ht, zv) {
+                if (!type_info->check(Z_ARRVAL_P(array), &EG(uninitialized_zval), zv)) {
+                    return;
+                }
+            }
+            ZEND_HASH_FOREACH_END();
+        } else {
+            if (!type_info->check(Z_ARRVAL_P(array), &EG(uninitialized_zval), values)) {
+                return;
+            }
+        }
+    }
+    ori_handler_array_splice(execute_data, return_value);
 }

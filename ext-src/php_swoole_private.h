@@ -428,68 +428,48 @@ typedef zend_string error_filename_t;
 #define SW_ZVAL_SOCKET(return_value, result) ZVAL_OBJ(return_value, &result->std)
 #define SW_Z_SOCKET_P(zsocket) Z_SOCKET_P(zsocket)
 
-#ifndef ZVAL_IS_BOOL
-static sw_inline zend_bool ZVAL_IS_BOOL(zval *v) {
-    return Z_TYPE_P(v) == IS_TRUE || Z_TYPE_P(v) == IS_FALSE;
-}
-#endif
-
-#ifndef ZVAL_IS_TRUE
-static sw_inline zend_bool ZVAL_IS_TRUE(zval *v) {
+static sw_inline zend_bool ZVAL_IS_TRUE(const zval *v) {
     return Z_TYPE_P(v) == IS_TRUE;
 }
-#endif
 
-#ifndef ZVAL_IS_UNDEF
-static sw_inline zend_bool ZVAL_IS_UNDEF(zval *v) {
-    return Z_TYPE_P(v) == IS_UNDEF;
-}
-#endif
-
-#ifndef ZVAL_IS_FALSE
-static sw_inline zend_bool ZVAL_IS_FALSE(zval *v) {
+static sw_inline zend_bool ZVAL_IS_FALSE(const zval *v) {
     return Z_TYPE_P(v) == IS_FALSE;
 }
-#endif
 
-#ifndef ZVAL_IS_LONG
-static sw_inline zend_bool ZVAL_IS_LONG(zval *v) {
+static sw_inline zend_bool ZVAL_IS_BOOL(const zval *v) {
+    return ZVAL_IS_TRUE(v) || ZVAL_IS_FALSE(v);
+}
+
+static sw_inline zend_bool ZVAL_IS_UNDEF(const zval *v) {
+    return Z_TYPE_P(v) == IS_UNDEF;
+}
+
+static sw_inline zend_bool ZVAL_IS_LONG(const zval *v) {
     return Z_TYPE_P(v) == IS_LONG;
 }
-#endif
 
-#ifndef ZVAL_IS_STRING
-static sw_inline zend_bool ZVAL_IS_STRING(zval *v) {
+static sw_inline zend_bool ZVAL_IS_STRING(const zval *v) {
     return Z_TYPE_P(v) == IS_STRING;
 }
-#endif
 
-#ifndef Z_BVAL_P
-static sw_inline zend_bool Z_BVAL_P(zval *v) {
+static sw_inline zend_bool Z_BVAL_P(const zval *v) {
     return Z_TYPE_P(v) == IS_TRUE;
 }
-#endif
 
-#ifndef ZVAL_IS_ARRAY
-static sw_inline zend_bool ZVAL_IS_ARRAY(zval *v) {
+static sw_inline zend_bool ZVAL_IS_ARRAY(const zval *v) {
     return Z_TYPE_P(v) == IS_ARRAY;
 }
-#endif
 
-#ifndef ZVAL_IS_REF
-static sw_inline zend_bool ZVAL_IS_REF(zval *v) {
+static sw_inline zend_bool ZVAL_IS_REF(const zval *v) {
     return Z_TYPE_P(v) == IS_REFERENCE;
 }
-#endif
 
-#ifndef ZVAL_IS_OBJECT
-static sw_inline zend_bool ZVAL_IS_OBJECT(zval *v) {
+static sw_inline zend_bool ZVAL_IS_OBJECT(const zval *v) {
     return Z_TYPE_P(v) == IS_OBJECT;
 }
-#endif
 
 static sw_inline zval *sw_malloc_zval() {
-    return (zval *) emalloc(sizeof(zval));
+    return static_cast<zval *>(emalloc(sizeof(zval)));
 }
 
 static sw_inline zval *sw_zval_dup(zval *val) {

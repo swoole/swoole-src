@@ -164,6 +164,7 @@ const zend_function_entry swoole_functions[] = {
     ZEND_FE(swoole_parse_str,            arginfo_swoole_parse_str)
     ZEND_FE(swoole_hash,                 arginfo_swoole_hash)
     ZEND_FE(swoole_typed_array,          arginfo_swoole_typed_array)
+    ZEND_FE(swoole_array_is_typed,       arginfo_swoole_array_is_typed)
     PHP_FE_END /* Must be the last line in swoole_functions[] */
 };
 

@@ -21,6 +21,8 @@ function swoole_array_key_exists(array $array, null|bool|float|int|resource|stri
 
 function swoole_array_map(array $array, ?callable $callback, array ...$arrays): array {}
 
+function swoole_array_is_typed(array $array, string $typeDef = ''): bool {}
+
 function swoole_str_split(string $string, string $delimiter, int $limit = PHP_INT_MAX): array {}
 
 function swoole_parse_str(string $string): array {}
