@@ -9,6 +9,7 @@ require __DIR__ . '/../../include/bootstrap.php';
 $arr = typed_array('<int>', [1, 3, 5]);
 array_push($arr, 7);
 Assert::eq($arr[3], 7);
+Assert::true($arr->isList());
 
 try {
     array_push($arr, 9, 'hello world', true);

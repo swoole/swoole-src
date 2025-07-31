@@ -1,5 +1,5 @@
 --TEST--
-swoole_stdext/typed_array: 11
+swoole_stdext/typed_array: array_pop
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
@@ -11,6 +11,7 @@ $v = array_pop($arr);
 Assert::eq($v, 7);
 Assert::eq($arr[2], 5);
 Assert::eq($arr->count(), 3);
+Assert::true($arr->isList());
 
 try {
     array_push($arr, 9, 'hello world', true);

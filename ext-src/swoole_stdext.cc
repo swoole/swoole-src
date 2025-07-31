@@ -456,6 +456,7 @@ bool ArrayTypeInfo::check(const zend_array *ht, const zval *key, const zval *val
             return false;
         }
     }
+    ZVAL_DEREF(value);
     if (value_is_bool() && ZVAL_IS_BOOL(value)) {
         return true;
     }
@@ -895,26 +896,34 @@ static PHP_FUNCTION(swoole_array_unshift) {
 }
 
 static PHP_FUNCTION(swoole_array_splice) {
-    zval *arg_ptr = ZEND_CALL_ARG(execute_data, 1);
-    zval *array = &arg_ptr[0];
+    const zval *arg_ptr = ZEND_CALL_ARG(execute_data, 1);
+    const int arg_count = ZEND_CALL_NUM_ARGS(execute_data);
+    const zval *array = &arg_ptr[0];
     ZVAL_DEREF(array);
     if (Z_TYPE_P(array) == IS_ARRAY && HT_FLAGS(Z_ARRVAL_P(array)) & HASH_FLAG_TYPED_ARRAY) {
-        auto type_info = get_type_info(Z_ARRVAL_P(array));
-        auto values = &arg_ptr[3];
-        if (Z_TYPE_P(values) == IS_ARRAY) {
-            zval *zv;
-            HashTable *ht = Z_ARRVAL_P(values);
-            ZEND_HASH_FOREACH_VAL(ht, zv) {
-                if (!type_info->check(Z_ARRVAL_P(array), &EG(uninitialized_zval), zv)) {
+        if (arg_count > 3) {
+            auto type_info = get_type_info(Z_ARRVAL_P(array));
+            auto values = &arg_ptr[3];
+            ZVAL_DEREF(values);
+            if (Z_TYPE_P(values) == IS_ARRAY) {
+                zval *zv;
+                HashTable *ht = Z_ARRVAL_P(values);
+                ZEND_HASH_FOREACH_VAL(ht, zv) {
+                    if (!type_info->check(Z_ARRVAL_P(array), &EG(uninitialized_zval), zv)) {
+                        return;
+                    }
+                }
+                ZEND_HASH_FOREACH_END();
+            } else {
+                if (!type_info->check(Z_ARRVAL_P(array), &EG(uninitialized_zval), values)) {
                     return;
                 }
             }
-            ZEND_HASH_FOREACH_END();
-        } else {
-            if (!type_info->check(Z_ARRVAL_P(array), &EG(uninitialized_zval), values)) {
-                return;
-            }
         }
+        const auto source = Z_ARRVAL_P(array);
+        ori_handler_array_splice(execute_data, return_value);
+        HT_FLAGS(source) |= HASH_FLAG_TYPED_ARRAY;
+    } else {
+        ori_handler_array_splice(execute_data, return_value);
     }
-    ori_handler_array_splice(execute_data, return_value);
 }

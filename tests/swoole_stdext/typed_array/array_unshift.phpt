@@ -1,16 +1,15 @@
 --TEST--
-swoole_stdext/typed_array: 12
+swoole_stdext/typed_array: 10
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
 
-$arr = typed_array('<int>', [1, 3, 5, 7]);
-$v = array_shift($arr);
-Assert::eq($v, 1);
-Assert::eq($arr[1], 5);
-Assert::eq($arr->count(), 3);
+$arr = typed_array('<int>', [1, 3, 5]);
+array_unshift($arr, 999);
+Assert::eq($arr[0], 999);
+Assert::true($arr->isList());
 
 try {
     array_unshift($arr, 9, 'hello world', true);
