@@ -505,6 +505,19 @@ static zval *get_array_on_opline(const zend_op *opline EXECUTE_DATA_DC) {
     return array;
 }
 
+#ifdef DEBUG
+static void debug_val(const char *tag, int op_type, zval *value) {
+    printf("[%s] refcount=%d, op1_type=%d, type=%s, refcounted=%d\n",
+           tag,
+           Z_REFCOUNTED_P(value) ? Z_REFCOUNT_P(value) : 0,
+           op_type,
+           zend_get_type_by_const(Z_TYPE_P(value)),
+           Z_REFCOUNTED_P(value));
+}
+#else
+#define debug_val(tag, op_type, value)
+#endif
+
 static void array_add_or_update(const zend_op *opline, zval *container, const zval *key, zval *value EXECUTE_DATA_DC) {
     zval *var_ptr;
     HashTable *source = Z_ARRVAL_P(container);
@@ -513,6 +526,7 @@ static void array_add_or_update(const zend_op *opline, zval *container, const zv
         copy_array_type_info(container, source);
     }
     HashTable *ht = Z_ARRVAL_P(container);
+    const zend_op *opline_next = opline + 1;
 
     if (ZVAL_IS_NULL(key)) {
         var_ptr = zend_hash_next_index_insert(ht, value);
@@ -520,12 +534,9 @@ static void array_add_or_update(const zend_op *opline, zval *container, const zv
             zend_cannot_add_element();
             goto assign_dim_op_ret_null;
         }
-        if (Z_REFCOUNTED_P(var_ptr)) {
-            Z_ADDREF_P(var_ptr);
-        }
     } else {
         zval *variable_ptr;
-        if ((opline + 1)->op1_type == IS_CONST) {
+        if (opline_next->op1_type == IS_CONST) {
             variable_ptr = zend_fetch_dimension_address_inner_W_CONST(Z_ARRVAL_P(container), key EXECUTE_DATA_CC);
         } else {
             variable_ptr = zend_fetch_dimension_address_inner_W(Z_ARRVAL_P(container), key EXECUTE_DATA_CC);
@@ -533,24 +544,27 @@ static void array_add_or_update(const zend_op *opline, zval *container, const zv
         if (UNEXPECTED(variable_ptr == NULL)) {
             goto assign_dim_op_ret_null;
         }
-        if (Z_REFCOUNTED_P(value)) {
-            Z_ADDREF_P(value);
-        }
-        var_ptr = zend_assign_to_variable(variable_ptr, value, (opline + 1)->op1_type, EX_USES_STRICT_TYPES());
+        debug_val("1", opline_next->op1_type, value);
+        var_ptr = zend_assign_to_variable(variable_ptr, value, opline_next->op1_type, EX_USES_STRICT_TYPES());
+        debug_val("2", opline_next->op1_type, value);
         if (UNEXPECTED(!var_ptr)) {
         assign_dim_op_ret_null:
-            FREE_OP((opline + 1)->op1_type, (opline + 1)->op1.var);
+            FREE_OP(opline_next->op1_type, opline_next->op1.var);
             if (UNEXPECTED(RETURN_VALUE_USED(opline))) {
                 ZVAL_NULL(EX_VAR(opline->result.var));
             }
             return;
         }
     }
-
+    debug_val("3", opline_next->op1_type, value);
     if (UNEXPECTED(RETURN_VALUE_USED(opline))) {
         ZVAL_COPY(EX_VAR(opline->result.var), var_ptr);
     }
-    FREE_OP((opline + 1)->op1_type, (opline + 1)->op1.var);
+    if (opline_next->op1_type == IS_VAR && Z_REFCOUNTED_P(value)) {
+        Z_ADDREF_P(value);
+    }
+    FREE_OP(opline_next->op1_type, opline_next->op1.var);
+    debug_val("4", opline_next->op1_type, value);
 }
 
 static void array_op(const zend_op *opline, zval *container, const zval *key, zval *value EXECUTE_DATA_DC) {
@@ -794,6 +808,17 @@ PHP_FUNCTION(swoole_typed_array) {
         RETURN_NULL();
     }
 
+    if (init_values && HT_FLAGS(Z_ARRVAL_P(init_values)) & HASH_FLAG_TYPED_ARRAY) {
+        auto type_info = get_type_info(Z_ARRVAL_P(init_values));
+        if (tmp_info->equals(type_info)) {
+            ZVAL_COPY(return_value, init_values);
+        } else {
+            zend_throw_error(nullptr, "The type definition of the typed array does not match the initial values");
+        }
+        efree(tmp_info);
+        return;
+    }
+
     auto n = init_values ? zend_array_count(Z_ARRVAL_P(init_values)) : 0;
     auto array = make_typed_array(n, tmp_info->len_of_type_str);
     ZVAL_ARR(return_value, array);
@@ -814,6 +839,7 @@ PHP_FUNCTION(swoole_typed_array) {
         zval *zv;
         zval zk;
         HashTable *ht = Z_ARRVAL_P(init_values);
+
         ZEND_HASH_FOREACH_KEY_VAL(ht, num_key, str_key, zv) {
             if (str_key) {
                 ZVAL_STR(&zk, str_key);
