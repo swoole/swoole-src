@@ -106,6 +106,7 @@ struct ArrayTypeInfo {
 
 static zend_function *fn_swoole_call_array_method = nullptr;
 static zend_function *fn_swoole_call_string_method = nullptr;
+static zend_function *fn_swoole_call_resource_method = nullptr;
 static zend_function *fn_array_push = nullptr;
 static zend_function *fn_array_unshift = nullptr;
 static zend_function *fn_array_splice = nullptr;
@@ -243,6 +244,27 @@ static std::unordered_map<std::string, std::string> string_methods = {
     {"rawUrlDecode", "rawurldecode"},
 };
 
+static std::unordered_map<std::string, std::string> resource_methods = {
+    {"write", "fwrite"},
+    {"read", "fread"},
+    {"close", "fclose"},
+    {"syncData", "fdatasync"},
+    {"sync", "fsync"},
+    {"eof", "feof"},
+    {"lock", "flock"},
+    {"flush", "fflush"},
+    {"tell", "ftell"},
+    {"truncate", "ftruncate"},
+    {"passthru", "fpassthru"},
+    {"putCSV", "fputcsv"},
+    {"stat", "fstat"},
+    {"getChar", "fgetc"},
+    {"getCSV", "fgetcsv"},
+    {"getString", "fgets"},
+    {"seek", "fseek"},
+    {"tell", "ftell"},
+};
+
 static void call_func_switch_arg_1_and_2(zend_function *fn, zend_execute_data *execute_data, zval *retval) {
     zval argv[MAX_ARGC];
     const zval *arg_ptr = ZEND_CALL_ARG(execute_data, 1);
@@ -304,11 +326,23 @@ static int opcode_handler_method_call(zend_execute_data *execute_data) {
         type = Z_TYPE_P(Z_REFVAL_P(object));
     }
 
-    if (type == IS_ARRAY || type == IS_STRING) {
+    if (type == IS_ARRAY || type == IS_STRING || type == IS_RESOURCE) {
         call_info.func = *RT_CONSTANT(opline, opline->op2);
         call_info.this_ = *object;
         call_info.op1_type = opline->op1_type;
-        zend_function *fbc = type == IS_ARRAY ? fn_swoole_call_array_method : fn_swoole_call_string_method;
+
+        zend_function *fbc = nullptr;
+        switch (type) {
+        case IS_ARRAY:
+            fbc = fn_swoole_call_array_method;
+            break;
+        case IS_STRING:
+            fbc = fn_swoole_call_string_method;
+            break;
+        default:
+            fbc = fn_swoole_call_resource_method;
+        }
+
         zend_execute_data *call =
             zend_vm_stack_push_call_frame(ZEND_CALL_NESTED_FUNCTION, fbc, opline->extended_value, nullptr);
         if (EXPECTED(fbc->type == ZEND_USER_FUNCTION) && UNEXPECTED(!RUN_TIME_CACHE(&fbc->op_array))) {
@@ -335,6 +369,7 @@ void php_swoole_stdext_minit(int module_number) {
 
     fn_swoole_call_array_method = get_function(CG(function_table), ZEND_STRL("swoole_call_array_method"));
     fn_swoole_call_string_method = get_function(CG(function_table), ZEND_STRL("swoole_call_string_method"));
+    fn_swoole_call_resource_method = get_function(CG(function_table), ZEND_STRL("swoole_call_resource_method"));
 
     fn_array_push = get_function(CG(function_table), ZEND_STRL("array_push"));
     fn_array_unshift = get_function(CG(function_table), ZEND_STRL("array_unshift"));
@@ -387,6 +422,10 @@ PHP_FUNCTION(swoole_call_array_method) {
 
 PHP_FUNCTION(swoole_call_string_method) {
     call_method(string_methods, execute_data, return_value);
+}
+
+PHP_FUNCTION(swoole_call_resource_method) {
+    call_method(resource_methods, execute_data, return_value);
 }
 
 static HashTable *make_typed_array(const uint32_t nSize, const uint32_t nTypeStr) {
