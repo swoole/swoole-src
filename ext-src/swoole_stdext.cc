@@ -526,7 +526,7 @@ static void array_add_or_update(const zend_op *opline, zval *container, const zv
         copy_array_type_info(container, source);
     }
     HashTable *ht = Z_ARRVAL_P(container);
-    const zend_op *opline_next = opline + 1;
+    const zend_op *op_data = opline + 1;
 
     if (ZVAL_IS_NULL(key)) {
         var_ptr = zend_hash_next_index_insert(ht, value);
@@ -536,7 +536,7 @@ static void array_add_or_update(const zend_op *opline, zval *container, const zv
         }
     } else {
         zval *variable_ptr;
-        if (opline_next->op1_type == IS_CONST) {
+        if (opline->op2_type == IS_CONST) {
             variable_ptr = zend_fetch_dimension_address_inner_W_CONST(Z_ARRVAL_P(container), key EXECUTE_DATA_CC);
         } else {
             variable_ptr = zend_fetch_dimension_address_inner_W(Z_ARRVAL_P(container), key EXECUTE_DATA_CC);
@@ -545,11 +545,11 @@ static void array_add_or_update(const zend_op *opline, zval *container, const zv
             goto assign_dim_op_ret_null;
         }
         debug_val("1", opline_next->op1_type, value);
-        var_ptr = zend_assign_to_variable(variable_ptr, value, opline_next->op1_type, EX_USES_STRICT_TYPES());
+        var_ptr = zend_assign_to_variable(variable_ptr, value, op_data->op1_type, EX_USES_STRICT_TYPES());
         debug_val("2", opline_next->op1_type, value);
         if (UNEXPECTED(!var_ptr)) {
         assign_dim_op_ret_null:
-            FREE_OP(opline_next->op1_type, opline_next->op1.var);
+            FREE_OP(op_data->op1_type, op_data->op1.var);
             if (UNEXPECTED(RETURN_VALUE_USED(opline))) {
                 ZVAL_NULL(EX_VAR(opline->result.var));
             }
@@ -560,10 +560,10 @@ static void array_add_or_update(const zend_op *opline, zval *container, const zv
     if (UNEXPECTED(RETURN_VALUE_USED(opline))) {
         ZVAL_COPY(EX_VAR(opline->result.var), var_ptr);
     }
-    if (opline_next->op1_type == IS_VAR && Z_REFCOUNTED_P(value)) {
-        Z_ADDREF_P(value);
+    if (op_data->op1_type == IS_VAR) {
+        Z_TRY_ADDREF_P(value);
     }
-    FREE_OP(opline_next->op1_type, opline_next->op1.var);
+    FREE_OP(op_data->op1_type, op_data->op1.var);
     debug_val("4", opline_next->op1_type, value);
 }
 
