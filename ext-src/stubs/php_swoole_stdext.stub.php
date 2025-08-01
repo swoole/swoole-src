@@ -23,7 +23,11 @@ function swoole_array_map(array $array, ?callable $callback, array ...$arrays): 
 
 function swoole_array_is_typed(array $array, string $typeDef = ''): bool {}
 
+function swoole_array_is_empty(array $array): bool {}
+
 function swoole_str_split(string $string, string $delimiter, int $limit = PHP_INT_MAX): array {}
+
+function swoole_str_is_empty(string $string): bool {}
 
 function swoole_parse_str(string $string): array {}
 

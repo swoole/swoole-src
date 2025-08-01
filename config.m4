@@ -116,6 +116,11 @@ PHP_ARG_ENABLE([swoole-thread],
   [AS_HELP_STRING([--enable-swoole-thread],
     [Enable swoole thread support])], [no], [no])
 
+PHP_ARG_ENABLE([swoole-stdext],
+  [whether to enable swoole stdext support],
+  [AS_HELP_STRING([--enable-swoole-stdext],
+    [Enable swoole stdext support([Experimental] This module is only used for swoole-cli. If you are unsure which feature you need, keep it disabled)])], [no], [no])
+
 PHP_ARG_ENABLE([swoole-coro-time],
   [whether to enable coroutine execution time ],
   [AS_HELP_STRING([--enable-swoole-coro-time],
@@ -963,6 +968,10 @@ EOF
 
     if test "$PHP_SWOOLE_THREAD" != "no"; then
         AC_DEFINE(SW_THREAD, 1, [enable swoole thread support])
+    fi
+
+    if test "$PHP_SWOOLE_STDEXT" != "no"; then
+        AC_DEFINE(SW_STDEXT, 1, [enable swoole stdext support])
     fi
 
     if test "$PHP_SOCKETS" = "yes"; then

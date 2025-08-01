@@ -172,6 +172,7 @@ static std::unordered_map<std::string, std::string> array_methods = {
     {"contains", "swoole_array_contains"},
     {"join", "swoole_array_join"},
     {"isTyped", "swoole_array_is_typed"},
+    {"isEmpty", "swoole_array_is_empty"},
     // pass by ref
     {"sort", "sort"},
     {"pop", "array_pop"},
@@ -184,6 +185,7 @@ static std::unordered_map<std::string, std::string> array_methods = {
 
 static std::unordered_map<std::string, std::string> string_methods = {
     {"length", "strlen"},
+    {"isEmpty", "swoole_str_is_empty"},
     {"toLower", "strtolower"},
     {"toUpper", "strtoupper"},
     {"addCSlashes", "addcslashes"},
@@ -227,6 +229,9 @@ static std::unordered_map<std::string, std::string> string_methods = {
     {"upperCaseFirst", "ucfirst"},
     {"upperCaseWords", "ucwords"},
     {"indexOf", "strpos"},
+    {"lastIndexOf", "strrpos"},
+    {"charIndexOf", "strchr"},
+    {"lastCharIndexOf", "strrchr"},
     {"substr", "substr"},
     {"substrCompare", "substr_compare"},
     {"substrCount", "substr_count"},
@@ -319,8 +324,6 @@ static int opcode_handler_method_call(zend_execute_data *execute_data) {
         EX(call) = call;
         EX(opline)++;
 
-        // printf("method=%s, opline->op1_type=%d\n", Z_STRVAL(_x_func), opline->op1_type);
-
         return ZEND_USER_OPCODE_CONTINUE;
     }
 
@@ -380,6 +383,22 @@ PHP_FUNCTION(swoole_parse_str) {
     array_init(return_value);
     auto res = estrndup(arg, arglen);
     sapi_module.treat_data(PARSE_STRING, res, return_value);
+}
+
+PHP_FUNCTION(swoole_str_is_empty) {
+    zend_string *str;
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_STR(str)
+    ZEND_PARSE_PARAMETERS_END();
+    RETURN_BOOL(str->len == 0);
+}
+
+PHP_FUNCTION(swoole_array_is_empty) {
+    zval *array;
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_ARRAY(array)
+    ZEND_PARSE_PARAMETERS_END();
+    RETURN_BOOL(zend_array_count(Z_ARRVAL_P(array)) == 0);
 }
 
 PHP_FUNCTION(swoole_call_array_method) {
@@ -880,7 +899,7 @@ PHP_FUNCTION(swoole_array_is_typed) {
         RETURN_TRUE;
     }
 
-    const auto tmp_info = static_cast<ArrayTypeInfo *>(emalloc(sizeof(ArrayTypeInfo) + ZSTR_LEN(type_def)));
+    const auto tmp_info = static_cast<ArrayTypeInfo *>(emalloc(sizeof(ArrayTypeInfo) + ZSTR_LEN(type_def) + 1));
     if (!tmp_info->parse(type_def)) {
         efree(tmp_info);
         RETURN_FALSE;
