@@ -21,6 +21,7 @@
 SW_EXTERN_C_BEGIN
 PHP_FUNCTION(swoole_call_array_method);
 PHP_FUNCTION(swoole_call_string_method);
+PHP_FUNCTION(swoole_call_resource_method);
 PHP_FUNCTION(swoole_array_search);
 PHP_FUNCTION(swoole_array_contains);
 PHP_FUNCTION(swoole_array_join);
