@@ -16,7 +16,8 @@
 
 #include "php_swoole_stdext.h"
 #include "php_variables.h"
-#include "thirdparty/php/zend/zend_opcode_execute.h"
+
+#include "thirdparty/php/zend/zend_execute.c"
 
 #define MAX_ARGC 16
 #define HASH_FLAG_TYPED_ARRAY (1 << 12)

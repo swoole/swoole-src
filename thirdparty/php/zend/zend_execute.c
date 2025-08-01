@@ -51,6 +51,29 @@
     _get_obj_zval_ptr_undef(op_type, node, type EXECUTE_DATA_CC OPLINE_CC)
 #define get_obj_zval_ptr_ptr(op_type, node, type) _get_obj_zval_ptr_ptr(op_type, node, type EXECUTE_DATA_CC)
 
+#if PHP_VERSION_ID < 80300
+static ZEND_COLD void zend_illegal_container_offset(zend_string *container, const zval *offset, int type) {
+    switch (type) {
+    case BP_VAR_IS:
+        zend_type_error("Cannot access offset of type %s in isset or empty",
+                zend_zval_type_name(offset));
+        return;
+    case BP_VAR_UNSET:
+        /* Consistent error for when trying to unset a string offset */
+        if (zend_string_equals(container, ZSTR_KNOWN(ZEND_STR_STRING))) {
+            zend_throw_error(NULL, "Cannot unset string offsets");
+        } else {
+            zend_type_error("Cannot unset offset of type %s on %s", zend_zval_type_name(offset), ZSTR_VAL(container));
+        }
+        return;
+    default:
+        zend_type_error("Cannot access offset of type %s on %s",
+                zend_zval_type_name(offset), ZSTR_VAL(container));
+        return;
+    }
+}
+#endif
+
 static zend_always_inline zval *_get_zval_ptr_tmp(uint32_t var EXECUTE_DATA_DC) {
     zval *ret = EX_VAR(var);
 
