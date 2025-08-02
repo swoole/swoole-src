@@ -51,10 +51,10 @@
         <email>doubaokun@php.net</email>
         <active>yes</active>
     </developer>
-    <date>2025-02-15</date>
-    <time>11:00:00</time>
+    <date>2025-08-02</date>
+    <time>13:00:00</time>
     <version>
-        <release>5.1.7</release>
+        <release>5.1.8</release>
         <api>5.0</api>
     </version>
     <stability>
@@ -63,9 +63,12 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        - Fixed an issue where PostgreSQL would revert to synchronous mode under coroutine when receiving large amounts of data. @NathanFreeman
-        - Fixed an issue where dynamically creating properties in `Swoole\Http2\Request` would throw an exception. @xuanyanwow @guandeng
-        - Fixed a memory error caused by fatal errors occurring in one-click coroutine. @matyhtf
+        - Fixed missing symbol references during compilation.
+        - Fixed CPU affinity configuration failure.
+        - Fixed signal handling exceptions.
+        - Added missing HTTP/2 coroutine client properties.
+        - Added missing HTTP Server compression type hints.
+        - Added missing `id` property to `Swoole\Process`.
     </notes>
     <contents>
         <dir name="/">
@@ -1422,6 +1425,7 @@
             <file role="test" name="tests/swoole_http_client_coro/write_func_2.phpt" />
             <file role="test" name="tests/swoole_http_server/0.phpt" />
             <file role="test" name="tests/swoole_http_server/If_Modified_Since.phpt" />
+            <file role="test" name="tests/swoole_http_server/accept_encoding.phpt" />
             <file role="test" name="tests/swoole_http_server/buffer_output_size.phpt" />
             <file role="test" name="tests/swoole_http_server/bug_2368.phpt" />
             <file role="test" name="tests/swoole_http_server/bug_2444.phpt" />
@@ -1781,11 +1785,13 @@
             <file role="test" name="tests/swoole_process/priority.phpt" />
             <file role="test" name="tests/swoole_process/priority_error.phpt" />
             <file role="test" name="tests/swoole_process/process_exec.phpt" />
+            <file role="test" name="tests/swoole_process/process_id.phpt" />
             <file role="test" name="tests/swoole_process/process_msgqueue.phpt" />
             <file role="test" name="tests/swoole_process/process_push.phpt" />
             <file role="test" name="tests/swoole_process/process_select.phpt" />
             <file role="test" name="tests/swoole_process/signal.phpt" />
             <file role="test" name="tests/swoole_process/signal_in_manager.phpt" />
+            <file role="test" name="tests/swoole_process/signal_in_manager_2.phpt" />
             <file role="test" name="tests/swoole_process/signal_in_task_worker.phpt" />
             <file role="test" name="tests/swoole_process/signal_twice.phpt" />
             <file role="test" name="tests/swoole_process/swoole_process_close.phpt" />
