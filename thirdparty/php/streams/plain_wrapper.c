@@ -328,7 +328,6 @@ static php_stream_size_t sw_php_stdiop_write(php_stream *stream, const char *buf
         }
         bytes_written = _write(data->fd, buf, (unsigned int)count);
 #else
-        php_stdio_stream_data *self = (php_stdio_stream_data *) stream->abstract;
         ssize_t bytes_written = write(data->fd, buf, count);
 #endif
         if (bytes_written < 0) {
@@ -391,7 +390,6 @@ static php_stream_size_t sw_php_stdiop_read(php_stream *stream, char *buf, size_
             }
         }
 #endif
-        php_stdio_stream_data *self = (php_stdio_stream_data *) stream->abstract;
         ret = read(data->fd, buf, PLAIN_WRAP_BUF_SIZE(count));
 
         if (ret == (ssize_t) -1 && errno == EINTR) {
