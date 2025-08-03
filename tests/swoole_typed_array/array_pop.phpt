@@ -1,10 +1,10 @@
 --TEST--
 swoole_stdext/typed_array: array_pop
 --SKIPIF--
-<?php require __DIR__ . '/../../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require __DIR__ . '/../../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 $arr = typed_array('<int>', [1, 3, 5, 7]);
 $v = array_pop($arr);

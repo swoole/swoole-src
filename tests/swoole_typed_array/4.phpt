@@ -1,10 +1,10 @@
 --TEST--
 swoole_stdext/typed_array: 4
 --SKIPIF--
-<?php require __DIR__ . '/../../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require __DIR__ . '/../../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 $array = typed_array('<int, string>');
 $array[999] = 'test';

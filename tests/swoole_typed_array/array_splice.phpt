@@ -1,10 +1,10 @@
 --TEST--
 swoole_stdext/typed_array: array_splice
 --SKIPIF--
-<?php require __DIR__ . '/../../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require __DIR__ . '/../../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 $arr = typed_array('<string>', array("red", "green", "blue", "yellow"));
 array_splice($arr, 2);

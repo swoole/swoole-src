@@ -1,10 +1,10 @@
 --TEST--
 swoole_stdext/typed_array: 3
 --SKIPIF--
-<?php require __DIR__ . '/../../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require __DIR__ . '/../../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 $map = typed_array('<string, int>');
 $map['a'] = 1;

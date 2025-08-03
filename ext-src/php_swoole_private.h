@@ -309,6 +309,7 @@ void php_swoole_thread_map_minit(int module_number);
 void php_swoole_thread_arraylist_minit(int module_number);
 #endif
 void php_swoole_stdext_minit(int module_number);
+void php_swoole_typed_array_minit(int module_number);
 
 /**
  * RINIT

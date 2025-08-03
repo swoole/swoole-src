@@ -1,11 +1,13 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: a162565a6eca582f94eb26cddb0900a366bd9ada */
+ * Stub hash: b7516fabdcc87754c9296b6b649074c872359394 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_call_array_method, 0, 0, IS_MIXED, 0)
 	ZEND_ARG_VARIADIC_TYPE_INFO(0, args, IS_MIXED, 0)
 ZEND_END_ARG_INFO()
 
 #define arginfo_swoole_call_string_method arginfo_swoole_call_array_method
+
+#define arginfo_swoole_call_stream_method arginfo_swoole_call_array_method
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_swoole_array_search, 0, 2, MAY_BE_FALSE|MAY_BE_LONG|MAY_BE_STRING)
 	ZEND_ARG_TYPE_INFO(0, array, IS_ARRAY, 0)
@@ -35,11 +37,6 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_array_map, 0, 2, IS_ARRAY
 	ZEND_ARG_VARIADIC_TYPE_INFO(0, arrays, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_array_is_typed, 0, 1, _IS_BOOL, 0)
-	ZEND_ARG_TYPE_INFO(0, array, IS_ARRAY, 0)
-	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, typeDef, IS_STRING, 0, "\'\'")
-ZEND_END_ARG_INFO()
-
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_array_is_empty, 0, 1, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, array, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
@@ -65,7 +62,3 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_hash, 0, 2, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, options, IS_ARRAY, 0, "[]")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_typed_array, 0, 1, IS_ARRAY, 0)
-	ZEND_ARG_TYPE_INFO(0, typeDef, IS_STRING, 0)
-	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, initArray, IS_ARRAY, 1, "null")
-ZEND_END_ARG_INFO()

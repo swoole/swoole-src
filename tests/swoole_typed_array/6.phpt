@@ -1,10 +1,10 @@
 --TEST--
 swoole_stdext/typed_array: 6
 --SKIPIF--
-<?php require __DIR__ . '/../../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require __DIR__ . '/../../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 $num = random_int(1, 1000);
 $array = typed_array('<int>', [1, $num, 3]);

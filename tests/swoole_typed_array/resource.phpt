@@ -1,10 +1,10 @@
 --TEST--
 swoole_stdext/typed_array: resource
 --SKIPIF--
-<?php require __DIR__ . '/../../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require __DIR__ . '/../../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 $map = typed_array('<string, resource>');
 $map['a'] = fopen(__FILE__, 'r');

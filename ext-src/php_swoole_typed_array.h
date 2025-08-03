@@ -1,5 +1,5 @@
 /*
- +----------------------------------------------------------------------+
++----------------------------------------------------------------------+
  | Swoole                                                               |
  +----------------------------------------------------------------------+
  | Copyright (c) 2012-2015 The Swoole Group                             |
@@ -19,19 +19,6 @@
 #include "php_swoole_cxx.h"
 
 SW_EXTERN_C_BEGIN
-PHP_FUNCTION(swoole_call_array_method);
-PHP_FUNCTION(swoole_call_string_method);
-PHP_FUNCTION(swoole_call_stream_method);
-PHP_FUNCTION(swoole_array_search);
-PHP_FUNCTION(swoole_array_contains);
-PHP_FUNCTION(swoole_array_join);
-PHP_FUNCTION(swoole_array_key_exists);
-PHP_FUNCTION(swoole_array_map);
 PHP_FUNCTION(swoole_array_is_typed);
-PHP_FUNCTION(swoole_array_is_empty);
-PHP_FUNCTION(swoole_str_split);
-PHP_FUNCTION(swoole_str_is_empty);
-PHP_FUNCTION(swoole_parse_str);
-PHP_FUNCTION(swoole_hash);
 PHP_FUNCTION(swoole_typed_array);
 SW_EXTERN_C_END

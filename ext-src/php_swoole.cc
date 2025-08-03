@@ -29,6 +29,7 @@ BEGIN_EXTERN_C()
 #include "stubs/php_swoole_arginfo.h"
 #include "stubs/php_swoole_ex_arginfo.h"
 #include "stubs/php_swoole_stdext_arginfo.h"
+#include "stubs/php_swoole_typed_array_arginfo.h"
 END_EXTERN_C()
 
 #include "swoole_mime_type.h"
@@ -155,6 +156,7 @@ const zend_function_entry swoole_functions[] = {
     // for stdext
     ZEND_FE(swoole_call_array_method,    arginfo_swoole_call_array_method)
     ZEND_FE(swoole_call_string_method,   arginfo_swoole_call_string_method)
+    ZEND_FE(swoole_call_stream_method,   arginfo_swoole_call_stream_method)
     ZEND_FE(swoole_array_search,         arginfo_swoole_array_search)
     ZEND_FE(swoole_array_contains,       arginfo_swoole_array_contains)
     ZEND_FE(swoole_array_join,           arginfo_swoole_array_join)
@@ -897,6 +899,7 @@ PHP_MINIT_FUNCTION(swoole) {
     php_swoole_thread_arraylist_minit(module_number);
 #endif
     php_swoole_stdext_minit(module_number);
+    php_swoole_typed_array_minit(module_number);
 
     SwooleG.fatal_error = fatal_error;
     Socket::default_buffer_size = SWOOLE_G(socket_buffer_size);
