@@ -112,6 +112,7 @@ struct ArrayTypeInfo {
 
 static zend_function *fn_swoole_call_array_method = nullptr;
 static zend_function *fn_swoole_call_string_method = nullptr;
+static zend_function *fn_swoole_call_stream_method = nullptr;
 static zend_function *fn_array_push = nullptr;
 static zend_function *fn_array_unshift = nullptr;
 static zend_function *fn_array_splice = nullptr;
@@ -130,7 +131,7 @@ static PHP_FUNCTION(swoole_array_push);
 static PHP_FUNCTION(swoole_array_unshift);
 static PHP_FUNCTION(swoole_array_splice);
 
-static zend_function *get_function(const zend_array *function_table, const char *name, size_t name_len) {
+static zend_function *get_zend_function(const zend_array *function_table, const char *name, size_t name_len) {
     return static_cast<zend_function *>(zend_hash_str_find_ptr(function_table, name, name_len));
 }
 
@@ -220,9 +221,9 @@ static std::unordered_map<std::string, std::string> string_methods = {
     {"repeat", "str_repeat"},
     {"replace", "str_replace"},
     {"shuffle", "str_shuffle"},
-    {"split", "swoole_str_split"},
-    {"startsWith", "str_starts_with"},
-    {"endsWith", "str_ends_with"},
+    {"split", "swoole_str_split"},  // explode
+    {"startWith", "str_starts_with"},
+    {"endWith", "str_ends_with"},
     {"wordCount", "str_word_count"},
     {"iCompare", "strcasecmp"},
     {"compare", "strcmp"},
@@ -236,6 +237,7 @@ static std::unordered_map<std::string, std::string> string_methods = {
     {"lastIndexOf", "strrpos"},
     {"iLastIndexOf", "strripos"},
     {"lastCharIndexOf", "strrchr"},
+    {"iLastCharIndexOf", "strrichr"},
     {"substr", "substr"},
     {"substrCompare", "substr_compare"},
     {"substrCount", "substr_count"},
@@ -255,6 +257,19 @@ static std::unordered_map<std::string, std::string> string_methods = {
     {"match", "swoole_str_match"},
     {"matchAll", "swoole_str_match_all"},
     {"isNumeric", "is_numeric"},
+};
+
+static std::unordered_map<std::string, std::string> stream_methods = {
+    {"write", "fwrite"},
+    {"read", "fread"},
+    {"close", "fclose"},
+    {"syncData", "fdatasync"},
+    {"sync", "fsync"},
+    {"truncate", "ftruncate"},
+    {"stat", "fstat"},
+    {"seek", "fseek"},
+    {"lock", "flock"},
+    {"eof", "feof"},
 };
 
 static void call_func_switch_arg_1_and_2(zend_function *fn, zend_execute_data *execute_data, zval *retval) {
@@ -281,7 +296,7 @@ static void call_method(const std::unordered_map<std::string, std::string> &meth
         return;
     }
     const auto real_fn = iter->second;
-    const auto fn = get_function(EG(function_table), real_fn.c_str(), real_fn.length());
+    const auto fn = get_zend_function(EG(function_table), real_fn.c_str(), real_fn.length());
     if (!fn) {
         goto _not_found;
     }
@@ -318,11 +333,23 @@ static int opcode_handler_method_call(zend_execute_data *execute_data) {
         type = Z_TYPE_P(Z_REFVAL_P(object));
     }
 
-    if (type == IS_ARRAY || type == IS_STRING) {
+    if (type == IS_ARRAY || type == IS_STRING || type == IS_RESOURCE) {
         call_info.func = *RT_CONSTANT(opline, opline->op2);
         call_info.this_ = *object;
         call_info.op1_type = opline->op1_type;
-        zend_function *fbc = type == IS_ARRAY ? fn_swoole_call_array_method : fn_swoole_call_string_method;
+
+        zend_function *fbc = nullptr;
+        switch (type) {
+        case IS_ARRAY:
+            fbc = fn_swoole_call_array_method;
+            break;
+        case IS_STRING:
+            fbc = fn_swoole_call_string_method;
+            break;
+        default:
+            fbc = fn_swoole_call_stream_method;
+        }
+
         zend_execute_data *call =
             zend_vm_stack_push_call_frame(ZEND_CALL_NESTED_FUNCTION, fbc, opline->extended_value, nullptr);
         if (EXPECTED(fbc->type == ZEND_USER_FUNCTION) && UNEXPECTED(!RUN_TIME_CACHE(&fbc->op_array))) {
@@ -345,12 +372,12 @@ void php_swoole_stdext_minit(int module_number) {
     zend_set_user_opcode_handler(ZEND_UNSET_DIM, opcode_handler_array_unset);
     zend_set_user_opcode_handler(ZEND_FE_RESET_RW, opcode_handler_foreach_begin);
 
-    fn_swoole_call_array_method = get_function(CG(function_table), ZEND_STRL("swoole_call_array_method"));
-    fn_swoole_call_string_method = get_function(CG(function_table), ZEND_STRL("swoole_call_string_method"));
+    fn_swoole_call_array_method = get_zend_function(CG(function_table), ZEND_STRL("swoole_call_array_method"));
+    fn_swoole_call_string_method = get_zend_function(CG(function_table), ZEND_STRL("swoole_call_string_method"));
 
-    fn_array_push = get_function(CG(function_table), ZEND_STRL("array_push"));
-    fn_array_unshift = get_function(CG(function_table), ZEND_STRL("array_unshift"));
-    fn_array_splice = get_function(CG(function_table), ZEND_STRL("array_splice"));
+    fn_array_push = get_zend_function(CG(function_table), ZEND_STRL("array_push"));
+    fn_array_unshift = get_zend_function(CG(function_table), ZEND_STRL("array_unshift"));
+    fn_array_splice = get_zend_function(CG(function_table), ZEND_STRL("array_splice"));
 
     ori_handler_array_push = fn_array_push->internal_function.handler;
     fn_array_push->internal_function.handler = ZEND_FN(swoole_array_push);
@@ -358,13 +385,42 @@ void php_swoole_stdext_minit(int module_number) {
     fn_array_unshift->internal_function.handler = ZEND_FN(swoole_array_unshift);
     ori_handler_array_splice = fn_array_splice->internal_function.handler;
     fn_array_splice->internal_function.handler = ZEND_FN(swoole_array_splice);
+
+    // mbstring extension
+    if (zend_hash_str_exists(&module_registry, "mbstring", sizeof("mbstring") - 1)) {
+        string_methods.insert({
+            {"mbUpperCaseFirst", "mb_ucfirst"},
+            {"mbTrim", "mb_trim"},
+            {"mbSubstrCount", "mb_substr_count"},
+            {"mbSubstr", "mb_substr"},
+            {"mbToUpper", "mb_strtoupper"},
+            {"mbToLower", "mb_strtolower"},
+            {"mbFind", "mb_strstr"},
+            {"mbIndexOf", "mb_strpos"},
+            {"mbLastIndexOf", "mb_strrpos"},
+            {"mbCaseLastIndexOf", "mb_strripos"},
+            {"mbLastCharIndexOf", "mb_strrchr"},
+            {"mbCaseLastCharIndex", "mb_strrichr"},
+            {"mbLength", "mb_strlen"},
+            {"mbCaseFind", "mb_stristr"},
+            {"mbCaseIndexOf", "mb_stripos"},
+            {"mbCut", "mb_strcut"},
+            {"mbRtrim", "mb_rtrim"},
+            {"mbLtrim", "mb_ltrim"},
+            {"mbLowerCaseFirst", "mb_lcfirst"},
+            {"mbDetectEncoding", "mb_detect_encoding"},
+            {"mbConvertEncoding", "mb_convert_encoding"},
+            {"mbConvertCase", "mb_convert_case"},
+            {"mbParseStr", "swoole_mb_parse_str"},
+        });
+    }
 }
 
 #define SW_CREATE_PHP_FUNCTION_WRAPPER(php_func_name, swoole_func_name, callback)                                      \
     PHP_FUNCTION(swoole_func_name) {                                                                                   \
         static zend_function *fn_##swoole_func_name = nullptr;                                                         \
         if (!fn_##swoole_func_name) {                                                                                  \
-            fn_##swoole_func_name = get_function(CG(function_table), ZEND_STRL(#php_func_name));                       \
+            fn_##swoole_func_name = get_zend_function(CG(function_table), ZEND_STRL(#php_func_name));                  \
         }                                                                                                              \
         callback(fn_##swoole_func_name, execute_data, return_value);                                                   \
     }
@@ -415,6 +471,10 @@ PHP_FUNCTION(swoole_call_array_method) {
 
 PHP_FUNCTION(swoole_call_string_method) {
     call_method(string_methods, execute_data, return_value);
+}
+
+PHP_FUNCTION(swoole_call_stream_method) {
+    call_method(stream_methods, execute_data, return_value);
 }
 
 static HashTable *make_typed_array(const uint32_t nSize, const uint32_t nTypeStr) {
@@ -689,22 +749,38 @@ static int opcode_handler_array_assign_op(zend_execute_data *execute_data) {
 
 static int opcode_handler_foreach_begin(zend_execute_data *execute_data) {
     const zend_op *opline = EX(opline);
-    zval *array;
+    zval *array_ptr, *array_ref;
+
     if (opline->op1_type == IS_VAR || opline->op1_type == IS_CV) {
-        array = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+        array_ptr = array_ref = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+        if (Z_ISREF_P(array_ref)) {
+            array_ptr = Z_REFVAL_P(array_ref);
+        }
     } else if (opline->op1_type == IS_CONST) {
-        array = RT_CONSTANT(opline, opline->op1);
+        array_ptr = array_ref = RT_CONSTANT(opline, opline->op1);
     } else {
-        array = _get_zval_ptr_tmp(opline->op1.var EXECUTE_DATA_CC);
+        array_ptr = array_ref = _get_zval_ptr_tmp(opline->op1.var EXECUTE_DATA_CC);
     }
-    if (Z_ISREF_P(array)) {
-        array = Z_REFVAL_P(array);
-    }
-    if (!array) {
+
+    if (!array_ptr || sw_unlikely(Z_TYPE_P(array_ptr) != IS_ARRAY)) {
         return ZEND_USER_OPCODE_DISPATCH;
     }
-    const zend_array *ht = Z_ARRVAL_P(array);
+
+    const zend_array *ht = Z_ARRVAL_P(array_ptr);
     if (HT_FLAGS(ht) & HASH_FLAG_TYPED_ARRAY) {
+        if (opline->op1_type == IS_VAR || opline->op1_type == IS_CV) {
+            if (array_ptr == array_ref) {
+                ZVAL_NEW_REF(array_ref, array_ref);
+                array_ptr = Z_REFVAL_P(array_ref);
+            }
+            Z_ADDREF_P(array_ref);
+            ZVAL_COPY_VALUE(EX_VAR(opline->result.var), array_ref);
+        } else {
+            array_ref = EX_VAR(opline->result.var);
+            ZVAL_NEW_REF(array_ref, array_ptr);
+            array_ptr = Z_REFVAL_P(array_ref);
+        }
+
         zend_throw_error(nullptr, "The type array do not support using references for element value during iteration");
         return ZEND_USER_OPCODE_CONTINUE;
     }

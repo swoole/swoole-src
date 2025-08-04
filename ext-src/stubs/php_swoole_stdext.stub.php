@@ -11,6 +11,8 @@ function swoole_call_array_method(mixed ...$args): mixed {}
 
 function swoole_call_string_method(mixed ...$args): mixed {}
 
+function swoole_call_stream_method(mixed ...$args): mixed {}
+
 function swoole_array_search(array $array, mixed $value, bool $strict = false): false|int|string {}
 
 function swoole_array_contains(array $array, mixed $needle, bool $strict = false): bool {}
