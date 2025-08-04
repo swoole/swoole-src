@@ -28,7 +28,9 @@ BEGIN_EXTERN_C()
 
 #include "stubs/php_swoole_arginfo.h"
 #include "stubs/php_swoole_ex_arginfo.h"
+#ifdef SW_STDEXT
 #include "stubs/php_swoole_stdext_arginfo.h"
+#endif
 END_EXTERN_C()
 
 #include "swoole_mime_type.h"
@@ -103,8 +105,9 @@ static PHP_FUNCTION(swoole_internal_call_user_shutdown_begin);
 static PHP_FUNCTION(swoole_implicit_fn);
 SW_EXTERN_C_END
 
-// stdext
+#ifdef SW_STDEXT
 #include "php_swoole_stdext.h"
+#endif
 
 // clang-format off
 const zend_function_entry swoole_functions[] = {
@@ -153,6 +156,7 @@ const zend_function_entry swoole_functions[] = {
     ZEND_FE(swoole_name_resolver_add,    arginfo_swoole_name_resolver_add)
     ZEND_FE(swoole_name_resolver_remove, arginfo_swoole_name_resolver_remove)
     // for stdext
+#ifdef SW_STDEXT
     ZEND_FE(swoole_call_array_method,    arginfo_swoole_call_array_method)
     ZEND_FE(swoole_call_string_method,   arginfo_swoole_call_string_method)
     ZEND_FE(swoole_array_search,         arginfo_swoole_array_search)
@@ -167,6 +171,9 @@ const zend_function_entry swoole_functions[] = {
     ZEND_FE(swoole_array_is_typed,       arginfo_swoole_array_is_typed)
     ZEND_FE(swoole_str_is_empty,         arginfo_swoole_str_is_empty)
     ZEND_FE(swoole_array_is_empty,       arginfo_swoole_array_is_empty)
+    ZEND_FE(swoole_str_match,            arginfo_swoole_str_match)
+    ZEND_FE(swoole_str_match_all,        arginfo_swoole_str_match_all)
+#endif
     PHP_FE_END /* Must be the last line in swoole_functions[] */
 };
 
@@ -896,7 +903,9 @@ PHP_MINIT_FUNCTION(swoole) {
     php_swoole_thread_map_minit(module_number);
     php_swoole_thread_arraylist_minit(module_number);
 #endif
+#ifdef SW_STDEXT
     php_swoole_stdext_minit(module_number);
+#endif
 
     SwooleG.fatal_error = fatal_error;
     Socket::default_buffer_size = SWOOLE_G(socket_buffer_size);

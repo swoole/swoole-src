@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: a162565a6eca582f94eb26cddb0900a366bd9ada */
+ * Stub hash: 0c441c1bcde41ba4a7176c4837e58b597c0a400f */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_call_array_method, 0, 0, IS_MIXED, 0)
 	ZEND_ARG_VARIADIC_TYPE_INFO(0, args, IS_MIXED, 0)
@@ -53,6 +53,15 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_str_is_empty, 0, 1, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, string, IS_STRING, 0)
 ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_swoole_str_match, 0, 2, MAY_BE_ARRAY|MAY_BE_FALSE)
+	ZEND_ARG_TYPE_INFO(0, string, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, pattern, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, flags, IS_LONG, 0, "0")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, offset, IS_LONG, 0, "0")
+ZEND_END_ARG_INFO()
+
+#define arginfo_swoole_str_match_all arginfo_swoole_str_match
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_parse_str, 0, 1, IS_ARRAY, 0)
 	ZEND_ARG_TYPE_INFO(0, string, IS_STRING, 0)

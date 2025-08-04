@@ -13,11 +13,16 @@
   | Author: Tianfeng Han  <rango@swoole.com>                             |
   +----------------------------------------------------------------------+
  */
+#include "php_swoole_private.h"
 
+#ifdef SW_STDEXT
 #include "php_swoole_stdext.h"
 #include "php_variables.h"
 
+SW_EXTERN_C_BEGIN
+#include "ext/pcre/php_pcre.h"
 #include "thirdparty/php/zend/zend_execute.c"
+SW_EXTERN_C_END
 
 #define MAX_ARGC 16
 #define HASH_FLAG_TYPED_ARRAY (1 << 12)
@@ -183,33 +188,34 @@ static std::unordered_map<std::string, std::string> array_methods = {
     {"walk", "array_walk"},
 };
 
+/**
+ * i=ignore case, l=left, r=right
+ */
 static std::unordered_map<std::string, std::string> string_methods = {
     {"length", "strlen"},
     {"isEmpty", "swoole_str_is_empty"},
-    {"toLower", "strtolower"},
-    {"toUpper", "strtoupper"},
+    {"lower", "strtolower"},
+    {"upper", "strtoupper"},
+    {"lowerFirst", "lcfirst"},
+    {"upperFirst", "ucfirst"},
+    {"upperWords", "ucwords"},
     {"addCSlashes", "addcslashes"},
     {"addSlashes", "addslashes"},
-    {"bin2hex", "bin2hex"},
-    {"hex2bin", "hex2bin"},
     {"chunkSplit", "chunk_split"},
     {"countChars", "count_chars"},
-    {"crypt", "crypt"},
     {"htmlEntityDecode", "html_entity_decode"},
     {"htmlEntityEncode", "htmlentities"},
     {"htmlSpecialCharsEncode", "htmlspecialchars"},
     {"htmlSpecialCharsDecode", "htmlspecialchars_decode"},
-    {"lowerCaseFirst", "lcfirst"},
     {"trim", "trim"},
-    {"ltrim", "ltrim"},
-    {"rtrim", "rtrim"},
-    {"nl2br", "nl2br"},
+    {"lTrim", "ltrim"},
+    {"rTrim", "rtrim"},
     {"parseStr", "swoole_parse_str"},
     {"parseUrl", "parse_url"},
-    {"soundex", "soundex"},
     {"contains", "str_contains"},
-    {"increment", "str_increment"},
-    {"caseReplace", "str_ireplace"},
+    {"incr", "str_increment"},
+    {"decr", "str_decrement"},
+    {"iReplace", "str_ireplace"},
     {"pad", "str_pad"},
     {"repeat", "str_repeat"},
     {"replace", "str_replace"},
@@ -218,35 +224,37 @@ static std::unordered_map<std::string, std::string> string_methods = {
     {"startsWith", "str_starts_with"},
     {"endsWith", "str_ends_with"},
     {"wordCount", "str_word_count"},
-    {"caseCmp", "strcasecmp"},
-    {"cmp", "strcmp"},
+    {"iCompare", "strcasecmp"},
+    {"compare", "strcmp"},
     {"find", "strstr"},
-    {"caseFind", "stristr"},
+    {"iFind", "stristr"},
     {"stripTags", "strip_tags"},
     {"stripCSlashes", "stripcslashes"},
     {"stripSlashes", "stripslashes"},
-    {"caseIndexOf", "stripos"},
-    {"upperCaseFirst", "ucfirst"},
-    {"upperCaseWords", "ucwords"},
+    {"iIndexOf", "stripos"},
     {"indexOf", "strpos"},
     {"lastIndexOf", "strrpos"},
-    {"charIndexOf", "strchr"},
+    {"iLastIndexOf", "strripos"},
     {"lastCharIndexOf", "strrchr"},
     {"substr", "substr"},
     {"substrCompare", "substr_compare"},
     {"substrCount", "substr_count"},
     {"substrReplace", "substr_replace"},
+    {"reverse", "strrev"},
     {"md5", "md5"},
     {"sha1", "sha1"},
-    {"hash", "swoole_hash"},
     {"crc32", "crc32"},
-    {"wordWrap", "wordwrap"},
+    {"hash", "swoole_hash"},
+    {"hashCode", "swoole_hashcode"},
     {"base64Decode", "base64_decode"},
     {"base64Encode", "base64_encode"},
     {"urlDecode", "urldecode"},
     {"urlEncode", "urlencode"},
     {"rawUrlEncode", "rawurlencode"},
     {"rawUrlDecode", "rawurldecode"},
+    {"match", "swoole_str_match"},
+    {"matchAll", "swoole_str_match_all"},
+    {"isNumeric", "is_numeric"},
 };
 
 static void call_func_switch_arg_1_and_2(zend_function *fn, zend_execute_data *execute_data, zval *retval) {
@@ -631,7 +639,7 @@ static void array_op(const zend_op *opline, zval *container, const zval *key, zv
             }
         }
         zend_binary_op(variable_ptr, variable_ptr, value OPLINE_CC);
-    } while (0);
+    } while (false);
 
     if (UNEXPECTED(RETURN_VALUE_USED(opline))) {
         ZVAL_COPY(EX_VAR(opline->result.var), variable_ptr);
@@ -643,6 +651,7 @@ typedef std::function<void(const zend_op *, zval *, const zval *, zval *EXECUTE_
 
 static int opcode_handler_array(zend_execute_data *execute_data, const ArrayFn &fn) {
     const zend_op *opline = EX(opline);
+    const zend_op *op_data = opline + 1;
     zval *array = get_array_on_opline(opline EXECUTE_DATA_CC);
     if (!array) {
         return ZEND_USER_OPCODE_DISPATCH;
@@ -651,7 +660,7 @@ static int opcode_handler_array(zend_execute_data *execute_data, const ArrayFn &
     if (!(HT_FLAGS(ht) & HASH_FLAG_TYPED_ARRAY)) {
         return ZEND_USER_OPCODE_DISPATCH;
     }
-    const auto value = get_op_data_zval_ptr_r((opline + 1)->op1_type, (opline + 1)->op1);
+    const auto value = get_op_data_zval_ptr_r(op_data->op1_type, op_data->op1);
     zval *key;
     if (opline->op2_type == IS_CONST) {
         key = RT_CONSTANT(opline, opline->op2);
@@ -662,7 +671,7 @@ static int opcode_handler_array(zend_execute_data *execute_data, const ArrayFn &
     }
     const auto type_info = get_type_info(ht);
     if (!type_info->check(ht, key, value)) {
-        FREE_OP((opline + 1)->op1_type, (opline + 1)->op1.var);
+        FREE_OP(op_data->op1_type, op_data->op1.var);
         return ZEND_USER_OPCODE_CONTINUE;
     }
     fn(opline, array, key, value EXECUTE_DATA_CC);
@@ -715,7 +724,6 @@ static int opcode_handler_array_unset(zend_execute_data *execute_data) {
     const auto type_info = get_type_info(ht);
     if (type_info->is_list()) {
         zend_throw_error(nullptr, "The typed array list do not support random deletion of elements");
-        FREE_OP((opline + 1)->op1_type, (opline + 1)->op1.var);
         return ZEND_USER_OPCODE_CONTINUE;
     }
     return ZEND_USER_OPCODE_DISPATCH;
@@ -981,3 +989,41 @@ static PHP_FUNCTION(swoole_array_splice) {
         ori_handler_array_splice(execute_data, return_value);
     }
 }
+
+static void php_do_pcre_match(INTERNAL_FUNCTION_PARAMETERS, int global) /* {{{ */
+{
+    /* parameters */
+    zend_string *regex;         /* Regular expression */
+    zend_string *subject;       /* String to match against */
+    pcre_cache_entry *pce;      /* Compiled regular expression */
+    zend_long flags = 0;        /* Match control flags */
+    zend_long start_offset = 0; /* Where the new search starts */
+
+    ZEND_PARSE_PARAMETERS_START(2, 4)
+    Z_PARAM_STR(subject)
+    Z_PARAM_STR(regex)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_LONG(flags)
+    Z_PARAM_LONG(start_offset)
+    ZEND_PARSE_PARAMETERS_END();
+
+    /* Compile regex or get it from cache. */
+    if ((pce = pcre_get_compiled_regex_cache(regex)) == nullptr) {
+        RETURN_FALSE;
+    }
+
+    zval count = {};
+    php_pcre_pce_incref(pce);
+    php_pcre_match_impl(pce, subject, &count, return_value, global, ZEND_NUM_ARGS() >= 3, flags, start_offset);
+    php_pcre_pce_decref(pce);
+}
+/* }}} */
+
+PHP_FUNCTION(swoole_str_match) {
+    php_do_pcre_match(INTERNAL_FUNCTION_PARAM_PASSTHRU, 0);
+}
+
+PHP_FUNCTION(swoole_str_match_all) {
+    php_do_pcre_match(INTERNAL_FUNCTION_PARAM_PASSTHRU, 1);
+}
+#endif
