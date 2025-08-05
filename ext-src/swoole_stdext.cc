@@ -706,6 +706,9 @@ static int opcode_handler_foreach_begin(zend_execute_data *execute_data) {
     const zend_array *ht = Z_ARRVAL_P(array);
     if (HT_FLAGS(ht) & HASH_FLAG_TYPED_ARRAY) {
         zend_throw_error(nullptr, "The type array do not support using references for element value during iteration");
+        ZVAL_UNDEF(EX_VAR(opline->result.var));
+        Z_FE_ITER_P(EX_VAR(opline->result.var)) = (uint32_t)-1;
+
         return ZEND_USER_OPCODE_CONTINUE;
     }
     return ZEND_USER_OPCODE_DISPATCH;
