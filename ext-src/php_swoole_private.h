@@ -308,7 +308,9 @@ void php_swoole_thread_queue_minit(int module_number);
 void php_swoole_thread_map_minit(int module_number);
 void php_swoole_thread_arraylist_minit(int module_number);
 #endif
+#ifdef SW_STDEXT
 void php_swoole_stdext_minit(int module_number);
+#endif
 
 /**
  * RINIT
