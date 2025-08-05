@@ -8,5 +8,7 @@ namespace Swoole\Http {
 		public function isCompleted(): bool {}
 		public function getMethod(): string|false {}
 		public function getContent(): string|false {}
+		/** @return resource|false */
+		public function getBodyStream() {}
 	}
 }
