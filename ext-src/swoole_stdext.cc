@@ -256,6 +256,29 @@ static std::unordered_map<std::string, std::string> string_methods = {
     {"match", "swoole_str_match"},
     {"matchAll", "swoole_str_match_all"},
     {"isNumeric", "is_numeric"},
+    // mbstring
+    {"mbUpperFirst", "mb_ucfirst"},
+    {"mbLowerFirst", "mb_lcfirst"},
+    {"mbTrim", "mb_trim"},
+    {"mbSubstrCount", "mb_substr_count"},
+    {"mbSubstr", "mb_substr"},
+    {"mbUpper", "mb_strtoupper"},
+    {"mbLower", "mb_strtolower"},
+    {"mbFind", "mb_strstr"},
+    {"mbIndexOf", "mb_strpos"},
+    {"mbLastIndexOf", "mb_strrpos"},
+    {"mbILastIndexOf", "mb_strripos"},
+    {"mbLastCharIndexOf", "mb_strrchr"},
+    {"mbCaseLastCharIndex", "mb_strrichr"},
+    {"mbLength", "mb_strlen"},
+    {"mbIFind", "mb_stristr"},
+    {"mbIIndexOf", "mb_stripos"},
+    {"mbCut", "mb_strcut"},
+    {"mbRtrim", "mb_rtrim"},
+    {"mbLtrim", "mb_ltrim"},
+    {"mbDetectEncoding", "mb_detect_encoding"},
+    {"mbConvertEncoding", "mb_convert_encoding"},
+    {"mbConvertCase", "mb_convert_case"},
 };
 
 static std::unordered_map<std::string, std::string> stream_methods = {
@@ -384,35 +407,6 @@ void php_swoole_stdext_minit(int module_number) {
     fn_array_unshift->internal_function.handler = ZEND_FN(swoole_array_unshift);
     ori_handler_array_splice = fn_array_splice->internal_function.handler;
     fn_array_splice->internal_function.handler = ZEND_FN(swoole_array_splice);
-
-    // mbstring extension
-    if (zend_hash_str_exists(&module_registry, "mbstring", sizeof("mbstring") - 1)) {
-        string_methods.insert({
-            {"mbUpperCaseFirst", "mb_ucfirst"},
-            {"mbTrim", "mb_trim"},
-            {"mbSubstrCount", "mb_substr_count"},
-            {"mbSubstr", "mb_substr"},
-            {"mbToUpper", "mb_strtoupper"},
-            {"mbToLower", "mb_strtolower"},
-            {"mbFind", "mb_strstr"},
-            {"mbIndexOf", "mb_strpos"},
-            {"mbLastIndexOf", "mb_strrpos"},
-            {"mbCaseLastIndexOf", "mb_strripos"},
-            {"mbLastCharIndexOf", "mb_strrchr"},
-            {"mbCaseLastCharIndex", "mb_strrichr"},
-            {"mbLength", "mb_strlen"},
-            {"mbCaseFind", "mb_stristr"},
-            {"mbCaseIndexOf", "mb_stripos"},
-            {"mbCut", "mb_strcut"},
-            {"mbRtrim", "mb_rtrim"},
-            {"mbLtrim", "mb_ltrim"},
-            {"mbLowerCaseFirst", "mb_lcfirst"},
-            {"mbDetectEncoding", "mb_detect_encoding"},
-            {"mbConvertEncoding", "mb_convert_encoding"},
-            {"mbConvertCase", "mb_convert_case"},
-            {"mbParseStr", "swoole_mb_parse_str"},
-        });
-    }
 }
 
 #define SW_CREATE_PHP_FUNCTION_WRAPPER(php_func_name, swoole_func_name, callback)                                      \
