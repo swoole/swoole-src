@@ -798,7 +798,9 @@ bool ArrayTypeInfo::parse(zend_string *type_def) {
     char *tmp_type_str = type_str;
     remove_all_spaces(&tmp_type_str, &len_of_type_str);
     tmp_type_str[len_of_type_str] = '\0';
-    memmove(type_str, tmp_type_str, len_of_type_str + 1);
+    if (tmp_type_str != type_str) {
+        memmove(type_str, tmp_type_str, len_of_type_str + 1);
+    }
 
     if (type_str[0] != '<' || type_str[len_of_type_str - 1] != '>') {
         zend_throw_error(nullptr, "The type definition of typed array must start with '<' and end with '>'");
@@ -830,7 +832,7 @@ PHP_FUNCTION(swoole_typed_array) {
     Z_PARAM_ARRAY(init_values)
     ZEND_PARSE_PARAMETERS_END();
 
-    auto tmp_info = static_cast<ArrayTypeInfo *>(emalloc(sizeof(ArrayTypeInfo) + ZSTR_LEN(type_def)));
+    auto tmp_info = static_cast<ArrayTypeInfo *>(emalloc(sizeof(ArrayTypeInfo) + ZSTR_LEN(type_def) + 1));
     if (!tmp_info->parse(type_def)) {
         efree(tmp_info);
         RETURN_NULL();
