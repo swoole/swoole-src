@@ -18,6 +18,7 @@ option="--enable-brotli \
        --enable-sockets \
        --enable-mysqlnd \
        --enable-swoole-curl \
+       --enable-swoole-stdext \
        --enable-cares \
        --enable-swoole-pgsql \
        --with-swoole-odbc=unixODBC,/usr \

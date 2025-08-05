@@ -833,8 +833,10 @@ PHP_MINIT_FUNCTION(swoole) {
             CG(function_table), "swoole_coroutine_create", CG(function_table), "go", arginfo_swoole_coroutine_create);
         SW_FUNCTION_ALIAS(
             CG(function_table), "swoole_coroutine_defer", CG(function_table), "defer", arginfo_swoole_coroutine_defer);
+#ifdef SW_STDEXT
         SW_FUNCTION_ALIAS(
             CG(function_table), "swoole_typed_array", CG(function_table), "typed_array", arginfo_swoole_typed_array);
+#endif
     }
 
     swoole_init();
