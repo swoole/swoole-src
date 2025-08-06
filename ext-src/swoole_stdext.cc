@@ -18,6 +18,7 @@
 #ifdef SW_STDEXT
 #include "php_swoole_stdext.h"
 #include "php_variables.h"
+#include "nlohmann/detail/value_t.hpp"
 
 SW_EXTERN_C_BEGIN
 #include "ext/pcre/php_pcre.h"
@@ -33,11 +34,11 @@ SW_EXTERN_C_END
  * instead of relying on array_* or str_* functions.
  */
 
-static struct {
+struct CallInfo {
     zval func;
     zval this_;
     uint8_t op1_type;
-} call_info;
+};
 
 struct ArrayTypeValue {
     uint8_t type_of_value;
@@ -133,13 +134,6 @@ static PHP_FUNCTION(swoole_array_splice);
 
 static zend_function *get_function(const zend_array *function_table, const char *name, size_t name_len) {
     return static_cast<zend_function *>(zend_hash_str_find_ptr(function_table, name, name_len));
-}
-
-static void call_function(zend_function *fn, const int argc, zval *argv, zval *retval) {
-    zend_call_known_function(fn, nullptr, nullptr, retval, argc, argv, nullptr);
-    if (call_info.op1_type == IS_VAR) {
-        zval_ptr_dtor(&call_info.this_);
-    }
 }
 
 static std::unordered_map<std::string, std::string> array_methods = {
@@ -269,7 +263,7 @@ static std::unordered_map<std::string, std::string> string_methods = {
     {"mbLastIndexOf", "mb_strrpos"},
     {"mbILastIndexOf", "mb_strripos"},
     {"mbLastCharIndexOf", "mb_strrchr"},
-    {"mbCaseLastCharIndex", "mb_strrichr"},
+    {"mbILastCharIndex", "mb_strrichr"},
     {"mbLength", "mb_strlen"},
     {"mbIFind", "mb_stristr"},
     {"mbIIndexOf", "mb_stripos"},
@@ -303,18 +297,21 @@ static void call_func_switch_arg_1_and_2(zend_function *fn, zend_execute_data *e
     for (int i = 2; i < arg_count; i++) {
         argv[i] = arg_ptr[i];
     }
-    call_function(fn, arg_count, argv, retval);
+    zend_call_known_function(fn, nullptr, nullptr, retval, arg_count, argv, nullptr);
 }
 
 static void call_method(const std::unordered_map<std::string, std::string> &method_map,
                         zend_execute_data *execute_data,
                         zval *retval) {
-    const auto name = std::string(Z_STRVAL(call_info.func), Z_STRLEN(call_info.func));
+    auto call_info = (CallInfo *) execute_data->run_time_cache;
+    const auto name = std::string(Z_STRVAL(call_info->func), Z_STRLEN(call_info->func));
     const auto iter = method_map.find(name);
     if (iter == method_map.end()) {
     _not_found:
+        efree(call_info);
+        execute_data->run_time_cache = nullptr;
         zend_throw_error(
-            nullptr, "The method `%s` is undefined on %s", name.c_str(), zend_zval_type_name(&call_info.this_));
+            nullptr, "The method `%s` is undefined on %s", name.c_str(), zend_zval_type_name(&call_info->this_));
         return;
     }
     const auto real_fn = iter->second;
@@ -325,18 +322,17 @@ static void call_method(const std::unordered_map<std::string, std::string> &meth
     zval argv[MAX_ARGC];
     const zval *arg_ptr = ZEND_CALL_ARG(execute_data, 1);
     const int arg_count = MIN(ZEND_CALL_NUM_ARGS(execute_data), MAX_ARGC);
-    argv[0] = call_info.this_;
+    argv[0] = call_info->this_;
     for (int i = 0; i < arg_count; i++) {
         argv[i + 1] = arg_ptr[i];
     }
-    call_function(fn, arg_count + 1, argv, retval);
-}
 
-static void init_func_run_time_cache_i(zend_op_array *op_array) {
-    ZEND_ASSERT(RUN_TIME_CACHE(op_array) == nullptr);
-    const auto run_time_cache = static_cast<void **>(zend_arena_alloc(&CG(arena), op_array->cache_size));
-    memset(run_time_cache, 0, op_array->cache_size);
-    ZEND_MAP_PTR_SET(op_array->run_time_cache, run_time_cache);
+    zend_call_known_function(fn, nullptr, nullptr, retval, arg_count + 1, argv, nullptr);
+    if (call_info->op1_type == IS_VAR) {
+        zval_ptr_dtor(&call_info->this_);
+    }
+    efree(call_info);
+    execute_data->run_time_cache = nullptr;
 }
 
 static int opcode_handler_method_call(zend_execute_data *execute_data) {
@@ -356,9 +352,10 @@ static int opcode_handler_method_call(zend_execute_data *execute_data) {
     }
 
     if (type == IS_ARRAY || type == IS_STRING || type == IS_RESOURCE) {
-        call_info.func = *RT_CONSTANT(opline, opline->op2);
-        call_info.this_ = *object;
-        call_info.op1_type = opline->op1_type;
+        auto call_info = static_cast<CallInfo *>(emalloc(sizeof(CallInfo)));
+        call_info->func = *RT_CONSTANT(opline, opline->op2);
+        call_info->this_ = *object;
+        call_info->op1_type = opline->op1_type;
 
         zend_function *fbc = nullptr;
         switch (type) {
@@ -373,10 +370,9 @@ static int opcode_handler_method_call(zend_execute_data *execute_data) {
         }
 
         zend_execute_data *call =
-            zend_vm_stack_push_call_frame(ZEND_CALL_NESTED_FUNCTION, fbc, opline->extended_value, nullptr);
-        if (EXPECTED(fbc->type == ZEND_USER_FUNCTION) && UNEXPECTED(!RUN_TIME_CACHE(&fbc->op_array))) {
-            init_func_run_time_cache_i(&fbc->op_array);
-        }
+            zend_vm_stack_push_call_frame(ZEND_CALL_NESTED_FUNCTION, fbc, opline->extended_value, object);
+
+        call->run_time_cache = reinterpret_cast<void **>(call_info);
         call->prev_execute_data = EX(call);
         EX(call) = call;
         EX(opline)++;
@@ -396,6 +392,7 @@ void php_swoole_stdext_minit(int module_number) {
 
     fn_swoole_call_array_method = get_function(CG(function_table), ZEND_STRL("swoole_call_array_method"));
     fn_swoole_call_string_method = get_function(CG(function_table), ZEND_STRL("swoole_call_string_method"));
+    fn_swoole_call_stream_method = get_function(CG(function_table), ZEND_STRL("swoole_call_stream_method"));
 
     fn_array_push = get_function(CG(function_table), ZEND_STRL("array_push"));
     fn_array_unshift = get_function(CG(function_table), ZEND_STRL("array_unshift"));
