@@ -112,6 +112,7 @@ struct ArrayTypeInfo {
 
 static zend_function *fn_swoole_call_array_method = nullptr;
 static zend_function *fn_swoole_call_string_method = nullptr;
+static zend_function *fn_swoole_call_stream_method = nullptr;
 static zend_function *fn_array_push = nullptr;
 static zend_function *fn_array_unshift = nullptr;
 static zend_function *fn_array_splice = nullptr;
@@ -220,7 +221,7 @@ static std::unordered_map<std::string, std::string> string_methods = {
     {"repeat", "str_repeat"},
     {"replace", "str_replace"},
     {"shuffle", "str_shuffle"},
-    {"split", "swoole_str_split"},
+    {"split", "swoole_str_split"},  // explode
     {"startsWith", "str_starts_with"},
     {"endsWith", "str_ends_with"},
     {"wordCount", "str_word_count"},
@@ -255,6 +256,42 @@ static std::unordered_map<std::string, std::string> string_methods = {
     {"match", "swoole_str_match"},
     {"matchAll", "swoole_str_match_all"},
     {"isNumeric", "is_numeric"},
+    // mbstring
+    {"mbUpperFirst", "mb_ucfirst"},
+    {"mbLowerFirst", "mb_lcfirst"},
+    {"mbTrim", "mb_trim"},
+    {"mbSubstrCount", "mb_substr_count"},
+    {"mbSubstr", "mb_substr"},
+    {"mbUpper", "mb_strtoupper"},
+    {"mbLower", "mb_strtolower"},
+    {"mbFind", "mb_strstr"},
+    {"mbIndexOf", "mb_strpos"},
+    {"mbLastIndexOf", "mb_strrpos"},
+    {"mbILastIndexOf", "mb_strripos"},
+    {"mbLastCharIndexOf", "mb_strrchr"},
+    {"mbCaseLastCharIndex", "mb_strrichr"},
+    {"mbLength", "mb_strlen"},
+    {"mbIFind", "mb_stristr"},
+    {"mbIIndexOf", "mb_stripos"},
+    {"mbCut", "mb_strcut"},
+    {"mbRtrim", "mb_rtrim"},
+    {"mbLtrim", "mb_ltrim"},
+    {"mbDetectEncoding", "mb_detect_encoding"},
+    {"mbConvertEncoding", "mb_convert_encoding"},
+    {"mbConvertCase", "mb_convert_case"},
+};
+
+static std::unordered_map<std::string, std::string> stream_methods = {
+    {"write", "fwrite"},
+    {"read", "fread"},
+    {"close", "fclose"},
+    {"dataSync", "fdatasync"},
+    {"sync", "fsync"},
+    {"truncate", "ftruncate"},
+    {"stat", "fstat"},
+    {"seek", "fseek"},
+    {"lock", "flock"},
+    {"eof", "feof"},
 };
 
 static void call_func_switch_arg_1_and_2(zend_function *fn, zend_execute_data *execute_data, zval *retval) {
@@ -318,11 +355,23 @@ static int opcode_handler_method_call(zend_execute_data *execute_data) {
         type = Z_TYPE_P(Z_REFVAL_P(object));
     }
 
-    if (type == IS_ARRAY || type == IS_STRING) {
+    if (type == IS_ARRAY || type == IS_STRING || type == IS_RESOURCE) {
         call_info.func = *RT_CONSTANT(opline, opline->op2);
         call_info.this_ = *object;
         call_info.op1_type = opline->op1_type;
-        zend_function *fbc = type == IS_ARRAY ? fn_swoole_call_array_method : fn_swoole_call_string_method;
+
+        zend_function *fbc = nullptr;
+        switch (type) {
+        case IS_ARRAY:
+            fbc = fn_swoole_call_array_method;
+            break;
+        case IS_STRING:
+            fbc = fn_swoole_call_string_method;
+            break;
+        default:
+            fbc = fn_swoole_call_stream_method;
+        }
+
         zend_execute_data *call =
             zend_vm_stack_push_call_frame(ZEND_CALL_NESTED_FUNCTION, fbc, opline->extended_value, nullptr);
         if (EXPECTED(fbc->type == ZEND_USER_FUNCTION) && UNEXPECTED(!RUN_TIME_CACHE(&fbc->op_array))) {
@@ -415,6 +464,10 @@ PHP_FUNCTION(swoole_call_array_method) {
 
 PHP_FUNCTION(swoole_call_string_method) {
     call_method(string_methods, execute_data, return_value);
+}
+
+PHP_FUNCTION(swoole_call_stream_method) {
+    call_method(stream_methods, execute_data, return_value);
 }
 
 static HashTable *make_typed_array(const uint32_t nSize, const uint32_t nTypeStr) {
@@ -707,7 +760,7 @@ static int opcode_handler_foreach_begin(zend_execute_data *execute_data) {
     if (HT_FLAGS(ht) & HASH_FLAG_TYPED_ARRAY) {
         zend_throw_error(nullptr, "The type array do not support using references for element value during iteration");
         ZVAL_UNDEF(EX_VAR(opline->result.var));
-        Z_FE_ITER_P(EX_VAR(opline->result.var)) = (uint32_t)-1;
+        Z_FE_ITER_P(EX_VAR(opline->result.var)) = (uint32_t) -1;
 
         return ZEND_USER_OPCODE_CONTINUE;
     }

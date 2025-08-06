@@ -159,6 +159,7 @@ const zend_function_entry swoole_functions[] = {
 #ifdef SW_STDEXT
     ZEND_FE(swoole_call_array_method,    arginfo_swoole_call_array_method)
     ZEND_FE(swoole_call_string_method,   arginfo_swoole_call_string_method)
+    ZEND_FE(swoole_call_stream_method,   arginfo_swoole_call_stream_method)
     ZEND_FE(swoole_array_search,         arginfo_swoole_array_search)
     ZEND_FE(swoole_array_contains,       arginfo_swoole_array_contains)
     ZEND_FE(swoole_array_join,           arginfo_swoole_array_join)
