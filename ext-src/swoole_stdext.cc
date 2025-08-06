@@ -274,8 +274,8 @@ static std::unordered_map<std::string, std::string> string_methods = {
     {"mbIFind", "mb_stristr"},
     {"mbIIndexOf", "mb_stripos"},
     {"mbCut", "mb_strcut"},
-    {"mbRtrim", "mb_rtrim"},
-    {"mbLtrim", "mb_ltrim"},
+    {"mbRTrim", "mb_rtrim"},
+    {"mbLTrim", "mb_ltrim"},
     {"mbDetectEncoding", "mb_detect_encoding"},
     {"mbConvertEncoding", "mb_convert_encoding"},
     {"mbConvertCase", "mb_convert_case"},
@@ -706,7 +706,7 @@ static int opcode_handler_array(zend_execute_data *execute_data, const ArrayFn &
     const zend_op *opline = EX(opline);
     const zend_op *op_data = opline + 1;
     zval *array = get_array_on_opline(opline EXECUTE_DATA_CC);
-    if (!array) {
+    if (UNEXPECTED(!array)) {
         return ZEND_USER_OPCODE_DISPATCH;
     }
     zend_array *ht = Z_ARRVAL_P(array);
@@ -750,10 +750,8 @@ static int opcode_handler_foreach_begin(zend_execute_data *execute_data) {
     } else {
         array = _get_zval_ptr_tmp(opline->op1.var EXECUTE_DATA_CC);
     }
-    if (Z_ISREF_P(array)) {
-        array = Z_REFVAL_P(array);
-    }
-    if (!array) {
+    ZVAL_DEREF(array);
+    if (UNEXPECTED(!array || !ZVAL_IS_ARRAY(array))) {
         return ZEND_USER_OPCODE_DISPATCH;
     }
     const zend_array *ht = Z_ARRVAL_P(array);

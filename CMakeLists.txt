@@ -137,6 +137,8 @@ if (DEFINED verbose)
     add_definitions(-DSW_VERBOSE)
 endif()
 
+set(php_dir "" CACHE STRING "Set the root directory of PHP")
+
 if (DEFINED php_dir)
     set(PHP_CONFIG "${php_dir}/bin/php-config")
 else ()
