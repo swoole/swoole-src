@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 185832b7e97ca93a037449ec5e527414396ca937 */
+ * Stub hash: ddbe1f842ea021164f7899d1da5f56a2e4a01c88 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_call_array_method, 0, 0, IS_MIXED, 0)
 	ZEND_ARG_VARIADIC_TYPE_INFO(0, args, IS_MIXED, 0)
@@ -65,6 +65,14 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_swoole_str_match_all arginfo_swoole_str_match
 
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_str_json_decode, 0, 1, IS_MIXED, 0)
+	ZEND_ARG_TYPE_INFO(0, string, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, depth, IS_LONG, 0, "512")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, flags, IS_LONG, 0, "0")
+ZEND_END_ARG_INFO()
+
+#define arginfo_swoole_str_json_decode_to_object arginfo_swoole_str_json_decode
+
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_parse_str, 0, 1, IS_ARRAY, 0)
 	ZEND_ARG_TYPE_INFO(0, string, IS_STRING, 0)
 ZEND_END_ARG_INFO()
@@ -80,4 +88,3 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_typed_array, 0, 1, IS_ARR
 	ZEND_ARG_TYPE_INFO(0, typeDef, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, initArray, IS_ARRAY, 1, "null")
 ZEND_END_ARG_INFO()
-

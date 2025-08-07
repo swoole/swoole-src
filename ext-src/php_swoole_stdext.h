@@ -33,6 +33,8 @@ PHP_FUNCTION(swoole_str_split);
 PHP_FUNCTION(swoole_str_is_empty);
 PHP_FUNCTION(swoole_str_match);
 PHP_FUNCTION(swoole_str_match_all);
+PHP_FUNCTION(swoole_str_json_decode);
+PHP_FUNCTION(swoole_str_json_decode_to_object);
 PHP_FUNCTION(swoole_parse_str);
 PHP_FUNCTION(swoole_hash);
 PHP_FUNCTION(swoole_typed_array);

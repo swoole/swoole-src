@@ -1,5 +1,5 @@
 --TEST--
-swoole_stdext/string_method: 2
+swoole_stdext/string_method: match
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--

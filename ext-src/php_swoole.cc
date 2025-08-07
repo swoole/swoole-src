@@ -174,6 +174,8 @@ const zend_function_entry swoole_functions[] = {
     ZEND_FE(swoole_array_is_empty,       arginfo_swoole_array_is_empty)
     ZEND_FE(swoole_str_match,            arginfo_swoole_str_match)
     ZEND_FE(swoole_str_match_all,        arginfo_swoole_str_match_all)
+    ZEND_FE(swoole_str_json_decode,      arginfo_swoole_str_match)
+    ZEND_FE(swoole_str_json_decode_to_object, arginfo_swoole_str_match_all)
 #endif
     PHP_FE_END /* Must be the last line in swoole_functions[] */
 };

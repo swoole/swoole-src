@@ -17,11 +17,13 @@
 
 #ifdef SW_STDEXT
 #include "php_swoole_stdext.h"
+#include "php_swoole_cxx.h"
 #include "php_variables.h"
 #include "nlohmann/detail/value_t.hpp"
 
 SW_EXTERN_C_BEGIN
 #include "ext/pcre/php_pcre.h"
+#include "ext/json/php_json.h"
 #include "thirdparty/php/zend/zend_execute.c"
 SW_EXTERN_C_END
 
@@ -136,6 +138,10 @@ static zend_function *get_function(const zend_array *function_table, const char 
     return static_cast<zend_function *>(zend_hash_str_find_ptr(function_table, name, name_len));
 }
 
+static bool is_typed_array(const zval *zval) {
+    return HT_FLAGS(Z_ARRVAL_P(zval)) & HASH_FLAG_TYPED_ARRAY;
+}
+
 static std::unordered_map<std::string, std::string> array_methods = {
     {"all", "array_all"},
     {"any", "array_any"},
@@ -181,6 +187,10 @@ static std::unordered_map<std::string, std::string> array_methods = {
     {"unshift", "array_unshift"},
     {"shift", "array_splice"},
     {"walk", "array_walk"},
+    // serialize
+    {"serialize", "serialize"},
+    {"marshal", "serialize"},
+    {"jsonEncode", "json_encode"},
 };
 
 /**
@@ -273,6 +283,11 @@ static std::unordered_map<std::string, std::string> string_methods = {
     {"mbDetectEncoding", "mb_detect_encoding"},
     {"mbConvertEncoding", "mb_convert_encoding"},
     {"mbConvertCase", "mb_convert_case"},
+    // serialize
+    {"unserialize", "unserialize"},
+    {"unmarshal", "unserialize"},
+    {"jsonDecode", "swoole_str_json_decode"},
+    {"jsonDecodeToObject", "swoole_str_json_decode_to_object"},
 };
 
 static std::unordered_map<std::string, std::string> stream_methods = {
@@ -284,8 +299,11 @@ static std::unordered_map<std::string, std::string> stream_methods = {
     {"truncate", "ftruncate"},
     {"stat", "fstat"},
     {"seek", "fseek"},
+    {"tell", "ftell"},
     {"lock", "flock"},
     {"eof", "feof"},
+    {"getChar", "fgetc"},
+    {"getLine", "fgets"},
 };
 
 static void call_func_switch_arg_1_and_2(zend_function *fn, zend_execute_data *execute_data, zval *retval) {
@@ -303,13 +321,16 @@ static void call_func_switch_arg_1_and_2(zend_function *fn, zend_execute_data *e
 static void call_method(const std::unordered_map<std::string, std::string> &method_map,
                         zend_execute_data *execute_data,
                         zval *retval) {
-    auto call_info = (CallInfo *) execute_data->run_time_cache;
+    const auto call_info = reinterpret_cast<CallInfo *>(execute_data->run_time_cache);
     const auto name = std::string(Z_STRVAL(call_info->func), Z_STRLEN(call_info->func));
     const auto iter = method_map.find(name);
-    if (iter == method_map.end()) {
-    _not_found:
+
+    ON_SCOPE_EXIT {
         efree(call_info);
         execute_data->run_time_cache = nullptr;
+    };
+
+    if (iter == method_map.end()) {
         zend_throw_error(
             nullptr, "The method `%s` is undefined on %s", name.c_str(), zend_zval_type_name(&call_info->this_));
         return;
@@ -317,7 +338,8 @@ static void call_method(const std::unordered_map<std::string, std::string> &meth
     const auto real_fn = iter->second;
     const auto fn = get_function(EG(function_table), real_fn.c_str(), real_fn.length());
     if (!fn) {
-        goto _not_found;
+        zend_throw_error(nullptr, "The function `%s` is undefined", real_fn.c_str());
+        return;
     }
     zval argv[MAX_ARGC];
     const zval *arg_ptr = ZEND_CALL_ARG(execute_data, 1);
@@ -331,8 +353,6 @@ static void call_method(const std::unordered_map<std::string, std::string> &meth
     if (call_info->op1_type == IS_VAR) {
         zval_ptr_dtor(&call_info->this_);
     }
-    efree(call_info);
-    execute_data->run_time_cache = nullptr;
 }
 
 static int opcode_handler_method_call(zend_execute_data *execute_data) {
@@ -619,7 +639,7 @@ static void array_add_or_update(const zend_op *opline, zval *container, const zv
         } else {
             variable_ptr = zend_fetch_dimension_address_inner_W(Z_ARRVAL_P(container), key EXECUTE_DATA_CC);
         }
-        if (UNEXPECTED(variable_ptr == NULL)) {
+        if (UNEXPECTED(variable_ptr == nullptr)) {
             goto assign_dim_op_ret_null;
         }
         debug_val("1", opline_next->op1_type, value);
@@ -659,7 +679,7 @@ static void array_op(const zend_op *opline, zval *container, const zval *key, zv
     } else {
         variable_ptr = zend_fetch_dimension_address_inner_RW(Z_ARRVAL_P(container), key EXECUTE_DATA_CC);
     }
-    if (UNEXPECTED(variable_ptr == NULL)) {
+    if (UNEXPECTED(variable_ptr == nullptr)) {
     assign_dim_op_ret_null:
         FREE_OP((opline + 1)->op1_type, (opline + 1)->op1.var);
         if (UNEXPECTED(RETURN_VALUE_USED(opline))) {
@@ -676,7 +696,7 @@ static void array_op(const zend_op *opline, zval *container, const zval *key, zv
                 break;
             }
         }
-        size_t opcode = (size_t) opline->extended_value;
+        const auto opcode = opline->extended_value;
         if (opcode == ZEND_CONCAT) {
             if (!type_info->value_is_string()) {
                 zend_type_error("Only string support concat operation");
@@ -755,7 +775,7 @@ static int opcode_handler_foreach_begin(zend_execute_data *execute_data) {
     if (HT_FLAGS(ht) & HASH_FLAG_TYPED_ARRAY) {
         zend_throw_error(nullptr, "The type array do not support using references for element value during iteration");
         ZVAL_UNDEF(EX_VAR(opline->result.var));
-        Z_FE_ITER_P(EX_VAR(opline->result.var)) = (uint32_t) -1;
+        Z_FE_ITER_P(EX_VAR(opline->result.var)) = static_cast<uint32_t>(-1);
 
         return ZEND_USER_OPCODE_CONTINUE;
     }
@@ -889,7 +909,7 @@ PHP_FUNCTION(swoole_typed_array) {
         RETURN_NULL();
     }
 
-    if (init_values && HT_FLAGS(Z_ARRVAL_P(init_values)) & HASH_FLAG_TYPED_ARRAY) {
+    if (init_values && is_typed_array(init_values)) {
         auto type_info = get_type_info(Z_ARRVAL_P(init_values));
         if (tmp_info->equals(type_info)) {
             ZVAL_COPY(return_value, init_values);
@@ -977,7 +997,7 @@ static PHP_FUNCTION(swoole_array_push) {
     zval *array = &arg_ptr[0];
     ZVAL_DEREF(array);
 
-    if (Z_TYPE_P(array) == IS_ARRAY && HT_FLAGS(Z_ARRVAL_P(array)) & HASH_FLAG_TYPED_ARRAY) {
+    if (Z_TYPE_P(array) == IS_ARRAY && is_typed_array(array)) {
         auto source = Z_ARRVAL_P(array);
         auto type_info = get_type_info(source);
         for (int i = 1; i < arg_count; i++) {
@@ -995,7 +1015,7 @@ static PHP_FUNCTION(swoole_array_unshift) {
     zval *array = &arg_ptr[0];
     ZVAL_DEREF(array);
 
-    if (Z_TYPE_P(array) == IS_ARRAY && HT_FLAGS(Z_ARRVAL_P(array)) & HASH_FLAG_TYPED_ARRAY) {
+    if (Z_TYPE_P(array) == IS_ARRAY && is_typed_array(array)) {
         auto source = Z_ARRVAL_P(array);
         auto type_info = get_type_info(source);
         for (int i = 1; i < arg_count; i++) {
@@ -1015,7 +1035,7 @@ static PHP_FUNCTION(swoole_array_splice) {
     const int arg_count = ZEND_CALL_NUM_ARGS(execute_data);
     const zval *array = &arg_ptr[0];
     ZVAL_DEREF(array);
-    if (Z_TYPE_P(array) == IS_ARRAY && HT_FLAGS(Z_ARRVAL_P(array)) & HASH_FLAG_TYPED_ARRAY) {
+    if (Z_TYPE_P(array) == IS_ARRAY && is_typed_array(array)) {
         if (arg_count > 3) {
             auto type_info = get_type_info(Z_ARRVAL_P(array));
             auto values = &arg_ptr[3];
@@ -1078,5 +1098,37 @@ PHP_FUNCTION(swoole_str_match) {
 
 PHP_FUNCTION(swoole_str_match_all) {
     php_do_pcre_match(INTERNAL_FUNCTION_PARAM_PASSTHRU, 1);
+}
+
+static void php_do_json_decode(INTERNAL_FUNCTION_PARAMETERS, bool assoc) /* {{{ */
+{
+    char *str;
+    size_t str_len;
+    zend_long depth = PHP_JSON_PARSER_DEFAULT_DEPTH;
+    zend_long options = 0;
+
+    ZEND_PARSE_PARAMETERS_START(1, 3)
+    Z_PARAM_STRING(str, str_len)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_LONG(depth)
+    Z_PARAM_LONG(options)
+    ZEND_PARSE_PARAMETERS_END();
+
+    if (assoc) {
+        options |= PHP_JSON_OBJECT_AS_ARRAY;
+    } else {
+        options &= ~PHP_JSON_OBJECT_AS_ARRAY;
+    }
+
+    zend::json_decode(return_value, str, str_len, options, depth);
+}
+/* }}} */
+
+PHP_FUNCTION(swoole_str_json_decode) {
+    php_do_json_decode(INTERNAL_FUNCTION_PARAM_PASSTHRU, true);
+}
+
+PHP_FUNCTION(swoole_str_json_decode_to_object) {
+    php_do_json_decode(INTERNAL_FUNCTION_PARAM_PASSTHRU, false);
 }
 #endif

@@ -35,6 +35,10 @@ function swoole_str_match(string $string, string $pattern, int $flags = 0, int $
 
 function swoole_str_match_all(string $string, string $pattern, int $flags = 0, int $offset = 0): array|false {}
 
+function swoole_str_json_decode(string $string, int $depth = 512, int $flags = 0): mixed {};
+
+function swoole_str_json_decode_to_object(string $string, int $depth = 512, int $flags = 0): mixed {};
+
 function swoole_parse_str(string $string): array {}
 
 function swoole_hash(string $data, string $algo, bool $binary = false, array $options = []): string {}
