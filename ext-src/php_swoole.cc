@@ -176,6 +176,10 @@ const zend_function_entry swoole_functions[] = {
     ZEND_FE(swoole_str_match_all,        arginfo_swoole_str_match_all)
     ZEND_FE(swoole_str_json_decode,      arginfo_swoole_str_json_decode)
     ZEND_FE(swoole_str_json_decode_to_object, arginfo_swoole_str_json_decode_to_object)
+    ZEND_FE(swoole_str_replace,          arginfo_swoole_str_replace)
+    ZEND_FE(swoole_str_ireplace,         arginfo_swoole_str_ireplace)
+    ZEND_FE(swoole_array_replace,        arginfo_swoole_array_replace)
+    ZEND_FE(swoole_array_ireplace,       arginfo_swoole_array_ireplace)
 #endif
     PHP_FE_END /* Must be the last line in swoole_functions[] */
 };

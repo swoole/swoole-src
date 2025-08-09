@@ -38,4 +38,8 @@ PHP_FUNCTION(swoole_str_json_decode_to_object);
 PHP_FUNCTION(swoole_parse_str);
 PHP_FUNCTION(swoole_hash);
 PHP_FUNCTION(swoole_typed_array);
+PHP_FUNCTION(swoole_str_replace);
+PHP_FUNCTION(swoole_str_ireplace);
+PHP_FUNCTION(swoole_array_replace);
+PHP_FUNCTION(swoole_array_ireplace);
 SW_EXTERN_C_END

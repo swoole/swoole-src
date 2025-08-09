@@ -44,3 +44,11 @@ function swoole_parse_str(string $string): array {}
 function swoole_hash(string $data, string $algo, bool $binary = false, array $options = []): string {}
 
 function swoole_typed_array(string $typeDef, ?array $initArray = null): array {}
+
+function swoole_str_replace(string $subject, array|string $search, array|string $replace): string {}
+
+function swoole_str_ireplace(string $subject, array|string $search, array|string $replace): string {}
+
+function swoole_array_replace(array $subject, array|string $search, array|string $replace): array {}
+
+function swoole_array_ireplace(array $subject, array|string $search, array|string $replace): array {}
