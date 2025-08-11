@@ -210,6 +210,6 @@ Assert::eq($array1, $array2);
 $find = array("Hello","world");
 $replace = array("B");
 $arr = array("Hello","world","!");
-Assert::eq($arr->strReplace($find, $replace), str_replace($find, $replace, $arr));
+Assert::eq($arr->replaceStr($find, $replace), str_replace($find, $replace, $arr));
 ?>
 --EXPECT--

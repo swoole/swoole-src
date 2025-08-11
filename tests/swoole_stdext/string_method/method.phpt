@@ -64,8 +64,8 @@ if (PHP_VERSION_ID >= 80300) {
 }
 
 $text = "<body text=%BODY%>";
-Assert::eq($text->strReplace("%BODY%", "black"), str_replace("%BODY%", "black", $text));
-Assert::eq($text->iStrReplace("%body%", "black"), str_ireplace("%body%", "black", $text));
+Assert::eq($text->replace("%BODY%", "black"), str_replace("%BODY%", "black", $text));
+Assert::eq($text->iReplace("%body%", "black"), str_ireplace("%body%", "black", $text));
 
 $text = "Alien";
 Assert::eq($text->pad(10), str_pad($text, 10));

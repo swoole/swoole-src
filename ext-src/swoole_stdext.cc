@@ -175,6 +175,7 @@ static std::unordered_map<std::string, std::string> array_methods = {
     {"unique", "array_unique"},
     {"values", "array_values"},
     {"count", "count"},
+    {"merge", "array_merge"},
     {"contains", "swoole_array_contains"},
     {"join", "swoole_array_join"},
     {"isTyped", "swoole_array_is_typed"},
@@ -187,8 +188,8 @@ static std::unordered_map<std::string, std::string> array_methods = {
     {"unshift", "array_unshift"},
     {"splice", "array_splice"},
     {"walk", "array_walk"},
-    {"strReplace", "swoole_array_replace"},
-    {"iStrReplace", "swoole_array_ireplace"},
+    {"replaceStr", "swoole_array_replace_str"},
+    {"iReplaceStr", "swoole_array_ireplace_str"},
     // serialize
     {"serialize", "serialize"},
     {"marshal", "serialize"},
@@ -308,26 +309,22 @@ static std::unordered_map<std::string, std::string> stream_methods = {
     {"getLine", "fgets"},
 };
 
-static void call_func_switch_arg_1_and_2(zend_function *fn, zend_execute_data *execute_data, zval *retval) {
-    zval argv[MAX_ARGC];
-    const zval *arg_ptr = ZEND_CALL_ARG(execute_data, 1);
-    const int arg_count = MIN(ZEND_CALL_NUM_ARGS(execute_data), MAX_ARGC);
-    argv[0] = arg_ptr[1];
-    argv[1] = arg_ptr[0];
-    for (int i = 2; i < arg_count; i++) {
-        argv[i] = arg_ptr[i];
-    }
-    zend_call_known_function(fn, nullptr, nullptr, retval, arg_count, argv, nullptr);
+static void move_first_element(const zval src[], zval dst[], int size, int position) {
+	zval first = src[0];
+	for (int i = 0; i < position; i++) {
+		dst[i] = src[i + 1];
+	}
+	dst[position] = first;
+	for (int i = position + 1; i < size; i++) {
+		dst[i] = src[i];
+	}
 }
 
-static void call_func_move_arg_1_to_last(zend_function *fn, zend_execute_data *execute_data, zval *retval) {
+static void call_func_move_first_arg(zend_function *fn, zend_execute_data *execute_data, zval *retval, int position) {
     zval argv[MAX_ARGC];
     const zval *arg_ptr = ZEND_CALL_ARG(execute_data, 1);
     const int arg_count = MIN(ZEND_CALL_NUM_ARGS(execute_data), MAX_ARGC);
-    for (int i = 1; i < arg_count; i++) {
-        argv[i - 1] = arg_ptr[i];
-    }
-    argv[arg_count - 1] = arg_ptr[0];
+    move_first_element(arg_ptr, argv, arg_count, position);
     zend_call_known_function(fn, nullptr, nullptr, retval, arg_count, argv, nullptr);
 }
 
@@ -439,29 +436,29 @@ void php_swoole_stdext_minit(int module_number) {
     fn_array_splice->internal_function.handler = ZEND_FN(swoole_array_splice);
 }
 
-#define SW_CREATE_PHP_FUNCTION_WRAPPER(php_func_name, swoole_func_name, callback)                                      \
+#define SW_CREATE_PHP_FUNCTION_WRAPPER(php_func_name, swoole_func_name, position)                                      \
     PHP_FUNCTION(swoole_func_name) {                                                                                   \
         static zend_function *fn_##swoole_func_name = nullptr;                                                         \
         if (!fn_##swoole_func_name) {                                                                                  \
             fn_##swoole_func_name = get_function(CG(function_table), ZEND_STRL(#php_func_name));                       \
         }                                                                                                              \
-        callback(fn_##swoole_func_name, execute_data, return_value);                                                   \
+		call_func_move_first_arg(fn_##swoole_func_name, execute_data, return_value, position);                         \
     }
 
 // array
-SW_CREATE_PHP_FUNCTION_WRAPPER(array_search, swoole_array_search, call_func_switch_arg_1_and_2);
-SW_CREATE_PHP_FUNCTION_WRAPPER(in_array, swoole_array_contains, call_func_switch_arg_1_and_2);
-SW_CREATE_PHP_FUNCTION_WRAPPER(implode, swoole_array_join, call_func_switch_arg_1_and_2);
-SW_CREATE_PHP_FUNCTION_WRAPPER(array_key_exists, swoole_array_key_exists, call_func_switch_arg_1_and_2);
-SW_CREATE_PHP_FUNCTION_WRAPPER(array_map, swoole_array_map, call_func_switch_arg_1_and_2);
-SW_CREATE_PHP_FUNCTION_WRAPPER(str_replace, swoole_array_replace, call_func_move_arg_1_to_last);
-SW_CREATE_PHP_FUNCTION_WRAPPER(str_ireplace, swoole_array_ireplace, call_func_move_arg_1_to_last);
+SW_CREATE_PHP_FUNCTION_WRAPPER(array_search, swoole_array_search, 1);
+SW_CREATE_PHP_FUNCTION_WRAPPER(in_array, swoole_array_contains, 1);
+SW_CREATE_PHP_FUNCTION_WRAPPER(implode, swoole_array_join, 1);
+SW_CREATE_PHP_FUNCTION_WRAPPER(array_key_exists, swoole_array_key_exists, 1);
+SW_CREATE_PHP_FUNCTION_WRAPPER(array_map, swoole_array_map, 1);
+SW_CREATE_PHP_FUNCTION_WRAPPER(str_replace, swoole_array_replace_str, 2);
+SW_CREATE_PHP_FUNCTION_WRAPPER(str_ireplace, swoole_array_ireplace_str, 2);
 
 // string
-SW_CREATE_PHP_FUNCTION_WRAPPER(explode, swoole_str_split, call_func_switch_arg_1_and_2);
-SW_CREATE_PHP_FUNCTION_WRAPPER(hash, swoole_hash, call_func_switch_arg_1_and_2);
-SW_CREATE_PHP_FUNCTION_WRAPPER(str_replace, swoole_str_replace, call_func_move_arg_1_to_last);
-SW_CREATE_PHP_FUNCTION_WRAPPER(str_ireplace, swoole_str_ireplace, call_func_move_arg_1_to_last);
+SW_CREATE_PHP_FUNCTION_WRAPPER(explode, swoole_str_split, 1);
+SW_CREATE_PHP_FUNCTION_WRAPPER(hash, swoole_hash, 1);
+SW_CREATE_PHP_FUNCTION_WRAPPER(str_replace, swoole_str_replace, 2);
+SW_CREATE_PHP_FUNCTION_WRAPPER(str_ireplace, swoole_str_ireplace, 2);
 
 PHP_FUNCTION(swoole_parse_str) {
     char *arg;

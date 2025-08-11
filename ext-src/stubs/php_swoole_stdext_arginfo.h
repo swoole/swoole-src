@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 559676d1c2a9822225f51ed4696fb0d29bfe27b7 */
+ * Stub hash: df7f4e3ef25ccb8ecec92790de722a5da01e09b9 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_call_array_method, 0, 0, IS_MIXED, 0)
 	ZEND_ARG_VARIADIC_TYPE_INFO(0, args, IS_MIXED, 0)
@@ -97,11 +97,10 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_swoole_str_ireplace arginfo_swoole_str_replace
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_array_replace, 0, 3, IS_ARRAY, 0)
-	ZEND_ARG_TYPE_INFO(0, subject, IS_ARRAY, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_array_replace_str, 0, 3, IS_ARRAY, 0)
+	ZEND_ARG_TYPE_INFO(0, subjects, IS_ARRAY, 0)
 	ZEND_ARG_TYPE_MASK(0, search, MAY_BE_ARRAY|MAY_BE_STRING, NULL)
 	ZEND_ARG_TYPE_MASK(0, replace, MAY_BE_ARRAY|MAY_BE_STRING, NULL)
 ZEND_END_ARG_INFO()
 
-#define arginfo_swoole_array_ireplace arginfo_swoole_array_replace
-
+#define arginfo_swoole_array_ireplace_str arginfo_swoole_array_replace_str
