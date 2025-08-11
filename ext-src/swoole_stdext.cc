@@ -224,8 +224,8 @@ static std::unordered_map<std::string, std::string> string_methods = {
     {"decr", "str_decrement"},
     {"pad", "str_pad"},
     {"repeat", "str_repeat"},
-    {"strReplace", "swoole_str_replace"},
-    {"iStrReplace", "swoole_str_ireplace"},
+    {"replace", "swoole_str_replace"},
+    {"iReplace", "swoole_str_ireplace"},
     {"shuffle", "str_shuffle"},
     {"split", "swoole_str_split"},  // explode
     {"startsWith", "str_starts_with"},
