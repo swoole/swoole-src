@@ -656,9 +656,9 @@ static void array_add_or_update(const zend_op *opline, zval *container, const zv
         if (UNEXPECTED(variable_ptr == nullptr)) {
             goto assign_dim_op_ret_null;
         }
-        debug_val("1", opline_next->op1_type, value);
+        debug_val("1", op_data->op1_type, value);
         var_ptr = zend_assign_to_variable(variable_ptr, value, op_data->op1_type, EX_USES_STRICT_TYPES());
-        debug_val("2", opline_next->op1_type, value);
+        debug_val("2", op_data->op1_type, value);
         if (UNEXPECTED(!var_ptr)) {
         assign_dim_op_ret_null:
             FREE_OP(op_data->op1_type, op_data->op1.var);
