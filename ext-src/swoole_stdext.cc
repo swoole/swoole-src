@@ -1,5 +1,5 @@
 /*
-+----------------------------------------------------------------------+
+ +----------------------------------------------------------------------+
   | Swoole                                                               |
   +----------------------------------------------------------------------+
   | This source file is subject to version 2.0 of the Apache license,    |
@@ -185,8 +185,10 @@ static std::unordered_map<std::string, std::string> array_methods = {
     {"push", "array_push"},
     {"shift", "array_shift"},
     {"unshift", "array_unshift"},
-    {"shift", "array_splice"},
+    {"splice", "array_splice"},
     {"walk", "array_walk"},
+    {"strReplace", "swoole_array_replace"},
+    {"iStrReplace", "swoole_array_ireplace"},
     // serialize
     {"serialize", "serialize"},
     {"marshal", "serialize"},
@@ -220,10 +222,10 @@ static std::unordered_map<std::string, std::string> string_methods = {
     {"contains", "str_contains"},
     {"incr", "str_increment"},
     {"decr", "str_decrement"},
-    {"iReplace", "str_ireplace"},
     {"pad", "str_pad"},
     {"repeat", "str_repeat"},
-    {"replace", "str_replace"},
+    {"replace", "swoole_str_replace"},
+    {"iReplace", "swoole_str_ireplace"},
     {"shuffle", "str_shuffle"},
     {"split", "swoole_str_split"},  // explode
     {"startsWith", "str_starts_with"},
@@ -315,6 +317,17 @@ static void call_func_switch_arg_1_and_2(zend_function *fn, zend_execute_data *e
     for (int i = 2; i < arg_count; i++) {
         argv[i] = arg_ptr[i];
     }
+    zend_call_known_function(fn, nullptr, nullptr, retval, arg_count, argv, nullptr);
+}
+
+static void call_func_move_arg_1_to_last(zend_function *fn, zend_execute_data *execute_data, zval *retval) {
+    zval argv[MAX_ARGC];
+    const zval *arg_ptr = ZEND_CALL_ARG(execute_data, 1);
+    const int arg_count = MIN(ZEND_CALL_NUM_ARGS(execute_data), MAX_ARGC);
+    for (int i = 1; i < arg_count; i++) {
+        argv[i - 1] = arg_ptr[i];
+    }
+    argv[arg_count - 1] = arg_ptr[0];
     zend_call_known_function(fn, nullptr, nullptr, retval, arg_count, argv, nullptr);
 }
 
@@ -441,10 +454,14 @@ SW_CREATE_PHP_FUNCTION_WRAPPER(in_array, swoole_array_contains, call_func_switch
 SW_CREATE_PHP_FUNCTION_WRAPPER(implode, swoole_array_join, call_func_switch_arg_1_and_2);
 SW_CREATE_PHP_FUNCTION_WRAPPER(array_key_exists, swoole_array_key_exists, call_func_switch_arg_1_and_2);
 SW_CREATE_PHP_FUNCTION_WRAPPER(array_map, swoole_array_map, call_func_switch_arg_1_and_2);
+SW_CREATE_PHP_FUNCTION_WRAPPER(str_replace, swoole_array_replace, call_func_move_arg_1_to_last);
+SW_CREATE_PHP_FUNCTION_WRAPPER(str_ireplace, swoole_array_ireplace, call_func_move_arg_1_to_last);
 
 // string
 SW_CREATE_PHP_FUNCTION_WRAPPER(explode, swoole_str_split, call_func_switch_arg_1_and_2);
 SW_CREATE_PHP_FUNCTION_WRAPPER(hash, swoole_hash, call_func_switch_arg_1_and_2);
+SW_CREATE_PHP_FUNCTION_WRAPPER(str_replace, swoole_str_replace, call_func_move_arg_1_to_last);
+SW_CREATE_PHP_FUNCTION_WRAPPER(str_ireplace, swoole_str_ireplace, call_func_move_arg_1_to_last);
 
 PHP_FUNCTION(swoole_parse_str) {
     char *arg;
@@ -1087,7 +1104,11 @@ static void php_do_pcre_match(INTERNAL_FUNCTION_PARAMETERS, int global) /* {{{ *
 
     zval count = {};
     php_pcre_pce_incref(pce);
+#if PHP_VERSION_ID >= 80400
+    php_pcre_match_impl(pce, subject, &count, return_value, global == 1, flags, start_offset);
+#else
     php_pcre_match_impl(pce, subject, &count, return_value, global, ZEND_NUM_ARGS() >= 3, flags, start_offset);
+#endif
     php_pcre_pce_decref(pce);
 }
 /* }}} */
