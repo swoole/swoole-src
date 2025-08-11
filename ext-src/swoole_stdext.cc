@@ -879,7 +879,10 @@ bool ArrayTypeValue::parse(const char *type_str, const size_t len_of_type_str) {
 }
 
 bool ArrayTypeInfo::parse(zend_string *type_def) {
-    assert(type_def->len < 65535);
+    if (type_def->len >= 65535) {
+        zend_throw_error(nullptr, "The type definition string is too long (must be less than 65535 characters)");
+        return false;
+    }
     zend_string *lc_type_def = zend_string_tolower(type_def);
     memcpy(type_str, lc_type_def->val, lc_type_def->len + 1);
     len_of_type_str = lc_type_def->len;
