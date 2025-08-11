@@ -27,8 +27,9 @@ SW_EXTERN_C_BEGIN
 #include "thirdparty/php/zend/zend_execute.c"
 SW_EXTERN_C_END
 
-#define MAX_ARGC 16
-#define HASH_FLAG_TYPED_ARRAY (1 << 12)
+enum HashFlag {
+    HASH_FLAG_TYPED_ARRAY = (1 << 12),
+};
 
 /**
  * This module aims to enhance the PHP standard library without modifying the php-src core code.
@@ -310,22 +311,23 @@ static std::unordered_map<std::string, std::string> stream_methods = {
 };
 
 static void move_first_element(const zval src[], zval dst[], int size, int position) {
-	zval first = src[0];
-	for (int i = 0; i < position; i++) {
-		dst[i] = src[i + 1];
-	}
-	dst[position] = first;
-	for (int i = position + 1; i < size; i++) {
-		dst[i] = src[i];
-	}
+    zval first = src[0];
+    for (int i = 0; i < position; i++) {
+        dst[i] = src[i + 1];
+    }
+    dst[position] = first;
+    for (int i = position + 1; i < size; i++) {
+        dst[i] = src[i];
+    }
 }
 
 static void call_func_move_first_arg(zend_function *fn, zend_execute_data *execute_data, zval *retval, int position) {
-    zval argv[MAX_ARGC];
     const zval *arg_ptr = ZEND_CALL_ARG(execute_data, 1);
-    const int arg_count = MIN(ZEND_CALL_NUM_ARGS(execute_data), MAX_ARGC);
+    const int arg_count = ZEND_CALL_NUM_ARGS(execute_data);
+    const auto argv = static_cast<zval *>(ecalloc(arg_count, sizeof(zval)));
     move_first_element(arg_ptr, argv, arg_count, position);
     zend_call_known_function(fn, nullptr, nullptr, retval, arg_count, argv, nullptr);
+    efree(argv);
 }
 
 static void call_method(const std::unordered_map<std::string, std::string> &method_map,
@@ -351,9 +353,11 @@ static void call_method(const std::unordered_map<std::string, std::string> &meth
         zend_throw_error(nullptr, "The function `%s` is undefined", real_fn.c_str());
         return;
     }
-    zval argv[MAX_ARGC];
+
     const zval *arg_ptr = ZEND_CALL_ARG(execute_data, 1);
-    const int arg_count = MIN(ZEND_CALL_NUM_ARGS(execute_data), MAX_ARGC);
+    const int arg_count = ZEND_CALL_NUM_ARGS(execute_data);
+    const auto argv = static_cast<zval *>(ecalloc(arg_count + 1, sizeof(zval)));
+
     argv[0] = call_info->this_;
     for (int i = 0; i < arg_count; i++) {
         argv[i + 1] = arg_ptr[i];
@@ -363,6 +367,7 @@ static void call_method(const std::unordered_map<std::string, std::string> &meth
     if (call_info->op1_type == IS_VAR) {
         zval_ptr_dtor(&call_info->this_);
     }
+    efree(argv);
 }
 
 static int opcode_handler_method_call(zend_execute_data *execute_data) {
@@ -442,7 +447,7 @@ void php_swoole_stdext_minit(int module_number) {
         if (!fn_##swoole_func_name) {                                                                                  \
             fn_##swoole_func_name = get_function(CG(function_table), ZEND_STRL(#php_func_name));                       \
         }                                                                                                              \
-		call_func_move_first_arg(fn_##swoole_func_name, execute_data, return_value, position);                         \
+        call_func_move_first_arg(fn_##swoole_func_name, execute_data, return_value, position);                         \
     }
 
 // array
@@ -668,7 +673,7 @@ static void array_add_or_update(const zend_op *opline, zval *container, const zv
             return;
         }
     }
-    debug_val("3", opline_next->op1_type, value);
+    debug_val("3", op_data->op1_type, value);
     if (UNEXPECTED(RETURN_VALUE_USED(opline))) {
         ZVAL_COPY(EX_VAR(opline->result.var), var_ptr);
     }
@@ -676,7 +681,7 @@ static void array_add_or_update(const zend_op *opline, zval *container, const zv
         Z_TRY_ADDREF_P(value);
     }
     FREE_OP(op_data->op1_type, op_data->op1.var);
-    debug_val("4", opline_next->op1_type, value);
+    debug_val("4", op_data->op1_type, value);
 }
 
 static void array_op(const zend_op *opline, zval *container, const zval *key, zval *value EXECUTE_DATA_DC) {
@@ -819,7 +824,7 @@ static void remove_all_spaces(char **val, uint16_t *len) {
         return;
     }
 
-    char *src = *val;
+    const char *src = *val;
     char *dst = *val;
     size_t new_len = 0;
 
