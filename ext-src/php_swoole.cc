@@ -28,6 +28,9 @@ BEGIN_EXTERN_C()
 
 #include "stubs/php_swoole_arginfo.h"
 #include "stubs/php_swoole_ex_arginfo.h"
+#ifdef SW_STDEXT
+#include "stubs/php_swoole_stdext_arginfo.h"
+#endif
 END_EXTERN_C()
 
 #include "swoole_mime_type.h"
@@ -102,6 +105,10 @@ static PHP_FUNCTION(swoole_internal_call_user_shutdown_begin);
 static PHP_FUNCTION(swoole_implicit_fn);
 SW_EXTERN_C_END
 
+#ifdef SW_STDEXT
+#include "php_swoole_stdext.h"
+#endif
+
 // clang-format off
 const zend_function_entry swoole_functions[] = {
     PHP_FE(swoole_version,    arginfo_swoole_version)
@@ -148,6 +155,32 @@ const zend_function_entry swoole_functions[] = {
     ZEND_FE(swoole_name_resolver_lookup, arginfo_swoole_name_resolver_lookup)
     ZEND_FE(swoole_name_resolver_add,    arginfo_swoole_name_resolver_add)
     ZEND_FE(swoole_name_resolver_remove, arginfo_swoole_name_resolver_remove)
+    // for stdext
+#ifdef SW_STDEXT
+    ZEND_FE(swoole_call_array_method,    arginfo_swoole_call_array_method)
+    ZEND_FE(swoole_call_string_method,   arginfo_swoole_call_string_method)
+    ZEND_FE(swoole_call_stream_method,   arginfo_swoole_call_stream_method)
+    ZEND_FE(swoole_array_search,         arginfo_swoole_array_search)
+    ZEND_FE(swoole_array_contains,       arginfo_swoole_array_contains)
+    ZEND_FE(swoole_array_join,           arginfo_swoole_array_join)
+    ZEND_FE(swoole_array_key_exists,     arginfo_swoole_array_key_exists)
+    ZEND_FE(swoole_array_map,            arginfo_swoole_array_map)
+    ZEND_FE(swoole_str_split,            arginfo_swoole_str_split)
+    ZEND_FE(swoole_parse_str,            arginfo_swoole_parse_str)
+    ZEND_FE(swoole_hash,                 arginfo_swoole_hash)
+    ZEND_FE(swoole_typed_array,          arginfo_swoole_typed_array)
+    ZEND_FE(swoole_array_is_typed,       arginfo_swoole_array_is_typed)
+    ZEND_FE(swoole_str_is_empty,         arginfo_swoole_str_is_empty)
+    ZEND_FE(swoole_array_is_empty,       arginfo_swoole_array_is_empty)
+    ZEND_FE(swoole_str_match,            arginfo_swoole_str_match)
+    ZEND_FE(swoole_str_match_all,        arginfo_swoole_str_match_all)
+    ZEND_FE(swoole_str_json_decode,      arginfo_swoole_str_json_decode)
+    ZEND_FE(swoole_str_json_decode_to_object, arginfo_swoole_str_json_decode_to_object)
+    ZEND_FE(swoole_str_replace,          arginfo_swoole_str_replace)
+    ZEND_FE(swoole_str_ireplace,         arginfo_swoole_str_ireplace)
+    ZEND_FE(swoole_array_replace_str,    arginfo_swoole_array_replace_str)
+    ZEND_FE(swoole_array_ireplace_str,   arginfo_swoole_array_ireplace_str)
+#endif
     PHP_FE_END /* Must be the last line in swoole_functions[] */
 };
 
@@ -430,7 +463,7 @@ SW_API bool php_swoole_unserialize(zend_string *data, zval *zv) {
     PHP_VAR_UNSERIALIZE_DESTROY(var_hash);
     if (!unserialized) {
         swoole_warning("unserialize() failed, Error at offset " ZEND_LONG_FMT " of %zd bytes",
-                       (zend_long)((char *) p - ZSTR_VAL(data)),
+                       (zend_long) ((char *) p - ZSTR_VAL(data)),
                        l);
     }
     return unserialized;
@@ -807,6 +840,10 @@ PHP_MINIT_FUNCTION(swoole) {
             CG(function_table), "swoole_coroutine_create", CG(function_table), "go", arginfo_swoole_coroutine_create);
         SW_FUNCTION_ALIAS(
             CG(function_table), "swoole_coroutine_defer", CG(function_table), "defer", arginfo_swoole_coroutine_defer);
+#ifdef SW_STDEXT
+        SW_FUNCTION_ALIAS(
+            CG(function_table), "swoole_typed_array", CG(function_table), "typed_array", arginfo_swoole_typed_array);
+#endif
     }
 
     swoole_init();
@@ -874,6 +911,9 @@ PHP_MINIT_FUNCTION(swoole) {
     php_swoole_thread_queue_minit(module_number);
     php_swoole_thread_map_minit(module_number);
     php_swoole_thread_arraylist_minit(module_number);
+#endif
+#ifdef SW_STDEXT
+    php_swoole_stdext_minit(module_number);
 #endif
 
     SwooleG.fatal_error = fatal_error;
@@ -1589,7 +1629,7 @@ static PHP_FUNCTION(swoole_substr_unserialize) {
     if ((zend_long) buf_len <= offset) {
         RETURN_FALSE;
     }
-    if (length <= 0 || length > (zend_long)(buf_len - offset)) {
+    if (length <= 0 || length > (zend_long) (buf_len - offset)) {
         length = buf_len - offset;
     }
     zend::unserialize(return_value, buf + offset, length, options ? Z_ARRVAL_P(options) : NULL);
@@ -1629,7 +1669,7 @@ static PHP_FUNCTION(swoole_substr_json_decode) {
         php_error_docref(nullptr, E_WARNING, "Offset must be less than the length of the string");
         RETURN_NULL();
     }
-    if (length <= 0 || length > (zend_long)(str_len - offset)) {
+    if (length <= 0 || length > (zend_long) (str_len - offset)) {
         length = str_len - offset;
     }
     /* For BC reasons, the bool $assoc overrides the long $options bit for PHP_JSON_OBJECT_AS_ARRAY */
