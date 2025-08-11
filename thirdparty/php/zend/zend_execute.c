@@ -1,4 +1,3 @@
-#pragma once
 
 #include "zend.h"
 #include "zend_compile.h"
