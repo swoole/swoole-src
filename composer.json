@@ -68,6 +68,10 @@
       {
         "name": "enable-iouring",
         "description": "Enable iouring for file async support"
+      },
+      {
+        "name": "enable-zstd",
+        "description": "Enable zstd support"
       }
     ]
   }
