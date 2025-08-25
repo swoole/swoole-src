@@ -641,31 +641,62 @@ EOF
         AC_MSG_ERROR([Cannot find header file(s) for pdo_odbc])
       fi
 
+	  if test -n "$SWOOLE_ODBC_LIBS"; then
+        ODBC_LIBS="$SWOOLE_ODBC_LIBS"
+      else
+        ODBC_LIBS="-l$pdo_odbc_def_lib"
+      fi
+
       PDO_ODBC_INCLUDE="$pdo_odbc_def_cflags -I$PDO_ODBC_INCDIR -DPDO_ODBC_TYPE=\\\"$pdo_odbc_flavour\\\""
-      PDO_ODBC_LDFLAGS="$pdo_odbc_def_ldflags -L$PDO_ODBC_LIBDIR -l$pdo_odbc_def_lib"
+      PDO_ODBC_LDFLAGS="$pdo_odbc_def_ldflags -L$PDO_ODBC_LIBDIR $ODBC_LIBS"
 
       PHP_EVAL_LIBLINE([$PDO_ODBC_LDFLAGS], [SWOOLE_SHARED_LIBADD])
 
       EXTRA_CFLAGS="$EXTRA_CFLAGS -I$pdo_cv_inc_path $PDO_ODBC_INCLUDE"
 
       dnl Check first for an ODBC 1.0 function to assert that the libraries work
-      PHP_CHECK_LIBRARY($pdo_odbc_def_lib, SQLBindCol,
-      [
-        dnl And now check for an ODBC 3.0 function to assert that they are *good*
-        dnl libraries.
-        PHP_CHECK_LIBRARY($pdo_odbc_def_lib, SQLAllocHandle,
-        [], [
-          AC_MSG_ERROR([
+      save_LIBS="$LIBS"
+      LIBS="$LIBS $PDO_ODBC_LDFLAGS"
+
+      AC_LINK_IFELSE(
+        [AC_LANG_PROGRAM(
+           [[#include <sql.h>
+             #include <sqlext.h>]],
+           [[
+             SQLLEN ind = 0;
+             char buf[1];
+             SQLBindCol((SQLHSTMT)0, (SQLUSMALLINT)1, (SQLSMALLINT)SQL_C_CHAR,
+                        (SQLPOINTER)buf, (SQLLEN)sizeof(buf), &ind);
+             return 0;
+           ]])],
+        [
+          dnl And now check for an ODBC 3.0 function to assert that they are *good*
+          dnl libraries.
+          AC_LINK_IFELSE(
+            [AC_LANG_PROGRAM(
+               [[#include <sql.h>
+                 #include <sqlext.h>]],
+               [[
+                 SQLHANDLE out = SQL_NULL_HANDLE;
+                 SQLAllocHandle((SQLSMALLINT)SQL_HANDLE_ENV,
+                                (SQLHANDLE)SQL_NULL_HANDLE, &out);
+                 return 0;
+               ]])],
+            [],
+            [AC_MSG_ERROR([
     Your ODBC library does not appear to be ODBC 3 compatible.
     You should consider using iODBC or unixODBC instead, and loading your
     libraries as a driver in that environment; it will emulate the
     functions required for PDO support.
-    ])], $PDO_ODBC_LDFLAGS)
-      ],[
-        AC_MSG_ERROR([Your ODBC library does not exist or there was an error. Check config.log for more information])
-      ], $PDO_ODBC_LDFLAGS)
+    ])]
+          )
+        ],
+        [AC_MSG_ERROR([Your ODBC library does not exist or there was an error. Check config.log for more information])]
+    )
 
-        AC_DEFINE(SW_USE_ODBC, 1, [do we enable swoole-odbc coro support])
+      LIBS="$save_LIBS"
+
+      AC_DEFINE(SW_USE_ODBC, 1, [do we enable swoole-odbc coro support])
     fi
 
     dnl odbc end
