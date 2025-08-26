@@ -445,6 +445,7 @@ if test "$PHP_SWOOLE" != "no"; then
         AX_CHECK_COMPILE_FLAG(-Wlogical-op-parentheses,         _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wlogical-op-parentheses")
         AX_CHECK_COMPILE_FLAG(-Wloop-analysis,                  _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wloop-analysis")
         AX_CHECK_COMPILE_FLAG(-Wuninitialized,                  _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wuninitialized")
+        AX_CHECK_COMPILE_FLAG(-Wno-date-time,                   _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wno-date-time")
         AX_CHECK_COMPILE_FLAG(-Wno-missing-field-initializers,  _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wno-missing-field-initializers")
         AX_CHECK_COMPILE_FLAG(-Wno-sign-compare,                _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wno-sign-compare")
         AX_CHECK_COMPILE_FLAG(-Wno-unused-const-variable,       _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wno-unused-const-variable")
@@ -1332,7 +1333,7 @@ EOF
 
     PHP_REQUIRE_CXX()
 
-    CXXFLAGS="$CXXFLAGS -Wall -Wno-unused-function -Wno-deprecated -Wno-deprecated-declarations"
+    CXXFLAGS="$CXXFLAGS -Wall -Wno-date-time -Wno-unused-function -Wno-deprecated -Wno-deprecated-declarations"
 
     if test "$SW_OS" = "CYGWIN" || test "$SW_OS" = "MINGW"; then
         CXXFLAGS="$CXXFLAGS -std=gnu++14"
