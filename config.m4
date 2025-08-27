@@ -641,7 +641,7 @@ EOF
         AC_MSG_ERROR([Cannot find header file(s) for pdo_odbc])
       fi
 
-	  if test -n "$SWOOLE_ODBC_LIBS"; then
+      if test -n "$SWOOLE_ODBC_LIBS"; then
         ODBC_LIBS="$SWOOLE_ODBC_LIBS"
       else
         ODBC_LIBS="-l$pdo_odbc_def_lib"
