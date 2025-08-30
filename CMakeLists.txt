@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 project(libswoole)
 
 enable_language(ASM)
-set(SWOOLE_VERSION 6.1.0-dev)
+set(SWOOLE_VERSION 6.1.0RC1)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
