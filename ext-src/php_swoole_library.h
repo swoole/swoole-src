@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
  */
 
-/* $Id: 8534d98950d0a91de9879d1b9bcb904b7d5a3cb4 */
+/* $Id: 51d60adcf7beee32ef614c349fdd4a65ea2f3faf */
 
 #ifndef SWOOLE_LIBRARY_H
 #define SWOOLE_LIBRARY_H
@@ -4402,7 +4402,13 @@ static const char* swoole_library_source_core_curl_handler =
     "                $this->readFunction = $value;\n"
     "                break;\n"
     "            case CURLOPT_WRITEFUNCTION:\n"
-    "                $this->writeFunction = $value;\n"
+    "                if (SWOOLE_VERSION_ID >= 50100) {\n"
+    "                    $this->clientOptions[Constant::OPTION_WRITE_FUNC] = function ($client, $data) use ($value) {\n"
+    "                        return $value($this, $data);\n"
+    "                    };\n"
+    "                } else {\n"
+    "                    $this->writeFunction = $value;\n"
+    "                }\n"
     "                break;\n"
     "            case CURLOPT_NOPROGRESS:\n"
     "                $this->noProgress = $value;\n"
@@ -4639,11 +4645,14 @@ static const char* swoole_library_source_core_curl_handler =
     "                $headerContent .= $row;\n"
     "            }\n"
     "            foreach ($client->headers as $k => $v) {\n"
-    "                $row = \"{$k}: {$v}\\r\\n\";\n"
-    "                if ($cb) {\n"
-    "                    $cb($this, $row);\n"
+    "                $list = is_array($v) ? $v : [$v];\n"
+    "                foreach ($list as $_v) {\n"
+    "                    $row = \"{$k}: {$_v}\\r\\n\";\n"
+    "                    if ($cb) {\n"
+    "                        $cb($this, $row);\n"
+    "                    }\n"
+    "                    $headerContent .= $row;\n"
     "                }\n"
-    "                $headerContent .= $row;\n"
     "            }\n"
     "            $headerContent .= \"\\r\\n\";\n"
     "            $this->info['header_size'] = strlen($headerContent);\n"
