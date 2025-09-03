@@ -164,6 +164,13 @@ static inline void parse_ext_flags(uint16_t ext_flags, uchar *opcode, uchar *fla
     *opcode = frame_header[1];
 }
 
+static inline uint16_t get_ext_flags(uchar opcode, uchar flags) {
+    uint16_t ext_flags = opcode;
+    ext_flags = ext_flags << 8;
+    ext_flags += flags;
+    return ext_flags;
+}
+
 ssize_t get_package_length(const Protocol *protocol, network::Socket *conn, PacketLength *pl);
 int dispatch_frame(const Protocol *protocol, network::Socket *conn, const RecvData *rdata);
 

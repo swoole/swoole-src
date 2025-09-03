@@ -1222,38 +1222,89 @@ static PHP_METHOD(swoole_http_response, recv) {
         swoole_set_last_error(SW_ERROR_SESSION_CLOSED);
         RETURN_FALSE;
     }
+
     if (UNEXPECTED(!ctx->co_socket || !ctx->upgrade)) {
         php_swoole_fatal_error(E_WARNING, "fd[%ld] is not a websocket conncetion", ctx->fd);
         RETURN_FALSE;
     }
 
     double timeout = 0;
-
     ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 0, 1)
     Z_PARAM_OPTIONAL
     Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    Socket *sock = (Socket *) ctx->private_data;
-    ssize_t retval = sock->recv_packet(timeout);
-    String _tmp;
+    Socket *socket = static_cast<Socket *>(ctx->private_data);
+    String *http_buffer = ctx->get_write_buffer();
 
-    if (retval < 0) {
-        swoole_set_last_error(sock->errCode);
-        RETURN_FALSE;
-    } else if (retval == 0) {
-        RETURN_EMPTY_STRING();
-    } else {
-        _tmp.str = sock->get_read_buffer()->str;
-        _tmp.length = retval;
+    do {
+        ssize_t retval = socket->recv_packet(timeout);
+        if (sw_likely(retval > 0)) {
+            String message = {};
+            message.length = retval;
+            message.str = socket->get_read_buffer()->str;
 
+            uchar opcode = 0;
+            uchar flags = 0;
+
+            int result = php_swoole_websocket_frame_unpack(&message,
+                                                           http_buffer,
+                                                           return_value,
+                                                           &opcode,
+                                                           &flags,
+                                                           false,
+                                                           false,
 #ifdef SW_HAVE_ZLIB
-        php_swoole_websocket_frame_unpack_ex(&_tmp, return_value, ctx->websocket_compression);
+                                                           ctx->websocket_compression
 #else
-        php_swoole_websocket_frame_unpack(&_tmp, return_value);
+                                                           false
 #endif
+            );
+
+            if (sw_unlikely(result == SW_ERR)) {
+                RETURN_FALSE;
+            }
+
+            // handle by swoole websocket client not user.
+            if (opcode == WebSocket::OPCODE_PING) {
+                http_buffer->clear();
+                if (php_swoole_websocket_frame_pack(
+                        http_buffer, return_value, WebSocket::OPCODE_PONG, WebSocket::FLAG_FIN, 0, false) == SW_OK) {
+                    ctx->send(ctx, http_buffer->str, http_buffer->length);
+                }
+
+                zval_ptr_dtor(return_value);
+                ZVAL_FALSE(return_value);
+                continue;
+            }
+
+            // handle by swoole websocket client not user.
+            if (opcode == WebSocket::OPCODE_PONG) {
+                // receive a PONG frame and do not process it.
+                continue;
+            }
+
+            // handle by swoole websocket client not user.
+            if (opcode == WebSocket::OPCODE_CLOSE) {
+                http_buffer->clear();
+                if (php_swoole_websocket_frame_object_pack(http_buffer, return_value, 0, false) == SW_OK) {
+                    ctx->send(ctx, http_buffer->str, http_buffer->length);
+                }
+                ctx->close(ctx);
+                zval_ptr_dtor(return_value);
+                RETURN_FALSE;
+            }
+        } else {
+            swoole_set_last_error(socket->errCode);
+            RETURN_FALSE;
+        }
+    } while (!ZVAL_IS_OBJECT(return_value));
+
+    if (ZVAL_IS_OBJECT(return_value)) {
         zend_update_property_long(
-            swoole_websocket_frame_ce, SW_Z8_OBJ_P(return_value), ZEND_STRL("fd"), sock->get_fd());
+            swoole_websocket_frame_ce, SW_Z8_OBJ_P(return_value), ZEND_STRL("fd"), socket->get_fd());
+    } else {
+        RETURN_FALSE;
     }
 }
 

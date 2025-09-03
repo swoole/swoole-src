@@ -180,8 +180,15 @@ int php_swoole_websocket_frame_object_pack_ex(swoole::String *buffer,
                                               zval *zdata,
                                               zend_bool mask,
                                               zend_bool allow_compress);
-void php_swoole_websocket_frame_unpack(swoole::String *data, zval *zframe);
-void php_swoole_websocket_frame_unpack_ex(swoole::String *data, zval *zframe, uchar allow_uncompress);
+void php_swoole_websocket_frame_only_unpack(swoole::String *message, zval *zframe);
+int php_swoole_websocket_frame_unpack(swoole::String *message,
+                                      swoole::String *buffer,
+                                      zval *zframe,
+                                      uchar *opcode,
+                                      uchar *flags,
+                                      bool manual_ping,
+                                      bool manual_pong,
+                                      bool uncompress);
 
 #ifdef SW_HAVE_ZLIB
 int php_swoole_zlib_decompress(z_stream *stream, swoole::String *buffer, char *body, int length);
