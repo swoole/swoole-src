@@ -668,13 +668,7 @@ static sw_inline void add_assoc_ulong_safe(zval *arg, const char *key, zend_ulon
         }                                                                                                              \
     } while (0)
 
-#if PHP_VERSION_ID < 80100
-#define SW_SET_CLASS_NOT_SERIALIZABLE(module)                                                                          \
-    module##_ce->serialize = zend_class_serialize_deny;                                                                \
-    module##_ce->unserialize = zend_class_unserialize_deny;
-#else
 #define SW_SET_CLASS_NOT_SERIALIZABLE(module) module##_ce->ce_flags |= ZEND_ACC_NOT_SERIALIZABLE;
-#endif
 
 #define sw_zend_class_clone_deny NULL
 #define SW_SET_CLASS_CLONEABLE(module, _clone_obj) module##_handlers.clone_obj = _clone_obj
@@ -1013,11 +1007,7 @@ static sw_inline void sw_zend_fci_cache_discard(zend_fcall_info_cache *fci_cache
     }
 }
 
-#if PHP_VERSION_ID >= 80100
 #define sw_php_spl_object_hash(o) php_spl_object_hash(Z_OBJ_P(o))
-#else
-#define sw_php_spl_object_hash(o) php_spl_object_hash(o)
-#endif
 
 //----------------------------------Misc API------------------------------------
 
@@ -1073,11 +1063,7 @@ static inline const char *php_swoole_get_last_error_message() {
 }
 
 static inline const char *php_swoole_get_last_error_file() {
-#if PHP_VERSION_ID >= 80100
     return PG(last_error_file) ? PG(last_error_file)->val : "-";
-#else
-    return PG(last_error_file) ? PG(last_error_file) : "-";
-#endif
 }
 
 END_EXTERN_C()

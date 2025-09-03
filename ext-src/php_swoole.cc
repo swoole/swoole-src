@@ -284,19 +284,12 @@ void php_swoole_register_shutdown_function(const char *function) {
     shutdown_function_entry.param_count = 0;
     register_user_shutdown_function(Z_STRVAL(function_name), Z_STRLEN(function_name), &shutdown_function_entry);
     zval_ptr_dtor(&function_name);
-#elif PHP_VERSION_ID >= 80100
+#else
     zval function_name;
     ZVAL_STRING(&function_name, function);
     zend_fcall_info_init(
         &function_name, 0, &shutdown_function_entry.fci, &shutdown_function_entry.fci_cache, NULL, NULL);
     register_user_shutdown_function(Z_STRVAL(function_name), Z_STRLEN(function_name), &shutdown_function_entry);
-#else
-    zval *function_name;
-    shutdown_function_entry.arg_count = 0;
-    shutdown_function_entry.arguments = NULL;
-    function_name = &shutdown_function_entry.function_name;
-    ZVAL_STRING(function_name, function);
-    register_user_shutdown_function(Z_STRVAL_P(function_name), Z_STRLEN_P(function_name), &shutdown_function_entry);
 #endif
 }
 

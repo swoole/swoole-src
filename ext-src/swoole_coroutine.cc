@@ -27,9 +27,7 @@
 #include "zend_builtin_functions.h"
 #include "ext/spl/spl_array.h"
 
-#ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
 #include "zend_observer.h"
-#endif
 
 #include <unordered_map>
 #include <chrono>
@@ -44,17 +42,6 @@ using swoole::PHPContext;
 using swoole::PHPCoroutine;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
-
-#if PHP_VERSION_ID < 80100
-static zend_always_inline zend_vm_stack zend_vm_stack_new_page(size_t size, zend_vm_stack prev) {
-    zend_vm_stack page = (zend_vm_stack) emalloc(size);
-
-    page->top = ZEND_VM_STACK_ELEMENTS(page);
-    page->end = (zval *) ((char *) page + size);
-    page->prev = prev;
-    return page;
-}
-#endif
 
 enum sw_exit_flags { SW_EXIT_IN_COROUTINE = 1 << 1, SW_EXIT_IN_SERVER = 1 << 2 };
 
@@ -302,9 +289,6 @@ static void coro_interrupt_function(zend_execute_data *execute_data) {
 PHPContext *PHPCoroutine::create_context(Args *args) {
     PHPContext *ctx = (PHPContext *) emalloc(sizeof(PHPContext));
     ctx->output_ptr = nullptr;
-#if PHP_VERSION_ID < 80100
-    ctx->array_walk_fci = nullptr;
-#endif
     ctx->in_silence = false;
 
     ctx->co = Coroutine::get_current();
@@ -317,10 +301,8 @@ PHPContext *PHPCoroutine::create_context(Args *args) {
     ctx->on_close = nullptr;
     ctx->enable_scheduler = true;
 
-#ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
     fiber_context_try_init(ctx);
     ctx->fiber_init_notified = false;
-#endif
 
     EG(vm_stack) = zend_vm_stack_new_page(SW_DEFAULT_PHP_STACK_PAGE_SIZE, nullptr);
     EG(vm_stack_top) = EG(vm_stack)->top + ZEND_CALL_FRAME_SLOT;
@@ -522,15 +504,6 @@ inline void PHPCoroutine::save_vm_stack(PHPContext *ctx) {
     ctx->error_handling = EG(error_handling);
     ctx->exception_class = EG(exception_class);
     ctx->exception = EG(exception);
-#if PHP_VERSION_ID < 80100
-    if (UNEXPECTED(BG(array_walk_fci).size != 0)) {
-        if (!ctx->array_walk_fci) {
-            ctx->array_walk_fci = (zend::Function *) emalloc(sizeof(*ctx->array_walk_fci));
-        }
-        memcpy(ctx->array_walk_fci, &BG(array_walk_fci), sizeof(*ctx->array_walk_fci));
-        memset(&BG(array_walk_fci), 0, sizeof(*ctx->array_walk_fci));
-    }
-#endif
     if (UNEXPECTED(ctx->in_silence)) {
         ctx->tmp_error_reporting = EG(error_reporting);
         EG(error_reporting) = ctx->ori_error_reporting;
@@ -552,12 +525,6 @@ inline void PHPCoroutine::restore_vm_stack(PHPContext *ctx) {
     EG(error_handling) = ctx->error_handling;
     EG(exception_class) = ctx->exception_class;
     EG(exception) = ctx->exception;
-#if PHP_VERSION_ID < 80100
-    if (UNEXPECTED(ctx->array_walk_fci && ctx->array_walk_fci->fci.size != 0)) {
-        memcpy(&BG(array_walk_fci), ctx->array_walk_fci, sizeof(*ctx->array_walk_fci));
-        ctx->array_walk_fci->fci.size = 0;
-    }
-#endif
     if (UNEXPECTED(ctx->in_silence)) {
         EG(error_reporting) = ctx->tmp_error_reporting;
     }
@@ -614,9 +581,7 @@ void PHPCoroutine::on_yield(void *arg) {
     PHPContext *ctx = (PHPContext *) arg;
     PHPContext *origin_ctx = get_origin_context(ctx);
 
-#ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
     fiber_context_switch_try_notify(ctx, origin_ctx);
-#endif
     save_context(ctx);
     restore_context(origin_ctx);
 
@@ -631,9 +596,7 @@ void PHPCoroutine::on_resume(void *arg) {
     PHPContext *ctx = (PHPContext *) arg;
     PHPContext *current_ctx = get_context();
 
-#ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
     fiber_context_switch_try_notify(current_ctx, ctx);
-#endif
     save_context(current_ctx);
     restore_context(ctx);
     record_last_msec(ctx);
@@ -676,11 +639,6 @@ void PHPCoroutine::destroy_context(PHPContext *ctx) {
         php_output_activate();
         SG(request_info).no_headers = no_headers;
     }
-#if PHP_VERSION_ID < 80100
-    if (ctx->array_walk_fci) {
-        efree(ctx->array_walk_fci);
-    }
-#endif
 
     if (ctx->defer_tasks) {
         while (!ctx->defer_tasks->empty()) {
@@ -706,10 +664,8 @@ void PHPCoroutine::destroy_context(PHPContext *ctx) {
 
     Z_TRY_DELREF(ctx->return_value);
 
-#ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
     fiber_context_switch_try_notify(ctx, origin_ctx);
     fiber_context_try_destroy(ctx);
-#endif
 
     swoole_trace_log(SW_TRACE_COROUTINE,
                      "coro close cid=%ld and resume to %ld, %zu remained. usage size: %zu. malloc size: %zu",
@@ -740,8 +696,7 @@ void PHPCoroutine::main_func(void *_args) {
             swoole_call_hook(SW_GLOBAL_HOOK_ON_CORO_START, ctx);
         }
 
-#ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
-        if (EXPECTED(SWOOLE_G(enable_fiber_mock) && ctx->fci_cache.function_handler->type == ZEND_USER_FUNCTION)) {
+        if (UNEXPECTED(SWOOLE_G(enable_fiber_mock) && ctx->fci_cache.function_handler->type == ZEND_USER_FUNCTION)) {
             zend_execute_data *tmp = EG(current_execute_data);
             zend_execute_data call = {};
             EG(current_execute_data) = &call;
@@ -750,7 +705,7 @@ void PHPCoroutine::main_func(void *_args) {
             fiber_context_switch_try_notify(get_origin_context(ctx), ctx);
             EG(current_execute_data) = tmp;
         }
-#endif
+
         zend_call_function(&ctx->fci, &ctx->fci_cache);
 
         // Catch exception in main function of the coroutine
@@ -827,8 +782,6 @@ void PHPCoroutine::defer(zend::Function *fci) {
     }
     ctx->defer_tasks->push(fci);
 }
-
-#ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
 
 void PHPCoroutine::fiber_context_init(PHPContext *ctx) {
     zend_fiber_context *fiber_context = (zend_fiber_context *) emalloc(sizeof(*fiber_context));
@@ -907,7 +860,6 @@ void PHPCoroutine::fiber_context_switch_try_notify(PHPContext *from, PHPContext 
     }
     fiber_context_switch_notify(from, to);
 }
-#endif /* SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT */
 
 #ifdef ZEND_CHECK_STACK_LIMIT
 void *PHPCoroutine::stack_limit(PHPContext *ctx) {

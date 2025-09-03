@@ -421,11 +421,7 @@ void php_swoole_thread_start(std::shared_ptr<Thread> thread, zend_string *file, 
 
     PG(expose_php) = false;
     PG(auto_globals_jit) = true;
-#if PHP_VERSION_ID >= 80100
     PG(enable_dl) = false;
-#else
-    PG(enable_dl) = 0;
-#endif
 
     swoole_thread_init(false);
 
