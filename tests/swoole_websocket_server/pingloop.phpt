@@ -15,6 +15,11 @@ $pm->parentFunc = function (int $pid) use ($pm) {
     for ($i = MAX_CONCURRENCY_MID; $i--;) {
         go(function () use ($pm) {
             $cli = new \Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
+            $cli->set([
+                'open_websocket_ping_frame' => true,
+                'open_websocket_pong_frame' => true,
+                'open_websocket_close_frame' => true,
+            ]);
             $ret = $cli->upgrade('/');
             Assert::assert($ret);
             $loop = 0;

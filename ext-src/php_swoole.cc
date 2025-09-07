@@ -1129,7 +1129,7 @@ static void *_sw_zend_string_realloc(void *address, size_t size) {
 }
 
 static void _sw_zend_string_free(void *address) {
-    zend_string_free(zend::fetch_zend_string_by_val(address));
+	zend_string_release_ex(zend::fetch_zend_string_by_val(address), 0);
 }
 
 static swoole::Allocator php_allocator{
