@@ -832,7 +832,12 @@ int gethostbyname(GethostbynameRequest *req) {
 
 void GetaddrinfoRequest::parse_result(std::vector<std::string> &retval) const {
     for (auto &addr : results) {
-        auto addr_str = network::Address::addr_str(family, &addr);
+        const char *addr_str;
+        if (family == AF_INET6) {
+            addr_str = network::Address::addr_str(family, &addr.sin6_addr);
+        } else {
+            addr_str = network::Address::addr_str(family, &((sockaddr_in *) &addr)->sin_addr);
+        }
         if (addr_str) {
             retval.emplace_back(addr_str);
         }

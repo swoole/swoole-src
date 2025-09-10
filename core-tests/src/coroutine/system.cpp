@@ -122,6 +122,8 @@ static void test_getaddrinfo(
     ASSERT_GT(ip_list.size(), 0);
     for (auto &ip : ip_list) {
         ASSERT_TRUE(swoole::network::Address::verify_ip(family, ip));
+        network::Client c(family == AF_INET ? SW_SOCK_TCP : SW_SOCK_TCP6, false);
+        ASSERT_EQ(c.connect(ip.c_str(), 443), SW_OK);
     }
 }
 

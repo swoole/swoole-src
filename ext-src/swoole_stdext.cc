@@ -19,7 +19,6 @@
 #include "php_swoole_stdext.h"
 #include "php_swoole_cxx.h"
 #include "php_variables.h"
-#include "nlohmann/detail/value_t.hpp"
 
 SW_EXTERN_C_BEGIN
 #include "ext/pcre/php_pcre.h"
