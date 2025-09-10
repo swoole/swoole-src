@@ -655,7 +655,7 @@ EOF
       EXTRA_CFLAGS="$EXTRA_CFLAGS -I$pdo_cv_inc_path $PDO_ODBC_INCLUDE"
 
       dnl Check first for an ODBC 1.0 function to assert that the libraries work
-      save_LIBS="$LIBS"
+      SAVE_LIBS="$LIBS"
       LIBS="$LIBS $PDO_ODBC_LDFLAGS"
 
       AC_LINK_IFELSE(
@@ -694,7 +694,7 @@ EOF
         [AC_MSG_ERROR([Your ODBC library does not exist or there was an error. Check config.log for more information])]
     )
 
-      LIBS="$save_LIBS"
+      LIBS="$SAVE_LIBS"
 
       AC_DEFINE(SW_USE_ODBC, 1, [do we enable swoole-odbc coro support])
     fi
