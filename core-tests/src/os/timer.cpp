@@ -148,7 +148,7 @@ TEST(timer, error) {
     SwooleTG.timer = nullptr;
 
     swoole_timer_free();
-    swoole_timer_select(); // no effect
+    swoole_timer_select();  // no effect
     ASSERT_EQ(swoole_timer_get(1), nullptr);
     ASSERT_FALSE(swoole_timer_clear(1));
     ASSERT_FALSE(swoole_timer_exists(1));

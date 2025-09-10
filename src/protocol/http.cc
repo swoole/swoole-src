@@ -701,7 +701,7 @@ _found_method:
             if (*p == ' ') {
                 continue;
             }
-            if ((size_t)(pe - p) < (sizeof("HTTP/1.x") - 1)) {
+            if ((size_t) (pe - p) < (sizeof("HTTP/1.x") - 1)) {
                 return SW_ERR;
             }
             if (memcmp(p, SW_STRL("HTTP/1.1")) == 0) {
@@ -868,7 +868,7 @@ bool Request::has_expect_header() {
     char *p;
 
     for (p = buf; p < pe; p++) {
-        if (*p == '\r' && (size_t)(pe - p) > sizeof("\r\nExpect")) {
+        if (*p == '\r' && (size_t) (pe - p) > sizeof("\r\nExpect")) {
             p += 2;
             if (SW_STR_ISTARTS_WITH(p, pe - p, "Expect: ")) {
                 p += sizeof("Expect: ") - 1;

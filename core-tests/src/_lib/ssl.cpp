@@ -90,4 +90,5 @@ int dump_cert_info(const char *data, size_t len) {
 
     return 0;
 }
-}}
+}  // namespace test
+}  // namespace swoole

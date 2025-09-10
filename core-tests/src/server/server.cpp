@@ -2158,9 +2158,7 @@ static void test_task_ipc(Server &serv) {
         DEBUG() << "onWorkerStart: id=" << worker->id << "\n";
     };
 
-    serv.onBeforeShutdown = [](Server *serv) {
-        DEBUG() << "onBeforeShutdown\n";
-    };
+    serv.onBeforeShutdown = [](Server *serv) { DEBUG() << "onBeforeShutdown\n"; };
 
     ASSERT_EQ(serv.start(), 0);
 }
