@@ -30,6 +30,7 @@
 #define SW_WEBSOCKET_CLOSE_REASON_MAX_LEN 125
 #define SW_WEBSOCKET_OPCODE_MAX swoole::websocket::OPCODE_PONG
 #define SW_WEBSOCKET_MESSAGE_HEADER_SIZE (SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_MASK_LEN + sizeof(uint64_t))
+#define SW_WEBSOCKET_DEFAULT_PAYLOAD_SIZE 1024
 
 namespace swoole {
 namespace websocket {
@@ -125,6 +126,13 @@ static inline uchar get_flags(const Frame *frame) {
         flags |= FLAG_MASK;
     }
     return flags;
+}
+
+static inline uint16_t get_ext_flags(uchar opcode, uchar flags) {
+    uint16_t ext_flags = opcode;
+    ext_flags = ext_flags << 8;
+    ext_flags += flags;
+    return ext_flags;
 }
 
 static inline uchar set_flags(uchar fin, uchar mask, uchar rsv1, uchar rsv2, uchar rsv3) {

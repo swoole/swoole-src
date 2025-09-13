@@ -9,7 +9,12 @@ $pm = new ProcessManager;
 $pm->parentFunc = function (int $pid) use ($pm) {
     go(function () use ($pm) {
         $cli = new \Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
-        $cli->set(['timeout' => 5]);
+        $cli->set([
+            'timeout' => 5,
+            'open_websocket_ping_frame' => true,
+            'open_websocket_pong_frame' => true,
+            'open_websocket_close_frame' => true,
+        ]);
         $ret = $cli->upgrade('/');
         Assert::assert($ret);
         for ($i = 100; $i--;) {

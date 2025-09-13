@@ -113,10 +113,14 @@ class Client {
 
     /* options */
     uint8_t max_retries = 0;
-    bool keep_alive = true;      // enable by default
-    bool websocket = false;      // if upgrade successfully
-    bool chunked = false;        // Transfer-Encoding: chunked
-    bool websocket_mask = true;  // enable websocket mask
+    bool keep_alive = true;                   // enable by default
+    bool websocket = false;                   // if upgrade successfully
+    bool chunked = false;                     // Transfer-Encoding: chunked
+    bool websocket_mask = true;               // enable websocket mask
+    bool open_websocket_ping_frame = false;   // handle websocket ping frame by user
+    bool open_websocket_pong_frame = false;   // handle websocket pong frame by user
+    bool open_websocket_close_frame = false;  // handle websocket close frame by user
+    bool send_close_frame = false;            // send close frame to server
     bool body_decompression = true;
     bool http_compression = true;
 #ifdef SW_HAVE_ZLIB
@@ -140,6 +144,7 @@ class Client {
      * allowing access to the sent Request data even after the connection has been closed.
      */
     String *tmp_write_buffer = nullptr;
+    String *websocket_buffer = nullptr;
     bool connection_close = false;
     bool completed = false;
     bool event_stream = false;
@@ -788,6 +793,15 @@ void Client::apply_setting(zval *zset, const bool check_all) {
         if (php_swoole_array_get_value(vht, "write_func", ztmp)) {
             delete write_func;
             write_func = sw_callable_create(ztmp);
+        }
+        if (php_swoole_array_get_value(vht, "open_websocket_ping_frame", ztmp)) {
+            open_websocket_ping_frame = zval_is_true(ztmp);
+        }
+        if (php_swoole_array_get_value(vht, "open_websocket_pong_frame", ztmp)) {
+            open_websocket_pong_frame = zval_is_true(ztmp);
+        }
+        if (php_swoole_array_get_value(vht, "open_websocket_close_frame", ztmp)) {
+            open_websocket_close_frame = zval_is_true(ztmp);
         }
     }
     if (socket) {
@@ -1534,26 +1548,82 @@ bool Client::recv_websocket_frame(zval *zframe, double timeout) {
     SW_ASSERT(websocket);
     ZVAL_FALSE(zframe);
 
-    ssize_t retval = socket->recv_packet(timeout);
-    if (retval <= 0) {
-        php_swoole_socket_set_error_properties(zobject, socket);
-        zend::object_set(zobject, ZEND_STRL("statusCode"), HTTP_ESTATUS_SERVER_RESET);
-        if (socket->errCode != ETIMEDOUT) {
-            close();
+    // only use by websocket continue frame.
+    if (!websocket_buffer) {
+        websocket_buffer = new String(SW_WEBSOCKET_DEFAULT_PAYLOAD_SIZE, sw_zend_string_allocator());
+    }
+
+    uchar opcode = 0;
+    ON_SCOPE_EXIT {
+        if (ZVAL_IS_FALSE(zframe) || (ZVAL_IS_OBJECT(zframe) && opcode == WebSocket::OPCODE_CONTINUATION)) {
+            delete websocket_buffer;
+            websocket_buffer = nullptr;
         }
-        return false;
-    } else {
-        String msg;
-        msg.length = retval;
-        msg.str = socket->get_read_buffer()->str;
+    };
+
+    uchar allow_uncompress = 0;
 #ifdef SW_HAVE_ZLIB
-        php_swoole_websocket_frame_unpack_ex(&msg, zframe, accept_websocket_compression);
-#else
-        php_swoole_websocket_frame_unpack(&msg, zframe);
+    allow_uncompress = accept_websocket_compression;
 #endif
+
+    do {
+        if (sw_unlikely(!socket)) {
+            return false;
+        }
+
+        ssize_t retval = socket->recv_packet(timeout);
+        if (retval > 0) {
+            String message = {};
+            message.length = retval;
+            message.str = socket->get_read_buffer()->str;
+
+            WebSocket::Frame frame = {};
+            int result =
+                php_swoole_websocket_frame_unpack(websocket_buffer, &message, &frame, zframe, allow_uncompress);
+
+            if (sw_unlikely(result == SW_ERR)) {
+                return false;
+            }
+
+            opcode = frame.header.OPCODE;
+            if (opcode == WebSocket::OPCODE_PING && !open_websocket_ping_frame) {
+                zend_update_property_long(
+                    swoole_websocket_frame_ce, SW_Z8_OBJ_P(zframe), ZEND_STRL("opcode"), WebSocket::OPCODE_PONG);
+                push(zframe, WebSocket::OPCODE_PONG, WebSocket::FLAG_FIN);
+                zval_ptr_dtor(zframe);
+                ZVAL_FALSE(zframe);
+                continue;
+            }
+
+            if (opcode == WebSocket::OPCODE_PONG && !open_websocket_pong_frame) {
+                zval_ptr_dtor(zframe);
+                ZVAL_FALSE(zframe);
+                continue;
+            }
+
+            if (opcode == WebSocket::OPCODE_CLOSE && !open_websocket_close_frame) {
+                if (!send_close_frame && push(zframe, WebSocket::OPCODE_CLOSE, WebSocket::FLAG_FIN)) {
+                    close();
+                }
+                zval_ptr_dtor(zframe);
+                ZVAL_FALSE(zframe);
+                return false;
+            }
+        } else {
+            php_swoole_socket_set_error_properties(zobject, socket);
+            zend::object_set(zobject, ZEND_STRL("statusCode"), HTTP_ESTATUS_SERVER_RESET);
+            if (socket->errCode != ETIMEDOUT) {
+                close();
+            }
+            return false;
+        }
+    } while (!ZVAL_IS_OBJECT(zframe));
+
+    if (ZVAL_IS_OBJECT(zframe)) {
         zend_update_property_long(swoole_websocket_frame_ce, SW_Z8_OBJ_P(zframe), ZEND_STRL("fd"), socket->get_fd());
         return true;
     }
+    return false;
 }
 
 bool Client::upgrade(const std::string &path) {
@@ -1578,7 +1648,7 @@ bool Client::upgrade(const std::string &path) {
 }
 
 bool Client::push(zval *zdata, zend_long opcode, uint8_t flags) {
-    if (!websocket) {
+    if (sw_unlikely(!websocket)) {
         swoole_set_last_error(SW_ERROR_WEBSOCKET_HANDSHAKE_FAILED);
         php_swoole_fatal_error(E_WARNING, "websocket handshake failed, cannot push data");
         zend_update_property_long(
@@ -1593,6 +1663,8 @@ bool Client::push(zval *zdata, zend_long opcode, uint8_t flags) {
     String *buffer = socket->get_write_buffer();
     buffer->clear();
     if (php_swoole_websocket_frame_is_object(zdata)) {
+        zval *ztmp = sw_zend_read_property_ex(swoole_websocket_frame_ce, zdata, SW_ZSTR_KNOWN(SW_ZEND_STR_OPCODE), 1);
+        opcode = zval_get_long(ztmp);
         if (php_swoole_websocket_frame_object_pack(buffer, zdata, websocket_mask, accept_websocket_compression) < 0) {
             return false;
         }
@@ -1603,13 +1675,17 @@ bool Client::push(zval *zdata, zend_long opcode, uint8_t flags) {
         }
     }
 
-    if (socket->send_all(buffer->str, buffer->length) != (ssize_t) buffer->length) {
+    if (opcode == WebSocket::OPCODE_CLOSE) {
+        send_close_frame = true;
+    }
+
+    if (socket->send_all(buffer->str, buffer->length) == (ssize_t) buffer->length) {
+        return true;
+    } else {
         php_swoole_socket_set_error_properties(zobject, socket);
         zend::object_set(zobject, ZEND_STRL("statusCode"), HTTP_ESTATUS_SERVER_RESET);
         close();
         return false;
-    } else {
-        return true;
     }
 }
 
@@ -1675,6 +1751,7 @@ bool Client::close(const bool should_be_reset) {
         _socket->get_socket()->close_wait = 1;
         return true;
     }
+
     zend_update_property_bool(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("connected"), 0);
     if (!_socket->close()) {
         php_swoole_socket_set_error_properties(zobject, _socket);
@@ -1691,6 +1768,7 @@ Client::~Client() {
     delete body;
     delete tmp_write_buffer;
     delete write_func;
+    delete websocket_buffer;
 }
 
 static sw_inline HttpClientObject *http_client_coro_fetch_object(zend_object *obj) {

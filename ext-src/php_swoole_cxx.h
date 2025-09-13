@@ -19,6 +19,7 @@
 #include "php_swoole_private.h"
 #include "php_swoole_coroutine.h"
 #include "swoole_util.h"
+#include "swoole_websocket.h"
 
 #include <string>
 
@@ -180,6 +181,11 @@ int php_swoole_websocket_frame_object_pack_ex(swoole::String *buffer,
                                               zval *zdata,
                                               zend_bool mask,
                                               zend_bool allow_compress);
+int php_swoole_websocket_frame_unpack(swoole::String *buffer,
+                                      swoole::String *message,
+                                      swoole::websocket::Frame *frame,
+                                      zval *zframe,
+                                      uchar allow_uncompress);
 void php_swoole_websocket_frame_unpack(swoole::String *data, zval *zframe);
 void php_swoole_websocket_frame_unpack_ex(swoole::String *data, zval *zframe, uchar allow_uncompress);
 

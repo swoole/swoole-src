@@ -10,7 +10,12 @@ $pm->parentFunc = function (int $pid) use ($pm) {
     for ($c = MAX_CONCURRENCY_LOW; $c--;) {
         go(function () use ($pm) {
             $cli = new \Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
-            $cli->set(['timeout' => 5]);
+            $cli->set([
+                'timeout' => 5,
+                'open_websocket_ping_frame' => true,
+                'open_websocket_pong_frame' => true,
+                'open_websocket_close_frame' => true,
+            ]);
             for ($n = MAX_REQUESTS; $n--;) {
                 Assert::true($cli->upgrade('/'));
                 $code = mt_rand(0, 5000);
