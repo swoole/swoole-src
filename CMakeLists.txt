@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 project(libswoole)
 
 enable_language(ASM)
-set(SWOOLE_VERSION 6.1.0-dev)
+set(SWOOLE_VERSION 6.1.0RC1)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -136,6 +136,8 @@ endif()
 if (DEFINED verbose)
     add_definitions(-DSW_VERBOSE)
 endif()
+
+set(php_dir "" CACHE STRING "Set the root directory of PHP")
 
 if (DEFINED php_dir)
     set(PHP_CONFIG "${php_dir}/bin/php-config")

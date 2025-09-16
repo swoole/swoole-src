@@ -308,6 +308,9 @@ void php_swoole_thread_queue_minit(int module_number);
 void php_swoole_thread_map_minit(int module_number);
 void php_swoole_thread_arraylist_minit(int module_number);
 #endif
+#ifdef SW_STDEXT
+void php_swoole_stdext_minit(int module_number);
+#endif
 
 /**
  * RINIT
@@ -391,10 +394,10 @@ php_socket *php_swoole_convert_to_socket(int sock);
 bool php_swoole_array_to_cpu_set(const zval *array, cpu_set_t *cpu_set);
 /**
  * Converts a cpu_set_t structure to a PHP array.
- * 
+ *
  * Note: On Cygwin platform, CPU_ISSET is a function that takes a non-const pointer as its second parameter,
  * which is why the cpu_set parameter cannot be declared as const.
- * 
+ *
  * @param array The PHP array to store the CPU set information
  * @param cpu_set The CPU set structure to convert
  */
@@ -427,62 +430,48 @@ typedef zend_string error_filename_t;
 #define SW_ZVAL_SOCKET(return_value, result) ZVAL_OBJ(return_value, &result->std)
 #define SW_Z_SOCKET_P(zsocket) Z_SOCKET_P(zsocket)
 
-#ifndef ZVAL_IS_BOOL
-static sw_inline zend_bool ZVAL_IS_BOOL(zval *v) {
-    return Z_TYPE_P(v) == IS_TRUE || Z_TYPE_P(v) == IS_FALSE;
-}
-#endif
-
-#ifndef ZVAL_IS_TRUE
-static sw_inline zend_bool ZVAL_IS_TRUE(zval *v) {
+static sw_inline zend_bool ZVAL_IS_TRUE(const zval *v) {
     return Z_TYPE_P(v) == IS_TRUE;
 }
-#endif
 
-#ifndef ZVAL_IS_UNDEF
-static sw_inline zend_bool ZVAL_IS_UNDEF(zval *v) {
-    return Z_TYPE_P(v) == IS_UNDEF;
-}
-#endif
-
-#ifndef ZVAL_IS_FALSE
-static sw_inline zend_bool ZVAL_IS_FALSE(zval *v) {
+static sw_inline zend_bool ZVAL_IS_FALSE(const zval *v) {
     return Z_TYPE_P(v) == IS_FALSE;
 }
-#endif
 
-#ifndef ZVAL_IS_LONG
-static sw_inline zend_bool ZVAL_IS_LONG(zval *v) {
+static sw_inline zend_bool ZVAL_IS_BOOL(const zval *v) {
+    return ZVAL_IS_TRUE(v) || ZVAL_IS_FALSE(v);
+}
+
+static sw_inline zend_bool ZVAL_IS_UNDEF(const zval *v) {
+    return Z_TYPE_P(v) == IS_UNDEF;
+}
+
+static sw_inline zend_bool ZVAL_IS_LONG(const zval *v) {
     return Z_TYPE_P(v) == IS_LONG;
 }
-#endif
 
-#ifndef ZVAL_IS_STRING
-static sw_inline zend_bool ZVAL_IS_STRING(zval *v) {
+static sw_inline zend_bool ZVAL_IS_STRING(const zval *v) {
     return Z_TYPE_P(v) == IS_STRING;
 }
-#endif
 
-#ifndef Z_BVAL_P
-static sw_inline zend_bool Z_BVAL_P(zval *v) {
+static sw_inline zend_bool Z_BVAL_P(const zval *v) {
     return Z_TYPE_P(v) == IS_TRUE;
 }
-#endif
 
-#ifndef ZVAL_IS_ARRAY
-static sw_inline zend_bool ZVAL_IS_ARRAY(zval *v) {
+static sw_inline zend_bool ZVAL_IS_ARRAY(const zval *v) {
     return Z_TYPE_P(v) == IS_ARRAY;
 }
-#endif
 
-#ifndef ZVAL_IS_OBJECT
-static sw_inline zend_bool ZVAL_IS_OBJECT(zval *v) {
+static sw_inline zend_bool ZVAL_IS_REF(const zval *v) {
+    return Z_TYPE_P(v) == IS_REFERENCE;
+}
+
+static sw_inline zend_bool ZVAL_IS_OBJECT(const zval *v) {
     return Z_TYPE_P(v) == IS_OBJECT;
 }
-#endif
 
 static sw_inline zval *sw_malloc_zval() {
-    return (zval *) emalloc(sizeof(zval));
+    return static_cast<zval *>(emalloc(sizeof(zval)));
 }
 
 static sw_inline zval *sw_zval_dup(zval *val) {
@@ -679,13 +668,7 @@ static sw_inline void add_assoc_ulong_safe(zval *arg, const char *key, zend_ulon
         }                                                                                                              \
     } while (0)
 
-#if PHP_VERSION_ID < 80100
-#define SW_SET_CLASS_NOT_SERIALIZABLE(module)                                                                          \
-    module##_ce->serialize = zend_class_serialize_deny;                                                                \
-    module##_ce->unserialize = zend_class_unserialize_deny;
-#else
 #define SW_SET_CLASS_NOT_SERIALIZABLE(module) module##_ce->ce_flags |= ZEND_ACC_NOT_SERIALIZABLE;
-#endif
 
 #define sw_zend_class_clone_deny NULL
 #define SW_SET_CLASS_CLONEABLE(module, _clone_obj) module##_handlers.clone_obj = _clone_obj
@@ -1024,11 +1007,7 @@ static sw_inline void sw_zend_fci_cache_discard(zend_fcall_info_cache *fci_cache
     }
 }
 
-#if PHP_VERSION_ID >= 80100
 #define sw_php_spl_object_hash(o) php_spl_object_hash(Z_OBJ_P(o))
-#else
-#define sw_php_spl_object_hash(o) php_spl_object_hash(o)
-#endif
 
 //----------------------------------Misc API------------------------------------
 
@@ -1084,11 +1063,7 @@ static inline const char *php_swoole_get_last_error_message() {
 }
 
 static inline const char *php_swoole_get_last_error_file() {
-#if PHP_VERSION_ID >= 80100
     return PG(last_error_file) ? PG(last_error_file)->val : "-";
-#else
-    return PG(last_error_file) ? PG(last_error_file) : "-";
-#endif
 }
 
 END_EXTERN_C()

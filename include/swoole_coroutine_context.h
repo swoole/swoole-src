@@ -46,7 +46,7 @@ typedef transfer_t coroutine_transfer_t;
 #endif
 
 #if defined(USE_UCONTEXT) || defined(SW_USE_THREAD_CONTEXT)
-typedef void * coroutine_transfer_t;
+typedef void *coroutine_transfer_t;
 #endif
 
 typedef std::function<void(void *)> CoroutineFunc;

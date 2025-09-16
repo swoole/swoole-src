@@ -352,7 +352,7 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
         char *temp = &packet[steps];
         j = 0;
         while (*temp != 0) {
-            if ((uchar)(*temp) == 0xc0) {
+            if ((uchar) (*temp) == 0xc0) {
                 ++temp;
                 temp = &packet[(uint8_t) *temp];
             } else {
@@ -381,7 +381,7 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
             temp = &packet[steps];
             j = 0;
             while (*temp != 0) {
-                if ((uchar)(*temp) == 0xc0) {
+                if ((uchar) (*temp) == 0xc0) {
                     ++temp;
                     temp = &packet[(uint8_t) *temp];
                 } else {
@@ -832,7 +832,12 @@ int gethostbyname(GethostbynameRequest *req) {
 
 void GetaddrinfoRequest::parse_result(std::vector<std::string> &retval) const {
     for (auto &addr : results) {
-        auto addr_str = network::Address::addr_str(family, &addr);
+        const char *addr_str;
+        if (family == AF_INET6) {
+            addr_str = network::Address::addr_str(family, &addr.sin6_addr);
+        } else {
+            addr_str = network::Address::addr_str(family, &((sockaddr_in *) &addr)->sin_addr);
+        }
         if (addr_str) {
             retval.emplace_back(addr_str);
         }

@@ -865,7 +865,7 @@ _skip_copy:
                 conn->websocket_status = websocket::STATUS_ACTIVE;
             } else {
                 /* connection should be closed when handshake failed */
-                conn->websocket_status = websocket::STATUS_NONE;
+                conn->websocket_status = websocket::STATUS_HANDSHAKE_FAILED;
                 keepalive = 0;
             }
         }

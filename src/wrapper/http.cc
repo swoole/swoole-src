@@ -99,7 +99,7 @@ struct ContextImpl {
 
 static int http_request_on_url(llhttp_t *parser, const char *at, size_t length) {
     const char *query_start = (const char *) memchr(at, '?', length);
-    size_t path_len = query_start ? (size_t)(query_start - at) : length;
+    size_t path_len = query_start ? (size_t) (query_start - at) : length;
 
     auto *ctx = static_cast<Context *>(parser->data);
     ctx->request_path = std::string(at, path_len);

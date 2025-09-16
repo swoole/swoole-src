@@ -40,7 +40,6 @@ TEST(pipe, base) {
     Pipe p(true);
     ASSERT_TRUE(p.ready());
 
-
     ret = p.write((void *) SW_STRL("hello world\n"));
     ASSERT_GT(ret, 0);
     ret = p.write((void *) SW_STRL("你好中国。\n"));

@@ -40,6 +40,7 @@ enum Status {
     STATUS_HANDSHAKE = 2,
     STATUS_ACTIVE = 3,
     STATUS_CLOSING = 4,
+    STATUS_HANDSHAKE_FAILED = 5,
 };
 
 enum Flag {

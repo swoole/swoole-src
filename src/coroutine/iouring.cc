@@ -314,7 +314,7 @@ bool Iouring::dispatch(IouringEvent *event) {
     case SW_IORING_OP_READ:
     case SW_IORING_OP_WRITE:
         sqe->fd = event->fd;
-        sqe->addr = (uintptr_t)(event->opcode == SW_IORING_OP_READ ? event->rbuf : event->wbuf);
+        sqe->addr = (uintptr_t) (event->opcode == SW_IORING_OP_READ ? event->rbuf : event->wbuf);
         sqe->len = event->size;
         sqe->off = -1;
         sqe->opcode = event->opcode;
