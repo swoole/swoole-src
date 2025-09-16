@@ -26,13 +26,6 @@ using swoole::network::Socket;
 
 namespace swoole {
 namespace websocket {
-static inline uint16_t get_ext_flags(uchar opcode, uchar flags) {
-    uint16_t ext_flags = opcode;
-    ext_flags = ext_flags << 8;
-    ext_flags += flags;
-    return ext_flags;
-}
-
 /*  The following is websocket data frame:
  +-+-+-+-+-------+-+-------------+-------------------------------+
  0                   1                   2                   3   |
@@ -103,7 +96,7 @@ ssize_t get_package_length(const Protocol *protocol, Socket *conn, PacketLength 
 
 void mask(char *data, size_t len, const char *mask_key) {
     size_t n = len / 8;
-    uint64_t mask_key64 = ((uint64_t) (*((uint32_t *) mask_key)) << 32) | *((uint32_t *) mask_key);
+    uint64_t mask_key64 = ((uint64_t)(*((uint32_t *) mask_key)) << 32) | *((uint32_t *) mask_key);
     size_t i;
 
     for (i = 0; i < n; i++) {
