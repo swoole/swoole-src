@@ -1122,15 +1122,22 @@ static PHP_METHOD(swoole_http_response, trailer) {
 }
 
 static PHP_METHOD(swoole_http_response, ping) {
-    HttpContext *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS);
+    HttpContext *ctx = php_swoole_http_response_get_context(ZEND_THIS);
     if (UNEXPECTED(!ctx)) {
         RETURN_FALSE;
     }
-    if (UNEXPECTED(!ctx->http2)) {
-        php_swoole_fatal_error(E_WARNING, "fd[%ld] is not a HTTP2 conncetion", ctx->fd);
+
+    if (ctx->http2) {
+        SW_CHECK_RETURN(swoole_http2_server_ping(ctx));
+    } else if (ctx->websocket) {
+        String *buffer = ctx->get_write_buffer();
+        buffer->clear();
+        WebSocket::encode(buffer, nullptr, 0, WebSocket::OPCODE_PING, WebSocket::FLAG_FIN);
+        RETURN_BOOL(ctx->send(ctx, buffer->str, buffer->length));
+    } else {
+        php_swoole_fatal_error(E_WARNING, "only supports websocket or http2 client");
         RETURN_FALSE;
     }
-    SW_CHECK_RETURN(swoole_http2_server_ping(ctx));
 }
 
 static PHP_METHOD(swoole_http_response, goaway) {
@@ -1251,15 +1258,15 @@ void swoole_websocket_recv_frame(const WebSocketSettings &settings, Socket *sock
 
         uchar opcode = frame.header.OPCODE;
         if (opcode == WebSocket::OPCODE_PING && !settings.open_ping_frame) {
-        	uchar flags;
-        	if (settings.in_server) {
-        		sw_unset_bit(flags, WebSocket::FLAG_MASK);
-        	} else {
-        		sw_set_bit(flags, WebSocket::FLAG_MASK);
-        	}
-        	sw_set_bit(flags, WebSocket::FLAG_FIN);
-        	auto wbuf = sock->get_write_buffer();
-        	WebSocket::encode(wbuf, frame.payload, frame.payload_length, WebSocket::OPCODE_PONG, flags);
+            uchar flags;
+            if (settings.in_server) {
+                sw_unset_bit(flags, WebSocket::FLAG_MASK);
+            } else {
+                sw_set_bit(flags, WebSocket::FLAG_MASK);
+            }
+            sw_set_bit(flags, WebSocket::FLAG_FIN);
+            auto wbuf = sock->get_write_buffer();
+            WebSocket::encode(wbuf, frame.payload, frame.payload_length, WebSocket::OPCODE_PONG, flags);
             sock->send(wbuf->str, wbuf->length);
             continue;
         }
@@ -1284,12 +1291,12 @@ void swoole_websocket_recv_frame(const WebSocketSettings &settings, Socket *sock
                 WebSocket::parse_ext_flags(frame_buffer->offset, &complete_opcode, &complete_flags);
 
                 if (complete_flags & WebSocket::FLAG_RSV1) {
-                	 if (!FrameObject::uncompress(&zpayload, frame_buffer->str, frame_buffer->length)) {
-                		 swoole_set_last_error(SW_ERROR_PROTOCOL_ERROR);
-                		 RETURN_FALSE;
-                	 }
+                    if (!FrameObject::uncompress(&zpayload, frame_buffer->str, frame_buffer->length)) {
+                        swoole_set_last_error(SW_ERROR_PROTOCOL_ERROR);
+                        RETURN_FALSE;
+                    }
                 } else {
-                	zend::assign_zend_string_by_val(&zpayload, frame_buffer->str, frame_buffer->length);
+                    zend::assign_zend_string_by_val(&zpayload, frame_buffer->str, frame_buffer->length);
                     frame_buffer->release();
                 }
 
@@ -1297,6 +1304,7 @@ void swoole_websocket_recv_frame(const WebSocketSettings &settings, Socket *sock
                 frame_buffer = nullptr;
 
                 swoole_websocket_construct_frame(return_value, complete_opcode, &zpayload, complete_flags);
+                zval_ptr_dtor(&zpayload);
                 break;
             }
         } else {
@@ -1310,6 +1318,7 @@ void swoole_websocket_recv_frame(const WebSocketSettings &settings, Socket *sock
                     ZVAL_STRINGL(&zpayload, frame.payload, frame.payload_length);
                 }
                 swoole_websocket_construct_frame(return_value, frame.header.OPCODE, &zpayload, frame.get_flags());
+                zval_ptr_dtor(&zpayload);
                 break;
             } else {
                 frame_buffer = new String(frame.payload_length, sw_zend_string_allocator());

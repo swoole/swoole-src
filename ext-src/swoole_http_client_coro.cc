@@ -117,7 +117,6 @@ class Client {
     bool websocket = false;  // if upgrade successfully
     bool chunked = false;    // Transfer-Encoding: chunked
 
-    bool send_close_frame = false;  // send close frame to server
     bool body_decompression = true;
     bool http_compression = true;
 
@@ -202,7 +201,7 @@ class Client {
     void set_basic_auth(const std::string &username, const std::string &password);
     bool exec(const std::string &_path);
     bool recv_response(double timeout = 0);
-    bool recv_websocket_frame(zval *zframe, double timeout = 0);
+    void recv_websocket_frame(zval *return_value, double timeout = 0);
     void add_header(const char *key, size_t key_len, const char *str, size_t length) const;
     bool upgrade(const std::string &path);
     bool push(zval *zdata, zend_long opcode = websocket::OPCODE_TEXT, uint8_t flags = websocket::FLAG_FIN);
@@ -1524,6 +1523,10 @@ bool Client::recv_response(double timeout) {
     return true;
 }
 
+void Client::recv_websocket_frame(zval *return_value, double timeout) {
+    swoole_websocket_recv_frame(websocket_settings, socket, return_value, timeout);
+}
+
 bool Client::upgrade(const std::string &path) {
     defer = false;
     char buf[SW_WEBSOCKET_KEY_LENGTH + 1];
@@ -1578,10 +1581,6 @@ bool Client::push(zval *zdata, zend_long opcode, uint8_t flags) {
         zend_update_property_string(
             swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errMsg"), "websocket frame pack failed");
         return false;
-    }
-
-    if (opcode == WebSocket::OPCODE_CLOSE) {
-        send_close_frame = true;
     }
 
     if (socket->send_all(buffer->str, buffer->length) != (ssize_t) buffer->length) {
@@ -2136,10 +2135,10 @@ static PHP_METHOD(swoole_http_client_coro, recv) {
 
     SW_CLIENT_PRESERVE_SOCKET(&phc->zsocket);
 
-    if (!phc->websocket) {
+    if (phc->websocket) {
+        phc->recv_websocket_frame(return_value, timeout);
+    } else {
         RETURN_BOOL(phc->recv_response(timeout));
-    } else if (!phc->recv_websocket_frame(return_value, timeout)) {
-        RETURN_FALSE;
     }
 }
 
