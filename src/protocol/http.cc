@@ -1054,7 +1054,7 @@ ssize_t get_package_length(const Protocol *protocol, Socket *socket, PacketLengt
 uint8_t get_package_length_size(Socket *socket) {
     auto *conn = (Connection *) socket->object;
     if (conn->websocket_status >= websocket::STATUS_HANDSHAKE) {
-        return SW_WEBSOCKET_MESSAGE_HEADER_SIZE;
+        return SW_WEBSOCKET_FRAME_HEADER_SIZE;
     } else if (conn->http2_stream) {
         return SW_HTTP2_FRAME_HEADER_SIZE;
     } else {

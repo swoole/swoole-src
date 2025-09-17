@@ -414,29 +414,32 @@ int Server::start_check() {
         send_timeout = SW_TIMER_MIN_SEC;
     }
     if (heartbeat_check_interval > 0) {
-        for (auto ls : ports) {
-            if (ls->heartbeat_idle_time == 0) {
-                ls->heartbeat_idle_time = heartbeat_check_interval * 2;
+        for (auto port : ports) {
+            if (port->heartbeat_idle_time == 0) {
+                port->heartbeat_idle_time = heartbeat_check_interval * 2;
             }
         }
     }
-    for (auto ls : ports) {
-        if (ls->protocol.package_max_length < SW_BUFFER_MIN_SIZE) {
-            ls->protocol.package_max_length = SW_BUFFER_MIN_SIZE;
+    for (auto port : ports) {
+        if (port->protocol.package_max_length < SW_BUFFER_MIN_SIZE) {
+            port->protocol.package_max_length = SW_BUFFER_MIN_SIZE;
         }
-        if (if_require_receive_callback(ls, onReceive != nullptr)) {
+        if (if_require_receive_callback(port, onReceive != nullptr)) {
             swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_INVALID_CALLBACK, "require 'onReceive' callback");
             return SW_ERR;
         }
-        if (if_require_packet_callback(ls, onPacket != nullptr)) {
+        if (if_require_packet_callback(port, onPacket != nullptr)) {
             swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_INVALID_CALLBACK, "require 'onPacket' callback");
             return SW_ERR;
         }
-        if (ls->heartbeat_idle_time > 0) {
-            int expect_heartbeat_check_interval = ls->heartbeat_idle_time > 2 ? ls->heartbeat_idle_time / 2 : 1;
+        if (port->heartbeat_idle_time > 0) {
+            int expect_heartbeat_check_interval = port->heartbeat_idle_time > 2 ? port->heartbeat_idle_time / 2 : 1;
             if (heartbeat_check_interval == 0 || heartbeat_check_interval > expect_heartbeat_check_interval) {
                 heartbeat_check_interval = expect_heartbeat_check_interval;
             }
+        }
+        if (port->open_websocket_protocol) {
+            port->websocket_settings.compression = websocket_compression;
         }
     }
 

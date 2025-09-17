@@ -29,7 +29,7 @@
 #define SW_WEBSOCKET_CLOSE_CODE_LEN 2
 #define SW_WEBSOCKET_CLOSE_REASON_MAX_LEN 125
 #define SW_WEBSOCKET_OPCODE_MAX swoole::websocket::OPCODE_PONG
-#define SW_WEBSOCKET_MESSAGE_HEADER_SIZE (SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_MASK_LEN + sizeof(uint64_t))
+#define SW_WEBSOCKET_FRAME_HEADER_SIZE (SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_MASK_LEN + sizeof(uint64_t))
 #define SW_WEBSOCKET_DEFAULT_PAYLOAD_SIZE 1024
 
 namespace swoole {
@@ -77,6 +77,30 @@ struct Frame {
     uint16_t header_length;
     size_t payload_length;
     char *payload;
+
+    uchar get_flags() {
+        uchar flags = 0;
+        if (header.FIN) {
+            flags |= FLAG_FIN;
+        }
+        if (header.RSV1) {
+            flags |= FLAG_RSV1;
+        }
+        if (header.RSV2) {
+            flags |= FLAG_RSV2;
+        }
+        if (header.RSV3) {
+            flags |= FLAG_RSV3;
+        }
+        if (header.MASK) {
+            flags |= FLAG_MASK;
+        }
+        return flags;
+    }
+
+    bool compressed() {
+        return header.RSV1;
+    }
 };
 
 #define WEBSOCKET_VERSION 13
@@ -108,26 +132,6 @@ enum CloseReason {
     CLOSE_TLS = 1015,
 };
 
-static inline uchar get_flags(const Frame *frame) {
-    uchar flags = 0;
-    if (frame->header.FIN) {
-        flags |= FLAG_FIN;
-    }
-    if (frame->header.RSV1) {
-        flags |= FLAG_RSV1;
-    }
-    if (frame->header.RSV2) {
-        flags |= FLAG_RSV2;
-    }
-    if (frame->header.RSV3) {
-        flags |= FLAG_RSV3;
-    }
-    if (frame->header.MASK) {
-        flags |= FLAG_MASK;
-    }
-    return flags;
-}
-
 static inline uint16_t get_ext_flags(uchar opcode, uchar flags) {
     uint16_t ext_flags = opcode;
     ext_flags = ext_flags << 8;
@@ -155,10 +159,10 @@ static inline uchar set_flags(uchar fin, uchar mask, uchar rsv1, uchar rsv2, uch
     return flags;
 }
 
-bool encode(String *buffer, const char *data, size_t length, char opcode, uint8_t flags);
+bool encode(String *buffer, const char *data, size_t length, uint8_t opcode, uint8_t flags);
 bool decode(Frame *frame, char *data, size_t length);
 void mask(char *data, size_t len, const char *mask_key);
-int pack_close_frame(String *buffer, int code, const char *reason, size_t length, uint8_t flags);
+bool pack_close_frame(String *buffer, int code, const char *reason, size_t length, uint8_t flags);
 void print_frame(Frame *frame);
 
 static inline bool decode(Frame *frame, const String *str) {

@@ -354,19 +354,8 @@ static PHP_METHOD(swoole_server_port, set) {
         port->open_websocket_protocol = zval_is_true(ztmp);
         if (port->open_websocket_protocol) {
             port->open_http_protocol = 1;
+            php_swoole_server_set_websocket_option(port, vht);
         }
-    }
-    if (php_swoole_array_get_value(vht, "websocket_subprotocol", ztmp)) {
-        port->websocket_subprotocol = zend::String(ztmp).to_std_string();
-    }
-    if (php_swoole_array_get_value(vht, "open_websocket_close_frame", ztmp)) {
-        port->open_websocket_close_frame = zval_is_true(ztmp);
-    }
-    if (php_swoole_array_get_value(vht, "open_websocket_ping_frame", ztmp)) {
-        port->open_websocket_ping_frame = zval_is_true(ztmp);
-    }
-    if (php_swoole_array_get_value(vht, "open_websocket_pong_frame", ztmp)) {
-        port->open_websocket_pong_frame = zval_is_true(ztmp);
     }
     // http2 protocol
     if (php_swoole_array_get_value(vht, "open_http2_protocol", ztmp)) {

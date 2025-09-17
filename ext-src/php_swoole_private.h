@@ -373,10 +373,6 @@ void php_swoole_oracle_mshutdown();
 void php_swoole_sqlite_mshutdown();
 #endif
 
-static sw_inline zend_bool php_swoole_websocket_frame_is_object(zval *zdata) {
-    return Z_TYPE_P(zdata) == IS_OBJECT && instanceof_function(Z_OBJCE_P(zdata), swoole_websocket_frame_ce);
-}
-
 static sw_inline size_t php_swoole_get_send_data(zval *zdata, char **str) {
     convert_to_string(zdata);
     *str = Z_STRVAL_P(zdata);

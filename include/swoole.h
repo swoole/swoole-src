@@ -265,6 +265,8 @@ size_t sw_vsnprintf(char *buf, size_t size, const char *format, va_list args);
 int sw_printf(const char *format, ...);
 
 #define sw_memset_zero(s, n) memset(s, '\0', n)
+#define sw_unset_bit(val, bit) val &= ~bit
+#define sw_set_bit(val, bit) val |= bit
 
 static inline int sw_mem_equal(const void *v1, size_t s1, const void *v2, size_t s2) {
     return s1 == s2 && memcmp(v1, v2, s2) == 0;

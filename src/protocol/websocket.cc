@@ -96,7 +96,7 @@ ssize_t get_package_length(const Protocol *protocol, Socket *conn, PacketLength 
 
 void mask(char *data, size_t len, const char *mask_key) {
     size_t n = len / 8;
-    uint64_t mask_key64 = ((uint64_t)(*((uint32_t *) mask_key)) << 32) | *((uint32_t *) mask_key);
+    uint64_t mask_key64 = ((uint64_t) (*((uint32_t *) mask_key)) << 32) | *((uint32_t *) mask_key);
     size_t i;
 
     for (i = 0; i < n; i++) {
@@ -108,7 +108,7 @@ void mask(char *data, size_t len, const char *mask_key) {
     }
 }
 
-bool encode(String *buffer, const char *data, size_t length, char opcode, uint8_t _flags) {
+bool encode(String *buffer, const char *data, size_t length, uint8_t opcode, uint8_t _flags) {
     int pos = 0;
     char frame_header[16];
     auto *header = (Header *) frame_header;
@@ -199,10 +199,10 @@ bool decode(Frame *frame, char *data, size_t length) {
     return true;
 }
 
-int pack_close_frame(String *buffer, int code, const char *reason, size_t length, uint8_t flags) {
+bool pack_close_frame(String *buffer, int code, const char *reason, size_t length, uint8_t flags) {
     if (sw_unlikely(length > SW_WEBSOCKET_CLOSE_REASON_MAX_LEN)) {
         swoole_warning("the max length of close reason is %d", SW_WEBSOCKET_CLOSE_REASON_MAX_LEN);
-        return SW_ERR;
+        return false;
     }
 
     char payload[SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_CLOSE_CODE_LEN + SW_WEBSOCKET_CLOSE_REASON_MAX_LEN];
@@ -213,9 +213,9 @@ int pack_close_frame(String *buffer, int code, const char *reason, size_t length
     }
     flags |= FLAG_FIN;
     if (!encode(buffer, payload, SW_WEBSOCKET_CLOSE_CODE_LEN + length, OPCODE_CLOSE, flags)) {
-        return SW_ERR;
+        return false;
     }
-    return SW_OK;
+    return true;
 }
 
 void print_frame(Frame *frame) {
@@ -286,7 +286,7 @@ int dispatch_frame(const Protocol *proto, Socket *_socket, const RecvData *rdata
     case OPCODE_TEXT:
     case OPCODE_BINARY: {
         offset = length - ws.payload_length;
-        uint16_t ext_flags = get_ext_flags(ws.header.OPCODE, get_flags(&ws));
+        uint16_t ext_flags = get_ext_flags(ws.header.OPCODE, ws.get_flags());
         if (!ws.header.FIN) {
             if (conn->websocket_buffer) {
                 swoole_warning("merging incomplete frame, bad request. remote_addr=%s:%d",
@@ -320,7 +320,7 @@ int dispatch_frame(const Protocol *proto, Socket *_socket, const RecvData *rdata
             dispatch_data.info.len = length - offset;
             dispatch_data.data = dispatch_data.info.len == 0 ? nullptr : data + offset;
         }
-        dispatch_data.info.ext_flags = get_ext_flags(ws.header.OPCODE, get_flags(&ws));
+        dispatch_data.info.ext_flags = get_ext_flags(ws.header.OPCODE, ws.get_flags());
         Server::dispatch_task(proto, _socket, &dispatch_data);
         break;
 
@@ -332,7 +332,7 @@ int dispatch_frame(const Protocol *proto, Socket *_socket, const RecvData *rdata
         if (conn->websocket_status != STATUS_CLOSING) {
             // Dispatch the frame with the same format of message frame
             offset = length - ws.payload_length;
-            dispatch_data.info.ext_flags = get_ext_flags(ws.header.OPCODE, get_flags(&ws));
+            dispatch_data.info.ext_flags = get_ext_flags(ws.header.OPCODE, ws.get_flags());
             dispatch_data.info.len = length - offset;
             dispatch_data.data = data + offset;
             Server::dispatch_task(proto, _socket, &dispatch_data);

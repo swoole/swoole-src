@@ -228,17 +228,9 @@ struct ListenPort {
      */
     bool open_websocket_protocol = false;
     /**
-     * open websocket close frame
+     * Relevant settings of websocket server
      */
-    bool open_websocket_close_frame = false;
-    /**
-     * open websocket ping frame
-     */
-    bool open_websocket_ping_frame = false;
-    /**
-     * open websocket pong frame
-     */
-    bool open_websocket_pong_frame = false;
+    WebSocketSettings websocket_settings;
     /**
      *  one package: length check
      */
@@ -263,10 +255,6 @@ struct ListenPort {
      * open tcp keepalive
      */
     bool open_tcp_keepalive = false;
-    /**
-     * Sec-WebSocket-Protocol
-     */
-    std::string websocket_subprotocol;
     /**
      * set socket option
      */
@@ -1772,8 +1760,6 @@ class Server {
 }  // namespace swoole
 
 typedef swoole::Server swServer;
-typedef swoole::ListenPort swListenPort;
-typedef swoole::RecvData swRecvData;
 
 static inline swoole::Server *sw_server() {
     return SwooleG.server;

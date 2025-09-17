@@ -48,6 +48,21 @@ struct PacketLength {
     uint32_t header_len;
 };
 
+struct WebSocketSettings {
+    std::string protocol;           // with `Sec-WebSocket-Protocol` HTTP Header
+    bool in_server;                 // server or client
+    bool mask = true;               // enable websocket mask
+    bool open_ping_frame = false;   // handle websocket ping frame by user
+    bool open_pong_frame = false;   // handle websocket pong frame by user
+    bool open_close_frame = false;  // handle websocket close frame by user
+    /**
+     * The default value is false, which means that websocket frame data compression is not enabled.
+     * If supported by `zlib` or other compression libraries, the client can accept compressed data
+     * (depending on whether the `Sec-Websocket-Extensions` header contains `permessage-deflate`)
+     */
+    bool compression = false;
+};
+
 struct Protocol {
     typedef ssize_t (*LengthFunc)(const Protocol *, network::Socket *, PacketLength *pl);
     /* one package: eof check */

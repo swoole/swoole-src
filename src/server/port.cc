@@ -270,7 +270,7 @@ void ListenPort::init_protocol() {
             protocol.get_package_length = http2::get_frame_length;
             protocol.onPackage = Server::dispatch_task;
         } else if (open_websocket_protocol) {
-            protocol.package_length_size = SW_WEBSOCKET_MESSAGE_HEADER_SIZE;
+            protocol.package_length_size = SW_WEBSOCKET_FRAME_HEADER_SIZE;
             protocol.get_package_length = websocket::get_package_length;
             protocol.onPackage = websocket::dispatch_frame;
         }
