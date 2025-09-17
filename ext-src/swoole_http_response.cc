@@ -803,7 +803,8 @@ void HttpContext::end(zval *zdata, zval *return_value) {
                 serv = (Server *) private_data;
                 conn = serv->get_connection_verify(fd);
             }
-            bool enable_websocket_compression = co_socket ? websocket_compression : serv->websocket_compression;
+            bool enable_websocket_compression =
+                co_socket ? websocket_settings.compression : serv->websocket_compression;
             bool accept_websocket_compression = false;
             zval *pData;
             if (enable_websocket_compression && request.zobject &&

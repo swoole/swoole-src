@@ -188,10 +188,13 @@ FrameObject::FrameObject(zval *zdata, zend_long _opcode, zend_long _flags) {
             } else {
                 data = nullptr;
             }
-        }
-        if (!data &&
-            (ztmp = sw_zend_read_property_ex(swoole_websocket_frame_ce, zdata, SW_ZSTR_KNOWN(SW_ZEND_STR_DATA), 1))) {
-            data = ztmp;
+        } else {
+            if ((ztmp =
+                     sw_zend_read_property_ex(swoole_websocket_frame_ce, zdata, SW_ZSTR_KNOWN(SW_ZEND_STR_DATA), 1))) {
+                data = ztmp;
+            } else {
+                data = nullptr;
+            }
         }
         if ((ztmp = sw_zend_read_property_ex(swoole_websocket_frame_ce, zdata, SW_ZSTR_KNOWN(SW_ZEND_STR_FLAGS), 1))) {
             flags = zval_get_long(ztmp) & WebSocket::FLAGS_ALL;
