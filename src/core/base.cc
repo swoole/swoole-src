@@ -420,7 +420,7 @@ void swoole_dump_ascii(const char *data, size_t size) {
     printf("\n");
 }
 
-void swoole_dump_bin(const char *data, char type, size_t size) {
+void swoole_dump_bin(const uchar *data, char type, size_t size) {
     int i;
     int type_size = swoole_type_size(type);
     if (type_size <= 0) {
@@ -434,7 +434,7 @@ void swoole_dump_bin(const char *data, char type, size_t size) {
     printf("\n");
 }
 
-void swoole_dump_hex(const char *data, size_t outlen) {
+void swoole_dump_hex(const uchar *data, size_t outlen) {
     for (size_t i = 0; i < outlen; ++i) {
         if ((i & 0x0fu) == 0) {
             printf("%08zX: ", i);

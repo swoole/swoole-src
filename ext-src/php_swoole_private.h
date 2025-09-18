@@ -317,7 +317,6 @@ void php_swoole_stdext_minit(int module_number);
  * ==============================================================
  */
 void php_swoole_http_server_rinit();
-void php_swoole_websocket_server_rinit();
 void php_swoole_coroutine_rinit();
 void php_swoole_runtime_rinit();
 #ifdef SW_USE_ORACLE
@@ -330,7 +329,6 @@ void php_swoole_thread_rinit();
  * ==============================================================
  */
 void php_swoole_http_server_rshutdown();
-void php_swoole_websocket_server_rshutdown();
 void php_swoole_async_coro_rshutdown();
 void php_swoole_redis_server_rshutdown();
 void php_swoole_coroutine_rshutdown();
@@ -362,7 +360,6 @@ void php_swoole_event_exit();
  * ==============================================================
  */
 void php_swoole_runtime_mshutdown();
-void php_swoole_websocket_server_mshutdown();
 #ifdef SW_USE_PGSQL
 void php_swoole_pgsql_mshutdown();
 #endif

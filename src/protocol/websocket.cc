@@ -150,7 +150,9 @@ bool encode(String *buffer, const char *data, size_t length, uint8_t opcode, uin
         }
     } else {
         if (length > 0 and !(_flags & FLAG_ENCODE_HEADER_ONLY)) {
+            printf("[2]buffer len  =%d\n", buffer->length);
             buffer->append(data, length);
+            printf("[3]buffer len  =%d\n", buffer->length);
         }
     }
 

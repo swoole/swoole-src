@@ -140,8 +140,8 @@ uint64_t swoole_hton64(uint64_t value);
 uint64_t swoole_ntoh64(uint64_t value);
 
 void swoole_dump_ascii(const char *data, size_t size);
-void swoole_dump_bin(const char *data, char type, size_t size);
-void swoole_dump_hex(const char *data, size_t outlen);
+void swoole_dump_bin(const uchar *data, char type, size_t size);
+void swoole_dump_hex(const uchar *data, size_t outlen);
 
 char *swoole_dec2hex(ulong_t value, int base);
 ulong_t swoole_hex2dec(const char *hex, size_t *parsed_bytes);
