@@ -27,6 +27,12 @@ void swoole_websocket_recv_frame(const swoole::WebSocketSettings &settings,
                                  swoole::coroutine::Socket *sock,
                                  zval *return_value,
                                  double timeout);
+ssize_t swoole_websocket_send_frame(const swoole::WebSocketSettings &settings,
+                                    swoole::coroutine::Socket *sock,
+                                    uchar opcode,
+                                    uchar flags,
+                                    const char *payload,
+                                    size_t payload_length);
 void swoole_websocket_construct_frame(zval *zframe, zend_long opcode, zval *zpayload, uint8_t flags);
 
 #ifdef SW_HAVE_ZLIB

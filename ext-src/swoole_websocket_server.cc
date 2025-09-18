@@ -709,6 +709,7 @@ static inline void swoole_websocket_server_pack(zval *zdata, zend_long opcode, z
     auto packed_str = zend::fetch_zend_string_by_val(buffer.str);
     ZSTR_VAL(packed_str)[buffer.length] = '\0';
     ZSTR_LEN(packed_str) = buffer.length;
+    buffer.release();
     RETURN_STR(packed_str);
 }
 
@@ -796,17 +797,16 @@ static PHP_METHOD(swoole_websocket_server, push) {
 static PHP_METHOD(swoole_websocket_server, pack) {
     zval *zdata;
     zend_long opcode = WebSocket::OPCODE_TEXT;
-    zval *zflags = nullptr;
     zend_long flags = WebSocket::FLAG_FIN;
 
     ZEND_PARSE_PARAMETERS_START(1, 3)
     Z_PARAM_ZVAL(zdata)
     Z_PARAM_OPTIONAL
     Z_PARAM_LONG(opcode)
-    Z_PARAM_ZVAL_EX(zflags, 1, 0)
+    Z_PARAM_LONG(flags)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    swoole_websocket_server_pack(zdata, opcode, flags ? zval_get_long(zflags) : 0, return_value);
+    swoole_websocket_server_pack(zdata, opcode, flags, return_value);
 }
 
 static PHP_METHOD(swoole_websocket_frame, __toString) {

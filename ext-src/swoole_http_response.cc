@@ -1229,6 +1229,22 @@ static PHP_METHOD(swoole_http_response, close) {
     RETURN_BOOL(ctx->close(ctx));
 }
 
+ssize_t swoole_websocket_send_frame(const swoole::WebSocketSettings &settings,
+                                    swoole::coroutine::Socket *sock,
+                                    uchar opcode,
+                                    uchar flags,
+                                    const char *payload,
+                                    size_t payload_length) {
+    if (settings.in_server) {
+        sw_unset_bit(flags, WebSocket::FLAG_MASK);
+    } else {
+        sw_set_bit(flags, WebSocket::FLAG_MASK);
+    }
+    auto wbuf = sock->get_write_buffer();
+    WebSocket::encode(wbuf, payload, payload_length, opcode, flags);
+    return sock->send(wbuf->str, wbuf->length);
+}
+
 void swoole_websocket_recv_frame(const WebSocketSettings &settings, Socket *sock, zval *return_value, double timeout) {
     zval zpayload;
     String *frame_buffer = nullptr;
@@ -1259,23 +1275,16 @@ void swoole_websocket_recv_frame(const WebSocketSettings &settings, Socket *sock
 
         uchar opcode = frame.header.OPCODE;
         if (opcode == WebSocket::OPCODE_PING && !settings.open_ping_frame) {
-            uchar flags;
-            if (settings.in_server) {
-                sw_unset_bit(flags, WebSocket::FLAG_MASK);
-            } else {
-                sw_set_bit(flags, WebSocket::FLAG_MASK);
-            }
-            sw_set_bit(flags, WebSocket::FLAG_FIN);
-            auto wbuf = sock->get_write_buffer();
-            WebSocket::encode(wbuf, frame.payload, frame.payload_length, WebSocket::OPCODE_PONG, flags);
-            sock->send(wbuf->str, wbuf->length);
+            swoole_websocket_send_frame(
+                settings, sock, WebSocket::OPCODE_PONG, WebSocket::FLAG_FIN, frame.payload, frame.payload_length);
             continue;
         }
         if (opcode == WebSocket::OPCODE_PONG && !settings.open_pong_frame) {
             continue;
         }
         if (opcode == WebSocket::OPCODE_CLOSE && !settings.open_close_frame) {
-            RETURN_EMPTY_STRING();
+            swoole_websocket_send_frame(
+                settings, sock, WebSocket::OPCODE_CLOSE, WebSocket::FLAG_FIN, frame.payload, frame.payload_length);
         }
 
         if (opcode == WebSocket::OPCODE_CONTINUATION) {
