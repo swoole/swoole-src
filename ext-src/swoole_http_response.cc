@@ -1292,7 +1292,7 @@ void swoole_websocket_recv_frame(const WebSocketSettings &settings, Socket *sock
                 WebSocket::parse_ext_flags(frame_buffer->offset, &complete_opcode, &complete_flags);
 
                 if (complete_flags & WebSocket::FLAG_RSV1) {
-                    if (!FrameObject::uncompress(&zpayload, frame_buffer->str, frame_buffer->length)) {
+                    if (sw_unlikely(!FrameObject::uncompress(&zpayload, frame_buffer->str, frame_buffer->length))) {
                         swoole_set_last_error(SW_ERROR_PROTOCOL_ERROR);
                         RETURN_FALSE;
                     }
