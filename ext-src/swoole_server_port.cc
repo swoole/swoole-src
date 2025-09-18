@@ -354,9 +354,10 @@ static PHP_METHOD(swoole_server_port, set) {
         port->open_websocket_protocol = zval_is_true(ztmp);
         if (port->open_websocket_protocol) {
             port->open_http_protocol = 1;
-            php_swoole_server_set_websocket_option(port, vht);
         }
     }
+    // websocket settings
+    php_swoole_server_set_websocket_option(port, vht);
     // http2 protocol
     if (php_swoole_array_get_value(vht, "open_http2_protocol", ztmp)) {
         port->open_http2_protocol = zval_is_true(ztmp);

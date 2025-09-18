@@ -732,11 +732,11 @@ static PHP_METHOD(swoole_websocket_server, disconnect) {
     Z_PARAM_STRING(data, length)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    auto buffer = sw_tg_buffer();
-    if (!WebSocket::pack_close_frame(buffer, code, data, length, 0)) {
+    String buffer(SW_WEBSOCKET_FRAME_HEADER_SIZE + length + 2, sw_zend_string_allocator());
+    if (!WebSocket::pack_close_frame(&buffer, code, data, length, 0)) {
         RETURN_FALSE;
     }
-    RETURN_BOOL(swoole_websocket_server_close(serv, fd, buffer, 1));
+    RETURN_BOOL(swoole_websocket_server_close(serv, fd, &buffer, 1));
 }
 
 static PHP_METHOD(swoole_websocket_server, push) {
