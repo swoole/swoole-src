@@ -447,6 +447,10 @@ static sw_inline zend_bool ZVAL_IS_STRING(const zval *v) {
     return Z_TYPE_P(v) == IS_STRING;
 }
 
+static sw_inline zend_bool ZVAL_IS_EMPTY_STRING(const zval *v) {
+	return Z_TYPE_P(v) == IS_STRING && Z_STRLEN_P(v) == 0;
+}
+
 static sw_inline zend_bool Z_BVAL_P(const zval *v) {
     return Z_TYPE_P(v) == IS_TRUE;
 }

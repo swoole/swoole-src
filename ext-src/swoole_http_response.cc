@@ -1247,10 +1247,7 @@ ssize_t swoole_websocket_send_frame(const swoole::WebSocketSettings &settings,
 
 void swoole_websocket_recv_frame(const WebSocketSettings &settings, Socket *sock, zval *return_value, double timeout) {
     zval zpayload;
-    String *frame_buffer = nullptr;
-    ON_SCOPE_EXIT {
-        delete frame_buffer;
-    };
+    std::shared_ptr<String> frame_buffer;
 
     do {
         ssize_t retval = sock->recv_packet(timeout);
@@ -1310,11 +1307,10 @@ void swoole_websocket_recv_frame(const WebSocketSettings &settings, Socket *sock
                     frame_buffer->release();
                 }
 
-                delete frame_buffer;
-                frame_buffer = nullptr;
-
                 swoole_websocket_construct_frame(return_value, complete_opcode, &zpayload, complete_flags);
+                zend::object_set(return_value, ZEND_STRL("fd"), sock->get_fd());
                 zval_ptr_dtor(&zpayload);
+                frame_buffer.reset();
                 break;
             }
         } else {
@@ -1328,10 +1324,11 @@ void swoole_websocket_recv_frame(const WebSocketSettings &settings, Socket *sock
                     ZVAL_STRINGL(&zpayload, frame.payload, frame.payload_length);
                 }
                 swoole_websocket_construct_frame(return_value, frame.header.OPCODE, &zpayload, frame.get_flags());
+                zend::object_set(return_value, ZEND_STRL("fd"), sock->get_fd());
                 zval_ptr_dtor(&zpayload);
                 break;
             } else {
-                frame_buffer = new String(frame.payload_length, sw_zend_string_allocator());
+                frame_buffer = std::make_shared<String>(frame.payload_length, sw_zend_string_allocator());
                 frame_buffer->offset = WebSocket::get_ext_flags(frame.header.OPCODE, frame.get_flags());
                 frame_buffer->append(frame.payload, frame.payload_length);
             }

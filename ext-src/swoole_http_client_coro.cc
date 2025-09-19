@@ -1525,6 +1525,9 @@ bool Client::recv_response(double timeout) {
 
 void Client::recv_websocket_frame(zval *return_value, double timeout) {
     swoole_websocket_recv_frame(websocket_settings, socket, return_value, timeout);
+    if (ZVAL_IS_EMPTY_STRING(return_value)) {
+    	close();
+    }
 }
 
 bool Client::upgrade(const std::string &path) {

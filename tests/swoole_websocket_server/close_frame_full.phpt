@@ -30,7 +30,7 @@ $pm->parentFunc = function (int $pid) use ($pm) {
                 Assert::same($frame->opcode, WEBSOCKET_OPCODE_CLOSE);
                 Assert::same(md5($frame->code), $frame->reason);
                 // connection closed
-                Assert::false($cli->recv());
+                Assert::same($cli->recv(), "");
                 Assert::false($cli->connected);
                 Assert::same($cli->errCode, 0); // connection close normally
             }
