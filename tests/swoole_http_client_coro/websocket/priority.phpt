@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_client_coro: client continue frames
+swoole_http_client_coro: control frame priority - 1
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc';?>
 --FILE--
@@ -18,13 +18,16 @@ $pm = new ProcessManager;
 $pm->parentFunc = function (int $pid) use ($pm, $data1, $data2, $data3) {
     Co\run(function () use ($pm, $data1, $data2, $data3) {
         $client = new Client('127.0.0.1', $pm->getFreePort());
+        $client->set([
+            'open_websocket_ping_frame' => true
+        ]);
         $ret = $client->upgrade('/');
         Assert::assert($ret);
-        $client->push($data1, SWOOLE_WEBSOCKET_OPCODE_TEXT, 0);
-        $client->push($data2, SWOOLE_WEBSOCKET_OPCODE_CONTINUATION, 0);
-        $client->push($data3, SWOOLE_WEBSOCKET_OPCODE_CONTINUATION, SWOOLE_WEBSOCKET_FLAG_FIN);
+        $client->push('Hello World!!!');
         $frame = $client->recv();
-        Assert::true($frame->data == $data1 . $data2 . $data3);
+        Assert::true($frame->opcode == SWOOLE_WEBSOCKET_OPCODE_PING);
+        $frame = $client->recv();
+        Assert::true($frame->data == $data1 . $data2 . $data2 . $data2 . $data2 . $data3);
     });
     $pm->kill();
 };
@@ -40,8 +43,17 @@ $pm->childFunc = function () use ($pm, $data1, $data2, $data3) {
     });
 
     $server->on('message', function (Server $server, Frame $frame) use ($pm, $data1, $data2, $data3) {
-        Assert::true($frame->data == $data1 . $data2 . $data3);
+        Assert::true($frame->data == 'Hello World!!!');
         $server->push($frame->fd, $data1, SWOOLE_WEBSOCKET_OPCODE_TEXT, 0);
+
+        $ping = new Frame();
+        $ping->opcode = SWOOLE_WEBSOCKET_OPCODE_PING;
+        $ping->data = 'PING';
+        $server->push($frame->fd, $ping);
+
+        $server->push($frame->fd, $data2, SWOOLE_WEBSOCKET_OPCODE_CONTINUATION, 0);
+        $server->push($frame->fd, $data2, SWOOLE_WEBSOCKET_OPCODE_CONTINUATION, 0);
+        $server->push($frame->fd, $data2, SWOOLE_WEBSOCKET_OPCODE_CONTINUATION, 0);
         $server->push($frame->fd, $data2, SWOOLE_WEBSOCKET_OPCODE_CONTINUATION, 0);
         $server->push($frame->fd, $data3, SWOOLE_WEBSOCKET_OPCODE_CONTINUATION, SWOOLE_WEBSOCKET_FLAG_FIN);
     });

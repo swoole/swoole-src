@@ -20,6 +20,7 @@ namespace Swoole\Http {
 		public function ping(): bool {}
 		public function goaway(int $error_code = SWOOLE_HTTP2_ERROR_NO_ERROR, string $debug_data = ''): bool {}
 		public function status(int $http_code, string $reason = ''): bool {}
+		public function disconnect(int $code = SWOOLE_WEBSOCKET_CLOSE_NORMAL, string $reason = ""): bool {}
 		public function __destruct() {}
 	}
 }

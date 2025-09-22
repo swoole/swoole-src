@@ -68,4 +68,8 @@ class Client
     public function recv(float $timeout = 0): bool|\Swoole\WebSocket\Frame|string {}
 
     public function close(): bool {}
+
+    public function ping(): bool {}
+
+    public function disconnect(int $code = SWOOLE_WEBSOCKET_CLOSE_NORMAL, string $reason = ""): bool {}
 }

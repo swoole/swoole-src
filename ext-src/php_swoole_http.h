@@ -187,6 +187,7 @@ struct Context {
     const char *tmp_content_type;
     size_t tmp_content_type_len;
     String *form_data_buffer;
+    String *frame_buffer;
 
     std::string upload_tmp_dir;
 

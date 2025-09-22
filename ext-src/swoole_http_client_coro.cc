@@ -140,6 +140,7 @@ class Client {
      * allowing access to the sent Request data even after the connection has been closed.
      */
     String *tmp_write_buffer = nullptr;
+    String *frame_buffer = nullptr;
     bool connection_close = false;
     bool completed = false;
     bool event_stream = false;
@@ -204,7 +205,10 @@ class Client {
     void recv_websocket_frame(zval *return_value, double timeout = 0);
     void add_header(const char *key, size_t key_len, const char *str, size_t length) const;
     bool upgrade(const std::string &path);
-    bool push(zval *zdata, zend_long opcode = websocket::OPCODE_TEXT, uint8_t flags = websocket::FLAG_FIN);
+    bool push(zval *zdata,
+              zend_long opcode = websocket::OPCODE_TEXT,
+              uint8_t flags = websocket::FLAG_FIN,
+              zend_long code = websocket::CLOSE_NORMAL);
     bool close(bool should_be_reset = true);
     void socket_dtor();
 
@@ -326,6 +330,8 @@ static PHP_METHOD(swoole_http_client_coro, upgrade);
 static PHP_METHOD(swoole_http_client_coro, push);
 static PHP_METHOD(swoole_http_client_coro, recv);
 static PHP_METHOD(swoole_http_client_coro, close);
+static PHP_METHOD(swoole_http_client_coro, ping);
+static PHP_METHOD(swoole_http_client_coro, disconnect);
 SW_EXTERN_C_END
 
 // clang-format off
@@ -357,10 +363,12 @@ static const zend_function_entry swoole_http_client_coro_methods[] =
 #ifdef SW_USE_OPENSSL
     PHP_ME(swoole_http_client_coro, getPeerCert, arginfo_class_Swoole_Coroutine_Http_Client_getPeerCert, ZEND_ACC_PUBLIC)
 #endif
-    PHP_ME(swoole_http_client_coro, upgrade, arginfo_class_Swoole_Coroutine_Http_Client_upgrade, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, push,    arginfo_class_Swoole_Coroutine_Http_Client_push,    ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, recv,    arginfo_class_Swoole_Coroutine_Http_Client_recv,    ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, close,   arginfo_class_Swoole_Coroutine_Http_Client_close,   ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, upgrade,    arginfo_class_Swoole_Coroutine_Http_Client_upgrade,    ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, push,       arginfo_class_Swoole_Coroutine_Http_Client_push,       ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, recv,       arginfo_class_Swoole_Coroutine_Http_Client_recv,       ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, close,      arginfo_class_Swoole_Coroutine_Http_Client_close,      ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, ping,       arginfo_class_Swoole_Coroutine_Http_Client_ping,       ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, disconnect, arginfo_class_Swoole_Coroutine_Http_Client_disconnect, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
@@ -1524,7 +1532,36 @@ bool Client::recv_response(double timeout) {
 }
 
 void Client::recv_websocket_frame(zval *return_value, double timeout) {
-    swoole_websocket_recv_frame(websocket_settings, socket, return_value, timeout);
+    uchar opcode = 0;
+    if (!frame_buffer) {
+        frame_buffer = new String(SWOOLE_WEBSOCKET_DEFAULT_BUFFER, sw_zend_string_allocator());
+    }
+    ON_SCOPE_EXIT {
+        if (!ZVAL_IS_OBJECT(return_value) || (ZVAL_IS_OBJECT(return_value) && opcode == WebSocket::OPCODE_CONTINUATION)) {
+            delete frame_buffer;
+            frame_buffer = nullptr;
+        }
+    };
+
+    opcode = swoole_websocket_recv_frame(websocket_settings, frame_buffer, socket, return_value, timeout);
+    if (ZVAL_IS_OBJECT(return_value)) {
+        zval ztmp;
+        ZVAL_LONG(&ztmp, socket->get_fd());
+        zend_update_property_ex(
+            swoole_websocket_frame_ce, SW_Z8_OBJ_P(return_value), SW_ZSTR_KNOWN(SW_ZEND_STR_FD), &ztmp);
+        return;
+    }
+	if (sw_unlikely(ZVAL_IS_FALSE(return_value))) {
+        php_swoole_socket_set_error_properties(zobject, socket);
+        zend::object_set(zobject, ZEND_STRL("statusCode"), HTTP_ESTATUS_SERVER_RESET);
+        if (socket->errCode != ETIMEDOUT) {
+            close();
+        }
+        return;
+    }
+    if (sw_unlikely(ZVAL_IS_NULL(return_value))) {
+        ZVAL_FALSE(return_value);
+    }
 }
 
 bool Client::upgrade(const std::string &path) {
@@ -1548,7 +1585,7 @@ bool Client::upgrade(const std::string &path) {
     return exec(path);
 }
 
-bool Client::push(zval *zdata, zend_long opcode, uint8_t flags) {
+bool Client::push(zval *zdata, zend_long opcode, uint8_t flags, zend_long code) {
     if (sw_unlikely(!websocket)) {
         swoole_set_last_error(SW_ERROR_WEBSOCKET_HANDSHAKE_FAILED);
         php_swoole_fatal_error(E_WARNING, "websocket handshake failed, cannot push data");
@@ -1564,7 +1601,7 @@ bool Client::push(zval *zdata, zend_long opcode, uint8_t flags) {
 
     String *buffer = socket->get_write_buffer();
 
-    FrameObject frame(zdata, opcode, flags);
+    FrameObject frame(zdata, opcode, flags, code);
 
     if (websocket_settings.mask) {
         frame.flags |= WebSocket::FLAG_MASK;
@@ -2185,3 +2222,38 @@ static PHP_METHOD(swoole_http_client_coro, getPeerCert) {
     phc->getpeercert(return_value);
 }
 #endif
+
+static PHP_METHOD(swoole_http_client_coro, ping) {
+    Client *phc = http_client_coro_get_client(ZEND_THIS);
+    if (!phc->is_available() || !phc->websocket) {
+        RETURN_FALSE;
+    }
+
+    ZEND_PARSE_PARAMETERS_NONE();
+
+    zval zpayload = {};
+    ZVAL_STR(&zpayload, zend_empty_string);
+    RETURN_BOOL(phc->push(&zpayload, WebSocket::OPCODE_PING, WebSocket::FLAG_FIN));
+}
+
+static PHP_METHOD(swoole_http_client_coro, disconnect) {
+    Client *phc = http_client_coro_get_client(ZEND_THIS);
+    if (!phc->is_available() || !phc->websocket) {
+        RETURN_FALSE;
+    }
+
+    zend_long code = WebSocket::CLOSE_NORMAL;
+    zend_string *reason = zend_empty_string;
+
+    ZEND_PARSE_PARAMETERS_START(0, 2)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_LONG(code)
+    Z_PARAM_STR(reason)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    zval zpayload = {};
+    ZVAL_STR(&zpayload, reason);
+
+    RETVAL_BOOL(phc->push(&zpayload, WebSocket::OPCODE_CLOSE, WebSocket::FLAG_FIN, code));
+    phc->close();  // Regardless of the outcome, the connection will be closed.
+}

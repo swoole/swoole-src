@@ -170,7 +170,7 @@ bool FrameObject::pack(String *buffer) {
     }
 }
 
-FrameObject::FrameObject(zval *zdata, zend_long _opcode, zend_long _flags) {
+FrameObject::FrameObject(zval *zdata, zend_long _opcode, zend_long _flags, zend_long _code) {
     if (Z_TYPE_P(zdata) == IS_OBJECT && instanceof_function(Z_OBJCE_P(zdata), swoole_websocket_frame_ce)) {
         zval *ztmp = nullptr;
         if ((ztmp = sw_zend_read_property_ex(swoole_websocket_frame_ce, zdata, SW_ZSTR_KNOWN(SW_ZEND_STR_OPCODE), 1))) {
@@ -205,7 +205,7 @@ FrameObject::FrameObject(zval *zdata, zend_long _opcode, zend_long _flags) {
     } else {
         opcode = _opcode;
         flags = _flags & WebSocket::FLAGS_ALL;
-        code = WebSocket::CLOSE_NORMAL;
+        code = _code;
         data = zdata;
     }
 }

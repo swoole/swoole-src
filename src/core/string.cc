@@ -192,7 +192,7 @@ int String::append(int value) {
 
 int String::append(const char *append_str, size_t _length) {
     size_t new_size = length + _length;
-    if (new_size > size and !reserve(new_size)) {
+    if (new_size > size && !reserve(new_size)) {
         return SW_ERR;
     }
 
