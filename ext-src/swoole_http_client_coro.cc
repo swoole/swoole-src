@@ -363,11 +363,11 @@ static const zend_function_entry swoole_http_client_coro_methods[] =
 #ifdef SW_USE_OPENSSL
     PHP_ME(swoole_http_client_coro, getPeerCert, arginfo_class_Swoole_Coroutine_Http_Client_getPeerCert, ZEND_ACC_PUBLIC)
 #endif
-    PHP_ME(swoole_http_client_coro, upgrade,    arginfo_class_Swoole_Coroutine_Http_Client_upgrade,    ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, push,       arginfo_class_Swoole_Coroutine_Http_Client_push,       ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, recv,       arginfo_class_Swoole_Coroutine_Http_Client_recv,       ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, close,      arginfo_class_Swoole_Coroutine_Http_Client_close,      ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, ping,       arginfo_class_Swoole_Coroutine_Http_Client_ping,       ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, upgrade, arginfo_class_Swoole_Coroutine_Http_Client_upgrade, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, push,    arginfo_class_Swoole_Coroutine_Http_Client_push,    ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, recv,    arginfo_class_Swoole_Coroutine_Http_Client_recv,    ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, close,   arginfo_class_Swoole_Coroutine_Http_Client_close,   ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, ping,       arginfo_class_Swoole_Coroutine_Http_Client_ping, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client_coro, disconnect, arginfo_class_Swoole_Coroutine_Http_Client_disconnect, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
