@@ -131,12 +131,13 @@ static PHP_METHOD(swoole_lock, __construct) {
     }
 
     zend_long type = Lock::MUTEX;
-    char *filelock;
-    size_t filelock_len = 0;
+    zend_long flags = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|ls", &type, &filelock, &filelock_len) == FAILURE) {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(0, 2)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_LONG(type)
+    Z_PARAM_LONG(flags)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     switch (type) {
 #ifdef HAVE_SPINLOCK
@@ -150,7 +151,7 @@ static PHP_METHOD(swoole_lock, __construct) {
         break;
 #endif
     case Lock::MUTEX:
-        lock = new Mutex(Mutex::PROCESS_SHARED);
+        lock = new Mutex(Mutex::PROCESS_SHARED | (flags & 4 ? Mutex::NO_AUTO_DTOR : 0) | (flags & 2 ? Mutex::ROBUST : 0));
         break;
     default:
         zend_throw_exception(swoole_exception_ce, "lock type[%d] is not support", type);
