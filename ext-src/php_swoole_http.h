@@ -168,6 +168,7 @@ struct Context {
     std::shared_ptr<String> zlib_buffer;
 #endif
 
+    std::shared_ptr<String> frame_buffer = nullptr;
     WebSocketSettings websocket_settings;
 
     Request request;
@@ -187,7 +188,6 @@ struct Context {
     const char *tmp_content_type;
     size_t tmp_content_type_len;
     String *form_data_buffer;
-    String *frame_buffer;
 
     std::string upload_tmp_dir;
 

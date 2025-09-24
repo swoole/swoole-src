@@ -140,7 +140,7 @@ class Client {
      * allowing access to the sent Request data even after the connection has been closed.
      */
     String *tmp_write_buffer = nullptr;
-    String *frame_buffer = nullptr;
+    std::shared_ptr<String> frame_buffer = nullptr;
     bool connection_close = false;
     bool completed = false;
     bool event_stream = false;
@@ -1532,26 +1532,16 @@ bool Client::recv_response(double timeout) {
 }
 
 void Client::recv_websocket_frame(zval *return_value, double timeout) {
-    uchar opcode = 0;
     if (!frame_buffer) {
-        frame_buffer = new String(SWOOLE_WEBSOCKET_DEFAULT_BUFFER, sw_zend_string_allocator());
+        frame_buffer = std::make_shared<String>(SWOOLE_WEBSOCKET_DEFAULT_BUFFER, sw_zend_string_allocator());
     }
-    ON_SCOPE_EXIT {
-        if (!ZVAL_IS_OBJECT(return_value) || (ZVAL_IS_OBJECT(return_value) && opcode == WebSocket::OPCODE_CONTINUATION)) {
-            delete frame_buffer;
-            frame_buffer = nullptr;
-        }
-    };
 
-    opcode = swoole_websocket_recv_frame(websocket_settings, frame_buffer, socket, return_value, timeout);
-    if (ZVAL_IS_OBJECT(return_value)) {
-        zval ztmp;
-        ZVAL_LONG(&ztmp, socket->get_fd());
-        zend_update_property_ex(
-            swoole_websocket_frame_ce, SW_Z8_OBJ_P(return_value), SW_ZSTR_KNOWN(SW_ZEND_STR_FD), &ztmp);
+    swoole_websocket_recv_frame(websocket_settings, frame_buffer, socket, return_value, timeout);
+    if (ZVAL_IS_EMPTY_STRING(return_value)) {
+        close();
         return;
     }
-	if (sw_unlikely(ZVAL_IS_FALSE(return_value))) {
+    if (sw_unlikely(ZVAL_IS_FALSE(return_value))) {
         php_swoole_socket_set_error_properties(zobject, socket);
         zend::object_set(zobject, ZEND_STRL("statusCode"), HTTP_ESTATUS_SERVER_RESET);
         if (socket->errCode != ETIMEDOUT) {
