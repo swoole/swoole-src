@@ -1610,14 +1610,17 @@ bool Client::push(zval *zdata, zend_long opcode, uint8_t flags, zend_long code) 
         return false;
     }
 
-    if (socket->send_all(buffer->str, buffer->length) != (ssize_t) buffer->length) {
-        php_swoole_socket_set_error_properties(zobject, socket);
+	if (socket->send_all(buffer->str, buffer->length) == (ssize_t) buffer->length) {
+		if (frame.opcode == WebSocket::OPCODE_CLOSE) {
+			close();
+		}
+		return true;
+	} else {
+		php_swoole_socket_set_error_properties(zobject, socket);
         zend::object_set(zobject, ZEND_STRL("statusCode"), HTTP_ESTATUS_SERVER_RESET);
         close();
         return false;
-    }
-
-    return true;
+	}
 }
 
 void Client::reset() {

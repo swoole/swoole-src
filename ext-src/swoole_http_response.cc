@@ -1257,7 +1257,11 @@ static PHP_METHOD(swoole_http_response, push) {
         RETURN_FALSE;
     }
 
-    RETURN_BOOL(ctx->send(ctx, http_buffer->str, http_buffer->length));
+	bool result = ctx->send(ctx, http_buffer->str, http_buffer->length);
+	if (result && frame.opcode == WebSocket::OPCODE_CLOSE) {
+		ctx->close(ctx);
+	}
+    RETURN_BOOL(result);
 }
 
 static PHP_METHOD(swoole_http_response, close) {

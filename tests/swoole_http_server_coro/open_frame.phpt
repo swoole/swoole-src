@@ -32,11 +32,9 @@ $pm->parentFunc = function (int $pid) use ($pm) {
         $frame = $client->recv();
         Assert::true($frame->opcode == SWOOLE_WEBSOCKET_OPCODE_CLOSE);
         Assert::true($frame->code == SWOOLE_WEBSOCKET_CLOSE_NORMAL);
-        Assert::true($frame->reason == "lalalala");
+        Assert::true($frame->reason == "lalalala FUMEI");
         $frame = $client->recv();
-        Assert::true($frame->opcode == SWOOLE_WEBSOCKET_OPCODE_CLOSE);
-        Assert::true($frame->code == SWOOLE_WEBSOCKET_CLOSE_PROTOCOL_ERROR);
-        Assert::true($frame->reason == "FUMEI");
+        Assert::true($frame == '');
         $client->disconnect();
     });
     $pm->kill();
@@ -63,10 +61,8 @@ $pm->childFunc = function () use ($pm) {
             $close = new CloseFrame();
             $close->opcode = SWOOLE_WEBSOCKET_OPCODE_CLOSE;
             $close->code = SWOOLE_WEBSOCKET_CLOSE_NORMAL;
-            $close->reason = "lalalala";
+            $close->reason = "lalalala FUMEI";
             $response->push($close);
-
-            $response->disconnect(SWOOLE_WEBSOCKET_CLOSE_PROTOCOL_ERROR, 'FUMEI');
         });
 
         $pm->wakeup();
