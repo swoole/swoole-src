@@ -1100,7 +1100,6 @@ static PHP_METHOD(swoole_http_response, disconnect) {
     ZVAL_STR(&zdata, reason);
 
     FrameObject frame(&zdata, WebSocket::OPCODE_CLOSE, flags, code);
-    sw_unset_bit(frame.flags, WebSocket::FLAG_MASK);
 
     if (sw_unlikely(!frame.pack(http_buffer))) {
         swoole_set_last_error(SW_ERROR_WEBSOCKET_PACK_FAILED);
