@@ -117,7 +117,7 @@ TEST(coroutine_system, cancel_sleep) {
 }
 
 static void test_getaddrinfo(
-    const char *host, int family, int type, int protocol, const char *service, double timeout) {
+    const std::string &host, int family, int type, int protocol, const char *service, double timeout) {
     std::vector<std::string> ip_list = System::getaddrinfo(host, family, type, protocol, service, timeout);
     ASSERT_GT(ip_list.size(), 0);
     for (auto &ip : ip_list) {
@@ -128,9 +128,17 @@ static void test_getaddrinfo(
 }
 
 TEST(coroutine_system, getaddrinfo) {
-    test::coroutine::run([](void *arg) {
-        test_getaddrinfo(TEST_HTTP_DOMAIN, AF_INET, SOCK_STREAM, 0, "http", -1);
-        test_getaddrinfo(TEST_HTTP_DOMAIN, AF_INET6, SOCK_STREAM, 0, "http", -1);
+    std::string domain;
+
+    if (test::is_github_ci()) {
+        domain = "www.google.com";
+    } else {
+        domain = TEST_HTTP_DOMAIN;
+    }
+
+    test::coroutine::run([&domain](void *arg) {
+        test_getaddrinfo(domain, AF_INET, SOCK_STREAM, 0, "http", -1);
+        test_getaddrinfo(domain, AF_INET6, SOCK_STREAM, 0, "http", -1);
     });
 }
 
