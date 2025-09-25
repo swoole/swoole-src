@@ -544,7 +544,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
 
     ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 1)
     Z_PARAM_OBJECT(zconn)
-    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_NULL());
 
     Coroutine *co = Coroutine::get_current();
     Socket *sock = php_swoole_get_socket(zconn);
@@ -557,11 +557,10 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
 
 #ifdef SW_USE_OPENSSL
     if (sock->ssl_is_enable() && !sock->ssl_handshake()) {
-        RETURN_FALSE;
+        RETURN_NULL();
     }
 #endif
-    Z_TRY_ADDREF_P(zconn);
-    zend_hash_index_add(Z_ARRVAL_P(&hs->zclients), co->get_cid(), zconn);
+    zend::array_set(&hs->zclients, co->get_cid(), zconn);
     zend::Variable remote_addr = zend::Variable(sock->get_addr());
 
     while (true) {
