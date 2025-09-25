@@ -884,6 +884,9 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, zval *zset) {
             sock->enable_ssl_encrypt();
         }
     }
+    if (php_swoole_array_get_value(vht, "open_http2_protocol", ztmp)) {
+        sock->http2 = zval_is_true(ztmp);
+    }
     if (sock->ssl_is_enable()) {
         if (!php_swoole_socket_set_ssl(sock, zset)) {
             ret = false;
