@@ -22,7 +22,7 @@
 
 #include "swoole_websocket.h"
 
-#define SWOOLE_WEBSOCKET_DEFAULT_BUFFER 4086
+#define SWOOLE_WEBSOCKET_DEFAULT_BUFFER 4096
 
 void swoole_websocket_apply_setting(swoole::WebSocketSettings &settings, zend_array *vht, bool in_server);
 void swoole_websocket_recv_frame(const swoole::WebSocketSettings &settings,

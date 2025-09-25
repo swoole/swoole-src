@@ -787,11 +787,7 @@ static PHP_METHOD(swoole_websocket_server, push) {
         RETURN_FALSE;
     }
 
-    if (UNEXPECTED(frame.opcode == WebSocket::OPCODE_CLOSE)) {
-        RETURN_BOOL(swoole_websocket_server_close(serv, fd, &buffer, frame.flags));
-    } else {
-        RETURN_BOOL(swoole_websocket_server_push(serv, fd, &buffer));
-    }
+    RETURN_BOOL(swoole_websocket_server_push(serv, fd, &buffer));
 }
 
 static PHP_METHOD(swoole_websocket_server, pack) {

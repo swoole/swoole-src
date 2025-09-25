@@ -1256,11 +1256,7 @@ static PHP_METHOD(swoole_http_response, push) {
         RETURN_FALSE;
     }
 
-	bool result = ctx->send(ctx, http_buffer->str, http_buffer->length);
-	if (result && frame.opcode == WebSocket::OPCODE_CLOSE) {
-		ctx->close(ctx);
-	}
-    RETURN_BOOL(result);
+    RETURN_BOOL(ctx->send(ctx, http_buffer->str, http_buffer->length));
 }
 
 static PHP_METHOD(swoole_http_response, close) {
@@ -1357,14 +1353,14 @@ void swoole_websocket_recv_frame(const WebSocketSettings &settings,
         }
 
         if (opcode == WebSocket::OPCODE_CONTINUATION) {
-            if (sw_unlikely(!frame_buffer->offset)) {
+            if (sw_unlikely(!frame_buffer)) {
                 swoole_warning("Incorrect websocket frame received [opcode=0]");
                 RETURN_NULL();
             }
 
-			if (sw_likely(frame.payload)) {
-				frame_buffer->append(frame.payload, frame.payload_length);
-			}
+            if (sw_likely(frame.payload)) {
+                frame_buffer->append(frame.payload, frame.payload_length);
+            }
 
             if (frame.header.FIN) {
                 uchar complete_opcode = 0;
@@ -1378,7 +1374,7 @@ void swoole_websocket_recv_frame(const WebSocketSettings &settings,
                     }
                 } else {
                     zend::assign_zend_string_by_val(&zpayload, frame_buffer->str, frame_buffer->length);
-					Z_TRY_ADDREF(zpayload);
+                    Z_TRY_ADDREF(zpayload);
                     frame_buffer.reset();
                 }
 
@@ -1388,7 +1384,7 @@ void swoole_websocket_recv_frame(const WebSocketSettings &settings,
                 return;
             }
         } else {
-			if (sw_unlikely(frame_buffer->offset)) {
+            if (sw_unlikely(frame_buffer)) {
                 swoole_warning("Incorrect websocket frame received [opcode=%d]", opcode);
                 RETURN_NULL();
             }
@@ -1406,10 +1402,11 @@ void swoole_websocket_recv_frame(const WebSocketSettings &settings,
                 zval_ptr_dtor(&zpayload);
                 return;
             } else {
+                frame_buffer = std::make_shared<String>(SWOOLE_WEBSOCKET_DEFAULT_BUFFER, sw_zend_string_allocator());
                 frame_buffer->offset = WebSocket::get_ext_flags(frame.header.OPCODE, frame.get_flags());
-				if (sw_likely(frame.payload)) {
-					frame_buffer->append(frame.payload, frame.payload_length);
-				}
+                if (sw_likely(frame.payload)) {
+                    frame_buffer->append(frame.payload, frame.payload_length);
+                }
             }
         }
     } while (true);
@@ -1432,10 +1429,6 @@ static PHP_METHOD(swoole_http_response, recv) {
     Z_PARAM_OPTIONAL
     Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
-
-    if (!ctx->frame_buffer) {
-        ctx->frame_buffer = std::make_shared<String>(SWOOLE_WEBSOCKET_DEFAULT_BUFFER, sw_zend_string_allocator());
-    }
 
     swoole_websocket_recv_frame(
         ctx->websocket_settings, ctx->frame_buffer, (Socket *) ctx->private_data, return_value, timeout);

@@ -140,7 +140,7 @@ class Client {
      * allowing access to the sent Request data even after the connection has been closed.
      */
     String *tmp_write_buffer = nullptr;
-    std::shared_ptr<String> frame_buffer = nullptr;
+    std::shared_ptr<String> frame_buffer;
     bool connection_close = false;
     bool completed = false;
     bool event_stream = false;
@@ -1532,10 +1532,6 @@ bool Client::recv_response(double timeout) {
 }
 
 void Client::recv_websocket_frame(zval *return_value, double timeout) {
-    if (!frame_buffer) {
-        frame_buffer = std::make_shared<String>(SWOOLE_WEBSOCKET_DEFAULT_BUFFER, sw_zend_string_allocator());
-    }
-
     swoole_websocket_recv_frame(websocket_settings, frame_buffer, socket, return_value, timeout);
     if (ZVAL_IS_EMPTY_STRING(return_value)) {
         close();
@@ -1610,17 +1606,14 @@ bool Client::push(zval *zdata, zend_long opcode, uint8_t flags, zend_long code) 
         return false;
     }
 
-	if (socket->send_all(buffer->str, buffer->length) == (ssize_t) buffer->length) {
-		if (frame.opcode == WebSocket::OPCODE_CLOSE) {
-			close();
-		}
-		return true;
-	} else {
-		php_swoole_socket_set_error_properties(zobject, socket);
+    if (socket->send_all(buffer->str, buffer->length) != (ssize_t) buffer->length) {
+        php_swoole_socket_set_error_properties(zobject, socket);
         zend::object_set(zobject, ZEND_STRL("statusCode"), HTTP_ESTATUS_SERVER_RESET);
         close();
         return false;
-	}
+    } else {
+        return true;
+    }
 }
 
 void Client::reset() {
