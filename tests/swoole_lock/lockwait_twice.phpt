@@ -16,7 +16,7 @@ Assert::false($ret);
 $end = microtime(true);
 
 Assert::eq($lock->errCode, SOCKET_ETIMEDOUT);
-Assert::lessThan($end - $start, 0.2);
+Assert::greaterThanEq($end - $start, 0.2);
 
 ?>
 --EXPECT--
