@@ -131,9 +131,17 @@ static void test_getaddrinfo(
 }
 
 TEST(coroutine_system, getaddrinfo) {
-    test::coroutine::run([](void *arg) {
-        test_getaddrinfo(TEST_HTTP_DOMAIN, AF_INET, SOCK_STREAM, 0, "http", -1);
-        test_getaddrinfo(TEST_HTTP_DOMAIN, AF_INET6, SOCK_STREAM, 0, "http", -1);
+    std::string domain;
+
+    if (test::is_github_ci()) {
+        domain = "www.google.com";
+    } else {
+        domain = TEST_HTTP_DOMAIN;
+    }
+
+    test::coroutine::run([&domain](void *arg) {
+        test_getaddrinfo(domain, AF_INET, SOCK_STREAM, 0, "http", -1);
+        test_getaddrinfo(domain, AF_INET6, SOCK_STREAM, 0, "http", -1);
     });
 }
 

@@ -1,7 +1,7 @@
 <?php
 namespace Swoole {
     class Lock {
-        public function __construct(int $type = SWOOLE_MUTEX) {}
+        public function __construct(int $type = SWOOLE_MUTEX, int $flags = 0) {}
         public function __destruct() {}
         public function lock(): bool {}
         public function locakwait(float $timeout = 1.0): bool {}
