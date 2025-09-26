@@ -6,7 +6,7 @@ namespace Swoole {
         public function lock(): bool {}
         public function locakwait(float $timeout = 1.0): bool {}
         public function trylock(): bool {}
-        public function lock_read(): bool {}
+        public function lock_read(?float $timeout = null): bool {}
         public function trylock_read(): bool {}
         public function unlock(): bool {}
     }
