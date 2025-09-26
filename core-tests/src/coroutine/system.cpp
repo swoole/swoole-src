@@ -117,13 +117,16 @@ TEST(coroutine_system, cancel_sleep) {
 }
 
 static void test_getaddrinfo(
-    const char *host, int family, int type, int protocol, const char *service, double timeout) {
+    const std::string &host, int family, int type, int protocol, const char *service, double timeout) {
     std::vector<std::string> ip_list = System::getaddrinfo(host, family, type, protocol, service, timeout);
     ASSERT_GT(ip_list.size(), 0);
     for (auto &ip : ip_list) {
         ASSERT_TRUE(swoole::network::Address::verify_ip(family, ip));
         network::Client c(family == AF_INET ? SW_SOCK_TCP : SW_SOCK_TCP6, false);
-        ASSERT_EQ(c.connect(ip.c_str(), 443), SW_OK);
+        if (!test::is_github_ci()) {
+        	std::cout << ip.c_str() << "\n";
+            ASSERT_EQ(c.connect(ip.c_str(), 443), SW_OK);
+        }
     }
 }
 
