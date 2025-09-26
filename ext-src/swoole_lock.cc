@@ -177,10 +177,29 @@ static PHP_METHOD(swoole_lock, lockwait) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     Lock *lock = php_swoole_lock_get_and_check_ptr(ZEND_THIS);
-    if (lock->get_type() != Lock::MUTEX) {
+    if (!(lock->get_type() == Lock::MUTEX
+#ifdef HAVE_RWLOCK
+    || lock->get_type() == Lock::RW_LOCK
+#endif
+    )) {
+#ifdef HAVE_RWLOCK
+        zend_throw_exception(swoole_exception_ce, "only mutex and rwlock supports lockwait", -2);
+#else
         zend_throw_exception(swoole_exception_ce, "only mutex supports lockwait", -2);
+#endif
+
         RETURN_FALSE;
     }
+#ifdef HAVE_RWLOCK
+    if (lock->get_type() == Lock::RW_LOCK) {
+        RWLock *rwlock = dynamic_cast<RWLock *>(lock);
+        if (rwlock == nullptr) {
+            zend_throw_exception(swoole_exception_ce, "wrong lock type", -3);
+            RETURN_FALSE;
+        }
+        SW_LOCK_CHECK_RETURN(rwlock->lock_wait((int) (timeout * 1000)));
+    }
+#endif
     Mutex *mutex = dynamic_cast<Mutex *>(lock);
     if (mutex == nullptr) {
         zend_throw_exception(swoole_exception_ce, "wrong lock type", -3);
@@ -205,6 +224,28 @@ static PHP_METHOD(swoole_lock, trylock_read) {
 }
 
 static PHP_METHOD(swoole_lock, lock_read) {
+    double timeout = 0.0;
+    bool time_is_null = true;
+
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_DOUBLE_OR_NULL(timeout, time_is_null)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
     Lock *lock = php_swoole_lock_get_and_check_ptr(ZEND_THIS);
+#ifdef HAVE_RWLOCK
+    if (!time_is_null) {
+        if (lock->get_type() != Lock::RW_LOCK) {
+            zend_throw_exception(swoole_exception_ce, "only rwlock supports lock_read with timeout", -2);
+            RETURN_FALSE;
+        }
+        RWLock *rwlock = dynamic_cast<RWLock *>(lock);
+        if (rwlock == nullptr) {
+            zend_throw_exception(swoole_exception_ce, "wrong lock type", -3);
+            RETURN_FALSE;
+        }
+        SW_LOCK_CHECK_RETURN(rwlock->lock_rd_wait((int) (timeout * 1000)));
+    }
+#endif
     SW_LOCK_CHECK_RETURN(lock->lock_rd());
 }
