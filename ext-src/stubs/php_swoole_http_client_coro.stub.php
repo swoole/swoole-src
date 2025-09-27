@@ -69,7 +69,7 @@ class Client
 
     public function close(): bool {}
 
-    public function ping(): bool {}
+    public function ping(string $data = ""): bool {}
 
     public function disconnect(int $code = SWOOLE_WEBSOCKET_CLOSE_NORMAL, string $reason = ""): bool {}
 }

@@ -55,6 +55,7 @@ static PHP_METHOD(swoole_websocket_server, isEstablished);
 static PHP_METHOD(swoole_websocket_server, pack);
 static PHP_METHOD(swoole_websocket_server, unpack);
 static PHP_METHOD(swoole_websocket_server, disconnect);
+static PHP_METHOD(swoole_websocket_server, ping);
 
 static PHP_METHOD(swoole_websocket_frame, __toString);
 SW_EXTERN_C_END
@@ -64,6 +65,7 @@ const zend_function_entry swoole_websocket_server_methods[] =
 {
     PHP_ME(swoole_websocket_server, push,          arginfo_class_Swoole_WebSocket_Server_push,          ZEND_ACC_PUBLIC)
     PHP_ME(swoole_websocket_server, disconnect,    arginfo_class_Swoole_WebSocket_Server_disconnect,    ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_websocket_server, ping,          arginfo_class_Swoole_WebSocket_Server_ping,          ZEND_ACC_PUBLIC)
     PHP_ME(swoole_websocket_server, isEstablished, arginfo_class_Swoole_WebSocket_Server_isEstablished, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_websocket_server, pack,          arginfo_class_Swoole_WebSocket_Server_pack,          ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_websocket_server, unpack,        arginfo_class_Swoole_WebSocket_Server_unpack,        ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -739,6 +741,35 @@ static PHP_METHOD(swoole_websocket_server, disconnect) {
     RETURN_BOOL(swoole_websocket_server_close(serv, fd, &buffer, 1));
 }
 
+static PHP_METHOD(swoole_websocket_server, ping) {
+    Server *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
+    if (sw_unlikely(!serv->is_started())) {
+        php_swoole_fatal_error(E_WARNING, "server is not running");
+        RETURN_FALSE;
+    }
+
+    zend_long fd = 0;
+    zend_string *zpayload = zend_empty_string;
+
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+    Z_PARAM_LONG(fd)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_STR(zpayload)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    zval zdata = {};
+    ZVAL_STR(&zdata, zpayload);
+    FrameObject frame{&zdata, WebSocket::OPCODE_PING, WebSocket::FLAG_FIN};
+
+    String buffer(SW_WEBSOCKET_FRAME_HEADER_SIZE + frame.get_data_size(), sw_zend_string_allocator());
+    if (sw_unlikely(!frame.pack(&buffer))) {
+        swoole_set_last_error(SW_ERROR_WEBSOCKET_PACK_FAILED);
+        RETURN_FALSE;
+    }
+
+    RETURN_BOOL(swoole_websocket_server_push(serv, fd, &buffer));
+}
+
 static PHP_METHOD(swoole_websocket_server, push) {
     Server *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (sw_unlikely(!serv->is_started())) {
@@ -765,7 +796,7 @@ static PHP_METHOD(swoole_websocket_server, push) {
     }
 
     Connection *conn = serv->get_connection_verify(fd);
-    if (!conn) {
+    if (sw_unlikely(!conn)) {
         swoole_set_last_error(SW_ERROR_SESSION_NOT_EXIST);
         php_swoole_fatal_error(E_WARNING, "session#" ZEND_LONG_FMT " does not exists", fd);
         RETURN_FALSE;
@@ -782,6 +813,7 @@ static PHP_METHOD(swoole_websocket_server, push) {
     sw_unset_bit(frame.flags, WebSocket::FLAG_MASK);
 
     String buffer(SW_WEBSOCKET_FRAME_HEADER_SIZE + frame.get_data_size(), sw_zend_string_allocator());
+
     if (sw_unlikely(!frame.pack(&buffer))) {
         swoole_set_last_error(SW_ERROR_WEBSOCKET_PACK_FAILED);
         RETURN_FALSE;

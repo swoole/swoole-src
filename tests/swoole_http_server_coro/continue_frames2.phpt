@@ -49,4 +49,4 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-%s Incorrect websocket frame received [opcode=%d]
+%s All fragments of a message, except for the initial frame, must use the continuation frame opcode(0).

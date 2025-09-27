@@ -2215,10 +2215,15 @@ static PHP_METHOD(swoole_http_client_coro, ping) {
         RETURN_FALSE;
     }
 
-    ZEND_PARSE_PARAMETERS_NONE();
+    zend_string *zdata = zend_empty_string;
+
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_STR(zdata)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     zval zpayload = {};
-    ZVAL_STR(&zpayload, zend_empty_string);
+    ZVAL_STR(&zpayload, zdata);
     RETURN_BOOL(phc->push(&zpayload, WebSocket::OPCODE_PING, WebSocket::FLAG_FIN));
 }
 
