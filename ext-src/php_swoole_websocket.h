@@ -22,11 +22,14 @@
 
 #include "swoole_websocket.h"
 
+#define SW_WEBSOCKET_DEFAULT_BUFFER 4096
+
 void swoole_websocket_apply_setting(swoole::WebSocketSettings &settings, zend_array *vht, bool in_server);
 void swoole_websocket_recv_frame(const swoole::WebSocketSettings &settings,
-                                 swoole::coroutine::Socket *sock,
-                                 zval *return_value,
-                                 double timeout);
+                                  std::shared_ptr<swoole::String> &frame_buffer,
+                                  swoole::coroutine::Socket *sock,
+                                  zval *return_value,
+                                  double timeout);
 ssize_t swoole_websocket_send_frame(const swoole::WebSocketSettings &settings,
                                     swoole::coroutine::Socket *sock,
                                     uchar opcode,
@@ -48,7 +51,7 @@ struct FrameObject {
     uint16_t code;
     zval *data;
 
-    FrameObject(zval *data, zend_long _opcode = 0, zend_long _flags = 0);
+    FrameObject(zval *data, zend_long _opcode = 0, zend_long _flags = 0, zend_long _code = 0);
     size_t get_data_size() {
         return (data && ZVAL_IS_STRING(data)) ? Z_STRLEN_P(data) : 0;
     }

@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_client_coro: client continue frames - 1
+swoole_http_client_coro: client continue frames - 2
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc';?>
 --FILE--
@@ -24,7 +24,6 @@ $pm->parentFunc = function (int $pid) use ($pm, $data1, $data2, $data3) {
         $client->push($data2, SWOOLE_WEBSOCKET_OPCODE_CONTINUATION, 0);
         $client->push($data3, SWOOLE_WEBSOCKET_OPCODE_CONTINUATION, SWOOLE_WEBSOCKET_FLAG_FIN);
         $frame = $client->recv();
-        Assert::true($frame->data == $data1 . $data2 . $data3);
     });
     $pm->kill();
 };
@@ -43,6 +42,7 @@ $pm->childFunc = function () use ($pm, $data1, $data2, $data3) {
         Assert::true($frame->data == $data1 . $data2 . $data3);
         $server->push($frame->fd, $data1, SWOOLE_WEBSOCKET_OPCODE_TEXT, 0);
         $server->push($frame->fd, $data2, SWOOLE_WEBSOCKET_OPCODE_CONTINUATION, 0);
+        $server->push($frame->fd, $data1, SWOOLE_WEBSOCKET_OPCODE_TEXT, 0);
         $server->push($frame->fd, $data3, SWOOLE_WEBSOCKET_OPCODE_CONTINUATION, SWOOLE_WEBSOCKET_FLAG_FIN);
     });
 
@@ -51,4 +51,5 @@ $pm->childFunc = function () use ($pm, $data1, $data2, $data3) {
 $pm->childFirst();
 $pm->run();
 ?>
---EXPECT--
+--EXPECTF--
+%s All fragments of a message, except for the initial frame, must use the continuation frame opcode(0).
