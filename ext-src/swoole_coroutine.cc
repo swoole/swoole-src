@@ -1317,9 +1317,18 @@ static PHP_METHOD(swoole_coroutine, cancel) {
             RETURN_FALSE;
         }
 
+        if (task->exception && task->exception_class == swoole_coroutine_canceled_exception_ce) {
+            swoole_set_last_error(SW_ERROR_CO_CANCELED);
+            RETURN_FALSE;
+        }
+
+        zend_object *previous = task->exception;
         task->exception_class = swoole_coroutine_canceled_exception_ce;
         task->exception = zend_objects_new(task->exception_class);
         object_properties_init(task->exception, task->exception_class);
+        if (previous) {
+            zend_exception_set_previous(task->exception, previous);
+        }
 
         zend_execute_data *ex_backup = EG(current_execute_data);
         EG(current_execute_data) = task->execute_data;
