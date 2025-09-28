@@ -789,7 +789,7 @@ void Client::apply_setting(zval *zset, const bool check_all) {
             delete write_func;
             write_func = sw_callable_create(ztmp);
         }
-        swoole_websocket_apply_setting(websocket_settings, vht, false);
+        WebSocket::apply_setting(websocket_settings, vht, false);
     }
     if (socket) {
         php_swoole_socket_set(socket, zset);
@@ -1532,7 +1532,7 @@ bool Client::recv_response(double timeout) {
 }
 
 void Client::recv_websocket_frame(zval *return_value, double timeout) {
-    swoole_websocket_recv_frame(websocket_settings, frame_buffer, socket, return_value, timeout);
+    WebSocket::recv_frame(websocket_settings, frame_buffer, socket, return_value, timeout);
     if (ZVAL_IS_EMPTY_STRING(return_value)) {
         close();
         return;

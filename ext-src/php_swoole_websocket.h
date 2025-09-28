@@ -24,27 +24,27 @@
 
 #define SW_WEBSOCKET_DEFAULT_BUFFER 4096
 
-void swoole_websocket_apply_setting(swoole::WebSocketSettings &settings, zend_array *vht, bool in_server);
-void swoole_websocket_recv_frame(const swoole::WebSocketSettings &settings,
-                                  std::shared_ptr<swoole::String> &frame_buffer,
-                                  swoole::coroutine::Socket *sock,
-                                  zval *return_value,
-                                  double timeout);
-ssize_t swoole_websocket_send_frame(const swoole::WebSocketSettings &settings,
-                                    swoole::coroutine::Socket *sock,
-                                    uchar opcode,
-                                    uchar flags,
-                                    const char *payload,
-                                    size_t payload_length);
-void swoole_websocket_construct_frame(zval *zframe, zend_long opcode, zval *zpayload, uint8_t flags);
-
-#ifdef SW_HAVE_ZLIB
-bool swoole_websocket_message_compress(swoole::String *buffer, const char *data, size_t length, int level);
-bool swoole_websocket_message_uncompress(swoole::String *buffer, const char *in, size_t in_len);
-#endif
-
 namespace swoole {
 namespace websocket {
+void apply_setting(WebSocketSettings &settings, zend_array *vht, bool in_server);
+void recv_frame(const WebSocketSettings &settings,
+                std::shared_ptr<String> &frame_buffer,
+                coroutine::Socket *sock,
+                zval *return_value,
+                double timeout);
+ssize_t send_frame(const WebSocketSettings &settings,
+                   coroutine::Socket *sock,
+                   uchar opcode,
+                   uchar flags,
+                   const char *payload,
+                   size_t payload_length);
+void construct_frame(zval *zframe, zend_long opcode, zval *zpayload, uint8_t flags);
+
+#ifdef SW_HAVE_ZLIB
+bool message_compress(String *buffer, const char *data, size_t length, int level);
+bool message_uncompress(String *buffer, const char *in, size_t in_len);
+#endif
+
 struct FrameObject {
     uint8_t opcode;
     uint8_t flags;

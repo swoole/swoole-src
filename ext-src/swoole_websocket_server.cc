@@ -121,7 +121,7 @@ bool FrameObject::uncompress(zval *zpayload, const char *data, size_t length) {
     return false;
 #else
     String zlib_buffer(length + SW_WEBSOCKET_DEFAULT_PAYLOAD_SIZE, sw_zend_string_allocator());
-    if (sw_likely(swoole_websocket_message_uncompress(&zlib_buffer, data, length))) {
+    if (sw_likely(WebSocket::message_uncompress(&zlib_buffer, data, length))) {
         zend::assign_zend_string_by_val(zpayload, zlib_buffer.str, zlib_buffer.length);
         zlib_buffer.release();
         return true;
@@ -154,7 +154,7 @@ bool FrameObject::pack(String *buffer) {
     if ((flags & WebSocket::FLAG_COMPRESS) && len > 0) {
         String *zlib_buffer = sw_tg_buffer();
         zlib_buffer->clear();
-        if (swoole_websocket_message_compress(zlib_buffer, ptr, len, Z_DEFAULT_COMPRESSION)) {
+        if (WebSocket::message_compress(zlib_buffer, ptr, len, Z_DEFAULT_COMPRESSION)) {
             ptr = zlib_buffer->str;
             len = zlib_buffer->length;
             sw_set_bit(flags, WebSocket::FLAG_RSV1);
@@ -626,7 +626,7 @@ void php_swoole_websocket_server_minit(int module_number) {
 }
 
 void php_swoole_server_set_websocket_option(ListenPort *port, zend_array *vht) {
-    swoole_websocket_apply_setting(port->websocket_settings, vht, true);
+    WebSocket::apply_setting(port->websocket_settings, vht, true);
 }
 
 void swoole_websocket_apply_setting(WebSocketSettings &settings, zend_array *vht, bool in_server) {

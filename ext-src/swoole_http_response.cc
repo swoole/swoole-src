@@ -599,7 +599,7 @@ bool HttpContext::compress(const char *data, size_t length) {
         compression_level = Z_BEST_COMPRESSION;
     }
 
-    size_t memory_size = ((size_t)((double) length * (double) 1.015)) + 10 + 8 + 4 + 1;
+    size_t memory_size = ((size_t) ((double) length * (double) 1.015)) + 10 + 8 + 4 + 1;
     zlib_buffer = std::make_shared<String>(memory_size);
 
     z_stream zstream = {};
@@ -1353,7 +1353,7 @@ void swoole_websocket_recv_frame(const WebSocketSettings &settings,
 
         if (should_respond) {
             ZVAL_STRINGL(&zpayload, frame.payload, frame.payload_length);
-            swoole_websocket_construct_frame(return_value, opcode, &zpayload, WebSocket::FLAG_FIN);
+            WebSocket::construct_frame(return_value, opcode, &zpayload, WebSocket::FLAG_FIN);
             zval_ptr_dtor(&zpayload);
             zend::object_set(return_value, ZEND_STRL("fd"), sock->get_fd());
             return;
@@ -1386,7 +1386,7 @@ void swoole_websocket_recv_frame(const WebSocketSettings &settings,
                     frame_buffer.reset();
                 }
 
-                swoole_websocket_construct_frame(return_value, complete_opcode, &zpayload, complete_flags);
+                WebSocket::construct_frame(return_value, complete_opcode, &zpayload, complete_flags);
                 zend::object_set(return_value, ZEND_STRL("fd"), sock->get_fd());
                 zval_ptr_dtor(&zpayload);
                 return;
@@ -1406,7 +1406,7 @@ void swoole_websocket_recv_frame(const WebSocketSettings &settings,
                 } else {
                     ZVAL_STRINGL(&zpayload, frame.payload, frame.payload_length);
                 }
-                swoole_websocket_construct_frame(return_value, frame.header.OPCODE, &zpayload, frame.get_flags());
+                WebSocket::construct_frame(return_value, frame.header.OPCODE, &zpayload, frame.get_flags());
                 zend::object_set(return_value, ZEND_STRL("fd"), sock->get_fd());
                 zval_ptr_dtor(&zpayload);
                 return;
