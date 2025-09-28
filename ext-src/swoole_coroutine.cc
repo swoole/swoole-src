@@ -1309,28 +1309,36 @@ static PHP_METHOD(swoole_coroutine, cancel) {
     Z_PARAM_BOOL(throw_exception)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    Coroutine *co = swoole_coroutine_get(cid);
-    if (!co) {
-        swoole_set_last_error(SW_ERROR_CO_NOT_EXISTS);
-        RETURN_FALSE;
-    }
-
     if (throw_exception) {
         PHPContext *task = (PHPContext *) PHPCoroutine::get_context_by_cid(cid);
-        if (task) {
-            task->exception_class = swoole_coroutine_canceled_exception_ce;
-            task->exception = zend_objects_new(task->exception_class);
-        	object_properties_init(task->exception, task->exception_class);
-
-            zend_execute_data *ex_backup = EG(current_execute_data);
-            EG(current_execute_data) = task->execute_data;
-            zend::object_set(task->exception, ZSTR_KNOWN(ZEND_STR_FILE), zend_get_executed_filename_ex());
-    		zend::object_set(task->exception, ZSTR_KNOWN(ZEND_STR_LINE), zend_get_executed_lineno());
-    	    EG(current_execute_data) = ex_backup;
+        // The coroutine does not exist or is not a PHP coroutine, and cannot be canceled or throw an exception
+        if (!task) {
+            swoole_set_last_error(SW_ERROR_CO_NOT_EXISTS);
+            RETURN_FALSE;
         }
-    }
 
-    RETURN_BOOL(co->cancel());
+        task->exception_class = swoole_coroutine_canceled_exception_ce;
+        task->exception = zend_objects_new(task->exception_class);
+        object_properties_init(task->exception, task->exception_class);
+
+        zend_execute_data *ex_backup = EG(current_execute_data);
+        EG(current_execute_data) = task->execute_data;
+        zend::object_set(task->exception, ZSTR_KNOWN(ZEND_STR_FILE), zend_get_executed_filename_ex());
+        zend::object_set(task->exception, ZSTR_KNOWN(ZEND_STR_LINE), zend_get_executed_lineno());
+        EG(current_execute_data) = ex_backup;
+
+        // Ignore the result of Co::cancel(). Even if the coroutine is in an irrevocable state,
+        // it will directly throw an exception and terminate the coroutine
+        task->co->cancel();
+        RETURN_TRUE;
+    } else {
+        Coroutine *co = swoole_coroutine_get(cid);
+        if (!co) {
+            swoole_set_last_error(SW_ERROR_CO_NOT_EXISTS);
+            RETURN_FALSE;
+        }
+        RETURN_BOOL(co->cancel());
+    }
 }
 
 static PHP_METHOD(swoole_coroutine, isCanceled) {
