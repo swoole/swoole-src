@@ -33,6 +33,7 @@ Mutex::Mutex(int flags) : Lock() {
             throw std::bad_alloc();
         }
         shared_ = true;
+        auto_dtor_ = (flags & NO_AUTO_DTOR) == 0;
     } else {
         impl = new MutexImpl();
         shared_ = false;
@@ -61,16 +62,17 @@ Mutex::Mutex(int flags) : Lock() {
         throw std::system_error(errno, std::generic_category(), "pthread_mutex_init() failed");
     }
 }
+#if HAVE_PTHREAD_MUTEX_CONSISTENT
+#define SW_MUTEX_CHECK_ROBUST_LOCK_RC(rc) if (rc == EOWNERDEAD && (flags_ & ROBUST)) { \
+        rc = pthread_mutex_consistent(&impl->lock_); \
+    }
+#else
+#define SW_MUTEX_CHECK_ROBUST_LOCK_RC(rc)
+#endif
 
 int Mutex::lock() {
     int retval = pthread_mutex_lock(&impl->lock_);
-
-#ifdef HAVE_PTHREAD_MUTEX_CONSISTENT
-    if (retval == EOWNERDEAD && (flags_ & ROBUST)) {
-        retval = pthread_mutex_consistent(&impl->lock_);
-    }
-#endif
-
+    SW_MUTEX_CHECK_ROBUST_LOCK_RC(retval);
     return retval;
 }
 
@@ -83,7 +85,9 @@ int Mutex::unlock() {
 }
 
 int Mutex::trylock() {
-    return pthread_mutex_trylock(&impl->lock_);
+    int rc = pthread_mutex_trylock(&impl->lock_);
+    SW_MUTEX_CHECK_ROBUST_LOCK_RC(rc);
+    return rc;
 }
 
 int Mutex::trylock_rd() {
@@ -95,7 +99,9 @@ int Mutex::lock_wait(int timeout_msec) {
     timespec timeo;
     realtime_get(&timeo);
     realtime_add(&timeo, timeout_msec);
-    return pthread_mutex_timedlock(&impl->lock_, &timeo);
+    int rc = pthread_mutex_timedlock(&impl->lock_, &timeo);
+    SW_MUTEX_CHECK_ROBUST_LOCK_RC(rc);
+    return rc;
 }
 #else
 int Mutex::lock_wait(int timeout_msec) {
@@ -108,18 +114,20 @@ int Mutex::lock_wait(int timeout_msec) {
     }
 
     while (timeout_msec > 0) {
-        if (pthread_mutex_trylock(&impl->lock_) == 0) {
+        int rc = pthread_mutex_trylock(&impl->lock_);
+        SW_MUTEX_CHECK_ROBUST_LOCK_RC(rc);
+        if (rc == 0) {
             return 0;
-        } else {
-            usleep(sleep_ms);
-            timeout_msec -= sub;
         }
+        usleep(sleep_ms);
+        timeout_msec -= sub;
     }
     return ETIMEDOUT;
 }
 #endif
 
 Mutex::~Mutex() {
+    if (!is_auto_dtor()) return;
     pthread_mutexattr_destroy(&impl->attr_);
     pthread_mutex_destroy(&impl->lock_);
     if (shared_) {
