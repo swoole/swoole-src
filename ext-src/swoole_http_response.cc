@@ -147,6 +147,7 @@ static PHP_METHOD(swoole_http_response, trailer);
 static PHP_METHOD(swoole_http_response, ping);
 static PHP_METHOD(swoole_http_response, goaway);
 static PHP_METHOD(swoole_http_response, status);
+static PHP_METHOD(swoole_http_response, disconnect);
 SW_EXTERN_C_END
 
 // clang-format off
@@ -178,6 +179,7 @@ const zend_function_entry swoole_http_response_methods[] =
     PHP_ME(swoole_http_response, push,       arginfo_class_Swoole_Http_Response_push,       ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, recv,       arginfo_class_Swoole_Http_Response_recv,       ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, close,      arginfo_class_Swoole_Http_Response_close,      ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_response, disconnect, arginfo_class_Swoole_Http_Response_disconnect, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 // clang-format on
@@ -597,7 +599,7 @@ bool HttpContext::compress(const char *data, size_t length) {
         compression_level = Z_BEST_COMPRESSION;
     }
 
-    size_t memory_size = ((size_t) ((double) length * (double) 1.015)) + 10 + 8 + 4 + 1;
+    size_t memory_size = ((size_t)((double) length * (double) 1.015)) + 10 + 8 + 4 + 1;
     zlib_buffer = std::make_shared<String>(memory_size);
 
     z_stream zstream = {};
@@ -1071,6 +1073,43 @@ static PHP_METHOD(swoole_http_response, status) {
     RETURN_TRUE;
 }
 
+static PHP_METHOD(swoole_http_response, disconnect) {
+    HttpContext *ctx = php_swoole_http_response_get_context(ZEND_THIS);
+    if (UNEXPECTED(!ctx)) {
+        swoole_set_last_error(SW_ERROR_SESSION_CLOSED);
+        RETURN_FALSE;
+    }
+    if (UNEXPECTED(!ctx->co_socket || !ctx->upgrade)) {
+        php_swoole_fatal_error(E_WARNING, "fd[%ld] is not a websocket conncetion", ctx->fd);
+        RETURN_FALSE;
+    }
+
+    zend_long code = WebSocket::CLOSE_NORMAL;
+    zend_string *reason = zend_empty_string;
+    zend_long flags = WebSocket::FLAG_FIN;
+
+    ZEND_PARSE_PARAMETERS_START(0, 2)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_LONG(code)
+    Z_PARAM_STR(reason)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    String *http_buffer = ctx->get_write_buffer();
+
+    zval zdata = {};
+    ZVAL_STR(&zdata, reason);
+
+    FrameObject frame(&zdata, WebSocket::OPCODE_CLOSE, flags, code);
+
+    if (sw_unlikely(!frame.pack(http_buffer))) {
+        swoole_set_last_error(SW_ERROR_WEBSOCKET_PACK_FAILED);
+        RETURN_FALSE;
+    }
+
+    RETVAL_BOOL(ctx->send(ctx, http_buffer->str, http_buffer->length));
+    ctx->close(ctx);
+}
+
 static PHP_METHOD(swoole_http_response, header) {
     char *k;
     size_t klen;
@@ -1128,12 +1167,19 @@ static PHP_METHOD(swoole_http_response, ping) {
         RETURN_FALSE;
     }
 
+    zend_string *zdata = zend_empty_string;
+
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_STR(zdata)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
     if (ctx->http2) {
         SW_CHECK_RETURN(swoole_http2_server_ping(ctx));
     } else if (ctx->websocket) {
         String *buffer = ctx->get_write_buffer();
         buffer->clear();
-        WebSocket::encode(buffer, nullptr, 0, WebSocket::OPCODE_PING, WebSocket::FLAG_FIN);
+        WebSocket::encode(buffer, ZSTR_VAL(zdata), ZSTR_LEN(zdata), WebSocket::OPCODE_PING, WebSocket::FLAG_FIN);
         RETURN_BOOL(ctx->send(ctx, buffer->str, buffer->length));
     } else {
         php_swoole_fatal_error(E_WARNING, "only supports websocket or http2 client");
@@ -1245,9 +1291,19 @@ ssize_t swoole_websocket_send_frame(const swoole::WebSocketSettings &settings,
     return sock->send(wbuf->str, wbuf->length);
 }
 
-void swoole_websocket_recv_frame(const WebSocketSettings &settings, Socket *sock, zval *return_value, double timeout) {
+/**
+ * return_value is object means success.
+ * return_value is false means socket.read() method returning -1.
+ * return_value is null means other error.
+ * return_value is empry string means socket is closed.
+ * the opcode is returned so the caller can decide when to release the frame_buffer.
+ */
+void swoole_websocket_recv_frame(const WebSocketSettings &settings,
+                                 std::shared_ptr<String> &frame_buffer,
+                                 Socket *sock,
+                                 zval *return_value,
+                                 double timeout) {
     zval zpayload;
-    std::shared_ptr<String> frame_buffer;
 
     do {
         ssize_t retval = sock->recv_packet(timeout);
@@ -1262,35 +1318,57 @@ void swoole_websocket_recv_frame(const WebSocketSettings &settings, Socket *sock
 
         if (sw_unlikely(static_cast<size_t>(buffer->length) < sizeof(frame.header))) {
             swoole_set_last_error(SW_ERROR_PROTOCOL_ERROR);
-            RETURN_FALSE;
+            RETURN_NULL();
         }
 
         if (sw_unlikely(!WebSocket::decode(&frame, buffer))) {
             swoole_set_last_error(SW_ERROR_PROTOCOL_ERROR);
-            RETURN_FALSE;
+            RETURN_NULL();
         }
 
         uchar opcode = frame.header.OPCODE;
-        if (opcode == WebSocket::OPCODE_PING && !settings.open_ping_frame) {
-            swoole_websocket_send_frame(
-                settings, sock, WebSocket::OPCODE_PONG, WebSocket::FLAG_FIN, frame.payload, frame.payload_length);
-            continue;
+        bool should_respond = false;
+        if (opcode == WebSocket::OPCODE_PING) {
+            if (!settings.open_ping_frame) {
+                swoole_websocket_send_frame(
+                    settings, sock, WebSocket::OPCODE_PONG, WebSocket::FLAG_FIN, frame.payload, frame.payload_length);
+                continue;
+            }
+            should_respond = true;
         }
-        if (opcode == WebSocket::OPCODE_PONG && !settings.open_pong_frame) {
-            continue;
+        if (opcode == WebSocket::OPCODE_PONG) {
+            if (!settings.open_pong_frame) {
+                continue;
+            }
+            should_respond = true;
         }
-        if (opcode == WebSocket::OPCODE_CLOSE && !settings.open_close_frame) {
-            swoole_websocket_send_frame(
-                settings, sock, WebSocket::OPCODE_CLOSE, WebSocket::FLAG_FIN, frame.payload, frame.payload_length);
+        if (opcode == WebSocket::OPCODE_CLOSE) {
+            if (!settings.open_close_frame) {
+                swoole_websocket_send_frame(
+                    settings, sock, WebSocket::OPCODE_CLOSE, WebSocket::FLAG_FIN, frame.payload, frame.payload_length);
+                continue;
+            }
+            should_respond = true;
+        }
+
+        if (should_respond) {
+            ZVAL_STRINGL(&zpayload, frame.payload, frame.payload_length);
+            swoole_websocket_construct_frame(return_value, opcode, &zpayload, WebSocket::FLAG_FIN);
+            zval_ptr_dtor(&zpayload);
+            zend::object_set(return_value, ZEND_STRL("fd"), sock->get_fd());
+            return;
         }
 
         if (opcode == WebSocket::OPCODE_CONTINUATION) {
-            if (frame_buffer == nullptr) {
-                swoole_warning("Incorrect websocket frame received [opcode=0]");
-                RETURN_FALSE;
+            if (sw_unlikely(!frame_buffer)) {
+                swoole_warning("A continuation frame cannot stand alone and MUST be preceded by an initial frame whose "
+                               "opcode indicates either text or binary data.");
+                RETURN_NULL();
             }
 
-            frame_buffer->append(frame.payload, frame.payload_length);
+            if (sw_likely(frame.payload)) {
+                frame_buffer->append(frame.payload, frame.payload_length);
+            }
 
             if (frame.header.FIN) {
                 uchar complete_opcode = 0;
@@ -1300,25 +1378,30 @@ void swoole_websocket_recv_frame(const WebSocketSettings &settings, Socket *sock
                 if (complete_flags & WebSocket::FLAG_RSV1) {
                     if (sw_unlikely(!FrameObject::uncompress(&zpayload, frame_buffer->str, frame_buffer->length))) {
                         swoole_set_last_error(SW_ERROR_PROTOCOL_ERROR);
-                        RETURN_FALSE;
+                        RETURN_NULL();
                     }
                 } else {
                     zend::assign_zend_string_by_val(&zpayload, frame_buffer->str, frame_buffer->length);
-                    frame_buffer->release();
+                    Z_TRY_ADDREF(zpayload);
+                    frame_buffer.reset();
                 }
 
                 swoole_websocket_construct_frame(return_value, complete_opcode, &zpayload, complete_flags);
                 zend::object_set(return_value, ZEND_STRL("fd"), sock->get_fd());
                 zval_ptr_dtor(&zpayload);
-                frame_buffer.reset();
-                break;
+                return;
             }
         } else {
+            if (sw_unlikely(frame_buffer)) {
+                swoole_warning("All fragments of a message, except for the initial frame, must use the continuation "
+                               "frame opcode(0).");
+                RETURN_NULL();
+            }
             if (frame.header.FIN) {
                 if (frame.compressed()) {
                     if (sw_unlikely(!FrameObject::uncompress(&zpayload, frame.payload, frame.payload_length))) {
                         swoole_set_last_error(SW_ERROR_PROTOCOL_ERROR);
-                        RETURN_FALSE;
+                        RETURN_NULL();
                     }
                 } else {
                     ZVAL_STRINGL(&zpayload, frame.payload, frame.payload_length);
@@ -1326,11 +1409,15 @@ void swoole_websocket_recv_frame(const WebSocketSettings &settings, Socket *sock
                 swoole_websocket_construct_frame(return_value, frame.header.OPCODE, &zpayload, frame.get_flags());
                 zend::object_set(return_value, ZEND_STRL("fd"), sock->get_fd());
                 zval_ptr_dtor(&zpayload);
-                break;
+                return;
             } else {
-                frame_buffer = std::make_shared<String>(frame.payload_length, sw_zend_string_allocator());
+                frame_buffer = std::make_shared<String>(
+                    (frame.payload_length > 0 ? frame.payload_length : SW_WEBSOCKET_DEFAULT_BUFFER),
+                    sw_zend_string_allocator());
                 frame_buffer->offset = WebSocket::get_ext_flags(frame.header.OPCODE, frame.get_flags());
-                frame_buffer->append(frame.payload, frame.payload_length);
+                if (sw_likely(frame.payload)) {
+                    frame_buffer->append(frame.payload, frame.payload_length);
+                }
             }
         }
     } while (true);
@@ -1354,7 +1441,15 @@ static PHP_METHOD(swoole_http_response, recv) {
     Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    swoole_websocket_recv_frame(ctx->websocket_settings, (Socket *) ctx->private_data, return_value, timeout);
+    swoole_websocket_recv_frame(
+        ctx->websocket_settings, ctx->frame_buffer, (Socket *) ctx->private_data, return_value, timeout);
+    if (ZVAL_IS_EMPTY_STRING(return_value)) {
+        ctx->close(ctx);
+        return;
+    }
+    if (sw_unlikely(ZVAL_IS_NULL(return_value))) {
+        ZVAL_FALSE(return_value);
+    }
 }
 
 static PHP_METHOD(swoole_http_response, detach) {

@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_client_coro: client continue frames - 1
+swoole_http_client_coro: open websocket frame
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc';?>
 --FILE--
@@ -18,13 +18,22 @@ $pm = new ProcessManager;
 $pm->parentFunc = function (int $pid) use ($pm, $data1, $data2, $data3) {
     Co\run(function () use ($pm, $data1, $data2, $data3) {
         $client = new Client('127.0.0.1', $pm->getFreePort());
+        $client->set([
+            'open_websocket_ping_frame' => true,
+            'open_websocket_pong_frame' => true,
+            'open_websocket_close_frame' => true,
+        ]);
         $ret = $client->upgrade('/');
         Assert::assert($ret);
-        $client->push($data1, SWOOLE_WEBSOCKET_OPCODE_TEXT, 0);
-        $client->push($data2, SWOOLE_WEBSOCKET_OPCODE_CONTINUATION, 0);
-        $client->push($data3, SWOOLE_WEBSOCKET_OPCODE_CONTINUATION, SWOOLE_WEBSOCKET_FLAG_FIN);
+        $client->push('Hello World!!!');
         $frame = $client->recv();
-        Assert::true($frame->data == $data1 . $data2 . $data3);
+        Assert::true($frame->opcode == SWOOLE_WEBSOCKET_OPCODE_PING);
+        $frame = $client->recv();
+        Assert::true($frame->opcode == SWOOLE_WEBSOCKET_OPCODE_PONG);
+        $frame = $client->recv();
+        Assert::true($frame->opcode == SWOOLE_WEBSOCKET_OPCODE_CLOSE);
+        $frame = $client->recv();
+        Assert::true($frame == '');
     });
     $pm->kill();
 };
@@ -40,10 +49,16 @@ $pm->childFunc = function () use ($pm, $data1, $data2, $data3) {
     });
 
     $server->on('message', function (Server $server, Frame $frame) use ($pm, $data1, $data2, $data3) {
-        Assert::true($frame->data == $data1 . $data2 . $data3);
-        $server->push($frame->fd, $data1, SWOOLE_WEBSOCKET_OPCODE_TEXT, 0);
-        $server->push($frame->fd, $data2, SWOOLE_WEBSOCKET_OPCODE_CONTINUATION, 0);
-        $server->push($frame->fd, $data3, SWOOLE_WEBSOCKET_OPCODE_CONTINUATION, SWOOLE_WEBSOCKET_FLAG_FIN);
+        Assert::true($frame->data == 'Hello World!!!');
+        $ping = new Frame();
+        $ping->opcode = SWOOLE_WEBSOCKET_OPCODE_PING;
+        $server->push($frame->fd, $ping);
+
+        $pong = new Frame();
+        $pong->opcode = SWOOLE_WEBSOCKET_OPCODE_PONG;
+        $server->push($frame->fd, $pong);
+
+        $server->disconnect($frame->fd);
     });
 
     $server->start();

@@ -40,6 +40,11 @@ $pm->parentFunc = function () use ($pm) {
 $pm->childFunc = function () use ($pm) {
     go(function () use ($pm) {
         $server = new Server("127.0.0.1", $pm->getFreePort(), false);
+        $server->set([
+            'open_websocket_ping_frame' => true,
+            'open_websocket_pong_frame' => true,
+            'open_websocket_close_frame' => true,
+        ]);
         $server->handle('/websocket', function ($request, $ws) {
             $ws->upgrade();
             while (true) {

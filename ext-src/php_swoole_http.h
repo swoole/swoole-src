@@ -168,6 +168,7 @@ struct Context {
     std::shared_ptr<String> zlib_buffer;
 #endif
 
+    std::shared_ptr<String> frame_buffer;
     WebSocketSettings websocket_settings;
 
     Request request;
