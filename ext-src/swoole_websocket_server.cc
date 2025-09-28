@@ -339,7 +339,7 @@ bool swoole_websocket_handshake(HttpContext *ctx) {
 }
 
 #ifdef SW_HAVE_ZLIB
-bool swoole_websocket_message_uncompress(String *buffer, const char *in, size_t in_len) {
+bool WebSocket::message_uncompress(String *buffer, const char *in, size_t in_len) {
     z_stream zstream;
     int status;
     bool ret = false;
@@ -385,7 +385,7 @@ bool swoole_websocket_message_uncompress(String *buffer, const char *in, size_t 
     return true;
 }
 
-bool swoole_websocket_message_compress(String *buffer, const char *data, size_t length, int level) {
+bool WebSocket::message_compress(String *buffer, const char *data, size_t length, int level) {
     // ==== ZLIB ====
     if (level == Z_NO_COMPRESSION) {
         level = Z_DEFAULT_COMPRESSION;
