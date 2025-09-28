@@ -203,3 +203,13 @@ TEST(timer, reinit) {
     ASSERT_EQ(timer1_count, 1);
     ASSERT_EQ(timer2_count, 5);
 }
+
+TEST(timer, realtime_add) {
+	timespec ts;
+	ts.tv_sec = 1;
+	ts.tv_nsec = 900L * SW_NUM_MILLION;
+
+	swoole::realtime_add(&ts, 1905);
+	ASSERT_EQ(ts.tv_sec, 3);
+	ASSERT_EQ(ts.tv_nsec, 805L * SW_NUM_MILLION);
+}
