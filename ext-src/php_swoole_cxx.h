@@ -755,6 +755,22 @@ static inline void object_set(zval *obj, const char *name, size_t l_name, zend_l
     zend_update_property_long(Z_OBJCE_P(obj), Z_OBJ_P(obj), name, l_name, value);
 }
 
+static inline void object_set(zend_object *obj, zend_string *name, zval *zvalue) {
+    zend_update_property_ex(obj->ce, obj, name, zvalue);
+}
+
+static inline void object_set(zend_object *obj, zend_string *name, zend_string *value) {
+	zval tmp;
+	ZVAL_STR(&tmp, value);
+    zend_update_property_ex(obj->ce, obj, name, &tmp);
+}
+
+static inline void object_set(zend_object *obj, zend_string *name, zend_long value) {
+	zval tmp;
+	ZVAL_LONG(&tmp, value);
+    zend_update_property_ex(obj->ce, obj, name, &tmp);
+}
+
 static inline zval *object_get(zval *obj, const char *name, size_t l_name) {
     static zval rv;
     return zend_read_property(Z_OBJCE_P(obj), Z_OBJ_P(obj), name, l_name, 1, &rv);
