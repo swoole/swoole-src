@@ -88,6 +88,8 @@ class RWLock final : public Lock {
     int unlock() override;
     int trylock_rd() override;
     int trylock() override;
+    int lock_wait(int timeout_msec);
+    int lock_rd_wait(int timeout_msec);
 };
 #endif
 
@@ -103,8 +105,6 @@ class SpinLock final : public Lock {
     int unlock() override;
     int trylock_rd() override;
     int trylock() override;
-    int lock_wait(int timeout_msec);
-    int lock_rd_wait(int timeout_msec);
 };
 #endif
 
