@@ -79,6 +79,17 @@ struct IouringEvent {
     };
 };
 
+static void parse_kernel_version(const char *release, int *major, int *minor) {
+    char copy[_UTSNAME_RELEASE_LENGTH];
+    strcpy(copy, release);
+
+    char *token = strtok(copy, ".-");
+    *major = token ? atoi(token) : 0;
+
+    token = strtok(NULL, ".-");
+    *minor = token ? atoi(token) : 0;
+}
+
 Iouring::Iouring(Reactor *_reactor) {
     reactor = _reactor;
     if (SwooleG.iouring_entries > 0) {
@@ -109,6 +120,25 @@ Iouring::Iouring(Reactor *_reactor) {
             return;
         }
     }
+
+    int major, minor;
+    parse_kernel_version(SwooleG.uname.release, &major, &minor);
+
+#ifdef HAVE_IOURING_FUTEX
+    if (!(major >= 6 && minor >= 7)) {
+        swoole_error_log(SW_LOG_WARNING,
+                         SW_ERROR_OPERATION_NOT_SUPPORT,
+                         "The Iouring::futex_wait()/Iouring::futex_wakeup() requires `6.7` or higher Linux kernel");
+    }
+#endif
+
+#ifdef HAVE_IOURING_FTRUNCATE
+    if (!(major >= 6 && minor >= 9)) {
+        swoole_error_log(SW_LOG_WARNING,
+                         SW_ERROR_OPERATION_NOT_SUPPORT,
+                         "The Iouring::ftruncate() requires `6.9` or higher Linux kernel");
+    }
+#endif
 
     ring_socket = make_socket(ring.ring_fd, SW_FD_IOURING);
     ring_socket->object = this;
