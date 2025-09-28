@@ -7,7 +7,7 @@ namespace Swoole {
         public static function getOptions(): ?array {}
         public static function exists(int $cid): bool {}
         public static function yield(): bool {}
-        public static function cancel(int $cid): bool {}
+        public static function cancel(int $cid, bool $throw_exception = false): bool {}
         public static function join(array $cid_array, float $timeout = -1): bool {}
         public static function isCanceled(): bool {}
         public static function suspend(): bool {}
