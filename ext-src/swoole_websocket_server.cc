@@ -81,7 +81,7 @@ const zend_function_entry swoole_websocket_frame_methods[] =
 };
 // clang-format on
 
-void swoole_websocket_construct_frame(zval *zframe, zend_long opcode, zval *zpayload, uint8_t flags) {
+void WebSocket::construct_frame(zval *zframe, zend_long opcode, zval *zpayload, uint8_t flags) {
     if (opcode == WebSocket::OPCODE_CLOSE) {
         const char *payload = Z_STRVAL_P(zpayload);
         size_t payload_length = Z_STRLEN_P(zpayload);
@@ -501,7 +501,7 @@ int swoole_websocket_onMessage(Server *serv, RecvData *req) {
     zval args[2];
 
     args[0] = *php_swoole_server_zval_ptr(serv);
-    swoole_websocket_construct_frame(&args[1], opcode, &zdata, flags);
+    WebSocket::construct_frame(&args[1], opcode, &zdata, flags);
     zend_update_property_long(swoole_websocket_frame_ce, SW_Z8_OBJ_P(&args[1]), ZEND_STRL("fd"), fd);
 
     if (UNEXPECTED(!zend::function::call(cb, 2, args, nullptr, serv->is_enable_coroutine()))) {
@@ -873,7 +873,7 @@ static PHP_METHOD(swoole_websocket_server, unpack) {
         ZVAL_STRINGL(&zpayload, frame.payload, frame.payload_length);
     }
 
-    swoole_websocket_construct_frame(return_value, frame.header.OPCODE, &zpayload, flags);
+    WebSocket::construct_frame(return_value, frame.header.OPCODE, &zpayload, flags);
     zval_ptr_dtor(&zpayload);
 }
 
