@@ -1275,12 +1275,12 @@ static PHP_METHOD(swoole_http_response, close) {
     RETURN_BOOL(ctx->close(ctx));
 }
 
-ssize_t swoole_websocket_send_frame(const swoole::WebSocketSettings &settings,
-                                    swoole::coroutine::Socket *sock,
-                                    uchar opcode,
-                                    uchar flags,
-                                    const char *payload,
-                                    size_t payload_length) {
+ssize_t WebSocket::send_frame(const swoole::WebSocketSettings &settings,
+                              swoole::coroutine::Socket *sock,
+                              uchar opcode,
+                              uchar flags,
+                              const char *payload,
+                              size_t payload_length) {
     if (settings.in_server) {
         sw_unset_bit(flags, WebSocket::FLAG_MASK);
     } else {
@@ -1298,11 +1298,11 @@ ssize_t swoole_websocket_send_frame(const swoole::WebSocketSettings &settings,
  * return_value is empry string means socket is closed.
  * the opcode is returned so the caller can decide when to release the frame_buffer.
  */
-void swoole_websocket_recv_frame(const WebSocketSettings &settings,
-                                 std::shared_ptr<String> &frame_buffer,
-                                 Socket *sock,
-                                 zval *return_value,
-                                 double timeout) {
+void WebSocket::recv_frame(const WebSocketSettings &settings,
+                           std::shared_ptr<String> &frame_buffer,
+                           Socket *sock,
+                           zval *return_value,
+                           double timeout) {
     zval zpayload;
 
     do {
@@ -1330,7 +1330,7 @@ void swoole_websocket_recv_frame(const WebSocketSettings &settings,
         bool should_respond = false;
         if (opcode == WebSocket::OPCODE_PING) {
             if (!settings.open_ping_frame) {
-                swoole_websocket_send_frame(
+                WebSocket::send_frame(
                     settings, sock, WebSocket::OPCODE_PONG, WebSocket::FLAG_FIN, frame.payload, frame.payload_length);
                 continue;
             }
@@ -1344,7 +1344,7 @@ void swoole_websocket_recv_frame(const WebSocketSettings &settings,
         }
         if (opcode == WebSocket::OPCODE_CLOSE) {
             if (!settings.open_close_frame) {
-                swoole_websocket_send_frame(
+                WebSocket::send_frame(
                     settings, sock, WebSocket::OPCODE_CLOSE, WebSocket::FLAG_FIN, frame.payload, frame.payload_length);
                 continue;
             }
@@ -1441,7 +1441,7 @@ static PHP_METHOD(swoole_http_response, recv) {
     Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    swoole_websocket_recv_frame(
+    WebSocket::recv_frame(
         ctx->websocket_settings, ctx->frame_buffer, (Socket *) ctx->private_data, return_value, timeout);
     if (ZVAL_IS_EMPTY_STRING(return_value)) {
         ctx->close(ctx);
