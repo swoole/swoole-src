@@ -629,7 +629,7 @@ void php_swoole_server_set_websocket_option(ListenPort *port, zend_array *vht) {
     WebSocket::apply_setting(port->websocket_settings, vht, true);
 }
 
-void swoole_websocket_apply_setting(WebSocketSettings &settings, zend_array *vht, bool in_server) {
+void WebSocket::apply_setting(WebSocketSettings &settings, zend_array *vht, bool in_server) {
     zval *ztmp;
     if (php_swoole_array_get_value(vht, "websocket_subprotocol", ztmp)) {
         settings.protocol = zend::String(ztmp).to_std_string();
