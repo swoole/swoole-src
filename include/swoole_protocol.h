@@ -48,6 +48,21 @@ struct PacketLength {
     uint32_t header_len;
 };
 
+struct WebSocketSettings {
+    std::string protocol;           // with `Sec-WebSocket-Protocol` HTTP Header
+    bool in_server;                 // server or client
+    bool mask = true;               // enable websocket mask
+    bool open_ping_frame = false;   // handle websocket ping frame by user
+    bool open_pong_frame = false;   // handle websocket pong frame by user
+    bool open_close_frame = false;  // handle websocket close frame by user
+    /**
+     * The default value is false, which means that websocket frame data compression is not enabled.
+     * If supported by `zlib` or other compression libraries, the client can accept compressed data
+     * (depending on whether the `Sec-Websocket-Extensions` header contains `permessage-deflate`)
+     */
+    bool compression = false;
+};
+
 struct Protocol {
     typedef ssize_t (*LengthFunc)(const Protocol *, network::Socket *, PacketLength *pl);
     /* one package: eof check */
@@ -125,8 +140,8 @@ uint64_t swoole_hton64(uint64_t value);
 uint64_t swoole_ntoh64(uint64_t value);
 
 void swoole_dump_ascii(const char *data, size_t size);
-void swoole_dump_bin(const char *data, char type, size_t size);
-void swoole_dump_hex(const char *data, size_t outlen);
+void swoole_dump_bin(const uchar *data, char type, size_t size);
+void swoole_dump_hex(const uchar *data, size_t outlen);
 
 char *swoole_dec2hex(ulong_t value, int base);
 ulong_t swoole_hex2dec(const char *hex, size_t *parsed_bytes);

@@ -21,10 +21,7 @@
 #include "php_swoole_server.h"
 #include "php_swoole_http.h"
 
-#include "swoole_http.h"
-#include "swoole_websocket.h"
 #include "swoole_mime_type.h"
-#include "swoole_http2.h"
 
 bool swoole_http_server_onBeforeRequest(swoole::http::Context *ctx);
 void swoole_http_server_onAfterResponse(swoole::http::Context *ctx);

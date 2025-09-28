@@ -930,7 +930,6 @@ PHP_MSHUTDOWN_FUNCTION(swoole) {
     zend::known_strings_dtor();
 
     php_swoole_runtime_mshutdown();
-    php_swoole_websocket_server_mshutdown();
 #ifdef SW_USE_PGSQL
     php_swoole_pgsql_mshutdown();
 #endif
@@ -1129,7 +1128,7 @@ static void *_sw_zend_string_realloc(void *address, size_t size) {
 }
 
 static void _sw_zend_string_free(void *address) {
-    zend_string_free(zend::fetch_zend_string_by_val(address));
+	zend_string_release_ex(zend::fetch_zend_string_by_val(address), 0);
 }
 
 static swoole::Allocator php_allocator{
@@ -1240,7 +1239,6 @@ PHP_RINIT_FUNCTION(swoole) {
     swoole_add_hook(SW_GLOBAL_HOOK_AFTER_FORK, sw_after_fork, 0);
 
     php_swoole_http_server_rinit();
-    php_swoole_websocket_server_rinit();
     php_swoole_coroutine_rinit();
     php_swoole_runtime_rinit();
 #ifdef SW_USE_ORACLE
@@ -1266,7 +1264,6 @@ PHP_RSHUTDOWN_FUNCTION(swoole) {
 
     php_swoole_server_rshutdown();
     php_swoole_http_server_rshutdown();
-    php_swoole_websocket_server_rshutdown();
     php_swoole_async_coro_rshutdown();
     php_swoole_redis_server_rshutdown();
     php_swoole_coroutine_rshutdown();

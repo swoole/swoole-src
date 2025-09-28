@@ -366,8 +366,8 @@ TEST(base, only_dump) {
     // just dump something
     std::string data = "hello world";
     swoole_dump_ascii(data.c_str(), data.length());
-    swoole_dump_bin(data.c_str(), 'C', data.length());
-    swoole_dump_hex(data.c_str(), data.length());
+    swoole_dump_bin((uchar *) data.c_str(), 'C', data.length());
+    swoole_dump_hex((uchar *) data.c_str(), data.length());
     ASSERT_TRUE(true);
 }
 

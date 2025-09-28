@@ -15,6 +15,7 @@
 */
 
 #include "php_swoole_http_server.h"
+#include "php_swoole_websocket.h"
 
 #include <string>
 #include <map>
@@ -31,13 +32,13 @@ using swoole::String;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 
+namespace WebSocket = swoole::websocket;
+
 using HttpRequest = swoole::http::Request;
 using HttpResponse = swoole::http::Response;
 using HttpContext = swoole::http::Context;
-
-namespace http2 = swoole::http2;
-using Http2Stream = http2::Stream;
-using Http2Session = http2::Session;
+using Http2Stream = swoole::http2::Stream;
+using Http2Session = swoole::http2::Session;
 
 static zend_class_entry *swoole_http_server_coro_ce;
 static zend_object_handlers swoole_http_server_coro_handlers;
@@ -66,9 +67,8 @@ class HttpServer {
 #ifdef SW_HAVE_COMPRESSION
     bool compression;
 #endif
-#ifdef SW_HAVE_ZLIB
-    bool websocket_compression;
-#endif
+    WebSocketSettings websocket_settings;
+
     char *upload_tmp_dir;
 #ifdef SW_HAVE_COMPRESSION
     uint8_t compression_level;
@@ -91,7 +91,7 @@ class HttpServer {
         compression_min_length = SW_COMPRESSION_MIN_LENGTH_DEFAULT;
 #endif
 #ifdef SW_HAVE_ZLIB
-        websocket_compression = false;
+        websocket_settings.compression = false;
 #endif
         upload_tmp_dir = sw_strdup("/tmp");
     }
@@ -144,9 +144,7 @@ class HttpServer {
         ctx->compression_min_length = compression_min_length;
         ctx->compression_types = compression_types;
 #endif
-#ifdef SW_HAVE_ZLIB
-        ctx->websocket_compression = websocket_compression;
-#endif
+        ctx->websocket_settings = websocket_settings;
         ctx->upload_tmp_dir = upload_tmp_dir;
 
         ctx->bind(conn);
@@ -485,11 +483,7 @@ static PHP_METHOD(swoole_http_server_coro, start) {
         }
     }
 #endif
-#ifdef SW_HAVE_ZLIB
-    if (php_swoole_array_get_value(vht, "websocket_compression", ztmp)) {
-        hs->websocket_compression = zval_is_true(ztmp);
-    }
-#endif
+    WebSocket::apply_setting(hs->websocket_settings, vht, true);
     // temporary directory for HTTP uploaded file.
     if (php_swoole_array_get_value(vht, "upload_tmp_dir", ztmp)) {
         zend::String str_v(ztmp);

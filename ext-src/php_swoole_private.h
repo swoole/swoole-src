@@ -317,7 +317,6 @@ void php_swoole_stdext_minit(int module_number);
  * ==============================================================
  */
 void php_swoole_http_server_rinit();
-void php_swoole_websocket_server_rinit();
 void php_swoole_coroutine_rinit();
 void php_swoole_runtime_rinit();
 #ifdef SW_USE_ORACLE
@@ -330,7 +329,6 @@ void php_swoole_thread_rinit();
  * ==============================================================
  */
 void php_swoole_http_server_rshutdown();
-void php_swoole_websocket_server_rshutdown();
 void php_swoole_async_coro_rshutdown();
 void php_swoole_redis_server_rshutdown();
 void php_swoole_coroutine_rshutdown();
@@ -362,7 +360,6 @@ void php_swoole_event_exit();
  * ==============================================================
  */
 void php_swoole_runtime_mshutdown();
-void php_swoole_websocket_server_mshutdown();
 #ifdef SW_USE_PGSQL
 void php_swoole_pgsql_mshutdown();
 #endif
@@ -372,10 +369,6 @@ void php_swoole_oracle_mshutdown();
 #ifdef SW_USE_SQLITE
 void php_swoole_sqlite_mshutdown();
 #endif
-
-static sw_inline zend_bool php_swoole_websocket_frame_is_object(zval *zdata) {
-    return Z_TYPE_P(zdata) == IS_OBJECT && instanceof_function(Z_OBJCE_P(zdata), swoole_websocket_frame_ce);
-}
 
 static sw_inline size_t php_swoole_get_send_data(zval *zdata, char **str) {
     convert_to_string(zdata);
@@ -452,6 +445,10 @@ static sw_inline zend_bool ZVAL_IS_LONG(const zval *v) {
 
 static sw_inline zend_bool ZVAL_IS_STRING(const zval *v) {
     return Z_TYPE_P(v) == IS_STRING;
+}
+
+static sw_inline zend_bool ZVAL_IS_EMPTY_STRING(const zval *v) {
+	return Z_TYPE_P(v) == IS_STRING && Z_STRLEN_P(v) == 0;
 }
 
 static sw_inline zend_bool Z_BVAL_P(const zval *v) {

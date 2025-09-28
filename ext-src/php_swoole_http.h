@@ -21,6 +21,8 @@
 #include "swoole_http.h"
 #include "swoole_http2.h"
 #include "swoole_llhttp.h"
+#include "swoole_websocket.h"
+
 #include "thirdparty/multipart_parser.h"
 
 #include <unordered_map>
@@ -74,13 +76,13 @@ enum swHttpErrorStatusCode {
 namespace swoole {
 class Server;
 class Coroutine;
+
 namespace http2 {
 class Stream;
 class Session;
 }  // namespace http2
 
 namespace http {
-
 struct Request {
     int version;
     char *path;
@@ -146,9 +148,7 @@ struct Context {
     uchar send_trailer_ : 1;
     uchar keepalive : 1;
     uchar websocket : 1;
-#ifdef SW_HAVE_ZLIB
     uchar websocket_compression : 1;
-#endif
     uchar upgrade : 1;
     uchar detached : 1;
     uchar parse_cookie : 1;
@@ -167,6 +167,9 @@ struct Context {
     std::shared_ptr<std::unordered_set<std::string>> compression_types;
     std::shared_ptr<String> zlib_buffer;
 #endif
+
+    std::shared_ptr<String> frame_buffer;
+    WebSocketSettings websocket_settings;
 
     Request request;
     Response response;
@@ -227,6 +230,7 @@ struct Context {
     bool compress(const char *data, size_t length);
 #endif
 
+    void recv_websocket_frame(zval *return_value, double timeout);
     void http2_end(zval *zdata, zval *return_value);
     void http2_write(zval *zdata, zval *return_value);
     bool http2_send_file(const char *file, uint32_t l_file, off_t offset, size_t length);

@@ -1847,7 +1847,7 @@ TEST(http_server, get_package_length) {
     // websocket
     sw_tg_buffer()->clear();
     conn.websocket_status = websocket::STATUS_HANDSHAKE;
-    ASSERT_EQ(http_server::get_package_length_size(&fake_sock), SW_WEBSOCKET_MESSAGE_HEADER_SIZE);
+    ASSERT_EQ(http_server::get_package_length_size(&fake_sock), SW_WEBSOCKET_FRAME_HEADER_SIZE);
     ASSERT_TRUE(websocket::encode(sw_tg_buffer(), SW_STRL(TEST_STR), websocket::OPCODE_TEXT, websocket::FLAG_FIN));
     pl.buf = sw_tg_buffer()->str;
     pl.buf_size = sw_tg_buffer()->length;

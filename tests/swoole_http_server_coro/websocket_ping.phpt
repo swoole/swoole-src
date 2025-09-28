@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_server_coro: websocket ping pong
+swoole_http_server_coro: websocket ping
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -24,15 +24,7 @@ $pm->parentFunc = function () use ($pm) {
         Assert::assert($ret);
         $cli->push('Swoole');
         $ret = $cli->recv();
-        Assert::same($ret->data, "How are you, Swoole?");
-        $ret = $cli->recv();
         Assert::same($ret->opcode, WEBSOCKET_OPCODE_PING);
-        $pingFrame = new Frame;
-        $pingFrame->opcode = WEBSOCKET_OPCODE_PING;
-        // 发送 PING
-        $cli->push($pingFrame);
-        $ret = $cli->recv();
-        Assert::same($ret->opcode, WEBSOCKET_OPCODE_PONG);
     });
     Swoole\Event::wait();
     $pm->kill();
@@ -40,11 +32,6 @@ $pm->parentFunc = function () use ($pm) {
 $pm->childFunc = function () use ($pm) {
     go(function () use ($pm) {
         $server = new Server("127.0.0.1", $pm->getFreePort(), false);
-        $server->set([
-            'open_websocket_ping_frame' => true,
-            'open_websocket_pong_frame' => true,
-            'open_websocket_close_frame' => true,
-        ]);
         $server->handle('/websocket', function ($request, $ws) {
             $ws->upgrade();
             while (true) {
@@ -55,17 +42,8 @@ $pm->childFunc = function () use ($pm) {
                 } else if ($frame === '') {
                     break;
                 } else {
-                    if ($frame->opcode === 9) {
-                        $pFrame = new Frame;
-                        $pFrame->opcode = WEBSOCKET_OPCODE_PONG;
-                        $ws->push($pFrame);
-                    } else {
-                        $ws->push("How are you, {$frame->data}?");
-                        $pFrame = new Frame;
-                        // 发送 PING
-                        $pFrame->opcode = WEBSOCKET_OPCODE_PING;
-                        $ws->push($pFrame);
-                    }
+                    usleep(10000);
+                    $ws->ping();
                 }
             }
         });

@@ -166,24 +166,6 @@ SW_API zend_string *php_swoole_serialize(zval *zdata);
 SW_API bool php_swoole_unserialize(zend_string *data, zval *zv);
 
 #ifdef SW_HAVE_ZLIB
-#define php_swoole_websocket_frame_pack php_swoole_websocket_frame_pack_ex
-#define php_swoole_websocket_frame_object_pack php_swoole_websocket_frame_object_pack_ex
-#else
-#define php_swoole_websocket_frame_pack(buffer, zdata, opcode, flags, mask, allow_compress)                            \
-    php_swoole_websocket_frame_pack_ex(buffer, zdata, opcode, flags, mask, 0)
-#define php_swoole_websocket_frame_object_pack(buffer, zdata, mask, allow_compress)                                    \
-    php_swoole_websocket_frame_object_pack_ex(buffer, zdata, mask, 0)
-#endif
-int php_swoole_websocket_frame_pack_ex(
-    swoole::String *buffer, zval *zdata, zend_long opcode, uint8_t flags, zend_bool mask, zend_bool allow_compress);
-int php_swoole_websocket_frame_object_pack_ex(swoole::String *buffer,
-                                              zval *zdata,
-                                              zend_bool mask,
-                                              zend_bool allow_compress);
-void php_swoole_websocket_frame_unpack(swoole::String *data, zval *zframe);
-void php_swoole_websocket_frame_unpack_ex(swoole::String *data, zval *zframe, uchar allow_uncompress);
-
-#ifdef SW_HAVE_ZLIB
 int php_swoole_zlib_decompress(z_stream *stream, swoole::String *buffer, char *body, int length);
 #endif
 
