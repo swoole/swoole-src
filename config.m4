@@ -222,7 +222,6 @@ AC_DEFUN([AC_SWOOLE_HAVE_FUTEX],
 [
     AC_MSG_CHECKING([for futex])
     AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
-        #include <linux/futex.h>
         #include <syscall.h>
         #include <unistd.h>
     ]], [[
@@ -1059,8 +1058,19 @@ EOF
         PKG_CHECK_MODULES([URING], [liburing >= 2.0])
 
         AC_SWOOLE_HAVE_IOURING_STATX
-        AC_SWOOLE_HAVE_IOURING_FUTEX
-        AC_SWOOLE_HAVE_IOURING_FTRUNCATE
+        
+        KERNEL_MAJOR=`uname -r | awk -F '.' '{print $1}'`
+        KERNEL_MINOR=`uname -r | awk -F '.' '{print $2}'`
+
+        if (test $KERNEL_MAJOR -eq 6 && test $KERNEL_MINOR -ge 9); then
+            dnl IORING_OP_FTRUNCATE is available since 6.9
+            AC_SWOOLE_HAVE_IOURING_FTRUNCATE
+        fi
+        
+        if (test $KERNEL_MAJOR -eq 6 && test $KERNEL_MINOR -ge 7); then
+            dnl IORING_OP_FUTEX_WAKE/IORING_OP_FUTEX_WAIT is available since 6.7
+            AC_SWOOLE_HAVE_IOURING_FUTEX
+        fi
 
         PHP_EVAL_LIBLINE($URING_LIBS, SWOOLE_SHARED_LIBADD)
         PHP_EVAL_INCLINE($URING_CFLAGS)
