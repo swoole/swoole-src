@@ -88,8 +88,12 @@ class RWLock final : public Lock {
     int unlock() override;
     int trylock_rd() override;
     int trylock() override;
+#ifdef HAVE_RWLOCK_TIMEDWRLOCK
     int lock_wait(int timeout_msec);
+#endif
+#ifdef HAVE_RWLOCK_TIMEDRDLOCK
     int lock_rd_wait(int timeout_msec);
+#endif
 };
 #endif
 

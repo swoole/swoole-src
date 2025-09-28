@@ -18,6 +18,8 @@
 #include "swoole_memory.h"
 #include "swoole_lock.h"
 
+#include <sys/file.h>
+
 BEGIN_EXTERN_C()
 #include "stubs/php_swoole_lock_arginfo.h"
 END_EXTERN_C()
@@ -170,8 +172,9 @@ static PHP_METHOD(swoole_lock, lock) {
 
 static PHP_METHOD(swoole_lock, lockwait) {
     double timeout = 1.0;
-    // 0: write lock, 1: read lock(only for rwlock)
-    zend_long kind = 0;
+    // LOCK_EX: write lock(default)
+    // LOCK_SH: read lock(only for rwlock)
+    zend_long kind = LOCK_EX;
 
     ZEND_PARSE_PARAMETERS_START(0, 2)
     Z_PARAM_OPTIONAL
@@ -181,11 +184,11 @@ static PHP_METHOD(swoole_lock, lockwait) {
 
     Lock *lock = php_swoole_lock_get_and_check_ptr(ZEND_THIS);
     if (!(lock->get_type() == Lock::MUTEX
-#ifdef HAVE_RWLOCK
-    || lock->get_type() == Lock::RW_LOCK
+#if defined(HAVE_RWLOCK_TIMEDRDLOCK) && defined(HAVE_RWLOCK_TIMEDWRLOCK)
+          || lock->get_type() == Lock::RW_LOCK
 #endif
-    )) {
-#ifdef HAVE_RWLOCK
+          )) {
+#if defined(HAVE_RWLOCK_TIMEDRDLOCK) && defined(HAVE_RWLOCK_TIMEDWRLOCK)
         zend_throw_exception(swoole_exception_ce, "only mutex and rwlock supports lockwait", -2);
 #else
         zend_throw_exception(swoole_exception_ce, "only mutex supports lockwait", -2);
@@ -193,17 +196,18 @@ static PHP_METHOD(swoole_lock, lockwait) {
 
         RETURN_FALSE;
     }
-#ifdef HAVE_RWLOCK
+    int timeout_msec = (int) (timeout * 1000);
+#if defined(HAVE_RWLOCK_TIMEDRDLOCK) && defined(HAVE_RWLOCK_TIMEDWRLOCK)
     if (lock->get_type() == Lock::RW_LOCK) {
         RWLock *rwlock = dynamic_cast<RWLock *>(lock);
         if (rwlock == nullptr) {
             zend_throw_exception(swoole_exception_ce, "wrong lock type", -3);
             RETURN_FALSE;
         }
-        if (kind == 1) {
-            SW_LOCK_CHECK_RETURN(rwlock->lock_rd_wait((int) (timeout * 1000)));
+        if (kind == LOCK_SH) {
+            SW_LOCK_CHECK_RETURN(rwlock->lock_rd_wait(timeout_msec));
         }
-        SW_LOCK_CHECK_RETURN(rwlock->lock_wait((int) (timeout * 1000)));
+        SW_LOCK_CHECK_RETURN(rwlock->lock_wait(timeout_msec));
     }
 #endif
     Mutex *mutex = dynamic_cast<Mutex *>(lock);
@@ -211,7 +215,7 @@ static PHP_METHOD(swoole_lock, lockwait) {
         zend_throw_exception(swoole_exception_ce, "wrong lock type", -3);
         RETURN_FALSE;
     }
-    SW_LOCK_CHECK_RETURN(mutex->lock_wait((int) (timeout * 1000)));
+    SW_LOCK_CHECK_RETURN(mutex->lock_wait(timeout_msec));
 }
 
 static PHP_METHOD(swoole_lock, unlock) {
