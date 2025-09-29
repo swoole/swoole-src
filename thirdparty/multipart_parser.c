@@ -127,9 +127,9 @@ int multipart_parser_error_msg(multipart_parser *p, char *buf, size_t len) {
     case MPPE_PAUSED:
         return snprintf(buf, len, "parser paused");
     case MPPE_UNKNOWN:
+        return snprintf(buf, len, "parser unknown");
     default:
-        abort();
-        return 0;
+        return snprintf(buf, len, "parser abort");
     case MPPE_BOUNDARY_END_NO_CRLF:
         ret = snprintf(buf, len, "no CRLF at first boundary end: ");
         break;

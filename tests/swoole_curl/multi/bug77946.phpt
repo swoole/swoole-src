@@ -33,9 +33,9 @@ run(function () {
         $status = curl_multi_exec($mh, $active);
         $info = curl_multi_info_read($mh);
         if (false !== $info) {
-            var_dump($info['result']);
-            var_dump(curl_errno($info['handle']));
-            var_dump(curl_error($info['handle']));
+            Assert::eq($info['result'], 1);
+            Assert::eq(curl_errno($info['handle']), CURLE_UNSUPPORTED_PROTOCOL);
+            Assert::contains(curl_error($info['handle']), 'Protocol "unknown" not supported');
         }
     } while ($status === CURLM_CALL_MULTI_PERFORM || $active);
 
@@ -46,7 +46,5 @@ run(function () {
     curl_multi_close($mh);
 });
 ?>
---EXPECTF--
-int(1)
-int(1)
-string(%d) "Protocol %Sunknown%S not supported or disabled in libcurl"
+--EXPECT--
+

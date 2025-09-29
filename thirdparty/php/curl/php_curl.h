@@ -19,7 +19,7 @@
 
 /* Copied from PHP-7.4.11 */
 
-#ifdef SW_USE_CURL
+#if defined(SW_USE_CURL) && PHP_VERSION_ID < 80400
 
 #ifndef _PHP_CURL_H
 #define _PHP_CURL_H

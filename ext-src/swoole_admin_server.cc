@@ -50,10 +50,10 @@ static std::string handle_get_all_unix_sockets(Server *_server, const std::strin
     uint32_t worker_num;
 
     if (_type == "event") {
-        workers = _server->gs->event_workers.workers;
+        workers = _server->get_event_worker_pool()->workers;
         worker_num = _server->worker_num;
     } else {
-        workers = _server->gs->task_workers.workers;
+        workers = _server->get_task_worker_pool()->workers;
         worker_num = _server->task_worker_num;
     }
 
@@ -66,7 +66,7 @@ static std::string handle_get_all_unix_sockets(Server *_server, const std::strin
             {"events", master_socket->events},
             {"total_recv_bytes", master_socket->total_recv_bytes},
             {"total_send_bytes", master_socket->total_send_bytes},
-            {"out_buffer_size", master_socket->out_buffer ? master_socket->out_buffer->length() : 0},
+            {"out_buffer_size", master_socket->get_out_buffer_length()},
         });
         sockets.push_back(master_socket_info);
 
@@ -76,7 +76,7 @@ static std::string handle_get_all_unix_sockets(Server *_server, const std::strin
             {"events", worker_socket->events},
             {"total_recv_bytes", worker_socket->total_recv_bytes},
             {"total_send_bytes", worker_socket->total_send_bytes},
-            {"out_buffer_size", worker_socket->out_buffer ? worker_socket->out_buffer->length() : 0},
+            {"out_buffer_size", worker_socket->get_out_buffer_length()},
         });
         sockets.push_back(worker_socket_info);
     }
@@ -99,7 +99,6 @@ static std::string handle_get_all_sockets(Server *, const std::string &msg) {
 
     json sockets = json::array();
     sw_reactor()->foreach_socket([&sockets](int fd, network::Socket *socket) {
-        network::Address addr{};
         if (socket->socket_type > SW_SOCK_UNIX_DGRAM || socket->socket_type < SW_SOCK_TCP) {
 #ifdef SO_DOMAIN
             struct stat fdstat;
@@ -116,25 +115,22 @@ static std::string handle_get_all_sockets(Server *, const std::string &msg) {
                 if (socket->get_option(SOL_SOCKET, SO_TYPE, &type) < 0) {
                     return;
                 }
-                addr.type = network::Socket::convert_to_type(domain, type);
-                socket->get_name(&addr);
+                socket->get_name();
             }
 #else
             return;
 #endif
-        } else {
-            addr = socket->info;
         }
         json info = json::object({
-            {"fd", socket->fd},
-            {"address", addr.get_ip()},
-            {"port", addr.get_port()},
+            {"fd", socket->get_fd()},
+            {"address", socket->get_addr()},
+            {"port", socket->get_port()},
             {"events", socket->events},
             {"socket_type", socket->socket_type},
             {"fd_type", socket->fd_type},
             {"total_recv_bytes", socket->total_recv_bytes},
             {"total_send_bytes", socket->total_send_bytes},
-            {"out_buffer_size", socket->out_buffer ? socket->out_buffer->length() : 0},
+            {"out_buffer_size", socket->get_out_buffer_length()},
         });
         sockets.push_back(info);
     });
@@ -165,7 +161,7 @@ static std::string handle_get_all_commands(Server *serv, const std::string &msg)
 
 #ifdef TCP_INFO
 static json get_socket_info(int fd) {
-    struct tcp_info info;
+    tcp_info info;
     socklen_t len = sizeof(info);
     if (getsockopt(fd, IPPROTO_TCP, TCP_INFO, &info, &len) < 0) {
         json return_value{
@@ -174,124 +170,12 @@ static json get_socket_info(int fd) {
         };
         return return_value.dump();
     }
-#if defined(__FreeBSD__) || defined(__NetBSD__)
-    json jinfo{
-        {"state", info.tcpi_state},
-        {"ca_state", info.__tcpi_ca_state},
-        {"retransmits", info.__tcpi_retransmits},
-        {"probes", info.__tcpi_probes},
-        {"backoff", info.__tcpi_backoff},
-        {"options", info.tcpi_options},
-        {"snd_wscale", uint8_t(info.tcpi_snd_wscale)},
-        {"rcv_wscale", uint8_t(info.tcpi_rcv_wscale)},
-        {"rto", info.tcpi_rto},
-        {"ato", info.__tcpi_ato},
-        {"snd_mss", info.tcpi_snd_mss},
-        {"rcv_mss", info.tcpi_rcv_mss},
-        {"unacked", info.__tcpi_unacked},
-        {"sacked", info.__tcpi_sacked},
-        {"lost", info.__tcpi_lost},
-        {"retrans", info.__tcpi_retrans},
-        {"fackets", info.__tcpi_fackets},
-        {"last_data_sent", info.__tcpi_last_data_sent},
-        {"last_ack_sent", info.__tcpi_last_ack_sent},
-        {"last_data_recv", info.tcpi_last_data_recv},
-        {"last_ack_recv", info.__tcpi_last_ack_recv},
-        {"pmtu", info.__tcpi_pmtu},
-        {"rcv_ssthresh", info.__tcpi_rcv_ssthresh},
-        {"rtt", info.tcpi_rtt},
-        {"rttvar", info.tcpi_rttvar},
-        {"snd_ssthresh", info.tcpi_snd_ssthresh},
-        {"snd_cwnd", info.tcpi_snd_cwnd},
-        {"advmss", info.__tcpi_advmss},
-        {"reordering", info.__tcpi_reordering},
-        {"rcv_rtt", info.__tcpi_rcv_rtt},
-        {"rcv_space", info.tcpi_rcv_space},
-        {"snd_wnd", info.tcpi_snd_wnd},
-        {"snd_nxt", info.tcpi_snd_nxt},
-        {"rcv_nxt", info.tcpi_rcv_nxt},
-        {"toe_tid", info.tcpi_toe_tid},
-        {"total_retrans", info.tcpi_snd_rexmitpack},
-        {"rcv_ooopack", info.tcpi_rcv_ooopack},
-        {"snd_zerowin", info.tcpi_snd_zerowin},
-    };
-#elif defined(__OpenBSD__)
-    json jinfo{
-        {"state", info.tcpi_state},
-        {"ca_state", info.__tcpi_ca_state},
-        {"retransmits", info.__tcpi_retransmits},
-        {"probes", info.__tcpi_probes},
-        {"backoff", info.__tcpi_backoff},
-        {"options", info.tcpi_options},
-        {"snd_wscale", uint8_t(info.tcpi_snd_wscale)},
-        {"rcv_wscale", uint8_t(info.tcpi_rcv_wscale)},
-        {"rto", info.tcpi_rto},
-        {"ato", info.__tcpi_ato},
-        {"snd_mss", info.tcpi_snd_mss},
-        {"rcv_mss", info.tcpi_rcv_mss},
-        {"unacked", info.__tcpi_unacked},
-        {"sacked", info.__tcpi_sacked},
-        {"lost", info.__tcpi_lost},
-        {"retrans", info.__tcpi_retrans},
-        {"fackets", info.__tcpi_fackets},
-        {"last_data_sent", info.tcpi_last_data_sent},
-        {"last_ack_sent", info.tcpi_last_ack_sent},
-        {"last_data_recv", info.tcpi_last_data_recv},
-        {"last_ack_recv", info.tcpi_last_ack_recv},
-        {"pmtu", info.__tcpi_pmtu},
-        {"rcv_ssthresh", info.__tcpi_rcv_ssthresh},
-        {"rtt", info.tcpi_rtt},
-        {"rttvar", info.tcpi_rttvar},
-        {"snd_ssthresh", info.tcpi_snd_ssthresh},
-        {"snd_cwnd", info.tcpi_snd_cwnd},
-        {"advmss", info.__tcpi_advmss},
-        {"reordering", info.__tcpi_reordering},
-        {"rcv_rtt", info.__tcpi_rcv_rtt},
-        {"rcv_space", info.tcpi_rcv_space},
-        {"snd_wnd", info.tcpi_snd_wnd},
-        {"snd_nxt", info.tcpi_snd_nxt},
-        {"rcv_nxt", info.tcpi_rcv_nxt},
-        {"toe_tid", info.tcpi_toe_tid},
-        {"total_retrans", info.tcpi_snd_rexmitpack},
-        {"rcv_ooopack", info.tcpi_rcv_ooopack},
-        {"snd_zerowin", info.tcpi_snd_zerowin},
-    };
-#else
-    json jinfo{
-        {"state", info.tcpi_state},
-        {"ca_state", info.tcpi_ca_state},
-        {"retransmits", info.tcpi_retransmits},
-        {"probes", info.tcpi_probes},
-        {"backoff", info.tcpi_backoff},
-        {"options", info.tcpi_options},
-        {"snd_wscale", uint8_t(info.tcpi_snd_wscale)},
-        {"rcv_wscale", uint8_t(info.tcpi_rcv_wscale)},
-        {"rto", info.tcpi_rto},
-        {"ato", info.tcpi_ato},
-        {"snd_mss", info.tcpi_snd_mss},
-        {"rcv_mss", info.tcpi_rcv_mss},
-        {"unacked", info.tcpi_unacked},
-        {"sacked", info.tcpi_sacked},
-        {"lost", info.tcpi_lost},
-        {"retrans", info.tcpi_retrans},
-        {"fackets", info.tcpi_fackets},
-        {"last_data_sent", info.tcpi_last_data_sent},
-        {"last_ack_sent", info.tcpi_last_ack_sent},
-        {"last_data_recv", info.tcpi_last_data_recv},
-        {"last_ack_recv", info.tcpi_last_ack_recv},
-        {"pmtu", info.tcpi_pmtu},
-        {"rcv_ssthresh", info.tcpi_rcv_ssthresh},
-        {"rtt", info.tcpi_rtt},
-        {"rttvar", info.tcpi_rttvar},
-        {"snd_ssthresh", info.tcpi_snd_ssthresh},
-        {"snd_cwnd", info.tcpi_snd_cwnd},
-        {"advmss", info.tcpi_advmss},
-        {"reordering", info.tcpi_reordering},
-        {"rcv_rtt", info.tcpi_rcv_rtt},
-        {"rcv_space", info.tcpi_rcv_space},
-        {"total_retrans", info.tcpi_total_retrans},
-    };
-#endif		// defined(__FreeBSD__) || defined(__NetBSD__)
+
+    auto info_map = sw_socket_parse_tcp_info(&info);
+    json jinfo;
+    for (const auto &iter : info_map) {
+        jinfo[iter.first] = iter.second;
+    }
     return jinfo;
 }
 #endif
@@ -303,8 +187,8 @@ static json get_connection_info(Server *serv, Connection *conn) {
         {"reactor_id", conn->reactor_id},
         {"fd", conn->fd},
         {"server_port",
-         std::string(server_socket->info.get_ip()) + ":" + std::to_string(server_socket->info.get_port())},
-        {"address", conn->info.get_ip()},
+         std::string(server_socket->info.get_addr()) + ":" + std::to_string(server_socket->info.get_port())},
+        {"address", conn->info.get_addr()},
         {"port", conn->info.get_port()},
         {"overflow", conn->overflow},
         {"connect_time", conn->connect_time},
@@ -365,7 +249,7 @@ static std::string handle_get_thread_info(Server *serv, const std::string &msg) 
 }
 
 static std::string handle_get_manager_info(Server *serv, const std::string &msg) {
-    ProcessPool *pool = (ProcessPool *) &serv->gs->event_workers;
+    ProcessPool *pool = serv->get_event_worker_pool();
     json jinfo{
         {"pid", getpid()},
         {"reload_count", pool->reload_count},
@@ -384,9 +268,7 @@ static size_t get_socket_out_buffer_total_size() {
     }
     size_t size = 0;
     for (auto &s : sw_reactor()->get_sockets()) {
-        if (s.second->out_buffer) {
-            size += s.second->out_buffer->length();
-        }
+        size += s.second->get_out_buffer_length();
     }
     return size;
 }
@@ -421,7 +303,7 @@ static std::string handle_get_connections(Server *serv, const std::string &msg) 
         if (serv->is_process_mode() && conn->reactor_id != SwooleTG.id) {
             return;
         }
-        if (serv->is_base_mode() && SwooleWG.worker && conn->reactor_id != SwooleWG.worker->id) {
+        if (serv->is_base_mode() && sw_worker() && conn->reactor_id != sw_worker()->id) {
             return;
         }
         list.push_back(get_connection_info(serv, conn));
@@ -524,6 +406,150 @@ static uint32_t object_store_count() {
     objects_store_foreach([&count](zend_object *obj) { count++; });
     return count;
 }
+
+#ifdef TCP_INFO
+// clang-format off
+std::unordered_map<std::string, uint64_t> sw_socket_parse_tcp_info(tcp_info *info) {
+#if defined(__FreeBSD__) || defined(__NetBSD__)
+    return {
+        {"state", info->tcpi_state},
+        {"ca_state", info->__tcpi_ca_state},
+        {"retransmits", info->__tcpi_retransmits},
+        {"probes", info->__tcpi_probes},
+        {"backoff", info->__tcpi_backoff},
+        {"options", info->tcpi_options},
+        {"snd_wscale", uint8_t(info->tcpi_snd_wscale)},
+        {"rcv_wscale", uint8_t(info->tcpi_rcv_wscale)},
+        {"rto", info->tcpi_rto},
+        {"ato", info->__tcpi_ato},
+        {"snd_mss", info->tcpi_snd_mss},
+        {"rcv_mss", info->tcpi_rcv_mss},
+        {"unacked", info->__tcpi_unacked},
+        {"sacked", info->__tcpi_sacked},
+        {"lost", info->__tcpi_lost},
+        {"retrans", info->__tcpi_retrans},
+        {"fackets", info->__tcpi_fackets},
+        {"last_data_sent", info->__tcpi_last_data_sent},
+        {"last_ack_sent", info->__tcpi_last_ack_sent},
+        {"last_data_recv", info->tcpi_last_data_recv},
+        {"last_ack_recv", info->__tcpi_last_ack_recv},
+        {"pmtu", info->__tcpi_pmtu},
+        {"rcv_ssthresh", info->__tcpi_rcv_ssthresh},
+        {"rtt", info->tcpi_rtt},
+        {"rttvar", info->tcpi_rttvar},
+        {"snd_ssthresh", info->tcpi_snd_ssthresh},
+        {"snd_cwnd", info->tcpi_snd_cwnd},
+        {"advmss", info->__tcpi_advmss},
+        {"reordering", info->__tcpi_reordering},
+        {"rcv_rtt", info->__tcpi_rcv_rtt},
+        {"rcv_space", info->tcpi_rcv_space},
+        {"snd_wnd", info->tcpi_snd_wnd},
+        {"snd_nxt", info->tcpi_snd_nxt},
+        {"rcv_nxt", info->tcpi_rcv_nxt},
+        {"toe_tid", info->tcpi_toe_tid},
+        {"total_retrans", info->tcpi_snd_rexmitpack},
+        {"rcv_ooopack", info->tcpi_rcv_ooopack},
+        {"snd_zerowin", info->tcpi_snd_zerowin},
+    };
+#elif defined(__OpenBSD__)
+    return {
+        {"state", info->tcpi_state},
+        {"ca_state", info->__tcpi_ca_state},
+        {"retransmits", info->__tcpi_retransmits},
+        {"probes", info->__tcpi_probes},
+        {"backoff", info->__tcpi_backoff},
+        {"options", info->tcpi_options},
+        {"snd_wscale", uint8_t(info->tcpi_snd_wscale)},
+        {"rcv_wscale", uint8_t(info->tcpi_rcv_wscale)},
+        {"rto", info->tcpi_rto},
+        {"ato", info->__tcpi_ato},
+        {"snd_mss", info->tcpi_snd_mss},
+        {"rcv_mss", info->tcpi_rcv_mss},
+        {"unacked", info->__tcpi_unacked},
+        {"sacked", info->__tcpi_sacked},
+        {"lost", info->__tcpi_lost},
+        {"retrans", info->__tcpi_retrans},
+        {"fackets", info->__tcpi_fackets},
+        {"last_data_sent", info->tcpi_last_data_sent},
+        {"last_ack_sent", info->tcpi_last_ack_sent},
+        {"last_data_recv", info->tcpi_last_data_recv},
+        {"last_ack_recv", info->tcpi_last_ack_recv},
+        {"pmtu", info->__tcpi_pmtu},
+        {"rcv_ssthresh", info->__tcpi_rcv_ssthresh},
+        {"rtt", info->tcpi_rtt},
+        {"rttvar", info->tcpi_rttvar},
+        {"snd_ssthresh", info->tcpi_snd_ssthresh},
+        {"snd_cwnd", info->tcpi_snd_cwnd},
+        {"advmss", info->__tcpi_advmss},
+        {"reordering", info->__tcpi_reordering},
+        {"rcv_rtt", info->__tcpi_rcv_rtt},
+        {"rcv_space", info->tcpi_rcv_space},
+        {"snd_wnd", info->tcpi_snd_wnd},
+        {"snd_nxt", info->tcpi_snd_nxt},
+        {"rcv_nxt", info->tcpi_rcv_nxt},
+        {"toe_tid", info->tcpi_toe_tid},
+        {"total_retrans", info->tcpi_snd_rexmitpack},
+        {"rcv_ooopack", info->tcpi_rcv_ooopack},
+        {"snd_zerowin", info->tcpi_snd_zerowin},
+    };
+#elif defined(__linux__)
+    return {
+        {"state", info->tcpi_state},
+        {"ca_state", info->tcpi_ca_state},
+        {"retransmits", info->tcpi_retransmits},
+        {"probes", info->tcpi_probes},
+        {"backoff", info->tcpi_backoff},
+        {"options", info->tcpi_options},
+        {"snd_wscale", uint8_t(info->tcpi_snd_wscale)},
+        {"rcv_wscale", uint8_t(info->tcpi_rcv_wscale)},
+        {"rto", info->tcpi_rto},
+        {"ato", info->tcpi_ato},
+        {"snd_mss", info->tcpi_snd_mss},
+        {"rcv_mss", info->tcpi_rcv_mss},
+        {"unacked", info->tcpi_unacked},
+        {"sacked", info->tcpi_sacked},
+        {"lost", info->tcpi_lost},
+        {"retrans", info->tcpi_retrans},
+        {"fackets", info->tcpi_fackets},
+        {"last_data_sent", info->tcpi_last_data_sent},
+        {"last_ack_sent", info->tcpi_last_ack_sent},
+        {"last_data_recv", info->tcpi_last_data_recv},
+        {"last_ack_recv", info->tcpi_last_ack_recv},
+        {"pmtu", info->tcpi_pmtu},
+        {"rcv_ssthresh", info->tcpi_rcv_ssthresh},
+        {"rtt", info->tcpi_rtt},
+        {"rttvar", info->tcpi_rttvar},
+        {"snd_ssthresh", info->tcpi_snd_ssthresh},
+        {"snd_cwnd", info->tcpi_snd_cwnd},
+        {"advmss", info->tcpi_advmss},
+        {"reordering", info->tcpi_reordering},
+        {"rcv_rtt", info->tcpi_rcv_rtt},
+        {"rcv_space", info->tcpi_rcv_space},
+        {"total_retrans", info->tcpi_total_retrans},
+    };
+#elif defined(__APPLE__)
+    return {
+        {"state", (uint32_t) info->tcpi_state},
+        {"snd_wscale", (uint32_t) info->tcpi_snd_wscale},
+        {"rcv_wscale", (uint32_t) info->tcpi_rcv_wscale},
+        {"options", (uint32_t) info->tcpi_options},
+        {"flags", (uint32_t) info->tcpi_flags},
+        {"rto", info->tcpi_rto},
+        {"maxseg", info->tcpi_maxseg},
+        {"snd_ssthresh", info->tcpi_snd_ssthresh},
+        {"snd_cwnd", info->tcpi_snd_cwnd},
+        {"snd_wnd", info->tcpi_snd_wnd},
+        {"snd_sbbytes", info->tcpi_snd_sbbytes},
+        {"rcv_wnd", info->tcpi_rcv_wnd},
+        {"srtt", info->tcpi_srtt},
+        {"rttvar", info->tcpi_rttvar},
+    };
+#else
+    return {};
+#endif
+}
+// clang-format on
+#endif
 
 ZEND_FUNCTION(swoole_get_vm_status) {
     array_init(return_value);

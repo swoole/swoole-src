@@ -26,7 +26,7 @@ TEST(heap, random) {
         _map[i] = pri;
 
         if (0 == i) {
-            pq.print(); // print once
+            pq.print();  // print once
         }
     }
 

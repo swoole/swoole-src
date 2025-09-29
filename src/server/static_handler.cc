@@ -20,9 +20,9 @@
 #include <string>
 #include <dirent.h>
 #include <algorithm>
+#include <sstream>
 
 namespace swoole {
-
 namespace http_server {
 bool StaticHandler::is_modified(const std::string &date_if_modified_since) {
     char date_tmp[64];
@@ -45,7 +45,7 @@ bool StaticHandler::is_modified(const std::string &date_if_modified_since) {
     } else if (strptime(date_tmp, SW_HTTP_ASCTIME_DATE, &tm3) != nullptr) {
         date_format = SW_HTTP_ASCTIME_DATE;
     }
-    return date_format && mktime(&tm3) - (int) serv->timezone_ >= get_file_mtime();
+    return date_format && mktime(&tm3) - (time_t) serv->timezone_ >= get_file_mtime();
 }
 
 bool StaticHandler::is_modified_range(const std::string &date_range) {
@@ -53,8 +53,7 @@ bool StaticHandler::is_modified_range(const std::string &date_range) {
         return false;
     }
 
-    struct tm tm3 {};
-
+    tm tm3{};
     const char *date_format = nullptr;
 
     if (strptime(date_range.c_str(), SW_HTTP_RFC1123_DATE_GMT, &tm3) != nullptr) {
@@ -67,24 +66,34 @@ bool StaticHandler::is_modified_range(const std::string &date_range) {
         date_format = SW_HTTP_ASCTIME_DATE;
     }
     time_t file_mtime = get_file_mtime();
-    struct tm *tm_file_mtime = gmtime(&file_mtime);
+    tm *tm_file_mtime = gmtime(&file_mtime);
     return date_format && mktime(&tm3) != mktime(tm_file_mtime);
 }
 
 std::string StaticHandler::get_date() {
     char date_[64];
     time_t now = ::time(nullptr);
-    struct tm *tm1 = gmtime(&now);
+    tm *tm1 = gmtime(&now);
     strftime(date_, sizeof(date_), "%a, %d %b %Y %H:%M:%S %Z", tm1);
-    return std::string(date_);
+    return date_;
 }
 
 std::string StaticHandler::get_date_last_modified() {
     char date_last_modified[64];
     time_t file_mtime = get_file_mtime();
-    struct tm *tm2 = gmtime(&file_mtime);
+    tm *tm2 = gmtime(&file_mtime);
     strftime(date_last_modified, sizeof(date_last_modified), "%a, %d %b %Y %H:%M:%S %Z", tm2);
-    return std::string(date_last_modified);
+    return date_last_modified;
+}
+
+bool StaticHandler::get_absolute_path() {
+    char abs_path[PATH_MAX];
+    if (!realpath(filename, abs_path)) {
+        return false;
+    }
+    strncpy(filename, abs_path, sizeof(abs_path));
+    l_filename = strlen(filename);
+    return true;
 }
 
 bool StaticHandler::hit() {
@@ -95,20 +104,21 @@ bool StaticHandler::hit() {
      * discard the url parameter
      * [/test.jpg?version=1#position] -> [/test.jpg]
      */
-    char *params = (char *) memchr(url, '?', url_length);
+    auto params = (char *) memchr(url, '?', url_length);
     if (params == nullptr) {
         params = (char *) memchr(url, '#', url_length);
     }
     size_t n = params ? params - url : url_length;
 
     const std::string &document_root = serv->get_document_root();
+    const size_t l_document_root = document_root.length();
 
-    memcpy(p, document_root.c_str(), document_root.length());
-    p += document_root.length();
+    memcpy(p, document_root.c_str(), l_document_root);
+    p += l_document_root;
 
-    if (serv->locations->size() > 0) {
-        for (auto i = serv->locations->begin(); i != serv->locations->end(); i++) {
-            if (swoole_str_istarts_with(url, url_length, i->c_str(), i->size())) {
+    if (!serv->locations->empty()) {
+        for (const auto &i : *serv->locations) {
+            if (swoole_str_istarts_with(url, url_length, i.c_str(), i.size())) {
                 last = true;
             }
         }
@@ -117,65 +127,42 @@ bool StaticHandler::hit() {
         }
     }
 
-    if (document_root.length() + n >= PATH_MAX) {
-        return false;
+    if (l_document_root + n >= PATH_MAX) {
+        return catch_error();
     }
 
     memcpy(p, url, n);
     p += n;
     *p = '\0';
-    if (dir_path != "") {
+    if (!dir_path.empty()) {
         dir_path.clear();
     }
     dir_path = std::string(url, n);
 
-    l_filename = http_server::url_decode(filename, p - filename);
+    l_filename = url_decode(filename, p - filename);
     filename[l_filename] = '\0';
 
-    if (swoole_strnpos(url, n, SW_STRL("..")) == -1) {
-        goto _detect_mime_type;
-    }
-
-    char real_path[PATH_MAX];
-    if (!realpath(filename, real_path)) {
-        if (last) {
-            status_code = SW_HTTP_NOT_FOUND;
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-    if (real_path[document_root.length()] != '/') {
-        return false;
-    }
-
-    if (swoole_streq(real_path, strlen(real_path), document_root.c_str(), document_root.length()) != 0) {
-        return false;
-    }
-
-// non-static file
-_detect_mime_type:
-// file does not exist
-check_stat:
+    // The file does not exist
     if (lstat(filename, &file_stat) < 0) {
-        if (last) {
-            status_code = SW_HTTP_NOT_FOUND;
-            return true;
-        } else {
-            return false;
-        }
+        return catch_error();
     }
 
-    if (S_ISLNK(file_stat.st_mode)) {
-        char buf[PATH_MAX];
-        ssize_t byte = ::readlink(filename, buf, sizeof(buf) - 1);
-        if (byte <= 0) {
-            return false;
+    // The filename is relative path, allows for the resolution of symbolic links.
+    // This path is formed by concatenating the document root and that is permitted for access.
+    if (is_absolute_path()) {
+        if (is_link()) {
+            // Use the realpath function to resolve a symbolic link to its actual path.
+            if (!get_absolute_path()) {
+                return catch_error();
+            }
+            if (lstat(filename, &file_stat) < 0) {
+                return catch_error();
+            }
         }
-        buf[byte] = 0;
-        swoole_strlcpy(filename, buf, sizeof(filename));
-        goto check_stat;
+    } else {
+        if (!get_absolute_path() || !is_located_in_document_root()) {
+            return catch_error();
+        }
     }
 
     if (serv->http_index_files && !serv->http_index_files->empty() && is_dir()) {
@@ -186,11 +173,11 @@ check_stat:
         return true;
     }
 
-    if (!swoole::mime_type::exists(filename) && !last) {
+    if (!mime_type::exists(filename) && !last) {
         return false;
     }
 
-    if (!S_ISREG(file_stat.st_mode)) {
+    if (!is_file()) {
         return false;
     }
 
@@ -231,15 +218,15 @@ size_t StaticHandler::make_index_page(String *buffer) {
                         dir_path.c_str(),
                         dir_path.c_str());
 
-    for (auto iter = dir_files.begin(); iter != dir_files.end(); iter++) {
-        if (*iter == "." || (dir_path == "/" && *iter == "..")) {
+    for (const auto &dir_file : dir_files) {
+        if (dir_file == "." || (dir_path == "/" && dir_file == "..")) {
             continue;
         }
         buffer->format_impl(String::FORMAT_APPEND | String::FORMAT_GROW,
                             "\t\t<li><a href=%s%s>%s</a></li>\n",
                             dir_path.c_str(),
-                            (*iter).c_str(),
-                            (*iter).c_str());
+                            dir_file.c_str(),
+                            dir_file.c_str());
     }
 
     buffer->append(SW_STRL("\t</ul>\n" SW_HTTP_POWER_BY "</body>\n</html>\n"));
@@ -271,23 +258,23 @@ bool StaticHandler::get_dir_files() {
     return true;
 }
 
-bool StaticHandler::set_filename(const std::string &filename) {
-    char *p = this->filename + l_filename;
+bool StaticHandler::set_filename(const std::string &_filename) {
+    char *p = filename + l_filename;
 
     if (*p != '/') {
         *p = '/';
         p += 1;
     }
 
-    memcpy(p, filename.c_str(), filename.length());
-    p += filename.length();
+    memcpy(p, _filename.c_str(), _filename.length());
+    p += _filename.length();
     *p = 0;
 
-    if (lstat(this->filename, &file_stat) < 0) {
+    if (lstat(filename, &file_stat) < 0) {
         return false;
     }
 
-    if (!S_ISREG(file_stat.st_mode)) {
+    if (!is_file()) {
         return false;
     }
 
@@ -327,7 +314,7 @@ void StaticHandler::parse_range(const char *range, const char *if_range) {
                 }
 
                 while (*p >= '0' && *p <= '9') {
-                    if (start >= cutoff && (start > cutoff || (size_t)(*p - '0') > cutlim)) {
+                    if (start >= cutoff && (start > cutoff || (size_t) (*p - '0') > cutlim)) {
                         status_code = SW_HTTP_RANGE_NOT_SATISFIABLE;
                         return;
                     }
@@ -364,7 +351,7 @@ void StaticHandler::parse_range(const char *range, const char *if_range) {
             }
 
             while (*p >= '0' && *p <= '9') {
-                if (end >= cutoff && (end > cutoff || (size_t)(*p - '0') > cutlim)) {
+                if (end >= cutoff && (end > cutoff || (size_t) (*p - '0') > cutlim)) {
                     status_code = SW_HTTP_RANGE_NOT_SATISFIABLE;
                     return;
                 }
@@ -408,9 +395,9 @@ void StaticHandler::parse_range(const char *range, const char *if_range) {
                                               "Content-Type: %s\r\n"
                                               "Content-Range: bytes %zu-%zu/%zu\r\n\r\n",
                                               tasks.empty() ? "" : "\r\n",
-                                              get_boundary(),
-                                              get_mimetype(),
-                                              _task.offset,
+                                              get_boundary().c_str(),
+                                              get_mimetype().c_str(),
+                                              (size_t) _task.offset,
                                               end - 1,
                                               get_filesize()) +
                                   _task.length;
@@ -465,5 +452,185 @@ void Server::add_static_handler_index_files(const std::string &file) {
     if (iter == http_index_files->end()) {
         http_index_files->emplace_back(file);
     }
+}
+
+bool Server::select_static_handler(http_server::Request *request, Connection *conn) {
+    const char *url = request->buffer_->str + request->url_offset_;
+    size_t url_length = request->url_length_;
+
+    http_server::StaticHandler handler(this, url, url_length);
+    if (!handler.hit()) {
+        return false;
+    }
+
+    char header_buffer[1024];
+    SendData response;
+    response.info.fd = conn->session_id;
+    response.info.type = SW_SERVER_EVENT_SEND_DATA;
+
+    if (handler.status_code == SW_HTTP_NOT_FOUND) {
+        response.info.len = sw_snprintf(header_buffer,
+                                        sizeof(header_buffer),
+                                        "HTTP/1.1 %s\r\n"
+                                        "Server: " SW_HTTP_SERVER_SOFTWARE "\r\n"
+                                        "Content-Length: %zu\r\n"
+                                        "\r\n%s",
+                                        http_server::get_status_message(SW_HTTP_NOT_FOUND),
+                                        sizeof(SW_HTTP_PAGE_404) - 1,
+                                        SW_HTTP_PAGE_404);
+        response.data = header_buffer;
+        send_to_connection(&response);
+
+        return true;
+    }
+
+    auto date_str = handler.get_date();
+    auto date_str_last_modified = handler.get_date_last_modified();
+
+    std::string date_if_modified_since = request->get_header("If-Modified-Since");
+    if (!date_if_modified_since.empty() && handler.is_modified(date_if_modified_since)) {
+        response.info.len = sw_snprintf(header_buffer,
+                                        sizeof(header_buffer),
+                                        "HTTP/1.1 304 Not Modified\r\n"
+                                        "Connection: %s\r\n"
+                                        "Date: %s\r\n"
+                                        "Last-Modified: %s\r\n"
+                                        "Server: %s\r\n\r\n",
+                                        request->keep_alive ? "keep-alive" : "close",
+                                        date_str.c_str(),
+                                        date_str_last_modified.c_str(),
+                                        SW_HTTP_SERVER_SOFTWARE);
+        response.data = header_buffer;
+        send_to_connection(&response);
+
+        return true;
+    }
+
+    /**
+     * if http_index_files is enabled, need to search the index file first.
+     * if the index file is found, set filename to index filename.
+     */
+    if (!handler.hit_index_file()) {
+        return false;
+    }
+
+    /**
+     * the index file was not found in the current directory,
+     * if http_autoindex is enabled, should show the list of files in the current directory.
+     */
+    if (!handler.has_index_file() && handler.is_enabled_auto_index() && handler.is_dir()) {
+        sw_tg_buffer()->clear();
+        size_t body_length = handler.make_index_page(sw_tg_buffer());
+
+        response.info.len = sw_snprintf(header_buffer,
+                                        sizeof(header_buffer),
+                                        "HTTP/1.1 200 OK\r\n"
+                                        "Connection: %s\r\n"
+                                        "Content-Length: %ld\r\n"
+                                        "Content-Type: text/html\r\n"
+                                        "Date: %s\r\n"
+                                        "Last-Modified: %s\r\n"
+                                        "Server: %s\r\n\r\n",
+                                        request->keep_alive ? "keep-alive" : "close",
+                                        static_cast<long>(body_length),
+                                        date_str.c_str(),
+                                        date_str_last_modified.c_str(),
+                                        SW_HTTP_SERVER_SOFTWARE);
+        response.data = header_buffer;
+        send_to_connection(&response);
+
+        response.info.len = body_length;
+        response.data = sw_tg_buffer()->str;
+        send_to_connection(&response);
+        return true;
+    }
+
+    handler.parse_range(request->get_header("Range").c_str(), request->get_header("If-Range").c_str());
+    auto tasks = handler.get_tasks();
+
+    std::stringstream header_stream;
+    if (1 == tasks.size()) {
+        if (SW_HTTP_PARTIAL_CONTENT == handler.status_code) {
+            header_stream << "Content-Range: bytes " << tasks[0].offset << "-"
+                          << (tasks[0].length + tasks[0].offset - 1) << "/" << handler.get_filesize() << "\r\n";
+        } else {
+            header_stream << "Accept-Ranges: bytes\r\n";
+        }
+    }
+
+    response.info.len = sw_snprintf(
+        header_buffer,
+        sizeof(header_buffer),
+        "HTTP/1.1 %s\r\n"
+        "Connection: %s\r\n"
+        "Content-Length: %ld\r\n"
+        "Content-Type: %s\r\n"
+        "%s"
+        "Date: %s\r\n"
+        "Last-Modified: %s\r\n"
+        "Server: %s\r\n\r\n",
+        http_server::get_status_message(handler.status_code),
+        request->keep_alive ? "keep-alive" : "close",
+        SW_HTTP_HEAD == request->method ? 0 : handler.get_content_length(),
+        SW_HTTP_HEAD == request->method ? handler.get_mimetype().c_str() : handler.get_content_type().c_str(),
+        header_stream.str().c_str(),
+        date_str.c_str(),
+        date_str_last_modified.c_str(),
+        SW_HTTP_SERVER_SOFTWARE);
+
+    response.data = header_buffer;
+
+    // Use tcp_nopush to improve sending efficiency
+    conn->socket->cork();
+
+    // Send HTTP header
+    send_to_connection(&response);
+
+    // Send HTTP body
+    if (SW_HTTP_HEAD != request->method) {
+        if (!tasks.empty()) {
+            size_t task_size = sizeof(network::SendfileTask) + strlen(handler.get_filename()) + 1;
+            auto task = static_cast<network::SendfileTask *>(sw_malloc(task_size));
+            strcpy(task->filename, handler.get_filename());
+            if (tasks.size() > 1) {
+                for (const auto &i : tasks) {
+                    response.info.type = SW_SERVER_EVENT_SEND_DATA;
+                    response.info.len = strlen(i.part_header);
+                    response.data = i.part_header;
+                    send_to_connection(&response);
+
+                    task->offset = i.offset;
+                    task->length = i.length;
+                    response.info.type = SW_SERVER_EVENT_SEND_FILE;
+                    response.info.len = task_size;
+                    response.data = reinterpret_cast<char *>(task);
+                    send_to_connection(&response);
+                }
+
+                response.info.type = SW_SERVER_EVENT_SEND_DATA;
+                response.info.len = handler.get_end_part().length();
+                response.data = handler.get_end_part().c_str();
+                send_to_connection(&response);
+            } else if (tasks[0].length > 0) {
+                task->offset = tasks[0].offset;
+                task->length = tasks[0].length;
+                response.info.type = SW_SERVER_EVENT_SEND_FILE;
+                response.info.len = task_size;
+                response.data = reinterpret_cast<char *>(task);
+                send_to_connection(&response);
+            }
+            sw_free(task);
+        }
+    }
+
+    // Close the connection if keepalive is not used
+    if (!request->keep_alive) {
+        response.info.type = SW_SERVER_EVENT_CLOSE;
+        response.info.len = 0;
+        response.data = nullptr;
+        send_to_connection(&response);
+    }
+
+    return true;
 }
 }  // namespace swoole

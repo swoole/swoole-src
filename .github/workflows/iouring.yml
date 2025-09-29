@@ -1,0 +1,41 @@
+name: Linux io_uring Tests
+
+on: [push, pull_request]
+
+jobs:
+  linux:
+    if: "!contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[iouring]')"
+    strategy:
+      fail-fast: false
+      matrix:
+        php: [ '8.1', '8.2', '8.3', '8.4' ]
+        os: [ ubuntu-24.04, ubuntu-24.04-arm ]
+    name: ${{ matrix.php }}-${{ matrix.os }}-iouring
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "${{ matrix.php }}"
+          coverage: none
+      - name: Show machine information
+        run: |
+          date
+          env
+          uname -a
+          ulimit -a
+          php -v
+          php --ini
+          ls -al
+          pwd
+          echo "`git log -20 --pretty --oneline`"
+          echo "`git log -10 --stat --pretty --oneline`"
+      - name: Run Swoole test
+        run: |
+          export SWOOLE_CI_TYPE=IOURING
+          export SWOOLE_BRANCH=${GITHUB_REF##*/}
+          export SWOOLE_BUILD_DIR=$(realpath .)
+          export PHP_VERSION=${{ matrix.php }}
+          ${SWOOLE_BUILD_DIR}/scripts/route.sh
+

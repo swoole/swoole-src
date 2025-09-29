@@ -45,6 +45,5 @@ TEST(global_memory, alloc) {
     ASSERT_STREQ(ptr2, "hello, world, #2");
     ASSERT_STREQ(ptr3, "hello, world, #3");
 
-    pool->destroy();
     delete pool;
 }

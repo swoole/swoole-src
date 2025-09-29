@@ -18,8 +18,8 @@ $pm->parentFunc = function () use ($pm) {
         var_dump(strpos($cookies[0], 'path=/') !== false);
         var_dump(strpos($cookies[0], 'domain=example.com') !== false);
         var_dump(strpos($cookies[0], 'secure') !== false);
-        var_dump(strpos($cookies[0], 'httponly') !== false);
-        var_dump(strpos($cookies[0], 'samesite=None') !== false);
+        var_dump(strpos($cookies[0], 'HttpOnly') !== false);
+        var_dump(strpos($cookies[0], 'SameSite=None') !== false);
         var_dump(strpos($cookies[1], 'test=deleted; expires=Thu, 01-Jan-1970 00:00:01 GMT') !== false);
         var_dump(strpos($cookies[1], 'Max-Age=0') !== false);
     });

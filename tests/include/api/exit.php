@@ -1,18 +1,26 @@
 <?php
 declare(strict_types=1);
-$exit_status_list = [
-    'undef',
-    null,
-    true,
-    false,
-    1,
-    1.1,
-    'exit',
-    ['exit' => 'ok'],
-    (object)['exit' => 'ok'],
-    STDIN,
-    0
-];
+if (PHP_VERSION_ID>= 80400) {
+    $exit_status_list = [
+        1,
+        'exit',
+        0,
+    ];
+} else {
+    $exit_status_list = [
+        'undef',
+        null,
+        true,
+        false,
+        1,
+        1.1,
+        'exit',
+        ['exit' => 'ok'],
+        (object)['exit' => 'ok'],
+        STDIN,
+        0
+    ];
+}
 
 function route()
 {
@@ -52,7 +60,9 @@ for ($i = 0; $i < count($exit_status_list); $i++) {
         } catch (\Swoole\ExitException $e) {
             Assert::assert($e->getFlags() & SWOOLE_EXIT_IN_COROUTINE);
             $exit_status = $chan->pop();
-            $exit_status = $exit_status === 'undef' ? null : $exit_status;
+            if (PHP_VERSION_ID < 80400) {
+                $exit_status = $exit_status === 'undef' ? null : $exit_status;
+            }
             Assert::same($e->getStatus(), $exit_status);
             var_dump($e->getStatus());
             // exit coroutine

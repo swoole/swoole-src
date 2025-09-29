@@ -35,8 +35,9 @@ TEST(coroutine_base, get_init_msec) {
 
 TEST(coroutine_base, yield_resume) {
     Coroutine::set_on_yield([](void *arg) {
-        long task = *(long *) Coroutine::get_current_task();
-        ASSERT_EQ(task, Coroutine::get_current_cid());
+        auto task = static_cast<long *>(Coroutine::get_current_task());
+        ASSERT_NE(task, nullptr);
+        ASSERT_EQ(*task, Coroutine::get_current_cid());
     });
 
     Coroutine::set_on_resume([](void *arg) {
@@ -45,18 +46,19 @@ TEST(coroutine_base, yield_resume) {
     });
 
     Coroutine::set_on_close([](void *arg) {
-        long task = *(long *) Coroutine::get_current_task();
-        ASSERT_EQ(task, Coroutine::get_current_cid());
+        auto task = static_cast<long *>(Coroutine::get_current_task());
+        ASSERT_NE(task, nullptr);
+        ASSERT_EQ(*task, Coroutine::get_current_cid());
     });
 
-    long _cid;
+    long _cid, _cid2;
     long cid = Coroutine::create(
-        [](void *arg) {
-            long cid = Coroutine::get_current_cid();
-            Coroutine *co = Coroutine::get_by_cid(cid);
-            co->set_task((void *) &cid);
+        [&_cid2](void *arg) {
+            _cid2 = Coroutine::get_current_cid();
+            Coroutine *co = Coroutine::get_by_cid(_cid2);
+            co->set_task(&_cid2);
             co->yield();
-            *(long *) arg = Coroutine::get_current_cid();
+            *static_cast<long *>(arg) = Coroutine::get_current_cid();
         },
         &_cid);
 
@@ -210,6 +212,44 @@ TEST(coroutine_base, cancel) {
     });
 }
 
+TEST(coroutine_base, noncancelable) {
+    std::unordered_map<std::string, bool> flags;
+    coroutine::run([&flags](void *arg) {
+        auto cid = Coroutine::create([&flags](void *_arg) {
+            Coroutine *current = Coroutine::get_current();
+            flags["yield_1"] = true;
+            current->yield();
+            ASSERT_FALSE(current->is_canceled());
+
+            flags["yield_2"] = true;
+            current->yield_ex(-1);
+            ASSERT_TRUE(current->is_canceled());
+        });
+
+        auto co = Coroutine::get_by_cid(cid);
+
+        flags["cancel_1"] = true;
+        ASSERT_FALSE(co->cancel());
+        ASSERT_EQ(swoole_get_last_error(), SW_ERROR_CO_CANNOT_CANCEL);
+        flags["resume_1"] = true;
+        co->resume();
+
+        flags["cancel_2"] = true;
+        ASSERT_TRUE(co->cancel());
+        flags["resume_2"] = true;
+
+        flags["done"] = true;
+    });
+
+    ASSERT_TRUE(flags["yield_1"]);
+    ASSERT_TRUE(flags["yield_2"]);
+    ASSERT_TRUE(flags["cancel_1"]);
+    ASSERT_TRUE(flags["resume_1"]);
+    ASSERT_TRUE(flags["cancel_2"]);
+    ASSERT_TRUE(flags["resume_2"]);
+    ASSERT_TRUE(flags["done"]);
+}
+
 TEST(coroutine_base, timeout) {
     coroutine::run([](void *arg) {
         auto co = Coroutine::get_current_safe();
@@ -224,6 +264,7 @@ TEST(coroutine_base, gdb) {
         long cid = current->get_cid();
         ASSERT_EQ(swoole_coroutine_count(), 1);
         ASSERT_EQ(swoole_coroutine_get(cid), current);
+        ASSERT_EQ(swoole_coroutine_get(999999), nullptr);
 
         swoole_coroutine_iterator_reset();
         ASSERT_EQ(swoole_coroutine_iterator_each(), current);
@@ -233,4 +274,77 @@ TEST(coroutine_base, gdb) {
         ASSERT_EQ(swoole_coroutine_iterator_each(), current);
         Coroutine::print_list();
     });
+}
+
+TEST(coroutine_base, bailout) {
+    int status;
+
+    status = test::spawn_exec_and_wait([]() {
+        std::unordered_map<std::string, bool> flags;
+        coroutine::run([&flags](void *arg) {
+            Coroutine::create([&flags](void *_arg) {
+                Coroutine *current = Coroutine::get_current();
+                current->bailout([&flags]() { flags["exit"] = true; });
+                flags["end"] = true;
+            });
+        });
+
+        ASSERT_TRUE(flags["exit"]);
+        ASSERT_FALSE(flags["end"]);
+    });
+    ASSERT_EQ(status, 0);
+
+    status = test::spawn_exec_and_wait([]() {
+        std::unordered_map<std::string, bool> flags;
+        coroutine::run([&flags](void *arg) {
+            Coroutine *current = Coroutine::get_current();
+            current->bailout(nullptr);
+            flags["end"] = true;
+        });
+
+        ASSERT_TRUE(flags["exit"]);
+        ASSERT_FALSE(flags["end"]);
+    });
+    ASSERT_EQ(WEXITSTATUS(status), 1);
+
+    status = test::spawn_exec_and_wait([]() {
+        std::unordered_map<std::string, bool> flags;
+        coroutine::run([&flags](void *arg) {
+            Coroutine *current = Coroutine::get_current();
+            swoole_event_defer(
+                [current, &flags](void *args) {
+                    flags["bailout"] = true;
+                    current->bailout(nullptr);
+                    flags["end"] = true;
+                },
+                nullptr);
+            flags["exit"] = true;
+        });
+
+        ASSERT_TRUE(flags["exit"]);
+        ASSERT_TRUE(flags["end"]);
+    });
+    ASSERT_EQ(WEXITSTATUS(status), 0);
+}
+
+TEST(coroutine_base, undefined_behavior) {
+    int status;
+    status = test::spawn_exec_and_wait([]() { test::coroutine::run([](void *) { swoole_fork(0); }); });
+    ASSERT_EQ(1, WEXITSTATUS(status));
+
+    status = test::spawn_exec_and_wait([]() {
+        std::atomic<int> handle_count(0);
+        AsyncEvent event = {};
+        event.object = &handle_count;
+        event.callback = [](AsyncEvent *event) {};
+        event.handler = [](AsyncEvent *event) { ++(*static_cast<std::atomic<int> *>(event->object)); };
+
+        swoole_event_init(0);
+        auto ret = async::dispatch(&event);
+        ASSERT_NE(ret, nullptr);
+        swoole_fork(0);
+    });
+    ASSERT_EQ(1, WEXITSTATUS(status));
+
+    ASSERT_EQ(0, swoole_fork(SW_FORK_PRECHECK));
 }

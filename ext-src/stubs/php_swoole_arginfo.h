@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 20f9cbe81acd5771dbf8e18dd8af8952540ead91 */
+ * Stub hash: 307a0b7aeb56b4678af07d88a7e0d3e83f05f987 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_version, 0, 0, IS_STRING, 0)
 ZEND_END_ARG_INFO()
@@ -15,7 +15,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_swoole_async_dns_lookup_coro, 0,
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, type, IS_LONG, 0, "AF_INET")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_async_set, 0, 1, IS_VOID, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_async_set, 0, 1, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, settings, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
 
@@ -40,10 +40,10 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_test_kernel_coroutine, 0,
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_swoole_client_select, 0, 3, MAY_BE_FALSE|MAY_BE_LONG)
-	ZEND_ARG_TYPE_INFO(1, read_array, IS_ARRAY, 0)
-	ZEND_ARG_TYPE_INFO(1, write_array, IS_ARRAY, 0)
-	ZEND_ARG_TYPE_INFO(1, error_array, IS_ARRAY, 0)
-	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, timeout, IS_DOUBLE, 0, "0.5")
+	ZEND_ARG_TYPE_INFO(1, read, IS_ARRAY, 1)
+	ZEND_ARG_TYPE_INFO(1, write, IS_ARRAY, 1)
+	ZEND_ARG_TYPE_INFO(1, except, IS_ARRAY, 1)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, timeout, IS_DOUBLE, 1, "0.5")
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_set_process_name, 0, 1, _IS_BOOL, 0)
@@ -128,4 +128,9 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_substr_json_decode, 0, 2,
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_internal_call_user_shutdown_begin, 0, 0, _IS_BOOL, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_implicit_fn, 0, 1, IS_MIXED, 0)
+	ZEND_ARG_TYPE_INFO(0, fn, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, args, IS_MIXED, 0, "null")
 ZEND_END_ARG_INFO()

@@ -13,10 +13,11 @@ $pm->parentFunc = function ($pid) use ($pm) {
     $pid = file_get_contents(TEST_PID_FILE);
     usleep(1000);
     Swoole\Process::kill($pid, SIGPIPE);
-    usleep(1000);
+    usleep(50000);
+    $pm->kill();
+    usleep(50000);
     $log = file_get_contents(TEST_LOG_FILE);
     echo $log, "\n";
-    $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
     @unlink(TEST_LOG_FILE);

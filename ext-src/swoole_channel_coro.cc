@@ -68,7 +68,7 @@ static sw_inline ChannelObject *php_swoole_channel_coro_fetch_object(zend_object
 static sw_inline Channel *php_swoole_get_channel(zval *zobject) {
     Channel *chan = php_swoole_channel_coro_fetch_object(Z_OBJ_P(zobject))->chan;
     if (UNEXPECTED(!chan)) {
-        php_swoole_fatal_error(E_ERROR, "you must call Channel constructor first");
+        swoole_fatal_error(SW_ERROR_WRONG_OPERATION, "must call constructor first");
     }
     return chan;
 }

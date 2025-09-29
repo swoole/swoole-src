@@ -32,9 +32,13 @@ struct WaitTask {
     int status;
 };
 
+/**
+ * Wait, waitpid, and signal cannot be used in a multithreaded environment;
+ * they are only applicable to the main thread. There is no need to treat them as thread-local variables.
+ */
 static std::list<WaitTask *> wait_list;
-static std::unordered_map<int, WaitTask *> waitpid_map;
-static std::unordered_map<int, int> child_processes;
+static std::unordered_map<pid_t, WaitTask *> waitpid_map;
+static std::unordered_map<pid_t, int> child_processes;
 
 bool signal_ready = false;
 
@@ -84,41 +88,55 @@ static void signal_init() {
     }
 }
 
-pid_t System::wait(int *__stat_loc, double timeout) {
-    return System::waitpid(-1, __stat_loc, 0, timeout);
+pid_t System::wait(int *_stat_loc, double timeout) {
+    return System::waitpid(-1, _stat_loc, 0, timeout);
+}
+
+pid_t System::waitpid_safe(pid_t _pid, int *_stat_loc, int _options) {
+    if (sw_unlikely(SwooleTG.reactor == nullptr || !Coroutine::get_current() || (_options & WNOHANG))) {
+        return ::waitpid(_pid, _stat_loc, _options);
+    }
+
+    pid_t retval;
+    auto success = wait_for([_pid, &retval, _stat_loc]() -> bool {
+        retval = ::waitpid(_pid, _stat_loc, WNOHANG);
+        return retval != 0;
+    });
+
+    return success ? retval : -1;
 }
 
 /**
  * @error: errno & swoole_get_last_error()
  */
-pid_t System::waitpid(pid_t __pid, int *__stat_loc, int __options, double timeout) {
-    if (__pid < 0) {
+pid_t System::waitpid(pid_t _pid, int *_stat_loc, int _options, double timeout) {
+    if (_pid < 0) {
         if (!child_processes.empty()) {
             auto i = child_processes.begin();
-            pid_t __pid = i->first;
-            *__stat_loc = i->second;
+            pid_t pid = i->first;
+            *_stat_loc = i->second;
             child_processes.erase(i);
-            return __pid;
+            return pid;
         }
     } else {
-        auto i = child_processes.find(__pid);
+        auto i = child_processes.find(_pid);
         if (i != child_processes.end()) {
-            *__stat_loc = i->second;
+            *_stat_loc = i->second;
             child_processes.erase(i);
-            return __pid;
+            return _pid;
         }
     }
 
-    if (sw_unlikely(SwooleTG.reactor == nullptr || !Coroutine::get_current() || (__options & WNOHANG))) {
-        return ::waitpid(__pid, __stat_loc, __options);
+    if (sw_unlikely(SwooleTG.reactor == nullptr || !Coroutine::get_current() || (_options & WNOHANG))) {
+        return ::waitpid(_pid, _stat_loc, _options);
     }
 
-    /* try once if failed we init the task, and we must register SIGCHLD before try waitpid, or we may lose the SIGCHLD
+    /* try once if failed to init the task, and must register SIGCHLD before try waitpid, or may lose the SIGCHLD
      */
     WaitTask task;
     signal_init();
-    task.pid = ::waitpid(__pid, __stat_loc, __options | WNOHANG);
-    if (task.pid > 0) {
+    task.pid = ::waitpid(_pid, _stat_loc, _options | WNOHANG);
+    if (task.pid != 0) {
         return task.pid;
     }
 
@@ -127,36 +145,16 @@ pid_t System::waitpid(pid_t __pid, int *__stat_loc, int __options, double timeou
     task.co = Coroutine::get_current();
 
     /* enqueue */
-    if (__pid < 0) {
+    if (_pid < 0) {
         wait_list.push_back(&task);
     } else {
-        waitpid_map[__pid] = &task;
+        waitpid_map[_pid] = &task;
     }
 
-    /* timeout controller */
-    TimerNode *timer = nullptr;
-    if (timeout > 0) {
-        timer = swoole_timer_add(
-            timeout,
-            false,
-            [](Timer *timer, TimerNode *tnode) {
-                Coroutine *co = (Coroutine *) tnode->data;
-                co->resume();
-            },
-            task.co);
-    }
-
-    Coroutine::CancelFunc cancel_fn = [timer](Coroutine *co) {
-        if (timer) {
-            swoole_timer_del(timer);
-        }
-        co->resume();
-        return true;
-    };
-    task.co->yield(&cancel_fn);
+    task.co->yield_ex(timeout);
 
     /* dequeue */
-    if (__pid < 0) {
+    if (_pid < 0) {
         if (task.pid > 0) {
             wait_list.pop_front();
         } else {
@@ -164,34 +162,45 @@ pid_t System::waitpid(pid_t __pid, int *__stat_loc, int __options, double timeou
             wait_list.remove(&task);
         }
     } else {
-        waitpid_map.erase(__pid);
+        waitpid_map.erase(_pid);
     }
 
     /* clear and assign result */
     if (task.pid > 0) {
-        if (timer) {
-            swoole_timer_del(timer);
-        }
-        *__stat_loc = task.status;
-    } else {
-        swoole_set_last_error(task.co->is_canceled() ? SW_ERROR_CO_CANCELED : ETIMEDOUT);
-        errno = swoole_get_last_error();
+        *_stat_loc = task.status;
+    } else if (task.co->is_timedout()) {
+        errno = ETIMEDOUT;
+        swoole_set_last_error(ETIMEDOUT);
     }
 
     return task.pid;
 }
 
 extern "C" {
-
 size_t swoole_coroutine_wait_count() {
     return wait_list.size() + waitpid_map.size();
 }
 
-pid_t swoole_coroutine_wait(int *__stat_loc) {
-    return System::wait(__stat_loc);
+pid_t swoole_coroutine_wait(int *_stat_loc) {
+    return System::wait(_stat_loc);
 }
 
-pid_t swoole_coroutine_waitpid(pid_t __pid, int *__stat_loc, int __options) {
-    return System::waitpid(__pid, __stat_loc, __options);
+pid_t swoole_coroutine_waitpid(pid_t _pid, int *_stat_loc, int _options) {
+    return System::waitpid(_pid, _stat_loc, _options);
 }
+}
+
+pid_t swoole_waitpid(pid_t _pid, int *_stat_loc, int _options) {
+    pid_t retval;
+    SW_LOOP {
+        retval = waitpid(_pid, _stat_loc, _options);
+        if (!(retval < 0 && errno == EINTR)) {
+            break;
+        }
+        swoole_signal_dispatch();
+        if (sw_timer()) {
+            sw_timer()->select();
+        }
+    }
+    return retval;
 }

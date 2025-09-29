@@ -32,18 +32,18 @@ namespace WebSocket = swoole::websocket;
 zend_class_entry *swoole_http_server_ce;
 zend_object_handlers swoole_http_server_handlers;
 
-static std::queue<HttpContext *> queued_http_contexts;
-static std::unordered_map<SessionId, zend::Variable> client_ips;
+static SW_THREAD_LOCAL std::queue<HttpContext *> queued_http_contexts;
+static SW_THREAD_LOCAL std::unordered_map<SessionId, zend::Variable> client_ips;
 
 static bool http_context_send_data(HttpContext *ctx, const char *data, size_t length);
 static bool http_context_sendfile(HttpContext *ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
 static bool http_context_disconnect(HttpContext *ctx);
 
-static void http_server_process_request(Server *serv, zend_fcall_info_cache *fci_cache, HttpContext *ctx) {
+static void http_server_process_request(Server *serv, zend::Callable *cb, HttpContext *ctx) {
     zval args[2];
     args[0] = *ctx->request.zobject;
     args[1] = *ctx->response.zobject;
-    if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, nullptr, serv->is_enable_coroutine()))) {
+    if (UNEXPECTED(!zend::function::call(cb, 2, args, nullptr, serv->is_enable_coroutine()))) {
         php_swoole_error(E_WARNING, "%s->onRequest handler error", ZSTR_VAL(swoole_http_server_ce->name));
 #ifdef SW_HTTP_SERVICE_UNAVAILABLE_PACKET
         ctx->send(ctx, SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET));
@@ -69,7 +69,7 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
         return php_swoole_server_onReceive(serv, req);
     }
     // websocket client
-    if (conn->websocket_status == WebSocket::STATUS_ACTIVE) {
+    if (conn->websocket_status >= WebSocket::STATUS_HANDSHAKE) {
         return swoole_websocket_onMessage(serv, req);
     }
 
@@ -94,16 +94,20 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
     zval *zrequest_object = ctx->request.zobject;
     zval *zresponse_object = ctx->response.zobject;
 
-    swoole_http_parser *parser = &ctx->parser;
-    parser->data = ctx;
-    swoole_http_parser_init(parser, PHP_HTTP_REQUEST);
+    llhttp_t *parser = &ctx->parser;
+    swoole_llhttp_parser_init(parser, HTTP_REQUEST, (void *) ctx);
 
     size_t parsed_n = ctx->parse(Z_STRVAL_P(zdata), Z_STRLEN_P(zdata));
-    if (ctx->parser.state == s_dead) {
+    if (sw_unlikely(ctx->parser.error != HPE_OK || !ctx->completed)) {
         ctx->send(ctx, SW_STRL(SW_HTTP_BAD_REQUEST_PACKET));
         ctx->close(ctx);
-        swoole_notice("request is illegal and it has been discarded, %ld bytes unprocessed",
-                      Z_STRLEN_P(zdata) - parsed_n);
+        if (ctx->parser.error != HPE_OK) {
+            swoole_notice("Invalid HTTP request discarded: %ld bytes unprocessed. Reason: %s",
+                          Z_STRLEN_P(zdata) - parsed_n,
+                          llhttp_get_error_reason(&ctx->parser));
+        } else {
+            swoole_notice("Incomplete HTTP request: parsed successfully but missing required components");
+        }
         goto _dtor_and_return;
     }
 
@@ -118,23 +122,20 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
         }
         http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_PORT), (zend_long) conn->info.get_port());
 
-        if (conn->info.type == SW_SOCK_TCP && IN_IS_ADDR_LOOPBACK(&conn->info.addr.inet_v4.sin_addr)) {
-            http_server_add_server_array(
-                ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), SW_ZSTR_KNOWN(SW_ZEND_STR_ADDR_LOOPBACK_V4));
-        } else if (conn->info.type == SW_SOCK_TCP6 && IN6_IS_ADDR_LOOPBACK(&conn->info.addr.inet_v6.sin6_addr)) {
-            http_server_add_server_array(
-                ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), SW_ZSTR_KNOWN(SW_ZEND_STR_ADDR_LOOPBACK_V6));
+        if (conn->info.is_loopback_addr()) {
+            auto key = conn->info.type == SW_SOCK_TCP6 ? SW_ZEND_STR_ADDR_LOOPBACK_V6 : SW_ZEND_STR_ADDR_LOOPBACK_V4;
+            http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), SW_ZSTR_KNOWN(key));
         } else {
             if (serv->is_base_mode() && ctx->keepalive) {
                 auto iter = client_ips.find(session_id);
                 if (iter == client_ips.end()) {
-                    auto rs = client_ips.emplace(session_id, conn->info.get_ip());
+                    auto rs = client_ips.emplace(session_id, conn->info.get_addr());
                     iter = rs.first;
                 }
                 iter->second.add_ref();
                 http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), iter->second.ptr());
             } else {
-                http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), conn->info.get_ip());
+                http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), conn->info.get_addr());
             }
         }
 
@@ -147,11 +148,11 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
 
     // begin to check and call registerd callback
     do {
-        zend_fcall_info_cache *fci_cache = nullptr;
+        zend::Callable *cb = nullptr;
 
         if (conn->websocket_status == WebSocket::STATUS_CONNECTION) {
-            fci_cache = php_swoole_server_get_fci_cache(serv, server_fd, SW_SERVER_CB_onHandshake);
-            if (fci_cache == nullptr) {
+            cb = php_swoole_server_get_callback(serv, server_fd, SW_SERVER_CB_onHandshake);
+            if (cb == nullptr) {
                 swoole_websocket_onHandshake(serv, port, ctx);
                 goto _dtor_and_return;
             } else {
@@ -159,17 +160,17 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
                 ctx->upgrade = 1;
             }
         } else {
-            fci_cache = php_swoole_server_get_fci_cache(serv, server_fd, SW_SERVER_CB_onRequest);
-            if (fci_cache == nullptr) {
+            cb = php_swoole_server_get_callback(serv, server_fd, SW_SERVER_CB_onRequest);
+            if (cb == nullptr) {
                 swoole_websocket_onRequest(ctx);
                 goto _dtor_and_return;
             }
         }
-        ctx->private_data_2 = fci_cache;
+        ctx->private_data_2 = cb;
         if (ctx->onBeforeRequest && !ctx->onBeforeRequest(ctx)) {
             return SW_OK;
         }
-        http_server_process_request(serv, fci_cache, ctx);
+        http_server_process_request(serv, cb, ctx);
     } while (0);
 
 _dtor_and_return:
@@ -394,10 +395,15 @@ bool swoole_http_server_onBeforeRequest(HttpContext *ctx) {
     ctx->onBeforeRequest = nullptr;
     ctx->onAfterResponse = swoole_http_server_onAfterResponse;
     Server *serv = (Server *) ctx->private_data;
-    SwooleWG.worker->concurrency++;
-    sw_atomic_add_fetch(&serv->gs->concurrency, 1);
+    if (!sw_server() || !sw_worker() || sw_worker()->is_shutdown()) {
+        return false;
+    }
+
+    auto worker = sw_worker();
     swoole_trace("serv->gs->concurrency=%u, max_concurrency=%u", serv->gs->concurrency, serv->gs->max_concurrency);
-    if (SwooleWG.worker->concurrency > serv->worker_max_concurrency) {
+    sw_atomic_add_fetch(&serv->gs->concurrency, 1);
+    worker->concurrency++;
+    if (worker->concurrency > serv->worker_max_concurrency) {
         swoole_trace_log(SW_TRACE_COROUTINE,
                          "exceed worker_max_concurrency[%u] limit, request[%p] queued",
                          serv->worker_max_concurrency,
@@ -412,21 +418,36 @@ bool swoole_http_server_onBeforeRequest(HttpContext *ctx) {
 void swoole_http_server_onAfterResponse(HttpContext *ctx) {
     ctx->onAfterResponse = nullptr;
     Server *serv = (Server *) ctx->private_data;
-    SwooleWG.worker->concurrency--;
-    sw_atomic_sub_fetch(&serv->gs->concurrency, 1);
+    if (sw_unlikely(!sw_server() || !sw_worker())) {
+        return;
+    }
+
+    if (sw_unlikely(sw_worker()->is_shutdown())) {
+        while (!queued_http_contexts.empty()) {
+            HttpContext *ctx = queued_http_contexts.front();
+            queued_http_contexts.pop();
+            ctx->send(ctx, SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET));
+            ctx->close(ctx);
+        }
+        return;
+    }
+
+    auto worker = sw_worker();
     swoole_trace("serv->gs->concurrency=%u, max_concurrency=%u", serv->gs->concurrency, serv->gs->max_concurrency);
+    sw_atomic_sub_fetch(&serv->gs->concurrency, 1);
+    worker->concurrency--;
+
     if (!queued_http_contexts.empty()) {
         HttpContext *ctx = queued_http_contexts.front();
-        swoole_trace(
-            "[POP 1] concurrency=%u, ctx=%p, request=%p", SwooleWG.worker->concurrency, ctx, ctx->request.zobject);
+        swoole_trace("[POP 1] concurrency=%u, ctx=%p, request=%p", worker->concurrency, ctx, ctx->request.zobject);
         queued_http_contexts.pop();
         swoole_event_defer(
             [](void *private_data) {
                 HttpContext *ctx = (HttpContext *) private_data;
                 Server *serv = (Server *) ctx->private_data;
-                zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) ctx->private_data_2;
+                zend::Callable *cb = (zend::Callable *) ctx->private_data_2;
                 swoole_trace("[POP 2] ctx=%p, request=%p", ctx, ctx->request.zobject);
-                http_server_process_request(serv, fci_cache, ctx);
+                http_server_process_request(serv, cb, ctx);
                 zval_ptr_dtor(ctx->request.zobject);
                 zval_ptr_dtor(ctx->response.zobject);
             },

@@ -58,9 +58,9 @@ class table_t {
             throw exception_t("alloc failed", swoole_get_last_error());
         }
 
-        table->add_column("id", TableColumn::TYPE_INT, 0);
-        table->add_column("name", TableColumn::TYPE_STRING, 32);
-        table->add_column("score", TableColumn::TYPE_FLOAT, 0);
+        EXPECT_TRUE(table->add_column("id", TableColumn::TYPE_INT, 0));
+        EXPECT_TRUE(table->add_column("name", TableColumn::TYPE_STRING, 32));
+        EXPECT_TRUE(table->add_column("score", TableColumn::TYPE_FLOAT, 0));
 
         if (!table->create()) {
             throw exception_t("create failed", swoole_get_last_error());
@@ -133,10 +133,15 @@ class table_t {
 
 TEST(table, create) {
     table_t table(1024);
+    auto ptr = table.ptr();
 
-    table.set("php", {"php", 1, 1.245});
-    table.set("java", {"java", 2, 3.1415926});
-    table.set("c++", {"c++", 3, 4.888});
+    ASSERT_GT(ptr->get_memory_size(), ptr->get_size() * ptr->get_column_size());
+
+    ASSERT_FALSE(ptr->create());  // create again should fail
+
+    ASSERT_TRUE(table.set("php", {"php", 1, 1.245}));
+    ASSERT_TRUE(table.set("java", {"java", 2, 3.1415926}));
+    ASSERT_TRUE(table.set("c++", {"c++", 3, 4.888}));
 
     ASSERT_EQ(table.count(), 3);
 
@@ -145,9 +150,16 @@ TEST(table, create) {
     ASSERT_EQ(r1.score, 3.1415926);
     ASSERT_EQ(r1.name, std::string("java"));
 
+    ASSERT_FALSE(ptr->get_column("not-exists"));
+
     ASSERT_TRUE(table.exists("php"));
     ASSERT_TRUE(table.del("php"));
     ASSERT_FALSE(table.exists("php"));
+
+    ASSERT_FALSE(table.del("not-exists"));
+
+    // Test with a string that is longer than the column size
+    ASSERT_TRUE(table.set("golang", {"golang " TEST_JPG_MD5SUM TEST_JPG_MD5SUM, 3, 4.888}));
 }
 
 void start_iterator(Table *_ptr) {
@@ -329,4 +341,55 @@ TEST(table, lock) {
         t.join();
     }
     _rowlock->unlock();
+}
+
+TEST(table, size_limit) {
+    auto t1 = Table::make(0x90000000, 1.2);
+    ASSERT_EQ(t1->get_size(), SW_TABLE_MAX_ROW_SIZE);
+    ASSERT_EQ(t1->get_conflict_proportion(), 1.0);
+
+    EXPECT_FALSE(t1->add_column("bad_field", (TableColumn::Type) 8, 0));
+
+    auto t2 = Table::make(1024, 0.1);
+    ASSERT_EQ(t2->get_size(), 1024);
+    ASSERT_EQ(t2->get_conflict_proportion(), (float) SW_TABLE_CONFLICT_PROPORTION);
+}
+
+TEST(table, lock_crash) {
+    table_t table(test_table_size);
+    create_table(table);
+    auto ptr = table.ptr();
+
+    auto child = test::spawn_exec([ptr]() {
+        TableRow *_rowlock = nullptr;
+        ptr->get("java", 4, &_rowlock);
+        usleep(5);
+        exit(200);  // Simulate a crash in the child process, no release lock
+    });
+    ASSERT_GT(child, 0);
+    test::wait_all_child_processes();
+
+    TableRow *_rowlock = nullptr;
+    ASSERT_NE(ptr->get("java", 4, &_rowlock), nullptr);
+    _rowlock->unlock();
+}
+
+TEST(table, lock_race) {
+    table_t table(test_table_size);
+    create_table(table);
+    auto ptr = table.ptr();
+
+    auto child = test::spawn_exec([ptr]() {
+        TableRow *_rowlock = nullptr;
+        ASSERT_NE(ptr->get("java", 4, &_rowlock), nullptr);
+        usleep(5);
+        _rowlock->unlock();
+    });
+    ASSERT_GT(child, 0);
+
+    TableRow *_rowlock = nullptr;
+    ASSERT_NE(ptr->get("java", 4, &_rowlock), nullptr);
+    _rowlock->unlock();
+
+    test::wait_all_child_processes();
 }

@@ -36,11 +36,6 @@ PHP_ARG_ENABLE([openssl],
   [AS_HELP_STRING([--enable-openssl],
     [Use openssl])], [no], [no])
 
-PHP_ARG_ENABLE([brotli],
-  [enable brotli support],
-  [AS_HELP_STRING([[--enable-brotli]],
-    [Use brotli])], [yes], [no])
-
 PHP_ARG_ENABLE([swoole],
   [swoole support],
   [AS_HELP_STRING([--enable-swoole],
@@ -56,25 +51,35 @@ PHP_ARG_ENABLE([cares],
   [AS_HELP_STRING([--enable-cares],
     [Enable cares])], [no], [no])
 
+PHP_ARG_ENABLE([iouring],
+  [enable io-uring support],
+  [AS_HELP_STRING([--enable-iouring],
+    [Enable io-uring])], [no], [no])
+
 PHP_ARG_WITH([openssl_dir],
   [dir of openssl],
   [AS_HELP_STRING([[--with-openssl-dir[=DIR]]],
     [Include OpenSSL support (requires OpenSSL >= 1.0.2)])], [no], [no])
+
+PHP_ARG_ENABLE([brotli],
+  [enable brotli support],
+  [AS_HELP_STRING([[--enable-brotli]],
+    [Use brotli])], [auto], [no])
 
 PHP_ARG_WITH([brotli_dir],
   [dir of brotli],
   [AS_HELP_STRING([[--with-brotli-dir[=DIR]]],
     [Include Brotli support])], [no], [no])
 
+PHP_ARG_ENABLE([zstd],
+  [enable zstd support],
+  [AS_HELP_STRING([[--enable-zstd]],
+    [Use zstd])], [no], [no])
+
 PHP_ARG_WITH([nghttp2_dir],
   [dir of nghttp2],
   [AS_HELP_STRING([[--with-nghttp2-dir[=DIR]]],
     [Include nghttp2 support])], [no], [no])
-
-PHP_ARG_WITH([jemalloc_dir],
-  [dir of jemalloc],
-  [AS_HELP_STRING([[--with-jemalloc-dir[=DIR]]],
-    [Include jemalloc support])], [no], [no])
 
 PHP_ARG_ENABLE([asan],
   [enable asan],
@@ -106,6 +111,16 @@ PHP_ARG_ENABLE([thread-context],
   [AS_HELP_STRING([--enable-thread-context],
     [Use thread context])], [no], [no])
 
+PHP_ARG_ENABLE([swoole-thread],
+  [whether to enable swoole thread support],
+  [AS_HELP_STRING([--enable-swoole-thread],
+    [Enable swoole thread support])], [no], [no])
+
+PHP_ARG_ENABLE([swoole-stdext],
+  [whether to enable swoole stdext support],
+  [AS_HELP_STRING([--enable-swoole-stdext],
+    [Enable swoole stdext support([Experimental] This module is only used for swoole-cli. If you are unsure which feature you need, keep it disabled)])], [no], [no])
+
 PHP_ARG_ENABLE([swoole-coro-time],
   [whether to enable coroutine execution time ],
   [AS_HELP_STRING([--enable-swoole-coro-time],
@@ -129,7 +144,8 @@ AC_DEFUN([PDO_ODBC_CHECK_HEADER],[
   AC_MSG_CHECKING([for $1 in $PDO_ODBC_INCDIR])
   if test -f "$PDO_ODBC_INCDIR/$1"; then
     php_pdo_have_header=yes
-    PHP_DEF_HAVE(translit($1,.,_))
+    AC_DEFINE_UNQUOTED(AS_TR_CPP([HAVE_$1]), [1],
+      [Define to 1 if you have the <$1> header file.])
     AC_MSG_RESULT(yes)
   else
     AC_MSG_RESULT(no)
@@ -172,6 +188,7 @@ AC_DEFUN([AC_SWOOLE_CPU_AFFINITY],
         #include <sys/cpuset.h>
         typedef cpuset_t cpu_set_t;
         #else
+        #define _GNU_SOURCE 1
         #include <sched.h>
         #endif
     ]], [[
@@ -210,8 +227,7 @@ AC_DEFUN([AC_SWOOLE_HAVE_FUTEX],
         #include <unistd.h>
     ]], [[
         int futex_addr;
-        int val1;
-        syscall(SYS_futex, &futex_addr, val1, NULL, NULL, 0);
+        syscall(SYS_futex, &futex_addr, FUTEX_WAIT, NULL, NULL, 0);
     ]])],[
         AC_DEFINE([HAVE_FUTEX], 1, [have FUTEX?])
         AC_MSG_RESULT([yes])
@@ -273,37 +289,62 @@ AC_DEFUN([AC_SWOOLE_HAVE_BOOST_STACKTRACE],
     AC_LANG_POP([C++])
 ])
 
-AC_DEFUN([AC_SWOOLE_CHECK_SOCKETS], [
-    dnl Check for struct cmsghdr
-    AC_CACHE_CHECK([for struct cmsghdr], ac_cv_cmsghdr,
-    [
-        AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
-#include <sys/types.h>
-#include <sys/socket.h>]], [[struct cmsghdr s; s]])], [ac_cv_cmsghdr=yes], [ac_cv_cmsghdr=no])
+AC_DEFUN([AC_SWOOLE_HAVE_IOURING_FUTEX],
+[
+    AC_MSG_CHECKING([for io_uring futex])
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+        #define _GNU_SOURCE
+        #include <liburing.h>
+    ]], [[
+        int op = IORING_OP_FUTEX_WAIT;
+    ]])],[
+        AC_DEFINE([HAVE_IOURING_FUTEX], 1, [have io_uring futex?])
+        AC_MSG_RESULT([yes])
+    ],[
+        AC_MSG_RESULT([no])
     ])
+])
 
-    if test "$ac_cv_cmsghdr" = yes; then
-        AC_DEFINE(HAVE_CMSGHDR,1,[Whether you have struct cmsghdr])
-    fi
+AC_DEFUN([AC_SWOOLE_HAVE_IOURING_STATX],
+[
+    AC_MSG_CHECKING([for io_uring statx])
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+        #define _GNU_SOURCE
+        #include <sys/stat.h>
+        #include <string.h>
+        #include <liburing.h>
+    ]], [[
+        struct statx _statxbuf;
+        memset(&_statxbuf, 0, sizeof(_statxbuf));
+        int op = IORING_OP_STATX;
+    ]])],[
+        AC_DEFINE([HAVE_IOURING_STATX], 1, [have io_uring statx?])
+        AC_MSG_RESULT([yes])
+    ],[
+        AC_MSG_RESULT([no])
+    ])
+])
 
+AC_DEFUN([AC_SWOOLE_HAVE_IOURING_FTRUNCATE],
+[
+    AC_MSG_CHECKING([for io_uring ftruncate])
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+        #define _GNU_SOURCE
+        #include <liburing.h>
+    ]], [[
+        int op = IORING_OP_FTRUNCATE;
+    ]])],[
+        AC_DEFINE([HAVE_IOURING_FTRUNCATE], 1, [have io_uring ftruncate?])
+        AC_MSG_RESULT([yes])
+    ],[
+        AC_MSG_RESULT([no])
+    ])
+])
+
+AC_DEFUN([AC_SWOOLE_CHECK_SOCKETS], [
     AC_CHECK_FUNCS([hstrerror socketpair if_nametoindex if_indextoname])
     AC_CHECK_HEADERS([netdb.h netinet/tcp.h sys/un.h sys/sockio.h])
     AC_DEFINE([HAVE_SOCKETS], 1, [ ])
-
-    dnl Check for fied ss_family in sockaddr_storage (missing in AIX until 5.3)
-    AC_CACHE_CHECK([for field ss_family in struct sockaddr_storage], ac_cv_ss_family,
-    [
-        AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <netdb.h>
-    ]], [[struct sockaddr_storage sa_store; sa_store.ss_family = AF_INET6;]])],
-        [ac_cv_ss_family=yes], [ac_cv_ss_family=no])
-    ])
-
-    if test "$ac_cv_ss_family" = yes; then
-        AC_DEFINE(HAVE_SA_SS_FAMILY,1,[Whether you have sockaddr_storage.ss_family])
-    fi
 
     dnl Check for AI_V4MAPPED flag
     AC_CACHE_CHECK([if getaddrinfo supports AI_V4MAPPED],[ac_cv_gai_ai_v4mapped],
@@ -356,7 +397,8 @@ AC_COMPILE_IFELSE([
 )
 AC_MSG_RESULT([$CLANG])
 
-AC_PROG_CC_C99
+dnl AC_PROG_CC_C99 is obsolete with autoconf >= 2.70 yet necessary for <= 2.69.
+m4_version_prereq([2.70],,[AC_PROG_CC_C99])
 
 AC_CANONICAL_HOST
 
@@ -366,7 +408,6 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(c, signalfd, AC_DEFINE(HAVE_SIGNALFD, 1, [have signalfd]))
     AC_CHECK_LIB(c, eventfd, AC_DEFINE(HAVE_EVENTFD, 1, [have eventfd]))
     AC_CHECK_LIB(c, epoll_create, AC_DEFINE(HAVE_EPOLL, 1, [have epoll]))
-    AC_CHECK_LIB(c, poll, AC_DEFINE(HAVE_POLL, 1, [have poll]))
     AC_CHECK_LIB(c, sendfile, AC_DEFINE(HAVE_SENDFILE, 1, [have sendfile]))
     AC_CHECK_LIB(c, kqueue, AC_DEFINE(HAVE_KQUEUE, 1, [have kqueue]))
     AC_CHECK_LIB(c, backtrace, AC_DEFINE(HAVE_EXECINFO, 1, [have execinfo]))
@@ -383,12 +424,12 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(pthread, pthread_rwlock_init, AC_DEFINE(HAVE_RWLOCK, 1, [have pthread_rwlock_init]))
     AC_CHECK_LIB(pthread, pthread_spin_lock, AC_DEFINE(HAVE_SPINLOCK, 1, [have pthread_spin_lock]))
     AC_CHECK_LIB(pthread, pthread_mutex_timedlock, AC_DEFINE(HAVE_MUTEX_TIMEDLOCK, 1, [have pthread_mutex_timedlock]))
+    AC_CHECK_LIB(pthread, pthread_rwlock_timedrdlock, AC_DEFINE(HAVE_RWLOCK_TIMEDRDLOCK, 1, [have pthread_rwlock_timedrdlock]))
+    AC_CHECK_LIB(pthread, pthread_rwlock_timedwrlock, AC_DEFINE(HAVE_RWLOCK_TIMEDWRLOCK, 1, [have pthread_rwlock_timedwrlock]))
     AC_CHECK_LIB(pthread, pthread_barrier_init, AC_DEFINE(HAVE_PTHREAD_BARRIER, 1, [have pthread_barrier_init]))
     AC_CHECK_LIB(pthread, pthread_mutexattr_setpshared, AC_DEFINE(HAVE_PTHREAD_MUTEXATTR_SETPSHARED, 1, [have pthread_mutexattr_setpshared]))
     AC_CHECK_LIB(pthread, pthread_mutexattr_setrobust, AC_DEFINE(HAVE_PTHREAD_MUTEXATTR_SETROBUST, 1, [have pthread_mutexattr_setrobust]))
     AC_CHECK_LIB(pthread, pthread_mutex_consistent, AC_DEFINE(HAVE_PTHREAD_MUTEX_CONSISTENT, 1, [have pthread_mutex_consistent]))
-    AC_CHECK_LIB(pcre, pcre_compile, AC_DEFINE(HAVE_PCRE, 1, [have pcre]))
-    AC_CHECK_LIB(cares, ares_gethostbyname, AC_DEFINE(HAVE_CARES, 1, [have c-ares]))
 
     if test "$PHP_SWOOLE_DEV" = "yes"; then
         AX_CHECK_COMPILE_FLAG(-Wbool-conversion,                _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wbool-conversion")
@@ -405,6 +446,7 @@ if test "$PHP_SWOOLE" != "no"; then
         AX_CHECK_COMPILE_FLAG(-Wlogical-op-parentheses,         _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wlogical-op-parentheses")
         AX_CHECK_COMPILE_FLAG(-Wloop-analysis,                  _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wloop-analysis")
         AX_CHECK_COMPILE_FLAG(-Wuninitialized,                  _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wuninitialized")
+        AX_CHECK_COMPILE_FLAG(-Wno-date-time,                   _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wno-date-time")
         AX_CHECK_COMPILE_FLAG(-Wno-missing-field-initializers,  _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wno-missing-field-initializers")
         AX_CHECK_COMPILE_FLAG(-Wno-sign-compare,                _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wno-sign-compare")
         AX_CHECK_COMPILE_FLAG(-Wno-unused-const-variable,       _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wno-unused-const-variable")
@@ -426,6 +468,9 @@ if test "$PHP_SWOOLE" != "no"; then
     fi
 
     if test "$PHP_SWOOLE_CURL" = "yes"; then
+        PKG_CHECK_MODULES([CURL], [libcurl >= 7.56.0])
+        PHP_EVAL_LIBLINE($CURL_LIBS, SWOOLE_SHARED_LIBADD)
+        PHP_EVAL_INCLINE($CURL_CFLAGS)
         AC_DEFINE(SW_USE_CURL, 1, [do we enable cURL native client])
     fi
 
@@ -510,124 +555,156 @@ EOF
 
     dnl odbc begin
 
-	if test "$PHP_SWOOLE_ODBC" != "no"; then
-	  PHP_CHECK_PDO_INCLUDES
+    if test "$PHP_SWOOLE_ODBC" != "no"; then
+      PHP_CHECK_PDO_INCLUDES
 
-	  AC_MSG_CHECKING([for selected PDO ODBC flavour])
+      AC_MSG_CHECKING([for selected PDO ODBC flavour])
 
-	  pdo_odbc_flavour="`echo $PHP_SWOOLE_ODBC | cut -d, -f1`"
-	  pdo_odbc_dir="`echo $PHP_SWOOLE_ODBC | cut -d, -f2`"
+      pdo_odbc_flavour="`echo $PHP_SWOOLE_ODBC | cut -d, -f1`"
+      pdo_odbc_dir="`echo $PHP_SWOOLE_ODBC | cut -d, -f2`"
 
-	  if test "$pdo_odbc_dir" = "$PHP_SWOOLE_ODBC" ; then
-	    pdo_odbc_dir=
-	  fi
+      if test "$pdo_odbc_dir" = "$PHP_SWOOLE_ODBC" ; then
+        pdo_odbc_dir=
+      fi
 
-	  case $pdo_odbc_flavour in
-	    ibm-db2)
-	        pdo_odbc_def_libdir=/home/db2inst1/sqllib/lib
-	        pdo_odbc_def_incdir=/home/db2inst1/sqllib/include
-	        pdo_odbc_def_lib=db2
-	        ;;
+      case $pdo_odbc_flavour in
+        ibm-db2)
+            pdo_odbc_def_libdir=/home/db2inst1/sqllib/lib
+            pdo_odbc_def_incdir=/home/db2inst1/sqllib/include
+            pdo_odbc_def_lib=db2
+            ;;
 
-	    iODBC|iodbc)
-	        pdo_odbc_def_libdir=/usr/local/$PHP_LIBDIR
-	        pdo_odbc_def_incdir=/usr/local/include
-	        pdo_odbc_def_lib=iodbc
-	        ;;
+        iODBC|iodbc)
+            pdo_odbc_def_libdir=/usr/local/$PHP_LIBDIR
+            pdo_odbc_def_incdir=/usr/local/include
+            pdo_odbc_def_lib=iodbc
+            ;;
 
-	    unixODBC|unixodbc)
-	        pdo_odbc_def_libdir=/usr/local/$PHP_LIBDIR
-	        pdo_odbc_def_incdir=/usr/local/include
-	        pdo_odbc_def_lib=odbc
-	        ;;
+        unixODBC|unixodbc)
+            pdo_odbc_def_libdir=/usr/local/$PHP_LIBDIR
+            pdo_odbc_def_incdir=/usr/local/include
+            pdo_odbc_def_lib=odbc
+            ;;
 
-	    ODBCRouter|odbcrouter)
-	        pdo_odbc_def_libdir=/usr/$PHP_LIBDIR
-	        pdo_odbc_def_incdir=/usr/include
-	        pdo_odbc_def_lib=odbcsdk
-	        ;;
+        ODBCRouter|odbcrouter)
+            pdo_odbc_def_libdir=/usr/$PHP_LIBDIR
+            pdo_odbc_def_incdir=/usr/include
+            pdo_odbc_def_lib=odbcsdk
+            ;;
 
-	    generic)
-	        pdo_odbc_def_lib="`echo $PHP_SWOOLE_ODBC | cut -d, -f3`"
-	        pdo_odbc_def_ldflags="`echo $PHP_SWOOLE_ODBC | cut -d, -f4`"
-	        pdo_odbc_def_cflags="`echo $PHP_SWOOLE_ODBC | cut -d, -f5`"
-	        pdo_odbc_flavour="generic-$pdo_odbc_def_lib"
-	        ;;
+        generic)
+            pdo_odbc_def_lib="`echo $PHP_SWOOLE_ODBC | cut -d, -f3`"
+            pdo_odbc_def_ldflags="`echo $PHP_SWOOLE_ODBC | cut -d, -f4`"
+            pdo_odbc_def_cflags="`echo $PHP_SWOOLE_ODBC | cut -d, -f5`"
+            pdo_odbc_flavour="generic-$pdo_odbc_def_lib"
+            ;;
 
-	      *)
-	        AC_MSG_ERROR([Unknown ODBC flavour $pdo_odbc_flavour]PDO_ODBC_HELP_TEXT)
-	        ;;
-	  esac
+          *)
+            AC_MSG_ERROR([Unknown ODBC flavour $pdo_odbc_flavour]PDO_ODBC_HELP_TEXT)
+            ;;
+      esac
 
-	  if test -n "$pdo_odbc_dir"; then
-	    PDO_ODBC_INCDIR="$pdo_odbc_dir/include"
-	    PDO_ODBC_LIBDIR="$pdo_odbc_dir/$PHP_LIBDIR"
-	  else
-	    PDO_ODBC_INCDIR="$pdo_odbc_def_incdir"
-	    PDO_ODBC_LIBDIR="$pdo_odbc_def_libdir"
-	  fi
+      if test -n "$pdo_odbc_dir"; then
+        PDO_ODBC_INCDIR="$pdo_odbc_dir/include"
+        PDO_ODBC_LIBDIR="$pdo_odbc_dir/$PHP_LIBDIR"
+      else
+        PDO_ODBC_INCDIR="$pdo_odbc_def_incdir"
+        PDO_ODBC_LIBDIR="$pdo_odbc_def_libdir"
+      fi
 
-	  AC_MSG_RESULT([$pdo_odbc_flavour
-	          libs       $PDO_ODBC_LIBDIR,
-	          headers    $PDO_ODBC_INCDIR])
+      AC_MSG_RESULT([$pdo_odbc_flavour
+              libs       $PDO_ODBC_LIBDIR,
+              headers    $PDO_ODBC_INCDIR])
 
-	  if test ! -d "$PDO_ODBC_LIBDIR" ; then
-	    AC_MSG_WARN([library dir $PDO_ODBC_LIBDIR does not exist])
-	  fi
+      if test ! -d "$PDO_ODBC_LIBDIR" ; then
+        AC_MSG_WARN([library dir $PDO_ODBC_LIBDIR does not exist])
+      fi
 
-	  PDO_ODBC_CHECK_HEADER(odbc.h)
-	  PDO_ODBC_CHECK_HEADER(odbcsdk.h)
-	  PDO_ODBC_CHECK_HEADER(iodbc.h)
-	  PDO_ODBC_CHECK_HEADER(sqlunix.h)
-	  PDO_ODBC_CHECK_HEADER(sqltypes.h)
-	  PDO_ODBC_CHECK_HEADER(sqlucode.h)
-	  PDO_ODBC_CHECK_HEADER(sql.h)
-	  PDO_ODBC_CHECK_HEADER(isql.h)
-	  PDO_ODBC_CHECK_HEADER(sqlext.h)
-	  PDO_ODBC_CHECK_HEADER(isqlext.h)
-	  PDO_ODBC_CHECK_HEADER(udbcext.h)
-	  PDO_ODBC_CHECK_HEADER(sqlcli1.h)
-	  PDO_ODBC_CHECK_HEADER(LibraryManager.h)
-	  PDO_ODBC_CHECK_HEADER(cli0core.h)
-	  PDO_ODBC_CHECK_HEADER(cli0ext.h)
-	  PDO_ODBC_CHECK_HEADER(cli0cli.h)
-	  PDO_ODBC_CHECK_HEADER(cli0defs.h)
-	  PDO_ODBC_CHECK_HEADER(cli0env.h)
+      PDO_ODBC_CHECK_HEADER(odbc.h)
+      PDO_ODBC_CHECK_HEADER(odbcsdk.h)
+      PDO_ODBC_CHECK_HEADER(iodbc.h)
+      PDO_ODBC_CHECK_HEADER(sqlunix.h)
+      PDO_ODBC_CHECK_HEADER(sqltypes.h)
+      PDO_ODBC_CHECK_HEADER(sqlucode.h)
+      PDO_ODBC_CHECK_HEADER(sql.h)
+      PDO_ODBC_CHECK_HEADER(isql.h)
+      PDO_ODBC_CHECK_HEADER(sqlext.h)
+      PDO_ODBC_CHECK_HEADER(isqlext.h)
+      PDO_ODBC_CHECK_HEADER(udbcext.h)
+      PDO_ODBC_CHECK_HEADER(sqlcli1.h)
+      PDO_ODBC_CHECK_HEADER(LibraryManager.h)
+      PDO_ODBC_CHECK_HEADER(cli0core.h)
+      PDO_ODBC_CHECK_HEADER(cli0ext.h)
+      PDO_ODBC_CHECK_HEADER(cli0cli.h)
+      PDO_ODBC_CHECK_HEADER(cli0defs.h)
+      PDO_ODBC_CHECK_HEADER(cli0env.h)
 
-	  if test "$php_pdo_have_header" != "yes"; then
-	    AC_MSG_ERROR([Cannot find header file(s) for pdo_odbc])
-	  fi
+      if test "$php_pdo_have_header" != "yes"; then
+        AC_MSG_ERROR([Cannot find header file(s) for pdo_odbc])
+      fi
 
-	  PDO_ODBC_INCLUDE="$pdo_odbc_def_cflags -I$PDO_ODBC_INCDIR -DPDO_ODBC_TYPE=\\\"$pdo_odbc_flavour\\\""
-	  PDO_ODBC_LDFLAGS="$pdo_odbc_def_ldflags -L$PDO_ODBC_LIBDIR -l$pdo_odbc_def_lib"
+      if test -n "$SWOOLE_ODBC_LIBS"; then
+        ODBC_LIBS="$SWOOLE_ODBC_LIBS"
+      else
+        ODBC_LIBS="-l$pdo_odbc_def_lib"
+      fi
 
-	  PHP_EVAL_LIBLINE([$PDO_ODBC_LDFLAGS], [SWOOLE_SHARED_LIBADD])
+      PDO_ODBC_INCLUDE="$pdo_odbc_def_cflags -I$PDO_ODBC_INCDIR -DPDO_ODBC_TYPE=\\\"$pdo_odbc_flavour\\\""
+      PDO_ODBC_LDFLAGS="$pdo_odbc_def_ldflags -L$PDO_ODBC_LIBDIR $ODBC_LIBS"
 
-	  EXTRA_CFLAGS="$EXTRA_CFLAGS -I$pdo_cv_inc_path $PDO_ODBC_INCLUDE"
+      PHP_EVAL_LIBLINE([$PDO_ODBC_LDFLAGS], [SWOOLE_SHARED_LIBADD])
 
-	  dnl Check first for an ODBC 1.0 function to assert that the libraries work
-	  PHP_CHECK_LIBRARY($pdo_odbc_def_lib, SQLBindCol,
-	  [
-	    dnl And now check for an ODBC 3.0 function to assert that they are *good*
-	    dnl libraries.
-	    PHP_CHECK_LIBRARY($pdo_odbc_def_lib, SQLAllocHandle,
-	    [], [
-	      AC_MSG_ERROR([
-	Your ODBC library does not appear to be ODBC 3 compatible.
-	You should consider using iODBC or unixODBC instead, and loading your
-	libraries as a driver in that environment; it will emulate the
-	functions required for PDO support.
-	])], $PDO_ODBC_LDFLAGS)
-	  ],[
-	    AC_MSG_ERROR([Your ODBC library does not exist or there was an error. Check config.log for more information])
-	  ], $PDO_ODBC_LDFLAGS)
+      EXTRA_CFLAGS="$EXTRA_CFLAGS -I$pdo_cv_inc_path $PDO_ODBC_INCLUDE"
 
-    	AC_DEFINE(SW_USE_ODBC, 1, [do we enable swoole-odbc coro support])
-	fi
+      dnl Check first for an ODBC 1.0 function to assert that the libraries work
+      SAVE_LIBS="$LIBS"
+      LIBS="$LIBS $PDO_ODBC_LDFLAGS"
+
+      AC_LINK_IFELSE(
+        [AC_LANG_PROGRAM(
+           [[#include <sql.h>
+             #include <sqlext.h>]],
+           [[
+             SQLLEN ind = 0;
+             char buf[1];
+             SQLBindCol((SQLHSTMT)0, (SQLUSMALLINT)1, (SQLSMALLINT)SQL_C_CHAR,
+                        (SQLPOINTER)buf, (SQLLEN)sizeof(buf), &ind);
+             return 0;
+           ]])],
+        [
+          dnl And now check for an ODBC 3.0 function to assert that they are *good*
+          dnl libraries.
+          AC_LINK_IFELSE(
+            [AC_LANG_PROGRAM(
+               [[#include <sql.h>
+                 #include <sqlext.h>]],
+               [[
+                 SQLHANDLE out = SQL_NULL_HANDLE;
+                 SQLAllocHandle((SQLSMALLINT)SQL_HANDLE_ENV,
+                                (SQLHANDLE)SQL_NULL_HANDLE, &out);
+                 return 0;
+               ]])],
+            [],
+            [AC_MSG_ERROR([
+    Your ODBC library does not appear to be ODBC 3 compatible.
+    You should consider using iODBC or unixODBC instead, and loading your
+    libraries as a driver in that environment; it will emulate the
+    functions required for PDO support.
+    ])]
+          )
+        ],
+        [AC_MSG_ERROR([Your ODBC library does not exist or there was an error. Check config.log for more information])]
+    )
+
+      LIBS="$SAVE_LIBS"
+
+      AC_DEFINE(SW_USE_ODBC, 1, [do we enable swoole-odbc coro support])
+    fi
 
     dnl odbc end
 
     dnl SWOOLE_ORACLE start
+
     if test -z "$SED"; then
         SWOOLE_PDO_OCI_SED="sed";
     else
@@ -687,9 +764,9 @@ EOF
     PHP_ARG_WITH([swoole-oracle],
         [whether to enable oracle build flags],
         [AS_HELP_STRING([[--with-swoole-oracle[=DIR]]],
-            [PDO: Oracle OCI support. DIR defaults to $ORACLE_HOME. Use
+            ["PDO: Oracle OCI support. DIR defaults to ${ORACLE_HOME}. Use
             --with-swoole-oracle=instantclient,/path/to/instant/client/lib for an Oracle
-            Instant Client installation.])], [no], [no])
+            Instant Client installation."])], [no], [no])
 
     if test "$PHP_SWOOLE_ORACLE" != "no"; then
         if test "$PHP_PDO" = "no" && test "$ext_shared" = "no"; then
@@ -827,7 +904,7 @@ EOF
 
     dnl sqlite start
     PHP_ARG_ENABLE([swoole-sqlite],
-        [for sqlite 3 support for PDO],
+        ["for sqlite 3 support for PDO"],
         [AS_HELP_STRING([--enable-swoole-sqlite],
             [PDO: sqlite 3 support.])], [no], [no])
 
@@ -858,20 +935,44 @@ EOF
     dnl sqlite stop
 
     AC_CHECK_LIB(z, gzgets, [
-        AC_DEFINE(SW_HAVE_COMPRESSION, 1, [have compression])
         AC_DEFINE(SW_HAVE_ZLIB, 1, [have zlib])
         PHP_ADD_LIBRARY(z, 1, SWOOLE_SHARED_LIBADD)
     ])
 
-    if test "$PHP_BROTLI" = "yes"; then
-        AC_CHECK_LIB(brotlienc, BrotliEncoderCreateInstance, [
-            AC_CHECK_LIB(brotlidec, BrotliDecoderCreateInstance, [
-                AC_DEFINE(SW_HAVE_COMPRESSION, 1, [have compression])
-                AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli encoder])
-                PHP_ADD_LIBRARY(brotlienc, 1, SWOOLE_SHARED_LIBADD)
-                PHP_ADD_LIBRARY(brotlidec, 1, SWOOLE_SHARED_LIBADD)
-            ])
-        ])
+    if test "$PHP_BROTLI_DIR" != "no"; then
+        AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli])
+        PHP_ADD_INCLUDE("${PHP_BROTLI_DIR}/include")
+        PHP_ADD_LIBRARY_WITH_PATH(brotlienc, "${PHP_BROTLI_DIR}/${PHP_LIBDIR}")
+        PHP_ADD_LIBRARY_WITH_PATH(brotlidec, "${PHP_BROTLI_DIR}/${PHP_LIBDIR}")
+    elif test "$PHP_BROTLI" = "yes"; then
+        PKG_CHECK_MODULES([BROTLIENC], [libbrotlienc])
+        PKG_CHECK_MODULES([BROTLIDEC], [libbrotlidec])
+        AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli])
+        PHP_EVAL_LIBLINE($BROTLIENC_LIBS, SWOOLE_SHARED_LIBADD)
+        PHP_EVAL_INCLINE($BROTLIENC_CFLAGS)
+        PHP_EVAL_LIBLINE($BROTLIDEC_LIBS, SWOOLE_SHARED_LIBADD)
+        PHP_EVAL_INCLINE($BROTLIDEC_CFLAGS)
+    elif test "$PHP_BROTLI" = "auto"; then
+        PKG_CHECK_MODULES([BROTLIENC], [libbrotlienc], [found_brotlienc=yes], [found_brotlienc=no])
+        if test "$found_brotlienc" = "yes"; then
+            AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli])
+            PHP_EVAL_LIBLINE($BROTLIENC_LIBS, SWOOLE_SHARED_LIBADD)
+            PHP_EVAL_INCLINE($BROTLIENC_CFLAGS)
+        fi
+
+        PKG_CHECK_MODULES([BROTLIDEC], [libbrotlidec], [found_brotlidec=yes], [found_brotlidec=no])
+        if test "$found_brotlidec" = "yes"; then
+            AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli])
+            PHP_EVAL_LIBLINE($BROTLIDEC_LIBS, SWOOLE_SHARED_LIBADD)
+            PHP_EVAL_INCLINE($BROTLIDEC_CFLAGS)
+        fi
+    fi
+
+    if test "$PHP_ZSTD" = "yes"; then
+        PKG_CHECK_MODULES([ZSTD], [libzstd >= 1.4.0])
+        AC_DEFINE(SW_HAVE_ZSTD, 1, [have zstd])
+        PHP_EVAL_LIBLINE($ZSTD_LIBS, SWOOLE_SHARED_LIBADD)
+        PHP_EVAL_INCLINE($ZSTD_CFLAGS)
     fi
 
     PHP_ADD_LIBRARY(pthread)
@@ -898,6 +999,14 @@ EOF
         AC_DEFINE(SW_LOG_TRACE_OPEN, 1, [enable trace log])
     fi
 
+    if test "$PHP_SWOOLE_THREAD" != "no"; then
+        AC_DEFINE(SW_THREAD, 1, [enable swoole thread support])
+    fi
+
+    if test "$PHP_SWOOLE_STDEXT" != "no"; then
+        AC_DEFINE(SW_STDEXT, 1, [enable swoole stdext support])
+    fi
+
     if test "$PHP_SOCKETS" = "yes"; then
         AC_MSG_CHECKING([for php_sockets.h])
 
@@ -920,8 +1029,11 @@ EOF
     fi
 
     if test "$PHP_CARES" = "yes"; then
+        PKG_CHECK_MODULES([CARES], [libcares])
+        PHP_EVAL_LIBLINE($CARES_LIBS, SWOOLE_SHARED_LIBADD)
+        PHP_EVAL_INCLINE($CARES_CFLAGS)
         AC_DEFINE(SW_USE_CARES, 1, [do we enable c-ares support])
-        PHP_ADD_LIBRARY(cares, 1, SWOOLE_SHARED_LIBADD)
+        AC_DEFINE(HAVE_CARES, 1, [have c-ares])
     fi
 
     AC_SWOOLE_CPU_AFFINITY
@@ -944,26 +1056,63 @@ EOF
     CFLAGS="-Wall -pthread $CFLAGS"
     LDFLAGS="$LDFLAGS -lpthread"
 
-	dnl Check should we link to librt
-	OS_SHOULD_HAVE_LIBRT=1
+    if test "$PHP_IOURING" = "yes" && test "$SW_OS" = "LINUX"; then
+        PKG_CHECK_MODULES([URING], [liburing >= 2.0])
 
-	if test "$SW_OS" = "MAC"; then
-		OS_SHOULD_HAVE_LIBRT=0
-	fi
-	AS_CASE([$host_os],
-	  [openbsd*], [OS_SHOULD_HAVE_LIBRT=0]
-	)
+        AC_SWOOLE_HAVE_IOURING_STATX
+        
+        KERNEL_MAJOR=`uname -r | awk -F '.' '{print $1}'`
+        KERNEL_MINOR=`uname -r | awk -F '.' '{print $2}'`
 
-	if test "x$OS_SHOULD_HAVE_LIBRT" = "x1"; then
-		AC_MSG_NOTICE([Librt is required on $host_os.])
-		dnl Check for the existence of librt
-		AC_CHECK_LIB([rt], [clock_gettime], [], [
-			AC_MSG_ERROR([We have to link to librt on your os, but librt not found.])
-		])
+        if (test $KERNEL_MAJOR -eq 6 && test $KERNEL_MINOR -ge 9); then
+            dnl IORING_OP_FTRUNCATE is available since 6.9
+            AC_SWOOLE_HAVE_IOURING_FTRUNCATE
+        fi
+        
+        if (test $KERNEL_MAJOR -eq 6 && test $KERNEL_MINOR -ge 7); then
+            dnl IORING_OP_FUTEX_WAKE/IORING_OP_FUTEX_WAIT is available since 6.7
+            AC_SWOOLE_HAVE_IOURING_FUTEX
+        fi
+
+        PHP_EVAL_LIBLINE($URING_LIBS, SWOOLE_SHARED_LIBADD)
+        PHP_EVAL_INCLINE($URING_CFLAGS)
+        AC_DEFINE(SW_USE_IOURING, 1, [have io_uring])
+    fi
+
+    dnl Check should we link to librt
+
+    if test "$SW_OS" = "LINUX"; then
+        GLIBC_VERSION=$(getconf GNU_LIBC_VERSION | awk '{print $2}')
+        AC_MSG_NOTICE([glibc version: $GLIBC_VERSION])
+
+        GLIBC_MAJOR_VERSION=$(getconf GNU_LIBC_VERSION | awk '{print $2}' | cut -d '.' -f 1)
+        GLIBC_MINOR_VERSION=$(getconf GNU_LIBC_VERSION | awk '{print $2}' | cut -d '.' -f 2)
+
+        if test $GLIBC_MAJOR_VERSION -lt 2 || (test $GLIBC_MAJOR_VERSION -eq 2 && test $GLIBC_MINOR_VERSION -lt 17); then
+            OS_SHOULD_HAVE_LIBRT=1
+        else
+            AC_MSG_NOTICE([link with -lrt (only for glibc version before 2.17)])
+            OS_SHOULD_HAVE_LIBRT=0
+        fi
+    elif test "$SW_OS" = "MAC"; then
+        OS_SHOULD_HAVE_LIBRT=0
+    else
+        AS_CASE([$host_os],
+          [openbsd*], [OS_SHOULD_HAVE_LIBRT=0]
+          [OS_SHOULD_HAVE_LIBRT=1]
+        )
+    fi
+
+    if test "x$OS_SHOULD_HAVE_LIBRT" = "x1"; then
+        AC_MSG_NOTICE([Librt is required on $host_os.])
+        dnl Check for the existence of librt
+        AC_CHECK_LIB([rt], [clock_gettime], [], [
+            AC_MSG_ERROR([We have to link to librt on your os, but librt not found.])
+        ])
         PHP_ADD_LIBRARY(rt, 1, SWOOLE_SHARED_LIBADD)
-	else
-		AC_MSG_NOTICE([$host_os doesn't have librt -- don't link to librt.])
-	fi
+    else
+        AC_MSG_NOTICE([$host_os doesn't have librt -- don't link to librt.])
+    fi
 
     if test "$SW_OS" = "LINUX"; then
         LDFLAGS="$LDFLAGS -z now"
@@ -973,33 +1122,26 @@ EOF
         if test "$PHP_OPENSSL_DIR" != "no"; then
             PHP_ADD_INCLUDE("${PHP_OPENSSL_DIR}/include")
             PHP_ADD_LIBRARY_WITH_PATH(ssl, "${PHP_OPENSSL_DIR}/${PHP_LIBDIR}")
-        fi
-        AC_DEFINE(SW_USE_OPENSSL, 1, [enable openssl support])
-        PHP_ADD_LIBRARY(ssl, 1, SWOOLE_SHARED_LIBADD)
-        PHP_ADD_LIBRARY(crypto, 1, SWOOLE_SHARED_LIBADD)
-    fi
 
-    if test "$PHP_BROTLI_DIR" != "no"; then
-        AC_DEFINE(SW_HAVE_COMPRESSION, 1, [have compression])
-        AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli encoder])
-        PHP_ADD_INCLUDE("${PHP_BROTLI_DIR}/include")
-        PHP_ADD_LIBRARY_WITH_PATH(brotli, "${PHP_BROTLI_DIR}/${PHP_LIBDIR}")
-        PHP_ADD_LIBRARY_WITH_PATH(brotlienc, "${PHP_BROTLI_DIR}/${PHP_LIBDIR}")
-        PHP_ADD_LIBRARY_WITH_PATH(brotlidec, "${PHP_BROTLI_DIR}/${PHP_LIBDIR}")
+            PHP_ADD_LIBRARY(ssl, 1, SWOOLE_SHARED_LIBADD)
+            PHP_ADD_LIBRARY(crypto, 1, SWOOLE_SHARED_LIBADD)
+        else
+            PKG_CHECK_MODULES([SSL], [libssl])
+            PHP_EVAL_LIBLINE($SSL_LIBS, SWOOLE_SHARED_LIBADD)
+            PHP_EVAL_INCLINE($SSL_CFLAGS)
+
+            PKG_CHECK_MODULES([CRYPTO], [libcrypto])
+            PHP_EVAL_LIBLINE($CRYPTO_LIBS, SWOOLE_SHARED_LIBADD)
+            PHP_EVAL_INCLINE($CRYPTO_CFLAGS)
+        fi
+
+        AC_DEFINE(SW_USE_OPENSSL, 1, [enable openssl support])
     fi
 
     if test "$PHP_NGHTTP2_DIR" != "no"; then
-        AC_DEFINE(SW_USE_SYSTEM_LIBNGHTTP2, 1, [Use the system libnghttp2])
         PHP_ADD_INCLUDE("${PHP_NGHTTP2_DIR}/include")
         PHP_ADD_LIBRARY_WITH_PATH(nghttp2, "${PHP_NGHTTP2_DIR}/${PHP_LIBDIR}")
         PHP_ADD_LIBRARY(nghttp2, 1, SWOOLE_SHARED_LIBADD)
-    fi
-
-    if test "$PHP_JEMALLOC_DIR" != "no"; then
-        AC_DEFINE(SW_USE_JEMALLOC, 1, [use jemalloc])
-        PHP_ADD_INCLUDE("${PHP_JEMALLOC_DIR}/include")
-        PHP_ADD_LIBRARY_WITH_PATH(jemalloc, "${PHP_JEMALLOC_DIR}/${PHP_LIBDIR}")
-        PHP_ADD_LIBRARY(jemalloc, 1, SWOOLE_SHARED_LIBADD)
     fi
 
     PHP_ADD_LIBRARY(pthread, 1, SWOOLE_SHARED_LIBADD)
@@ -1009,80 +1151,104 @@ EOF
         AC_DEFINE(SW_USE_MYSQLND, 1, [use mysqlnd])
     fi
 
-    if test -f "ext-src/php_swoole.cc"; then
+    AC_MSG_CHECKING([for sources])
+    if test -f "$abs_srcdir/ext-src/php_swoole.cc"; then
+        swoole_source_dir=$abs_srcdir
+    elif test -f "ext-src/php_swoole.cc"; then
         swoole_source_dir=$(pwd)
     else
         swoole_source_dir="ext/swoole"
     fi
+    AC_MSG_RESULT([$swoole_source_dir])
 
     ext_src_files=$(cd $swoole_source_dir && find ext-src/ -name *.cc)
     lib_src_files=$(cd $swoole_source_dir && find src/ -name *.cc)
+
     swoole_source_file="${ext_src_files} ${lib_src_files}"
 
     swoole_source_file="$swoole_source_file \
         thirdparty/php/curl/interface.cc \
         thirdparty/php/curl/multi.cc \
+        thirdparty/php84/curl/interface.cc \
+        thirdparty/php84/curl/multi.cc \
         thirdparty/php/sockets/multicast.cc \
         thirdparty/php/sockets/sendrecvmsg.cc \
         thirdparty/php/sockets/conversions.cc \
         thirdparty/php/sockets/sockaddr_conv.cc \
         thirdparty/php/standard/var_decoder.cc \
-        thirdparty/php/standard/proc_open.cc \
-        thirdparty/php83/Zend/zend_call_stack.cc"
+        thirdparty/php/standard/proc_open.cc"
 
     swoole_source_file="$swoole_source_file \
-        thirdparty/swoole_http_parser.c \
+        thirdparty/llhttp/api.c \
+        thirdparty/llhttp/http.c \
+        thirdparty/llhttp/llhttp.c \
         thirdparty/multipart_parser.c"
 
-    swoole_source_file="$swoole_source_file \
-        thirdparty/hiredis/hiredis.c \
-        thirdparty/hiredis/alloc.c \
-        thirdparty/hiredis/net.c \
-        thirdparty/hiredis/read.c \
-        thirdparty/hiredis/sds.c"
-
     if test "$PHP_NGHTTP2_DIR" = "no"; then
-        PHP_ADD_INCLUDE([$ext_srcdir/thirdparty])
-	    swoole_source_file="$swoole_source_file \
-	        thirdparty/nghttp2/nghttp2_hd.c \
-	        thirdparty/nghttp2/nghttp2_rcbuf.c \
-	        thirdparty/nghttp2/nghttp2_helper.c \
-	        thirdparty/nghttp2/nghttp2_buf.c \
-	        thirdparty/nghttp2/nghttp2_mem.c \
-	        thirdparty/nghttp2/nghttp2_hd_huffman.c \
-	        thirdparty/nghttp2/nghttp2_hd_huffman_data.c"
-	fi
-
-	if test "$PHP_SWOOLE_PGSQL" != "no"; then
-	    swoole_source_file="$swoole_source_file \
-	        thirdparty/php80/pdo_pgsql/pgsql_driver.c \
-	        thirdparty/php80/pdo_pgsql/pgsql_statement.c \
-	        thirdparty/php81/pdo_pgsql/pgsql_driver.c \
-	        thirdparty/php81/pdo_pgsql/pgsql_statement.c"
-	fi
-
-	if test "$PHP_SWOOLE_ORACLE" != "no"; then
         swoole_source_file="$swoole_source_file \
-            thirdparty/php80/pdo_oci/oci_driver.c \
-            thirdparty/php80/pdo_oci/oci_statement.c \
-            thirdparty/php81/pdo_oci/oci_driver.c \
-            thirdparty/php81/pdo_oci/oci_statement.c"
+            thirdparty/nghttp2/nghttp2_hd.c \
+            thirdparty/nghttp2/nghttp2_rcbuf.c \
+            thirdparty/nghttp2/nghttp2_helper.c \
+            thirdparty/nghttp2/nghttp2_buf.c \
+            thirdparty/nghttp2/nghttp2_mem.c \
+            thirdparty/nghttp2/nghttp2_hd_huffman.c \
+            thirdparty/nghttp2/nghttp2_hd_huffman_data.c"
     fi
 
-	if test "$PHP_SWOOLE_ODBC" != "no"; then
-	    swoole_source_file="$swoole_source_file \
-	        thirdparty/php80/pdo_odbc/odbc_driver.c \
-	        thirdparty/php80/pdo_odbc/odbc_stmt.c \
-	        thirdparty/php81/pdo_odbc/odbc_driver.c \
-	        thirdparty/php81/pdo_odbc/odbc_stmt.c"
-	fi
+    dnl During static compilation, there is no php-config variable,
+    dnl but the php-version variable is always present and is not affected by the shell environment variables.
+    dnl During dynamic compilation, the php-config variable is always available, whereas the php-version variable is absent.
 
-	if test "$PHP_SWOOLE_SQLITE" != "no"; then
+    if test -z "$PHP_CONFIG"; then
+        if test -z "$PHP_VERSION"; then
+            AC_MSG_ERROR([the PHP_VERSION variable must be defined])
+        else
+            SW_PHP_VERSION=$PHP_VERSION
+        fi
+    else
+        SW_PHP_VERSION=`$PHP_CONFIG --version`
+    fi
+
+    SW_PHP_VERSION_ID=`echo "${SW_PHP_VERSION}" | $AWK 'BEGIN { FS = "."; } { printf "%d", ([$]1 * 10 + [$]2); }'`
+
+    if test "$SW_PHP_VERSION_ID" = "82"; then
+        SW_PHP_THIRDPARTY_DIR="thirdparty/php81"
+    else
+        SW_PHP_THIRDPARTY_DIR="thirdparty/php${SW_PHP_VERSION_ID}"
+    fi
+
+    AC_MSG_NOTICE([php version: $SW_PHP_VERSION, version_id: $SW_PHP_VERSION_ID, thirdparty_dir: $SW_PHP_THIRDPARTY_DIR])
+
+    if test "$PHP_SWOOLE_PGSQL" != "no"; then
         swoole_source_file="$swoole_source_file \
-            thirdparty/php80/pdo_sqlite/sqlite_driver.c \
-            thirdparty/php80/pdo_sqlite/sqlite_statement.c \
-            thirdparty/php81/pdo_sqlite/sqlite_driver.c \
-            thirdparty/php81/pdo_sqlite/sqlite_statement.c"
+            ${SW_PHP_THIRDPARTY_DIR}/pdo_pgsql/pgsql_driver.c \
+            ${SW_PHP_THIRDPARTY_DIR}/pdo_pgsql/pgsql_statement.c"
+        if test "$SW_PHP_VERSION_ID" -ge "84"; then
+            swoole_source_file="$swoole_source_file \
+                ${SW_PHP_THIRDPARTY_DIR}/pdo_pgsql/pgsql_sql_parser.c"
+        fi
+    fi
+
+    if test "$PHP_SWOOLE_ORACLE" != "no"; then
+        swoole_source_file="$swoole_source_file \
+            ${SW_PHP_THIRDPARTY_DIR}/pdo_oci/oci_driver.c \
+            ${SW_PHP_THIRDPARTY_DIR}/pdo_oci/oci_statement.c"
+    fi
+
+    if test "$PHP_SWOOLE_ODBC" != "no"; then
+        swoole_source_file="$swoole_source_file \
+            ${SW_PHP_THIRDPARTY_DIR}/pdo_odbc/odbc_driver.c \
+            ${SW_PHP_THIRDPARTY_DIR}/pdo_odbc/odbc_stmt.c"
+    fi
+
+    if test "$PHP_SWOOLE_SQLITE" != "no"; then
+        swoole_source_file="$swoole_source_file \
+            ${SW_PHP_THIRDPARTY_DIR}/pdo_sqlite/sqlite_driver.c \
+            ${SW_PHP_THIRDPARTY_DIR}/pdo_sqlite/sqlite_statement.c"
+        if test "$SW_PHP_VERSION_ID" -ge "84"; then
+            swoole_source_file="$swoole_source_file \
+                ${SW_PHP_THIRDPARTY_DIR}/pdo_sqlite/sqlite_sql_parser.c"
+        fi
     fi
 
     SW_ASM_DIR="thirdparty/boost/asm/"
@@ -1099,6 +1265,7 @@ EOF
       [mips64*], [SW_CPU="mips64"],
       [mips*], [SW_CPU="mips32"],
       [riscv64*], [SW_CPU="riscv64"],
+      [loongarch64*], [SW_CPU="loongarch64"],
       [
         SW_USE_ASM_CONTEXT="no"
       ]
@@ -1160,13 +1327,19 @@ EOF
         else
             SW_USE_ASM_CONTEXT="no"
         fi
+    elif test "$SW_CPU" = "loongarch64"; then
+        if test "$SW_OS" = "LINUX"; then
+           SW_CONTEXT_ASM_FILE="loongarch64_sysv_elf_gas.S"
+        else
+            SW_USE_ASM_CONTEXT="no"
+        fi
     else
         SW_USE_ASM_CONTEXT="no"
     fi
 
     if test "$PHP_THREAD_CONTEXT" != "no"; then
-		AC_DEFINE(SW_USE_THREAD_CONTEXT, 1, [do we enable thread context])
-		SW_USE_ASM_CONTEXT="no"
+        AC_DEFINE(SW_USE_THREAD_CONTEXT, 1, [do we enable thread context])
+        SW_USE_ASM_CONTEXT="no"
     fi
 
     if test "$SW_USE_ASM_CONTEXT" = "yes"; then
@@ -1184,7 +1357,6 @@ EOF
     PHP_ADD_INCLUDE([$ext_srcdir/include])
     PHP_ADD_INCLUDE([$ext_srcdir/ext-src])
     PHP_ADD_INCLUDE([$ext_srcdir/thirdparty])
-    PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/hiredis])
 
     AC_MSG_CHECKING([swoole coverage])
     if test "$PHP_SWOOLE_COVERAGE" != "no"; then
@@ -1199,17 +1371,17 @@ EOF
         include/*.h \
         stubs/*.h \
         thirdparty/*.h \
-        thirdparty/nghttp2/*.h \
-        thirdparty/hiredis/*.h])
+        thirdparty/llhttp/*.h \
+        thirdparty/nghttp2/*.h])
 
     PHP_REQUIRE_CXX()
 
-    CXXFLAGS="$CXXFLAGS -Wall -Wno-unused-function -Wno-deprecated -Wno-deprecated-declarations"
+    CXXFLAGS="$CXXFLAGS -Wall -Wno-date-time -Wno-unused-function -Wno-deprecated -Wno-deprecated-declarations"
 
     if test "$SW_OS" = "CYGWIN" || test "$SW_OS" = "MINGW"; then
-        CXXFLAGS="$CXXFLAGS -std=gnu++11"
+        CXXFLAGS="$CXXFLAGS -std=gnu++14"
     else
-        CXXFLAGS="$CXXFLAGS -std=c++11"
+        CXXFLAGS="$CXXFLAGS -std=c++14"
     fi
 
     if test "$SW_CPU" = "arm"; then
@@ -1229,27 +1401,32 @@ EOF
     PHP_ADD_BUILD_DIR($ext_builddir/src/wrapper)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/boost)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/boost/asm)
-    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/hiredis)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/sockets)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/standard)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/curl)
+    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/curl)
+    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/llhttp)
     if test "$PHP_NGHTTP2_DIR" = "no"; then
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/nghttp2)
-	fi
-	if test "$PHP_SWOOLE_PGSQL" != "no"; then
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php80/pdo_pgsql)
+    fi
+    if test "$PHP_SWOOLE_PGSQL" != "no"; then
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php81/pdo_pgsql)
+        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php83/pdo_pgsql)
+        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/pdo_pgsql)
     fi
     if test "$PHP_SWOOLE_ODBC" != "no"; then
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php80/pdo_odbc)
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php81/pdo_odbc)
+        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php83/pdo_odbc)
+        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/pdo_odbc)
     fi
     if test "$PHP_SWOOLE_ORACLE" != "no"; then
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php80/pdo_oci)
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php81/pdo_oci)
+        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php83/pdo_oci)
+        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/pdo_oci)
     fi
     if test "$PHP_SWOOLE_SQLITE" != "no"; then
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php80/pdo_sqlite)
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php81/pdo_sqlite)
+        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php83/pdo_sqlite)
+        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/pdo_sqlite)
     fi
 fi

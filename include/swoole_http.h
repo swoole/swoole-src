@@ -96,6 +96,7 @@ enum swHttpStatusCode {
     SW_HTTP_RANGE_NOT_SATISFIABLE = 416,
     SW_HTTP_MISDIRECTED_REQUEST = 421,
     SW_HTTP_TOO_MANY_REQUESTS = 429,
+    SW_HTTP_UNAVAILABLE_FOR_LEGAL_REASONS = 451,
 
     SW_HTTP_INTERNAL_SERVER_ERROR = 500,
     SW_HTTP_NOT_IMPLEMENTED = 501,
@@ -179,7 +180,14 @@ typedef std::function<bool(char *key, size_t key_len, char *value, size_t value_
 int get_method(const char *method_str, size_t method_len);
 const char *get_method_string(int method);
 const char *get_status_message(int code);
+extern int list_of_status_code[128];
+/**
+ * This function will directly modify the data in the input buffer.
+ */
 size_t url_decode(char *str, size_t len);
+/**
+ * Returns a new memory address, and the pointer at this address needs to be manually released in the calling layer.
+ */
 char *url_encode(char const *str, size_t len);
 int dispatch_request(Server *serv, const Protocol *proto, network::Socket *socket, const RecvData *rdata);
 bool parse_multipart_boundary(
@@ -232,7 +240,7 @@ class Context {
     ContextImpl *impl;
 };
 
-std::shared_ptr<Server> listen(const std::string addr, std::function<void(Context &ctx)> cb, int mode = 1);
+std::shared_ptr<Server> listen(const std::string &addr, const std::function<void(Context &ctx)> &cb, int mode = 1);
 //-----------------------------------------------------------------
 }  // namespace http_server
 }  // namespace swoole

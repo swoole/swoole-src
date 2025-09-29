@@ -20,7 +20,15 @@
 #include "php_swoole_cxx.h"
 #include "swoole_process_pool.h"
 
+enum PipeType {
+    PIPE_TYPE_NONE = 0,
+    PIPE_TYPE_STREAM = 1,
+    PIPE_TYPE_DGRAM = 2,
+};
+
 void php_swoole_process_clean();
 int php_swoole_process_start(swoole::Worker *process, zval *zobject);
-swoole::Worker *php_swoole_process_get_worker(zval *zobject);
-void php_swoole_process_set_worker(zval *zobject, swoole::Worker *worker);
+swoole::Worker *php_swoole_process_get_worker(const zval *zobject);
+void php_swoole_process_set_worker(const zval *zobject, swoole::Worker *worker, bool enable_coroutine, int pipe_type);
+
+swoole::ProcessPool *sw_process_pool();

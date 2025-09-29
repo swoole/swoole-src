@@ -34,6 +34,7 @@
 
 using swoole::NameResolver;
 using swoole::coroutine::System;
+using swoole::network::Address;
 
 SW_API bool swoole_load_resolv_conf() {
     FILE *fp;
@@ -61,6 +62,29 @@ SW_API bool swoole_load_resolv_conf() {
     return true;
 }
 
+SW_API void swoole_set_dns_server(const std::string &server) {
+    char *_port;
+    int dns_server_port = SW_DNS_SERVER_PORT;
+    char dns_server_host[32];
+    strcpy(dns_server_host, server.c_str());
+    if ((_port = strchr(const_cast<char *>(server.c_str()), ':'))) {
+        dns_server_port = atoi(_port + 1);
+        if (!Address::verify_port(dns_server_port, true)) {
+            dns_server_port = SW_DNS_SERVER_PORT;
+        }
+        dns_server_host[_port - server.c_str()] = '\0';
+    }
+    SwooleG.dns_server.host = dns_server_host;
+    SwooleG.dns_server.port = dns_server_port;
+}
+
+SW_API swoole::DnsServer swoole_get_dns_server() {
+    if (SwooleG.dns_server.host.empty()) {
+        swoole_load_resolv_conf();
+    }
+    return SwooleG.dns_server;
+}
+
 SW_API void swoole_set_hosts_path(const std::string &hosts_file) {
     SwooleG.dns_hosts_path = hosts_file;
 }
@@ -74,18 +98,13 @@ SW_API void swoole_name_resolver_add(const NameResolver &resolver, bool append) 
 }
 
 SW_API void swoole_name_resolver_each(
-    const std::function<enum swTraverseOperation(const std::list<NameResolver>::iterator &iter)> &fn) {
+    const std::function<swTraverseOperation(const std::list<NameResolver>::iterator &iter)> &fn) {
     for (auto iter = SwooleG.name_resolvers.begin(); iter != SwooleG.name_resolvers.end(); iter++) {
-        enum swTraverseOperation op = fn(iter);
-        switch (op) {
-        case SW_TRAVERSE_REMOVE:
+        const swTraverseOperation op = fn(iter);
+        if (op == SW_TRAVERSE_REMOVE) {
             SwooleG.name_resolvers.erase(iter++);
-            continue;
-        case SW_TRAVERSE_STOP:
+        } else if (op == SW_TRAVERSE_STOP) {
             break;
-        default:
-        case SW_TRAVERSE_KEEP:
-            continue;
         }
     }
 }
@@ -94,8 +113,8 @@ SW_API std::string swoole_name_resolver_lookup(const std::string &host_name, Nam
     if (SwooleG.name_resolvers.empty()) {
         goto _dns_lookup;
     }
-    for (auto iter = SwooleG.name_resolvers.begin(); iter != SwooleG.name_resolvers.end(); iter++) {
-        std::string result = iter->resolve(host_name, ctx, iter->private_data);
+    for (auto &name_resolver : SwooleG.name_resolvers) {
+        std::string result = name_resolver.resolve(host_name, ctx, name_resolver.private_data);
         if (!result.empty() || ctx->final_) {
             return result;
         }
@@ -107,16 +126,7 @@ _dns_lookup:
     if (swoole_coroutine_is_in()) {
         return System::gethostbyname(host_name, ctx->type, ctx->timeout);
     } else {
-        char addr[INET6_ADDRSTRLEN] = {};
-        if (swoole::network::gethostbyname(ctx->type, host_name.c_str(), sw_tg_buffer()->str) < 0) {
-            swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
-            return "";
-        }
-        if (!inet_ntop(ctx->type, sw_tg_buffer()->str, addr, sizeof(addr))) {
-            swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
-            return "";
-        }
-        return std::string(addr);
+        return swoole::network::gethostbyname(ctx->type, host_name);
     }
 }
 
@@ -222,7 +232,7 @@ std::string get_ip_by_hosts(const std::string &search_domain) {
 }
 
 static std::string parse_ip_address(void *vaddr, int type) {
-    auto addr = reinterpret_cast<unsigned char *>(vaddr);
+    auto addr = static_cast<unsigned char *>(vaddr);
     std::string ip_addr;
     if (type == AF_INET) {
         char buff[4 * 4 + 3 + 1];
@@ -244,19 +254,18 @@ static std::string parse_ip_address(void *vaddr, int type) {
 }
 
 std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int family, double timeout) {
-    char *_domain_name;
     Q_FLAGS *qflags = nullptr;
     char packet[SW_BUFFER_SIZE_STD];
     RecordHeader *header = nullptr;
     int steps = 0;
     std::vector<std::string> result;
 
-    if (SwooleG.dns_server_host.empty() && !swoole_load_resolv_conf()) {
+    if (SwooleG.dns_server.host.empty() && !swoole_load_resolv_conf()) {
         swoole_set_last_error(SW_ERROR_DNSLOOKUP_NO_SERVER);
         return result;
     }
 
-    header = (RecordHeader *) packet;
+    header = reinterpret_cast<RecordHeader *>(packet);
     int _request_id = dns_request_id++;
     header->id = htons(_request_id);
     header->qr = 0;
@@ -274,9 +283,9 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
 
     steps = sizeof(RecordHeader);
 
-    _domain_name = &packet[steps];
+    char *_domain_name = &packet[steps];
 
-    int len = strlen(domain);
+    const int len = strlen(domain);
     if (domain_encode(domain, len, _domain_name) < 0) {
         swoole_warning("invalid domain[%s]", domain);
         return result;
@@ -284,7 +293,7 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
 
     steps += (strlen((const char *) _domain_name) + 1);
 
-    qflags = (Q_FLAGS *) &packet[steps];
+    qflags = reinterpret_cast<Q_FLAGS *>(&packet[steps]);
     qflags->qtype = htons(family == AF_INET6 ? SW_DNS_AAAA_RECORD : SW_DNS_A_RECORD);
     qflags->qclass = htons(0x0001);
     steps += sizeof(Q_FLAGS);
@@ -293,7 +302,7 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
     if (timeout > 0) {
         _sock.set_timeout(timeout);
     }
-    if (!_sock.sendto(SwooleG.dns_server_host, SwooleG.dns_server_port, (char *) packet, steps)) {
+    if (!_sock.sendto(SwooleG.dns_server.host, SwooleG.dns_server.port, (char *) packet, steps)) {
         swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
         return result;
     }
@@ -309,7 +318,6 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
     uint32_t type[10];
     sw_memset_zero(rdata, sizeof(rdata));
 
-    char *temp;
     steps = 0;
 
     char name[10][254];
@@ -322,14 +330,14 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
     }
 
     packet[ret] = 0;
-    header = (RecordHeader *) packet;
+    header = reinterpret_cast<RecordHeader *>(packet);
     steps = sizeof(RecordHeader);
 
     _domain_name = &packet[steps];
     domain_decode(_domain_name);
     steps = steps + (strlen(_domain_name) + 2);
 
-    qflags = (Q_FLAGS *) &packet[steps];
+    qflags = reinterpret_cast<Q_FLAGS *>(&packet[steps]);
     (void) qflags;
     steps = steps + sizeof(Q_FLAGS);
 
@@ -341,10 +349,10 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
     for (i = 0; i < ancount; ++i) {
         type[i] = 0;
         /* Parsing the NAME portion of the RR */
-        temp = &packet[steps];
+        char *temp = &packet[steps];
         j = 0;
         while (*temp != 0) {
-            if ((uchar)(*temp) == 0xc0) {
+            if ((uchar) (*temp) == 0xc0) {
                 ++temp;
                 temp = &packet[(uint8_t) *temp];
             } else {
@@ -373,7 +381,7 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
             temp = &packet[steps];
             j = 0;
             while (*temp != 0) {
-                if ((uchar)(*temp) == 0xc0) {
+                if ((uchar) (*temp) == 0xc0) {
                     ++temp;
                     temp = &packet[(uint8_t) *temp];
                 } else {
@@ -467,16 +475,16 @@ struct ResolvContext {
 };
 
 std::vector<std::string> dns_lookup_impl_with_cares(const char *domain, int family, double timeout) {
-    if (!swoole_event_isset_handler(SW_FD_CARES)) {
+    if (!swoole_event_isset_handler(SW_FD_CARES, SW_EVENT_READ)) {
         ares_library_init(ARES_LIB_INIT_ALL);
-        swoole_event_set_handler(SW_FD_CARES | SW_EVENT_READ, [](Reactor *reactor, Event *event) -> int {
-            auto ctx = reinterpret_cast<ResolvContext *>(event->socket->object);
+        swoole_event_set_handler(SW_FD_CARES, SW_EVENT_READ, [](Reactor *reactor, Event *event) -> int {
+            auto ctx = static_cast<ResolvContext *>(event->socket->object);
             swoole_trace_log(SW_TRACE_CARES, "[event callback] readable event, fd=%d", event->socket->fd);
             ares_process_fd(ctx->channel, event->fd, ARES_SOCKET_BAD);
             return SW_OK;
         });
-        swoole_event_set_handler(SW_FD_CARES | SW_EVENT_WRITE, [](Reactor *reactor, Event *event) -> int {
-            auto ctx = reinterpret_cast<ResolvContext *>(event->socket->object);
+        swoole_event_set_handler(SW_FD_CARES, SW_EVENT_WRITE, [](Reactor *reactor, Event *event) -> int {
+            auto ctx = static_cast<ResolvContext *>(event->socket->object);
             swoole_trace_log(SW_TRACE_CARES, "[event callback] writable event, fd=%d", event->socket->fd);
             ares_process_fd(ctx->channel, ARES_SOCKET_BAD, event->fd);
             return SW_OK;
@@ -496,7 +504,7 @@ std::vector<std::string> dns_lookup_impl_with_cares(const char *domain, int fami
     ctx.ares_opts.tries = SwooleG.dns_tries;
     ctx.ares_opts.sock_state_cb_data = &ctx;
     ctx.ares_opts.sock_state_cb = [](void *arg, int fd, int readable, int writable) {
-        auto ctx = reinterpret_cast<ResolvContext *>(arg);
+        auto ctx = static_cast<ResolvContext *>(arg);
         int events = 0;
         if (readable) {
             events |= SW_EVENT_READ;
@@ -543,14 +551,14 @@ std::vector<std::string> dns_lookup_impl_with_cares(const char *domain, int fami
         goto _return;
     }
 
-    if (!SwooleG.dns_server_host.empty()) {
+    if (!SwooleG.dns_server.host.empty()) {
 #if (ARES_VERSION >= 0x010b00)
         struct ares_addr_port_node servers;
         servers.family = AF_INET;
         servers.next = nullptr;
-        inet_pton(AF_INET, SwooleG.dns_server_host.c_str(), &servers.addr.addr4);
+        inet_pton(AF_INET, SwooleG.dns_server.host.c_str(), &servers.addr.addr4);
         servers.tcp_port = 0;
-        servers.udp_port = SwooleG.dns_server_port;
+        servers.udp_port = SwooleG.dns_server.port;
         ares_set_servers_ports(ctx.channel, &servers);
 #elif (ARES_VERSION >= 0x010701)
         struct ares_addr_node servers;
@@ -571,7 +579,7 @@ std::vector<std::string> dns_lookup_impl_with_cares(const char *domain, int fami
         domain,
         family,
         [](void *data, int status, int timeouts, struct hostent *hostent) {
-            auto ctx = reinterpret_cast<ResolvContext *>(data);
+            auto ctx = static_cast<ResolvContext *>(data);
 
             swoole_trace_log(SW_TRACE_CARES, "[cares callback] status=%d, timeouts=%d", status, timeouts);
 
@@ -600,7 +608,7 @@ std::vector<std::string> dns_lookup_impl_with_cares(const char *domain, int fami
                         if (*_cancelled) {
                             return;
                         }
-                        Coroutine *co = reinterpret_cast<Coroutine *>(data);
+                        auto *co = static_cast<Coroutine *>(data);
                         co->resume();
                     },
                     ctx->co);
@@ -646,6 +654,7 @@ _return:
 #endif
 
 std::vector<std::string> dns_lookup(const char *domain, int family, double timeout) {
+    family = family == AF_INET6 ? AF_INET6 : AF_INET;  // only support IPv4 and IPv6
 #ifdef SW_USE_CARES
     return dns_lookup_impl_with_cares(domain, family, timeout);
 #else
@@ -667,21 +676,21 @@ static std::mutex g_gethostbyname2_lock;
 
 #ifdef HAVE_GETHOSTBYNAME2_R
 int gethostbyname(int flags, const char *name, char *addr) {
-    int __af = flags & (~SW_DNS_LOOKUP_RANDOM);
+    int _af = flags & (~SW_DNS_LOOKUP_RANDOM);
     int index = 0;
     int rc, err;
     int buf_len = 256;
-    struct hostent hbuf;
-    struct hostent *result;
+    hostent hbuf{};
+    hostent *result;
 
-    char *buf = (char *) sw_malloc(buf_len);
+    char *buf = static_cast<char *>(sw_malloc(buf_len));
     if (!buf) {
         return SW_ERR;
     }
     memset(buf, 0, buf_len);
-    while ((rc = ::gethostbyname2_r(name, __af, &hbuf, buf, buf_len, &result, &err)) == ERANGE) {
+    while ((rc = ::gethostbyname2_r(name, _af, &hbuf, buf, buf_len, &result, &err)) == ERANGE) {
         buf_len *= 2;
-        char *tmp = (char *) sw_realloc(buf, buf_len);
+        char *tmp = static_cast<char *>(sw_realloc(buf, buf_len));
         if (nullptr == tmp) {
             sw_free(buf);
             return SW_ERR;
@@ -705,13 +714,13 @@ int gethostbyname(int flags, const char *name, char *addr) {
         if (hbuf.h_addr_list[i] == nullptr) {
             break;
         }
-        if (__af == AF_INET) {
+        if (_af == AF_INET) {
             memcpy(addr_list[i].v4, hbuf.h_addr_list[i], hbuf.h_length);
         } else {
             memcpy(addr_list[i].v6, hbuf.h_addr_list[i], hbuf.h_length);
         }
     }
-    if (__af == AF_INET) {
+    if (_af == AF_INET) {
         memcpy(addr, addr_list[index].v4, hbuf.h_length);
     } else {
         memcpy(addr, addr_list[index].v6, hbuf.h_length);
@@ -758,65 +767,80 @@ int gethostbyname(int flags, const char *name, char *addr) {
 }
 #endif
 
+std::string gethostbyname(int type, const std::string &name) {
+    char addr[sizeof(in6_addr)];
+    if (gethostbyname(type, name.c_str(), addr) == SW_OK) {
+        return Address::addr_str(type, addr);
+    }
+    swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
+    return {};
+}
+
 int getaddrinfo(GetaddrinfoRequest *req) {
-    struct addrinfo *result = nullptr;
-    struct addrinfo *ptr = nullptr;
-    struct addrinfo hints {};
+    addrinfo *result = nullptr;
+    addrinfo *ptr = nullptr;
+    addrinfo hints{};
 
     hints.ai_family = req->family;
     hints.ai_socktype = req->socktype;
     hints.ai_protocol = req->protocol;
 
-    int ret = ::getaddrinfo(req->hostname, req->service, &hints, &result);
+    int ret = ::getaddrinfo(req->hostname.c_str(), req->service.c_str(), &hints, &result);
     if (ret != 0) {
         req->error = ret;
         return SW_ERR;
     }
 
-    void *buffer = req->result;
     int i = 0;
-    for (ptr = result; ptr != nullptr; ptr = ptr->ai_next) {
+    for (ptr = result; ptr != nullptr; ptr = ptr->ai_next, i++) {
+    }
+    req->count = SW_MIN(i, SW_DNS_HOST_BUFFER_SIZE);
+    req->results.resize(req->count);
+
+    for (ptr = result, i = 0; ptr != nullptr; ptr = ptr->ai_next, i++) {
         switch (ptr->ai_family) {
         case AF_INET:
-            memcpy((char *) buffer + (i * sizeof(struct sockaddr_in)), ptr->ai_addr, sizeof(struct sockaddr_in));
+            memcpy(&req->results[i], ptr->ai_addr, sizeof(struct sockaddr_in));
             break;
         case AF_INET6:
-            memcpy((char *) buffer + (i * sizeof(struct sockaddr_in6)), ptr->ai_addr, sizeof(struct sockaddr_in6));
+            memcpy(&req->results[i], ptr->ai_addr, sizeof(struct sockaddr_in6));
             break;
         default:
             swoole_warning("unknown socket family[%d]", ptr->ai_family);
             break;
         }
-        i++;
         if (i == SW_DNS_HOST_BUFFER_SIZE) {
             break;
         }
     }
     ::freeaddrinfo(result);
     req->error = 0;
-    req->count = i;
+
     return SW_OK;
 }
 
-void GetaddrinfoRequest::parse_result(std::vector<std::string> &retval) {
-    struct sockaddr_in *addr_v4;
-    struct sockaddr_in6 *addr_v6;
+int gethostbyname(GethostbynameRequest *req) {
+    const auto rv = gethostbyname(req->family, req->name);
+    if (rv.empty()) {
+        swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
+        return SW_ERR;
+    }
+    req->addr = rv;
+    return SW_OK;
+}
+}  // namespace network
 
-    char tmp[INET6_ADDRSTRLEN];
-    const char *r;
-
-    for (int i = 0; i < count; i++) {
-        if (family == AF_INET) {
-            addr_v4 = (struct sockaddr_in *) ((char *) result + (i * sizeof(struct sockaddr_in)));
-            r = inet_ntop(AF_INET, (const void *) &addr_v4->sin_addr, tmp, sizeof(tmp));
+void GetaddrinfoRequest::parse_result(std::vector<std::string> &retval) const {
+    for (auto &addr : results) {
+        const char *addr_str;
+        if (family == AF_INET6) {
+            addr_str = network::Address::addr_str(family, &addr.sin6_addr);
         } else {
-            addr_v6 = (struct sockaddr_in6 *) ((char *) result + (i * sizeof(struct sockaddr_in6)));
-            r = inet_ntop(AF_INET6, (const void *) &addr_v6->sin6_addr, tmp, sizeof(tmp));
+            addr_str = network::Address::addr_str(family, &((sockaddr_in *) &addr)->sin_addr);
         }
-        if (r) {
-            retval.push_back(tmp);
+        if (addr_str) {
+            retval.emplace_back(addr_str);
         }
     }
 }
-}  // namespace network
 }  // namespace swoole

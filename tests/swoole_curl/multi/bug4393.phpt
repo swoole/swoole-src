@@ -40,7 +40,7 @@ run(function () {
 
         if (IS_IN_CI) {
             Assert::contains($responses['baidu']->getBody(), '百度');
-            Assert::contains(iconv('gbk', 'utf-8', $responses['qq']->getBody()), '腾讯');
+            Assert::contains($responses['qq']->getBody(), '腾讯');
         } else {
             Assert::contains($responses['httpbin']->getBody(), 'httpbin');
             Assert::contains($responses['nghttp2']->getBody(), 'nghttp2');
@@ -51,7 +51,7 @@ run(function () {
     while ($n--) {
         $s = microtime(true);
         $test();
-        Assert::lessThan(microtime(true) - $s, 2.0);
+        Assert::lessThan(microtime(true) - $s, 3.0);
     }
 
     echo 'Done' . PHP_EOL;

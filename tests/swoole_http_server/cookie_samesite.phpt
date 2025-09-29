@@ -12,7 +12,7 @@ $pm->parentFunc = function () use ($pm) {
         $cli->get('/');
         Assert::assert($cli->set_cookie_headers ===
             [
-                'a=123; samesite=Lax',
+                'a=123; SameSite=Lax',
             ]
         );
     });

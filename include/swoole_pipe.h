@@ -35,10 +35,10 @@ class SocketPair {
     double timeout;
 
     /**
-     * master : socks[1]
-     * worker : socks[0]
+     * master : socks[1], for write operation
+     * worker : socks[0], for read operation
      */
-    int socks[2];
+    int socks[2]{};
 
     network::Socket *master_socket = nullptr;
     network::Socket *worker_socket = nullptr;
@@ -46,7 +46,7 @@ class SocketPair {
     bool init_socket(int master_fd, int worker_fd);
 
   public:
-    SocketPair(bool _blocking) {
+    explicit SocketPair(bool _blocking) {
         blocking = _blocking;
         timeout = network::Socket::default_read_timeout;
     }
@@ -54,41 +54,37 @@ class SocketPair {
 
     ssize_t read(void *_buf, size_t length);
     ssize_t write(const void *_buf, size_t length);
+    void clean();
     bool close(int which = 0);
 
-    network::Socket *get_socket(bool _master) {
+    network::Socket *get_socket(bool _master) const {
         return _master ? master_socket : worker_socket;
     }
 
-    bool ready() {
+    bool ready() const {
         return master_socket != nullptr && worker_socket != nullptr;
     }
 
     void set_timeout(double _timeout) {
         timeout = _timeout;
+        master_socket->set_timeout(timeout);
+        worker_socket->set_timeout(timeout);
     }
 
-    void set_blocking(bool blocking) {
-        if (blocking) {
-            worker_socket->set_block();
-            master_socket->set_block();
-        } else {
-            worker_socket->set_nonblock();
-            master_socket->set_nonblock();
-        }
-    }
+    void set_blocking(bool blocking) const;
 };
 
 class Pipe : public SocketPair {
- public:
-    Pipe(bool blocking);
+  public:
+    explicit Pipe(bool blocking);
 };
 
 class UnixSocket : public SocketPair {
     int protocol_;
+
   public:
     UnixSocket(bool blocking, int _protocol);
-    bool set_buffer_size(size_t _size);
+    bool set_buffer_size(size_t _size) const;
 };
 
 }  // namespace swoole

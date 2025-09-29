@@ -33,7 +33,12 @@ run(function () {
     });
 
     register_shutdown_function(function () use ($ch) {
-        curl_close($ch);
+        try {
+            curl_close($ch);
+        } catch (throwable $e) {
+            trigger_error($e->getMessage(), E_USER_WARNING);
+        }
+
     });
 
     curl_exec($ch);

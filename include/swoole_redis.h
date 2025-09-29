@@ -46,22 +46,10 @@ enum ReplyType {
     REPLY_MAP,
 };
 
-static sw_inline const char *get_number(const char *p, int *_ret) {
-    char *endptr;
-    p++;
-    int ret = strtol(p, &endptr, 10);
-    if (strncmp(SW_CRLF, endptr, SW_CRLF_LEN) == 0) {
-        p += (endptr - p) + SW_CRLF_LEN;
-        *_ret = ret;
-        return p;
-    } else {
-        return nullptr;
-    }
-}
-
+const char *get_number(const char *p, int *_ret);
 int recv_packet(Protocol *protocol, Connection *conn, String *buffer);
 std::vector<std::string> parse(const char *data, size_t len);
-bool format(String *buf);
+bool format_nil(String *buf);
 bool format(String *buf, enum ReplyType type, const std::string &value);
 bool format(String *buf, enum ReplyType type, long value);
 

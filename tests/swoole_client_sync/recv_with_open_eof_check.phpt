@@ -22,7 +22,7 @@ $pm->parentFunc = function () use ($pm) {
 
     $data = @$client->recv(1024 * 1024 * 2);
     Assert::false($data);
-    Assert::eq(11, $client->errCode);
+    Assert::eq(SOCKET_EAGAIN, $client->errCode);
     $client->close();
     $pm->kill();
     echo "DONE\n";

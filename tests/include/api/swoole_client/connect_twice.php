@@ -2,17 +2,17 @@
 
 $start = microtime(true);
 
-$cli = new Swoole\Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
-$cli->on("connect", function(Swoole\Client $cli) {
+$cli = new Swoole\Async\Client(SWOOLE_SOCK_TCP);
+$cli->on("connect", function(Swoole\Async\Client $cli) {
     Assert::true(false, 'never here');
 });
-$cli->on("receive", function(Swoole\Client $cli, $data) {
+$cli->on("receive", function(Swoole\Async\Client $cli, $data) {
     Assert::true(false, 'never here');
 });
-$cli->on("error", function(Swoole\Client $cli) {
+$cli->on("error", function(Swoole\Async\Client $cli) {
     echo "error\n";
 });
-$cli->on("close", function(Swoole\Client $cli) {
+$cli->on("close", function(Swoole\Async\Client $cli) {
     echo "close\n";
 });
 

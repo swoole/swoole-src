@@ -15,11 +15,12 @@
 */
 
 #include "swoole.h"
-#if defined(HAVE_KQUEUE) && defined(HAVE_SENDFILE)
+
+#if defined(HAVE_SENDFILE) && defined(HAVE_KQUEUE)
 #include <sys/socket.h>
 #include <sys/uio.h>
 
-int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size) {
+ssize_t swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size) {
     ssize_t ret;
 
 #ifdef __MACH__
@@ -64,7 +65,7 @@ _do_sendfile:
     return SW_OK;
 }
 #elif !defined(HAVE_SENDFILE)
-int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size) {
+ssize_t swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size) {
     char buf[SW_BUFFER_SIZE_BIG];
     size_t readn = size > sizeof(buf) ? sizeof(buf) : size;
     ssize_t n = pread(in_fd, buf, readn, *offset);

@@ -10,7 +10,9 @@ class TcpServer
 
     public function __construct()
     {
-        $this->swooleServer = new Swoole\Server('127.0.0.1', 9001, SWOOLE_PROCESS, SWOOLE_SOCK_TCP);
+        global $argv;
+
+        $this->swooleServer = new Swoole\Server($argv[1], $argv[2], SWOOLE_PROCESS, SWOOLE_SOCK_TCP);
         $this->swooleServer->set([
             // "output_buffer_size" => 1024 * 1024 * 1024, // 输出限制
 

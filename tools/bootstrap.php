@@ -125,7 +125,7 @@ function swoole_execute_and_check(array $commands): void
     echo "=========== Finish Done ============" . PHP_EOL . PHP_EOL;
 }
 
-function scan_dir(string $dir, callable $filter = null): array
+function scan_dir(string $dir, ?callable $filter = null): array
 {
     $files = array_filter(scandir($dir), function (string $file) {
         return $file[0] !== '.';
@@ -136,7 +136,7 @@ function scan_dir(string $dir, callable $filter = null): array
     return array_values($filter ? array_filter($files, $filter) : $files);
 }
 
-function scan_dir_recursive(string $dir, callable $filter = null): array
+function scan_dir_recursive(string $dir, ?callable $filter = null): array
 {
     $result = [];
     $files = scan_dir($dir, $filter);

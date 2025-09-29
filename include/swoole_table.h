@@ -18,11 +18,9 @@
 
 #include "swoole.h"
 #include "swoole_memory.h"
-#include "swoole_util.h"
 #include "swoole_lock.h"
-#include "swoole_hash.h"
 
-#include <signal.h>
+#include <csignal>
 
 #include <vector>
 #include <unordered_map>
@@ -30,9 +28,9 @@
 //#define SW_TABLE_DEBUG   0
 #define SW_TABLE_FORCE_UNLOCK_TIME 2000  // milliseconds
 #define SW_TABLE_USE_PHP_HASH
+#define SW_TABLE_MAX_ROW_SIZE 0x80000000
 
 namespace swoole {
-
 typedef uint32_t TableStringLength;
 typedef uint64_t (*HashFunc)(const char *key, size_t len);
 
@@ -79,35 +77,17 @@ struct TableIterator {
     TableRow *current_;
     Mutex *mutex_;
 
-    explicit TableIterator(size_t row_size) {
-        current_ = (TableRow *) sw_malloc(row_size);
-        if (!current_) {
-            throw std::bad_alloc();
-        }
-        mutex_ = new Mutex(Mutex::PROCESS_SHARED);
-        row_memory_size_ = row_size;
-        reset();
-    }
+    explicit TableIterator(size_t row_size);
+    ~TableIterator();
 
-    void lock() {
+    void reset();
+
+    void lock() const {
         mutex_->lock();
     }
 
-    void unlock() {
+    void unlock() const {
         mutex_->unlock();
-    }
-
-    void reset() {
-        absolute_index = 0;
-        collision_index = 0;
-        sw_memset_zero(current_, row_memory_size_);
-    }
-
-    ~TableIterator() {
-        if (current_) {
-            sw_free(current_);
-        }
-        delete mutex_;
     }
 };
 
@@ -123,36 +103,17 @@ struct TableColumn {
         TYPE_STRING,
     };
 
-    enum Type type;
+    Type type;
     uint32_t size;
     std::string name;
     size_t index;
 
-    TableColumn(const std::string &_name, enum Type _type, size_t _size) {
-        index = 0;
-        name = _name;
-        type = _type;
-        switch (_type) {
-        case TYPE_INT:
-            size = sizeof(long);
-            break;
-        case TYPE_FLOAT:
-            size = sizeof(double);
-            break;
-        case TYPE_STRING:
-            size = _size + sizeof(TableStringLength);
-            break;
-        default:
-            abort();
-            break;
-        }
-    }
+    TableColumn(const std::string &_name, Type _type, size_t _size);
 
     void clear(TableRow *row);
 };
 
 class Table {
-  private:
     std::unordered_map<std::string, TableColumn *> *column_map;
     Mutex *mutex;
     size_t size;
@@ -194,12 +155,12 @@ class Table {
     uint32_t get_total_slice_num();
     bool create();
     bool add_column(const std::string &name, enum TableColumn::Type type, size_t size);
+    TableColumn *get_column(const std::string &key);
     TableRow *set(const char *key, uint16_t keylen, TableRow **rowlock, int *out_flags);
     TableRow *get(const char *key, uint16_t keylen, TableRow **rowlock);
+    bool exists(const char *key, uint16_t keylen);
     bool del(const char *key, uint16_t keylen);
     void forward();
-    // only release local memory of the current process
-    void free();
     // release shared memory
     void destroy();
 
@@ -207,7 +168,7 @@ class Table {
         return created;
     }
 
-    bool ready() {
+    bool ready() const {
         return memory != nullptr;
     }
 
@@ -219,63 +180,54 @@ class Table {
         return size;
     }
 
-    TableRow *get_by_index(uint32_t index) {
-        TableRow *row = rows[index];
-        return row->active ? row : nullptr;
+    float get_conflict_proportion() const {
+        return conflict_proportion;
     }
 
-    TableColumn *get_column(const std::string &key) {
-        auto i = column_map->find(key);
-        if (i == column_map->end()) {
-            return nullptr;
-        } else {
-            return i->second;
-        }
+    size_t get_column_size() const {
+        return column_map->size();
+    }
+
+    TableRow *get_by_index(uint32_t index) const {
+        TableRow *row = rows[index];
+        return row->active ? row : nullptr;
     }
 
     size_t count() const {
         return row_num;
     }
 
-    bool exists(const char *key, uint16_t keylen) {
-        TableRow *_rowlock = nullptr;
-        const TableRow *row = get(key, keylen, &_rowlock);
-        _rowlock->unlock();
-        return row != nullptr;
-    }
-
     bool exists(const std::string &key) {
         return exists(key.c_str(), key.length());
     }
 
-    TableRow *current() {
+    TableRow *current() const {
         return iterator->current_;
     }
 
-    void rewind() {
+    void rewind() const {
         iterator->lock();
         iterator->reset();
         iterator->unlock();
     }
 
-    void clear_row(TableRow *row) {
-        for (auto & i : *column_list) {
+    void clear_row(TableRow *row) const {
+        for (auto &i : *column_list) {
             i->clear(row);
         }
     }
 
   private:
-
-    TableRow *hash(const char *key, int keylen) {
+    TableRow *hash(const char *key, int keylen) const {
         uint64_t hashv = hash_func(key, keylen);
         uint64_t index = hashv & mask;
         assert(index < size);
         return rows[index];
     }
 
-    TableRow *alloc_row() {
+    TableRow *alloc_row() const {
         lock();
-        auto new_row = (TableRow *) pool->alloc(0);
+        const auto new_row = static_cast<TableRow *>(pool->alloc(0));
         unlock();
         return new_row;
     }
@@ -294,7 +246,8 @@ class Table {
     }
 
     void init_row(TableRow *new_row, const char *key, int keylen) {
-        sw_memset_zero((char *) new_row + offsetof(TableRow, active), sizeof(TableRow) - offsetof(TableRow, active));
+        sw_memset_zero(reinterpret_cast<char *>(new_row) + offsetof(TableRow, active),
+                       sizeof(TableRow) - offsetof(TableRow, active));
         memcpy(new_row->key, key, keylen);
         new_row->key[keylen] = '\0';
         new_row->key_len = keylen;
@@ -302,11 +255,11 @@ class Table {
         sw_atomic_fetch_add(&(row_num), 1);
     }
 
-    int lock() {
+    int lock() const {
         return mutex->lock();
     }
 
-    int unlock() {
+    int unlock() const {
         return mutex->unlock();
     }
 };

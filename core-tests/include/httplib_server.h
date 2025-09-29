@@ -517,30 +517,31 @@ inline bool Server::write_content_with_provider(
 
 inline bool Server::read_content(Stream &strm, Request &req, Response &res) {
     MultipartFormDataMap::iterator cur;
-    if (read_content_core(strm,
-                          req,
-                          res,
-                          // Regular
-                          [&](const char *buf, size_t n) {
-                              if (req.body.size() + n > req.body.max_size()) {
-                                  return false;
-                              }
-                              req.body.append(buf, n);
-                              return true;
-                          },
-                          // Multipart
-                          [&](const MultipartFormData &file) {
-                              cur = req.files.emplace(file.name, file);
-                              return true;
-                          },
-                          [&](const char *buf, size_t n) {
-                              auto &content = cur->second.content;
-                              if (content.size() + n > content.max_size()) {
-                                  return false;
-                              }
-                              content.append(buf, n);
-                              return true;
-                          })) {
+    if (read_content_core(
+            strm,
+            req,
+            res,
+            // Regular
+            [&](const char *buf, size_t n) {
+                if (req.body.size() + n > req.body.max_size()) {
+                    return false;
+                }
+                req.body.append(buf, n);
+                return true;
+            },
+            // Multipart
+            [&](const MultipartFormData &file) {
+                cur = req.files.emplace(file.name, file);
+                return true;
+            },
+            [&](const char *buf, size_t n) {
+                auto &content = cur->second.content;
+                if (content.size() + n > content.max_size()) {
+                    return false;
+                }
+                content.append(buf, n);
+                return true;
+            })) {
         const auto &content_type = req.get_header_value("Content-Type");
         if (!content_type.find("application/x-www-form-urlencoded")) {
             detail::parse_query_text(req.body, req.params);
@@ -999,8 +1000,8 @@ class CoSocketStream : public detail::SocketStream {
         : detail::SocketStream(
               sock->get_fd(), read_timeout_sec, read_timeout_usec, write_timeout_sec, write_timeout_usec) {
         sock_ = sock;
-        sock->set_timeout((double) read_timeout_sec + ((double) read_timeout_usec / 1000000), Socket::TIMEOUT_READ);
-        sock->set_timeout((double) write_timeout_sec + ((double) write_timeout_usec / 1000000), Socket::TIMEOUT_WRITE);
+        sock->set_timeout((double) read_timeout_sec + ((double) read_timeout_usec / 1000000), SW_TIMEOUT_READ);
+        sock->set_timeout((double) write_timeout_sec + ((double) write_timeout_usec / 1000000), SW_TIMEOUT_WRITE);
     }
     ~CoSocketStream() {}
     bool is_readable() const {
@@ -1018,7 +1019,7 @@ class CoSocketStream : public detail::SocketStream {
     void get_remote_ip_and_port(std::string &ip, int &port) const {
         Address sa;
         sock_->getpeername(&sa);
-        ip = std::string(sa.get_ip());
+        ip = std::string(sa.get_addr());
         port = sa.get_port();
     }
 

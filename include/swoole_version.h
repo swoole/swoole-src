@@ -18,21 +18,16 @@
 #ifndef SWOOLE_VERSION_H_
 #define SWOOLE_VERSION_H_
 
-#define SWOOLE_MAJOR_VERSION 5
+#define SWOOLE_MAJOR_VERSION 6
 #define SWOOLE_MINOR_VERSION 1
-#define SWOOLE_RELEASE_VERSION 2
+#define SWOOLE_RELEASE_VERSION 0
 #define SWOOLE_EXTRA_VERSION ""
-#define SWOOLE_VERSION "5.1.2"
-#define SWOOLE_VERSION_ID 50102
+#define SWOOLE_VERSION "6.1.0RC1"
+#define SWOOLE_VERSION_ID 60100
 #define SWOOLE_API_VERSION_ID 0x202208a
 
 #define SWOOLE_BUG_REPORT                                                                                              \
-    "A bug occurred in Swoole-v" SWOOLE_VERSION ", please report it.\n"                                                \
-    "The Swoole developers probably don't know about it,\n"                                                            \
-    "and unless you report it, chances are it won't be fixed.\n"                                                       \
-    "You can read How to report a bug doc before submitting any bug reports:\n"                                        \
-    ">> https://github.com/swoole/swoole-src/blob/master/.github/ISSUE.md \n"                                          \
-    "Please do not send bug reports in the mailing list or personal letters.\n"                                        \
-    "The issue page is also suitable to submit feature requests.\n"
-
+    "A process crash occurred in Swoole-v" SWOOLE_VERSION ". Please report this issue.\n"                              \
+    "You can refer to the documentation below, submit an issue to us on GitHub.\n"                                     \
+    ">> https://github.com/swoole/swoole-src/blob/master/docs/ISSUE.md\n"
 #endif

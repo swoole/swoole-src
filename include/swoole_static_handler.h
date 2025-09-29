@@ -67,6 +67,15 @@ class StaticHandler {
     bool get_dir_files();
     bool set_filename(const std::string &filename);
 
+    bool catch_error() {
+        if (last) {
+            status_code = SW_HTTP_NOT_FOUND;
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     bool has_index_file() {
         return !index_file.empty();
     }
@@ -75,7 +84,7 @@ class StaticHandler {
         return serv->http_autoindex;
     }
 
-    std::string get_date();
+    static std::string get_date();
 
     time_t get_file_mtime() {
 #ifdef __MACH__
@@ -91,30 +100,32 @@ class StaticHandler {
         return filename;
     }
 
-    const char *get_boundary() {
+    const std::string &get_boundary() {
         if (boundary.empty()) {
             boundary = std::string(SW_HTTP_SERVER_BOUNDARY_PREKEY);
             swoole_random_string(boundary, SW_HTTP_SERVER_BOUNDARY_TOTAL_SIZE - sizeof(SW_HTTP_SERVER_BOUNDARY_PREKEY));
         }
-        return boundary.c_str();
+        return boundary;
     }
 
-    const char *get_content_type() {
+    const std::string &get_content_type() {
         if (tasks.size() > 1) {
             content_type = std::string("multipart/byteranges; boundary=") + get_boundary();
-            return content_type.c_str();
+            return content_type;
         } else {
             return get_mimetype();
         }
     }
 
-    const char *get_mimetype() {
-        return swoole::mime_type::get(get_filename()).c_str();
+    const std::string &get_mimetype() {
+        return swoole::mime_type::get(get_filename());
     }
 
     std::string get_filename_std_string() {
         return std::string(filename, l_filename);
     }
+
+    bool get_absolute_path();
 
     size_t get_filesize() {
         return file_stat.st_size;
@@ -128,12 +139,32 @@ class StaticHandler {
         return S_ISDIR(file_stat.st_mode);
     }
 
+    bool is_link() {
+        return S_ISLNK(file_stat.st_mode);
+    }
+
+    bool is_file() {
+        return S_ISREG(file_stat.st_mode);
+    }
+
+    bool is_absolute_path() {
+        return swoole_strnpos(filename, l_filename, SW_STRL("..")) == -1;
+    }
+
+    bool is_located_in_document_root() {
+        const std::string &document_root = serv->get_document_root();
+        const size_t l_document_root = document_root.length();
+
+        return l_filename > l_document_root && filename[l_document_root] == '/' &&
+               swoole_str_starts_with(filename, l_filename, document_root.c_str(), l_document_root);
+    }
+
     size_t get_content_length() {
         return content_length;
     }
 
-    const char *get_end_part() {
-        return end_part.c_str();
+    const std::string &get_end_part() {
+        return end_part;
     }
 
     void parse_range(const char *range, const char *if_range);

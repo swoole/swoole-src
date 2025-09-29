@@ -17,7 +17,7 @@
   +----------------------------------------------------------------------+
 */
 
-#include "test_core.h"
+#include "test_coroutine.h"
 #include "swoole_lock.h"
 #include "swoole_util.h"
 
@@ -29,7 +29,11 @@ using swoole::RWLock;
 #ifdef HAVE_SPINLOCK
 using swoole::SpinLock;
 #endif
+using swoole::Coroutine;
+using swoole::CoroutineLock;
 using swoole::Mutex;
+using swoole::coroutine::System;
+using swoole::test::coroutine;
 
 static void test_func(swLock &lock) {
     int count = 0;
@@ -133,6 +137,74 @@ TEST(lock, shared) {
 TEST(lock, try_rd) {
     Mutex lock(0);
     test_lock_rd_func(lock);
+}
+
+TEST(lock, coroutine_lock) {
+    auto *lock = new CoroutineLock(false);
+    ASSERT_EQ(lock->lock(), SW_ERROR_CO_OUT_OF_COROUTINE);
+    ASSERT_EQ(lock->unlock(), SW_ERROR_CO_OUT_OF_COROUTINE);
+
+    coroutine::run([lock](void *arg) {
+        Coroutine::create([lock](void *) {
+            ASSERT_EQ(lock->lock(), 0);
+            ASSERT_EQ(lock->lock(), 0);
+            System::sleep(1);
+            ASSERT_EQ(lock->unlock(), 0);
+        });
+
+        Coroutine::create([lock](void *) {
+            ASSERT_EQ(lock->lock(), 0);
+            System::sleep(1);
+            ASSERT_EQ(lock->unlock(), 0);
+            // unlock 2, no effect
+            ASSERT_EQ(lock->unlock(), 0);
+        });
+
+        Coroutine::create([lock](void *) { ASSERT_EQ(lock->trylock(), EBUSY); });
+    });
+
+    delete lock;
+}
+
+#ifndef HAVE_IOURING_FUTEX
+TEST(lock, coroutine_lock_cancel) {
+    CoroutineLock lock(true);
+    coroutine::run([&](void *arg) {
+        ASSERT_EQ(lock.lock(), 0);
+        Coroutine::create([&](void *) {
+            auto co = Coroutine::get_current();
+            swoole_timer_after(20, [co](TIMER_PARAMS) {
+                DEBUG() << "cancel coroutine " << co->get_cid() << "\n";
+                co->cancel();
+            });
+            ASSERT_EQ(lock.lock(), SW_ERROR_CO_CANCELED);
+        });
+    });
+}
+#endif
+
+TEST(lock, coroutine_lock_rd) {
+    auto *lock = new CoroutineLock(false);
+    ASSERT_EQ(lock->lock_rd(), SW_ERROR_CO_OUT_OF_COROUTINE);
+
+    coroutine::run([lock](void *arg) {
+        Coroutine::create([lock](void *) {
+            ASSERT_EQ(lock->lock_rd(), 0);
+            ASSERT_EQ(lock->lock_rd(), 0);
+            System::sleep(0.3);
+            ASSERT_EQ(lock->unlock(), 0);
+        });
+
+        Coroutine::create([lock](void *) {
+            ASSERT_EQ(lock->lock_rd(), 0);
+            System::sleep(0.3);
+            ASSERT_EQ(lock->unlock(), 0);
+        });
+
+        Coroutine::create([lock](void *) { ASSERT_EQ(lock->trylock_rd(), EBUSY); });
+    });
+
+    delete lock;
 }
 
 #ifdef HAVE_RWLOCK

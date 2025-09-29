@@ -51,10 +51,10 @@ struct Channel {
     Lock *lock;
     Pipe *notify_pipe;
 
-    bool empty() {
+    bool empty() const {
         return num == 0;
     }
-    bool full() {
+    bool full() const {
         return ((head == tail && tail_tag != head_tag) || (bytes + sizeof(int) * num == size));
     }
     int pop(void *out_buf, int buffer_length);
@@ -66,10 +66,10 @@ struct Channel {
     int notify();
     void destroy();
     void print();
-    int count() {
+    int count() const {
         return num;
     }
-    int get_bytes() {
+    size_t get_bytes() const {
         return bytes;
     }
     static Channel *make(size_t size, size_t maxlen, int flags);

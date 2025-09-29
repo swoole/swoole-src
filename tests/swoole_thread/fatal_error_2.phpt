@@ -1,0 +1,21 @@
+--TEST--
+swoole_thread: fatal error
+--SKIPIF--
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_nts();
+?>
+--FILE--
+<?php
+require __DIR__ . '/../include/bootstrap.php';
+use Swoole\Thread;
+
+$pm = ProcessManager::exec(function () {
+    include __DIR__ . '/fatal_error_2.inc';
+});
+$output = $pm->getChildOutput();
+Assert::contains($output, "start child thread\n");
+Assert::contains($output, "stop child thread\n");
+Assert::contains($output, "Fatal error: Uncaught Swoole\Error: test");
+?>
+--EXPECT--

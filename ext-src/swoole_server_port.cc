@@ -93,9 +93,9 @@ void php_swoole_server_port_deref(zend_object *object) {
     ServerPortProperty *property = &server_port->property;
     if (property->serv) {
         for (int j = 0; j < PHP_SWOOLE_SERVER_PORT_CALLBACK_NUM; j++) {
-            if (property->caches[j]) {
-                efree(property->caches[j]);
-                property->caches[j] = nullptr;
+            if (property->callbacks[j]) {
+                sw_callable_free(property->callbacks[j]);
+                property->callbacks[j] = nullptr;
             }
         }
         property->serv = nullptr;
@@ -103,10 +103,9 @@ void php_swoole_server_port_deref(zend_object *object) {
 
     ListenPort *port = server_port->port;
     if (port) {
-        if (port->protocol.private_data) {
-            sw_zend_fci_cache_discard((zend_fcall_info_cache *) port->protocol.private_data);
-            efree(port->protocol.private_data);
-            port->protocol.private_data = nullptr;
+        if (port->protocol.private_data_1) {
+            sw_callable_free(port->protocol.private_data_1);
+            port->protocol.private_data_1 = nullptr;
         }
         server_port->port = nullptr;
     }
@@ -154,7 +153,9 @@ const zend_function_entry swoole_server_port_methods[] =
 
 void php_swoole_server_port_minit(int module_number) {
     SW_INIT_CLASS_ENTRY(swoole_server_port, "Swoole\\Server\\Port", nullptr, swoole_server_port_methods);
+#ifndef SW_THREAD
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_server_port);
+#endif
     SW_SET_CLASS_CLONEABLE(swoole_server_port, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_server_port, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CUSTOM_OBJECT(swoole_server_port,
@@ -190,18 +191,13 @@ void php_swoole_server_port_minit(int module_number) {
  * [Master/Worker]
  */
 static ssize_t php_swoole_server_length_func(const Protocol *protocol, network::Socket *conn, PacketLength *pl) {
-    Server *serv = (Server *) protocol->private_data_2;
-    serv->lock();
-
-    zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) protocol->private_data;
+    zend::Callable *cb = (zend::Callable *) protocol->private_data_1;
     zval zdata;
     zval retval;
     ssize_t ret = -1;
 
     ZVAL_STRINGL(&zdata, pl->buf, pl->buf_size);
-    HOOK_PHP_CALL_STACK(
-        auto call_result = sw_zend_call_function_ex(nullptr, fci_cache, 1, &zdata, &retval);
-    );
+    HOOK_PHP_CALL_STACK(auto call_result = sw_zend_call_function_ex(nullptr, cb->ptr(), 1, &zdata, &retval););
     if (UNEXPECTED(call_result) != SUCCESS) {
         php_swoole_fatal_error(E_WARNING, "length function handler error");
     } else {
@@ -209,8 +205,6 @@ static ssize_t php_swoole_server_length_func(const Protocol *protocol, network::
         zval_ptr_dtor(&retval);
     }
     zval_ptr_dtor(&zdata);
-
-    serv->unlock();
 
     /* the exception should only be thrown after unlocked */
     if (UNEXPECTED(EG(exception))) {
@@ -232,19 +226,17 @@ static bool php_swoole_server_set_ssl_option(zend_array *vht, SSLContext *ctx) {
     zval *ztmp;
     if (php_swoole_array_get_value(vht, "ssl_cert_file", ztmp)) {
         zend::String str_v(ztmp);
-        if (access(str_v.val(), R_OK) < 0) {
+        if (!ctx->set_cert_file(str_v.to_std_string())) {
             php_swoole_fatal_error(E_ERROR, "ssl cert file[%s] not found", str_v.val());
             return false;
         }
-        ctx->cert_file = str_v.to_std_string();
     }
     if (php_swoole_array_get_value(vht, "ssl_key_file", ztmp)) {
         zend::String str_v(ztmp);
-        if (access(str_v.val(), R_OK) < 0) {
+        if (!ctx->set_key_file(str_v.to_std_string())) {
             php_swoole_fatal_error(E_ERROR, "ssl key file[%s] not found", str_v.val());
             return false;
         }
-        ctx->key_file = str_v.to_std_string();
     }
     return true;
 }
@@ -364,18 +356,8 @@ static PHP_METHOD(swoole_server_port, set) {
             port->open_http_protocol = 1;
         }
     }
-    if (php_swoole_array_get_value(vht, "websocket_subprotocol", ztmp)) {
-        port->websocket_subprotocol = zend::String(ztmp).to_std_string();
-    }
-    if (php_swoole_array_get_value(vht, "open_websocket_close_frame", ztmp)) {
-        port->open_websocket_close_frame = zval_is_true(ztmp);
-    }
-    if (php_swoole_array_get_value(vht, "open_websocket_ping_frame", ztmp)) {
-        port->open_websocket_ping_frame = zval_is_true(ztmp);
-    }
-    if (php_swoole_array_get_value(vht, "open_websocket_pong_frame", ztmp)) {
-        port->open_websocket_pong_frame = zval_is_true(ztmp);
-    }
+    // websocket settings
+    php_swoole_server_set_websocket_option(port, vht);
     // http2 protocol
     if (php_swoole_array_get_value(vht, "open_http2_protocol", ztmp)) {
         port->open_http2_protocol = zval_is_true(ztmp);
@@ -452,40 +434,18 @@ static PHP_METHOD(swoole_server_port, set) {
     }
     // length function
     if (php_swoole_array_get_value(vht, "package_length_func", ztmp)) {
-        while (1) {
-            if (Z_TYPE_P(ztmp) == IS_STRING) {
-                Protocol::LengthFunc func = Protocol::get_function(std::string(Z_STRVAL_P(ztmp), Z_STRLEN_P(ztmp)));
-                if (func != nullptr) {
-                    port->protocol.get_package_length = func;
-                    break;
-                }
-            }
-#ifdef ZTS
-            Server *serv = property->serv;
-            if (serv->is_process_mode() && !serv->single_thread) {
-                php_swoole_fatal_error(E_ERROR, "option [package_length_func] does not support with ZTS");
-            }
-#endif
-            char *func_name;
-            zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) ecalloc(1, sizeof(zend_fcall_info_cache));
-            if (!sw_zend_is_callable_ex(ztmp, nullptr, 0, &func_name, nullptr, fci_cache, nullptr)) {
-                php_swoole_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
-                return;
-            }
-            efree(func_name);
+        auto cb = sw_callable_create(ztmp);
+        if (cb) {
             port->protocol.get_package_length = php_swoole_server_length_func;
-            if (port->protocol.private_data) {
-                sw_zend_fci_cache_discard((zend_fcall_info_cache *) port->protocol.private_data);
-                efree(port->protocol.private_data);
+            if (port->protocol.private_data_1) {
+                sw_callable_free(port->protocol.private_data_1);
             }
-            sw_zend_fci_cache_persist(fci_cache);
-            port->protocol.private_data = fci_cache;
-            break;
+            port->protocol.private_data_1 = cb;
+            port->protocol.package_length_size = 0;
+            port->protocol.package_length_type = '\0';
+            port->protocol.package_length_offset = SW_IPC_BUFFER_SIZE;
+            property->serv->single_thread = true;
         }
-
-        port->protocol.package_length_size = 0;
-        port->protocol.package_length_type = '\0';
-        port->protocol.package_length_offset = SW_IPC_BUFFER_SIZE;
     }
     /**
      * package max length
@@ -497,63 +457,51 @@ static PHP_METHOD(swoole_server_port, set) {
 
 #ifdef SW_USE_OPENSSL
     if (port->ssl) {
-        if (!php_swoole_server_set_ssl_option(vht, port->ssl_context)) {
+        if (!php_swoole_server_set_ssl_option(vht, port->get_ssl_context())) {
             RETURN_FALSE;
         }
         if (php_swoole_array_get_value(vht, "ssl_compress", ztmp)) {
-            port->ssl_context->disable_compress = !zval_is_true(ztmp);
+            port->set_ssl_disable_compress(!zval_is_true(ztmp));
         }
         if (php_swoole_array_get_value(vht, "ssl_protocols", ztmp)) {
-            zend_long v = zval_get_long(ztmp);
-            port->ssl_context->protocols = v;
-#ifdef SW_SUPPORT_DTLS
-            if (port->is_dtls() && !port->is_dgram()) {
-                port->ssl_context->protocols ^= SW_SSL_DTLS;
-            }
-#endif
+            port->set_ssl_protocols(zval_get_long(ztmp));
         }
         if (php_swoole_array_get_value(vht, "ssl_verify_peer", ztmp)) {
-            port->ssl_context->verify_peer = zval_is_true(ztmp);
+            port->set_ssl_verify_peer(zval_is_true(ztmp));
         }
         if (php_swoole_array_get_value(vht, "ssl_allow_self_signed", ztmp)) {
-            port->ssl_context->allow_self_signed = zval_is_true(ztmp);
+            port->set_ssl_allow_self_signed(zval_is_true(ztmp));
         }
-        // verify client cert
         if (php_swoole_array_get_value(vht, "ssl_client_cert_file", ztmp)) {
             zend::String str_v(ztmp);
-            if (access(str_v.val(), R_OK) < 0) {
+            if (!port->set_ssl_client_cert_file(str_v.to_std_string())) {
                 php_swoole_fatal_error(E_ERROR, "ssl_client_cert_file[%s] not found", str_v.val());
                 return;
             }
-            port->ssl_context->client_cert_file = str_v.to_std_string();
+        }
+        if (php_swoole_array_get_value(vht, "ssl_cafile", ztmp)) {
+            zend::String str_v(ztmp);
+            port->set_ssl_cafile(str_v.to_std_string());
+        }
+        if (php_swoole_array_get_value(vht, "ssl_capath", ztmp)) {
+            zend::String str_v(ztmp);
+            port->set_ssl_capath(str_v.to_std_string());
         }
         if (php_swoole_array_get_value(vht, "ssl_verify_depth", ztmp)) {
             zend_long v = zval_get_long(ztmp);
-            port->ssl_context->verify_depth = SW_MAX(0, SW_MIN(v, UINT8_MAX));
+            port->set_ssl_verify_depth(SW_MAX(0, SW_MIN(v, UINT8_MAX)));
         }
         if (php_swoole_array_get_value(vht, "ssl_prefer_server_ciphers", ztmp)) {
-            port->ssl_context->prefer_server_ciphers = zval_is_true(ztmp);
+            port->set_ssl_prefer_server_ciphers(zval_is_true(ztmp));
         }
-        //    if ((v = zend_hash_str_find(vht, ZEND_STRL("ssl_session_tickets"))))
-        //    {
-        //        port->ssl_context->session_tickets = zval_is_true(v);
-        //    }
-        //    if ((v = zend_hash_str_find(vht, ZEND_STRL("ssl_stapling"))))
-        //    {
-        //        port->ssl_context->stapling = zval_is_true(v);
-        //    }
-        //    if ((v = zend_hash_str_find(vht, ZEND_STRL("ssl_stapling_verify"))))
-        //    {
-        //        port->ssl_context->stapling_verify = zval_is_true(v);
-        //    }
         if (php_swoole_array_get_value(vht, "ssl_ciphers", ztmp)) {
-            port->ssl_context->ciphers = zend::String(ztmp).to_std_string();
+            port->set_ssl_ciphers(zend::String(ztmp).to_std_string());
         }
         if (php_swoole_array_get_value(vht, "ssl_ecdh_curve", ztmp)) {
-            port->ssl_context->ecdh_curve = zend::String(ztmp).to_std_string();
+            port->set_ssl_ecdh_curve(zend::String(ztmp).to_std_string());
         }
         if (php_swoole_array_get_value(vht, "ssl_dhparam", ztmp)) {
-            port->ssl_context->dhparam = zend::String(ztmp).to_std_string();
+            port->set_ssl_dhparam(zend::String(ztmp).to_std_string());
         }
         if (php_swoole_array_get_value(vht, "ssl_sni_certs", ztmp)) {
             if (Z_TYPE_P(ztmp) != IS_ARRAY) {
@@ -575,31 +523,24 @@ static PHP_METHOD(swoole_server_port, set) {
                     php_swoole_fatal_error(E_WARNING, "invalid SNI_cert setting");
                     RETURN_FALSE;
                 }
-                SSLContext *context = new SSLContext();
-                *context = *port->ssl_context;
-                if (!php_swoole_server_set_ssl_option(Z_ARRVAL_P(current), context)) {
-                    delete context;
+                auto context = port->dup_ssl_context();
+                if (!php_swoole_server_set_ssl_option(Z_ARRVAL_P(current), context.get())) {
                     RETURN_FALSE;
                 }
                 if (!port->ssl_add_sni_cert(std::string(key->val, key->len), context)) {
                     php_swoole_fatal_error(E_ERROR, "ssl_add_sni_cert() failed");
-                    delete context;
                     RETURN_FALSE;
                 }
             }
             ZEND_HASH_FOREACH_END();
         }
 
-        if (!port->ssl_context->cert_file.empty() || port->sni_contexts.empty()) {
+        if (!port->get_ssl_cert_file().empty() || !port->has_sni_contexts()) {
             if (!port->ssl_init()) {
                 php_swoole_fatal_error(E_ERROR, "ssl_init() failed");
                 RETURN_FALSE;
             }
         }
-        //    if ((v = zend_hash_str_find(vht, ZEND_STRL("ssl_session_cache"))))
-        //    {
-        //        port->ssl_context->session_cache = zend::string_dup(v);
-        //    }
     }
 #endif
 
@@ -622,22 +563,15 @@ static PHP_METHOD(swoole_server_port, on) {
 
     ServerPortProperty *property = php_swoole_server_port_get_and_check_property(ZEND_THIS);
     Server *serv = property->serv;
-    if (serv->is_started()) {
+    if (!serv->is_worker_thread() && serv->is_started()) {
         php_swoole_fatal_error(E_WARNING, "can't register event callback function after server started");
         RETURN_FALSE;
     }
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz", &name, &len, &cb) == FAILURE) {
-        RETURN_FALSE;
-    }
-
-    char *func_name = nullptr;
-    zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) emalloc(sizeof(zend_fcall_info_cache));
-    if (!sw_zend_is_callable_ex(cb, nullptr, 0, &func_name, nullptr, fci_cache, nullptr)) {
-        php_swoole_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
-        return;
-    }
-    efree(func_name);
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+    Z_PARAM_STRING(name, len)
+    Z_PARAM_ZVAL(cb)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     bool found = false;
     for (auto i = server_port_event_map.begin(); i != server_port_event_map.end(); i++) {
@@ -650,13 +584,16 @@ static PHP_METHOD(swoole_server_port, on) {
         std::string property_name = std::string("on") + i->second.name;
         zend_update_property(
             swoole_server_port_ce, SW_Z8_OBJ_P(ZEND_THIS), property_name.c_str(), property_name.length(), cb);
-        property->callbacks[index] =
-            sw_zend_read_property(swoole_server_port_ce, ZEND_THIS, property_name.c_str(), property_name.length(), 0);
-        sw_copy_to_stack(property->callbacks[index], property->_callbacks[index]);
-        if (property->caches[index]) {
-            efree(property->caches[index]);
+
+        if (property->callbacks[index]) {
+            sw_callable_free(property->callbacks[index]);
         }
-        property->caches[index] = fci_cache;
+
+        auto fci_cache = sw_callable_create(cb);
+        if (!fci_cache) {
+            RETURN_FALSE;
+        }
+        property->callbacks[index] = fci_cache;
 
         if (index == SW_SERVER_CB_onConnect && !serv->onConnect) {
             serv->onConnect = php_swoole_server_onConnect;
@@ -674,7 +611,6 @@ static PHP_METHOD(swoole_server_port, on) {
 
     if (!found) {
         php_swoole_error(E_WARNING, "unknown event types[%s]", name);
-        efree(fci_cache);
         RETURN_FALSE;
     }
     RETURN_TRUE;

@@ -15,12 +15,14 @@
  */
 
 #include "php_swoole_cxx.h"
+
 #include "swoole_socket.h"
 #include "swoole_util.h"
 
 #include "thirdparty/php/standard/proc_open.h"
+
 #ifdef SW_USE_CURL
-#include "thirdparty/php/curl/curl_interface.h"
+#include "swoole_curl_interface.h"
 #endif
 
 #include <unordered_map>
@@ -76,6 +78,12 @@ static PHP_FUNCTION(swoole_time_sleep_until);
 static PHP_FUNCTION(swoole_stream_select);
 static PHP_FUNCTION(swoole_stream_socket_pair);
 static PHP_FUNCTION(swoole_user_func_handler);
+#if defined(HAVE_PUTENV) && defined(SW_THREAD)
+static PHP_FUNCTION(swoole_putenv);
+#endif
+#if PHP_VERSION_ID >= 80400
+extern PHP_FUNCTION(swoole_exit);
+#endif
 SW_EXTERN_C_END
 
 static void inherit_class(const char *child_name, size_t child_length, const char *parent_name, size_t parent_length);
@@ -110,9 +118,6 @@ struct NetStream {
     bool blocking;
 };
 
-static bool runtime_hook_init = false;
-static int runtime_hook_flags = 0;
-
 static struct {
     php_stream_transport_factory tcp;
     php_stream_transport_factory udp;
@@ -138,6 +143,10 @@ static std::vector<std::string> unsafe_functions {
     "pcntl_sigwaitinfo",
 };
 
+#if defined(HAVE_PUTENV) && defined(SW_THREAD)
+static std::unordered_map<std::string, std::string> swoole_runtime_environ;
+#endif
+
 static const zend_function_entry swoole_runtime_methods[] = {
     PHP_ME(swoole_runtime, enableCoroutine, arginfo_class_Swoole_Runtime_enableCoroutine, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_runtime, getHookFlags, arginfo_class_Swoole_Runtime_getHookFlags, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -156,11 +165,59 @@ static void hook_func(const char *name,
 static void unhook_func(const char *name, size_t l_name);
 
 static zend_internal_arg_info *get_arginfo(const char *name, size_t l_name) {
-    zend_function *zf = (zend_function *) zend_hash_str_find_ptr(EG(function_table), name, l_name);
+    auto *zf = static_cast<zend_function *>(zend_hash_str_find_ptr(EG(function_table), name, l_name));
     if (zf == nullptr) {
         return nullptr;
     }
     return zf->internal_function.arg_info;
+}
+
+static zend_internal_arg_info *copy_arginfo(const zend_function *zf, zend_internal_arg_info *_arg_info) {
+    uint32_t num_args = zf->internal_function.num_args + 1;
+    zend_internal_arg_info *arg_info = _arg_info - 1;
+
+    auto new_arg_info = static_cast<zend_internal_arg_info *>(pemalloc(sizeof(zend_internal_arg_info) * num_args, 1));
+    memcpy(new_arg_info, arg_info, sizeof(zend_internal_arg_info) * num_args);
+
+    if (zf->internal_function.fn_flags & ZEND_ACC_VARIADIC) {
+        num_args++;
+    }
+
+    for (uint32_t i = 0; i < num_args; i++) {
+        if (ZEND_TYPE_HAS_LIST(arg_info[i].type)) {
+            auto old_list = ZEND_TYPE_LIST(arg_info[i].type);
+            auto *new_list = static_cast<zend_type_list *>(pemalloc(ZEND_TYPE_LIST_SIZE(old_list->num_types), 1));
+            memcpy(new_list, old_list, ZEND_TYPE_LIST_SIZE(old_list->num_types));
+            ZEND_TYPE_SET_PTR(new_arg_info[i].type, new_list);
+
+            zend_type *list_type;
+            ZEND_TYPE_LIST_FOREACH(new_list, list_type) {
+                zend_string *name = zend_string_dup(ZEND_TYPE_NAME(*list_type), true);
+                ZEND_TYPE_SET_PTR(*list_type, name);
+            }
+            ZEND_TYPE_LIST_FOREACH_END();
+        } else if (ZEND_TYPE_HAS_NAME(arg_info[i].type)) {
+            zend_string *name = zend_string_dup(ZEND_TYPE_NAME(arg_info[i].type), true);
+            ZEND_TYPE_SET_PTR(new_arg_info[i].type, name);
+        }
+    }
+
+    return new_arg_info + 1;
+}
+
+static void free_arg_info(const zend_internal_function *function) {
+    if ((function->fn_flags & (ZEND_ACC_HAS_RETURN_TYPE | ZEND_ACC_HAS_TYPE_HINTS)) && function->arg_info) {
+        uint32_t num_args = function->num_args + 1;
+        zend_internal_arg_info *arg_info = function->arg_info - 1;
+
+        if (function->fn_flags & ZEND_ACC_VARIADIC) {
+            num_args++;
+        }
+        for (uint32_t i = 0; i < num_args; i++) {
+            zend_type_release(arg_info[i].type, true);
+        }
+        free(arg_info);
+    }
 }
 
 #define SW_HOOK_FUNC(f) hook_func(ZEND_STRL(#f), PHP_FN(swoole_##f))
@@ -172,12 +229,16 @@ static zend_internal_arg_info *get_arginfo(const char *name, size_t l_name) {
 #define SW_HOOK_LIBRARY_FE(name, arg_info)                                                                             \
     ZEND_RAW_FENTRY("swoole_hook_" #name, PHP_FN(swoole_user_func_handler), arg_info, 0)
 
-static zend_array *tmp_function_table = nullptr;
-static std::unordered_map<std::string, zend_class_entry *> child_class_entries;
+static SW_THREAD_LOCAL int runtime_hook_flags = 0;
+static SW_THREAD_LOCAL zend_array *tmp_function_table = nullptr;
+static SW_THREAD_LOCAL std::unordered_map<std::string, zend_class_entry *> child_class_entries;
+static zend::ConcurrencyHashMap<std::string, zif_handler> ori_func_handlers(nullptr);
+static zend::ConcurrencyHashMap<std::string, zend_internal_arg_info *> ori_func_arg_infos(nullptr);
 
 SW_EXTERN_C_BEGIN
 #include "ext/standard/file.h"
 #include "thirdparty/php/streams/plain_wrapper.c"
+#undef close
 SW_EXTERN_C_END
 
 void php_swoole_runtime_minit(int module_number) {
@@ -220,37 +281,74 @@ void php_swoole_runtime_minit(int module_number) {
     swoole_proc_open_init(module_number);
 }
 
-struct real_func {
+struct PhpFunc {
     zend_function *function;
     zif_handler ori_handler;
     zend_internal_arg_info *ori_arg_info;
+    zend_internal_arg_info *arg_info_copy;
     uint32_t ori_fn_flags;
     uint32_t ori_num_args;
-    zend_fcall_info_cache *fci_cache;
+    zend::Callable *fci_cache;
     zval name;
 };
 
 void php_swoole_runtime_rinit() {
-    tmp_function_table = (zend_array *) emalloc(sizeof(zend_array));
+    tmp_function_table = static_cast<zend_array *>(emalloc(sizeof(zend_array)));
     zend_hash_init(tmp_function_table, 8, nullptr, nullptr, 0);
+
+#if defined(HAVE_PUTENV) && defined(SW_THREAD)
+    /**
+     * There are issues with the implementation of putenv in PHP,
+     * which can lead to memory invalid read in multi-thread environment.
+     */
+    SW_HOOK_FUNC(putenv);
+#endif
+
+    if (!sw_is_main_thread()) {
+        return;
+    }
+
+#if PHP_VERSION_ID >= 80400
+    SW_HOOK_FUNC(exit);
+#endif
+
+    HashTable *xport_hash = php_stream_xport_get_hash();
+    ori_factory.tcp = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("tcp"));
+    ori_factory.udp = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("udp"));
+    ori_factory._unix = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("unix"));
+    ori_factory.udg = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("udg"));
+    ori_factory.ssl = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("ssl"));
+    ori_factory.tls = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("tls"));
+
+    memcpy(&ori_php_plain_files_wrapper, &php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
+    memcpy(&ori_php_stream_stdio_ops, &php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
 }
 
 void php_swoole_runtime_rshutdown() {
+    if (sw_is_main_thread()) {
+        PHPCoroutine::disable_hook();
+        ori_func_handlers.clear();
+        ori_func_arg_infos.clear();
+    }
+
     void *ptr;
     ZEND_HASH_FOREACH_PTR(tmp_function_table, ptr) {
-        real_func *rf = reinterpret_cast<real_func *>(ptr);
+        auto *rf = static_cast<PhpFunc *>(ptr);
         /**
          * php library function
          */
         if (rf->fci_cache) {
             zval_dtor(&rf->name);
-            efree(rf->fci_cache);
+            sw_callable_free(rf->fci_cache);
         }
-        rf->function->internal_function.handler = rf->ori_handler;
-        rf->function->internal_function.arg_info = rf->ori_arg_info;
+        if (sw_is_main_thread()) {
+            rf->function->internal_function.handler = rf->ori_handler;
+            rf->function->internal_function.arg_info = rf->ori_arg_info;
+        }
         efree(rf);
     }
     ZEND_HASH_FOREACH_END();
+
     zend_hash_destroy(tmp_function_table);
     efree(tmp_function_table);
     tmp_function_table = nullptr;
@@ -267,11 +365,10 @@ void php_swoole_runtime_mshutdown() {
 static inline char *parse_ip_address_ex(const char *str, size_t str_len, int *portno, int get_err, zend_string **err) {
     char *colon;
     char *host = nullptr;
-    char *p;
 
     if (*(str) == '[' && str_len > 1) {
         /* IPV6 notation to specify raw address with port (i.e. [fe80::1]:80) */
-        p = (char *) memchr(str + 1, ']', str_len - 2);
+        char *p = (char *) memchr(str + 1, ']', str_len - 2);
         if (!p || *(p + 1) != ':') {
             if (get_err) {
                 *err = strpprintf(0, "Failed to parse IPv6 address \"%s\"", str);
@@ -300,11 +397,10 @@ static inline char *parse_ip_address_ex(const char *str, size_t str_len, int *po
 }
 
 static php_stream_size_t socket_write(php_stream *stream, const char *buf, size_t count) {
-    NetStream *abstract;
     ssize_t didwrite = -1;
     std::shared_ptr<Socket> sock;
 
-    abstract = (NetStream *) stream->abstract;
+    auto *abstract = static_cast<NetStream *>(stream->abstract);
     if (UNEXPECTED(!abstract || !abstract->socket)) {
         goto _exit;
     }
@@ -318,11 +414,11 @@ static php_stream_size_t socket_write(php_stream *stream, const char *buf, size_
     }
 
     if (didwrite < 0 || (size_t) didwrite != count) {
-        /* we do not expect the outer layer to continue to call the send syscall in a loop
-         * and didwrite is meaningless if it failed */
+        /* we do not expect the outer layer to continue to call the `send` syscall in a loop
+         * and `didwrite` is meaningless if it failed */
         didwrite = -1;
         abstract->stream.timeout_event = (sock->errCode == ETIMEDOUT);
-        php_error_docref(NULL,
+        php_error_docref(nullptr,
                          E_NOTICE,
                          "Send of " ZEND_LONG_FMT " bytes failed with errno=%d %s",
                          (zend_long) count,
@@ -348,10 +444,9 @@ _exit:
 
 static php_stream_size_t socket_read(php_stream *stream, char *buf, size_t count) {
     std::shared_ptr<Socket> sock;
-    NetStream *abstract;
     ssize_t nr_bytes = -1;
 
-    abstract = (NetStream *) stream->abstract;
+    auto *abstract = static_cast<NetStream *>(stream->abstract);
     if (UNEXPECTED(!abstract || !abstract->socket)) {
         goto _exit;
     }
@@ -387,7 +482,7 @@ static int socket_flush(php_stream *stream) {
 }
 
 static int socket_close(php_stream *stream, int close_handle) {
-    NetStream *abstract = (NetStream *) stream->abstract;
+    const auto *abstract = static_cast<NetStream *>(stream->abstract);
     if (UNEXPECTED(!abstract)) {
         return FAILURE;
     }
@@ -421,15 +516,15 @@ enum {
 enum { STREAM_XPORT_CRYPTO_OP_SETUP, STREAM_XPORT_CRYPTO_OP_ENABLE };
 
 static int socket_cast(php_stream *stream, int castas, void **ret) {
-    NetStream *abstract = (NetStream *) stream->abstract;
+    const auto *abstract = static_cast<NetStream *>(stream->abstract);
     if (UNEXPECTED(!abstract || !abstract->socket)) {
         return FAILURE;
     }
-    std::shared_ptr<Socket> sock = abstract->socket;
+    const std::shared_ptr<Socket> sock = abstract->socket;
     switch (castas) {
     case PHP_STREAM_AS_STDIO:
         if (ret) {
-            *(FILE **) ret = fdopen(sock->get_fd(), stream->mode);
+            *reinterpret_cast<FILE **>(ret) = fdopen(sock->get_fd(), stream->mode);
             if (*ret) {
                 return SUCCESS;
             }
@@ -439,7 +534,7 @@ static int socket_cast(php_stream *stream, int castas, void **ret) {
     case PHP_STREAM_AS_FD_FOR_SELECT:
     case PHP_STREAM_AS_FD:
     case PHP_STREAM_AS_SOCKETD:
-        if (ret) *(php_socket_t *) ret = sock->get_fd();
+        if (ret) *reinterpret_cast<php_socket_t *>(ret) = sock->get_fd();
         return SUCCESS;
     default:
         return FAILURE;
@@ -447,7 +542,7 @@ static int socket_cast(php_stream *stream, int castas, void **ret) {
 }
 
 static int socket_stat(php_stream *stream, php_stream_statbuf *ssb) {
-    NetStream *abstract = (NetStream *) stream->abstract;
+    const auto *abstract = static_cast<NetStream *>(stream->abstract);
     if (UNEXPECTED(!abstract)) {
         return FAILURE;
     }
@@ -499,23 +594,27 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
         if (bindto == nullptr) {
             return FAILURE;
         }
+        if (strcmp(bindto, "0") == 0 || bindto[0] == '\0') {
+            efree(bindto);
+            bindto = nullptr;
+        }
         ON_SCOPE_EXIT {
             if (bindto) {
                 efree(bindto);
             }
         };
-        if (!sock->bind(bindto, bindport)) {
+        if (!sock->bind(bindto ? bindto : "0.0.0.0", bindport)) {
             return FAILURE;
         }
     }
 
     if (xparam->inputs.timeout) {
-        sock->set_timeout(xparam->inputs.timeout, Socket::TIMEOUT_CONNECT);
+        sock->set_timeout(xparam->inputs.timeout, SW_TIMEOUT_CONNECT);
     }
     if (sock->connect(host, portno) == false) {
         xparam->outputs.error_code = sock->errCode;
         if (sock->errMsg) {
-            xparam->outputs.error_text = zend_string_init(sock->errMsg, strlen(sock->errMsg), 0);
+            xparam->outputs.error_text = zend_string_init(sock->errMsg, strlen(sock->errMsg), false);
         }
         ret = -1;
     }
@@ -558,10 +657,10 @@ static inline int socket_accept(php_stream *stream, Socket *sock, php_stream_xpo
     }
 
     zend_string **textaddr = xparam->want_textaddr ? &xparam->outputs.textaddr : nullptr;
-    struct sockaddr **addr = xparam->want_addr ? &xparam->outputs.addr : nullptr;
+    sockaddr **addr = xparam->want_addr ? &xparam->outputs.addr : nullptr;
     socklen_t *addrlen = xparam->want_addr ? &xparam->outputs.addrlen : nullptr;
 
-    struct timeval *timeout = xparam->inputs.timeout;
+    timeval *timeout = xparam->inputs.timeout;
     zend_string **error_string = xparam->want_errortext ? &xparam->outputs.error_text : nullptr;
     int *error_code = &xparam->outputs.error_code;
 
@@ -570,7 +669,7 @@ static inline int socket_accept(php_stream *stream, Socket *sock, php_stream_xpo
     socklen_t sl = sizeof(sa);
 
     if (timeout) {
-        sock->set_timeout(timeout, Socket::TIMEOUT_READ);
+        sock->set_timeout(timeout, SW_TIMEOUT_READ);
     }
 
     std::shared_ptr<Socket> clisock(sock->accept());
@@ -594,7 +693,7 @@ static inline int socket_accept(php_stream *stream, Socket *sock, php_stream_xpo
         }
         return FAILURE;
     } else {
-        php_network_populate_name_from_sockaddr((struct sockaddr *) &sa, sl, textaddr, addr, addrlen);
+        php_network_populate_name_from_sockaddr((sockaddr *) &sa, sl, textaddr, addr, addrlen);
 #ifdef TCP_NODELAY
         if (tcp_nodelay) {
             clisock->get_socket()->set_tcp_nodelay(tcp_nodelay);
@@ -604,7 +703,7 @@ static inline int socket_accept(php_stream *stream, Socket *sock, php_stream_xpo
         abstract->socket = clisock;
         abstract->blocking = true;
 
-        xparam->outputs.client = php_stream_alloc_rel(stream->ops, (void *) abstract, nullptr, "r+");
+        xparam->outputs.client = php_stream_alloc_rel(stream->ops, abstract, nullptr, "r+");
         if (xparam->outputs.client) {
             xparam->outputs.client->ctx = stream->ctx;
             if (stream->ctx) {
@@ -672,15 +771,13 @@ static int socket_setup_crypto(php_stream *stream, Socket *sock, php_stream_xpor
 }
 
 static int socket_xport_crypto_setup(php_stream *stream) {
-    php_stream_xport_crypto_param param;
-    int ret;
+    php_stream_xport_crypto_param param = {};
 
-    memset(&param, 0, sizeof(param));
     param.op = (decltype(param.op)) STREAM_XPORT_CRYPTO_OP_SETUP;
     param.inputs.method = (php_stream_xport_crypt_method_t) 0;
-    param.inputs.session = NULL;
+    param.inputs.session = nullptr;
 
-    ret = php_stream_set_option(stream, PHP_STREAM_OPTION_CRYPTO_API, 0, &param);
+    int ret = php_stream_set_option(stream, PHP_STREAM_OPTION_CRYPTO_API, 0, &param);
 
     if (ret == PHP_STREAM_OPTION_RETURN_OK) {
         return param.outputs.returncode;
@@ -692,14 +789,12 @@ static int socket_xport_crypto_setup(php_stream *stream) {
 }
 
 static int socket_xport_crypto_enable(php_stream *stream, int activate) {
-    php_stream_xport_crypto_param param;
-    int ret;
+    php_stream_xport_crypto_param param = {};
 
-    memset(&param, 0, sizeof(param));
     param.op = (decltype(param.op)) STREAM_XPORT_CRYPTO_OP_ENABLE;
     param.inputs.activate = activate;
 
-    ret = php_stream_set_option(stream, PHP_STREAM_OPTION_CRYPTO_API, 0, &param);
+    int ret = php_stream_set_option(stream, PHP_STREAM_OPTION_CRYPTO_API, 0, &param);
 
     if (ret == PHP_STREAM_OPTION_RETURN_OK) {
         return param.outputs.returncode;
@@ -724,7 +819,8 @@ static bool php_openssl_capture_peer_certs(php_stream *stream, Socket *sslsock) 
     php_stream_context_set_option(PHP_STREAM_CONTEXT(stream), "ssl", "peer_certificate", &retval.value);
     zval_dtor(&argv[0]);
 
-    if (NULL != (val = php_stream_context_get_option(PHP_STREAM_CONTEXT(stream), "ssl", "capture_peer_cert_chain")) &&
+    if (nullptr !=
+            (val = php_stream_context_get_option(PHP_STREAM_CONTEXT(stream), "ssl", "capture_peer_cert_chain")) &&
         zend_is_true(val)) {
         zval arr;
         auto chain = sslsock->get_socket()->ssl_get_peer_cert_chain(INT_MAX);
@@ -732,12 +828,12 @@ static bool php_openssl_capture_peer_certs(php_stream *stream, Socket *sslsock) 
         if (!chain.empty()) {
             array_init(&arr);
             for (auto &cert : chain) {
-                zval argv[1];
-                ZVAL_STRINGL(&argv[0], cert.c_str(), cert.length());
-                auto retval = zend::function::call("openssl_x509_read", 1, argv);
-                zval_add_ref(&retval.value);
-                add_next_index_zval(&arr, &retval.value);
-                zval_dtor(&argv[0]);
+                zval _argv[1];
+                ZVAL_STRINGL(&_argv[0], cert.c_str(), cert.length());
+                auto _retval = zend::function::call("openssl_x509_read", 1, _argv);
+                zval_add_ref(&_retval.value);
+                add_next_index_zval(&arr, &_retval.value);
+                zval_dtor(&_argv[0]);
             }
         } else {
             ZVAL_NULL(&arr);
@@ -754,28 +850,25 @@ static int socket_enable_crypto(php_stream *stream, Socket *sock, php_stream_xpo
     php_stream_context *context = PHP_STREAM_CONTEXT(stream);
     if (cparam->inputs.activate && !sock->ssl_is_available()) {
         sock->enable_ssl_encrypt();
-        if (!sock->ssl_check_context()) {
-            return -1;
-        }
         if (!socket_ssl_set_options(sock, context)) {
             return -1;
         }
         if (!sock->ssl_handshake()) {
             return -1;
         }
-        return 0;
     } else if (!cparam->inputs.activate && sock->ssl_is_available()) {
-        return sock->ssl_shutdown() ? 0 : -1;
+        sock->ssl_shutdown();
+        return -1;
     }
 
-    if (context) {
+    if (context && sock->ssl_is_available()) {
         zval *val = php_stream_context_get_option(context, "ssl", "capture_peer_cert");
         if (val && zend_is_true(val) && !php_openssl_capture_peer_certs(stream, sock)) {
             return -1;
         }
     }
 
-    return 0;
+    return 1;
 }
 #endif
 
@@ -895,7 +988,7 @@ static inline int socket_xport_api(php_stream *stream, Socket *sock, php_stream_
 }
 
 static int socket_set_option(php_stream *stream, int option, int value, void *ptrparam) {
-    NetStream *abstract = (NetStream *) stream->abstract;
+    auto *abstract = static_cast<NetStream *>(stream->abstract);
     if (UNEXPECTED(!abstract || !abstract->socket)) {
         return PHP_STREAM_OPTION_RETURN_ERR;
     }
@@ -917,7 +1010,6 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
         if (ssl) {
             zval tmp;
             const char *proto_str;
-            const SSL_CIPHER *cipher;
 
             array_init(&tmp);
             switch (SSL_version(ssl)) {
@@ -949,26 +1041,26 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
                 break;
             }
 
-            cipher = SSL_get_current_cipher(ssl);
-            add_assoc_string(&tmp, "protocol", (char *) proto_str);
-            add_assoc_string(&tmp, "cipher_name", (char *) SSL_CIPHER_get_name(cipher));
+            const auto cipher = SSL_get_current_cipher(ssl);
+            add_assoc_string(&tmp, "protocol", proto_str);
+            add_assoc_string(&tmp, "cipher_name", SSL_CIPHER_get_name(cipher));
             add_assoc_long(&tmp, "cipher_bits", SSL_CIPHER_get_bits(cipher, nullptr));
-            add_assoc_string(&tmp, "cipher_version", (char *) SSL_CIPHER_get_version(cipher));
+            add_assoc_string(&tmp, "cipher_version", SSL_CIPHER_get_version(cipher));
             add_assoc_zval((zval *) ptrparam, "crypto", &tmp);
         }
 #endif
         add_assoc_bool((zval *) ptrparam, "timed_out", sock->errCode == ETIMEDOUT);
         add_assoc_bool((zval *) ptrparam, "eof", stream->eof);
-        add_assoc_bool((zval *) ptrparam, "blocked", 1);
+        add_assoc_bool((zval *) ptrparam, "blocked", true);
         break;
     }
     case PHP_STREAM_OPTION_READ_TIMEOUT: {
-        abstract->socket->set_timeout((struct timeval *) ptrparam, Socket::TIMEOUT_READ);
+        abstract->socket->set_timeout(static_cast<timeval *>(ptrparam), SW_TIMEOUT_READ);
         break;
     }
 #ifdef SW_USE_OPENSSL
     case PHP_STREAM_OPTION_CRYPTO_API: {
-        php_stream_xport_crypto_param *cparam = (php_stream_xport_crypto_param *) ptrparam;
+        auto *cparam = static_cast<php_stream_xport_crypto_param *>(ptrparam);
         switch (cparam->op) {
         case STREAM_XPORT_CRYPTO_OP_SETUP:
             cparam->outputs.returncode = socket_setup_crypto(stream, sock, cparam STREAMS_CC);
@@ -1030,16 +1122,47 @@ static bool socket_ssl_set_options(Socket *sock, php_stream_context *context) {
             add_alias("verify_depth", "ssl_verify_depth");
             add_alias("disable_compression", "ssl_disable_compression");
 
-            php_swoole_socket_set_ssl(sock, &zalias);
-            if (!sock->ssl_check_context()) {
-                return false;
-            }
+            bool ret = php_swoole_socket_set_ssl(sock, &zalias);
             zval_dtor(&zalias);
+            return ret;
         }
 #endif
     }
 
     return true;
+}
+
+static php_stream *socket_create_original(const char *proto,
+                                          size_t protolen,
+                                          const char *resourcename,
+                                          size_t resourcenamelen,
+                                          const char *persistent_id,
+                                          int options,
+                                          int flags,
+                                          struct timeval *timeout,
+                                          php_stream_context *context STREAMS_DC) {
+    php_stream_transport_factory factory = nullptr;
+    if (SW_STREQ(proto, protolen, "tcp")) {
+        factory = ori_factory.tcp;
+    } else if (SW_STREQ(proto, protolen, "ssl")) {
+        factory = ori_factory.ssl;
+    } else if (SW_STREQ(proto, protolen, "tls")) {
+        factory = ori_factory.tls;
+    } else if (SW_STREQ(proto, protolen, "unix")) {
+        factory = ori_factory._unix;
+    } else if (SW_STREQ(proto, protolen, "udp")) {
+        factory = ori_factory.udp;
+    } else if (SW_STREQ(proto, protolen, "udg")) {
+        factory = ori_factory.udg;
+    }
+
+    if (factory) {
+        return factory(
+            proto, protolen, resourcename, resourcenamelen, persistent_id, options, flags, timeout, context STREAMS_CC);
+    } else {
+        php_swoole_fatal_error(E_WARNING, "unknown protocol '%s'", proto);
+        return nullptr;
+    }
 }
 
 static php_stream *socket_create(const char *proto,
@@ -1054,10 +1177,13 @@ static php_stream *socket_create(const char *proto,
     php_stream *stream = nullptr;
     Socket *sock = nullptr;
 
-    Coroutine::get_current_safe();
+    auto co = Coroutine::get_current();
+    if (sw_unlikely(co == nullptr)) {
+        return socket_create_original(
+            proto, protolen, resourcename, resourcenamelen, persistent_id, options, flags, timeout, context STREAMS_CC);
+    }
 
     if (SW_STREQ(proto, protolen, "tcp")) {
-    _tcp:
         sock = new Socket(resourcename[0] == '[' ? SW_SOCK_TCP6 : SW_SOCK_TCP);
     } else if (SW_STREQ(proto, protolen, "ssl") || SW_STREQ(proto, protolen, "tls")) {
 #ifdef SW_USE_OPENSSL
@@ -1075,8 +1201,8 @@ static php_stream *socket_create(const char *proto,
     } else if (SW_STREQ(proto, protolen, "udg")) {
         sock = new Socket(SW_SOCK_UNIX_DGRAM);
     } else {
-        /* abort? */
-        goto _tcp;
+        php_swoole_fatal_error(E_WARNING, "unknown protocol '%s'", proto);
+        return nullptr;
     }
 
     if (UNEXPECTED(sock->get_fd() < 0)) {
@@ -1098,7 +1224,7 @@ static php_stream *socket_create(const char *proto,
 
     stream = php_stream_alloc_rel(&socket_ops, abstract, persistent_id, "r+");
     if (stream == nullptr) {
-        pefree(abstract, persistent_id ? 1 : 0);
+        delete abstract;
         goto _failed;
     }
 
@@ -1114,18 +1240,18 @@ static ZEND_FUNCTION(swoole_display_disabled_function) {
 }
 
 static bool disable_func(const char *name, size_t l_name) {
-    real_func *rf = (real_func *) zend_hash_str_find_ptr(tmp_function_table, name, l_name);
+    auto *rf = static_cast<PhpFunc *>(zend_hash_str_find_ptr(tmp_function_table, name, l_name));
     if (rf) {
         rf->function->internal_function.handler = ZEND_FN(swoole_display_disabled_function);
         return true;
     }
 
-    zend_function *zf = (zend_function *) zend_hash_str_find_ptr(EG(function_table), name, l_name);
+    auto *zf = static_cast<zend_function *>(zend_hash_str_find_ptr(EG(function_table), name, l_name));
     if (zf == nullptr) {
         return false;
     }
 
-    rf = (real_func *) emalloc(sizeof(real_func));
+    rf = static_cast<PhpFunc *>(emalloc(sizeof(PhpFunc)));
     sw_memset_zero(rf, sizeof(*rf));
     rf->function = zf;
     rf->ori_handler = zf->internal_function.handler;
@@ -1143,7 +1269,7 @@ static bool disable_func(const char *name, size_t l_name) {
 }
 
 static bool enable_func(const char *name, size_t l_name) {
-    real_func *rf = (real_func *) zend_hash_str_find_ptr(tmp_function_table, name, l_name);
+    auto *rf = static_cast<PhpFunc *>(zend_hash_str_find_ptr(tmp_function_table, name, l_name));
     if (!rf) {
         return false;
     }
@@ -1152,6 +1278,16 @@ static bool enable_func(const char *name, size_t l_name) {
     rf->function->internal_function.arg_info = rf->ori_arg_info;
     rf->function->internal_function.fn_flags = rf->ori_fn_flags;
     rf->function->internal_function.num_args = rf->ori_num_args;
+
+    return true;
+}
+
+bool php_swoole_call_original_handler(const char *name, size_t len, INTERNAL_FUNCTION_PARAMETERS) {
+    auto ori_handler = php_swoole_get_original_handler(name, len);
+    if (!ori_handler) {
+        return false;
+    }
+    ori_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 
     return true;
 }
@@ -1168,32 +1304,50 @@ void PHPCoroutine::enable_unsafe_function() {
     }
 }
 
-bool PHPCoroutine::enable_hook(uint32_t flags) {
-    if (swoole_isset_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_BEFORE_ENABLE_HOOK)) {
-        swoole_call_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_BEFORE_ENABLE_HOOK, &flags);
+static void hook_stream_throw_exception(const char *type) {
+    zend_throw_exception_ex(
+        swoole_exception_ce, SW_ERROR_PHP_FATAL_ERROR, "failed to register `%s` stream transport factory", type);
+}
+
+static void hook_remove_stream_flags(uint32_t *flags_ptr) {
+    uint32_t flags = *flags_ptr;
+    // stream factory
+    if (flags & PHPCoroutine::HOOK_TCP) {
+        flags ^= PHPCoroutine::HOOK_TCP;
     }
-
-    if (!runtime_hook_init) {
-        HashTable *xport_hash = php_stream_xport_get_hash();
-        // php_stream
-        ori_factory.tcp = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("tcp"));
-        ori_factory.udp = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("udp"));
-        ori_factory._unix = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("unix"));
-        ori_factory.udg = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("udg"));
-        ori_factory.ssl = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("ssl"));
-        ori_factory.tls = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("tls"));
-
-        // file
-        memcpy((void *) &ori_php_plain_files_wrapper, &php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
-        memcpy((void *) &ori_php_stream_stdio_ops, &php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
-
-        runtime_hook_init = true;
+    if (flags & PHPCoroutine::HOOK_UDP) {
+        flags ^= PHPCoroutine::HOOK_UDP;
     }
-    // php_stream
+    if (flags & PHPCoroutine::HOOK_UNIX) {
+        flags ^= PHPCoroutine::HOOK_UNIX;
+    }
+    if (flags & PHPCoroutine::HOOK_UDG) {
+        flags ^= PHPCoroutine::HOOK_UDG;
+    }
+    if (flags & PHPCoroutine::HOOK_SSL) {
+        flags ^= PHPCoroutine::HOOK_SSL;
+    }
+    if (flags & PHPCoroutine::HOOK_TLS) {
+        flags ^= PHPCoroutine::HOOK_TLS;
+    }
+    // stream ops
+    if (flags & PHPCoroutine::HOOK_FILE) {
+        flags ^= PHPCoroutine::HOOK_FILE;
+    }
+    if (flags & PHPCoroutine::HOOK_STDIO) {
+        flags ^= PHPCoroutine::HOOK_STDIO;
+    }
+    *flags_ptr = flags;
+}
+
+static void hook_stream_factory(uint32_t *flags_ptr) {
+    uint32_t flags = *flags_ptr;
+
     if (flags & PHPCoroutine::HOOK_TCP) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_TCP)) {
             if (php_stream_xport_register("tcp", socket_create) != SUCCESS) {
                 flags ^= PHPCoroutine::HOOK_TCP;
+                hook_stream_throw_exception("tcp");
             }
         }
     } else {
@@ -1205,6 +1359,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_UDP)) {
             if (php_stream_xport_register("udp", socket_create) != SUCCESS) {
                 flags ^= PHPCoroutine::HOOK_UDP;
+                hook_stream_throw_exception("udp");
             }
         }
     } else {
@@ -1216,6 +1371,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_UNIX)) {
             if (php_stream_xport_register("unix", socket_create) != SUCCESS) {
                 flags ^= PHPCoroutine::HOOK_UNIX;
+                hook_stream_throw_exception("unix");
             }
         }
     } else {
@@ -1227,6 +1383,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_UDG)) {
             if (php_stream_xport_register("udg", socket_create) != SUCCESS) {
                 flags ^= PHPCoroutine::HOOK_UDG;
+                hook_stream_throw_exception("udg");
             }
         }
     } else {
@@ -1238,6 +1395,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_SSL)) {
             if (php_stream_xport_register("ssl", socket_create) != SUCCESS) {
                 flags ^= PHPCoroutine::HOOK_SSL;
+                hook_stream_throw_exception("ssl");
             }
         }
     } else {
@@ -1253,6 +1411,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_TLS)) {
             if (php_stream_xport_register("tls", socket_create) != SUCCESS) {
                 flags ^= PHPCoroutine::HOOK_TLS;
+                hook_stream_throw_exception("tls");
             }
         }
     } else {
@@ -1264,25 +1423,52 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
             }
         }
     }
+    *flags_ptr = flags;
+}
+
+static void hook_stream_ops(uint32_t flags) {
+    // file
+    if (flags & PHPCoroutine::HOOK_FILE) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_FILE)) {
+            memcpy(&php_plain_files_wrapper, &sw_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
+        }
+    } else {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_FILE) {
+            memcpy(&php_plain_files_wrapper, &ori_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
+        }
+    }
+    // stdio
+    if (flags & PHPCoroutine::HOOK_STDIO) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_STDIO)) {
+            memcpy(&php_stream_stdio_ops, &sw_php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
+        }
+    } else {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_STDIO) {
+            memcpy(&php_stream_stdio_ops, &ori_php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
+        }
+    }
+}
+
+static void hook_pdo_driver(uint32_t flags) {
 #ifdef SW_USE_PGSQL
     if (flags & PHPCoroutine::HOOK_PDO_PGSQL) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_PDO_PGSQL)) {
-            swoole_pgsql_set_blocking(0);
+            swoole_pgsql_set_blocking(false);
         }
     } else {
         if (runtime_hook_flags & PHPCoroutine::HOOK_PDO_PGSQL) {
-            swoole_pgsql_set_blocking(1);
+            swoole_pgsql_set_blocking(true);
         }
     }
 #endif
 #ifdef SW_USE_ODBC
     if (flags & PHPCoroutine::HOOK_PDO_ODBC) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_PDO_ODBC)) {
-            swoole_odbc_set_blocking(0);
+            swoole_odbc_set_blocking(false);
         }
     } else {
         if (runtime_hook_flags & PHPCoroutine::HOOK_PDO_ODBC) {
-            swoole_odbc_set_blocking(1);
+            swoole_odbc_set_blocking(true);
         }
     }
 #endif
@@ -1300,14 +1486,18 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
 #ifdef SW_USE_SQLITE
     if (flags & PHPCoroutine::HOOK_PDO_SQLITE) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_PDO_SQLITE)) {
-            swoole_sqlite_set_blocking(0);
+            swoole_sqlite_set_blocking(false);
         }
     } else {
         if (runtime_hook_flags & PHPCoroutine::HOOK_PDO_SQLITE) {
-            swoole_sqlite_set_blocking(1);
+            swoole_sqlite_set_blocking(true);
         }
     }
 #endif
+}
+
+static void hook_all_func(uint32_t flags) {
+    // stream func
     if (flags & PHPCoroutine::HOOK_STREAM_FUNCTION) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_STREAM_FUNCTION)) {
             SW_HOOK_FUNC(stream_select);
@@ -1317,26 +1507,6 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
         if (runtime_hook_flags & PHPCoroutine::HOOK_STREAM_FUNCTION) {
             SW_UNHOOK_FUNC(stream_select);
             SW_UNHOOK_FUNC(stream_socket_pair);
-        }
-    }
-    // file
-    if (flags & PHPCoroutine::HOOK_FILE) {
-        if (!(runtime_hook_flags & PHPCoroutine::HOOK_FILE)) {
-            memcpy((void *) &php_plain_files_wrapper, &sw_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
-        }
-    } else {
-        if (runtime_hook_flags & PHPCoroutine::HOOK_FILE) {
-            memcpy((void *) &php_plain_files_wrapper, &ori_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
-        }
-    }
-    // stdio
-    if (flags & PHPCoroutine::HOOK_STDIO) {
-        if (!(runtime_hook_flags & PHPCoroutine::HOOK_STDIO)) {
-            memcpy((void *) &php_stream_stdio_ops, &sw_php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
-        }
-    } else {
-        if (runtime_hook_flags & PHPCoroutine::HOOK_STDIO) {
-            memcpy((void *) &php_stream_stdio_ops, &ori_php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
         }
     }
     // sleep
@@ -1375,8 +1545,8 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
     if (flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION)) {
             hook_func(ZEND_STRL("gethostbyname"), PHP_FN(swoole_coroutine_gethostbyname));
-            hook_func(ZEND_STRL("exec"));
-            hook_func(ZEND_STRL("shell_exec"));
+            SW_HOOK_WITH_PHP_FUNC(exec);
+            SW_HOOK_WITH_PHP_FUNC(shell_exec);
         }
     } else {
         if (runtime_hook_flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION) {
@@ -1385,6 +1555,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
             SW_UNHOOK_FUNC(shell_exec);
         }
     }
+    // ext-sockets
     if (flags & PHPCoroutine::HOOK_SOCKETS) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_SOCKETS)) {
             SW_HOOK_WITH_PHP_FUNC(socket_create);
@@ -1450,6 +1621,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
     }
 
 #ifdef SW_USE_CURL
+    // curl native
     if (flags & PHPCoroutine::HOOK_NATIVE_CURL) {
         if (flags & PHPCoroutine::HOOK_CURL) {
             php_swoole_fatal_error(E_WARNING, "cannot enable both hooks HOOK_NATIVE_CURL and HOOK_CURL at same time");
@@ -1510,7 +1682,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
         }
     }
 #endif
-
+    // curl
     if (flags & PHPCoroutine::HOOK_CURL) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_CURL)) {
             SW_HOOK_WITH_PHP_FUNC(curl_init);
@@ -1542,12 +1714,39 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
             detach_parent_class("Swoole\\Curl\\Handler");
         }
     }
+}
 
-    if (swoole_isset_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_ENABLE_HOOK)) {
-        swoole_call_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_ENABLE_HOOK, &flags);
+bool PHPCoroutine::enable_hook(uint32_t flags) {
+    /**
+     * Stream-related settings are global variables, not thread-local resources.
+     * The child threads must not modify stream settings;
+     * the main thread can only make changes when there are no active worker threads.
+     */
+    if (sw_is_main_thread()) {
+        if (sw_active_thread_count() > 1) {
+            swoole_warning(
+                "The stream runtime hook must be enabled or disabled only when there are no active threads.");
+            hook_remove_stream_flags(&flags);
+        }
+    } else {
+        hook_remove_stream_flags(&flags);
+    }
+
+    if (swoole_isset_hook((swGlobalHookType) PHP_SWOOLE_HOOK_BEFORE_ENABLE_HOOK)) {
+        swoole_call_hook((swGlobalHookType) PHP_SWOOLE_HOOK_BEFORE_ENABLE_HOOK, &flags);
+    }
+
+    hook_stream_factory(&flags);
+    hook_stream_ops(flags);
+    hook_pdo_driver(flags);
+    hook_all_func(flags);
+
+    if (swoole_isset_hook((swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_ENABLE_HOOK)) {
+        swoole_call_hook((swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_ENABLE_HOOK, &flags);
     }
 
     runtime_hook_flags = flags;
+
     return true;
 }
 
@@ -1560,44 +1759,19 @@ static PHP_METHOD(swoole_runtime, enableCoroutine) {
         php_swoole_fatal_error(E_ERROR, "must be used in PHP CLI mode");
         RETURN_FALSE;
     }
-    zval *zflags = nullptr;
     zend_long flags = PHPCoroutine::HOOK_ALL;
 
-    ZEND_PARSE_PARAMETERS_START(0, 2)
+    ZEND_PARSE_PARAMETERS_START(0, 1)
     Z_PARAM_OPTIONAL
-    Z_PARAM_ZVAL(zflags)  // or zenable
     Z_PARAM_LONG(flags)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
-
-    if (zflags) {
-        if (Z_TYPE_P(zflags) == IS_LONG) {
-            flags = SW_MAX(0, Z_LVAL_P(zflags));
-        } else if (ZVAL_IS_BOOL(zflags)) {
-            if (!Z_BVAL_P(zflags)) {
-                flags = 0;
-            }
-        } else {
-            const char *space, *class_name = get_active_class_name(&space);
-            zend_type_error("%s%s%s() expects parameter %d to be %s, %s given",
-                            class_name,
-                            space,
-                            get_active_function_name(),
-                            1,
-                            "bool or long",
-                            zend_zval_type_name(zflags));
-        }
-    }
 
     PHPCoroutine::set_hook_flags(flags);
     RETURN_BOOL(PHPCoroutine::enable_hook(flags));
 }
 
 static PHP_METHOD(swoole_runtime, getHookFlags) {
-    if (runtime_hook_init) {
-        RETURN_LONG(runtime_hook_flags);
-    } else {
-        RETURN_LONG(PHPCoroutine::get_hook_flags());
-    }
+    RETURN_LONG(PHPCoroutine::get_hook_flags());
 }
 
 static PHP_METHOD(swoole_runtime, setHookFlags) {
@@ -1685,19 +1859,19 @@ static PHP_FUNCTION(swoole_time_nanosleep) {
 }
 
 static PHP_FUNCTION(swoole_time_sleep_until) {
-    double d_ts, c_ts;
-    struct timeval tm;
-    struct timespec php_req, php_rem;
+    double d_ts;
+    timeval tm;
+    timespec php_req, php_rem;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "d", &d_ts) == FAILURE) {
         RETURN_FALSE;
     }
 
-    if (gettimeofday((struct timeval *) &tm, nullptr) != 0) {
+    if (gettimeofday(&tm, nullptr) != 0) {
         RETURN_FALSE;
     }
 
-    c_ts = (double) (d_ts - tm.tv_sec - tm.tv_usec / 1000000.00);
+    double c_ts = d_ts - tm.tv_sec - tm.tv_usec / 1000000.00;
     if (c_ts < 0) {
         php_error_docref(nullptr, E_WARNING, "Sleep until to time is less than current time");
         RETURN_FALSE;
@@ -1729,7 +1903,6 @@ static void stream_array_to_fd_set(zval *stream_array, std::unordered_map<int, P
     zval *elem;
     zend_ulong index;
     zend_string *key;
-    php_socket_t sock;
 
     if (!ZVAL_IS_ARRAY(stream_array)) {
         return;
@@ -1737,13 +1910,13 @@ static void stream_array_to_fd_set(zval *stream_array, std::unordered_map<int, P
 
     ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(stream_array), index, key, elem) {
         ZVAL_DEREF(elem);
-        sock = php_swoole_convert_to_fd(elem);
+        php_socket_t sock = php_swoole_convert_to_fd(elem);
         if (sock < 0) {
             continue;
         }
         auto i = fds.find(sock);
         if (i == fds.end()) {
-            fds.emplace(std::make_pair(sock, PollSocket(event, new zend::KeyValue(index, key, elem))));
+            fds.emplace(sock, PollSocket(event, new zend::KeyValue(index, key, elem)));
         } else {
             i->second.events |= event;
         }
@@ -1752,8 +1925,7 @@ static void stream_array_to_fd_set(zval *stream_array, std::unordered_map<int, P
 }
 
 static int stream_array_emulate_read_fd_set(zval *stream_array) {
-    zval *elem, *dest_elem, new_array;
-    HashTable *ht;
+    zval *elem, new_array;
     php_stream *stream;
     int ret = 0;
     zend_ulong num_ind;
@@ -1764,7 +1936,7 @@ static int stream_array_emulate_read_fd_set(zval *stream_array) {
     }
 
     array_init_size(&new_array, zend_hash_num_elements(Z_ARRVAL_P(stream_array)));
-    ht = Z_ARRVAL(new_array);
+    HashTable *ht = Z_ARRVAL(new_array);
 
     ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(stream_array), num_ind, key, elem) {
         ZVAL_DEREF(elem);
@@ -1779,7 +1951,7 @@ static int stream_array_emulate_read_fd_set(zval *stream_array) {
              * This branch of code also allows blocking streams with buffered data to
              * operate correctly in stream_select.
              * */
-            dest_elem = !key ? zend_hash_index_update(ht, num_ind, elem) : zend_hash_update(ht, key, elem);
+            zval *dest_elem = !key ? zend_hash_index_update(ht, num_ind, elem) : zend_hash_update(ht, key, elem);
             zval_add_ref(dest_elem);
             ret++;
             continue;
@@ -1804,9 +1976,7 @@ static PHP_FUNCTION(swoole_stream_select) {
     zval *r_array, *w_array, *e_array;
     zend_long sec, usec = 0;
     zend_bool secnull;
-#if PHP_VERSION_ID >= 80100
-    bool usecnull = 1;
-#endif
+    bool usecnull = true;
     int retval = 0;
 
     ZEND_PARSE_PARAMETERS_START(4, 5)
@@ -1815,21 +1985,15 @@ static PHP_FUNCTION(swoole_stream_select) {
     Z_PARAM_ARRAY_EX2(e_array, 1, 1, 1)
     Z_PARAM_LONG_OR_NULL(sec, secnull)
     Z_PARAM_OPTIONAL
-#if PHP_VERSION_ID >= 80100
     Z_PARAM_LONG_OR_NULL(usec, usecnull)
-#else
-    Z_PARAM_LONG(usec)
-#endif
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-#if PHP_VERSION_ID >= 80100
     if (secnull && !usecnull) {
         if (usec != 0) {
             zend_argument_value_error(5, "must be null when argument #4 ($seconds) is null");
             RETURN_THROWS();
         }
     }
-#endif
 
     double timeout = -1;
     if (!secnull) {
@@ -1864,13 +2028,13 @@ static PHP_FUNCTION(swoole_stream_select) {
 
     ON_SCOPE_EXIT {
         for (auto &i : fds) {
-            zend::KeyValue *kv = (zend::KeyValue *) i.second.ptr;
+            const auto *kv = static_cast<zend::KeyValue *>(i.second.ptr);
             delete kv;
         }
     };
 
     /* slight hack to support buffered data; if there is data sitting in the
-     * read buffer of any of the streams in the read array, let's pretend
+     * read buffer of the streams in the read array, let's pretend
      * that we selected, but return only the readable sockets */
     if (r_array != nullptr) {
         retval = stream_array_emulate_read_fd_set(r_array);
@@ -1903,7 +2067,7 @@ static PHP_FUNCTION(swoole_stream_select) {
     }
 
     for (auto &i : fds) {
-        zend::KeyValue *kv = (zend::KeyValue *) i.second.ptr;
+        auto *kv = static_cast<zend::KeyValue *>(i.second.ptr);
         int revents = i.second.revents;
         SW_ASSERT((revents & (~(SW_EVENT_READ | SW_EVENT_WRITE | SW_EVENT_ERROR))) == 0);
         if (revents > 0) {
@@ -1924,7 +2088,7 @@ static PHP_FUNCTION(swoole_stream_select) {
 }
 
 static void hook_func(const char *name, size_t l_name, zif_handler handler, zend_internal_arg_info *arg_info) {
-    real_func *rf = (real_func *) zend_hash_str_find_ptr(tmp_function_table, name, l_name);
+    auto *rf = static_cast<PhpFunc *>(zend_hash_str_find_ptr(tmp_function_table, name, l_name));
     bool use_php_func = false;
     /**
      * use php library function
@@ -1941,45 +2105,56 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
         return;
     }
 
-    zend_function *zf = (zend_function *) zend_hash_str_find_ptr(EG(function_table), name, l_name);
+    auto *zf = static_cast<zend_function *>(zend_hash_str_find_ptr(EG(function_table), name, l_name));
     if (zf == nullptr) {
         return;
     }
 
-    rf = (real_func *) emalloc(sizeof(real_func));
+    auto fn_str = zf->common.function_name;
+    rf = static_cast<PhpFunc *>(emalloc(sizeof(PhpFunc)));
     sw_memset_zero(rf, sizeof(*rf));
     rf->function = zf;
+
+    auto fn_name = std::string(fn_str->val, fn_str->len);
+
     rf->ori_handler = zf->internal_function.handler;
     rf->ori_arg_info = zf->internal_function.arg_info;
+
+    if (sw_is_main_thread()) {
+        ori_func_handlers.set(fn_name, rf->ori_handler);
+        ori_func_arg_infos.set(fn_name, rf->ori_arg_info);
+    }
+
     zf->internal_function.handler = handler;
     if (arg_info) {
-        zf->internal_function.arg_info = arg_info;
+        zf->internal_function.arg_info = copy_arginfo(zf, arg_info);
+        rf->arg_info_copy = zf->internal_function.arg_info;
     }
 
     if (use_php_func) {
         char func[128];
         memcpy(func, ZEND_STRL("swoole_"));
-        memcpy(func + 7, zf->common.function_name->val, zf->common.function_name->len);
+        memcpy(func + 7, fn_str->val, fn_str->len);
 
-        ZVAL_STRINGL(&rf->name, func, zf->common.function_name->len + 7);
-
-        char *func_name;
-        zend_fcall_info_cache *func_cache = (zend_fcall_info_cache *) emalloc(sizeof(zend_fcall_info_cache));
-        if (!sw_zend_is_callable_ex(&rf->name, nullptr, 0, &func_name, nullptr, func_cache, nullptr)) {
-            php_swoole_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
+        ZVAL_STRINGL(&rf->name, func, fn_str->len + 7);
+        auto fci_cache = sw_callable_create(&rf->name);
+        if (!fci_cache) {
             return;
         }
-        efree(func_name);
-        rf->fci_cache = func_cache;
+        rf->fci_cache = fci_cache;
     }
 
-    zend_hash_add_ptr(tmp_function_table, zf->common.function_name, rf);
+    zend_hash_add_ptr(tmp_function_table, fn_str, rf);
 }
 
 static void unhook_func(const char *name, size_t l_name) {
-    real_func *rf = (real_func *) zend_hash_str_find_ptr(tmp_function_table, name, l_name);
+    auto *rf = static_cast<PhpFunc *>(zend_hash_str_find_ptr(tmp_function_table, name, l_name));
     if (rf == nullptr) {
         return;
+    }
+    if (rf->arg_info_copy) {
+        free_arg_info(&rf->function->internal_function);
+        rf->arg_info_copy = nullptr;
     }
     rf->function->internal_function.handler = rf->ori_handler;
     rf->function->internal_function.arg_info = rf->ori_arg_info;
@@ -2006,13 +2181,40 @@ php_stream *php_swoole_create_stream_from_socket(php_socket_t _fd, int domain, i
     return stream;
 }
 
+php_stream *php_swoole_create_stream_from_pipe(int fd, const char *mode, const char *persistent_id STREAMS_DC) {
+#if PHP_VERSION_ID >= 80200
+    return _sw_php_stream_fopen_from_fd(fd, mode, persistent_id, false STREAMS_CC);
+#else
+    return _sw_php_stream_fopen_from_fd(fd, mode, persistent_id STREAMS_CC);
+#endif
+}
+
 php_stream_ops *php_swoole_get_ori_php_stream_stdio_ops() {
     return &ori_php_stream_stdio_ops;
 }
 
+zif_handler php_swoole_get_original_handler(const char *name, size_t len) {
+    if (sw_is_main_thread()) {
+        auto *rf = static_cast<PhpFunc *>(zend_hash_str_find_ptr(tmp_function_table, name, len));
+        if (rf) {
+            return rf->ori_handler;
+        }
+    } else {
+        zif_handler handler = ori_func_handlers.get(std::string(name, len));
+        if (handler) {
+            return handler;
+        }
+        auto *zf = static_cast<zend_function *>(zend_hash_str_find_ptr(EG(function_table), name, len));
+        if (zf && zf->type == ZEND_INTERNAL_FUNCTION && zf->internal_function.handler) {
+            return zf->internal_function.handler;
+        }
+    }
+
+    return nullptr;
+}
+
 static PHP_FUNCTION(swoole_stream_socket_pair) {
     zend_long domain, type, protocol;
-    php_stream *s1, *s2;
     php_socket_t pair[2];
 
     ZEND_PARSE_PARAMETERS_START(3, 3)
@@ -2030,8 +2232,8 @@ static PHP_FUNCTION(swoole_stream_socket_pair) {
 
     php_swoole_check_reactor();
 
-    s1 = php_swoole_create_stream_from_socket(pair[0], domain, type, protocol STREAMS_CC);
-    s2 = php_swoole_create_stream_from_socket(pair[1], domain, type, protocol STREAMS_CC);
+    php_stream *s1 = php_swoole_create_stream_from_socket(pair[0], domain, type, protocol STREAMS_CC);
+    php_stream *s2 = php_swoole_create_stream_from_socket(pair[1], domain, type, protocol STREAMS_CC);
 
     /* set the __exposed flag.
      * php_stream_to_zval() does, add_next_index_resource() does not */
@@ -2043,21 +2245,32 @@ static PHP_FUNCTION(swoole_stream_socket_pair) {
 }
 
 static PHP_FUNCTION(swoole_user_func_handler) {
+    auto fn_str = execute_data->func->common.function_name;
+    if (!swoole_coroutine_is_in()) {
+        auto ori_handler = ori_func_handlers.get(std::string(fn_str->val, fn_str->len));
+        ori_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+        return;
+    }
+
+    auto *rf = static_cast<PhpFunc *>(zend_hash_find_ptr(tmp_function_table, fn_str));
+    if (!rf) {
+        zend_throw_exception_ex(swoole_exception_ce, SW_ERROR_UNDEFINED_BEHAVIOR, "%s func not exists", fn_str->val);
+        return;
+    }
+
     zend_fcall_info fci;
     fci.size = sizeof(fci);
     fci.object = nullptr;
-    ZVAL_UNDEF(&fci.function_name);
     fci.retval = return_value;
     fci.param_count = ZEND_NUM_ARGS();
     fci.params = ZEND_CALL_ARG(execute_data, 1);
-    fci.named_params = NULL;
-
-    real_func *rf = (real_func *) zend_hash_find_ptr(tmp_function_table, execute_data->func->common.function_name);
-    zend_call_function(&fci, rf->fci_cache);
+    fci.named_params = nullptr;
+    ZVAL_UNDEF(&fci.function_name);
+    zend_call_function(&fci, rf->fci_cache->ptr());
 }
 
 zend_class_entry *find_class_entry(const char *name, size_t length) {
-    zend_string *search_key = zend_string_init(name, length, 0);
+    zend_string *search_key = zend_string_init(name, length, false);
     zend_class_entry *class_ce = zend_lookup_class(search_key);
     zend_string_release(search_key);
     return class_ce ? class_ce : nullptr;
@@ -2107,8 +2320,61 @@ static void detach_parent_class(const char *child_name) {
 }
 
 static void clear_class_entries() {
-    for (auto iter = child_class_entries.begin(); iter != child_class_entries.end(); iter++) {
-        start_detach_parent_class(iter->second);
+    for (const auto &child_class_entry : child_class_entries) {
+        start_detach_parent_class(child_class_entry.second);
     }
     child_class_entries.clear();
 }
+
+#if defined(HAVE_PUTENV) && defined(SW_THREAD)
+/* {{{ Set the value of an environment variable */
+static PHP_FUNCTION(swoole_putenv) {
+    char *setting;
+    size_t setting_len;
+    char *p;
+    bool result;
+    std::string key;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_STRING(setting, setting_len)
+    ZEND_PARSE_PARAMETERS_END();
+
+    if (setting_len == 0 || setting[0] == '=') {
+        zend_argument_value_error(1, "must have a valid syntax");
+        RETURN_THROWS();
+    }
+
+    if ((p = strchr(setting, '='))) {
+        key = std::string(setting, p - setting);
+    } else {
+        key = std::string(setting, setting_len);
+    }
+
+    tsrm_env_lock();
+    swoole_runtime_environ[key] = std::string(setting, setting_len);
+    auto iter = swoole_runtime_environ.find(key);
+
+#ifdef HAVE_UNSETENV
+    if (!p) { /* no '=' means we want to unset it */
+        unsetenv(iter->second.c_str());
+    }
+    if (!p || putenv((char *) iter->second.c_str()) == 0) { /* success */
+#else
+    if (putenv((char *) iter->second.c_str()) == 0) { /* success */
+#endif
+
+#ifdef HAVE_TZSET
+        if (zend_binary_strcasecmp(key.c_str(), key.length(), ZEND_STRL("TZ")) == 0) {
+            tzset();
+        }
+#endif
+        result = true;
+    } else {
+        result = false;
+    }
+
+    tsrm_env_unlock();
+    RETURN_BOOL(result);
+}
+/* }}} */
+#endif

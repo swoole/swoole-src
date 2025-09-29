@@ -51,7 +51,7 @@ Channel *Channel::make(size_t size, size_t maxlen, int flags) {
         return nullptr;
     }
 
-    Channel *object = (Channel *) mem;
+    auto *object = (Channel *) mem;
     mem = (char *) mem + sizeof(Channel);
 
     *object = {};
@@ -121,7 +121,7 @@ int Channel::out(void *out_buf, int buffer_length) {
         return SW_ERR;
     }
 
-    ChannelSlice *item = (ChannelSlice *) ((char *) mem + head);
+    auto *item = (ChannelSlice *) ((char *) mem + head);
     assert(buffer_length >= item->length);
     memcpy(out_buf, item->data, item->length);
     head += (item->length + sizeof(item->length));
@@ -144,7 +144,7 @@ int Channel::peek(void *out, int buffer_length) {
 
     int length;
     lock->lock();
-    ChannelSlice *item = (ChannelSlice *) ((char *) mem + head);
+    auto *item = (ChannelSlice *) ((char *) mem + head);
     assert(buffer_length >= item->length);
     memcpy(out, item->data, item->length);
     length = item->length;

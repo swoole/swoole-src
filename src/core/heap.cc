@@ -24,7 +24,7 @@
 namespace swoole {
 
 Heap::Heap(size_t _n, Heap::Type _type) {
-    if (!(nodes = (HeapNode **) sw_malloc((_n + 1) * sizeof(void *)))) {
+    if (!((nodes = static_cast<HeapNode **>(sw_malloc((_n + 1) * sizeof(void *)))))) {
         throw std::bad_alloc();
     }
     num = 1;
@@ -33,6 +33,11 @@ Heap::Heap(size_t _n, Heap::Type _type) {
 }
 
 Heap::~Heap() {
+    for (uint32_t i = 1; i < num; i++) {
+        if (nodes[i]) {
+            delete nodes[i];
+        }
+    }
     sw_free(nodes);
 }
 
@@ -74,7 +79,7 @@ void Heap::percolate_down(uint32_t i) {
     uint32_t child_i;
     HeapNode *moving_node = nodes[i];
 
-    while ((child_i = maxchild(i)) && compare(moving_node->priority, nodes[child_i]->priority)) {
+    while (((child_i = maxchild(i))) && compare(moving_node->priority, nodes[child_i]->priority)) {
         nodes[i] = nodes[child_i];
         nodes[i]->position = i;
         i = child_i;
@@ -91,14 +96,14 @@ HeapNode *Heap::push(uint64_t priority, void *data) {
 
     if (num >= size) {
         newsize = size * 2;
-        if (!(tmp = (HeapNode **) sw_realloc(nodes, sizeof(HeapNode *) * newsize))) {
+        if (!((tmp = static_cast<HeapNode **>(sw_realloc(nodes, sizeof(HeapNode *) * newsize))))) {
             return nullptr;
         }
         nodes = tmp;
         size = newsize;
     }
 
-    HeapNode *node = new HeapNode;
+    auto *node = new HeapNode;
     node->priority = priority;
     node->data = data;
     i = num++;

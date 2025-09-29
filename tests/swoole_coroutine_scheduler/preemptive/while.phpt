@@ -3,12 +3,13 @@ swoole_coroutine_scheduler/preemptive: while with opcache enable
 --SKIPIF--
 <?php
 require __DIR__ . '/../../include/skipif.inc';
+skip_if_not_linux();
 ?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
 
-$default = 10;
+$default = TEST_MAX_CPU_EXEC_DURATION;
 $max_msec = 10;
 co::set(['enable_preemptive_scheduler' => true]);
 

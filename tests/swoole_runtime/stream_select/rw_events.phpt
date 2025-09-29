@@ -1,18 +1,22 @@
 --TEST--
 swoole_runtime/stream_select: rw events
 --SKIPIF--
-<?php require __DIR__ . '/../../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
 
-Swoole\Runtime::enableCoroutine();
+use Swoole\Atomic;
+use Swoole\Runtime;
 
-$n = new Swoole\Atomic(1);
+Runtime::enableCoroutine();
+
+$n = new Atomic(1);
 
 go(function () use ($n) {
-    $server = stream_socket_server("tcp://0.0.0.0:8000", $errno, $errstr, STREAM_SERVER_BIND | STREAM_SERVER_LISTEN);
-    while($n->get()) {
+    $server = stream_socket_server('tcp://0.0.0.0:8000', $errno, $errstr, STREAM_SERVER_BIND | STREAM_SERVER_LISTEN);
+    while ($n->get()) {
         $conn = @stream_socket_accept($server, 0.1);
         if ($conn) {
             go(function () use ($conn) {
@@ -25,11 +29,12 @@ go(function () use ($n) {
 });
 
 go(function () use ($n) {
-    $fp1 = stream_socket_client("tcp://127.0.0.1:8000", $errno, $errstr, 30);
-    $fp2 = stream_socket_client("tcp://127.0.0.1:8000", $errno, $errstr, 30);
+    $fp1 = stream_socket_client('tcp://127.0.0.1:8000', $errno, $errstr, 30);
+    $fp2 = stream_socket_client('tcp://127.0.0.1:8000', $errno, $errstr, 30);
     $r_array = [$fp1, $fp2];
     $w_array = [$fp1, $fp2];
     $e_array = null;
+    usleep(1000);
     $retval = stream_select($r_array, $w_array, $e_array, 10);
     Assert::same($retval, 2);
     Assert::same(count($r_array), 2);

@@ -6,21 +6,21 @@ swoole_websocket_server: compression
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-use Swoole\WebSocket\Server;
 use Swoole\Coroutine\Http\Client;
 use Swoole\WebSocket\Frame;
-use SwooleTest\ProcessManager as ProcessManager;
+use Swoole\WebSocket\Server;
+use SwooleTest\ProcessManager;
 
 phpt_var_dump(defined('SWOOLE_HAVE_ZLIB'));
 
-$pm = new ProcessManager;
+$pm = new ProcessManager();
 $pm->initRandomData(MAX_REQUESTS);
 $pm->parentFunc = function (int $pid) use ($pm) {
     Co\run(function () use ($pm) {
         $cli = new Client('127.0.0.1', $pm->getFreePort());
         $cli->set([
             'timeout' => 5,
-            'websocket_compression' => true
+            'websocket_compression' => true,
         ]);
         $ret = $cli->upgrade('/');
         if (!Assert::assert($ret)) {
@@ -49,7 +49,7 @@ $pm->childFunc = function () use ($pm) {
     $server = new Server('127.0.0.1', $pm->getFreePort(), SERVER_MODE_RANDOM);
     $server->set([
         'log_file' => '/dev/null',
-        'websocket_compression' => true
+        'websocket_compression' => true,
     ]);
     $server->on('workerStart', function () use ($pm) {
         $pm->wakeup();

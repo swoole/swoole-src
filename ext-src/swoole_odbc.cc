@@ -24,7 +24,7 @@
 
 #ifdef SW_USE_ODBC
 
-static bool swoole_odbc_blocking = true;
+static SW_THREAD_LOCAL bool swoole_odbc_blocking = true;
 
 #ifdef SQL_ATTR_CONNECTION_POOLING
 zend_ulong pdo_odbc_pool_on = SQL_CP_OFF;
@@ -205,7 +205,7 @@ int php_swoole_odbc_minit(int module_id) {
     if (zend_hash_str_find(&php_pdo_get_dbh_ce()->constants_table, ZEND_STRL("ODBC_ATTR_USE_CURSOR_LIBRARY")) ==
         nullptr) {
 #ifdef SQL_ATTR_CONNECTION_POOLING
-        char *pooling_val = NULL;
+        const char *pooling_val = NULL;
 #endif
 
 #ifdef SQL_ATTR_CONNECTION_POOLING
@@ -214,7 +214,7 @@ int php_swoole_odbc_minit(int module_id) {
          * request without affecting others, which goes against our isolated request
          * policy.  So, we use cfg_get_string here to check it this once.
          * */
-        if (FAILURE == cfg_get_string("pdo_odbc.connection_pooling", &pooling_val) || pooling_val == NULL) {
+        if (FAILURE == cfg_get_string("pdo_odbc.connection_pooling", (char **) &pooling_val) || pooling_val == NULL) {
             pooling_val = "strict";
         }
         if (strcasecmp(pooling_val, "strict") == 0 || strcmp(pooling_val, "1") == 0) {

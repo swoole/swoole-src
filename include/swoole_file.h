@@ -35,7 +35,6 @@ bool file_exists(const std::string &filename);
 typedef struct stat FileStatus;
 
 class File {
-  private:
     int fd_;
     int flags_;
     std::string path_;
@@ -50,7 +49,7 @@ class File {
         APPEND = O_APPEND,
     };
 
-    explicit File(int fd) {
+    explicit File(const int fd) {
         fd_ = fd;
         flags_ = 0;
     }
@@ -61,30 +60,24 @@ class File {
         flags_ = 0;
     }
 
-    File(const std::string &path, int oflags) {
-        fd_ = ::open(path.c_str(), oflags);
-        path_ = path;
-        flags_ = oflags;
-    }
+    File(const std::string &path, int oflags);
+    File(const std::string &path, int oflags, int mode);
+    ~File();
 
-    File(const std::string &path, int oflags, int mode) {
-        fd_ = ::open(path.c_str(), oflags, mode);
-        path_ = path;
-        flags_ = oflags;
-    }
+    bool open(const std::string &path, int oflags, int mode = 0);
+    bool close();
+    bool stat(FileStatus *_stat) const;
 
-    ~File() {
-        if (fd_ >= 0) {
-            ::close(fd_);
-        }
-    }
-
-    bool ready() {
+    bool ready() const {
         return fd_ != -1;
     }
 
     ssize_t write(const void *__buf, size_t __n) const {
         return ::write(fd_, __buf, __n);
+    }
+
+    ssize_t write(const std::string &str) const {
+        return ::write(fd_, str.c_str(), str.length());
     }
 
     ssize_t read(void *__buf, size_t __n) const {
@@ -99,74 +92,99 @@ class File {
         return ::pread(fd_, __buf, __n, __offset);
     }
 
-    size_t write_all(const void *__buf, size_t __n);
-    size_t read_all(void *__buf, size_t __n);
+    size_t write_all(const void *data, size_t len) const;
+    size_t read_all(void *buf, size_t len) const;
+    /**
+     * Read one line of file, reading ends when __n - 1 bytes have been read,
+     * or a newline (which is included in the return value),
+     * or an EOF (read bytes less than __n)
+     * Returns length of line on success, -1 otherwise.
+     * NOTE: `buf` must be ended with zero.
+     */
+    ssize_t read_line(void *__buf, size_t __n) const;
 
-    std::shared_ptr<String> read_content();
+    std::shared_ptr<String> read_content() const;
 
-    bool stat(FileStatus *_stat) const {
-        if (::fstat(fd_, _stat) < 0) {
-            swoole_sys_warning("fstat() failed");
-            return false;
-        } else {
-            return true;
-        }
-    }
-
-    bool sync() {
+    bool sync() const {
         return ::fsync(fd_) == 0;
     }
 
-    bool truncate(size_t size) {
+    bool truncate(size_t size) const {
         return ::ftruncate(fd_, size) == 0;
     }
 
-    off_t set_offest(off_t offset) {
+    off_t set_offset(off_t offset) const {
         return lseek(fd_, offset, SEEK_SET);
     }
 
-    off_t get_offset() {
+    off_t get_offset() const {
         return lseek(fd_, 0, SEEK_CUR);
     }
 
-    bool lock(int operation) {
+    bool lock(int operation) const {
         return ::flock(fd_, operation) == 0;
     }
 
-    bool unlock() {
+    bool unlock() const {
         return ::flock(fd_, LOCK_UN) == 0;
     }
 
-    ssize_t get_size() {
+    ssize_t get_size() const {
         return file_get_size(fd_);
-    }
-
-    bool close() {
-        if (fd_ == -1) {
-            return false;
-        }
-        int tmp_fd = fd_;
-        fd_ = -1;
-        return ::close(tmp_fd) == 0;
     }
 
     void release() {
         fd_ = -1;
     }
 
-    int get_fd() {
+    int get_fd() const {
         return fd_;
     }
 
-    const std::string &get_path() {
+    const std::string &get_path() const {
         return path_;
     }
 
     static bool exists(const std::string &file) {
-        return access(file.c_str(), R_OK) == 0;
+        return ::access(file.c_str(), R_OK) == 0;
+    }
+
+    static bool remove(const std::string &file) {
+        return ::remove(file.c_str()) == 0;
     }
 };
 
 File make_tmpfile();
 
+class AsyncFile {
+  private:
+    int fd = -1;
+    int flags_ = 0;
+    int mode_ = 0;
+    std::string path_ = "";
+
+  public:
+    AsyncFile(const std::string &path, int flags, int mode);
+    ~AsyncFile();
+
+    bool open(const std::string &path, int flags, mode_t mode);
+    bool close();
+
+    ssize_t read(void *buf, size_t count) const;
+    ssize_t write(const void *buf, size_t count) const;
+    ssize_t write(const String *buf) const {
+        return write(SW_STRINGL(buf));
+    }
+
+    bool sync() const;
+    bool truncate(off_t length) const;
+    bool stat(FileStatus *statbuf) const;
+
+    off_t get_offset() const;
+    off_t set_offset(off_t offset) const;
+
+    bool ready() const {
+        return fd != -1;
+    }
+};
 }  // namespace swoole

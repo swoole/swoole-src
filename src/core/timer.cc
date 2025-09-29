@@ -18,55 +18,37 @@
 #include "swoole_reactor.h"
 #include "swoole_timer.h"
 
-#if !defined(HAVE_CLOCK_GETTIME) && defined(__MACH__)
-#include <mach/clock.h>
-#include <mach/mach_time.h>
-#include <sys/sysctl.h>
-
-#define ORWL_NANO (+1.0E-9)
-#define ORWL_GIGA UINT64_C(1000000000)
-
-static double orwl_timebase = 0.0;
-static uint64_t orwl_timestart = 0;
-
-int swoole_clock_realtime(struct timespec *t) {
-    // be more careful in a multithreaded environement
-    if (!orwl_timestart) {
-        mach_timebase_info_data_t tb = {0};
-        mach_timebase_info(&tb);
-        orwl_timebase = tb.numer;
-        orwl_timebase /= tb.denom;
-        orwl_timestart = mach_absolute_time();
-    }
-    double diff = (mach_absolute_time() - orwl_timestart) * orwl_timebase;
-    t->tv_sec = diff * ORWL_NANO;
-    t->tv_nsec = diff - (t->tv_sec * ORWL_GIGA);
-    return 0;
-}
-#endif
-
 namespace swoole {
-
-Timer::Timer() : heap(1024, Heap::MIN_HEAP) {
+Timer::Timer(bool manually_trigger) : heap(1024, Heap::MIN_HEAP) {
     _current_id = -1;
     next_msec_ = -1;
     _next_id = 1;
     round = 0;
-    now(&base_time);
+    base_time = get_absolute_msec();
+    init(manually_trigger);
 }
 
-bool Timer::init() {
-    if (now(&base_time) < 0) {
-        return false;
+void Timer::init(bool manually_trigger) {
+    if (manually_trigger) {
+        set = [](Timer *, long) -> int { return SW_OK; };
+        close = [](Timer *) {};
+        return;
     }
     if (SwooleTG.reactor) {
-        return init_reactor(SwooleTG.reactor);
+        init_with_reactor(SwooleTG.reactor);
     } else {
-        return init_system_timer();
+        init_with_system_timer();
     }
 }
 
-bool Timer::init_reactor(Reactor *reactor) {
+void Timer::release_node(TimerNode *tnode) {
+    if (tnode->destructor) {
+        tnode->destructor(tnode);
+    }
+    delete tnode;
+}
+
+void Timer::init_with_reactor(Reactor *reactor) {
     reactor_ = reactor;
     set = [](Timer *timer, long exec_msec) -> int {
         timer->reactor_->timeout_msec = exec_msec;
@@ -84,22 +66,20 @@ bool Timer::init_reactor(Reactor *reactor) {
             swoole_timer_free();
         }
     });
-
-    return true;
 }
 
-void Timer::reinit(Reactor *reactor) {
-    init_reactor(reactor);
-    reactor->timeout_msec = next_msec_;
+void Timer::reinit(bool manually_trigger) {
+    close(this);
+    init(manually_trigger);
+    set(this, next_msec_);
 }
 
 Timer::~Timer() {
     if (close) {
         close(this);
     }
-    for (auto iter = map.begin(); iter != map.end(); iter++) {
-        auto tnode = iter->second;
-        delete tnode;
+    for (const auto &iter : map) {
+        release_node(iter.second);
     }
 }
 
@@ -109,15 +89,11 @@ TimerNode *Timer::add(long _msec, bool persistent, void *data, const TimerCallba
         return nullptr;
     }
 
-    int64_t now_msec = get_relative_msec();
-    if (sw_unlikely(now_msec < 0)) {
-        return nullptr;
-    }
-
-    TimerNode *tnode = new TimerNode();
+    auto *tnode = new TimerNode();
+    tnode->id = _next_id++;
     tnode->data = data;
     tnode->type = TimerNode::TYPE_KERNEL;
-    tnode->exec_msec = now_msec + _msec;
+    tnode->exec_msec = get_relative_msec() + _msec;
     tnode->interval = persistent ? _msec : 0;
     tnode->removed = false;
     tnode->callback = callback;
@@ -129,18 +105,12 @@ TimerNode *Timer::add(long _msec, bool persistent, void *data, const TimerCallba
         next_msec_ = _msec;
     }
 
-    tnode->id = _next_id++;
-    if (sw_unlikely(tnode->id < 0)) {
-        tnode->id = 1;
-        _next_id = 2;
-    }
-
     tnode->heap_node = heap.push(tnode->exec_msec, tnode);
     if (sw_unlikely(tnode->heap_node == nullptr)) {
-        delete tnode;
+        release_node(tnode);
         return nullptr;
     }
-    map.emplace(std::make_pair(tnode->id, tnode));
+    map.emplace(tnode->id, tnode);
     swoole_trace_log(SW_TRACE_TIMER,
                      "id=%ld, exec_msec=%" PRId64 ", msec=%ld, round=%" PRIu64 ", exist=%lu",
                      tnode->id,
@@ -171,32 +141,25 @@ bool Timer::remove(TimerNode *tnode) {
     if (tnode->heap_node) {
         heap.remove(tnode->heap_node);
     }
-    if (tnode->destructor) {
-        tnode->destructor(tnode);
-    }
     swoole_trace_log(SW_TRACE_TIMER,
                      "id=%ld, exec_msec=%" PRId64 ", round=%" PRIu64 ", exist=%lu",
                      tnode->id,
                      tnode->exec_msec,
                      tnode->round,
                      count());
-    delete tnode;
+    release_node(tnode);
     return true;
 }
 
-int Timer::select() {
-    int64_t now_msec = get_relative_msec();
-    if (sw_unlikely(now_msec < 0)) {
-        return SW_ERR;
-    }
-
+void Timer::select() {
+    const int64_t now_msec = get_relative_msec();
     TimerNode *tnode = nullptr;
     HeapNode *tmp;
 
-    swoole_trace_log(SW_TRACE_TIMER, "timer msec=%" PRId64 ", round=%" PRId64, now_msec, round);
+    swoole_trace_log(SW_TRACE_TIMER, "select begin: now_msec=%" PRId64 ", round=%" PRId64, now_msec, round);
 
     while ((tmp = heap.top())) {
-        tnode = (TimerNode *) tmp->data;
+        tnode = static_cast<TimerNode *>(tmp->data);
         if (tnode->exec_msec > now_msec || tnode->round == round) {
             break;
         }
@@ -204,7 +167,7 @@ int Timer::select() {
         _current_id = tnode->id;
         if (!tnode->removed) {
             swoole_trace_log(SW_TRACE_TIMER,
-                             "id=%ld, exec_msec=%" PRId64 ", round=%" PRIu64 ", exist=%lu",
+                             "execute callback [id=%ld, exec_msec=%" PRId64 ", round=%" PRIu64 ", exist=%lu]",
                              tnode->id,
                              tnode->exec_msec,
                              tnode->round,
@@ -225,7 +188,8 @@ int Timer::select() {
 
         heap.pop();
         map.erase(tnode->id);
-        delete tnode;
+        release_node(tnode);
+        tnode = nullptr;
     }
 
     if (!tnode || !tmp) {
@@ -239,26 +203,5 @@ int Timer::select() {
         set(this, next_msec_);
     }
     round++;
-
-    return SW_OK;
 }
-
-int Timer::now(struct timeval *time) {
-#if defined(SW_USE_MONOTONIC_TIME) && defined(CLOCK_MONOTONIC)
-    struct timespec _now;
-    if (clock_gettime(CLOCK_MONOTONIC, &_now) < 0) {
-        swoole_sys_warning("clock_gettime(CLOCK_MONOTONIC) failed");
-        return SW_ERR;
-    }
-    time->tv_sec = _now.tv_sec;
-    time->tv_usec = _now.tv_nsec / 1000;
-#else
-    if (gettimeofday(time, nullptr) < 0) {
-        swoole_sys_warning("gettimeofday() failed");
-        return SW_ERR;
-    }
-#endif
-    return SW_OK;
-}
-
 };  // namespace swoole

@@ -59,5 +59,4 @@ TEST(fixed_pool, realloc) {
         sw_shm_free(new_memory);
     };
     ASSERT_NE(new_memory, nullptr);
-
 }

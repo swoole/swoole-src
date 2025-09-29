@@ -1,7 +1,7 @@
 #include "test_process.h"
 
-using swoole::test::Process;
 using swoole::UnixSocket;
+using swoole::test::Process;
 
 Process::Process(std::function<void(Process *)> fn, int pipe_type) : handler(fn) {
     if (pipe_type > 0) {

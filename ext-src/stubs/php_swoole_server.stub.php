@@ -8,10 +8,10 @@ namespace Swoole {
         public function getCallback(string $event_name): \Closure|string|null|array {}
         public function listen(string $host, int $port, int $sock_type): false|Server\Port {}
         public function sendMessage(mixed $message, int $dst_worker_id): bool {}
-        public function addProcess(\Swoole\Process $process): int {}
+        public function addProcess(\Swoole\Process $process): int|false {}
         public function addCommand(string $name, int $accepted_process_types, callable $callback): bool {}
         public function start(): bool {}
-        public function stop(int $workerId = -1, bool $waitEvent = false): bool {}
+        public function stop(int $workerId = -1): bool {}
         public function send(int|string $fd, string $send_data, int $serverSocket = -1): bool {}
         public function sendfile(int $conn_fd, string $filename, int $offset = 0, int $length = 0): bool {}
         public function stats(): array {}

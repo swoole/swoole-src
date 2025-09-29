@@ -10,6 +10,12 @@ static const char *sw_known_strings[] = {
 
 SW_API zend_string **sw_zend_known_strings = nullptr;
 
+SW_API zend_refcounted *sw_refcount_ptr;
+
+zend_refcounted *sw_get_refcount_ptr(zval *value) {
+    return (sw_refcount_ptr = value->value.counted);
+}
+
 //----------------------------------known string------------------------------------
 namespace zend {
 void known_strings_init(void) {
@@ -28,6 +34,55 @@ void known_strings_init(void) {
 void known_strings_dtor(void) {
     pefree(sw_zend_known_strings, 1);
     sw_zend_known_strings = nullptr;
+}
+
+static zend_always_inline zval *sw_zend_symtable_str_add(
+    HashTable *ht, const char *str, size_t len, zend_ulong idx, bool numeric_key, zval *pData) {
+    if (numeric_key) {
+        return zend_hash_index_add(ht, idx, pData);
+    } else {
+        return zend_hash_str_add(ht, str, len, pData);
+    }
+}
+
+static zend_always_inline zval *sw_zend_symtable_str_find(
+    HashTable *ht, const char *str, size_t len, zend_ulong idx, bool numeric_key) {
+    if (numeric_key) {
+        return zend_hash_index_find(ht, idx);
+    } else {
+        return zend_hash_str_find(ht, str, len);
+    }
+}
+
+static zend_always_inline zval *sw_zend_symtable_str_update(
+    HashTable *ht, const char *str, size_t len, zend_ulong idx, bool numeric_key, zval *pData) {
+    if (numeric_key) {
+        return zend_hash_index_update(ht, idx, pData);
+    } else {
+        return zend_hash_str_update(ht, str, len, pData);
+    }
+}
+
+void array_add_or_merge(zval *zarray, const char *key, size_t key_len, zval *new_element) {
+    zend_ulong idx;
+    bool numeric_key = ZEND_HANDLE_NUMERIC_STR(key, key_len, idx);
+
+    zend_array *array = Z_ARRVAL_P(zarray);
+    zval *zresult = sw_zend_symtable_str_add(array, key, key_len, idx, numeric_key, new_element);
+    // Adding element failed, indicating that this key already exists and must be converted to an array
+    if (!zresult) {
+        zval *current_elements = sw_zend_symtable_str_find(array, key, key_len, idx, numeric_key);
+        if (ZVAL_IS_ARRAY(current_elements)) {
+            add_next_index_zval(current_elements, new_element);
+        } else {
+            zval zvalue_array;
+            array_init_size(&zvalue_array, 2);
+            Z_ADDREF_P(current_elements);
+            add_next_index_zval(&zvalue_array, current_elements);
+            add_next_index_zval(&zvalue_array, new_element);
+            sw_zend_symtable_str_update(array, key, key_len, idx, numeric_key, &zvalue_array);
+        }
+    }
 }
 
 namespace function {
@@ -66,4 +121,31 @@ Variable call(const std::string &func_name, int argc, zval *argv) {
 }
 
 }  // namespace function
+
+Callable::Callable(zval *_zfn) {
+    ZVAL_UNDEF(&zfn);
+    if (!zval_is_true(_zfn)) {
+        php_swoole_fatal_error(E_WARNING, "illegal callback function");
+        return;
+    }
+    if (!sw_zend_is_callable_ex(_zfn, nullptr, 0, &fn_name, nullptr, &fcc, nullptr)) {
+        php_swoole_fatal_error(E_WARNING, "function '%s' is not callable", fn_name);
+        return;
+    }
+    zfn = *_zfn;
+    zval_add_ref(&zfn);
+}
+
+Callable::~Callable() {
+    if (!ZVAL_IS_UNDEF(&zfn)) {
+        zval_ptr_dtor(&zfn);
+    }
+    if (fn_name) {
+        efree(fn_name);
+    }
+}
+
+uint32_t Callable::refcount() {
+    return zval_refcount_p(&zfn);
+}
 }  // namespace zend

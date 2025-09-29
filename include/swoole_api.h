@@ -25,6 +25,12 @@ enum swEventInitFlag {
     SW_EVENTLOOP_WAIT_EXIT = 1,
 };
 
+/**
+ * manually_trigger:
+ * Once enabled, the timer will no longer be triggered by event polling or the operating system's timer;
+ * instead, it will be managed directly at the user space.
+ */
+SW_API swoole::Timer *swoole_timer_create(bool manually_trigger = false);
 SW_API long swoole_timer_after(long ms, const swoole::TimerCallback &callback, void *private_data = nullptr);
 SW_API long swoole_timer_tick(long ms, const swoole::TimerCallback &callback, void *private_data = nullptr);
 SW_API swoole::TimerNode *swoole_timer_add(double ms,
@@ -41,7 +47,8 @@ SW_API void swoole_timer_delay(swoole::TimerNode *tnode, long delay_ms);
 SW_API swoole::TimerNode *swoole_timer_get(long timer_id);
 SW_API bool swoole_timer_clear(long timer_id);
 SW_API void swoole_timer_free();
-SW_API int swoole_timer_select();
+SW_API void swoole_timer_select();
+SW_API int64_t swoole_timer_get_next_msec();
 SW_API bool swoole_timer_is_available();
 
 SW_API int swoole_event_init(int flags);
@@ -55,14 +62,7 @@ SW_API ssize_t swoole_event_writev(swoole::network::Socket *socket, const iovec 
 SW_API swoole::network::Socket *swoole_event_get_socket(int fd);
 SW_API int swoole_event_wait();
 SW_API int swoole_event_free();
-SW_API bool swoole_event_set_handler(int fdtype, swoole::ReactorHandler handler);
-SW_API bool swoole_event_isset_handler(int fdtype);
+SW_API void swoole_event_set_handler(int fd_type, int event, swoole::ReactorHandler handler);
+SW_API bool swoole_event_isset_handler(int fd_type, int event);
 SW_API bool swoole_event_is_available();
-
-#ifdef __MACH__
-swoole::Reactor *sw_reactor();
-swoole::Timer *sw_timer();
-#else
-#define sw_reactor() (SwooleTG.reactor)
-#define sw_timer() (SwooleTG.timer)
-#endif
+SW_API bool swoole_event_is_running();

@@ -32,12 +32,10 @@ struct BufferChunk {
     uint32_t length = 0;
     uint32_t offset = 0;
     union {
-        char *ptr;
-        void *object;
-        struct {
-            uint32_t val1;
-            uint32_t val2;
-        } data;
+        char *str;
+        void *ptr;
+        uint32_t u32;
+        uint64_t u64;
     } value{};
     uint32_t size = 0;
 
@@ -55,17 +53,17 @@ class Buffer {
     std::queue<BufferChunk *> queue_;
 
   public:
-    explicit Buffer(uint32_t chunk_size);
+    explicit Buffer(uint32_t _chunk_size);
     ~Buffer();
 
     BufferChunk *alloc(BufferChunk::Type type, uint32_t size);
 
-    BufferChunk *front() {
+    BufferChunk *front() const {
         return queue_.front();
     }
 
     void pop();
-    void append(const void *data, uint32_t size);
+    void append(const char *data, uint32_t size);
     void append(const struct iovec *iov, size_t iovcnt, off_t offset);
 
     uint32_t length() const {

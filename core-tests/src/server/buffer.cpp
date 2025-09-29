@@ -70,7 +70,7 @@ TEST(server, send_buffer) {
     serv.onReceive = [](Server *serv, RecvData *req) -> int {
         EXPECT_EQ(string(req->data, req->info.len), string(packet));
 
-        swString resp(1024 * 1024 * 16);
+        String resp(1024 * 1024 * 16);
         resp.repeat("A", 1, resp.capacity());
         EXPECT_TRUE(serv->send(req->info.fd, resp.value(), resp.get_length()));
         EXPECT_TRUE(serv->close(req->info.fd, 0));

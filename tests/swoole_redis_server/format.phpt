@@ -14,7 +14,7 @@ echo Server::format(Server::STATUS, "SUCCESS");
 echo Server::format(Server::INT, 1000);
 echo Server::format(Server::STRING, "hello swoole");
 echo Server::format(Server::SET, ["php", "is", "best"]);
-echo Server::format(Server::MAP, ["php" => 99, "java" => 88, "c++" => '666']);
+echo Server::format(Server::MAP, ["php" => '99', "java" => '88', "c++" => '666', 9999 => 'hello']);
 ?>
 --EXPECT--
 -ERR
@@ -32,7 +32,7 @@ $2
 is
 $4
 best
-*6
+*8
 $3
 php
 $2
@@ -45,3 +45,7 @@ $3
 c++
 $3
 666
+$4
+9999
+$5
+hello

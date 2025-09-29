@@ -88,7 +88,7 @@ bool Context::swap_out() {
     return true;
 }
 
-void Context::context_func(void *arg) {
+void Context::context_func(coroutine_transfer_t arg) {
     swoole_signal_block_all();
     Context *_this = (Context *) arg;
     SwooleTG.reactor = g_reactor;

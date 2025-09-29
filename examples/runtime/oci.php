@@ -1,7 +1,7 @@
 <?php
 function test()
 {
-	$tsn = 'oci:dbname=127.0.0.1:1521/xe;charset=AL32UTF8';
+	$tsn = 'oci:dbname=127.0.0.1:1521/freepdb1;charset=AL32UTF8';
 	$username = "";
 	$password = "";
     try {

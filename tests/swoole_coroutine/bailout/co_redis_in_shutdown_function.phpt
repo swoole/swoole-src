@@ -23,6 +23,6 @@ Event::wait();
 Fatal error: Uncaught Swoole\Error: API must be called in the coroutine in %s:%d
 Stack trace:
 #0 %s(%d): Redis->get('key')
-#1 [internal function]: {closure}()
+#1 [internal function]: {closure%S}()
 #2 {main}
   thrown in %s on line %d

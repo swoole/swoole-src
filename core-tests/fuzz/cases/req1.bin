@@ -1,4 +1,4 @@
-POST / HTTP/1.1
+POST /index.html?test=hello&str=world HTTP/1.1
 Host: 127.0.0.1:35347
 Accept: */*
 Content-Length: 11199

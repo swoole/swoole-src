@@ -60,7 +60,7 @@ int main(int argc, char **argv) {
     serv.add_port(SW_SOCK_TCP6, "::", 9503);
     serv.add_port(SW_SOCK_UDP6, "::", 9504);
 
-    swListenPort *port = serv.add_port(SW_SOCK_TCP, "127.0.0.1", 9501);
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, "127.0.0.1", 9501);
     if (!port) {
         swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
         exit(2);
@@ -102,11 +102,11 @@ int my_onReceive(Server *serv, RecvData *req) {
     memcpy(req_data, req->data, req->info.len);
     swoole::rtrim(req_data, req->info.len);
     swoole_notice("onReceive[%d]: ip=%s|port=%d Data=%s|Len=%d",
-             g_receive_count,
-             conn->info.get_ip(),
-             conn->info.get_port(),
-             req_data,
-             req->info.len);
+                  g_receive_count,
+                  conn->info.get_addr(),
+                  conn->info.get_port(),
+                  req_data,
+                  req->info.len);
 
     int n = sw_snprintf(resp_data, SW_IPC_BUFFER_SIZE, "Server: %.*s\n", req->info.len, req_data);
 

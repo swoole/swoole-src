@@ -64,7 +64,7 @@ TEST(dns, cancel) {
     test::coroutine::run([](void *arg) {
         auto co = Coroutine::get_current_safe();
         Coroutine::create([co](void *) {
-            System::sleep(0.002);
+            System::sleep(0.001);
             co->cancel();
         });
         auto list1 = swoole::coroutine::dns_lookup("www.baidu-not-found-for-cancel.com", AF_INET, 2);
@@ -73,52 +73,72 @@ TEST(dns, cancel) {
     });
 }
 
+TEST(dns, gethostbyname) {
+    GethostbynameRequest req1(TEST_HTTP_DOMAIN, AF_INET);
+    ASSERT_EQ(network::gethostbyname(&req1), 0);
+    ASSERT_TRUE(network::Address::verify_ip(AF_INET, req1.addr));
+
+    GethostbynameRequest req2(TEST_HTTP_DOMAIN, AF_INET6);
+    ASSERT_EQ(network::gethostbyname(&req2), 0);
+    ASSERT_TRUE(network::Address::verify_ip(AF_INET6, req2.addr));
+}
+
 TEST(dns, getaddrinfo) {
-    char buf[1024] = {};
-    swoole::network::GetaddrinfoRequest req = {};
-    req.hostname = "www.baidu.com";
-    req.family = AF_INET;
-    req.socktype = SOCK_STREAM;
-    req.protocol = 0;
-    req.service = nullptr;
-    req.result = buf;
-    ASSERT_EQ(swoole::network::getaddrinfo(&req), 0);
+    GetaddrinfoRequest req("www.baidu.com", AF_INET, SOCK_STREAM, 0, "");
+    ASSERT_EQ(network::getaddrinfo(&req), 0);
     ASSERT_GT(req.count, 0);
 
     vector<string> ip_list;
     req.parse_result(ip_list);
 
     for (auto &ip : ip_list) {
-        ASSERT_TRUE(swoole::network::Address::verify_ip(AF_INET, ip));
+        ASSERT_TRUE(network::Address::verify_ip(AF_INET, ip));
+    }
+}
+
+TEST(dns, getaddrinfo_fail) {
+    GetaddrinfoRequest req("www.baidu.com-not-exists", AF_INET, SOCK_STREAM, 0, "");
+    ASSERT_EQ(network::getaddrinfo(&req), -1);
+    ASSERT_EQ(req.error, EAI_NONAME);
+}
+
+TEST(dns, getaddrinfo_ipv6) {
+    GetaddrinfoRequest req(TEST_HTTP_DOMAIN, AF_INET6, SOCK_STREAM, 0, "");
+    ASSERT_EQ(network::getaddrinfo(&req), 0);
+    ASSERT_GT(req.count, 0);
+
+    DEBUG() << "result count: " << req.count << std::endl;
+
+    vector<string> ip_list;
+    req.parse_result(ip_list);
+
+    for (auto &ip : ip_list) {
+        ASSERT_TRUE(network::Address::verify_ip(AF_INET6, ip));
     }
 }
 
 TEST(dns, load_resolv_conf) {
-    // reset
-    SwooleG.dns_server_host = "";
-    SwooleG.dns_server_port = 0;
+    int port = get_random_port();
 
-    auto dns_server = swoole_get_dns_server();
-    ASSERT_TRUE(dns_server.first.empty());
-    ASSERT_EQ(dns_server.second, 0);
+    auto ori_dns_server = swoole_get_dns_server();
 
     // with port
-    std::string test_server = "127.0.0.1:8080";  // fake dns server
+    std::string test_server = "127.0.0.1:" + std::to_string(port);  // fake dns server
     swoole_set_dns_server(test_server);
-    dns_server = swoole_get_dns_server();
-    ASSERT_STREQ(dns_server.first.c_str(), "127.0.0.1");
-    ASSERT_EQ(dns_server.second, 8080);
+    auto dns_server = swoole_get_dns_server();
+    ASSERT_STREQ(dns_server.host.c_str(), "127.0.0.1");
+    ASSERT_EQ(dns_server.port, port);
 
     // invalid port
     test_server = "127.0.0.1:808088";
     swoole_set_dns_server(test_server);
     dns_server = swoole_get_dns_server();
-    ASSERT_EQ(dns_server.second, SW_DNS_SERVER_PORT);
+    ASSERT_EQ(dns_server.port, SW_DNS_SERVER_PORT);
 
     ASSERT_TRUE(swoole_load_resolv_conf());
     dns_server = swoole_get_dns_server();
-    ASSERT_FALSE(dns_server.first.empty());
-    ASSERT_NE(dns_server.second, 0);
+    ASSERT_EQ(dns_server.host, ori_dns_server.host);
+    ASSERT_EQ(dns_server.port, ori_dns_server.port);
 }
 
 TEST(dns, gethosts) {
@@ -207,12 +227,20 @@ void name_resolver_test_fn_2() {
     ASSERT_TRUE(swoole::network::Address::verify_ip(AF_INET, ip));
 }
 
-TEST(dns, name_resolver_1) {
+TEST(dns, name_resolve_1) {
     name_resolver_test_fn_1();
     test::coroutine::run([](void *arg) { name_resolver_test_fn_1(); });
 }
 
-TEST(dns, name_resolver_2) {
+TEST(dns, name_resolve_2) {
     name_resolver_test_fn_2();
     test::coroutine::run([](void *arg) { name_resolver_test_fn_2(); });
+}
+
+TEST(dns, name_resolve_fail) {
+    NameResolver::Context ctx;
+    ctx = {AF_INET};
+    auto ip = swoole_name_resolver_lookup("www.baidu.com-not-exists", &ctx);
+    ASSERT_TRUE(ip.empty());
+    ASSERT_ERREQ(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
 }

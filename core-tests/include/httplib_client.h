@@ -375,9 +375,11 @@ struct Response {
     void set_content(const char *s, size_t n, const char *content_type);
     void set_content(std::string s, const char *content_type);
 
-    void set_content_provider(size_t length, ContentProvider provider, std::function<void()> resource_releaser = [] {});
+    void set_content_provider(
+        size_t length, ContentProvider provider, std::function<void()> resource_releaser = [] {});
 
-    void set_chunked_content_provider(ChunkedContentProvider provider, std::function<void()> resource_releaser = [] {});
+    void set_chunked_content_provider(
+        ChunkedContentProvider provider, std::function<void()> resource_releaser = [] {});
 
     Response() = default;
     Response(const Response &) = default;
@@ -417,7 +419,7 @@ class Stream {
     virtual void get_remote_ip_and_port(std::string &ip, int &port) const = 0;
 
     template <typename... Args>
-    ssize_t write_format(const char *fmt, const Args &... args);
+    ssize_t write_format(const char *fmt, const Args &...args);
     ssize_t write(const char *ptr);
     ssize_t write(const std::string &s);
 };
@@ -611,6 +613,8 @@ class Client {
 
     void set_interface(const char *intf);
 
+    void set_websocket_mask(bool on);
+
     void set_proxy(const char *host, int port);
     void set_proxy_basic_auth(const char *username, const char *password);
 #ifdef CPPHTTPLIB_OPENSSL_SUPPORT
@@ -678,6 +682,8 @@ class Client {
     std::string proxy_host_;
     int proxy_port_ = 80;
 
+    bool websocket_mask_ = false;
+
     std::string proxy_basic_auth_username_;
     std::string proxy_basic_auth_password_;
 #ifdef CPPHTTPLIB_OPENSSL_SUPPORT
@@ -716,6 +722,7 @@ class Client {
         proxy_digest_auth_username_ = rhs.proxy_digest_auth_username_;
         proxy_digest_auth_password_ = rhs.proxy_digest_auth_password_;
 #endif
+        websocket_mask_ = rhs.websocket_mask_;
         logger_ = rhs.logger_;
     }
 
@@ -2965,16 +2972,17 @@ inline std::string make_multipart_ranges_data(const Request &req,
                                               const std::string &content_type) {
     std::string data;
 
-    process_multipart_ranges_data(req,
-                                  res,
-                                  boundary,
-                                  content_type,
-                                  [&](const std::string &token) { data += token; },
-                                  [&](const char *token) { data += token; },
-                                  [&](size_t offset, size_t length) {
-                                      data += res.body.substr(offset, length);
-                                      return true;
-                                  });
+    process_multipart_ranges_data(
+        req,
+        res,
+        boundary,
+        content_type,
+        [&](const std::string &token) { data += token; },
+        [&](const char *token) { data += token; },
+        [&](size_t offset, size_t length) {
+            data += res.body.substr(offset, length);
+            return true;
+        });
 
     return data;
 }
@@ -2985,16 +2993,17 @@ inline size_t get_multipart_ranges_data_length(const Request &req,
                                                const std::string &content_type) {
     size_t data_length = 0;
 
-    process_multipart_ranges_data(req,
-                                  res,
-                                  boundary,
-                                  content_type,
-                                  [&](const std::string &token) { data_length += token.size(); },
-                                  [&](const char *token) { data_length += strlen(token); },
-                                  [&](size_t /*offset*/, size_t length) {
-                                      data_length += length;
-                                      return true;
-                                  });
+    process_multipart_ranges_data(
+        req,
+        res,
+        boundary,
+        content_type,
+        [&](const std::string &token) { data_length += token.size(); },
+        [&](const char *token) { data_length += strlen(token); },
+        [&](size_t /*offset*/, size_t length) {
+            data_length += length;
+            return true;
+        });
 
     return data_length;
 }
@@ -3357,8 +3366,8 @@ inline ssize_t Stream::write(const std::string &s) {
 }
 
 template <typename... Args>
-inline ssize_t Stream::write_format(const char *fmt, const Args &... args) {
-    std::array<char, 2048> buf;
+inline ssize_t Stream::write_format(const char *fmt, const Args &...args) {
+    std::array<char, 2048> buf{};
 
 #if defined(_MSC_VER) && _MSC_VER < 1900
     auto sn = _snprintf_s(buf, bufsiz, buf.size() - 1, fmt, args...);
@@ -3821,54 +3830,55 @@ inline bool SSLClient::connect_with_proxy(Socket &socket, Response &res, bool &s
 }
 
 inline bool SSLClient::initialize_ssl(Socket &socket) {
-    auto ssl = detail::ssl_new(socket.sock,
-                               ctx_,
-                               ctx_mutex_,
-                               [&](SSL *ssl) {
-                                   if (ca_cert_file_path_.empty() && ca_cert_store_ == nullptr) {
-                                       SSL_CTX_set_verify(ctx_, SSL_VERIFY_NONE, nullptr);
-                                   } else if (!ca_cert_file_path_.empty()) {
-                                       if (!SSL_CTX_load_verify_locations(ctx_, ca_cert_file_path_.c_str(), nullptr)) {
-                                           return false;
-                                       }
-                                       SSL_CTX_set_verify(ctx_, SSL_VERIFY_PEER, nullptr);
-                                   } else if (ca_cert_store_ != nullptr) {
-                                       if (SSL_CTX_get_cert_store(ctx_) != ca_cert_store_) {
-                                           SSL_CTX_set_cert_store(ctx_, ca_cert_store_);
-                                       }
-                                       SSL_CTX_set_verify(ctx_, SSL_VERIFY_PEER, nullptr);
-                                   }
+    auto ssl = detail::ssl_new(
+        socket.sock,
+        ctx_,
+        ctx_mutex_,
+        [&](SSL *ssl) {
+            if (ca_cert_file_path_.empty() && ca_cert_store_ == nullptr) {
+                SSL_CTX_set_verify(ctx_, SSL_VERIFY_NONE, nullptr);
+            } else if (!ca_cert_file_path_.empty()) {
+                if (!SSL_CTX_load_verify_locations(ctx_, ca_cert_file_path_.c_str(), nullptr)) {
+                    return false;
+                }
+                SSL_CTX_set_verify(ctx_, SSL_VERIFY_PEER, nullptr);
+            } else if (ca_cert_store_ != nullptr) {
+                if (SSL_CTX_get_cert_store(ctx_) != ca_cert_store_) {
+                    SSL_CTX_set_cert_store(ctx_, ca_cert_store_);
+                }
+                SSL_CTX_set_verify(ctx_, SSL_VERIFY_PEER, nullptr);
+            }
 
-                                   if (SSL_connect(ssl) != 1) {
-                                       return false;
-                                   }
+            if (SSL_connect(ssl) != 1) {
+                return false;
+            }
 
-                                   if (server_certificate_verification_) {
-                                       verify_result_ = SSL_get_verify_result(ssl);
+            if (server_certificate_verification_) {
+                verify_result_ = SSL_get_verify_result(ssl);
 
-                                       if (verify_result_ != X509_V_OK) {
-                                           return false;
-                                       }
+                if (verify_result_ != X509_V_OK) {
+                    return false;
+                }
 
-                                       auto server_cert = SSL_get_peer_certificate(ssl);
+                auto server_cert = SSL_get_peer_certificate(ssl);
 
-                                       if (server_cert == nullptr) {
-                                           return false;
-                                       }
+                if (server_cert == nullptr) {
+                    return false;
+                }
 
-                                       if (!verify_host(server_cert)) {
-                                           X509_free(server_cert);
-                                           return false;
-                                       }
-                                       X509_free(server_cert);
-                                   }
+                if (!verify_host(server_cert)) {
+                    X509_free(server_cert);
+                    return false;
+                }
+                X509_free(server_cert);
+            }
 
-                                   return true;
-                               },
-                               [&](SSL *ssl) {
-                                   SSL_set_tlsext_host_name(ssl, host_.c_str());
-                                   return true;
-                               });
+            return true;
+        },
+        [&](SSL *ssl) {
+            SSL_set_tlsext_host_name(ssl, host_.c_str());
+            return true;
+        });
 
     if (ssl) {
         socket.ssl = ssl;

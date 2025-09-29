@@ -22,7 +22,7 @@ services:
     command: tail -f /etc/group
   mysql:
     container_name: "mysql"
-    image: "phpswoole/mysql:5.6"
+    image: "mysql:latest"
     volumes:
       - ./data/mysql:/var/lib/mysql:rw
       - ./data/run/mysqld:/var/run/mysqld:rw
@@ -39,7 +39,7 @@ services:
       POSTGRES_DB: test
       POSTGRES_PASSWORD: root
   oracle:
-    image: gvenzl/oracle-xe:slim
+    image: gvenzl/oracle-free:slim
     container_name: "oracle"
     environment:
       ORACLE_PASSWORD: oracle
@@ -47,7 +47,7 @@ services:
       - "1521:1521"
   redis:
     container_name: "redis"
-    image: "phpswoole/redis:latest"
+    image: "redis:latest"
     volumes:
       - ./data/redis:/var/lib/redis:rw
       - ./data/run/redis:/var/run/redis:rw
@@ -55,20 +55,23 @@ services:
         net.core.somaxconn: 65535
   httpbin:
     container_name: "httpbin"
-    image: "kennethreitz/httpbin"
+    image: "arnaudlacour/httpbin"
   tinyproxy:
     container_name: "tinyproxy"
-    image: "vimagick/tinyproxy"
+    image: "kalaksi/tinyproxy"
   golang-h2demo:
     container_name: "golang-h2demo"
     image: "phpswoole/golang-h2demo"
   socks5:
     container_name: "socks5"
-    image: "xkuma/socks5"
+    image: "serjs/go-socks5-proxy"
+    ports:
+      - "1080:1080"
   ftp:
     container_name: "ftp"
-    image: "fauria/vsftpd"
+    image: "crazymax/pure-ftpd"
     environment:
-      FTP_USER: admin
-      FTP_PASS: admin
+      FTP_USER_NAME: admin
+      FTP_USER_PASS: admin
+      FTP_USER_HOME: /home/swoole
 

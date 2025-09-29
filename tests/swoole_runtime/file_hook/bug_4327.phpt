@@ -15,38 +15,46 @@ require __DIR__.'/../../include/bootstrap.php';
 
 Swoole\Runtime::enableCoroutine($flags = SWOOLE_HOOK_ALL);
 
+const __ROOT_DIR = 'tmp/';
+
 function createDirectories($protocol = "")
 {
     $barrier = Barrier::make();
-    $first   = "$protocol/".rand(0, 1000);
-    $second  = "/".rand(0, 1000);
-    $third   = "/".rand(0, 1000)."/";
+    $first = "$protocol/" . __ROOT_DIR . rand(0, 1000);
+    $second = "/" . rand(0, 1000);
+    $third = "/" . rand(0, 1000) . "/";
 
     for ($i = 0; $i < 5; $i++) {
         Coroutine::create(static function () use ($i, $first, $second, $third, $barrier) {
-            if (!mkdir($directory = $first.$second.$third.$i, 0755, true) && !is_dir($directory)) {
+            if (!mkdir($directory = $first . $second . $third . $i, 0755, true) && !is_dir($directory)) {
                 throw new Exception("create directory failed");
             }
             rmdir($directory);
         });
     }
-    echo "SUCCESS".PHP_EOL;
+    echo "SUCCESS" . PHP_EOL;
 
     Barrier::wait($barrier);
-    rmdir($first.$second.$third);
-    rmdir($first.$second);
+    rmdir($first . $second . $third);
+    rmdir($first . $second);
     rmdir($first);
 }
-
 
 run(function () {
     createDirectories();
     createDirectories("file://");
 });
 
-Swoole\Runtime::enableCoroutine(false);
-createDirectories();
-createDirectories("file://");
+if (defined('SWOOLE_THREAD')) {
+    echo "SUCCESS" . PHP_EOL;
+    echo "SUCCESS" . PHP_EOL;
+} else {
+    run(function () {
+        Swoole\Runtime::enableCoroutine(false);
+        createDirectories();
+        createDirectories("file://");
+    });
+}
 ?>
 --EXPECT--
 SUCCESS

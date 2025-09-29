@@ -251,14 +251,19 @@ class ProcessManager
         }
     }
 
-    public function initFreePorts(int $num = 1)
+    /**
+     * @param int $num
+     * @param int $increment Only used for constant port number, must be a constant
+     * @return void
+     */
+    public function initFreePorts(int $num = 1, int $increment = 0): void
     {
         for ($i = $num; $i--;) {
-            $this->freePorts[] = $this->useConstantPorts ? (9500 + $num - $i + count($this->freePorts)) : get_one_free_port();
+            $this->freePorts[] = $this->useConstantPorts ? (9500 + $num - $i + count($this->freePorts) + $increment) : get_one_free_port();
         }
     }
 
-    public function initFreeIPv6Ports(int $num = 1)
+    public function initFreeIPv6Ports(int $num = 1): void
     {
         for ($i = $num; $i--;) {
             $this->freePorts[] = $this->useConstantPorts ? (9500 + $num - $i + count($this->freePorts)) : get_one_free_port_ipv6();

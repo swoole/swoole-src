@@ -25,11 +25,8 @@
 #include "zend_vm.h"
 #include "zend_closures.h"
 
-#if PHP_VERSION_ID >= 80100
-#define SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT 1
 #include "zend_fibers.h"
 #include "zend_observer.h"
-#endif
 
 #include <stack>
 #include <thread>
@@ -64,10 +61,6 @@ struct PHPContext {
     zend_class_entry *exception_class;
     zend_object *exception;
     zend_output_globals *output_ptr;
-#if PHP_VERSION_ID < 80100
-    /* for array_walk non-reentrancy */
-    zend::Function *array_walk_fci;
-#endif
     /* for error control `@` */
     bool in_silence;
     bool enable_scheduler;
@@ -77,10 +70,8 @@ struct PHPContext {
     zend_fcall_info fci;
     zend_fcall_info_cache fci_cache;
     zval return_value;
-#ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
     zend_fiber_context *fiber_context;
     bool fiber_init_notified;
-#endif
 #ifdef ZEND_CHECK_STACK_LIMIT
 	void *stack_base;
 	void *stack_limit;
@@ -110,7 +101,7 @@ class PHPCoroutine {
         bool enable_deadlock_check;
     };
 
-    static zend_array *options;
+    static SW_THREAD_LOCAL zend_array *options;
 
     enum HookType {
         HOOK_NONE              = 0,
@@ -252,21 +243,23 @@ class PHPCoroutine {
     }
 
     static inline void init_main_context() {
-        main_context.co = Coroutine::init_main_coroutine();
-#ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
+        main_context.co = nullptr;
         main_context.fiber_context = EG(main_fiber_context);
         main_context.fiber_init_notified = true;
-#endif
         save_context(&main_context);
     }
 
-  protected:
-    static bool activated;
-    static PHPContext main_context;
-    static Config config;
+    static inline void free_main_context() {
+        main_context = {};
+    }
 
-    static bool interrupt_thread_running;
-    static std::thread interrupt_thread;
+  protected:
+    static SW_THREAD_LOCAL bool activated;
+    static SW_THREAD_LOCAL PHPContext main_context;
+    static SW_THREAD_LOCAL Config config;
+
+    static SW_THREAD_LOCAL bool interrupt_thread_running;
+    static SW_THREAD_LOCAL std::thread interrupt_thread;
 
     static void activate();
     static void deactivate(void *ptr);
@@ -284,7 +277,6 @@ class PHPCoroutine {
     static void on_resume(void *arg);
     static void on_close(void *arg);
     static void main_func(void *arg);
-#ifdef SWOOLE_COROUTINE_MOCK_FIBER_CONTEXT
     static zend_fiber_status get_fiber_status(PHPContext *ctx);
     static void fiber_context_init(PHPContext *ctx);
     static void fiber_context_try_init(PHPContext *ctx);
@@ -292,7 +284,6 @@ class PHPCoroutine {
     static void fiber_context_try_destroy(PHPContext *ctx);
     static void fiber_context_switch_notify(PHPContext *from, PHPContext *to);
     static void fiber_context_switch_try_notify(PHPContext *from, PHPContext *to);
-#endif
 #ifdef ZEND_CHECK_STACK_LIMIT
     static void* stack_limit(PHPContext *ctx);
     static void* stack_base(PHPContext *ctx);

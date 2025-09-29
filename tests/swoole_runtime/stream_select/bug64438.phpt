@@ -1,11 +1,18 @@
 --TEST--
 swoole_runtime/stream_select: Bug #64438 proc_open hangs with stdin/out with 4097+ bytes
 --SKIPIF--
-<?php require __DIR__ . '/../../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../../include/skipif.inc';
+skip_if_darwin_todo();
+?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
-Swoole\Runtime::enableCoroutine();
+
+use Swoole\Event;
+use Swoole\Runtime;
+
+Runtime::enableCoroutine();
 go(function () {
     error_reporting(E_ALL);
 
@@ -35,15 +42,15 @@ go(function () {
         $e = null;
         $n = stream_select($r, $w, $e, 60);
 
-        if (false === $n) {
+        if ($n === false) {
             break;
-        } elseif ($n === 0) {
+        }
+        if ($n === 0) {
             proc_terminate($process);
-
         }
         if ($w) {
             $written = fwrite($writePipes[0], substr($stdin, $stdinOffset), 8192);
-            if (false !== $written) {
+            if ($written !== false) {
                 $stdinOffset += $written;
             }
             if ($stdinOffset >= $stdinLen) {
@@ -56,14 +63,14 @@ go(function () {
             $type = array_search($pipe, $pipes);
             $data = fread($pipe, 8192);
             var_dump($data);
-            if (false === $data || feof($pipe)) {
+            if ($data === false || feof($pipe)) {
                 fclose($pipe);
                 unset($pipes[$type]);
             }
         }
     }
 });
-Swoole\Event::wait();
+Event::wait();
 ?>
 --EXPECTF--
 string(4097) "%s"

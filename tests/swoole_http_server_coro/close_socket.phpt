@@ -20,7 +20,7 @@ $pm->parentFunc = function () use ($pm) {
         for ($i = 0; $i < 2; $i++) {
             $cli = new Client('127.0.0.1', $pm->getFreePort());
             Assert::assert($cli->get('/'));
-            Assert::contains($cli->headers['server'], 'BWS');
+            Assert::assert(str_contains($cli->headers['server'], 'BWS') or str_contains($cli->headers['server'], 'bfe'));
         }
     });
     echo "DONE\n";
@@ -71,7 +71,7 @@ $pm->childFunc = function () use ($pm) {
                     foreach (array_merge([
                         'Content-Type' => 'application/octet-stream',
                         'X-Accel-Buffering' => 'no',
-                        'server' => 'webserver/1.0'
+                        'X-Server' => 'webserver/1.0'
                     ], $headers) as $k => $v) {
                         $socket->send("{$k}: {$v}\r\n");
                     }

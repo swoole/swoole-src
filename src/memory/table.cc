@@ -15,12 +15,14 @@
 */
 
 #include "swoole_table.h"
+#include "swoole_hash.h"
+#include "swoole_util.h"
 
 namespace swoole {
 
 Table *Table::make(uint32_t rows_size, float conflict_proportion) {
-    if (rows_size >= 0x80000000) {
-        rows_size = 0x80000000;
+    if (rows_size >= SW_TABLE_MAX_ROW_SIZE) {
+        rows_size = SW_TABLE_MAX_ROW_SIZE;
     } else {
         uint32_t i = 6;
         while ((1U << i) < rows_size) {
@@ -35,7 +37,7 @@ Table *Table::make(uint32_t rows_size, float conflict_proportion) {
         conflict_proportion = SW_TABLE_CONFLICT_PROPORTION;
     }
 
-    auto table = (Table *) sw_mem_pool()->alloc(sizeof(Table));
+    auto table = static_cast<Table *>(sw_mem_pool()->alloc(sizeof(Table)));
     if (table == nullptr) {
         return nullptr;
     }
@@ -55,13 +57,6 @@ Table *Table::make(uint32_t rows_size, float conflict_proportion) {
     return table;
 }
 
-void Table::free() {
-    delete mutex;
-    delete iterator;
-    delete column_map;
-    delete column_list;
-}
-
 bool Table::add_column(const std::string &_name, enum TableColumn::Type _type, size_t _size) {
     if (_type < TableColumn::TYPE_INT || _type > TableColumn::TYPE_STRING) {
         swoole_warning("unknown column type");
@@ -75,6 +70,45 @@ bool Table::add_column(const std::string &_name, enum TableColumn::Type _type, s
     column_list->push_back(col);
 
     return true;
+}
+
+TableColumn *Table::get_column(const std::string &key) {
+    auto i = column_map->find(key);
+    if (i == column_map->end()) {
+        return nullptr;
+    } else {
+        return i->second;
+    }
+}
+
+bool Table::exists(const char *key, uint16_t keylen) {
+    TableRow *_rowlock = nullptr;
+    const TableRow *row = get(key, keylen, &_rowlock);
+    _rowlock->unlock();
+    return row != nullptr;
+}
+
+TableIterator::TableIterator(size_t row_size) {
+    current_ = (TableRow *) sw_malloc(row_size);
+    if (!current_) {
+        throw std::bad_alloc();
+    }
+    mutex_ = new Mutex(Mutex::PROCESS_SHARED);
+    row_memory_size_ = row_size;
+    reset();
+}
+
+void TableIterator::reset() {
+    absolute_index = 0;
+    collision_index = 0;
+    sw_memset_zero(current_, row_memory_size_);
+}
+
+TableIterator::~TableIterator() {
+    if (current_) {
+        sw_free(current_);
+    }
+    delete mutex_;
 }
 
 size_t Table::calc_memory_size() const {
@@ -137,16 +171,16 @@ bool Table::create() {
     }
     memory = _memory;
 
-    rows = (TableRow **) _memory;
-    _memory = (char *) _memory + size * sizeof(TableRow *);
+    rows = static_cast<TableRow **>(_memory);
+    _memory = static_cast<char *>(_memory) + size * sizeof(TableRow *);
     _memory_size -= size * sizeof(TableRow *);
 
     for (size_t i = 0; i < size; i++) {
-        rows[i] = (TableRow *) ((char *) _memory + (_row_memory_size * i));
+        rows[i] = reinterpret_cast<TableRow *>(static_cast<char *>(_memory) + (_row_memory_size * i));
         memset(rows[i], 0, sizeof(TableRow));
     }
 
-    _memory = (char *) _memory + _row_memory_size * size;
+    _memory = static_cast<char *>(_memory) + _row_memory_size * size;
     _memory_size -= _row_memory_size * size;
     pool = new FixedPool(_row_memory_size, _memory, _memory_size, true);
     iterator = new TableIterator(_row_memory_size);
@@ -187,10 +221,10 @@ void TableRow::lock() {
     uint32_t i, n;
     long t = 0;
 
-    while (1) {
+    while (true) {
         if (*lock == 0 && sw_atomic_cmp_set(lock, 0, 1)) {
         _success:
-            lock_pid = SwooleG.pid;
+            lock_pid = getpid();
             return;
         }
         if (SW_CPU_NUM > 1) {
@@ -304,13 +338,10 @@ TableRow *Table::set(const char *key, uint16_t keylen, TableRow **rowlock, int *
     row->lock();
     int _out_flags = 0;
 
-    uint32_t _conflict_level = 1;
-
     if (row->active) {
-        for (;;) {
-            if (sw_mem_equal(row->key, row->key_len, key, keylen)) {
-                break;
-            } else if (row->next == nullptr) {
+        uint32_t _conflict_level = 1;
+        while (!sw_mem_equal(row->key, row->key_len, key, keylen)) {
+            if (row->next == nullptr) {
                 conflict_count++;
                 if (_conflict_level > conflict_max_level) {
                     conflict_max_level = _conflict_level;
@@ -363,7 +394,6 @@ bool Table::del(const char *key, uint16_t keylen) {
     if (row->next == nullptr) {
         if (sw_mem_equal(row->key, row->key_len, key, keylen)) {
             row->clear();
-            goto _delete_element;
         } else {
             goto _not_exists;
         }
@@ -398,12 +428,31 @@ bool Table::del(const char *key, uint16_t keylen) {
         free_row(tmp);
     }
 
-_delete_element:
     sw_atomic_fetch_add(&(delete_count), 1);
     sw_atomic_fetch_sub(&(row_num), 1);
     row->unlock();
 
     return true;
+}
+
+TableColumn::TableColumn(const std::string &_name, Type _type, size_t _size) {
+    index = 0;
+    name = _name;
+    type = _type;
+    switch (_type) {
+    case TYPE_INT:
+        size = sizeof(long);
+        break;
+    case TYPE_FLOAT:
+        size = sizeof(double);
+        break;
+    case TYPE_STRING:
+        size = _size + sizeof(TableStringLength);
+        break;
+    default:
+        abort();
+        break;
+    }
 }
 
 void TableColumn::clear(TableRow *row) {

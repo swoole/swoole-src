@@ -21,7 +21,45 @@
 #include "php_swoole_cxx.h"
 #include "swoole_client.h"
 
-bool php_swoole_client_check_setting(swoole::network::Client *cli, zval *zset);
+struct AsyncClientObject {
+    zend::Callable *onConnect;
+    zend::Callable *onReceive;
+    zend::Callable *onClose;
+    zend::Callable *onError;
+    zend::Callable *onBufferFull;
+    zend::Callable *onBufferEmpty;
 #ifdef SW_USE_OPENSSL
-void php_swoole_client_check_ssl_setting(swoole::network::Client *cli, zval *zset);
+    zend::Callable *onSSLReady;
+#endif
+    zval _zobject;
+};
+
+struct ClientObject {
+    swoole::network::Client *cli;
+#ifdef SWOOLE_SOCKETS_SUPPORT
+    zval *zsocket;
+#endif
+    AsyncClientObject *async;
+    zend_object std;
+};
+
+static inline ClientObject *php_swoole_client_fetch_object(zend_object *obj) {
+    return reinterpret_cast<ClientObject *>(reinterpret_cast<char *>(obj) - swoole_client_handlers.offset);
+}
+
+static inline ClientObject *php_swoole_client_fetch_object(const zval *zobj) {
+    return php_swoole_client_fetch_object(Z_OBJ_P(zobj));
+}
+
+static inline swoole::network::Client *php_swoole_client_get_cli(const zval *zobject) {
+    return php_swoole_client_fetch_object(Z_OBJ_P(zobject))->cli;
+}
+
+swoole::network::Client *php_swoole_client_get_cli_safe(const zval *zobject);
+void php_swoole_client_free(const zval *zobject, swoole::network::Client *cli);
+void php_swoole_client_async_free_object(const ClientObject *client_obj);
+bool php_swoole_client_check_setting(swoole::network::Client *cli, const zval *zset);
+#ifdef SW_USE_OPENSSL
+void php_swoole_client_check_ssl_setting(const swoole::network::Client *cli, const zval *zset);
+bool php_swoole_client_enable_ssl_encryption(swoole::network::Client *cli, zval *zobject);
 #endif

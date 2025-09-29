@@ -18,8 +18,17 @@
 
 #include <string>
 #include <cstdint>
+#include <functional>
 
 #define SW_SOCKS5_VERSION_CODE 0x05
+#define SW_HTTP_PROXY_CHECK_MESSAGE 0
+#define SW_HTTP_PROXY_HANDSHAKE_RESPONSE "HTTP/1.1 200 Connection established\r\n"
+
+#define SW_HTTP_PROXY_FMT                                                                                              \
+    "CONNECT %.*s:%d HTTP/1.1\r\n"                                                                                     \
+    "Host: %.*s:%d\r\n"                                                                                                \
+    "User-Agent: Swoole/" SWOOLE_VERSION "\r\n"                                                                        \
+    "Proxy-Connection: Keep-Alive\r\n"
 
 enum swHttpProxyState {
     SW_HTTP_PROXY_STATE_WAIT = 0,
@@ -36,22 +45,28 @@ enum swSocks5State {
 };
 
 enum swSocks5Method {
+    SW_SOCKS5_METHOD_NO_AUTH = 0x00,
     SW_SOCKS5_METHOD_AUTH = 0x02,
 };
 
 namespace swoole {
+class String;
+
 struct HttpProxy {
     uint8_t state;
     uint8_t dont_handshake;
-    int proxy_port;
-    std::string proxy_host;
+    int port;
+    std::string host;
     std::string username;
     std::string password;
     std::string target_host;
     int target_port;
-    char buf[512];
 
     std::string get_auth_str();
+    size_t pack(String *send_buffer, const std::string &host_name);
+    bool handshake(String *recv_buffer);
+
+    static HttpProxy *create(const std::string &host, int port, const std::string &user, const std::string &pwd);
 };
 
 struct Socks5Proxy {
@@ -65,14 +80,16 @@ struct Socks5Proxy {
     std::string password;
     std::string target_host;
     int target_port;
-    char buf[600];
+    int socket_type;
+    char buf[512];
+
+    ssize_t pack_negotiate_request();
+    ssize_t pack_auth_request();
+    ssize_t pack_connect_request();
+    bool handshake(const char *rbuf, size_t rlen, const std::function<ssize_t(const char *buf, size_t len)> &send_fn);
 
     static const char *strerror(int code);
-
-    static void pack(char *buf, int method) {
-        buf[0] = SW_SOCKS5_VERSION_CODE;
-        buf[1] = 0x01;
-        buf[2] = method;
-    }
+    static Socks5Proxy *create(
+        int socket_type, const std::string &host, int port, const std::string &user, const std::string &pwd);
 };
 }  // namespace swoole

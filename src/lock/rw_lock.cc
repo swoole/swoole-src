@@ -52,6 +52,24 @@ int RWLock::lock_rd() {
     return pthread_rwlock_rdlock(&impl->_lock);
 }
 
+#ifdef HAVE_RWLOCK_TIMEDRDLOCK
+int RWLock::lock_rd_wait(int timeout_msec) {
+    timespec timeo;
+    realtime_get(&timeo);
+    realtime_add(&timeo, timeout_msec);
+    return pthread_rwlock_timedrdlock(&impl->_lock, &timeo);
+}
+#endif
+
+#ifdef HAVE_RWLOCK_TIMEDWRLOCK
+int RWLock::lock_wait(int timeout_msec) {
+    timespec timeo;
+    realtime_get(&timeo);
+    realtime_add(&timeo, timeout_msec);
+    return pthread_rwlock_timedwrlock(&impl->_lock, &timeo);
+}
+#endif
+
 int RWLock::lock() {
     return pthread_rwlock_wrlock(&impl->_lock);
 }

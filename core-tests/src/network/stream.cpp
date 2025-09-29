@@ -27,10 +27,11 @@ using namespace swoole::network;
 TEST(stream, send) {
     Server serv(Server::MODE_BASE);
     serv.worker_num = 1;
+    int svr_port = swoole::test::get_random_port();
     int ori_log_level = sw_logger()->get_level();
     sw_logger()->set_level(SW_LOG_ERROR);
 
-    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, TEST_PORT);
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, svr_port);
     if (!port) {
         swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
         exit(2);
@@ -68,9 +69,10 @@ TEST(stream, send) {
         ASSERT_EQ(stream1->send(buf, sizeof(buf)), SW_OK);
 
         // success requset
-        auto stream2 = Stream::create(TEST_HOST, TEST_PORT, SW_SOCK_TCP);
+        auto stream2 = Stream::create(TEST_HOST, svr_port, SW_SOCK_TCP);
         ASSERT_TRUE(stream2);
         stream2->private_data = new string(buf, sizeof(buf));
+        stream2->set_max_length(8 * 1024 * 1024);
         stream2->response = [](Stream *stream, const char *data, uint32_t length) {
             string *buf = (string *) stream->private_data;
             string pkt = string("Server: ") + *buf;

@@ -19,25 +19,46 @@
 #include "php_swoole_pgsql.h"
 #include "php_swoole_private.h"
 #include "swoole_coroutine_socket.h"
+#include "swoole_coroutine_system.h"
 
 #ifdef SW_USE_PGSQL
-#if PHP_VERSION_ID > 80100
-#include "thirdparty/php81/pdo_pgsql/php_pdo_pgsql_int.h"
-#else
-#include "thirdparty/php80/pdo_pgsql/php_pdo_pgsql_int.h"
-#endif
 
+using swoole::Coroutine;
+using swoole::Reactor;
+using swoole::translate_events_to_poll;
 using swoole::coroutine::Socket;
 
-static bool swoole_pgsql_blocking = true;
+static SW_THREAD_LOCAL bool swoole_pgsql_blocking = true;
 
-static int swoole_pgsql_socket_poll(PGconn *conn, swEventType event, double timeout = -1) {
+static int swoole_pgsql_socket_poll(PGconn *conn, swEventType event, double timeout = -1, bool check_nonblock = false) {
     if (swoole_pgsql_blocking) {
-        return 1;
+        struct pollfd fds[1];
+        fds[0].fd = PQsocket(conn);
+        fds[0].events |= translate_events_to_poll(event);
+
+        int result = 0;
+        do {
+            result = poll(fds, 1, timeout);
+        } while (result < 0 && errno == EINTR);
+
+        return result > 0 ? 1 : errno == ETIMEDOUT ? 0 : -1;
     }
+
     Socket sock(PQsocket(conn), SW_SOCK_RAW);
     sock.get_socket()->nonblock = 1;
+
     bool retval = sock.poll(event, timeout);
+    while (check_nonblock && event == SW_EVENT_READ) {
+        if (PQconsumeInput(conn) == 0) {
+            retval = false;
+            break;
+        }
+        if (PQisBusy(conn) == 0) {
+            break;
+        }
+        retval = sock.poll(event, timeout);
+    }
+
     sock.move_fd();
     return retval ? 1 : sock.errCode == ETIMEDOUT ? 0 : -1;
 }
@@ -59,7 +80,8 @@ static int swoole_pgsql_flush(PGconn *conn) {
 
 static PGresult *swoole_pgsql_get_result(PGconn *conn) {
     PGresult *result, *last_result = nullptr;
-    int poll_ret = swoole_pgsql_socket_poll(conn, SW_EVENT_READ);
+    // PQgetResult will block the process; it is necessary to forcibly check if the data is ready.
+    int poll_ret = swoole_pgsql_socket_poll(conn, SW_EVENT_READ, -1, true);
     if (sw_unlikely(poll_ret == SW_ERR)) {
         return nullptr;
     }
@@ -84,7 +106,11 @@ PGconn *swoole_pgsql_connectdb(const char *conninfo) {
         return conn;
     }
 
-    PQsetnonblocking(conn, 1);
+    if (!swoole_pgsql_blocking && Coroutine::get_current()) {
+        PQsetnonblocking(conn, 1);
+    } else {
+        PQsetnonblocking(conn, 0);
+    }
 
     SW_LOOP {
         int r = PQconnectPoll(conn);
@@ -101,6 +127,8 @@ PGconn *swoole_pgsql_connectdb(const char *conninfo) {
             event = SW_EVENT_WRITE;
             break;
         default:
+            // should not be here including PGRES_POLLING_ACTIVE
+            abort();
             break;
         }
 
@@ -188,7 +216,8 @@ void swoole_pgsql_set_blocking(bool blocking) {
 }
 
 void php_swoole_pgsql_minit(int module_id) {
-    if (zend_hash_str_find(&php_pdo_get_dbh_ce()->constants_table, ZEND_STRL("PGSQL_ATTR_DISABLE_PREPARES")) == nullptr) {
+    if (zend_hash_str_find(&php_pdo_get_dbh_ce()->constants_table, ZEND_STRL("PGSQL_ATTR_DISABLE_PREPARES")) ==
+        nullptr) {
         REGISTER_PDO_CLASS_CONST_LONG("PGSQL_ATTR_DISABLE_PREPARES", PDO_PGSQL_ATTR_DISABLE_PREPARES);
         REGISTER_PDO_CLASS_CONST_LONG("PGSQL_TRANSACTION_IDLE", (zend_long) PGSQL_TRANSACTION_IDLE);
         REGISTER_PDO_CLASS_CONST_LONG("PGSQL_TRANSACTION_ACTIVE", (zend_long) PGSQL_TRANSACTION_ACTIVE);

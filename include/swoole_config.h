@@ -50,9 +50,10 @@
 #define SW_SOCKET_RETRY_COUNT 10
 
 #define SW_SOCKET_DEFAULT_DNS_TIMEOUT 60
-#define SW_SOCKET_DEFAULT_CONNECT_TIMEOUT 2
+#define SW_SOCKET_DEFAULT_CONNECT_TIMEOUT 10
 #define SW_SOCKET_DEFAULT_READ_TIMEOUT 60
 #define SW_SOCKET_DEFAULT_WRITE_TIMEOUT 60
+#define SW_SOCKET_CORK_MIN_SIZE 65536
 
 #define SW_SYSTEMD_FDS_START 3
 
@@ -66,7 +67,6 @@
 
 #define SW_CLIENT_BUFFER_SIZE 65536
 #define SW_CLIENT_CONNECT_TIMEOUT 0.5
-#define SW_CLIENT_MAX_PORT 65535
 
 // !!!Don't modify.----------------------------------------------------------
 #ifdef __MACH__
@@ -161,7 +161,9 @@
 #define IOV_MAX 16
 #endif
 
-#define IOV_MAX_ERROR_MSG "The maximum of iov count is %d"
+#define SW_IOV_MAX_ERROR_MSG "The maximum of iov count is %d"
+
+#define SW_IOURING_CQES_SIZE 8192
 
 /**
  * HTTP Protocol
@@ -184,6 +186,7 @@
 #define SW_HTTP_UPLOAD_FILE "Swoole-Upload-File"
 #define SW_HTTP_CHUNK_EOF "0\r\n\r\n"
 #define SW_HTTP_DEFAULT_CONTENT_TYPE "text/html"
+#define SW_HTTP_MAX_APPEND_DATA 16384
 
 // #define SW_HTTP_100_CONTINUE
 #define SW_HTTP_100_CONTINUE_PACKET "HTTP/1.1 100 Continue\r\n\r\n"
@@ -250,8 +253,10 @@ a { color: #0969da; } \
  */
 #define SW_DEFAULT_C_STACK_SIZE (2 * 1024 * 1024)
 #define SW_CORO_BAILOUT_EXIT_CODE 1
-//#define SW_CONTEXT_PROTECT_STACK_PAGE    1
-//#define SW_CONTEXT_DETECT_STACK_USAGE    1
+#if 0
+#define SW_CONTEXT_PROTECT_STACK_PAGE 1
+#define SW_CONTEXT_DETECT_STACK_USAGE 1
+#endif
 
 #ifdef SW_DEBUG
 #ifndef SW_LOG_TRACE_OPEN

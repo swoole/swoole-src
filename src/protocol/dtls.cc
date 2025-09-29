@@ -15,8 +15,8 @@
 */
 
 #include "swoole_server.h"
-#ifdef SW_SUPPORT_DTLS
 
+#ifdef SW_SUPPORT_DTLS
 namespace swoole {
 namespace dtls {
 //-------------------------------------------------------------------------------
@@ -24,12 +24,12 @@ namespace dtls {
 int BIO_write(BIO *b, const char *data, int dlen) {
     swoole_trace_log(SW_TRACE_SSL, "BIO_write(%d)", dlen);
 
-    Session *session = (Session *) BIO_get_data(b);
+    auto *session = (Session *) BIO_get_data(b);
     return session->socket->write(data, dlen);
 }
 
 int BIO_read(BIO *b, char *data, int len) {
-    Session *session = (Session *) BIO_get_data(b);
+    auto *session = (Session *) BIO_get_data(b);
     Buffer *buffer;
     BIO_clear_retry_flags(b);
 
@@ -55,7 +55,7 @@ int BIO_read(BIO *b, char *data, int len) {
 
 long BIO_ctrl(BIO *b, int cmd, long lval, void *ptrval) {
     long retval = 0;
-    Session *session = (Session *) BIO_get_data(b);
+    auto *session = (Session *) BIO_get_data(b);
 
     swoole_trace_log(SW_TRACE_SSL, "BIO_ctrl(BIO[%p], cmd[%d], lval[%ld], ptrval[%p])", b, cmd, lval, ptrval);
 
@@ -103,6 +103,12 @@ long BIO_ctrl(BIO *b, int cmd, long lval, void *ptrval) {
     case BIO_CTRL_DGRAM_SET_NEXT_TIMEOUT:
         retval = 0;
         break;
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+    case BIO_CTRL_GET_KTLS_SEND:
+    case BIO_CTRL_GET_KTLS_RECV:
+        retval = 0;
+        break;
+#endif
     default:
         swoole_warning("unknown cmd: %d", cmd);
         retval = 0;
@@ -124,7 +130,7 @@ int BIO_destroy(BIO *b) {
 static BIO_METHOD *_bio_methods = nullptr;
 static int dtls_session_index = 0;
 
-BIO_METHOD *BIO_get_methods(void) {
+BIO_METHOD *BIO_get_methods() {
     if (_bio_methods) {
         return _bio_methods;
     }
@@ -151,7 +157,7 @@ BIO_METHOD *BIO_get_methods(void) {
     return _bio_methods;
 }
 
-void BIO_meth_free(void) {
+void BIO_meth_free() {
     if (_bio_methods) {
         BIO_meth_free(_bio_methods);
     }
@@ -160,7 +166,7 @@ void BIO_meth_free(void) {
 }
 
 void Session::append(const char *data, ssize_t len) {
-    Buffer *buffer = (Buffer *) sw_malloc(sizeof(*buffer) + len);
+    auto *buffer = static_cast<Buffer *>(sw_malloc(sizeof(Buffer) + len));
     buffer->length = len;
     memcpy(buffer->data, data, buffer->length);
     rxqueue.push_back(buffer);
@@ -170,9 +176,13 @@ bool Session::init() {
     if (socket->ssl) {
         return false;
     }
-    if (socket->ssl_create(ctx, SW_SSL_SERVER) < 0) {
+
+    if (socket->ssl_create(ctx.get(), SW_SSL_SERVER) < 0) {
+        swoole_set_last_error(SW_ERROR_SSL_CREATE_SESSION_FAILED);
         return false;
     }
+
+    socket->set_buffer_size(Socket::default_buffer_size);
     socket->dtls = 1;
 
     BIO *bio = BIO_new(BIO_get_methods());
@@ -200,8 +210,8 @@ bool Session::listen() {
     } else if (retval < 0) {
         int reason = ERR_GET_REASON(ERR_peek_error());
         swoole_warning("DTLSv1_listen() failed, client[%s:%d], reason=%d, error_string=%s",
-                       socket->info.get_ip(),
-                       socket->info.get_port(),
+                       socket->get_addr(),
+                       socket->get_port(),
                        reason,
                        swoole_ssl_get_error());
         return false;
@@ -215,5 +225,4 @@ bool Session::listen() {
 //-------------------------------------------------------------------------------
 }  // namespace dtls
 }  // namespace swoole
-
 #endif

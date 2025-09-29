@@ -21,6 +21,112 @@
 
 namespace swoole {
 
+void String::alloc(size_t _size, const Allocator *_allocator) {
+    if (_allocator == nullptr) {
+        _allocator = sw_std_allocator();
+    }
+
+    _size = SW_MEM_ALIGNED_SIZE(_size);
+    length = 0;
+    size = _size;
+    offset = 0;
+    str = (char *) _allocator->malloc(_size);
+    allocator = _allocator;
+
+    if (str == nullptr) {
+        throw std::bad_alloc();
+    }
+}
+
+void String::move(String &&src) {
+    str = src.str;
+    length = src.length;
+    offset = src.offset;
+    size = src.size;
+    allocator = src.allocator;
+
+    src.str = nullptr;
+    src.length = 0;
+    src.size = 0;
+    src.offset = 0;
+}
+
+String &String::operator=(const String &src) noexcept {
+    if (&src == this) {
+        return *this;
+    }
+    if (allocator && str) {
+        allocator->free(str);
+    }
+    copy(src);
+    return *this;
+}
+
+void String::copy(const String &src) {
+    alloc(src.size, src.allocator);
+    memcpy(str, src.str, src.length);
+    length = src.length;
+    offset = src.offset;
+}
+
+String &String::operator=(String &&src) noexcept {
+    if (&src == this) {
+        return *this;
+    }
+    if (allocator && str) {
+        allocator->free(str);
+    }
+    move(std::move(src));
+    return *this;
+}
+
+int String::append(const String &append_str) {
+    size_t new_size = length + append_str.length;
+    if (new_size > size) {
+        if (!reserve(new_size)) {
+            return SW_ERR;
+        }
+    }
+
+    memcpy(str + length, append_str.str, append_str.length);
+    length += append_str.length;
+    return SW_OK;
+}
+
+void String::write(off_t _offset, const String &write_str) {
+    write(_offset, write_str.str, write_str.length);
+}
+
+void String::write(off_t _offset, const char *write_str, size_t _length) {
+    size_t new_length = _offset + _length;
+    if (new_length > size) {
+        reserve(swoole_size_align(new_length * 2, swoole_pagesize()));
+    }
+
+    memcpy(str + _offset, write_str, _length);
+    if (new_length > length) {
+        length = new_length;
+    }
+}
+
+bool String::grow(size_t incr_value) {
+    length += incr_value;
+    if (length == size && !reserve(size * 2)) {
+        return false;
+    } else {
+        return true;
+    }
+}
+
+String String::substr(size_t offset, size_t len) {
+    if (offset + len > length) {
+        return String();
+    }
+    String _substr(len);
+    _substr.append(str + offset, len);
+    return _substr;
+}
+
 char *String::pop(size_t init_size) {
     assert(length >= (size_t) offset);
 
@@ -86,7 +192,7 @@ int String::append(int value) {
 
 int String::append(const char *append_str, size_t _length) {
     size_t new_size = length + _length;
-    if (new_size > size and !reserve(new_size)) {
+    if (new_size > size && !reserve(new_size)) {
         return SW_ERR;
     }
 
@@ -145,8 +251,17 @@ bool String::reserve(size_t new_size) {
     return true;
 }
 
+char *String::release() {
+    char *tmp = str;
+    str = nullptr;
+    size = 0;
+    length = 0;
+    offset = 0;
+    return tmp;
+}
+
 bool String::repeat(const char *data, size_t len, size_t n) {
-    if (n <= 0) {
+    if (n <= 0 || len == 0) {
         return false;
     }
     if (len == 1) {
@@ -180,7 +295,12 @@ ssize_t String::split(const char *delimiter, size_t delimiter_length, const Stri
     off_t _offset = offset;
     size_t ret;
 
-    swoole_trace_log(SW_TRACE_EOF_PROTOCOL, "#[0] count=%d, length=%ld, size=%ld, offset=%jd", count, length, size, (intmax_t) offset);
+    swoole_trace_log(SW_TRACE_EOF_PROTOCOL,
+                     "#[0] count=%d, length=%ld, size=%ld, offset=%jd",
+                     count,
+                     length,
+                     size,
+                     (intmax_t) offset);
 
     while (delimiter_addr) {
         size_t _length = delimiter_addr - start_addr + delimiter_length;
@@ -207,12 +327,13 @@ ssize_t String::split(const char *delimiter, size_t delimiter_length, const Stri
 
     ret = start_addr - str - _offset;
     if (ret > 0 && ret < length) {
-        swoole_trace_log(SW_TRACE_EOF_PROTOCOL, "#[5] count=%d, remaining_length=%zu", count, (size_t) (length - offset));
+        swoole_trace_log(
+            SW_TRACE_EOF_PROTOCOL, "#[5] count=%d, remaining_length=%zu", count, (size_t) (length - offset));
     } else if (ret >= length) {
-        swoole_trace_log(SW_TRACE_EOF_PROTOCOL, "#[3] length=%ld, size=%zu, offset=%jd", length, size, (intmax_t) offset);
+        swoole_trace_log(
+            SW_TRACE_EOF_PROTOCOL, "#[3] length=%ld, size=%zu, offset=%jd", length, size, (intmax_t) offset);
     }
 
     return ret;
 }
-
 }  // namespace swoole

@@ -5,8 +5,8 @@ namespace Swoole\Http {
 		public function end(?string $content = null): bool {}
 		public function sendfile(string $filename, int $offset = 0, int $length = 0): bool {}
 		public function redirect(string $location, int $http_code = 302): bool {}
-		public function cookie(string $name, string $value = '', int $expires = 0 , string $path = '/', string $domain  = '', bool $secure = false , bool $httponly = false, string $samesite = '', string $priority = ''): bool {}
-		public function rawcookie(string $name, string $value = '', int $expires = 0 , string $path = '/', string $domain  = '', bool $secure = false , bool $httponly = false, string $samesite = '', string $priority = ''): bool {}
+		public function cookie(\Swoole\Http\Cookie|string $name_or_object , string $value = '', int $expires = 0 , string $path = '/', string $domain  = '', bool $secure = false , bool $httponly = false, string $samesite = '', string $priority = '', bool $partitioned = false): bool {}
+		public function rawcookie(string $name, string $value = '', int $expires = 0 , string $path = '/', string $domain  = '', bool $secure = false , bool $httponly = false, string $samesite = '', string $priority = '', bool $partitioned = false): bool {}
 		public function header(string $key, string|array $value, bool $format = true): bool {}
 		public function initHeader(): bool {}
 		public function isWritable(): bool {}
@@ -17,9 +17,10 @@ namespace Swoole\Http {
 		public function recv(float $timeout = 0): \Swoole\WebSocket\Frame|false|string {}
 		public function close(): bool {}
 		public function trailer(string $key, string $value): bool {}
-		public function ping(): bool {}
+		public function ping(string $data = ''): bool {}
 		public function goaway(int $error_code = SWOOLE_HTTP2_ERROR_NO_ERROR, string $debug_data = ''): bool {}
 		public function status(int $http_code, string $reason = ''): bool {}
+		public function disconnect(int $code = SWOOLE_WEBSOCKET_CLOSE_NORMAL, string $reason = ""): bool {}
 		public function __destruct() {}
 	}
 }

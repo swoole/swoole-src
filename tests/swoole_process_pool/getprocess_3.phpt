@@ -13,15 +13,16 @@ use Swoole\Process;
 const N = 70000;
 
 $pool = new Pool(2, SWOOLE_IPC_UNIXSOCK);
+$pool->set(['max_wait_time' => 2]);
 
 $pool->on('workerStart', function (Pool $pool, int $workerId) {
     if ($workerId == 0) {
-        usleep(1000);
+        usleep(100_000);
         $process1 = $pool->getProcess(1);
         phpt_var_dump($process1);
         $pid1 = $process1->pid;
         Process::kill($process1->pid, SIGTERM);
-        usleep(10000);
+        usleep(100_000);
         $process2 = $pool->getProcess(1);
         phpt_var_dump($process2);
         $pid2 = $process2->pid;

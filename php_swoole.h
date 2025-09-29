@@ -17,6 +17,10 @@
 #ifndef PHP_SWOOLE_H
 #define PHP_SWOOLE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "php.h"
 #include "php_ini.h"
 #include "php_globals.h"
@@ -37,6 +41,10 @@
 #include "config.h"
 #endif
 
+#ifdef __cplusplus
+}
+#endif
+
 extern zend_module_entry swoole_module_entry;
 #define phpext_swoole_ptr &swoole_module_entry
 
@@ -51,7 +59,6 @@ ZEND_BEGIN_MODULE_GLOBALS(swoole)
     zend_bool display_errors;
     zend_bool cli;
     zend_bool use_shortname;
-    zend_bool enable_coroutine;
     zend_bool enable_preemptive_scheduler;
     zend_bool enable_library;
     zend_bool enable_fiber_mock;

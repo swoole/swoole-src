@@ -7,10 +7,10 @@ swoole_coroutine/output: main output global
 require __DIR__ . '/../../include/bootstrap.php';
 ob_start();
 echo 'aaa';
-go(function () {
+Co\run(function () {
     ob_start();
     echo 'bbb';
-    co::fgets(fopen(__FILE__, 'r'));
+    fgets(fopen(__FILE__, 'r'));
     Assert::same(ob_get_clean(), 'bbb');
 });
 Assert::same(ob_get_clean(), 'aaa');

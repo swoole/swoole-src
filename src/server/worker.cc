@@ -14,17 +14,12 @@
   +----------------------------------------------------------------------+
 */
 
-#include <pwd.h>
-#include <grp.h>
 #include <sys/uio.h>
 #include <sys/mman.h>
 
 #include "swoole_server.h"
 #include "swoole_memory.h"
-#include "swoole_msg_queue.h"
 #include "swoole_coroutine.h"
-
-swoole::WorkerGlobal SwooleWG = {};
 
 namespace swoole {
 using namespace network;
@@ -32,56 +27,53 @@ using namespace network;
 static int Worker_onPipeReceive(Reactor *reactor, Event *event);
 static void Worker_reactor_try_to_exit(Reactor *reactor);
 
-void Server::worker_signal_init(void) {
+static void Worker_reopen_logger() {
+    if (sw_logger()) {
+        sw_logger()->reopen();
+    }
+}
+
+void Server::worker_signal_init() const {
+    if (is_thread_mode()) {
+        return;
+    }
     swoole_signal_set(SIGHUP, nullptr);
     swoole_signal_set(SIGPIPE, SIG_IGN);
     swoole_signal_set(SIGUSR1, nullptr);
     swoole_signal_set(SIGUSR2, nullptr);
-    // swSignal_set(SIGINT, Server::worker_signal_handler);
-    swoole_signal_set(SIGTERM, Server::worker_signal_handler);
-    // for test
-    swoole_signal_set(SIGVTALRM, Server::worker_signal_handler);
+    swoole_signal_set(SIGTERM, worker_signal_handler);
+    swoole_signal_set(SIGWINCH, worker_signal_handler);
 #ifdef SIGRTMIN
-    swoole_signal_set(SIGRTMIN, Server::worker_signal_handler);
+    swoole_signal_set(SIGRTMIN, worker_signal_handler);
 #endif
 }
 
 void Server::worker_signal_handler(int signo) {
-    if (!SwooleG.running || !sw_server()) {
+    if (!SwooleG.running || !sw_server() || !sw_worker() || !sw_server()->is_running()) {
         return;
     }
     switch (signo) {
     case SIGTERM:
-        // Event worker
         if (swoole_event_is_available()) {
-            sw_server()->stop_async_worker(SwooleWG.worker);
-        }
-        // Task worker
-        else {
-            SwooleWG.shutdown = true;
+            sw_server()->stop_async_worker(sw_worker());
+        } else {
+            sw_worker()->shutdown();
         }
         break;
-    // for test
-    case SIGVTALRM:
-        swoole_warning("SIGVTALRM coming");
-        break;
-    case SIGUSR1:
-    case SIGUSR2:
-        if (sw_logger()) {
-            sw_logger()->reopen();
-        }
+    case SIGWINCH:
+        Worker_reopen_logger();
         break;
     default:
 #ifdef SIGRTMIN
-        if (signo == SIGRTMIN && sw_logger()) {
-            sw_logger()->reopen();
+        if (signo == SIGRTMIN) {
+            Worker_reopen_logger();
         }
 #endif
         break;
     }
 }
 
-static sw_inline bool Worker_discard_data(Server *serv, Connection *conn, DataHead *info) {
+static sw_inline bool Worker_discard_data(const Server *serv, const Connection *conn, const DataHead *info) {
     if (conn == nullptr) {
         if (serv->disable_notify && !serv->discard_timeout_request) {
             return false;
@@ -105,30 +97,29 @@ _discard_data:
 
 typedef std::function<int(Server *, RecvData *)> TaskCallback;
 
-static sw_inline void Worker_do_task(Server *serv, Worker *worker, DataHead *info, const TaskCallback &callback) {
+static sw_inline void Worker_do_task(Server *serv, Worker *worker, const DataHead *info, const TaskCallback &callback) {
     RecvData recv_data;
-    auto packet = serv->message_bus.get_packet();
+    auto packet = serv->get_worker_message_bus()->get_packet();
     recv_data.info = *info;
     recv_data.info.len = packet.length;
     recv_data.data = packet.data;
 
     if (callback(serv, &recv_data) == SW_OK) {
-        worker->request_count++;
+        worker->add_request_count();
         sw_atomic_fetch_add(&serv->gs->request_count, 1);
     }
 }
 
 void Server::worker_accept_event(DataHead *info) {
-    Worker *worker = SwooleWG.worker;
-    // worker busy
-    worker->status = SW_WORKER_BUSY;
+    Worker *worker = sw_worker();
+    worker->set_status_to_busy();
 
     switch (info->type) {
     case SW_SERVER_EVENT_RECV_DATA: {
         Connection *conn = get_connection_verify(info->fd);
         if (conn) {
             if (info->len > 0) {
-                auto packet = message_bus.get_packet();
+                auto packet = get_worker_message_bus()->get_packet();
                 sw_atomic_fetch_sub(&conn->recv_queued_bytes, packet.length);
                 swoole_trace_log(SW_TRACE_SERVER,
                                  "[Worker] session_id=%ld, len=%lu, qb=%d",
@@ -150,7 +141,7 @@ void Server::worker_accept_event(DataHead *info) {
     case SW_SERVER_EVENT_CLOSE: {
 #ifdef SW_USE_OPENSSL
         Connection *conn = get_connection_verify_no_ssl(info->fd);
-        if (conn && conn->ssl_client_cert && conn->ssl_client_cert_pid == SwooleG.pid) {
+        if (conn && conn->ssl_client_cert && conn->ssl_client_cert_pid == swoole_get_worker_pid()) {
             delete conn->ssl_client_cert;
             conn->ssl_client_cert = nullptr;
         }
@@ -164,9 +155,9 @@ void Server::worker_accept_event(DataHead *info) {
         if (info->len > 0) {
             Connection *conn = get_connection_verify_no_ssl(info->fd);
             if (conn) {
-                auto packet = message_bus.get_packet();
+                auto packet = get_worker_message_bus()->get_packet();
                 conn->ssl_client_cert = new String(packet.data, packet.length);
-                conn->ssl_client_cert_pid = SwooleG.pid;
+                conn->ssl_client_cert_pid = swoole_get_worker_pid();
             }
         }
 #endif
@@ -189,15 +180,19 @@ void Server::worker_accept_event(DataHead *info) {
         break;
     }
     case SW_SERVER_EVENT_FINISH: {
-        onFinish(this, (EventData *) message_bus.get_buffer());
+        onFinish(this, reinterpret_cast<EventData *>(get_worker_message_bus()->get_buffer()));
         break;
     }
     case SW_SERVER_EVENT_PIPE_MESSAGE: {
-        onPipeMessage(this, (EventData *) message_bus.get_buffer());
+        onPipeMessage(this, reinterpret_cast<EventData *>(get_worker_message_bus()->get_buffer()));
         break;
     }
     case SW_SERVER_EVENT_COMMAND_REQUEST: {
         call_command_handler(message_bus, worker->id, pipe_command->get_socket(false));
+        break;
+    }
+    case SW_SERVER_EVENT_SHUTDOWN: {
+        stop_async_worker(worker);
         break;
     }
     default:
@@ -205,63 +200,30 @@ void Server::worker_accept_event(DataHead *info) {
         break;
     }
 
-    // worker idle
-    worker->status = SW_WORKER_IDLE;
+    worker->set_status_to_idle();
 
     // maximum number of requests, process will exit.
-    if (!SwooleWG.run_always && worker->request_count >= SwooleWG.max_request) {
-        stop_async_worker(worker);
+    if (worker->has_exceeded_max_request()) {
+        if (is_thread_mode()) {
+            Reactor *reactor = sw_reactor();
+            get_thread(reactor->id)->shutdown(reactor);
+        } else {
+            stop_async_worker(worker);
+        }
     }
 }
 
+static bool is_root_user() {
+    return geteuid() == 0;
+}
+
 void Server::worker_start_callback(Worker *worker) {
-    if (SwooleG.process_id >= worker_num) {
-        SwooleG.process_type = SW_PROCESS_TASKWORKER;
-    } else {
-        SwooleG.process_type = SW_PROCESS_WORKER;
-    }
-
-    int is_root = !geteuid();
-    struct passwd *_passwd = nullptr;
-    struct group *_group = nullptr;
-
-    if (is_root) {
-        // get group info
-        if (!group_.empty()) {
-            _group = getgrnam(group_.c_str());
-            if (!_group) {
-                swoole_warning("get group [%s] info failed", group_.c_str());
-            }
-        }
-        // get user info
-        if (!user_.empty()) {
-            _passwd = getpwnam(user_.c_str());
-            if (!_passwd) {
-                swoole_warning("get user [%s] info failed", user_.c_str());
-            }
-        }
-        // set process group
-        if (_group && setgid(_group->gr_gid) < 0) {
-            swoole_sys_warning("setgid to [%s] failed", group_.c_str());
-        }
-        // set process user
-        if (_passwd && setuid(_passwd->pw_uid) < 0) {
-            swoole_sys_warning("setuid to [%s] failed", user_.c_str());
-        }
-        // chroot
-        if (!chroot_.empty()) {
-            if (::chroot(chroot_.c_str()) == 0) {
-                if (chdir("/") < 0) {
-                    swoole_sys_warning("chdir(\"/\") failed");
-                }
-            } else {
-                swoole_sys_warning("chroot(\"%s\") failed", chroot_.c_str());
-            }
-        }
+    if (is_root_user()) {
+        Worker::set_isolation(group_, user_, chroot_);
     }
 
     SW_LOOP_N(worker_num + task_worker_num) {
-        if (SwooleG.process_id == i) {
+        if (worker->id == i) {
             continue;
         }
         Worker *other_worker = get_worker(i);
@@ -270,12 +232,7 @@ void Server::worker_start_callback(Worker *worker) {
         }
     }
 
-    if (sw_logger()->is_opened()) {
-        sw_logger()->reopen();
-    }
-
-    SwooleWG.worker = worker;
-    worker->status = SW_WORKER_IDLE;
+    worker->set_status_to_idle();
 
     if (is_process_mode()) {
         sw_shm_protect(session_list, PROT_READ);
@@ -285,31 +242,100 @@ void Server::worker_start_callback(Worker *worker) {
 }
 
 void Server::worker_stop_callback(Worker *worker) {
+    call_worker_stop_callback(worker);
+}
+
+void Server::call_worker_start_callback(Worker *worker) {
     void *hook_args[2];
     hook_args[0] = this;
-    hook_args[1] = (void *) (uintptr_t) SwooleG.process_id;
+    hook_args[1] = (void *) (uintptr_t) worker->id;
+
+    if (swoole_isset_hook(SW_GLOBAL_HOOK_BEFORE_WORKER_START)) {
+        swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_WORKER_START, hook_args);
+    }
+    if (isset_hook(HOOK_WORKER_START)) {
+        call_hook(HOOK_WORKER_START, hook_args);
+    }
+
+    swoole_clear_last_error();
+    swoole_clear_last_error_msg();
+
+    if (onWorkerStart) {
+        onWorkerStart(this, worker);
+    }
+}
+
+void Server::call_worker_stop_callback(Worker *worker) {
+    void *hook_args[2];
+    hook_args[0] = this;
+    hook_args[1] = (void *) (uintptr_t) worker->id;
+
     if (swoole_isset_hook(SW_GLOBAL_HOOK_BEFORE_WORKER_STOP)) {
         swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_WORKER_STOP, hook_args);
     }
     if (onWorkerStop) {
         onWorkerStop(this, worker);
     }
-    if (!message_bus.empty()) {
+
+    if (!get_worker_message_bus()->empty()) {
         swoole_error_log(
             SW_LOG_WARNING, SW_ERROR_SERVER_WORKER_UNPROCESSED_DATA, "unprocessed data in the worker process buffer");
-        message_bus.clear();
+        get_worker_message_bus()->clear();
+    }
+
+    SwooleWG.running = false;
+    if (SwooleWG.worker_copy) {
+        delete SwooleWG.worker_copy;
+        SwooleWG.worker_copy = nullptr;
+        SwooleWG.worker = nullptr;
     }
 }
 
-void Server::stop_async_worker(Worker *worker) {
-    worker->status = SW_WORKER_EXIT;
-    Reactor *reactor = SwooleTG.reactor;
-
+void Server::call_worker_error_callback(Worker *worker, const ExitStatus &status) {
+    if (onWorkerError != nullptr) {
+        onWorkerError(this, worker, status);
+    }
     /**
-     * force to end.
+     * The work process has exited unexpectedly, requiring a cleanup of the shared memory state.
+     * This must be done between the termination of the old process and the initiation of the new one;
+     * otherwise, data contention may occur.
      */
+    if (worker->type == SW_EVENT_WORKER) {
+        abort_worker(worker);
+    }
+}
+
+bool Server::kill_worker(int worker_id) {
+    auto current_worker = sw_worker();
+    if (!current_worker && worker_id < 0) {
+        swoole_error_log(
+            SW_LOG_WARNING, SW_ERROR_WRONG_OPERATION, "kill worker in non worker process requires specifying an id");
+        return false;
+    }
+
+    worker_id = worker_id < 0 ? swoole_get_worker_id() : worker_id;
+    const Worker *worker = get_worker(worker_id);
+    if (worker == nullptr) {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "the worker_id[%d] is invalid", worker_id);
+        return false;
+    }
+
+    swoole_trace_log(SW_TRACE_SERVER, "kill worker#%d", worker_id);
+
+    DataHead event = {};
+    event.type = SW_SERVER_EVENT_SHUTDOWN;
+    return send_to_worker_from_worker(worker, &event, sizeof(event), SW_PIPE_MASTER) != -1;
+}
+
+void Server::stop_async_worker(Worker *worker) {
+    worker->shutdown();
+    if (worker->type == SW_EVENT_WORKER) {
+        reset_worker_counter(worker);
+    }
+
+    // forced termination
+    Reactor *reactor = sw_reactor();
     if (reload_async == 0) {
-        running = false;
         reactor->running = false;
         return;
     }
@@ -320,17 +346,18 @@ void Server::stop_async_worker(Worker *worker) {
     }
 
     // Separated from the event worker process pool
-    worker = (Worker *) sw_malloc(sizeof(*worker));
-    *worker = *SwooleWG.worker;
+    SwooleWG.worker_copy = new Worker{};
+    *SwooleWG.worker_copy = *worker;
     SwooleWG.worker = worker;
+    auto pipe_worker = get_worker_pipe_worker_in_message_bus(worker);
 
-    if (worker->pipe_worker && !worker->pipe_worker->removed) {
-        reactor->remove_read_event(worker->pipe_worker);
+    if (pipe_worker && !pipe_worker->removed) {
+        reactor->remove_read_event(pipe_worker);
     }
 
     if (is_base_mode()) {
-        if (is_worker()) {
-            if (worker->id == 0 && gs->event_workers.running == 0) {
+        if (is_event_worker()) {
+            if (worker->id == 0 && get_event_worker_pool()->running == 0) {
                 if (swoole_isset_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN)) {
                     swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN, this);
                 }
@@ -338,11 +365,11 @@ void Server::stop_async_worker(Worker *worker) {
                     onBeforeShutdown(this);
                 }
             }
-            for (auto ls : ports) {
-                reactor->del(ls->socket);
-            }
             if (worker->pipe_master && !worker->pipe_master->removed) {
                 reactor->remove_read_event(worker->pipe_master);
+            }
+            for (auto ls : ports) {
+                reactor->del(ls->socket);
             }
             foreach_connection([reactor](Connection *conn) {
                 if (!conn->peer_closed && !conn->socket->removed) {
@@ -351,14 +378,42 @@ void Server::stop_async_worker(Worker *worker) {
             });
             clear_timer();
         }
-    } else {
+    } else if (is_process_mode()) {
         WorkerStopMessage msg;
-        msg.pid = SwooleG.pid;
-        msg.worker_id = SwooleG.process_id;
+        msg.pid = getpid();
+        msg.worker_id = worker->id;
 
-        if (gs->event_workers.push_message(SW_WORKER_MESSAGE_STOP, &msg, sizeof(msg)) < 0) {
-            running = 0;
+        if (get_event_worker_pool()->push_message(SW_WORKER_MESSAGE_STOP, &msg, sizeof(msg)) < 0) {
+            swoole_sys_warning("failed to push WORKER_STOP message");
         }
+    } else if (is_thread_mode()) {
+        if (is_event_worker()) {
+            /**
+             * The thread mode will use the master pipe to forward messages,
+             * and it may listen for writable events on this pipe,
+             * which need to be removed before the worker thread exits.
+             */
+            SW_LOOP_N(worker_num) {
+                if (i % reactor_num == reactor->id) {
+                    auto pipe_master = get_worker_pipe_master_in_message_bus(i);
+                    if (!pipe_master->removed) {
+                        reactor->remove_read_event(pipe_master);
+                    }
+                }
+            }
+            /**
+             * Only the readable events are removed;
+             * at this point, there may still be ongoing events for sending data.
+             * The connection will be completely closed only when the reactor is destroyed.
+             */
+            foreach_connection([reactor](Connection *conn) {
+                if (conn->reactor_id == reactor->id && !conn->peer_closed && !conn->socket->removed) {
+                    reactor->remove_read_event(conn->socket);
+                }
+            });
+        }
+    } else {
+        assert(0);
     }
 
     reactor->set_wait_exit(true);
@@ -366,29 +421,25 @@ void Server::stop_async_worker(Worker *worker) {
     SwooleWG.exit_time = ::time(nullptr);
 
     Worker_reactor_try_to_exit(reactor);
-    if (!reactor->running) {
-        running = false;
-    }
 }
 
 static void Worker_reactor_try_to_exit(Reactor *reactor) {
     Server *serv;
-    if (SwooleG.process_type == SW_PROCESS_TASKWORKER) {
-        ProcessPool *pool = (ProcessPool *) reactor->ptr;
-        serv = (Server *) pool->ptr;
+    if (sw_likely(swoole_get_worker_type() != SW_TASK_WORKER)) {
+        serv = static_cast<Server *>(reactor->ptr);
     } else {
-        serv = (Server *) reactor->ptr;
+        auto pool = static_cast<ProcessPool *>(reactor->ptr);
+        serv = static_cast<Server *>(pool->ptr);
     }
-    uint8_t call_worker_exit_func = 0;
 
-    while (1) {
+    bool has_call_worker_exit_func = false;
+    while (true) {
         if (reactor->if_exit()) {
             reactor->running = false;
-            break;
         } else {
-            if (serv->onWorkerExit && call_worker_exit_func == 0) {
-                serv->onWorkerExit(serv, SwooleWG.worker);
-                call_worker_exit_func = 1;
+            if (serv->onWorkerExit && !has_call_worker_exit_func) {
+                has_call_worker_exit_func = true;
+                serv->onWorkerExit(serv, sw_worker());
                 continue;
             }
             int remaining_time = serv->max_wait_time - (::time(nullptr) - SwooleWG.exit_time);
@@ -396,7 +447,6 @@ static void Worker_reactor_try_to_exit(Reactor *reactor) {
                 swoole_error_log(
                     SW_LOG_WARNING, SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT, "worker exit timeout, forced termination");
                 reactor->running = false;
-                break;
             } else {
                 int timeout_msec = remaining_time * 1000;
                 if (reactor->timeout_msec < 0 || reactor->timeout_msec > timeout_msec) {
@@ -422,14 +472,29 @@ void Server::drain_worker_pipe() {
     }
 }
 
+void Server::clean_worker_connections(Worker *worker) {
+    swoole_trace_log(SW_TRACE_WORKER, "clean connections");
+    sw_reactor()->destroyed = true;
+    if (sw_likely(is_base_mode())) {
+        foreach_connection([this](Connection *conn) { close(conn->session_id, true); });
+    } else if (is_thread_mode()) {
+        foreach_connection([this, worker](Connection *conn) {
+            if (conn->reactor_id == worker->id) {
+                close(conn->session_id, true);
+            }
+        });
+    }
+}
+
 /**
  * main loop [Worker]
+ * Only used in SWOOLE_PROCESS mode
  */
 int Server::start_event_worker(Worker *worker) {
-    // worker_id
-    SwooleG.process_id = worker->id;
+    swoole_set_worker_id(worker->id);
+    swoole_set_worker_type(SW_EVENT_WORKER);
 
-    init_worker(worker);
+    init_event_worker(worker);
 
     if (swoole_event_init(0) < 0) {
         return SW_ERR;
@@ -442,7 +507,7 @@ int Server::start_event_worker(Worker *worker) {
      * set pipe buffer size
      */
     for (uint32_t i = 0; i < worker_num + task_worker_num; i++) {
-        Worker *_worker = get_worker(i);
+        const Worker *_worker = get_worker(i);
         if (_worker->pipe_master) {
             _worker->pipe_master->buffer_size = UINT_MAX;
         }
@@ -454,18 +519,17 @@ int Server::start_event_worker(Worker *worker) {
     worker->pipe_worker->set_nonblock();
     reactor->ptr = this;
     reactor->add(worker->pipe_worker, SW_EVENT_READ);
-    reactor->set_handler(SW_FD_PIPE, Worker_onPipeReceive);
+    reactor->set_handler(SW_FD_PIPE, SW_EVENT_READ, Worker_onPipeReceive);
 
     if (dispatch_mode == DISPATCH_CO_CONN_LB || dispatch_mode == DISPATCH_CO_REQ_LB) {
         reactor->set_end_callback(Reactor::PRIORITY_WORKER_CALLBACK,
                                   [worker](Reactor *) { worker->coroutine_num = Coroutine::count(); });
     }
 
-    worker->status = SW_WORKER_IDLE;
     worker_start_callback(worker);
 
     // main loop
-    reactor->wait(nullptr);
+    const auto rv = reactor->wait();
     // drain pipe buffer
     drain_worker_pipe();
     // reactor free
@@ -473,11 +537,9 @@ int Server::start_event_worker(Worker *worker) {
     // worker shutdown
     worker_stop_callback(worker);
 
-    if (buffer_pool) {
-        delete buffer_pool;
-    }
+    delete buffer_pool;
 
-    return SW_OK;
+    return rv;
 }
 
 /**
@@ -488,60 +550,32 @@ ssize_t Server::send_to_reactor_thread(const EventData *ev_data, size_t sendn, S
     if (swoole_event_is_available()) {
         return swoole_event_write(pipe_sock, ev_data, sendn);
     } else {
-        return pipe_sock->send_blocking(ev_data, sendn);
+        return pipe_sock->send_sync(ev_data, sendn);
     }
 }
 
 /**
  * send message from worker to another worker
  */
-ssize_t Server::send_to_worker_from_worker(Worker *dst_worker, const void *buf, size_t len, int flags) {
+ssize_t Server::send_to_worker_from_worker(const Worker *dst_worker, const void *buf, size_t len, int flags) {
     return dst_worker->send_pipe_message(buf, len, flags);
 }
 
 /**
  * receive data from reactor
+ * This function is intended solely for process mode; in thread or base mode, `ReactorThread_onRead()` will be executed.
  */
 static int Worker_onPipeReceive(Reactor *reactor, Event *event) {
-    Server *serv = (Server *) reactor->ptr;
-    PipeBuffer *pipe_buffer = serv->message_bus.get_buffer();
+    auto *serv = static_cast<Server *>(reactor->ptr);
+    auto *pipe_buffer = serv->get_worker_message_bus()->get_buffer();
 
-    if (serv->message_bus.read(event->socket) <= 0) {
+    if (serv->get_worker_message_bus()->read(event->socket) <= 0) {
         return SW_OK;
     }
 
     serv->worker_accept_event(&pipe_buffer->info);
-    serv->message_bus.pop();
+    serv->get_worker_message_bus()->pop();
 
     return SW_OK;
-}
-
-ssize_t Worker::send_pipe_message(const void *buf, size_t n, int flags) {
-    Socket *pipe_sock;
-
-    if (flags & SW_PIPE_MASTER) {
-        pipe_sock = pipe_master;
-    } else {
-        pipe_sock = pipe_worker;
-    }
-
-    // message-queue
-    if (pool->use_msgqueue) {
-        struct {
-            long mtype;
-            EventData buf;
-        } msg;
-
-        msg.mtype = id + 1;
-        memcpy(&msg.buf, buf, n);
-
-        return pool->queue->push((QueueNode *) &msg, n) ? n : -1;
-    }
-
-    if ((flags & SW_PIPE_NONBLOCK) && swoole_event_is_available()) {
-        return swoole_event_write(pipe_sock, buf, n);
-    } else {
-        return pipe_sock->send_blocking(buf, n);
-    }
 }
 }  // namespace swoole

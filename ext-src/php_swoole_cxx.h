@@ -127,6 +127,7 @@ extern zend_string **sw_zend_known_strings;
 SW_API bool php_swoole_is_enable_coroutine();
 SW_API zend_object *php_swoole_create_socket(enum swSocketType type);
 SW_API zend_object *php_swoole_create_socket_from_fd(int fd, enum swSocketType type);
+SW_API zend_object *php_swoole_create_socket_from_fd(int fd, int _domain, int _type, int _protocol);
 SW_API bool php_swoole_export_socket(zval *zobject, swoole::coroutine::Socket *_socket);
 SW_API zend_object *php_swoole_dup_socket(int fd, enum swSocketType type);
 SW_API void php_swoole_init_socket_object(zval *zobject, swoole::coroutine::Socket *socket);
@@ -145,8 +146,11 @@ SW_API php_stream *php_swoole_create_stream_from_socket(php_socket_t _fd,
                                                         int domain,
                                                         int type,
                                                         int protocol STREAMS_DC);
+SW_API php_stream *php_swoole_create_stream_from_pipe(int fd, const char *mode, const char *persistent_id STREAMS_DC);
 SW_API php_stream_ops *php_swoole_get_ori_php_stream_stdio_ops();
 SW_API void php_swoole_register_rshutdown_callback(swoole::Callback cb, void *private_data);
+SW_API zif_handler php_swoole_get_original_handler(const char *name, size_t len);
+SW_API bool php_swoole_call_original_handler(const char *name, size_t len, INTERNAL_FUNCTION_PARAMETERS);
 
 // timer
 SW_API bool php_swoole_timer_clear(swoole::TimerNode *tnode);
@@ -158,24 +162,8 @@ static inline bool php_swoole_is_fatal_error() {
 
 ssize_t php_swoole_length_func(const swoole::Protocol *, swoole::network::Socket *, swoole::PacketLength *);
 SW_API zend_long php_swoole_parse_to_size(zval *zv);
-
-#ifdef SW_HAVE_ZLIB
-#define php_swoole_websocket_frame_pack php_swoole_websocket_frame_pack_ex
-#define php_swoole_websocket_frame_object_pack php_swoole_websocket_frame_object_pack_ex
-#else
-#define php_swoole_websocket_frame_pack(buffer, zdata, opcode, flags, mask, allow_compress)                            \
-    php_swoole_websocket_frame_pack_ex(buffer, zdata, opcode, flags, mask, 0)
-#define php_swoole_websocket_frame_object_pack(buffer, zdata, mask, allow_compress)                                    \
-    php_swoole_websocket_frame_object_pack_ex(buffer, zdata, mask, 0)
-#endif
-int php_swoole_websocket_frame_pack_ex(
-    swoole::String *buffer, zval *zdata, zend_long opcode, uint8_t flags, zend_bool mask, zend_bool allow_compress);
-int php_swoole_websocket_frame_object_pack_ex(swoole::String *buffer,
-                                              zval *zdata,
-                                              zend_bool mask,
-                                              zend_bool allow_compress);
-void php_swoole_websocket_frame_unpack(swoole::String *data, zval *zframe);
-void php_swoole_websocket_frame_unpack_ex(swoole::String *data, zval *zframe, uchar allow_uncompress);
+SW_API zend_string *php_swoole_serialize(zval *zdata);
+SW_API bool php_swoole_unserialize(zend_string *data, zval *zv);
 
 #ifdef SW_HAVE_ZLIB
 int php_swoole_zlib_decompress(z_stream *stream, swoole::String *buffer, char *body, int length);
@@ -189,6 +177,16 @@ bool php_swoole_name_resolver_add(zval *zresolver);
 
 const swoole::Allocator *sw_php_allocator();
 const swoole::Allocator *sw_zend_string_allocator();
+
+#ifdef __APPLE__
+#define SOL_TCP IPPROTO_TCP
+#define TCP_INFO TCP_CONNECTION_INFO
+using tcp_info = tcp_connection_info;
+#endif
+
+#ifdef TCP_INFO
+std::unordered_map<std::string, uint64_t> sw_socket_parse_tcp_info(tcp_info *info);
+#endif
 
 static inline bool php_swoole_async(bool blocking, const std::function<void(void)> &fn) {
     if (!blocking && swoole_coroutine_is_in()) {
@@ -434,28 +432,6 @@ class Array {
     }
 };
 
-enum PipeType {
-    PIPE_TYPE_NONE = 0,
-    PIPE_TYPE_STREAM = 1,
-    PIPE_TYPE_DGRAM = 2,
-};
-
-class Process {
-  public:
-    zend_object *zsocket = nullptr;
-    enum PipeType pipe_type;
-    bool enable_coroutine;
-
-    Process(enum PipeType pipe_type, bool enable_coroutine)
-        : pipe_type(pipe_type), enable_coroutine(enable_coroutine) {}
-
-    ~Process() {
-        if (zsocket) {
-            OBJ_RELEASE(zsocket);
-        }
-    }
-};
-
 class Variable {
   public:
     zval value;
@@ -474,6 +450,10 @@ class Variable {
 
     Variable(const char *str) {
         ZVAL_STRING(&value, str);
+    }
+
+    Variable(const std::string &str) {
+        ZVAL_STRINGL(&value, str.c_str(), str.length());
     }
 
     Variable(const Variable &&src) {
@@ -554,7 +534,7 @@ class CharPtr {
         str_ = estrndup(str, len);
     }
 
-    void assign_tolower(char *str, size_t len) {
+    void assign_tolower(const char *str, size_t len) {
         release();
         str_ = zend_str_tolower_dup(str, len);
     }
@@ -568,25 +548,102 @@ class CharPtr {
     }
 };
 
-struct Callable {
-    zval zfunc;
+class Callable {
+  private:
+    zval zfn;
     zend_fcall_info_cache fcc;
+    char *fn_name = nullptr;
 
-    Callable(zval *_zfunc) {
-        zfunc = *_zfunc;
-        Z_TRY_ADDREF_P(&zfunc);
+    Callable() {}
+
+  public:
+    Callable(zval *_zfn);
+    ~Callable();
+    uint32_t refcount();
+
+    zend_refcounted *refcount_ptr() {
+        return sw_get_refcount_ptr(&zfn);
     }
 
-    bool is_callable() {
-        return zend_is_callable_ex(&zfunc, NULL, 0, NULL, &fcc, NULL);
+    zend_fcall_info_cache *ptr() {
+        return &fcc;
+    }
+
+    bool ready() {
+        return !ZVAL_IS_UNDEF(&zfn);
+    }
+
+    Callable *dup() {
+        auto copy = new Callable();
+        copy->fcc = fcc;
+        copy->zfn = zfn;
+        zval_add_ref(&copy->zfn);
+        if (fn_name) {
+            copy->fn_name = estrdup(fn_name);
+        }
+        return copy;
     }
 
     bool call(uint32_t argc, zval *argv, zval *retval) {
-        return sw_zend_call_function_ex(&zfunc, &fcc, argc, argv, retval) == SUCCESS;
+        return sw_zend_call_function_ex(&zfn, &fcc, argc, argv, retval) == SUCCESS;
+    }
+};
+
+#define _CONCURRENCY_HASHMAP_LOCK_(code)                                                                               \
+    if (locked_) {                                                                                                     \
+        code;                                                                                                          \
+    } else {                                                                                                           \
+        lock_.lock();                                                                                                  \
+        code;                                                                                                          \
+        lock_.unlock();                                                                                                \
     }
 
-    ~Callable() {
-        Z_TRY_DELREF_P(&zfunc);
+template <typename KeyT, typename ValueT>
+class ConcurrencyHashMap {
+  private:
+    std::unordered_map<KeyT, ValueT> map_;
+    std::mutex lock_;
+    bool locked_;
+    ValueT default_value_;
+
+  public:
+    ConcurrencyHashMap(ValueT _default_value) : map_(), lock_() {
+        default_value_ = _default_value;
+        locked_ = false;
+    }
+
+    void set(const KeyT &key, const ValueT &value) {
+        _CONCURRENCY_HASHMAP_LOCK_(map_[key] = value);
+    }
+
+    ValueT get(const KeyT &key) {
+        ValueT value;
+        auto fn = [&]() -> ValueT {
+            auto iter = map_.find(key);
+            if (iter == map_.end()) {
+                return default_value_;
+            }
+            return iter->second;
+        };
+        _CONCURRENCY_HASHMAP_LOCK_(value = fn());
+        return value;
+    }
+
+    void del(const KeyT &key) {
+        _CONCURRENCY_HASHMAP_LOCK_(map_.erase(key));
+    }
+
+    void clear() {
+        _CONCURRENCY_HASHMAP_LOCK_(map_.clear());
+    }
+
+    void each(const std::function<void(KeyT key, ValueT value)> &cb) {
+        std::unique_lock<std::mutex> _lock(lock_);
+        locked_ = true;
+        for (auto &iter : map_) {
+            cb(iter.first, iter.second);
+        }
+        locked_ = false;
     }
 };
 
@@ -594,6 +651,10 @@ namespace function {
 /* must use this API to call event callbacks to ensure that exceptions are handled correctly */
 bool call(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv, zval *retval, const bool enable_coroutine);
 Variable call(const std::string &func_name, int argc, zval *argv);
+
+static inline bool call(Callable *cb, uint32_t argc, zval *argv, zval *retval, const bool enable_coroutine) {
+    return call(cb->ptr(), argc, argv, retval, enable_coroutine);
+}
 }  // namespace function
 
 struct Function {
@@ -632,19 +693,115 @@ static inline void array_set(zval *arg, const char *key, size_t l_key, const cha
     add_assoc_zval_ex(arg, key, l_key, &ztmp);
 }
 
+static inline void array_set(zval *arg, zend_ulong index, zval *zvalue) {
+    Z_TRY_ADDREF_P(zvalue);
+    zend_hash_index_add(Z_ARRVAL_P(arg), index, zvalue);
+}
+
 static inline void array_add(zval *arg, zval *zvalue) {
     Z_TRY_ADDREF_P(zvalue);
     add_next_index_zval(arg, zvalue);
+}
+
+/**
+ * return reference
+ */
+static inline zval *array_get(zval *arg, const char *key, size_t l_key) {
+    return zend_hash_str_find(Z_ARRVAL_P(arg), key, l_key);
+}
+
+static inline zval *array_get(zval *arg, zend_ulong index) {
+    return zend_hash_index_find(Z_ARRVAL_P(arg), index);
 }
 
 static inline void array_unset(zval *arg, const char *key, size_t l_key) {
     zend_hash_str_del(Z_ARRVAL_P(arg), key, l_key);
 }
 
+/**
+ * Add new element to the associative array or merge with existing elements.
+ * If the key does not exist, add it to the array.
+ * If the key already exists, merge all into a two-dimensional array.
+ */
+void array_add_or_merge(zval *zarray, const char *key, size_t key_len, zval *new_element);
+
+static inline zend_long object_get_long(zval *obj, zend_string *key) {
+    static zval rv;
+    zval *property = zend_read_property_ex(Z_OBJCE_P(obj), Z_OBJ_P(obj), key, 1, &rv);
+    return property ? zval_get_long(property) : 0;
+}
+
+static inline zend_long object_get_long(zval *obj, const char *key, size_t l_key) {
+    static zval rv;
+    zval *property = zend_read_property(Z_OBJCE_P(obj), Z_OBJ_P(obj), key, l_key, 1, &rv);
+    return property ? zval_get_long(property) : 0;
+}
+
+static inline zend_long object_get_long(zend_object *obj, const char *key, size_t l_key) {
+    static zval rv;
+    zval *property = zend_read_property(obj->ce, obj, key, l_key, 1, &rv);
+    return property ? zval_get_long(property) : 0;
+}
+
+static inline void object_set(zval *obj, const char *name, size_t l_name, zval *zvalue) {
+    zend_update_property(Z_OBJCE_P(obj), Z_OBJ_P(obj), name, l_name, zvalue);
+}
+
+static inline void object_set(zval *obj, const char *name, size_t l_name, const char *value) {
+    zend_update_property_string(Z_OBJCE_P(obj), Z_OBJ_P(obj), name, l_name, value);
+}
+
+static inline void object_set(zval *obj, const char *name, size_t l_name, zend_long value) {
+    zend_update_property_long(Z_OBJCE_P(obj), Z_OBJ_P(obj), name, l_name, value);
+}
+
+static inline void object_set(zend_object *obj, zend_string *name, zval *zvalue) {
+    zend_update_property_ex(obj->ce, obj, name, zvalue);
+}
+
+static inline void object_set(zend_object *obj, zend_string *name, zend_string *value) {
+	zval tmp;
+	ZVAL_STR(&tmp, value);
+    zend_update_property_ex(obj->ce, obj, name, &tmp);
+}
+
+static inline void object_set(zend_object *obj, zend_string *name, zend_long value) {
+	zval tmp;
+	ZVAL_LONG(&tmp, value);
+    zend_update_property_ex(obj->ce, obj, name, &tmp);
+}
+
+static inline zval *object_get(zval *obj, const char *name, size_t l_name) {
+    static zval rv;
+    return zend_read_property(Z_OBJCE_P(obj), Z_OBJ_P(obj), name, l_name, 1, &rv);
+}
+
+/**
+ * print exception, The virtual machine will not be terminated.
+ */
+static inline void print_error(zend_object *exception, int severity) {
+    zend_exception_error(exception, severity);
+}
+
 //-----------------------------------namespace end--------------------------------------------
 }  // namespace zend
 
-static inline zend::Callable *php_swoole_zval_to_callable(zval *zfn, const char *fname, bool allow_null = true) {
+/* use void* to match some C callback function pointers */
+static inline void sw_callable_free(void *ptr) {
+    delete (zend::Callable *) ptr;
+}
+
+static inline zend::Callable *sw_callable_create(zval *zfn) {
+    auto fn = new zend::Callable(zfn);
+    if (fn->ready()) {
+        return fn;
+    } else {
+        delete fn;
+        return nullptr;
+    }
+}
+
+static inline zend::Callable *sw_callable_create_ex(zval *zfn, const char *fname, bool allow_null = true) {
     if (zfn == nullptr || ZVAL_IS_NULL(zfn)) {
         if (!allow_null) {
             zend_throw_exception_ex(
@@ -652,9 +809,8 @@ static inline zend::Callable *php_swoole_zval_to_callable(zval *zfn, const char 
         }
         return nullptr;
     }
-    auto cb = new zend::Callable(zfn);
-    if (!cb->is_callable()) {
-        delete cb;
+    auto cb = sw_callable_create(zfn);
+    if (!cb) {
         zend_throw_exception_ex(swoole_exception_ce,
                                 SW_ERROR_INVALID_PARAMS,
                                 "%s must be of type callable, %s given",
@@ -663,9 +819,4 @@ static inline zend::Callable *php_swoole_zval_to_callable(zval *zfn, const char 
         return nullptr;
     }
     return cb;
-}
-
-static inline void php_swoole_callable_free(void *ptr) {
-    zend::Callable *cb = (zend::Callable *) ptr;
-    delete cb;
 }

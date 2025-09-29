@@ -45,13 +45,20 @@ function swoole_color(string $content, int $color): string
 function skip(string $reason, bool $is_skip = true, int $color = SWOOLE_COLOR_YELLOW)
 {
     if ($is_skip) {
-        exit('skip ' . swoole_color($reason, $color));
+        exit('skip ' . swoole_color($reason, $color) . "\n");
     }
 }
 
 function skip_if_php_version_lower_than($require_version = '7.0')
 {
     if (version_compare(PHP_VERSION, $require_version, '<')) {
+        skip('need php version >= ' . $require_version);
+    }
+}
+
+function skip_if_php_version_ge($require_version = '7.0')
+{
+    if (version_compare(PHP_VERSION, $require_version, '>=')) {
         skip('need php version >= ' . $require_version);
     }
 }
@@ -76,7 +83,14 @@ function skip_if_ini_bool_equal_to(string $name, bool $value)
     }
 }
 
-function skip_if_constant_not_defined(string $constant_name)
+function skip_if_no_nghttp(): void
+{
+    if (!str_contains(`nghttp --version 2>&1`, 'nghttp2')) {
+        skip('no nghttp');
+    }
+}
+
+function skip_if_constant_not_defined(string $constant_name): void
 {
     require_once __DIR__ . '/config.php';
     skip("{$constant_name} is not defined", !defined($constant_name));
@@ -147,6 +161,26 @@ function skip_if_darwin()
     skip('not support on darwin', stripos(PHP_OS, 'Darwin') !== false);
 }
 
+function skip_if_darwin_todo($msg = 'Need to review')
+{
+    skip($msg, getenv('MACOS_DEV') === false && stripos(PHP_OS, 'Darwin') !== false);
+}
+
+function skip_if_not_darwin()
+{
+    skip('only support darwin', stripos(PHP_OS, 'Darwin') === false);
+}
+
+function skip_if_nts()
+{
+    skip('not support in nts', !defined('SWOOLE_THREAD'));
+}
+
+function skip_if_not_linux()
+{
+    skip('only support linux', PHP_OS !== 'Linux');
+}
+
 function skip_if_musl_libc()
 {
     skip('not support when use musl libc', !empty(`ldd 2>&1 | grep -i musl`));
@@ -164,7 +198,7 @@ function skip_if_in_valgrind(string $reason = 'valgrind is too slow')
 
 function skip_if_in_ci(string $reason = 'not support in CI')
 {
-    skip($reason, file_exists('/.cienv'));
+    skip($reason, !!getenv('GITHUB_ACTIONS') or file_exists('/.cienv'));
 }
 
 function skip_if_in_docker(string $reason = 'not support in docker')
@@ -198,6 +232,7 @@ function skip_if_no_socks5_proxy()
 
 function skip_if_pdo_not_support_mysql8()
 {
+    skip_if_no_database();
     require_once __DIR__ . '/config.php';
     try {
         new PDO(
@@ -211,8 +246,14 @@ function skip_if_pdo_not_support_mysql8()
     }
 }
 
+function skip_if_no_database()
+{
+    skip("no database", !!getenv('SWOOLE_CI_IN_MACOS'));
+}
+
 function skip_if_not_mysql8()
 {
+    skip_if_no_database();
     require_once __DIR__ . '/config.php';
     $skip = true;
     Swoole\Coroutine\run(function () use (&$skip) {
@@ -267,4 +308,13 @@ function skip_if_no_ftp()
 {
     require_once __DIR__ . '/config.php';
     skip('no available proxy', !check_tcp_port(FTP_HOST, FTP_PORT));
+}
+
+function skip_if_not_root()
+{
+    skip('not root user', posix_geteuid() !== 0);
+}
+
+function skip_if_no_iouring() {
+    skip('no io-uring supports', !defined('SWOOLE_IOURING_DEFAULT'));
 }

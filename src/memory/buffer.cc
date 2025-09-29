@@ -21,13 +21,13 @@ namespace swoole {
 
 BufferChunk::BufferChunk(Type type, uint32_t size) : type(type), size(size) {
     if (type == TYPE_DATA && size > 0) {
-        value.ptr = new char[size];
+        value.str = new char[size];
     }
 }
 
 BufferChunk::~BufferChunk() {
     if (type == TYPE_DATA) {
-        delete[] value.ptr;
+        delete[] value.str;
     }
     if (destroy) {
         destroy(this);
@@ -57,32 +57,32 @@ Buffer::~Buffer() {
     }
 }
 
-void Buffer::append(const void *data, uint32_t size) {
+void Buffer::append(const char *data, uint32_t size) {
     uint32_t _length = size;
-    char *_pos = (char *) data;
-    uint32_t _n;
+    auto _pos = data;
 
     assert(size > 0);
 
     // buffer enQueue
     while (_length > 0) {
-        _n = _length >= chunk_size ? chunk_size : _length;
+        uint32_t _n = _length >= chunk_size ? chunk_size : _length;
 
         BufferChunk *chunk = alloc(BufferChunk::TYPE_DATA, _n);
 
         total_length += _n;
 
-        memcpy(chunk->value.ptr, _pos, _n);
+        memcpy(chunk->value.str, _pos, _n);
         chunk->length = _n;
 
-        swoole_trace_log(SW_TRACE_BUFFER, "chunk_n=%lu|size=%u|chunk_len=%u|chunk=%p", count(), _n, chunk->length, chunk);
+        swoole_trace_log(
+            SW_TRACE_BUFFER, "chunk_n=%lu|size=%u|chunk_len=%u|chunk=%p", count(), _n, chunk->length, chunk);
 
         _pos += _n;
         _length -= _n;
     }
 }
 
-void Buffer::append(const struct iovec *iov, size_t iovcnt, off_t offset) {
+void Buffer::append(const iovec *iov, size_t iovcnt, off_t offset) {
     size_t _length = 0;
 
     SW_LOOP_N(iovcnt) {
@@ -91,7 +91,7 @@ void Buffer::append(const struct iovec *iov, size_t iovcnt, off_t offset) {
         _length += iov[i].iov_len;
     }
 
-    char *pos = (char *) iov[0].iov_base;
+    auto pos = static_cast<char *>(iov[0].iov_base);
     BufferChunk *chunk = nullptr;
     size_t iov_remain_len = iov[0].iov_len, chunk_remain_len;
     size_t i = 0;
@@ -111,7 +111,7 @@ void Buffer::append(const struct iovec *iov, size_t iovcnt, off_t offset) {
                     i++;
                     continue;
                 } else {
-                    pos = (char *) iov[i].iov_base + offset;
+                    pos = static_cast<char *>(iov[i].iov_base) + offset;
                     iov_remain_len = iov[i].iov_len - offset;
                     offset = 0;
                 }
@@ -121,11 +121,12 @@ void Buffer::append(const struct iovec *iov, size_t iovcnt, off_t offset) {
         }
 
         size_t _n = std::min(iov_remain_len, chunk_remain_len);
-        memcpy(chunk->value.ptr + chunk->length, pos, _n);
+        memcpy(chunk->value.str + chunk->length, pos, _n);
         total_length += _n;
         _length -= _n;
 
-        swoole_trace_log(SW_TRACE_BUFFER, "chunk_n=%lu|size=%lu|chunk_len=%u|chunk=%p", count(), _n, chunk->length, chunk);
+        swoole_trace_log(
+            SW_TRACE_BUFFER, "chunk_n=%lu|size=%lu|chunk_len=%u|chunk=%p", count(), _n, chunk->length, chunk);
 
         chunk->length += _n;
         iov_remain_len -= _n;

@@ -21,7 +21,7 @@
 static std::unordered_set<int> ignored_errors;
 
 namespace swoole {
-Exception::Exception(int code) throw() : code(code) {
+Exception::Exception(const int code) noexcept : code(code) {
     msg = swoole_strerror(code);
 }
 }  // namespace swoole
@@ -52,6 +52,14 @@ const char *swoole_strerror(int code) {
         return "Wrong operation";
     case SW_ERROR_PHP_RUNTIME_NOTICE:
         return "PHP runtime notice";
+    case SW_ERROR_FOR_TEST:
+        return "For test";
+    case SW_ERROR_NO_PAYLOAD:
+        return "No payload";
+    case SW_ERROR_UNDEFINED_BEHAVIOR:
+        return "Undefined behavior";
+    case SW_ERROR_NOT_THREAD_SAFETY:
+        return "Not thread safety";
     case SW_ERROR_FILE_NOT_EXIST:
         return "File not exist";
     case SW_ERROR_FILE_TOO_LARGE:
@@ -72,8 +80,14 @@ const char *swoole_strerror(int code) {
         return "Bad ipv6 address";
     case SW_ERROR_UNREGISTERED_SIGNAL:
         return "Unregistered signal";
-    case SW_ERROR_EVENT_SOCKET_REMOVED:
-        return "Event socket removed";
+    case SW_ERROR_BAD_HOST_ADDR:
+        return "Bad host addr";
+    case SW_ERROR_EVENT_REMOVE_FAILED:
+        return "Event remove failed";
+    case SW_ERROR_EVENT_ADD_FAILED:
+        return "Event add failed";
+    case SW_ERROR_EVENT_UPDATE_FAILED:
+        return "Event update failed";
     case SW_ERROR_SESSION_CLOSED_BY_SERVER:
         return "Session closed by server";
     case SW_ERROR_SESSION_CLOSED_BY_CLIENT:
@@ -110,6 +124,8 @@ const char *swoole_strerror(int code) {
         return "SSL reset";
     case SW_ERROR_SSL_HANDSHAKE_FAILED:
         return "SSL handshake failed";
+    case SW_ERROR_SSL_CREATE_CONTEXT_FAILED:
+        return "SSL create context failed";
     case SW_ERROR_PACKAGE_LENGTH_TOO_LARGE:
         return "Package length too large";
     case SW_ERROR_PACKAGE_LENGTH_NOT_FOUND:
@@ -168,6 +184,8 @@ const char *swoole_strerror(int code) {
         return "Http conflict header";
     case SW_ERROR_HTTP_CONTEXT_UNAVAILABLE:
         return "Http context unavailable";
+    case SW_ERROR_HTTP_COOKIE_UNAVAILABLE:
+        return "Http cookie unavailable";
     case SW_ERROR_WEBSOCKET_BAD_CLIENT:
         return "Websocket bad client";
     case SW_ERROR_WEBSOCKET_BAD_OPCODE:
@@ -210,6 +228,10 @@ const char *swoole_strerror(int code) {
         return "Server is not regular file";
     case SW_ERROR_SERVER_SEND_TO_WOKER_TIMEOUT:
         return "Server send to woker timeout";
+    case SW_ERROR_SERVER_INVALID_CALLBACK:
+        return "Server invalid callback";
+    case SW_ERROR_SERVER_UNRELATED_THREAD:
+        return "Server unrelated thread";
     case SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT:
         return "Server worker exit timeout";
     case SW_ERROR_SERVER_WORKER_ABNORMAL_PIPE_DATA:
@@ -274,6 +296,14 @@ void swoole_ignore_error(int code) {
     ignored_errors.insert(code);
 }
 
-bool swoole_is_ignored_error(int code) {
+bool swoole_is_ignored_error(const int code) {
     return ignored_errors.find(code) != ignored_errors.end();
+}
+
+void swoole_clear_last_error_msg() {
+    sw_error[0] = '\0';
+}
+
+const char *swoole_get_last_error_msg() {
+    return sw_error;
 }

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 __CURRENT__=`pwd`
 __DIR__=$(cd "$(dirname "$0")";pwd)
 
@@ -38,8 +38,6 @@ else
         swoole_http_server \
         swoole_websocket_server \
         swoole_redis_server \
-        swoole_mysql_coro \
-        swoole_redis_coro \
         swoole_socket_coro \
         swoole_runtime"
         if [ ${#} -gt 1 ]; then
@@ -49,6 +47,9 @@ else
         fi
     else
         glob="$@"
+        if [ "${glob:0:6}" = "tests/" ]; then
+            glob="${glob#tests/}"
+        fi
     fi
 fi
 

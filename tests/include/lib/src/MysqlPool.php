@@ -53,7 +53,7 @@ class MysqlPool
     public function get()
     {
         /**
-         * @var \Swoole\Coroutine\Mysql $mysql
+         * @var mysqli
          */
         $mysql = $this->pool->pop($this->config['pool_get_timeout']);
         if ($mysql === false) {

@@ -21,10 +21,7 @@
 #include "php_swoole_server.h"
 #include "php_swoole_http.h"
 
-#include "swoole_http.h"
-#include "swoole_websocket.h"
 #include "swoole_mime_type.h"
-#include "swoole_http2.h"
 
 bool swoole_http_server_onBeforeRequest(swoole::http::Context *ctx);
 void swoole_http_server_onAfterResponse(swoole::http::Context *ctx);
@@ -48,35 +45,35 @@ int swoole_http2_server_goaway(swoole::http::Context *ctx,
 static inline void http_server_add_server_array(HashTable *ht, zend_string *key, const char *value) {
     zval tmp;
     ZVAL_STRING(&tmp, value);
-    zend_hash_add(ht, key, &tmp);
+    zend_hash_add_new(ht, key, &tmp);
 }
 
 static inline void http_server_add_server_array(HashTable *ht, zend_string *key, const char *value, size_t length) {
     zval tmp;
     ZVAL_STRINGL(&tmp, value, length);
-    zend_hash_add(ht, key, &tmp);
+    zend_hash_add_new(ht, key, &tmp);
 }
 
 static inline void http_server_add_server_array(HashTable *ht, zend_string *key, zend_long value) {
     zval tmp;
     ZVAL_LONG(&tmp, value);
-    zend_hash_add(ht, key, &tmp);
+    zend_hash_add_new(ht, key, &tmp);
 }
 
 static inline void http_server_add_server_array(HashTable *ht, zend_string *key, double value) {
     zval tmp;
     ZVAL_DOUBLE(&tmp, value);
-    zend_hash_add(ht, key, &tmp);
+    zend_hash_add_new(ht, key, &tmp);
 }
 
 static inline void http_server_add_server_array(HashTable *ht, zend_string *key, zend_string *value) {
     zval tmp;
     ZVAL_STR(&tmp, value);
-    zend_hash_add(ht, key, &tmp);
+    zend_hash_add_new(ht, key, &tmp);
 }
 
 static inline void http_server_add_server_array(HashTable *ht, zend_string *key, zval *value) {
-    zend_hash_add(ht, key, value);
+    zend_hash_add_new(ht, key, value);
 }
 
 static inline void http_server_set_object_fd_property(zend_object *object, zend_class_entry *ce, long fd) {

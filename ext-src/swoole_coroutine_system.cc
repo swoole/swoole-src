@@ -47,10 +47,6 @@ static const zend_function_entry swoole_coroutine_system_methods[] =
     PHP_ME(swoole_coroutine_system, waitPid,                                 arginfo_class_Swoole_Coroutine_System_waitPid,       ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_system, waitSignal,                              arginfo_class_Swoole_Coroutine_System_waitSignal,    ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_system, waitEvent,                               arginfo_class_Swoole_Coroutine_System_waitEvent,     ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    /* Deprecated file methods */
-    PHP_ME(swoole_coroutine_system, fread,  arginfo_class_Swoole_Coroutine_System_fread,  ZEND_ACC_PUBLIC | ZEND_ACC_STATIC | ZEND_ACC_DEPRECATED)
-    PHP_ME(swoole_coroutine_system, fwrite, arginfo_class_Swoole_Coroutine_System_fwrite, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC | ZEND_ACC_DEPRECATED)
-    PHP_ME(swoole_coroutine_system, fgets,  arginfo_class_Swoole_Coroutine_System_fgets,  ZEND_ACC_PUBLIC | ZEND_ACC_STATIC | ZEND_ACC_DEPRECATED)
     PHP_FE_END
 };
 
@@ -74,214 +70,6 @@ PHP_METHOD(swoole_coroutine_system, sleep) {
         RETURN_FALSE;
     }
     RETURN_BOOL(System::sleep(seconds) == 0);
-}
-
-static void co_socket_read(int fd, zend_long length, INTERNAL_FUNCTION_PARAMETERS) {
-    php_swoole_check_reactor();
-    Socket _socket(fd, SW_SOCK_RAW);
-
-    zend_string *buf = zend_string_alloc(length + 1, 0);
-    size_t nbytes = length <= 0 ? SW_BUFFER_SIZE_STD : length;
-    ssize_t n = _socket.read(ZSTR_VAL(buf), nbytes);
-    if (n < 0) {
-        ZVAL_FALSE(return_value);
-        zend_string_free(buf);
-    } else if (n == 0) {
-        ZVAL_EMPTY_STRING(return_value);
-        zend_string_free(buf);
-    } else {
-        ZSTR_VAL(buf)[n] = 0;
-        ZSTR_LEN(buf) = n;
-        ZVAL_STR(return_value, buf);
-    }
-    _socket.move_fd();
-}
-
-static void co_socket_write(int fd, char *str, size_t l_str, INTERNAL_FUNCTION_PARAMETERS) {
-    php_swoole_check_reactor();
-    Socket _socket(fd, SW_SOCK_RAW);
-
-    ssize_t n = _socket.write(str, l_str);
-    if (n < 0) {
-        swoole_set_last_error(errno);
-        ZVAL_FALSE(return_value);
-    } else {
-        ZVAL_LONG(return_value, n);
-    }
-    _socket.move_fd();
-}
-
-PHP_METHOD(swoole_coroutine_system, fread) {
-    Coroutine::get_current_safe();
-
-    zval *handle;
-    zend_long length = 0;
-
-    ZEND_PARSE_PARAMETERS_START(1, 2)
-    Z_PARAM_RESOURCE(handle)
-    Z_PARAM_OPTIONAL
-    Z_PARAM_LONG(length)
-    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
-
-    int async;
-    int fd = php_swoole_convert_to_fd_ex(handle, &async);
-    if (fd < 0) {
-        RETURN_FALSE;
-    }
-
-    if (async) {
-        co_socket_read(fd, length, INTERNAL_FUNCTION_PARAM_PASSTHRU);
-        return;
-    }
-
-    if (length <= 0) {
-        struct stat file_stat;
-        if (swoole_coroutine_fstat(fd, &file_stat) < 0) {
-            swoole_set_last_error(errno);
-            RETURN_FALSE;
-        }
-        off_t _seek = swoole_coroutine_lseek(fd, 0, SEEK_CUR);
-        if (_seek < 0) {
-            swoole_set_last_error(errno);
-            RETURN_FALSE;
-        }
-        if (_seek >= file_stat.st_size) {
-            length = SW_BUFFER_SIZE_STD;
-        } else {
-            length = file_stat.st_size - _seek;
-        }
-    }
-
-    zend_string *buf = zend_string_alloc(length, 0);
-    ssize_t ret = -1;
-    swoole_trace("fd=%d, length=" ZEND_LONG_FMT, fd, length);
-    php_swoole_check_reactor();
-    bool async_success = swoole::coroutine::async([&]() {
-        while (1) {
-            ret = read(fd, buf->val, length);
-            if (ret < 0 && errno == EINTR) {
-                continue;
-            }
-            break;
-        }
-    });
-
-    if (async_success && ret >= 0) {
-        buf->len = ret;
-        buf->val[buf->len] = 0;
-        RETURN_STR(buf);
-    } else {
-        zend_string_release(buf);
-        RETURN_FALSE;
-    }
-}
-
-PHP_METHOD(swoole_coroutine_system, fgets) {
-    Coroutine::get_current_safe();
-
-    zval *handle;
-    php_stream *stream;
-
-    ZEND_PARSE_PARAMETERS_START(1, 1)
-    Z_PARAM_RESOURCE(handle)
-    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
-
-    int async;
-    int fd = php_swoole_convert_to_fd_ex(handle, &async);
-    if (fd < 0) {
-        RETURN_FALSE;
-    }
-
-    if (async == 1) {
-        php_swoole_fatal_error(E_WARNING, "only support file resources");
-        RETURN_FALSE;
-    }
-
-    php_stream_from_res(stream, Z_RES_P(handle));
-
-    FILE *file;
-    if (stream->stdiocast) {
-        file = stream->stdiocast;
-    } else {
-        if (php_stream_cast(stream, PHP_STREAM_AS_STDIO, (void **) &file, 1) != SUCCESS || file == nullptr) {
-            RETURN_FALSE;
-        }
-    }
-
-    if (stream->readbuf == nullptr) {
-        stream->readbuflen = stream->chunk_size;
-        stream->readbuf = (uchar *) emalloc(stream->chunk_size);
-    }
-
-    if (!stream->readbuf) {
-        RETURN_FALSE;
-    }
-
-    int ret = 0;
-    swoole_trace("fd=%d, length=%ld", fd, stream->readbuflen);
-    php_swoole_check_reactor();
-    bool async_success = swoole::coroutine::async([&]() {
-        char *data = fgets((char *) stream->readbuf, stream->readbuflen, file);
-        if (data == nullptr) {
-            ret = -1;
-            stream->eof = 1;
-        }
-    });
-
-    if (async_success && ret != -1) {
-        ZVAL_STRING(return_value, (char *) stream->readbuf);
-    } else {
-        ZVAL_FALSE(return_value);
-    }
-}
-
-PHP_METHOD(swoole_coroutine_system, fwrite) {
-    Coroutine::get_current_safe();
-
-    zval *handle;
-    char *str;
-    size_t l_str;
-    zend_long length = 0;
-
-    ZEND_PARSE_PARAMETERS_START(2, 3)
-    Z_PARAM_RESOURCE(handle)
-    Z_PARAM_STRING(str, l_str)
-    Z_PARAM_OPTIONAL
-    Z_PARAM_LONG(length)
-    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
-
-    int async;
-    int fd = php_swoole_convert_to_fd_ex(handle, &async);
-    if (fd < 0) {
-        RETURN_FALSE;
-    }
-    if (length <= 0 || (size_t) length > l_str) {
-        length = l_str;
-    }
-    if (async) {
-        co_socket_write(fd, str, length, INTERNAL_FUNCTION_PARAM_PASSTHRU);
-        return;
-    }
-
-    zend::CharPtr buf(str, length);
-    ssize_t ret = -1;
-    swoole_trace("fd=%d, length=" ZEND_LONG_FMT, fd, length);
-    php_swoole_check_reactor();
-    bool async_success = swoole::coroutine::async([&]() {
-        while (1) {
-            ret = write(fd, buf.get(), length);
-            if (ret < 0 && errno == EINTR) {
-                continue;
-            }
-            break;
-        }
-    });
-
-    if (async_success && ret >= 0) {
-        ZVAL_LONG(return_value, ret);
-    } else {
-        ZVAL_FALSE(return_value);
-    }
 }
 
 PHP_METHOD(swoole_coroutine_system, readFile) {
@@ -340,9 +128,12 @@ PHP_FUNCTION(swoole_coroutine_gethostbyname) {
     zend_long family = AF_INET;
     double timeout = -1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|ld", &domain_name, &l_domain_name, &family, &timeout) == FAILURE) {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 3)
+    Z_PARAM_STRING(domain_name, l_domain_name)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_LONG(family)
+    Z_PARAM_DOUBLE(timeout)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (l_domain_name == 0) {
         php_swoole_fatal_error(E_WARNING, "domain name is empty");
@@ -376,18 +167,15 @@ PHP_METHOD(swoole_coroutine_system, getaddrinfo) {
     size_t l_service = 0;
     double timeout = -1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(),
-                              "s|lllsd",
-                              &hostname,
-                              &l_hostname,
-                              &family,
-                              &socktype,
-                              &protocol,
-                              &service,
-                              &l_service,
-                              &timeout) == FAILURE) {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 6)
+    Z_PARAM_STRING(hostname, l_hostname)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_LONG(family)
+    Z_PARAM_LONG(socktype)
+    Z_PARAM_LONG(protocol)
+    Z_PARAM_STRING(service, l_service)
+    Z_PARAM_DOUBLE(timeout)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (l_hostname == 0) {
         php_swoole_fatal_error(E_WARNING, "hostname is empty");
@@ -448,56 +236,24 @@ PHP_METHOD(swoole_coroutine_system, exec) {
     Z_PARAM_BOOL(get_error_stream)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if (php_swoole_signal_isset_handler(SIGCHLD)) {
-        php_swoole_error(E_WARNING, "The signal [SIGCHLD] is registered, cannot execute swoole_coroutine_exec");
+    int status;
+    auto buffer = std::shared_ptr<String>(swoole::make_string(1024, sw_zend_string_allocator()));
+    if (!System::exec(command, get_error_stream, buffer, &status)) {
         RETURN_FALSE;
     }
 
-    Coroutine::get_current_safe();
-
-    pid_t pid;
-    int fd = swoole_shell_exec(command, &pid, get_error_stream);
-    if (fd < 0) {
-        php_swoole_error(E_WARNING, "Unable to execute '%s'", command);
-        RETURN_FALSE;
-    }
-
-    String *buffer = new String(1024);
-    Socket socket(fd, SW_SOCK_UNIX_STREAM);
-    while (1) {
-        ssize_t retval = socket.read(buffer->str + buffer->length, buffer->size - buffer->length);
-        if (retval > 0) {
-            buffer->length += retval;
-            if (buffer->length == buffer->size) {
-                if (!buffer->extend()) {
-                    break;
-                }
-            }
-        } else {
-            break;
-        }
-    }
-    socket.close();
+    auto str = zend::fetch_zend_string_by_val(buffer->str);
+    buffer->set_null_terminated();
+    str->len = buffer->length;
+    buffer->release();
 
     zval zdata;
-    if (buffer->length == 0) {
-        ZVAL_EMPTY_STRING(&zdata);
-    } else {
-        ZVAL_STRINGL(&zdata, buffer->str, buffer->length);
-    }
-    delete buffer;
+    ZVAL_STR(&zdata, str);
 
-    int status;
-    pid_t _pid = swoole_coroutine_waitpid(pid, &status, 0);
-    if (_pid > 0) {
-        array_init(return_value);
-        add_assoc_long(return_value, "code", WEXITSTATUS(status));
-        add_assoc_long(return_value, "signal", WTERMSIG(status));
-        add_assoc_zval(return_value, "output", &zdata);
-    } else {
-        zval_ptr_dtor(&zdata);
-        RETVAL_FALSE;
-    }
+    array_init(return_value);
+    add_assoc_long(return_value, "code", WEXITSTATUS(status));
+    add_assoc_long(return_value, "signal", WTERMSIG(status));
+    add_assoc_zval(return_value, "output", &zdata);
 }
 
 static void swoole_coroutine_system_wait(INTERNAL_FUNCTION_PARAMETERS, pid_t pid, double timeout) {
@@ -516,12 +272,12 @@ static void swoole_coroutine_system_wait(INTERNAL_FUNCTION_PARAMETERS, pid_t pid
         add_assoc_long(return_value, "code", WEXITSTATUS(status));
         add_assoc_long(return_value, "signal", WTERMSIG(status));
     } else {
-        swoole_set_last_error(errno);
         RETURN_FALSE;
     }
 }
 
 PHP_METHOD(swoole_coroutine_system, wait) {
+    SW_MUST_BE_MAIN_THREAD();
     double timeout = -1;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
@@ -533,6 +289,7 @@ PHP_METHOD(swoole_coroutine_system, wait) {
 }
 
 PHP_METHOD(swoole_coroutine_system, waitPid) {
+    SW_MUST_BE_MAIN_THREAD();
     zend_long pid;
     double timeout = -1;
 
@@ -546,26 +303,40 @@ PHP_METHOD(swoole_coroutine_system, waitPid) {
 }
 
 PHP_METHOD(swoole_coroutine_system, waitSignal) {
-    zend_long signo;
+    SW_MUST_BE_MAIN_THREAD();
+    zval *zsignals;
     double timeout = -1;
 
     ZEND_PARSE_PARAMETERS_START(1, 2)
-    Z_PARAM_LONG(signo)
+    Z_PARAM_ZVAL(zsignals)
     Z_PARAM_OPTIONAL
     Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if (!System::wait_signal(signo, timeout)) {
+    std::vector<int> signals;
+
+    if (ZVAL_IS_ARRAY(zsignals)) {
+        zval *item;
+        ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(zsignals), item) {
+            signals.push_back(zval_get_long(item));
+        }
+        ZEND_HASH_FOREACH_END();
+    } else {
+        signals.push_back(zval_get_long(zsignals));
+    }
+
+    int signo = System::wait_signal(signals, timeout);
+    if (signo == -1) {
         if (swoole_get_last_error() == EBUSY) {
             php_swoole_fatal_error(E_WARNING, "Unable to wait signal, async signal listener has been registered");
         } else if (swoole_get_last_error() == EINVAL) {
-            php_swoole_fatal_error(E_WARNING, "Invalid signal [" ZEND_LONG_FMT "]", signo);
+            php_swoole_fatal_error(E_WARNING, "Invalid signal in the given list");
         }
         errno = swoole_get_last_error();
         RETURN_FALSE;
     }
 
-    RETURN_TRUE;
+    RETURN_LONG(signo);
 }
 
 PHP_METHOD(swoole_coroutine_system, waitEvent) {

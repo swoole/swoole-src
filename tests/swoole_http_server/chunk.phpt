@@ -12,7 +12,7 @@ $pm->parentFunc = function () use ($pm) {
     go(function () use ($pm) {
         $data = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/");
         Assert::assert(!empty($data));
-        Assert::assert(md5($data) === md5_file(TEST_IMAGE));
+        Assert::eq(md5($data), md5_file(TEST_IMAGE));
         $pm->kill();
     });
     Swoole\Event::wait();
@@ -34,9 +34,9 @@ $pm->childFunc = function () use ($pm) {
     $http->on("request", function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         $data = str_split(file_get_contents(TEST_IMAGE), 8192);
         foreach ($data as $chunk) {
-            $response->write($chunk);
+            Assert::true($response->write($chunk));
         }
-        $response->end();
+        Assert::true($response->end());
     });
 
     $http->start();

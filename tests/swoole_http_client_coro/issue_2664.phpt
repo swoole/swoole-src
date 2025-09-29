@@ -36,9 +36,9 @@ array(4) {
   [0]=>
   string(91) "key1=val1; expires=%s; Max-Age=84600; path=/; domain=id.test.com"
   [1]=>
-  string(87) "key1=deleted; expires=Thu, 01-Jan-1970 00:00:01 GMT; Max-Age=0; path=/; domain=test.com"
+  string(62) "key1=deleted; expires=%s; Max-Age=0"
   [2]=>
   string(91) "key2=val2; expires=%s; Max-Age=84600; path=/; domain=id.test.com"
   [3]=>
-  string(87) "key2=deleted; expires=Thu, 01-Jan-1970 00:00:01 GMT; Max-Age=0; path=/; domain=test.com"
+  string(62) "key2=deleted; expires=%s; Max-Age=0"
 }

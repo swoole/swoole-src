@@ -31,7 +31,6 @@
 #endif
 
 namespace swoole {
-
 using network::Socket;
 
 class ReactorKqueue : public ReactorImpl {
@@ -64,7 +63,7 @@ class ReactorKqueue : public ReactorImpl {
     int add(Socket *socket, int events) override;
     int set(Socket *socket, int events) override;
     int del(Socket *socket) override;
-    int wait(struct timeval *) override;
+    int wait() override;
 };
 
 ReactorImpl *make_reactor_kqueue(Reactor *_reactor, int max_events) {
@@ -74,7 +73,7 @@ ReactorImpl *make_reactor_kqueue(Reactor *_reactor, int max_events) {
 ReactorKqueue::ReactorKqueue(Reactor *reactor, int max_events) : ReactorImpl(reactor) {
     epfd_ = kqueue();
     if (epfd_ < 0) {
-        swoole_warning("[swReactorKqueueCreate] kqueue_create[0] fail");
+        swoole_sys_warning("kqueue() failed");
         return;
     }
 
@@ -115,8 +114,13 @@ int ReactorKqueue::add(Socket *socket, int events) {
         EV_SET(&e, fd, EVFILT_READ, EV_ADD, fflags, 0, sobj);
         ret = ::kevent(epfd_, &e, 1, nullptr, 0, nullptr);
         if (ret < 0) {
-            swoole_sys_warning(
-                "add events_[fd=%d, reactor_id=%d, type=%d, events=read] failed", fd, reactor_->id, socket->fd_type);
+            swoole_error_log(SW_LOG_WARNING,
+                             SW_ERROR_EVENT_ADD_FAILED,
+                             "add events[fd=%d, reactor_id=%d, type=%d, events=read] failed",
+                             fd,
+                             reactor_->id,
+                             socket->fd_type);
+            swoole_print_backtrace_on_error();
             return SW_ERR;
         }
     }
@@ -125,8 +129,13 @@ int ReactorKqueue::add(Socket *socket, int events) {
         EV_SET(&e, fd, EVFILT_WRITE, EV_ADD, 0, 0, sobj);
         ret = ::kevent(epfd_, &e, 1, nullptr, 0, nullptr);
         if (ret < 0) {
-            swoole_sys_warning(
-                "add events_[fd=%d, reactor_id=%d, type=%d, events=write] failed", fd, reactor_->id, socket->fd_type);
+            swoole_error_log(SW_LOG_WARNING,
+                             SW_ERROR_EVENT_ADD_FAILED,
+                             "add events[fd=%d, reactor_id=%d, type=%d, events=write] failed",
+                             fd,
+                             reactor_->id,
+                             socket->fd_type);
+            swoole_print_backtrace_on_error();
             return SW_ERR;
         }
     }
@@ -157,14 +166,16 @@ int ReactorKqueue::set(Socket *socket, int events) {
         EV_SET(&e, fd, EVFILT_READ, EV_ADD, fflags, 0, sobj);
         ret = ::kevent(epfd_, &e, 1, nullptr, 0, nullptr);
         if (ret < 0) {
-            swoole_sys_warning("kqueue->set(%d, SW_EVENT_READ) failed", fd);
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_EVENT_UPDATE_FAILED, "kqueue->set(%d, SW_EVENT_READ) failed", fd);
+            swoole_print_backtrace_on_error();
             return SW_ERR;
         }
     } else {
         EV_SET(&e, fd, EVFILT_READ, EV_DELETE, 0, 0, sobj);
         ret = ::kevent(epfd_, &e, 1, nullptr, 0, nullptr);
         if (ret < 0) {
-            swoole_sys_warning("kqueue->del(%d, SW_EVENT_READ) failed", fd);
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_EVENT_REMOVE_FAILED, "kqueue->del(%d, SW_EVENT_READ) failed", fd);
+            swoole_print_backtrace_on_error();
             return SW_ERR;
         }
     }
@@ -173,14 +184,18 @@ int ReactorKqueue::set(Socket *socket, int events) {
         EV_SET(&e, fd, EVFILT_WRITE, EV_ADD, 0, 0, sobj);
         ret = ::kevent(epfd_, &e, 1, nullptr, 0, nullptr);
         if (ret < 0) {
-            swoole_sys_warning("kqueue->set(%d, SW_EVENT_WRITE) failed", fd);
+            swoole_error_log(
+                SW_LOG_WARNING, SW_ERROR_EVENT_UPDATE_FAILED, "kqueue->set(%d, SW_EVENT_WRITE) failed", fd);
+            swoole_print_backtrace_on_error();
             return SW_ERR;
         }
     } else {
         EV_SET(&e, fd, EVFILT_WRITE, EV_DELETE, 0, 0, sobj);
         ret = ::kevent(epfd_, &e, 1, nullptr, 0, nullptr);
         if (ret < 0) {
-            swoole_sys_warning("kqueue->del(%d, SW_EVENT_WRITE) failed", fd);
+            swoole_error_log(
+                SW_LOG_WARNING, SW_ERROR_EVENT_REMOVE_FAILED, "kqueue->del(%d, SW_EVENT_WRITE) failed", fd);
+            swoole_print_backtrace_on_error();
             return SW_ERR;
         }
     }
@@ -204,7 +219,8 @@ int ReactorKqueue::del(Socket *socket) {
 
     if (socket->removed) {
         swoole_error_log(
-            SW_LOG_WARNING, SW_ERROR_EVENT_SOCKET_REMOVED, "failed to delete event[%d], has been removed", socket->fd);
+            SW_LOG_WARNING, SW_ERROR_EVENT_REMOVE_FAILED, "failed to delete event[%d], has been removed", socket->fd);
+        swoole_print_backtrace_on_error();
         return SW_ERR;
     }
 
@@ -212,7 +228,7 @@ int ReactorKqueue::del(Socket *socket) {
         EV_SET(&e, fd, EVFILT_READ, EV_DELETE, 0, 0, sobj);
         ret = ::kevent(epfd_, &e, 1, nullptr, 0, nullptr);
         if (ret < 0) {
-            swoole_sys_warning("kqueue->del(%d, SW_EVENT_READ) failed", fd);
+            after_removal_failure(socket);
             if (errno != EBADF && errno != ENOENT) {
                 return SW_ERR;
             }
@@ -236,7 +252,7 @@ int ReactorKqueue::del(Socket *socket) {
     return SW_OK;
 }
 
-int ReactorKqueue::wait(struct timeval *timeo) {
+int ReactorKqueue::wait() {
     Event event;
     ReactorHandler handler;
 
@@ -244,20 +260,11 @@ int ReactorKqueue::wait(struct timeval *timeo) {
     struct timespec t = {};
     struct timespec *t_ptr;
 
-    if (reactor_->timeout_msec == 0) {
-        if (timeo == nullptr) {
-            reactor_->timeout_msec = -1;
-        } else {
-            reactor_->timeout_msec = timeo->tv_sec * 1000 + timeo->tv_usec / 1000;
-        }
-    }
-
     reactor_->before_wait();
 
     while (reactor_->running) {
-        if (reactor_->onBegin != nullptr) {
-            reactor_->onBegin(reactor_);
-        }
+        reactor_->execute_begin_callback();
+
         if (reactor_->timeout_msec > 0) {
             t.tv_sec = reactor_->timeout_msec / 1000;
             t.tv_nsec = (reactor_->timeout_msec - t.tv_sec * 1000) * 1000 * 1000;
@@ -273,7 +280,7 @@ int ReactorKqueue::wait(struct timeval *timeo) {
         n = ::kevent(epfd_, nullptr, 0, events_, event_max_, t_ptr);
         if (n < 0) {
             if (!reactor_->catch_error()) {
-                swoole_warning("kqueue[#%d], epfd=%d", reactor_->id, epfd_);
+                swoole_sys_warning("kevent(epfd=%d) failed ", epfd_);
                 return SW_ERR;
             } else {
                 goto _continue;
@@ -295,12 +302,13 @@ int ReactorKqueue::wait(struct timeval *timeo) {
             case EVFILT_READ:
             case EVFILT_WRITE: {
                 if (fetch_event(&event, udata)) {
-                    handler = reactor_->get_handler(kevent->filter == EVFILT_READ ? SW_EVENT_READ : SW_EVENT_WRITE,
-                                                    event.type);
+                    handler = reactor_->get_handler(event.type,
+                                                    kevent->filter == EVFILT_READ ? SW_EVENT_READ : SW_EVENT_WRITE);
                     if (sw_unlikely(handler(reactor_, &event) < 0)) {
                         swoole_sys_warning("kqueue event %s socket#%d handler failed",
-                                  kevent->filter == EVFILT_READ ? "read" : "write",
-                                  event.fd);
+                                           kevent->filter == EVFILT_READ ? "read" : "write",
+                                           event.fd);
+                        swoole_print_backtrace_on_error();
                     }
                     del_once_socket(event.socket);
                 }
@@ -310,7 +318,9 @@ int ReactorKqueue::wait(struct timeval *timeo) {
                 Signal *signal_data = (Signal *) udata;
                 if (signal_data->activated) {
                     if (signal_data->handler) {
-                        signal_data->handler(signal_data->signo);
+                        if (sw_likely(signal_data->handler != SIG_IGN)) {
+                            signal_data->handler(signal_data->signo);
+                        }
                     } else {
                         swoole_error_log(SW_LOG_WARNING,
                                          SW_ERROR_UNREGISTERED_SIGNAL,
@@ -321,7 +331,8 @@ int ReactorKqueue::wait(struct timeval *timeo) {
                 break;
             }
             default:
-                swoole_warning("unknown event filter[%d]", kevent->filter);
+                swoole_error_log(
+                    SW_LOG_WARNING, SW_ERROR_EVENT_UNKNOWN_DATA, "unknown event filter[%d]", kevent->filter);
                 break;
             }
         }

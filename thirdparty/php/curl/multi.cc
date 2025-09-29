@@ -17,14 +17,14 @@
 #include "php_swoole_cxx.h"
 #include "zend_object_handlers.h"
 
-#ifdef SW_USE_CURL
+#if defined(SW_USE_CURL) && PHP_VERSION_ID < 80400
 #include "php_swoole_curl.h"
 
 using swoole::curl::Multi;
 using swoole::curl::Selector;
 
 SW_EXTERN_C_BEGIN
-#include "curl_interface.h"
+#include "swoole_curl_interface.h"
 #include "curl_arginfo.h"
 
 #include <stdio.h>
@@ -68,10 +68,7 @@ PHP_FUNCTION(swoole_native_curl_multi_init) {
     object_init_ex(return_value, swoole_coroutine_curl_multi_handle_ce);
     mh = Z_CURL_MULTI_P(return_value);
     mh->multi = new Multi();
-    mh->multi->set_selector(new Selector());
-#if PHP_VERSION_ID < 80100
-    mh->handlers = (php_curlm_handlers *) ecalloc(1, sizeof(php_curlm_handlers));
-#endif
+
     swoole_curl_multi_set_in_coroutine(mh, true);
     zend_llist_init(&mh->easyh, sizeof(zval), swoole_curl_multi_cleanup_list, 0);
 }
@@ -91,7 +88,7 @@ PHP_FUNCTION(swoole_native_curl_multi_add_handle) {
     ZEND_PARSE_PARAMETERS_END();
 
     mh = Z_CURL_MULTI_P(z_mh);
-    ch = Z_CURL_P(z_ch);
+    ch = swoole_curl_get_handle(z_ch);
 
     if (!(swoole_curl_multi_is_in_coroutine(mh))) {
         swoole_fatal_error(SW_ERROR_WRONG_OPERATION,
@@ -643,20 +640,10 @@ static void _php_curl_multi_free(php_curlm *mh) {
         mh->multi = nullptr;
     }
     zend_llist_clean(&mh->easyh);
-#if PHP_VERSION_ID < 80100
-    if (mh->handlers->server_push) {
-        zval_ptr_dtor(&mh->handlers->server_push->func_name);
-        efree(mh->handlers->server_push);
-    }
-    if (mh->handlers) {
-        efree(mh->handlers);
-    }
-#else
     if (mh->handlers.server_push) {
         zval_ptr_dtor(&mh->handlers.server_push->func_name);
         efree(mh->handlers.server_push);
     }
-#endif
 }
 
 #endif

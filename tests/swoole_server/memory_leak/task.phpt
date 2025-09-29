@@ -15,6 +15,7 @@ $pm = new SwooleTest\ProcessManager;
 
 $GLOBALS['counter1'] = 0;
 $GLOBALS['counter2'] = 0;
+$GLOBALS['atomic'] = new Swoole\Atomic;
 
 $n = MAX_REQUESTS;
 $chunks = [];
@@ -57,10 +58,11 @@ $pm->childFunc = function () use ($pm, $total, $chunks) {
         'task_worker_num' => 1,
         'log_file' => '/dev/null',
     ));
-    $serv->on("WorkerStart", function (Server $serv, $wid) use ($pm) {
+    $serv->on('WorkerStart', function (Server $serv, $wid) use ($pm) {
         if ($wid == 0) {
             $pm->wakeup();
         }
+        $GLOBALS['atomic']->add();
     });
     $serv->on('receive', function (Server $serv, $fd, $rid, $_data) use ($chunks) {
         foreach ($chunks as $ch) {
@@ -82,6 +84,7 @@ $pm->childFunc = function () use ($pm, $total, $chunks) {
         $GLOBALS['memory_usage_2'] = memory_get_usage();
         Assert::lessThan($GLOBALS['memory_usage_2'] - $GLOBALS['memory_usage_1'], 8192);
         Assert::eq($GLOBALS['counter2'], $total);
+        $GLOBALS['atomic']->add();
         echo "DONE\n";
     });
     $serv->start();
@@ -89,6 +92,8 @@ $pm->childFunc = function () use ($pm, $total, $chunks) {
 
 $pm->childFirst();
 $pm->run();
+Assert::eq($GLOBALS['atomic']->get(), 4);
 ?>
 --EXPECT--
+DONE
 DONE

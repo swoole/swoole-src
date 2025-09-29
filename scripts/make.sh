@@ -1,15 +1,25 @@
-#!/bin/sh -e
+#!/bin/sh
 __CURRENT_DIR__=$(cd "$(dirname "$0")";pwd)
 __DIR__=$(cd "$(dirname "${__CURRENT_DIR__}")";pwd)
+__HAVE_ZTS__=$(php -v|grep ZTS)
+
 COMPILE_PARAMS="--enable-openssl \
 --enable-sockets \
 --enable-mysqlnd \
 --enable-swoole-curl \
 --enable-cares \
 --enable-swoole-pgsql \
+--enable-swoole-stdext \
 --with-swoole-odbc=unixODBC,/usr \
 --enable-swoole-sqlite"
 
+if [ -n "$__HAVE_ZTS__" ]; then
+    COMPILE_PARAMS="$COMPILE_PARAMS --enable-swoole-thread"
+fi
+
+if [ "$(uname)" = "Linux" ]; then
+    COMPILE_PARAMS="$COMPILE_PARAMS --enable-iouring"
+fi
 
 if [ "$(uname | grep -i darwin)"x != ""x ]; then
   CPU_COUNT="$(sysctl -n machdep.cpu.core_count)"
@@ -79,18 +89,18 @@ if [ "$1" = "help" ] ;then
 fi
 
 phpize
+
 if [ "$1" = "debug" ] ;then
   ./configure ${COMPILE_PARAMS} --enable-debug-log
 elif [ "$1" = "trace" ] ;then
   ./configure ${COMPILE_PARAMS} --enable-trace-log
+elif [ "$1" = "config" ] ;then
+  ./configure ${COMPILE_PARAMS}
+  exit 0
 else
   ./configure ${COMPILE_PARAMS}
 fi
+
 make clean
 make -j ${CPU_COUNT}
-
-if [ "$(whoami)" = "root" ]; then
-  make install
-else
-  sudo make install
-fi
+make install

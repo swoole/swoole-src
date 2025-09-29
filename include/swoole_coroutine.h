@@ -32,6 +32,9 @@
 #include <functional>
 #include <string>
 #include <unordered_map>
+#ifdef SW_USE_THREAD_CONTEXT
+#include <system_error>
+#endif
 
 typedef std::chrono::microseconds seconds_type;
 
@@ -135,19 +138,12 @@ class Coroutine {
         return ctx;
     }
 
-    static std::unordered_map<long, Coroutine *> coroutines;
+    static SW_THREAD_LOCAL std::unordered_map<long, Coroutine *> coroutines;
 
     static void set_on_yield(SwapCallback func);
     static void set_on_resume(SwapCallback func);
     static void set_on_close(SwapCallback func);
-    static void bailout(BailoutCallback func);
-
-    static inline bool run(const CoroutineFunc &fn, void *args = nullptr) {
-        swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
-        long cid = create(fn, args);
-        swoole_event_wait();
-        return cid > 0;
-    }
+    static void bailout(const BailoutCallback &func);
 
     static inline long create(const CoroutineFunc &fn, void *args = nullptr) {
 #ifdef SW_USE_THREAD_CONTEXT
@@ -161,12 +157,6 @@ class Coroutine {
 #else
         return (new Coroutine(fn, args))->run();
 #endif
-    }
-
-    static inline Coroutine *init_main_coroutine() {
-        Coroutine *co = new Coroutine(0, nullptr, nullptr);
-        co->state = STATE_RUNNING;
-        return co;
     }
 
     static void activate();
@@ -231,29 +221,21 @@ class Coroutine {
         return sw_likely(co) ? co->get_execute_usec() : -1;
     }
 
-    static inline void calc_execute_usec(Coroutine *yield_coroutine, Coroutine *resume_coroutine) {
-        long current_usec = time<seconds_type>(true);
-        if (yield_coroutine) {
-            yield_coroutine->execute_usec += current_usec - yield_coroutine->switch_usec;
-        }
-
-        if (resume_coroutine) {
-            resume_coroutine->switch_usec = current_usec;
-        }
-    }
-
+#ifdef SW_CORO_TIME
+    static void calc_execute_usec(Coroutine *yield_coroutine, Coroutine *resume_coroutine);
+#endif
     static void print_list();
 
   protected:
-    static Coroutine *current;
-    static long last_cid;
-    static uint64_t peak_num;
-    static size_t stack_size;
-    static SwapCallback on_yield;      /* before yield */
-    static SwapCallback on_resume;     /* before resume */
-    static SwapCallback on_close;      /* before close */
-    static BailoutCallback on_bailout; /* when bailout */
-    static bool activated;
+    static SW_THREAD_LOCAL Coroutine *current;
+    static SW_THREAD_LOCAL long last_cid;
+    static SW_THREAD_LOCAL uint64_t peak_num;
+    static SW_THREAD_LOCAL size_t stack_size;
+    static SW_THREAD_LOCAL SwapCallback on_yield;      /* before yield */
+    static SW_THREAD_LOCAL SwapCallback on_resume;     /* before resume */
+    static SW_THREAD_LOCAL SwapCallback on_close;      /* before close */
+    static SW_THREAD_LOCAL BailoutCallback on_bailout; /* when bailout */
+    static SW_THREAD_LOCAL bool activated;
 
     enum State state = STATE_INIT;
     enum ResumeCode resume_code_ = RC_OK;
@@ -266,45 +248,32 @@ class Coroutine {
     Coroutine *origin = nullptr;
     CancelFunc *cancel_fn_ = nullptr;
 
-    Coroutine(const CoroutineFunc &fn, void *private_data) : ctx(stack_size, fn, private_data) {
-        cid = ++last_cid;
-        coroutines[cid] = this;
-        if (sw_unlikely(count() > peak_num)) {
-            peak_num = count();
-        }
-    }
-
-    Coroutine(long _cid, const CoroutineFunc &fn, void *private_data) : ctx(stack_size, fn, private_data) {
-        cid = _cid;
-    }
-
-    long run() {
-        long cid = this->cid;
-        origin = current;
-        current = this;
-        CALC_EXECUTE_USEC(origin, nullptr);
-        state = STATE_RUNNING;
-        ctx.swap_in();
-        check_end();
-        return cid;
-    }
-
-    void check_end() {
-        if (ctx.is_end()) {
-            close();
-        } else if (sw_unlikely(on_bailout)) {
-            SW_ASSERT(current == nullptr);
-            on_bailout();
-        }
-    }
-
+    Coroutine(const CoroutineFunc &fn, void *private_data);
+    long run();
+    void check_end();
     void close();
 };
 //-------------------------------------------------------------------------------
 namespace coroutine {
+/**
+ * Support for timeouts and cancellations requires the caller to store the memory pointers of
+ * the input and output parameter objects in the `data` pointer of the `AsyncEvent` object.
+ * This field is a `shared_ptr`, which increments the reference count when dispatched to the AIO thread,
+ * collectively managing the `data` pointer.
+ * When the async task is completed, the caller receives the results or cancels or timeouts,
+ * the reference count will reach zero, and the memory will be released.
+ */
 bool async(async::Handler handler, AsyncEvent &event, double timeout = -1);
-bool async(const std::function<void(void)> &fn, double timeout = -1);
+/**
+ * This function should be used for asynchronous operations that do not support cancellation and timeouts.
+ * For example, in write/read operations,
+ * asynchronous tasks cannot transfer the memory ownership of wbuf/rbuf to the AIO thread.
+ * In the event of a timeout or cancellation, the memory of wbuf/rbuf will be released by the caller,
+ * which may lead the AIO thread to read from an erroneous memory pointer and consequently crash.
+ */
+bool async(const std::function<void()> &fn);
 bool run(const CoroutineFunc &fn, void *arg = nullptr);
+bool wait_for(const std::function<bool()> &fn);
 }  // namespace coroutine
 //-------------------------------------------------------------------------------
 }  // namespace swoole

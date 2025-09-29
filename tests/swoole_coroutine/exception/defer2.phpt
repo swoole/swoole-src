@@ -39,7 +39,7 @@ defer task begin
 
 Fatal error: Uncaught Exception in %s:%d
 Stack trace:
-#0 [internal function]: {closure}(NULL)
+#0 [internal function]: {closure%S}(NULL)
 #1 {main}
   thrown in %s on line %d
 shutdown

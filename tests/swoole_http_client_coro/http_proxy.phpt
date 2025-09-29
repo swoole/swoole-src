@@ -10,7 +10,7 @@ skip_if_offline();
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 go(function () {
-    $domain = 'www.qq.com';
+    $domain = 'www.baidu.com';
     $cli = new Swoole\Coroutine\Http\Client($domain, 443, true);
     // $cli->setHeaders(['Host' => $domain]); // without host header it can also work well
     $cli->set([
@@ -20,7 +20,7 @@ go(function () {
     ]);
     $result = $cli->get('/');
     Assert::assert($result);
-    Assert::assert(stripos($cli->body, 'tencent') !== false);
+    Assert::assert(stripos($cli->body, '百度') !== false);
     echo "DONE\n";
 });
 ?>

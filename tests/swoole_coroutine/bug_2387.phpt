@@ -1,7 +1,10 @@
 --TEST--
 swoole_coroutine: call_user_func_array
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php 
+require __DIR__ . '/../include/skipif.inc';
+skip_if_no_database();
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
@@ -33,7 +36,8 @@ $pm->childFunc = function () use ($pm) {
     $httpServer = new Swoole\Http\Server('0.0.0.0', $pm->getFreePort(), SWOOLE_BASE);
     $httpServer->set([
         'log_file' => '/dev/null',
-        'worker_num' => 1
+        'worker_num' => 1,
+        'hook_flags' => SWOOLE_HOOK_ALL,
     ]);
     $httpServer->on('WorkerStart', function (Swoole\Http\Server $server) use ($pm, $config) {
         try {

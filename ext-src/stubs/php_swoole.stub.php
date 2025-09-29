@@ -16,7 +16,7 @@ function swoole_async_dns_lookup_coro(string $domain_name, float $timeout = 60, 
 {
 }
 
-function swoole_async_set(array $settings): void
+function swoole_async_set(array $settings): bool
 {
 }
 
@@ -36,7 +36,7 @@ function swoole_test_kernel_coroutine(int $count = 100, float $sleep_time = 1.0)
 {
 }
 
-function swoole_client_select(array &$read_array, array &$write_array, array &$error_array, float $timeout = 0.5): false|int
+function swoole_client_select(?array &$read, ?array &$write, ?array &$except, ?float $timeout = 0.5): false|int
 {
 }
 
@@ -118,4 +118,10 @@ function swoole_substr_json_decode(string $str, int $offset, int $length = 0, bo
 
 function swoole_internal_call_user_shutdown_begin(): bool
 {
+}
+
+
+function swoole_implicit_fn(string $fn, mixed $args = null): mixed
+{
+
 }

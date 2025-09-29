@@ -100,7 +100,7 @@ $pm->parentFunc = function () use ($pm) {
         });
 
         $wg->wait();
-        
+
         $client = new Client('127.0.0.1', $pm->getFreePort());
         $client->get('/stop?hello=1');
         echo $client->body . PHP_EOL;
@@ -117,7 +117,7 @@ $pm->childFunc = function () use ($pm) {
         $server->handle('/invalidaddress', function (Request $request, Response $response) {
             Assert::eq($request->post['bind_address'], '11111');
             Assert::eq($request->server['remote_addr'], '127.0.0.1');
-            Assert::eq($request->server['remote_port'], $request->post['bind_port']);
+            Assert::notEq($request->server['remote_port'], $request->post['bind_port']);
         });
         $server->handle('/invalidport', function (Request $request, Response $response) {
             Assert::eq($request->post['bind_port'], '-1');

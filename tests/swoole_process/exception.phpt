@@ -46,7 +46,7 @@ class Process6 extends AbstractProcess
 Fatal error: Uncaught Error: Call to undefined function AAAA() in %s:%d
 Stack trace:
 #0 %s(%d): Process6->run()
-#1 [internal function]: AbstractProcess->{closure}(Object(Swoole\Process))
+#1 [internal function]: AbstractProcess->{closure%S}(Object(Swoole\Process))
 #2 %s(%d): Swoole\Process->start()
 #3 %s(%d): AbstractProcess->start()
 #4 {main}
