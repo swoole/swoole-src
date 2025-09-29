@@ -16,14 +16,14 @@ env:
 
 jobs:
   coverity-scan:
-    if: github.repository_owner == 'swoole'
+    if: "github.repository_owner == 'swoole' && (!contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[coverity]'))"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: "8.0"
+          php-version: "8.3"
 
       - name: Download and install Coverity Build Tool
         run: |
