@@ -22,37 +22,35 @@
 namespace swoole {
 namespace curl {
 
-static SW_THREAD_LOCAL std::unordered_map<CURL *, Handle *> handle_buckets;
-
 Handle *get_handle(CURL *cp) {
-    auto iter = handle_buckets.find(cp);
-    return iter == handle_buckets.end() ? nullptr : iter->second;
+    Handle *handle;
+    if (curl_easy_getinfo(cp, CURLINFO_PRIVATE, (void *) &handle) == CURLE_OK) {
+        return handle;
+    } else {
+        return nullptr;
+    }
 }
 
 Handle *create_handle(CURL *cp) {
-    auto iter = handle_buckets.find(cp);
-    if (iter != handle_buckets.end()) {
-        return nullptr;
-    }
     Handle *handle = new Handle(cp);
-    handle_buckets[cp] = handle;
+    curl_easy_setopt(cp, CURLOPT_PRIVATE, handle);
     swoole_trace_log(SW_TRACE_CO_CURL, SW_ECHO_MAGENTA " handle=%p, curl=%p", "[CREATE]", handle, cp);
     return handle;
 }
 
 void destroy_handle(CURL *cp) {
-    auto iter = handle_buckets.find(cp);
-    if (iter == handle_buckets.end()) {
+    auto handle = get_handle(cp);
+    if (!handle) {
         return;
     }
-    auto handle = iter->second;
-    handle_buckets.erase(iter);
 
     if (handle->easy_multi) {
         delete handle->easy_multi;
     }
 
     delete handle;
+    curl_easy_setopt(cp, CURLOPT_PRIVATE, nullptr);
+
     swoole_trace_log(SW_TRACE_CO_CURL, SW_ECHO_RED " handle=%p, curl=%p", "[DESTROY]", handle, cp);
 }
 
@@ -104,19 +102,25 @@ int Multi::cb_error(Reactor *reactor, Event *event) {
     return execute_callback(event, CURL_CSELECT_ERR);
 }
 
-int Multi::handle_socket(CURL *easy, curl_socket_t sockfd, int action, void *userp, void *socketp) {
+int Multi::handle_socket(CURL *cp, curl_socket_t sockfd, int action, void *userp, void *socketp) {
     Multi *multi = (Multi *) userp;
-    swoole_trace_log(
-        SW_TRACE_CO_CURL, SW_ECHO_CYAN "action=%d, userp=%p, socketp=%p", "[HANDLE_SOCKET]", action, userp, socketp);
+    swoole_trace_log(SW_TRACE_CO_CURL,
+                     SW_ECHO_CYAN "curl=%p, sockfd=%d, action=%d, userp=%p, socketp=%p",
+                     "[HANDLE_SOCKET]",
+                     cp,
+                     sockfd,
+                     action,
+                     userp,
+                     socketp);
     switch (action) {
     case CURL_POLL_IN:
     case CURL_POLL_OUT:
     case CURL_POLL_INOUT:
-        multi->set_event(easy, socketp, sockfd, action);
+        multi->set_event(cp, socketp, sockfd, action);
         break;
     case CURL_POLL_REMOVE:
         if (socketp) {
-            multi->del_event(easy, socketp, sockfd);
+            multi->del_event(cp, socketp, sockfd);
         }
         break;
     default:
@@ -147,12 +151,13 @@ void Multi::del_event(CURL *cp, void *socket_ptr, curl_socket_t sockfd) {
     if (curl_socket->socket->events && swoole_event_is_available() && swoole_event_del(curl_socket->socket) == SW_OK) {
         event_count_--;
     }
-    curl_multi_assign(multi_handle_, sockfd, NULL);
 
     Handle *handle = get_handle(cp);
     if (handle) {
         handle->destroy_socket(sockfd);
     }
+
+    curl_multi_assign(multi_handle_, sockfd, NULL);
 
     swoole_trace_log(SW_TRACE_CO_CURL, SW_ECHO_RED " handle=%p, curl=%p, fd=%d", "[DEL_EVENT]", handle, cp, sockfd);
 }
@@ -217,6 +222,7 @@ CURLcode Multi::exec(Handle *handle) {
 
     HandleSocket *curl_socket = nullptr;
     bool is_canceled = false;
+    event_count_ = 0;
 
     SW_LOOP {
         for (auto it : handle->sockets) {
@@ -233,14 +239,16 @@ CURLcode Multi::exec(Handle *handle) {
             }
         }
 
-        co = check_bound_co();
-        co->yield_ex(-1);
-        is_canceled = co->is_canceled();
-        co = nullptr;
+        if (wait_event()) {
+            co = check_bound_co();
+            co->yield_ex(-1);
+            is_canceled = co->is_canceled();
+            co = nullptr;
 
-        if (is_canceled) {
-            swoole_set_last_error(SW_ERROR_CO_CANCELED);
-            break;
+            if (is_canceled) {
+                swoole_set_last_error(SW_ERROR_CO_CANCELED);
+                break;
+            }
         }
 
         selector_finish();
@@ -253,13 +261,17 @@ CURLcode Multi::exec(Handle *handle) {
 
     for (auto it : handle->sockets) {
         curl_socket = it.second;
-        if (curl_socket->socket && !curl_socket->socket->removed) {
-            if (swoole_event_del(curl_socket->socket) == SW_OK) {
-                event_count_--;
+        if (curl_socket->socket) {
+            if (!curl_socket->socket->removed) {
+                swoole_event_del(curl_socket->socket);
             }
+            curl_socket->socket->fd = -1;
+            curl_socket->socket->free();
+            delete curl_socket;
         }
     }
     del_timer();
+    handle->sockets.clear();
 
     CURLcode retval = read_info();
     remove_handle(handle);
@@ -327,13 +339,13 @@ void Multi::selector_finish() {
         auto sockets = handle->sockets;
         for (auto it : sockets) {
             HandleSocket *sock = it.second;
-            curl_multi_socket_action(multi_handle_, sock->event_fd, sock->event_bitmask, &running_handles_);
             swoole_trace_log(SW_TRACE_CO_CURL,
                              "curl_multi_socket_action: handle=%p, sockfd=%d, bitmask=%d, running_handles_=%d",
                              handle,
                              sock->event_fd,
                              sock->event_bitmask,
                              running_handles_);
+            curl_multi_socket_action(multi_handle_, sock->event_fd, sock->event_bitmask, &running_handles_);
         }
     }
     selector.active_handles.clear();
@@ -381,7 +393,7 @@ long Multi::select(php_curlm *mh, double timeout) {
     set_timer();
 
     // no events and timers, should not be suspended
-    if (!timer && event_count_ == 0) {
+    if (!wait_event()) {
         return 0;
     }
 
@@ -460,6 +472,12 @@ CURLcode swoole_curl_easy_perform(CURL *cp) {
         handle->easy_multi = new Multi();
     }
     return handle->easy_multi->exec(handle);
+}
+
+void swoole_curl_easy_reset(CURL *cp) {
+    auto handle = swoole::curl::get_handle(cp);
+    curl_easy_reset(cp);
+    curl_easy_setopt(cp, CURLOPT_PRIVATE, handle);
 }
 
 php_curl *swoole_curl_get_handle(zval *zid, bool exclusive, bool required) {
