@@ -2640,8 +2640,6 @@ static void swoole_curl_free_obj(zend_object *object) {
         handle->multi->remove_handle(handle);
     }
 
-    curl_easy_cleanup(ch->cp);
-
     /* cURL destructors should be invoked only by last curl handle */
     if (--(*ch->clone) == 0) {
         zend_llist_clean(&ch->to_free->post);
@@ -2652,6 +2650,10 @@ static void swoole_curl_free_obj(zend_object *object) {
         efree(ch->to_free);
         efree(ch->clone);
         swoole::curl::destroy_handle(ch->cp);
+    }
+
+    if (ch->cp) {
+        curl_easy_cleanup(ch->cp);
     }
 
     smart_str_free(&ch->handlers.write->buf);

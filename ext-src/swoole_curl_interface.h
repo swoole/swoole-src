@@ -24,6 +24,8 @@ SW_EXTERN_C_BEGIN
 #include <curl/curl.h>
 #include <curl/multi.h>
 
+#define curl_easy_reset swoole_curl_easy_reset
+
 void swoole_native_curl_minit(int module_number);
 void swoole_native_curl_mshutdown();
 

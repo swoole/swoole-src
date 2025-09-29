@@ -37,6 +37,7 @@ SW_EXTERN_C_END
 
 CURLcode swoole_curl_easy_perform(CURL *cp);
 php_curl *swoole_curl_get_handle(zval *zid, bool exclusive = true, bool required = true);
+void swoole_curl_easy_reset(CURL *curl);
 
 namespace swoole {
 namespace curl {
@@ -94,6 +95,10 @@ class Multi {
     void set_event(CURL *cp, void *socket_ptr, curl_socket_t sockfd, int action);
     void del_event(CURL *cp, void *socket_ptr, curl_socket_t sockfd);
     void selector_finish();
+
+    bool wait_event() {
+        return timer || event_count_ > 0;
+    }
 
     void add_timer(long timeout_ms) {
         if (timer && swoole_timer_is_available()) {

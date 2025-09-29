@@ -222,12 +222,12 @@ AC_DEFUN([AC_SWOOLE_HAVE_FUTEX],
 [
     AC_MSG_CHECKING([for futex])
     AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+        #include <linux/futex.h>
         #include <syscall.h>
         #include <unistd.h>
     ]], [[
         int futex_addr;
-        int val1;
-        syscall(SYS_futex, &futex_addr, val1, NULL, NULL, 0);
+        syscall(SYS_futex, &futex_addr, FUTEX_WAIT, NULL, NULL, 0);
     ]])],[
         AC_DEFINE([HAVE_FUTEX], 1, [have FUTEX?])
         AC_MSG_RESULT([yes])
