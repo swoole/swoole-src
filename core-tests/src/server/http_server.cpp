@@ -1434,7 +1434,7 @@ TEST(http_server, abort_connection) {
 
     serv.create();
 
-    Mutex lock(Mutex::PROCESS_SHARED);
+    Mutex lock(true);
     lock.lock();
 
     thread th([&serv, port, &lock]() {
@@ -1884,7 +1884,7 @@ static void test_ssl_http(Server::Mode mode) {
     serv.worker_num = 1;
     swoole_set_log_level(SW_LOG_INFO);
 
-    Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
+    Mutex *lock = new Mutex(true);
     lock->lock();
 
     const int server_port = __LINE__ + TEST_PORT;

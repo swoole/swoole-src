@@ -62,12 +62,10 @@ Channel *Channel::make(size_t size, size_t maxlen, int flags) {
     object->maxlen = maxlen;
     object->flags = flags;
 
-    // use lock
     if (flags & SW_CHAN_LOCK) {
-        // init lock
-        object->lock = new Mutex(Mutex::PROCESS_SHARED);
+        object->lock = new Mutex(true);
     }
-    // use notify
+
     if (flags & SW_CHAN_NOTIFY) {
         object->notify_pipe = new Pipe(true);
         if (!object->notify_pipe->ready()) {

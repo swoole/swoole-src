@@ -26,21 +26,18 @@ struct RWLockImpl {
     pthread_rwlockattr_t attr;
 };
 
-RWLock::RWLock(int use_in_process) : Lock() {
-    if (use_in_process) {
+RWLock::RWLock(bool shared) : Lock(RW_LOCK, shared) {
+    if (shared) {
         impl = (RWLockImpl *) sw_mem_pool()->alloc(sizeof(*impl));
         if (impl == nullptr) {
             throw std::bad_alloc();
         }
-        shared_ = true;
     } else {
         impl = new RWLockImpl();
-        shared_ = false;
     }
 
-    type_ = RW_LOCK;
     pthread_rwlockattr_init(&impl->attr);
-    if (use_in_process == 1) {
+    if (shared) {
         pthread_rwlockattr_setpshared(&impl->attr, PTHREAD_PROCESS_SHARED);
     }
     if (pthread_rwlock_init(&impl->_lock, &impl->attr) != 0) {
@@ -48,42 +45,40 @@ RWLock::RWLock(int use_in_process) : Lock() {
     }
 }
 
-int RWLock::lock_rd() {
-    return pthread_rwlock_rdlock(&impl->_lock);
+int RWLock::lock(int operation) {
+    if (operation & LOCK_NB) {
+        if (operation & LOCK_SH) {
+            return pthread_rwlock_tryrdlock(&impl->_lock);
+        } else {
+            return pthread_rwlock_trywrlock(&impl->_lock);
+        }
+    } else {
+        if (operation & LOCK_SH) {
+            return pthread_rwlock_rdlock(&impl->_lock);
+        } else {
+            return pthread_rwlock_wrlock(&impl->_lock);
+        }
+    }
 }
 
-#ifdef HAVE_RWLOCK_TIMEDRDLOCK
-int RWLock::lock_rd_wait(int timeout_msec) {
+int RWLock::lock_wait(int timeout_msec, int operation) {
+#if defined(HAVE_RWLOCK_TIMEDRDLOCK) && defined(HAVE_RWLOCK_TIMEDWRLOCK)
     timespec timeo;
     realtime_get(&timeo);
     realtime_add(&timeo, timeout_msec);
-    return pthread_rwlock_timedrdlock(&impl->_lock, &timeo);
-}
-#endif
 
-#ifdef HAVE_RWLOCK_TIMEDWRLOCK
-int RWLock::lock_wait(int timeout_msec) {
-    timespec timeo;
-    realtime_get(&timeo);
-    realtime_add(&timeo, timeout_msec);
-    return pthread_rwlock_timedwrlock(&impl->_lock, &timeo);
-}
+    if (operation & LOCK_SH) {
+        return pthread_rwlock_timedrdlock(&impl->_lock, &timeo);
+    } else {
+        return pthread_rwlock_timedwrlock(&impl->_lock, &timeo);
+    }
+#else
+    return SW_ERROR_OPERATION_NOT_SUPPORT;
 #endif
-
-int RWLock::lock() {
-    return pthread_rwlock_wrlock(&impl->_lock);
 }
 
 int RWLock::unlock() {
     return pthread_rwlock_unlock(&impl->_lock);
-}
-
-int RWLock::trylock_rd() {
-    return pthread_rwlock_tryrdlock(&impl->_lock);
-}
-
-int RWLock::trylock() {
-    return pthread_rwlock_trywrlock(&impl->_lock);
 }
 
 RWLock::~RWLock() {
@@ -97,5 +92,4 @@ RWLock::~RWLock() {
 }
 
 }  // namespace swoole
-
 #endif
