@@ -113,9 +113,6 @@ void php_swoole_thread_lock_create(zval *return_value, ThreadResource *resource)
 SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_thread_lock, __construct);
 static PHP_METHOD(swoole_thread_lock, lock);
-static PHP_METHOD(swoole_thread_lock, trylock);
-static PHP_METHOD(swoole_thread_lock, lock_read);
-static PHP_METHOD(swoole_thread_lock, trylock_read);
 static PHP_METHOD(swoole_thread_lock, unlock);
 SW_EXTERN_C_END
 
