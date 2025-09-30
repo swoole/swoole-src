@@ -365,9 +365,14 @@ void PHPCoroutine::bailout() {
 
 bool PHPCoroutine::catch_exception() {
     if (UNEXPECTED(EG(exception))) {
-        // the exception error messages MUST be output on the current coroutine stack
-        zend_exception_error(EG(exception), E_ERROR);
-        return true;
+        if (EG(exception)->ce == swoole_coroutine_canceled_exception_ce) {
+            OBJ_RELEASE(EG(exception));
+            EG(exception) = nullptr;
+        } else {
+            // the exception error messages MUST be output on the current coroutine stack
+            zend_exception_error(EG(exception), E_ERROR);
+            return true;
+        }
     }
     return false;
 }
@@ -988,6 +993,7 @@ void php_swoole_coroutine_minit(int module_number) {
                             nullptr,
                             zend_ce_exception,
                             zend_get_std_object_handlers());
+    swoole_coroutine_canceled_exception_ce->ce_flags |= ZEND_ACC_FINAL;
 
     SW_REGISTER_LONG_CONSTANT("SWOOLE_EXIT_IN_COROUTINE", SW_EXIT_IN_COROUTINE);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_EXIT_IN_SERVER", SW_EXIT_IN_SERVER);
