@@ -34,7 +34,7 @@ SpinLock::SpinLock(bool shared) : Lock(SPIN_LOCK, shared) {
     }
 }
 
-int SpinLock::lock(int operation) {
+int SpinLock::lock(int operation, int _) {
 	if (operation & LOCK_NB) {
 	    return pthread_spin_trylock(impl);
 	} else {

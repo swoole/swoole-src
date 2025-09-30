@@ -19,10 +19,6 @@
 
 namespace swoole {
 
-int Lock::lock_wait(int timeout_msec, int operation) {
-	return SW_ERROR_OPERATION_NOT_SUPPORT;
-}
-
 struct MutexImpl {
     pthread_mutex_t lock_;
     pthread_mutexattr_t attr_;
@@ -47,19 +43,11 @@ Mutex::Mutex(bool shared) : Lock(MUTEX, shared) {
     }
 }
 
-int Mutex::lock(int operation) {
+int Mutex::lock(int operation, int timeout_msec) {
 	if (operation & LOCK_NB) {
 	    return pthread_mutex_trylock(&impl->lock_);
-	} else {
-	    return pthread_mutex_lock(&impl->lock_);
 	}
-}
-
-int Mutex::unlock() {
-    return pthread_mutex_unlock(&impl->lock_);
-}
-
-int Mutex::lock_wait(int timeout_msec, int operation) {
+	if (timeout_msec > 0) {
 #ifndef HAVE_MUTEX_TIMEDLOCK
     timespec timeo;
     realtime_get(&timeo);
@@ -70,6 +58,13 @@ int Mutex::lock_wait(int timeout_msec, int operation) {
     	return pthread_mutex_trylock(&impl->lock_) == 0;
     }, timeout_msec) ? 0  :   ETIMEDOUT;
 #endif
+	}
+	return pthread_mutex_lock(&impl->lock_);
+
+}
+
+int Mutex::unlock() {
+    return pthread_mutex_unlock(&impl->lock_);
 }
 
 Mutex::~Mutex() {

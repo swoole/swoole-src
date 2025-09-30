@@ -42,17 +42,17 @@ struct LockResource : public ThreadResource {
         switch (type) {
 #ifdef HAVE_SPINLOCK
         case Lock::SPIN_LOCK:
-            lock_ = new SpinLock(0);
+            lock_ = new SpinLock(false);
             break;
 #endif
 #ifdef HAVE_RWLOCK
         case Lock::RW_LOCK:
-            lock_ = new RWLock(0);
+            lock_ = new RWLock(false);
             break;
 #endif
         case Lock::MUTEX:
         default:
-            lock_ = new Mutex(0);
+            lock_ = new Mutex(false);
             break;
         }
     }
@@ -61,29 +61,29 @@ struct LockResource : public ThreadResource {
     }
 };
 
-struct LockObject {
+struct ThreadLockObject {
     LockResource *lock;
     zend_object std;
 };
 
-static sw_inline LockObject *lock_fetch_object(zend_object *obj) {
-    return reinterpret_cast<LockObject *>(reinterpret_cast<char *>(obj) - swoole_thread_lock_handlers.offset);
+static sw_inline ThreadLockObject *thread_lock_fetch_object(zend_object *obj) {
+    return reinterpret_cast<ThreadLockObject *>(reinterpret_cast<char *>(obj) - swoole_thread_lock_handlers.offset);
 }
 
-static Lock *lock_get_ptr(const zval *zobject) {
-    return lock_fetch_object(Z_OBJ_P(zobject))->lock->lock_;
+static Lock *thread_lock_get_ptr(const zval *zobject) {
+    return thread_lock_fetch_object(Z_OBJ_P(zobject))->lock->lock_;
 }
 
-static Lock *lock_get_and_check_ptr(const zval *zobject) {
-    Lock *lock = lock_get_ptr(zobject);
+static Lock *thread_lock_get_and_check_ptr(const zval *zobject) {
+    Lock *lock = thread_lock_get_ptr(zobject);
     if (!lock) {
         php_swoole_fatal_error(E_ERROR, "must call constructor first");
     }
     return lock;
 }
 
-static void lock_free_object(zend_object *object) {
-    LockObject *o = lock_fetch_object(object);
+static void thread_lock_free_object(zend_object *object) {
+    ThreadLockObject *o = thread_lock_fetch_object(object);
     if (o->lock) {
         o->lock->del_ref();
         o->lock = nullptr;
@@ -91,8 +91,8 @@ static void lock_free_object(zend_object *object) {
     zend_object_std_dtor(object);
 }
 
-static zend_object *lock_create_object(zend_class_entry *ce) {
-    auto lock = static_cast<LockObject *>(zend_object_alloc(sizeof(LockObject), ce));
+static zend_object *thread_lock_create_object(zend_class_entry *ce) {
+    auto lock = static_cast<ThreadLockObject *>(zend_object_alloc(sizeof(ThreadLockObject), ce));
     zend_object_std_init(&lock->std, ce);
     object_properties_init(&lock->std, ce);
     lock->std.handlers = &swoole_thread_lock_handlers;
@@ -100,21 +100,19 @@ static zend_object *lock_create_object(zend_class_entry *ce) {
 }
 
 ThreadResource *php_swoole_thread_lock_cast(const zval *zobject) {
-    return lock_fetch_object(Z_OBJ_P(zobject))->lock;
+    return thread_lock_fetch_object(Z_OBJ_P(zobject))->lock;
 }
 
 void php_swoole_thread_lock_create(zval *return_value, ThreadResource *resource) {
-    auto obj = lock_create_object(swoole_thread_lock_ce);
-    auto lo = (LockObject *) lock_fetch_object(obj);
+    auto obj = thread_lock_create_object(swoole_thread_lock_ce);
+    auto lo = (ThreadLockObject *) thread_lock_fetch_object(obj);
     lo->lock = static_cast<LockResource *>(resource);
     ZVAL_OBJ(return_value, obj);
 }
 
 SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_thread_lock, __construct);
-static PHP_METHOD(swoole_thread_lock, __destruct);
 static PHP_METHOD(swoole_thread_lock, lock);
-static PHP_METHOD(swoole_thread_lock, lockwait);
 static PHP_METHOD(swoole_thread_lock, trylock);
 static PHP_METHOD(swoole_thread_lock, lock_read);
 static PHP_METHOD(swoole_thread_lock, trylock_read);
@@ -125,12 +123,7 @@ SW_EXTERN_C_END
 static const zend_function_entry swoole_thread_lock_methods[] =
 {
     PHP_ME(swoole_thread_lock, __construct,  arginfo_class_Swoole_Thread_Lock___construct,  ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_thread_lock, __destruct,   arginfo_class_Swoole_Thread_Lock___destruct,   ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread_lock, lock,         arginfo_class_Swoole_Thread_Lock_lock,         ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_thread_lock, lockwait,     arginfo_class_Swoole_Thread_Lock_locakwait,    ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_thread_lock, trylock,      arginfo_class_Swoole_Thread_Lock_trylock,      ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_thread_lock, lock_read,    arginfo_class_Swoole_Thread_Lock_lock_read,    ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_thread_lock, trylock_read, arginfo_class_Swoole_Thread_Lock_trylock_read, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread_lock, unlock,       arginfo_class_Swoole_Thread_Lock_unlock,       ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
@@ -141,7 +134,7 @@ void php_swoole_thread_lock_minit(int module_number) {
     swoole_thread_lock_ce->ce_flags |= ZEND_ACC_FINAL | ZEND_ACC_NOT_SERIALIZABLE;
     SW_SET_CLASS_CLONEABLE(swoole_thread_lock, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_thread_lock, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CUSTOM_OBJECT(swoole_thread_lock, lock_create_object, lock_free_object, LockObject, std);
+    SW_SET_CLASS_CUSTOM_OBJECT(swoole_thread_lock, thread_lock_create_object, thread_lock_free_object, ThreadLockObject, std);
 
     zend_declare_class_constant_long(swoole_thread_lock_ce, ZEND_STRL("MUTEX"), Lock::MUTEX);
 #ifdef HAVE_RWLOCK
@@ -154,7 +147,7 @@ void php_swoole_thread_lock_minit(int module_number) {
 }
 
 static PHP_METHOD(swoole_thread_lock, __construct) {
-    auto o = lock_fetch_object(Z_OBJ_P(ZEND_THIS));
+    auto o = thread_lock_fetch_object(Z_OBJ_P(ZEND_THIS));
     if (o->lock != nullptr) {
         zend_throw_error(nullptr, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
         RETURN_FALSE;
@@ -170,52 +163,27 @@ static PHP_METHOD(swoole_thread_lock, __construct) {
     o->lock = new LockResource(type);
 }
 
-static PHP_METHOD(swoole_thread_lock, __destruct) {}
-
 static PHP_METHOD(swoole_thread_lock, lock) {
-    Lock *lock = lock_get_and_check_ptr(ZEND_THIS);
-    SW_LOCK_CHECK_RETURN(lock->lock());
-}
+    zend_long operation = LOCK_EX;
+    double timeout = -1;
 
-static PHP_METHOD(swoole_thread_lock, lockwait) {
-    double timeout = 1.0;
-
-    ZEND_PARSE_PARAMETERS_START(0, 1)
+    ZEND_PARSE_PARAMETERS_START(0, 2)
     Z_PARAM_OPTIONAL
+    Z_PARAM_LONG(operation)
     Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    Lock *lock = lock_get_and_check_ptr(ZEND_THIS);
-    if (lock->get_type() != Lock::MUTEX) {
-        zend_throw_exception(swoole_exception_ce, "only mutex supports lockwait", -2);
+    Lock *lock = thread_lock_get_and_check_ptr(ZEND_THIS);
+    if (timeout > 0 && !in_range(lock->get_type(), {Lock::RW_LOCK, Lock::MUTEX})) {
+        zend_throw_exception(swoole_exception_ce, "only `mutex` and `rwlock` supports timeout", -2);
         RETURN_FALSE;
     }
-    Mutex *mutex = dynamic_cast<Mutex *>(lock);
-    if (mutex == nullptr) {
-        zend_throw_exception(swoole_exception_ce, "wrong lock type", -3);
-        RETURN_FALSE;
-    }
-    SW_LOCK_CHECK_RETURN(mutex->lock_wait((int) timeout * 1000));
+    SW_LOCK_CHECK_RETURN(lock->lock(operation, timeout));
 }
 
 static PHP_METHOD(swoole_thread_lock, unlock) {
-    Lock *lock = lock_get_and_check_ptr(ZEND_THIS);
+    Lock *lock = thread_lock_get_and_check_ptr(ZEND_THIS);
     SW_LOCK_CHECK_RETURN(lock->unlock());
-}
-
-static PHP_METHOD(swoole_thread_lock, trylock) {
-    Lock *lock = lock_get_and_check_ptr(ZEND_THIS);
-    SW_LOCK_CHECK_RETURN(lock->trylock());
-}
-
-static PHP_METHOD(swoole_thread_lock, trylock_read) {
-    Lock *lock = lock_get_and_check_ptr(ZEND_THIS);
-    SW_LOCK_CHECK_RETURN(lock->trylock_rd());
-}
-
-static PHP_METHOD(swoole_thread_lock, lock_read) {
-    Lock *lock = lock_get_and_check_ptr(ZEND_THIS);
-    SW_LOCK_CHECK_RETURN(lock->lock_rd());
 }
 
 #endif

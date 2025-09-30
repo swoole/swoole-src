@@ -37,9 +37,8 @@ class Lock {
         return type_;
     }
     virtual ~Lock() = default;
-    virtual int lock(int operation = LOCK_EX) = 0;
+    virtual int lock(int operation = LOCK_EX, int timeout_msec = -1) = 0;
     virtual int unlock() = 0;
-    virtual int lock_wait(int timeout_msec, int operation);
 
   protected:
     Lock(Type type, bool shared) {
@@ -58,8 +57,7 @@ class Mutex final : public Lock {
   public:
     explicit Mutex(bool shared);
     ~Mutex() override;
-    int lock(int operation = LOCK_EX) override;
-    int lock_wait(int timeout_msec = 1000, int operation = LOCK_EX) override;
+    int lock(int operation = LOCK_EX, int timeout_msec = -1) override;
     int unlock() override;
 };
 
@@ -72,9 +70,14 @@ class RWLock final : public Lock {
   public:
     explicit RWLock(bool shared);
     ~RWLock() override;
-    int lock(int operation = LOCK_EX) override;
+    int lock(int operation = LOCK_EX, int timeout_msec = -1) override;
     int unlock() override;
-    int lock_wait(int timeout_msec, int operation) override;
+    int lock_rd() {
+    	return lock(LOCK_SH);
+    }
+    int lock_wr() {
+    	return lock(LOCK_EX);
+    }
 };
 #endif
 
@@ -85,7 +88,7 @@ class SpinLock final : public Lock {
   public:
     explicit SpinLock(bool shared);
     ~SpinLock() override;
-    int lock(int operation = LOCK_EX) override;
+    int lock(int operation = LOCK_EX, int timeout_msec = -1) override;
     int unlock() override;
 };
 #endif
@@ -100,7 +103,7 @@ class CoroutineLock final : public Lock {
   public:
     explicit CoroutineLock(bool shared);
     ~CoroutineLock() override;
-    int lock(int operation = LOCK_EX) override;
+    int lock(int operation = LOCK_EX, int timeout_msec = -1) override;
     int unlock() override;
 };
 

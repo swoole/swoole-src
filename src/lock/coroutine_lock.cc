@@ -44,7 +44,7 @@ CoroutineLock::~CoroutineLock() {
     value = nullptr;
 }
 
-int CoroutineLock::lock(int operation) {
+int CoroutineLock::lock(int operation, int _) {
 	if (operation & LOCK_NB) {
 	    return lock_impl(false);
 	} else {

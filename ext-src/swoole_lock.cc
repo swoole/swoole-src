@@ -17,6 +17,7 @@
 #include "php_swoole_private.h"
 #include "swoole_memory.h"
 #include "swoole_lock.h"
+#include "swoole_util.h"
 
 #include <sys/file.h>
 
@@ -94,8 +95,7 @@ void php_swoole_lock_minit(int module_number) {
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_lock);
     SW_SET_CLASS_CLONEABLE(swoole_lock, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_lock, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CUSTOM_OBJECT(
-        swoole_lock, lock_create_object, lock_free_object, LockObject, std);
+    SW_SET_CLASS_CUSTOM_OBJECT(swoole_lock, lock_create_object, lock_free_object, LockObject, std);
 
     zend_declare_class_constant_long(swoole_lock_ce, ZEND_STRL("MUTEX"), Lock::MUTEX);
 #ifdef HAVE_RWLOCK
@@ -153,8 +153,8 @@ static PHP_METHOD(swoole_lock, __construct) {
 }
 
 static PHP_METHOD(swoole_lock, lock) {
-    double timeout = -1;
     zend_long operation = LOCK_EX;
+    double timeout = -1;
 
     ZEND_PARSE_PARAMETERS_START(0, 2)
     Z_PARAM_OPTIONAL
@@ -163,18 +163,11 @@ static PHP_METHOD(swoole_lock, lock) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     Lock *lock = lock_get_and_check_ptr(ZEND_THIS);
-
-    int rc;
-    if (timeout > 0) {
-        rc = lock->lock_wait((int) (timeout * 1000), operation);
-        if (rc == SW_ERROR_OPERATION_NOT_SUPPORT) {
-            zend_throw_exception(swoole_exception_ce, "only mutex and rwlock supports lockwait", -2);
-            RETURN_FALSE;
-        }
-    } else {
-        rc = lock->lock(operation);
+    if (timeout > 0 && in_range(lock->get_type(), {Lock::RW_LOCK, Lock::MUTEX})) {
+        zend_throw_exception(swoole_exception_ce, "only `mutex` and `rwlock` supports timeout", -2);
+        RETURN_FALSE;
     }
-    SW_LOCK_CHECK_RETURN(rc);
+    SW_LOCK_CHECK_RETURN(lock->lock(operation, timeout));
 }
 
 static PHP_METHOD(swoole_lock, unlock) {

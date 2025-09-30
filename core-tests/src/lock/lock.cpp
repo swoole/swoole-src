@@ -108,13 +108,13 @@ TEST(lock, lockwait) {
     std::thread t1([&lock]() {
         long ms1 = swoole::time<std::chrono::milliseconds>();
         const int TIMEOUT_1 = 2;
-        ASSERT_EQ(lock.lock_wait(TIMEOUT_1), ETIMEDOUT);
+        ASSERT_EQ(lock.lock(LOCK_EX, TIMEOUT_1), ETIMEDOUT);
         long ms2 = swoole::time<std::chrono::milliseconds>();
 
         ASSERT_GE(ms2 - ms1, TIMEOUT_1);
 
         const int TIMEOUT_2 = 10;
-        ASSERT_EQ(lock.lock_wait(TIMEOUT_2), 0);
+        ASSERT_EQ(lock.lock(LOCK_EX, TIMEOUT_2), 0);
         long ms3 = swoole::time<std::chrono::milliseconds>();
 
         ASSERT_LE(ms3 - ms2, TIMEOUT_2);
