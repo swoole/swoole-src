@@ -1245,7 +1245,7 @@ static PHP_METHOD(swoole_coroutine, join) {
     }
 
     std::set<PHPContext *> co_set;
-    bool *canceled = new bool(false);
+    std::shared_ptr<bool> canceled = std::make_shared<bool>(false);
 
     PHPContext::SwapCallback join_fn = [&co_set, canceled, co](PHPContext *task) {
         co_set.erase(task);
@@ -1257,7 +1257,6 @@ static PHP_METHOD(swoole_coroutine, join) {
                 if (*canceled == false) {
                     co->resume();
                 }
-                delete canceled;
             },
             nullptr);
     };
@@ -1267,7 +1266,6 @@ static PHP_METHOD(swoole_coroutine, join) {
         long cid = zval_get_long(zcid);
         if (co->get_cid() == cid) {
             php_swoole_error_ex(E_WARNING, SW_ERROR_WRONG_OPERATION, "can not join self");
-            delete canceled;
             RETURN_FALSE;
         }
         auto ctx = PHPCoroutine::get_context_by_cid(cid);
@@ -1276,7 +1274,6 @@ static PHP_METHOD(swoole_coroutine, join) {
         }
         if (ctx->on_close) {
             swoole_set_last_error(SW_ERROR_CO_HAS_BEEN_BOUND);
-            delete canceled;
             RETURN_FALSE;
         }
         ctx->on_close = &join_fn;
@@ -1286,7 +1283,6 @@ static PHP_METHOD(swoole_coroutine, join) {
 
     if (co_set.empty()) {
         swoole_set_last_error(SW_ERROR_INVALID_PARAMS);
-        delete canceled;
         RETURN_FALSE;
     }
 
@@ -1295,10 +1291,8 @@ static PHP_METHOD(swoole_coroutine, join) {
             for (auto ctx : co_set) {
                 ctx->on_close = nullptr;
             }
-            delete canceled;
-        } else {
-            *canceled = true;
         }
+        *canceled = true;
         RETURN_FALSE;
     }
 
@@ -1417,7 +1411,7 @@ void sw_php_print_backtrace(zend_long cid, zend_long options, zend_long limit, z
     if (!cid || cid == PHPCoroutine::get_cid()) {
         zend::function::call("debug_print_backtrace", 2, argv);
     } else {
-        PHPContext *ctx = (PHPContext *) PHPCoroutine::get_context_by_cid(cid);
+        PHPContext *ctx = PHPCoroutine::get_context_by_cid(cid);
         if (UNEXPECTED(!ctx)) {
             swoole_set_last_error(SW_ERROR_CO_NOT_EXISTS);
             if (return_value) {
@@ -1433,7 +1427,7 @@ void sw_php_print_backtrace(zend_long cid, zend_long options, zend_long limit, z
 }
 
 static PHP_METHOD(swoole_coroutine, printBackTrace) {
-    zend_long cid;
+    zend_long cid = 0;
     zend_long options = 0;
     zend_long limit = 0;
 
