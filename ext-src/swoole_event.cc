@@ -429,10 +429,6 @@ static PHP_FUNCTION(swoole_event_add) {
         php_swoole_fatal_error(E_WARNING, "invalid events");
         RETURN_FALSE;
     }
-    Socket *socket = swoole::make_socket(socket_fd, SW_FD_USER);
-    if (!socket) {
-        RETURN_FALSE;
-    }
 
     auto readable_callback = sw_callable_create_ex(zreadable_callback, "readable_callback", true);
     if ((events & SW_EVENT_READ) && readable_callback == nullptr) {
@@ -458,6 +454,7 @@ static PHP_FUNCTION(swoole_event_add) {
     peo->readable_callback = readable_callback;
     peo->writable_callback = writable_callback;
 
+    Socket *socket = swoole::make_socket(socket_fd, SW_FD_USER);
     socket->set_nonblock();
     socket->object = peo;
 

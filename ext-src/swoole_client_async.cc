@@ -481,6 +481,7 @@ static PHP_METHOD(swoole_client_async, on) {
         client_obj->async->onBufferEmpty = cb;
     } else {
         php_swoole_fatal_error(E_WARNING, "Unknown event callback type name '%s'", cb_name);
+        sw_callable_free(cb);
         RETURN_FALSE;
     }
     RETURN_TRUE;
