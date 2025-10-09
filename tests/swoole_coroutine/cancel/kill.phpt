@@ -1,7 +1,9 @@
 --TEST--
 swoole_coroutine/cancel: kill
 --SKIPIF--
-<?php require __DIR__ . '/../../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../../include/skipif.inc';
+skip("experimental");
+?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';

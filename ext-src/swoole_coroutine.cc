@@ -36,6 +36,13 @@ BEGIN_EXTERN_C()
 #include "stubs/php_swoole_coroutine_arginfo.h"
 END_EXTERN_C()
 
+/**
+ * The coroutine canceled exception must be explicitly caught in the php code.
+ * If the underlying layer implicitly catches this exception, `Co::cancel()` may be abused,
+ * resulting in transactional problems and serious bugs.
+ */
+#define SW_RECOVER_CANCELED_EXCEPTION 0
+
 using std::unordered_map;
 using swoole::Coroutine;
 using swoole::PHPContext;
@@ -365,14 +372,18 @@ void PHPCoroutine::bailout() {
 
 bool PHPCoroutine::catch_exception() {
     if (UNEXPECTED(EG(exception))) {
+#if SW_RECOVER_CANCELED_EXCEPTION
         if (EG(exception)->ce == swoole_coroutine_canceled_exception_ce) {
             OBJ_RELEASE(EG(exception));
             EG(exception) = nullptr;
         } else {
+#endif
             // the exception error messages MUST be output on the current coroutine stack
             zend_exception_error(EG(exception), E_ERROR);
             return true;
+#if SW_RECOVER_CANCELED_EXCEPTION
         }
+#endif
     }
     return false;
 }
