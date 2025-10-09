@@ -23,7 +23,7 @@ run(function () use ($argv, $lock) {
     go(function () use ($waitGroup, $lock) {
         $waitGroup->add();
         $lock->lock();
-        sleep(2);
+        usleep(100000);
         var_dump(1);
         $lock->unlock();
         $waitGroup->done();
@@ -31,7 +31,7 @@ run(function () use ($argv, $lock) {
 
     go(function () use ($waitGroup, $lock) {
         $waitGroup->add();
-        if (!$lock->trylock()) {
+        if (!$lock->lock(LOCK_NB)) {
             var_dump('lock failed');
         }
         $waitGroup->done();

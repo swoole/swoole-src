@@ -17,6 +17,6 @@ $cli->set([
     'socks5_host' => SOCKS5_PROXY_HOST,
     'socks5_port' => SOCKS5_PROXY_PORT
 ]);
-client_http_v10_get($cli)
+client_http_v10_get($cli);
 ?>
 --EXPECT--

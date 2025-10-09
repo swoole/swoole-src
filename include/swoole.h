@@ -272,6 +272,20 @@ static inline int sw_mem_equal(const void *v1, size_t s1, const void *v2, size_t
     return s1 == s2 && memcmp(v1, v2, s2) == 0;
 }
 
+static inline bool sw_wait_for(const std::function<bool(void)> &fn, int timeout_ms) {
+    int sleep_msec = 1;
+    while (timeout_ms > 0) {
+        if (fn()) {
+            return true;
+        } else {
+            usleep(sleep_msec * 1000);
+            sleep_msec *= 2;
+            timeout_ms -= sleep_msec;
+        }
+    }
+    return false;
+}
+
 static inline size_t swoole_strlcpy(char *dest, const char *src, size_t size) {
     const size_t len = strlen(src);
     if (size != 0) {
