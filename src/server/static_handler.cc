@@ -91,8 +91,13 @@ bool StaticHandler::get_absolute_path() {
     if (!realpath(filename, abs_path)) {
         return false;
     }
-    strncpy(filename, abs_path, sizeof(abs_path));
-    l_filename = strlen(filename);
+
+    size_t abs_path_len = strlen(abs_path);
+    if (abs_path_len >= PATH_MAX) {
+        return false;
+    }
+    memcpy(filename, abs_path, abs_path_len + 1);
+    l_filename = abs_path_len;
     return true;
 }
 

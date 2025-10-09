@@ -753,7 +753,7 @@ static bool php_swoole_server_task_unpack(zval *zresult, EventData *task_result)
         PHP_VAR_UNSERIALIZE_DESTROY(var_hash);
         if (!unserialized) {
             swoole_warning("unserialize() failed, Error at offset " ZEND_LONG_FMT " of %zd bytes",
-                           (zend_long)((char *) p - packet.data),
+                           (zend_long) ((char *) p - packet.data),
                            l);
             return false;
         }
@@ -1835,7 +1835,7 @@ static int php_swoole_server_dispatch_func(Server *serv, Connection *conn, SendD
 
     *zserv = *(php_swoole_server_zval_ptr(serv));
     ZVAL_LONG(zfd, conn ? conn->session_id : data->info.fd);
-    ZVAL_LONG(ztype, (zend_long)(data ? data->info.type : (int) SW_SERVER_EVENT_CLOSE));
+    ZVAL_LONG(ztype, (zend_long) (data ? data->info.type : (int) SW_SERVER_EVENT_CLOSE));
     if (data && sw_zend_function_max_num_args(cb->ptr()->function_handler) > 3) {
         // TODO: reduce memory copy
         zdata = &args[3];
@@ -2637,6 +2637,7 @@ static PHP_METHOD(swoole_server, addCommand) {
     };
 
     if (!serv->add_command(std::string(name, l_name), accepted_process_types, fn)) {
+        sw_callable_free(cb);
         RETURN_FALSE;
     }
 

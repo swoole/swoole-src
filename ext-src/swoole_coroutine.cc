@@ -36,6 +36,13 @@ BEGIN_EXTERN_C()
 #include "stubs/php_swoole_coroutine_arginfo.h"
 END_EXTERN_C()
 
+/**
+ * The coroutine canceled exception must be explicitly caught in the php code.
+ * If the underlying layer implicitly catches this exception, `Co::cancel()` may be abused,
+ * resulting in transactional problems and serious bugs.
+ */
+#define SW_RECOVER_CANCELED_EXCEPTION 0
+
 using std::unordered_map;
 using swoole::Coroutine;
 using swoole::PHPContext;
@@ -365,9 +372,18 @@ void PHPCoroutine::bailout() {
 
 bool PHPCoroutine::catch_exception() {
     if (UNEXPECTED(EG(exception))) {
-        // the exception error messages MUST be output on the current coroutine stack
-        zend_exception_error(EG(exception), E_ERROR);
-        return true;
+#if SW_RECOVER_CANCELED_EXCEPTION
+        if (EG(exception)->ce == swoole_coroutine_canceled_exception_ce) {
+            OBJ_RELEASE(EG(exception));
+            EG(exception) = nullptr;
+        } else {
+#endif
+            // the exception error messages MUST be output on the current coroutine stack
+            zend_exception_error(EG(exception), E_ERROR);
+            return true;
+#if SW_RECOVER_CANCELED_EXCEPTION
+        }
+#endif
     }
     return false;
 }
@@ -988,6 +1004,7 @@ void php_swoole_coroutine_minit(int module_number) {
                             nullptr,
                             zend_ce_exception,
                             zend_get_std_object_handlers());
+    swoole_coroutine_canceled_exception_ce->ce_flags |= ZEND_ACC_FINAL;
 
     SW_REGISTER_LONG_CONSTANT("SWOOLE_EXIT_IN_COROUTINE", SW_EXIT_IN_COROUTINE);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_EXIT_IN_SERVER", SW_EXIT_IN_SERVER);
@@ -1239,7 +1256,7 @@ static PHP_METHOD(swoole_coroutine, join) {
     }
 
     std::set<PHPContext *> co_set;
-    bool *canceled = new bool(false);
+    std::shared_ptr<bool> canceled = std::make_shared<bool>(false);
 
     PHPContext::SwapCallback join_fn = [&co_set, canceled, co](PHPContext *task) {
         co_set.erase(task);
@@ -1251,7 +1268,6 @@ static PHP_METHOD(swoole_coroutine, join) {
                 if (*canceled == false) {
                     co->resume();
                 }
-                delete canceled;
             },
             nullptr);
     };
@@ -1261,7 +1277,6 @@ static PHP_METHOD(swoole_coroutine, join) {
         long cid = zval_get_long(zcid);
         if (co->get_cid() == cid) {
             php_swoole_error_ex(E_WARNING, SW_ERROR_WRONG_OPERATION, "can not join self");
-            delete canceled;
             RETURN_FALSE;
         }
         auto ctx = PHPCoroutine::get_context_by_cid(cid);
@@ -1270,7 +1285,6 @@ static PHP_METHOD(swoole_coroutine, join) {
         }
         if (ctx->on_close) {
             swoole_set_last_error(SW_ERROR_CO_HAS_BEEN_BOUND);
-            delete canceled;
             RETURN_FALSE;
         }
         ctx->on_close = &join_fn;
@@ -1280,7 +1294,6 @@ static PHP_METHOD(swoole_coroutine, join) {
 
     if (co_set.empty()) {
         swoole_set_last_error(SW_ERROR_INVALID_PARAMS);
-        delete canceled;
         RETURN_FALSE;
     }
 
@@ -1289,10 +1302,8 @@ static PHP_METHOD(swoole_coroutine, join) {
             for (auto ctx : co_set) {
                 ctx->on_close = nullptr;
             }
-            delete canceled;
-        } else {
-            *canceled = true;
         }
+        *canceled = true;
         RETURN_FALSE;
     }
 
@@ -1411,7 +1422,7 @@ void sw_php_print_backtrace(zend_long cid, zend_long options, zend_long limit, z
     if (!cid || cid == PHPCoroutine::get_cid()) {
         zend::function::call("debug_print_backtrace", 2, argv);
     } else {
-        PHPContext *ctx = (PHPContext *) PHPCoroutine::get_context_by_cid(cid);
+        PHPContext *ctx = PHPCoroutine::get_context_by_cid(cid);
         if (UNEXPECTED(!ctx)) {
             swoole_set_last_error(SW_ERROR_CO_NOT_EXISTS);
             if (return_value) {
@@ -1427,7 +1438,7 @@ void sw_php_print_backtrace(zend_long cid, zend_long options, zend_long limit, z
 }
 
 static PHP_METHOD(swoole_coroutine, printBackTrace) {
-    zend_long cid;
+    zend_long cid = 0;
     zend_long options = 0;
     zend_long limit = 0;
 

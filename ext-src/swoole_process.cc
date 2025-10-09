@@ -678,6 +678,7 @@ int php_swoole_process_start(Worker *process, zval *zobject) {
     auto po = php_swoole_process_fetch_object(zobject);
     // eventloop create
     if (po->enable_coroutine && php_swoole_reactor_init() < 0) {
+        sw_callable_free(fci_cache);
         return SW_ERR;
     }
     // main function
