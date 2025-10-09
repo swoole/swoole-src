@@ -44,23 +44,20 @@ Mutex::Mutex(bool shared) : Lock(MUTEX, shared) {
 }
 
 int Mutex::lock(int operation, int timeout_msec) {
-	if (operation & LOCK_NB) {
-	    return pthread_mutex_trylock(&impl->lock_);
-	}
-	if (timeout_msec > 0) {
-#ifndef HAVE_MUTEX_TIMEDLOCK
-    timespec timeo;
-    realtime_get(&timeo);
-    realtime_add(&timeo, timeout_msec);
-    return pthread_mutex_timedlock(&impl->lock_, &timeo);
+    if (operation & LOCK_NB) {
+        return pthread_mutex_trylock(&impl->lock_);
+    }
+    if (timeout_msec > 0) {
+#ifdef HAVE_MUTEX_TIMEDLOCK
+        timespec timeo;
+        realtime_get(&timeo);
+        realtime_add(&timeo, timeout_msec);
+        return pthread_mutex_timedlock(&impl->lock_, &timeo);
 #else
-    return sw_wait_for([this]() {
-    	return pthread_mutex_trylock(&impl->lock_) == 0;
-    }, timeout_msec) ? 0  :   ETIMEDOUT;
+        return sw_wait_for([this]() { return pthread_mutex_trylock(&impl->lock_) == 0; }, timeout_msec) ? 0 : ETIMEDOUT;
 #endif
-	}
-	return pthread_mutex_lock(&impl->lock_);
-
+    }
+    return pthread_mutex_lock(&impl->lock_);
 }
 
 int Mutex::unlock() {

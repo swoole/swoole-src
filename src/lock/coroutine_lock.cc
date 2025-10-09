@@ -45,12 +45,11 @@ CoroutineLock::~CoroutineLock() {
 }
 
 int CoroutineLock::lock(int operation, int _) {
-	if (operation & LOCK_NB) {
-	    return lock_impl(false);
-	} else {
-	    return lock_impl(true);
-	}
-
+    if (operation & LOCK_NB) {
+        return lock_impl(false);
+    } else {
+        return lock_impl(true);
+    }
 }
 
 int CoroutineLock::unlock() {

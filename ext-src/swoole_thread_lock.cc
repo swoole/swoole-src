@@ -17,6 +17,7 @@
 #include "php_swoole_private.h"
 #include "php_swoole_thread.h"
 #include "swoole_lock.h"
+#include "swoole_timer.h"
 
 #ifdef SW_THREAD
 
@@ -131,7 +132,8 @@ void php_swoole_thread_lock_minit(int module_number) {
     swoole_thread_lock_ce->ce_flags |= ZEND_ACC_FINAL | ZEND_ACC_NOT_SERIALIZABLE;
     SW_SET_CLASS_CLONEABLE(swoole_thread_lock, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_thread_lock, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CUSTOM_OBJECT(swoole_thread_lock, thread_lock_create_object, thread_lock_free_object, ThreadLockObject, std);
+    SW_SET_CLASS_CUSTOM_OBJECT(
+        swoole_thread_lock, thread_lock_create_object, thread_lock_free_object, ThreadLockObject, std);
 
     zend_declare_class_constant_long(swoole_thread_lock_ce, ZEND_STRL("MUTEX"), Lock::MUTEX);
 #ifdef HAVE_RWLOCK
@@ -175,7 +177,7 @@ static PHP_METHOD(swoole_thread_lock, lock) {
         zend_throw_exception(swoole_exception_ce, "only `mutex` and `rwlock` supports timeout", -2);
         RETURN_FALSE;
     }
-    SW_LOCK_CHECK_RETURN(lock->lock(operation, timeout));
+    SW_LOCK_CHECK_RETURN(lock->lock(operation, swoole::sec2msec(timeout)));
 }
 
 static PHP_METHOD(swoole_thread_lock, unlock) {
