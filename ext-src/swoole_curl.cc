@@ -48,10 +48,9 @@ void destroy_handle(CURL *cp) {
         delete handle->easy_multi;
     }
 
-    delete handle;
     curl_easy_setopt(cp, CURLOPT_PRIVATE, nullptr);
-
     swoole_trace_log(SW_TRACE_CO_CURL, SW_ECHO_RED " handle=%p, curl=%p", "[DESTROY]", handle, cp);
+    delete handle;
 }
 
 static int execute_callback(Event *event, int bitmask) {
