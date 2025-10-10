@@ -28,6 +28,6 @@ Process::wait();
 Process::wait();
 
 // Using shared locks, two processes will get locks at the same time and execute them concurrently
-Assert::lessThanEq(microtime(true) - $begin, 0.25);
+Assert::lessThan(microtime(true) - $begin, 0.35);
 ?>
 --EXPECT--

@@ -1,7 +1,9 @@
 --TEST--
 swoole_lock: lock timeout
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../include/skipif.inc';
+skip_if_not_defined('SWOOLE_SPINLOCK');
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
