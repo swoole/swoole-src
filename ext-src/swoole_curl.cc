@@ -219,20 +219,11 @@ CURLMcode Multi::add_handle(Handle *handle) {
 CURLMcode Multi::remove_handle(Handle *handle) {
     handle->multi = nullptr;
     swoole_trace_log(SW_TRACE_CO_CURL, SW_ECHO_RED " handle=%p, curl=%p", "[REMOVE_HANDLE]", handle, handle->cp);
-
-    for (auto it : handle->sockets) {
-        HandleSocket *curl_socket = it.second;
-        if (curl_socket->socket) {
-            if (!curl_socket->socket->removed && sw_likely(swoole_event_is_available())) {
-                swoole_event_del(curl_socket->socket);
-            }
-            curl_socket->socket->fd = -1;
-            curl_socket->socket->free();
-            delete curl_socket;
-        }
-    }
-    handle->sockets.clear();
-
+    /**
+     * When the `curl_multi_remove_handle()` function is executed,
+     * the `handle_socket()` will be called and the event will be deleted,
+     * and the HandleSocket object will be released.
+     */
     return curl_multi_remove_handle(multi_handle_, handle->cp);
 }
 
