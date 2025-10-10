@@ -17,6 +17,6 @@ $cli->set([
     'http_proxy_host' => HTTP_PROXY_HOST,
     'http_proxy_port' => HTTP_PROXY_PORT
 ]);
-client_http_v10_get($cli)
+client_http_v10_get($cli);
 ?>
 --EXPECT--

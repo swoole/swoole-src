@@ -609,7 +609,7 @@ int Server::create_user_workers() {
  * [Master]
  */
 void Server::create_worker(Worker *worker) {
-    worker->lock = new Mutex(Mutex::PROCESS_SHARED);
+    worker->lock = new Mutex(true);
     if (worker->pipe_object) {
         store_pipe_fd(worker->pipe_object);
     }

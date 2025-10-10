@@ -41,7 +41,7 @@ Table *Table::make(uint32_t rows_size, float conflict_proportion) {
     if (table == nullptr) {
         return nullptr;
     }
-    table->mutex = new Mutex(Mutex::PROCESS_SHARED);
+    table->mutex = new Mutex(true);
     table->iterator = nullptr;
     table->column_map = new std::unordered_map<std::string, TableColumn *>;
     table->column_list = new std::vector<TableColumn *>;
@@ -93,7 +93,7 @@ TableIterator::TableIterator(size_t row_size) {
     if (!current_) {
         throw std::bad_alloc();
     }
-    mutex_ = new Mutex(Mutex::PROCESS_SHARED);
+    mutex_ = new Mutex(true);
     row_memory_size_ = row_size;
     reset();
 }

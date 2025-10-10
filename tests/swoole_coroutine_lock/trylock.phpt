@@ -21,9 +21,9 @@ if (defined('SWOOLE_IOURING_SQPOLL')) {
 Runtime::enableCoroutine(SWOOLE_HOOK_ALL);
 run(function () {
     $lock = new Lock(false);
-    Assert::eq($lock->trylock(), true);
+    Assert::eq($lock->lock(LOCK_NB), true);
     go(function () use ($lock) {
-        Assert::eq($lock->trylock(), false);
+        Assert::eq($lock->lock(LOCK_NB), false);
         $s = microtime(true);
         Assert::eq($lock->lock(), true);
         Assert::assert(microtime(true) - $s >= 0.05);

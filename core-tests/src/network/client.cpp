@@ -71,7 +71,7 @@ static void test_sync_client_dgram(const char *host, int port, enum swSocketType
     char buf[128];
     pid_t pid;
 
-    Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
+    Mutex *lock = new Mutex(true);
     lock->lock();
 
     Process proc([&](Process *proc) {
@@ -626,7 +626,7 @@ TEST(client, async_connect_timeout) {
 static void test_async_client_dgram(const char *host, int port, enum swSocketType type) {
     pid_t pid;
 
-    Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
+    Mutex *lock = new Mutex(true);
     lock->lock();
 
     Process proc([&](Process *proc) {

@@ -715,6 +715,25 @@ int sw_printf(const char *format, ...) {
     return retval;
 }
 
+bool sw_wait_for(const std::function<bool(void)> &fn, int timeout_ms) {
+    int sleep_msec = 1;
+    while (timeout_ms >= 0) {
+        if (fn()) {
+            return true;
+        }
+		usleep(sleep_msec * 1000);
+		sleep_msec *= 2;
+		// Align the time so that the timeout is consistent with the user settings
+		if (timeout_ms > 0 && timeout_ms - sleep_msec < 0) {
+			sleep_msec = timeout_ms;
+			timeout_ms = 0;
+		} else {
+			timeout_ms -= sleep_msec;
+		}
+    }
+    return false;
+}
+
 int swoole_itoa(char *buf, long value) {
     long i = 0, j;
     long sign_mask;

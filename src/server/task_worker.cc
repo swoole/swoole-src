@@ -119,7 +119,7 @@ void Server::task_dump(EventData *task) {
 
     if (task->info.ext_flags & SW_TASK_TMPFILE) {
         auto pkg = reinterpret_cast<PacketTask *>(task->data);
-        sw_printf("Task[tmpfile]=%.*s\n", pkg->length, pkg->tmpfile);
+        sw_printf("Task[tmpfile]=%.*s\n", (int) pkg->length, pkg->tmpfile);
     }
 }
 

@@ -71,9 +71,7 @@ static zend_object *co_lock_create_object(zend_class_entry *ce) {
 
 SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_coroutine_lock, __construct);
-static PHP_METHOD(swoole_coroutine_lock, __destruct);
 static PHP_METHOD(swoole_coroutine_lock, lock);
-static PHP_METHOD(swoole_coroutine_lock, trylock);
 static PHP_METHOD(swoole_coroutine_lock, unlock);
 SW_EXTERN_C_END
 
@@ -81,9 +79,7 @@ SW_EXTERN_C_END
 static const zend_function_entry swoole_coroutine_lock_methods[] =
 {
     PHP_ME(swoole_coroutine_lock, __construct,  arginfo_class_Swoole_Coroutine_Lock___construct,  ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_coroutine_lock, __destruct,   arginfo_class_Swoole_Coroutine_Lock___destruct,   ZEND_ACC_PUBLIC)
     PHP_ME(swoole_coroutine_lock, lock,         arginfo_class_Swoole_Coroutine_Lock_lock,         ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_coroutine_lock, trylock,      arginfo_class_Swoole_Coroutine_Lock_trylock,      ZEND_ACC_PUBLIC)
     PHP_ME(swoole_coroutine_lock, unlock,       arginfo_class_Swoole_Coroutine_Lock_unlock,       ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
@@ -118,19 +114,19 @@ static PHP_METHOD(swoole_coroutine_lock, __construct) {
     RETURN_TRUE;
 }
 
-static PHP_METHOD(swoole_coroutine_lock, __destruct) {}
-
 static PHP_METHOD(swoole_coroutine_lock, lock) {
+    zend_long operation = LOCK_EX;
+
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_LONG(operation)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
     CoroutineLock *lock = co_lock_get_and_check_ptr(ZEND_THIS);
-    SW_LOCK_CHECK_RETURN(lock->lock());
+    SW_LOCK_CHECK_RETURN(lock->lock(operation));
 }
 
 static PHP_METHOD(swoole_coroutine_lock, unlock) {
     CoroutineLock *lock = co_lock_get_and_check_ptr(ZEND_THIS);
     SW_LOCK_CHECK_RETURN(lock->unlock());
-}
-
-static PHP_METHOD(swoole_coroutine_lock, trylock) {
-    CoroutineLock *lock = co_lock_get_and_check_ptr(ZEND_THIS);
-    SW_LOCK_CHECK_RETURN(lock->trylock());
 }

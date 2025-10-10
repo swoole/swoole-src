@@ -28,11 +28,16 @@
 #include <stack>
 #include <thread>
 #include <type_traits>
+#include <algorithm>
 
 #define __SCOPEGUARD_CONCATENATE_IMPL(s1, s2) s1##s2
 #define __SCOPEGUARD_CONCATENATE(s1, s2) __SCOPEGUARD_CONCATENATE_IMPL(s1, s2)
 
 namespace swoole {
+template <typename T>
+bool in_range(T value, std::initializer_list<T> allowed_values) {
+    return std::find(allowed_values.begin(), allowed_values.end(), value) != allowed_values.end();
+}
 
 namespace std_string {
 template <typename... Args>

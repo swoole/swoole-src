@@ -48,10 +48,9 @@ void destroy_handle(CURL *cp) {
         delete handle->easy_multi;
     }
 
-    delete handle;
     curl_easy_setopt(cp, CURLOPT_PRIVATE, nullptr);
-
     swoole_trace_log(SW_TRACE_CO_CURL, SW_ECHO_RED " handle=%p, curl=%p", "[DESTROY]", handle, cp);
+    delete handle;
 }
 
 static int execute_callback(Event *event, int bitmask) {
@@ -146,9 +145,13 @@ HandleSocket *Multi::create_socket(Handle *handle, curl_socket_t sockfd) {
 }
 
 void Multi::del_event(CURL *cp, void *socket_ptr, curl_socket_t sockfd) {
+    if (sw_unlikely(!swoole_event_is_available())) {
+        return;
+    }
+
     HandleSocket *curl_socket = (HandleSocket *) socket_ptr;
     curl_socket->socket->silent_remove = 1;
-    if (curl_socket->socket->events && swoole_event_is_available() && swoole_event_del(curl_socket->socket) == SW_OK) {
+    if (curl_socket->socket->events && swoole_event_del(curl_socket->socket) == SW_OK) {
         event_count_--;
     }
 
@@ -163,6 +166,10 @@ void Multi::del_event(CURL *cp, void *socket_ptr, curl_socket_t sockfd) {
 }
 
 void Multi::set_event(CURL *cp, void *socket_ptr, curl_socket_t sockfd, int action) {
+    if (sw_unlikely(!swoole_event_is_available())) {
+        return;
+    }
+
     auto handle = get_handle(cp);
     if (!handle) {
         return;
@@ -212,6 +219,20 @@ CURLMcode Multi::add_handle(Handle *handle) {
 CURLMcode Multi::remove_handle(Handle *handle) {
     handle->multi = nullptr;
     swoole_trace_log(SW_TRACE_CO_CURL, SW_ECHO_RED " handle=%p, curl=%p", "[REMOVE_HANDLE]", handle, handle->cp);
+
+    for (auto it : handle->sockets) {
+        HandleSocket *curl_socket = it.second;
+        if (curl_socket->socket) {
+            if (!curl_socket->socket->removed && sw_likely(swoole_event_is_available())) {
+                swoole_event_del(curl_socket->socket);
+            }
+            curl_socket->socket->fd = -1;
+            curl_socket->socket->free();
+            delete curl_socket;
+        }
+    }
+    handle->sockets.clear();
+
     return curl_multi_remove_handle(multi_handle_, handle->cp);
 }
 
@@ -220,13 +241,12 @@ CURLcode Multi::exec(Handle *handle) {
         return CURLE_FAILED_INIT;
     }
 
-    HandleSocket *curl_socket = nullptr;
     bool is_canceled = false;
     event_count_ = 0;
 
     SW_LOOP {
         for (auto it : handle->sockets) {
-            curl_socket = it.second;
+            HandleSocket *curl_socket = it.second;
             if (curl_socket->socket && curl_socket->socket->removed) {
                 if (swoole_event_add(curl_socket->socket, get_event(curl_socket->action)) == SW_OK) {
                     event_count_++;
@@ -259,19 +279,7 @@ CURLcode Multi::exec(Handle *handle) {
         set_timer();
     }
 
-    for (auto it : handle->sockets) {
-        curl_socket = it.second;
-        if (curl_socket->socket) {
-            if (!curl_socket->socket->removed) {
-                swoole_event_del(curl_socket->socket);
-            }
-            curl_socket->socket->fd = -1;
-            curl_socket->socket->free();
-            delete curl_socket;
-        }
-    }
     del_timer();
-    handle->sockets.clear();
 
     CURLcode retval = read_info();
     remove_handle(handle);
@@ -302,7 +310,7 @@ CURLcode Multi::read_info() {
 int Multi::handle_timeout(CURLM *mh, long timeout_ms, void *userp) {
     Multi *multi = (Multi *) userp;
     swoole_trace_log(SW_TRACE_CO_CURL, SW_ECHO_BLUE " timeout_ms=%ld", "[HANDLE_TIMEOUT]", timeout_ms);
-    if (!swoole_event_is_available()) {
+    if (sw_unlikely(!swoole_event_is_available())) {
         return -1;
     }
     if (timeout_ms < 0) {
