@@ -145,9 +145,13 @@ HandleSocket *Multi::create_socket(Handle *handle, curl_socket_t sockfd) {
 }
 
 void Multi::del_event(CURL *cp, void *socket_ptr, curl_socket_t sockfd) {
+    if (sw_unlikely(!swoole_event_is_available())) {
+        return;
+    }
+
     HandleSocket *curl_socket = (HandleSocket *) socket_ptr;
     curl_socket->socket->silent_remove = 1;
-    if (curl_socket->socket->events && swoole_event_is_available() && swoole_event_del(curl_socket->socket) == SW_OK) {
+    if (curl_socket->socket->events && swoole_event_del(curl_socket->socket) == SW_OK) {
         event_count_--;
     }
 
@@ -162,6 +166,10 @@ void Multi::del_event(CURL *cp, void *socket_ptr, curl_socket_t sockfd) {
 }
 
 void Multi::set_event(CURL *cp, void *socket_ptr, curl_socket_t sockfd, int action) {
+    if (sw_unlikely(!swoole_event_is_available())) {
+        return;
+    }
+
     auto handle = get_handle(cp);
     if (!handle) {
         return;
@@ -213,9 +221,9 @@ CURLMcode Multi::remove_handle(Handle *handle) {
     swoole_trace_log(SW_TRACE_CO_CURL, SW_ECHO_RED " handle=%p, curl=%p", "[REMOVE_HANDLE]", handle, handle->cp);
 
     for (auto it : handle->sockets) {
-    	HandleSocket *curl_socket = it.second;
+        HandleSocket *curl_socket = it.second;
         if (curl_socket->socket) {
-            if (!curl_socket->socket->removed) {
+            if (!curl_socket->socket->removed && sw_likely(swoole_event_is_available())) {
                 swoole_event_del(curl_socket->socket);
             }
             curl_socket->socket->fd = -1;
@@ -238,7 +246,7 @@ CURLcode Multi::exec(Handle *handle) {
 
     SW_LOOP {
         for (auto it : handle->sockets) {
-        	HandleSocket *curl_socket = it.second;
+            HandleSocket *curl_socket = it.second;
             if (curl_socket->socket && curl_socket->socket->removed) {
                 if (swoole_event_add(curl_socket->socket, get_event(curl_socket->action)) == SW_OK) {
                     event_count_++;
@@ -302,7 +310,7 @@ CURLcode Multi::read_info() {
 int Multi::handle_timeout(CURLM *mh, long timeout_ms, void *userp) {
     Multi *multi = (Multi *) userp;
     swoole_trace_log(SW_TRACE_CO_CURL, SW_ECHO_BLUE " timeout_ms=%ld", "[HANDLE_TIMEOUT]", timeout_ms);
-    if (!swoole_event_is_available()) {
+    if (sw_unlikely(!swoole_event_is_available())) {
         return -1;
     }
     if (timeout_ms < 0) {
