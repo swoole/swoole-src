@@ -36,6 +36,7 @@ jobs:
 
       - name: Run build steps
         run: |
+          sudo apt install -y libssl-dev libcurl4-openssl-dev
           sudo phpize && ./configure --enable-openssl --enable-mysqlnd --enable-sockets --enable-swoole-curl
 
       - name: Run Coverity Scan Analysis Tool
