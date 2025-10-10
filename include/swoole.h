@@ -263,6 +263,7 @@ typedef swoole::DataHead swDataHead;
 size_t sw_snprintf(char *buf, size_t size, const char *format, ...) __attribute__((format(printf, 3, 4)));
 size_t sw_vsnprintf(char *buf, size_t size, const char *format, va_list args);
 int sw_printf(const char *format, ...);
+bool sw_wait_for(const std::function<bool(void)> &fn, int timeout_ms);
 
 #define sw_memset_zero(s, n) memset(s, '\0', n)
 #define sw_unset_bit(val, bit) val &= ~bit
@@ -270,20 +271,6 @@ int sw_printf(const char *format, ...);
 
 static inline int sw_mem_equal(const void *v1, size_t s1, const void *v2, size_t s2) {
     return s1 == s2 && memcmp(v1, v2, s2) == 0;
-}
-
-static inline bool sw_wait_for(const std::function<bool(void)> &fn, int timeout_ms) {
-    int sleep_msec = 1;
-    while (timeout_ms > 0) {
-        if (fn()) {
-            return true;
-        } else {
-            usleep(sleep_msec * 1000);
-            sleep_msec *= 2;
-            timeout_ms -= sleep_msec;
-        }
-    }
-    return false;
 }
 
 static inline size_t swoole_strlcpy(char *dest, const char *src, size_t size) {

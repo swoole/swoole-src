@@ -34,12 +34,14 @@ SpinLock::SpinLock(bool shared) : Lock(SPIN_LOCK, shared) {
     }
 }
 
-int SpinLock::lock(int operation, int _) {
+int SpinLock::lock(int operation, int timeout_msec) {
     if (operation & LOCK_NB) {
         return pthread_spin_trylock(impl);
-    } else {
-        return pthread_spin_lock(impl);
     }
+    if (timeout_msec > 0) {
+        return sw_wait_for([this]() { return pthread_spin_trylock(impl) == 0; }, timeout_msec) ? 0 : ETIMEDOUT;
+    }
+    return pthread_spin_lock(impl);
 }
 
 int SpinLock::unlock() {

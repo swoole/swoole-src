@@ -164,10 +164,6 @@ static PHP_METHOD(swoole_lock, lock) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     Lock *lock = lock_get_and_check_ptr(ZEND_THIS);
-    if (timeout > 0 && !in_range(lock->get_type(), {Lock::RW_LOCK, Lock::MUTEX})) {
-        zend_throw_exception(swoole_exception_ce, "only `mutex` and `rwlock` supports timeout", -2);
-        RETURN_FALSE;
-    }
     SW_LOCK_CHECK_RETURN(lock->lock(operation, swoole::sec2msec(timeout)));
 }
 
