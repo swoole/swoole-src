@@ -67,6 +67,7 @@ struct Handle {
 
     HandleSocket *create_socket(curl_socket_t sockfd);
     void destroy_socket(curl_socket_t sockfd);
+    void free_socket(HandleSocket *_socket);
 };
 
 Handle *get_handle(CURL *cp);
