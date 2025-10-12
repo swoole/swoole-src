@@ -1255,7 +1255,7 @@ static PHP_METHOD(swoole_http_response, push) {
     sw_unset_bit(frame.flags, WebSocket::FLAG_MASK);
 
     if (ctx->websocket_compression) {
-        frame.flags |= WebSocket::FLAG_COMPRESS;
+        sw_set_bit(frame.flags, WebSocket::FLAG_COMPRESS);
     }
 
     if (sw_unlikely(!frame.pack(http_buffer))) {

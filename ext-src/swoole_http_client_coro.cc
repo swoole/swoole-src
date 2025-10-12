@@ -1594,7 +1594,7 @@ bool Client::push(zval *zdata, zend_long opcode, uint8_t flags, zend_long code) 
     }
 
     if (accept_websocket_compression) {
-        frame.flags |= WebSocket::FLAG_COMPRESS;
+        sw_set_bit(frame.flags, WebSocket::FLAG_COMPRESS);
     }
 
     if (sw_unlikely(!frame.pack(buffer))) {
