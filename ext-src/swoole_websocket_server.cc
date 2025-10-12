@@ -813,11 +813,10 @@ static PHP_METHOD(swoole_websocket_server, push) {
 
     FrameObject frame{zdata, opcode, flags};
 
-#ifdef SW_HAVE_ZLIB
     if (conn->websocket_compression) {
         sw_set_bit(frame.flags, WebSocket::FLAG_COMPRESS);
     }
-#endif
+
     // WebSocket server must not set data mask
     sw_unset_bit(frame.flags, WebSocket::FLAG_MASK);
 
