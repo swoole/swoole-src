@@ -170,11 +170,8 @@ static inline bool decode(Frame *frame, const String *str) {
 }
 
 static inline void parse_ext_flags(uint16_t ext_flags, uchar *opcode, uchar *flags) {
-    char frame_header[2];
-    memcpy(frame_header, &ext_flags, sizeof(frame_header));
-    // frame info has already decoded in websocket::dispatch_frame
-    *flags = frame_header[0];
-    *opcode = frame_header[1];
+    *opcode = (uchar)(ext_flags >> 8);
+    *flags = (uchar)(ext_flags & 0xFF);
 }
 
 ssize_t get_package_length(const Protocol *protocol, network::Socket *conn, PacketLength *pl);

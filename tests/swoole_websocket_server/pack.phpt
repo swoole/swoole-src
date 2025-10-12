@@ -54,11 +54,16 @@ for ($i = 1000; $i--;) {
     if ($opcode === WEBSOCKET_OPCODE_CLOSE) {
         Assert::same($unpacked->code, $code);
         Assert::same($unpacked->reason, $data);
-        Assert::true($unpacked->finish);
+        Assert::true($unpacked->finish == SWOOLE_WEBSOCKET_FLAG_FIN);
     } else {
         Assert::same($unpacked->data, $data);
         Assert::same($unpacked->opcode, $opcode);
-        Assert::same($unpacked->finish, $finish);
+        if ($opcode === WEBSOCKET_OPCODE_PING || $opcode === WEBSOCKET_OPCODE_PONG) {
+            Assert::true($unpacked->finish == SWOOLE_WEBSOCKET_FLAG_FIN);
+        } else {
+            Assert::same($unpacked->finish, $finish);
+        }
+
     }
 }
 ?>

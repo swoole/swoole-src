@@ -151,7 +151,16 @@ bool FrameObject::pack(String *buffer) {
     swoole_warning("Unable to compress websocket data frame, the `zlib` supports is required");
     return false;
 #else
-    if ((flags & WebSocket::FLAG_COMPRESS) && len > 0) {
+    bool need_compress = ((flags & WebSocket::FLAG_COMPRESS) && len > 0);
+    if (opcode == WebSocket::OPCODE_CLOSE || opcode == WebSocket::OPCODE_PING || opcode == WebSocket::OPCODE_PONG) {
+        sw_unset_bit(flags, WebSocket::FLAG_COMPRESS | WebSocket::FLAG_RSV1);
+        sw_set_bit(flags, WebSocket::FLAG_FIN);
+        need_compress = false;
+    } else if (opcode == WebSocket::OPCODE_CONTINUATION || !(flags & WebSocket::FLAG_FIN)) {
+        need_compress = false;
+    }
+
+    if (need_compress) {
         String *zlib_buffer = sw_tg_buffer();
         zlib_buffer->clear();
         if (WebSocket::message_compress(zlib_buffer, ptr, len, Z_DEFAULT_COMPRESSION)) {
@@ -363,7 +372,7 @@ bool WebSocket::message_uncompress(String *buffer, const char *in, size_t in_len
         zstream.next_out = (Bytef *) (buffer->str + buffer->length);
         status = inflate(&zstream, Z_SYNC_FLUSH);
         if (status >= 0) {
-            buffer->length += zstream.total_out;
+            buffer->length = zstream.total_out;
         }
         if (status == Z_STREAM_END || (status == Z_OK && zstream.avail_in == 0)) {
             ret = true;
