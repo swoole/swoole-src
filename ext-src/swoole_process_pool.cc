@@ -318,7 +318,7 @@ static void process_pool_signal_handler(int signo) {
         current_pool->reload();
         break;
     case SIGIO:
-        current_pool->rigger_read_message_event();
+        current_pool->trigger_read_message_event();
         break;
     case SIGWINCH:
         current_pool->reopen_logger();
