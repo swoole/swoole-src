@@ -25,6 +25,9 @@
 #elif defined(__FreeBSD__)
 #include <sys/procctl.h>
 #endif
+// _GNU_SOURCE already defined in swoole.h
+#include <unistd.h>
+#include <pwd.h>
 
 namespace swoole {
 /**
@@ -149,6 +152,16 @@ void Manager::wait(Server *_server) {
         procctl(P_PID, 0, PROC_PDEATHSIG_CTL, &sigid);
 #endif
         _server->gs->manager_barrier.wait();
+
+        if (_server->reload_async && !_server->user_.empty()) {
+            const auto uid = getuid();
+            if (uid == 0) {
+                const passwd *uinfo = getpwnam(_server->user_.c_str());;
+                if (uinfo && uinfo->pw_uid != uid) {
+                    setresuid(-1, -1, uinfo->pw_uid);
+                }
+            }
+        }
     }
 
     if (_server->isset_hook(Server::HOOK_MANAGER_START)) {
