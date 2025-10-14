@@ -402,7 +402,7 @@ struct ProcessPool {
     bool reload();
     void reopen_logger();
 
-    void rigger_read_message_event() {
+    void trigger_read_message_event() {
         read_message = true;
     }
 

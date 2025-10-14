@@ -222,6 +222,7 @@ void Manager::wait(Server *_server) {
                             swoole_sys_warning("failed to kill(%d, SIGTERM) worker#[%d]", elem.first, elem.second->id);
                         }
                     }
+                    continue;
                 }
                 goto _kill_worker;
             } else if (reload_task_worker) {  // only reload task workers
