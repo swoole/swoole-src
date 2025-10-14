@@ -249,6 +249,7 @@ struct ReloadTask {
     void add_workers(Worker *list, size_t n);
     void add_timeout_killer(int timeout);
     bool remove(pid_t pid);
+    void clear_queue();
 };
 
 struct ProcessPool {

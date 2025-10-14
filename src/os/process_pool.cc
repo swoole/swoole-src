@@ -1250,6 +1250,12 @@ void ReloadTask::kill_one(int signal_number) {
         break;
     }
 }
+
+void ReloadTask::clear_queue() {
+    while (!kill_queue.empty()) {
+        kill_queue.pop();
+    }
+}
 }  // namespace swoole
 
 swoole::WorkerId swoole_get_worker_id() {
