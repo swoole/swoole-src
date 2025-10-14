@@ -229,16 +229,20 @@ void Manager::wait(Server *_server) {
                 if (_server->task_worker_num > 0) {
                     reload_task->add_workers(_server->get_task_worker_pool()->workers, _server->task_worker_num);
                 }
+                /**
+                 * When the `reload_async` option is enabled, the SIGTERM signal will be sent to all work processes
+                 * immediately. When the work process receives the signal, it will remove the event listening of the
+                 * work process pipeline, no longer receive data, and then send a process exit message to the management
+                 * process. When the management process receives the message, it will immediately create a new worker
+                 * process. At this time, there will be two processes at the same time. The old process will exit by
+                 * itself after completing the legacy tasks, and the new client request data and tasks will be processed
+                 * by the new worker process.
+                 */
                 if (_server->reload_async) {
-                    for (auto elem : reload_task->workers) {
-                        if (swoole_kill(elem.first, SIGTERM) < 0) {
-                            swoole_sys_warning("failed to kill(%d, SIGTERM) worker#[%d]", elem.first, elem.second->id);
-                        }
-                    }
-                    reload_task->clear_queue();
-                    continue;
+                    reload_task->kill_all(SIGTERM);
+                } else {
+                    goto _kill_worker;
                 }
-                goto _kill_worker;
             } else if (reload_task_worker) {  // only reload task workers
                 pool->reload_init = reload_task_worker = false;
                 if (_server->task_worker_num == 0) {

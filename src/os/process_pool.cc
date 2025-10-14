@@ -1221,15 +1221,13 @@ void ReloadTask::kill_all(int signal_number) {
             if (errno == ECHILD || errno == ESRCH) {
                 continue;
             }
-            swoole_sys_warning("kill(%d, SIGTERM) [%d] failed", kv.first, kv.second->id);
-        } else {
+            swoole_sys_warning("failed to kill(%d, SIGTERM) worker#[%d]", kv.first, kv.second->id);
+        } else if (signal_number == SIGKILL) {
             swoole_warning("force kill worker process(pid=%d, id=%d)", kv.first, kv.second->id);
         }
     }
 
-    while (!kill_queue.empty()) {
-        kill_queue.pop();
-    }
+    clear_queue();
 }
 
 void ReloadTask::kill_one(int signal_number) {
