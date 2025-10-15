@@ -14,7 +14,6 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole.h"
 #include "swoole_msg_queue.h"
 
 #include <sys/ipc.h>

@@ -14,7 +14,6 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole_async.h"
 #include "swoole_signal.h"
 #include "swoole_coroutine_context.h"
 

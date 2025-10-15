@@ -14,12 +14,10 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole.h"
 #include "swoole_process_pool.h"
 
 #include <cstring>
 #include <fcntl.h>
-#include <sys/file.h>
 
 #include <string>
 #include <chrono>  // NOLINT [build/c++11]

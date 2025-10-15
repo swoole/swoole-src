@@ -14,7 +14,6 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole.h"
 #include "swoole_lock.h"
 
 #ifdef HAVE_SPINLOCK

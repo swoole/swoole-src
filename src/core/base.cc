@@ -160,9 +160,9 @@ void swoole_init() {
 
 SW_EXTERN_C_BEGIN
 
-SW_API int swoole_add_hook(enum swGlobalHookType type, swHookFunc func, int push_back) {
+SW_API void swoole_add_hook(enum swGlobalHookType type, swHookFunc func, int push_back) {
     assert(type <= SW_GLOBAL_HOOK_END);
-    return swoole::hook_add(SwooleG.hooks, type, func, push_back);
+    swoole::hook_add(SwooleG.hooks, type, func, push_back);
 }
 
 SW_API void swoole_call_hook(enum swGlobalHookType type, void *arg) {
@@ -373,14 +373,12 @@ void swoole_dump_ascii(const char *data, size_t size) {
 }
 
 void swoole_dump_bin(const uchar *data, char type, size_t size) {
-    int i;
     int type_size = swoole_type_size(type);
     if (type_size <= 0) {
         return;
     }
     int n = size / type_size;
-
-    for (i = 0; i < n; i++) {
+    for (int i = 0; i < n; i++) {
         printf("%ld,", (long) swoole_unpack(type, data + type_size * i));
     }
     printf("\n");
@@ -404,7 +402,7 @@ void swoole_dump_hex(const uchar *data, size_t outlen) {
  */
 bool swoole_mkdir_recursive(const std::string &dir) {
     char tmp[PATH_MAX];
-    size_t i, len = dir.length();
+    size_t len = dir.length();
 
     // PATH_MAX limit includes string trailing null character
     if (len + 1 > PATH_MAX) {
@@ -421,7 +419,7 @@ bool swoole_mkdir_recursive(const std::string &dir) {
     }
 
     len = strlen(tmp);
-    for (i = 1; i < len; i++) {
+    for (size_t i = 1; i < len; i++) {
         if (tmp[i] == '/') {
             tmp[i] = 0;
             if (access(tmp, R_OK) != 0) {
@@ -467,9 +465,9 @@ char *swoole_dec2hex(ulong_t value, int base) {
 
     static char digits[] = "0123456789abcdefghijklmnopqrstuvwxyz";
     char buf[(sizeof(ulong_t) << 3) + 1];
-    char *ptr, *end;
+    char *ptr;
 
-    end = ptr = buf + sizeof(buf) - 1;
+    char *end = ptr = buf + sizeof(buf) - 1;
     *ptr = '\0';
 
     do {
@@ -598,10 +596,9 @@ int swoole_version_compare(const char *version1, const char *version2) {
 uint32_t swoole_common_divisor(uint32_t u, uint32_t v) {
     assert(u > 0);
     assert(v > 0);
-    uint32_t t;
     while (u > 0) {
         if (u < v) {
-            t = u;
+            uint32_t t = u;
             u = v;
             v = t;
         }
@@ -673,26 +670,24 @@ bool sw_wait_for(const std::function<bool(void)> &fn, int timeout_ms) {
         if (fn()) {
             return true;
         }
-		usleep(sleep_msec * 1000);
-		sleep_msec *= 2;
-		// Align the time so that the timeout is consistent with the user settings
-		if (timeout_ms > 0 && timeout_ms - sleep_msec < 0) {
-			sleep_msec = timeout_ms;
-			timeout_ms = 0;
-		} else {
-			timeout_ms -= sleep_msec;
-		}
+        usleep(sleep_msec * 1000);
+        sleep_msec *= 2;
+        // Align the time so that the timeout is consistent with the user settings
+        if (timeout_ms > 0 && timeout_ms - sleep_msec < 0) {
+            sleep_msec = timeout_ms;
+            timeout_ms = 0;
+        } else {
+            timeout_ms -= sleep_msec;
+        }
     }
     return false;
 }
 
 int swoole_itoa(char *buf, long value) {
     long i = 0, j;
-    long sign_mask;
-    unsigned long nn;
 
-    sign_mask = value >> (sizeof(long) * 8 - 1);
-    nn = (value + sign_mask) ^ sign_mask;
+    long sign_mask = value >> (sizeof(long) * 8 - 1);
+    unsigned long nn = (value + sign_mask) ^ sign_mask;
     do {
         buf[i++] = nn % 10 + '0';
     } while (nn /= 10);
@@ -702,10 +697,9 @@ int swoole_itoa(char *buf, long value) {
     buf[i] = '\0';
 
     int s_len = i;
-    char swap;
 
     for (i = 0, j = s_len - 1; i < j; ++i, --j) {
-        swap = buf[i];
+        char swap = buf[i];
         buf[i] = buf[j];
         buf[j] = swap;
     }
@@ -762,10 +756,9 @@ char *swoole_string_format(size_t n, const char *format, ...) {
         return nullptr;
     }
 
-    int ret;
     va_list va_list;
     va_start(va_list, format);
-    ret = vsnprintf(buf, n, format, va_list);
+    int ret = vsnprintf(buf, n, format, va_list);
     va_end(va_list);
     if (ret >= 0) {
         return buf;
@@ -826,12 +819,12 @@ int swoole_get_systemd_listen_fds() {
 #ifdef HAVE_BOOST_STACKTRACE
 #include <boost/stacktrace.hpp>
 #include <iostream>
-void swoole_print_backtrace(void) {
+void swoole_print_backtrace() {
     std::cout << boost::stacktrace::stacktrace();
 }
 #elif defined(HAVE_EXECINFO)
 #include <execinfo.h>
-void swoole_print_backtrace(void) {
+void swoole_print_backtrace() {
     int size = 16;
     void *array[16];
     int stack_num = backtrace(array, size);
@@ -865,7 +858,7 @@ static void swoole_fatal_error_impl(int code, const char *format, ...) {
     swoole_exit(1);
 }
 
-void swoole_exit(int __status) {
+void swoole_exit(int _status) {
 #ifdef SW_THREAD
     /**
      * If multiple threads call exit simultaneously, it can result in a crash.
@@ -873,7 +866,7 @@ void swoole_exit(int __status) {
      */
     std::unique_lock<std::mutex> _lock(sw_thread_lock);
 #endif
-    exit(__status);
+    exit(_status);
 }
 
 namespace swoole {
@@ -920,7 +913,7 @@ std::string dirname(const std::string &file) {
     return file.substr(0, index);
 }
 
-int hook_add(void **hooks, int type, const Callback &func, int push_back) {
+void hook_add(void **hooks, int type, const Callback &func, int push_back) {
     if (hooks[type] == nullptr) {
         hooks[type] = new std::list<Callback>;
     }
@@ -931,8 +924,6 @@ int hook_add(void **hooks, int type, const Callback &func, int push_back) {
     } else {
         l->push_front(func);
     }
-
-    return SW_OK;
 }
 
 void hook_call(void **hooks, int type, void *arg) {

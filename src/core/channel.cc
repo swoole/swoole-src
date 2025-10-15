@@ -17,7 +17,6 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole.h"
 #include "swoole_memory.h"
 #include "swoole_channel.h"
 #include "swoole_lock.h"
@@ -51,8 +50,8 @@ Channel *Channel::make(size_t size, size_t maxlen, int flags) {
         return nullptr;
     }
 
-    auto *object = (Channel *) mem;
-    mem = (char *) mem + sizeof(Channel);
+    auto *object = static_cast<Channel *>(mem);
+    mem = static_cast<char *>(mem) + sizeof(Channel);
 
     *object = {};
 
@@ -94,10 +93,10 @@ int Channel::in(const void *in_data, int data_length) {
         if ((head - tail) < msize) {
             return SW_ERR;
         }
-        item = (ChannelSlice *) ((char *) mem + tail);
+        item = reinterpret_cast<ChannelSlice *>(static_cast<char *>(mem) + tail);
         tail += msize;
     } else {
-        item = (ChannelSlice *) ((char *) mem + tail);
+        item = reinterpret_cast<ChannelSlice *>(static_cast<char *>(mem) + tail);
         tail += msize;
         if (tail >= (off_t) size) {
             tail = 0;
@@ -119,7 +118,7 @@ int Channel::out(void *out_buf, int buffer_length) {
         return SW_ERR;
     }
 
-    auto *item = (ChannelSlice *) ((char *) mem + head);
+    auto *item = reinterpret_cast<ChannelSlice *>(static_cast<char *>(mem) + head);
     assert(buffer_length >= item->length);
     memcpy(out_buf, item->data, item->length);
     head += (item->length + sizeof(item->length));
@@ -135,17 +134,16 @@ int Channel::out(void *out_buf, int buffer_length) {
 /**
  * peek data
  */
-int Channel::peek(void *out, int buffer_length) {
+int Channel::peek(void *out, int buffer_length) const {
     if (empty()) {
         return SW_ERR;
     }
 
-    int length;
     lock->lock();
-    auto *item = (ChannelSlice *) ((char *) mem + head);
+    auto *item = reinterpret_cast<ChannelSlice *>(static_cast<char *>(mem) + head);
     assert(buffer_length >= item->length);
     memcpy(out, item->data, item->length);
-    length = item->length;
+    int length = item->length;
     lock->unlock();
 
     return length;
@@ -154,19 +152,19 @@ int Channel::peek(void *out, int buffer_length) {
 /**
  * wait notify
  */
-int Channel::wait() {
+int Channel::wait() const {
     assert(flags & SW_CHAN_NOTIFY);
     uint64_t value;
-    return notify_pipe->read(&value, sizeof(value));
+    return notify_pipe->read(&value, sizeof(value)) > 0 ? SW_OK : SW_ERR;
 }
 
 /**
  * new data coming, notify to customer
  */
-int Channel::notify() {
+int Channel::notify() const {
     assert(flags & SW_CHAN_NOTIFY);
     uint64_t value = 1;
-    return notify_pipe->write(&value, sizeof(value));
+    return notify_pipe->write(&value, sizeof(value)) == sizeof(value) ? SW_OK : SW_ERR;
 }
 
 /**
@@ -209,7 +207,7 @@ int Channel::pop(void *out_buf, int buffer_length) {
     return n;
 }
 
-void Channel::print() {
+void Channel::print() const {
     printf("Channel\n{\n"
            "    off_t head = %ld;\n"
            "    off_t tail = %ld;\n"

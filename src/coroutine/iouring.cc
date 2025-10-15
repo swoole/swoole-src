@@ -86,7 +86,7 @@ static void parse_kernel_version(const char *release, int *major, int *minor) {
     char *token = strtok(copy, ".-");
     *major = token ? atoi(token) : 0;
 
-    token = strtok(NULL, ".-");
+    token = strtok(nullptr, ".-");
     *minor = token ? atoi(token) : 0;
 }
 

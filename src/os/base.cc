@@ -16,7 +16,6 @@
  +----------------------------------------------------------------------+
  */
 
-#include "swoole.h"
 #include "swoole_socket.h"
 #include "swoole_async.h"
 

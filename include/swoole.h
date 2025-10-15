@@ -781,7 +781,7 @@ struct Global {
 };
 
 std::string dirname(const std::string &file);
-int hook_add(void **hooks, int type, const Callback &func, int push_back);
+void hook_add(void **hooks, int type, const Callback &func, int push_back);
 void hook_call(void **hooks, int type, void *arg);
 double microtime();
 void realtime_get(timespec *time);
@@ -894,7 +894,6 @@ SW_API void swoole_event_set_handler(int fd_type, int event, swoole::ReactorHand
 SW_API bool swoole_event_isset_handler(int fd_type, int event);
 SW_API bool swoole_event_is_available();
 SW_API bool swoole_event_is_running();
-
 
 static sw_inline swoole::String *sw_tg_buffer() {
     return SwooleTG.buffer_stack;
