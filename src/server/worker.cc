@@ -213,13 +213,9 @@ void Server::worker_accept_event(DataHead *info) {
     }
 }
 
-static bool is_root_user() {
-    return geteuid() == 0;
-}
-
 void Server::worker_start_callback(Worker *worker) {
-    if (is_root_user()) {
-        Worker::set_isolation(group_, user_, chroot_);
+    if (swoole_is_root_user()) {
+    	swoole_set_isolation(group_, user_, chroot_);
     }
 
     SW_LOOP_N(worker_num + task_worker_num) {

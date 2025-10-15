@@ -689,9 +689,9 @@ _parse:
                 swoole_trace_log(
                     SW_TRACE_SERVER,
                     "PostWait: request->content_length=%d, buffer->length=%zu, request->header_length=%d\n",
-                    request->content_length,
-                    buffer_->length,
-                    request->header_length);
+                    request->content_length_,
+					buffer->length,
+                    request->header_length_);
             }
             goto _recv_data;
         }

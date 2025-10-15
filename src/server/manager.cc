@@ -153,14 +153,8 @@ void Manager::wait(Server *_server) {
 #endif
         _server->gs->manager_barrier.wait();
 
-        if (_server->reload_async && !_server->user_.empty()) {
-            const auto uid = getuid();
-            if (uid == 0) {
-                const passwd *uinfo = getpwnam(_server->user_.c_str());;
-                if (uinfo && uinfo->pw_uid != uid) {
-                    setresuid(-1, -1, uinfo->pw_uid);
-                }
-            }
+        if (_server->reload_async && swoole_is_root_user() && !_server->user_.empty()) {
+        	swoole_set_isolation(_server->group_, _server->user_, _server->chroot_);
         }
     }
 

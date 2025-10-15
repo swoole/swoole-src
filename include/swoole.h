@@ -590,6 +590,8 @@ void swoole_redirect_stdout(int new_fd);
 void swoole_redirect_stdout(const char *file);
 int swoole_shell_exec(const char *command, pid_t *pid, bool get_error_stream);
 int swoole_daemon(int nochdir, int noclose);
+bool swoole_is_root_user();
+void swoole_set_isolation(const std::string &group_, const std::string &user_, const std::string &chroot_);
 bool swoole_set_task_tmpdir(const std::string &dir);
 const std::string &swoole_get_task_tmpdir();
 int swoole_tmpfile(char *filename);
