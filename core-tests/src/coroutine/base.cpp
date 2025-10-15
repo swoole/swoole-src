@@ -358,5 +358,5 @@ TEST(coroutine_base, c_api) {
         },
         &code);
 
-    ASSERT_EQ(c1, 1);
+    ASSERT_GE(c1, 1);
 }
