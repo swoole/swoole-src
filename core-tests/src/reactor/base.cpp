@@ -22,6 +22,7 @@
 #include "swoole_pipe.h"
 #include "swoole_signal.h"
 #include "swoole_util.h"
+#include "swoole_api.h"
 
 using namespace std;
 using namespace swoole;

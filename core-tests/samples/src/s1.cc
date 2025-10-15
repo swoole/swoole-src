@@ -1,5 +1,4 @@
 #include "swoole.h"
-#include "swoole_api.h"
 #include "swoole_client.h"
 #include "swoole_server.h"
 #include "swoole_coroutine.h"

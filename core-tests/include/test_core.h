@@ -1,6 +1,5 @@
 #pragma once
 
-#include "swoole_api.h"
 #include "swoole_client.h"
 
 #include <gtest/gtest.h>

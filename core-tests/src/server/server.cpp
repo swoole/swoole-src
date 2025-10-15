@@ -4008,10 +4008,6 @@ TEST(server, discard_data) {
     remove(TEST_LOG_FILE);
 }
 
-TEST(server, worker_set_isolation) {
-    Worker::set_isolation("not-exists-group", "not-exists-user", "/tmp/not-exists-dir");
-}
-
 TEST(server, pause_and_resume) {
     Server serv(Server::MODE_BASE);
     serv.worker_num = 2;

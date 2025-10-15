@@ -24,6 +24,8 @@
 #include "swoole.h"
 #include "swoole_config.h"
 
+#include "swoole_api.h"
+
 #include <sys/resource.h>
 
 using namespace swoole;
