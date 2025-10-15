@@ -21,6 +21,8 @@
 #include "swoole_util.h"
 #include "swoole_hash.h"
 
+#include "swoole_api.h"
+
 #include <cassert>
 
 using swoole::network::Address;

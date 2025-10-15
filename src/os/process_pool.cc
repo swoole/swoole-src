@@ -14,7 +14,6 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole_api.h"
 #include "swoole_memory.h"
 #include "swoole_socket.h"
 #include "swoole_string.h"

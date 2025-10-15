@@ -18,6 +18,8 @@
 
 #include "swoole.h"
 
+#include <sys/signal.h>
+
 namespace swoole {
 typedef void (*SignalHandler)(int);
 

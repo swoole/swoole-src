@@ -14,7 +14,6 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole_api.h"
 #include "swoole_http.h"
 #include "swoole_server.h"
 

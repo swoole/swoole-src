@@ -14,7 +14,6 @@
  +----------------------------------------------------------------------+
  */
 
-#include "swoole_api.h"
 #include "swoole_reactor.h"
 #include "swoole_timer.h"
 

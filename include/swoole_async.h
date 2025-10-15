@@ -18,8 +18,9 @@
 
 #pragma once
 
+#include "swoole_socket.h"
+
 #include <vector>
-#include <string>
 
 #ifndef O_DIRECT
 #define O_DIRECT 040000

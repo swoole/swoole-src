@@ -66,6 +66,8 @@ const char *swoole_strerror(int code) {
         return "File too large";
     case SW_ERROR_FILE_EMPTY:
         return "File empty";
+    case SW_ERROR_DIR_NOT_EXIST:
+        return "Dir not exist";
     case SW_ERROR_DNSLOOKUP_DUPLICATE_REQUEST:
         return "DNS Lookup duplicate request";
     case SW_ERROR_DNSLOOKUP_RESOLVE_FAILED:
@@ -82,12 +84,18 @@ const char *swoole_strerror(int code) {
         return "Unregistered signal";
     case SW_ERROR_BAD_HOST_ADDR:
         return "Bad host addr";
+    case SW_ERROR_BAD_PORT:
+        return "Bad port";
+    case SW_ERROR_BAD_SOCKET_TYPE:
+        return "Bad socket type";
     case SW_ERROR_EVENT_REMOVE_FAILED:
         return "Event remove failed";
     case SW_ERROR_EVENT_ADD_FAILED:
         return "Event add failed";
     case SW_ERROR_EVENT_UPDATE_FAILED:
         return "Event update failed";
+    case SW_ERROR_EVENT_UNKNOWN_DATA:
+        return "Event unknown data";
     case SW_ERROR_SESSION_CLOSED_BY_SERVER:
         return "Session closed by server";
     case SW_ERROR_SESSION_CLOSED_BY_CLIENT:
@@ -126,6 +134,8 @@ const char *swoole_strerror(int code) {
         return "SSL handshake failed";
     case SW_ERROR_SSL_CREATE_CONTEXT_FAILED:
         return "SSL create context failed";
+    case SW_ERROR_SSL_CREATE_SESSION_FAILED:
+        return "SSL create session failed";
     case SW_ERROR_PACKAGE_LENGTH_TOO_LARGE:
         return "Package length too large";
     case SW_ERROR_PACKAGE_LENGTH_NOT_FOUND:
@@ -150,6 +160,8 @@ const char *swoole_strerror(int code) {
         return "Http2 stream ignore";
     case SW_ERROR_HTTP2_SEND_CONTROL_FRAME_FAILED:
         return "Http2 send control frame failed";
+    case SW_ERROR_HTTP2_INTERNAL_ERROR:
+        return "Http2 internal error";
     case SW_ERROR_AIO_BAD_REQUEST:
         return "Aio bad request";
     case SW_ERROR_AIO_CANCELED:
@@ -162,6 +174,8 @@ const char *swoole_strerror(int code) {
         return "Socket closed";
     case SW_ERROR_SOCKET_POLL_TIMEOUT:
         return "Socket poll timeout";
+    case SW_ERROR_SOCKET_NOT_EXISTS:
+        return "Socket not exists";
     case SW_ERROR_SOCKS5_UNSUPPORT_VERSION:
         return "Socks5 unsupport version";
     case SW_ERROR_SOCKS5_UNSUPPORT_METHOD:
@@ -172,6 +186,8 @@ const char *swoole_strerror(int code) {
         return "Socks5 server error";
     case SW_ERROR_SOCKS5_HANDSHAKE_FAILED:
         return "Socks5 handshake failed";
+    case SW_ERROR_SOCKS5_CONNECT_FAILED:
+        return "Socks5 connect failed";
     case SW_ERROR_HTTP_PROXY_HANDSHAKE_ERROR:
         return "Http proxy handshake error";
     case SW_ERROR_HTTP_INVALID_PROTOCOL:

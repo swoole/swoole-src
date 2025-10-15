@@ -17,6 +17,7 @@
 #include "swoole.h"
 #include "swoole_coroutine_socket.h"
 #include "swoole_coroutine_system.h"
+#include "swoole_coroutine_api.h"
 #include "swoole_util.h"
 
 #include <string>

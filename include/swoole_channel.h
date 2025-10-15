@@ -19,7 +19,6 @@
 
 #pragma once
 
-#include "swoole.h"
 #include "swoole_lock.h"
 
 namespace swoole {

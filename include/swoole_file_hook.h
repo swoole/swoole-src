@@ -17,7 +17,7 @@
 #ifndef SW_FILE_HOOK_H_
 #define SW_FILE_HOOK_H_
 
-#include "swoole_coroutine_c_api.h"
+#include "swoole_coroutine_api.h"
 
 #define open(pathname, flags, mode) swoole_coroutine_open(pathname, flags, mode)
 #define close(fd) swoole_coroutine_close(fd)

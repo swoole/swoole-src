@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include "swoole.h"
 #include "swoole_string.h"
 
 #include <sys/file.h>

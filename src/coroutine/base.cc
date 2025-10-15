@@ -15,7 +15,7 @@
 */
 
 #include "swoole_coroutine.h"
-#include "swoole_coroutine_c_api.h"
+#include "swoole_coroutine_api.h"
 
 namespace swoole {
 

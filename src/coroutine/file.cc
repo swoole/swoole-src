@@ -13,8 +13,9 @@
  | Author: NathanFreeman  <mariasocute@163.com>                         |
  +----------------------------------------------------------------------+
  */
+
 #include "swoole_file.h"
-#include "swoole_coroutine_c_api.h"
+#include "swoole_coroutine_api.h"
 
 namespace swoole {
 AsyncFile::AsyncFile(const std::string &path, int flags, int mode) {

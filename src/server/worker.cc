@@ -21,6 +21,8 @@
 #include "swoole_memory.h"
 #include "swoole_coroutine.h"
 
+#include "swoole_api.h"
+
 namespace swoole {
 using namespace network;
 

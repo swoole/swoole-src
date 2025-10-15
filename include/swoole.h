@@ -52,6 +52,7 @@
 #include <sched.h> /* sched_yield() */
 #include <pthread.h>
 
+#include <sys/uio.h>
 #include <sys/utsname.h>
 #include <sys/time.h>
 
@@ -593,6 +594,7 @@ int swoole_daemon(int nochdir, int noclose);
 bool swoole_is_root_user();
 void swoole_set_isolation(const std::string &group_, const std::string &user_, const std::string &chroot_);
 bool swoole_set_task_tmpdir(const std::string &dir);
+void swoole_set_process_death_signal(int signal);
 const std::string &swoole_get_task_tmpdir();
 int swoole_tmpfile(char *filename);
 
@@ -846,6 +848,53 @@ SW_API void swoole_name_resolver_each(
 SW_API std::string swoole_name_resolver_lookup(const std::string &host_name, swoole::NameResolver::Context *ctx);
 SW_API int swoole_get_log_level();
 SW_API FILE *swoole_get_stdout_stream();
+
+enum swEventInitFlag {
+    SW_EVENTLOOP_WAIT_EXIT = 1,
+};
+
+/**
+ * manually_trigger:
+ * Once enabled, the timer will no longer be triggered by event polling or the operating system's timer;
+ * instead, it will be managed directly at the user space.
+ */
+SW_API swoole::Timer *swoole_timer_create(bool manually_trigger = false);
+SW_API long swoole_timer_after(long ms, const swoole::TimerCallback &callback, void *private_data = nullptr);
+SW_API long swoole_timer_tick(long ms, const swoole::TimerCallback &callback, void *private_data = nullptr);
+SW_API swoole::TimerNode *swoole_timer_add(double ms,
+                                           bool persistent,
+                                           const swoole::TimerCallback &callback,
+                                           void *private_data = nullptr);
+SW_API swoole::TimerNode *swoole_timer_add(long ms,
+                                           bool persistent,
+                                           const swoole::TimerCallback &callback,
+                                           void *private_data = nullptr);
+SW_API bool swoole_timer_del(swoole::TimerNode *tnode);
+SW_API bool swoole_timer_exists(long timer_id);
+SW_API void swoole_timer_delay(swoole::TimerNode *tnode, long delay_ms);
+SW_API swoole::TimerNode *swoole_timer_get(long timer_id);
+SW_API bool swoole_timer_clear(long timer_id);
+SW_API void swoole_timer_free();
+SW_API void swoole_timer_select();
+SW_API int64_t swoole_timer_get_next_msec();
+SW_API bool swoole_timer_is_available();
+
+SW_API int swoole_event_init(int flags);
+SW_API int swoole_event_add(swoole::network::Socket *socket, int events);
+SW_API int swoole_event_set(swoole::network::Socket *socket, int events);
+SW_API int swoole_event_add_or_update(swoole::network::Socket *socket, int event);
+SW_API int swoole_event_del(swoole::network::Socket *socket);
+SW_API void swoole_event_defer(swoole::Callback cb, void *private_data);
+SW_API ssize_t swoole_event_write(swoole::network::Socket *socket, const void *data, size_t len);
+SW_API ssize_t swoole_event_writev(swoole::network::Socket *socket, const iovec *iov, size_t iovcnt);
+SW_API swoole::network::Socket *swoole_event_get_socket(int fd);
+SW_API int swoole_event_wait();
+SW_API int swoole_event_free();
+SW_API void swoole_event_set_handler(int fd_type, int event, swoole::ReactorHandler handler);
+SW_API bool swoole_event_isset_handler(int fd_type, int event);
+SW_API bool swoole_event_is_available();
+SW_API bool swoole_event_is_running();
+
 
 static sw_inline swoole::String *sw_tg_buffer() {
     return SwooleTG.buffer_stack;

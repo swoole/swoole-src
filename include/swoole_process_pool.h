@@ -17,19 +17,19 @@
 
 #pragma once
 
-#include "swoole.h"
-
-#include <csignal>
-#include <unordered_map>
-#include <unordered_set>
-#include <queue>
-
 #include "swoole_signal.h"
 #include "swoole_lock.h"
 #include "swoole_pipe.h"
 #include "swoole_channel.h"
 #include "swoole_msg_queue.h"
 #include "swoole_message_bus.h"
+
+#include <sys/wait.h>
+
+#include <csignal>
+#include <unordered_map>
+#include <unordered_set>
+#include <queue>
 
 enum swWorkerStatus {
     SW_WORKER_BUSY = 1,

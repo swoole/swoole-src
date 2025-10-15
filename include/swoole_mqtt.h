@@ -17,7 +17,6 @@
  */
 #pragma once
 
-#include "swoole.h"
 #include "swoole_protocol.h"
 
 #define SW_MQTT_MIN_LENGTH_SIZE 1

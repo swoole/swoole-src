@@ -17,7 +17,6 @@
 
 #pragma once
 
-#include "swoole.h"
 #include "swoole_socket.h"
 #include "swoole_coroutine.h"
 #include "swoole_protocol.h"

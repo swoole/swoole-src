@@ -26,9 +26,9 @@
 
 #define SW_HAVE_COUNTABLE 1
 
-#include "swoole_c_api.h"
+#include "swoole.h"
 #include "swoole_api.h"
-#include "swoole_async.h"
+#include "swoole_coroutine_api.h"
 
 #ifdef SW_HAVE_ZLIB
 #include <zlib.h>
