@@ -682,7 +682,6 @@ _parse:
         }
 
         if (buffer->length < request_length) {
-#ifdef SW_HTTP_100_CONTINUE
             // Expect: 100-continue
             if (request->has_expect_header()) {
                 _socket->send(SW_STRL(SW_HTTP_100_CONTINUE_PACKET), 0);
@@ -694,7 +693,6 @@ _parse:
                     buffer_->length,
                     request->header_length);
             }
-#endif
             goto _recv_data;
         }
     }

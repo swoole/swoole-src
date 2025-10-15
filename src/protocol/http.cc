@@ -859,9 +859,7 @@ Request::~Request() {
 }
 
 bool Request::has_expect_header() {
-    // char *buf = buffer->str + buffer->offset;
     char *buf = buffer_->str;
-    // int len = buffer->length - buffer->offset;
     size_t len = buffer_->length;
 
     char *pe = buf + len;
