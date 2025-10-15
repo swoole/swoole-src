@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_client_coro: client continue frames - 2
+swoole_http_client_coro/websocket: client continue frames - 2
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc';?>
 --FILE--

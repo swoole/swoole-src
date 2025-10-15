@@ -14,11 +14,11 @@
   +----------------------------------------------------------------------+
  */
 
-#include <sys/file.h>
-#include <sys/stat.h>
 #include "test_coroutine.h"
 #include "swoole_iouring.h"
-#include "swoole_coroutine_c_api.h"
+
+#include <sys/file.h>
+#include <sys/stat.h>
 
 #ifdef SW_USE_IOURING
 using swoole::Iouring;

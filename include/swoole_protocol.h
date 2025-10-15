@@ -17,8 +17,6 @@
 
 #pragma once
 
-#include "swoole.h"
-#include "swoole_c_api.h"
 #include "swoole_socket.h"
 
 #include <netdb.h>

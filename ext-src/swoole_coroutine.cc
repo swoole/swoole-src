@@ -23,6 +23,7 @@
 
 #include "swoole_server.h"
 #include "swoole_signal.h"
+#include "swoole_async.h"
 
 #include "zend_builtin_functions.h"
 #include "ext/standard/basic_functions.h"

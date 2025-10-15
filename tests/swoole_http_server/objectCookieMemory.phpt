@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_cookie: new cookie memory
+swoole_http_server: new cookie memory
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

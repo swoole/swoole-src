@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_client_coro: auto pong
+swoole_http_client_coro/websocket: auto pong
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc';?>
 --FILE--

@@ -1,68 +1,57 @@
 /*
- +----------------------------------------------------------------------+
- | Swoole                                                               |
- +----------------------------------------------------------------------+
- | Copyright (c) 2012-2018 The Swoole Group                             |
- +----------------------------------------------------------------------+
- | This source file is subject to version 2.0 of the Apache license,    |
- | that is bundled with this package in the file LICENSE, and is        |
- | available through the world-wide-web at the following url:           |
- | http://www.apache.org/licenses/LICENSE-2.0.html                      |
- | If you did not receive a copy of the Apache2.0 license and are unable|
- | to obtain it through the world-wide-web, please send a note to       |
- | license@swoole.com so we can mail you a copy immediately.            |
- +----------------------------------------------------------------------+
- | Author: Tianfeng Han  <rango@swoole.com>                             |
- +----------------------------------------------------------------------+
- */
+  +----------------------------------------------------------------------+
+  | Swoole                                                               |
+  +----------------------------------------------------------------------+
+  | This source file is subject to version 2.0 of the Apache license,    |
+  | that is bundled with this package in the file LICENSE, and is        |
+  | available through the world-wide-web at the following url:           |
+  | http://www.apache.org/licenses/LICENSE-2.0.html                      |
+  | If you did not receive a copy of the Apache2.0 license and are unable|
+  | to obtain it through the world-wide-web, please send a note to       |
+  | license@swoole.com so we can mail you a copy immediately.            |
+  +----------------------------------------------------------------------+
+  | Author: Tianfeng Han  <rango@swoole.com>                             |
+  +----------------------------------------------------------------------+
+*/
 
-#pragma once
+#ifndef SW_C_API_H_
+#define SW_C_API_H_
 
-#include "swoole.h"
-#include "swoole_coroutine_c_api.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-enum swEventInitFlag {
-    SW_EVENTLOOP_WAIT_EXIT = 1,
+#include "swoole_config.h"
+
+enum swGlobalHookType {
+    SW_GLOBAL_HOOK_BEFORE_SERVER_START,
+    SW_GLOBAL_HOOK_BEFORE_CLIENT_START,
+    SW_GLOBAL_HOOK_BEFORE_WORKER_START,
+    SW_GLOBAL_HOOK_ON_CORO_START,
+    SW_GLOBAL_HOOK_ON_CORO_STOP,
+    SW_GLOBAL_HOOK_ON_REACTOR_CREATE,
+    SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN,
+    SW_GLOBAL_HOOK_AFTER_SERVER_SHUTDOWN,
+    SW_GLOBAL_HOOK_BEFORE_WORKER_STOP,
+    SW_GLOBAL_HOOK_ON_REACTOR_DESTROY,
+    SW_GLOBAL_HOOK_BEFORE_SERVER_CREATE,
+    SW_GLOBAL_HOOK_AFTER_SERVER_CREATE,
+    SW_GLOBAL_HOOK_AFTER_FORK,
+    SW_GLOBAL_HOOK_USER = 24,
+    SW_GLOBAL_HOOK_END = SW_MAX_HOOK_TYPE - 1,
 };
 
-/**
- * manually_trigger:
- * Once enabled, the timer will no longer be triggered by event polling or the operating system's timer;
- * instead, it will be managed directly at the user space.
- */
-SW_API swoole::Timer *swoole_timer_create(bool manually_trigger = false);
-SW_API long swoole_timer_after(long ms, const swoole::TimerCallback &callback, void *private_data = nullptr);
-SW_API long swoole_timer_tick(long ms, const swoole::TimerCallback &callback, void *private_data = nullptr);
-SW_API swoole::TimerNode *swoole_timer_add(double ms,
-                                           bool persistent,
-                                           const swoole::TimerCallback &callback,
-                                           void *private_data = nullptr);
-SW_API swoole::TimerNode *swoole_timer_add(long ms,
-                                           bool persistent,
-                                           const swoole::TimerCallback &callback,
-                                           void *private_data = nullptr);
-SW_API bool swoole_timer_del(swoole::TimerNode *tnode);
-SW_API bool swoole_timer_exists(long timer_id);
-SW_API void swoole_timer_delay(swoole::TimerNode *tnode, long delay_ms);
-SW_API swoole::TimerNode *swoole_timer_get(long timer_id);
-SW_API bool swoole_timer_clear(long timer_id);
-SW_API void swoole_timer_free();
-SW_API void swoole_timer_select();
-SW_API int64_t swoole_timer_get_next_msec();
-SW_API bool swoole_timer_is_available();
+typedef void (*swHookFunc)(void *data);
 
-SW_API int swoole_event_init(int flags);
-SW_API int swoole_event_add(swoole::network::Socket *socket, int events);
-SW_API int swoole_event_set(swoole::network::Socket *socket, int events);
-SW_API int swoole_event_add_or_update(swoole::network::Socket *socket, int event);
-SW_API int swoole_event_del(swoole::network::Socket *socket);
-SW_API void swoole_event_defer(swoole::Callback cb, void *private_data);
-SW_API ssize_t swoole_event_write(swoole::network::Socket *socket, const void *data, size_t len);
-SW_API ssize_t swoole_event_writev(swoole::network::Socket *socket, const iovec *iov, size_t iovcnt);
-SW_API swoole::network::Socket *swoole_event_get_socket(int fd);
-SW_API int swoole_event_wait();
-SW_API int swoole_event_free();
-SW_API void swoole_event_set_handler(int fd_type, int event, swoole::ReactorHandler handler);
-SW_API bool swoole_event_isset_handler(int fd_type, int event);
-SW_API bool swoole_event_is_available();
-SW_API bool swoole_event_is_running();
+int swoole_add_hook(swGlobalHookType type, swHookFunc cb, int push_back);
+void swoole_call_hook(swGlobalHookType type, void *arg);
+bool swoole_isset_hook(swGlobalHookType type);
+
+const char *swoole_version(void);
+int swoole_version_id(void);
+int swoole_api_version_id(void);
+
+#ifdef __cplusplus
+} /* end extern "C" */
+#endif
+#endif

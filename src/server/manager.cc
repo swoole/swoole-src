@@ -20,15 +20,6 @@
 #include <unordered_map>
 #include <vector>
 
-#if defined(__linux__)
-#include <sys/prctl.h>
-#elif defined(__FreeBSD__)
-#include <sys/procctl.h>
-#endif
-// _GNU_SOURCE already defined in swoole.h
-#include <unistd.h>
-#include <pwd.h>
-
 namespace swoole {
 /**
  * The functionality of the Manager class is similar to that of the ProcessPool,
@@ -145,22 +136,12 @@ void Manager::wait(Server *_server) {
 #endif
 
     if (_server->is_process_mode()) {
-#if defined(__linux__)
-        prctl(PR_SET_PDEATHSIG, SIGTERM);
-#elif defined(__FreeBSD__)
-        int sigid = SIGTERM;
-        procctl(P_PID, 0, PROC_PDEATHSIG_CTL, &sigid);
-#endif
+        swoole_set_process_death_signal(SIGTERM);
+
         _server->gs->manager_barrier.wait();
 
-        if (_server->reload_async && !_server->user_.empty()) {
-            const auto uid = getuid();
-            if (uid == 0) {
-                const passwd *uinfo = getpwnam(_server->user_.c_str());;
-                if (uinfo && uinfo->pw_uid != uid) {
-                    setresuid(-1, -1, uinfo->pw_uid);
-                }
-            }
+        if (_server->reload_async && swoole_is_root_user() && !_server->user_.empty()) {
+            swoole_set_isolation(_server->group_, _server->user_, _server->chroot_);
         }
     }
 

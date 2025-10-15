@@ -1,6 +1,8 @@
 #include "test_core.h"
 #include "swoole_memory.h"
 
+#include <dirent.h>
+
 using namespace swoole;
 using namespace std;
 

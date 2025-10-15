@@ -31,70 +31,22 @@
 #include <set>
 #include <random>
 
-#include "swoole_api.h"
 #include "swoole_string.h"
 #include "swoole_signal.h"
 #include "swoole_memory.h"
 #include "swoole_protocol.h"
 #include "swoole_util.h"
 #include "swoole_async.h"
-#include "swoole_c_api.h"
-#include "swoole_coroutine_c_api.h"
 #include "swoole_coroutine_system.h"
 #include "swoole_ssl.h"
 
-#if defined(__APPLE__) && defined(HAVE_CCRANDOMGENERATEBYTES)
-#include <Availability.h>
-#if (defined(__MAC_OS_X_VERSION_MIN_REQUIRED) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 101000) ||                         \
-    (defined(__IPHONE_OS_VERSION_MIN_REQUIRED) && __IPHONE_OS_VERSION_MIN_REQUIRED >= 80000)
-#define OPENSSL_APPLE_CRYPTO_RANDOM 1
-#include <CommonCrypto/CommonCryptoError.h>
-#include <CommonCrypto/CommonRandom.h>
-#endif
-#endif
+#include "swoole_api.h"
+#include "swoole_coroutine_api.h"
 
 using swoole::Logger;
 using swoole::NameResolver;
 using swoole::String;
 using swoole::coroutine::System;
-
-#ifdef HAVE_GETRANDOM
-#include <sys/random.h>
-#else
-static ssize_t getrandom(void *buffer, size_t size, unsigned int __flags) {
-#if defined(HAVE_CCRANDOMGENERATEBYTES)
-    /*
-     * arc4random_buf on macOS uses ccrng_generate internally from which
-     * the potential error is silented to respect the portable arc4random_buf interface contract
-     */
-    if (CCRandomGenerateBytes(buffer, size) == kCCSuccess) {
-        return size;
-    }
-    return -1;
-#elif defined(HAVE_ARC4RANDOM)
-    arc4random_buf(buffer, size);
-    return size;
-#else
-    int fd = open("/dev/urandom", O_RDONLY);
-    if (fd < 0) {
-        return -1;
-    }
-
-    size_t read_bytes;
-    ssize_t n;
-    for (read_bytes = 0; read_bytes < size; read_bytes += (size_t) n) {
-        n = read(fd, (char *) buffer + read_bytes, size - read_bytes);
-        if (n <= 0) {
-            break;
-        }
-    }
-
-    close(fd);
-
-    return read_bytes;
-#endif
-}
-#endif
 
 swoole::Global SwooleG = {};
 thread_local swoole::ThreadGlobal SwooleTG = {};
@@ -848,26 +800,6 @@ uint64_t swoole_random_int() {
     static std::mt19937_64 gen(rd());
     static std::uniform_int_distribution<uint64_t> dis(0, UINT64_MAX);
     return dis(gen);
-}
-
-size_t swoole_random_bytes(char *buf, size_t size) {
-    size_t read_bytes = 0;
-    ssize_t n;
-
-    while (read_bytes < size) {
-        size_t amount_to_read = size - read_bytes;
-        n = getrandom(buf + read_bytes, amount_to_read, 0);
-        if (n == -1) {
-            if (errno == EINTR || errno == EAGAIN) {
-                continue;
-            } else {
-                break;
-            }
-        }
-        read_bytes += (size_t) n;
-    }
-
-    return read_bytes;
 }
 
 bool swoole_get_env(const char *name, int *value) {

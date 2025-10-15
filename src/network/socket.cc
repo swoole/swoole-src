@@ -15,15 +15,13 @@
  */
 
 #include "swoole_socket.h"
-
-#include <utility>
-#include <memory>
-
-#include "swoole_api.h"
 #include "swoole_signal.h"
 #include "swoole_util.h"
 #include "swoole_string.h"
 #include "swoole_timer.h"
+
+#include <utility>
+#include <memory>
 
 namespace swoole {
 namespace network {

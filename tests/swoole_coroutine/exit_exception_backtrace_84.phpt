@@ -39,4 +39,3 @@ Stack trace:
 #4 [internal function]: {closure:%s:%d}()
 #5 {main}
   thrown in %s on line %d
-

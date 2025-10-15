@@ -39,4 +39,3 @@ sort($copied_list);
 Assert::eq($unsorted_list->toArray(), $copied_list);
 ?>
 --EXPECT--
-

@@ -17,7 +17,6 @@
 
 #pragma once
 
-#include "swoole.h"
 #include "swoole_heap.h"
 #include "swoole_reactor.h"
 #include "swoole_util.h"

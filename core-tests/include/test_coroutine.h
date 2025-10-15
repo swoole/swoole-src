@@ -6,7 +6,7 @@
 #include "swoole_coroutine_channel.h"
 #include "swoole_coroutine_system.h"
 #include "swoole_coroutine_socket.h"
-#include "swoole_coroutine_c_api.h"
+#include "swoole_coroutine_api.h"
 
 namespace swoole {
 namespace test {

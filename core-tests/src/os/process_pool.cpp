@@ -140,7 +140,7 @@ TEST(process_pool, msgqueue_2) {
 
     test::spawn_exec_and_wait([key]() {
         ProcessPool pool{};
-        Worker::set_isolation("", "nobody", "");
+        swoole_set_isolation("", "nobody", "");
         ASSERT_EQ(pool.create(1, key, SW_IPC_MSGQUEUE), SW_ERR);
         ASSERT_ERREQ(EACCES);
     });

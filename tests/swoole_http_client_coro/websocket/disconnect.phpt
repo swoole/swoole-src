@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_client_coro: test disconnect function
+swoole_http_client_coro/websocket: test disconnect function
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc';?>
 --FILE--

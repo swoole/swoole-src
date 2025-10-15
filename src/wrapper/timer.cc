@@ -14,7 +14,6 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole_api.h"
 #include "swoole_timer.h"
 
 using swoole::sec2msec;

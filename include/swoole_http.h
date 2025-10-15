@@ -15,7 +15,6 @@
  */
 #pragma once
 
-#include "swoole.h"
 #include "swoole_protocol.h"
 
 #include <unordered_map>

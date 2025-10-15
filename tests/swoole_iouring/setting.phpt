@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_server: iouring setting test
+swoole_iouring: iouring setting test
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc';
 skip_if_no_iouring();

@@ -1,5 +1,5 @@
 --TEST--
-swoole_runtime/file_hook: support io_uring
+swoole_iouring: support io_uring
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';

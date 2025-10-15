@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_client_coro: test ping function
+swoole_http_client_coro/websocket: test ping function
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc';?>
 --FILE--

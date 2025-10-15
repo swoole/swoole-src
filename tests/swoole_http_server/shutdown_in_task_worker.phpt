@@ -1,5 +1,5 @@
 --TEST--
-swoole_process: shutdown in task process
+swoole_http_server: shutdown in task process
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

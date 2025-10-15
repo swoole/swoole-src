@@ -32,15 +32,12 @@ extern "C" {
 #include <poll.h>
 #include <dirent.h>
 
-#ifdef __APPLE__
-extern int fdatasync(int);
-#endif
-
 /**
- * base
+ * basic API
  */
+long swoole_coroutine_create(void (*routine)(void *), void *arg);
 uint8_t swoole_coroutine_is_in(void);
-long swoole_coroutine_get_current_id(void);
+long swoole_coroutine_get_id(void);
 void swoole_coroutine_sleep(int sec);
 void swoole_coroutine_usleep(int usec);
 
