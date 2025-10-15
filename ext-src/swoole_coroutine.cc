@@ -25,6 +25,7 @@
 #include "swoole_signal.h"
 
 #include "zend_builtin_functions.h"
+#include "ext/standard/basic_functions.h"
 #include "ext/spl/spl_array.h"
 
 #include "zend_observer.h"
@@ -571,6 +572,30 @@ inline void PHPCoroutine::restore_og(PHPContext *ctx) {
     }
 }
 
+void PHPCoroutine::save_bg(PHPContext *ctx) {
+	if (BG(serialize_lock)) {
+		ctx->serialize_lock = BG(serialize_lock);
+	}
+	if (BG(serialize).data) {
+        memcpy(&ctx->serialize, &BG(serialize), sizeof(BG(serialize)));
+	}
+	if (BG(unserialize).data) {
+		memcpy(&ctx->unserialize, &BG(unserialize), sizeof(BG(unserialize)));
+	}
+}
+
+void PHPCoroutine::restore_bg(PHPContext *ctx) {
+	if (ctx->serialize_lock) {
+		BG(serialize_lock) = ctx->serialize_lock;
+	}
+	if (ctx->serialize.data) {
+		memcpy(&BG(serialize), &ctx->serialize, sizeof(BG(serialize)));
+	}
+	if (ctx->unserialize.data) {
+		memcpy(&BG(unserialize), &ctx->unserialize, sizeof(BG(unserialize)));
+	}
+}
+
 void PHPCoroutine::set_hook_flags(uint32_t flags) {
     zval options;
     array_init(&options);
@@ -589,11 +614,13 @@ void PHPCoroutine::set_hook_flags(uint32_t flags) {
 void PHPCoroutine::save_context(PHPContext *ctx) {
     save_vm_stack(ctx);
     save_og(ctx);
+    save_bg(ctx);
 }
 
 void PHPCoroutine::restore_context(PHPContext *ctx) {
     restore_vm_stack(ctx);
     restore_og(ctx);
+    restore_bg(ctx);
 }
 
 void PHPCoroutine::on_yield(void *arg) {

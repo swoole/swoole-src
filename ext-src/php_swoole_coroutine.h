@@ -61,6 +61,19 @@ struct PHPContext {
     zend_class_entry *exception_class;
     zend_object *exception;
     zend_output_globals *output_ptr;
+	/*
+	 * for var serialize/unserialize,
+	 * coroutine switching may occur in the __sleep/__wakeup magic method of the object
+	 */
+    unsigned serialize_lock;
+	struct {
+		struct php_serialize_data *data;
+		unsigned level;
+	} serialize;
+	struct {
+		struct php_unserialize_data *data;
+		unsigned level;
+	} unserialize;
     /* for error control `@` */
     bool in_silence;
     bool enable_scheduler;
@@ -268,6 +281,8 @@ class PHPCoroutine {
     static void restore_vm_stack(PHPContext *ctx);
     static void save_og(PHPContext *ctx);
     static void restore_og(PHPContext *ctx);
+    static void save_bg(PHPContext *ctx);
+    static void restore_bg(PHPContext *ctx);
     static void save_context(PHPContext *ctx);
     static void restore_context(PHPContext *ctx);
     static void destroy_context(PHPContext *ctx);
