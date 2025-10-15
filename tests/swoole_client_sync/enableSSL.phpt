@@ -1,5 +1,5 @@
 --TEST--
-swoole_client_async: enableSSL
+swoole_client_sync: enableSSL
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_client_coro: Control frames must not be fragmented
+swoole_http_client_coro/websocket: Control frames must not be fragmented
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc';?>
 --FILE--

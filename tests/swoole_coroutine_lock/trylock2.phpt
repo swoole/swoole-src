@@ -1,5 +1,7 @@
 --TEST--
-swoole_lock: coroutine try lock
+swoole_coroutine_lock: coroutine try lock
+--SKIPIF--
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 

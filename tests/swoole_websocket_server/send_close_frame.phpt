@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_client_coro: send close frame will not close connection
+swoole_websocket_server: send close frame will not close connection
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

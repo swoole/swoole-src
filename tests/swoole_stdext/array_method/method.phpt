@@ -1,5 +1,5 @@
 --TEST--
-swoole_stdext/string_method: all array methods test
+swoole_stdext/array_method: all array methods test
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--

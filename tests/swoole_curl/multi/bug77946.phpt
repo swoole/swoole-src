@@ -47,4 +47,3 @@ run(function () {
 });
 ?>
 --EXPECT--
-

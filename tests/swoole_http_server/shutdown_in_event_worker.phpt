@@ -1,5 +1,5 @@
 --TEST--
-swoole_process: shutdown in worker process
+swoole_http_server: shutdown in worker process
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
