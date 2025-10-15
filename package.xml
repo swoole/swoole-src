@@ -49,8 +49,8 @@
         <email>doubaokun@php.net</email>
         <active>yes</active>
     </developer>
-    <date>2025-10-13</date>
-    <time>21:00:00</time>
+    <date>2025-10-15</date>
+    <time>16:00:00</time>
     <version>
         <release>6.1.0RC2</release>
         <api>6.0</api>
@@ -702,12 +702,11 @@
             <file role="src" name="include/swoole_atomic.h" />
             <file role="src" name="include/swoole_base64.h" />
             <file role="src" name="include/swoole_buffer.h" />
-            <file role="src" name="include/swoole_c_api.h" />
             <file role="src" name="include/swoole_channel.h" />
             <file role="src" name="include/swoole_client.h" />
             <file role="src" name="include/swoole_config.h" />
             <file role="src" name="include/swoole_coroutine.h" />
-            <file role="src" name="include/swoole_coroutine_c_api.h" />
+            <file role="src" name="include/swoole_coroutine_api.h" />
             <file role="src" name="include/swoole_coroutine_channel.h" />
             <file role="src" name="include/swoole_coroutine_context.h" />
             <file role="src" name="include/swoole_coroutine_socket.h" />
@@ -1595,6 +1594,7 @@
             <file role="test" name="tests/swoole_http_client_coro/write_func_1.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/write_func_2.phpt" />
             <file role="test" name="tests/swoole_http_server/0.phpt" />
+            <file role="test" name="tests/swoole_http_server/100-continue.phpt" />
             <file role="test" name="tests/swoole_http_server/If_Modified_Since.phpt" />
             <file role="test" name="tests/swoole_http_server/accept_encoding.phpt" />
             <file role="test" name="tests/swoole_http_server/buffer_output_size.phpt" />
