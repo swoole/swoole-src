@@ -276,7 +276,22 @@ uint8_t swoole_coroutine_is_in() {
     return !!swoole::Coroutine::get_current();
 }
 
-long swoole_coroutine_get_current_id() {
+long swoole_coroutine_create(void (*routine)(void *), void *arg) {
+    if (sw_likely(swoole_event_is_available())) {
+        return swoole::Coroutine::create(routine, arg);
+    } else {
+        if (swoole_event_init(SW_EVENTLOOP_WAIT_EXIT) < 0) {
+            return -1;
+        }
+        swoole::Coroutine::activate();
+        long cid = swoole::Coroutine::create(routine, arg);
+        swoole_event_wait();
+        swoole::Coroutine::deactivate();
+        return cid;
+    }
+}
+
+long swoole_coroutine_get_id() {
     return swoole::Coroutine::get_current_cid();
 }
 
