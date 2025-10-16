@@ -94,9 +94,9 @@ size_t base64_encode(const unsigned char *in, size_t inlen, char *out) {
 }
 
 size_t base64_decode(const char *in, size_t inlen, char *out) {
-    size_t i, j;
+    size_t j;
 
-    for (i = j = 0; i < inlen; i++) {
+    for (size_t i = j = 0; i < inlen; i++) {
         int c;
         int s = i % 4; /* from 8/gcd(6, 8) */
 

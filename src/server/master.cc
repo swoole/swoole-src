@@ -1728,8 +1728,8 @@ int Server::add_worker(Worker *worker) {
     return worker->id;
 }
 
-int Server::add_hook(Server::HookType type, const Callback &func, int push_back) {
-    return swoole::hook_add(hooks, (int) type, func, push_back);
+void Server::add_hook(Server::HookType type, const Callback &func, int push_back) {
+    swoole::hook_add(hooks, (int) type, func, push_back);
 }
 
 bool Server::add_command(const std::string &name, int accepted_process_types, const Command::Handler &func) {

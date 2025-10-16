@@ -866,7 +866,7 @@ ssize_t Socket::sendfile(const File &fp, off_t *offset, size_t length) {
     } else
 #endif
     {
-        return ::swoole_sendfile(fd, fp.get_fd(), offset, length);
+        return swoole_sendfile(fd, fp.get_fd(), offset, length);
     }
 }
 

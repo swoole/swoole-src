@@ -342,13 +342,13 @@ class Socket {
     }
 
     /* set connect read write timeout */
-    void set_timeout(double timeout, int type = SW_TIMEOUT_ALL);
+    void set_timeout(double timeout, int _type = SW_TIMEOUT_ALL) const;
 
-    void set_timeout(timeval *timeout, int type = SW_TIMEOUT_ALL) {
-        set_timeout((double) timeout->tv_sec + ((double) timeout->tv_usec / 1000 / 1000), type);
+    void set_timeout(timeval *timeout, int _type = SW_TIMEOUT_ALL) const {
+        set_timeout((double) timeout->tv_sec + ((double) timeout->tv_usec / 1000 / 1000), _type);
     }
 
-    double get_timeout(TimeoutType type) const;
+    double get_timeout(TimeoutType _type) const;
     bool get_option(int level, int optname, void *optval, socklen_t *optlen) const;
     bool get_option(int level, int optname, int *optval) const;
     bool set_option(int level, int optname, const void *optval, socklen_t optlen) const;

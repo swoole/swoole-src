@@ -14,7 +14,6 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole.h"
 #include "swoole_memory.h"
 
 namespace swoole {
@@ -107,11 +106,10 @@ size_t FixedPool::sizeof_struct_impl() {
  * linked list
  */
 void FixedPoolImpl::init() {
-    FixedPoolSlice *slice;
     void *cur = memory;
     void *max = (char *) memory + size;
     do {
-        slice = (FixedPoolSlice *) cur;
+        auto *slice = static_cast<FixedPoolSlice *>(cur);
         sw_memset_zero(slice, sizeof(FixedPoolSlice));
 
         if (head != nullptr) {
@@ -125,7 +123,7 @@ void FixedPoolImpl::init() {
         cur = (char *) cur + (sizeof(FixedPoolSlice) + slice_size);
 
         if (cur < max) {
-            slice->prev = (FixedPoolSlice *) cur;
+            slice->prev = static_cast<FixedPoolSlice *>(cur);
         } else {
             slice->prev = nullptr;
             break;
@@ -134,15 +132,15 @@ void FixedPoolImpl::init() {
     } while (true);
 }
 
-uint32_t FixedPool::get_number_of_spare_slice() {
+uint32_t FixedPool::get_number_of_spare_slice() const {
     return impl->slice_num - impl->slice_use;
 }
 
-uint32_t FixedPool::get_number_of_total_slice() {
+uint32_t FixedPool::get_number_of_total_slice() const {
     return impl->slice_num;
 }
 
-uint32_t FixedPool::get_slice_size() {
+uint32_t FixedPool::get_slice_size() const {
     return impl->slice_size;
 }
 
@@ -209,7 +207,7 @@ FixedPool::~FixedPool() {
     }
 }
 
-void FixedPool::debug(int max_lines) {
+void FixedPool::debug(int max_lines) const {
     int line = 0;
     FixedPoolSlice *slice = impl->head;
 

@@ -43,10 +43,10 @@ class FixedPool final : public MemoryPool {
     ~FixedPool() override;
     void *alloc(uint32_t size) override;
     void free(void *ptr) override;
-    void debug(int max_lines = 100);
-    uint32_t get_number_of_spare_slice();
-    uint32_t get_number_of_total_slice();
-    uint32_t get_slice_size();
+    void debug(int max_lines = 100) const;
+    uint32_t get_number_of_spare_slice() const;
+    uint32_t get_number_of_total_slice() const;
+    uint32_t get_slice_size() const;
     static size_t sizeof_struct_slice();
     static size_t sizeof_struct_impl();
 };

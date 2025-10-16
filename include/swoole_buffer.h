@@ -46,8 +46,7 @@ struct BufferChunk {
 };
 
 class Buffer {
-  private:
-    // 0: donot use chunk
+    // 0: don't use chunk
     uint32_t chunk_size;
     uint32_t total_length = 0;
     std::queue<BufferChunk *> queue_;

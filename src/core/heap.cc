@@ -23,7 +23,7 @@
 
 namespace swoole {
 
-Heap::Heap(size_t _n, Heap::Type _type) {
+Heap::Heap(size_t _n, Type _type) {
     if (!((nodes = static_cast<HeapNode **>(sw_malloc((_n + 1) * sizeof(void *)))))) {
         throw std::bad_alloc();
     }
@@ -41,15 +41,15 @@ Heap::~Heap() {
     sw_free(nodes);
 }
 
-int Heap::compare(uint64_t a, uint64_t b) {
-    if (type == Heap::MIN_HEAP) {
+int Heap::compare(uint64_t a, uint64_t b) const {
+    if (type == MIN_HEAP) {
         return a > b;
     } else {
         return a < b;
     }
 }
 
-uint32_t Heap::maxchild(uint32_t i) {
+uint32_t Heap::maxchild(uint32_t i) const {
     uint32_t child_i = left(i);
     if (child_i >= num) {
         return 0;
@@ -61,7 +61,7 @@ uint32_t Heap::maxchild(uint32_t i) {
     return child_i;
 }
 
-void Heap::bubble_up(uint32_t i) {
+void Heap::bubble_up(uint32_t i) const {
     HeapNode *moving_node = nodes[i];
     uint32_t parent_i;
 
@@ -75,7 +75,7 @@ void Heap::bubble_up(uint32_t i) {
     moving_node->position = i;
 }
 
-void Heap::percolate_down(uint32_t i) {
+void Heap::percolate_down(uint32_t i) const {
     uint32_t child_i;
     HeapNode *moving_node = nodes[i];
 
@@ -92,10 +92,9 @@ void Heap::percolate_down(uint32_t i) {
 HeapNode *Heap::push(uint64_t priority, void *data) {
     HeapNode **tmp;
     uint32_t i;
-    uint32_t newsize;
 
     if (num >= size) {
-        newsize = size * 2;
+        uint32_t newsize = size * 2;
         if (!((tmp = static_cast<HeapNode **>(sw_realloc(nodes, sizeof(HeapNode *) * newsize))))) {
             return nullptr;
         }
@@ -112,7 +111,7 @@ HeapNode *Heap::push(uint64_t priority, void *data) {
     return node;
 }
 
-void Heap::change_priority(uint64_t new_priority, HeapNode *node) {
+void Heap::change_priority(uint64_t new_priority, HeapNode *node) const {
     uint32_t pos = node->position;
     uint64_t old_pri = node->priority;
 
@@ -137,12 +136,11 @@ void Heap::remove(HeapNode *node) {
 }
 
 void *Heap::pop() {
-    HeapNode *head;
     if (count() == 0) {
         return nullptr;
     }
 
-    head = nodes[1];
+    HeapNode *head = nodes[1];
     nodes[1] = nodes[--num];
     percolate_down(1);
 
@@ -151,7 +149,7 @@ void *Heap::pop() {
     return data;
 }
 
-void *Heap::peek() {
+void *Heap::peek() const {
     if (num == 1) {
         return nullptr;
     }
@@ -162,7 +160,7 @@ void *Heap::peek() {
     return node->data;
 }
 
-void Heap::print() {
+void Heap::print() const {
     for (uint32_t i = 1; i < num; i++) {
         printf("#%u\tpriority=%ld, data=%p\n", i, (long) nodes[i]->priority, nodes[i]->data);
     }

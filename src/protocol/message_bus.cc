@@ -1,3 +1,21 @@
+/*
+ +----------------------------------------------------------------------+
+ | Swoole                                                               |
+ +----------------------------------------------------------------------+
+ | Copyright (c) 2012-2015 The Swoole Group                             |
+ +----------------------------------------------------------------------+
+ | This source file is subject to version 2.0 of the Apache license,    |
+ | that is bundled with this package in the file LICENSE, and is        |
+ | available through the world-wide-web at the following url:           |
+ | http://www.apache.org/licenses/LICENSE-2.0.html                      |
+ | If you did not receive a copy of the Apache2.0 license and are unable|
+ | to obtain it through the world-wide-web, please send a note to       |
+ | license@swoole.com so we can mail you a copy immediately.            |
+ +----------------------------------------------------------------------+
+ | Author: Tianfeng Han  <rango@swoole.com>                             |
+ +----------------------------------------------------------------------+
+ */
+
 #include "swoole_message_bus.h"
 #include "swoole_process_pool.h"
 
@@ -269,8 +287,8 @@ bool MessageBus::write(Socket *sock, SendData *resp) {
         if (send_fn(sock, iov, 2) == (ssize_t) (sizeof(resp->info) + l_payload)) {
             return true;
         }
-        if (sock->catch_write_pipe_error(errno) == SW_REDUCE_SIZE && max_length > SW_IPC_BUFFER_SIZE) {
-            max_length = SW_IPC_BUFFER_SIZE;
+        if (sock->catch_write_pipe_error(errno) == SW_REDUCE_SIZE && max_length > SW_IPC_MSG_MIN) {
+            max_length = SW_IPC_MSG_MIN;
         } else {
             return false;
         }
@@ -295,8 +313,8 @@ bool MessageBus::write(Socket *sock, SendData *resp) {
         swoole_trace("finish, type=%d|len=%u", resp->info.type, copy_n);
 
         if (send_fn(sock, iov, 2) < 0) {
-            if (sock->catch_write_pipe_error(errno) == SW_REDUCE_SIZE && max_length > SW_IPC_BUFFER_SIZE) {
-                max_length = SW_IPC_BUFFER_SIZE;
+            if (sock->catch_write_pipe_error(errno) == SW_REDUCE_SIZE && max_length > SW_IPC_MSG_MIN) {
+                max_length = SW_IPC_MSG_MIN;
                 if (resp->info.flags & SW_EVENT_DATA_END) {
                     resp->info.flags &= ~SW_EVENT_DATA_END;
                 }

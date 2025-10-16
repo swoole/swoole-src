@@ -1155,7 +1155,7 @@ class Server {
     int add_worker(Worker *worker);
     ListenPort *add_port(SocketType type, const char *host, int port);
     int add_systemd_socket();
-    int add_hook(enum HookType type, const Callback &func, int push_back);
+    void add_hook(enum HookType type, const Callback &func, int push_back);
     bool add_command(const std::string &command, int accepted_process_types, const Command::Handler &func);
     Connection *add_connection(const ListenPort *ls, network::Socket *_socket, int server_fd);
     void abort_connection(Reactor *reactor, const ListenPort *ls, network::Socket *_socket) const;

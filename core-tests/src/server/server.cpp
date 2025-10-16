@@ -325,15 +325,14 @@ static void test_base() {
     ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     ASSERT_TRUE(port);
 
-    ASSERT_EQ(serv.add_hook(
-                  Server::HOOK_WORKER_START,
-                  [](void *ptr) {
-                      void **args = (void **) ptr;
-                      Server *serv = (Server *) args[0];
-                      ASSERT_TRUE(serv->is_started());
-                  },
-                  false),
-              0);
+    serv.add_hook(
+        Server::HOOK_WORKER_START,
+        [](void *ptr) {
+            void **args = (void **) ptr;
+            Server *serv = (Server *) args[0];
+            ASSERT_TRUE(serv->is_started());
+        },
+        false);
 
     mutex lock;
     lock.lock();

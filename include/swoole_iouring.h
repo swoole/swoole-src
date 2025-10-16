@@ -60,11 +60,11 @@ class Iouring {
   public:
     ~Iouring();
 
-    bool is_empty_waiting_tasks() {
-        return waiting_tasks.size() == 0;
+    bool is_empty_waiting_tasks() const {
+        return waiting_tasks.empty();
     }
 
-    uint64_t get_task_num() {
+    uint64_t get_task_num() const {
         return task_num;
     }
 

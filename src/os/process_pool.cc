@@ -147,7 +147,7 @@ int ProcessPool::create_message_bus() {
     if (workers[0].pipe_master->get_option(SOL_SOCKET, SO_SNDBUF, &bufsize) != 0) {
         bufsize = SW_IPC_MAX_SIZE;
     }
-    ipc_max_size = SW_MIN(bufsize, SW_IPC_BUFFER_MAX_SIZE) - SW_DGRAM_HEADER_SIZE;
+    ipc_max_size = SW_MIN(bufsize, SW_IPC_BUFFER_MAX_SIZE);
 #endif
     message_bus->set_buffer_size(ipc_max_size);
     if (!message_bus->alloc_buffer()) {

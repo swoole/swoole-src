@@ -16,11 +16,8 @@
 
 #include <sys/file.h>
 
-#include <queue>
-
 #include "swoole_coroutine.h"
 #include "swoole_coroutine_api.h"
-#include "swoole_coroutine_system.h"
 
 using swoole::Coroutine;
 using swoole::coroutine::async;

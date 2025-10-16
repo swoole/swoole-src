@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
  */
 
-#include "swoole.h"
+#include "swoole_lock.h"
 
 #ifdef HAVE_IOURING_FUTEX
 #include "swoole_iouring.h"
@@ -22,8 +22,6 @@
 #include "swoole_coroutine_system.h"
 using swoole::coroutine::System;
 #endif
-
-#include "swoole_lock.h"
 
 namespace swoole {
 CoroutineLock::CoroutineLock(bool shared) : Lock(COROUTINE_LOCK, shared) {

@@ -14,7 +14,6 @@
  +----------------------------------------------------------------------+
  */
 
-#include "swoole.h"
 #include "swoole_server.h"
 #include "swoole_websocket.h"
 

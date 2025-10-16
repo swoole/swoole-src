@@ -48,12 +48,7 @@
 #define s6_addr32 _S6_un._S6_u32
 #endif
 
-#ifdef __linux__
-#include <sys/sendfile.h>
-#define swoole_sendfile(out_fd, in_fd, offset, limit) sendfile(out_fd, in_fd, offset, limit)
-#else
 ssize_t swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size);
-#endif
 
 enum {
     SW_BAD_SOCKET = -1,
