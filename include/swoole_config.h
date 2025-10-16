@@ -76,6 +76,7 @@
 #endif
 #define SW_IPC_BUFFER_MAX_SIZE (64 * 1024)
 #define SW_IPC_BUFFER_SIZE (SW_IPC_MAX_SIZE - sizeof(swoole::DataHead))
+#define SW_IPC_MSG_MIN (2048 - sizeof(swoole::DataHead))
 // !!!End.-------------------------------------------------------------------
 
 #define SW_BUFFER_SIZE_STD 8192
@@ -106,8 +107,6 @@
 
 #define SW_MSGMAX 65536
 #define SW_MESSAGE_BOX_SIZE 65536
-
-#define SW_DGRAM_HEADER_SIZE 32
 
 /**
  * The maximum number of Reactor threads

@@ -21,6 +21,7 @@
 #include "swoole_client.h"
 #include "swoole_mqtt.h"
 #include "swoole_redis.h"
+#include "swoole_ssl.h"
 
 using swoole::http_server::Request;
 using swoole::network::Address;
