@@ -1304,7 +1304,7 @@ ssize_t Socket::sendto(std::string host, int port, const void *_buf, size_t _n) 
     TimerController timer(&write_timer, socket->write_timeout, this, timer_callback);
     do {
         retval = socket->sendto(addr, _buf, _n, 0);
-        swoole_trace_log(SW_TRACE_SOCKET, "sendto %ld/%ld bytes, errno=%d", retval, __n, errno);
+        swoole_trace_log(SW_TRACE_SOCKET, "sendto %ld/%ld bytes, errno=%d", retval, _n, errno);
     } while (retval < 0 && (errno == EINTR || (socket->catch_write_error(errno) == SW_WAIT && timer.start() &&
                                                wait_event(SW_EVENT_WRITE, &_buf, _n))));
     check_return_value(retval);
@@ -1328,7 +1328,7 @@ ssize_t Socket::recvfrom(void *_buf, size_t _n, sockaddr *_addr, socklen_t *_soc
     TimerController timer(&read_timer, socket->read_timeout, this, timer_callback);
     do {
         retval = ::recvfrom(sock_fd, _buf, _n, 0, _addr, _socklen);
-        swoole_trace_log(SW_TRACE_SOCKET, "recvfrom %ld/%ld bytes, errno=%d", retval, __n, errno);
+        swoole_trace_log(SW_TRACE_SOCKET, "recvfrom %ld/%ld bytes, errno=%d", retval, _n, errno);
     } while (retval < 0 && ((errno == EINTR) || (socket->catch_read_error(errno) == SW_WAIT && timer.start() &&
                                                  wait_event(SW_EVENT_READ))));
     check_return_value(retval);
