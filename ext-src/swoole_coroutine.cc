@@ -580,12 +580,12 @@ void PHPCoroutine::save_bg(PHPContext *ctx) {
     if (BG(serialize_lock)) {
         ctx->serialize_lock = BG(serialize_lock);
     } else {
-        ctx->output_ptr = 0;
+        ctx->serialize_lock = 0;
     }
     if (BG(serialize).data) {
         memcpy(&ctx->serialize, &BG(serialize), sizeof(BG(serialize)));
     } else {
-        memset(&ctx->serialize, 0, sizeof(BG(unserialize)));
+        memset(&ctx->serialize, 0, sizeof(BG(serialize)));
     }
     if (BG(unserialize).data) {
         memcpy(&ctx->unserialize, &BG(unserialize), sizeof(BG(unserialize)));
@@ -600,13 +600,9 @@ void PHPCoroutine::restore_bg(PHPContext *ctx) {
     }
     if (ctx->serialize.data) {
         memcpy(&BG(serialize), &ctx->serialize, sizeof(BG(serialize)));
-    } else {
-        memset(&BG(serialize), 0, sizeof(BG(unserialize)));
     }
     if (ctx->unserialize.data) {
         memcpy(&BG(unserialize), &ctx->unserialize, sizeof(BG(unserialize)));
-    } else {
-        memset(&BG(unserialize), 0, sizeof(BG(unserialize)));
     }
 }
 
