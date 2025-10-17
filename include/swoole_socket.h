@@ -22,14 +22,13 @@
 #include "swoole_buffer.h"
 #include "swoole_file.h"
 
+#include <poll.h>
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/uio.h>
-#include <sys/poll.h>
+
 #include <netinet/in.h>
-#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
-#include <sys/types.h>
-#endif
 #include <netinet/ip6.h>
 #include <netinet/tcp.h>
 #include <netinet/udp.h>

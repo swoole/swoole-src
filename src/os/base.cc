@@ -18,11 +18,10 @@
 
 #include "swoole_socket.h"
 #include "swoole_async.h"
+#include "swoole_signal.h"
 
 #include <pwd.h>
 #include <grp.h>
-
-#include <sys/signal.h>
 
 #if defined(__linux__)
 #include <sys/prctl.h>
