@@ -301,6 +301,9 @@ static void coro_interrupt_function(zend_execute_data *execute_data) {
 PHPContext *PHPCoroutine::create_context(Args *args) {
     PHPContext *ctx = (PHPContext *) emalloc(sizeof(PHPContext));
     ctx->output_ptr = nullptr;
+    ctx->serialize_lock = 0;
+    ctx->serialize = {};
+    ctx->unserialize = {};
     ctx->in_silence = false;
 
     ctx->co = Coroutine::get_current();
@@ -574,27 +577,33 @@ inline void PHPCoroutine::restore_og(PHPContext *ctx) {
 }
 
 void PHPCoroutine::save_bg(PHPContext *ctx) {
-	if (BG(serialize_lock)) {
-		ctx->serialize_lock = BG(serialize_lock);
-	}
-	if (BG(serialize).data) {
+    if (BG(serialize_lock)) {
+        ctx->serialize_lock = BG(serialize_lock);
+    } else {
+        ctx->serialize_lock = 0;
+    }
+    if (BG(serialize).data) {
         memcpy(&ctx->serialize, &BG(serialize), sizeof(BG(serialize)));
-	}
-	if (BG(unserialize).data) {
-		memcpy(&ctx->unserialize, &BG(unserialize), sizeof(BG(unserialize)));
-	}
+    } else {
+        memset(&ctx->serialize, 0, sizeof(BG(serialize)));
+    }
+    if (BG(unserialize).data) {
+        memcpy(&ctx->unserialize, &BG(unserialize), sizeof(BG(unserialize)));
+    } else {
+        memset(&ctx->unserialize, 0, sizeof(BG(unserialize)));
+    }
 }
 
 void PHPCoroutine::restore_bg(PHPContext *ctx) {
-	if (ctx->serialize_lock) {
-		BG(serialize_lock) = ctx->serialize_lock;
-	}
-	if (ctx->serialize.data) {
-		memcpy(&BG(serialize), &ctx->serialize, sizeof(BG(serialize)));
-	}
-	if (ctx->unserialize.data) {
-		memcpy(&BG(unserialize), &ctx->unserialize, sizeof(BG(unserialize)));
-	}
+    if (ctx->serialize_lock) {
+        BG(serialize_lock) = ctx->serialize_lock;
+    }
+    if (ctx->serialize.data) {
+        memcpy(&BG(serialize), &ctx->serialize, sizeof(BG(serialize)));
+    }
+    if (ctx->unserialize.data) {
+        memcpy(&BG(unserialize), &ctx->unserialize, sizeof(BG(unserialize)));
+    }
 }
 
 void PHPCoroutine::set_hook_flags(uint32_t flags) {

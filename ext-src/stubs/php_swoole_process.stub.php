@@ -19,7 +19,7 @@ namespace Swoole {
         #endif
         public function set(array $settings): void {}
         public function setTimeout(float $seconds): bool {}
-        public function setBlocking(bool $blocking): void {}
+        public function setBlocking(bool $blocking): bool {}
         public function setPriority(int $which, int $priority, ?int $who = null): bool {}
         public function getPriority(int $which, ?int $who = null): int | false {}
         public function start(): bool|int {}
