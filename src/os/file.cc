@@ -244,9 +244,7 @@ std::shared_ptr<String> File::read_content() const {
         if (n <= 0) {
             break;
         }
-        if (!data->grow((size_t) n)) {
-            break;
-        }
+        data->grow((size_t) n);
     }
     return data;
 }

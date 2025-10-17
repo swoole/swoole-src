@@ -183,9 +183,7 @@ void php_swoole_table_minit(int module_number) {
     SW_SET_CLASS_CUSTOM_OBJECT(
         swoole_table, php_swoole_table_create_object, php_swoole_table_free_object, TableObject, std);
     zend_class_implements(swoole_table_ce, 1, zend_ce_iterator);
-#ifdef SW_HAVE_COUNTABLE
     zend_class_implements(swoole_table_ce, 1, zend_ce_countable);
-#endif
 
     zend_declare_property_null(swoole_table_ce, ZEND_STRL("size"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_table_ce, ZEND_STRL("memorySize"), ZEND_ACC_PUBLIC);

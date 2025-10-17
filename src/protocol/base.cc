@@ -213,9 +213,7 @@ _do_recv:
             // get length success
             else {
                 if (buffer->size < (size_t) package_length) {
-                    if (!buffer->extend(package_length)) {
-                        return SW_ERR;
-                    }
+                    buffer->extend(package_length);
                 }
                 socket->recv_wait = 1;
                 buffer->offset = package_length;
@@ -313,9 +311,7 @@ _recv_data:
                 if (extend_size > package_max_length) {
                     extend_size = package_max_length;
                 }
-                if (!buffer->extend(extend_size)) {
-                    return SW_ERR;
-                }
+                buffer->extend(extend_size);
             }
         }
         // no eof

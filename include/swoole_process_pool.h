@@ -181,7 +181,7 @@ struct Worker {
     ssize_t send_pipe_message(const void *buf, size_t n, int flags) const;
     bool has_exceeded_max_request() const;
     void set_max_request(uint32_t max_request, uint32_t max_request_grace);
-    void report_error(const ExitStatus &exit_status);
+    void report_error(const ExitStatus &exit_status) const;
     /**
      * Init global state for worker process.
      * Must be called after the process is spawned and before the main loop is executed.
@@ -331,7 +331,7 @@ struct ProcessPool {
 
     void *ptr;
 
-    Worker *get_worker(int worker_id) const {
+    Worker *get_worker(WorkerId worker_id) const {
         return &(workers[worker_id - start_id]);
     }
 
@@ -369,9 +369,9 @@ struct ProcessPool {
      * SW_PROTOCOL_MESSAGE
      * ==================================================================
      * When sending the `EventData` structure, the message can be split into multiple transmissions.
-     * When sending data in multiple parts, you must set a unique info.msg_id.
-     * For the first slice, set the info.flags with the SW_EVENT_DATA_CHUNK | SW_EVENT_DATA_BEGIN flag,
-     * and for the last slice, set the info.flags with the SW_EVENT_DATA_CHUNK | SW_EVENT_DATA_END flag.
+     * When sending data in multiple parts, you must set a unique `info.msg_id`.
+     * For the first slice, set the `info.flags` with the SW_EVENT_DATA_CHUNK | SW_EVENT_DATA_BEGIN flag,
+     * and for the last slice, set the `info.flags` with the SW_EVENT_DATA_CHUNK | SW_EVENT_DATA_END flag.
      * The receiving end will place the data into a memory cache table, merge the data,
      * and only execute the onMessage callback once the complete message has been received.
      *
@@ -412,7 +412,7 @@ struct ProcessPool {
     swResultCode dispatch(EventData *data, int *worker_id);
     int response(const char *data, uint32_t length) const;
     swResultCode dispatch_sync(EventData *data, int *dst_worker_id);
-    swResultCode dispatch_sync(const char *data, uint32_t len);
+    swResultCode dispatch_sync(const char *data, uint32_t len) const;
     void add_worker(Worker *worker) const;
     bool del_worker(const Worker *worker) const;
     Worker *get_worker_by_pid(pid_t pid) const;
@@ -420,14 +420,14 @@ struct ProcessPool {
     int create(uint32_t worker_num, key_t msgqueue_key = 0, swIPCMode ipc_mode = SW_IPC_NONE);
     int create_message_box(size_t memory_size);
     int create_message_bus();
-    int push_message(uint8_t type, const void *data, size_t length) const;
+    int push_message(uint8_t _type, const void *data, size_t length) const;
     int push_message(const EventData *msg) const;
     bool send_message(WorkerId worker_id, const char *message, size_t l_message) const;
-    int pop_message(void *data, size_t size);
+    int pop_message(void *data, size_t size) const;
     int listen(const char *socket_file, int backlog) const;
     int listen(const char *host, int port, int backlog) const;
     int schedule();
-    bool is_worker_running(Worker *worker);
+    bool is_worker_running(Worker *worker) const;
 
   private:
     static int recv_packet(Reactor *reactor, Event *event);
@@ -436,7 +436,7 @@ struct ProcessPool {
     static int run_with_stream_protocol(ProcessPool *pool, Worker *worker);
     static int run_with_message_protocol(ProcessPool *pool, Worker *worker);
     static int run_async(ProcessPool *pool, Worker *worker);
-    void at_worker_enter(Worker *worker);
+    void at_worker_enter(Worker *worker) const;
     void at_worker_exit(Worker *worker);
 
     bool wait_detached_worker(std::unordered_set<pid_t> &detached_workers, pid_t pid);

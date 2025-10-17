@@ -72,7 +72,7 @@ const zend_function_entry swoole_websocket_server_methods[] =
     PHP_FE_END
 };
 
-const zend_function_entry swoole_websocket_frame_methods[] =
+static constexpr zend_function_entry swoole_websocket_frame_methods[] =
 {
     PHP_ME(swoole_websocket_frame, __toString, arginfo_class_Swoole_WebSocket_Frame___toString, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_websocket_server, pack,      arginfo_class_Swoole_WebSocket_Frame_pack,       ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -285,7 +285,7 @@ bool swoole_websocket_handshake(HttpContext *ctx) {
     zval *pData;
     zval retval;
 
-    if (!(pData = zend_hash_str_find(ht, ZEND_STRL("sec-websocket-key")))) {
+    if (!((pData = zend_hash_str_find(ht, ZEND_STRL("sec-websocket-key"))))) {
     _bad_request:
         ctx->response.status = SW_HTTP_BAD_REQUEST;
         ctx->end(nullptr, &retval);
@@ -332,8 +332,8 @@ bool swoole_websocket_handshake(HttpContext *ctx) {
         }
         swoole_websocket_onBeforeHandshakeResponse(serv, conn->server_fd, ctx);
     } else {
-        Socket *sock = (Socket *) ctx->private_data;
-        sock->open_length_check = 1;
+        auto *sock = static_cast<Socket *>(ctx->private_data);
+        sock->open_length_check = true;
         sock->protocol.package_length_size = SW_WEBSOCKET_HEADER_LEN;
         sock->protocol.package_length_offset = 0;
         sock->protocol.package_body_offset = 0;
@@ -367,7 +367,7 @@ bool WebSocket::message_uncompress(String *buffer, const char *in, size_t in_len
     zstream.avail_in = in_len;
     zstream.total_in = 0;
 
-    while (1) {
+    while (true) {
         zstream.avail_out = buffer->size - buffer->length;
         zstream.next_out = (Bytef *) (buffer->str + buffer->length);
         status = inflate(&zstream, Z_SYNC_FLUSH);
@@ -420,9 +420,7 @@ bool WebSocket::message_compress(String *buffer, const char *data, size_t length
 
     size_t max_length = deflateBound(&zstream, length);
     if (max_length > buffer->size) {
-        if (!buffer->extend(max_length)) {
-            return false;
-        }
+        buffer->extend(max_length);
     }
 
     size_t bytes_written = 0;
@@ -547,7 +545,7 @@ void php_swoole_websocket_server_minit(int module_number) {
     SW_SET_CLASS_CLONEABLE(swoole_websocket_server, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_websocket_server, sw_zend_class_unset_property_deny);
 
-    SW_INIT_CLASS_ENTRY(swoole_websocket_frame, "Swoole\\WebSocket\\Frame", nullptr, swoole_websocket_frame_methods);
+    SW_INIT_CLASS_ENTRY(swoole_websocket_frame, R"(Swoole\WebSocket\Frame)", nullptr, swoole_websocket_frame_methods);
     zend_class_implements(swoole_websocket_frame_ce, 1, zend_ce_stringable);
     zend_declare_property_long(swoole_websocket_frame_ce, ZEND_STRL("fd"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_string(swoole_websocket_frame_ce, ZEND_STRL("data"), "", ZEND_ACC_PUBLIC);

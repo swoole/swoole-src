@@ -199,10 +199,7 @@ bool Socket::wait_event(const EventType event, const void **_buf, size_t _n) {
     } else if (event == SW_EVENT_WRITE) {
         if (sw_unlikely(!zero_copy && _n > 0 && *_buf != get_write_buffer()->str)) {
             write_buffer->clear();
-            if (write_buffer->append(static_cast<const char *>(*_buf), _n) != SW_OK) {
-                set_err(ENOMEM);
-                goto _failed;
-            }
+            write_buffer->append(static_cast<const char *>(*_buf), _n);
             *_buf = write_buffer->str;
         }
         write_co = co;
@@ -212,7 +209,6 @@ bool Socket::wait_event(const EventType event, const void **_buf, size_t _n) {
         assert(0);
         return false;
     }
-_failed:
 #ifdef SW_USE_OPENSSL
     // maybe read_co and write_co are all waiting for the same event when we use SSL
     if (sw_likely(want_event == SW_EVENT_NULL || !has_bound()))
@@ -1392,11 +1388,7 @@ _get_length:
     }
 
     if ((size_t) packet_len > read_buffer->size) {
-        if (!read_buffer->extend(packet_len)) {
-            read_buffer->clear();
-            set_err(ENOMEM);
-            return -1;
-        }
+        read_buffer->extend(packet_len);
     }
 
     retval = recv_all(read_buffer->str + read_buffer->length, packet_len - read_buffer->length);
@@ -1456,11 +1448,7 @@ ssize_t Socket::recv_packet_with_eof_protocol() {
             if (new_size > protocol.package_max_length) {
                 new_size = protocol.package_max_length;
             }
-            if (!read_buffer->extend(new_size)) {
-                read_buffer->clear();
-                set_err(ENOMEM);
-                return -1;
-            }
+            read_buffer->extend(new_size);
         }
     }
     assert(0);

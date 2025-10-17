@@ -962,7 +962,7 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, zval *zset) {
         sock->protocol.package_length_size = swoole_type_size(sock->protocol.package_length_type);
         if (sock->protocol.package_length_size == 0) {
             php_swoole_fatal_error(E_WARNING,
-                                   "Unknown package_length_type name '%c', see pack(). Link: http://php.net/pack",
+                                   "Unknown package_length_type name '%c', see pack(). Link: https://php.net/pack",
                                    sock->protocol.package_length_type);
             ret = false;
         }

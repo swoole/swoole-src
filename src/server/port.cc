@@ -654,8 +654,8 @@ _parse:
                                  CLIENT_INFO_ARGS);
                 goto _too_large;
             }
-            if (buffer->length == buffer->size && !buffer->extend(request_length)) {
-                goto _unavailable;
+            if (buffer->length == buffer->size) {
+                buffer->extend(request_length);
             }
             goto _recv_data;
         } else {
@@ -678,8 +678,8 @@ _parse:
             goto _too_large;
         }
 
-        if (request_length > buffer->size && !buffer->extend(request_length)) {
-            goto _unavailable;
+        if (request_length > buffer->size) {
+            buffer->extend(request_length);
         }
 
         if (buffer->length < request_length) {
@@ -691,7 +691,7 @@ _parse:
                     SW_TRACE_SERVER,
                     "PostWait: request->content_length=%d, buffer->length=%zu, request->header_length=%d\n",
                     request->content_length_,
-					buffer->length,
+                    buffer->length,
                     request->header_length_);
             }
             goto _recv_data;

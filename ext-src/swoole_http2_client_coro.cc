@@ -777,9 +777,7 @@ int php_swoole_zlib_decompress(z_stream *stream, String *buffer, char *body, int
             return SW_OK;
         } else if (status == Z_OK) {
             if (buffer->length + 4096 >= buffer->size) {
-                if (!buffer->extend()) {
-                    return SW_ERR;
-                }
+                buffer->extend();
             }
             if (stream->avail_in == 0) {
                 return SW_OK;

@@ -24,7 +24,7 @@ using HttpCookie = swoole::http::Cookie;
 #define ILLEGAL_COOKIE_CHARACTER_PRINT "\",\", \";\", \" \", \"\\t\", \"\\r\", \"\\n\", \"\\013\", or \"\\014\""
 #define ILLEGAL_COOKIE_CHARACTER ",; \t\r\n\013\014"
 
-static const zend_long maxValidSeconds = 253402300800;
+static constexpr zend_long maxValidSeconds = 253402300800;
 
 zend_class_entry *swoole_http_cookie_ce;
 static zend_object_handlers swoole_http_cookie_handlers;
@@ -35,14 +35,14 @@ struct HttpCookieObject {
 };
 
 static sw_inline HttpCookieObject *php_swoole_http_cookie_fetch_object(zend_object *obj) {
-    return (HttpCookieObject *) ((char *) obj - swoole_http_cookie_handlers.offset);
+    return reinterpret_cast<HttpCookieObject *>(reinterpret_cast<char *>(obj) - swoole_http_cookie_handlers.offset);
 }
 
-static HttpCookie *php_swoole_http_get_cookie(zval *zobject) {
+static HttpCookie *php_swoole_http_get_cookie(const zval *zobject) {
     return php_swoole_http_cookie_fetch_object(Z_OBJ_P(zobject))->cookie;
 }
 
-HttpCookie *php_swoole_http_get_cooke_safety(zval *zobject) {
+HttpCookie *php_swoole_http_get_cooke_safety(const zval *zobject) {
     HttpCookie *cookie = php_swoole_http_get_cookie(zobject);
     if (!cookie) {
         swoole_set_last_error(SW_ERROR_HTTP_COOKIE_UNAVAILABLE);
@@ -51,12 +51,12 @@ HttpCookie *php_swoole_http_get_cooke_safety(zval *zobject) {
     return cookie;
 }
 
-void php_swoole_http_response_set_cookie(zval *zobject, HttpCookie *cookie) {
+void php_swoole_http_response_set_cookie(const zval *zobject, HttpCookie *cookie) {
     php_swoole_http_cookie_fetch_object(Z_OBJ_P(zobject))->cookie = cookie;
 }
 
 static zend_object *php_swoole_http_cookie_create_object(zend_class_entry *ce) {
-    HttpCookieObject *httpCookieObject = (HttpCookieObject *) zend_object_alloc(sizeof(HttpCookieObject), ce);
+    auto *httpCookieObject = static_cast<HttpCookieObject *>(zend_object_alloc(sizeof(HttpCookieObject), ce));
     zend_object_std_init(&httpCookieObject->std, ce);
     object_properties_init(&httpCookieObject->std, ce);
     httpCookieObject->std.handlers = &swoole_http_cookie_handlers;
@@ -64,7 +64,7 @@ static zend_object *php_swoole_http_cookie_create_object(zend_class_entry *ce) {
 }
 
 static void php_swoole_http_cookie_free_object(zend_object *object) {
-    HttpCookieObject *httpCookieObject = php_swoole_http_cookie_fetch_object(object);
+    auto *httpCookieObject = php_swoole_http_cookie_fetch_object(object);
     delete httpCookieObject->cookie;
 }
 
@@ -227,7 +227,7 @@ zend_string *HttpCookie::toString() {
         }
 
         if (path && ZSTR_LEN(path) > 0) {
-            if (strpbrk(ZSTR_VAL(path), ILLEGAL_COOKIE_CHARACTER) != NULL) {
+            if (strpbrk(ZSTR_VAL(path), ILLEGAL_COOKIE_CHARACTER) != nullptr) {
                 php_swoole_error(E_WARNING, "The path option cannot contain " ILLEGAL_COOKIE_CHARACTER_PRINT);
                 return nullptr;
             }
@@ -236,7 +236,7 @@ zend_string *HttpCookie::toString() {
         }
 
         if (domain && ZSTR_LEN(domain) > 0) {
-            if (strpbrk(ZSTR_VAL(domain), ILLEGAL_COOKIE_CHARACTER) != NULL) {
+            if (strpbrk(ZSTR_VAL(domain), ILLEGAL_COOKIE_CHARACTER) != nullptr) {
                 php_swoole_error(E_WARNING, "The domain option cannot contain " ILLEGAL_COOKIE_CHARACTER_PRINT);
                 return nullptr;
             }
@@ -317,7 +317,7 @@ void HttpCookie::reset() {
         add_assoc_string(return_value, #field, "");                                                                    \
     }
 
-void HttpCookie::toArray(zval *return_value) {
+void HttpCookie::toArray(zval *return_value) const {
     array_init(return_value);
 
     HTTP_COOKIE_ADD_STR_TO_ARRAY(name);

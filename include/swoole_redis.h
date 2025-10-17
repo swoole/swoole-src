@@ -49,9 +49,9 @@ enum ReplyType {
 const char *get_number(const char *p, int *_ret);
 int recv_packet(Protocol *protocol, Connection *conn, String *buffer);
 std::vector<std::string> parse(const char *data, size_t len);
-bool format_nil(String *buf);
-bool format(String *buf, enum ReplyType type, const std::string &value);
-bool format(String *buf, enum ReplyType type, long value);
+void format_nil(String *buf);
+void format(String *buf, ReplyType type, const std::string &value);
+void format(String *buf, ReplyType type, long value);
 
 }  // namespace redis
 }  // namespace swoole

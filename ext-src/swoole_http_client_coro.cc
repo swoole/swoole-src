@@ -518,9 +518,7 @@ static int http_parser_on_body(llhttp_t *parser, const char *at, size_t length) 
 #ifdef SW_HAVE_COMPRESSION
     _append_raw:
 #endif
-        if (http->body->append(at, length) < 0) {
-            return -1;
-        }
+        http->body->append(at, length);
     }
     if (http->download_file_name.get() && http->body->length > 0) {
         if (http->download_file == nullptr) {
@@ -632,10 +630,7 @@ bool Client::decompress_response(const char *in, size_t in_len) {
             if (status >= 0) {
                 body->length += (gzip_stream.total_out - total_out);
                 if (body->length + (SW_BUFFER_SIZE_STD / 2) >= body->size) {
-                    if (!body->extend()) {
-                        status = Z_MEM_ERROR;
-                        break;
-                    }
+                    body->extend();
                 }
             }
             if (status == Z_STREAM_END || (status == Z_OK && gzip_stream.avail_in == 0)) {
@@ -687,10 +682,7 @@ bool Client::decompress_response(const char *in, size_t in_len) {
             if (result == BROTLI_DECODER_RESULT_SUCCESS || result == BROTLI_DECODER_RESULT_NEEDS_MORE_INPUT) {
                 return true;
             } else if (result == BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT) {
-                if (!body->extend()) {
-                    swoole_warning("BrotliDecoderDecompressStream() failed, no memory is available");
-                    break;
-                }
+                body->extend();
             } else {
                 swoole_warning("BrotliDecoderDecompressStream() failed, %s",
                                BrotliDecoderErrorString(BrotliDecoderGetErrorCode(brotli_decoder_state)));

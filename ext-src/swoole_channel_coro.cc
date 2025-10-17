@@ -89,16 +89,13 @@ static void php_swoole_channel_coro_dtor_object(zend_object *object) {
 }
 
 static void php_swoole_channel_coro_free_object(zend_object *object) {
-    ChannelObject *chan_object = php_swoole_channel_coro_fetch_object(object);
-    Channel *chan = chan_object->chan;
-    if (chan) {
-        delete chan;
-    }
+    auto *chan_object = php_swoole_channel_coro_fetch_object(object);
+    delete chan_object->chan;
     zend_object_std_dtor(object);
 }
 
 static zend_object *php_swoole_channel_coro_create_object(zend_class_entry *ce) {
-    ChannelObject *chan_object = (ChannelObject *) zend_object_alloc(sizeof(ChannelObject), ce);
+    auto *chan_object = static_cast<ChannelObject *>(zend_object_alloc(sizeof(ChannelObject), ce));
     zend_object_std_init(&chan_object->std, ce);
     object_properties_init(&chan_object->std, ce);
     chan_object->std.handlers = &swoole_channel_coro_handlers;

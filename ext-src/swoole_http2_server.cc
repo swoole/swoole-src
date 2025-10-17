@@ -62,15 +62,15 @@ void Http2Stream::reset(uint32_t error_code) {
     swoole_trace_log(
         SW_TRACE_HTTP2, "send [" SW_ECHO_YELLOW "] stream_id=%u, error_code=%u", "RST_STREAM", id, error_code);
     *(uint32_t *) ((char *) frame + SW_HTTP2_FRAME_HEADER_SIZE) = htonl(error_code);
-    http2::set_frame_header(frame, SW_HTTP2_TYPE_RST_STREAM, SW_HTTP2_RST_STREAM_SIZE, 0, id);
+    set_frame_header(frame, SW_HTTP2_TYPE_RST_STREAM, SW_HTTP2_RST_STREAM_SIZE, 0, id);
     ctx->send(ctx, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_RST_STREAM_SIZE);
 }
 
 Http2Session::Session(SessionId _fd) {
     fd = _fd;
-    Http2::init_settings(&local_settings);
+    init_settings(&local_settings);
     // [init]: we must set default value, peer is not always send all the settings
-    Http2::init_settings(&remote_settings);
+    init_settings(&remote_settings);
     local_window_size = local_settings.init_window_size;
     remote_window_size = remote_settings.init_window_size;
     last_stream_id = 0;
@@ -80,8 +80,8 @@ Http2Session::Session(SessionId _fd) {
 }
 
 Http2Session::~Session() {
-    for (auto iter = streams.begin(); iter != streams.end(); iter++) {
-        delete iter->second;
+    for (const auto &stream : streams) {
+        delete stream.second;
     }
     if (inflater) {
         nghttp2_hd_inflate_del(inflater);
@@ -244,7 +244,7 @@ static bool http2_server_is_static_file(Server *serv, HttpContext *ctx) {
 static void http2_server_onRequest(Http2Session *client, Http2Stream *stream) {
     HttpContext *ctx = stream->ctx;
     zval *zserver = ctx->request.zserver;
-    Server *serv = (Server *) ctx->private_data;
+    auto *serv = static_cast<Server *>(ctx->private_data);
     zval args[2];
     Connection *serv_sock = nullptr;
     zend::Callable *cb = nullptr;
@@ -302,7 +302,7 @@ static void http2_server_set_date_header(Http2::HeaderSet *headers) {
 
     time_t now = time(nullptr);
     if (now != cache.time) {
-        char *date_str = php_swoole_format_date((char *) ZEND_STRL(SW_HTTP_DATE_FORMAT), now, 0);
+        char *date_str = php_swoole_format_date(ZEND_STRL(SW_HTTP_DATE_FORMAT), now, 0);
         cache.len = strlen(date_str);
         memcpy(cache.buf, date_str, cache.len);
         cache.time = now;
@@ -921,7 +921,7 @@ bool HttpContext::http2_send_file(const char *file, uint32_t l_file, off_t offse
 }
 
 static bool http2_server_onBeforeRequest(HttpContext *ctx) {
-    Server *serv = (Server *) ctx->private_data;
+    auto *serv = static_cast<Server *>(ctx->private_data);
     if (serv->is_unavailable()) {
         String null_body{};
         ctx->response.status = SW_HTTP_SERVICE_UNAVAILABLE;

@@ -50,7 +50,7 @@ static void php_swoole_atomic_free_object(zend_object *object) {
 }
 
 static zend_object *php_swoole_atomic_create_object(zend_class_entry *ce) {
-    AtomicObject *atomic = (AtomicObject *) zend_object_alloc(sizeof(AtomicObject), ce);
+    auto *atomic = static_cast<AtomicObject *>(zend_object_alloc(sizeof(AtomicObject), ce));
     if (atomic == nullptr) {
         zend_throw_exception(swoole_exception_ce, "global memory allocation failure", SW_ERROR_MALLOC_FAIL);
     }
@@ -89,7 +89,7 @@ static void php_swoole_atomic_long_free_object(zend_object *object) {
 }
 
 static zend_object *php_swoole_atomic_long_create_object(zend_class_entry *ce) {
-    AtomicLongObject *atomic_long = (AtomicLongObject *) zend_object_alloc(sizeof(AtomicLongObject), ce);
+    auto *atomic_long = static_cast<AtomicLongObject *>(zend_object_alloc(sizeof(AtomicLongObject), ce));
     if (atomic_long == nullptr) {
         zend_throw_exception(swoole_exception_ce, "global memory allocation failure", SW_ERROR_MALLOC_FAIL);
     }

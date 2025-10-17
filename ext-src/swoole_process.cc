@@ -1041,7 +1041,7 @@ static PHP_METHOD(swoole_process, exit) {
         swoole_event_free();
     }
 
-    exit(ret_code);
+    exit(static_cast<int>(ret_code));
 }
 
 static PHP_METHOD(swoole_process, close) {

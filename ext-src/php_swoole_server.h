@@ -124,9 +124,9 @@ struct ServerObject {
         return instanceof_function(get_ce(), swoole_redis_server_ce);
     }
 
-    void register_callback();
+    void register_callback() const;
     void on_before_start();
-    void copy_setting(zval *zsetting);
+    void copy_setting(zval *zsetting) const;
 };
 
 struct TaskCo {

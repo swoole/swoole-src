@@ -365,20 +365,20 @@ void Reactor::add_destroy_callback(const Callback &cb, void *data) {
     destroy_callbacks.append(cb, data);
 }
 
-void Reactor::set_end_callback(const EndCallback id, const std::function<void(Reactor *)> &fn) {
-    end_callbacks[id] = fn;
+void Reactor::set_end_callback(const EndCallback _id, const std::function<void(Reactor *)> &fn) {
+    end_callbacks[_id] = fn;
 }
 
-void Reactor::erase_end_callback(const EndCallback id) {
-    end_callbacks.erase(id);
+void Reactor::erase_end_callback(const EndCallback _id) {
+    end_callbacks.erase(_id);
 }
 
 /**
  * Returns false, the reactor cannot be exited, the next condition is skipped
  * Returns true, the reactor can exit and will continue to execute the next conditional function
  */
-void Reactor::set_exit_condition(ExitCondition id, const std::function<bool(Reactor *, size_t &)> &fn) {
-    exit_conditions[id] = fn;
+void Reactor::set_exit_condition(const ExitCondition _id, const std::function<bool(Reactor *, size_t &)> &fn) {
+    exit_conditions[_id] = fn;
 }
 
 void Reactor::defer(const Callback &cb, void *data) {

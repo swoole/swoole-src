@@ -147,8 +147,8 @@ class String {
         return memcmp(str, data.c_str(), length) == 0;
     }
 
-    bool grow(size_t incr_value);
-    String substr(size_t offset, size_t len);
+    void grow(size_t incr_value);
+    String substr(size_t offset, size_t len) const;
 
     bool empty() const {
         return str == nullptr || length == 0;
@@ -159,43 +159,43 @@ class String {
         offset = 0;
     }
 
-    bool extend() {
-        return extend(size * 2);
+    void extend() {
+        extend(size * 2);
     }
 
-    bool extend(size_t new_size) {
+    void extend(size_t new_size) {
         assert(new_size > size);
-        return reserve(new_size);
+        reserve(new_size);
     }
 
-    bool extend_align(size_t _new_size) {
+    void extend_align(size_t _new_size) {
         size_t align_size = SW_MEM_ALIGNED_SIZE(size * 2);
         while (align_size < _new_size) {
             align_size *= 2;
         }
-        return reserve(align_size);
+        reserve(align_size);
     }
 
-    bool reserve(size_t new_size);
+    void reserve(size_t new_size);
     /**
      * Transfer ownership of the string content pointer to the caller, who will capture this memory.
      * The caller must manage and free this memory; it will not free when the string is destructed.
      */
     char *release();
-    bool repeat(const char *data, size_t len, size_t n);
-    int append(const char *append_str, size_t length);
+    void repeat(const char *data, size_t len, size_t n);
+    void append(const char *append_str, size_t length);
 
-    int append(const std::string &append_str) {
-        return append(append_str.c_str(), append_str.length());
+    void append(const std::string &append_str) {
+        append(append_str.c_str(), append_str.length());
     }
 
-    int append(char c) {
-        return append(&c, sizeof(c));
+    void append(const char c) {
+        append(&c, sizeof(c));
     }
 
-    int append(int value);
-    int append(const String &append_str);
-    int append_random_bytes(size_t length, bool base64 = false);
+    void append(int value);
+    void append(const String &append_str);
+    bool append_random_bytes(size_t length, bool base64 = false);
 
     void write(off_t _offset, const String &write_str);
     void write(off_t _offset, const char *write_str, size_t _length);
@@ -208,7 +208,7 @@ class String {
     }
 
     ssize_t split(const char *delimiter, size_t delimiter_length, const StringExplodeHandler &handler);
-    void print(bool print_value = true);
+    void print(bool print_value = true) const;
 
     enum FormatFlag {
         FORMAT_APPEND = 1 << 0,
@@ -235,14 +235,14 @@ class String {
 
         size_t n;
         if (flags & FORMAT_APPEND) {
-            if (_size > size - length && !reserve(new_size)) {
-                return 0;
+            if (_size > size - length) {
+                reserve(new_size);
             }
             n = sw_snprintf(str + length, size - length, format, args...);
             length += n;
         } else {
-            if (_size > size && !reserve(new_size)) {
-                return 0;
+            if (_size > size) {
+                reserve(new_size);
             }
             n = sw_snprintf(str, size, format, args...);
             length = n;

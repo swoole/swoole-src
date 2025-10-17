@@ -109,7 +109,7 @@ void php_swoole_timer_rshutdown() {
 }
 
 static void timer_dtor(TimerNode *tnode) {
-    Function *fci = (Function *) tnode->data;
+    auto *fci = static_cast<Function *>(tnode->data);
     sw_zend_fci_params_discard(&fci->fci);
     sw_zend_fci_cache_discard(&fci->fci_cache);
     efree(fci);
@@ -125,7 +125,7 @@ bool php_swoole_timer_clear_all() {
     }
 
     size_t num = sw_timer()->count(), index = 0;
-    TimerNode **list = (TimerNode **) emalloc(num * sizeof(TimerNode *));
+    auto **list = static_cast<TimerNode **>(emalloc(num * sizeof(TimerNode *)));
     for (auto &kv : sw_timer()->get_map()) {
         TimerNode *tnode = kv.second;
         if (tnode->type == TimerNode::TYPE_PHP) {
@@ -143,7 +143,7 @@ bool php_swoole_timer_clear_all() {
 }
 
 static void timer_callback(Timer *timer, TimerNode *tnode) {
-    Function *fci = (Function *) tnode->data;
+    auto *fci = static_cast<Function *>(tnode->data);
 
     if (UNEXPECTED(!fci->call(nullptr, php_swoole_is_enable_coroutine()))) {
         php_swoole_error(E_WARNING, "%s->onTimeout handler error", ZSTR_VAL(swoole_timer_ce->name));
@@ -164,7 +164,7 @@ static bool timer_if_use_reactor() {
 
 static void timer_add(INTERNAL_FUNCTION_PARAMETERS, bool persistent) {
     zend_long ms;
-    Function *fci = (Function *) ecalloc(1, sizeof(Function));
+    auto *fci = static_cast<Function *>(ecalloc(1, sizeof(Function)));
     TimerNode *tnode;
 
     ZEND_PARSE_PARAMETERS_START(2, -1)
@@ -197,9 +197,8 @@ static void timer_add(INTERNAL_FUNCTION_PARAMETERS, bool persistent) {
     tnode->destructor = timer_dtor;
     if (persistent) {
         if (fci->fci.param_count > 0) {
-            uint32_t i;
             zval *params = (zval *) ecalloc(fci->fci.param_count + 1, sizeof(zval));
-            for (i = 0; i < fci->fci.param_count; i++) {
+            for (uint32_t i = 0; i < fci->fci.param_count; i++) {
                 ZVAL_COPY(&params[i + 1], &fci->fci.params[i]);
             }
             fci->fci.params = params;
@@ -224,48 +223,45 @@ static PHP_FUNCTION(swoole_timer_tick) {
 }
 
 static PHP_FUNCTION(swoole_timer_exists) {
-    if (UNEXPECTED(!SwooleTG.timer)) {
+    if (UNEXPECTED(!swoole_timer_is_available())) {
         RETURN_FALSE;
-    } else {
-        zend_long id;
-        TimerNode *tnode;
-
-        ZEND_PARSE_PARAMETERS_START(1, 1)
-        Z_PARAM_LONG(id)
-        ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
-
-        tnode = swoole_timer_get(id);
-        RETURN_BOOL(tnode && !tnode->removed);
     }
+    zend_long id;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_LONG(id)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    auto *tnode = swoole_timer_get(id);
+    RETURN_BOOL(tnode && !tnode->removed);
 }
 
 static PHP_FUNCTION(swoole_timer_info) {
-    if (UNEXPECTED(!SwooleTG.timer)) {
+    if (UNEXPECTED(!swoole_timer_is_available())) {
         RETURN_FALSE;
-    } else {
-        zend_long id;
-        TimerNode *tnode;
-
-        ZEND_PARSE_PARAMETERS_START(1, 1)
-        Z_PARAM_LONG(id)
-        ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
-
-        tnode = swoole_timer_get(id);
-        if (UNEXPECTED(!tnode)) {
-            RETURN_NULL();
-        }
-        array_init(return_value);
-        add_assoc_long(return_value, "exec_msec", tnode->exec_msec);
-        add_assoc_long(return_value, "exec_count", tnode->exec_count);
-        add_assoc_long(return_value, "interval", tnode->interval);
-        add_assoc_long(return_value, "round", tnode->round);
-        add_assoc_bool(return_value, "removed", tnode->removed);
     }
+
+    zend_long id;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_LONG(id)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    auto *tnode = swoole_timer_get(id);
+    if (UNEXPECTED(!tnode)) {
+        RETURN_NULL();
+    }
+    array_init(return_value);
+    add_assoc_long(return_value, "exec_msec", tnode->exec_msec);
+    add_assoc_long(return_value, "exec_count", tnode->exec_count);
+    add_assoc_long(return_value, "interval", tnode->interval);
+    add_assoc_long(return_value, "round", tnode->round);
+    add_assoc_bool(return_value, "removed", tnode->removed);
 }
 
 static PHP_FUNCTION(swoole_timer_stats) {
     array_init(return_value);
-    if (SwooleTG.timer) {
+    if (swoole_timer_is_available()) {
         add_assoc_bool(return_value, "initialized", 1);
         add_assoc_long(return_value, "num", SwooleTG.timer->count());
         add_assoc_long(return_value, "round", SwooleTG.timer->get_round());

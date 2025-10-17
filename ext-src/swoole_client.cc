@@ -903,10 +903,7 @@ static PHP_METHOD(swoole_client, recv) {
                         if (new_size > protocol->package_max_length) {
                             new_size = protocol->package_max_length;
                         }
-                        if (!buffer->extend(new_size)) {
-                            buffer->length = 0;
-                            RETURN_FALSE;
-                        }
+                        buffer->extend(new_size);
                     }
                 }
             }

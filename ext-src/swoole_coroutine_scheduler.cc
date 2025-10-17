@@ -57,7 +57,7 @@ static sw_inline SchedulerObject *scheduler_get_object(zend_object *obj) {
 }
 
 static zend_object *scheduler_create_object(zend_class_entry *ce) {
-    SchedulerObject *s = (SchedulerObject *) zend_object_alloc(sizeof(SchedulerObject), ce);
+    auto *s = static_cast<SchedulerObject *>(zend_object_alloc(sizeof(SchedulerObject), ce));
     zend_object_std_init(&s->std, ce);
     object_properties_init(&s->std, ce);
     s->std.handlers = &swoole_coroutine_scheduler_handlers;
@@ -110,18 +110,17 @@ static zend::Callable *exit_condition_fci_cache = nullptr;
 
 static bool php_swoole_coroutine_reactor_can_exit(Reactor *reactor, size_t &event_num) {
     zval retval;
-    int success;
 
     SW_ASSERT(exit_condition_fci_cache);
     ZVAL_NULL(&retval);
-    success = sw_zend_call_function_ex(nullptr, exit_condition_fci_cache->ptr(), 0, nullptr, &retval);
+    int success = sw_zend_call_function_ex(nullptr, exit_condition_fci_cache->ptr(), 0, nullptr, &retval);
     if (UNEXPECTED(success != SUCCESS)) {
         php_swoole_fatal_error(E_ERROR, "Coroutine can_exit callback handler error");
     }
     if (UNEXPECTED(EG(exception))) {
         zend_exception_error(EG(exception), E_ERROR);
     }
-    return !(Z_TYPE_P(&retval) == IS_FALSE);
+    return Z_TYPE_P(&retval) != IS_FALSE;
 }
 
 void php_swoole_coroutine_scheduler_rshutdown() {
@@ -242,7 +241,7 @@ static PHP_METHOD(swoole_coroutine_scheduler, add) {
         RETURN_FALSE;
     }
 
-    SchedulerTask *task = (SchedulerTask *) ecalloc(1, sizeof(SchedulerTask));
+    auto *task = static_cast<SchedulerTask *>(ecalloc(1, sizeof(SchedulerTask)));
 
     ZEND_PARSE_PARAMETERS_START(1, -1)
     Z_PARAM_FUNC(task->fci, task->fci_cache)
@@ -261,7 +260,7 @@ static PHP_METHOD(swoole_coroutine_scheduler, parallel) {
         RETURN_FALSE;
     }
 
-    SchedulerTask *task = (SchedulerTask *) ecalloc(1, sizeof(SchedulerTask));
+    auto *task = static_cast<SchedulerTask *>(ecalloc(1, sizeof(SchedulerTask)));
     zend_long count;
 
     ZEND_PARSE_PARAMETERS_START(2, -1)

@@ -47,7 +47,7 @@ std::string swoole_ssl_get_version_message() {
     return swoole::std_string::format("OPENSSL_VERSION: %s\n", OPENSSL_VERSION_TEXT);
 }
 
-void swoole_ssl_init(void) {
+void swoole_ssl_init() {
     if (openssl_init) {
         return;
     }

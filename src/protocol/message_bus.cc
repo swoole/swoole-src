@@ -54,7 +54,7 @@ bool MessageBus::alloc_buffer() {
     }
 }
 
-void MessageBus::pass(SendData *task) {
+void MessageBus::pass(const SendData *task) const {
     memcpy(&buffer_->info, &task->info, sizeof(buffer_->info));
     if (task->info.len > 0) {
         buffer_->info.flags = SW_EVENT_DATA_PTR;
@@ -201,7 +201,7 @@ _read_from_pipe:
 /**
  * Notice: only supports dgram type socket
  */
-ssize_t MessageBus::read_with_buffer(network::Socket *sock) {
+ssize_t MessageBus::read_with_buffer(Socket *sock) {
     ssize_t recv_n;
     uint16_t recv_chunk_count = 0;
 
@@ -248,7 +248,7 @@ _read_from_pipe:
     }
 }
 
-bool MessageBus::write(Socket *sock, SendData *resp) {
+bool MessageBus::write(Socket *sock, SendData *resp) const {
     const char *payload = resp->data;
     uint32_t l_payload = resp->info.len;
     off_t offset = 0;
@@ -334,7 +334,7 @@ bool MessageBus::write(Socket *sock, SendData *resp) {
     return true;
 }
 
-size_t MessageBus::get_memory_size() {
+size_t MessageBus::get_memory_size() const {
     size_t size = buffer_size_;
     for (auto &p : packet_pool_) {
         size += p.second->size;
@@ -342,7 +342,7 @@ size_t MessageBus::get_memory_size() {
     return size;
 }
 
-void MessageBus::init_pipe_socket(network::Socket *sock) {
+void MessageBus::init_pipe_socket(Socket *sock) {
     int pipe_fd = sock->get_fd();
     if ((size_t) pipe_fd >= pipe_sockets_.size()) {
         pipe_sockets_.resize(pipe_fd + 1);

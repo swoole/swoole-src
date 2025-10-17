@@ -90,7 +90,7 @@ class Multi {
     Selector selector;
     std::unordered_map<curl_socket_t, Socket *> sockets;
 
-    CURLcode read_info();
+    CURLcode read_info() const;
 
     Socket *create_socket(curl_socket_t sockfd, CURL *cp);
     void destroy_socket(curl_socket_t sockfd, CURL *cp);
@@ -153,7 +153,7 @@ class Multi {
     }
 
     CURLMcode add_handle(Handle *handle);
-    CURLMcode remove_handle(Handle *handle);
+    CURLMcode remove_handle(Handle *handle) const;
 
     CURLMcode perform() {
         return curl_multi_perform(multi_handle_, &running_handles_);

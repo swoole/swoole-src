@@ -44,14 +44,14 @@ struct LockObject {
 };
 
 static sw_inline LockObject *lock_fetch_object(zend_object *obj) {
-    return (LockObject *) ((char *) obj - swoole_lock_handlers.offset);
+    return reinterpret_cast<LockObject *>(reinterpret_cast<char *>(obj) - swoole_lock_handlers.offset);
 }
 
-static Lock *lock_get_ptr(zval *zobject) {
+static Lock *lock_get_ptr(const zval *zobject) {
     return lock_fetch_object(Z_OBJ_P(zobject))->lock;
 }
 
-static Lock *lock_get_and_check_ptr(zval *zobject) {
+static Lock *lock_get_and_check_ptr(const zval *zobject) {
     Lock *lock = lock_get_ptr(zobject);
     if (UNEXPECTED(!lock)) {
         swoole_fatal_error(SW_ERROR_WRONG_OPERATION, "must call constructor first");
@@ -59,7 +59,7 @@ static Lock *lock_get_and_check_ptr(zval *zobject) {
     return lock;
 }
 
-static void lock_set_ptr(zval *zobject, Lock *ptr) {
+static void lock_set_ptr(const zval *zobject, Lock *ptr) {
     lock_fetch_object(Z_OBJ_P(zobject))->lock = ptr;
 }
 
@@ -68,7 +68,7 @@ static void lock_free_object(zend_object *object) {
 }
 
 static zend_object *lock_create_object(zend_class_entry *ce) {
-    LockObject *lock = (LockObject *) zend_object_alloc(sizeof(LockObject), ce);
+    auto *lock = static_cast<LockObject *>(zend_object_alloc(sizeof(LockObject), ce));
     zend_object_std_init(&lock->std, ce);
     object_properties_init(&lock->std, ce);
     lock->std.handlers = &swoole_lock_handlers;
@@ -82,7 +82,7 @@ static PHP_METHOD(swoole_lock, unlock);
 SW_EXTERN_C_END
 
 // clang-format off
-static const zend_function_entry swoole_lock_methods[] =
+static constexpr zend_function_entry swoole_lock_methods[] =
 {
     PHP_ME(swoole_lock, __construct,  arginfo_class_Swoole_Lock___construct,  ZEND_ACC_PUBLIC)
     PHP_ME(swoole_lock, lock,         arginfo_class_Swoole_Lock_lock,         ZEND_ACC_PUBLIC)
@@ -119,7 +119,7 @@ void php_swoole_lock_minit(int module_number) {
 static PHP_METHOD(swoole_lock, __construct) {
     Lock *lock = lock_get_ptr(ZEND_THIS);
     if (lock != nullptr) {
-        zend_throw_error(NULL, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        zend_throw_error(nullptr, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
         RETURN_FALSE;
     }
 
