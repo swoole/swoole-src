@@ -41,12 +41,11 @@ $cm->run(function ($host) {
     curl_exec($ch);
     $info = curl_getinfo($ch);
 
-    Assert::assert($info['redirect_count'] === 0);
+    Assert::eq($info['redirect_count'], 0);
     Assert::assert("http://{$host}/get.php?test=getpost" === $info['redirect_url']);
 
     curl_close($ch);
 });
-
 ?>
 ===DONE===
 --EXPECTF--

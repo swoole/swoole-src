@@ -35,6 +35,8 @@ SW_EXTERN_C_END
 #error "require cURL version 7.56.0 or later"
 #endif
 
+#include <unordered_set>
+
 CURLcode swoole_curl_easy_perform(CURL *cp);
 php_curl *swoole_curl_get_handle(zval *zid, bool exclusive = true, bool required = true);
 void swoole_curl_easy_reset(CURL *curl);
@@ -44,7 +46,7 @@ namespace curl {
 
 class Multi;
 
-struct HandleSocket {
+struct Socket {
     Multi *multi;
     network::Socket *socket;
     int bitmask;
@@ -55,8 +57,11 @@ struct HandleSocket {
 struct Handle {
     CURL *cp;
     Multi *multi;
-    // This is only for the swoole_curl_easy_perform function, and it has a one-to-one relationship with the curl
-    // handle. It must be destroyed when the curl handle is released.
+    /**
+     * This is only for the swoole_curl_easy_perform function,
+     * and it has a one-to-one relationship with the curl handle.
+     * It must be destroyed when the curl handle is released.
+     */
     Multi *easy_multi;
 
     Handle(CURL *_cp) {
@@ -72,7 +77,7 @@ void destroy_handle(CURL *ch);
 
 struct Selector {
     bool timer_callback = false;
-    std::set<HandleSocket *> active_handles;
+    std::unordered_set<Socket *> active_sockets;
 };
 
 class Multi {
@@ -83,11 +88,11 @@ class Multi {
     int running_handles_ = 0;
     bool defer_callback = false;
     Selector selector;
-    std::unordered_map<curl_socket_t, HandleSocket *> sockets;
+    std::unordered_map<curl_socket_t, Socket *> sockets;
 
     CURLcode read_info();
 
-    HandleSocket *create_socket(curl_socket_t sockfd, CURL *cp);
+    Socket *create_socket(curl_socket_t sockfd, CURL *cp);
     void destroy_socket(curl_socket_t sockfd, CURL *cp);
 
     int set_event(void *socket_ptr, curl_socket_t sockfd, int action);
@@ -168,7 +173,7 @@ class Multi {
 
     CURLcode exec(Handle *handle);
     long select(php_curlm *mh, double timeout = -1);
-    void callback(HandleSocket *curl_socket, int bitmask, int sockfd = -1);
+    void callback(Socket *curl_socket, int bitmask, int sockfd = -1);
 
     static int cb_readable(Reactor *reactor, Event *event);
     static int cb_writable(Reactor *reactor, Event *event);
