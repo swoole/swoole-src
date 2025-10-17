@@ -45,9 +45,10 @@ namespace curl {
 class Multi;
 
 struct HandleSocket {
+    Multi *multi;
     network::Socket *socket;
-    int event_bitmask;
-    int event_fd;
+    int bitmask;
+    int sockfd;
     int action;
 };
 
@@ -57,17 +58,12 @@ struct Handle {
     // This is only for the swoole_curl_easy_perform function, and it has a one-to-one relationship with the curl
     // handle. It must be destroyed when the curl handle is released.
     Multi *easy_multi;
-    std::unordered_map<int, HandleSocket *> sockets;
 
     Handle(CURL *_cp) {
         cp = _cp;
         multi = nullptr;
         easy_multi = nullptr;
     }
-
-    HandleSocket *create_socket(curl_socket_t sockfd);
-    void destroy_socket(curl_socket_t sockfd);
-    void free_socket(HandleSocket *_socket);
 };
 
 Handle *get_handle(CURL *cp);
@@ -76,7 +72,7 @@ void destroy_handle(CURL *ch);
 
 struct Selector {
     bool timer_callback = false;
-    std::set<Handle *> active_handles;
+    std::set<HandleSocket *> active_handles;
 };
 
 class Multi {
@@ -85,20 +81,22 @@ class Multi {
     long timeout_ms_ = 0;
     Coroutine *co = nullptr;
     int running_handles_ = 0;
-    int event_count_ = 0;
     bool defer_callback = false;
     Selector selector;
+    std::unordered_map<curl_socket_t, HandleSocket *> sockets;
 
     CURLcode read_info();
 
-    HandleSocket *create_socket(Handle *handle, curl_socket_t sockfd);
+    HandleSocket *create_socket(curl_socket_t sockfd, CURL *cp);
+    void destroy_socket(curl_socket_t sockfd, CURL *cp);
 
-    void set_event(CURL *cp, void *socket_ptr, curl_socket_t sockfd, int action);
-    void del_event(CURL *cp, void *socket_ptr, curl_socket_t sockfd);
+    int set_event(void *socket_ptr, curl_socket_t sockfd, int action);
+    int del_event(void *socket_ptr, curl_socket_t sockfd);
     void selector_finish();
+    void selector_prepare();
 
     bool wait_event() {
-        return timer || event_count_ > 0;
+        return timer || !sockets.empty();
     }
 
     void add_timer(long timeout_ms) {
@@ -170,7 +168,7 @@ class Multi {
 
     CURLcode exec(Handle *handle);
     long select(php_curlm *mh, double timeout = -1);
-    void callback(Handle *handle, int event_bitmask, int sockfd = -1);
+    void callback(HandleSocket *curl_socket, int bitmask, int sockfd = -1);
 
     static int cb_readable(Reactor *reactor, Event *event);
     static int cb_writable(Reactor *reactor, Event *event);
