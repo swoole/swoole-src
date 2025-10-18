@@ -50,8 +50,7 @@ static int http_parser_on_body(llhttp_t *parser, const char *at, size_t length);
 static int http_parser_on_message_complete(llhttp_t *parser);
 
 // clang-format off
-
-static const llhttp_settings_t http_parser_settings =
+static constexpr llhttp_settings_t http_parser_settings =
 {
     nullptr,                                // on_message_begin
     nullptr,                                // on_protocol
@@ -204,7 +203,7 @@ class Client {
     bool recv_response(double timeout = 0);
     void recv_websocket_frame(zval *return_value, double timeout = 0);
     void add_header(const char *key, size_t key_len, const char *str, size_t length) const;
-    bool upgrade(const std::string &path);
+    bool upgrade(const std::string &_path);
     bool push(zval *zdata,
               zend_long opcode = websocket::OPCODE_TEXT,
               uint8_t flags = websocket::FLAG_FIN,
@@ -212,7 +211,7 @@ class Client {
     bool close(bool should_be_reset = true);
     void socket_dtor();
 
-    void get_header_out(zval *return_value) {
+    void get_header_out(zval *return_value) const {
         String *buffer = nullptr;
         if (socket == nullptr) {
             buffer = tmp_write_buffer;
@@ -230,7 +229,7 @@ class Client {
         RETURN_STRINGL(buffer->str, offset);
     }
 
-    void getsockname(zval *return_value) {
+    void getsockname(zval *return_value) const {
         if (!is_available()) {
             RETURN_FALSE;
         }
@@ -243,7 +242,7 @@ class Client {
         add_assoc_long(return_value, "port", socket->get_port());
     }
 
-    void getpeername(zval *return_value) {
+    void getpeername(zval *return_value) const {
         Address sa;
         if (!is_available()) {
             RETURN_FALSE;
@@ -258,7 +257,7 @@ class Client {
     }
 
 #ifdef SW_USE_OPENSSL
-    void getpeercert(zval *return_value) {
+    void getpeercert(zval *return_value) const {
         if (!is_available()) {
             RETURN_FALSE;
         }
@@ -375,12 +374,12 @@ static const zend_function_entry swoole_http_client_coro_methods[] =
 // clang-format on
 
 void php_swoole_http_parse_set_cookies(const char *at, size_t length, zval *zcookies, zval *zset_cookie_headers) {
-    const char *p, *eof = at + length;
+    const char *eof = at + length;
     size_t key_len = 0, value_len = 0;
     zval zvalue;
 
     // key
-    p = (char *) memchr(at, '=', length);
+    const char *p = (char *) memchr(at, '=', length);
     if (p) {
         key_len = p - at;
         p++;  // point to value
@@ -948,8 +947,8 @@ bool Client::send_request() {
     // ============   host   ============
     zend::String str_host;
 
-    if ((ZVAL_IS_ARRAY(zheaders)) && ((zvalue = zend_hash_str_find(Z_ARRVAL_P(zheaders), ZEND_STRL("Host"))) ||
-                                      (zvalue = zend_hash_str_find(Z_ARRVAL_P(zheaders), ZEND_STRL("host"))))) {
+    if ((ZVAL_IS_ARRAY(zheaders)) && (((zvalue = zend_hash_str_find(Z_ARRVAL_P(zheaders), ZEND_STRL("Host")))) ||
+                                      ((zvalue = zend_hash_str_find(Z_ARRVAL_P(zheaders), ZEND_STRL("host")))))) {
         str_host = zvalue;
     }
 
@@ -963,18 +962,18 @@ bool Client::send_request() {
     // ============ method ============
     {
         zend::String str_method;
-        const char *method;
+        const char *_method;
         size_t method_len;
         if (zmethod) {
             str_method = zmethod;
-            method = str_method.val();
+            _method = str_method.val();
             method_len = str_method.len();
         } else {
-            method = zbody ? "POST" : "GET";
-            method_len = strlen(method);
+            _method = zbody ? "POST" : "GET";
+            method_len = strlen(_method);
         }
-        this->method = http_server::get_method(method, method_len);
-        buffer->append(method, method_len);
+        this->method = http_server::get_method(_method, method_len);
+        buffer->append(_method, method_len);
         buffer->append(ZEND_STRL(" "));
     }
 
@@ -1024,15 +1023,15 @@ bool Client::send_request() {
     } else {
         // See: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.23
         const std::string *_host;
-        std::string __host;
+        std::string real_host;
 #ifndef SW_USE_OPENSSL
         if (port != 80)
 #else
         if (!ssl ? port != 80 : port != 443)
 #endif
         {
-            __host = std_string::format("%s:%u", host.c_str(), port);
-            _host = &__host;
+            real_host = std_string::format("%s:%u", host.c_str(), port);
+            _host = &real_host;
         } else {
             _host = &host;
         }
@@ -1244,22 +1243,22 @@ bool Client::send_request() {
         {
             // upload files
             SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zupload_files), key, keylen, keytype, zvalue) {
-                if (!(zname = zend_hash_str_find(Z_ARRVAL_P(zvalue), ZEND_STRL("name")))) {
+                if (!((zname = zend_hash_str_find(Z_ARRVAL_P(zvalue), ZEND_STRL("name"))))) {
                     continue;
                 }
-                if (!(zfilename = zend_hash_str_find(Z_ARRVAL_P(zvalue), ZEND_STRL("filename")))) {
+                if (!((zfilename = zend_hash_str_find(Z_ARRVAL_P(zvalue), ZEND_STRL("filename"))))) {
                     continue;
                 }
                 /**
                  * from disk file
                  */
-                if (!(zcontent = zend_hash_str_find(Z_ARRVAL_P(zvalue), ZEND_STRL("content")))) {
+                if (!((zcontent = zend_hash_str_find(Z_ARRVAL_P(zvalue), ZEND_STRL("content"))))) {
                     // file path
-                    if (!(zpath = zend_hash_str_find(Z_ARRVAL_P(zvalue), ZEND_STRL("path")))) {
+                    if (!((zpath = zend_hash_str_find(Z_ARRVAL_P(zvalue), ZEND_STRL("path"))))) {
                         continue;
                     }
                     // file offset
-                    if (!(zoffset = zend_hash_str_find(Z_ARRVAL_P(zvalue), ZEND_STRL("offset")))) {
+                    if (!((zoffset = zend_hash_str_find(Z_ARRVAL_P(zvalue), ZEND_STRL("offset"))))) {
                         continue;
                     }
                     zcontent = nullptr;
@@ -1267,10 +1266,10 @@ bool Client::send_request() {
                     zpath = nullptr;
                     zoffset = nullptr;
                 }
-                if (!(zsize = zend_hash_str_find(Z_ARRVAL_P(zvalue), ZEND_STRL("size")))) {
+                if (!((zsize = zend_hash_str_find(Z_ARRVAL_P(zvalue), ZEND_STRL("size"))))) {
                     continue;
                 }
-                if (!(ztype = zend_hash_str_find(Z_ARRVAL_P(zvalue), ZEND_STRL("type")))) {
+                if (!((ztype = zend_hash_str_find(Z_ARRVAL_P(zvalue), ZEND_STRL("type"))))) {
                     continue;
                 }
                 /**
@@ -1344,10 +1343,10 @@ bool Client::send_request() {
                 add_content_length(buffer, 0);
             }
         } else {
-            char *body;
-            size_t body_length = php_swoole_get_send_data(zbody, &body);
+            char *_body;
+            size_t body_length = php_swoole_get_send_data(zbody, &_body);
             add_content_length(buffer, body_length);
-            buffer->append(body, body_length);
+            buffer->append(_body, body_length);
         }
     }
     // ============ no body ============
@@ -1542,7 +1541,7 @@ void Client::recv_websocket_frame(zval *return_value, double timeout) {
     }
 }
 
-bool Client::upgrade(const std::string &path) {
+bool Client::upgrade(const std::string &_path) {
     defer = false;
     char buf[SW_WEBSOCKET_KEY_LENGTH + 1];
     zval *zheaders =
@@ -1554,13 +1553,13 @@ bool Client::upgrade(const std::string &path) {
     add_assoc_string(zheaders, "Sec-WebSocket-Version", SW_WEBSOCKET_VERSION);
     add_assoc_str_ex(zheaders,
                      ZEND_STRL("Sec-WebSocket-Key"),
-                     php_base64_encode((const unsigned char *) buf, SW_WEBSOCKET_KEY_LENGTH));
+                     php_base64_encode((const uchar *) buf, SW_WEBSOCKET_KEY_LENGTH));
 #ifdef SW_HAVE_ZLIB
     if (websocket_settings.compression) {
         add_assoc_string(zheaders, "Sec-Websocket-Extensions", SW_WEBSOCKET_EXTENSION_DEFLATE);
     }
 #endif
-    return exec(path);
+    return exec(_path);
 }
 
 bool Client::push(zval *zdata, zend_long opcode, uint8_t flags, zend_long code) {

@@ -64,7 +64,7 @@ struct Handle {
      */
     Multi *easy_multi;
 
-    Handle(CURL *_cp) {
+    explicit Handle(CURL *_cp) {
         cp = _cp;
         multi = nullptr;
         easy_multi = nullptr;
@@ -92,15 +92,12 @@ class Multi {
 
     CURLcode read_info() const;
 
-    Socket *create_socket(curl_socket_t sockfd, CURL *cp);
-    void destroy_socket(curl_socket_t sockfd, CURL *cp);
-
     int set_event(void *socket_ptr, curl_socket_t sockfd, int action);
     int del_event(void *socket_ptr, curl_socket_t sockfd);
     void selector_finish();
     void selector_prepare();
 
-    bool wait_event() {
+    bool wait_event() const {
         return timer || !sockets.empty();
     }
 
@@ -109,8 +106,8 @@ class Multi {
             swoole_timer_del(timer);
         }
         timeout_ms_ = timeout_ms;
-        timer = swoole_timer_add(timeout_ms, false, [this](Timer *timer, TimerNode *tnode) {
-            this->timer = nullptr;
+        timer = swoole_timer_add(timeout_ms, false, [this](Timer *_timer, TimerNode *tnode) {
+            timer = nullptr;
             callback(nullptr, 0);
         });
     }
@@ -144,11 +141,11 @@ class Multi {
         curl_multi_cleanup(multi_handle_);
     }
 
-    CURLM *get_multi_handle() {
+    CURLM *get_multi_handle() const {
         return multi_handle_;
     }
 
-    int get_running_handles() {
+    int get_running_handles() const {
         return running_handles_;
     }
 

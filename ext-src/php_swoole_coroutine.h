@@ -282,7 +282,7 @@ class PHPCoroutine {
     static void save_og(PHPContext *ctx);
     static void restore_og(PHPContext *ctx);
     static void save_bg(PHPContext *ctx);
-    static void restore_bg(const PHPContext *ctx);
+    static void restore_bg(PHPContext *ctx);
     static void save_context(PHPContext *ctx);
     static void restore_context(PHPContext *ctx);
     static void destroy_context(PHPContext *ctx);
@@ -292,13 +292,13 @@ class PHPCoroutine {
     static void on_resume(void *arg);
     static void on_close(void *arg);
     static void main_func(void *arg);
-    static zend_fiber_status get_fiber_status(PHPContext *ctx);
+    static zend_fiber_status get_fiber_status(const PHPContext *ctx);
     static void fiber_context_init(PHPContext *ctx);
     static void fiber_context_try_init(PHPContext *ctx);
-    static void fiber_context_destroy(PHPContext *ctx);
-    static void fiber_context_try_destroy(PHPContext *ctx);
-    static void fiber_context_switch_notify(PHPContext *from, PHPContext *to);
-    static void fiber_context_switch_try_notify(PHPContext *from, PHPContext *to);
+    static void fiber_context_destroy(const PHPContext *ctx);
+    static void fiber_context_try_destroy(const PHPContext *ctx);
+    static void fiber_context_switch_notify(const PHPContext *from, PHPContext *to);
+    static void fiber_context_switch_try_notify(const PHPContext *from, PHPContext *to);
 #ifdef ZEND_CHECK_STACK_LIMIT
     static void *stack_limit(PHPContext *ctx);
     static void *stack_base(PHPContext *ctx);

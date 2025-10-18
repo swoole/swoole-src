@@ -16,6 +16,8 @@
   +----------------------------------------------------------------------+
  */
 
+#pragma once
+
 #include "php_swoole_cxx.h"
 
 // clang-format off
