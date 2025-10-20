@@ -782,19 +782,21 @@ void swoole_random_string(std::string &str, size_t len) {
 uint64_t swoole_random_int() {
     static thread_local std::random_device rd;
     static thread_local std::mt19937_64 gen(rd());
-    static thread_local std::uniform_int_distribution<uint64_t> dis(0, UINT64_MAX);
-    return dis(gen);
+    static thread_local std::uniform_int_distribution<uint64_t> dis;
+    std::uniform_int_distribution<uint64_t>::param_type params(0, UINT64_MAX);
+    return dis(gen, params);
 }
 
 int swoole_rand(int min, int max) {
     static thread_local std::random_device rd;
     static thread_local std::mt19937 gen(rd());
-    static thread_local std::uniform_int_distribution<int> dis(min, max);
-    return dis(gen);
+    static thread_local std::uniform_int_distribution<int> dis;
+    std::uniform_int_distribution<int>::param_type params(min, max);
+    return dis(gen, params);
 }
 
 int swoole_rand() {
-	return swoole_rand(0, INT_MAX);
+    return swoole_rand(0, INT_MAX);
 }
 
 bool swoole_get_env(const char *name, int *value) {
