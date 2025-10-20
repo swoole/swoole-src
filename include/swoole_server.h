@@ -230,7 +230,7 @@ struct ListenPort {
     /**
      * Relevant settings of websocket server
      */
-    WebSocketSettings websocket_settings;
+    WebSocketSettings websocket_settings = {};
     /**
      *  one package: length check
      */
@@ -918,8 +918,8 @@ class Server {
     void *private_data_3 = nullptr;
     void *private_data_4 = nullptr;
 
-    Factory *factory = nullptr;
-    Manager *manager = nullptr;
+    Factory *factory_ = nullptr;
+    Manager *manager_ = nullptr;
 
     std::vector<ListenPort *> ports;
     std::vector<std::shared_ptr<UnixSocket>> worker_pipes;
@@ -1288,7 +1288,7 @@ class Server {
         return is_hash_dispatch_mode();
     }
 
-    bool if_require_packet_callback(ListenPort *port, bool isset) {
+    bool if_require_packet_callback(const ListenPort *port, bool isset) const {
 #ifdef SW_USE_OPENSSL
         return (port->is_dgram() && !port->ssl && !isset);
 #else
@@ -1296,7 +1296,7 @@ class Server {
 #endif
     }
 
-    bool if_require_receive_callback(ListenPort *port, bool isset) {
+    bool if_require_receive_callback(const ListenPort *port, bool isset) const {
 #ifdef SW_USE_OPENSSL
         return (((port->is_dgram() && port->ssl) || port->is_stream()) && !isset);
 #else
@@ -1304,7 +1304,7 @@ class Server {
 #endif
     }
 
-    bool if_forward_message(const Session *session) {
+    bool if_forward_message(const Session *session) const {
         return session->reactor_id != swoole_get_worker_id();
     }
 
@@ -1337,7 +1337,7 @@ class Server {
     }
 
     bool is_created() const {
-        return factory != nullptr;
+        return factory_ != nullptr;
     }
 
     bool is_running() const {
@@ -1377,7 +1377,7 @@ class Server {
     }
 
     bool is_reactor_thread() {
-        return swoole_get_thread_type() == Server::THREAD_REACTOR;
+        return swoole_get_thread_type() == THREAD_REACTOR;
     }
 
     bool is_single_worker() const {
@@ -1410,16 +1410,11 @@ class Server {
 
     bool is_healthy_connection(double now, const Connection *conn) const;
 
-    static int is_dgram_event(uint8_t type) {
-        switch (type) {
-        case SW_SERVER_EVENT_RECV_DGRAM:
-            return true;
-        default:
-            return false;
-        }
+    static bool is_dgram_event(uint8_t type) {
+        return type == SW_SERVER_EVENT_RECV_DGRAM;
     }
 
-    static int is_stream_event(uint8_t type) {
+    static bool is_stream_event(uint8_t type) {
         switch (type) {
         case SW_SERVER_EVENT_RECV_DATA:
         case SW_SERVER_EVENT_SEND_DATA:
@@ -1463,8 +1458,8 @@ class Server {
         return conn;
     }
 
-    Connection *get_connection(int fd) const {
-        if ((uint32_t) fd > max_connection) {
+    Connection *get_connection(const int fd) const {
+        if (static_cast<uint32_t>(fd) > max_connection) {
             return nullptr;
         }
         return &connection_list[fd];
@@ -1515,13 +1510,13 @@ class Server {
 
     int send_to_connection(const SendData *) const;
     ssize_t send_to_worker_from_worker(const Worker *dst_worker, const void *buf, size_t len, int flags);
-    bool has_kernel_nobufs_error(SessionId session_id);
+    bool has_kernel_nobufs_error(SessionId session_id) const;
 
     ssize_t send_to_worker_from_worker(WorkerId id, const EventData *data, int flags) {
         return send_to_worker_from_worker(get_worker(id), data, data->size(), flags);
     }
 
-    ssize_t send_to_reactor_thread(const EventData *ev_data, size_t sendn, SessionId session_id);
+    ssize_t send_to_reactor_thread(const EventData *ev_data, size_t sendn, SessionId session_id) const;
 
     /**
      * Send data to session.
@@ -1621,7 +1616,7 @@ class Server {
     static int wait_other_worker(ProcessPool *pool, const ExitStatus &exit_status);
     static void read_worker_message(ProcessPool *pool, EventData *msg);
 
-    void drain_worker_pipe();
+    void drain_worker_pipe() const;
     void clean_worker_connections(Worker *worker);
 
     /**
@@ -1639,7 +1634,7 @@ class Server {
      */
     bool signal_handler_shutdown();
     bool signal_handler_child_exit() const;
-    bool signal_handler_reload(bool reload_all_workers);
+    bool signal_handler_reload(bool reload_all_workers) const;
     bool signal_handler_read_message() const;
     bool signal_handler_reopen_logger() const;
 
@@ -1654,7 +1649,7 @@ class Server {
 
     int start_event_worker(Worker *worker);
 
-    const char *get_startup_error_message();
+    const char *get_startup_error_message() const;
 
   private:
     enum Mode mode_;

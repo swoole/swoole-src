@@ -93,14 +93,14 @@ void Coroutine::check_end() {
 }
 
 long Coroutine::run() {
-    long cid = this->cid;
+    const long _cid = cid;
     origin = current;
     current = this;
     CALC_EXECUTE_USEC(origin, nullptr);
     state = STATE_RUNNING;
     ctx.swap_in();
     check_end();
-    return cid;
+    return _cid;
 }
 
 void Coroutine::yield() {

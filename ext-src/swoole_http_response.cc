@@ -86,7 +86,7 @@ void php_swoole_http_response_set_context(const zval *zobject, HttpContext *ctx)
     http_response_fetch_object(Z_OBJ_P(zobject))->ctx = ctx;
 }
 
-static HttpContext *http_response_get_and_check_context(zval *zobject) {
+static HttpContext *http_response_get_and_check_context(const zval *zobject) {
     auto *ctx = php_swoole_http_response_get_context(zobject);
     if (!ctx || (ctx->end_ || ctx->detached)) {
         swoole_set_last_error(SW_ERROR_HTTP_CONTEXT_UNAVAILABLE);

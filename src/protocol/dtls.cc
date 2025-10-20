@@ -30,11 +30,10 @@ int BIO_write(BIO *b, const char *data, int dlen) {
 
 int BIO_read(BIO *b, char *data, int len) {
     auto *session = (Session *) BIO_get_data(b);
-    Buffer *buffer;
     BIO_clear_retry_flags(b);
 
     if (!session->rxqueue.empty()) {
-        buffer = session->rxqueue.front();
+        Buffer *buffer = session->rxqueue.front();
 
         swoole_trace("BIO_read(%d, peek=%d)=%d", len, session->peek_mode, buffer->length);
 

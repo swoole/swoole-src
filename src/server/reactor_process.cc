@@ -91,7 +91,7 @@ int Server::start_reactor_processes() {
 static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
     SendData _send;
     auto *serv = static_cast<Server *>(reactor->ptr);
-    auto *factory = serv->factory;
+    auto *factory = serv->factory_;
     auto *pipe_buffer = serv->message_bus.get_buffer();
     auto *worker = serv->get_worker(reactor->id);
 

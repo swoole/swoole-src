@@ -903,7 +903,7 @@ void ListenPort::close_socket() {
 }
 
 void ListenPort::destroy_http_request(Connection *conn) {
-    auto request = static_cast<Request *>(conn->object);
+    const auto request = static_cast<Request *>(conn->object);
     if (!request) {
         return;
     }

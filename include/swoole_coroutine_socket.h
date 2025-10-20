@@ -112,7 +112,7 @@ class Socket {
         }
     }
 
-    bool poll(EventType type, double timeout = 0);
+    bool poll(EventType _type, double timeout = 0);
     /**
      * If the server has SSL enabled, you must explicitly call `ssl_handshake()`,
      * as it will not be automatically executed within the `accept()` function.

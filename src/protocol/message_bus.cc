@@ -342,7 +342,7 @@ size_t MessageBus::get_memory_size() const {
     return size;
 }
 
-void MessageBus::init_pipe_socket(Socket *sock) {
+void MessageBus::init_pipe_socket(const Socket *sock) {
     int pipe_fd = sock->get_fd();
     if ((size_t) pipe_fd >= pipe_sockets_.size()) {
         pipe_sockets_.resize(pipe_fd + 1);

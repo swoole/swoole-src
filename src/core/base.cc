@@ -202,11 +202,9 @@ void swoole_clean() {
 
     if (SwooleG.logger) {
         SwooleG.logger->close();
-        delete SwooleG.logger;
     }
-    if (SwooleG.memory_pool != nullptr) {
-        delete SwooleG.memory_pool;
-    }
+    delete SwooleG.logger;
+    delete SwooleG.memory_pool;
     SwooleG = {};
 }
 
@@ -837,10 +835,10 @@ void swoole_print_backtrace() {
     free(stacktrace);
 }
 #else
-void swoole_print_backtrace(void) {}
+void swoole_print_backtrace() {}
 #endif
 
-void swoole_print_backtrace_on_error(void) {
+void swoole_print_backtrace_on_error() {
     if (SwooleG.print_backtrace_on_error) {
         swoole_print_backtrace();
     }

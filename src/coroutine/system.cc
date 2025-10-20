@@ -300,7 +300,7 @@ int System::wait_signal(const std::vector<int> &signals, double timeout) {
 }
 
 struct CoroPollTask {
-    std::unordered_map<int, PollSocket> *fds;
+    std::unordered_map<int, PollSocket> *fds = nullptr;
     Coroutine *co = nullptr;
     TimerNode *timer = nullptr;
     bool success = false;

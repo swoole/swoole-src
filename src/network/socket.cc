@@ -175,6 +175,7 @@ bool Socket::wait_for(const std::function<ReturnCode()> &fn, int event, int time
                 usleep(10 * 1000);
                 continue;
             }
+            break;
         default:
             break;
         }
@@ -297,10 +298,10 @@ void Socket::clean() const {
 /**
  * Wait socket can read or write.
  */
-int Socket::wait_event(int timeout_ms, int events) const {
+int Socket::wait_event(int timeout_ms, int _events) const {
     pollfd event;
     event.fd = fd;
-    event.events = translate_events_to_poll(events);
+    event.events = translate_events_to_poll(_events);
 
     if (timeout_ms < 0) {
         timeout_ms = -1;
@@ -1334,7 +1335,7 @@ STACK_OF(X509) * Socket::ssl_get_peer_cert_chain() const {
     return SSL_get_peer_cert_chain(ssl);
 }
 
-static int _ssl_read_x509_file(X509 *cert, char *buffer, size_t length) {
+static int _ssl_read_x509_file(const X509 *cert, char *buffer, size_t length) {
     BIO *bio = BIO_new(BIO_s_mem());
     ON_SCOPE_EXIT {
         BIO_free(bio);

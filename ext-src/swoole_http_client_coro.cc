@@ -600,7 +600,6 @@ bool Client::decompress_response(const char *in, size_t in_len) {
         int status;
         int encoding = compress_method == HTTP_COMPRESS_GZIP ? SW_ZLIB_ENCODING_GZIP : SW_ZLIB_ENCODING_DEFLATE;
         bool first_decompress = !gzip_stream_active;
-        size_t total_out;
 
         if (!gzip_stream_active) {
         _retry:
@@ -621,7 +620,7 @@ bool Client::decompress_response(const char *in, size_t in_len) {
         gzip_stream.total_in = 0;
 
         while (true) {
-            total_out = gzip_stream.total_out;
+            const size_t total_out = gzip_stream.total_out;
             gzip_stream.avail_out = body->size - body->length;
             gzip_stream.next_out = (Bytef *) (body->str + body->length);
             SW_ASSERT(body->length <= body->size);

@@ -207,12 +207,10 @@ uint64_t swoole_hash_php(const char *key, size_t len) {
  * MurmurHash2(Austin Appleby)
  */
 uint64_t swoole_hash_jenkins(const char *key, size_t keylen) {
-    uint64_t hashv;
-
-    unsigned i, j, k;
-    hashv = 0xfeedbeef;
-    i = j = 0x9e3779b9;
-    k = (unsigned) (keylen);
+    unsigned j;
+    uint64_t hashv = 0xfeedbeef;
+    unsigned i = j = 0x9e3779b9;
+    auto k = (unsigned) (keylen);
 
     while (k >= 12) {
         i += (key[0] + ((unsigned) key[1] << 8) + ((unsigned) key[2] << 16) + ((unsigned) key[3] << 24));
@@ -267,11 +265,10 @@ uint64_t swoole_hash_jenkins(const char *key, size_t keylen) {
  * MurmurHash2(Austin Appleby)
  */
 uint64_t swoole_hash_austin(const char *key, size_t keylen) {
-    uint64_t h, k;
-    h = 0 ^ keylen;
+    uint64_t h = 0 ^ keylen;
 
     while (keylen >= 4) {
-        k = key[0];
+        uint64_t k = key[0];
         k |= key[1] << 8;
         k |= key[2] << 16;
         k |= key[3] << 24;

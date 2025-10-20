@@ -23,9 +23,7 @@ UnixSocket::UnixSocket(bool blocking, int _protocol) : SocketPair(blocking), pro
         swoole_sys_warning("socketpair() failed");
         return;
     }
-    if (!init_socket(socks[1], socks[0])) {
-        return;
-    }
+    init_socket(socks[1], socks[0]);
     set_buffer_size(network::Socket::default_buffer_size);
 }
 

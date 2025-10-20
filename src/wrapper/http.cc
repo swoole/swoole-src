@@ -37,7 +37,7 @@ static int multipart_body_on_header_complete(multipart_parser *p);
 static int multipart_body_on_data_end(multipart_parser *p);
 
 // clang-format off
-static const llhttp_settings_t http_parser_settings =
+static constexpr llhttp_settings_t http_parser_settings =
 {
     nullptr,                                // on_message_begin
     nullptr,                                // on_protocol

@@ -570,8 +570,8 @@ bool Socket::connect(const std::string &_host, int _port, int flags) {
     ctx->timeout = socket->dns_timeout;
 
     std::once_flag oc;
-    auto name_resolve_fn = [ctx, &oc, this](int type) -> bool {
-        ctx->type = type;
+    auto name_resolve_fn = [ctx, &oc, this](int _type) -> bool {
+        ctx->type = _type;
 #ifdef SW_USE_OPENSSL
         std::call_once(oc, [this]() {
             if (ssl_context && !(socks5_proxy || http_proxy)) {
@@ -590,7 +590,7 @@ bool Socket::connect(const std::string &_host, int _port, int flags) {
             return false;
         }
         if (ctx->with_port) {
-            char delimiter = type == AF_INET6 ? '@' : ':';
+            char delimiter = _type == AF_INET6 ? '@' : ':';
             auto port_pos = addr.find_first_of(delimiter);
             if (port_pos != std::string::npos) {
                 connect_port = std::stoi(addr.substr(port_pos + 1));
@@ -664,16 +664,16 @@ ssize_t Socket::peek(void *_buf, size_t _n) {
     return retval;
 }
 
-bool Socket::poll(EventType type, double timeout) {
-    if (sw_unlikely(!is_available(type))) {
+bool Socket::poll(EventType _type, double timeout) {
+    if (sw_unlikely(!is_available(_type))) {
         return false;
     }
-    TimerNode **timer_pp = type == SW_EVENT_READ ? &read_timer : &write_timer;
+    TimerNode **timer_pp = _type == SW_EVENT_READ ? &read_timer : &write_timer;
     if (timeout == 0) {
-        timeout = type == SW_EVENT_READ ? socket->read_timeout : socket->write_timeout;
+        timeout = _type == SW_EVENT_READ ? socket->read_timeout : socket->write_timeout;
     }
     TimerController timer(timer_pp, timeout, this, timer_callback);
-    if (timer.start() && wait_event(type)) {
+    if (timer.start() && wait_event(_type)) {
         return true;
     } else {
         return false;

@@ -76,7 +76,7 @@ class HttpServer {
     std::shared_ptr<std::unordered_set<std::string>> compression_types = nullptr;
 #endif
 
-    HttpServer(SocketType type) {
+    explicit HttpServer(SocketType type) {
         socket = new Socket(type);
         default_handler = nullptr;
         array_init(&zclients);
@@ -120,7 +120,7 @@ class HttpServer {
         return true;
     }
 
-    zend::Callable *get_handler(HttpContext *ctx) const {
+    zend::Callable *get_handler(const HttpContext *ctx) const {
         for (auto &handler : handlers) {
             if (handler.second == default_handler) {
                 continue;
@@ -240,7 +240,7 @@ static sw_inline HttpServer *http_server_get_object(zend_object *obj) {
     return php_swoole_http_server_coro_fetch_object(obj)->server;
 }
 
-static inline void http_server_set_error(zval *zobject, Socket *sock) {
+static inline void http_server_set_error(const zval *zobject, const Socket *sock) {
     zend_update_property_long(swoole_http_server_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), sock->errCode);
     zend_update_property_string(swoole_http_server_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errMsg"), sock->errMsg);
 }
@@ -548,7 +548,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
     HttpContext *ctx = nullptr;
     bool header_completed = false;
     off_t header_crlf_offset = 0;
-    size_t total_length;
+    size_t total_length = 0;
 
 #ifdef SW_USE_OPENSSL
     if (sock->ssl_is_enable() && !sock->ssl_handshake()) {
@@ -556,7 +556,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
     }
 #endif
     zend::array_set(&hs->zclients, co->get_cid(), zconn);
-    zend::Variable remote_addr = zend::Variable(sock->get_addr());
+    auto remote_addr = zend::Variable(sock->get_addr());
 
     while (true) {
     _recv_request : {

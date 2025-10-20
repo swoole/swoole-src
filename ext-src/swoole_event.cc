@@ -448,7 +448,7 @@ static PHP_FUNCTION(swoole_event_add) {
     peo->readable_callback = readable_callback;
     peo->writable_callback = writable_callback;
 
-    Socket *socket = swoole::make_socket(socket_fd, SW_FD_USER);
+    Socket *socket = make_socket(socket_fd, SW_FD_USER);
     socket->set_nonblock();
     socket->object = peo;
 

@@ -20,11 +20,10 @@
 namespace swoole {
 using network::Socket;
 
-bool SocketPair::init_socket(int master_fd, int worker_fd) {
+void SocketPair::init_socket(int master_fd, int worker_fd) {
     master_socket = make_socket(master_fd, SW_FD_PIPE);
     worker_socket = make_socket(worker_fd, SW_FD_PIPE);
     set_blocking(blocking);
-    return true;
 }
 
 Pipe::Pipe(bool _blocking) : SocketPair(_blocking) {
@@ -32,22 +31,21 @@ Pipe::Pipe(bool _blocking) : SocketPair(_blocking) {
         swoole_sys_warning("pipe() failed");
         return;
     }
-    if (!init_socket(socks[1], socks[0])) {
-        return;
-    }
+    init_socket(socks[1], socks[0]);
 }
 
-void SocketPair::set_blocking(bool blocking) const {
-    if (blocking) {
+void SocketPair::set_blocking(bool _blocking) {
+    if (_blocking) {
         worker_socket->set_block();
         master_socket->set_block();
     } else {
         worker_socket->set_nonblock();
         master_socket->set_nonblock();
     }
+    blocking = _blocking;
 }
 
-ssize_t SocketPair::read(void *data, size_t length) {
+ssize_t SocketPair::read(void *data, size_t length) const {
     if (blocking) {
         return worker_socket->read_sync(data, length);
     } else {
@@ -55,7 +53,7 @@ ssize_t SocketPair::read(void *data, size_t length) {
     }
 }
 
-ssize_t SocketPair::write(const void *data, size_t length) {
+ssize_t SocketPair::write(const void *data, size_t length) const {
     if (blocking) {
         return master_socket->write_sync(data, length);
     } else {
@@ -63,7 +61,7 @@ ssize_t SocketPair::write(const void *data, size_t length) {
     }
 }
 
-void SocketPair::clean() {
+void SocketPair::clean() const {
     char buf[1024];
     while (worker_socket->wait_event(0, SW_EVENT_READ) == SW_OK) {
         if (worker_socket->read(buf, sizeof(buf)) <= 0) {

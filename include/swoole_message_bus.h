@@ -168,6 +168,6 @@ class MessageBus {
     network::Socket *get_pipe_socket(const network::Socket *sock) const {
         return pipe_sockets_[sock->get_fd()];
     }
-    void init_pipe_socket(network::Socket *sock);
+    void init_pipe_socket(const network::Socket *sock);
 };
 }  // namespace swoole

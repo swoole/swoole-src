@@ -163,12 +163,12 @@ int Client::sendto(const std::string &host, int port, const char *data, size_t l
         return SW_ERR;
     }
 
-    Address remote_addr;
-    if (!remote_addr.assign(socket->socket_type, host, port, !async)) {
+    Address tmp_addr;
+    if (!tmp_addr.assign(socket->socket_type, host, port, !async)) {
         return SW_ERR;
     }
 
-    if (socket->sendto(remote_addr, data, len, 0) < 0) {
+    if (socket->sendto(tmp_addr, data, len, 0) < 0) {
         swoole_set_last_error(errno);
         return SW_ERR;
     }
@@ -176,7 +176,7 @@ int Client::sendto(const std::string &host, int port, const char *data, size_t l
     return SW_OK;
 }
 
-int Client::get_peer_name(Address *addr) {
+int Client::get_peer_name(Address *addr) const {
     if (socket->is_dgram()) {
         *addr = remote_addr;
         return SW_OK;
@@ -252,7 +252,7 @@ int Client::enable_ssl_encrypt() {
     return SW_OK;
 }
 
-int Client::ssl_handshake() {
+int Client::ssl_handshake() const {
     if (socket->ssl_state == SW_SSL_STATE_READY) {
         return SW_ERR;
     }
@@ -285,7 +285,7 @@ int Client::ssl_handshake() {
     return SW_OK;
 }
 
-int Client::ssl_verify(int allow_self_signed) {
+int Client::ssl_verify(int allow_self_signed) const {
     if (!socket->ssl_verify(allow_self_signed)) {
         return SW_ERR;
     }
@@ -720,7 +720,7 @@ static int Client_onPackage(const Protocol *proto, Socket *conn, const RecvData 
 }
 
 static int Client_onStreamRead(Reactor *reactor, Event *event) {
-    ssize_t n = -1;
+    ssize_t n;
     auto *cli = (Client *) event->socket->object;
     char *buf = cli->buffer->str + cli->buffer->length;
     ssize_t buf_size = cli->buffer->size - cli->buffer->length;
