@@ -178,7 +178,7 @@ std::string System::gethostbyname(const std::string &hostname, int domain, doubl
     auto result_list = dns_lookup_impl_with_cares(hostname.c_str(), domain, timeout);
     if (!result_list.empty()) {
         if (SwooleG.dns_lookup_random) {
-            result = result_list[rand() % result_list.size()];
+            result = result_list[swoole_rand() % result_list.size()];
         } else {
             result = result_list[0];
         }

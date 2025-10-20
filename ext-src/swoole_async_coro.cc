@@ -41,7 +41,7 @@ void php_swoole_async_coro_rshutdown() {
     }
 }
 
-void php_swoole_set_aio_option(HashTable *vht) {
+void php_swoole_set_aio_option(const HashTable *vht) {
     zval *ztmp;
     /* AIO */
     if (php_swoole_array_get_value(vht, "aio_core_worker_num", ztmp)) {
@@ -168,7 +168,7 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro) {
     }
 
     if (SwooleG.dns_lookup_random) {
-        RETVAL_STRING(result[rand() % result.size()].c_str());
+        RETVAL_STRING(result[swoole_rand() % result.size()].c_str());
     } else {
         RETVAL_STRING(result[0].c_str());
     }

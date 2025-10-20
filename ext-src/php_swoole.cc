@@ -438,7 +438,7 @@ SW_API zend_string *php_swoole_serialize(zval *zdata) {
     return result;
 }
 
-SW_API bool php_swoole_unserialize(zend_string *data, zval *zv) {
+SW_API bool php_swoole_unserialize(const zend_string *data, zval *zv) {
     php_unserialize_data_t var_hash;
     const char *p = ZSTR_VAL(data);
     size_t l = ZSTR_LEN(data);
@@ -1163,7 +1163,7 @@ void sw_php_exit(int status) {
 #endif
 }
 
-bool sw_zval_is_serializable(zval *struc) {
+bool sw_zval_is_serializable(const zval *struc) {
 again:
     switch (Z_TYPE_P(struc)) {
     case IS_OBJECT: {

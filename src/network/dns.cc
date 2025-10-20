@@ -68,7 +68,7 @@ SW_API void swoole_set_dns_server(const std::string &server) {
     char dns_server_host[32];
     strcpy(dns_server_host, server.c_str());
     if ((_port = strchr(const_cast<char *>(server.c_str()), ':'))) {
-        dns_server_port = atoi(_port + 1);
+        dns_server_port = sw_atoi(_port + 1);
         if (!Address::verify_port(dns_server_port, true)) {
             dns_server_port = SW_DNS_SERVER_PORT;
         }

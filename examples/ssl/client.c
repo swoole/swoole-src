@@ -101,7 +101,7 @@ int main(int count, char *strings[])
     hostname = strings[1];
     portnum = strings[2];
     ctx = InitCTX();
-    server = OpenConnection(hostname, atoi(portnum));
+    server = OpenConnection(hostname, sw_atoi(portnum));
 
     ssl = SSL_new(ctx); /* create new SSL connection state */
     SSL_set_fd(ssl, server); /* attach the socket descriptor */

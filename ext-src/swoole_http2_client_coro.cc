@@ -135,7 +135,7 @@ class Client {
         return true;
     }
 
-    void apply_setting(zval *zset) const {
+    void apply_setting(const zval *zset) const {
         if (socket_ && ZVAL_IS_ARRAY(zset)) {
             php_swoole_socket_set(socket_, zset);
         }
@@ -922,7 +922,7 @@ int Client::parse_header(Stream *stream, int flags, char *in, size_t inlen) cons
         if (inflate_flags & NGHTTP2_HD_INFLATE_EMIT) {
             if (nv.name[0] == ':') {
                 if (SW_STRCASEEQ((char *) nv.name + 1, nv.namelen - 1, "status")) {
-                    zend::object_set(zresponse, ZEND_STRL("statusCode"), zend_atol((char *) nv.value, nv.valuelen));
+                    zend::object_set(zresponse, ZEND_STRL("statusCode"), sw_atol((char *) nv.value));
                 }
             } else {
 #ifdef SW_HAVE_ZLIB

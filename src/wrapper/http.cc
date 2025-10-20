@@ -363,7 +363,7 @@ std::shared_ptr<Server> listen(const std::string &addr, const std::function<void
         host = "0.0.0.0";
     }
 
-    int port = atoi(addr.substr(index + 1).c_str());
+    int port = sw_atoi(addr.substr(index + 1).c_str());
     auto port_object = server->add_port(SW_SOCK_TCP, host.c_str(), port);
     if (!port_object) {
         return nullptr;

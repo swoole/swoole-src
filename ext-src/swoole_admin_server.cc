@@ -221,7 +221,7 @@ static std::string handle_get_socket_info(Server *serv, const std::string &msg) 
     };
 #else
     std::string _fd = _result["fd"];
-    int fd = std::atoi(_fd.c_str());
+    int fd = sw_atoi(_fd.c_str());
     json return_value{
         {"data", get_socket_info(fd)},
         {"code", 0},
@@ -326,7 +326,7 @@ static std::string handle_get_connection_info(Server *serv, const std::string &m
     }
 
     std::string _session_id = _result["session_id"];
-    int session_id = std::atoi(_session_id.c_str());
+    int session_id = sw_atoi(_session_id.c_str());
     Connection *conn = serv->get_connection_verify(session_id);
     if (!conn) {
         json return_value{

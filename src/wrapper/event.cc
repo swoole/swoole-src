@@ -85,7 +85,7 @@ int swoole_event_free() {
     return SW_OK;
 }
 
-void swoole_event_defer(const Callback& cb, void *private_data) {
+void swoole_event_defer(const Callback &cb, void *private_data) {
     SwooleTG.reactor->defer(cb, private_data);
 }
 

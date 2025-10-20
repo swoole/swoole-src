@@ -334,7 +334,7 @@ void php_swoole_thread_rshutdown();
 int php_swoole_reactor_init();
 void php_swoole_set_global_option(zend_array *vht);
 void php_swoole_set_coroutine_option(zend_array *vht);
-void php_swoole_set_aio_option(zend_array *vht);
+void php_swoole_set_aio_option(const zend_array *vht);
 
 // shutdown
 void php_swoole_register_shutdown_function(const char *function);
@@ -490,7 +490,7 @@ static inline bool sw_zval_is_process(zval *val) {
     return instanceof_function(Z_OBJCE_P(val), swoole_process_ce);
 }
 
-bool sw_zval_is_serializable(zval *struc);
+bool sw_zval_is_serializable(const zval *struc);
 
 static inline bool sw_is_main_thread() {
 #ifdef SW_THREAD

@@ -375,7 +375,7 @@ static inline char *parse_ip_address_ex(const char *str, size_t str_len, int *po
             }
             return nullptr;
         }
-        *portno = atoi(p + 2);
+        *portno = sw_atoi(p + 2);
         return estrndup(str + 1, p - str - 1);
     }
     if (str_len) {
@@ -384,7 +384,7 @@ static inline char *parse_ip_address_ex(const char *str, size_t str_len, int *po
         colon = nullptr;
     }
     if (colon) {
-        *portno = atoi(colon + 1);
+        *portno = sw_atoi(colon + 1);
         host = estrndup(str, colon - str);
     } else {
         if (get_err) {
