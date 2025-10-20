@@ -39,7 +39,6 @@ static SW_THREAD_LOCAL std::unordered_map<SessionId, zend::Variable> client_ips;
 static bool http_context_send_data(HttpContext *ctx, const char *data, size_t length);
 static bool http_context_sendfile(HttpContext *ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
 static bool http_context_disconnect(HttpContext *ctx);
-static HttpContext *http_request_get_and_check_context(const zval *zobject);
 
 static void http_server_process_request(const Server *serv, zend::Callable *cb, HttpContext *ctx) {
     zval args[2];
@@ -348,14 +347,6 @@ void HttpContext::free() {
 
     delete write_buffer;
     delete this;
-}
-
-HttpContext *http_request_get_and_check_context(const zval *zobject) {
-    auto *ctx = php_swoole_http_request_get_context(zobject);
-    if (!ctx) {
-        swoole_set_last_error(SW_ERROR_HTTP_CONTEXT_UNAVAILABLE);
-    }
-    return ctx;
 }
 
 bool http_context_send_data(HttpContext *ctx, const char *data, size_t length) {

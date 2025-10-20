@@ -78,16 +78,16 @@ static HttpResponseObject *http_response_fetch_object(zend_object *obj) {
     return reinterpret_cast<HttpResponseObject *>(reinterpret_cast<char *>(obj) - swoole_http_response_handlers.offset);
 }
 
-static HttpContext *http_response_get_context(zval *zobject) {
+HttpContext *php_swoole_http_response_get_context(const zval *zobject) {
     return http_response_fetch_object(Z_OBJ_P(zobject))->ctx;
 }
 
-void php_swoole_http_response_set_context(zval *zobject, HttpContext *ctx) {
+void php_swoole_http_response_set_context(const zval *zobject, HttpContext *ctx) {
     http_response_fetch_object(Z_OBJ_P(zobject))->ctx = ctx;
 }
 
-HttpContext *http_response_get_and_check_context(zval *zobject) {
-    auto *ctx = http_response_get_context(zobject);
+static HttpContext *http_response_get_and_check_context(zval *zobject) {
+    auto *ctx = php_swoole_http_response_get_context(zobject);
     if (!ctx || (ctx->end_ || ctx->detached)) {
         swoole_set_last_error(SW_ERROR_HTTP_CONTEXT_UNAVAILABLE);
         return nullptr;
@@ -654,7 +654,7 @@ static PHP_METHOD(swoole_http_response, initHeader) {
 }
 
 static PHP_METHOD(swoole_http_response, isWritable) {
-    HttpContext *ctx = http_response_get_context(ZEND_THIS);
+    HttpContext *ctx = php_swoole_http_response_get_context(ZEND_THIS);
     if (!ctx || (ctx->end_ || ctx->detached)) {
         RETURN_FALSE;
     }
@@ -1075,7 +1075,7 @@ static PHP_METHOD(swoole_http_response, status) {
 }
 
 static PHP_METHOD(swoole_http_response, disconnect) {
-    HttpContext *ctx = http_response_get_context(ZEND_THIS);
+    HttpContext *ctx = php_swoole_http_response_get_context(ZEND_THIS);
     if (UNEXPECTED(!ctx)) {
         swoole_set_last_error(SW_ERROR_SESSION_CLOSED);
         RETURN_FALSE;
@@ -1163,7 +1163,7 @@ static PHP_METHOD(swoole_http_response, trailer) {
 }
 
 static PHP_METHOD(swoole_http_response, ping) {
-    HttpContext *ctx = http_response_get_context(ZEND_THIS);
+    HttpContext *ctx = php_swoole_http_response_get_context(ZEND_THIS);
     if (UNEXPECTED(!ctx)) {
         RETURN_FALSE;
     }
@@ -1224,7 +1224,7 @@ static PHP_METHOD(swoole_http_response, upgrade) {
 }
 
 static PHP_METHOD(swoole_http_response, push) {
-    HttpContext *ctx = http_response_get_context(ZEND_THIS);
+    HttpContext *ctx = php_swoole_http_response_get_context(ZEND_THIS);
     if (UNEXPECTED(!ctx)) {
         swoole_set_last_error(SW_ERROR_SESSION_CLOSED);
         RETURN_FALSE;
@@ -1268,7 +1268,7 @@ static PHP_METHOD(swoole_http_response, push) {
 }
 
 static PHP_METHOD(swoole_http_response, close) {
-    HttpContext *ctx = http_response_get_context(ZEND_THIS);
+    HttpContext *ctx = php_swoole_http_response_get_context(ZEND_THIS);
     if (UNEXPECTED(!ctx)) {
         swoole_set_last_error(SW_ERROR_SESSION_CLOSED);
         RETURN_FALSE;
@@ -1425,7 +1425,7 @@ void WebSocket::recv_frame(const WebSocketSettings &settings,
 }
 
 static PHP_METHOD(swoole_http_response, recv) {
-    HttpContext *ctx = http_response_get_context(ZEND_THIS);
+    HttpContext *ctx = php_swoole_http_response_get_context(ZEND_THIS);
     if (UNEXPECTED(!ctx)) {
         swoole_set_last_error(SW_ERROR_SESSION_CLOSED);
         RETURN_FALSE;

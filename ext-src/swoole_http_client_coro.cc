@@ -669,14 +669,13 @@ bool Client::decompress_response(const char *in, size_t in_len) {
             size_t available_out = body->size - body->length, reserved_available_out = available_out;
             char *next_out = body->str + body->length;
             size_t total_out;
-            BrotliDecoderResult result;
             SW_ASSERT(body->length <= body->size);
-            result = BrotliDecoderDecompressStream(brotli_decoder_state,
-                                                   &available_in,
-                                                   (const uint8_t **) &next_in,
-                                                   &available_out,
-                                                   (uint8_t **) &next_out,
-                                                   &total_out);
+            BrotliDecoderResult result = BrotliDecoderDecompressStream(brotli_decoder_state,
+                                                                       &available_in,
+                                                                       (const uint8_t **) &next_in,
+                                                                       &available_out,
+                                                                       (uint8_t **) &next_out,
+                                                                       &total_out);
             body->length += reserved_available_out - available_out;
             if (result == BROTLI_DECODER_RESULT_SUCCESS || result == BROTLI_DECODER_RESULT_NEEDS_MORE_INPUT) {
                 return true;
@@ -1149,17 +1148,16 @@ bool Client::send_request() {
     if ((has_upload_files = (php_swoole_array_length_safe(zupload_files) > 0))) {
         char header_buf[2048];
         char boundary_str[SW_HTTP_CLIENT_BOUNDARY_TOTAL_SIZE + 1];
-        int n;
 
         // ============ content-type ============
         memcpy(boundary_str, SW_HTTP_CLIENT_BOUNDARY_PREKEY, sizeof(SW_HTTP_CLIENT_BOUNDARY_PREKEY) - 1);
         swoole_random_string(boundary_str + sizeof(SW_HTTP_CLIENT_BOUNDARY_PREKEY) - 1,
                              sizeof(boundary_str) - sizeof(SW_HTTP_CLIENT_BOUNDARY_PREKEY));
-        n = sw_snprintf(header_buf,
-                        sizeof(header_buf),
-                        "Content-Type: multipart/form-data; boundary=%.*s\r\n",
-                        (int) (sizeof(boundary_str) - 1),
-                        boundary_str);
+        ssize_t n = sw_snprintf(header_buf,
+                                sizeof(header_buf),
+                                "Content-Type: multipart/form-data; boundary=%.*s\r\n",
+                                (int) (sizeof(boundary_str) - 1),
+                                boundary_str);
         buffer->append(header_buf, n);
 
         // ============ content-length ============
@@ -1551,9 +1549,8 @@ bool Client::upgrade(const std::string &_path) {
     add_assoc_string(zheaders, "Connection", "Upgrade");
     add_assoc_string(zheaders, "Upgrade", "websocket");
     add_assoc_string(zheaders, "Sec-WebSocket-Version", SW_WEBSOCKET_VERSION);
-    add_assoc_str_ex(zheaders,
-                     ZEND_STRL("Sec-WebSocket-Key"),
-                     php_base64_encode((const uchar *) buf, SW_WEBSOCKET_KEY_LENGTH));
+    add_assoc_str_ex(
+        zheaders, ZEND_STRL("Sec-WebSocket-Key"), php_base64_encode((const uchar *) buf, SW_WEBSOCKET_KEY_LENGTH));
 #ifdef SW_HAVE_ZLIB
     if (websocket_settings.compression) {
         add_assoc_string(zheaders, "Sec-Websocket-Extensions", SW_WEBSOCKET_EXTENSION_DEFLATE);

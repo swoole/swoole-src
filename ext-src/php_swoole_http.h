@@ -337,7 +337,6 @@ extern zend_class_entry *swoole_http_response_ce;
 extern zend_class_entry *swoole_http_cookie_ce;
 
 swoole::http::Context *swoole_http_context_new(swoole::SessionId fd);
-swoole::http::Context *php_swoole_http_request_get_and_check_context(zval *zobject);
 swoole::http::Cookie *php_swoole_http_get_cooke_safety(const zval *zobject);
 
 /**
@@ -391,8 +390,8 @@ bool swoole_http_token_list_contains_value(const char *at, size_t length, const 
 
 swoole::http::Context *php_swoole_http_request_get_context(const zval *zobject);
 void php_swoole_http_request_set_context(const zval *zobject, swoole::http::Context *ctx);
-swoole::http::Context *php_swoole_http_response_get_context(zval *zobject);
-void php_swoole_http_response_set_context(zval *zobject, swoole::http::Context *ctx);
+swoole::http::Context *php_swoole_http_response_get_context(const zval *zobject);
+void php_swoole_http_response_set_context(const zval *zobject, swoole::http::Context *ctx);
 
 #ifdef SW_HAVE_ZLIB
 voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size);

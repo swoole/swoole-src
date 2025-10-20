@@ -191,7 +191,7 @@ zend_string *HttpCookie::toString() {
     if (!value) {
         smart_str_appends(&buffer_, "=deleted; expires=");
 
-        date = php_format_date((char *) ZEND_STRL("D, d-M-Y H:i:s T"), 1, 0);
+        date = php_format_date(ZEND_STRL("D, d-M-Y H:i:s T"), 1, 0);
         smart_str_append(&buffer_, date);
         smart_str_appends(&buffer_, "; Max-Age=0");
         zend_string_free(date);
@@ -217,7 +217,7 @@ zend_string *HttpCookie::toString() {
                 return nullptr;
             }
             smart_str_appends(&buffer_, "; expires=");
-            date = php_format_date((char *) ZEND_STRL("D, d-M-Y H:i:s T"), expires, 0);
+            date = php_format_date(ZEND_STRL("D, d-M-Y H:i:s T"), expires, 0);
             smart_str_append(&buffer_, date);
             smart_str_appends(&buffer_, "; Max-Age=");
 
