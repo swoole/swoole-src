@@ -156,8 +156,8 @@ ThreadResource *php_swoole_thread_queue_cast(const zval *zobject) {
 
 void php_swoole_thread_queue_create(zval *return_value, ThreadResource *resource) {
     auto obj = queue_create_object(swoole_thread_queue_ce);
-    auto qo = (ThreadQueueObject *) queue_fetch_object(obj);
-    qo->queue = static_cast<Queue *>(resource);
+    auto qo = queue_fetch_object(obj);
+    qo->queue = dynamic_cast<Queue *>(resource);
     ZVAL_OBJ(return_value, obj);
 }
 

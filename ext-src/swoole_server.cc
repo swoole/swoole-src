@@ -25,10 +25,6 @@
 #include "ext/standard/php_var.h"
 #include "zend_smart_str.h"
 
-#ifdef SW_HAVE_ZLIB
-#include <zlib.h>
-#endif
-
 BEGIN_EXTERN_C()
 #include "ext/json/php_json.h"
 #include "stubs/php_swoole_server_arginfo.h"
@@ -2692,11 +2688,11 @@ static PHP_METHOD(swoole_server, start) {
 
     if (serv->is_thread_mode()) {
         zval *_bootstrap = zend::object_get(ZEND_THIS, ZEND_STRL("bootstrap"));
-        bootstrap = zend_string_dup(Z_STR_P(_bootstrap), 1);
+        bootstrap = zend_string_dup(Z_STR_P(_bootstrap), true);
 
         if (!ZVAL_IS_NULL(&server_object->init_arguments)) {
             zval _thread_argv;
-            call_user_function(NULL, NULL, &server_object->init_arguments, &_thread_argv, 0, NULL);
+            call_user_function(NULL, nullptr, &server_object->init_arguments, &_thread_argv, 0, nullptr);
             if (ZVAL_IS_ARRAY(&_thread_argv)) {
                 thread_argv = ZendArray::from(Z_ARRVAL(_thread_argv));
             }
@@ -2705,7 +2701,7 @@ static PHP_METHOD(swoole_server, start) {
 
         serv->worker_thread_start = [bootstrap, thread_argv](std::shared_ptr<Thread> thread, const WorkerFn &fn) {
             worker_thread_fn = fn;
-            zend_string *bootstrap_copy = zend_string_dup(bootstrap, 1);
+            zend_string *bootstrap_copy = zend_string_dup(bootstrap, true);
             if (thread_argv) {
                 thread_argv->add_ref();
             }

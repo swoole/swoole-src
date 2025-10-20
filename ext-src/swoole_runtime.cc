@@ -2021,7 +2021,7 @@ static PHP_FUNCTION(swoole_stream_select) {
         stream_array_to_fd_set(e_array, fds, SW_EVENT_ERROR);
     }
 
-    if (fds.size() == 0) {
+    if (fds.empty()) {
         php_error_docref(nullptr, E_WARNING, "No stream arrays were passed");
         RETURN_FALSE;
     }

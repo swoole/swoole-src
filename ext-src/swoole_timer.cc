@@ -197,13 +197,13 @@ static void timer_add(INTERNAL_FUNCTION_PARAMETERS, bool persistent) {
     tnode->destructor = timer_dtor;
     if (persistent) {
         if (fci->fci.param_count > 0) {
-            zval *params = (zval *) ecalloc(fci->fci.param_count + 1, sizeof(zval));
+            auto params = static_cast<zval *>(ecalloc(fci->fci.param_count + 1, sizeof(zval)));
             for (uint32_t i = 0; i < fci->fci.param_count; i++) {
                 ZVAL_COPY(&params[i + 1], &fci->fci.params[i]);
             }
             fci->fci.params = params;
         } else {
-            fci->fci.params = (zval *) emalloc(sizeof(zval));
+            fci->fci.params = static_cast<zval *>(emalloc(sizeof(zval)));
         }
         fci->fci.param_count += 1;
         ZVAL_LONG(fci->fci.params, tnode->id);

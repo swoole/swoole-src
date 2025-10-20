@@ -67,7 +67,7 @@ ThreadResource *php_swoole_thread_map_cast(const zval *zobject) {
 void php_swoole_thread_map_create(zval *return_value, ThreadResource *resource) {
     auto obj = map_create_object(swoole_thread_map_ce);
     auto mo = map_fetch_object(obj);
-    mo->map = static_cast<ZendArray *>(resource);
+    mo->map = dynamic_cast<ZendArray *>(resource);
     ZVAL_OBJ(return_value, obj);
 }
 

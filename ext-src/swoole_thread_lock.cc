@@ -106,8 +106,8 @@ ThreadResource *php_swoole_thread_lock_cast(const zval *zobject) {
 
 void php_swoole_thread_lock_create(zval *return_value, ThreadResource *resource) {
     auto obj = thread_lock_create_object(swoole_thread_lock_ce);
-    auto lo = (ThreadLockObject *) thread_lock_fetch_object(obj);
-    lo->lock = static_cast<LockResource *>(resource);
+    auto lo = thread_lock_fetch_object(obj);
+    lo->lock = dynamic_cast<LockResource *>(resource);
     ZVAL_OBJ(return_value, obj);
 }
 
@@ -118,7 +118,7 @@ static PHP_METHOD(swoole_thread_lock, unlock);
 SW_EXTERN_C_END
 
 // clang-format off
-static const zend_function_entry swoole_thread_lock_methods[] =
+static constexpr zend_function_entry swoole_thread_lock_methods[] =
 {
     PHP_ME(swoole_thread_lock, __construct,  arginfo_class_Swoole_Thread_Lock___construct,  ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread_lock, lock,         arginfo_class_Swoole_Thread_Lock_lock,         ZEND_ACC_PUBLIC)
@@ -152,7 +152,7 @@ static PHP_METHOD(swoole_thread_lock, __construct) {
         RETURN_FALSE;
     }
 
-    zend_long type = swoole::Lock::MUTEX;
+    zend_long type = Lock::MUTEX;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
     Z_PARAM_OPTIONAL

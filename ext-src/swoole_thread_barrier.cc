@@ -31,7 +31,7 @@ static zend_object_handlers swoole_thread_barrier_handlers;
 
 struct BarrierResource : ThreadResource {
     Barrier barrier_;
-    BarrierResource(int count) {
+    explicit BarrierResource(int count) {
         barrier_.init(false, count);
     }
     void wait() {
@@ -87,7 +87,7 @@ ThreadResource *php_swoole_thread_barrier_cast(const zval *zobject) {
 void php_swoole_thread_barrier_create(zval *return_value, ThreadResource *resource) {
     auto obj = barrier_create_object(swoole_thread_barrier_ce);
     auto bo = barrier_fetch_object(obj);
-    bo->barrier = static_cast<BarrierResource *>(resource);
+    bo->barrier = dynamic_cast<BarrierResource *>(resource);
     ZVAL_OBJ(return_value, obj);
 }
 
@@ -97,7 +97,7 @@ static PHP_METHOD(swoole_thread_barrier, wait);
 SW_EXTERN_C_END
 
 // clang-format off
-static const zend_function_entry swoole_thread_barrier_methods[] =
+static constexpr zend_function_entry swoole_thread_barrier_methods[] =
 {
     PHP_ME(swoole_thread_barrier, __construct,  arginfo_class_Swoole_Thread_Barrier___construct,  ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread_barrier, wait,         arginfo_class_Swoole_Thread_Barrier_wait,         ZEND_ACC_PUBLIC)
