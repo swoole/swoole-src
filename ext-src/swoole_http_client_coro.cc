@@ -714,11 +714,7 @@ bool Client::decompress_response(const char *in, size_t in_len) {
         ZSTD_outBuffer out_buffer = {body->str + body->length, body->size - body->length, 0};
         while (in_buffer.pos < in_buffer.size) {
             if (sw_unlikely(out_buffer.pos == out_buffer.size)) {
-                if (!body->extend(recommended_size + body->size)) {
-                    swoole_warning("ZSTD_decompressStream() failed, no memory is available");
-                    return false;
-                }
-
+                body->extend(recommended_size + body->size);
                 body->length += out_buffer.pos;
                 out_buffer = {body->str + body->length, body->size - body->length, 0};
             }
