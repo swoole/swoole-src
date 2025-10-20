@@ -54,8 +54,8 @@ static void http_server_process_request(const Server *serv, zend::Callable *cb, 
 }
 
 int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
-    SessionId session_id = req->info.fd;
-    int server_fd = req->info.server_fd;
+    auto session_id = req->info.fd;
+    auto server_fd = req->info.server_fd;
 
     Connection *conn = serv->get_connection_verify_no_ssl(session_id);
     if (!conn) {
@@ -63,7 +63,7 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
         return SW_ERR;
     }
 
-    ListenPort *port = serv->get_port_by_server_fd(server_fd);
+    auto *port = serv->get_port_by_server_fd(server_fd);
     // other server port
     if (!(port->open_http_protocol && php_swoole_server_isset_callback(serv, port, SW_SERVER_CB_onRequest)) &&
         !(port->open_websocket_protocol && php_swoole_server_isset_callback(serv, port, SW_SERVER_CB_onMessage))) {

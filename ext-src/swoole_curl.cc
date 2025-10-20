@@ -141,7 +141,7 @@ int Multi::set_event(void *socket_ptr, curl_socket_t sockfd, int action) {
         curl_socket->socket = new network::Socket();
         curl_socket->socket->fd = sockfd;
         curl_socket->socket->removed = 1;
-        curl_socket->socket->fd_type = (FdType) PHP_SWOOLE_FD_CO_CURL;
+        curl_socket->socket->fd_type = static_cast<FdType>(PHP_SWOOLE_FD_CO_CURL);
         curl_socket->socket->object = curl_socket;
         curl_socket->multi = this;
 

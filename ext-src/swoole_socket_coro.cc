@@ -824,7 +824,7 @@ SW_API void php_swoole_socket_set_error_properties(zval *zobject, Socket *socket
     php_swoole_socket_set_error_properties(zobject, socket->errCode, socket->errMsg);
 }
 
-static zend_object *create_socket_object(Socket *socket) {
+static zend_object *socket_coro_create_object(Socket *socket) {
     zval zobject;
     auto *object = socket_coro_create_object(swoole_socket_coro_ce);
     auto *sock = socket_coro_fetch_object(object);
@@ -844,11 +844,11 @@ static zend_object *create_socket_object(Socket *socket) {
 }
 
 SW_API zend_object *php_swoole_create_socket_from_fd(int fd, swSocketType type) {
-    return create_socket_object(new Socket(fd, type));
+    return socket_coro_create_object(new Socket(fd, type));
 }
 
 SW_API zend_object *php_swoole_create_socket_from_fd(int fd, int _domain, int _type, int _protocol) {
-    return create_socket_object(new Socket(fd, _domain, _type, _protocol));
+    return socket_coro_create_object(new Socket(fd, _domain, _type, _protocol));
 }
 
 SW_API Socket *php_swoole_get_socket(zval *zobject) {

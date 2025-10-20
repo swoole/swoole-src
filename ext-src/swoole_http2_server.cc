@@ -16,6 +16,7 @@
 
 #include "php_swoole_http_server.h"
 
+#include <memory>
 #include <sstream>
 
 #include "swoole_static_handler.h"
@@ -40,7 +41,7 @@ static bool http2_server_respond(HttpContext *ctx, const String *body);
 static bool http2_server_write(HttpContext *ctx, const String *chunk);
 static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handler);
 
-Http2Stream::Stream(Http2Session *client, uint32_t _id) {
+Http2Stream::Stream(const Http2Session *client, uint32_t _id) {
     ctx = swoole_http_context_new(client->fd);
     ctx->copy(client->default_ctx);
     ctx->http2 = true;
@@ -57,7 +58,7 @@ Http2Stream::~Stream() {
     ctx->free();
 }
 
-void Http2Stream::reset(uint32_t error_code) {
+void Http2Stream::reset(uint32_t error_code) const {
     char frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_RST_STREAM_SIZE];
     swoole_trace_log(
         SW_TRACE_HTTP2, "send [" SW_ECHO_YELLOW "] stream_id=%u, error_code=%u", "RST_STREAM", id, error_code);
@@ -89,9 +90,7 @@ Http2Session::~Session() {
     if (deflater) {
         nghttp2_hd_deflate_del(deflater);
     }
-    if (default_ctx) {
-        delete default_ctx;
-    }
+    delete default_ctx;
     http2_sessions.erase(fd);
 }
 
@@ -104,7 +103,7 @@ static void http2_server_send_window_update(HttpContext *ctx, uint32_t stream_id
     ctx->send(ctx, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_WINDOW_UPDATE_SIZE);
 }
 
-static ssize_t http2_server_build_trailer(HttpContext *ctx, uchar *buffer) {
+static ssize_t http2_server_build_trailer(const HttpContext *ctx, uchar *buffer) {
     zval *ztrailer =
         sw_zend_read_property_ex(swoole_http_response_ce, ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TRAILER), 0);
     uint32_t size = php_swoole_array_length_safe(ztrailer);
@@ -124,7 +123,6 @@ static ssize_t http2_server_build_trailer(HttpContext *ctx, uchar *buffer) {
         ZEND_HASH_FOREACH_END();
 
         ssize_t rv;
-        size_t buflen;
         Http2Session *client = http2_sessions[ctx->fd];
         nghttp2_hd_deflater *deflater = client->deflater;
 
@@ -137,7 +135,7 @@ static ssize_t http2_server_build_trailer(HttpContext *ctx, uchar *buffer) {
             client->deflater = deflater;
         }
 
-        buflen = nghttp2_hd_deflate_bound(deflater, trailer.get(), trailer.len());
+        size_t buflen = nghttp2_hd_deflate_bound(deflater, trailer.get(), trailer.len());
 #if 0
         if (buflen > SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE) {
             php_swoole_error(E_WARNING,
@@ -318,7 +316,6 @@ static ssize_t http2_server_build_header(HttpContext *ctx, uchar *buffer, const 
         sw_zend_read_property_ex(swoole_http_response_ce, ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_COOKIE), 0);
     Http2::HeaderSet headers(32 + php_swoole_array_length_safe(zheader) + php_swoole_array_length_safe(zcookie));
     char intbuf[2][16];
-    int ret;
 
     assert(ctx->send_header_ == 0);
 
@@ -326,7 +323,7 @@ static ssize_t http2_server_build_header(HttpContext *ctx, uchar *buffer, const 
     if (ctx->response.status == 0) {
         ctx->response.status = SW_HTTP_OK;
     }
-    ret = swoole_itoa(intbuf[0], ctx->response.status);
+    int ret = swoole_itoa(intbuf[0], ctx->response.status);
     headers.add(ZEND_STRL(":status"), intbuf[0], ret);
 
     uint32_t header_flags = 0x0;
@@ -471,7 +468,6 @@ int swoole_http2_server_ping(HttpContext *ctx) {
 int swoole_http2_server_goaway(HttpContext *ctx, zend_long error_code, const char *debug_data, size_t debug_data_len) {
     size_t length = SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_GOAWAY_SIZE + debug_data_len;
     char *frame = (char *) ecalloc(1, length);
-    bool ret;
     Http2Session *client = http2_sessions[ctx->fd];
     uint32_t last_stream_id = client->last_stream_id;
     Http2::set_frame_header(frame, SW_HTTP2_TYPE_GOAWAY, SW_HTTP2_GOAWAY_SIZE + debug_data_len, error_code, 0);
@@ -480,13 +476,13 @@ int swoole_http2_server_goaway(HttpContext *ctx, zend_long error_code, const cha
     if (debug_data_len > 0) {
         memcpy(frame + SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_GOAWAY_SIZE, debug_data, debug_data_len);
     }
-    ret = ctx->send(ctx, frame, length);
+    bool ret = ctx->send(ctx, frame, length);
     efree(frame);
     client->shutting_down = true;
     return ret;
 }
 
-bool Http2Stream::send_header(const String *body, bool end_stream) {
+bool Http2Stream::send_header(const String *body, bool end_stream) const {
     char header_buffer[SW_BUFFER_SIZE_STD];
     ssize_t bytes = http2_server_build_header(ctx, (uchar *) header_buffer, body);
     if (bytes < 0) {
@@ -529,13 +525,14 @@ bool Http2Stream::send_header(const String *body, bool end_stream) {
     return true;
 }
 
-bool Http2Stream::send_end_stream_data_frame() {
+bool Http2Stream::send_end_stream_data_frame() const {
     char frame_header[SW_HTTP2_FRAME_HEADER_SIZE];
     http2::set_frame_header(frame_header, SW_HTTP2_TYPE_DATA, 0, SW_HTTP2_FLAG_END_STREAM, id);
     return ctx->send(ctx, frame_header, SW_HTTP2_FRAME_HEADER_SIZE);
 }
 
-bool Http2Stream::send_body(const String *body, bool end_stream, size_t max_frame_size, off_t offset, size_t length) {
+bool Http2Stream::send_body(
+    const String *body, bool end_stream, size_t max_frame_size, off_t offset, size_t length) const {
     char frame_header[SW_HTTP2_FRAME_HEADER_SIZE];
     char *p = body->str + offset;
     size_t l = length == 0 ? body->length : length;
@@ -582,7 +579,7 @@ bool Http2Stream::send_body(const String *body, bool end_stream, size_t max_fram
     return true;
 }
 
-bool Http2Stream::send_trailer() {
+bool Http2Stream::send_trailer() const {
     char header_buffer[SW_BUFFER_SIZE_STD] = {};
     char frame_header[SW_HTTP2_FRAME_HEADER_SIZE];
     String *http_buffer = ctx->get_write_buffer();
@@ -603,7 +600,7 @@ bool Http2Stream::send_trailer() {
 }
 
 static bool http2_server_send_data(
-    HttpContext *ctx, Http2Session *client, Http2Stream *stream, const String *body, bool end_stream) {
+    const HttpContext *ctx, const Http2Session *client, Http2Stream *stream, const String *body, bool end_stream) {
     bool error = false;
     // If send_yield is not supported, ignore flow control
     if (ctx->co_socket || !((Server *) ctx->private_data)->send_yield || !swoole_coroutine_is_in()) {
@@ -634,7 +631,7 @@ static bool http2_server_send_data(
                 send_len = stream->remote_window_size;
                 _end_stream = false;
             } else {
-                _end_stream = true && end_stream;
+                _end_stream = end_stream;
             }
 
             error = !stream->send_body(body, _end_stream, client->local_settings.max_frame_size, offset, send_len);
@@ -720,7 +717,7 @@ static bool http2_server_respond(HttpContext *ctx, const String *body) {
         delete stream;
     }
 
-    if (client->shutting_down && client->streams.size() == 0) {
+    if (client->shutting_down && client->streams.empty()) {
         ctx->close(ctx);
     }
 
@@ -747,7 +744,7 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
     }
 
     bool end_stream = (ztrailer == nullptr);
-    body.reset(new String());
+    body = std::make_shared<String>();
     body->length = handler->get_content_length();
     if (!ctx->stream->send_header(body.get(), end_stream)) {
         return false;
@@ -765,8 +762,8 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
 
         char *buf;
         if (tasks.size() > 1) {
-            for (auto i = tasks.begin(); i != tasks.end(); i++) {
-                body.reset(new String(i->part_header, strlen(i->part_header)));
+            for (auto i = tasks.begin(); i != tasks.end(); ++i) {
+                body = std::make_shared<String>(i->part_header, strlen(i->part_header));
                 if (!ctx->stream->send_body(
                         body.get(), false, client->local_settings.max_frame_size, 0, body->length)) {
                     error = true;
@@ -782,7 +779,7 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
                     efree(buf);
                     return false;
                 }
-                body.reset(new String(buf, i->length));
+                body = std::make_shared<String>(buf, i->length);
                 efree(buf);
                 if (!ctx->stream->send_body(
                         body.get(), false, client->local_settings.max_frame_size, 0, body->length)) {
@@ -794,7 +791,7 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
             }
 
             if (!error) {
-                body.reset(new String(handler->get_end_part()));
+                body = std::make_shared<String>(handler->get_end_part());
                 if (!ctx->stream->send_body(
                         body.get(), end_stream, client->local_settings.max_frame_size, 0, body->length)) {
                     error = true;
@@ -811,7 +808,7 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
                     efree(buf);
                     return false;
                 }
-                body.reset(new String(buf, n_reads));
+                body = std::make_shared<String>(buf, n_reads);
                 efree(buf);
                 return true;
             };
@@ -955,19 +952,17 @@ static int http2_server_parse_header(Http2Session *client, HttpContext *ctx, int
     zval *zheader = ctx->request.zheader;
     zval *zserver = ctx->request.zserver;
 
-    ssize_t rv;
     for (;;) {
         nghttp2_nv nv;
         int inflate_flags = 0;
-        size_t proclen;
 
-        rv = nghttp2_hd_inflate_hd(inflater, &nv, &inflate_flags, (uchar *) in, inlen, 1);
+        ssize_t rv = nghttp2_hd_inflate_hd(inflater, &nv, &inflate_flags, (uchar *) in, inlen, 1);
         if (rv < 0) {
             swoole_warning("inflate failed, Error: %s[%zd]", nghttp2_strerror(rv), rv);
             return SW_ERR;
         }
 
-        proclen = (size_t) rv;
+        auto proclen = (size_t) rv;
 
         in += proclen;
         inlen -= proclen;
@@ -994,7 +989,7 @@ static int http2_server_parse_header(Http2Session *client, HttpContext *ctx, int
                         memcpy(pathbuf, nv.value, k_len);
                         pathbuf[k_len] = 0;
                         add_assoc_stringl_ex(zserver, ZEND_STRL("query_string"), v_str, v_len);
-                        zstr_path = zend_string_init(pathbuf, k_len, 0);
+                        zstr_path = zend_string_init(pathbuf, k_len, false);
                         // parse url params
                         sapi_module.treat_data(
                             PARSE_STRING,
@@ -1002,13 +997,13 @@ static int http2_server_parse_header(Http2Session *client, HttpContext *ctx, int
                             swoole_http_init_and_read_property(
                                 swoole_http_request_ce, ctx->request.zobject, &ctx->request.zget, ZEND_STRL("get")));
                     } else {
-                        zstr_path = zend_string_init((char *) nv.value, nv.valuelen, 0);
+                        zstr_path = zend_string_init((char *) nv.value, nv.valuelen, false);
                     }
-                    ctx->request.path = (char *) estrndup((char *) nv.value, nv.valuelen);
+                    ctx->request.path = estrndup((char *) nv.value, nv.valuelen);
                     ctx->request.path_len = nv.valuelen;
                     add_assoc_str_ex(zserver, ZEND_STRL("request_uri"), zstr_path);
                     // path_info should be decoded
-                    zstr_path = zend_string_dup(zstr_path, 0);
+                    zstr_path = zend_string_dup(zstr_path, false);
                     ZSTR_LEN(zstr_path) = php_url_decode(ZSTR_VAL(zstr_path), ZSTR_LEN(zstr_path));
                     add_assoc_str_ex(zserver, ZEND_STRL("path_info"), zstr_path);
                 } else if (SW_STRCASEEQ((char *) nv.name + 1, nv.namelen - 1, "authority")) {
@@ -1243,7 +1238,7 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
                 stream = client->streams[stream_id];
                 stream->remote_window_size += value;
                 if (!client->is_coro) {
-                    Server *serv = (Server *) stream->ctx->private_data;
+                    auto *serv = static_cast<Server *>(stream->ctx->private_data);
                     if (serv->send_yield && stream->waiting_coroutine) {
                         stream->waiting_coroutine->resume();
                     }
@@ -1289,7 +1284,7 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
 }
 
 int swoole_http2_server_onReceive(Server *serv, Connection *conn, RecvData *req) {
-    int session_id = req->info.fd;
+    SessionId session_id = req->info.fd;
     Http2Session *client = http2_sessions[session_id];
     if (client == nullptr) {
         client = new Http2Session(session_id);
@@ -1301,7 +1296,7 @@ int swoole_http2_server_onReceive(Server *serv, Connection *conn, RecvData *req)
         client->default_ctx->init(serv);
         client->default_ctx->fd = session_id;
         client->default_ctx->http2 = true;
-        client->default_ctx->stream = (Http2Stream *) -1;
+        client->default_ctx->stream = reinterpret_cast<Http2Stream *>(-1);
         client->default_ctx->keepalive = true;
         client->default_ctx->onBeforeRequest = http2_server_onBeforeRequest;
     }
@@ -1314,12 +1309,12 @@ int swoole_http2_server_onReceive(Server *serv, Connection *conn, RecvData *req)
     return retval;
 }
 
-void swoole_http2_server_session_free(Connection *conn) {
+void swoole_http2_server_session_free(const Connection *conn) {
     auto session_iterator = http2_sessions.find(conn->session_id);
     if (session_iterator == http2_sessions.end()) {
         return;
     }
-    Http2Session *client = session_iterator->second;
+    const auto *client = session_iterator->second;
     delete client;
 }
 

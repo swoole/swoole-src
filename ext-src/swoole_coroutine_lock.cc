@@ -33,7 +33,7 @@ struct CoLockObject {
     zend_object std;
 };
 
-static sw_inline CoLockObject *co_lock_fetch_object(zend_object *obj) {
+static CoLockObject *co_lock_fetch_object(zend_object *obj) {
     return (CoLockObject *) ((char *) obj - swoole_coroutine_lock_handlers.offset);
 }
 
@@ -49,7 +49,7 @@ static CoroutineLock *co_lock_get_and_check_ptr(zval *zobject) {
     return lock;
 }
 
-void co_lock_set_ptr(zval *zobject, CoroutineLock *ptr) {
+static void co_lock_set_ptr(zval *zobject, CoroutineLock *ptr) {
     co_lock_fetch_object(Z_OBJ_P(zobject))->lock = ptr;
 }
 

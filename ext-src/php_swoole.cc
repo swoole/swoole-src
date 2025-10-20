@@ -424,7 +424,7 @@ SW_API zend_long php_swoole_parse_to_size(zval *zv) {
 
 SW_API zend_string *php_swoole_serialize(zval *zdata) {
     php_serialize_data_t var_hash;
-    smart_str serialized_data = {nullptr};
+    smart_str serialized_data = {};
 
     PHP_VAR_SERIALIZE_INIT(var_hash);
     php_var_serialize(&serialized_data, zdata, &var_hash);

@@ -51,7 +51,7 @@ struct FrameObject {
     uint16_t code;
     zval *data;
 
-    FrameObject(zval *data, zend_long _opcode = 0, zend_long _flags = 0, zend_long _code = 0);
+    explicit FrameObject(zval *data, zend_long _opcode = 0, zend_long _flags = 0, zend_long _code = 0);
     size_t get_data_size() const {
         return (data && ZVAL_IS_STRING(data)) ? Z_STRLEN_P(data) : 0;
     }

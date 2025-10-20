@@ -53,7 +53,8 @@ static PHP_METHOD(swoole_coroutine_scheduler, start);
 SW_EXTERN_C_END
 
 static sw_inline SchedulerObject *scheduler_get_object(zend_object *obj) {
-    return (SchedulerObject *) ((char *) obj - swoole_coroutine_scheduler_handlers.offset);
+    return reinterpret_cast<SchedulerObject *>(reinterpret_cast<char *>(obj) -
+                                               swoole_coroutine_scheduler_handlers.offset);
 }
 
 static zend_object *scheduler_create_object(zend_class_entry *ce) {

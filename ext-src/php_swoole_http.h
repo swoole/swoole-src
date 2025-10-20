@@ -220,7 +220,7 @@ struct Context {
     void build_header(String *http_buffer, const char *body, size_t length);
     ssize_t build_trailer(String *http_buffer) const;
 
-    size_t get_content_length() {
+    size_t get_content_length() const {
         return parser.content_length;
     }
 
@@ -230,7 +230,6 @@ struct Context {
     bool compress(const char *data, size_t length);
 #endif
 
-    void recv_websocket_frame(zval *return_value, double timeout);
     void http2_end(zval *zdata, zval *return_value);
     void http2_write(zval *zdata, zval *return_value);
     bool http2_send_file(const char *file, uint32_t l_file, off_t offset, size_t length);
@@ -240,9 +239,8 @@ struct Context {
 };
 
 class Cookie {
-  private:
     bool encode_;
-    smart_str buffer_ = {0};
+    smart_str buffer_ = {};
 
   protected:
     zend_string *name = nullptr;
@@ -257,7 +255,7 @@ class Cookie {
     zend_bool partitioned = false;
 
   public:
-    Cookie(bool _encode = true) {
+    explicit Cookie(bool _encode = true) {
         encode_ = _encode;
     }
     Cookie *withName(zend_string *);
@@ -289,15 +287,16 @@ class Stream {
     uint32_t local_window_size;
     Coroutine *waiting_coroutine = nullptr;
 
-    Stream(Session *client, uint32_t _id);
+    Stream(const Session *client, uint32_t _id);
     ~Stream();
 
-    bool send_header(const String *body, bool end_stream);
-    bool send_body(const String *body, bool end_stream, size_t max_frame_size, off_t offset = 0, size_t length = 0);
-    bool send_end_stream_data_frame();
-    bool send_trailer();
+    bool send_header(const String *body, bool end_stream) const;
+    bool send_body(
+        const String *body, bool end_stream, size_t max_frame_size, off_t offset = 0, size_t length = 0) const;
+    bool send_end_stream_data_frame() const;
+    bool send_trailer() const;
 
-    void reset(uint32_t error_code);
+    void reset(uint32_t error_code) const;
 };
 
 class Session {
@@ -308,8 +307,8 @@ class Session {
     nghttp2_hd_inflater *inflater = nullptr;
     nghttp2_hd_deflater *deflater = nullptr;
 
-    http2::Settings local_settings = {};
-    http2::Settings remote_settings = {};
+    Settings local_settings = {};
+    Settings remote_settings = {};
 
     // flow control
     uint32_t remote_window_size;
@@ -324,14 +323,12 @@ class Session {
 
     void (*handle)(Session *, Stream *) = nullptr;
 
-    Session(SessionId _fd);
+    explicit Session(SessionId _fd);
     ~Session();
 };
 }  // namespace http2
-
 }  // namespace swoole
 
-extern zend_class_entry *swoole_http_server_ce;
 extern zend_class_entry *swoole_http_request_ce;
 extern zend_class_entry *swoole_http_response_ce;
 extern zend_class_entry *swoole_http_cookie_ce;

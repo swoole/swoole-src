@@ -80,7 +80,7 @@ void php_swoole_redis_server_rshutdown() {
 }
 
 int php_swoole_redis_server_onReceive(Server *serv, RecvData *req) {
-    int fd = req->info.fd;
+    auto fd = req->info.fd;
     Connection *conn = serv->get_connection_by_session_id(fd);
     if (!conn) {
         swoole_warning("connection[%d] is closed", fd);

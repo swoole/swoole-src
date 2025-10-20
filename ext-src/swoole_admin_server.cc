@@ -111,8 +111,8 @@ static std::string handle_get_all_sockets(Server *, const std::string &msg) {
                 if (socket->get_option(SOL_SOCKET, SO_DOMAIN, &domain) < 0) {
                     return;
                 }
-                int type;
-                if (socket->get_option(SOL_SOCKET, SO_TYPE, &type) < 0) {
+                int _type;
+                if (socket->get_option(SOL_SOCKET, SO_TYPE, &_type) < 0) {
                     return;
                 }
                 socket->get_name();

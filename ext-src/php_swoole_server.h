@@ -95,32 +95,32 @@ struct ServerObject {
     zval init_arguments;
     zend_object std;
 
-    zend_class_entry *get_ce() {
+    zend_class_entry *get_ce() const {
         return Z_OBJCE_P(php_swoole_server_zval_ptr(serv));
     }
 
-    bool isset_callback(ListenPort *port, int event_type) {
+    bool isset_callback(ListenPort *port, int event_type) const {
         return (php_swoole_server_get_port_property(port)->callbacks[event_type] ||
                 php_swoole_server_get_port_property(serv->get_primary_port())->callbacks[event_type]);
     }
 
-    bool isset_callback(int event_type) {
+    bool isset_callback(int event_type) const {
         return property->callbacks[event_type] != nullptr;
     }
 
-    zend::Callable *get_callback(int event_type) {
+    zend::Callable *get_callback(int event_type) const {
         return property->callbacks[event_type];
     }
 
-    zend_bool is_websocket_server() {
+    zend_bool is_websocket_server() const {
         return instanceof_function(get_ce(), swoole_websocket_server_ce);
     }
 
-    zend_bool is_http_server() {
+    zend_bool is_http_server() const {
         return instanceof_function(get_ce(), swoole_http_server_ce);
     }
 
-    zend_bool is_redis_server() {
+    zend_bool is_redis_server() const {
         return instanceof_function(get_ce(), swoole_redis_server_ce);
     }
 
