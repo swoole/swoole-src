@@ -373,7 +373,7 @@ void ThreadFactory::terminate_manager_thread() {
 }
 
 int Server::start_worker_threads() {
-    auto *_factory = dynamic_cast<ThreadFactory *>(factory);
+    auto *_factory = dynamic_cast<ThreadFactory *>(factory_);
 
     if (task_worker_num > 0) {
         SW_LOOP_N(task_worker_num) {
@@ -417,7 +417,7 @@ int Server::start_worker_threads() {
 }
 
 void Server::stop_worker_threads() {
-    auto *_factory = dynamic_cast<ThreadFactory *>(factory);
+    auto *_factory = dynamic_cast<ThreadFactory *>(factory_);
     _factory->terminate_manager_thread();
 
     SW_LOOP_N(get_core_worker_num()) {
@@ -426,7 +426,7 @@ void Server::stop_worker_threads() {
 }
 
 bool Server::reload_worker_threads(bool reload_all_workers) const {
-    auto *_factory = dynamic_cast<ThreadFactory *>(factory);
+    auto *_factory = dynamic_cast<ThreadFactory *>(factory_);
     return _factory->reload(reload_all_workers);
 }
 

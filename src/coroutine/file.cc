@@ -36,7 +36,7 @@ bool AsyncFile::open(const std::string &path, int flags, mode_t mode) {
     return fd > 0;
 }
 
-bool AsyncFile::close() {
+bool AsyncFile::close() const {
     if (sw_unlikely(fd == -1)) {
         return false;
     }

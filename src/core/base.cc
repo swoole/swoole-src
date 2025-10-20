@@ -202,11 +202,9 @@ void swoole_clean() {
 
     if (SwooleG.logger) {
         SwooleG.logger->close();
-        delete SwooleG.logger;
     }
-    if (SwooleG.memory_pool != nullptr) {
-        delete SwooleG.memory_pool;
-    }
+    delete SwooleG.logger;
+    delete SwooleG.memory_pool;
     SwooleG = {};
 }
 
@@ -509,13 +507,6 @@ ulong_t swoole_hex2dec(const char *hex, size_t *parsed_bytes) {
 #define RAND_MAX 2147483647
 #endif
 
-int swoole_rand(int min, int max) {
-    assert(max > min);
-    int _rand = rand();
-    _rand = min + (int) ((double) ((double) (max) - (min) + 1.0) * ((_rand) / ((RAND_MAX) + 1.0)));
-    return _rand;
-}
-
 int swoole_system_random(int min, int max) {
     static int dev_random_fd = -1;
     unsigned random_value;
@@ -789,10 +780,23 @@ void swoole_random_string(std::string &str, size_t len) {
 }
 
 uint64_t swoole_random_int() {
-    static std::random_device rd;
-    static std::mt19937_64 gen(rd());
-    static std::uniform_int_distribution<uint64_t> dis(0, UINT64_MAX);
-    return dis(gen);
+    static thread_local std::random_device rd;
+    static thread_local std::mt19937_64 gen(rd());
+    static thread_local std::uniform_int_distribution<uint64_t> dis;
+    std::uniform_int_distribution<uint64_t>::param_type params(0, UINT64_MAX);
+    return dis(gen, params);
+}
+
+int swoole_rand(int min, int max) {
+    static thread_local std::random_device rd;
+    static thread_local std::mt19937 gen(rd());
+    static thread_local std::uniform_int_distribution<int> dis;
+    std::uniform_int_distribution<int>::param_type params(min, max);
+    return dis(gen, params);
+}
+
+int swoole_rand() {
+    return swoole_rand(0, INT_MAX);
 }
 
 bool swoole_get_env(const char *name, int *value) {
@@ -837,10 +841,10 @@ void swoole_print_backtrace() {
     free(stacktrace);
 }
 #else
-void swoole_print_backtrace(void) {}
+void swoole_print_backtrace() {}
 #endif
 
-void swoole_print_backtrace_on_error(void) {
+void swoole_print_backtrace_on_error() {
     if (SwooleG.print_backtrace_on_error) {
         swoole_print_backtrace();
     }

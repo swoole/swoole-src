@@ -168,10 +168,10 @@ struct Request {
     int get_chunked_body_length();
     void parse_header_info();
     bool parse_multipart_data(String *buffer);
-    bool init_multipart_parser(Server *server);
+    bool init_multipart_parser(const Server *server);
     void destroy_multipart_parser();
-    std::string get_header(const char *name);
-    bool has_expect_header();
+    std::string get_header(const char *name) const;
+    bool has_expect_header() const;
 };
 
 typedef std::function<bool(char *key, size_t key_len, char *value, size_t value_len)> ParseCookieCallback;

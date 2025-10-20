@@ -78,7 +78,7 @@ struct Frame {
     size_t payload_length;
     char *payload;
 
-    uchar get_flags() {
+    uchar get_flags() const {
         uchar flags = 0;
         if (header.FIN) {
             flags |= FLAG_FIN;
@@ -98,7 +98,7 @@ struct Frame {
         return flags;
     }
 
-    bool compressed() {
+    bool compressed() const {
         return header.RSV1;
     }
 };
@@ -163,15 +163,15 @@ bool encode(String *buffer, const char *data, size_t length, uint8_t opcode, uin
 bool decode(Frame *frame, char *data, size_t length);
 void mask(char *data, size_t len, const char *mask_key);
 bool pack_close_frame(String *buffer, int code, const char *reason, size_t length, uint8_t flags);
-void print_frame(Frame *frame);
+void print_frame(const Frame *frame);
 
 static inline bool decode(Frame *frame, const String *str) {
     return decode(frame, str->str, str->length);
 }
 
 static inline void parse_ext_flags(uint16_t ext_flags, uchar *opcode, uchar *flags) {
-    *opcode = (uchar)(ext_flags >> 8);
-    *flags = (uchar)(ext_flags & 0xFF);
+    *opcode = (uchar) (ext_flags >> 8);
+    *flags = (uchar) (ext_flags & 0xFF);
 }
 
 ssize_t get_package_length(const Protocol *protocol, network::Socket *conn, PacketLength *pl);

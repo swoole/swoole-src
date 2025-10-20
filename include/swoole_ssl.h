@@ -174,11 +174,11 @@ struct SSLContext {
     }
 
     bool create();
-    bool set_capath();
-    bool set_ciphers();
-    bool set_client_certificate();
-    bool set_ecdh_curve();
-    bool set_dhparam();
+    bool set_capath() const;
+    bool set_ciphers() const;
+    bool set_client_certificate() const;
+    bool set_ecdh_curve() const;
+    bool set_dhparam() const;
     ~SSLContext();
 };
 }  // namespace swoole

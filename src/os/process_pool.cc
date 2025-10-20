@@ -286,7 +286,8 @@ int ProcessPool::response(const char *data, uint32_t length) const {
         swoole_set_last_error(SW_ERROR_INVALID_PARAMS);
         return SW_ERR;
     }
-    return stream_info_->response_buffer->append(data, length);
+    stream_info_->response_buffer->append(data, length);
+    return SW_OK;
 }
 
 bool ProcessPool::send_message(WorkerId worker_id, const char *message, size_t l_message) const {
@@ -309,7 +310,7 @@ int ProcessPool::push_message(const EventData *msg) const {
     return swoole_kill(master_pid, SIGIO);
 }
 
-int ProcessPool::push_message(uint8_t type, const void *data, size_t length) const {
+int ProcessPool::push_message(uint8_t _type, const void *data, size_t length) const {
     if (!message_box) {
         return SW_ERR;
     }
@@ -318,14 +319,14 @@ int ProcessPool::push_message(uint8_t type, const void *data, size_t length) con
     assert(length < sizeof(msg.data));
 
     msg.info = {};
-    msg.info.type = type;
+    msg.info.type = _type;
     msg.info.len = length;
     memcpy(msg.data, data, length);
 
     return push_message(&msg);
 }
 
-int ProcessPool::pop_message(void *data, size_t size) {
+int ProcessPool::pop_message(void *data, size_t size) const {
     if (!message_box) {
         return SW_ERR;
     }
@@ -362,7 +363,7 @@ swResultCode ProcessPool::dispatch(EventData *data, int *dst_worker_id) {
     return SW_OK;
 }
 
-swResultCode ProcessPool::dispatch_sync(const char *data, uint32_t len) {
+swResultCode ProcessPool::dispatch_sync(const char *data, uint32_t len) const {
     assert(use_socket);
 
     network::Client client(stream_info_->socket->socket_type, false);
@@ -516,11 +517,11 @@ void ProcessPool::set_max_request(uint32_t _max_request, uint32_t _max_request_g
     max_request_grace = _max_request_grace;
 }
 
-bool ProcessPool::is_worker_running(Worker *worker) {
+bool ProcessPool::is_worker_running(Worker *worker) const {
     return running && !worker->is_shutdown() && !worker->has_exceeded_max_request();
 }
 
-void ProcessPool::at_worker_enter(Worker *worker) {
+void ProcessPool::at_worker_enter(Worker *worker) const {
     if (worker->pipe_worker) {
         worker->pipe_worker->dont_restart = 1;
     }
@@ -836,17 +837,15 @@ Worker *ProcessPool::get_worker_by_pid(pid_t pid) const {
 }
 
 void ProcessPool::set_type(int _type) {
-    uint32_t i;
     type = _type;
-    for (i = 0; i < worker_num; i++) {
+    for (uint32_t i = 0; i < worker_num; i++) {
         workers[i].type = type;
     }
 }
 
 void ProcessPool::set_start_id(int _start_id) {
-    uint32_t i;
     start_id = _start_id;
-    for (i = 0; i < worker_num; i++) {
+    for (uint32_t i = 0; i < worker_num; i++) {
         workers[i].id = start_id + i;
     }
 }
@@ -1034,15 +1033,13 @@ void ProcessPool::destroy() {
     if (stream_info_) {
         if (stream_info_->socket) {
             unlink(stream_info_->socket_file);
-            sw_free((void *) stream_info_->socket_file);
+            sw_free(stream_info_->socket_file);
         }
         if (stream_info_->socket) {
             stream_info_->socket->free();
             stream_info_->socket = nullptr;
         }
-        if (stream_info_->response_buffer) {
-            delete stream_info_->response_buffer;
-        }
+        delete stream_info_->response_buffer;
         delete stream_info_;
         stream_info_ = nullptr;
     }
@@ -1133,7 +1130,7 @@ ssize_t Worker::send_pipe_message(const void *buf, size_t n, int flags) const {
     }
 }
 
-void Worker::report_error(const ExitStatus &exit_status) {
+void Worker::report_error(const ExitStatus &exit_status) const {
     swoole_warning("worker(pid=%d, id=%d) abnormal exit, status=%d, signal=%d"
                    "%s",
                    exit_status.get_pid(),

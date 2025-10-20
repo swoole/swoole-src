@@ -35,7 +35,7 @@ bool swoole_websocket_handshake(swoole::http::Context *ctx);
 
 int swoole_http2_server_parse(swoole::http2::Session *client, const char *buf);
 int swoole_http2_server_onReceive(swoole::Server *serv, swoole::Connection *conn, swoole::RecvData *req);
-void swoole_http2_server_session_free(swoole::Connection *conn);
+void swoole_http2_server_session_free(const swoole::Connection *conn);
 int swoole_http2_server_ping(swoole::http::Context *ctx);
 int swoole_http2_server_goaway(swoole::http::Context *ctx,
                                zend_long error_code,
@@ -76,9 +76,9 @@ static inline void http_server_add_server_array(HashTable *ht, zend_string *key,
     zend_hash_add_new(ht, key, value);
 }
 
-static inline void http_server_set_object_fd_property(zend_object *object, zend_class_entry *ce, long fd) {
-    zval *zv = zend_hash_find(&ce->properties_info, SW_ZSTR_KNOWN(SW_ZEND_STR_FD));
-    zend_property_info *property_info = (zend_property_info *) Z_PTR_P(zv);
-    zval *property = OBJ_PROP(object, property_info->offset);
+static inline void http_server_set_object_fd_property(zend_object *object, const zend_class_entry *ce, long fd) {
+    auto *zv = zend_hash_find(&ce->properties_info, SW_ZSTR_KNOWN(SW_ZEND_STR_FD));
+    auto *property_info = static_cast<zend_property_info *>(Z_PTR_P(zv));
+    auto property = OBJ_PROP(object, property_info->offset);
     ZVAL_LONG(property, fd);
 }

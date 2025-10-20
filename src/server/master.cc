@@ -353,7 +353,7 @@ void Server::add_http_compression_type(const std::string &type) {
     http_compression_types->emplace(type);
 }
 
-const char *Server::get_startup_error_message() {
+const char *Server::get_startup_error_message() const {
     auto error_msg = swoole_get_last_error_msg();
     if (strlen(error_msg) == 0 && swoole_get_last_error() > 0) {
         auto buf = sw_tg_buffer();
@@ -687,7 +687,7 @@ int Server::start() {
 
     running = true;
     // factory start
-    if (!factory->start()) {
+    if (!factory_->start()) {
         return SW_ERR;
     }
     // write PID file
@@ -867,13 +867,13 @@ int Server::create() {
     }
 
     if (is_base_mode()) {
-        factory = create_base_factory();
+        factory_ = create_base_factory();
     } else if (is_thread_mode()) {
-        factory = create_thread_factory();
+        factory_ = create_thread_factory();
     } else {
-        factory = create_process_factory();
+        factory_ = create_process_factory();
     }
-    if (!factory) {
+    if (!factory_) {
         return SW_ERR;
     }
 
@@ -934,10 +934,10 @@ bool Server::shutdown() {
     return true;
 }
 
-bool Server::signal_handler_reload(bool reload_all_workers) {
-    reload(reload_all_workers);
+bool Server::signal_handler_reload(bool reload_all_workers) const {
+    const auto rv = reload(reload_all_workers);
     sw_logger()->reopen();
-    return true;
+    return rv;
 }
 
 bool Server::signal_handler_read_message() const {
@@ -1035,7 +1035,7 @@ bool Server::signal_handler_child_exit() const {
 }
 
 void Server::destroy() {
-    if (!factory) {
+    if (!factory_) {
         return;
     }
 
@@ -1059,7 +1059,7 @@ void Server::destroy() {
      * thread will keep waiting for the reactor thread to exit.
      */
     if (is_started()) {
-        factory->shutdown();
+        factory_->shutdown();
     }
 
     SW_LOOP_N(worker_num) {
@@ -1116,8 +1116,8 @@ void Server::destroy() {
     port_gs_list = nullptr;
     workers = nullptr;
 
-    delete factory;
-    factory = nullptr;
+    delete factory_;
+    factory_ = nullptr;
 
     SwooleG.server = nullptr;
 }
@@ -1282,7 +1282,7 @@ bool Server::send(SessionId session_id, const void *data, uint32_t length) const
     _send.info.type = SW_SERVER_EVENT_SEND_DATA;
     _send.data = (char *) data;
     _send.info.len = length;
-    if (factory->finish(&_send)) {
+    if (factory_->finish(&_send)) {
         sw_atomic_fetch_add(&gs->response_count, 1);
         sw_atomic_fetch_add(&gs->total_send_bytes, length);
         ListenPort *port = get_port_by_session_id(session_id);
@@ -1298,7 +1298,7 @@ bool Server::send(SessionId session_id, const void *data, uint32_t length) const
     return false;
 }
 
-bool Server::has_kernel_nobufs_error(SessionId session_id) {
+bool Server::has_kernel_nobufs_error(SessionId session_id) const {
     auto conn = get_connection(session_id);
     if (!conn || !conn->socket) {
         return false;
@@ -1333,7 +1333,7 @@ int Server::schedule_worker(int fd, SendData *data) {
         Connection *conn = get_connection(fd);
         Address *addr;
         if (conn == nullptr) {
-            DgramPacket *packet = (DgramPacket *) data->data;
+            auto *packet = (DgramPacket *) data->data;
             addr = &packet->socket_addr;
         } else {
             addr = &conn->info;
@@ -1565,7 +1565,7 @@ bool Server::notify(Connection *conn, ServerEventType event) const {
     notify_event.reactor_id = conn->reactor_id;
     notify_event.fd = conn->fd;
     notify_event.server_fd = conn->server_fd;
-    return factory->notify(&notify_event);
+    return factory_->notify(&notify_event);
 }
 
 /**
@@ -1626,7 +1626,7 @@ bool Server::sendfile(SessionId session_id, const char *file, uint32_t l_file, o
     send_data.info.len = sizeof(SendfileTask) + l_file + 1;
     send_data.data = _buffer;
 
-    return factory->finish(&send_data);
+    return factory_->finish(&send_data);
 }
 
 /**
@@ -1654,7 +1654,7 @@ void Server::call_hook(HookType type, void *arg) {
  * [Worker]
  */
 bool Server::close(SessionId session_id, bool reset) const {
-    return factory->end(session_id, reset ? (CLOSE_ACTIVELY | CLOSE_RESET) : CLOSE_ACTIVELY);
+    return factory_->end(session_id, reset ? (CLOSE_ACTIVELY | CLOSE_RESET) : CLOSE_ACTIVELY);
 }
 
 bool Server::send_pipe_message(WorkerId worker_id, EventData *msg) {

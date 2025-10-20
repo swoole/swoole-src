@@ -217,10 +217,10 @@ size_t File::read_all(void *buf, size_t len) const {
     return read_bytes;
 }
 
-ssize_t File::read_line(void *__buf, size_t __n) const {
-    char *buf = (char *) __buf;
+ssize_t File::read_line(void *_buf, size_t _n) const {
+    char *buf = (char *) _buf;
     auto offset = get_offset();
-    ssize_t read_bytes = read(buf, __n - 1);
+    ssize_t read_bytes = read(buf, _n - 1);
     if (read_bytes <= 0) {
         return read_bytes;
     }
@@ -244,9 +244,7 @@ std::shared_ptr<String> File::read_content() const {
         if (n <= 0) {
             break;
         }
-        if (!data->grow((size_t) n)) {
-            break;
-        }
+        data->grow((size_t) n);
     }
     return data;
 }

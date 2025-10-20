@@ -40,9 +40,9 @@ namespace HttpServer = swoole::http_server;
 zend_class_entry *swoole_http_response_ce;
 static zend_object_handlers swoole_http_response_handlers;
 
-static inline void http_header_key_format(char *key, int length) {
-    int i, state = 0;
-    for (i = 0; i < length; i++) {
+static inline void http_response_header_key_format(char *key, int length) {
+    int state = 0;
+    for (int i = 0; i < length; i++) {
         if (state == 0) {
             if (key[i] >= 97 && key[i] <= 122) {
                 key[i] -= 32;
@@ -74,20 +74,29 @@ struct HttpResponseObject {
     zend_object std;
 };
 
-static sw_inline HttpResponseObject *php_swoole_http_response_fetch_object(zend_object *obj) {
-    return (HttpResponseObject *) ((char *) obj - swoole_http_response_handlers.offset);
+static HttpResponseObject *http_response_fetch_object(zend_object *obj) {
+    return reinterpret_cast<HttpResponseObject *>(reinterpret_cast<char *>(obj) - swoole_http_response_handlers.offset);
 }
 
-HttpContext *php_swoole_http_response_get_context(zval *zobject) {
-    return php_swoole_http_response_fetch_object(Z_OBJ_P(zobject))->ctx;
+HttpContext *php_swoole_http_response_get_context(const zval *zobject) {
+    return http_response_fetch_object(Z_OBJ_P(zobject))->ctx;
 }
 
-void php_swoole_http_response_set_context(zval *zobject, HttpContext *ctx) {
-    php_swoole_http_response_fetch_object(Z_OBJ_P(zobject))->ctx = ctx;
+void php_swoole_http_response_set_context(const zval *zobject, HttpContext *ctx) {
+    http_response_fetch_object(Z_OBJ_P(zobject))->ctx = ctx;
 }
 
-static void php_swoole_http_response_free_object(zend_object *object) {
-    HttpResponseObject *response = php_swoole_http_response_fetch_object(object);
+static HttpContext *http_response_get_and_check_context(const zval *zobject) {
+    auto *ctx = php_swoole_http_response_get_context(zobject);
+    if (!ctx || (ctx->end_ || ctx->detached)) {
+        swoole_set_last_error(SW_ERROR_HTTP_CONTEXT_UNAVAILABLE);
+        return nullptr;
+    }
+    return ctx;
+}
+
+static void http_response_free_object(zend_object *object) {
+    HttpResponseObject *response = http_response_fetch_object(object);
     HttpContext *ctx = response->ctx;
     zval ztmp; /* bool, not required to release it */
 
@@ -116,8 +125,8 @@ static void php_swoole_http_response_free_object(zend_object *object) {
     zend_object_std_dtor(&response->std);
 }
 
-static zend_object *php_swoole_http_response_create_object(zend_class_entry *ce) {
-    HttpResponseObject *response = (HttpResponseObject *) zend_object_alloc(sizeof(HttpResponseObject), ce);
+static zend_object *http_response_create_object(zend_class_entry *ce) {
+    auto *response = static_cast<HttpResponseObject *>(zend_object_alloc(sizeof(HttpResponseObject), ce));
     zend_object_std_init(&response->std, ce);
     object_properties_init(&response->std, ce);
     response->std.handlers = &swoole_http_response_handlers;
@@ -189,11 +198,8 @@ void php_swoole_http_response_minit(int module_number) {
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_http_response);
     SW_SET_CLASS_CLONEABLE(swoole_http_response, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_response, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CUSTOM_OBJECT(swoole_http_response,
-                               php_swoole_http_response_create_object,
-                               php_swoole_http_response_free_object,
-                               HttpResponseObject,
-                               std);
+    SW_SET_CLASS_CUSTOM_OBJECT(
+        swoole_http_response, http_response_create_object, http_response_free_object, HttpResponseObject, std);
 
     zend_declare_property_long(swoole_http_response_ce, ZEND_STRL("fd"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_response_ce, ZEND_STRL("socket"), ZEND_ACC_PUBLIC);
@@ -209,7 +215,7 @@ static PHP_METHOD(swoole_http_response, write) {
     Z_PARAM_ZVAL(zdata)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    HttpContext *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS);
+    HttpContext *ctx = http_response_get_and_check_context(ZEND_THIS);
     if (UNEXPECTED(!ctx)) {
         RETURN_FALSE;
     }
@@ -231,7 +237,7 @@ static PHP_METHOD(swoole_http_response, write) {
     }
 }
 
-static int parse_header_name(const char *key, size_t keylen) {
+static int http_response_parse_header_name(const char *key, size_t keylen) {
     if (SW_STRCASEEQ(key, keylen, "Server")) {
         return HTTP_HEADER_SERVER;
     } else if (SW_STRCASEEQ(key, keylen, "Connection")) {
@@ -250,7 +256,7 @@ static int parse_header_name(const char *key, size_t keylen) {
     return 0;
 }
 
-static void http_set_date_header(String *response) {
+static void http_response_set_date_header(String *response) {
     static SW_THREAD_LOCAL struct {
         time_t time;
         zend_string *date = nullptr;
@@ -270,7 +276,7 @@ static void http_set_date_header(String *response) {
     response->append(ZEND_STRL("\r\n"));
 }
 
-static void add_custom_header(String *http_buffer, const char *key, size_t l_key, zval *value) {
+static void http_response_add_custom_header(String *http_buffer, const char *key, size_t l_key, zval *value) {
     if (ZVAL_IS_NULL(value)) {
         return;
     }
@@ -322,7 +328,7 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
             }
             zend::String key(string_key, false);
 
-            int key_header = parse_header_name(ZSTR_VAL(string_key), ZSTR_LEN(string_key));
+            int key_header = http_response_parse_header_name(ZSTR_VAL(string_key), ZSTR_LEN(string_key));
 
             if (key_header > 0) {
 #ifdef SW_HAVE_COMPRESSION
@@ -358,11 +364,11 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
             if (ZVAL_IS_ARRAY(zvalue)) {
                 zval *zvalue_2;
                 SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(zvalue), zvalue_2) {
-                    add_custom_header(http_buffer, ZSTR_VAL(string_key), ZSTR_LEN(string_key), zvalue_2);
+                    http_response_add_custom_header(http_buffer, ZSTR_VAL(string_key), ZSTR_LEN(string_key), zvalue_2);
                 }
                 SW_HASHTABLE_FOREACH_END();
             } else {
-                add_custom_header(http_buffer, ZSTR_VAL(string_key), ZSTR_LEN(string_key), zvalue);
+                http_response_add_custom_header(http_buffer, ZSTR_VAL(string_key), ZSTR_LEN(string_key), zvalue);
             }
         }
         ZEND_HASH_FOREACH_END();
@@ -400,7 +406,7 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
     }
 
     if (!(header_flags & HTTP_HEADER_DATE)) {
-        http_set_date_header(http_buffer);
+        http_response_set_date_header(http_buffer);
     }
 
     // websocket protocol (subsequent header info is unnecessary)
@@ -450,10 +456,9 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
     send_header_ = 1;
 }
 
-ssize_t HttpContext::build_trailer(String *http_buffer) {
+ssize_t HttpContext::build_trailer(String *http_buffer) const {
     char *buf = sw_tg_buffer()->str;
     size_t l_buf = sw_tg_buffer()->size;
-    int n;
     ssize_t ret = 0;
 
     zval *ztrailer =
@@ -473,7 +478,7 @@ ssize_t HttpContext::build_trailer(String *http_buffer) {
 
             if (!ZVAL_IS_NULL(zvalue)) {
                 zend::String str_value(zvalue);
-                n = sw_snprintf(
+                size_t n = sw_snprintf(
                     buf, l_buf, "%.*s: %.*s\r\n", (int) keylen, key, (int) str_value.len(), str_value.val());
                 http_buffer->append(buf, n);
                 ret += n;
@@ -517,7 +522,7 @@ bool HttpContext::compress(const char *data, size_t length) {
         return false;
     }
 
-    if (0) {
+    if (false) {
         return false;
     }
 #ifdef SW_HAVE_ZLIB
@@ -542,9 +547,9 @@ bool HttpContext::compress(const char *data, size_t length) {
         zlib_buffer = std::make_shared<String>(memory_size);
 
         size_t input_size = length;
-        const uint8_t *input_buffer = (const uint8_t *) data;
+        const auto *input_buffer = reinterpret_cast<const uint8_t *>(data);
         size_t encoded_size = zlib_buffer->size;
-        uint8_t *encoded_buffer = (uint8_t *) zlib_buffer->str;
+        auto *encoded_buffer = reinterpret_cast<uint8_t *>(zlib_buffer->str);
 
         if (BROTLI_TRUE != BrotliEncoderCompress(compression_level,
                                                  BROTLI_DEFAULT_WINDOW,
@@ -603,12 +608,11 @@ bool HttpContext::compress(const char *data, size_t length) {
     zlib_buffer = std::make_shared<String>(memory_size);
 
     z_stream zstream = {};
-    int status;
 
     zstream.zalloc = php_zlib_alloc;
     zstream.zfree = php_zlib_free;
 
-    status = deflateInit2(&zstream, compression_level, Z_DEFLATED, encoding, MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY);
+    int status = deflateInit2(&zstream, compression_level, Z_DEFLATED, encoding, MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY);
     if (status != Z_OK) {
         swoole_warning("deflateInit2() failed, Error: [%d]", status);
         return false;
@@ -635,7 +639,7 @@ bool HttpContext::compress(const char *data, size_t length) {
 #endif
 
 static PHP_METHOD(swoole_http_response, initHeader) {
-    HttpContext *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS);
+    HttpContext *ctx = http_response_get_and_check_context(ZEND_THIS);
     if (UNEXPECTED(!ctx)) {
         RETURN_FALSE;
     }
@@ -658,7 +662,7 @@ static PHP_METHOD(swoole_http_response, isWritable) {
 }
 
 static PHP_METHOD(swoole_http_response, end) {
-    HttpContext *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS);
+    HttpContext *ctx = http_response_get_and_check_context(ZEND_THIS);
     if (UNEXPECTED(!ctx)) {
         RETURN_FALSE;
     }
@@ -810,9 +814,9 @@ void HttpContext::end(zval *zdata, zval *return_value) {
             bool accept_websocket_compression = false;
             zval *pData;
             if (enable_websocket_compression && request.zobject &&
-                (pData = zend_hash_str_find(Z_ARRVAL_P(request.zheader), ZEND_STRL("sec-websocket-extensions"))) &&
+                ((pData = zend_hash_str_find(Z_ARRVAL_P(request.zheader), ZEND_STRL("sec-websocket-extensions")))) &&
                 Z_TYPE_P(pData) == IS_STRING) {
-                std::string value(Z_STRVAL_P(pData), Z_STRLEN_P(pData));
+                const std::string value(Z_STRVAL_P(pData), Z_STRLEN_P(pData));
                 if (value.substr(0, value.find_first_of(';')) == "permessage-deflate") {
                     accept_websocket_compression = true;
                     set_header(ZEND_STRL("Sec-Websocket-Extensions"), ZEND_STRL(SW_WEBSOCKET_EXTENSION_DEFLATE), false);
@@ -847,10 +851,7 @@ void HttpContext::end(zval *zdata, zval *return_value) {
                 }
                 goto _skip_copy;
             } else {
-                if (http_buffer->append(data, length) < 0) {
-                    send_header_ = 0;
-                    RETURN_FALSE;
-                }
+                http_buffer->append(data, length);
             }
         }
 
@@ -863,8 +864,8 @@ void HttpContext::end(zval *zdata, zval *return_value) {
 
 _skip_copy:
     if (upgrade && !co_socket) {
-        Server *serv = (Server *) private_data;
-        Connection *conn = serv->get_connection_verify(fd);
+        auto *serv = static_cast<Server *>(private_data);
+        auto *conn = serv->get_connection_verify(fd);
 
         if (conn && conn->websocket_status == websocket::STATUS_HANDSHAKE) {
             if (response.status == 101) {
@@ -910,7 +911,7 @@ bool HttpContext::set_header(const char *k, size_t klen, zval *zvalue, bool form
         if (http2) {
             swoole_strtolower(sw_tg_buffer()->str, klen);
         } else {
-            http_header_key_format(sw_tg_buffer()->str, klen);
+            http_response_header_key_format(sw_tg_buffer()->str, klen);
         }
         k = sw_tg_buffer()->str;
     }
@@ -919,7 +920,7 @@ bool HttpContext::set_header(const char *k, size_t klen, zval *zvalue, bool form
 }
 
 static PHP_METHOD(swoole_http_response, sendfile) {
-    HttpContext *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS);
+    HttpContext *ctx = http_response_get_and_check_context(ZEND_THIS);
     if (UNEXPECTED(!ctx)) {
         RETURN_FALSE;
     }
@@ -981,8 +982,8 @@ static PHP_METHOD(swoole_http_response, sendfile) {
     }
 }
 
-static bool inline php_swoole_http_response_create_cookie(HttpCookie *cookie, zval *zobject) {
-    HttpContext *ctx = php_swoole_http_response_get_and_check_context(zobject);
+static bool inline http_response_create_cookie(HttpCookie *cookie, zval *zobject) {
+    HttpContext *ctx = http_response_get_and_check_context(zobject);
 
     zend_string *cookie_str = cookie->toString();
     if (!cookie_str) {
@@ -998,7 +999,7 @@ static bool inline php_swoole_http_response_create_cookie(HttpCookie *cookie, zv
     return true;
 }
 
-static void php_swoole_http_response_set_cookie(INTERNAL_FUNCTION_PARAMETERS, const bool encode) {
+static void http_response_set_cookie(INTERNAL_FUNCTION_PARAMETERS, const bool encode) {
     zval *name_or_object;
     zend_string *value = nullptr, *path = nullptr, *domain = nullptr, *sameSite = nullptr, *priority = nullptr;
     zend_long expires = 0;
@@ -1032,10 +1033,10 @@ static void php_swoole_http_response_set_cookie(INTERNAL_FUNCTION_PARAMETERS, co
             ->withSameSite(sameSite)
             ->withPriority(priority)
             ->withPartitioned(partitioned);
-        result = php_swoole_http_response_create_cookie(&cookie, ZEND_THIS);
+        result = http_response_create_cookie(&cookie, ZEND_THIS);
     } else if (ZVAL_IS_OBJECT(name_or_object)) {
         HttpCookie *cookie = php_swoole_http_get_cooke_safety(name_or_object);
-        result = php_swoole_http_response_create_cookie(cookie, ZEND_THIS);
+        result = http_response_create_cookie(cookie, ZEND_THIS);
     } else {
         php_swoole_error(E_WARNING, "The first argument must be a string or an cookie object");
         result = false;
@@ -1045,11 +1046,11 @@ static void php_swoole_http_response_set_cookie(INTERNAL_FUNCTION_PARAMETERS, co
 }
 
 static PHP_METHOD(swoole_http_response, cookie) {
-    php_swoole_http_response_set_cookie(INTERNAL_FUNCTION_PARAM_PASSTHRU, true);
+    http_response_set_cookie(INTERNAL_FUNCTION_PARAM_PASSTHRU, true);
 }
 
 static PHP_METHOD(swoole_http_response, rawcookie) {
-    php_swoole_http_response_set_cookie(INTERNAL_FUNCTION_PARAM_PASSTHRU, false);
+    http_response_set_cookie(INTERNAL_FUNCTION_PARAM_PASSTHRU, false);
 }
 
 static PHP_METHOD(swoole_http_response, status) {
@@ -1063,7 +1064,7 @@ static PHP_METHOD(swoole_http_response, status) {
     Z_PARAM_STRING(reason, reason_len)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    HttpContext *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS);
+    HttpContext *ctx = http_response_get_and_check_context(ZEND_THIS);
     if (UNEXPECTED(!ctx)) {
         RETURN_FALSE;
     }
@@ -1114,7 +1115,7 @@ static PHP_METHOD(swoole_http_response, header) {
     char *k;
     size_t klen;
     zval *zvalue;
-    zend_bool format = 1;
+    zend_bool format = true;
 
     ZEND_PARSE_PARAMETERS_START(2, 3)
     Z_PARAM_STRING(k, klen)
@@ -1123,7 +1124,7 @@ static PHP_METHOD(swoole_http_response, header) {
     Z_PARAM_BOOL(format)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    HttpContext *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS);
+    HttpContext *ctx = http_response_get_and_check_context(ZEND_THIS);
     if (UNEXPECTED(!ctx)) {
         RETURN_FALSE;
     }
@@ -1140,7 +1141,7 @@ static PHP_METHOD(swoole_http_response, trailer) {
     Z_PARAM_STRING_EX(v, vlen, 1, 0)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    HttpContext *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS);
+    HttpContext *ctx = http_response_get_and_check_context(ZEND_THIS);
     if (!ctx) {
         RETURN_FALSE;
     }
@@ -1188,7 +1189,7 @@ static PHP_METHOD(swoole_http_response, ping) {
 }
 
 static PHP_METHOD(swoole_http_response, goaway) {
-    HttpContext *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS);
+    HttpContext *ctx = http_response_get_and_check_context(ZEND_THIS);
     if (UNEXPECTED(!ctx)) {
         RETURN_FALSE;
     }
@@ -1211,7 +1212,7 @@ static PHP_METHOD(swoole_http_response, goaway) {
 }
 
 static PHP_METHOD(swoole_http_response, upgrade) {
-    HttpContext *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS);
+    HttpContext *ctx = http_response_get_and_check_context(ZEND_THIS);
     if (UNEXPECTED(!ctx)) {
         RETURN_FALSE;
     }
@@ -1453,7 +1454,7 @@ static PHP_METHOD(swoole_http_response, recv) {
 }
 
 static PHP_METHOD(swoole_http_response, detach) {
-    HttpContext *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS);
+    HttpContext *ctx = http_response_get_and_check_context(ZEND_THIS);
     if (!ctx) {
         RETURN_FALSE;
     }
@@ -1564,7 +1565,7 @@ static PHP_METHOD(swoole_http_response, redirect) {
     Z_PARAM_ZVAL_EX(zhttp_code, 1, 0)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    HttpContext *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS);
+    HttpContext *ctx = http_response_get_and_check_context(ZEND_THIS);
     if (UNEXPECTED(!ctx)) {
         RETURN_FALSE;
     }

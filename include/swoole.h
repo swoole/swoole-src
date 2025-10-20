@@ -266,7 +266,18 @@ size_t sw_vsnprintf(char *buf, size_t size, const char *format, va_list args);
 int sw_printf(const char *format, ...);
 bool sw_wait_for(const std::function<bool(void)> &fn, int timeout_ms);
 
-#define sw_memset_zero(s, n) memset(s, '\0', n)
+static inline long sw_atol(const char *str) {
+    return std::strtol(str, nullptr, 10);
+}
+
+static inline int sw_atoi(const char *str) {
+    return static_cast<int>(sw_atol(str));
+}
+
+static inline void sw_memset_zero(void *s, size_t n) {
+    memset(s, '\0', n);
+}
+
 #define sw_unset_bit(val, bit) val &= ~bit
 #define sw_set_bit(val, bit) val |= bit
 
@@ -569,6 +580,7 @@ uint32_t swoole_common_divisor(uint32_t u, uint32_t v);
 int swoole_itoa(char *buf, long value);
 bool swoole_mkdir_recursive(const std::string &dir);
 
+int swoole_rand();
 int swoole_rand(int min, int max);
 int swoole_system_random(int min, int max);
 
@@ -884,7 +896,7 @@ SW_API int swoole_event_add(swoole::network::Socket *socket, int events);
 SW_API int swoole_event_set(swoole::network::Socket *socket, int events);
 SW_API int swoole_event_add_or_update(swoole::network::Socket *socket, int event);
 SW_API int swoole_event_del(swoole::network::Socket *socket);
-SW_API void swoole_event_defer(swoole::Callback cb, void *private_data);
+SW_API void swoole_event_defer(const swoole::Callback &cb, void *private_data);
 SW_API ssize_t swoole_event_write(swoole::network::Socket *socket, const void *data, size_t len);
 SW_API ssize_t swoole_event_writev(swoole::network::Socket *socket, const iovec *iov, size_t iovcnt);
 SW_API swoole::network::Socket *swoole_event_get_socket(int fd);

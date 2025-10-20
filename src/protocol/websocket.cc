@@ -217,7 +217,7 @@ bool pack_close_frame(String *buffer, int code, const char *reason, size_t lengt
     return true;
 }
 
-void print_frame(Frame *frame) {
+void print_frame(const Frame *frame) {
     sw_printf("FIN: %x, RSV1: %d, RSV2: %d, RSV3: %d, opcode: %d, MASK: %d, length: %ld\n",
               frame->header.FIN,
               frame->header.RSV1,

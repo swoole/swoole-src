@@ -77,10 +77,6 @@ using swoole::Iouring;
 
 ZEND_DECLARE_MODULE_GLOBALS(swoole)
 
-extern sapi_module_struct sapi_module;
-
-static swoole::CallbackManager rshutdown_callbacks;
-
 SW_EXTERN_C_BEGIN
 static PHP_FUNCTION(swoole_version);
 static PHP_FUNCTION(swoole_cpu_num);
@@ -261,16 +257,16 @@ PHP_INI_END()
 // clang-format on
 
 static void php_swoole_init_globals(zend_swoole_globals *swoole_globals) {
-    swoole_globals->enable_library = 1;
-    swoole_globals->enable_fiber_mock = 0;
-    swoole_globals->enable_preemptive_scheduler = 0;
+    swoole_globals->enable_library = true;
+    swoole_globals->enable_fiber_mock = false;
+    swoole_globals->enable_preemptive_scheduler = false;
     swoole_globals->socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
-    swoole_globals->display_errors = 1;
-    swoole_globals->use_shortname = 1;
+    swoole_globals->display_errors = true;
+    swoole_globals->use_shortname = true;
     swoole_globals->in_autoload = nullptr;
     if (strcmp("cli", sapi_module.name) == 0 || strcmp("phpdbg", sapi_module.name) == 0 ||
         strcmp("embed", sapi_module.name) == 0 || strcmp("micro", sapi_module.name) == 0) {
-        swoole_globals->cli = 1;
+        swoole_globals->cli = true;
     }
 }
 
@@ -288,7 +284,7 @@ void php_swoole_register_shutdown_function(const char *function) {
     zval function_name;
     ZVAL_STRING(&function_name, function);
     zend_fcall_info_init(
-        &function_name, 0, &shutdown_function_entry.fci, &shutdown_function_entry.fci_cache, NULL, NULL);
+        &function_name, 0, &shutdown_function_entry.fci, &shutdown_function_entry.fci_cache, nullptr, nullptr);
     register_user_shutdown_function(Z_STRVAL(function_name), Z_STRLEN(function_name), &shutdown_function_entry);
 #endif
 }
@@ -399,10 +395,6 @@ void php_swoole_set_global_option(HashTable *vht) {
     }
 }
 
-void php_swoole_register_rshutdown_callback(swoole::Callback cb, void *private_data) {
-    rshutdown_callbacks.append(cb, private_data);
-}
-
 SW_API bool php_swoole_is_enable_coroutine() {
     if (sw_server()) {
         return sw_server()->is_enable_coroutine();
@@ -432,7 +424,7 @@ SW_API zend_long php_swoole_parse_to_size(zval *zv) {
 
 SW_API zend_string *php_swoole_serialize(zval *zdata) {
     php_serialize_data_t var_hash;
-    smart_str serialized_data = {0};
+    smart_str serialized_data = {};
 
     PHP_VAR_SERIALIZE_INIT(var_hash);
     php_var_serialize(&serialized_data, zdata, &var_hash);
@@ -440,13 +432,13 @@ SW_API zend_string *php_swoole_serialize(zval *zdata) {
 
     zend_string *result = nullptr;
     if (!EG(exception)) {
-        result = zend_string_init(serialized_data.s->val, serialized_data.s->len, 1);
+        result = zend_string_init(serialized_data.s->val, serialized_data.s->len, true);
     }
     smart_str_free(&serialized_data);
     return result;
 }
 
-SW_API bool php_swoole_unserialize(zend_string *data, zval *zv) {
+SW_API bool php_swoole_unserialize(const zend_string *data, zval *zv) {
     php_unserialize_data_t var_hash;
     const char *p = ZSTR_VAL(data);
     size_t l = ZSTR_LEN(data);
@@ -922,7 +914,7 @@ PHP_MINIT_FUNCTION(swoole) {
     Socket::default_buffer_size = SWOOLE_G(socket_buffer_size);
     SwooleG.dns_cache_refresh_time = 60;
 
-    // enable pcre.jit and use swoole extension on MacOS will lead to coredump, disable it temporarily
+    // enable pcre.jit and use swoole extension on macOS will lead to core dump, disable it temporarily
 #if defined(PHP_PCRE_VERSION) && defined(HAVE_PCRE_JIT_SUPPORT) && __MACH__ && !defined(SW_DEBUG)
     PCRE_G(jit) = 0;
 #endif
@@ -1096,62 +1088,62 @@ PHP_MINFO_FUNCTION(swoole) {
 }
 /* }}} */
 
-static void *_sw_emalloc(size_t size) {
+static void *sw_emalloc(size_t size) {
     return emalloc(size);
 }
 
-static void *_sw_ecalloc(size_t nmemb, size_t size) {
+static void *sw_ecalloc(size_t nmemb, size_t size) {
     return ecalloc(nmemb, size);
 }
 
-static void *_sw_erealloc(void *address, size_t size) {
+static void *sw_erealloc(void *address, size_t size) {
     return erealloc(address, size);
 }
 
-static void _sw_efree(void *address) {
+static void sw_efree(void *address) {
     efree(address);
 }
 
-static void *_sw_zend_string_malloc(size_t size) {
-    zend_string *str = zend_string_alloc(size, 0);
+static void *sw_zend_string_malloc(size_t size) {
+    zend_string *str = zend_string_alloc(size, false);
     if (str == nullptr) {
         return nullptr;
     }
     return str->val;
 }
 
-static void *_sw_zend_string_calloc(size_t nmemb, size_t size) {
-    void *mem = _sw_zend_string_malloc(nmemb * size);
+static void *sw_zend_string_calloc(size_t nmemb, size_t size) {
+    void *mem = sw_zend_string_malloc(nmemb * size);
     if (mem) {
         sw_memset_zero(mem, size);
     }
     return mem;
 }
 
-static void *_sw_zend_string_realloc(void *address, size_t size) {
-    zend_string *str = zend_string_realloc(zend::fetch_zend_string_by_val(address), size, 0);
+static void *sw_zend_string_realloc(void *address, size_t size) {
+    zend_string *str = zend_string_realloc(zend::fetch_zend_string_by_val(address), size, false);
     if (str == nullptr) {
         return nullptr;
     }
     return str->val;
 }
 
-static void _sw_zend_string_free(void *address) {
-	zend_string_release_ex(zend::fetch_zend_string_by_val(address), 0);
+static void sw_zend_string_free(void *address) {
+    zend_string_release_ex(zend::fetch_zend_string_by_val(address), false);
 }
 
 static swoole::Allocator php_allocator{
-    _sw_emalloc,
-    _sw_ecalloc,
-    _sw_erealloc,
-    _sw_efree,
+    sw_emalloc,
+    sw_ecalloc,
+    sw_erealloc,
+    sw_efree,
 };
 
 static swoole::Allocator zend_string_allocator{
-    _sw_zend_string_malloc,
-    _sw_zend_string_calloc,
-    _sw_zend_string_realloc,
-    _sw_zend_string_free,
+    sw_zend_string_malloc,
+    sw_zend_string_calloc,
+    sw_zend_string_realloc,
+    sw_zend_string_free,
 };
 
 const swoole::Allocator *sw_php_allocator() {
@@ -1171,7 +1163,7 @@ void sw_php_exit(int status) {
 #endif
 }
 
-bool sw_zval_is_serializable(zval *struc) {
+bool sw_zval_is_serializable(const zval *struc) {
 again:
     switch (Z_TYPE_P(struc)) {
     case IS_OBJECT: {
@@ -1242,7 +1234,7 @@ PHP_RINIT_FUNCTION(swoole) {
 
 #ifdef ZEND_SIGNALS
     /* Disable warning even in ZEND_DEBUG because we may register our own signal handlers  */
-    SIGG(check) = 0;
+    SIGG(check) = false;
 #endif
 
     swoole_add_hook(SW_GLOBAL_HOOK_AFTER_FORK, sw_after_fork, 0);
@@ -1269,8 +1261,6 @@ PHP_RSHUTDOWN_FUNCTION(swoole) {
 
     SWOOLE_G(req_status) = PHP_SWOOLE_RSHUTDOWN_BEGIN;
 
-    rshutdown_callbacks.execute();
-
     php_swoole_server_rshutdown();
     php_swoole_http_server_rshutdown();
     php_swoole_async_coro_rshutdown();
@@ -1290,14 +1280,12 @@ PHP_RSHUTDOWN_FUNCTION(swoole) {
 
 #ifdef PHP_STREAM_FLAG_NO_CLOSE
     auto php_swoole_set_stdio_no_close = [](const char *name, size_t name_len) {
-        zval *zstream;
-        php_stream *stream;
-
-        zstream = zend_get_constant_str(name, name_len);
+        zval *zstream = zend_get_constant_str(name, name_len);
         if (!zstream) {
             return;
         }
-        stream = (php_stream *) zend_fetch_resource2_ex((zstream), NULL, php_file_le_stream(), php_file_le_pstream());
+        auto *stream =
+            (php_stream *) zend_fetch_resource2_ex((zstream), nullptr, php_file_le_stream(), php_file_le_pstream());
         if (!stream) {
             return;
         }
@@ -1320,7 +1308,7 @@ static uint32_t hashkit_one_at_a_time(const char *key, size_t key_length) {
     uint32_t value = 0;
 
     while (key_length--) {
-        uint32_t val = (uint32_t) *ptr++;
+        auto val = (uint32_t) *ptr++;
         value += val;
         value += (value << 10);
         value ^= (value >> 6);
@@ -1489,8 +1477,8 @@ static PHP_FUNCTION(swoole_errno) {
 }
 
 PHP_FUNCTION(swoole_set_process_name) {
-    zend_function *cli_set_process_title =
-        (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("cli_set_process_title"));
+    auto *cli_set_process_title =
+        static_cast<zend_function *>(zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("cli_set_process_title")));
     if (!cli_set_process_title) {
         php_swoole_fatal_error(E_WARNING, "swoole_set_process_name only support in CLI mode");
         RETURN_FALSE;
@@ -1500,7 +1488,7 @@ PHP_FUNCTION(swoole_set_process_name) {
 
 static PHP_FUNCTION(swoole_get_local_ip) {
     struct sockaddr_in *s4;
-    struct ifaddrs *ipaddrs, *ifa;
+    struct ifaddrs *ipaddrs;
     void *in_addr;
     char ip[64];
 
@@ -1509,7 +1497,7 @@ static PHP_FUNCTION(swoole_get_local_ip) {
         RETURN_FALSE;
     }
     array_init(return_value);
-    for (ifa = ipaddrs; ifa != nullptr; ifa = ifa->ifa_next) {
+    for (struct ifaddrs *ifa = ipaddrs; ifa != nullptr; ifa = ifa->ifa_next) {
         if (ifa->ifa_addr == nullptr || !(ifa->ifa_flags & IFF_UP)) {
             continue;
         }
@@ -1604,9 +1592,9 @@ static PHP_FUNCTION(swoole_internal_call_user_shutdown_begin) {
 
 static PHP_FUNCTION(swoole_substr_unserialize) {
     zend_long offset, length = 0;
-    char *buf = NULL;
+    char *buf = nullptr;
     size_t buf_len;
-    zval *options = NULL;
+    zval *options = nullptr;
 
     ZEND_PARSE_PARAMETERS_START(2, 4)
     Z_PARAM_STRING(buf, buf_len)
@@ -1631,15 +1619,15 @@ static PHP_FUNCTION(swoole_substr_unserialize) {
     if (length <= 0 || length > (zend_long) (buf_len - offset)) {
         length = buf_len - offset;
     }
-    zend::unserialize(return_value, buf + offset, length, options ? Z_ARRVAL_P(options) : NULL);
+    zend::unserialize(return_value, buf + offset, length, options ? Z_ARRVAL_P(options) : nullptr);
 }
 
 static PHP_FUNCTION(swoole_substr_json_decode) {
     zend_long offset, length = 0;
     char *str;
     size_t str_len;
-    zend_bool assoc = 0; /* return JS objects as PHP objects by default */
-    zend_bool assoc_null = 1;
+    zend_bool assoc = false; /* return JS objects as PHP objects by default */
+    zend_bool assoc_null = true;
     zend_long depth = PHP_JSON_PARSER_DEFAULT_DEPTH;
     zend_long options = 0;
 
@@ -1707,9 +1695,9 @@ static PHP_FUNCTION(swoole_implicit_fn) {
     } else if (SW_STRCASEEQ(fn, l_fn, "refcount")) {
         RETURN_LONG(zval_refcount_p(zargs));
     } else if (SW_STRCASEEQ(fn, l_fn, "func_handler")) {
-        auto fn = zval_get_string(zargs);
-        zend_function *zf = (zend_function *) zend_hash_find_ptr(EG(function_table), fn);
-        zend_string_release(fn);
+        auto fn_str = zval_get_string(zargs);
+        auto *zf = static_cast<zend_function *>(zend_hash_find_ptr(EG(function_table), fn_str));
+        zend_string_release(fn_str);
         if (zf == nullptr) {
             RETURN_FALSE;
         }

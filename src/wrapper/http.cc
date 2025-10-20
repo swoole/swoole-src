@@ -37,7 +37,7 @@ static int multipart_body_on_header_complete(multipart_parser *p);
 static int multipart_body_on_data_end(multipart_parser *p);
 
 // clang-format off
-static const llhttp_settings_t http_parser_settings =
+static constexpr llhttp_settings_t http_parser_settings =
 {
     nullptr,                                // on_message_begin
     nullptr,                                // on_protocol
@@ -363,7 +363,7 @@ std::shared_ptr<Server> listen(const std::string &addr, const std::function<void
         host = "0.0.0.0";
     }
 
-    int port = atoi(addr.substr(index + 1).c_str());
+    int port = sw_atoi(addr.substr(index + 1).c_str());
     auto port_object = server->add_port(SW_SOCK_TCP, host.c_str(), port);
     if (!port_object) {
         return nullptr;

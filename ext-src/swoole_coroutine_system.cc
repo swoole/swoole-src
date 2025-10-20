@@ -195,8 +195,8 @@ PHP_METHOD(swoole_coroutine_system, getaddrinfo) {
     }
 
     array_init(return_value);
-    for (auto i = result.begin(); i != result.end(); i++) {
-        add_next_index_stringl(return_value, i->c_str(), i->length());
+    for (auto &i : result) {
+        add_next_index_stringl(return_value, i.c_str(), i.length());
     }
 }
 
@@ -228,7 +228,7 @@ PHP_METHOD(swoole_coroutine_system, statvfs) {
 PHP_METHOD(swoole_coroutine_system, exec) {
     char *command;
     size_t command_len;
-    zend_bool get_error_stream = 0;
+    zend_bool get_error_stream = false;
 
     ZEND_PARSE_PARAMETERS_START(1, 2)
     Z_PARAM_STRING(command, command_len)

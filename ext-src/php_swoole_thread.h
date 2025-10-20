@@ -62,7 +62,7 @@ int php_swoole_thread_co_socket_cast(zval *zstream, swSocketType *type);
 void php_swoole_thread_co_socket_create(zval *return_value, zend_long sockfd, swSocketType type);
 
 #define EMSG_NO_RESOURCE "resource not found"
-#define ECODE_NO_RESOURCE -2
+#define ECODE_NO_RESOURCE (-2)
 
 enum {
     IS_ARRAYLIST = 80,
@@ -97,7 +97,7 @@ class ThreadResource {
     }
 
   protected:
-    virtual ~ThreadResource() {}
+    virtual ~ThreadResource() = default;
 };
 
 struct ArrayItem {
@@ -115,7 +115,7 @@ struct ArrayItem {
         ThreadResource *resource;
     } value;
 
-    ArrayItem(zval *zvalue) {
+    explicit ArrayItem(zval *zvalue) {
         value = {};
         store(zvalue);
     }
@@ -156,7 +156,7 @@ class ZendArray : public ThreadResource {
     }
 
   public:
-    ZendArray() : lock_(0) {
+    ZendArray() : lock_(false) {
         zend_hash_init(&ht, 0, NULL, item_dtor, 1);
     }
 

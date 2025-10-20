@@ -148,7 +148,7 @@ void Server::worker_accept_event(DataHead *info) {
             conn->ssl_client_cert = nullptr;
         }
 #endif
-        factory->end(info->fd, false);
+        factory_->end(info->fd, false);
         break;
     }
     case SW_SERVER_EVENT_CONNECT: {
@@ -217,7 +217,7 @@ void Server::worker_accept_event(DataHead *info) {
 
 void Server::worker_start_callback(Worker *worker) {
     if (swoole_is_root_user()) {
-    	swoole_set_isolation(group_, user_, chroot_);
+        swoole_set_isolation(group_, user_, chroot_);
     }
 
     SW_LOOP_N(worker_num + task_worker_num) {
@@ -456,7 +456,7 @@ static void Worker_reactor_try_to_exit(Reactor *reactor) {
     }
 }
 
-void Server::drain_worker_pipe() {
+void Server::drain_worker_pipe() const {
     for (uint32_t i = 0; i < worker_num + task_worker_num; i++) {
         Worker *worker = get_worker(i);
         if (sw_reactor()) {
@@ -543,7 +543,7 @@ int Server::start_event_worker(Worker *worker) {
 /**
  * [Worker/TaskWorker/Master] Send data to ReactorThread
  */
-ssize_t Server::send_to_reactor_thread(const EventData *ev_data, size_t sendn, SessionId session_id) {
+ssize_t Server::send_to_reactor_thread(const EventData *ev_data, size_t sendn, SessionId session_id) const {
     Socket *pipe_sock = get_reactor_pipe_socket(session_id, ev_data->info.reactor_id);
     if (swoole_event_is_available()) {
         return swoole_event_write(pipe_sock, ev_data, sendn);

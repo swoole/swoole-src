@@ -8,6 +8,7 @@ COMPILE_PARAMS="--enable-openssl \
 --enable-mysqlnd \
 --enable-swoole-curl \
 --enable-cares \
+--enable-zstd \
 --enable-swoole-pgsql \
 --enable-swoole-stdext \
 --with-swoole-odbc=unixODBC,/usr \

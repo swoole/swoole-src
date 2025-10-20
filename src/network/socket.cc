@@ -175,6 +175,7 @@ bool Socket::wait_for(const std::function<ReturnCode()> &fn, int event, int time
                 usleep(10 * 1000);
                 continue;
             }
+            break;
         default:
             break;
         }
@@ -297,10 +298,10 @@ void Socket::clean() const {
 /**
  * Wait socket can read or write.
  */
-int Socket::wait_event(int timeout_ms, int events) const {
+int Socket::wait_event(int timeout_ms, int _events) const {
     pollfd event;
     event.fd = fd;
-    event.events = translate_events_to_poll(events);
+    event.events = translate_events_to_poll(_events);
 
     if (timeout_ms < 0) {
         timeout_ms = -1;

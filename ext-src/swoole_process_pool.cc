@@ -263,7 +263,7 @@ static void process_pool_onWorkerExit(ProcessPool *pool, Worker *worker) {
 }
 
 static void process_pool_onStart(ProcessPool *pool) {
-    zval *zobject = (zval *) pool->ptr;
+    zval *zobject = static_cast<zval *>(pool->ptr);
     ProcessPoolObject *pp = process_pool_fetch_object(zobject);
     zval args[1];
 
@@ -284,7 +284,7 @@ static void process_pool_onStart(ProcessPool *pool) {
 }
 
 static void process_pool_onShutdown(ProcessPool *pool) {
-    zval *zobject = (zval *) pool->ptr;
+    zval *zobject = static_cast<zval *>(pool->ptr);
     ProcessPoolObject *pp = process_pool_fetch_object(zobject);
     zval args[1];
 

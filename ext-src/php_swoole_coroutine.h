@@ -61,19 +61,19 @@ struct PHPContext {
     zend_class_entry *exception_class;
     zend_object *exception;
     zend_output_globals *output_ptr;
-	/*
-	 * for var serialize/unserialize,
-	 * coroutine switching may occur in the __sleep/__wakeup magic method of the object
-	 */
+    /*
+     * for var serialize/unserialize,
+     * coroutine switching may occur in the __sleep/__wakeup magic method of the object
+     */
     unsigned serialize_lock;
-	struct {
-		struct php_serialize_data *data;
-		unsigned level;
-	} serialize;
-	struct {
-		struct php_unserialize_data *data;
-		unsigned level;
-	} unserialize;
+    struct {
+        struct php_serialize_data *data;
+        unsigned level;
+    } serialize;
+    struct {
+        struct php_unserialize_data *data;
+        unsigned level;
+    } unserialize;
     /* for error control `@` */
     bool in_silence;
     bool enable_scheduler;
@@ -86,8 +86,8 @@ struct PHPContext {
     zend_fiber_context *fiber_context;
     bool fiber_init_notified;
 #ifdef ZEND_CHECK_STACK_LIMIT
-	void *stack_base;
-	void *stack_limit;
+    void *stack_base;
+    void *stack_limit;
 #endif
     std::stack<zend::Function *> *defer_tasks;
     SwapCallback *on_yield;
@@ -117,37 +117,37 @@ class PHPCoroutine {
     static SW_THREAD_LOCAL zend_array *options;
 
     enum HookType {
-        HOOK_NONE              = 0,
-        HOOK_TCP               = 1u << 1,
-        HOOK_UDP               = 1u << 2,
-        HOOK_UNIX              = 1u << 3,
-        HOOK_UDG               = 1u << 4,
-        HOOK_SSL               = 1u << 5,
-        HOOK_TLS               = 1u << 6,
-        HOOK_STREAM_FUNCTION   = 1u << 7,
-        HOOK_FILE              = 1u << 8,
-        HOOK_SLEEP             = 1u << 9,
-        HOOK_PROC              = 1u << 10,
-        HOOK_CURL              = 1u << 11,
-        HOOK_NATIVE_CURL       = 1u << 12,
+        HOOK_NONE = 0,
+        HOOK_TCP = 1u << 1,
+        HOOK_UDP = 1u << 2,
+        HOOK_UNIX = 1u << 3,
+        HOOK_UDG = 1u << 4,
+        HOOK_SSL = 1u << 5,
+        HOOK_TLS = 1u << 6,
+        HOOK_STREAM_FUNCTION = 1u << 7,
+        HOOK_FILE = 1u << 8,
+        HOOK_SLEEP = 1u << 9,
+        HOOK_PROC = 1u << 10,
+        HOOK_CURL = 1u << 11,
+        HOOK_NATIVE_CURL = 1u << 12,
         HOOK_BLOCKING_FUNCTION = 1u << 13,
-        HOOK_SOCKETS           = 1u << 14,
-        HOOK_STDIO             = 1u << 15,
-        HOOK_PDO_PGSQL         = 1u << 16,
-        HOOK_PDO_ODBC          = 1u << 17,
-        HOOK_PDO_ORACLE        = 1u << 18,
-        HOOK_PDO_SQLITE        = 1u << 19,
+        HOOK_SOCKETS = 1u << 14,
+        HOOK_STDIO = 1u << 15,
+        HOOK_PDO_PGSQL = 1u << 16,
+        HOOK_PDO_ODBC = 1u << 17,
+        HOOK_PDO_ORACLE = 1u << 18,
+        HOOK_PDO_SQLITE = 1u << 19,
 #ifdef SW_USE_CURL
-        HOOK_ALL               = 0x7fffffff ^ HOOK_CURL,
+        HOOK_ALL = 0x7fffffff ^ HOOK_CURL,
 #else
-        HOOK_ALL               = 0x7fffffff ^ HOOK_NATIVE_CURL,
+        HOOK_ALL = 0x7fffffff ^ HOOK_NATIVE_CURL,
 #endif
     };
 
     static const uint8_t MAX_EXEC_MSEC = 10;
     static void shutdown();
     static long create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv, zval *callable);
-    static PHPContext *create_context(Args *args);
+    static PHPContext *create_context(const Args *args);
     static void defer(zend::Function *fci);
     static void deadlock_check();
     static bool enable_hook(uint32_t flags);
@@ -292,16 +292,16 @@ class PHPCoroutine {
     static void on_resume(void *arg);
     static void on_close(void *arg);
     static void main_func(void *arg);
-    static zend_fiber_status get_fiber_status(PHPContext *ctx);
+    static zend_fiber_status get_fiber_status(const PHPContext *ctx);
     static void fiber_context_init(PHPContext *ctx);
     static void fiber_context_try_init(PHPContext *ctx);
-    static void fiber_context_destroy(PHPContext *ctx);
-    static void fiber_context_try_destroy(PHPContext *ctx);
-    static void fiber_context_switch_notify(PHPContext *from, PHPContext *to);
-    static void fiber_context_switch_try_notify(PHPContext *from, PHPContext *to);
+    static void fiber_context_destroy(const PHPContext *ctx);
+    static void fiber_context_try_destroy(const PHPContext *ctx);
+    static void fiber_context_switch_notify(const PHPContext *from, PHPContext *to);
+    static void fiber_context_switch_try_notify(const PHPContext *from, PHPContext *to);
 #ifdef ZEND_CHECK_STACK_LIMIT
-    static void* stack_limit(PHPContext *ctx);
-    static void* stack_base(PHPContext *ctx);
+    static void *stack_limit(PHPContext *ctx);
+    static void *stack_base(PHPContext *ctx);
 #endif
     static void interrupt_thread_start();
     static void record_last_msec(PHPContext *ctx) {

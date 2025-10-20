@@ -36,7 +36,6 @@ ssize_t Protocol::default_length_func(const Protocol *protocol, network::Socket 
     uint16_t length_offset = protocol->package_length_offset;
     uint8_t package_length_size =
         protocol->get_package_length_size ? protocol->get_package_length_size(socket) : protocol->package_length_size;
-    int64_t body_length;
 
     if (package_length_size == 0) {
         // protocol error
@@ -49,7 +48,7 @@ ssize_t Protocol::default_length_func(const Protocol *protocol, network::Socket 
         pl->header_len = length_offset + package_length_size;
         return 0;
     }
-    body_length = swoole_unpack(protocol->package_length_type, pl->buf + length_offset);
+    int64_t body_length = swoole_unpack(protocol->package_length_type, pl->buf + length_offset);
     // Length error
     // Protocol length is not legitimate, out of bounds or exceed the allocated length
     if (body_length < 0) {
@@ -62,7 +61,7 @@ ssize_t Protocol::default_length_func(const Protocol *protocol, network::Socket 
     return protocol->package_body_offset + body_length;
 }
 
-int Protocol::recv_split_by_eof(network::Socket *socket, String *buffer) {
+int Protocol::recv_split_by_eof(network::Socket *socket, String *buffer) const {
     RecvData rdata{};
 
     if (buffer->length < package_eof_len) {
@@ -107,7 +106,7 @@ int Protocol::recv_split_by_eof(network::Socket *socket, String *buffer) {
  * @return SW_ERR: close the connection
  * @return SW_OK: continue
  */
-int Protocol::recv_with_length_protocol(network::Socket *socket, String *buffer) {
+int Protocol::recv_with_length_protocol(network::Socket *socket, String *buffer) const {
     RecvData rdata{};
     PacketLength pl{};
     ssize_t package_length;
@@ -213,9 +212,7 @@ _do_recv:
             // get length success
             else {
                 if (buffer->size < (size_t) package_length) {
-                    if (!buffer->extend(package_length)) {
-                        return SW_ERR;
-                    }
+                    buffer->extend(package_length);
                 }
                 socket->recv_wait = 1;
                 buffer->offset = package_length;
@@ -235,7 +232,7 @@ _do_recv:
  * @return SW_ERR: close the connection
  * @return SW_OK: continue
  */
-int Protocol::recv_with_eof_protocol(network::Socket *socket, String *buffer) {
+int Protocol::recv_with_eof_protocol(network::Socket *socket, String *buffer) const {
     bool recv_again = false;
     size_t buf_size;
     RecvData rdata{};
@@ -313,9 +310,7 @@ _recv_data:
                 if (extend_size > package_max_length) {
                     extend_size = package_max_length;
                 }
-                if (!buffer->extend(extend_size)) {
-                    return SW_ERR;
-                }
+                buffer->extend(extend_size);
             }
         }
         // no eof

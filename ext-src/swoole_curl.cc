@@ -34,7 +34,7 @@ Handle *get_handle(CURL *cp) {
 }
 
 Handle *create_handle(CURL *cp) {
-    Handle *handle = new Handle(cp);
+    auto *handle = new Handle(cp);
     curl_easy_setopt(cp, CURLOPT_PRIVATE, handle);
     swoole_trace_log(SW_TRACE_CO_CURL, SW_ECHO_MAGENTA " handle=%p, curl=%p", "[CREATE]", handle, cp);
     return handle;
@@ -45,18 +45,14 @@ void destroy_handle(CURL *cp) {
     if (!handle) {
         return;
     }
-
-    if (handle->easy_multi) {
-        delete handle->easy_multi;
-    }
-
+    delete handle->easy_multi;
     curl_easy_setopt(cp, CURLOPT_PRIVATE, nullptr);
     swoole_trace_log(SW_TRACE_CO_CURL, SW_ECHO_RED " handle=%p, curl=%p", "[DESTROY]", handle, cp);
     delete handle;
 }
 
 static int execute_callback(Event *event, int bitmask) {
-    auto curl_socket = (Socket *) event->socket->object;
+    auto curl_socket = static_cast<Socket *>(event->socket->object);
     curl_socket->bitmask |= bitmask;
     curl_socket->multi->callback(curl_socket, bitmask, event->fd);
     return 0;
@@ -75,7 +71,7 @@ int Multi::cb_error(Reactor *reactor, Event *event) {
 }
 
 int Multi::handle_socket(CURL *cp, curl_socket_t sockfd, int action, void *userp, void *socketp) {
-    Multi *multi = (Multi *) userp;
+    auto *multi = static_cast<Multi *>(userp);
     swoole_trace_log(SW_TRACE_CO_CURL,
                      SW_ECHO_CYAN "curl=%p, sockfd=%d, action=%d, userp=%p, socketp=%p",
                      "[HANDLE_SOCKET]",
@@ -99,13 +95,13 @@ int Multi::handle_socket(CURL *cp, curl_socket_t sockfd, int action, void *userp
 
 int Multi::del_event(void *socket_ptr, curl_socket_t sockfd) {
     sockets.erase(sockfd);
-    curl_multi_assign(multi_handle_, sockfd, NULL);
+    curl_multi_assign(multi_handle_, sockfd, nullptr);
 
     if (sw_unlikely(!socket_ptr)) {
         return SW_ERR;
     }
 
-    auto curl_socket = (Socket *) socket_ptr;
+    auto curl_socket = static_cast<Socket *>(socket_ptr);
     if (curl_socket->socket->events && sw_likely(swoole_event_is_available())) {
         curl_socket->socket->silent_remove = 1;
         swoole_event_del(curl_socket->socket);
@@ -145,7 +141,7 @@ int Multi::set_event(void *socket_ptr, curl_socket_t sockfd, int action) {
         curl_socket->socket = new network::Socket();
         curl_socket->socket->fd = sockfd;
         curl_socket->socket->removed = 1;
-        curl_socket->socket->fd_type = (FdType) PHP_SWOOLE_FD_CO_CURL;
+        curl_socket->socket->fd_type = static_cast<FdType>(PHP_SWOOLE_FD_CO_CURL);
         curl_socket->socket->object = curl_socket;
         curl_socket->multi = this;
 
@@ -192,7 +188,7 @@ CURLMcode Multi::add_handle(Handle *handle) {
     return retval;
 }
 
-CURLMcode Multi::remove_handle(Handle *handle) {
+CURLMcode Multi::remove_handle(Handle *handle) const {
     swoole_trace_log(SW_TRACE_CO_CURL,
                      SW_ECHO_RED " handle=%p, curl=%p, multi=%p, running_handles=%d",
                      "[REMOVE_HANDLE]",
@@ -201,7 +197,7 @@ CURLMcode Multi::remove_handle(Handle *handle) {
                      handle->multi,
                      handle->multi->running_handles_);
 
-    auto rc = curl_multi_remove_handle(multi_handle_, handle->cp);
+    const auto rc = curl_multi_remove_handle(multi_handle_, handle->cp);
     handle->multi = nullptr;
     return rc;
 }
@@ -256,7 +252,7 @@ CURLcode Multi::exec(Handle *handle) {
     return is_canceled ? CURLE_ABORTED_BY_CALLBACK : retval;
 }
 
-CURLcode Multi::read_info() {
+CURLcode Multi::read_info() const {
     CURLMsg *message;
     int pending;
 
@@ -278,7 +274,7 @@ CURLcode Multi::read_info() {
 }
 
 int Multi::handle_timeout(CURLM *mh, long timeout_ms, void *userp) {
-    Multi *multi = (Multi *) userp;
+    auto *multi = static_cast<Multi *>(userp);
     swoole_trace_log(SW_TRACE_CO_CURL, SW_ECHO_BLUE " timeout_ms=%ld", "[HANDLE_TIMEOUT]", timeout_ms);
     if (sw_unlikely(!swoole_event_is_available())) {
         return -1;
@@ -349,11 +345,10 @@ long Multi::select(php_curlm *mh, double timeout) {
 
     swoole_trace_log(SW_TRACE_CO_CURL, "yield timeout, count=%lu", zend_llist_count(&mh->easyh));
 
-    auto count = selector.active_sockets.size();
-
+    const auto count = selector.active_sockets.size();
     selector_finish();
 
-    return count;
+    return static_cast<long>(count);
 }
 
 void Multi::callback(Socket *curl_socket, int bitmask, int sockfd) {

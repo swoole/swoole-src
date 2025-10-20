@@ -178,7 +178,7 @@ std::string System::gethostbyname(const std::string &hostname, int domain, doubl
     auto result_list = dns_lookup_impl_with_cares(hostname.c_str(), domain, timeout);
     if (!result_list.empty()) {
         if (SwooleG.dns_lookup_random) {
-            result = result_list[rand() % result_list.size()];
+            result = result_list[swoole_rand() % result_list.size()];
         } else {
             result = result_list[0];
         }
@@ -300,7 +300,7 @@ int System::wait_signal(const std::vector<int> &signals, double timeout) {
 }
 
 struct CoroPollTask {
-    std::unordered_map<int, PollSocket> *fds;
+    std::unordered_map<int, PollSocket> *fds = nullptr;
     Coroutine *co = nullptr;
     TimerNode *timer = nullptr;
     bool success = false;
@@ -308,7 +308,7 @@ struct CoroPollTask {
 };
 
 static inline void socket_poll_clean(const CoroPollTask *task) {
-    for (auto & fd : *task->fds) {
+    for (auto &fd : *task->fds) {
         network::Socket *socket = fd.second.socket;
         if (!socket) {
             continue;
@@ -408,7 +408,7 @@ bool System::socket_poll(std::unordered_map<int, PollSocket> &fds, double timeou
     task.fds = &fds;
     task.co = Coroutine::get_current_safe();
 
-    for (auto & fd : fds) {
+    for (auto &fd : fds) {
         fd.second.socket = make_socket(fd.first, SW_FD_CO_POLL);
         if (swoole_event_add(fd.second.socket, fd.second.events) < 0) {
             fd.second.socket->free();
@@ -545,9 +545,7 @@ bool System::exec(const char *command, bool get_error_stream, std::shared_ptr<St
         if (retval > 0) {
             buffer->length += retval;
             if (buffer->length == buffer->size) {
-                if (!buffer->extend()) {
-                    break;
-                }
+                buffer->extend();
             }
         } else {
             break;

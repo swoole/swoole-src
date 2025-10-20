@@ -51,7 +51,7 @@ ssize_t get_package_length(const Protocol *protocol, Socket *conn, PacketLength 
     int mul = 1;
     ssize_t length = 0;
     ssize_t variable_header_byte_count = 0;
-    while (1) {
+    while (true) {
         variable_header_byte_count++;
         byte = pl->buf[variable_header_byte_count];
         length += (byte & 127) * mul;

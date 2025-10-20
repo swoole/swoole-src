@@ -72,18 +72,18 @@ class Logger {
      * other functions must be used in a single-threaded environment.
      */
     void put(int level, const char *content, size_t length);
-    void close(void);
+    void close();
     void reset();
     void set_level(int lv);
-    int get_level();
+    int get_level() const;
     bool set_date_format(const char *format);
     void set_rotation(int rotation);
     const char *get_real_file();
-    const char *get_file();
+    const char *get_file() const;
     bool is_opened() const;
     bool redirect_stdout_and_stderr(bool enable);
     void set_date_with_microseconds(bool enable);
-    std::string gen_real_file(const std::string &file);
+    std::string gen_real_file(const std::string &file) const;
     static std::string get_pretty_name(const std::string &prettyFunction, bool strip = true);
 
     void display_backtrace() {

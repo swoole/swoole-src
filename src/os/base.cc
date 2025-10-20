@@ -130,11 +130,10 @@ static ssize_t getrandom(void *buffer, size_t size, unsigned int __flags) {
 
 size_t swoole_random_bytes(char *buf, size_t size) {
     size_t read_bytes = 0;
-    ssize_t n;
 
     while (read_bytes < size) {
         size_t amount_to_read = size - read_bytes;
-        n = getrandom(buf + read_bytes, amount_to_read, 0);
+        ssize_t n = getrandom(buf + read_bytes, amount_to_read, 0);
         if (n == -1) {
             if (errno == EINTR || errno == EAGAIN) {
                 continue;

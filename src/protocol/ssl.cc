@@ -47,7 +47,7 @@ std::string swoole_ssl_get_version_message() {
     return swoole::std_string::format("OPENSSL_VERSION: %s\n", OPENSSL_VERSION_TEXT);
 }
 
-void swoole_ssl_init(void) {
+void swoole_ssl_init() {
     if (openssl_init) {
         return;
     }
@@ -104,7 +104,6 @@ const char *swoole_ssl_get_error() {
 }
 
 static void swoole_ssl_info_callback(const SSL *ssl, int where, int ret) {
-    BIO *rbio, *wbio;
     Socket *sock;
 
     if (where & SSL_CB_HANDSHAKE_START) {
@@ -121,7 +120,7 @@ static void swoole_ssl_info_callback(const SSL *ssl, int where, int ret) {
 
         if (!sock->ssl_handshake_buffer_set) {
             /*
-             * By default OpenSSL uses 4k buffer during a handshake,
+             * By default, OpenSSL uses 4k buffer during a handshake,
              * which is too low for long certificate chains and might
              * result in extra round-trips.
              *
@@ -130,9 +129,8 @@ static void swoole_ssl_info_callback(const SSL *ssl, int where, int ret) {
              * If they are different, we assume that it's due to buffering
              * added to wbio, and set buffer size.
              */
-
-            rbio = SSL_get_rbio(ssl);
-            wbio = SSL_get_wbio(ssl);
+            BIO *rbio = SSL_get_rbio(ssl);
+            BIO *wbio = SSL_get_wbio(ssl);
 
             if (rbio != wbio) {
                 (void) BIO_set_write_buffer_size(wbio, SW_SSL_BUFFER_SIZE);
@@ -167,7 +165,7 @@ static int ssl_alpn_advertised(SSL *ssl, const uchar **out, uchar *outlen, const
         protos_len = sizeof(HTTP1_NPN) - 1;
     }
 
-    if (SSL_select_next_proto((unsigned char **) out, outlen, (const uchar *) protos, protos_len, in, inlen) !=
+    if (SSL_select_next_proto((uchar **) out, outlen, (const uchar *) protos, protos_len, in, inlen) !=
         OPENSSL_NPN_NEGOTIATED) {
         return SSL_TLSEXT_ERR_NOACK;
     }
@@ -176,9 +174,9 @@ static int ssl_alpn_advertised(SSL *ssl, const uchar **out, uchar *outlen, const
 #endif
 
 static int ssl_passwd_callback(char *buf, int num, int verify, void *data) {
-    auto *ctx = static_cast<SSLContext *>(data);
+    const auto *ctx = static_cast<SSLContext *>(data);
     if (!ctx->passphrase.empty()) {
-        int len = ctx->passphrase.length();
+        const int len = static_cast<int>(ctx->passphrase.length());
         if (len < num - 1) {
             memcpy(buf, ctx->passphrase.c_str(), len);
             buf[len] = '\0';
@@ -329,7 +327,7 @@ bool SSLContext::create() {
     }
     if (!key_file.empty()) {
         /*
-         * set the private key from KeyFile (may be the same as CertFile)
+         * set the private key from KeyFile (maybe the same as CertFile)
          */
         if (SSL_CTX_use_PrivateKey_file(context, key_file.c_str(), SSL_FILETYPE_PEM) <= 0) {
             ssl_error("SSL_CTX_use_PrivateKey_file(%s) failed", key_file.c_str());
@@ -379,7 +377,7 @@ bool SSLContext::create() {
 #ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
         SSL_CTX_set_alpn_select_cb(context, ssl_alpn_advertised, (void *) this);
 #endif
-        SSL_CTX_set_session_id_context(context, (const unsigned char *) "HTTP", sizeof("HTTP") - 1);
+        SSL_CTX_set_session_id_context(context, (const uchar *) "HTTP", sizeof("HTTP") - 1);
         SSL_CTX_set_session_cache_mode(context, SSL_SESS_CACHE_SERVER);
     }
 
@@ -399,7 +397,7 @@ bool SSLContext::create() {
     return true;
 }
 
-bool SSLContext::set_capath() {
+bool SSLContext::set_capath() const {
     if (!cafile.empty() || !capath.empty()) {
         const char *_cafile = cafile.empty() ? nullptr : cafile.c_str();
         const char *_capath = capath.empty() ? nullptr : capath.c_str();
@@ -420,7 +418,7 @@ bool SSLContext::set_capath() {
     return true;
 }
 
-bool SSLContext::set_ciphers() {
+bool SSLContext::set_ciphers() const {
 #ifndef TLS1_2_VERSION
     return true;
 #endif
@@ -450,24 +448,22 @@ bool SSLContext::set_ciphers() {
     return true;
 }
 
-bool SSLContext::set_client_certificate() {
-    STACK_OF(X509_NAME) * list;
-
-    const char *cert_file = client_cert_file.c_str();
+bool SSLContext::set_client_certificate() const {
+    const char *_cert_file = client_cert_file.c_str();
     int depth = verify_depth;
 
     SSL_CTX_set_verify(context, SSL_VERIFY_PEER, swoole_ssl_verify_callback);
     SSL_CTX_set_verify_depth(context, depth);
 
-    if (SSL_CTX_load_verify_locations(context, cert_file, nullptr) == 0) {
-        ssl_error("SSL_CTX_load_verify_locations(\"%s\") failed", cert_file);
+    if (SSL_CTX_load_verify_locations(context, _cert_file, nullptr) == 0) {
+        ssl_error("SSL_CTX_load_verify_locations(\"%s\") failed", _cert_file);
         return false;
     }
 
     ERR_clear_error();
-    list = SSL_load_client_CA_file(cert_file);
+    STACK_OF(X509_NAME) *list = SSL_load_client_CA_file(_cert_file);
     if (list == nullptr) {
-        ssl_error("SSL_load_client_CA_file(\"%s\") failed", cert_file);
+        ssl_error("SSL_load_client_CA_file(\"%s\") failed", _cert_file);
         return false;
     }
 
@@ -477,7 +473,7 @@ bool SSLContext::set_client_certificate() {
     return true;
 }
 
-bool SSLContext::set_ecdh_curve() {
+bool SSLContext::set_ecdh_curve() const {
 #ifndef OPENSSL_NO_ECDH
     /*
      * Elliptic-Curve Diffie-Hellman parameters are either "named curves"
@@ -488,11 +484,11 @@ bool SSLContext::set_ecdh_curve() {
 #if (defined SSL_CTX_set1_curves_list || defined SSL_CTRL_SET_CURVES_LIST)
     /*
      * OpenSSL 1.0.2+ allows configuring a curve list instead of a single
-     * curve previously supported.  By default an internal list is used,
+     * curve previously supported.  By default, an internal list is used,
      * with prime256v1 being preferred by server in OpenSSL 1.0.2b+
      * and X25519 in OpenSSL 1.1.0+.
      *
-     * By default a curve preferred by the client will be used for
+     * By default, a curve preferred by the client will be used for
      * key exchange.  The SSL_OP_CIPHER_SERVER_PREFERENCE option can
      * be used to prefer server curves instead, similar to what it
      * does for ciphers.
@@ -539,12 +535,10 @@ bool SSLContext::set_ecdh_curve() {
     return true;
 }
 
-bool SSLContext::set_dhparam() {
-    BIO *bio;
-
+bool SSLContext::set_dhparam() const {
     const char *file = dhparam.c_str();
 
-    bio = BIO_new_file(file, "r");
+    BIO *bio = BIO_new_file(file, "r");
     if (bio == nullptr) {
         ssl_error("BIO_new_file(%s) failed", file);
         return false;
@@ -634,7 +628,7 @@ static void calculate_cookie(SSL *ssl, uchar *cookie_secret, uint cookie_length)
 }
 
 static int swoole_ssl_generate_cookie(SSL *ssl, uchar *cookie, uint *cookie_len) {
-    uchar *buffer, result[EVP_MAX_MD_SIZE];
+    uchar result[EVP_MAX_MD_SIZE];
     uint length = 0, result_len;
     Address sa{};
 
@@ -658,7 +652,7 @@ static int swoole_ssl_generate_cookie(SSL *ssl, uchar *cookie, uint *cookie_len)
     }
 
     length += sizeof(in_port_t);
-    buffer = (uchar *) OPENSSL_malloc(length);
+    auto *buffer = (uchar *) OPENSSL_malloc(length);
 
     if (buffer == nullptr) {
         swoole_sys_warning("out of memory");

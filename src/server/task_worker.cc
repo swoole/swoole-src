@@ -320,8 +320,8 @@ bool Server::task_unpack(EventData *task, String *buffer, PacketPtr *packet) {
         swoole_sys_warning("open(%s) failed", _pkg.tmpfile);
         return false;
     }
-    if (buffer->size < _pkg.length && !buffer->extend(_pkg.length)) {
-        return false;
+    if (buffer->size < _pkg.length) {
+        buffer->extend(_pkg.length);
     }
     if (fp.read_all(buffer->str, _pkg.length) != _pkg.length) {
         return false;

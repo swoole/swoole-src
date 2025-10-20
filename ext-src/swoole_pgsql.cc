@@ -24,13 +24,14 @@
 #ifdef SW_USE_PGSQL
 
 using swoole::Coroutine;
+using swoole::EventType;
 using swoole::Reactor;
 using swoole::translate_events_to_poll;
 using swoole::coroutine::Socket;
 
 static SW_THREAD_LOCAL bool swoole_pgsql_blocking = true;
 
-static int swoole_pgsql_socket_poll(PGconn *conn, swEventType event, double timeout = -1, bool check_nonblock = false) {
+static int swoole_pgsql_socket_poll(PGconn *conn, EventType event, double timeout = -1, bool check_nonblock = false) {
     if (swoole_pgsql_blocking) {
         struct pollfd fds[1];
         fds[0].fd = PQsocket(conn);
@@ -64,7 +65,7 @@ static int swoole_pgsql_socket_poll(PGconn *conn, swEventType event, double time
 }
 
 static int swoole_pgsql_flush(PGconn *conn) {
-    int flush_ret = -1;
+    int flush_ret;
 
     do {
         int ret = swoole_pgsql_socket_poll(conn, SW_EVENT_WRITE);
@@ -117,7 +118,7 @@ PGconn *swoole_pgsql_connectdb(const char *conninfo) {
         if (r == PGRES_POLLING_OK || r == PGRES_POLLING_FAILED) {
             break;
         }
-        swEventType event;
+        EventType event;
 
         switch (r) {
         case PGRES_POLLING_READING:

@@ -16,6 +16,7 @@
 
 #include "php_swoole_http_server.h"
 #include "swoole_process_pool.h"
+
 BEGIN_EXTERN_C()
 #include "rfc1867.h"
 END_EXTERN_C()
@@ -39,7 +40,7 @@ static bool http_context_send_data(HttpContext *ctx, const char *data, size_t le
 static bool http_context_sendfile(HttpContext *ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
 static bool http_context_disconnect(HttpContext *ctx);
 
-static void http_server_process_request(Server *serv, zend::Callable *cb, HttpContext *ctx) {
+static void http_server_process_request(const Server *serv, zend::Callable *cb, HttpContext *ctx) {
     zval args[2];
     args[0] = *ctx->request.zobject;
     args[1] = *ctx->response.zobject;
@@ -53,8 +54,8 @@ static void http_server_process_request(Server *serv, zend::Callable *cb, HttpCo
 }
 
 int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
-    SessionId session_id = req->info.fd;
-    int server_fd = req->info.server_fd;
+    auto session_id = req->info.fd;
+    auto server_fd = req->info.server_fd;
 
     Connection *conn = serv->get_connection_verify_no_ssl(session_id);
     if (!conn) {
@@ -62,7 +63,7 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
         return SW_ERR;
     }
 
-    ListenPort *port = serv->get_port_by_server_fd(server_fd);
+    auto *port = serv->get_port_by_server_fd(server_fd);
     // other server port
     if (!(port->open_http_protocol && php_swoole_server_isset_callback(serv, port, SW_SERVER_CB_onRequest)) &&
         !(port->open_websocket_protocol && php_swoole_server_isset_callback(serv, port, SW_SERVER_CB_onMessage))) {
@@ -140,13 +141,13 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
         }
 
         http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_MASTER_TIME), (zend_long) conn->last_recv_time);
-    } while (0);
+    } while (false);
 
-    if (swoole_isset_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_BEFORE_REQUEST)) {
-        swoole_call_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_BEFORE_REQUEST, ctx);
+    if (swoole_isset_hook(static_cast<swGlobalHookType>(PHP_SWOOLE_HOOK_BEFORE_REQUEST))) {
+        swoole_call_hook(static_cast<swGlobalHookType>(PHP_SWOOLE_HOOK_BEFORE_REQUEST), ctx);
     }
 
-    // begin to check and call registerd callback
+    // begin to check and call registered callback
     do {
         zend::Callable *cb = nullptr;
 
@@ -171,7 +172,7 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
             return SW_OK;
         }
         http_server_process_request(serv, cb, ctx);
-    } while (0);
+    } while (false);
 
 _dtor_and_return:
     zval_ptr_dtor(zrequest_object);
@@ -218,7 +219,7 @@ void php_swoole_http_server_rshutdown() {
 }
 
 HttpContext *swoole_http_context_new(SessionId fd) {
-    HttpContext *ctx = new HttpContext();
+    auto *ctx = new HttpContext();
 
     zval *zrequest_object = &ctx->request._zobject;
     ctx->request.zobject = zrequest_object;
@@ -287,14 +288,14 @@ void HttpContext::copy(HttpContext *ctx) {
     onAfterResponse = ctx->onAfterResponse;
 }
 
-bool HttpContext::is_available() {
+bool HttpContext::is_available() const {
     if (!response.zobject) {
         return false;
     }
     if (co_socket) {
         zval rv;
         zval *zconn = zend_read_property_ex(
-            swoole_http_response_ce, SW_Z8_OBJ_P(response.zobject), SW_ZSTR_KNOWN(SW_ZEND_STR_SOCKET), 1, &rv);
+            swoole_http_response_ce, SW_Z8_OBJ_P(response.zobject), SW_ZSTR_KNOWN(SW_ZEND_STR_SOCKET), true, &rv);
         if (!zconn || ZVAL_IS_NULL(zconn)) {
             return false;
         }
@@ -302,8 +303,8 @@ bool HttpContext::is_available() {
             return false;
         }
     } else {
-        Server *serv = (Server *) private_data;
-        Connection *conn = serv->get_connection_by_session_id(fd);
+        auto *serv = static_cast<Server *>(private_data);
+        auto *conn = serv->get_connection_by_session_id(fd);
         if (!conn || conn->closed || conn->peer_closed) {
             return false;
         }
@@ -312,7 +313,7 @@ bool HttpContext::is_available() {
 }
 
 void HttpContext::free() {
-    /* http context can only be free'd after request and response were free'd */
+    /* http context can only be freed after request and response were freed */
     if (request.zobject || response.zobject) {
         return;
     }
@@ -328,12 +329,10 @@ void HttpContext::free() {
     if (Z_TYPE(req->zdata) == IS_STRING) {
         zend_string_release(Z_STR(req->zdata));
     }
-    if (req->chunked_body) {
-        delete req->chunked_body;
-    }
-    if (req->h2_data_buffer) {
-        delete req->h2_data_buffer;
-    }
+
+    delete req->chunked_body;
+    delete req->h2_data_buffer;
+
     if (res->reason) {
         efree(res->reason);
     }
@@ -345,32 +344,14 @@ void HttpContext::free() {
         delete form_data_buffer;
         form_data_buffer = nullptr;
     }
-    if (write_buffer) {
-        delete write_buffer;
-    }
+
+    delete write_buffer;
     delete this;
 }
 
-HttpContext *php_swoole_http_request_get_and_check_context(zval *zobject) {
-    HttpContext *ctx = php_swoole_http_request_get_context(zobject);
-    if (!ctx) {
-        swoole_set_last_error(SW_ERROR_HTTP_CONTEXT_UNAVAILABLE);
-    }
-    return ctx;
-}
-
-HttpContext *php_swoole_http_response_get_and_check_context(zval *zobject) {
-    HttpContext *ctx = php_swoole_http_response_get_context(zobject);
-    if (!ctx || (ctx->end_ || ctx->detached)) {
-        swoole_set_last_error(SW_ERROR_HTTP_CONTEXT_UNAVAILABLE);
-        return nullptr;
-    }
-    return ctx;
-}
-
 bool http_context_send_data(HttpContext *ctx, const char *data, size_t length) {
-    Server *serv = (Server *) ctx->private_data;
-    bool retval = serv->send(ctx->fd, (void *) data, length);
+    auto *serv = static_cast<Server *>(ctx->private_data);
+    bool retval = serv->send(ctx->fd, data, length);
     if (!retval && swoole_get_last_error() == SW_ERROR_OUTPUT_SEND_YIELD) {
         zval yield_data, return_value;
         ZVAL_STRINGL(&yield_data, data, length);
@@ -382,19 +363,19 @@ bool http_context_send_data(HttpContext *ctx, const char *data, size_t length) {
 }
 
 static bool http_context_sendfile(HttpContext *ctx, const char *file, uint32_t l_file, off_t offset, size_t length) {
-    Server *serv = (Server *) ctx->private_data;
+    auto *serv = static_cast<Server *>(ctx->private_data);
     return serv->sendfile(ctx->fd, file, l_file, offset, length);
 }
 
 static bool http_context_disconnect(HttpContext *ctx) {
-    Server *serv = (Server *) ctx->private_data;
-    return serv->close(ctx->fd, 0);
+    auto *serv = static_cast<Server *>(ctx->private_data);
+    return serv->close(ctx->fd, false);
 }
 
 bool swoole_http_server_onBeforeRequest(HttpContext *ctx) {
     ctx->onBeforeRequest = nullptr;
     ctx->onAfterResponse = swoole_http_server_onAfterResponse;
-    Server *serv = (Server *) ctx->private_data;
+    auto *serv = static_cast<Server *>(ctx->private_data);
     if (!sw_server() || !sw_worker() || sw_worker()->is_shutdown()) {
         return false;
     }
@@ -417,17 +398,17 @@ bool swoole_http_server_onBeforeRequest(HttpContext *ctx) {
 
 void swoole_http_server_onAfterResponse(HttpContext *ctx) {
     ctx->onAfterResponse = nullptr;
-    Server *serv = (Server *) ctx->private_data;
+    auto *serv = static_cast<Server *>(ctx->private_data);
     if (sw_unlikely(!sw_server() || !sw_worker())) {
         return;
     }
 
     if (sw_unlikely(sw_worker()->is_shutdown())) {
         while (!queued_http_contexts.empty()) {
-            HttpContext *ctx = queued_http_contexts.front();
+            HttpContext *_ctx = queued_http_contexts.front();
             queued_http_contexts.pop();
-            ctx->send(ctx, SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET));
-            ctx->close(ctx);
+            _ctx->send(_ctx, SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET));
+            _ctx->close(_ctx);
         }
         return;
     }
@@ -438,19 +419,19 @@ void swoole_http_server_onAfterResponse(HttpContext *ctx) {
     worker->concurrency--;
 
     if (!queued_http_contexts.empty()) {
-        HttpContext *ctx = queued_http_contexts.front();
-        swoole_trace("[POP 1] concurrency=%u, ctx=%p, request=%p", worker->concurrency, ctx, ctx->request.zobject);
+        HttpContext *_ctx = queued_http_contexts.front();
+        swoole_trace("[POP 1] concurrency=%u, ctx=%p, request=%p", worker->concurrency, _ctx, _ctx->request.zobject);
         queued_http_contexts.pop();
         swoole_event_defer(
             [](void *private_data) {
-                HttpContext *ctx = (HttpContext *) private_data;
-                Server *serv = (Server *) ctx->private_data;
-                zend::Callable *cb = (zend::Callable *) ctx->private_data_2;
+                auto *ctx = static_cast<HttpContext *>(private_data);
+                auto *serv = static_cast<Server *>(ctx->private_data);
+                auto *cb = static_cast<zend::Callable *>(ctx->private_data_2);
                 swoole_trace("[POP 2] ctx=%p, request=%p", ctx, ctx->request.zobject);
                 http_server_process_request(serv, cb, ctx);
                 zval_ptr_dtor(ctx->request.zobject);
                 zval_ptr_dtor(ctx->response.zobject);
             },
-            ctx);
+            _ctx);
     }
 }

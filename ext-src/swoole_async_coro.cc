@@ -36,12 +36,12 @@ struct DNSCacheEntity {
 static SW_THREAD_LOCAL std::unordered_map<std::string, DNSCacheEntity *> request_cache_map;
 
 void php_swoole_async_coro_rshutdown() {
-    for (auto i = request_cache_map.begin(); i != request_cache_map.end(); i++) {
+    for (auto i = request_cache_map.begin(); i != request_cache_map.end(); ++i) {
         efree(i->second);
     }
 }
 
-void php_swoole_set_aio_option(HashTable *vht) {
+void php_swoole_set_aio_option(const HashTable *vht) {
     zval *ztmp;
     /* AIO */
     if (php_swoole_array_get_value(vht, "aio_core_worker_num", ztmp)) {
@@ -84,14 +84,13 @@ PHP_FUNCTION(swoole_async_set) {
     }
 
     zval *zset = nullptr;
-    HashTable *vht;
     zval *ztmp;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
     Z_PARAM_ARRAY(zset)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    vht = Z_ARRVAL_P(zset);
+    HashTable *vht = Z_ARRVAL_P(zset);
 
     php_swoole_set_global_option(vht);
     php_swoole_set_aio_option(vht);
@@ -169,7 +168,7 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro) {
     }
 
     if (SwooleG.dns_lookup_random) {
-        RETVAL_STRING(result[rand() % result.size()].c_str());
+        RETVAL_STRING(result[swoole_rand() % result.size()].c_str());
     } else {
         RETVAL_STRING(result[0].c_str());
     }
@@ -183,5 +182,5 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro) {
     }
     memcpy(cache->address, Z_STRVAL_P(return_value), Z_STRLEN_P(return_value));
     cache->address[Z_STRLEN_P(return_value)] = '\0';
-    cache->update_time = Timer::get_absolute_msec() + (int64_t)(SwooleG.dns_cache_refresh_time * 1000);
+    cache->update_time = Timer::get_absolute_msec() + (int64_t) (SwooleG.dns_cache_refresh_time * 1000);
 }

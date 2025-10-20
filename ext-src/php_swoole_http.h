@@ -208,7 +208,7 @@ struct Context {
     bool get_multipart_boundary(
         const char *at, size_t length, size_t offset, char **out_boundary_str, int *out_boundary_len);
     size_t parse(const char *data, size_t length);
-    bool parse_multipart_data(const char *at, size_t length);
+    bool parse_multipart_data(const char *at, size_t length) const;
     bool set_header(const char *, size_t, zval *, bool);
     bool set_header(const char *, size_t, const char *, size_t, bool);
     bool set_header(const char *, size_t, const std::string &, bool);
@@ -218,31 +218,29 @@ struct Context {
     void send_trailer(zval *return_value);
     String *get_write_buffer();
     void build_header(String *http_buffer, const char *body, size_t length);
-    ssize_t build_trailer(String *http_buffer);
+    ssize_t build_trailer(String *http_buffer) const;
 
-    size_t get_content_length() {
+    size_t get_content_length() const {
         return parser.content_length;
     }
 
 #ifdef SW_HAVE_COMPRESSION
     void set_compression_method(const char *accept_encoding, size_t length);
-    const char *get_content_encoding();
+    const char *get_content_encoding() const;
     bool compress(const char *data, size_t length);
 #endif
 
-    void recv_websocket_frame(zval *return_value, double timeout);
     void http2_end(zval *zdata, zval *return_value);
     void http2_write(zval *zdata, zval *return_value);
     bool http2_send_file(const char *file, uint32_t l_file, off_t offset, size_t length);
 
-    bool is_available();
+    bool is_available() const;
     void free();
 };
 
 class Cookie {
-  private:
     bool encode_;
-    smart_str buffer_ = {0};
+    smart_str buffer_ = {};
 
   protected:
     zend_string *name = nullptr;
@@ -257,7 +255,7 @@ class Cookie {
     zend_bool partitioned = false;
 
   public:
-    Cookie(bool _encode = true) {
+    explicit Cookie(bool _encode = true) {
         encode_ = _encode;
     }
     Cookie *withName(zend_string *);
@@ -271,7 +269,7 @@ class Cookie {
     Cookie *withSameSite(zend_string *);
     Cookie *withPriority(zend_string *);
     void reset();
-    void toArray(zval *return_value);
+    void toArray(zval *return_value) const;
     zend_string *toString();
     ~Cookie();
 };
@@ -289,15 +287,16 @@ class Stream {
     uint32_t local_window_size;
     Coroutine *waiting_coroutine = nullptr;
 
-    Stream(Session *client, uint32_t _id);
+    Stream(const Session *client, uint32_t _id);
     ~Stream();
 
-    bool send_header(const String *body, bool end_stream);
-    bool send_body(const String *body, bool end_stream, size_t max_frame_size, off_t offset = 0, size_t length = 0);
-    bool send_end_stream_data_frame();
-    bool send_trailer();
+    bool send_header(const String *body, bool end_stream) const;
+    bool send_body(
+        const String *body, bool end_stream, size_t max_frame_size, off_t offset = 0, size_t length = 0) const;
+    bool send_end_stream_data_frame() const;
+    bool send_trailer() const;
 
-    void reset(uint32_t error_code);
+    void reset(uint32_t error_code) const;
 };
 
 class Session {
@@ -308,8 +307,8 @@ class Session {
     nghttp2_hd_inflater *inflater = nullptr;
     nghttp2_hd_deflater *deflater = nullptr;
 
-    http2::Settings local_settings = {};
-    http2::Settings remote_settings = {};
+    Settings local_settings = {};
+    Settings remote_settings = {};
 
     // flow control
     uint32_t remote_window_size;
@@ -324,22 +323,18 @@ class Session {
 
     void (*handle)(Session *, Stream *) = nullptr;
 
-    Session(SessionId _fd);
+    explicit Session(SessionId _fd);
     ~Session();
 };
 }  // namespace http2
-
 }  // namespace swoole
 
-extern zend_class_entry *swoole_http_server_ce;
 extern zend_class_entry *swoole_http_request_ce;
 extern zend_class_entry *swoole_http_response_ce;
 extern zend_class_entry *swoole_http_cookie_ce;
 
 swoole::http::Context *swoole_http_context_new(swoole::SessionId fd);
-swoole::http::Context *php_swoole_http_request_get_and_check_context(zval *zobject);
-swoole::http::Context *php_swoole_http_response_get_and_check_context(zval *zobject);
-swoole::http::Cookie *php_swoole_http_get_cooke_safety(zval *zobject);
+swoole::http::Cookie *php_swoole_http_get_cooke_safety(const zval *zobject);
 
 /**
  *  These class properties cannot be modified by the user before assignment, such as Swoole\\Http\\Request.
@@ -390,10 +385,10 @@ static sw_inline bool swoole_http_has_crlf(const char *value, size_t length) {
 void swoole_http_parse_cookie(zval *array, const char *at, size_t length);
 bool swoole_http_token_list_contains_value(const char *at, size_t length, const char *value);
 
-swoole::http::Context *php_swoole_http_request_get_context(zval *zobject);
-void php_swoole_http_request_set_context(zval *zobject, swoole::http::Context *context);
-swoole::http::Context *php_swoole_http_response_get_context(zval *zobject);
-void php_swoole_http_response_set_context(zval *zobject, swoole::http::Context *context);
+swoole::http::Context *php_swoole_http_request_get_context(const zval *zobject);
+void php_swoole_http_request_set_context(const zval *zobject, swoole::http::Context *ctx);
+swoole::http::Context *php_swoole_http_response_get_context(const zval *zobject);
+void php_swoole_http_response_set_context(const zval *zobject, swoole::http::Context *ctx);
 
 #ifdef SW_HAVE_ZLIB
 voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size);

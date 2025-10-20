@@ -97,7 +97,7 @@ void Logger::set_stream(FILE *stream) {
     log_fp = stream;
 }
 
-void Logger::close(void) {
+void Logger::close() {
     if (opened) {
         fclose(log_fp);
         log_fp = stdout;
@@ -106,7 +106,7 @@ void Logger::close(void) {
     }
 }
 
-int Logger::get_level() {
+int Logger::get_level() const {
     return log_level;
 }
 
@@ -218,11 +218,11 @@ const char *Logger::get_real_file() {
     return log_real_file.c_str();
 }
 
-const char *Logger::get_file() {
+const char *Logger::get_file() const {
     return log_file.c_str();
 }
 
-std::string Logger::gen_real_file(const std::string &file) {
+std::string Logger::gen_real_file(const std::string &file) const {
     char date_str[16];
     auto now_sec = ::time(nullptr);
     const char *fmt;

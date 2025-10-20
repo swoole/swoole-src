@@ -72,7 +72,7 @@ ssize_t MsgQueue::pop(QueueNode *data, size_t mdata_size) const {
     return ret;
 }
 
-bool MsgQueue::push(QueueNode *in, size_t mdata_length) {
+bool MsgQueue::push(const QueueNode *in, size_t mdata_length) const {
     while (true) {
         if (msgsnd(msg_id_, in, mdata_length, flags_) == 0) {
             return true;
@@ -103,7 +103,7 @@ bool MsgQueue::stat(size_t *queue_num, size_t *queue_bytes) const {
     return false;
 }
 
-bool MsgQueue::set_capacity(size_t queue_bytes) {
+bool MsgQueue::set_capacity(size_t queue_bytes) const {
     msqid_ds _stat;
     if (msgctl(msg_id_, IPC_STAT, &_stat) != 0) {
         return false;

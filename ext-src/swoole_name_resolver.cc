@@ -35,11 +35,14 @@ struct ContextObject {
 };
 
 static zend_always_inline NameResolver::Context *swoole_name_resolver_context_get_handle(zend_object *object) {
-    return ((ContextObject *) ((char *) object - swoole_name_resolver_context_handlers.offset))->context;
+    return reinterpret_cast<ContextObject *>(reinterpret_cast<char *>(object) -
+                                             swoole_name_resolver_context_handlers.offset)
+        ->context;
 }
 
 static zend_always_inline ContextObject *swoole_name_resolver_context_get_object(zend_object *object) {
-    return (ContextObject *) ((char *) object - swoole_name_resolver_context_handlers.offset);
+    return reinterpret_cast<ContextObject *>(reinterpret_cast<char *>(object) -
+                                             swoole_name_resolver_context_handlers.offset);
 }
 
 static zend_always_inline ContextObject *swoole_name_resolver_context_get_object_safe(zend_object *object) {
@@ -51,8 +54,7 @@ static zend_always_inline ContextObject *swoole_name_resolver_context_get_object
 }
 
 static zend_object *swoole_name_resolver_context_create_object(zend_class_entry *ce) {
-    ContextObject *name_resolver_context_object =
-        (ContextObject *) zend_object_alloc(sizeof(*name_resolver_context_object), ce);
+    auto *name_resolver_context_object = static_cast<ContextObject *>(zend_object_alloc(sizeof(ContextObject), ce));
 
     zend_object_std_init(&name_resolver_context_object->std, ce);
     object_properties_init(&name_resolver_context_object->std, ce);
@@ -181,7 +183,7 @@ std::string php_swoole_name_resolver_lookup(const std::string &name, NameResolve
     _lookup:
         zval zname;
         ZVAL_STRINGL(&zname, name.c_str(), name.length());
-        zend_call_method_with_1_params(SW_Z8_OBJ_P(zresolver), NULL, NULL, "lookup", &retval, &zname);
+        zend_call_method_with_1_params(SW_Z8_OBJ_P(zresolver), nullptr, nullptr, "lookup", &retval, &zname);
         zval_dtor(&zname);
         if (Z_TYPE(retval) == IS_OBJECT) {
             ctx->private_data = zcluster_object = (zval *) ecalloc(1, sizeof(zval));
@@ -196,7 +198,7 @@ std::string php_swoole_name_resolver_lookup(const std::string &name, NameResolve
         } else if (Z_TYPE(retval) == IS_STRING) {
             ctx->final_ = true;
             ctx->cluster_ = false;
-            return std::string(Z_STRVAL(retval), Z_STRLEN(retval));
+            return {Z_STRVAL(retval), Z_STRLEN(retval)};
         } else {
             ctx->final_ = false;
             ctx->cluster_ = false;
@@ -205,7 +207,7 @@ std::string php_swoole_name_resolver_lookup(const std::string &name, NameResolve
     } else {
         zcluster_object = (zval *) ctx->private_data;
         // no available node, resolve again
-        sw_zend_call_method_with_0_params(zcluster_object, NULL, NULL, "count", &retval);
+        sw_zend_call_method_with_0_params(zcluster_object, nullptr, nullptr, "count", &retval);
         if (zval_get_long(&retval) == 0) {
             ctx->dtor(ctx);
             ctx->private_data = nullptr;
@@ -213,7 +215,7 @@ std::string php_swoole_name_resolver_lookup(const std::string &name, NameResolve
         }
     }
 
-    sw_zend_call_method_with_0_params(zcluster_object, NULL, NULL, "pop", &retval);
+    sw_zend_call_method_with_0_params(zcluster_object, nullptr, nullptr, "pop", &retval);
     if (!ZVAL_IS_ARRAY(&retval)) {
         return "";
     }

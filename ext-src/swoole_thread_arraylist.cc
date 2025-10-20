@@ -83,7 +83,7 @@ ThreadResource *php_swoole_thread_arraylist_cast(const zval *zobject) {
 void php_swoole_thread_arraylist_create(zval *return_value, ThreadResource *resource) {
     auto obj = arraylist_create_object(swoole_thread_arraylist_ce);
     auto ao = arraylist_fetch_object(obj);
-    ao->list = static_cast<ZendArray *>(resource);
+    ao->list = dynamic_cast<ZendArray *>(resource);
     ZVAL_OBJ(return_value, obj);
 }
 

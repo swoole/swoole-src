@@ -147,7 +147,7 @@ static std::vector<std::string> unsafe_functions {
 static std::unordered_map<std::string, std::string> swoole_runtime_environ;
 #endif
 
-static const zend_function_entry swoole_runtime_methods[] = {
+static constexpr zend_function_entry swoole_runtime_methods[] = {
     PHP_ME(swoole_runtime, enableCoroutine, arginfo_class_Swoole_Runtime_enableCoroutine, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_runtime, getHookFlags, arginfo_class_Swoole_Runtime_getHookFlags, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_runtime, setHookFlags, arginfo_class_Swoole_Runtime_setHookFlags, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -375,7 +375,7 @@ static inline char *parse_ip_address_ex(const char *str, size_t str_len, int *po
             }
             return nullptr;
         }
-        *portno = atoi(p + 2);
+        *portno = sw_atoi(p + 2);
         return estrndup(str + 1, p - str - 1);
     }
     if (str_len) {
@@ -384,7 +384,7 @@ static inline char *parse_ip_address_ex(const char *str, size_t str_len, int *po
         colon = nullptr;
     }
     if (colon) {
-        *portno = atoi(colon + 1);
+        *portno = sw_atoi(colon + 1);
         host = estrndup(str, colon - str);
     } else {
         if (get_err) {
@@ -2021,7 +2021,7 @@ static PHP_FUNCTION(swoole_stream_select) {
         stream_array_to_fd_set(e_array, fds, SW_EVENT_ERROR);
     }
 
-    if (fds.size() == 0) {
+    if (fds.empty()) {
         php_error_docref(nullptr, E_WARNING, "No stream arrays were passed");
         RETURN_FALSE;
     }

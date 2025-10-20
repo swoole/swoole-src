@@ -76,7 +76,7 @@ class HttpServer {
     std::shared_ptr<std::unordered_set<std::string>> compression_types = nullptr;
 #endif
 
-    HttpServer(enum swSocketType type) {
+    explicit HttpServer(SocketType type) {
         socket = new Socket(type);
         default_handler = nullptr;
         array_init(&zclients);
@@ -99,13 +99,13 @@ class HttpServer {
     ~HttpServer() {
         sw_free(upload_tmp_dir);
         zval_ptr_dtor(&zclients);
-        for (auto i = handlers.begin(); i != handlers.end(); i++) {
-            sw_callable_free(i->second);
+        for (const auto &handler : handlers) {
+            sw_callable_free(handler.second);
         }
         delete socket;
     }
 
-    bool set_handler(std::string pattern, zval *zfn) {
+    bool set_handler(const std::string &pattern, zval *zfn) {
         auto cb = sw_callable_create(zfn);
         if (!cb) {
             return false;
@@ -120,20 +120,20 @@ class HttpServer {
         return true;
     }
 
-    zend::Callable *get_handler(HttpContext *ctx) {
-        for (auto i = handlers.begin(); i != handlers.end(); i++) {
-            if (i->second == default_handler) {
+    zend::Callable *get_handler(const HttpContext *ctx) const {
+        for (auto &handler : handlers) {
+            if (handler.second == default_handler) {
                 continue;
             }
             if (swoole_str_istarts_with(
-                    ctx->request.path, ctx->request.path_len, i->first.c_str(), i->first.length())) {
-                return i->second;
+                    ctx->request.path, ctx->request.path_len, handler.first.c_str(), handler.first.length())) {
+                return handler.second;
             }
         }
         return default_handler;
     }
 
-    HttpContext *create_context(Socket *conn, zval *zconn) {
+    HttpContext *create_context(Socket *conn, zval *zconn) const {
         HttpContext *ctx = swoole_http_context_new(conn->get_fd());
         ctx->parse_body = parse_post;
         ctx->parse_cookie = parse_cookie;
@@ -159,7 +159,7 @@ class HttpServer {
     }
 
     void recv_http2_frame(HttpContext *ctx) {
-        Socket *sock = (Socket *) ctx->private_data;
+        auto *sock = static_cast<Socket *>(ctx->private_data);
         http2::send_setting_frame(&sock->protocol, sock->get_socket());
 
         sock->open_length_check = true;
@@ -224,7 +224,7 @@ static const zend_function_entry swoole_http_server_coro_methods[] =
 // clang-format on
 
 static zend_object *php_swoole_http_server_coro_create_object(zend_class_entry *ce) {
-    HttpServerObject *hsc = (HttpServerObject *) zend_object_alloc(sizeof(HttpServerObject), ce);
+    auto *hsc = static_cast<HttpServerObject *>(zend_object_alloc(sizeof(HttpServerObject), ce));
     zend_object_std_init(&hsc->std, ce);
     object_properties_init(&hsc->std, ce);
     hsc->std.handlers = &swoole_http_server_coro_handlers;
@@ -232,30 +232,31 @@ static zend_object *php_swoole_http_server_coro_create_object(zend_class_entry *
 }
 
 static sw_inline HttpServerObject *php_swoole_http_server_coro_fetch_object(zend_object *obj) {
-    return (HttpServerObject *) ((char *) obj - swoole_http_server_coro_handlers.offset);
+    return reinterpret_cast<HttpServerObject *>(reinterpret_cast<char *>(obj) -
+                                                swoole_http_server_coro_handlers.offset);
 }
 
 static sw_inline HttpServer *http_server_get_object(zend_object *obj) {
     return php_swoole_http_server_coro_fetch_object(obj)->server;
 }
 
-static inline void http_server_set_error(zval *zobject, Socket *sock) {
+static inline void http_server_set_error(const zval *zobject, const Socket *sock) {
     zend_update_property_long(swoole_http_server_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), sock->errCode);
     zend_update_property_string(swoole_http_server_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errMsg"), sock->errMsg);
 }
 
 static bool http_context_send_data(HttpContext *ctx, const char *data, size_t length) {
-    Socket *sock = (Socket *) ctx->private_data;
+    auto *sock = static_cast<Socket *>(ctx->private_data);
     return sock->send_all(data, length) == (ssize_t) length;
 }
 
 static bool http_context_sendfile(HttpContext *ctx, const char *file, uint32_t l_file, off_t offset, size_t length) {
-    Socket *sock = (Socket *) ctx->private_data;
+    auto *sock = static_cast<Socket *>(ctx->private_data);
     return sock->sendfile(file, offset, length);
 }
 
 static bool http_context_disconnect(HttpContext *ctx) {
-    Socket *sock = (Socket *) ctx->private_data;
+    auto *sock = static_cast<Socket *>(ctx->private_data);
     return sock->close();
 }
 
@@ -320,8 +321,8 @@ static PHP_METHOD(swoole_http_server_coro, __construct) {
     char *host;
     size_t l_host;
     zend_long port = 0;
-    zend_bool ssl = 0;
-    zend_bool reuse_port = 0;
+    zend_bool ssl = false;
+    zend_bool reuse_port = false;
 
     ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 4)
     Z_PARAM_STRING(host, l_host)
@@ -547,7 +548,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
     HttpContext *ctx = nullptr;
     bool header_completed = false;
     off_t header_crlf_offset = 0;
-    size_t total_length;
+    size_t total_length = 0;
 
 #ifdef SW_USE_OPENSSL
     if (sock->ssl_is_enable() && !sock->ssl_handshake()) {
@@ -555,7 +556,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
     }
 #endif
     zend::array_set(&hs->zclients, co->get_cid(), zconn);
-    zend::Variable remote_addr = zend::Variable(sock->get_addr());
+    auto remote_addr = zend::Variable(sock->get_addr());
 
     while (true) {
     _recv_request : {
@@ -602,9 +603,8 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
                 ctx->response.status = SW_HTTP_REQUEST_ENTITY_TOO_LARGE;
                 break;
             }
-            if (total_length > buffer->size && !buffer->extend(total_length)) {
-                ctx->response.status = SW_HTTP_SERVICE_UNAVAILABLE;
-                break;
+            if (total_length > buffer->size) {
+                buffer->extend(total_length);
             }
         }
 
@@ -708,8 +708,8 @@ static PHP_METHOD(swoole_http_server_coro, shutdown) {
 
 static void http2_server_onRequest(Http2Session *session, Http2Stream *stream) {
     HttpContext *ctx = stream->ctx;
-    HttpServer *hs = (HttpServer *) session->private_data;
-    Socket *sock = (Socket *) ctx->private_data;
+    const auto *hs = static_cast<HttpServer *>(session->private_data);
+    const auto *sock = static_cast<Socket *>(ctx->private_data);
     zval *zserver = ctx->request.zserver;
 
     add_assoc_long(zserver, "request_time", time(nullptr));

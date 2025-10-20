@@ -102,7 +102,7 @@ static PHP_METHOD(swoole_client, getSocket);
 #endif
 SW_EXTERN_C_END
 
-static uint32_t client_poll_add(zval *sock_array, uint32_t index, pollfd *fds, int maxevents, int event);
+static uint32_t client_poll_add(const zval *sock_array, uint32_t index, pollfd *fds, int maxevents, int event);
 static int client_poll_wait(zval *sock_array, const pollfd *fds, int maxevents, int n_event, int revent);
 
 Client *php_swoole_client_get_cli_safe(const zval *zobject) {
@@ -301,7 +301,7 @@ bool php_swoole_client_check_setting(Client *cli, const zval *zset) {
 
         if (cli->protocol.package_length_size == 0) {
             php_swoole_fatal_error(E_ERROR,
-                                   "Unknown package_length_type name '%c', see pack(). Link: http://php.net/pack",
+                                   "Unknown package_length_type name '%c', see pack(). Link: https://php.net/pack",
                                    cli->protocol.package_length_type);
             return false;
         }
@@ -903,10 +903,7 @@ static PHP_METHOD(swoole_client, recv) {
                         if (new_size > protocol->package_max_length) {
                             new_size = protocol->package_max_length;
                         }
-                        if (!buffer->extend(new_size)) {
-                            buffer->length = 0;
-                            RETURN_FALSE;
-                        }
+                        buffer->extend(new_size);
                     }
                 }
             }
@@ -1313,7 +1310,7 @@ static int client_poll_wait(zval *sock_array, const pollfd *fds, int maxevents, 
     return num;
 }
 
-static uint32_t client_poll_add(zval *sock_array, uint32_t index, struct pollfd *fds, int maxevents, int event) {
+static uint32_t client_poll_add(const zval *sock_array, uint32_t index, struct pollfd *fds, int maxevents, int event) {
     zval *element = nullptr;
     if (!ZVAL_IS_ARRAY(sock_array)) {
         return 0;

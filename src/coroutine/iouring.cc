@@ -84,10 +84,10 @@ static void parse_kernel_version(const char *release, int *major, int *minor) {
     strcpy(copy, release);
 
     char *token = strtok(copy, ".-");
-    *major = token ? atoi(token) : 0;
+    *major = token ? sw_atoi(token) : 0;
 
     token = strtok(nullptr, ".-");
-    *minor = token ? atoi(token) : 0;
+    *minor = token ? sw_atoi(token) : 0;
 }
 
 Iouring::Iouring(Reactor *_reactor) {

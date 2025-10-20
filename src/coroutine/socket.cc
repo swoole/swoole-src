@@ -199,10 +199,7 @@ bool Socket::wait_event(const EventType event, const void **_buf, size_t _n) {
     } else if (event == SW_EVENT_WRITE) {
         if (sw_unlikely(!zero_copy && _n > 0 && *_buf != get_write_buffer()->str)) {
             write_buffer->clear();
-            if (write_buffer->append(static_cast<const char *>(*_buf), _n) != SW_OK) {
-                set_err(ENOMEM);
-                goto _failed;
-            }
+            write_buffer->append(static_cast<const char *>(*_buf), _n);
             *_buf = write_buffer->str;
         }
         write_co = co;
@@ -212,7 +209,6 @@ bool Socket::wait_event(const EventType event, const void **_buf, size_t _n) {
         assert(0);
         return false;
     }
-_failed:
 #ifdef SW_USE_OPENSSL
     // maybe read_co and write_co are all waiting for the same event when we use SSL
     if (sw_likely(want_event == SW_EVENT_NULL || !has_bound()))
@@ -574,8 +570,8 @@ bool Socket::connect(const std::string &_host, int _port, int flags) {
     ctx->timeout = socket->dns_timeout;
 
     std::once_flag oc;
-    auto name_resolve_fn = [ctx, &oc, this](int type) -> bool {
-        ctx->type = type;
+    auto name_resolve_fn = [ctx, &oc, this](int _type) -> bool {
+        ctx->type = _type;
 #ifdef SW_USE_OPENSSL
         std::call_once(oc, [this]() {
             if (ssl_context && !(socks5_proxy || http_proxy)) {
@@ -594,7 +590,7 @@ bool Socket::connect(const std::string &_host, int _port, int flags) {
             return false;
         }
         if (ctx->with_port) {
-            char delimiter = type == AF_INET6 ? '@' : ':';
+            char delimiter = _type == AF_INET6 ? '@' : ':';
             auto port_pos = addr.find_first_of(delimiter);
             if (port_pos != std::string::npos) {
                 connect_port = std::stoi(addr.substr(port_pos + 1));
@@ -668,16 +664,16 @@ ssize_t Socket::peek(void *_buf, size_t _n) {
     return retval;
 }
 
-bool Socket::poll(EventType type, double timeout) {
-    if (sw_unlikely(!is_available(type))) {
+bool Socket::poll(EventType _type, double timeout) {
+    if (sw_unlikely(!is_available(_type))) {
         return false;
     }
-    TimerNode **timer_pp = type == SW_EVENT_READ ? &read_timer : &write_timer;
+    TimerNode **timer_pp = _type == SW_EVENT_READ ? &read_timer : &write_timer;
     if (timeout == 0) {
-        timeout = type == SW_EVENT_READ ? socket->read_timeout : socket->write_timeout;
+        timeout = _type == SW_EVENT_READ ? socket->read_timeout : socket->write_timeout;
     }
     TimerController timer(timer_pp, timeout, this, timer_callback);
-    if (timer.start() && wait_event(type)) {
+    if (timer.start() && wait_event(_type)) {
         return true;
     } else {
         return false;
@@ -1392,11 +1388,7 @@ _get_length:
     }
 
     if ((size_t) packet_len > read_buffer->size) {
-        if (!read_buffer->extend(packet_len)) {
-            read_buffer->clear();
-            set_err(ENOMEM);
-            return -1;
-        }
+        read_buffer->extend(packet_len);
     }
 
     retval = recv_all(read_buffer->str + read_buffer->length, packet_len - read_buffer->length);
@@ -1456,11 +1448,7 @@ ssize_t Socket::recv_packet_with_eof_protocol() {
             if (new_size > protocol.package_max_length) {
                 new_size = protocol.package_max_length;
             }
-            if (!read_buffer->extend(new_size)) {
-                read_buffer->clear();
-                set_err(ENOMEM);
-                return -1;
-            }
+            read_buffer->extend(new_size);
         }
     }
     assert(0);
