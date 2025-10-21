@@ -14,8 +14,6 @@
  +----------------------------------------------------------------------+
  */
 
-#define SW_LOG_TRACE_OPEN
-
 #include "php_swoole_curl.h"
 #include "swoole_socket.h"
 
