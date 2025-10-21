@@ -26,6 +26,8 @@ static void TaskWorker_onStart(ProcessPool *pool, Worker *worker);
 static void TaskWorker_onStop(ProcessPool *pool, Worker *worker);
 static int TaskWorker_onTask(ProcessPool *pool, Worker *worker, EventData *task);
 
+static SW_THREAD_LOCAL EventData *latest_task = nullptr;
+
 /**
  * after pool->create, before pool->start
  */
@@ -86,7 +88,7 @@ static int TaskWorker_call_command_handler(const ProcessPool *pool, const Worker
 static int TaskWorker_onTask(ProcessPool *pool, Worker *worker, EventData *task) {
     int ret = SW_OK;
     auto *serv = static_cast<Server *>(pool->ptr);
-    serv->last_task = task;
+    latest_task = task;
 
     worker->set_status_to_busy();
     if (task->info.type == SW_SERVER_EVENT_PIPE_MESSAGE) {
@@ -436,7 +438,7 @@ bool Server::finish(const char *data, size_t data_len, int flags, const EventDat
         return false;
     }
     if (current_task == nullptr) {
-        current_task = last_task;
+        current_task = latest_task;
     }
     if (current_task->info.type == SW_SERVER_EVENT_PIPE_MESSAGE) {
         swoole_warning("Server::task()/Server::finish() is not supported in onPipeMessage callback");

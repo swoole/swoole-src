@@ -1074,7 +1074,6 @@ class Server {
      */
     std::string pid_file;
 
-    EventData *last_task = nullptr;
     std::queue<String *> *buffer_pool = nullptr;
 
     const Allocator *recv_buffer_allocator = &SwooleG.std_allocator;
