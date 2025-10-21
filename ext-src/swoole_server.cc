@@ -3155,6 +3155,10 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
     Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
+    if (php_swoole_server_task_check_param(serv, -1) < 0) {
+        RETURN_FALSE;
+    }
+
     array_init(return_value);
 
     int n_task = php_swoole_array_length(ztasks);

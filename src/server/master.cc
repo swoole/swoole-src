@@ -520,7 +520,7 @@ void Server::store_listen_socket() {
 /**
  * only the memory of the Worker structure is allocated, no process is forked
  */
-int Server::create_task_workers() {
+bool Server::create_task_workers() {
     key_t key = 0;
     swIPCMode ipc_mode;
 
@@ -537,7 +537,7 @@ int Server::create_task_workers() {
     *pool = {};
     if (pool->create(task_worker_num, key, ipc_mode) < 0) {
         swoole_warning("[Master] create task_workers failed");
-        return SW_ERR;
+        return false;
     }
 
     pool->set_max_request(task_max_request, task_max_request_grace);
@@ -548,7 +548,7 @@ int Server::create_task_workers() {
         char sockfile[sizeof(struct sockaddr_un)];
         snprintf(sockfile, sizeof(sockfile), "/tmp/swoole.task.%d.sock", gs->master_pid);
         if (get_task_worker_pool()->listen(sockfile, 2048) < 0) {
-            return SW_ERR;
+            return false;
         }
     }
 
@@ -558,23 +558,23 @@ int Server::create_task_workers() {
     task_results = static_cast<EventData *>(sw_shm_calloc(worker_num, sizeof(EventData)));
     if (!task_results) {
         swoole_warning("sw_shm_calloc(%d, %zu) for task_result failed", worker_num, sizeof(EventData));
-        return SW_ERR;
+        return false;
     }
     SW_LOOP_N(worker_num) {
         auto _pipe = new Pipe(true);
         if (!_pipe->ready()) {
             sw_shm_free(task_results);
             delete _pipe;
-            return SW_ERR;
+            return false;
         }
         task_notify_pipes.emplace_back(_pipe);
     }
 
     if (!init_task_workers()) {
-        return SW_ERR;
+        return false;
     }
 
-    return SW_OK;
+    return true;
 }
 
 void Server::destroy_task_workers() const {
@@ -584,17 +584,24 @@ void Server::destroy_task_workers() const {
     get_task_worker_pool()->destroy();
 }
 
+bool Server::create_event_workers() {
+    SW_LOOP_N(worker_num) {
+        create_worker(get_worker(i));
+    }
+    return true;
+}
+
 /**
  * @description:
  *  only the memory of the Worker structure is allocated, no process is fork.
  *  called when the manager process start.
  * @return: SW_OK|SW_ERR
  */
-int Server::create_user_workers() {
+bool Server::create_user_workers() {
     user_workers = static_cast<Worker *>(sw_shm_calloc(get_user_worker_num(), sizeof(Worker)));
     if (user_workers == nullptr) {
         swoole_sys_warning("sw_shm_calloc(%lu, %zu) for user_workers failed", get_user_worker_num(), sizeof(Worker));
-        return SW_ERR;
+        return false;
     }
 
     int i = 0;
@@ -604,7 +611,7 @@ int Server::create_user_workers() {
         i++;
     }
 
-    return SW_OK;
+    return true;
 }
 
 /**
@@ -877,7 +884,7 @@ int Server::create() {
         return SW_ERR;
     }
 
-    if (task_worker_num > 0 && create_task_workers() < 0) {
+    if (task_worker_num > 0 && !create_task_workers()) {
         return SW_ERR;
     }
 

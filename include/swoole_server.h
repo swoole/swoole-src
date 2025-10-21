@@ -1489,7 +1489,9 @@ class Server {
     void clear_timer();
     static void timer_callback(Timer *timer, TimerNode *tnode);
 
-    int create_user_workers();
+    bool create_event_workers();
+    bool create_task_workers();
+    bool create_user_workers();
     int start_manager_process();
 
     void call_hook(enum HookType type, void *arg);
@@ -1674,7 +1676,6 @@ class Server {
      */
     std::vector<Worker *> user_worker_list;
 
-    int create_task_workers();
     int create_pipe_buffers();
     void release_pipe_buffers();
     void create_worker(Worker *worker);

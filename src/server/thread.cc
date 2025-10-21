@@ -67,10 +67,13 @@ bool ThreadFactory::start() {
     if (!server_->create_worker_pipes()) {
         return false;
     }
+    if (!server_->create_event_workers()) {
+        return false;
+    }
     if (server_->task_worker_num > 0 && server_->get_task_worker_pool()->start_check() < 0) {
         return false;
     }
-    if (server_->get_user_worker_num() > 0 && server_->create_user_workers() < 0) {
+    if (server_->get_user_worker_num() > 0 && !server_->create_user_workers()) {
         return false;
     }
     return true;

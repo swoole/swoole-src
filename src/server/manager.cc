@@ -50,15 +50,15 @@ void Manager::timer_callback(Timer *timer, TimerNode *tnode) {
 }
 
 int Server::start_manager_process() {
-    SW_LOOP_N(worker_num) {
-        create_worker(get_worker(i));
+    if (!create_event_workers()) {
+        return SW_ERR;
     }
 
     if (get_event_worker_pool()->create_message_box(SW_MESSAGE_BOX_SIZE) == SW_ERR) {
         return SW_ERR;
     }
 
-    if (get_user_worker_num() > 0 && create_user_workers() < 0) {
+    if (get_user_worker_num() > 0 && !create_user_workers()) {
         return SW_ERR;
     }
 
