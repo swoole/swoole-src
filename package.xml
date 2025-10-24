@@ -52,43 +52,41 @@
     <date>2025-10-15</date>
     <time>16:00:00</time>
     <version>
-        <release>6.1.0RC2</release>
+        <release>6.1.0</release>
         <api>6.0</api>
     </version>
     <stability>
-        <release>beta</release>
-        <api>beta</api>
+        <release>stable</release>
+        <api>stable</api>
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        # ✨ New Features
-        - Added the `$throw_exception` parameter to `Swoole\Coroutine::cancel()`, enabling exceptions to be thrown when canceling coroutines.
-        - `Swoole\Coroutine\Http\Client` and `Swoole\Coroutine\Http\Server` now support receiving WebSocket fragmented messages.
-        - Added `disconnect` and `ping` methods to `Swoole\Coroutine\Http\Client` and `Swoole\Coroutine\Http\Server`.
-        - Refactored `Swoole\Coroutine\Lock`, `Swoole\Lock`, and `Swoole\Thread\Lock`, retaining only the `__construct`, `lock`, and `unlock` methods to align more closely with `php flock` in usage.
+        Major Changes in Swoole 6.1.0
+        1. Introduction of "Standard Library Extensions" - Revolutionary Syntax Enhancements
+        This is the most eye-catching feature at the language level in this update, allowing object-oriented operations on basic types.
+        Object-Oriented Basic Types: Methods can be called directly on variables of basic types like string, array, and stream (e.g., $text->length()->lower()), greatly improving code readability and development experience.
+        Typed Arrays: Introduced the typed_array syntax, allowing constraints on key and value types, with type checks performed on write operations, enhancing code robustness.
 
-        # 🐛 Bug Fixes
-        - Fixed an issue where `Swoole\Websocket\Server` might still trigger the `onMessage` callback after a handshake failure or connection closure.
-        - Fixed execution errors in `Swoole\Coroutine\Http\Server` caused by inconsistencies between function return types and signatures.
-        - Fixed the issue where `Swoole\Coroutine\Http\Server` did not support enabling HTTP/2.
-        - Fixed the timeout precision conversion issue in `Swoole\Lock::lockwait()`.
-        - Fixed the `ReactorEpoll::add(): failed to add event` warning when using the coroutine-based `curl` module, caused by PHP 8 compatibility adjustments and incomplete cleanup of `keepalive` connections.
+        2. A Major Leap in Underlying Architecture and Stability
+        This version invests heavily in code quality and stability, laying a solid foundation for future development.
+        Significant Increase in Test Coverage to 86%: By systematically adding test cases, potential errors are greatly reduced, improving the overall reliability and maintainability of the project.
+        Large-Scale Code Refactoring and Static Analysis: Refactored multiple core modules like Reactor, SSL, and Socket, and used clang-tidy for code standardization, significantly improving code quality and performance.
 
-        # 🛠️ Internal Optimizations
-        - Upgraded the `Swoole library` version.
-        - Disabled the `-Wdate-time` warning to resolve compilation errors when using Zig/Clang.
-        - Removed PHP 8.0 compatibility code.
-        - Added the `SWOOLE_ODBC_LIBS` variable in `config.m4`.
-        - Ensured that `timespec.tv_nsec` values are less than `1,000,000,000` to comply with POSIX standards.
+        3. Major Simplification and Unification of the Lock API
+        A groundbreaking refactoring of the core component for concurrent programming – the lock.
+        API Simplification: Removed methods like lockwait and trylock, retaining only three core methods – __construct, lock, and unlock – for Swoole\Coroutine\Lock, Swoole\Lock, and Swoole\Thread\Lock.
+        Unified Behavior: The new API design is closer to PHP's native flock function, reducing the learning curve, and uses standard constants like LOCK_EX | LOCK_NB to implement advanced features such as non-blocking.
 
-        # ⚠️ Notes
-        - This version is an RC (Release Candidate) and should only be used in testing environments. Do not deploy it in production.
-        - Starting from Swoole 6.1, `Swoole\Coroutine\Http\Client` and `Swoole\Coroutine\Http\Server` will automatically handle WebSocket control frames unless `open_websocket_ping_frame`, `open_websocket_pong_frame`, or `open_websocket_close_frame` are explicitly set.
-        - `Swoole\Coroutine::cancel()` cannot cancel file coroutine operations. Forcibly canceling may cause segmentation faults.
-        - If `--enable-iouring` is enabled, a warning will be thrown if the kernel version or `liburing` version does not meet the requirements.
-        - The `Swoole\Websocket\Server::push` method does not automatically close the connection after sending a close frame. To close the connection, use the `Swoole\Websocket\Server::disconnect()` method.
-        - When handling control frames, the Swoole protocol actively sets the FIN flag to 1 and ensures compression is not enabled (i.e., the RSV1 bit is 0). User settings for this will be ignored.
-        - When handling compression and sending of consecutive frames, Swoole delegates the responsibility of compression and data chunking to the application layer. Users need to manually implement the relevant logic. See the example below for details.
+        4. Enhanced Coroutine Capabilities and Fine-Grained Control
+        More flexible coroutine operation capabilities.
+        Coroutine Cancellation Mechanism: Swoole\Coroutine::cancel() now includes a $throw_exception parameter, allowing a catchable Swoole\Coroutine\CanceledException to be thrown into the target coroutine upon cancellation, enabling safer and more controllable coroutine lifecycle management.
+        Coroutine State Isolation for Serialization Operations: Fixed the issue of global state isolation for serialize/unserialize in coroutine environments. Global variables related to serialization are now automatically saved and restored during coroutine switches, ensuring isolated serialization contexts for each coroutine.
+
+        5. Default HTTP Parser Upgrade, Websocket Feature Enhancements, and Platform Compatibility Improvements
+        Important improvements in performance and compatibility.
+        llHTTP Enabled by Default: Replaced the old http_parser with the more performant and modern llhttp, improving the efficiency and reliability of HTTP processing.
+        WebSocket Feature Enhancements: Both client and server now support receiving fragmented messages, actively disconnecting (disconnect), and sending Ping frames (ping), making the WebSocket protocol implementation more complete.
+        Deprecating Select, Embracing Poll: Completely deprecated the flawed select event mechanism. On platforms that do not support epoll/kqueue (like Cygwin), poll is now used by default, enabling support for a large number of concurrent connections on these platforms as well.
     </notes>
     <contents>
         <dir name="/">
