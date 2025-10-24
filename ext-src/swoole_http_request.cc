@@ -217,6 +217,7 @@ static PHP_METHOD(swoole_http_request, parse);
 static PHP_METHOD(swoole_http_request, isCompleted);
 static PHP_METHOD(swoole_http_request, getMethod);
 static PHP_METHOD(swoole_http_request, getContent);
+static PHP_METHOD(swoole_http_request, getBodyStream);
 SW_EXTERN_C_END
 
 // clang-format off
@@ -229,6 +230,7 @@ const zend_function_entry swoole_http_request_methods[] =
     PHP_ME(swoole_http_request, parse,                      arginfo_class_Swoole_Http_Request_parse,       ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_request, isCompleted,                arginfo_class_Swoole_Http_Request_isCompleted, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_request, getMethod,                  arginfo_class_Swoole_Http_Request_getMethod,   ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_request, getBodyStream,              arginfo_class_Swoole_Http_Request_getBodyStream, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 // clang-format on
@@ -913,6 +915,45 @@ static PHP_METHOD(swoole_http_request, getContent) {
     }
 
     RETURN_EMPTY_STRING();
+}
+
+static PHP_METHOD(swoole_http_request, getBodyStream) {
+    HttpContext *ctx = php_swoole_http_request_get_and_check_context(ZEND_THIS);
+    if (UNEXPECTED(!ctx)) {
+        RETURN_FALSE;
+    }
+
+    HttpRequest *req = &ctx->request;
+    const char *data = nullptr;
+    size_t length = 0;
+
+    if (req->body_length > 0) {
+        zval *zdata = &req->zdata;
+        data = Z_STRVAL_P(zdata) + Z_STRLEN_P(zdata) - req->body_length;
+        length = req->body_length;
+    } else if (req->chunked_body && req->chunked_body->length != 0) {
+        data = req->chunked_body->str;
+        length = req->chunked_body->length;
+    } else if (req->h2_data_buffer && req->h2_data_buffer->length != 0) {
+        data = req->h2_data_buffer->str;
+        length = req->h2_data_buffer->length;
+    }
+
+    zend_string *buf = nullptr;
+    if (data && length > 0) {
+        buf = zend_string_init(data, length, 0);
+    }
+    php_stream *stream = php_stream_memory_open(TEMP_STREAM_READONLY, buf);
+    if (!stream) {
+        if (buf) {
+            zend_string_release(buf);
+        }
+        RETURN_FALSE;
+    }
+    php_stream_to_zval(stream, return_value);
+    if (buf) {
+        zend_string_release(buf);
+    }
 }
 
 static PHP_METHOD(swoole_http_request, getData) {
