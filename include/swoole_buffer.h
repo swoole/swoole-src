@@ -77,7 +77,7 @@ class Buffer {
         return queue_.empty();
     }
 
-    static bool empty(Buffer *buffer) {
+    static bool empty(const Buffer *buffer) {
         return buffer == nullptr || buffer->queue_.empty();
     }
 };

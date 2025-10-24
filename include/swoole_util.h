@@ -19,6 +19,7 @@
 
 #include <cstdio>
 #include <cstdarg>
+#include <cassert>
 
 #include <string>
 #include <memory>
@@ -31,9 +32,6 @@
 #include <algorithm>
 
 #define SW_STRUCT_MEMBER_SIZE(_s, _m) sizeof(std::declval<struct _s>()._m)
-
-#define __SCOPEGUARD_CONCATENATE_IMPL(s1, s2) s1##s2
-#define __SCOPEGUARD_CONCATENATE(s1, s2) __SCOPEGUARD_CONCATENATE_IMPL(s1, s2)
 
 namespace swoole {
 template <typename T>
@@ -85,11 +83,10 @@ static inline long get_timezone() {
 }
 
 class DeferTask {
-  private:
     std::stack<Callback> list_;
 
   public:
-    void add(Callback fn) {
+    void add(const Callback &fn) {
         list_.push(fn);
     }
 
@@ -188,9 +185,16 @@ inline ScopeGuard<Fun> operator+(ScopeGuardOnExit, Fun &&fn) {
 }
 }  // namespace detail
 
-// Helper macro
+#define __SCOPE_GUARD_CONCATENATE_IMPL(s1, s2) s1##s2
+#define __SCOPE_GUARD_CONCATENATE(s1, s2) __SCOPE_GUARD_CONCATENATE_IMPL(s1, s2)
+
+/**
+ * Call the specified function when exiting the scope, similar to Golang's defer function.
+ * After using this helper macro,
+ * it is not necessary to manually release resources before the return statement of the failed branch.
+ */
 #define ON_SCOPE_EXIT                                                                                                  \
-    auto __SCOPEGUARD_CONCATENATE(ext_exitBlock_, __LINE__) = swoole::detail::ScopeGuardOnExit() + [&]()
+    auto __SCOPE_GUARD_CONCATENATE(ext_exitBlock_, __LINE__) = swoole::detail::ScopeGuardOnExit() + [&]()
 
 std::string intersection(const std::vector<std::string> &vec1, std::set<std::string> &vec2);
 
@@ -230,7 +234,7 @@ static inline size_t rtrim(const char *str, size_t len) {
 }
 
 static inline ssize_t substr_len(const char *str, size_t len, char separator, bool before = false) {
-    const char *substr = (const char *) memchr(str, separator, len);
+    const auto substr = static_cast<const char *>(memchr(str, separator, len));
     if (substr == nullptr) {
         return -1;
     }

@@ -96,7 +96,6 @@ ssize_t swoole_coroutine_send(int sockfd, const void *buf, size_t len, int flags
 ssize_t swoole_coroutine_sendmsg(int sockfd, const struct msghdr *msg, int flags);
 ssize_t swoole_coroutine_recv(int sockfd, void *buf, size_t len, int flags);
 ssize_t swoole_coroutine_recvmsg(int sockfd, struct msghdr *msg, int flags);
-int swoole_coroutine_close(int fd);
 int swoole_coroutine_connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
 int swoole_coroutine_poll(struct pollfd *fds, nfds_t nfds, int timeout);
 int swoole_coroutine_poll_fake(struct pollfd *fds, nfds_t nfds, int timeout);
@@ -113,8 +112,8 @@ struct hostent *swoole_coroutine_gethostbyname(const char *name);
  * wait
  */
 size_t swoole_coroutine_wait_count(void);
-pid_t swoole_coroutine_waitpid(pid_t __pid, int *__stat_loc, int __options);
-pid_t swoole_coroutine_wait(int *__stat_loc);
+pid_t swoole_coroutine_waitpid(pid_t _pid, int *_stat_loc, int _options);
+pid_t swoole_coroutine_wait(int *_stat_loc);
 
 #ifdef __cplusplus
 } /* end extern "C" */

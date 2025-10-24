@@ -63,7 +63,7 @@
 #define SW_MAX_WORKER_NCPU 1000  // n * cpu_num
 
 #define SW_HOST_MAXSIZE                                                                                                \
-    sizeof(((struct sockaddr_un *) NULL)->sun_path)  // Linux has 108 UNIX_PATH_MAX, but BSD/MacOS limit is only 104
+    sizeof(((struct sockaddr_un *) NULL)->sun_path)  // Linux has 108 UNIX_PATH_MAX, but BSD/macOS limit is only 104
 
 #define SW_CLIENT_BUFFER_SIZE 65536
 #define SW_CLIENT_CONNECT_TIMEOUT 0.5

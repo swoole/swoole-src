@@ -49,7 +49,7 @@ class Heap {
     void print() const;
     int compare(uint64_t a, uint64_t b) const;
 
-    HeapNode *top() {
+    HeapNode *top() const {
         if (num == 1) {
             return nullptr;
         }

@@ -24,7 +24,7 @@
 
 namespace swoole {
 namespace http_server {
-bool StaticHandler::is_modified(const std::string &date_if_modified_since) {
+bool StaticHandler::is_modified(const std::string &date_if_modified_since) const {
     char date_tmp[64];
     if (date_if_modified_since.empty() || date_if_modified_since.length() > sizeof(date_tmp) - 1) {
         return false;
@@ -48,7 +48,7 @@ bool StaticHandler::is_modified(const std::string &date_if_modified_since) {
     return date_format && mktime(&tm3) - (time_t) serv->timezone_ >= get_file_mtime();
 }
 
-bool StaticHandler::is_modified_range(const std::string &date_range) {
+bool StaticHandler::is_modified_range(const std::string &date_range) const {
     if (date_range.empty()) {
         return false;
     }
@@ -78,7 +78,7 @@ std::string StaticHandler::get_date() {
     return date_;
 }
 
-std::string StaticHandler::get_date_last_modified() {
+std::string StaticHandler::get_date_last_modified() const {
     char date_last_modified[64];
     time_t file_mtime = get_file_mtime();
     tm *tm2 = gmtime(&file_mtime);
@@ -459,7 +459,7 @@ void Server::add_static_handler_index_files(const std::string &file) {
     }
 }
 
-bool Server::select_static_handler(http_server::Request *request, Connection *conn) {
+bool Server::select_static_handler(const http_server::Request *request, const Connection *conn) {
     const char *url = request->buffer_->str + request->url_offset_;
     size_t url_length = request->url_length_;
 

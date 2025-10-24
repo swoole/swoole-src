@@ -93,19 +93,19 @@ class Coroutine {
         return cid;
     }
 
-    Coroutine *get_origin() {
+    Coroutine *get_origin() const {
         return origin;
     }
 
-    long get_origin_cid() {
+    long get_origin_cid() const {
         return sw_likely(origin) ? origin->get_cid() : -1;
     }
 
-    void *get_task() {
+    void *get_task() const {
         return task;
     }
 
-    bool is_end() {
+    bool is_end() const {
         return ctx.is_end();
     }
 

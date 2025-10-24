@@ -192,12 +192,12 @@ class Reactor {
         return running;
     }
 
-    size_t remove_exit_condition(const ExitCondition id) {
-        return exit_conditions.erase(id);
+    size_t remove_exit_condition(const ExitCondition _id) {
+        return exit_conditions.erase(_id);
     }
 
-    bool isset_exit_condition(const ExitCondition id) {
-        return exit_conditions.find(id) != exit_conditions.end();
+    bool isset_exit_condition(const ExitCondition _id) {
+        return exit_conditions.find(_id) != exit_conditions.end();
     }
 
     int add_event(network::Socket *_socket, EventType event_type) const {

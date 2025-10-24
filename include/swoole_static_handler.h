@@ -61,8 +61,8 @@ class StaticHandler {
     bool hit();
     bool hit_index_file();
 
-    bool is_modified(const std::string &date_if_modified_since);
-    bool is_modified_range(const std::string &date_range);
+    bool is_modified(const std::string &date_if_modified_since) const;
+    bool is_modified_range(const std::string &date_range) const;
     size_t make_index_page(String *buffer);
     bool get_dir_files();
     bool set_filename(const std::string &filename);
@@ -76,17 +76,17 @@ class StaticHandler {
         }
     }
 
-    bool has_index_file() {
+    bool has_index_file() const {
         return !index_file.empty();
     }
 
-    bool is_enabled_auto_index() {
+    bool is_enabled_auto_index() const {
         return serv->http_autoindex;
     }
 
     static std::string get_date();
 
-    time_t get_file_mtime() {
+    time_t get_file_mtime() const {
 #ifdef __MACH__
         return file_stat.st_mtimespec.tv_sec;
 #else
@@ -94,9 +94,9 @@ class StaticHandler {
 #endif
     }
 
-    std::string get_date_last_modified();
+    std::string get_date_last_modified() const;
 
-    const char *get_filename() {
+    const char *get_filename() const {
         return filename;
     }
 
@@ -117,17 +117,17 @@ class StaticHandler {
         }
     }
 
-    const std::string &get_mimetype() {
-        return swoole::mime_type::get(get_filename());
+    const std::string &get_mimetype() const {
+        return mime_type::get(get_filename());
     }
 
     std::string get_filename_std_string() {
-        return std::string(filename, l_filename);
+        return {filename, l_filename};
     }
 
     bool get_absolute_path();
 
-    size_t get_filesize() {
+    size_t get_filesize() const {
         return file_stat.st_size;
     }
 
@@ -135,15 +135,15 @@ class StaticHandler {
         return tasks;
     }
 
-    bool is_dir() {
+    bool is_dir() const {
         return S_ISDIR(file_stat.st_mode);
     }
 
-    bool is_link() {
+    bool is_link() const {
         return S_ISLNK(file_stat.st_mode);
     }
 
-    bool is_file() {
+    bool is_file() const {
         return S_ISREG(file_stat.st_mode);
     }
 
@@ -159,7 +159,7 @@ class StaticHandler {
                swoole_str_starts_with(filename, l_filename, document_root.c_str(), l_document_root);
     }
 
-    size_t get_content_length() {
+    size_t get_content_length() const {
         return content_length;
     }
 

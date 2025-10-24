@@ -1140,7 +1140,7 @@ class Server {
     bool set_document_root(const std::string &path);
     void add_static_handler_location(const std::string &);
     void add_static_handler_index_files(const std::string &);
-    bool select_static_handler(http_server::Request *request, Connection *conn);
+    bool select_static_handler(const http_server::Request *request, const Connection *conn);
     void add_http_compression_type(const std::string &type);
 
     int create();

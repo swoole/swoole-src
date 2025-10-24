@@ -18,7 +18,7 @@
 
 #include "swoole.h"
 
-#include <signal.h>
+#include <csignal>
 
 namespace swoole {
 typedef void (*SignalHandler)(int);

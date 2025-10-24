@@ -196,7 +196,7 @@ class Table {
         return row_num;
     }
 
-    bool exists(const std::string &key) {
+    bool exists(const std::string &key) const {
         return exists(key.c_str(), key.length());
     }
 
@@ -231,7 +231,7 @@ class Table {
         return new_row;
     }
 
-    void free_row(TableRow *tmp) {
+    void free_row(TableRow *tmp) const {
         lock();
         tmp->clear();
         pool->free(tmp);

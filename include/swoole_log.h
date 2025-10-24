@@ -16,8 +16,8 @@
 
 #pragma once
 
-#include <stddef.h>
-#include <stdint.h>
+#include <cstddef>
+#include <cstdint>
 #include <string>
 #include <unistd.h>
 
@@ -56,7 +56,7 @@ class Logger {
     int log_level = SW_LOG_INFO;
     bool date_with_microseconds = false;
     std::string date_format = SW_LOG_DEFAULT_DATE_FORMAT;
-    std::string log_file = "";
+    std::string log_file;
     std::string log_real_file;
     std::mutex lock;
     int log_rotation = SW_LOG_ROTATION_SINGLE;

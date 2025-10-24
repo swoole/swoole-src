@@ -17,7 +17,6 @@
 
 #pragma once
 
-#include "swoole.h"
 #include "swoole_socket.h"
 
 enum swPipe_close_which {

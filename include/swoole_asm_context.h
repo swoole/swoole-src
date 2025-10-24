@@ -56,7 +56,7 @@ struct transfer_t {
 #define SWOOLE_CONTEXT_CALLDECL
 #endif
 
-transfer_t SWOOLE_CONTEXT_CALLDECL swoole_jump_fcontext(fcontext_t const to, void *vp);
+transfer_t SWOOLE_CONTEXT_CALLDECL swoole_jump_fcontext(fcontext_t to, void *vp);
 fcontext_t SWOOLE_CONTEXT_CALLDECL swoole_make_fcontext(void *stack, size_t stack_size, void (*fn)(transfer_t));
 
 SW_EXTERN_C_END

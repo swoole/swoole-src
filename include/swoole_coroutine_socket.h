@@ -90,7 +90,7 @@ class Socket {
      * The read()/write()/recvmsg()/sendmsg() functions currently does not support SSL
      */
     ssize_t read(void *_buf, size_t _n);
-    ssize_t write(const void *__buf, size_t __n);
+    ssize_t write(const void *_buf, size_t _n);
     ssize_t recvmsg(msghdr *msg, int flags);
     ssize_t sendmsg(const msghdr *msg, int flags);
 
@@ -98,11 +98,11 @@ class Socket {
     ssize_t readv_all(network::IOVector *io_vector);
     ssize_t writev(network::IOVector *io_vector);
     ssize_t writev_all(network::IOVector *io_vector);
-    ssize_t recv_all(void *__buf, size_t __n);
-    ssize_t send_all(const void *__buf, size_t __n);
+    ssize_t recv_all(void *_buf, size_t _n);
+    ssize_t send_all(const void *_buf, size_t _n);
     ssize_t recv_packet(double timeout = 0);
-    ssize_t recv_line(void *__buf, size_t maxlen);
-    ssize_t recv_with_buffer(void *__buf, size_t __n);
+    ssize_t recv_line(void *_buf, size_t maxlen);
+    ssize_t recv_with_buffer(void *_buf, size_t _n);
 
     char *pop_packet() const {
         if (read_buffer->offset == 0) {
@@ -128,9 +128,9 @@ class Socket {
     bool bind(const sockaddr *sa, socklen_t len);
     bool listen(int backlog = 0);
     bool sendfile(const char *filename, off_t offset, size_t length);
-    ssize_t sendto(std::string host, int port, const void *__buf, size_t __n);
-    ssize_t recvfrom(void *__buf, size_t __n);
-    ssize_t recvfrom(void *__buf, size_t __n, sockaddr *_addr, socklen_t *_socklen);
+    ssize_t sendto(std::string host, int port, const void *_buf, size_t _n);
+    ssize_t recvfrom(void *_buf, size_t _n);
+    ssize_t recvfrom(void *_buf, size_t _n, sockaddr *_addr, socklen_t *_socklen);
 
 #ifdef SW_USE_OPENSSL
     /**
@@ -344,7 +344,7 @@ class Socket {
     /* set connect read write timeout */
     void set_timeout(double timeout, int _type = SW_TIMEOUT_ALL) const;
 
-    void set_timeout(timeval *timeout, int _type = SW_TIMEOUT_ALL) const {
+    void set_timeout(const timeval *timeout, int _type = SW_TIMEOUT_ALL) const {
         set_timeout((double) timeout->tv_sec + ((double) timeout->tv_usec / 1000 / 1000), _type);
     }
 
@@ -486,8 +486,8 @@ class Socket {
         protocol.package_max_length = SW_INPUT_BUFFER_SIZE;
     }
 
-    bool add_event(const EventType event);
-    bool wait_event(const EventType event, const void **__buf = nullptr, size_t __n = 0);
+    bool add_event(EventType event);
+    bool wait_event(EventType event, const void **_buf = nullptr, size_t _n = 0);
 
     ssize_t recv_packet_with_length_protocol();
     ssize_t recv_packet_with_eof_protocol();
@@ -538,7 +538,7 @@ class Socket {
   public:
     class TimeoutSetter {
       public:
-        TimeoutSetter(Socket *socket, double _timeout, const TimeoutType _type);
+        TimeoutSetter(Socket *socket, double _timeout, TimeoutType _type);
         ~TimeoutSetter();
 
       protected:

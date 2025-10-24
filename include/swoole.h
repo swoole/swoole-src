@@ -264,7 +264,7 @@ typedef swoole::DataHead swDataHead;
 size_t sw_snprintf(char *buf, size_t size, const char *format, ...) __attribute__((format(printf, 3, 4)));
 size_t sw_vsnprintf(char *buf, size_t size, const char *format, va_list args);
 int sw_printf(const char *format, ...);
-bool sw_wait_for(const std::function<bool(void)> &fn, int timeout_ms);
+bool sw_wait_for(const std::function<bool()> &fn, int timeout_ms);
 
 static inline long sw_atol(const char *str) {
     return std::strtol(str, nullptr, 10);

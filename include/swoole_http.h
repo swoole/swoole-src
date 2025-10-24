@@ -126,7 +126,6 @@ struct FormData {
 };
 
 struct Request {
-  public:
     uint8_t method;
     uint8_t version;
     uchar excepted : 1;
@@ -154,7 +153,6 @@ struct Request {
 
     String *buffer_;
 
-  public:
     Request() {
         clean();
         buffer_ = nullptr;
