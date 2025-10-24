@@ -19,6 +19,8 @@
 
 #include "swoole_iouring.h"
 
+#ifdef SW_USE_IOURING
+
 #ifdef HAVE_IOURING_FUTEX
 #ifndef FUTEX2_SIZE_U32
 #define FUTEX2_SIZE_U32 0x02
@@ -26,7 +28,6 @@
 #include <linux/futex.h>
 #endif
 
-#ifdef SW_USE_IOURING
 using swoole::Coroutine;
 
 namespace swoole {
@@ -80,7 +81,7 @@ struct IouringEvent {
 };
 
 static void parse_kernel_version(const char *release, int *major, int *minor) {
-    char copy[_UTSNAME_RELEASE_LENGTH];
+    char copy[SW_STRUCT_MEMBER_SIZE(utsname, release)];
     strcpy(copy, release);
 
     char *token = strtok(copy, ".-");

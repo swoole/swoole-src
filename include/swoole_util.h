@@ -30,6 +30,8 @@
 #include <type_traits>
 #include <algorithm>
 
+#define SW_STRUCT_MEMBER_SIZE(_s, _m) sizeof(std::declval<struct _s>()._m)
+
 #define __SCOPEGUARD_CONCATENATE_IMPL(s1, s2) s1##s2
 #define __SCOPEGUARD_CONCATENATE(s1, s2) __SCOPEGUARD_CONCATENATE_IMPL(s1, s2)
 
