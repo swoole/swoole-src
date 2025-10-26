@@ -19,6 +19,10 @@
 #include "swoole_socket.h"
 #include "swoole_util.h"
 
+#if PHP_VERSION_ID >= 80328
+#include "ftp/php_ftp.h"
+#endif
+
 #include "thirdparty/php/standard/proc_open.h"
 
 #ifdef SW_USE_CURL
@@ -62,6 +66,9 @@ END_EXTERN_C()
 #endif
 
 using swoole::Coroutine;
+#if PHP_VERSION_ID >= 80328
+using swoole::EventType;
+#endif
 using swoole::PHPCoroutine;
 using swoole::coroutine::PollSocket;
 using swoole::coroutine::Socket;
@@ -163,6 +170,9 @@ static void hook_func(const char *name,
                       zif_handler handler = nullptr,
                       zend_internal_arg_info *arg_info = nullptr);
 static void unhook_func(const char *name, size_t l_name);
+#if PHP_VERSION_ID >= 80328
+static int (*original_php_ftp_pollfd_for_ms)(php_socket_t, int, int) = nullptr;
+#endif
 
 static zend_internal_arg_info *get_arginfo(const char *name, size_t l_name) {
     auto *zf = static_cast<zend_function *>(zend_hash_str_find_ptr(EG(function_table), name, l_name));
@@ -262,6 +272,9 @@ void php_swoole_runtime_minit(int module_number) {
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_NATIVE_CURL", PHPCoroutine::HOOK_NATIVE_CURL);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_BLOCKING_FUNCTION", PHPCoroutine::HOOK_BLOCKING_FUNCTION);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_SOCKETS", PHPCoroutine::HOOK_SOCKETS);
+#if PHP_VERSION_ID >= 80328
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_FTP", PHPCoroutine::HOOK_FTP);
+#endif
 #ifdef SW_USE_PGSQL
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_PDO_PGSQL", PHPCoroutine::HOOK_PDO_PGSQL);
 #endif
@@ -1496,6 +1509,38 @@ static void hook_pdo_driver(uint32_t flags) {
 #endif
 }
 
+#if PHP_VERSION_ID >= 80328
+static int swoole_ftp_pollfd_for_ms(php_socket_t fd, int poll_events, int timeout) {
+    Socket socket(fd, SW_SOCK_RAW);
+    socket.get_socket()->nonblock = 1;
+
+    int events = 0;
+    if (poll_events == POLLOUT) {
+        events |= SW_EVENT_WRITE;
+    }
+    if (poll_events == PHP_POLLREADABLE) {
+        events |= SW_EVENT_READ;
+    }
+
+    bool result = socket.poll((EventType) events, (double) timeout);
+    socket.move_fd();
+    return result ? 1 : socket.errCode == ETIMEDOUT ? 0 : -1;
+}
+
+static void hook_ftp(uint32_t flags) {
+    if (flags & PHPCoroutine::HOOK_FTP) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_STREAM_FUNCTION)) {
+            original_php_ftp_pollfd_for_ms = php_ftp_pollfd_for_ms;
+            php_ftp_pollfd_for_ms = swoole_ftp_pollfd_for_ms;
+        }
+    } else {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_FTP) {
+            php_ftp_pollfd_for_ms = original_php_ftp_pollfd_for_ms;
+        }
+    }
+}
+#endif
+
 static void hook_all_func(uint32_t flags) {
     // stream func
     if (flags & PHPCoroutine::HOOK_STREAM_FUNCTION) {
@@ -1739,6 +1784,9 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
     hook_stream_factory(&flags);
     hook_stream_ops(flags);
     hook_pdo_driver(flags);
+#if PHP_VERSION_ID >= 80328
+    hook_ftp(flags);
+#endif
     hook_all_func(flags);
 
     if (swoole_isset_hook((swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_ENABLE_HOOK)) {

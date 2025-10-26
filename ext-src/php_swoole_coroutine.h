@@ -137,6 +137,9 @@ class PHPCoroutine {
         HOOK_PDO_ODBC = 1u << 17,
         HOOK_PDO_ORACLE = 1u << 18,
         HOOK_PDO_SQLITE = 1u << 19,
+#if PHP_VERSION_ID >= 80328
+        HOOK_FTP = 1u << 20,
+#endif
 #ifdef SW_USE_CURL
         HOOK_ALL = 0x7fffffff ^ HOOK_CURL,
 #else
