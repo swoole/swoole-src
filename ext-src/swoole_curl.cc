@@ -109,7 +109,13 @@ int Multi::del_event(void *socket_ptr, curl_socket_t sockfd) {
 
     curl_socket->socket->fd = -1;
     curl_socket->socket->free();
-    delete curl_socket;
+
+    if (selector.executing) {
+        curl_socket->deleted = true;
+        selector.release_sockets.insert(curl_socket);
+    } else {
+        delete curl_socket;
+    }
 
     return SW_OK;
 }
@@ -295,29 +301,44 @@ int Multi::handle_timeout(CURLM *mh, long timeout_ms, void *userp) {
 void Multi::selector_finish() {
     del_timer();
 
+    selector.executing = true;
+
     if (selector.timer_callback) {
         selector.timer_callback = false;
         curl_multi_socket_action(multi_handle_, CURL_SOCKET_TIMEOUT, 0, &running_handles_);
         swoole_trace_log(SW_TRACE_CO_CURL, "socket_action[timer], running_handles=%d", running_handles_);
     }
 
-    for (auto curl_socket : selector.active_sockets) {
-        /**
-         * In `curl_multi_socket_action`, `Handle::destroy_socket()` may be invoked,
-         * which will remove entries from the `unordered_map`.
-         * In C++, removing elements during iteration can render the iterator invalid; hence,
-         * it's necessary to copy `handle->sockets` into a new `unordered_map`.
-         */
-        swoole_trace_log(SW_TRACE_CO_CURL,
-                         "curl_multi_socket_action(): sockfd=%d, bitmask=%d, running_handles_=%d",
-                         curl_socket->sockfd,
-                         curl_socket->bitmask,
-                         running_handles_);
-        int bitmask = curl_socket->bitmask;
-        curl_socket->bitmask = 0;
-        curl_multi_socket_action(multi_handle_, curl_socket->sockfd, bitmask, &running_handles_);
+    while (!selector.active_sockets.empty()) {
+        auto active_sockets = selector.active_sockets;
+        selector.active_sockets.clear();
+
+        for (auto curl_socket : active_sockets) {
+            /**
+             * In `curl_multi_socket_action`, `Handle::destroy_socket()` may be invoked,
+             * which will remove entries from the `unordered_map`.
+             * In C++, removing elements during iteration can render the iterator invalid; hence,
+             * it's necessary to copy `handle->sockets` into a new `unordered_map`.
+             */
+            swoole_trace_log(SW_TRACE_CO_CURL,
+                             "curl_multi_socket_action(): sockfd=%d, bitmask=%d, running_handles_=%d",
+                             curl_socket->sockfd,
+                             curl_socket->bitmask,
+                             running_handles_);
+
+            if (!curl_socket->deleted) {
+                int bitmask = curl_socket->bitmask;
+                curl_socket->bitmask = 0;
+                curl_multi_socket_action(multi_handle_, curl_socket->sockfd, bitmask, &running_handles_);
+            }
+        }
     }
-    selector.active_sockets.clear();
+
+    selector.executing = false;
+    for (auto curl_socket : selector.release_sockets) {
+        delete curl_socket;
+    }
+    selector.release_sockets.clear();
 }
 
 long Multi::select(php_curlm *mh, double timeout) {

@@ -52,6 +52,7 @@ struct Socket {
     int bitmask;
     int sockfd;
     int action;
+    bool deleted;
 };
 
 struct Handle {
@@ -77,7 +78,9 @@ void destroy_handle(CURL *ch);
 
 struct Selector {
     bool timer_callback = false;
+    bool executing = false;
     std::unordered_set<Socket *> active_sockets;
+    std::unordered_set<Socket *> release_sockets;
 };
 
 class Multi {
