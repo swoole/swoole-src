@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
  */
 
-/* $Id: 51d60adcf7beee32ef614c349fdd4a65ea2f3faf */
+/* $Id: 4d81858f42a199c1e7a68e13357dbe793da9e9e8 */
 
 #ifndef SWOOLE_LIBRARY_H
 #define SWOOLE_LIBRARY_H
@@ -9570,9 +9570,10 @@ static const char* swoole_library_source_core_coroutine_functions =
     "{\n"
     "    $all_coroutines = Coroutine::listCoroutines();\n"
     "    $count          = Coroutine::stats()['coroutine_num'];\n"
-    "    echo \"\\n===================================================================\",\n"
-    "    \"\\n [FATAL ERROR]: all coroutines (count: {$count}) are asleep - deadlock!\",\n"
-    "    \"\\n===================================================================\\n\";\n"
+    "    echo \"\\n ===================================================================\",\n"
+    "    \"\\n  [FATAL ERROR]: all coroutines (count: {$count}) are asleep - deadlock!\",\n"
+    "    \"\\n ===================================================================\",\n"
+    "    \"\\n \";\n"
     "\n"
     "    $options = Coroutine::getOptions();\n"
     "    if (empty($options['deadlock_check_disable_trace'])) {\n"
@@ -9581,9 +9582,9 @@ static const char* swoole_library_source_core_coroutine_functions =
     "        $depth = empty($options['deadlock_check_depth']) ? 32 : intval($options['deadlock_check_depth']);\n"
     "        foreach ($all_coroutines as $cid) {\n"
     "            echo \"\\n [Coroutine-{$cid}]\";\n"
-    "            echo \"\\n--------------------------------------------------------------------\\n\";\n"
+    "            echo \"\\n --------------------------------------------------------------------\\n\";\n"
     "            echo Coroutine::printBackTrace($cid, DEBUG_BACKTRACE_IGNORE_ARGS, $depth);\n"
-    "            echo \"\\n\";\n"
+    "            echo \"\\n \";\n"
     "            $index++;\n"
     "            // limit the number of maximum outputs\n"
     "            if ($index >= $limit) {\n"

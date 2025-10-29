@@ -477,9 +477,10 @@ void PHPCoroutine::deadlock_check() {
     if (SWOOLE_G(enable_library)) {
         zend::function::call(R"(\Swoole\Coroutine\deadlock_check)", 0, nullptr);
     } else {
-        printf("\n==================================================================="
-               "\n [FATAL ERROR]: all coroutines (count: %lu) are asleep - deadlock!"
-               "\n===================================================================\n",
+        printf("\n ==================================================================="
+               "\n  [FATAL ERROR]: all coroutines (count: %lu) are asleep - deadlock!"
+               "\n ==================================================================="
+        	   "\n ",
                Coroutine::count());
     }
 }
