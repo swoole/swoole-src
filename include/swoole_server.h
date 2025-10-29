@@ -84,9 +84,7 @@ struct Connection {
     uint8_t high_watermark;
     uint8_t http_upgrade;
     uint8_t http2_stream;
-#ifdef SW_HAVE_ZLIB
     uint8_t websocket_compression;
-#endif
     // If it is equal to 1, it means server actively closed the connection
     uint8_t close_actively;
     uint8_t closed;
