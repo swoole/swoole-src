@@ -49,10 +49,10 @@
         <email>doubaokun@php.net</email>
         <active>yes</active>
     </developer>
-    <date>2025-10-15</date>
-    <time>16:00:00</time>
+    <date>2025-10-30</date>
+    <time>22:00:00</time>
     <version>
-        <release>6.1.0</release>
+        <release>6.1.1</release>
         <api>6.0</api>
     </version>
     <stability>
@@ -61,32 +61,13 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        Major Changes in Swoole 6.1.0
-        1. Introduction of "Standard Library Extensions" - Revolutionary Syntax Enhancements
-        This is the most eye-catching feature at the language level in this update, allowing object-oriented operations on basic types.
-        Object-Oriented Basic Types: Methods can be called directly on variables of basic types like string, array, and stream (e.g., $text->length()->lower()), greatly improving code readability and development experience.
-        Typed Arrays: Introduced the typed_array syntax, allowing constraints on key and value types, with type checks performed on write operations, enhancing code robustness.
+        🐛 Bug Fixes
+        - Fixed a compilation failure caused by missing `zlib` dependency.
+        - Optimized the resource management logic in the `curl` module to prevent use-after-free risks.
+        - Resolved the absence of `fdatasync` on macOS systems.
 
-        2. A Major Leap in Underlying Architecture and Stability
-        This version invests heavily in code quality and stability, laying a solid foundation for future development.
-        Significant Increase in Test Coverage to 86%: By systematically adding test cases, potential errors are greatly reduced, improving the overall reliability and maintainability of the project.
-        Large-Scale Code Refactoring and Static Analysis: Refactored multiple core modules like Reactor, SSL, and Socket, and used clang-tidy for code standardization, significantly improving code quality and performance.
-
-        3. Major Simplification and Unification of the Lock API
-        A groundbreaking refactoring of the core component for concurrent programming – the lock.
-        API Simplification: Removed methods like lockwait and trylock, retaining only three core methods – __construct, lock, and unlock – for Swoole\Coroutine\Lock, Swoole\Lock, and Swoole\Thread\Lock.
-        Unified Behavior: The new API design is closer to PHP's native flock function, reducing the learning curve, and uses standard constants like LOCK_EX | LOCK_NB to implement advanced features such as non-blocking.
-
-        4. Enhanced Coroutine Capabilities and Fine-Grained Control
-        More flexible coroutine operation capabilities.
-        Coroutine Cancellation Mechanism: Swoole\Coroutine::cancel() now includes a $throw_exception parameter, allowing a catchable Swoole\Coroutine\CanceledException to be thrown into the target coroutine upon cancellation, enabling safer and more controllable coroutine lifecycle management.
-        Coroutine State Isolation for Serialization Operations: Fixed the issue of global state isolation for serialize/unserialize in coroutine environments. Global variables related to serialization are now automatically saved and restored during coroutine switches, ensuring isolated serialization contexts for each coroutine.
-
-        5. Default HTTP Parser Upgrade, Websocket Feature Enhancements, and Platform Compatibility Improvements
-        Important improvements in performance and compatibility.
-        llHTTP Enabled by Default: Replaced the old http_parser with the more performant and modern llhttp, improving the efficiency and reliability of HTTP processing.
-        WebSocket Feature Enhancements: Both client and server now support receiving fragmented messages, actively disconnecting (disconnect), and sending Ping frames (ping), making the WebSocket protocol implementation more complete.
-        Deprecating Select, Embracing Poll: Completely deprecated the flawed select event mechanism. On platforms that do not support epoll/kqueue (like Cygwin), poll is now used by default, enabling support for a large number of concurrent connections on these platforms as well.
+        🛠️ Kernel Optimizations
+        - Improved the log output format for coroutine deadlock detection.
     </notes>
     <contents>
         <dir name="/">
@@ -179,6 +160,7 @@
             <file role="src" name="core-tests/src/server/multipart_parser.cpp" />
             <file role="src" name="core-tests/src/server/port.cpp" />
             <file role="src" name="core-tests/src/server/server.cpp" />
+            <file role="doc" name="docs/API.md" />
             <file role="doc" name="docs/CHANGELOG.md" />
             <file role="doc" name="docs/CODE-STYLE.md" />
             <file role="src" name="docs/CPPLINT.cfg" />
@@ -773,6 +755,7 @@
             <file role="src" name="scripts/simple-compile.sh" />
             <file role="src" name="src/core/base.cc" />
             <file role="src" name="src/core/base64.cc" />
+            <file role="src" name="src/core/buffer.cc" />
             <file role="src" name="src/core/channel.cc" />
             <file role="src" name="src/core/crc32.cc" />
             <file role="src" name="src/core/error.cc" />
@@ -796,7 +779,6 @@
             <file role="src" name="src/lock/mutex.cc" />
             <file role="src" name="src/lock/rw_lock.cc" />
             <file role="src" name="src/lock/spin_lock.cc" />
-            <file role="src" name="src/memory/buffer.cc" />
             <file role="src" name="src/memory/fixed_pool.cc" />
             <file role="src" name="src/memory/global_memory.cc" />
             <file role="src" name="src/memory/ring_buffer.cc" />
@@ -2516,6 +2498,8 @@
             <file role="test" name="tests/swoole_thread/server/send_large_packet.phpt" />
             <file role="test" name="tests/swoole_thread/server/setting.phpt" />
             <file role="test" name="tests/swoole_thread/server/stop_worker.phpt" />
+            <file role="test" name="tests/swoole_thread/server/taskCo.phpt" />
+            <file role="test" name="tests/swoole_thread/server/taskWaitMulti.phpt" />
             <file role="test" name="tests/swoole_thread/server/udp_port.phpt" />
             <file role="test" name="tests/swoole_thread/server/websocket.phpt" />
             <file role="test" name="tests/swoole_thread/shell_exec.phpt" />
@@ -2794,6 +2778,7 @@
         <required>
             <php>
                 <min>8.1.0</min>
+                <max>8.4.99</max>
             </php>
             <pearinstaller>
                 <min>1.4.0</min>
