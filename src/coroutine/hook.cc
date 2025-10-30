@@ -49,8 +49,10 @@ using swoole::Iouring;
 static std::unordered_map<int, std::shared_ptr<Socket>> socket_map;
 static std::mutex socket_map_lock;
 
-#ifdef __APPLE__
-extern int fdatasync(int);
+#if defined(__APPLE__) || defined(__MACH__)
+static int fdatasync(int fd) {
+    return fcntl(fd, F_FULLFSYNC);
+}
 #endif
 
 static sw_inline bool is_no_coro() {
