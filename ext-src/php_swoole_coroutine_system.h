@@ -34,6 +34,7 @@ PHP_METHOD(swoole_coroutine_system, fgets);
 PHP_METHOD(swoole_coroutine_system, fwrite);
 PHP_METHOD(swoole_coroutine_system, statvfs);
 PHP_METHOD(swoole_coroutine_system, getaddrinfo);
+PHP_METHOD(swoole_coroutine_system, openFile);
 PHP_METHOD(swoole_coroutine_system, readFile);
 PHP_METHOD(swoole_coroutine_system, writeFile);
 PHP_METHOD(swoole_coroutine_system, wait);
