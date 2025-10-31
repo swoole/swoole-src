@@ -635,12 +635,11 @@ static void debug_val(const char *tag, int op_type, zval *value) {
 #endif
 
 // In a release version, this function suddenly changes from static to ZEND_API.
-// We don't know which version it is. In principle,The ZEND_API should not be changed in the release version, 
+// We don't know which version it is. In principle, the ZEND_API should not be changed in the release version,
 // but PHP still does so, which is against the R&D specification. We have to copy the code of this function once.
 #define zend_cannot_add_element sw_zend_cannot_add_element
-static zend_never_inline ZEND_COLD void ZEND_FASTCALL sw_zend_cannot_add_element(void)
-{
-	zend_throw_error(NULL, "Cannot add element to the array as the next element is already occupied");
+static zend_never_inline ZEND_COLD void ZEND_FASTCALL sw_zend_cannot_add_element(void) {
+    zend_throw_error(NULL, "Cannot add element to the array as the next element is already occupied");
 }
 
 static void array_add_or_update(const zend_op *opline, zval *container, const zval *key, zval *value EXECUTE_DATA_DC) {

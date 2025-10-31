@@ -33,8 +33,10 @@ Co\run(function () {
 
     global $count, $running;
     $running = false;
-    Assert::true($count >= 1);
-
+    // Iouring is too fast, no coroutine switching will occur, and the file has already been completed
+    if (!defined('SWOOLE_IOURING_DEFAULT')) {
+        Assert::true($count >= 1);
+    }
     Swoole\Runtime::enableCoroutine(false);
     Assert::same(md5($content), md5_file(TEST_IMAGE));
 });
