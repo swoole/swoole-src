@@ -137,6 +137,7 @@ BEGIN_EXTERN_C()
 //--------------------------------------------------------
 #define SW_MAX_FIND_COUNT 100  // for swoole_server::connection_list
 #define SW_PHP_CLIENT_BUFFER_SIZE 65535
+#define SW_ASYNC_FILE_PROTOCOL "async.file"
 //--------------------------------------------------------
 enum php_swoole_client_callback_type {
     SW_CLIENT_CB_onConnect = 1,

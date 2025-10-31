@@ -1163,6 +1163,9 @@ static php_stream *php_plain_files_stream_opener(php_stream_wrapper *wrapper,
                                  int options,
                                  zend_string **opened_path,
                                  php_stream_context *context STREAMS_DC) {
+    if (SW_STR_ISTARTS_WITH(path, strlen(path), SW_ASYNC_FILE_PROTOCOL "://")) {
+        path += sizeof(SW_ASYNC_FILE_PROTOCOL "://") - 1;
+    }
     if (((options & STREAM_DISABLE_OPEN_BASEDIR) == 0) && php_check_open_basedir(path)) {
         return NULL;
     }

@@ -279,6 +279,8 @@ void php_swoole_runtime_minit(int module_number) {
     swoole_native_curl_minit(module_number);
 #endif
     swoole_proc_open_init(module_number);
+
+    php_register_url_stream_wrapper(SW_ASYNC_FILE_PROTOCOL, &sw_php_plain_files_wrapper);
 }
 
 struct PhpFunc {
