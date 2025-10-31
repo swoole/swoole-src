@@ -41,7 +41,6 @@ static const zend_function_entry swoole_coroutine_system_methods[] =
     PHP_ME(swoole_coroutine_system, sleep,                                   arginfo_class_Swoole_Coroutine_System_sleep,         ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_system, getaddrinfo,                             arginfo_class_Swoole_Coroutine_System_getaddrinfo,   ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_system, statvfs,                                 arginfo_class_Swoole_Coroutine_System_statvfs,       ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_system, openFile,                                arginfo_class_Swoole_Coroutine_System_openFile,      ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_system, readFile,                                arginfo_class_Swoole_Coroutine_System_readFile,      ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_system, writeFile,                               arginfo_class_Swoole_Coroutine_System_writeFile,     ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_system, wait,                                    arginfo_class_Swoole_Coroutine_System_wait,          ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -71,39 +70,6 @@ PHP_METHOD(swoole_coroutine_system, sleep) {
         RETURN_FALSE;
     }
     RETURN_BOOL(System::sleep(seconds) == 0);
-}
-
-PHP_METHOD(swoole_coroutine_system, openFile) {
-    char *filename, *mode;
-    size_t filename_len, mode_len;
-    bool use_include_path = false;
-    zval *zcontext = nullptr;
-
-    ZEND_PARSE_PARAMETERS_START(2, 4)
-    Z_PARAM_PATH(filename, filename_len)
-    Z_PARAM_STRING(mode, mode_len)
-    Z_PARAM_OPTIONAL
-    Z_PARAM_BOOL(use_include_path)
-    Z_PARAM_RESOURCE_OR_NULL(zcontext)
-    ZEND_PARSE_PARAMETERS_END();
-
-    auto context = static_cast<php_stream_context *>(php_stream_context_from_zval(zcontext, 0));
-
-    char path[PATH_MAX] = SW_ASYNC_FILE_PROTOCOL "://";
-    if (filename_len + sizeof(SW_ASYNC_FILE_PROTOCOL "://") - 1 >= PATH_MAX) {
-        php_swoole_fatal_error(E_WARNING, "The given file name is too long");
-        RETURN_FALSE;
-    }
-
-    memcpy(path + sizeof(SW_ASYNC_FILE_PROTOCOL "://") - 1, filename, filename_len);
-    path[sizeof(SW_ASYNC_FILE_PROTOCOL "://") - 1 + filename_len] = 0;
-
-    php_stream *stream =
-        php_stream_open_wrapper_ex(path, mode, (use_include_path ? USE_PATH : 0) | REPORT_ERRORS, NULL, context);
-    if (stream == nullptr) {
-        RETURN_FALSE;
-    }
-    php_stream_to_zval(stream, return_value);
 }
 
 PHP_METHOD(swoole_coroutine_system, readFile) {
