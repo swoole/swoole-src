@@ -22,6 +22,8 @@
 #include "php.h"
 #include "php_ini.h"
 #include "ext/standard/info.h"
+#include "ext/pdo/php_pdo_driver.h"
+#include "php_pdo_sqlite_int.h"
 #include "pdo/php_pdo.h"
 #include "zend_exceptions.h"
 #include "sqlite_driver_arginfo.h"
