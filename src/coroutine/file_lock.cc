@@ -20,10 +20,8 @@
 #include "swoole_coroutine_api.h"
 
 using swoole::Coroutine;
-using swoole::coroutine::async;
 using swoole::coroutine::wait_for;
 
-#ifdef LOCK_NB
 static inline int do_lock(int fd, int operation) {
     int retval = 0;
     auto success = wait_for([&retval, operation, fd]() {
@@ -51,19 +49,12 @@ static inline int lock_sh(int fd) {
 static inline int lock_release(int fd) {
     return flock(fd, LOCK_UN);
 }
-#endif
 
 int swoole_coroutine_flock(int fd, int operation) {
     Coroutine *co = Coroutine::get_current();
     if (sw_unlikely(SwooleTG.reactor == nullptr || !co)) {
         return ::flock(fd, operation);
     }
-
-#ifndef LOCK_NB
-    int retval = -1;
-    async([&]() { retval = flock(fd, operation); });
-    return retval;
-#else
     if (operation & LOCK_NB) {
         return ::flock(fd, operation);
     }
@@ -80,5 +71,4 @@ int swoole_coroutine_flock(int fd, int operation) {
     errno = EINVAL;
     swoole_set_last_error(EINVAL);
     return -1;
-#endif
 }
