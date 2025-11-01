@@ -2,7 +2,6 @@
 swoole_runtime/file_lock: file_lock_1
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc';
-die("skip not support");
 ?>
 --FILE--
 <?php
