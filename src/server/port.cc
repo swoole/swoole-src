@@ -564,7 +564,7 @@ _parse:
                          request->chunked);
         if (request->form_data_) {
             if (serv->upload_max_filesize > 0 &&
-                request->header_length_ + request->content_length_ > request->max_length_) {
+                (request->header_length_ + request->content_length_) < request->max_length_) {
                 request->init_multipart_parser(serv);
 
                 buffer = request->buffer_;
