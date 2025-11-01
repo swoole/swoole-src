@@ -17,7 +17,7 @@
 #define SW_USE_SQLITE_HOOK
 #include "php_swoole_sqlite.h"
 
-#if PHP_VERSION_ID >= 80400
+#if PHP_VERSION_ID >= 80400 && PHP_VERSION_ID < 80500
 #include "php.h"
 #include "php_ini.h"
 #include "ext/standard/info.h"
