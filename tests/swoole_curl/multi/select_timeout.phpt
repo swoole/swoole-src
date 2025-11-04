@@ -1,16 +1,15 @@
 --TEST--
-swoole_curl: select twice
+swoole_curl/multi: select timeout
 --SKIPIF--
 <?php
-require __DIR__ . '/../include/skipif.inc';
+require __DIR__ . '/../../include/skipif.inc';
 ?>
 --FILE--
 <?php
-require __DIR__ . '/../include/bootstrap.php';
-require_once TESTS_API_PATH.'/curl_multi.php';
+require __DIR__ . '/../../include/bootstrap.php';
+require_once TESTS_API_PATH . '/curl_multi.php';
 
 use Swoole\Runtime;
-use Swoole\Coroutine;
 use Swoole\Coroutine\Server;
 use Swoole\Coroutine\Server\Connection;
 use Swoole\Coroutine\System;
@@ -20,7 +19,7 @@ use Swoole\Http\Response;
 use function Swoole\Coroutine\run;
 use function Swoole\Coroutine\go;
 
-const TIMEOUT = 1.5;
+const TIMEOUT = 0.5;
 
 $pm = new SwooleTest\ProcessManager;
 
@@ -48,24 +47,22 @@ $pm->parentFunc = function () use ($pm) {
 
         $now = microtime(true);
 
-        $cid = Coroutine::getCid();
-        go(function () use($cid) {
-            System::sleep(0.005);
-            Coroutine::cancel($cid);
-        });
-
         while ($active && $mrc == CURLM_OK) {
+            $tm = microtime(true);
             $n = curl_multi_select($mh, TIMEOUT);
-            phpt_var_dump('return value：'.$n);
-            phpt_var_dump('swoole error：'.swoole_last_error());
+            Assert::lessThan(microtime(true) - $tm, TIMEOUT + 0.05);
+
+            $error = swoole_last_error();
+            phpt_var_dump('select return value: '.$n);
+            phpt_var_dump('swoole error: '.$error);
             if ($n != -1) {
                 do {
                     $mrc = curl_multi_exec($mh, $active);
+                    phpt_var_dump('exec return value: '.$mrc);
                 } while ($mrc == CURLM_CALL_MULTI_PERFORM);
             }
-            if (Coroutine::isCanceled()) {
-                Assert::eq(swoole_last_error(), SWOOLE_ERROR_CO_CANCELED);
-                echo "CANCELED\n";
+            if (microtime(true) - $now >= TIMEOUT * 4) {
+                echo "TIMEOUT\n";
                 break;
             }
         }
@@ -79,7 +76,7 @@ $pm->parentFunc = function () use ($pm) {
 };
 $pm->childFunc = function () use ($pm) {
     $http = new Swoole\Http\Server("127.0.0.1", $pm->getFreePort(), SWOOLE_PROCESS);
-    $http->set(['worker_num' => 1, 'log_file' => '/dev/null']);
+    $http->set(['worker_num' => 1, 'log_file' => '/dev/null', 'max_wait_time' => 1,]);
     $http->on("start", function ($server) use ($pm) {
         $pm->wakeup();
     });
@@ -92,5 +89,5 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-CANCELED
+TIMEOUT
 Done

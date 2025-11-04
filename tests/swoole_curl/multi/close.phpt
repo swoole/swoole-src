@@ -1,12 +1,12 @@
 --TEST--
-swoole_curl: multi dtor
+swoole_curl/multi: clean handle
 --SKIPIF--
 <?php
-require __DIR__ . '/../include/skipif.inc';
+require __DIR__ . '/../../include/skipif.inc';
 ?>
 --FILE--
 <?php
-require __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../../include/bootstrap.php';
 require_once TESTS_API_PATH.'/curl_multi.php';
 
 use Swoole\Runtime;
@@ -22,6 +22,8 @@ run(function () {
 
     $mh = curl_multi_init();
     curl_multi_add_handle($mh, $ch1);
+    curl_multi_close($mh);
+
     echo "Done\n";
 });
 ?>
