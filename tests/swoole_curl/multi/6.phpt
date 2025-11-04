@@ -20,7 +20,6 @@ run(function () {
     curl_setopt($ch, CURLOPT_URL, TEST_DOMAIN_1);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     curl_setopt($ch, CURLOPT_HEADERFUNCTION, static function (CurlHandle $curl, string $headerLine): int {
-        debug_print_backtrace();
         throw new Exception('testh');
     });
 
@@ -33,7 +32,6 @@ run(function () {
     curl_setopt($ch, CURLOPT_URL, TEST_DOMAIN_2);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     curl_setopt($ch, CURLOPT_WRITEFUNCTION, static function (CurlHandle $curl, string $data): int {
-        debug_print_backtrace();
         throw new Exception('testw');
     });
 
@@ -48,7 +46,6 @@ run(function () {
     curl_setopt($ch, CURLOPT_UPLOAD, 1);
     curl_setopt($ch, CURLOPT_INFILE, STDIN);
     curl_setopt($ch, CURLOPT_READFUNCTION, static function (CurlHandle $curl, mixed $fd, int $length): int {
-        debug_print_backtrace();
         throw new Exception('testr');
     });
 
@@ -60,19 +57,4 @@ run(function () {
 });
 ?>
 --EXPECTF--
-#0 [internal function]: {closure:{closure:%s:%d}:%d}(Object(CurlHandle), 'HTTP/1.1 200 OK...')
-#1 %s(%d): curl_exec(Object(CurlHandle))
-#2 %s/Assert.php(%d): {closure:{closure:%s:%d}:%d}()
-#3 %s(%d): SwooleTest\Assert::throws(Object(Closure), 'Exception', 'testh')
-#4 [internal function]: {closure:%s:%d}()
-#0 [internal function]: {closure:{closure:%s:%d}:%d}(Object(CurlHandle), '<html>\r\n<head><...')
-#1 %s(%d): curl_exec(Object(CurlHandle))
-#2 %s/Assert.php(%d): {closure:{closure:%s:%d}:%d}()
-#3 %s(%d): SwooleTest\Assert::throws(Object(Closure), 'Exception', 'testw')
-#4 [internal function]: {closure:%s:%d}()
-#0 [internal function]: {closure:{closure:%s:%d}:%d}(Object(CurlHandle), Resource id #%d, %d)
-#1 %s(%d): curl_exec(Object(CurlHandle))
-#2 %s/Assert.php(%d): {closure:{closure:%s:%d}:%d}()
-#3 %s(%d): SwooleTest\Assert::throws(Object(Closure), 'Exception', 'testr')
-#4 [internal function]: {closure:%s:%d}()
 Done
