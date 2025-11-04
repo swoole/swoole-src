@@ -475,11 +475,19 @@ static void bug_report_message_init() {
     SwooleG.bug_report_message += swoole::std_string::format("PHP_VERSION : %s\n", PHP_VERSION);
 }
 
+static int g_module_number_;
+
+int sw_module_number() {
+	return g_module_number_;
+}
+
 /* {{{ PHP_MINIT_FUNCTION
  */
 PHP_MINIT_FUNCTION(swoole) {
     ZEND_INIT_MODULE_GLOBALS(swoole, php_swoole_init_globals, nullptr);
     REGISTER_INI_ENTRIES();
+
+    g_module_number_ = module_number;
 
     // clang-format off
     // MUST be on the same line for the inspection tool to recognize correctly

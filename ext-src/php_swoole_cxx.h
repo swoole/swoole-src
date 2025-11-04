@@ -788,6 +788,14 @@ static inline void print_error(zend_object *exception, int severity) {
     zend_exception_error(exception, severity);
 }
 
+static inline void add_constant(const char *name, zend_long value) {
+	zend_register_long_constant(name, strlen(name), value, CONST_CS | CONST_PERSISTENT, sw_module_number());
+}
+
+static inline void add_constant(const char *name, const char *value) {
+	zend_register_string_constant(name, strlen(name), value, CONST_CS | CONST_PERSISTENT, sw_module_number());
+}
+
 //-----------------------------------namespace end--------------------------------------------
 }  // namespace zend
 

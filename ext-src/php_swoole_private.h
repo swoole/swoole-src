@@ -501,6 +501,8 @@ static inline bool sw_is_main_thread() {
 #endif
 }
 
+int sw_module_number();
+
 #ifdef SW_THREAD
 size_t sw_active_thread_count(void);
 #else
