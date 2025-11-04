@@ -45,6 +45,10 @@ extern void swoole_oracle_set_blocking(bool blocking);
 #ifdef SW_USE_SQLITE
 extern void swoole_sqlite_set_blocking(bool blocking);
 #endif
+
+#ifdef SW_USE_FIREBIRD
+extern void swoole_firebird_set_blocking(bool blocking);
+#endif
 END_EXTERN_C()
 
 /* openssl */
@@ -1493,6 +1497,17 @@ static void hook_pdo_driver(uint32_t flags) {
     } else {
         if (runtime_hook_flags & PHPCoroutine::HOOK_PDO_SQLITE) {
             swoole_sqlite_set_blocking(true);
+        }
+    }
+#endif
+#ifdef SW_USE_FIREBIRD
+    if (flags & PHPCoroutine::HOOK_PDO_FIREBIRD) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_PDO_FIREBIRD)) {
+            swoole_firebird_set_blocking(false);
+        }
+    } else {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_PDO_FIREBIRD) {
+        	swoole_firebird_set_blocking(true);
         }
     }
 #endif

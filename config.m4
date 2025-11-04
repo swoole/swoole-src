@@ -106,6 +106,12 @@ PHP_ARG_ENABLE([swoole-pgsql],
   [AS_HELP_STRING([--enable-swoole-pgsql],
     [Enable postgresql support])], [no], [no])
 
+PHP_ARG_WITH([swoole-firebird],
+  [whether to enable firebird build flags],
+  [AS_HELP_STRING([[--with-swoole-firebird[=DIR]]],
+    [PDO: Async Firebird support. DIR is the Firebird base install directory
+    [/opt/firebird]])])
+
 PHP_ARG_ENABLE([thread-context],
   [whether to enable thread context],
   [AS_HELP_STRING([--enable-thread-context],
@@ -933,6 +939,52 @@ EOF
         AC_DEFINE(SW_USE_SQLITE, 1, [do we enable sqlite coro support])
     fi
     dnl sqlite stop
+    
+    dnl firebird start
+
+    if test "$PHP_SWOOLE_FIREBIRD" != "no"; then
+        if test "$PHP_PDO" = "no" && test "$ext_shared" = "no"; then
+            AC_MSG_ERROR([PDO is not enabled! Add --enable-pdo to your configure line.])
+        fi
+    
+      AC_PATH_PROG([FB_CONFIG], [fb_config], [no])
+    
+      if test -x "$FB_CONFIG" && test "$PHP_PDO_FIREBIRD" = "yes"; then
+        AC_MSG_CHECKING([for libfbconfig])
+        FB_CFLAGS=$($FB_CONFIG --cflags)
+        FB_LIBDIR=$($FB_CONFIG --libs)
+        FB_VERSION=$($FB_CONFIG --version)
+        AC_MSG_RESULT([version $FB_VERSION])
+        AS_VERSION_COMPARE([$FB_VERSION], [3.0],
+          [AC_MSG_ERROR([Firebird required version is at least 3.0])])
+        PHP_EVAL_LIBLINE([$FB_LIBDIR], [SWOOLE_SHARED_LIBADD])
+        PHP_EVAL_INCLINE([$FB_CFLAGS])
+      else
+        AS_VAR_IF([PHP_PDO_FIREBIRD], [yes], [
+          FIREBIRD_INCDIR=
+          FIREBIRD_LIBDIR=
+          FIREBIRD_LIBDIR_FLAG=
+        ], [
+          FIREBIRD_INCDIR=$PHP_PDO_FIREBIRD/include
+          FIREBIRD_LIBDIR=$PHP_PDO_FIREBIRD/$PHP_LIBDIR
+          FIREBIRD_LIBDIR_FLAG=-L$FIREBIRD_LIBDIR
+        ])
+    
+        PHP_CHECK_LIBRARY([fbclient], [fb_get_master_interface],
+          [],
+          [AC_MSG_FAILURE([libfbclient not found.])],
+          [$FIREBIRD_LIBDIR_FLAG])
+        PHP_ADD_LIBRARY_WITH_PATH([fbclient],
+          [$FIREBIRD_LIBDIR],
+          [SWOOLE_SHARED_LIBADD])
+        PHP_ADD_INCLUDE([$FIREBIRD_INCDIR])
+      fi
+    
+      PHP_CHECK_PDO_INCLUDES
+      AC_DEFINE(SW_USE_FIREBIRD, 1, [do we enable firebird coro support])
+    fi
+
+    dnl firebird stop
 
     AC_CHECK_LIB(z, gzgets, [
         AC_DEFINE(SW_HAVE_ZLIB, 1, [have zlib])
@@ -1250,6 +1302,13 @@ EOF
                 ${SW_PHP_THIRDPARTY_DIR}/pdo_sqlite/sqlite_sql_parser.c"
         fi
     fi
+    
+    if test "$PHP_SWOOLE_FIREBIRD" != "no"; then
+        swoole_source_file="$swoole_source_file \
+            thirdparty/php84/pdo_firebird/firebird_driver.c \
+            thirdparty/php84/pdo_firebird/firebird_statement.c \
+            thirdparty/php84/pdo_firebird/pdo_firebird_utils.cpp"
+    fi
 
     SW_ASM_DIR="thirdparty/boost/asm/"
     SW_USE_ASM_CONTEXT="yes"
@@ -1428,5 +1487,8 @@ EOF
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php81/pdo_sqlite)
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php83/pdo_sqlite)
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/pdo_sqlite)
+    fi
+    if test "$PHP_SWOOLE_FIREBIRD" != "no"; then
+        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/pdo_firebird)
     fi
 fi
