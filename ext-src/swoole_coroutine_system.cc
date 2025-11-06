@@ -31,8 +31,8 @@ using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 
 enum FileOperateFlag {
-	SW_FILE_LOCK = LOCK_EX,
-	SW_FILE_APPEND = PHP_FILE_APPEND,
+    SW_FILE_LOCK = LOCK_EX,
+    SW_FILE_APPEND = PHP_FILE_APPEND,
 };
 
 static zend_class_entry *swoole_coroutine_system_ce;
@@ -62,10 +62,7 @@ void php_swoole_coroutine_system_minit(int module_number) {
         swoole_coroutine_system, "Swoole\\Coroutine\\System", "Co\\System", swoole_coroutine_system_methods, nullptr);
     SW_SET_CLASS_CREATE(swoole_coroutine_system, sw_zend_create_object_deny);
 
-#if 0
-    zend::add_constant("SWOOLE_FILE_LOCK", SW_FILE_LOCK);
-    zend::add_constant("SWOOLE_FILE_APPEND", SW_FILE_APPEND);
-#endif
+    zend::add_constant("FILE_LOCK", SW_FILE_LOCK);
 }
 
 PHP_METHOD(swoole_coroutine_system, sleep) {
