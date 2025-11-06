@@ -315,6 +315,28 @@ bool Socket::init_sock() {
     return true;
 }
 
+bool Socket::reinit_sock(SocketType _type) {
+    int _sock_domain;
+    int _sock_type;
+    network::Socket::get_domain_and_type(_type, &_sock_domain, &_sock_type);
+
+    auto new_sock = make_socket(
+        _type, SW_FD_CO_SOCKET, _sock_domain, _sock_type, sock_protocol, SW_SOCK_NONBLOCK | SW_SOCK_CLOEXEC);
+    if (socket == nullptr) {
+        return false;
+    }
+
+    socket->free();
+    socket = new_sock;
+    socket->object = this;
+    socket->info.type = type;
+    sock_domain = _sock_domain;
+    sock_type = _sock_type;
+    type = _type;
+    sock_fd = socket->fd;
+    return true;
+}
+
 bool Socket::init_reactor_socket(int _fd) {
     socket = make_socket(_fd, SW_FD_CO_SOCKET);
     sock_fd = _fd;
@@ -559,6 +581,18 @@ bool Socket::connect(const std::string &_host, int _port, int flags) {
     } else {
         connect_host = _host;
         connect_port = _port;
+    }
+
+    if (socks5_proxy || http_proxy) {
+        if (socket->is_inet6()) {
+            if (network::Address::verify_ip(AF_INET, connect_host) && !reinit_sock(SW_SOCK_TCP)) {
+                return false;
+            }
+        } else if (socket->is_inet4()) {
+            if (network::Address::verify_ip(AF_INET6, connect_host) && !reinit_sock(SW_SOCK_TCP6)) {
+                return false;
+            }
+        }
     }
 
     NameResolver::Context *ctx = resolve_context_;
