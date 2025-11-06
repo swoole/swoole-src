@@ -1067,6 +1067,12 @@ SW_API bool php_swoole_socket_set(Socket *cli, const zval *zset) {
      * socks5 proxy
      */
     if (php_swoole_array_get_value(vht, "socks5_host", ztmp)) {
+        if (!cli->get_socket()->is_inet()) {
+            zend_throw_exception_ex(
+                swoole_exception_ce, SW_ERROR_OPERATION_NOT_SUPPORT, "Only tcp socket supports socks5 proxy settings");
+            return false;
+        }
+
         zend::String host(ztmp);
         if (php_swoole_array_get_value(vht, "socks5_port", ztmp)) {
             std::string user, pwd;
@@ -1090,6 +1096,11 @@ SW_API bool php_swoole_socket_set(Socket *cli, const zval *zset) {
      * http proxy
      */
     else if (php_swoole_array_get_value(vht, "http_proxy_host", ztmp)) {
+        if (!cli->get_socket()->is_inet()) {
+            zend_throw_exception_ex(
+                swoole_exception_ce, SW_ERROR_OPERATION_NOT_SUPPORT, "Only tcp socket supports http proxy settings");
+            return false;
+        }
         zend::String host(ztmp);
         if (php_swoole_array_get_value(vht, "http_proxy_port", ztmp)) {
             std::string user, pwd;
