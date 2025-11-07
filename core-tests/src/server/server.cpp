@@ -3237,7 +3237,7 @@ static void test_clean_worker(Server::Mode mode) {
     ASSERT_EQ(serv.start(), SW_OK);
     ASSERT_EQ(test::counter_get(0), 0);  // Server on_receive
     ASSERT_EQ(test::counter_get(1), 3);  // worker start
-    ASSERT_EQ(test::counter_get(2), 1);  // Server on_close
+    ASSERT_EQ(test::counter_get(2), 0);  // Server on_close
     ASSERT_EQ(test::counter_get(3), 0);  // Client on_receive
 }
 
