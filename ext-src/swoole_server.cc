@@ -3721,7 +3721,7 @@ static PHP_METHOD(swoole_server, exists) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     Connection *conn = serv->get_connection_verify(session_id);
-    if (!conn || conn->closed) {
+    if (!conn || conn->closed || conn->closing) {
         RETURN_FALSE;
     } else {
         RETURN_TRUE;
