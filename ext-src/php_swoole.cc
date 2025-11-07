@@ -478,7 +478,7 @@ static void bug_report_message_init() {
 static int g_module_number_;
 
 int sw_module_number() {
-	return g_module_number_;
+    return g_module_number_;
 }
 
 /* {{{ PHP_MINIT_FUNCTION
@@ -544,10 +544,6 @@ PHP_MINIT_FUNCTION(swoole) {
      */
     SW_REGISTER_BOOL_CONSTANT("SWOOLE_SOCK_SYNC", 0);
     SW_REGISTER_BOOL_CONSTANT("SWOOLE_SOCK_ASYNC", 1);
-
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_SYNC", SW_FLAG_SYNC);
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_ASYNC", SW_FLAG_ASYNC);
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_KEEP", SW_FLAG_KEEP);
 
 #ifdef SW_USE_OPENSSL
     SW_REGISTER_LONG_CONSTANT("SWOOLE_SSL", SW_SOCK_SSL);

@@ -351,17 +351,24 @@ Client::~Client() {
         buffer = nullptr;
     }
     if (async) {
+        // The object must be set to empty here, indicating that the client has been released in the onClose callback
+        socket->object = nullptr;
         socket->free();
     } else {
         delete socket;
     }
 }
 
+/**
+ * There are two situations, 1 While maintaining the connection, the user actively calls the close function to close the
+ * connection. 2 Received readable or writable, close event, and executed the close function at the underlying level
+ */
 int Client::close() {
     if (socket == nullptr || closed) {
         return SW_ERR;
     }
     closed = true;
+    auto _socket = socket;
 
 #ifdef SW_USE_OPENSSL
     if (open_ssl && ssl_context) {
@@ -383,22 +390,21 @@ int Client::close() {
             swoole_timer_del(timer);
             timer = nullptr;
         }
-        // onClose callback
+        // execute `onClose` callback
         if (active) {
             active = false;
+            // In the `onClose` callback, the destructor may be executed and the C++ object will be released
             onClose(this);
         }
     } else {
         active = false;
     }
 
-    if (socket->fd == -1) {
+    if (_socket->object == nullptr) {
         return SW_OK;
     }
 
-    /**
-     * fd marked -1, prevent double close
-     */
+    // Set `socket->fd` to -1 to prevent duplicate closure of file descriptors
     const int fd = socket->fd;
     socket->fd = -1;
     swoole_trace_log(SW_TRACE_CLIENT, "fd=%d", fd);
