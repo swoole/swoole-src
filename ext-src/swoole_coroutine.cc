@@ -480,7 +480,7 @@ void PHPCoroutine::deadlock_check() {
         printf("\n ==================================================================="
                "\n  [FATAL ERROR]: all coroutines (count: %lu) are asleep - deadlock! "
                "\n ==================================================================="
-        	   "\n",
+               "\n",
                Coroutine::count());
     }
 }
