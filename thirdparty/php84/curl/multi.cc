@@ -376,24 +376,6 @@ PHP_FUNCTION(swoole_native_curl_multi_errno) {
 }
 /* }}} */
 
-/* {{{ return string describing error code */
-PHP_FUNCTION(swoole_native_curl_multi_strerror) {
-    zend_long code;
-    const char *str;
-
-    ZEND_PARSE_PARAMETERS_START(1, 1)
-    Z_PARAM_LONG(code)
-    ZEND_PARSE_PARAMETERS_END();
-
-    str = curl_multi_strerror((CURLMcode) code);
-    if (str) {
-        RETURN_STRING(str);
-    } else {
-        RETURN_NULL();
-    }
-}
-/* }}} */
-
 static int _php_server_push_callback(
     CURL *parent_ch, CURL *easy, size_t num_headers, struct curl_pushheaders *push_headers, void *userp) /* {{{ */
 {
