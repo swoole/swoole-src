@@ -45,6 +45,8 @@
 #include <zstd.h>
 #endif
 
+#define HTTP_API
+
 #include <nghttp2/nghttp2.h>
 
 enum swHttpHeaderFlag {
@@ -209,16 +211,15 @@ struct Context {
         const char *at, size_t length, size_t offset, char **out_boundary_str, int *out_boundary_len);
     size_t parse(const char *data, size_t length);
     bool parse_multipart_data(const char *at, size_t length) const;
-    bool set_header(const char *, size_t, zval *, bool);
-    bool set_header(const char *, size_t, const char *, size_t, bool);
-    bool set_header(const char *, size_t, const std::string &, bool);
-    void end(zval *zdata, zval *return_value);
-    void write(zval *zdata, zval *return_value);
-    bool send_file(const char *file, uint32_t l_file, off_t offset, size_t length);
-    void send_trailer(zval *return_value);
+
+    HTTP_API bool set_header(const char *, size_t, zval *, bool);
+    HTTP_API bool set_header(const char *, size_t, const char *, size_t, bool);
+    HTTP_API bool set_header(const char *, size_t, const std::string &, bool);
+    HTTP_API void end(zval *zdata, zval *return_value);
+    HTTP_API void write(zval *zdata, zval *return_value);
+    HTTP_API bool send_file(const char *file, uint32_t l_file, off_t offset, size_t length);
+
     String *get_write_buffer();
-    void build_header(String *http_buffer, const char *body, size_t length);
-    ssize_t build_trailer(String *http_buffer) const;
 
     size_t get_content_length() const {
         return parser.content_length;
@@ -230,12 +231,13 @@ struct Context {
     bool compress(const char *data, size_t length);
 #endif
 
-    void http2_end(zval *zdata, zval *return_value);
-    void http2_write(zval *zdata, zval *return_value);
-    bool http2_send_file(const char *file, uint32_t l_file, off_t offset, size_t length);
-
     bool is_available() const;
     void free();
+
+  private:
+    void build_header(String *http_buffer, const char *body, size_t length);
+    ssize_t build_trailer(String *http_buffer) const;
+    void send_trailer(zval *return_value);
 };
 
 class Cookie {

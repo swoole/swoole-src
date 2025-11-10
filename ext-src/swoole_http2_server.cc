@@ -38,7 +38,6 @@ using Http2Session = Http2::Session;
 static SW_THREAD_LOCAL std::unordered_map<SessionId, std::shared_ptr<Http2Session>> http2_sessions;
 
 static bool http2_server_respond(HttpContext *ctx, const String *body);
-static bool http2_server_write(HttpContext *ctx, const String *chunk);
 static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handler);
 
 Http2Stream::Stream(const Http2Session *client, uint32_t _id) {
@@ -686,7 +685,25 @@ static bool http2_server_send_data(const HttpContext *ctx,
     return !error;
 }
 
-static bool http2_server_write(HttpContext *ctx, const String *chunk) {
+bool swoole_http2_server_end(HttpContext *ctx, zval *zdata) {
+    String http_body = {};
+    if (zdata) {
+        http_body.length = php_swoole_get_send_data(zdata, &http_body.str);
+    } else {
+        http_body.length = 0;
+        http_body.str = nullptr;
+    }
+    return http2_server_respond(ctx, &http_body);
+}
+
+bool swoole_http2_server_write(HttpContext *ctx, zval *zdata) {
+    String chunk = {};
+    chunk.length = php_swoole_get_send_data(zdata, &chunk.str);
+    if (chunk.length == 0) {
+        php_swoole_error_ex(E_WARNING, SW_ERROR_NO_PAYLOAD, "the data sent must not be empty");
+        return false;
+    }
+
     auto client = http2_sessions[ctx->fd];
     auto stream = client->get_stream(ctx->stream_id);
 
@@ -696,7 +713,7 @@ static bool http2_server_write(HttpContext *ctx, const String *chunk) {
         return false;
     }
 
-    if (!http2_server_send_data(ctx, client, stream, chunk, false)) {
+    if (!http2_server_send_data(ctx, client, stream, &chunk, false)) {
         return false;
     }
 
@@ -873,13 +890,13 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
     return true;
 }
 
-bool HttpContext::http2_send_file(const char *file, uint32_t l_file, off_t offset, size_t length) {
-    auto client = http2_sessions[fd];
-    auto stream = client->get_stream(stream_id);
+bool swoole_http2_server_send_file(HttpContext *ctx, const char *file, uint32_t l_file, off_t offset, size_t length) {
+    auto client = http2_sessions[ctx->fd];
+    auto stream = client->get_stream(ctx->stream_id);
     std::shared_ptr<String> body;
 
 #ifdef SW_HAVE_COMPRESSION
-    accept_compression = 0;
+    ctx->accept_compression = 0;
 #endif
     if (swoole_coroutine_is_in()) {
         body = System::read_file(file, false);
@@ -896,15 +913,15 @@ bool HttpContext::http2_send_file(const char *file, uint32_t l_file, off_t offse
     body->length = SW_MIN(length, body->length);
 
     zval *ztrailer =
-        sw_zend_read_property_ex(swoole_http_response_ce, response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TRAILER), 0);
+        sw_zend_read_property_ex(swoole_http_response_ce, ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TRAILER), 0);
     if (php_swoole_array_length_safe(ztrailer) == 0) {
         ztrailer = nullptr;
     }
 
     zval *zheader =
-        sw_zend_read_and_convert_property_array(swoole_http_response_ce, response.zobject, ZEND_STRL("header"), 0);
+        sw_zend_read_and_convert_property_array(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("header"), 0);
     if (!zend_hash_str_exists(Z_ARRVAL_P(zheader), ZEND_STRL("content-type"))) {
-        set_header(ZEND_STRL("content-type"), swoole::mime_type::get(file), false);
+        ctx->set_header(ZEND_STRL("content-type"), swoole::mime_type::get(file), false);
     }
 
     bool end_stream = (ztrailer == nullptr);
@@ -913,7 +930,7 @@ bool HttpContext::http2_send_file(const char *file, uint32_t l_file, off_t offse
     }
 
     /* headers has already been sent, retries are no longer allowed (even if send body failed) */
-    end_ = 1;
+    ctx->end_ = 1;
 
     bool error = false;
 
@@ -932,7 +949,7 @@ bool HttpContext::http2_send_file(const char *file, uint32_t l_file, off_t offse
     }
 
     if (error) {
-        close(this);
+        ctx->close(ctx);
     } else {
         client->remove_stream(stream->id);
     }
@@ -1331,25 +1348,4 @@ void swoole_http2_server_session_free(swoole::SessionId fd) {
     /* default_ctx does not blong to session object */
     iter->second->default_ctx = nullptr;
     http2_sessions.erase(iter);
-}
-
-void HttpContext::http2_end(zval *zdata, zval *return_value) {
-    String http_body = {};
-    if (zdata) {
-        http_body.length = php_swoole_get_send_data(zdata, &http_body.str);
-    } else {
-        http_body.length = 0;
-        http_body.str = nullptr;
-    }
-    RETURN_BOOL(http2_server_respond(this, &http_body));
-}
-
-void HttpContext::http2_write(zval *zdata, zval *return_value) {
-    String http_body = {};
-    http_body.length = php_swoole_get_send_data(zdata, &http_body.str);
-    if (http_body.length == 0) {
-        php_swoole_error_ex(E_WARNING, SW_ERROR_NO_PAYLOAD, "the data sent must not be empty");
-        RETURN_FALSE;
-    }
-    RETURN_BOOL(http2_server_write(this, &http_body));
 }

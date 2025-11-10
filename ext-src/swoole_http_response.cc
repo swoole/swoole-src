@@ -109,11 +109,7 @@ static void http_response_free_object(zend_object *object) {
                 ctx->response.status = SW_HTTP_INTERNAL_SERVER_ERROR;
             }
             if (ctx->is_available()) {
-                if (ctx->http2) {
-                    ctx->http2_end(nullptr, &ztmp);
-                } else {
-                    ctx->end(nullptr, &ztmp);
-                }
+                ctx->end(nullptr, &ztmp);
             }
         }
         ctx->response.zobject = nullptr;
@@ -228,11 +224,7 @@ static PHP_METHOD(swoole_http_response, write) {
     ctx->accept_compression = 0;
 #endif
 
-    if (ctx->http2) {
-        ctx->http2_write(zdata, return_value);
-    } else {
-        ctx->write(zdata, return_value);
-    }
+    ctx->write(zdata, return_value);
 }
 
 static int http_response_parse_header_name(const char *key, size_t keylen) {
@@ -680,11 +672,7 @@ static PHP_METHOD(swoole_http_response, end) {
         swoole_call_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_RESPONSE, ctx);
     }
 
-    if (ctx->http2) {
-        ctx->http2_end(zdata, return_value);
-    } else {
-        ctx->end(zdata, return_value);
-    }
+    ctx->end(zdata, return_value);
 }
 
 void HttpContext::send_trailer(zval *return_value) {
@@ -702,6 +690,10 @@ void HttpContext::send_trailer(zval *return_value) {
 }
 
 bool HttpContext::send_file(const char *file, uint32_t l_file, off_t offset, size_t length) {
+    if (http2) {
+        return swoole_http2_server_send_file(this, file, l_file, offset, length);
+    }
+
     zval *zheader =
         sw_zend_read_and_convert_property_array(swoole_http_response_ce, response.zobject, ZEND_STRL("header"), 0);
     if (!zend_hash_str_exists(Z_ARRVAL_P(zheader), ZEND_STRL("Content-Type"))) {
@@ -737,8 +729,11 @@ bool HttpContext::send_file(const char *file, uint32_t l_file, off_t offset, siz
 }
 
 void HttpContext::write(zval *zdata, zval *return_value) {
-    String *http_buffer = get_write_buffer();
+    if (http2) {
+        RETURN_BOOL(swoole_http2_server_write(this, zdata));
+    }
 
+    String *http_buffer = get_write_buffer();
     if (!send_header_) {
         send_chunked = 1;
         http_buffer->clear();
@@ -772,6 +767,10 @@ void HttpContext::write(zval *zdata, zval *return_value) {
 }
 
 void HttpContext::end(zval *zdata, zval *return_value) {
+    if (http2) {
+        RETURN_BOOL(swoole_http2_server_end(this, zdata));
+    }
+
     if (send_chunked) {
         if (zdata && Z_STRLEN_P(zdata) > 0) {
             zval retval;
@@ -973,11 +972,7 @@ static PHP_METHOD(swoole_http_response, sendfile) {
     if (swoole_isset_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_RESPONSE)) {
         swoole_call_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_RESPONSE, ctx);
     }
-    if (ctx->http2) {
-        RETURN_BOOL(ctx->http2_send_file(file, l_file, offset, length));
-    } else {
-        RETURN_BOOL(ctx->send_file(file, l_file, offset, length));
-    }
+    RETURN_BOOL(ctx->send_file(file, l_file, offset, length));
 }
 
 static bool inline http_response_create_cookie(HttpCookie *cookie, zval *zobject) {
@@ -1574,13 +1569,7 @@ static PHP_METHOD(swoole_http_response, redirect) {
     } else {
         ctx->response.status = 302;
     }
-
-    zval zkey;
-    ZVAL_STRINGL(&zkey, "Location", 8);
-    sw_zend_call_method_with_2_params(ZEND_THIS, nullptr, nullptr, "header", return_value, &zkey, zurl);
-    zval_ptr_dtor(&zkey);
-    if (!Z_BVAL_P(return_value)) {
-        return;
-    }
+    // header
+    ctx->set_header(ZEND_STRL("Location"), zurl, false);
     ctx->end(nullptr, return_value);
 }
