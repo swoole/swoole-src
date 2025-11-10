@@ -167,7 +167,7 @@ class HttpServer {
         sock->protocol.package_body_offset = 0;
         sock->protocol.get_package_length = http2::get_frame_length;
 
-        auto session = std::make_shared<Http2Session>(ctx->fd);
+        auto session = swoole_http2_server_session_new(ctx->fd);
         session->default_ctx = ctx;
         session->handle = http2_server_onRequest;
         session->private_data = this;
@@ -182,8 +182,7 @@ class HttpServer {
             swoole_http2_server_parse(session, buffer->str);
         }
 
-        /* default_ctx does not blong to session object */
-        session->default_ctx = nullptr;
+        swoole_http2_server_session_free(ctx->fd);
 
         ctx->detached = 1;
         zval_dtor(ctx->request.zobject);

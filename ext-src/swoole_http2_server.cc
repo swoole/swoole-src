@@ -52,7 +52,8 @@ Http2Stream::Stream(const Http2Session *client, uint32_t _id) {
 }
 
 Http2Stream::~Stream() {
-    ctx->stream.reset();
+	printf("stream free\n");
+	ctx->stream.reset();
     ctx->end_ = true;
     ctx->free();
 }
@@ -1301,7 +1302,7 @@ int swoole_http2_server_onReceive(Server *serv, Connection *conn, RecvData *req)
     auto iter = http2_sessions.find(session_id);
     std::shared_ptr<Http2Session> client;
     if (iter == http2_sessions.end()) {
-        client = std::make_shared<Http2Session>(session_id);
+        client = swoole_http2_server_session_new(session_id);
         client->default_ctx = new HttpContext();
         client->default_ctx->init(serv);
         client->default_ctx->fd = session_id;
@@ -1322,11 +1323,19 @@ int swoole_http2_server_onReceive(Server *serv, Connection *conn, RecvData *req)
     return retval;
 }
 
-void swoole_http2_server_session_free(const Connection *conn) {
-    auto iter = http2_sessions.find(conn->session_id);
+std::shared_ptr<swoole::http2::Session> swoole_http2_server_session_new(swoole::SessionId fd) {
+    auto session = std::make_shared<Http2Session>(fd);
+    http2_sessions.emplace(fd, session);
+    return session;
+}
+
+void swoole_http2_server_session_free(swoole::SessionId fd) {
+    auto iter = http2_sessions.find(fd);
     if (iter == http2_sessions.end()) {
         return;
     }
+    /* default_ctx does not blong to session object */
+    iter->second->default_ctx = nullptr;
     http2_sessions.erase(iter);
 }
 

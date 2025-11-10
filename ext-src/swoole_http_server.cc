@@ -313,10 +313,12 @@ bool HttpContext::is_available() const {
 }
 
 void HttpContext::free() {
-    /* http context can only be freed after request and response were freed */
+    // http context can only be freed after request and response were freed
     if (request.zobject || response.zobject) {
         return;
     }
+
+    // The http2 stream will release the http context object in the destructor
     if (stream) {
         return;
     }

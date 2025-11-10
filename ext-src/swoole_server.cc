@@ -1758,7 +1758,7 @@ void php_swoole_server_onClose(Server *serv, DataHead *info) {
         }
     }
     if (conn->http2_stream) {
-        swoole_http2_server_session_free(conn);
+        swoole_http2_server_session_free(conn->session_id);
     }
 }
 
