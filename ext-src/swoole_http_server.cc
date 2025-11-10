@@ -268,7 +268,7 @@ void HttpContext::bind(Server *serv) {
     close = http_context_disconnect;
 }
 
-void HttpContext::copy(HttpContext *ctx) {
+void HttpContext::copy(const HttpContext *ctx) {
     parse_cookie = ctx->parse_cookie;
     parse_body = ctx->parse_body;
     parse_files = ctx->parse_files;

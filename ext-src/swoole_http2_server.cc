@@ -45,7 +45,6 @@ Http2Stream::Stream(const Http2Session *client, uint32_t _id) {
     ctx = swoole_http_context_new(client->fd);
     ctx->copy(client->default_ctx);
     ctx->http2 = true;
-    ctx->stream = this;
     ctx->keepalive = true;
     id = _id;
     local_window_size = client->local_settings.init_window_size;
@@ -53,7 +52,7 @@ Http2Stream::Stream(const Http2Session *client, uint32_t _id) {
 }
 
 Http2Stream::~Stream() {
-    ctx->stream = nullptr;
+    ctx->stream.reset();
     ctx->end_ = true;
     ctx->free();
 }
@@ -80,10 +79,41 @@ Http2Session::Session(SessionId _fd) {
     http2_sessions[_fd] = this;
 }
 
-Http2Session::~Session() {
-    for (const auto &stream : streams) {
-        delete stream.second;
+std::shared_ptr<Http2Stream> Http2Session::get_stream(uint32_t stream_id) {
+    auto iter = streams.find(stream_id);
+    if (iter == streams.end()) {
+        return {};
+    } else {
+        return iter->second;
     }
+}
+
+bool Http2Session::remove_stream(uint32_t stream_id) {
+    auto iter = streams.find(stream_id);
+    if (iter == streams.end()) {
+        return false;
+    }
+
+    auto stream = iter->second;
+    streams.erase(iter);
+    return true;
+}
+
+std::shared_ptr<Http2Stream> Http2Session::create_stream(uint32_t stream_id) {
+    auto stream = std::make_shared<Http2Stream>(this, stream_id);
+    streams.emplace(stream_id, stream);
+    if (sw_unlikely(!stream->ctx)) {
+        swoole_error_log(
+            SW_LOG_WARNING, SW_ERROR_HTTP2_STREAM_NO_HEADER, "http2 create stream#%d context error", stream_id);
+        return {};
+    }
+    auto ctx = stream->ctx;
+    ctx->stream = stream;
+    zend::object_set(ctx->request.zobject, ZEND_STRL("streamId"), stream_id);
+    return stream;
+}
+
+Http2Session::~Session() {
     if (inflater) {
         nghttp2_hd_inflate_del(inflater);
     }
@@ -239,7 +269,7 @@ static bool http2_server_is_static_file(Server *serv, HttpContext *ctx) {
     return false;
 }
 
-static void http2_server_onRequest(Http2Session *client, Http2Stream *stream) {
+static void http2_server_onRequest(Http2Session *client, const std::shared_ptr<Http2Stream> &stream) {
     HttpContext *ctx = stream->ctx;
     zval *zserver = ctx->request.zserver;
     auto *serv = static_cast<Server *>(ctx->private_data);
@@ -599,8 +629,11 @@ bool Http2Stream::send_trailer() const {
     return true;
 }
 
-static bool http2_server_send_data(
-    const HttpContext *ctx, const Http2Session *client, Http2Stream *stream, const String *body, bool end_stream) {
+static bool http2_server_send_data(const HttpContext *ctx,
+                                   const Http2Session *client,
+                                   const std::shared_ptr<Http2Stream> &stream,
+                                   const String *body,
+                                   bool end_stream) {
     bool error = false;
     // If send_yield is not supported, ignore flow control
     if (ctx->co_socket || !((Server *) ctx->private_data)->send_yield || !swoole_coroutine_is_in()) {
@@ -655,8 +688,8 @@ static bool http2_server_send_data(
 }
 
 static bool http2_server_write(HttpContext *ctx, const String *chunk) {
-    Http2Session *client = http2_sessions[ctx->fd];
-    Http2Stream *stream = ctx->stream;
+    auto client = http2_sessions[ctx->fd];
+    auto stream = ctx->stream;
 
     ctx->send_chunked = 1;
 
@@ -672,8 +705,8 @@ static bool http2_server_write(HttpContext *ctx, const String *chunk) {
 }
 
 static bool http2_server_respond(HttpContext *ctx, const String *body) {
-    Http2Session *client = http2_sessions[ctx->fd];
-    Http2Stream *stream = ctx->stream;
+    auto client = http2_sessions[ctx->fd];
+    auto stream = ctx->stream;
 
     zval *ztrailer =
         sw_zend_read_property_ex(swoole_http_response_ce, ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TRAILER), 0);
@@ -687,7 +720,7 @@ static bool http2_server_respond(HttpContext *ctx, const String *body) {
         return false;
     }
 
-    // The headers has already been sent, retries are no longer allowed (even if send body failed)
+    // The headers have already been sent, retries are no longer allowed (even if send body failed)
     ctx->end_ = 1;
 
     bool error = true;
@@ -713,8 +746,7 @@ static bool http2_server_respond(HttpContext *ctx, const String *body) {
     if (error) {
         ctx->close(ctx);
     } else {
-        client->streams.erase(stream->id);
-        delete stream;
+        client->remove_stream(stream->id);
     }
 
     if (client->shutting_down && client->streams.empty()) {
@@ -839,8 +871,7 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
     if (error) {
         ctx->close(ctx);
     } else {
-        client->streams.erase(ctx->stream->id);
-        delete ctx->stream;
+        client->remove_stream(ctx->stream->id);
     }
 
     return true;
@@ -910,8 +941,7 @@ bool HttpContext::http2_send_file(const char *file, uint32_t l_file, off_t offse
     if (error) {
         close(this);
     } else {
-        client->streams.erase(stream->id);
-        delete stream;
+        client->remove_stream(stream->id);
     }
 
     return true;
@@ -1055,10 +1085,10 @@ static int http2_server_parse_header(Http2Session *client, HttpContext *ctx, int
 }
 
 int swoole_http2_server_parse(Http2Session *client, const char *buf) {
-    Http2Stream *stream = nullptr;
     int type = buf[3];
     int flags = buf[4];
     int retval = SW_ERR;
+
     uint32_t stream_id = ntohl((*(int *) (buf + 5))) & 0x7fffffff;
 
     if (stream_id > client->last_stream_id) {
@@ -1131,23 +1161,15 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
         break;
     }
     case SW_HTTP2_TYPE_HEADERS: {
-        stream = client->streams[stream_id];
+        auto stream = client->get_stream(stream_id);
         swoole_http2_frame_trace_log("%s", (stream ? "exist stream" : "new stream"));
-        HttpContext *ctx;
         if (!stream) {
-            stream = new Http2Stream(client, stream_id);
-            if (sw_unlikely(!stream->ctx)) {
-                swoole_error_log(
-                    SW_LOG_WARNING, SW_ERROR_HTTP2_STREAM_NO_HEADER, "http2 create stream#%d context error", stream_id);
+            stream = client->create_stream(stream_id);
+            if (!stream) {
                 return SW_ERR;
             }
-            ctx = stream->ctx;
-            client->streams[stream_id] = stream;
-            zend_update_property_long(
-                swoole_http_request_ce, SW_Z8_OBJ_P(ctx->request.zobject), ZEND_STRL("streamId"), stream_id);
-        } else {
-            ctx = stream->ctx;
         }
+        HttpContext *ctx = stream->ctx;
         if (http2_server_parse_header(client, ctx, flags, buf, length) < 0) {
             return SW_ERR;
         }
@@ -1161,16 +1183,14 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
     }
     case SW_HTTP2_TYPE_DATA: {
         swoole_http2_frame_trace_log("data");
-        auto stream_iterator = client->streams.find(stream_id);
-        if (stream_iterator == client->streams.end()) {
+        auto stream = client->get_stream(stream_id);
+        if (!stream) {
             swoole_error_log(SW_LOG_WARNING, SW_ERROR_HTTP2_STREAM_NOT_FOUND, "http2 stream#%d not found", stream_id);
             return SW_ERR;
         }
-        stream = stream_iterator->second;
-        HttpContext *ctx = stream->ctx;
 
-        zend_update_property_long(
-            swoole_http_request_ce, SW_Z8_OBJ_P(ctx->request.zobject), ZEND_STRL("streamId"), stream_id);
+        HttpContext *ctx = stream->ctx;
+        zend::object_set(ctx->request.zobject, ZEND_STRL("streamId"), stream_id);
 
         String *buffer = ctx->request.h2_data_buffer;
         if (!buffer) {
@@ -1234,8 +1254,8 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
         if (stream_id == 0) {
             client->remote_window_size += value;
         } else {
-            if (client->streams.find(stream_id) != client->streams.end()) {
-                stream = client->streams[stream_id];
+            auto stream = client->get_stream(stream_id);
+            if (stream) {
                 stream->remote_window_size += value;
                 if (!client->is_coro) {
                     auto *serv = static_cast<Server *>(stream->ctx->private_data);
@@ -1251,13 +1271,7 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
     case SW_HTTP2_TYPE_RST_STREAM: {
         value = ntohl(*(int *) (buf));
         swoole_http2_frame_trace_log("error_code=%d", value);
-        if (client->streams.find(stream_id) != client->streams.end()) {
-            // TODO: i onRequest and use request->recv
-            // stream exist
-            stream = client->streams[stream_id];
-            client->streams.erase(stream_id);
-            delete stream;
-        }
+        client->remove_stream(stream_id);
         break;
     }
     case SW_HTTP2_TYPE_GOAWAY: {
@@ -1296,7 +1310,6 @@ int swoole_http2_server_onReceive(Server *serv, Connection *conn, RecvData *req)
         client->default_ctx->init(serv);
         client->default_ctx->fd = session_id;
         client->default_ctx->http2 = true;
-        client->default_ctx->stream = reinterpret_cast<Http2Stream *>(-1);
         client->default_ctx->keepalive = true;
         client->default_ctx->onBeforeRequest = http2_server_onBeforeRequest;
     }
