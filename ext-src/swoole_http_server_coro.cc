@@ -46,7 +46,7 @@ static bool http_context_send_data(HttpContext *ctx, const char *data, size_t le
 static bool http_context_sendfile(HttpContext *ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
 static bool http_context_disconnect(HttpContext *ctx);
 
-static void http2_server_onRequest(Http2Session *session, const std::shared_ptr<Http2Stream> &stream);
+static void http2_server_onRequest(std::shared_ptr<Http2Session> &session, const std::shared_ptr<Http2Stream> &stream);
 
 namespace swoole {
 namespace coroutine {
@@ -167,11 +167,11 @@ class HttpServer {
         sock->protocol.package_body_offset = 0;
         sock->protocol.get_package_length = http2::get_frame_length;
 
-        Http2Session session(ctx->fd);
-        session.default_ctx = ctx;
-        session.handle = http2_server_onRequest;
-        session.private_data = this;
-        session.is_coro = true;
+        auto session = std::make_shared<Http2Session>(ctx->fd);
+        session->default_ctx = ctx;
+        session->handle = http2_server_onRequest;
+        session->private_data = this;
+        session->is_coro = true;
 
         while (true) {
             auto buffer = sock->get_read_buffer();
@@ -179,11 +179,11 @@ class HttpServer {
             if (sw_unlikely(retval <= 0)) {
                 break;
             }
-            swoole_http2_server_parse(&session, buffer->str);
+            swoole_http2_server_parse(session, buffer->str);
         }
 
         /* default_ctx does not blong to session object */
-        session.default_ctx = nullptr;
+        session->default_ctx = nullptr;
 
         ctx->detached = 1;
         zval_dtor(ctx->request.zobject);
@@ -702,7 +702,7 @@ static PHP_METHOD(swoole_http_server_coro, shutdown) {
     ZEND_HASH_FOREACH_END();
 }
 
-static void http2_server_onRequest(Http2Session *session, const std::shared_ptr<Http2Stream> &stream) {
+static void http2_server_onRequest(std::shared_ptr<Http2Session> &session, const std::shared_ptr<Http2Stream> &stream) {
     HttpContext *ctx = stream->ctx;
     const auto *hs = static_cast<HttpServer *>(session->private_data);
     const auto *sock = static_cast<Socket *>(ctx->private_data);

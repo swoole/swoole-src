@@ -33,7 +33,7 @@ void swoole_websocket_onOpen(swoole::http::Context *ctx);
 void swoole_websocket_onRequest(swoole::http::Context *ctx);
 bool swoole_websocket_handshake(swoole::http::Context *ctx);
 
-int swoole_http2_server_parse(swoole::http2::Session *client, const char *buf);
+int swoole_http2_server_parse(const std::shared_ptr<swoole::http2::Session> &client, const char *buf);
 int swoole_http2_server_onReceive(swoole::Server *serv, swoole::Connection *conn, swoole::RecvData *req);
 void swoole_http2_server_session_free(const swoole::Connection *conn);
 int swoole_http2_server_ping(swoole::http::Context *ctx);

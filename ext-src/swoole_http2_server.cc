@@ -35,7 +35,7 @@ using HttpContext = swoole::http::Context;
 using Http2Stream = Http2::Stream;
 using Http2Session = Http2::Session;
 
-static SW_THREAD_LOCAL std::unordered_map<SessionId, Http2Session *> http2_sessions;
+static SW_THREAD_LOCAL std::unordered_map<SessionId, std::shared_ptr<Http2Session>> http2_sessions;
 
 static bool http2_server_respond(HttpContext *ctx, const String *body);
 static bool http2_server_write(HttpContext *ctx, const String *chunk);
@@ -76,7 +76,6 @@ Http2Session::Session(SessionId _fd) {
     last_stream_id = 0;
     shutting_down = false;
     is_coro = false;
-    http2_sessions[_fd] = this;
 }
 
 std::shared_ptr<Http2Stream> Http2Session::get_stream(uint32_t stream_id) {
@@ -153,8 +152,8 @@ static ssize_t http2_server_build_trailer(const HttpContext *ctx, uchar *buffer)
         ZEND_HASH_FOREACH_END();
 
         ssize_t rv;
-        Http2Session *client = http2_sessions[ctx->fd];
-        nghttp2_hd_deflater *deflater = client->deflater;
+        auto client = http2_sessions[ctx->fd];
+        auto deflater = client->deflater;
 
         if (!deflater) {
             int ret = nghttp2_hd_deflate_new2(&deflater, client->remote_settings.header_table_size, php_nghttp2_mem());
@@ -269,7 +268,7 @@ static bool http2_server_is_static_file(Server *serv, HttpContext *ctx) {
     return false;
 }
 
-static void http2_server_onRequest(Http2Session *client, const std::shared_ptr<Http2Stream> &stream) {
+static void http2_server_onRequest(std::shared_ptr<Http2Session> &client, const std::shared_ptr<Http2Stream> &stream) {
     HttpContext *ctx = stream->ctx;
     zval *zserver = ctx->request.zserver;
     auto *serv = static_cast<Server *>(ctx->private_data);
@@ -460,8 +459,8 @@ static ssize_t http2_server_build_header(HttpContext *ctx, uchar *buffer, const 
         headers.add(ZEND_STRL("content-length"), intbuf[1], ret);
     }
 
-    Http2Session *client = http2_sessions[ctx->fd];
-    nghttp2_hd_deflater *deflater = client->deflater;
+    auto client = http2_sessions[ctx->fd];
+    auto deflater = client->deflater;
     if (!deflater) {
         ret = nghttp2_hd_deflate_new2(&deflater, client->remote_settings.header_table_size, php_nghttp2_mem());
         if (ret != 0) {
@@ -498,7 +497,7 @@ int swoole_http2_server_ping(HttpContext *ctx) {
 int swoole_http2_server_goaway(HttpContext *ctx, zend_long error_code, const char *debug_data, size_t debug_data_len) {
     size_t length = SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_GOAWAY_SIZE + debug_data_len;
     char *frame = (char *) ecalloc(1, length);
-    Http2Session *client = http2_sessions[ctx->fd];
+    auto client = http2_sessions[ctx->fd];
     uint32_t last_stream_id = client->last_stream_id;
     Http2::set_frame_header(frame, SW_HTTP2_TYPE_GOAWAY, SW_HTTP2_GOAWAY_SIZE + debug_data_len, error_code, 0);
     *(uint32_t *) (frame + SW_HTTP2_FRAME_HEADER_SIZE) = htonl(last_stream_id);
@@ -630,7 +629,7 @@ bool Http2Stream::send_trailer() const {
 }
 
 static bool http2_server_send_data(const HttpContext *ctx,
-                                   const Http2Session *client,
+                                   const std::shared_ptr<Http2Session> &client,
                                    const std::shared_ptr<Http2Stream> &stream,
                                    const String *body,
                                    bool end_stream) {
@@ -757,8 +756,7 @@ static bool http2_server_respond(HttpContext *ctx, const String *body) {
 }
 
 static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handler) {
-    Http2Session *client = http2_sessions[ctx->fd];
-    std::shared_ptr<String> body;
+    auto client = http2_sessions[ctx->fd];
 
 #ifdef SW_HAVE_COMPRESSION
     ctx->accept_compression = 0;
@@ -776,7 +774,7 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
     }
 
     bool end_stream = (ztrailer == nullptr);
-    body = std::make_shared<String>();
+    auto body = std::make_shared<String>();
     body->length = handler->get_content_length();
     if (!ctx->stream->send_header(body.get(), end_stream)) {
         return false;
@@ -878,7 +876,7 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
 }
 
 bool HttpContext::http2_send_file(const char *file, uint32_t l_file, off_t offset, size_t length) {
-    Http2Session *client = http2_sessions[fd];
+    auto client = http2_sessions[fd];
     std::shared_ptr<String> body;
 
 #ifdef SW_HAVE_COMPRESSION
@@ -960,7 +958,8 @@ static bool http2_server_onBeforeRequest(HttpContext *ctx) {
     return swoole_http_server_onBeforeRequest(ctx);
 }
 
-static int http2_server_parse_header(Http2Session *client, HttpContext *ctx, int flags, const char *in, size_t inlen) {
+static int http2_server_parse_header(
+    std::shared_ptr<Http2Session> &client, HttpContext *ctx, int flags, const char *in, size_t inlen) {
     nghttp2_hd_inflater *inflater = client->inflater;
 
     if (!inflater) {
@@ -1084,7 +1083,7 @@ static int http2_server_parse_header(Http2Session *client, HttpContext *ctx, int
     return SW_OK;
 }
 
-int swoole_http2_server_parse(Http2Session *client, const char *buf) {
+int swoole_http2_server_parse(std::shared_ptr<Http2Session> &client, const char *buf) {
     int type = buf[3];
     int flags = buf[4];
     int retval = SW_ERR;
@@ -1299,19 +1298,20 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
 
 int swoole_http2_server_onReceive(Server *serv, Connection *conn, RecvData *req) {
     SessionId session_id = req->info.fd;
-    Http2Session *client = http2_sessions[session_id];
-    if (client == nullptr) {
-        client = new Http2Session(session_id);
-    }
-
-    client->handle = http2_server_onRequest;
-    if (!client->default_ctx) {
+    auto iter = http2_sessions.find(session_id);
+    std::shared_ptr<Http2Session> client;
+    if (iter == http2_sessions.end()) {
+        client = std::make_shared<Http2Session>(session_id);
         client->default_ctx = new HttpContext();
         client->default_ctx->init(serv);
         client->default_ctx->fd = session_id;
         client->default_ctx->http2 = true;
         client->default_ctx->keepalive = true;
         client->default_ctx->onBeforeRequest = http2_server_onBeforeRequest;
+        client->handle = http2_server_onRequest;
+        http2_sessions.emplace(session_id, client);
+    } else {
+        client = iter->second;
     }
 
     zval zdata;
@@ -1323,12 +1323,11 @@ int swoole_http2_server_onReceive(Server *serv, Connection *conn, RecvData *req)
 }
 
 void swoole_http2_server_session_free(const Connection *conn) {
-    auto session_iterator = http2_sessions.find(conn->session_id);
-    if (session_iterator == http2_sessions.end()) {
+    auto iter = http2_sessions.find(conn->session_id);
+    if (iter == http2_sessions.end()) {
         return;
     }
-    const auto *client = session_iterator->second;
-    delete client;
+    http2_sessions.erase(iter);
 }
 
 void HttpContext::http2_end(zval *zdata, zval *return_value) {

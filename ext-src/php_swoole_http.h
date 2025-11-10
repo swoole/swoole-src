@@ -321,7 +321,7 @@ class Session {
     http::Context *default_ctx = nullptr;
     void *private_data = nullptr;
 
-    void (*handle)(Session *, const std::shared_ptr<Stream> &) = nullptr;
+    void (*handle)(std::shared_ptr<Session> &, const std::shared_ptr<Stream> &) = nullptr;
 
     explicit Session(SessionId _fd);
     ~Session();
