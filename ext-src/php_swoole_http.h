@@ -157,7 +157,7 @@ struct Context {
     uchar co_socket : 1;
     uchar http2 : 1;
 
-    std::shared_ptr<http2::Stream> stream;
+    uint32_t stream_id;
     String *write_buffer;
 
 #ifdef SW_HAVE_COMPRESSION

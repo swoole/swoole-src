@@ -108,12 +108,10 @@ static void http_response_free_object(zend_object *object) {
             if (ctx->response.status == 0) {
                 ctx->response.status = SW_HTTP_INTERNAL_SERVER_ERROR;
             }
-            if (ctx->http2) {
-                if (ctx->stream) {
+            if (ctx->is_available()) {
+                if (ctx->http2) {
                     ctx->http2_end(nullptr, &ztmp);
-                }
-            } else {
-                if (ctx->is_available()) {
+                } else {
                     ctx->end(nullptr, &ztmp);
                 }
             }

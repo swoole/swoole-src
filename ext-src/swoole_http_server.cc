@@ -318,8 +318,7 @@ void HttpContext::free() {
         return;
     }
 
-    // The http2 stream will release the http context object in the destructor
-    if (stream) {
+    if (stream_id > 0) {
         return;
     }
 

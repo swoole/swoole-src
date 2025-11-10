@@ -45,6 +45,7 @@ Http2Stream::Stream(const Http2Session *client, uint32_t _id) {
     ctx = swoole_http_context_new(client->fd);
     ctx->copy(client->default_ctx);
     ctx->http2 = true;
+    ctx->stream_id = _id;
     ctx->keepalive = true;
     id = _id;
     local_window_size = client->local_settings.init_window_size;
@@ -52,8 +53,7 @@ Http2Stream::Stream(const Http2Session *client, uint32_t _id) {
 }
 
 Http2Stream::~Stream() {
-	printf("stream free\n");
-	ctx->stream.reset();
+    ctx->stream_id = 0;
     ctx->end_ = true;
     ctx->free();
 }
@@ -108,7 +108,6 @@ std::shared_ptr<Http2Stream> Http2Session::create_stream(uint32_t stream_id) {
         return {};
     }
     auto ctx = stream->ctx;
-    ctx->stream = stream;
     zend::object_set(ctx->request.zobject, ZEND_STRL("streamId"), stream_id);
     return stream;
 }
@@ -689,7 +688,7 @@ static bool http2_server_send_data(const HttpContext *ctx,
 
 static bool http2_server_write(HttpContext *ctx, const String *chunk) {
     auto client = http2_sessions[ctx->fd];
-    auto stream = ctx->stream;
+    auto stream = client->get_stream(ctx->stream_id);
 
     ctx->send_chunked = 1;
 
@@ -706,7 +705,7 @@ static bool http2_server_write(HttpContext *ctx, const String *chunk) {
 
 static bool http2_server_respond(HttpContext *ctx, const String *body) {
     auto client = http2_sessions[ctx->fd];
-    auto stream = ctx->stream;
+    auto stream = client->get_stream(ctx->stream_id);
 
     zval *ztrailer =
         sw_zend_read_property_ex(swoole_http_response_ce, ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TRAILER), 0);
@@ -758,6 +757,7 @@ static bool http2_server_respond(HttpContext *ctx, const String *body) {
 
 static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handler) {
     auto client = http2_sessions[ctx->fd];
+    auto stream = client->get_stream(ctx->stream_id);
 
 #ifdef SW_HAVE_COMPRESSION
     ctx->accept_compression = 0;
@@ -777,7 +777,7 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
     bool end_stream = (ztrailer == nullptr);
     auto body = std::make_shared<String>();
     body->length = handler->get_content_length();
-    if (!ctx->stream->send_header(body.get(), end_stream)) {
+    if (!stream->send_header(body.get(), end_stream)) {
         return false;
     }
 
@@ -795,8 +795,7 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
         if (tasks.size() > 1) {
             for (auto i = tasks.begin(); i != tasks.end(); ++i) {
                 body = std::make_shared<String>(i->part_header, strlen(i->part_header));
-                if (!ctx->stream->send_body(
-                        body.get(), false, client->local_settings.max_frame_size, 0, body->length)) {
+                if (!stream->send_body(body.get(), false, client->local_settings.max_frame_size, 0, body->length)) {
                     error = true;
                     break;
                 } else {
@@ -812,8 +811,7 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
                 }
                 body = std::make_shared<String>(buf, i->length);
                 efree(buf);
-                if (!ctx->stream->send_body(
-                        body.get(), false, client->local_settings.max_frame_size, 0, body->length)) {
+                if (!stream->send_body(body.get(), false, client->local_settings.max_frame_size, 0, body->length)) {
                     error = true;
                     break;
                 } else {
@@ -823,7 +821,7 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
 
             if (!error) {
                 body = std::make_shared<String>(handler->get_end_part());
-                if (!ctx->stream->send_body(
+                if (!stream->send_body(
                         body.get(), end_stream, client->local_settings.max_frame_size, 0, body->length)) {
                     error = true;
                 } else {
@@ -852,8 +850,7 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
                     return false;
                 }
             }
-            if (!ctx->stream->send_body(
-                    body.get(), end_stream, client->local_settings.max_frame_size, 0, body->length)) {
+            if (!stream->send_body(body.get(), end_stream, client->local_settings.max_frame_size, 0, body->length)) {
                 error = true;
             } else {
                 client->remote_window_size -= body->length;  // TODO: flow control?
@@ -862,7 +859,7 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
     }
 
     if (!error && ztrailer) {
-        if (!ctx->stream->send_trailer()) {
+        if (!stream->send_trailer()) {
             error = true;
         }
     }
@@ -870,7 +867,7 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
     if (error) {
         ctx->close(ctx);
     } else {
-        client->remove_stream(ctx->stream->id);
+        client->remove_stream(ctx->stream_id);
     }
 
     return true;
@@ -878,6 +875,7 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
 
 bool HttpContext::http2_send_file(const char *file, uint32_t l_file, off_t offset, size_t length) {
     auto client = http2_sessions[fd];
+    auto stream = client->get_stream(stream_id);
     std::shared_ptr<String> body;
 
 #ifdef SW_HAVE_COMPRESSION
@@ -886,10 +884,6 @@ bool HttpContext::http2_send_file(const char *file, uint32_t l_file, off_t offse
     if (swoole_coroutine_is_in()) {
         body = System::read_file(file, false);
         if (!body) {
-            return false;
-        }
-        if (!stream) {
-            /* closed */
             return false;
         }
     } else {
