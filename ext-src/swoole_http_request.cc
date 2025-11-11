@@ -369,13 +369,10 @@ static int http_request_on_header_value(llhttp_t *parser, const char *at, size_t
     } else if (SW_STRCASEEQ(header_name, header_len, "upgrade") &&
                swoole_http_token_list_contains_value(at, length, "websocket")) {
         ctx->websocket = 1;
-        if (ctx->co_socket) {
+        if (ctx->is_co_socket()) {
             goto _add_header;
         }
-        auto *serv = static_cast<Server *>(ctx->private_data);
-        if (!serv) {
-            goto _add_header;
-        }
+        auto *serv = ctx->get_async_server();
         Connection *conn = serv->get_connection_by_session_id(ctx->fd);
         if (!conn) {
             swoole_error_log(SW_LOG_TRACE, SW_ERROR_SESSION_CLOSED, "session[%ld] is closed", ctx->fd);

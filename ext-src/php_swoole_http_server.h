@@ -33,9 +33,16 @@ void swoole_websocket_onOpen(swoole::http::Context *ctx);
 void swoole_websocket_onRequest(swoole::http::Context *ctx);
 bool swoole_websocket_handshake(swoole::http::Context *ctx);
 
-int swoole_http2_server_parse(swoole::http2::Session *client, const char *buf);
+int swoole_http2_server_parse(std::shared_ptr<swoole::http2::Session> &client, const char *buf);
 int swoole_http2_server_onReceive(swoole::Server *serv, swoole::Connection *conn, swoole::RecvData *req);
-void swoole_http2_server_session_free(const swoole::Connection *conn);
+
+std::shared_ptr<swoole::http2::Session> swoole_http2_server_session_new(swoole::SessionId fd);
+void swoole_http2_server_session_free(swoole::SessionId fd);
+
+bool swoole_http2_server_end(swoole::http::Context *ctx, zval *zdata);
+bool swoole_http2_server_write(swoole::http::Context *ctx, zval *zdata);
+bool swoole_http2_server_send_file(
+    swoole::http::Context *ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
 int swoole_http2_server_ping(swoole::http::Context *ctx);
 int swoole_http2_server_goaway(swoole::http::Context *ctx,
                                zend_long error_code,

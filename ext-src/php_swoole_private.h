@@ -300,6 +300,7 @@ void php_swoole_thread_rinit();
  * ==============================================================
  */
 void php_swoole_http_server_rshutdown();
+void php_swoole_http_response_rshutdown();
 void php_swoole_async_coro_rshutdown();
 void php_swoole_redis_server_rshutdown();
 void php_swoole_coroutine_rshutdown();
