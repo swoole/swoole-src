@@ -223,6 +223,23 @@ struct Context {
 
     String *get_write_buffer();
 
+    String *get_http2_data_buffer() {
+        String *buffer = request.h2_data_buffer;
+        if (!buffer) {
+            buffer = new String(SW_HTTP2_DATA_BUFFER_SIZE);
+            request.h2_data_buffer = buffer;
+        }
+        return buffer;
+    }
+
+    size_t get_http2_data_length() {
+        if (request.h2_data_buffer) {
+            return request.h2_data_buffer->length;
+        } else {
+            return 0;
+        }
+    }
+
     size_t get_content_length() const {
         return parser.content_length;
     }
@@ -308,7 +325,7 @@ class Stream {
 
     bool send_header(const String *body, bool end_stream) const;
     bool send_body(
-        const String *body, bool end_stream, size_t max_frame_size, off_t offset = 0, size_t length = 0) const;
+        const String *body, bool end_stream, std::shared_ptr<Session> &session, off_t offset = 0, size_t length = 0);
     bool send_end_stream_data_frame() const;
     bool send_trailer() const;
 

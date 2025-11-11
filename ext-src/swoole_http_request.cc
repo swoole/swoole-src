@@ -905,7 +905,7 @@ static PHP_METHOD(swoole_http_request, getContent) {
         RETURN_STRINGL(Z_STRVAL_P(zdata) + Z_STRLEN_P(zdata) - req->body_length, req->body_length);
     } else if (req->chunked_body && req->chunked_body->length != 0) {
         RETURN_STRINGL(req->chunked_body->str, req->chunked_body->length);
-    } else if (req->h2_data_buffer && req->h2_data_buffer->length != 0) {
+    } else if (ctx->get_http2_data_length() > 0) {
         RETURN_STRINGL(req->h2_data_buffer->str, req->h2_data_buffer->length);
     }
 

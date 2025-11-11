@@ -560,13 +560,14 @@ bool Http2Stream::send_end_stream_data_frame() const {
 }
 
 bool Http2Stream::send_body(
-    const String *body, bool end_stream, size_t max_frame_size, off_t offset, size_t length) const {
+    const String *body, bool end_stream, std::shared_ptr<Http2Session> &session, off_t offset, size_t length) {
     char frame_header[SW_HTTP2_FRAME_HEADER_SIZE];
     char *p = body->str + offset;
     size_t l = length == 0 ? body->length : length;
 
     int flags = end_stream ? SW_HTTP2_FLAG_END_STREAM : SW_HTTP2_FLAG_NONE;
     String *http_buffer = ctx->get_write_buffer();
+    auto max_frame_size = session->local_settings.max_frame_size;
 
     while (l > 0) {
         size_t send_n;
@@ -602,6 +603,10 @@ bool Http2Stream::send_body(
 
         l -= send_n;
         p += send_n;
+
+        remote_window_size -= send_n;
+        session->remote_window_size -= send_n;
+        // TODO: HTTP2 flow control
     }
 
     return true;
@@ -628,7 +633,7 @@ bool Http2Stream::send_trailer() const {
 }
 
 static bool http2_server_send_data(const HttpContext *ctx,
-                                   const std::shared_ptr<Http2Session> &client,
+                                   std::shared_ptr<Http2Session> &client,
                                    const std::shared_ptr<Http2Stream> &stream,
                                    const String *body,
                                    bool end_stream) {
@@ -638,7 +643,7 @@ static bool http2_server_send_data(const HttpContext *ctx,
         if (body->length > client->remote_window_size) {
             swoole_warning("The data sent exceeded remote_window_size");
         }
-        if (!stream->send_body(body, end_stream, client->local_settings.max_frame_size)) {
+        if (!stream->send_body(body, end_stream, client)) {
             error = true;
         }
     } else {
@@ -665,7 +670,7 @@ static bool http2_server_send_data(const HttpContext *ctx,
                 _end_stream = end_stream;
             }
 
-            error = !stream->send_body(body, _end_stream, client->local_settings.max_frame_size, offset, send_len);
+            error = !stream->send_body(body, _end_stream, client, offset, send_len);
             if (!error) {
                 swoole_trace_log(SW_TRACE_HTTP2,
                                  "body: send length=%zu, stream->remote_window_size=%u",
@@ -673,11 +678,6 @@ static bool http2_server_send_data(const HttpContext *ctx,
                                  stream->remote_window_size);
 
                 offset += send_len;
-                if (send_len > stream->remote_window_size) {
-                    stream->remote_window_size = 0;
-                } else {
-                    stream->remote_window_size -= send_len;
-                }
             }
         }
     }
@@ -812,11 +812,9 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
         if (tasks.size() > 1) {
             for (auto i = tasks.begin(); i != tasks.end(); ++i) {
                 body = std::make_shared<String>(i->part_header, strlen(i->part_header));
-                if (!stream->send_body(body.get(), false, client->local_settings.max_frame_size, 0, body->length)) {
+                if (!stream->send_body(body.get(), false, client, 0, body->length)) {
                     error = true;
                     break;
-                } else {
-                    client->remote_window_size -= body->length;  // TODO: flow control?
                 }
 
                 fp.set_offset(i->offset);
@@ -828,21 +826,16 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
                 }
                 body = std::make_shared<String>(buf, i->length);
                 efree(buf);
-                if (!stream->send_body(body.get(), false, client->local_settings.max_frame_size, 0, body->length)) {
+                if (!stream->send_body(body.get(), false, client, 0, body->length)) {
                     error = true;
                     break;
-                } else {
-                    client->remote_window_size -= body->length;  // TODO: flow control?
                 }
             }
 
             if (!error) {
                 body = std::make_shared<String>(handler->get_end_part());
-                if (!stream->send_body(
-                        body.get(), end_stream, client->local_settings.max_frame_size, 0, body->length)) {
+                if (!stream->send_body(body.get(), end_stream, client, 0, body->length)) {
                     error = true;
-                } else {
-                    client->remote_window_size -= body->length;  // TODO: flow control?
                 }
             }
         } else if (tasks[0].length > 0) {
@@ -867,10 +860,8 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
                     return false;
                 }
             }
-            if (!stream->send_body(body.get(), end_stream, client->local_settings.max_frame_size, 0, body->length)) {
+            if (!stream->send_body(body.get(), end_stream, client, 0, body->length)) {
                 error = true;
-            } else {
-                client->remote_window_size -= body->length;  // TODO: flow control?
             }
         }
     }
@@ -935,10 +926,8 @@ bool swoole_http2_server_send_file(HttpContext *ctx, const char *file, uint32_t 
     bool error = false;
 
     if (body->length > 0) {
-        if (!stream->send_body(body.get(), end_stream, client->local_settings.max_frame_size, offset, length)) {
+        if (!stream->send_body(body.get(), end_stream, client, offset, length)) {
             error = true;
-        } else {
-            client->remote_window_size -= length;  // TODO: flow control?
         }
     }
 
@@ -1203,18 +1192,14 @@ int swoole_http2_server_parse(std::shared_ptr<Http2Session> &client, const char 
         HttpContext *ctx = stream->ctx;
         zend::object_set(ctx->request.zobject, ZEND_STRL("streamId"), stream_id);
 
-        String *buffer = ctx->request.h2_data_buffer;
-        if (!buffer) {
-            buffer = new String(SW_HTTP2_DATA_BUFFER_SIZE);
-            ctx->request.h2_data_buffer = buffer;
-        }
-        buffer->append(buf, length);
-
-        // flow control
-        client->local_window_size -= length;
-        stream->local_window_size -= length;
-
         if (length > 0) {
+            auto buffer = ctx->get_http2_data_buffer();
+            buffer->append(buf, length);
+
+            // flow control
+            client->local_window_size -= length;
+            stream->local_window_size -= length;
+
             if (client->local_window_size < (client->local_settings.init_window_size / 4)) {
                 http2_server_send_window_update(
                     ctx, 0, client->local_settings.init_window_size - client->local_window_size);
@@ -1228,15 +1213,18 @@ int swoole_http2_server_parse(std::shared_ptr<Http2Session> &client, const char 
         }
 
         if (flags & SW_HTTP2_FLAG_END_STREAM) {
-            if (ctx->parse_body && ctx->request.post_form_urlencoded) {
-                sapi_module.treat_data(
-                    PARSE_STRING,
-                    estrndup(buffer->str, buffer->length),  // it will be freed by treat_data
-                    swoole_http_init_and_read_property(
-                        swoole_http_request_ce, ctx->request.zobject, &ctx->request.zpost, ZEND_STRL("post")));
-            } else if (ctx->mt_parser != nullptr) {
-                if (!ctx->parse_multipart_data(buffer->str, buffer->length)) {
-                    return SW_ERR;
+            if (ctx->get_http2_data_length() > 0) {
+                auto buffer = ctx->get_http2_data_buffer();
+                if (ctx->parse_body && ctx->request.post_form_urlencoded) {
+                    auto post_prop = swoole_http_init_and_read_property(
+                        swoole_http_request_ce, ctx->request.zobject, &ctx->request.zpost, ZEND_STRL("post"));
+                    // it will be freed by sapi_module.treat_data()
+                    auto post_str = estrndup(buffer->str, buffer->length);
+                    sapi_module.treat_data(PARSE_STRING, post_str, post_prop);
+                } else if (ctx->mt_parser != nullptr) {
+                    if (!ctx->parse_multipart_data(buffer->str, buffer->length)) {
+                        return SW_ERR;
+                    }
                 }
             }
 
