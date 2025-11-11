@@ -266,6 +266,7 @@ void HttpContext::bind(Server *serv) {
     send = http_context_send_data;
     sendfile = http_context_sendfile;
     close = http_context_disconnect;
+    ZVAL_NULL(&zsocket);
 }
 
 void HttpContext::copy(const HttpContext *ctx) {
@@ -340,7 +341,7 @@ void HttpContext::free() {
     }
 
     if (is_co_socket()) {
-        Z_TRY_DELREF(zsocket);
+        zval_ptr_dtor(&zsocket);
     }
 
     delete write_buffer;
