@@ -40,6 +40,11 @@ namespace HttpServer = swoole::http_server;
 zend_class_entry *swoole_http_response_ce;
 static zend_object_handlers swoole_http_response_handlers;
 
+static SW_THREAD_LOCAL struct {
+    time_t time;
+    zend_string *date = nullptr;
+} date_cache{};
+
 static inline void http_response_header_key_format(char *key, int length) {
     int state = 0;
     for (int i = 0; i < length; i++) {
@@ -202,6 +207,13 @@ void php_swoole_http_response_minit(int module_number) {
     zend_declare_property_null(swoole_http_response_ce, ZEND_STRL("trailer"), ZEND_ACC_PUBLIC);
 }
 
+void php_swoole_http_response_rshutdown() {
+	if (date_cache.date) {
+	    zend_string_release(date_cache.date);
+	    date_cache = {};
+	}
+}
+
 static PHP_METHOD(swoole_http_response, write) {
     zval *zdata;
 
@@ -247,22 +259,16 @@ static int http_response_parse_header_name(const char *key, size_t keylen) {
 }
 
 static void http_response_set_date_header(String *response) {
-    static SW_THREAD_LOCAL struct {
-        time_t time;
-        zend_string *date = nullptr;
-    } cache{};
-
     time_t now = time(nullptr);
-    if (now != cache.time) {
-        if (cache.date) {
-            zend_string_release(cache.date);
+    if (now != date_cache.time) {
+        if (date_cache.date) {
+            zend_string_release(date_cache.date);
         }
-
-        cache.time = now;
-        cache.date = php_format_date((char *) ZEND_STRL(SW_HTTP_DATE_FORMAT), now, 0);
+        date_cache.time = now;
+        date_cache.date = php_format_date((char *) ZEND_STRL(SW_HTTP_DATE_FORMAT), now, 0);
     }
     response->append(ZEND_STRL("Date: "));
-    response->append(ZSTR_VAL(cache.date), ZSTR_LEN(cache.date));
+    response->append(ZSTR_VAL(date_cache.date), ZSTR_LEN(date_cache.date));
     response->append(ZEND_STRL("\r\n"));
 }
 
