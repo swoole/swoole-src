@@ -64,8 +64,8 @@ static inline void http_response_header_key_format(char *key, int length) {
 }
 
 String *HttpContext::get_write_buffer() {
-    if (co_socket) {
-        return ((Socket *) private_data)->get_write_buffer();
+    if (is_co_socket()) {
+        return get_co_socket()->get_write_buffer();
     } else {
         if (!write_buffer) {
             write_buffer = new String(SW_BUFFER_SIZE_STD, sw_php_allocator());
@@ -208,10 +208,10 @@ void php_swoole_http_response_minit(int module_number) {
 }
 
 void php_swoole_http_response_rshutdown() {
-	if (date_cache.date) {
-	    zend_string_release(date_cache.date);
-	    date_cache = {};
-	}
+    if (date_cache.date) {
+        zend_string_release(date_cache.date);
+        date_cache = {};
+    }
 }
 
 static PHP_METHOD(swoole_http_response, write) {
@@ -808,12 +808,12 @@ void HttpContext::end(zval *zdata, zval *return_value) {
         if (upgrade) {
             Server *serv = nullptr;
             Connection *conn = nullptr;
-            if (!co_socket) {
-                serv = (Server *) private_data;
+            if (!is_co_socket()) {
+                serv = get_async_server();
                 conn = serv->get_connection_verify(fd);
             }
             bool enable_websocket_compression =
-                co_socket ? websocket_settings.compression : serv->websocket_compression;
+                is_co_socket() ? websocket_settings.compression : serv->websocket_compression;
             bool accept_websocket_compression = false;
             zval *pData;
             if (enable_websocket_compression && request.zobject &&
@@ -866,8 +866,8 @@ void HttpContext::end(zval *zdata, zval *return_value) {
     }
 
 _skip_copy:
-    if (upgrade && !co_socket) {
-        auto *serv = static_cast<Server *>(private_data);
+    if (upgrade && !is_co_socket()) {
+        auto *serv = get_async_server();
         auto *conn = serv->get_connection_verify(fd);
 
         if (conn && conn->websocket_status == websocket::STATUS_HANDSHAKE) {
@@ -1079,7 +1079,7 @@ static PHP_METHOD(swoole_http_response, disconnect) {
         swoole_set_last_error(SW_ERROR_SESSION_CLOSED);
         RETURN_FALSE;
     }
-    if (UNEXPECTED(!ctx->co_socket || !ctx->upgrade)) {
+    if (UNEXPECTED(!ctx->is_co_socket() || !ctx->upgrade)) {
         php_swoole_fatal_error(E_WARNING, "fd[%ld] is not a websocket conncetion", ctx->fd);
         RETURN_FALSE;
     }
@@ -1215,7 +1215,7 @@ static PHP_METHOD(swoole_http_response, upgrade) {
     if (UNEXPECTED(!ctx)) {
         RETURN_FALSE;
     }
-    if (UNEXPECTED(!ctx->co_socket)) {
+    if (UNEXPECTED(!ctx->is_co_socket())) {
         php_swoole_fatal_error(E_WARNING, "async server dose not support protocol upgrade");
         RETURN_FALSE;
     }
@@ -1228,7 +1228,7 @@ static PHP_METHOD(swoole_http_response, push) {
         swoole_set_last_error(SW_ERROR_SESSION_CLOSED);
         RETURN_FALSE;
     }
-    if (UNEXPECTED(!ctx->co_socket || !ctx->upgrade)) {
+    if (UNEXPECTED(!ctx->is_co_socket() || !ctx->upgrade)) {
         php_swoole_fatal_error(E_WARNING, "fd[%ld] is not a websocket conncetion", ctx->fd);
         RETURN_FALSE;
     }
@@ -1429,7 +1429,7 @@ static PHP_METHOD(swoole_http_response, recv) {
         swoole_set_last_error(SW_ERROR_SESSION_CLOSED);
         RETURN_FALSE;
     }
-    if (UNEXPECTED(!ctx->co_socket || !ctx->upgrade)) {
+    if (UNEXPECTED(!ctx->is_co_socket() || !ctx->upgrade)) {
         php_swoole_fatal_error(E_WARNING, "fd[%ld] is not a websocket conncetion", ctx->fd);
         RETURN_FALSE;
     }
@@ -1442,7 +1442,7 @@ static PHP_METHOD(swoole_http_response, recv) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     WebSocket::recv_frame(
-        ctx->websocket_settings, ctx->frame_buffer, (Socket *) ctx->private_data, return_value, timeout);
+        ctx->websocket_settings, ctx->frame_buffer, ctx->get_co_socket(), return_value, timeout);
     if (ZVAL_IS_EMPTY_STRING(return_value)) {
         ctx->close(ctx);
         return;
@@ -1464,9 +1464,9 @@ static PHP_METHOD(swoole_http_response, detach) {
 static PHP_METHOD(swoole_http_response, create) {
     zval *zobject = nullptr;
     zval *zrequest = nullptr;
+    zval *zsocket = nullptr;
     zend_long fd = -1;
     Server *serv = nullptr;
-    Socket *sock = nullptr;
     HttpContext *ctx = nullptr;
 
     ZEND_PARSE_PARAMETERS_START(1, 2)
@@ -1484,8 +1484,8 @@ static PHP_METHOD(swoole_http_response, create) {
                 RETURN_FALSE;
             }
         } else if (sw_zval_is_co_socket(zobject)) {
-            sock = php_swoole_get_socket(zobject);
-            fd = sock->get_fd();
+            zsocket = zobject;
+            fd = php_swoole_get_socket(zobject)->get_fd();
         } else {
         _bad_type:
             php_swoole_fatal_error(E_WARNING, "parameter $1 must be instanceof Server or Coroutine\\Socket");
@@ -1520,8 +1520,8 @@ static PHP_METHOD(swoole_http_response, create) {
 
         if (serv) {
             ctx->init(serv);
-        } else if (sock) {
-            ctx->init(sock);
+        } else if (zsocket) {
+            ctx->init(zsocket);
             swoole_llhttp_parser_init(&ctx->parser, HTTP_REQUEST, (void *) ctx);
         } else {
             delete ctx;
@@ -1531,8 +1531,8 @@ static PHP_METHOD(swoole_http_response, create) {
     } else {
         if (serv) {
             ctx->bind(serv);
-        } else if (sock) {
-            ctx->bind(sock);
+        } else if (zsocket) {
+            ctx->bind(zsocket);
         } else {
             assert(0);
             RETURN_FALSE;
@@ -1545,7 +1545,7 @@ static PHP_METHOD(swoole_http_response, create) {
     ctx->response.zobject = return_value;
     sw_copy_to_stack(ctx->response.zobject, ctx->response._zobject);
     zend_update_property_long(swoole_http_response_ce, SW_Z8_OBJ_P(return_value), ZEND_STRL("fd"), fd);
-    if (ctx->co_socket) {
+    if (ctx->is_co_socket()) {
         zend_update_property_ex(
             swoole_http_response_ce, SW_Z8_OBJ_P(ctx->response.zobject), SW_ZSTR_KNOWN(SW_ZEND_STR_SOCKET), zobject);
     }

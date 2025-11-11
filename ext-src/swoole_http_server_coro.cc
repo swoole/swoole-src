@@ -146,7 +146,7 @@ class HttpServer {
         ctx->websocket_settings = websocket_settings;
         ctx->upload_tmp_dir = upload_tmp_dir;
 
-        ctx->bind(conn);
+        ctx->bind(zconn);
 
         llhttp_t *parser = &ctx->parser;
         swoole_llhttp_parser_init(parser, HTTP_REQUEST, (void *) ctx);
@@ -158,7 +158,7 @@ class HttpServer {
     }
 
     void recv_http2_frame(HttpContext *ctx) {
-        auto *sock = static_cast<Socket *>(ctx->private_data);
+        auto *sock = ctx->get_co_socket();
         http2::send_setting_frame(&sock->protocol, sock->get_socket());
 
         sock->open_length_check = true;
@@ -244,18 +244,15 @@ static void http_server_coro_set_error(const zval *zobject, const Socket *sock) 
 }
 
 static bool http_context_send_data(HttpContext *ctx, const char *data, size_t length) {
-    auto *sock = static_cast<Socket *>(ctx->private_data);
-    return sock->send_all(data, length) == (ssize_t) length;
+    return ctx->get_co_socket()->send_all(data, length) == (ssize_t) length;
 }
 
 static bool http_context_sendfile(HttpContext *ctx, const char *file, uint32_t l_file, off_t offset, size_t length) {
-    auto *sock = static_cast<Socket *>(ctx->private_data);
-    return sock->sendfile(file, offset, length);
+    return ctx->get_co_socket()->sendfile(file, offset, length);
 }
 
 static bool http_context_disconnect(HttpContext *ctx) {
-    auto *sock = static_cast<Socket *>(ctx->private_data);
-    return sock->close();
+    return ctx->get_co_socket()->close();
 }
 
 static void http_server_coro_free_object(zend_object *object) {
@@ -267,7 +264,7 @@ static void http_server_coro_free_object(zend_object *object) {
     zend_object_std_dtor(&hsc->std);
 }
 
-void HttpContext::init(Socket *sock) {
+void HttpContext::init(zval *zsock) {
     parse_cookie = 1;
     parse_body = 1;
     parse_files = 1;
@@ -279,12 +276,13 @@ void HttpContext::init(Socket *sock) {
     websocket_compression = 0;
 #endif
     upload_tmp_dir = "/tmp";
-    bind(sock);
+    bind(zsock);
 }
 
-void HttpContext::bind(Socket *sock) {
-    private_data = sock;
-    co_socket = 1;
+void HttpContext::bind(zval *zsock) {
+    zsocket = *zsock;
+    Z_TRY_ADDREF(zsocket);
+    private_data = php_swoole_get_socket(zsock);
     send = http_context_send_data;
     sendfile = http_context_sendfile;
     close = http_context_disconnect;
@@ -704,7 +702,7 @@ static PHP_METHOD(swoole_http_server_coro, shutdown) {
 static void http2_server_onRequest(std::shared_ptr<Http2Session> &session, const std::shared_ptr<Http2Stream> &stream) {
     HttpContext *ctx = stream->ctx;
     const auto *hs = static_cast<HttpServer *>(session->private_data);
-    const auto *sock = static_cast<Socket *>(ctx->private_data);
+    const auto *sock = ctx->get_co_socket();
     zval *zserver = ctx->request.zserver;
 
     add_assoc_long(zserver, "request_time", time(nullptr));

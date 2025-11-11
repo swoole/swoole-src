@@ -156,9 +156,9 @@ struct Context {
     uchar parse_cookie : 1;
     uchar parse_body : 1;
     uchar parse_files : 1;
-    uchar co_socket : 1;
     uchar http2 : 1;
 
+    zval zsocket;
     uint32_t stream_id;
     String *write_buffer;
 
@@ -193,7 +193,9 @@ struct Context {
 
     std::string upload_tmp_dir;
 
+    // The `private_data` pointer is used to store Server or CoSocket object
     void *private_data;
+    // The `private_data_2` pointer is used to save callback function
     void *private_data_2;
     bool (*send)(Context *ctx, const char *data, size_t length);
     bool (*sendfile)(Context *ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
@@ -202,9 +204,9 @@ struct Context {
     void (*onAfterResponse)(Context *ctx);
 
     void init(Server *server);
-    void init(coroutine::Socket *socket);
+    void init(zval *zsock);
     void bind(Server *server);
-    void bind(coroutine::Socket *socket);
+    void bind(zval *zsock);
     void copy(const Context *ctx);
     bool init_multipart_parser(const char *boundary_str, int boundary_len);
     bool get_multipart_boundary(
@@ -223,6 +225,18 @@ struct Context {
 
     size_t get_content_length() const {
         return parser.content_length;
+    }
+
+    bool is_co_socket() const {
+        return !ZVAL_IS_NULL(&zsocket);
+    }
+
+    Server *get_async_server() const {
+        return static_cast<Server *>(private_data);
+    }
+
+    coroutine::Socket *get_co_socket() const {
+        return static_cast<coroutine::Socket *>(private_data);
     }
 
 #ifdef SW_HAVE_COMPRESSION

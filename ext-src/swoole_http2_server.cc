@@ -270,7 +270,7 @@ static bool http2_server_is_static_file(Server *serv, HttpContext *ctx) {
 static void http2_server_onRequest(std::shared_ptr<Http2Session> &client, const std::shared_ptr<Http2Stream> &stream) {
     HttpContext *ctx = stream->ctx;
     zval *zserver = ctx->request.zserver;
-    auto *serv = static_cast<Server *>(ctx->private_data);
+    auto serv = ctx->get_async_server();
     zval args[2];
     Connection *serv_sock = nullptr;
     zend::Callable *cb = nullptr;
@@ -634,7 +634,7 @@ static bool http2_server_send_data(const HttpContext *ctx,
                                    bool end_stream) {
     bool error = false;
     // If send_yield is not supported, ignore flow control
-    if (ctx->co_socket || !((Server *) ctx->private_data)->send_yield || !swoole_coroutine_is_in()) {
+    if (ctx->is_co_socket() || !ctx->get_async_server()->send_yield || !swoole_coroutine_is_in()) {
         if (body->length > client->remote_window_size) {
             swoole_warning("The data sent exceeded remote_window_size");
         }
@@ -958,7 +958,7 @@ bool swoole_http2_server_send_file(HttpContext *ctx, const char *file, uint32_t 
 }
 
 static bool http2_server_onBeforeRequest(HttpContext *ctx) {
-    auto *serv = static_cast<Server *>(ctx->private_data);
+	auto serv = ctx->get_async_server();
     if (serv->is_unavailable()) {
         String null_body{};
         ctx->response.status = SW_HTTP_SERVICE_UNAVAILABLE;
@@ -1269,7 +1269,7 @@ int swoole_http2_server_parse(std::shared_ptr<Http2Session> &client, const char 
             if (stream) {
                 stream->remote_window_size += value;
                 if (!client->is_coro) {
-                    auto *serv = static_cast<Server *>(stream->ctx->private_data);
+                    auto serv = stream->ctx->get_async_server();
                     if (serv->send_yield && stream->waiting_coroutine) {
                         stream->waiting_coroutine->resume();
                     }

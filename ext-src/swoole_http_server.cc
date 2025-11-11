@@ -278,7 +278,8 @@ void HttpContext::copy(const HttpContext *ctx) {
     compression_min_length = ctx->compression_min_length;
     compression_types = ctx->compression_types;
 #endif
-    co_socket = ctx->co_socket;
+    zsocket = ctx->zsocket;
+    Z_TRY_ADDREF(zsocket);
     private_data = ctx->private_data;
     upload_tmp_dir = ctx->upload_tmp_dir;
     send = ctx->send;
@@ -292,18 +293,10 @@ bool HttpContext::is_available() const {
     if (!response.zobject) {
         return false;
     }
-    if (co_socket) {
-        zval rv;
-        zval *zconn = zend_read_property_ex(
-            swoole_http_response_ce, SW_Z8_OBJ_P(response.zobject), SW_ZSTR_KNOWN(SW_ZEND_STR_SOCKET), true, &rv);
-        if (!zconn || ZVAL_IS_NULL(zconn)) {
-            return false;
-        }
-        if (php_swoole_socket_is_closed(zconn)) {
-            return false;
-        }
+    if (is_co_socket()) {
+        return !php_swoole_socket_is_closed(&zsocket);
     } else {
-        auto *serv = static_cast<Server *>(private_data);
+        auto *serv = get_async_server();
         auto *conn = serv->get_connection_by_session_id(fd);
         if (!conn || conn->closed || conn->peer_closed) {
             return false;
@@ -346,12 +339,16 @@ void HttpContext::free() {
         form_data_buffer = nullptr;
     }
 
+    if (is_co_socket()) {
+        Z_TRY_DELREF(zsocket);
+    }
+
     delete write_buffer;
     delete this;
 }
 
 bool http_context_send_data(HttpContext *ctx, const char *data, size_t length) {
-    auto *serv = static_cast<Server *>(ctx->private_data);
+    auto *serv = ctx->get_async_server();
     bool retval = serv->send(ctx->fd, data, length);
     if (!retval && swoole_get_last_error() == SW_ERROR_OUTPUT_SEND_YIELD) {
         zval yield_data, return_value;
@@ -364,24 +361,25 @@ bool http_context_send_data(HttpContext *ctx, const char *data, size_t length) {
 }
 
 static bool http_context_sendfile(HttpContext *ctx, const char *file, uint32_t l_file, off_t offset, size_t length) {
-    auto *serv = static_cast<Server *>(ctx->private_data);
+    auto *serv = ctx->get_async_server();
     return serv->sendfile(ctx->fd, file, l_file, offset, length);
 }
 
 static bool http_context_disconnect(HttpContext *ctx) {
-    auto *serv = static_cast<Server *>(ctx->private_data);
+    auto *serv = ctx->get_async_server();
     return serv->close(ctx->fd, false);
 }
 
 bool swoole_http_server_onBeforeRequest(HttpContext *ctx) {
     ctx->onBeforeRequest = nullptr;
     ctx->onAfterResponse = swoole_http_server_onAfterResponse;
-    auto *serv = static_cast<Server *>(ctx->private_data);
     if (!sw_server() || !sw_worker() || sw_worker()->is_shutdown()) {
         return false;
     }
 
+    auto serv = ctx->get_async_server();
     auto worker = sw_worker();
+
     swoole_trace("serv->gs->concurrency=%u, max_concurrency=%u", serv->gs->concurrency, serv->gs->max_concurrency);
     sw_atomic_add_fetch(&serv->gs->concurrency, 1);
     worker->concurrency++;
@@ -399,7 +397,7 @@ bool swoole_http_server_onBeforeRequest(HttpContext *ctx) {
 
 void swoole_http_server_onAfterResponse(HttpContext *ctx) {
     ctx->onAfterResponse = nullptr;
-    auto *serv = static_cast<Server *>(ctx->private_data);
+
     if (sw_unlikely(!sw_server() || !sw_worker())) {
         return;
     }
@@ -414,6 +412,7 @@ void swoole_http_server_onAfterResponse(HttpContext *ctx) {
         return;
     }
 
+    auto serv = ctx->get_async_server();
     auto worker = sw_worker();
     swoole_trace("serv->gs->concurrency=%u, max_concurrency=%u", serv->gs->concurrency, serv->gs->max_concurrency);
     sw_atomic_sub_fetch(&serv->gs->concurrency, 1);
@@ -426,7 +425,7 @@ void swoole_http_server_onAfterResponse(HttpContext *ctx) {
         swoole_event_defer(
             [](void *private_data) {
                 auto *ctx = static_cast<HttpContext *>(private_data);
-                auto *serv = static_cast<Server *>(ctx->private_data);
+                auto *serv = ctx->get_async_server();
                 auto *cb = static_cast<zend::Callable *>(ctx->private_data_2);
                 swoole_trace("[POP 2] ctx=%p, request=%p", ctx, ctx->request.zobject);
                 http_server_process_request(serv, cb, ctx);
