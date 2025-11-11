@@ -1441,8 +1441,7 @@ static PHP_METHOD(swoole_http_response, recv) {
     Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    WebSocket::recv_frame(
-        ctx->websocket_settings, ctx->frame_buffer, ctx->get_co_socket(), return_value, timeout);
+    WebSocket::recv_frame(ctx->websocket_settings, ctx->frame_buffer, ctx->get_co_socket(), return_value, timeout);
     if (ZVAL_IS_EMPTY_STRING(return_value)) {
         ctx->close(ctx);
         return;

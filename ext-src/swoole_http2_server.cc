@@ -958,7 +958,7 @@ bool swoole_http2_server_send_file(HttpContext *ctx, const char *file, uint32_t 
 }
 
 static bool http2_server_onBeforeRequest(HttpContext *ctx) {
-	auto serv = ctx->get_async_server();
+    auto serv = ctx->get_async_server();
     if (serv->is_unavailable()) {
         String null_body{};
         ctx->response.status = SW_HTTP_SERVICE_UNAVAILABLE;
