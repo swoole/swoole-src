@@ -267,7 +267,8 @@ static bool http2_server_is_static_file(Server *serv, HttpContext *ctx) {
     return false;
 }
 
-static void http2_server_onRequest(std::shared_ptr<Http2Session> &client, const std::shared_ptr<Http2Stream> &stream) {
+static void http2_server_onRequest(const std::shared_ptr<Http2Session> &client,
+                                   const std::shared_ptr<Http2Stream> &stream) {
     HttpContext *ctx = stream->ctx;
     zval *zserver = ctx->request.zserver;
     auto serv = ctx->get_async_server();
@@ -487,19 +488,19 @@ static ssize_t http2_server_build_header(HttpContext *ctx, uchar *buffer, const 
     return rv;
 }
 
-int swoole_http2_server_ping(HttpContext *ctx) {
+bool swoole_http2_server_ping(HttpContext *ctx) {
     char frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE];
     Http2::set_frame_header(frame, SW_HTTP2_TYPE_PING, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE, SW_HTTP2_FLAG_NONE, 0);
-    return ctx->send(ctx, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE) ? SW_OK : SW_ERR;
+    return ctx->send(ctx, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE);
 }
 
-int swoole_http2_server_send_setting_ack(HttpContext *ctx) {
+static bool http2_server_send_setting_ack(HttpContext *ctx) {
     char frame[SW_HTTP2_FRAME_HEADER_SIZE];
     Http2::set_frame_header(frame, SW_HTTP2_TYPE_SETTINGS, 0, SW_HTTP2_FLAG_ACK, 0);
-    return ctx->send(ctx, frame, SW_HTTP2_FRAME_HEADER_SIZE) ? SW_OK : SW_ERR;
+    return ctx->send(ctx, frame, SW_HTTP2_FRAME_HEADER_SIZE);
 }
 
-int swoole_http2_server_goaway(HttpContext *ctx, zend_long error_code, const char *debug_data, size_t debug_data_len) {
+bool swoole_http2_server_goaway(HttpContext *ctx, zend_long error_code, const char *debug_data, size_t debug_data_len) {
     size_t length = SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_GOAWAY_SIZE + debug_data_len;
     char *frame = (char *) ecalloc(1, length);
     auto client = http2_sessions[ctx->fd];
@@ -510,10 +511,10 @@ int swoole_http2_server_goaway(HttpContext *ctx, zend_long error_code, const cha
     if (debug_data_len > 0) {
         memcpy(frame + SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_GOAWAY_SIZE, debug_data, debug_data_len);
     }
-    bool ret = ctx->send(ctx, frame, length);
+    bool rv = ctx->send(ctx, frame, length);
     efree(frame);
     client->shutting_down = true;
-    return ret;
+    return rv;
 }
 
 bool Http2Stream::send_header(const String *body, bool end_stream) const {
@@ -566,7 +567,7 @@ bool Http2Stream::send_end_stream_data_frame() const {
 }
 
 bool Http2Stream::send_body(
-    const String *body, bool end_stream, std::shared_ptr<Http2Session> &session, off_t offset, size_t length) {
+    const String *body, bool end_stream, const std::shared_ptr<Http2Session> &session, off_t offset, size_t length) {
     char frame_header[SW_HTTP2_FRAME_HEADER_SIZE];
     char *p = body->str + offset;
     size_t l = length == 0 ? body->length : length;
@@ -1132,7 +1133,7 @@ int swoole_http2_server_parse(std::shared_ptr<Http2Session> &client, const char 
         }
         // After receiving the setting frame sent by the client, it is necessary to reply with an ACK,
         // otherwise the client will assume that the server has not applied the setting
-        swoole_http2_server_send_setting_ack(client->default_ctx);
+        http2_server_send_setting_ack(client->default_ctx);
         break;
     }
     case SW_HTTP2_TYPE_HEADERS: {

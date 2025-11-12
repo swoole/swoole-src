@@ -324,8 +324,11 @@ class Stream {
     ~Stream();
 
     bool send_header(const String *body, bool end_stream) const;
-    bool send_body(
-        const String *body, bool end_stream, std::shared_ptr<Session> &session, off_t offset = 0, size_t length = 0);
+    bool send_body(const String *body,
+                   bool end_stream,
+                   const std::shared_ptr<Session> &session,
+                   off_t offset = 0,
+                   size_t length = 0);
     bool send_end_stream_data_frame() const;
     bool send_trailer() const;
 
@@ -354,7 +357,7 @@ class Session {
     http::Context *default_ctx = nullptr;
     void *private_data = nullptr;
 
-    void (*handle)(std::shared_ptr<Session> &, const std::shared_ptr<Stream> &) = nullptr;
+    void (*handle)(const std::shared_ptr<Session> &, const std::shared_ptr<Stream> &) = nullptr;
 
     explicit Session(SessionId _fd);
     ~Session();

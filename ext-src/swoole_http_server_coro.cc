@@ -46,7 +46,8 @@ static bool http_context_send_data(HttpContext *ctx, const char *data, size_t le
 static bool http_context_sendfile(HttpContext *ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
 static bool http_context_disconnect(HttpContext *ctx);
 
-static void http2_server_onRequest(std::shared_ptr<Http2Session> &session, const std::shared_ptr<Http2Stream> &stream);
+static void http2_server_onRequest(const std::shared_ptr<Http2Session> &session,
+                                   const std::shared_ptr<Http2Stream> &stream);
 
 namespace swoole {
 namespace coroutine {
@@ -179,7 +180,9 @@ class HttpServer {
             if (sw_unlikely(retval <= 0)) {
                 break;
             }
-            swoole_http2_server_parse(session, buffer->str);
+            if (swoole_http2_server_parse(session, buffer->str) == SW_ERR) {
+                break;
+            }
         }
 
         swoole_http2_server_session_free(ctx->fd);
@@ -699,7 +702,8 @@ static PHP_METHOD(swoole_http_server_coro, shutdown) {
     ZEND_HASH_FOREACH_END();
 }
 
-static void http2_server_onRequest(std::shared_ptr<Http2Session> &session, const std::shared_ptr<Http2Stream> &stream) {
+static void http2_server_onRequest(const std::shared_ptr<Http2Session> &session,
+                                   const std::shared_ptr<Http2Stream> &stream) {
     HttpContext *ctx = stream->ctx;
     const auto *hs = static_cast<HttpServer *>(session->private_data);
     const auto *sock = ctx->get_co_socket();
