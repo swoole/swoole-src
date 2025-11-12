@@ -579,6 +579,26 @@ bool Http2Stream::send_body(
             send_n = l;
             _send_flags = flags;
         }
+
+        if (send_n > remote_window_size) {
+            // The coroutine server receives HTTP2 frames serially and cannot be suspended,
+            // therefore it does not support flow control
+            // TODO: The coroutine http server also needs to support HTTP2 flow control
+            if (ctx->is_co_socket() || !swoole_coroutine_is_in()) {
+                swoole_warning("The data sent exceeded remote_window_size");
+            } else {
+                if (remote_window_size == 0) {
+                    waiting_coroutine = Coroutine::get_current();
+                    waiting_coroutine->yield();
+                    waiting_coroutine = nullptr;
+                    continue;
+                } else {
+                    send_n = remote_window_size;
+                    _send_flags = 0;
+                }
+            }
+        }
+
         http2::set_frame_header(frame_header, SW_HTTP2_TYPE_DATA, send_n, _send_flags, id);
 
         // send twice to reduce memory copy
@@ -606,7 +626,6 @@ bool Http2Stream::send_body(
 
         remote_window_size -= send_n;
         session->remote_window_size -= send_n;
-        // TODO: HTTP2 flow control
     }
 
     return true;
@@ -630,59 +649,6 @@ bool Http2Stream::send_trailer() const {
     }
 
     return true;
-}
-
-static bool http2_server_send_data(const HttpContext *ctx,
-                                   std::shared_ptr<Http2Session> &client,
-                                   const std::shared_ptr<Http2Stream> &stream,
-                                   const String *body,
-                                   bool end_stream) {
-    bool error = false;
-    // If send_yield is not supported, ignore flow control
-    if (ctx->is_co_socket() || !ctx->get_async_server()->send_yield || !swoole_coroutine_is_in()) {
-        if (body->length > client->remote_window_size) {
-            swoole_warning("The data sent exceeded remote_window_size");
-        }
-        if (!stream->send_body(body, end_stream, client)) {
-            error = true;
-        }
-    } else {
-        off_t offset = body->offset;
-        while (true) {
-            size_t send_len = body->length - offset;
-
-            if (send_len == 0) {
-                break;
-            }
-
-            if (stream->remote_window_size == 0) {
-                stream->waiting_coroutine = Coroutine::get_current();
-                stream->waiting_coroutine->yield();
-                stream->waiting_coroutine = nullptr;
-                continue;
-            }
-
-            bool _end_stream;
-            if (send_len > stream->remote_window_size) {
-                send_len = stream->remote_window_size;
-                _end_stream = false;
-            } else {
-                _end_stream = end_stream;
-            }
-
-            error = !stream->send_body(body, _end_stream, client, offset, send_len);
-            if (!error) {
-                swoole_trace_log(SW_TRACE_HTTP2,
-                                 "body: send length=%zu, stream->remote_window_size=%u",
-                                 send_len,
-                                 stream->remote_window_size);
-
-                offset += send_len;
-            }
-        }
-    }
-
-    return !error;
 }
 
 bool swoole_http2_server_end(HttpContext *ctx, zval *zdata) {
@@ -713,7 +679,7 @@ bool swoole_http2_server_write(HttpContext *ctx, zval *zdata) {
         return false;
     }
 
-    if (!http2_server_send_data(ctx, client, stream, &chunk, false)) {
+    if (!stream->send_body(&chunk, false, client)) {
         return false;
     }
 
@@ -750,7 +716,7 @@ static bool http2_server_respond(HttpContext *ctx, const String *body) {
     SW_LOOP {
         if (ctx->send_chunked && body->length == 0 && !stream->send_end_stream_data_frame()) {
             break;
-        } else if (!http2_server_send_data(ctx, client, stream, body, end_stream)) {
+        } else if (!stream->send_body(body, end_stream, client)) {
             break;
         } else if (ztrailer && !stream->send_trailer()) {
             break;
@@ -812,7 +778,7 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
         if (tasks.size() > 1) {
             for (auto i = tasks.begin(); i != tasks.end(); ++i) {
                 body = std::make_shared<String>(i->part_header, strlen(i->part_header));
-                if (!stream->send_body(body.get(), false, client, 0, body->length)) {
+                if (!stream->send_body(body.get(), false, client)) {
                     error = true;
                     break;
                 }
@@ -826,7 +792,7 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
                 }
                 body = std::make_shared<String>(buf, i->length);
                 efree(buf);
-                if (!stream->send_body(body.get(), false, client, 0, body->length)) {
+                if (!stream->send_body(body.get(), false, client)) {
                     error = true;
                     break;
                 }
@@ -834,7 +800,7 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
 
             if (!error) {
                 body = std::make_shared<String>(handler->get_end_part());
-                if (!stream->send_body(body.get(), end_stream, client, 0, body->length)) {
+                if (!stream->send_body(body.get(), end_stream, client)) {
                     error = true;
                 }
             }
@@ -860,7 +826,7 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
                     return false;
                 }
             }
-            if (!stream->send_body(body.get(), end_stream, client, 0, body->length)) {
+            if (!stream->send_body(body.get(), end_stream, client)) {
                 error = true;
             }
         }
@@ -1256,11 +1222,8 @@ int swoole_http2_server_parse(std::shared_ptr<Http2Session> &client, const char 
             auto stream = client->get_stream(stream_id);
             if (stream) {
                 stream->remote_window_size += value;
-                if (!client->is_coro) {
-                    auto serv = stream->ctx->get_async_server();
-                    if (serv->send_yield && stream->waiting_coroutine) {
-                        stream->waiting_coroutine->resume();
-                    }
+                if (!client->is_coro && stream->waiting_coroutine) {
+                    stream->waiting_coroutine->resume();
                 }
             }
         }
