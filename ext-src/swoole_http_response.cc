@@ -258,7 +258,7 @@ static int http_response_parse_header_name(const char *key, size_t keylen) {
     return 0;
 }
 
-static void http_response_set_date_header(String *response) {
+zend_string *php_swoole_http_get_date() {
     time_t now = time(nullptr);
     if (now != date_cache.time) {
         if (date_cache.date) {
@@ -267,8 +267,13 @@ static void http_response_set_date_header(String *response) {
         date_cache.time = now;
         date_cache.date = php_format_date((char *) ZEND_STRL(SW_HTTP_DATE_FORMAT), now, 0);
     }
+    return date_cache.date;
+}
+
+static void http_response_set_date_header(String *response) {
+	auto date_str = php_swoole_http_get_date();
     response->append(ZEND_STRL("Date: "));
-    response->append(ZSTR_VAL(date_cache.date), ZSTR_LEN(date_cache.date));
+    response->append(ZSTR_VAL(date_str), ZSTR_LEN(date_str));
     response->append(ZEND_STRL("\r\n"));
 }
 

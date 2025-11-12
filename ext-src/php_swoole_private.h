@@ -989,13 +989,6 @@ static sw_inline int php_swoole_check_reactor() {
     }
 }
 
-static sw_inline char *php_swoole_format_date(const char *format, size_t format_len, time_t ts, int localtime) {
-    zend_string *time = php_format_date(format, format_len, ts, localtime);
-    char *return_str = estrndup(ZSTR_VAL(time), ZSTR_LEN(time));
-    zend_string_release(time);
-    return return_str;
-}
-
 static sw_inline char *php_swoole_url_encode(const char *value, size_t value_len, size_t *exten) {
     zend_string *str = php_url_encode(value, value_len);
     *exten = ZSTR_LEN(str);

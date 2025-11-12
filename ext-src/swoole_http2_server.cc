@@ -321,21 +321,7 @@ _destroy:
 }
 
 static void http2_server_set_date_header(Http2::HeaderSet *headers) {
-    static struct {
-        time_t time;
-        size_t len;
-        char buf[64];
-    } cache{};
 
-    time_t now = time(nullptr);
-    if (now != cache.time) {
-        char *date_str = php_swoole_format_date(ZEND_STRL(SW_HTTP_DATE_FORMAT), now, 0);
-        cache.len = strlen(date_str);
-        memcpy(cache.buf, date_str, cache.len);
-        cache.time = now;
-        efree(date_str);
-    }
-    headers->add(ZEND_STRL("date"), cache.buf, cache.len);
 }
 
 static ssize_t http2_server_build_header(HttpContext *ctx, uchar *buffer, const String *body) {
@@ -426,7 +412,8 @@ static ssize_t http2_server_build_header(HttpContext *ctx, uchar *buffer, const 
         headers.add(ZEND_STRL("server"), ZEND_STRL(SW_HTTP_SERVER_SOFTWARE));
     }
     if (!(header_flags & HTTP_HEADER_DATE)) {
-        http2_server_set_date_header(&headers);
+    	auto date_str = php_swoole_http_get_date();
+        headers.add(ZEND_STRL("date"), ZSTR_VAL(date_str), ZSTR_LEN(date_str));
     }
     if (!(header_flags & HTTP_HEADER_CONTENT_TYPE)) {
         headers.add(ZEND_STRL("content-type"), ZEND_STRL("text/html"));

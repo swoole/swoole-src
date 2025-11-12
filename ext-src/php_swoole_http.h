@@ -431,6 +431,7 @@ swoole::http::Context *php_swoole_http_request_get_context(const zval *zobject);
 void php_swoole_http_request_set_context(const zval *zobject, swoole::http::Context *ctx);
 swoole::http::Context *php_swoole_http_response_get_context(const zval *zobject);
 void php_swoole_http_response_set_context(const zval *zobject, swoole::http::Context *ctx);
+zend_string *php_swoole_http_get_date();
 
 #ifdef SW_HAVE_ZLIB
 voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size);
