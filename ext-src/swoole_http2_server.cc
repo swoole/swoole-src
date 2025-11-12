@@ -493,6 +493,12 @@ int swoole_http2_server_ping(HttpContext *ctx) {
     return ctx->send(ctx, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE) ? SW_OK : SW_ERR;
 }
 
+int swoole_http2_server_send_setting_ack(HttpContext *ctx) {
+    char frame[SW_HTTP2_FRAME_HEADER_SIZE];
+    Http2::set_frame_header(frame, SW_HTTP2_TYPE_SETTINGS, 0, SW_HTTP2_FLAG_ACK, 0);
+    return ctx->send(ctx, frame, SW_HTTP2_FRAME_HEADER_SIZE) ? SW_OK : SW_ERR;
+}
+
 int swoole_http2_server_goaway(HttpContext *ctx, zend_long error_code, const char *debug_data, size_t debug_data_len) {
     size_t length = SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_GOAWAY_SIZE + debug_data_len;
     char *frame = (char *) ecalloc(1, length);
@@ -1124,6 +1130,9 @@ int swoole_http2_server_parse(std::shared_ptr<Http2Session> &client, const char 
             buf += sizeof(id) + sizeof(value);
             length -= sizeof(id) + sizeof(value);
         }
+        // After receiving the setting frame sent by the client, it is necessary to reply with an ACK,
+        // otherwise the client will assume that the server has not applied the setting
+        swoole_http2_server_send_setting_ack(client->default_ctx);
         break;
     }
     case SW_HTTP2_TYPE_HEADERS: {
