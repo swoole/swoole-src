@@ -267,7 +267,8 @@ static bool http2_server_is_static_file(Server *serv, HttpContext *ctx) {
     return false;
 }
 
-static void http2_server_onRequest(std::shared_ptr<Http2Session> &client, const std::shared_ptr<Http2Stream> &stream) {
+static void http2_server_onRequest(const std::shared_ptr<Http2Session> &client,
+                                   const std::shared_ptr<Http2Stream> &stream) {
     HttpContext *ctx = stream->ctx;
     zval *zserver = ctx->request.zserver;
     auto serv = ctx->get_async_server();
@@ -487,13 +488,19 @@ static ssize_t http2_server_build_header(HttpContext *ctx, uchar *buffer, const 
     return rv;
 }
 
-int swoole_http2_server_ping(HttpContext *ctx) {
+bool swoole_http2_server_ping(HttpContext *ctx) {
     char frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE];
     Http2::set_frame_header(frame, SW_HTTP2_TYPE_PING, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE, SW_HTTP2_FLAG_NONE, 0);
-    return ctx->send(ctx, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE) ? SW_OK : SW_ERR;
+    return ctx->send(ctx, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE);
 }
 
-int swoole_http2_server_goaway(HttpContext *ctx, zend_long error_code, const char *debug_data, size_t debug_data_len) {
+static bool http2_server_send_setting_ack(HttpContext *ctx) {
+    char frame[SW_HTTP2_FRAME_HEADER_SIZE];
+    Http2::set_frame_header(frame, SW_HTTP2_TYPE_SETTINGS, 0, SW_HTTP2_FLAG_ACK, 0);
+    return ctx->send(ctx, frame, SW_HTTP2_FRAME_HEADER_SIZE);
+}
+
+bool swoole_http2_server_goaway(HttpContext *ctx, zend_long error_code, const char *debug_data, size_t debug_data_len) {
     size_t length = SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_GOAWAY_SIZE + debug_data_len;
     char *frame = (char *) ecalloc(1, length);
     auto client = http2_sessions[ctx->fd];
@@ -504,10 +511,10 @@ int swoole_http2_server_goaway(HttpContext *ctx, zend_long error_code, const cha
     if (debug_data_len > 0) {
         memcpy(frame + SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_GOAWAY_SIZE, debug_data, debug_data_len);
     }
-    bool ret = ctx->send(ctx, frame, length);
+    bool rv = ctx->send(ctx, frame, length);
     efree(frame);
     client->shutting_down = true;
-    return ret;
+    return rv;
 }
 
 bool Http2Stream::send_header(const String *body, bool end_stream) const {
@@ -560,7 +567,7 @@ bool Http2Stream::send_end_stream_data_frame() const {
 }
 
 bool Http2Stream::send_body(
-    const String *body, bool end_stream, std::shared_ptr<Http2Session> &session, off_t offset, size_t length) {
+    const String *body, bool end_stream, const std::shared_ptr<Http2Session> &session, off_t offset, size_t length) {
     char frame_header[SW_HTTP2_FRAME_HEADER_SIZE];
     char *p = body->str + offset;
     size_t l = length == 0 ? body->length : length;
@@ -579,6 +586,26 @@ bool Http2Stream::send_body(
             send_n = l;
             _send_flags = flags;
         }
+
+        if (send_n > remote_window_size) {
+            // The coroutine server receives HTTP2 frames serially and cannot be suspended,
+            // therefore it does not support flow control
+            // TODO: The coroutine http server also needs to support HTTP2 flow control
+            if (ctx->is_co_socket() || !swoole_coroutine_is_in()) {
+                swoole_warning("The data sent exceeded remote_window_size");
+            } else {
+                if (remote_window_size == 0) {
+                    waiting_coroutine = Coroutine::get_current();
+                    waiting_coroutine->yield();
+                    waiting_coroutine = nullptr;
+                    continue;
+                } else {
+                    send_n = remote_window_size;
+                    _send_flags = 0;
+                }
+            }
+        }
+
         http2::set_frame_header(frame_header, SW_HTTP2_TYPE_DATA, send_n, _send_flags, id);
 
         // send twice to reduce memory copy
@@ -606,7 +633,6 @@ bool Http2Stream::send_body(
 
         remote_window_size -= send_n;
         session->remote_window_size -= send_n;
-        // TODO: HTTP2 flow control
     }
 
     return true;
@@ -630,59 +656,6 @@ bool Http2Stream::send_trailer() const {
     }
 
     return true;
-}
-
-static bool http2_server_send_data(const HttpContext *ctx,
-                                   std::shared_ptr<Http2Session> &client,
-                                   const std::shared_ptr<Http2Stream> &stream,
-                                   const String *body,
-                                   bool end_stream) {
-    bool error = false;
-    // If send_yield is not supported, ignore flow control
-    if (ctx->is_co_socket() || !ctx->get_async_server()->send_yield || !swoole_coroutine_is_in()) {
-        if (body->length > client->remote_window_size) {
-            swoole_warning("The data sent exceeded remote_window_size");
-        }
-        if (!stream->send_body(body, end_stream, client)) {
-            error = true;
-        }
-    } else {
-        off_t offset = body->offset;
-        while (true) {
-            size_t send_len = body->length - offset;
-
-            if (send_len == 0) {
-                break;
-            }
-
-            if (stream->remote_window_size == 0) {
-                stream->waiting_coroutine = Coroutine::get_current();
-                stream->waiting_coroutine->yield();
-                stream->waiting_coroutine = nullptr;
-                continue;
-            }
-
-            bool _end_stream;
-            if (send_len > stream->remote_window_size) {
-                send_len = stream->remote_window_size;
-                _end_stream = false;
-            } else {
-                _end_stream = end_stream;
-            }
-
-            error = !stream->send_body(body, _end_stream, client, offset, send_len);
-            if (!error) {
-                swoole_trace_log(SW_TRACE_HTTP2,
-                                 "body: send length=%zu, stream->remote_window_size=%u",
-                                 send_len,
-                                 stream->remote_window_size);
-
-                offset += send_len;
-            }
-        }
-    }
-
-    return !error;
 }
 
 bool swoole_http2_server_end(HttpContext *ctx, zval *zdata) {
@@ -713,7 +686,7 @@ bool swoole_http2_server_write(HttpContext *ctx, zval *zdata) {
         return false;
     }
 
-    if (!http2_server_send_data(ctx, client, stream, &chunk, false)) {
+    if (!stream->send_body(&chunk, false, client)) {
         return false;
     }
 
@@ -750,7 +723,7 @@ static bool http2_server_respond(HttpContext *ctx, const String *body) {
     SW_LOOP {
         if (ctx->send_chunked && body->length == 0 && !stream->send_end_stream_data_frame()) {
             break;
-        } else if (!http2_server_send_data(ctx, client, stream, body, end_stream)) {
+        } else if (!stream->send_body(body, end_stream, client)) {
             break;
         } else if (ztrailer && !stream->send_trailer()) {
             break;
@@ -812,7 +785,7 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
         if (tasks.size() > 1) {
             for (auto i = tasks.begin(); i != tasks.end(); ++i) {
                 body = std::make_shared<String>(i->part_header, strlen(i->part_header));
-                if (!stream->send_body(body.get(), false, client, 0, body->length)) {
+                if (!stream->send_body(body.get(), false, client)) {
                     error = true;
                     break;
                 }
@@ -826,7 +799,7 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
                 }
                 body = std::make_shared<String>(buf, i->length);
                 efree(buf);
-                if (!stream->send_body(body.get(), false, client, 0, body->length)) {
+                if (!stream->send_body(body.get(), false, client)) {
                     error = true;
                     break;
                 }
@@ -834,7 +807,7 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
 
             if (!error) {
                 body = std::make_shared<String>(handler->get_end_part());
-                if (!stream->send_body(body.get(), end_stream, client, 0, body->length)) {
+                if (!stream->send_body(body.get(), end_stream, client)) {
                     error = true;
                 }
             }
@@ -860,7 +833,7 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
                     return false;
                 }
             }
-            if (!stream->send_body(body.get(), end_stream, client, 0, body->length)) {
+            if (!stream->send_body(body.get(), end_stream, client)) {
                 error = true;
             }
         }
@@ -960,7 +933,7 @@ static bool http2_server_onBeforeRequest(HttpContext *ctx) {
 }
 
 static int http2_server_parse_header(
-    std::shared_ptr<Http2Session> &client, HttpContext *ctx, int flags, const char *in, size_t inlen) {
+    const std::shared_ptr<Http2Session> &client, HttpContext *ctx, int flags, const char *in, size_t inlen) {
     nghttp2_hd_inflater *inflater = client->inflater;
 
     if (!inflater) {
@@ -1084,10 +1057,9 @@ static int http2_server_parse_header(
     return SW_OK;
 }
 
-int swoole_http2_server_parse(std::shared_ptr<Http2Session> &client, const char *buf) {
+int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const char *buf) {
     int type = buf[3];
     int flags = buf[4];
-    int retval = SW_ERR;
 
     uint32_t stream_id = ntohl((*(int *) (buf + 5))) & 0x7fffffff;
 
@@ -1098,17 +1070,17 @@ int swoole_http2_server_parse(std::shared_ptr<Http2Session> &client, const char 
     if (client->shutting_down) {
         swoole_error_log(
             SW_LOG_WARNING, SW_ERROR_HTTP2_STREAM_IGNORE, "ignore http2 stream#%d after sending goaway", stream_id);
-        return retval;
+        return SW_ERR;
     }
 
     ssize_t length = Http2::get_length(buf);
     buf += SW_HTTP2_FRAME_HEADER_SIZE;
 
-    uint16_t id = 0;
     uint32_t value = 0;
 
     switch (type) {
     case SW_HTTP2_TYPE_SETTINGS: {
+        uint16_t id = 0;
         if (flags & SW_HTTP2_FLAG_ACK) {
             swoole_http2_frame_trace_log("ACK");
             break;
@@ -1158,6 +1130,9 @@ int swoole_http2_server_parse(std::shared_ptr<Http2Session> &client, const char 
             buf += sizeof(id) + sizeof(value);
             length -= sizeof(id) + sizeof(value);
         }
+        // After receiving the setting frame sent by the client, it is necessary to reply with an ACK,
+        // otherwise the client will assume that the server has not applied the setting
+        http2_server_send_setting_ack(client->default_ctx);
         break;
     }
     case SW_HTTP2_TYPE_HEADERS: {
@@ -1227,11 +1202,6 @@ int swoole_http2_server_parse(std::shared_ptr<Http2Session> &client, const char 
                     }
                 }
             }
-
-            if (!client->is_coro) {
-                retval = SW_OK;
-            }
-
             client->handle(client, stream);
         }
         break;
@@ -1256,11 +1226,8 @@ int swoole_http2_server_parse(std::shared_ptr<Http2Session> &client, const char 
             auto stream = client->get_stream(stream_id);
             if (stream) {
                 stream->remote_window_size += value;
-                if (!client->is_coro) {
-                    auto serv = stream->ctx->get_async_server();
-                    if (serv->send_yield && stream->waiting_coroutine) {
-                        stream->waiting_coroutine->resume();
-                    }
+                if (!client->is_coro && stream->waiting_coroutine) {
+                    stream->waiting_coroutine->resume();
                 }
             }
         }
@@ -1293,7 +1260,7 @@ int swoole_http2_server_parse(std::shared_ptr<Http2Session> &client, const char 
     }
     }
 
-    return retval;
+    return SW_OK;
 }
 
 int swoole_http2_server_onReceive(Server *serv, Connection *conn, RecvData *req) {

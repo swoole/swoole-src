@@ -1175,7 +1175,7 @@ static PHP_METHOD(swoole_http_response, ping) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (ctx->http2) {
-        SW_CHECK_RETURN(swoole_http2_server_ping(ctx));
+        RETURN_BOOL(swoole_http2_server_ping(ctx));
     } else if (ctx->websocket) {
         String *buffer = ctx->get_write_buffer();
         buffer->clear();
@@ -1207,7 +1207,7 @@ static PHP_METHOD(swoole_http_response, goaway) {
     Z_PARAM_STRING(debug_data, debug_data_len)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    SW_CHECK_RETURN(swoole_http2_server_goaway(ctx, error_code, debug_data, debug_data_len));
+    RETURN_BOOL(swoole_http2_server_goaway(ctx, error_code, debug_data, debug_data_len));
 }
 
 static PHP_METHOD(swoole_http_response, upgrade) {
