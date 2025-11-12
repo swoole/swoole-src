@@ -933,7 +933,7 @@ static bool http2_server_onBeforeRequest(HttpContext *ctx) {
 }
 
 static int http2_server_parse_header(
-    std::shared_ptr<Http2Session> &client, HttpContext *ctx, int flags, const char *in, size_t inlen) {
+    const std::shared_ptr<Http2Session> &client, HttpContext *ctx, int flags, const char *in, size_t inlen) {
     nghttp2_hd_inflater *inflater = client->inflater;
 
     if (!inflater) {
@@ -1057,10 +1057,9 @@ static int http2_server_parse_header(
     return SW_OK;
 }
 
-int swoole_http2_server_parse(std::shared_ptr<Http2Session> &client, const char *buf) {
+int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const char *buf) {
     int type = buf[3];
     int flags = buf[4];
-    int retval = SW_ERR;
 
     uint32_t stream_id = ntohl((*(int *) (buf + 5))) & 0x7fffffff;
 
@@ -1071,17 +1070,17 @@ int swoole_http2_server_parse(std::shared_ptr<Http2Session> &client, const char 
     if (client->shutting_down) {
         swoole_error_log(
             SW_LOG_WARNING, SW_ERROR_HTTP2_STREAM_IGNORE, "ignore http2 stream#%d after sending goaway", stream_id);
-        return retval;
+        return SW_ERR;
     }
 
     ssize_t length = Http2::get_length(buf);
     buf += SW_HTTP2_FRAME_HEADER_SIZE;
 
-    uint16_t id = 0;
     uint32_t value = 0;
 
     switch (type) {
     case SW_HTTP2_TYPE_SETTINGS: {
+        uint16_t id = 0;
         if (flags & SW_HTTP2_FLAG_ACK) {
             swoole_http2_frame_trace_log("ACK");
             break;
@@ -1203,11 +1202,6 @@ int swoole_http2_server_parse(std::shared_ptr<Http2Session> &client, const char 
                     }
                 }
             }
-
-            if (!client->is_coro) {
-                retval = SW_OK;
-            }
-
             client->handle(client, stream);
         }
         break;
@@ -1266,7 +1260,7 @@ int swoole_http2_server_parse(std::shared_ptr<Http2Session> &client, const char 
     }
     }
 
-    return retval;
+    return SW_OK;
 }
 
 int swoole_http2_server_onReceive(Server *serv, Connection *conn, RecvData *req) {
