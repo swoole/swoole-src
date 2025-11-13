@@ -435,7 +435,7 @@ static size_t fn_write(char *data, size_t size, size_t nmemb, void *ctx) {
         if (!Z_ISUNDEF(retval)) {
             swoole_curl_verify_handlers(ch, /* reporterror */ true);
             /* TODO Check callback returns an int or something castable to int */
-            length = php_curl_get_long(&retval);
+            length = swoole_curl_get_long(&retval);
         }
 
         zval_ptr_dtor(&argv[0]);
@@ -467,7 +467,7 @@ static int fn_fnmatch(void *ctx, const char *pattern, const char *string) {
     if (!Z_ISUNDEF(retval)) {
         swoole_curl_verify_handlers(ch, /* reporterror */ true);
         /* TODO Check callback returns an int or something castable to int */
-        rval = php_curl_get_long(&retval);
+        rval = swoole_curl_get_long(&retval);
     }
     zval_ptr_dtor(&argv[0]);
     zval_ptr_dtor(&argv[1]);
@@ -509,7 +509,7 @@ static int fn_progress(void *clientp, double dltotal, double dlnow, double ultot
     if (!Z_ISUNDEF(retval)) {
         swoole_curl_verify_handlers(ch, /* reporterror */ true);
         /* TODO Check callback returns an int or something castable to int */
-        if (0 != php_curl_get_long(&retval)) {
+        if (0 != swoole_curl_get_long(&retval)) {
             rval = 1;
         }
     }
@@ -552,7 +552,7 @@ static int fn_xferinfo(void *clientp, curl_off_t dltotal, curl_off_t dlnow, curl
     if (!Z_ISUNDEF(retval)) {
         swoole_curl_verify_handlers(ch, /* reporterror */ true);
         /* TODO Check callback returns an int or something castable to int */
-        if (0 != php_curl_get_long(&retval)) {
+        if (0 != swoole_curl_get_long(&retval)) {
             rval = 1;
         }
     }
@@ -754,7 +754,7 @@ static size_t fn_write_header(char *data, size_t size, size_t nmemb, void *ctx) 
         if (!Z_ISUNDEF(retval)) {
             // TODO: Check for valid int type for return value
             swoole_curl_verify_handlers(ch, /* reporterror */ true);
-            length = php_curl_get_long(&retval);
+            length = swoole_curl_get_long(&retval);
         }
         zval_ptr_dtor(&argv[0]);
         zval_ptr_dtor(&argv[1]);
@@ -1168,7 +1168,7 @@ void swoole_setup_easy_copy_handlers(php_curl *ch, php_curl *source) {
     (*source->clone)++;
 }
 
-zend_long php_curl_get_long(zval *zv)
+zend_long swoole_curl_get_long(zval *zv)
 {
     if (EXPECTED(Z_TYPE_P(zv) == IS_LONG)) {
         return Z_LVAL_P(zv);
