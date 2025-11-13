@@ -826,7 +826,7 @@ int swoole_get_systemd_listen_fds() {
 void swoole_print_backtrace() {
     std::cout << boost::stacktrace::stacktrace();
 }
-#elif defined(HAVE_EXECINFO)
+#elif defined(HAVE_EXECINFO) && !defined(__ANDROID__)
 #include <execinfo.h>
 void swoole_print_backtrace() {
     int size = 16;

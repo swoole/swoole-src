@@ -935,10 +935,6 @@ void Server::join_heartbeat_thread() {
      */
     if (heartbeat_thread.joinable()) {
         swoole_trace_log(SW_TRACE_SERVER, "terminate heartbeat thread");
-        if (pthread_cancel(heartbeat_thread.native_handle()) > 0) {
-            swoole_sys_warning("pthread_cancel(%ld) failed", (long) heartbeat_thread.native_handle());
-        }
-        // wait thread
         heartbeat_thread.join();
     }
 }
@@ -960,14 +956,7 @@ void Server::join_reactor_thread() {
         if (thread->notify_pipe) {
             DataHead ev = {};
             ev.type = SW_SERVER_EVENT_SHUTDOWN;
-            if (thread->notify_pipe->send_sync((void *) &ev, sizeof(ev)) < 0) {
-                goto _cancel;
-            }
-        } else {
-        _cancel:
-            if (pthread_cancel(thread->thread.native_handle()) > 0) {
-                swoole_sys_warning("pthread_cancel(%ld) failed", (long) thread->thread.native_handle());
-            }
+            thread->notify_pipe->send_sync((void *) &ev, sizeof(ev));
         }
         thread->thread.join();
     }

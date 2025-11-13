@@ -51,6 +51,12 @@ static inline void worker_end_callback() {
  * Process manager
  */
 int ProcessPool::create(uint32_t _worker_num, key_t _msgqueue_key, swIPCMode _ipc_mode) {
+#ifndef HAVE_MSGQUEUE
+    if (_ipc_mode == SW_IPC_MSGQUEUE) {
+        swoole_warning("current platform does not support `sysvmsg`");
+        return SW_ERR;
+    }
+#endif
     worker_num = _worker_num;
     /**
      * Shared memory is used here

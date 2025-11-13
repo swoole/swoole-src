@@ -128,6 +128,23 @@ static ssize_t getrandom(void *buffer, size_t size, unsigned int __flags) {
 }
 #endif
 
+#ifdef __ANDROID__
+static ssize_t getrandom(char *buf, size_t buflen, uint flags) {
+    int fd = open("/dev/urandom", O_RDONLY);
+    if (fd < 0) {
+        return -1;
+    }
+    ssize_t n = read(fd, buf, buflen);
+    close(fd);
+    return n;
+}
+
+int pthread_getname_np(pthread_t thread, char *buf, size_t len) {
+    sw_snprintf(buf, len, "thread-%lu", (unsigned long) thread);
+    return 0;
+}
+#endif
+
 size_t swoole_random_bytes(char *buf, size_t size) {
     size_t read_bytes = 0;
 
