@@ -2403,9 +2403,16 @@ static PHP_METHOD(swoole_server, set) {
     }
 #endif
 
+#ifndef HAVE_MSGQUEUE
+    if (serv->task_ipc_mode == Server::TASK_IPC_MSGQUEUE || serv->task_ipc_mode == Server::TASK_IPC_PREEMPTIVE) {
+        php_swoole_fatal_error(E_ERROR, "not support `sysvmsg`");
+        RETURN_FALSE;
+    }
+#endif
+
     if (serv->task_enable_coroutine &&
         (serv->task_ipc_mode == Server::TASK_IPC_MSGQUEUE || serv->task_ipc_mode == Server::TASK_IPC_PREEMPTIVE)) {
-        php_swoole_fatal_error(E_ERROR, "cannot use msgqueue when task_enable_coroutine is enable");
+        php_swoole_fatal_error(E_ERROR, "cannot use msgqueue when `task_enable_coroutine` is enable");
         RETURN_FALSE;
     }
 
