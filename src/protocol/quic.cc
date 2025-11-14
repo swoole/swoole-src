@@ -480,10 +480,10 @@ bool Connection::init_server(const struct sockaddr *local_addr, socklen_t local_
     SSL_set_accept_state(ssl);
     SSL_set_quic_early_data_enabled(ssl, 1);
 
-    rv = ngtcp2_crypto_quictls_configure_server_context(ssl_ctx);
+    rv = ngtcp2_crypto_ossl_configure_server_context(ssl_ctx);
     if (rv != 0) {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_QUIC_INIT,
-                         "ngtcp2_crypto_quictls_configure_server_context failed: %d", rv);
+                         "ngtcp2_crypto_ossl_configure_server_context failed: %d", rv);
         return false;
     }
 
