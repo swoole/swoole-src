@@ -172,14 +172,14 @@ static zend_internal_arg_info *get_arginfo(const char *name, size_t l_name) {
     return zf->internal_function.arg_info;
 }
 
-static zend_internal_arg_info *copy_arginfo(const zend_function *zf, zend_internal_arg_info *_arg_info) {
-    uint32_t num_args = zf->internal_function.num_args + 1;
+static zend_internal_arg_info *copy_arginfo(const zend_internal_function *function, zend_internal_arg_info *_arg_info) {
+    uint32_t num_args = function->num_args + 1;
     zend_internal_arg_info *arg_info = _arg_info - 1;
 
     auto new_arg_info = static_cast<zend_internal_arg_info *>(pemalloc(sizeof(zend_internal_arg_info) * num_args, 1));
     memcpy(new_arg_info, arg_info, sizeof(zend_internal_arg_info) * num_args);
 
-    if (zf->internal_function.fn_flags & ZEND_ACC_VARIADIC) {
+    if (function->fn_flags & ZEND_ACC_VARIADIC) {
         num_args++;
     }
 
@@ -205,19 +205,16 @@ static zend_internal_arg_info *copy_arginfo(const zend_function *zf, zend_intern
     return new_arg_info + 1;
 }
 
-static void free_arg_info(const zend_internal_function *function) {
-    if ((function->fn_flags & (ZEND_ACC_HAS_RETURN_TYPE | ZEND_ACC_HAS_TYPE_HINTS)) && function->arg_info) {
-        uint32_t num_args = function->num_args + 1;
-        zend_internal_arg_info *arg_info = function->arg_info - 1;
-
-        if (function->fn_flags & ZEND_ACC_VARIADIC) {
-            num_args++;
-        }
-        for (uint32_t i = 0; i < num_args; i++) {
-            zend_type_release(arg_info[i].type, true);
-        }
-        free(arg_info);
+static void free_arg_info(const zend_internal_function *function, zend_internal_arg_info *arg_info_copy) {
+    zend_internal_arg_info *arg_info = arg_info_copy - 1;
+    uint32_t num_args = function->num_args + 1;
+    if (function->fn_flags & ZEND_ACC_VARIADIC) {
+        num_args++;
     }
+    for (uint32_t i = 0; i < num_args; i++) {
+        zend_type_release(arg_info[i].type, true);
+    }
+    pefree(arg_info, 1);
 }
 
 #define SW_HOOK_FUNC(f) hook_func(ZEND_STRL(#f), PHP_FN(swoole_##f))
@@ -2129,7 +2126,7 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
 
     zf->internal_function.handler = handler;
     if (arg_info) {
-        zf->internal_function.arg_info = copy_arginfo(zf, arg_info);
+        zf->internal_function.arg_info = copy_arginfo(&zf->internal_function, arg_info);
         rf->arg_info_copy = zf->internal_function.arg_info;
     }
 
@@ -2155,7 +2152,7 @@ static void unhook_func(const char *name, size_t l_name) {
         return;
     }
     if (rf->arg_info_copy) {
-        free_arg_info(&rf->function->internal_function);
+        free_arg_info(&rf->function->internal_function, rf->arg_info_copy);
         rf->arg_info_copy = nullptr;
     }
     rf->function->internal_function.handler = rf->ori_handler;
