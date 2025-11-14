@@ -25,6 +25,7 @@ BEGIN_EXTERN_C()
 
 #include "ext/pcre/php_pcre.h"
 #include "ext/json/php_json.h"
+#include "php_open_temporary_file.h"
 
 #include "stubs/php_swoole_arginfo.h"
 #include "stubs/php_swoole_ex_arginfo.h"
@@ -1207,6 +1208,12 @@ PHP_RINIT_FUNCTION(swoole) {
     }
 
     SWOOLE_G(req_status) = PHP_SWOOLE_RINIT_BEGIN;
+
+    // Use `sys_get_temp_dir` to obtain the system temporary file directory.
+    // The default temporary directory is `/tmp`, which does not exist on the Android platform.
+    // The system root path is a read-only mapping.
+    // The temporary file directory under termux is `/data/data/com.termux/files/usr/tmp`
+    swoole_set_task_tmpdir(php_get_temporary_directory());
 
     php_swoole_register_shutdown_function("swoole_internal_call_user_shutdown_begin");
 
