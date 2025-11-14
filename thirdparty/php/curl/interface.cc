@@ -226,7 +226,7 @@ void swoole_native_curl_minit(int module_number) {
     if (!CRYPTO_get_id_callback()) {
         int i, c = CRYPTO_num_locks();
 
-        php_curl_openssl_tsl = malloc(c * sizeof(MUTEX_T));
+        php_curl_openssl_tsl = (MUTEX_T *) malloc(c * sizeof(MUTEX_T));
         if (!php_curl_openssl_tsl) {
             return;
         }
@@ -2056,7 +2056,7 @@ static zend_result _php_curl_setopt(php_curl *ch, zend_long option, zval *zvalue
         struct curl_slist *slist = NULL;
 
         if (Z_TYPE_P(zvalue) != IS_ARRAY) {
-	    const char *name = NULL;
+            const char *name = NULL;
             switch (option) {
             case CURLOPT_HTTPHEADER:
                 name = "CURLOPT_HTTPHEADER";
@@ -2764,16 +2764,16 @@ PHP_FUNCTION(swoole_native_curl_error) {
         RETURN_FALSE;
     }
 
-	if (ch->err.no) {
-		ch->err.str[CURL_ERROR_SIZE] = 0;
-		if (strlen(ch->err.str) > 0) {
-			RETURN_STRING(ch->err.str);
-		} else {
-			RETURN_STRING(curl_easy_strerror((CURLcode) ch->err.no));
-		}
-	} else {
-		RETURN_EMPTY_STRING();
-	}
+    if (ch->err.no) {
+        ch->err.str[CURL_ERROR_SIZE] = 0;
+        if (strlen(ch->err.str) > 0) {
+            RETURN_STRING(ch->err.str);
+        } else {
+            RETURN_STRING(curl_easy_strerror((CURLcode) ch->err.no));
+        }
+    } else {
+        RETURN_EMPTY_STRING();
+    }
 }
 /* }}} */
 
