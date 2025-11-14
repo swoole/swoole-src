@@ -138,13 +138,10 @@ static const zend_function_entry swoole_native_curl_functions[] = {
 	ZEND_FE(swoole_native_curl_multi_init, arginfo_swoole_native_curl_multi_init)
 	ZEND_FE(swoole_native_curl_multi_remove_handle, arginfo_swoole_native_curl_multi_remove_handle)
 	ZEND_FE(swoole_native_curl_multi_select, arginfo_swoole_native_curl_multi_select)
-	ZEND_FE(swoole_native_curl_multi_strerror, arginfo_swoole_native_curl_multi_strerror)
 	ZEND_FE(swoole_native_curl_pause, arginfo_swoole_native_curl_pause)
 	ZEND_FE(swoole_native_curl_reset, arginfo_swoole_native_curl_reset)
 	ZEND_FE(swoole_native_curl_setopt_array, arginfo_swoole_native_curl_setopt_array)
 	ZEND_FE(swoole_native_curl_setopt, arginfo_swoole_native_curl_setopt)
-	ZEND_FE(swoole_native_curl_strerror, arginfo_swoole_native_curl_strerror)
-	ZEND_FE(swoole_native_curl_version, arginfo_swoole_native_curl_version)
 	ZEND_FE_END
 };
 
