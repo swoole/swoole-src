@@ -48,19 +48,14 @@ cd ngtcp2
 # 配置（重点：使用 --with-openssl）
 autoreconf -i
 
-# 设置编译标志以避免汇编器问题
-export CFLAGS="-O2 -g0"
-
-./configure --prefix=/usr/local \
+# 使用 CFLAGS 避免汇编器问题（直接在 configure 中指定）
+CFLAGS="-O2 -g0" ./configure --prefix=/usr/local \
     --with-openssl \
     --enable-lib-only
 
 # 编译安装
 make -j$(nproc)
 sudo make install
-
-# 清除环境变量
-unset CFLAGS
 ```
 
 **重要参数说明**：
@@ -79,18 +74,13 @@ cd nghttp3
 # 配置
 autoreconf -i
 
-# 设置编译标志以避免汇编器问题
-export CFLAGS="-O2 -g0"
-
-./configure --prefix=/usr/local \
+# 使用 CFLAGS 避免汇编器问题（直接在 configure 中指定）
+CFLAGS="-O2 -g0" ./configure --prefix=/usr/local \
     --enable-lib-only
 
 # 编译安装
 make -j$(nproc)
 sudo make install
-
-# 清除环境变量
-unset CFLAGS
 ```
 
 ### 4. 更新库缓存
@@ -186,12 +176,12 @@ php --ri swoole | grep -i version
 
 **解决方法**：
 ```bash
-# 在编译时设置 CFLAGS 禁用调试信息
-export CFLAGS="-O2 -g0"
-./configure --prefix=/usr/local --with-openssl --enable-lib-only
+# 在 configure 命令中直接指定 CFLAGS 禁用调试信息
+CFLAGS="-O2 -g0" ./configure --prefix=/usr/local --with-openssl --enable-lib-only
 make -j$(nproc)
-unset CFLAGS
 ```
+
+**注意**：必须在 configure 命令前直接指定 CFLAGS，使用 export 在 sudo 环境下可能无效。
 
 我们的构建脚本已经包含了这个修复。
 
@@ -310,11 +300,9 @@ rm -rf ngtcp2
 git clone --depth 1 --branch v1.16.0 https://github.com/ngtcp2/ngtcp2.git
 cd ngtcp2
 autoreconf -i
-export CFLAGS="-O2 -g0"
-./configure --prefix=/usr/local --with-openssl --enable-lib-only
+CFLAGS="-O2 -g0" ./configure --prefix=/usr/local --with-openssl --enable-lib-only
 make -j$(nproc)
 sudo make install
-unset CFLAGS
 
 # 3. 编译 nghttp3
 cd /tmp
@@ -322,11 +310,9 @@ rm -rf nghttp3
 git clone --depth 1 --branch v1.12.0 https://github.com/ngtcp2/nghttp3.git
 cd nghttp3
 autoreconf -i
-export CFLAGS="-O2 -g0"
-./configure --prefix=/usr/local --enable-lib-only
+CFLAGS="-O2 -g0" ./configure --prefix=/usr/local --enable-lib-only
 make -j$(nproc)
 sudo make install
-unset CFLAGS
 
 # 4. 更新库缓存
 sudo ldconfig

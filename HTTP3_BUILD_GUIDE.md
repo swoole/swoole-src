@@ -46,16 +46,13 @@ cd ngtcp2
 # Build with OpenSSL support
 autoreconf -i
 
-# Set CFLAGS to avoid assembler .base64 issues
-export CFLAGS="-O2 -g0"
-
-./configure --prefix=/usr/local \
+# Configure with CFLAGS to avoid assembler .base64 issues
+CFLAGS="-O2 -g0" ./configure --prefix=/usr/local \
     --with-openssl \
     --enable-lib-only
+
 make -j$(nproc)
 sudo make install
-
-unset CFLAGS
 ```
 
 ### Step 3: Install nghttp3 (HTTP/3 Library)
@@ -69,15 +66,12 @@ cd nghttp3
 # Build
 autoreconf -i
 
-# Set CFLAGS to avoid assembler .base64 issues
-export CFLAGS="-O2 -g0"
-
-./configure --prefix=/usr/local \
+# Configure with CFLAGS to avoid assembler .base64 issues
+CFLAGS="-O2 -g0" ./configure --prefix=/usr/local \
     --enable-lib-only
+
 make -j$(nproc)
 sudo make install
-
-unset CFLAGS
 ```
 
 ### Step 4: Update Library Cache
@@ -190,12 +184,12 @@ make: *** [Makefile:XXX: ngtcp2_XXX.lo] Error 1
 
 **Solution:**
 ```bash
-# Set CFLAGS to disable debug information before configure
-export CFLAGS="-O2 -g0"
-./configure --prefix=/usr/local --with-openssl --enable-lib-only
+# Specify CFLAGS directly in configure command
+CFLAGS="-O2 -g0" ./configure --prefix=/usr/local --with-openssl --enable-lib-only
 make -j$(nproc)
-unset CFLAGS
 ```
+
+**Important:** Use `CFLAGS=` directly before configure (not `export CFLAGS=`), as export may not work in sudo environments.
 
 This fix is already included in the `build_http3.sh` script.
 
@@ -302,22 +296,18 @@ cd /tmp
 git clone --depth 1 --branch v1.16.0 https://github.com/ngtcp2/ngtcp2.git
 cd ngtcp2
 autoreconf -i
-export CFLAGS="-O2 -g0"
-./configure --prefix=/usr/local --with-openssl --enable-lib-only
+CFLAGS="-O2 -g0" ./configure --prefix=/usr/local --with-openssl --enable-lib-only
 make -j$(nproc)
 sudo make install
-unset CFLAGS
 
 # Build nghttp3
 cd /tmp
 git clone --depth 1 --branch v1.12.0 https://github.com/ngtcp2/nghttp3.git
 cd nghttp3
 autoreconf -i
-export CFLAGS="-O2 -g0"
-./configure --prefix=/usr/local --enable-lib-only
+CFLAGS="-O2 -g0" ./configure --prefix=/usr/local --enable-lib-only
 make -j$(nproc)
 sudo make install
-unset CFLAGS
 
 # Update library cache
 sudo ldconfig

@@ -18,14 +18,10 @@ git clone --depth 1 --branch v1.16.0 https://github.com/ngtcp2/ngtcp2.git
 cd ngtcp2
 autoreconf -i
 
-# 关键：设置 CFLAGS 避免 .base64 错误
-export CFLAGS="-O2 -g0"
-
-./configure --prefix=/usr/local --with-openssl --enable-lib-only
+# 关键：在 configure 命令前直接指定 CFLAGS 避免 .base64 错误
+CFLAGS="-O2 -g0" ./configure --prefix=/usr/local --with-openssl --enable-lib-only
 make -j$(nproc)
 sudo make install
-
-unset CFLAGS
 ```
 
 ### 2. 编译 nghttp3
@@ -37,14 +33,10 @@ git clone --depth 1 --branch v1.12.0 https://github.com/ngtcp2/nghttp3.git
 cd nghttp3
 autoreconf -i
 
-# 关键：设置 CFLAGS 避免 .base64 错误
-export CFLAGS="-O2 -g0"
-
-./configure --prefix=/usr/local --enable-lib-only
+# 关键：在 configure 命令前直接指定 CFLAGS 避免 .base64 错误
+CFLAGS="-O2 -g0" ./configure --prefix=/usr/local --enable-lib-only
 make -j$(nproc)
 sudo make install
-
-unset CFLAGS
 ```
 
 ### 3. 更新库缓存
@@ -102,6 +94,11 @@ php -r 'var_dump(SWOOLE_USE_HTTP3);'
 - `CFLAGS="-O2 -g0"` - 禁用调试信息
 - `-O2` - 保持优化级别
 - `-g0` - 完全禁用调试符号
+
+**重要提示**：
+- 必须使用 `CFLAGS="-O2 -g0" ./configure` 的格式（在命令前直接指定）
+- 不要使用 `export CFLAGS="-O2 -g0"`，在 sudo 环境下可能无效
+- 这确保 CFLAGS 直接传递给 configure 脚本
 
 ## 如果仍有问题
 
