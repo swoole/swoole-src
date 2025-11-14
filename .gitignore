@@ -121,3 +121,5 @@ cmake-build-debug/
 /.cmake/
 /Testing/
 build.ninjabuild_log*.txt
+build_*.log
+build_log*.txt
