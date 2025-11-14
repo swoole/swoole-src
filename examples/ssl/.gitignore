@@ -1,0 +1,3 @@
+# SSL certificates (auto-generated for testing)
+*.pem
+*.key
