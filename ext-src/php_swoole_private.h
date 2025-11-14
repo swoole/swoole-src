@@ -268,6 +268,9 @@ void php_swoole_http_cookie_minit(int module_number);
 void php_swoole_http_server_minit(int module_number);
 void php_swoole_http_server_coro_minit(int module_number);
 void php_swoole_websocket_server_minit(int module_number);
+#ifdef SW_USE_HTTP3
+void php_swoole_http3_server_minit(int module_number);
+#endif
 void php_swoole_redis_server_minit(int module_number);
 void php_swoole_name_resolver_minit(int module_number);
 #ifdef SW_THREAD
