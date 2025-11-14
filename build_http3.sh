@@ -66,8 +66,8 @@ build_quictls() {
     cd /tmp
     rm -rf openssl
 
-    # Clone QuicTLS (OpenSSL 3.1.8 with QUIC patches)
-    git clone --depth 1 --branch openssl-3.1.8+quic https://github.com/quictls/openssl.git
+    # Clone QuicTLS (OpenSSL 3.3.0 with QUIC patches - latest stable)
+    git clone --depth 1 --branch openssl-3.3.0+quic https://github.com/quictls/openssl.git
     cd openssl
 
     # Configure and build

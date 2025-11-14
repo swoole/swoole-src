@@ -120,4 +120,4 @@ cmake-build-debug/
 /scripts/data
 /.cmake/
 /Testing/
-build.ninja
+build.ninjabuild_log*.txt
