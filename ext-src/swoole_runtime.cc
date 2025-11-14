@@ -282,6 +282,7 @@ void php_swoole_runtime_minit(int module_number) {
 
 struct PhpFunc {
     zend_function *function;
+    zend_function *ori_function;
     zif_handler ori_handler;
     zend_internal_arg_info *ori_arg_info;
     zend_internal_arg_info *arg_info_copy;
@@ -352,8 +353,6 @@ void php_swoole_runtime_rshutdown() {
             zval_dtor(&rf->name);
             sw_callable_free(rf->fci_cache);
         }
-        rf->function->internal_function.handler = rf->ori_handler;
-        rf->function->internal_function.arg_info = rf->ori_arg_info;
         efree(rf);
     }
     ZEND_HASH_FOREACH_END();
@@ -2106,7 +2105,7 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
         handler = PHP_FN(swoole_user_func_handler);
         use_php_func = true;
     }
-    if (rf) {
+    if (rf && rf->function) {
         rf->function->internal_function.handler = handler;
         if (arg_info) {
             rf->function->internal_function.arg_info = arg_info;
@@ -2122,7 +2121,15 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
     auto fn_str = zf->common.function_name;
     rf = static_cast<PhpFunc *>(emalloc(sizeof(PhpFunc)));
     sw_memset_zero(rf, sizeof(*rf));
-    rf->function = zf;
+
+    rf->ori_function = zf;
+    rf->function = static_cast<zend_function *>(emalloc(sizeof(zend_function)));
+    memcpy(rf->function, zf, sizeof(*zf));
+
+    auto fn_dtor = EG(function_table)->pDestructor;
+    EG(function_table)->pDestructor = nullptr;
+    zend_hash_str_update_ptr(EG(function_table), name, l_name, rf->function);
+    EG(function_table)->pDestructor = fn_dtor;
 
     auto fn_name = std::string(fn_str->val, fn_str->len);
 
@@ -2171,6 +2178,14 @@ static void unhook_func(const char *name, size_t l_name) {
     }
     rf->function->internal_function.handler = rf->ori_handler;
     rf->function->internal_function.arg_info = rf->ori_arg_info;
+
+    auto fn_dtor = EG(function_table)->pDestructor;
+    EG(function_table)->pDestructor = nullptr;
+    zend_hash_str_update_ptr(EG(function_table), Z_STRVAL(rf->name), Z_STRLEN(rf->name), rf->ori_function);
+    EG(function_table)->pDestructor = fn_dtor;
+
+    efree(rf->function);
+    rf->function = nullptr;
 }
 
 php_stream *php_swoole_create_stream_from_socket(php_socket_t _fd, int domain, int type, int protocol STREAMS_DC) {
