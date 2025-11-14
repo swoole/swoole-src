@@ -48,8 +48,13 @@ git clone --depth 1 --branch v1.12.0 https://github.com/ngtcp2/nghttp3.git
 cd nghttp3
 autoreconf -i
 
-# 关键：在 configure 命令前直接指定 CFLAGS 避免 .base64 错误
-CFLAGS="-O2 -g0" ./configure --prefix=/usr/local --enable-lib-only
+# 关键：设置环境变量确保找到 sfparse 并避免 .base64 错误
+sudo ldconfig
+PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH \
+CFLAGS="-O2 -g0" \
+CPPFLAGS="-I/usr/local/include" \
+LDFLAGS="-L/usr/local/lib" \
+./configure --prefix=/usr/local --enable-lib-only
 make -j$(nproc)
 sudo make install
 ```

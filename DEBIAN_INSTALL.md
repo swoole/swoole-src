@@ -91,8 +91,15 @@ cd nghttp3
 # 配置
 autoreconf -i
 
-# 使用 CFLAGS 避免汇编器问题（直接在 configure 中指定）
-CFLAGS="-O2 -g0" ./configure --prefix=/usr/local \
+# 更新库缓存以确保找到 sfparse
+sudo ldconfig
+
+# 使用环境变量确保找到 sfparse 头文件和库
+PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH \
+CFLAGS="-O2 -g0" \
+CPPFLAGS="-I/usr/local/include" \
+LDFLAGS="-L/usr/local/lib" \
+./configure --prefix=/usr/local \
     --enable-lib-only
 
 # 编译安装
@@ -337,7 +344,12 @@ rm -rf nghttp3
 git clone --depth 1 --branch v1.12.0 https://github.com/ngtcp2/nghttp3.git
 cd nghttp3
 autoreconf -i
-CFLAGS="-O2 -g0" ./configure --prefix=/usr/local --enable-lib-only
+sudo ldconfig
+PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH \
+CFLAGS="-O2 -g0" \
+CPPFLAGS="-I/usr/local/include" \
+LDFLAGS="-L/usr/local/lib" \
+./configure --prefix=/usr/local --enable-lib-only
 make -j$(nproc)
 sudo make install
 

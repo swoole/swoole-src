@@ -80,8 +80,15 @@ cd nghttp3
 # Build
 autoreconf -i
 
-# Configure with CFLAGS to avoid assembler .base64 issues
-CFLAGS="-O2 -g0" ./configure --prefix=/usr/local \
+# Update library cache to ensure sfparse is found
+sudo ldconfig
+
+# Configure with environment variables to find sfparse headers and libraries
+PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH \
+CFLAGS="-O2 -g0" \
+CPPFLAGS="-I/usr/local/include" \
+LDFLAGS="-L/usr/local/lib" \
+./configure --prefix=/usr/local \
     --enable-lib-only
 
 make -j$(nproc)
@@ -328,7 +335,12 @@ cd /tmp
 git clone --depth 1 --branch v1.12.0 https://github.com/ngtcp2/nghttp3.git
 cd nghttp3
 autoreconf -i
-CFLAGS="-O2 -g0" ./configure --prefix=/usr/local --enable-lib-only
+sudo ldconfig
+PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH \
+CFLAGS="-O2 -g0" \
+CPPFLAGS="-I/usr/local/include" \
+LDFLAGS="-L/usr/local/lib" \
+./configure --prefix=/usr/local --enable-lib-only
 make -j$(nproc)
 sudo make install
 

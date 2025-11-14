@@ -106,8 +106,15 @@ build_nghttp3() {
 
     autoreconf -i
 
-    # Configure with CFLAGS to avoid assembler .base64 issues
-    CFLAGS="-O2 -g0" ./configure --prefix=/usr/local \
+    # Update library cache to ensure sfparse is found
+    sudo ldconfig
+
+    # Configure with CFLAGS and PKG_CONFIG_PATH to find sfparse
+    PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH \
+    CFLAGS="-O2 -g0" \
+    CPPFLAGS="-I/usr/local/include" \
+    LDFLAGS="-L/usr/local/lib" \
+    ./configure --prefix=/usr/local \
         --enable-lib-only
 
     make -j$(nproc)
