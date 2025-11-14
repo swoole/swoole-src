@@ -78,6 +78,11 @@ CFLAGS="-O2 -g0" ./configure --prefix=/usr/local
 # 编译安装
 make -j$(nproc)
 sudo make install
+
+# 手动复制头文件到正确位置
+# nghttp3 期望 sfparse/sfparse.h 但 sfparse 安装为 sfparse.h
+sudo mkdir -p /usr/local/include/sfparse
+sudo cp -f sfparse.h /usr/local/include/sfparse/
 ```
 
 ### 4. 编译安装 nghttp3
@@ -337,6 +342,8 @@ autoreconf -i
 CFLAGS="-O2 -g0" ./configure --prefix=/usr/local
 make -j$(nproc)
 sudo make install
+sudo mkdir -p /usr/local/include/sfparse
+sudo cp -f sfparse.h /usr/local/include/sfparse/
 
 # 4. 编译 nghttp3
 cd /tmp

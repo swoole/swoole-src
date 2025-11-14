@@ -67,6 +67,11 @@ autoreconf -i
 CFLAGS="-O2 -g0" ./configure --prefix=/usr/local
 make -j$(nproc)
 sudo make install
+
+# Manually create sfparse subdirectory and copy header
+# nghttp3 expects sfparse/sfparse.h but sfparse installs to include/sfparse.h
+sudo mkdir -p /usr/local/include/sfparse
+sudo cp -f sfparse.h /usr/local/include/sfparse/
 ```
 
 ### Step 4: Install nghttp3 (HTTP/3 Library)
@@ -329,6 +334,8 @@ autoreconf -i
 CFLAGS="-O2 -g0" ./configure --prefix=/usr/local
 make -j$(nproc)
 sudo make install
+sudo mkdir -p /usr/local/include/sfparse
+sudo cp -f sfparse.h /usr/local/include/sfparse/
 
 # Build nghttp3
 cd /tmp

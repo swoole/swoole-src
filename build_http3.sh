@@ -96,6 +96,11 @@ build_nghttp3() {
     make -j$(nproc)
     sudo make install
 
+    # Manually create sfparse subdirectory and copy header
+    # nghttp3 expects sfparse/sfparse.h but sfparse installs to include/sfparse.h
+    sudo mkdir -p /usr/local/include/sfparse
+    sudo cp -f sfparse.h /usr/local/include/sfparse/
+
     # Now build nghttp3
     print_info "Building nghttp3..."
     cd /tmp
