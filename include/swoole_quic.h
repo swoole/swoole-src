@@ -91,10 +91,10 @@ struct Stream {
     Connection *conn;
 
     // Buffer for received data
-    swString *recv_buffer;
+    String *recv_buffer;
 
     // Buffer for sending data
-    swString *send_buffer;
+    String *send_buffer;
 
     // Stream flow control
     uint64_t rx_max_data;

@@ -34,19 +34,19 @@ static zend_class_entry *swoole_http3_response_ce;
 static zend_object_handlers swoole_http3_response_handlers;
 
 struct Http3ServerObject {
-    Server *server;
+    http3::Server *server;
     zend_object std;
 };
 
 struct Http3RequestObject {
-    Stream *stream;
-    Connection *conn;
+    http3::Stream *stream;
+    http3::Connection *conn;
     zend_object std;
 };
 
 struct Http3ResponseObject {
-    Stream *stream;
-    Connection *conn;
+    http3::Stream *stream;
+    http3::Connection *conn;
     zend_object std;
 };
 
@@ -85,6 +85,9 @@ static PHP_METHOD(swoole_http3_response, write);
 static PHP_METHOD(swoole_http3_response, end);
 
 // ==================== Method Argument Info ====================
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
+ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http3_server_construct, 0, 0, 2)
     ZEND_ARG_TYPE_INFO(0, host, IS_STRING, 0)
@@ -244,7 +247,7 @@ static PHP_METHOD(swoole_http3_server, __construct) {
 
     Http3ServerObject *hso = php_swoole_http3_server_fetch_object(Z_OBJ_P(ZEND_THIS));
 
-    hso->server = new Server();
+    hso->server = new http3::Server();
     if (!hso->server) {
         php_swoole_fatal_error(E_ERROR, "failed to create HTTP/3 server");
         RETURN_FALSE;
@@ -368,9 +371,9 @@ static void parse_cookies(const char *cookie_str, size_t len, zval *zcookie) {
     }
 }
 
-static void http3_server_on_request(Connection *conn, Stream *stream) {
+static void http3_server_on_request(http3::Connection *conn, http3::Stream *stream) {
     // Get the Server object from connection's user_data
-    Server *server = (Server *) conn->user_data;
+    http3::Server *server = (http3::Server *) conn->user_data;
     if (!server || !server->user_data) {
         return;
     }
@@ -383,7 +386,7 @@ static void http3_server_on_request(Connection *conn, Stream *stream) {
     // Get the request callback
     zval *zcallback = sw_zend_read_property(swoole_http3_server_ce, &zserver, ZEND_STRL("request"), 0);
     if (!zcallback || ZVAL_IS_NULL(zcallback) || !zend_is_callable(zcallback, 0, nullptr)) {
-        swoole_php_error(E_WARNING, "onRequest callback is not callable");
+        php_swoole_error(E_WARNING, "onRequest callback is not callable");
         return;
     }
 
@@ -454,18 +457,18 @@ static void http3_server_on_request(Connection *conn, Stream *stream) {
     }
 
     // Set request properties
-    zend_update_property(swoole_http3_request_ce, SW_Z8_OBJ(zrequest), ZEND_STRL("server"), &zserver_info);
-    zend_update_property(swoole_http3_request_ce, SW_Z8_OBJ(zrequest), ZEND_STRL("header"), &zheader);
-    zend_update_property(swoole_http3_request_ce, SW_Z8_OBJ(zrequest), ZEND_STRL("get"), &zget);
-    zend_update_property(swoole_http3_request_ce, SW_Z8_OBJ(zrequest), ZEND_STRL("cookie"), &zcookie);
-    zend_update_property_long(swoole_http3_request_ce, SW_Z8_OBJ(zrequest), ZEND_STRL("streamId"), stream->stream_id);
+    zend_update_property(swoole_http3_request_ce, Z_OBJ(zrequest), ZEND_STRL("server"), &zserver_info);
+    zend_update_property(swoole_http3_request_ce, Z_OBJ(zrequest), ZEND_STRL("header"), &zheader);
+    zend_update_property(swoole_http3_request_ce, Z_OBJ(zrequest), ZEND_STRL("get"), &zget);
+    zend_update_property(swoole_http3_request_ce, Z_OBJ(zrequest), ZEND_STRL("cookie"), &zcookie);
+    zend_update_property_long(swoole_http3_request_ce, Z_OBJ(zrequest), ZEND_STRL("streamId"), stream->stream_id);
 
     // Parse POST data if available
     if (stream->body && stream->body->length > 0) {
         zval zpost;
         array_init(&zpost);
         // For now, just store raw body - could parse application/x-www-form-urlencoded later
-        zend_update_property(swoole_http3_request_ce, SW_Z8_OBJ(zrequest), ZEND_STRL("post"), &zpost);
+        zend_update_property(swoole_http3_request_ce, Z_OBJ(zrequest), ZEND_STRL("post"), &zpost);
         zval_ptr_dtor(&zpost);
     }
 
@@ -481,9 +484,11 @@ static void http3_server_on_request(Connection *conn, Stream *stream) {
     args[0] = zrequest;
     args[1] = zresponse;
 
-    if (UNEXPECTED(!zend::function::call(zcallback, 2, args, nullptr, false))) {
-        swoole_php_error(E_WARNING, "onRequest callback handler error");
+    zval retval;
+    if (UNEXPECTED(call_user_function(EG(function_table), nullptr, zcallback, &retval, 2, args) != SUCCESS)) {
+        php_swoole_error(E_WARNING, "onRequest callback handler error");
     }
+    zval_ptr_dtor(&retval);
 
     // Cleanup
     zval_ptr_dtor(&zserver_info);

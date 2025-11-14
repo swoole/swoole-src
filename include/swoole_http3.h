@@ -100,7 +100,7 @@ struct Stream {
 
     // Request/Response data
     std::vector<HeaderField> headers;
-    swString *body;
+    String *body;
 
     // Status
     int status_code;
@@ -149,9 +149,9 @@ struct Connection {
     int64_t qpack_enc_stream_id;
     int64_t qpack_dec_stream_id;
 
-    // QPACK encoder/decoder
-    nghttp3_qpack_encoder qpack_enc;
-    nghttp3_qpack_decoder qpack_dec;
+    // QPACK encoder/decoder (managed by nghttp3_conn internally)
+    // nghttp3_qpack_encoder *qpack_enc;
+    // nghttp3_qpack_decoder *qpack_dec;
 
     // Settings
     nghttp3_settings settings;
