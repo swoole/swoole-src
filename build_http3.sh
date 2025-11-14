@@ -5,6 +5,9 @@
 
 set -e  # Exit on any error
 
+# Get the directory where this script is located
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
 echo "========================================"
 echo "Swoole HTTP/3 Build Script"
 echo "========================================"
@@ -183,7 +186,7 @@ verify_libraries() {
 build_swoole() {
     print_info "Building Swoole with HTTP/3 support..."
 
-    cd /home/user/swoole-src
+    cd "$SCRIPT_DIR"
 
     # Clean previous builds
     make clean 2>/dev/null || true
