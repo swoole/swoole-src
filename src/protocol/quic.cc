@@ -436,7 +436,399 @@ void Connection::setup_transport_params(ngtcp2_transport_params *params) {
     params->active_connection_id_limit = 7;
 }
 
-// Connection initialization methods will be implemented in next part...
-// Due to size constraints, I'll create this in multiple parts
+bool Connection::init_server(const struct sockaddr *local_addr, socklen_t local_addrlen,
+                               const struct sockaddr *remote_addr, socklen_t remote_addrlen,
+                               const ngtcp2_cid *dcid, const ngtcp2_cid *scid,
+                               SSL_CTX *ssl_ctx) {
+    is_server = 1;
+    this->ssl_ctx = ssl_ctx;
+
+    memcpy(&this->local_addr, local_addr, local_addrlen);
+    this->local_addrlen = local_addrlen;
+    memcpy(&this->remote_addr, remote_addr, remote_addrlen);
+    this->remote_addrlen = remote_addrlen;
+
+    this->dcid = *dcid;
+    this->scid = *scid;
+
+    ngtcp2_path path;
+    ngtcp2_path_storage_init2(&path, (struct sockaddr *) &this->local_addr,
+                               (struct sockaddr *) &this->remote_addr);
+
+    ngtcp2_callbacks callbacks = create_callbacks();
+    setup_settings(&settings);
+
+    last_ts = timestamp();
+    settings.initial_ts = last_ts;
+
+    int rv = ngtcp2_conn_server_new(&conn, &this->dcid, &this->scid, &path,
+                                     NGTCP2_PROTO_VER_V1, &callbacks, &settings, &params, nullptr, this);
+
+    if (rv != 0) {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_QUIC_INIT,
+                         "ngtcp2_conn_server_new failed: %s", ngtcp2_strerror(rv));
+        return false;
+    }
+
+    // Setup SSL
+    ssl = SSL_new(ssl_ctx);
+    if (!ssl) {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SSL_CTX_INIT, "SSL_new failed");
+        return false;
+    }
+
+    SSL_set_accept_state(ssl);
+    SSL_set_quic_early_data_enabled(ssl, 1);
+
+    rv = ngtcp2_crypto_quictls_configure_server_context(ssl_ctx);
+    if (rv != 0) {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_QUIC_INIT,
+                         "ngtcp2_crypto_quictls_configure_server_context failed: %d", rv);
+        return false;
+    }
+
+    ngtcp2_conn_set_tls_native_handle(conn, ssl);
+
+    state = SW_QUIC_STATE_HANDSHAKE;
+    return true;
+}
+
+bool Connection::init_client(const struct sockaddr *local_addr, socklen_t local_addrlen,
+                               const struct sockaddr *remote_addr, socklen_t remote_addrlen,
+                               const char *server_name, SSL_CTX *ssl_ctx) {
+    is_server = 0;
+    this->ssl_ctx = ssl_ctx;
+
+    memcpy(&this->local_addr, local_addr, local_addrlen);
+    this->local_addrlen = local_addrlen;
+    memcpy(&this->remote_addr, remote_addr, remote_addrlen);
+    this->remote_addrlen = remote_addrlen;
+
+    if (!generate_connection_id(&scid)) {
+        return false;
+    }
+
+    if (!generate_connection_id(&dcid)) {
+        return false;
+    }
+
+    ngtcp2_path path;
+    ngtcp2_path_storage_init2(&path, (struct sockaddr *) &this->local_addr,
+                               (struct sockaddr *) &this->remote_addr);
+
+    ngtcp2_callbacks callbacks = create_callbacks();
+    setup_settings(&settings);
+
+    last_ts = timestamp();
+    settings.initial_ts = last_ts;
+
+    int rv = ngtcp2_conn_client_new(&conn, &dcid, &scid, &path,
+                                     NGTCP2_PROTO_VER_V1, &callbacks, &settings, &params, nullptr, this);
+
+    if (rv != 0) {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_QUIC_INIT,
+                         "ngtcp2_conn_client_new failed: %s", ngtcp2_strerror(rv));
+        return false;
+    }
+
+    // Setup SSL
+    ssl = SSL_new(ssl_ctx);
+    if (!ssl) {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SSL_CTX_INIT, "SSL_new failed");
+        return false;
+    }
+
+    SSL_set_connect_state(ssl);
+    SSL_set_tlsext_host_name(ssl, server_name);
+    SSL_set_quic_early_data_enabled(ssl, 1);
+
+    ngtcp2_conn_set_tls_native_handle(conn, ssl);
+
+    state = SW_QUIC_STATE_HANDSHAKE;
+    return true;
+}
+
+Stream* Connection::open_stream(int64_t stream_id) {
+    if (stream_id < 0) {
+        // Generate new stream ID
+        stream_id = next_stream_id;
+        next_stream_id += 4;  // Bidirectional client/server initiated streams
+    }
+
+    if (streams.find(stream_id) != streams.end()) {
+        return streams[stream_id];
+    }
+
+    Stream *stream = new Stream(stream_id, this);
+    streams[stream_id] = stream;
+
+    return stream;
+}
+
+Stream* Connection::get_stream(int64_t stream_id) {
+    auto it = streams.find(stream_id);
+    if (it == streams.end()) {
+        return nullptr;
+    }
+    return it->second;
+}
+
+bool Connection::close_stream(int64_t stream_id, uint64_t error_code) {
+    auto it = streams.find(stream_id);
+    if (it == streams.end()) {
+        return false;
+    }
+
+    Stream *stream = it->second;
+    stream->close(error_code);
+    delete stream;
+    streams.erase(it);
+
+    return true;
+}
+
+ssize_t Connection::send_packet(uint8_t *dest, size_t destlen) {
+    if (!conn || state == SW_QUIC_STATE_CLOSED) {
+        return -1;
+    }
+
+    ngtcp2_path_storage ps;
+    ngtcp2_path_storage_zero(&ps);
+
+    ngtcp2_pkt_info pi;
+    ngtcp2_tstamp ts = timestamp();
+
+    ssize_t nwrite = ngtcp2_conn_write_pkt(conn, &ps.path, &pi, dest, destlen, ts);
+
+    if (nwrite < 0) {
+        if (nwrite != NGTCP2_ERR_STREAM_DATA_BLOCKED) {
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_QUIC_SEND,
+                             "ngtcp2_conn_write_pkt failed: %s", ngtcp2_strerror(nwrite));
+        }
+        return nwrite;
+    }
+
+    last_ts = ts;
+    return nwrite;
+}
+
+ssize_t Connection::recv_packet(const uint8_t *data, size_t datalen) {
+    if (!conn || state == SW_QUIC_STATE_CLOSED) {
+        return -1;
+    }
+
+    ngtcp2_path path;
+    ngtcp2_path_storage_init2(&path, (struct sockaddr *) &local_addr,
+                               (struct sockaddr *) &remote_addr);
+
+    ngtcp2_pkt_info pi;
+    memset(&pi, 0, sizeof(pi));
+
+    ngtcp2_tstamp ts = timestamp();
+
+    int rv = ngtcp2_conn_read_pkt(conn, &path, &pi, data, datalen, ts);
+
+    if (rv != 0) {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_QUIC_RECV,
+                         "ngtcp2_conn_read_pkt failed: %s", ngtcp2_strerror(rv));
+        return rv;
+    }
+
+    last_ts = ts;
+    return datalen;
+}
+
+bool Connection::handle_expiry() {
+    if (!conn) {
+        return false;
+    }
+
+    ngtcp2_tstamp ts = timestamp();
+    int rv = ngtcp2_conn_handle_expiry(conn, ts);
+
+    if (rv != 0) {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_QUIC_TIMEOUT,
+                         "ngtcp2_conn_handle_expiry failed: %s", ngtcp2_strerror(rv));
+        return false;
+    }
+
+    last_ts = ts;
+    return true;
+}
+
+ngtcp2_tstamp Connection::get_expiry() {
+    if (!conn) {
+        return 0;
+    }
+    return ngtcp2_conn_get_expiry(conn);
+}
+
+bool Connection::close(uint64_t error_code) {
+    if (state == SW_QUIC_STATE_CLOSED || state == SW_QUIC_STATE_CLOSING) {
+        return true;
+    }
+
+    state = SW_QUIC_STATE_CLOSING;
+
+    if (conn) {
+        ngtcp2_path_storage ps;
+        ngtcp2_path_storage_zero(&ps);
+
+        ngtcp2_pkt_info pi;
+        ngtcp2_tstamp ts = timestamp();
+
+        ngtcp2_ccerr ccerr;
+        ngtcp2_ccerr_default(&ccerr);
+        ngtcp2_ccerr_set_application_error(&ccerr, error_code, nullptr, 0);
+
+        uint8_t buf[SW_QUIC_MAX_PACKET_SIZE];
+        ssize_t nwrite = ngtcp2_conn_write_connection_close(conn, &ps.path, &pi,
+                                                              buf, sizeof(buf), &ccerr, ts);
+
+        // Connection close packet written (would need to be sent via socket)
+    }
+
+    state = SW_QUIC_STATE_CLOSED;
+
+    if (on_connection_close) {
+        on_connection_close(this, error_code);
+    }
+
+    return true;
+}
+
+// ==================== QUIC Server Implementation ====================
+
+Server::Server()
+    : fd(-1),
+      ssl_ctx(nullptr),
+      on_connection(nullptr),
+      on_stream_open(nullptr),
+      on_stream_close(nullptr),
+      on_stream_data(nullptr),
+      user_data(nullptr) {
+}
+
+Server::~Server() {
+    for (auto &pair : connections) {
+        delete pair.second;
+    }
+    connections.clear();
+
+    if (fd >= 0) {
+        close(fd);
+        fd = -1;
+    }
+}
+
+bool Server::bind(const char *host, int port) {
+    // Create UDP socket
+    fd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (fd < 0) {
+        swoole_sys_error("socket() failed");
+        return false;
+    }
+
+    // Set socket options
+    int reuse = 1;
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0) {
+        swoole_sys_error("setsockopt(SO_REUSEADDR) failed");
+        return false;
+    }
+
+    // Bind address
+    struct sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+
+    if (inet_pton(AF_INET, host, &addr.sin_addr) <= 0) {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_INVALID_PARAMS, "Invalid host address: %s", host);
+        return false;
+    }
+
+    if (::bind(fd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
+        swoole_sys_error("bind() failed");
+        return false;
+    }
+
+    swoole_trace("QUIC server listening on %s:%d", host, port);
+    return true;
+}
+
+Connection* Server::accept_connection(const struct sockaddr *remote_addr, socklen_t remote_addrlen,
+                                       const uint8_t *data, size_t datalen) {
+    // Parse QUIC packet to extract connection IDs
+    ngtcp2_pkt_hd hd;
+    ngtcp2_version_cid version_cid;
+
+    int rv = ngtcp2_pkt_decode_version_cid(&version_cid, data, datalen, NGTCP2_MIN_CIDLEN);
+    if (rv != 0) {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_QUIC_PARSE,
+                         "ngtcp2_pkt_decode_version_cid failed: %s", ngtcp2_strerror(rv));
+        return nullptr;
+    }
+
+    // Check if connection already exists
+    std::string cid_str = cid_to_string(&version_cid.dcid);
+    auto it = connections.find(cid_str);
+    if (it != connections.end()) {
+        return it->second;
+    }
+
+    // Create new connection
+    Connection *conn = new Connection();
+
+    struct sockaddr_storage local_addr;
+    socklen_t local_addrlen = sizeof(local_addr);
+    getsockname(fd, (struct sockaddr *) &local_addr, &local_addrlen);
+
+    ngtcp2_cid scid;
+    if (!generate_connection_id(&scid)) {
+        delete conn;
+        return nullptr;
+    }
+
+    if (!conn->init_server((struct sockaddr *) &local_addr, local_addrlen,
+                            remote_addr, remote_addrlen,
+                            &version_cid.dcid, &scid, ssl_ctx)) {
+        delete conn;
+        return nullptr;
+    }
+
+    // Set callbacks
+    conn->on_stream_open = on_stream_open;
+    conn->on_stream_close = on_stream_close;
+    conn->on_stream_data = on_stream_data;
+
+    connections[cid_str] = conn;
+
+    if (on_connection) {
+        on_connection(this, conn);
+    }
+
+    // Process initial packet
+    conn->recv_packet(data, datalen);
+
+    return conn;
+}
+
+bool Server::remove_connection(Connection *conn) {
+    std::string cid_str = cid_to_string(&conn->scid);
+    auto it = connections.find(cid_str);
+    if (it == connections.end()) {
+        return false;
+    }
+
+    delete conn;
+    connections.erase(it);
+    return true;
+}
+
+void Server::run() {
+    // Main event loop would go here
+    // This would integrate with Swoole's reactor
+    swoole_trace("QUIC server running...");
+}
 
 #endif // SW_USE_QUIC
