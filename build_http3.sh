@@ -29,6 +29,10 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+print_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
 # Check if running as root for dependency installation
 check_sudo() {
     if [ "$EUID" -ne 0 ]; then
@@ -59,25 +63,26 @@ install_system_deps() {
     print_info "System dependencies installed"
 }
 
-# Step 2: Build and install QuicTLS (OpenSSL with QUIC support)
-build_quictls() {
-    print_info "Building QuicTLS (OpenSSL with QUIC support)..."
+# Step 2: Build and install OpenSSL 3.5 (with native QUIC support)
+build_openssl35() {
+    print_info "Building OpenSSL 3.5 with native QUIC support..."
 
     cd /tmp
     rm -rf openssl
 
-    # Clone QuicTLS (OpenSSL 3.1.8 with QUIC patches - stable version)
-    git clone --depth 1 --branch openssl-3.1.8+quic https://github.com/quictls/openssl.git
+    # Clone OpenSSL 3.5.0 (has native QUIC support)
+    git clone --depth 1 --branch openssl-3.5.0 https://github.com/openssl/openssl.git
     cd openssl
 
-    # Configure and build (without no-shared to get shared libraries)
-    ./config --prefix=/usr/local/quictls \
-        --openssldir=/usr/local/quictls
+    # Configure and build with QUIC enabled
+    ./config --prefix=/usr/local/openssl35 \
+        --openssldir=/usr/local/openssl35 \
+        enable-quic
 
     make -j$(nproc)
     make install
 
-    print_info "QuicTLS installed successfully to /usr/local/quictls"
+    print_info "OpenSSL 3.5 with QUIC installed successfully to /usr/local/openssl35"
 }
 
 # Step 3: Build and install ngtcp2
@@ -92,12 +97,12 @@ build_ngtcp2() {
 
     autoreconf -i
 
-    # Configure with QuicTLS and CFLAGS to avoid assembler .base64 issues
-    PKG_CONFIG_PATH=/usr/local/quictls/lib64/pkgconfig:/usr/local/quictls/lib/pkgconfig:$PKG_CONFIG_PATH \
-    CFLAGS="-O2 -g0" \
-    LDFLAGS="-Wl,-rpath,/usr/local/quictls/lib64 -Wl,-rpath,/usr/local/quictls/lib" \
+    # Configure with OpenSSL 3.5 and CFLAGS to avoid assembler .base64 issues
+    PKG_CONFIG_PATH=/usr/local/openssl35/lib64/pkgconfig:/usr/local/openssl35/lib/pkgconfig:$PKG_CONFIG_PATH \
+    CFLAGS="-O2 -g0 -I/usr/local/openssl35/include" \
+    LDFLAGS="-Wl,-rpath,/usr/local/openssl35/lib64 -Wl,-rpath,/usr/local/openssl35/lib -L/usr/local/openssl35/lib64 -L/usr/local/openssl35/lib" \
     ./configure --prefix=/usr/local \
-        --with-openssl=/usr/local/quictls \
+        --with-openssl=/usr/local/openssl35 \
         --enable-lib-only
 
     make -j$(nproc)
@@ -238,7 +243,7 @@ main() {
     install_system_deps
     echo ""
 
-    build_quictls
+    build_openssl35
     echo ""
 
     build_ngtcp2
