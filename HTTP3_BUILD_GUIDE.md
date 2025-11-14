@@ -45,11 +45,17 @@ cd ngtcp2
 
 # Build with OpenSSL support
 autoreconf -i
+
+# Set CFLAGS to avoid assembler .base64 issues
+export CFLAGS="-O2 -g0"
+
 ./configure --prefix=/usr/local \
     --with-openssl \
     --enable-lib-only
 make -j$(nproc)
 sudo make install
+
+unset CFLAGS
 ```
 
 ### Step 3: Install nghttp3 (HTTP/3 Library)
@@ -62,10 +68,16 @@ cd nghttp3
 
 # Build
 autoreconf -i
+
+# Set CFLAGS to avoid assembler .base64 issues
+export CFLAGS="-O2 -g0"
+
 ./configure --prefix=/usr/local \
     --enable-lib-only
 make -j$(nproc)
 sudo make install
+
+unset CFLAGS
 ```
 
 ### Step 4: Update Library Cache
@@ -164,6 +176,28 @@ curl --http3 -k https://localhost:443
 6. You should see: "hello from http3 server!"
 
 ## Troubleshooting
+
+### Assembler `.base64` Error
+
+**Error message:**
+```
+/tmp/ccXXXXXX.s: Assembler messages:
+/tmp/ccXXXXXX.s:XXXX: Error: unknown pseudo-op: `.base64'
+make: *** [Makefile:XXX: ngtcp2_XXX.lo] Error 1
+```
+
+**Cause:** Some compiler versions generate debug information in a format incompatible with the assembler.
+
+**Solution:**
+```bash
+# Set CFLAGS to disable debug information before configure
+export CFLAGS="-O2 -g0"
+./configure --prefix=/usr/local --with-openssl --enable-lib-only
+make -j$(nproc)
+unset CFLAGS
+```
+
+This fix is already included in the `build_http3.sh` script.
 
 ### Library Not Found Error
 
@@ -268,18 +302,22 @@ cd /tmp
 git clone --depth 1 --branch v1.16.0 https://github.com/ngtcp2/ngtcp2.git
 cd ngtcp2
 autoreconf -i
+export CFLAGS="-O2 -g0"
 ./configure --prefix=/usr/local --with-openssl --enable-lib-only
 make -j$(nproc)
 sudo make install
+unset CFLAGS
 
 # Build nghttp3
 cd /tmp
 git clone --depth 1 --branch v1.12.0 https://github.com/ngtcp2/nghttp3.git
 cd nghttp3
 autoreconf -i
+export CFLAGS="-O2 -g0"
 ./configure --prefix=/usr/local --enable-lib-only
 make -j$(nproc)
 sudo make install
+unset CFLAGS
 
 # Update library cache
 sudo ldconfig

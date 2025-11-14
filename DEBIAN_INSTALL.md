@@ -47,6 +47,10 @@ cd ngtcp2
 
 # 配置（重点：使用 --with-openssl）
 autoreconf -i
+
+# 设置编译标志以避免汇编器问题
+export CFLAGS="-O2 -g0"
+
 ./configure --prefix=/usr/local \
     --with-openssl \
     --enable-lib-only
@@ -54,11 +58,15 @@ autoreconf -i
 # 编译安装
 make -j$(nproc)
 sudo make install
+
+# 清除环境变量
+unset CFLAGS
 ```
 
 **重要参数说明**：
 - `--with-openssl` - 使用 OpenSSL 加密（必需）
 - `--enable-lib-only` - 只编译库，不编译客户端/服务器工具
+- `CFLAGS="-O2 -g0"` - 禁用调试信息，避免汇编器 `.base64` 伪操作错误
 
 ### 3. 编译安装 nghttp3
 
@@ -70,12 +78,19 @@ cd nghttp3
 
 # 配置
 autoreconf -i
+
+# 设置编译标志以避免汇编器问题
+export CFLAGS="-O2 -g0"
+
 ./configure --prefix=/usr/local \
     --enable-lib-only
 
 # 编译安装
 make -j$(nproc)
 sudo make install
+
+# 清除环境变量
+unset CFLAGS
 ```
 
 ### 4. 更新库缓存
@@ -159,7 +174,28 @@ php --ri swoole | grep -i version
 
 ## 常见问题
 
-### Q1: configure 找不到 ngtcp2
+### Q1: 编译时出现 `.base64` 汇编器错误
+
+**错误信息**：
+```
+/tmp/ccXXXXXX.s: Assembler messages:
+/tmp/ccXXXXXX.s:XXXX: Error: unknown pseudo-op: `.base64'
+```
+
+**原因**：某些编译器版本生成的调试信息格式与汇编器不兼容。
+
+**解决方法**：
+```bash
+# 在编译时设置 CFLAGS 禁用调试信息
+export CFLAGS="-O2 -g0"
+./configure --prefix=/usr/local --with-openssl --enable-lib-only
+make -j$(nproc)
+unset CFLAGS
+```
+
+我们的构建脚本已经包含了这个修复。
+
+### Q2: configure 找不到 ngtcp2
 
 **错误信息**：
 ```
@@ -274,9 +310,11 @@ rm -rf ngtcp2
 git clone --depth 1 --branch v1.16.0 https://github.com/ngtcp2/ngtcp2.git
 cd ngtcp2
 autoreconf -i
+export CFLAGS="-O2 -g0"
 ./configure --prefix=/usr/local --with-openssl --enable-lib-only
 make -j$(nproc)
 sudo make install
+unset CFLAGS
 
 # 3. 编译 nghttp3
 cd /tmp
@@ -284,9 +322,11 @@ rm -rf nghttp3
 git clone --depth 1 --branch v1.12.0 https://github.com/ngtcp2/nghttp3.git
 cd nghttp3
 autoreconf -i
+export CFLAGS="-O2 -g0"
 ./configure --prefix=/usr/local --enable-lib-only
 make -j$(nproc)
 sudo make install
+unset CFLAGS
 
 # 4. 更新库缓存
 sudo ldconfig

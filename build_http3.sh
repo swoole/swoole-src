@@ -67,12 +67,19 @@ build_ngtcp2() {
     cd ngtcp2
 
     autoreconf -i
+
+    # Set CFLAGS to avoid assembler .base64 issues
+    export CFLAGS="-O2 -g0"
+
     ./configure --prefix=/usr/local \
         --with-openssl \
         --enable-lib-only
 
     make -j$(nproc)
     sudo make install
+
+    # Clear CFLAGS
+    unset CFLAGS
 
     print_info "ngtcp2 installed successfully"
 }
@@ -88,11 +95,18 @@ build_nghttp3() {
     cd nghttp3
 
     autoreconf -i
+
+    # Set CFLAGS to avoid assembler .base64 issues
+    export CFLAGS="-O2 -g0"
+
     ./configure --prefix=/usr/local \
         --enable-lib-only
 
     make -j$(nproc)
     sudo make install
+
+    # Clear CFLAGS
+    unset CFLAGS
 
     print_info "nghttp3 installed successfully"
 }
