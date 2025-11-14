@@ -165,7 +165,7 @@ static void hook_func(const char *name,
 static void unhook_func(const char *name, size_t l_name);
 
 static zend_internal_arg_info *get_arginfo(const char *name, size_t l_name) {
-    auto *zf = static_cast<zend_function *>(zend_hash_str_find_ptr(EG(function_table), name, l_name));
+    auto *zf = zend::get_function(name, l_name);
     if (zf == nullptr) {
         return nullptr;
     }
@@ -326,6 +326,18 @@ void php_swoole_runtime_rinit() {
 void php_swoole_runtime_rshutdown() {
     if (sw_is_main_thread()) {
         PHPCoroutine::disable_hook();
+        ori_func_handlers.each([](std::string fname, zif_handler handler) {
+            auto *zf = zend::get_function(fname);
+            if (zf) {
+                zf->internal_function.handler = handler;
+            }
+        });
+        ori_func_arg_infos.each([](std::string fname, zend_internal_arg_info *arg_info) {
+            auto *zf = zend::get_function(fname);
+            if (zf) {
+                zf->internal_function.arg_info = arg_info;
+            }
+        });
         ori_func_handlers.clear();
         ori_func_arg_infos.clear();
     }
@@ -340,10 +352,8 @@ void php_swoole_runtime_rshutdown() {
             zval_dtor(&rf->name);
             sw_callable_free(rf->fci_cache);
         }
-        if (sw_is_main_thread()) {
-            rf->function->internal_function.handler = rf->ori_handler;
-            rf->function->internal_function.arg_info = rf->ori_arg_info;
-        }
+        rf->function->internal_function.handler = rf->ori_handler;
+        rf->function->internal_function.arg_info = rf->ori_arg_info;
         efree(rf);
     }
     ZEND_HASH_FOREACH_END();
@@ -1245,7 +1255,7 @@ static bool disable_func(const char *name, size_t l_name) {
         return true;
     }
 
-    auto *zf = static_cast<zend_function *>(zend_hash_str_find_ptr(EG(function_table), name, l_name));
+    auto *zf = zend::get_function(name, l_name);
     if (zf == nullptr) {
         return false;
     }
@@ -2104,7 +2114,7 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
         return;
     }
 
-    auto *zf = static_cast<zend_function *>(zend_hash_str_find_ptr(EG(function_table), name, l_name));
+    auto *zf = zend::get_function(name, l_name);
     if (zf == nullptr) {
         return;
     }
@@ -2116,13 +2126,17 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
 
     auto fn_name = std::string(fn_str->val, fn_str->len);
 
-    rf->ori_handler = zf->internal_function.handler;
-    rf->ori_arg_info = zf->internal_function.arg_info;
-
-    if (sw_is_main_thread()) {
-        ori_func_handlers.set(fn_name, rf->ori_handler);
-        ori_func_arg_infos.set(fn_name, rf->ori_arg_info);
-    }
+    do {
+#ifdef SW_THREAD
+        std::unique_lock<std::mutex> _lock(sw_thread_lock);
+#endif
+        if (!ori_func_arg_infos.exists(fn_name)) {
+            ori_func_handlers.set(fn_name, zf->internal_function.handler);
+            ori_func_arg_infos.set(fn_name, zf->internal_function.arg_info);
+        }
+        rf->ori_handler = ori_func_handlers.get(fn_name);
+        rf->ori_arg_info = ori_func_arg_infos.get(fn_name);
+    } while (0);
 
     zf->internal_function.handler = handler;
     if (arg_info) {
@@ -2193,22 +2207,14 @@ php_stream_ops *php_swoole_get_ori_php_stream_stdio_ops() {
 }
 
 zif_handler php_swoole_get_original_handler(const char *name, size_t len) {
-    if (sw_is_main_thread()) {
-        auto *rf = static_cast<PhpFunc *>(zend_hash_str_find_ptr(tmp_function_table, name, len));
-        if (rf) {
-            return rf->ori_handler;
-        }
-    } else {
-        zif_handler handler = ori_func_handlers.get(std::string(name, len));
-        if (handler) {
-            return handler;
-        }
-        auto *zf = static_cast<zend_function *>(zend_hash_str_find_ptr(EG(function_table), name, len));
-        if (zf && zf->type == ZEND_INTERNAL_FUNCTION && zf->internal_function.handler) {
-            return zf->internal_function.handler;
-        }
+    zif_handler handler = ori_func_handlers.get(std::string(name, len));
+    if (handler) {
+        return handler;
     }
-
+    auto *zf = zend::get_function(name, len);
+    if (zf && zf->type == ZEND_INTERNAL_FUNCTION && zf->internal_function.handler) {
+        return zf->internal_function.handler;
+    }
     return nullptr;
 }
 

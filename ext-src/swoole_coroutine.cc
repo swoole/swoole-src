@@ -1044,13 +1044,6 @@ void php_swoole_coroutine_minit(int module_number) {
     SW_REGISTER_LONG_CONSTANT("SWOOLE_EXIT_IN_COROUTINE", SW_EXIT_IN_COROUTINE);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_EXIT_IN_SERVER", SW_EXIT_IN_SERVER);
 
-    /* hook autoload */
-    original_zend_autoload = zend_autoload;
-    zend_autoload = swoole_coroutine_autoload;
-    SWOOLE_G(in_autoload) = nullptr;
-}
-
-void php_swoole_coroutine_rinit() {
     if (SWOOLE_G(cli)) {
 #if PHP_VERSION_ID < 80400
         ori_exit_handler = zend_get_user_opcode_handler(ZEND_EXIT);
@@ -1064,6 +1057,13 @@ void php_swoole_coroutine_rinit() {
         zend_set_user_opcode_handler(ZEND_END_SILENCE, coro_end_silence_handler);
     }
 
+    /* hook autoload */
+    original_zend_autoload = zend_autoload;
+    zend_autoload = swoole_coroutine_autoload;
+    SWOOLE_G(in_autoload) = nullptr;
+}
+
+void php_swoole_coroutine_rinit() {
     PHPCoroutine::init_main_context();
 }
 
