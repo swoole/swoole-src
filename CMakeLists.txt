@@ -197,12 +197,15 @@ file(GLOB ext_cxx_files ext-src/*.cc)
 set(ext_src_list  ${ext_cxx_files}
         thirdparty/php/curl/interface.cc
         thirdparty/php/curl/multi.cc
-        thirdparty/php/sockets/multicast.cc
+        thirdparty/php84/curl/interface.cc
+	    thirdparty/php84/curl/multi.cc	
+	    thirdparty/php/sockets/multicast.cc
         thirdparty/php/sockets/sendrecvmsg.cc
         thirdparty/php/sockets/conversions.cc
         thirdparty/php/sockets/sockaddr_conv.cc
         thirdparty/php/standard/proc_open.cc
-        thirdparty/nghttp2/nghttp2_hd.c
+        thirdparty/php/standard/var_decoder.cc
+	    thirdparty/nghttp2/nghttp2_hd.c
         thirdparty/nghttp2/nghttp2_rcbuf.c
         thirdparty/nghttp2/nghttp2_helper.c
         thirdparty/nghttp2/nghttp2_buf.c
@@ -245,7 +248,7 @@ else()
     target_include_directories(ext-swoole PRIVATE ${LIBPQ_INCLUDE_DIRS})
 endif()
 
-target_link_libraries(ext-swoole swoole pq)
+target_link_libraries(ext-swoole swoole pq curl)
 
 # install
 INSTALL(TARGETS ext-swoole LIBRARY DESTINATION ${PHP_EXTENSION_DIR})

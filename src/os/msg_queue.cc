@@ -141,5 +141,8 @@ bool MsgQueue::stat(size_t *queue_num, size_t *queue_bytes) const {
 bool MsgQueue::destroy() {
     return false;
 }
+
+MsgQueue::~MsgQueue() {
+}
 #endif
 }  // namespace swoole

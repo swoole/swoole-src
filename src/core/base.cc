@@ -144,9 +144,7 @@ void swoole_init() {
         SwooleG.max_sockets = SW_MIN((uint32_t) rlmt.rlim_cur, SW_SESSION_LIST_SIZE);
     }
 
-    if (!swoole_set_task_tmpdir(SW_TASK_TMP_DIR)) {
-        exit(4);
-    }
+    SwooleG.task_tmpfile = SW_TASK_TMP_DIR;
 
     // init signalfd
 #ifdef HAVE_SIGNALFD
