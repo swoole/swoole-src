@@ -55,58 +55,37 @@ make -j$(nproc)
 sudo make install
 ```
 
-### Step 3: Install sfparse (nghttp3 Dependency)
-
-```bash
-# Download and build sfparse
-cd /tmp
-git clone --depth 1 https://github.com/ngtcp2/sfparse.git
-cd sfparse
-
-autoreconf -i
-CFLAGS="-O2 -g0" ./configure --prefix=/usr/local
-make -j$(nproc)
-sudo make install
-
-# Manually create sfparse subdirectory and copy header
-# nghttp3 expects sfparse/sfparse.h but sfparse installs to include/sfparse.h
-sudo mkdir -p /usr/local/include/sfparse
-sudo cp -f sfparse.h /usr/local/include/sfparse/
-```
-
-### Step 4: Install nghttp3 (HTTP/3 Library)
+### Step 3: Install nghttp3 (HTTP/3 Library)
 
 ```bash
 # Download and build nghttp3
 cd /tmp
-git clone --depth 1 --branch v1.12.0 https://github.com/ngtcp2/nghttp3.git
+git clone --branch v1.12.0 https://github.com/ngtcp2/nghttp3.git
 cd nghttp3
+
+# Initialize git submodules (includes sfparse dependency)
+git submodule update --init --recursive
 
 # Build
 autoreconf -i
 
-# Update library cache to ensure sfparse is found
-sudo ldconfig
-
-# Configure with environment variables to find sfparse headers and libraries
-PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH \
-CFLAGS="-O2 -g0" \
-CPPFLAGS="-I/usr/local/include" \
-LDFLAGS="-L/usr/local/lib" \
-./configure --prefix=/usr/local \
+# Configure with CFLAGS to avoid assembler .base64 issues
+CFLAGS="-O2 -g0" ./configure --prefix=/usr/local \
     --enable-lib-only
 
 make -j$(nproc)
 sudo make install
 ```
 
-### Step 5: Update Library Cache
+**Note**: nghttp3 includes sfparse as a git submodule, so there's no need to install sfparse separately.
+
+### Step 4: Update Library Cache
 
 ```bash
 sudo ldconfig
 ```
 
-### Step 6: Verify Installation
+### Step 5: Verify Installation
 
 ```bash
 # Check if libraries are installed
@@ -114,7 +93,7 @@ pkg-config --exists ngtcp2 && echo "ngtcp2 installed: $(pkg-config --modversion 
 pkg-config --exists libnghttp3 && echo "nghttp3 installed: $(pkg-config --modversion libnghttp3)"
 ```
 
-### Step 7: Compile Swoole with HTTP/3 Support
+### Step 6: Compile Swoole with HTTP/3 Support
 
 ```bash
 # Navigate to Swoole source directory
@@ -142,7 +121,7 @@ make -j$(nproc)
 sudo make install
 ```
 
-### Step 8: Enable Swoole Extension
+### Step 7: Enable Swoole Extension
 
 Add Swoole to your PHP configuration:
 
@@ -151,7 +130,7 @@ Add Swoole to your PHP configuration:
 echo "extension=swoole.so" | sudo tee /etc/php/$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')/cli/conf.d/20-swoole.ini
 ```
 
-### Step 9: Verify HTTP/3 Support
+### Step 8: Verify HTTP/3 Support
 
 ```bash
 php -r 'var_dump(defined("SWOOLE_USE_HTTP3") && SWOOLE_USE_HTTP3);'
@@ -326,28 +305,13 @@ CFLAGS="-O2 -g0" ./configure --prefix=/usr/local --with-openssl --enable-lib-onl
 make -j$(nproc)
 sudo make install
 
-# Build sfparse (nghttp3 dependency)
+# Build nghttp3 (includes sfparse as git submodule)
 cd /tmp
-git clone --depth 1 https://github.com/ngtcp2/sfparse.git
-cd sfparse
-autoreconf -i
-CFLAGS="-O2 -g0" ./configure --prefix=/usr/local
-make -j$(nproc)
-sudo make install
-sudo mkdir -p /usr/local/include/sfparse
-sudo cp -f sfparse.h /usr/local/include/sfparse/
-
-# Build nghttp3
-cd /tmp
-git clone --depth 1 --branch v1.12.0 https://github.com/ngtcp2/nghttp3.git
+git clone --branch v1.12.0 https://github.com/ngtcp2/nghttp3.git
 cd nghttp3
+git submodule update --init --recursive
 autoreconf -i
-sudo ldconfig
-PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH \
-CFLAGS="-O2 -g0" \
-CPPFLAGS="-I/usr/local/include" \
-LDFLAGS="-L/usr/local/lib" \
-./configure --prefix=/usr/local --enable-lib-only
+CFLAGS="-O2 -g0" ./configure --prefix=/usr/local --enable-lib-only
 make -j$(nproc)
 sudo make install
 

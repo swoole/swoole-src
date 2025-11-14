@@ -83,43 +83,20 @@ build_ngtcp2() {
 build_nghttp3() {
     print_info "Building nghttp3 (HTTP/3 library)..."
 
-    # First build sfparse (required dependency)
-    print_info "Building sfparse (nghttp3 dependency)..."
-    cd /tmp
-    rm -rf sfparse
-
-    git clone --depth 1 https://github.com/ngtcp2/sfparse.git
-    cd sfparse
-
-    autoreconf -i
-    CFLAGS="-O2 -g0" ./configure --prefix=/usr/local
-    make -j$(nproc)
-    sudo make install
-
-    # Manually create sfparse subdirectory and copy header
-    # nghttp3 expects sfparse/sfparse.h but sfparse installs to include/sfparse.h
-    sudo mkdir -p /usr/local/include/sfparse
-    sudo cp -f sfparse.h /usr/local/include/sfparse/
-
-    # Now build nghttp3
-    print_info "Building nghttp3..."
     cd /tmp
     rm -rf nghttp3
 
-    git clone --depth 1 --branch v1.12.0 https://github.com/ngtcp2/nghttp3.git
+    # Clone nghttp3 (NOT with --depth 1 to allow submodule init)
+    git clone --branch v1.12.0 https://github.com/ngtcp2/nghttp3.git
     cd nghttp3
+
+    # Initialize git submodules (includes sfparse)
+    git submodule update --init --recursive
 
     autoreconf -i
 
-    # Update library cache to ensure sfparse is found
-    sudo ldconfig
-
-    # Configure with CFLAGS and PKG_CONFIG_PATH to find sfparse
-    PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH \
-    CFLAGS="-O2 -g0" \
-    CPPFLAGS="-I/usr/local/include" \
-    LDFLAGS="-L/usr/local/lib" \
-    ./configure --prefix=/usr/local \
+    # Configure with CFLAGS to avoid assembler .base64 issues
+    CFLAGS="-O2 -g0" ./configure --prefix=/usr/local \
         --enable-lib-only
 
     make -j$(nproc)

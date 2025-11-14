@@ -24,53 +24,34 @@ make -j$(nproc)
 sudo make install
 ```
 
-### 2. 编译 sfparse (nghttp3 依赖)
-
-```bash
-cd /tmp
-rm -rf sfparse
-git clone --depth 1 https://github.com/ngtcp2/sfparse.git
-cd sfparse
-autoreconf -i
-
-# 关键：在 configure 命令前直接指定 CFLAGS 避免 .base64 错误
-CFLAGS="-O2 -g0" ./configure --prefix=/usr/local
-make -j$(nproc)
-sudo make install
-
-# 手动复制头文件到正确位置
-# nghttp3 期望 sfparse/sfparse.h 但 sfparse 安装为 sfparse.h
-sudo mkdir -p /usr/local/include/sfparse
-sudo cp -f sfparse.h /usr/local/include/sfparse/
-```
-
-### 3. 编译 nghttp3
+### 2. 编译 nghttp3
 
 ```bash
 cd /tmp
 rm -rf nghttp3
-git clone --depth 1 --branch v1.12.0 https://github.com/ngtcp2/nghttp3.git
+git clone --branch v1.12.0 https://github.com/ngtcp2/nghttp3.git
 cd nghttp3
+
+# 关键：初始化 git 子模块（包含 sfparse 依赖）
+git submodule update --init --recursive
+
 autoreconf -i
 
-# 关键：设置环境变量确保找到 sfparse 并避免 .base64 错误
-sudo ldconfig
-PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH \
-CFLAGS="-O2 -g0" \
-CPPFLAGS="-I/usr/local/include" \
-LDFLAGS="-L/usr/local/lib" \
-./configure --prefix=/usr/local --enable-lib-only
+# 关键：在 configure 命令前直接指定 CFLAGS 避免 .base64 错误
+CFLAGS="-O2 -g0" ./configure --prefix=/usr/local --enable-lib-only
 make -j$(nproc)
 sudo make install
 ```
 
-### 4. 更新库缓存
+**注意**：nghttp3 包含 sfparse 作为 git 子模块，无需单独编译安装 sfparse。
+
+### 3. 更新库缓存
 
 ```bash
 sudo ldconfig
 ```
 
-### 5. 验证安装
+### 4. 验证安装
 
 ```bash
 pkg-config --modversion ngtcp2
@@ -78,7 +59,7 @@ pkg-config --modversion libnghttp3
 ls -la /usr/local/lib/libngtcp2_crypto_quictls.so*
 ```
 
-### 6. 编译 Swoole
+### 5. 编译 Swoole
 
 ```bash
 cd /home/user/swoole-src
@@ -89,14 +70,14 @@ make -j$(nproc)
 sudo make install
 ```
 
-### 7. 启用扩展
+### 6. 启用扩展
 
 ```bash
 PHP_VERSION=$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')
 echo "extension=swoole.so" | sudo tee /etc/php/${PHP_VERSION}/cli/conf.d/20-swoole.ini
 ```
 
-### 8. 验证 HTTP/3
+### 7. 验证 HTTP/3
 
 ```bash
 php -r 'var_dump(SWOOLE_USE_HTTP3);'
