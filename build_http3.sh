@@ -147,17 +147,34 @@ update_ldconfig() {
 verify_libraries() {
     print_info "Verifying library installation..."
 
-    if pkg-config --exists ngtcp2; then
-        print_info "ngtcp2 $(pkg-config --modversion ngtcp2) found"
+    export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig:$PKG_CONFIG_PATH
+
+    if pkg-config --exists libngtcp2; then
+        print_success "ngtcp2 $(pkg-config --modversion libngtcp2) found"
     else
-        print_error "ngtcp2 not found!"
+        print_error "libngtcp2 not found!"
+        exit 1
+    fi
+
+    if pkg-config --exists libngtcp2_crypto_ossl; then
+        print_success "ngtcp2_crypto_ossl $(pkg-config --modversion libngtcp2_crypto_ossl) found"
+    else
+        print_error "libngtcp2_crypto_ossl not found!"
         exit 1
     fi
 
     if pkg-config --exists libnghttp3; then
-        print_info "nghttp3 $(pkg-config --modversion libnghttp3) found"
+        print_success "nghttp3 $(pkg-config --modversion libnghttp3) found"
     else
-        print_error "nghttp3 not found!"
+        print_error "libnghttp3 not found!"
+        exit 1
+    fi
+
+    if [ -f /usr/local/openssl35/bin/openssl ]; then
+        OPENSSL_VERSION=$(LD_LIBRARY_PATH=/usr/local/openssl35/lib64:/usr/local/openssl35/lib /usr/local/openssl35/bin/openssl version | awk '{print $2}')
+        print_success "OpenSSL ${OPENSSL_VERSION} with QUIC found"
+    else
+        print_error "OpenSSL 3.5 not found!"
         exit 1
     fi
 }
