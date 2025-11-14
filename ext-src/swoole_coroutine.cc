@@ -18,7 +18,6 @@
  */
 
 #include "php_swoole_cxx.h"
-#include "php_swoole_thread.h"
 #include "php_swoole_coroutine_system.h"
 
 #include "swoole_server.h"
@@ -44,6 +43,8 @@ END_EXTERN_C()
  * resulting in transactional problems and serious bugs.
  */
 #define SW_RECOVER_CANCELED_EXCEPTION 0
+
+#define INVALID_PTR -1
 
 using std::unordered_map;
 using swoole::Coroutine;
@@ -707,7 +708,7 @@ void PHPCoroutine::destroy_context(PHPContext *ctx) {
     // Release resources
     if (ctx->context) {
         zend_object *context = ctx->context;
-        ctx->context = (zend_object *) ~0;
+        ctx->context = reinterpret_cast<zend_object *>(INVALID_PTR);
         OBJ_RELEASE(context);
     }
 
@@ -734,7 +735,7 @@ void PHPCoroutine::destroy_context(PHPContext *ctx) {
 
 void PHPCoroutine::main_func(void *_args) {
     bool exception_caught = false;
-    Args *args = (Args *) _args;
+    const auto args = static_cast<Args *>(_args);
     PHPContext *ctx = create_context(args);
 
     zend_first_try {
@@ -838,10 +839,10 @@ void PHPCoroutine::defer(zend::Function *fci) {
 
 void PHPCoroutine::fiber_context_init(PHPContext *ctx) {
     auto *fiber_context = static_cast<zend_fiber_context *>(emalloc(sizeof(zend_fiber_context)));
-    fiber_context->handle = (void *) -1;
-    fiber_context->kind = (void *) -1;
-    fiber_context->function = (zend_fiber_coroutine) -1;
-    fiber_context->stack = (zend_fiber_stack *) -1;
+    fiber_context->handle = reinterpret_cast<void *>(INVALID_PTR);
+    fiber_context->kind = reinterpret_cast<void *>(INVALID_PTR);
+    fiber_context->function = reinterpret_cast<zend_fiber_coroutine>(INVALID_PTR);
+    fiber_context->stack = reinterpret_cast<zend_fiber_stack *>(INVALID_PTR);
     ctx->fiber_context = fiber_context;
 
     zend_observer_fiber_init_notify(fiber_context);
@@ -1181,9 +1182,9 @@ static PHP_METHOD(swoole_coroutine, getContext) {
         swoole_set_last_error(SW_ERROR_CO_NOT_EXISTS);
         RETURN_NULL();
     }
-    if (UNEXPECTED(ctx->context == reinterpret_cast<zend_object *>(~0))) {
+    if (UNEXPECTED(ctx->context == reinterpret_cast<zend_object *>(INVALID_PTR))) {
         /* bad context (has been destroyed), see: https://github.com/swoole/swoole-src/issues/2991 */
-        php_swoole_fatal_error(E_WARNING, "Context of this coroutine has been destroyed");
+        php_swoole_fatal_error(E_WARNING, "The context of coroutine has been destroyed");
         RETURN_NULL();
     }
     if (UNEXPECTED(!ctx->context)) {
