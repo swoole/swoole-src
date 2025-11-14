@@ -83,6 +83,21 @@ build_ngtcp2() {
 build_nghttp3() {
     print_info "Building nghttp3 (HTTP/3 library)..."
 
+    # First build sfparse (required dependency)
+    print_info "Building sfparse (nghttp3 dependency)..."
+    cd /tmp
+    rm -rf sfparse
+
+    git clone --depth 1 https://github.com/ngtcp2/sfparse.git
+    cd sfparse
+
+    autoreconf -i
+    CFLAGS="-O2 -g0" ./configure --prefix=/usr/local
+    make -j$(nproc)
+    sudo make install
+
+    # Now build nghttp3
+    print_info "Building nghttp3..."
     cd /tmp
     rm -rf nghttp3
 

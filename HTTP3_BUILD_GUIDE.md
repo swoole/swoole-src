@@ -55,7 +55,21 @@ make -j$(nproc)
 sudo make install
 ```
 
-### Step 3: Install nghttp3 (HTTP/3 Library)
+### Step 3: Install sfparse (nghttp3 Dependency)
+
+```bash
+# Download and build sfparse
+cd /tmp
+git clone --depth 1 https://github.com/ngtcp2/sfparse.git
+cd sfparse
+
+autoreconf -i
+CFLAGS="-O2 -g0" ./configure --prefix=/usr/local
+make -j$(nproc)
+sudo make install
+```
+
+### Step 4: Install nghttp3 (HTTP/3 Library)
 
 ```bash
 # Download and build nghttp3
@@ -74,13 +88,13 @@ make -j$(nproc)
 sudo make install
 ```
 
-### Step 4: Update Library Cache
+### Step 5: Update Library Cache
 
 ```bash
 sudo ldconfig
 ```
 
-### Step 5: Verify Installation
+### Step 6: Verify Installation
 
 ```bash
 # Check if libraries are installed
@@ -88,7 +102,7 @@ pkg-config --exists ngtcp2 && echo "ngtcp2 installed: $(pkg-config --modversion 
 pkg-config --exists libnghttp3 && echo "nghttp3 installed: $(pkg-config --modversion libnghttp3)"
 ```
 
-### Step 6: Compile Swoole with HTTP/3 Support
+### Step 7: Compile Swoole with HTTP/3 Support
 
 ```bash
 # Navigate to Swoole source directory
@@ -116,7 +130,7 @@ make -j$(nproc)
 sudo make install
 ```
 
-### Step 7: Enable Swoole Extension
+### Step 8: Enable Swoole Extension
 
 Add Swoole to your PHP configuration:
 
@@ -125,7 +139,7 @@ Add Swoole to your PHP configuration:
 echo "extension=swoole.so" | sudo tee /etc/php/$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')/cli/conf.d/20-swoole.ini
 ```
 
-### Step 8: Verify HTTP/3 Support
+### Step 9: Verify HTTP/3 Support
 
 ```bash
 php -r 'var_dump(defined("SWOOLE_USE_HTTP3") && SWOOLE_USE_HTTP3);'
@@ -297,6 +311,15 @@ git clone --depth 1 --branch v1.16.0 https://github.com/ngtcp2/ngtcp2.git
 cd ngtcp2
 autoreconf -i
 CFLAGS="-O2 -g0" ./configure --prefix=/usr/local --with-openssl --enable-lib-only
+make -j$(nproc)
+sudo make install
+
+# Build sfparse (nghttp3 dependency)
+cd /tmp
+git clone --depth 1 https://github.com/ngtcp2/sfparse.git
+cd sfparse
+autoreconf -i
+CFLAGS="-O2 -g0" ./configure --prefix=/usr/local
 make -j$(nproc)
 sudo make install
 

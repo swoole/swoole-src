@@ -63,7 +63,24 @@ sudo make install
 - `--enable-lib-only` - 只编译库，不编译客户端/服务器工具
 - `CFLAGS="-O2 -g0"` - 禁用调试信息，避免汇编器 `.base64` 伪操作错误
 
-### 3. 编译安装 nghttp3
+### 3. 编译安装 sfparse (nghttp3 依赖)
+
+```bash
+# 下载源码
+cd /tmp
+git clone --depth 1 https://github.com/ngtcp2/sfparse.git
+cd sfparse
+
+# 配置
+autoreconf -i
+CFLAGS="-O2 -g0" ./configure --prefix=/usr/local
+
+# 编译安装
+make -j$(nproc)
+sudo make install
+```
+
+### 4. 编译安装 nghttp3
 
 ```bash
 # 下载源码
@@ -83,13 +100,13 @@ make -j$(nproc)
 sudo make install
 ```
 
-### 4. 更新库缓存
+### 5. 更新库缓存
 
 ```bash
 sudo ldconfig
 ```
 
-### 5. 验证安装
+### 6. 验证安装
 
 ```bash
 # 检查 ngtcp2
@@ -108,7 +125,7 @@ pkg-config --modversion libnghttp3
 # 应该输出: 1.12.0
 ```
 
-### 6. 编译 Swoole
+### 7. 编译 Swoole
 
 ```bash
 cd /home/user/swoole-src
@@ -135,7 +152,7 @@ make -j$(nproc)
 sudo make install
 ```
 
-### 7. 启用 Swoole 扩展
+### 8. 启用 Swoole 扩展
 
 ```bash
 # 获取 PHP 版本
@@ -148,7 +165,7 @@ echo "extension=swoole.so" | sudo tee /etc/php/${PHP_VERSION}/cli/conf.d/20-swoo
 echo "extension=swoole.so" | sudo tee /etc/php/${PHP_VERSION}/fpm/conf.d/20-swoole.ini
 ```
 
-### 8. 验证 HTTP/3 支持
+### 9. 验证 HTTP/3 支持
 
 ```bash
 # 检查 Swoole 已加载
@@ -304,7 +321,17 @@ CFLAGS="-O2 -g0" ./configure --prefix=/usr/local --with-openssl --enable-lib-onl
 make -j$(nproc)
 sudo make install
 
-# 3. 编译 nghttp3
+# 3. 编译 sfparse (nghttp3 依赖)
+cd /tmp
+rm -rf sfparse
+git clone --depth 1 https://github.com/ngtcp2/sfparse.git
+cd sfparse
+autoreconf -i
+CFLAGS="-O2 -g0" ./configure --prefix=/usr/local
+make -j$(nproc)
+sudo make install
+
+# 4. 编译 nghttp3
 cd /tmp
 rm -rf nghttp3
 git clone --depth 1 --branch v1.12.0 https://github.com/ngtcp2/nghttp3.git
@@ -314,15 +341,15 @@ CFLAGS="-O2 -g0" ./configure --prefix=/usr/local --enable-lib-only
 make -j$(nproc)
 sudo make install
 
-# 4. 更新库缓存
+# 5. 更新库缓存
 sudo ldconfig
 
-# 5. 验证
+# 6. 验证
 pkg-config --modversion ngtcp2
 pkg-config --modversion libnghttp3
 ls -la /usr/local/lib/libngtcp2_crypto_quictls.so*
 
-# 6. 编译 Swoole
+# 7. 编译 Swoole
 cd /home/user/swoole-src
 make clean 2>/dev/null || true
 phpize --clean 2>/dev/null || true
