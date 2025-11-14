@@ -243,6 +243,10 @@ SW_API void swoole_set_print_backtrace_on_error(bool enable) {
 }
 
 bool swoole_set_task_tmpdir(const std::string &dir) {
+#ifdef SW_THREAD
+    std::unique_lock<std::mutex> _lock(sw_thread_lock);
+#endif
+
     if (dir.at(0) != '/') {
         swoole_warning("wrong absolute path '%s'", dir.c_str());
         return false;
