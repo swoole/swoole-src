@@ -41,22 +41,46 @@ check_sudo() {
 install_system_deps() {
     print_info "Installing system dependencies..."
 
-    sudo apt-get update
-    sudo apt-get install -y \
+    apt-get update
+    apt-get install -y \
         build-essential \
         autoconf \
+        automake \
+        autotools-dev \
         libtool \
         pkg-config \
         libssl-dev \
         php-dev \
         php-cli \
         git \
-        wget
+        wget \
+        cmake
 
     print_info "System dependencies installed"
 }
 
-# Step 2: Build and install ngtcp2
+# Step 2: Build and install QuicTLS (OpenSSL with QUIC support)
+build_quictls() {
+    print_info "Building QuicTLS (OpenSSL with QUIC support)..."
+
+    cd /tmp
+    rm -rf openssl
+
+    # Clone QuicTLS (OpenSSL 3.1.8 with QUIC patches)
+    git clone --depth 1 --branch openssl-3.1.8+quic https://github.com/quictls/openssl.git
+    cd openssl
+
+    # Configure and build
+    ./config --prefix=/usr/local/quictls \
+        --openssldir=/usr/local/quictls
+
+    make -j$(nproc)
+    make install
+
+    print_info "QuicTLS installed successfully to /usr/local/quictls"
+}
+
+# Step 3: Build and install ngtcp2
 build_ngtcp2() {
     print_info "Building ngtcp2 (QUIC library)..."
 
@@ -68,18 +92,21 @@ build_ngtcp2() {
 
     autoreconf -i
 
-    # Configure with CFLAGS to avoid assembler .base64 issues
-    CFLAGS="-O2 -g0" ./configure --prefix=/usr/local \
-        --with-openssl \
+    # Configure with QuicTLS and CFLAGS to avoid assembler .base64 issues
+    PKG_CONFIG_PATH=/usr/local/quictls/lib64/pkgconfig:/usr/local/quictls/lib/pkgconfig:$PKG_CONFIG_PATH \
+    CFLAGS="-O2 -g0" \
+    LDFLAGS="-Wl,-rpath,/usr/local/quictls/lib64 -Wl,-rpath,/usr/local/quictls/lib" \
+    ./configure --prefix=/usr/local \
+        --with-openssl=/usr/local/quictls \
         --enable-lib-only
 
     make -j$(nproc)
-    sudo make install
+    make install
 
     print_info "ngtcp2 installed successfully"
 }
 
-# Step 3: Build and install nghttp3
+# Step 4: Build and install nghttp3
 build_nghttp3() {
     print_info "Building nghttp3 (HTTP/3 library)..."
 
@@ -100,18 +127,18 @@ build_nghttp3() {
         --enable-lib-only
 
     make -j$(nproc)
-    sudo make install
+    make install
 
     print_info "nghttp3 installed successfully"
 }
 
-# Step 4: Update library cache
+# Step 5: Update library cache
 update_ldconfig() {
     print_info "Updating library cache..."
-    sudo ldconfig
+    ldconfig
 }
 
-# Step 5: Verify libraries
+# Step 6: Verify libraries
 verify_libraries() {
     print_info "Verifying library installation..."
 
@@ -130,7 +157,7 @@ verify_libraries() {
     fi
 }
 
-# Step 6: Build Swoole
+# Step 7: Build Swoole
 build_swoole() {
     print_info "Building Swoole with HTTP/3 support..."
 
@@ -155,12 +182,12 @@ build_swoole() {
     make -j$(nproc)
 
     # Install
-    sudo make install
+    make install
 
     print_info "Swoole compiled and installed successfully"
 }
 
-# Step 7: Enable Swoole extension
+# Step 8: Enable Swoole extension
 enable_extension() {
     print_info "Enabling Swoole extension..."
 
@@ -168,7 +195,7 @@ enable_extension() {
     CONF_DIR="/etc/php/${PHP_VERSION}/cli/conf.d"
 
     if [ -d "$CONF_DIR" ]; then
-        echo "extension=swoole.so" | sudo tee "${CONF_DIR}/20-swoole.ini"
+        echo "extension=swoole.so" | tee "${CONF_DIR}/20-swoole.ini"
         print_info "Extension enabled in ${CONF_DIR}/20-swoole.ini"
     else
         print_warn "Could not find PHP config directory"
@@ -176,7 +203,7 @@ enable_extension() {
     fi
 }
 
-# Step 8: Verify installation
+# Step 9: Verify installation
 verify_installation() {
     print_info "Verifying Swoole installation..."
 
@@ -209,6 +236,9 @@ main() {
 
     # Execute all steps
     install_system_deps
+    echo ""
+
+    build_quictls
     echo ""
 
     build_ngtcp2
