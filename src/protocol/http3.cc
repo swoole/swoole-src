@@ -449,6 +449,441 @@ static int on_reset_stream(nghttp3_conn *conn, int64_t stream_id,
     return 0;
 }
 
-// Remaining implementation will be in the next part due to size constraints...
+// ==================== HTTP/3 Connection Implementation ====================
+
+Connection::Connection(swoole::quic::Connection *qc)
+    : quic_conn(qc),
+      conn(nullptr),
+      next_stream_id(0),
+      control_stream_id(-1),
+      qpack_enc_stream_id(-1),
+      qpack_dec_stream_id(-1),
+      on_stream_open(nullptr),
+      on_stream_close(nullptr),
+      on_recv_header(nullptr),
+      on_recv_body(nullptr),
+      on_recv_data_complete(nullptr),
+      user_data(nullptr),
+      is_server(0),
+      control_stream_opened(0),
+      qpack_streams_opened(0) {
+
+    memset(&settings, 0, sizeof(settings));
+    setup_settings(&settings);
+
+    nghttp3_qpack_encoder_init(&qpack_enc);
+    nghttp3_qpack_decoder_init(&qpack_dec, SW_HTTP3_MAX_TABLE_CAPACITY, SW_HTTP3_MAX_BLOCKED_STREAMS);
+
+    if (qc) {
+        qc->user_data = this;
+    }
+}
+
+Connection::~Connection() {
+    for (auto &pair : streams) {
+        delete pair.second;
+    }
+    streams.clear();
+
+    if (conn) {
+        nghttp3_conn_del(conn);
+        conn = nullptr;
+    }
+
+    nghttp3_qpack_encoder_free(&qpack_enc);
+    nghttp3_qpack_decoder_free(&qpack_dec);
+}
+
+nghttp3_callbacks Connection::create_callbacks() {
+    nghttp3_callbacks callbacks;
+    memset(&callbacks, 0, sizeof(callbacks));
+
+    callbacks.recv_header = on_recv_header;
+    callbacks.end_headers = on_end_headers;
+    callbacks.recv_data = on_recv_data;
+    callbacks.end_stream = on_end_stream;
+    callbacks.stream_close = on_stream_close;
+    callbacks.stop_sending = on_stop_sending;
+    callbacks.reset_stream = on_reset_stream;
+
+    return callbacks;
+}
+
+void Connection::setup_settings(nghttp3_settings *settings) {
+    nghttp3_settings_default(settings);
+    settings->qpack_max_dtable_capacity = SW_HTTP3_MAX_TABLE_CAPACITY;
+    settings->qpack_blocked_streams = SW_HTTP3_MAX_BLOCKED_STREAMS;
+    settings->max_field_section_size = SW_HTTP3_MAX_FIELD_SECTION_SIZE;
+}
+
+bool Connection::init_server() {
+    is_server = 1;
+
+    nghttp3_callbacks callbacks = create_callbacks();
+    nghttp3_settings settings;
+    setup_settings(&settings);
+
+    int rv = nghttp3_conn_server_new(&conn, &callbacks, &settings, nullptr, this);
+    if (rv != 0) {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_HTTP3_INIT,
+                         "nghttp3_conn_server_new failed: %s", nghttp3_strerror(rv));
+        return false;
+    }
+
+    nghttp3_conn_set_max_client_streams_bidi(conn, SW_QUIC_MAX_STREAMS);
+
+    return open_control_streams();
+}
+
+bool Connection::init_client() {
+    is_server = 0;
+
+    nghttp3_callbacks callbacks = create_callbacks();
+    nghttp3_settings settings;
+    setup_settings(&settings);
+
+    int rv = nghttp3_conn_client_new(&conn, &callbacks, &settings, nullptr, this);
+    if (rv != 0) {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_HTTP3_INIT,
+                         "nghttp3_conn_client_new failed: %s", nghttp3_strerror(rv));
+        return false;
+    }
+
+    return open_control_streams();
+}
+
+bool Connection::open_control_streams() {
+    if (!quic_conn || !conn) {
+        return false;
+    }
+
+    // Open control stream
+    int64_t stream_id;
+    int rv = nghttp3_conn_bind_control_stream(conn, &stream_id);
+    if (rv != 0) {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_HTTP3_STREAM,
+                         "nghttp3_conn_bind_control_stream failed: %s", nghttp3_strerror(rv));
+        return false;
+    }
+
+    control_stream_id = stream_id;
+    swoole::quic::Stream *qs = quic_conn->open_stream(stream_id);
+    if (!qs) {
+        return false;
+    }
+
+    // Open QPACK encoder stream
+    rv = nghttp3_conn_bind_qpack_streams(conn, &qpack_enc_stream_id, &qpack_dec_stream_id);
+    if (rv != 0) {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_HTTP3_STREAM,
+                         "nghttp3_conn_bind_qpack_streams failed: %s", nghttp3_strerror(rv));
+        return false;
+    }
+
+    swoole::quic::Stream *enc_stream = quic_conn->open_stream(qpack_enc_stream_id);
+    swoole::quic::Stream *dec_stream = quic_conn->open_stream(qpack_dec_stream_id);
+
+    if (!enc_stream || !dec_stream) {
+        return false;
+    }
+
+    control_stream_opened = 1;
+    qpack_streams_opened = 1;
+
+    return send_settings();
+}
+
+bool Connection::send_settings() {
+    if (!conn) {
+        return false;
+    }
+
+    int rv = nghttp3_conn_submit_settings(conn);
+    if (rv != 0) {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_HTTP3_SEND,
+                         "nghttp3_conn_submit_settings failed: %s", nghttp3_strerror(rv));
+        return false;
+    }
+
+    return true;
+}
+
+Stream* Connection::open_stream(int64_t stream_id) {
+    if (!quic_conn) {
+        return nullptr;
+    }
+
+    if (stream_id < 0) {
+        stream_id = next_stream_id;
+        next_stream_id += 4;
+    }
+
+    if (streams.find(stream_id) != streams.end()) {
+        return streams[stream_id];
+    }
+
+    swoole::quic::Stream *qs = quic_conn->open_stream(stream_id);
+    if (!qs) {
+        return nullptr;
+    }
+
+    Stream *stream = new Stream(stream_id, this, qs);
+    streams[stream_id] = stream;
+
+    return stream;
+}
+
+Stream* Connection::get_stream(int64_t stream_id) {
+    auto it = streams.find(stream_id);
+    if (it == streams.end()) {
+        return nullptr;
+    }
+    return it->second;
+}
+
+bool Connection::close_stream(int64_t stream_id) {
+    auto it = streams.find(stream_id);
+    if (it == streams.end()) {
+        return false;
+    }
+
+    Stream *stream = it->second;
+    delete stream;
+    streams.erase(it);
+
+    return true;
+}
+
+ssize_t Connection::read_stream(int64_t stream_id, const uint8_t *data, size_t datalen, bool fin) {
+    if (!conn) {
+        return -1;
+    }
+
+    Stream *stream = get_stream(stream_id);
+    if (!stream) {
+        // Create new stream for incoming data
+        stream = open_stream(stream_id);
+        if (!stream) {
+            return -1;
+        }
+
+        stream->is_request = 1;
+
+        if (on_stream_open) {
+            on_stream_open(this, stream);
+        }
+    }
+
+    int rv = nghttp3_conn_read_stream(conn, stream_id, data, datalen, fin);
+    if (rv != 0) {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_HTTP3_RECV,
+                         "nghttp3_conn_read_stream failed: %s", nghttp3_strerror(rv));
+        return rv;
+    }
+
+    return datalen;
+}
+
+ssize_t Connection::write_streams() {
+    if (!conn || !quic_conn) {
+        return -1;
+    }
+
+    nghttp3_vec vec[16];
+    int64_t stream_id;
+    int fin;
+
+    for (;;) {
+        ssize_t sveccnt = nghttp3_conn_writev_stream(conn, &stream_id, &fin, vec, 16);
+
+        if (sveccnt == 0) {
+            break;
+        }
+
+        if (sveccnt < 0) {
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_HTTP3_SEND,
+                             "nghttp3_conn_writev_stream failed: %s", nghttp3_strerror(sveccnt));
+            return sveccnt;
+        }
+
+        swoole::quic::Stream *qs = quic_conn->get_stream(stream_id);
+        if (!qs) {
+            continue;
+        }
+
+        size_t total = 0;
+        for (ssize_t i = 0; i < sveccnt; i++) {
+            if (!qs->send_data(vec[i].base, vec[i].len, 0)) {
+                return -1;
+            }
+            total += vec[i].len;
+        }
+
+        if (fin) {
+            qs->send_data(nullptr, 0, true);
+        }
+
+        nghttp3_conn_add_write_offset(conn, stream_id, total);
+    }
+
+    return 0;
+}
+
+bool Connection::close() {
+    if (conn) {
+        nghttp3_conn_shutdown(conn, 0);
+    }
+
+    if (quic_conn) {
+        quic_conn->close();
+    }
+
+    return true;
+}
+
+// ==================== HTTP/3 Server Implementation ====================
+
+Server::Server()
+    : quic_server(nullptr),
+      max_field_section_size(SW_HTTP3_MAX_FIELD_SECTION_SIZE),
+      qpack_max_table_capacity(SW_HTTP3_MAX_TABLE_CAPACITY),
+      qpack_blocked_streams(SW_HTTP3_MAX_BLOCKED_STREAMS),
+      on_connection(nullptr),
+      on_request(nullptr),
+      on_stream_close(nullptr),
+      user_data(nullptr) {
+
+    memset(&settings, 0, sizeof(settings));
+    Connection::setup_settings(&settings);
+}
+
+Server::~Server() {
+    stop();
+}
+
+bool Server::bind(const char *host, int port, SSL_CTX *ssl_ctx) {
+    quic_server = new swoole::quic::Server();
+    if (!quic_server) {
+        return false;
+    }
+
+    quic_server->ssl_ctx = ssl_ctx;
+
+    if (!quic_server->bind(host, port)) {
+        delete quic_server;
+        quic_server = nullptr;
+        return false;
+    }
+
+    // Set QUIC server callbacks
+    quic_server->on_connection = [](swoole::quic::Server *qs, swoole::quic::Connection *qc) {
+        Server *h3s = (Server *) qs->user_data;
+        if (h3s) {
+            h3s->accept_connection(qc);
+        }
+    };
+
+    quic_server->on_stream_open = [](swoole::quic::Connection *qc, swoole::quic::Stream *qs) {
+        Connection *h3c = (Connection *) qc->user_data;
+        if (h3c && h3c->on_stream_open) {
+            Stream *h3s = (Stream *) qs->user_data;
+            if (h3s) {
+                h3c->on_stream_open(h3c, h3s);
+            }
+        }
+    };
+
+    quic_server->on_stream_data = [](swoole::quic::Connection *qc, swoole::quic::Stream *qs,
+                                      const uint8_t *data, size_t len) {
+        Connection *h3c = (Connection *) qc->user_data;
+        if (h3c) {
+            bool fin = qs->fin_received;
+            h3c->read_stream(qs->stream_id, data, len, fin);
+            h3c->write_streams();
+        }
+    };
+
+    quic_server->on_stream_close = [](swoole::quic::Connection *qc, swoole::quic::Stream *qs) {
+        Connection *h3c = (Connection *) qc->user_data;
+        if (h3c && h3c->on_stream_close) {
+            Stream *h3s = (Stream *) qs->user_data;
+            if (h3s) {
+                h3c->on_stream_close(h3c, h3s);
+            }
+        }
+    };
+
+    quic_server->user_data = this;
+
+    return true;
+}
+
+Connection* Server::accept_connection(swoole::quic::Connection *quic_conn) {
+    if (!quic_conn) {
+        return nullptr;
+    }
+
+    Connection *conn = new Connection(quic_conn);
+    if (!conn->init_server()) {
+        delete conn;
+        return nullptr;
+    }
+
+    // Set HTTP/3 callbacks
+    conn->on_stream_open = [](Connection *c, Stream *s) {
+        Server *server = (Server *) c->user_data;
+        if (server && server->on_request) {
+            server->on_request(c, s);
+        }
+    };
+
+    conn->on_stream_close = [](Connection *c, Stream *s) {
+        Server *server = (Server *) c->user_data;
+        if (server && server->on_stream_close) {
+            server->on_stream_close(c, s);
+        }
+    };
+
+    conn->user_data = this;
+    connections[quic_conn] = conn;
+
+    if (on_connection) {
+        on_connection(this, conn);
+    }
+
+    return conn;
+}
+
+bool Server::remove_connection(Connection *conn) {
+    for (auto it = connections.begin(); it != connections.end(); ++it) {
+        if (it->second == conn) {
+            delete conn;
+            connections.erase(it);
+            return true;
+        }
+    }
+    return false;
+}
+
+bool Server::start() {
+    if (!quic_server) {
+        return false;
+    }
+
+    quic_server->run();
+    return true;
+}
+
+void Server::stop() {
+    for (auto &pair : connections) {
+        delete pair.second;
+    }
+    connections.clear();
+
+    if (quic_server) {
+        delete quic_server;
+        quic_server = nullptr;
+    }
+}
 
 #endif // SW_USE_HTTP3
