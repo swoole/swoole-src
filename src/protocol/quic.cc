@@ -516,6 +516,10 @@ bool Connection::init_server(const struct sockaddr *local_addr, socklen_t local_
 
     ngtcp2_conn_set_tls_native_handle(conn, ssl);
 
+    // Note: Initial crypto keys will be installed automatically by
+    // ngtcp2_crypto_recv_client_initial_cb when we receive the first
+    // valid Initial packet from the client
+
     state = SW_QUIC_STATE_HANDSHAKE;
     return true;
 }
@@ -838,14 +842,23 @@ Connection* swoole::quic::Server::accept_connection(const struct sockaddr *remot
         conn->on_stream_data = on_stream_data;
     }
 
-    connections[cid_str] = conn;
-
     if (on_connection) {
         on_connection(this, conn);
     }
 
     // Process initial packet
-    conn->recv_packet(data, datalen);
+    int recv_rv = conn->recv_packet(data, datalen);
+
+    if (recv_rv < 0) {
+        // Failed to process initial packet - this connection is invalid
+        // This is expected for non-QUIC packets or malformed data
+        swoole_trace("Failed to process initial packet, dropping connection");
+        delete conn;
+        return nullptr;
+    }
+
+    // Only add to connections map if initial packet was successfully processed
+    connections[cid_str] = conn;
 
     return conn;
 }
@@ -916,7 +929,7 @@ void swoole::quic::Server::run() {
                 continue;
             }
 
-            swoole_warning("QUIC server received %zd bytes from client", nread);
+            swoole_trace("QUIC server received %zd bytes from client", nread);
 
             // Try to parse packet header to get destination CID
             ngtcp2_version_cid version_cid;
@@ -937,10 +950,10 @@ void swoole::quic::Server::run() {
                     // New connection - accept it
                     conn = accept_connection((struct sockaddr *) &addr, addrlen, buf, nread);
                     if (!conn) {
-                        swoole_error_log(SW_LOG_WARNING, SW_ERROR_QUIC_INIT, "Failed to accept connection");
+                        swoole_trace("Failed to accept connection");
                         continue;
                     }
-                    swoole_warning("Accepted new QUIC connection, total connections: %zu", connections.size());
+                    swoole_trace("Accepted new QUIC connection, total connections: %zu", connections.size());
                     // First packet was already processed in accept_connection
                     goto send_packets;
                 }
