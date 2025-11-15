@@ -456,6 +456,12 @@ bool Connection::init_server(const struct sockaddr *local_addr, socklen_t local_
     ngtcp2_callbacks callbacks = create_callbacks();
     setup_settings(&settings);
 
+    // Setup transport params for server
+    setup_transport_params(&params);
+    // Server must set original_dcid to the client's initial DCID
+    params.original_dcid = *dcid;
+    params.original_dcid_present = 1;
+
     last_ts = timestamp();
     settings.initial_ts = last_ts;
 
